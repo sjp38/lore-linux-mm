@@ -1,162 +1,145 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx134.postini.com [74.125.245.134])
-	by kanga.kvack.org (Postfix) with SMTP id 1A46D6B002C
+Received: from psmtp.com (na3sys010amx204.postini.com [74.125.245.204])
+	by kanga.kvack.org (Postfix) with SMTP id 2ECEB6B13F0
 	for <linux-mm@kvack.org>; Fri, 10 Feb 2012 12:32:36 -0500 (EST)
-MIME-version: 1.0
-Content-transfer-encoding: 7BIT
-Content-type: TEXT/PLAIN
-Received: from euspt1 ([210.118.77.13]) by mailout3.w1.samsung.com
- (Sun Java(tm) System Messaging Server 6.3-8.04 (built Jul 29 2009; 32bit))
- with ESMTP id <0LZ6007EDU2AL580@mailout3.w1.samsung.com> for
- linux-mm@kvack.org; Fri, 10 Feb 2012 17:32:34 +0000 (GMT)
+Received: from euspt1 (mailout1.w1.samsung.com [210.118.77.11])
+ by mailout1.w1.samsung.com
+ (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14 2004))
+ with ESMTP id <0LZ600FT4U2AV1@mailout1.w1.samsung.com> for linux-mm@kvack.org;
+ Fri, 10 Feb 2012 17:32:34 +0000 (GMT)
 Received: from linux.samsung.com ([106.116.38.10])
  by spt1.w1.samsung.com (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14
- 2004)) with ESMTPA id <0LZ6004IJU29AJ@spt1.w1.samsung.com> for
+ 2004)) with ESMTPA id <0LZ6004IIU29AJ@spt1.w1.samsung.com> for
  linux-mm@kvack.org; Fri, 10 Feb 2012 17:32:34 +0000 (GMT)
-Date: Fri, 10 Feb 2012 18:32:17 +0100
+Date: Fri, 10 Feb 2012 18:32:15 +0100
 From: Marek Szyprowski <m.szyprowski@samsung.com>
-Subject: [PATCHv21 02/16] mm: compaction: introduce isolate_migratepages_range()
-In-reply-to: <1328895151-5196-1-git-send-email-m.szyprowski@samsung.com>
-Message-id: <1328895151-5196-3-git-send-email-m.szyprowski@samsung.com>
-References: <1328895151-5196-1-git-send-email-m.szyprowski@samsung.com>
+Subject: [PATCHv21 00/16] Contiguous Memory Allocator
+Message-id: <1328895151-5196-1-git-send-email-m.szyprowski@samsung.com>
+MIME-version: 1.0
+Content-type: TEXT/PLAIN
+Content-transfer-encoding: 7BIT
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-media@vger.kernel.org, linux-mm@kvack.org, linaro-mm-sig@lists.linaro.org
 Cc: Michal Nazarewicz <mina86@mina86.com>, Marek Szyprowski <m.szyprowski@samsung.com>, Kyungmin Park <kyungmin.park@samsung.com>, Russell King <linux@arm.linux.org.uk>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daniel Walker <dwalker@codeaurora.org>, Mel Gorman <mel@csn.ul.ie>, Arnd Bergmann <arnd@arndb.de>, Jesse Barker <jesse.barker@linaro.org>, Jonathan Corbet <corbet@lwn.net>, Shariq Hasnain <shariq.hasnain@linaro.org>, Chunsang Jeong <chunsang.jeong@linaro.org>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Gaignard <benjamin.gaignard@linaro.org>, Rob Clark <rob.clark@linaro.org>, Ohad Ben-Cohen <ohad@wizery.com>
 
-From: Michal Nazarewicz <mina86@mina86.com>
+Hello,
 
-This commit introduces isolate_migratepages_range() function which
-extracts functionality from isolate_migratepages() so that it can be
-used on arbitrary PFN ranges.
+This is yet another quick update on CMA patches (this should be the last
+one, really). We fixed minor bug which might cause incorrect operation
+of memory compaction code as well as merged some simple updates to
+memory reclaim function called by alloc_contig_range. 
 
-isolate_migratepages() function is implemented as a simple wrapper
-around isolate_migratepages_range().
+I really hope that this will be a last iteration of this series.
 
-Signed-off-by: Michal Nazarewicz <mina86@mina86.com>
-Signed-off-by: Marek Szyprowski <m.szyprowski@samsung.com>
-Acked-by: Mel Gorman <mel@csn.ul.ie>
-Tested-by: Rob Clark <rob.clark@linaro.org>
-Tested-by: Ohad Ben-Cohen <ohad@wizery.com>
-Tested-by: Benjamin Gaignard <benjamin.gaignard@linaro.org>
----
- mm/compaction.c |   75 +++++++++++++++++++++++++++++++++++++++---------------
- 1 files changed, 54 insertions(+), 21 deletions(-)
+Best regards
+Marek Szyprowski
+Samsung Poland R&D Center
 
-diff --git a/mm/compaction.c b/mm/compaction.c
-index 71a58f6..62902b6 100644
---- a/mm/compaction.c
-+++ b/mm/compaction.c
-@@ -250,31 +250,34 @@ typedef enum {
- 	ISOLATE_SUCCESS,	/* Pages isolated, migrate */
- } isolate_migrate_t;
- 
--/*
-- * Isolate all pages that can be migrated from the block pointed to by
-- * the migrate scanner within compact_control.
-+/**
-+ * isolate_migratepages_range() - isolate all migrate-able pages in range.
-+ * @zone:	Zone pages are in.
-+ * @cc:		Compaction control structure.
-+ * @low_pfn:	The first PFN of the range.
-+ * @end_pfn:	The one-past-the-last PFN of the range.
-+ *
-+ * Isolate all pages that can be migrated from the range specified by
-+ * [low_pfn, end_pfn).  Returns zero if there is a fatal signal
-+ * pending), otherwise PFN of the first page that was not scanned
-+ * (which may be both less, equal to or more then end_pfn).
-+ *
-+ * Assumes that cc->migratepages is empty and cc->nr_migratepages is
-+ * zero.
-+ *
-+ * Apart from cc->migratepages and cc->nr_migratetypes this function
-+ * does not modify any cc's fields, in particular it does not modify
-+ * (or read for that matter) cc->migrate_pfn.
-  */
--static isolate_migrate_t isolate_migratepages(struct zone *zone,
--					struct compact_control *cc)
-+static unsigned long
-+isolate_migratepages_range(struct zone *zone, struct compact_control *cc,
-+			   unsigned long low_pfn, unsigned long end_pfn)
- {
--	unsigned long low_pfn, end_pfn;
- 	unsigned long last_pageblock_nr = 0, pageblock_nr;
- 	unsigned long nr_scanned = 0, nr_isolated = 0;
- 	struct list_head *migratelist = &cc->migratepages;
- 	isolate_mode_t mode = ISOLATE_ACTIVE|ISOLATE_INACTIVE;
- 
--	/* Do not scan outside zone boundaries */
--	low_pfn = max(cc->migrate_pfn, zone->zone_start_pfn);
--
--	/* Only scan within a pageblock boundary */
--	end_pfn = ALIGN(low_pfn + pageblock_nr_pages, pageblock_nr_pages);
--
--	/* Do not cross the free scanner or scan within a memory hole */
--	if (end_pfn > cc->free_pfn || !pfn_valid(low_pfn)) {
--		cc->migrate_pfn = end_pfn;
--		return ISOLATE_NONE;
--	}
--
- 	/*
- 	 * Ensure that there are not too many pages isolated from the LRU
- 	 * list by either parallel reclaimers or compaction. If there are,
-@@ -283,12 +286,12 @@ static isolate_migrate_t isolate_migratepages(struct zone *zone,
- 	while (unlikely(too_many_isolated(zone))) {
- 		/* async migration should just abort */
- 		if (!cc->sync)
--			return ISOLATE_ABORT;
-+			return 0;
- 
- 		congestion_wait(BLK_RW_ASYNC, HZ/10);
- 
- 		if (fatal_signal_pending(current))
--			return ISOLATE_ABORT;
-+			return 0;
- 	}
- 
- 	/* Time to isolate some pages for migration */
-@@ -374,10 +377,40 @@ static isolate_migrate_t isolate_migratepages(struct zone *zone,
- 	acct_isolated(zone, cc);
- 
- 	spin_unlock_irq(&zone->lru_lock);
--	cc->migrate_pfn = low_pfn;
- 
- 	trace_mm_compaction_isolate_migratepages(nr_scanned, nr_isolated);
- 
-+	return low_pfn;
-+}
-+
-+/*
-+ * Isolate all pages that can be migrated from the block pointed to by
-+ * the migrate scanner within compact_control.
-+ */
-+static isolate_migrate_t isolate_migratepages(struct zone *zone,
-+					struct compact_control *cc)
-+{
-+	unsigned long low_pfn, end_pfn;
-+
-+	/* Do not scan outside zone boundaries */
-+	low_pfn = max(cc->migrate_pfn, zone->zone_start_pfn);
-+
-+	/* Only scan within a pageblock boundary */
-+	end_pfn = ALIGN(low_pfn + pageblock_nr_pages, pageblock_nr_pages);
-+
-+	/* Do not cross the free scanner or scan within a memory hole */
-+	if (end_pfn > cc->free_pfn || !pfn_valid(low_pfn)) {
-+		cc->migrate_pfn = end_pfn;
-+		return ISOLATE_NONE;
-+	}
-+
-+	/* Perform the isolation */
-+	low_pfn = isolate_migratepages_range(zone, cc, low_pfn, end_pfn);
-+	if (!low_pfn)
-+		return ISOLATE_ABORT;
-+
-+	cc->migrate_pfn = low_pfn;
-+
- 	return ISOLATE_SUCCESS;
- }
- 
+Links to previous versions of the patchset:
+v20: <http://www.spinics.net/lists/linux-mm/msg29145.html>
+v19: <http://www.spinics.net/lists/linux-mm/msg29145.html>
+v18: <http://www.spinics.net/lists/linux-mm/msg28125.html>
+v17: <http://www.spinics.net/lists/arm-kernel/msg148499.html>
+v16: <http://www.spinics.net/lists/linux-mm/msg25066.html>
+v15: <http://www.spinics.net/lists/linux-mm/msg23365.html>
+v14: <http://www.spinics.net/lists/linux-media/msg36536.html>
+v13: (internal, intentionally not released)
+v12: <http://www.spinics.net/lists/linux-media/msg35674.html>
+v11: <http://www.spinics.net/lists/linux-mm/msg21868.html>
+v10: <http://www.spinics.net/lists/linux-mm/msg20761.html>
+ v9: <http://article.gmane.org/gmane.linux.kernel.mm/60787>
+ v8: <http://article.gmane.org/gmane.linux.kernel.mm/56855>
+ v7: <http://article.gmane.org/gmane.linux.kernel.mm/55626>
+ v6: <http://article.gmane.org/gmane.linux.kernel.mm/55626>
+ v5: (intentionally left out as CMA v5 was identical to CMA v4)
+ v4: <http://article.gmane.org/gmane.linux.kernel.mm/52010>
+ v3: <http://article.gmane.org/gmane.linux.kernel.mm/51573>
+ v2: <http://article.gmane.org/gmane.linux.kernel.mm/50986>
+ v1: <http://article.gmane.org/gmane.linux.kernel.mm/50669>
+
+
+Changelog:
+
+v21:
+    1. Fixed incorrect check which broke memory compaction code
+
+    2. Fixed hacky and racy min_free_kbytes handling
+
+    3. Added serialization patch to watermark calculation
+
+    4. Fixed typos here and there in the comments
+
+v20 and earlier - see previous patchsets.
+
+
+Patches in this patchset:
+
+Marek Szyprowski (6):
+  mm: extract reclaim code from __alloc_pages_direct_reclaim()
+  mm: trigger page reclaim in alloc_contig_range() to stabilise
+    watermarks
+  drivers: add Contiguous Memory Allocator
+  X86: integrate CMA with DMA-mapping subsystem
+  ARM: integrate CMA with DMA-mapping subsystem
+  ARM: Samsung: use CMA for 2 memory banks for s5p-mfc device
+
+Mel Gorman (1):
+  mm: Serialize access to min_free_kbytes
+
+Michal Nazarewicz (9):
+  mm: page_alloc: remove trailing whitespace
+  mm: compaction: introduce isolate_migratepages_range()
+  mm: compaction: introduce map_pages()
+  mm: compaction: introduce isolate_freepages_range()
+  mm: compaction: export some of the functions
+  mm: page_alloc: introduce alloc_contig_range()
+  mm: page_alloc: change fallbacks array handling
+  mm: mmzone: MIGRATE_CMA migration type added
+  mm: page_isolation: MIGRATE_CMA isolation functions added
+
+ Documentation/kernel-parameters.txt   |    9 +
+ arch/Kconfig                          |    3 +
+ arch/arm/Kconfig                      |    2 +
+ arch/arm/include/asm/dma-contiguous.h |   16 ++
+ arch/arm/include/asm/mach/map.h       |    1 +
+ arch/arm/kernel/setup.c               |    9 +-
+ arch/arm/mm/dma-mapping.c             |  368 ++++++++++++++++++++++++------
+ arch/arm/mm/init.c                    |   24 ++-
+ arch/arm/mm/mm.h                      |    3 +
+ arch/arm/mm/mmu.c                     |   31 ++-
+ arch/arm/plat-s5p/dev-mfc.c           |   51 +----
+ arch/x86/Kconfig                      |    1 +
+ arch/x86/include/asm/dma-contiguous.h |   13 +
+ arch/x86/include/asm/dma-mapping.h    |    4 +
+ arch/x86/kernel/pci-dma.c             |   18 ++-
+ arch/x86/kernel/pci-nommu.c           |    8 +-
+ arch/x86/kernel/setup.c               |    2 +
+ drivers/base/Kconfig                  |   89 +++++++
+ drivers/base/Makefile                 |    1 +
+ drivers/base/dma-contiguous.c         |  403 +++++++++++++++++++++++++++++++
+ include/asm-generic/dma-contiguous.h  |   27 ++
+ include/linux/device.h                |    4 +
+ include/linux/dma-contiguous.h        |  110 +++++++++
+ include/linux/gfp.h                   |   12 +
+ include/linux/mmzone.h                |   47 +++-
+ include/linux/page-isolation.h        |   18 +-
+ mm/Kconfig                            |    2 +-
+ mm/Makefile                           |    3 +-
+ mm/compaction.c                       |  418 +++++++++++++++++++++------------
+ mm/internal.h                         |   33 +++
+ mm/memory-failure.c                   |    2 +-
+ mm/memory_hotplug.c                   |    6 +-
+ mm/page_alloc.c                       |  413 ++++++++++++++++++++++++++++----
+ mm/page_isolation.c                   |   15 +-
+ mm/vmstat.c                           |    3 +
+ 35 files changed, 1794 insertions(+), 375 deletions(-)
+ create mode 100644 arch/arm/include/asm/dma-contiguous.h
+ create mode 100644 arch/x86/include/asm/dma-contiguous.h
+ create mode 100644 drivers/base/dma-contiguous.c
+ create mode 100644 include/asm-generic/dma-contiguous.h
+ create mode 100644 include/linux/dma-contiguous.h
+
 -- 
 1.7.1.569.g6f426
 
