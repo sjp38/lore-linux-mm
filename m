@@ -1,41 +1,103 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx119.postini.com [74.125.245.119])
-	by kanga.kvack.org (Postfix) with SMTP id 933806B002C
-	for <linux-mm@kvack.org>; Fri, 10 Feb 2012 12:01:56 -0500 (EST)
-Message-ID: <4F354D51.7020408@redhat.com>
-Date: Fri, 10 Feb 2012 12:01:05 -0500
-From: Rik van Riel <riel@redhat.com>
-MIME-Version: 1.0
-Subject: Re: [Bug 42578] Kernel crash "Out of memory error by X" when using
- NTFS file system on external USB Hard drive
-References: <bug-42578-27@https.bugzilla.kernel.org/> <201201180922.q0I9MCYl032623@bugzilla.kernel.org> <20120119122448.1cce6e76.akpm@linux-foundation.org> <20120210163748.GR5796@csn.ul.ie>
-In-Reply-To: <20120210163748.GR5796@csn.ul.ie>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx163.postini.com [74.125.245.163])
+	by kanga.kvack.org (Postfix) with SMTP id 3024D6B13F1
+	for <linux-mm@kvack.org>; Fri, 10 Feb 2012 12:32:36 -0500 (EST)
+Received: from euspt2 (mailout2.w1.samsung.com [210.118.77.12])
+ by mailout2.w1.samsung.com
+ (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14 2004))
+ with ESMTP id <0LZ6005W6U2AB8@mailout2.w1.samsung.com> for linux-mm@kvack.org;
+ Fri, 10 Feb 2012 17:32:34 +0000 (GMT)
+Received: from linux.samsung.com ([106.116.38.10])
+ by spt2.w1.samsung.com (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14
+ 2004)) with ESMTPA id <0LZ6000VEU29TZ@spt2.w1.samsung.com> for
+ linux-mm@kvack.org; Fri, 10 Feb 2012 17:32:34 +0000 (GMT)
+Date: Fri, 10 Feb 2012 18:32:16 +0100
+From: Marek Szyprowski <m.szyprowski@samsung.com>
+Subject: [PATCHv21 01/16] mm: page_alloc: remove trailing whitespace
+In-reply-to: <1328895151-5196-1-git-send-email-m.szyprowski@samsung.com>
+Message-id: <1328895151-5196-2-git-send-email-m.szyprowski@samsung.com>
+MIME-version: 1.0
+Content-type: TEXT/PLAIN
+Content-transfer-encoding: 7BIT
+References: <1328895151-5196-1-git-send-email-m.szyprowski@samsung.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, bugzilla-daemon@bugzilla.kernel.org, Stuart Foster <smf.linux@ntlworld.com>, Johannes Weiner <hannes@cmpxchg.org>
+To: linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-media@vger.kernel.org, linux-mm@kvack.org, linaro-mm-sig@lists.linaro.org
+Cc: Michal Nazarewicz <mina86@mina86.com>, Marek Szyprowski <m.szyprowski@samsung.com>, Kyungmin Park <kyungmin.park@samsung.com>, Russell King <linux@arm.linux.org.uk>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daniel Walker <dwalker@codeaurora.org>, Mel Gorman <mel@csn.ul.ie>, Arnd Bergmann <arnd@arndb.de>, Jesse Barker <jesse.barker@linaro.org>, Jonathan Corbet <corbet@lwn.net>, Shariq Hasnain <shariq.hasnain@linaro.org>, Chunsang Jeong <chunsang.jeong@linaro.org>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Gaignard <benjamin.gaignard@linaro.org>, Rob Clark <rob.clark@linaro.org>, Ohad Ben-Cohen <ohad@wizery.com>
 
-On 02/10/2012 11:37 AM, Mel Gorman wrote:
-> On Thu, Jan 19, 2012 at 12:24:48PM -0800, Andrew Morton wrote:
+From: Michal Nazarewicz <mina86@mina86.com>
 
->> I think it is was always wrong that we only strip buffer_heads when
->> moving pages to the inactive list.  What happens if those 600MB of
->> buffer_heads are all attached to inactive pages?
->>
->
-> I wondered the same thing myself. With some use-once logic, there is
-> no guarantee that they even get promoted to the active list in the
-> first place. It's "always" been like this but we've changed how pages gets
-> promoted quite a bit and this use case could have been easily missed.
+Signed-off-by: Michal Nazarewicz <mina86@mina86.com>
+Signed-off-by: Marek Szyprowski <m.szyprowski@samsung.com>
+Acked-by: Mel Gorman <mel@csn.ul.ie>
+---
+ mm/page_alloc.c |   18 +++++++++---------
+ 1 files changed, 9 insertions(+), 9 deletions(-)
 
-It may be possible to also strip the buffer heads from
-pages when they are moved to the active list, in
-activate_page().
-
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index d2186ec..7fe7697 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -513,10 +513,10 @@ static inline int page_is_buddy(struct page *page, struct page *buddy,
+  * free pages of length of (1 << order) and marked with _mapcount -2. Page's
+  * order is recorded in page_private(page) field.
+  * So when we are allocating or freeing one, we can derive the state of the
+- * other.  That is, if we allocate a small block, and both were   
+- * free, the remainder of the region must be split into blocks.   
++ * other.  That is, if we allocate a small block, and both were
++ * free, the remainder of the region must be split into blocks.
+  * If a block is freed, and its buddy is also free, then this
+- * triggers coalescing into a block of larger size.            
++ * triggers coalescing into a block of larger size.
+  *
+  * -- wli
+  */
+@@ -1061,17 +1061,17 @@ retry_reserve:
+ 	return page;
+ }
+ 
+-/* 
++/*
+  * Obtain a specified number of elements from the buddy allocator, all under
+  * a single hold of the lock, for efficiency.  Add them to the supplied list.
+  * Returns the number of new pages which were placed at *list.
+  */
+-static int rmqueue_bulk(struct zone *zone, unsigned int order, 
++static int rmqueue_bulk(struct zone *zone, unsigned int order,
+ 			unsigned long count, struct list_head *list,
+ 			int migratetype, int cold)
+ {
+ 	int i;
+-	
++
+ 	spin_lock(&zone->lock);
+ 	for (i = 0; i < count; ++i) {
+ 		struct page *page = __rmqueue(zone, order, migratetype);
+@@ -4258,7 +4258,7 @@ static void __paginginit free_area_init_core(struct pglist_data *pgdat,
+ 	init_waitqueue_head(&pgdat->kswapd_wait);
+ 	pgdat->kswapd_max_order = 0;
+ 	pgdat_page_cgroup_init(pgdat);
+-	
++
+ 	for (j = 0; j < MAX_NR_ZONES; j++) {
+ 		struct zone *zone = pgdat->node_zones + j;
+ 		unsigned long size, realsize, memmap_pages;
+@@ -5081,11 +5081,11 @@ int __meminit init_per_zone_wmark_min(void)
+ module_init(init_per_zone_wmark_min)
+ 
+ /*
+- * min_free_kbytes_sysctl_handler - just a wrapper around proc_dointvec() so 
++ * min_free_kbytes_sysctl_handler - just a wrapper around proc_dointvec() so
+  *	that we can call two helper functions whenever min_free_kbytes
+  *	changes.
+  */
+-int min_free_kbytes_sysctl_handler(ctl_table *table, int write, 
++int min_free_kbytes_sysctl_handler(ctl_table *table, int write,
+ 	void __user *buffer, size_t *length, loff_t *ppos)
+ {
+ 	proc_dointvec(table, write, buffer, length, ppos);
 -- 
-All rights reversed
+1.7.1.569.g6f426
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
