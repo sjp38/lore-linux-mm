@@ -1,21 +1,21 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx194.postini.com [74.125.245.194])
-	by kanga.kvack.org (Postfix) with SMTP id 29FE56B13F5
+Received: from psmtp.com (na3sys010amx195.postini.com [74.125.245.195])
+	by kanga.kvack.org (Postfix) with SMTP id C4FE36B13F1
 	for <linux-mm@kvack.org>; Fri, 10 Feb 2012 16:37:43 -0500 (EST)
 Received: from /spool/local
 	by e28smtp01.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
 	Sat, 11 Feb 2012 03:07:40 +0530
 Received: from d28av04.in.ibm.com (d28av04.in.ibm.com [9.184.220.66])
-	by d28relay04.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q1ALbEGn3756230
-	for <linux-mm@kvack.org>; Sat, 11 Feb 2012 03:07:15 +0530
+	by d28relay04.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q1ALbIhR2416696
+	for <linux-mm@kvack.org>; Sat, 11 Feb 2012 03:07:18 +0530
 Received: from d28av04.in.ibm.com (loopback [127.0.0.1])
-	by d28av04.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q1ALbE9g001680
-	for <linux-mm@kvack.org>; Sat, 11 Feb 2012 08:37:14 +1100
+	by d28av04.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q1ALbILK001723
+	for <linux-mm@kvack.org>; Sat, 11 Feb 2012 08:37:18 +1100
 From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Subject: [RFC PATCH 4/6] hugetlbfs: Add controller support for shared mapping
-Date: Sat, 11 Feb 2012 03:06:44 +0530
-Message-Id: <1328909806-15236-5-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+Subject: [RFC PATCH 5/6] hugetlbfs: Add controller support for private mapping
+Date: Sat, 11 Feb 2012 03:06:45 +0530
+Message-Id: <1328909806-15236-6-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
 In-Reply-To: <1328909806-15236-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
 References: <1328909806-15236-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
@@ -26,46 +26,38 @@ From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
 
 HugeTLB controller is different from a memory controller in that we charge
 controller during mmap() time and not fault time. This make sure userspace
-can fallback to non-hugepage allocation when mmap fails during to controller
+can fallback to non-hugepage allocation when mmap fails due to controller
 limit.
 
-For shared mapping we need to track the hugetlb cgroup along with the range.
-If two task in two different cgroup map the same area only the non-overlapping
-part should be charged to the second task. Hence we need to track the cgroup
-along with range.  We always charge during mmap(2) and we do uncharge during
-truncate. The region list is tracked in the inode->i_mapping->private_list.
+For private mapping we always charge/uncharge from the current task cgroup.
+Charging happens during mmap(2) and uncharge happens during the
+vm_operations->close when resv_map refcount reaches zero. The uncharge count
+is stored in struct resv_map. For child task after fork the charging happens
+during fault time in alloc_huge_page. We also need to make sure for private
+mapping each vma for hugeTLB mapping have struct resv_map allocated so that we
+can store the uncharge count in resv_map.
 
 Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
 ---
- fs/hugetlbfs/hugetlb_cgroup.c  |  114 ++++++++++++++++++++++++++++++++++++++++
- fs/hugetlbfs/inode.c           |    1 +
- include/linux/hugetlb_cgroup.h |   40 ++++++++++++++
- mm/hugetlb.c                   |   85 +++++++++++++++++++++---------
- 4 files changed, 214 insertions(+), 26 deletions(-)
+ fs/hugetlbfs/hugetlb_cgroup.c  |   50 ++++++++++++++++++++++++++++++++
+ include/linux/hugetlb.h        |    7 ++++
+ include/linux/hugetlb_cgroup.h |   16 ++++++++++
+ mm/hugetlb.c                   |   62 ++++++++++++++++++++++++++++++++--------
+ 4 files changed, 123 insertions(+), 12 deletions(-)
 
 diff --git a/fs/hugetlbfs/hugetlb_cgroup.c b/fs/hugetlbfs/hugetlb_cgroup.c
-index c4934c7..c478fb0 100644
+index c478fb0..f828fb2 100644
 --- a/fs/hugetlbfs/hugetlb_cgroup.c
 +++ b/fs/hugetlbfs/hugetlb_cgroup.c
-@@ -17,6 +17,7 @@
- #include <linux/slab.h>
- #include <linux/hugetlb.h>
- #include <linux/res_counter.h>
-+#include <linux/list.h>
- 
- /* lifted from mem control */
- #define MEMFILE_PRIVATE(x, val)	(((x) << 16) | (val))
-@@ -344,3 +345,116 @@ struct cgroup_subsys hugetlb_subsys = {
- 	.populate   = hugetlbcgroup_populate,
- 	.subsys_id  = hugetlb_subsys_id,
- };
+@@ -458,3 +458,53 @@ long  hugetlb_truncate_cgroup_charge(struct hstate *h,
+ 	}
+ 	return chg;
+ }
 +
-+long hugetlb_page_charge(struct list_head *head,
-+			struct hstate *h, long f, long t)
++int hugetlb_priv_page_charge(struct resv_map *map, struct hstate *h, long chg)
 +{
-+	long chg;
-+	int ret = 0, idx;
-+	unsigned long csize;
++	long csize;
++	int idx, ret;
 +	struct hugetlb_cgroup *h_cg;
 +	struct res_counter *fail_res;
 +
@@ -80,358 +72,237 @@ index c4934c7..c478fb0 100644
 +	css_get(&h_cg->css);
 +	rcu_read_unlock();
 +
-+	chg = region_chg_with_same(head, f, t, (unsigned long)h_cg);
-+	if (chg < 0)
++	if (hugetlb_cgroup_is_root(h_cg)) {
++		ret = chg;
 +		goto err_out;
-+
-+	if (hugetlb_cgroup_is_root(h_cg))
-+		goto err_out;
++	}
 +
 +	csize = chg * huge_page_size(h);
 +	idx = h - hstates;
 +	ret = res_counter_charge(&h_cg->memhuge[idx], csize, &fail_res);
-+
++	if (!ret) {
++		map->nr_pages[idx] += chg << huge_page_order(h);
++		ret = chg;
++	}
 +err_out:
-+	/* Now that we have charged we can drop cgroup reference */
 +	css_put(&h_cg->css);
-+	if (!ret)
-+		return chg;
-+
-+	/* We don't worry about region_uncharge */
 +	return ret;
 +}
 +
-+void hugetlb_page_uncharge(struct list_head *head, int idx, int nr_pages)
++void hugetlb_priv_page_uncharge(struct resv_map *map, int idx, int nr_pages)
 +{
 +	struct hugetlb_cgroup *h_cg;
 +	unsigned long csize = nr_pages * PAGE_SIZE;
 +
 +	rcu_read_lock();
 +	h_cg = task_hugetlbcgroup(current);
-+
-+	if (!hugetlb_cgroup_is_root(h_cg))
++	if (!hugetlb_cgroup_is_root(h_cg)) {
 +		res_counter_uncharge(&h_cg->memhuge[idx], csize);
-+	rcu_read_unlock();
-+	/*
-+	 * We could ideally remove zero size regions from
-+	 * resv map hcg_regions here
-+	 */
-+	return;
-+}
-+
-+void hugetlb_commit_page_charge(struct list_head *head, long f, long t)
-+{
-+	struct hugetlb_cgroup *h_cg;
-+
-+	rcu_read_lock();
-+	h_cg = task_hugetlbcgroup(current);
-+	region_add_with_same(head, f, t, (unsigned long)h_cg);
++		map->nr_pages[idx] -= nr_pages;
++	}
 +	rcu_read_unlock();
 +	return;
 +}
-+
-+long  hugetlb_truncate_cgroup_charge(struct hstate *h,
-+				     struct list_head *head, long end)
-+{
-+	long chg = 0, csize;
-+	int idx = h - hstates;
-+	struct hugetlb_cgroup *h_cg;
-+	struct file_region_with_data *rg, *trg;
-+
-+	/* Locate the region we are either in or before. */
-+	list_for_each_entry(rg, head, link)
-+		if (end <= rg->to)
-+			break;
-+	if (&rg->link == head)
-+		return 0;
-+
-+	/* If we are in the middle of a region then adjust it. */
-+	if (end > rg->from) {
-+		chg = rg->to - end;
-+		rg->to = end;
-+		h_cg = (struct hugetlb_cgroup *)rg->data;
-+		if (!hugetlb_cgroup_is_root(h_cg)) {
-+			csize = chg * huge_page_size(h);
-+			res_counter_uncharge(&h_cg->memhuge[idx], csize);
-+		}
-+		rg = list_entry(rg->link.next, typeof(*rg), link);
-+	}
-+
-+	/* Drop any remaining regions. */
-+	list_for_each_entry_safe(rg, trg, rg->link.prev, link) {
-+		if (&rg->link == head)
-+			break;
-+		chg += rg->to - rg->from;
-+		h_cg = (struct hugetlb_cgroup *)rg->data;
-+		if (!hugetlb_cgroup_is_root(h_cg)) {
-+			csize = (rg->to - rg->from) * huge_page_size(h);
-+			res_counter_uncharge(&h_cg->memhuge[idx], csize);
-+		}
-+		list_del(&rg->link);
-+		kfree(rg);
-+	}
-+	return chg;
-+}
-diff --git a/fs/hugetlbfs/inode.c b/fs/hugetlbfs/inode.c
-index 1e85a7a..2680578 100644
---- a/fs/hugetlbfs/inode.c
-+++ b/fs/hugetlbfs/inode.c
-@@ -32,6 +32,7 @@
- #include <linux/security.h>
- #include <linux/magic.h>
- #include <linux/migrate.h>
-+#include <linux/hugetlb_cgroup.h>
- 
- #include <asm/uaccess.h>
- 
-diff --git a/include/linux/hugetlb_cgroup.h b/include/linux/hugetlb_cgroup.h
-index 11cd6c4..3131d62 100644
---- a/include/linux/hugetlb_cgroup.h
-+++ b/include/linux/hugetlb_cgroup.h
-@@ -15,8 +15,48 @@
- #ifndef _LINUX_HUGETLB_CGROUP_H
- #define _LINUX_HUGETLB_CGROUP_H
- 
-+extern long region_add(struct list_head *head, long f, long t);
-+extern long region_chg(struct list_head *head, long f, long t);
-+extern long region_truncate(struct list_head *head, long end);
-+extern long region_count(struct list_head *head, long f, long t);
-+
-+#ifdef CONFIG_CGROUP_HUGETLB_RES_CTLR
- extern u64 hugetlb_cgroup_read(struct cgroup *cgroup, struct cftype *cft);
- extern int hugetlb_cgroup_write(struct cgroup *cgroup, struct cftype *cft,
- 				const char *buffer);
- extern int hugetlb_cgroup_reset(struct cgroup *cgroup, unsigned int event);
-+extern long hugetlb_page_charge(struct list_head *head,
-+				struct hstate *h, long f, long t);
-+extern void hugetlb_page_uncharge(struct list_head *head,
-+				  int idx, int nr_pages);
-+extern void hugetlb_commit_page_charge(struct list_head *head, long f, long t);
-+extern long hugetlb_truncate_cgroup_charge(struct hstate *h,
-+					   struct list_head *head, long from);
-+#else
-+static inline long hugetlb_page_charge(struct list_head *head,
-+				       struct hstate *h, long f, long t)
-+{
-+	return region_chg(head, f, t);
-+}
-+
-+static inline void hugetlb_page_uncharge(struct list_head *head,
-+					 int idx, int nr_pages)
-+{
-+	return;
-+}
-+
-+static inline void hugetlb_commit_page_charge(struct list_head *head,
-+					      long f, long t)
-+{
-+	region_add(head, f, t);
-+	return;
-+}
-+
-+static inline long hugetlb_truncate_cgroup_charge(struct hstate *h,
-+						  struct list_head *head,
-+						  long from)
-+{
-+	return region_truncate(head, from);
-+}
-+#endif /* CONFIG_CGROUP_HUGETLB_RES_CTLR */
- #endif
-diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-index 865b41f..102410f 100644
---- a/mm/hugetlb.c
-+++ b/mm/hugetlb.c
-@@ -78,7 +78,7 @@ struct file_region {
- 	long to;
+diff --git a/include/linux/hugetlb.h b/include/linux/hugetlb.h
+index 4392b6a..e2ba381 100644
+--- a/include/linux/hugetlb.h
++++ b/include/linux/hugetlb.h
+@@ -233,6 +233,12 @@ struct hstate {
+ 	char name[HSTATE_NAME_LEN];
  };
  
--static long region_add(struct list_head *head, long f, long t)
-+long region_add(struct list_head *head, long f, long t)
- {
- 	struct file_region *rg, *nrg, *trg;
- 
-@@ -114,7 +114,7 @@ static long region_add(struct list_head *head, long f, long t)
- 	return 0;
- }
- 
--static long region_chg(struct list_head *head, long f, long t)
-+long region_chg(struct list_head *head, long f, long t)
- {
- 	struct file_region *rg, *nrg;
- 	long chg = 0;
-@@ -163,7 +163,7 @@ static long region_chg(struct list_head *head, long f, long t)
- 	return chg;
- }
- 
--static long region_truncate(struct list_head *head, long end)
-+long region_truncate(struct list_head *head, long end)
- {
- 	struct file_region *rg, *trg;
- 	long chg = 0;
-@@ -193,7 +193,7 @@ static long region_truncate(struct list_head *head, long end)
- 	return chg;
- }
- 
--static long region_count(struct list_head *head, long f, long t)
-+long region_count(struct list_head *head, long f, long t)
- {
- 	struct file_region *rg;
- 	long chg = 0;
-@@ -983,11 +983,11 @@ static long vma_needs_reservation(struct hstate *h,
- 	struct address_space *mapping = vma->vm_file->f_mapping;
- 	struct inode *inode = mapping->host;
- 
++struct resv_map {
++	struct kref refs;
++	int nr_pages[HUGE_MAX_HSTATE];
++	struct list_head regions;
++};
 +
- 	if (vma->vm_flags & VM_MAYSHARE) {
- 		pgoff_t idx = vma_hugecache_offset(h, vma, addr);
--		return region_chg(&inode->i_mapping->private_list,
--							idx, idx + 1);
--
-+		return hugetlb_page_charge(&inode->i_mapping->private_list,
-+					   h, idx, idx + 1);
- 	} else if (!is_vma_resv_set(vma, HPAGE_RESV_OWNER)) {
- 		return 1;
+ struct huge_bootmem_page {
+ 	struct list_head list;
+ 	struct hstate *hstate;
+@@ -323,6 +329,7 @@ static inline unsigned hstate_index_to_shift(unsigned index)
  
-@@ -1002,16 +1002,33 @@ static long vma_needs_reservation(struct hstate *h,
- 		return 0;
- 	}
+ #else
+ struct hstate {};
++struct resv_map {};
+ #define alloc_huge_page_node(h, nid) NULL
+ #define alloc_bootmem_huge_page(h) NULL
+ #define hstate_file(f) NULL
+diff --git a/include/linux/hugetlb_cgroup.h b/include/linux/hugetlb_cgroup.h
+index 3131d62..c3738df 100644
+--- a/include/linux/hugetlb_cgroup.h
++++ b/include/linux/hugetlb_cgroup.h
+@@ -32,6 +32,10 @@ extern void hugetlb_page_uncharge(struct list_head *head,
+ extern void hugetlb_commit_page_charge(struct list_head *head, long f, long t);
+ extern long hugetlb_truncate_cgroup_charge(struct hstate *h,
+ 					   struct list_head *head, long from);
++extern int hugetlb_priv_page_charge(struct resv_map *map,
++				    struct hstate *h, long chg);
++extern void hugetlb_priv_page_uncharge(struct resv_map *map,
++				       int idx, int nr_pages);
+ #else
+ static inline long hugetlb_page_charge(struct list_head *head,
+ 				       struct hstate *h, long f, long t)
+@@ -58,5 +62,17 @@ static inline long hugetlb_truncate_cgroup_charge(struct hstate *h,
+ {
+ 	return region_truncate(head, from);
  }
 +
-+static void vma_uncharge_reservation(struct hstate *h,
-+				     struct vm_area_struct *vma,
-+				     unsigned long chg)
++static inline int hugetlb_priv_page_charge(struct resv_map *map,
++					   struct hstate *h, long chg)
 +{
-+	struct address_space *mapping = vma->vm_file->f_mapping;
-+	struct inode *inode = mapping->host;
-+
-+
-+	if (vma->vm_flags & VM_MAYSHARE) {
-+		return hugetlb_page_uncharge(&inode->i_mapping->private_list,
-+					     h - hstates,
-+					     chg << huge_page_order(h));
-+	}
++	return chg;
 +}
 +
- static void vma_commit_reservation(struct hstate *h,
- 			struct vm_area_struct *vma, unsigned long addr)
++static inline void hugetlb_priv_page_uncharge(struct resv_map *map,
++					      int idx, int nr_pages)
++{
++	return;
++}
+ #endif /* CONFIG_CGROUP_HUGETLB_RES_CTLR */
+ #endif
+diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+index 102410f..5a91838 100644
+--- a/mm/hugetlb.c
++++ b/mm/hugetlb.c
+@@ -303,14 +303,9 @@ static void set_vma_private_data(struct vm_area_struct *vma,
+ 	vma->vm_private_data = (void *)value;
+ }
+ 
+-struct resv_map {
+-	struct kref refs;
+-	struct list_head regions;
+-};
+-
+ static struct resv_map *resv_map_alloc(void)
  {
-+
+-	struct resv_map *resv_map = kmalloc(sizeof(*resv_map), GFP_KERNEL);
++	struct resv_map *resv_map = kzalloc(sizeof(*resv_map), GFP_KERNEL);
+ 	if (!resv_map)
+ 		return NULL;
+ 
+@@ -322,10 +317,16 @@ static struct resv_map *resv_map_alloc(void)
+ 
+ static void resv_map_release(struct kref *ref)
+ {
++	int idx;
+ 	struct resv_map *resv_map = container_of(ref, struct resv_map, refs);
+ 
+ 	/* Clear out any active regions before we release the map. */
+ 	region_truncate(&resv_map->regions, 0);
++	/* drop the hugetlb cgroup charge */
++	for (idx = 0; idx < HUGE_MAX_HSTATE; idx++) {
++		hugetlb_priv_page_uncharge(resv_map, idx,
++					   resv_map->nr_pages[idx]);
++	}
+ 	kfree(resv_map);
+ }
+ 
+@@ -989,9 +990,20 @@ static long vma_needs_reservation(struct hstate *h,
+ 		return hugetlb_page_charge(&inode->i_mapping->private_list,
+ 					   h, idx, idx + 1);
+ 	} else if (!is_vma_resv_set(vma, HPAGE_RESV_OWNER)) {
+-		return 1;
+-
++		struct resv_map *resv_map = vma_resv_map(vma);
++		if (!resv_map) {
++			/*
++			 * We didn't allocate resv_map for this vma.
++			 * Allocate it here.
++			 */
++			resv_map = resv_map_alloc();
++			if (!resv_map)
++				return -ENOMEM;
++			set_vma_resv_map(vma, resv_map);
++		}
++		return hugetlb_priv_page_charge(resv_map, h, 1);
+ 	} else  {
++		/* We did the priv page charging in mmap call */
+ 		long err;
+ 		pgoff_t idx = vma_hugecache_offset(h, vma, addr);
+ 		struct resv_map *reservations = vma_resv_map(vma);
+@@ -1007,14 +1019,20 @@ static void vma_uncharge_reservation(struct hstate *h,
+ 				     struct vm_area_struct *vma,
+ 				     unsigned long chg)
+ {
++	int idx = h - hstates;
  	struct address_space *mapping = vma->vm_file->f_mapping;
  	struct inode *inode = mapping->host;
  
+ 
  	if (vma->vm_flags & VM_MAYSHARE) {
- 		pgoff_t idx = vma_hugecache_offset(h, vma, addr);
--		region_add(&inode->i_mapping->private_list, idx, idx + 1);
--
-+		hugetlb_commit_page_charge(&inode->i_mapping->private_list,
-+					   idx, idx + 1);
- 	} else if (is_vma_resv_set(vma, HPAGE_RESV_OWNER)) {
- 		pgoff_t idx = vma_hugecache_offset(h, vma, addr);
- 		struct resv_map *reservations = vma_resv_map(vma);
-@@ -1040,9 +1057,12 @@ static struct page *alloc_huge_page(struct vm_area_struct *vma,
- 	chg = vma_needs_reservation(h, vma, addr);
- 	if (chg < 0)
- 		return ERR_PTR(-VM_FAULT_OOM);
--	if (chg)
--		if (hugetlb_get_quota(inode->i_mapping, chg))
-+	if (chg) {
-+		if (hugetlb_get_quota(inode->i_mapping, chg)) {
-+			vma_uncharge_reservation(h, vma, chg);
- 			return ERR_PTR(-VM_FAULT_SIGBUS);
-+		}
-+	}
- 
- 	spin_lock(&hugetlb_lock);
- 	page = dequeue_huge_page_vma(h, vma, addr, avoid_reserve);
-@@ -1051,7 +1071,10 @@ static struct page *alloc_huge_page(struct vm_area_struct *vma,
- 	if (!page) {
- 		page = alloc_buddy_huge_page(h, NUMA_NO_NODE);
- 		if (!page) {
--			hugetlb_put_quota(inode->i_mapping, chg);
-+			if (chg) {
-+				vma_uncharge_reservation(h, vma, chg);
-+				hugetlb_put_quota(inode->i_mapping, chg);
-+			}
- 			return ERR_PTR(-VM_FAULT_SIGBUS);
- 		}
+ 		return hugetlb_page_uncharge(&inode->i_mapping->private_list,
+-					     h - hstates,
+-					     chg << huge_page_order(h));
++					     idx, chg << huge_page_order(h));
++	} else {
++		struct resv_map *resv_map = vma_resv_map(vma);
++
++		return hugetlb_priv_page_uncharge(resv_map,
++						  idx,
++						  chg << huge_page_order(h));
  	}
-@@ -1059,7 +1082,6 @@ static struct page *alloc_huge_page(struct vm_area_struct *vma,
- 	set_page_private(page, (unsigned long) mapping);
- 
- 	vma_commit_reservation(h, vma, addr);
--
- 	return page;
  }
  
-@@ -2961,9 +2983,10 @@ int hugetlb_reserve_pages(struct inode *inode,
- 	 * to reserve the full area even if read-only as mprotect() may be
- 	 * called to make the mapping read-write. Assume !vma is a shm mapping
+@@ -2165,6 +2183,22 @@ static void hugetlb_vm_op_open(struct vm_area_struct *vma)
  	 */
--	if (!vma || vma->vm_flags & VM_MAYSHARE)
--		chg = region_chg(&inode->i_mapping->private_list, from, to);
--	else {
-+	if (!vma || vma->vm_flags & VM_MAYSHARE) {
-+		chg = hugetlb_page_charge(&inode->i_mapping->private_list,
-+					  h, from, to);
-+	} else {
- 		struct resv_map *resv_map = resv_map_alloc();
+ 	if (reservations)
+ 		kref_get(&reservations->refs);
++	else if (!(vma->vm_flags & VM_MAYSHARE)) {
++		/*
++		 * for non shared vma we need resv map to track
++		 * hugetlb cgroup usage. Allocate it here. Charging
++		 * the cgroup will take place in fault path.
++		 */
++		struct resv_map *resv_map = resv_map_alloc();
++		/*
++		 * If we fail to allocate resv_map here. We will allocate
++		 * one when we do alloc_huge_page. So we don't handle
++		 * ENOMEM here. The function also return void. So there is
++		 * nothing much we can do.
++		 */
++		if (resv_map)
++			set_vma_resv_map(vma, resv_map);
++	}
+ }
+ 
+ static void hugetlb_vm_op_close(struct vm_area_struct *vma)
+@@ -2968,7 +3002,7 @@ int hugetlb_reserve_pages(struct inode *inode,
+ {
+ 	long ret, chg;
+ 	struct hstate *h = hstate_inode(inode);
+-
++	struct resv_map *resv_map = NULL;
+ 	/*
+ 	 * Only apply hugepage reservation if asked. At fault time, an
+ 	 * attempt will be made for VM_NORESERVE to allocate a page
+@@ -2987,7 +3021,7 @@ int hugetlb_reserve_pages(struct inode *inode,
+ 		chg = hugetlb_page_charge(&inode->i_mapping->private_list,
+ 					  h, from, to);
+ 	} else {
+-		struct resv_map *resv_map = resv_map_alloc();
++		resv_map = resv_map_alloc();
  		if (!resv_map)
  			return -ENOMEM;
-@@ -2978,19 +3001,17 @@ int hugetlb_reserve_pages(struct inode *inode,
- 		return chg;
  
- 	/* There must be enough filesystem quota for the mapping */
--	if (hugetlb_get_quota(inode->i_mapping, chg))
--		return -ENOSPC;
--
-+	if (hugetlb_get_quota(inode->i_mapping, chg)) {
-+		ret = -ENOSPC;
-+		goto err_quota;
-+	}
- 	/*
- 	 * Check enough hugepages are available for the reservation.
- 	 * Hand back the quota if there are not
- 	 */
- 	ret = hugetlb_acct_memory(h, chg);
--	if (ret < 0) {
--		hugetlb_put_quota(inode->i_mapping, chg);
--		return ret;
--	}
--
-+	if (ret < 0)
-+		goto err_acct_mem;
- 	/*
- 	 * Account for the reservations made. Shared mappings record regions
- 	 * that have reservations as they are shared by multiple VMAs.
-@@ -3003,14 +3024,26 @@ int hugetlb_reserve_pages(struct inode *inode,
- 	 * else has to be done for private mappings here
- 	 */
+@@ -2995,6 +3029,7 @@ int hugetlb_reserve_pages(struct inode *inode,
+ 
+ 		set_vma_resv_map(vma, resv_map);
+ 		set_vma_resv_flags(vma, HPAGE_RESV_OWNER);
++		chg = hugetlb_priv_page_charge(resv_map, h, chg);
+ 	}
+ 
+ 	if (chg < 0)
+@@ -3033,6 +3068,9 @@ err_quota:
  	if (!vma || vma->vm_flags & VM_MAYSHARE)
--		region_add(&inode->i_mapping->private_list, from, to);
-+		hugetlb_commit_page_charge(&inode->i_mapping->private_list,
-+					   from, to);
- 	return 0;
-+err_acct_mem:
-+	hugetlb_put_quota(inode->i_mapping, chg);
-+err_quota:
-+	if (!vma || vma->vm_flags & VM_MAYSHARE)
-+		hugetlb_page_uncharge(&inode->i_mapping->private_list,
-+				      h - hstates, chg << huge_page_order(h));
-+	return ret;
-+
+ 		hugetlb_page_uncharge(&inode->i_mapping->private_list,
+ 				      h - hstates, chg << huge_page_order(h));
++	else
++		hugetlb_priv_page_uncharge(resv_map, h - hstates,
++					   chg << huge_page_order(h));
+ 	return ret;
+ 
  }
- 
- void hugetlb_unreserve_pages(struct inode *inode, long offset, long freed)
- {
-+	long chg;
- 	struct hstate *h = hstate_inode(inode);
--	long chg = region_truncate(&inode->i_mapping->private_list, offset);
-+
-+	chg = hugetlb_truncate_cgroup_charge(h, &inode->i_mapping->private_list,
-+					     offset);
- 
- 	spin_lock(&inode->i_lock);
- 	inode->i_blocks -= (blocks_per_huge_page(h) * freed);
 -- 
 1.7.9
 
