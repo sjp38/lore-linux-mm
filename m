@@ -1,126 +1,133 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx150.postini.com [74.125.245.150])
-	by kanga.kvack.org (Postfix) with SMTP id 454716B13F2
-	for <linux-mm@kvack.org>; Fri, 10 Feb 2012 06:19:17 -0500 (EST)
-Date: Fri, 10 Feb 2012 11:19:13 +0000
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH 11/15] mm: trigger page reclaim in alloc_contig_range()
- to stabilize watermarks
-Message-ID: <20120210111913.GP5796@csn.ul.ie>
-References: <1328271538-14502-1-git-send-email-m.szyprowski@samsung.com>
- <1328271538-14502-12-git-send-email-m.szyprowski@samsung.com>
- <20120203140428.GG5796@csn.ul.ie>
- <000001cce674$64bb67e0$2e3237a0$%szyprowski@samsung.com>
+Received: from psmtp.com (na3sys010amx115.postini.com [74.125.245.115])
+	by kanga.kvack.org (Postfix) with SMTP id B41BB6B13F4
+	for <linux-mm@kvack.org>; Fri, 10 Feb 2012 06:57:15 -0500 (EST)
+Date: Fri, 10 Feb 2012 19:47:06 +0800
+From: Wu Fengguang <fengguang.wu@intel.com>
+Subject: Re: memcg writeback (was Re: [Lsf-pc] [LSF/MM TOPIC] memcg topics.)
+Message-ID: <20120210114706.GA4704@localhost>
+References: <CAHH2K0b-+T4dspJPKq5TH25aH58TEr+7yvq0-HMkbFi0ghqAfA@mail.gmail.com>
+ <20120208093120.GA18993@localhost>
+ <CAHH2K0bmURXpk6-4D9q7ErppVyMJjKMsn37MenwqcP_nnT66Mw@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=utf-8
 Content-Disposition: inline
-In-Reply-To: <000001cce674$64bb67e0$2e3237a0$%szyprowski@samsung.com>
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <CAHH2K0bmURXpk6-4D9q7ErppVyMJjKMsn37MenwqcP_nnT66Mw@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Marek Szyprowski <m.szyprowski@samsung.com>
-Cc: linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-media@vger.kernel.org, linux-mm@kvack.org, linaro-mm-sig@lists.linaro.org, 'Michal Nazarewicz' <mina86@mina86.com>, 'Kyungmin Park' <kyungmin.park@samsung.com>, 'Russell King' <linux@arm.linux.org.uk>, 'Andrew Morton' <akpm@linux-foundation.org>, 'KAMEZAWA Hiroyuki' <kamezawa.hiroyu@jp.fujitsu.com>, 'Daniel Walker' <dwalker@codeaurora.org>, 'Arnd Bergmann' <arnd@arndb.de>, 'Jesse Barker' <jesse.barker@linaro.org>, 'Jonathan Corbet' <corbet@lwn.net>, 'Shariq Hasnain' <shariq.hasnain@linaro.org>, 'Chunsang Jeong' <chunsang.jeong@linaro.org>, 'Dave Hansen' <dave@linux.vnet.ibm.com>, 'Benjamin Gaignard' <benjamin.gaignard@linaro.org>, 'Rob Clark' <rob.clark@linaro.org>, 'Ohad Ben-Cohen' <ohad@wizery.com>
+To: Greg Thelen <gthelen@google.com>
+Cc: Jan Kara <jack@suse.cz>, "bsingharora@gmail.com" <bsingharora@gmail.com>, Hugh Dickins <hughd@google.com>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, Mel Gorman <mgorman@suse.de>, Ying Han <yinghan@google.com>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-On Wed, Feb 08, 2012 at 04:14:46PM +0100, Marek Szyprowski wrote:
-> > > <SNIP>
-> > > +static int __reclaim_pages(struct zone *zone, gfp_t gfp_mask, int count)
-> > > +{
-> > > +	enum zone_type high_zoneidx = gfp_zone(gfp_mask);
-> > > +	struct zonelist *zonelist = node_zonelist(0, gfp_mask);
-> > > +	int did_some_progress = 0;
-> > > +	int order = 1;
-> > > +	unsigned long watermark;
-> > > +
-> > > +	/*
-> > > +	 * Increase level of watermarks to force kswapd do his job
-> > > +	 * to stabilize at new watermark level.
-> > > +	 */
-> > > +	min_free_kbytes += count * PAGE_SIZE / 1024;
-> > 
-> > There is a risk of overflow here although it is incredibly
-> > small. Still, a potentially nicer way of doing this was
-> > 
-> > count << (PAGE_SHIFT - 10)
-> > 
-> > > +	setup_per_zone_wmarks();
-> > > +
-> > 
-> > Nothing prevents two or more processes updating the wmarks at the same
-> > time which is racy and unpredictable. Today it is not much of a problem
-> > but CMA makes this path hotter than it was and you may see weirdness
-> > if two processes are updating zonelists at the same time. Swap-over-NFS
-> > actually starts with a patch that serialises setup_per_zone_wmarks()
-> > 
-> > You also potentially have a BIG problem here if this happens
-> > 
-> > min_free_kbytes = 32768
-> > Process a: min_free_kbytes  += 65536
-> > Process a: start direct reclaim
-> > echo 16374 > /proc/sys/vm/min_free_kbytes
-> > Process a: exit direct_reclaim
-> > Process a: min_free_kbytes -= 65536
-> > 
-> > min_free_kbytes now wraps negative and the machine hangs.
-> > 
-> > The damage is confined to CMA though so I am not going to lose sleep
-> > over it but you might want to consider at least preventing parallel
-> > updates to min_free_kbytes from proc.
+On Thu, Feb 09, 2012 at 09:51:31PM -0800, Greg Thelen wrote:
+> On Wed, Feb 8, 2012 at 1:31 AM, Wu Fengguang <fengguang.wu@intel.com> wrote:
+> > On Tue, Feb 07, 2012 at 11:55:05PM -0800, Greg Thelen wrote:
+> >> On Fri, Feb 3, 2012 at 1:40 AM, Wu Fengguang <fengguang.wu@intel.com> wrote:
+> >> > If moving dirty pages out of the memcg to the 20% global dirty pages
+> >> > pool on page reclaim, the above OOM can be avoided. It does change the
+> >> > meaning of memory.limit_in_bytes in that the memcg tasks can now
+> >> > actually consume more pages (up to the shared global 20% dirty limit).
+> >>
+> >> This seems like an easy change, but unfortunately the global 20% pool
+> >> has some shortcomings for my needs:
+> >>
+> >> 1. the global 20% pool is not moderated. A One cgroup can dominate it
+> >> A  A  and deny service to other cgroups.
+> >
+> > It is moderated by balance_dirty_pages() -- in terms of dirty ratelimit.
+> > And you have the freedom to control the bandwidth allocation with some
+> > async write I/O controller.
+> >
+> > Even though there is no direct control of dirty pages, we can roughly
+> > get it as the side effect of rate control. Given
+> >
+> > A  A  A  A ratelimit_cgroup_A = 2 * ratelimit_cgroup_B
+> >
+> > There will naturally be more dirty pages for cgroup A to be worked by
+> > the flusher. And the dirty pages will be roughly balanced around
+> >
+> > A  A  A  A nr_dirty_cgroup_A = 2 * nr_dirty_cgroup_B
+> >
+> > when writeout bandwidths for their dirty pages are equal.
+> >
+> >> 2. the global 20% pool is free, unaccounted memory. A Ideally cgroups only
+> >> A  A  use the amount of memory specified in their memory.limit_in_bytes. A The
+> >> A  A  goal is to sell portions of a system. A Global resource like the 20% are an
+> >> A  A  undesirable system-wide tax that's shared by jobs that may not even
+> >> A  A  perform buffered writes.
+> >
+> > Right, it is the shortcoming.
+> >
+> >> 3. Setting aside 20% extra memory for system wide dirty buffers is a lot of
+> >> A  A  memory. A This becomes a larger issue when the global dirty_ratio is
+> >> A  A  higher than 20%.
+> >
+> > Yeah the global pool scheme does mean that you'd better allocate at
+> > most 80% memory to individual memory cgroups, otherwise it's possible
+> > for a tiny memcg doing dd writes to push dirty pages to global LRU and
+> > *squeeze* the size of other memcgs.
+> >
+> > However I guess it should be mitigated by the fact that
+> >
+> > - we typically already reserve some space for the root memcg
+> >
+> > - 20% dirty ratio is mostly an overkill for large memory systems.
+> > A It's often enough to hold 10-30s worth of dirty data for them, which
+> > A is 1-3GB for one 100MB/s disk. This is the reason vm.dirty_bytes is
+> > A introduced: someone wants to do some <1% dirty ratio.
 > 
-> Right. This approach was definitely too hacky. What do you think about replacing 
-> it with the following code (I assume that setup_per_zone_wmarks() serialization 
-> patch will be merged anyway so I skipped it here):
-> 
+> Have you encountered situations where it's desirable to have more than
+> 20% dirty ratio?  I imagine that if the dirty working set is larger
+> than 20% increasing dirty ratio would prevent rewrites.
 
-It's part of a larger series and the rest of that series is
-controversial. That single patch can be split out obviously so feel free
-to add it to your series and stick your Signed-off-by on the end of it.
+Not encountered in person, but there will sure be such situations.
 
-> diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-> index 82f4fa5..bb9ae41 100644
-> --- a/include/linux/mmzone.h
-> +++ b/include/linux/mmzone.h
-> @@ -371,6 +371,13 @@ struct zone {
->         /* see spanned/present_pages for more description */
->         seqlock_t               span_seqlock;
->  #endif
-> +#ifdef CONFIG_CMA
-> +       /*
-> +        * CMA needs to increase watermark levels during the allocation
-> +        * process to make sure that the system is not starved.
-> +        */
-> +       unsigned long           min_cma_pages;
-> +#endif
->         struct free_area        free_area[MAX_ORDER];
-> 
->  #ifndef CONFIG_SPARSEMEM
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index 824fb37..1ca52f0 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -5044,6 +5044,11 @@ void setup_per_zone_wmarks(void)
-> 
->                 zone->watermark[WMARK_LOW]  = min_wmark_pages(zone) + (tmp >> 2);
->                 zone->watermark[WMARK_HIGH] = min_wmark_pages(zone) + (tmp >> 1);
-> +#ifdef CONFIG_CMA
-> +               zone->watermark[WMARK_MIN] += zone->min_cma_pages;
-> +               zone->watermark[WMARK_LOW] += zone->min_cma_pages;
-> +               zone->watermark[WMARK_HIGH] += zone->min_cma_pages;
-> +#endif
->                 setup_zone_migrate_reserve(zone);
->                 spin_unlock_irqrestore(&zone->lock, flags);
->         }
+One may need to dirty some 40% sized in-memory data set and don't want
+to be throttled and trigger lots of I/O. In this case increasing the
+dirty ratio to 40% will do the job.
 
-This is better in that it is not vunerable to parallel updates of
-min_free_kbytes. It would be slightly tidier to introduce something
-like cma_wmark_pages() that returns min_cma_pages if CONFIG_CMA and 0
-otherwise. Use the helper to get right of this ifdef CONFIG_CMA within
-setup_per_zone_wmarks().
+The less obvious condition for this to work is, the workload should
+avoid much page allocations when working on the large fixed data set.
+Otherwise page reclaim will keep running into dirty pages and act badly.
 
-You'll still have the problem of kswapd not taking CMA pages properly into
-account when deciding whether to reclaim or not though.
+So it looks still pretty compatible with the "reparent to root memcg
+on page reclaim" scheme if that job is put into some memcg. There will
+be almost no dirty pages encountered during page reclaim, hence no
+move and no any side effects.
 
--- 
-Mel Gorman
-SUSE Labs
+But if there is another job doing heavy dirtying, that job will eat up
+the global 40% dirty limit and heavily impact the above job. This is
+one case the memcg dirty ratio can help a lot.
+
+> Leaking dirty memory to a root global dirty pool is concerning.  I
+> suspect that under some conditions such pages may remain remain in
+> root after writeback indefinitely as clean pages.  I admit this may
+> not be the common case, but having such leaks into root can allow low
+> priority jobs access entire machine denying service to higher priority
+> jobs.
+
+You are right. DoS can be achieved by
+
+        loop {
+                dirty one more page
+                access all previously dirtied pages
+        }
+
+Assuming only !PG_reference pages are moved to the global dirty pool,
+it requires someone to access the page in order for it to stay in the
+global LRU for one more cycle, and to access it frequently for keeping
+it in global LRU indefinitely.
+
+So yes, it's possible for some evil job to DoS the whole box.  It will
+be an issue when hosting jobs from untrusted sources (ie. Amazon style
+cloud service), which I guess should be running inside KVM?
+
+It should hardly happen in real workloads. If some job does manage to
+do so, it probably means some kind of mis-configuration: the memcg is
+configured way too small to hold the job's working set.
+
+Thanks,
+Fengguang
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
