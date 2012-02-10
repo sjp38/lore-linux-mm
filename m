@@ -1,49 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx181.postini.com [74.125.245.181])
-	by kanga.kvack.org (Postfix) with SMTP id 6F43C6B13F3
-	for <linux-mm@kvack.org>; Fri, 10 Feb 2012 14:42:36 -0500 (EST)
-Received: by mail-bk0-f41.google.com with SMTP id y12so3584330bkt.14
-        for <linux-mm@kvack.org>; Fri, 10 Feb 2012 11:42:35 -0800 (PST)
-Subject: [PATCH 4/4] mm: use swap readahead at swapoff
-From: Konstantin Khlebnikov <khlebnikov@openvz.org>
-Date: Fri, 10 Feb 2012 23:42:33 +0400
-Message-ID: <20120210194233.6492.86917.stgit@zurg>
-In-Reply-To: <20120210193249.6492.18768.stgit@zurg>
-References: <20120210193249.6492.18768.stgit@zurg>
+Received: from psmtp.com (na3sys010amx189.postini.com [74.125.245.189])
+	by kanga.kvack.org (Postfix) with SMTP id CF0D36B002C
+	for <linux-mm@kvack.org>; Fri, 10 Feb 2012 14:45:15 -0500 (EST)
+Received: by eekc13 with SMTP id c13so1225064eek.14
+        for <linux-mm@kvack.org>; Fri, 10 Feb 2012 11:45:14 -0800 (PST)
+Content-Type: text/plain; charset=utf-8; format=flowed; delsp=yes
+Subject: Re: [PATCH] Ensure that walk_page_range()'s start and end are
+ page-aligned
+References: <1328902796-30389-1-git-send-email-danms@us.ibm.com>
+Date: Fri, 10 Feb 2012 20:45:12 +0100
 MIME-Version: 1.0
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: 7bit
+Content-Transfer-Encoding: Quoted-Printable
+From: "Michal Nazarewicz" <mina86@mina86.com>
+Message-ID: <op.v9hahmw23l0zgt@mpn-glaptop>
+In-Reply-To: <1328902796-30389-1-git-send-email-danms@us.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, linux-kernel@vger.kernel.org
-Cc: Linus Torvalds <torvalds@linux-foundation.org>
+To: akpm@linux-foundation.org, Dan Smith <danms@us.ibm.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-try_to_unuse() iterates over swap-entries sequentially,
-thus readahead here will not hurt.
+On Fri, 10 Feb 2012 20:39:56 +0100, Dan Smith <danms@us.ibm.com> wrote:
+> The inner function walk_pte_range() increments "addr" by PAGE_SIZE aft=
+er
 
-Test results:
-Virtual machine: without patch 7 seconds, with patch 4 seconds.
-Real hardware: without patch 100 seconds, with patch 70 seconds.
+Commit message says about walk_pte_range() but commit changes walk_page_=
+range().
 
-Signed-off-by: Konstantin Khlebnikov <khlebnikov@openvz.org>
----
- mm/swapfile.c |    3 +--
- 1 files changed, 1 insertions(+), 2 deletions(-)
+> each pte is processed, and only exits the loop if the result is equal =
+to
+> "end". Current, if either (or both of) the starting or ending addresse=
+s
 
-diff --git a/mm/swapfile.c b/mm/swapfile.c
-index d999f09..4c99689 100644
---- a/mm/swapfile.c
-+++ b/mm/swapfile.c
-@@ -1106,8 +1106,7 @@ static int try_to_unuse(unsigned int type)
- 		 */
- 		swap_map = &si->swap_map[i];
- 		entry = swp_entry(type, i);
--		page = read_swap_cache_async(entry,
--					GFP_HIGHUSER_MOVABLE, NULL, 0);
-+		page = swapin_readahead(entry, GFP_HIGHUSER_MOVABLE, NULL, 0);
- 		if (!page) {
- 			/*
- 			 * Either swap_duplicate() failed because entry
+So why not change the condition to addr < end?
+
+> passed to walk_page_range() are not page-aligned, then we will never
+> satisfy that exit condition and begin calling the pte_entry handler wi=
+th
+> bad data.
+>
+> To be sure that we will land in the right spot, this patch checks that=
+
+> both "addr" and "end" are page-aligned in walk_page_range() before sta=
+rting
+> the traversal.
+>
+> Signed-off-by: Dan Smith <danms@us.ibm.com>
+> Cc: linux-mm@kvack.org
+> Cc: linux-kernel@vger.kernel.org
+> ---
+>  mm/pagewalk.c |    2 ++
+>  1 files changed, 2 insertions(+), 0 deletions(-)
+>
+> diff --git a/mm/pagewalk.c b/mm/pagewalk.c
+> index 2f5cf10..9242bfc 100644
+> --- a/mm/pagewalk.c
+> +++ b/mm/pagewalk.c
+> @@ -196,6 +196,8 @@ int walk_page_range(unsigned long addr, unsigned l=
+ong end,
+>  	if (addr >=3D end)
+>  		return err;
+>+	VM_BUG_ON((addr & ~PAGE_MASK) || (end & ~PAGE_MASK));
+> +
+>  	if (!walk->mm)
+>  		return -EINVAL;
+>
+
+
+-- =
+
+Best regards,                                         _     _
+.o. | Liege of Serenely Enlightened Majesty of      o' \,=3D./ `o
+..o | Computer Science,  Micha=C5=82 =E2=80=9Cmina86=E2=80=9D Nazarewicz=
+    (o o)
+ooo +----<email/xmpp: mpn@google.com>--------------ooO--(_)--Ooo--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
