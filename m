@@ -1,329 +1,339 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx150.postini.com [74.125.245.150])
-	by kanga.kvack.org (Postfix) with SMTP id D62406B1403
-	for <linux-mm@kvack.org>; Fri, 10 Feb 2012 13:59:02 -0500 (EST)
-MIME-version: 1.0
-Content-transfer-encoding: 7BIT
-Content-type: TEXT/PLAIN
-Received: from euspt1 ([210.118.77.13]) by mailout3.w1.samsung.com
- (Sun Java(tm) System Messaging Server 6.3-8.04 (built Jul 29 2009; 32bit))
- with ESMTP id <0LZ600BSPY2AMY80@mailout3.w1.samsung.com> for
- linux-mm@kvack.org; Fri, 10 Feb 2012 18:58:58 +0000 (GMT)
-Received: from linux.samsung.com ([106.116.38.10])
- by spt1.w1.samsung.com (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14
- 2004)) with ESMTPA id <0LZ600CFCY29RK@spt1.w1.samsung.com> for
- linux-mm@kvack.org; Fri, 10 Feb 2012 18:58:58 +0000 (GMT)
-Date: Fri, 10 Feb 2012 19:58:43 +0100
-From: Marek Szyprowski <m.szyprowski@samsung.com>
-Subject: [PATCHv6 6/7] ARM: dma-mapping: use alloc, mmap, free from dma_ops
-In-reply-to: <1328900324-20946-1-git-send-email-m.szyprowski@samsung.com>
-Message-id: <1328900324-20946-7-git-send-email-m.szyprowski@samsung.com>
-References: <1328900324-20946-1-git-send-email-m.szyprowski@samsung.com>
+Received: from psmtp.com (na3sys010amx133.postini.com [74.125.245.133])
+	by kanga.kvack.org (Postfix) with SMTP id 262886B13F7
+	for <linux-mm@kvack.org>; Fri, 10 Feb 2012 14:25:43 -0500 (EST)
+Received: by bkty12 with SMTP id y12so3571094bkt.14
+        for <linux-mm@kvack.org>; Fri, 10 Feb 2012 11:25:41 -0800 (PST)
+Subject: [PATCH v2 0/3] radix-tree: general iterator
+From: Konstantin Khlebnikov <khlebnikov@openvz.org>
+Date: Fri, 10 Feb 2012 23:25:37 +0400
+Message-ID: <20120210191611.5881.12646.stgit@zurg>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-arm-kernel@lists.infradead.org, linaro-mm-sig@lists.linaro.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-samsung-soc@vger.kernel.org, iommu@lists.linux-foundation.org
-Cc: Marek Szyprowski <m.szyprowski@samsung.com>, Kyungmin Park <kyungmin.park@samsung.com>, Arnd Bergmann <arnd@arndb.de>, Joerg Roedel <joro@8bytes.org>, Russell King - ARM Linux <linux@arm.linux.org.uk>, Shariq Hasnain <shariq.hasnain@linaro.org>, Chunsang Jeong <chunsang.jeong@linaro.org>, Krishna Reddy <vdumpa@nvidia.com>, KyongHo Cho <pullip.cho@samsung.com>, Andrzej Pietrasiewicz <andrzej.p@samsung.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>
+To: Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, linux-kernel@vger.kernel.org
+Cc: linux-mm@kvack.org
 
-This patch converts dma_alloc/free/mmap_{coherent,writecombine}
-functions to use generic alloc/free/mmap methods from dma_map_ops
-structure. A new DMA_ATTR_WRITE_COMBINE DMA attribute have been
-introduced to implement writecombine methods.
+v2 changes:
+* only one loop in macro, so break is usable
+* static-inline find-next-bit moved to lib/radix-tree.c
+* smaller code
+* better performance
+* more micro-benchmarks
 
-Signed-off-by: Marek Szyprowski <m.szyprowski@samsung.com>
-Signed-off-by: Kyungmin Park <kyungmin.park@samsung.com>
+Looks like real-life tests don't show any differences in performance,
+random noise (from atomic operations and cache misses at data copying) hides all.
+
+Micro-benchmark:
+
+lookup 14 slots (typical page-vector size)
+in radix-tree there earch <step> slot filled and tagged
+before/after - nsec per full scan through tree
+
+* Intel Sandy Bridge i7-2620M 4Mb L3
+New code always faster
+
+* AMD Athlon 6000+ 2x1Mb L2, without L3
+New code generally faster,
+Minor degradation (marked with "*") for huge sparse trees
+
+* i386 on Sandy Bridge
+New code faster for common cases: tagged and dense trees.
+Some degradations for non-tagged lookup on sparse trees.
+
+Ideally, there might help __ffs() analog for searching first non-zero
+long element in array, gcc sometimes cannot optimize this loop corretly.
+
+Numbers:
+
+CPU: Intel Sandy Bridge i7-2620M 4Mb L3
+
+radix-tree with 1024 slots:
+
+tagged lookup
+
+step  1      before  7156        after  3613
+step  2      before  5399        after  2696
+step  3      before  4779        after  1928
+step  4      before  4456        after  1429
+step  5      before  4292        after  1213
+step  6      before  4183        after  1052
+step  7      before  4157        after  951
+step  8      before  4016        after  812
+step  9      before  3952        after  851
+step  10     before  3937        after  732
+step  11     before  4023        after  709
+step  12     before  3872        after  657
+step  13     before  3892        after  633
+step  14     before  3720        after  591
+step  15     before  3879        after  578
+step  16     before  3561        after  513
+
+normal lookup
+
+step  1      before  4266       after  3301
+step  2      before  2695       after  2129
+step  3      before  2083       after  1712
+step  4      before  1801       after  1534
+step  5      before  1628       after  1313
+step  6      before  1551       after  1263
+step  7      before  1475       after  1185
+step  8      before  1432       after  1167
+step  9      before  1373       after  1092
+step  10     before  1339       after  1134
+step  11     before  1292       after  1056
+step  12     before  1319       after  1030
+step  13     before  1276       after  1004
+step  14     before  1256       after  987
+step  15     before  1228       after  992
+step  16     before  1247       after  999
+
+radix-tree with 1024*1024*128 slots:
+
+tagged lookup
+
+step  1      before  1086102841  after  674196409
+step  2      before  816839155   after  498138306
+step  7      before  599728907   after  240676762
+step  15     before  555729253   after  185219677
+step  63     before  606637748   after  128585664
+step  64     before  608384432   after  102945089
+step  65     before  596987114   after  123996019
+step  128    before  304459225   after  56783056
+step  256    before  158846855   after  31232481
+step  512    before  86085652    after  18950595
+step  12345  before  6517189     after  1674057
+
+normal lookup
+
+step  1      before  626064869  after  544418266
+step  2      before  418809975  after  336321473
+step  7      before  242303598  after  207755560
+step  15     before  208380563  after  176496355
+step  63     before  186854206  after  167283638
+step  64     before  176188060  after  170143976
+step  65     before  185139608  after  167487116
+step  128    before  88181865   after  86913490
+step  256    before  45733628   after  45143534
+step  512    before  24506038   after  23859036
+step  12345  before  2177425    after  2018662
+
+* AMD Athlon 6000+ 2x1Mb L2, without L3
+
+radix-tree with 1024 slots:
+
+tag-lookup
+
+step  1      before  8164        after  5379
+step  2      before  5818        after  5581
+step  3      before  4959        after  4213
+step  4      before  4371        after  3386
+step  5      before  4204        after  2997
+step  6      before  4950        after  2744
+step  7      before  4598        after  2480
+step  8      before  4251        after  2288
+step  9      before  4262        after  2243
+step  10     before  4175        after  2131
+step  11     before  3999        after  2024
+step  12     before  3979        after  1994
+step  13     before  3842        after  1929
+step  14     before  3750        after  1810
+step  15     before  3735        after  1810
+step  16     before  3532        after  1660
+
+normal-lookup
+
+step  1      before  7875        after  5847
+step  2      before  4808        after  4071
+step  3      before  4073        after  3462
+step  4      before  3677        after  3074
+step  5      before  4308        after  2978
+step  6      before  3911        after  3807
+step  7      before  3635        after  3522
+step  8      before  3313        after  3202
+step  9      before  3280        after  3257
+step  10     before  3166        after  3083
+step  11     before  3066        after  3026
+step  12     before  2985        after  2982
+step  13     before  2925        after  2924
+step  14     before  2834        after  2808
+step  15     before  2805        after  2803
+step  16     before  2647        after  2622
+
+radix-tree with 1024*1024*128 slots:
+
+tag-lookup
+
+step  1      before  1288059720  after  951736580
+step  2      before  961292300   after  884212140
+step  7      before  768905140   after  547267580
+step  15     before  771319480   after  456550640
+step  63     before  504847640   after  242704304
+step  64     before  392484800   after  177920786
+step  65     before  491162160   after  246895264
+step  128    before  208084064   after  97348392
+step  256    before  112401035   after  51408126
+step  512    before  75825834    after  29145070
+step  12345  before  5603166     after  2847330
+
+normal-lookup
+
+step  1      before  1025677120  after  861375100
+step  2      before  647220080   after  572258540
+step  7      before  505518960   after  484041813
+step  15     before  430483053   after  444815320	*
+step  63     before  388113453   after  404250546	*
+step  64     before  374154666   after  396027440	*
+step  65     before  381423973   after  396704853	*
+step  128    before  190078700   after  202619384	*
+step  256    before  100886756   after  102829108	*
+step  512    before  64074505    after  56158720
+step  12345  before  4237289     after  4422299		*
+
+
+* i686 on Sandy bridge
+
+radix-tree with 1024 slots:
+
+tagged lookup
+
+step  1      before  7990        after  4019
+step  2      before  5698        after  2897
+step  3      before  5013        after  2475
+step  4      before  4630        after  1721
+step  5      before  4346        after  1759
+step  6      before  4299        after  1556
+step  7      before  4098        after  1513
+step  8      before  4115        after  1222
+step  9      before  3983        after  1390
+step  10     before  4077        after  1207
+step  11     before  3921        after  1231
+step  12     before  3894        after  1116
+step  13     before  3840        after  1147
+step  14     before  3799        after  1090
+step  15     before  3797        after  1059
+step  16     before  3783        after  745
+
+normal lookup
+
+step  1      before  5103       after  3499
+step  2      before  3299       after  2550
+step  3      before  2489       after  2370
+step  4      before  2034       after  2302		*
+step  5      before  1846       after  2268		*
+step  6      before  1752       after  2249		*
+step  7      before  1679       after  2164		*
+step  8      before  1627       after  2153		*
+step  9      before  1542       after  2095		*
+step  10     before  1479       after  2109		*
+step  11     before  1469       after  2009		*
+step  12     before  1445       after  2039		*
+step  13     before  1411       after  2013		*
+step  14     before  1374       after  2046		*
+step  15     before  1340       after  1975		*
+step  16     before  1331       after  2000		*
+
+radix-tree with 1024*1024*128 slots:
+
+tagged lookup
+
+step  1      before  1225865377  after  667153553
+step  2      before  842427423   after  471533007
+step  7      before  609296153   after  276260116
+step  15     before  544232060   after  226859105
+step  63     before  519209199   after  141343043
+step  64     before  588980279   after  141951339
+step  65     before  521099710   after  138282060
+step  128    before  298476778   after  83390628
+step  256    before  149358342   after  43602609
+step  512    before  76994713    after  22911077
+step  12345  before  5328666     after  1472111
+
+normal lookup
+
+step  1      before  819284564  after  533635310
+step  2      before  512421605  after  364956155
+step  7      before  271443305  after  305721345	*
+step  15     before  223591630  after  273960216	*
+step  63     before  190320247  after  217770207	*
+step  64     before  178538168  after  267411372	*
+step  65     before  186400423  after  215347937	*
+step  128    before  88106045   after  140540612	*
+step  256    before  44812420   after  70660377		*
+step  512    before  24435438   after  36328275		*
+step  12345  before  2123924    after  2148062		*
+
+
+bloat-o-meter delta for this patchset + patchset with related shmem cleanups
+
+bloat-o-meter: x86_64
+
+add/remove: 4/3 grow/shrink: 5/6 up/down: 928/-939 (-11)
+function                                     old     new   delta
+radix_tree_next_chunk                          -     499    +499
+shmem_unuse                                  428     554    +126
+shmem_radix_tree_replace                     131     227     +96
+find_get_pages_tag                           354     419     +65
+find_get_pages_contig                        345     407     +62
+find_get_pages                               362     396     +34
+__kstrtab_radix_tree_next_chunk                -      22     +22
+__ksymtab_radix_tree_next_chunk                -      16     +16
+__kcrctab_radix_tree_next_chunk                -       8      +8
+radix_tree_gang_lookup_slot                  204     203      -1
+static.shmem_xattr_set                       384     381      -3
+radix_tree_gang_lookup_tag_slot              208     191     -17
+radix_tree_gang_lookup                       231     187     -44
+radix_tree_gang_lookup_tag                   247     199     -48
+shmem_unlock_mapping                         278     190     -88
+__lookup                                     217       -    -217
+__lookup_tag                                 242       -    -242
+radix_tree_locate_item                       279       -    -279
+
+bloat-o-meter: i386
+
+add/remove: 3/3 grow/shrink: 8/9 up/down: 1075/-1275 (-200)
+function                                     old     new   delta
+radix_tree_next_chunk                          -     757    +757
+shmem_unuse                                  352     449     +97
+find_get_pages_contig                        269     322     +53
+shmem_radix_tree_replace                     113     154     +41
+find_get_pages_tag                           277     318     +41
+dcache_dir_lseek                             426     458     +32
+__kstrtab_radix_tree_next_chunk                -      22     +22
+vc_do_resize                                 968     977      +9
+snd_pcm_lib_read1                            725     733      +8
+__ksymtab_radix_tree_next_chunk                -       8      +8
+netlbl_cipsov4_list                         1120    1127      +7
+find_get_pages                               293     291      -2
+new_slab                                     467     459      -8
+bitfill_unaligned_rev                        425     417      -8
+radix_tree_gang_lookup_tag_slot              177     146     -31
+blk_dump_cmd                                 267     229     -38
+radix_tree_gang_lookup_slot                  212     134     -78
+shmem_unlock_mapping                         221     128     -93
+radix_tree_gang_lookup_tag                   275     162    -113
+radix_tree_gang_lookup                       255     126    -129
+__lookup                                     227       -    -227
+__lookup_tag                                 271       -    -271
+radix_tree_locate_item                       277       -    -277
+
 ---
- arch/arm/common/dmabounce.c        |    3 +
- arch/arm/include/asm/dma-mapping.h |  107 ++++++++++++++++++++++++++----------
- arch/arm/mm/dma-mapping.c          |   53 ++++++------------
- 3 files changed, 98 insertions(+), 65 deletions(-)
 
-diff --git a/arch/arm/common/dmabounce.c b/arch/arm/common/dmabounce.c
-index 5e7ba61..739407e 100644
---- a/arch/arm/common/dmabounce.c
-+++ b/arch/arm/common/dmabounce.c
-@@ -449,6 +449,9 @@ static int dmabounce_set_mask(struct device *dev, u64 dma_mask)
- }
- 
- static struct dma_map_ops dmabounce_ops = {
-+	.alloc			= arm_dma_alloc,
-+	.free			= arm_dma_free,
-+	.mmap			= arm_dma_mmap,
- 	.map_page		= dmabounce_map_page,
- 	.unmap_page		= dmabounce_unmap_page,
- 	.sync_single_for_cpu	= dmabounce_sync_for_cpu,
-diff --git a/arch/arm/include/asm/dma-mapping.h b/arch/arm/include/asm/dma-mapping.h
-index 0016bff..ca7a378 100644
---- a/arch/arm/include/asm/dma-mapping.h
-+++ b/arch/arm/include/asm/dma-mapping.h
-@@ -5,6 +5,7 @@
- 
- #include <linux/mm_types.h>
- #include <linux/scatterlist.h>
-+#include <linux/dma-attrs.h>
- #include <linux/dma-debug.h>
- 
- #include <asm-generic/dma-coherent.h>
-@@ -109,68 +110,115 @@ static inline void dma_free_noncoherent(struct device *dev, size_t size,
- extern int dma_supported(struct device *dev, u64 mask);
- 
- /**
-- * dma_alloc_coherent - allocate consistent memory for DMA
-+ * arm_dma_alloc - allocate consistent memory for DMA
-  * @dev: valid struct device pointer, or NULL for ISA and EISA-like devices
-  * @size: required memory size
-  * @handle: bus-specific DMA address
-+ * @attrs: optinal attributes that specific mapping properties
-  *
-- * Allocate some uncached, unbuffered memory for a device for
-- * performing DMA.  This function allocates pages, and will
-- * return the CPU-viewed address, and sets @handle to be the
-- * device-viewed address.
-+ * Allocate some memory for a device for performing DMA.  This function
-+ * allocates pages, and will return the CPU-viewed address, and sets @handle
-+ * to be the device-viewed address.
-  */
--extern void *dma_alloc_coherent(struct device *, size_t, dma_addr_t *, gfp_t);
-+extern void *arm_dma_alloc(struct device *dev, size_t size, dma_addr_t *handle,
-+			   gfp_t gfp, struct dma_attrs *attrs);
-+
-+#define dma_alloc_coherent(d,s,h,f) dma_alloc_attrs(d,s,h,f,NULL)
-+
-+static inline void *dma_alloc_attrs(struct device *dev, size_t size,
-+				       dma_addr_t *dma_handle, gfp_t flag,
-+				       struct dma_attrs *attrs)
-+{
-+	struct dma_map_ops *ops = get_dma_ops(dev);
-+	void *cpu_addr;
-+	BUG_ON(!ops);
-+
-+	cpu_addr = ops->alloc(dev, size, dma_handle, flag, attrs);
-+	debug_dma_alloc_coherent(dev, size, *dma_handle, cpu_addr);
-+	return cpu_addr;
-+}
- 
- /**
-- * dma_free_coherent - free memory allocated by dma_alloc_coherent
-+ * arm_dma_free - free memory allocated by arm_dma_alloc
-  * @dev: valid struct device pointer, or NULL for ISA and EISA-like devices
-  * @size: size of memory originally requested in dma_alloc_coherent
-  * @cpu_addr: CPU-view address returned from dma_alloc_coherent
-  * @handle: device-view address returned from dma_alloc_coherent
-+ * @attrs: optinal attributes that specific mapping properties
-  *
-  * Free (and unmap) a DMA buffer previously allocated by
-- * dma_alloc_coherent().
-+ * arm_dma_alloc().
-  *
-  * References to memory and mappings associated with cpu_addr/handle
-  * during and after this call executing are illegal.
-  */
--extern void dma_free_coherent(struct device *, size_t, void *, dma_addr_t);
-+extern void arm_dma_free(struct device *dev, size_t size, void *cpu_addr,
-+			 dma_addr_t handle, struct dma_attrs *attrs);
-+
-+#define dma_free_coherent(d,s,c,h) dma_free_attrs(d,s,c,h,NULL)
-+
-+static inline void dma_free_attrs(struct device *dev, size_t size,
-+				     void *cpu_addr, dma_addr_t dma_handle,
-+				     struct dma_attrs *attrs)
-+{
-+	struct dma_map_ops *ops = get_dma_ops(dev);
-+	BUG_ON(!ops);
-+
-+	debug_dma_free_coherent(dev, size, cpu_addr, dma_handle);
-+	ops->free(dev, size, cpu_addr, dma_handle, attrs);
-+}
- 
- /**
-- * dma_mmap_coherent - map a coherent DMA allocation into user space
-+ * arm_dma_mmap - map a coherent DMA allocation into user space
-  * @dev: valid struct device pointer, or NULL for ISA and EISA-like devices
-  * @vma: vm_area_struct describing requested user mapping
-  * @cpu_addr: kernel CPU-view address returned from dma_alloc_coherent
-  * @handle: device-view address returned from dma_alloc_coherent
-  * @size: size of memory originally requested in dma_alloc_coherent
-+ * @attrs: optinal attributes that specific mapping properties
-  *
-  * Map a coherent DMA buffer previously allocated by dma_alloc_coherent
-  * into user space.  The coherent DMA buffer must not be freed by the
-  * driver until the user space mapping has been released.
-  */
--int dma_mmap_coherent(struct device *, struct vm_area_struct *,
--		void *, dma_addr_t, size_t);
-+extern int arm_dma_mmap(struct device *dev, struct vm_area_struct *vma,
-+			void *cpu_addr, dma_addr_t dma_addr, size_t size,
-+			struct dma_attrs *attrs);
- 
-+#define dma_mmap_coherent(d,v,c,h,s) dma_mmap_attrs(d,v,c,h,s,NULL)
- 
--/**
-- * dma_alloc_writecombine - allocate writecombining memory for DMA
-- * @dev: valid struct device pointer, or NULL for ISA and EISA-like devices
-- * @size: required memory size
-- * @handle: bus-specific DMA address
-- *
-- * Allocate some uncached, buffered memory for a device for
-- * performing DMA.  This function allocates pages, and will
-- * return the CPU-viewed address, and sets @handle to be the
-- * device-viewed address.
-- */
--extern void *dma_alloc_writecombine(struct device *, size_t, dma_addr_t *,
--		gfp_t);
-+static inline int dma_mmap_attrs(struct device *dev, struct vm_area_struct *vma,
-+				  void *cpu_addr, dma_addr_t dma_addr,
-+				  size_t size, struct dma_attrs *attrs)
-+{
-+	struct dma_map_ops *ops = get_dma_ops(dev);
-+	BUG_ON(!ops);
-+	return ops->mmap(dev, vma, cpu_addr, dma_addr, size, attrs);
-+}
- 
--#define dma_free_writecombine(dev,size,cpu_addr,handle) \
--	dma_free_coherent(dev,size,cpu_addr,handle)
-+static inline void *dma_alloc_writecombine(struct device *dev, size_t size,
-+				       dma_addr_t *dma_handle, gfp_t flag)
-+{
-+	DEFINE_DMA_ATTRS(attrs);
-+	dma_set_attr(DMA_ATTR_WRITE_COMBINE, &attrs);
-+	return dma_alloc_attrs(dev, size, dma_handle, flag, &attrs);
-+}
- 
--int dma_mmap_writecombine(struct device *, struct vm_area_struct *,
--		void *, dma_addr_t, size_t);
-+static inline void dma_free_writecombine(struct device *dev, size_t size,
-+				     void *cpu_addr, dma_addr_t dma_handle)
-+{
-+	DEFINE_DMA_ATTRS(attrs);
-+	dma_set_attr(DMA_ATTR_WRITE_COMBINE, &attrs);
-+	return dma_free_attrs(dev, size, cpu_addr, dma_handle, &attrs);
-+}
-+
-+static inline int dma_mmap_writecombine(struct device *dev, struct vm_area_struct *vma,
-+		      void *cpu_addr, dma_addr_t dma_addr, size_t size)
-+{
-+	DEFINE_DMA_ATTRS(attrs);
-+	dma_set_attr(DMA_ATTR_WRITE_COMBINE, &attrs);
-+	return dma_mmap_attrs(dev, vma, cpu_addr, dma_addr, size, &attrs);
-+}
- 
- /*
-  * This can be called during boot to increase the size of the consistent
-@@ -179,7 +227,6 @@ int dma_mmap_writecombine(struct device *, struct vm_area_struct *,
-  */
- extern void __init init_consistent_dma_size(unsigned long size);
- 
--
- /*
-  * For SA-1111, IXP425, and ADI systems  the dma-mapping functions are "magic"
-  * and utilize bounce buffers as needed to work around limited DMA windows.
-diff --git a/arch/arm/mm/dma-mapping.c b/arch/arm/mm/dma-mapping.c
-index 7c0e68b..4845c09 100644
---- a/arch/arm/mm/dma-mapping.c
-+++ b/arch/arm/mm/dma-mapping.c
-@@ -114,6 +114,9 @@ static void arm_dma_sync_single_for_device(struct device *dev,
- static int arm_dma_set_mask(struct device *dev, u64 dma_mask);
- 
- struct dma_map_ops arm_dma_ops = {
-+	.alloc			= arm_dma_alloc,
-+	.free			= arm_dma_free,
-+	.mmap			= arm_dma_mmap,
- 	.map_page		= arm_dma_map_page,
- 	.unmap_page		= arm_dma_unmap_page,
- 	.map_sg			= arm_dma_map_sg,
-@@ -462,33 +465,26 @@ __dma_alloc(struct device *dev, size_t size, dma_addr_t *handle, gfp_t gfp,
-  * Allocate DMA-coherent memory space and return both the kernel remapped
-  * virtual and bus address for that space.
-  */
--void *
--dma_alloc_coherent(struct device *dev, size_t size, dma_addr_t *handle, gfp_t gfp)
-+void *arm_dma_alloc(struct device *dev, size_t size, dma_addr_t *handle,
-+		    gfp_t gfp, struct dma_attrs *attrs)
- {
-+	pgprot_t prot = dma_get_attr(DMA_ATTR_WRITE_COMBINE, attrs) ?
-+			pgprot_writecombine(pgprot_kernel) :
-+			pgprot_dmacoherent(pgprot_kernel);
- 	void *memory;
- 
- 	if (dma_alloc_from_coherent(dev, size, handle, &memory))
- 		return memory;
- 
--	return __dma_alloc(dev, size, handle, gfp,
--			   pgprot_dmacoherent(pgprot_kernel));
-+	return __dma_alloc(dev, size, handle, gfp, prot);
- }
--EXPORT_SYMBOL(dma_alloc_coherent);
- 
- /*
-- * Allocate a writecombining region, in much the same way as
-- * dma_alloc_coherent above.
-+ * Create userspace mapping for the DMA-coherent memory.
-  */
--void *
--dma_alloc_writecombine(struct device *dev, size_t size, dma_addr_t *handle, gfp_t gfp)
--{
--	return __dma_alloc(dev, size, handle, gfp,
--			   pgprot_writecombine(pgprot_kernel));
--}
--EXPORT_SYMBOL(dma_alloc_writecombine);
--
--static int dma_mmap(struct device *dev, struct vm_area_struct *vma,
--		    void *cpu_addr, dma_addr_t dma_addr, size_t size)
-+int arm_dma_mmap(struct device *dev, struct vm_area_struct *vma,
-+		 void *cpu_addr, dma_addr_t dma_addr, size_t size,
-+		 struct dma_attrs *attrs)
- {
- 	int ret = -ENXIO;
- #ifdef CONFIG_MMU
-@@ -496,6 +492,9 @@ static int dma_mmap(struct device *dev, struct vm_area_struct *vma,
- 	struct arm_vmregion *c;
- 
- 	user_size = (vma->vm_end - vma->vm_start) >> PAGE_SHIFT;
-+	vma->vm_page_prot = dma_get_attr(DMA_ATTR_WRITE_COMBINE, attrs) ?
-+			    pgprot_writecombine(vma->vm_page_prot) :
-+			    pgprot_dmacoherent(vma->vm_page_prot);
- 
- 	c = arm_vmregion_find(&consistent_head, (unsigned long)cpu_addr);
- 	if (c) {
-@@ -516,27 +515,12 @@ static int dma_mmap(struct device *dev, struct vm_area_struct *vma,
- 	return ret;
- }
- 
--int dma_mmap_coherent(struct device *dev, struct vm_area_struct *vma,
--		      void *cpu_addr, dma_addr_t dma_addr, size_t size)
--{
--	vma->vm_page_prot = pgprot_dmacoherent(vma->vm_page_prot);
--	return dma_mmap(dev, vma, cpu_addr, dma_addr, size);
--}
--EXPORT_SYMBOL(dma_mmap_coherent);
--
--int dma_mmap_writecombine(struct device *dev, struct vm_area_struct *vma,
--			  void *cpu_addr, dma_addr_t dma_addr, size_t size)
--{
--	vma->vm_page_prot = pgprot_writecombine(vma->vm_page_prot);
--	return dma_mmap(dev, vma, cpu_addr, dma_addr, size);
--}
--EXPORT_SYMBOL(dma_mmap_writecombine);
--
- /*
-  * free a page as defined by the above mapping.
-  * Must not be called with IRQs disabled.
-  */
--void dma_free_coherent(struct device *dev, size_t size, void *cpu_addr, dma_addr_t handle)
-+void arm_dma_free(struct device *dev, size_t size, void *cpu_addr,
-+		  dma_addr_t handle, struct dma_attrs *attrs)
- {
- 	WARN_ON(irqs_disabled());
- 
-@@ -550,7 +534,6 @@ void dma_free_coherent(struct device *dev, size_t size, void *cpu_addr, dma_addr
- 
- 	__dma_free_buffer(pfn_to_page(dma_to_pfn(dev, handle)), size);
- }
--EXPORT_SYMBOL(dma_free_coherent);
- 
- static void dma_cache_maint_page(struct page *page, unsigned long offset,
- 	size_t size, enum dma_data_direction dir,
+Konstantin Khlebnikov (3):
+      radix-tree: introduce bit-optimized iterator
+      radix-tree: rewrite gang lookup with using iterator
+      radix-tree: use iterators in find_get_pages* functions
+
+
+ include/linux/radix-tree.h |  139 ++++++++++++++
+ lib/radix-tree.c           |  438 ++++++++++++++++++--------------------------
+ mm/filemap.c               |   86 ++++-----
+ 3 files changed, 357 insertions(+), 306 deletions(-)
+
 -- 
-1.7.1.569.g6f426
+Signature
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
