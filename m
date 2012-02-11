@@ -1,72 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx157.postini.com [74.125.245.157])
-	by kanga.kvack.org (Postfix) with SMTP id 778F66B13F0
-	for <linux-mm@kvack.org>; Fri, 10 Feb 2012 17:08:01 -0500 (EST)
-Date: Fri, 10 Feb 2012 16:07:57 -0600 (CST)
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: [PATCH 02/15] mm: sl[au]b: Add knowledge of PFMEMALLOC reserve
- pages
-In-Reply-To: <alpine.DEB.2.00.1202101443570.31424@router.home>
-Message-ID: <alpine.DEB.2.00.1202101606530.3840@router.home>
-References: <1328568978-17553-3-git-send-email-mgorman@suse.de> <alpine.DEB.2.00.1202071025050.30652@router.home> <20120208144506.GI5938@suse.de> <alpine.DEB.2.00.1202080907320.30248@router.home> <20120208163421.GL5938@suse.de> <alpine.DEB.2.00.1202081338210.32060@router.home>
- <20120208212323.GM5938@suse.de> <alpine.DEB.2.00.1202081557540.5970@router.home> <20120209125018.GN5938@suse.de> <alpine.DEB.2.00.1202091345540.4413@router.home> <20120210102605.GO5938@suse.de> <alpine.DEB.2.00.1202101443570.31424@router.home>
+Received: from psmtp.com (na3sys010amx139.postini.com [74.125.245.139])
+	by kanga.kvack.org (Postfix) with SMTP id DA0056B13F0
+	for <linux-mm@kvack.org>; Sat, 11 Feb 2012 02:43:56 -0500 (EST)
+Received: by bkty12 with SMTP id y12so3945717bkt.14
+        for <linux-mm@kvack.org>; Fri, 10 Feb 2012 23:43:55 -0800 (PST)
+Subject: [PATCH 5/4] shmem: put shmem_delete_from_page_cache under CONFIG_SWAP
+From: Konstantin Khlebnikov <khlebnikov@openvz.org>
+Date: Sat, 11 Feb 2012 11:43:52 +0400
+Message-ID: <20120211074321.30852.66207.stgit@zurg>
+In-Reply-To: <20120210193249.6492.18768.stgit@zurg>
+References: <20120210193249.6492.18768.stgit@zurg>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, Linux-Netdev <netdev@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, David Miller <davem@davemloft.net>, Neil Brown <neilb@suse.de>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Pekka Enberg <penberg@cs.helsinki.fi>
+To: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, linux-kernel@vger.kernel.org
+Cc: Linus Torvalds <torvalds@linux-foundation.org>
 
-Proposal for a patch for slub to move the pfmemalloc handling out of the
-fastpath by simply not assigning a per cpu slab when pfmemalloc processing
-is going on.
+Fix warning added in patch "shmem: tag swap entries in radix tree"
 
-
-
-Subject: [slub] Fix so that no mods are required for the fast path
-
-Remove the check for pfmemalloc from the alloc hotpath and put the logic after
-the election of a new per cpu slab.
-
-For a pfmemalloc page do not use the fast path but force use of the slow
-path (which is also used for the debug case).
-
-Signed-off-by: Christoph Lameter <cl@linux.com>
-
-
+Signed-off-by: Konstantin Khlebnikov <khlebnikov@openvz.org>
 ---
- mm/slub.c |    8 ++++----
- 1 file changed, 4 insertions(+), 4 deletions(-)
+ mm/shmem.c |   38 +++++++++++++++++++-------------------
+ 1 files changed, 19 insertions(+), 19 deletions(-)
 
-Index: linux-2.6/mm/slub.c
-===================================================================
---- linux-2.6.orig/mm/slub.c	2012-02-10 09:58:13.066125970 -0600
-+++ linux-2.6/mm/slub.c	2012-02-10 10:06:07.114113000 -0600
-@@ -2273,11 +2273,12 @@ new_slab:
- 		}
- 	}
-
--	if (likely(!kmem_cache_debug(s)))
-+	if (likely(!kmem_cache_debug(s) && pfmemalloc_match(c, gfpflags)))
- 		goto load_freelist;
-
+diff --git a/mm/shmem.c b/mm/shmem.c
+index 7a3fe08..709e3d8 100644
+--- a/mm/shmem.c
++++ b/mm/shmem.c
+@@ -302,25 +302,6 @@ static int shmem_add_to_page_cache(struct page *page,
+ }
+ 
+ /*
+- * Like delete_from_page_cache, but substitutes swap for page.
+- */
+-static void shmem_delete_from_page_cache(struct page *page, void *radswap)
+-{
+-	struct address_space *mapping = page->mapping;
+-	int error;
+-
+-	spin_lock_irq(&mapping->tree_lock);
+-	error = shmem_radix_tree_replace(mapping, page->index, page, radswap);
+-	page->mapping = NULL;
+-	mapping->nrpages--;
+-	__dec_zone_page_state(page, NR_FILE_PAGES);
+-	__dec_zone_page_state(page, NR_SHMEM);
+-	spin_unlock_irq(&mapping->tree_lock);
+-	page_cache_release(page);
+-	BUG_ON(error);
+-}
+-
+-/*
+  * Like find_get_pages, but collecting swap entries as well as pages.
+  */
+ static unsigned shmem_find_get_pages_and_swap(struct address_space *mapping,
+@@ -718,6 +699,25 @@ out:
+ }
+ 
+ /*
++ * Like delete_from_page_cache, but substitutes swap for page.
++ */
++static void shmem_delete_from_page_cache(struct page *page, void *radswap)
++{
++	struct address_space *mapping = page->mapping;
++	int error;
 +
- 	/* Only entered in the debug case */
--	if (!alloc_debug_processing(s, c->page, object, addr))
-+	if (kmem_cache_debug(s) && !alloc_debug_processing(s, c->page, object, addr))
- 		goto new_slab;	/* Slab failed checks. Next slab needed */
-
- 	c->freelist = get_freepointer(s, object);
-@@ -2327,8 +2328,7 @@ redo:
- 	barrier();
-
- 	object = c->freelist;
--	if (unlikely(!object || !node_match(c, node) ||
--					!pfmemalloc_match(c, gfpflags)))
-+	if (unlikely(!object || !node_match(c, node)))
- 		object = __slab_alloc(s, gfpflags, node, addr, c);
-
- 	else {
++	spin_lock_irq(&mapping->tree_lock);
++	error = shmem_radix_tree_replace(mapping, page->index, page, radswap);
++	page->mapping = NULL;
++	mapping->nrpages--;
++	__dec_zone_page_state(page, NR_FILE_PAGES);
++	__dec_zone_page_state(page, NR_SHMEM);
++	spin_unlock_irq(&mapping->tree_lock);
++	page_cache_release(page);
++	BUG_ON(error);
++}
++
++/*
+  * Move the page from the page cache to the swap cache.
+  */
+ static int shmem_writepage(struct page *page, struct writeback_control *wbc)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
