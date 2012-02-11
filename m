@@ -1,76 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from psmtp.com (na3sys010amx103.postini.com [74.125.245.103])
-	by kanga.kvack.org (Postfix) with SMTP id D6D906B13F2
-	for <linux-mm@kvack.org>; Sat, 11 Feb 2012 04:51:07 -0500 (EST)
-Message-Id: <20120211043325.331352920@intel.com>
-Date: Sat, 11 Feb 2012 12:31:41 +0800
+	by kanga.kvack.org (Postfix) with SMTP id E98F46B13F3
+	for <linux-mm@kvack.org>; Sat, 11 Feb 2012 04:51:08 -0500 (EST)
+Message-Id: <20120211043325.674241498@intel.com>
+Date: Sat, 11 Feb 2012 12:31:43 +0800
 From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: [PATCH 1/9] readahead: make context readahead more conservative
+Subject: [PATCH 3/9] readahead: tag mmap page fault call sites
 References: <20120211043140.108656864@intel.com>
-Content-Disposition: inline; filename=readahead-context-tt
+Content-Disposition: inline; filename=readahead-for-mmap
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Andi Kleen <andi@firstfloor.org>, Wu Fengguang <fengguang.wu@intel.com>, Linux Memory Management List <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>
+Cc: Andi Kleen <andi@firstfloor.org>, Jan Kara <jack@suse.cz>, Wu Fengguang <fengguang.wu@intel.com>, Linux Memory Management List <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>
 
-Try to prevent negatively impact moderately dense random reads on SSD.
+Introduce a bit field ra->for_mmap for tagging mmap reads.
+The tag will be cleared immediate after submitting the IO.
 
-Transaction-Per-Second numbers provided by Taobao:
-
-		QPS	case
-		-------------------------------------------------------
-		7536	disable context readahead totally
-w/ patch:	7129	slower size rampup and start RA on the 3rd read
-		6717	slower size rampup
-w/o patch:	5581	unmodified context readahead
-
-Before, readahead will be started whenever reading page N+1 when it
-happen to read N recently. After patch, we'll only start readahead
-when *three* random reads happen to access pages N, N+1, N+2. The
-probability of this happening is extremely low for pure random reads,
-unless they are very dense, which actually deserves some readahead.
-
-Also start with a smaller readahead window. The impact to interleaved
-sequential reads should be small, because for a long run stream, the
-the small readahead window rampup phase is negletable.
-
-The context readahead actually benefits clustered random reads on HDD
-whose seek cost is pretty high.  However as SSD is increasingly used for
-random read workloads it's better for the context readahead to
-concentrate on interleaved sequential reads.
-
-Tested-by: Tao Ma <tm@tao.ma>
+Acked-by: Jan Kara <jack@suse.cz>
 Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
 ---
- mm/readahead.c |    8 ++++----
- 1 file changed, 4 insertions(+), 4 deletions(-)
+ include/linux/fs.h |    1 +
+ mm/filemap.c       |    6 +++++-
+ mm/readahead.c     |    1 +
+ 3 files changed, 7 insertions(+), 1 deletion(-)
 
---- linux-next.orig/mm/readahead.c	2012-01-25 15:57:47.000000000 +0800
-+++ linux-next/mm/readahead.c	2012-01-25 15:57:49.000000000 +0800
-@@ -369,10 +369,10 @@ static int try_context_readahead(struct 
- 	size = count_history_pages(mapping, ra, offset, max);
+--- linux-next.orig/include/linux/fs.h	2012-01-25 15:57:50.000000000 +0800
++++ linux-next/include/linux/fs.h	2012-01-25 15:57:51.000000000 +0800
+@@ -954,6 +954,7 @@ struct file_ra_state {
+ 	unsigned int ra_pages;		/* Maximum readahead window */
+ 	u16 mmap_miss;			/* Cache miss stat for mmap accesses */
+ 	u8 pattern;			/* one of RA_PATTERN_* */
++	unsigned int for_mmap:1;	/* readahead for mmap accesses */
  
+ 	loff_t prev_pos;		/* Cache last read() position */
+ };
+--- linux-next.orig/mm/filemap.c	2012-01-25 15:57:50.000000000 +0800
++++ linux-next/mm/filemap.c	2012-01-25 15:57:51.000000000 +0800
+@@ -1578,6 +1578,7 @@ static void do_sync_mmap_readahead(struc
+ 		return;
+ 
+ 	if (VM_SequentialReadHint(vma)) {
++		ra->for_mmap = 1;
+ 		page_cache_sync_readahead(mapping, ra, file, offset,
+ 					  ra->ra_pages);
+ 		return;
+@@ -1597,6 +1598,7 @@ static void do_sync_mmap_readahead(struc
  	/*
--	 * no history pages:
-+	 * not enough history pages:
- 	 * it could be a random read
+ 	 * mmap read-around
  	 */
--	if (!size)
-+	if (size <= req_size)
- 		return 0;
- 
- 	/*
-@@ -383,8 +383,8 @@ static int try_context_readahead(struct 
- 		size *= 2;
- 
- 	ra->start = offset;
--	ra->size = get_init_ra_size(size + req_size, max);
--	ra->async_size = ra->size;
-+	ra->size = min(size + req_size, max);
-+	ra->async_size = 1;
- 
- 	return 1;
++	ra->for_mmap = 1;
+ 	ra->pattern = RA_PATTERN_MMAP_AROUND;
+ 	ra_pages = max_sane_readahead(ra->ra_pages);
+ 	ra->start = max_t(long, 0, offset - ra_pages / 2);
+@@ -1622,9 +1624,11 @@ static void do_async_mmap_readahead(stru
+ 		return;
+ 	if (ra->mmap_miss > 0)
+ 		ra->mmap_miss--;
+-	if (PageReadahead(page))
++	if (PageReadahead(page)) {
++		ra->for_mmap = 1;
+ 		page_cache_async_readahead(mapping, ra, file,
+ 					   page, offset, ra->ra_pages);
++	}
  }
+ 
+ /**
+--- linux-next.orig/mm/readahead.c	2012-01-25 15:57:50.000000000 +0800
++++ linux-next/mm/readahead.c	2012-01-25 15:57:51.000000000 +0800
+@@ -259,6 +259,7 @@ unsigned long ra_submit(struct file_ra_s
+ 	actual = __do_page_cache_readahead(mapping, filp,
+ 					ra->start, ra->size, ra->async_size);
+ 
++	ra->for_mmap = 0;
+ 	return actual;
+ }
+ 
 
 
 --
