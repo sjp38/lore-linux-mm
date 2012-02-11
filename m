@@ -1,77 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx103.postini.com [74.125.245.103])
-	by kanga.kvack.org (Postfix) with SMTP id E98F46B13F3
-	for <linux-mm@kvack.org>; Sat, 11 Feb 2012 04:51:08 -0500 (EST)
-Message-Id: <20120211043325.674241498@intel.com>
-Date: Sat, 11 Feb 2012 12:31:43 +0800
+Received: from psmtp.com (na3sys010amx133.postini.com [74.125.245.133])
+	by kanga.kvack.org (Postfix) with SMTP id 2E8CB6B13F4
+	for <linux-mm@kvack.org>; Sat, 11 Feb 2012 04:51:09 -0500 (EST)
+Message-Id: <20120211043325.847026459@intel.com>
+Date: Sat, 11 Feb 2012 12:31:44 +0800
 From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: [PATCH 3/9] readahead: tag mmap page fault call sites
+Subject: [PATCH 4/9] readahead: tag metadata call sites
 References: <20120211043140.108656864@intel.com>
-Content-Disposition: inline; filename=readahead-for-mmap
+Content-Disposition: inline; filename=readahead-for-metadata
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Andi Kleen <andi@firstfloor.org>, Jan Kara <jack@suse.cz>, Wu Fengguang <fengguang.wu@intel.com>, Linux Memory Management List <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>
 
-Introduce a bit field ra->for_mmap for tagging mmap reads.
-The tag will be cleared immediate after submitting the IO.
+We may be doing more metadata readahead in future.
 
 Acked-by: Jan Kara <jack@suse.cz>
 Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
 ---
+ fs/ext3/dir.c      |    1 +
+ fs/ext4/dir.c      |    1 +
  include/linux/fs.h |    1 +
- mm/filemap.c       |    6 +++++-
  mm/readahead.c     |    1 +
- 3 files changed, 7 insertions(+), 1 deletion(-)
+ 4 files changed, 4 insertions(+)
 
---- linux-next.orig/include/linux/fs.h	2012-01-25 15:57:50.000000000 +0800
-+++ linux-next/include/linux/fs.h	2012-01-25 15:57:51.000000000 +0800
-@@ -954,6 +954,7 @@ struct file_ra_state {
- 	unsigned int ra_pages;		/* Maximum readahead window */
+--- linux-next.orig/fs/ext3/dir.c	2012-01-25 15:57:46.000000000 +0800
++++ linux-next/fs/ext3/dir.c	2012-01-25 15:57:52.000000000 +0800
+@@ -136,6 +136,7 @@ static int ext3_readdir(struct file * fi
+ 			pgoff_t index = map_bh.b_blocknr >>
+ 					(PAGE_CACHE_SHIFT - inode->i_blkbits);
+ 			if (!ra_has_index(&filp->f_ra, index))
++				filp->f_ra.for_metadata = 1;
+ 				page_cache_sync_readahead(
+ 					sb->s_bdev->bd_inode->i_mapping,
+ 					&filp->f_ra, filp,
+--- linux-next.orig/fs/ext4/dir.c	2012-01-25 15:57:46.000000000 +0800
++++ linux-next/fs/ext4/dir.c	2012-01-25 15:57:52.000000000 +0800
+@@ -153,6 +153,7 @@ static int ext4_readdir(struct file *fil
+ 			pgoff_t index = map.m_pblk >>
+ 					(PAGE_CACHE_SHIFT - inode->i_blkbits);
+ 			if (!ra_has_index(&filp->f_ra, index))
++				filp->f_ra.for_metadata = 1;
+ 				page_cache_sync_readahead(
+ 					sb->s_bdev->bd_inode->i_mapping,
+ 					&filp->f_ra, filp,
+--- linux-next.orig/include/linux/fs.h	2012-01-25 15:57:51.000000000 +0800
++++ linux-next/include/linux/fs.h	2012-01-25 15:57:52.000000000 +0800
+@@ -955,6 +955,7 @@ struct file_ra_state {
  	u16 mmap_miss;			/* Cache miss stat for mmap accesses */
  	u8 pattern;			/* one of RA_PATTERN_* */
-+	unsigned int for_mmap:1;	/* readahead for mmap accesses */
+ 	unsigned int for_mmap:1;	/* readahead for mmap accesses */
++	unsigned int for_metadata:1;	/* readahead for meta data */
  
  	loff_t prev_pos;		/* Cache last read() position */
  };
---- linux-next.orig/mm/filemap.c	2012-01-25 15:57:50.000000000 +0800
-+++ linux-next/mm/filemap.c	2012-01-25 15:57:51.000000000 +0800
-@@ -1578,6 +1578,7 @@ static void do_sync_mmap_readahead(struc
- 		return;
- 
- 	if (VM_SequentialReadHint(vma)) {
-+		ra->for_mmap = 1;
- 		page_cache_sync_readahead(mapping, ra, file, offset,
- 					  ra->ra_pages);
- 		return;
-@@ -1597,6 +1598,7 @@ static void do_sync_mmap_readahead(struc
- 	/*
- 	 * mmap read-around
- 	 */
-+	ra->for_mmap = 1;
- 	ra->pattern = RA_PATTERN_MMAP_AROUND;
- 	ra_pages = max_sane_readahead(ra->ra_pages);
- 	ra->start = max_t(long, 0, offset - ra_pages / 2);
-@@ -1622,9 +1624,11 @@ static void do_async_mmap_readahead(stru
- 		return;
- 	if (ra->mmap_miss > 0)
- 		ra->mmap_miss--;
--	if (PageReadahead(page))
-+	if (PageReadahead(page)) {
-+		ra->for_mmap = 1;
- 		page_cache_async_readahead(mapping, ra, file,
- 					   page, offset, ra->ra_pages);
-+	}
- }
- 
- /**
---- linux-next.orig/mm/readahead.c	2012-01-25 15:57:50.000000000 +0800
-+++ linux-next/mm/readahead.c	2012-01-25 15:57:51.000000000 +0800
-@@ -259,6 +259,7 @@ unsigned long ra_submit(struct file_ra_s
- 	actual = __do_page_cache_readahead(mapping, filp,
+--- linux-next.orig/mm/readahead.c	2012-01-25 15:57:51.000000000 +0800
++++ linux-next/mm/readahead.c	2012-01-25 15:57:52.000000000 +0800
+@@ -260,6 +260,7 @@ unsigned long ra_submit(struct file_ra_s
  					ra->start, ra->size, ra->async_size);
  
-+	ra->for_mmap = 0;
+ 	ra->for_mmap = 0;
++	ra->for_metadata = 0;
  	return actual;
  }
  
