@@ -1,187 +1,196 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx103.postini.com [74.125.245.103])
-	by kanga.kvack.org (Postfix) with SMTP id D39116B13F0
-	for <linux-mm@kvack.org>; Sat, 11 Feb 2012 16:28:53 -0500 (EST)
-Received: from aamtaout02-winn.ispmail.ntl.com ([81.103.221.35])
-          by mtaout02-winn.ispmail.ntl.com
-          (InterMail vM.7.08.04.00 201-2186-134-20080326) with ESMTP
-          id <20120211212852.IIPC7151.mtaout02-winn.ispmail.ntl.com@aamtaout02-winn.ispmail.ntl.com>
-          for <linux-mm@kvack.org>; Sat, 11 Feb 2012 21:28:52 +0000
-Received: from cpc2-shep11-2-0-cust420.8-3.cable.virginmedia.com
-          ([86.26.193.165]) by aamtaout02-winn.ispmail.ntl.com
-          (InterMail vG.3.00.04.00 201-2196-133-20080908) with ESMTP
-          id <20120211212852.ZTXJ5924.aamtaout02-winn.ispmail.ntl.com@cpc2-shep11-2-0-cust420.8-3.cable.virginmedia.com>
-          for <linux-mm@kvack.org>; Sat, 11 Feb 2012 21:28:52 +0000
-Received: from localhost by localhost (DeleGate/9.9.7) for linux-mm@kvack.org (linux-mm@kvack.org); Sat, 11 Feb 2012 21:28:52 +0100
-Message-ID: <4F36DD77.1080306@ntlworld.com>
-Date: Sat, 11 Feb 2012 21:28:23 +0000
-From: Stuart Foster <smf.linux@ntlworld.com>
-MIME-Version: 1.0
-Subject: Re: [Bug 42578] Kernel crash "Out of memory error by X" when using
- NTFS file system on external USB Hard drive
-References: <bug-42578-27@https.bugzilla.kernel.org/> <201201180922.q0I9MCYl032623@bugzilla.kernel.org> <20120119122448.1cce6e76.akpm@linux-foundation.org> <20120210163748.GR5796@csn.ul.ie>
-In-Reply-To: <20120210163748.GR5796@csn.ul.ie>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx157.postini.com [74.125.245.157])
+	by kanga.kvack.org (Postfix) with SMTP id 379216B13F0
+	for <linux-mm@kvack.org>; Sat, 11 Feb 2012 19:23:29 -0500 (EST)
+From: Andrea Righi <andrea@betterlinux.com>
+Subject: [RFC] [PATCH v5 0/3] fadvise: support POSIX_FADV_NOREUSE
+Date: Sun, 12 Feb 2012 01:21:35 +0100
+Message-Id: <1329006098-5454-1-git-send-email-andrea@betterlinux.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, bugzilla-daemon@bugzilla.kernel.org, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Minchan Kim <minchan.kim@gmail.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Johannes Weiner <jweiner@redhat.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Alexander Viro <viro@zeniv.linux.org.uk>, Shaohua Li <shaohua.li@intel.com>, =?UTF-8?q?P=C3=A1draig=20Brady?= <P@draigBrady.com>, John Stultz <john.stultz@linaro.org>, Jerry James <jamesjer@betterlinux.com>, Julius Plenz <julius@plenz.com>, linux-mm <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>
 
-On 02/10/12 16:37, Mel Gorman wrote:
-> On Thu, Jan 19, 2012 at 12:24:48PM -0800, Andrew Morton wrote:
->>
->> (switched to email.  Please respond via emailed reply-to-all, not via the
->> bugzilla web interface).
->>
->> On Wed, 18 Jan 2012 09:22:12 GMT
->> bugzilla-daemon@bugzilla.kernel.org wrote:
->>
->>> https://bugzilla.kernel.org/show_bug.cgi?id=42578
->>
->
-> Sorry again for taking so long to look at this.
->
->> Stuart has an 8GB x86_32 machine.
->
-> The bugzilla talks about a 16G machine. Is 8G a typo?
->
->> It has large amounts of NTFS
->> pagecache in highmem.  NTFS is using 512-byte buffer_heads.  All of the
->> machine's lowmem is being consumed by struct buffer_heads which are
->> attached to the highmem pagecache and the machine is dead in the water,
->> getting a storm of ooms.
->>
->
-> Ok, I was at least able to confirm with an 8G machine that there are a lot
-> of buffer_heads allocated as you'd expect but it did not crash. I suspect
-> it's because the ratio of highmem/normal was insufficient to trigger the
-> bug. Stuart, if this is a 16G machine, can you test booting with mem=8G
-> to confirm the ratio of highmem/normal is the important factor please?
->
->> A regression, I think.  A box-killing one on a pretty simple workload
->> on a not uncommon machine.
->>
->
-> Because of the trigger, it's the type of bug that could have existed for
-> a long time without being noticed. When I went to reproduce this, I found
-> that my distro by default was using fuse to access the NTFS partition
-> which could have also contributed to hiding this.
->
->> We used to handle this by scanning highmem even when there was plenty
->> of free highmem and the request is for a lowmmem pages.  We have made a
->> few changes in this area and I guess that's what broke it.
->>
->
-> I don't have much time to look at this unfortunately so I didn't dig too
-> deep but this assessment looks accurate. In direct reclaim for example,
-> we used to always scan all zones unconditionally. Now we filter what zones
-> we reclaim from based on the gfp mask of the caller.
->
->> I think a suitable fix here would be to extend the
->> buffer_heads_over_limit special-case.  If buffer_heads_over_limit is
->> true, both direct-reclaimers and kswapd should scan the highmem zone
->> regardless of incoming gfp_mask and regardless of the highmem free
->> pages count.
->>
->
-> I've included a quick hatchet job below to test the basic theory. It has
-> not been tested properly I'm afraid but the basic idea is there.
->
->> In this mode, we only scan the file lru.  We should perform writeback
->> as well, because the buffer_heads might be dirty.
->>
->
-> With this patch against 3.3-rc3, it won't immediately initiate writeback by
-> kswapd. Direct reclaim cannot initiate writeback at all so there is still
-> a risk that enough dirty pages could exist to pin low memory and go OOM but
-> the machine would need at least 30G of machine and running in 32-bit mode.
->
->> [aside: If all of a page's buffer_heads are dirty we can in fact
->> reclaim them and mark the entire page dirty.  If some of the
->> buffer_heads are dirty and the others are uptodate we can even reclaim
->> them in this case, and mark the entire page dirty, causing extra I/O
->> later.  But try_to_release_page() doesn't do these things.]
->>
->
-> Good tip.
->
->> I think it is was always wrong that we only strip buffer_heads when
->> moving pages to the inactive list.  What happens if those 600MB of
->> buffer_heads are all attached to inactive pages?
->>
->
-> I wondered the same thing myself. With some use-once logic, there is
-> no guarantee that they even get promoted to the active list in the
-> first place. It's "always" been like this but we've changed how pages gets
-> promoted quite a bit and this use case could have been easily missed.
->
-> diff --git a/mm/vmscan.c b/mm/vmscan.c
-> index c52b235..3622765 100644
-> --- a/mm/vmscan.c
-> +++ b/mm/vmscan.c
-> @@ -2235,6 +2235,14 @@ static bool shrink_zones(int priority, struct zonelist *zonelist,
->   	unsigned long nr_soft_scanned;
->   	bool aborted_reclaim = false;
->
-> +	/*
-> +	 * If the number of buffer_heads in the machine exceeds the maximum
-> +	 * allowed level, force direct reclaim to scan the highmem zone as
-> +	 * highmem pages could be pinning lowmem pages storing buffer_heads
-> +	 */
-> +	if (buffer_heads_over_limit)
-> +		sc->gfp_mask |= __GFP_HIGHMEM;
-> +
->   	for_each_zone_zonelist_nodemask(zone, z, zonelist,
->   					gfp_zone(sc->gfp_mask), sc->nodemask) {
->   		if (!populated_zone(zone))
-> @@ -2724,6 +2732,17 @@ loop_again:
->   			 */
->   			age_active_anon(zone,&sc, priority);
->
-> +			/*
-> +			 * If the number of buffer_heads in the machine
-> +			 * exceeds the maximum allowed level and this node
-> +			 * has a highmem zone, force kswapd to reclaim from
-> +			 * it to relieve lowmem pressure.
-> +			 */
-> +			if (buffer_heads_over_limit&&  is_highmem_idx(i)) {
-> +				end_zone = i;
-> +				break;
-> +			}
-> +
->   			if (!zone_watermark_ok_safe(zone, order,
->   					high_wmark_pages(zone), 0, 0)) {
->   				end_zone = i;
-> @@ -2786,7 +2805,8 @@ loop_again:
->   				(zone->present_pages +
->   					KSWAPD_ZONE_BALANCE_GAP_RATIO-1) /
->   				KSWAPD_ZONE_BALANCE_GAP_RATIO);
-> -			if (!zone_watermark_ok_safe(zone, order,
-> +			if ((buffer_heads_over_limit&&  is_highmem_idx(i)) ||
-> +				    !zone_watermark_ok_safe(zone, order,
->   					high_wmark_pages(zone) + balance_gap,
->   					end_zone, 0)) {
->   				shrink_zone(priority, zone,&sc);
->
+There were some reported problems in the past about trashing page cache when a
+backup software (i.e., rsync) touches a huge amount of pages (see for example
+[1]).
 
-Hi,
+This problem was mitigated by the Minchan's patch [2] and a proper use of
+fadvise() in the backup software. For example this patch set [3] has been
+proposed for inclusion in rsync.
 
-Thanks for the update, my test results using kernel 3.3-rc3 are as follows:
+However, there are still other trashing problems: when the backup software
+reads all the source files, some of them may be part of the actual working set
+of the system. If a POSIX_FADV_DONTNEED is performed _all_ pages are evicted
+from pagecache, both the working set and the use-once pages touched only by the
+backup.
 
-1 With all 16Gbyte enabled the system fails as previously reported.
+A previous proposal [4] was to use the POSIX_FADV_NOREUSE hint, currently
+implemented as a no-op, to provide a page invalidation policy less agressive
+than POSIX_FADV_DONTNEED (by moving active pages to the tail of the inactive
+list, and dropping the pages from the inactive list).
 
-2 With memory limited to 8Gbyte the system does not fail.
+However, as correctly pointed out by KOSAKI, this behavior is very different
+respect to the POSIX definition:
 
-3 With the patch applied and the system using the full 16Gbyte the 
-system does not fail.
+      POSIX_FADV_NOREUSE
+              Specifies that the application expects to access the specified data once and then
+              not reuse it thereafter.
 
-Thanks
+The new proposal is to implement POSIX_FADV_NOREUSE as a way to perform a real
+drop-behind policy where applications can mark certain intervals of a file as
+FADV_NOREUSE before accessing the data.
 
-Stuart
+In this way the marked pages will never blow away the current working set. This
+requirement can be satisfied by preventing lru activation of the FADV_NOREUSE
+pages. Moreover, all the file cache pages in a FADV_NOREUSE range will be
+immediately dropped after a read if the page was not present in the cache
+before. The purpose is to preserve as much as possible the previous state of
+the file cache memory before reading data in ranges marked via FADV_NOREUSE.
 
+The list of FADV_NOREUSE ranges are maintained into an interval tree [5] inside
+the address_space structure (for this a generic interval tree implementation is
+also provided by PATCH 1/2). The intervals are dropped when pages are also
+dropped from the page cache or when a different caching hint is specified on
+the same intervals.
 
+Example:
 
+How this can solve the "backup is trashing my page cache" issue?
+
+The "backup" software can be changed as following:
+
+- before:
+  - fd_src = open /path/very_large_file
+  - fd_dst = open /backup/very_large_file
+  - read from fd_src
+  - write to fd_dst
+  - close fd_src and fd_dst
+
+- after:
+  - fd_src = open /path/large_file
+  - fd_dst = open /backup/very_large_file
+  - posix_fadvise(fd_src, start, end, POSIX_FADV_NOREUSE)
+  - read from fd_src (even multiple times)
+  - write to fd_dst
+  - posix_fadvise(fd_src, start, end, POSIX_FADV_NORMAL)
+  - posix_fadvise(fd_dst, start, end, POSIX_FADV_DONTNEED)
+  - close fd_src and fd_dst
+
+Simple test case:
+
+  - read a chunk of 256MB from the middle of a large file (this represents the
+    working set)
+
+  - simulate a backup-like software reading the whole file using
+    POSIX_FADV_NORMAL, or POSIX_FADV_DONTNEED or POSIX_FADV_NOREUSE
+
+  - re-read the same 256MB chunk from the middle of the file and measure
+    the time and the bio submitted (perf stat -e block:block_bio_queue)
+
+The test is done starting both with the working set in the inactive lru list
+(the 256MB chunk read once at the beginning of the test) and the working set in
+the active lru list (the 256MB chunk read twice at the beginning of the test).
+
+Results:
+
+ inact_working_set = the working set is all in the inactive lru list
+   act_working_set = the working set is all in the active lru list
+
+ - block:block_bio_queue (events)
+                      inact_working_set act_working_set
+  POSIX_FADV_NORMAL               2,052               0
+  POSIX_FADV_DONTNEED                 0(*)         2048
+  POSIX_FADV_NOREUSE                  0               0
+
+ - elapsed time (sec)
+                      inact_working_set act_working_set
+  POSIX_FADV_NORMAL               1.013           0.070
+  POSIX_FADV_DONTNEED             0.070(*)        1.006
+  POSIX_FADV_NOREUSE              0.070           0.070
+
+(*) With POSIX_FADV_DONTNEED I would expect to see the working set pages
+dropped from the page cache when it starts in the inactive lru list.
+
+Instead this happens only when we start with the working set all in the active
+list. IIUC this happens because when we re-read the pages the second time
+they're moved to the per-cpu vector activate_page_pvecs; if the page vector is
+not yet drained when we issue the POSIX_FADV_DONTNEED the advice is ignored.
+
+Anyway, for this particular test case the best solution to preserve the state
+of the page cache is obviouly the usage of POSIX_FADV_NOREUSE.
+
+Regression test:
+
+ for i in `seq 1 10`; do
+    fio --name=fio --directory=. --rw=read --bs=4K --size=1G --numjobs=4 | grep READ:
+ done
+
+ - before:
+   READ: io=4096.0MB, aggrb=244737KB/s, minb=62652KB/s, maxb=63474KB/s, mint=16916msec, maxt=17138msec
+   READ: io=4096.0MB, aggrb=242263KB/s, minb=62019KB/s, maxb=64380KB/s, mint=16678msec, maxt=17313msec
+   READ: io=4096.0MB, aggrb=241913KB/s, minb=61929KB/s, maxb=62766KB/s, mint=17107msec, maxt=17338msec
+   READ: io=4096.0MB, aggrb=244337KB/s, minb=62550KB/s, maxb=63776KB/s, mint=16836msec, maxt=17166msec
+   READ: io=4096.0MB, aggrb=242768KB/s, minb=62148KB/s, maxb=62517KB/s, mint=17175msec, maxt=17277msec
+   READ: io=4096.0MB, aggrb=242796KB/s, minb=62155KB/s, maxb=63191KB/s, mint=16992msec, maxt=17275msec
+   READ: io=4096.0MB, aggrb=244352KB/s, minb=62554KB/s, maxb=63392KB/s, mint=16938msec, maxt=17165msec
+   READ: io=4096.0MB, aggrb=242011KB/s, minb=61954KB/s, maxb=62368KB/s, mint=17216msec, maxt=17331msec
+   READ: io=4096.0MB, aggrb=241676KB/s, minb=61869KB/s, maxb=63738KB/s, mint=16846msec, maxt=17355msec
+   READ: io=4096.0MB, aggrb=242319KB/s, minb=62033KB/s, maxb=63362KB/s, mint=16946msec, maxt=17309msec
+
+   avg aggrb = 242917KB/s, avg mint = 16965msec, avg maxt = 17267msec
+
+ - after:
+   READ: io=4096.0MB, aggrb=243968KB/s, minb=62455KB/s, maxb=63306KB/s, mint=16961msec, maxt=17192msec
+   READ: io=4096.0MB, aggrb=242979KB/s, minb=62202KB/s, maxb=63127KB/s, mint=17009msec, maxt=17262msec
+   READ: io=4096.0MB, aggrb=242473KB/s, minb=62073KB/s, maxb=62285KB/s, mint=17239msec, maxt=17298msec
+   READ: io=4096.0MB, aggrb=244494KB/s, minb=62590KB/s, maxb=63272KB/s, mint=16970msec, maxt=17155msec
+   READ: io=4096.0MB, aggrb=244352KB/s, minb=62554KB/s, maxb=63269KB/s, mint=16971msec, maxt=17165msec
+   READ: io=4096.0MB, aggrb=241969KB/s, minb=61944KB/s, maxb=63444KB/s, mint=16924msec, maxt=17334msec
+   READ: io=4096.0MB, aggrb=243303KB/s, minb=62285KB/s, maxb=62543KB/s, mint=17168msec, maxt=17239msec
+   READ: io=4096.0MB, aggrb=243232KB/s, minb=62267KB/s, maxb=63109KB/s, mint=17014msec, maxt=17244msec
+   READ: io=4096.0MB, aggrb=241969KB/s, minb=61944KB/s, maxb=62652KB/s, mint=17138msec, maxt=17334msec
+   READ: io=4096.0MB, aggrb=241649KB/s, minb=61862KB/s, maxb=62616KB/s, mint=17148msec, maxt=17357msec
+
+   avg aggrb = 243038KB/s, avg mint = 17054msec, avg maxt = 17258msec
+
+No obvious performance regression was found according to this simple test.
+
+Credits:
+ - Some of the routines to implement the generic interval tree has been taken
+   from the x86 PAT code, that uses interval trees to keep track of PAT ranges
+   (in the future it would be interesting to convert also the x86 PAT code to
+   use the generic interval tree implementation).
+
+ - The idea to store the FADV_NOREUSE intervals into the address_space
+   structure as been inspired by the John's POSIX_FADV_VOLATILE patch [6].
+
+References:
+ [1] http://marc.info/?l=rsync&m=128885034930933&w=2
+ [2] https://lkml.org/lkml/2011/2/20/57
+ [3] http://lists.samba.org/archive/rsync/2010-November/025827.html
+ [4] http://thread.gmane.org/gmane.linux.kernel.mm/65493
+ [5] http://en.wikipedia.org/wiki/Interval_tree
+ [6] http://thread.gmane.org/gmane.linux.kernel/1218654
+
+ChangeLog v4 -> v5:
+ - completely new redesign: implement the expected drop-behind policy
+   maintaining the list of FADV_NOREUSE ranges inside the file
+
+[PATCH v5 1/3] kinterval: routines to manipulate generic intervals
+[PATCH v5 2/3] mm: filemap: introduce mark_page_usedonce
+[PATCH v5 3/3] fadvise: implement POSIX_FADV_NOREUSE
+
+ fs/inode.c                |    3 +
+ include/linux/fs.h        |   12 ++
+ include/linux/kinterval.h |  126 ++++++++++++
+ include/linux/swap.h      |    1 +
+ lib/Makefile              |    2 +-
+ lib/kinterval.c           |  483 +++++++++++++++++++++++++++++++++++++++++++++
+ mm/fadvise.c              |   18 ++-
+ mm/filemap.c              |   95 +++++++++-
+ mm/swap.c                 |   24 +++
+ 9 files changed, 760 insertions(+), 4 deletions(-)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
