@@ -1,27 +1,183 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx128.postini.com [74.125.245.128])
-	by kanga.kvack.org (Postfix) with SMTP id 52A316B13F2
-	for <linux-mm@kvack.org>; Mon, 13 Feb 2012 13:18:54 -0500 (EST)
-From: Krishna Reddy <vdumpa@nvidia.com>
-Date: Mon, 13 Feb 2012 10:18:25 -0800
-Subject: RE: [PATCHv6 7/7] ARM: dma-mapping: add support for IOMMU mapper
-Message-ID: <401E54CE964CD94BAE1EB4A729C7087E378E42AD6E@HQMAIL04.nvidia.com>
-References: <1328900324-20946-1-git-send-email-m.szyprowski@samsung.com>
- <1328900324-20946-8-git-send-email-m.szyprowski@samsung.com>
-In-Reply-To: <1328900324-20946-8-git-send-email-m.szyprowski@samsung.com>
-Content-Language: en-US
-Content-Type: text/plain; charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
+Received: from psmtp.com (na3sys010amx183.postini.com [74.125.245.183])
+	by kanga.kvack.org (Postfix) with SMTP id B20626B13F0
+	for <linux-mm@kvack.org>; Mon, 13 Feb 2012 13:40:41 -0500 (EST)
+Received: by qcsd16 with SMTP id d16so3631929qcs.14
+        for <linux-mm@kvack.org>; Mon, 13 Feb 2012 10:40:40 -0800 (PST)
 MIME-Version: 1.0
+In-Reply-To: <20120209135043.GA7620@localhost>
+References: <CAHH2K0b-+T4dspJPKq5TH25aH58TEr+7yvq0-HMkbFi0ghqAfA@mail.gmail.com>
+	<20120208093120.GA18993@localhost>
+	<CALWz4izTS_E3uHLLfq3c9=LCuEh_yykmfrRAv4G1gUHumzGDzQ@mail.gmail.com>
+	<20120209135043.GA7620@localhost>
+Date: Mon, 13 Feb 2012 10:40:40 -0800
+Message-ID: <CALWz4iyx-aY1W-69bBJ9efYLUB52u2zPTtTQ5v=J5k8DPvSz0g@mail.gmail.com>
+Subject: Re: memcg writeback (was Re: [Lsf-pc] [LSF/MM TOPIC] memcg topics.)
+From: Ying Han <yinghan@google.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Marek Szyprowski <m.szyprowski@samsung.com>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "linaro-mm-sig@lists.linaro.org" <linaro-mm-sig@lists.linaro.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, "linux-samsung-soc@vger.kernel.org" <linux-samsung-soc@vger.kernel.org>, "iommu@lists.linux-foundation.org" <iommu@lists.linux-foundation.org>
-Cc: Kyungmin Park <kyungmin.park@samsung.com>, Arnd Bergmann <arnd@arndb.de>, Joerg Roedel <joro@8bytes.org>, Russell King - ARM Linux <linux@arm.linux.org.uk>, Shariq Hasnain <shariq.hasnain@linaro.org>, Chunsang Jeong <chunsang.jeong@linaro.org>, KyongHo Cho <pullip.cho@samsung.com>, Andrzej Pietrasiewicz <andrzej.p@samsung.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>
+To: Wu Fengguang <fengguang.wu@intel.com>
+Cc: Greg Thelen <gthelen@google.com>, Jan Kara <jack@suse.cz>, "bsingharora@gmail.com" <bsingharora@gmail.com>, Hugh Dickins <hughd@google.com>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, Mel Gorman <mgorman@suse.de>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>, lsf-pc@lists.linux-foundation.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-scripts/checkpatch.pl need to be run on your patches. Out of 7 patches,
-6 patches(except patch 5) have coding standard violations.
+On Thu, Feb 9, 2012 at 5:50 AM, Wu Fengguang <fengguang.wu@intel.com> wrote=
+:
+> On Wed, Feb 08, 2012 at 12:54:33PM -0800, Ying Han wrote:
+>> On Wed, Feb 8, 2012 at 1:31 AM, Wu Fengguang <fengguang.wu@intel.com> wr=
+ote:
+>> > On Tue, Feb 07, 2012 at 11:55:05PM -0800, Greg Thelen wrote:
+>> >> On Fri, Feb 3, 2012 at 1:40 AM, Wu Fengguang <fengguang.wu@intel.com>=
+ wrote:
+>> >> > If moving dirty pages out of the memcg to the 20% global dirty page=
+s
+>> >> > pool on page reclaim, the above OOM can be avoided. It does change =
+the
+>> >> > meaning of memory.limit_in_bytes in that the memcg tasks can now
+>> >> > actually consume more pages (up to the shared global 20% dirty limi=
+t).
+>> >>
+>> >> This seems like an easy change, but unfortunately the global 20% pool
+>> >> has some shortcomings for my needs:
+>> >>
+>> >> 1. the global 20% pool is not moderated. =A0One cgroup can dominate i=
+t
+>> >> =A0 =A0 and deny service to other cgroups.
+>> >
+>> > It is moderated by balance_dirty_pages() -- in terms of dirty ratelimi=
+t.
+>> > And you have the freedom to control the bandwidth allocation with some
+>> > async write I/O controller.
+>> >
+>> > Even though there is no direct control of dirty pages, we can roughly
+>> > get it as the side effect of rate control. Given
+>> >
+>> > =A0 =A0 =A0 =A0ratelimit_cgroup_A =3D 2 * ratelimit_cgroup_B
+>> >
+>> > There will naturally be more dirty pages for cgroup A to be worked by
+>> > the flusher. And the dirty pages will be roughly balanced around
+>> >
+>> > =A0 =A0 =A0 =A0nr_dirty_cgroup_A =3D 2 * nr_dirty_cgroup_B
+>> >
+>> > when writeout bandwidths for their dirty pages are equal.
+>> >
+>> >> 2. the global 20% pool is free, unaccounted memory. =A0Ideally cgroup=
+s only
+>> >> =A0 =A0 use the amount of memory specified in their memory.limit_in_b=
+ytes. =A0The
+>> >> =A0 =A0 goal is to sell portions of a system. =A0Global resource like=
+ the 20% are an
+>> >> =A0 =A0 undesirable system-wide tax that's shared by jobs that may no=
+t even
+>> >> =A0 =A0 perform buffered writes.
+>> >
+>> > Right, it is the shortcoming.
+>> >
+>> >> 3. Setting aside 20% extra memory for system wide dirty buffers is a =
+lot of
+>> >> =A0 =A0 memory. =A0This becomes a larger issue when the global dirty_=
+ratio is
+>> >> =A0 =A0 higher than 20%.
+>> >
+>> > Yeah the global pool scheme does mean that you'd better allocate at
+>> > most 80% memory to individual memory cgroups, otherwise it's possible
+>> > for a tiny memcg doing dd writes to push dirty pages to global LRU and
+>> > *squeeze* the size of other memcgs.
+>> >
+>> > However I guess it should be mitigated by the fact that
+>> >
+>> > - we typically already reserve some space for the root memcg
+>>
+>> Can you give more details on that? AFAIK, we don't treat root cgroup
+>> differently than other sub-cgroups, except root cgroup doesn't have
+>> limit.
+>
+> OK. I'd imagine this to be the typical usage for desktop and quite a
+> few servers: a few cgroups are employed to limit the resource usage
+> for selected tasks (such as backups, background GUI tasks, cron tasks,
+> etc.). These systems are still running mainly in the global context.
 
--KR
+The use case makes senses, but still not sure about the "reservation
+for root" part.
+
+For other tasks not running under cgroups, they runs under global
+context as you said. However, there is no memory limit for root cgroup
+and it will only trigger global reclaim when running short of memory.
+It doesn't sounds like a straight-forward configuration for
+environments requires memory isolation badly. The worst part is the
+unpredictability, which we don't have control of how much
+dirty-and-later-clean pages being leaked to root and stays.
+
+--Ying
+
+>
+>> In general, I don't like the idea of shared pool in root for all the
+>> dirty pages.
+>>
+>> Imagining a system which has nothing running under root and every
+>> application runs within sub-cgroup. It is easy to track and limit each
+>> cgroup's memory usage, but not the pages being moved to root. We have
+>> been experiencing difficulties of tracking pages being re-parented to
+>> root, and this will make it even harder.
+>
+> So you want to push memcg allocations to the hardware limits. This is
+> a worthwhile target for cloud servers that run a number of well
+> contained jobs.
+>
+> I guess it can be achieved reasonably well with the global shared
+> dirty pool. =A0Let's discuss the two major cases.
+>
+> 1) no change of behavior
+>
+> For example, when the system memory is divided equally to 10 cgroups
+> each running 1 dd. In this case, the dirty pages will be contained
+> within the memcg LRUs. Page reclaim rarely encounters any dirty pages.
+> There is no moving to the global LRU, so no side effect at all.
+
+>
+> 2) small memcg squeezing other memcg(s)
+>
+> When system memory is divided to 1 small memcg A and 1 large memcg B,
+> each running a dd task. In this case the dirty pages from A will be
+> moved to the global LRU, and global page reclaims will be triggered.
+>
+> In the end it will be balanced around
+>
+> - global LRU: 10% memory (which are A's dirty pages)
+> - memcg B: 90% memory
+> - memcg A: a tiny ignorable fraction of memory
+>
+> Now job B uses 10% less memory than w/o the global dirty pool scheme.
+> I guess this is bad for some type of jobs.
+>
+> However my question is, will the typical demand be more flexible?
+> Something like the "minimal" and "recommended" setup: "this job
+> requires at least XXX memory and better at YYY memory", rather than
+> some fixed size memory allocation.
+>
+> The minimal requirement should be trivially satisfied by adding a
+> memcg watermark that protects the memcg LRU from being reclaimed
+> when dropped under it.
+>
+> Then the cloud server could be configured to
+>
+> =A0 =A0 =A0 =A0sum(memcg.limit_in_bytes) / memtotal =3D 100%
+> =A0 =A0 =A0 =A0sum(memcg.minimal_size) =A0 / memtotal < 100% - dirty_rati=
+o
+>
+> Which makes a simple and flexibly partitioned system.
+>
+> Thanks,
+> Fengguang
+>
+>> > - 20% dirty ratio is mostly an overkill for large memory systems.
+>> > =A0It's often enough to hold 10-30s worth of dirty data for them, whic=
+h
+>> > =A0is 1-3GB for one 100MB/s disk. This is the reason vm.dirty_bytes is
+>> > =A0introduced: someone wants to do some <1% dirty ratio.
+>> >
+>> > Thanks,
+>> > Fengguang
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
