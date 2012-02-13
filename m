@@ -1,84 +1,213 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx203.postini.com [74.125.245.203])
-	by kanga.kvack.org (Postfix) with SMTP id A83D16B13F0
-	for <linux-mm@kvack.org>; Mon, 13 Feb 2012 05:42:57 -0500 (EST)
-Received: by bkty12 with SMTP id y12so5173624bkt.14
-        for <linux-mm@kvack.org>; Mon, 13 Feb 2012 02:42:55 -0800 (PST)
-Message-ID: <4F38E8E1.3070004@mvista.com>
-Date: Mon, 13 Feb 2012 14:41:37 +0400
-From: Sergei Shtylyov <sshtylyov@mvista.com>
+Received: from psmtp.com (na3sys010amx124.postini.com [74.125.245.124])
+	by kanga.kvack.org (Postfix) with SMTP id EF0C76B13F0
+	for <linux-mm@kvack.org>; Mon, 13 Feb 2012 06:11:07 -0500 (EST)
+Date: Mon, 13 Feb 2012 11:10:58 +0000
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [PATCH 02/15] mm: sl[au]b: Add knowledge of PFMEMALLOC reserve
+ pages
+Message-ID: <20120213111058.GW5938@suse.de>
+References: <20120208144506.GI5938@suse.de>
+ <alpine.DEB.2.00.1202080907320.30248@router.home>
+ <20120208163421.GL5938@suse.de>
+ <alpine.DEB.2.00.1202081338210.32060@router.home>
+ <20120208212323.GM5938@suse.de>
+ <alpine.DEB.2.00.1202081557540.5970@router.home>
+ <20120209125018.GN5938@suse.de>
+ <alpine.DEB.2.00.1202091345540.4413@router.home>
+ <20120210102605.GO5938@suse.de>
+ <alpine.DEB.2.00.1202101443570.31424@router.home>
 MIME-Version: 1.0
-Subject: Re: [PATCH 03/14 v2] MIPS: adapt for dma_map_ops changes
-References: <1324643253-3024-4-git-send-email-m.szyprowski@samsung.com> <1329129329-25205-1-git-send-email-m.szyprowski@samsung.com>
-In-Reply-To: <1329129329-25205-1-git-send-email-m.szyprowski@samsung.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.00.1202101443570.31424@router.home>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Marek Szyprowski <m.szyprowski@samsung.com>
-Cc: linux-kernel@vger.kernel.org, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Thomas Gleixner <tglx@linutronix.de>, Andrew Morton <akpm@linux-foundation.org>, Arnd Bergmann <arnd@arndb.de>, Stephen Rothwell <sfr@canb.auug.org.au>, FUJITA Tomonori <fujita.tomonori@lab.ntt.co.jp>, microblaze-uclinux@itee.uq.edu.au, linux-arch@vger.kernel.org, x86@kernel.org, linux-sh@vger.kernel.org, linux-alpha@vger.kernel.org, sparclinux@vger.kernel.org, linux-ia64@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-mips@linux-mips.org, discuss@x86-64.org, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, linaro-mm-sig@lists.linaro.org, Jonathan Corbet <corbet@lwn.net>, Kyungmin Park <kyungmin.park@samsung.com>, Andrzej Pietrasiewicz <andrzej.p@samsung.com>
+To: Christoph Lameter <cl@linux.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, Linux-Netdev <netdev@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, David Miller <davem@davemloft.net>, Neil Brown <neilb@suse.de>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Pekka Enberg <penberg@cs.helsinki.fi>
 
-Hello.
+On Fri, Feb 10, 2012 at 03:01:37PM -0600, Christoph Lameter wrote:
+> On Fri, 10 Feb 2012, Mel Gorman wrote:
+> 
+> > I have an updated version of this 02/15 patch below. It passed testing
+> > and is a lot less invasive than the previous release. As you suggested,
+> > it uses page flags and the bulk of the complexity is only executed if
+> > someone is using network-backed storage.
+> 
+> Hmmm.. hmm... Still modifies the hotpaths of the allocators for a
+> pretty exotic feature.
+> 
+> > > On top of that you want to add
+> > > special code in various subsystems to also do that over the network.
+> > > Sigh. I think we agreed a while back that we want to limit the amount of
+> > > I/O triggered from reclaim paths?
+> >
+> > Specifically we wanted to reduce or stop page reclaim calling ->writepage()
+> > for file-backed pages because it generated awful IO patterns and deep
+> > call stacks. We still write anonymous pages from page reclaim because we
+> > do not have a dedicated thread for writing to swap. It is expected that
+> > the call stack for writing to network storage would be less than a
+> > filesystem.
+> >
+> > > AFAICT many filesystems do not support
+> > > writeout from reclaim anymore because of all the issues that arise at that
+> > > level.
+> > >
+> >
+> > NBD is a block device so filesystem restrictions like you mention do not
+> > apply. In NFS, the direct_IO paths are used to write pages not
+> > ->writepage so again the restriction does not apply.
+> 
+> Block devices are a little simpler ok. But it is still not a desirable
+> thing to do (just think about raid and other complex filesystems that may
+> also have to do allocations).
 
-On 13-02-2012 14:35, Marek Szyprowski wrote:
+Swap IO is never desirable but it has to happen somehow and right now, we
+only initiate swap IO from direct reclaim or kswapd. For complex filesystems,
+it is mandatory if they are using direct_IO like I do for NFS that they
+pin the necessary structures in advance to avoid any allocations in their
+reclaim path. I do not expect RAID to be used over network-based swap files.
 
-> From: Andrzej Pietrasiewicz<andrzej.p@samsung.com>
+> I do not think that block device writers
+> code with the VM in mind. In the case of network devices as block devices
+> we have a pretty serious problem since the network subsystem is certainly
+> not designed to be called from VM reclaim code that may be triggered
+> arbitrarily from deeply nested other code in the kernel. Implementing
+> something like this invites breakage all over the place to show up.
+> 
 
-> Adapt core MIPS architecture code for dma_map_ops changes: replace
-> alloc/free_coherent with generic alloc/free methods.
+The whole point of the series is to allow the possibility of using
+network-based swap devices starting with NBD and with NFS in the related
+series. swap-over-NFS has been used for the last few years by enterprise
+distros and while bugs do get reported, they are rare.
 
-> Signed-off-by: Andrzej Pietrasiewicz<andrzej.p@samsung.com>
-> [added missing changes to arch/mips/cavium-octeon/dma-octeon.c]
-> Signed-off-by: Marek Szyprowski<m.szyprowski@samsung.com>
-> Signed-off-by: Kyungmin Park<kyungmin.park@samsung.com>
-[...]
+As the person that introduced this, I would support it in mainline for
+NBD and NFS if it was merged.
 
-> diff --git a/arch/mips/include/asm/dma-mapping.h b/arch/mips/include/asm/dma-mapping.h
-> index 7aa37dd..cbd41f5 100644
-> --- a/arch/mips/include/asm/dma-mapping.h
-> +++ b/arch/mips/include/asm/dma-mapping.h
-> @@ -57,25 +57,31 @@ dma_set_mask(struct device *dev, u64 mask)
->   extern void dma_cache_sync(struct device *dev, void *vaddr, size_t size,
->   	       enum dma_data_direction direction);
->
-> -static inline void *dma_alloc_coherent(struct device *dev, size_t size,
-> -				       dma_addr_t *dma_handle, gfp_t gfp)
-> +#define dma_alloc_coherent(d,s,h,f)	dma_alloc_attrs(d,s,h,f,NULL)
-> +
-> +static inline void *dma_alloc_attrs(struct device *dev, size_t size,
-> +				    dma_addr_t *dma_handle, gfp_t gfp,
-> +				    struct dma_attrs *attrs)
->   {
->   	void *ret;
->   	struct dma_map_ops *ops = get_dma_ops(dev);
->
-> -	ret = ops->alloc_coherent(dev, size, dma_handle, gfp);
-> +	ret = ops->alloc(dev, size, dma_handle, gfp, NULL);
+> > index 8b3b8cf..6a3fa1c 100644
+> > --- a/mm/page_alloc.c
+> > +++ b/mm/page_alloc.c
+> > @@ -695,6 +695,7 @@ static bool free_pages_prepare(struct page *page, unsigned int order)
+> >  	trace_mm_page_free(page, order);
+> >  	kmemcheck_free_shadow(page, order);
+> >
+> > +	page->pfmemalloc = false;
+> >  	if (PageAnon(page))
+> >  		page->mapping = NULL;
+> >  	for (i = 0; i < (1 << order); i++)
+> > @@ -1221,6 +1222,7 @@ void free_hot_cold_page(struct page *page, int cold)
+> >
+> >  	migratetype = get_pageblock_migratetype(page);
+> >  	set_page_private(page, migratetype);
+> > +	page->pfmemalloc = false;
+> >  	local_irq_save(flags);
+> >  	if (unlikely(wasMlocked))
+> >  		free_page_mlock(page);
+> 
+> page allocator hotpaths affected.
+> 
 
-    Not 'attrs' instead of NULL?
+I can remove these but then page->pfmemalloc has to be set on the allocation
+side. It's a single write to a dirty cache line that is already local to
+the processor. It's not measurable although I accept that the page
+allocator paths could do with a diet in general.
 
->
->   	debug_dma_alloc_coherent(dev, size, *dma_handle, ret);
->
->   	return ret;
->   }
->
-> -static inline void dma_free_coherent(struct device *dev, size_t size,
-> -				     void *vaddr, dma_addr_t dma_handle)
-> +#define dma_free_coherent(d,s,c,h) dma_free_attrs(d,s,c,h,NULL)
-> +
-> +static inline void dma_free_attrs(struct device *dev, size_t size,
-> +				  void *vaddr, dma_addr_t dma_handle,
-> +				  struct dma_attrs *attrs)
->   {
->   	struct dma_map_ops *ops = get_dma_ops(dev);
->
-> -	ops->free_coherent(dev, size, vaddr, dma_handle);
-> +	ops->free(dev, size, vaddr, dma_handle, NULL);
+> > diff --git a/mm/slab.c b/mm/slab.c
+> > index f0bd785..f322dc2 100644
+> > --- a/mm/slab.c
+> > +++ b/mm/slab.c
+> > @@ -123,6 +123,8 @@
+> >
+> >  #include <trace/events/kmem.h>
+> >
+> > +#include	"internal.h"
+> > +
+> >  /*
+> >   * DEBUG	- 1 for kmem_cache_create() to honour; SLAB_RED_ZONE & SLAB_POISON.
+> >   *		  0 for faster, smaller code (especially in the critical paths).
+> > @@ -151,6 +153,12 @@
+> >  #define ARCH_KMALLOC_FLAGS SLAB_HWCACHE_ALIGN
+> >  #endif
+> >
+> > +/*
+> > + * true if a page was allocated from pfmemalloc reserves for network-based
+> > + * swap
+> > + */
+> > +static bool pfmemalloc_active;
+> 
+> Implying an additional cacheline use in critical slab paths?
 
-    Same here...
+This was the alternative to altering the slub structures.
 
-WBR, Sergei
+> Hopefully grouped with other variables already in cache.
+> 
+
+This is the expectation. I considered tagging it read_mostly but didn't
+at the time. I will now because it is genuinely expected to be
+read-mostly and in the case where it is being written to, we're also
+using network-based swap and the cost of a cache miss will be negligible
+in comparison to swapping under memory pressure to a network.
+
+> > @@ -3243,23 +3380,35 @@ static inline void *____cache_alloc(struct kmem_cache *cachep, gfp_t flags)
+> >  {
+> >  	void *objp;
+> >  	struct array_cache *ac;
+> > +	bool force_refill = false;
+> 
+> ... hitting the hotpath here.
+> 
+> > @@ -3693,12 +3845,12 @@ static inline void __cache_free(struct kmem_cache *cachep, void *objp,
+> >
+> >  	if (likely(ac->avail < ac->limit)) {
+> >  		STATS_INC_FREEHIT(cachep);
+> > -		ac->entry[ac->avail++] = objp;
+> > +		ac_put_obj(cachep, ac, objp);
+> >  		return;
+> >  	} else {
+> >  		STATS_INC_FREEMISS(cachep);
+> >  		cache_flusharray(cachep, ac);
+> > -		ac->entry[ac->avail++] = objp;
+> > +		ac_put_obj(cachep, ac, objp);
+> >  	}
+> >  }
+> 
+> and here.
+> 
+
+The impact of ac_put_obj() is reduced in a later patch and becomes just
+an additional read of a global variable. There was not an obvious way to
+me to ensure pfmemalloc pages were not used for !pfmemalloc allocations
+without having some sort of impact.
+
+> 
+> > diff --git a/mm/slub.c b/mm/slub.c
+> > index 4907563..8eed0de 100644
+> > --- a/mm/slub.c
+> > +++ b/mm/slub.c
+> 
+> > @@ -2304,8 +2327,8 @@ redo:
+> >  	barrier();
+> >
+> >  	object = c->freelist;
+> > -	if (unlikely(!object || !node_match(c, node)))
+> > -
+> > +	if (unlikely(!object || !node_match(c, node) ||
+> > +					!pfmemalloc_match(c, gfpflags)))
+> >  		object = __slab_alloc(s, gfpflags, node, addr, c);
+> >
+> >  	else {
+> 
+> 
+> Modification to hotpath. That could be fixed here by forcing pfmemalloc
+> (like debug allocs) to always go to the slow path and checking in there
+> instead. Just keep c->freelist == NULL.
+> 
+
+I picked up your patch for this, thanks.
+
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
