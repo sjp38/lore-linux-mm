@@ -1,183 +1,161 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx183.postini.com [74.125.245.183])
-	by kanga.kvack.org (Postfix) with SMTP id B20626B13F0
-	for <linux-mm@kvack.org>; Mon, 13 Feb 2012 13:40:41 -0500 (EST)
-Received: by qcsd16 with SMTP id d16so3631929qcs.14
-        for <linux-mm@kvack.org>; Mon, 13 Feb 2012 10:40:40 -0800 (PST)
+Received: from psmtp.com (na3sys010amx168.postini.com [74.125.245.168])
+	by kanga.kvack.org (Postfix) with SMTP id 426946B13F0
+	for <linux-mm@kvack.org>; Mon, 13 Feb 2012 13:58:00 -0500 (EST)
+Received: by wgbdt12 with SMTP id dt12so4314734wgb.26
+        for <linux-mm@kvack.org>; Mon, 13 Feb 2012 10:57:58 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <20120209135043.GA7620@localhost>
-References: <CAHH2K0b-+T4dspJPKq5TH25aH58TEr+7yvq0-HMkbFi0ghqAfA@mail.gmail.com>
-	<20120208093120.GA18993@localhost>
-	<CALWz4izTS_E3uHLLfq3c9=LCuEh_yykmfrRAv4G1gUHumzGDzQ@mail.gmail.com>
-	<20120209135043.GA7620@localhost>
-Date: Mon, 13 Feb 2012 10:40:40 -0800
-Message-ID: <CALWz4iyx-aY1W-69bBJ9efYLUB52u2zPTtTQ5v=J5k8DPvSz0g@mail.gmail.com>
-Subject: Re: memcg writeback (was Re: [Lsf-pc] [LSF/MM TOPIC] memcg topics.)
-From: Ying Han <yinghan@google.com>
-Content-Type: text/plain; charset=ISO-8859-1
+In-Reply-To: <1328895151-5196-13-git-send-email-m.szyprowski@samsung.com>
+References: <1328895151-5196-1-git-send-email-m.szyprowski@samsung.com>
+	<1328895151-5196-13-git-send-email-m.szyprowski@samsung.com>
+Date: Mon, 13 Feb 2012 12:57:58 -0600
+Message-ID: <CAOCHtYi01NVp1j=MX+0-z7ygW5tJuoswn8eWTQp+0Z5mMGdeQw@mail.gmail.com>
+Subject: Re: [Linaro-mm-sig] [PATCHv21 12/16] mm: trigger page reclaim in
+ alloc_contig_range() to stabilise watermarks
+From: Robert Nelson <robertcnelson@gmail.com>
+Content-Type: text/plain; charset=windows-1252
 Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wu Fengguang <fengguang.wu@intel.com>
-Cc: Greg Thelen <gthelen@google.com>, Jan Kara <jack@suse.cz>, "bsingharora@gmail.com" <bsingharora@gmail.com>, Hugh Dickins <hughd@google.com>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, Mel Gorman <mgorman@suse.de>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>, lsf-pc@lists.linux-foundation.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: Marek Szyprowski <m.szyprowski@samsung.com>
+Cc: linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-media@vger.kernel.org, linux-mm@kvack.org, linaro-mm-sig@lists.linaro.org, Ohad Ben-Cohen <ohad@wizery.com>, Daniel Walker <dwalker@codeaurora.org>, Russell King <linux@arm.linux.org.uk>, Arnd Bergmann <arnd@arndb.de>, Jonathan Corbet <corbet@lwn.net>, Mel Gorman <mel@csn.ul.ie>, Michal Nazarewicz <mina86@mina86.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Jesse Barker <jesse.barker@linaro.org>, Kyungmin Park <kyungmin.park@samsung.com>, Andrew Morton <akpm@linux-foundation.org>, Rob Clark <rob.clark@linaro.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-On Thu, Feb 9, 2012 at 5:50 AM, Wu Fengguang <fengguang.wu@intel.com> wrote=
-:
-> On Wed, Feb 08, 2012 at 12:54:33PM -0800, Ying Han wrote:
->> On Wed, Feb 8, 2012 at 1:31 AM, Wu Fengguang <fengguang.wu@intel.com> wr=
-ote:
->> > On Tue, Feb 07, 2012 at 11:55:05PM -0800, Greg Thelen wrote:
->> >> On Fri, Feb 3, 2012 at 1:40 AM, Wu Fengguang <fengguang.wu@intel.com>=
- wrote:
->> >> > If moving dirty pages out of the memcg to the 20% global dirty page=
-s
->> >> > pool on page reclaim, the above OOM can be avoided. It does change =
-the
->> >> > meaning of memory.limit_in_bytes in that the memcg tasks can now
->> >> > actually consume more pages (up to the shared global 20% dirty limi=
-t).
->> >>
->> >> This seems like an easy change, but unfortunately the global 20% pool
->> >> has some shortcomings for my needs:
->> >>
->> >> 1. the global 20% pool is not moderated. =A0One cgroup can dominate i=
-t
->> >> =A0 =A0 and deny service to other cgroups.
->> >
->> > It is moderated by balance_dirty_pages() -- in terms of dirty ratelimi=
-t.
->> > And you have the freedom to control the bandwidth allocation with some
->> > async write I/O controller.
->> >
->> > Even though there is no direct control of dirty pages, we can roughly
->> > get it as the side effect of rate control. Given
->> >
->> > =A0 =A0 =A0 =A0ratelimit_cgroup_A =3D 2 * ratelimit_cgroup_B
->> >
->> > There will naturally be more dirty pages for cgroup A to be worked by
->> > the flusher. And the dirty pages will be roughly balanced around
->> >
->> > =A0 =A0 =A0 =A0nr_dirty_cgroup_A =3D 2 * nr_dirty_cgroup_B
->> >
->> > when writeout bandwidths for their dirty pages are equal.
->> >
->> >> 2. the global 20% pool is free, unaccounted memory. =A0Ideally cgroup=
-s only
->> >> =A0 =A0 use the amount of memory specified in their memory.limit_in_b=
-ytes. =A0The
->> >> =A0 =A0 goal is to sell portions of a system. =A0Global resource like=
- the 20% are an
->> >> =A0 =A0 undesirable system-wide tax that's shared by jobs that may no=
-t even
->> >> =A0 =A0 perform buffered writes.
->> >
->> > Right, it is the shortcoming.
->> >
->> >> 3. Setting aside 20% extra memory for system wide dirty buffers is a =
-lot of
->> >> =A0 =A0 memory. =A0This becomes a larger issue when the global dirty_=
-ratio is
->> >> =A0 =A0 higher than 20%.
->> >
->> > Yeah the global pool scheme does mean that you'd better allocate at
->> > most 80% memory to individual memory cgroups, otherwise it's possible
->> > for a tiny memcg doing dd writes to push dirty pages to global LRU and
->> > *squeeze* the size of other memcgs.
->> >
->> > However I guess it should be mitigated by the fact that
->> >
->> > - we typically already reserve some space for the root memcg
->>
->> Can you give more details on that? AFAIK, we don't treat root cgroup
->> differently than other sub-cgroups, except root cgroup doesn't have
->> limit.
+On Fri, Feb 10, 2012 at 11:32 AM, Marek Szyprowski
+<m.szyprowski@samsung.com> wrote:
+> alloc_contig_range() performs memory allocation so it also should keep
+> track on keeping the correct level of memory watermarks. This commit adds
+> a call to *_slowpath style reclaim to grab enough pages to make sure that
+> the final collection of contiguous pages from freelists will not starve
+> the system.
 >
-> OK. I'd imagine this to be the typical usage for desktop and quite a
-> few servers: a few cgroups are employed to limit the resource usage
-> for selected tasks (such as backups, background GUI tasks, cron tasks,
-> etc.). These systems are still running mainly in the global context.
+> Signed-off-by: Marek Szyprowski <m.szyprowski@samsung.com>
+> Signed-off-by: Kyungmin Park <kyungmin.park@samsung.com>
+> CC: Michal Nazarewicz <mina86@mina86.com>
+> Tested-by: Rob Clark <rob.clark@linaro.org>
+> Tested-by: Ohad Ben-Cohen <ohad@wizery.com>
+> Tested-by: Benjamin Gaignard <benjamin.gaignard@linaro.org>
+> ---
+> =A0include/linux/mmzone.h | =A0 =A09 +++++++
+> =A0mm/page_alloc.c =A0 =A0 =A0 =A0| =A0 62 ++++++++++++++++++++++++++++++=
+++++++++++++++++++
+> =A02 files changed, 71 insertions(+), 0 deletions(-)
+>
+> diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
+> index 82f4fa5..6a6c2cc 100644
+> --- a/include/linux/mmzone.h
+> +++ b/include/linux/mmzone.h
+> @@ -63,8 +63,10 @@ enum {
+>
+> =A0#ifdef CONFIG_CMA
+> =A0# =A0define is_migrate_cma(migratetype) unlikely((migratetype) =3D=3D =
+MIGRATE_CMA)
+> +# =A0define cma_wmark_pages(zone) =A0 =A0 =A0 =A0zone->min_cma_pages
+> =A0#else
+> =A0# =A0define is_migrate_cma(migratetype) false
+> +# =A0define cma_wmark_pages(zone) 0
+> =A0#endif
+>
+> =A0#define for_each_migratetype_order(order, type) \
+> @@ -371,6 +373,13 @@ struct zone {
+> =A0 =A0 =A0 =A0/* see spanned/present_pages for more description */
+> =A0 =A0 =A0 =A0seqlock_t =A0 =A0 =A0 =A0 =A0 =A0 =A0 span_seqlock;
+> =A0#endif
+> +#ifdef CONFIG_CMA
+> + =A0 =A0 =A0 /*
+> + =A0 =A0 =A0 =A0* CMA needs to increase watermark levels during the allo=
+cation
+> + =A0 =A0 =A0 =A0* process to make sure that the system is not starved.
+> + =A0 =A0 =A0 =A0*/
+> + =A0 =A0 =A0 unsigned long =A0 =A0 =A0 =A0 =A0 min_cma_pages;
+> +#endif
+> =A0 =A0 =A0 =A0struct free_area =A0 =A0 =A0 =A0free_area[MAX_ORDER];
+>
+> =A0#ifndef CONFIG_SPARSEMEM
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index 793c4e4..2fedd36 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -5035,6 +5035,11 @@ static void __setup_per_zone_wmarks(void)
+>
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0zone->watermark[WMARK_LOW] =A0=3D min_wmar=
+k_pages(zone) + (tmp >> 2);
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0zone->watermark[WMARK_HIGH] =3D min_wmark_=
+pages(zone) + (tmp >> 1);
+> +
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 zone->watermark[WMARK_MIN] +=3D cma_wmark_p=
+ages(zone);
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 zone->watermark[WMARK_LOW] +=3D cma_wmark_p=
+ages(zone);
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 zone->watermark[WMARK_HIGH] +=3D cma_wmark_=
+pages(zone);
+> +
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0setup_zone_migrate_reserve(zone);
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0spin_unlock_irqrestore(&zone->lock, flags)=
+;
+> =A0 =A0 =A0 =A0}
+> @@ -5637,6 +5642,56 @@ static int __alloc_contig_migrate_range(unsigned l=
+ong start, unsigned long end)
+> =A0 =A0 =A0 =A0return ret > 0 ? 0 : ret;
+> =A0}
+>
+> +/*
+> + * Update zone's cma pages counter used for watermark level calculation.
+> + */
+> +static inline void __update_cma_wmark_pages(struct zone *zone, int count=
+)
+> +{
+> + =A0 =A0 =A0 unsigned long flags;
+> + =A0 =A0 =A0 spin_lock_irqsave(&zone->lock, flags);
+> + =A0 =A0 =A0 zone->min_cma_pages +=3D count;
+> + =A0 =A0 =A0 spin_unlock_irqrestore(&zone->lock, flags);
+> + =A0 =A0 =A0 setup_per_zone_wmarks();
+> +}
+> +
+> +/*
+> + * Trigger memory pressure bump to reclaim some pages in order to be abl=
+e to
+> + * allocate 'count' pages in single page units. Does similar work as
+> + *__alloc_pages_slowpath() function.
+> + */
+> +static int __reclaim_pages(struct zone *zone, gfp_t gfp_mask, int count)
+> +{
+> + =A0 =A0 =A0 enum zone_type high_zoneidx =3D gfp_zone(gfp_mask);
+> + =A0 =A0 =A0 struct zonelist *zonelist =3D node_zonelist(0, gfp_mask);
+> + =A0 =A0 =A0 int did_some_progress =3D 0;
+> + =A0 =A0 =A0 int order =3D 1;
+> + =A0 =A0 =A0 unsigned long watermark;
+> +
+> + =A0 =A0 =A0 /*
+> + =A0 =A0 =A0 =A0* Increase level of watermarks to force kswapd do his jo=
+b
+> + =A0 =A0 =A0 =A0* to stabilise at new watermark level.
+> + =A0 =A0 =A0 =A0*/
+> + =A0 =A0 =A0 __modify_min_cma_pages(zone, count);
 
-The use case makes senses, but still not sure about the "reservation
-for root" part.
+Hi Marek,   This ^^^ function doesn't seem to exist in this patchset,
+is it in another set posted to lkml?
 
-For other tasks not running under cgroups, they runs under global
-context as you said. However, there is no memory limit for root cgroup
-and it will only trigger global reclaim when running short of memory.
-It doesn't sounds like a straight-forward configuration for
-environments requires memory isolation badly. The worst part is the
-unpredictability, which we don't have control of how much
-dirty-and-later-clean pages being leaked to root and stays.
+While (build error)testing this patchset on v3.3-rc3 with the
+beagle/panda omapdrm driver..
 
---Ying
+mm/page_alloc.c: In function =91__reclaim_pages=92:
+mm/page_alloc.c:5674:2: error: implicit declaration of function
+=91__modify_min_cma_pages=92 [-Werror=3Dimplicit-function-declaration]
+cc1: some warnings being treated as errors
 
->
->> In general, I don't like the idea of shared pool in root for all the
->> dirty pages.
->>
->> Imagining a system which has nothing running under root and every
->> application runs within sub-cgroup. It is easy to track and limit each
->> cgroup's memory usage, but not the pages being moved to root. We have
->> been experiencing difficulties of tracking pages being re-parented to
->> root, and this will make it even harder.
->
-> So you want to push memcg allocations to the hardware limits. This is
-> a worthwhile target for cloud servers that run a number of well
-> contained jobs.
->
-> I guess it can be achieved reasonably well with the global shared
-> dirty pool. =A0Let's discuss the two major cases.
->
-> 1) no change of behavior
->
-> For example, when the system memory is divided equally to 10 cgroups
-> each running 1 dd. In this case, the dirty pages will be contained
-> within the memcg LRUs. Page reclaim rarely encounters any dirty pages.
-> There is no moving to the global LRU, so no side effect at all.
+make[1]: *** [mm/page_alloc.o] Error 1
+make: *** [mm] Error 2
+make: *** Waiting for unfinished jobs....
 
->
-> 2) small memcg squeezing other memcg(s)
->
-> When system memory is divided to 1 small memcg A and 1 large memcg B,
-> each running a dd task. In this case the dirty pages from A will be
-> moved to the global LRU, and global page reclaims will be triggered.
->
-> In the end it will be balanced around
->
-> - global LRU: 10% memory (which are A's dirty pages)
-> - memcg B: 90% memory
-> - memcg A: a tiny ignorable fraction of memory
->
-> Now job B uses 10% less memory than w/o the global dirty pool scheme.
-> I guess this is bad for some type of jobs.
->
-> However my question is, will the typical demand be more flexible?
-> Something like the "minimal" and "recommended" setup: "this job
-> requires at least XXX memory and better at YYY memory", rather than
-> some fixed size memory allocation.
->
-> The minimal requirement should be trivially satisfied by adding a
-> memcg watermark that protects the memcg LRU from being reclaimed
-> when dropped under it.
->
-> Then the cloud server could be configured to
->
-> =A0 =A0 =A0 =A0sum(memcg.limit_in_bytes) / memtotal =3D 100%
-> =A0 =A0 =A0 =A0sum(memcg.minimal_size) =A0 / memtotal < 100% - dirty_rati=
-o
->
-> Which makes a simple and flexibly partitioned system.
->
-> Thanks,
-> Fengguang
->
->> > - 20% dirty ratio is mostly an overkill for large memory systems.
->> > =A0It's often enough to hold 10-30s worth of dirty data for them, whic=
-h
->> > =A0is 1-3GB for one 100MB/s disk. This is the reason vm.dirty_bytes is
->> > =A0introduced: someone wants to do some <1% dirty ratio.
->> >
->> > Thanks,
->> > Fengguang
+:/KERNEL$ grep -R "modify_min_cma_pages" ./*
+./mm/page_alloc.c:      __modify_min_cma_pages(zone, count);
+./mm/page_alloc.c:      __modify_min_cma_pages(zone, -count);
+
+Regards,
+
+--=20
+Robert Nelson
+http://www.rcn-ee.com/
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
