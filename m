@@ -1,85 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx185.postini.com [74.125.245.185])
-	by kanga.kvack.org (Postfix) with SMTP id F0EEC6B002C
-	for <linux-mm@kvack.org>; Mon, 13 Feb 2012 16:37:26 -0500 (EST)
-Received: by wera13 with SMTP id a13so4920321wer.14
-        for <linux-mm@kvack.org>; Mon, 13 Feb 2012 13:37:25 -0800 (PST)
+Received: from psmtp.com (na3sys010amx149.postini.com [74.125.245.149])
+	by kanga.kvack.org (Postfix) with SMTP id D4A176B002C
+	for <linux-mm@kvack.org>; Mon, 13 Feb 2012 16:55:33 -0500 (EST)
+Received: by pbcwz17 with SMTP id wz17so6116329pbc.14
+        for <linux-mm@kvack.org>; Mon, 13 Feb 2012 13:55:33 -0800 (PST)
+Date: Mon, 13 Feb 2012 13:55:31 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH] Ensure that walk_page_range()'s start and end are
+ page-aligned
+In-Reply-To: <87zkcm23az.fsf@caffeine.danplanet.com>
+Message-ID: <alpine.DEB.2.00.1202131350500.17296@chino.kir.corp.google.com>
+References: <1328902796-30389-1-git-send-email-danms@us.ibm.com> <alpine.DEB.2.00.1202130211400.4324@chino.kir.corp.google.com> <87zkcm23az.fsf@caffeine.danplanet.com>
 MIME-Version: 1.0
-In-Reply-To: <op.v9mzhvxt3l0zgt@mpn-glaptop>
-References: <1328895151-5196-1-git-send-email-m.szyprowski@samsung.com>
-	<1328895151-5196-13-git-send-email-m.szyprowski@samsung.com>
-	<CAOCHtYi01NVp1j=MX+0-z7ygW5tJuoswn8eWTQp+0Z5mMGdeQw@mail.gmail.com>
-	<op.v9mt58ch3l0zgt@mpn-glaptop>
-	<CAOCHtYjc39ThfrcAqdsxNf-bFqKzu=T8=O_W9Cg3cRNzQnX-OQ@mail.gmail.com>
-	<op.v9mzhvxt3l0zgt@mpn-glaptop>
-Date: Mon, 13 Feb 2012 15:37:25 -0600
-Message-ID: <CAOCHtYh8Gx+79_a-UtqX67gGP0WsMA26Y4MXbgi99AS7tqhH2Q@mail.gmail.com>
-Subject: Re: [Linaro-mm-sig] [PATCHv21 12/16] mm: trigger page reclaim in
- alloc_contig_range() to stabilise watermarks
-From: Robert Nelson <robertcnelson@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Nazarewicz <mina86@mina86.com>
-Cc: Marek Szyprowski <m.szyprowski@samsung.com>, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-media@vger.kernel.org, linux-mm@kvack.org, linaro-mm-sig@lists.linaro.org, Ohad Ben-Cohen <ohad@wizery.com>, Daniel Walker <dwalker@codeaurora.org>, Russell King <linux@arm.linux.org.uk>, Arnd Bergmann <arnd@arndb.de>, Jonathan Corbet <corbet@lwn.net>, Mel Gorman <mel@csn.ul.ie>, Dave Hansen <dave@linux.vnet.ibm.com>, Jesse Barker <jesse.barker@linaro.org>, Kyungmin Park <kyungmin.park@samsung.com>, Andrew Morton <akpm@linux-foundation.org>, Rob Clark <rob.clark@linaro.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: Dan Smith <danms@us.ibm.com>
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-2012/2/13 Michal Nazarewicz <mina86@mina86.com>:
->>> On Fri, Feb 10, 2012 at 11:32 AM, Marek Szyprowski
->>>>
->>>> +static int __reclaim_pages(struct zone *zone, gfp_t gfp_mask, int
->>>> count)
->>>>
->>>> +{
->>>> + =A0 =A0 =A0 enum zone_type high_zoneidx =3D gfp_zone(gfp_mask);
->>>> + =A0 =A0 =A0 struct zonelist *zonelist =3D node_zonelist(0, gfp_mask)=
-;
->>>> + =A0 =A0 =A0 int did_some_progress =3D 0;
->>>> + =A0 =A0 =A0 int order =3D 1;
->>>> + =A0 =A0 =A0 unsigned long watermark;
->>>> +
->>>> + =A0 =A0 =A0 /*
->>>> + =A0 =A0 =A0 =A0* Increase level of watermarks to force kswapd do his=
- job
->>>> + =A0 =A0 =A0 =A0* to stabilise at new watermark level.
->>>> + =A0 =A0 =A0 =A0*/
->>>> + =A0 =A0 =A0 __modify_min_cma_pages(zone, count);
->
->
->> 2012/2/13 Michal Nazarewicz <mina86@mina86.com>:
->>
->>> This should read __update_cma_wmark_pages(). =A0Sorry for the incorrect
->>> patch.
->
->
-> On Mon, 13 Feb 2012 13:15:13 -0800, Robert Nelson <robertcnelson@gmail.co=
-m>
-> wrote:
->>
->> Thanks Michal, that fixed it..
->
->
-> You are most welcome.
->
->
->> cma-v21 with Rob Clark's omapdrm works great on the Beagle xM..
->
->
-> Can we take that as:
->
-> Tested-by: Robert Nelson <robertcnelson@gmail.com>
->
-> ? ;)
+On Mon, 13 Feb 2012, Dan Smith wrote:
 
-Oh, of course:
+> DR> It doesn't "ensure" anything without CONFIG_DEBUG_VM enabled, which
+> DR> isn't the default.
+> 
+> Are you proposing a change in verbiage or a stronger check? A
+> VM_BUG_ON() seemed on par with other checks, such as the one in
+> get_user_pages_fast().
+> 
 
-Tested-by: Robert Nelson <robertcnelson@gmail.com>
-
-Regards,
-
---=20
-Robert Nelson
-http://www.rcn-ee.com/
+That's not a precedent, there's a big difference between the performance 
+of gup_fast(), where we can't spare an additional compare and branch, and 
+walk_page_range().  VM_BUG_ON() is typically used in situations where a 
+debug kernel has been built, including CONFIG_DEBUG_VM, and the check 
+helps to isolate a problem that would be otherwise difficult to find.  If 
+that fits the criteria, fine, but it doesn't "ensure" walk_page_range() 
+always has start and end addresses that are page aligned, so the changelog 
+needs to be modified to describe why an error in this path wouldn't be 
+evident.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
