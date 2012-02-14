@@ -1,337 +1,248 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx106.postini.com [74.125.245.106])
-	by kanga.kvack.org (Postfix) with SMTP id F393F6B13F0
-	for <linux-mm@kvack.org>; Tue, 14 Feb 2012 08:28:19 -0500 (EST)
-Date: Tue, 14 Feb 2012 21:18:12 +0800
-From: Wu Fengguang <fengguang.wu@intel.com>
+Received: from psmtp.com (na3sys010amx127.postini.com [74.125.245.127])
+	by kanga.kvack.org (Postfix) with SMTP id D731E6B13F0
+	for <linux-mm@kvack.org>; Tue, 14 Feb 2012 08:29:53 -0500 (EST)
+Date: Tue, 14 Feb 2012 14:29:50 +0100
+From: Jan Kara <jack@suse.cz>
 Subject: Re: reclaim the LRU lists full of dirty/writeback pages
-Message-ID: <20120214131812.GA17625@localhost>
+Message-ID: <20120214132950.GE1934@quack.suse.cz>
 References: <CAHH2K0b-+T4dspJPKq5TH25aH58TEr+7yvq0-HMkbFi0ghqAfA@mail.gmail.com>
  <20120208093120.GA18993@localhost>
  <CAHH2K0bmURXpk6-4D9q7ErppVyMJjKMsn37MenwqcP_nnT66Mw@mail.gmail.com>
  <20120210114706.GA4704@localhost>
  <20120211124445.GA10826@localhost>
- <20120214101931.GB5938@suse.de>
+ <4F36816A.6030609@redhat.com>
+ <20120212031029.GA17435@localhost>
+ <20120213154313.GD6478@quack.suse.cz>
+ <20120214100348.GA7000@localhost>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20120214101931.GB5938@suse.de>
+In-Reply-To: <20120214100348.GA7000@localhost>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Greg Thelen <gthelen@google.com>, Jan Kara <jack@suse.cz>, "bsingharora@gmail.com" <bsingharora@gmail.com>, Hugh Dickins <hughd@google.com>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, Ying Han <yinghan@google.com>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan.kim@gmail.com>
+To: Wu Fengguang <fengguang.wu@intel.com>
+Cc: Jan Kara <jack@suse.cz>, Rik van Riel <riel@redhat.com>, Greg Thelen <gthelen@google.com>, "bsingharora@gmail.com" <bsingharora@gmail.com>, Hugh Dickins <hughd@google.com>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, Mel Gorman <mgorman@suse.de>, Ying Han <yinghan@google.com>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>
 
-On Tue, Feb 14, 2012 at 10:19:31AM +0000, Mel Gorman wrote:
-> On Sat, Feb 11, 2012 at 08:44:45PM +0800, Wu Fengguang wrote:
-> > <SNIP>
-> > --- linux.orig/mm/vmscan.c	2012-02-03 21:42:21.000000000 +0800
-> > +++ linux/mm/vmscan.c	2012-02-11 17:28:54.000000000 +0800
-> > @@ -813,6 +813,8 @@ static unsigned long shrink_page_list(st
-> >  
-> >  		if (PageWriteback(page)) {
-> >  			nr_writeback++;
-> > +			if (PageReclaim(page))
-> > +				congestion_wait(BLK_RW_ASYNC, HZ/10);
-> >  			/*
-> >  			 * Synchronous reclaim cannot queue pages for
-> >  			 * writeback due to the possibility of stack overflow
+On Tue 14-02-12 18:03:48, Wu Fengguang wrote:
+> On Mon, Feb 13, 2012 at 04:43:13PM +0100, Jan Kara wrote:
+> > On Sun 12-02-12 11:10:29, Wu Fengguang wrote:
 > 
-> I didn't look closely at the rest of the patch, I'm just focusing on the
-> congestion_wait part. You called this out yourself but this is in fact
-> really really bad. If this is in place and a user copies a large amount of
-> data to slow storage like a USB stick, the system will stall severely. A
-> parallel streaming reader will certainly have major issues as it will enter
-> page reclaim, find a bunch of dirty USB-backed pages at the end of the LRU
-> (20% of memory potentially) and stall for HZ/10 on each one of them. How
-> badly each process is affected will vary.
+> > > 4) test case
+> > > 
+> > > Run 2 dd tasks in a 100MB memcg (a very handy test case from Greg Thelen):
+> > > 
+> > > 	mkdir /cgroup/x
+> > > 	echo 100M > /cgroup/x/memory.limit_in_bytes
+> > > 	echo $$ > /cgroup/x/tasks
+> > > 
+> > > 	for i in `seq 2`
+> > > 	do
+> > > 		dd if=/dev/zero of=/fs/f$i bs=1k count=1M &
+> > > 	done
+> > > 
+> > > Before patch, the dd tasks are quickly OOM killed.
+> > > After patch, they run well with reasonably good performance and overheads:
+> > > 
+> > > 1073741824 bytes (1.1 GB) copied, 22.2196 s, 48.3 MB/s
+> > > 1073741824 bytes (1.1 GB) copied, 22.4675 s, 47.8 MB/s
+> >   I wonder what happens if you run:
+> >        mkdir /cgroup/x
+> >        echo 100M > /cgroup/x/memory.limit_in_bytes
+> >        echo $$ > /cgroup/x/tasks
+> > 
+> >        for (( i = 0; i < 2; i++ )); do
+> >          mkdir /fs/d$i
+> >          for (( j = 0; j < 5000; j++ )); do 
+> >            dd if=/dev/zero of=/fs/d$i/f$j bs=1k count=50
+> >          done &
+> >        done
+> 
+> That's a very good case, thanks!
+>  
+> >   Because for small files the writearound logic won't help much...
+> 
+> Right, it also means the native background work cannot be more I/O
+> efficient than the pageout works, except for the overheads of more
+> work items..
+  Yes, that's true.
 
-Cannot agree any more the principle...me just want to demonstrate the
-idea first :-)
+> >   Also the number of work items queued might become interesting.
+> 
+> It turns out that the 1024 mempool reservations are not exhausted at
+> all (the below patch as a trace_printk on alloc failure and it didn't
+> trigger at all).
+> 
+> Here is the representative iostat lines on XFS (full "iostat -kx 1 20" log attached):
+> 
+> avg-cpu:  %user   %nice %system %iowait  %steal   %idle                                                                     
+>            0.80    0.00    6.03    0.03    0.00   93.14                                                                     
+>                                                                                                                             
+> Device:         rrqm/s   wrqm/s     r/s     w/s    rkB/s    wkB/s avgrq-sz avgqu-sz   await  svctm  %util                   
+> sda               0.00   205.00    0.00  163.00     0.00 16900.00   207.36     4.09   21.63   1.88  30.70                   
+> 
+> The attached dirtied/written progress graph looks interesting.
+> Although the iostat disk utilization is low, the "dirtied" progress
+> line is pretty straight and there is no single congestion_wait event
+> in the trace log. Which makes me wonder if there are some unknown
+> blocking issues in the way.
+  Interesting. I'd also expect we should block in reclaim path. How fast
+can dd threads progress when there is no cgroup involved?
  
-> For the OOM problem, a more reasonable stopgap might be to identify when
-> a process is scanning a memcg at high priority and encountered all
-> PageReclaim with no forward progress and to congestion_wait() if that
-> situation occurs. A preferable way would be to wait until the flusher
-> wakes up a waiter on PageReclaim pages to be written out because we want
-> to keep moving way from congestion_wait() if at all possible.
+> > Another common case to test - run 'slapadd' command in each cgroup to
+> > create big LDAP database. That does pretty much random IO on a big mmaped
+> > DB file.
+> 
+> I've not used this. Will it need some configuration and data feed?
+> fio looks more handy to me for emulating mmap random IO.
+  Yes, fio can generate random mmap IO. It's just that this is a real life
+workload. So it is not completely random, it happens on several files and
+is also interleaved with other memory allocations from DB. I can send you
+the config files and data feed if you are interested.
 
-Good points! Below is the more serious page reclaim changes.
+> > > +/*
+> > > + * schedule writeback on a range of inode pages.
+> > > + */
+> > > +static struct wb_writeback_work *
+> > > +bdi_flush_inode_range(struct backing_dev_info *bdi,
+> > > +		      struct inode *inode,
+> > > +		      pgoff_t offset,
+> > > +		      pgoff_t len,
+> > > +		      bool wait)
+> > > +{
+> > > +	struct wb_writeback_work *work;
+> > > +
+> > > +	if (!igrab(inode))
+> > > +		return ERR_PTR(-ENOENT);
+> >   One technical note here: If the inode is deleted while it is queued, this
+> > reference will keep it living until flusher thread gets to it. Then when
+> > flusher thread puts its reference, the inode will get deleted in flusher
+> > thread context. I don't see an immediate problem in that but it might be
+> > surprising sometimes. Another problem I see is that if you try to
+> > unmount the filesystem while the work item is queued, you'll get EBUSY for
+> > no apparent reason (for userspace).
+> 
+> Yeah, we need to make umount work.
+  The positive thing is that if the inode is reaped while the work item is
+queue, we know all that needed to be done is done. So we don't really need
+to pin the inode.
 
-The dirty/writeback pages may often come close to each other in the
-LRU list, so the local test during a 32-page scan may still trigger
-reclaim waits unnecessarily. Some global information on the percent
-of dirty/writeback pages in the LRU list may help. Anyway the added
-tests should still be much better than no protection.
-
-A global wait queue and reclaim_wait() is introduced. The waiters will
-be wakeup when pages are rotated by end_page_writeback() or lru drain.
-
-I have to say its effectiveness depends on the filesystem... ext4
-and btrfs do fluent IO completions, so reclaim_wait() works pretty
-well:
-              dd-14560 [017] ....  1360.894605: writeback_reclaim_wait: usec_timeout=100000 usec_delayed=10000
-              dd-14560 [017] ....  1360.904456: writeback_reclaim_wait: usec_timeout=100000 usec_delayed=8000
-              dd-14560 [017] ....  1360.908293: writeback_reclaim_wait: usec_timeout=100000 usec_delayed=2000
-              dd-14560 [017] ....  1360.923960: writeback_reclaim_wait: usec_timeout=100000 usec_delayed=15000
-              dd-14560 [017] ....  1360.927810: writeback_reclaim_wait: usec_timeout=100000 usec_delayed=2000
-              dd-14560 [017] ....  1360.931656: writeback_reclaim_wait: usec_timeout=100000 usec_delayed=2000
-              dd-14560 [017] ....  1360.943503: writeback_reclaim_wait: usec_timeout=100000 usec_delayed=10000
-              dd-14560 [017] ....  1360.953289: writeback_reclaim_wait: usec_timeout=100000 usec_delayed=7000
-              dd-14560 [017] ....  1360.957177: writeback_reclaim_wait: usec_timeout=100000 usec_delayed=2000
-              dd-14560 [017] ....  1360.972949: writeback_reclaim_wait: usec_timeout=100000 usec_delayed=15000
-
-However XFS does IO completions in very large batches (there may be
-only several big IO completions in one second). So reclaim_wait()
-mostly end up waiting to the full HZ/10 timeout:
-
-              dd-4177  [008] ....   866.367661: writeback_reclaim_wait: usec_timeout=100000 usec_delayed=100000
-              dd-4177  [010] ....   866.567583: writeback_reclaim_wait: usec_timeout=100000 usec_delayed=100000
-              dd-4177  [012] ....   866.767458: writeback_reclaim_wait: usec_timeout=100000 usec_delayed=100000
-              dd-4177  [013] ....   866.867419: writeback_reclaim_wait: usec_timeout=100000 usec_delayed=100000
-              dd-4177  [008] ....   867.167266: writeback_reclaim_wait: usec_timeout=100000 usec_delayed=100000
-              dd-4177  [010] ....   867.367168: writeback_reclaim_wait: usec_timeout=100000 usec_delayed=100000
-              dd-4177  [012] ....   867.818950: writeback_reclaim_wait: usec_timeout=100000 usec_delayed=100000
-              dd-4177  [013] ....   867.918905: writeback_reclaim_wait: usec_timeout=100000 usec_delayed=100000
-              dd-4177  [013] ....   867.971657: writeback_reclaim_wait: usec_timeout=100000 usec_delayed=52000
-              dd-4177  [013] ....   867.971812: writeback_reclaim_wait: usec_timeout=100000 usec_delayed=0
-              dd-4177  [008] ....   868.355700: writeback_reclaim_wait: usec_timeout=100000 usec_delayed=100000
-              dd-4177  [010] ....   868.700515: writeback_reclaim_wait: usec_timeout=100000 usec_delayed=100000
-
-> Another possibility would be to relook at LRU_IMMEDIATE but right now it
-> requires a page flag and I haven't devised a way around that. Besides,
-> it would only address the problem of PageREclaim pages being encountered,
-> it would not handle the case where a memcg was filled with PageReclaim pages.
-
-I also considered things like LRU_IMMEDIATE, however got no clear idea yet.
-Since the simple "wait on PG_reclaim" approach appears to work for this
-memcg dd case, it effectively disables me to think any further ;-)
-
-For the single dd inside memcg, ext4 is now working pretty well, with
-least CPU overheads:
-
-(running from another test box, so not directly comparable with old tests)
-
-        avg-cpu:  %user   %nice %system %iowait  %steal   %idle
-                   0.03    0.00    0.85    5.35    0.00   93.77
-
-        Device:         rrqm/s   wrqm/s     r/s     w/s    rkB/s    wkB/s avgrq-sz avgqu-sz   await  svctm  %util
-        sda               0.00     0.00    0.00  112.00     0.00 57348.00  1024.07    81.66 1045.21   8.93 100.00
-
-        avg-cpu:  %user   %nice %system %iowait  %steal   %idle
-                   0.00    0.00    0.69    4.07    0.00   95.24
-
-        Device:         rrqm/s   wrqm/s     r/s     w/s    rkB/s    wkB/s avgrq-sz avgqu-sz   await  svctm  %util
-        sda               0.00   142.00    0.00  112.00     0.00 56832.00  1014.86   127.94  790.04   8.93 100.00
-
-And xfs a bit less fluent:
-
-        avg-cpu:  %user   %nice %system %iowait  %steal   %idle
-                   0.00    0.00    3.79    2.54    0.00   93.68
-
-        Device:         rrqm/s   wrqm/s     r/s     w/s    rkB/s    wkB/s avgrq-sz avgqu-sz   await  svctm  %util
-        sda               0.00     0.00    0.00  108.00     0.00 54644.00  1011.93    48.13 1044.83   8.44  91.20
-
-        avg-cpu:  %user   %nice %system %iowait  %steal   %idle
-                   0.00    0.00    3.38    3.88    0.00   92.74
-
-        Device:         rrqm/s   wrqm/s     r/s     w/s    rkB/s    wkB/s avgrq-sz avgqu-sz   await  svctm  %util
-        sda               0.00     0.00    0.00  105.00     0.00 53156.00  1012.50   128.50  451.90   9.25  97.10
-
-btrfs also looks good:
-
-        avg-cpu:  %user   %nice %system %iowait  %steal   %idle
-                   0.00    0.00    8.05    3.85    0.00   88.10
-
-        Device:         rrqm/s   wrqm/s     r/s     w/s    rkB/s    wkB/s avgrq-sz avgqu-sz   await  svctm  %util
-        sda               0.00     0.00    0.00  108.00     0.00 53248.00   986.07    88.11  643.99   9.26 100.00
-
-        avg-cpu:  %user   %nice %system %iowait  %steal   %idle
-                   0.00    0.00    4.04    2.51    0.00   93.45
-
-        Device:         rrqm/s   wrqm/s     r/s     w/s    rkB/s    wkB/s avgrq-sz avgqu-sz   await  svctm  %util
-        sda               0.00     0.00    0.00  112.00     0.00 57344.00  1024.00    91.58  998.41   8.93 100.00
+> And I find the pageout works seem to have some problems with ext4.
+> For example, this can be easily triggered with 10 dd tasks running
+> inside the 100MB limited memcg:
+  So journal thread is getting stuck while committing transaction. Most
+likely waiting for some dd thread to stop a transaction so that commit can
+proceed. The processes waiting in start_this_handle() are just secondary
+effect resulting from the first problem. It might be interesting to get
+stack traces of all bloked processes when the journal thread is stuck.
 
 
-Thanks,
-Fengguang
----
+> [18006.858109] INFO: task jbd2/sda1-8:51294 blocked for more than 120 seconds.
+> [18006.866425] "echo 0 > /proc/sys/kernel/hung_task_timeout_secs" disables this message.
+> [18006.876096] jbd2/sda1-8     D 0000000000000000  5464 51294      2 0x00000000
+> [18006.884729]  ffff88040b097c70 0000000000000046 ffff880823032310 ffff88040b096000
+> [18006.894356]  00000000001d2f00 00000000001d2f00 ffff8808230322a0 00000000001d2f00
+> [18006.904000]  ffff88040b097fd8 00000000001d2f00 ffff88040b097fd8 00000000001d2f00
+> [18006.913652] Call Trace:
+> [18006.916901]  [<ffffffff8103d4af>] ? native_sched_clock+0x29/0x70
+> [18006.924134]  [<ffffffff81232aab>] ? jbd2_journal_commit_transaction+0x1d0/0x1281
+> [18006.933324]  [<ffffffff8109660d>] ? local_clock+0x41/0x5a
+> [18006.939879]  [<ffffffff810b0ddd>] ? lock_release_holdtime+0xa3/0xac
+> [18006.947410]  [<ffffffff81232aab>] ? jbd2_journal_commit_transaction+0x1d0/0x1281
+> [18006.956607]  [<ffffffff81a57904>] schedule+0x5a/0x5c
+> [18006.962677]  [<ffffffff81232ab0>] jbd2_journal_commit_transaction+0x1d5/0x1281
+> [18006.971683]  [<ffffffff8103d4af>] ? native_sched_clock+0x29/0x70
+> [18006.978933]  [<ffffffff810738ce>] ? try_to_del_timer_sync+0xba/0xc8
+> [18006.986452]  [<ffffffff8109660d>] ? local_clock+0x41/0x5a
+> [18006.992999]  [<ffffffff8108683a>] ? wake_up_bit+0x2a/0x2a
+> [18006.999542]  [<ffffffff810738ce>] ? try_to_del_timer_sync+0xba/0xc8
+> [18007.007062]  [<ffffffff81073a6f>] ? del_timer_sync+0xbb/0xce
+> [18007.013898]  [<ffffffff810739b4>] ? process_timeout+0x10/0x10
+> [18007.020835]  [<ffffffff81237bc1>] kjournald2+0xcf/0x242
+> [18007.027187]  [<ffffffff8108683a>] ? wake_up_bit+0x2a/0x2a
+> [18007.033733]  [<ffffffff81237af2>] ? commit_timeout+0x10/0x10
+> [18007.040574]  [<ffffffff81086384>] kthread+0x95/0x9d
+> [18007.046542]  [<ffffffff81a61134>] kernel_thread_helper+0x4/0x10
+> [18007.053675]  [<ffffffff81a591b4>] ? retint_restore_args+0x13/0x13
+> [18007.061003]  [<ffffffff810862ef>] ? __init_kthread_worker+0x5b/0x5b
+> [18007.068521]  [<ffffffff81a61130>] ? gs_change+0x13/0x13
+> [18007.074878] no locks held by jbd2/sda1-8/51294.
+> 
+> Sometimes I also catch dd/ext4lazyinit/flush all stalling in start_this_handle:
+> 
+> [17985.439567] dd              D 0000000000000007  3616 61440      1 0x00000004
+> [17985.448088]  ffff88080d71b9b8 0000000000000046 ffff88081ec80070 ffff88080d71a000
+> [17985.457545]  00000000001d2f00 00000000001d2f00 ffff88081ec80000 00000000001d2f00
+> [17985.467168]  ffff88080d71bfd8 00000000001d2f00 ffff88080d71bfd8 00000000001d2f00
+> [17985.476647] Call Trace:
+> [17985.479843]  [<ffffffff8103d4af>] ? native_sched_clock+0x29/0x70
+> [17985.487025]  [<ffffffff81230b9d>] ? start_this_handle+0x357/0x4ed
+> [17985.494313]  [<ffffffff8109660d>] ? local_clock+0x41/0x5a
+> [17985.500815]  [<ffffffff810b0ddd>] ? lock_release_holdtime+0xa3/0xac
+> [17985.508287]  [<ffffffff81230b9d>] ? start_this_handle+0x357/0x4ed
+> [17985.515575]  [<ffffffff81a57904>] schedule+0x5a/0x5c
+> [17985.521588]  [<ffffffff81230c39>] start_this_handle+0x3f3/0x4ed
+> [17985.528669]  [<ffffffff81147820>] ? kmem_cache_free+0xfa/0x13a
+> [17985.545142]  [<ffffffff8108683a>] ? wake_up_bit+0x2a/0x2a
+> [17985.551650]  [<ffffffff81230f0e>] jbd2__journal_start+0xb0/0xf6
+> [17985.558732]  [<ffffffff811f7ad7>] ? ext4_dirty_inode+0x1d/0x4c
+> [17985.565716]  [<ffffffff81230f67>] jbd2_journal_start+0x13/0x15
+> [17985.572703]  [<ffffffff8120e3e9>] ext4_journal_start_sb+0x13f/0x157
+> [17985.580172]  [<ffffffff8109660d>] ? local_clock+0x41/0x5a
+> [17985.586680]  [<ffffffff811f7ad7>] ext4_dirty_inode+0x1d/0x4c
+> [17985.593472]  [<ffffffff81176827>] __mark_inode_dirty+0x2e/0x1cc
+> [17985.600552]  [<ffffffff81168e84>] file_update_time+0xe4/0x106
+> [17985.607441]  [<ffffffff811079f6>] __generic_file_aio_write+0x254/0x364
+> [17985.615202]  [<ffffffff81a565da>] ? mutex_lock_nested+0x2e4/0x2f3
+> [17985.622488]  [<ffffffff81107b50>] ? generic_file_aio_write+0x4a/0xc1
+> [17985.630057]  [<ffffffff81107b6c>] generic_file_aio_write+0x66/0xc1
+> [17985.637442]  [<ffffffff811ef72b>] ext4_file_write+0x1f9/0x251
+> [17985.644330]  [<ffffffff8109660d>] ? local_clock+0x41/0x5a
+> [17985.650835]  [<ffffffff8118809e>] ? fsnotify+0x222/0x27b
+> [17985.657238]  [<ffffffff81153612>] do_sync_write+0xce/0x10b
+> [17985.663844]  [<ffffffff8118809e>] ? fsnotify+0x222/0x27b
+> [17985.670243]  [<ffffffff81187ef8>] ? fsnotify+0x7c/0x27b
+> [17985.676561]  [<ffffffff81153dbe>] vfs_write+0xb8/0x157
+> [17985.682767]  [<ffffffff81154075>] sys_write+0x4d/0x77
+> [17985.688878]  [<ffffffff81a5fce9>] system_call_fastpath+0x16/0x1b
+> 
+> and jbd2 in
+> 
+> [17983.623657] jbd2/sda1-8     D 0000000000000000  5464 51294      2 0x00000000
+> [17983.632173]  ffff88040b097c70 0000000000000046 ffff880823032310 ffff88040b096000
+> [17983.641640]  00000000001d2f00 00000000001d2f00 ffff8808230322a0 00000000001d2f00
+> [17983.651119]  ffff88040b097fd8 00000000001d2f00 ffff88040b097fd8 00000000001d2f00
+> [17983.660603] Call Trace:
+> [17983.663808]  [<ffffffff8103d4af>] ? native_sched_clock+0x29/0x70
+> [17983.670997]  [<ffffffff81232aab>] ? jbd2_journal_commit_transaction+0x1d0/0x1281
+> [17983.680124]  [<ffffffff8109660d>] ? local_clock+0x41/0x5a
+> [17983.686638]  [<ffffffff810b0ddd>] ? lock_release_holdtime+0xa3/0xac
+> [17983.694108]  [<ffffffff81232aab>] ? jbd2_journal_commit_transaction+0x1d0/0x1281
+> [17983.703243]  [<ffffffff81a57904>] schedule+0x5a/0x5c
+> [17983.709262]  [<ffffffff81232ab0>] jbd2_journal_commit_transaction+0x1d5/0x1281
+> [17983.718195]  [<ffffffff8103d4af>] ? native_sched_clock+0x29/0x70
+> [17983.725392]  [<ffffffff810738ce>] ? try_to_del_timer_sync+0xba/0xc8
+> [17983.732867]  [<ffffffff8109660d>] ? local_clock+0x41/0x5a
+> [17983.739374]  [<ffffffff8108683a>] ? wake_up_bit+0x2a/0x2a
+> [17983.745864]  [<ffffffff810738ce>] ? try_to_del_timer_sync+0xba/0xc8
+> [17983.753343]  [<ffffffff81073a6f>] ? del_timer_sync+0xbb/0xce
+> [17983.760137]  [<ffffffff810739b4>] ? process_timeout+0x10/0x10
+> [17983.767041]  [<ffffffff81237bc1>] kjournald2+0xcf/0x242
+> [17983.773361]  [<ffffffff8108683a>] ? wake_up_bit+0x2a/0x2a
+> [17983.779863]  [<ffffffff81237af2>] ? commit_timeout+0x10/0x10
+> [17983.786665]  [<ffffffff81086384>] kthread+0x95/0x9d
+> [17983.792585]  [<ffffffff81a61134>] kernel_thread_helper+0x4/0x10
+> [17983.799670]  [<ffffffff81a591b4>] ? retint_restore_args+0x13/0x13
+> [17983.806948]  [<ffffffff810862ef>] ? __init_kthread_worker+0x5b/0x5b
+> 
+> Here is the updated patch used in the new tests. It moves
+> congestion_wait() out of the page lock and make flush_inode_page() no
+> longer wait for memory allocation (looks unnecessary).
 
---- linux.orig/include/linux/backing-dev.h	2012-02-14 19:43:06.000000000 +0800
-+++ linux/include/linux/backing-dev.h	2012-02-14 19:49:26.000000000 +0800
-@@ -304,6 +304,8 @@ void clear_bdi_congested(struct backing_
- void set_bdi_congested(struct backing_dev_info *bdi, int sync);
- long congestion_wait(int sync, long timeout);
- long wait_iff_congested(struct zone *zone, int sync, long timeout);
-+long reclaim_wait(long timeout);
-+void reclaim_rotated(void);
- 
- static inline bool bdi_cap_writeback_dirty(struct backing_dev_info *bdi)
- {
---- linux.orig/mm/backing-dev.c	2012-02-14 19:26:15.000000000 +0800
-+++ linux/mm/backing-dev.c	2012-02-14 20:09:45.000000000 +0800
-@@ -873,3 +873,38 @@ out:
- 	return ret;
- }
- EXPORT_SYMBOL(wait_iff_congested);
-+
-+static DECLARE_WAIT_QUEUE_HEAD(reclaim_wqh);
-+
-+/**
-+ * reclaim_wait - wait for some pages being rotated to the LRU tail
-+ * @timeout: timeout in jiffies
-+ *
-+ * Wait until @timeout, or when some (typically PG_reclaim under writeback)
-+ * pages rotated to the LRU so that page reclaim can make progress.
-+ */
-+long reclaim_wait(long timeout)
-+{
-+	long ret;
-+	unsigned long start = jiffies;
-+	DEFINE_WAIT(wait);
-+
-+	prepare_to_wait(&reclaim_wqh, &wait, TASK_KILLABLE);
-+	ret = io_schedule_timeout(timeout);
-+	finish_wait(&reclaim_wqh, &wait);
-+
-+	trace_writeback_reclaim_wait(jiffies_to_usecs(timeout),
-+				     jiffies_to_usecs(jiffies - start));
-+
-+	return ret;
-+}
-+EXPORT_SYMBOL(reclaim_wait);
-+
-+void reclaim_rotated()
-+{
-+	wait_queue_head_t *wqh = &reclaim_wqh;
-+
-+	if (waitqueue_active(wqh))
-+		wake_up(wqh);
-+}
-+
---- linux.orig/mm/swap.c	2012-02-14 19:40:10.000000000 +0800
-+++ linux/mm/swap.c	2012-02-14 19:45:13.000000000 +0800
-@@ -253,6 +253,7 @@ static void pagevec_move_tail(struct pag
- 
- 	pagevec_lru_move_fn(pvec, pagevec_move_tail_fn, &pgmoved);
- 	__count_vm_events(PGROTATED, pgmoved);
-+	reclaim_rotated();
- }
- 
- /*
---- linux.orig/mm/vmscan.c	2012-02-14 17:53:27.000000000 +0800
-+++ linux/mm/vmscan.c	2012-02-14 19:44:11.000000000 +0800
-@@ -767,7 +767,8 @@ static unsigned long shrink_page_list(st
- 				      struct scan_control *sc,
- 				      int priority,
- 				      unsigned long *ret_nr_dirty,
--				      unsigned long *ret_nr_writeback)
-+				      unsigned long *ret_nr_writeback,
-+				      unsigned long *ret_nr_pgreclaim)
- {
- 	LIST_HEAD(ret_pages);
- 	LIST_HEAD(free_pages);
-@@ -776,6 +777,7 @@ static unsigned long shrink_page_list(st
- 	unsigned long nr_congested = 0;
- 	unsigned long nr_reclaimed = 0;
- 	unsigned long nr_writeback = 0;
-+	unsigned long nr_pgreclaim = 0;
- 
- 	cond_resched();
- 
-@@ -813,6 +815,10 @@ static unsigned long shrink_page_list(st
- 
- 		if (PageWriteback(page)) {
- 			nr_writeback++;
-+			if (PageReclaim(page))
-+				nr_pgreclaim++;
-+			else
-+				SetPageReclaim(page);
- 			/*
- 			 * Synchronous reclaim cannot queue pages for
- 			 * writeback due to the possibility of stack overflow
-@@ -874,12 +880,15 @@ static unsigned long shrink_page_list(st
- 			nr_dirty++;
- 
- 			/*
--			 * Only kswapd can writeback filesystem pages to
--			 * avoid risk of stack overflow but do not writeback
--			 * unless under significant pressure.
-+			 * run into the visited page again: we are scanning
-+			 * faster than the flusher can writeout dirty pages
- 			 */
--			if (page_is_file_cache(page) &&
--					(!current_is_kswapd() || priority >= DEF_PRIORITY - 2)) {
-+			if (page_is_file_cache(page) && PageReclaim(page)) {
-+				nr_pgreclaim++;
-+				goto keep_locked;
-+			}
-+			if (page_is_file_cache(page) && mapping &&
-+			    flush_inode_page(mapping, page, false) >= 0) {
- 				/*
- 				 * Immediately reclaim when written back.
- 				 * Similar in principal to deactivate_page()
-@@ -1028,6 +1037,7 @@ keep_lumpy:
- 	count_vm_events(PGACTIVATE, pgactivate);
- 	*ret_nr_dirty += nr_dirty;
- 	*ret_nr_writeback += nr_writeback;
-+	*ret_nr_pgreclaim += nr_pgreclaim;
- 	return nr_reclaimed;
- }
- 
-@@ -1087,8 +1097,10 @@ int __isolate_lru_page(struct page *page
- 	 */
- 	if (mode & (ISOLATE_CLEAN|ISOLATE_ASYNC_MIGRATE)) {
- 		/* All the caller can do on PageWriteback is block */
--		if (PageWriteback(page))
-+		if (PageWriteback(page)) {
-+			SetPageReclaim(page);
- 			return ret;
-+		}
- 
- 		if (PageDirty(page)) {
- 			struct address_space *mapping;
-@@ -1509,6 +1521,7 @@ shrink_inactive_list(unsigned long nr_to
- 	unsigned long nr_file;
- 	unsigned long nr_dirty = 0;
- 	unsigned long nr_writeback = 0;
-+	unsigned long nr_pgreclaim = 0;
- 	isolate_mode_t reclaim_mode = ISOLATE_INACTIVE;
- 	struct zone *zone = mz->zone;
- 
-@@ -1559,13 +1572,13 @@ shrink_inactive_list(unsigned long nr_to
- 	spin_unlock_irq(&zone->lru_lock);
- 
- 	nr_reclaimed = shrink_page_list(&page_list, mz, sc, priority,
--						&nr_dirty, &nr_writeback);
-+				&nr_dirty, &nr_writeback, &nr_pgreclaim);
- 
- 	/* Check if we should syncronously wait for writeback */
- 	if (should_reclaim_stall(nr_taken, nr_reclaimed, priority, sc)) {
- 		set_reclaim_mode(priority, sc, true);
- 		nr_reclaimed += shrink_page_list(&page_list, mz, sc,
--					priority, &nr_dirty, &nr_writeback);
-+			priority, &nr_dirty, &nr_writeback, &nr_pgreclaim);
- 	}
- 
- 	spin_lock_irq(&zone->lru_lock);
-@@ -1608,6 +1621,8 @@ shrink_inactive_list(unsigned long nr_to
- 	 */
- 	if (nr_writeback && nr_writeback >= (nr_taken >> (DEF_PRIORITY-priority)))
- 		wait_iff_congested(zone, BLK_RW_ASYNC, HZ/10);
-+	if (nr_pgreclaim && nr_pgreclaim >= (nr_taken >> (DEF_PRIORITY-priority)))
-+		reclaim_wait(HZ/10);
- 
- 	trace_mm_vmscan_lru_shrink_inactive(zone->zone_pgdat->node_id,
- 		zone_idx(zone),
-@@ -2382,8 +2397,6 @@ static unsigned long do_try_to_free_page
- 		 */
- 		writeback_threshold = sc->nr_to_reclaim + sc->nr_to_reclaim / 2;
- 		if (total_scanned > writeback_threshold) {
--			wakeup_flusher_threads(laptop_mode ? 0 : total_scanned,
--						WB_REASON_TRY_TO_FREE_PAGES);
- 			sc->may_writepage = 1;
- 		}
- 
+								Honza
+-- 
+Jan Kara <jack@suse.cz>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
