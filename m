@@ -1,53 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx188.postini.com [74.125.245.188])
-	by kanga.kvack.org (Postfix) with SMTP id 559C86B13F0
-	for <linux-mm@kvack.org>; Tue, 14 Feb 2012 15:37:14 -0500 (EST)
-Date: Tue, 14 Feb 2012 12:37:12 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
+Received: from psmtp.com (na3sys010amx160.postini.com [74.125.245.160])
+	by kanga.kvack.org (Postfix) with SMTP id 370C36B13F0
+	for <linux-mm@kvack.org>; Tue, 14 Feb 2012 15:42:52 -0500 (EST)
+Date: Tue, 14 Feb 2012 14:42:49 -0600 (CST)
+From: Christoph Lameter <cl@linux.com>
 Subject: Re: [Bug 42578] Kernel crash "Out of memory error by X" when using
  NTFS file system on external USB Hard drive
-Message-Id: <20120214123712.77aa54ce.akpm@linux-foundation.org>
-In-Reply-To: <20120214130955.GM17917@csn.ul.ie>
-References: <bug-42578-27@https.bugzilla.kernel.org/>
-	<201201180922.q0I9MCYl032623@bugzilla.kernel.org>
-	<20120119122448.1cce6e76.akpm@linux-foundation.org>
-	<20120210163748.GR5796@csn.ul.ie>
-	<4F36DD77.1080306@ntlworld.com>
-	<20120214130955.GM17917@csn.ul.ie>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <20120214123424.a4162251.akpm@linux-foundation.org>
+Message-ID: <alpine.DEB.2.00.1202141441040.25634@router.home>
+References: <bug-42578-27@https.bugzilla.kernel.org/> <201201180922.q0I9MCYl032623@bugzilla.kernel.org> <20120119122448.1cce6e76.akpm@linux-foundation.org> <20120210163748.GR5796@csn.ul.ie> <4F36DD77.1080306@ntlworld.com> <20120214130955.GM17917@csn.ul.ie>
+ <alpine.DEB.2.00.1202141354130.25634@router.home> <20120214123424.a4162251.akpm@linux-foundation.org>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: Stuart Foster <smf.linux@ntlworld.com>, linux-mm@kvack.org, bugzilla-daemon@bugzilla.kernel.org, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Mel Gorman <mel@csn.ul.ie>, Stuart Foster <smf.linux@ntlworld.com>, linux-mm@kvack.org, bugzilla-daemon@bugzilla.kernel.org, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>
 
-On Tue, 14 Feb 2012 13:09:55 +0000
-Mel Gorman <mel@csn.ul.ie> wrote:
+On Tue, 14 Feb 2012, Andrew Morton wrote:
 
-> Stuart Foster reported on https://bugzilla.kernel.org/show_bug.cgi?id=42578
-> that copying large amounts of data from NTFS caused an OOM kill on 32-bit
-> X86 with 16G of memory. Andrew Morton correctly identified that the problem
-> was NTFS was using 512 blocks meaning each page had 8 buffer_heads in low
-> memory pinning it.
-> 
-> In the past, direct reclaim used to scan highmem even if the allocating
-> process did not specify __GFP_HIGHMEM but not any more. kswapd no longer
-> will reclaim from zones that are above the high watermark. The intention
-> in both cases was to minimise unnecessary reclaim. The downside is on
-> machines with large amounts of highmem that lowmem can be fully consumed
-> by buffer_heads with nothing trying to free them.
-> 
-> The following patch is based on a suggestion by Andrew Morton to extend
-> the buffer_heads_over_limit case to force kswapd and direct reclaim to
-> scan the highmem zone regardless of the allocation request or
-> watermarks.
+> On Tue, 14 Feb 2012 14:00:47 -0600 (CST)
+> Christoph Lameter <cl@linux.com> wrote:
+>
+> > On Tue, 14 Feb 2012, Mel Gorman wrote:
+> >
+> > > Thanks Stuart. Rik, Andrew, should the following be improved in some
+> > > way? I did not come to any decent conclusion on what to do with pages in
+> > > the inactive list with buffer_head as we are already stripping them when
+> > > the pages reach the end of the LRU.
+> >
+> > We have made the statement in the past that configurations > 8GB on 32
+> > bit should not be considered stable or supported? The fact is the more
+> > memory you add on 32 bit the less low mem memory is available and the more
+> > likely that an OOM will occur for any number of reasons.
+>
+> I have memories of 16G being usable in earlier kernels.
 
-Seems reasonable, thanks.
+16G regularly fell over in our environment so we now have an 8G max
+restriction for those still using 32 bit.
 
-I wonder if we really needed to change balance_pdgat().  The smaller we
-can make profile of the special-case-hack the better.  Perhaps poking
-it into direct reclaim was sufficient?
+> Also, if an 8G machine works OK at present, it's only by luck.
+> sizeof(buffer_head) is around 100, so it takes 1.6GB of buffer_heads to
+> support 8G of 512-byte blocksize pagecache.
+
+Well the slow kernel degradation in operation again. We also require
+those 32 bit guys with the 8G limit to run older kernel versions...
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
