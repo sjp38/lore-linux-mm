@@ -1,145 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx181.postini.com [74.125.245.181])
-	by kanga.kvack.org (Postfix) with SMTP id AFC3C6B13F0
-	for <linux-mm@kvack.org>; Tue, 14 Feb 2012 06:10:13 -0500 (EST)
-Received: from m2.gw.fujitsu.co.jp (unknown [10.0.50.72])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id D17583EE0BB
-	for <linux-mm@kvack.org>; Tue, 14 Feb 2012 20:10:11 +0900 (JST)
-Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id B835445DE53
-	for <linux-mm@kvack.org>; Tue, 14 Feb 2012 20:10:11 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 9792145DE4E
-	for <linux-mm@kvack.org>; Tue, 14 Feb 2012 20:10:11 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 8854C1DB803F
-	for <linux-mm@kvack.org>; Tue, 14 Feb 2012 20:10:11 +0900 (JST)
-Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.240.81.133])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 308E41DB802C
-	for <linux-mm@kvack.org>; Tue, 14 Feb 2012 20:10:11 +0900 (JST)
-Date: Tue, 14 Feb 2012 20:08:42 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH 6/6 v4] memcg: fix performance of
- mem_cgroup_begin_update_page_stat()
-Message-Id: <20120214200842.df132ab1.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <CAHH2K0baOnU6BE5c16cR0KiMvM3Hz+ngcBCs5e4+xJ_dcoeOww@mail.gmail.com>
-References: <20120214120414.025625c2.kamezawa.hiroyu@jp.fujitsu.com>
-	<20120214121631.782352f2.kamezawa.hiroyu@jp.fujitsu.com>
-	<CAHH2K0baOnU6BE5c16cR0KiMvM3Hz+ngcBCs5e4+xJ_dcoeOww@mail.gmail.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 8bit
+Received: from psmtp.com (na3sys010amx167.postini.com [74.125.245.167])
+	by kanga.kvack.org (Postfix) with SMTP id 866156B13F0
+	for <linux-mm@kvack.org>; Tue, 14 Feb 2012 07:17:46 -0500 (EST)
+Date: Tue, 14 Feb 2012 12:17:42 +0000
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: [Bug 42578] Kernel crash "Out of memory error by X" when using
+ NTFS file system on external USB Hard drive
+Message-ID: <20120214121742.GJ17917@csn.ul.ie>
+References: <bug-42578-27@https.bugzilla.kernel.org/>
+ <201201180922.q0I9MCYl032623@bugzilla.kernel.org>
+ <20120119122448.1cce6e76.akpm@linux-foundation.org>
+ <20120210163748.GR5796@csn.ul.ie>
+ <4F354D51.7020408@redhat.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <4F354D51.7020408@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Greg Thelen <gthelen@google.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, Ying Han <yinghan@google.com>, Hugh Dickins <hughd@google.com>
+To: Rik van Riel <riel@redhat.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, bugzilla-daemon@bugzilla.kernel.org, Stuart Foster <smf.linux@ntlworld.com>, Johannes Weiner <hannes@cmpxchg.org>
 
-On Mon, 13 Feb 2012 23:22:50 -0800
-Greg Thelen <gthelen@google.com> wrote:
-
-> On Mon, Feb 13, 2012 at 7:16 PM, KAMEZAWA Hiroyuki
-> <kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> > From 3377fd7b6e23a5d2a368c078eae27e2b49c4f4aa Mon Sep 17 00:00:00 2001
-> > From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> > Date: Mon, 6 Feb 2012 12:14:47 +0900
-> > Subject: [PATCH 6/6] memcg: fix performance of mem_cgroup_begin_update_page_stat()
+On Fri, Feb 10, 2012 at 12:01:05PM -0500, Rik van Riel wrote:
+> On 02/10/2012 11:37 AM, Mel Gorman wrote:
+> >On Thu, Jan 19, 2012 at 12:24:48PM -0800, Andrew Morton wrote:
+> 
+> >>I think it is was always wrong that we only strip buffer_heads when
+> >>moving pages to the inactive list.  What happens if those 600MB of
+> >>buffer_heads are all attached to inactive pages?
+> >>
 > >
-> > mem_cgroup_begin_update_page_stat() should be very fast because
-> > it's called very frequently. Now, it needs to look up page_cgroup
-> > and its memcg....this is slow.
-> >
-> > This patch adds a global variable to check "a memcg is moving or not".
+> >I wondered the same thing myself. With some use-once logic, there is
+> >no guarantee that they even get promoted to the active list in the
+> >first place. It's "always" been like this but we've changed how pages gets
+> >promoted quite a bit and this use case could have been easily missed.
 > 
-> s/a memcg/any memcg/
-> 
-yes.
-
-> > By this, the caller doesn't need to visit page_cgroup and memcg.
-> 
-> s/By/With/
-> 
-ok.
-
-> > Here is a test result. A test program makes page faults onto a file,
-> > MAP_SHARED and makes each page's page_mapcount(page) > 1, and free
-> > the range by madvise() and page fault again. A This program causes
-> > 26214400 times of page fault onto a file(size was 1G.) and shows
-> > shows the cost of mem_cgroup_begin_update_page_stat().
-> 
-> Out of curiosity, what is the performance of the mmap program before
-> this series?
+> It may be possible to also strip the buffer heads from
+> pages when they are moved to the active list, in
+> activate_page().
 > 
 
-Score of 3 runs underlinux-next.
-==
-[root@bluextal test]# time ./mmap 1G
+It'd be possible but is that really the right thing to do? I am thinking
+about when we call mark_page_accessed via touch_buffer, __find_get_block
+etc. In those paths, is it not implied the buffer_heads are in active use
+and releasing them would be counter-productive?
 
-real    0m21.041s
-user    0m6.146s
-sys     0m14.625s
-[root@bluextal test]# time ./mmap 1G
-
-real    0m21.063s
-user    0m6.019s
-sys     0m14.776s
-[root@bluextal test]# time ./mmap 1G
-
-real    0m21.178s
-user    0m6.000s
-sys     0m14.849s
-==
-
-My program is attached. This program is for checking cost of updating FILE_MAPPED.
-I guess sys_time scores's error rate will be 0.2-0.3 sec.
-
-Thanks,
--Kame
-==
-#include <stdio.h>
-#include <stdlib.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <unistd.h>
-#include <sys/mman.h>
-#include <fcntl.h>
-
-void reader(int fd, int size)
-{
-	int i, off, x;
-	char *addr;
-
-	addr = mmap(NULL, size, PROT_READ, MAP_SHARED, fd, 0);
-	for (i = 0; i < 100; i++) {
-		for(off = 0; off < size; off += 4096) {
-			x += *(addr + off);
-		}
-		madvise(addr, size, MADV_DONTNEED);
-	}
-}
-
-int main(int argc, char *argv[])
-{
-	int fd;
-	char *addr, *c;
-	unsigned long size;
-	struct stat statbuf;
-
-	fd = open(argv[1], O_RDONLY);
-	if (fd < 0) {
-		perror("cannot open file");
-		return 1;
-	}
-
-	if (fstat(fd, &statbuf)) {
-		perror("fstat failed");
-		return 1;
-	}
-	size = statbuf.st_size;
-	/* mmap in 2 place. */
-	addr = mmap(NULL, size, PROT_READ, MAP_SHARED, fd, 0);
-	mlock(addr, size);
-	reader(fd, size);
-}
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
