@@ -1,53 +1,97 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx167.postini.com [74.125.245.167])
-	by kanga.kvack.org (Postfix) with SMTP id 866156B13F0
-	for <linux-mm@kvack.org>; Tue, 14 Feb 2012 07:17:46 -0500 (EST)
-Date: Tue, 14 Feb 2012 12:17:42 +0000
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [Bug 42578] Kernel crash "Out of memory error by X" when using
- NTFS file system on external USB Hard drive
-Message-ID: <20120214121742.GJ17917@csn.ul.ie>
-References: <bug-42578-27@https.bugzilla.kernel.org/>
- <201201180922.q0I9MCYl032623@bugzilla.kernel.org>
- <20120119122448.1cce6e76.akpm@linux-foundation.org>
- <20120210163748.GR5796@csn.ul.ie>
- <4F354D51.7020408@redhat.com>
+Received: from psmtp.com (na3sys010amx147.postini.com [74.125.245.147])
+	by kanga.kvack.org (Postfix) with SMTP id 05B826B13F0
+	for <linux-mm@kvack.org>; Tue, 14 Feb 2012 07:53:52 -0500 (EST)
+Received: by vcbf13 with SMTP id f13so4350377vcb.14
+        for <linux-mm@kvack.org>; Tue, 14 Feb 2012 04:53:51 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <4F354D51.7020408@redhat.com>
+Date: Tue, 14 Feb 2012 20:53:51 +0800
+Message-ID: <CAJd=RBATj97k5UESDFx82bzt0K4OquhBoDkfjPBPacdmdfJE8g@mail.gmail.com>
+Subject: [PATCH] mm: hugetlb: defer freeing pages when gathering surplus pages
+From: Hillf Danton <dhillf@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rik van Riel <riel@redhat.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, bugzilla-daemon@bugzilla.kernel.org, Stuart Foster <smf.linux@ntlworld.com>, Johannes Weiner <hannes@cmpxchg.org>
+To: Linux-MM <linux-mm@kvack.org>
+Cc: LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.cz>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, Hillf Danton <dhillf@gmail.com>
 
-On Fri, Feb 10, 2012 at 12:01:05PM -0500, Rik van Riel wrote:
-> On 02/10/2012 11:37 AM, Mel Gorman wrote:
-> >On Thu, Jan 19, 2012 at 12:24:48PM -0800, Andrew Morton wrote:
-> 
-> >>I think it is was always wrong that we only strip buffer_heads when
-> >>moving pages to the inactive list.  What happens if those 600MB of
-> >>buffer_heads are all attached to inactive pages?
-> >>
-> >
-> >I wondered the same thing myself. With some use-once logic, there is
-> >no guarantee that they even get promoted to the active list in the
-> >first place. It's "always" been like this but we've changed how pages gets
-> >promoted quite a bit and this use case could have been easily missed.
-> 
-> It may be possible to also strip the buffer heads from
-> pages when they are moved to the active list, in
-> activate_page().
-> 
+When gathering surplus pages, the number of needed pages is recomputed after
+reacquiring hugetlb lock to catch changes in resv_huge_pages and
+free_huge_pages. Plus it is recomputed with the number of newly allocated
+pages involved.
 
-It'd be possible but is that really the right thing to do? I am thinking
-about when we call mark_page_accessed via touch_buffer, __find_get_block
-etc. In those paths, is it not implied the buffer_heads are in active use
-and releasing them would be counter-productive?
+Thus freeing pages could be deferred a bit to see if the final page request is
+satisfied, though pages could be allocated less than needed.
 
--- 
-Mel Gorman
-SUSE Labs
+Signed-off-by: Hillf Danton <dhillf@gmail.com>
+---
+
+--- a/mm/hugetlb.c	Tue Feb 14 20:10:46 2012
++++ b/mm/hugetlb.c	Tue Feb 14 20:19:42 2012
+@@ -852,6 +852,7 @@ static int gather_surplus_pages(struct h
+ 	struct page *page, *tmp;
+ 	int ret, i;
+ 	int needed, allocated;
++	bool alloc_ok = true;
+
+ 	needed = (h->resv_huge_pages + delta) - h->free_huge_pages;
+ 	if (needed <= 0) {
+@@ -867,17 +868,13 @@ retry:
+ 	spin_unlock(&hugetlb_lock);
+ 	for (i = 0; i < needed; i++) {
+ 		page = alloc_buddy_huge_page(h, NUMA_NO_NODE);
+-		if (!page)
+-			/*
+-			 * We were not able to allocate enough pages to
+-			 * satisfy the entire reservation so we free what
+-			 * we've allocated so far.
+-			 */
+-			goto free;
+-
++		if (!page) {
++			alloc_ok = false;
++			break;
++		}
+ 		list_add(&page->lru, &surplus_list);
+ 	}
+-	allocated += needed;
++	allocated += i;
+
+ 	/*
+ 	 * After retaking hugetlb_lock, we need to recalculate 'needed'
+@@ -886,9 +883,16 @@ retry:
+ 	spin_lock(&hugetlb_lock);
+ 	needed = (h->resv_huge_pages + delta) -
+ 			(h->free_huge_pages + allocated);
+-	if (needed > 0)
+-		goto retry;
+-
++	if (needed > 0) {
++		if (alloc_ok)
++			goto retry;
++		/*
++		 * We were not able to allocate enough pages to
++		 * satisfy the entire reservation so we free what
++		 * we've allocated so far.
++		 */
++		goto free;
++	}
+ 	/*
+ 	 * The surplus_list now contains _at_least_ the number of extra pages
+ 	 * needed to accommodate the reservation.  Add the appropriate number
+@@ -914,10 +918,10 @@ retry:
+ 		VM_BUG_ON(page_count(page));
+ 		enqueue_huge_page(h, page);
+ 	}
++free:
+ 	spin_unlock(&hugetlb_lock);
+
+ 	/* Free unnecessary surplus pages to the buddy allocator */
+-free:
+ 	if (!list_empty(&surplus_list)) {
+ 		list_for_each_entry_safe(page, tmp, &surplus_list, lru) {
+ 			list_del(&page->lru);
+--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
