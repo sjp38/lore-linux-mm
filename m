@@ -1,34 +1,39 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx118.postini.com [74.125.245.118])
-	by kanga.kvack.org (Postfix) with SMTP id BF91C6B13F1
-	for <linux-mm@kvack.org>; Mon, 13 Feb 2012 22:17:56 -0500 (EST)
-Received: from m4.gw.fujitsu.co.jp (unknown [10.0.50.74])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 594423EE0AE
-	for <linux-mm@kvack.org>; Tue, 14 Feb 2012 12:17:55 +0900 (JST)
-Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 3FFF945DE4D
-	for <linux-mm@kvack.org>; Tue, 14 Feb 2012 12:17:55 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 1CCC045DE56
-	for <linux-mm@kvack.org>; Tue, 14 Feb 2012 12:17:55 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 09CFA1DB802F
-	for <linux-mm@kvack.org>; Tue, 14 Feb 2012 12:17:55 +0900 (JST)
-Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.240.81.146])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id AC0D51DB803E
-	for <linux-mm@kvack.org>; Tue, 14 Feb 2012 12:17:54 +0900 (JST)
-Date: Tue, 14 Feb 2012 12:16:31 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: [PATCH 6/6 v4] memcg: fix performance of
- mem_cgroup_begin_update_page_stat()
-Message-Id: <20120214121631.782352f2.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20120214120414.025625c2.kamezawa.hiroyu@jp.fujitsu.com>
-References: <20120214120414.025625c2.kamezawa.hiroyu@jp.fujitsu.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx104.postini.com [74.125.245.104])
+	by kanga.kvack.org (Postfix) with SMTP id 582456B13F0
+	for <linux-mm@kvack.org>; Tue, 14 Feb 2012 01:20:49 -0500 (EST)
+Received: by ggnf1 with SMTP id f1so3453558ggn.14
+        for <linux-mm@kvack.org>; Mon, 13 Feb 2012 22:20:48 -0800 (PST)
+MIME-Version: 1.0
+In-Reply-To: <alpine.DEB.2.00.1202131706320.30721@chino.kir.corp.google.com>
+References: <alpine.DEB.2.00.1202131706320.30721@chino.kir.corp.google.com>
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Date: Tue, 14 Feb 2012 01:20:28 -0500
+Message-ID: <CAHGf_=o+-OdCp-vks1UV1pBAvhgNC=xD8Q2GyeLyQi6xAYkXKQ@mail.gmail.com>
+Subject: Re: [patch -mm] mm, oom: introduce independent oom killer ratelimit state
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, Ying Han <yinghan@google.com>, Hugh Dickins <hughd@google.com>
+To: David Rientjes <rientjes@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org
 
+2012/2/13 David Rientjes <rientjes@google.com>:
+> printk_ratelimit() uses the global ratelimit state for all printks. =A0Th=
+e
+> oom killer should not be subjected to this state just because another
+> subsystem or driver may be flooding the kernel log.
+>
+> This patch introduces printk ratelimiting specifically for the oom
+> killer.
+>
+> Signed-off-by: David Rientjes <rientjes@google.com>
+
+Acked-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Fight unfair telecom internet charges in Canada: sign http://stopthemeter.ca/
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
