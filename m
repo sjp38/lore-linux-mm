@@ -1,26 +1,27 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx195.postini.com [74.125.245.195])
-	by kanga.kvack.org (Postfix) with SMTP id 6DAF96B002C
-	for <linux-mm@kvack.org>; Mon, 13 Feb 2012 22:16:40 -0500 (EST)
-Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id EB2C13EE0C0
-	for <linux-mm@kvack.org>; Tue, 14 Feb 2012 12:16:38 +0900 (JST)
-Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id C9E5645DEB9
-	for <linux-mm@kvack.org>; Tue, 14 Feb 2012 12:16:38 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id B1B5F45DEB5
-	for <linux-mm@kvack.org>; Tue, 14 Feb 2012 12:16:38 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 9D2021DB8046
-	for <linux-mm@kvack.org>; Tue, 14 Feb 2012 12:16:38 +0900 (JST)
+Received: from psmtp.com (na3sys010amx118.postini.com [74.125.245.118])
+	by kanga.kvack.org (Postfix) with SMTP id BF91C6B13F1
+	for <linux-mm@kvack.org>; Mon, 13 Feb 2012 22:17:56 -0500 (EST)
+Received: from m4.gw.fujitsu.co.jp (unknown [10.0.50.74])
+	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 594423EE0AE
+	for <linux-mm@kvack.org>; Tue, 14 Feb 2012 12:17:55 +0900 (JST)
+Received: from smail (m4 [127.0.0.1])
+	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 3FFF945DE4D
+	for <linux-mm@kvack.org>; Tue, 14 Feb 2012 12:17:55 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
+	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 1CCC045DE56
+	for <linux-mm@kvack.org>; Tue, 14 Feb 2012 12:17:55 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 09CFA1DB802F
+	for <linux-mm@kvack.org>; Tue, 14 Feb 2012 12:17:55 +0900 (JST)
 Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.240.81.146])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 5299D1DB8042
-	for <linux-mm@kvack.org>; Tue, 14 Feb 2012 12:16:38 +0900 (JST)
-Date: Tue, 14 Feb 2012 12:15:15 +0900
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id AC0D51DB803E
+	for <linux-mm@kvack.org>; Tue, 14 Feb 2012 12:17:54 +0900 (JST)
+Date: Tue, 14 Feb 2012 12:16:31 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: [PATCH 5/6 v4] memcg: remove PCG_FILE_MAPPED
-Message-Id: <20120214121515.34281b73.kamezawa.hiroyu@jp.fujitsu.com>
+Subject: [PATCH 6/6 v4] memcg: fix performance of
+ mem_cgroup_begin_update_page_stat()
+Message-Id: <20120214121631.782352f2.kamezawa.hiroyu@jp.fujitsu.com>
 In-Reply-To: <20120214120414.025625c2.kamezawa.hiroyu@jp.fujitsu.com>
 References: <20120214120414.025625c2.kamezawa.hiroyu@jp.fujitsu.com>
 Mime-Version: 1.0
