@@ -1,60 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx197.postini.com [74.125.245.197])
-	by kanga.kvack.org (Postfix) with SMTP id CD0A86B13F0
-	for <linux-mm@kvack.org>; Tue, 14 Feb 2012 03:52:56 -0500 (EST)
-Date: Tue, 14 Feb 2012 00:53:01 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] slab: warning if total alloc size overflow
-Message-Id: <20120214005301.a9d5be1a.akpm@linux-foundation.org>
-In-Reply-To: <1329204499-2671-1-git-send-email-hamo.by@gmail.com>
-References: <1329204499-2671-1-git-send-email-hamo.by@gmail.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Received: from psmtp.com (na3sys010amx118.postini.com [74.125.245.118])
+	by kanga.kvack.org (Postfix) with SMTP id CF3C96B13F0
+	for <linux-mm@kvack.org>; Tue, 14 Feb 2012 04:00:08 -0500 (EST)
+Received: from /spool/local
+	by e23smtp07.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <xiaoguangrong@linux.vnet.ibm.com>;
+	Tue, 14 Feb 2012 08:55:12 +1000
+Received: from d23av02.au.ibm.com (d23av02.au.ibm.com [9.190.235.138])
+	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q1E8xppv1495072
+	for <linux-mm@kvack.org>; Tue, 14 Feb 2012 19:59:51 +1100
+Received: from d23av02.au.ibm.com (loopback [127.0.0.1])
+	by d23av02.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q1E8xp8T007595
+	for <linux-mm@kvack.org>; Tue, 14 Feb 2012 19:59:51 +1100
+Message-ID: <4F3A2285.7060700@linux.vnet.ibm.com>
+Date: Tue, 14 Feb 2012 16:59:49 +0800
+From: Xiao Guangrong <xiaoguangrong@linux.vnet.ibm.com>
+MIME-Version: 1.0
+Subject: [PATCH 1/4] prio_tree: remove unnecessary code in prio_tree_replace
+Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Yang Bai <hamo.by@gmail.com>
-Cc: cl@linux-foundation.org, penberg@kernel.org, mpm@selenic.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-On Tue, 14 Feb 2012 15:28:19 +0800 Yang Bai <hamo.by@gmail.com> wrote:
+Remove the code since 'node' has already been initialized in the
+begin of the function
 
-> Before, if the total alloc size is overflow,
-> we just return NULL like alloc fail. But they
-> are two different type problems. The former looks
-> more like a programming problem. So add a warning
-> here.
-> 
-> Signed-off-by: Yang Bai <hamo.by@gmail.com>
-> ---
->  include/linux/slab.h |    4 +++-
->  1 files changed, 3 insertions(+), 1 deletions(-)
-> 
-> diff --git a/include/linux/slab.h b/include/linux/slab.h
-> index 573c809..5865237 100644
-> --- a/include/linux/slab.h
-> +++ b/include/linux/slab.h
-> @@ -242,8 +242,10 @@ size_t ksize(const void *);
->   */
->  static inline void *kcalloc(size_t n, size_t size, gfp_t flags)
->  {
-> -	if (size != 0 && n > ULONG_MAX / size)
-> +	if (size != 0 && n > ULONG_MAX / size) {
-> +		WARN(1, "Alloc memory size (%lu * %lu) overflow.", n, size);
->  		return NULL;
-> +	}
->  	return __kmalloc(n * size, flags | __GFP_ZERO);
->  }
+Signed-off-by: Xiao Guangrong <xiaoguangrong@linux.vnet.ibm.com>
+---
+ lib/prio_tree.c |    1 -
+ 1 files changed, 0 insertions(+), 1 deletions(-)
 
-One of the applications of kcalloc() is to prevent userspace from
-causing a multiplicative overflow (and then perhaps causing an
-overwrite beyond the end of the allocated memory).
-
-With this patch, we've just handed the user a way of spamming the logs
-at 1MHz.  This is bad.
-
-
-Also, please let's not randomly add debug stuff in places where we've
-never demonstrated a need for it.
+diff --git a/lib/prio_tree.c b/lib/prio_tree.c
+index ccfd850..423eba8 100644
+--- a/lib/prio_tree.c
++++ b/lib/prio_tree.c
+@@ -151,7 +151,6 @@ struct prio_tree_node *prio_tree_replace(struct prio_tree_root *root,
+ 		 * We can reduce root->index_bits here. However, it is complex
+ 		 * and does not help much to improve performance (IMO).
+ 		 */
+-		node->parent = node;
+ 		root->prio_tree_node = node;
+ 	} else {
+ 		node->parent = old->parent;
+-- 
+1.7.7.6
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
