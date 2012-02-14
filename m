@@ -1,61 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx139.postini.com [74.125.245.139])
-	by kanga.kvack.org (Postfix) with SMTP id 31E846B13F0
-	for <linux-mm@kvack.org>; Tue, 14 Feb 2012 16:33:39 -0500 (EST)
-Date: Tue, 14 Feb 2012 13:33:37 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [RFC] [PATCH v5 0/3] fadvise: support POSIX_FADV_NOREUSE
-Message-Id: <20120214133337.9de7835b.akpm@linux-foundation.org>
-In-Reply-To: <1329006098-5454-1-git-send-email-andrea@betterlinux.com>
-References: <1329006098-5454-1-git-send-email-andrea@betterlinux.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Received: from psmtp.com (na3sys010amx106.postini.com [74.125.245.106])
+	by kanga.kvack.org (Postfix) with SMTP id 054616B13F0
+	for <linux-mm@kvack.org>; Tue, 14 Feb 2012 16:37:51 -0500 (EST)
+Received: by bkty12 with SMTP id y12so528553bkt.14
+        for <linux-mm@kvack.org>; Tue, 14 Feb 2012 13:37:50 -0800 (PST)
+Subject: [PATCH 1/2] mm: replace COMPACTION_BUILD with
+ IS_ENABLED(CONFIG_COMPACTION)
+From: Konstantin Khlebnikov <khlebnikov@openvz.org>
+Date: Wed, 15 Feb 2012 01:37:46 +0400
+Message-ID: <20120214213746.26555.95500.stgit@zurg>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="utf-8"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrea Righi <andrea@betterlinux.com>
-Cc: Minchan Kim <minchan.kim@gmail.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Johannes Weiner <jweiner@redhat.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Alexander Viro <viro@zeniv.linux.org.uk>, Shaohua Li <shaohua.li@intel.com>, =?ISO-8859-1?Q?P=E1draig?= Brady <P@draigBrady.com>, John Stultz <john.stultz@linaro.org>, Jerry James <jamesjer@betterlinux.com>, Julius Plenz <julius@plenz.com>, linux-mm <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>
+To: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org
 
-On Sun, 12 Feb 2012 01:21:35 +0100
-Andrea Righi <andrea@betterlinux.com> wrote:
+One more candidate for replacing with IS_ENABLED() macro.
 
-> The new proposal is to implement POSIX_FADV_NOREUSE as a way to perform a real
-> drop-behind policy where applications can mark certain intervals of a file as
-> FADV_NOREUSE before accessing the data.
+Signed-off-by: Konstantin Khlebnikov <khlebnikov@openvz.org>
+---
+ include/linux/kernel.h |    7 -------
+ mm/vmscan.c            |    4 ++--
+ 2 files changed, 2 insertions(+), 9 deletions(-)
 
-I think you and John need to talk to each other, please.  The amount of
-duplication here is extraordinary.
-
-Both patchsets add fields to the address_space (and hence inode), which
-is significant - we should convince ourselves that we're getting really
-good returns from a feature which does this.
-
-
-
-Regarding the use of fadvise(): I suppose it's a reasonable thing to do
-in the long term - if the feature works well, popular data streaming
-applications will eventually switch over.  But I do think we should
-explore interfaces which don't require modification of userspace source
-code.  Because there will always be unconverted applications, and the
-feature becomes available immediately.
-
-One such interface would be to toss the offending application into a
-container which has a modified drop-behind policy.  And here we need to
-drag out the crystal ball: what *is* the best way of tuning application
-pagecache behaviour?  Will we gravitate towards containerization, or
-will we gravitate towards finer-tuned fadvise/sync_page_range/etc
-behaviour?  Thus far it has been the latter, and I don't think that has
-been a great success.
-
-Finally, are the problems which prompted these patchsets already
-solved?  What happens if you take the offending streaming application
-and toss it into a 16MB memcg?  That *should* avoid perturbing other
-things running on that machine.
-
-And yes, a container-based approach is pretty crude, and one can
-envision applications which only want modified reclaim policy for one
-particualr file.  But I suspect an application-wide reclaim policy
-solves 90% of the problems.
+diff --git a/include/linux/kernel.h b/include/linux/kernel.h
+index e834342..1300307 100644
+--- a/include/linux/kernel.h
++++ b/include/linux/kernel.h
+@@ -733,13 +733,6 @@ extern int __build_bug_on_failed;
+ #define NUMA_BUILD 0
+ #endif
+ 
+-/* This helps us avoid #ifdef CONFIG_COMPACTION */
+-#ifdef CONFIG_COMPACTION
+-#define COMPACTION_BUILD 1
+-#else
+-#define COMPACTION_BUILD 0
+-#endif
+-
+ /* Rebuild everything on CONFIG_FTRACE_MCOUNT_RECORD */
+ #ifdef CONFIG_FTRACE_MCOUNT_RECORD
+ # define REBUILD_DUE_TO_FTRACE_MCOUNT_RECORD
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index 25ad7ad..4061e91 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -376,7 +376,7 @@ static void set_reclaim_mode(int priority, struct scan_control *sc,
+ 	 * reclaim/compaction.Depending on the order, we will either set the
+ 	 * sync mode or just reclaim order-0 pages later.
+ 	 */
+-	if (COMPACTION_BUILD)
++	if (IS_ENABLED(CONFIG_COMPACTION))
+ 		sc->reclaim_mode = RECLAIM_MODE_COMPACTION;
+ 	else
+ 		sc->reclaim_mode = RECLAIM_MODE_LUMPYRECLAIM;
+@@ -2255,7 +2255,7 @@ static bool shrink_zones(int priority, struct zonelist *zonelist,
+ 				continue;
+ 			if (zone->all_unreclaimable && priority != DEF_PRIORITY)
+ 				continue;	/* Let kswapd poll it */
+-			if (COMPACTION_BUILD) {
++			if (IS_ENABLED(CONFIG_COMPACTION)) {
+ 				/*
+ 				 * If we already have plenty of memory free for
+ 				 * compaction in this zone, don't free any more.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
