@@ -1,42 +1,116 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx149.postini.com [74.125.245.149])
-	by kanga.kvack.org (Postfix) with SMTP id D4A176B002C
-	for <linux-mm@kvack.org>; Mon, 13 Feb 2012 16:55:33 -0500 (EST)
-Received: by pbcwz17 with SMTP id wz17so6116329pbc.14
-        for <linux-mm@kvack.org>; Mon, 13 Feb 2012 13:55:33 -0800 (PST)
-Date: Mon, 13 Feb 2012 13:55:31 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH] Ensure that walk_page_range()'s start and end are
- page-aligned
-In-Reply-To: <87zkcm23az.fsf@caffeine.danplanet.com>
-Message-ID: <alpine.DEB.2.00.1202131350500.17296@chino.kir.corp.google.com>
-References: <1328902796-30389-1-git-send-email-danms@us.ibm.com> <alpine.DEB.2.00.1202130211400.4324@chino.kir.corp.google.com> <87zkcm23az.fsf@caffeine.danplanet.com>
+Received: from psmtp.com (na3sys010amx163.postini.com [74.125.245.163])
+	by kanga.kvack.org (Postfix) with SMTP id 647096B002C
+	for <linux-mm@kvack.org>; Mon, 13 Feb 2012 19:04:42 -0500 (EST)
+Received: by eekb57 with SMTP id b57so188657eek.2
+        for <linux-mm@kvack.org>; Mon, 13 Feb 2012 16:04:40 -0800 (PST)
+Subject: [PATCH] mm: print physical addresses consistently with other parts of
+	kernel
+From: Bjorn Helgaas <bhelgaas@google.com>
+Date: Mon, 13 Feb 2012 17:04:39 -0700
+Message-ID: <20120214000439.32466.65882.stgit@bhelgaas.mtv.corp.google.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Smith <danms@us.ibm.com>
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org
 
-On Mon, 13 Feb 2012, Dan Smith wrote:
+Print physical address info in a style consistent with the %pR style used
+elsewhere in the kernel.
 
-> DR> It doesn't "ensure" anything without CONFIG_DEBUG_VM enabled, which
-> DR> isn't the default.
-> 
-> Are you proposing a change in verbiage or a stronger check? A
-> VM_BUG_ON() seemed on par with other checks, such as the one in
-> get_user_pages_fast().
-> 
+Signed-off-by: Bjorn Helgaas <bhelgaas@google.com>
+---
+ mm/memory_hotplug.c |   14 ++++++++------
+ mm/page_alloc.c     |   19 +++++++++++--------
+ 2 files changed, 19 insertions(+), 14 deletions(-)
 
-That's not a precedent, there's a big difference between the performance 
-of gup_fast(), where we can't spare an additional compare and branch, and 
-walk_page_range().  VM_BUG_ON() is typically used in situations where a 
-debug kernel has been built, including CONFIG_DEBUG_VM, and the check 
-helps to isolate a problem that would be otherwise difficult to find.  If 
-that fits the criteria, fine, but it doesn't "ensure" walk_page_range() 
-always has start and end addresses that are page aligned, so the changelog 
-needs to be modified to describe why an error in this path wouldn't be 
-evident.
+diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+index 6629faf..453006c 100644
+--- a/mm/memory_hotplug.c
++++ b/mm/memory_hotplug.c
+@@ -74,8 +74,7 @@ static struct resource *register_memory_resource(u64 start, u64 size)
+ 	res->end = start + size - 1;
+ 	res->flags = IORESOURCE_MEM | IORESOURCE_BUSY;
+ 	if (request_resource(&iomem_resource, res) < 0) {
+-		printk("System RAM resource %llx - %llx cannot be added\n",
+-		(unsigned long long)res->start, (unsigned long long)res->end);
++		printk("System RAM resource %pR cannot be added\n", res);
+ 		kfree(res);
+ 		res = NULL;
+ 	}
+@@ -502,8 +501,10 @@ int __ref online_pages(unsigned long pfn, unsigned long nr_pages)
+ 		online_pages_range);
+ 	if (ret) {
+ 		mutex_unlock(&zonelists_mutex);
+-		printk(KERN_DEBUG "online_pages %lx at %lx failed\n",
+-			nr_pages, pfn);
++		printk(KERN_DEBUG "online_pages [mem %#010llx-%#010llx] failed\n",
++		       (unsigned long long) pfn << PAGE_SHIFT,
++		       (((unsigned long long) pfn + nr_pages)
++			    << PAGE_SHIFT) - 1);
+ 		memory_notify(MEM_CANCEL_ONLINE, &arg);
+ 		unlock_memory_hotplug();
+ 		return ret;
+@@ -977,8 +978,9 @@ repeat:
+ 	return 0;
+ 
+ failed_removal:
+-	printk(KERN_INFO "memory offlining %lx to %lx failed\n",
+-		start_pfn, end_pfn);
++	printk(KERN_INFO "memory offlining [mem %#010llx-%#010llx] failed\n",
++	       (unsigned long long) start_pfn << PAGE_SHIFT,
++	       ((unsigned long long) end_pfn << PAGE_SHIFT) - 1);
+ 	memory_notify(MEM_CANCEL_OFFLINE, &arg);
+ 	/* pushback to free area */
+ 	undo_isolate_page_range(start_pfn, end_pfn);
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index d2186ec..1cc56d1 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -4716,7 +4716,7 @@ void __init free_area_init_nodes(unsigned long *max_zone_pfn)
+ 	find_zone_movable_pfns_for_nodes(zone_movable_pfn);
+ 
+ 	/* Print out the zone ranges */
+-	printk("Zone PFN ranges:\n");
++	printk("Zone ranges:\n");
+ 	for (i = 0; i < MAX_NR_ZONES; i++) {
+ 		if (i == ZONE_MOVABLE)
+ 			continue;
+@@ -4725,22 +4725,25 @@ void __init free_area_init_nodes(unsigned long *max_zone_pfn)
+ 				arch_zone_highest_possible_pfn[i])
+ 			printk("empty\n");
+ 		else
+-			printk("%0#10lx -> %0#10lx\n",
+-				arch_zone_lowest_possible_pfn[i],
+-				arch_zone_highest_possible_pfn[i]);
++			printk("[mem %0#10lx-%0#10lx]\n",
++				arch_zone_lowest_possible_pfn[i] << PAGE_SHIFT,
++				(arch_zone_highest_possible_pfn[i]
++					<< PAGE_SHIFT) - 1);
+ 	}
+ 
+ 	/* Print out the PFNs ZONE_MOVABLE begins at in each node */
+-	printk("Movable zone start PFN for each node\n");
++	printk("Movable zone start for each node\n");
+ 	for (i = 0; i < MAX_NUMNODES; i++) {
+ 		if (zone_movable_pfn[i])
+-			printk("  Node %d: %lu\n", i, zone_movable_pfn[i]);
++			printk("  Node %d: %#010lx\n", i,
++			       zone_movable_pfn[i] << PAGE_SHIFT);
+ 	}
+ 
+ 	/* Print out the early_node_map[] */
+-	printk("Early memory PFN ranges\n");
++	printk("Early memory node ranges\n");
+ 	for_each_mem_pfn_range(i, MAX_NUMNODES, &start_pfn, &end_pfn, &nid)
+-		printk("  %3d: %0#10lx -> %0#10lx\n", nid, start_pfn, end_pfn);
++		printk("  node %3d: [mem %#010lx-%#010lx]\n", nid,
++		       start_pfn << PAGE_SHIFT, (end_pfn << PAGE_SHIFT) - 1);
+ 
+ 	/* Initialise every node */
+ 	mminit_verify_pageflags_layout();
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
