@@ -1,30 +1,29 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx179.postini.com [74.125.245.179])
-	by kanga.kvack.org (Postfix) with SMTP id C92126B13F0
-	for <linux-mm@kvack.org>; Tue, 14 Feb 2012 03:33:06 -0500 (EST)
+Received: from psmtp.com (na3sys010amx101.postini.com [74.125.245.101])
+	by kanga.kvack.org (Postfix) with SMTP id 836276B13F0
+	for <linux-mm@kvack.org>; Tue, 14 Feb 2012 03:40:01 -0500 (EST)
 Received: from m2.gw.fujitsu.co.jp (unknown [10.0.50.72])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 61BDC3EE0C3
-	for <linux-mm@kvack.org>; Tue, 14 Feb 2012 17:33:05 +0900 (JST)
+	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id D03ED3EE0C2
+	for <linux-mm@kvack.org>; Tue, 14 Feb 2012 17:39:59 +0900 (JST)
 Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 48FD045DE4D
-	for <linux-mm@kvack.org>; Tue, 14 Feb 2012 17:33:05 +0900 (JST)
+	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id B36D645DE56
+	for <linux-mm@kvack.org>; Tue, 14 Feb 2012 17:39:59 +0900 (JST)
 Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 312DE45DD74
-	for <linux-mm@kvack.org>; Tue, 14 Feb 2012 17:33:05 +0900 (JST)
+	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 9BDBC45DD74
+	for <linux-mm@kvack.org>; Tue, 14 Feb 2012 17:39:59 +0900 (JST)
 Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 174EB1DB803C
-	for <linux-mm@kvack.org>; Tue, 14 Feb 2012 17:33:05 +0900 (JST)
-Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.240.81.145])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id C37361DB8038
-	for <linux-mm@kvack.org>; Tue, 14 Feb 2012 17:33:04 +0900 (JST)
-Date: Tue, 14 Feb 2012 17:31:17 +0900
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 84A7E1DB8046
+	for <linux-mm@kvack.org>; Tue, 14 Feb 2012 17:39:59 +0900 (JST)
+Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.240.81.147])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 3BBB81DB803C
+	for <linux-mm@kvack.org>; Tue, 14 Feb 2012 17:39:59 +0900 (JST)
+Date: Tue, 14 Feb 2012 17:38:21 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCHv21 09/16] mm: page_isolation: MIGRATE_CMA isolation
- functions added
-Message-Id: <20120214173117.3f0bf523.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <1328895151-5196-10-git-send-email-m.szyprowski@samsung.com>
+Subject: Re: [PATCHv21 10/16] mm: Serialize access to min_free_kbytes
+Message-Id: <20120214173821.8a214716.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <1328895151-5196-11-git-send-email-m.szyprowski@samsung.com>
 References: <1328895151-5196-1-git-send-email-m.szyprowski@samsung.com>
-	<1328895151-5196-10-git-send-email-m.szyprowski@samsung.com>
+	<1328895151-5196-11-git-send-email-m.szyprowski@samsung.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
@@ -33,22 +32,23 @@ List-ID: <linux-mm.kvack.org>
 To: Marek Szyprowski <m.szyprowski@samsung.com>
 Cc: linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-media@vger.kernel.org, linux-mm@kvack.org, linaro-mm-sig@lists.linaro.org, Michal Nazarewicz <mina86@mina86.com>, Kyungmin Park <kyungmin.park@samsung.com>, Russell King <linux@arm.linux.org.uk>, Andrew Morton <akpm@linux-foundation.org>, Daniel Walker <dwalker@codeaurora.org>, Mel Gorman <mel@csn.ul.ie>, Arnd Bergmann <arnd@arndb.de>, Jesse Barker <jesse.barker@linaro.org>, Jonathan Corbet <corbet@lwn.net>, Shariq Hasnain <shariq.hasnain@linaro.org>, Chunsang Jeong <chunsang.jeong@linaro.org>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Gaignard <benjamin.gaignard@linaro.org>, Rob Clark <rob.clark@linaro.org>, Ohad Ben-Cohen <ohad@wizery.com>
 
-On Fri, 10 Feb 2012 18:32:24 +0100
+On Fri, 10 Feb 2012 18:32:25 +0100
 Marek Szyprowski <m.szyprowski@samsung.com> wrote:
 
-> From: Michal Nazarewicz <mina86@mina86.com>
+> From: Mel Gorman <mgorman@suse.de>
 > 
-> This commit changes various functions that change pages and
-> pageblocks migrate type between MIGRATE_ISOLATE and
-> MIGRATE_MOVABLE in such a way as to allow to work with
-> MIGRATE_CMA migrate type.
+> There is a race between the min_free_kbytes sysctl, memory hotplug
+> and transparent hugepage support enablement.  Memory hotplug uses a
+> zonelists_mutex to avoid a race when building zonelists. Reuse it to
+> serialise watermark updates.
 > 
-> Signed-off-by: Michal Nazarewicz <mina86@mina86.com>
+> [a.p.zijlstra@chello.nl: Older patch fixed the race with spinlock]
+> Signed-off-by: Mel Gorman <mgorman@suse.de>
 > Signed-off-by: Marek Szyprowski <m.szyprowski@samsung.com>
-> Tested-by: Rob Clark <rob.clark@linaro.org>
-> Tested-by: Ohad Ben-Cohen <ohad@wizery.com>
-> Tested-by: Benjamin Gaignard <benjamin.gaignard@linaro.org>
 
+At linux-next, conflicted with "mm: add extra free kbytes tunable"
+
+To the logic,
 Reviewed-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
 --
