@@ -1,36 +1,23 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx185.postini.com [74.125.245.185])
-	by kanga.kvack.org (Postfix) with SMTP id 328066B13F0
-	for <linux-mm@kvack.org>; Tue, 14 Feb 2012 17:06:38 -0500 (EST)
-Received: from /spool/local
-	by e39.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <john.stultz@linaro.org>;
-	Tue, 14 Feb 2012 15:06:36 -0700
-Received: from d03relay03.boulder.ibm.com (d03relay03.boulder.ibm.com [9.17.195.228])
-	by d03dlp02.boulder.ibm.com (Postfix) with ESMTP id 73DDF3E4004A
-	for <linux-mm@kvack.org>; Tue, 14 Feb 2012 15:06:13 -0700 (MST)
-Received: from d03av06.boulder.ibm.com (d03av06.boulder.ibm.com [9.17.195.245])
-	by d03relay03.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q1EM67PP121624
-	for <linux-mm@kvack.org>; Tue, 14 Feb 2012 15:06:09 -0700
-Received: from d03av06.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av06.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q1EM6DQx028233
-	for <linux-mm@kvack.org>; Tue, 14 Feb 2012 15:06:14 -0700
-Message-ID: <1329257161.2340.1.camel@work-vm>
+Received: from psmtp.com (na3sys010amx121.postini.com [74.125.245.121])
+	by kanga.kvack.org (Postfix) with SMTP id 906BD6B007E
+	for <linux-mm@kvack.org>; Tue, 14 Feb 2012 17:59:27 -0500 (EST)
+Date: Tue, 14 Feb 2012 23:59:22 +0100
+From: Andrea Righi <andrea@betterlinux.com>
 Subject: Re: [RFC] [PATCH v5 0/3] fadvise: support POSIX_FADV_NOREUSE
-From: John Stultz <john.stultz@linaro.org>
-Date: Tue, 14 Feb 2012 14:06:01 -0800
-In-Reply-To: <20120214133337.9de7835b.akpm@linux-foundation.org>
+Message-ID: <20120214225922.GA12394@thinkpad>
 References: <1329006098-5454-1-git-send-email-andrea@betterlinux.com>
-	 <20120214133337.9de7835b.akpm@linux-foundation.org>
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: 7bit
-Mime-Version: 1.0
+ <20120214133337.9de7835b.akpm@linux-foundation.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20120214133337.9de7835b.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Andrea Righi <andrea@betterlinux.com>, Minchan Kim <minchan.kim@gmail.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Johannes Weiner <jweiner@redhat.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Alexander Viro <viro@zeniv.linux.org.uk>, Shaohua Li <shaohua.li@intel.com>, =?ISO-8859-1?Q?P=E1draig?= Brady <P@draigBrady.com>, Jerry James <jamesjer@betterlinux.com>, Julius Plenz <julius@plenz.com>, linux-mm <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>
+Cc: Minchan Kim <minchan.kim@gmail.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Johannes Weiner <jweiner@redhat.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Alexander Viro <viro@zeniv.linux.org.uk>, Shaohua Li <shaohua.li@intel.com>, =?iso-8859-1?Q?P=E1draig?= Brady <P@draigBrady.com>, John Stultz <john.stultz@linaro.org>, Jerry James <jamesjer@betterlinux.com>, Julius Plenz <julius@plenz.com>, linux-mm <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>
 
-On Tue, 2012-02-14 at 13:33 -0800, Andrew Morton wrote:
+On Tue, Feb 14, 2012 at 01:33:37PM -0800, Andrew Morton wrote:
 > On Sun, 12 Feb 2012 01:21:35 +0100
 > Andrea Righi <andrea@betterlinux.com> wrote:
 > 
@@ -41,13 +28,55 @@ On Tue, 2012-02-14 at 13:33 -0800, Andrew Morton wrote:
 > I think you and John need to talk to each other, please.  The amount of
 > duplication here is extraordinary.
 
-Yea. Clearly there is much we can share. I'm still catching up from a
-conference last week, so I've not had a chance to really look at this
-yet, but its on my queue for this week.
+Yes, definitely. I'm currently reviewing and testing the John's patch
+set. I was even considering to apply my patch set on top of the John's
+patch, or at least propose my tree-based approach to manage the list of
+the POSIX_FADV_VOLATILE ranges.
 
-thanks
--john
+> 
+> Both patchsets add fields to the address_space (and hence inode), which
+> is significant - we should convince ourselves that we're getting really
+> good returns from a feature which does this.
+> 
+> 
+> 
+> Regarding the use of fadvise(): I suppose it's a reasonable thing to do
+> in the long term - if the feature works well, popular data streaming
+> applications will eventually switch over.  But I do think we should
+> explore interfaces which don't require modification of userspace source
+> code.  Because there will always be unconverted applications, and the
+> feature becomes available immediately.
+> 
+> One such interface would be to toss the offending application into a
+> container which has a modified drop-behind policy.  And here we need to
+> drag out the crystal ball: what *is* the best way of tuning application
+> pagecache behaviour?  Will we gravitate towards containerization, or
+> will we gravitate towards finer-tuned fadvise/sync_page_range/etc
+> behaviour?  Thus far it has been the latter, and I don't think that has
+> been a great success.
+> 
+> Finally, are the problems which prompted these patchsets already
+> solved?  What happens if you take the offending streaming application
+> and toss it into a 16MB memcg?  That *should* avoid perturbing other
+> things running on that machine.
 
+Moving the streaming application into a 16MB memcg can be dangerous in
+some cases... the application might start to do "bad" things, like
+swapping (if the memcg can swap) or just fail due to OOMs.
+
+> 
+> And yes, a container-based approach is pretty crude, and one can
+> envision applications which only want modified reclaim policy for one
+> particualr file.  But I suspect an application-wide reclaim policy
+> solves 90% of the problems.
+
+I really like the container-based approach. But for this we need a
+better file cache control in the memory cgroup; now we have the
+accounting of file pages, but there's no way to limit them.
+
+Thanks for your comments, Andrew.
+
+-Andrea
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
