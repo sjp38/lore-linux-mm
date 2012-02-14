@@ -1,64 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx139.postini.com [74.125.245.139])
-	by kanga.kvack.org (Postfix) with SMTP id C37D06B002C
-	for <linux-mm@kvack.org>; Mon, 13 Feb 2012 22:05:49 -0500 (EST)
+Received: from psmtp.com (na3sys010amx109.postini.com [74.125.245.109])
+	by kanga.kvack.org (Postfix) with SMTP id 48CB66B002C
+	for <linux-mm@kvack.org>; Mon, 13 Feb 2012 22:08:06 -0500 (EST)
 Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id C34973EE0BD
-	for <linux-mm@kvack.org>; Tue, 14 Feb 2012 12:05:47 +0900 (JST)
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 596A83EE081
+	for <linux-mm@kvack.org>; Tue, 14 Feb 2012 12:08:04 +0900 (JST)
 Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id A7AE245DEAD
-	for <linux-mm@kvack.org>; Tue, 14 Feb 2012 12:05:47 +0900 (JST)
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 3E33145DE9E
+	for <linux-mm@kvack.org>; Tue, 14 Feb 2012 12:08:04 +0900 (JST)
 Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 8ED2945DE7E
-	for <linux-mm@kvack.org>; Tue, 14 Feb 2012 12:05:47 +0900 (JST)
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 25AD645DEAD
+	for <linux-mm@kvack.org>; Tue, 14 Feb 2012 12:08:04 +0900 (JST)
 Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 803E91DB803E
-	for <linux-mm@kvack.org>; Tue, 14 Feb 2012 12:05:47 +0900 (JST)
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 174D11DB8041
+	for <linux-mm@kvack.org>; Tue, 14 Feb 2012 12:08:04 +0900 (JST)
 Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.240.81.133])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 359B71DB803C
-	for <linux-mm@kvack.org>; Tue, 14 Feb 2012 12:05:47 +0900 (JST)
-Date: Tue, 14 Feb 2012 12:04:14 +0900
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id C65691DB8038
+	for <linux-mm@kvack.org>; Tue, 14 Feb 2012 12:08:03 +0900 (JST)
+Date: Tue, 14 Feb 2012 12:06:40 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: [PATCH 0/6 v4] memcg: page cgroup diet
-Message-Id: <20120214120414.025625c2.kamezawa.hiroyu@jp.fujitsu.com>
+Subject: [PATCH 1/6 v4] memcg: remove
+ EXPORT_SYMBOL(mem_cgroup_update_page_stat)
+Message-Id: <20120214120640.ef2ef23a.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20120214120414.025625c2.kamezawa.hiroyu@jp.fujitsu.com>
+References: <20120214120414.025625c2.kamezawa.hiroyu@jp.fujitsu.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "linux-mm@kvack.org" <linux-mm@kvack.org>
-Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, Ying Han <yinghan@google.com>, Hugh Dickins <hughd@google.com>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, Ying Han <yinghan@google.com>, Hugh Dickins <hughd@google.com>
 
 
-Here is v4. I removed RFC and fixed a fatal bug in v3.
-
-This patch series is a preparetion for removing page_cgroup->flags. To remove
-it, we need to reduce flags on page_cgroup. In this set, PCG_MOVE_LOCK and
-PCG_FILE_MAPPED are remvoed.
-
-After this, we only have 3 bits.
+This is just a cleanup.
 ==
-enum {
-        /* flags for mem_cgroup */
-        PCG_LOCK,  /* Lock for pc->mem_cgroup and following bits. */
-        PCG_USED, /* this object is in use. */
-        PCG_MIGRATION, /* under page migration */
-        __NR_PCG_FLAGS,
-};
-==
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Date: Thu, 2 Feb 2012 12:05:41 +0900
+Subject: [PATCH 1/6] memcg: remove EXPORT_SYMBOL(mem_cgroup_update_page_stat)
 
-I'll make a try to merge this 3bits to lower 3bits of pointer to
-memcg. Then, we can make page_cgroup 8(4)bytes per page.
+>From the log, I guess EXPORT was for preparing dirty accounting.
+But _now_, we don't need to export this. Remove this for now.
 
+Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+---
+ mm/memcontrol.c |    1 -
+ 1 files changed, 0 insertions(+), 1 deletions(-)
 
-Major changes since v3 are
- - replaced move_lock_page_cgroup() with move_lock_mem_cgroup().
-   passes pointer to memcg rather than page_cgroup.
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index ab315ab..4c2b759 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -1897,7 +1897,6 @@ out:
+ 		move_unlock_page_cgroup(pc, &flags);
+ 	rcu_read_unlock();
+ }
+-EXPORT_SYMBOL(mem_cgroup_update_page_stat);
+ 
+ /*
+  * size of first charge trial. "32" comes from vmscan.c's magic value.
+-- 
+1.7.4.1
 
-Working on linux-next feb13 and passed several tests.
-
-Thanks,
--Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
