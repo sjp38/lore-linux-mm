@@ -1,22 +1,22 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx145.postini.com [74.125.245.145])
-	by kanga.kvack.org (Postfix) with SMTP id 36A526B13F1
-	for <linux-mm@kvack.org>; Tue, 14 Feb 2012 04:00:33 -0500 (EST)
+Received: from psmtp.com (na3sys010amx116.postini.com [74.125.245.116])
+	by kanga.kvack.org (Postfix) with SMTP id C203B6B13F0
+	for <linux-mm@kvack.org>; Tue, 14 Feb 2012 04:01:16 -0500 (EST)
 Received: from /spool/local
-	by e23smtp01.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e23smtp04.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <xiaoguangrong@linux.vnet.ibm.com>;
-	Tue, 14 Feb 2012 08:54:26 +1000
+	Tue, 14 Feb 2012 08:45:38 +1000
 Received: from d23av02.au.ibm.com (d23av02.au.ibm.com [9.190.235.138])
-	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q1E90Rl61167600
-	for <linux-mm@kvack.org>; Tue, 14 Feb 2012 20:00:27 +1100
+	by d23relay05.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q1E8u3iv2629768
+	for <linux-mm@kvack.org>; Tue, 14 Feb 2012 19:56:03 +1100
 Received: from d23av02.au.ibm.com (loopback [127.0.0.1])
-	by d23av02.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q1E90RQS009437
-	for <linux-mm@kvack.org>; Tue, 14 Feb 2012 20:00:27 +1100
-Message-ID: <4F3A22A9.3060901@linux.vnet.ibm.com>
-Date: Tue, 14 Feb 2012 17:00:25 +0800
+	by d23av02.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q1E91Cop011454
+	for <linux-mm@kvack.org>; Tue, 14 Feb 2012 20:01:12 +1100
+Message-ID: <4F3A22D7.1070307@linux.vnet.ibm.com>
+Date: Tue, 14 Feb 2012 17:01:11 +0800
 From: Xiao Guangrong <xiaoguangrong@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Subject: [PATCH 2/4] prio_tree: cleanup prio_tree_left/prio_tree_right
+Subject: [PATCH 3/4] prio_tree: simplify prio_tree_expand
 References: <4F3A2285.7060700@linux.vnet.ibm.com>
 In-Reply-To: <4F3A2285.7060700@linux.vnet.ibm.com>
 Content-Type: text/plain; charset=UTF-8
@@ -26,124 +26,77 @@ List-ID: <linux-mm.kvack.org>
 To: Xiao Guangrong <xiaoguangrong@linux.vnet.ibm.com>
 Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-Introduce iter_walk_down/iter_walk_up to remove the common code
-between prio_tree_left and prio_tree_right
+In current code, the deleted-node is recorded from first to last,
+actually, we can directly attach these node on 'node' we will insert
+as the left child, it can let the code more readable
 
 Signed-off-by: Xiao Guangrong <xiaoguangrong@linux.vnet.ibm.com>
 ---
- lib/prio_tree.c |   78 ++++++++++++++++++++++++++-----------------------------
- 1 files changed, 37 insertions(+), 41 deletions(-)
+ lib/prio_tree.c |   38 ++++++++++++++------------------------
+ 1 files changed, 14 insertions(+), 24 deletions(-)
 
 diff --git a/lib/prio_tree.c b/lib/prio_tree.c
-index 423eba8..888e8b3 100644
+index 888e8b3..928482b 100644
 --- a/lib/prio_tree.c
 +++ b/lib/prio_tree.c
-@@ -304,6 +304,40 @@ void prio_tree_remove(struct prio_tree_root *root, struct prio_tree_node *node)
- 		cur = prio_tree_replace(root, cur->parent, cur);
- }
-
-+static void iter_walk_down(struct prio_tree_iter *iter)
-+{
-+	iter->mask >>= 1;
-+	if (iter->mask) {
-+		if (iter->size_level)
-+			iter->size_level++;
-+		return;
-+	}
-+
-+	if (iter->size_level) {
-+		BUG_ON(!prio_tree_left_empty(iter->cur));
-+		BUG_ON(!prio_tree_right_empty(iter->cur));
-+		iter->size_level++;
-+		iter->mask = ULONG_MAX;
-+	} else {
-+		iter->size_level = 1;
-+		iter->mask = 1UL << (BITS_PER_LONG - 1);
-+	}
-+}
-+
-+static void iter_walk_up(struct prio_tree_iter *iter)
-+{
-+	if (iter->mask == ULONG_MAX)
-+		iter->mask = 1UL;
-+	else if (iter->size_level == 1)
-+		iter->mask = 1UL;
-+	else
-+		iter->mask <<= 1;
-+	if (iter->size_level)
-+		iter->size_level--;
-+	if (!iter->size_level && (iter->value & iter->mask))
-+		iter->value ^= iter->mask;
-+}
-+
- /*
-  * Following functions help to enumerate all prio_tree_nodes in the tree that
-  * overlap with the input interval X [radix_index, heap_index]. The enumeration
-@@ -322,21 +356,7 @@ static struct prio_tree_node *prio_tree_left(struct prio_tree_iter *iter,
-
- 	if (iter->r_index <= *h_index) {
- 		iter->cur = iter->cur->left;
--		iter->mask >>= 1;
--		if (iter->mask) {
--			if (iter->size_level)
--				iter->size_level++;
--		} else {
--			if (iter->size_level) {
--				BUG_ON(!prio_tree_left_empty(iter->cur));
--				BUG_ON(!prio_tree_right_empty(iter->cur));
--				iter->size_level++;
--				iter->mask = ULONG_MAX;
--			} else {
--				iter->size_level = 1;
--				iter->mask = 1UL << (BITS_PER_LONG - 1);
--			}
--		}
-+		iter_walk_down(iter);
- 		return iter->cur;
- 	}
-
-@@ -363,22 +383,7 @@ static struct prio_tree_node *prio_tree_right(struct prio_tree_iter *iter,
-
- 	if (iter->r_index <= *h_index) {
- 		iter->cur = iter->cur->right;
--		iter->mask >>= 1;
--		iter->value = value;
--		if (iter->mask) {
--			if (iter->size_level)
--				iter->size_level++;
--		} else {
--			if (iter->size_level) {
--				BUG_ON(!prio_tree_left_empty(iter->cur));
--				BUG_ON(!prio_tree_right_empty(iter->cur));
--				iter->size_level++;
--				iter->mask = ULONG_MAX;
--			} else {
--				iter->size_level = 1;
--				iter->mask = 1UL << (BITS_PER_LONG - 1);
--			}
--		}
-+		iter_walk_down(iter);
- 		return iter->cur;
- 	}
-
-@@ -388,16 +393,7 @@ static struct prio_tree_node *prio_tree_right(struct prio_tree_iter *iter,
- static struct prio_tree_node *prio_tree_parent(struct prio_tree_iter *iter)
+@@ -94,43 +94,33 @@ static inline unsigned long prio_tree_maxindex(unsigned int bits)
+ static struct prio_tree_node *prio_tree_expand(struct prio_tree_root *root,
+ 		struct prio_tree_node *node, unsigned long max_heap_index)
  {
- 	iter->cur = iter->cur->parent;
--	if (iter->mask == ULONG_MAX)
--		iter->mask = 1UL;
--	else if (iter->size_level == 1)
--		iter->mask = 1UL;
--	else
--		iter->mask <<= 1;
--	if (iter->size_level)
--		iter->size_level--;
--	if (!iter->size_level && (iter->value & iter->mask))
--		iter->value ^= iter->mask;
-+	iter_walk_up(iter);
- 	return iter->cur;
- }
+-	struct prio_tree_node *first = NULL, *prev, *last = NULL;
++	struct prio_tree_node *prev;
 
+ 	if (max_heap_index > prio_tree_maxindex(root->index_bits))
+ 		root->index_bits++;
+
++	prev = node;
++	INIT_PRIO_TREE_NODE(node);
++
+ 	while (max_heap_index > prio_tree_maxindex(root->index_bits)) {
++		struct prio_tree_node *tmp = root->prio_tree_node;
++
+ 		root->index_bits++;
+
+ 		if (prio_tree_empty(root))
+ 			continue;
+
+-		if (first == NULL) {
+-			first = root->prio_tree_node;
+-			prio_tree_remove(root, root->prio_tree_node);
+-			INIT_PRIO_TREE_NODE(first);
+-			last = first;
+-		} else {
+-			prev = last;
+-			last = root->prio_tree_node;
+-			prio_tree_remove(root, root->prio_tree_node);
+-			INIT_PRIO_TREE_NODE(last);
+-			prev->left = last;
+-			last->parent = prev;
+-		}
+-	}
+-
+-	INIT_PRIO_TREE_NODE(node);
++		prio_tree_remove(root, root->prio_tree_node);
++		INIT_PRIO_TREE_NODE(tmp);
+
+-	if (first) {
+-		node->left = first;
+-		first->parent = node;
+-	} else
+-		last = node;
++		prev->left = tmp;
++		tmp->parent = prev;
++		prev = tmp;
++	}
+
+ 	if (!prio_tree_empty(root)) {
+-		last->left = root->prio_tree_node;
+-		last->left->parent = last;
++		prev->left = root->prio_tree_node;
++		prev->left->parent = prev;
+ 	}
+
+ 	root->prio_tree_node = node;
 -- 
 1.7.7.6
 
