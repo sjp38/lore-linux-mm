@@ -1,26 +1,26 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx176.postini.com [74.125.245.176])
-	by kanga.kvack.org (Postfix) with SMTP id 7A5936B002C
-	for <linux-mm@kvack.org>; Mon, 13 Feb 2012 22:14:40 -0500 (EST)
-Received: from m4.gw.fujitsu.co.jp (unknown [10.0.50.74])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 0B4883EE0BC
-	for <linux-mm@kvack.org>; Tue, 14 Feb 2012 12:14:39 +0900 (JST)
-Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id E2DB645DE52
-	for <linux-mm@kvack.org>; Tue, 14 Feb 2012 12:14:38 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id CA54045DE4F
-	for <linux-mm@kvack.org>; Tue, 14 Feb 2012 12:14:38 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id BE7811DB803E
-	for <linux-mm@kvack.org>; Tue, 14 Feb 2012 12:14:38 +0900 (JST)
-Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.240.81.133])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 6D9E31DB8037
-	for <linux-mm@kvack.org>; Tue, 14 Feb 2012 12:14:38 +0900 (JST)
-Date: Tue, 14 Feb 2012 12:13:14 +0900
+Received: from psmtp.com (na3sys010amx150.postini.com [74.125.245.150])
+	by kanga.kvack.org (Postfix) with SMTP id 8CC816B002C
+	for <linux-mm@kvack.org>; Mon, 13 Feb 2012 22:15:53 -0500 (EST)
+Received: from m1.gw.fujitsu.co.jp (unknown [10.0.50.71])
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 09C9F3EE0BC
+	for <linux-mm@kvack.org>; Tue, 14 Feb 2012 12:15:52 +0900 (JST)
+Received: from smail (m1 [127.0.0.1])
+	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id DD63745DE56
+	for <linux-mm@kvack.org>; Tue, 14 Feb 2012 12:15:51 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
+	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id C780945DE55
+	for <linux-mm@kvack.org>; Tue, 14 Feb 2012 12:15:51 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id BBB311DB8042
+	for <linux-mm@kvack.org>; Tue, 14 Feb 2012 12:15:51 +0900 (JST)
+Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.240.81.146])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 6A66C1DB804E
+	for <linux-mm@kvack.org>; Tue, 14 Feb 2012 12:15:51 +0900 (JST)
+Date: Tue, 14 Feb 2012 12:14:24 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: [PATCH 3/6 v4] memcg: remove PCG_MOVE_LOCK flag from page_cgroup.
-Message-Id: <20120214121314.6216e0aa.kamezawa.hiroyu@jp.fujitsu.com>
+Subject: [PATCH 4/6 v4] memcg: use new logic for page stat accounting
+Message-Id: <20120214121424.91a1832b.kamezawa.hiroyu@jp.fujitsu.com>
 In-Reply-To: <20120214120414.025625c2.kamezawa.hiroyu@jp.fujitsu.com>
 References: <20120214120414.025625c2.kamezawa.hiroyu@jp.fujitsu.com>
 Mime-Version: 1.0
