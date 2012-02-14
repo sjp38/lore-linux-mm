@@ -1,33 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx105.postini.com [74.125.245.105])
-	by kanga.kvack.org (Postfix) with SMTP id C46016B13F0
-	for <linux-mm@kvack.org>; Tue, 14 Feb 2012 16:04:48 -0500 (EST)
-Received: by pbcwz17 with SMTP id wz17so996610pbc.14
-        for <linux-mm@kvack.org>; Tue, 14 Feb 2012 13:04:48 -0800 (PST)
-Date: Tue, 14 Feb 2012 13:04:45 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH] Ensure that walk_page_range()'s start and end are
- page-aligned
-In-Reply-To: <87pqdh1mvs.fsf@caffeine.danplanet.com>
-Message-ID: <alpine.DEB.2.00.1202141259420.28450@chino.kir.corp.google.com>
-References: <1328902796-30389-1-git-send-email-danms@us.ibm.com> <alpine.DEB.2.00.1202130211400.4324@chino.kir.corp.google.com> <87zkcm23az.fsf@caffeine.danplanet.com> <alpine.DEB.2.00.1202131350500.17296@chino.kir.corp.google.com>
- <87pqdh1mvs.fsf@caffeine.danplanet.com>
+Received: from psmtp.com (na3sys010amx183.postini.com [74.125.245.183])
+	by kanga.kvack.org (Postfix) with SMTP id CA0BA6B13F0
+	for <linux-mm@kvack.org>; Tue, 14 Feb 2012 16:06:08 -0500 (EST)
+Received: by wibhj13 with SMTP id hj13so143173wib.14
+        for <linux-mm@kvack.org>; Tue, 14 Feb 2012 13:06:07 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Tue, 14 Feb 2012 16:06:07 -0500
+Message-ID: <CAG4AFWYJXR-b8zDew+ia5xSCNJ2uZBhXvre6NxtMNVxtY9FsKg@mail.gmail.com>
+Subject: How to really write-protect a page
+From: Jidong Xiao <jidong.xiao@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Smith <danms@us.ibm.com>
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: linux-mm@kvack.org
 
-On Tue, 14 Feb 2012, Dan Smith wrote:
+Hi,
 
-> I'd rather just make it always do the check in walk_page_range(). Does
-> that sound reasonable?
-> 
+For some reason, I want to write protect a special page, but I don't
+know how to set it as read-only.
 
-And do what if they're not?  What behavior are you trying to fix from the 
-pagewalk code with respect to page-aligned addresses?  Any specific 
-examples?
+I am reading the book "Understanding The Linux Virtual Memory Manager".
+
+In section 5.6.4, there is saying:
+
+"During fork, the PTEs of the two processes are made read-only so that
+when a write occurs there will be a page fault. Linux recognises a COW
+page because even though the PTE is write protected, the controlling
+VMA shows the region is writable."
+
+My question is, if I really want write protect a page, say, I don't
+want a copy-on-write happens, I just hope the page is really
+read-only, can I achieve that by setting "the controlling VMA" as
+non-writable? Or how to do that?
+
+Thank you!
+
+Regards
+Jidong
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
