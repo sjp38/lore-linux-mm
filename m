@@ -1,13 +1,13 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from psmtp.com (na3sys010amx169.postini.com [74.125.245.169])
-	by kanga.kvack.org (Postfix) with SMTP id A43536B0082
-	for <linux-mm@kvack.org>; Wed, 15 Feb 2012 17:57:15 -0500 (EST)
+	by kanga.kvack.org (Postfix) with SMTP id 6263B6B0083
+	for <linux-mm@kvack.org>; Wed, 15 Feb 2012 17:57:19 -0500 (EST)
 Received: by mail-bk0-f41.google.com with SMTP id y12so1903161bkt.14
-        for <linux-mm@kvack.org>; Wed, 15 Feb 2012 14:57:15 -0800 (PST)
-Subject: [PATCH RFC 02/15] mm: memory bookkeeping core
+        for <linux-mm@kvack.org>; Wed, 15 Feb 2012 14:57:18 -0800 (PST)
+Subject: [PATCH RFC 03/15] mm: add book->pages_count
 From: Konstantin Khlebnikov <khlebnikov@openvz.org>
-Date: Thu, 16 Feb 2012 02:57:11 +0400
-Message-ID: <20120215225711.22050.54656.stgit@zurg>
+Date: Thu, 16 Feb 2012 02:57:15 +0400
+Message-ID: <20120215225715.22050.70811.stgit@zurg>
 In-Reply-To: <20120215224221.22050.80605.stgit@zurg>
 References: <20120215224221.22050.80605.stgit@zurg>
 MIME-Version: 1.0
@@ -18,214 +18,378 @@ List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
 Cc: linux-kernel@vger.kernel.org
 
-core blueprint
+Move lru pages counter from mem_cgroup_per_zone->count[] to book->pages_count[]
 
-TODO:
-* add direct link from page to book in page->flags instead of zoneid and nodeid
-* atomic switching page book-id in page->flags bits
-  [ something like atomic_long_xor(&page->flags, old_book_id ^ new_book_id) ]
-* move freed pages into root book (zone->book)
-* don't free struct book, reuse them after rcu grace period to keep rcu-iterating
+Account pages in all books, incuding root,
+this isn't a huge overhead, but it greatly simplifies all code.
+
+redundant page -> book translations will be optimized in further patches.
 
 Signed-off-by: Konstantin Khlebnikov <khlebnikov@openvz.org>
 ---
- include/linux/mm_inline.h |   36 ++++++++++++++++++++++++++++++++++
- include/linux/mmzone.h    |    8 ++++++++
- init/Kconfig              |    4 ++++
- mm/memcontrol.c           |   48 ++++++++++++++++++++++++++++++++++++++++++++-
- mm/page_alloc.c           |    6 ++++++
- 5 files changed, 101 insertions(+), 1 deletions(-)
+ include/linux/memcontrol.h |   29 -------------
+ include/linux/mm_inline.h  |   14 ++++--
+ include/linux/mmzone.h     |    2 +
+ mm/memcontrol.c            |   98 ++------------------------------------------
+ mm/page_alloc.c            |    4 +-
+ mm/swap.c                  |    7 +--
+ mm/vmscan.c                |   21 +++++++--
+ 7 files changed, 36 insertions(+), 139 deletions(-)
 
+diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
+index c97fff9..4183753 100644
+--- a/include/linux/memcontrol.h
++++ b/include/linux/memcontrol.h
+@@ -63,12 +63,6 @@ extern int mem_cgroup_cache_charge(struct page *page, struct mm_struct *mm,
+ 					gfp_t gfp_mask);
+ 
+ struct book *mem_cgroup_zone_book(struct zone *, struct mem_cgroup *);
+-struct book *mem_cgroup_lru_add_list(struct zone *, struct page *,
+-				       enum lru_list);
+-void mem_cgroup_lru_del_list(struct page *, enum lru_list);
+-void mem_cgroup_lru_del(struct page *);
+-struct book *mem_cgroup_lru_move_lists(struct zone *, struct page *,
+-					 enum lru_list, enum lru_list);
+ 
+ /* For coalescing uncharge for reducing memcg' overhead*/
+ extern void mem_cgroup_uncharge_start(void);
+@@ -220,29 +214,6 @@ static inline struct book *mem_cgroup_zone_book(struct zone *zone,
+ 	return &zone->book;
+ }
+ 
+-static inline struct book *mem_cgroup_lru_add_list(struct zone *zone,
+-						     struct page *page,
+-						     enum lru_list lru)
+-{
+-	return &zone->book;
+-}
+-
+-static inline void mem_cgroup_lru_del_list(struct page *page, enum lru_list lru)
+-{
+-}
+-
+-static inline void mem_cgroup_lru_del(struct page *page)
+-{
+-}
+-
+-static inline struct book *mem_cgroup_lru_move_lists(struct zone *zone,
+-						       struct page *page,
+-						       enum lru_list from,
+-						       enum lru_list to)
+-{
+-	return &zone->book;
+-}
+-
+ static inline struct mem_cgroup *try_get_mem_cgroup_from_page(struct page *page)
+ {
+ 	return NULL;
 diff --git a/include/linux/mm_inline.h b/include/linux/mm_inline.h
-index e0b78ca..6f42819 100644
+index 6f42819..9c484c0 100644
 --- a/include/linux/mm_inline.h
 +++ b/include/linux/mm_inline.h
-@@ -3,6 +3,42 @@
+@@ -60,19 +60,23 @@ static inline int page_is_file_cache(struct page *page)
+ static inline void
+ add_page_to_lru_list(struct zone *zone, struct page *page, enum lru_list lru)
+ {
+-	struct book *book;
++	struct book *book = page_book(page);
++	int numpages = hpage_nr_pages(page);
  
- #include <linux/huge_mm.h>
+-	book = mem_cgroup_lru_add_list(zone, page, lru);
+ 	list_add(&page->lru, &book->pages_lru[lru]);
+-	__mod_zone_page_state(zone, NR_LRU_BASE + lru, hpage_nr_pages(page));
++	book->pages_count[lru] += numpages;
++	__mod_zone_page_state(zone, NR_LRU_BASE + lru, numpages);
+ }
  
-+#ifdef CONFIG_MEMORY_BOOKKEEPING
+ static inline void
+ del_page_from_lru_list(struct zone *zone, struct page *page, enum lru_list lru)
+ {
+-	mem_cgroup_lru_del_list(page, lru);
++	struct book *book = page_book(page);
++	int numpages = hpage_nr_pages(page);
 +
-+extern struct book *page_book(struct page *book);
-+
-+static inline struct zone *book_zone(struct book *book)
-+{
-+	return book->zone;
-+}
-+
-+static inline struct pglist_data *book_node(struct book *book)
-+{
-+	return book->node;
-+}
-+
-+#else /* CONFIG_MEMORY_BOOKKEEPING */
-+
-+static inline struct book *page_book(struct page *page)
-+{
-+	return &page_zone(page)->book;
-+}
-+
-+static inline struct zone *book_zone(struct book *book)
-+{
-+	return container_of(book, struct zone, book);
-+}
-+
-+static inline struct pglist_data *book_node(struct book *book)
-+{
-+	return book_zone(book)->zone_pgdat;
-+}
-+
-+#endif /* CONFIG_MEMORY_BOOKKEEPING */
-+
-+#define for_each_book(book, zone) \
-+	list_for_each_entry_rcu(book, &zone->book_list, list)
-+
+ 	list_del(&page->lru);
+-	__mod_zone_page_state(zone, NR_LRU_BASE + lru, -hpage_nr_pages(page));
++	book->pages_count[lru] -= numpages;
++	__mod_zone_page_state(zone, NR_LRU_BASE + lru, -numpages);
+ }
+ 
  /**
-  * page_is_file_cache - should the page be on a file LRU or anon LRU?
-  * @page: the page to test
 diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-index 0b6e5d4..e05b003 100644
+index e05b003..ef4b984 100644
 --- a/include/linux/mmzone.h
 +++ b/include/linux/mmzone.h
-@@ -297,7 +297,12 @@ struct zone_reclaim_stat {
- };
- 
- struct book {
-+#ifdef CONFIG_MEMORY_BOOKKEEPING
-+	struct pglist_data	*node;
-+	struct zone		*zone;
-+#endif
+@@ -302,6 +302,8 @@ struct book {
+ 	struct zone		*zone;
+ #endif
  	struct list_head	pages_lru[NR_LRU_LISTS];
-+	struct list_head	list;	/* for zone->book_list */
++	unsigned long		pages_count[NR_LRU_LISTS];
++
+ 	struct list_head	list;	/* for zone->book_list */
  };
  
- struct zone {
-@@ -442,6 +447,9 @@ struct zone {
- 	unsigned long		spanned_pages;	/* total size, including holes */
- 	unsigned long		present_pages;	/* amount of memory (excluding holes) */
- 
-+	/* RCU-protected list of all books in this zone */
-+	struct list_head	book_list;
-+
- 	/*
- 	 * rarely used fields:
- 	 */
-diff --git a/init/Kconfig b/init/Kconfig
-index ab0d680..70c3cef 100644
---- a/init/Kconfig
-+++ b/init/Kconfig
-@@ -651,10 +651,14 @@ config RESOURCE_COUNTERS
- 	  This option enables controller independent resource accounting
- 	  infrastructure that works with cgroups.
- 
-+config MEMORY_BOOKKEEPING
-+	bool
-+
- config CGROUP_MEM_RES_CTLR
- 	bool "Memory Resource Controller for Control Groups"
- 	depends on RESOURCE_COUNTERS
- 	select MM_OWNER
-+	select MEMORY_BOOKKEEPING
- 	help
- 	  Provides a memory resource controller that manages both anonymous
- 	  memory and page cache. (See Documentation/cgroups/memory.txt)
 diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 578118b..06d946f 100644
+index 06d946f..8e1765a 100644
 --- a/mm/memcontrol.c
 +++ b/mm/memcontrol.c
-@@ -152,6 +152,7 @@ struct mem_cgroup_per_zone {
+@@ -135,7 +135,6 @@ struct mem_cgroup_reclaim_iter {
+  */
+ struct mem_cgroup_per_zone {
+ 	struct book		book;
+-	unsigned long		count[NR_LRU_LISTS];
+ 
+ 	struct mem_cgroup_reclaim_iter reclaim_iter[DEF_PRIORITY + 1];
+ 
+@@ -147,8 +146,6 @@ struct mem_cgroup_per_zone {
+ 	struct mem_cgroup	*mem;		/* Back pointer, we cannot */
+ 						/* use container_of	   */
+ };
+-/* Macro for accessing counter */
+-#define MEM_CGROUP_ZSTAT(mz, idx)	((mz)->count[(idx)])
  
  struct mem_cgroup_per_node {
  	struct mem_cgroup_per_zone zoneinfo[MAX_NR_ZONES];
-+	struct rcu_head		rcu_head;
- };
+@@ -715,7 +712,7 @@ mem_cgroup_zone_nr_lru_pages(struct mem_cgroup *memcg, int nid, int zid,
  
- struct mem_cgroup_lru_info {
-@@ -990,6 +991,32 @@ out:
- EXPORT_SYMBOL(mem_cgroup_count_vm_event);
- 
- /**
-+ * page_book - get the book there this page is located
-+ * @page: the struct page pointer with stable reference
-+ *
-+ * Returns pointer to struct book.
-+ *
-+ * FIXME optimized this translation, add direct link from page to book.
-+ */
-+struct book *page_book(struct page *page)
-+{
-+	struct mem_cgroup_per_zone *mz;
-+	struct page_cgroup *pc;
-+
-+	if (mem_cgroup_disabled())
-+		return &page_zone(page)->book;
-+
-+	pc = lookup_page_cgroup(page);
-+	if (!PageCgroupUsed(pc))
-+		return &page_zone(page)->book;
-+	/* Ensure pc->mem_cgroup is visible after reading PCG_USED. */
-+	smp_rmb();
-+	mz = mem_cgroup_zoneinfo(pc->mem_cgroup,
-+			page_to_nid(page), page_zonenum(page));
-+	return &mz->book;
-+}
-+
-+/**
-  * mem_cgroup_zone_book - get the lru list vector for a zone and memcg
-  * @zone: zone of the wanted book
-  * @mem: memcg of the wanted book
-@@ -4740,6 +4767,11 @@ static int alloc_mem_cgroup_per_zone_info(struct mem_cgroup *memcg, int node)
- 		mz = &pn->zoneinfo[zone];
- 		for_each_lru(l)
- 			INIT_LIST_HEAD(&mz->book.pages_lru[l]);
-+		mz->book.node = NODE_DATA(node);
-+		mz->book.zone = &NODE_DATA(node)->node_zones[zone];
-+		spin_lock(&mz->book.zone->lock);
-+		list_add_tail_rcu(&mz->book.list, &mz->book.zone->book_list);
-+		spin_unlock(&mz->book.zone->lock);
- 		mz->usage_in_excess = 0;
- 		mz->on_tree = false;
- 		mz->mem = memcg;
-@@ -4750,7 +4782,21 @@ static int alloc_mem_cgroup_per_zone_info(struct mem_cgroup *memcg, int node)
- 
- static void free_mem_cgroup_per_zone_info(struct mem_cgroup *memcg, int node)
- {
--	kfree(memcg->info.nodeinfo[node]);
-+	struct mem_cgroup_per_node *pn;
-+	struct mem_cgroup_per_zone *mz;
-+	int zone;
-+
-+	pn = memcg->info.nodeinfo[node];
-+	if (!pn)
-+		return;
-+
-+	for (zone = 0; zone < MAX_NR_ZONES; zone++) {
-+		mz = mem_cgroup_zoneinfo(memcg, node, zone);
-+		spin_lock(&mz->book.zone->lock);
-+		list_del_rcu(&mz->book.list);
-+		spin_unlock(&mz->book.zone->lock);
-+	}
-+	kfree_rcu(pn, rcu_head);
+ 	for_each_lru(l) {
+ 		if (BIT(l) & lru_mask)
+-			ret += MEM_CGROUP_ZSTAT(mz, l);
++			ret += mz->book.pages_count[l];
+ 	}
+ 	return ret;
  }
+@@ -1051,93 +1048,6 @@ struct book *mem_cgroup_zone_book(struct zone *zone,
+  * When moving account, the page is not on LRU. It's isolated.
+  */
  
- static struct mem_cgroup *mem_cgroup_alloc(void)
+-/**
+- * mem_cgroup_lru_add_list - account for adding an lru page and return book
+- * @zone: zone of the page
+- * @page: the page
+- * @lru: current lru
+- *
+- * This function accounts for @page being added to @lru, and returns
+- * the book for the given @zone and the memcg @page is charged to.
+- *
+- * The callsite is then responsible for physically linking the page to
+- * the returned book->pages_lru[@lru].
+- */
+-struct book *mem_cgroup_lru_add_list(struct zone *zone, struct page *page,
+-				       enum lru_list lru)
+-{
+-	struct mem_cgroup_per_zone *mz;
+-	struct mem_cgroup *memcg;
+-	struct page_cgroup *pc;
+-
+-	if (mem_cgroup_disabled())
+-		return &zone->book;
+-
+-	pc = lookup_page_cgroup(page);
+-	memcg = pc->mem_cgroup;
+-	mz = page_cgroup_zoneinfo(memcg, page);
+-	/* compound_order() is stabilized through lru_lock */
+-	MEM_CGROUP_ZSTAT(mz, lru) += 1 << compound_order(page);
+-	return &mz->book;
+-}
+-
+-/**
+- * mem_cgroup_lru_del_list - account for removing an lru page
+- * @page: the page
+- * @lru: target lru
+- *
+- * This function accounts for @page being removed from @lru.
+- *
+- * The callsite is then responsible for physically unlinking
+- * @page->lru.
+- */
+-void mem_cgroup_lru_del_list(struct page *page, enum lru_list lru)
+-{
+-	struct mem_cgroup_per_zone *mz;
+-	struct mem_cgroup *memcg;
+-	struct page_cgroup *pc;
+-
+-	if (mem_cgroup_disabled())
+-		return;
+-
+-	pc = lookup_page_cgroup(page);
+-	memcg = pc->mem_cgroup;
+-	VM_BUG_ON(!memcg);
+-	mz = page_cgroup_zoneinfo(memcg, page);
+-	/* huge page split is done under lru_lock. so, we have no races. */
+-	VM_BUG_ON(MEM_CGROUP_ZSTAT(mz, lru) < (1 << compound_order(page)));
+-	MEM_CGROUP_ZSTAT(mz, lru) -= 1 << compound_order(page);
+-}
+-
+-void mem_cgroup_lru_del(struct page *page)
+-{
+-	mem_cgroup_lru_del_list(page, page_lru(page));
+-}
+-
+-/**
+- * mem_cgroup_lru_move_lists - account for moving a page between lrus
+- * @zone: zone of the page
+- * @page: the page
+- * @from: current lru
+- * @to: target lru
+- *
+- * This function accounts for @page being moved between the lrus @from
+- * and @to, and returns the book for the given @zone and the memcg
+- * @page is charged to.
+- *
+- * The callsite is then responsible for physically relinking
+- * @page->lru to the returned book->lists[@to].
+- */
+-struct book *mem_cgroup_lru_move_lists(struct zone *zone,
+-					 struct page *page,
+-					 enum lru_list from,
+-					 enum lru_list to)
+-{
+-	/* XXX: Optimize this, especially for @from == @to */
+-	mem_cgroup_lru_del_list(page, from);
+-	return mem_cgroup_lru_add_list(zone, page, to);
+-}
+-
+ /*
+  * Checks whether given mem is same or in the root_mem_cgroup's
+  * hierarchy subtree
+@@ -3639,7 +3549,7 @@ static int mem_cgroup_force_empty_list(struct mem_cgroup *memcg,
+ 	mz = mem_cgroup_zoneinfo(memcg, node, zid);
+ 	list = &mz->book.pages_lru[lru];
+ 
+-	loop = MEM_CGROUP_ZSTAT(mz, lru);
++	loop = mz->book.pages_count[lru];
+ 	/* give some margin against EBUSY etc...*/
+ 	loop += 256;
+ 	busy = NULL;
+@@ -4765,8 +4675,10 @@ static int alloc_mem_cgroup_per_zone_info(struct mem_cgroup *memcg, int node)
+ 
+ 	for (zone = 0; zone < MAX_NR_ZONES; zone++) {
+ 		mz = &pn->zoneinfo[zone];
+-		for_each_lru(l)
++		for_each_lru(l) {
+ 			INIT_LIST_HEAD(&mz->book.pages_lru[l]);
++			mz->book.pages_count[l] = 0;
++		}
+ 		mz->book.node = NODE_DATA(node);
+ 		mz->book.zone = &NODE_DATA(node)->node_zones[zone];
+ 		spin_lock(&mz->book.zone->lock);
 diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 08b4e4b..ead327b 100644
+index ead327b..c62a1d2 100644
 --- a/mm/page_alloc.c
 +++ b/mm/page_alloc.c
-@@ -4312,6 +4312,12 @@ static void __paginginit free_area_init_core(struct pglist_data *pgdat,
+@@ -4310,8 +4310,10 @@ static void __paginginit free_area_init_core(struct pglist_data *pgdat,
+ 		zone->zone_pgdat = pgdat;
+ 
  		zone_pcp_init(zone);
- 		for_each_lru(lru)
+-		for_each_lru(lru)
++		for_each_lru(lru) {
  			INIT_LIST_HEAD(&zone->book.pages_lru[lru]);
-+#ifdef CONFIG_MEMORY_BOOKKEEPING
-+		zone->book.node = pgdat;
-+		zone->book.zone = zone;
-+#endif
-+		INIT_LIST_HEAD(&zone->book_list);
-+		list_add(&zone->book.list, &zone->book_list);
- 		zone->reclaim_stat.recent_rotated[0] = 0;
- 		zone->reclaim_stat.recent_rotated[1] = 0;
- 		zone->reclaim_stat.recent_scanned[0] = 0;
++			zone->book.pages_count[lru] = 0;
++		}
+ #ifdef CONFIG_MEMORY_BOOKKEEPING
+ 		zone->book.node = pgdat;
+ 		zone->book.zone = zone;
+diff --git a/mm/swap.c b/mm/swap.c
+index d7c4c8f..ba29c3c 100644
+--- a/mm/swap.c
++++ b/mm/swap.c
+@@ -234,10 +234,8 @@ static void pagevec_move_tail_fn(struct page *page, void *arg)
+ 
+ 	if (PageLRU(page) && !PageActive(page) && !PageUnevictable(page)) {
+ 		enum lru_list lru = page_lru_base_type(page);
+-		struct book *book;
++		struct book *book = page_book(page);
+ 
+-		book = mem_cgroup_lru_move_lists(page_zone(page),
+-						   page, lru, lru);
+ 		list_move_tail(&page->lru, &book->pages_lru[lru]);
+ 		(*pgmoved)++;
+ 	}
+@@ -476,12 +474,11 @@ static void lru_deactivate_fn(struct page *page, void *arg)
+ 		 */
+ 		SetPageReclaim(page);
+ 	} else {
+-		struct book *book;
++		struct book *book = page_book(page);
+ 		/*
+ 		 * The page's writeback ends up during pagevec
+ 		 * We moves tha page into tail of inactive.
+ 		 */
+-		book = mem_cgroup_lru_move_lists(zone, page, lru, lru);
+ 		list_move_tail(&page->lru, &book->pages_lru[lru]);
+ 		__count_vm_event(PGROTATED);
+ 	}
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index fba9dfd..eddf617 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -1188,7 +1188,6 @@ static unsigned long isolate_lru_pages(unsigned long nr_to_scan,
+ 
+ 		switch (__isolate_lru_page(page, mode, file)) {
+ 		case 0:
+-			mem_cgroup_lru_del(page);
+ 			list_move(&page->lru, dst);
+ 			nr_taken += hpage_nr_pages(page);
+ 			break;
+@@ -1246,10 +1245,14 @@ static unsigned long isolate_lru_pages(unsigned long nr_to_scan,
+ 
+ 			if (__isolate_lru_page(cursor_page, mode, file) == 0) {
+ 				unsigned int isolated_pages;
++				struct book *cursor_book;
++				int cursor_lru = page_lru(cursor_page);
+ 
+-				mem_cgroup_lru_del(cursor_page);
+ 				list_move(&cursor_page->lru, dst);
+ 				isolated_pages = hpage_nr_pages(cursor_page);
++				cursor_book = page_book(cursor_page);
++				cursor_book->pages_count[cursor_lru] -=
++								isolated_pages;
+ 				nr_taken += isolated_pages;
+ 				nr_lumpy_taken += isolated_pages;
+ 				if (PageDirty(cursor_page))
+@@ -1281,6 +1284,8 @@ static unsigned long isolate_lru_pages(unsigned long nr_to_scan,
+ 			nr_lumpy_failed++;
+ 	}
+ 
++	book->pages_count[lru] -= nr_taken - nr_lumpy_taken;
++
+ 	*nr_scanned = scan;
+ 
+ 	trace_mm_vmscan_lru_isolate(order,
+@@ -1670,15 +1675,18 @@ static void move_active_pages_to_lru(struct zone *zone,
+ 
+ 	while (!list_empty(list)) {
+ 		struct book *book;
++		int numpages;
+ 
+ 		page = lru_to_page(list);
+ 
+ 		VM_BUG_ON(PageLRU(page));
+ 		SetPageLRU(page);
+ 
+-		book = mem_cgroup_lru_add_list(zone, page, lru);
++		book = page_book(page);
+ 		list_move(&page->lru, &book->pages_lru[lru]);
+-		pgmoved += hpage_nr_pages(page);
++		numpages = hpage_nr_pages(page);
++		book->pages_count[lru] += numpages;
++		pgmoved += numpages;
+ 
+ 		if (put_page_testzero(page)) {
+ 			__ClearPageLRU(page);
+@@ -3542,8 +3550,9 @@ void check_move_unevictable_pages(struct page **pages, int nr_pages)
+ 			VM_BUG_ON(PageActive(page));
+ 			ClearPageUnevictable(page);
+ 			__dec_zone_state(zone, NR_UNEVICTABLE);
+-			book = mem_cgroup_lru_move_lists(zone, page,
+-						LRU_UNEVICTABLE, lru);
++			book = page_book(page);
++			book->pages_count[LRU_UNEVICTABLE]--;
++			book->pages_count[lru]++;
+ 			list_move(&page->lru, &book->pages_lru[lru]);
+ 			__inc_zone_state(zone, NR_INACTIVE_ANON + lru);
+ 			pgrescued++;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
