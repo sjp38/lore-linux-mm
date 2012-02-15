@@ -1,74 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx173.postini.com [74.125.245.173])
-	by kanga.kvack.org (Postfix) with SMTP id 436DB6B004A
-	for <linux-mm@kvack.org>; Wed, 15 Feb 2012 08:57:57 -0500 (EST)
-Date: Wed, 15 Feb 2012 13:57:53 +0000
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [Bug 42578] Kernel crash "Out of memory error by X" when using
- NTFS file system on external USB Hard drive
-Message-ID: <20120215135753.GP17917@csn.ul.ie>
-References: <bug-42578-27@https.bugzilla.kernel.org/>
- <201201180922.q0I9MCYl032623@bugzilla.kernel.org>
- <20120119122448.1cce6e76.akpm@linux-foundation.org>
- <20120210163748.GR5796@csn.ul.ie>
- <4F36DD77.1080306@ntlworld.com>
- <20120214130955.GM17917@csn.ul.ie>
- <20120214123712.77aa54ce.akpm@linux-foundation.org>
+Received: from psmtp.com (na3sys010amx190.postini.com [74.125.245.190])
+	by kanga.kvack.org (Postfix) with SMTP id B63D46B004A
+	for <linux-mm@kvack.org>; Wed, 15 Feb 2012 09:39:40 -0500 (EST)
+From: Dan Smith <danms@us.ibm.com>
+Subject: Re: [PATCH] Ensure that walk_page_range()'s start and end are page-aligned
+References: <1328902796-30389-1-git-send-email-danms@us.ibm.com>
+	<alpine.DEB.2.00.1202130211400.4324@chino.kir.corp.google.com>
+	<87zkcm23az.fsf@caffeine.danplanet.com>
+	<alpine.DEB.2.00.1202131350500.17296@chino.kir.corp.google.com>
+	<87pqdh1mvs.fsf@caffeine.danplanet.com>
+	<alpine.DEB.2.00.1202141259420.28450@chino.kir.corp.google.com>
+Date: Wed, 15 Feb 2012 06:39:37 -0800
+In-Reply-To: <alpine.DEB.2.00.1202141259420.28450@chino.kir.corp.google.com>
+	(David Rientjes's message of "Tue, 14 Feb 2012 13:04:45 -0800 (PST)")
+Message-ID: <87lio417py.fsf@caffeine.danplanet.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20120214123712.77aa54ce.akpm@linux-foundation.org>
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Stuart Foster <smf.linux@ntlworld.com>, linux-mm@kvack.org, bugzilla-daemon@bugzilla.kernel.org, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>
+To: David Rientjes <rientjes@google.com>
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Tue, Feb 14, 2012 at 12:37:12PM -0800, Andrew Morton wrote:
-> On Tue, 14 Feb 2012 13:09:55 +0000
-> Mel Gorman <mel@csn.ul.ie> wrote:
-> 
-> > Stuart Foster reported on https://bugzilla.kernel.org/show_bug.cgi?id=42578
-> > that copying large amounts of data from NTFS caused an OOM kill on 32-bit
-> > X86 with 16G of memory. Andrew Morton correctly identified that the problem
-> > was NTFS was using 512 blocks meaning each page had 8 buffer_heads in low
-> > memory pinning it.
-> > 
-> > In the past, direct reclaim used to scan highmem even if the allocating
-> > process did not specify __GFP_HIGHMEM but not any more. kswapd no longer
-> > will reclaim from zones that are above the high watermark. The intention
-> > in both cases was to minimise unnecessary reclaim. The downside is on
-> > machines with large amounts of highmem that lowmem can be fully consumed
-> > by buffer_heads with nothing trying to free them.
-> > 
-> > The following patch is based on a suggestion by Andrew Morton to extend
-> > the buffer_heads_over_limit case to force kswapd and direct reclaim to
-> > scan the highmem zone regardless of the allocation request or
-> > watermarks.
-> 
-> Seems reasonable, thanks.
-> 
+DR> And do what if they're not?  What behavior are you trying to fix
+DR> from the pagewalk code with respect to page-aligned addresses?  Any
+DR> specific examples?
 
-My pleasure, it only took me a million years to get around to :/
+Sorry, I thought I detailed this in the patch header.
 
-> I wonder if we really needed to change balance_pdgat().  The smaller we
-> can make profile of the special-case-hack the better.  Perhaps poking
-> it into direct reclaim was sufficient?
-> 
+In walk_pte_entry(), the exit condition is when the end address is equal
+to the start address + n*PAGE_SIZE. If they're not both page aligned,
+then we'll never exit the loop and we'll start handing bad pte entries
+to the handler function.
 
-Poking into direct reclaim would be sufficient to fix the OOM. The impact
-is that there will be additional stalling in the system when copying from
-the NTFS disk. Why? Because kswapd will wake due to the lowmem allocation
-failure but will not reclaim from highmem if it is above the watermark. As
-the lowmem watermark is not met, kswapd will stay awake but will not
-necessarily do anything useful until a process stalls in direct reclaim
-and reclaims from highmem.
+As was pointed out earlier in the thread, we could "solve" this by
+making the exit condition be > instead of ==. However, that changes the
+entirety of walk_page_range() from requiring page-aligned attributes to
+silently tolerating them. IMHO, it's better to just
+declare/check/enforce that they are.
 
-Do you want to do this anyway in the interest of having fewer special
-cases?
+I hit this recently because I was working with a prototype syscall that
+took an address range from userspace and walked the pages. I ended up
+passing non-page-aligned addresses, not knowing that walk_page_range()
+needed it, and it took me a few days to figure out why my pte_entry
+handler got a few good entries and then garbage until I crashed. I
+turned on DEBUG_VM and got zero additional help. With the proposed
+patch, I would have received a helpful smack in the head.
+
+Does that make sense?
 
 -- 
-Mel Gorman
-SUSE Labs
+Dan Smith
+IBM Linux Technology Center
+email: danms@us.ibm.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
