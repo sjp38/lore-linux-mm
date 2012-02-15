@@ -1,30 +1,99 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx135.postini.com [74.125.245.135])
-	by kanga.kvack.org (Postfix) with SMTP id 22D946B0082
-	for <linux-mm@kvack.org>; Wed, 15 Feb 2012 17:15:39 -0500 (EST)
-Date: Wed, 15 Feb 2012 16:15:33 -0600 (CST)
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: [v7 0/8] Reduce cross CPU IPI interference
-In-Reply-To: <4F3C28AF.9080005@tilera.com>
-Message-ID: <alpine.DEB.2.00.1202151614510.28225@router.home>
-References: <1327572121-13673-1-git-send-email-gilad@benyossef.com>  <1327591185.2446.102.camel@twins>  <CAOtvUMeAkPzcZtiPggacMQGa0EywTH5SzcXgWjMtssR6a5KFqA@mail.gmail.com>  <20120201170443.GE6731@somewhere.redhat.com>  <CAOtvUMc8L1nh2eGJez0x44UkfPCqd+xYQASsKOP76atopZi5mw@mail.gmail.com>
-  <4F2AAEB9.9070302@tilera.com> <1328898816.25989.33.camel@laptop> <4F3C28AF.9080005@tilera.com>
+Received: from psmtp.com (na3sys010amx169.postini.com [74.125.245.169])
+	by kanga.kvack.org (Postfix) with SMTP id 7281B6B004A
+	for <linux-mm@kvack.org>; Wed, 15 Feb 2012 17:57:09 -0500 (EST)
+Received: by bkty12 with SMTP id y12so1903161bkt.14
+        for <linux-mm@kvack.org>; Wed, 15 Feb 2012 14:57:07 -0800 (PST)
+Subject: [PATCH RFC 00/15] mm: memory book keeping and lru_lock splitting
+From: Konstantin Khlebnikov <khlebnikov@openvz.org>
+Date: Thu, 16 Feb 2012 02:57:04 +0400
+Message-ID: <20120215224221.22050.80605.stgit@zurg>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Chris Metcalf <cmetcalf@tilera.com>
-Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Frederic Weisbecker <fweisbec@gmail.com>, Gilad Ben-Yossef <gilad@benyossef.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, Sasha Levin <levinsasha928@gmail.com>, Rik van Riel <riel@redhat.com>, Andi Kleen <andi@firstfloor.org>, Mel Gorman <mel@csn.ul.ie>, Andrew Morton <akpm@linux-foundation.org>, Alexander Viro <viro@zeniv.linux.org.uk>, Avi Kivity <avi@redhat.com>, Michal Nazarewicz <mina86@mina86.com>, Kosaki Motohiro <kosaki.motohiro@gmail.com>, Milton Miller <miltonm@bga.com>
+To: linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org
 
-On Wed, 15 Feb 2012, Chris Metcalf wrote:
+There should be no logic changes in this patchset, this is only tossing bits around.
+[ This patchset is on top some memcg cleanup/rework patches,
+  which I sent to linux-mm@ today/yesterday ]
 
-> The Tilera dataplane code is available on the "dataplane" branch (off of
-> 3.3-rc3 at the moment):
->
-> git://git.kernel.org/pub/scm/linux/kernel/git/cmetcalf/linux-tile.git
+Most of things in this patchset are self-descriptive, so here brief plan:
 
-Looks like that patch is only for the tile architecture. Is there a
-x86 version?
+* Transmute struct lruvec into struct book. Like real book this struct will
+  store set of pages for one zone. It will be working unit for reclaimer code.
+[ If memcg is disabled in config there will only one book embedded into struct zone ]
+
+* move page-lru counters to struct book
+[ this adds extra overhead in add_page_to_lru_list()/del_page_from_lru_list() for
+  non-memcg case, but I believe it will be invisible, only one non-atomic add/sub
+  in the same cacheline with lru list ]
+
+* unify inactive_list_is_low_global() and cleanup reclaimer code
+* replace struct mem_cgroup_zone with single pointer to struct book
+* optimize page to book translations, move it upper in the call stack,
+  replace some struct zone arguments with struct book pointer.
+
+page -> book dereference become main operation, page (even free) will always
+points to one book in its zone. so page->flags bits may contains direct reference to book.
+Maybe we can replace page_zone(page) with book_zone(page_book(page)), without mem cgroups
+book -> zone dereference will be simple container_of().
+
+Finally, there appears some new locking primitives for decorating lru_lock splitting logic.
+Final patch actually splits zone->lru_lock into small per-book pieces.
+All this code currently *completely untested*, but seems like it already can work.
+
+
+After that, there two options how manage struct book on mem-cgroup create/destroy:
+a) [ currently implemented ] allocate and release by rcu.
+   Thus lock_page_book() will be protected with rcu_read_lock().
+b) allocate and never release struct book, reuse them after rcu grace period.
+   It allows to avoid some rcu_read_lock()/rcu_read_unlock() calls on hot paths.
+
+
+Motivation:
+I wrote the similar memory controller for our rhel6-based openvz/virtuozzo kernel,
+including splitted lru-locks and some other [patented LOL] cool stuff.
+[ common descrioption without techical details: http://wiki.openvz.org/VSwap ]
+That kernel already in production and rather stable for a long time.
+
+---
+
+Konstantin Khlebnikov (15):
+      mm: rename struct lruvec into struct book
+      mm: memory bookkeeping core
+      mm: add book->pages_count
+      mm: unify inactive_list_is_low()
+      mm: add book->reclaim_stat
+      mm: kill struct mem_cgroup_zone
+      mm: move page-to-book translation upper
+      mm: introduce book locking primitives
+      mm: handle book relocks on lumpy reclaim
+      mm: handle book relocks in compaction
+      mm: handle book relock in memory controller
+      mm: optimize books in update_page_reclaim_stat()
+      mm: optimize books in pagevec_lru_move_fn()
+      mm: optimize putback for 0-order reclaim
+      mm: split zone->lru_lock
+
+
+ include/linux/memcontrol.h |   52 -------
+ include/linux/mm_inline.h  |  222 ++++++++++++++++++++++++++++-
+ include/linux/mmzone.h     |   26 ++-
+ include/linux/swap.h       |    2 
+ init/Kconfig               |    4 +
+ mm/compaction.c            |   35 +++--
+ mm/huge_memory.c           |   10 +
+ mm/memcontrol.c            |  238 ++++++++++---------------------
+ mm/page_alloc.c            |   20 ++-
+ mm/swap.c                  |  128 ++++++-----------
+ mm/vmscan.c                |  334 +++++++++++++++++++-------------------------
+ 11 files changed, 554 insertions(+), 517 deletions(-)
+
+-- 
+Signature
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
