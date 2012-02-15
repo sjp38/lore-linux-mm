@@ -1,620 +1,377 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx195.postini.com [74.125.245.195])
-	by kanga.kvack.org (Postfix) with SMTP id F0B8C6B00E8
-	for <linux-mm@kvack.org>; Wed, 15 Feb 2012 10:54:27 -0500 (EST)
-From: Dan Magenheimer <dan.magenheimer@oracle.com>
-Subject: [PATCH 5/6] staging: ramster: ramster-specific new files
-Date: Wed, 15 Feb 2012 07:54:19 -0800
-Message-Id: <1329321260-15222-6-git-send-email-dan.magenheimer@oracle.com>
-In-Reply-To: <1329321260-15222-1-git-send-email-dan.magenheimer@oracle.com>
-References: <1329321260-15222-1-git-send-email-dan.magenheimer@oracle.com>
+Received: from psmtp.com (na3sys010amx115.postini.com [74.125.245.115])
+	by kanga.kvack.org (Postfix) with SMTP id 681696B004A
+	for <linux-mm@kvack.org>; Wed, 15 Feb 2012 11:24:47 -0500 (EST)
+Received: by bkty12 with SMTP id y12so1445430bkt.14
+        for <linux-mm@kvack.org>; Wed, 15 Feb 2012 08:24:45 -0800 (PST)
+Subject: [PATCH] memcg: rework inactive_ratio logic
+From: Konstantin Khlebnikov <khlebnikov@openvz.org>
+Date: Wed, 15 Feb 2012 20:24:42 +0400
+Message-ID: <20120215162442.13588.21790.stgit@zurg>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: devel@driverdev.osuosl.org, linux-kernel@vger.kernel.org, gregkh@linuxfoundation.org, linux-mm@kvack.org, dan.magenheimer@oracle.com
+To: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>
+Cc: cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
 
-RAMster implements peer-to-peer transcendent memory, allowing a "cluster"
-of kernels to dynamically pool their RAM.
+This patch adds mem_cgroup->inactive_ratio calculated from hierarchical memory limit.
+It updated at each limit change before shrinking cgroup to this new limit.
+Ratios for all child cgroups are updated too, because parent limit can affect them.
+Update precedure can be greatly optimized if its performance becomes the problem.
+Inactive ratio for unlimited or huge limit does not matter, because we'll never hit it.
 
-This patch adds new files necessary for ramster support:  The file
-ramster.h declares externs and some pampd bitfield manipulation.  The
-file zcache.h declares some zcache functions that now must be accessed
-from the ramster glue code.  The file r2net.c is the glue between zcache
-and the messaging layer, providing routines called from zcache that
-initiate messages, and routines that handle messages by calling zcache.
-TODO explains future plans for merging.
+At global reclaim always use global ratio from zone->inactive_ratio.
+At mem-cgroup reclaim use inactive_ratio from target memory cgroup,
+this is cgroup which hit its limit and cause this reclaimer invocation.
 
-Signed-off-by: Dan Magenheimer <dan.magenheimer@oracle.com>
+Thus, global memory reclaimer will try to keep ratio for all lru lists in zone
+above one mark, this guarantee that total ratio in this zone will be above too.
+Meanwhile mem-cgroup will do the same thing for its lru lists in all zones, and
+for all lru lists in all sub-cgroups in hierarchy.
+
+Also this patch removes some redundant code.
+
+Signed-off-by: Konstantin Khlebnikov <khlebnikov@openvz.org>
 ---
- drivers/staging/ramster/TODO      |   13 ++
- drivers/staging/ramster/r2net.c   |  401 +++++++++++++++++++++++++++++++++++++
- drivers/staging/ramster/ramster.h |  118 +++++++++++
- drivers/staging/ramster/zcache.h  |   22 ++
- 4 files changed, 554 insertions(+), 0 deletions(-)
- create mode 100644 drivers/staging/ramster/TODO
- create mode 100644 drivers/staging/ramster/r2net.c
- create mode 100644 drivers/staging/ramster/ramster.h
- create mode 100644 drivers/staging/ramster/zcache.h
+ include/linux/memcontrol.h |   16 ++------
+ mm/memcontrol.c            |   85 ++++++++++++++++++++++++--------------------
+ mm/vmscan.c                |   82 +++++++++++++++++++++++-------------------
+ 3 files changed, 93 insertions(+), 90 deletions(-)
 
-diff --git a/drivers/staging/ramster/TODO b/drivers/staging/ramster/TODO
-new file mode 100644
-index 0000000..46fcf0c
---- /dev/null
-+++ b/drivers/staging/ramster/TODO
-@@ -0,0 +1,13 @@
-+For this staging driver, RAMster duplicates code from drivers/staging/zcache
-+then incorporates changes to the local copy of the code.  For V5, it also
-+directly incorporates the soon-to-be-removed drivers/staging/zram/xvmalloc.[ch]
-+as all testing has been done with xvmalloc rather than the new zsmalloc.
-+Before RAMster can be promoted from staging, the zcache and RAMster drivers
-+should be either merged or reorganized to separate out common code.
-+
-+Until V4, RAMster duplicated code from fs/ocfs2/cluster, but this made
-+RAMster incompatible with ocfs2 running in the same kernel and included
-+lots of code that could be removed.  As of V5, the ocfs2 code has been
-+mined and made RAMster-specific, made to communicate with a userland
-+ramster-tools package rather than ocfs2-tools, and can co-exist with ocfs2
-+both in the same kernel and in userland on the same machine.
-diff --git a/drivers/staging/ramster/r2net.c b/drivers/staging/ramster/r2net.c
-new file mode 100644
-index 0000000..2ee0220
---- /dev/null
-+++ b/drivers/staging/ramster/r2net.c
-@@ -0,0 +1,401 @@
-+/*
-+ * r2net.c
-+ *
-+ * Copyright (c) 2011, Dan Magenheimer, Oracle Corp.
-+ *
-+ * Ramster_r2net provides an interface between zcache and r2net.
-+ *
-+ * FIXME: support more than two nodes
-+ */
-+
-+#include <linux/list.h>
-+#include "cluster/tcp.h"
-+#include "cluster/nodemanager.h"
-+#include "tmem.h"
-+#include "zcache.h"
-+#include "ramster.h"
-+
-+#define RAMSTER_TESTING
-+
-+#define RMSTR_KEY	0x77347734
-+
-+enum {
-+	RMSTR_TMEM_PUT_EPH = 100,
-+	RMSTR_TMEM_PUT_PERS,
-+	RMSTR_TMEM_ASYNC_GET_REQUEST,
-+	RMSTR_TMEM_ASYNC_GET_AND_FREE_REQUEST,
-+	RMSTR_TMEM_ASYNC_GET_REPLY,
-+	RMSTR_TMEM_FLUSH,
-+	RMSTR_TMEM_FLOBJ,
-+	RMSTR_TMEM_DESTROY_POOL,
-+};
-+
-+#define RMSTR_R2NET_MAX_LEN \
-+		(R2NET_MAX_PAYLOAD_BYTES - sizeof(struct tmem_xhandle))
-+
-+#include "cluster/tcp_internal.h"
-+
-+static struct r2nm_node *r2net_target_node;
-+static int r2net_target_nodenum;
-+
-+int r2net_remote_target_node_set(int node_num)
-+{
-+	int ret = -1;
-+
-+	r2net_target_node = r2nm_get_node_by_num(node_num);
-+	if (r2net_target_node != NULL) {
-+		r2net_target_nodenum = node_num;
-+		r2nm_node_put(r2net_target_node);
-+		ret = 0;
-+	}
-+	return ret;
-+}
-+
-+/* FIXME following buffer should be per-cpu, protected by preempt_disable */
-+static char ramster_async_get_buf[R2NET_MAX_PAYLOAD_BYTES];
-+
-+static int ramster_remote_async_get_request_handler(struct r2net_msg *msg,
-+				u32 len, void *data, void **ret_data)
-+{
-+	char *pdata;
-+	struct tmem_xhandle xh;
-+	int found;
-+	size_t size = RMSTR_R2NET_MAX_LEN;
-+	u16 msgtype = be16_to_cpu(msg->msg_type);
-+	bool get_and_free = (msgtype == RMSTR_TMEM_ASYNC_GET_AND_FREE_REQUEST);
-+	unsigned long flags;
-+
-+	xh = *(struct tmem_xhandle *)msg->buf;
-+	if (xh.xh_data_size > RMSTR_R2NET_MAX_LEN)
-+		BUG();
-+	pdata = ramster_async_get_buf;
-+	*(struct tmem_xhandle *)pdata = xh;
-+	pdata += sizeof(struct tmem_xhandle);
-+	local_irq_save(flags);
-+	found = zcache_get(xh.client_id, xh.pool_id, &xh.oid, xh.index,
-+				pdata, &size, 1, get_and_free ? 1 : -1);
-+	local_irq_restore(flags);
-+	if (found < 0) {
-+		/* a zero size indicates the get failed */
-+		size = 0;
-+	}
-+	if (size > RMSTR_R2NET_MAX_LEN)
-+		BUG();
-+	*ret_data = pdata - sizeof(struct tmem_xhandle);
-+	/* now make caller (r2net_process_message) handle specially */
-+	r2net_force_data_magic(msg, RMSTR_TMEM_ASYNC_GET_REPLY, RMSTR_KEY);
-+	return size + sizeof(struct tmem_xhandle);
-+}
-+
-+static int ramster_remote_async_get_reply_handler(struct r2net_msg *msg,
-+				u32 len, void *data, void **ret_data)
-+{
-+	char *in = (char *)msg->buf;
-+	int datalen = len - sizeof(struct r2net_msg);
-+	int ret = -1;
-+	struct tmem_xhandle *xh = (struct tmem_xhandle *)in;
-+
-+	in += sizeof(struct tmem_xhandle);
-+	datalen -= sizeof(struct tmem_xhandle);
-+	BUG_ON(datalen < 0 || datalen > PAGE_SIZE);
-+	ret = zcache_localify(xh->pool_id, &xh->oid, xh->index,
-+				in, datalen, xh->extra);
-+#ifdef RAMSTER_TESTING
-+	if (ret == -EEXIST)
-+		pr_err("TESTING ArrgREP, aborted overwrite on racy put\n");
-+#endif
-+	return ret;
-+}
-+
-+int ramster_remote_put_handler(struct r2net_msg *msg,
-+				u32 len, void *data, void **ret_data)
-+{
-+	struct tmem_xhandle *xh;
-+	char *p = (char *)msg->buf;
-+	int datalen = len - sizeof(struct r2net_msg) -
-+				sizeof(struct tmem_xhandle);
-+	u16 msgtype = be16_to_cpu(msg->msg_type);
-+	bool ephemeral = (msgtype == RMSTR_TMEM_PUT_EPH);
-+	unsigned long flags;
-+	int ret;
-+
-+	xh = (struct tmem_xhandle *)p;
-+	p += sizeof(struct tmem_xhandle);
-+	zcache_autocreate_pool(xh->client_id, xh->pool_id, ephemeral);
-+	local_irq_save(flags);
-+	ret = zcache_put(xh->client_id, xh->pool_id, &xh->oid, xh->index,
-+				p, datalen, 1, ephemeral ? 1 : -1);
-+	local_irq_restore(flags);
-+	return ret;
-+}
-+
-+int ramster_remote_flush_handler(struct r2net_msg *msg,
-+				u32 len, void *data, void **ret_data)
-+{
-+	struct tmem_xhandle *xh;
-+	char *p = (char *)msg->buf;
-+
-+	xh = (struct tmem_xhandle *)p;
-+	p += sizeof(struct tmem_xhandle);
-+	(void)zcache_flush(xh->client_id, xh->pool_id, &xh->oid, xh->index);
+diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
+index 4d34356..453a3dd 100644
+--- a/include/linux/memcontrol.h
++++ b/include/linux/memcontrol.h
+@@ -113,10 +113,7 @@ void mem_cgroup_iter_break(struct mem_cgroup *, struct mem_cgroup *);
+ /*
+  * For memory reclaim.
+  */
+-int mem_cgroup_inactive_anon_is_low(struct mem_cgroup *memcg,
+-				    struct zone *zone);
+-int mem_cgroup_inactive_file_is_low(struct mem_cgroup *memcg,
+-				    struct zone *zone);
++unsigned int mem_cgroup_inactive_ratio(struct mem_cgroup *memcg);
+ int mem_cgroup_select_victim_node(struct mem_cgroup *memcg);
+ unsigned long mem_cgroup_zone_nr_lru_pages(struct mem_cgroup *memcg,
+ 					int nid, int zid, unsigned int lrumask);
+@@ -319,16 +316,9 @@ static inline bool mem_cgroup_disabled(void)
+ 	return true;
+ }
+ 
+-static inline int
+-mem_cgroup_inactive_anon_is_low(struct mem_cgroup *memcg, struct zone *zone)
+-{
+-	return 1;
+-}
+-
+-static inline int
+-mem_cgroup_inactive_file_is_low(struct mem_cgroup *memcg, struct zone *zone)
++static inline unsigned int mem_cgroup_inactive_ratio(struct mem_cgroup *memcg)
+ {
+-	return 1;
 +	return 0;
+ }
+ 
+ static inline unsigned long
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index 6728a7a..343324a 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -212,6 +212,8 @@ struct mem_cgroup_eventfd_list {
+ 
+ static void mem_cgroup_threshold(struct mem_cgroup *memcg);
+ static void mem_cgroup_oom_notify(struct mem_cgroup *memcg);
++static void memcg_get_hierarchical_limit(struct mem_cgroup *memcg,
++		unsigned long long *mem_limit, unsigned long long *memsw_limit);
+ 
+ /*
+  * The memory controller data structure. The memory controller controls both
+@@ -256,6 +258,10 @@ struct mem_cgroup {
+ 	atomic_t	refcnt;
+ 
+ 	int	swappiness;
++
++	/* The target ratio of ACTIVE_ANON to INACTIVE_ANON pages */
++	unsigned int inactive_ratio;
++
+ 	/* OOM-Killer disable */
+ 	int		oom_kill_disable;
+ 
+@@ -1155,44 +1161,6 @@ int task_in_mem_cgroup(struct task_struct *task, const struct mem_cgroup *memcg)
+ 	return ret;
+ }
+ 
+-int mem_cgroup_inactive_anon_is_low(struct mem_cgroup *memcg, struct zone *zone)
+-{
+-	unsigned long inactive_ratio;
+-	int nid = zone_to_nid(zone);
+-	int zid = zone_idx(zone);
+-	unsigned long inactive;
+-	unsigned long active;
+-	unsigned long gb;
+-
+-	inactive = mem_cgroup_zone_nr_lru_pages(memcg, nid, zid,
+-						BIT(LRU_INACTIVE_ANON));
+-	active = mem_cgroup_zone_nr_lru_pages(memcg, nid, zid,
+-					      BIT(LRU_ACTIVE_ANON));
+-
+-	gb = (inactive + active) >> (30 - PAGE_SHIFT);
+-	if (gb)
+-		inactive_ratio = int_sqrt(10 * gb);
+-	else
+-		inactive_ratio = 1;
+-
+-	return inactive * inactive_ratio < active;
+-}
+-
+-int mem_cgroup_inactive_file_is_low(struct mem_cgroup *memcg, struct zone *zone)
+-{
+-	unsigned long active;
+-	unsigned long inactive;
+-	int zid = zone_idx(zone);
+-	int nid = zone_to_nid(zone);
+-
+-	inactive = mem_cgroup_zone_nr_lru_pages(memcg, nid, zid,
+-						BIT(LRU_INACTIVE_FILE));
+-	active = mem_cgroup_zone_nr_lru_pages(memcg, nid, zid,
+-					      BIT(LRU_ACTIVE_FILE));
+-
+-	return (active > inactive);
+-}
+-
+ struct zone_reclaim_stat *mem_cgroup_get_reclaim_stat(struct mem_cgroup *memcg,
+ 						      struct zone *zone)
+ {
+@@ -3373,6 +3341,32 @@ void mem_cgroup_print_bad_page(struct page *page)
+ 
+ static DEFINE_MUTEX(set_limit_mutex);
+ 
++/*
++ * Update inactive_ratio accoring to new memory limit
++ */
++static void mem_cgroup_update_inactive_ratio(struct mem_cgroup *memcg,
++					     unsigned long long target)
++{
++	unsigned long long mem_limit, memsw_limit, gb;
++	struct mem_cgroup *iter;
++
++	for_each_mem_cgroup_tree(iter, memcg) {
++		memcg_get_hierarchical_limit(iter, &mem_limit, &memsw_limit);
++		mem_limit = min(mem_limit, target);
++
++		gb = mem_limit >> 30;
++		if (gb && 10 * gb < INT_MAX)
++			iter->inactive_ratio = int_sqrt(10 * gb);
++		else
++			iter->inactive_ratio = 1;
++	}
 +}
 +
-+int ramster_remote_flobj_handler(struct r2net_msg *msg,
-+				u32 len, void *data, void **ret_data)
++unsigned int mem_cgroup_inactive_ratio(struct mem_cgroup *memcg)
 +{
-+	struct tmem_xhandle *xh;
-+	char *p = (char *)msg->buf;
-+
-+	xh = (struct tmem_xhandle *)p;
-+	p += sizeof(struct tmem_xhandle);
-+	(void)zcache_flush_object(xh->client_id, xh->pool_id, &xh->oid);
-+	return 0;
++	return memcg->inactive_ratio;
 +}
 +
-+int ramster_remote_async_get(struct tmem_xhandle *xh, bool free, int remotenode,
-+				size_t expect_size, uint8_t expect_cksum,
-+				void *extra)
-+{
-+	int ret = -1, status;
-+	struct r2nm_node *node = NULL;
-+	struct kvec vec[1];
-+	size_t veclen = 1;
-+	u32 msg_type;
+ static int mem_cgroup_resize_limit(struct mem_cgroup *memcg,
+ 				unsigned long long val)
+ {
+@@ -3422,6 +3416,7 @@ static int mem_cgroup_resize_limit(struct mem_cgroup *memcg,
+ 			else
+ 				memcg->memsw_is_minimum = false;
+ 		}
++		mem_cgroup_update_inactive_ratio(memcg, val);
+ 		mutex_unlock(&set_limit_mutex);
+ 
+ 		if (!ret)
+@@ -3439,6 +3434,12 @@ static int mem_cgroup_resize_limit(struct mem_cgroup *memcg,
+ 	if (!ret && enlarge)
+ 		memcg_oom_recover(memcg);
+ 
++	if (ret) {
++		mutex_lock(&set_limit_mutex);
++		mem_cgroup_update_inactive_ratio(memcg, RESOURCE_MAX);
++		mutex_unlock(&set_limit_mutex);
++	}
 +
-+	node = r2nm_get_node_by_num(remotenode);
-+	if (node == NULL)
-+		goto out;
-+	xh->client_id = r2nm_this_node(); /* which node is getting */
-+	xh->xh_data_cksum = expect_cksum;
-+	xh->xh_data_size = expect_size;
-+	xh->extra = extra;
-+	vec[0].iov_len = sizeof(*xh);
-+	vec[0].iov_base = xh;
-+	if (free)
-+		msg_type = RMSTR_TMEM_ASYNC_GET_AND_FREE_REQUEST;
+ 	return ret;
+ }
+ 
+@@ -4155,6 +4156,8 @@ static int mem_control_stat_show(struct cgroup *cont, struct cftype *cft,
+ 	}
+ 
+ #ifdef CONFIG_DEBUG_VM
++	cb->fill(cb, "inactive_ratio", mem_cont->inactive_ratio);
++
+ 	{
+ 		int nid, zid;
+ 		struct mem_cgroup_per_zone *mz;
+@@ -4936,8 +4939,12 @@ mem_cgroup_create(struct cgroup_subsys *ss, struct cgroup *cont)
+ 	memcg->last_scanned_node = MAX_NUMNODES;
+ 	INIT_LIST_HEAD(&memcg->oom_notify);
+ 
+-	if (parent)
++	if (parent) {
+ 		memcg->swappiness = mem_cgroup_swappiness(parent);
++		memcg->inactive_ratio = parent->inactive_ratio;
++	} else
++		memcg->inactive_ratio = 1;
++
+ 	atomic_set(&memcg->refcnt, 1);
+ 	memcg->move_charge_at_immigrate = 0;
+ 	mutex_init(&memcg->thresholds_lock);
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index 4061e91..531abcc 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -1788,19 +1788,6 @@ static void shrink_active_list(unsigned long nr_to_scan,
+ }
+ 
+ #ifdef CONFIG_SWAP
+-static int inactive_anon_is_low_global(struct zone *zone)
+-{
+-	unsigned long active, inactive;
+-
+-	active = zone_page_state(zone, NR_ACTIVE_ANON);
+-	inactive = zone_page_state(zone, NR_INACTIVE_ANON);
+-
+-	if (inactive * zone->inactive_ratio < active)
+-		return 1;
+-
+-	return 0;
+-}
+-
+ /**
+  * inactive_anon_is_low - check if anonymous pages need to be deactivated
+  * @zone: zone to check
+@@ -1809,8 +1796,12 @@ static int inactive_anon_is_low_global(struct zone *zone)
+  * Returns true if the zone does not have enough inactive anon pages,
+  * meaning some active anon pages need to be deactivated.
+  */
+-static int inactive_anon_is_low(struct mem_cgroup_zone *mz)
++static int inactive_anon_is_low(struct mem_cgroup_zone *mz,
++				struct scan_control *sc)
+ {
++	unsigned long active, inactive;
++	unsigned int ratio;
++
+ 	/*
+ 	 * If we don't have swap space, anonymous page deactivation
+ 	 * is pointless.
+@@ -1818,29 +1809,33 @@ static int inactive_anon_is_low(struct mem_cgroup_zone *mz)
+ 	if (!total_swap_pages)
+ 		return 0;
+ 
+-	if (!scanning_global_lru(mz))
+-		return mem_cgroup_inactive_anon_is_low(mz->mem_cgroup,
+-						       mz->zone);
++	if (global_reclaim(sc))
++		ratio = mz->zone->inactive_ratio;
 +	else
-+		msg_type = RMSTR_TMEM_ASYNC_GET_REQUEST;
-+	ret = r2net_send_message_vec(msg_type, RMSTR_KEY,
-+					vec, veclen, remotenode, &status);
-+	r2nm_node_put(node);
-+	if (ret < 0) {
-+		/* FIXME handle bad message possibilities here? */
-+		pr_err("UNTESTED ret<0 in ramster_remote_async_get\n");
-+	}
-+	ret = status;
-+out:
-+	return ret;
-+}
-+
-+#ifdef RAMSTER_TESTING
-+/* leave me here to see if it catches a weird crash */
-+static void ramster_check_irq_counts(void)
-+{
-+	static int last_hardirq_cnt, last_softirq_cnt, last_preempt_cnt;
-+	int cur_hardirq_cnt, cur_softirq_cnt, cur_preempt_cnt;
-+
-+	cur_hardirq_cnt = hardirq_count() >> HARDIRQ_SHIFT;
-+	if (cur_hardirq_cnt > last_hardirq_cnt) {
-+		last_hardirq_cnt = cur_hardirq_cnt;
-+		if (!(last_hardirq_cnt&(last_hardirq_cnt-1)))
-+			pr_err("RAMSTER TESTING RRP hardirq_count=%d\n",
-+				last_hardirq_cnt);
-+	}
-+	cur_softirq_cnt = softirq_count() >> SOFTIRQ_SHIFT;
-+	if (cur_softirq_cnt > last_softirq_cnt) {
-+		last_softirq_cnt = cur_softirq_cnt;
-+		if (!(last_softirq_cnt&(last_softirq_cnt-1)))
-+			pr_err("RAMSTER TESTING RRP softirq_count=%d\n",
-+				last_softirq_cnt);
-+	}
-+	cur_preempt_cnt = preempt_count() & PREEMPT_MASK;
-+	if (cur_preempt_cnt > last_preempt_cnt) {
-+		last_preempt_cnt = cur_preempt_cnt;
-+		if (!(last_preempt_cnt&(last_preempt_cnt-1)))
-+			pr_err("RAMSTER TESTING RRP preempt_count=%d\n",
-+				last_preempt_cnt);
-+	}
-+}
-+#endif
-+
-+int ramster_remote_put(struct tmem_xhandle *xh, char *data, size_t size,
-+				bool ephemeral, int *remotenode)
-+{
-+	int nodenum, ret = -1, status;
-+	struct r2nm_node *node = NULL;
-+	struct kvec vec[2];
-+	size_t veclen = 2;
-+	u32 msg_type;
-+#ifdef RAMSTER_TESTING
-+	struct r2net_node *nn;
-+#endif
-+
-+	BUG_ON(size > RMSTR_R2NET_MAX_LEN);
-+	xh->client_id = r2nm_this_node(); /* which node is putting */
-+	vec[0].iov_len = sizeof(*xh);
-+	vec[0].iov_base = xh;
-+	vec[1].iov_len = size;
-+	vec[1].iov_base = data;
-+	node = r2net_target_node;
-+	if (!node)
-+		goto out;
-+
-+	nodenum = r2net_target_nodenum;
-+
-+	r2nm_node_get(node);
-+
-+#ifdef RAMSTER_TESTING
-+	nn = r2net_nn_from_num(nodenum);
-+	WARN_ON_ONCE(nn->nn_persistent_error || !nn->nn_sc_valid);
-+#endif
-+
-+	if (ephemeral)
-+		msg_type = RMSTR_TMEM_PUT_EPH;
-+	else
-+		msg_type = RMSTR_TMEM_PUT_PERS;
-+#ifdef RAMSTER_TESTING
-+	/* leave me here to see if it catches a weird crash */
-+	ramster_check_irq_counts();
-+#endif
-+
-+	ret = r2net_send_message_vec(msg_type, RMSTR_KEY, vec, veclen,
-+						nodenum, &status);
-+#ifdef RAMSTER_TESTING
-+	if (ret != 0) {
-+		static unsigned long cnt;
-+		cnt++;
-+		if (!(cnt&(cnt-1)))
-+			pr_err("ramster_remote_put: message failed, "
-+				"ret=%d, cnt=%lu\n", ret, cnt);
-+		ret = -1;
-+	}
-+#endif
-+	if (ret < 0)
-+		ret = -1;
-+	else {
-+		ret = status;
-+		*remotenode = nodenum;
++		ratio = mem_cgroup_inactive_ratio(sc->target_mem_cgroup);
+ 
+-	return inactive_anon_is_low_global(mz->zone);
++	if (scanning_global_lru(mz)) {
++		active = zone_page_state(mz->zone, NR_ACTIVE_ANON);
++		inactive = zone_page_state(mz->zone, NR_INACTIVE_ANON);
++	} else {
++		active = mem_cgroup_zone_nr_lru_pages(mz->mem_cgroup,
++				zone_to_nid(mz->zone), zone_idx(mz->zone),
++				BIT(LRU_ACTIVE_ANON));
++		inactive = mem_cgroup_zone_nr_lru_pages(mz->mem_cgroup,
++				zone_to_nid(mz->zone), zone_idx(mz->zone),
++				BIT(LRU_INACTIVE_ANON));
 +	}
 +
-+	r2nm_node_put(node);
-+out:
-+	return ret;
-+}
++	return inactive * ratio < active;
+ }
+ #else
+-static inline int inactive_anon_is_low(struct mem_cgroup_zone *mz)
++static inline int inactive_anon_is_low(struct mem_cgroup_zone *mz,
++				       struct scan_control *sc)
+ {
+ 	return 0;
+ }
+ #endif
+ 
+-static int inactive_file_is_low_global(struct zone *zone)
+-{
+-	unsigned long active, inactive;
+-
+-	active = zone_page_state(zone, NR_ACTIVE_FILE);
+-	inactive = zone_page_state(zone, NR_INACTIVE_FILE);
+-
+-	return (active > inactive);
+-}
+-
+ /**
+  * inactive_file_is_low - check if file pages need to be deactivated
+  * @mz: memory cgroup and zone to check
+@@ -1857,19 +1852,30 @@ static int inactive_file_is_low_global(struct zone *zone)
+  */
+ static int inactive_file_is_low(struct mem_cgroup_zone *mz)
+ {
+-	if (!scanning_global_lru(mz))
+-		return mem_cgroup_inactive_file_is_low(mz->mem_cgroup,
+-						       mz->zone);
++	unsigned long active, inactive;
 +
-+int ramster_remote_flush(struct tmem_xhandle *xh, int remotenode)
-+{
-+	int ret = -1, status;
-+	struct r2nm_node *node = NULL;
-+	struct kvec vec[1];
-+	size_t veclen = 1;
-+
-+	node = r2nm_get_node_by_num(remotenode);
-+	BUG_ON(node == NULL);
-+	xh->client_id = r2nm_this_node(); /* which node is flushing */
-+	vec[0].iov_len = sizeof(*xh);
-+	vec[0].iov_base = xh;
-+	BUG_ON(irqs_disabled());
-+	BUG_ON(in_softirq());
-+	ret = r2net_send_message_vec(RMSTR_TMEM_FLUSH, RMSTR_KEY,
-+					vec, veclen, remotenode, &status);
-+	r2nm_node_put(node);
-+	return ret;
-+}
-+
-+int ramster_remote_flush_object(struct tmem_xhandle *xh, int remotenode)
-+{
-+	int ret = -1, status;
-+	struct r2nm_node *node = NULL;
-+	struct kvec vec[1];
-+	size_t veclen = 1;
-+
-+	node = r2nm_get_node_by_num(remotenode);
-+	BUG_ON(node == NULL);
-+	xh->client_id = r2nm_this_node(); /* which node is flobjing */
-+	vec[0].iov_len = sizeof(*xh);
-+	vec[0].iov_base = xh;
-+	ret = r2net_send_message_vec(RMSTR_TMEM_FLOBJ, RMSTR_KEY,
-+					vec, veclen, remotenode, &status);
-+	r2nm_node_put(node);
-+	return ret;
-+}
-+
-+/*
-+ * Handler registration
-+ */
-+
-+static LIST_HEAD(r2net_unreg_list);
-+
-+static void r2net_unregister_handlers(void)
-+{
-+	r2net_unregister_handler_list(&r2net_unreg_list);
-+}
-+
-+int r2net_register_handlers(void)
-+{
-+	int status;
-+
-+	status = r2net_register_handler(RMSTR_TMEM_PUT_EPH, RMSTR_KEY,
-+				RMSTR_R2NET_MAX_LEN,
-+				ramster_remote_put_handler,
-+				NULL, NULL, &r2net_unreg_list);
-+	if (status)
-+		goto bail;
-+
-+	status = r2net_register_handler(RMSTR_TMEM_PUT_PERS, RMSTR_KEY,
-+				RMSTR_R2NET_MAX_LEN,
-+				ramster_remote_put_handler,
-+				NULL, NULL, &r2net_unreg_list);
-+	if (status)
-+		goto bail;
-+
-+	status = r2net_register_handler(RMSTR_TMEM_ASYNC_GET_REQUEST, RMSTR_KEY,
-+				RMSTR_R2NET_MAX_LEN,
-+				ramster_remote_async_get_request_handler,
-+				NULL, NULL,
-+				&r2net_unreg_list);
-+	if (status)
-+		goto bail;
-+
-+	status = r2net_register_handler(RMSTR_TMEM_ASYNC_GET_AND_FREE_REQUEST,
-+				RMSTR_KEY, RMSTR_R2NET_MAX_LEN,
-+				ramster_remote_async_get_request_handler,
-+				NULL, NULL,
-+				&r2net_unreg_list);
-+	if (status)
-+		goto bail;
-+
-+	status = r2net_register_handler(RMSTR_TMEM_ASYNC_GET_REPLY, RMSTR_KEY,
-+				RMSTR_R2NET_MAX_LEN,
-+				ramster_remote_async_get_reply_handler,
-+				NULL, NULL,
-+				&r2net_unreg_list);
-+	if (status)
-+		goto bail;
-+
-+	status = r2net_register_handler(RMSTR_TMEM_FLUSH, RMSTR_KEY,
-+				RMSTR_R2NET_MAX_LEN,
-+				ramster_remote_flush_handler,
-+				NULL, NULL,
-+				&r2net_unreg_list);
-+	if (status)
-+		goto bail;
-+
-+	status = r2net_register_handler(RMSTR_TMEM_FLOBJ, RMSTR_KEY,
-+				RMSTR_R2NET_MAX_LEN,
-+				ramster_remote_flobj_handler,
-+				NULL, NULL,
-+				&r2net_unreg_list);
-+	if (status)
-+		goto bail;
-+
-+	pr_info("ramster: r2net handlers registered\n");
-+
-+bail:
-+	if (status) {
-+		r2net_unregister_handlers();
-+		pr_err("ramster: couldn't register r2net handlers\n");
++	if (scanning_global_lru(mz)) {
++		active = zone_page_state(mz->zone, NR_ACTIVE_FILE);
++		inactive = zone_page_state(mz->zone, NR_INACTIVE_FILE);
++	} else {
++		active = mem_cgroup_zone_nr_lru_pages(mz->mem_cgroup,
++				zone_to_nid(mz->zone), zone_idx(mz->zone),
++				BIT(LRU_ACTIVE_FILE));
++		inactive = mem_cgroup_zone_nr_lru_pages(mz->mem_cgroup,
++				zone_to_nid(mz->zone), zone_idx(mz->zone),
++				BIT(LRU_INACTIVE_FILE));
 +	}
-+	return status;
-+}
-diff --git a/drivers/staging/ramster/ramster.h b/drivers/staging/ramster/ramster.h
-new file mode 100644
-index 0000000..0c9455e
---- /dev/null
-+++ b/drivers/staging/ramster/ramster.h
-@@ -0,0 +1,118 @@
-+/*
-+ * ramster.h
-+ *
-+ * Peer-to-peer transcendent memory
-+ *
-+ * Copyright (c) 2009-2012, Dan Magenheimer, Oracle Corp.
-+ */
-+
-+#ifndef _RAMSTER_H_
-+#define _RAMSTER_H_
-+
-+/*
-+ * format of remote pampd:
-+ *   bit 0 == intransit
-+ *   bit 1 == is_remote... if this bit is set, then
-+ *   bit 2-9 == remotenode
-+ *   bit 10-22 == size
-+ *   bit 23-30 == cksum
-+ */
-+#define FAKE_PAMPD_INTRANSIT_BITS	1
-+#define FAKE_PAMPD_ISREMOTE_BITS	1
-+#define FAKE_PAMPD_REMOTENODE_BITS	8
-+#define FAKE_PAMPD_REMOTESIZE_BITS	13
-+#define FAKE_PAMPD_CHECKSUM_BITS	8
-+
-+#define FAKE_PAMPD_INTRANSIT_SHIFT	0
-+#define FAKE_PAMPD_ISREMOTE_SHIFT	(FAKE_PAMPD_INTRANSIT_SHIFT + \
-+					 FAKE_PAMPD_INTRANSIT_BITS)
-+#define FAKE_PAMPD_REMOTENODE_SHIFT	(FAKE_PAMPD_ISREMOTE_SHIFT + \
-+					 FAKE_PAMPD_ISREMOTE_BITS)
-+#define FAKE_PAMPD_REMOTESIZE_SHIFT	(FAKE_PAMPD_REMOTENODE_SHIFT + \
-+					 FAKE_PAMPD_REMOTENODE_BITS)
-+#define FAKE_PAMPD_CHECKSUM_SHIFT	(FAKE_PAMPD_REMOTESIZE_SHIFT + \
-+					 FAKE_PAMPD_REMOTESIZE_BITS)
-+
-+#define FAKE_PAMPD_MASK(x)		((1UL << (x)) - 1)
-+
-+static inline void *pampd_make_remote(int remotenode, size_t size,
-+					unsigned char cksum)
-+{
-+	unsigned long fake_pampd = 0;
-+	fake_pampd |= 1UL << FAKE_PAMPD_ISREMOTE_SHIFT;
-+	fake_pampd |= ((unsigned long)remotenode &
-+			FAKE_PAMPD_MASK(FAKE_PAMPD_REMOTENODE_BITS)) <<
-+				FAKE_PAMPD_REMOTENODE_SHIFT;
-+	fake_pampd |= ((unsigned long)size &
-+			FAKE_PAMPD_MASK(FAKE_PAMPD_REMOTESIZE_BITS)) <<
-+				FAKE_PAMPD_REMOTESIZE_SHIFT;
-+	fake_pampd |= ((unsigned long)cksum &
-+			FAKE_PAMPD_MASK(FAKE_PAMPD_CHECKSUM_BITS)) <<
-+				FAKE_PAMPD_CHECKSUM_SHIFT;
-+	return (void *)fake_pampd;
-+}
-+
-+static inline unsigned int pampd_remote_node(void *pampd)
-+{
-+	unsigned long fake_pampd = (unsigned long)pampd;
-+	return (fake_pampd >> FAKE_PAMPD_REMOTENODE_SHIFT) &
-+		FAKE_PAMPD_MASK(FAKE_PAMPD_REMOTENODE_BITS);
-+}
-+
-+static inline unsigned int pampd_remote_size(void *pampd)
-+{
-+	unsigned long fake_pampd = (unsigned long)pampd;
-+	return (fake_pampd >> FAKE_PAMPD_REMOTESIZE_SHIFT) &
-+		FAKE_PAMPD_MASK(FAKE_PAMPD_REMOTESIZE_BITS);
-+}
-+
-+static inline unsigned char pampd_remote_cksum(void *pampd)
-+{
-+	unsigned long fake_pampd = (unsigned long)pampd;
-+	return (fake_pampd >> FAKE_PAMPD_CHECKSUM_SHIFT) &
-+		FAKE_PAMPD_MASK(FAKE_PAMPD_CHECKSUM_BITS);
-+}
-+
-+static inline bool pampd_is_remote(void *pampd)
-+{
-+	unsigned long fake_pampd = (unsigned long)pampd;
-+	return (fake_pampd >> FAKE_PAMPD_ISREMOTE_SHIFT) &
-+		FAKE_PAMPD_MASK(FAKE_PAMPD_ISREMOTE_BITS);
-+}
-+
-+static inline bool pampd_is_intransit(void *pampd)
-+{
-+	unsigned long fake_pampd = (unsigned long)pampd;
-+	return (fake_pampd >> FAKE_PAMPD_INTRANSIT_SHIFT) &
-+		FAKE_PAMPD_MASK(FAKE_PAMPD_INTRANSIT_BITS);
-+}
-+
-+/* note that it is a BUG for intransit to be set without isremote also set */
-+static inline void *pampd_mark_intransit(void *pampd)
-+{
-+	unsigned long fake_pampd = (unsigned long)pampd;
-+
-+	fake_pampd |= 1UL << FAKE_PAMPD_ISREMOTE_SHIFT;
-+	fake_pampd |= 1UL << FAKE_PAMPD_INTRANSIT_SHIFT;
-+	return (void *)fake_pampd;
-+}
-+
-+static inline void *pampd_mask_intransit_and_remote(void *marked_pampd)
-+{
-+	unsigned long pampd = (unsigned long)marked_pampd;
-+
-+	pampd &= ~(1UL << FAKE_PAMPD_INTRANSIT_SHIFT);
-+	pampd &= ~(1UL << FAKE_PAMPD_ISREMOTE_SHIFT);
-+	return (void *)pampd;
-+}
-+
-+extern int ramster_remote_async_get(struct tmem_xhandle *,
-+				bool, int, size_t, uint8_t, void *extra);
-+extern int ramster_remote_put(struct tmem_xhandle *, char *, size_t,
-+				bool, int *);
-+extern int ramster_remote_flush(struct tmem_xhandle *, int);
-+extern int ramster_remote_flush_object(struct tmem_xhandle *, int);
-+extern int r2net_register_handlers(void);
-+extern int r2net_remote_target_node_set(int);
-+
-+#endif /* _TMEM_H */
-diff --git a/drivers/staging/ramster/zcache.h b/drivers/staging/ramster/zcache.h
-new file mode 100644
-index 0000000..250b121
---- /dev/null
-+++ b/drivers/staging/ramster/zcache.h
-@@ -0,0 +1,22 @@
-+/*
-+ * zcache.h
-+ *
-+ * External zcache functions
-+ *
-+ * Copyright (c) 2009-2012, Dan Magenheimer, Oracle Corp.
-+ */
-+
-+#ifndef _ZCACHE_H_
-+#define _ZCACHE_H_
-+
-+extern int zcache_put(int, int, struct tmem_oid *, uint32_t,
-+			char *, size_t, bool, int);
-+extern int zcache_autocreate_pool(int, int, bool);
-+extern int zcache_get(int, int, struct tmem_oid *, uint32_t,
-+			char *, size_t *, bool, int);
-+extern int zcache_flush(int, int, struct tmem_oid *, uint32_t);
-+extern int zcache_flush_object(int, int, struct tmem_oid *);
-+extern int zcache_localify(int, struct tmem_oid *, uint32_t,
-+			char *, size_t, void *);
-+
-+#endif /* _ZCACHE_H */
--- 
-1.7.1
+ 
+-	return inactive_file_is_low_global(mz->zone);
++	return inactive < active;
+ }
+ 
+-static int inactive_list_is_low(struct mem_cgroup_zone *mz, int file)
++static int inactive_list_is_low(struct mem_cgroup_zone *mz,
++				struct scan_control *sc, int file)
+ {
+ 	if (file)
+ 		return inactive_file_is_low(mz);
+ 	else
+-		return inactive_anon_is_low(mz);
++		return inactive_anon_is_low(mz, sc);
+ }
+ 
+ static unsigned long shrink_list(enum lru_list lru, unsigned long nr_to_scan,
+@@ -1879,7 +1885,7 @@ static unsigned long shrink_list(enum lru_list lru, unsigned long nr_to_scan,
+ 	int file = is_file_lru(lru);
+ 
+ 	if (is_active_lru(lru)) {
+-		if (inactive_list_is_low(mz, file))
++		if (inactive_list_is_low(mz, sc, file))
+ 			shrink_active_list(nr_to_scan, mz, sc, priority, file);
+ 		return 0;
+ 	}
+@@ -2129,7 +2135,7 @@ restart:
+ 	 * Even if we did not try to evict anon pages at all, we want to
+ 	 * rebalance the anon lru active/inactive ratio.
+ 	 */
+-	if (inactive_anon_is_low(mz))
++	if (inactive_anon_is_low(mz, sc))
+ 		shrink_active_list(SWAP_CLUSTER_MAX, mz, sc, priority, 0);
+ 
+ 	/* reclaim/compaction might need reclaim to continue */
+@@ -2558,7 +2564,7 @@ static void age_active_anon(struct zone *zone, struct scan_control *sc,
+ 			.zone = zone,
+ 		};
+ 
+-		if (inactive_anon_is_low(&mz))
++		if (inactive_anon_is_low(&mz, sc))
+ 			shrink_active_list(SWAP_CLUSTER_MAX, &mz,
+ 					   sc, priority, 0);
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
