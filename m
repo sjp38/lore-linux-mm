@@ -1,38 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx187.postini.com [74.125.245.187])
-	by kanga.kvack.org (Postfix) with SMTP id 416CC6B004A
-	for <linux-mm@kvack.org>; Wed, 15 Feb 2012 13:33:22 -0500 (EST)
-Date: Wed, 15 Feb 2012 13:33:18 -0500
-From: Dave Jones <davej@redhat.com>
-Subject: exit_mmap() BUG_ON triggering since 3.1
-Message-ID: <20120215183317.GA26977@redhat.com>
+Received: from psmtp.com (na3sys010amx205.postini.com [74.125.245.205])
+	by kanga.kvack.org (Postfix) with SMTP id B6CF76B007E
+	for <linux-mm@kvack.org>; Wed, 15 Feb 2012 14:27:13 -0500 (EST)
+Received: by bkty12 with SMTP id y12so1694268bkt.14
+        for <linux-mm@kvack.org>; Wed, 15 Feb 2012 11:27:11 -0800 (PST)
+Subject: [PATCH] memcg: kill dead prev_priority stubs
+From: Konstantin Khlebnikov <khlebnikov@openvz.org>
+Date: Wed, 15 Feb 2012 23:27:08 +0400
+Message-ID: <20120215192708.31690.2819.stgit@zurg>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linux Kernel <linux-kernel@vger.kernel.org>
-Cc: linux-mm@kvack.org, Fedora Kernel Team <kernel-team@fedoraproject.org>
+To: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-kernel@vger.kernel.org
 
-We've had three reports against the Fedora kernel recently where
-a process exits, and we're tripping up the 
+This code was removed in v2.6.35-5854-g25edde0
+("vmscan: kill prev_priority completely")
 
-        BUG_ON(mm->nr_ptes > (FIRST_USER_ADDRESS+PMD_SIZE-1)>>PMD_SHIFT);
+Signed-off-by: Konstantin Khlebnikov <khlebnikov@openvz.org>
+---
+ include/linux/memcontrol.h |   15 ---------------
+ 1 files changed, 0 insertions(+), 15 deletions(-)
 
-in exit_mmap()
-
-It started happening with 3.1, but still occurs on 3.2
-(no 3.3rc reports yet, but it's not getting much testing).
-
-https://bugzilla.redhat.com/show_bug.cgi?id=786632
-https://bugzilla.redhat.com/show_bug.cgi?id=787527
-https://bugzilla.redhat.com/show_bug.cgi?id=790546
-
-I don't see anything special in common between the loaded modules.
-
-anyone?
-
-	Dave
+diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
+index 453a3dd..c697eda 100644
+--- a/include/linux/memcontrol.h
++++ b/include/linux/memcontrol.h
+@@ -296,21 +296,6 @@ static inline void mem_cgroup_iter_break(struct mem_cgroup *root,
+ {
+ }
+ 
+-static inline int mem_cgroup_get_reclaim_priority(struct mem_cgroup *memcg)
+-{
+-	return 0;
+-}
+-
+-static inline void mem_cgroup_note_reclaim_priority(struct mem_cgroup *memcg,
+-						int priority)
+-{
+-}
+-
+-static inline void mem_cgroup_record_reclaim_priority(struct mem_cgroup *memcg,
+-						int priority)
+-{
+-}
+-
+ static inline bool mem_cgroup_disabled(void)
+ {
+ 	return true;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
