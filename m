@@ -1,57 +1,102 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx171.postini.com [74.125.245.171])
-	by kanga.kvack.org (Postfix) with SMTP id 61D4B6B0082
-	for <linux-mm@kvack.org>; Thu, 16 Feb 2012 07:04:53 -0500 (EST)
-Received: by wibhj13 with SMTP id hj13so1571862wib.14
-        for <linux-mm@kvack.org>; Thu, 16 Feb 2012 04:04:51 -0800 (PST)
+Received: from psmtp.com (na3sys010amx122.postini.com [74.125.245.122])
+	by kanga.kvack.org (Postfix) with SMTP id 5421E6B0083
+	for <linux-mm@kvack.org>; Thu, 16 Feb 2012 07:04:55 -0500 (EST)
+Received: by wibhj13 with SMTP id hj13so1571890wib.14
+        for <linux-mm@kvack.org>; Thu, 16 Feb 2012 04:04:53 -0800 (PST)
 MIME-Version: 1.0
 From: Daniel Vetter <daniel.vetter@ffwll.ch>
-Subject: [PATCH] extend prefault helpers to fault in more than PAGE_SIZE
-Date: Thu, 16 Feb 2012 13:01:35 +0100
-Message-Id: <1329393696-4802-1-git-send-email-daniel.vetter@ffwll.ch>
+Subject: [PATCH] mm: extend prefault helpers to fault in more than PAGE_SIZE
+Date: Thu, 16 Feb 2012 13:01:36 +0100
+Message-Id: <1329393696-4802-2-git-send-email-daniel.vetter@ffwll.ch>
+In-Reply-To: <1329393696-4802-1-git-send-email-daniel.vetter@ffwll.ch>
+References: <1329393696-4802-1-git-send-email-daniel.vetter@ffwll.ch>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Intel Graphics Development <intel-gfx@lists.freedesktop.org>, DRI Development <dri-devel@lists.freedesktop.org>, LKML <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, Daniel Vetter <daniel.vetter@ffwll.ch>
 
-Hi all,
+drm/i915 wants to read/write more than one page in its fastpath
+and hence needs to prefault more than PAGE_SIZE bytes.
 
-drm/i915 has write/read paths to upload/download data to/from gpu buffer
-objects. For a bunch of reasons we have special fastpaths with decent setup
-costs, so when we fall back to the slow-path we don't fully recover to the
-fastest fast-path when grabbing our locks again. This is also in parts due to
-that we have multiple fallbacks to slower paths, so control-flow in our code
-would get really ugly.
+I've checked the callsites and they all already clamp size when
+calling fault_in_pages_* to the same as for the subsequent
+__copy_to|from_user and hence don't rely on the implicit clamping
+to PAGE_SIZE.
 
-As part of a larger rewrite and re-tuning of these functions we've noticed that
-the prefault helpers in pagemap.h only prefault up to PAGE_SIZE because that's
-all the other users need. The follow-up patch extends this to abritary sizes so
-that we can fully exploit our special fastpaths in more cases (we typically see
-reads and writes of a few pages up to a few mb).
+Also kill a copy&pasted spurious space in both functions while at it.
 
-I'd like to get this in for 3.4. There's no functional dependency between this
-patch and the drm/i915 rework (only performance effects), so this can go in
-through -mm without causing merge issues.
-
-If this or something similar isn't acceptable, plan B is to hand-roll these 2
-functions in drm/i915. But I don't like nih these things in driver code much.
-
-Comments highly welcome.
-
-Yours, Daniel
-
-For reference, the drm/i915 read/write rework is avaialable at:
-
-http://cgit.freedesktop.org/~danvet/drm/log/?h=pwrite-pread
-
-Unfortunately cgit.fd.o is currently on hiatus.
-
-Daniel Vetter (1):
-  mm: extend prefault helpers to fault in more than PAGE_SIZE
-
+Cc: linux-mm@kvack.org
+Signed-off-by: Daniel Vetter <daniel.vetter@ffwll.ch>
+---
  include/linux/pagemap.h |   28 ++++++++++++++++++----------
  1 files changed, 18 insertions(+), 10 deletions(-)
 
+diff --git a/include/linux/pagemap.h b/include/linux/pagemap.h
+index cfaaa69..689527d 100644
+--- a/include/linux/pagemap.h
++++ b/include/linux/pagemap.h
+@@ -408,6 +408,7 @@ extern void add_page_wait_queue(struct page *page, wait_queue_t *waiter);
+ static inline int fault_in_pages_writeable(char __user *uaddr, int size)
+ {
+ 	int ret;
++	char __user *end = uaddr + size - 1;
+ 
+ 	if (unlikely(size == 0))
+ 		return 0;
+@@ -416,17 +417,20 @@ static inline int fault_in_pages_writeable(char __user *uaddr, int size)
+ 	 * Writing zeroes into userspace here is OK, because we know that if
+ 	 * the zero gets there, we'll be overwriting it.
+ 	 */
+-	ret = __put_user(0, uaddr);
++	while (uaddr <= end) {
++		ret = __put_user(0, uaddr);
++		if (ret != 0)
++			return ret;
++		uaddr += PAGE_SIZE;
++	}
+ 	if (ret == 0) {
+-		char __user *end = uaddr + size - 1;
+-
+ 		/*
+ 		 * If the page was already mapped, this will get a cache miss
+ 		 * for sure, so try to avoid doing it.
+ 		 */
+-		if (((unsigned long)uaddr & PAGE_MASK) !=
++		if (((unsigned long)uaddr & PAGE_MASK) ==
+ 				((unsigned long)end & PAGE_MASK))
+-		 	ret = __put_user(0, end);
++			ret = __put_user(0, end);
+ 	}
+ 	return ret;
+ }
+@@ -435,17 +439,21 @@ static inline int fault_in_pages_readable(const char __user *uaddr, int size)
+ {
+ 	volatile char c;
+ 	int ret;
++	const char __user *end = uaddr + size - 1;
+ 
+ 	if (unlikely(size == 0))
+ 		return 0;
+ 
+-	ret = __get_user(c, uaddr);
++	while (uaddr <= end) {
++		ret = __get_user(c, uaddr);
++		if (ret != 0)
++			return ret;
++		uaddr += PAGE_SIZE;
++	}
+ 	if (ret == 0) {
+-		const char __user *end = uaddr + size - 1;
+-
+-		if (((unsigned long)uaddr & PAGE_MASK) !=
++		if (((unsigned long)uaddr & PAGE_MASK) ==
+ 				((unsigned long)end & PAGE_MASK)) {
+-		 	ret = __get_user(c, end);
++			ret = __get_user(c, end);
+ 			(void)c;
+ 		}
+ 	}
 -- 
 1.7.7.5
 
