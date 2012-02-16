@@ -1,51 +1,387 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx147.postini.com [74.125.245.147])
-	by kanga.kvack.org (Postfix) with SMTP id 0C8786B00E8
-	for <linux-mm@kvack.org>; Thu, 16 Feb 2012 10:14:12 -0500 (EST)
-Received: by bkty12 with SMTP id y12so2706304bkt.14
-        for <linux-mm@kvack.org>; Thu, 16 Feb 2012 07:14:11 -0800 (PST)
-Date: Thu, 16 Feb 2012 16:14:25 +0100
-From: Daniel Vetter <daniel@ffwll.ch>
-Subject: Re: [PATCH] mm: extend prefault helpers to fault in more than
- PAGE_SIZE
-Message-ID: <20120216151425.GB19158@phenom.ffwll.local>
-References: <1329393696-4802-1-git-send-email-daniel.vetter@ffwll.ch>
- <1329393696-4802-2-git-send-email-daniel.vetter@ffwll.ch>
- <CAJd=RBBr4EkCwAaS3xZZrm0QE71Z0soyZXTuwXyBn6ohp3pU2Q@mail.gmail.com>
+Received: from psmtp.com (na3sys010amx113.postini.com [74.125.245.113])
+	by kanga.kvack.org (Postfix) with SMTP id B16946B0082
+	for <linux-mm@kvack.org>; Thu, 16 Feb 2012 10:45:32 -0500 (EST)
+Message-ID: <4F3D2476.4030409@xenotime.net>
+Date: Thu, 16 Feb 2012 07:44:54 -0800
+From: Randy Dunlap <rdunlap@xenotime.net>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
+Subject: Re: [PATCH 01/18] Added hacking menu for override optimization by
+ GCC.
+References: <1329402705-25454-1-git-send-email-mail@smogura.eu>
+In-Reply-To: <1329402705-25454-1-git-send-email-mail@smogura.eu>
+Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 8bit
-In-Reply-To: <CAJd=RBBr4EkCwAaS3xZZrm0QE71Z0soyZXTuwXyBn6ohp3pU2Q@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hillf Danton <dhillf@gmail.com>
-Cc: Daniel Vetter <daniel.vetter@ffwll.ch>, Andrew Morton <akpm@linux-foundation.org>, Intel Graphics Development <intel-gfx@lists.freedesktop.org>, DRI Development <dri-devel@lists.freedesktop.org>, LKML <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>
+To: =?UTF-8?B?UmFkb3PFgmF3IFNtb2d1cmE=?= <mail@smogura.eu>
+Cc: linux-mm@kvack.org, Yongqiang Yang <xiaoqiangnk@gmail.com>, linux-ext4@vger.kernel.org
 
-On Thu, Feb 16, 2012 at 09:32:08PM +0800, Hillf Danton wrote:
-> On Thu, Feb 16, 2012 at 8:01 PM, Daniel Vetter <daniel.vetter@ffwll.ch> wrote:
-> > @@ -416,17 +417,20 @@ static inline int fault_in_pages_writeable(char __user *uaddr, int size)
-> >         * Writing zeroes into userspace here is OK, because we know that if
-> >         * the zero gets there, we'll be overwriting it.
-> >         */
-> > -       ret = __put_user(0, uaddr);
-> > +       while (uaddr <= end) {
-> > +               ret = __put_user(0, uaddr);
-> > +               if (ret != 0)
-> > +                       return ret;
-> > +               uaddr += PAGE_SIZE;
-> > +       }
+On 02/16/2012 06:31 AM, RadosA?aw Smogura wrote:
+> From: mail@smogura.eu <mail@smogura.eu>
 > 
-> What if
->              uaddr & ~PAGE_MASK == PAGE_SIZE -3 &&
->                 end & ~PAGE_MASK == 2
+> This patch gives ability for add some "-fno-..." options for GCC
+> and to force -O1 optimization. Supporting files, like Kconfig, Makefile
+> are auto-generated due to large amount of available options.
+> 
+> Patch helps to debug kernel.
 
-I don't quite follow - can you elaborate upon which issue you're seeing?
--Daniel
+Note: I only see patches 1-10.
+
+I fix a few typos below (comments in the generated files only).
+
+
+> ---
+>  Makefile                           |   11 ++++
+>  lib/Kconfig.debug                  |    2 +
+>  lib/Kconfig.debug.optim            |  102 ++++++++++++++++++++++++++++++++++++
+>  scripts/Makefile.optim.inc         |   23 ++++++++
+>  scripts/debug/make_config_optim.sh |   88 +++++++++++++++++++++++++++++++
+>  5 files changed, 226 insertions(+), 0 deletions(-)
+>  create mode 100644 lib/Kconfig.debug.optim
+>  create mode 100644 scripts/Makefile.optim.inc
+>  create mode 100644 scripts/debug/make_config_optim.sh
+> 
+> diff --git a/Makefile b/Makefile
+> index 7c44b67..bc9a961 100644
+> --- a/Makefile
+> +++ b/Makefile
+> @@ -558,12 +558,23 @@ endif # $(dot-config)
+>  # Defaults to vmlinux, but the arch makefile usually adds further targets
+>  all: vmlinux
+>  
+> +ifdef CONFIG_HACK_OPTIM_FORCE_O1_LEVEL
+> +KBUILD_CFLAGS += -O1
+> +else
+> +
+>  ifdef CONFIG_CC_OPTIMIZE_FOR_SIZE
+>  KBUILD_CFLAGS	+= -Os
+>  else
+>  KBUILD_CFLAGS	+= -O2
+>  endif
+>  
+> +endif
+> +
+> +# Include makefile for optimization override
+> +ifdef CONFIG_HACK_OPTIM
+> +include $(srctree)/scripts/Makefile.optim.inc
+> +endif
+> +
+>  include $(srctree)/arch/$(SRCARCH)/Makefile
+>  
+>  ifneq ($(CONFIG_FRAME_WARN),0)
+> diff --git a/lib/Kconfig.debug b/lib/Kconfig.debug
+> index 8745ac7..928265e 100644
+> --- a/lib/Kconfig.debug
+> +++ b/lib/Kconfig.debug
+> @@ -1274,5 +1274,7 @@ source "lib/Kconfig.kgdb"
+>  
+>  source "lib/Kconfig.kmemcheck"
+>  
+> +source "lib/Kconfig.debug.optim"
+> +
+>  config TEST_KSTRTOX
+>  	tristate "Test kstrto*() family of functions at runtime"
+> diff --git a/lib/Kconfig.debug.optim b/lib/Kconfig.debug.optim
+> new file mode 100644
+> index 0000000..09b1012
+> --- /dev/null
+> +++ b/lib/Kconfig.debug.optim
+> @@ -0,0 +1,102 @@
+> +# This file was auto generated. It's utility configuration
+
+                                   ^^^^^^^^^^^^^^^^^^^^^^^^^^
+That sentence(?) (fragment?) is not helpful.  I would drop it.
+
+> +# Distributed under GPL v2 License
+> +
+> +menuconfig HACK_OPTIM
+> +	bool "Allows to override GCC optimization"
+
+	      Allows the user to override GCC optimization
+
+> +	depends on DEBUG_KERNEL && EXPERIMENTAL
+> +	help
+> +	  If you say Y here you will be able to override
+> +	  how GCC optimize kernel code. This will create
+
+	          optimizes
+
+> +	  more debug friendly, but with not guarentee
+
+	             friendly code, but will not guarantee
+
+> +	  about same runi, like production, kernel.
+
+	  the same running, like a production kernel.
+
+> +
+> +	  If you say Y here probably You will want say
+
+	                             you will want to say Y
+
+> +	  for all suboptions
+
+	  for all suboptions.
+
+> +
+> +if HACK_OPTIM
+> +
+> +config HACK_OPTIM_FORCE_O1_LEVEL
+> +	bool "Forces -O1 optimization level"
+> +	---help---
+> +	  This will change how GCC optimize code. Code
+
+	                           optimizes
+
+> +	  may be slower and larger but will be more debug
+> +	  "friendly".
+> +
+> +	  In some cases there is low chance that kernel
+> +	  will run different then normal, reporting or not
+
+	  will run differently than normal,
+
+> +	  some bugs or errors. Refere to GCC manual for
+
+	                       Refer
+
+> +	  more details.
+> +
+> +	  You SHOULD say N here.
+> +
+> +config HACK_OPTIM__fno_inline_functions_called_once
+> +	bool "Adds -fno-inline-functions-called-once parameter to gcc invoke line."
+> +	---help---
+> +	  This will change how GCC optimize code. Code
+
+	                           optimizes
+
+> +	  may be slower and larger but will be more debug
+> +	  "friendly".
+> +
+> +	  In some cases there is low chance that kernel
+> +	  will run different then normal, reporting or not
+
+	  will run differently than normal,
+
+> +	  some bugs or errors. Refere to GCC manual for
+
+	                       Refer
+
+> +	  more details.
+> +
+> +	  You SHOULD say N here.
+> +
+> +config HACK_OPTIM__fno_combine_stack_adjustments
+> +	bool "Adds -fno-combine-stack-adjustments parameter to gcc invoke line."
+> +	---help---
+> +	  This will change how GCC optimize code. Code
+
+	                           optimizes
+
+> +	  may be slower and larger but will be more debug
+> +	  "friendly".
+> +
+> +	  In some cases there is low chance that kernel
+> +	  will run different then normal, reporting or not
+
+	  will run differently than normal,
+
+> +	  some bugs or errors. Refere to GCC manual for
+
+	                       Refer
+
+> +	  more details.
+> +
+> +	  You SHOULD say N here.
+> +
+> +config HACK_OPTIM__fno_tree_dce
+> +	bool "Adds -fno-tree-dce parameter to gcc invoke line."
+> +	---help---
+> +	  This will change how GCC optimize code. Code
+
+	                           optimizes
+
+> +	  may be slower and larger but will be more debug
+> +	  "friendly".
+> +
+> +	  In some cases there is low chance that kernel
+> +	  will run different then normal, reporting or not
+
+	  will run differently than normal,
+
+> +	  some bugs or errors. Refere to GCC manual for
+
+	                       Refer
+
+> +	  more details.
+> +
+> +	  You SHOULD say N here.
+> +
+> +config HACK_OPTIM__fno_tree_dominator_opts
+> +	bool "Adds -fno-tree-dominator-opts parameter to gcc invoke line."
+> +	---help---
+> +	  This will change how GCC optimize code. Code
+
+same ...
+
+> +	  may be slower and larger but will be more debug
+> +	  "friendly".
+> +
+> +	  In some cases there is low chance that kernel
+> +	  will run different then normal, reporting or not
+> +	  some bugs or errors. Refere to GCC manual for
+> +	  more details.
+> +
+> +	  You SHOULD say N here.
+> +
+> +config HACK_OPTIM__fno_dse
+> +	bool "Adds -fno-dse parameter to gcc invoke line."
+> +	---help---
+> +	  This will change how GCC optimize code. Code
+
+same ...
+
+> +	  may be slower and larger but will be more debug
+> +	  "friendly".
+> +
+> +	  In some cases there is low chance that kernel
+> +	  will run different then normal, reporting or not
+> +	  some bugs or errors. Refere to GCC manual for
+> +	  more details.
+> +
+> +	  You SHOULD say N here.
+> +
+> +endif #HACK_OPTIM
+> diff --git a/scripts/Makefile.optim.inc b/scripts/Makefile.optim.inc
+> new file mode 100644
+> index 0000000..e78cc92
+> --- /dev/null
+> +++ b/scripts/Makefile.optim.inc
+> @@ -0,0 +1,23 @@
+> +# This file was auto generated. It's utility configuration
+> +# Distributed under GPL v2 License
+> +
+> +ifdef CONFIG_HACK_OPTIM__fno_inline_functions_called_once
+> +	KBUILD_CFLAGS += -fno-inline-functions-called-once
+> +endif
+> +
+> +ifdef CONFIG_HACK_OPTIM__fno_combine_stack_adjustments
+> +	KBUILD_CFLAGS += -fno-combine-stack-adjustments
+> +endif
+> +
+> +ifdef CONFIG_HACK_OPTIM__fno_tree_dce
+> +	KBUILD_CFLAGS += -fno-tree-dce
+> +endif
+> +
+> +ifdef CONFIG_HACK_OPTIM__fno_tree_dominator_opts
+> +	KBUILD_CFLAGS += -fno-tree-dominator-opts
+> +endif
+> +
+> +ifdef CONFIG_HACK_OPTIM__fno_dse
+> +	KBUILD_CFLAGS += -fno-dse
+> +endif
+> +
+> diff --git a/scripts/debug/make_config_optim.sh b/scripts/debug/make_config_optim.sh
+> new file mode 100644
+> index 0000000..26865923
+> --- /dev/null
+> +++ b/scripts/debug/make_config_optim.sh
+> @@ -0,0 +1,88 @@
+> +#!/bin/sh
+> +
+> +## Utility script for generating optimization override options
+> +## for kernel compilation.
+> +##
+> +## Distributed under GPL v2 license
+> +## (c) RadosA?aw Smogura, 2011
+> +
+> +# Prefix added for variable
+> +CFG_PREFIX="HACK_OPTIM"
+> +
+> +KCFG="Kconfig.debug.optim"
+> +MKFI="Makefile.optim.inc"
+> +
+> +OPTIMIZATIONS_PARAMS="-fno-inline-functions-called-once \
+> + -fno-combine-stack-adjustments \
+> + -fno-tree-dce \
+> + -fno-tree-dominator-opts \
+> + -fno-dse "
+> +
+> +echo "# This file was auto generated. It's utility configuration" > $KCFG
+> +echo "# Distributed under GPL v2 License" >> $KCFG
+> +echo >> $KCFG
+> +echo "menuconfig ${CFG_PREFIX}" >> $KCFG
+> +echo -e "\tbool \"Allows to override GCC optimization\"" >> $KCFG
+> +echo -e "\tdepends on DEBUG_KERNEL && EXPERIMENTAL" >> $KCFG
+> +echo -e "\thelp" >> $KCFG
+> +echo -e "\t  If you say Y here you will be able to override" >> $KCFG
+> +echo -e "\t  how GCC optimize kernel code. This will create" >> $KCFG
+> +echo -e "\t  more debug friendly, but with not guarentee"    >> $KCFG
+> +echo -e "\t  about same runi, like production, kernel."      >> $KCFG
+> +echo >> $KCFG
+> +echo -e "\t  If you say Y here probably You will want say"   >> $KCFG
+> +echo -e "\t  for all suboptions" >> $KCFG
+> +echo >> $KCFG
+> +echo "if ${CFG_PREFIX}" >> $KCFG
+> +echo >> $KCFG
+> +
+> +echo "# This file was auto generated. It's utility configuration" > $MKFI
+> +echo "# Distributed under GPL v2 License" >> $MKFI
+> +echo >> $MKFI
+> +
+> +# Insert standard override optimization level
+> +# This is exception, and this value will not be included
+> +# in auto generated makefile. Support for this value
+> +# is hard coded in main Makefile.
+> +echo -e "config ${CFG_PREFIX}_FORCE_O1_LEVEL" >> $KCFG
+> +echo -e "\tbool \"Forces -O1 optimization level\"" >> $KCFG
+> +echo -e "\t---help---" >> $KCFG
+> +echo -e "\t  This will change how GCC optimize code. Code" >> $KCFG
+> +echo -e "\t  may be slower and larger but will be more debug" >> $KCFG
+> +echo -e "\t  \"friendly\"." >> $KCFG
+> +echo >> $KCFG
+> +echo -e "\t  In some cases there is low chance that kernel" >> $KCFG
+> +echo -e "\t  will run different then normal, reporting or not" >> $KCFG
+> +echo -e "\t  some bugs or errors. Refere to GCC manual for" >> $KCFG
+> +echo -e "\t  more details." >> $KCFG
+> +echo >> $KCFG
+> +echo -e "\t  You SHOULD say N here." >> $KCFG
+> +echo >> $KCFG
+> +
+> +for o in $OPTIMIZATIONS_PARAMS ; do
+> +	cfg_o="${CFG_PREFIX}_${o//-/_}";
+> +	echo "Processing param ${o} config variable will be $cfg_o";
+> +
+> +	# Generate kconfig entry
+> +	echo -e "config ${cfg_o}" >> $KCFG
+> +	echo -e "\tbool \"Adds $o parameter to gcc invoke line.\"" >> $KCFG
+> +	echo -e "\t---help---" >> $KCFG
+> +	echo -e "\t  This will change how GCC optimize code. Code" >> $KCFG
+> +	echo -e "\t  may be slower and larger but will be more debug" >> $KCFG
+> +	echo -e "\t  \"friendly\"." >> $KCFG
+> +	echo >> $KCFG
+> +	echo -e "\t  In some cases there is low chance that kernel" >> $KCFG
+> +	echo -e "\t  will run different then normal, reporting or not" >> $KCFG
+> +	echo -e "\t  some bugs or errors. Refere to GCC manual for" >> $KCFG
+> +	echo -e "\t  more details." >> $KCFG
+> +	echo >> $KCFG
+> +	echo -e "\t  You SHOULD say N here." >> $KCFG
+> +	echo >> $KCFG
+> +
+> +	#Generate Make for include
+> +	echo "ifdef CONFIG_${cfg_o}" >> $MKFI
+> +	echo -e "\tKBUILD_CFLAGS += $o" >> $MKFI
+> +	echo "endif" >> $MKFI
+> +	echo  >> $MKFI
+> +done;
+> +echo "endif #${CFG_PREFIX}" >> $KCFG
+
+
 -- 
-Daniel Vetter
-Mail: daniel@ffwll.ch
-Mobile: +41 (0)79 365 57 48
+~Randy
+*** Remember to use Documentation/SubmitChecklist when testing your code ***
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
