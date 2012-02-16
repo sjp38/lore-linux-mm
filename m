@@ -1,37 +1,39 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx177.postini.com [74.125.245.177])
-	by kanga.kvack.org (Postfix) with SMTP id DBBD26B00EC
-	for <linux-mm@kvack.org>; Thu, 16 Feb 2012 08:46:55 -0500 (EST)
+Received: from psmtp.com (na3sys010amx157.postini.com [74.125.245.157])
+	by kanga.kvack.org (Postfix) with SMTP id A97C66B00F0
+	for <linux-mm@kvack.org>; Thu, 16 Feb 2012 08:46:56 -0500 (EST)
 From: Jan Kara <jack@suse.cz>
-Subject: [PATCH 09/11] sysfs: Push file_update_time() into bin_page_mkwrite()
-Date: Thu, 16 Feb 2012 14:46:17 +0100
-Message-Id: <1329399979-3647-10-git-send-email-jack@suse.cz>
+Subject: [PATCH 10/11] nfs: Push file_update_time() into nfs_vm_page_mkwrite()
+Date: Thu, 16 Feb 2012 14:46:18 +0100
+Message-Id: <1329399979-3647-11-git-send-email-jack@suse.cz>
 In-Reply-To: <1329399979-3647-1-git-send-email-jack@suse.cz>
 References: <1329399979-3647-1-git-send-email-jack@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: LKML <linux-kernel@vger.kernel.org>
-Cc: linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Eric Sandeen <sandeen@redhat.com>, Dave Chinner <david@fromorbit.com>, Jan Kara <jack@suse.cz>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+Cc: linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Eric Sandeen <sandeen@redhat.com>, Dave Chinner <david@fromorbit.com>, Jan Kara <jack@suse.cz>, Trond Myklebust <Trond.Myklebust@netapp.com>, linux-nfs@vger.kernel.org
 
-CC: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+CC: Trond Myklebust <Trond.Myklebust@netapp.com>
+CC: linux-nfs@vger.kernel.org
 Signed-off-by: Jan Kara <jack@suse.cz>
 ---
- fs/sysfs/bin.c |    2 ++
- 1 files changed, 2 insertions(+), 0 deletions(-)
+ fs/nfs/file.c |    3 +++
+ 1 files changed, 3 insertions(+), 0 deletions(-)
 
-diff --git a/fs/sysfs/bin.c b/fs/sysfs/bin.c
-index a475983..6ceb16f 100644
---- a/fs/sysfs/bin.c
-+++ b/fs/sysfs/bin.c
-@@ -225,6 +225,8 @@ static int bin_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf)
- 	if (!sysfs_get_active(attr_sd))
- 		return VM_FAULT_SIGBUS;
+diff --git a/fs/nfs/file.c b/fs/nfs/file.c
+index c43a452..2407922 100644
+--- a/fs/nfs/file.c
++++ b/fs/nfs/file.c
+@@ -525,6 +525,9 @@ static int nfs_vm_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf)
+ 	/* make sure the cache has finished storing the page */
+ 	nfs_fscache_wait_on_page_write(NFS_I(dentry->d_inode), page);
  
-+	file_update_time(file);
++	/* Update file times before taking page lock */
++	file_update_time(filp);
 +
- 	ret = 0;
- 	if (bb->vm_ops->page_mkwrite)
- 		ret = bb->vm_ops->page_mkwrite(vma, vmf);
+ 	lock_page(page);
+ 	mapping = page->mapping;
+ 	if (mapping != dentry->d_inode->i_mapping)
 -- 
 1.7.1
 
