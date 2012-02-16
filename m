@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx153.postini.com [74.125.245.153])
-	by kanga.kvack.org (Postfix) with SMTP id 7F3C66B0082
-	for <linux-mm@kvack.org>; Thu, 16 Feb 2012 16:09:56 -0500 (EST)
+Received: from psmtp.com (na3sys010amx193.postini.com [74.125.245.193])
+	by kanga.kvack.org (Postfix) with SMTP id 439DE6B0082
+	for <linux-mm@kvack.org>; Thu, 16 Feb 2012 16:16:32 -0500 (EST)
 From: =?UTF-8?q?Rados=C5=82aw=20Smogura?= <mail@smogura.eu>
-Subject: [PATCH 14/18] Fixes for proc memory
-Date: Thu, 16 Feb 2012 15:31:41 +0100
-Message-Id: <1329402705-25454-14-git-send-email-mail@smogura.eu>
+Subject: [PATCH 17/18] [Experimental] Support for huge pages in EXT 4
+Date: Thu, 16 Feb 2012 15:31:44 +0100
+Message-Id: <1329402705-25454-17-git-send-email-mail@smogura.eu>
 In-Reply-To: <1329402705-25454-1-git-send-email-mail@smogura.eu>
 References: <1329402705-25454-1-git-send-email-mail@smogura.eu>
 MIME-Version: 1.0
@@ -16,204 +16,275 @@ List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
 Cc: Yongqiang Yang <xiaoqiangnk@gmail.com>, mail@smogura.eu, linux-ext4@vger.kernel.org
 
-Fixed smaps to do not split page, and print information about
-shared/private huge dirty/clean pages. This changes operates only
-on dirty flag from pmd - it may not be enaugh, but checking in addition
-PageDirty, like for pte, is too much, because of head of huge page may
-be mapped to single pte, not only as huge pmd.
+It's rather experimental to uncover all leaks in adding huge page cache
+support for shm, not for giving any real support for huge pages for
+EXT4 file system. This will test if some concepts was good or bad.
 
-In pagemaps removed splitting and adding huge pmd as one page with shift
-of huge page.
+In any case target is that some segments of glibc may be mapped as huge
+pages, only if it will be aligned to huge page boundaries.
 
 Signed-off-by: RadosA?aw Smogura <mail@smogura.eu>
 ---
- fs/proc/task_mmu.c |   97 ++++++++++++++++++++++++++++++++++++----------------
- 1 files changed, 67 insertions(+), 30 deletions(-)
+ fs/ext4/Kconfig                  |    9 ++++
+ fs/ext4/file.c                   |    3 +
+ fs/ext4/inode.c                  |   15 +++++++
+ include/linux/defrag-pagecache.h |    4 ++
+ include/linux/mm.h               |    4 ++
+ mm/defrag-pagecache.c            |   19 +++++++++
+ mm/filemap.c                     |   82 ++++++++++++++++++++++++++++++++++++++
+ 7 files changed, 136 insertions(+), 0 deletions(-)
 
-diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
-index 7dcd2a2..111e64c 100644
---- a/fs/proc/task_mmu.c
-+++ b/fs/proc/task_mmu.c
-@@ -333,8 +333,12 @@ struct mem_size_stats {
- 	unsigned long resident;
- 	unsigned long shared_clean;
- 	unsigned long shared_dirty;
-+	unsigned long shared_huge_clean;
-+	unsigned long shared_huge_dirty;
- 	unsigned long private_clean;
- 	unsigned long private_dirty;
-+	unsigned long private_huge_clean;
-+	unsigned long private_huge_dirty;
- 	unsigned long referenced;
- 	unsigned long anonymous;
- 	unsigned long anonymous_thp;
-@@ -342,9 +346,8 @@ struct mem_size_stats {
- 	u64 pss;
+diff --git a/fs/ext4/Kconfig b/fs/ext4/Kconfig
+index 9ed1bb1..1a33bb0 100644
+--- a/fs/ext4/Kconfig
++++ b/fs/ext4/Kconfig
+@@ -83,3 +83,12 @@ config EXT4_DEBUG
+ 
+ 	  If you select Y here, then you will be able to turn on debugging
+ 	  with a command such as "echo 1 > /sys/kernel/debug/ext4/mballoc-debug"
++
++config EXT4_HUGEPAGECACHE
++	bool "EXT4 Huge Page Cache Support [Danegerous]"
++	depends on EXT4_FS
++	depends on HUGEPAGECACHE
++	help
++	  It's rather experimental to uncover all leaks in adding huge page cache
++	  support for shm, not for giving any real support for huge pages for
++	  EXT4 file system. This will test if some concepts was quite good.
+diff --git a/fs/ext4/file.c b/fs/ext4/file.c
+index cb70f18..57698df 100644
+--- a/fs/ext4/file.c
++++ b/fs/ext4/file.c
+@@ -143,6 +143,9 @@ ext4_file_write(struct kiocb *iocb, const struct iovec *iov,
+ 
+ static const struct vm_operations_struct ext4_file_vm_ops = {
+ 	.fault		= filemap_fault,
++#ifdef CONFIG_EXT4_HUGEPAGECACHE
++	.fault_huge	= filemap_fault_huge,
++#endif
+ 	.page_mkwrite   = ext4_page_mkwrite,
  };
  
--
- static void smaps_pte_entry(pte_t ptent, unsigned long addr,
--		unsigned long ptent_size, struct mm_walk *walk)
-+		unsigned long ptent_size, struct mm_walk *walk, int huge_file)
- {
- 	struct mem_size_stats *mss = walk->private;
- 	struct vm_area_struct *vma = mss->vma;
-@@ -368,20 +371,33 @@ static void smaps_pte_entry(pte_t ptent, unsigned long addr,
+diff --git a/fs/ext4/inode.c b/fs/ext4/inode.c
+index feaa82f..8bbda5a 100644
+--- a/fs/ext4/inode.c
++++ b/fs/ext4/inode.c
+@@ -45,6 +45,9 @@
  
- 	mss->resident += ptent_size;
- 	/* Accumulate the size in pages that have been accessed. */
--	if (pte_young(ptent) || PageReferenced(page))
-+	if (pte_young(ptent) || (!huge_file && PageReferenced(page)))
- 		mss->referenced += ptent_size;
- 	mapcount = page_mapcount(page);
-+	/* For huge file mapping only account by pte, as page may be made
-+	 * dirty, but not pmd (huge page may be mapped in ptes not pde).
-+	 */
- 	if (mapcount >= 2) {
--		if (pte_dirty(ptent) || PageDirty(page))
-+		if (pte_dirty(ptent) || (!huge_file && PageDirty(page))) {
- 			mss->shared_dirty += ptent_size;
--		else
-+			if (huge_file)
-+				mss->shared_huge_dirty += ptent_size;
-+		} else {
- 			mss->shared_clean += ptent_size;
-+			if (huge_file)
-+				mss->shared_huge_clean += ptent_size;
-+		}
- 		mss->pss += (ptent_size << PSS_SHIFT) / mapcount;
- 	} else {
--		if (pte_dirty(ptent) || PageDirty(page))
-+		if (pte_dirty(ptent) || (!huge_file && PageDirty(page))) {
- 			mss->private_dirty += ptent_size;
--		else
-+			if (huge_file)
-+				mss->private_huge_dirty += ptent_size;
-+		} else {
- 			mss->private_clean += ptent_size;
-+			if (huge_file)
-+				mss->private_huge_clean += ptent_size;
-+		}
- 		mss->pss += (ptent_size << PSS_SHIFT);
- 	}
- }
-@@ -401,9 +417,10 @@ static int smaps_pte_range(pmd_t *pmd, unsigned long addr, unsigned long end,
- 			wait_split_huge_page(vma->anon_vma, pmd);
- 		} else {
- 			smaps_pte_entry(*(pte_t *)pmd, addr,
--					HPAGE_PMD_SIZE, walk);
-+					HPAGE_PMD_SIZE, walk,
-+					vma->vm_ops != NULL);
- 			spin_unlock(&walk->mm->page_table_lock);
--			mss->anonymous_thp += HPAGE_PMD_SIZE;
-+				mss->anonymous_thp += HPAGE_PMD_SIZE;
- 			return 0;
- 		}
- 	} else {
-@@ -416,7 +433,7 @@ static int smaps_pte_range(pmd_t *pmd, unsigned long addr, unsigned long end,
- 	 */
- 	pte = pte_offset_map_lock(vma->vm_mm, pmd, addr, &ptl);
- 	for (; addr != end; pte++, addr += PAGE_SIZE)
--		smaps_pte_entry(*pte, addr, PAGE_SIZE, walk);
-+		smaps_pte_entry(*pte, addr, PAGE_SIZE, walk, 0);
- 	pte_unmap_unlock(pte - 1, ptl);
- 	cond_resched();
- 	return 0;
-@@ -443,20 +460,24 @@ static int show_smap(struct seq_file *m, void *v)
- 	show_map_vma(m, vma);
+ #include <trace/events/ext4.h>
  
- 	seq_printf(m,
--		   "Size:           %8lu kB\n"
--		   "Rss:            %8lu kB\n"
--		   "Pss:            %8lu kB\n"
--		   "Shared_Clean:   %8lu kB\n"
--		   "Shared_Dirty:   %8lu kB\n"
--		   "Private_Clean:  %8lu kB\n"
--		   "Private_Dirty:  %8lu kB\n"
--		   "Referenced:     %8lu kB\n"
--		   "Anonymous:      %8lu kB\n"
--		   "AnonHugePages:  %8lu kB\n"
--		   "Swap:           %8lu kB\n"
--		   "KernelPageSize: %8lu kB\n"
--		   "MMUPageSize:    %8lu kB\n"
--		   "Locked:         %8lu kB\n",
-+		   "Size:                %8lu kB\n"
-+		   "Rss:                 %8lu kB\n"
-+		   "Pss:                 %8lu kB\n"
-+		   "Shared_Clean:        %8lu kB\n"
-+		   "Shared_Dirty:        %8lu kB\n"
-+		   "Private_Clean:       %8lu kB\n"
-+		   "Private_Dirty:       %8lu kB\n"
-+		   "Shared_Huge_Clean:   %8lu kB\n"
-+		   "Shared_Huge_Dirty:   %8lu kB\n"
-+		   "Private_Huge_Clean:  %8lu kB\n"
-+		   "Private_Huge_Dirty:  %8lu kB\n"
-+		   "Referenced:          %8lu kB\n"
-+		   "Anonymous:           %8lu kB\n"
-+		   "AnonHugePages:       %8lu kB\n"
-+		   "Swap:                %8lu kB\n"
-+		   "KernelPageSize:      %8lu kB\n"
-+		   "MMUPageSize:         %8lu kB\n"
-+		   "Locked:              %8lu kB\n",
- 		   (vma->vm_end - vma->vm_start) >> 10,
- 		   mss.resident >> 10,
- 		   (unsigned long)(mss.pss >> (10 + PSS_SHIFT)),
-@@ -464,6 +485,10 @@ static int show_smap(struct seq_file *m, void *v)
- 		   mss.shared_dirty  >> 10,
- 		   mss.private_clean >> 10,
- 		   mss.private_dirty >> 10,
-+		   mss.shared_huge_clean  >> 10,
-+		   mss.shared_huge_dirty  >> 10,
-+		   mss.private_huge_clean >> 10,
-+		   mss.private_huge_dirty >> 10,
- 		   mss.referenced >> 10,
- 		   mss.anonymous >> 10,
- 		   mss.anonymous_thp >> 10,
-@@ -661,6 +686,15 @@ static u64 pte_to_pagemap_entry(pte_t pte)
- 	return pme;
++#ifdef CONFIG_EXT4_HUGEPAGECACHE
++#include <linux/defrag-pagecache.h>
++#endif
+ #define MPAGE_DA_EXTENT_TAIL 0x01
+ 
+ static inline int ext4_begin_ordered_truncate(struct inode *inode,
+@@ -3036,6 +3039,9 @@ static const struct address_space_operations ext4_ordered_aops = {
+ 	.migratepage		= buffer_migrate_page,
+ 	.is_partially_uptodate  = block_is_partially_uptodate,
+ 	.error_remove_page	= generic_error_remove_page,
++#ifdef CONFIG_EXT4_HUGEPAGECACHE
++	.defragpage		= defrag_generic_file,
++#endif
+ };
+ 
+ static const struct address_space_operations ext4_writeback_aops = {
+@@ -3051,6 +3057,9 @@ static const struct address_space_operations ext4_writeback_aops = {
+ 	.migratepage		= buffer_migrate_page,
+ 	.is_partially_uptodate  = block_is_partially_uptodate,
+ 	.error_remove_page	= generic_error_remove_page,
++#ifdef CONFIG_EXT4_HUGEPAGECACHE
++	.defragpage		= defrag_generic_file,
++#endif
+ };
+ 
+ static const struct address_space_operations ext4_journalled_aops = {
+@@ -3066,6 +3075,9 @@ static const struct address_space_operations ext4_journalled_aops = {
+ 	.direct_IO		= ext4_direct_IO,
+ 	.is_partially_uptodate  = block_is_partially_uptodate,
+ 	.error_remove_page	= generic_error_remove_page,
++#ifdef CONFIG_EXT4_HUGEPAGECACHE
++	.defragpage		= defrag_generic_file,
++#endif
+ };
+ 
+ static const struct address_space_operations ext4_da_aops = {
+@@ -3082,6 +3094,9 @@ static const struct address_space_operations ext4_da_aops = {
+ 	.migratepage		= buffer_migrate_page,
+ 	.is_partially_uptodate  = block_is_partially_uptodate,
+ 	.error_remove_page	= generic_error_remove_page,
++#ifdef CONFIG_EXT4_HUGEPAGECACHE
++	.defragpage		= defrag_generic_file,
++#endif
+ };
+ 
+ void ext4_set_aops(struct inode *inode)
+diff --git a/include/linux/defrag-pagecache.h b/include/linux/defrag-pagecache.h
+index 4ca3468..fb305c8 100644
+--- a/include/linux/defrag-pagecache.h
++++ b/include/linux/defrag-pagecache.h
+@@ -42,5 +42,9 @@ extern int defrag_generic_shm(struct file *file, struct address_space *mapping,
+ 			   loff_t pos,
+ 			   struct page **pagep,
+ 			   struct defrag_pagecache_ctl *ctl);
++extern int defrag_generic_file(struct file *file, struct address_space *mapping,
++			   loff_t pos,
++			   struct page **pagep,
++			   struct defrag_pagecache_ctl *ctl);
+ #endif	/* DEFRAG_PAGECACHE_H */
+ 
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index 4c67555..24c2c6c 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -1620,6 +1620,10 @@ extern void truncate_inode_pages_range(struct address_space *,
+ /* generic vm_area_ops exported for stackable file systems */
+ extern int filemap_fault(struct vm_area_struct *, struct vm_fault *);
+ 
++#ifdef CONFIG_HUGEPAGECACHE
++extern int filemap_fault_huge(struct vm_area_struct *vma, struct vm_fault *vmf);
++#endif
++
+ /* mm/page-writeback.c */
+ int write_one_page(struct page *page, int wait);
+ void task_dirty_inc(struct task_struct *tsk);
+diff --git a/mm/defrag-pagecache.c b/mm/defrag-pagecache.c
+index 5a14fe8..6a87814 100644
+--- a/mm/defrag-pagecache.c
++++ b/mm/defrag-pagecache.c
+@@ -104,6 +104,16 @@ struct page *shmem_defrag_get_page(const struct defrag_pagecache_ctl *ctl,
+ 				mapping_gfp_mask(inode->i_mapping));
  }
  
-+static u64 pmd_to_pagemap_entry(pmd_t pmd)
++/** Callback for getting page for tmpfs.
++ * Tmpfs uses {@link shmem_read_mapping_page_gfp} function to read
++ * page from page cache.
++ */
++struct page *file_defrag_get_page(const struct defrag_pagecache_ctl *ctl,
++	struct inode *inode, pgoff_t pageIndex)
 +{
-+	u64 pme = 0;
-+	if (pmd_present(pmd))
-+		pme = PM_PFRAME(pmd_pfn(pmd))
-+			| PM_PSHIFT(HPAGE_SHIFT) | PM_PRESENT;
-+	return pme | PM_PSHIFT(HPAGE_SHIFT);
++	return read_mapping_page(inode->i_mapping, pageIndex, NULL);
 +}
 +
- static int pagemap_pte_range(pmd_t *pmd, unsigned long addr, unsigned long end,
- 			     struct mm_walk *walk)
+ static void defrag_generic_mig_result(struct page *oldPage,
+ 	struct page *newPage, struct migration_ctl *ctl, int result)
  {
-@@ -669,8 +703,6 @@ static int pagemap_pte_range(pmd_t *pmd, unsigned long addr, unsigned long end,
- 	pte_t *pte;
- 	int err = 0;
+@@ -258,6 +268,15 @@ int defrag_generic_shm(struct file *file, struct address_space *mapping,
+ }
+ EXPORT_SYMBOL(defrag_generic_shm);
  
--	split_huge_page_pmd(walk->mm, pmd);
--
- 	/* find the first VMA at or above 'addr' */
- 	vma = find_vma(walk->mm, addr);
- 	for (; addr != end; addr += PAGE_SIZE) {
-@@ -685,10 +717,15 @@ static int pagemap_pte_range(pmd_t *pmd, unsigned long addr, unsigned long end,
- 		 * and that it isn't a huge page vma */
- 		if (vma && (vma->vm_start <= addr) &&
- 		    !is_vm_hugetlb_page(vma)) {
--			pte = pte_offset_map(pmd, addr);
--			pfn = pte_to_pagemap_entry(*pte);
--			/* unmap before userspace copy */
--			pte_unmap(pte);
-+			pmd_t pmd_val = *pmd;
-+			if (pmd_trans_huge(pmd_val)) {
-+				pfn = pmd_to_pagemap_entry(pmd_val);
-+			} else {
-+				pte = pte_offset_map(pmd, addr);
-+				pfn = pte_to_pagemap_entry(*pte);
-+				/* unmap before userspace copy */
-+				pte_unmap(pte);
-+			}
- 		}
- 		err = add_to_pagemap(addr, pfn, pm);
- 		if (err)
++int defrag_generic_file(struct file *file, struct address_space *mapping,
++			   loff_t pos,
++			   struct page **pagep,
++			   struct defrag_pagecache_ctl *ctl)
++{
++	return defrageOneHugePage(file, pos, pagep, ctl, file_defrag_get_page);
++}
++EXPORT_SYMBOL(defrag_generic_file);
++
+ int defrag_generic_pagecache(struct file *file,
+ 			struct address_space *mapping,
+ 			loff_t pos,
+diff --git a/mm/filemap.c b/mm/filemap.c
+index 8363cd9..f050209 100644
+--- a/mm/filemap.c
++++ b/mm/filemap.c
+@@ -43,6 +43,9 @@
+ 
+ #include <asm/mman.h>
+ 
++#ifdef CONFIG_HUGEPAGECACHE
++#include <linux/defrag-pagecache.h>
++#endif
+ /*
+  * Shared mappings implemented 30.11.1994. It's not fully working yet,
+  * though.
+@@ -1771,6 +1774,85 @@ page_not_uptodate:
+ }
+ EXPORT_SYMBOL(filemap_fault);
+ 
++#ifdef CONFIG_HUGEPAGECACHE
++/** DO NOT USE THIS METHOD IS STILL EXPERIMENTAL. */
++int filemap_fault_huge(struct vm_area_struct *vma, struct vm_fault *vmf)
++{
++	struct inode *inode = vma->vm_file->f_path.dentry->d_inode;
++	int error;
++	int ret = VM_FAULT_LOCKED;
++
++	error = vma->vm_ops->fault(vma, vmf);
++	/* XXX Repeatable flags in __do fault etc. */
++	if (error & (VM_FAULT_ERROR | VM_FAULT_NOPAGE
++		| VM_FAULT_RETRY | VM_FAULT_NOHUGE)) {
++		return error;
++	}
++
++	/* Just portion of developer code, to force defragmentation, as we have
++	 * no external interface to make defragmentation (or daemon to do it).
++	 */
++	if ((vma->vm_flags & VM_HUGEPAGE) && !PageCompound(vmf->page)) {
++		/* Force defrag - mainly devo code */
++		int defragResult;
++		const loff_t hugeChunkSize = 1 << (PMD_SHIFT - PAGE_SHIFT);
++
++		const loff_t vmaSizeToMap = (vma->vm_start
++				+ ((vmf->pgoff + vma->vm_pgoff + hugeChunkSize)
++				<< PAGE_SHIFT) <= vma->vm_end) ?
++					hugeChunkSize : 0;
++
++		const loff_t inodeSizeToMap =
++				(vmf->pgoff + vma->vm_pgoff + hugeChunkSize <
++				inode->i_size) ? hugeChunkSize : 0;
++
++		const struct defrag_pagecache_ctl defragControl = {
++			.fillPages = 1,
++			.requireFillPages = 1,
++			.force = 1
++		};
++
++		if (ret & VM_FAULT_LOCKED) {
++			unlock_page(vmf->page);
++		}
++		put_page(vmf->page);
++
++		defragResult = defragPageCache(vma->vm_file,
++			vmf->pgoff,
++			min(vmaSizeToMap, min(inodeSizeToMap, hugeChunkSize)),
++			&defragControl);
++		printk(KERN_INFO "Page defragmented with result %d\n",
++			defragResult);
++
++		/* Retake page. */
++		error = vma->vm_ops->fault(vma, vmf);
++		if (error & (VM_FAULT_ERROR | VM_FAULT_NOPAGE
++			| VM_FAULT_RETRY | VM_FAULT_NOHUGE)) {
++			return error;
++		}
++	}
++
++	/* After standard fault page is getted. */
++	if (!compound_get(vmf->page))
++		goto no_hugepage;
++
++	get_page_tails_for_fmap(vmf->page);
++
++	if (ret & VM_FAULT_MAJOR) {
++		count_vm_event(PGMAJFAULT);
++		mem_cgroup_count_vm_event(vma->vm_mm, PGMAJFAULT);
++	}
++	return ret;
++no_hugepage:
++	if (ret & VM_FAULT_LOCKED)
++		unlock_page(vmf->page);
++	page_cache_release(vmf->page);
++	vmf->page = NULL;
++	return VM_FAULT_NOHUGE;
++}
++EXPORT_SYMBOL(filemap_fault_huge);
++#endif
++
+ const struct vm_operations_struct generic_file_vm_ops = {
+ 	.fault		= filemap_fault,
+ };
 -- 
 1.7.3.4
 
