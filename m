@@ -1,44 +1,37 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx180.postini.com [74.125.245.180])
-	by kanga.kvack.org (Postfix) with SMTP id 23D806B0092
-	for <linux-mm@kvack.org>; Thu, 16 Feb 2012 08:46:53 -0500 (EST)
+Received: from psmtp.com (na3sys010amx156.postini.com [74.125.245.156])
+	by kanga.kvack.org (Postfix) with SMTP id 2C88F6B00EC
+	for <linux-mm@kvack.org>; Thu, 16 Feb 2012 08:46:54 -0500 (EST)
 From: Jan Kara <jack@suse.cz>
-Subject: [PATCH 06/11] 9p: Push file_update_time() into v9fs_vm_page_mkwrite()
-Date: Thu, 16 Feb 2012 14:46:14 +0100
-Message-Id: <1329399979-3647-7-git-send-email-jack@suse.cz>
+Subject: [PATCH 07/11] fuse: Push file_update_time() into fuse_page_mkwrite()
+Date: Thu, 16 Feb 2012 14:46:15 +0100
+Message-Id: <1329399979-3647-8-git-send-email-jack@suse.cz>
 In-Reply-To: <1329399979-3647-1-git-send-email-jack@suse.cz>
 References: <1329399979-3647-1-git-send-email-jack@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: LKML <linux-kernel@vger.kernel.org>
-Cc: linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Eric Sandeen <sandeen@redhat.com>, Dave Chinner <david@fromorbit.com>, Jan Kara <jack@suse.cz>, Eric Van Hensbergen <ericvh@gmail.com>, Ron Minnich <rminnich@sandia.gov>, Latchesar Ionkov <lucho@ionkov.net>, v9fs-developer@lists.sourceforge.net
+Cc: linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Eric Sandeen <sandeen@redhat.com>, Dave Chinner <david@fromorbit.com>, Jan Kara <jack@suse.cz>, Miklos Szeredi <miklos@szeredi.hu>, fuse-devel@lists.sourceforge.net
 
-CC: Eric Van Hensbergen <ericvh@gmail.com>
-CC: Ron Minnich <rminnich@sandia.gov>
-CC: Latchesar Ionkov <lucho@ionkov.net>
-CC: v9fs-developer@lists.sourceforge.net
+CC: Miklos Szeredi <miklos@szeredi.hu>
+CC: fuse-devel@lists.sourceforge.net
 Signed-off-by: Jan Kara <jack@suse.cz>
 ---
- fs/9p/vfs_file.c |    3 +++
- 1 files changed, 3 insertions(+), 0 deletions(-)
+ fs/fuse/file.c |    1 +
+ 1 files changed, 1 insertions(+), 0 deletions(-)
 
-  BTW: I see you don't check whether the page you locked isn't beyond i_size.
-Cannot your code race with truncate? See checks in __block_page_mkwrite()...
-
-diff --git a/fs/9p/vfs_file.c b/fs/9p/vfs_file.c
-index fc06fd2..dd6f7ee 100644
---- a/fs/9p/vfs_file.c
-+++ b/fs/9p/vfs_file.c
-@@ -610,6 +610,9 @@ v9fs_vm_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf)
- 	p9_debug(P9_DEBUG_VFS, "page %p fid %lx\n",
- 		 page, (unsigned long)filp->private_data);
+diff --git a/fs/fuse/file.c b/fs/fuse/file.c
+index 4a199fd..eade72e 100644
+--- a/fs/fuse/file.c
++++ b/fs/fuse/file.c
+@@ -1323,6 +1323,7 @@ static int fuse_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf)
+ 	 */
+ 	struct inode *inode = vma->vm_file->f_mapping->host;
  
-+	/* Update file times before taking page lock */
-+	file_update_time(filp);
-+
- 	v9inode = V9FS_I(inode);
- 	/* make sure the cache has finished storing the page */
- 	v9fs_fscache_wait_on_page_write(inode, page);
++	file_update_time(vma->vm_file);
+ 	fuse_wait_on_page_writeback(inode, page->index);
+ 	return 0;
+ }
 -- 
 1.7.1
 
