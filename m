@@ -1,160 +1,420 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx170.postini.com [74.125.245.170])
-	by kanga.kvack.org (Postfix) with SMTP id 61C046B0082
-	for <linux-mm@kvack.org>; Thu, 16 Feb 2012 10:55:01 -0500 (EST)
-Received: by bkty12 with SMTP id y12so2767784bkt.14
-        for <linux-mm@kvack.org>; Thu, 16 Feb 2012 07:54:59 -0800 (PST)
-Message-ID: <4F3D26CF.2040102@openvz.org>
-Date: Thu, 16 Feb 2012 19:54:55 +0400
-From: Konstantin Khlebnikov <khlebnikov@openvz.org>
+Received: from psmtp.com (na3sys010amx181.postini.com [74.125.245.181])
+	by kanga.kvack.org (Postfix) with SMTP id 3654E6B0082
+	for <linux-mm@kvack.org>; Thu, 16 Feb 2012 11:11:27 -0500 (EST)
+Subject: Re: [PATCH 01/18] Added hacking menu for override optimization by  GCC.
 MIME-Version: 1.0
-Subject: Re: [PATCH RFC 00/15] mm: memory book keeping and lru_lock splitting
-References: <20120215224221.22050.80605.stgit@zurg>	<20120216110408.f35c3448.kamezawa.hiroyu@jp.fujitsu.com>	<4F3C9798.7050800@openvz.org> <20120216172409.5fa18608.kamezawa.hiroyu@jp.fujitsu.com> <4F3CE243.9050203@openvz.org>
-In-Reply-To: <4F3CE243.9050203@openvz.org>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=UTF-8;
+ format=flowed
+Content-Transfer-Encoding: 8bit
+Date: Thu, 16 Feb 2012 17:11:25 +0100
+From: =?UTF-8?Q?Rados=C5=82aw_Smogura?= <mail@smogura.eu>
+In-Reply-To: <4F3D2476.4030409@xenotime.net>
+References: <1329402705-25454-1-git-send-email-mail@smogura.eu>
+ <4F3D2476.4030409@xenotime.net>
+Message-ID: <4b43b68b3b8493ca733602d813855819@rsmogura.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Hugh Dickins <hughd@google.com>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>
+To: Randy Dunlap <rdunlap@xenotime.net>
+Cc: linux-mm@kvack.org, Yongqiang Yang <xiaoqiangnk@gmail.com>, linux-ext4@vger.kernel.org
 
-Konstantin Khlebnikov wrote:
-> KAMEZAWA Hiroyuki wrote:
->> On Thu, 16 Feb 2012 09:43:52 +0400
->> Konstantin Khlebnikov<khlebnikov@openvz.org>   wrote:
+On Thu, 16 Feb 2012 07:44:54 -0800, Randy Dunlap wrote:
+> On 02/16/2012 06:31 AM, RadosA?aw Smogura wrote:
+>> From: mail@smogura.eu <mail@smogura.eu>
 >>
->>> KAMEZAWA Hiroyuki wrote:
->>>> On Thu, 16 Feb 2012 02:57:04 +0400
->>>> Konstantin Khlebnikov<khlebnikov@openvz.org>    wrote:
+>> This patch gives ability for add some "-fno-..." options for GCC
+>> and to force -O1 optimization. Supporting files, like Kconfig, 
+>> Makefile
+>> are auto-generated due to large amount of available options.
 >>
->>>>> * optimize page to book translations, move it upper in the call stack,
->>>>>      replace some struct zone arguments with struct book pointer.
->>>>>
->>>>
->>>> a page->book transrater from patch 2/15
->>>>
->>>> +struct book *page_book(struct page *page)
->>>> +{
->>>> +	struct mem_cgroup_per_zone *mz;
->>>> +	struct page_cgroup *pc;
->>>> +
->>>> +	if (mem_cgroup_disabled())
->>>> +		return&page_zone(page)->book;
->>>> +
->>>> +	pc = lookup_page_cgroup(page);
->>>> +	if (!PageCgroupUsed(pc))
->>>> +		return&page_zone(page)->book;
->>>> +	/* Ensure pc->mem_cgroup is visible after reading PCG_USED. */
->>>> +	smp_rmb();
->>>> +	mz = mem_cgroup_zoneinfo(pc->mem_cgroup,
->>>> +			page_to_nid(page), page_zonenum(page));
->>>> +	return&mz->book;
->>>> +}
->>>>
->>>> What happens when pc->mem_cgroup is rewritten by move_account() ?
->>>> Where is the guard for lockless access of this ?
->>>
->>> Initially this suppose to be protected with lru_lock, in final patch they are protected with rcu.
+>> Patch helps to debug kernel.
+>
+> Note: I only see patches 1-10.
+>
+> I fix a few typos below (comments in the generated files only).
+>
+>
+>> ---
+>>  Makefile                           |   11 ++++
+>>  lib/Kconfig.debug                  |    2 +
+>>  lib/Kconfig.debug.optim            |  102 
+>> ++++++++++++++++++++++++++++++++++++
+>>  scripts/Makefile.optim.inc         |   23 ++++++++
+>>  scripts/debug/make_config_optim.sh |   88 
+>> +++++++++++++++++++++++++++++++
+>>  5 files changed, 226 insertions(+), 0 deletions(-)
+>>  create mode 100644 lib/Kconfig.debug.optim
+>>  create mode 100644 scripts/Makefile.optim.inc
+>>  create mode 100644 scripts/debug/make_config_optim.sh
 >>
->> Hmm, VM_BUG_ON(!PageLRU(page)) ?
->
-> Where?
->
+>> diff --git a/Makefile b/Makefile
+>> index 7c44b67..bc9a961 100644
+>> --- a/Makefile
+>> +++ b/Makefile
+>> @@ -558,12 +558,23 @@ endif # $(dot-config)
+>>  # Defaults to vmlinux, but the arch makefile usually adds further 
+>> targets
+>>  all: vmlinux
 >>
->> move_account() overwrites pc->mem_cgroup with isolating page from LRU.
->> but it doesn't take lru_lock.
->
-> There three kinds of lock_page_book() users:
-> 1) caller want to catch page in LRU, it will lock either old or new book and
->      recheck PageLRU() after locking, if page not it in LRU it don't touch anything.
->      some of these functions has stable reference to page, some of them not.
->    [ There actually exist small race, I knew about it, just forget to pick this chunk from old code. See below. ]
-> 2) page is isolated by caller, it want to put it back. book link is stable. no problems.
-> 3) page-release functions. page-counter is zero. no references -- no problems.
->
-> race for 1)
->
-> catcher					switcher
->
-> 					# isolate
-> 					old_book = lock_page_book(page)
-> 					ClearPageLRU(page)
-> 					unlock_book(old_book)				
-> 					# charge
-> old_book = lock_page_book(page)		
-> 					# switch
-> 					page->book = new_book
-> 					# putback
-> 					lock_book(new_book)
-> 					SetPageLRU(page)
-> 					unlock_book(new_book)
-> if (PageLRU(page))
-> 	oops, page actually in new_book
-> unlock_book(old_book)
->
->
-> I'll protect "switch" phase with old_book lru-lock:
->
-> lock_book(old_book)
-> page->book = new_book
-> unlock_book(old_book)
-
-I found better solution for switcher sequence:
-
-#isolate
-old_book = lock_page_book(page)
-ClearPageLRU(page)
-unlock_book(old_book)				
-
-#charge
-
-#switch
-page->book = new_book
-spin_unlock_wait(&old_book->lru_lock)
-
-#putback
-lock_book(new_book)
-SetPageLRU(page)
-unlock_book(new_book)
-
-this spin_unlock_wait() effectively stabilize PageLRU() sign
-for potential old_book lock holder.
-
->
-> The other option is recheck in "catcher" page book after PageLRU()
-> maybe there exists some other variants.
->
->> BTW, what amount of perfomance benefit ?
->
-> It depends, but usually lru_lock is very-very hot.
-> This lock splitting can be used without cgroups and containers,
-> now huge zones can be easily sliced into arbitrary pieces, for example one book per 256Mb.
->
->
->
-> According to my experience, one of complicated thing there is how to postpone "book" destroying
-> if some its pages are isolated. For example lumpy reclaim and memory compaction isolates pages
-> from several books. And they wants to put them back. Currently this can be broken, if someone removes
-> cgroup in wrong moment. There appears funny races with three players: catcher, switcher and destroyer.
-> This can be fixed with some extra reference-counting or some other sleepable synchronizing.
-> In my rhel6-based implementation I uses extra reference-counting, and it looks ugly. So I want to invent something better.
-> Other option is just never release books, reuse them after rcu grace period for rcu-list iterating.
-
-Looks like it is not broken, charged page will keep memcg books alive.
-To make it completely safe rcu-free callback must wait on spin_unlock_wait(book->lru_lock).
-
->
+>> +ifdef CONFIG_HACK_OPTIM_FORCE_O1_LEVEL
+>> +KBUILD_CFLAGS += -O1
+>> +else
+>> +
+>>  ifdef CONFIG_CC_OPTIMIZE_FOR_SIZE
+>>  KBUILD_CFLAGS	+= -Os
+>>  else
+>>  KBUILD_CFLAGS	+= -O2
+>>  endif
 >>
->> Thanks,
->> -Kame
+>> +endif
+>> +
+>> +# Include makefile for optimization override
+>> +ifdef CONFIG_HACK_OPTIM
+>> +include $(srctree)/scripts/Makefile.optim.inc
+>> +endif
+>> +
+>>  include $(srctree)/arch/$(SRCARCH)/Makefile
 >>
+>>  ifneq ($(CONFIG_FRAME_WARN),0)
+>> diff --git a/lib/Kconfig.debug b/lib/Kconfig.debug
+>> index 8745ac7..928265e 100644
+>> --- a/lib/Kconfig.debug
+>> +++ b/lib/Kconfig.debug
+>> @@ -1274,5 +1274,7 @@ source "lib/Kconfig.kgdb"
+>>
+>>  source "lib/Kconfig.kmemcheck"
+>>
+>> +source "lib/Kconfig.debug.optim"
+>> +
+>>  config TEST_KSTRTOX
+>>  	tristate "Test kstrto*() family of functions at runtime"
+>> diff --git a/lib/Kconfig.debug.optim b/lib/Kconfig.debug.optim
+>> new file mode 100644
+>> index 0000000..09b1012
+>> --- /dev/null
+>> +++ b/lib/Kconfig.debug.optim
+>> @@ -0,0 +1,102 @@
+>> +# This file was auto generated. It's utility configuration
 >
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Fight unfair telecom internet charges in Canada: sign http://stopthemeter.ca/
-> Don't email:<a href=mailto:"dont@kvack.org">  email@kvack.org</a>
+>                                    ^^^^^^^^^^^^^^^^^^^^^^^^^^
+> That sentence(?) (fragment?) is not helpful.  I would drop it.
+>
+>> +# Distributed under GPL v2 License
+>> +
+>> +menuconfig HACK_OPTIM
+>> +	bool "Allows to override GCC optimization"
+>
+> 	      Allows the user to override GCC optimization
+>
+>> +	depends on DEBUG_KERNEL && EXPERIMENTAL
+>> +	help
+>> +	  If you say Y here you will be able to override
+>> +	  how GCC optimize kernel code. This will create
+>
+> 	          optimizes
+>
+>> +	  more debug friendly, but with not guarentee
+>
+> 	             friendly code, but will not guarantee
+>
+>> +	  about same runi, like production, kernel.
+>
+> 	  the same running, like a production kernel.
+>
+>> +
+>> +	  If you say Y here probably You will want say
+>
+> 	                             you will want to say Y
+>
+>> +	  for all suboptions
+>
+> 	  for all suboptions.
+>
+>> +
+>> +if HACK_OPTIM
+>> +
+>> +config HACK_OPTIM_FORCE_O1_LEVEL
+>> +	bool "Forces -O1 optimization level"
+>> +	---help---
+>> +	  This will change how GCC optimize code. Code
+>
+> 	                           optimizes
+>
+>> +	  may be slower and larger but will be more debug
+>> +	  "friendly".
+>> +
+>> +	  In some cases there is low chance that kernel
+>> +	  will run different then normal, reporting or not
+>
+> 	  will run differently than normal,
+>
+>> +	  some bugs or errors. Refere to GCC manual for
+>
+> 	                       Refer
+>
+>> +	  more details.
+>> +
+>> +	  You SHOULD say N here.
+>> +
+>> +config HACK_OPTIM__fno_inline_functions_called_once
+>> +	bool "Adds -fno-inline-functions-called-once parameter to gcc 
+>> invoke line."
+>> +	---help---
+>> +	  This will change how GCC optimize code. Code
+>
+> 	                           optimizes
+>
+>> +	  may be slower and larger but will be more debug
+>> +	  "friendly".
+>> +
+>> +	  In some cases there is low chance that kernel
+>> +	  will run different then normal, reporting or not
+>
+> 	  will run differently than normal,
+>
+>> +	  some bugs or errors. Refere to GCC manual for
+>
+> 	                       Refer
+>
+>> +	  more details.
+>> +
+>> +	  You SHOULD say N here.
+>> +
+>> +config HACK_OPTIM__fno_combine_stack_adjustments
+>> +	bool "Adds -fno-combine-stack-adjustments parameter to gcc invoke 
+>> line."
+>> +	---help---
+>> +	  This will change how GCC optimize code. Code
+>
+> 	                           optimizes
+>
+>> +	  may be slower and larger but will be more debug
+>> +	  "friendly".
+>> +
+>> +	  In some cases there is low chance that kernel
+>> +	  will run different then normal, reporting or not
+>
+> 	  will run differently than normal,
+>
+>> +	  some bugs or errors. Refere to GCC manual for
+>
+> 	                       Refer
+>
+>> +	  more details.
+>> +
+>> +	  You SHOULD say N here.
+>> +
+>> +config HACK_OPTIM__fno_tree_dce
+>> +	bool "Adds -fno-tree-dce parameter to gcc invoke line."
+>> +	---help---
+>> +	  This will change how GCC optimize code. Code
+>
+> 	                           optimizes
+>
+>> +	  may be slower and larger but will be more debug
+>> +	  "friendly".
+>> +
+>> +	  In some cases there is low chance that kernel
+>> +	  will run different then normal, reporting or not
+>
+> 	  will run differently than normal,
+>
+>> +	  some bugs or errors. Refere to GCC manual for
+>
+> 	                       Refer
+>
+>> +	  more details.
+>> +
+>> +	  You SHOULD say N here.
+>> +
+>> +config HACK_OPTIM__fno_tree_dominator_opts
+>> +	bool "Adds -fno-tree-dominator-opts parameter to gcc invoke line."
+>> +	---help---
+>> +	  This will change how GCC optimize code. Code
+>
+> same ...
+>
+>> +	  may be slower and larger but will be more debug
+>> +	  "friendly".
+>> +
+>> +	  In some cases there is low chance that kernel
+>> +	  will run different then normal, reporting or not
+>> +	  some bugs or errors. Refere to GCC manual for
+>> +	  more details.
+>> +
+>> +	  You SHOULD say N here.
+>> +
+>> +config HACK_OPTIM__fno_dse
+>> +	bool "Adds -fno-dse parameter to gcc invoke line."
+>> +	---help---
+>> +	  This will change how GCC optimize code. Code
+>
+> same ...
+>
+>> +	  may be slower and larger but will be more debug
+>> +	  "friendly".
+>> +
+>> +	  In some cases there is low chance that kernel
+>> +	  will run different then normal, reporting or not
+>> +	  some bugs or errors. Refere to GCC manual for
+>> +	  more details.
+>> +
+>> +	  You SHOULD say N here.
+>> +
+>> +endif #HACK_OPTIM
+>> diff --git a/scripts/Makefile.optim.inc b/scripts/Makefile.optim.inc
+>> new file mode 100644
+>> index 0000000..e78cc92
+>> --- /dev/null
+>> +++ b/scripts/Makefile.optim.inc
+>> @@ -0,0 +1,23 @@
+>> +# This file was auto generated. It's utility configuration
+>> +# Distributed under GPL v2 License
+>> +
+>> +ifdef CONFIG_HACK_OPTIM__fno_inline_functions_called_once
+>> +	KBUILD_CFLAGS += -fno-inline-functions-called-once
+>> +endif
+>> +
+>> +ifdef CONFIG_HACK_OPTIM__fno_combine_stack_adjustments
+>> +	KBUILD_CFLAGS += -fno-combine-stack-adjustments
+>> +endif
+>> +
+>> +ifdef CONFIG_HACK_OPTIM__fno_tree_dce
+>> +	KBUILD_CFLAGS += -fno-tree-dce
+>> +endif
+>> +
+>> +ifdef CONFIG_HACK_OPTIM__fno_tree_dominator_opts
+>> +	KBUILD_CFLAGS += -fno-tree-dominator-opts
+>> +endif
+>> +
+>> +ifdef CONFIG_HACK_OPTIM__fno_dse
+>> +	KBUILD_CFLAGS += -fno-dse
+>> +endif
+>> +
+>> diff --git a/scripts/debug/make_config_optim.sh 
+>> b/scripts/debug/make_config_optim.sh
+>> new file mode 100644
+>> index 0000000..26865923
+>> --- /dev/null
+>> +++ b/scripts/debug/make_config_optim.sh
+>> @@ -0,0 +1,88 @@
+>> +#!/bin/sh
+>> +
+>> +## Utility script for generating optimization override options
+>> +## for kernel compilation.
+>> +##
+>> +## Distributed under GPL v2 license
+>> +## (c) RadosA?aw Smogura, 2011
+>> +
+>> +# Prefix added for variable
+>> +CFG_PREFIX="HACK_OPTIM"
+>> +
+>> +KCFG="Kconfig.debug.optim"
+>> +MKFI="Makefile.optim.inc"
+>> +
+>> +OPTIMIZATIONS_PARAMS="-fno-inline-functions-called-once \
+>> + -fno-combine-stack-adjustments \
+>> + -fno-tree-dce \
+>> + -fno-tree-dominator-opts \
+>> + -fno-dse "
+>> +
+>> +echo "# This file was auto generated. It's utility configuration" > 
+>> $KCFG
+>> +echo "# Distributed under GPL v2 License" >> $KCFG
+>> +echo >> $KCFG
+>> +echo "menuconfig ${CFG_PREFIX}" >> $KCFG
+>> +echo -e "\tbool \"Allows to override GCC optimization\"" >> $KCFG
+>> +echo -e "\tdepends on DEBUG_KERNEL && EXPERIMENTAL" >> $KCFG
+>> +echo -e "\thelp" >> $KCFG
+>> +echo -e "\t  If you say Y here you will be able to override" >> 
+>> $KCFG
+>> +echo -e "\t  how GCC optimize kernel code. This will create" >> 
+>> $KCFG
+>> +echo -e "\t  more debug friendly, but with not guarentee"    >> 
+>> $KCFG
+>> +echo -e "\t  about same runi, like production, kernel."      >> 
+>> $KCFG
+>> +echo >> $KCFG
+>> +echo -e "\t  If you say Y here probably You will want say"   >> 
+>> $KCFG
+>> +echo -e "\t  for all suboptions" >> $KCFG
+>> +echo >> $KCFG
+>> +echo "if ${CFG_PREFIX}" >> $KCFG
+>> +echo >> $KCFG
+>> +
+>> +echo "# This file was auto generated. It's utility configuration" > 
+>> $MKFI
+>> +echo "# Distributed under GPL v2 License" >> $MKFI
+>> +echo >> $MKFI
+>> +
+>> +# Insert standard override optimization level
+>> +# This is exception, and this value will not be included
+>> +# in auto generated makefile. Support for this value
+>> +# is hard coded in main Makefile.
+>> +echo -e "config ${CFG_PREFIX}_FORCE_O1_LEVEL" >> $KCFG
+>> +echo -e "\tbool \"Forces -O1 optimization level\"" >> $KCFG
+>> +echo -e "\t---help---" >> $KCFG
+>> +echo -e "\t  This will change how GCC optimize code. Code" >> $KCFG
+>> +echo -e "\t  may be slower and larger but will be more debug" >> 
+>> $KCFG
+>> +echo -e "\t  \"friendly\"." >> $KCFG
+>> +echo >> $KCFG
+>> +echo -e "\t  In some cases there is low chance that kernel" >> 
+>> $KCFG
+>> +echo -e "\t  will run different then normal, reporting or not" >> 
+>> $KCFG
+>> +echo -e "\t  some bugs or errors. Refere to GCC manual for" >> 
+>> $KCFG
+>> +echo -e "\t  more details." >> $KCFG
+>> +echo >> $KCFG
+>> +echo -e "\t  You SHOULD say N here." >> $KCFG
+>> +echo >> $KCFG
+>> +
+>> +for o in $OPTIMIZATIONS_PARAMS ; do
+>> +	cfg_o="${CFG_PREFIX}_${o//-/_}";
+>> +	echo "Processing param ${o} config variable will be $cfg_o";
+>> +
+>> +	# Generate kconfig entry
+>> +	echo -e "config ${cfg_o}" >> $KCFG
+>> +	echo -e "\tbool \"Adds $o parameter to gcc invoke line.\"" >> 
+>> $KCFG
+>> +	echo -e "\t---help---" >> $KCFG
+>> +	echo -e "\t  This will change how GCC optimize code. Code" >> 
+>> $KCFG
+>> +	echo -e "\t  may be slower and larger but will be more debug" >> 
+>> $KCFG
+>> +	echo -e "\t  \"friendly\"." >> $KCFG
+>> +	echo >> $KCFG
+>> +	echo -e "\t  In some cases there is low chance that kernel" >> 
+>> $KCFG
+>> +	echo -e "\t  will run different then normal, reporting or not" >> 
+>> $KCFG
+>> +	echo -e "\t  some bugs or errors. Refere to GCC manual for" >> 
+>> $KCFG
+>> +	echo -e "\t  more details." >> $KCFG
+>> +	echo >> $KCFG
+>> +	echo -e "\t  You SHOULD say N here." >> $KCFG
+>> +	echo >> $KCFG
+>> +
+>> +	#Generate Make for include
+>> +	echo "ifdef CONFIG_${cfg_o}" >> $MKFI
+>> +	echo -e "\tKBUILD_CFLAGS += $o" >> $MKFI
+>> +	echo "endif" >> $MKFI
+>> +	echo  >> $MKFI
+>> +done;
+>> +echo "endif #${CFG_PREFIX}" >> $KCFG
+
+I sent rest later, when I realized not all ware sent. It's looks like 
+my mail server stopped after 10 (maybe spam protection...?).
+Those have [WIP] prefix, my bad, but currently are visible on marc.info 
+(http://marc.info/?l=linux-mm&r=1&b=201202&w=3).
+
+Oh... and I saw I merged two patches during rebase into patch 2 - 
+change of refcounting and moving first page to "LRU union", so there is 
+no info about moving fisrt_page.
+
+Regards,
+Radek
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
