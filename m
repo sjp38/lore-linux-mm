@@ -1,126 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx156.postini.com [74.125.245.156])
-	by kanga.kvack.org (Postfix) with SMTP id 5D75E6B0082
-	for <linux-mm@kvack.org>; Thu, 16 Feb 2012 06:02:32 -0500 (EST)
-Received: by bkty12 with SMTP id y12so2364768bkt.14
-        for <linux-mm@kvack.org>; Thu, 16 Feb 2012 03:02:30 -0800 (PST)
-Message-ID: <4F3CE243.9050203@openvz.org>
-Date: Thu, 16 Feb 2012 15:02:27 +0400
-From: Konstantin Khlebnikov <khlebnikov@openvz.org>
+Received: from psmtp.com (na3sys010amx171.postini.com [74.125.245.171])
+	by kanga.kvack.org (Postfix) with SMTP id 61D4B6B0082
+	for <linux-mm@kvack.org>; Thu, 16 Feb 2012 07:04:53 -0500 (EST)
+Received: by wibhj13 with SMTP id hj13so1571862wib.14
+        for <linux-mm@kvack.org>; Thu, 16 Feb 2012 04:04:51 -0800 (PST)
 MIME-Version: 1.0
-Subject: Re: [PATCH RFC 00/15] mm: memory book keeping and lru_lock splitting
-References: <20120215224221.22050.80605.stgit@zurg>	<20120216110408.f35c3448.kamezawa.hiroyu@jp.fujitsu.com>	<4F3C9798.7050800@openvz.org> <20120216172409.5fa18608.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20120216172409.5fa18608.kamezawa.hiroyu@jp.fujitsu.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+From: Daniel Vetter <daniel.vetter@ffwll.ch>
+Subject: [PATCH] extend prefault helpers to fault in more than PAGE_SIZE
+Date: Thu, 16 Feb 2012 13:01:35 +0100
+Message-Id: <1329393696-4802-1-git-send-email-daniel.vetter@ffwll.ch>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Hugh Dickins <hughd@google.com>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Intel Graphics Development <intel-gfx@lists.freedesktop.org>, DRI Development <dri-devel@lists.freedesktop.org>, LKML <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, Daniel Vetter <daniel.vetter@ffwll.ch>
 
-KAMEZAWA Hiroyuki wrote:
-> On Thu, 16 Feb 2012 09:43:52 +0400
-> Konstantin Khlebnikov<khlebnikov@openvz.org>  wrote:
->
->> KAMEZAWA Hiroyuki wrote:
->>> On Thu, 16 Feb 2012 02:57:04 +0400
->>> Konstantin Khlebnikov<khlebnikov@openvz.org>   wrote:
->
->>>> * optimize page to book translations, move it upper in the call stack,
->>>>     replace some struct zone arguments with struct book pointer.
->>>>
->>>
->>> a page->book transrater from patch 2/15
->>>
->>> +struct book *page_book(struct page *page)
->>> +{
->>> +	struct mem_cgroup_per_zone *mz;
->>> +	struct page_cgroup *pc;
->>> +
->>> +	if (mem_cgroup_disabled())
->>> +		return&page_zone(page)->book;
->>> +
->>> +	pc = lookup_page_cgroup(page);
->>> +	if (!PageCgroupUsed(pc))
->>> +		return&page_zone(page)->book;
->>> +	/* Ensure pc->mem_cgroup is visible after reading PCG_USED. */
->>> +	smp_rmb();
->>> +	mz = mem_cgroup_zoneinfo(pc->mem_cgroup,
->>> +			page_to_nid(page), page_zonenum(page));
->>> +	return&mz->book;
->>> +}
->>>
->>> What happens when pc->mem_cgroup is rewritten by move_account() ?
->>> Where is the guard for lockless access of this ?
->>
->> Initially this suppose to be protected with lru_lock, in final patch they are protected with rcu.
->
-> Hmm, VM_BUG_ON(!PageLRU(page)) ?
+Hi all,
 
-Where?
+drm/i915 has write/read paths to upload/download data to/from gpu buffer
+objects. For a bunch of reasons we have special fastpaths with decent setup
+costs, so when we fall back to the slow-path we don't fully recover to the
+fastest fast-path when grabbing our locks again. This is also in parts due to
+that we have multiple fallbacks to slower paths, so control-flow in our code
+would get really ugly.
 
->
-> move_account() overwrites pc->mem_cgroup with isolating page from LRU.
-> but it doesn't take lru_lock.
+As part of a larger rewrite and re-tuning of these functions we've noticed that
+the prefault helpers in pagemap.h only prefault up to PAGE_SIZE because that's
+all the other users need. The follow-up patch extends this to abritary sizes so
+that we can fully exploit our special fastpaths in more cases (we typically see
+reads and writes of a few pages up to a few mb).
 
-There three kinds of lock_page_book() users:
-1) caller want to catch page in LRU, it will lock either old or new book and
-    recheck PageLRU() after locking, if page not it in LRU it don't touch anything.
-    some of these functions has stable reference to page, some of them not.
-  [ There actually exist small race, I knew about it, just forget to pick this chunk from old code. See below. ]
-2) page is isolated by caller, it want to put it back. book link is stable. no problems.
-3) page-release functions. page-counter is zero. no references -- no problems.
+I'd like to get this in for 3.4. There's no functional dependency between this
+patch and the drm/i915 rework (only performance effects), so this can go in
+through -mm without causing merge issues.
 
-race for 1)
+If this or something similar isn't acceptable, plan B is to hand-roll these 2
+functions in drm/i915. But I don't like nih these things in driver code much.
 
-catcher					switcher
+Comments highly welcome.
 
-					# isolate
-					old_book = lock_page_book(page)
-					ClearPageLRU(page)
-					unlock_book(old_book)				
-					# charge
-old_book = lock_page_book(page)		
-					# switch
-					page->book = new_book
-					# putback
-					lock_book(new_book)
-					SetPageLRU(page)
-					unlock_book(new_book)
-if (PageLRU(page))
-	oops, page actually in new_book
-unlock_book(old_book)
+Yours, Daniel
 
+For reference, the drm/i915 read/write rework is avaialable at:
 
-I'll protect "switch" phase with old_book lru-lock:
+http://cgit.freedesktop.org/~danvet/drm/log/?h=pwrite-pread
 
-lock_book(old_book)
-page->book = new_book
-unlock_book(old_book)
+Unfortunately cgit.fd.o is currently on hiatus.
 
-The other option is recheck in "catcher" page book after PageLRU()
-maybe there exists some other variants.
+Daniel Vetter (1):
+  mm: extend prefault helpers to fault in more than PAGE_SIZE
 
-> BTW, what amount of perfomance benefit ?
+ include/linux/pagemap.h |   28 ++++++++++++++++++----------
+ 1 files changed, 18 insertions(+), 10 deletions(-)
 
-It depends, but usually lru_lock is very-very hot.
-This lock splitting can be used without cgroups and containers,
-now huge zones can be easily sliced into arbitrary pieces, for example one book per 256Mb.
-
-
-
-According to my experience, one of complicated thing there is how to postpone "book" destroying
-if some its pages are isolated. For example lumpy reclaim and memory compaction isolates pages
-from several books. And they wants to put them back. Currently this can be broken, if someone removes
-cgroup in wrong moment. There appears funny races with three players: catcher, switcher and destroyer.
-This can be fixed with some extra reference-counting or some other sleepable synchronizing.
-In my rhel6-based implementation I uses extra reference-counting, and it looks ugly. So I want to invent something better.
-Other option is just never release books, reuse them after rcu grace period for rcu-list iterating.
-
->
-> Thanks,
-> -Kame
->
+-- 
+1.7.7.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
