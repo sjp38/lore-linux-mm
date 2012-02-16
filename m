@@ -1,84 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx146.postini.com [74.125.245.146])
-	by kanga.kvack.org (Postfix) with SMTP id 19E536B004A
-	for <linux-mm@kvack.org>; Thu, 16 Feb 2012 03:25:34 -0500 (EST)
-Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id A440A3EE081
-	for <linux-mm@kvack.org>; Thu, 16 Feb 2012 17:25:32 +0900 (JST)
-Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 8C20845DEA6
-	for <linux-mm@kvack.org>; Thu, 16 Feb 2012 17:25:32 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 7627D45DE9E
-	for <linux-mm@kvack.org>; Thu, 16 Feb 2012 17:25:32 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 649A01DB803B
-	for <linux-mm@kvack.org>; Thu, 16 Feb 2012 17:25:32 +0900 (JST)
-Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.240.81.134])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 1CB0C1DB803E
-	for <linux-mm@kvack.org>; Thu, 16 Feb 2012 17:25:32 +0900 (JST)
-Date: Thu, 16 Feb 2012 17:24:09 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH RFC 00/15] mm: memory book keeping and lru_lock
- splitting
-Message-Id: <20120216172409.5fa18608.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <4F3C9798.7050800@openvz.org>
-References: <20120215224221.22050.80605.stgit@zurg>
-	<20120216110408.f35c3448.kamezawa.hiroyu@jp.fujitsu.com>
-	<4F3C9798.7050800@openvz.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx189.postini.com [74.125.245.189])
+	by kanga.kvack.org (Postfix) with SMTP id 886E96B004A
+	for <linux-mm@kvack.org>; Thu, 16 Feb 2012 04:03:16 -0500 (EST)
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Subject: Re: [PATCH 5/6] introduce pmd_to_pte_t()
+Date: Thu, 16 Feb 2012 04:02:42 -0500
+Message-Id: <1329382962-27039-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+In-Reply-To: <20120215165408.a111eefa.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Konstantin Khlebnikov <khlebnikov@openvz.org>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Hugh Dickins <hughd@google.com>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, linux-mm@kvack.org, David Rientjes <rientjes@google.com>, Andi Kleen <andi@firstfloor.org>, Wu Fengguang <fengguang.wu@intel.com>, Andrea Arcangeli <aarcange@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-kernel@vger.kernel.org
 
-On Thu, 16 Feb 2012 09:43:52 +0400
-Konstantin Khlebnikov <khlebnikov@openvz.org> wrote:
-
-> KAMEZAWA Hiroyuki wrote:
-> > On Thu, 16 Feb 2012 02:57:04 +0400
-> > Konstantin Khlebnikov<khlebnikov@openvz.org>  wrote:
-
-> >> * optimize page to book translations, move it upper in the call stack,
-> >>    replace some struct zone arguments with struct book pointer.
-> >>
-> >
-> > a page->book transrater from patch 2/15
-> >
-> > +struct book *page_book(struct page *page)
-> > +{
-> > +	struct mem_cgroup_per_zone *mz;
-> > +	struct page_cgroup *pc;
-> > +
-> > +	if (mem_cgroup_disabled())
-> > +		return&page_zone(page)->book;
-> > +
-> > +	pc = lookup_page_cgroup(page);
-> > +	if (!PageCgroupUsed(pc))
-> > +		return&page_zone(page)->book;
-> > +	/* Ensure pc->mem_cgroup is visible after reading PCG_USED. */
-> > +	smp_rmb();
-> > +	mz = mem_cgroup_zoneinfo(pc->mem_cgroup,
-> > +			page_to_nid(page), page_zonenum(page));
-> > +	return&mz->book;
-> > +}
-> >
-> > What happens when pc->mem_cgroup is rewritten by move_account() ?
-> > Where is the guard for lockless access of this ?
+On Wed, Feb 15, 2012 at 04:54:08PM -0800, Andrew Morton wrote:
+> On Wed,  8 Feb 2012 10:51:41 -0500
+> Naoya Horiguchi <n-horiguchi@ah.jp.nec.com> wrote:
 > 
-> Initially this suppose to be protected with lru_lock, in final patch they are protected with rcu.
+> > Casting pmd into pte_t to handle thp is strongly architecture dependent.
+> > This patch introduces a new function to separate this dependency from
+> > independent part.
+> > 
+> >
+> > ...
+> >
+> > --- 3.3-rc2.orig/include/asm-generic/pgtable.h
+> > +++ 3.3-rc2/include/asm-generic/pgtable.h
+> > @@ -434,6 +434,10 @@ static inline int pmd_trans_splitting(pmd_t pmd)
+> >  {
+> >  	return 0;
+> >  }
+> > +static inline pte_t pmd_to_pte_t(pmd_t *pmd)
+> > +{
+> > +	return 0;
+> > +}
+> 
+> This doesn't compile.
 
-Hmm, VM_BUG_ON(!PageLRU(page)) ?
+Sorry for my failing to make sure of compile testing.
+The return value should be cast to pte_t to pass the complie.
 
-move_account() overwrites pc->mem_cgroup with isolating page from LRU.
-but it doesn't take lru_lock.
+> And I can't think of a sensible way of generating a stub for this
+> operation - if you have a pmd_t and want to convert it to a pte_t then
+> just convert it, dammit.  And there's no rationality behind making that
+> conversion unavailable or inoperative if CONFIG_TRANSPARENT_HUGEPAGE=n?
+> 
+> Shudder.  I'll drop the patch.  Rethink, please.
 
-BTW, what amount of perfomance benefit ?
+OK for dropping it.
+This patch is not enough to solve the problem of isolating arch dependency.
 
-Thanks,
--Kame
+Although it's not clear from the name, the intension of this function was
+to get the lowest level of entry in page table hierarchy which points to
+a hugepage.  It is pmd for x86_64, but pte for powerpc64 for example.
+So I thought it's useful to introduce a stub like above.
+But the callers of this function assume that pmd points to hugepage,
+so arch dependency in arch independent code still remains.
+We need to work on it when thp supports other archs,
+but anyway, removing this patch is not critical for others of this series,
+so I'm ok about it.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
