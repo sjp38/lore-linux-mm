@@ -1,39 +1,37 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx199.postini.com [74.125.245.199])
-	by kanga.kvack.org (Postfix) with SMTP id E63276B00E9
-	for <linux-mm@kvack.org>; Thu, 16 Feb 2012 08:46:54 -0500 (EST)
+Received: from psmtp.com (na3sys010amx177.postini.com [74.125.245.177])
+	by kanga.kvack.org (Postfix) with SMTP id DBBD26B00EC
+	for <linux-mm@kvack.org>; Thu, 16 Feb 2012 08:46:55 -0500 (EST)
 From: Jan Kara <jack@suse.cz>
-Subject: [PATCH 08/11] gfs2: Push file_update_time() into gfs2_page_mkwrite()
-Date: Thu, 16 Feb 2012 14:46:16 +0100
-Message-Id: <1329399979-3647-9-git-send-email-jack@suse.cz>
+Subject: [PATCH 09/11] sysfs: Push file_update_time() into bin_page_mkwrite()
+Date: Thu, 16 Feb 2012 14:46:17 +0100
+Message-Id: <1329399979-3647-10-git-send-email-jack@suse.cz>
 In-Reply-To: <1329399979-3647-1-git-send-email-jack@suse.cz>
 References: <1329399979-3647-1-git-send-email-jack@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: LKML <linux-kernel@vger.kernel.org>
-Cc: linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Eric Sandeen <sandeen@redhat.com>, Dave Chinner <david@fromorbit.com>, Jan Kara <jack@suse.cz>, Steven Whitehouse <swhiteho@redhat.com>, cluster-devel@redhat.com
+Cc: linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Eric Sandeen <sandeen@redhat.com>, Dave Chinner <david@fromorbit.com>, Jan Kara <jack@suse.cz>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>
 
-CC: Steven Whitehouse <swhiteho@redhat.com>
-CC: cluster-devel@redhat.com
+CC: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
 Signed-off-by: Jan Kara <jack@suse.cz>
 ---
- fs/gfs2/file.c |    3 +++
- 1 files changed, 3 insertions(+), 0 deletions(-)
+ fs/sysfs/bin.c |    2 ++
+ 1 files changed, 2 insertions(+), 0 deletions(-)
 
-diff --git a/fs/gfs2/file.c b/fs/gfs2/file.c
-index c5fb359..1f03531 100644
---- a/fs/gfs2/file.c
-+++ b/fs/gfs2/file.c
-@@ -375,6 +375,9 @@ static int gfs2_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf)
- 	 */
- 	vfs_check_frozen(inode->i_sb, SB_FREEZE_WRITE);
+diff --git a/fs/sysfs/bin.c b/fs/sysfs/bin.c
+index a475983..6ceb16f 100644
+--- a/fs/sysfs/bin.c
++++ b/fs/sysfs/bin.c
+@@ -225,6 +225,8 @@ static int bin_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf)
+ 	if (!sysfs_get_active(attr_sd))
+ 		return VM_FAULT_SIGBUS;
  
-+	/* Update file times before taking page lock */
-+	file_update_time(vma->vm_file);
++	file_update_time(file);
 +
- 	gfs2_holder_init(ip->i_gl, LM_ST_EXCLUSIVE, 0, &gh);
- 	ret = gfs2_glock_nq(&gh);
- 	if (ret)
+ 	ret = 0;
+ 	if (bb->vm_ops->page_mkwrite)
+ 		ret = bb->vm_ops->page_mkwrite(vma, vmf);
 -- 
 1.7.1
 
