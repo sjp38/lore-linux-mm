@@ -1,48 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx185.postini.com [74.125.245.185])
-	by kanga.kvack.org (Postfix) with SMTP id C3E166B0082
-	for <linux-mm@kvack.org>; Thu, 16 Feb 2012 16:42:48 -0500 (EST)
-Date: Thu, 16 Feb 2012 22:42:45 +0100
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: exit_mmap() BUG_ON triggering since 3.1
-Message-ID: <20120216214245.GD23585@redhat.com>
-References: <20120215183317.GA26977@redhat.com>
- <alpine.LSU.2.00.1202151801020.19691@eggly.anvils>
- <20120216070753.GA23585@redhat.com>
- <alpine.LSU.2.00.1202160130500.16147@eggly.anvils>
+Received: from psmtp.com (na3sys010amx177.postini.com [74.125.245.177])
+	by kanga.kvack.org (Postfix) with SMTP id DF2DB6B0082
+	for <linux-mm@kvack.org>; Thu, 16 Feb 2012 16:59:34 -0500 (EST)
+Received: by pbcwz17 with SMTP id wz17so3685187pbc.14
+        for <linux-mm@kvack.org>; Thu, 16 Feb 2012 13:59:34 -0800 (PST)
+Content-Type: text/plain; charset=utf-8; format=flowed; delsp=yes
+Subject: Re: [PATCH 01/18] Added hacking menu for override optimization by
+ GCC.
+References: <1329402705-25454-1-git-send-email-mail@smogura.eu>
+ <op.v9sctsrj3l0zgt@mpn-glaptop>
+ <76ede790fcc4ab73f969761034554e92@rsmogura.net>
+Date: Thu, 16 Feb 2012 13:59:29 -0800
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.LSU.2.00.1202160130500.16147@eggly.anvils>
+Content-Transfer-Encoding: Quoted-Printable
+From: "Michal Nazarewicz" <mina86@mina86.com>
+Message-ID: <op.v9skpfhq3l0zgt@mpn-glaptop>
+In-Reply-To: <76ede790fcc4ab73f969761034554e92@rsmogura.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: Dave Jones <davej@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, kernel-team@fedoraproject.org
+To: =?utf-8?B?UmFkb3PFgmF3IFNtb2d1cmE=?= <mail@smogura.eu>
+Cc: linux-mm@kvack.org, Yongqiang Yang <xiaoqiangnk@gmail.com>, linux-ext4@vger.kernel.org
 
-On Thu, Feb 16, 2012 at 01:53:04AM -0800, Hugh Dickins wrote:
-> Yes (and I think less troublesome than most BUGs, coming at exit
-> while not holding locks; though we could well make it a WARN_ON,
-> I don't think that existed back in the day).
+On Thu, 16 Feb 2012 12:26:00 -0800, Rados=C5=82aw Smogura <mail@smogura.=
+eu> wrote:
 
-A WARN_ON would be fine with me, go ahead if you prefer it... only
-risk would be to go unnoticed or be underestimated. I am ok with the
-BUG_ON too (even if this time it triggered false positives... sigh).
+> On Thu, 16 Feb 2012 11:09:18 -0800, Michal Nazarewicz wrote:
+>> On Thu, 16 Feb 2012 06:31:28 -0800, Rados=C5=82aw Smogura
+>> <mail@smogura.eu> wrote:
+>>> Supporting files, like Kconfig, Makefile are auto-generated due to
+>>> large amount
+>>> of available options.
+>>
+>> So why not run the script as part of make rather then store generated=
 
-> Acked-by: Hugh Dickins <hughd@google.com>
+>> files in
+>> repository?
+> Idea to run this script through make is quite good, and should work,
+> because new mane will be generated before "config" starts.
+>
+> "Bashizms" are indeed unneeded, I will try to replace this with sed.
 
-Thanks for the quick review!
+Uh? Why sed?
 
-> In looking into the bug, it had actually bothered me a little that you
-> were setting aside those pages, yet not counting them into nr_ptes;
-> though the only thing that cares is oom_kill.c, and the count of pages
-> in each hugepage can only dwarf the count in nr_ptes (whereas, without
-> hugepages, it's possible to populate very sparsely and nr_ptes become
-> significant).
+-- =
 
-Agreed, it's not significant either ways.
-
-Running my two primary systems with this applied for half a day and no
-problem so far so it should be good for -mm at least.
+Best regards,                                         _     _
+.o. | Liege of Serenely Enlightened Majesty of      o' \,=3D./ `o
+..o | Computer Science,  Micha=C5=82 =E2=80=9Cmina86=E2=80=9D Nazarewicz=
+    (o o)
+ooo +----<email/xmpp: mpn@google.com>--------------ooO--(_)--Ooo--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
