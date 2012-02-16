@@ -1,37 +1,39 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx156.postini.com [74.125.245.156])
-	by kanga.kvack.org (Postfix) with SMTP id 2C88F6B00EC
+Received: from psmtp.com (na3sys010amx199.postini.com [74.125.245.199])
+	by kanga.kvack.org (Postfix) with SMTP id E63276B00E9
 	for <linux-mm@kvack.org>; Thu, 16 Feb 2012 08:46:54 -0500 (EST)
 From: Jan Kara <jack@suse.cz>
-Subject: [PATCH 07/11] fuse: Push file_update_time() into fuse_page_mkwrite()
-Date: Thu, 16 Feb 2012 14:46:15 +0100
-Message-Id: <1329399979-3647-8-git-send-email-jack@suse.cz>
+Subject: [PATCH 08/11] gfs2: Push file_update_time() into gfs2_page_mkwrite()
+Date: Thu, 16 Feb 2012 14:46:16 +0100
+Message-Id: <1329399979-3647-9-git-send-email-jack@suse.cz>
 In-Reply-To: <1329399979-3647-1-git-send-email-jack@suse.cz>
 References: <1329399979-3647-1-git-send-email-jack@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: LKML <linux-kernel@vger.kernel.org>
-Cc: linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Eric Sandeen <sandeen@redhat.com>, Dave Chinner <david@fromorbit.com>, Jan Kara <jack@suse.cz>, Miklos Szeredi <miklos@szeredi.hu>, fuse-devel@lists.sourceforge.net
+Cc: linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Eric Sandeen <sandeen@redhat.com>, Dave Chinner <david@fromorbit.com>, Jan Kara <jack@suse.cz>, Steven Whitehouse <swhiteho@redhat.com>, cluster-devel@redhat.com
 
-CC: Miklos Szeredi <miklos@szeredi.hu>
-CC: fuse-devel@lists.sourceforge.net
+CC: Steven Whitehouse <swhiteho@redhat.com>
+CC: cluster-devel@redhat.com
 Signed-off-by: Jan Kara <jack@suse.cz>
 ---
- fs/fuse/file.c |    1 +
- 1 files changed, 1 insertions(+), 0 deletions(-)
+ fs/gfs2/file.c |    3 +++
+ 1 files changed, 3 insertions(+), 0 deletions(-)
 
-diff --git a/fs/fuse/file.c b/fs/fuse/file.c
-index 4a199fd..eade72e 100644
---- a/fs/fuse/file.c
-+++ b/fs/fuse/file.c
-@@ -1323,6 +1323,7 @@ static int fuse_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf)
+diff --git a/fs/gfs2/file.c b/fs/gfs2/file.c
+index c5fb359..1f03531 100644
+--- a/fs/gfs2/file.c
++++ b/fs/gfs2/file.c
+@@ -375,6 +375,9 @@ static int gfs2_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf)
  	 */
- 	struct inode *inode = vma->vm_file->f_mapping->host;
+ 	vfs_check_frozen(inode->i_sb, SB_FREEZE_WRITE);
  
++	/* Update file times before taking page lock */
 +	file_update_time(vma->vm_file);
- 	fuse_wait_on_page_writeback(inode, page->index);
- 	return 0;
- }
++
+ 	gfs2_holder_init(ip->i_gl, LM_ST_EXCLUSIVE, 0, &gh);
+ 	ret = gfs2_glock_nq(&gh);
+ 	if (ret)
 -- 
 1.7.1
 
