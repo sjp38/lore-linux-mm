@@ -1,168 +1,151 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx182.postini.com [74.125.245.182])
-	by kanga.kvack.org (Postfix) with SMTP id E511C6B0083
-	for <linux-mm@kvack.org>; Thu, 16 Feb 2012 07:44:48 -0500 (EST)
-Date: Thu, 16 Feb 2012 13:44:45 +0100
-From: Jan Kara <jack@suse.cz>
-Subject: Re: reclaim the LRU lists full of dirty/writeback pages
-Message-ID: <20120216124445.GB18613@quack.suse.cz>
-References: <20120208093120.GA18993@localhost>
- <CAHH2K0bmURXpk6-4D9q7ErppVyMJjKMsn37MenwqcP_nnT66Mw@mail.gmail.com>
- <20120210114706.GA4704@localhost>
- <20120211124445.GA10826@localhost>
- <4F36816A.6030609@redhat.com>
- <20120212031029.GA17435@localhost>
- <20120213154313.GD6478@quack.suse.cz>
- <20120214100348.GA7000@localhost>
- <20120214132950.GE1934@quack.suse.cz>
- <20120216040019.GB17597@localhost>
+Received: from psmtp.com (na3sys010amx174.postini.com [74.125.245.174])
+	by kanga.kvack.org (Postfix) with SMTP id 41F176B0082
+	for <linux-mm@kvack.org>; Thu, 16 Feb 2012 08:01:44 -0500 (EST)
+Received: by pbcwz17 with SMTP id wz17so3088607pbc.14
+        for <linux-mm@kvack.org>; Thu, 16 Feb 2012 05:01:43 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20120216040019.GB17597@localhost>
+In-Reply-To: <alpine.LSU.2.00.1202021726410.31915@eggly.anvils>
+References: <CAJd=RBANeF+TTTtn=F_Yx3N5KkVb5vFPY6FNYEjVntB1pPSLBA@mail.gmail.com>
+	<CAJd=RBAH4+nFQ35JcHju6eSPfDcQpbkJjMX6GBaZFECVaL2swA@mail.gmail.com>
+	<20120116092745.7721ff31.kamezawa.hiroyu@jp.fujitsu.com>
+	<alpine.LSU.2.00.1202021726410.31915@eggly.anvils>
+Date: Thu, 16 Feb 2012 21:01:43 +0800
+Message-ID: <CAJd=RBCpE9TUDwr17sGc2mg_xfyCCktAyxSt1v3Tzj6dCNL0eA@mail.gmail.com>
+Subject: Re: [PATCH] mm: vmscan: handle isolated pages with lru lock released
+From: Hillf Danton <dhillf@gmail.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wu Fengguang <fengguang.wu@intel.com>
-Cc: Jan Kara <jack@suse.cz>, Rik van Riel <riel@redhat.com>, Greg Thelen <gthelen@google.com>, "bsingharora@gmail.com" <bsingharora@gmail.com>, Hugh Dickins <hughd@google.com>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, Mel Gorman <mgorman@suse.de>, Ying Han <yinghan@google.com>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>
+To: Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Thu 16-02-12 12:00:19, Wu Fengguang wrote:
-> On Tue, Feb 14, 2012 at 02:29:50PM +0100, Jan Kara wrote:
-> > > >   I wonder what happens if you run:
-> > > >        mkdir /cgroup/x
-> > > >        echo 100M > /cgroup/x/memory.limit_in_bytes
-> > > >        echo $$ > /cgroup/x/tasks
-> > > > 
-> > > >        for (( i = 0; i < 2; i++ )); do
-> > > >          mkdir /fs/d$i
-> > > >          for (( j = 0; j < 5000; j++ )); do 
-> > > >            dd if=/dev/zero of=/fs/d$i/f$j bs=1k count=50
-> > > >          done &
-> > > >        done
-> > > 
-> > > That's a very good case, thanks!
-> > >  
-> > > >   Because for small files the writearound logic won't help much...
-> > > 
-> > > Right, it also means the native background work cannot be more I/O
-> > > efficient than the pageout works, except for the overheads of more
-> > > work items..
-> >   Yes, that's true.
-> > 
-> > > >   Also the number of work items queued might become interesting.
-> > > 
-> > > It turns out that the 1024 mempool reservations are not exhausted at
-> > > all (the below patch as a trace_printk on alloc failure and it didn't
-> > > trigger at all).
-> > > 
-> > > Here is the representative iostat lines on XFS (full "iostat -kx 1 20" log attached):
-> > > 
-> > > avg-cpu:  %user   %nice %system %iowait  %steal   %idle                                                                     
-> > >            0.80    0.00    6.03    0.03    0.00   93.14                                                                     
-> > >                                                                                                                             
-> > > Device:         rrqm/s   wrqm/s     r/s     w/s    rkB/s    wkB/s avgrq-sz avgqu-sz   await  svctm  %util                   
-> > > sda               0.00   205.00    0.00  163.00     0.00 16900.00   207.36     4.09   21.63   1.88  30.70                   
-> > > 
-> > > The attached dirtied/written progress graph looks interesting.
-> > > Although the iostat disk utilization is low, the "dirtied" progress
-> > > line is pretty straight and there is no single congestion_wait event
-> > > in the trace log. Which makes me wonder if there are some unknown
-> > > blocking issues in the way.
-> >   Interesting. I'd also expect we should block in reclaim path. How fast
-> > can dd threads progress when there is no cgroup involved?
-> 
-> I tried running the dd tasks in global context with
-> 
->         echo $((100<<20)) > /proc/sys/vm/dirty_bytes
-> 
-> and got mostly the same results on XFS:
-> 
->         avg-cpu:  %user   %nice %system %iowait  %steal   %idle
->                    0.85    0.00    8.88    0.00    0.00   90.26
-> 
->         Device:         rrqm/s   wrqm/s     r/s     w/s    rkB/s    wkB/s avgrq-sz avgqu-sz   await  svctm  %util
->         sda               0.00     0.00    0.00   50.00     0.00 23036.00   921.44     9.59  738.02   7.38  36.90
-> 
->         avg-cpu:  %user   %nice %system %iowait  %steal   %idle
->                    0.95    0.00    8.95    0.00    0.00   90.11
-> 
->         Device:         rrqm/s   wrqm/s     r/s     w/s    rkB/s    wkB/s avgrq-sz avgqu-sz   await  svctm  %util
->         sda               0.00   854.00    0.00   99.00     0.00 19552.00   394.99    34.14   87.98   3.82  37.80
-  OK, so it seems that reclaiming pages in memcg reclaim acted as a natural
-throttling similar to what balance_dirty_pages() does in the global case.
+On Fri, Feb 3, 2012 at 9:40 AM, Hugh Dickins <hughd@google.com> wrote:
+> From: Hillf Danton <dhillf@gmail.com>
+>
+> When shrinking inactive lru list, isolated pages are queued on locally pr=
+ivate
+> list, so the lock-hold time could be reduced if pages are counted without=
+ lock
+> protection.
+>
+> To achieve that, firstly updating reclaim stat is delayed until the
+> putback stage, after reacquiring the lru lock.
+>
+> Secondly, operations related to vm and zone stats are now proteced with
+> preemption disabled as they are per-cpu operations.
+>
+> Signed-off-by: Hillf Danton <dhillf@gmail.com>
+> Acked-by: Hugh Dickins <hughd@google.com>
+> Reviewed-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> ---
+> KAMEZAWA-san and I both admired this patch from Hillf; Rik and David
+> liked its precursor: I think we'd all be glad to see it in linux-next.
+>
+> =C2=A0mm/vmscan.c | =C2=A0 21 ++++++++++-----------
+> =C2=A01 file changed, 10 insertions(+), 11 deletions(-)
+>
+> --- a/mm/vmscan.c =C2=A0 =C2=A0 =C2=A0 Sat Jan 14 14:02:20 2012
+> +++ b/mm/vmscan.c =C2=A0 =C2=A0 =C2=A0 Sat Jan 14 20:00:46 2012
+> @@ -1414,7 +1414,6 @@ update_isolated_counts(struct mem_cgroup
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
+=A0 unsigned long *nr_anon,
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
+=A0 unsigned long *nr_file)
+> =C2=A0{
+> - =C2=A0 =C2=A0 =C2=A0 struct zone_reclaim_stat *reclaim_stat =3D get_rec=
+laim_stat(mz);
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0struct zone *zone =3D mz->zone;
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0unsigned int count[NR_LRU_LISTS] =3D { 0, };
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0unsigned long nr_active =3D 0;
+> @@ -1435,6 +1434,7 @@ update_isolated_counts(struct mem_cgroup
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0count[lru] +=3D nu=
+mpages;
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0}
+>
+> + =C2=A0 =C2=A0 =C2=A0 preempt_disable();
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0__count_vm_events(PGDEACTIVATE, nr_active);
+>
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0__mod_zone_page_state(zone, NR_ACTIVE_FILE,
+> @@ -1449,8 +1449,9 @@ update_isolated_counts(struct mem_cgroup
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0*nr_anon =3D count[LRU_ACTIVE_ANON] + count[LR=
+U_INACTIVE_ANON];
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0*nr_file =3D count[LRU_ACTIVE_FILE] + count[LR=
+U_INACTIVE_FILE];
+>
+> - =C2=A0 =C2=A0 =C2=A0 reclaim_stat->recent_scanned[0] +=3D *nr_anon;
+> - =C2=A0 =C2=A0 =C2=A0 reclaim_stat->recent_scanned[1] +=3D *nr_file;
+> + =C2=A0 =C2=A0 =C2=A0 __mod_zone_page_state(zone, NR_ISOLATED_ANON, *nr_=
+anon);
+> + =C2=A0 =C2=A0 =C2=A0 __mod_zone_page_state(zone, NR_ISOLATED_FILE, *nr_=
+file);
+> + =C2=A0 =C2=A0 =C2=A0 preempt_enable();
+> =C2=A0}
+>
+> =C2=A0/*
+> @@ -1512,6 +1513,7 @@ shrink_inactive_list(unsigned long nr_to
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0unsigned long nr_writeback =3D 0;
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0isolate_mode_t reclaim_mode =3D ISOLATE_INACTI=
+VE;
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0struct zone *zone =3D mz->zone;
+> + =C2=A0 =C2=A0 =C2=A0 struct zone_reclaim_stat *reclaim_stat =3D get_rec=
+laim_stat(mz);
+>
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0while (unlikely(too_many_isolated(zone, file, =
+sc))) {
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0congestion_wait(BL=
+K_RW_ASYNC, HZ/10);
+> @@ -1546,19 +1548,13 @@ shrink_inactive_list(unsigned long nr_to
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
+=A0 =C2=A0__count_zone_vm_events(PGSCAN_DIRECT, zone,
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
+=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
+=C2=A0 =C2=A0 nr_scanned);
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0}
+> + =C2=A0 =C2=A0 =C2=A0 spin_unlock_irq(&zone->lru_lock);
+>
+> - =C2=A0 =C2=A0 =C2=A0 if (nr_taken =3D=3D 0) {
+> - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 spin_unlock_irq(&zone-=
+>lru_lock);
+> + =C2=A0 =C2=A0 =C2=A0 if (nr_taken =3D=3D 0)
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0return 0;
+> - =C2=A0 =C2=A0 =C2=A0 }
+>
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0update_isolated_counts(mz, &page_list, &nr_ano=
+n, &nr_file);
+>
+> - =C2=A0 =C2=A0 =C2=A0 __mod_zone_page_state(zone, NR_ISOLATED_ANON, nr_a=
+non);
+> - =C2=A0 =C2=A0 =C2=A0 __mod_zone_page_state(zone, NR_ISOLATED_FILE, nr_f=
+ile);
+> -
+> - =C2=A0 =C2=A0 =C2=A0 spin_unlock_irq(&zone->lru_lock);
+> -
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0nr_reclaimed =3D shrink_page_list(&page_list, =
+mz, sc, priority,
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
+=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
+=C2=A0 =C2=A0 =C2=A0&nr_dirty, &nr_writeback);
+>
+> @@ -1570,6 +1566,9 @@ shrink_inactive_list(unsigned long nr_to
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0}
+>
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0spin_lock_irq(&zone->lru_lock);
+> +
+> + =C2=A0 =C2=A0 =C2=A0 reclaim_stat->recent_scanned[0] +=3D nr_anon;
+> + =C2=A0 =C2=A0 =C2=A0 reclaim_stat->recent_scanned[1] +=3D nr_file;
+>
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0if (current_is_kswapd())
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0__count_vm_events(=
+KSWAPD_STEAL, nr_reclaimed);
 
+Hi Andrew
 
-> Interestingly, ext4 shows comparable throughput, however is reporting
-> near 100% disk utilization:
-> 
->         avg-cpu:  %user   %nice %system %iowait  %steal   %idle
->                    0.76    0.00    9.02    0.00    0.00   90.23
-> 
->         Device:         rrqm/s   wrqm/s     r/s     w/s    rkB/s    wkB/s avgrq-sz avgqu-sz   await  svctm  %util
->         sda               0.00     0.00    0.00  317.00     0.00 20956.00   132.21    28.57   82.71   3.16 100.10
-> 
->         avg-cpu:  %user   %nice %system %iowait  %steal   %idle
->                    0.82    0.00    8.95    0.00    0.00   90.23
-> 
->         Device:         rrqm/s   wrqm/s     r/s     w/s    rkB/s    wkB/s avgrq-sz avgqu-sz   await  svctm  %util
->         sda               0.00     0.00    0.00  402.00     0.00 24388.00   121.33    21.09   58.55   2.42  97.40
-> 
->         avg-cpu:  %user   %nice %system %iowait  %steal   %idle
->                    0.82    0.00    8.99    0.00    0.00   90.19
-> 
->         Device:         rrqm/s   wrqm/s     r/s     w/s    rkB/s    wkB/s avgrq-sz avgqu-sz   await  svctm  %util
->         sda               0.00     0.00    0.00  409.00     0.00 21996.00   107.56    15.25   36.74   2.30  94.10
-  Average request size is smaller so maybe ext4 does more seeking.
+Please consider adding this patch to -mm tree.
 
-> > > > Another common case to test - run 'slapadd' command in each cgroup to
-> > > > create big LDAP database. That does pretty much random IO on a big mmaped
-> > > > DB file.
-> > > 
-> > > I've not used this. Will it need some configuration and data feed?
-> > > fio looks more handy to me for emulating mmap random IO.
-> >   Yes, fio can generate random mmap IO. It's just that this is a real life
-> > workload. So it is not completely random, it happens on several files and
-> > is also interleaved with other memory allocations from DB. I can send you
-> > the config files and data feed if you are interested.
-> 
-> I'm very interested, thank you!
-  OK, I'll send it in private email...
-
-> > > > > +/*
-> > > > > + * schedule writeback on a range of inode pages.
-> > > > > + */
-> > > > > +static struct wb_writeback_work *
-> > > > > +bdi_flush_inode_range(struct backing_dev_info *bdi,
-> > > > > +		      struct inode *inode,
-> > > > > +		      pgoff_t offset,
-> > > > > +		      pgoff_t len,
-> > > > > +		      bool wait)
-> > > > > +{
-> > > > > +	struct wb_writeback_work *work;
-> > > > > +
-> > > > > +	if (!igrab(inode))
-> > > > > +		return ERR_PTR(-ENOENT);
-> > > >   One technical note here: If the inode is deleted while it is queued, this
-> > > > reference will keep it living until flusher thread gets to it. Then when
-> > > > flusher thread puts its reference, the inode will get deleted in flusher
-> > > > thread context. I don't see an immediate problem in that but it might be
-> > > > surprising sometimes. Another problem I see is that if you try to
-> > > > unmount the filesystem while the work item is queued, you'll get EBUSY for
-> > > > no apparent reason (for userspace).
-> > > 
-> > > Yeah, we need to make umount work.
-> >   The positive thing is that if the inode is reaped while the work item is
-> > queue, we know all that needed to be done is done. So we don't really need
-> > to pin the inode.
-> 
-> But I do need to make sure the *inode pointer does not point to some
-> invalid memory at work exec time. Is this possible without raising
-> ->i_count?
-  I was thinking about it and what should work is that we have inode
-reference in work item but in generic_shutdown_super() we go through
-the worklist and drop all work items for superblock before calling
-evict_inodes()...
-
-								Honza
+Thanks
+Hillf
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
