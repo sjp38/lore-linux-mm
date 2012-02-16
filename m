@@ -1,131 +1,115 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx126.postini.com [74.125.245.126])
-	by kanga.kvack.org (Postfix) with SMTP id 89C526B004A
-	for <linux-mm@kvack.org>; Thu, 16 Feb 2012 02:12:21 -0500 (EST)
-Date: Thu, 16 Feb 2012 08:07:54 +0100
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: exit_mmap() BUG_ON triggering since 3.1
-Message-ID: <20120216070753.GA23585@redhat.com>
-References: <20120215183317.GA26977@redhat.com>
- <alpine.LSU.2.00.1202151801020.19691@eggly.anvils>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.LSU.2.00.1202151801020.19691@eggly.anvils>
+Received: from psmtp.com (na3sys010amx206.postini.com [74.125.245.206])
+	by kanga.kvack.org (Postfix) with SMTP id 2496D6B004A
+	for <linux-mm@kvack.org>; Thu, 16 Feb 2012 02:37:58 -0500 (EST)
+Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id E72E93EE0C7
+	for <linux-mm@kvack.org>; Thu, 16 Feb 2012 16:37:55 +0900 (JST)
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id AF6A745DEC4
+	for <linux-mm@kvack.org>; Thu, 16 Feb 2012 16:37:53 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 322EC45DEBF
+	for <linux-mm@kvack.org>; Thu, 16 Feb 2012 16:37:53 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 046421DB803B
+	for <linux-mm@kvack.org>; Thu, 16 Feb 2012 16:37:53 +0900 (JST)
+Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.240.81.133])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id A3E4E1DB8047
+	for <linux-mm@kvack.org>; Thu, 16 Feb 2012 16:37:52 +0900 (JST)
+Date: Thu, 16 Feb 2012 16:36:20 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH] memcg: rework inactive_ratio logic
+Message-Id: <20120216163620.3794d217.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <4F3CA8CA.8020004@openvz.org>
+References: <20120215162442.13588.21790.stgit@zurg>
+	<20120216103842.0c3e9258.kamezawa.hiroyu@jp.fujitsu.com>
+	<4F3CA8CA.8020004@openvz.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: Dave Jones <davej@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, kernel-team@fedoraproject.org
+To: Konstantin Khlebnikov <khlebnikov@openvz.org>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, "cgroups@vger.kernel.org" <cgroups@vger.kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 
-On Wed, Feb 15, 2012 at 06:14:12PM -0800, Hugh Dickins wrote:
-> Now most of those paths in THP also hold mmap_sem for read or write (with
-> appropriate checks on mm_users), but two do not: when split_huge_page()
-> is called by hwpoison_user_mappings(), and when called by add_to_swap().
+On Thu, 16 Feb 2012 10:57:14 +0400
+Konstantin Khlebnikov <khlebnikov@openvz.org> wrote:
 
-So the race is split_huge_page_map() called by add_to_swap() running
-concurrently with free_pgtables. Great catch!!
+> KAMEZAWA Hiroyuki wrote:
+> > On Wed, 15 Feb 2012 20:24:42 +0400
+> > Konstantin Khlebnikov<khlebnikov@openvz.org>  wrote:
+> >
+> >> This patch adds mem_cgroup->inactive_ratio calculated from hierarchical memory limit.
+> >> It updated at each limit change before shrinking cgroup to this new limit.
+> >> Ratios for all child cgroups are updated too, because parent limit can affect them.
+> >> Update precedure can be greatly optimized if its performance becomes the problem.
+> >> Inactive ratio for unlimited or huge limit does not matter, because we'll never hit it.
+> >>
+> >> At global reclaim always use global ratio from zone->inactive_ratio.
+> >> At mem-cgroup reclaim use inactive_ratio from target memory cgroup,
+> >> this is cgroup which hit its limit and cause this reclaimer invocation.
+> >>
+> >> Thus, global memory reclaimer will try to keep ratio for all lru lists in zone
+> >> above one mark, this guarantee that total ratio in this zone will be above too.
+> >> Meanwhile mem-cgroup will do the same thing for its lru lists in all zones, and
+> >> for all lru lists in all sub-cgroups in hierarchy.
+> >>
+> >> Also this patch removes some redundant code.
+> >>
+> >> Signed-off-by: Konstantin Khlebnikov<khlebnikov@openvz.org>
+> >
+> > Hmm, the main purpose of this patch is to remove calculation per get_scan_ratio() ?
+> 
+> Technically, it was preparation for "mm: unify inactive_list_is_low()" from "memory book keeping" patchset.
+> So, actually its main purpose is moving all active/inactive size calculation to mm/vmscan.c
+> 
+> Also I trying to figure out most sane logic for inactive_ratio calculation,
+> currently global memory reclaimer sometimes uses memcg-calculated ratio, it looks strange.
+> 
+> >> ---
+> >>   include/linux/memcontrol.h |   16 ++------
+> >>   mm/memcontrol.c            |   85 ++++++++++++++++++++++++--------------------
+> >>   mm/vmscan.c                |   82 +++++++++++++++++++++++-------------------
+> >>   3 files changed, 93 insertions(+), 90 deletions(-)
+> >>   static int mem_cgroup_resize_limit(struct mem_cgroup *memcg,
+> >>                                unsigned long long val)
+> >>   {
+> 
+> <cut>
+> 
+> >> @@ -3422,6 +3416,7 @@ static int mem_cgroup_resize_limit(struct mem_cgroup *memcg,
+> >>                        else
+> >>                                memcg->memsw_is_minimum = false;
+> >>                }
+> >> +             mem_cgroup_update_inactive_ratio(memcg, val);
+> >>                mutex_unlock(&set_limit_mutex);
+> >>
+> >>                if (!ret)
+> >> @@ -3439,6 +3434,12 @@ static int mem_cgroup_resize_limit(struct mem_cgroup *memcg,
+> >>        if (!ret&&  enlarge)
+> >>                memcg_oom_recover(memcg);
+> >>
+> >> +     if (ret) {
+> >> +             mutex_lock(&set_limit_mutex);
+> >> +             mem_cgroup_update_inactive_ratio(memcg, RESOURCE_MAX);
+> >> +             mutex_unlock(&set_limit_mutex);
+> >> +     }
+> >
+> > Why RESOUECE_MAX ?
+> 
+> resize was failed, so we return back normal value calculated from the current limit.
+> target == RESOURCE_MAX isn't clip limit: min(RESOURCE_MAX, limit) == limit
+> 
 
-> Or should we try harder to avoid the extra locking: test mm_users?
-> #ifdef on THP?  Or consider the accuracy of this count not worth
-> extra locking, and just scrap the BUG_ON now?
+Hm, ok. Thank you.
+Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-It's probably also happening with a large munmap, while add_to_swap
-runs on another vma. Process didn't exit yet, but the actual BUG_ON
-check runs at exit. So I doubt aborting split_huge_page on zero
-mm_users could solve it.
 
-Good part is, this being a false positive makes these oopses a
-nuisance, so it means they can't corrupt any memory or disk etc...
 
-The simplest is probably to change nr_ptes to count THPs too. I tried
-that and no oopses so far but it's not very well tested yet.
 
-====
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: [PATCH] mm: thp: fix BUG on mm->nr_ptes
 
-Quoting Hugh's discovery and explanation of the SMP race condition:
 
-===
-mm->nr_ptes had unusual locking: down_read mmap_sem plus
-page_table_lock when incrementing, down_write mmap_sem (or mm_users 0)
-when decrementing; whereas THP is careful to increment and decrement
-it under page_table_lock.
-
-Now most of those paths in THP also hold mmap_sem for read or write
-(with appropriate checks on mm_users), but two do not: when
-split_huge_page() is called by hwpoison_user_mappings(), and when
-called by add_to_swap().
-
-It's conceivable that the latter case is responsible for the
-exit_mmap() BUG_ON mm->nr_ptes that has been reported on Fedora.
-===
-
-The simplest way to fix it without having to alter the locking is to
-make split_huge_page() a noop in nr_ptes terms, so by counting the
-preallocated pagetables that exists for every mapped hugepage. It was
-an arbitrary choice not to count them and either way is not wrong or
-right, because they are not used but they're still allocated.
-
-Reported-by: Dave Jones <davej@redhat.com>
-Reported-by: Hugh Dickins <hughd@google.com>
-Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
----
- mm/huge_memory.c |    6 +++---
- 1 files changed, 3 insertions(+), 3 deletions(-)
-
-diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index 91d3efb..8f7fc39 100644
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -671,6 +671,7 @@ static int __do_huge_pmd_anonymous_page(struct mm_struct *mm,
- 		set_pmd_at(mm, haddr, pmd, entry);
- 		prepare_pmd_huge_pte(pgtable, mm);
- 		add_mm_counter(mm, MM_ANONPAGES, HPAGE_PMD_NR);
-+		mm->nr_ptes++;
- 		spin_unlock(&mm->page_table_lock);
- 	}
- 
-@@ -789,6 +790,7 @@ int copy_huge_pmd(struct mm_struct *dst_mm, struct mm_struct *src_mm,
- 	pmd = pmd_mkold(pmd_wrprotect(pmd));
- 	set_pmd_at(dst_mm, addr, dst_pmd, pmd);
- 	prepare_pmd_huge_pte(pgtable, dst_mm);
-+	dst_mm->nr_ptes++;
- 
- 	ret = 0;
- out_unlock:
-@@ -887,7 +889,6 @@ static int do_huge_pmd_wp_page_fallback(struct mm_struct *mm,
- 	}
- 	kfree(pages);
- 
--	mm->nr_ptes++;
- 	smp_wmb(); /* make pte visible before pmd */
- 	pmd_populate(mm, pmd, pgtable);
- 	page_remove_rmap(page);
-@@ -1047,6 +1048,7 @@ int zap_huge_pmd(struct mmu_gather *tlb, struct vm_area_struct *vma,
- 			VM_BUG_ON(page_mapcount(page) < 0);
- 			add_mm_counter(tlb->mm, MM_ANONPAGES, -HPAGE_PMD_NR);
- 			VM_BUG_ON(!PageHead(page));
-+			tlb->mm->nr_ptes--;
- 			spin_unlock(&tlb->mm->page_table_lock);
- 			tlb_remove_page(tlb, page);
- 			pte_free(tlb->mm, pgtable);
-@@ -1375,7 +1377,6 @@ static int __split_huge_page_map(struct page *page,
- 			pte_unmap(pte);
- 		}
- 
--		mm->nr_ptes++;
- 		smp_wmb(); /* make pte visible before pmd */
- 		/*
- 		 * Up to this point the pmd is present and huge and
-@@ -1988,7 +1989,6 @@ static void collapse_huge_page(struct mm_struct *mm,
- 	set_pmd_at(mm, address, pmd, _pmd);
- 	update_mmu_cache(vma, address, _pmd);
- 	prepare_pmd_huge_pte(pgtable, mm);
--	mm->nr_ptes--;
- 	spin_unlock(&mm->page_table_lock);
- 
- #ifndef CONFIG_NUMA
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
