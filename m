@@ -1,73 +1,25 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx182.postini.com [74.125.245.182])
-	by kanga.kvack.org (Postfix) with SMTP id 228056B007E
-	for <linux-mm@kvack.org>; Thu, 16 Feb 2012 18:11:39 -0500 (EST)
-Received: by pbcwz17 with SMTP id wz17so3752551pbc.14
-        for <linux-mm@kvack.org>; Thu, 16 Feb 2012 15:11:38 -0800 (PST)
-Content-Type: text/plain; charset=utf-8; format=flowed; delsp=yes
-Subject: Re: [PATCH 01/18] Added hacking menu for override optimization by
- GCC.
-References: <1329402705-25454-1-git-send-email-mail@smogura.eu>
- <op.v9sctsrj3l0zgt@mpn-glaptop>
- <76ede790fcc4ab73f969761034554e92@rsmogura.net>
- <op.v9skpfhq3l0zgt@mpn-glaptop>
- <ab8f1052da1c6b03f70379ecbd9e1d65@rsmogura.net>
-Date: Thu, 16 Feb 2012 15:11:30 -0800
+Received: from psmtp.com (na3sys010amx193.postini.com [74.125.245.193])
+	by kanga.kvack.org (Postfix) with SMTP id 049FA6B007E
+	for <linux-mm@kvack.org>; Thu, 16 Feb 2012 18:42:36 -0500 (EST)
+Date: Thu, 16 Feb 2012 18:42:33 -0500
+From: Ted Ts'o <tytso@mit.edu>
+Subject: Re: [WIP 11/18] Basic support (faulting) for huge pages for shmfs
+Message-ID: <20120216234233.GE26473@thunk.org>
+References: <1329403677-25629-1-git-send-email-mail@smogura.eu>
 MIME-Version: 1.0
-Content-Transfer-Encoding: Quoted-Printable
-From: "Michal Nazarewicz" <mina86@mina86.com>
-Message-ID: <op.v9sn1gld3l0zgt@mpn-glaptop>
-In-Reply-To: <ab8f1052da1c6b03f70379ecbd9e1d65@rsmogura.net>
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1329403677-25629-1-git-send-email-mail@smogura.eu>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: =?utf-8?B?UmFkb3PFgmF3IFNtb2d1cmE=?= <mail@smogura.eu>
+To: =?utf-8?B?UmFkb3PFgmF3?= Smogura <mail@smogura.eu>
 Cc: linux-mm@kvack.org, Yongqiang Yang <xiaoqiangnk@gmail.com>, linux-ext4@vger.kernel.org
 
-On Thu, 16 Feb 2012 14:40:17 -0800, Rados=C5=82aw Smogura <mail@smogura.=
-eu> wrote:
+OK, stupid question... where are patches 1 through 10?  I'm guessing
+linux-ext4 wasn't cc'ed on them?
 
-> On Thu, 16 Feb 2012 13:59:29 -0800, Michal Nazarewicz wrote:
->> On Thu, 16 Feb 2012 12:26:00 -0800, Rados=C5=82aw Smogura
->> <mail@smogura.eu> wrote:
->>
->>> On Thu, 16 Feb 2012 11:09:18 -0800, Michal Nazarewicz wrote:
->>>> On Thu, 16 Feb 2012 06:31:28 -0800, Rados=C5=82aw Smogura
->>>> <mail@smogura.eu> wrote:
->>>>> Supporting files, like Kconfig, Makefile are auto-generated due to=
-
->>>>> large amount
->>>>> of available options.
->>>>
->>>> So why not run the script as part of make rather then store
->>>> generated
->>>> files in
->>>> repository?
->>> Idea to run this script through make is quite good, and should work,=
-
->>> because new mane will be generated before "config" starts.
->>>
->>> "Bashizms" are indeed unneeded, I will try to replace this with sed.=
-
->>
->> Uh? Why sed?
-> There are some substitutions so I it will be better to use sed.
-
-Do you mean this:
-
-> cfg_o=3D"${CFG_PREFIX}_${o//-/_}";
-
-It can be achieved with =E2=80=9Ctr=E2=80=9D like I've shown:
-
-> cfg_o=3D$CFG_PREFIX_$(echo "$o" | tr '[:lower:]-' '[:upper:]_')
-
-
--- =
-
-Best regards,                                         _     _
-.o. | Liege of Serenely Enlightened Majesty of      o' \,=3D./ `o
-..o | Computer Science,  Micha=C5=82 =E2=80=9Cmina86=E2=80=9D Nazarewicz=
-    (o o)
-ooo +----<email/xmpp: mpn@google.com>--------------ooO--(_)--Ooo--
+					- Ted
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
