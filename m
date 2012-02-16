@@ -1,122 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx120.postini.com [74.125.245.120])
-	by kanga.kvack.org (Postfix) with SMTP id 44F086B0082
-	for <linux-mm@kvack.org>; Thu, 16 Feb 2012 08:42:41 -0500 (EST)
-Date: Thu, 16 Feb 2012 21:32:33 +0800
-From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: Re: reclaim the LRU lists full of dirty/writeback pages
-Message-ID: <20120216133233.GA13369@localhost>
-References: <CAHH2K0bmURXpk6-4D9q7ErppVyMJjKMsn37MenwqcP_nnT66Mw@mail.gmail.com>
- <20120210114706.GA4704@localhost>
- <20120211124445.GA10826@localhost>
- <4F36816A.6030609@redhat.com>
- <20120212031029.GA17435@localhost>
- <20120213154313.GD6478@quack.suse.cz>
- <20120214100348.GA7000@localhost>
- <20120214132950.GE1934@quack.suse.cz>
- <20120216040019.GB17597@localhost>
- <20120216124445.GB18613@quack.suse.cz>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20120216124445.GB18613@quack.suse.cz>
+Received: from psmtp.com (na3sys010amx121.postini.com [74.125.245.121])
+	by kanga.kvack.org (Postfix) with SMTP id 28E996B0082
+	for <linux-mm@kvack.org>; Thu, 16 Feb 2012 08:46:47 -0500 (EST)
+From: Jan Kara <jack@suse.cz>
+Subject: [PATCH 00/11] Push file_update_time() into .page_mkwrite
+Date: Thu, 16 Feb 2012 14:46:08 +0100
+Message-Id: <1329399979-3647-1-git-send-email-jack@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jan Kara <jack@suse.cz>
-Cc: Rik van Riel <riel@redhat.com>, Greg Thelen <gthelen@google.com>, "bsingharora@gmail.com" <bsingharora@gmail.com>, Hugh Dickins <hughd@google.com>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, Mel Gorman <mgorman@suse.de>, Ying Han <yinghan@google.com>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>
+To: LKML <linux-kernel@vger.kernel.org>
+Cc: linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Eric Sandeen <sandeen@redhat.com>, Dave Chinner <david@fromorbit.com>, Jan Kara <jack@suse.cz>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Ingo Molnar <mingo@elte.hu>, Paul Mackerras <paulus@samba.org>, Arnaldo Carvalho de Melo <acme@ghostprotocols.net>, Jaya Kumar <jayalk@intworks.biz>, Sage Weil <sage@newdream.net>, ceph-devel@vger.kernel.org, Steve French <sfrench@samba.org>, linux-cifs@vger.kernel.org, Eric Van Hensbergen <ericvh@gmail.com>, Ron Minnich <rminnich@sandia.gov>, Latchesar Ionkov <lucho@ionkov.net>, v9fs-developer@lists.sourceforge.net, Miklos Szeredi <miklos@szeredi.hu>, fuse-devel@lists.sourceforge.net, Steven Whitehouse <swhiteho@redhat.com>, cluster-devel@redhat.com, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Trond Myklebust <Trond.Myklebust@netapp.com>, linux-nfs@vger.kernel.org
 
-On Thu, Feb 16, 2012 at 01:44:45PM +0100, Jan Kara wrote:
-> On Thu 16-02-12 12:00:19, Wu Fengguang wrote:
-> > On Tue, Feb 14, 2012 at 02:29:50PM +0100, Jan Kara wrote:
+  Hello,
 
-> > > > > > +/*
-> > > > > > + * schedule writeback on a range of inode pages.
-> > > > > > + */
-> > > > > > +static struct wb_writeback_work *
-> > > > > > +bdi_flush_inode_range(struct backing_dev_info *bdi,
-> > > > > > +		      struct inode *inode,
-> > > > > > +		      pgoff_t offset,
-> > > > > > +		      pgoff_t len,
-> > > > > > +		      bool wait)
-> > > > > > +{
-> > > > > > +	struct wb_writeback_work *work;
-> > > > > > +
-> > > > > > +	if (!igrab(inode))
-> > > > > > +		return ERR_PTR(-ENOENT);
-> > > > >   One technical note here: If the inode is deleted while it is queued, this
-> > > > > reference will keep it living until flusher thread gets to it. Then when
-> > > > > flusher thread puts its reference, the inode will get deleted in flusher
-> > > > > thread context. I don't see an immediate problem in that but it might be
-> > > > > surprising sometimes. Another problem I see is that if you try to
-> > > > > unmount the filesystem while the work item is queued, you'll get EBUSY for
-> > > > > no apparent reason (for userspace).
-> > > > 
-> > > > Yeah, we need to make umount work.
-> > >   The positive thing is that if the inode is reaped while the work item is
-> > > queue, we know all that needed to be done is done. So we don't really need
-> > > to pin the inode.
-> > 
-> > But I do need to make sure the *inode pointer does not point to some
-> > invalid memory at work exec time. Is this possible without raising
-> > ->i_count?
->   I was thinking about it and what should work is that we have inode
-> reference in work item but in generic_shutdown_super() we go through
-> the worklist and drop all work items for superblock before calling
-> evict_inodes()...
+  to provide reliable support for filesystem freezing, filesystems need to have
+complete control over when metadata is changed. In particular,
+file_update_time() calls from page fault code make it impossible for
+filesystems to prevent inodes from being dirtied while the filesystem is
+frozen.
 
-Good point!
+To fix the issue, this patch set changes page fault code to call
+file_update_time() only when ->page_mkwrite() callback is not provided. If the
+callback is provided, it is the responsibility of the filesystem to perform
+update of i_mtime / i_ctime if needed. We also push file_update_time() call
+to all existing ->page_mkwrite() implementations if the time update does not
+obviously happen by other means. If you know your filesystem does not need
+update of modification times in ->page_mkwrite() handler, please speak up and
+I'll drop the patch for your filesystem.
 
-This diff removes the works after the sync_filesystem(sb) call.  After
-which, no more dirty pages are expected on that sb (otherwise the
-umount will fail anyway), hence no more pageout works will be queued
-for that sb.
+As a side note, an alternative would be to remove call of file_update_time()
+from page fault code altogether and require all filesystems needing it to do
+that in their ->page_mkwrite() implementation. That is certainly possible
+although maybe slightly inefficient and would require auditting 100+
+vm_operations_structs *shake*.
 
-+static void wb_free_work(struct wb_writeback_work *work)
-+{
-+	/*
-+	 * Notify the caller of completion if this is a synchronous
-+	 * work item, otherwise just free it.
-+	 */
-+	if (work->done)
-+		complete(work->done);
-+	else
-+		mempool_free(work, wb_work_mempool);
-+}
-+
-+/*
-+ * Remove works for @sb; or if (@sb == NULL), remove all works on @bdi.
-+ */
-+void bdi_remove_works(struct backing_dev_info *bdi, struct super_block *sb)
-+{
-+	struct inode *inode = mapping->host;
-+	struct wb_writeback_work *work;
-+
-+	spin_lock_bh(&bdi->wb_lock);
-+	list_for_each_entry_safe(work, &bdi->work_list, list) {
-+		if (work->inode && work->inode->i_sb == sb) {
-+			iput(inode);
-+		} else if (sb && work->sb != sb)
-+			continue;
-+
-+		list_del_init(&work->list);
-+		wb_free_work(work);
-+	}
-+	spin_unlock_bh(&bdi->wb_lock);
-+}
+If I get acks on these patches, Andrew, would you be willing to take these
+patches?
 
---- linux.orig/fs/super.c	2012-02-16 21:08:09.000000000 +0800
-+++ linux/fs/super.c	2012-02-16 21:22:19.000000000 +0800
-@@ -389,6 +389,7 @@ void generic_shutdown_super(struct super
- 
- 		fsnotify_unmount_inodes(&sb->s_inodes);
- 
-+		bdi_remove_works(sb->s_bdi, sb);
- 		evict_inodes(sb);
- 
- 		if (sop->put_super)
+								Honza
 
-Thanks,
-Fengguang
+CC: Peter Zijlstra <a.p.zijlstra@chello.nl>
+CC: Ingo Molnar <mingo@elte.hu>
+CC: Paul Mackerras <paulus@samba.org>
+CC: Arnaldo Carvalho de Melo <acme@ghostprotocols.net>
+CC: Jaya Kumar <jayalk@intworks.biz>
+CC: Sage Weil <sage@newdream.net>
+CC: ceph-devel@vger.kernel.org
+CC: Steve French <sfrench@samba.org>
+CC: linux-cifs@vger.kernel.org
+CC: Eric Van Hensbergen <ericvh@gmail.com>
+CC: Ron Minnich <rminnich@sandia.gov>
+CC: Latchesar Ionkov <lucho@ionkov.net>
+CC: v9fs-developer@lists.sourceforge.net
+CC: Miklos Szeredi <miklos@szeredi.hu>
+CC: fuse-devel@lists.sourceforge.net
+CC: Steven Whitehouse <swhiteho@redhat.com>
+CC: cluster-devel@redhat.com
+CC: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+CC: Trond Myklebust <Trond.Myklebust@netapp.com>
+CC: linux-nfs@vger.kernel.org
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
