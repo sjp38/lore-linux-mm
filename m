@@ -1,120 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx184.postini.com [74.125.245.184])
-	by kanga.kvack.org (Postfix) with SMTP id 44AA36B0082
-	for <linux-mm@kvack.org>; Wed, 15 Feb 2012 21:38:18 -0500 (EST)
-Received: by dadv6 with SMTP id v6so1885650dad.14
-        for <linux-mm@kvack.org>; Wed, 15 Feb 2012 18:38:17 -0800 (PST)
-Date: Wed, 15 Feb 2012 18:37:49 -0800 (PST)
+Received: from psmtp.com (na3sys010amx124.postini.com [74.125.245.124])
+	by kanga.kvack.org (Postfix) with SMTP id E2D8B6B004A
+	for <linux-mm@kvack.org>; Wed, 15 Feb 2012 21:49:10 -0500 (EST)
+Received: by dadv6 with SMTP id v6so1895246dad.14
+        for <linux-mm@kvack.org>; Wed, 15 Feb 2012 18:49:10 -0800 (PST)
+Date: Wed, 15 Feb 2012 18:48:42 -0800 (PST)
 From: Hugh Dickins <hughd@google.com>
-Subject: Re: [PATCH RFC 00/15] mm: memory book keeping and lru_lock
- splitting
-In-Reply-To: <20120215224221.22050.80605.stgit@zurg>
-Message-ID: <alpine.LSU.2.00.1202151815180.19722@eggly.anvils>
-References: <20120215224221.22050.80605.stgit@zurg>
+Subject: Re: exit_mmap() BUG_ON triggering since 3.1
+In-Reply-To: <CAL1RGDVQDr-h5Makto-FXHeHUkK4sJooszciiNvVR66WonQ=6w@mail.gmail.com>
+Message-ID: <alpine.LSU.2.00.1202151841400.19722@eggly.anvils>
+References: <20120215183317.GA26977@redhat.com> <alpine.LSU.2.00.1202151801020.19691@eggly.anvils> <CAL1RGDVQDr-h5Makto-FXHeHUkK4sJooszciiNvVR66WonQ=6w@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: MULTIPART/MIXED; BOUNDARY="8323584-1684060180-1329360529=:19722"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Konstantin Khlebnikov <khlebnikov@openvz.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Roland Dreier <roland@purestorage.com>
+Cc: Dave Jones <davej@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, David Rientjes <rientjes@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, kernel-team@fedoraproject.org
 
-On Thu, 16 Feb 2012, Konstantin Khlebnikov wrote:
+  This message is in MIME format.  The first part should be readable text,
+  while the remaining parts are likely unreadable without MIME-aware tools.
 
-> There should be no logic changes in this patchset, this is only tossing bits around.
-> [ This patchset is on top some memcg cleanup/rework patches,
->   which I sent to linux-mm@ today/yesterday ]
-> 
-> Most of things in this patchset are self-descriptive, so here brief plan:
-> 
-> * Transmute struct lruvec into struct book. Like real book this struct will
->   store set of pages for one zone. It will be working unit for reclaimer code.
-> [ If memcg is disabled in config there will only one book embedded into struct zone ]
-> 
-> * move page-lru counters to struct book
-> [ this adds extra overhead in add_page_to_lru_list()/del_page_from_lru_list() for
->   non-memcg case, but I believe it will be invisible, only one non-atomic add/sub
->   in the same cacheline with lru list ]
-> 
-> * unify inactive_list_is_low_global() and cleanup reclaimer code
-> * replace struct mem_cgroup_zone with single pointer to struct book
-> * optimize page to book translations, move it upper in the call stack,
->   replace some struct zone arguments with struct book pointer.
-> 
-> page -> book dereference become main operation, page (even free) will always
-> points to one book in its zone. so page->flags bits may contains direct reference to book.
-> Maybe we can replace page_zone(page) with book_zone(page_book(page)), without mem cgroups
-> book -> zone dereference will be simple container_of().
-> 
-> Finally, there appears some new locking primitives for decorating lru_lock splitting logic.
-> Final patch actually splits zone->lru_lock into small per-book pieces.
+--8323584-1684060180-1329360529=:19722
+Content-Type: TEXT/PLAIN; charset=ISO-8859-1
+Content-Transfer-Encoding: QUOTED-PRINTABLE
 
-Well done, it looks like you've beaten me by a few days: my per-memcg
-per-zone locking patches are now split up and ready, except for the
-commit comments and performance numbers to support them.
+On Wed, 15 Feb 2012, Roland Dreier wrote:
+> On Wed, Feb 15, 2012 at 6:14 PM, Hugh Dickins <hughd@google.com> wrote:
+> > My suspicion was that it would be related to Transparent HugePages:
+> > they do complicate the pagetable story. =A0And I think I have found a
+> > potential culprit. =A0I don't know if nr_ptes is the only loser from
+> > these two split_huge_pages calls, but assuming it is...
+>=20
+> Do you have an idea when this bug might have been introduced?
+> Presumably it's been there since THP came in?
 
-Or perhaps what we've been doing is orthogonal: I've not glanced beyond
-your Subjects yet, but those do look very familiar from my own work -
-though we're still using "lruvec"s rather than "book"s.
+That's right, since THP came in (2.6.38 on mainline,
+but IIRC Red Hat had THP applied to an earlier kernel).
 
-Anyway, I should be well-placed to review what you've done, and had
-better switch away from my own patches to testing and reviewing yours
-now, checking if we've caught anything that you're missing.  Or maybe
-it'll be worth posting mine anyway, we'll see: I'll look to yours first.
+>=20
+> The reason I ask is that I have one of these exit_mm BUG_ONs
+> in my pile of one-off unreproducible crashes, but in my case it
+> happened with 2.6.39 (with THP enabled).  So I'm wondering if
+> I can cross it off my list and blame this bug, or if it remains one
+> of those inexplicable mysteries...
 
-> All this code currently *completely untested*, but seems like it already can work.
+If you think that system could have been using swap, yes, cross it
+off (unless someone points out that I'm totally wrong, because....).
 
-Oh, perhaps I'm ahead of you after all :)
-
-> 
-> After that, there two options how manage struct book on mem-cgroup create/destroy:
-> a) [ currently implemented ] allocate and release by rcu.
->    Thus lock_page_book() will be protected with rcu_read_lock().
-> b) allocate and never release struct book, reuse them after rcu grace period.
->    It allows to avoid some rcu_read_lock()/rcu_read_unlock() calls on hot paths.
-> 
-> 
-> Motivation:
-> I wrote the similar memory controller for our rhel6-based openvz/virtuozzo kernel,
-> including splitted lru-locks and some other [patented LOL] cool stuff.
-> [ common descrioption without techical details: http://wiki.openvz.org/VSwap ]
-> That kernel already in production and rather stable for a long time.
-> 
-> ---
-> 
-> Konstantin Khlebnikov (15):
->       mm: rename struct lruvec into struct book
->       mm: memory bookkeeping core
->       mm: add book->pages_count
->       mm: unify inactive_list_is_low()
->       mm: add book->reclaim_stat
->       mm: kill struct mem_cgroup_zone
->       mm: move page-to-book translation upper
->       mm: introduce book locking primitives
->       mm: handle book relocks on lumpy reclaim
->       mm: handle book relocks in compaction
->       mm: handle book relock in memory controller
->       mm: optimize books in update_page_reclaim_stat()
->       mm: optimize books in pagevec_lru_move_fn()
->       mm: optimize putback for 0-order reclaim
->       mm: split zone->lru_lock
-> 
-> 
->  include/linux/memcontrol.h |   52 -------
->  include/linux/mm_inline.h  |  222 ++++++++++++++++++++++++++++-
->  include/linux/mmzone.h     |   26 ++-
->  include/linux/swap.h       |    2 
->  init/Kconfig               |    4 +
->  mm/compaction.c            |   35 +++--
->  mm/huge_memory.c           |   10 +
->  mm/memcontrol.c            |  238 ++++++++++---------------------
->  mm/page_alloc.c            |   20 ++-
->  mm/swap.c                  |  128 ++++++-----------
->  mm/vmscan.c                |  334 +++++++++++++++++++-------------------------
->  11 files changed, 554 insertions(+), 517 deletions(-)
-
-That's a very familiar list of files to me!
+But if you know that system used no swap (and didn't get involved
+in any memory-failure hwpoison business), then keep on worrying!
 
 Hugh
+--8323584-1684060180-1329360529=:19722--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
