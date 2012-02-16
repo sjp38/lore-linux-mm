@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx122.postini.com [74.125.245.122])
-	by kanga.kvack.org (Postfix) with SMTP id 5421E6B0083
-	for <linux-mm@kvack.org>; Thu, 16 Feb 2012 07:04:55 -0500 (EST)
-Received: by wibhj13 with SMTP id hj13so1571890wib.14
-        for <linux-mm@kvack.org>; Thu, 16 Feb 2012 04:04:53 -0800 (PST)
+Received: from psmtp.com (na3sys010amx108.postini.com [74.125.245.108])
+	by kanga.kvack.org (Postfix) with SMTP id 7F0DA6B0082
+	for <linux-mm@kvack.org>; Thu, 16 Feb 2012 07:15:08 -0500 (EST)
+Received: by wgbdt12 with SMTP id dt12so1576890wgb.26
+        for <linux-mm@kvack.org>; Thu, 16 Feb 2012 04:15:06 -0800 (PST)
 MIME-Version: 1.0
 From: Daniel Vetter <daniel.vetter@ffwll.ch>
-Subject: [PATCH] mm: extend prefault helpers to fault in more than PAGE_SIZE
-Date: Thu, 16 Feb 2012 13:01:36 +0100
-Message-Id: <1329393696-4802-2-git-send-email-daniel.vetter@ffwll.ch>
-In-Reply-To: <1329393696-4802-1-git-send-email-daniel.vetter@ffwll.ch>
-References: <1329393696-4802-1-git-send-email-daniel.vetter@ffwll.ch>
+Subject: [PATCH 08/14] mm: extend prefault helpers to fault in more than PAGE_SIZE
+Date: Thu, 16 Feb 2012 13:11:34 +0100
+Message-Id: <1329394300-5460-9-git-send-email-daniel.vetter@ffwll.ch>
+In-Reply-To: <1329394300-5460-1-git-send-email-daniel.vetter@ffwll.ch>
+References: <1329394300-5460-1-git-send-email-daniel.vetter@ffwll.ch>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Intel Graphics Development <intel-gfx@lists.freedesktop.org>, DRI Development <dri-devel@lists.freedesktop.org>, LKML <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, Daniel Vetter <daniel.vetter@ffwll.ch>
+To: Intel Graphics Development <intel-gfx@lists.freedesktop.org>
+Cc: Daniel Vetter <daniel.vetter@ffwll.ch>, linux-mm@kvack.org
 
 drm/i915 wants to read/write more than one page in its fastpath
 and hence needs to prefault more than PAGE_SIZE bytes.
