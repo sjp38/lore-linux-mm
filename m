@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx180.postini.com [74.125.245.180])
-	by kanga.kvack.org (Postfix) with SMTP id 4A00E6B00F3
-	for <linux-mm@kvack.org>; Thu, 16 Feb 2012 09:48:53 -0500 (EST)
+Received: from psmtp.com (na3sys010amx206.postini.com [74.125.245.206])
+	by kanga.kvack.org (Postfix) with SMTP id 6F55C6B0092
+	for <linux-mm@kvack.org>; Thu, 16 Feb 2012 09:48:55 -0500 (EST)
 From: =?UTF-8?q?Rados=C5=82aw=20Smogura?= <mail@smogura.eu>
-Subject: [WIP 16/18] SHM: Support for splitting on truncation
-Date: Thu, 16 Feb 2012 15:47:55 +0100
-Message-Id: <1329403677-25629-6-git-send-email-mail@smogura.eu>
+Subject: [WIP 18/18] [WIP] Dummy patch for details
+Date: Thu, 16 Feb 2012 15:47:57 +0100
+Message-Id: <1329403677-25629-8-git-send-email-mail@smogura.eu>
 In-Reply-To: <1329403677-25629-1-git-send-email-mail@smogura.eu>
 References: <1329403677-25629-1-git-send-email-mail@smogura.eu>
 MIME-Version: 1.0
@@ -16,93 +16,67 @@ List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
 Cc: Yongqiang Yang <xiaoqiangnk@gmail.com>, mail@smogura.eu, linux-ext4@vger.kernel.org
 
-Writeback will be added in next patches, but after experimental support
-for huge pages for EXT 4.
+I send this dummy patch to describe a bit of work, maybe someone may
+have additional ideas, concepts and tips. In any case I'm glad I mapped huge
+EXT4 and data was synced to disk.
+
+Some concepts about compounds:
+	- first_page moved to lru union to free place for buffers
+	- refcounting changed - compound pages are "auto managed",
+	  page recovering is for backward
+	  compatibilit with 2.6 kernels, actully those kernels allowed
+	  getting tail page of count 0, but at eye glance moving few
+	  times around 0 could cause dangling pointer bug
+
+Compound view.
+In distinction to huge pages and THP, file system
+compound pages are really loosely treated, as a main difference there is no
+implication huge page => huge pmd, huge page may exist and may have no
+huge mappings at all.
+
+Each page is managed almost like stand alone, have own count, mapcount, dirty
+bit etc. It can't be added to any LRU nor list, because list_head is
+shared with compound metadata.
+
+Read / write locking of compound.
+
+Splitting may be dequeued this is to prevent deadlocks, "legacy" code
+will probably start with normal page locked, and then try to lock
+compound, for splitting purposes this may cause deadlocks (actually this
+flag was not included in faulting and enywhere else, but should be).
+
+Still there is no defragmentation daemon nor anything simillar, this
+behaviour is forced by MAP_HUGETLB.
+
+Things not made:
+* kswapd & co. not tested.
+* mlock not fixed, fix will cover get_user_pages & follow_user_pages.
+* fork, page_mkclean, mlock,  not fixed.
+* dropping caches = bug.
+* migration not checked
+* shmfs - writeback for reclaim should split, simple to make, but ext4
+  experiments should go first (syncing)
+* no huge COW mapping allowed.
+* code cleaning from all printk...
 
 Signed-off-by: RadosA?aw Smogura <mail@smogura.eu>
 ---
- mm/shmem.c |   39 ++++++++++++++++++++++++++++++++++++++-
- 1 files changed, 38 insertions(+), 1 deletions(-)
+ mm/filemap.c |    2 +-
+ 1 files changed, 1 insertions(+), 1 deletions(-)
 
-diff --git a/mm/shmem.c b/mm/shmem.c
-index 97e76b9..db377bf 100644
---- a/mm/shmem.c
-+++ b/mm/shmem.c
-@@ -454,6 +454,7 @@ void shmem_truncate_range(struct inode *inode, loff_t lstart, loff_t lend)
- 		mem_cgroup_uncharge_start();
- 		for (i = 0; i < pagevec_count(&pvec); i++) {
- 			struct page *page = pvec.pages[i];
-+			struct page *head = NULL;
+diff --git a/mm/filemap.c b/mm/filemap.c
+index f050209..7174fff 100644
+--- a/mm/filemap.c
++++ b/mm/filemap.c
+@@ -1783,7 +1783,7 @@ int filemap_fault_huge(struct vm_area_struct *vma, struct vm_fault *vmf)
+ 	int ret = VM_FAULT_LOCKED;
  
- 			index = indices[i];
- 			if (index > end)
-@@ -464,12 +465,32 @@ void shmem_truncate_range(struct inode *inode, loff_t lstart, loff_t lend)
- 								index, page);
- 				continue;
- 			}
--
- 			if (!trylock_page(page))
- 				continue;
-+			if (PageCompound(page)) {
-+				head = compound_head(page);
-+				switch (compound_try_freeze(head, false)) {
-+				case -1:
-+					head = NULL;
-+					break;
-+				case 1:
-+					unlock_page(page);
-+					continue;
-+				case 0:
-+					if (!split_huge_page_file(head, page))
-+						head = NULL;
-+					break;
-+				}
-+			}
-+			/* Truncate inode page may try to freez, so unfreez. */
- 			if (page->mapping == mapping) {
- 				VM_BUG_ON(PageWriteback(page));
-+				if (head != NULL)
-+					compound_unfreeze(head);
- 				truncate_inode_page(mapping, page);
-+			} else {
-+				if (head != NULL)
-+					compound_unfreeze(head);
- 			}
- 			unlock_page(page);
- 		}
-@@ -511,6 +532,7 @@ void shmem_truncate_range(struct inode *inode, loff_t lstart, loff_t lend)
- 		mem_cgroup_uncharge_start();
- 		for (i = 0; i < pagevec_count(&pvec); i++) {
- 			struct page *page = pvec.pages[i];
-+			struct page *head = NULL;
- 
- 			index = indices[i];
- 			if (index > end)
-@@ -523,9 +545,24 @@ void shmem_truncate_range(struct inode *inode, loff_t lstart, loff_t lend)
- 			}
- 
- 			lock_page(page);
-+			if (PageCompound(page)) {
-+				head = compound_head(page);
-+				if (compound_freeze(head)) {
-+					if (!split_huge_page_file(head, page))
-+						head = NULL;
-+				} else {
-+					head = NULL;
-+				}
-+			}
-+			/* Truncate inode page may try to freez, so unfreez. */
- 			if (page->mapping == mapping) {
- 				VM_BUG_ON(PageWriteback(page));
-+				if (head != NULL)
-+					compound_unfreeze(head);
- 				truncate_inode_page(mapping, page);
-+			} else {
-+				if (head != NULL)
-+					compound_unfreeze(head);
- 			}
- 			unlock_page(page);
- 		}
+ 	error = vma->vm_ops->fault(vma, vmf);
+-	/* XXX Repeatable flags in __do fault etc. */
++	/* XXX Repeatable flags in __do fault etc.  */
+ 	if (error & (VM_FAULT_ERROR | VM_FAULT_NOPAGE
+ 		| VM_FAULT_RETRY | VM_FAULT_NOHUGE)) {
+ 		return error;
 -- 
 1.7.3.4
 
