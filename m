@@ -1,63 +1,156 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx189.postini.com [74.125.245.189])
-	by kanga.kvack.org (Postfix) with SMTP id 886E96B004A
-	for <linux-mm@kvack.org>; Thu, 16 Feb 2012 04:03:16 -0500 (EST)
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: Re: [PATCH 5/6] introduce pmd_to_pte_t()
-Date: Thu, 16 Feb 2012 04:02:42 -0500
-Message-Id: <1329382962-27039-1-git-send-email-n-horiguchi@ah.jp.nec.com>
-In-Reply-To: <20120215165408.a111eefa.akpm@linux-foundation.org>
+Received: from psmtp.com (na3sys010amx132.postini.com [74.125.245.132])
+	by kanga.kvack.org (Postfix) with SMTP id EF5286B0082
+	for <linux-mm@kvack.org>; Thu, 16 Feb 2012 04:53:33 -0500 (EST)
+Received: by pbcwz17 with SMTP id wz17so2907706pbc.14
+        for <linux-mm@kvack.org>; Thu, 16 Feb 2012 01:53:33 -0800 (PST)
+Date: Thu, 16 Feb 2012 01:53:04 -0800 (PST)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: exit_mmap() BUG_ON triggering since 3.1
+In-Reply-To: <20120216070753.GA23585@redhat.com>
+Message-ID: <alpine.LSU.2.00.1202160130500.16147@eggly.anvils>
+References: <20120215183317.GA26977@redhat.com> <alpine.LSU.2.00.1202151801020.19691@eggly.anvils> <20120216070753.GA23585@redhat.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, linux-mm@kvack.org, David Rientjes <rientjes@google.com>, Andi Kleen <andi@firstfloor.org>, Wu Fengguang <fengguang.wu@intel.com>, Andrea Arcangeli <aarcange@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-kernel@vger.kernel.org
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: Dave Jones <davej@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, kernel-team@fedoraproject.org
 
-On Wed, Feb 15, 2012 at 04:54:08PM -0800, Andrew Morton wrote:
-> On Wed,  8 Feb 2012 10:51:41 -0500
-> Naoya Horiguchi <n-horiguchi@ah.jp.nec.com> wrote:
+On Thu, 16 Feb 2012, Andrea Arcangeli wrote:
+> On Wed, Feb 15, 2012 at 06:14:12PM -0800, Hugh Dickins wrote:
+> > Now most of those paths in THP also hold mmap_sem for read or write (with
+> > appropriate checks on mm_users), but two do not: when split_huge_page()
+> > is called by hwpoison_user_mappings(), and when called by add_to_swap().
 > 
-> > Casting pmd into pte_t to handle thp is strongly architecture dependent.
-> > This patch introduces a new function to separate this dependency from
-> > independent part.
-> > 
-> >
-> > ...
-> >
-> > --- 3.3-rc2.orig/include/asm-generic/pgtable.h
-> > +++ 3.3-rc2/include/asm-generic/pgtable.h
-> > @@ -434,6 +434,10 @@ static inline int pmd_trans_splitting(pmd_t pmd)
-> >  {
-> >  	return 0;
-> >  }
-> > +static inline pte_t pmd_to_pte_t(pmd_t *pmd)
-> > +{
-> > +	return 0;
-> > +}
+> So the race is split_huge_page_map() called by add_to_swap() running
+> concurrently with free_pgtables. Great catch!!
 > 
-> This doesn't compile.
-
-Sorry for my failing to make sure of compile testing.
-The return value should be cast to pte_t to pass the complie.
-
-> And I can't think of a sensible way of generating a stub for this
-> operation - if you have a pmd_t and want to convert it to a pte_t then
-> just convert it, dammit.  And there's no rationality behind making that
-> conversion unavailable or inoperative if CONFIG_TRANSPARENT_HUGEPAGE=n?
+> > Or should we try harder to avoid the extra locking: test mm_users?
+> > #ifdef on THP?  Or consider the accuracy of this count not worth
+> > extra locking, and just scrap the BUG_ON now?
 > 
-> Shudder.  I'll drop the patch.  Rethink, please.
+> It's probably also happening with a large munmap, while add_to_swap
+> runs on another vma. Process didn't exit yet, but the actual BUG_ON
+> check runs at exit. So I doubt aborting split_huge_page on zero
+> mm_users could solve it.
 
-OK for dropping it.
-This patch is not enough to solve the problem of isolating arch dependency.
+Indeed, what I meant was, I was wondering whether to make the
+spin_lock and spin_unlock in my patch conditional on mm_users,
+not to make split_huge_page conditional on it.
 
-Although it's not clear from the name, the intension of this function was
-to get the lowest level of entry in page table hierarchy which points to
-a hugepage.  It is pmd for x86_64, but pte for powerpc64 for example.
-So I thought it's useful to introduce a stub like above.
-But the callers of this function assume that pmd points to hugepage,
-so arch dependency in arch independent code still remains.
-We need to work on it when thp supports other archs,
-but anyway, removing this patch is not critical for others of this series,
-so I'm ok about it.
+> 
+> Good part is, this being a false positive makes these oopses a
+> nuisance, so it means they can't corrupt any memory or disk etc...
+
+Yes (and I think less troublesome than most BUGs, coming at exit
+while not holding locks; though we could well make it a WARN_ON,
+I don't think that existed back in the day).
+
+> 
+> The simplest is probably to change nr_ptes to count THPs too. I tried
+> that and no oopses so far but it's not very well tested yet.
+
+Oh, I like that, that's a much nicer fix than mine.  If you're happy
+to change the THP end (which I could hardly blame for getting those odd
+rules slightly wrong), and it passes your testing, then certainly add my
+
+Acked-by: Hugh Dickins <hughd@google.com>
+
+In looking into the bug, it had actually bothered me a little that you
+were setting aside those pages, yet not counting them into nr_ptes;
+though the only thing that cares is oom_kill.c, and the count of pages
+in each hugepage can only dwarf the count in nr_ptes (whereas, without
+hugepages, it's possible to populate very sparsely and nr_ptes become
+significant).
+
+> 
+> ====
+> From: Andrea Arcangeli <aarcange@redhat.com>
+> Subject: [PATCH] mm: thp: fix BUG on mm->nr_ptes
+> 
+> Quoting Hugh's discovery and explanation of the SMP race condition:
+> 
+> ===
+> mm->nr_ptes had unusual locking: down_read mmap_sem plus
+> page_table_lock when incrementing, down_write mmap_sem (or mm_users 0)
+> when decrementing; whereas THP is careful to increment and decrement
+> it under page_table_lock.
+> 
+> Now most of those paths in THP also hold mmap_sem for read or write
+> (with appropriate checks on mm_users), but two do not: when
+> split_huge_page() is called by hwpoison_user_mappings(), and when
+> called by add_to_swap().
+> 
+> It's conceivable that the latter case is responsible for the
+> exit_mmap() BUG_ON mm->nr_ptes that has been reported on Fedora.
+> ===
+> 
+> The simplest way to fix it without having to alter the locking is to
+> make split_huge_page() a noop in nr_ptes terms, so by counting the
+> preallocated pagetables that exists for every mapped hugepage. It was
+> an arbitrary choice not to count them and either way is not wrong or
+> right, because they are not used but they're still allocated.
+> 
+> Reported-by: Dave Jones <davej@redhat.com>
+> Reported-by: Hugh Dickins <hughd@google.com>
+> Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
+> ---
+>  mm/huge_memory.c |    6 +++---
+>  1 files changed, 3 insertions(+), 3 deletions(-)
+> 
+> diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+> index 91d3efb..8f7fc39 100644
+> --- a/mm/huge_memory.c
+> +++ b/mm/huge_memory.c
+> @@ -671,6 +671,7 @@ static int __do_huge_pmd_anonymous_page(struct mm_struct *mm,
+>  		set_pmd_at(mm, haddr, pmd, entry);
+>  		prepare_pmd_huge_pte(pgtable, mm);
+>  		add_mm_counter(mm, MM_ANONPAGES, HPAGE_PMD_NR);
+> +		mm->nr_ptes++;
+>  		spin_unlock(&mm->page_table_lock);
+>  	}
+>  
+> @@ -789,6 +790,7 @@ int copy_huge_pmd(struct mm_struct *dst_mm, struct mm_struct *src_mm,
+>  	pmd = pmd_mkold(pmd_wrprotect(pmd));
+>  	set_pmd_at(dst_mm, addr, dst_pmd, pmd);
+>  	prepare_pmd_huge_pte(pgtable, dst_mm);
+> +	dst_mm->nr_ptes++;
+>  
+>  	ret = 0;
+>  out_unlock:
+> @@ -887,7 +889,6 @@ static int do_huge_pmd_wp_page_fallback(struct mm_struct *mm,
+>  	}
+>  	kfree(pages);
+>  
+> -	mm->nr_ptes++;
+>  	smp_wmb(); /* make pte visible before pmd */
+>  	pmd_populate(mm, pmd, pgtable);
+>  	page_remove_rmap(page);
+> @@ -1047,6 +1048,7 @@ int zap_huge_pmd(struct mmu_gather *tlb, struct vm_area_struct *vma,
+>  			VM_BUG_ON(page_mapcount(page) < 0);
+>  			add_mm_counter(tlb->mm, MM_ANONPAGES, -HPAGE_PMD_NR);
+>  			VM_BUG_ON(!PageHead(page));
+> +			tlb->mm->nr_ptes--;
+>  			spin_unlock(&tlb->mm->page_table_lock);
+>  			tlb_remove_page(tlb, page);
+>  			pte_free(tlb->mm, pgtable);
+> @@ -1375,7 +1377,6 @@ static int __split_huge_page_map(struct page *page,
+>  			pte_unmap(pte);
+>  		}
+>  
+> -		mm->nr_ptes++;
+>  		smp_wmb(); /* make pte visible before pmd */
+>  		/*
+>  		 * Up to this point the pmd is present and huge and
+> @@ -1988,7 +1989,6 @@ static void collapse_huge_page(struct mm_struct *mm,
+>  	set_pmd_at(mm, address, pmd, _pmd);
+>  	update_mmu_cache(vma, address, _pmd);
+>  	prepare_pmd_huge_pte(pgtable, mm);
+> -	mm->nr_ptes--;
+>  	spin_unlock(&mm->page_table_lock);
+>  
+>  #ifndef CONFIG_NUMA
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
