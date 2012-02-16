@@ -1,49 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx164.postini.com [74.125.245.164])
-	by kanga.kvack.org (Postfix) with SMTP id 0F5366B004A
-	for <linux-mm@kvack.org>; Wed, 15 Feb 2012 19:16:35 -0500 (EST)
-Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 898F13EE0BC
-	for <linux-mm@kvack.org>; Thu, 16 Feb 2012 09:16:33 +0900 (JST)
-Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 6C2F445DEAD
-	for <linux-mm@kvack.org>; Thu, 16 Feb 2012 09:16:33 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 518DA45DE7E
-	for <linux-mm@kvack.org>; Thu, 16 Feb 2012 09:16:33 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 39B101DB803E
-	for <linux-mm@kvack.org>; Thu, 16 Feb 2012 09:16:33 +0900 (JST)
-Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.240.81.133])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id E4BAA1DB8038
-	for <linux-mm@kvack.org>; Thu, 16 Feb 2012 09:16:32 +0900 (JST)
-Date: Thu, 16 Feb 2012 09:15:11 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH 2/2] memcg: use vm_swappiness from current memcg
-Message-Id: <20120216091511.350882a7.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20120215162834.13902.37262.stgit@zurg>
-References: <20120215162830.13902.60256.stgit@zurg>
-	<20120215162834.13902.37262.stgit@zurg>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx130.postini.com [74.125.245.130])
+	by kanga.kvack.org (Postfix) with SMTP id 840846B004A
+	for <linux-mm@kvack.org>; Wed, 15 Feb 2012 19:43:48 -0500 (EST)
+Date: Thu, 16 Feb 2012 01:43:42 +0100
+From: Andrea Righi <andrea@betterlinux.com>
+Subject: Re: [RFC] [PATCH v5 0/3] fadvise: support POSIX_FADV_NOREUSE
+Message-ID: <20120216004342.GB21685@thinkpad>
+References: <1329006098-5454-1-git-send-email-andrea@betterlinux.com>
+ <20120214133337.9de7835b.akpm@linux-foundation.org>
+ <20120214225922.GA12394@thinkpad>
+ <20120214152220.4f621975.akpm@linux-foundation.org>
+ <20120215012957.GA1728@thinkpad>
+ <20120216084831.0a6ef4f2.kamezawa.hiroyu@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20120216084831.0a6ef4f2.kamezawa.hiroyu@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Konstantin Khlebnikov <khlebnikov@openvz.org>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Minchan Kim <minchan.kim@gmail.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Johannes Weiner <jweiner@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Alexander Viro <viro@zeniv.linux.org.uk>, Shaohua Li <shaohua.li@intel.com>, =?iso-8859-1?Q?P=E1draig?= Brady <P@draigBrady.com>, John Stultz <john.stultz@linaro.org>, Jerry James <jamesjer@betterlinux.com>, Julius Plenz <julius@plenz.com>, Greg Thelen <gthelen@google.com>, linux-mm <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>
 
-On Wed, 15 Feb 2012 20:28:34 +0400
-Konstantin Khlebnikov <khlebnikov@openvz.org> wrote:
-
-> At this point this is always the same cgroup, but it allows to drop one argument.
+On Thu, Feb 16, 2012 at 08:48:31AM +0900, KAMEZAWA Hiroyuki wrote:
+> On Wed, 15 Feb 2012 02:35:24 +0100
+> Andrea Righi <andrea@betterlinux.com> wrote:
 > 
-> Signed-off-by: Konstantin Khlebnikov <khlebnikov@openvz.org>
+> > On Tue, Feb 14, 2012 at 03:22:20PM -0800, Andrew Morton wrote:
+> > > On Tue, 14 Feb 2012 23:59:22 +0100
+> > > Andrea Righi <andrea@betterlinux.com> wrote:
+> > > 
+> > > > On Tue, Feb 14, 2012 at 01:33:37PM -0800, Andrew Morton wrote:
+> > > > > On Sun, 12 Feb 2012 01:21:35 +0100
+> > > > > Andrea Righi <andrea@betterlinux.com> wrote: 
+> > > > > And yes, a container-based approach is pretty crude, and one can
+> > > > > envision applications which only want modified reclaim policy for one
+> > > > > particualr file.  But I suspect an application-wide reclaim policy
+> > > > > solves 90% of the problems.
+> > > > 
+> > > > I really like the container-based approach. But for this we need a
+> > > > better file cache control in the memory cgroup; now we have the
+> > > > accounting of file pages, but there's no way to limit them.
+> > > 
+> > > Again, if/whem memcg becomes sufficiently useful for this application
+> > > we're left maintaining the obsolete POSIX_FADVISE_NOREUSE for ever.
+> > 
+> > Yes, totally agree. For the future a memcg-based solution is probably
+> > the best way to go.
+> > 
+> > This reminds me to the old per-memcg dirty memory discussion
+> > (http://thread.gmane.org/gmane.linux.kernel.mm/67114), cc'ing Greg.
+> > 
+> > Maybe the generic feature to provide that could solve both problems is
+> > a better file cache isolation in memcg.
+> > 
+> 
+> Can you think of example interface for us ?
+> I'd like to discuss this in mm-summit if we have a chance.
+> 
+> Thanks,
+> -Kame
 
-Do you mean "no logic change but clean up, dropping an argument" ?
+Sure! I'll try to write down more detailed ideas.
 
-I'm not sure using complicated sc-> is easier than passing an argument..
+For now the best interface that I can see is to add something like
+memory.file.* in cgroupfs.
 
-Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+The NOREUSE-like policy that I was trying to implement via fadvise() can
+be probably implemented by setting memory.file.limit_in_bytes=0 (or
+using a very small value).
+
+A cgroup like this could use any amount of memory (according to the
+other memory.* settings), but it should drop any file cache page as soon
+as possible, if the page was not present in memory before. IOW, this
+cgroup shouldn't disturb the state of the page cache for the other
+cgroups.
+
+Another interesting usage is to provide different levels of service. For
+example, using different values for memory.file.limit_in_byte would make
+possible to specify that file cache pages of certain cgroups are
+reclaimed before others. This would be a very nice feature IMHO, also
+for those who want to provide different levels of service per-user.
+
+Thoughts?
+
+Thanks,
+-Andrea
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
