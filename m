@@ -1,60 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx162.postini.com [74.125.245.162])
-	by kanga.kvack.org (Postfix) with SMTP id 465D06B00E9
-	for <linux-mm@kvack.org>; Thu, 16 Feb 2012 14:04:47 -0500 (EST)
-Message-ID: <1329419084.3121.39.camel@doink>
-Subject: Re: [PATCH 09/11] sysfs: Push file_update_time() into
- bin_page_mkwrite()
-From: Alex Elder <elder@dreamhost.com>
-Reply-To: elder@dreamhost.com
-Date: Thu, 16 Feb 2012 13:04:44 -0600
-In-Reply-To: <1329399979-3647-10-git-send-email-jack@suse.cz>
-References: <1329399979-3647-1-git-send-email-jack@suse.cz>
-	 <1329399979-3647-10-git-send-email-jack@suse.cz>
-Content-Type: text/plain; charset="UTF-8"
+Received: from psmtp.com (na3sys010amx106.postini.com [74.125.245.106])
+	by kanga.kvack.org (Postfix) with SMTP id 1B4C16B00E8
+	for <linux-mm@kvack.org>; Thu, 16 Feb 2012 14:07:56 -0500 (EST)
+Message-ID: <4F3D53F9.8040508@fb.com>
+Date: Thu, 16 Feb 2012 11:07:37 -0800
+From: Arun Sharma <asharma@fb.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH v5 3/3] fadvise: implement POSIX_FADV_NOREUSE
+References: <1329006098-5454-1-git-send-email-andrea@betterlinux.com> <1329006098-5454-4-git-send-email-andrea@betterlinux.com> <20120215233537.GA20724@dev3310.snc6.facebook.com> <20120215234724.GA21685@thinkpad> <4F3C467B.1@fb.com> <20120216005608.GC21685@thinkpad> <4F3C6594.3030709@fb.com> <20120216103944.GA1440@thinkpad> <4F3D4E34.9060105@fb.com> <20120216185753.GD13354@thinkpad>
+In-Reply-To: <20120216185753.GD13354@thinkpad>
+Content-Type: text/plain; charset="ISO-8859-1"; format=flowed
 Content-Transfer-Encoding: 7bit
-Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jan Kara <jack@suse.cz>
-Cc: LKML <linux-kernel@vger.kernel.org>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Eric Sandeen <sandeen@redhat.com>, Dave Chinner <david@fromorbit.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+To: Andrea Righi <andrea@betterlinux.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Minchan Kim <minchan.kim@gmail.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Johannes Weiner <jweiner@redhat.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Alexander Viro <viro@zeniv.linux.org.uk>, Shaohua Li <shaohua.li@intel.com>, =?ISO-8859-1?Q?P=E1draig_Brady?= <P@draigBrady.com>, John Stultz <john.stultz@linaro.org>, Jerry James <jamesjer@betterlinux.com>, Julius Plenz <julius@plenz.com>, linux-mm <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>
 
-On Thu, 2012-02-16 at 14:46 +0100, Jan Kara wrote:
-> CC: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-> Signed-off-by: Jan Kara <jack@suse.cz>
-> ---
->  fs/sysfs/bin.c |    2 ++
->  1 files changed, 2 insertions(+), 0 deletions(-)
-> 
-> diff --git a/fs/sysfs/bin.c b/fs/sysfs/bin.c
-> index a475983..6ceb16f 100644
-> --- a/fs/sysfs/bin.c
-> +++ b/fs/sysfs/bin.c
-> @@ -225,6 +225,8 @@ static int bin_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf)
->  	if (!sysfs_get_active(attr_sd))
->  		return VM_FAULT_SIGBUS;
->  
-> +	file_update_time(file);
-> +
->  	ret = 0;
->  	if (bb->vm_ops->page_mkwrite)
->  		ret = bb->vm_ops->page_mkwrite(vma, vmf);
+On 2/16/12 10:57 AM, Andrea Righi wrote:
 
-If the filesystem's page_mkwrite() function is responsible
-for updating the time, can't the call to file_update_time()
-here be conditional?
+> Maybe we should try to push ...something... in the memcg code for the
+> short-term future, make it as much generic as possible, and for the
+> long-term try to reuse the same feature (totally or in part) in the
+> per-fd approach via fadvise().
 
-I.e:
-	ret = 0;
-	if (bb->vm_ops->page_mkwrite)
- 		ret = bb->vm_ops->page_mkwrite(vma, vmf);
-	else
-		file_update_time(file);
+Yes - the two approaches are complementary and we should probably pursue 
+both.
 
-					-Alex
+There are a number of apps which are already using fadvise though:
 
+https://issues.apache.org/jira/browse/MAPREDUCE-3289
+http://highscalability.com/blog/2012/1/12/peregrine-a-map-reduce-framework-for-iterative-and-pipelined.html
 
+and probably many other similar cases that are not open source.
 
+Some of these apps may be better off using NOREUSE instead of DONTNEED, 
+since they may not have a clue on what else is going on in the system.
+
+The way I think about it: NOREUSE is a statement about what my process 
+is doing and DONTNEED is a statement about the entire system.
+
+  -Arun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
