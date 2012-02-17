@@ -1,34 +1,34 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx132.postini.com [74.125.245.132])
-	by kanga.kvack.org (Postfix) with SMTP id BF8776B007E
-	for <linux-mm@kvack.org>; Fri, 17 Feb 2012 03:01:18 -0500 (EST)
+Received: from psmtp.com (na3sys010amx196.postini.com [74.125.245.196])
+	by kanga.kvack.org (Postfix) with SMTP id 50E476B007E
+	for <linux-mm@kvack.org>; Fri, 17 Feb 2012 03:04:10 -0500 (EST)
 Received: from /spool/local
-	by e28smtp07.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e28smtp09.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
-	Fri, 17 Feb 2012 13:31:15 +0530
-Received: from d28av05.in.ibm.com (d28av05.in.ibm.com [9.184.220.67])
-	by d28relay05.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q1H813D23645656
-	for <linux-mm@kvack.org>; Fri, 17 Feb 2012 13:31:04 +0530
-Received: from d28av05.in.ibm.com (loopback [127.0.0.1])
-	by d28av05.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q1H813ZQ013691
-	for <linux-mm@kvack.org>; Fri, 17 Feb 2012 19:01:03 +1100
+	Fri, 17 Feb 2012 13:34:04 +0530
+Received: from d28av03.in.ibm.com (d28av03.in.ibm.com [9.184.220.65])
+	by d28relay02.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q1H83ubP4091934
+	for <linux-mm@kvack.org>; Fri, 17 Feb 2012 13:33:57 +0530
+Received: from d28av03.in.ibm.com (loopback [127.0.0.1])
+	by d28av03.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q1H83sIU027697
+	for <linux-mm@kvack.org>; Fri, 17 Feb 2012 19:03:55 +1100
 From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
 Subject: Re: [RFC PATCH 0/6] hugetlbfs: Add cgroup resource controller for hugetlbfs
 In-Reply-To: <20120214155843.42a090c2.kamezawa.hiroyu@jp.fujitsu.com>
 References: <1328909806-15236-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com> <20120214155843.42a090c2.kamezawa.hiroyu@jp.fujitsu.com>
-Date: Fri, 17 Feb 2012 13:30:50 +0530
-Message-ID: <87ehttevnx.fsf@linux.vnet.ibm.com>
+Date: Fri, 17 Feb 2012 13:33:38 +0530
+Message-ID: <87d39devj9.fsf@linux.vnet.ibm.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: linux-mm@kvack.org, mgorman@suse.de, dhillf@gmail.com
+Cc: linux-mm@kvack.org, mgorman@suse.de, dhillf@gmail.com, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>
 
 
 Hi Kamezawa,
 
-Sorry for a late response as I was out of office for last few days.
+Sorry for the late response as I was out of office for last few days.
 
 On Tue, 14 Feb 2012 15:58:43 +0900, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
 > On Sat, 11 Feb 2012 03:06:40 +0530
