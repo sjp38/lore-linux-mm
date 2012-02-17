@@ -1,161 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx193.postini.com [74.125.245.193])
-	by kanga.kvack.org (Postfix) with SMTP id 066D66B0092
-	for <linux-mm@kvack.org>; Fri, 17 Feb 2012 05:06:01 -0500 (EST)
-Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 925B63EE0BC
-	for <linux-mm@kvack.org>; Fri, 17 Feb 2012 19:06:00 +0900 (JST)
-Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 770DE45DEAD
-	for <linux-mm@kvack.org>; Fri, 17 Feb 2012 19:06:00 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 51EB245DEA6
-	for <linux-mm@kvack.org>; Fri, 17 Feb 2012 19:06:00 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 0362C1DB803C
-	for <linux-mm@kvack.org>; Fri, 17 Feb 2012 19:06:00 +0900 (JST)
-Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.240.81.134])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 3590E1DB8041
-	for <linux-mm@kvack.org>; Fri, 17 Feb 2012 19:05:59 +0900 (JST)
-Date: Fri, 17 Feb 2012 19:04:33 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH 0/6] page cgroup diet v5
-Message-Id: <20120217190433.7598a56e.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20120217182426.86aebfde.kamezawa.hiroyu@jp.fujitsu.com>
-References: <20120217182426.86aebfde.kamezawa.hiroyu@jp.fujitsu.com>
-Mime-Version: 1.0
-Content-Type: multipart/mixed;
- boundary="Multipart=_Fri__17_Feb_2012_19_04_33_+0900_MKUFGOJfuClWukl+"
+Received: from psmtp.com (na3sys010amx143.postini.com [74.125.245.143])
+	by kanga.kvack.org (Postfix) with SMTP id 660566B007E
+	for <linux-mm@kvack.org>; Fri, 17 Feb 2012 08:06:19 -0500 (EST)
+Received: by vbip1 with SMTP id p1so3231987vbi.14
+        for <linux-mm@kvack.org>; Fri, 17 Feb 2012 05:06:17 -0800 (PST)
+MIME-Version: 1.0
+In-Reply-To: <20120216151425.GB19158@phenom.ffwll.local>
+References: <1329393696-4802-1-git-send-email-daniel.vetter@ffwll.ch>
+	<1329393696-4802-2-git-send-email-daniel.vetter@ffwll.ch>
+	<CAJd=RBBr4EkCwAaS3xZZrm0QE71Z0soyZXTuwXyBn6ohp3pU2Q@mail.gmail.com>
+	<20120216151425.GB19158@phenom.ffwll.local>
+Date: Fri, 17 Feb 2012 21:06:17 +0800
+Message-ID: <CAJd=RBDFUZi3_tk2ZRpjF=5a9884zJGv4Ti_kM0pjXnRmw0jKA@mail.gmail.com>
+Subject: Re: [PATCH] mm: extend prefault helpers to fault in more than PAGE_SIZE
+From: Hillf Danton <dhillf@gmail.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: base64
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Hugh Dickins <hughd@google.com>, Greg Thelen <gthelen@google.com>, Ying Han <yinghan@google.com>
+To: Hillf Danton <dhillf@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Intel Graphics Development <intel-gfx@lists.freedesktop.org>, DRI Development <dri-devel@lists.freedesktop.org>, LKML <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>
+Cc: Daniel Vetter <daniel.vetter@ffwll.ch>
 
-This is a multi-part message in MIME format.
-
---Multipart=_Fri__17_Feb_2012_19_04_33_+0900_MKUFGOJfuClWukl+
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
-
-On Fri, 17 Feb 2012 18:24:26 +0900
-KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
-
-> 
-> This patch set is for removing 2 flags PCG_FILE_MAPPED and PCG_MOVE_LOCK on
-> page_cgroup->flags. After this, page_cgroup has only 3bits of flags.
-> And, this set introduces a new method to update page status accounting per memcg.
-> With it, we don't have to add new flags onto page_cgroup if 'struct page' has
-> information. This will be good for avoiding a new flag for page_cgroup.
-> 
-> Fixed pointed out parts.
->  - added more comments
->  - fixed texts
->  - removed redundant arguments.
-> 
-> Passed some tests on 3.3.0-rc3-next-20120216.
-> 
-
-Here is a micro benchmark test before/after this series.
-mmap 1G bytes twice and repeat fault->drop repeatedly. (test program is attached)
-
-== Before == 3 runs after 1st run
-[root@bluextal test]# time ./mmap 1G
-
-real    0m21.053s
-user    0m6.046s
-sys     0m14.743s
-[root@bluextal test]# time ./mmap 1G
-
-real    0m21.302s
-user    0m6.027s
-sys     0m14.979s
-[root@bluextal test]# time ./mmap 1G
-
-real    0m21.061s
-user    0m6.020s
-sys     0m14.722s
-
-== After == 3 runs after 1st run
-[root@bluextal test]# time ./mmap 1G
-
-real    0m20.969s
-user    0m5.960s
-sys     0m14.777s
-[root@bluextal test]# time ./mmap 1G
-
-real    0m20.968s
-user    0m6.069s
-sys     0m14.650s
-[root@bluextal test]# time ./mmap 1G
-
-real    0m21.164s
-user    0m6.152s
-sys     0m14.707s
-
-
-I think there is no regression.
-
-
-Thanks,
--Kame
-
-
-
-
---Multipart=_Fri__17_Feb_2012_19_04_33_+0900_MKUFGOJfuClWukl+
-Content-Type: text/x-csrc;
- name="mmap.c"
-Content-Disposition: attachment;
- filename="mmap.c"
-Content-Transfer-Encoding: 7bit
-
-#include <stdio.h>
-#include <stdlib.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <unistd.h>
-#include <sys/mman.h>
-#include <fcntl.h>
-
-void reader(int fd, int size)
-{
-	int i, off, x;
-	char *addr;
-
-	addr = mmap(NULL, size, PROT_READ, MAP_SHARED, fd, 0);
-	for (i = 0; i < 100; i++) {
-		for(off = 0; off < size; off += 4096) {
-			x += *(addr + off);
-		}
-		madvise(addr, size, MADV_DONTNEED);
-	}
-}
-
-int main(int argc, char *argv[])
-{
-	int fd;
-	char *addr, *c;
-	unsigned long size;
-	struct stat statbuf;
-
-	fd = open(argv[1], O_RDONLY);
-	if (fd < 0) {
-		perror("cannot open file");
-		return 1;
-	}
-
-	if (fstat(fd, &statbuf)) {
-		perror("fstat failed");
-		return 1;
-	}
-	size = statbuf.st_size;
-	/* mmap in 2 place. */
-	addr = mmap(NULL, size, PROT_READ, MAP_SHARED, fd, 0);
-	mlock(addr, size);
-	reader(fd, size);
-}
-
---Multipart=_Fri__17_Feb_2012_19_04_33_+0900_MKUFGOJfuClWukl+--
+T24gVGh1LCBGZWIgMTYsIDIwMTIgYXQgMTE6MTQgUE0sIERhbmllbCBWZXR0ZXIgPGRhbmllbEBm
+ZndsbC5jaD4gd3JvdGU6Cj4gT24gVGh1LCBGZWIgMTYsIDIwMTIgYXQgMDk6MzI6MDhQTSArMDgw
+MCwgSGlsbGYgRGFudG9uIHdyb3RlOgo+PiBPbiBUaHUsIEZlYiAxNiwgMjAxMiBhdCA4OjAxIFBN
+LCBEYW5pZWwgVmV0dGVyIDxkYW5pZWwudmV0dGVyQGZmd2xsLmNoPiB3cm90ZToKPj4gPiBAQCAt
+NDE2LDE3ICs0MTcsMjAgQEAgc3RhdGljIGlubGluZSBpbnQgZmF1bHRfaW5fcGFnZXNfd3JpdGVh
+YmxlKGNoYXIgX191c2VyICp1YWRkciwgaW50IHNpemUpCj4+ID4gwqAgwqAgwqAgwqAgKiBXcml0
+aW5nIHplcm9lcyBpbnRvIHVzZXJzcGFjZSBoZXJlIGlzIE9LLCBiZWNhdXNlIHdlIGtub3cgdGhh
+dCBpZgo+PiA+IMKgIMKgIMKgIMKgICogdGhlIHplcm8gZ2V0cyB0aGVyZSwgd2UnbGwgYmUgb3Zl
+cndyaXRpbmcgaXQuCj4+ID4gwqAgwqAgwqAgwqAgKi8KPj4gPiAtIMKgIMKgIMKgIHJldCA9IF9f
+cHV0X3VzZXIoMCwgdWFkZHIpOwo+PiA+ICsgwqAgwqAgwqAgd2hpbGUgKHVhZGRyIDw9IGVuZCkg
+ewo+PiA+ICsgwqAgwqAgwqAgwqAgwqAgwqAgwqAgcmV0ID0gX19wdXRfdXNlcigwLCB1YWRkcik7
+Cj4+ID4gKyDCoCDCoCDCoCDCoCDCoCDCoCDCoCBpZiAocmV0ICE9IDApCj4+ID4gKyDCoCDCoCDC
+oCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCByZXR1cm4gcmV0Owo+PiA+ICsgwqAgwqAgwqAgwqAg
+wqAgwqAgwqAgdWFkZHIgKz0gUEFHRV9TSVpFOwo+PiA+ICsgwqAgwqAgwqAgfQo+Pgo+PiBXaGF0
+IGlmCj4+IMKgIMKgIMKgIMKgIMKgIMKgIMKgdWFkZHIgJiB+UEFHRV9NQVNLID09IFBBR0VfU0la
+RSAtMyAmJgo+PiDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCBlbmQgJiB+UEFHRV9NQVNLID09IDIK
+Pgo+IEkgZG9uJ3QgcXVpdGUgZm9sbG93IC0gY2FuIHlvdSBlbGFib3JhdGUgdXBvbiB3aGljaCBp
+c3N1ZSB5b3UncmUgc2VlaW5nPwoKSSBjb25jZXJuZWQgdGhhdCBfX3B1dF91c2VyKDAsIGVuZCkg
+aXMgbWlzc2VkLCBidXQgaXQgd2FzIGFkZGVkIGJlbG93LgoKQW5kIGxvb2tzIGdvb2QgdG8gbWUu
+CkhpbGxmCgo+IMKgIMKgIMKgIMKgaWYgKHJldCA9PSAwKSB7Cj4gLSDCoCDCoCDCoCDCoCDCoCDC
+oCDCoCBjaGFyIF9fdXNlciAqZW5kID0gdWFkZHIgKyBzaXplIC0gMTsKPiAtCj4gwqAgwqAgwqAg
+wqAgwqAgwqAgwqAgwqAvKgo+IMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgICogSWYgdGhlIHBhZ2Ug
+d2FzIGFscmVhZHkgbWFwcGVkLCB0aGlzIHdpbGwgZ2V0IGEgY2FjaGUgbWlzcwo+IMKgIMKgIMKg
+IMKgIMKgIMKgIMKgIMKgICogZm9yIHN1cmUsIHNvIHRyeSB0byBhdm9pZCBkb2luZyBpdC4KPiDC
+oCDCoCDCoCDCoCDCoCDCoCDCoCDCoCAqLwo+IC0gwqAgwqAgwqAgwqAgwqAgwqAgwqAgaWYgKCgo
+dW5zaWduZWQgbG9uZyl1YWRkciAmIFBBR0VfTUFTSykgIT0KPiArIMKgIMKgIMKgIMKgIMKgIMKg
+IMKgIGlmICgoKHVuc2lnbmVkIGxvbmcpdWFkZHIgJiBQQUdFX01BU0spID09Cj4gwqAgwqAgwqAg
+wqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAoKHVuc2lnbmVkIGxvbmcpZW5k
+ICYgUEFHRV9NQVNLKSkKPiAtIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIHJldCA9
+IF9fcHV0X3VzZXIoMCwgZW5kKTsKPiArIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKg
+IHJldCA9IF9fcHV0X3VzZXIoMCwgZW5kKTsKPiDCoCDCoCDCoCDCoH0KPiDCoCDCoCDCoCDCoHJl
+dHVybiByZXQ7Cg==
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
