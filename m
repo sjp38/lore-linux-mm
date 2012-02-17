@@ -1,71 +1,102 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx107.postini.com [74.125.245.107])
-	by kanga.kvack.org (Postfix) with SMTP id 4D1BD6B0126
-	for <linux-mm@kvack.org>; Fri, 17 Feb 2012 15:20:11 -0500 (EST)
-Received: by bkty12 with SMTP id y12so4406590bkt.14
-        for <linux-mm@kvack.org>; Fri, 17 Feb 2012 12:20:09 -0800 (PST)
-Message-ID: <4F3EB675.9030702@openvz.org>
-Date: Sat, 18 Feb 2012 00:20:05 +0400
-From: Konstantin Khlebnikov <khlebnikov@openvz.org>
-MIME-Version: 1.0
-Subject: Re: Fine granularity page reclaim
-References: <20120217092205.GA9462@gmail.com>
-In-Reply-To: <20120217092205.GA9462@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Received: from psmtp.com (na3sys010amx190.postini.com [74.125.245.190])
+	by kanga.kvack.org (Postfix) with SMTP id E78226B0124
+	for <linux-mm@kvack.org>; Fri, 17 Feb 2012 16:45:36 -0500 (EST)
+Date: Fri, 17 Feb 2012 13:45:35 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH 0/6] page cgroup diet v5
+Message-Id: <20120217134535.020b7254.akpm@linux-foundation.org>
+In-Reply-To: <20120217182426.86aebfde.kamezawa.hiroyu@jp.fujitsu.com>
+References: <20120217182426.86aebfde.kamezawa.hiroyu@jp.fujitsu.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Zheng Liu <gnehzuil.liu@gmail.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Hugh Dickins <hughd@google.com>, Greg Thelen <gthelen@google.com>, Ying Han <yinghan@google.com>
 
-Zheng Liu wrote:
-> Hi all,
->
-> Currently, we encounter a problem about page reclaim. In our product system,
-> there is a lot of applictions that manipulate a number of files. In these
-> files, they can be divided into two categories. One is index file, another is
-> block file. The number of index files is about 15,000, and the number of
-> block files is about 23,000 in a 2TB disk. The application accesses index
-> file using mmap(2), and read/write block file using pread(2)/pwrite(2). We hope
-> to hold index file in memory as much as possible, and it works well in Redhat
-> 2.6.18-164. It is about 60-70% of index files that can be hold in memory.
-> However, it doesn't work well in Redhat 2.6.32-133. I know in 2.6.18 that the
-> linux uses an active list and an inactive list to handle page reclaim, and in
-> 2.6.32 that they are divided into anonymous list and file list. So I am
-> curious about why most of index files can be hold in 2.6.18? The index file
-> should be replaced because mmap doesn't impact the lru list.
+On Fri, 17 Feb 2012 18:24:26 +0900
+KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
 
-There was my patch for fixing similar problem with shared/executable mapped pages
-"vmscan: promote shared file mapped pages" commit 34dbc67a644f and commit c909e99364c
-maybe it will help in your case.
+> 
+> This patch set is for removing 2 flags PCG_FILE_MAPPED and PCG_MOVE_LOCK on
+> page_cgroup->flags. After this, page_cgroup has only 3bits of flags.
+> And, this set introduces a new method to update page status accounting per memcg.
+> With it, we don't have to add new flags onto page_cgroup if 'struct page' has
+> information. This will be good for avoiding a new flag for page_cgroup.
+> 
+> Fixed pointed out parts.
+>  - added more comments
+>  - fixed texts
+>  - removed redundant arguments.
+> 
 
->
-> BTW, I have some problems that need to be discussed.
->
-> 1. I want to let index and block files are separately reclaimed. Is there any
-> ways to satisify me in current upstream?
->
-> 2. Maybe we can provide a mechansim to let different files to be mapped into
-> differnet nodes. we can provide a ioctl(2) to tell kernel that this file should
-> be mapped into a specific node id. A nid member is added into addpress_space
-> struct. When alloc_page is called, the page can be allocated from that specific
-> node id.
->
-> 3. Currently the page can be reclaimed according to pid in memcg. But it is too
-> coarse. I don't know whether memcg could provide a fine granularity page
-> reclaim mechansim. For example, the page is reclaimed according to inode number.
->
-> I don't subscribe this mailing list, So please Cc me. Thank you.
->
-> Regards,
-> Zheng
->
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Fight unfair telecom internet charges in Canada: sign http://stopthemeter.ca/
-> Don't email:<a href=mailto:"dont@kvack.org">  email@kvack.org</a>
+I tweaked a few things here.  Renamed "bool lock;" to "bool locked" in
+several places.  Also the void-returning
+mem_cgroup_begin_update_page_stat() was doing an explicit return which
+is OK C but pointless and misleading.
+
+
+Also, this has been bugging me for a while ;)
+
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: mm/memcontrol.c: s/stealed/stolen/
+
+A grammatical fix.
+
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+---
+
+ mm/memcontrol.c |   12 ++++++------
+ 1 file changed, 6 insertions(+), 6 deletions(-)
+
+diff -puN mm/memcontrol.c~a mm/memcontrol.c
+--- a/mm/memcontrol.c~a
++++ a/mm/memcontrol.c
+@@ -1299,8 +1299,8 @@ static void mem_cgroup_end_move(struct m
+ /*
+  * 2 routines for checking "mem" is under move_account() or not.
+  *
+- * mem_cgroup_stealed() - checking a cgroup is mc.from or not. This is used
+- *			  for avoiding race in accounting. If true,
++ * mem_cgroup_stolen() -  checking whether a cgroup is mc.from or not. This
++ *			  is used for avoiding races in accounting.  If true,
+  *			  pc->mem_cgroup may be overwritten.
+  *
+  * mem_cgroup_under_move() - checking a cgroup is mc.from or mc.to or
+@@ -1308,7 +1308,7 @@ static void mem_cgroup_end_move(struct m
+  *			  waiting at hith-memory prressure caused by "move".
+  */
+ 
+-static bool mem_cgroup_stealed(struct mem_cgroup *memcg)
++static bool mem_cgroup_stolen(struct mem_cgroup *memcg)
+ {
+ 	VM_BUG_ON(!rcu_read_lock_held());
+ 	return atomic_read(&memcg->moving_account) > 0;
+@@ -1356,7 +1356,7 @@ static bool mem_cgroup_wait_acct_move(st
+  * Take this lock when
+  * - a code tries to modify page's memcg while it's USED.
+  * - a code tries to modify page state accounting in a memcg.
+- * see mem_cgroup_stealed(), too.
++ * see mem_cgroup_stolen(), too.
+  */
+ static void move_lock_mem_cgroup(struct mem_cgroup *memcg,
+ 				  unsigned long *flags)
+@@ -1899,9 +1899,9 @@ again:
+ 	 * If this memory cgroup is not under account moving, we don't
+ 	 * need to take move_lock_page_cgroup(). Because we already hold
+ 	 * rcu_read_lock(), any calls to move_account will be delayed until
+-	 * rcu_read_unlock() if mem_cgroup_stealed() == true.
++	 * rcu_read_unlock() if mem_cgroup_stolen() == true.
+ 	 */
+-	if (!mem_cgroup_stealed(memcg))
++	if (!mem_cgroup_stolen(memcg))
+ 		return;
+ 
+ 	move_lock_mem_cgroup(memcg, flags);
+_
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
