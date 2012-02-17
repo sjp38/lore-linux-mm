@@ -1,168 +1,132 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx156.postini.com [74.125.245.156])
-	by kanga.kvack.org (Postfix) with SMTP id 264B76B0083
-	for <linux-mm@kvack.org>; Fri, 17 Feb 2012 03:05:33 -0500 (EST)
-Received: from /spool/local
-	by e23smtp07.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
-	Fri, 17 Feb 2012 08:00:36 +1000
-Received: from d23av01.au.ibm.com (d23av01.au.ibm.com [9.190.234.96])
-	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q1H85LBd917730
-	for <linux-mm@kvack.org>; Fri, 17 Feb 2012 19:05:21 +1100
-Received: from d23av01.au.ibm.com (loopback [127.0.0.1])
-	by d23av01.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q1H85K5n019654
-	for <linux-mm@kvack.org>; Fri, 17 Feb 2012 19:05:20 +1100
-From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Subject: Re: [RFC PATCH 5/6] hugetlbfs: Add controller support for private mapping
-In-Reply-To: <4F3DE424.3010301@gmail.com>
-References: <1328909806-15236-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com> <1328909806-15236-6-git-send-email-aneesh.kumar@linux.vnet.ibm.com> <4F3DE424.3010301@gmail.com>
-Date: Fri, 17 Feb 2012 13:35:06 +0530
-Message-ID: <87aa4hevgt.fsf@linux.vnet.ibm.com>
+Received: from psmtp.com (na3sys010amx206.postini.com [74.125.245.206])
+	by kanga.kvack.org (Postfix) with SMTP id D12CC6B007E
+	for <linux-mm@kvack.org>; Fri, 17 Feb 2012 03:42:45 -0500 (EST)
+Received: from m2.gw.fujitsu.co.jp (unknown [10.0.50.72])
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id EA91F3EE0C5
+	for <linux-mm@kvack.org>; Fri, 17 Feb 2012 17:42:43 +0900 (JST)
+Received: from smail (m2 [127.0.0.1])
+	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id CE0E045DE4E
+	for <linux-mm@kvack.org>; Fri, 17 Feb 2012 17:42:43 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
+	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id A8BF545DD74
+	for <linux-mm@kvack.org>; Fri, 17 Feb 2012 17:42:43 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 9A4EF1DB803C
+	for <linux-mm@kvack.org>; Fri, 17 Feb 2012 17:42:43 +0900 (JST)
+Received: from m021.s.css.fujitsu.com (m021.s.css.fujitsu.com [10.0.81.61])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 461AA1DB802C
+	for <linux-mm@kvack.org>; Fri, 17 Feb 2012 17:42:43 +0900 (JST)
+Message-ID: <4F3E1319.6050304@jp.fujitsu.com>
+Date: Fri, 17 Feb 2012 17:43:05 +0900
+From: Naotaka Hamaguchi <n.hamaguchi@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: quoted-printable
+Subject: [PATCH] mm: mmap() sometimes succeeds even if the region to map is
+ invalid.
+Content-Type: text/plain; charset=ISO-2022-JP
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: bill4carson <bill4carson@gmail.com>
-Cc: linux-mm@kvack.org, mgorman@suse.de, kamezawa.hiroyu@jp.fujitsu.com, dhillf@gmail.com
+To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
 
-On Fri, 17 Feb 2012 13:22:44 +0800, bill4carson <bill4carson@gmail.com> wro=
-te:
->=20
->=20
-> On 2012=E5=B9=B402=E6=9C=8811=E6=97=A5 05:36, Aneesh Kumar K.V wrote:
-> > From: "Aneesh Kumar K.V"<aneesh.kumar@linux.vnet.ibm.com>
-> >
-> > HugeTLB controller is different from a memory controller in that we cha=
-rge
-> > controller during mmap() time and not fault time. This make sure usersp=
-ace
-> > can fallback to non-hugepage allocation when mmap fails due to controll=
-er
-> > limit.
-> >
-> > For private mapping we always charge/uncharge from the current task cgr=
-oup.
-> > Charging happens during mmap(2) and uncharge happens during the
-> > vm_operations->close when resv_map refcount reaches zero. The uncharge =
-count
-> > is stored in struct resv_map. For child task after fork the charging ha=
-ppens
-> > during fault time in alloc_huge_page. We also need to make sure for pri=
-vate
-> > mapping each vma for hugeTLB mapping have struct resv_map allocated so =
-that we
-> > can store the uncharge count in resv_map.
-> >
-> > Signed-off-by: Aneesh Kumar K.V<aneesh.kumar@linux.vnet.ibm.com>
-> > ---
-> >   fs/hugetlbfs/hugetlb_cgroup.c  |   50 ++++++++++++++++++++++++++++++++
-> >   include/linux/hugetlb.h        |    7 ++++
-> >   include/linux/hugetlb_cgroup.h |   16 ++++++++++
-> >   mm/hugetlb.c                   |   62 +++++++++++++++++++++++++++++++=
-+--------
-> >   4 files changed, 123 insertions(+), 12 deletions(-)
-> >
-> > diff --git a/fs/hugetlbfs/hugetlb_cgroup.c b/fs/hugetlbfs/hugetlb_cgrou=
-p.c
-> > index c478fb0..f828fb2 100644
-> > --- a/fs/hugetlbfs/hugetlb_cgroup.c
-> > +++ b/fs/hugetlbfs/hugetlb_cgroup.c
-> > @@ -458,3 +458,53 @@ long  hugetlb_truncate_cgroup_charge(struct hstate=
- *h,
-> >   	}
-> >   	return chg;
-> >   }
-> > +
-> > +int hugetlb_priv_page_charge(struct resv_map *map, struct hstate *h, l=
-ong chg)
-> > +{
-> > +	long csize;
-> > +	int idx, ret;
-> > +	struct hugetlb_cgroup *h_cg;
-> > +	struct res_counter *fail_res;
-> > +
-> > +	/*
-> > +	 * Get the task cgroup within rcu_readlock and also
-> > +	 * get cgroup reference to make sure cgroup destroy won't
-> > +	 * race with page_charge. We don't allow a cgroup destroy
-> > +	 * when the cgroup have some charge against it
-> > +	 */
-> > +	rcu_read_lock();
-> > +	h_cg =3D task_hugetlbcgroup(current);
-> > +	css_get(&h_cg->css);
-> > +	rcu_read_unlock();
-> > +
-> > +	if (hugetlb_cgroup_is_root(h_cg)) {
-> > +		ret =3D chg;
-> > +		goto err_out;
-> > +	}
-> > +
-> > +	csize =3D chg * huge_page_size(h);
-> > +	idx =3D h - hstates;
-> > +	ret =3D res_counter_charge(&h_cg->memhuge[idx], csize,&fail_res);
-> > +	if (!ret) {
-> > +		map->nr_pages[idx] +=3D chg<<  huge_page_order(h);
-> > +		ret =3D chg;
-> > +	}
-> > +err_out:
-> > +	css_put(&h_cg->css);
-> > +	return ret;
-> > +}
-> > +
-> > +void hugetlb_priv_page_uncharge(struct resv_map *map, int idx, int nr_=
-pages)
-> > +{
-> > +	struct hugetlb_cgroup *h_cg;
-> > +	unsigned long csize =3D nr_pages * PAGE_SIZE;
-> > +
-> > +	rcu_read_lock();
-> > +	h_cg =3D task_hugetlbcgroup(current);
-> > +	if (!hugetlb_cgroup_is_root(h_cg)) {
-> > +		res_counter_uncharge(&h_cg->memhuge[idx], csize);
-> > +		map->nr_pages[idx] -=3D nr_pages;
-> > +	}
-> > +	rcu_read_unlock();
-> > +	return;
-> > +}
-> > diff --git a/include/linux/hugetlb.h b/include/linux/hugetlb.h
-> > index 4392b6a..e2ba381 100644
-> > --- a/include/linux/hugetlb.h
-> > +++ b/include/linux/hugetlb.h
-> > @@ -233,6 +233,12 @@ struct hstate {
-> >   	char name[HSTATE_NAME_LEN];
-> >   };
-> >
-> > +struct resv_map {
-> > +	struct kref refs;
-> > +	int nr_pages[HUGE_MAX_HSTATE];
-> > +	struct list_head regions;
-> > +};
-> > +
->=20
-> Please put resv_map after HUGE_MAX_HSTATE definition,
-> otherwise it will break on non-x86 arches, which has no
-> HUGE_MAX_HSTATE definition.
->=20
->=20
-> #ifndef HUGE_MAX_HSTATE
-> #define HUGE_MAX_HSTATE 1
-> #endif
->=20
-> +struct resv_map {
-> +	struct kref refs;
-> +	int nr_pages[HUGE_MAX_HSTATE];
-> +	struct list_head regions;
-> +};
->=20
->=20
->=20
->=20
+This patch fixes two bugs of mmap():
+ 1. mmap() succeeds even if "offset" argument is a negative value, although
+    it should return EINVAL in such case. Currently I have only checked
+    it on x86_64 because (a) x86 seems to OK to accept a negative offset
+    for mapping 2GB-4GB regions, and (b) I don't know about other
+    architectures at all (I'll make it if needed).
 
-Will do in the next iteration.
+ 2. mmap() would succeed if "offset" + "length" get overflow, although
+    it should return EOVERFLOW.
 
-Thanks for the review
--aneesh
+The detail of these problems is as follows:
+
+1. mmap() succeeds even if "offset" argument is a negative value, although
+   it should return EINVAL in such case.
+
+POSIX says the type of the argument "off" is "off_t", which
+is equivalent to "long" for all architecture, so it is allowed to
+give a negative "off" to mmap().
+
+In such case, it is actually regarded as big positive value
+because the type of "off" is "unsigned long" in the kernel. 
+For example, off=-4096 (-0x1000) is regarded as 
+off = 0xfffffffffffff000 (x86_64) and as off = 0xfffff000 (x86).
+It results in mapping too big offset region.
+
+2. mmap() would succeed if "offset" + "length" get overflow, although
+   it should return EOVERFLOW.
+
+The overflow check of mmap() almost doesn't work.
+
+In do_mmap_pgoff(file, addr, len, prot, flags, pgoff),
+the existing overflow check logic is as follows.
+
+------------------------------------------------------------------------
+do_mmap_pgoff(struct file *file, unsigned long addr,
+		unsigned long len, unsigned long prot,
+		unsigned long flags, unsigned long pgoff)
+{
+	if ((pgoff + (len >> PAGE_SHIFT)) < pgoff)
+		return -EOVERFLOW;
+}
+------------------------------------------------------------------------
+
+However, for example on x86_64, if we give off=0x1000 and
+len=0xfffffffffffff000, but EOVERFLOW is not returned.
+It is because the checking is based on the page offset,
+not on the byte offset.
+
+To fix this bug, I convert this overflow check from page
+offset base to byte offset base. 
+
+Signed-off-by: Naotaka Hamaguchi <n.hamaguchi@jp.fujitsu.com>
+---
+ arch/x86/kernel/sys_x86_64.c |    3 +++
+ mm/mmap.c                    |    3 ++-
+ 2 files changed, 5 insertions(+), 1 deletions(-)
+
+diff --git a/arch/x86/kernel/sys_x86_64.c b/arch/x86/kernel/sys_x86_64.c
+index 0514890..ddefd6c 100644
+--- a/arch/x86/kernel/sys_x86_64.c
++++ b/arch/x86/kernel/sys_x86_64.c
+@@ -90,6 +90,9 @@ SYSCALL_DEFINE6(mmap, unsigned long, addr, unsigned long, len,
+        if (off & ~PAGE_MASK)
+                goto out;
+
++       if ((off_t) off < 0)
++               goto out;
++
+        error = sys_mmap_pgoff(addr, len, prot, flags, fd, off >> PAGE_SHIFT);
+ out:
+        return error;
+diff --git a/mm/mmap.c b/mm/mmap.c
+index 3f758c7..2fa99cd 100644
+--- a/mm/mmap.c
++++ b/mm/mmap.c
+@@ -948,6 +948,7 @@ unsigned long do_mmap_pgoff(struct file *file, unsigned long addr,
+        vm_flags_t vm_flags;
+        int error;
+        unsigned long reqprot = prot;
++       unsigned long off = pgoff << PAGE_SHIFT;
+
+        /*
+         * Does the application expect PROT_READ to imply PROT_EXEC?
+@@ -971,7 +972,7 @@ unsigned long do_mmap_pgoff(struct file *file, unsigned long addr,
+                return -ENOMEM;
+
+        /* offset overflow? */
+-       if ((pgoff + (len >> PAGE_SHIFT)) < pgoff)
++       if ((off + len) < off)
+                return -EOVERFLOW;
+
+        /* Too many mappings? */
+--
+1.7.7.4
+
+Best Regards,
+Naotaka Hamaguchi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
