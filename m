@@ -1,23 +1,24 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx202.postini.com [74.125.245.202])
-	by kanga.kvack.org (Postfix) with SMTP id B59486B0106
-	for <linux-mm@kvack.org>; Fri, 17 Feb 2012 14:33:44 -0500 (EST)
-MIME-version: 1.0
-Content-transfer-encoding: 7BIT
-Content-type: TEXT/PLAIN
-Received: from euspt1 ([210.118.77.14]) by mailout4.w1.samsung.com
- (Sun Java(tm) System Messaging Server 6.3-8.04 (built Jul 29 2009; 32bit))
- with ESMTP id <0LZJ00CQTYC67W80@mailout4.w1.samsung.com> for
- linux-mm@kvack.org; Fri, 17 Feb 2012 19:33:43 +0000 (GMT)
+Received: from psmtp.com (na3sys010amx147.postini.com [74.125.245.147])
+	by kanga.kvack.org (Postfix) with SMTP id BF8696B0107
+	for <linux-mm@kvack.org>; Fri, 17 Feb 2012 14:33:49 -0500 (EST)
+Received: from euspt1 (mailout2.w1.samsung.com [210.118.77.12])
+ by mailout2.w1.samsung.com
+ (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14 2004))
+ with ESMTP id <0LZJ0087AYCCY0@mailout2.w1.samsung.com> for linux-mm@kvack.org;
+ Fri, 17 Feb 2012 19:33:48 +0000 (GMT)
 Received: from ubuntu ([106.10.22.16])
  by spt1.w1.samsung.com (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14
  2004)) with ESMTPA id <0LZJ00D9EY7NMA@spt1.w1.samsung.com> for
- linux-mm@kvack.org; Fri, 17 Feb 2012 19:33:42 +0000 (GMT)
-Date: Fri, 17 Feb 2012 20:30:22 +0100
+ linux-mm@kvack.org; Fri, 17 Feb 2012 19:33:48 +0000 (GMT)
+Date: Fri, 17 Feb 2012 20:30:23 +0100
 From: Marek Szyprowski <m.szyprowski@samsung.com>
-Subject: [PATCHv22 02/16] mm: compaction: introduce isolate_migratepages_range()
+Subject: [PATCHv22 03/16] mm: compaction: introduce map_pages()
 In-reply-to: <1329507036-24362-1-git-send-email-m.szyprowski@samsung.com>
-Message-id: <1329507036-24362-3-git-send-email-m.szyprowski@samsung.com>
+Message-id: <1329507036-24362-4-git-send-email-m.szyprowski@samsung.com>
+MIME-version: 1.0
+Content-type: TEXT/PLAIN
+Content-transfer-encoding: 7BIT
 References: <1329507036-24362-1-git-send-email-m.szyprowski@samsung.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
@@ -26,139 +27,52 @@ Cc: Michal Nazarewicz <mina86@mina86.com>, Marek Szyprowski <m.szyprowski@samsun
 
 From: Michal Nazarewicz <mina86@mina86.com>
 
-This commit introduces isolate_migratepages_range() function which
-extracts functionality from isolate_migratepages() so that it can be
-used on arbitrary PFN ranges.
-
-isolate_migratepages() function is implemented as a simple wrapper
-around isolate_migratepages_range().
+This commit creates a map_pages() function which map pages freed
+using split_free_pages().  This merely moves some code from
+isolate_freepages() so that it can be reused in other places.
 
 Signed-off-by: Michal Nazarewicz <mina86@mina86.com>
 Signed-off-by: Marek Szyprowski <m.szyprowski@samsung.com>
 Acked-by: Mel Gorman <mel@csn.ul.ie>
 Reviewed-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Tested-by: Rob Clark <rob.clark@linaro.org>
-Tested-by: Ohad Ben-Cohen <ohad@wizery.com>
-Tested-by: Benjamin Gaignard <benjamin.gaignard@linaro.org>
 Tested-by: Robert Nelson <robertcnelson@gmail.com>
 ---
- mm/compaction.c |   75 +++++++++++++++++++++++++++++++++++++++---------------
- 1 files changed, 54 insertions(+), 21 deletions(-)
+ mm/compaction.c |   15 +++++++++++----
+ 1 files changed, 11 insertions(+), 4 deletions(-)
 
 diff --git a/mm/compaction.c b/mm/compaction.c
-index d9ebebe..72f8685 100644
+index 72f8685..de22893 100644
 --- a/mm/compaction.c
 +++ b/mm/compaction.c
-@@ -250,31 +250,34 @@ typedef enum {
- 	ISOLATE_SUCCESS,	/* Pages isolated, migrate */
- } isolate_migrate_t;
- 
--/*
-- * Isolate all pages that can be migrated from the block pointed to by
-- * the migrate scanner within compact_control.
-+/**
-+ * isolate_migratepages_range() - isolate all migrate-able pages in range.
-+ * @zone:	Zone pages are in.
-+ * @cc:		Compaction control structure.
-+ * @low_pfn:	The first PFN of the range.
-+ * @end_pfn:	The one-past-the-last PFN of the range.
-+ *
-+ * Isolate all pages that can be migrated from the range specified by
-+ * [low_pfn, end_pfn).  Returns zero if there is a fatal signal
-+ * pending), otherwise PFN of the first page that was not scanned
-+ * (which may be both less, equal to or more then end_pfn).
-+ *
-+ * Assumes that cc->migratepages is empty and cc->nr_migratepages is
-+ * zero.
-+ *
-+ * Apart from cc->migratepages and cc->nr_migratetypes this function
-+ * does not modify any cc's fields, in particular it does not modify
-+ * (or read for that matter) cc->migrate_pfn.
-  */
--static isolate_migrate_t isolate_migratepages(struct zone *zone,
--					struct compact_control *cc)
-+static unsigned long
-+isolate_migratepages_range(struct zone *zone, struct compact_control *cc,
-+			   unsigned long low_pfn, unsigned long end_pfn)
- {
--	unsigned long low_pfn, end_pfn;
- 	unsigned long last_pageblock_nr = 0, pageblock_nr;
- 	unsigned long nr_scanned = 0, nr_isolated = 0;
- 	struct list_head *migratelist = &cc->migratepages;
- 	isolate_mode_t mode = ISOLATE_ACTIVE|ISOLATE_INACTIVE;
- 
--	/* Do not scan outside zone boundaries */
--	low_pfn = max(cc->migrate_pfn, zone->zone_start_pfn);
--
--	/* Only scan within a pageblock boundary */
--	end_pfn = ALIGN(low_pfn + pageblock_nr_pages, pageblock_nr_pages);
--
--	/* Do not cross the free scanner or scan within a memory hole */
--	if (end_pfn > cc->free_pfn || !pfn_valid(low_pfn)) {
--		cc->migrate_pfn = end_pfn;
--		return ISOLATE_NONE;
--	}
--
- 	/*
- 	 * Ensure that there are not too many pages isolated from the LRU
- 	 * list by either parallel reclaimers or compaction. If there are,
-@@ -283,12 +286,12 @@ static isolate_migrate_t isolate_migratepages(struct zone *zone,
- 	while (unlikely(too_many_isolated(zone))) {
- 		/* async migration should just abort */
- 		if (!cc->sync)
--			return ISOLATE_ABORT;
-+			return 0;
- 
- 		congestion_wait(BLK_RW_ASYNC, HZ/10);
- 
- 		if (fatal_signal_pending(current))
--			return ISOLATE_ABORT;
-+			return 0;
- 	}
- 
- 	/* Time to isolate some pages for migration */
-@@ -396,10 +399,40 @@ static isolate_migrate_t isolate_migratepages(struct zone *zone,
- 	acct_isolated(zone, cc);
- 
- 	spin_unlock_irq(&zone->lru_lock);
--	cc->migrate_pfn = low_pfn;
- 
- 	trace_mm_compaction_isolate_migratepages(nr_scanned, nr_isolated);
- 
-+	return low_pfn;
-+}
-+
-+/*
-+ * Isolate all pages that can be migrated from the block pointed to by
-+ * the migrate scanner within compact_control.
-+ */
-+static isolate_migrate_t isolate_migratepages(struct zone *zone,
-+					struct compact_control *cc)
-+{
-+	unsigned long low_pfn, end_pfn;
-+
-+	/* Do not scan outside zone boundaries */
-+	low_pfn = max(cc->migrate_pfn, zone->zone_start_pfn);
-+
-+	/* Only scan within a pageblock boundary */
-+	end_pfn = ALIGN(low_pfn + pageblock_nr_pages, pageblock_nr_pages);
-+
-+	/* Do not cross the free scanner or scan within a memory hole */
-+	if (end_pfn > cc->free_pfn || !pfn_valid(low_pfn)) {
-+		cc->migrate_pfn = end_pfn;
-+		return ISOLATE_NONE;
-+	}
-+
-+	/* Perform the isolation */
-+	low_pfn = isolate_migratepages_range(zone, cc, low_pfn, end_pfn);
-+	if (!low_pfn)
-+		return ISOLATE_ABORT;
-+
-+	cc->migrate_pfn = low_pfn;
-+
- 	return ISOLATE_SUCCESS;
+@@ -127,6 +127,16 @@ static bool suitable_migration_target(struct page *page)
+ 	return false;
  }
  
++static void map_pages(struct list_head *list)
++{
++	struct page *page;
++
++	list_for_each_entry(page, list, lru) {
++		arch_alloc_page(page, 0);
++		kernel_map_pages(page, 1, 1);
++	}
++}
++
+ /*
+  * Based on information in the current compact_control, find blocks
+  * suitable for isolating free pages from and then isolate them.
+@@ -206,10 +216,7 @@ static void isolate_freepages(struct zone *zone,
+ 	}
+ 
+ 	/* split_free_page does not map the pages */
+-	list_for_each_entry(page, freelist, lru) {
+-		arch_alloc_page(page, 0);
+-		kernel_map_pages(page, 1, 1);
+-	}
++	map_pages(freelist);
+ 
+ 	cc->free_pfn = high_pfn;
+ 	cc->nr_freepages = nr_freepages;
 -- 
 1.7.1
 
