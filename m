@@ -1,86 +1,103 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx131.postini.com [74.125.245.131])
-	by kanga.kvack.org (Postfix) with SMTP id B68C46B0112
-	for <linux-mm@kvack.org>; Fri, 17 Feb 2012 14:34:36 -0500 (EST)
-Received: from euspt1 (mailout2.w1.samsung.com [210.118.77.12])
- by mailout2.w1.samsung.com
- (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14 2004))
- with ESMTP id <0LZJ00566YDN7I@mailout2.w1.samsung.com> for linux-mm@kvack.org;
- Fri, 17 Feb 2012 19:34:35 +0000 (GMT)
+Received: from psmtp.com (na3sys010amx120.postini.com [74.125.245.120])
+	by kanga.kvack.org (Postfix) with SMTP id 7576C6B0115
+	for <linux-mm@kvack.org>; Fri, 17 Feb 2012 14:34:43 -0500 (EST)
+MIME-version: 1.0
+Content-transfer-encoding: 7BIT
+Content-type: TEXT/PLAIN
+Received: from euspt1 ([210.118.77.13]) by mailout3.w1.samsung.com
+ (Sun Java(tm) System Messaging Server 6.3-8.04 (built Jul 29 2009; 32bit))
+ with ESMTP id <0LZJ002WHYDT0Q80@mailout3.w1.samsung.com> for
+ linux-mm@kvack.org; Fri, 17 Feb 2012 19:34:41 +0000 (GMT)
 Received: from ubuntu ([106.10.22.16])
  by spt1.w1.samsung.com (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14
  2004)) with ESMTPA id <0LZJ00D9EY7NMA@spt1.w1.samsung.com> for
- linux-mm@kvack.org; Fri, 17 Feb 2012 19:34:35 +0000 (GMT)
-Date: Fri, 17 Feb 2012 20:30:30 +0100
+ linux-mm@kvack.org; Fri, 17 Feb 2012 19:34:41 +0000 (GMT)
+Date: Fri, 17 Feb 2012 20:30:31 +0100
 From: Marek Szyprowski <m.szyprowski@samsung.com>
-Subject: [PATCHv22 10/16] mm: Serialize access to min_free_kbytes
+Subject: [PATCHv22 11/16] mm: extract reclaim code from
+ __alloc_pages_direct_reclaim()
 In-reply-to: <1329507036-24362-1-git-send-email-m.szyprowski@samsung.com>
-Message-id: <1329507036-24362-11-git-send-email-m.szyprowski@samsung.com>
-MIME-version: 1.0
-Content-type: TEXT/PLAIN
-Content-transfer-encoding: 7BIT
+Message-id: <1329507036-24362-12-git-send-email-m.szyprowski@samsung.com>
 References: <1329507036-24362-1-git-send-email-m.szyprowski@samsung.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-media@vger.kernel.org, linux-mm@kvack.org, linaro-mm-sig@lists.linaro.org
 Cc: Michal Nazarewicz <mina86@mina86.com>, Marek Szyprowski <m.szyprowski@samsung.com>, Kyungmin Park <kyungmin.park@samsung.com>, Russell King <linux@arm.linux.org.uk>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daniel Walker <dwalker@codeaurora.org>, Mel Gorman <mel@csn.ul.ie>, Arnd Bergmann <arnd@arndb.de>, Jesse Barker <jesse.barker@linaro.org>, Jonathan Corbet <corbet@lwn.net>, Shariq Hasnain <shariq.hasnain@linaro.org>, Chunsang Jeong <chunsang.jeong@linaro.org>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Gaignard <benjamin.gaignard@linaro.org>, Rob Clark <rob.clark@linaro.org>, Ohad Ben-Cohen <ohad@wizery.com>
 
-From: Mel Gorman <mgorman@suse.de>
+This patch extracts common reclaim code from __alloc_pages_direct_reclaim()
+function to separate function: __perform_reclaim() which can be later used
+by alloc_contig_range().
 
-There is a race between the min_free_kbytes sysctl, memory hotplug
-and transparent hugepage support enablement.  Memory hotplug uses a
-zonelists_mutex to avoid a race when building zonelists. Reuse it to
-serialise watermark updates.
-
-[a.p.zijlstra@chello.nl: Older patch fixed the race with spinlock]
-Signed-off-by: Mel Gorman <mgorman@suse.de>
 Signed-off-by: Marek Szyprowski <m.szyprowski@samsung.com>
-Reviewed-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Signed-off-by: Kyungmin Park <kyungmin.park@samsung.com>
+Cc: Michal Nazarewicz <mina86@mina86.com>
+Acked-by: Mel Gorman <mel@csn.ul.ie>
+Tested-by: Rob Clark <rob.clark@linaro.org>
+Tested-by: Ohad Ben-Cohen <ohad@wizery.com>
+Tested-by: Benjamin Gaignard <benjamin.gaignard@linaro.org>
+Tested-by: Robert Nelson <robertcnelson@gmail.com>
 ---
- mm/page_alloc.c |   23 +++++++++++++++--------
- 1 files changed, 15 insertions(+), 8 deletions(-)
+ mm/page_alloc.c |   30 +++++++++++++++++++++---------
+ 1 files changed, 21 insertions(+), 9 deletions(-)
 
 diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 5d23933..444e3fd 100644
+index 444e3fd..e42b4a3 100644
 --- a/mm/page_alloc.c
 +++ b/mm/page_alloc.c
-@@ -4976,14 +4976,7 @@ static void setup_per_zone_lowmem_reserve(void)
- 	calculate_totalreserve_pages();
+@@ -2092,16 +2092,13 @@ __alloc_pages_direct_compact(gfp_t gfp_mask, unsigned int order,
  }
+ #endif /* CONFIG_COMPACTION */
  
--/**
-- * setup_per_zone_wmarks - called when min_free_kbytes changes
-- * or when memory is hot-{added|removed}
-- *
-- * Ensures that the watermark[min,low,high] values for each zone are set
-- * correctly with respect to min_free_kbytes.
-- */
--void setup_per_zone_wmarks(void)
-+static void __setup_per_zone_wmarks(void)
+-/* The really slow allocator path where we enter direct reclaim */
+-static inline struct page *
+-__alloc_pages_direct_reclaim(gfp_t gfp_mask, unsigned int order,
+-	struct zonelist *zonelist, enum zone_type high_zoneidx,
+-	nodemask_t *nodemask, int alloc_flags, struct zone *preferred_zone,
+-	int migratetype, unsigned long *did_some_progress)
++/* Perform direct synchronous page reclaim */
++static int
++__perform_reclaim(gfp_t gfp_mask, unsigned int order, struct zonelist *zonelist,
++		  nodemask_t *nodemask)
  {
- 	unsigned long pages_min = min_free_kbytes >> (PAGE_SHIFT - 10);
- 	unsigned long lowmem_pages = 0;
-@@ -5038,6 +5031,20 @@ void setup_per_zone_wmarks(void)
- 	calculate_totalreserve_pages();
- }
+-	struct page *page = NULL;
+ 	struct reclaim_state reclaim_state;
+-	bool drained = false;
++	int progress;
  
-+/**
-+ * setup_per_zone_wmarks - called when min_free_kbytes changes
-+ * or when memory is hot-{added|removed}
-+ *
-+ * Ensures that the watermark[min,low,high] values for each zone are set
-+ * correctly with respect to min_free_kbytes.
-+ */
-+void setup_per_zone_wmarks(void)
-+{
-+	mutex_lock(&zonelists_mutex);
-+	__setup_per_zone_wmarks();
-+	mutex_unlock(&zonelists_mutex);
+ 	cond_resched();
+ 
+@@ -2112,7 +2109,7 @@ __alloc_pages_direct_reclaim(gfp_t gfp_mask, unsigned int order,
+ 	reclaim_state.reclaimed_slab = 0;
+ 	current->reclaim_state = &reclaim_state;
+ 
+-	*did_some_progress = try_to_free_pages(zonelist, order, gfp_mask, nodemask);
++	progress = try_to_free_pages(zonelist, order, gfp_mask, nodemask);
+ 
+ 	current->reclaim_state = NULL;
+ 	lockdep_clear_current_reclaim_state();
+@@ -2120,6 +2117,21 @@ __alloc_pages_direct_reclaim(gfp_t gfp_mask, unsigned int order,
+ 
+ 	cond_resched();
+ 
++	return progress;
 +}
 +
- /*
-  * The inactive anon list should be small enough that the VM never has to
-  * do too much work, but large enough that each inactive page has a chance
++/* The really slow allocator path where we enter direct reclaim */
++static inline struct page *
++__alloc_pages_direct_reclaim(gfp_t gfp_mask, unsigned int order,
++	struct zonelist *zonelist, enum zone_type high_zoneidx,
++	nodemask_t *nodemask, int alloc_flags, struct zone *preferred_zone,
++	int migratetype, unsigned long *did_some_progress)
++{
++	struct page *page = NULL;
++	bool drained = false;
++
++	*did_some_progress = __perform_reclaim(gfp_mask, order, zonelist,
++					       nodemask);
+ 	if (unlikely(!(*did_some_progress)))
+ 		return NULL;
+ 
 -- 
 1.7.1
 
