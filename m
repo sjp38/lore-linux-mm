@@ -1,149 +1,107 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx115.postini.com [74.125.245.115])
-	by kanga.kvack.org (Postfix) with SMTP id DC5756B007E
-	for <linux-mm@kvack.org>; Fri, 17 Feb 2012 02:11:30 -0500 (EST)
-Subject: Re: [rfc PATCH]slub: per cpu partial statistics change
-From: "Alex,Shi" <alex.shi@intel.com>
-In-Reply-To: <alpine.DEB.2.00.1202080846030.29839@router.home>
-References: <1328256695.12669.24.camel@debian>
-	 <alpine.DEB.2.00.1202030920060.2420@router.home>
-	 <4F2C824E.8080501@intel.com>
-	 <alpine.DEB.2.00.1202060858510.393@router.home>
-	 <1328591165.12669.168.camel@debian>
-	 <alpine.DEB.2.00.1202070910320.29500@router.home>
-	 <1328676290.12669.431.camel@debian>
-	 <alpine.DEB.2.00.1202080846030.29839@router.home>
-Content-Type: text/plain; charset="UTF-8"
-Date: Fri, 17 Feb 2012 15:06:46 +0800
-Message-ID: <1329462406.12669.2919.camel@debian>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx132.postini.com [74.125.245.132])
+	by kanga.kvack.org (Postfix) with SMTP id BF8776B007E
+	for <linux-mm@kvack.org>; Fri, 17 Feb 2012 03:01:18 -0500 (EST)
+Received: from /spool/local
+	by e28smtp07.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
+	Fri, 17 Feb 2012 13:31:15 +0530
+Received: from d28av05.in.ibm.com (d28av05.in.ibm.com [9.184.220.67])
+	by d28relay05.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q1H813D23645656
+	for <linux-mm@kvack.org>; Fri, 17 Feb 2012 13:31:04 +0530
+Received: from d28av05.in.ibm.com (loopback [127.0.0.1])
+	by d28av05.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q1H813ZQ013691
+	for <linux-mm@kvack.org>; Fri, 17 Feb 2012 19:01:03 +1100
+From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Subject: Re: [RFC PATCH 0/6] hugetlbfs: Add cgroup resource controller for hugetlbfs
+In-Reply-To: <20120214155843.42a090c2.kamezawa.hiroyu@jp.fujitsu.com>
+References: <1328909806-15236-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com> <20120214155843.42a090c2.kamezawa.hiroyu@jp.fujitsu.com>
+Date: Fri, 17 Feb 2012 13:30:50 +0530
+Message-ID: <87ehttevnx.fsf@linux.vnet.ibm.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pekka Enberg <penberg@cs.helsinki.fi>
-Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "cl@linux.com" <cl@linux.com>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: linux-mm@kvack.org, mgorman@suse.de, dhillf@gmail.com
 
-On Wed, 2012-02-08 at 08:46 -0600, Christoph Lameter wrote:
-> On Wed, 8 Feb 2012, Alex,Shi wrote:
+
+Hi Kamezawa,
+
+Sorry for a late response as I was out of office for last few days.
+
+On Tue, 14 Feb 2012 15:58:43 +0900, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+> On Sat, 11 Feb 2012 03:06:40 +0530
+> "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com> wrote:
 > 
-> > > A bit long I think. CPU_PARTIAL_DRAIN?
-> >
-> > Yes. it is more meaningful. :)
-> > Patch change here.
+> > Hi,
+> > 
+> > This patchset implements a cgroup resource controller for HugeTLB pages.
+> > It is similar to the existing hugetlb quota support in that the limit is
+> > enforced at mmap(2) time and not at fault time. HugeTLB quota limit the
+> > number of huge pages that can be allocated per superblock.
+> > 
+> > For shared mapping we track the region mapped by a task along with the
+> > hugetlb cgroup in inode region list. We keep the hugetlb cgroup charged
+> > even after the task that did mmap(2) exit. The uncharge happens during
+> > file truncate. For Private mapping we charge and uncharge from the current
+> > task cgroup.
+> > 
 > 
-> Acked-by: Christoph Lameter <cl@linux.com>
+> Hm, Could you provide an Documenation/cgroup/hugetlb.txt at RFC ?
+> It makes clear what your patch does.
 
-Pakka:
-Would you like to pick up this patch? It works on latest Linus' tree. 
+Will do in the next iteration.
 
-Thanks!
-========
->From af88a7b0134d3eea82a4cf9985026852e50f5343 Mon Sep 17 00:00:00 2001
-From: Alex Shi <alex.shi@intel.com>
-Date: Fri, 3 Feb 2012 23:34:56 +0800
-Subject: [PATCH] slub: per cpu partial statistics change
+> 
+> I wonder whether this should be under memory cgroup or not. In the 1st design
+> of cgroup, I think it was considered one-feature-one-subsystem was good.
+> 
+> But in recent discussion, I tend to hear that's hard to use.
+> Now, memory cgroup has 
+> 
+>    memory.xxxxx for controlling anon/file
+>    memory.memsw.xxxx for controlling memory+swap
+>    memory.kmem.tcp_xxxx for tcp controlling.
+> 
+> How about memory.hugetlb.xxxxx ?
+> 
 
-This patch split the cpu_partial_free into 2 parts: cpu_partial_node, PCP refilling
-times from node partial; and same name cpu_partial_free, PCP refilling times in
-slab_free slow path. A new statistic 'cpu_partial_drain' is added to get PCP
-drain to node partial times. These info are useful when do PCP tunning.
+That is how i did one of the earlier version of the patch. But there are
+few difference with the way we want to control hugetlb allocation. With
+hugetlb cgroup, we actually want to enable application to fall back to
+using normal pagesize if we are crossing cgroup limit. ie, we need to
+enforce the limit during mmap. memcg tracks cgroup details along
+with pages, hence implementing above gets challenging. Another
+difference is we keep the cgroup charged even if the task exit as long as
+the file is present in hugetlbfs. ie, if an application did mmap with
+MAP_SHARED in hugetlbfs, the file size will be extended to the requested
+length arg in mmap. This file will consume pages from hugetlb resource
+until it is truncated. We want to track that resource usage as a part
+of hugetlb cgroup. 
 
-The slabinfo.c code is unchanged, since cpu_partial_node is not on slow path.
+>From the interface point of view what we have in hugetlb cgroup is
+similar to what is in memcg. We end up with files like the below
 
-Signed-off-by: Alex Shi <alex.shi@intel.com>
-Acked-by: Christoph Lameter <cl@linux.com>
----
- include/linux/slub_def.h |    6 ++++--
- mm/slub.c                |   12 +++++++++---
- 2 files changed, 13 insertions(+), 5 deletions(-)
+hugetlb.16GB.limit_in_bytes
+hugetlb.16GB.max_usage_in_bytes 
+hugetlb.16GB.usage_in_bytes
+hugetlb.16MB.limit_in_bytes
+hugetlb.16MB.max_usage_in_bytes  
+hugetlb.16MB.usage_in_bytes
 
-diff --git a/include/linux/slub_def.h b/include/linux/slub_def.h
-index a32bcfd..6388a66 100644
---- a/include/linux/slub_def.h
-+++ b/include/linux/slub_def.h
-@@ -21,7 +21,7 @@ enum stat_item {
- 	FREE_FROZEN,		/* Freeing to frozen slab */
- 	FREE_ADD_PARTIAL,	/* Freeing moves slab to partial list */
- 	FREE_REMOVE_PARTIAL,	/* Freeing removes last object */
--	ALLOC_FROM_PARTIAL,	/* Cpu slab acquired from partial list */
-+	ALLOC_FROM_PARTIAL,	/* Cpu slab acquired from node partial list */
- 	ALLOC_SLAB,		/* Cpu slab acquired from page allocator */
- 	ALLOC_REFILL,		/* Refill cpu slab from slab freelist */
- 	ALLOC_NODE_MISMATCH,	/* Switching cpu slab */
-@@ -37,7 +37,9 @@ enum stat_item {
- 	CMPXCHG_DOUBLE_CPU_FAIL,/* Failure of this_cpu_cmpxchg_double */
- 	CMPXCHG_DOUBLE_FAIL,	/* Number of times that cmpxchg double did not match */
- 	CPU_PARTIAL_ALLOC,	/* Used cpu partial on alloc */
--	CPU_PARTIAL_FREE,	/* USed cpu partial on free */
-+	CPU_PARTIAL_FREE,	/* Refill cpu partial on free */
-+	CPU_PARTIAL_NODE,	/* Refill cpu partial from node partial */
-+	CPU_PARTIAL_DRAIN,	/* Drain cpu partial to node partial */
- 	NR_SLUB_STAT_ITEMS };
- 
- struct kmem_cache_cpu {
-diff --git a/mm/slub.c b/mm/slub.c
-index 4907563..4e71a0a 100644
---- a/mm/slub.c
-+++ b/mm/slub.c
-@@ -1560,6 +1560,7 @@ static void *get_partial_node(struct kmem_cache *s,
- 		} else {
- 			page->freelist = t;
- 			available = put_cpu_partial(s, page, 0);
-+			stat(s, CPU_PARTIAL_NODE);
- 		}
- 		if (kmem_cache_debug(s) || available > s->cpu_partial / 2)
- 			break;
-@@ -1973,6 +1974,7 @@ int put_cpu_partial(struct kmem_cache *s, struct page *page, int drain)
- 				local_irq_restore(flags);
- 				pobjects = 0;
- 				pages = 0;
-+				stat(s, CPU_PARTIAL_DRAIN);
- 			}
- 		}
- 
-@@ -1984,7 +1986,6 @@ int put_cpu_partial(struct kmem_cache *s, struct page *page, int drain)
- 		page->next = oldpage;
- 
- 	} while (this_cpu_cmpxchg(s->cpu_slab->partial, oldpage, page) != oldpage);
--	stat(s, CPU_PARTIAL_FREE);
- 	return pobjects;
- }
- 
-@@ -2465,9 +2466,10 @@ static void __slab_free(struct kmem_cache *s, struct page *page,
- 		 * If we just froze the page then put it onto the
- 		 * per cpu partial list.
- 		 */
--		if (new.frozen && !was_frozen)
-+		if (new.frozen && !was_frozen) {
- 			put_cpu_partial(s, page, 1);
--
-+			stat(s, CPU_PARTIAL_FREE);
-+		}
- 		/*
- 		 * The list lock was not taken therefore no list
- 		 * activity can be necessary.
-@@ -5059,6 +5061,8 @@ STAT_ATTR(CMPXCHG_DOUBLE_CPU_FAIL, cmpxchg_double_cpu_fail);
- STAT_ATTR(CMPXCHG_DOUBLE_FAIL, cmpxchg_double_fail);
- STAT_ATTR(CPU_PARTIAL_ALLOC, cpu_partial_alloc);
- STAT_ATTR(CPU_PARTIAL_FREE, cpu_partial_free);
-+STAT_ATTR(CPU_PARTIAL_NODE, cpu_partial_node);
-+STAT_ATTR(CPU_PARTIAL_DRAIN, cpu_partial_drain);
- #endif
- 
- static struct attribute *slab_attrs[] = {
-@@ -5124,6 +5128,8 @@ static struct attribute *slab_attrs[] = {
- 	&cmpxchg_double_cpu_fail_attr.attr,
- 	&cpu_partial_alloc_attr.attr,
- 	&cpu_partial_free_attr.attr,
-+	&cpu_partial_node_attr.attr,
-+	&cpu_partial_drain_attr.attr,
- #endif
- #ifdef CONFIG_FAILSLAB
- 	&failslab_attr.attr,
--- 
-1.6.3.3
+> 
+> > The current patchset doesn't support cgroup hierarchy. We also don't
+> > allow task migration across cgroup.
+> 
+> What happens when a user destroys a cgroup which contains alive hugetlb pages ?
+> 
+> Thanks,
+> -Kame
+> 
 
-
+Thanks
+-aneesh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
