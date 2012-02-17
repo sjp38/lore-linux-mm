@@ -1,333 +1,149 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx205.postini.com [74.125.245.205])
-	by kanga.kvack.org (Postfix) with SMTP id 8E0066B007E
-	for <linux-mm@kvack.org>; Fri, 17 Feb 2012 00:20:46 -0500 (EST)
-Received: by qauh8 with SMTP id h8so3783559qau.14
-        for <linux-mm@kvack.org>; Thu, 16 Feb 2012 21:20:45 -0800 (PST)
-Message-ID: <4F3DE424.3010301@gmail.com>
-Date: Fri, 17 Feb 2012 13:22:44 +0800
-From: bill4carson <bill4carson@gmail.com>
-MIME-Version: 1.0
-Subject: Re: [RFC PATCH 5/6] hugetlbfs: Add controller support for private
- mapping
-References: <1328909806-15236-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com> <1328909806-15236-6-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
-In-Reply-To: <1328909806-15236-6-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 8bit
+Received: from psmtp.com (na3sys010amx115.postini.com [74.125.245.115])
+	by kanga.kvack.org (Postfix) with SMTP id DC5756B007E
+	for <linux-mm@kvack.org>; Fri, 17 Feb 2012 02:11:30 -0500 (EST)
+Subject: Re: [rfc PATCH]slub: per cpu partial statistics change
+From: "Alex,Shi" <alex.shi@intel.com>
+In-Reply-To: <alpine.DEB.2.00.1202080846030.29839@router.home>
+References: <1328256695.12669.24.camel@debian>
+	 <alpine.DEB.2.00.1202030920060.2420@router.home>
+	 <4F2C824E.8080501@intel.com>
+	 <alpine.DEB.2.00.1202060858510.393@router.home>
+	 <1328591165.12669.168.camel@debian>
+	 <alpine.DEB.2.00.1202070910320.29500@router.home>
+	 <1328676290.12669.431.camel@debian>
+	 <alpine.DEB.2.00.1202080846030.29839@router.home>
+Content-Type: text/plain; charset="UTF-8"
+Date: Fri, 17 Feb 2012 15:06:46 +0800
+Message-ID: <1329462406.12669.2919.camel@debian>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Cc: linux-mm@kvack.org, mgorman@suse.de, kamezawa.hiroyu@jp.fujitsu.com, dhillf@gmail.com
+To: Pekka Enberg <penberg@cs.helsinki.fi>
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "cl@linux.com" <cl@linux.com>
 
+On Wed, 2012-02-08 at 08:46 -0600, Christoph Lameter wrote:
+> On Wed, 8 Feb 2012, Alex,Shi wrote:
+> 
+> > > A bit long I think. CPU_PARTIAL_DRAIN?
+> >
+> > Yes. it is more meaningful. :)
+> > Patch change here.
+> 
+> Acked-by: Christoph Lameter <cl@linux.com>
 
+Pakka:
+Would you like to pick up this patch? It works on latest Linus' tree. 
 
-On 2012a1'02ae??11ae?JPY 05:36, Aneesh Kumar K.V wrote:
-> From: "Aneesh Kumar K.V"<aneesh.kumar@linux.vnet.ibm.com>
->
-> HugeTLB controller is different from a memory controller in that we charge
-> controller during mmap() time and not fault time. This make sure userspace
-> can fallback to non-hugepage allocation when mmap fails due to controller
-> limit.
->
-> For private mapping we always charge/uncharge from the current task cgroup.
-> Charging happens during mmap(2) and uncharge happens during the
-> vm_operations->close when resv_map refcount reaches zero. The uncharge count
-> is stored in struct resv_map. For child task after fork the charging happens
-> during fault time in alloc_huge_page. We also need to make sure for private
-> mapping each vma for hugeTLB mapping have struct resv_map allocated so that we
-> can store the uncharge count in resv_map.
->
-> Signed-off-by: Aneesh Kumar K.V<aneesh.kumar@linux.vnet.ibm.com>
-> ---
->   fs/hugetlbfs/hugetlb_cgroup.c  |   50 ++++++++++++++++++++++++++++++++
->   include/linux/hugetlb.h        |    7 ++++
->   include/linux/hugetlb_cgroup.h |   16 ++++++++++
->   mm/hugetlb.c                   |   62 ++++++++++++++++++++++++++++++++--------
->   4 files changed, 123 insertions(+), 12 deletions(-)
->
-> diff --git a/fs/hugetlbfs/hugetlb_cgroup.c b/fs/hugetlbfs/hugetlb_cgroup.c
-> index c478fb0..f828fb2 100644
-> --- a/fs/hugetlbfs/hugetlb_cgroup.c
-> +++ b/fs/hugetlbfs/hugetlb_cgroup.c
-> @@ -458,3 +458,53 @@ long  hugetlb_truncate_cgroup_charge(struct hstate *h,
->   	}
->   	return chg;
->   }
-> +
-> +int hugetlb_priv_page_charge(struct resv_map *map, struct hstate *h, long chg)
-> +{
-> +	long csize;
-> +	int idx, ret;
-> +	struct hugetlb_cgroup *h_cg;
-> +	struct res_counter *fail_res;
-> +
-> +	/*
-> +	 * Get the task cgroup within rcu_readlock and also
-> +	 * get cgroup reference to make sure cgroup destroy won't
-> +	 * race with page_charge. We don't allow a cgroup destroy
-> +	 * when the cgroup have some charge against it
-> +	 */
-> +	rcu_read_lock();
-> +	h_cg = task_hugetlbcgroup(current);
-> +	css_get(&h_cg->css);
-> +	rcu_read_unlock();
-> +
-> +	if (hugetlb_cgroup_is_root(h_cg)) {
-> +		ret = chg;
-> +		goto err_out;
-> +	}
-> +
-> +	csize = chg * huge_page_size(h);
-> +	idx = h - hstates;
-> +	ret = res_counter_charge(&h_cg->memhuge[idx], csize,&fail_res);
-> +	if (!ret) {
-> +		map->nr_pages[idx] += chg<<  huge_page_order(h);
-> +		ret = chg;
-> +	}
-> +err_out:
-> +	css_put(&h_cg->css);
-> +	return ret;
-> +}
-> +
-> +void hugetlb_priv_page_uncharge(struct resv_map *map, int idx, int nr_pages)
-> +{
-> +	struct hugetlb_cgroup *h_cg;
-> +	unsigned long csize = nr_pages * PAGE_SIZE;
-> +
-> +	rcu_read_lock();
-> +	h_cg = task_hugetlbcgroup(current);
-> +	if (!hugetlb_cgroup_is_root(h_cg)) {
-> +		res_counter_uncharge(&h_cg->memhuge[idx], csize);
-> +		map->nr_pages[idx] -= nr_pages;
-> +	}
-> +	rcu_read_unlock();
-> +	return;
-> +}
-> diff --git a/include/linux/hugetlb.h b/include/linux/hugetlb.h
-> index 4392b6a..e2ba381 100644
-> --- a/include/linux/hugetlb.h
-> +++ b/include/linux/hugetlb.h
-> @@ -233,6 +233,12 @@ struct hstate {
->   	char name[HSTATE_NAME_LEN];
->   };
->
-> +struct resv_map {
-> +	struct kref refs;
-> +	int nr_pages[HUGE_MAX_HSTATE];
-> +	struct list_head regions;
-> +};
-> +
+Thanks!
+========
+>From af88a7b0134d3eea82a4cf9985026852e50f5343 Mon Sep 17 00:00:00 2001
+From: Alex Shi <alex.shi@intel.com>
+Date: Fri, 3 Feb 2012 23:34:56 +0800
+Subject: [PATCH] slub: per cpu partial statistics change
 
-Please put resv_map after HUGE_MAX_HSTATE definition,
-otherwise it will break on non-x86 arches, which has no
-HUGE_MAX_HSTATE definition.
+This patch split the cpu_partial_free into 2 parts: cpu_partial_node, PCP refilling
+times from node partial; and same name cpu_partial_free, PCP refilling times in
+slab_free slow path. A new statistic 'cpu_partial_drain' is added to get PCP
+drain to node partial times. These info are useful when do PCP tunning.
 
+The slabinfo.c code is unchanged, since cpu_partial_node is not on slow path.
 
-#ifndef HUGE_MAX_HSTATE
-#define HUGE_MAX_HSTATE 1
-#endif
+Signed-off-by: Alex Shi <alex.shi@intel.com>
+Acked-by: Christoph Lameter <cl@linux.com>
+---
+ include/linux/slub_def.h |    6 ++++--
+ mm/slub.c                |   12 +++++++++---
+ 2 files changed, 13 insertions(+), 5 deletions(-)
 
-+struct resv_map {
-+	struct kref refs;
-+	int nr_pages[HUGE_MAX_HSTATE];
-+	struct list_head regions;
-+};
-
-
-
-
->   struct huge_bootmem_page {
->   	struct list_head list;
->   	struct hstate *hstate;
-> @@ -323,6 +329,7 @@ static inline unsigned hstate_index_to_shift(unsigned index)
->
->   #else
->   struct hstate {};
-> +struct resv_map {};
->   #define alloc_huge_page_node(h, nid) NULL
->   #define alloc_bootmem_huge_page(h) NULL
->   #define hstate_file(f) NULL
-> diff --git a/include/linux/hugetlb_cgroup.h b/include/linux/hugetlb_cgroup.h
-> index 3131d62..c3738df 100644
-> --- a/include/linux/hugetlb_cgroup.h
-> +++ b/include/linux/hugetlb_cgroup.h
-> @@ -32,6 +32,10 @@ extern void hugetlb_page_uncharge(struct list_head *head,
->   extern void hugetlb_commit_page_charge(struct list_head *head, long f, long t);
->   extern long hugetlb_truncate_cgroup_charge(struct hstate *h,
->   					   struct list_head *head, long from);
-> +extern int hugetlb_priv_page_charge(struct resv_map *map,
-> +				    struct hstate *h, long chg);
-> +extern void hugetlb_priv_page_uncharge(struct resv_map *map,
-> +				       int idx, int nr_pages);
->   #else
->   static inline long hugetlb_page_charge(struct list_head *head,
->   				       struct hstate *h, long f, long t)
-> @@ -58,5 +62,17 @@ static inline long hugetlb_truncate_cgroup_charge(struct hstate *h,
->   {
->   	return region_truncate(head, from);
->   }
-> +
-> +static inline int hugetlb_priv_page_charge(struct resv_map *map,
-> +					   struct hstate *h, long chg)
-> +{
-> +	return chg;
-> +}
-> +
-> +static inline void hugetlb_priv_page_uncharge(struct resv_map *map,
-> +					      int idx, int nr_pages)
-> +{
-> +	return;
-> +}
->   #endif /* CONFIG_CGROUP_HUGETLB_RES_CTLR */
->   #endif
-> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-> index 102410f..5a91838 100644
-> --- a/mm/hugetlb.c
-> +++ b/mm/hugetlb.c
-> @@ -303,14 +303,9 @@ static void set_vma_private_data(struct vm_area_struct *vma,
->   	vma->vm_private_data = (void *)value;
->   }
->
-> -struct resv_map {
-> -	struct kref refs;
-> -	struct list_head regions;
-> -};
-> -
->   static struct resv_map *resv_map_alloc(void)
->   {
-> -	struct resv_map *resv_map = kmalloc(sizeof(*resv_map), GFP_KERNEL);
-> +	struct resv_map *resv_map = kzalloc(sizeof(*resv_map), GFP_KERNEL);
->   	if (!resv_map)
->   		return NULL;
->
-> @@ -322,10 +317,16 @@ static struct resv_map *resv_map_alloc(void)
->
->   static void resv_map_release(struct kref *ref)
->   {
-> +	int idx;
->   	struct resv_map *resv_map = container_of(ref, struct resv_map, refs);
->
->   	/* Clear out any active regions before we release the map. */
->   	region_truncate(&resv_map->regions, 0);
-> +	/* drop the hugetlb cgroup charge */
-> +	for (idx = 0; idx<  HUGE_MAX_HSTATE; idx++) {
-> +		hugetlb_priv_page_uncharge(resv_map, idx,
-> +					   resv_map->nr_pages[idx]);
-> +	}
->   	kfree(resv_map);
->   }
->
-> @@ -989,9 +990,20 @@ static long vma_needs_reservation(struct hstate *h,
->   		return hugetlb_page_charge(&inode->i_mapping->private_list,
->   					   h, idx, idx + 1);
->   	} else if (!is_vma_resv_set(vma, HPAGE_RESV_OWNER)) {
-> -		return 1;
-> -
-> +		struct resv_map *resv_map = vma_resv_map(vma);
-> +		if (!resv_map) {
-> +			/*
-> +			 * We didn't allocate resv_map for this vma.
-> +			 * Allocate it here.
-> +			 */
-> +			resv_map = resv_map_alloc();
-> +			if (!resv_map)
-> +				return -ENOMEM;
-> +			set_vma_resv_map(vma, resv_map);
-> +		}
-> +		return hugetlb_priv_page_charge(resv_map, h, 1);
->   	} else  {
-> +		/* We did the priv page charging in mmap call */
->   		long err;
->   		pgoff_t idx = vma_hugecache_offset(h, vma, addr);
->   		struct resv_map *reservations = vma_resv_map(vma);
-> @@ -1007,14 +1019,20 @@ static void vma_uncharge_reservation(struct hstate *h,
->   				     struct vm_area_struct *vma,
->   				     unsigned long chg)
->   {
-> +	int idx = h - hstates;
->   	struct address_space *mapping = vma->vm_file->f_mapping;
->   	struct inode *inode = mapping->host;
->
->
->   	if (vma->vm_flags&  VM_MAYSHARE) {
->   		return hugetlb_page_uncharge(&inode->i_mapping->private_list,
-> -					     h - hstates,
-> -					     chg<<  huge_page_order(h));
-> +					     idx, chg<<  huge_page_order(h));
-> +	} else {
-> +		struct resv_map *resv_map = vma_resv_map(vma);
-> +
-> +		return hugetlb_priv_page_uncharge(resv_map,
-> +						  idx,
-> +						  chg<<  huge_page_order(h));
->   	}
->   }
->
-> @@ -2165,6 +2183,22 @@ static void hugetlb_vm_op_open(struct vm_area_struct *vma)
->   	 */
->   	if (reservations)
->   		kref_get(&reservations->refs);
-> +	else if (!(vma->vm_flags&  VM_MAYSHARE)) {
-> +		/*
-> +		 * for non shared vma we need resv map to track
-> +		 * hugetlb cgroup usage. Allocate it here. Charging
-> +		 * the cgroup will take place in fault path.
-> +		 */
-> +		struct resv_map *resv_map = resv_map_alloc();
-> +		/*
-> +		 * If we fail to allocate resv_map here. We will allocate
-> +		 * one when we do alloc_huge_page. So we don't handle
-> +		 * ENOMEM here. The function also return void. So there is
-> +		 * nothing much we can do.
-> +		 */
-> +		if (resv_map)
-> +			set_vma_resv_map(vma, resv_map);
-> +	}
->   }
->
->   static void hugetlb_vm_op_close(struct vm_area_struct *vma)
-> @@ -2968,7 +3002,7 @@ int hugetlb_reserve_pages(struct inode *inode,
->   {
->   	long ret, chg;
->   	struct hstate *h = hstate_inode(inode);
-> -
-> +	struct resv_map *resv_map = NULL;
->   	/*
->   	 * Only apply hugepage reservation if asked. At fault time, an
->   	 * attempt will be made for VM_NORESERVE to allocate a page
-> @@ -2987,7 +3021,7 @@ int hugetlb_reserve_pages(struct inode *inode,
->   		chg = hugetlb_page_charge(&inode->i_mapping->private_list,
->   					  h, from, to);
->   	} else {
-> -		struct resv_map *resv_map = resv_map_alloc();
-> +		resv_map = resv_map_alloc();
->   		if (!resv_map)
->   			return -ENOMEM;
->
-> @@ -2995,6 +3029,7 @@ int hugetlb_reserve_pages(struct inode *inode,
->
->   		set_vma_resv_map(vma, resv_map);
->   		set_vma_resv_flags(vma, HPAGE_RESV_OWNER);
-> +		chg = hugetlb_priv_page_charge(resv_map, h, chg);
->   	}
->
->   	if (chg<  0)
-> @@ -3033,6 +3068,9 @@ err_quota:
->   	if (!vma || vma->vm_flags&  VM_MAYSHARE)
->   		hugetlb_page_uncharge(&inode->i_mapping->private_list,
->   				      h - hstates, chg<<  huge_page_order(h));
-> +	else
-> +		hugetlb_priv_page_uncharge(resv_map, h - hstates,
-> +					   chg<<  huge_page_order(h));
->   	return ret;
->
->   }
-
+diff --git a/include/linux/slub_def.h b/include/linux/slub_def.h
+index a32bcfd..6388a66 100644
+--- a/include/linux/slub_def.h
++++ b/include/linux/slub_def.h
+@@ -21,7 +21,7 @@ enum stat_item {
+ 	FREE_FROZEN,		/* Freeing to frozen slab */
+ 	FREE_ADD_PARTIAL,	/* Freeing moves slab to partial list */
+ 	FREE_REMOVE_PARTIAL,	/* Freeing removes last object */
+-	ALLOC_FROM_PARTIAL,	/* Cpu slab acquired from partial list */
++	ALLOC_FROM_PARTIAL,	/* Cpu slab acquired from node partial list */
+ 	ALLOC_SLAB,		/* Cpu slab acquired from page allocator */
+ 	ALLOC_REFILL,		/* Refill cpu slab from slab freelist */
+ 	ALLOC_NODE_MISMATCH,	/* Switching cpu slab */
+@@ -37,7 +37,9 @@ enum stat_item {
+ 	CMPXCHG_DOUBLE_CPU_FAIL,/* Failure of this_cpu_cmpxchg_double */
+ 	CMPXCHG_DOUBLE_FAIL,	/* Number of times that cmpxchg double did not match */
+ 	CPU_PARTIAL_ALLOC,	/* Used cpu partial on alloc */
+-	CPU_PARTIAL_FREE,	/* USed cpu partial on free */
++	CPU_PARTIAL_FREE,	/* Refill cpu partial on free */
++	CPU_PARTIAL_NODE,	/* Refill cpu partial from node partial */
++	CPU_PARTIAL_DRAIN,	/* Drain cpu partial to node partial */
+ 	NR_SLUB_STAT_ITEMS };
+ 
+ struct kmem_cache_cpu {
+diff --git a/mm/slub.c b/mm/slub.c
+index 4907563..4e71a0a 100644
+--- a/mm/slub.c
++++ b/mm/slub.c
+@@ -1560,6 +1560,7 @@ static void *get_partial_node(struct kmem_cache *s,
+ 		} else {
+ 			page->freelist = t;
+ 			available = put_cpu_partial(s, page, 0);
++			stat(s, CPU_PARTIAL_NODE);
+ 		}
+ 		if (kmem_cache_debug(s) || available > s->cpu_partial / 2)
+ 			break;
+@@ -1973,6 +1974,7 @@ int put_cpu_partial(struct kmem_cache *s, struct page *page, int drain)
+ 				local_irq_restore(flags);
+ 				pobjects = 0;
+ 				pages = 0;
++				stat(s, CPU_PARTIAL_DRAIN);
+ 			}
+ 		}
+ 
+@@ -1984,7 +1986,6 @@ int put_cpu_partial(struct kmem_cache *s, struct page *page, int drain)
+ 		page->next = oldpage;
+ 
+ 	} while (this_cpu_cmpxchg(s->cpu_slab->partial, oldpage, page) != oldpage);
+-	stat(s, CPU_PARTIAL_FREE);
+ 	return pobjects;
+ }
+ 
+@@ -2465,9 +2466,10 @@ static void __slab_free(struct kmem_cache *s, struct page *page,
+ 		 * If we just froze the page then put it onto the
+ 		 * per cpu partial list.
+ 		 */
+-		if (new.frozen && !was_frozen)
++		if (new.frozen && !was_frozen) {
+ 			put_cpu_partial(s, page, 1);
+-
++			stat(s, CPU_PARTIAL_FREE);
++		}
+ 		/*
+ 		 * The list lock was not taken therefore no list
+ 		 * activity can be necessary.
+@@ -5059,6 +5061,8 @@ STAT_ATTR(CMPXCHG_DOUBLE_CPU_FAIL, cmpxchg_double_cpu_fail);
+ STAT_ATTR(CMPXCHG_DOUBLE_FAIL, cmpxchg_double_fail);
+ STAT_ATTR(CPU_PARTIAL_ALLOC, cpu_partial_alloc);
+ STAT_ATTR(CPU_PARTIAL_FREE, cpu_partial_free);
++STAT_ATTR(CPU_PARTIAL_NODE, cpu_partial_node);
++STAT_ATTR(CPU_PARTIAL_DRAIN, cpu_partial_drain);
+ #endif
+ 
+ static struct attribute *slab_attrs[] = {
+@@ -5124,6 +5128,8 @@ static struct attribute *slab_attrs[] = {
+ 	&cmpxchg_double_cpu_fail_attr.attr,
+ 	&cpu_partial_alloc_attr.attr,
+ 	&cpu_partial_free_attr.attr,
++	&cpu_partial_node_attr.attr,
++	&cpu_partial_drain_attr.attr,
+ #endif
+ #ifdef CONFIG_FAILSLAB
+ 	&failslab_attr.attr,
 -- 
-I am a slow learner
-but I will keep trying to fight for my dreams!
+1.6.3.3
 
---bill
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
