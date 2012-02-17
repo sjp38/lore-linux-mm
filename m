@@ -1,55 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx115.postini.com [74.125.245.115])
-	by kanga.kvack.org (Postfix) with SMTP id 9D0856B007E
-	for <linux-mm@kvack.org>; Fri, 17 Feb 2012 04:17:25 -0500 (EST)
-Received: by dadv6 with SMTP id v6so3702001dad.14
-        for <linux-mm@kvack.org>; Fri, 17 Feb 2012 01:17:24 -0800 (PST)
-Date: Fri, 17 Feb 2012 17:22:05 +0800
-From: Zheng Liu <gnehzuil.liu@gmail.com>
-Subject: Fine granularity page reclaim
-Message-ID: <20120217092205.GA9462@gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+Received: from psmtp.com (na3sys010amx105.postini.com [74.125.245.105])
+	by kanga.kvack.org (Postfix) with SMTP id BE9C86B0092
+	for <linux-mm@kvack.org>; Fri, 17 Feb 2012 04:25:56 -0500 (EST)
+Received: from m4.gw.fujitsu.co.jp (unknown [10.0.50.74])
+	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id D18343EE0B6
+	for <linux-mm@kvack.org>; Fri, 17 Feb 2012 18:25:54 +0900 (JST)
+Received: from smail (m4 [127.0.0.1])
+	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id B2DF845DE53
+	for <linux-mm@kvack.org>; Fri, 17 Feb 2012 18:25:54 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
+	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 949FF45DD75
+	for <linux-mm@kvack.org>; Fri, 17 Feb 2012 18:25:54 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 87DCF1DB8041
+	for <linux-mm@kvack.org>; Fri, 17 Feb 2012 18:25:54 +0900 (JST)
+Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.240.81.145])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 3E2431DB8037
+	for <linux-mm@kvack.org>; Fri, 17 Feb 2012 18:25:54 +0900 (JST)
+Date: Fri, 17 Feb 2012 18:24:26 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: [PATCH 0/6] page cgroup diet v5
+Message-Id: <20120217182426.86aebfde.kamezawa.hiroyu@jp.fujitsu.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
+To: "linux-mm@kvack.org" <linux-mm@kvack.org>
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Hugh Dickins <hughd@google.com>, Greg Thelen <gthelen@google.com>, Ying Han <yinghan@google.com>
 
-Hi all,
 
-Currently, we encounter a problem about page reclaim. In our product system,
-there is a lot of applictions that manipulate a number of files. In these
-files, they can be divided into two categories. One is index file, another is
-block file. The number of index files is about 15,000, and the number of
-block files is about 23,000 in a 2TB disk. The application accesses index
-file using mmap(2), and read/write block file using pread(2)/pwrite(2). We hope
-to hold index file in memory as much as possible, and it works well in Redhat
-2.6.18-164. It is about 60-70% of index files that can be hold in memory.
-However, it doesn't work well in Redhat 2.6.32-133. I know in 2.6.18 that the
-linux uses an active list and an inactive list to handle page reclaim, and in
-2.6.32 that they are divided into anonymous list and file list. So I am
-curious about why most of index files can be hold in 2.6.18? The index file
-should be replaced because mmap doesn't impact the lru list.
+This patch set is for removing 2 flags PCG_FILE_MAPPED and PCG_MOVE_LOCK on
+page_cgroup->flags. After this, page_cgroup has only 3bits of flags.
+And, this set introduces a new method to update page status accounting per memcg.
+With it, we don't have to add new flags onto page_cgroup if 'struct page' has
+information. This will be good for avoiding a new flag for page_cgroup.
 
-BTW, I have some problems that need to be discussed.
+Fixed pointed out parts.
+ - added more comments
+ - fixed texts
+ - removed redundant arguments.
 
-1. I want to let index and block files are separately reclaimed. Is there any
-ways to satisify me in current upstream?
+Passed some tests on 3.3.0-rc3-next-20120216.
 
-2. Maybe we can provide a mechansim to let different files to be mapped into
-differnet nodes. we can provide a ioctl(2) to tell kernel that this file should
-be mapped into a specific node id. A nid member is added into addpress_space
-struct. When alloc_page is called, the page can be allocated from that specific
-node id.
-
-3. Currently the page can be reclaimed according to pid in memcg. But it is too
-coarse. I don't know whether memcg could provide a fine granularity page
-reclaim mechansim. For example, the page is reclaimed according to inode number.
-
-I don't subscribe this mailing list, So please Cc me. Thank you.
-
-Regards,
-Zheng
+Thanks,
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
