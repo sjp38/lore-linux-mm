@@ -1,179 +1,333 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx143.postini.com [74.125.245.143])
-	by kanga.kvack.org (Postfix) with SMTP id 14B2C6B007E
-	for <linux-mm@kvack.org>; Thu, 16 Feb 2012 18:56:00 -0500 (EST)
-Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 27B343EE0BC
-	for <linux-mm@kvack.org>; Fri, 17 Feb 2012 08:55:58 +0900 (JST)
-Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 0B62F45DE9E
-	for <linux-mm@kvack.org>; Fri, 17 Feb 2012 08:55:58 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id EA0D845DE7E
-	for <linux-mm@kvack.org>; Fri, 17 Feb 2012 08:55:57 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id DD6261DB803B
-	for <linux-mm@kvack.org>; Fri, 17 Feb 2012 08:55:57 +0900 (JST)
-Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.240.81.147])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 903EE1DB8038
-	for <linux-mm@kvack.org>; Fri, 17 Feb 2012 08:55:57 +0900 (JST)
-Date: Fri, 17 Feb 2012 08:54:31 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH RFC 00/15] mm: memory book keeping and lru_lock
- splitting
-Message-Id: <20120217085431.80daa020.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <4F3CE243.9050203@openvz.org>
-References: <20120215224221.22050.80605.stgit@zurg>
-	<20120216110408.f35c3448.kamezawa.hiroyu@jp.fujitsu.com>
-	<4F3C9798.7050800@openvz.org>
-	<20120216172409.5fa18608.kamezawa.hiroyu@jp.fujitsu.com>
-	<4F3CE243.9050203@openvz.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx205.postini.com [74.125.245.205])
+	by kanga.kvack.org (Postfix) with SMTP id 8E0066B007E
+	for <linux-mm@kvack.org>; Fri, 17 Feb 2012 00:20:46 -0500 (EST)
+Received: by qauh8 with SMTP id h8so3783559qau.14
+        for <linux-mm@kvack.org>; Thu, 16 Feb 2012 21:20:45 -0800 (PST)
+Message-ID: <4F3DE424.3010301@gmail.com>
+Date: Fri, 17 Feb 2012 13:22:44 +0800
+From: bill4carson <bill4carson@gmail.com>
+MIME-Version: 1.0
+Subject: Re: [RFC PATCH 5/6] hugetlbfs: Add controller support for private
+ mapping
+References: <1328909806-15236-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com> <1328909806-15236-6-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+In-Reply-To: <1328909806-15236-6-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Konstantin Khlebnikov <khlebnikov@openvz.org>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Hugh Dickins <hughd@google.com>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>
-
-On Thu, 16 Feb 2012 15:02:27 +0400
-Konstantin Khlebnikov <khlebnikov@openvz.org> wrote:
-
-> KAMEZAWA Hiroyuki wrote:
-> > On Thu, 16 Feb 2012 09:43:52 +0400
-> > Konstantin Khlebnikov<khlebnikov@openvz.org>  wrote:
-> >
-> >> KAMEZAWA Hiroyuki wrote:
-> >>> On Thu, 16 Feb 2012 02:57:04 +0400
-> >>> Konstantin Khlebnikov<khlebnikov@openvz.org>   wrote:
-> >
-> >>>> * optimize page to book translations, move it upper in the call stack,
-> >>>>     replace some struct zone arguments with struct book pointer.
-> >>>>
-> >>>
-> >>> a page->book transrater from patch 2/15
-> >>>
-> >>> +struct book *page_book(struct page *page)
-> >>> +{
-> >>> +	struct mem_cgroup_per_zone *mz;
-> >>> +	struct page_cgroup *pc;
-> >>> +
-> >>> +	if (mem_cgroup_disabled())
-> >>> +		return&page_zone(page)->book;
-> >>> +
-> >>> +	pc = lookup_page_cgroup(page);
-> >>> +	if (!PageCgroupUsed(pc))
-> >>> +		return&page_zone(page)->book;
-> >>> +	/* Ensure pc->mem_cgroup is visible after reading PCG_USED. */
-> >>> +	smp_rmb();
-> >>> +	mz = mem_cgroup_zoneinfo(pc->mem_cgroup,
-> >>> +			page_to_nid(page), page_zonenum(page));
-> >>> +	return&mz->book;
-> >>> +}
-> >>>
-> >>> What happens when pc->mem_cgroup is rewritten by move_account() ?
-> >>> Where is the guard for lockless access of this ?
-> >>
-> >> Initially this suppose to be protected with lru_lock, in final patch they are protected with rcu.
-> >
-> > Hmm, VM_BUG_ON(!PageLRU(page)) ?
-> 
-> Where?
-> 
-
-You said this is guarded by lru_lock. So, page should be on LRU.
+To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Cc: linux-mm@kvack.org, mgorman@suse.de, kamezawa.hiroyu@jp.fujitsu.com, dhillf@gmail.com
 
 
 
-> >
-> > move_account() overwrites pc->mem_cgroup with isolating page from LRU.
-> > but it doesn't take lru_lock.
-> 
-> There three kinds of lock_page_book() users:
-> 1) caller want to catch page in LRU, it will lock either old or new book and
->     recheck PageLRU() after locking, if page not it in LRU it don't touch anything.
->     some of these functions has stable reference to page, some of them not.
->   [ There actually exist small race, I knew about it, just forget to pick this chunk from old code. See below. ]
-> 2) page is isolated by caller, it want to put it back. book link is stable. no problems.
-> 3) page-release functions. page-counter is zero. no references -- no problems.
-> 
-> race for 1)
-> 
-> catcher					switcher
-> 
-> 					# isolate
-> 					old_book = lock_page_book(page)
-> 					ClearPageLRU(page)
-> 					unlock_book(old_book)				
-> 					# charge
-> old_book = lock_page_book(page)		
-> 					# switch
-> 					page->book = new_book
-> 					# putback
-> 					lock_book(new_book)
-> 					SetPageLRU(page)
-> 					unlock_book(new_book)
-> if (PageLRU(page))
-> 	oops, page actually in new_book
-> unlock_book(old_book)
-> 
-> 
-> I'll protect "switch" phase with old_book lru-lock:
-> 
-In linex-next, pc->mem_cgroup is modified only when Page is on LRU.
+On 2012a1'02ae??11ae?JPY 05:36, Aneesh Kumar K.V wrote:
+> From: "Aneesh Kumar K.V"<aneesh.kumar@linux.vnet.ibm.com>
+>
+> HugeTLB controller is different from a memory controller in that we charge
+> controller during mmap() time and not fault time. This make sure userspace
+> can fallback to non-hugepage allocation when mmap fails due to controller
+> limit.
+>
+> For private mapping we always charge/uncharge from the current task cgroup.
+> Charging happens during mmap(2) and uncharge happens during the
+> vm_operations->close when resv_map refcount reaches zero. The uncharge count
+> is stored in struct resv_map. For child task after fork the charging happens
+> during fault time in alloc_huge_page. We also need to make sure for private
+> mapping each vma for hugeTLB mapping have struct resv_map allocated so that we
+> can store the uncharge count in resv_map.
+>
+> Signed-off-by: Aneesh Kumar K.V<aneesh.kumar@linux.vnet.ibm.com>
+> ---
+>   fs/hugetlbfs/hugetlb_cgroup.c  |   50 ++++++++++++++++++++++++++++++++
+>   include/linux/hugetlb.h        |    7 ++++
+>   include/linux/hugetlb_cgroup.h |   16 ++++++++++
+>   mm/hugetlb.c                   |   62 ++++++++++++++++++++++++++++++++--------
+>   4 files changed, 123 insertions(+), 12 deletions(-)
+>
+> diff --git a/fs/hugetlbfs/hugetlb_cgroup.c b/fs/hugetlbfs/hugetlb_cgroup.c
+> index c478fb0..f828fb2 100644
+> --- a/fs/hugetlbfs/hugetlb_cgroup.c
+> +++ b/fs/hugetlbfs/hugetlb_cgroup.c
+> @@ -458,3 +458,53 @@ long  hugetlb_truncate_cgroup_charge(struct hstate *h,
+>   	}
+>   	return chg;
+>   }
+> +
+> +int hugetlb_priv_page_charge(struct resv_map *map, struct hstate *h, long chg)
+> +{
+> +	long csize;
+> +	int idx, ret;
+> +	struct hugetlb_cgroup *h_cg;
+> +	struct res_counter *fail_res;
+> +
+> +	/*
+> +	 * Get the task cgroup within rcu_readlock and also
+> +	 * get cgroup reference to make sure cgroup destroy won't
+> +	 * race with page_charge. We don't allow a cgroup destroy
+> +	 * when the cgroup have some charge against it
+> +	 */
+> +	rcu_read_lock();
+> +	h_cg = task_hugetlbcgroup(current);
+> +	css_get(&h_cg->css);
+> +	rcu_read_unlock();
+> +
+> +	if (hugetlb_cgroup_is_root(h_cg)) {
+> +		ret = chg;
+> +		goto err_out;
+> +	}
+> +
+> +	csize = chg * huge_page_size(h);
+> +	idx = h - hstates;
+> +	ret = res_counter_charge(&h_cg->memhuge[idx], csize,&fail_res);
+> +	if (!ret) {
+> +		map->nr_pages[idx] += chg<<  huge_page_order(h);
+> +		ret = chg;
+> +	}
+> +err_out:
+> +	css_put(&h_cg->css);
+> +	return ret;
+> +}
+> +
+> +void hugetlb_priv_page_uncharge(struct resv_map *map, int idx, int nr_pages)
+> +{
+> +	struct hugetlb_cgroup *h_cg;
+> +	unsigned long csize = nr_pages * PAGE_SIZE;
+> +
+> +	rcu_read_lock();
+> +	h_cg = task_hugetlbcgroup(current);
+> +	if (!hugetlb_cgroup_is_root(h_cg)) {
+> +		res_counter_uncharge(&h_cg->memhuge[idx], csize);
+> +		map->nr_pages[idx] -= nr_pages;
+> +	}
+> +	rcu_read_unlock();
+> +	return;
+> +}
+> diff --git a/include/linux/hugetlb.h b/include/linux/hugetlb.h
+> index 4392b6a..e2ba381 100644
+> --- a/include/linux/hugetlb.h
+> +++ b/include/linux/hugetlb.h
+> @@ -233,6 +233,12 @@ struct hstate {
+>   	char name[HSTATE_NAME_LEN];
+>   };
+>
+> +struct resv_map {
+> +	struct kref refs;
+> +	int nr_pages[HUGE_MAX_HSTATE];
+> +	struct list_head regions;
+> +};
+> +
 
-When we need to touch "book", if !PageLRU() ?
+Please put resv_map after HUGE_MAX_HSTATE definition,
+otherwise it will break on non-x86 arches, which has no
+HUGE_MAX_HSTATE definition.
 
 
-> lock_book(old_book)
-> page->book = new_book
-> unlock_book(old_book)
-> 
-> The other option is recheck in "catcher" page book after PageLRU()
-> maybe there exists some other variants.
-> 
-> > BTW, what amount of perfomance benefit ?
-> 
-> It depends, but usually lru_lock is very-very hot.
-> This lock splitting can be used without cgroups and containers,
-> now huge zones can be easily sliced into arbitrary pieces, for example one book per 256Mb.
-> 
-I personally think reducing lock by pagevec works enough well.
-So, want to see perforamance on real machine with real apps.
+#ifndef HUGE_MAX_HSTATE
+#define HUGE_MAX_HSTATE 1
+#endif
 
-
-> 
-> According to my experience, one of complicated thing there is how to postpone "book" destroying
-> if some its pages are isolated. For example lumpy reclaim and memory compaction isolates pages
-> from several books. And they wants to put them back. Currently this can be broken, if someone removes
-> cgroup in wrong moment. There appears funny races with three players: catcher, switcher and destroyer.
-
-Thank you for pointing out. Hmm... it can happen ? Currently, at cgroup destroying,
-force_empty() works 
-
-  1. find a page from LRU
-  2. remove it from LRU
-  3. move it or reclaim it (you said "switcher")
-  4. if res.usage != 0 goto 1.
-
-I think "4" will finally keep cgroup from being destroyed.
-
-
-> This can be fixed with some extra reference-counting or some other sleepable synchronizing.
-> In my rhel6-based implementation I uses extra reference-counting, and it looks ugly. So I want to invent something better.
-> Other option is just never release books, reuse them after rcu grace period for rcu-list iterating.
-> 
-
-Another reference counting is very very bad.
-
-
-
-Thanks,
--Kame
++struct resv_map {
++	struct kref refs;
++	int nr_pages[HUGE_MAX_HSTATE];
++	struct list_head regions;
++};
 
 
 
 
+>   struct huge_bootmem_page {
+>   	struct list_head list;
+>   	struct hstate *hstate;
+> @@ -323,6 +329,7 @@ static inline unsigned hstate_index_to_shift(unsigned index)
+>
+>   #else
+>   struct hstate {};
+> +struct resv_map {};
+>   #define alloc_huge_page_node(h, nid) NULL
+>   #define alloc_bootmem_huge_page(h) NULL
+>   #define hstate_file(f) NULL
+> diff --git a/include/linux/hugetlb_cgroup.h b/include/linux/hugetlb_cgroup.h
+> index 3131d62..c3738df 100644
+> --- a/include/linux/hugetlb_cgroup.h
+> +++ b/include/linux/hugetlb_cgroup.h
+> @@ -32,6 +32,10 @@ extern void hugetlb_page_uncharge(struct list_head *head,
+>   extern void hugetlb_commit_page_charge(struct list_head *head, long f, long t);
+>   extern long hugetlb_truncate_cgroup_charge(struct hstate *h,
+>   					   struct list_head *head, long from);
+> +extern int hugetlb_priv_page_charge(struct resv_map *map,
+> +				    struct hstate *h, long chg);
+> +extern void hugetlb_priv_page_uncharge(struct resv_map *map,
+> +				       int idx, int nr_pages);
+>   #else
+>   static inline long hugetlb_page_charge(struct list_head *head,
+>   				       struct hstate *h, long f, long t)
+> @@ -58,5 +62,17 @@ static inline long hugetlb_truncate_cgroup_charge(struct hstate *h,
+>   {
+>   	return region_truncate(head, from);
+>   }
+> +
+> +static inline int hugetlb_priv_page_charge(struct resv_map *map,
+> +					   struct hstate *h, long chg)
+> +{
+> +	return chg;
+> +}
+> +
+> +static inline void hugetlb_priv_page_uncharge(struct resv_map *map,
+> +					      int idx, int nr_pages)
+> +{
+> +	return;
+> +}
+>   #endif /* CONFIG_CGROUP_HUGETLB_RES_CTLR */
+>   #endif
+> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+> index 102410f..5a91838 100644
+> --- a/mm/hugetlb.c
+> +++ b/mm/hugetlb.c
+> @@ -303,14 +303,9 @@ static void set_vma_private_data(struct vm_area_struct *vma,
+>   	vma->vm_private_data = (void *)value;
+>   }
+>
+> -struct resv_map {
+> -	struct kref refs;
+> -	struct list_head regions;
+> -};
+> -
+>   static struct resv_map *resv_map_alloc(void)
+>   {
+> -	struct resv_map *resv_map = kmalloc(sizeof(*resv_map), GFP_KERNEL);
+> +	struct resv_map *resv_map = kzalloc(sizeof(*resv_map), GFP_KERNEL);
+>   	if (!resv_map)
+>   		return NULL;
+>
+> @@ -322,10 +317,16 @@ static struct resv_map *resv_map_alloc(void)
+>
+>   static void resv_map_release(struct kref *ref)
+>   {
+> +	int idx;
+>   	struct resv_map *resv_map = container_of(ref, struct resv_map, refs);
+>
+>   	/* Clear out any active regions before we release the map. */
+>   	region_truncate(&resv_map->regions, 0);
+> +	/* drop the hugetlb cgroup charge */
+> +	for (idx = 0; idx<  HUGE_MAX_HSTATE; idx++) {
+> +		hugetlb_priv_page_uncharge(resv_map, idx,
+> +					   resv_map->nr_pages[idx]);
+> +	}
+>   	kfree(resv_map);
+>   }
+>
+> @@ -989,9 +990,20 @@ static long vma_needs_reservation(struct hstate *h,
+>   		return hugetlb_page_charge(&inode->i_mapping->private_list,
+>   					   h, idx, idx + 1);
+>   	} else if (!is_vma_resv_set(vma, HPAGE_RESV_OWNER)) {
+> -		return 1;
+> -
+> +		struct resv_map *resv_map = vma_resv_map(vma);
+> +		if (!resv_map) {
+> +			/*
+> +			 * We didn't allocate resv_map for this vma.
+> +			 * Allocate it here.
+> +			 */
+> +			resv_map = resv_map_alloc();
+> +			if (!resv_map)
+> +				return -ENOMEM;
+> +			set_vma_resv_map(vma, resv_map);
+> +		}
+> +		return hugetlb_priv_page_charge(resv_map, h, 1);
+>   	} else  {
+> +		/* We did the priv page charging in mmap call */
+>   		long err;
+>   		pgoff_t idx = vma_hugecache_offset(h, vma, addr);
+>   		struct resv_map *reservations = vma_resv_map(vma);
+> @@ -1007,14 +1019,20 @@ static void vma_uncharge_reservation(struct hstate *h,
+>   				     struct vm_area_struct *vma,
+>   				     unsigned long chg)
+>   {
+> +	int idx = h - hstates;
+>   	struct address_space *mapping = vma->vm_file->f_mapping;
+>   	struct inode *inode = mapping->host;
+>
+>
+>   	if (vma->vm_flags&  VM_MAYSHARE) {
+>   		return hugetlb_page_uncharge(&inode->i_mapping->private_list,
+> -					     h - hstates,
+> -					     chg<<  huge_page_order(h));
+> +					     idx, chg<<  huge_page_order(h));
+> +	} else {
+> +		struct resv_map *resv_map = vma_resv_map(vma);
+> +
+> +		return hugetlb_priv_page_uncharge(resv_map,
+> +						  idx,
+> +						  chg<<  huge_page_order(h));
+>   	}
+>   }
+>
+> @@ -2165,6 +2183,22 @@ static void hugetlb_vm_op_open(struct vm_area_struct *vma)
+>   	 */
+>   	if (reservations)
+>   		kref_get(&reservations->refs);
+> +	else if (!(vma->vm_flags&  VM_MAYSHARE)) {
+> +		/*
+> +		 * for non shared vma we need resv map to track
+> +		 * hugetlb cgroup usage. Allocate it here. Charging
+> +		 * the cgroup will take place in fault path.
+> +		 */
+> +		struct resv_map *resv_map = resv_map_alloc();
+> +		/*
+> +		 * If we fail to allocate resv_map here. We will allocate
+> +		 * one when we do alloc_huge_page. So we don't handle
+> +		 * ENOMEM here. The function also return void. So there is
+> +		 * nothing much we can do.
+> +		 */
+> +		if (resv_map)
+> +			set_vma_resv_map(vma, resv_map);
+> +	}
+>   }
+>
+>   static void hugetlb_vm_op_close(struct vm_area_struct *vma)
+> @@ -2968,7 +3002,7 @@ int hugetlb_reserve_pages(struct inode *inode,
+>   {
+>   	long ret, chg;
+>   	struct hstate *h = hstate_inode(inode);
+> -
+> +	struct resv_map *resv_map = NULL;
+>   	/*
+>   	 * Only apply hugepage reservation if asked. At fault time, an
+>   	 * attempt will be made for VM_NORESERVE to allocate a page
+> @@ -2987,7 +3021,7 @@ int hugetlb_reserve_pages(struct inode *inode,
+>   		chg = hugetlb_page_charge(&inode->i_mapping->private_list,
+>   					  h, from, to);
+>   	} else {
+> -		struct resv_map *resv_map = resv_map_alloc();
+> +		resv_map = resv_map_alloc();
+>   		if (!resv_map)
+>   			return -ENOMEM;
+>
+> @@ -2995,6 +3029,7 @@ int hugetlb_reserve_pages(struct inode *inode,
+>
+>   		set_vma_resv_map(vma, resv_map);
+>   		set_vma_resv_flags(vma, HPAGE_RESV_OWNER);
+> +		chg = hugetlb_priv_page_charge(resv_map, h, chg);
+>   	}
+>
+>   	if (chg<  0)
+> @@ -3033,6 +3068,9 @@ err_quota:
+>   	if (!vma || vma->vm_flags&  VM_MAYSHARE)
+>   		hugetlb_page_uncharge(&inode->i_mapping->private_list,
+>   				      h - hstates, chg<<  huge_page_order(h));
+> +	else
+> +		hugetlb_priv_page_uncharge(resv_map, h - hstates,
+> +					   chg<<  huge_page_order(h));
+>   	return ret;
+>
+>   }
+
+-- 
+I am a slow learner
+but I will keep trying to fight for my dreams!
+
+--bill
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
