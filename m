@@ -1,98 +1,28 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx155.postini.com [74.125.245.155])
-	by kanga.kvack.org (Postfix) with SMTP id 286CF6B012C
-	for <linux-mm@kvack.org>; Fri, 17 Feb 2012 19:11:44 -0500 (EST)
-Date: Fri, 17 Feb 2012 16:11:42 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] mm: move buffer_heads_over_limit check up
-Message-Id: <20120217161142.a3ffa135.akpm@linux-foundation.org>
-In-Reply-To: <alpine.LSU.2.00.1202171557040.1286@eggly.anvils>
-References: <alpine.LSU.2.00.1202171557040.1286@eggly.anvils>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx142.postini.com [74.125.245.142])
+	by kanga.kvack.org (Postfix) with SMTP id E45266B012F
+	for <linux-mm@kvack.org>; Fri, 17 Feb 2012 19:23:33 -0500 (EST)
+Received: by iagz16 with SMTP id z16so6949477iag.14
+        for <linux-mm@kvack.org>; Fri, 17 Feb 2012 16:23:33 -0800 (PST)
+MIME-Version: 1.0
+In-Reply-To: <1329507036-24362-1-git-send-email-m.szyprowski@samsung.com>
+References: <1329507036-24362-1-git-send-email-m.szyprowski@samsung.com>
+Date: Sat, 18 Feb 2012 02:23:33 +0200
+Message-ID: <CAJL_dMtfD8FMMMN58Ng1aDMpDCsoyS=DNLTt+5BrSUTb-J4LmA@mail.gmail.com>
+Subject: Re: [PATCHv22 00/16] Contiguous Memory Allocator
+From: Anca Emanuel <anca.emanuel@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: linux-mm@kvack.org, Mel Gorman <mel@csn.ul.ie>
+To: Marek Szyprowski <m.szyprowski@samsung.com>
+Cc: linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-media@vger.kernel.org, linux-mm@kvack.org, linaro-mm-sig@lists.linaro.org, Michal Nazarewicz <mina86@mina86.com>, Kyungmin Park <kyungmin.park@samsung.com>, Russell King <linux@arm.linux.org.uk>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daniel Walker <dwalker@codeaurora.org>, Mel Gorman <mel@csn.ul.ie>, Arnd Bergmann <arnd@arndb.de>, Jesse Barker <jesse.barker@linaro.org>, Jonathan Corbet <corbet@lwn.net>, Shariq Hasnain <shariq.hasnain@linaro.org>, Chunsang Jeong <chunsang.jeong@linaro.org>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Gaignard <benjamin.gaignard@linaro.org>, Rob Clark <rob.clark@linaro.org>, Ohad Ben-Cohen <ohad@wizery.com>, Stephen Rothwell <sfr@canb.auug.org.au>
 
-On Fri, 17 Feb 2012 16:00:14 -0800 (PST)
-Hugh Dickins <hughd@google.com> wrote:
+Do you have an git tree ?
+Now is time to include this in next.
+Please add "Stephen Rothwell" <sfr@canb.auug.org.au> to CC.
 
-> Not a functional change, just a minor internal cleanup: move the
-> buffer_heads_over_limit processing up from move_active_pages_to_lru()
-> (where it has to drop lock and reloop) to its caller shrink_active_list().
-> 
-> Signed-off-by: Hugh Dickins <hughd@google.com>
-> ---
->  mm/vmscan.c |   19 +++++++------------
->  1 file changed, 7 insertions(+), 12 deletions(-)
-> 
-> --- mmotm.orig/mm/vmscan.c	2012-02-07 16:59:13.000000000 -0800
-> +++ mmotm/mm/vmscan.c	2012-02-07 17:07:23.800524771 -0800
-> @@ -1641,18 +1641,6 @@ static void move_active_pages_to_lru(str
->  	unsigned long pgmoved = 0;
->  	struct page *page;
->  
-> -	if (buffer_heads_over_limit) {
-> -		spin_unlock_irq(&zone->lru_lock);
-> -		list_for_each_entry(page, list, lru) {
-> -			if (page_has_private(page) && trylock_page(page)) {
-> -				if (page_has_private(page))
-> -					try_to_release_page(page, 0);
-> -				unlock_page(page);
-> -			}
-> -		}
-> -		spin_lock_irq(&zone->lru_lock);
-> -	}
-> -
->  	while (!list_empty(list)) {
->  		struct lruvec *lruvec;
->  
-> @@ -1734,6 +1722,13 @@ static void shrink_active_list(unsigned
->  			continue;
->  		}
->  
-> +		if (buffer_heads_over_limit &&
-> +		    page_has_private(page) && trylock_page(page)) {
-> +			if (page_has_private(page))
-> +				try_to_release_page(page, 0);
-> +			unlock_page(page);
-> +		}
-> +
->  		if (page_referenced(page, 0, mz->mem_cgroup, &vm_flags)) {
->  			nr_rotated += hpage_nr_pages(page);
->  			/*
-
-yup.
-
-I don't think there's a lot of point in trying to micro-optimise the
-buffer_heads_over_limit==true case, either.  But I suppose that
-pointlessly locking 1000000 anon pages is indeed pointless.  Hopefully
-there _is_ a point in micro-optimising the actual test for
-buffer_heads_over_limit==true.  So...
-
---- a/mm/vmscan.c~mm-vmscan-forcibly-scan-highmem-if-there-are-too-many-buffer_heads-pinning-highmem-fix-fix
-+++ a/mm/vmscan.c
-@@ -1723,11 +1723,12 @@ static void shrink_active_list(unsigned 
- 			continue;
- 		}
- 
--		if (buffer_heads_over_limit &&
--		    page_has_private(page) && trylock_page(page)) {
--			if (page_has_private(page))
--				try_to_release_page(page, 0);
--			unlock_page(page);
-+		if (unlikely(buffer_heads_over_limit)) {
-+			if (page_has_private(page) && trylock_page(page)) {
-+				if (page_has_private(page))
-+					try_to_release_page(page, 0);
-+				unlock_page(page);
-+			}
- 		}
- 
- 		if (page_referenced(page, 0, mz->mem_cgroup, &vm_flags)) {
-_
+If you not have an git tree, ask somebody to take it NOW in a next tree.
+I want to see this in linux 3.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
