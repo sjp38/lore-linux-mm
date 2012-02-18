@@ -1,70 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx176.postini.com [74.125.245.176])
-	by kanga.kvack.org (Postfix) with SMTP id DA47D6B0137
-	for <linux-mm@kvack.org>; Sat, 18 Feb 2012 01:19:14 -0500 (EST)
-Received: by vcbf13 with SMTP id f13so3935053vcb.14
-        for <linux-mm@kvack.org>; Fri, 17 Feb 2012 22:19:13 -0800 (PST)
+Received: from psmtp.com (na3sys010amx111.postini.com [74.125.245.111])
+	by kanga.kvack.org (Postfix) with SMTP id 5921F6B0138
+	for <linux-mm@kvack.org>; Sat, 18 Feb 2012 01:35:42 -0500 (EST)
+Received: by bkty12 with SMTP id y12so4676564bkt.14
+        for <linux-mm@kvack.org>; Fri, 17 Feb 2012 22:35:40 -0800 (PST)
+Message-ID: <4F3F46B7.40100@openvz.org>
+Date: Sat, 18 Feb 2012 10:35:35 +0400
+From: Konstantin Khlebnikov <khlebnikov@openvz.org>
 MIME-Version: 1.0
-Date: Sat, 18 Feb 2012 14:19:13 +0800
-Message-ID: <CAJd=RBBY8yzH6wk7GFttvukLq0Pxzw_ExCO+F5N5ChQwk1Q94A@mail.gmail.com>
-Subject: [PATCH] mm: hugetlb: break COW earlier for resv owner
-From: Hillf Danton <dhillf@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+Subject: Re: [PATCH RFC 00/15] mm: memory book keeping and lru_lock splitting
+References: <20120215224221.22050.80605.stgit@zurg> <alpine.LSU.2.00.1202151815180.19722@eggly.anvils> <4F3C8B67.6090500@openvz.org> <alpine.LSU.2.00.1202161235430.2269@eggly.anvils> <alpine.LSU.2.00.1202171803380.25191@eggly.anvils>
+In-Reply-To: <alpine.LSU.2.00.1202171803380.25191@eggly.anvils>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linux-MM <linux-mm@kvack.org>
-Cc: LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.cz>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, Hillf Danton <dhillf@gmail.com>
+To: Hugh Dickins <hughd@google.com>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Ying Han <yinghan@google.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 
-When a process owning a MAP_PRIVATE mapping fails to COW, due to references
-held by a child and insufficient huge page pool, page is unmapped from the
-child process to guarantee the original mappers reliability, and the child
-may get SIGKILLed if it later faults.
+Hugh Dickins wrote:
+> On Thu, 16 Feb 2012, Hugh Dickins wrote:
+>>
+>> Yours are not the only patches I was testing in that tree, I tried to
+>> gather several other series which I should be reviewing if I ever have
+>> time: Kamezawa-san's page cgroup diet 6, Xiao Guangrong's 4 prio_tree
+>> cleanups, your 3 radix_tree changes, your 6 shmem changes, your 4 memcg
+>> miscellaneous, and then your 15 books.
+>>
+>> The tree before your final 15 did well under pressure, until I tried to
+>> rmdir one of the cgroups afterwards: then it crashed nastily, I'll have
+>> to bisect into that, probably either Kamezawa's or your memcg changes.
+>
+> So far I haven't succeeded in reproducing that at all: it was real,
+> but obviously harder to get than I assumed - indeed, no good reason
+> to associate it with any of those patches, might even be in 3.3-rc.
+>
+> It did involve a NULL pointer dereference in mem_cgroup_page_lruvec(),
+> somewhere below compact_zone() - but repercussions were causing the
+> stacktrace to scroll offscreen, so I didn't get good details.
 
-With that guarantee, COW is broken earlier on behalf of owners, and they will
-go less page faults.
+There some stupid bugs in my v1 patchset, it shouldn't works at all.
+I did not expect that someone will try to use it. I sent it just to discuss.
 
-Signed-off-by: Hillf Danton <dhillf@gmail.com>
----
+Most destructive bug is this PageCgroupUsed() below:
 
---- a/mm/hugetlb.c	Tue Feb 14 20:10:46 2012
-+++ b/mm/hugetlb.c	Sat Feb 18 13:29:58 2012
-@@ -2145,10 +2145,12 @@ int copy_hugetlb_page_range(struct mm_st
- 	struct page *ptepage;
- 	unsigned long addr;
- 	int cow;
-+	int owner;
- 	struct hstate *h = hstate_vma(vma);
- 	unsigned long sz = huge_page_size(h);
++struct book *page_book(struct page *page)
++{
++	struct mem_cgroup_per_zone *mz;
++	struct page_cgroup *pc;
++
++	if (mem_cgroup_disabled())
++		return &page_zone(page)->book;
++
++	pc = lookup_page_cgroup(page);
++	if (!PageCgroupUsed(pc))
++		return &page_zone(page)->book;
++	/* Ensure pc->mem_cgroup is visible after reading PCG_USED. */
++	smp_rmb();
++	mz = mem_cgroup_zoneinfo(pc->mem_cgroup,
++			page_to_nid(page), page_zonenum(page));
++	return &mz->book;
++}
 
- 	cow = (vma->vm_flags & (VM_SHARED | VM_MAYWRITE)) == VM_MAYWRITE;
-+	owner = is_vma_resv_set(vma, HPAGE_RESV_OWNER);
+Thus after page uncharge I remove page from wrong book, under wrong lock =)
 
- 	for (addr = vma->vm_start; addr < vma->vm_end; addr += sz) {
- 		src_pte = huge_pte_offset(src, addr);
-@@ -2164,10 +2166,19 @@ int copy_hugetlb_page_range(struct mm_st
+[ as I wrote, updated patchset there: https://github.com/koct9i/linux ]
 
- 		spin_lock(&dst->page_table_lock);
- 		spin_lock_nested(&src->page_table_lock, SINGLE_DEPTH_NESTING);
--		if (!huge_pte_none(huge_ptep_get(src_pte))) {
-+		entry = huge_ptep_get(src_pte);
-+		if (!huge_pte_none(entry)) {
- 			if (cow)
--				huge_ptep_set_wrprotect(src, addr, src_pte);
--			entry = huge_ptep_get(src_pte);
-+				if (owner) {
-+					/*
-+					 * Break COW for resv owner to go less
-+					 * page faults later
-+					 */
-+					entry = huge_pte_wrprotect(entry);
-+				} else {
-+					huge_ptep_set_wrprotect(src, addr, src_pte);
-+					entry = huge_ptep_get(src_pte);
-+				}
- 			ptepage = pte_page(entry);
- 			get_page(ptepage);
- 			page_dup_rmap(ptepage);
---
+>
+> Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
