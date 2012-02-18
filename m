@@ -1,94 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx207.postini.com [74.125.245.207])
-	by kanga.kvack.org (Postfix) with SMTP id 686DB6B0142
-	for <linux-mm@kvack.org>; Sat, 18 Feb 2012 08:39:12 -0500 (EST)
-Date: Sat, 18 Feb 2012 14:39:04 +0100
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH 5/6] memcg: remove PCG_FILE_MAPPED
-Message-ID: <20120218133904.GA1678@cmpxchg.org>
-References: <20120217182426.86aebfde.kamezawa.hiroyu@jp.fujitsu.com>
- <20120217182818.f3e7fe28.kamezawa.hiroyu@jp.fujitsu.com>
+Received: from psmtp.com (na3sys010amx182.postini.com [74.125.245.182])
+	by kanga.kvack.org (Postfix) with SMTP id 90B056B0143
+	for <linux-mm@kvack.org>; Sat, 18 Feb 2012 09:43:59 -0500 (EST)
+Received: by vcbf13 with SMTP id f13so4112592vcb.14
+        for <linux-mm@kvack.org>; Sat, 18 Feb 2012 06:43:58 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20120217182818.f3e7fe28.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20120218133904.GA1678@cmpxchg.org>
+References: <20120217182426.86aebfde.kamezawa.hiroyu@jp.fujitsu.com>
+	<20120217182818.f3e7fe28.kamezawa.hiroyu@jp.fujitsu.com>
+	<20120218133904.GA1678@cmpxchg.org>
+Date: Sat, 18 Feb 2012 22:43:58 +0800
+Message-ID: <CAJd=RBD=U1Uy_MnO9wL_Ag6M7tYUOfs=aSXV+sJabHWRNSSudQ@mail.gmail.com>
+Subject: Re: [PATCH 5/6] memcg: remove PCG_FILE_MAPPED
+From: Hillf Danton <dhillf@gmail.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, Hugh Dickins <hughd@google.com>, Greg Thelen <gthelen@google.com>, Ying Han <yinghan@google.com>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, Hugh Dickins <hughd@google.com>, Greg Thelen <gthelen@google.com>
 
-On Fri, Feb 17, 2012 at 06:28:18PM +0900, KAMEZAWA Hiroyuki wrote:
-> >From a19a8eae9c2a3dabb25a50c7a1b2e3a183935260 Mon Sep 17 00:00:00 2001
-> From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> Date: Thu, 2 Feb 2012 15:02:18 +0900
-> Subject: [PATCH 5/6] memcg: remove PCG_FILE_MAPPED
-> 
-> with new lock scheme for updating memcg's page stat, we don't need
-> a flag PCG_FILE_MAPPED which was duplicated information of page_mapped().
-> 
-> Acked-by: Greg Thelen <gthelen@google.com>
-> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> ---
->  include/linux/page_cgroup.h |    6 ------
->  mm/memcontrol.c             |    6 +-----
->  2 files changed, 1 insertions(+), 11 deletions(-)
-> 
-> diff --git a/include/linux/page_cgroup.h b/include/linux/page_cgroup.h
-> index 7a3af74..a88cdba 100644
-> --- a/include/linux/page_cgroup.h
-> +++ b/include/linux/page_cgroup.h
-> @@ -6,8 +6,6 @@ enum {
->  	PCG_LOCK,  /* Lock for pc->mem_cgroup and following bits. */
->  	PCG_USED, /* this object is in use. */
->  	PCG_MIGRATION, /* under page migration */
-> -	/* flags for mem_cgroup and file and I/O status */
-> -	PCG_FILE_MAPPED, /* page is accounted as "mapped" */
->  	__NR_PCG_FLAGS,
->  };
->  
-> @@ -66,10 +64,6 @@ TESTPCGFLAG(Used, USED)
->  CLEARPCGFLAG(Used, USED)
->  SETPCGFLAG(Used, USED)
->  
-> -SETPCGFLAG(FileMapped, FILE_MAPPED)
-> -CLEARPCGFLAG(FileMapped, FILE_MAPPED)
-> -TESTPCGFLAG(FileMapped, FILE_MAPPED)
-> -
->  SETPCGFLAG(Migration, MIGRATION)
->  CLEARPCGFLAG(Migration, MIGRATION)
->  TESTPCGFLAG(Migration, MIGRATION)
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index 86bdde0..e19cffb 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -1935,10 +1935,6 @@ void mem_cgroup_update_page_stat(struct page *page,
->  
->  	switch (idx) {
->  	case MEMCG_NR_FILE_MAPPED:
-> -		if (val > 0)
-> -			SetPageCgroupFileMapped(pc);
-> -		else if (!page_mapped(page))
-> -			ClearPageCgroupFileMapped(pc);
->  		idx = MEM_CGROUP_STAT_FILE_MAPPED;
->  		break;
->  	default:
-> @@ -2559,7 +2555,7 @@ static int mem_cgroup_move_account(struct page *page,
->  
->  	move_lock_mem_cgroup(from, &flags);
->  
-> -	if (PageCgroupFileMapped(pc)) {
-> +	if (page_mapped(page)) {
+On Sat, Feb 18, 2012 at 9:39 PM, Johannes Weiner <hannes@cmpxchg.org> wrote=
+:
+> On Fri, Feb 17, 2012 at 06:28:18PM +0900, KAMEZAWA Hiroyuki wrote:
+>> @@ -2559,7 +2555,7 @@ static int mem_cgroup_move_account(struct page *pa=
+ge,
+>>
+>> =C2=A0 =C2=A0 =C2=A0 move_lock_mem_cgroup(from, &flags);
+>>
+>> - =C2=A0 =C2=A0 if (PageCgroupFileMapped(pc)) {
+>> + =C2=A0 =C2=A0 if (page_mapped(page)) {
+>
+> As opposed to update_page_stat(), this runs against all types of
+> pages, so I think it should be
+>
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0if (!PageAnon(page) && page_mapped(page))
+>
+> instead.
+>
+Perhaps the following helper or similar needed,
+along with page_mapped()
 
-As opposed to update_page_stat(), this runs against all types of
-pages, so I think it should be
+static inline bool page_is_file_mapping(struct page *page)
+{
+	struct address_space *mapping =3D page_mapping(page);
 
-	if (!PageAnon(page) && page_mapped(page))
+	return mapping && mapping !=3D &swapper_space &&
+		((unsigned long)mapping & PAGE_MAPPING_FLAGS) =3D=3D 0;
+}
 
-instead.
-
->  		/* Update mapped_file data for mem_cgroup */
->  		preempt_disable();
->  		__this_cpu_dec(from->stat->count[MEM_CGROUP_STAT_FILE_MAPPED]);
+>> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 /* Update mapped_file d=
+ata for mem_cgroup */
+>> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 preempt_disable();
+>> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 __this_cpu_dec(from->st=
+at->count[MEM_CGROUP_STAT_FILE_MAPPED]);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
