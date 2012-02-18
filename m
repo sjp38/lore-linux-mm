@@ -1,64 +1,98 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx206.postini.com [74.125.245.206])
-	by kanga.kvack.org (Postfix) with SMTP id C7B156B012B
-	for <linux-mm@kvack.org>; Fri, 17 Feb 2012 19:00:49 -0500 (EST)
-Received: by pbcwz17 with SMTP id wz17so5222128pbc.14
-        for <linux-mm@kvack.org>; Fri, 17 Feb 2012 16:00:49 -0800 (PST)
-Date: Fri, 17 Feb 2012 16:00:14 -0800 (PST)
-From: Hugh Dickins <hughd@google.com>
-Subject: [PATCH] mm: move buffer_heads_over_limit check up
-Message-ID: <alpine.LSU.2.00.1202171557040.1286@eggly.anvils>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from psmtp.com (na3sys010amx155.postini.com [74.125.245.155])
+	by kanga.kvack.org (Postfix) with SMTP id 286CF6B012C
+	for <linux-mm@kvack.org>; Fri, 17 Feb 2012 19:11:44 -0500 (EST)
+Date: Fri, 17 Feb 2012 16:11:42 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] mm: move buffer_heads_over_limit check up
+Message-Id: <20120217161142.a3ffa135.akpm@linux-foundation.org>
+In-Reply-To: <alpine.LSU.2.00.1202171557040.1286@eggly.anvils>
+References: <alpine.LSU.2.00.1202171557040.1286@eggly.anvils>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org
+To: Hugh Dickins <hughd@google.com>
+Cc: linux-mm@kvack.org, Mel Gorman <mel@csn.ul.ie>
 
-Not a functional change, just a minor internal cleanup: move the
-buffer_heads_over_limit processing up from move_active_pages_to_lru()
-(where it has to drop lock and reloop) to its caller shrink_active_list().
+On Fri, 17 Feb 2012 16:00:14 -0800 (PST)
+Hugh Dickins <hughd@google.com> wrote:
 
-Signed-off-by: Hugh Dickins <hughd@google.com>
----
- mm/vmscan.c |   19 +++++++------------
- 1 file changed, 7 insertions(+), 12 deletions(-)
+> Not a functional change, just a minor internal cleanup: move the
+> buffer_heads_over_limit processing up from move_active_pages_to_lru()
+> (where it has to drop lock and reloop) to its caller shrink_active_list().
+> 
+> Signed-off-by: Hugh Dickins <hughd@google.com>
+> ---
+>  mm/vmscan.c |   19 +++++++------------
+>  1 file changed, 7 insertions(+), 12 deletions(-)
+> 
+> --- mmotm.orig/mm/vmscan.c	2012-02-07 16:59:13.000000000 -0800
+> +++ mmotm/mm/vmscan.c	2012-02-07 17:07:23.800524771 -0800
+> @@ -1641,18 +1641,6 @@ static void move_active_pages_to_lru(str
+>  	unsigned long pgmoved = 0;
+>  	struct page *page;
+>  
+> -	if (buffer_heads_over_limit) {
+> -		spin_unlock_irq(&zone->lru_lock);
+> -		list_for_each_entry(page, list, lru) {
+> -			if (page_has_private(page) && trylock_page(page)) {
+> -				if (page_has_private(page))
+> -					try_to_release_page(page, 0);
+> -				unlock_page(page);
+> -			}
+> -		}
+> -		spin_lock_irq(&zone->lru_lock);
+> -	}
+> -
+>  	while (!list_empty(list)) {
+>  		struct lruvec *lruvec;
+>  
+> @@ -1734,6 +1722,13 @@ static void shrink_active_list(unsigned
+>  			continue;
+>  		}
+>  
+> +		if (buffer_heads_over_limit &&
+> +		    page_has_private(page) && trylock_page(page)) {
+> +			if (page_has_private(page))
+> +				try_to_release_page(page, 0);
+> +			unlock_page(page);
+> +		}
+> +
+>  		if (page_referenced(page, 0, mz->mem_cgroup, &vm_flags)) {
+>  			nr_rotated += hpage_nr_pages(page);
+>  			/*
 
---- mmotm.orig/mm/vmscan.c	2012-02-07 16:59:13.000000000 -0800
-+++ mmotm/mm/vmscan.c	2012-02-07 17:07:23.800524771 -0800
-@@ -1641,18 +1641,6 @@ static void move_active_pages_to_lru(str
- 	unsigned long pgmoved = 0;
- 	struct page *page;
- 
--	if (buffer_heads_over_limit) {
--		spin_unlock_irq(&zone->lru_lock);
--		list_for_each_entry(page, list, lru) {
--			if (page_has_private(page) && trylock_page(page)) {
--				if (page_has_private(page))
--					try_to_release_page(page, 0);
--				unlock_page(page);
--			}
--		}
--		spin_lock_irq(&zone->lru_lock);
--	}
--
- 	while (!list_empty(list)) {
- 		struct lruvec *lruvec;
- 
-@@ -1734,6 +1722,13 @@ static void shrink_active_list(unsigned
+yup.
+
+I don't think there's a lot of point in trying to micro-optimise the
+buffer_heads_over_limit==true case, either.  But I suppose that
+pointlessly locking 1000000 anon pages is indeed pointless.  Hopefully
+there _is_ a point in micro-optimising the actual test for
+buffer_heads_over_limit==true.  So...
+
+--- a/mm/vmscan.c~mm-vmscan-forcibly-scan-highmem-if-there-are-too-many-buffer_heads-pinning-highmem-fix-fix
++++ a/mm/vmscan.c
+@@ -1723,11 +1723,12 @@ static void shrink_active_list(unsigned 
  			continue;
  		}
  
-+		if (buffer_heads_over_limit &&
-+		    page_has_private(page) && trylock_page(page)) {
-+			if (page_has_private(page))
-+				try_to_release_page(page, 0);
-+			unlock_page(page);
-+		}
-+
+-		if (buffer_heads_over_limit &&
+-		    page_has_private(page) && trylock_page(page)) {
+-			if (page_has_private(page))
+-				try_to_release_page(page, 0);
+-			unlock_page(page);
++		if (unlikely(buffer_heads_over_limit)) {
++			if (page_has_private(page) && trylock_page(page)) {
++				if (page_has_private(page))
++					try_to_release_page(page, 0);
++				unlock_page(page);
++			}
+ 		}
+ 
  		if (page_referenced(page, 0, mz->mem_cgroup, &vm_flags)) {
- 			nr_rotated += hpage_nr_pages(page);
- 			/*
+_
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
