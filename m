@@ -1,44 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx199.postini.com [74.125.245.199])
-	by kanga.kvack.org (Postfix) with SMTP id 6DF2C6B0132
-	for <linux-mm@kvack.org>; Fri, 17 Feb 2012 21:14:06 -0500 (EST)
-Received: by pbcwz17 with SMTP id wz17so5318997pbc.14
-        for <linux-mm@kvack.org>; Fri, 17 Feb 2012 18:14:05 -0800 (PST)
-Date: Fri, 17 Feb 2012 18:13:37 -0800 (PST)
+Received: from psmtp.com (na3sys010amx102.postini.com [74.125.245.102])
+	by kanga.kvack.org (Postfix) with SMTP id D24706B0135
+	for <linux-mm@kvack.org>; Fri, 17 Feb 2012 21:41:51 -0500 (EST)
+Received: by pbcwz17 with SMTP id wz17so5338026pbc.14
+        for <linux-mm@kvack.org>; Fri, 17 Feb 2012 18:41:51 -0800 (PST)
+Date: Fri, 17 Feb 2012 18:41:23 -0800 (PST)
 From: Hugh Dickins <hughd@google.com>
-Subject: Re: [PATCH RFC 00/15] mm: memory book keeping and lru_lock
- splitting
-In-Reply-To: <alpine.LSU.2.00.1202161235430.2269@eggly.anvils>
-Message-ID: <alpine.LSU.2.00.1202171803380.25191@eggly.anvils>
-References: <20120215224221.22050.80605.stgit@zurg> <alpine.LSU.2.00.1202151815180.19722@eggly.anvils> <4F3C8B67.6090500@openvz.org> <alpine.LSU.2.00.1202161235430.2269@eggly.anvils>
+Subject: Re: [PATCH] mm: move buffer_heads_over_limit check up
+In-Reply-To: <20120217161142.a3ffa135.akpm@linux-foundation.org>
+Message-ID: <alpine.LSU.2.00.1202171823350.25244@eggly.anvils>
+References: <alpine.LSU.2.00.1202171557040.1286@eggly.anvils> <20120217161142.a3ffa135.akpm@linux-foundation.org>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: Konstantin Khlebnikov <khlebnikov@openvz.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Ying Han <yinghan@google.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, Mel Gorman <mel@csn.ul.ie>, Konstantin Khelbnikov <khlebnikov@openvz.org>
 
-On Thu, 16 Feb 2012, Hugh Dickins wrote:
+On Fri, 17 Feb 2012, Andrew Morton wrote:
 > 
-> Yours are not the only patches I was testing in that tree, I tried to
-> gather several other series which I should be reviewing if I ever have
-> time: Kamezawa-san's page cgroup diet 6, Xiao Guangrong's 4 prio_tree
-> cleanups, your 3 radix_tree changes, your 6 shmem changes, your 4 memcg
-> miscellaneous, and then your 15 books.
-> 
-> The tree before your final 15 did well under pressure, until I tried to
-> rmdir one of the cgroups afterwards: then it crashed nastily, I'll have
-> to bisect into that, probably either Kamezawa's or your memcg changes.
+> I don't think there's a lot of point in trying to micro-optimise the
+> buffer_heads_over_limit==true case, either.  But I suppose that
+> pointlessly locking 1000000 anon pages is indeed pointless.  Hopefully
+> there _is_ a point in micro-optimising the actual test for
+> buffer_heads_over_limit==true.  So...
 
-So far I haven't succeeded in reproducing that at all: it was real,
-but obviously harder to get than I assumed - indeed, no good reason
-to associate it with any of those patches, might even be in 3.3-rc.
+That's fine, yes, and thanks for putting this in.  I just want to
+exonerate Mel: it's not a fix to his useful work on buffer_heads_over_limit,
+but I don't think he'll mind terribly that you've named it thus.
 
-It did involve a NULL pointer dereference in mem_cgroup_page_lruvec(),
-somewhere below compact_zone() - but repercussions were causing the
-stacktrace to scroll offscreen, so I didn't get good details.
+If it's a fix to anything, it's to my 3.3 free_hot_cold_page_list-ification
+of shrink_active_list(), which was silly to leave the buffer_heads business
+down there in move_active_pages_to_lru().
+
+And the only reason I'm concerned to get it in, is that it's in an area
+which I then trample over in the per-memcg per-zone locking series (as
+is Hillf's rearrangement around update_isolated_counts()), so it's
+convenient for me to have both of those in the base, instead of
+having to put them in a prologue.
+
+If I were to worry about the buffer_heads_over_limit situation itself,
+I might worry about the unevictable pages which we never scan.
 
 Hugh
+
+> 
+> --- a/mm/vmscan.c~mm-vmscan-forcibly-scan-highmem-if-there-are-too-many-buffer_heads-pinning-highmem-fix-fix
+> +++ a/mm/vmscan.c
+> @@ -1723,11 +1723,12 @@ static void shrink_active_list(unsigned 
+>  			continue;
+>  		}
+>  
+> -		if (buffer_heads_over_limit &&
+> -		    page_has_private(page) && trylock_page(page)) {
+> -			if (page_has_private(page))
+> -				try_to_release_page(page, 0);
+> -			unlock_page(page);
+> +		if (unlikely(buffer_heads_over_limit)) {
+> +			if (page_has_private(page) && trylock_page(page)) {
+> +				if (page_has_private(page))
+> +					try_to_release_page(page, 0);
+> +				unlock_page(page);
+> +			}
+>  		}
+>  
+>  		if (page_referenced(page, 0, mz->mem_cgroup, &vm_flags)) {
+> _
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
