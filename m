@@ -1,14 +1,14 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx110.postini.com [74.125.245.110])
-	by kanga.kvack.org (Postfix) with SMTP id B122E6B010C
-	for <linux-mm@kvack.org>; Mon, 20 Feb 2012 18:37:19 -0500 (EST)
-Received: by dadv6 with SMTP id v6so7621866dad.14
-        for <linux-mm@kvack.org>; Mon, 20 Feb 2012 15:37:19 -0800 (PST)
-Date: Mon, 20 Feb 2012 15:36:55 -0800 (PST)
+Received: from psmtp.com (na3sys010amx193.postini.com [74.125.245.193])
+	by kanga.kvack.org (Postfix) with SMTP id C56AC6B010E
+	for <linux-mm@kvack.org>; Mon, 20 Feb 2012 18:38:25 -0500 (EST)
+Received: by pbcwz17 with SMTP id wz17so8259259pbc.14
+        for <linux-mm@kvack.org>; Mon, 20 Feb 2012 15:38:25 -0800 (PST)
+Date: Mon, 20 Feb 2012 15:38:01 -0800 (PST)
 From: Hugh Dickins <hughd@google.com>
-Subject: [PATCH 8/10] mm/memcg: nest lru_lock inside page_cgroup lock
+Subject: [PATCH 9/10] mm/memcg: move lru_lock into lruvec
 In-Reply-To: <alpine.LSU.2.00.1202201518560.23274@eggly.anvils>
-Message-ID: <alpine.LSU.2.00.1202201535460.23274@eggly.anvils>
+Message-ID: <alpine.LSU.2.00.1202201537040.23274@eggly.anvils>
 References: <alpine.LSU.2.00.1202201518560.23274@eggly.anvils>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
@@ -17,323 +17,214 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Konstantin Khlebnikov <khlebnikov@openvz.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, Ying Han <yinghan@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Cut back on some of the overhead we've added, particularly the lruvec
-locking added to every __mem_cgroup_uncharge_common(), and the page
-cgroup locking in mem_cgroup_reset_uncharged_to_root().
+We're nearly there.  Now move lru_lock and irqflags into struct lruvec,
+so they are in every zone (for !MEM_RES_CTLR and mem_cgroup_disabled()
+cases) and in every memcg lruvec.
 
-Our hands were tied by the lock ordering (page cgroup inside lruvec)
-defined by __mem_cgroup_commit_charge_lrucare().  There is no strong
-reason for why that nesting needs to be one way or the other, and if
-we invert it, then some optimizations become possible.
+Extend the memcg version of page_relock_lruvec() to drop old and take
+new lock whenever changing lruvec.  But the memcg will only be stable
+once we already have the lock: so, having got it, check if it's still
+the lock we want, and retry if not.  It's for this retry that we route
+all page lruvec locking through page_relock_lruvec().
 
-So delete __mem_cgroup_commit_charge_lrucare(), passing a bool lrucare
-to __mem_cgroup_commit_charge() instead, using page_lock_lruvec() there
-inside lock_page_cgroup() in the lrucare case.  (I'd prefer to work it
-out internally, than rely upon an lrucare argument: but that is hard -
-certainly PageLRU is not enough, racing with pages on pagevec about to
-be flushed to lru.)  Use page_relock_lruvec() after setting mem_cgroup,
-before adding to the appropriate new lruvec: so that (if lock depends
-on memcg) old lock is held across change in ownership while off lru.
+No need for lock_page_cgroup() in here (which would entail reinverting
+the lock ordering, and _irq'ing all of its calls): the lrucare protocol
+when charging (holding old lock while changing owner then acquiring new)
+fits correctly with this retry protocol.  In some places we rely also on
+page_count 0 preventing further references, in some places on !PageLRU
+protecting a page from outside interference: mem_cgroup_move_account()
 
-Delete the lruvec locking on entry to __mem_cgroup_uncharge_common();
-but if the page being uncharged is not on lru, then we do need to
-reset its ownership, and must dance very carefully with mem_cgroup_
-reset_uncharged_to_root(), to make sure that when there's a race
-between uncharging and removing from lru, one side or the other
-will see it - smp_mb__after_clear_bit() at both ends.
+What if page_relock_lruvec() were preempted for a while, after reading
+a valid mem_cgroup from page_cgroup, but before acquiring the lock?
+In that case, a rmdir might free the mem_cgroup and its associated
+zoneinfo, and we take a spin_lock in freed memory.  But rcu_read_lock()
+before we read mem_cgroup keeps it safe: cgroup.c uses synchronize_rcu()
+in between pre_destroy (force_empty) and destroy (freeing structures).
+mem_cgroup_force_empty() cannot succeed while there's any charge, or any
+page on any of its lrus - and checks list_empty() while holding the lock.
 
-Avoid overhead of calls to mem_cgroup_reset_uncharged_to_root() from
-release_pages() and __page_cache_release(), by doing its work inside
-page_relock_lruvec() when the page_count is 0 i.e. the page is frozen
-from other references and about to be freed.  That was not possible
-with the old lock ordering, since __mem_cgroup_uncharge_common()'s
-lock then changed ownership too soon.
+But although we are now fully prepared, in this patch keep on using
+the zone->lru_lock for all of its memcgs: so that the cost or benefit
+of split locking can be easily compared with the final patch (but
+of course, some costs and benefits come earlier in the series).
 
 Signed-off-by: Hugh Dickins <hughd@google.com>
 ---
- mm/memcontrol.c |  142 ++++++++++++++++++++++++----------------------
- mm/swap.c       |    2 
- 2 files changed, 75 insertions(+), 69 deletions(-)
+ include/linux/mmzone.h |    4 +-
+ include/linux/swap.h   |   13 +++---
+ mm/memcontrol.c        |   74 ++++++++++++++++++++++++++-------------
+ mm/page_alloc.c        |    2 -
+ 4 files changed, 59 insertions(+), 34 deletions(-)
 
---- mmotm.orig/mm/memcontrol.c	2012-02-18 11:57:55.551524898 -0800
-+++ mmotm/mm/memcontrol.c	2012-02-18 11:58:02.451525062 -0800
-@@ -1059,6 +1059,14 @@ void page_relock_lruvec(struct page *pag
- 		 */
- 		if (unlikely(!memcg))
- 			memcg = pc->mem_cgroup = root_mem_cgroup;
-+		/*
-+		 * We must reset pc->mem_cgroup back to root before freeing
-+		 * a page: avoid additional callouts from hot paths by doing
-+		 * it here when we see the page is frozen (can safely be done
-+		 * before taking lru_lock because the page is frozen).
-+		 */
-+		if (memcg != root_mem_cgroup && !page_count(page))
-+			pc->mem_cgroup = root_mem_cgroup;
- 		mz = page_cgroup_zoneinfo(memcg, page);
- 		lruvec = &mz->lruvec;
- 	}
-@@ -1083,23 +1091,20 @@ void mem_cgroup_reset_uncharged_to_root(
- 		return;
+--- mmotm.orig/include/linux/mmzone.h	2012-02-18 11:57:42.675524592 -0800
++++ mmotm/include/linux/mmzone.h	2012-02-18 11:58:09.047525220 -0800
+@@ -174,6 +174,8 @@ struct zone_reclaim_stat {
  
- 	VM_BUG_ON(PageLRU(page));
-+	/*
-+	 * Caller just did ClearPageLRU():
-+	 * make sure that __mem_cgroup_uncharge_common()
-+	 * can see that before we test PageCgroupUsed(pc).
-+	 */
-+	smp_mb__after_clear_bit();
+ struct lruvec {
+ 	struct zone *zone;
++	spinlock_t lru_lock;
++	unsigned long irqflags;
+ 	struct list_head lists[NR_LRU_LISTS];
+ 	struct zone_reclaim_stat reclaim_stat;
+ };
+@@ -373,8 +375,6 @@ struct zone {
+ 	ZONE_PADDING(_pad1_)
  
- 	/*
- 	 * Once an uncharged page is isolated from the mem_cgroup's lru,
- 	 * it no longer protects that mem_cgroup from rmdir: reset to root.
--	 *
--	 * __page_cache_release() and release_pages() may be called at
--	 * interrupt time: we cannot lock_page_cgroup() then (we might
--	 * have interrupted a section with page_cgroup already locked),
--	 * nor do we need to since the page is frozen and about to be freed.
- 	 */
- 	pc = lookup_page_cgroup(page);
--	if (page_count(page))
--		lock_page_cgroup(pc);
- 	if (!PageCgroupUsed(pc) && pc->mem_cgroup != root_mem_cgroup)
- 		pc->mem_cgroup = root_mem_cgroup;
--	if (page_count(page))
--		unlock_page_cgroup(pc);
+ 	/* Fields commonly accessed by the page reclaim scanner */
+-	spinlock_t		lru_lock;
+-	unsigned long		irqflags;
+ 	struct lruvec		lruvec;
+ 
+ 	unsigned long		pages_scanned;	   /* since last reclaim */
+--- mmotm.orig/include/linux/swap.h	2012-02-18 11:57:42.675524592 -0800
++++ mmotm/include/linux/swap.h	2012-02-18 11:58:09.047525220 -0800
+@@ -252,25 +252,24 @@ static inline void lru_cache_add_file(st
+ 
+ static inline spinlock_t *lru_lockptr(struct lruvec *lruvec)
+ {
+-	return &lruvec->zone->lru_lock;
++	/* Still use per-zone lru_lock */
++	return &lruvec->zone->lruvec.lru_lock;
  }
  
- /**
-@@ -2422,9 +2427,11 @@ static void __mem_cgroup_commit_charge(s
- 				       struct page *page,
- 				       unsigned int nr_pages,
- 				       struct page_cgroup *pc,
--				       enum charge_type ctype)
-+				       enum charge_type ctype,
-+				       bool lrucare)
+ static inline void lock_lruvec(struct lruvec *lruvec)
  {
--	bool anon;
-+	struct lruvec *lruvec;
-+	bool was_on_lru = false;
+-	struct zone *zone = lruvec->zone;
+ 	unsigned long irqflags;
  
- 	lock_page_cgroup(pc);
- 	if (unlikely(PageCgroupUsed(pc))) {
-@@ -2433,28 +2440,41 @@ static void __mem_cgroup_commit_charge(s
- 		return;
- 	}
- 	/*
--	 * we don't need page_cgroup_lock about tail pages, becase they are not
--	 * accessed by any other context at this point.
-+	 * We don't need lock_page_cgroup on tail pages, because they are not
-+	 * accessible to any other context at this point.
- 	 */
--	pc->mem_cgroup = memcg;
-+
- 	/*
--	 * We access a page_cgroup asynchronously without lock_page_cgroup().
--	 * Especially when a page_cgroup is taken from a page, pc->mem_cgroup
--	 * is accessed after testing USED bit. To make pc->mem_cgroup visible
--	 * before USED bit, we need memory barrier here.
--	 * See mem_cgroup_add_lru_list(), etc.
-- 	 */
--	smp_wmb();
-+	 * In some cases, SwapCache and FUSE(splice_buf->radixtree), the page
-+	 * may already be on some other page_cgroup's LRU.  Take care of it.
-+	 */
-+	if (lrucare) {
-+		lruvec = page_lock_lruvec(page);
-+		if (PageLRU(page)) {
-+			ClearPageLRU(page);
-+			del_page_from_lru_list(page, lruvec, page_lru(page));
-+			was_on_lru = true;
-+		}
-+	}
- 
-+	pc->mem_cgroup = memcg;
- 	SetPageCgroupUsed(pc);
--	if (ctype == MEM_CGROUP_CHARGE_TYPE_MAPPED)
--		anon = true;
--	else
--		anon = false;
- 
--	mem_cgroup_charge_statistics(memcg, anon, nr_pages);
-+	if (lrucare) {
-+		if (was_on_lru) {
-+			page_relock_lruvec(page, &lruvec);
-+			if (!PageLRU(page)) {
-+				SetPageLRU(page);
-+				add_page_to_lru_list(page, lruvec, page_lru(page));
-+			}
-+		}
-+		unlock_lruvec(lruvec);
-+	}
-+
-+	mem_cgroup_charge_statistics(memcg,
-+			ctype == MEM_CGROUP_CHARGE_TYPE_MAPPED, nr_pages);
- 	unlock_page_cgroup(pc);
--	WARN_ON_ONCE(PageLRU(page));
-+
- 	/*
- 	 * "charge_statistics" updated event counter. Then, check it.
- 	 * Insert ancestor (and ancestor's ancestors), to softlimit RB-tree.
-@@ -2652,7 +2672,7 @@ static int mem_cgroup_charge_common(stru
- 	ret = __mem_cgroup_try_charge(mm, gfp_mask, nr_pages, &memcg, oom);
- 	if (ret == -ENOMEM)
- 		return ret;
--	__mem_cgroup_commit_charge(memcg, page, nr_pages, pc, ctype);
-+	__mem_cgroup_commit_charge(memcg, page, nr_pages, pc, ctype, false);
- 	return 0;
+-	spin_lock_irqsave(&zone->lru_lock, irqflags);
+-	zone->irqflags = irqflags;
++	spin_lock_irqsave(lru_lockptr(lruvec), irqflags);
++	lruvec->irqflags = irqflags;
  }
  
-@@ -2672,34 +2692,6 @@ static void
- __mem_cgroup_commit_charge_swapin(struct page *page, struct mem_cgroup *ptr,
- 					enum charge_type ctype);
- 
--static void
--__mem_cgroup_commit_charge_lrucare(struct page *page, struct mem_cgroup *memcg,
--					enum charge_type ctype)
--{
--	struct page_cgroup *pc = lookup_page_cgroup(page);
--	struct lruvec *lruvec;
--	bool removed = false;
--
--	/*
--	 * In some case, SwapCache, FUSE(splice_buf->radixtree), the page
--	 * is already on LRU. It means the page may on some other page_cgroup's
--	 * LRU. Take care of it.
--	 */
--	lruvec = page_lock_lruvec(page);
--	if (PageLRU(page)) {
--		del_page_from_lru_list(page, lruvec, page_lru(page));
--		ClearPageLRU(page);
--		removed = true;
--	}
--	__mem_cgroup_commit_charge(memcg, page, 1, pc, ctype);
--	if (removed) {
--		page_relock_lruvec(page, &lruvec);
--		add_page_to_lru_list(page, lruvec, page_lru(page));
--		SetPageLRU(page);
--	}
--	unlock_lruvec(lruvec);
--}
--
- int mem_cgroup_cache_charge(struct page *page, struct mm_struct *mm,
- 				gfp_t gfp_mask)
+ static inline void unlock_lruvec(struct lruvec *lruvec)
  {
-@@ -2777,13 +2769,16 @@ static void
- __mem_cgroup_commit_charge_swapin(struct page *page, struct mem_cgroup *memcg,
- 					enum charge_type ctype)
- {
-+	struct page_cgroup *pc;
-+
- 	if (mem_cgroup_disabled())
- 		return;
- 	if (!memcg)
- 		return;
- 	cgroup_exclude_rmdir(&memcg->css);
+-	struct zone *zone = lruvec->zone;
+ 	unsigned long irqflags;
  
--	__mem_cgroup_commit_charge_lrucare(page, memcg, ctype);
-+	pc = lookup_page_cgroup(page);
-+	__mem_cgroup_commit_charge(memcg, page, 1, pc, ctype, true);
- 	/*
- 	 * Now swap is on-memory. This means this page may be
- 	 * counted both as mem and swap....double count.
-@@ -2898,7 +2893,6 @@ __mem_cgroup_uncharge_common(struct page
- 	struct mem_cgroup *memcg = NULL;
- 	unsigned int nr_pages = 1;
+-	irqflags = zone->irqflags;
+-	spin_unlock_irqrestore(&zone->lru_lock, irqflags);
++	irqflags = lruvec->irqflags;
++	spin_unlock_irqrestore(lru_lockptr(lruvec), irqflags);
+ }
+ 
+ #ifdef CONFIG_CGROUP_MEM_RES_CTLR
+--- mmotm.orig/mm/memcontrol.c	2012-02-18 11:58:02.451525062 -0800
++++ mmotm/mm/memcontrol.c	2012-02-18 11:58:09.051525220 -0800
+@@ -1048,39 +1048,64 @@ void page_relock_lruvec(struct page *pag
  	struct page_cgroup *pc;
--	struct lruvec *lruvec;
- 	bool anon;
+ 	struct lruvec *lruvec;
  
- 	if (mem_cgroup_disabled())
-@@ -2918,7 +2912,6 @@ __mem_cgroup_uncharge_common(struct page
- 	if (unlikely(!PageCgroupUsed(pc)))
- 		return NULL;
- 
--	lruvec = page_lock_lruvec(page);
- 	lock_page_cgroup(pc);
- 
- 	memcg = pc->mem_cgroup;
-@@ -2950,16 +2943,31 @@ __mem_cgroup_uncharge_common(struct page
- 	mem_cgroup_charge_statistics(memcg, anon, -nr_pages);
- 
- 	ClearPageCgroupUsed(pc);
-+	/*
-+	 * Make sure that mem_cgroup_reset_uncharged_to_root()
-+	 * can see that before we test PageLRU(page).
-+	 */
-+	smp_mb__after_clear_bit();
- 
- 	/*
- 	 * Once an uncharged page is isolated from the mem_cgroup's lru,
- 	 * it no longer protects that mem_cgroup from rmdir: reset to root.
--	 */
--	if (!PageLRU(page) && pc->mem_cgroup != root_mem_cgroup)
--		pc->mem_cgroup = root_mem_cgroup;
--
-+	 *
-+	 * The page_count() test avoids the lock in the common case when
-+	 * shrink_page_list()'s __remove_mapping() has frozen references
-+	 * to 0 and the page is on its way to freedom.
-+	 */
-+	if (!PageLRU(page) && pc->mem_cgroup != root_mem_cgroup) {
-+		struct lruvec *lruvec = NULL;
-+
-+		if (page_count(page))
-+			lruvec = page_lock_lruvec(page);
-+		if (!PageLRU(page))
-+			pc->mem_cgroup = root_mem_cgroup;
-+		if (lruvec)
-+			unlock_lruvec(lruvec);
-+	}
- 	unlock_page_cgroup(pc);
--	unlock_lruvec(lruvec);
- 
- 	/*
- 	 * even after unlock, we have memcg->res.usage here and this memcg
-@@ -2977,7 +2985,6 @@ __mem_cgroup_uncharge_common(struct page
- 
- unlock_out:
- 	unlock_page_cgroup(pc);
--	unlock_lruvec(lruvec);
- 	return NULL;
- }
- 
-@@ -3248,7 +3255,7 @@ int mem_cgroup_prepare_migration(struct
- 		ctype = MEM_CGROUP_CHARGE_TYPE_CACHE;
- 	else
- 		ctype = MEM_CGROUP_CHARGE_TYPE_SHMEM;
--	__mem_cgroup_commit_charge(memcg, newpage, 1, pc, ctype);
-+	__mem_cgroup_commit_charge(memcg, newpage, 1, pc, ctype, false);
- 	return ret;
- }
- 
-@@ -3335,7 +3342,8 @@ void mem_cgroup_replace_page_cache(struc
- 	 * the newpage may be on LRU(or pagevec for LRU) already. We lock
- 	 * LRU while we overwrite pc->mem_cgroup.
- 	 */
--	__mem_cgroup_commit_charge_lrucare(newpage, memcg, type);
-+	pc = lookup_page_cgroup(newpage);
-+	__mem_cgroup_commit_charge(memcg, newpage, 1, pc, type, true);
- }
- 
- #ifdef CONFIG_DEBUG_VM
---- mmotm.orig/mm/swap.c	2012-02-18 11:57:49.107524745 -0800
-+++ mmotm/mm/swap.c	2012-02-18 11:58:02.451525062 -0800
-@@ -52,7 +52,6 @@ static void __page_cache_release(struct
- 		lruvec = page_lock_lruvec(page);
- 		VM_BUG_ON(!PageLRU(page));
- 		__ClearPageLRU(page);
--		mem_cgroup_reset_uncharged_to_root(page);
- 		del_page_from_lru_list(page, lruvec, page_off_lru(page));
- 		unlock_lruvec(lruvec);
+-	if (mem_cgroup_disabled())
++	if (unlikely(mem_cgroup_disabled())) {
+ 		lruvec = &page_zone(page)->lruvec;
+-	else {
+-		pc = lookup_page_cgroup(page);
+-		memcg = pc->mem_cgroup;
+-		/*
+-		 * At present we start up with all page_cgroups initialized
+-		 * to zero: correct that to root_mem_cgroup once we see it.
+-		 */
+-		if (unlikely(!memcg))
+-			memcg = pc->mem_cgroup = root_mem_cgroup;
+-		/*
+-		 * We must reset pc->mem_cgroup back to root before freeing
+-		 * a page: avoid additional callouts from hot paths by doing
+-		 * it here when we see the page is frozen (can safely be done
+-		 * before taking lru_lock because the page is frozen).
+-		 */
+-		if (memcg != root_mem_cgroup && !page_count(page))
+-			pc->mem_cgroup = root_mem_cgroup;
+-		mz = page_cgroup_zoneinfo(memcg, page);
+-		lruvec = &mz->lruvec;
++		if (*lruvp && *lruvp != lruvec) {
++			unlock_lruvec(*lruvp);
++			*lruvp = NULL;
++		}
++		if (!*lruvp) {
++			*lruvp = lruvec;
++			lock_lruvec(lruvec);
++		}
++		return;
  	}
-@@ -584,7 +583,6 @@ void release_pages(struct page **pages,
- 			page_relock_lruvec(page, &lruvec);
- 			VM_BUG_ON(!PageLRU(page));
- 			__ClearPageLRU(page);
--			mem_cgroup_reset_uncharged_to_root(page);
- 			del_page_from_lru_list(page, lruvec, page_off_lru(page));
- 		}
  
++	pc = lookup_page_cgroup(page);
++	/*
++	 * Imagine being preempted for a long time: we need to make sure that
++	 * the structure at pc->mem_cgroup, and structures it links to, cannot
++	 * be freed while we locate and acquire its zone lru_lock.  cgroup's
++	 * synchronize_rcu() between pre_destroy and destroy makes this safe.
++	 */
++	rcu_read_lock();
++again:
++	memcg = rcu_dereference(pc->mem_cgroup);
+ 	/*
+-	 * For the moment, simply lock by zone just as before.
++	 * At present we start up with all page_cgroups initialized
++	 * to zero: here treat NULL as root_mem_cgroup, then correct
++	 * the page_cgroup below once we really have it locked.
+ 	 */
+-	if (*lruvp && (*lruvp)->zone != lruvec->zone) {
++	mz = page_cgroup_zoneinfo(memcg ? : root_mem_cgroup, page);
++	lruvec = &mz->lruvec;
++
++	/*
++	 * Sometimes we are called with non-NULL *lruvp spinlock already held:
++	 * hold on if we want the same lock again, otherwise drop and acquire.
++	 */
++	if (*lruvp && *lruvp != lruvec) {
+ 		unlock_lruvec(*lruvp);
+ 		*lruvp = NULL;
+ 	}
+-	if (!*lruvp)
++	if (!*lruvp) {
++		*lruvp = lruvec;
+ 		lock_lruvec(lruvec);
+-	*lruvp = lruvec;
++		/*
++		 * But pc->mem_cgroup may have changed since we looked...
++		 */
++		if (unlikely(pc->mem_cgroup != memcg))
++			goto again;
++	}
++
++	/*
++	 * We must reset pc->mem_cgroup back to root before freeing a page:
++	 * avoid additional callouts from hot paths by doing it here when we
++	 * see the page is frozen.  Also initialize pc at first use of page.
++	 */
++	if (memcg != root_mem_cgroup && (!memcg || !page_count(page)))
++		pc->mem_cgroup = root_mem_cgroup;
++
++	rcu_read_unlock();
+ }
+ 
+ void mem_cgroup_reset_uncharged_to_root(struct page *page)
+@@ -4744,6 +4769,7 @@ static int alloc_mem_cgroup_per_zone_inf
+ 	for (zone = 0; zone < MAX_NR_ZONES; zone++) {
+ 		mz = &pn->zoneinfo[zone];
+ 		mz->lruvec.zone = &NODE_DATA(node)->node_zones[zone];
++		spin_lock_init(&mz->lruvec.lru_lock);
+ 		for_each_lru(lru)
+ 			INIT_LIST_HEAD(&mz->lruvec.lists[lru]);
+ 		mz->usage_in_excess = 0;
+--- mmotm.orig/mm/page_alloc.c	2012-02-18 11:57:28.375524252 -0800
++++ mmotm/mm/page_alloc.c	2012-02-18 11:58:09.051525220 -0800
+@@ -4360,12 +4360,12 @@ static void __paginginit free_area_init_
+ #endif
+ 		zone->name = zone_names[j];
+ 		spin_lock_init(&zone->lock);
+-		spin_lock_init(&zone->lru_lock);
+ 		zone_seqlock_init(zone);
+ 		zone->zone_pgdat = pgdat;
+ 
+ 		zone_pcp_init(zone);
+ 		zone->lruvec.zone = zone;
++		spin_lock_init(&zone->lruvec.lru_lock);
+ 		for_each_lru(lru)
+ 			INIT_LIST_HEAD(&zone->lruvec.lists[lru]);
+ 		zone->lruvec.reclaim_stat.recent_rotated[0] = 0;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
