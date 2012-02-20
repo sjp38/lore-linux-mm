@@ -1,13 +1,13 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from psmtp.com (na3sys010amx207.postini.com [74.125.245.207])
-	by kanga.kvack.org (Postfix) with SMTP id 615AF6B00EC
-	for <linux-mm@kvack.org>; Mon, 20 Feb 2012 12:23:12 -0500 (EST)
+	by kanga.kvack.org (Postfix) with SMTP id 426C16B00ED
+	for <linux-mm@kvack.org>; Mon, 20 Feb 2012 12:23:17 -0500 (EST)
 Received: by mail-bk0-f41.google.com with SMTP id y12so6268158bkt.14
-        for <linux-mm@kvack.org>; Mon, 20 Feb 2012 09:23:11 -0800 (PST)
-Subject: [PATCH v2 09/22] mm: link lruvec with zone and node
+        for <linux-mm@kvack.org>; Mon, 20 Feb 2012 09:23:16 -0800 (PST)
+Subject: [PATCH v2 10/22] mm: unify inactive_list_is_low()
 From: Konstantin Khlebnikov <khlebnikov@openvz.org>
-Date: Mon, 20 Feb 2012 21:23:09 +0400
-Message-ID: <20120220172309.22196.76135.stgit@zurg>
+Date: Mon, 20 Feb 2012 21:23:13 +0400
+Message-ID: <20120220172313.22196.37308.stgit@zurg>
 In-Reply-To: <20120220171138.22196.65847.stgit@zurg>
 References: <20120220171138.22196.65847.stgit@zurg>
 MIME-Version: 1.0
@@ -18,98 +18,69 @@ List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org
 Cc: Hugh Dickins <hughd@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-This patch adds links from lruvec to its zone and node.
-For CONFIG_CGROUP_MEM_RES_CTLR=n this is just container_of().
+Unify memcg and non-memcg logic, always use exact counters from struct lruvec.
 
 Signed-off-by: Konstantin Khlebnikov <khlebnikov@openvz.org>
 ---
- include/linux/mm.h     |   20 ++++++++++++++++++++
- include/linux/mmzone.h |    4 ++++
- mm/memcontrol.c        |    2 ++
- mm/page_alloc.c        |    4 ++++
- 4 files changed, 30 insertions(+), 0 deletions(-)
+ mm/vmscan.c |   30 ++++++++----------------------
+ 1 files changed, 8 insertions(+), 22 deletions(-)
 
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index e483f30..24c24f0 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -734,6 +734,16 @@ static inline void set_page_links(struct page *page, enum zone_type zone,
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index 3e8d049..6889a39 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -1809,6 +1809,7 @@ static int inactive_anon_is_low(struct mem_cgroup_zone *mz,
+ {
+ 	unsigned long active, inactive;
+ 	unsigned int ratio;
++	struct lruvec *lruvec;
  
- extern struct lruvec *page_lruvec(struct page *lruvec);
+ 	/*
+ 	 * If we don't have swap space, anonymous page deactivation
+@@ -1822,17 +1823,9 @@ static int inactive_anon_is_low(struct mem_cgroup_zone *mz,
+ 	else
+ 		ratio = mem_cgroup_inactive_ratio(sc->target_mem_cgroup);
  
-+static inline struct zone *lruvec_zone(struct lruvec *lruvec)
-+{
-+	return lruvec->zone;
-+}
-+
-+static inline struct pglist_data *lruvec_node(struct lruvec *lruvec)
-+{
-+	return lruvec->node;
-+}
-+
- #else /* CONFIG_CGROUP_MEM_RES_CTLR */
+-	if (scanning_global_lru(mz)) {
+-		active = zone_page_state(mz->zone, NR_ACTIVE_ANON);
+-		inactive = zone_page_state(mz->zone, NR_INACTIVE_ANON);
+-	} else {
+-		active = mem_cgroup_zone_nr_lru_pages(mz->mem_cgroup,
+-				zone_to_nid(mz->zone), zone_idx(mz->zone),
+-				BIT(LRU_ACTIVE_ANON));
+-		inactive = mem_cgroup_zone_nr_lru_pages(mz->mem_cgroup,
+-				zone_to_nid(mz->zone), zone_idx(mz->zone),
+-				BIT(LRU_INACTIVE_ANON));
+-	}
++	lruvec = mem_cgroup_zone_lruvec(mz->zone, mz->mem_cgroup);
++	active = lruvec->pages_count[LRU_ACTIVE_ANON];
++	inactive = lruvec->pages_count[LRU_INACTIVE_ANON];
  
- /* Single lruvec in zone */
-@@ -743,6 +753,16 @@ static inline struct lruvec *page_lruvec(struct page *page)
- 	return &page_zone(page)->lruvec;
+ 	return inactive * ratio < active;
  }
+@@ -1861,18 +1854,11 @@ static inline int inactive_anon_is_low(struct mem_cgroup_zone *mz,
+ static int inactive_file_is_low(struct mem_cgroup_zone *mz)
+ {
+ 	unsigned long active, inactive;
++	struct lruvec *lruvec;
  
-+static inline struct zone *lruvec_zone(struct lruvec *lruvec)
-+{
-+	return container_of(lruvec, struct zone, lruvec);
-+}
-+
-+static inline struct pglist_data *lruvec_node(struct lruvec *lruvec)
-+{
-+	return lruvec_zone(lruvec)->zone_pgdat;
-+}
-+
- #endif /* CONFIG_CGROUP_MEM_RES_CTLR */
+-	if (scanning_global_lru(mz)) {
+-		active = zone_page_state(mz->zone, NR_ACTIVE_FILE);
+-		inactive = zone_page_state(mz->zone, NR_INACTIVE_FILE);
+-	} else {
+-		active = mem_cgroup_zone_nr_lru_pages(mz->mem_cgroup,
+-				zone_to_nid(mz->zone), zone_idx(mz->zone),
+-				BIT(LRU_ACTIVE_FILE));
+-		inactive = mem_cgroup_zone_nr_lru_pages(mz->mem_cgroup,
+-				zone_to_nid(mz->zone), zone_idx(mz->zone),
+-				BIT(LRU_INACTIVE_FILE));
+-	}
++	lruvec = mem_cgroup_zone_lruvec(mz->zone, mz->mem_cgroup);
++	active = lruvec->pages_count[LRU_ACTIVE_FILE];
++	inactive = lruvec->pages_count[LRU_INACTIVE_FILE];
  
- /*
-diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-index b39f230..bd2cae4 100644
---- a/include/linux/mmzone.h
-+++ b/include/linux/mmzone.h
-@@ -297,6 +297,10 @@ struct zone_reclaim_stat {
- };
- 
- struct lruvec {
-+#ifdef CONFIG_CGROUP_MEM_RES_CTLR
-+	struct pglist_data	*node;
-+	struct zone		*zone;
-+#endif
- 	struct list_head	pages_lru[NR_LRU_LISTS];
- 	unsigned long		pages_count[NR_LRU_LISTS];
- };
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index fa64817..e29420d 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -4673,6 +4673,8 @@ static int alloc_mem_cgroup_per_zone_info(struct mem_cgroup *memcg, int node)
- 			INIT_LIST_HEAD(&mz->lruvec.pages_lru[lru]);
- 			mz->lruvec.pages_count[lru] = 0;
- 		}
-+		mz->lruvec.node = NODE_DATA(node);
-+		mz->lruvec.zone = &NODE_DATA(node)->node_zones[zone];
- 		mz->usage_in_excess = 0;
- 		mz->on_tree = false;
- 		mz->memcg = memcg;
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index c7fcddc..c500084 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -4366,6 +4366,10 @@ static void __paginginit free_area_init_core(struct pglist_data *pgdat,
- 			INIT_LIST_HEAD(&zone->lruvec.pages_lru[lru]);
- 			zone->lruvec.pages_count[lru] = 0;
- 		}
-+#ifdef CONFIG_CGROUP_MEM_RES_CTLR
-+		zone->lruvec.node = pgdat;
-+		zone->lruvec.zone = zone;
-+#endif
- 		zone->reclaim_stat.recent_rotated[0] = 0;
- 		zone->reclaim_stat.recent_rotated[1] = 0;
- 		zone->reclaim_stat.recent_scanned[0] = 0;
+ 	return inactive < active;
+ }
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
