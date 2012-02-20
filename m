@@ -1,21 +1,21 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx168.postini.com [74.125.245.168])
-	by kanga.kvack.org (Postfix) with SMTP id 792676B00E8
+Received: from psmtp.com (na3sys010amx151.postini.com [74.125.245.151])
+	by kanga.kvack.org (Postfix) with SMTP id A1D586B00EB
 	for <linux-mm@kvack.org>; Mon, 20 Feb 2012 06:22:25 -0500 (EST)
 Received: from /spool/local
 	by e23smtp03.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
 	Mon, 20 Feb 2012 11:14:50 +1000
 Received: from d23av02.au.ibm.com (d23av02.au.ibm.com [9.190.235.138])
-	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q1KBMG9j1523956
-	for <linux-mm@kvack.org>; Mon, 20 Feb 2012 22:22:17 +1100
+	by d23relay05.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q1KBGm7n3432612
+	for <linux-mm@kvack.org>; Mon, 20 Feb 2012 22:16:48 +1100
 Received: from d23av02.au.ibm.com (loopback [127.0.0.1])
-	by d23av02.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q1KBMFrF020120
-	for <linux-mm@kvack.org>; Mon, 20 Feb 2012 22:22:16 +1100
+	by d23av02.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q1KBM5p5019744
+	for <linux-mm@kvack.org>; Mon, 20 Feb 2012 22:22:05 +1100
 From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Subject: [PATCH -V1 7/9] hugetlbfs: Add truncate region functions
-Date: Mon, 20 Feb 2012 16:51:40 +0530
-Message-Id: <1329736902-26870-8-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+Subject: [PATCH -V1 3/9] hugetlbfs: Add new region handling functions.
+Date: Mon, 20 Feb 2012 16:51:36 +0530
+Message-Id: <1329736902-26870-4-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
 In-Reply-To: <1329736902-26870-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
 References: <1329736902-26870-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
@@ -25,212 +25,157 @@ Cc: linux-kernel@vger.kernel.org, cgroups@kernel.org, "Aneesh Kumar K.V" <aneesh
 
 From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
 
-This will later be used by the task migration patches.
+These functions takes an extra argument and only merge regions if the data value
+matches. This help us to build regions with difference hugetlb cgroup values.
+Last patch in the series will merge this to existing region code, having this as
+separate allows us to add cgroup support shared and private mapping in separate
+patchset.
 
 Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
 ---
- fs/hugetlbfs/hugetlb_cgroup.c  |   84 ++++++++++++++++++++++++++++++++++++++++
- fs/hugetlbfs/region.c          |   58 +++++++++++++++++++++++++++
- include/linux/hugetlb_cgroup.h |   12 +++++-
- 3 files changed, 153 insertions(+), 1 deletions(-)
+ fs/hugetlbfs/hugetlb_cgroup.c |  127 +++++++++++++++++++++++++++++++++++++++++
+ 1 files changed, 127 insertions(+), 0 deletions(-)
 
 diff --git a/fs/hugetlbfs/hugetlb_cgroup.c b/fs/hugetlbfs/hugetlb_cgroup.c
-index a4c6786..b8b319b 100644
+index 75dbdd8..9bd2691 100644
 --- a/fs/hugetlbfs/hugetlb_cgroup.c
 +++ b/fs/hugetlbfs/hugetlb_cgroup.c
-@@ -323,6 +323,90 @@ long hugetlb_truncate_cgroup(struct hstate *h,
- 	return chg;
- }
+@@ -31,9 +31,136 @@ struct hugetlb_cgroup {
+ 	struct res_counter memhuge[HUGE_MAX_HSTATE];
+ };
  
-+long hugetlb_truncate_cgroup_range(struct hstate *h,
-+				   struct list_head *head, long from, long to)
-+{
-+	long chg = 0, csize;
-+	int idx = h - hstates;
-+	struct hugetlb_cgroup *h_cg;
-+	struct file_region *rg, *trg;
++struct file_region_with_data {
++	struct list_head link;
++	long from;
++	long to;
++	unsigned long data;
++};
 +
-+	/* Locate the region we are either in or before. */
-+	list_for_each_entry(rg, head, link)
-+		if (from <= rg->to)
-+			break;
-+	if (&rg->link == head)
-+		return 0;
-+
-+	/* If we are in the middle of a region then adjust it. */
-+	if (from > rg->from) {
-+		if (to < rg->to) {
-+			struct file_region *nrg;
-+			/* rg->from from to rg->to */
-+			nrg = kmalloc(sizeof(*nrg), GFP_KERNEL);
-+			/*
-+			 * If we fail to allocate we return the
-+			 * with the 0 charge . Later a complete
-+			 * truncate will reclaim the left over space
-+			 */
-+			if (!nrg)
-+				return 0;
-+			nrg->from = to;
-+			nrg->to = rg->to;
-+			nrg->data = rg->data;
-+			INIT_LIST_HEAD(&nrg->link);
-+			list_add(&nrg->link, &rg->link);
-+
-+			/* Adjust the rg entry */
-+			rg->to = from;
-+			chg = to - from;
-+			h_cg = (struct hugetlb_cgroup *)rg->data;
-+			if (!hugetlb_cgroup_is_root(h_cg)) {
-+				csize = chg * huge_page_size(h);
-+				res_counter_uncharge(&h_cg->memhuge[idx],
-+						     csize);
-+			}
-+			return chg;
-+		}
-+		chg = rg->to - from;
-+		rg->to = from;
-+		h_cg = (struct hugetlb_cgroup *)rg->data;
-+		if (!hugetlb_cgroup_is_root(h_cg)) {
-+			csize = chg * huge_page_size(h);
-+			res_counter_uncharge(&h_cg->memhuge[idx], csize);
-+		}
-+		rg = list_entry(rg->link.next, typeof(*rg), link);
-+	}
-+	/* Drop any remaining regions till to */
-+	list_for_each_entry_safe(rg, trg, rg->link.prev, link) {
-+		if (rg->from >= to)
-+			break;
-+		if (&rg->link == head)
-+			break;
-+		if (rg->to > to) {
-+			/* rg->from to rg->to */
-+			chg += to - rg->from;
-+			rg->from = to;
-+			h_cg = (struct hugetlb_cgroup *)rg->data;
-+			if (!hugetlb_cgroup_is_root(h_cg)) {
-+				csize = (to - rg->from) * huge_page_size(h);
-+				res_counter_uncharge(&h_cg->memhuge[idx],
-+						     csize);
-+			}
-+			return chg;
-+		}
-+		chg += rg->to - rg->from;
-+		h_cg = (struct hugetlb_cgroup *)rg->data;
-+		if (!hugetlb_cgroup_is_root(h_cg)) {
-+			csize = (rg->to - rg->from) * huge_page_size(h);
-+			res_counter_uncharge(&h_cg->memhuge[idx], csize);
-+		}
-+		list_del(&rg->link);
-+		kfree(rg);
-+	}
-+	return chg;
-+}
-+
- int hugetlb_priv_page_charge(struct resv_map *map, struct hstate *h, long chg)
- {
- 	long csize;
-diff --git a/fs/hugetlbfs/region.c b/fs/hugetlbfs/region.c
-index d2445fb..8ac63b0 100644
---- a/fs/hugetlbfs/region.c
-+++ b/fs/hugetlbfs/region.c
-@@ -200,3 +200,61 @@ long region_count(struct list_head *head, long f, long t)
+ struct cgroup_subsys hugetlb_subsys __read_mostly;
+ struct hugetlb_cgroup *root_h_cgroup __read_mostly;
  
- 	return chg;
- }
-+
-+long region_truncate_range(struct list_head *head, long from, long to)
++/*
++ * A vairant of region_add that only merges regions only if data
++ * match.
++ */
++static long region_chg_with_same(struct list_head *head,
++				 long f, long t, unsigned long data)
 +{
 +	long chg = 0;
-+	struct file_region *rg, *trg;
++	struct file_region_with_data *rg, *nrg, *trg;
 +
-+	/* Locate the region we are either in or before. */
++	/* Locate the region we are before or in. */
 +	list_for_each_entry(rg, head, link)
-+		if (from <= rg->to)
++		if (f <= rg->to)
 +			break;
-+	if (&rg->link == head)
-+		return 0;
-+
-+	/* If we are in the middle of a region then adjust it. */
-+	if (from > rg->from) {
-+		if (to < rg->to) {
-+			struct file_region *nrg;
-+			/* rf->from f t rg->to */
-+			nrg = kmalloc(sizeof(*nrg), GFP_KERNEL);
-+			/*
-+			 * If we fail to allocate we return the
-+			 * with the 0 charge . Later a complete
-+			 * truncate will reclaim the left over space
-+			 */
-+			if (!nrg)
-+				return 0;
-+			nrg->from = to;
-+			nrg->to = rg->to;
-+			nrg->data = rg->data;
-+			INIT_LIST_HEAD(&nrg->link);
-+			list_add(&nrg->link, &rg->link);
-+
-+			/* Adjust the rg entry */
-+			rg->to = from;
-+			chg = to - from;
-+			return chg;
-+		}
-+		chg = rg->to - from;
-+		rg->to = from;
-+		rg = list_entry(rg->link.next, typeof(*rg), link);
++	/*
++	 * If we are below the current region then a new region is required.
++	 * Subtle, allocate a new region at the position but make it zero
++	 * size such that we can guarantee to record the reservation.
++	 */
++	if (&rg->link == head || t < rg->from) {
++		nrg = kmalloc(sizeof(*nrg), GFP_KERNEL);
++		if (!nrg)
++			return -ENOMEM;
++		nrg->from = f;
++		nrg->to = f;
++		nrg->data = data;
++		INIT_LIST_HEAD(&nrg->link);
++		list_add(&nrg->link, rg->link.prev);
++		return t - f;
 +	}
-+	/* Drop any remaining regions till to */
++	/*
++	 * f rg->from t rg->to
++	 */
++	if (f < rg->from && data != rg->data) {
++		/* we need to allocate a new region */
++		nrg = kmalloc(sizeof(*nrg), GFP_KERNEL);
++		if (!nrg)
++			return -ENOMEM;
++		nrg->from = f;
++		nrg->to = f;
++		nrg->data = data;
++		INIT_LIST_HEAD(&nrg->link);
++		list_add(&nrg->link, rg->link.prev);
++	}
++
++	/* Round our left edge to the current segment if it encloses us. */
++	if (f > rg->from)
++		f = rg->from;
++	chg = t - f;
++
++	/* Check for and consume any regions we now overlap with. */
 +	list_for_each_entry_safe(rg, trg, rg->link.prev, link) {
-+		if (rg->from >= to)
-+			break;
 +		if (&rg->link == head)
 +			break;
-+		if (rg->to > to) {
-+			chg += to - rg->from;
-+			rg->from = to;
++		if (rg->from > t)
 +			return chg;
++		/*
++		 * rg->from f rg->to t
++		 */
++		if (t > rg->to && data != rg->data) {
++			/* we need to allocate a new region */
++			nrg = kmalloc(sizeof(*nrg), GFP_KERNEL);
++			if (!nrg)
++				return -ENOMEM;
++			nrg->from = rg->to;
++			nrg->to  = rg->to;
++			nrg->data = data;
++			INIT_LIST_HEAD(&nrg->link);
++			list_add(&nrg->link, &rg->link);
 +		}
-+		chg += rg->to - rg->from;
-+		list_del(&rg->link);
-+		kfree(rg);
++		/*
++		 * update charge
++		 */
++		if (rg->to > t) {
++			chg += rg->to - t;
++			t = rg->to;
++		}
++		chg -= rg->to - rg->from;
 +	}
 +	return chg;
 +}
-diff --git a/include/linux/hugetlb_cgroup.h b/include/linux/hugetlb_cgroup.h
-index eaad86b..68c1d61 100644
---- a/include/linux/hugetlb_cgroup.h
-+++ b/include/linux/hugetlb_cgroup.h
-@@ -27,7 +27,7 @@ extern void region_add(struct list_head *head, long f, long t,
- 		       unsigned long data);
- extern long region_truncate(struct list_head *head, long end);
- extern long region_count(struct list_head *head, long f, long t);
--
-+extern long region_truncate_range(struct list_head *head, long from, long end);
- #ifdef CONFIG_CGROUP_HUGETLB_RES_CTLR
- extern u64 hugetlb_cgroup_read(struct cgroup *cgroup, struct cftype *cft);
- extern int hugetlb_cgroup_write(struct cgroup *cgroup, struct cftype *cft,
-@@ -40,6 +40,9 @@ extern void hugetlb_page_uncharge(struct list_head *head,
- extern void hugetlb_commit_page_charge(struct list_head *head, long f, long t);
- extern long hugetlb_truncate_cgroup(struct hstate *h,
- 				    struct list_head *head, long from);
-+extern long  hugetlb_truncate_cgroup_range(struct hstate *h,
-+					   struct list_head *head,
-+					   long from, long end);
- extern int hugetlb_priv_page_charge(struct resv_map *map,
- 				    struct hstate *h, long chg);
- extern void hugetlb_priv_page_uncharge(struct resv_map *map,
-@@ -69,6 +72,13 @@ static inline long hugetlb_truncate_cgroup(struct hstate *h,
- 	return region_truncate(head, from);
- }
- 
-+static inline long  hugetlb_truncate_cgroup_range(struct hstate *h,
-+						  struct list_head *head,
-+						  long from, long end)
++
++static void region_add_with_same(struct list_head *head,
++				 long f, long t, unsigned long data)
 +{
-+	return region_truncate_range(head, from, end);
++	struct file_region_with_data *rg, *nrg, *trg;
++
++	/* Locate the region we are before or in. */
++	list_for_each_entry(rg, head, link)
++		if (f <= rg->to)
++			break;
++
++	list_for_each_entry_safe(rg, trg, rg->link.prev, link) {
++
++		if (rg->from > t)
++			return;
++		if (&rg->link == head)
++			return;
++
++		/*FIXME!! this can possibly delete few regions */
++		/* We need to worry only if we match data */
++		if (rg->data == data) {
++			if (f < rg->from)
++				rg->from = f;
++			if (t > rg->to) {
++				/* if we are the last entry */
++				if (rg->link.next == head) {
++					rg->to = t;
++					break;
++				} else {
++					nrg = list_entry(rg->link.next,
++							 typeof(*nrg), link);
++					rg->to = nrg->from;
++				}
++			}
++		}
++		f = rg->to;
++	}
 +}
 +
- static inline int hugetlb_priv_page_charge(struct resv_map *map,
- 					   struct hstate *h, long chg)
+ static inline
+ struct hugetlb_cgroup *css_to_hugetlbcgroup(struct cgroup_subsys_state *s)
  {
 -- 
 1.7.9
