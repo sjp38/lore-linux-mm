@@ -1,90 +1,101 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx138.postini.com [74.125.245.138])
-	by kanga.kvack.org (Postfix) with SMTP id 85A396B00F8
-	for <linux-mm@kvack.org>; Mon, 20 Feb 2012 17:57:01 -0500 (EST)
-Date: Mon, 20 Feb 2012 14:57:00 -0800 (PST)
-From: Sage Weil <sage@newdream.net>
-Subject: Re: [PATCH 04/11] ceph: Push file_update_time() into ceph_page_mkwrite()
-In-Reply-To: <20120220224245.GE32708@quack.suse.cz>
-Message-ID: <Pine.LNX.4.64.1202201456400.1154@cobra.newdream.net>
-References: <1329399979-3647-1-git-send-email-jack@suse.cz>
- <1329399979-3647-5-git-send-email-jack@suse.cz> <1329419077.3121.38.camel@doink>
- <Pine.LNX.4.64.1202161113001.24079@cobra.newdream.net> <20120220224245.GE32708@quack.suse.cz>
+Received: from psmtp.com (na3sys010amx133.postini.com [74.125.245.133])
+	by kanga.kvack.org (Postfix) with SMTP id CAADB6B00FA
+	for <linux-mm@kvack.org>; Mon, 20 Feb 2012 18:26:57 -0500 (EST)
+Received: by pbcwz17 with SMTP id wz17so8250313pbc.14
+        for <linux-mm@kvack.org>; Mon, 20 Feb 2012 15:26:57 -0800 (PST)
+Date: Mon, 20 Feb 2012 15:26:27 -0800 (PST)
+From: Hugh Dickins <hughd@google.com>
+Subject: [PATCH 0/10] mm/memcg: per-memcg per-zone lru locking
+Message-ID: <alpine.LSU.2.00.1202201518560.23274@eggly.anvils>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jan Kara <jack@suse.cz>
-Cc: Alex Elder <elder@dreamhost.com>, LKML <linux-kernel@vger.kernel.org>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Eric Sandeen <sandeen@redhat.com>, Dave Chinner <david@fromorbit.com>, ceph-devel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Konstantin Khlebnikov <khlebnikov@openvz.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, Ying Han <yinghan@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Mon, 20 Feb 2012, Jan Kara wrote:
-> On Thu 16-02-12 11:13:53, Sage Weil wrote:
-> > On Thu, 16 Feb 2012, Alex Elder wrote:
-> > > On Thu, 2012-02-16 at 14:46 +0100, Jan Kara wrote:
-> > > > CC: Sage Weil <sage@newdream.net>
-> > > > CC: ceph-devel@vger.kernel.org
-> > > > Signed-off-by: Jan Kara <jack@suse.cz>
-> > > 
-> > > 
-> > > This will update the timestamp even if a write
-> > > fault fails, which is different from before.
-> > > 
-> > > Hard to avoid though.
-> > > 
-> > > Looks good to me.
-> > 
-> > Yeah.  Let's put something in the tracker to take a look later (I think we 
-> > can do better), but this is okay for now.
-> > 
-> > Signed-off-by: Sage Weil <sage@newdream.net>
->   Thanks! Just an administrative note - the tag above should rather be
-> Acked-by or Reviewed-by. You'd use Signed-off-by only if you took the patch
-> and merged it via your tree... So can I add Acked-by?
+Here is my per-memcg per-zone LRU locking series, as promised last year.
 
-Oh, right.  Acked-by!
+zone->lru_lock is a heavily contended lock, and we expect that splitting
+it across memcgs will show benefit on systems with many cpus.  Sorry, no
+performance numbers included yet (I did try yesterday, but my own machines
+are too small to show any advantage - it'll be a shame if the same proves
+so for large ones!); but otherwise tested and ready.
 
-sage
+Konstantin Khlebnikov posted RFC for a competing series a few days ago:
+[PATCH RFC 00/15] mm: memory book keeping and lru_lock splitting
+https://lkml.org/lkml/2012/2/15/445
+and then today
+[PATCH v2 00/22] mm: lru_lock splitting
+https://lkml.org/lkml/2012/2/20/252
 
-> 
-> 								Honza
-> 
-> > > Signed-off-by: Alex Elder <elder@dreamhost.com>
-> > > 
-> > > >  fs/ceph/addr.c |    3 +++
-> > > >  1 files changed, 3 insertions(+), 0 deletions(-)
-> > > > 
-> > > > diff --git a/fs/ceph/addr.c b/fs/ceph/addr.c
-> > > > index 173b1d2..12b139f 100644
-> > > > --- a/fs/ceph/addr.c
-> > > > +++ b/fs/ceph/addr.c
-> > > > @@ -1181,6 +1181,9 @@ static int ceph_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf)
-> > > >  	loff_t size, len;
-> > > >  	int ret;
-> > > >  
-> > > > +	/* Update time before taking page lock */
-> > > > +	file_update_time(vma->vm_file);
-> > > > +
-> > > >  	size = i_size_read(inode);
-> > > >  	if (off + PAGE_CACHE_SIZE <= size)
-> > > >  		len = PAGE_CACHE_SIZE;
-> > > 
-> > > 
-> > > 
-> > > --
-> > > To unsubscribe from this list: send the line "unsubscribe ceph-devel" in
-> > > the body of a message to majordomo@vger.kernel.org
-> > > More majordomo info at  http://vger.kernel.org/majordomo-info.html
-> > > 
-> > > 
-> -- 
-> Jan Kara <jack@suse.cz>
-> SUSE Labs, CR
-> --
-> To unsubscribe from this list: send the line "unsubscribe ceph-devel" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
-> 
-> 
+I haven't glanced at v2 yet, but judging by a quick look at the RFC:
+the two series have lots of overlap and much in common, so I'd better
+post this now before the numbers, to help us exchange ideas.  If you
+choose to use either series, we shall probably want to add in pieces
+from the other.
+
+There should be a further patch, to update references to zone->lru_lock
+in comments and Documentation; but that's just a distraction at the
+moment, better held over until our final direction is decided.
+
+These patches are based upon what I expect in the next linux-next with
+an update from akpm: perhaps 3.3.0-rc4-next-20120222, or maybe later.
+They were prepared on 3.3.0-rc3-next-20120217 plus recent mm-commits:
+
+memcg-remove-export_symbolmem_cgroup_update_page_stat.patch
+memcg-simplify-move_account-check.patch
+memcg-simplify-move_account-check-fix.patch
+memcg-remove-pcg_move_lock-flag-from-page_cgroup.patch
+memcg-use-new-logic-for-page-stat-accounting.patch
+memcg-use-new-logic-for-page-stat-accounting-fix.patch
+memcg-remove-pcg_file_mapped.patch
+memcg-fix-performance-of-mem_cgroup_begin_update_page_stat.patch
+memcg-fix-performance-of-mem_cgroup_begin_update_page_stat-fix.patch
+mm-memcontrolc-s-stealed-stolen.patch
+
+mm-vmscan-handle-isolated-pages-with-lru-lock-released.patch
+mm-vmscan-forcibly-scan-highmem-if-there-are-too-many-buffer_heads-pinning-highmem-fix.patch
+mm-vmscan-forcibly-scan-highmem-if-there-are-too-many-buffer_heads-pinning-highmem-fix-fix.patch
+
+But it looks like there are no clashes with the first ten of those,
+the last three little rearrangements in vmscan.c should be enough.
+I see Konstantin has based his v2 off 3.3.0-rc3-next-20120210: that
+should be good for mine too, if you add the last three commits on first.
+
+Per-memcg per-zone LRU locking series:
+
+ 1/10 mm/memcg: scanning_global_lru means mem_cgroup_disabled
+ 2/10 mm/memcg: move reclaim_stat into lruvec
+ 3/10 mm/memcg: add zone pointer into lruvec
+ 4/10 mm/memcg: apply add/del_page to lruvec
+ 5/10 mm/memcg: introduce page_relock_lruvec
+ 6/10 mm/memcg: take care over pc->mem_cgroup
+ 7/10 mm/memcg: remove mem_cgroup_reset_owner
+ 8/10 mm/memcg: nest lru_lock inside page_cgroup lock
+ 9/10 mm/memcg: move lru_lock into lruvec
+10/10 mm/memcg: per-memcg per-zone lru locking
+
+ include/linux/memcontrol.h |   67 +----
+ include/linux/mm_inline.h  |   20 -
+ include/linux/mmzone.h     |   33 +-
+ include/linux/swap.h       |   68 +++++
+ mm/compaction.c            |   64 +++--
+ mm/huge_memory.c           |   13 -
+ mm/ksm.c                   |   11 
+ mm/memcontrol.c            |  402 +++++++++++++++++------------------
+ mm/migrate.c               |    2 
+ mm/page_alloc.c            |   11 
+ mm/swap.c                  |  138 ++++--------
+ mm/swap_state.c            |   10 
+ mm/vmscan.c                |  396 +++++++++++++++++-----------------
+ 13 files changed, 605 insertions(+), 630 deletions(-)
+
+Next step: I shall be looking at and trying Konstantin's,
+and I hope he can look at and try mine.
+
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
