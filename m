@@ -1,13 +1,13 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from psmtp.com (na3sys010amx207.postini.com [74.125.245.207])
-	by kanga.kvack.org (Postfix) with SMTP id F42256B00FC
-	for <linux-mm@kvack.org>; Mon, 20 Feb 2012 12:23:49 -0500 (EST)
+	by kanga.kvack.org (Postfix) with SMTP id CE3926B0109
+	for <linux-mm@kvack.org>; Mon, 20 Feb 2012 12:23:53 -0500 (EST)
 Received: by mail-bk0-f41.google.com with SMTP id y12so6268158bkt.14
-        for <linux-mm@kvack.org>; Mon, 20 Feb 2012 09:23:49 -0800 (PST)
-Subject: [PATCH v2 19/22] mm: handle lruvec relock in memory controller
+        for <linux-mm@kvack.org>; Mon, 20 Feb 2012 09:23:53 -0800 (PST)
+Subject: [PATCH v2 20/22] mm: optimize putback for 0-order reclaim
 From: Konstantin Khlebnikov <khlebnikov@openvz.org>
-Date: Mon, 20 Feb 2012 21:23:47 +0400
-Message-ID: <20120220172347.22196.22182.stgit@zurg>
+Date: Mon, 20 Feb 2012 21:23:50 +0400
+Message-ID: <20120220172350.22196.24003.stgit@zurg>
 In-Reply-To: <20120220171138.22196.65847.stgit@zurg>
 References: <20120220171138.22196.65847.stgit@zurg>
 MIME-Version: 1.0
@@ -18,109 +18,81 @@ List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org
 Cc: Hugh Dickins <hughd@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-Carefully relock lruvec lru lock at page memory cgroup change.
+At 0-order reclaim all pages are isolated from one lruvec,
+thus we don't need to recheck and relock page_lruvec on putback.
 
-* Stabilize PageLRU() sign with  __wait_lruvec_unlock(old_lruvec)
-  It must be called between each pc->mem_cgroup change and
-  page putback into new lruvec, otherwise someone else can lock old lruvec and
-  see PageLRU(), while page already moved into other lruvec.
-* In free_pn_rcu() wait for lruvec lock release.
-  Locking primitives keep lruvec pointer after successful lock held.
+Maybe it would be better to collect lumpy-isolated pages into
+separate list and handle them independently.
 
 Signed-off-by: Konstantin Khlebnikov <khlebnikov@openvz.org>
 ---
- mm/memcontrol.c |   36 ++++++++++++++++++++++++++++--------
- 1 files changed, 28 insertions(+), 8 deletions(-)
+ mm/vmscan.c |   17 +++++++++++------
+ 1 files changed, 11 insertions(+), 6 deletions(-)
 
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 40e1a66..69763da 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -2368,6 +2368,7 @@ static int mem_cgroup_move_account(struct page *page,
- 	unsigned long flags;
- 	int ret;
- 	bool anon = PageAnon(page);
-+	struct lruvec *old_lruvec;
- 
- 	VM_BUG_ON(from == to);
- 	VM_BUG_ON(PageLRU(page));
-@@ -2397,12 +2398,24 @@ static int mem_cgroup_move_account(struct page *page,
- 		preempt_enable();
- 	}
- 	mem_cgroup_charge_statistics(from, anon, -nr_pages);
-+
-+	/* charge keep old lruvec alive */
-+	old_lruvec = page_lruvec(page);
-+
-+	/* caller should have done css_get */
-+	pc->mem_cgroup = to;
-+
-+	/*
-+	 * Stabilize PageLRU() sing for old_lruvec lock holder.
-+	 * Do not putback page while someone hold old_lruvec lock,
-+	 * otherwise it can think it catched page in old_lruvec lru.
-+	 */
-+	__wait_lruvec_unlock(old_lruvec);
-+
- 	if (uncharge)
- 		/* This is not "cancel", but cancel_charge does all we need. */
- 		__mem_cgroup_cancel_charge(from, nr_pages);
- 
--	/* caller should have done css_get */
--	pc->mem_cgroup = to;
- 	mem_cgroup_charge_statistics(to, anon, nr_pages);
- 	/*
- 	 * We charges against "to" which may not have any tasks. Then, "to"
-@@ -2528,7 +2541,6 @@ __mem_cgroup_commit_charge_lrucare(struct page *page, struct mem_cgroup *memcg,
- 					enum charge_type ctype)
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index 39b4525..b9bd6c7 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -1342,6 +1342,7 @@ static int too_many_isolated(struct zone *zone, int file,
+  */
+ static noinline_for_stack struct lruvec *
+ putback_inactive_pages(struct lruvec *lruvec,
++		       struct scan_control *sc,
+ 		       struct list_head *page_list)
  {
- 	struct page_cgroup *pc = lookup_page_cgroup(page);
--	struct zone *zone = page_zone(page);
- 	struct lruvec *lruvec;
- 	unsigned long flags;
- 	bool removed = false;
-@@ -2538,20 +2550,19 @@ __mem_cgroup_commit_charge_lrucare(struct page *page, struct mem_cgroup *memcg,
- 	 * is already on LRU. It means the page may on some other page_cgroup's
- 	 * LRU. Take care of it.
- 	 */
--	spin_lock_irqsave(&zone->lru_lock, flags);
-+	lruvec = lock_page_lruvec(page, &flags);
- 	if (PageLRU(page)) {
--		lruvec = page_lruvec(page);
- 		del_page_from_lru_list(lruvec, page, page_lru(page));
- 		ClearPageLRU(page);
- 		removed = true;
- 	}
- 	__mem_cgroup_commit_charge(memcg, page, 1, pc, ctype);
- 	if (removed) {
--		lruvec = page_lruvec(page);
-+		lruvec = __relock_page_lruvec(lruvec, page);
- 		add_page_to_lru_list(lruvec, page, page_lru(page));
+ 	struct zone_reclaim_stat *reclaim_stat = &lruvec->reclaim_stat;
+@@ -1364,8 +1365,10 @@ putback_inactive_pages(struct lruvec *lruvec,
+ 		}
+ 
+ 		/* can differ only on lumpy reclaim */
+-		lruvec = __relock_page_lruvec(lruvec, page);
+-		reclaim_stat = &lruvec->reclaim_stat;
++		if (sc->order) {
++			lruvec = __relock_page_lruvec(lruvec, page);
++			reclaim_stat = &lruvec->reclaim_stat;
++		}
+ 
  		SetPageLRU(page);
- 	}
--	spin_unlock_irqrestore(&zone->lru_lock, flags);
-+	unlock_lruvec(lruvec, &flags);
- }
+ 		lru = page_lru(page);
+@@ -1565,7 +1568,7 @@ shrink_inactive_list(unsigned long nr_to_scan, struct lruvec *lruvec,
+ 		__count_vm_events(KSWAPD_STEAL, nr_reclaimed);
+ 	__count_zone_vm_events(PGSTEAL, zone, nr_reclaimed);
  
- int mem_cgroup_cache_charge(struct page *page, struct mm_struct *mm,
-@@ -4648,7 +4659,16 @@ static int alloc_mem_cgroup_per_zone_info(struct mem_cgroup *memcg, int node)
+-	lruvec = putback_inactive_pages(lruvec, &page_list);
++	lruvec = putback_inactive_pages(lruvec, sc, &page_list);
  
- static void free_mem_cgroup_per_zone_info(struct mem_cgroup *memcg, int node)
- {
--	kfree(memcg->info.nodeinfo[node]);
-+	struct mem_cgroup_per_node *pn = memcg->info.nodeinfo[node];
-+	int zone;
-+
-+	if (!pn)
-+		return;
-+
-+	for (zone = 0; zone < MAX_NR_ZONES; zone++)
-+		wait_lruvec_unlock(&pn->zoneinfo[zone].lruvec);
-+
-+	kfree(pn);
- }
+ 	__mod_zone_page_state(zone, NR_ISOLATED_ANON, -nr_anon);
+ 	__mod_zone_page_state(zone, NR_ISOLATED_FILE, -nr_file);
+@@ -1630,6 +1633,7 @@ shrink_inactive_list(unsigned long nr_to_scan, struct lruvec *lruvec,
  
- static struct mem_cgroup *mem_cgroup_alloc(void)
+ static struct lruvec *
+ move_active_pages_to_lru(struct lruvec *lruvec,
++			 struct scan_control *sc,
+ 			 struct list_head *list,
+ 			 struct list_head *pages_to_free,
+ 			 enum lru_list lru)
+@@ -1655,7 +1659,8 @@ move_active_pages_to_lru(struct lruvec *lruvec,
+ 		page = lru_to_page(list);
+ 
+ 		/* can differ only on lumpy reclaim */
+-		lruvec = __relock_page_lruvec(lruvec, page);
++		if (sc->order)
++			lruvec = __relock_page_lruvec(lruvec, page);
+ 
+ 		VM_BUG_ON(PageLRU(page));
+ 		SetPageLRU(page);
+@@ -1771,9 +1776,9 @@ static void shrink_active_list(unsigned long nr_to_scan,
+ 	 */
+ 	reclaim_stat->recent_rotated[file] += nr_rotated;
+ 
+-	lruvec = move_active_pages_to_lru(lruvec, &l_active, &l_hold,
++	lruvec = move_active_pages_to_lru(lruvec, sc, &l_active, &l_hold,
+ 						LRU_ACTIVE + file * LRU_FILE);
+-	lruvec = move_active_pages_to_lru(lruvec, &l_inactive, &l_hold,
++	lruvec = move_active_pages_to_lru(lruvec, sc, &l_inactive, &l_hold,
+ 						LRU_BASE   + file * LRU_FILE);
+ 	__mod_zone_page_state(zone, NR_ISOLATED_ANON + file, -nr_taken);
+ 	unlock_lruvec_irq(lruvec);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
