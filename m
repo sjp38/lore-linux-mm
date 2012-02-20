@@ -1,21 +1,21 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx116.postini.com [74.125.245.116])
-	by kanga.kvack.org (Postfix) with SMTP id 87AD96B0083
+Received: from psmtp.com (na3sys010amx127.postini.com [74.125.245.127])
+	by kanga.kvack.org (Postfix) with SMTP id 678FF6B007E
 	for <linux-mm@kvack.org>; Mon, 20 Feb 2012 06:22:20 -0500 (EST)
 Received: from /spool/local
-	by e23smtp02.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e23smtp09.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
-	Mon, 20 Feb 2012 11:06:09 +1000
+	Mon, 20 Feb 2012 12:13:28 +1000
 Received: from d23av02.au.ibm.com (d23av02.au.ibm.com [9.190.235.138])
-	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q1KBMBVF1110144
-	for <linux-mm@kvack.org>; Mon, 20 Feb 2012 22:22:11 +1100
+	by d23relay05.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q1KBGu7O3252434
+	for <linux-mm@kvack.org>; Mon, 20 Feb 2012 22:16:56 +1100
 Received: from d23av02.au.ibm.com (loopback [127.0.0.1])
-	by d23av02.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q1KBMA4q019995
-	for <linux-mm@kvack.org>; Mon, 20 Feb 2012 22:22:11 +1100
+	by d23av02.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q1KBMDM8020028
+	for <linux-mm@kvack.org>; Mon, 20 Feb 2012 22:22:13 +1100
 From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Subject: [PATCH -V1 5/9] hugetlbfs: Add controller support for private mapping
-Date: Mon, 20 Feb 2012 16:51:38 +0530
-Message-Id: <1329736902-26870-6-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+Subject: [PATCH -V1 6/9] hugetlbfs: Switch to new region APIs
+Date: Mon, 20 Feb 2012 16:51:39 +0530
+Message-Id: <1329736902-26870-7-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
 In-Reply-To: <1329736902-26870-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
 References: <1329736902-26870-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
@@ -25,285 +25,644 @@ Cc: linux-kernel@vger.kernel.org, cgroups@kernel.org, "Aneesh Kumar K.V" <aneesh
 
 From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
 
-HugeTLB controller is different from a memory controller in that we charge
-controller during mmap() time and not fault time. This make sure userspace
-can fallback to non-hugepage allocation when mmap fails due to controller
-limit.
-
-For private mapping we always charge/uncharge from the current task cgroup.
-Charging happens during mmap(2) and uncharge happens during the
-vm_operations->close when resv_map refcount reaches zero. The uncharge count
-is stored in struct resv_map. For child task after fork the charging happens
-during fault time in alloc_huge_page. We also need to make sure for private
-mapping each vma for hugeTLB mapping have struct resv_map allocated so that we
-can store the uncharge count in resv_map.
+Remove the old code which is not used
 
 Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
 ---
- fs/hugetlbfs/hugetlb_cgroup.c  |   50 ++++++++++++++++++++++++++++++++
- include/linux/hugetlb.h        |    7 ++++
- include/linux/hugetlb_cgroup.h |   16 ++++++++++
- mm/hugetlb.c                   |   62 ++++++++++++++++++++++++++++++++--------
- 4 files changed, 123 insertions(+), 12 deletions(-)
+ fs/hugetlbfs/Makefile          |    2 +-
+ fs/hugetlbfs/hugetlb_cgroup.c  |  135 +--------------------------
+ fs/hugetlbfs/region.c          |  202 ++++++++++++++++++++++++++++++++++++++++
+ include/linux/hugetlb_cgroup.h |   17 +++-
+ mm/hugetlb.c                   |  163 +--------------------------------
+ 5 files changed, 222 insertions(+), 297 deletions(-)
+ create mode 100644 fs/hugetlbfs/region.c
 
+diff --git a/fs/hugetlbfs/Makefile b/fs/hugetlbfs/Makefile
+index 986c778..3c544fe 100644
+--- a/fs/hugetlbfs/Makefile
++++ b/fs/hugetlbfs/Makefile
+@@ -4,5 +4,5 @@
+ 
+ obj-$(CONFIG_HUGETLBFS) += hugetlbfs.o
+ 
+-hugetlbfs-objs := inode.o
++hugetlbfs-objs := inode.o region.o
+ hugetlbfs-$(CONFIG_CGROUP_HUGETLB_RES_CTLR) += hugetlb_cgroup.o
 diff --git a/fs/hugetlbfs/hugetlb_cgroup.c b/fs/hugetlbfs/hugetlb_cgroup.c
-index 4806d43..a75661d 100644
+index a75661d..a4c6786 100644
 --- a/fs/hugetlbfs/hugetlb_cgroup.c
 +++ b/fs/hugetlbfs/hugetlb_cgroup.c
-@@ -447,3 +447,53 @@ long hugetlb_truncate_cgroup(struct hstate *h,
- 	}
- 	return chg;
- }
+@@ -18,6 +18,8 @@
+ #include <linux/hugetlb.h>
+ #include <linux/res_counter.h>
+ #include <linux/list.h>
++#include <linux/hugetlb_cgroup.h>
 +
-+int hugetlb_priv_page_charge(struct resv_map *map, struct hstate *h, long chg)
-+{
-+	long csize;
-+	int idx, ret;
-+	struct hugetlb_cgroup *h_cg;
-+	struct res_counter *fail_res;
-+
-+	/*
-+	 * Get the task cgroup within rcu_readlock and also
-+	 * get cgroup reference to make sure cgroup destroy won't
-+	 * race with page_charge. We don't allow a cgroup destroy
-+	 * when the cgroup have some charge against it
-+	 */
-+	rcu_read_lock();
-+	h_cg = task_hugetlbcgroup(current);
-+	css_get(&h_cg->css);
-+	rcu_read_unlock();
-+
-+	if (hugetlb_cgroup_is_root(h_cg)) {
-+		ret = chg;
-+		goto err_out;
-+	}
-+
-+	csize = chg * huge_page_size(h);
-+	idx = h - hstates;
-+	ret = res_counter_charge(&h_cg->memhuge[idx], csize, &fail_res);
-+	if (!ret) {
-+		map->nr_pages[idx] += chg << huge_page_order(h);
-+		ret = chg;
-+	}
-+err_out:
-+	css_put(&h_cg->css);
-+	return ret;
-+}
-+
-+void hugetlb_priv_page_uncharge(struct resv_map *map, int idx, long nr_pages)
-+{
-+	struct hugetlb_cgroup *h_cg;
-+	unsigned long csize = nr_pages * PAGE_SIZE;
-+
-+	rcu_read_lock();
-+	h_cg = task_hugetlbcgroup(current);
-+	if (!hugetlb_cgroup_is_root(h_cg)) {
-+		res_counter_uncharge(&h_cg->memhuge[idx], csize);
-+		map->nr_pages[idx] -= nr_pages;
-+	}
-+	rcu_read_unlock();
-+	return;
-+}
-diff --git a/include/linux/hugetlb.h b/include/linux/hugetlb.h
-index 4392b6a..8576fa0 100644
---- a/include/linux/hugetlb.h
-+++ b/include/linux/hugetlb.h
-@@ -253,6 +253,12 @@ struct hstate *size_to_hstate(unsigned long size);
- #define HUGE_MAX_HSTATE 1
- #endif
  
-+struct resv_map {
-+	struct kref refs;
-+	long nr_pages[HUGE_MAX_HSTATE];
-+	struct list_head regions;
-+};
-+
- extern struct hstate hstates[HUGE_MAX_HSTATE];
- extern unsigned int default_hstate_idx;
+ /* lifted from mem control */
+ #define MEMFILE_PRIVATE(x, val)	(((x) << 16) | (val))
+@@ -32,136 +34,9 @@ struct hugetlb_cgroup {
+ 	struct res_counter memhuge[HUGE_MAX_HSTATE];
+ };
  
-@@ -323,6 +329,7 @@ static inline unsigned hstate_index_to_shift(unsigned index)
+-struct file_region_with_data {
+-	struct list_head link;
+-	long from;
+-	long to;
+-	unsigned long data;
+-};
+-
+ struct cgroup_subsys hugetlb_subsys __read_mostly;
+ struct hugetlb_cgroup *root_h_cgroup __read_mostly;
  
- #else
- struct hstate {};
-+struct resv_map {};
- #define alloc_huge_page_node(h, nid) NULL
- #define alloc_bootmem_huge_page(h) NULL
- #define hstate_file(f) NULL
-diff --git a/include/linux/hugetlb_cgroup.h b/include/linux/hugetlb_cgroup.h
-index 9240e99..1af9dd8 100644
---- a/include/linux/hugetlb_cgroup.h
-+++ b/include/linux/hugetlb_cgroup.h
-@@ -32,6 +32,10 @@ extern void hugetlb_page_uncharge(struct list_head *head,
- extern void hugetlb_commit_page_charge(struct list_head *head, long f, long t);
- extern long hugetlb_truncate_cgroup(struct hstate *h,
- 				    struct list_head *head, long from);
-+extern int hugetlb_priv_page_charge(struct resv_map *map,
-+				    struct hstate *h, long chg);
-+extern void hugetlb_priv_page_uncharge(struct resv_map *map,
-+				       int idx, long nr_pages);
- #else
- static inline long hugetlb_page_charge(struct list_head *head,
- 				       struct hstate *h, long f, long t)
-@@ -57,5 +61,17 @@ static inline long hugetlb_truncate_cgroup(struct hstate *h,
+-/*
+- * A vairant of region_add that only merges regions only if data
+- * match.
+- */
+-static long region_chg_with_same(struct list_head *head,
+-				 long f, long t, unsigned long data)
+-{
+-	long chg = 0;
+-	struct file_region_with_data *rg, *nrg, *trg;
+-
+-	/* Locate the region we are before or in. */
+-	list_for_each_entry(rg, head, link)
+-		if (f <= rg->to)
+-			break;
+-	/*
+-	 * If we are below the current region then a new region is required.
+-	 * Subtle, allocate a new region at the position but make it zero
+-	 * size such that we can guarantee to record the reservation.
+-	 */
+-	if (&rg->link == head || t < rg->from) {
+-		nrg = kmalloc(sizeof(*nrg), GFP_KERNEL);
+-		if (!nrg)
+-			return -ENOMEM;
+-		nrg->from = f;
+-		nrg->to = f;
+-		nrg->data = data;
+-		INIT_LIST_HEAD(&nrg->link);
+-		list_add(&nrg->link, rg->link.prev);
+-		return t - f;
+-	}
+-	/*
+-	 * f rg->from t rg->to
+-	 */
+-	if (f < rg->from && data != rg->data) {
+-		/* we need to allocate a new region */
+-		nrg = kmalloc(sizeof(*nrg), GFP_KERNEL);
+-		if (!nrg)
+-			return -ENOMEM;
+-		nrg->from = f;
+-		nrg->to = f;
+-		nrg->data = data;
+-		INIT_LIST_HEAD(&nrg->link);
+-		list_add(&nrg->link, rg->link.prev);
+-	}
+-
+-	/* Round our left edge to the current segment if it encloses us. */
+-	if (f > rg->from)
+-		f = rg->from;
+-	chg = t - f;
+-
+-	/* Check for and consume any regions we now overlap with. */
+-	list_for_each_entry_safe(rg, trg, rg->link.prev, link) {
+-		if (&rg->link == head)
+-			break;
+-		if (rg->from > t)
+-			return chg;
+-		/*
+-		 * rg->from f rg->to t
+-		 */
+-		if (t > rg->to && data != rg->data) {
+-			/* we need to allocate a new region */
+-			nrg = kmalloc(sizeof(*nrg), GFP_KERNEL);
+-			if (!nrg)
+-				return -ENOMEM;
+-			nrg->from = rg->to;
+-			nrg->to  = rg->to;
+-			nrg->data = data;
+-			INIT_LIST_HEAD(&nrg->link);
+-			list_add(&nrg->link, &rg->link);
+-		}
+-		/*
+-		 * update charge
+-		 */
+-		if (rg->to > t) {
+-			chg += rg->to - t;
+-			t = rg->to;
+-		}
+-		chg -= rg->to - rg->from;
+-	}
+-	return chg;
+-}
+-
+-static void region_add_with_same(struct list_head *head,
+-				 long f, long t, unsigned long data)
+-{
+-	struct file_region_with_data *rg, *nrg, *trg;
+-
+-	/* Locate the region we are before or in. */
+-	list_for_each_entry(rg, head, link)
+-		if (f <= rg->to)
+-			break;
+-
+-	list_for_each_entry_safe(rg, trg, rg->link.prev, link) {
+-
+-		if (rg->from > t)
+-			return;
+-		if (&rg->link == head)
+-			return;
+-
+-		/*FIXME!! this can possibly delete few regions */
+-		/* We need to worry only if we match data */
+-		if (rg->data == data) {
+-			if (f < rg->from)
+-				rg->from = f;
+-			if (t > rg->to) {
+-				/* if we are the last entry */
+-				if (rg->link.next == head) {
+-					rg->to = t;
+-					break;
+-				} else {
+-					nrg = list_entry(rg->link.next,
+-							 typeof(*nrg), link);
+-					rg->to = nrg->from;
+-				}
+-			}
+-		}
+-		f = rg->to;
+-	}
+-}
+-
+ static inline
+ struct hugetlb_cgroup *css_to_hugetlbcgroup(struct cgroup_subsys_state *s)
  {
- 	return region_truncate(head, from);
+@@ -355,7 +230,7 @@ long hugetlb_page_charge(struct list_head *head,
+ 	css_get(&h_cg->css);
+ 	rcu_read_unlock();
+ 
+-	chg = region_chg_with_same(head, f, t, (unsigned long)h_cg);
++	chg = region_chg(head, f, t, (unsigned long)h_cg);
+ 	if (chg < 0)
+ 		goto err_out;
+ 
+@@ -400,7 +275,7 @@ void hugetlb_commit_page_charge(struct list_head *head, long f, long t)
+ 
+ 	rcu_read_lock();
+ 	h_cg = task_hugetlbcgroup(current);
+-	region_add_with_same(head, f, t, (unsigned long)h_cg);
++	region_add(head, f, t, (unsigned long)h_cg);
+ 	rcu_read_unlock();
+ 	return;
  }
+@@ -411,7 +286,7 @@ long hugetlb_truncate_cgroup(struct hstate *h,
+ 	long chg = 0, csize;
+ 	int idx = h - hstates;
+ 	struct hugetlb_cgroup *h_cg;
+-	struct file_region_with_data *rg, *trg;
++	struct file_region *rg, *trg;
+ 
+ 	/* Locate the region we are either in or before. */
+ 	list_for_each_entry(rg, head, link)
+diff --git a/fs/hugetlbfs/region.c b/fs/hugetlbfs/region.c
+new file mode 100644
+index 0000000..d2445fb
+--- /dev/null
++++ b/fs/hugetlbfs/region.c
+@@ -0,0 +1,202 @@
++/*
++ * Copyright IBM Corporation, 2012
++ * Author Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
++ *
++ * This program is free software; you can redistribute it and/or modify it
++ * under the terms of version 2.1 of the GNU Lesser General Public License
++ * as published by the Free Software Foundation.
++ *
++ * This program is distributed in the hope that it would be useful, but
++ * WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
++ *
++ */
 +
-+static inline int hugetlb_priv_page_charge(struct resv_map *map,
-+					   struct hstate *h, long chg)
++#include <linux/cgroup.h>
++#include <linux/slab.h>
++#include <linux/hugetlb.h>
++#include <linux/list.h>
++#include <linux/hugetlb_cgroup.h>
++
++/*
++ * Region tracking -- allows tracking of reservations and instantiated pages
++ *                    across the pages in a mapping.
++ *
++ * The region data structures are protected by a combination of the mmap_sem
++ * and the hugetlb_instantion_mutex.  To access or modify a region the caller
++ * must either hold the mmap_sem for write, or the mmap_sem for read and
++ * the hugetlb_instantiation mutex:
++ *
++ *	down_write(&mm->mmap_sem);
++ * or
++ *	down_read(&mm->mmap_sem);
++ *	mutex_lock(&hugetlb_instantiation_mutex);
++ */
++
++long region_chg(struct list_head *head, long f, long t, unsigned long data)
 +{
++	long chg = 0;
++	struct file_region *rg, *nrg, *trg;
++
++	/* Locate the region we are before or in. */
++	list_for_each_entry(rg, head, link)
++		if (f <= rg->to)
++			break;
++	/*
++	 * If we are below the current region then a new region is required.
++	 * Subtle, allocate a new region at the position but make it zero
++	 * size such that we can guarantee to record the reservation.
++	 */
++	if (&rg->link == head || t < rg->from) {
++		nrg = kmalloc(sizeof(*nrg), GFP_KERNEL);
++		if (!nrg)
++			return -ENOMEM;
++		nrg->from = f;
++		nrg->to = f;
++		nrg->data = data;
++		INIT_LIST_HEAD(&nrg->link);
++		list_add(&nrg->link, rg->link.prev);
++		return t - f;
++	}
++	/*
++	 * f rg->from t rg->to
++	 */
++	if (f < rg->from && data != rg->data) {
++		/* we need to allocate a new region */
++		nrg = kmalloc(sizeof(*nrg), GFP_KERNEL);
++		if (!nrg)
++			return -ENOMEM;
++		nrg->from = f;
++		nrg->to = f;
++		nrg->data = data;
++		INIT_LIST_HEAD(&nrg->link);
++		list_add(&nrg->link, rg->link.prev);
++	}
++
++	/* Round our left edge to the current segment if it encloses us. */
++	if (f > rg->from)
++		f = rg->from;
++	chg = t - f;
++
++	/* Check for and consume any regions we now overlap with. */
++	list_for_each_entry_safe(rg, trg, rg->link.prev, link) {
++		if (&rg->link == head)
++			break;
++		if (rg->from > t)
++			return chg;
++		/*
++		 * rg->from f rg->to t
++		 */
++		if (t > rg->to && data != rg->data) {
++			/* we need to allocate a new region */
++			nrg = kmalloc(sizeof(*nrg), GFP_KERNEL);
++			if (!nrg)
++				return -ENOMEM;
++			nrg->from = rg->to;
++			nrg->to  = rg->to;
++			nrg->data = data;
++			INIT_LIST_HEAD(&nrg->link);
++			list_add(&nrg->link, &rg->link);
++		}
++		/*
++		 * update charge
++		 */
++		if (rg->to > t) {
++			chg += rg->to - t;
++			t = rg->to;
++		}
++		chg -= rg->to - rg->from;
++	}
 +	return chg;
 +}
 +
-+static inline void hugetlb_priv_page_uncharge(struct resv_map *map,
-+					      int idx, long nr_pages)
++void region_add(struct list_head *head, long f, long t, unsigned long data)
 +{
-+	return;
++	struct file_region *rg, *nrg, *trg;
++
++	/* Locate the region we are before or in. */
++	list_for_each_entry(rg, head, link)
++		if (f <= rg->to)
++			break;
++
++	list_for_each_entry_safe(rg, trg, rg->link.prev, link) {
++
++		if (rg->from > t)
++			return;
++		if (&rg->link == head)
++			return;
++
++		/*FIXME!! this can possibly delete few regions */
++		/* We need to worry only if we match data */
++		if (rg->data == data) {
++			if (f < rg->from)
++				rg->from = f;
++			if (t > rg->to) {
++				/* if we are the last entry */
++				if (rg->link.next == head) {
++					rg->to = t;
++					break;
++				} else {
++					nrg = list_entry(rg->link.next,
++							 typeof(*nrg), link);
++					rg->to = nrg->from;
++				}
++			}
++		}
++		f = rg->to;
++	}
 +}
- #endif /* CONFIG_CGROUP_HUGETLB_RES_CTLR */
- #endif
++
++long region_truncate(struct list_head *head, long end)
++{
++	struct file_region *rg, *trg;
++	long chg = 0;
++
++	/* Locate the region we are either in or before. */
++	list_for_each_entry(rg, head, link)
++		if (end <= rg->to)
++			break;
++	if (&rg->link == head)
++		return 0;
++
++	/* If we are in the middle of a region then adjust it. */
++	if (end > rg->from) {
++		chg = rg->to - end;
++		rg->to = end;
++		rg = list_entry(rg->link.next, typeof(*rg), link);
++	}
++
++	/* Drop any remaining regions. */
++	list_for_each_entry_safe(rg, trg, rg->link.prev, link) {
++		if (&rg->link == head)
++			break;
++		chg += rg->to - rg->from;
++		list_del(&rg->link);
++		kfree(rg);
++	}
++	return chg;
++}
++
++long region_count(struct list_head *head, long f, long t)
++{
++	struct file_region *rg;
++	long chg = 0;
++
++	/* Locate each segment we overlap with, and count that overlap. */
++	list_for_each_entry(rg, head, link) {
++		int seg_from;
++		int seg_to;
++
++		if (rg->to <= f)
++			continue;
++		if (rg->from >= t)
++			break;
++
++		seg_from = max(rg->from, f);
++		seg_to = min(rg->to, t);
++
++		chg += seg_to - seg_from;
++	}
++
++	return chg;
++}
+diff --git a/include/linux/hugetlb_cgroup.h b/include/linux/hugetlb_cgroup.h
+index 1af9dd8..eaad86b 100644
+--- a/include/linux/hugetlb_cgroup.h
++++ b/include/linux/hugetlb_cgroup.h
+@@ -15,8 +15,16 @@
+ #ifndef _LINUX_HUGETLB_CGROUP_H
+ #define _LINUX_HUGETLB_CGROUP_H
+ 
+-extern long region_add(struct list_head *head, long f, long t);
+-extern long region_chg(struct list_head *head, long f, long t);
++struct file_region {
++	long from, to;
++	unsigned long data;
++	struct list_head link;
++};
++
++extern long region_chg(struct list_head *head, long f, long t,
++		       unsigned long data);
++extern void region_add(struct list_head *head, long f, long t,
++		       unsigned long data);
+ extern long region_truncate(struct list_head *head, long end);
+ extern long region_count(struct list_head *head, long f, long t);
+ 
+@@ -40,7 +48,7 @@ extern void hugetlb_priv_page_uncharge(struct resv_map *map,
+ static inline long hugetlb_page_charge(struct list_head *head,
+ 				       struct hstate *h, long f, long t)
+ {
+-	return region_chg(head, f, t);
++	return region_chg(head, f, t, 0);
+ }
+ 
+ static inline void hugetlb_page_uncharge(struct list_head *head,
+@@ -52,8 +60,7 @@ static inline void hugetlb_page_uncharge(struct list_head *head,
+ static inline void hugetlb_commit_page_charge(struct list_head *head,
+ 					      long f, long t)
+ {
+-	region_add(head, f, t);
+-	return;
++	return region_add(head, f, t, 0);
+ }
+ 
+ static inline long hugetlb_truncate_cgroup(struct hstate *h,
 diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-index 80ee085..e1a0328 100644
+index e1a0328..08555c6 100644
 --- a/mm/hugetlb.c
 +++ b/mm/hugetlb.c
-@@ -303,14 +303,9 @@ static void set_vma_private_data(struct vm_area_struct *vma,
- 	vma->vm_private_data = (void *)value;
- }
+@@ -59,165 +59,6 @@ static unsigned long __initdata default_hstate_size;
+ static DEFINE_SPINLOCK(hugetlb_lock);
  
--struct resv_map {
--	struct kref refs;
--	struct list_head regions;
+ /*
+- * Region tracking -- allows tracking of reservations and instantiated pages
+- *                    across the pages in a mapping.
+- *
+- * The region data structures are protected by a combination of the mmap_sem
+- * and the hugetlb_instantion_mutex.  To access or modify a region the caller
+- * must either hold the mmap_sem for write, or the mmap_sem for read and
+- * the hugetlb_instantiation mutex:
+- *
+- *	down_write(&mm->mmap_sem);
+- * or
+- *	down_read(&mm->mmap_sem);
+- *	mutex_lock(&hugetlb_instantiation_mutex);
+- */
+-struct file_region {
+-	struct list_head link;
+-	long from;
+-	long to;
 -};
 -
- static struct resv_map *resv_map_alloc(void)
- {
--	struct resv_map *resv_map = kmalloc(sizeof(*resv_map), GFP_KERNEL);
-+	struct resv_map *resv_map = kzalloc(sizeof(*resv_map), GFP_KERNEL);
- 	if (!resv_map)
- 		return NULL;
- 
-@@ -322,10 +317,16 @@ static struct resv_map *resv_map_alloc(void)
- 
- static void resv_map_release(struct kref *ref)
- {
-+	int idx;
- 	struct resv_map *resv_map = container_of(ref, struct resv_map, refs);
- 
- 	/* Clear out any active regions before we release the map. */
- 	region_truncate(&resv_map->regions, 0);
-+	/* drop the hugetlb cgroup charge */
-+	for (idx = 0; idx < HUGE_MAX_HSTATE; idx++) {
-+		hugetlb_priv_page_uncharge(resv_map, idx,
-+					   resv_map->nr_pages[idx]);
-+	}
- 	kfree(resv_map);
- }
- 
-@@ -989,9 +990,20 @@ static long vma_needs_reservation(struct hstate *h,
- 		return hugetlb_page_charge(&inode->i_mapping->private_list,
- 					   h, idx, idx + 1);
- 	} else if (!is_vma_resv_set(vma, HPAGE_RESV_OWNER)) {
--		return 1;
+-long region_add(struct list_head *head, long f, long t)
+-{
+-	struct file_region *rg, *nrg, *trg;
 -
-+		struct resv_map *resv_map = vma_resv_map(vma);
-+		if (!resv_map) {
-+			/*
-+			 * We didn't allocate resv_map for this vma.
-+			 * Allocate it here.
-+			 */
-+			resv_map = resv_map_alloc();
-+			if (!resv_map)
-+				return -ENOMEM;
-+			set_vma_resv_map(vma, resv_map);
-+		}
-+		return hugetlb_priv_page_charge(resv_map, h, 1);
- 	} else  {
-+		/* We did the priv page charging in mmap call */
- 		long err;
+-	/* Locate the region we are either in or before. */
+-	list_for_each_entry(rg, head, link)
+-		if (f <= rg->to)
+-			break;
+-
+-	/* Round our left edge to the current segment if it encloses us. */
+-	if (f > rg->from)
+-		f = rg->from;
+-
+-	/* Check for and consume any regions we now overlap with. */
+-	nrg = rg;
+-	list_for_each_entry_safe(rg, trg, rg->link.prev, link) {
+-		if (&rg->link == head)
+-			break;
+-		if (rg->from > t)
+-			break;
+-
+-		/* If this area reaches higher then extend our area to
+-		 * include it completely.  If this is not the first area
+-		 * which we intend to reuse, free it. */
+-		if (rg->to > t)
+-			t = rg->to;
+-		if (rg != nrg) {
+-			list_del(&rg->link);
+-			kfree(rg);
+-		}
+-	}
+-	nrg->from = f;
+-	nrg->to = t;
+-	return 0;
+-}
+-
+-long region_chg(struct list_head *head, long f, long t)
+-{
+-	struct file_region *rg, *nrg;
+-	long chg = 0;
+-
+-	/* Locate the region we are before or in. */
+-	list_for_each_entry(rg, head, link)
+-		if (f <= rg->to)
+-			break;
+-
+-	/* If we are below the current region then a new region is required.
+-	 * Subtle, allocate a new region at the position but make it zero
+-	 * size such that we can guarantee to record the reservation. */
+-	if (&rg->link == head || t < rg->from) {
+-		nrg = kmalloc(sizeof(*nrg), GFP_KERNEL);
+-		if (!nrg)
+-			return -ENOMEM;
+-		nrg->from = f;
+-		nrg->to   = f;
+-		INIT_LIST_HEAD(&nrg->link);
+-		list_add(&nrg->link, rg->link.prev);
+-
+-		return t - f;
+-	}
+-
+-	/* Round our left edge to the current segment if it encloses us. */
+-	if (f > rg->from)
+-		f = rg->from;
+-	chg = t - f;
+-
+-	/* Check for and consume any regions we now overlap with. */
+-	list_for_each_entry(rg, rg->link.prev, link) {
+-		if (&rg->link == head)
+-			break;
+-		if (rg->from > t)
+-			return chg;
+-
+-		/* We overlap with this area, if it extends further than
+-		 * us then we must extend ourselves.  Account for its
+-		 * existing reservation. */
+-		if (rg->to > t) {
+-			chg += rg->to - t;
+-			t = rg->to;
+-		}
+-		chg -= rg->to - rg->from;
+-	}
+-	return chg;
+-}
+-
+-long region_truncate(struct list_head *head, long end)
+-{
+-	struct file_region *rg, *trg;
+-	long chg = 0;
+-
+-	/* Locate the region we are either in or before. */
+-	list_for_each_entry(rg, head, link)
+-		if (end <= rg->to)
+-			break;
+-	if (&rg->link == head)
+-		return 0;
+-
+-	/* If we are in the middle of a region then adjust it. */
+-	if (end > rg->from) {
+-		chg = rg->to - end;
+-		rg->to = end;
+-		rg = list_entry(rg->link.next, typeof(*rg), link);
+-	}
+-
+-	/* Drop any remaining regions. */
+-	list_for_each_entry_safe(rg, trg, rg->link.prev, link) {
+-		if (&rg->link == head)
+-			break;
+-		chg += rg->to - rg->from;
+-		list_del(&rg->link);
+-		kfree(rg);
+-	}
+-	return chg;
+-}
+-
+-long region_count(struct list_head *head, long f, long t)
+-{
+-	struct file_region *rg;
+-	long chg = 0;
+-
+-	/* Locate each segment we overlap with, and count that overlap. */
+-	list_for_each_entry(rg, head, link) {
+-		int seg_from;
+-		int seg_to;
+-
+-		if (rg->to <= f)
+-			continue;
+-		if (rg->from >= t)
+-			break;
+-
+-		seg_from = max(rg->from, f);
+-		seg_to = min(rg->to, t);
+-
+-		chg += seg_to - seg_from;
+-	}
+-
+-	return chg;
+-}
+-
+-/*
+  * Convert the address within this vma to the page offset within
+  * the mapping, in pagecache page units; huge pages here.
+  */
+@@ -1008,7 +849,7 @@ static long vma_needs_reservation(struct hstate *h,
  		pgoff_t idx = vma_hugecache_offset(h, vma, addr);
  		struct resv_map *reservations = vma_resv_map(vma);
-@@ -1007,14 +1019,20 @@ static void vma_uncharge_reservation(struct hstate *h,
- 				     struct vm_area_struct *vma,
- 				     unsigned long chg)
- {
-+	int idx = h - hstates;
- 	struct address_space *mapping = vma->vm_file->f_mapping;
- 	struct inode *inode = mapping->host;
  
+-		err = region_chg(&reservations->regions, idx, idx + 1);
++		err = region_chg(&reservations->regions, idx, idx + 1, 0);
+ 		if (err < 0)
+ 			return err;
+ 		return 0;
+@@ -1052,7 +893,7 @@ static void vma_commit_reservation(struct hstate *h,
+ 		struct resv_map *reservations = vma_resv_map(vma);
  
- 	if (vma->vm_flags & VM_MAYSHARE) {
- 		return hugetlb_page_uncharge(&inode->i_mapping->private_list,
--					     h - hstates,
--					     chg << huge_page_order(h));
-+					     idx, chg << huge_page_order(h));
-+	} else {
-+		struct resv_map *resv_map = vma_resv_map(vma);
-+
-+		return hugetlb_priv_page_uncharge(resv_map,
-+						  idx,
-+						  chg << huge_page_order(h));
+ 		/* Mark this page used in the map. */
+-		region_add(&reservations->regions, idx, idx + 1);
++		region_add(&reservations->regions, idx, idx + 1, 0);
  	}
  }
  
-@@ -2165,6 +2183,22 @@ static void hugetlb_vm_op_open(struct vm_area_struct *vma)
- 	 */
- 	if (reservations)
- 		kref_get(&reservations->refs);
-+	else if (!(vma->vm_flags & VM_MAYSHARE)) {
-+		/*
-+		 * for non shared vma we need resv map to track
-+		 * hugetlb cgroup usage. Allocate it here. Charging
-+		 * the cgroup will take place in fault path.
-+		 */
-+		struct resv_map *resv_map = resv_map_alloc();
-+		/*
-+		 * If we fail to allocate resv_map here. We will allocate
-+		 * one when we do alloc_huge_page. So we don't handle
-+		 * ENOMEM here. The function also return void. So there is
-+		 * nothing much we can do.
-+		 */
-+		if (resv_map)
-+			set_vma_resv_map(vma, resv_map);
-+	}
- }
- 
- static void hugetlb_vm_op_close(struct vm_area_struct *vma)
-@@ -2968,7 +3002,7 @@ int hugetlb_reserve_pages(struct inode *inode,
- {
- 	long ret, chg;
- 	struct hstate *h = hstate_inode(inode);
--
-+	struct resv_map *resv_map = NULL;
- 	/*
- 	 * Only apply hugepage reservation if asked. At fault time, an
- 	 * attempt will be made for VM_NORESERVE to allocate a page
-@@ -2987,7 +3021,7 @@ int hugetlb_reserve_pages(struct inode *inode,
- 		chg = hugetlb_page_charge(&inode->i_mapping->private_list,
- 					  h, from, to);
- 	} else {
--		struct resv_map *resv_map = resv_map_alloc();
-+		resv_map = resv_map_alloc();
- 		if (!resv_map)
- 			return -ENOMEM;
- 
-@@ -2995,6 +3029,7 @@ int hugetlb_reserve_pages(struct inode *inode,
- 
- 		set_vma_resv_map(vma, resv_map);
- 		set_vma_resv_flags(vma, HPAGE_RESV_OWNER);
-+		chg = hugetlb_priv_page_charge(resv_map, h, chg);
- 	}
- 
- 	if (chg < 0)
-@@ -3033,6 +3068,9 @@ err_quota:
- 	if (!vma || vma->vm_flags & VM_MAYSHARE)
- 		hugetlb_page_uncharge(&inode->i_mapping->private_list,
- 				      h - hstates, chg << huge_page_order(h));
-+	else
-+		hugetlb_priv_page_uncharge(resv_map, h - hstates,
-+					   chg << huge_page_order(h));
- 	return ret;
- 
- }
 -- 
 1.7.9
 
