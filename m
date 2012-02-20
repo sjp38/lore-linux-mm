@@ -1,59 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx156.postini.com [74.125.245.156])
-	by kanga.kvack.org (Postfix) with SMTP id DBF946B0083
-	for <linux-mm@kvack.org>; Mon, 20 Feb 2012 02:29:06 -0500 (EST)
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: Re: [PATCH 2/6] thp: optimize away unnecessary page table locking
-Date: Mon, 20 Feb 2012 02:28:47 -0500
-Message-Id: <1329722927-12108-1-git-send-email-n-horiguchi@ah.jp.nec.com>
-In-Reply-To: <alpine.LSU.2.00.1202191316320.1466@eggly.anvils>
+Received: from psmtp.com (na3sys010amx187.postini.com [74.125.245.187])
+	by kanga.kvack.org (Postfix) with SMTP id 3F3946B007E
+	for <linux-mm@kvack.org>; Mon, 20 Feb 2012 02:57:37 -0500 (EST)
+Received: by vbip1 with SMTP id p1so4941036vbi.14
+        for <linux-mm@kvack.org>; Sun, 19 Feb 2012 23:57:36 -0800 (PST)
+MIME-Version: 1.0
+In-Reply-To: <20120217142806.07a97347.akpm@linux-foundation.org>
+References: <1328257256-1296-1-git-send-email-geunsik.lim@gmail.com>
+	<20120217142806.07a97347.akpm@linux-foundation.org>
+Date: Mon, 20 Feb 2012 16:57:35 +0900
+Message-ID: <CAGFP0LJhqC9xqn=BmoOyRL_wJX8=KU=Z4+k=t=C3MLhWYqWLnQ@mail.gmail.com>
+Subject: Re: [PATCH] Fix potentially derefencing uninitialized 'r'.
+From: Geunsik Lim <geunsik.lim@gmail.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Andi Kleen <andi@firstfloor.org>, Wu Fengguang <fengguang.wu@intel.com>, Andrea Arcangeli <aarcange@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: "H. Peter Anvin" <hpa@linux.intel.com>, Yinghai Lu <yinghai@kernel.org>, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
 
-On Sun, Feb 19, 2012 at 01:21:02PM -0800, Hugh Dickins wrote:
-> On Wed, 8 Feb 2012, Naoya Horiguchi wrote:
-> > Currently when we check if we can handle thp as it is or we need to
-> > split it into regular sized pages, we hold page table lock prior to
-> > check whether a given pmd is mapping thp or not. Because of this,
-> > when it's not "huge pmd" we suffer from unnecessary lock/unlock overhead.
-> > To remove it, this patch introduces a optimized check function and
-> > replace several similar logics with it.
-> > 
-> > Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-> > Cc: David Rientjes <rientjes@google.com>
-> > 
-> > Changes since v4:
-> >   - Rethink returned value of __pmd_trans_huge_lock()
-> 
-> [snip]
-> 
-> > --- 3.3-rc2.orig/mm/mremap.c
-> > +++ 3.3-rc2/mm/mremap.c
-> > @@ -155,8 +155,6 @@ unsigned long move_page_tables(struct vm_area_struct *vma,
-> >  			if (err > 0) {
-> >  				need_flush = true;
-> >  				continue;
-> > -			} else if (!err) {
-> > -				split_huge_page_pmd(vma->vm_mm, old_pmd);
-> >  			}
-> >  			VM_BUG_ON(pmd_trans_huge(*old_pmd));
-> >  		}
+On Sat, Feb 18, 2012 at 7:28 AM, Andrew Morton
+<akpm@linux-foundation.org> wrote:
+> On Fri, =C2=A03 Feb 2012 17:20:56 +0900
+> Geunsik Lim <geunsik.lim@gmail.com> wrote:
+>
+>> struct memblock_region 'r' will not be initialized potentially
+>> because of while statement's condition in __next_mem_pfn_range()function=
+.
+>> Initialize struct memblock_region data structure by default.
+>>
+>> Signed-off-by: Geunsik Lim <geunsik.lim@samsung.com>
+>> ---
+>> =C2=A0mm/memblock.c | =C2=A0 =C2=A02 +-
+>> =C2=A01 files changed, 1 insertions(+), 1 deletions(-)
+>>
+>> diff --git a/mm/memblock.c b/mm/memblock.c
+>> index 77b5f22..867f5a2 100644
+>> --- a/mm/memblock.c
+>> +++ b/mm/memblock.c
+>> @@ -671,7 +671,7 @@ void __init_memblock __next_mem_pfn_range(int *idx, =
+int nid,
+>> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
+=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 unsigned long *out_end_pfn, int *out_nid=
+)
+>> =C2=A0{
+>> =C2=A0 =C2=A0 =C2=A0 struct memblock_type *type =3D &memblock.memory;
+>> - =C2=A0 =C2=A0 struct memblock_region *r;
+>> + =C2=A0 =C2=A0 struct memblock_region *r =3D &type->regions[*idx];
+>>
+>> =C2=A0 =C2=A0 =C2=A0 while (++*idx < type->cnt) {
+>> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 r =3D &type->regions[*i=
+dx];
+>
+> The following `if' test prevents any such dereference.
+>
+> Maybe you saw a compilation warning (I didn't). =C2=A0If so,
+> unintialized_var() is one way of suppressing it.
+Yepp. This patch is  for solving compilation warning as you commented.
+>
+> A better way is to reorganise the code (nicely). =C2=A0Often that option
+> isn't available.
+I will post patch again after reorganizing the code with better way.
+Thanks.
+>
+>
 
-Thanks for reporting, 
 
-> Is that what you intended to do there?
 
-No. This is a bug.
+--=20
+----
+Best regards,
+Geunsik Lim, Samsung Electronics
+http://leemgs.fedorapeople.org
+----
+To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
+the body of a message to majordomo@vger.kernel.org
+More majordomo info at =C2=A0http://vger.kernel.org/majordomo-info.html
+Please read the FAQ at =C2=A0http://www.tux.org/lkml/
 
-> I just hit that VM_BUG_ON on rc3-next-20120217.
-
-I found that when extend != HPAGE_PMD_SIZE, thp is not split so
-it hits the VM_BUG_ON.
-The following patch cancels the change in returned value in v4->v5
-and I confirmed this fixes the problem in my simple test.
-Andrew, could you add it on top of this optimization patch?
-
-Naoya
-----------------------------------------------------
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Fight unfair telecom internet charges in Canada: sign http://stopthemeter.ca/
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
