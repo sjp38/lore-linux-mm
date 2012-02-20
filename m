@@ -1,74 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx177.postini.com [74.125.245.177])
-	by kanga.kvack.org (Postfix) with SMTP id D0FB36B004D
-	for <linux-mm@kvack.org>; Mon, 20 Feb 2012 06:06:29 -0500 (EST)
-Date: Mon, 20 Feb 2012 12:06:27 +0100
-From: Jan Kara <jack@suse.cz>
-Subject: Re: [PATCH 04/11] ceph: Push file_update_time() into
- ceph_page_mkwrite()
-Message-ID: <20120220110627.GB6799@quack.suse.cz>
-References: <1329399979-3647-1-git-send-email-jack@suse.cz>
- <1329399979-3647-5-git-send-email-jack@suse.cz>
- <1329419077.3121.38.camel@doink>
+Received: from psmtp.com (na3sys010amx122.postini.com [74.125.245.122])
+	by kanga.kvack.org (Postfix) with SMTP id 0EAAD6B004D
+	for <linux-mm@kvack.org>; Mon, 20 Feb 2012 06:11:54 -0500 (EST)
+Received: by pbcwz17 with SMTP id wz17so7573454pbc.14
+        for <linux-mm@kvack.org>; Mon, 20 Feb 2012 03:11:53 -0800 (PST)
+From: Kautuk Consul <consul.kautuk@gmail.com>
+Subject: [PATCH 1/1] shmem.c: Compilation failure in shmem_file_setup for !CONFIG_MMU
+Date: Mon, 20 Feb 2012 06:11:32 -0500
+Message-Id: <1329736292-19087-1-git-send-email-consul.kautuk@gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1329419077.3121.38.camel@doink>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Alex Elder <elder@dreamhost.com>
-Cc: Jan Kara <jack@suse.cz>, LKML <linux-kernel@vger.kernel.org>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Eric Sandeen <sandeen@redhat.com>, Dave Chinner <david@fromorbit.com>, Sage Weil <sage@newdream.net>, ceph-devel@vger.kernel.org
+To: Hugh Dickins <hughd@google.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Kautuk Consul <consul.kautuk@gmail.com>
 
-On Thu 16-02-12 13:04:37, Alex Elder wrote:
-> On Thu, 2012-02-16 at 14:46 +0100, Jan Kara wrote:
-> > CC: Sage Weil <sage@newdream.net>
-> > CC: ceph-devel@vger.kernel.org
-> > Signed-off-by: Jan Kara <jack@suse.cz>
-> 
-> 
-> This will update the timestamp even if a write
-> fault fails, which is different from before.
->
-> Hard to avoid though.
-  Yes. Relatively easy solution for this (at least for some filesystems)
-is to include time update into other operations filesystem is doing.
-Usually filesystem can do some preparations, then take page lock and then
-update time stamps together with other things it wants to do. It usually
-will be even faster than current scheme. But I decided to leave that to
-fs maintainers because page_mkwrite() code tends to be tricky wrt locking
-etc.
+I disabled the CONFIG_MMU and tried to compile the kernel and got the
+following problem:
+In function a??shmem_file_setupa??:
+error: implicit declaration of function a??ramfs_nommu_expand_for_mappinga??
 
+This is because, we do not include ramfs.h for CONFIG_SHMEM.
 
-> Looks good to me.
-> 
-> Signed-off-by: Alex Elder <elder@dreamhost.com>
-  Thanks.
+Included linux/ramfs.h for both CONFIG_SHMEM as well as !CONFIG_SHMEM.
 
-								Honza
+Signed-off-by: Kautuk Consul <consul.kautuk@gmail.com>
+---
+ mm/shmem.c |    3 +--
+ 1 files changed, 1 insertions(+), 2 deletions(-)
 
-> >  fs/ceph/addr.c |    3 +++
-> >  1 files changed, 3 insertions(+), 0 deletions(-)
-> > 
-> > diff --git a/fs/ceph/addr.c b/fs/ceph/addr.c
-> > index 173b1d2..12b139f 100644
-> > --- a/fs/ceph/addr.c
-> > +++ b/fs/ceph/addr.c
-> > @@ -1181,6 +1181,9 @@ static int ceph_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf)
-> >  	loff_t size, len;
-> >  	int ret;
-> >  
-> > +	/* Update time before taking page lock */
-> > +	file_update_time(vma->vm_file);
-> > +
-> >  	size = i_size_read(inode);
-> >  	if (off + PAGE_CACHE_SIZE <= size)
-> >  		len = PAGE_CACHE_SIZE;
-> 
-> 
-> 
+diff --git a/mm/shmem.c b/mm/shmem.c
+index 269d049..4884188 100644
+--- a/mm/shmem.c
++++ b/mm/shmem.c
+@@ -30,6 +30,7 @@
+ #include <linux/mm.h>
+ #include <linux/export.h>
+ #include <linux/swap.h>
++#include <linux/ramfs.h>
+ 
+ static struct vfsmount *shm_mnt;
+ 
+@@ -2442,8 +2443,6 @@ out4:
+  * effectively equivalent, but much lighter weight.
+  */
+ 
+-#include <linux/ramfs.h>
+-
+ static struct file_system_type shmem_fs_type = {
+ 	.name		= "tmpfs",
+ 	.mount		= ramfs_mount,
 -- 
-Jan Kara <jack@suse.cz>
-SUSE Labs, CR
+1.7.5.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
