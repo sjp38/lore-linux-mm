@@ -1,131 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx131.postini.com [74.125.245.131])
-	by kanga.kvack.org (Postfix) with SMTP id 4FA086B004D
-	for <linux-mm@kvack.org>; Mon, 20 Feb 2012 11:29:37 -0500 (EST)
-From: Dan Magenheimer <dan.magenheimer@oracle.com>
-Subject: [PATCH 1/2] staging: ramster: build ramster properly when CONFIG_OCFS2=m|y
-Date: Mon, 20 Feb 2012 08:29:30 -0800
-Message-Id: <1329755371-5444-1-git-send-email-dan.magenheimer@oracle.com>
+Received: from psmtp.com (na3sys010amx207.postini.com [74.125.245.207])
+	by kanga.kvack.org (Postfix) with SMTP id 069A86B004D
+	for <linux-mm@kvack.org>; Mon, 20 Feb 2012 12:22:39 -0500 (EST)
+Received: by bkty12 with SMTP id y12so6268158bkt.14
+        for <linux-mm@kvack.org>; Mon, 20 Feb 2012 09:22:37 -0800 (PST)
+Subject: [PATCH v2 00/22] mm: lru_lock splitting
+From: Konstantin Khlebnikov <khlebnikov@openvz.org>
+Date: Mon, 20 Feb 2012 21:22:35 +0400
+Message-ID: <20120220171138.22196.65847.stgit@zurg>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: devel@driverdev.osuosl.org, linux-kernel@vger.kernel.org, gregkh@linuxfoundation.org, linux-mm@kvack.org, konrad.wilk@oracle.com, dan.magenheimer@oracle.com
+To: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org
+Cc: Hugh Dickins <hughd@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-Due to some conflicting debug vars, kernel build will warn when
-CONFIG_RAMSTER=y and CONFIG_OCFS2=m and will fail when
-CONFIG_RAMSTER=y and CONFIG_OCFS2=y (rare).
+There complete patch-set with my lru_lock splitting
+plus all related preparations and cleanups rebased to next-20120210
 
-Rename ramster mlog vars to avoid the name conflict.
+git: https://github.com/koct9i/linux/commits/lruvec
 
-Signed-off-by: Dan Magenheimer <dan.magenheimer@oracle.com>
+main changes:
+* rebase
+* sed -e 's/book/lruvec/g'
+* fixed locking
+* some cleaning and reordering
+
 ---
- drivers/staging/ramster/cluster/masklog.c |   28 ++++++++++++++--------------
- drivers/staging/ramster/cluster/masklog.h |   10 +++++-----
- 2 files changed, 19 insertions(+), 19 deletions(-)
 
-diff --git a/drivers/staging/ramster/cluster/masklog.c b/drivers/staging/ramster/cluster/masklog.c
-index c2af3c7..1261d85 100644
---- a/drivers/staging/ramster/cluster/masklog.c
-+++ b/drivers/staging/ramster/cluster/masklog.c
-@@ -28,18 +28,18 @@
- 
- #include "masklog.h"
- 
--struct mlog_bits mlog_and_bits = MLOG_BITS_RHS(MLOG_INITIAL_AND_MASK);
--EXPORT_SYMBOL_GPL(mlog_and_bits);
--struct mlog_bits mlog_not_bits = MLOG_BITS_RHS(0);
--EXPORT_SYMBOL_GPL(mlog_not_bits);
-+struct mlog_bits r2_mlog_and_bits = MLOG_BITS_RHS(MLOG_INITIAL_AND_MASK);
-+EXPORT_SYMBOL_GPL(r2_mlog_and_bits);
-+struct mlog_bits r2_mlog_not_bits = MLOG_BITS_RHS(0);
-+EXPORT_SYMBOL_GPL(r2_mlog_not_bits);
- 
- static ssize_t mlog_mask_show(u64 mask, char *buf)
- {
- 	char *state;
- 
--	if (__mlog_test_u64(mask, mlog_and_bits))
-+	if (__mlog_test_u64(mask, r2_mlog_and_bits))
- 		state = "allow";
--	else if (__mlog_test_u64(mask, mlog_not_bits))
-+	else if (__mlog_test_u64(mask, r2_mlog_not_bits))
- 		state = "deny";
- 	else
- 		state = "off";
-@@ -50,14 +50,14 @@ static ssize_t mlog_mask_show(u64 mask, char *buf)
- static ssize_t mlog_mask_store(u64 mask, const char *buf, size_t count)
- {
- 	if (!strnicmp(buf, "allow", 5)) {
--		__mlog_set_u64(mask, mlog_and_bits);
--		__mlog_clear_u64(mask, mlog_not_bits);
-+		__mlog_set_u64(mask, r2_mlog_and_bits);
-+		__mlog_clear_u64(mask, r2_mlog_not_bits);
- 	} else if (!strnicmp(buf, "deny", 4)) {
--		__mlog_set_u64(mask, mlog_not_bits);
--		__mlog_clear_u64(mask, mlog_and_bits);
-+		__mlog_set_u64(mask, r2_mlog_not_bits);
-+		__mlog_clear_u64(mask, r2_mlog_and_bits);
- 	} else if (!strnicmp(buf, "off", 3)) {
--		__mlog_clear_u64(mask, mlog_not_bits);
--		__mlog_clear_u64(mask, mlog_and_bits);
-+		__mlog_clear_u64(mask, r2_mlog_not_bits);
-+		__mlog_clear_u64(mask, r2_mlog_and_bits);
- 	} else
- 		return -EINVAL;
- 
-@@ -134,7 +134,7 @@ static struct kset mlog_kset = {
- 	.kobj   = {.ktype = &mlog_ktype},
- };
- 
--int mlog_sys_init(struct kset *r2cb_kset)
-+int r2_mlog_sys_init(struct kset *r2cb_kset)
- {
- 	int i = 0;
- 
-@@ -149,7 +149,7 @@ int mlog_sys_init(struct kset *r2cb_kset)
- 	return kset_register(&mlog_kset);
- }
- 
--void mlog_sys_shutdown(void)
-+void r2_mlog_sys_shutdown(void)
- {
- 	kset_unregister(&mlog_kset);
- }
-diff --git a/drivers/staging/ramster/cluster/masklog.h b/drivers/staging/ramster/cluster/masklog.h
-index 7609e66..918ae11 100644
---- a/drivers/staging/ramster/cluster/masklog.h
-+++ b/drivers/staging/ramster/cluster/masklog.h
-@@ -127,7 +127,7 @@ struct mlog_bits {
- 	unsigned long words[MLOG_MAX_BITS / BITS_PER_LONG];
- };
- 
--extern struct mlog_bits mlog_and_bits, mlog_not_bits;
-+extern struct mlog_bits r2_mlog_and_bits, r2_mlog_not_bits;
- 
- #if BITS_PER_LONG == 32
- 
-@@ -186,8 +186,8 @@ extern struct mlog_bits mlog_and_bits, mlog_not_bits;
- #define mlog(mask, fmt, args...) do {					\
- 	u64 __m = MLOG_MASK_PREFIX | (mask);				\
- 	if ((__m & ML_ALLOWED_BITS) &&					\
--	    __mlog_test_u64(__m, mlog_and_bits) &&			\
--	    !__mlog_test_u64(__m, mlog_not_bits)) {			\
-+	    __mlog_test_u64(__m, r2_mlog_and_bits) &&			\
-+	    !__mlog_test_u64(__m, r2_mlog_not_bits)) {			\
- 		if (__m & ML_ERROR)					\
- 			__mlog_printk(KERN_ERR, "ERROR: "fmt , ##args);	\
- 		else if (__m & ML_NOTICE)				\
-@@ -214,7 +214,7 @@ extern struct mlog_bits mlog_and_bits, mlog_not_bits;
- 
- #include <linux/kobject.h>
- #include <linux/sysfs.h>
--int mlog_sys_init(struct kset *r2cb_subsys);
--void mlog_sys_shutdown(void);
-+int r2_mlog_sys_init(struct kset *r2cb_subsys);
-+void r2_mlog_sys_shutdown(void);
- 
- #endif /* R2CLUSTER_MASKLOG_H */
+Konstantin Khlebnikov (22):
+      memcg: rework inactive_ratio logic
+      memcg: fix page_referencies cgroup filter on global reclaim
+      memcg: use vm_swappiness from current memcg
+      mm: drain percpu lru add/rotate page-vectors on cpu hot-unplug
+      mm: replace per-cpu lru-add page-vectors with page-lists
+      mm: deprecate pagevec lru-add functions
+      mm: rename lruvec->lists into lruvec->pages_lru
+      mm: add lruvec->pages_count
+      mm: link lruvec with zone and node
+      mm: unify inactive_list_is_low()
+      mm: add lruvec->reclaim_stat
+      mm: kill struct mem_cgroup_zone
+      mm: move page-to-lruvec translation upper
+      mm: push lruvec into update_page_reclaim_stat()
+      mm: push lruvecs from pagevec_lru_move_fn() to iterator
+      mm: introduce lruvec locking primitives
+      mm: handle lruvec relocks on lumpy reclaim
+      mm: handle lruvec relocks in compaction
+      mm: handle lruvec relock in memory controller
+      mm: optimize putback for 0-order reclaim
+      mm: free lruvec in memcgroup via rcu
+      mm: split zone->lru_lock
+
+
+ fs/mpage.c                 |   21 +-
+ fs/nfs/dir.c               |   10 -
+ include/linux/memcontrol.h |   62 -------
+ include/linux/mm.h         |   37 ++++
+ include/linux/mm_inline.h  |   19 +-
+ include/linux/mmzone.h     |   19 +-
+ include/linux/pagevec.h    |    4 
+ include/linux/swap.h       |    5 -
+ mm/compaction.c            |   30 ++-
+ mm/huge_memory.c           |   10 +
+ mm/internal.h              |  226 +++++++++++++++++++++++++
+ mm/memcontrol.c            |  320 ++++++++++++++---------------------
+ mm/page_alloc.c            |   19 +-
+ mm/readahead.c             |   15 +-
+ mm/swap.c                  |  256 ++++++++++++++++------------
+ mm/vmscan.c                |  402 +++++++++++++++++++++-----------------------
+ 16 files changed, 821 insertions(+), 634 deletions(-)
+
 -- 
-1.7.1
+Signature
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
