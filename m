@@ -1,85 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx139.postini.com [74.125.245.139])
-	by kanga.kvack.org (Postfix) with SMTP id 1E3D76B004D
-	for <linux-mm@kvack.org>; Sun, 19 Feb 2012 22:05:13 -0500 (EST)
-Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 5E4AE3EE0BD
-	for <linux-mm@kvack.org>; Mon, 20 Feb 2012 12:05:11 +0900 (JST)
-Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 26E0545DEB6
-	for <linux-mm@kvack.org>; Mon, 20 Feb 2012 12:05:11 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 0DD4B45DEB2
-	for <linux-mm@kvack.org>; Mon, 20 Feb 2012 12:05:11 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id ECD1DE08005
-	for <linux-mm@kvack.org>; Mon, 20 Feb 2012 12:05:10 +0900 (JST)
-Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.240.81.133])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 9DC861DB803B
-	for <linux-mm@kvack.org>; Mon, 20 Feb 2012 12:05:10 +0900 (JST)
-Date: Mon, 20 Feb 2012 12:03:46 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH 1/2 v2] rmap: Make page_referenced_file and
- page_referenced_anon inline
-Message-Id: <20120220120346.9cc5b7b6.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <1329492398-7631-1-git-send-email-consul.kautuk@gmail.com>
-References: <1329492398-7631-1-git-send-email-consul.kautuk@gmail.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx130.postini.com [74.125.245.130])
+	by kanga.kvack.org (Postfix) with SMTP id CFBBD6B004D
+	for <linux-mm@kvack.org>; Mon, 20 Feb 2012 01:15:23 -0500 (EST)
+Received: by pbcwz17 with SMTP id wz17so7291867pbc.14
+        for <linux-mm@kvack.org>; Sun, 19 Feb 2012 22:15:23 -0800 (PST)
+Date: Mon, 20 Feb 2012 14:20:06 +0800
+From: Zheng Liu <gnehzuil.liu@gmail.com>
+Subject: Re: Fine granularity page reclaim
+Message-ID: <20120220062006.GA5028@gmail.com>
+References: <20120217092205.GA9462@gmail.com>
+ <4F3EB675.9030702@openvz.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <4F3EB675.9030702@openvz.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kautuk Consul <consul.kautuk@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Konstantin Khlebnikov <khlebnikov@openvz.org>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, linux-kernl@vger.kernel.org
 
-On Fri, 17 Feb 2012 10:26:38 -0500
-Kautuk Consul <consul.kautuk@gmail.com> wrote:
+Cc linux-kernel mailing list.
 
-> Inline the page_referenced_anon and page_referenced_file
-> functions.
-> These functions are called only from page_referenced.
+On Sat, Feb 18, 2012 at 12:20:05AM +0400, Konstantin Khlebnikov wrote:
+> Zheng Liu wrote:
+> >Hi all,
+> >
+> >Currently, we encounter a problem about page reclaim. In our product system,
+> >there is a lot of applictions that manipulate a number of files. In these
+> >files, they can be divided into two categories. One is index file, another is
+> >block file. The number of index files is about 15,000, and the number of
+> >block files is about 23,000 in a 2TB disk. The application accesses index
+> >file using mmap(2), and read/write block file using pread(2)/pwrite(2). We hope
+> >to hold index file in memory as much as possible, and it works well in Redhat
+> >2.6.18-164. It is about 60-70% of index files that can be hold in memory.
+> >However, it doesn't work well in Redhat 2.6.32-133. I know in 2.6.18 that the
+> >linux uses an active list and an inactive list to handle page reclaim, and in
+> >2.6.32 that they are divided into anonymous list and file list. So I am
+> >curious about why most of index files can be hold in 2.6.18? The index file
+> >should be replaced because mmap doesn't impact the lru list.
 > 
-> Signed-off-by: Kautuk Consul <consul.kautuk@gmail.com>
+> There was my patch for fixing similar problem with shared/executable mapped pages
+> "vmscan: promote shared file mapped pages" commit 34dbc67a644f and commit c909e99364c
+> maybe it will help in your case.
 
-Hmm ? In my environ,
- 
-before patch.
+Hi Konstantin,
 
-[kamezawa@bluextal linux]$ size mm/rmap.o
-   text    data     bss     dec     hex filename
-  11474       0      24   11498    2cea mm/rmap.o
-   (8833) (optimize-for-size=y)
-After patch.
+Thank you for your reply.  I have tested it in upstream kernel.  These
+patches are useful for multi-processes applications.  But, in our product
+system, there are some applications that are multi-thread.  So
+'references_ptes > 1' cannot help these applications to hold the data in
+memory.
 
-[kamezawa@bluextal linux]$ size mm/rmap.o
-   text    data     bss     dec     hex filename
-  11422       0      24   11446    2cb6 mm/rmap.o
-   (8775) (optimize-for-size=y)
+Regards,
+Zheng
 
-text size is 50bytes decreased. But I wonder page_referenced_anon/file
-is enough large function which is not inlined by hand in usual...
-
->From Documentation/CodingStyle Chapter15:  The inline disease
-==
-A reasonable rule of thumb is to not put inline at functions that have more
-than 3 lines of code in them. An exception to this rule are the cases where
-a parameter is known to be a compiletime constant, and as a result of this
-constantness you *know* the compiler will be able to optimize most of your
-function away at compile time. For a good example of this later case, see
-the kmalloc() inline function.
-
-Often people argue that adding inline to functions that are static and used
-only once is always a win since there is no space tradeoff. While this is
-technically correct, gcc is capable of inlining these automatically without
-help, and the maintenance issue of removing the inline when a second user
-appears outweighs the potential value of the hint that tells gcc to do
-something it would have done anyway.
-==
-
-I'm sorry but I don't Ack this.
-
-Thanks,
--Kame
+> 
+> >
+> >BTW, I have some problems that need to be discussed.
+> >
+> >1. I want to let index and block files are separately reclaimed. Is there any
+> >ways to satisify me in current upstream?
+> >
+> >2. Maybe we can provide a mechansim to let different files to be mapped into
+> >differnet nodes. we can provide a ioctl(2) to tell kernel that this file should
+> >be mapped into a specific node id. A nid member is added into addpress_space
+> >struct. When alloc_page is called, the page can be allocated from that specific
+> >node id.
+> >
+> >3. Currently the page can be reclaimed according to pid in memcg. But it is too
+> >coarse. I don't know whether memcg could provide a fine granularity page
+> >reclaim mechansim. For example, the page is reclaimed according to inode number.
+> >
+> >I don't subscribe this mailing list, So please Cc me. Thank you.
+> >
+> >Regards,
+> >Zheng
+> >
+> >--
+> >To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> >the body to majordomo@kvack.org.  For more info on Linux MM,
+> >see: http://www.linux-mm.org/ .
+> >Fight unfair telecom internet charges in Canada: sign http://stopthemeter.ca/
+> >Don't email:<a href=mailto:"dont@kvack.org">  email@kvack.org</a>
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
