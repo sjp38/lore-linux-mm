@@ -1,78 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx152.postini.com [74.125.245.152])
-	by kanga.kvack.org (Postfix) with SMTP id 2EA7C6B004A
-	for <linux-mm@kvack.org>; Tue, 21 Feb 2012 15:13:23 -0500 (EST)
-Received: by dadv6 with SMTP id v6so8888118dad.14
-        for <linux-mm@kvack.org>; Tue, 21 Feb 2012 12:13:22 -0800 (PST)
-Date: Tue, 21 Feb 2012 12:12:58 -0800 (PST)
-From: Hugh Dickins <hughd@google.com>
-Subject: Re: [PATCH 9/10] mm/memcg: move lru_lock into lruvec
-In-Reply-To: <4F434300.3080001@openvz.org>
-Message-ID: <alpine.LSU.2.00.1202211205280.1858@eggly.anvils>
-References: <alpine.LSU.2.00.1202201518560.23274@eggly.anvils> <alpine.LSU.2.00.1202201537040.23274@eggly.anvils> <4F434300.3080001@openvz.org>
+Received: from psmtp.com (na3sys010amx153.postini.com [74.125.245.153])
+	by kanga.kvack.org (Postfix) with SMTP id D69676B004A
+	for <linux-mm@kvack.org>; Tue, 21 Feb 2012 15:40:58 -0500 (EST)
+Received: by bkty12 with SMTP id y12so7587142bkt.14
+        for <linux-mm@kvack.org>; Tue, 21 Feb 2012 12:40:57 -0800 (PST)
+Message-ID: <4F440154.7010403@openvz.org>
+Date: Wed, 22 Feb 2012 00:40:52 +0400
+From: Konstantin Khlebnikov <khlebnikov@openvz.org>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [PATCH 6/10] mm/memcg: take care over pc->mem_cgroup
+References: <alpine.LSU.2.00.1202201518560.23274@eggly.anvils> <alpine.LSU.2.00.1202201533260.23274@eggly.anvils> <4F4331BC.70205@openvz.org> <alpine.LSU.2.00.1202211117340.1858@eggly.anvils>
+In-Reply-To: <alpine.LSU.2.00.1202211117340.1858@eggly.anvils>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Konstantin Khlebnikov <khlebnikov@openvz.org>
+To: Hugh Dickins <hughd@google.com>
 Cc: Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, Ying Han <yinghan@google.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 
-On Tue, 21 Feb 2012, Konstantin Khlebnikov wrote:
-> 
-> On lumpy/compaction isolate you do:
-> 
-> if (!PageLRU(page))
-> 	continue
-> 
-> __isolate_lru_page()
-> 
-> page_relock_rcu_vec()
-> 	rcu_read_lock()
-> 	rcu_dereference()...
-> 	spin_lock()...
-> 	rcu_read_unlock()
-> 
-> You protect page_relock_rcu_vec with switching pointers back to root.
-> 
-> I do:
-> 
-> catch_page_lru()
-> 	rcu_read_lock()
-> 	if (!PageLRU(page))
-> 		return false
-> 	rcu_dereference()...
-> 	spin_lock()...
-> 	rcu_read_unlock()
-> 	if (PageLRU())
-> 		return true
-> if true
-> 	__isolate_lru_page()
-> 
-> I protect my catch_page_lruvec() with PageLRU() under single rcu-interval
-> with locking.
-> Thus my code is better, because it not requires switching pointers back to
-> root memcg.
+Hugh Dickins wrote:
+> On Tue, 21 Feb 2012, Konstantin Khlebnikov wrote:
+>>
+>> But just one question: how appears uncharged pages in mem-cg lru lists?
+>
+> One way is swapin readahead pages, which cannot be charged to a memcg
+> until they're "claimed"; but we do need them visible on lru, otherwise
+> memory pressure couldn't reclaim them when necessary.
 
-That sounds much better, yes - if it does work reliably.
+Ok, this is really reasonable.
 
-I'll have to come back to think about your locking later too;
-or maybe that's exactly where I need to look, when investigating
-the mm_inline.h:41 BUG.
+>
+> Another way is simply that uncharging has not historically removed the
+> page from lru list if it's on.  I usually assume that's an optimization:
+> why bother to get lru locks and take it off (and put it on the root lru?
+> if we don't, we're assuming it's will be freed very shortly - I'm not
+> sure that's always a good assumption), if freeing the page will usually
+> do that for us (without having to change lrus).
+>
+> If I thought for longer, I might come up with other scenarios.
+>
+>> Maybe we can forbid this case and uncharge these pages right in
+>> __page_cache_release() and release_pages() at final removing from LRU.
+>> This is how my old mem-controller works. There pages in lru are always
+>> charged.
+>
+> As things stand, that would mean lock_page_cgroup() has to disable irqs
+> everywhere.  I'm not sure of the further ramifications of moving uncharge
+> to __page_cache_release() and release_pages().  I don't think a change
+> like that is out of the question, but it's certainly a bigger change
+> than I'd like to consider in this series.
 
-But at first sight, I have to say I'm very suspicious: I've never found
-PageLRU a good enough test for whether we need such a lock, because of
-races with those pages on percpu lruvec about to be put on the lru.
+Ok. I have another big question: Why we remove pages from lru at last put_page()?
 
-But maybe once I look closer, I'll find that's handled by your changes
-away from lruvec; though I'd have thought the same issue exists,
-independent of whether the pending pages are in vector or list.
+Logically we can remove them in truncate_inode_pages_range() for file
+and in free_pages_and_swap_cache() or something at last unmap for anon.
+Pages are unreachable after that, they never become alive again.
+Reclaimer also cannot reclaim them in this state, so there no reasons for keeping them in lru.
+Into those two functions pages come in large batches, so we can remove them more effectively,
+currently they are likely to be removed right in this place, just because release_pages() drops
+last references, but we can do this lru remove unconditionally.
+Plus it never happens in irq context, so lru_lock can be converted to irq-unsafe in some distant future.
 
-Hugh
-
-> 
-> Meanwhile after seeing your patches, I realized that this rcu-protection is
-> required only for lock-by-pfn in lumpy/compaction isolation.
-> Thus my locking should be simplified and optimized.
+>
+> Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
