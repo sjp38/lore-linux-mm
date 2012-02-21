@@ -1,54 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx206.postini.com [74.125.245.206])
-	by kanga.kvack.org (Postfix) with SMTP id E8DBE6B00EC
-	for <linux-mm@kvack.org>; Tue, 21 Feb 2012 17:26:18 -0500 (EST)
-Received: by dadv6 with SMTP id v6so9024584dad.14
-        for <linux-mm@kvack.org>; Tue, 21 Feb 2012 14:26:18 -0800 (PST)
-Date: Tue, 21 Feb 2012 14:25:54 -0800 (PST)
+Received: from psmtp.com (na3sys010amx156.postini.com [74.125.245.156])
+	by kanga.kvack.org (Postfix) with SMTP id 588806B002C
+	for <linux-mm@kvack.org>; Tue, 21 Feb 2012 17:37:21 -0500 (EST)
+Received: by dadv6 with SMTP id v6so9034757dad.14
+        for <linux-mm@kvack.org>; Tue, 21 Feb 2012 14:37:20 -0800 (PST)
+Date: Tue, 21 Feb 2012 14:36:56 -0800 (PST)
 From: Hugh Dickins <hughd@google.com>
-Subject: Re: [PATCH 4/10] mm/memcg: apply add/del_page to lruvec
-In-Reply-To: <20120221172042.20f407fe.kamezawa.hiroyu@jp.fujitsu.com>
-Message-ID: <alpine.LSU.2.00.1202211421170.2012@eggly.anvils>
-References: <alpine.LSU.2.00.1202201518560.23274@eggly.anvils> <alpine.LSU.2.00.1202201530530.23274@eggly.anvils> <20120221172042.20f407fe.kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH 5/10] mm/memcg: introduce page_relock_lruvec
+In-Reply-To: <20120221173859.f57d00f5.kamezawa.hiroyu@jp.fujitsu.com>
+Message-ID: <alpine.LSU.2.00.1202211426010.2012@eggly.anvils>
+References: <alpine.LSU.2.00.1202201518560.23274@eggly.anvils> <alpine.LSU.2.00.1202201532170.23274@eggly.anvils> <20120221173859.f57d00f5.kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, Konstantin Khlebnikov <khlebnikov@openvz.org>, Johannes Weiner <hannes@cmpxchg.org>, Ying Han <yinghan@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
-
-Many thanks for inspecting these, and so soon.
+Cc: Andrew Morton <akpm@linux-foundation.org>, Konstantin Khlebnikov <khlebnikov@openvz.org>, Johannes Weiner <hannes@cmpxchg.org>, Ying Han <yinghan@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
 On Tue, 21 Feb 2012, KAMEZAWA Hiroyuki wrote:
 > 
-> Hmm.. a nitpick.
-> 
-> You do 
->   lruvec = mem_cgroup_page_lruvec(page, zone);
-> 
-> What is the difference from
-> 
->   lruvec = mem_cgroup_page_lruvec(page, page_zone(page)) 
-> 
-> ?
+> No perforamce impact by replacing spin_lock_irq()/spin_unlock_irq() to
+> spin_lock_irqsave() and spin_unlock_irqrestore() ?
 
-I hope they were equivalent: I just did it that way because in all cases
-the zone had already been computed, so that saved recomputing it - as I
-understand it, in some layouts (such as mine) it's pretty cheap to work
-out the page's zone, but in others an expense to be avoided.
+None that I noticed - but that is not at all a reassuring answer!
 
-But then you discovered that it soon got removed again anyway.
+It worries me a little.  I think it would make more or less difference
+on different architectures, and I forget where x86 stands there - one
+of the more or the less affected?  Worth branches down inside
+page_relock_lruvec()?
+
+It's also unfortunate to be "losing" the information of where _irq
+is needed and where _irqsave (but not much gets lost with git).
+
+It's something that can be fixed - and I think Konstantin's version
+already keeps the variants: I just didn't want to get confused by them,
+while focussing on the locking details.
 
 Hugh
-
-> 
-> If we have a function
->   lruvec = mem_cgroup_page_lruvec(page)
-> 
-> Do we need 
->   lruvec = mem_cgroup_page_lruvec_zone(page, zone) 
-> 
-> ?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
