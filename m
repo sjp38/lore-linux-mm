@@ -1,51 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx106.postini.com [74.125.245.106])
-	by kanga.kvack.org (Postfix) with SMTP id CD1746B004A
-	for <linux-mm@kvack.org>; Tue, 21 Feb 2012 14:37:34 -0500 (EST)
-Received: by pbcwz17 with SMTP id wz17so9486699pbc.14
-        for <linux-mm@kvack.org>; Tue, 21 Feb 2012 11:37:34 -0800 (PST)
-Date: Tue, 21 Feb 2012 11:37:01 -0800 (PST)
-From: Hugh Dickins <hughd@google.com>
-Subject: Re: [PATCH 6/10] mm/memcg: take care over pc->mem_cgroup
-In-Reply-To: <4F4331BC.70205@openvz.org>
-Message-ID: <alpine.LSU.2.00.1202211117340.1858@eggly.anvils>
-References: <alpine.LSU.2.00.1202201518560.23274@eggly.anvils> <alpine.LSU.2.00.1202201533260.23274@eggly.anvils> <4F4331BC.70205@openvz.org>
+Received: from psmtp.com (na3sys010amx117.postini.com [74.125.245.117])
+	by kanga.kvack.org (Postfix) with SMTP id D5D596B004A
+	for <linux-mm@kvack.org>; Tue, 21 Feb 2012 14:54:04 -0500 (EST)
+From: David Howells <dhowells@redhat.com>
+Subject: [PATCH 55/73] fallthru: tmpfs support for lookup of d_type/d_ino in
+ fallthrus [ver #2]
+Date: Tue, 21 Feb 2012 18:04:22 +0000
+Message-ID: <20120221180422.25235.59500.stgit@warthog.procyon.org.uk>
+In-Reply-To: <20120221175721.25235.8901.stgit@warthog.procyon.org.uk>
+References: <20120221175721.25235.8901.stgit@warthog.procyon.org.uk>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Konstantin Khlebnikov <khlebnikov@openvz.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, Ying Han <yinghan@google.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: linux-fsdevel@vger.kernel.org, viro@ZenIV.linux.org.uk, valerie.aurora@gmail.com
+Cc: linux-kernel@vger.kernel.org, David Howells <dhowells@redhat.com>, Hugh Dickins <hughd@google.com>, linux-mm@kvack.org
 
-On Tue, 21 Feb 2012, Konstantin Khlebnikov wrote:
-> 
-> But just one question: how appears uncharged pages in mem-cg lru lists?
+From: Valerie Aurora <vaurora@redhat.com>
 
-One way is swapin readahead pages, which cannot be charged to a memcg
-until they're "claimed"; but we do need them visible on lru, otherwise
-memory pressure couldn't reclaim them when necessary.
+Now that we have full union lookup support, lookup the true d_type and
+d_ino of a fallthru.
 
-Another way is simply that uncharging has not historically removed the
-page from lru list if it's on.  I usually assume that's an optimization:
-why bother to get lru locks and take it off (and put it on the root lru?
-if we don't, we're assuming it's will be freed very shortly - I'm not
-sure that's always a good assumption), if freeing the page will usually
-do that for us (without having to change lrus).
+Original-author: Valerie Aurora <vaurora@redhat.com>
+Signed-off-by: David Howells <dhowells@redhat.com>
+Cc: Hugh Dickins <hughd@google.com>
+Cc: linux-mm@kvack.org
+---
 
-If I thought for longer, I might come up with other scenarios.
+ fs/libfs.c |   11 ++++++++---
+ 1 files changed, 8 insertions(+), 3 deletions(-)
 
-> Maybe we can forbid this case and uncharge these pages right in
-> __page_cache_release() and release_pages() at final removing from LRU.
-> This is how my old mem-controller works. There pages in lru are always
-> charged.
-
-As things stand, that would mean lock_page_cgroup() has to disable irqs
-everywhere.  I'm not sure of the further ramifications of moving uncharge
-to __page_cache_release() and release_pages().  I don't think a change
-like that is out of the question, but it's certainly a bigger change
-than I'd like to consider in this series.
-
-Hugh
+diff --git a/fs/libfs.c b/fs/libfs.c
+index 43f1ac2..bd9388f 100644
+--- a/fs/libfs.c
++++ b/fs/libfs.c
+@@ -143,6 +143,7 @@ int dcache_readdir(struct file * filp, void * dirent, filldir_t filldir)
+ 	ino_t ino;
+ 	char d_type;
+ 	int i = filp->f_pos;
++	int err = 0;
+ 
+ 	switch (i) {
+ 		case 0:
+@@ -177,9 +178,13 @@ int dcache_readdir(struct file * filp, void * dirent, filldir_t filldir)
+ 				spin_unlock(&next->d_lock);
+ 				spin_unlock(&dentry->d_lock);
+ 				if (d_is_fallthru(next)) {
+-					/* XXX placeholder until generic_readdir_fallthru() arrives */
+-					ino = 1;
+-					d_type = DT_UNKNOWN;
++					/* On tmpfs, should only fail with ENOMEM, EIO, etc. */
++					err = generic_readdir_fallthru(filp->f_path.dentry,
++								       next->d_name.name,
++								       next->d_name.len,
++								       &ino, &d_type);
++					if (err)
++						return err;
+ 				} else {
+ 					ino = next->d_inode->i_ino;
+ 					d_type = dt_type(next->d_inode);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
