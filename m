@@ -1,15 +1,15 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx183.postini.com [74.125.245.183])
-	by kanga.kvack.org (Postfix) with SMTP id 6B7556B004A
-	for <linux-mm@kvack.org>; Tue, 21 Feb 2012 15:00:33 -0500 (EST)
-Received: by dadv6 with SMTP id v6so8874616dad.14
-        for <linux-mm@kvack.org>; Tue, 21 Feb 2012 12:00:32 -0800 (PST)
-Date: Tue, 21 Feb 2012 12:00:08 -0800 (PST)
+Received: from psmtp.com (na3sys010amx152.postini.com [74.125.245.152])
+	by kanga.kvack.org (Postfix) with SMTP id 2EA7C6B004A
+	for <linux-mm@kvack.org>; Tue, 21 Feb 2012 15:13:23 -0500 (EST)
+Received: by dadv6 with SMTP id v6so8888118dad.14
+        for <linux-mm@kvack.org>; Tue, 21 Feb 2012 12:13:22 -0800 (PST)
+Date: Tue, 21 Feb 2012 12:12:58 -0800 (PST)
 From: Hugh Dickins <hughd@google.com>
-Subject: Re: [PATCH 6/10] mm/memcg: take care over pc->mem_cgroup
-In-Reply-To: <4F433418.3010401@openvz.org>
-Message-ID: <alpine.LSU.2.00.1202211140330.1858@eggly.anvils>
-References: <alpine.LSU.2.00.1202201518560.23274@eggly.anvils> <alpine.LSU.2.00.1202201533260.23274@eggly.anvils> <4F433418.3010401@openvz.org>
+Subject: Re: [PATCH 9/10] mm/memcg: move lru_lock into lruvec
+In-Reply-To: <4F434300.3080001@openvz.org>
+Message-ID: <alpine.LSU.2.00.1202211205280.1858@eggly.anvils>
+References: <alpine.LSU.2.00.1202201518560.23274@eggly.anvils> <alpine.LSU.2.00.1202201537040.23274@eggly.anvils> <4F434300.3080001@openvz.org>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -18,62 +18,61 @@ To: Konstantin Khlebnikov <khlebnikov@openvz.org>
 Cc: Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, Ying Han <yinghan@google.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 
 On Tue, 21 Feb 2012, Konstantin Khlebnikov wrote:
-> > 
-> > Be particularly careful in compaction's isolate_migratepages() and
-> > vmscan's lumpy handling in isolate_lru_pages(): those approach the
-> > page by its physical location, and so can encounter pages which
-> > would not be found by any logical lookup.  For those cases we have
-> > to change __isolate_lru_page() slightly: it must leave ClearPageLRU
-> > to the caller, because compaction and lumpy cannot safely interfere
-> > with a page until they have first isolated it and then locked lruvec.
 > 
-> Yeah, this is most complicated part.
-
-Yes, I found myself leaving this patch until last when commenting.
-
-And was not entirely convinced by what I then said of move_account().
-Indeed, I wondered if it might be improved and simplified by taking
-lruvec locks itself, in the manner that commit_charge lrucare ends
-up doing.
-
-> I found one race here, see below.
-
-Thank you!
-
-> > @@ -386,10 +364,24 @@ static isolate_migrate_t isolate_migrate
-> >                          continue;
-> > 
-> >                  page_relock_lruvec(page,&lruvec);
+> On lumpy/compaction isolate you do:
 > 
-> Here race with mem_cgroup_move_account() we hold lock for old lruvec,
-> while move_account() recharge page and put page back into other lruvec.
-> Thus we see PageLRU(), but below we isolate page from wrong lruvec.
-
-I expect you'll prove right on that, but I'm going to think about it
-more later.
-
+> if (!PageLRU(page))
+> 	continue
 > 
-> In my patch-set this is fixed with __wait_lru_unlock() [ spin_unlock_wait() ]
-> in mem_cgroup_move_account()
+> __isolate_lru_page()
+> 
+> page_relock_rcu_vec()
+> 	rcu_read_lock()
+> 	rcu_dereference()...
+> 	spin_lock()...
+> 	rcu_read_unlock()
+> 
+> You protect page_relock_rcu_vec with switching pointers back to root.
+> 
+> I do:
+> 
+> catch_page_lru()
+> 	rcu_read_lock()
+> 	if (!PageLRU(page))
+> 		return false
+> 	rcu_dereference()...
+> 	spin_lock()...
+> 	rcu_read_unlock()
+> 	if (PageLRU())
+> 		return true
+> if true
+> 	__isolate_lru_page()
+> 
+> I protect my catch_page_lruvec() with PageLRU() under single rcu-interval
+> with locking.
+> Thus my code is better, because it not requires switching pointers back to
+> root memcg.
 
-Right now, after finishing mail, I want to concentrate on getting your
-series working under my swapping load.
+That sounds much better, yes - if it does work reliably.
 
-It's possible that I screwed up rediffing it to my slightly later
-base (though the only parts that appeared to need fixing up were as
-expected, near update_isolated_counts and move_active_pages_to_lru);
-but if so I'd expect that to show up differently.
+I'll have to come back to think about your locking later too;
+or maybe that's exactly where I need to look, when investigating
+the mm_inline.h:41 BUG.
 
-At present, although it runs fine with cgroup_disable=memory, with memcg
-two machines very soon hit that BUG at include/linux/mm_inline.h:41!
-when the lru_size or pages_count wraps around; on another it hit that
-precisely when I stopped the test.
+But at first sight, I have to say I'm very suspicious: I've never found
+PageLRU a good enough test for whether we need such a lock, because of
+races with those pages on percpu lruvec about to be put on the lru.
 
-In all cases it's in release_pages from free_pages_and_swap_cache from
-tlb_flush_mmu from tlb_finish_mmu from exit_mmap from mmput from exit_mm
-from do_exit (but different processes exiting).
+But maybe once I look closer, I'll find that's handled by your changes
+away from lruvec; though I'd have thought the same issue exists,
+independent of whether the pending pages are in vector or list.
 
 Hugh
+
+> 
+> Meanwhile after seeing your patches, I realized that this rcu-protection is
+> required only for lock-by-pfn in lumpy/compaction isolation.
+> Thus my locking should be simplified and optimized.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
