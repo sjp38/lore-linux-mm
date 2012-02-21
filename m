@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx126.postini.com [74.125.245.126])
-	by kanga.kvack.org (Postfix) with SMTP id 825B86B004D
-	for <linux-mm@kvack.org>; Tue, 21 Feb 2012 00:55:13 -0500 (EST)
-Received: by bkty12 with SMTP id y12so6685615bkt.14
-        for <linux-mm@kvack.org>; Mon, 20 Feb 2012 21:55:11 -0800 (PST)
-Message-ID: <4F4331BC.70205@openvz.org>
-Date: Tue, 21 Feb 2012 09:55:08 +0400
+Received: from psmtp.com (na3sys010amx191.postini.com [74.125.245.191])
+	by kanga.kvack.org (Postfix) with SMTP id 704F26B004D
+	for <linux-mm@kvack.org>; Tue, 21 Feb 2012 01:05:17 -0500 (EST)
+Received: by bkty12 with SMTP id y12so6690886bkt.14
+        for <linux-mm@kvack.org>; Mon, 20 Feb 2012 22:05:15 -0800 (PST)
+Message-ID: <4F433418.3010401@openvz.org>
+Date: Tue, 21 Feb 2012 10:05:12 +0400
 From: Konstantin Khlebnikov <khlebnikov@openvz.org>
 MIME-Version: 1.0
 Subject: Re: [PATCH 6/10] mm/memcg: take care over pc->mem_cgroup
@@ -44,6 +44,9 @@ Hugh Dickins wrote:
 > to change __isolate_lru_page() slightly: it must leave ClearPageLRU
 > to the caller, because compaction and lumpy cannot safely interfere
 > with a page until they have first isolated it and then locked lruvec.
+
+Yeah, this is most complicated part. I found one race here, see below.
+
 >
 > To the list above we have to add __mem_cgroup_uncharge_common(),
 > and new function mem_cgroup_reset_uncharged_to_root(): the first
@@ -62,16 +65,6 @@ Hugh Dickins wrote:
 > cannot be destroyed.  But when an uncharged page is taken off lru,
 > or a page off lru is uncharged, it no longer protects its old memcg,
 > and the one stable root_mem_cgroup must then be used for it.
-
-This is much better than my RCU-protected locking.
-That will be great if it really race-less!
-I think, I could steal this and polish a little. =)
-
-But just one question: how appears uncharged pages in mem-cg lru lists?
-Maybe we can forbid this case and uncharge these pages right in
-__page_cache_release() and release_pages() at final removing from LRU.
-This is how my old mem-controller works. There pages in lru are always charged.
-
 >
 > Signed-off-by: Hugh Dickins<hughd@google.com>
 > ---
@@ -138,6 +131,14 @@ This is how my old mem-controller works. There pages in lru are always charged.
 >                          continue;
 >
 >                  page_relock_lruvec(page,&lruvec);
+
+Here race with mem_cgroup_move_account() we hold lock for old lruvec,
+while move_account() recharge page and put page back into other lruvec.
+Thus we see PageLRU(), but below we isolate page from wrong lruvec.
+
+In my patch-set this is fixed with __wait_lru_unlock() [ spin_unlock_wait() ]
+in mem_cgroup_move_account()
+
 > +               if (unlikely(!PageLRU(page) || PageUnevictable(page) ||
 > +                                               PageTransHuge(page))) {
 > +                       /*
