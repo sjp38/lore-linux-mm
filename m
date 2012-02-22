@@ -1,142 +1,161 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx182.postini.com [74.125.245.182])
-	by kanga.kvack.org (Postfix) with SMTP id 4E1306B00E9
-	for <linux-mm@kvack.org>; Wed, 22 Feb 2012 12:46:29 -0500 (EST)
-Received: by obbuo19 with SMTP id uo19so313695obb.25
-        for <linux-mm@kvack.org>; Wed, 22 Feb 2012 09:46:03 -0800 (PST)
+Received: from psmtp.com (na3sys010amx178.postini.com [74.125.245.178])
+	by kanga.kvack.org (Postfix) with SMTP id DFA976B004A
+	for <linux-mm@kvack.org>; Wed, 22 Feb 2012 15:32:04 -0500 (EST)
+Received: by qadz32 with SMTP id z32so6721202qad.14
+        for <linux-mm@kvack.org>; Wed, 22 Feb 2012 12:32:03 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <1329896894-7278-1-git-send-email-jarkko.sakkinen@intel.com>
-References: <1329896894-7278-1-git-send-email-jarkko.sakkinen@intel.com>
-Date: Wed, 22 Feb 2012 19:46:03 +0200
-Message-ID: <CADjiTvAJEpvcpxUGz4RifY0JdW_3iBKOwb_407U94UeUQ9VKwA@mail.gmail.com>
-Subject: Re: [PATCH] tmpfs: security xattr setting on inode creation
-From: "Sakkinen, Jarkko" <jarkko.sakkinen@intel.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: base64
+In-Reply-To: <4F44F4A2.7010902@parallels.com>
+References: <1329824079-14449-1-git-send-email-glommer@parallels.com>
+	<CABCjUKCwLTOFOYR7E6v_z5=tUCUKch7TTMpAOrhQ_JKT1sqTqA@mail.gmail.com>
+	<4F44F4A2.7010902@parallels.com>
+Date: Wed, 22 Feb 2012 12:32:03 -0800
+Message-ID: <CABCjUKBf1T=ccwz9xNY84y5Kizyx0sD+8Vh0ro-jtrdMgD-SNw@mail.gmail.com>
+Subject: Re: [PATCH 0/7] memcg kernel memory tracking
+From: Suleiman Souhlal <suleiman@google.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Jarkko Sakkinen <jarkko.sakkinen@intel.com>
+To: Glauber Costa <glommer@parallels.com>
+Cc: cgroups@vger.kernel.org, devel@openvz.org, linux-mm@kvack.org
 
-SGkKCk5vdGljZWQgc29tZSBzdHlsZSBpc3N1ZXMgdGhhdCBJIG5lZWQgdG8gZml4LgoKT24gV2Vk
-LCBGZWIgMjIsIDIwMTIgYXQgOTo0OCBBTSwgSmFya2tvIFNha2tpbmVuCjxqYXJra28uc2Fra2lu
-ZW5AaW50ZWwuY29tPiB3cm90ZToKPiBBZGRzIHRvIGdlbmVyaWMgeGF0dHIgc3VwcG9ydCBpbnRy
-b2R1Y2VkIGluIExpbnV4IDMuMCBieQo+IGltcGxlbWVudGluZyBpbml0eGF0dHJzIGNhbGxiYWNr
-LiBUaGlzIGVuYWJsZXMgY29uc3VsdGluZwo+IG9mIHNlY3VyaXR5IGF0dHJpYnV0ZXMgZnJvbSBM
-U00gYW5kIEVWTSB3aGVuIGlub2RlIG9yaWdpbmFsbHkKPiBjcmVhdGVkLgo+Cj4gU2lnbmVkLW9m
-Zi1ieTogSmFya2tvIFNha2tpbmVuIDxqYXJra28uc2Fra2luZW5AaW50ZWwuY29tPgo+IC0tLQo+
-IMKgbW0vc2htZW0uYyB8IMKgIDc3ICsrKysrKysrKysrKysrKysrKysrKysrKysrKysrKysrKysr
-KysrKysrKysrKysrLS0tLS0tLS0tLS0tCj4gwqAxIGZpbGVzIGNoYW5nZWQsIDYxIGluc2VydGlv
-bnMoKyksIDE2IGRlbGV0aW9ucygtKQo+Cj4gZGlmZiAtLWdpdCBhL21tL3NobWVtLmMgYi9tbS9z
-aG1lbS5jCj4gaW5kZXggN2E0NWFkMC4uNzJhZGRmMSAxMDA2NDQKPiAtLS0gYS9tbS9zaG1lbS5j
-Cj4gKysrIGIvbW0vc2htZW0uYwo+IEBAIC0xNDgwLDYgKzE0ODAsNTkgQEAgc3RhdGljIGludCBz
-aG1lbV9zdGF0ZnMoc3RydWN0IGRlbnRyeSAqZGVudHJ5LCBzdHJ1Y3Qga3N0YXRmcyAqYnVmKQo+
-IMKgLyoKPiDCoCogRmlsZSBjcmVhdGlvbi4gQWxsb2NhdGUgYW4gaW5vZGUsIGFuZCB3ZSdyZSBk
-b25lLi4KPiDCoCovCgpPb3BzLiBIYXZlIHRvIG1vdmUgdGhlc2UgbmV3IGZ1bmN0aW9ucyBiZWZv
-cmUgdGhpcwpjb21tZW50LgoKPiArCj4gK3N0YXRpYyBpbnQgc2htZW1feGF0dHJfYWxsb2Moc2l6
-ZV90IHNpemUsIHN0cnVjdCBzaG1lbV94YXR0ciAqKm5ld194YXR0cikKPiArewo+ICsgwqAgwqAg
-wqAgLyogd3JhcCBhcm91bmQ/ICovCj4gKyDCoCDCoCDCoCBzaXplX3QgbGVuID0gc2l6ZW9mKCoq
-bmV3X3hhdHRyKSArIHNpemU7Cj4gKyDCoCDCoCDCoCBpZiAobGVuIDw9IHNpemVvZigqKm5ld194
-YXR0cikpCj4gKyDCoCDCoCDCoCDCoCDCoCDCoCDCoCByZXR1cm4gLUVOT01FTTsKPiArCj4gKyDC
-oCDCoCDCoCAqbmV3X3hhdHRyID0ga21hbGxvYyhsZW4sIEdGUF9LRVJORUwpOwo+ICsgwqAgwqAg
-wqAgaWYgKCpuZXdfeGF0dHIgPT0gTlVMTCkKPiArIMKgIMKgIMKgIMKgIMKgIMKgIMKgIHJldHVy
-biAtRU5PTUVNOwo+ICsKPiArIMKgIMKgIMKgICgqbmV3X3hhdHRyKS0+c2l6ZSA9IHNpemU7Cj4g
-KyDCoCDCoCDCoCByZXR1cm4gMDsKPiArfQo+ICsKPiArc3RhdGljIGludCBzaG1lbV9pbml0eGF0
-dHJzKHN0cnVjdCBpbm9kZSAqaW5vZGUsCj4gKyDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDC
-oCDCoCDCoCDCoCBjb25zdCBzdHJ1Y3QgeGF0dHIgKnhhdHRyX2FycmF5LAo+ICsgwqAgwqAgwqAg
-wqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgdm9pZCAqZnNfaW5mbykKPiArewo+ICsgwqAg
-wqAgwqAgY29uc3Qgc3RydWN0IHhhdHRyICp4YXR0cjsKPiArIMKgIMKgIMKgIHN0cnVjdCBzaG1l
-bV9pbm9kZV9pbmZvICppbmZvID0gU0hNRU1fSShpbm9kZSk7Cj4gKyDCoCDCoCDCoCBzdHJ1Y3Qg
-c2htZW1feGF0dHIgKm5ld194YXR0ciA9IE5VTEw7Cj4gKyDCoCDCoCDCoCBzaXplX3QgbGVuOwo+
-ICsgwqAgwqAgwqAgaW50IGVyciA9IDA7Cj4gKwo+ICsgwqAgwqAgwqAgZm9yICh4YXR0ciA9IHhh
-dHRyX2FycmF5OyB4YXR0ci0+bmFtZSAhPSBOVUxMOyB4YXR0cisrKSB7Cj4gKyDCoCDCoCDCoCDC
-oCDCoCDCoCDCoCBlcnIgPSBzaG1lbV94YXR0cl9hbGxvYyh4YXR0ci0+dmFsdWVfbGVuLCAmbmV3
-X3hhdHRyKTsKPiArIMKgIMKgIMKgIMKgIMKgIMKgIMKgIGlmIChlcnIgPCAwKQo+ICsgwqAgwqAg
-wqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgYnJlYWs7CgpTaG91bGQgYmUgInJldHVybiBlcnI7
-IiAoY29uc2lzdGVuY3kpLgoKPiArCj4gKyDCoCDCoCDCoCDCoCDCoCDCoCDCoCBsZW4gPSBzdHJs
-ZW4oeGF0dHItPm5hbWUpICsgMTsKPiArIMKgIMKgIMKgIMKgIMKgIMKgIMKgIG5ld194YXR0ci0+
-bmFtZSA9IGttYWxsb2MoWEFUVFJfU0VDVVJJVFlfUFJFRklYX0xFTiArIGxlbiwKPiArIMKgIMKg
-IMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIEdG
-UF9LRVJORUwpOwo+ICsgwqAgwqAgwqAgwqAgwqAgwqAgwqAgaWYgKG5ld194YXR0ci0+bmFtZSA9
-PSBOVUxMKSB7Cj4gKyDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCBrZnJlZShuZXdf
-eGF0dHIpOwo+ICsgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgcmV0dXJuIC1FTk9N
-RU07Cj4gKyDCoCDCoCDCoCDCoCDCoCDCoCDCoCB9Cj4gKwo+ICsgwqAgwqAgwqAgwqAgwqAgwqAg
-wqAgbWVtY3B5KG5ld194YXR0ci0+bmFtZSwgWEFUVFJfU0VDVVJJVFlfUFJFRklYLAo+ICsgwqAg
-wqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqBYQVRUUl9TRUNVUklUWV9QUkVGSVhfTEVOKTsK
-PiArIMKgIMKgIMKgIMKgIMKgIMKgIMKgIG1lbWNweShuZXdfeGF0dHItPm5hbWUgKyBYQVRUUl9T
-RUNVUklUWV9QUkVGSVhfTEVOLAo+ICsgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqB4
-YXR0ci0+bmFtZSwgbGVuKTsKPiArIMKgIMKgIMKgIMKgIMKgIMKgIMKgIG1lbWNweShuZXdfeGF0
-dHItPnZhbHVlLCB4YXR0ci0+dmFsdWUsIHhhdHRyLT52YWx1ZV9sZW4pOwo+ICsKPiArIMKgIMKg
-IMKgIMKgIMKgIMKgIMKgIHNwaW5fbG9jaygmaW5mby0+bG9jayk7Cj4gKyDCoCDCoCDCoCDCoCDC
-oCDCoCDCoCBsaXN0X2FkZCgmbmV3X3hhdHRyLT5saXN0LCAmaW5mby0+eGF0dHJfbGlzdCk7Cj4g
-KyDCoCDCoCDCoCDCoCDCoCDCoCDCoCBzcGluX3VubG9jaygmaW5mby0+bG9jayk7Cj4gKyDCoCDC
-oCDCoCB9Cj4gKwo+ICsgwqAgwqAgwqAgcmV0dXJuIGVycjsKClNob3VsZCBiZSAicmV0dXJuIDA7
-IiAoY29uc2lzdGVuY3kpLgoKPiArfQo+ICsKPiDCoHN0YXRpYyBpbnQKPiDCoHNobWVtX21rbm9k
-KHN0cnVjdCBpbm9kZSAqZGlyLCBzdHJ1Y3QgZGVudHJ5ICpkZW50cnksIHVtb2RlX3QgbW9kZSwg
-ZGV2X3QgZGV2KQo+IMKgewo+IEBAIC0xNDkwLDcgKzE1NDMsNyBAQCBzaG1lbV9ta25vZChzdHJ1
-Y3QgaW5vZGUgKmRpciwgc3RydWN0IGRlbnRyeSAqZGVudHJ5LCB1bW9kZV90IG1vZGUsIGRldl90
-IGRldikKPiDCoCDCoCDCoCDCoGlmIChpbm9kZSkgewo+IMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKg
-ZXJyb3IgPSBzZWN1cml0eV9pbm9kZV9pbml0X3NlY3VyaXR5KGlub2RlLCBkaXIsCj4gwqAgwqAg
-wqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAg
-wqAgwqAgwqAgwqAgwqAgJmRlbnRyeS0+ZF9uYW1lLAo+IC0gwqAgwqAgwqAgwqAgwqAgwqAgwqAg
-wqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqBO
-VUxMLCBOVUxMKTsKPiArIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKg
-IMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgJnNobWVtX2luaXR4YXR0cnMsIE5V
-TEwpOwo+IMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgaWYgKGVycm9yKSB7Cj4gwqAgwqAgwqAgwqAg
-wqAgwqAgwqAgwqAgwqAgwqAgwqAgwqBpZiAoZXJyb3IgIT0gLUVPUE5PVFNVUFApIHsKPiDCoCDC
-oCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoGlwdXQoaW5vZGUpOwo+
-IEBAIC0xNjMwLDcgKzE2ODMsNyBAQCBzdGF0aWMgaW50IHNobWVtX3N5bWxpbmsoc3RydWN0IGlu
-b2RlICpkaXIsIHN0cnVjdCBkZW50cnkgKmRlbnRyeSwgY29uc3QgY2hhciAqcwo+IMKgIMKgIMKg
-IMKgIMKgIMKgIMKgIMKgcmV0dXJuIC1FTk9TUEM7Cj4KPiDCoCDCoCDCoCDCoGVycm9yID0gc2Vj
-dXJpdHlfaW5vZGVfaW5pdF9zZWN1cml0eShpbm9kZSwgZGlyLCAmZGVudHJ5LT5kX25hbWUsCj4g
-LSDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDC
-oCDCoCDCoCDCoE5VTEwsIE5VTEwpOwo+ICsgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAg
-wqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAmc2htZW1faW5pdHhhdHRycywgTlVM
-TCk7Cj4gwqAgwqAgwqAgwqBpZiAoZXJyb3IpIHsKPiDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoGlm
-IChlcnJvciAhPSAtRU9QTk9UU1VQUCkgewo+IMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKg
-IMKgIMKgaXB1dChpbm9kZSk7Cj4gQEAgLTE3MzEsMjYgKzE3ODQsMTkgQEAgc3RhdGljIGludCBz
-aG1lbV94YXR0cl9nZXQoc3RydWN0IGRlbnRyeSAqZGVudHJ5LCBjb25zdCBjaGFyICpuYW1lLAo+
-IMKgIMKgIMKgIMKgcmV0dXJuIHJldDsKPiDCoH0KPgo+IC1zdGF0aWMgaW50IHNobWVtX3hhdHRy
-X3NldChzdHJ1Y3QgZGVudHJ5ICpkZW50cnksIGNvbnN0IGNoYXIgKm5hbWUsCj4gK3N0YXRpYyBp
-bnQgc2htZW1feGF0dHJfc2V0KHN0cnVjdCBpbm9kZSAqaW5vZGUsIGNvbnN0IGNoYXIgKm5hbWUs
-Cj4gwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgY29uc3Qgdm9pZCAqdmFs
-dWUsIHNpemVfdCBzaXplLCBpbnQgZmxhZ3MpCj4gwqB7Cj4gLSDCoCDCoCDCoCBzdHJ1Y3QgaW5v
-ZGUgKmlub2RlID0gZGVudHJ5LT5kX2lub2RlOwo+IMKgIMKgIMKgIMKgc3RydWN0IHNobWVtX2lu
-b2RlX2luZm8gKmluZm8gPSBTSE1FTV9JKGlub2RlKTsKPiDCoCDCoCDCoCDCoHN0cnVjdCBzaG1l
-bV94YXR0ciAqeGF0dHI7Cj4gwqAgwqAgwqAgwqBzdHJ1Y3Qgc2htZW1feGF0dHIgKm5ld194YXR0
-ciA9IE5VTEw7Cj4gLSDCoCDCoCDCoCBzaXplX3QgbGVuOwo+IMKgIMKgIMKgIMKgaW50IGVyciA9
-IDA7Cj4KPiDCoCDCoCDCoCDCoC8qIHZhbHVlID09IE5VTEwgbWVhbnMgcmVtb3ZlICovCj4gwqAg
-wqAgwqAgwqBpZiAodmFsdWUpIHsKPiAtIMKgIMKgIMKgIMKgIMKgIMKgIMKgIC8qIHdyYXAgYXJv
-dW5kPyAqLwo+IC0gwqAgwqAgwqAgwqAgwqAgwqAgwqAgbGVuID0gc2l6ZW9mKCpuZXdfeGF0dHIp
-ICsgc2l6ZTsKPiAtIMKgIMKgIMKgIMKgIMKgIMKgIMKgIGlmIChsZW4gPD0gc2l6ZW9mKCpuZXdf
-eGF0dHIpKQo+IC0gwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgcmV0dXJuIC1FTk9N
-RU07Cj4gLQo+IC0gwqAgwqAgwqAgwqAgwqAgwqAgwqAgbmV3X3hhdHRyID0ga21hbGxvYyhsZW4s
-IEdGUF9LRVJORUwpOwo+IC0gwqAgwqAgwqAgwqAgwqAgwqAgwqAgaWYgKCFuZXdfeGF0dHIpCj4g
-LSDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCByZXR1cm4gLUVOT01FTTsKPiArIMKg
-IMKgIMKgIMKgIMKgIMKgIMKgIGVyciA9IHNobWVtX3hhdHRyX2FsbG9jKHNpemUsICZuZXdfeGF0
-dHIpOwo+ICsgwqAgwqAgwqAgwqAgwqAgwqAgwqAgaWYgKGVyciA8IDApCj4gKyDCoCDCoCDCoCDC
-oCDCoCDCoCDCoCDCoCDCoCDCoCDCoCByZXR1cm4gZXJyOwo+Cj4gwqAgwqAgwqAgwqAgwqAgwqAg
-wqAgwqBuZXdfeGF0dHItPm5hbWUgPSBrc3RyZHVwKG5hbWUsIEdGUF9LRVJORUwpOwo+IMKgIMKg
-IMKgIMKgIMKgIMKgIMKgIMKgaWYgKCFuZXdfeGF0dHItPm5hbWUpIHsKPiBAQCAtMTc1OCw3ICsx
-ODA0LDYgQEAgc3RhdGljIGludCBzaG1lbV94YXR0cl9zZXQoc3RydWN0IGRlbnRyeSAqZGVudHJ5
-LCBjb25zdCBjaGFyICpuYW1lLAo+IMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKg
-cmV0dXJuIC1FTk9NRU07Cj4gwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqB9Cj4KPiAtIMKgIMKgIMKg
-IMKgIMKgIMKgIMKgIG5ld194YXR0ci0+c2l6ZSA9IHNpemU7Cj4gwqAgwqAgwqAgwqAgwqAgwqAg
-wqAgwqBtZW1jcHkobmV3X3hhdHRyLT52YWx1ZSwgdmFsdWUsIHNpemUpOwo+IMKgIMKgIMKgIMKg
-fQo+Cj4gQEAgLTE4NTgsNyArMTkwMyw3IEBAIHN0YXRpYyBpbnQgc2htZW1fc2V0eGF0dHIoc3Ry
-dWN0IGRlbnRyeSAqZGVudHJ5LCBjb25zdCBjaGFyICpuYW1lLAo+IMKgIMKgIMKgIMKgaWYgKHNp
-emUgPT0gMCkKPiDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoHZhbHVlID0gIiI7IMKgLyogZW1wdHkg
-RUEsIGRvIG5vdCByZW1vdmUgKi8KPgo+IC0gwqAgwqAgwqAgcmV0dXJuIHNobWVtX3hhdHRyX3Nl
-dChkZW50cnksIG5hbWUsIHZhbHVlLCBzaXplLCBmbGFncyk7Cj4gKyDCoCDCoCDCoCByZXR1cm4g
-c2htZW1feGF0dHJfc2V0KGRlbnRyeS0+ZF9pbm9kZSwgbmFtZSwgdmFsdWUsIHNpemUsIGZsYWdz
-KTsKPgo+IMKgfQo+Cj4gQEAgLTE4NzgsNyArMTkyMyw3IEBAIHN0YXRpYyBpbnQgc2htZW1fcmVt
-b3ZleGF0dHIoc3RydWN0IGRlbnRyeSAqZGVudHJ5LCBjb25zdCBjaGFyICpuYW1lKQo+IMKgIMKg
-IMKgIMKgaWYgKGVycikKPiDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoHJldHVybiBlcnI7Cj4KPiAt
-IMKgIMKgIMKgIHJldHVybiBzaG1lbV94YXR0cl9zZXQoZGVudHJ5LCBuYW1lLCBOVUxMLCAwLCBY
-QVRUUl9SRVBMQUNFKTsKPiArIMKgIMKgIMKgIHJldHVybiBzaG1lbV94YXR0cl9zZXQoZGVudHJ5
-LT5kX2lub2RlLCBuYW1lLCBOVUxMLCAwLCBYQVRUUl9SRVBMQUNFKTsKPiDCoH0KPgo+IMKgc3Rh
-dGljIGJvb2wgeGF0dHJfaXNfdHJ1c3RlZChjb25zdCBjaGFyICpuYW1lKQo+IC0tCj4gMS43LjUu
-NAo+CgovSmFya2tvCg==
+On Wed, Feb 22, 2012 at 5:58 AM, Glauber Costa <glommer@parallels.com> wrot=
+e:
+>>> As previously proposed, one has the option of keeping kernel memory
+>>> accounted separatedly, or together with the normal userspace memory.
+>>> However, this time I made the option to, in this later case, bill
+>>> the memory directly to memcg->res. It has the disadvantage that it
+>>> becomes
+>>> complicated to know which memory came from user or kernel, but OTOH,
+>>> it does not create any overhead of drawing from multiple res_counters
+>>> at read time. (and if you want them to be joined, you probably don't
+>>> care)
+>>
+>>
+>> It would be nice to still keep a kernel memory counter (that gets
+>> updated at the same time as memcg->res) even when the limits are not
+>> independent, because sometimes it's important to know how much kernel
+>> memory is being used by a cgroup.
+>
+>
+> Can you clarify in this "sometimes" ? The way I see it, we either always =
+use
+> two counters - as did in my original proposal - or use a single counter f=
+or
+> this case. Keeping a separated counter and still billing to the user memo=
+ry
+> is the worst of both worlds to me, since you get the performance hit of
+> updating two resource counters.
+
+By "sometimes", I mean pretty much any time we have to debug why a
+cgroup is out of memory.
+If there is no counter for how much kernel memory is used, it's pretty
+much impossible to determine why the cgroup is full.
+
+As for the performance, I do not think it is bad, as the accounting is
+done in the slow path of slab allocation, when we allocate/free pages.
+
+>
+>
+>>> Kernel memory is never tracked for the root memory cgroup. This means
+>>> that a system where no memory cgroups exists other than the root, the
+>>> time cost of this implementation is a couple of branches in the slub
+>>> code - none of them in fast paths. At the moment, this works only
+>>> with the slub.
+>>>
+>>> At cgroup destruction, memory is billed to the parent. With no hierarch=
+y,
+>>> this would mean the root memcg. But since we are not billing to that,
+>>> it simply ceases to be tracked.
+>>>
+>>> The caches that we want to be tracked need to explicit register into
+>>> the infrastructure.
+>>
+>>
+>> Why not track every cache unless otherwise specified? If you don't,
+>> you might end up polluting code all around the kernel to create
+>> per-cgroup caches.
+>> =A0From what I've seen, there are a fair amount of different caches that
+>> can end up using a significant amount of memory, and having to go
+>> around and explicitly mark each one doesn't seem like the right thing
+>> to do.
+>>
+> The registration code is quite simple, so I don't agree this is polluting
+> code all around the kernel. It is just a couple of lines.
+>
+> Of course, in an opt-out system, this count would be zero. So is it bette=
+r?
+>
+> Let's divide the caches in two groups: Ones that use shrinkers, and simpl=
+e
+> ones that won't do. I am assuming most of the ones we need to track use
+> shrinkers somehow.
+>
+> So if they do use a shrinker, it is very unlikely that the normal shrinke=
+rs
+> will work without being memcg-aware. We then end up in a scenario in whic=
+h
+> we track memory, we create a bunch of new caches, but we can't really for=
+ce
+> reclaim on that cache. We then depend on luck to have the objects reclaim=
+ed
+> from the root shrinker. Note that this is a problem that did not exist
+> before: a dcache shrinker would shrink dcache objects and that's it, but =
+we
+> didn't have more than one cache with those objects.
+>
+> So in this context, registering a cache explicitly is better IMHO, becaus=
+e
+> what you are doing is telling: "I examined this cache, and I believe it w=
+ill
+> work okay with the memcg. It either does not need changes to the shrinker=
+,
+> or I made them already"
+>
+> Also, everytime we create a new cache, we're wasting some memory, as we
+> duplicate state. That is fine, since we're doing this to prevent the usag=
+e
+> to explode.
+>
+> But I am not sure it pays of in a lot of caches, even if they use a lot o=
+f
+> pages: Like, quickly scanning slabinfo:
+>
+> task_struct =A0 =A0 =A0 =A0 =A0512 =A0 =A0570 =A0 5920 =A0 =A05 =A0 =A08 =
+: tunables =A0 =A00 =A0 =A00 =A00 :
+> slabdata =A0 =A0114 =A0 =A0114 =A0 =A0 =A00
+>
+> Can only grow if # of processes grow. Likely to hit a limit on that first=
+.
+>
+> Acpi-Namespace =A0 =A0 =A04348 =A0 5304 =A0 =A0 40 =A0102 =A0 =A01 : tuna=
+bles =A0 =A00 =A0 =A00 =A00 :
+> slabdata =A0 =A0 52 =A0 =A0 52 =A0 =A0 =A00
+>
+> I doubt we can take down a sane system by using this cache...
+>
+> and so on and so forth.
+>
+> What do you think?
+
+Well, we've seen several slabs that don't have shrinkers use
+significant amounts of memory. For example, size-64, size-32,
+vm_area_struct, buffer_head, radix_tree_node, TCP, filp..
+
+For example, consider this perl program (with high enough file
+descriptor limits):
+use POSIX; use Socket; my $i; for ($i =3D 0; $i < 100000; $i++) {
+socket($i, PF_INET, SOCK_STREAM, 0) || die "socket: $!"; }
+
+One can make other simple programs like this that use significant
+amounts of slab memory.
+
+Having to look at a running kernel, having to find out which caches
+are significant, and then going back and marking them for accounting,
+really doesn't seem the right approach to me.
+
+-- Suleiman
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
