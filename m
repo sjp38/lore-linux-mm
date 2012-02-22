@@ -1,55 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx189.postini.com [74.125.245.189])
-	by kanga.kvack.org (Postfix) with SMTP id 3A6236B00FB
-	for <linux-mm@kvack.org>; Tue, 21 Feb 2012 19:18:05 -0500 (EST)
-Date: Tue, 21 Feb 2012 16:18:02 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCHv22 14/16] X86: integrate CMA with DMA-mapping subsystem
-Message-Id: <20120221161802.f6a28085.akpm@linux-foundation.org>
-In-Reply-To: <1329507036-24362-15-git-send-email-m.szyprowski@samsung.com>
-References: <1329507036-24362-1-git-send-email-m.szyprowski@samsung.com>
-	<1329507036-24362-15-git-send-email-m.szyprowski@samsung.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Received: from psmtp.com (na3sys010amx137.postini.com [74.125.245.137])
+	by kanga.kvack.org (Postfix) with SMTP id B95436B00FD
+	for <linux-mm@kvack.org>; Tue, 21 Feb 2012 19:34:41 -0500 (EST)
+Message-ID: <4F443814.6050209@fb.com>
+Date: Tue, 21 Feb 2012 16:34:28 -0800
+From: Arun Sharma <asharma@fb.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH] mm: Enable MAP_UNINITIALIZED for archs with mmu
+References: <1326912662-18805-1-git-send-email-asharma@fb.com> <20120119114206.653b88bd.kamezawa.hiroyu@jp.fujitsu.com> <4F1E013E.9060009@fb.com> <20120124120704.3f09b206.kamezawa.hiroyu@jp.fujitsu.com> <4F1F5EB8.3000407@fb.com>
+In-Reply-To: <4F1F5EB8.3000407@fb.com>
+Content-Type: text/plain; charset="ISO-8859-1"; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Marek Szyprowski <m.szyprowski@samsung.com>
-Cc: linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-media@vger.kernel.org, linux-mm@kvack.org, linaro-mm-sig@lists.linaro.org, Michal Nazarewicz <mina86@mina86.com>, Kyungmin Park <kyungmin.park@samsung.com>, Russell King <linux@arm.linux.org.uk>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daniel Walker <dwalker@codeaurora.org>, Mel Gorman <mel@csn.ul.ie>, Arnd Bergmann <arnd@arndb.de>, Jesse Barker <jesse.barker@linaro.org>, Jonathan Corbet <corbet@lwn.net>, Shariq Hasnain <shariq.hasnain@linaro.org>, Chunsang Jeong <chunsang.jeong@linaro.org>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Gaignard <benjamin.gaignard@linaro.org>, Rob Clark <rob.clark@linaro.org>, Ohad Ben-Cohen <ohad@wizery.com>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Balbir Singh <bsingharora@gmail.com>, akpm@linux-foundation.org
 
-On Fri, 17 Feb 2012 20:30:34 +0100
-Marek Szyprowski <m.szyprowski@samsung.com> wrote:
-
-> This patch adds support for CMA to dma-mapping subsystem for x86
-> architecture that uses common pci-dma/pci-nommu implementation. This
-> allows to test CMA on KVM/QEMU and a lot of common x86 boxes.
-> 
-> ...
+On 1/24/12 5:45 PM, Arun Sharma wrote:
+> On 1/23/12 7:07 PM, KAMEZAWA Hiroyuki wrote:
 >
-> --- a/arch/x86/Kconfig
-> +++ b/arch/x86/Kconfig
-> @@ -31,6 +31,7 @@ config X86
->  	select ARCH_WANT_OPTIONAL_GPIOLIB
->  	select ARCH_WANT_FRAME_POINTERS
->  	select HAVE_DMA_ATTRS
-> +	select HAVE_DMA_CONTIGUOUS if !SWIOTLB
->  	select HAVE_KRETPROBES
->  	select HAVE_OPTPROBES
->  	select HAVE_FTRACE_MCOUNT_RECORD
+>> You can see reduction of clear_page() cost by removing GFP_ZERO but
+>> what's your application's total performance ? Is it good enough
+>> considering
+>> many risks ?
+>
+> I see 90k calls/sec to clear_page_c when running our application. I
+> don't have data on the impact of GFP_ZERO alone, but an earlier
+> experiment when we tuned malloc to not call madvise(MADV_DONTNEED)
+> aggressively saved us 3% CPU. So I'm expecting this to be a 1-2% win.
 
-I don't think it's compilable at all for x86_64, because that platform
-selects SWIOTLB.
+I saw some additional measurement data today.
 
-After a while I got it to compile for i386.  arm didn't go so well,
-partly because arm allmodconfig is presently horked (something to do
-with Kconfig not setting PHYS_OFFSET) and partly because arm defconfig
-doesn't permit CMA to be set.  Got bored, gave up.
+We were running at a lower-than-default value for the rate at which our 
+malloc implementation releases unused faulted-in memory to the kernel 
+via madvise(). This was done just to reduce the impact of clear_page() 
+on application performance. But it cost us at least several hundred megs 
+(if not more) in additional RSS.
 
-The patchset collides pretty seriously with pending dma api changes and
-pending arm changes in linux-next, so I didn't apply anything.  This
-will all need to be looked at, please.
+We compared the impact of increasing the madvise rate to the default[1]. 
+This used to cause a 3% CPU regression earlier. But with the patch, the 
+regression was completely gone and we recovered a bunch of memory in 
+terms of reduced RSS.
 
-I'll make do with reading the patches for now ;)
+Hope this additional data is useful. Happy to clean up the patch and 
+implement the opt-in flags.
+
+  -Arun
+
+[1] The default rate is 32:1, i.e. no more than 1/32th of the heap is 
+unused and dirty (i.e. contributing to RSS).
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
