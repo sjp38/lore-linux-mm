@@ -1,69 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx195.postini.com [74.125.245.195])
-	by kanga.kvack.org (Postfix) with SMTP id 2E3426B00F8
-	for <linux-mm@kvack.org>; Tue, 21 Feb 2012 18:50:34 -0500 (EST)
-Received: by qauh8 with SMTP id h8so8792026qau.14
-        for <linux-mm@kvack.org>; Tue, 21 Feb 2012 15:50:33 -0800 (PST)
-MIME-Version: 1.0
-In-Reply-To: <1329824079-14449-4-git-send-email-glommer@parallels.com>
-References: <1329824079-14449-1-git-send-email-glommer@parallels.com>
-	<1329824079-14449-4-git-send-email-glommer@parallels.com>
-Date: Tue, 21 Feb 2012 15:50:32 -0800
-Message-ID: <CABCjUKAmjGS1j6kNgj8it_QZSPKJiCmgpme6BTxAGkoJ=DSR7w@mail.gmail.com>
-Subject: Re: [PATCH 3/7] per-cgroup slab caches
-From: Suleiman Souhlal <suleiman@google.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Received: from psmtp.com (na3sys010amx189.postini.com [74.125.245.189])
+	by kanga.kvack.org (Postfix) with SMTP id 3A6236B00FB
+	for <linux-mm@kvack.org>; Tue, 21 Feb 2012 19:18:05 -0500 (EST)
+Date: Tue, 21 Feb 2012 16:18:02 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCHv22 14/16] X86: integrate CMA with DMA-mapping subsystem
+Message-Id: <20120221161802.f6a28085.akpm@linux-foundation.org>
+In-Reply-To: <1329507036-24362-15-git-send-email-m.szyprowski@samsung.com>
+References: <1329507036-24362-1-git-send-email-m.szyprowski@samsung.com>
+	<1329507036-24362-15-git-send-email-m.szyprowski@samsung.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Glauber Costa <glommer@parallels.com>
-Cc: cgroups@vger.kernel.org, devel@openvz.org, linux-mm@kvack.org, "Kirill A. Shutemov" <kirill@shutemov.name>, Greg Thelen <gthelen@google.com>, Johannes Weiner <jweiner@redhat.com>, Michal Hocko <mhocko@suse.cz>, Hiroyouki Kamezawa <kamezawa.hiroyu@jp.fujitsu.com>, Paul Turner <pjt@google.com>, Frederic Weisbecker <fweisbec@gmail.com>, Pekka Enberg <penberg@kernel.org>, Christoph Lameter <cl@linux.com>
+To: Marek Szyprowski <m.szyprowski@samsung.com>
+Cc: linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-media@vger.kernel.org, linux-mm@kvack.org, linaro-mm-sig@lists.linaro.org, Michal Nazarewicz <mina86@mina86.com>, Kyungmin Park <kyungmin.park@samsung.com>, Russell King <linux@arm.linux.org.uk>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daniel Walker <dwalker@codeaurora.org>, Mel Gorman <mel@csn.ul.ie>, Arnd Bergmann <arnd@arndb.de>, Jesse Barker <jesse.barker@linaro.org>, Jonathan Corbet <corbet@lwn.net>, Shariq Hasnain <shariq.hasnain@linaro.org>, Chunsang Jeong <chunsang.jeong@linaro.org>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Gaignard <benjamin.gaignard@linaro.org>, Rob Clark <rob.clark@linaro.org>, Ohad Ben-Cohen <ohad@wizery.com>
 
-On Tue, Feb 21, 2012 at 3:34 AM, Glauber Costa <glommer@parallels.com> wrot=
-e:
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index 26fda11..2aa35b0 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> +struct kmem_cache *
-> +kmem_cache_dup(struct mem_cgroup *memcg, struct kmem_cache *base)
-> +{
-> + =A0 =A0 =A0 struct kmem_cache *s;
-> + =A0 =A0 =A0 unsigned long pages;
-> + =A0 =A0 =A0 struct res_counter *fail;
-> + =A0 =A0 =A0 /*
-> + =A0 =A0 =A0 =A0* TODO: We should use an ida-like index here, instead
-> + =A0 =A0 =A0 =A0* of the kernel address
-> + =A0 =A0 =A0 =A0*/
-> + =A0 =A0 =A0 char *kname =3D kasprintf(GFP_KERNEL, "%s-%p", base->name, =
-memcg);
+On Fri, 17 Feb 2012 20:30:34 +0100
+Marek Szyprowski <m.szyprowski@samsung.com> wrote:
 
-Would it make more sense to use the memcg name instead of the pointer?
+> This patch adds support for CMA to dma-mapping subsystem for x86
+> architecture that uses common pci-dma/pci-nommu implementation. This
+> allows to test CMA on KVM/QEMU and a lot of common x86 boxes.
+> 
+> ...
+>
+> --- a/arch/x86/Kconfig
+> +++ b/arch/x86/Kconfig
+> @@ -31,6 +31,7 @@ config X86
+>  	select ARCH_WANT_OPTIONAL_GPIOLIB
+>  	select ARCH_WANT_FRAME_POINTERS
+>  	select HAVE_DMA_ATTRS
+> +	select HAVE_DMA_CONTIGUOUS if !SWIOTLB
+>  	select HAVE_KRETPROBES
+>  	select HAVE_OPTPROBES
+>  	select HAVE_FTRACE_MCOUNT_RECORD
 
-> +
-> + =A0 =A0 =A0 WARN_ON(mem_cgroup_is_root(memcg));
-> +
-> + =A0 =A0 =A0 if (!kname)
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 return NULL;
-> +
-> + =A0 =A0 =A0 s =3D kmem_cache_create_cg(memcg, kname, base->size,
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0base->al=
-ign, base->flags, base->ctor);
-> + =A0 =A0 =A0 if (WARN_ON(!s))
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 goto out;
-> +
-> +
-> + =A0 =A0 =A0 pages =3D slab_nr_pages(s);
-> +
-> + =A0 =A0 =A0 if (res_counter_charge(memcg_kmem(memcg), pages << PAGE_SHI=
-FT, &fail)) {
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 kmem_cache_destroy(s);
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 s =3D NULL;
-> + =A0 =A0 =A0 }
+I don't think it's compilable at all for x86_64, because that platform
+selects SWIOTLB.
 
-What are we charging here? Does it ever get uncharged?
+After a while I got it to compile for i386.  arm didn't go so well,
+partly because arm allmodconfig is presently horked (something to do
+with Kconfig not setting PHYS_OFFSET) and partly because arm defconfig
+doesn't permit CMA to be set.  Got bored, gave up.
 
--- Suleiman
+The patchset collides pretty seriously with pending dma api changes and
+pending arm changes in linux-next, so I didn't apply anything.  This
+will all need to be looked at, please.
+
+I'll make do with reading the patches for now ;)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
