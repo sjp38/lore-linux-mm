@@ -1,54 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx137.postini.com [74.125.245.137])
-	by kanga.kvack.org (Postfix) with SMTP id B95436B00FD
-	for <linux-mm@kvack.org>; Tue, 21 Feb 2012 19:34:41 -0500 (EST)
-Message-ID: <4F443814.6050209@fb.com>
-Date: Tue, 21 Feb 2012 16:34:28 -0800
-From: Arun Sharma <asharma@fb.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH] mm: Enable MAP_UNINITIALIZED for archs with mmu
-References: <1326912662-18805-1-git-send-email-asharma@fb.com> <20120119114206.653b88bd.kamezawa.hiroyu@jp.fujitsu.com> <4F1E013E.9060009@fb.com> <20120124120704.3f09b206.kamezawa.hiroyu@jp.fujitsu.com> <4F1F5EB8.3000407@fb.com>
-In-Reply-To: <4F1F5EB8.3000407@fb.com>
-Content-Type: text/plain; charset="ISO-8859-1"; format=flowed
+Received: from psmtp.com (na3sys010amx171.postini.com [74.125.245.171])
+	by kanga.kvack.org (Postfix) with SMTP id 6C0F66B00FF
+	for <linux-mm@kvack.org>; Tue, 21 Feb 2012 19:48:00 -0500 (EST)
+Received: from m2.gw.fujitsu.co.jp (unknown [10.0.50.72])
+	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 642833EE0C0
+	for <linux-mm@kvack.org>; Wed, 22 Feb 2012 09:47:58 +0900 (JST)
+Received: from smail (m2 [127.0.0.1])
+	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 4C9F745DE52
+	for <linux-mm@kvack.org>; Wed, 22 Feb 2012 09:47:58 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
+	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 31C7645DD78
+	for <linux-mm@kvack.org>; Wed, 22 Feb 2012 09:47:58 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 1F78E1DB802C
+	for <linux-mm@kvack.org>; Wed, 22 Feb 2012 09:47:58 +0900 (JST)
+Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.240.81.146])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id C93BF1DB803A
+	for <linux-mm@kvack.org>; Wed, 22 Feb 2012 09:47:57 +0900 (JST)
+Date: Wed, 22 Feb 2012 09:46:19 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH 1/7] small cleanup for memcontrol.c
+Message-Id: <20120222094619.caffc432.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <1329824079-14449-2-git-send-email-glommer@parallels.com>
+References: <1329824079-14449-1-git-send-email-glommer@parallels.com>
+	<1329824079-14449-2-git-send-email-glommer@parallels.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Balbir Singh <bsingharora@gmail.com>, akpm@linux-foundation.org
+To: Glauber Costa <glommer@parallels.com>
+Cc: cgroups@vger.kernel.org, devel@openvz.org, linux-mm@kvack.org, "Kirill A. Shutemov" <kirill@shutemov.name>, Greg Thelen <gthelen@google.com>, Johannes Weiner <jweiner@redhat.com>, Michal Hocko <mhocko@suse.cz>, Paul Turner <pjt@google.com>, Frederic Weisbecker <fweisbec@gmail.com>
 
-On 1/24/12 5:45 PM, Arun Sharma wrote:
-> On 1/23/12 7:07 PM, KAMEZAWA Hiroyuki wrote:
->
->> You can see reduction of clear_page() cost by removing GFP_ZERO but
->> what's your application's total performance ? Is it good enough
->> considering
->> many risks ?
->
-> I see 90k calls/sec to clear_page_c when running our application. I
-> don't have data on the impact of GFP_ZERO alone, but an earlier
-> experiment when we tuned malloc to not call madvise(MADV_DONTNEED)
-> aggressively saved us 3% CPU. So I'm expecting this to be a 1-2% win.
+On Tue, 21 Feb 2012 15:34:33 +0400
+Glauber Costa <glommer@parallels.com> wrote:
 
-I saw some additional measurement data today.
+> Move some hardcoded definitions to an enum type.
+> 
+> Signed-off-by: Glauber Costa <glommer@parallels.com>
+> CC: Kirill A. Shutemov <kirill@shutemov.name>
+> CC: Greg Thelen <gthelen@google.com>
+> CC: Johannes Weiner <jweiner@redhat.com>
+> CC: Michal Hocko <mhocko@suse.cz>
+> CC: Hiroyouki Kamezawa <kamezawa.hiroyu@jp.fujitsu.com>
+> CC: Paul Turner <pjt@google.com>
+> CC: Frederic Weisbecker <fweisbec@gmail.com>
 
-We were running at a lower-than-default value for the rate at which our 
-malloc implementation releases unused faulted-in memory to the kernel 
-via madvise(). This was done just to reduce the impact of clear_page() 
-on application performance. But it cost us at least several hundred megs 
-(if not more) in additional RSS.
+seems ok to me.
 
-We compared the impact of increasing the madvise rate to the default[1]. 
-This used to cause a 3% CPU regression earlier. But with the patch, the 
-regression was completely gone and we recovered a bunch of memory in 
-terms of reduced RSS.
+Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-Hope this additional data is useful. Happy to clean up the patch and 
-implement the opt-in flags.
+a nitpick..
 
-  -Arun
+> ---
+>  mm/memcontrol.c |   10 +++++++---
+>  1 files changed, 7 insertions(+), 3 deletions(-)
+> 
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index 6728a7a..b15a693 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -351,9 +351,13 @@ enum charge_type {
+>  };
+>  
+>  /* for encoding cft->private value on file */
+> -#define _MEM			(0)
+> -#define _MEMSWAP		(1)
+> -#define _OOM_TYPE		(2)
+> +
+> +enum mem_type {
+> +	_MEM = 0,
 
-[1] The default rate is 32:1, i.e. no more than 1/32th of the heap is 
-unused and dirty (i.e. contributing to RSS).
+=0 is required ?
+
+> +	_MEMSWAP,
+> +	_OOM_TYPE,
+> +};
+> +
+>  #define MEMFILE_PRIVATE(x, val)	(((x) << 16) | (val))
+>  #define MEMFILE_TYPE(val)	(((val) >> 16) & 0xffff)
+>  #define MEMFILE_ATTR(val)	((val) & 0xffff)
+> -- 
+> 1.7.7.6
+> 
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
