@@ -1,7 +1,7 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from psmtp.com (na3sys010amx130.postini.com [74.125.245.130])
-	by kanga.kvack.org (Postfix) with SMTP id 889806B00F2
-	for <linux-mm@kvack.org>; Wed, 22 Feb 2012 11:49:14 -0500 (EST)
+	by kanga.kvack.org (Postfix) with SMTP id E12A06B00F6
+	for <linux-mm@kvack.org>; Wed, 22 Feb 2012 11:49:19 -0500 (EST)
 Received: from euspt2 (mailout1.w1.samsung.com [210.118.77.11])
  by mailout1.w1.samsung.com
  (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14 2004))
@@ -9,13 +9,13 @@ Received: from euspt2 (mailout1.w1.samsung.com [210.118.77.11])
  Wed, 22 Feb 2012 16:49:03 +0000 (GMT)
 Received: from linux.samsung.com ([106.116.38.10])
  by spt2.w1.samsung.com (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14
- 2004)) with ESMTPA id <0LZT001GM01QXV@spt2.w1.samsung.com> for
+ 2004)) with ESMTPA id <0LZT0006701Q0O@spt2.w1.samsung.com> for
  linux-mm@kvack.org; Wed, 22 Feb 2012 16:49:03 +0000 (GMT)
-Date: Wed, 22 Feb 2012 17:48:54 +0100
+Date: Wed, 22 Feb 2012 17:48:55 +0100
 From: Marek Szyprowski <m.szyprowski@samsung.com>
-Subject: [PATCHv23 13/16] drivers: add Contiguous Memory Allocator
+Subject: [PATCHv23 14/16] X86: integrate CMA with DMA-mapping subsystem
 In-reply-to: <1329929337-16648-1-git-send-email-m.szyprowski@samsung.com>
-Message-id: <1329929337-16648-14-git-send-email-m.szyprowski@samsung.com>
+Message-id: <1329929337-16648-15-git-send-email-m.szyprowski@samsung.com>
 MIME-version: 1.0
 Content-type: TEXT/PLAIN
 Content-transfer-encoding: 7BIT
@@ -25,754 +25,165 @@ List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-media@vger.kernel.org, linux-mm@kvack.org, linaro-mm-sig@lists.linaro.org
 Cc: Michal Nazarewicz <mina86@mina86.com>, Marek Szyprowski <m.szyprowski@samsung.com>, Kyungmin Park <kyungmin.park@samsung.com>, Russell King <linux@arm.linux.org.uk>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daniel Walker <dwalker@codeaurora.org>, Mel Gorman <mel@csn.ul.ie>, Arnd Bergmann <arnd@arndb.de>, Jesse Barker <jesse.barker@linaro.org>, Jonathan Corbet <corbet@lwn.net>, Chunsang Jeong <chunsang.jeong@linaro.org>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Gaignard <benjamin.gaignard@linaro.org>, Rob Clark <rob.clark@linaro.org>, Ohad Ben-Cohen <ohad@wizery.com>
 
-The Contiguous Memory Allocator is a set of helper functions for DMA
-mapping framework that improves allocations of contiguous memory chunks.
-
-CMA grabs memory on system boot, marks it with MIGRATE_CMA migrate type
-and gives back to the system. Kernel is allowed to allocate only movable
-pages within CMA's managed memory so that it can be used for example for
-page cache when DMA mapping do not use it. On
-dma_alloc_from_contiguous() request such pages are migrated out of CMA
-area to free required contiguous block and fulfill the request. This
-allows to allocate large contiguous chunks of memory at any time
-assuming that there is enough free memory available in the system.
-
-This code is heavily based on earlier works by Michal Nazarewicz.
+This patch adds support for CMA to dma-mapping subsystem for x86
+architecture that uses common pci-dma/pci-nommu implementation. This
+allows to test CMA on KVM/QEMU and a lot of common x86 boxes.
 
 Signed-off-by: Marek Szyprowski <m.szyprowski@samsung.com>
 Signed-off-by: Kyungmin Park <kyungmin.park@samsung.com>
-Signed-off-by: Michal Nazarewicz <mina86@mina86.com>
+CC: Michal Nazarewicz <mina86@mina86.com>
 Acked-by: Arnd Bergmann <arnd@arndb.de>
-Tested-by: Rob Clark <rob.clark@linaro.org>
-Tested-by: Ohad Ben-Cohen <ohad@wizery.com>
-Tested-by: Benjamin Gaignard <benjamin.gaignard@linaro.org>
-Tested-by: Robert Nelson <robertcnelson@gmail.com>
 ---
- Documentation/kernel-parameters.txt  |    5 +
- arch/Kconfig                         |    3 +
- drivers/base/Kconfig                 |   89 ++++++++
- drivers/base/Makefile                |    1 +
- drivers/base/dma-contiguous.c        |  401 ++++++++++++++++++++++++++++++++++
- include/asm-generic/dma-contiguous.h |   28 +++
- include/linux/device.h               |    4 +
- include/linux/dma-contiguous.h       |  110 +++++++++
- 8 files changed, 641 insertions(+), 0 deletions(-)
- create mode 100644 drivers/base/dma-contiguous.c
- create mode 100644 include/asm-generic/dma-contiguous.h
- create mode 100644 include/linux/dma-contiguous.h
+ arch/x86/Kconfig                      |    1 +
+ arch/x86/include/asm/dma-contiguous.h |   13 +++++++++++++
+ arch/x86/include/asm/dma-mapping.h    |    4 ++++
+ arch/x86/kernel/pci-dma.c             |   18 ++++++++++++++++--
+ arch/x86/kernel/pci-nommu.c           |    8 +-------
+ arch/x86/kernel/setup.c               |    2 ++
+ 6 files changed, 37 insertions(+), 9 deletions(-)
+ create mode 100644 arch/x86/include/asm/dma-contiguous.h
 
-diff --git a/Documentation/kernel-parameters.txt b/Documentation/kernel-parameters.txt
-index 9677556..7369cee 100644
---- a/Documentation/kernel-parameters.txt
-+++ b/Documentation/kernel-parameters.txt
-@@ -508,6 +508,11 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
- 			Also note the kernel might malfunction if you disable
- 			some critical bits.
- 
-+	cma=nn[MG]	[ARM,KNL]
-+			Sets the size of kernel global memory area for contiguous
-+			memory allocations. For more information, see
-+			include/linux/dma-contiguous.h
-+
- 	cmo_free_hint=	[PPC] Format: { yes | no }
- 			Specify whether pages are marked as being inactive
- 			when they are freed.  This is used in CMO environments
-diff --git a/arch/Kconfig b/arch/Kconfig
-index 5e403de..93ec4b5 100644
---- a/arch/Kconfig
-+++ b/arch/Kconfig
-@@ -134,6 +134,9 @@ config HAVE_ARCH_TRACEHOOK
- config HAVE_DMA_ATTRS
- 	bool
- 
-+config HAVE_DMA_CONTIGUOUS
-+	bool
-+
- config USE_GENERIC_SMP_HELPERS
- 	bool
- 
-diff --git a/drivers/base/Kconfig b/drivers/base/Kconfig
-index 9aa618a..9b21469 100644
---- a/drivers/base/Kconfig
-+++ b/drivers/base/Kconfig
-@@ -192,4 +192,93 @@ config DMA_SHARED_BUFFER
- 	  APIs extension; the file's descriptor can then be passed on to other
- 	  driver.
- 
-+config CMA
-+	bool "Contiguous Memory Allocator (EXPERIMENTAL)"
-+	depends on HAVE_DMA_CONTIGUOUS && HAVE_MEMBLOCK && EXPERIMENTAL
-+	select MIGRATION
-+	help
-+	  This enables the Contiguous Memory Allocator which allows drivers
-+	  to allocate big physically-contiguous blocks of memory for use with
-+	  hardware components that do not support I/O map nor scatter-gather.
-+
-+	  For more information see <include/linux/dma-contiguous.h>.
-+	  If unsure, say "n".
-+
-+if CMA
-+
-+config CMA_DEBUG
-+	bool "CMA debug messages (DEVELOPMENT)"
-+	depends on DEBUG_KERNEL
-+	help
-+	  Turns on debug messages in CMA.  This produces KERN_DEBUG
-+	  messages for every CMA call as well as various messages while
-+	  processing calls such as dma_alloc_from_contiguous().
-+	  This option does not affect warning and error messages.
-+
-+comment "Default contiguous memory area size:"
-+
-+config CMA_SIZE_MBYTES
-+	int "Size in Mega Bytes"
-+	depends on !CMA_SIZE_SEL_PERCENTAGE
-+	default 16
-+	help
-+	  Defines the size (in MiB) of the default memory area for Contiguous
-+	  Memory Allocator.
-+
-+config CMA_SIZE_PERCENTAGE
-+	int "Percentage of total memory"
-+	depends on !CMA_SIZE_SEL_MBYTES
-+	default 10
-+	help
-+	  Defines the size of the default memory area for Contiguous Memory
-+	  Allocator as a percentage of the total memory in the system.
-+
-+choice
-+	prompt "Selected region size"
-+	default CMA_SIZE_SEL_ABSOLUTE
-+
-+config CMA_SIZE_SEL_MBYTES
-+	bool "Use mega bytes value only"
-+
-+config CMA_SIZE_SEL_PERCENTAGE
-+	bool "Use percentage value only"
-+
-+config CMA_SIZE_SEL_MIN
-+	bool "Use lower value (minimum)"
-+
-+config CMA_SIZE_SEL_MAX
-+	bool "Use higher value (maximum)"
-+
-+endchoice
-+
-+config CMA_ALIGNMENT
-+	int "Maximum PAGE_SIZE order of alignment for contiguous buffers"
-+	range 4 9
-+	default 8
-+	help
-+	  DMA mapping framework by default aligns all buffers to the smallest
-+	  PAGE_SIZE order which is greater than or equal to the requested buffer
-+	  size. This works well for buffers up to a few hundreds kilobytes, but
-+	  for larger buffers it just a memory waste. With this parameter you can
-+	  specify the maximum PAGE_SIZE order for contiguous buffers. Larger
-+	  buffers will be aligned only to this specified order. The order is
-+	  expressed as a power of two multiplied by the PAGE_SIZE.
-+
-+	  For example, if your system defaults to 4KiB pages, the order value
-+	  of 8 means that the buffers will be aligned up to 1MiB only.
-+
-+	  If unsure, leave the default value "8".
-+
-+config CMA_AREAS
-+	int "Maximum count of the CMA device-private areas"
-+	default 7
-+	help
-+	  CMA allows to create CMA areas for particular devices. This parameter
-+	  sets the maximum number of such device private CMA areas in the
-+	  system.
-+
-+	  If unsure, leave the default value "7".
-+
-+endif
-+
- endmenu
-diff --git a/drivers/base/Makefile b/drivers/base/Makefile
-index b6d1b9c..5aa2d70 100644
---- a/drivers/base/Makefile
-+++ b/drivers/base/Makefile
-@@ -6,6 +6,7 @@ obj-y			:= core.o bus.o dd.o syscore.o \
- 			   attribute_container.o transport_class.o \
- 			   topology.o
- obj-$(CONFIG_DEVTMPFS)	+= devtmpfs.o
-+obj-$(CONFIG_CMA) += dma-contiguous.o
- obj-y			+= power/
- obj-$(CONFIG_HAS_DMA)	+= dma-mapping.o
- obj-$(CONFIG_HAVE_GENERIC_DMA_COHERENT) += dma-coherent.o
-diff --git a/drivers/base/dma-contiguous.c b/drivers/base/dma-contiguous.c
+diff --git a/arch/x86/Kconfig b/arch/x86/Kconfig
+index a61db6d..fea7f3a 100644
+--- a/arch/x86/Kconfig
++++ b/arch/x86/Kconfig
+@@ -31,6 +31,7 @@ config X86
+ 	select ARCH_WANT_OPTIONAL_GPIOLIB
+ 	select ARCH_WANT_FRAME_POINTERS
+ 	select HAVE_DMA_ATTRS
++	select HAVE_DMA_CONTIGUOUS if !SWIOTLB
+ 	select HAVE_KRETPROBES
+ 	select HAVE_OPTPROBES
+ 	select HAVE_FTRACE_MCOUNT_RECORD
+diff --git a/arch/x86/include/asm/dma-contiguous.h b/arch/x86/include/asm/dma-contiguous.h
 new file mode 100644
-index 0000000..78efb03
+index 0000000..c092416
 --- /dev/null
-+++ b/drivers/base/dma-contiguous.c
-@@ -0,0 +1,401 @@
-+/*
-+ * Contiguous Memory Allocator for DMA mapping framework
-+ * Copyright (c) 2010-2011 by Samsung Electronics.
-+ * Written by:
-+ *	Marek Szyprowski <m.szyprowski@samsung.com>
-+ *	Michal Nazarewicz <mina86@mina86.com>
-+ *
-+ * This program is free software; you can redistribute it and/or
-+ * modify it under the terms of the GNU General Public License as
-+ * published by the Free Software Foundation; either version 2 of the
-+ * License or (at your optional) any later version of the license.
-+ */
-+
-+#define pr_fmt(fmt) "cma: " fmt
-+
-+#ifdef CONFIG_CMA_DEBUG
-+#ifndef DEBUG
-+#  define DEBUG
-+#endif
-+#endif
-+
-+#include <asm/page.h>
-+#include <asm/dma-contiguous.h>
-+
-+#include <linux/memblock.h>
-+#include <linux/err.h>
-+#include <linux/mm.h>
-+#include <linux/mutex.h>
-+#include <linux/page-isolation.h>
-+#include <linux/slab.h>
-+#include <linux/swap.h>
-+#include <linux/mm_types.h>
-+#include <linux/dma-contiguous.h>
-+
-+#ifndef SZ_1M
-+#define SZ_1M (1 << 20)
-+#endif
-+
-+struct cma {
-+	unsigned long	base_pfn;
-+	unsigned long	count;
-+	unsigned long	*bitmap;
-+};
-+
-+struct cma *dma_contiguous_default_area;
-+
-+#ifdef CONFIG_CMA_SIZE_MBYTES
-+#define CMA_SIZE_MBYTES CONFIG_CMA_SIZE_MBYTES
-+#else
-+#define CMA_SIZE_MBYTES 0
-+#endif
-+
-+/*
-+ * Default global CMA area size can be defined in kernel's .config.
-+ * This is usefull mainly for distro maintainers to create a kernel
-+ * that works correctly for most supported systems.
-+ * The size can be set in bytes or as a percentage of the total memory
-+ * in the system.
-+ *
-+ * Users, who want to set the size of global CMA area for their system
-+ * should use cma= kernel parameter.
-+ */
-+static const unsigned long size_bytes = CMA_SIZE_MBYTES * SZ_1M;
-+static long size_cmdline = -1;
-+
-+static int __init early_cma(char *p)
-+{
-+	pr_debug("%s(%s)\n", __func__, p);
-+	size_cmdline = memparse(p, &p);
-+	return 0;
-+}
-+early_param("cma", early_cma);
-+
-+#ifdef CONFIG_CMA_SIZE_PERCENTAGE
-+
-+static unsigned long __init __maybe_unused cma_early_percent_memory(void)
-+{
-+	struct memblock_region *reg;
-+	unsigned long total_pages = 0;
-+
-+	/*
-+	 * We cannot use memblock_phys_mem_size() here, because
-+	 * memblock_analyze() has not been called yet.
-+	 */
-+	for_each_memblock(memory, reg)
-+		total_pages += memblock_region_memory_end_pfn(reg) -
-+			       memblock_region_memory_base_pfn(reg);
-+
-+	return (total_pages * CONFIG_CMA_SIZE_PERCENTAGE / 100) << PAGE_SHIFT;
-+}
-+
-+#else
-+
-+static inline __maybe_unused unsigned long cma_early_percent_memory(void)
-+{
-+	return 0;
-+}
-+
-+#endif
-+
-+/**
-+ * dma_contiguous_reserve() - reserve area for contiguous memory handling
-+ * @limit: End address of the reserved memory (optional, 0 for any).
-+ *
-+ * This function reserves memory from early allocator. It should be
-+ * called by arch specific code once the early allocator (memblock or bootmem)
-+ * has been activated and all other subsystems have already allocated/reserved
-+ * memory.
-+ */
-+void __init dma_contiguous_reserve(phys_addr_t limit)
-+{
-+	unsigned long selected_size = 0;
-+
-+	pr_debug("%s(limit %08lx)\n", __func__, (unsigned long)limit);
-+
-+	if (size_cmdline != -1) {
-+		selected_size = size_cmdline;
-+	} else {
-+#ifdef CONFIG_CMA_SIZE_SEL_MBYTES
-+		selected_size = size_bytes;
-+#elif defined(CONFIG_CMA_SIZE_SEL_PERCENTAGE)
-+		selected_size = cma_early_percent_memory();
-+#elif defined(CONFIG_CMA_SIZE_SEL_MIN)
-+		selected_size = min(size_bytes, cma_early_percent_memory());
-+#elif defined(CONFIG_CMA_SIZE_SEL_MAX)
-+		selected_size = max(size_bytes, cma_early_percent_memory());
-+#endif
-+	}
-+
-+	if (selected_size) {
-+		pr_debug("%s: reserving %ld MiB for global area\n", __func__,
-+			 selected_size / SZ_1M);
-+
-+		dma_declare_contiguous(NULL, selected_size, 0, limit);
-+	}
-+};
-+
-+static DEFINE_MUTEX(cma_mutex);
-+
-+static __init int cma_activate_area(unsigned long base_pfn, unsigned long count)
-+{
-+	unsigned long pfn = base_pfn;
-+	unsigned i = count >> pageblock_order;
-+	struct zone *zone;
-+
-+	WARN_ON_ONCE(!pfn_valid(pfn));
-+	zone = page_zone(pfn_to_page(pfn));
-+
-+	do {
-+		unsigned j;
-+		base_pfn = pfn;
-+		for (j = pageblock_nr_pages; j; --j, pfn++) {
-+			WARN_ON_ONCE(!pfn_valid(pfn));
-+			if (page_zone(pfn_to_page(pfn)) != zone)
-+				return -EINVAL;
-+		}
-+		init_cma_reserved_pageblock(pfn_to_page(base_pfn));
-+	} while (--i);
-+	return 0;
-+}
-+
-+static __init struct cma *cma_create_area(unsigned long base_pfn,
-+				     unsigned long count)
-+{
-+	int bitmap_size = BITS_TO_LONGS(count) * sizeof(long);
-+	struct cma *cma;
-+	int ret = -ENOMEM;
-+
-+	pr_debug("%s(base %08lx, count %lx)\n", __func__, base_pfn, count);
-+
-+	cma = kmalloc(sizeof *cma, GFP_KERNEL);
-+	if (!cma)
-+		return ERR_PTR(-ENOMEM);
-+
-+	cma->base_pfn = base_pfn;
-+	cma->count = count;
-+	cma->bitmap = kzalloc(bitmap_size, GFP_KERNEL);
-+
-+	if (!cma->bitmap)
-+		goto no_mem;
-+
-+	ret = cma_activate_area(base_pfn, count);
-+	if (ret)
-+		goto error;
-+
-+	pr_debug("%s: returned %p\n", __func__, (void *)cma);
-+	return cma;
-+
-+error:
-+	kfree(cma->bitmap);
-+no_mem:
-+	kfree(cma);
-+	return ERR_PTR(ret);
-+}
-+
-+static struct cma_reserved {
-+	phys_addr_t start;
-+	unsigned long size;
-+	struct device *dev;
-+} cma_reserved[MAX_CMA_AREAS] __initdata;
-+static unsigned cma_reserved_count __initdata;
-+
-+static int __init cma_init_reserved_areas(void)
-+{
-+	struct cma_reserved *r = cma_reserved;
-+	unsigned i = cma_reserved_count;
-+
-+	pr_debug("%s()\n", __func__);
-+
-+	for (; i; --i, ++r) {
-+		struct cma *cma;
-+		cma = cma_create_area(PFN_DOWN(r->start),
-+				      r->size >> PAGE_SHIFT);
-+		if (!IS_ERR(cma))
-+			dev_set_cma_area(r->dev, cma);
-+	}
-+	return 0;
-+}
-+core_initcall(cma_init_reserved_areas);
-+
-+/**
-+ * dma_declare_contiguous() - reserve area for contiguous memory handling
-+ *			      for particular device
-+ * @dev:   Pointer to device structure.
-+ * @size:  Size of the reserved memory.
-+ * @base:  Start address of the reserved memory (optional, 0 for any).
-+ * @limit: End address of the reserved memory (optional, 0 for any).
-+ *
-+ * This function reserves memory for specified device. It should be
-+ * called by board specific code when early allocator (memblock or bootmem)
-+ * is still activate.
-+ */
-+int __init dma_declare_contiguous(struct device *dev, unsigned long size,
-+				  phys_addr_t base, phys_addr_t limit)
-+{
-+	struct cma_reserved *r = &cma_reserved[cma_reserved_count];
-+	unsigned long alignment;
-+
-+	pr_debug("%s(size %lx, base %08lx, limit %08lx)\n", __func__,
-+		 (unsigned long)size, (unsigned long)base,
-+		 (unsigned long)limit);
-+
-+	/* Sanity checks */
-+	if (cma_reserved_count == ARRAY_SIZE(cma_reserved)) {
-+		pr_err("Not enough slots for CMA reserved regions!\n");
-+		return -ENOSPC;
-+	}
-+
-+	if (!size)
-+		return -EINVAL;
-+
-+	/* Sanitise input arguments */
-+	alignment = PAGE_SIZE << max(MAX_ORDER, pageblock_order);
-+	base = ALIGN(base, alignment);
-+	size = ALIGN(size, alignment);
-+	limit &= ~(alignment - 1);
-+
-+	/* Reserve memory */
-+	if (base) {
-+		if (memblock_is_region_reserved(base, size) ||
-+		    memblock_reserve(base, size) < 0) {
-+			base = -EBUSY;
-+			goto err;
-+		}
-+	} else {
-+		/*
-+		 * Use __memblock_alloc_base() since
-+		 * memblock_alloc_base() panic()s.
-+		 */
-+		phys_addr_t addr = __memblock_alloc_base(size, alignment, limit);
-+		if (!addr) {
-+			base = -ENOMEM;
-+			goto err;
-+		} else if (addr + size > ~(unsigned long)0) {
-+			memblock_free(addr, size);
-+			base = -EINVAL;
-+			goto err;
-+		} else {
-+			base = addr;
-+		}
-+	}
-+
-+	/*
-+	 * Each reserved area must be initialised later, when more kernel
-+	 * subsystems (like slab allocator) are available.
-+	 */
-+	r->start = base;
-+	r->size = size;
-+	r->dev = dev;
-+	cma_reserved_count++;
-+	pr_info("CMA: reserved %ld MiB at %08lx\n", size / SZ_1M,
-+		(unsigned long)base);
-+
-+	/* Architecture specific contiguous memory fixup. */
-+	dma_contiguous_early_fixup(base, size);
-+	return 0;
-+err:
-+	pr_err("CMA: failed to reserve %ld MiB\n", size / SZ_1M);
-+	return base;
-+}
-+
-+/**
-+ * dma_alloc_from_contiguous() - allocate pages from contiguous area
-+ * @dev:   Pointer to device for which the allocation is performed.
-+ * @count: Requested number of pages.
-+ * @align: Requested alignment of pages (in PAGE_SIZE order).
-+ *
-+ * This function allocates memory buffer for specified device. It uses
-+ * device specific contiguous memory area if available or the default
-+ * global one. Requires architecture specific get_dev_cma_area() helper
-+ * function.
-+ */
-+struct page *dma_alloc_from_contiguous(struct device *dev, int count,
-+				       unsigned int align)
-+{
-+	unsigned long mask, pfn, pageno, start = 0;
-+	struct cma *cma = dev_get_cma_area(dev);
-+	int ret;
-+
-+	if (!cma || !cma->count)
-+		return NULL;
-+
-+	if (align > CONFIG_CMA_ALIGNMENT)
-+		align = CONFIG_CMA_ALIGNMENT;
-+
-+	pr_debug("%s(cma %p, count %d, align %d)\n", __func__, (void *)cma,
-+		 count, align);
-+
-+	if (!count)
-+		return NULL;
-+
-+	mask = (1 << align) - 1;
-+
-+	mutex_lock(&cma_mutex);
-+
-+	for (;;) {
-+		pageno = bitmap_find_next_zero_area(cma->bitmap, cma->count,
-+						    start, count, mask);
-+		if (pageno >= cma->count) {
-+			ret = -ENOMEM;
-+			goto error;
-+		}
-+
-+		pfn = cma->base_pfn + pageno;
-+		ret = alloc_contig_range(pfn, pfn + count, MIGRATE_CMA);
-+		if (ret == 0) {
-+			bitmap_set(cma->bitmap, pageno, count);
-+			break;
-+		} else if (ret != -EBUSY) {
-+			goto error;
-+		}
-+		pr_debug("%s(): memory range at %p is busy, retrying\n",
-+			 __func__, pfn_to_page(pfn));
-+		/* try again with a bit different memory target */
-+		start = pageno + mask + 1;
-+	}
-+
-+	mutex_unlock(&cma_mutex);
-+
-+	pr_debug("%s(): returned %p\n", __func__, pfn_to_page(pfn));
-+	return pfn_to_page(pfn);
-+error:
-+	mutex_unlock(&cma_mutex);
-+	return NULL;
-+}
-+
-+/**
-+ * dma_release_from_contiguous() - release allocated pages
-+ * @dev:   Pointer to device for which the pages were allocated.
-+ * @pages: Allocated pages.
-+ * @count: Number of allocated pages.
-+ *
-+ * This function releases memory allocated by dma_alloc_from_contiguous().
-+ * It returns false when provided pages do not belong to contiguous area and
-+ * true otherwise.
-+ */
-+bool dma_release_from_contiguous(struct device *dev, struct page *pages,
-+				 int count)
-+{
-+	struct cma *cma = dev_get_cma_area(dev);
-+	unsigned long pfn;
-+
-+	if (!cma || !pages)
-+		return false;
-+
-+	pr_debug("%s(page %p)\n", __func__, (void *)pages);
-+
-+	pfn = page_to_pfn(pages);
-+
-+	if (pfn < cma->base_pfn || pfn >= cma->base_pfn + cma->count)
-+		return false;
-+
-+	VM_BUG_ON(pfn + count > cma->base_pfn + cma->count);
-+
-+	mutex_lock(&cma_mutex);
-+	bitmap_clear(cma->bitmap, pfn - cma->base_pfn, count);
-+	free_contig_range(pfn, count);
-+	mutex_unlock(&cma_mutex);
-+
-+	return true;
-+}
-diff --git a/include/asm-generic/dma-contiguous.h b/include/asm-generic/dma-contiguous.h
-new file mode 100644
-index 0000000..c544356
---- /dev/null
-+++ b/include/asm-generic/dma-contiguous.h
-@@ -0,0 +1,28 @@
-+#ifndef ASM_DMA_CONTIGUOUS_H
-+#define ASM_DMA_CONTIGUOUS_H
-+
-+#ifdef __KERNEL__
-+#ifdef CONFIG_CMA
-+
-+#include <linux/device.h>
-+#include <linux/dma-contiguous.h>
-+
-+static inline struct cma *dev_get_cma_area(struct device *dev)
-+{
-+	if (dev && dev->cma_area)
-+		return dev->cma_area;
-+	return dma_contiguous_default_area;
-+}
-+
-+static inline void dev_set_cma_area(struct device *dev, struct cma *cma)
-+{
-+	if (dev)
-+		dev->cma_area = cma;
-+	if (!dev || !dma_contiguous_default_area)
-+		dma_contiguous_default_area = cma;
-+}
-+
-+#endif
-+#endif
-+
-+#endif
-diff --git a/include/linux/device.h b/include/linux/device.h
-index f62e216..f0d8fad 100644
---- a/include/linux/device.h
-+++ b/include/linux/device.h
-@@ -665,6 +665,10 @@ struct device {
- 
- 	struct dma_coherent_mem	*dma_mem; /* internal for coherent mem
- 					     override */
-+#ifdef CONFIG_CMA
-+	struct cma *cma_area;		/* contiguous memory area for dma
-+					   allocations */
-+#endif
- 	/* arch specific additions */
- 	struct dev_archdata	archdata;
- 
-diff --git a/include/linux/dma-contiguous.h b/include/linux/dma-contiguous.h
-new file mode 100644
-index 0000000..2f303e4
---- /dev/null
-+++ b/include/linux/dma-contiguous.h
-@@ -0,0 +1,110 @@
-+#ifndef __LINUX_CMA_H
-+#define __LINUX_CMA_H
-+
-+/*
-+ * Contiguous Memory Allocator for DMA mapping framework
-+ * Copyright (c) 2010-2011 by Samsung Electronics.
-+ * Written by:
-+ *	Marek Szyprowski <m.szyprowski@samsung.com>
-+ *	Michal Nazarewicz <mina86@mina86.com>
-+ *
-+ * This program is free software; you can redistribute it and/or
-+ * modify it under the terms of the GNU General Public License as
-+ * published by the Free Software Foundation; either version 2 of the
-+ * License or (at your optional) any later version of the license.
-+ */
-+
-+/*
-+ * Contiguous Memory Allocator
-+ *
-+ *   The Contiguous Memory Allocator (CMA) makes it possible to
-+ *   allocate big contiguous chunks of memory after the system has
-+ *   booted.
-+ *
-+ * Why is it needed?
-+ *
-+ *   Various devices on embedded systems have no scatter-getter and/or
-+ *   IO map support and require contiguous blocks of memory to
-+ *   operate.  They include devices such as cameras, hardware video
-+ *   coders, etc.
-+ *
-+ *   Such devices often require big memory buffers (a full HD frame
-+ *   is, for instance, more then 2 mega pixels large, i.e. more than 6
-+ *   MB of memory), which makes mechanisms such as kmalloc() or
-+ *   alloc_page() ineffective.
-+ *
-+ *   At the same time, a solution where a big memory region is
-+ *   reserved for a device is suboptimal since often more memory is
-+ *   reserved then strictly required and, moreover, the memory is
-+ *   inaccessible to page system even if device drivers don't use it.
-+ *
-+ *   CMA tries to solve this issue by operating on memory regions
-+ *   where only movable pages can be allocated from.  This way, kernel
-+ *   can use the memory for pagecache and when device driver requests
-+ *   it, allocated pages can be migrated.
-+ *
-+ * Driver usage
-+ *
-+ *   CMA should not be used by the device drivers directly. It is
-+ *   only a helper framework for dma-mapping subsystem.
-+ *
-+ *   For more information, see kernel-docs in drivers/base/dma-contiguous.c
-+ */
++++ b/arch/x86/include/asm/dma-contiguous.h
+@@ -0,0 +1,13 @@
++#ifndef ASMX86_DMA_CONTIGUOUS_H
++#define ASMX86_DMA_CONTIGUOUS_H
 +
 +#ifdef __KERNEL__
 +
-+struct cma;
-+struct page;
-+struct device;
++#include <linux/types.h>
++#include <asm-generic/dma-contiguous.h>
 +
-+#ifdef CONFIG_CMA
-+
-+/*
-+ * There is always at least global CMA area and a few optional device
-+ * private areas configured in kernel .config.
-+ */
-+#define MAX_CMA_AREAS	(1 + CONFIG_CMA_AREAS)
-+
-+extern struct cma *dma_contiguous_default_area;
-+
-+void dma_contiguous_reserve(phys_addr_t addr_limit);
-+int dma_declare_contiguous(struct device *dev, unsigned long size,
-+			   phys_addr_t base, phys_addr_t limit);
-+
-+struct page *dma_alloc_from_contiguous(struct device *dev, int count,
-+				       unsigned int order);
-+bool dma_release_from_contiguous(struct device *dev, struct page *pages,
-+				 int count);
-+
-+#else
-+
-+#define MAX_CMA_AREAS	(0)
-+
-+static inline void dma_contiguous_reserve(phys_addr_t limit) { }
-+
-+static inline
-+int dma_declare_contiguous(struct device *dev, unsigned long size,
-+			   phys_addr_t base, phys_addr_t limit)
-+{
-+	return -ENOSYS;
-+}
-+
-+static inline
-+struct page *dma_alloc_from_contiguous(struct device *dev, int count,
-+				       unsigned int order)
-+{
-+	return NULL;
-+}
-+
-+static inline
-+bool dma_release_from_contiguous(struct device *dev, struct page *pages,
-+				 int count)
-+{
-+	return false;
-+}
++static inline void
++dma_contiguous_early_fixup(phys_addr_t base, unsigned long size) { }
 +
 +#endif
-+
 +#endif
+diff --git a/arch/x86/include/asm/dma-mapping.h b/arch/x86/include/asm/dma-mapping.h
+index 4b4331d..8ca32d4 100644
+--- a/arch/x86/include/asm/dma-mapping.h
++++ b/arch/x86/include/asm/dma-mapping.h
+@@ -13,6 +13,7 @@
+ #include <asm/io.h>
+ #include <asm/swiotlb.h>
+ #include <asm-generic/dma-coherent.h>
++#include <linux/dma-contiguous.h>
+ 
+ #ifdef CONFIG_ISA
+ # define ISA_DMA_BIT_MASK DMA_BIT_MASK(24)
+@@ -62,6 +63,9 @@ extern void *dma_generic_alloc_coherent(struct device *dev, size_t size,
+ 					dma_addr_t *dma_addr, gfp_t flag,
+ 					struct dma_attrs *attrs);
+ 
++extern void dma_generic_free_coherent(struct device *dev, size_t size,
++				      void *vaddr, dma_addr_t dma_addr);
 +
-+#endif
+ static inline bool dma_capable(struct device *dev, dma_addr_t addr, size_t size)
+ {
+ 	if (!dev->dma_mask)
+diff --git a/arch/x86/kernel/pci-dma.c b/arch/x86/kernel/pci-dma.c
+index 75e1cc1..caba818 100644
+--- a/arch/x86/kernel/pci-dma.c
++++ b/arch/x86/kernel/pci-dma.c
+@@ -100,14 +100,18 @@ void *dma_generic_alloc_coherent(struct device *dev, size_t size,
+ 				 struct dma_attrs *attrs)
+ {
+ 	unsigned long dma_mask;
+-	struct page *page;
++	struct page *page = NULL;
++	unsigned int count = PAGE_ALIGN(size) >> PAGE_SHIFT;
+ 	dma_addr_t addr;
+ 
+ 	dma_mask = dma_alloc_coherent_mask(dev, flag);
+ 
+ 	flag |= __GFP_ZERO;
+ again:
+-	page = alloc_pages_node(dev_to_node(dev), flag, get_order(size));
++	if (!(flag & GFP_ATOMIC))
++		page = dma_alloc_from_contiguous(dev, count, get_order(size));
++	if (!page)
++		page = alloc_pages_node(dev_to_node(dev), flag, get_order(size));
+ 	if (!page)
+ 		return NULL;
+ 
+@@ -127,6 +131,16 @@ again:
+ 	return page_address(page);
+ }
+ 
++void dma_generic_free_coherent(struct device *dev, size_t size, void *vaddr,
++			       dma_addr_t dma_addr, struct dma_attrs *attrs)
++{
++	unsigned int count = PAGE_ALIGN(size) >> PAGE_SHIFT;
++	struct page *page = virt_to_page(vaddr);
++
++	if (!dma_release_from_contiguous(dev, page, count))
++		free_pages((unsigned long)vaddr, get_order(size));
++}
++
+ /*
+  * See <Documentation/x86/x86_64/boot-options.txt> for the iommu kernel
+  * parameter documentation.
+diff --git a/arch/x86/kernel/pci-nommu.c b/arch/x86/kernel/pci-nommu.c
+index f960506..871be4a 100644
+--- a/arch/x86/kernel/pci-nommu.c
++++ b/arch/x86/kernel/pci-nommu.c
+@@ -74,12 +74,6 @@ static int nommu_map_sg(struct device *hwdev, struct scatterlist *sg,
+ 	return nents;
+ }
+ 
+-static void nommu_free_coherent(struct device *dev, size_t size, void *vaddr,
+-				dma_addr_t dma_addr, struct dma_attrs *attrs)
+-{
+-	free_pages((unsigned long)vaddr, get_order(size));
+-}
+-
+ static void nommu_sync_single_for_device(struct device *dev,
+ 			dma_addr_t addr, size_t size,
+ 			enum dma_data_direction dir)
+@@ -97,7 +91,7 @@ static void nommu_sync_sg_for_device(struct device *dev,
+ 
+ struct dma_map_ops nommu_dma_ops = {
+ 	.alloc			= dma_generic_alloc_coherent,
+-	.free			= nommu_free_coherent,
++	.free			= dma_generic_free_coherent,
+ 	.map_sg			= nommu_map_sg,
+ 	.map_page		= nommu_map_page,
+ 	.sync_single_for_device = nommu_sync_single_for_device,
+diff --git a/arch/x86/kernel/setup.c b/arch/x86/kernel/setup.c
+index e22bb08..d20ef5b 100644
+--- a/arch/x86/kernel/setup.c
++++ b/arch/x86/kernel/setup.c
+@@ -50,6 +50,7 @@
+ #include <asm/pci-direct.h>
+ #include <linux/init_ohci1394_dma.h>
+ #include <linux/kvm_para.h>
++#include <linux/dma-contiguous.h>
+ 
+ #include <linux/errno.h>
+ #include <linux/kernel.h>
+@@ -957,6 +958,7 @@ void __init setup_arch(char **cmdline_p)
+ 	}
+ #endif
+ 	memblock.current_limit = get_max_mapped();
++	dma_contiguous_reserve(0);
+ 
+ 	/*
+ 	 * NOTE: On x86-32, only from this point on, fixmaps are ready for use.
 -- 
 1.7.1.569.g6f426
 
