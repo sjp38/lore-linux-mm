@@ -1,48 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx187.postini.com [74.125.245.187])
-	by kanga.kvack.org (Postfix) with SMTP id 615996B004A
-	for <linux-mm@kvack.org>; Wed, 22 Feb 2012 11:06:09 -0500 (EST)
-Date: Wed, 22 Feb 2012 14:04:30 -0200
-From: Rafael Aquini <aquini@redhat.com>
-Subject: Re: [PATCH] oom: add sysctl to enable slab memory dump
-Message-ID: <20120222160429.GA1986@x61.redhat.com>
-References: <20120222115320.GA3107@x61.redhat.com>
- <CAOJsxLGz4=2tFQdnnFmGLeFVVPq8pX5=0var7V-9+ddi=TPNVA@mail.gmail.com>
+Received: from psmtp.com (na3sys010amx195.postini.com [74.125.245.195])
+	by kanga.kvack.org (Postfix) with SMTP id 7AB1E6B004A
+	for <linux-mm@kvack.org>; Wed, 22 Feb 2012 11:13:07 -0500 (EST)
+Date: Wed, 22 Feb 2012 17:13:04 +0100 (CET)
+From: Jiri Kosina <jkosina@suse.cz>
+Subject: [PATCH] thp: 'transparent_hugepage=' can also be specified on
+ cmdline
+Message-ID: <alpine.LNX.2.00.1202221710050.31150@pobox.suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CAOJsxLGz4=2tFQdnnFmGLeFVVPq8pX5=0var7V-9+ddi=TPNVA@mail.gmail.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pekka Enberg <penberg@kernel.org>
-Cc: linux-mm@kvack.org, Randy Dunlap <rdunlap@xenotime.net>, Christoph Lameter <cl@linux-foundation.org>, Matt Mackall <mpm@selenic.com>, Rik van Riel <riel@redhat.com>, Josef Bacik <josef@redhat.com>, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrea Arcangeli <aarcange@redhat.com>, Mel Gorman <mgorman@suse.de>
 
-On Wed, Feb 22, 2012 at 03:17:23PM +0200, Pekka Enberg wrote:
-> On Wed, Feb 22, 2012 at 1:53 PM, Rafael Aquini <aquini@redhat.com> wrote:
-> > This, alongside with all other data dumped in OOM events, is very helpful
-> > information in diagnosing why there was an OOM condition specially when
-> > kernel code is under investigation.
-> >
-> > Signed-off-by: Rafael Aquini <aquini@redhat.com>
-> 
-> Makes sense. Do you have an example how an out-of-memory slab cache
-> dump looks like?
-> 
-Yes I do have a couple of dumps taken from some dabbler testing I was
-performing. Would it be interesting to introduce a sample at the commit message, or
-among the Documentation paragraphs?
+Behavior of THP can either be toggled through sysfs in runtime or using a 
+kernel cmdline parameter 'transparent_hugepage='. Document the latter.
 
+Signed-off-by: Jiri Kosina <jkosina@suse.cz>
+---
+ Documentation/kernel-parameters.txt |    7 +++++++
+ Documentation/vm/transhuge.txt      |    3 +++
+ 2 files changed, 10 insertions(+), 0 deletions(-)
 
-> Minor style nit: just define the zeroed variables in this block.
-> 
-I will adjust those.
-
-Thanks for your feedback!
+diff --git a/Documentation/kernel-parameters.txt b/Documentation/kernel-parameters.txt
+index 033d4e6..a4de9b9 100644
+--- a/Documentation/kernel-parameters.txt
++++ b/Documentation/kernel-parameters.txt
+@@ -2629,6 +2629,13 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
+ 			to facilitate early boot debugging.
+ 			See also Documentation/trace/events.txt
+ 
++	transparent_hugepage=
++			[KNL]
++			Format: [always|madvise|never]
++			Can be used to control the default behavior of the system
++			with respect to transparent hugepages.
++			See Documentation/vm/transhuge.txt for more details.
++
+ 	tsc=		Disable clocksource stability checks for TSC.
+ 			Format: <string>
+ 			[x86] reliable: mark tsc clocksource as reliable, this
+diff --git a/Documentation/vm/transhuge.txt b/Documentation/vm/transhuge.txt
+index 29bdf62..4a3816d 100644
+--- a/Documentation/vm/transhuge.txt
++++ b/Documentation/vm/transhuge.txt
+@@ -103,6 +103,9 @@ echo always >/sys/kernel/mm/transparent_hugepage/enabled
+ echo madvise >/sys/kernel/mm/transparent_hugepage/enabled
+ echo never >/sys/kernel/mm/transparent_hugepage/enabled
+ 
++The always/madvise/never value can also be specified on the kernel boot
++commandline using 'transparent_hugepage=' parameter.
++
+ It's also possible to limit defrag efforts in the VM to generate
+ hugepages in case they're not immediately free to madvise regions or
+ to never try to defrag memory and simply fallback to regular pages
 -- 
-Rafael Aquini <aquini@redhat.com>
-Software Maintenance Engineer
-Red Hat, Inc.
-+55 51 4063.9436 / 8426138 (ext)
+1.7.3.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
