@@ -1,158 +1,339 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx130.postini.com [74.125.245.130])
-	by kanga.kvack.org (Postfix) with SMTP id B1FC76B007E
-	for <linux-mm@kvack.org>; Wed, 22 Feb 2012 11:49:04 -0500 (EST)
-Received: from euspt2 (mailout1.w1.samsung.com [210.118.77.11])
- by mailout1.w1.samsung.com
- (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14 2004))
- with ESMTP id <0LZT00JT501P7G@mailout1.w1.samsung.com> for linux-mm@kvack.org;
- Wed, 22 Feb 2012 16:49:01 +0000 (GMT)
+Received: from psmtp.com (na3sys010amx143.postini.com [74.125.245.143])
+	by kanga.kvack.org (Postfix) with SMTP id D5FCF6B00EA
+	for <linux-mm@kvack.org>; Wed, 22 Feb 2012 11:49:05 -0500 (EST)
+MIME-version: 1.0
+Content-transfer-encoding: 7BIT
+Content-type: TEXT/PLAIN
+Received: from euspt2 ([210.118.77.13]) by mailout3.w1.samsung.com
+ (Sun Java(tm) System Messaging Server 6.3-8.04 (built Jul 29 2009; 32bit))
+ with ESMTP id <0LZT0041801QE210@mailout3.w1.samsung.com> for
+ linux-mm@kvack.org; Wed, 22 Feb 2012 16:49:02 +0000 (GMT)
 Received: from linux.samsung.com ([106.116.38.10])
  by spt2.w1.samsung.com (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14
- 2004)) with ESMTPA id <0LZT00JEY01OWY@spt2.w1.samsung.com> for
- linux-mm@kvack.org; Wed, 22 Feb 2012 16:49:00 +0000 (GMT)
-Date: Wed, 22 Feb 2012 17:48:41 +0100
+ 2004)) with ESMTPA id <0LZT00JFZ01PWY@spt2.w1.samsung.com> for
+ linux-mm@kvack.org; Wed, 22 Feb 2012 16:49:02 +0000 (GMT)
+Date: Wed, 22 Feb 2012 17:48:49 +0100
 From: Marek Szyprowski <m.szyprowski@samsung.com>
-Subject: [PATCHv23 00/16] Contiguous Memory Allocator
-Message-id: <1329929337-16648-1-git-send-email-m.szyprowski@samsung.com>
-MIME-version: 1.0
-Content-type: TEXT/PLAIN
-Content-transfer-encoding: 7BIT
+Subject: [PATCHv23 08/16] mm: mmzone: MIGRATE_CMA migration type added
+In-reply-to: <1329929337-16648-1-git-send-email-m.szyprowski@samsung.com>
+Message-id: <1329929337-16648-9-git-send-email-m.szyprowski@samsung.com>
+References: <1329929337-16648-1-git-send-email-m.szyprowski@samsung.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-media@vger.kernel.org, linux-mm@kvack.org, linaro-mm-sig@lists.linaro.org
 Cc: Michal Nazarewicz <mina86@mina86.com>, Marek Szyprowski <m.szyprowski@samsung.com>, Kyungmin Park <kyungmin.park@samsung.com>, Russell King <linux@arm.linux.org.uk>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daniel Walker <dwalker@codeaurora.org>, Mel Gorman <mel@csn.ul.ie>, Arnd Bergmann <arnd@arndb.de>, Jesse Barker <jesse.barker@linaro.org>, Jonathan Corbet <corbet@lwn.net>, Chunsang Jeong <chunsang.jeong@linaro.org>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Gaignard <benjamin.gaignard@linaro.org>, Rob Clark <rob.clark@linaro.org>, Ohad Ben-Cohen <ohad@wizery.com>
 
-Hi,
+From: Michal Nazarewicz <mina86@mina86.com>
 
-This is (yet another) quick update of CMA patches. I've rebased them
-onto next-20120222 tree from
-git://git.kernel.org/pub/scm/linux/kernel/git/next/linux-next.git and
-fixed the bug pointed by Aaro Koskinen.
+The MIGRATE_CMA migration type has two main characteristics:
+(i) only movable pages can be allocated from MIGRATE_CMA
+pageblocks and (ii) page allocator will never change migration
+type of MIGRATE_CMA pageblocks.
 
-Best regards
-Marek Szyprowski
-Samsung Poland R&D Center
+This guarantees (to some degree) that page in a MIGRATE_CMA page
+block can always be migrated somewhere else (unless there's no
+memory left in the system).
 
-Links to previous versions of the patchset:
-v22: <http://www.spinics.net/lists/linux-media/msg44370.html>
-v21: <http://www.spinics.net/lists/linux-media/msg44155.html>
-v20: <http://www.spinics.net/lists/linux-mm/msg29145.html>
-v19: <http://www.spinics.net/lists/linux-mm/msg29145.html>
-v18: <http://www.spinics.net/lists/linux-mm/msg28125.html>
-v17: <http://www.spinics.net/lists/arm-kernel/msg148499.html>
-v16: <http://www.spinics.net/lists/linux-mm/msg25066.html>
-v15: <http://www.spinics.net/lists/linux-mm/msg23365.html>
-v14: <http://www.spinics.net/lists/linux-media/msg36536.html>
-v13: (internal, intentionally not released)
-v12: <http://www.spinics.net/lists/linux-media/msg35674.html>
-v11: <http://www.spinics.net/lists/linux-mm/msg21868.html>
-v10: <http://www.spinics.net/lists/linux-mm/msg20761.html>
- v9: <http://article.gmane.org/gmane.linux.kernel.mm/60787>
- v8: <http://article.gmane.org/gmane.linux.kernel.mm/56855>
- v7: <http://article.gmane.org/gmane.linux.kernel.mm/55626>
- v6: <http://article.gmane.org/gmane.linux.kernel.mm/55626>
- v5: (intentionally left out as CMA v5 was identical to CMA v4)
- v4: <http://article.gmane.org/gmane.linux.kernel.mm/52010>
- v3: <http://article.gmane.org/gmane.linux.kernel.mm/51573>
- v2: <http://article.gmane.org/gmane.linux.kernel.mm/50986>
- v1: <http://article.gmane.org/gmane.linux.kernel.mm/50669>
+It is designed to be used for allocating big chunks (eg. 10MiB)
+of physically contiguous memory.  Once driver requests
+contiguous memory, pages from MIGRATE_CMA pageblocks may be
+migrated away to create a contiguous block.
 
+To minimise number of migrations, MIGRATE_CMA migration type
+is the last type tried when page allocator falls back to other
+migration types when requested.
 
-Changelog:
+Signed-off-by: Michal Nazarewicz <mina86@mina86.com>
+Signed-off-by: Marek Szyprowski <m.szyprowski@samsung.com>
+Signed-off-by: Kyungmin Park <kyungmin.park@samsung.com>
+Acked-by: Mel Gorman <mel@csn.ul.ie>
+Reviewed-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Tested-by: Rob Clark <rob.clark@linaro.org>
+Tested-by: Ohad Ben-Cohen <ohad@wizery.com>
+Tested-by: Benjamin Gaignard <benjamin.gaignard@linaro.org>
+Tested-by: Robert Nelson <robertcnelson@gmail.com>
+---
+ include/linux/gfp.h    |    3 ++
+ include/linux/mmzone.h |   38 +++++++++++++++++++----
+ mm/Kconfig             |    2 +-
+ mm/compaction.c        |   11 +++++--
+ mm/page_alloc.c        |   76 +++++++++++++++++++++++++++++++++++++----------
+ mm/vmstat.c            |    3 ++
+ 6 files changed, 106 insertions(+), 27 deletions(-)
 
-v23:
-    1. fixed bug spotted by Aaro Koskinen (incorrect check inside VM_BUG_ON)
-
-    2. rebased onto next-20120222 tree from
-       git://git.kernel.org/pub/scm/linux/kernel/git/next/linux-next.git 
-
-v22:
-    1. Fixed compilation break caused by missing fixup patch in v21
-
-    2. Fixed typos in the comments
-
-    3. Removed superfluous #include entries
-
-v21:
-    1. Fixed incorrect check which broke memory compaction code
-
-    2. Fixed hacky and racy min_free_kbytes handling
-
-    3. Added serialization patch to watermark calculation
-
-    4. Fixed typos here and there in the comments
-
-v20 and earlier - see previous patchsets.
-
-
-Patches in this patchset:
-
-Marek Szyprowski (6):
-  mm: extract reclaim code from __alloc_pages_direct_reclaim()
-  mm: trigger page reclaim in alloc_contig_range() to stabilise
-    watermarks
-  drivers: add Contiguous Memory Allocator
-  X86: integrate CMA with DMA-mapping subsystem
-  ARM: integrate CMA with DMA-mapping subsystem
-  ARM: Samsung: use CMA for 2 memory banks for s5p-mfc device
-
-Mel Gorman (1):
-  mm: Serialize access to min_free_kbytes
-
-Michal Nazarewicz (9):
-  mm: page_alloc: remove trailing whitespace
-  mm: compaction: introduce isolate_migratepages_range()
-  mm: compaction: introduce map_pages()
-  mm: compaction: introduce isolate_freepages_range()
-  mm: compaction: export some of the functions
-  mm: page_alloc: introduce alloc_contig_range()
-  mm: page_alloc: change fallbacks array handling
-  mm: mmzone: MIGRATE_CMA migration type added
-  mm: page_isolation: MIGRATE_CMA isolation functions added
-
- Documentation/kernel-parameters.txt   |    9 +
- arch/Kconfig                          |    3 +
- arch/arm/Kconfig                      |    2 +
- arch/arm/include/asm/dma-contiguous.h |   15 ++
- arch/arm/include/asm/mach/map.h       |    1 +
- arch/arm/kernel/setup.c               |    9 +-
- arch/arm/mm/dma-mapping.c             |  369 ++++++++++++++++++++++++------
- arch/arm/mm/init.c                    |   23 ++-
- arch/arm/mm/mm.h                      |    3 +
- arch/arm/mm/mmu.c                     |   31 ++-
- arch/arm/plat-s5p/dev-mfc.c           |   51 +----
- arch/x86/Kconfig                      |    1 +
- arch/x86/include/asm/dma-contiguous.h |   13 +
- arch/x86/include/asm/dma-mapping.h    |    4 +
- arch/x86/kernel/pci-dma.c             |   18 ++-
- arch/x86/kernel/pci-nommu.c           |    8 +-
- arch/x86/kernel/setup.c               |    2 +
- drivers/base/Kconfig                  |   89 +++++++
- drivers/base/Makefile                 |    1 +
- drivers/base/dma-contiguous.c         |  401 +++++++++++++++++++++++++++++++
- include/asm-generic/dma-contiguous.h  |   28 +++
- include/linux/device.h                |    4 +
- include/linux/dma-contiguous.h        |  110 +++++++++
- include/linux/gfp.h                   |   12 +
- include/linux/mmzone.h                |   47 +++-
- include/linux/page-isolation.h        |   18 +-
- mm/Kconfig                            |    2 +-
- mm/Makefile                           |    3 +-
- mm/compaction.c                       |  418 +++++++++++++++++++++------------
- mm/internal.h                         |   33 +++
- mm/memory-failure.c                   |    2 +-
- mm/memory_hotplug.c                   |    6 +-
- mm/page_alloc.c                       |  409 ++++++++++++++++++++++++++++----
- mm/page_isolation.c                   |   15 +-
- mm/vmstat.c                           |    3 +
- 35 files changed, 1790 insertions(+), 373 deletions(-)
- create mode 100644 arch/arm/include/asm/dma-contiguous.h
- create mode 100644 arch/x86/include/asm/dma-contiguous.h
- create mode 100644 drivers/base/dma-contiguous.c
- create mode 100644 include/asm-generic/dma-contiguous.h
- create mode 100644 include/linux/dma-contiguous.h
-
+diff --git a/include/linux/gfp.h b/include/linux/gfp.h
+index 052a5b6..78d32a7 100644
+--- a/include/linux/gfp.h
++++ b/include/linux/gfp.h
+@@ -397,6 +397,9 @@ static inline bool pm_suspended_storage(void)
+ extern int alloc_contig_range(unsigned long start, unsigned long end);
+ extern void free_contig_range(unsigned long pfn, unsigned nr_pages);
+ 
++/* CMA stuff */
++extern void init_cma_reserved_pageblock(struct page *page);
++
+ #endif
+ 
+ #endif /* __LINUX_GFP_H */
+diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
+index f10a54c..4781f30 100644
+--- a/include/linux/mmzone.h
++++ b/include/linux/mmzone.h
+@@ -35,13 +35,37 @@
+  */
+ #define PAGE_ALLOC_COSTLY_ORDER 3
+ 
+-#define MIGRATE_UNMOVABLE     0
+-#define MIGRATE_RECLAIMABLE   1
+-#define MIGRATE_MOVABLE       2
+-#define MIGRATE_PCPTYPES      3 /* the number of types on the pcp lists */
+-#define MIGRATE_RESERVE       3
+-#define MIGRATE_ISOLATE       4 /* can't allocate from here */
+-#define MIGRATE_TYPES         5
++enum {
++	MIGRATE_UNMOVABLE,
++	MIGRATE_RECLAIMABLE,
++	MIGRATE_MOVABLE,
++	MIGRATE_PCPTYPES,	/* the number of types on the pcp lists */
++	MIGRATE_RESERVE = MIGRATE_PCPTYPES,
++#ifdef CONFIG_CMA
++	/*
++	 * MIGRATE_CMA migration type is designed to mimic the way
++	 * ZONE_MOVABLE works.  Only movable pages can be allocated
++	 * from MIGRATE_CMA pageblocks and page allocator never
++	 * implicitly change migration type of MIGRATE_CMA pageblock.
++	 *
++	 * The way to use it is to change migratetype of a range of
++	 * pageblocks to MIGRATE_CMA which can be done by
++	 * __free_pageblock_cma() function.  What is important though
++	 * is that a range of pageblocks must be aligned to
++	 * MAX_ORDER_NR_PAGES should biggest page be bigger then
++	 * a single pageblock.
++	 */
++	MIGRATE_CMA,
++#endif
++	MIGRATE_ISOLATE,	/* can't allocate from here */
++	MIGRATE_TYPES
++};
++
++#ifdef CONFIG_CMA
++#  define is_migrate_cma(migratetype) unlikely((migratetype) == MIGRATE_CMA)
++#else
++#  define is_migrate_cma(migratetype) false
++#endif
+ 
+ #define for_each_migratetype_order(order, type) \
+ 	for (order = 0; order < MAX_ORDER; order++) \
+diff --git a/mm/Kconfig b/mm/Kconfig
+index 2613c91..97ea5cd 100644
+--- a/mm/Kconfig
++++ b/mm/Kconfig
+@@ -198,7 +198,7 @@ config COMPACTION
+ config MIGRATION
+ 	bool "Page migration"
+ 	def_bool y
+-	depends on NUMA || ARCH_ENABLE_MEMORY_HOTREMOVE || COMPACTION
++	depends on NUMA || ARCH_ENABLE_MEMORY_HOTREMOVE || COMPACTION || CMA
+ 	help
+ 	  Allows the migration of the physical location of pages of processes
+ 	  while the virtual addresses are not changed. This is useful in
+diff --git a/mm/compaction.c b/mm/compaction.c
+index 7a92e41..da7d35e 100644
+--- a/mm/compaction.c
++++ b/mm/compaction.c
+@@ -45,6 +45,11 @@ static void map_pages(struct list_head *list)
+ 	}
+ }
+ 
++static inline bool migrate_async_suitable(int migratetype)
++{
++	return is_migrate_cma(migratetype) || migratetype == MIGRATE_MOVABLE;
++}
++
+ /*
+  * Isolate free pages onto a private freelist. Caller must hold zone->lock.
+  * If @strict is true, will abort returning 0 on any invalid PFNs or non-free
+@@ -299,7 +304,7 @@ isolate_migratepages_range(struct zone *zone, struct compact_control *cc,
+ 		 */
+ 		pageblock_nr = low_pfn >> pageblock_order;
+ 		if (!cc->sync && last_pageblock_nr != pageblock_nr &&
+-				get_pageblock_migratetype(page) != MIGRATE_MOVABLE) {
++		    !migrate_async_suitable(get_pageblock_migratetype(page))) {
+ 			low_pfn += pageblock_nr_pages;
+ 			low_pfn = ALIGN(low_pfn, pageblock_nr_pages) - 1;
+ 			last_pageblock_nr = pageblock_nr;
+@@ -367,8 +372,8 @@ static bool suitable_migration_target(struct page *page)
+ 	if (PageBuddy(page) && page_order(page) >= pageblock_order)
+ 		return true;
+ 
+-	/* If the block is MIGRATE_MOVABLE, allow migration */
+-	if (migratetype == MIGRATE_MOVABLE)
++	/* If the block is MIGRATE_MOVABLE or MIGRATE_CMA, allow migration */
++	if (migrate_async_suitable(migratetype))
+ 		return true;
+ 
+ 	/* Otherwise skip the block */
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index ad840a7..07bddbe 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -763,6 +763,24 @@ void __meminit __free_pages_bootmem(struct page *page, unsigned int order)
+ 	__free_pages(page, order);
+ }
+ 
++#ifdef CONFIG_CMA
++/* Free whole pageblock and set it's migration type to MIGRATE_CMA. */
++void __init init_cma_reserved_pageblock(struct page *page)
++{
++	unsigned i = pageblock_nr_pages;
++	struct page *p = page;
++
++	do {
++		__ClearPageReserved(p);
++		set_page_count(p, 0);
++	} while (++p, --i);
++
++	set_page_refcounted(page);
++	set_pageblock_migratetype(page, MIGRATE_CMA);
++	__free_pages(page, pageblock_order);
++	totalram_pages += pageblock_nr_pages;
++}
++#endif
+ 
+ /*
+  * The order of subdivision here is critical for the IO subsystem.
+@@ -888,10 +906,15 @@ struct page *__rmqueue_smallest(struct zone *zone, unsigned int order,
+  * This array describes the order lists are fallen back to when
+  * the free lists for the desirable migrate type are depleted
+  */
+-static int fallbacks[MIGRATE_TYPES][3] = {
+-	[MIGRATE_UNMOVABLE]   = { MIGRATE_RECLAIMABLE, MIGRATE_MOVABLE,   MIGRATE_RESERVE },
+-	[MIGRATE_RECLAIMABLE] = { MIGRATE_UNMOVABLE,   MIGRATE_MOVABLE,   MIGRATE_RESERVE },
+-	[MIGRATE_MOVABLE]     = { MIGRATE_RECLAIMABLE, MIGRATE_UNMOVABLE, MIGRATE_RESERVE },
++static int fallbacks[MIGRATE_TYPES][4] = {
++	[MIGRATE_UNMOVABLE]   = { MIGRATE_RECLAIMABLE, MIGRATE_MOVABLE,     MIGRATE_RESERVE },
++	[MIGRATE_RECLAIMABLE] = { MIGRATE_UNMOVABLE,   MIGRATE_MOVABLE,     MIGRATE_RESERVE },
++#ifdef CONFIG_CMA
++	[MIGRATE_MOVABLE]     = { MIGRATE_CMA,         MIGRATE_RECLAIMABLE, MIGRATE_UNMOVABLE, MIGRATE_RESERVE },
++	[MIGRATE_CMA]         = { MIGRATE_RESERVE }, /* Never used */
++#else
++	[MIGRATE_MOVABLE]     = { MIGRATE_RECLAIMABLE, MIGRATE_UNMOVABLE,   MIGRATE_RESERVE },
++#endif
+ 	[MIGRATE_RESERVE]     = { MIGRATE_RESERVE }, /* Never used */
+ 	[MIGRATE_ISOLATE]     = { MIGRATE_RESERVE }, /* Never used */
+ };
+@@ -1008,11 +1031,18 @@ __rmqueue_fallback(struct zone *zone, int order, int start_migratetype)
+ 			 * pages to the preferred allocation list. If falling
+ 			 * back for a reclaimable kernel allocation, be more
+ 			 * aggressive about taking ownership of free pages
++			 *
++			 * On the other hand, never change migration
++			 * type of MIGRATE_CMA pageblocks nor move CMA
++			 * pages on different free lists. We don't
++			 * want unmovable pages to be allocated from
++			 * MIGRATE_CMA areas.
+ 			 */
+-			if (unlikely(current_order >= (pageblock_order >> 1)) ||
+-					start_migratetype == MIGRATE_RECLAIMABLE ||
+-					page_group_by_mobility_disabled) {
+-				unsigned long pages;
++			if (!is_migrate_cma(migratetype) &&
++			    (unlikely(current_order >= pageblock_order / 2) ||
++			     start_migratetype == MIGRATE_RECLAIMABLE ||
++			     page_group_by_mobility_disabled)) {
++				int pages;
+ 				pages = move_freepages_block(zone, page,
+ 								start_migratetype);
+ 
+@@ -1030,11 +1060,14 @@ __rmqueue_fallback(struct zone *zone, int order, int start_migratetype)
+ 			rmv_page_order(page);
+ 
+ 			/* Take ownership for orders >= pageblock_order */
+-			if (current_order >= pageblock_order)
++			if (current_order >= pageblock_order &&
++			    !is_migrate_cma(migratetype))
+ 				change_pageblock_range(page, current_order,
+ 							start_migratetype);
+ 
+-			expand(zone, page, order, current_order, area, migratetype);
++			expand(zone, page, order, current_order, area,
++			       is_migrate_cma(migratetype)
++			     ? migratetype : start_migratetype);
+ 
+ 			trace_mm_page_alloc_extfrag(page, order, current_order,
+ 				start_migratetype, migratetype);
+@@ -1085,7 +1118,7 @@ static int rmqueue_bulk(struct zone *zone, unsigned int order,
+ 			unsigned long count, struct list_head *list,
+ 			int migratetype, int cold)
+ {
+-	int i;
++	int mt = migratetype, i;
+ 
+ 	spin_lock(&zone->lock);
+ 	for (i = 0; i < count; ++i) {
+@@ -1106,7 +1139,12 @@ static int rmqueue_bulk(struct zone *zone, unsigned int order,
+ 			list_add(&page->lru, list);
+ 		else
+ 			list_add_tail(&page->lru, list);
+-		set_page_private(page, migratetype);
++		if (IS_ENABLED(CONFIG_CMA)) {
++			mt = get_pageblock_migratetype(page);
++			if (!is_migrate_cma(mt) && mt != MIGRATE_ISOLATE)
++				mt = migratetype;
++		}
++		set_page_private(page, mt);
+ 		list = &page->lru;
+ 	}
+ 	__mod_zone_page_state(zone, NR_FREE_PAGES, -(i << order));
+@@ -1386,8 +1424,12 @@ int split_free_page(struct page *page)
+ 
+ 	if (order >= pageblock_order - 1) {
+ 		struct page *endpage = page + (1 << order) - 1;
+-		for (; page < endpage; page += pageblock_nr_pages)
+-			set_pageblock_migratetype(page, MIGRATE_MOVABLE);
++		for (; page < endpage; page += pageblock_nr_pages) {
++			int mt = get_pageblock_migratetype(page);
++			if (mt != MIGRATE_ISOLATE && !is_migrate_cma(mt))
++				set_pageblock_migratetype(page,
++							  MIGRATE_MOVABLE);
++		}
+ 	}
+ 
+ 	return 1 << order;
+@@ -5427,14 +5469,16 @@ static int
+ __count_immobile_pages(struct zone *zone, struct page *page, int count)
+ {
+ 	unsigned long pfn, iter, found;
++	int mt;
++
+ 	/*
+ 	 * For avoiding noise data, lru_add_drain_all() should be called
+ 	 * If ZONE_MOVABLE, the zone never contains immobile pages
+ 	 */
+ 	if (zone_idx(zone) == ZONE_MOVABLE)
+ 		return true;
+-
+-	if (get_pageblock_migratetype(page) == MIGRATE_MOVABLE)
++	mt = get_pageblock_migratetype(page);
++	if (mt == MIGRATE_MOVABLE || is_migrate_cma(mt))
+ 		return true;
+ 
+ 	pfn = page_to_pfn(page);
+diff --git a/mm/vmstat.c b/mm/vmstat.c
+index f600557..c47ac13 100644
+--- a/mm/vmstat.c
++++ b/mm/vmstat.c
+@@ -613,6 +613,9 @@ static char * const migratetype_names[MIGRATE_TYPES] = {
+ 	"Reclaimable",
+ 	"Movable",
+ 	"Reserve",
++#ifdef CONFIG_CMA
++	"CMA",
++#endif
+ 	"Isolate",
+ };
+ 
 -- 
 1.7.1.569.g6f426
 
