@@ -1,38 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx152.postini.com [74.125.245.152])
-	by kanga.kvack.org (Postfix) with SMTP id 43B5A6B00E7
-	for <linux-mm@kvack.org>; Wed, 22 Feb 2012 11:29:44 -0500 (EST)
-Date: Wed, 22 Feb 2012 10:29:40 -0600 (CST)
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: [PATCH] oom: add sysctl to enable slab memory dump
-In-Reply-To: <20120222161440.GB1986@x61.redhat.com>
-Message-ID: <alpine.DEB.2.00.1202221028340.10258@router.home>
-References: <20120222115320.GA3107@x61.redhat.com> <alpine.DEB.2.00.1202220754140.21637@router.home> <20120222161440.GB1986@x61.redhat.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from psmtp.com (na3sys010amx103.postini.com [74.125.245.103])
+	by kanga.kvack.org (Postfix) with SMTP id A66B16B004A
+	for <linux-mm@kvack.org>; Wed, 22 Feb 2012 11:36:30 -0500 (EST)
+MIME-version: 1.0
+Content-transfer-encoding: 7BIT
+Content-type: text/plain; charset=us-ascii
+Received: from euspt2 ([210.118.77.13]) by mailout3.w1.samsung.com
+ (Sun Java(tm) System Messaging Server 6.3-8.04 (built Jul 29 2009; 32bit))
+ with ESMTP id <0LZS004XSZGTE500@mailout3.w1.samsung.com> for
+ linux-mm@kvack.org; Wed, 22 Feb 2012 16:36:29 +0000 (GMT)
+Received: from linux.samsung.com ([106.116.38.10])
+ by spt2.w1.samsung.com (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14
+ 2004)) with ESMTPA id <0LZS00ETYZGS2F@spt2.w1.samsung.com> for
+ linux-mm@kvack.org; Wed, 22 Feb 2012 16:36:28 +0000 (GMT)
+Date: Wed, 22 Feb 2012 17:36:25 +0100
+From: Marek Szyprowski <m.szyprowski@samsung.com>
+Subject: RE: [PATCHv22 14/16] X86: integrate CMA with DMA-mapping subsystem
+In-reply-to: <20120221161802.f6a28085.akpm@linux-foundation.org>
+Message-id: <000101ccf180$1e5226b0$5af67410$%szyprowski@samsung.com>
+Content-language: pl
+References: <1329507036-24362-1-git-send-email-m.szyprowski@samsung.com>
+ <1329507036-24362-15-git-send-email-m.szyprowski@samsung.com>
+ <20120221161802.f6a28085.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rafael Aquini <aquini@redhat.com>
-Cc: linux-mm@kvack.org, Randy Dunlap <rdunlap@xenotime.net>, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, Rik van Riel <riel@redhat.com>, Josef Bacik <josef@redhat.com>, linux-kernel@vger.kernel.org
+To: 'Andrew Morton' <akpm@linux-foundation.org>
+Cc: linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-media@vger.kernel.org, linux-mm@kvack.org, linaro-mm-sig@lists.linaro.org, 'Michal Nazarewicz' <mina86@mina86.com>, 'Kyungmin Park' <kyungmin.park@samsung.com>, 'Russell King' <linux@arm.linux.org.uk>, 'KAMEZAWA Hiroyuki' <kamezawa.hiroyu@jp.fujitsu.com>, 'Daniel Walker' <dwalker@codeaurora.org>, 'Mel Gorman' <mel@csn.ul.ie>, 'Arnd Bergmann' <arnd@arndb.de>, 'Jesse Barker' <jesse.barker@linaro.org>, 'Jonathan Corbet' <corbet@lwn.net>, 'Shariq Hasnain' <shariq.hasnain@linaro.org>, 'Chunsang Jeong' <chunsang.jeong@linaro.org>, 'Dave Hansen' <dave@linux.vnet.ibm.com>, 'Benjamin Gaignard' <benjamin.gaignard@linaro.org>, 'Rob Clark' <rob.clark@linaro.org>, 'Ohad Ben-Cohen' <ohad@wizery.com>
 
-On Wed, 22 Feb 2012, Rafael Aquini wrote:
+Hi Andrew,
 
-> On Wed, Feb 22, 2012 at 07:55:16AM -0600, Christoph Lameter wrote:
+On Wednesday, February 22, 2012 1:18 AM Andrew Morton wrote:
+
+> > This patch adds support for CMA to dma-mapping subsystem for x86
+> > architecture that uses common pci-dma/pci-nommu implementation. This
+> > allows to test CMA on KVM/QEMU and a lot of common x86 boxes.
 > >
-> > Please use node_nr_objects() instead of directly accessing total_objects.
-> > total_objects are only available if debugging support was compiled in.
+> > ...
 > >
-> Shame on me! I've wrongly assumed that it would be safe accessing
-> the element because SLUB_DEBUG is turned on by default when slub is chosen.
->
-> Considering your note on my previous mistake, shall I assume now that it
-> would be better having this whole dump feature dependable on CONFIG_SLUB_DEBUG,
-> instead of just CONFIG_SLUB ?
+> > --- a/arch/x86/Kconfig
+> > +++ b/arch/x86/Kconfig
+> > @@ -31,6 +31,7 @@ config X86
+> >  	select ARCH_WANT_OPTIONAL_GPIOLIB
+> >  	select ARCH_WANT_FRAME_POINTERS
+> >  	select HAVE_DMA_ATTRS
+> > +	select HAVE_DMA_CONTIGUOUS if !SWIOTLB
+> >  	select HAVE_KRETPROBES
+> >  	select HAVE_OPTPROBES
+> >  	select HAVE_FTRACE_MCOUNT_RECORD
+> 
+> I don't think it's compilable at all for x86_64, because that platform
+> selects SWIOTLB.
 
-That is certainly one solution. If CONFIG_SLUB_DEBUG is not set then
-support for maintaining a total count is not compiled in. You can of
-course still approximate that from the total number of slabs allocated and
-multiply that number by the # of objs per slab page.
+Right, x86 support is very basic, mainly for being able to test it on standard 
+configuration with QEmu.
+
+> After a while I got it to compile for i386.  arm didn't go so well,
+> partly because arm allmodconfig is presently horked (something to do
+> with Kconfig not setting PHYS_OFFSET) and partly because arm defconfig
+> doesn't permit CMA to be set.  Got bored, gave up.
+
+I think that all*config are broken on ARM. To enable CMA compilation, one need to 
+select a subplatform based on ARMv6+ - for example one can start from 
+arch/arm/configs/exynos4_defconfig and then use oldnoconfig.
+
+> The patchset collides pretty seriously with pending dma api changes and
+> pending arm changes in linux-next, so I didn't apply anything.  This
+> will all need to be looked at, please.
+> 
+> I'll make do with reading the patches for now ;)
+
+I've rebased the CMA patchset on top of next-20120222 kernel tree and I will send 
+them soon as v23.
+
+I hope this will help getting them merged to your tree. If I should select different
+base for the patches, just let me know.
+
+Best regards
+-- 
+Marek Szyprowski
+Samsung Poland R&D Center
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
