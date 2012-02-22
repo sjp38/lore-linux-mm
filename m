@@ -1,62 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx195.postini.com [74.125.245.195])
-	by kanga.kvack.org (Postfix) with SMTP id 7AB1E6B004A
-	for <linux-mm@kvack.org>; Wed, 22 Feb 2012 11:13:07 -0500 (EST)
-Date: Wed, 22 Feb 2012 17:13:04 +0100 (CET)
-From: Jiri Kosina <jkosina@suse.cz>
-Subject: [PATCH] thp: 'transparent_hugepage=' can also be specified on
- cmdline
-Message-ID: <alpine.LNX.2.00.1202221710050.31150@pobox.suse.cz>
+Received: from psmtp.com (na3sys010amx126.postini.com [74.125.245.126])
+	by kanga.kvack.org (Postfix) with SMTP id 862136B0083
+	for <linux-mm@kvack.org>; Wed, 22 Feb 2012 11:16:16 -0500 (EST)
+Date: Wed, 22 Feb 2012 14:14:41 -0200
+From: Rafael Aquini <aquini@redhat.com>
+Subject: Re: [PATCH] oom: add sysctl to enable slab memory dump
+Message-ID: <20120222161440.GB1986@x61.redhat.com>
+References: <20120222115320.GA3107@x61.redhat.com>
+ <alpine.DEB.2.00.1202220754140.21637@router.home>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.00.1202220754140.21637@router.home>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrea Arcangeli <aarcange@redhat.com>, Mel Gorman <mgorman@suse.de>
+To: Christoph Lameter <cl@linux.com>
+Cc: linux-mm@kvack.org, Randy Dunlap <rdunlap@xenotime.net>, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, Rik van Riel <riel@redhat.com>, Josef Bacik <josef@redhat.com>, linux-kernel@vger.kernel.org
 
-Behavior of THP can either be toggled through sysfs in runtime or using a 
-kernel cmdline parameter 'transparent_hugepage='. Document the latter.
+On Wed, Feb 22, 2012 at 07:55:16AM -0600, Christoph Lameter wrote:
+> 
+> Please use node_nr_objects() instead of directly accessing total_objects.
+> total_objects are only available if debugging support was compiled in.
+> 
+Shame on me! I've wrongly assumed that it would be safe accessing
+the element because SLUB_DEBUG is turned on by default when slub is chosen.
 
-Signed-off-by: Jiri Kosina <jkosina@suse.cz>
----
- Documentation/kernel-parameters.txt |    7 +++++++
- Documentation/vm/transhuge.txt      |    3 +++
- 2 files changed, 10 insertions(+), 0 deletions(-)
+Considering your note on my previous mistake, shall I assume now that it
+would be better having this whole dump feature dependable on CONFIG_SLUB_DEBUG,
+instead of just CONFIG_SLUB ?
 
-diff --git a/Documentation/kernel-parameters.txt b/Documentation/kernel-parameters.txt
-index 033d4e6..a4de9b9 100644
---- a/Documentation/kernel-parameters.txt
-+++ b/Documentation/kernel-parameters.txt
-@@ -2629,6 +2629,13 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
- 			to facilitate early boot debugging.
- 			See also Documentation/trace/events.txt
- 
-+	transparent_hugepage=
-+			[KNL]
-+			Format: [always|madvise|never]
-+			Can be used to control the default behavior of the system
-+			with respect to transparent hugepages.
-+			See Documentation/vm/transhuge.txt for more details.
-+
- 	tsc=		Disable clocksource stability checks for TSC.
- 			Format: <string>
- 			[x86] reliable: mark tsc clocksource as reliable, this
-diff --git a/Documentation/vm/transhuge.txt b/Documentation/vm/transhuge.txt
-index 29bdf62..4a3816d 100644
---- a/Documentation/vm/transhuge.txt
-+++ b/Documentation/vm/transhuge.txt
-@@ -103,6 +103,9 @@ echo always >/sys/kernel/mm/transparent_hugepage/enabled
- echo madvise >/sys/kernel/mm/transparent_hugepage/enabled
- echo never >/sys/kernel/mm/transparent_hugepage/enabled
- 
-+The always/madvise/never value can also be specified on the kernel boot
-+commandline using 'transparent_hugepage=' parameter.
-+
- It's also possible to limit defrag efforts in the VM to generate
- hugepages in case they're not immediately free to madvise regions or
- to never try to defrag memory and simply fallback to regular pages
+Thanks for your feedback!
 -- 
-1.7.3.1
+Rafael Aquini <aquini@redhat.com>
+Software Maintenance Engineer
+Red Hat, Inc.
++55 51 4063.9436 / 8426138 (ext)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
