@@ -1,523 +1,158 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx143.postini.com [74.125.245.143])
-	by kanga.kvack.org (Postfix) with SMTP id 4EDED6B00E7
-	for <linux-mm@kvack.org>; Wed, 22 Feb 2012 11:49:03 -0500 (EST)
-MIME-version: 1.0
-Content-transfer-encoding: 7BIT
-Content-type: TEXT/PLAIN
-Received: from euspt1 ([210.118.77.13]) by mailout3.w1.samsung.com
- (Sun Java(tm) System Messaging Server 6.3-8.04 (built Jul 29 2009; 32bit))
- with ESMTP id <0LZT0041201PE210@mailout3.w1.samsung.com> for
- linux-mm@kvack.org; Wed, 22 Feb 2012 16:49:01 +0000 (GMT)
+Received: from psmtp.com (na3sys010amx130.postini.com [74.125.245.130])
+	by kanga.kvack.org (Postfix) with SMTP id B1FC76B007E
+	for <linux-mm@kvack.org>; Wed, 22 Feb 2012 11:49:04 -0500 (EST)
+Received: from euspt2 (mailout1.w1.samsung.com [210.118.77.11])
+ by mailout1.w1.samsung.com
+ (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14 2004))
+ with ESMTP id <0LZT00JT501P7G@mailout1.w1.samsung.com> for linux-mm@kvack.org;
+ Wed, 22 Feb 2012 16:49:01 +0000 (GMT)
 Received: from linux.samsung.com ([106.116.38.10])
- by spt1.w1.samsung.com (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14
- 2004)) with ESMTPA id <0LZT0069901OKL@spt1.w1.samsung.com> for
- linux-mm@kvack.org; Wed, 22 Feb 2012 16:49:01 +0000 (GMT)
-Date: Wed, 22 Feb 2012 17:48:46 +0100
+ by spt2.w1.samsung.com (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14
+ 2004)) with ESMTPA id <0LZT00JEY01OWY@spt2.w1.samsung.com> for
+ linux-mm@kvack.org; Wed, 22 Feb 2012 16:49:00 +0000 (GMT)
+Date: Wed, 22 Feb 2012 17:48:41 +0100
 From: Marek Szyprowski <m.szyprowski@samsung.com>
-Subject: [PATCHv23 05/16] mm: compaction: export some of the functions
-In-reply-to: <1329929337-16648-1-git-send-email-m.szyprowski@samsung.com>
-Message-id: <1329929337-16648-6-git-send-email-m.szyprowski@samsung.com>
-References: <1329929337-16648-1-git-send-email-m.szyprowski@samsung.com>
+Subject: [PATCHv23 00/16] Contiguous Memory Allocator
+Message-id: <1329929337-16648-1-git-send-email-m.szyprowski@samsung.com>
+MIME-version: 1.0
+Content-type: TEXT/PLAIN
+Content-transfer-encoding: 7BIT
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-media@vger.kernel.org, linux-mm@kvack.org, linaro-mm-sig@lists.linaro.org
 Cc: Michal Nazarewicz <mina86@mina86.com>, Marek Szyprowski <m.szyprowski@samsung.com>, Kyungmin Park <kyungmin.park@samsung.com>, Russell King <linux@arm.linux.org.uk>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daniel Walker <dwalker@codeaurora.org>, Mel Gorman <mel@csn.ul.ie>, Arnd Bergmann <arnd@arndb.de>, Jesse Barker <jesse.barker@linaro.org>, Jonathan Corbet <corbet@lwn.net>, Chunsang Jeong <chunsang.jeong@linaro.org>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Gaignard <benjamin.gaignard@linaro.org>, Rob Clark <rob.clark@linaro.org>, Ohad Ben-Cohen <ohad@wizery.com>
 
-From: Michal Nazarewicz <mina86@mina86.com>
+Hi,
 
-This commit exports some of the functions from compaction.c file
-outside of it adding their declaration into internal.h header
-file so that other mm related code can use them.
+This is (yet another) quick update of CMA patches. I've rebased them
+onto next-20120222 tree from
+git://git.kernel.org/pub/scm/linux/kernel/git/next/linux-next.git and
+fixed the bug pointed by Aaro Koskinen.
 
-This forced compaction.c to always be compiled (as opposed to being
-compiled only if CONFIG_COMPACTION is defined) but as to avoid
-introducing code that user did not ask for, part of the compaction.c
-is now wrapped in on #ifdef.
+Best regards
+Marek Szyprowski
+Samsung Poland R&D Center
 
-Signed-off-by: Michal Nazarewicz <mina86@mina86.com>
-Signed-off-by: Marek Szyprowski <m.szyprowski@samsung.com>
-Acked-by: Mel Gorman <mel@csn.ul.ie>
-Reviewed-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Tested-by: Rob Clark <rob.clark@linaro.org>
-Tested-by: Ohad Ben-Cohen <ohad@wizery.com>
-Tested-by: Benjamin Gaignard <benjamin.gaignard@linaro.org>
-Tested-by: Robert Nelson <robertcnelson@gmail.com>
----
- mm/Makefile     |    3 +-
- mm/compaction.c |  328 ++++++++++++++++++++++++++-----------------------------
- mm/internal.h   |   33 ++++++
- 3 files changed, 191 insertions(+), 173 deletions(-)
+Links to previous versions of the patchset:
+v22: <http://www.spinics.net/lists/linux-media/msg44370.html>
+v21: <http://www.spinics.net/lists/linux-media/msg44155.html>
+v20: <http://www.spinics.net/lists/linux-mm/msg29145.html>
+v19: <http://www.spinics.net/lists/linux-mm/msg29145.html>
+v18: <http://www.spinics.net/lists/linux-mm/msg28125.html>
+v17: <http://www.spinics.net/lists/arm-kernel/msg148499.html>
+v16: <http://www.spinics.net/lists/linux-mm/msg25066.html>
+v15: <http://www.spinics.net/lists/linux-mm/msg23365.html>
+v14: <http://www.spinics.net/lists/linux-media/msg36536.html>
+v13: (internal, intentionally not released)
+v12: <http://www.spinics.net/lists/linux-media/msg35674.html>
+v11: <http://www.spinics.net/lists/linux-mm/msg21868.html>
+v10: <http://www.spinics.net/lists/linux-mm/msg20761.html>
+ v9: <http://article.gmane.org/gmane.linux.kernel.mm/60787>
+ v8: <http://article.gmane.org/gmane.linux.kernel.mm/56855>
+ v7: <http://article.gmane.org/gmane.linux.kernel.mm/55626>
+ v6: <http://article.gmane.org/gmane.linux.kernel.mm/55626>
+ v5: (intentionally left out as CMA v5 was identical to CMA v4)
+ v4: <http://article.gmane.org/gmane.linux.kernel.mm/52010>
+ v3: <http://article.gmane.org/gmane.linux.kernel.mm/51573>
+ v2: <http://article.gmane.org/gmane.linux.kernel.mm/50986>
+ v1: <http://article.gmane.org/gmane.linux.kernel.mm/50669>
 
-diff --git a/mm/Makefile b/mm/Makefile
-index 306742a..309424c 100644
---- a/mm/Makefile
-+++ b/mm/Makefile
-@@ -13,7 +13,7 @@ obj-y			:= filemap.o mempool.o oom_kill.o fadvise.o \
- 			   readahead.o swap.o truncate.o vmscan.o shmem.o \
- 			   prio_tree.o util.o mmzone.o vmstat.o backing-dev.o \
- 			   page_isolation.o mm_init.o mmu_context.o percpu.o \
--			   $(mmu-y)
-+			   compaction.o $(mmu-y)
- obj-y += init-mm.o
- 
- ifdef CONFIG_NO_BOOTMEM
-@@ -33,7 +33,6 @@ obj-$(CONFIG_NUMA) 	+= mempolicy.o
- obj-$(CONFIG_SPARSEMEM)	+= sparse.o
- obj-$(CONFIG_SPARSEMEM_VMEMMAP) += sparse-vmemmap.o
- obj-$(CONFIG_SLOB) += slob.o
--obj-$(CONFIG_COMPACTION) += compaction.o
- obj-$(CONFIG_MMU_NOTIFIER) += mmu_notifier.o
- obj-$(CONFIG_KSM) += ksm.o
- obj-$(CONFIG_PAGE_POISONING) += debug-pagealloc.o
-diff --git a/mm/compaction.c b/mm/compaction.c
-index 06b198f..7a92e41 100644
---- a/mm/compaction.c
-+++ b/mm/compaction.c
-@@ -16,30 +16,11 @@
- #include <linux/sysfs.h>
- #include "internal.h"
- 
-+#if defined CONFIG_COMPACTION || defined CONFIG_CMA
-+
- #define CREATE_TRACE_POINTS
- #include <trace/events/compaction.h>
- 
--/*
-- * compact_control is used to track pages being migrated and the free pages
-- * they are being migrated to during memory compaction. The free_pfn starts
-- * at the end of a zone and migrate_pfn begins at the start. Movable pages
-- * are moved to the end of a zone during a compaction run and the run
-- * completes when free_pfn <= migrate_pfn
-- */
--struct compact_control {
--	struct list_head freepages;	/* List of free pages to migrate to */
--	struct list_head migratepages;	/* List of pages being migrated */
--	unsigned long nr_freepages;	/* Number of isolated free pages */
--	unsigned long nr_migratepages;	/* Number of pages to migrate */
--	unsigned long free_pfn;		/* isolate_freepages search base */
--	unsigned long migrate_pfn;	/* isolate_migratepages search base */
--	bool sync;			/* Synchronous migration */
--
--	int order;			/* order a direct compactor needs */
--	int migratetype;		/* MOVABLE, RECLAIMABLE etc */
--	struct zone *zone;
--};
--
- static unsigned long release_freepages(struct list_head *freelist)
- {
- 	struct page *page, *next;
-@@ -54,6 +35,16 @@ static unsigned long release_freepages(struct list_head *freelist)
- 	return count;
- }
- 
-+static void map_pages(struct list_head *list)
-+{
-+	struct page *page;
-+
-+	list_for_each_entry(page, list, lru) {
-+		arch_alloc_page(page, 0);
-+		kernel_map_pages(page, 1, 1);
-+	}
-+}
-+
- /*
-  * Isolate free pages onto a private freelist. Caller must hold zone->lock.
-  * If @strict is true, will abort returning 0 on any invalid PFNs or non-free
-@@ -122,7 +113,7 @@ static unsigned long isolate_freepages_block(unsigned long blockpfn,
-  * (which may be greater then end_pfn if end fell in a middle of
-  * a free page).
-  */
--static unsigned long
-+unsigned long
- isolate_freepages_range(unsigned long start_pfn, unsigned long end_pfn)
- {
- 	unsigned long isolated, pfn, block_end_pfn, flags;
-@@ -176,127 +167,6 @@ isolate_freepages_range(unsigned long start_pfn, unsigned long end_pfn)
- 	return pfn;
- }
- 
--/* Returns true if the page is within a block suitable for migration to */
--static bool suitable_migration_target(struct page *page)
--{
--
--	int migratetype = get_pageblock_migratetype(page);
--
--	/* Don't interfere with memory hot-remove or the min_free_kbytes blocks */
--	if (migratetype == MIGRATE_ISOLATE || migratetype == MIGRATE_RESERVE)
--		return false;
--
--	/* If the page is a large free page, then allow migration */
--	if (PageBuddy(page) && page_order(page) >= pageblock_order)
--		return true;
--
--	/* If the block is MIGRATE_MOVABLE, allow migration */
--	if (migratetype == MIGRATE_MOVABLE)
--		return true;
--
--	/* Otherwise skip the block */
--	return false;
--}
--
--static void map_pages(struct list_head *list)
--{
--	struct page *page;
--
--	list_for_each_entry(page, list, lru) {
--		arch_alloc_page(page, 0);
--		kernel_map_pages(page, 1, 1);
--	}
--}
--
--/*
-- * Based on information in the current compact_control, find blocks
-- * suitable for isolating free pages from and then isolate them.
-- */
--static void isolate_freepages(struct zone *zone,
--				struct compact_control *cc)
--{
--	struct page *page;
--	unsigned long high_pfn, low_pfn, pfn, zone_end_pfn, end_pfn;
--	unsigned long flags;
--	int nr_freepages = cc->nr_freepages;
--	struct list_head *freelist = &cc->freepages;
--
--	/*
--	 * Initialise the free scanner. The starting point is where we last
--	 * scanned from (or the end of the zone if starting). The low point
--	 * is the end of the pageblock the migration scanner is using.
--	 */
--	pfn = cc->free_pfn;
--	low_pfn = cc->migrate_pfn + pageblock_nr_pages;
--
--	/*
--	 * Take care that if the migration scanner is at the end of the zone
--	 * that the free scanner does not accidentally move to the next zone
--	 * in the next isolation cycle.
--	 */
--	high_pfn = min(low_pfn, pfn);
--
--	zone_end_pfn = zone->zone_start_pfn + zone->spanned_pages;
--
--	/*
--	 * Isolate free pages until enough are available to migrate the
--	 * pages on cc->migratepages. We stop searching if the migrate
--	 * and free page scanners meet or enough free pages are isolated.
--	 */
--	for (; pfn > low_pfn && cc->nr_migratepages > nr_freepages;
--					pfn -= pageblock_nr_pages) {
--		unsigned long isolated;
--
--		if (!pfn_valid(pfn))
--			continue;
--
--		/*
--		 * Check for overlapping nodes/zones. It's possible on some
--		 * configurations to have a setup like
--		 * node0 node1 node0
--		 * i.e. it's possible that all pages within a zones range of
--		 * pages do not belong to a single zone.
--		 */
--		page = pfn_to_page(pfn);
--		if (page_zone(page) != zone)
--			continue;
--
--		/* Check the block is suitable for migration */
--		if (!suitable_migration_target(page))
--			continue;
--
--		/*
--		 * Found a block suitable for isolating free pages from. Now
--		 * we disabled interrupts, double check things are ok and
--		 * isolate the pages. This is to minimise the time IRQs
--		 * are disabled
--		 */
--		isolated = 0;
--		spin_lock_irqsave(&zone->lock, flags);
--		if (suitable_migration_target(page)) {
--			end_pfn = min(pfn + pageblock_nr_pages, zone_end_pfn);
--			isolated = isolate_freepages_block(pfn, end_pfn,
--							   freelist, false);
--			nr_freepages += isolated;
--		}
--		spin_unlock_irqrestore(&zone->lock, flags);
--
--		/*
--		 * Record the highest PFN we isolated pages from. When next
--		 * looking for free pages, the search will restart here as
--		 * page migration may have returned some pages to the allocator
--		 */
--		if (isolated)
--			high_pfn = max(high_pfn, pfn);
--	}
--
--	/* split_free_page does not map the pages */
--	map_pages(freelist);
--
--	cc->free_pfn = high_pfn;
--	cc->nr_freepages = nr_freepages;
--}
--
- /* Update the number of anon and file isolated pages in the zone */
- static void acct_isolated(struct zone *zone, struct compact_control *cc)
- {
-@@ -325,13 +195,6 @@ static bool too_many_isolated(struct zone *zone)
- 	return isolated > (inactive + active) / 2;
- }
- 
--/* possible outcome of isolate_migratepages */
--typedef enum {
--	ISOLATE_ABORT,		/* Abort compaction now */
--	ISOLATE_NONE,		/* No pages isolated, continue scanning */
--	ISOLATE_SUCCESS,	/* Pages isolated, migrate */
--} isolate_migrate_t;
--
- /**
-  * isolate_migratepages_range() - isolate all migrate-able pages in range.
-  * @zone:	Zone pages are in.
-@@ -351,7 +214,7 @@ typedef enum {
-  * does not modify any cc's fields, in particular it does not modify
-  * (or read for that matter) cc->migrate_pfn.
-  */
--static unsigned long
-+unsigned long
- isolate_migratepages_range(struct zone *zone, struct compact_control *cc,
- 			   unsigned long low_pfn, unsigned long end_pfn)
- {
-@@ -487,35 +350,118 @@ isolate_migratepages_range(struct zone *zone, struct compact_control *cc,
- 	return low_pfn;
- }
- 
-+#endif /* CONFIG_COMPACTION || CONFIG_CMA */
-+#ifdef CONFIG_COMPACTION
-+
-+/* Returns true if the page is within a block suitable for migration to */
-+static bool suitable_migration_target(struct page *page)
-+{
-+
-+	int migratetype = get_pageblock_migratetype(page);
-+
-+	/* Don't interfere with memory hot-remove or the min_free_kbytes blocks */
-+	if (migratetype == MIGRATE_ISOLATE || migratetype == MIGRATE_RESERVE)
-+		return false;
-+
-+	/* If the page is a large free page, then allow migration */
-+	if (PageBuddy(page) && page_order(page) >= pageblock_order)
-+		return true;
-+
-+	/* If the block is MIGRATE_MOVABLE, allow migration */
-+	if (migratetype == MIGRATE_MOVABLE)
-+		return true;
-+
-+	/* Otherwise skip the block */
-+	return false;
-+}
-+
- /*
-- * Isolate all pages that can be migrated from the block pointed to by
-- * the migrate scanner within compact_control.
-+ * Based on information in the current compact_control, find blocks
-+ * suitable for isolating free pages from and then isolate them.
-  */
--static isolate_migrate_t isolate_migratepages(struct zone *zone,
--					struct compact_control *cc)
-+static void isolate_freepages(struct zone *zone,
-+				struct compact_control *cc)
- {
--	unsigned long low_pfn, end_pfn;
-+	struct page *page;
-+	unsigned long high_pfn, low_pfn, pfn, zone_end_pfn, end_pfn;
-+	unsigned long flags;
-+	int nr_freepages = cc->nr_freepages;
-+	struct list_head *freelist = &cc->freepages;
- 
--	/* Do not scan outside zone boundaries */
--	low_pfn = max(cc->migrate_pfn, zone->zone_start_pfn);
-+	/*
-+	 * Initialise the free scanner. The starting point is where we last
-+	 * scanned from (or the end of the zone if starting). The low point
-+	 * is the end of the pageblock the migration scanner is using.
-+	 */
-+	pfn = cc->free_pfn;
-+	low_pfn = cc->migrate_pfn + pageblock_nr_pages;
- 
--	/* Only scan within a pageblock boundary */
--	end_pfn = ALIGN(low_pfn + pageblock_nr_pages, pageblock_nr_pages);
-+	/*
-+	 * Take care that if the migration scanner is at the end of the zone
-+	 * that the free scanner does not accidentally move to the next zone
-+	 * in the next isolation cycle.
-+	 */
-+	high_pfn = min(low_pfn, pfn);
- 
--	/* Do not cross the free scanner or scan within a memory hole */
--	if (end_pfn > cc->free_pfn || !pfn_valid(low_pfn)) {
--		cc->migrate_pfn = end_pfn;
--		return ISOLATE_NONE;
--	}
-+	zone_end_pfn = zone->zone_start_pfn + zone->spanned_pages;
- 
--	/* Perform the isolation */
--	low_pfn = isolate_migratepages_range(zone, cc, low_pfn, end_pfn);
--	if (!low_pfn)
--		return ISOLATE_ABORT;
-+	/*
-+	 * Isolate free pages until enough are available to migrate the
-+	 * pages on cc->migratepages. We stop searching if the migrate
-+	 * and free page scanners meet or enough free pages are isolated.
-+	 */
-+	for (; pfn > low_pfn && cc->nr_migratepages > nr_freepages;
-+					pfn -= pageblock_nr_pages) {
-+		unsigned long isolated;
- 
--	cc->migrate_pfn = low_pfn;
-+		if (!pfn_valid(pfn))
-+			continue;
- 
--	return ISOLATE_SUCCESS;
-+		/*
-+		 * Check for overlapping nodes/zones. It's possible on some
-+		 * configurations to have a setup like
-+		 * node0 node1 node0
-+		 * i.e. it's possible that all pages within a zones range of
-+		 * pages do not belong to a single zone.
-+		 */
-+		page = pfn_to_page(pfn);
-+		if (page_zone(page) != zone)
-+			continue;
-+
-+		/* Check the block is suitable for migration */
-+		if (!suitable_migration_target(page))
-+			continue;
-+
-+		/*
-+		 * Found a block suitable for isolating free pages from. Now
-+		 * we disabled interrupts, double check things are ok and
-+		 * isolate the pages. This is to minimise the time IRQs
-+		 * are disabled
-+		 */
-+		isolated = 0;
-+		spin_lock_irqsave(&zone->lock, flags);
-+		if (suitable_migration_target(page)) {
-+			end_pfn = min(pfn + pageblock_nr_pages, zone_end_pfn);
-+			isolated = isolate_freepages_block(pfn, end_pfn,
-+							   freelist, false);
-+			nr_freepages += isolated;
-+		}
-+		spin_unlock_irqrestore(&zone->lock, flags);
-+
-+		/*
-+		 * Record the highest PFN we isolated pages from. When next
-+		 * looking for free pages, the search will restart here as
-+		 * page migration may have returned some pages to the allocator
-+		 */
-+		if (isolated)
-+			high_pfn = max(high_pfn, pfn);
-+	}
-+
-+	/* split_free_page does not map the pages */
-+	map_pages(freelist);
-+
-+	cc->free_pfn = high_pfn;
-+	cc->nr_freepages = nr_freepages;
- }
- 
- /*
-@@ -564,6 +510,44 @@ static void update_nr_listpages(struct compact_control *cc)
- 	cc->nr_freepages = nr_freepages;
- }
- 
-+/* possible outcome of isolate_migratepages */
-+typedef enum {
-+	ISOLATE_ABORT,		/* Abort compaction now */
-+	ISOLATE_NONE,		/* No pages isolated, continue scanning */
-+	ISOLATE_SUCCESS,	/* Pages isolated, migrate */
-+} isolate_migrate_t;
-+
-+/*
-+ * Isolate all pages that can be migrated from the block pointed to by
-+ * the migrate scanner within compact_control.
-+ */
-+static isolate_migrate_t isolate_migratepages(struct zone *zone,
-+					struct compact_control *cc)
-+{
-+	unsigned long low_pfn, end_pfn;
-+
-+	/* Do not scan outside zone boundaries */
-+	low_pfn = max(cc->migrate_pfn, zone->zone_start_pfn);
-+
-+	/* Only scan within a pageblock boundary */
-+	end_pfn = ALIGN(low_pfn + pageblock_nr_pages, pageblock_nr_pages);
-+
-+	/* Do not cross the free scanner or scan within a memory hole */
-+	if (end_pfn > cc->free_pfn || !pfn_valid(low_pfn)) {
-+		cc->migrate_pfn = end_pfn;
-+		return ISOLATE_NONE;
-+	}
-+
-+	/* Perform the isolation */
-+	low_pfn = isolate_migratepages_range(zone, cc, low_pfn, end_pfn);
-+	if (!low_pfn)
-+		return ISOLATE_ABORT;
-+
-+	cc->migrate_pfn = low_pfn;
-+
-+	return ISOLATE_SUCCESS;
-+}
-+
- static int compact_finished(struct zone *zone,
- 			    struct compact_control *cc)
- {
-@@ -910,3 +894,5 @@ void compaction_unregister_node(struct node *node)
- 	return device_remove_file(&node->dev, &dev_attr_compact);
- }
- #endif /* CONFIG_SYSFS && CONFIG_NUMA */
-+
-+#endif /* CONFIG_COMPACTION */
-diff --git a/mm/internal.h b/mm/internal.h
-index 2189af4..aee4761 100644
---- a/mm/internal.h
-+++ b/mm/internal.h
-@@ -100,6 +100,39 @@ extern void prep_compound_page(struct page *page, unsigned long order);
- extern bool is_free_buddy_page(struct page *page);
- #endif
- 
-+#if defined CONFIG_COMPACTION || defined CONFIG_CMA
-+
-+/*
-+ * in mm/compaction.c
-+ */
-+/*
-+ * compact_control is used to track pages being migrated and the free pages
-+ * they are being migrated to during memory compaction. The free_pfn starts
-+ * at the end of a zone and migrate_pfn begins at the start. Movable pages
-+ * are moved to the end of a zone during a compaction run and the run
-+ * completes when free_pfn <= migrate_pfn
-+ */
-+struct compact_control {
-+	struct list_head freepages;	/* List of free pages to migrate to */
-+	struct list_head migratepages;	/* List of pages being migrated */
-+	unsigned long nr_freepages;	/* Number of isolated free pages */
-+	unsigned long nr_migratepages;	/* Number of pages to migrate */
-+	unsigned long free_pfn;		/* isolate_freepages search base */
-+	unsigned long migrate_pfn;	/* isolate_migratepages search base */
-+	bool sync;			/* Synchronous migration */
-+
-+	int order;			/* order a direct compactor needs */
-+	int migratetype;		/* MOVABLE, RECLAIMABLE etc */
-+	struct zone *zone;
-+};
-+
-+unsigned long
-+isolate_freepages_range(unsigned long start_pfn, unsigned long end_pfn);
-+unsigned long
-+isolate_migratepages_range(struct zone *zone, struct compact_control *cc,
-+			   unsigned long low_pfn, unsigned long end_pfn);
-+
-+#endif
- 
- /*
-  * function for dealing with page's order in buddy system.
+
+Changelog:
+
+v23:
+    1. fixed bug spotted by Aaro Koskinen (incorrect check inside VM_BUG_ON)
+
+    2. rebased onto next-20120222 tree from
+       git://git.kernel.org/pub/scm/linux/kernel/git/next/linux-next.git 
+
+v22:
+    1. Fixed compilation break caused by missing fixup patch in v21
+
+    2. Fixed typos in the comments
+
+    3. Removed superfluous #include entries
+
+v21:
+    1. Fixed incorrect check which broke memory compaction code
+
+    2. Fixed hacky and racy min_free_kbytes handling
+
+    3. Added serialization patch to watermark calculation
+
+    4. Fixed typos here and there in the comments
+
+v20 and earlier - see previous patchsets.
+
+
+Patches in this patchset:
+
+Marek Szyprowski (6):
+  mm: extract reclaim code from __alloc_pages_direct_reclaim()
+  mm: trigger page reclaim in alloc_contig_range() to stabilise
+    watermarks
+  drivers: add Contiguous Memory Allocator
+  X86: integrate CMA with DMA-mapping subsystem
+  ARM: integrate CMA with DMA-mapping subsystem
+  ARM: Samsung: use CMA for 2 memory banks for s5p-mfc device
+
+Mel Gorman (1):
+  mm: Serialize access to min_free_kbytes
+
+Michal Nazarewicz (9):
+  mm: page_alloc: remove trailing whitespace
+  mm: compaction: introduce isolate_migratepages_range()
+  mm: compaction: introduce map_pages()
+  mm: compaction: introduce isolate_freepages_range()
+  mm: compaction: export some of the functions
+  mm: page_alloc: introduce alloc_contig_range()
+  mm: page_alloc: change fallbacks array handling
+  mm: mmzone: MIGRATE_CMA migration type added
+  mm: page_isolation: MIGRATE_CMA isolation functions added
+
+ Documentation/kernel-parameters.txt   |    9 +
+ arch/Kconfig                          |    3 +
+ arch/arm/Kconfig                      |    2 +
+ arch/arm/include/asm/dma-contiguous.h |   15 ++
+ arch/arm/include/asm/mach/map.h       |    1 +
+ arch/arm/kernel/setup.c               |    9 +-
+ arch/arm/mm/dma-mapping.c             |  369 ++++++++++++++++++++++++------
+ arch/arm/mm/init.c                    |   23 ++-
+ arch/arm/mm/mm.h                      |    3 +
+ arch/arm/mm/mmu.c                     |   31 ++-
+ arch/arm/plat-s5p/dev-mfc.c           |   51 +----
+ arch/x86/Kconfig                      |    1 +
+ arch/x86/include/asm/dma-contiguous.h |   13 +
+ arch/x86/include/asm/dma-mapping.h    |    4 +
+ arch/x86/kernel/pci-dma.c             |   18 ++-
+ arch/x86/kernel/pci-nommu.c           |    8 +-
+ arch/x86/kernel/setup.c               |    2 +
+ drivers/base/Kconfig                  |   89 +++++++
+ drivers/base/Makefile                 |    1 +
+ drivers/base/dma-contiguous.c         |  401 +++++++++++++++++++++++++++++++
+ include/asm-generic/dma-contiguous.h  |   28 +++
+ include/linux/device.h                |    4 +
+ include/linux/dma-contiguous.h        |  110 +++++++++
+ include/linux/gfp.h                   |   12 +
+ include/linux/mmzone.h                |   47 +++-
+ include/linux/page-isolation.h        |   18 +-
+ mm/Kconfig                            |    2 +-
+ mm/Makefile                           |    3 +-
+ mm/compaction.c                       |  418 +++++++++++++++++++++------------
+ mm/internal.h                         |   33 +++
+ mm/memory-failure.c                   |    2 +-
+ mm/memory_hotplug.c                   |    6 +-
+ mm/page_alloc.c                       |  409 ++++++++++++++++++++++++++++----
+ mm/page_isolation.c                   |   15 +-
+ mm/vmstat.c                           |    3 +
+ 35 files changed, 1790 insertions(+), 373 deletions(-)
+ create mode 100644 arch/arm/include/asm/dma-contiguous.h
+ create mode 100644 arch/x86/include/asm/dma-contiguous.h
+ create mode 100644 drivers/base/dma-contiguous.c
+ create mode 100644 include/asm-generic/dma-contiguous.h
+ create mode 100644 include/linux/dma-contiguous.h
+
 -- 
 1.7.1.569.g6f426
 
