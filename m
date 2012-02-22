@@ -1,66 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx166.postini.com [74.125.245.166])
-	by kanga.kvack.org (Postfix) with SMTP id B03436B004A
-	for <linux-mm@kvack.org>; Tue, 21 Feb 2012 22:43:25 -0500 (EST)
-Received: by bkty12 with SMTP id y12so7850504bkt.14
-        for <linux-mm@kvack.org>; Tue, 21 Feb 2012 19:43:24 -0800 (PST)
-Message-ID: <4F446458.8000107@openvz.org>
-Date: Wed, 22 Feb 2012 07:43:20 +0400
+Received: from psmtp.com (na3sys010amx137.postini.com [74.125.245.137])
+	by kanga.kvack.org (Postfix) with SMTP id 164C86B004A
+	for <linux-mm@kvack.org>; Tue, 21 Feb 2012 23:05:55 -0500 (EST)
+Received: by bkty12 with SMTP id y12so7861827bkt.14
+        for <linux-mm@kvack.org>; Tue, 21 Feb 2012 20:05:53 -0800 (PST)
+Message-ID: <4F44699D.3020309@openvz.org>
+Date: Wed, 22 Feb 2012 08:05:49 +0400
 From: Konstantin Khlebnikov <khlebnikov@openvz.org>
 MIME-Version: 1.0
-Subject: Re: [PATCH 9/10] mm/memcg: move lru_lock into lruvec
-References: <alpine.LSU.2.00.1202201518560.23274@eggly.anvils> <alpine.LSU.2.00.1202201537040.23274@eggly.anvils> <4F434300.3080001@openvz.org> <alpine.LSU.2.00.1202211205280.1858@eggly.anvils> <4F440E1D.7050004@openvz.org> <alpine.LSU.2.00.1202211406030.2012@eggly.anvils>
-In-Reply-To: <alpine.LSU.2.00.1202211406030.2012@eggly.anvils>
+Subject: Re: [PATCH 6/10] mm/memcg: take care over pc->mem_cgroup
+References: <alpine.LSU.2.00.1202201518560.23274@eggly.anvils> <alpine.LSU.2.00.1202201533260.23274@eggly.anvils> <20120221181321.637556cd.kamezawa.hiroyu@jp.fujitsu.com> <alpine.LSU.2.00.1202211437140.2012@eggly.anvils>
+In-Reply-To: <alpine.LSU.2.00.1202211437140.2012@eggly.anvils>
 Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Hugh Dickins <hughd@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, Ying Han <yinghan@google.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Ying Han <yinghan@google.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 
 Hugh Dickins wrote:
-> On Wed, 22 Feb 2012, Konstantin Khlebnikov wrote:
->> Hugh Dickins wrote:
+> On Tue, 21 Feb 2012, KAMEZAWA Hiroyuki wrote:
+>> On Mon, 20 Feb 2012 15:34:28 -0800 (PST)
+>> Hugh Dickins<hughd@google.com>  wrote:
+>> 	return NULL;
 >>>
->>> I'll have to come back to think about your locking later too;
->>> or maybe that's exactly where I need to look, when investigating
->>> the mm_inline.h:41 BUG.
+>>> +	lruvec = page_lock_lruvec(page);
+>>>   	lock_page_cgroup(pc);
+>>>
 >>
->> pages_count[] updates looks correct.
->> This really may be bug in locking, and this VM_BUG_ON catch it before
->> list-debug.
+>> Do we need to take lrulock+irq disable per page in this very very hot path ?
 >
-> I've still not got into looking at it yet.
+> I'm sure we don't want to: I hope you were pleased to find it goes away
+> (from most cases) a couple of patches later.
 >
-> You're right to mention DEBUG_LIST: I have that on some of the machines,
-> and I would expect that to be the first to catch a mislocking issue.
+> I had lruvec lock nested inside page_cgroup lock in the rollup I sent in
+> December, whereas you went for page_cgroup lock nested inside lruvec lock
+> in your lrucare patch.
 >
-> In the past my problems with that BUG (well, the spur to introduce it)
-> came from hugepages.
-
-My patchset hasn't your mem_cgroup_reset_uncharged_to_root protection,
-or something to replace it. So, there exist race between cgroup remove and
-isolated uncharged page put-back, but it shouldn't corrupt lru lists.
-There something different.
-
+> I couldn't find an imperative reason why they should be one way round or
+> the other, so I tried hard to stick with your ordering, and it did work
+> (in this 6/10).  But then I couldn't work out how to get rid of the
+> overheads added in doing it this way round, so swapped them back.
 >
->>>
->>> But at first sight, I have to say I'm very suspicious: I've never found
->>> PageLRU a good enough test for whether we need such a lock, because of
->>> races with those pages on percpu lruvec about to be put on the lru.
->>>
->>> But maybe once I look closer, I'll find that's handled by your changes
->>> away from lruvec; though I'd have thought the same issue exists,
->>> independent of whether the pending pages are in vector or list.
 >>
->> Are you talking about my per-cpu page-lists for lru-adding?
+>> Hmm.... How about adding NR_ISOLATED counter into lruvec ?
+>>
+>> Then, we can delay freeing lruvec until all conunters goes down to zero.
+>> as...
+>>
+>> 	bool we_can_free_lruvec = true;
+>>
+>> 	lock_lruvec(lruvec->lock);
+>> 	for_each_lru_lruvec(lru)
+>> 		if (!list_empty(&lruvec->lru[lru]))
+>> 			we_can_free_lruvec = false;
+>> 	if (lruvec->nr_isolated)
+>> 		we_can_free_lruvec = false;
+>> 	unlock_lruvec(lruvec)
+>> 	if (we_can_free_lruvec)
+>> 		kfree(lruvec);
+>>
+>> If compaction, lumpy reclaim free a page taken from LRU,
+>> it knows what it does and can decrement lruvec->nr_isolated properly
+>> (it seems zone's NR_ISOLATED is decremented at putback.)
 >
-> Yes.
->
->> This is just an unnecessary patch, I don't know why I include it into v2 set.
->> It does not protect anything.
->
-> Okay.
+> At the moment I'm thinking that what we end up with by 9/10 is
+> better than adding such a refcount.  But I'm not entirely happy with
+> mem_cgroup_reset_uncharged_to_root (it adds a further page_cgroup
+> lookup just after I got rid of some others), and need yet to think
+> about the race which Konstantin posits, so all options remain open.
+
+This lruvec->nr_isolated seem reasonable, and its managegin not very costly.
+In move_account() we anyway need to touch old_lruvec->lru_lock after recharge,
+to stabilize PageLRU() before adding page to new_lruvec. (because that race)
+In migration/compaction this handled automatically, because they always call putback_lru_page() at the end.
+Main problem is shrink_page_list() for lumpy-reclaim, but seems like it never used if memory
+compaction is enabled, so it can be slow and ineffective with tons of lru_list relocks.
+
 >
 > Hugh
 
