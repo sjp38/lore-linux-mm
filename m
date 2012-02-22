@@ -1,170 +1,105 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx206.postini.com [74.125.245.206])
-	by kanga.kvack.org (Postfix) with SMTP id 5EB396B004A
-	for <linux-mm@kvack.org>; Wed, 22 Feb 2012 02:48:29 -0500 (EST)
-Received: by lagy4 with SMTP id y4so5974725lag.25
-        for <linux-mm@kvack.org>; Tue, 21 Feb 2012 23:48:26 -0800 (PST)
+Received: from psmtp.com (na3sys010amx121.postini.com [74.125.245.121])
+	by kanga.kvack.org (Postfix) with SMTP id E380E6B004A
+	for <linux-mm@kvack.org>; Wed, 22 Feb 2012 03:18:09 -0500 (EST)
+Received: by dadv6 with SMTP id v6so9616854dad.14
+        for <linux-mm@kvack.org>; Wed, 22 Feb 2012 00:18:09 -0800 (PST)
+Date: Wed, 22 Feb 2012 00:17:38 -0800 (PST)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: [PATCH] mm: hugetlb: break COW earlier for resv owner
+In-Reply-To: <CAJd=RBBY8yzH6wk7GFttvukLq0Pxzw_ExCO+F5N5ChQwk1Q94A@mail.gmail.com>
+Message-ID: <alpine.LSU.2.00.1202212350070.3944@eggly.anvils>
+References: <CAJd=RBBY8yzH6wk7GFttvukLq0Pxzw_ExCO+F5N5ChQwk1Q94A@mail.gmail.com>
 MIME-Version: 1.0
-From: Jarkko Sakkinen <jarkko.sakkinen@intel.com>
-Subject: [PATCH] tmpfs: security xattr setting on inode creation
-Date: Wed, 22 Feb 2012 09:48:14 +0200
-Message-Id: <1329896894-7278-1-git-send-email-jarkko.sakkinen@intel.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Jarkko Sakkinen <jarkko.sakkinen@intel.com>
+To: Hillf Danton <dhillf@gmail.com>
+Cc: Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.cz>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>
 
-Adds to generic xattr support introduced in Linux 3.0 by
-implementing initxattrs callback. This enables consulting
-of security attributes from LSM and EVM when inode originally
-created.
+On Sat, 18 Feb 2012, Hillf Danton wrote:
+> When a process owning a MAP_PRIVATE mapping fails to COW, due to references
+> held by a child and insufficient huge page pool, page is unmapped from the
+> child process to guarantee the original mappers reliability, and the child
+> may get SIGKILLed if it later faults.
 
-Signed-off-by: Jarkko Sakkinen <jarkko.sakkinen@intel.com>
----
- mm/shmem.c |   77 +++++++++++++++++++++++++++++++++++++++++++++++------------
- 1 files changed, 61 insertions(+), 16 deletions(-)
+I think I understand you there.
 
-diff --git a/mm/shmem.c b/mm/shmem.c
-index 7a45ad0..72addf1 100644
---- a/mm/shmem.c
-+++ b/mm/shmem.c
-@@ -1480,6 +1480,59 @@ static int shmem_statfs(struct dentry *dentry, struct kstatfs *buf)
- /*
-  * File creation. Allocate an inode, and we're done..
-  */
-+
-+static int shmem_xattr_alloc(size_t size, struct shmem_xattr **new_xattr)
-+{
-+	/* wrap around? */
-+	size_t len = sizeof(**new_xattr) + size;
-+	if (len <= sizeof(**new_xattr))
-+		return -ENOMEM;
-+
-+	*new_xattr = kmalloc(len, GFP_KERNEL);
-+	if (*new_xattr == NULL)
-+		return -ENOMEM;
-+
-+	(*new_xattr)->size = size;
-+	return 0;
-+}
-+
-+static int shmem_initxattrs(struct inode *inode,
-+			    const struct xattr *xattr_array,
-+			    void *fs_info)
-+{
-+	const struct xattr *xattr;
-+	struct shmem_inode_info *info = SHMEM_I(inode);
-+	struct shmem_xattr *new_xattr = NULL;
-+	size_t len;
-+	int err = 0;
-+
-+	for (xattr = xattr_array; xattr->name != NULL; xattr++) {
-+		err = shmem_xattr_alloc(xattr->value_len, &new_xattr);
-+		if (err < 0)
-+			break;
-+
-+		len = strlen(xattr->name) + 1;
-+		new_xattr->name = kmalloc(XATTR_SECURITY_PREFIX_LEN + len,
-+					  GFP_KERNEL);
-+		if (new_xattr->name == NULL) {
-+			kfree(new_xattr);
-+			return -ENOMEM;
-+		}
-+
-+		memcpy(new_xattr->name, XATTR_SECURITY_PREFIX,
-+		       XATTR_SECURITY_PREFIX_LEN);
-+		memcpy(new_xattr->name + XATTR_SECURITY_PREFIX_LEN,
-+		       xattr->name, len);
-+		memcpy(new_xattr->value, xattr->value, xattr->value_len);
-+
-+		spin_lock(&info->lock);
-+		list_add(&new_xattr->list, &info->xattr_list);
-+		spin_unlock(&info->lock);
-+	}
-+
-+	return err;
-+}
-+
- static int
- shmem_mknod(struct inode *dir, struct dentry *dentry, umode_t mode, dev_t dev)
- {
-@@ -1490,7 +1543,7 @@ shmem_mknod(struct inode *dir, struct dentry *dentry, umode_t mode, dev_t dev)
- 	if (inode) {
- 		error = security_inode_init_security(inode, dir,
- 						     &dentry->d_name,
--						     NULL, NULL);
-+						     &shmem_initxattrs, NULL);
- 		if (error) {
- 			if (error != -EOPNOTSUPP) {
- 				iput(inode);
-@@ -1630,7 +1683,7 @@ static int shmem_symlink(struct inode *dir, struct dentry *dentry, const char *s
- 		return -ENOSPC;
- 
- 	error = security_inode_init_security(inode, dir, &dentry->d_name,
--					     NULL, NULL);
-+					     &shmem_initxattrs, NULL);
- 	if (error) {
- 		if (error != -EOPNOTSUPP) {
- 			iput(inode);
-@@ -1731,26 +1784,19 @@ static int shmem_xattr_get(struct dentry *dentry, const char *name,
- 	return ret;
- }
- 
--static int shmem_xattr_set(struct dentry *dentry, const char *name,
-+static int shmem_xattr_set(struct inode *inode, const char *name,
- 			   const void *value, size_t size, int flags)
- {
--	struct inode *inode = dentry->d_inode;
- 	struct shmem_inode_info *info = SHMEM_I(inode);
- 	struct shmem_xattr *xattr;
- 	struct shmem_xattr *new_xattr = NULL;
--	size_t len;
- 	int err = 0;
- 
- 	/* value == NULL means remove */
- 	if (value) {
--		/* wrap around? */
--		len = sizeof(*new_xattr) + size;
--		if (len <= sizeof(*new_xattr))
--			return -ENOMEM;
--
--		new_xattr = kmalloc(len, GFP_KERNEL);
--		if (!new_xattr)
--			return -ENOMEM;
-+		err = shmem_xattr_alloc(size, &new_xattr);
-+		if (err < 0)
-+			return err;
- 
- 		new_xattr->name = kstrdup(name, GFP_KERNEL);
- 		if (!new_xattr->name) {
-@@ -1758,7 +1804,6 @@ static int shmem_xattr_set(struct dentry *dentry, const char *name,
- 			return -ENOMEM;
- 		}
- 
--		new_xattr->size = size;
- 		memcpy(new_xattr->value, value, size);
- 	}
- 
-@@ -1858,7 +1903,7 @@ static int shmem_setxattr(struct dentry *dentry, const char *name,
- 	if (size == 0)
- 		value = "";  /* empty EA, do not remove */
- 
--	return shmem_xattr_set(dentry, name, value, size, flags);
-+	return shmem_xattr_set(dentry->d_inode, name, value, size, flags);
- 
- }
- 
-@@ -1878,7 +1923,7 @@ static int shmem_removexattr(struct dentry *dentry, const char *name)
- 	if (err)
- 		return err;
- 
--	return shmem_xattr_set(dentry, name, NULL, 0, XATTR_REPLACE);
-+	return shmem_xattr_set(dentry->d_inode, name, NULL, 0, XATTR_REPLACE);
- }
- 
- static bool xattr_is_trusted(const char *name)
--- 
-1.7.5.4
+> 
+> With that guarantee, COW is broken earlier on behalf of owners, and they will
+> go less page faults.
+
+As usual, I have to guess that here you're describing what (you think)
+happens after your patch.
+
+But I don't understand, or it doesn't seem to describe what happens in
+your patch.  "COW is broken" only in the sense that you are breaking
+the way COW is supposed to behave, and I believe your patch is wrong.
+
+> 
+> Signed-off-by: Hillf Danton <dhillf@gmail.com>
+> ---
+> 
+> --- a/mm/hugetlb.c	Tue Feb 14 20:10:46 2012
+> +++ b/mm/hugetlb.c	Sat Feb 18 13:29:58 2012
+> @@ -2145,10 +2145,12 @@ int copy_hugetlb_page_range(struct mm_st
+>  	struct page *ptepage;
+>  	unsigned long addr;
+>  	int cow;
+> +	int owner;
+>  	struct hstate *h = hstate_vma(vma);
+>  	unsigned long sz = huge_page_size(h);
+> 
+>  	cow = (vma->vm_flags & (VM_SHARED | VM_MAYWRITE)) == VM_MAYWRITE;
+> +	owner = is_vma_resv_set(vma, HPAGE_RESV_OWNER);
+> 
+>  	for (addr = vma->vm_start; addr < vma->vm_end; addr += sz) {
+>  		src_pte = huge_pte_offset(src, addr);
+> @@ -2164,10 +2166,19 @@ int copy_hugetlb_page_range(struct mm_st
+> 
+>  		spin_lock(&dst->page_table_lock);
+>  		spin_lock_nested(&src->page_table_lock, SINGLE_DEPTH_NESTING);
+> -		if (!huge_pte_none(huge_ptep_get(src_pte))) {
+> +		entry = huge_ptep_get(src_pte);
+> +		if (!huge_pte_none(entry)) {
+>  			if (cow)
+> -				huge_ptep_set_wrprotect(src, addr, src_pte);
+> -			entry = huge_ptep_get(src_pte);
+> +				if (owner) {
+> +					/*
+> +					 * Break COW for resv owner to go less
+> +					 * page faults later
+> +					 */
+> +					entry = huge_pte_wrprotect(entry);
+
+So, the change you are making is that if the vma being copied (and I had
+to check with dup_mmap() to see that vma here is indeed the src vma) is
+the original "owner", then its pte is left (perhaps) writable, and only
+the child's is write-protected.
+
+But that means that modifications made to this page by the parent after
+the fork will still be visible to the child, until such time as the child
+writes to this area, if ever.
+
+That is not how COW protection behaves for a normal page: it's symmetric,
+neither parent nor child sees modifications made by the other after fork.
+
+Now, hugetlb pages are not normal in all kinds of ways, but here you
+appear to be changing the semantics of private hugetlb mappings, in
+a way that could break applications, and has security implications.
+
+Or am I misunderstanding?
+
+Hugh
+
+> +				} else {
+> +					huge_ptep_set_wrprotect(src, addr, src_pte);
+> +					entry = huge_ptep_get(src_pte);
+> +				}
+>  			ptepage = pte_page(entry);
+>  			get_page(ptepage);
+>  			page_dup_rmap(ptepage);
+> --
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
