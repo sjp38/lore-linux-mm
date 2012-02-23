@@ -1,101 +1,108 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx163.postini.com [74.125.245.163])
-	by kanga.kvack.org (Postfix) with SMTP id 774AA6B004A
-	for <linux-mm@kvack.org>; Thu, 23 Feb 2012 13:45:35 -0500 (EST)
-Date: Thu, 23 Feb 2012 12:45:33 -0600 (CST)
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: [RFC][PATCH] fix move/migrate_pages() race on task struct
-In-Reply-To: <20120223180740.C4EC4156@kernel>
-Message-ID: <alpine.DEB.2.00.1202231240590.9878@router.home>
-References: <20120223180740.C4EC4156@kernel>
+Received: from psmtp.com (na3sys010amx147.postini.com [74.125.245.147])
+	by kanga.kvack.org (Postfix) with SMTP id BC0036B004A
+	for <linux-mm@kvack.org>; Thu, 23 Feb 2012 13:48:29 -0500 (EST)
+Received: by bkty12 with SMTP id y12so1805541bkt.14
+        for <linux-mm@kvack.org>; Thu, 23 Feb 2012 10:48:27 -0800 (PST)
+Subject: [PATCH 1/2] mm: configure lruvec split by boot options
+From: Konstantin Khlebnikov <khlebnikov@openvz.org>
+Date: Thu, 23 Feb 2012 22:48:24 +0400
+Message-ID: <20120223184824.7184.78353.stgit@zurg>
+In-Reply-To: <20120223162111.GA4713@one.firstfloor.org>
+References: <20120223162111.GA4713@one.firstfloor.org>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave@linux.vnet.ibm.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Hugh Dickins <hughd@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Andi Kleen <andi@firstfloor.org>
 
-On Thu, 23 Feb 2012, Dave Hansen wrote:
+This patch adds boot options:
+lruvec_split=%u by default 1, limited by CONFIG_PAGE_LRU_SPLIT
+lruvec_interleaving=%u by default CONFIG_PAGE_LRU_INTERLEAVING
 
-> I think I got lucky that my task_struct was bogus in the oops
-> below.  It's probably quite feasible that a task_struct could get
-> freed back in to the slab, reallocated as another task_struct,
-> and then we do these cred checks against a valid, but basically
-> random task.
+Signed-off-by: Konstantin Khlebnikov <khlebnikov@openvz.org>
+---
+ include/linux/mm.h |    5 ++++-
+ mm/internal.h      |    2 +-
+ mm/page_alloc.c    |   29 +++++++++++++++++++++++++++++
+ 3 files changed, 34 insertions(+), 2 deletions(-)
 
-Ok I buy that.
-
-> This patch takes the pid-to-task code along with the credential
-> and security checks in sys_move_pages() and sys_migrate_pages()
-> and consolidates them.  It now takes a task reference in
-> the new function and requires the caller to drop it.  I
-> believe this resolves the race.
-
-And this way its safer?
-
-> diff -puN include/linux/migrate.h~movememory-helper include/linux/migrate.h
-> --- linux-2.6.git/include/linux/migrate.h~movememory-helper	2012-02-16 09:59:17.270207242 -0800
-> +++ linux-2.6.git-dave/include/linux/migrate.h	2012-02-16 09:59:17.286207438 -0800
-> @@ -31,6 +31,7 @@ extern int migrate_vmas(struct mm_struct
->  extern void migrate_page_copy(struct page *newpage, struct page *page);
->  extern int migrate_huge_page_move_mapping(struct address_space *mapping,
->  				  struct page *newpage, struct page *page);
-> +struct task_struct *can_migrate_get_task(pid_t pid);
-
-Could we use something easier to understand? try_get_task()?
-
-
-> +++ linux-2.6.git-dave/mm/mempolicy.c	2012-02-16 09:59:17.286207438 -0800
-> diff -puN mm/migrate.c~movememory-helper mm/migrate.c
-> --- linux-2.6.git/mm/migrate.c~movememory-helper	2012-02-16 09:59:17.278207340 -0800
-> +++ linux-2.6.git-dave/mm/migrate.c	2012-02-16 09:59:17.286207438 -0800
-> @@ -1339,38 +1339,22 @@ static int do_pages_stat(struct mm_struc
->  }
->
->  /*
-> - * Move a list of pages in the address space of the currently executing
-> - * process.
-> + * If successful, takes a task_struct reference that
-> + * the caller is responsible for releasing.
->   */
-> -SYSCALL_DEFINE6(move_pages, pid_t, pid, unsigned long, nr_pages,
-> -		const void __user * __user *, pages,
-> -		const int __user *, nodes,
-> -		int __user *, status, int, flags)
-> +struct task_struct *can_migrate_get_task(pid_t pid)
->  {
-> -	const struct cred *cred = current_cred(), *tcred;
->  	struct task_struct *task;
-> -	struct mm_struct *mm;
-> -	int err;
-> -
-> -	/* Check flags */
-> -	if (flags & ~(MPOL_MF_MOVE|MPOL_MF_MOVE_ALL))
-> -		return -EINVAL;
-> -
-> -	if ((flags & MPOL_MF_MOVE_ALL) && !capable(CAP_SYS_NICE))
-> -		return -EPERM;
-> +	const struct cred *cred = current_cred(), *tcred;
-> +	int err = 0;
->
-> -	/* Find the mm_struct */
->  	rcu_read_lock();
->  	task = pid ? find_task_by_vpid(pid) : current;
->  	if (!task) {
->  		rcu_read_unlock();
-> -		return -ESRCH;
-> +		return ERR_PTR(-ESRCH);
->  	}
-> -	mm = get_task_mm(task);
-> -	rcu_read_unlock();
-> -
-> -	if (!mm)
-> -		return -EINVAL;
-> +	get_task_struct(task);
-
-Hmmm isnt the race still there between the determination of the task and
-the get_task_struct()? You would have to verify after the get_task_struct
-that this is really the task we wanted to avoid the race.
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index d14db10..f042a34 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -737,12 +737,15 @@ static inline int page_lruvec_id(struct page *page)
+ 
+ #else /* CONFIG_PAGE_LRU_SPLIT */
+ 
++extern unsigned lruvec_split;
++extern unsigned lruvec_interleaving;
++
+ static inline int page_lruvec_id(struct page *page)
+ {
+ 
+ 	unsigned long pfn = page_to_pfn(page);
+ 
+-	return (pfn >> CONFIG_PAGE_LRU_INTERLEAVING) % CONFIG_PAGE_LRU_SPLIT;
++	return (pfn >> lruvec_interleaving) % lruvec_split;
+ }
+ 
+ #endif /* CONFIG_PAGE_LRU_SPLIT */
+diff --git a/mm/internal.h b/mm/internal.h
+index f429911..be7415b 100644
+--- a/mm/internal.h
++++ b/mm/internal.h
+@@ -17,7 +17,7 @@
+ 	for ( zone_id = 0 ; zone_id < MAX_NR_ZONES ; zone_id++ )
+ 
+ #define for_each_lruvec_id(lruvec_id) \
+-	for ( lruvec_id = 0 ; lruvec_id < CONFIG_PAGE_LRU_SPLIT ; lruvec_id++ )
++	for ( lruvec_id = 0 ; lruvec_id < lruvec_split ; lruvec_id++ )
+ 
+ #define for_each_zone_and_lruvec_id(zone_id, lruvec_id) \
+ 	for_each_zone_id(zone_id) for_each_lruvec_id(lruvec_id)
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 9b0cc92..1a899fa 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -4303,6 +4303,35 @@ void init_zone_lruvec(struct zone *zone, struct lruvec *lruvec)
+ #endif
+ }
+ 
++#if CONFIG_PAGE_LRU_SPLIT != 1
++
++unsigned lruvec_split = 1;
++unsigned lruvec_interleaving = CONFIG_PAGE_LRU_INTERLEAVING;
++
++static int __init set_lruvec_split(char *arg)
++{
++	if (!kstrtouint(arg, 0, &lruvec_split) &&
++	    lruvec_split >= 1 &&
++	    lruvec_split <= CONFIG_PAGE_LRU_SPLIT)
++		return 0;
++	lruvec_split = 1;
++	return 1;
++}
++early_param("lruvec_split", set_lruvec_split);
++
++static int __init set_lruvec_interleaving(char *arg)
++{
++	if (!kstrtouint(arg, 0, &lruvec_interleaving) &&
++	    lruvec_interleaving >= HPAGE_PMD_ORDER &&
++	    lruvec_interleaving <= BITS_PER_LONG)
++		return 0;
++	lruvec_split = 1;
++	return 1;
++}
++early_param("lruvec_interleaving", set_lruvec_interleaving);
++
++#endif
++
+ /*
+  * Set up the zone data structures:
+  *   - mark all pages reserved
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
