@@ -1,13 +1,14 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from psmtp.com (na3sys010amx156.postini.com [74.125.245.156])
-	by kanga.kvack.org (Postfix) with SMTP id 5874C6B00ED
-	for <linux-mm@kvack.org>; Thu, 23 Feb 2012 08:52:42 -0500 (EST)
+	by kanga.kvack.org (Postfix) with SMTP id 7A1756B004D
+	for <linux-mm@kvack.org>; Thu, 23 Feb 2012 08:52:46 -0500 (EST)
 Received: by mail-bk0-f41.google.com with SMTP id y12so1365307bkt.14
-        for <linux-mm@kvack.org>; Thu, 23 Feb 2012 05:52:41 -0800 (PST)
-Subject: [PATCH v3 12/21] mm: push lruvec into update_page_reclaim_stat()
+        for <linux-mm@kvack.org>; Thu, 23 Feb 2012 05:52:45 -0800 (PST)
+Subject: [PATCH v3 13/21] mm: push lruvecs from pagevec_lru_move_fn() to
+ iterator
 From: Konstantin Khlebnikov <khlebnikov@openvz.org>
-Date: Thu, 23 Feb 2012 17:52:38 +0400
-Message-ID: <20120223135238.12988.79360.stgit@zurg>
+Date: Thu, 23 Feb 2012 17:52:42 +0400
+Message-ID: <20120223135242.12988.38183.stgit@zurg>
 In-Reply-To: <20120223133728.12988.5432.stgit@zurg>
 References: <20120223133728.12988.5432.stgit@zurg>
 MIME-Version: 1.0
@@ -18,119 +19,169 @@ List-ID: <linux-mm.kvack.org>
 To: Hugh Dickins <hughd@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 Cc: Andi Kleen <andi@firstfloor.org>
 
-Push lruvec pointer into update_page_reclaim_stat()
-* drop page argument
-* drop active and file arguments, use lru instead
+Push lruvec pointer from pagevec_lru_move_fn() to iterator function.
+Push lruvec pointer into lru_add_page_tail()
 
 Signed-off-by: Konstantin Khlebnikov <khlebnikov@openvz.org>
 ---
- mm/swap.c |   30 +++++++++---------------------
- 1 files changed, 9 insertions(+), 21 deletions(-)
+ include/linux/swap.h |    2 +-
+ mm/huge_memory.c     |    4 +++-
+ mm/swap.c            |   27 +++++++++++++--------------
+ 3 files changed, 17 insertions(+), 16 deletions(-)
 
+diff --git a/include/linux/swap.h b/include/linux/swap.h
+index f7df3ea..8630354 100644
+--- a/include/linux/swap.h
++++ b/include/linux/swap.h
+@@ -224,7 +224,7 @@ extern unsigned int nr_free_pagecache_pages(void);
+ /* linux/mm/swap.c */
+ extern void __lru_cache_add(struct page *, enum lru_list lru);
+ extern void lru_cache_add_lru(struct page *, enum lru_list lru);
+-extern void lru_add_page_tail(struct zone* zone,
++extern void lru_add_page_tail(struct lruvec *lruvec,
+ 			      struct page *page, struct page *page_tail);
+ extern void activate_page(struct page *);
+ extern void mark_page_accessed(struct page *);
+diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+index 91d3efb..09e7069 100644
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -1229,10 +1229,12 @@ static void __split_huge_page_refcount(struct page *page)
+ {
+ 	int i;
+ 	struct zone *zone = page_zone(page);
++	struct lruvec *lruvec;
+ 	int tail_count = 0;
+ 
+ 	/* prevent PageLRU to go away from under us, and freeze lru stats */
+ 	spin_lock_irq(&zone->lru_lock);
++	lruvec = page_lruvec(page);
+ 	compound_lock(page);
+ 	/* complete memcg works before add pages to LRU */
+ 	mem_cgroup_split_huge_fixup(page);
+@@ -1308,7 +1310,7 @@ static void __split_huge_page_refcount(struct page *page)
+ 		BUG_ON(!PageSwapBacked(page_tail));
+ 
+ 
+-		lru_add_page_tail(zone, page, page_tail);
++		lru_add_page_tail(lruvec, page, page_tail);
+ 	}
+ 	atomic_sub(tail_count, &page->_count);
+ 	BUG_ON(atomic_read(&page->_count) <= 0);
 diff --git a/mm/swap.c b/mm/swap.c
-index 0cbc558..1f5731e 100644
+index 1f5731e..f7b5896 100644
 --- a/mm/swap.c
 +++ b/mm/swap.c
-@@ -276,24 +276,19 @@ void rotate_reclaimable_page(struct page *page)
+@@ -204,7 +204,8 @@ void put_pages_list(struct list_head *pages)
+ EXPORT_SYMBOL(put_pages_list);
+ 
+ static void pagevec_lru_move_fn(struct pagevec *pvec,
+-				void (*move_fn)(struct page *page, void *arg),
++				void (*move_fn)(struct lruvec *lruvec,
++						struct page *page, void *arg),
+ 				void *arg)
+ {
+ 	int i;
+@@ -214,6 +215,7 @@ static void pagevec_lru_move_fn(struct pagevec *pvec,
+ 	for (i = 0; i < pagevec_count(pvec); i++) {
+ 		struct page *page = pvec->pages[i];
+ 		struct zone *pagezone = page_zone(page);
++		struct lruvec *lruvec;
+ 
+ 		if (pagezone != zone) {
+ 			if (zone)
+@@ -222,7 +224,8 @@ static void pagevec_lru_move_fn(struct pagevec *pvec,
+ 			spin_lock_irqsave(&zone->lru_lock, flags);
+ 		}
+ 
+-		(*move_fn)(page, arg);
++		lruvec = page_lruvec(page);
++		(*move_fn)(lruvec, page, arg);
  	}
+ 	if (zone)
+ 		spin_unlock_irqrestore(&zone->lru_lock, flags);
+@@ -230,13 +233,13 @@ static void pagevec_lru_move_fn(struct pagevec *pvec,
+ 	pagevec_reinit(pvec);
  }
  
--static void update_page_reclaim_stat(struct zone *zone, struct page *page,
--				     int file, int rotated)
-+static void update_page_reclaim_stat(struct lruvec *lruvec, enum lru_list lru)
+-static void pagevec_move_tail_fn(struct page *page, void *arg)
++static void pagevec_move_tail_fn(struct lruvec *lruvec,
++				 struct page *page, void *arg)
  {
--	struct zone_reclaim_stat *reclaim_stat;
--
--	reclaim_stat = &page_lruvec(page)->reclaim_stat;
-+	struct zone_reclaim_stat *reclaim_stat = &lruvec->reclaim_stat;
-+	int file = is_file_lru(lru);
+ 	int *pgmoved = arg;
  
- 	reclaim_stat->recent_scanned[file]++;
--	if (rotated)
-+	if (is_active_lru(lru))
+ 	if (PageLRU(page) && !PageActive(page) && !PageUnevictable(page)) {
+ 		enum lru_list lru = page_lru_base_type(page);
+-		struct lruvec *lruvec = page_lruvec(page);
+ 
+ 		list_move_tail(&page->lru, &lruvec->pages_lru[lru]);
+ 		(*pgmoved)++;
+@@ -286,11 +289,10 @@ static void update_page_reclaim_stat(struct lruvec *lruvec, enum lru_list lru)
  		reclaim_stat->recent_rotated[file]++;
  }
  
- static void __activate_page(struct page *page, void *arg)
+-static void __activate_page(struct page *page, void *arg)
++static void __activate_page(struct lruvec *lruvec, struct page *page, void *arg)
  {
--	struct zone *zone = page_zone(page);
--
  	if (PageLRU(page) && !PageActive(page) && !PageUnevictable(page)) {
--		int file = page_is_file_cache(page);
  		int lru = page_lru_base_type(page);
- 		struct lruvec *lruvec = page_lruvec(page);
+-		struct lruvec *lruvec = page_lruvec(page);
  
-@@ -304,7 +299,7 @@ static void __activate_page(struct page *page, void *arg)
- 		add_page_to_lru_list(lruvec, page, lru);
- 		__count_vm_event(PGACTIVATE);
+ 		del_page_from_lru_list(lruvec, page, lru);
  
--		update_page_reclaim_stat(zone, page, file, 1);
-+		update_page_reclaim_stat(lruvec, lru);
- 	}
- }
- 
-@@ -443,7 +438,6 @@ static void lru_deactivate_fn(struct page *page, void *arg)
+@@ -434,11 +436,10 @@ void add_page_to_unevictable_list(struct page *page)
+  * be write it out by flusher threads as this is much more effective
+  * than the single-page writeout from reclaim.
+  */
+-static void lru_deactivate_fn(struct page *page, void *arg)
++static void lru_deactivate_fn(struct lruvec *lruvec, struct page *page, void *arg)
  {
  	int lru, file;
  	bool active;
--	struct zone *zone = page_zone(page);
- 	struct lruvec *lruvec;
+-	struct lruvec *lruvec;
  
  	if (!PageLRU(page))
-@@ -484,7 +478,7 @@ static void lru_deactivate_fn(struct page *page, void *arg)
+ 		return;
+@@ -454,7 +455,6 @@ static void lru_deactivate_fn(struct page *page, void *arg)
  
- 	if (active)
- 		__count_vm_event(PGDEACTIVATE);
--	update_page_reclaim_stat(zone, page, file, 0);
-+	update_page_reclaim_stat(lruvec, lru);
- }
+ 	file = page_is_file_cache(page);
+ 	lru = page_lru_base_type(page);
+-	lruvec = page_lruvec(page);
+ 	del_page_from_lru_list(lruvec, page, lru + active);
+ 	ClearPageActive(page);
+ 	ClearPageReferenced(page);
+@@ -640,16 +640,15 @@ EXPORT_SYMBOL(__pagevec_release);
  
- /*
-@@ -649,9 +643,7 @@ EXPORT_SYMBOL(__pagevec_release);
- void lru_add_page_tail(struct zone* zone,
+ #ifdef CONFIG_TRANSPARENT_HUGEPAGE
+ /* used by __split_huge_page_refcount() */
+-void lru_add_page_tail(struct zone* zone,
++void lru_add_page_tail(struct lruvec *lruvec,
  		       struct page *page, struct page *page_tail)
  {
--	int active;
  	enum lru_list lru;
--	const int file = 0;
- 	struct lruvec *lruvec = page_lruvec(page);
+-	struct lruvec *lruvec = page_lruvec(page);
  
  	VM_BUG_ON(!PageHead(page));
-@@ -664,13 +656,11 @@ void lru_add_page_tail(struct zone* zone,
- 	if (page_evictable(page_tail, NULL)) {
- 		if (PageActive(page)) {
- 			SetPageActive(page_tail);
--			active = 1;
- 			lru = LRU_ACTIVE_ANON;
- 		} else {
--			active = 0;
- 			lru = LRU_INACTIVE_ANON;
- 		}
--		update_page_reclaim_stat(zone, page_tail, file, active);
-+		update_page_reclaim_stat(lruvec, lru);
- 	} else {
- 		SetPageUnevictable(page_tail);
- 		lru = LRU_UNEVICTABLE;
-@@ -698,17 +688,15 @@ static void __pagevec_lru_add_fn(struct page *page, void *arg)
+ 	VM_BUG_ON(PageCompound(page_tail));
+ 	VM_BUG_ON(PageLRU(page_tail));
+-	VM_BUG_ON(NR_CPUS != 1 && !spin_is_locked(&zone->lru_lock));
++	VM_BUG_ON(NR_CPUS != 1 && !spin_is_locked(&lruvec_zone(lruvec)->lru_lock));
+ 
+ 	SetPageLRU(page_tail);
+ 
+@@ -684,10 +683,10 @@ void lru_add_page_tail(struct zone* zone,
+ }
+ #endif /* CONFIG_TRANSPARENT_HUGEPAGE */
+ 
+-static void __pagevec_lru_add_fn(struct page *page, void *arg)
++static void __pagevec_lru_add_fn(struct lruvec *lruvec,
++				 struct page *page, void *arg)
  {
  	enum lru_list lru = (enum lru_list)arg;
- 	struct lruvec *lruvec = page_lruvec(page);
--	int file = is_file_lru(lru);
--	int active = is_active_lru(lru);
+-	struct lruvec *lruvec = page_lruvec(page);
  
  	VM_BUG_ON(PageActive(page));
  	VM_BUG_ON(PageUnevictable(page));
- 	VM_BUG_ON(PageLRU(page));
- 
- 	SetPageLRU(page);
--	if (active)
-+	if (is_active_lru(lru))
- 		SetPageActive(page);
--	update_page_reclaim_stat(lruvec_zone(lruvec), page, file, active);
-+	update_page_reclaim_stat(lruvec, lru);
- 	add_page_to_lru_list(lruvec, page, lru);
- }
- 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
