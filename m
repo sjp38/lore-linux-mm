@@ -1,69 +1,117 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx147.postini.com [74.125.245.147])
-	by kanga.kvack.org (Postfix) with SMTP id E49AC6B004D
-	for <linux-mm@kvack.org>; Thu, 23 Feb 2012 13:48:32 -0500 (EST)
-Received: by mail-bk0-f41.google.com with SMTP id y12so1805541bkt.14
-        for <linux-mm@kvack.org>; Thu, 23 Feb 2012 10:48:32 -0800 (PST)
-Subject: [PATCH 2/2] mm: show zone lruvec state in /proc/zoneinfo
-From: Konstantin Khlebnikov <khlebnikov@openvz.org>
-Date: Thu, 23 Feb 2012 22:48:29 +0400
-Message-ID: <20120223184829.7184.53490.stgit@zurg>
-In-Reply-To: <20120223162111.GA4713@one.firstfloor.org>
-References: <20120223162111.GA4713@one.firstfloor.org>
+Received: from psmtp.com (na3sys010amx140.postini.com [74.125.245.140])
+	by kanga.kvack.org (Postfix) with SMTP id 1224B6B004A
+	for <linux-mm@kvack.org>; Thu, 23 Feb 2012 14:12:10 -0500 (EST)
+Received: from /spool/local
+	by e35.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <dave@linux.vnet.ibm.com>;
+	Thu, 23 Feb 2012 12:12:08 -0700
+Received: from d03relay03.boulder.ibm.com (d03relay03.boulder.ibm.com [9.17.195.228])
+	by d03dlp02.boulder.ibm.com (Postfix) with ESMTP id 3EA553E40047
+	for <linux-mm@kvack.org>; Thu, 23 Feb 2012 12:10:46 -0700 (MST)
+Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
+	by d03relay03.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q1NJAdD7106300
+	for <linux-mm@kvack.org>; Thu, 23 Feb 2012 12:10:40 -0700
+Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
+	by d01av02.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q1NJA5MZ003620
+	for <linux-mm@kvack.org>; Thu, 23 Feb 2012 17:10:05 -0200
+Message-ID: <4F468F09.5050200@linux.vnet.ibm.com>
+Date: Thu, 23 Feb 2012 11:10:01 -0800
+From: Dave Hansen <dave@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="utf-8"
+Subject: Re: [RFC][PATCH] fix move/migrate_pages() race on task struct
+References: <20120223180740.C4EC4156@kernel> <alpine.DEB.2.00.1202231240590.9878@router.home>
+In-Reply-To: <alpine.DEB.2.00.1202231240590.9878@router.home>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Andi Kleen <andi@firstfloor.org>
+To: Christoph Lameter <cl@linux.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-Signed-off-by: Konstantin Khlebnikov <khlebnikov@openvz.org>
----
- mm/vmstat.c |   23 +++++++++++++++++++++++
- 1 files changed, 23 insertions(+), 0 deletions(-)
+On 02/23/2012 10:45 AM, Christoph Lameter wrote:
+> On Thu, 23 Feb 2012, Dave Hansen wrote:
+>> This patch takes the pid-to-task code along with the credential
+>> and security checks in sys_move_pages() and sys_migrate_pages()
+>> and consolidates them.  It now takes a task reference in
+>> the new function and requires the caller to drop it.  I
+>> believe this resolves the race.
+> 
+> And this way its safer?
 
-diff --git a/mm/vmstat.c b/mm/vmstat.c
-index 2c813e1..2e77a19 100644
---- a/mm/vmstat.c
-+++ b/mm/vmstat.c
-@@ -20,6 +20,8 @@
- #include <linux/writeback.h>
- #include <linux/compaction.h>
- 
-+#include "internal.h"
-+
- #ifdef CONFIG_VM_EVENT_COUNTERS
- DEFINE_PER_CPU(struct vm_event_state, vm_event_states) = {{0}};
- EXPORT_PER_CPU_SYMBOL(vm_event_states);
-@@ -1020,6 +1022,27 @@ static void zoneinfo_show_print(struct seq_file *m, pg_data_t *pgdat,
- 		   "\n  start_pfn:         %lu",
- 		   zone->all_unreclaimable,
- 		   zone->zone_start_pfn);
-+	seq_printf(m, "\n  lruvecs");
-+	for_each_lruvec_id(i) {
-+		struct lruvec *lruvec = zone->lruvec + i;
-+		enum lru_list lru;
-+
-+		seq_printf(m,
-+			   "\n    lruvec: %i",
-+			   i);
-+		for_each_lru(lru)
-+			seq_printf(m,
-+			   "\n              %s: %lu",
-+			   vmstat_text[NR_LRU_BASE + lru],
-+			   lruvec->pages_count[lru]);
-+		seq_printf(m,
-+			   "\n              %s: %lu"
-+			   "\n              %s: %lu",
-+			   vmstat_text[NR_ISOLATED_ANON],
-+			   lruvec->pages_count[LRU_ISOLATED_ANON],
-+			   vmstat_text[NR_ISOLATED_FILE],
-+			   lruvec->pages_count[LRU_ISOLATED_FILE]);
-+	}
- 	seq_putc(m, '\n');
- }
- 
+I think so... I'll talk about it below.
+
+>> diff -puN include/linux/migrate.h~movememory-helper include/linux/migrate.h
+>> --- linux-2.6.git/include/linux/migrate.h~movememory-helper	2012-02-16 09:59:17.270207242 -0800
+>> +++ linux-2.6.git-dave/include/linux/migrate.h	2012-02-16 09:59:17.286207438 -0800
+>> @@ -31,6 +31,7 @@ extern int migrate_vmas(struct mm_struct
+>>  extern void migrate_page_copy(struct page *newpage, struct page *page);
+>>  extern int migrate_huge_page_move_mapping(struct address_space *mapping,
+>>  				  struct page *newpage, struct page *page);
+>> +struct task_struct *can_migrate_get_task(pid_t pid);
+> 
+> Could we use something easier to understand? try_get_task()?
+
+It's hard to see in the patch context, but can_migrate_get_task() does
+two migration-specific operations:
+
+>         tcred = __task_cred(task);
+>         if (cred->euid != tcred->suid && cred->euid != tcred->uid &&
+>             cred->uid  != tcred->suid && cred->uid  != tcred->uid &&
+>             !capable(CAP_SYS_NICE)) {
+>                 err = -EPERM;
+>                 goto out;
+>         }
+> 
+>         err = security_task_movememory(task);
+
+So, I was trying to relate that it's checking the current's permissions
+to _do_ migration on task.  try_get_task() wouldn't really say much
+about that part of its job.
+
+
+>> +struct task_struct *can_migrate_get_task(pid_t pid)
+>>  {
+>> -	const struct cred *cred = current_cred(), *tcred;
+>>  	struct task_struct *task;
+>> -	struct mm_struct *mm;
+>> -	int err;
+>> -
+>> -	/* Check flags */
+>> -	if (flags & ~(MPOL_MF_MOVE|MPOL_MF_MOVE_ALL))
+>> -		return -EINVAL;
+>> -
+>> -	if ((flags & MPOL_MF_MOVE_ALL) && !capable(CAP_SYS_NICE))
+>> -		return -EPERM;
+>> +	const struct cred *cred = current_cred(), *tcred;
+>> +	int err = 0;
+>>
+>> -	/* Find the mm_struct */
+>>  	rcu_read_lock();
+>>  	task = pid ? find_task_by_vpid(pid) : current;
+>>  	if (!task) {
+>>  		rcu_read_unlock();
+>> -		return -ESRCH;
+>> +		return ERR_PTR(-ESRCH);
+>>  	}
+>> -	mm = get_task_mm(task);
+>> -	rcu_read_unlock();
+>> -
+>> -	if (!mm)
+>> -		return -EINVAL;
+>> +	get_task_struct(task);
+> 
+> Hmmm isnt the race still there between the determination of the task and
+> the get_task_struct()? You would have to verify after the get_task_struct
+> that this is really the task we wanted to avoid the race.
+
+It's true that selecting a task by pid is inherently racy.  What that
+code does is ensure that the task you've got current has 'pid', but not
+ensure that 'pid' has never represented another task.  But, that's what
+we do everywhere else in the kernel; there's not much better that we can do.
+
+Maybe "race" is the wrong word for what we've got here.  It's a lack of
+a refcount being taken.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
