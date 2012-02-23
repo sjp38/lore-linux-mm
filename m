@@ -1,98 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx177.postini.com [74.125.245.177])
-	by kanga.kvack.org (Postfix) with SMTP id 04D4C6B004A
-	for <linux-mm@kvack.org>; Thu, 23 Feb 2012 17:36:59 -0500 (EST)
-Date: Thu, 23 Feb 2012 14:36:58 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] mm: extend prefault helpers to fault in more than
- PAGE_SIZE
-Message-Id: <20120223143658.0e318ce2.akpm@linux-foundation.org>
-In-Reply-To: <1329393696-4802-2-git-send-email-daniel.vetter@ffwll.ch>
-References: <1329393696-4802-1-git-send-email-daniel.vetter@ffwll.ch>
-	<1329393696-4802-2-git-send-email-daniel.vetter@ffwll.ch>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx148.postini.com [74.125.245.148])
+	by kanga.kvack.org (Postfix) with SMTP id D874B6B004A
+	for <linux-mm@kvack.org>; Thu, 23 Feb 2012 18:09:38 -0500 (EST)
+Received: by pbcwz17 with SMTP id wz17so2350709pbc.14
+        for <linux-mm@kvack.org>; Thu, 23 Feb 2012 15:09:38 -0800 (PST)
+Date: Thu, 23 Feb 2012 15:09:36 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH] oom: add sysctl to enable slab memory dump
+In-Reply-To: <20120223150238.GA15427@dhcp231-144.rdu.redhat.com>
+Message-ID: <alpine.DEB.2.00.1202231505080.26362@chino.kir.corp.google.com>
+References: <20120222115320.GA3107@x61.redhat.com> <alpine.DEB.2.00.1202221640420.14213@chino.kir.corp.google.com> <20120223150238.GA15427@dhcp231-144.rdu.redhat.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Daniel Vetter <daniel.vetter@ffwll.ch>
-Cc: Intel Graphics Development <intel-gfx@lists.freedesktop.org>, DRI Development <dri-devel@lists.freedesktop.org>, LKML <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>
+To: Josef Bacik <josef@redhat.com>
+Cc: Rafael Aquini <aquini@redhat.com>, linux-mm@kvack.org, Randy Dunlap <rdunlap@xenotime.net>, Christoph Lameter <cl@linux-foundation.org>, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org
 
-On Thu, 16 Feb 2012 13:01:36 +0100
-Daniel Vetter <daniel.vetter@ffwll.ch> wrote:
+On Thu, 23 Feb 2012, Josef Bacik wrote:
 
-> drm/i915 wants to read/write more than one page in its fastpath
-> and hence needs to prefault more than PAGE_SIZE bytes.
+> I requested this specifically because I was oom'ing the box so hard that I
+> couldn't read /proc/slabinfo at the time of OOM and therefore had no idea what I
+> was leaking.  Telling me how much slab was in use was no help, I needed to know
+> which of the like 6 objects I was doing horrible things with was screwing me,
+> and without this patch I would have no way of knowing.
 > 
-> I've checked the callsites and they all already clamp size when
-> calling fault_in_pages_* to the same as for the subsequent
-> __copy_to|from_user and hence don't rely on the implicit clamping
-> to PAGE_SIZE.
+
+So an oom was creating a denial of service so that you had no way to do 
+cat /proc/slabinfo?  I think we should talk about this first, because 
+that's a serious situation that certainly shouldn't be happening.
+
+The oom killer is designed to kill the most memory-hogging task available 
+so that it doesn't have to kill multiple threads.  Why was the memory not 
+being freed or why was the thread that was consistently being killed 
+restarted time and time again so you couldn't even cat a file?
+
+> Sure, if the OOM killer doesn't kill the poller, or kill NetworkManager since
+> I'm remote logged into the box, or any of the other various important things
+> that would be required for me to get this info.  Thanks,
 > 
-> Also kill a copy&pasted spurious space in both functions while at it.
->
-> ...
->
-> --- a/include/linux/pagemap.h
-> +++ b/include/linux/pagemap.h
-> @@ -408,6 +408,7 @@ extern void add_page_wait_queue(struct page *page, wait_queue_t *waiter);
->  static inline int fault_in_pages_writeable(char __user *uaddr, int size)
->  {
->  	int ret;
-> +	char __user *end = uaddr + size - 1;
->  
->  	if (unlikely(size == 0))
->  		return 0;
-> @@ -416,17 +417,20 @@ static inline int fault_in_pages_writeable(char __user *uaddr, int size)
->  	 * Writing zeroes into userspace here is OK, because we know that if
->  	 * the zero gets there, we'll be overwriting it.
->  	 */
-> -	ret = __put_user(0, uaddr);
-> +	while (uaddr <= end) {
-> +		ret = __put_user(0, uaddr);
-> +		if (ret != 0)
-> +			return ret;
-> +		uaddr += PAGE_SIZE;
-> +	}
 
-The callsites in filemap.c are pretty hot paths, which is why this
-thing remains explicitly inlined.  I think it would be worth adding a
-bit of code here to avoid adding a pointless test-n-branch and larger
-cache footprint to read() and write().
+If you're polling for oom notifications sanely, you'd probably have set
 
-A way of doing that is to add another argument to these functions, say
-"bool multipage".  Change the code to do
+	echo -1000 > /proc/pid/oom_score_adj
 
-	if (multipage) {
-		while (uaddr <= end) {
-			...
-		}
-	}
+so it's unkillable as well as anything else you need to diagnose failures.  
+NetworkManager itself isn't protected like this by default, but it 
+shouldn't be killed unless it is leaking memory itself: we kill in the 
+order of the most memory usage to the least.
 
-and change the callsites to pass in constant "true" or "false".  Then
-compile it up and manually check that the compiler completely removed
-the offending code from the filemap.c callsites.
-
-Wanna have a think about that?  If it all looks OK then please be sure
-to add code comments explaining why we did this.
-
->  	if (ret == 0) {
-> -		char __user *end = uaddr + size - 1;
-> -
->  		/*
->  		 * If the page was already mapped, this will get a cache miss
->  		 * for sure, so try to avoid doing it.
->  		 */
-> -		if (((unsigned long)uaddr & PAGE_MASK) !=
-> +		if (((unsigned long)uaddr & PAGE_MASK) ==
->  				((unsigned long)end & PAGE_MASK))
-
-Maybe I'm having a dim day, but I don't immediately see why != got
-turned into ==.
-
-
-Once we have this settled I'd suggest that the patch be carried in
-whatever-git-tree-needs-it.
+So neither of these are reasons to not collect /proc/slabinfo, but I'm 
+very interested in your follow-up to why you can't do so when "ooming the 
+box so hard" where you're presumably able to cat to kernel log file but 
+not cat /proc/slabinfo :)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
