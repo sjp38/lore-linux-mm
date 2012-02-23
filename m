@@ -1,51 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx136.postini.com [74.125.245.136])
-	by kanga.kvack.org (Postfix) with SMTP id B24746B004A
-	for <linux-mm@kvack.org>; Thu, 23 Feb 2012 13:03:58 -0500 (EST)
-Received: by obbta7 with SMTP id ta7so2303732obb.14
-        for <linux-mm@kvack.org>; Thu, 23 Feb 2012 10:03:57 -0800 (PST)
+Received: from psmtp.com (na3sys010amx104.postini.com [74.125.245.104])
+	by kanga.kvack.org (Postfix) with SMTP id F205B6B004D
+	for <linux-mm@kvack.org>; Thu, 23 Feb 2012 13:04:04 -0500 (EST)
+Date: Thu, 23 Feb 2012 19:03:52 +0100
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH v3 02/21] memcg: make mm_match_cgroup() hirarchical
+Message-ID: <20120223180352.GA1701@cmpxchg.org>
+References: <20120223133728.12988.5432.stgit@zurg>
+ <20120223135146.12988.47611.stgit@zurg>
 MIME-Version: 1.0
-In-Reply-To: <4F467579.3020509@jp.fujitsu.com>
-References: <alpine.DEB.2.00.1202221602380.5980@chino.kir.corp.google.com>
-	<4F467579.3020509@jp.fujitsu.com>
-Date: Thu, 23 Feb 2012 20:03:57 +0200
-Message-ID: <CAOJsxLH+2qbshWX3ufFve__ZLu4KAqcaF+3QEkOaGrGaAFbk2w@mail.gmail.com>
-Subject: Re: [patch] mm, oom: force oom kill on sysrq+f
-From: Pekka Enberg <penberg@kernel.org>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20120223135146.12988.47611.stgit@zurg>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: rientjes@google.com, akpm@linux-foundation.org, kamezawa.hiroyu@jp.fujitsu.com, linux-mm@kvack.org
+To: Konstantin Khlebnikov <khlebnikov@openvz.org>
+Cc: Hugh Dickins <hughd@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andi Kleen <andi@firstfloor.org>
 
-On Thu, Feb 23, 2012 at 7:20 PM, KOSAKI Motohiro
-<kosaki.motohiro@jp.fujitsu.com> wrote:
-> On 2/22/2012 7:03 PM, David Rientjes wrote:
->> The oom killer chooses not to kill a thread if:
->>
->> =A0- an eligible thread has already been oom killed and has yet to exit,
->> =A0 =A0and
->>
->> =A0- an eligible thread is exiting but has yet to free all its memory an=
-d
->> =A0 =A0is not the thread attempting to currently allocate memory.
->>
->> SysRq+F manually invokes the global oom killer to kill a memory-hogging
->> task. =A0This is normally done as a last resort to free memory when no
->> progress is being made or to test the oom killer itself.
->>
->> For both uses, we always want to kill a thread and never defer. =A0This
->> patch causes SysRq+F to always kill an eligible thread and can be used t=
-o
->> force a kill even if another oom killed thread has failed to exit.
->>
->> Signed-off-by: David Rientjes <rientjes@google.com>
->
-> I have similar patch. This is very sane idea.
-> =A0 =A0 =A0 =A0Acked-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+On Thu, Feb 23, 2012 at 05:51:46PM +0400, Konstantin Khlebnikov wrote:
+> Check mm-owner cgroup membership hierarchically.
 
-Acked-by: Pekka Enberg <penberg@kernel.org>
+I think this one cat just beat up this other cat in front of my
+window, yelling something about money and missing product.  Anyway, I
+already forgot why we want this patch.  Could you describe that in the
+changelog, please?
+
+> @@ -821,6 +821,26 @@ struct mem_cgroup *mem_cgroup_from_task(struct task_struct *p)
+>  				struct mem_cgroup, css);
+>  }
+>  
+> +/**
+> + * mm_match_cgroup - cgroup hierarchy mm membership test
+> + * @mm		mm_struct to test
+> + * @cgroup	target cgroup
+> + *
+> + * Returns true if mm belong this cgroup or any its child in hierarchy
+> + */
+> +int mm_match_cgroup(const struct mm_struct *mm, const struct mem_cgroup *cgroup)
+> +{
+> +	struct mem_cgroup *memcg;
+> +
+> +	rcu_read_lock();
+> +	memcg = mem_cgroup_from_task(rcu_dereference((mm)->owner));
+> +	while (memcg != cgroup && memcg && memcg->use_hierarchy)
+> +		memcg = parent_mem_cgroup(memcg);
+> +	rcu_read_unlock();
+> +
+> +	return cgroup == memcg;
+> +}
+
+Please don't duplicate mem_cgroup_same_or_subtree()'s functionality in
+a worse way.  The hierarchy information is kept in a stack such that
+ancestry can be detected in linear time, check out css_is_ancestor().
+
+If you don't want to nest rcu_read_lock(), you could push the
+rcu_read_lock() from css_is_ancestor() into its sole user and provide
+a __mem_cgroup_is_ancestor() that assumes rcu already read-locked.
+
+No?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
