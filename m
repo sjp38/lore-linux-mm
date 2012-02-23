@@ -1,45 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx203.postini.com [74.125.245.203])
-	by kanga.kvack.org (Postfix) with SMTP id 20CA46B004A
-	for <linux-mm@kvack.org>; Thu, 23 Feb 2012 11:21:14 -0500 (EST)
-Date: Thu, 23 Feb 2012 17:21:11 +0100
-From: Andi Kleen <andi@firstfloor.org>
-Subject: Re: [PATCH v3 21/21] mm: zone lru vectors interleaving
-Message-ID: <20120223162111.GA4713@one.firstfloor.org>
-References: <20120223133728.12988.5432.stgit@zurg> <20120223135328.12988.87152.stgit@zurg>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20120223135328.12988.87152.stgit@zurg>
+Received: from psmtp.com (na3sys010amx134.postini.com [74.125.245.134])
+	by kanga.kvack.org (Postfix) with SMTP id A37F06B004A
+	for <linux-mm@kvack.org>; Thu, 23 Feb 2012 12:20:41 -0500 (EST)
+Message-ID: <4F467579.3020509@jp.fujitsu.com>
+Date: Thu, 23 Feb 2012 12:20:57 -0500
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+MIME-Version: 1.0
+Subject: Re: [patch] mm, oom: force oom kill on sysrq+f
+References: <alpine.DEB.2.00.1202221602380.5980@chino.kir.corp.google.com>
+In-Reply-To: <alpine.DEB.2.00.1202221602380.5980@chino.kir.corp.google.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Konstantin Khlebnikov <khlebnikov@openvz.org>
-Cc: Hugh Dickins <hughd@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andi Kleen <andi@firstfloor.org>, tim.c.chen@linux.intel.com
+To: rientjes@google.com
+Cc: akpm@linux-foundation.org, kamezawa.hiroyu@jp.fujitsu.com, kosaki.motohiro@jp.fujitsu.com, linux-mm@kvack.org
 
-> +config PAGE_LRU_SPLIT
-> +	int "Memory lru lists per zone"
-> +	default	4 if EXPERIMENTAL && SPARSEMEM_VMEMMAP
-> +	default 1
-> +	help
-> +	  The number of lru lists in each memory zone for interleaving.
-> +	  Allows to redeuce lru_lock contention, but adds some overhead.
-> +	  Without SPARSEMEM_VMEMMAP might be costly. "1" means no split.
+On 2/22/2012 7:03 PM, David Rientjes wrote:
+> The oom killer chooses not to kill a thread if:
+> 
+>  - an eligible thread has already been oom killed and has yet to exit,
+>    and
+> 
+>  - an eligible thread is exiting but has yet to free all its memory and
+>    is not the thread attempting to currently allocate memory.
+> 
+> SysRq+F manually invokes the global oom killer to kill a memory-hogging
+> task.  This is normally done as a last resort to free memory when no
+> progress is being made or to test the oom killer itself.
+> 
+> For both uses, we always want to kill a thread and never defer.  This
+> patch causes SysRq+F to always kill an eligible thread and can be used to
+> force a kill even if another oom killed thread has failed to exit.
+> 
+> Signed-off-by: David Rientjes <rientjes@google.com>
 
-Could you turn those two numbers into a boot option? Compile time 
-parameters are nasty to use.
+I have similar patch. This is very sane idea.
+	Acked-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 
-I suppose it's ok to have an upper limit.
 
-> +
-> +config PAGE_LRU_INTERLEAVING
-> +	int "Memory lru lists interleaving page-order"
-> +	default	12
-> +	help
-> +	  Page order for lru lists interleaving. By default 12 (16Mb).
-> +	  Must be greater than huge-page order.
-> +	  With CONFIG_PAGE_LRU_SPLIT=1 has no effect.
-
--Andi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
