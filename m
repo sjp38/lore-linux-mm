@@ -1,97 +1,98 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx165.postini.com [74.125.245.165])
-	by kanga.kvack.org (Postfix) with SMTP id 001026B004A
-	for <linux-mm@kvack.org>; Thu, 23 Feb 2012 17:06:48 -0500 (EST)
-Date: Thu, 23 Feb 2012 23:06:38 +0100
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH v3 02/21] memcg: make mm_match_cgroup() hirarchical
-Message-ID: <20120223220638.GC1701@cmpxchg.org>
-References: <20120223133728.12988.5432.stgit@zurg>
- <20120223135146.12988.47611.stgit@zurg>
- <20120223180352.GA1701@cmpxchg.org>
- <4F46978E.2090605@openvz.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <4F46978E.2090605@openvz.org>
+Received: from psmtp.com (na3sys010amx177.postini.com [74.125.245.177])
+	by kanga.kvack.org (Postfix) with SMTP id 04D4C6B004A
+	for <linux-mm@kvack.org>; Thu, 23 Feb 2012 17:36:59 -0500 (EST)
+Date: Thu, 23 Feb 2012 14:36:58 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] mm: extend prefault helpers to fault in more than
+ PAGE_SIZE
+Message-Id: <20120223143658.0e318ce2.akpm@linux-foundation.org>
+In-Reply-To: <1329393696-4802-2-git-send-email-daniel.vetter@ffwll.ch>
+References: <1329393696-4802-1-git-send-email-daniel.vetter@ffwll.ch>
+	<1329393696-4802-2-git-send-email-daniel.vetter@ffwll.ch>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Konstantin Khlebnikov <khlebnikov@openvz.org>
-Cc: Hugh Dickins <hughd@google.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andi Kleen <andi@firstfloor.org>
+To: Daniel Vetter <daniel.vetter@ffwll.ch>
+Cc: Intel Graphics Development <intel-gfx@lists.freedesktop.org>, DRI Development <dri-devel@lists.freedesktop.org>, LKML <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>
 
-On Thu, Feb 23, 2012 at 11:46:22PM +0400, Konstantin Khlebnikov wrote:
-> Johannes Weiner wrote:
-> >On Thu, Feb 23, 2012 at 05:51:46PM +0400, Konstantin Khlebnikov wrote:
-> >>@@ -821,6 +821,26 @@ struct mem_cgroup *mem_cgroup_from_task(struct task_struct *p)
-> >>  				struct mem_cgroup, css);
-> >>  }
-> >>
-> >>+/**
-> >>+ * mm_match_cgroup - cgroup hierarchy mm membership test
-> >>+ * @mm		mm_struct to test
-> >>+ * @cgroup	target cgroup
-> >>+ *
-> >>+ * Returns true if mm belong this cgroup or any its child in hierarchy
-> >>+ */
-> >>+int mm_match_cgroup(const struct mm_struct *mm, const struct mem_cgroup *cgroup)
-> >>+{
-> >>+	struct mem_cgroup *memcg;
-> >>+
-> >>+	rcu_read_lock();
-> >>+	memcg = mem_cgroup_from_task(rcu_dereference((mm)->owner));
-> >>+	while (memcg != cgroup&&  memcg&&  memcg->use_hierarchy)
-> >>+		memcg = parent_mem_cgroup(memcg);
-> >>+	rcu_read_unlock();
-> >>+
-> >>+	return cgroup == memcg;
-> >>+}
-> >
-> >Please don't duplicate mem_cgroup_same_or_subtree()'s functionality in
-> >a worse way.  The hierarchy information is kept in a stack such that
-> >ancestry can be detected in linear time, check out css_is_ancestor().
+On Thu, 16 Feb 2012 13:01:36 +0100
+Daniel Vetter <daniel.vetter@ffwll.ch> wrote:
+
+> drm/i915 wants to read/write more than one page in its fastpath
+> and hence needs to prefault more than PAGE_SIZE bytes.
 > 
-> Ok, there will be something like that:
+> I've checked the callsites and they all already clamp size when
+> calling fault_in_pages_* to the same as for the subsequent
+> __copy_to|from_user and hence don't rely on the implicit clamping
+> to PAGE_SIZE.
 > 
-> +bool mm_match_cgroup(const struct mm_struct *mm,
-> +                    const struct mem_cgroup *cgroup)
-> +{
-> +       struct mem_cgroup *memcg;
-> +       bool ret;
-> +
-> +       rcu_read_lock();
-> +       memcg = mem_cgroup_from_task(rcu_dereference((mm)->owner));
-> +       ret = memcg && mem_cgroup_same_or_subtree(cgroup, memcg);
-> +       rcu_read_unlock();
-> +
-> +       return ret;
-> +}
-> +
+> Also kill a copy&pasted spurious space in both functions while at it.
+>
+> ...
+>
+> --- a/include/linux/pagemap.h
+> +++ b/include/linux/pagemap.h
+> @@ -408,6 +408,7 @@ extern void add_page_wait_queue(struct page *page, wait_queue_t *waiter);
+>  static inline int fault_in_pages_writeable(char __user *uaddr, int size)
+>  {
+>  	int ret;
+> +	char __user *end = uaddr + size - 1;
+>  
+>  	if (unlikely(size == 0))
+>  		return 0;
+> @@ -416,17 +417,20 @@ static inline int fault_in_pages_writeable(char __user *uaddr, int size)
+>  	 * Writing zeroes into userspace here is OK, because we know that if
+>  	 * the zero gets there, we'll be overwriting it.
+>  	 */
+> -	ret = __put_user(0, uaddr);
+> +	while (uaddr <= end) {
+> +		ret = __put_user(0, uaddr);
+> +		if (ret != 0)
+> +			return ret;
+> +		uaddr += PAGE_SIZE;
+> +	}
 
-It would be unfortunate to nest rcu_read_lock(), but I think this
-looks good otherwise.
+The callsites in filemap.c are pretty hot paths, which is why this
+thing remains explicitly inlined.  I think it would be worth adding a
+bit of code here to avoid adding a pointless test-n-branch and larger
+cache footprint to read() and write().
 
-> >If you don't want to nest rcu_read_lock(), you could push the
-> >rcu_read_lock() from css_is_ancestor() into its sole user and provide
-> >a __mem_cgroup_is_ancestor() that assumes rcu already read-locked.
-> >
-> >No?
-> 
-> It is not a problem.
-> 
-> looks like mem_cgroup_same_or_subtree() check something different,
-> because it does not check ->use_hierarchy flag on tested cgroup, only on target cgroup.
+A way of doing that is to add another argument to these functions, say
+"bool multipage".  Change the code to do
 
-If a memcg has hierarchy enabled, any memcg that turns out to be its
-child is guaranteed to have hierarchy enabled.
+	if (multipage) {
+		while (uaddr <= end) {
+			...
+		}
+	}
 
-> Or just all this hierarchical stuff is out of sync in different parts of code.
-> For example memcg_get_hierarchical_limit() start from deepest cgroup and go upper
-> while ->use_hierarchy is set.
+and change the callsites to pass in constant "true" or "false".  Then
+compile it up and manually check that the compiler completely removed
+the offending code from the filemap.c callsites.
 
-This one really has to walk up and find the smallest applicable limit,
-there is no way around looking at every single level.
+Wanna have a think about that?  If it all looks OK then please be sure
+to add code comments explaining why we did this.
 
-But checking for ancestry can and has been optimized.
+>  	if (ret == 0) {
+> -		char __user *end = uaddr + size - 1;
+> -
+>  		/*
+>  		 * If the page was already mapped, this will get a cache miss
+>  		 * for sure, so try to avoid doing it.
+>  		 */
+> -		if (((unsigned long)uaddr & PAGE_MASK) !=
+> +		if (((unsigned long)uaddr & PAGE_MASK) ==
+>  				((unsigned long)end & PAGE_MASK))
+
+Maybe I'm having a dim day, but I don't immediately see why != got
+turned into ==.
+
+
+Once we have this settled I'd suggest that the patch be carried in
+whatever-git-tree-needs-it.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
