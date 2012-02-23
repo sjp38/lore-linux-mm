@@ -1,68 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx116.postini.com [74.125.245.116])
-	by kanga.kvack.org (Postfix) with SMTP id 0EDB86B004D
-	for <linux-mm@kvack.org>; Thu, 23 Feb 2012 15:27:00 -0500 (EST)
-Date: Thu, 23 Feb 2012 14:54:17 -0500
-From: Rik van Riel <riel@redhat.com>
-Subject: [PATCH -mm 0/2] speed up arch_get_unmapped_area
-Message-ID: <20120223145417.261225fd@cuia.bos.redhat.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx158.postini.com [74.125.245.158])
+	by kanga.kvack.org (Postfix) with SMTP id 7024A6B004A
+	for <linux-mm@kvack.org>; Thu, 23 Feb 2012 16:41:52 -0500 (EST)
+Date: Thu, 23 Feb 2012 15:41:50 -0600 (CST)
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: [RFC][PATCH] fix move/migrate_pages() race on task struct
+In-Reply-To: <4F469BC7.50705@linux.vnet.ibm.com>
+Message-ID: <alpine.DEB.2.00.1202231536240.13554@router.home>
+References: <20120223180740.C4EC4156@kernel> <alpine.DEB.2.00.1202231240590.9878@router.home> <4F468F09.5050200@linux.vnet.ibm.com> <alpine.DEB.2.00.1202231334290.10914@router.home> <4F469BC7.50705@linux.vnet.ibm.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org, akpm@linux-foundation.org, Mel Gorman <mel@csn.ul.ie>, Johannes Weiner <hannes@cmpxchg.org>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Andrea Arcangeli <aarcange@redhat.com>, hughd@google.com
+To: Dave Hansen <dave@linux.vnet.ibm.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, "Eric W. Biederman" <ebiederm@xmission.com>
 
-Many years ago, we introduced a limit on the number of VMAs per
-process and set that limit to 64k, because there are processes
-that end up using tens of thousands of VMAs.
+On Thu, 23 Feb 2012, Dave Hansen wrote:
 
-Unfortunately, arch_get_unmapped_area and 
-arch_get_unmapped_area_topdown have serious scalability issues
-when a process has thousands of VMAs.
+> > We may at this point be getting a reference to a task struct from another
+> > process not only from the current process (where the above procedure is
+> > valid). You rightly pointed out that the slab rcu free mechanism allows a
+> > free and a reallocation within the RCU period.
+>
+> I didn't _mean_ to point that out, but I think I realize what you're
+> talking about.  What we have before this patch is this:
+>
+>         rcu_read_lock();
+>         task = pid ? find_task_by_vpid(pid) : current;
 
-Luckily, it turns out those are fairly easy to fix.
+We take a refcount here on the mm ... See the code. We could simply take a
+refcount on the task as well if this is considered safe enough. If we have
+a refcount on the task then we do not need the refcount on the mm. Thats
+was your approach...
 
-I have torture tested the arch_get_unmapped_area code with a
-little program that does tens of thousands of anonymous mmaps,
-followed by a bunch of unmaps, followed by more maps in a loop.
-The program measures the time each mmap call takes, I have run
-the program in both 64 and 32 bit mode, but performance between
-them is indistinguishable.
+>         rcu_read_unlock();
 
-Without my patches, the average time for mmap is 242 milliseconds,
-with the maximum being close to half a second.  The number of VMAs
-in the process seems to vary between about 35k and 60k.
+> > Is that a real difference or are you just playing with words?
+>
+> I think we're talking about two different things:
+> 1. does RCU protect the pid->task lookup sufficiently?
 
-$ ./agua_frag_test_64 
-..........
+I dont know
 
-Min Time (ms): 4
-Avg. Time (ms): 242.0000
-Max Time (ms): 454
-Std Dev (ms): 91.5856
-Standard deviation exceeds 10
+> 2. Can the task simply go away in the move/migrate_pages() calls?
 
-With my patches, the average time for mmap is 8 milliseconds, with
-the maximum up to about 20 milliseconds in many test runs. The number
-of VMAs in the process seems to vary between about 40k and 70k.
+The task may go away but we need the mm to stay for migration.
+That is why a refcount is taken on the mm.
 
-$ ./agua_frag_test_64 
-..........
-
-Min Time (ms): 5
-Avg. Time (ms): 8.0000
-Max Time (ms): 15
-Std Dev (ms): 1.3715
-All checks pass
-
-In short, my patches introduce a little extra space overhead (about 1/8th
-more virtual address space), but reduce the amount of CPU time taken by
-mmap in this test case by about a factor 30.
-
--- 
-All Rights Reversed
+The bug in migrate_pages() is that we do a rcu_unlock and a rcu_lock. If
+we drop those then we should be safe if the use of a task pointer within a
+rcu section is safe without taking a refcount.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
