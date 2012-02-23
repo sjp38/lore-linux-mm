@@ -1,61 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx165.postini.com [74.125.245.165])
-	by kanga.kvack.org (Postfix) with SMTP id B7BBE6B004A
-	for <linux-mm@kvack.org>; Thu, 23 Feb 2012 13:42:26 -0500 (EST)
-Message-ID: <4F468888.9090702@fb.com>
-Date: Thu, 23 Feb 2012 10:42:16 -0800
-From: Arun Sharma <asharma@fb.com>
+Received: from psmtp.com (na3sys010amx153.postini.com [74.125.245.153])
+	by kanga.kvack.org (Postfix) with SMTP id 31A666B004A
+	for <linux-mm@kvack.org>; Thu, 23 Feb 2012 13:44:57 -0500 (EST)
+From: Andi Kleen <andi@firstfloor.org>
+Subject: Re: [RFC][PATCH] fix move/migrate_pages() race on task struct
+References: <20120223180740.C4EC4156@kernel>
+Date: Thu, 23 Feb 2012 10:45:00 -0800
+In-Reply-To: <20120223180740.C4EC4156@kernel> (Dave Hansen's message of "Thu,
+	23 Feb 2012 10:07:40 -0800")
+Message-ID: <m2zkc9pexf.fsf@firstfloor.org>
 MIME-Version: 1.0
-Subject: Re: [PATCH] mm: Enable MAP_UNINITIALIZED for archs with mmu
-References: <1326912662-18805-1-git-send-email-asharma@fb.com> <CAKTCnzn-reG4bLmyWNYPELYs-9M3ZShEYeOix_OcnPow-w8PNg@mail.gmail.com>
-In-Reply-To: <CAKTCnzn-reG4bLmyWNYPELYs-9M3ZShEYeOix_OcnPow-w8PNg@mail.gmail.com>
-Content-Type: text/plain; charset="ISO-8859-1"; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Balbir Singh <bsingharora@gmail.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, akpm@linux-foundation.org
+To: Dave Hansen <dave@linux.vnet.ibm.com>
+Cc: cl@linux.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-Hi Balbir,
+Dave Hansen <dave@linux.vnet.ibm.com> writes:
 
-Thanks for reviewing. Would you change your position if I limit the 
-scope of the patch to a cgroup with a single address space?
+> sys_move_pages() and sys_migrate_pages() are a pretty nice copy
+> and paste job of each other.  They both take a pid, find the task
+> struct, and then grab a ref on the mm.  They both also do an
+> rcu_read_unlock() after they've taken the mm and then proceed to
+> access 'task'.  I think this is a bug in both cases.
 
-The moment the cgroup sees more than one address space (either due to 
-tasks getting created or being added), this optimization would be turned 
-off.
+Can we share code?
 
-More details below:
 
-On 2/22/12 11:45 PM, Balbir Singh wrote:
 >
-> So the assumption is that only apps that have access to each others
-> VMA's will run in this cgroup?
->
+> This patch takes the pid-to-task code along with the credential
+> and security checks in sys_move_pages() and sys_migrate_pages()
+> and consolidates them.  It now takes a task reference in
+> the new function and requires the caller to drop it.  I
+> believe this resolves the race.
 
-In a distributed computing environment, a user submits a job to the 
-cluster job scheduler. The job might involve multiple related 
-executables and might involve multiple address spaces. But they're 
-performing one logical task, have a single resource limit enforced by a 
-cgroup.
+Looks good to me.
 
-They don't have access to each other's VMAs, but if "accidentally" one 
-of them comes across an uninitialized page with data from another task, 
-it's not a violation of the security model.
+Reviewed-by: Andi Kleen <ak@linux.intel.com>
 
-> Sorry, I am not convinced we need to do this
->
-> 1. I know that zeroing out memory is expensive, but building a
-> potential loop hole is not a good idea
-> 2. How do we ensure that tasks in a cgroup should be allowed to reuse
-> memory uninitialized, how does the cgroup admin know what she is
-> getting into?
+BTW looks like we really need a better stress test for these
+syscalls.
 
-I was thinking of addressing this via documentation (as in: don't use 
-this if you don't know what you're doing!). But limiting the scope to a 
-single address space cgroup seems cleaner to me.
+-Andi
 
-  -Arun
+-- 
+ak@linux.intel.com -- Speaking for myself only
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
