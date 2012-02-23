@@ -1,14 +1,13 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from psmtp.com (na3sys010amx156.postini.com [74.125.245.156])
-	by kanga.kvack.org (Postfix) with SMTP id 844466B0092
-	for <linux-mm@kvack.org>; Thu, 23 Feb 2012 08:51:55 -0500 (EST)
+	by kanga.kvack.org (Postfix) with SMTP id 25D306B00E7
+	for <linux-mm@kvack.org>; Thu, 23 Feb 2012 08:52:00 -0500 (EST)
 Received: by mail-bk0-f41.google.com with SMTP id y12so1365307bkt.14
-        for <linux-mm@kvack.org>; Thu, 23 Feb 2012 05:51:55 -0800 (PST)
-Subject: [PATCH v3 03/21] memcg: fix page_referencies cgroup filter on global
- reclaim
+        for <linux-mm@kvack.org>; Thu, 23 Feb 2012 05:51:59 -0800 (PST)
+Subject: [PATCH v3 04/21] memcg: use vm_swappiness from target memory cgroup
 From: Konstantin Khlebnikov <khlebnikov@openvz.org>
-Date: Thu, 23 Feb 2012 17:51:51 +0400
-Message-ID: <20120223135151.12988.37646.stgit@zurg>
+Date: Thu, 23 Feb 2012 17:51:56 +0400
+Message-ID: <20120223135156.12988.47908.stgit@zurg>
 In-Reply-To: <20120223133728.12988.5432.stgit@zurg>
 References: <20120223133728.12988.5432.stgit@zurg>
 MIME-Version: 1.0
@@ -19,56 +18,44 @@ List-ID: <linux-mm.kvack.org>
 To: Hugh Dickins <hughd@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 Cc: Andi Kleen <andi@firstfloor.org>
 
-Global memory reclaimer shouldn't skip any page referencies.
-
-This patch pass sc->target_mem_cgroup into page_referenced().
-On global memory reclaim it always NULL, so we will account all.
-Cgroup reclaimer will account only referencies from target cgroup and its childs.
+Use vm_swappiness from memory cgroup which is triggered this memory reclaim.
+This is more reasonable and allows to kill one argument.
 
 Signed-off-by: Konstantin Khlebnikov <khlebnikov@openvz.org>
 ---
- mm/vmscan.c |    9 +++++----
- 1 files changed, 5 insertions(+), 4 deletions(-)
+ mm/vmscan.c |    9 ++++-----
+ 1 files changed, 4 insertions(+), 5 deletions(-)
 
 diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 39aa4d7..d133ac6 100644
+index d133ac6..8b59cb5 100644
 --- a/mm/vmscan.c
 +++ b/mm/vmscan.c
-@@ -701,13 +701,13 @@ enum page_references {
- };
+@@ -1903,12 +1903,11 @@ static unsigned long shrink_list(enum lru_list lru, unsigned long nr_to_scan,
+ 	return shrink_inactive_list(nr_to_scan, mz, sc, priority, file);
+ }
  
- static enum page_references page_check_references(struct page *page,
--						  struct mem_cgroup_zone *mz,
- 						  struct scan_control *sc)
+-static int vmscan_swappiness(struct mem_cgroup_zone *mz,
+-			     struct scan_control *sc)
++static int vmscan_swappiness(struct scan_control *sc)
  {
- 	int referenced_ptes, referenced_page;
- 	unsigned long vm_flags;
+ 	if (global_reclaim(sc))
+ 		return vm_swappiness;
+-	return mem_cgroup_swappiness(mz->mem_cgroup);
++	return mem_cgroup_swappiness(sc->target_mem_cgroup);
+ }
  
--	referenced_ptes = page_referenced(page, 1, mz->mem_cgroup, &vm_flags);
-+	referenced_ptes = page_referenced(page, 1,
-+					  sc->target_mem_cgroup, &vm_flags);
- 	referenced_page = TestClearPageReferenced(page);
+ /*
+@@ -1976,8 +1975,8 @@ static void get_scan_count(struct mem_cgroup_zone *mz, struct scan_control *sc,
+ 	 * With swappiness at 100, anonymous and file have the same priority.
+ 	 * This scanning priority is essentially the inverse of IO cost.
+ 	 */
+-	anon_prio = vmscan_swappiness(mz, sc);
+-	file_prio = 200 - vmscan_swappiness(mz, sc);
++	anon_prio = vmscan_swappiness(sc);
++	file_prio = 200 - vmscan_swappiness(sc);
  
- 	/* Lumpy reclaim - ignore references */
-@@ -828,7 +828,7 @@ static unsigned long shrink_page_list(struct list_head *page_list,
- 			}
- 		}
- 
--		references = page_check_references(page, mz, sc);
-+		references = page_check_references(page, sc);
- 		switch (references) {
- 		case PAGEREF_ACTIVATE:
- 			goto activate_locked;
-@@ -1735,7 +1735,8 @@ static void shrink_active_list(unsigned long nr_to_scan,
- 			continue;
- 		}
- 
--		if (page_referenced(page, 0, mz->mem_cgroup, &vm_flags)) {
-+		if (page_referenced(page, 0,
-+				    sc->target_mem_cgroup, &vm_flags)) {
- 			nr_rotated += hpage_nr_pages(page);
- 			/*
- 			 * Identify referenced, file-backed active pages and
+ 	/*
+ 	 * OK, so we have swap space and a fair amount of page cache
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
