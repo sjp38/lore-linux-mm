@@ -1,13 +1,13 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from psmtp.com (na3sys010amx156.postini.com [74.125.245.156])
-	by kanga.kvack.org (Postfix) with SMTP id 1A2366B00E8
-	for <linux-mm@kvack.org>; Thu, 23 Feb 2012 08:52:04 -0500 (EST)
+	by kanga.kvack.org (Postfix) with SMTP id 4F7A16B00EA
+	for <linux-mm@kvack.org>; Thu, 23 Feb 2012 08:52:08 -0500 (EST)
 Received: by mail-bk0-f41.google.com with SMTP id y12so1365307bkt.14
-        for <linux-mm@kvack.org>; Thu, 23 Feb 2012 05:52:03 -0800 (PST)
-Subject: [PATCH v3 05/21] mm: rename lruvec->lists into lruvec->pages_lru
+        for <linux-mm@kvack.org>; Thu, 23 Feb 2012 05:52:07 -0800 (PST)
+Subject: [PATCH v3 06/21] mm: lruvec linking functions
 From: Konstantin Khlebnikov <khlebnikov@openvz.org>
-Date: Thu, 23 Feb 2012 17:52:00 +0400
-Message-ID: <20120223135200.12988.92340.stgit@zurg>
+Date: Thu, 23 Feb 2012 17:52:04 +0400
+Message-ID: <20120223135204.12988.75350.stgit@zurg>
 In-Reply-To: <20120223133728.12988.5432.stgit@zurg>
 References: <20120223133728.12988.5432.stgit@zurg>
 MIME-Version: 1.0
@@ -18,141 +18,202 @@ List-ID: <linux-mm.kvack.org>
 To: Hugh Dickins <hughd@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 Cc: Andi Kleen <andi@firstfloor.org>
 
-This is much more unique and grep-friendly name.
+This patch adds links from page to its lruvec and from lruvec to its zone and node.
+If CONFIG_CGROUP_MEM_RES_CTLR=n they just page_zone() and container_of().
 
 Signed-off-by: Konstantin Khlebnikov <khlebnikov@openvz.org>
 ---
- include/linux/mm_inline.h |    2 +-
- include/linux/mmzone.h    |    2 +-
- mm/memcontrol.c           |    6 +++---
- mm/page_alloc.c           |    2 +-
- mm/swap.c                 |    4 ++--
- mm/vmscan.c               |    6 +++---
- 6 files changed, 11 insertions(+), 11 deletions(-)
+ include/linux/mm.h     |   37 +++++++++++++++++++++++++++++++++++++
+ include/linux/mmzone.h |   12 ++++++++----
+ mm/internal.h          |    1 +
+ mm/memcontrol.c        |   27 ++++++++++++++++++++++++---
+ mm/page_alloc.c        |   17 ++++++++++++++---
+ 5 files changed, 84 insertions(+), 10 deletions(-)
 
-diff --git a/include/linux/mm_inline.h b/include/linux/mm_inline.h
-index 227fd3e..8415596 100644
---- a/include/linux/mm_inline.h
-+++ b/include/linux/mm_inline.h
-@@ -27,7 +27,7 @@ add_page_to_lru_list(struct zone *zone, struct page *page, enum lru_list lru)
- 	struct lruvec *lruvec;
- 
- 	lruvec = mem_cgroup_lru_add_list(zone, page, lru);
--	list_add(&page->lru, &lruvec->lists[lru]);
-+	list_add(&page->lru, &lruvec->pages_lru[lru]);
- 	__mod_zone_page_state(zone, NR_LRU_BASE + lru, hpage_nr_pages(page));
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index ee3ebc1..c6dc4ab 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -728,6 +728,43 @@ static inline void set_page_links(struct page *page, enum zone_type zone,
+ #endif
  }
  
++#ifdef CONFIG_CGROUP_MEM_RES_CTLR
++
++/* Multiple lruvecs in zone */
++
++extern struct lruvec *page_lruvec(struct page *page);
++
++static inline struct zone *lruvec_zone(struct lruvec *lruvec)
++{
++	return lruvec->zone;
++}
++
++static inline struct pglist_data *lruvec_node(struct lruvec *lruvec)
++{
++	return lruvec->node;
++}
++
++#else /* CONFIG_CGROUP_MEM_RES_CTLR */
++
++/* Single lruvec in zone */
++
++static inline struct lruvec *page_lruvec(struct page *page)
++{
++	return &page_zone(page)->lruvec;
++}
++
++static inline struct zone *lruvec_zone(struct lruvec *lruvec)
++{
++	return container_of(lruvec, struct zone, lruvec);
++}
++
++static inline struct pglist_data *lruvec_node(struct lruvec *lruvec)
++{
++	return lruvec_zone(lruvec)->zone_pgdat;
++}
++
++#endif /* CONFIG_CGROUP_MEM_RES_CTLR */
++
+ /*
+  * Some inline functions in vmstat.h depend on page_zone()
+  */
 diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-index 3e1f7ff..ddd0fd2 100644
+index ddd0fd2..be8873a 100644
 --- a/include/linux/mmzone.h
 +++ b/include/linux/mmzone.h
-@@ -160,7 +160,7 @@ static inline int is_unevictable_lru(enum lru_list lru)
+@@ -159,10 +159,6 @@ static inline int is_unevictable_lru(enum lru_list lru)
+ 	return (lru == LRU_UNEVICTABLE);
  }
  
- struct lruvec {
--	struct list_head lists[NR_LRU_LISTS];
-+	struct list_head pages_lru[NR_LRU_LISTS];
+-struct lruvec {
+-	struct list_head pages_lru[NR_LRU_LISTS];
+-};
+-
+ /* Mask used at gathering information at once (see memcontrol.c) */
+ #define LRU_ALL_FILE (BIT(LRU_INACTIVE_FILE) | BIT(LRU_ACTIVE_FILE))
+ #define LRU_ALL_ANON (BIT(LRU_INACTIVE_ANON) | BIT(LRU_ACTIVE_ANON))
+@@ -300,6 +296,14 @@ struct zone_reclaim_stat {
+ 	unsigned long		recent_scanned[2];
  };
  
- /* Mask used at gathering information at once (see memcontrol.c) */
++struct lruvec {
++	struct list_head	pages_lru[NR_LRU_LISTS];
++#ifdef CONFIG_CGROUP_MEM_RES_CTLR
++	struct zone		*zone;
++	struct pglist_data	*node;
++#endif
++};
++
+ struct zone {
+ 	/* Fields commonly accessed by the page allocator */
+ 
+diff --git a/mm/internal.h b/mm/internal.h
+index 2189af4..ef49dbf 100644
+--- a/mm/internal.h
++++ b/mm/internal.h
+@@ -100,6 +100,7 @@ extern void prep_compound_page(struct page *page, unsigned long order);
+ extern bool is_free_buddy_page(struct page *page);
+ #endif
+ 
++extern void init_zone_lruvec(struct zone *zone, struct lruvec *lruvec);
+ 
+ /*
+  * function for dealing with page's order in buddy system.
 diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 77f5d48..8f8c7c4 100644
+index 8f8c7c4..8b53150 100644
 --- a/mm/memcontrol.c
 +++ b/mm/memcontrol.c
-@@ -1050,7 +1050,7 @@ struct lruvec *mem_cgroup_zone_lruvec(struct zone *zone,
-  * the lruvec for the given @zone and the memcg @page is charged to.
-  *
-  * The callsite is then responsible for physically linking the page to
-- * the returned lruvec->lists[@lru].
-+ * the returned lruvec->pages_lru[@lru].
-  */
- struct lruvec *mem_cgroup_lru_add_list(struct zone *zone, struct page *page,
- 				       enum lru_list lru)
-@@ -3592,7 +3592,7 @@ static int mem_cgroup_force_empty_list(struct mem_cgroup *memcg,
+@@ -1026,6 +1026,28 @@ struct lruvec *mem_cgroup_zone_lruvec(struct zone *zone,
+ 	return &mz->lruvec;
+ }
  
- 	zone = &NODE_DATA(node)->node_zones[zid];
- 	mz = mem_cgroup_zoneinfo(memcg, node, zid);
--	list = &mz->lruvec.lists[lru];
-+	list = &mz->lruvec.pages_lru[lru];
++/**
++ * page_lruvec - get the lruvec there this page is located
++ * @page: the struct page pointer with stable reference
++ *
++ * page_cgroup->mem_cgroup pointer validity guaranteed by caller.
++ *
++ * Returns pointer to struct lruvec.
++ */
++struct lruvec *page_lruvec(struct page *page)
++{
++	struct mem_cgroup_per_zone *mz;
++	struct page_cgroup *pc;
++
++	if (mem_cgroup_disabled())
++		return &page_zone(page)->lruvec;
++
++	pc = lookup_page_cgroup(page);
++	mz = mem_cgroup_zoneinfo(pc->mem_cgroup,
++			page_to_nid(page), page_zonenum(page));
++	return &mz->lruvec;
++}
++
+ /*
+  * Following LRU functions are allowed to be used without PCG_LOCK.
+  * Operations are called by routine of global LRU independently from memcg.
+@@ -4697,7 +4719,6 @@ static int alloc_mem_cgroup_per_zone_info(struct mem_cgroup *memcg, int node)
+ {
+ 	struct mem_cgroup_per_node *pn;
+ 	struct mem_cgroup_per_zone *mz;
+-	enum lru_list lru;
+ 	int zone, tmp = node;
+ 	/*
+ 	 * This routine is called against possible nodes.
+@@ -4715,8 +4736,8 @@ static int alloc_mem_cgroup_per_zone_info(struct mem_cgroup *memcg, int node)
  
- 	loop = mz->lru_size[lru];
- 	/* give some margin against EBUSY etc...*/
-@@ -4716,7 +4716,7 @@ static int alloc_mem_cgroup_per_zone_info(struct mem_cgroup *memcg, int node)
  	for (zone = 0; zone < MAX_NR_ZONES; zone++) {
  		mz = &pn->zoneinfo[zone];
- 		for_each_lru(lru)
--			INIT_LIST_HEAD(&mz->lruvec.lists[lru]);
-+			INIT_LIST_HEAD(&mz->lruvec.pages_lru[lru]);
+-		for_each_lru(lru)
+-			INIT_LIST_HEAD(&mz->lruvec.pages_lru[lru]);
++		init_zone_lruvec(&NODE_DATA(node)->node_zones[zone],
++				 &mz->lruvec);
  		mz->usage_in_excess = 0;
  		mz->on_tree = false;
  		mz->memcg = memcg;
 diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 38f6744..5f19392 100644
+index 5f19392..1cc3afe 100644
 --- a/mm/page_alloc.c
 +++ b/mm/page_alloc.c
-@@ -4363,7 +4363,7 @@ static void __paginginit free_area_init_core(struct pglist_data *pgdat,
+@@ -4289,6 +4289,19 @@ static inline int pageblock_default_order(unsigned int order)
+ 
+ #endif /* CONFIG_HUGETLB_PAGE_SIZE_VARIABLE */
+ 
++void init_zone_lruvec(struct zone *zone, struct lruvec *lruvec)
++{
++	enum lru_list lru;
++
++	memset(lruvec, 0, sizeof(struct lruvec));
++	for_each_lru(lru)
++		INIT_LIST_HEAD(&lruvec->pages_lru[lru]);
++#ifdef CONFIG_CGROUP_MEM_RES_CTLR
++	lruvec->node = zone->zone_pgdat;
++	lruvec->zone = zone;
++#endif
++}
++
+ /*
+  * Set up the zone data structures:
+  *   - mark all pages reserved
+@@ -4312,7 +4325,6 @@ static void __paginginit free_area_init_core(struct pglist_data *pgdat,
+ 	for (j = 0; j < MAX_NR_ZONES; j++) {
+ 		struct zone *zone = pgdat->node_zones + j;
+ 		unsigned long size, realsize, memmap_pages;
+-		enum lru_list lru;
+ 
+ 		size = zone_spanned_pages_in_node(nid, j, zones_size);
+ 		realsize = size - zone_absent_pages_in_node(nid, j,
+@@ -4362,8 +4374,7 @@ static void __paginginit free_area_init_core(struct pglist_data *pgdat,
+ 		zone->zone_pgdat = pgdat;
  
  		zone_pcp_init(zone);
- 		for_each_lru(lru)
--			INIT_LIST_HEAD(&zone->lruvec.lists[lru]);
-+			INIT_LIST_HEAD(&zone->lruvec.pages_lru[lru]);
+-		for_each_lru(lru)
+-			INIT_LIST_HEAD(&zone->lruvec.pages_lru[lru]);
++		init_zone_lruvec(zone, &zone->lruvec);
  		zone->reclaim_stat.recent_rotated[0] = 0;
  		zone->reclaim_stat.recent_rotated[1] = 0;
  		zone->reclaim_stat.recent_scanned[0] = 0;
-diff --git a/mm/swap.c b/mm/swap.c
-index fff1ff7..17993c0 100644
---- a/mm/swap.c
-+++ b/mm/swap.c
-@@ -238,7 +238,7 @@ static void pagevec_move_tail_fn(struct page *page, void *arg)
- 
- 		lruvec = mem_cgroup_lru_move_lists(page_zone(page),
- 						   page, lru, lru);
--		list_move_tail(&page->lru, &lruvec->lists[lru]);
-+		list_move_tail(&page->lru, &lruvec->pages_lru[lru]);
- 		(*pgmoved)++;
- 	}
- }
-@@ -482,7 +482,7 @@ static void lru_deactivate_fn(struct page *page, void *arg)
- 		 * We moves tha page into tail of inactive.
- 		 */
- 		lruvec = mem_cgroup_lru_move_lists(zone, page, lru, lru);
--		list_move_tail(&page->lru, &lruvec->lists[lru]);
-+		list_move_tail(&page->lru, &lruvec->pages_lru[lru]);
- 		__count_vm_event(PGROTATED);
- 	}
- 
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 8b59cb5..e41ad52 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -1164,7 +1164,7 @@ static unsigned long isolate_lru_pages(unsigned long nr_to_scan,
- 		lru += LRU_ACTIVE;
- 	if (file)
- 		lru += LRU_FILE;
--	src = &lruvec->lists[lru];
-+	src = &lruvec->pages_lru[lru];
- 
- 	for (scan = 0; scan < nr_to_scan && !list_empty(src); scan++) {
- 		struct page *page;
-@@ -1663,7 +1663,7 @@ static void move_active_pages_to_lru(struct zone *zone,
- 		SetPageLRU(page);
- 
- 		lruvec = mem_cgroup_lru_add_list(zone, page, lru);
--		list_move(&page->lru, &lruvec->lists[lru]);
-+		list_move(&page->lru, &lruvec->pages_lru[lru]);
- 		pgmoved += hpage_nr_pages(page);
- 
- 		if (put_page_testzero(page)) {
-@@ -3592,7 +3592,7 @@ void check_move_unevictable_pages(struct page **pages, int nr_pages)
- 			__dec_zone_state(zone, NR_UNEVICTABLE);
- 			lruvec = mem_cgroup_lru_move_lists(zone, page,
- 						LRU_UNEVICTABLE, lru);
--			list_move(&page->lru, &lruvec->lists[lru]);
-+			list_move(&page->lru, &lruvec->pages_lru[lru]);
- 			__inc_zone_state(zone, NR_INACTIVE_ANON + lru);
- 			pgrescued++;
- 		}
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
