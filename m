@@ -1,55 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx158.postini.com [74.125.245.158])
-	by kanga.kvack.org (Postfix) with SMTP id 7024A6B004A
-	for <linux-mm@kvack.org>; Thu, 23 Feb 2012 16:41:52 -0500 (EST)
-Date: Thu, 23 Feb 2012 15:41:50 -0600 (CST)
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: [RFC][PATCH] fix move/migrate_pages() race on task struct
-In-Reply-To: <4F469BC7.50705@linux.vnet.ibm.com>
-Message-ID: <alpine.DEB.2.00.1202231536240.13554@router.home>
-References: <20120223180740.C4EC4156@kernel> <alpine.DEB.2.00.1202231240590.9878@router.home> <4F468F09.5050200@linux.vnet.ibm.com> <alpine.DEB.2.00.1202231334290.10914@router.home> <4F469BC7.50705@linux.vnet.ibm.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from psmtp.com (na3sys010amx174.postini.com [74.125.245.174])
+	by kanga.kvack.org (Postfix) with SMTP id 79CB86B004A
+	for <linux-mm@kvack.org>; Thu, 23 Feb 2012 16:50:09 -0500 (EST)
+Date: Thu, 23 Feb 2012 13:50:07 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH -mm 1/2] mm: fix quadratic behaviour in
+ get_unmapped_area_topdown
+Message-Id: <20120223135007.a4dceeb2.akpm@linux-foundation.org>
+In-Reply-To: <20120223145636.616bef1c@cuia.bos.redhat.com>
+References: <20120223145417.261225fd@cuia.bos.redhat.com>
+	<20120223145636.616bef1c@cuia.bos.redhat.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave@linux.vnet.ibm.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, "Eric W. Biederman" <ebiederm@xmission.com>
+To: Rik van Riel <riel@redhat.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Mel Gorman <mel@csn.ul.ie>, Johannes Weiner <hannes@cmpxchg.org>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Andrea Arcangeli <aarcange@redhat.com>, hughd@google.com, Xiao Guangrong <xiaoguangrong@linux.vnet.ibm.com>
 
-On Thu, 23 Feb 2012, Dave Hansen wrote:
+On Thu, 23 Feb 2012 14:56:36 -0500
+Rik van Riel <riel@redhat.com> wrote:
 
-> > We may at this point be getting a reference to a task struct from another
-> > process not only from the current process (where the above procedure is
-> > valid). You rightly pointed out that the slab rcu free mechanism allows a
-> > free and a reallocation within the RCU period.
->
-> I didn't _mean_ to point that out, but I think I realize what you're
-> talking about.  What we have before this patch is this:
->
->         rcu_read_lock();
->         task = pid ? find_task_by_vpid(pid) : current;
+> When we look for a VMA smaller than the cached_hole_size, we set the
+> starting search address to mm->mmap_base, to try and find our hole.
+> 
+> However, even in the case where we fall through and found nothing at
+> the mm->free_area_cache, we still reset the search address to mm->mmap_base.
+> This bug results in quadratic behaviour, with observed mmap times of 0.4
+> seconds for processes that have very fragmented memory.
+> 
+> If there is no hole small enough for us to fit the VMA, and we have
+> no good spot for us right at mm->free_area_cache, we are much better
+> off continuing the search down from mm->free_area_cache, instead of
+> all the way from the top.
 
-We take a refcount here on the mm ... See the code. We could simply take a
-refcount on the task as well if this is considered safe enough. If we have
-a refcount on the task then we do not need the refcount on the mm. Thats
-was your approach...
+This has been at least partially addressed in recent patches from Xiao
+Guangrong.  Please review his five-patch series starting with "[PATCH
+1/5] hugetlbfs: fix hugetlb_get_unmapped_area".
 
->         rcu_read_unlock();
-
-> > Is that a real difference or are you just playing with words?
->
-> I think we're talking about two different things:
-> 1. does RCU protect the pid->task lookup sufficiently?
-
-I dont know
-
-> 2. Can the task simply go away in the move/migrate_pages() calls?
-
-The task may go away but we need the mm to stay for migration.
-That is why a refcount is taken on the mm.
-
-The bug in migrate_pages() is that we do a rcu_unlock and a rcu_lock. If
-we drop those then we should be safe if the use of a task pointer within a
-rcu section is safe without taking a refcount.
+I've already merged those patches and we need to work out what way to
+go.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
