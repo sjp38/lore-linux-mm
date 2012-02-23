@@ -1,47 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx203.postini.com [74.125.245.203])
-	by kanga.kvack.org (Postfix) with SMTP id 0998F6B007E
-	for <linux-mm@kvack.org>; Thu, 23 Feb 2012 08:51:07 -0500 (EST)
-From: David Howells <dhowells@redhat.com>
-Subject: [PATCH 3/3] NOMMU: Don't need to clear vm_mm when deleting a VMA
-Date: Thu, 23 Feb 2012 13:51:00 +0000
-Message-ID: <20120223135100.24278.472.stgit@warthog.procyon.org.uk>
-In-Reply-To: <20120223135035.24278.96099.stgit@warthog.procyon.org.uk>
-References: <20120223135035.24278.96099.stgit@warthog.procyon.org.uk>
+Received: from psmtp.com (na3sys010amx156.postini.com [74.125.245.156])
+	by kanga.kvack.org (Postfix) with SMTP id 6B1B66B004A
+	for <linux-mm@kvack.org>; Thu, 23 Feb 2012 08:51:42 -0500 (EST)
+Received: by bkty12 with SMTP id y12so1365307bkt.14
+        for <linux-mm@kvack.org>; Thu, 23 Feb 2012 05:51:40 -0800 (PST)
+Subject: [PATCH v3 00/21] mm: lru_lock splitting
+From: Konstantin Khlebnikov <khlebnikov@openvz.org>
+Date: Thu, 23 Feb 2012 17:51:36 +0400
+Message-ID: <20120223133728.12988.5432.stgit@zurg>
 MIME-Version: 1.0
 Content-Type: text/plain; charset="utf-8"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: torvalds@linux-foundation.org
-Cc: linux-mm@kvack.org, uclinux-dev@uclinux.org, gerg@uclinux.org, lethal@linux-sh.org, David Howells <dhowells@redhat.com>, Al Viro <viro@zeniv.linux.org.uk>, stable@vger.kernel.org
+To: Hugh Dickins <hughd@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Andi Kleen <andi@firstfloor.org>
 
-Don't clear vm_mm in a deleted VMA as it's unnecessary and might conceivably
-break the filesystem or driver VMA close routine.
+v3 changes:
+* inactive-ratio reworked again, now it always calculated from from scratch
+* hierarchical pte reference bits filter in memory-cgroup reclaimer
+* fixed two bugs in locking, found by Hugh Dickins
+* locking functions slightly simplified
+* new patch for isolated pages accounting
+* new patch with lru interleaving
 
-Reported-by: Al Viro <viro@zeniv.linux.org.uk>
-Signed-off-by: David Howells <dhowells@redhat.com>
-Acked-by: Al Viro <viro@zeniv.linux.org.uk>
-cc: stable@vger.kernel.org
+This patchset is based on next-20120210
+
+git: https://github.com/koct9i/linux/commits/lruvec-v3
+
 ---
 
- mm/nommu.c |    2 --
- 1 files changed, 0 insertions(+), 2 deletions(-)
+Konstantin Khlebnikov (21):
+      memcg: unify inactive_ratio calculation
+      memcg: make mm_match_cgroup() hirarchical
+      memcg: fix page_referencies cgroup filter on global reclaim
+      memcg: use vm_swappiness from target memory cgroup
+      mm: rename lruvec->lists into lruvec->pages_lru
+      mm: lruvec linking functions
+      mm: add lruvec->pages_count
+      mm: unify inactive_list_is_low()
+      mm: add lruvec->reclaim_stat
+      mm: kill struct mem_cgroup_zone
+      mm: move page-to-lruvec translation upper
+      mm: push lruvec into update_page_reclaim_stat()
+      mm: push lruvecs from pagevec_lru_move_fn() to iterator
+      mm: introduce lruvec locking primitives
+      mm: handle lruvec relocks on lumpy reclaim
+      mm: handle lruvec relocks in compaction
+      mm: handle lruvec relock in memory controller
+      mm: add to lruvec isolated pages counters
+      memcg: check lru vectors emptiness in pre-destroy
+      mm: split zone->lru_lock
+      mm: zone lru vectors interleaving
 
 
-diff --git a/mm/nommu.c b/mm/nommu.c
-index d02ee35..3d39992 100644
---- a/mm/nommu.c
-+++ b/mm/nommu.c
-@@ -770,8 +770,6 @@ static void delete_vma_from_mm(struct vm_area_struct *vma)
- 
- 	if (vma->vm_next)
- 		vma->vm_next->vm_prev = vma->vm_prev;
--
--	vma->vm_mm = NULL;
- }
- 
- /*
+ include/linux/huge_mm.h    |    3 
+ include/linux/memcontrol.h |   75 ------
+ include/linux/mm.h         |   66 +++++
+ include/linux/mm_inline.h  |   19 +-
+ include/linux/mmzone.h     |   39 ++-
+ include/linux/swap.h       |    6 
+ mm/Kconfig                 |   16 +
+ mm/compaction.c            |   31 +--
+ mm/huge_memory.c           |   14 +
+ mm/internal.h              |  204 +++++++++++++++++
+ mm/ksm.c                   |    2 
+ mm/memcontrol.c            |  343 +++++++++++-----------------
+ mm/migrate.c               |    2 
+ mm/page_alloc.c            |   70 +-----
+ mm/rmap.c                  |    2 
+ mm/swap.c                  |  217 ++++++++++--------
+ mm/vmscan.c                |  534 ++++++++++++++++++++++++--------------------
+ mm/vmstat.c                |    6 
+ 18 files changed, 932 insertions(+), 717 deletions(-)
+
+-- 
+Signature
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
