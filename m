@@ -1,55 +1,37 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx153.postini.com [74.125.245.153])
-	by kanga.kvack.org (Postfix) with SMTP id 8EF4D6B004A
-	for <linux-mm@kvack.org>; Thu, 23 Feb 2012 16:57:28 -0500 (EST)
-Date: Thu, 23 Feb 2012 22:57:23 +0100
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH -mm 1/2] mm: fix quadratic behaviour in
- get_unmapped_area_topdown
-Message-ID: <20120223215723.GB1701@cmpxchg.org>
+Received: from psmtp.com (na3sys010amx110.postini.com [74.125.245.110])
+	by kanga.kvack.org (Postfix) with SMTP id 121DA6B007E
+	for <linux-mm@kvack.org>; Thu, 23 Feb 2012 16:57:39 -0500 (EST)
+From: Andi Kleen <andi@firstfloor.org>
+Subject: Re: [PATCH -mm 2/2] mm: do not reset mm->free_area_cache on every single munmap
 References: <20120223145417.261225fd@cuia.bos.redhat.com>
- <20120223145636.616bef1c@cuia.bos.redhat.com>
+	<20120223150034.2c757b3a@cuia.bos.redhat.com>
+Date: Thu, 23 Feb 2012 13:57:42 -0800
+In-Reply-To: <20120223150034.2c757b3a@cuia.bos.redhat.com> (Rik van Riel's
+	message of "Thu, 23 Feb 2012 15:00:34 -0500")
+Message-ID: <m2vcmxp609.fsf@firstfloor.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20120223145636.616bef1c@cuia.bos.redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Rik van Riel <riel@redhat.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, Mel Gorman <mel@csn.ul.ie>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Andrea Arcangeli <aarcange@redhat.com>, hughd@google.com
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, Mel Gorman <mel@csn.ul.ie>, Johannes Weiner <hannes@cmpxchg.org>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Andrea Arcangeli <aarcange@redhat.com>, hughd@google.com
 
-On Thu, Feb 23, 2012 at 02:56:36PM -0500, Rik van Riel wrote:
-> When we look for a VMA smaller than the cached_hole_size, we set the
-> starting search address to mm->mmap_base, to try and find our hole.
-> 
-> However, even in the case where we fall through and found nothing at
-> the mm->free_area_cache, we still reset the search address to mm->mmap_base.
-> This bug results in quadratic behaviour, with observed mmap times of 0.4
-> seconds for processes that have very fragmented memory.
-> 
-> If there is no hole small enough for us to fit the VMA, and we have
-> no good spot for us right at mm->free_area_cache, we are much better
-> off continuing the search down from mm->free_area_cache, instead of
-> all the way from the top.
+Rik van Riel <riel@redhat.com> writes:
 
-Would it make sense to retain the restart for the case where we _know_
-that the remaining address space can not fit the desired area?
+> Some programs have a large number of VMAs, and make frequent calls
+> to mmap and munmap. Having munmap constantly cause the search
+> pointer for get_unmapped_area to get reset can cause a significant
+> slowdown for such programs. 
 
-	/* make sure it can fit in the remaining address space */
-	if (addr > len) {
-		vma = find_vma(mm, addr-len);
-		if (!vma || addr <= vma->vm_start)
-			/* remember the address as a hint for next time */
-			return (mm->free_area_cache = addr-len);
-	} else /* like this */
-		addr = mm->mmap_base - len;
+This would be a much nicer patch if you split it into one that merges
+all the copy'n'paste code and another one that actually implements
+the new algorithm.
 
-It would save one pointless find_vma() further down.  I don't feel too
-strongly about it, though.  Either way:
+-Andi
 
-> Signed-off-by: Rik van Riel <riel@redhat.com>
-
-Acked-by: Johannes Weiner <hannes@cmpxchg.org>
+-- 
+ak@linux.intel.com -- Speaking for myself only
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
