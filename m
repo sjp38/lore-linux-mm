@@ -1,42 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx123.postini.com [74.125.245.123])
-	by kanga.kvack.org (Postfix) with SMTP id EB6C46B00E9
-	for <linux-mm@kvack.org>; Fri, 24 Feb 2012 05:40:11 -0500 (EST)
-Date: Fri, 24 Feb 2012 08:38:28 -0200
-From: Rafael Aquini <aquini@redhat.com>
-Subject: Re: [PATCH] oom: add sysctl to enable slab memory dump
-Message-ID: <20120224103827.GA2030@x61.redhat.com>
-References: <20120222115320.GA3107@x61.redhat.com>
- <alpine.DEB.2.00.1202221640420.14213@chino.kir.corp.google.com>
- <20120223152226.GA2014@x61.redhat.com>
- <alpine.DEB.2.00.1202231509510.26362@chino.kir.corp.google.com>
- <alpine.LFD.2.02.1202240856370.1917@tux.localdomain>
- <alpine.DEB.2.00.1202240200380.24971@chino.kir.corp.google.com>
- <CAOJsxLExoyzvpRNOEdT3+x1mhSCZt0dO7NLKkpi7CrJ7HW2kpw@mail.gmail.com>
+Received: from psmtp.com (na3sys010amx179.postini.com [74.125.245.179])
+	by kanga.kvack.org (Postfix) with SMTP id 8E9406B00EC
+	for <linux-mm@kvack.org>; Fri, 24 Feb 2012 07:42:18 -0500 (EST)
+Message-ID: <4F475B6F.4060306@oracle.com>
+Date: Fri, 24 Feb 2012 17:42:07 +0800
+From: Jeff Liu <jeff.liu@oracle.com>
+Reply-To: jeff.liu@oracle.com
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <CAOJsxLExoyzvpRNOEdT3+x1mhSCZt0dO7NLKkpi7CrJ7HW2kpw@mail.gmail.com>
+Subject: [PATCH] Remove unnecessary 'break' at mem_cgroup_read() for invalid
+ MEMFILE_TYPE.
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pekka Enberg <penberg@kernel.org>
-Cc: David Rientjes <rientjes@google.com>, linux-mm@kvack.org, Randy Dunlap <rdunlap@xenotime.net>, Christoph Lameter <cl@linux-foundation.org>, Matt Mackall <mpm@selenic.com>, Rik van Riel <riel@redhat.com>, Josef Bacik <josef@redhat.com>, linux-kernel@vger.kernel.org
+To: linux-mm@kvack.org
+Cc: akpm@linux-foundation.org
 
-On Fri, Feb 24, 2012 at 12:05:27PM +0200, Pekka Enberg wrote:
-> On Fri, Feb 24, 2012 at 12:03 PM, David Rientjes <rientjes@google.com> wrote:
-> > I like how slub handles this when it can't allocate more slab with
-> > slab_out_of_memory() and has the added benefit of still warning even with
-> > __GFP_NORETRY that the oom killer is never called for.  If there's really
-> > a slab leak happening, there's a good chance that this diagnostic
-> > information is going to be emitted by the offending cache at some point in
-> > time if you're using slub.  This could easily be extended to slab.c, so
-> > it's even more reason not to include this type of information in the oom
-> > killer.
-> 
-> Works for me. Rafael?
+Hello,
 
-Sure, I'm getting back to the scratchpad right away.
+The 'break' is unnecessary at mem_cgroup_read() routine if the MEMFILE_TYPE is invalid IMHO. 
+
+
+Signed-off-by: Jie Liu <jeff.liu@oracle.com>
+
+---
+ mm/memcontrol.c |    1 -
+ 1 files changed, 0 insertions(+), 1 deletions(-)
+
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index 6aff93c..105972c 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -3886,7 +3886,6 @@ static u64 mem_cgroup_read(struct cgroup *cont, struct cftype *cft)
+ 		break;
+ 	default:
+ 		BUG();
+-		break;
+ 	}
+ 	return val;
+ }
+-- 
+1.7.9
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
