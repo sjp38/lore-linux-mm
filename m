@@ -1,53 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx182.postini.com [74.125.245.182])
-	by kanga.kvack.org (Postfix) with SMTP id A3F906B004A
-	for <linux-mm@kvack.org>; Fri, 24 Feb 2012 13:23:47 -0500 (EST)
-Received: by qadz32 with SMTP id z32so473932qad.14
-        for <linux-mm@kvack.org>; Fri, 24 Feb 2012 10:23:46 -0800 (PST)
+Received: from psmtp.com (na3sys010amx164.postini.com [74.125.245.164])
+	by kanga.kvack.org (Postfix) with SMTP id 744C66B004A
+	for <linux-mm@kvack.org>; Fri, 24 Feb 2012 13:58:40 -0500 (EST)
+Received: by qadz32 with SMTP id z32so493302qad.14
+        for <linux-mm@kvack.org>; Fri, 24 Feb 2012 10:58:39 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <201202241112.46337.vapier@gentoo.org>
-References: <20120222150010.c784b29b.akpm@linux-foundation.org>
-	<201202231847.55733.vapier@gentoo.org>
-	<CAAHN_R0ihoA6K8w53ToRD1xew9NWk-bJAZ=U0+hgRV3=0FpVDg@mail.gmail.com>
-	<201202241112.46337.vapier@gentoo.org>
-Date: Fri, 24 Feb 2012 23:53:38 +0530
-Message-ID: <CAAHN_R1Viv5GpJfbvc71OyNG7CdFWei7-3XPTap47MM2e8uEsg@mail.gmail.com>
+In-Reply-To: <4F47B781.2050300@gmail.com>
+References: <4F32B776.6070007@gmail.com>
+	<1328972596-4142-1-git-send-email-siddhesh.poyarekar@gmail.com>
+	<CAHGf_=oi8_s0Bxn4qSD7S_FBSgp29BPXor4hCf5-kekGnf3qEw@mail.gmail.com>
+	<CAAHN_R2Awa5X3B09541grAPLkm9RzL9DnixUKFJXpz=1ZkPTFg@mail.gmail.com>
+	<4F47B781.2050300@gmail.com>
+Date: Sat, 25 Feb 2012 00:28:38 +0530
+Message-ID: <CAAHN_R3-Rh1_vQAH5DHxw56Ukhif0Oq91qghrYoQ04nx=adUyQ@mail.gmail.com>
 Subject: Re: [PATCH] Mark thread stack correctly in proc/<pid>/maps
 From: Siddhesh Poyarekar <siddhesh.poyarekar@gmail.com>
 Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mike Frysinger <vapier@gentoo.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Alexander Viro <viro@zeniv.linux.org.uk>, linux-fsdevel@vger.kernel.org, Jamie Lokier <jamie@shareable.org>
+To: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Alexander Viro <viro@zeniv.linux.org.uk>, linux-fsdevel@vger.kernel.org, Jamie Lokier <jamie@shareable.org>, vapier@gentoo.org, Andrew Morton <akpm@linux-foundation.org>
 
-On Fri, Feb 24, 2012 at 9:42 PM, Mike Frysinger <vapier@gentoo.org> wrote:
->> I like the idea of marking all stack vmas with their task ids but it
->> will most likely break procps.
->
-> how ?
+On Fri, Feb 24, 2012 at 9:44 PM, KOSAKI Motohiro
+<kosaki.motohiro@gmail.com> wrote:
+> Oh, maybe generically you are right. but you missed one thing. Before
+> your patch, stack or not stack are address space property. thus, using
+> /proc/pid/maps makes sense. but after your patch, it's no longer memory
+> property. applications can use heap or mapped file as a stack. then, at
+> least, current your code is wrong. the code assume each memory property
+> are exclusive.
 
-I don't know yet, since I haven't looked at the procps code. I intend
-to do that once the patch is stable. But I imagine it would look for
-"[stack]" or something similar in the output. It ought to be easy
-enough to change I guess.
+Right, but I cannot think of any other alternative that does not
+involve touching some sensitive code.
 
->> Besides, I think it could be done within procps with this change rather =
-than
->> having the kernel do it.
->
-> how exactly is procps supposed to figure this out ? =A0/proc/<pid>/maps s=
-hows the
-> pid's main stack, as does /proc/<pid>/tid/*/maps.
+The setcontext family of functions where any heap, stack or even data
+area portion could be used as stack, break the very concept of an
+entire vma being used as a stack. In such a scenario the kernel can
+only show what it knows, which is that a specific vma is being used as
+a stack. I agree that it is not correct to show the entire vma as
+stack, but there doesn't seem to be a better way right now in that
+implementation. FWIW, if the stack space is allocated in heap, it will
+show up as heap and not stack since the former gets preference.
 
-Since the maps are essentially the same, it would require pmap for
-example, to read through the PID/maps as well as TID/maps and
-associate them. I understand now that this may be a little racy.
+> Moreover, if pthread stack is unimportant, I wonder why we need this patch
+> at all. Which application does need it? and When?
 
-I'll include thread ids and see how procps copes with it.
+Right, my original intent was to mark stack vmas allocated by
+pthreads, which included those vmas that are in the pthreads cache.
+However, this means that the kernel does not have any real control
+over what it marks as stack. Also, the concept is very specific to the
+glibc pthreads implementation and we're essentially just making the
+kernel spit out some data blindly for glibc.
 
+The other solution I can think of is to have stack_start as a task
+level property so that each task knows their stack vma start (obtained
+from its sys_clone call and not from mmap). This however means
+increasing the size of task_struct by sizeof(unsigned long). Is that
+overhead acceptable?
 
---=20
+-- 
 Siddhesh Poyarekar
 http://siddhesh.in
 
