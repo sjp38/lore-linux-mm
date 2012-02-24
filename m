@@ -1,73 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx110.postini.com [74.125.245.110])
-	by kanga.kvack.org (Postfix) with SMTP id 7AD166B004A
-	for <linux-mm@kvack.org>; Fri, 24 Feb 2012 14:19:28 -0500 (EST)
-From: Dan Smith <danms@us.ibm.com>
-Subject: Re: [PATCH] Ensure that walk_page_range()'s start and end are page-aligned
-References: <1328902796-30389-1-git-send-email-danms@us.ibm.com>
-	<alpine.DEB.2.00.1202130211400.4324@chino.kir.corp.google.com>
-	<87zkcm23az.fsf@caffeine.danplanet.com>
-	<alpine.DEB.2.00.1202131350500.17296@chino.kir.corp.google.com>
-Date: Fri, 24 Feb 2012 11:19:25 -0800
-Message-ID: <87obsoxcn6.fsf@danplanet.com>
+Received: from psmtp.com (na3sys010amx170.postini.com [74.125.245.170])
+	by kanga.kvack.org (Postfix) with SMTP id 59BE16B004A
+	for <linux-mm@kvack.org>; Fri, 24 Feb 2012 14:27:03 -0500 (EST)
+Message-ID: <4F47E47B.3000409@fb.com>
+Date: Fri, 24 Feb 2012 11:26:51 -0800
+From: Arun Sharma <asharma@fb.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Subject: Re: [PATCH] mm: Enable MAP_UNINITIALIZED for archs with mmu
+References: <1326912662-18805-1-git-send-email-asharma@fb.com> <CAKTCnzn-reG4bLmyWNYPELYs-9M3ZShEYeOix_OcnPow-w8PNg@mail.gmail.com> <4F468888.9090702@fb.com> <20120224114748.720ee79a.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20120224114748.720ee79a.kamezawa.hiroyu@jp.fujitsu.com>
+Content-Type: text/plain; charset="ISO-8859-1"; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org
-Cc: David Rientjes <rientjes@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, dave@linux.vnet.ibm.com
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Balbir Singh <bsingharora@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org
 
-DR> but it doesn't "ensure" walk_page_range() always has start and end
-DR> addresses that are page aligned
+On 2/23/12 6:47 PM, KAMEZAWA Hiroyuki wrote:
+>>
+>> In a distributed computing environment, a user submits a job to the
+>> cluster job scheduler. The job might involve multiple related
+>> executables and might involve multiple address spaces. But they're
+>> performing one logical task, have a single resource limit enforced by a
+>> cgroup.
+>>
+>> They don't have access to each other's VMAs, but if "accidentally" one
+>> of them comes across an uninitialized page with data from another task,
+>> it's not a violation of the security model.
+>>
+> How do you handle shared resouce, file-cache ?
+>
 
-Below is a changed version of the patch which always does the
-check. Since failing that condition indicates a kernel bug, WARN_ON()
-makes sure it gets some visibility.
+ From a security perspective or a resource limit perspective?
 
-Andrew, can you take this?
+Security: all processes in the cgroup run with the same uid and have the 
+same access to the filesystem. Multiple address spaces in a cgroup can 
+be thought of as an implementation detail.
 
--- 
-Dan Smith
-IBM Linux Technology Center
-email: danms@us.ibm.com
+Resource limit: We don't have strict enforcement right now. There is a 
+desire to include everything (file cache, slab memory) in the job's 
+memory resource limit.
 
-commit b06c2032d63f20d5a5513b3890776aeead397aa5
-Author: Dan Smith <danms@us.ibm.com>
-Date:   Fri Feb 24 11:07:05 2012 -0800
-
-    Ensure that walk_page_range()'s start and end are page-aligned
-    
-    The inner function walk_pte_range() increments "addr" by PAGE_SIZE after
-    each pte is processed, and only exits the loop if the result is equal to
-    "end". Current, if either (or both of) the starting or ending addresses
-    passed to walk_page_range() are not page-aligned, then we will never
-    satisfy that exit condition and begin calling the pte_entry handler with
-    bad data.
-    
-    To be sure that we will land in the right spot, this patch checks that
-    both "addr" and "end" are page-aligned in walk_page_range() before starting
-    the traversal.
-    
-    Signed-off-by: Dan Smith <danms@us.ibm.com>
-    Cc: linux-mm@kvack.org
-    Cc: linux-kernel@vger.kernel.org
-
-diff --git a/mm/pagewalk.c b/mm/pagewalk.c
-index 2f5cf10..97ee963 100644
---- a/mm/pagewalk.c
-+++ b/mm/pagewalk.c
-@@ -196,6 +196,11 @@ int walk_page_range(unsigned long addr, unsigned long end,
- 	if (addr >= end)
- 		return err;
- 
-+	if (WARN_ONCE((addr & ~PAGE_MASK) || (end & ~PAGE_MASK),
-+		      "address range is not page-aligned")) {
-+		return -EINVAL;
-+	}
-+
- 	if (!walk->mm)
- 		return -EINVAL;
- 
+  -Arun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
