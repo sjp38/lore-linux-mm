@@ -1,61 +1,37 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx181.postini.com [74.125.245.181])
-	by kanga.kvack.org (Postfix) with SMTP id 37EE46B004A
-	for <linux-mm@kvack.org>; Fri, 24 Feb 2012 16:37:56 -0500 (EST)
-Received: from /spool/local
-	by e37.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <dave@linux.vnet.ibm.com>;
-	Fri, 24 Feb 2012 14:37:54 -0700
-Received: from d03relay05.boulder.ibm.com (d03relay05.boulder.ibm.com [9.17.195.107])
-	by d03dlp01.boulder.ibm.com (Postfix) with ESMTP id B9F3CC40002
-	for <linux-mm@kvack.org>; Fri, 24 Feb 2012 14:37:51 -0700 (MST)
-Received: from d03av06.boulder.ibm.com (d03av06.boulder.ibm.com [9.17.195.245])
-	by d03relay05.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q1OLbiin118034
-	for <linux-mm@kvack.org>; Fri, 24 Feb 2012 14:37:44 -0700
-Received: from d03av06.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av06.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q1OLbtP7032725
-	for <linux-mm@kvack.org>; Fri, 24 Feb 2012 14:37:55 -0700
-Message-ID: <4F480326.8070706@linux.vnet.ibm.com>
-Date: Fri, 24 Feb 2012 13:37:42 -0800
-From: Dave Hansen <dave@linux.vnet.ibm.com>
+Received: from psmtp.com (na3sys010amx190.postini.com [74.125.245.190])
+	by kanga.kvack.org (Postfix) with SMTP id BE1F86B004A
+	for <linux-mm@kvack.org>; Fri, 24 Feb 2012 16:45:35 -0500 (EST)
+Received: by pbcwz17 with SMTP id wz17so3726547pbc.14
+        for <linux-mm@kvack.org>; Fri, 24 Feb 2012 13:45:35 -0800 (PST)
+Date: Fri, 24 Feb 2012 13:45:32 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH] oom: add sysctl to enable slab memory dump
+In-Reply-To: <20120224151025.GA1848@localhost.localdomain>
+Message-ID: <alpine.DEB.2.00.1202241342240.22880@chino.kir.corp.google.com>
+References: <20120222115320.GA3107@x61.redhat.com> <alpine.DEB.2.00.1202221640420.14213@chino.kir.corp.google.com> <20120223150238.GA15427@dhcp231-144.rdu.redhat.com> <alpine.DEB.2.00.1202231505080.26362@chino.kir.corp.google.com>
+ <20120224151025.GA1848@localhost.localdomain>
 MIME-Version: 1.0
-Subject: Re: [RFC][PATCH] fix move/migrate_pages() race on task struct
-References: <20120223180740.C4EC4156@kernel> <alpine.DEB.2.00.1202231240590.9878@router.home> <4F468F09.5050200@linux.vnet.ibm.com> <alpine.DEB.2.00.1202231334290.10914@router.home> <4F469BC7.50705@linux.vnet.ibm.com> <alpine.DEB.2.00.1202231536240.13554@router.home> <m1ehtkapn9.fsf@fess.ebiederm.org> <alpine.DEB.2.00.1202240859340.2621@router.home> <4F47BF56.6010602@linux.vnet.ibm.com> <alpine.DEB.2.00.1202241053220.3726@router.home> <alpine.DEB.2.00.1202241105280.3726@router.home> <4F47C800.4090903@linux.vnet.ibm.com> <alpine.DEB.2.00.1202241131400.3726@router.home>
-In-Reply-To: <alpine.DEB.2.00.1202241131400.3726@router.home>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: "Eric W. Biederman" <ebiederm@xmission.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Josef Bacik <josef@redhat.com>
+Cc: Rafael Aquini <aquini@redhat.com>, linux-mm@kvack.org, Randy Dunlap <rdunlap@xenotime.net>, Christoph Lameter <cl@linux-foundation.org>, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org
 
-On 02/24/2012 09:32 AM, Christoph Lameter wrote:
-> @@ -1318,10 +1318,10 @@ SYSCALL_DEFINE4(migrate_pages, pid_t, pi
->  	rcu_read_lock();
->  	task = pid ? find_task_by_vpid(pid) : current;
->  	if (!task) {
-> -		rcu_read_unlock();
->  		err = -ESRCH;
->  		goto out;
->  	}
-...
-> +	put_task_struct(task);
-> +	task = NULL;
->  	err = do_migrate_pages(mm, old, new,
->  		capable(CAP_SYS_NICE) ? MPOL_MF_MOVE_ALL : MPOL_MF_MOVE);
->  out:
-> +	if (task)
-> +		put_task_struct(task);
-> +
->  	if (mm)
->  		mmput(mm);
->  	NODEMASK_SCRATCH_FREE(scratch);
+On Fri, 24 Feb 2012, Josef Bacik wrote:
 
-Man, patch did not like this for some reason.  I kept throwing most of
-the mempolicy.c hunks away.  I've never seen anything like it.
+> Um well yeah, I'm rewriting a chunk of btrfs which was rapantly leaking memory
+> so the OOM just couldn't keep up with how much I was sucking down.  This is
+> strictly a developer is doing something stupid and needs help pointing out what
+> it is sort of moment, not a day to day OOM.
+>  
 
-Anyway...  This looks fine except I think that rcu_read_unlock() need to
-stay.  There's currently no release of it after out:.
+If you're debugging new kernel code and you realize that excessive amount 
+of memory is being consumed so that nothing can even fork, you may want to 
+try cat /proc/slabinfo before you get into that condition the next time 
+around, although I already suspect that you know the cache you're leaking.  
+It doesn't mean we need to add hundreds of lines of code to the kernel.  
+Try kmemleak.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
