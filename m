@@ -1,72 +1,98 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx189.postini.com [74.125.245.189])
-	by kanga.kvack.org (Postfix) with SMTP id 8AF2E6B004A
-	for <linux-mm@kvack.org>; Thu, 23 Feb 2012 21:49:13 -0500 (EST)
-Received: from m2.gw.fujitsu.co.jp (unknown [10.0.50.72])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 9DC153EE081
-	for <linux-mm@kvack.org>; Fri, 24 Feb 2012 11:49:11 +0900 (JST)
-Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 836CF45DE50
-	for <linux-mm@kvack.org>; Fri, 24 Feb 2012 11:49:11 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 68D7845DD74
-	for <linux-mm@kvack.org>; Fri, 24 Feb 2012 11:49:11 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 5B0421DB803E
-	for <linux-mm@kvack.org>; Fri, 24 Feb 2012 11:49:11 +0900 (JST)
-Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.240.81.146])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 1294C1DB803A
-	for <linux-mm@kvack.org>; Fri, 24 Feb 2012 11:49:11 +0900 (JST)
-Date: Fri, 24 Feb 2012 11:47:48 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH] mm: Enable MAP_UNINITIALIZED for archs with mmu
-Message-Id: <20120224114748.720ee79a.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <4F468888.9090702@fb.com>
-References: <1326912662-18805-1-git-send-email-asharma@fb.com>
-	<CAKTCnzn-reG4bLmyWNYPELYs-9M3ZShEYeOix_OcnPow-w8PNg@mail.gmail.com>
-	<4F468888.9090702@fb.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx108.postini.com [74.125.245.108])
+	by kanga.kvack.org (Postfix) with SMTP id 6D0C46B004A
+	for <linux-mm@kvack.org>; Thu, 23 Feb 2012 22:11:50 -0500 (EST)
+From: ebiederm@xmission.com (Eric W. Biederman)
+References: <20120223180740.C4EC4156@kernel>
+	<alpine.DEB.2.00.1202231240590.9878@router.home>
+	<4F468F09.5050200@linux.vnet.ibm.com>
+	<alpine.DEB.2.00.1202231334290.10914@router.home>
+	<4F469BC7.50705@linux.vnet.ibm.com>
+	<alpine.DEB.2.00.1202231536240.13554@router.home>
+Date: Thu, 23 Feb 2012 19:14:50 -0800
+In-Reply-To: <alpine.DEB.2.00.1202231536240.13554@router.home> (Christoph
+	Lameter's message of "Thu, 23 Feb 2012 15:41:50 -0600 (CST)")
+Message-ID: <m1ehtkapn9.fsf@fess.ebiederm.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Subject: Re: [RFC][PATCH] fix move/migrate_pages() race on task struct
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Arun Sharma <asharma@fb.com>
-Cc: Balbir Singh <bsingharora@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org
+To: Christoph Lameter <cl@linux.com>
+Cc: Dave Hansen <dave@linux.vnet.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Thu, 23 Feb 2012 10:42:16 -0800
-Arun Sharma <asharma@fb.com> wrote:
+Christoph Lameter <cl@linux.com> writes:
 
-> Hi Balbir,
-> 
-> Thanks for reviewing. Would you change your position if I limit the 
-> scope of the patch to a cgroup with a single address space?
-> 
-> The moment the cgroup sees more than one address space (either due to 
-> tasks getting created or being added), this optimization would be turned 
-> off.
-> 
-> More details below:
-> 
-> On 2/22/12 11:45 PM, Balbir Singh wrote:
-> >
-> > So the assumption is that only apps that have access to each others
-> > VMA's will run in this cgroup?
-> >
-> 
-> In a distributed computing environment, a user submits a job to the 
-> cluster job scheduler. The job might involve multiple related 
-> executables and might involve multiple address spaces. But they're 
-> performing one logical task, have a single resource limit enforced by a 
-> cgroup.
-> 
-> They don't have access to each other's VMAs, but if "accidentally" one 
-> of them comes across an uninitialized page with data from another task, 
-> it's not a violation of the security model.
-> 
-How do you handle shared resouce, file-cache ?
+> On Thu, 23 Feb 2012, Dave Hansen wrote:
+>
+>> > We may at this point be getting a reference to a task struct from another
+>> > process not only from the current process (where the above procedure is
+>> > valid). You rightly pointed out that the slab rcu free mechanism allows a
+>> > free and a reallocation within the RCU period.
+>>
+>> I didn't _mean_ to point that out, but I think I realize what you're
+>> talking about.  What we have before this patch is this:
+>>
+>>         rcu_read_lock();
+>>         task = pid ? find_task_by_vpid(pid) : current;
+>
+> We take a refcount here on the mm ... See the code. We could simply take a
+> refcount on the task as well if this is considered safe enough. If we have
+> a refcount on the task then we do not need the refcount on the mm. Thats
+> was your approach...
+>
+>>         rcu_read_unlock();
+>
+>> > Is that a real difference or are you just playing with words?
+>>
+>> I think we're talking about two different things:
+>> 1. does RCU protect the pid->task lookup sufficiently?
+>
+> I dont know
 
-Thanks,
--Kame
+Yes.  See below.
+
+>> 2. Can the task simply go away in the move/migrate_pages() calls?
+>
+> The task may go away but we need the mm to stay for migration.
+> That is why a refcount is taken on the mm.
+>
+> The bug in migrate_pages() is that we do a rcu_unlock and a rcu_lock. If
+> we drop those then we should be safe if the use of a task pointer within a
+> rcu section is safe without taking a refcount.
+
+Yes the user of a task_struct pointer found via a userspace pid is valid
+for the life of an rcu critical section, and the bug is indeed that we
+drop the rcu_lock and somehow expect the task to remain valid.
+
+The guarantee comes from release_task.  In release_task we call
+__exit_signal which calls __unhash_process, and then we call
+delayed_put_task to guarantee that the task lives until the end
+of the rcu interval.
+
+
+
+In migrate_pages we have a lot of task accesses outside of the
+rcu critical section, and without a reference count on task.
+
+I tell you the truth trying to figure out what that code needs to be
+correct if task != current makes my head hurt.
+
+I think we need to grab a reference on task_struct, to stop the task
+from going away, and in addition we need to hold task_lock.  To keep
+task->mm from changing (see exec_mmap).  But we can't do that and sleep
+so I think the entire function needs to be rewritten, and the need for
+task deep in the migrate_pages path needs to be removed as even with the
+reference count held we can race with someone calling exec.
+
+The only easy fix I see is to add:
+if (pid)
+	return -EINVAL;
+
+Then we are working with current and only current change it's mm making
+things much, much, much simpler.
+
+Eric
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
