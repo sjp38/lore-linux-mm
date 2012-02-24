@@ -1,96 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx152.postini.com [74.125.245.152])
-	by kanga.kvack.org (Postfix) with SMTP id C94AB6B004A
-	for <linux-mm@kvack.org>; Fri, 24 Feb 2012 15:40:05 -0500 (EST)
-Date: Fri, 24 Feb 2012 12:40:03 -0800
+Received: from psmtp.com (na3sys010amx175.postini.com [74.125.245.175])
+	by kanga.kvack.org (Postfix) with SMTP id 614CE6B004A
+	for <linux-mm@kvack.org>; Fri, 24 Feb 2012 15:55:21 -0500 (EST)
+Date: Fri, 24 Feb 2012 12:55:19 -0800
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] mm: extend prefault helpers to fault in more than
- PAGE_SIZE
-Message-Id: <20120224124003.93780408.akpm@linux-foundation.org>
-In-Reply-To: <20120224133431.GA3913@phenom.ffwll.local>
-References: <1329393696-4802-1-git-send-email-daniel.vetter@ffwll.ch>
-	<1329393696-4802-2-git-send-email-daniel.vetter@ffwll.ch>
-	<20120223143658.0e318ce2.akpm@linux-foundation.org>
-	<20120224133431.GA3913@phenom.ffwll.local>
+Subject: Re: [PATCH] Ensure that walk_page_range()'s start and end are
+ page-aligned
+Message-Id: <20120224125519.89120828.akpm@linux-foundation.org>
+In-Reply-To: <87obsoxcn6.fsf@danplanet.com>
+References: <1328902796-30389-1-git-send-email-danms@us.ibm.com>
+	<alpine.DEB.2.00.1202130211400.4324@chino.kir.corp.google.com>
+	<87zkcm23az.fsf@caffeine.danplanet.com>
+	<alpine.DEB.2.00.1202131350500.17296@chino.kir.corp.google.com>
+	<87obsoxcn6.fsf@danplanet.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Daniel Vetter <daniel@ffwll.ch>
-Cc: Daniel Vetter <daniel.vetter@ffwll.ch>, Intel Graphics Development <intel-gfx@lists.freedesktop.org>, DRI Development <dri-devel@lists.freedesktop.org>, LKML <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>
+To: Dan Smith <danms@us.ibm.com>
+Cc: David Rientjes <rientjes@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, dave@linux.vnet.ibm.com
 
-On Fri, 24 Feb 2012 14:34:31 +0100
-Daniel Vetter <daniel@ffwll.ch> wrote:
+On Fri, 24 Feb 2012 11:19:25 -0800
+Dan Smith <danms@us.ibm.com> wrote:
 
-> > > --- a/include/linux/pagemap.h
-> > > +++ b/include/linux/pagemap.h
-> > > @@ -408,6 +408,7 @@ extern void add_page_wait_queue(struct page *page, wait_queue_t *waiter);
-> > >  static inline int fault_in_pages_writeable(char __user *uaddr, int size)
-> > >  {
-> > >  	int ret;
-> > > +	char __user *end = uaddr + size - 1;
-> > >  
-> > >  	if (unlikely(size == 0))
-> > >  		return 0;
-> > > @@ -416,17 +417,20 @@ static inline int fault_in_pages_writeable(char __user *uaddr, int size)
-> > >  	 * Writing zeroes into userspace here is OK, because we know that if
-> > >  	 * the zero gets there, we'll be overwriting it.
-> > >  	 */
-> > > -	ret = __put_user(0, uaddr);
-> > > +	while (uaddr <= end) {
-> > > +		ret = __put_user(0, uaddr);
-> > > +		if (ret != 0)
-> > > +			return ret;
-> > > +		uaddr += PAGE_SIZE;
-> > > +	}
-> > 
-> > The callsites in filemap.c are pretty hot paths, which is why this
-> > thing remains explicitly inlined.  I think it would be worth adding a
-> > bit of code here to avoid adding a pointless test-n-branch and larger
-> > cache footprint to read() and write().
-> > 
-> > A way of doing that is to add another argument to these functions, say
-> > "bool multipage".  Change the code to do
-> > 
-> > 	if (multipage) {
-> > 		while (uaddr <= end) {
-> > 			...
-> > 		}
-> > 	}
-> > 
-> > and change the callsites to pass in constant "true" or "false".  Then
-> > compile it up and manually check that the compiler completely removed
-> > the offending code from the filemap.c callsites.
-> > 
-> > Wanna have a think about that?  If it all looks OK then please be sure
-> > to add code comments explaining why we did this.
-> 
-> I wasn't really happy with the added branch either, but failed to come up
-> with a trick to avoid it. Imho adding new _multipage variants of these
-> functions instead of adding a constant argument is simpler because the
-> functions don't really share much thanks to the block below. I'll see what
-> it looks like (and obviously add a comment explaining what's going on).
+>
+> ...
+>
+>     The inner function walk_pte_range() increments "addr" by PAGE_SIZE after
+>     each pte is processed, and only exits the loop if the result is equal to
+>     "end". Current, if either (or both of) the starting or ending addresses
+>     passed to walk_page_range() are not page-aligned, then we will never
+>     satisfy that exit condition and begin calling the pte_entry handler with
+>     bad data.
+>     
+>     To be sure that we will land in the right spot, this patch checks that
+>     both "addr" and "end" are page-aligned in walk_page_range() before starting
+>     the traversal.
+>     
+> ...
+>
+> --- a/mm/pagewalk.c
+> +++ b/mm/pagewalk.c
+> @@ -196,6 +196,11 @@ int walk_page_range(unsigned long addr, unsigned long end,
+>  	if (addr >= end)
+>  		return err;
+>  
+> +	if (WARN_ONCE((addr & ~PAGE_MASK) || (end & ~PAGE_MASK),
+> +		      "address range is not page-aligned")) {
+> +		return -EINVAL;
+> +	}
+> +
+>  	if (!walk->mm)
+>  		return -EINVAL;
 
-well... that's just syntactic sugar:
+Well...  why should we apply the patch?  Is there some buggy code which
+is triggering the problem?  Do you intend to write some buggy code to
+trigger the problem?  ;) 
 
-static inline int __fault_in_pages_writeable(char __user *uaddr, int size, bool multipage)
-{
-	...
-}
+IOW, what benefit is there to this change?
 
-static inline int fault_in_pages_writeable(char __user *uaddr, int size)
-{
-	return __fault_in_pages_writeable(uaddr, size, false);
-}
-
-static inline int fault_in_multipages_writeable(char __user *uaddr, int size)
-{
-	return __fault_in_pages_writeable(uaddr, size, true);
-}
-
-which I don't think is worth bothering with given the very small number
-of callsites.
+Also, as it's a developer-only thing we should arrange for the overhead
+to vanish when CONFIG_DEBUG_VM=n?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
