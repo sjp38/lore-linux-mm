@@ -1,51 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx171.postini.com [74.125.245.171])
-	by kanga.kvack.org (Postfix) with SMTP id A4DD16B004A
-	for <linux-mm@kvack.org>; Fri, 24 Feb 2012 00:32:38 -0500 (EST)
-Received: by bkty12 with SMTP id y12so2258528bkt.14
-        for <linux-mm@kvack.org>; Thu, 23 Feb 2012 21:32:36 -0800 (PST)
-Message-ID: <4F4720F1.2060805@openvz.org>
-Date: Fri, 24 Feb 2012 09:32:33 +0400
-From: Konstantin Khlebnikov <khlebnikov@openvz.org>
+Received: from psmtp.com (na3sys010amx156.postini.com [74.125.245.156])
+	by kanga.kvack.org (Postfix) with SMTP id 1EDE36B004A
+	for <linux-mm@kvack.org>; Fri, 24 Feb 2012 00:47:49 -0500 (EST)
+Received: by qadz32 with SMTP id z32so117317qad.14
+        for <linux-mm@kvack.org>; Thu, 23 Feb 2012 21:47:48 -0800 (PST)
 MIME-Version: 1.0
-Subject: Re: [PATCH v3 18/21] mm: add to lruvec isolated pages counters
-References: <20120223133728.12988.5432.stgit@zurg> <20120223135314.12988.97364.stgit@zurg>
-In-Reply-To: <20120223135314.12988.97364.stgit@zurg>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <201202231847.55733.vapier@gentoo.org>
+References: <20120222150010.c784b29b.akpm@linux-foundation.org>
+	<1329969811-3997-1-git-send-email-siddhesh.poyarekar@gmail.com>
+	<201202231847.55733.vapier@gentoo.org>
+Date: Fri, 24 Feb 2012 11:17:48 +0530
+Message-ID: <CAAHN_R0ihoA6K8w53ToRD1xew9NWk-bJAZ=U0+hgRV3=0FpVDg@mail.gmail.com>
+Subject: Re: [PATCH] Mark thread stack correctly in proc/<pid>/maps
+From: Siddhesh Poyarekar <siddhesh.poyarekar@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Andi Kleen <andi@firstfloor.org>
+To: Mike Frysinger <vapier@gentoo.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Alexander Viro <viro@zeniv.linux.org.uk>, linux-fsdevel@vger.kernel.org, Jamie Lokier <jamie@shareable.org>
 
-Konstantin Khlebnikov wrote:
-> @@ -2480,8 +2494,11 @@ static int mem_cgroup_move_parent(struct page *page,
->
->          if (nr_pages>  1)
->                  compound_unlock_irqrestore(page, flags);
-> +       if (!ret)
-> +               /* This also stabilize PageLRU() sign for lruvec lock holder. */
-> +               mem_cgroup_adjust_isolated(lruvec, page, -nr_pages);
->   put_back:
-> -       putback_lru_page(page);
-> +       __putback_lru_page(page, !ret);
->   put:
->          put_page(page);
->   out:
+On Fri, Feb 24, 2012 at 5:17 AM, Mike Frysinger <vapier@gentoo.org> wrote:
+> i don't suppose we could have it say "[tid stack]" rather than "[stack]" =
+? =A0or
+> perhaps even "[stack tid:%u]" with replacing %u with the tid ?
 
-Oh, no. There must be !!ret
+Why do we need to differentiate a thread stack from a process stack?
+If someone really wants to know, the main stack is the last one since
+it doesn't look like mmap allocates anything above the stack right
+now.
 
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -2482,7 +2482,7 @@ static int mem_cgroup_move_parent(struct page *page,
-                 /* This also stabilize PageLRU() sign for lruvec lock holder. */
-                 mem_cgroup_adjust_isolated(lruvec, page, -nr_pages);
-  put_back:
--       __putback_lru_page(page, !ret);
-+       __putback_lru_page(page, !!ret);
-  put:
-         put_page(page);
-  out:
+I like the idea of marking all stack vmas with their task ids but it
+will most likely break procps. Besides, I think it could be done
+within procps with this change rather than having the kernel do it.
+
+--=20
+Siddhesh Poyarekar
+http://siddhesh.in
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
