@@ -1,55 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx198.postini.com [74.125.245.198])
-	by kanga.kvack.org (Postfix) with SMTP id A558A6B004A
-	for <linux-mm@kvack.org>; Fri, 24 Feb 2012 00:29:04 -0500 (EST)
-Received: by qauh8 with SMTP id h8so109972qau.14
-        for <linux-mm@kvack.org>; Thu, 23 Feb 2012 21:29:03 -0800 (PST)
+Received: from psmtp.com (na3sys010amx171.postini.com [74.125.245.171])
+	by kanga.kvack.org (Postfix) with SMTP id A4DD16B004A
+	for <linux-mm@kvack.org>; Fri, 24 Feb 2012 00:32:38 -0500 (EST)
+Received: by bkty12 with SMTP id y12so2258528bkt.14
+        for <linux-mm@kvack.org>; Thu, 23 Feb 2012 21:32:36 -0800 (PST)
+Message-ID: <4F4720F1.2060805@openvz.org>
+Date: Fri, 24 Feb 2012 09:32:33 +0400
+From: Konstantin Khlebnikov <khlebnikov@openvz.org>
 MIME-Version: 1.0
-In-Reply-To: <CAHGf_=oi8_s0Bxn4qSD7S_FBSgp29BPXor4hCf5-kekGnf3qEw@mail.gmail.com>
-References: <4F32B776.6070007@gmail.com>
-	<1328972596-4142-1-git-send-email-siddhesh.poyarekar@gmail.com>
-	<CAHGf_=oi8_s0Bxn4qSD7S_FBSgp29BPXor4hCf5-kekGnf3qEw@mail.gmail.com>
-Date: Fri, 24 Feb 2012 10:59:03 +0530
-Message-ID: <CAAHN_R2Awa5X3B09541grAPLkm9RzL9DnixUKFJXpz=1ZkPTFg@mail.gmail.com>
-Subject: Re: [PATCH] Mark thread stack correctly in proc/<pid>/maps
-From: Siddhesh Poyarekar <siddhesh.poyarekar@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Subject: Re: [PATCH v3 18/21] mm: add to lruvec isolated pages counters
+References: <20120223133728.12988.5432.stgit@zurg> <20120223135314.12988.97364.stgit@zurg>
+In-Reply-To: <20120223135314.12988.97364.stgit@zurg>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Alexander Viro <viro@zeniv.linux.org.uk>, linux-fsdevel@vger.kernel.org, Jamie Lokier <jamie@shareable.org>, vapier@gentoo.org, Andrew Morton <akpm@linux-foundation.org>
+To: Hugh Dickins <hughd@google.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Andi Kleen <andi@firstfloor.org>
 
-On Fri, Feb 24, 2012 at 4:47 AM, KOSAKI Motohiro
-<kosaki.motohiro@gmail.com> wrote:
-> How protect this loop from task exiting? AFAIK, while_each_thread
-> require rcu_read_lock or task_list_lock.
+Konstantin Khlebnikov wrote:
+> @@ -2480,8 +2494,11 @@ static int mem_cgroup_move_parent(struct page *page,
+>
+>          if (nr_pages>  1)
+>                  compound_unlock_irqrestore(page, flags);
+> +       if (!ret)
+> +               /* This also stabilize PageLRU() sign for lruvec lock holder. */
+> +               mem_cgroup_adjust_isolated(lruvec, page, -nr_pages);
+>   put_back:
+> -       putback_lru_page(page);
+> +       __putback_lru_page(page, !ret);
+>   put:
+>          put_page(page);
+>   out:
 
-I missed this, thanks. I'll send a patch for this on top of my earlier
-patch since Andrew has already included the earlier patch.
+Oh, no. There must be !!ret
 
-> Sigh. No, I missed one thing. If application use
-> makecontext()/swapcontext() pair,
-> ESP is not reliable way to detect pthread stack. At that time the
-> stack is still marked
-> as anonymous memory.
-
-This is not wrong, because it essentially gives the correct picture of
-the state of that task -- the task is using another vma as a stack
-during that point and not the one it was allotted by pthreads during
-thread creation.
-
-I don't think we can successfully stick to the idea of trying to mark
-stack space allocated by pthreads but not used by any task *currently*
-as stack as long as the allocation happens outside the kernel space.
-The only way to mark this is either by marking the stack as
-VM_GROWSDOWN (which will make the stack grow and break some pthreads
-functions) or create a new flag, which a simple display such as this
-does not deserve. So it's best that this sticks to what the kernel
-*knows* is being used as stack.
-
--- 
-Siddhesh Poyarekar
-http://siddhesh.in
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -2482,7 +2482,7 @@ static int mem_cgroup_move_parent(struct page *page,
+                 /* This also stabilize PageLRU() sign for lruvec lock holder. */
+                 mem_cgroup_adjust_isolated(lruvec, page, -nr_pages);
+  put_back:
+-       __putback_lru_page(page, !ret);
++       __putback_lru_page(page, !!ret);
+  put:
+         put_page(page);
+  out:
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
