@@ -1,81 +1,38 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx149.postini.com [74.125.245.149])
-	by kanga.kvack.org (Postfix) with SMTP id 229B46B004A
-	for <linux-mm@kvack.org>; Fri, 24 Feb 2012 12:07:02 -0500 (EST)
-Received: by pbcwz17 with SMTP id wz17so3433483pbc.14
-        for <linux-mm@kvack.org>; Fri, 24 Feb 2012 09:07:01 -0800 (PST)
-Message-ID: <4F47C3B7.20109@gmail.com>
-Date: Fri, 24 Feb 2012 12:07:03 -0500
-From: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
+Received: from psmtp.com (na3sys010amx196.postini.com [74.125.245.196])
+	by kanga.kvack.org (Postfix) with SMTP id C382C6B004D
+	for <linux-mm@kvack.org>; Fri, 24 Feb 2012 12:07:28 -0500 (EST)
+Received: from /spool/local
+	by e3.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <dave@linux.vnet.ibm.com>;
+	Fri, 24 Feb 2012 12:07:26 -0500
+Received: from d01relay05.pok.ibm.com (d01relay05.pok.ibm.com [9.56.227.237])
+	by d01dlp02.pok.ibm.com (Postfix) with ESMTP id 4BE376E805D
+	for <linux-mm@kvack.org>; Fri, 24 Feb 2012 12:04:53 -0500 (EST)
+Received: from d01av03.pok.ibm.com (d01av03.pok.ibm.com [9.56.224.217])
+	by d01relay05.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q1OH4riB261968
+	for <linux-mm@kvack.org>; Fri, 24 Feb 2012 12:04:53 -0500
+Received: from d01av03.pok.ibm.com (loopback [127.0.0.1])
+	by d01av03.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q1OH4r6T031226
+	for <linux-mm@kvack.org>; Fri, 24 Feb 2012 15:04:53 -0200
+Message-ID: <4F47C333.3060002@linux.vnet.ibm.com>
+Date: Fri, 24 Feb 2012 09:04:51 -0800
+From: Dave Hansen <dave@linux.vnet.ibm.com>
 MIME-Version: 1.0
 Subject: Re: [RFC][PATCH] fix move/migrate_pages() race on task struct
-References: <20120223180740.C4EC4156@kernel> <alpine.DEB.2.00.1202231240590.9878@router.home> <4F468F09.5050200@linux.vnet.ibm.com> <alpine.DEB.2.00.1202231334290.10914@router.home> <4F469BC7.50705@linux.vnet.ibm.com> <alpine.DEB.2.00.1202231536240.13554@router.home> <m1ehtkapn9.fsf@fess.ebiederm.org> <alpine.DEB.2.00.1202240859340.2621@router.home>
-In-Reply-To: <alpine.DEB.2.00.1202240859340.2621@router.home>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+References: <20120223180740.C4EC4156@kernel> <alpine.DEB.2.00.1202231240590.9878@router.home> <4F468F09.5050200@linux.vnet.ibm.com> <alpine.DEB.2.00.1202231334290.10914@router.home> <4F469BC7.50705@linux.vnet.ibm.com> <alpine.DEB.2.00.1202231536240.13554@router.home> <m1ehtkapn9.fsf@fess.ebiederm.org> <alpine.DEB.2.00.1202240859340.2621@router.home> <4F47BF56.6010602@linux.vnet.ibm.com> <alpine.DEB.2.00.1202241053220.3726@router.home>
+In-Reply-To: <alpine.DEB.2.00.1202241053220.3726@router.home>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Christoph Lameter <cl@linux.com>
-Cc: "Eric W. Biederman" <ebiederm@xmission.com>, Dave Hansen <dave@linux.vnet.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, kosaki.motohiro@gmail.com
+Cc: "Eric W. Biederman" <ebiederm@xmission.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-(2/24/12 10:20 AM), Christoph Lameter wrote:
-> On Thu, 23 Feb 2012, Eric W. Biederman wrote:
->
->>> The bug in migrate_pages() is that we do a rcu_unlock and a rcu_lock. If
->>> we drop those then we should be safe if the use of a task pointer within a
->>> rcu section is safe without taking a refcount.
->>
->> Yes the user of a task_struct pointer found via a userspace pid is valid
->> for the life of an rcu critical section, and the bug is indeed that we
->> drop the rcu_lock and somehow expect the task to remain valid.
->>
->> The guarantee comes from release_task.  In release_task we call
->> __exit_signal which calls __unhash_process, and then we call
->> delayed_put_task to guarantee that the task lives until the end of the
->> rcu interval.
->
-> Ah. Ok. Great.
->
->> In migrate_pages we have a lot of task accesses outside of the rcu
->> critical section, and without a reference count on task.
->
-> Yes but that is only of interesting for setup and verification of
-> permissions. What matters during migration is that the mm_struct does not
-> go away and we take a refcount on that one.
->
->> I tell you the truth trying to figure out what that code needs to be
->> correct if task != current makes my head hurt.
->
-> Hmm...
->
->> I think we need to grab a reference on task_struct, to stop the task
->> from going away, and in addition we need to hold task_lock.  To keep
->> task->mm from changing (see exec_mmap).  But we can't do that and sleep
->> so I think the entire function needs to be rewritten, and the need for
->> task deep in the migrate_pages path needs to be removed as even with the
->> reference count held we can race with someone calling exec.
->
-> We dont need the task during migration. We only need the mm. The task
-> is safe until rcu_read_unlock therefore maybe the following should fix
-> migrate pages:
->
->
-> Subject: migration: Do not do rcu_read_unlock until the last time we need the task_struct pointer
->
-> Migration functions perform the rcu_read_unlock too early. As a result the
-> task pointed to may change. Bugs were introduced when adding security checks
-> because rcu_unlock/lock sequences were inserted. Plus the security checks
-> and do_move_pages used the task_struct pointer after rcu_unlock.
->
-> Fix those issues by removing the unlock/lock sequences and moving the
-> rcu_read_unlock after the last use of the task struct pointer.
->
-> Signed-off-by: Christoph Lameter<cl@linux.com>
->
->
+On 02/24/2012 08:54 AM, Christoph Lameter wrote:
+> Could you do another patch that removed the duplication?
 
-	Acked-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-
+Yup, working on it already.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
