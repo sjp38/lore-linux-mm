@@ -1,179 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx171.postini.com [74.125.245.171])
-	by kanga.kvack.org (Postfix) with SMTP id D87046B004A
-	for <linux-mm@kvack.org>; Fri, 24 Feb 2012 12:33:01 -0500 (EST)
-Date: Fri, 24 Feb 2012 11:32:59 -0600 (CST)
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: [RFC][PATCH] fix move/migrate_pages() race on task struct
-In-Reply-To: <4F47C800.4090903@linux.vnet.ibm.com>
-Message-ID: <alpine.DEB.2.00.1202241131400.3726@router.home>
-References: <20120223180740.C4EC4156@kernel> <alpine.DEB.2.00.1202231240590.9878@router.home> <4F468F09.5050200@linux.vnet.ibm.com> <alpine.DEB.2.00.1202231334290.10914@router.home> <4F469BC7.50705@linux.vnet.ibm.com> <alpine.DEB.2.00.1202231536240.13554@router.home>
- <m1ehtkapn9.fsf@fess.ebiederm.org> <alpine.DEB.2.00.1202240859340.2621@router.home> <4F47BF56.6010602@linux.vnet.ibm.com> <alpine.DEB.2.00.1202241053220.3726@router.home> <alpine.DEB.2.00.1202241105280.3726@router.home>
- <4F47C800.4090903@linux.vnet.ibm.com>
+Received: from psmtp.com (na3sys010amx182.postini.com [74.125.245.182])
+	by kanga.kvack.org (Postfix) with SMTP id A3F906B004A
+	for <linux-mm@kvack.org>; Fri, 24 Feb 2012 13:23:47 -0500 (EST)
+Received: by qadz32 with SMTP id z32so473932qad.14
+        for <linux-mm@kvack.org>; Fri, 24 Feb 2012 10:23:46 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+In-Reply-To: <201202241112.46337.vapier@gentoo.org>
+References: <20120222150010.c784b29b.akpm@linux-foundation.org>
+	<201202231847.55733.vapier@gentoo.org>
+	<CAAHN_R0ihoA6K8w53ToRD1xew9NWk-bJAZ=U0+hgRV3=0FpVDg@mail.gmail.com>
+	<201202241112.46337.vapier@gentoo.org>
+Date: Fri, 24 Feb 2012 23:53:38 +0530
+Message-ID: <CAAHN_R1Viv5GpJfbvc71OyNG7CdFWei7-3XPTap47MM2e8uEsg@mail.gmail.com>
+Subject: Re: [PATCH] Mark thread stack correctly in proc/<pid>/maps
+From: Siddhesh Poyarekar <siddhesh.poyarekar@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave@linux.vnet.ibm.com>
-Cc: "Eric W. Biederman" <ebiederm@xmission.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Mike Frysinger <vapier@gentoo.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Alexander Viro <viro@zeniv.linux.org.uk>, linux-fsdevel@vger.kernel.org, Jamie Lokier <jamie@shareable.org>
 
-On Fri, 24 Feb 2012, Dave Hansen wrote:
-
-> > Is that all safe? If not then we need to take a refcount on the task
-> > struct after all.
+On Fri, Feb 24, 2012 at 9:42 PM, Mike Frysinger <vapier@gentoo.org> wrote:
+>> I like the idea of marking all stack vmas with their task ids but it
+>> will most likely break procps.
 >
-> Urg, no we can't sleep under an rcu_read_lock().
+> how ?
 
-Ok so take a count and drop it before entering the main migration
-function?
+I don't know yet, since I haven't looked at the procps code. I intend
+to do that once the patch is stable. But I imagine it would look for
+"[stack]" or something similar in the output. It ought to be easy
+enough to change I guess.
+
+>> Besides, I think it could be done within procps with this change rather =
+than
+>> having the kernel do it.
+>
+> how exactly is procps supposed to figure this out ? =A0/proc/<pid>/maps s=
+hows the
+> pid's main stack, as does /proc/<pid>/tid/*/maps.
+
+Since the maps are essentially the same, it would require pmap for
+example, to read through the PID/maps as well as TID/maps and
+associate them. I understand now that this may be a little racy.
+
+I'll include thread ids and see how procps copes with it.
 
 
-Signed-off-by: Christoph Lameter <cl@linux.com>
-
-
----
- mm/mempolicy.c |   12 +++++++-----
- mm/migrate.c   |   20 +++++++++++---------
- 2 files changed, 18 insertions(+), 14 deletions(-)
-
-Index: linux-2.6/mm/mempolicy.c
-===================================================================
---- linux-2.6.orig/mm/mempolicy.c	2012-02-24 04:10:01.621614996 -0600
-+++ linux-2.6/mm/mempolicy.c	2012-02-24 05:01:43.621530156 -0600
-@@ -1293,7 +1293,7 @@ SYSCALL_DEFINE4(migrate_pages, pid_t, pi
- {
-
- 	const struct cred *cred = current_cred(), *tcred;
- 	struct mm_struct *mm = NULL;
--	struct task_struct *task;
-+	struct task_struct *task = NULL;
- 	nodemask_t task_nodes;
- 	int err;
- 	nodemask_t *old;
-@@ -1318,10 +1318,10 @@ SYSCALL_DEFINE4(migrate_pages, pid_t, pi
- 	rcu_read_lock();
- 	task = pid ? find_task_by_vpid(pid) : current;
- 	if (!task) {
--		rcu_read_unlock();
- 		err = -ESRCH;
- 		goto out;
- 	}
-+	get_task_struct(task);
- 	mm = get_task_mm(task);
- 	rcu_read_unlock();
-
-@@ -1335,16 +1335,13 @@ SYSCALL_DEFINE4(migrate_pages, pid_t, pi
- 	 * capabilities, superuser privileges or the same
- 	 * userid as the target process.
- 	 */
--	rcu_read_lock();
- 	tcred = __task_cred(task);
- 	if (cred->euid != tcred->suid && cred->euid != tcred->uid &&
- 	    cred->uid  != tcred->suid && cred->uid  != tcred->uid &&
- 	    !capable(CAP_SYS_NICE)) {
--		rcu_read_unlock();
- 		err = -EPERM;
- 		goto out;
- 	}
--	rcu_read_unlock();
-
- 	task_nodes = cpuset_mems_allowed(task);
- 	/* Is the user allowed to access the target nodes? */
-@@ -1362,9 +1359,14 @@ SYSCALL_DEFINE4(migrate_pages, pid_t, pi
- 	if (err)
- 		goto out;
-
-+	put_task_struct(task);
-+	task = NULL;
- 	err = do_migrate_pages(mm, old, new,
- 		capable(CAP_SYS_NICE) ? MPOL_MF_MOVE_ALL : MPOL_MF_MOVE);
- out:
-+	if (task)
-+		put_task_struct(task);
-+
- 	if (mm)
- 		mmput(mm);
- 	NODEMASK_SCRATCH_FREE(scratch);
-Index: linux-2.6/mm/migrate.c
-===================================================================
---- linux-2.6.orig/mm/migrate.c	2012-02-24 04:10:01.609614993 -0600
-+++ linux-2.6/mm/migrate.c	2012-02-24 05:07:39.493520424 -0600
-@@ -1176,20 +1176,17 @@ set_status:
-  * Migrate an array of page address onto an array of nodes and fill
-  * the corresponding array of status.
-  */
--static int do_pages_move(struct mm_struct *mm, struct task_struct *task,
-+static int do_pages_move(struct mm_struct *mm, nodemask_t task_nodes,
- 			 unsigned long nr_pages,
- 			 const void __user * __user *pages,
- 			 const int __user *nodes,
- 			 int __user *status, int flags)
- {
- 	struct page_to_node *pm;
--	nodemask_t task_nodes;
- 	unsigned long chunk_nr_pages;
- 	unsigned long chunk_start;
- 	int err;
-
--	task_nodes = cpuset_mems_allowed(task);
--
- 	err = -ENOMEM;
- 	pm = (struct page_to_node *)__get_free_page(GFP_KERNEL);
- 	if (!pm)
-@@ -1351,6 +1348,7 @@ SYSCALL_DEFINE6(move_pages, pid_t, pid,
- 	struct task_struct *task;
- 	struct mm_struct *mm;
- 	int err;
-+	nodemask_t task_nodes;
-
- 	/* Check flags */
- 	if (flags & ~(MPOL_MF_MOVE|MPOL_MF_MOVE_ALL))
-@@ -1366,6 +1364,7 @@ SYSCALL_DEFINE6(move_pages, pid_t, pid,
- 		rcu_read_unlock();
- 		return -ESRCH;
- 	}
-+	get_task_struct(task);
- 	mm = get_task_mm(task);
- 	rcu_read_unlock();
-
-@@ -1378,30 +1377,33 @@ SYSCALL_DEFINE6(move_pages, pid_t, pid,
- 	 * capabilities, superuser privileges or the same
- 	 * userid as the target process.
- 	 */
--	rcu_read_lock();
- 	tcred = __task_cred(task);
- 	if (cred->euid != tcred->suid && cred->euid != tcred->uid &&
- 	    cred->uid  != tcred->suid && cred->uid  != tcred->uid &&
- 	    !capable(CAP_SYS_NICE)) {
--		rcu_read_unlock();
- 		err = -EPERM;
- 		goto out;
- 	}
--	rcu_read_unlock();
-
-  	err = security_task_movememory(task);
-  	if (err)
- 		goto out;
-
-+	task_nodes = cpuset_mems_allowed(task);
-+	put_task_struct(task);
-+	task = NULL;
-+
- 	if (nodes) {
--		err = do_pages_move(mm, task, nr_pages, pages, nodes, status,
--				    flags);
-+		err = do_pages_move(mm, task_nodes, nr_pages, pages, nodes,
-+				status, flags);
- 	} else {
- 		err = do_pages_stat(mm, nr_pages, pages, status);
- 	}
-
- out:
- 	mmput(mm);
-+	if (task)
-+		put_task_struct(task);
- 	return err;
- }
+--=20
+Siddhesh Poyarekar
+http://siddhesh.in
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
