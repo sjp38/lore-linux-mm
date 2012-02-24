@@ -1,84 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx124.postini.com [74.125.245.124])
-	by kanga.kvack.org (Postfix) with SMTP id 04C3A6B004A
-	for <linux-mm@kvack.org>; Fri, 24 Feb 2012 11:12:47 -0500 (EST)
-From: Mike Frysinger <vapier@gentoo.org>
-Subject: Re: [PATCH] Mark thread stack correctly in proc/<pid>/maps
-Date: Fri, 24 Feb 2012 11:12:43 -0500
-References: <20120222150010.c784b29b.akpm@linux-foundation.org> <201202231847.55733.vapier@gentoo.org> <CAAHN_R0ihoA6K8w53ToRD1xew9NWk-bJAZ=U0+hgRV3=0FpVDg@mail.gmail.com>
-In-Reply-To: <CAAHN_R0ihoA6K8w53ToRD1xew9NWk-bJAZ=U0+hgRV3=0FpVDg@mail.gmail.com>
+Received: from psmtp.com (na3sys010amx129.postini.com [74.125.245.129])
+	by kanga.kvack.org (Postfix) with SMTP id EDC056B004A
+	for <linux-mm@kvack.org>; Fri, 24 Feb 2012 11:14:57 -0500 (EST)
+Received: by pbcwz17 with SMTP id wz17so3374733pbc.14
+        for <linux-mm@kvack.org>; Fri, 24 Feb 2012 08:14:57 -0800 (PST)
+Message-ID: <4F47B781.2050300@gmail.com>
+Date: Fri, 24 Feb 2012 11:14:57 -0500
+From: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
 MIME-Version: 1.0
-Content-Type: multipart/signed;
-  boundary="nextPart1417372.jNFM8tIgvD";
-  protocol="application/pgp-signature";
-  micalg=pgp-sha1
+Subject: Re: [PATCH] Mark thread stack correctly in proc/<pid>/maps
+References: <4F32B776.6070007@gmail.com> <1328972596-4142-1-git-send-email-siddhesh.poyarekar@gmail.com> <CAHGf_=oi8_s0Bxn4qSD7S_FBSgp29BPXor4hCf5-kekGnf3qEw@mail.gmail.com> <CAAHN_R2Awa5X3B09541grAPLkm9RzL9DnixUKFJXpz=1ZkPTFg@mail.gmail.com>
+In-Reply-To: <CAAHN_R2Awa5X3B09541grAPLkm9RzL9DnixUKFJXpz=1ZkPTFg@mail.gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
-Message-Id: <201202241112.46337.vapier@gentoo.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Siddhesh Poyarekar <siddhesh.poyarekar@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Alexander Viro <viro@zeniv.linux.org.uk>, linux-fsdevel@vger.kernel.org, Jamie Lokier <jamie@shareable.org>
+Cc: KOSAKI Motohiro <kosaki.motohiro@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Alexander Viro <viro@zeniv.linux.org.uk>, linux-fsdevel@vger.kernel.org, Jamie Lokier <jamie@shareable.org>, vapier@gentoo.org, Andrew Morton <akpm@linux-foundation.org>
 
---nextPart1417372.jNFM8tIgvD
-Content-Type: Text/Plain;
-  charset="iso-8859-1"
-Content-Transfer-Encoding: quoted-printable
+>> Sigh. No, I missed one thing. If application use
+>> makecontext()/swapcontext() pair,
+>> ESP is not reliable way to detect pthread stack. At that time the
+>> stack is still marked
+>> as anonymous memory.
+>
+> This is not wrong, because it essentially gives the correct picture of
+> the state of that task -- the task is using another vma as a stack
+> during that point and not the one it was allotted by pthreads during
+> thread creation.
+>
+> I don't think we can successfully stick to the idea of trying to mark
+> stack space allocated by pthreads but not used by any task *currently*
+> as stack as long as the allocation happens outside the kernel space.
+> The only way to mark this is either by marking the stack as
+> VM_GROWSDOWN (which will make the stack grow and break some pthreads
+> functions) or create a new flag, which a simple display such as this
+> does not deserve. So it's best that this sticks to what the kernel
+> *knows* is being used as stack.
 
-On Friday 24 February 2012 00:47:48 Siddhesh Poyarekar wrote:
-> On Fri, Feb 24, 2012 at 5:17 AM, Mike Frysinger wrote:
-> > i don't suppose we could have it say "[tid stack]" rather than "[stack]"
-> > ?  or perhaps even "[stack tid:%u]" with replacing %u with the tid ?
->=20
-> Why do we need to differentiate a thread stack from a process stack?
+Oh, maybe generically you are right. but you missed one thing. Before
+your patch, stack or not stack are address space property. thus, using
+/proc/pid/maps makes sense. but after your patch, it's no longer memory
+property. applications can use heap or mapped file as a stack. then, at
+least, current your code is wrong. the code assume each memory property
+are exclusive.
 
-if it's trivial to display, it'd be nice to coordinate things when=20
-investigating issues
-
-> If someone really wants to know, the main stack is the last one since
-> it doesn't look like mmap allocates anything above the stack right
-> now.
-
-you can't rely on that.  you're describing arch-specific details that happe=
-n to=20
-work.
-
-> I like the idea of marking all stack vmas with their task ids but it
-> will most likely break procps.
-
-how ?
-
-> Besides, I think it could be done within procps with this change rather t=
-han
-> having the kernel do it.
-
-how exactly is procps supposed to figure this out ?  /proc/<pid>/maps shows=
- the=20
-pid's main stack, as does /proc/<pid>/tid/*/maps.
-=2Dmike
-
---nextPart1417372.jNFM8tIgvD
-Content-Type: application/pgp-signature; name=signature.asc 
-Content-Description: This is a digitally signed message part.
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v2.0.17 (GNU/Linux)
-
-iQIcBAABAgAGBQJPR7b+AAoJEEFjO5/oN/WBvJ4QAIYoaGeQ0P8fCc/VzLWuGTKr
-9x9NxwROzsweDQlC8TFAp49dVvVWhJblMv4xVVd2bMwSeYoA3Tl/zwBdE53BlxiR
-XYKPVpyuFA0WO84o8e1S7Wzf9DL8aT+P2YLp005er21SKkQ99tu55NbcQXnu907s
-wDNCwNBp9yLyV4uRANk4dT5GYBuqTlL7bgxO9ba4NlhNUFPdI8XtEjQErYdr0DXT
-B/Zao8cFoe/ZTL9BqT9uDnw+8CnKKOLG+7k1tuGI1/N3a4HBPn9bOhk39CiX1UJo
-nFrDLrc/rkVg38ya/WwX7RohZruyRGttfIVm8+pnWb6OS3beQEZhLgQkb4qCR8Z8
-vx5/vrur4vWH6NnJHdKBd0PstvglMN9ry1KUgmvTAjwTi2HrGqzIyEwDFtppz9Py
-gBrLSZcThEwNZDkiqXxzpbClZJdVMa7aq8nIIcad1WoeGOnIpH+qBRx0TmEywbGj
-96uoHaMUhjTmBkhOvhozLMtkPAiCH6hS+otKZjUMEYVNo55664HkyvzxnQAC9tRB
-5Iy4z4Vl71BrtRPPC0pj25IUuHv6IgExinYhvmV1Av5Hnq3NUxEAT/mW32jP4IXr
-A+s4NR6lVPRMTcnyDCLbYWCfryu+n2QCNGuSLiC5ocZSSECiXv3VXKZllhlEqqU+
-GGD4m3u1aWziV8VGtjje
-=zsgO
------END PGP SIGNATURE-----
-
---nextPart1417372.jNFM8tIgvD--
+Moreover, if pthread stack is unimportant, I wonder why we need this patch
+at all. Which application does need it? and When?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
