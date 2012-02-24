@@ -1,59 +1,121 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx113.postini.com [74.125.245.113])
-	by kanga.kvack.org (Postfix) with SMTP id 743546B00EF
-	for <linux-mm@kvack.org>; Fri, 24 Feb 2012 08:24:09 -0500 (EST)
-Received: from euspt1 (mailout1.w1.samsung.com [210.118.77.11])
- by mailout1.w1.samsung.com
- (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14 2004))
- with ESMTP id <0LZW009GEFW76N@mailout1.w1.samsung.com> for linux-mm@kvack.org;
- Fri, 24 Feb 2012 13:24:07 +0000 (GMT)
-Received: from linux.samsung.com ([106.116.38.10])
- by spt1.w1.samsung.com (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14
- 2004)) with ESMTPA id <0LZW00KE2FW79B@spt1.w1.samsung.com> for
- linux-mm@kvack.org; Fri, 24 Feb 2012 13:24:07 +0000 (GMT)
-Date: Fri, 24 Feb 2012 14:24:04 +0100
-From: Marek Szyprowski <m.szyprowski@samsung.com>
-Subject: RE: [PATCHv6 3/7] ARM: dma-mapping: implement dma sg methods on top of
- any generic dma ops
-In-reply-to: <20120214150255.GC18359@phenom.dumpdata.com>
-Message-id: <013401ccf2f7$9413a0e0$bc3ae2a0$%szyprowski@samsung.com>
-MIME-version: 1.0
-Content-type: text/plain; charset=us-ascii
-Content-language: pl
-Content-transfer-encoding: 7BIT
-References: <1328900324-20946-1-git-send-email-m.szyprowski@samsung.com>
- <1328900324-20946-4-git-send-email-m.szyprowski@samsung.com>
- <20120214150255.GC18359@phenom.dumpdata.com>
+Received: from psmtp.com (na3sys010amx198.postini.com [74.125.245.198])
+	by kanga.kvack.org (Postfix) with SMTP id 204CC6B0092
+	for <linux-mm@kvack.org>; Fri, 24 Feb 2012 08:34:18 -0500 (EST)
+Received: by wgbdt12 with SMTP id dt12so1745423wgb.26
+        for <linux-mm@kvack.org>; Fri, 24 Feb 2012 05:34:16 -0800 (PST)
+Date: Fri, 24 Feb 2012 14:34:31 +0100
+From: Daniel Vetter <daniel@ffwll.ch>
+Subject: Re: [PATCH] mm: extend prefault helpers to fault in more than
+ PAGE_SIZE
+Message-ID: <20120224133431.GA3913@phenom.ffwll.local>
+References: <1329393696-4802-1-git-send-email-daniel.vetter@ffwll.ch>
+ <1329393696-4802-2-git-send-email-daniel.vetter@ffwll.ch>
+ <20120223143658.0e318ce2.akpm@linux-foundation.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20120223143658.0e318ce2.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: 'Konrad Rzeszutek Wilk' <konrad.wilk@oracle.com>
-Cc: linux-arm-kernel@lists.infradead.org, linaro-mm-sig@lists.linaro.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-samsung-soc@vger.kernel.org, iommu@lists.linux-foundation.org, 'Shariq Hasnain' <shariq.hasnain@linaro.org>, 'Arnd Bergmann' <arnd@arndb.de>, 'Benjamin Herrenschmidt' <benh@kernel.crashing.org>, 'Krishna Reddy' <vdumpa@nvidia.com>, 'Kyungmin Park' <kyungmin.park@samsung.com>, Andrzej Pietrasiewicz <andrzej.p@samsung.com>, 'Russell King - ARM Linux' <linux@arm.linux.org.uk>, 'KyongHo Cho' <pullip.cho@samsung.com>, 'Chunsang Jeong' <chunsang.jeong@linaro.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Daniel Vetter <daniel.vetter@ffwll.ch>, Intel Graphics Development <intel-gfx@lists.freedesktop.org>, DRI Development <dri-devel@lists.freedesktop.org>, LKML <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>
 
-Hello,
-
-On Tuesday, February 14, 2012 4:03 PM Konrad Rzeszutek Wilk wrote:
- 
-> On Fri, Feb 10, 2012 at 07:58:40PM +0100, Marek Szyprowski wrote:
-> > This patch converts all dma_sg methods to be generic (independent of the
-> > current DMA mapping implementation for ARM architecture). All dma sg
-> > operations are now implemented on top of respective
-> > dma_map_page/dma_sync_single_for* operations from dma_map_ops structure.
+On Thu, Feb 23, 2012 at 02:36:58PM -0800, Andrew Morton wrote:
+> On Thu, 16 Feb 2012 13:01:36 +0100
+> Daniel Vetter <daniel.vetter@ffwll.ch> wrote:
 > 
-> Looks good, except the worry I've that the DMA debug API calls are now
-> lost.
+> > drm/i915 wants to read/write more than one page in its fastpath
+> > and hence needs to prefault more than PAGE_SIZE bytes.
+> > 
+> > I've checked the callsites and they all already clamp size when
+> > calling fault_in_pages_* to the same as for the subsequent
+> > __copy_to|from_user and hence don't rely on the implicit clamping
+> > to PAGE_SIZE.
+> > 
+> > Also kill a copy&pasted spurious space in both functions while at it.
+> >
+> > ...
+> >
+> > --- a/include/linux/pagemap.h
+> > +++ b/include/linux/pagemap.h
+> > @@ -408,6 +408,7 @@ extern void add_page_wait_queue(struct page *page, wait_queue_t *waiter);
+> >  static inline int fault_in_pages_writeable(char __user *uaddr, int size)
+> >  {
+> >  	int ret;
+> > +	char __user *end = uaddr + size - 1;
+> >  
+> >  	if (unlikely(size == 0))
+> >  		return 0;
+> > @@ -416,17 +417,20 @@ static inline int fault_in_pages_writeable(char __user *uaddr, int size)
+> >  	 * Writing zeroes into userspace here is OK, because we know that if
+> >  	 * the zero gets there, we'll be overwriting it.
+> >  	 */
+> > -	ret = __put_user(0, uaddr);
+> > +	while (uaddr <= end) {
+> > +		ret = __put_user(0, uaddr);
+> > +		if (ret != 0)
+> > +			return ret;
+> > +		uaddr += PAGE_SIZE;
+> > +	}
+> 
+> The callsites in filemap.c are pretty hot paths, which is why this
+> thing remains explicitly inlined.  I think it would be worth adding a
+> bit of code here to avoid adding a pointless test-n-branch and larger
+> cache footprint to read() and write().
+> 
+> A way of doing that is to add another argument to these functions, say
+> "bool multipage".  Change the code to do
+> 
+> 	if (multipage) {
+> 		while (uaddr <= end) {
+> 			...
+> 		}
+> 	}
+> 
+> and change the callsites to pass in constant "true" or "false".  Then
+> compile it up and manually check that the compiler completely removed
+> the offending code from the filemap.c callsites.
+> 
+> Wanna have a think about that?  If it all looks OK then please be sure
+> to add code comments explaining why we did this.
 
-Could You point me which DMA debug API calls are lost? The inline functions
-from include/asm-generic/dma-mapping-common.h already have all required
-dma debug calls, which replaced the previous calls in 
-arch/arm/include/dma-mapping.h.
+I wasn't really happy with the added branch either, but failed to come up
+with a trick to avoid it. Imho adding new _multipage variants of these
+functions instead of adding a constant argument is simpler because the
+functions don't really share much thanks to the block below. I'll see what
+it looks like (and obviously add a comment explaining what's going on).
 
-(snipped)
+> >  	if (ret == 0) {
+> > -		char __user *end = uaddr + size - 1;
+> > -
+> >  		/*
+> >  		 * If the page was already mapped, this will get a cache miss
+> >  		 * for sure, so try to avoid doing it.
+> >  		 */
+> > -		if (((unsigned long)uaddr & PAGE_MASK) !=
+> > +		if (((unsigned long)uaddr & PAGE_MASK) ==
+> >  				((unsigned long)end & PAGE_MASK))
+> 
+> Maybe I'm having a dim day, but I don't immediately see why != got
+> turned into ==.
 
-Best regards
+Because of the loop uaddr will now point one page beyond the last
+prefaulted page. To check whether end spilled into a new page we therefore
+need to check whether uaddr and end are in the same pfn. Before uaddr
+wasn't changed and hence the checking for a different pfn worked
+correctly.
+
+> Once we have this settled I'd suggest that the patch be carried in
+> whatever-git-tree-needs-it.
+
+Thanks for the comments.
+
+Yours, Daniel
 -- 
-Marek Szyprowski
-Samsung Poland R&D Center
-
+Daniel Vetter
+Mail: daniel@ffwll.ch
+Mobile: +41 (0)79 365 57 48
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
