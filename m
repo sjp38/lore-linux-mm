@@ -1,67 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx183.postini.com [74.125.245.183])
-	by kanga.kvack.org (Postfix) with SMTP id 06F396B004A
-	for <linux-mm@kvack.org>; Thu, 23 Feb 2012 20:22:30 -0500 (EST)
-Received: by bkty12 with SMTP id y12so2135588bkt.14
-        for <linux-mm@kvack.org>; Thu, 23 Feb 2012 17:22:29 -0800 (PST)
-Date: Fri, 24 Feb 2012 05:22:27 +0400
-From: Anton Vorontsov <anton.vorontsov@linaro.org>
-Subject: [PATCH] mm: memcg: Remove redundant BUG_ON() in
- mem_cgroup_usage_unregister_event
-Message-ID: <20120224012227.GA32689@oksana.dev.rtsoft.ru>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
+Received: from psmtp.com (na3sys010amx189.postini.com [74.125.245.189])
+	by kanga.kvack.org (Postfix) with SMTP id 8AF2E6B004A
+	for <linux-mm@kvack.org>; Thu, 23 Feb 2012 21:49:13 -0500 (EST)
+Received: from m2.gw.fujitsu.co.jp (unknown [10.0.50.72])
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 9DC153EE081
+	for <linux-mm@kvack.org>; Fri, 24 Feb 2012 11:49:11 +0900 (JST)
+Received: from smail (m2 [127.0.0.1])
+	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 836CF45DE50
+	for <linux-mm@kvack.org>; Fri, 24 Feb 2012 11:49:11 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
+	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 68D7845DD74
+	for <linux-mm@kvack.org>; Fri, 24 Feb 2012 11:49:11 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 5B0421DB803E
+	for <linux-mm@kvack.org>; Fri, 24 Feb 2012 11:49:11 +0900 (JST)
+Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.240.81.146])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 1294C1DB803A
+	for <linux-mm@kvack.org>; Fri, 24 Feb 2012 11:49:11 +0900 (JST)
+Date: Fri, 24 Feb 2012 11:47:48 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH] mm: Enable MAP_UNINITIALIZED for archs with mmu
+Message-Id: <20120224114748.720ee79a.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <4F468888.9090702@fb.com>
+References: <1326912662-18805-1-git-send-email-asharma@fb.com>
+	<CAKTCnzn-reG4bLmyWNYPELYs-9M3ZShEYeOix_OcnPow-w8PNg@mail.gmail.com>
+	<4F468888.9090702@fb.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Michal Hocko <mhocko@suse.cz>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Arun Sharma <asharma@fb.com>
+Cc: Balbir Singh <bsingharora@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org
 
-In the following code:
+On Thu, 23 Feb 2012 10:42:16 -0800
+Arun Sharma <asharma@fb.com> wrote:
 
-	if (type == _MEM)
-		thresholds = &memcg->thresholds;
-	else if (type == _MEMSWAP)
-		thresholds = &memcg->memsw_thresholds;
-	else
-		BUG();
+> Hi Balbir,
+> 
+> Thanks for reviewing. Would you change your position if I limit the 
+> scope of the patch to a cgroup with a single address space?
+> 
+> The moment the cgroup sees more than one address space (either due to 
+> tasks getting created or being added), this optimization would be turned 
+> off.
+> 
+> More details below:
+> 
+> On 2/22/12 11:45 PM, Balbir Singh wrote:
+> >
+> > So the assumption is that only apps that have access to each others
+> > VMA's will run in this cgroup?
+> >
+> 
+> In a distributed computing environment, a user submits a job to the 
+> cluster job scheduler. The job might involve multiple related 
+> executables and might involve multiple address spaces. But they're 
+> performing one logical task, have a single resource limit enforced by a 
+> cgroup.
+> 
+> They don't have access to each other's VMAs, but if "accidentally" one 
+> of them comes across an uninitialized page with data from another task, 
+> it's not a violation of the security model.
+> 
+How do you handle shared resouce, file-cache ?
 
-	BUG_ON(!thresholds);
-
-The BUG_ON() seems redundant.
-
-Signed-off-by: Anton Vorontsov <anton.vorontsov@linaro.org>
----
- mm/memcontrol.c |    6 ------
- 1 files changed, 0 insertions(+), 6 deletions(-)
-
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 6728a7a..b423577 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -4404,20 +4404,14 @@ static void mem_cgroup_usage_unregister_event(struct cgroup *cgrp,
- 	if (type == _MEM)
- 		thresholds = &memcg->thresholds;
- 	else if (type == _MEMSWAP)
- 		thresholds = &memcg->memsw_thresholds;
- 	else
- 		BUG();
- 
--	/*
--	 * Something went wrong if we trying to unregister a threshold
--	 * if we don't have thresholds
--	 */
--	BUG_ON(!thresholds);
--
- 	usage = mem_cgroup_usage(memcg, type == _MEMSWAP);
- 
- 	/* Check if a threshold crossed before removing */
- 	__mem_cgroup_threshold(memcg, type == _MEMSWAP);
- 
- 	/* Calculate new number of threshold */
- 	size = 0;
--- 
-1.7.9
+Thanks,
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
