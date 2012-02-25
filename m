@@ -1,68 +1,120 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx184.postini.com [74.125.245.184])
-	by kanga.kvack.org (Postfix) with SMTP id B33146B004A
-	for <linux-mm@kvack.org>; Fri, 24 Feb 2012 23:13:15 -0500 (EST)
-Received: by qadz32 with SMTP id z32so706074qad.14
-        for <linux-mm@kvack.org>; Fri, 24 Feb 2012 20:13:14 -0800 (PST)
+Received: from psmtp.com (na3sys010amx126.postini.com [74.125.245.126])
+	by kanga.kvack.org (Postfix) with SMTP id B189F6B004A
+	for <linux-mm@kvack.org>; Sat, 25 Feb 2012 00:31:06 -0500 (EST)
+Received: by bkty12 with SMTP id y12so3462344bkt.14
+        for <linux-mm@kvack.org>; Fri, 24 Feb 2012 21:31:04 -0800 (PST)
+Message-ID: <4F487215.7000307@openvz.org>
+Date: Sat, 25 Feb 2012 09:31:01 +0400
+From: Konstantin Khlebnikov <khlebnikov@openvz.org>
 MIME-Version: 1.0
-In-Reply-To: <4F47E0D0.9030409@fb.com>
-References: <1326912662-18805-1-git-send-email-asharma@fb.com>
-	<CAKTCnzn-reG4bLmyWNYPELYs-9M3ZShEYeOix_OcnPow-w8PNg@mail.gmail.com>
-	<4F468888.9090702@fb.com>
-	<20120224114748.720ee79a.kamezawa.hiroyu@jp.fujitsu.com>
-	<CAKTCnzk7TgDeYRZK0rCugopq0tO7BtM8jM9U0RJUTqNtz42ZKw@mail.gmail.com>
-	<4F47E0D0.9030409@fb.com>
-Date: Sat, 25 Feb 2012 09:43:14 +0530
-Message-ID: <CAKTCnznyZGLiZPNS151GzsUMApN_SYu3n6xX9E0ceMpq9JNq7w@mail.gmail.com>
-Subject: Re: [PATCH] mm: Enable MAP_UNINITIALIZED for archs with mmu
-From: Balbir Singh <bsingharora@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Subject: Re: [PATCH v3 00/21] mm: lru_lock splitting
+References: <20120223133728.12988.5432.stgit@zurg> <20120225111515.1275e04c.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20120225111515.1275e04c.kamezawa.hiroyu@jp.fujitsu.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Arun Sharma <asharma@fb.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Hugh Dickins <hughd@google.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <andi@firstfloor.org>
 
-On Sat, Feb 25, 2012 at 12:41 AM, Arun Sharma <asharma@fb.com> wrote:
-> On 2/24/12 6:51 AM, Balbir Singh wrote:
+KAMEZAWA Hiroyuki wrote:
+> On Thu, 23 Feb 2012 17:51:36 +0400
+> Konstantin Khlebnikov<khlebnikov@openvz.org>  wrote:
+>
+>> v3 changes:
+>> * inactive-ratio reworked again, now it always calculated from from scratch
+>> * hierarchical pte reference bits filter in memory-cgroup reclaimer
+>> * fixed two bugs in locking, found by Hugh Dickins
+>> * locking functions slightly simplified
+>> * new patch for isolated pages accounting
+>> * new patch with lru interleaving
 >>
->> On Fri, Feb 24, 2012 at 8:17 AM, KAMEZAWA Hiroyuki
->> <kamezawa.hiroyu@jp.fujitsu.com> =A0wrote:
->>>>
->>>> They don't have access to each other's VMAs, but if "accidentally" one
->>>> of them comes across an uninitialized page with data from another task=
-,
->>>> it's not a violation of the security model.
+>> This patchset is based on next-20120210
 >>
+>> git: https://github.com/koct9i/linux/commits/lruvec-v3
 >>
->> Can you expand more on the single address space model?
 >
->
-> I haven't thought this through yet. But I know that just adding
->
-> && (cgroup_task_count() =3D=3D 1)
->
-> to page_needs_clearing() is not going to do it. We'll have to design a ne=
-w
-> mechanism (cgroup_mm_count_all()?) and make sure that it doesn't race wit=
-h
-> fork() and inadvertently expose pages from the new address space to the
-> existing one.
->
-> A uid based approach such as the one implemented by Davide Libenzi
->
-> http://thread.gmane.org/gmane.linux.kernel/548928
-> http://thread.gmane.org/gmane.linux.kernel/548926
->
-> would probably apply the optimization to more use cases - but conceptuall=
-y a
-> bit more complex. If we go with this more relaxed approach, we'll have to
-> design a race-free cgroup_uid_count() based mechanism.
+> I wonder.... I just wonder...if we can split a lruvec in a zone into small
+> pieces of lruvec and have splitted LRU-lock per them, do we need per-memcg-lrulock ?
 
-Are you suggesting all processes with the same UID should have access
-to each others memory contents?
+What per-memcg-lrulock? I don't have it.
+last patch splits lruvecs in memcg with the same factor.
 
-Balbir
+>
+> It seems per-memcg-lrulock can be much bigger lock than small-lruvec-lock.
+> (depends on configuraton) and much more complicated..and have to take care
+> of many things.. If unit of splitting can be specified by boot option,
+> it seems admins can split a big memcg's per-memcg-lru lock into more small pieces.
+
+lruvec count per memcg can be arbitrary and changeable if cgroup is empty.
+This is not in this patch, but it's really easy.
+
+>
+> BTW, how to think of default size of splitting ? I wonder splitting lru into
+> the number of cpus per a node can be a choice. Each cpu may have a chance to
+> set prefered-pfn-range at page allocation with additional patches.
+
+If we rework page to memcg linking and add direct lruvec-id into page->flags,
+we will able to change lruvec before inserting page to lru.
+Thus each cpu will always insert pages into its own lruvec in zone.
+I have not thought about races yet, but this would be perfect solution.
+
+>
+> Thanks,
+> -Kame
+>
+>
+>> ---
+>>
+>> Konstantin Khlebnikov (21):
+>>        memcg: unify inactive_ratio calculation
+>>        memcg: make mm_match_cgroup() hirarchical
+>>        memcg: fix page_referencies cgroup filter on global reclaim
+>>        memcg: use vm_swappiness from target memory cgroup
+>>        mm: rename lruvec->lists into lruvec->pages_lru
+>>        mm: lruvec linking functions
+>>        mm: add lruvec->pages_count
+>>        mm: unify inactive_list_is_low()
+>>        mm: add lruvec->reclaim_stat
+>>        mm: kill struct mem_cgroup_zone
+>>        mm: move page-to-lruvec translation upper
+>>        mm: push lruvec into update_page_reclaim_stat()
+>>        mm: push lruvecs from pagevec_lru_move_fn() to iterator
+>>        mm: introduce lruvec locking primitives
+>>        mm: handle lruvec relocks on lumpy reclaim
+>>        mm: handle lruvec relocks in compaction
+>>        mm: handle lruvec relock in memory controller
+>>        mm: add to lruvec isolated pages counters
+>>        memcg: check lru vectors emptiness in pre-destroy
+>>        mm: split zone->lru_lock
+>>        mm: zone lru vectors interleaving
+>>
+>>
+>>   include/linux/huge_mm.h    |    3
+>>   include/linux/memcontrol.h |   75 ------
+>>   include/linux/mm.h         |   66 +++++
+>>   include/linux/mm_inline.h  |   19 +-
+>>   include/linux/mmzone.h     |   39 ++-
+>>   include/linux/swap.h       |    6
+>>   mm/Kconfig                 |   16 +
+>>   mm/compaction.c            |   31 +--
+>>   mm/huge_memory.c           |   14 +
+>>   mm/internal.h              |  204 +++++++++++++++++
+>>   mm/ksm.c                   |    2
+>>   mm/memcontrol.c            |  343 +++++++++++-----------------
+>>   mm/migrate.c               |    2
+>>   mm/page_alloc.c            |   70 +-----
+>>   mm/rmap.c                  |    2
+>>   mm/swap.c                  |  217 ++++++++++--------
+>>   mm/vmscan.c                |  534 ++++++++++++++++++++++++--------------------
+>>   mm/vmstat.c                |    6
+>>   18 files changed, 932 insertions(+), 717 deletions(-)
+>>
+>> --
+>> Signature
+>>
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
