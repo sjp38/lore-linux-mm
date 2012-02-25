@@ -1,201 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx178.postini.com [74.125.245.178])
-	by kanga.kvack.org (Postfix) with SMTP id B056C6B004A
-	for <linux-mm@kvack.org>; Fri, 24 Feb 2012 22:19:53 -0500 (EST)
-Received: by pbcwz17 with SMTP id wz17so3987702pbc.14
-        for <linux-mm@kvack.org>; Fri, 24 Feb 2012 19:19:52 -0800 (PST)
-Date: Fri, 24 Feb 2012 19:19:22 -0800 (PST)
-From: Hugh Dickins <hughd@google.com>
-Subject: Re: [PATCH] tmpfs: security xattr setting on inode creation
-In-Reply-To: <alpine.LRH.2.02.1202241913400.30742@tundra.namei.org>
-Message-ID: <alpine.LSU.2.00.1202241904070.22389@eggly.anvils>
-References: <1329990365-23779-1-git-send-email-jarkko.sakkinen@intel.com> <alpine.LRH.2.02.1202241913400.30742@tundra.namei.org>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from psmtp.com (na3sys010amx132.postini.com [74.125.245.132])
+	by kanga.kvack.org (Postfix) with SMTP id 18D016B004A
+	for <linux-mm@kvack.org>; Fri, 24 Feb 2012 22:27:18 -0500 (EST)
+Received: from m4.gw.fujitsu.co.jp (unknown [10.0.50.74])
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 1F3093EE0AE
+	for <linux-mm@kvack.org>; Sat, 25 Feb 2012 12:27:16 +0900 (JST)
+Received: from smail (m4 [127.0.0.1])
+	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 0507645DE4F
+	for <linux-mm@kvack.org>; Sat, 25 Feb 2012 12:27:16 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
+	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id DFECD45DE4D
+	for <linux-mm@kvack.org>; Sat, 25 Feb 2012 12:27:15 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id D2E611DB8037
+	for <linux-mm@kvack.org>; Sat, 25 Feb 2012 12:27:15 +0900 (JST)
+Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.240.81.147])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 8C1011DB802F
+	for <linux-mm@kvack.org>; Sat, 25 Feb 2012 12:27:15 +0900 (JST)
+Date: Sat, 25 Feb 2012 12:25:33 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [patch] mm, oom: force oom kill on sysrq+f
+Message-Id: <20120225122533.b621f78f.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <alpine.DEB.2.00.1202221602380.5980@chino.kir.corp.google.com>
+References: <alpine.DEB.2.00.1202221602380.5980@chino.kir.corp.google.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jarkko Sakkinen <jarkko.sakkinen@intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, James Morris <jmorris@namei.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-security-module@vger.kernel.org
+To: David Rientjes <rientjes@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org
 
-Thanks a lot for doing this, Jarkko: I knew nothing about it.
-And thank you James for reviewing, I felt much happier seeing that.
+On Wed, 22 Feb 2012 16:03:42 -0800 (PST)
+David Rientjes <rientjes@google.com> wrote:
 
-I did fiddle around with it slightly, to reduce the added textsize,
-and eliminate it when CONFIG_TMPFS_XATTR is off.  Please, Jarkko
-and James, complain bitterly if I've messed up the good work.
+> The oom killer chooses not to kill a thread if:
+> 
+>  - an eligible thread has already been oom killed and has yet to exit,
+>    and
+> 
+>  - an eligible thread is exiting but has yet to free all its memory and
+>    is not the thread attempting to currently allocate memory.
+> 
+> SysRq+F manually invokes the global oom killer to kill a memory-hogging
+> task.  This is normally done as a last resort to free memory when no
+> progress is being made or to test the oom killer itself.
+> 
+> For both uses, we always want to kill a thread and never defer.  This
+> patch causes SysRq+F to always kill an eligible thread and can be used to
+> force a kill even if another oom killed thread has failed to exit.
+> 
+> Signed-off-by: David Rientjes <rientjes@google.com>
 
-[PATCH] tmpfs: security xattr setting on inode creation
+Seems nice!.
 
-From: Jarkko Sakkinen <jarkko.sakkinen@intel.com>
-
-Adds to generic xattr support introduced in Linux 3.0 by
-implementing initxattrs callback. This enables consulting
-of security attributes from LSM and EVM when inode is created.
-
-[hughd: moved under CONFIG_TMPFS_XATTR, with memcpy in shmem_xattr_alloc]
-
-Signed-off-by: Jarkko Sakkinen <jarkko.sakkinen@intel.com>
-Reviewed-by: James Morris <james.l.morris@oracle.com>
-Signed-off-by: Hugh Dickins <hughd@google.com>
----
- mm/shmem.c |   88 +++++++++++++++++++++++++++++++++++++++++----------
- 1 file changed, 72 insertions(+), 16 deletions(-)
-
---- a/mm/shmem.c
-+++ b/mm/shmem.c
-@@ -1178,6 +1178,12 @@ static struct inode *shmem_get_inode(str
- static const struct inode_operations shmem_symlink_inode_operations;
- static const struct inode_operations shmem_short_symlink_operations;
- 
-+#ifdef CONFIG_TMPFS_XATTR
-+static int shmem_initxattrs(struct inode *, const struct xattr *, void *);
-+#else
-+#define shmem_initxattrs NULL
-+#endif
-+
- static int
- shmem_write_begin(struct file *file, struct address_space *mapping,
- 			loff_t pos, unsigned len, unsigned flags,
-@@ -1490,7 +1496,7 @@ shmem_mknod(struct inode *dir, struct de
- 	if (inode) {
- 		error = security_inode_init_security(inode, dir,
- 						     &dentry->d_name,
--						     NULL, NULL);
-+						     shmem_initxattrs, NULL);
- 		if (error) {
- 			if (error != -EOPNOTSUPP) {
- 				iput(inode);
-@@ -1630,7 +1636,7 @@ static int shmem_symlink(struct inode *d
- 		return -ENOSPC;
- 
- 	error = security_inode_init_security(inode, dir, &dentry->d_name,
--					     NULL, NULL);
-+					     shmem_initxattrs, NULL);
- 	if (error) {
- 		if (error != -EOPNOTSUPP) {
- 			iput(inode);
-@@ -1704,6 +1710,66 @@ static void shmem_put_link(struct dentry
-  * filesystem level, though.
-  */
- 
-+/*
-+ * Allocate new xattr and copy in the value; but leave the name to callers.
-+ */
-+static struct shmem_xattr *shmem_xattr_alloc(const void *value, size_t size)
-+{
-+	struct shmem_xattr *new_xattr;
-+	size_t len;
-+
-+	/* wrap around? */
-+	len = sizeof(*new_xattr) + size;
-+	if (len <= sizeof(*new_xattr))
-+		return NULL;
-+
-+	new_xattr = kmalloc(len, GFP_KERNEL);
-+	if (!new_xattr)
-+		return NULL;
-+
-+	new_xattr->size = size;
-+	memcpy(new_xattr->value, value, size);
-+	return new_xattr;
-+}
-+
-+/*
-+ * Callback for security_inode_init_security() for acquiring xattrs.
-+ */
-+static int shmem_initxattrs(struct inode *inode,
-+			    const struct xattr *xattr_array,
-+			    void *fs_info)
-+{
-+	struct shmem_inode_info *info = SHMEM_I(inode);
-+	const struct xattr *xattr;
-+	struct shmem_xattr *new_xattr;
-+	size_t len;
-+
-+	for (xattr = xattr_array; xattr->name != NULL; xattr++) {
-+		new_xattr = shmem_xattr_alloc(xattr->value, xattr->value_len);
-+		if (!new_xattr)
-+			return -ENOMEM;
-+
-+		len = strlen(xattr->name) + 1;
-+		new_xattr->name = kmalloc(XATTR_SECURITY_PREFIX_LEN + len,
-+					  GFP_KERNEL);
-+		if (!new_xattr->name) {
-+			kfree(new_xattr);
-+			return -ENOMEM;
-+		}
-+
-+		memcpy(new_xattr->name, XATTR_SECURITY_PREFIX,
-+		       XATTR_SECURITY_PREFIX_LEN);
-+		memcpy(new_xattr->name + XATTR_SECURITY_PREFIX_LEN,
-+		       xattr->name, len);
-+
-+		spin_lock(&info->lock);
-+		list_add(&new_xattr->list, &info->xattr_list);
-+		spin_unlock(&info->lock);
-+	}
-+
-+	return 0;
-+}
-+
- static int shmem_xattr_get(struct dentry *dentry, const char *name,
- 			   void *buffer, size_t size)
- {
-@@ -1731,24 +1797,17 @@ static int shmem_xattr_get(struct dentry
- 	return ret;
- }
- 
--static int shmem_xattr_set(struct dentry *dentry, const char *name,
-+static int shmem_xattr_set(struct inode *inode, const char *name,
- 			   const void *value, size_t size, int flags)
- {
--	struct inode *inode = dentry->d_inode;
- 	struct shmem_inode_info *info = SHMEM_I(inode);
- 	struct shmem_xattr *xattr;
- 	struct shmem_xattr *new_xattr = NULL;
--	size_t len;
- 	int err = 0;
- 
- 	/* value == NULL means remove */
- 	if (value) {
--		/* wrap around? */
--		len = sizeof(*new_xattr) + size;
--		if (len <= sizeof(*new_xattr))
--			return -ENOMEM;
--
--		new_xattr = kmalloc(len, GFP_KERNEL);
-+		new_xattr = shmem_xattr_alloc(value, size);
- 		if (!new_xattr)
- 			return -ENOMEM;
- 
-@@ -1757,9 +1816,6 @@ static int shmem_xattr_set(struct dentry
- 			kfree(new_xattr);
- 			return -ENOMEM;
- 		}
--
--		new_xattr->size = size;
--		memcpy(new_xattr->value, value, size);
- 	}
- 
- 	spin_lock(&info->lock);
-@@ -1858,7 +1914,7 @@ static int shmem_setxattr(struct dentry
- 	if (size == 0)
- 		value = "";  /* empty EA, do not remove */
- 
--	return shmem_xattr_set(dentry, name, value, size, flags);
-+	return shmem_xattr_set(dentry->d_inode, name, value, size, flags);
- 
- }
- 
-@@ -1878,7 +1934,7 @@ static int shmem_removexattr(struct dent
- 	if (err)
- 		return err;
- 
--	return shmem_xattr_set(dentry, name, NULL, 0, XATTR_REPLACE);
-+	return shmem_xattr_set(dentry->d_inode, name, NULL, 0, XATTR_REPLACE);
- }
- 
- static bool xattr_is_trusted(const char *name)
+Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
