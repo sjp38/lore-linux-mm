@@ -1,60 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx132.postini.com [74.125.245.132])
-	by kanga.kvack.org (Postfix) with SMTP id 18D016B004A
-	for <linux-mm@kvack.org>; Fri, 24 Feb 2012 22:27:18 -0500 (EST)
-Received: from m4.gw.fujitsu.co.jp (unknown [10.0.50.74])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 1F3093EE0AE
-	for <linux-mm@kvack.org>; Sat, 25 Feb 2012 12:27:16 +0900 (JST)
-Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 0507645DE4F
-	for <linux-mm@kvack.org>; Sat, 25 Feb 2012 12:27:16 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id DFECD45DE4D
-	for <linux-mm@kvack.org>; Sat, 25 Feb 2012 12:27:15 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id D2E611DB8037
-	for <linux-mm@kvack.org>; Sat, 25 Feb 2012 12:27:15 +0900 (JST)
-Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.240.81.147])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 8C1011DB802F
-	for <linux-mm@kvack.org>; Sat, 25 Feb 2012 12:27:15 +0900 (JST)
-Date: Sat, 25 Feb 2012 12:25:33 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [patch] mm, oom: force oom kill on sysrq+f
-Message-Id: <20120225122533.b621f78f.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <alpine.DEB.2.00.1202221602380.5980@chino.kir.corp.google.com>
-References: <alpine.DEB.2.00.1202221602380.5980@chino.kir.corp.google.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx184.postini.com [74.125.245.184])
+	by kanga.kvack.org (Postfix) with SMTP id B33146B004A
+	for <linux-mm@kvack.org>; Fri, 24 Feb 2012 23:13:15 -0500 (EST)
+Received: by qadz32 with SMTP id z32so706074qad.14
+        for <linux-mm@kvack.org>; Fri, 24 Feb 2012 20:13:14 -0800 (PST)
+MIME-Version: 1.0
+In-Reply-To: <4F47E0D0.9030409@fb.com>
+References: <1326912662-18805-1-git-send-email-asharma@fb.com>
+	<CAKTCnzn-reG4bLmyWNYPELYs-9M3ZShEYeOix_OcnPow-w8PNg@mail.gmail.com>
+	<4F468888.9090702@fb.com>
+	<20120224114748.720ee79a.kamezawa.hiroyu@jp.fujitsu.com>
+	<CAKTCnzk7TgDeYRZK0rCugopq0tO7BtM8jM9U0RJUTqNtz42ZKw@mail.gmail.com>
+	<4F47E0D0.9030409@fb.com>
+Date: Sat, 25 Feb 2012 09:43:14 +0530
+Message-ID: <CAKTCnznyZGLiZPNS151GzsUMApN_SYu3n6xX9E0ceMpq9JNq7w@mail.gmail.com>
+Subject: Re: [PATCH] mm: Enable MAP_UNINITIALIZED for archs with mmu
+From: Balbir Singh <bsingharora@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org
+To: Arun Sharma <asharma@fb.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-On Wed, 22 Feb 2012 16:03:42 -0800 (PST)
-David Rientjes <rientjes@google.com> wrote:
+On Sat, Feb 25, 2012 at 12:41 AM, Arun Sharma <asharma@fb.com> wrote:
+> On 2/24/12 6:51 AM, Balbir Singh wrote:
+>>
+>> On Fri, Feb 24, 2012 at 8:17 AM, KAMEZAWA Hiroyuki
+>> <kamezawa.hiroyu@jp.fujitsu.com> =A0wrote:
+>>>>
+>>>> They don't have access to each other's VMAs, but if "accidentally" one
+>>>> of them comes across an uninitialized page with data from another task=
+,
+>>>> it's not a violation of the security model.
+>>
+>>
+>> Can you expand more on the single address space model?
+>
+>
+> I haven't thought this through yet. But I know that just adding
+>
+> && (cgroup_task_count() =3D=3D 1)
+>
+> to page_needs_clearing() is not going to do it. We'll have to design a ne=
+w
+> mechanism (cgroup_mm_count_all()?) and make sure that it doesn't race wit=
+h
+> fork() and inadvertently expose pages from the new address space to the
+> existing one.
+>
+> A uid based approach such as the one implemented by Davide Libenzi
+>
+> http://thread.gmane.org/gmane.linux.kernel/548928
+> http://thread.gmane.org/gmane.linux.kernel/548926
+>
+> would probably apply the optimization to more use cases - but conceptuall=
+y a
+> bit more complex. If we go with this more relaxed approach, we'll have to
+> design a race-free cgroup_uid_count() based mechanism.
 
-> The oom killer chooses not to kill a thread if:
-> 
->  - an eligible thread has already been oom killed and has yet to exit,
->    and
-> 
->  - an eligible thread is exiting but has yet to free all its memory and
->    is not the thread attempting to currently allocate memory.
-> 
-> SysRq+F manually invokes the global oom killer to kill a memory-hogging
-> task.  This is normally done as a last resort to free memory when no
-> progress is being made or to test the oom killer itself.
-> 
-> For both uses, we always want to kill a thread and never defer.  This
-> patch causes SysRq+F to always kill an eligible thread and can be used to
-> force a kill even if another oom killed thread has failed to exit.
-> 
-> Signed-off-by: David Rientjes <rientjes@google.com>
+Are you suggesting all processes with the same UID should have access
+to each others memory contents?
 
-Seems nice!.
-
-Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Balbir
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
