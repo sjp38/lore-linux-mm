@@ -1,78 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx108.postini.com [74.125.245.108])
-	by kanga.kvack.org (Postfix) with SMTP id 921CF6B007E
-	for <linux-mm@kvack.org>; Sun, 26 Feb 2012 03:44:04 -0500 (EST)
-Date: Sun, 26 Feb 2012 08:44:03 +0000
-From: Eric Wong <normalperson@yhbt.net>
-Subject: Re: [PATCH] fadvise: avoid EINVAL if user input is valid
-Message-ID: <20120226084403.GA4641@dcvr.yhbt.net>
-References: <20120225022710.GA29455@dcvr.yhbt.net>
- <CAJd=RBDHB8yM=LGkzhOWZO6ftYFyZ42SQKySc0hUzNEQzrmVTw@mail.gmail.com>
+Received: from psmtp.com (na3sys010amx105.postini.com [74.125.245.105])
+	by kanga.kvack.org (Postfix) with SMTP id 023366B0083
+	for <linux-mm@kvack.org>; Sun, 26 Feb 2012 04:27:53 -0500 (EST)
+Received: by eeke53 with SMTP id e53so2085043eek.14
+        for <linux-mm@kvack.org>; Sun, 26 Feb 2012 01:27:52 -0800 (PST)
+From: Maciej Rutecki <maciej.rutecki@gmail.com>
+Reply-To: maciej.rutecki@gmail.com
+Subject: Re: Regression: Bad page map in process xyz
+Date: Sun, 26 Feb 2012 10:27:47 +0100
+References: <4F421A29.6060303@suse.cz>
+In-Reply-To: <4F421A29.6060303@suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <CAJd=RBDHB8yM=LGkzhOWZO6ftYFyZ42SQKySc0hUzNEQzrmVTw@mail.gmail.com>
+Content-Type: Text/Plain;
+  charset="utf-8"
+Content-Transfer-Encoding: quoted-printable
+Message-Id: <201202261027.48029.maciej.rutecki@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hillf Danton <dhillf@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Jiri Slaby <jslaby@suse.cz>
+Cc: n-horiguchi@ah.jp.nec.com, kamezawa.hiroyu@jp.fujitsu.com, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Jiri Slaby <jirislaby@gmail.com>, linux-mm@kvack.org
 
-Hillf Danton <dhillf@gmail.com> wrote:
-> On Sat, Feb 25, 2012 at 10:27 AM, Eric Wong <normalperson@yhbt.net> wrote:
-> > index 469491e0..f9e48dd 100644
-> > --- a/mm/fadvise.c
-> > +++ b/mm/fadvise.c
-> > @@ -43,13 +43,13 @@ SYSCALL_DEFINE(fadvise64_64)(int fd, loff_t offset, loff_t len, int advice)
-> > A  A  A  A  A  A  A  A goto out;
-> > A  A  A  A }
-> >
-> > - A  A  A  mapping = file->f_mapping;
-> > - A  A  A  if (!mapping || len < 0) {
-> > + A  A  A  if (len < 0) {
-> 
-> Current code makes sure mapping is valid after the above check,
+On poniedzia=C5=82ek, 20 lutego 2012 o 11:02:17 Jiri Slaby wrote:
+> Hi,
+>=20
+> I'm getting a ton of
+> BUG: Bad page map in process zypper  pte:676b700029736c6f pmd:44967067
+> when trying to upgrade the system by:
+> zypper dup
+>=20
+> I bisected that to:
+> commit afb1c03746aa940374b73a7d5750ee05a2376077
+> Author: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+> Date:   Fri Feb 17 10:57:58 2012 +1100
+>=20
+>     thp: optimize away unnecessary page table locking
+>=20
+> thanks,
 
-Right.  I moved the !mapping check down a few lines.
-
-> > A  A  A  A  A  A  A  A ret = -EINVAL;
-> > A  A  A  A  A  A  A  A goto out;
-> > A  A  A  A }
-
-Now the check hits the "goto out" the get_xip_mem check hits:
-
-> > - A  A  A  if (mapping->a_ops->get_xip_mem) {
-> > + A  A  A  mapping = file->f_mapping;
-> > + A  A  A  if (!mapping || mapping->a_ops->get_xip_mem) {
-> > A  A  A  A  A  A  A  A switch (advice) {
-> > A  A  A  A  A  A  A  A case POSIX_FADV_NORMAL:
-> > A  A  A  A  A  A  A  A case POSIX_FADV_RANDOM:
-
-		case POSIX_FADV_SEQUENTIAL:
-		case POSIX_FADV_WILLNEED:
-		case POSIX_FADV_NOREUSE:
-		case POSIX_FADV_DONTNEED:
-			/* no bad return value, but ignore advice */
-			break;
-		default:
-			ret = -EINVAL;
-		}
-		goto out; <------ we hit this if (mapping == NULL)
-	}
-
-> but backing devices info is no longer evaluated with that
-> guarantee in your change.
-> 
-> -hd
-> 
-> 75:	bdi = mapping->backing_dev_info;
-
-The above line still doesn't evaluated because of the goto.
-
-out:
-	fput(file);
-	return ret;
-}
+I created a Bugzilla entry at=20
+https://bugzilla.kernel.org/show_bug.cgi?id=3D42820
+for your bug/regression report, please add your address to the CC list in=20
+there, thanks!
+=2D-=20
+Maciej Rutecki
+http://www.mrutecki.pl
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
