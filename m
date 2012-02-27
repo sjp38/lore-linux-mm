@@ -1,14 +1,14 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx191.postini.com [74.125.245.191])
-	by kanga.kvack.org (Postfix) with SMTP id 8AFB16B007E
+Received: from psmtp.com (na3sys010amx158.postini.com [74.125.245.158])
+	by kanga.kvack.org (Postfix) with SMTP id D667B6B00E7
 	for <linux-mm@kvack.org>; Mon, 27 Feb 2012 17:59:47 -0500 (EST)
-Received: by qcse1 with SMTP id e1so352167qcs.2
-        for <linux-mm@kvack.org>; Mon, 27 Feb 2012 14:59:46 -0800 (PST)
+Received: by yenr9 with SMTP id r9so588211yen.2
+        for <linux-mm@kvack.org>; Mon, 27 Feb 2012 14:59:47 -0800 (PST)
 MIME-Version: 1.0
 From: Suleiman Souhlal <ssouhlal@FreeBSD.org>
-Subject: [PATCH 03/10] memcg: Reclaim when more than one page needed.
-Date: Mon, 27 Feb 2012 14:58:46 -0800
-Message-Id: <1330383533-20711-4-git-send-email-ssouhlal@FreeBSD.org>
+Subject: [PATCH 07/10] memcg: Stop res_counter underflows.
+Date: Mon, 27 Feb 2012 14:58:50 -0800
+Message-Id: <1330383533-20711-8-git-send-email-ssouhlal@FreeBSD.org>
 In-Reply-To: <1330383533-20711-1-git-send-email-ssouhlal@FreeBSD.org>
 References: <1330383533-20711-1-git-send-email-ssouhlal@FreeBSD.org>
 Sender: owner-linux-mm@kvack.org
@@ -18,133 +18,134 @@ Cc: suleiman@google.com, glommer@parallels.com, kamezawa.hiroyu@jp.fujitsu.com, 
 
 From: Hugh Dickins <hughd@google.com>
 
-mem_cgroup_do_charge() was written before slab accounting, and expects
-three cases: being called for 1 page, being called for a stock of 32 pages,
-or being called for a hugepage.  If we call for 2 pages (and several slabs
-used in process creation are such, at least with the debug options I had),
-it assumed it's being called for stock and just retried without reclaiming.
+If __mem_cgroup_try_charge() goes the "bypass" route in charging slab
+(typically when the task has been OOM-killed), that later results in
+res_counter_uncharge_locked() underflows - a stream of warnings from
+kernel/res_counter.c:96!
 
-Fix that by passing down a minsize argument in addition to the csize;
-and pass minsize to consume_stock() also, so that it can draw on stock
-for higher order slabs, instead of accumulating an increasing surplus
-of stock, as its "nr_pages == 1" tests previously caused.
+Solve this by accounting kmem_bypass when we shift that charge to root,
+and whenever a memcg has any kmem_bypass outstanding, deduct from that
+when unaccounting kmem, before deducting from kmem_bytes: so that its
+kmem_bytes soon returns to being a fair account.
 
-And what to do about that (csize == PAGE_SIZE && ret) retry?  If it's
-needed at all (and presumably is since it's there, perhaps to handle
-races), then it should be extended to more than PAGE_SIZE, yet how far?
-And should there be a retry count limit, of what?  For now retry up to
-COSTLY_ORDER (as page_alloc.c does), stay safe with a cond_resched(),
-and make sure not to do it if __GFP_NORETRY.
+The amount of memory bypassed is shown in memory.stat as
+kernel_bypassed_memory.
 
 Signed-off-by: Hugh Dickins <hughd@google.com>
 Signed-off-by: Suleiman Souhlal <suleiman@google.com>
 ---
- mm/memcontrol.c |   35 +++++++++++++++++++----------------
- 1 files changed, 19 insertions(+), 16 deletions(-)
+ mm/memcontrol.c |   43 ++++++++++++++++++++++++++++++++++++++++---
+ 1 files changed, 40 insertions(+), 3 deletions(-)
 
 diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 6f44fcb..c82ca1c 100644
+index d1c0cd7..6a475ed 100644
 --- a/mm/memcontrol.c
 +++ b/mm/memcontrol.c
-@@ -1928,19 +1928,19 @@ static DEFINE_PER_CPU(struct memcg_stock_pcp, memcg_stock);
- static DEFINE_MUTEX(percpu_charge_mutex);
- 
- /*
-- * Try to consume stocked charge on this cpu. If success, one page is consumed
-- * from local stock and true is returned. If the stock is 0 or charges from a
-- * cgroup which is not current target, returns false. This stock will be
-- * refilled.
-+ * Try to consume stocked charge on this cpu. If success, nr_pages pages are
-+ * consumed from local stock and true is returned. If the stock is 0 or
-+ * charges from a cgroup which is not current target, returns false.
-+ * This stock will be refilled.
-  */
--static bool consume_stock(struct mem_cgroup *memcg)
-+static bool consume_stock(struct mem_cgroup *memcg, int nr_pages)
- {
- 	struct memcg_stock_pcp *stock;
- 	bool ret = true;
- 
- 	stock = &get_cpu_var(memcg_stock);
--	if (memcg == stock->cached && stock->nr_pages)
--		stock->nr_pages--;
-+	if (memcg == stock->cached && stock->nr_pages >= nr_pages)
-+		stock->nr_pages -= nr_pages;
- 	else /* need to call res_counter_charge */
- 		ret = false;
- 	put_cpu_var(memcg_stock);
-@@ -2131,7 +2131,7 @@ enum {
+@@ -302,6 +302,9 @@ struct mem_cgroup {
+ 	/* Slab accounting */
+ 	struct kmem_cache *slabs[MAX_KMEM_CACHE_TYPES];
+ #endif
++#ifdef CONFIG_CGROUP_MEM_RES_CTLR_KMEM
++	atomic64_t kmem_bypassed;
++#endif
+ 	int independent_kmem_limit;
  };
  
- static int mem_cgroup_do_charge(struct mem_cgroup *memcg, gfp_t gfp_mask,
--				unsigned int nr_pages, bool oom_check)
-+    unsigned int nr_pages, unsigned int min_pages, bool oom_check)
- {
- 	unsigned long csize = nr_pages * PAGE_SIZE;
- 	struct mem_cgroup *mem_over_limit;
-@@ -2154,18 +2154,18 @@ static int mem_cgroup_do_charge(struct mem_cgroup *memcg, gfp_t gfp_mask,
- 	} else
- 		mem_over_limit = mem_cgroup_from_res_counter(fail_res, res);
- 	/*
--	 * nr_pages can be either a huge page (HPAGE_PMD_NR), a batch
--	 * of regular pages (CHARGE_BATCH), or a single regular page (1).
--	 *
- 	 * Never reclaim on behalf of optional batching, retry with a
- 	 * single page instead.
- 	 */
--	if (nr_pages == CHARGE_BATCH)
-+	if (nr_pages > min_pages)
- 		return CHARGE_RETRY;
+@@ -4037,6 +4040,7 @@ enum {
+ 	MCS_INACTIVE_FILE,
+ 	MCS_ACTIVE_FILE,
+ 	MCS_UNEVICTABLE,
++	MCS_KMEM_BYPASSED,
+ 	NR_MCS_STAT,
+ };
  
- 	if (!(gfp_mask & __GFP_WAIT))
- 		return CHARGE_WOULDBLOCK;
+@@ -4060,7 +4064,8 @@ struct {
+ 	{"active_anon", "total_active_anon"},
+ 	{"inactive_file", "total_inactive_file"},
+ 	{"active_file", "total_active_file"},
+-	{"unevictable", "total_unevictable"}
++	{"unevictable", "total_unevictable"},
++	{"kernel_bypassed_memory", "total_kernel_bypassed_memory"}
+ };
  
-+	if (gfp_mask & __GFP_NORETRY)
-+		return CHARGE_NOMEM;
+ 
+@@ -4100,6 +4105,10 @@ mem_cgroup_get_local_stat(struct mem_cgroup *memcg, struct mcs_total_stat *s)
+ 	s->stat[MCS_ACTIVE_FILE] += val * PAGE_SIZE;
+ 	val = mem_cgroup_nr_lru_pages(memcg, BIT(LRU_UNEVICTABLE));
+ 	s->stat[MCS_UNEVICTABLE] += val * PAGE_SIZE;
 +
- 	ret = mem_cgroup_reclaim(mem_over_limit, gfp_mask, flags);
- 	if (mem_cgroup_margin(mem_over_limit) >= nr_pages)
- 		return CHARGE_RETRY;
-@@ -2178,8 +2178,10 @@ static int mem_cgroup_do_charge(struct mem_cgroup *memcg, gfp_t gfp_mask,
- 	 * unlikely to succeed so close to the limit, and we fall back
- 	 * to regular pages anyway in case of failure.
- 	 */
--	if (nr_pages == 1 && ret)
-+	if (nr_pages <= (PAGE_SIZE << PAGE_ALLOC_COSTLY_ORDER) && ret) {
-+		cond_resched();
- 		return CHARGE_RETRY;
++#ifdef CONFIG_CGROUP_MEM_RES_CTLR_KMEM
++	s->stat[MCS_KMEM_BYPASSED] += atomic64_read(&memcg->kmem_bypassed);
++#endif
+ }
+ 
+ static void
+@@ -5616,14 +5625,24 @@ memcg_charge_kmem(struct mem_cgroup *memcg, gfp_t gfp, long long delta)
+ 	ret = 0;
+ 
+ 	if (memcg && !memcg->independent_kmem_limit) {
++		/*
++		 * __mem_cgroup_try_charge may decide to bypass the charge and
++		 * set _memcg to NULL, in which case we need to account to the
++		 * root.
++		 */
+ 		_memcg = memcg;
+ 		if (__mem_cgroup_try_charge(NULL, gfp, delta / PAGE_SIZE,
+ 		    &_memcg, may_oom) != 0)
+ 			return -ENOMEM;
++
++		if (!_memcg && memcg != root_mem_cgroup) {
++			atomic64_add(delta, &memcg->kmem_bypassed);
++			memcg = NULL;
++		}
+ 	}
+ 
+-	if (_memcg)
+-		ret = res_counter_charge(&_memcg->kmem_bytes, delta, &fail_res);
++	if (memcg)
++		ret = res_counter_charge(&memcg->kmem_bytes, delta, &fail_res);
+ 
+ 	return ret;
+ }
+@@ -5631,6 +5650,22 @@ memcg_charge_kmem(struct mem_cgroup *memcg, gfp_t gfp, long long delta)
+ void
+ memcg_uncharge_kmem(struct mem_cgroup *memcg, long long delta)
+ {
++	long long bypassed;
++
++	if (memcg) {
++		bypassed = atomic64_read(&memcg->kmem_bypassed);
++		if (bypassed > 0) {
++			if (bypassed > delta)
++				bypassed = delta;
++			do {
++				memcg_uncharge_kmem(NULL, bypassed);
++				delta -= bypassed;
++				bypassed = atomic64_sub_return(bypassed,
++				    &memcg->kmem_bypassed);
++			} while (bypassed < 0);	/* Might have raced */
++		}
 +	}
++
+ 	if (memcg)
+ 		res_counter_uncharge(&memcg->kmem_bytes, delta);
  
- 	/*
- 	 * At task move, charge accounts can be doubly counted. So, it's
-@@ -2253,7 +2255,7 @@ again:
- 		VM_BUG_ON(css_is_removed(&memcg->css));
- 		if (mem_cgroup_is_root(memcg))
- 			goto done;
--		if (nr_pages == 1 && consume_stock(memcg))
-+		if (consume_stock(memcg, nr_pages))
- 			goto done;
- 		css_get(&memcg->css);
- 	} else {
-@@ -2278,7 +2280,7 @@ again:
- 			rcu_read_unlock();
- 			goto done;
- 		}
--		if (nr_pages == 1 && consume_stock(memcg)) {
-+		if (consume_stock(memcg, nr_pages)) {
- 			/*
- 			 * It seems dagerous to access memcg without css_get().
- 			 * But considering how consume_stok works, it's not
-@@ -2313,7 +2315,8 @@ again:
- 			nr_oom_retries = MEM_CGROUP_RECLAIM_RETRIES;
- 		}
+@@ -5956,6 +5991,7 @@ memcg_kmem_init(struct mem_cgroup *memcg, struct mem_cgroup *parent)
  
--		ret = mem_cgroup_do_charge(memcg, gfp_mask, batch, oom_check);
-+		ret = mem_cgroup_do_charge(memcg, gfp_mask, batch, nr_pages,
-+		    oom_check);
- 		switch (ret) {
- 		case CHARGE_OK:
- 			break;
+ 	memcg_slab_init(memcg);
+ 
++	atomic64_set(&memcg->kmem_bypassed, 0);
+ 	memcg->independent_kmem_limit = 0;
+ }
+ 
+@@ -5967,6 +6003,7 @@ memcg_kmem_move(struct mem_cgroup *memcg)
+ 
+ 	memcg_slab_move(memcg);
+ 
++	atomic64_set(&memcg->kmem_bypassed, 0);
+ 	spin_lock_irqsave(&memcg->kmem_bytes.lock, flags);
+ 	kmem_bytes = memcg->kmem_bytes.usage;
+ 	res_counter_uncharge_locked(&memcg->kmem_bytes, kmem_bytes);
 -- 
 1.7.7.3
 
