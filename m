@@ -1,48 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx104.postini.com [74.125.245.104])
-	by kanga.kvack.org (Postfix) with SMTP id 467106B004A
-	for <linux-mm@kvack.org>; Mon, 27 Feb 2012 11:43:50 -0500 (EST)
-Date: Mon, 27 Feb 2012 10:43:47 -0600 (CST)
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: [RFC][PATCH] fix move/migrate_pages() race on task struct
-In-Reply-To: <87zkc7eshq.fsf@xmission.com>
-Message-ID: <alpine.DEB.2.00.1202271039320.29787@router.home>
-References: <20120223180740.C4EC4156@kernel> <alpine.DEB.2.00.1202231240590.9878@router.home> <4F468F09.5050200@linux.vnet.ibm.com> <alpine.DEB.2.00.1202231334290.10914@router.home> <4F469BC7.50705@linux.vnet.ibm.com> <alpine.DEB.2.00.1202231536240.13554@router.home>
- <m1ehtkapn9.fsf@fess.ebiederm.org> <alpine.DEB.2.00.1202240859340.2621@router.home> <4F47BF56.6010602@linux.vnet.ibm.com> <alpine.DEB.2.00.1202241053220.3726@router.home> <alpine.DEB.2.00.1202241105280.3726@router.home> <4F47C800.4090903@linux.vnet.ibm.com>
- <alpine.DEB.2.00.1202241131400.3726@router.home> <87zkc7eshq.fsf@xmission.com>
+Received: from psmtp.com (na3sys010amx199.postini.com [74.125.245.199])
+	by kanga.kvack.org (Postfix) with SMTP id 2E8AF6B004A
+	for <linux-mm@kvack.org>; Mon, 27 Feb 2012 13:32:40 -0500 (EST)
+Message-ID: <4F4BCC4A.1090402@fb.com>
+Date: Mon, 27 Feb 2012 10:32:42 -0800
+From: Arun Sharma <asharma@fb.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [PATCH] mm: Enable MAP_UNINITIALIZED for archs with mmu
+References: <1326912662-18805-1-git-send-email-asharma@fb.com> <CAKTCnzn-reG4bLmyWNYPELYs-9M3ZShEYeOix_OcnPow-w8PNg@mail.gmail.com> <4F468888.9090702@fb.com> <20120224114748.720ee79a.kamezawa.hiroyu@jp.fujitsu.com> <CAKTCnzk7TgDeYRZK0rCugopq0tO7BtM8jM9U0RJUTqNtz42ZKw@mail.gmail.com> <4F47E0D0.9030409@fb.com> <CAKTCnznyZGLiZPNS151GzsUMApN_SYu3n6xX9E0ceMpq9JNq7w@mail.gmail.com>
+In-Reply-To: <CAKTCnznyZGLiZPNS151GzsUMApN_SYu3n6xX9E0ceMpq9JNq7w@mail.gmail.com>
+Content-Type: text/plain; charset="ISO-8859-1"; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Eric W. Biederman" <ebiederm@xmission.com>
-Cc: Dave Hansen <dave@linux.vnet.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Balbir Singh <bsingharora@gmail.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-On Fri, 24 Feb 2012, Eric W. Biederman wrote:
-
-> Taking a quick look it does appear that in cpuset_mems_allowed and it's
-> cousins we never sleep under "callback_mutex" so that lock looks like it
-> could become a spinlock.
+On 2/24/12 8:13 PM, Balbir Singh wrote:
+>> A uid based approach such as the one implemented by Davide Libenzi
+>>
+>> http://thread.gmane.org/gmane.linux.kernel/548928
+>> http://thread.gmane.org/gmane.linux.kernel/548926
+>>
+>> would probably apply the optimization to more use cases - but conceptually a
+>> bit more complex. If we go with this more relaxed approach, we'll have to
+>> design a race-free cgroup_uid_count() based mechanism.
 >
-> But I have to say something just bothers me about the permissions for
-> modifying an mm living in the task.  We can have different rules
-> for modifying an mm depending on the path to tme mm?
+> Are you suggesting all processes with the same UID should have access
+> to each others memory contents?
 
-Yes. Permissions are associated with pids which refer to tasks. Tasks have
-address spaces and tasks may share address spaces.
+No - that's a stronger statement than the one I made in my last message. 
+I'll however observe that something like this is already possible via 
+PTRACE_PEEKDATA.
 
-> Especially in things like which numa nodes we can put pages in?
+Like I said: a cgroup with a single mm_struct is conceptually cleanest 
+and covers some of our heavy use cases. A cgroup with a single uid would 
+cover more of our use cases. It'd be good to know if you and other 
+maintainers are willing to accept the former, but not the latter.
 
-Things = address spaces? The page migration functionality is about moving
-the location of physical memory from one numa node to the other. It does
-not affect the execution just the latencies experienced by the processes.
+I'll note that the malloc implementation which uses these interfaces can 
+still decide to zero the memory depending on which variant of *alloc is 
+called. But then, we'd have more fine grained control and more 
+flexibility in terms of temporal usage hints.
 
-> So by specifying a different pid to access them mm through the call can
-> either work or succeed?  Are these checks really sane?
-
-Yes if you can create two pids with the same address space and give
-those those pids to different owners then the permission checks on one
-may fail and succeed on the other. We have no way to refer to address
-spaces from user space outside of a pid.
+  -Arun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
