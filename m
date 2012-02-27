@@ -1,14 +1,14 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx154.postini.com [74.125.245.154])
-	by kanga.kvack.org (Postfix) with SMTP id 769996B00EC
+Received: from psmtp.com (na3sys010amx171.postini.com [74.125.245.171])
+	by kanga.kvack.org (Postfix) with SMTP id 779116B00EF
 	for <linux-mm@kvack.org>; Mon, 27 Feb 2012 17:59:49 -0500 (EST)
-Received: by bkcjg15 with SMTP id jg15so1583bkc.2
+Received: by bkcjg15 with SMTP id jg15so1582bkc.2
         for <linux-mm@kvack.org>; Mon, 27 Feb 2012 14:59:47 -0800 (PST)
 MIME-Version: 1.0
 From: Suleiman Souhlal <ssouhlal@FreeBSD.org>
-Subject: [PATCH 08/10] memcg: Add CONFIG_CGROUP_MEM_RES_CTLR_KMEM_ACCT_ROOT.
-Date: Mon, 27 Feb 2012 14:58:51 -0800
-Message-Id: <1330383533-20711-9-git-send-email-ssouhlal@FreeBSD.org>
+Subject: [PATCH 06/10] memcg: Track all the memcg children of a kmem_cache.
+Date: Mon, 27 Feb 2012 14:58:49 -0800
+Message-Id: <1330383533-20711-7-git-send-email-ssouhlal@FreeBSD.org>
 In-Reply-To: <1330383533-20711-1-git-send-email-ssouhlal@FreeBSD.org>
 References: <1330383533-20711-1-git-send-email-ssouhlal@FreeBSD.org>
 Sender: owner-linux-mm@kvack.org
@@ -16,129 +16,118 @@ List-ID: <linux-mm.kvack.org>
 To: cgroups@vger.kernel.org
 Cc: suleiman@google.com, glommer@parallels.com, kamezawa.hiroyu@jp.fujitsu.com, penberg@kernel.org, yinghan@google.com, hughd@google.com, gthelen@google.com, linux-mm@kvack.org, devel@openvz.org, Suleiman Souhlal <ssouhlal@FreeBSD.org>
 
-This config option dictates whether or not kernel memory in the
-root cgroup should be accounted.
+This enables us to remove all the children of a kmem_cache being
+destroyed, if for example the kernel module it's being used in
+gets unloaded. Otherwise, the children will still point to the
+destroyed parent.
 
-This may be useful in an environment where everything is supposed to be
-in a cgroup and accounted for. Large amounts of kernel memory in the
-root cgroup would indicate problems with memory isolation or accounting.
+We also use this to propagate /proc/slabinfo settings to all
+the children of a cache, when, for example, changing its
+batchsize.
 
 Signed-off-by: Suleiman Souhlal <suleiman@google.com>
 ---
- init/Kconfig    |    8 ++++++++
- mm/memcontrol.c |   44 ++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 52 insertions(+), 0 deletions(-)
+ include/linux/slab_def.h |    1 +
+ mm/slab.c                |   45 +++++++++++++++++++++++++++++++++++++++++----
+ 2 files changed, 42 insertions(+), 4 deletions(-)
 
-diff --git a/init/Kconfig b/init/Kconfig
-index 3f42cd6..a119270 100644
---- a/init/Kconfig
-+++ b/init/Kconfig
-@@ -714,6 +714,14 @@ config CGROUP_MEM_RES_CTLR_KMEM
- 	  Memory Controller, which are page-based, and can be swapped. Users of
- 	  the kmem extension can use it to guarantee that no group of processes
- 	  will ever exhaust kernel resources alone.
-+config CGROUP_MEM_RES_CTLR_KMEM_ACCT_ROOT
-+	bool "Root Cgroup Kernel Memory Accounting (EXPERIMENTAL)"
-+	depends on CGROUP_MEM_RES_CTLR_KMEM
-+	default n
-+	help
-+	  Account for kernel memory used by the root cgroup. This may be useful
-+	  to know how much kernel memory isn't currently accounted to any
-+	  cgroup.
+diff --git a/include/linux/slab_def.h b/include/linux/slab_def.h
+index 449a0de..185e4a2 100644
+--- a/include/linux/slab_def.h
++++ b/include/linux/slab_def.h
+@@ -100,6 +100,7 @@ struct kmem_cache {
  
- config CGROUP_PERF
- 	bool "Enable perf_event per-cpu per-container group (cgroup) monitoring"
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 6a475ed..d4cdb8e 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -61,6 +61,10 @@ struct cgroup_subsys mem_cgroup_subsys __read_mostly;
- #define MEM_CGROUP_RECLAIM_RETRIES	5
- struct mem_cgroup *root_mem_cgroup __read_mostly;
+ 	atomic_t refcnt;
+ 	struct list_head destroyed_list; /* Used when deleting cpuset cache */
++	struct list_head sibling_list;
+ #endif /* CONFIG_CGROUP_MEM_RES_CTLR_KMEM */
  
-+#ifdef CONFIG_CGROUP_MEM_RES_CTLR_KMEM_ACCT_ROOT
-+atomic64_t pre_memcg_kmem_bytes;	/* kmem usage before memcg is enabled */
-+#endif
+ /* 6) per-cpu/per-node data, touched during every alloc/free */
+diff --git a/mm/slab.c b/mm/slab.c
+index 6c6bc49..bf38af6 100644
+--- a/mm/slab.c
++++ b/mm/slab.c
+@@ -2508,6 +2508,7 @@ __kmem_cache_create(const char *name, size_t size, size_t align,
+ 	cachep->orig_cache = NULL;
+ 	atomic_set(&cachep->refcnt, 1);
+ 	INIT_LIST_HEAD(&cachep->destroyed_list);
++	INIT_LIST_HEAD(&cachep->sibling_list);
+ 
+ 	if (!memcg) {
+ 		int id;
+@@ -2580,6 +2581,7 @@ kmem_cache_create_memcg(struct kmem_cache *cachep, char *name)
+ 	new->flags |= SLAB_MEMCG;
+ 	new->orig_cache = cachep;
+ 
++	list_add(&new->sibling_list, &cachep->sibling_list);
+ 	if ((cachep->limit != new->limit) ||
+ 	    (cachep->batchcount != new->batchcount) ||
+ 	    (cachep->shared != new->shared))
+@@ -2767,6 +2769,26 @@ void kmem_cache_destroy(struct kmem_cache *cachep)
+ {
+ 	BUG_ON(!cachep || in_interrupt());
+ 
++#ifdef CONFIG_CGROUP_MEM_RES_CTLR_KMEM
++	/* Destroy all the children caches if we aren't a memcg cache */
++	if (cachep->id != -1) {
++		struct kmem_cache *c, *tmp;
 +
- #ifdef CONFIG_CGROUP_MEM_RES_CTLR_SWAP
- /* Turned on only when memory cgroup is enabled && really_do_swap_account = 1 */
- int do_swap_account __read_mostly;
-@@ -5643,6 +5647,13 @@ memcg_charge_kmem(struct mem_cgroup *memcg, gfp_t gfp, long long delta)
- 
- 	if (memcg)
- 		ret = res_counter_charge(&memcg->kmem_bytes, delta, &fail_res);
-+#ifdef CONFIG_CGROUP_MEM_RES_CTLR_KMEM_ACCT_ROOT
-+	else if (root_mem_cgroup != NULL)
-+		ret = res_counter_charge(&root_mem_cgroup->kmem_bytes, delta,
-+		    &fail_res);
-+	else
-+		atomic64_add(delta, &pre_memcg_kmem_bytes);
-+#endif
- 
- 	return ret;
- }
-@@ -5668,6 +5679,12 @@ memcg_uncharge_kmem(struct mem_cgroup *memcg, long long delta)
- 
- 	if (memcg)
- 		res_counter_uncharge(&memcg->kmem_bytes, delta);
-+#ifdef CONFIG_CGROUP_MEM_RES_CTLR_KMEM_ACCT_ROOT
-+	else if (root_mem_cgroup != NULL)
-+		res_counter_uncharge(&root_mem_cgroup->kmem_bytes, delta);
-+	else
-+		atomic64_sub(delta, &pre_memcg_kmem_bytes);
-+#endif
- 
- 	if (memcg && !memcg->independent_kmem_limit)
- 		res_counter_uncharge(&memcg->res, delta);
-@@ -5953,7 +5970,12 @@ memcg_slab_move(struct mem_cgroup *memcg)
- 		cachep = rcu_access_pointer(memcg->slabs[i]);
- 		if (cachep != NULL) {
- 			rcu_assign_pointer(memcg->slabs[i], NULL);
-+
-+#ifdef CONFIG_CGROUP_MEM_RES_CTLR_KMEM_ACCT_ROOT
-+			cachep->memcg = root_mem_cgroup;
-+#else
- 			cachep->memcg = NULL;
-+#endif
- 
- 			/* The space for this is already allocated */
- 			strcat((char *)cachep->name, "dead");
-@@ -5991,6 +6013,15 @@ memcg_kmem_init(struct mem_cgroup *memcg, struct mem_cgroup *parent)
- 
- 	memcg_slab_init(memcg);
- 
-+#ifdef CONFIG_CGROUP_MEM_RES_CTLR_KMEM_ACCT_ROOT
-+	if (memcg == root_mem_cgroup) {
-+		long kmem_bytes;
-+
-+		kmem_bytes = atomic64_xchg(&pre_memcg_kmem_bytes, 0);
-+		memcg->kmem_bytes.usage = kmem_bytes;
++		mutex_lock(&cache_chain_mutex);
++		list_for_each_entry_safe(c, tmp, &cachep->sibling_list,
++		    sibling_list) {
++			if (c == cachep)
++				continue;
++			mutex_unlock(&cache_chain_mutex);
++			BUG_ON(c->id != -1);
++			mem_cgroup_remove_child_kmem_cache(c, cachep->id);
++			kmem_cache_destroy(c);
++			mutex_lock(&cache_chain_mutex);
++		}
++		mutex_unlock(&cache_chain_mutex);
 +	}
++#endif /* CONFIG_CGROUP_MEM_RES_CTLR_KMEM */
++
+ 	/* Find the cache in the chain of caches. */
+ 	get_online_cpus();
+ 	mutex_lock(&cache_chain_mutex);
+@@ -2774,6 +2796,9 @@ void kmem_cache_destroy(struct kmem_cache *cachep)
+ 	 * the chain is never empty, cache_cache is never destroyed
+ 	 */
+ 	list_del(&cachep->next);
++#ifdef CONFIG_CGROUP_MEM_RES_CTLR_KMEM
++	list_del(&cachep->sibling_list);
 +#endif
+ 	if (__cache_shrink(cachep)) {
+ 		slab_error(cachep, "Can't free all objects");
+ 		list_add(&cachep->next, &cache_chain);
+@@ -4628,11 +4653,23 @@ static ssize_t slabinfo_write(struct file *file, const char __user *buffer,
+ 			if (limit < 1 || batchcount < 1 ||
+ 					batchcount > limit || shared < 0) {
+ 				res = 0;
+-			} else {
+-				res = do_tune_cpucache(cachep, limit,
+-				    batchcount, shared, GFP_KERNEL |
+-				    __GFP_NOACCOUNT);
++				break;
+ 			}
 +
- 	atomic64_set(&memcg->kmem_bypassed, 0);
- 	memcg->independent_kmem_limit = 0;
- }
-@@ -6010,6 +6041,19 @@ memcg_kmem_move(struct mem_cgroup *memcg)
- 	spin_unlock_irqrestore(&memcg->kmem_bytes.lock, flags);
- 	if (!memcg->independent_kmem_limit)
- 		res_counter_uncharge(&memcg->res, kmem_bytes);
++			res = do_tune_cpucache(cachep, limit, batchcount,
++			    shared, GFP_KERNEL | __GFP_NOACCOUNT);
 +
-+#ifdef CONFIG_CGROUP_MEM_RES_CTLR_KMEM_ACCT_ROOT
-+	{
-+		struct res_counter *dummy;
-+		int err;
++#ifdef CONFIG_CGROUP_MEM_RES_CTLR_KMEM
++			{
++				struct kmem_cache *c;
 +
-+		/* Can't fail because it's the root cgroup */
-+		err = res_counter_charge(&root_mem_cgroup->kmem_bytes,
-+		    kmem_bytes, &dummy);
-+		err = res_counter_charge(&root_mem_cgroup->res, kmem_bytes,
-+		    &dummy);
-+	}
++				list_for_each_entry(c, &cachep->sibling_list,
++				    sibling_list)
++					do_tune_cpucache(c, limit, batchcount,
++					    shared, GFP_KERNEL |
++					    __GFP_NOACCOUNT);
++			}
 +#endif
- }
- #else /* CONFIG_CGROUP_MEM_RES_CTLR_KMEM */
- static void
+ 			break;
+ 		}
+ 	}
 -- 
 1.7.7.3
 
