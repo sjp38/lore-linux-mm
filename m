@@ -1,41 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx102.postini.com [74.125.245.102])
-	by kanga.kvack.org (Postfix) with SMTP id E2F4D6B004A
-	for <linux-mm@kvack.org>; Mon, 27 Feb 2012 11:14:22 -0500 (EST)
-Message-ID: <4F4BABBA.9050207@redhat.com>
-Date: Mon, 27 Feb 2012 11:13:46 -0500
-From: Rik van Riel <riel@redhat.com>
+Received: from psmtp.com (na3sys010amx104.postini.com [74.125.245.104])
+	by kanga.kvack.org (Postfix) with SMTP id 467106B004A
+	for <linux-mm@kvack.org>; Mon, 27 Feb 2012 11:43:50 -0500 (EST)
+Date: Mon, 27 Feb 2012 10:43:47 -0600 (CST)
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: [RFC][PATCH] fix move/migrate_pages() race on task struct
+In-Reply-To: <87zkc7eshq.fsf@xmission.com>
+Message-ID: <alpine.DEB.2.00.1202271039320.29787@router.home>
+References: <20120223180740.C4EC4156@kernel> <alpine.DEB.2.00.1202231240590.9878@router.home> <4F468F09.5050200@linux.vnet.ibm.com> <alpine.DEB.2.00.1202231334290.10914@router.home> <4F469BC7.50705@linux.vnet.ibm.com> <alpine.DEB.2.00.1202231536240.13554@router.home>
+ <m1ehtkapn9.fsf@fess.ebiederm.org> <alpine.DEB.2.00.1202240859340.2621@router.home> <4F47BF56.6010602@linux.vnet.ibm.com> <alpine.DEB.2.00.1202241053220.3726@router.home> <alpine.DEB.2.00.1202241105280.3726@router.home> <4F47C800.4090903@linux.vnet.ibm.com>
+ <alpine.DEB.2.00.1202241131400.3726@router.home> <87zkc7eshq.fsf@xmission.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH -mm 2/2] mm: do not reset mm->free_area_cache on every
- single munmap
-References: <20120223145417.261225fd@cuia.bos.redhat.com> <20120223150034.2c757b3a@cuia.bos.redhat.com> <m2vcmxp609.fsf@firstfloor.org>
-In-Reply-To: <m2vcmxp609.fsf@firstfloor.org>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andi Kleen <andi@firstfloor.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, Mel Gorman <mel@csn.ul.ie>, Johannes Weiner <hannes@cmpxchg.org>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Andrea Arcangeli <aarcange@redhat.com>, hughd@google.com
+To: "Eric W. Biederman" <ebiederm@xmission.com>
+Cc: Dave Hansen <dave@linux.vnet.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On 02/23/2012 04:57 PM, Andi Kleen wrote:
-> Rik van Riel<riel@redhat.com>  writes:
+On Fri, 24 Feb 2012, Eric W. Biederman wrote:
+
+> Taking a quick look it does appear that in cpuset_mems_allowed and it's
+> cousins we never sleep under "callback_mutex" so that lock looks like it
+> could become a spinlock.
 >
->> Some programs have a large number of VMAs, and make frequent calls
->> to mmap and munmap. Having munmap constantly cause the search
->> pointer for get_unmapped_area to get reset can cause a significant
->> slowdown for such programs.
->
-> This would be a much nicer patch if you split it into one that merges
-> all the copy'n'paste code and another one that actually implements
-> the new algorithm.
+> But I have to say something just bothers me about the permissions for
+> modifying an mm living in the task.  We can have different rules
+> for modifying an mm depending on the path to tme mm?
 
-The copy'n'pasted functions are not quite the same, though.
+Yes. Permissions are associated with pids which refer to tasks. Tasks have
+address spaces and tasks may share address spaces.
 
-All the ones that could be unified already have been, leaving
-a few functions with actual differences around.
+> Especially in things like which numa nodes we can put pages in?
 
--- 
-All rights reversed
+Things = address spaces? The page migration functionality is about moving
+the location of physical memory from one numa node to the other. It does
+not affect the execution just the latencies experienced by the processes.
+
+> So by specifying a different pid to access them mm through the call can
+> either work or succeed?  Are these checks really sane?
+
+Yes if you can create two pids with the same address space and give
+those those pids to different owners then the permission checks on one
+may fail and succeed on the other. We have no way to refer to address
+spaces from user space outside of a pid.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
