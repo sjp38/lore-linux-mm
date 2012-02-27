@@ -1,39 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx111.postini.com [74.125.245.111])
-	by kanga.kvack.org (Postfix) with SMTP id DDD636B00ED
-	for <linux-mm@kvack.org>; Mon, 27 Feb 2012 18:01:24 -0500 (EST)
-Date: Mon, 27 Feb 2012 16:39:00 -0600 (CST)
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: [RFC][PATCH] fix move/migrate_pages() race on task struct
-In-Reply-To: <87d390janv.fsf@xmission.com>
-Message-ID: <alpine.DEB.2.00.1202271636230.6435@router.home>
-References: <20120223180740.C4EC4156@kernel> <alpine.DEB.2.00.1202231240590.9878@router.home> <4F468F09.5050200@linux.vnet.ibm.com> <alpine.DEB.2.00.1202231334290.10914@router.home> <4F469BC7.50705@linux.vnet.ibm.com> <alpine.DEB.2.00.1202231536240.13554@router.home>
- <m1ehtkapn9.fsf@fess.ebiederm.org> <alpine.DEB.2.00.1202240859340.2621@router.home> <4F47BF56.6010602@linux.vnet.ibm.com> <alpine.DEB.2.00.1202241053220.3726@router.home> <alpine.DEB.2.00.1202241105280.3726@router.home> <4F47C800.4090903@linux.vnet.ibm.com>
- <alpine.DEB.2.00.1202241131400.3726@router.home> <87sjhzun47.fsf@xmission.com> <alpine.DEB.2.00.1202271238450.32410@router.home> <87d390janv.fsf@xmission.com>
+Received: from psmtp.com (na3sys010amx131.postini.com [74.125.245.131])
+	by kanga.kvack.org (Postfix) with SMTP id 8E0A06B00ED
+	for <linux-mm@kvack.org>; Mon, 27 Feb 2012 18:05:36 -0500 (EST)
+Message-ID: <4F4C0C40.5080604@xenotime.net>
+Date: Mon, 27 Feb 2012 15:05:36 -0800
+From: Randy Dunlap <rdunlap@xenotime.net>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [PATCH 10/10] memcg: Document kernel memory accounting.
+References: <1330383533-20711-1-git-send-email-ssouhlal@FreeBSD.org> <1330383533-20711-11-git-send-email-ssouhlal@FreeBSD.org>
+In-Reply-To: <1330383533-20711-11-git-send-email-ssouhlal@FreeBSD.org>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Eric W. Biederman" <ebiederm@xmission.com>
-Cc: Dave Hansen <dave@linux.vnet.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Suleiman Souhlal <ssouhlal@FreeBSD.org>
+Cc: cgroups@vger.kernel.org, suleiman@google.com, glommer@parallels.com, kamezawa.hiroyu@jp.fujitsu.com, penberg@kernel.org, yinghan@google.com, hughd@google.com, gthelen@google.com, linux-mm@kvack.org, devel@openvz.org
 
-On Mon, 27 Feb 2012, Eric W. Biederman wrote:
+On 02/27/2012 02:58 PM, Suleiman Souhlal wrote:
 
-> The problem that I see is that we may race with a suid exec in which
-> case the permissions checks might pass for the pre-exec state and then
-> we get the post exec mm that we don't actually have permissions for,
-> but we manipulate it anyway.
+> Signed-off-by: Suleiman Souhlal <suleiman@google.com>
+> ---
+>  Documentation/cgroups/memory.txt |   44 +++++++++++++++++++++++++++++++++++--
+>  1 files changed, 41 insertions(+), 3 deletions(-)
+> 
+> diff --git a/Documentation/cgroups/memory.txt b/Documentation/cgroups/memory.txt
+> index 4c95c00..64c6cc8 100644
+> --- a/Documentation/cgroups/memory.txt
+> +++ b/Documentation/cgroups/memory.txt
 
-So what? Page migration does not change the behavior of the code. It only
-changes the latencies seen. The hacker can mess up the code so that the
-suid exec runs slower?
+> +2.7.1.1 Slab memory accounting
+> +
+> +Slab gets accounted on a per-page basis, which is done by using per-cgroup
+> +kmem_caches. These per-cgroup kmem_caches get created on-demand, the first
+> +time a specific kmem_cache gets used by a cgroup.
+> +
+> +Slab memory that cannot be attributed to a cgroup gets charged to the root
+> +cgroup.
+> +
+> +A per-cgroup kmem_cache is named like the original, with the cgroup's name
+> +in parethesis.
 
-> So we really need to do something silly like get task and
-> task->self_exec_id.  Then perform the permission checks and get the mm.
-> Then if just before we perform the operation task->self_exec_id is
-> different restart the system call, or fail with something like -EAGAIN.
 
-I am still not convinced as to why we would do this.
+      parentheses.
+
+> +
+> +When a cgroup is destroyed, all its kmem_caches get migrated to the root
+> +cgroup, and "dead" is appended to their name, to indicate that they are not
+> +going to be used for new allocations.
+> +These dead caches automatically get removed once there are no more active
+> +slab objects in them.
+> +
+
+-- 
+~Randy
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
