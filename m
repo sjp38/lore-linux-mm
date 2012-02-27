@@ -1,58 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx131.postini.com [74.125.245.131])
-	by kanga.kvack.org (Postfix) with SMTP id 8E0A06B00ED
-	for <linux-mm@kvack.org>; Mon, 27 Feb 2012 18:05:36 -0500 (EST)
-Message-ID: <4F4C0C40.5080604@xenotime.net>
-Date: Mon, 27 Feb 2012 15:05:36 -0800
-From: Randy Dunlap <rdunlap@xenotime.net>
-MIME-Version: 1.0
-Subject: Re: [PATCH 10/10] memcg: Document kernel memory accounting.
-References: <1330383533-20711-1-git-send-email-ssouhlal@FreeBSD.org> <1330383533-20711-11-git-send-email-ssouhlal@FreeBSD.org>
-In-Reply-To: <1330383533-20711-11-git-send-email-ssouhlal@FreeBSD.org>
-Content-Type: text/plain; charset=ISO-8859-1
+Received: from psmtp.com (na3sys010amx141.postini.com [74.125.245.141])
+	by kanga.kvack.org (Postfix) with SMTP id 8E5E06B00ED
+	for <linux-mm@kvack.org>; Mon, 27 Feb 2012 18:11:37 -0500 (EST)
+Date: Mon, 27 Feb 2012 15:11:35 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] hugetlbfs: Add new rw_semaphore to fix truncate/read
+ race
+Message-Id: <20120227151135.7d4076c6.akpm@linux-foundation.org>
+In-Reply-To: <1330280398-27956-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+References: <1330280398-27956-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Suleiman Souhlal <ssouhlal@FreeBSD.org>
-Cc: cgroups@vger.kernel.org, suleiman@google.com, glommer@parallels.com, kamezawa.hiroyu@jp.fujitsu.com, penberg@kernel.org, yinghan@google.com, hughd@google.com, gthelen@google.com, linux-mm@kvack.org, devel@openvz.org
+To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Cc: linux-mm@kvack.org, mgorman@suse.de, kamezawa.hiroyu@jp.fujitsu.com, dhillf@gmail.com, viro@zeniv.linux.org.uk, hughd@google.com, linux-kernel@vger.kernel.org
 
-On 02/27/2012 02:58 PM, Suleiman Souhlal wrote:
+On Sun, 26 Feb 2012 23:49:58 +0530
+"Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com> wrote:
 
-> Signed-off-by: Suleiman Souhlal <suleiman@google.com>
-> ---
->  Documentation/cgroups/memory.txt |   44 +++++++++++++++++++++++++++++++++++--
->  1 files changed, 41 insertions(+), 3 deletions(-)
+> From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
 > 
-> diff --git a/Documentation/cgroups/memory.txt b/Documentation/cgroups/memory.txt
-> index 4c95c00..64c6cc8 100644
-> --- a/Documentation/cgroups/memory.txt
-> +++ b/Documentation/cgroups/memory.txt
+> Drop using inode->i_mutex from read, since that can result in deadlock with
+> mmap. Ideally we can extend the patch to make sure we don't increase i_size
+> in mmap. But that will break userspace, because application will have to now
+> use truncate(2) to increase i_size in hugetlbfs.
+> 
+> AFAIU i_mutex was added in hugetlbfs_read as per
+> http://lkml.indiana.edu/hypermail/linux/kernel/0707.2/3066.html
 
-> +2.7.1.1 Slab memory accounting
-> +
-> +Slab gets accounted on a per-page basis, which is done by using per-cgroup
-> +kmem_caches. These per-cgroup kmem_caches get created on-demand, the first
-> +time a specific kmem_cache gets used by a cgroup.
-> +
-> +Slab memory that cannot be attributed to a cgroup gets charged to the root
-> +cgroup.
-> +
-> +A per-cgroup kmem_cache is named like the original, with the cgroup's name
-> +in parethesis.
+This patch comes somewhat out of the blue and I'm unsure what's going on.
 
+You say there's some (potential?) deadlock with mmap, but it is
+undescribed.  Have people observed this deadlock?  Has it caused
+lockdep warnings?  Please update the changelog to fully describe the
+bug.
 
-      parentheses.
+Also, the new truncate_sem is undoumented.  This leaves readers to work
+out for themselves what it might be for.  Please let's add code
+comments which completely describe the race, and how this lock prevents
+it.
 
-> +
-> +When a cgroup is destroyed, all its kmem_caches get migrated to the root
-> +cgroup, and "dead" is appended to their name, to indicate that they are not
-> +going to be used for new allocations.
-> +These dead caches automatically get removed once there are no more active
-> +slab objects in them.
-> +
+We should also document our locking rules.  When should code take this
+lock?  What are its ranking rules with respect to i_mutex, i_mmap_mutex
+and possibly others?
 
--- 
-~Randy
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
