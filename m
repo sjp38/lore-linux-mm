@@ -1,85 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx179.postini.com [74.125.245.179])
-	by kanga.kvack.org (Postfix) with SMTP id CA1836B004A
-	for <linux-mm@kvack.org>; Tue, 28 Feb 2012 07:24:50 -0500 (EST)
-Date: Tue, 28 Feb 2012 13:24:43 +0100
+Received: from psmtp.com (na3sys010amx136.postini.com [74.125.245.136])
+	by kanga.kvack.org (Postfix) with SMTP id 29F426B004D
+	for <linux-mm@kvack.org>; Tue, 28 Feb 2012 07:25:30 -0500 (EST)
+Date: Tue, 28 Feb 2012 13:25:27 +0100
 From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: + memcg-remove-pcg_file_mapped.patch added to -mm tree
-Message-ID: <20120228122443.GC1702@cmpxchg.org>
-References: <20120217214600.28F87A01B8@akpm.mtv.corp.google.com>
- <20120220090935.1bd379b1.kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH 6/6] memcg: fix performance of
+ mem_cgroup_begin_update_page_stat()
+Message-ID: <20120228122527.GD1702@cmpxchg.org>
+References: <20120217182426.86aebfde.kamezawa.hiroyu@jp.fujitsu.com>
+ <20120217182851.2f8ee503.kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20120220090935.1bd379b1.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20120217182851.2f8ee503.kamezawa.hiroyu@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: akpm@linux-foundation.org, gthelen@google.com, kosaki.motohiro@jp.fujitsu.com, mhocko@suse.cz, yinghan@google.com, "linux-mm@kvack.org" <linux-mm@kvack.org>, Hillf Danton <dhillf@gmail.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, Hugh Dickins <hughd@google.com>, Greg Thelen <gthelen@google.com>, Ying Han <yinghan@google.com>
 
-On Mon, Feb 20, 2012 at 09:09:35AM +0900, KAMEZAWA Hiroyuki wrote:
-> On Fri, 17 Feb 2012 13:46:00 -0800
-> akpm@linux-foundation.org wrote:
-> 
-> > 
-> > The patch titled
-> >      Subject: memcg: remove PCG_FILE_MAPPED
-> > has been added to the -mm tree.  Its filename is
-> >      memcg-remove-pcg_file_mapped.patch
-> > 
-> > Before you just go and hit "reply", please:
-> >    a) Consider who else should be cc'ed
-> >    b) Prefer to cc a suitable mailing list as well
-> >    c) Ideally: find the original patch on the mailing list and do a
-> >       reply-to-all to that, adding suitable additional cc's
-> > 
-> > *** Remember to use Documentation/SubmitChecklist when testing your code ***
-> > 
-> > The -mm tree is included into linux-next and is updated
-> > there every 3-4 working days
-> > 
-> > ------------------------------------------------------
-> > From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> > Subject: memcg: remove PCG_FILE_MAPPED
-> > 
-> > With the new lock scheme for updating memcg's page stat, we don't need a
-> > flag PCG_FILE_MAPPED which was duplicated information of page_mapped().
-> > 
-> 
-> Johannes and Hillf pointed out this is required.
-> Thank you!.
-> 
-> ==
-> >From eed3550a81bc53a3d084a295e56654a18455103f Mon Sep 17 00:00:00 2001
+On Fri, Feb 17, 2012 at 06:28:51PM +0900, KAMEZAWA Hiroyuki wrote:
+> >From 07d3ce332ee4bc1eaef4b8fb2019b0c06bd7afb1 Mon Sep 17 00:00:00 2001
 > From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> Date: Mon, 20 Feb 2012 09:19:44 +0900
-> Subject: [PATCH] memcg: fix remove PCG_FILE_MAPPED
+> Date: Mon, 6 Feb 2012 12:14:47 +0900
+> Subject: [PATCH 6/6] memcg: fix performance of mem_cgroup_begin_update_page_stat()
 > 
-> At move_acount(), accounting information nr_file_mapped per memcg is moved
-> from old cgroup to new one.
-> The patch  memcg-remove-pcg_file_mapped.patch chesk the condition by
+> mem_cgroup_begin_update_page_stat() should be very fast because
+> it's called very frequently. Now, it needs to look up page_cgroup
+> and its memcg....this is slow.
 > 
-> 	if (page_mapped(page))
+> This patch adds a global variable to check "any memcg is moving or not".
+> With this, the caller doesn't need to visit page_cgroup and memcg.
 > 
-> But we want to count only FILE_MAPPED. Then, this should be
+> Here is a test result. A test program makes page faults onto a file,
+> MAP_SHARED and makes each page's page_mapcount(page) > 1, and free
+> the range by madvise() and page fault again.  This program causes
+> 26214400 times of page fault onto a file(size was 1G.) and shows
+> shows the cost of mem_cgroup_begin_update_page_stat().
 > 
-> 	if (!PageAnon(page) && page_mapped(page))
+> Before this patch for mem_cgroup_begin_update_page_stat()
+> [kamezawa@bluextal test]$ time ./mmap 1G
 > 
-> This handles following cases.
->   - anon  + mapped   => false
->   - anon  + unmapped => false (swap cache)
->   - shmem + mapped   => true
->   - shmem + unmapped => false (swap cache)
->   - file  + mapped   => true
->   - file  + unmapped => false
+> real    0m21.765s
+> user    0m5.999s
+> sys     0m15.434s
 > 
+>     27.46%     mmap  mmap               [.] reader
+>     21.15%     mmap  [kernel.kallsyms]  [k] page_fault
+>      9.17%     mmap  [kernel.kallsyms]  [k] filemap_fault
+>      2.96%     mmap  [kernel.kallsyms]  [k] __do_fault
+>      2.83%     mmap  [kernel.kallsyms]  [k] __mem_cgroup_begin_update_page_stat
+> 
+> After this patch
+> [root@bluextal test]# time ./mmap 1G
+> 
+> real    0m21.373s
+> user    0m6.113s
+> sys     0m15.016s
+> 
+> In usual path, calls to __mem_cgroup_begin_update_page_stat() goes away.
+> 
+> Note: we may be able to remove this optimization in future if
+>       we can get pointer to memcg directly from struct page.
+> 
+> Acked-by: Greg Thelen <gthelen@google.com>
 > Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-With that one folded in,
-
 Acked-by: Johannes Weiner <hannes@cmpxchg.org>
-
-to the original patch 'memcg: remove PCG_FILE_MAPPED'.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
