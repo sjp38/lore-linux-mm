@@ -1,56 +1,101 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx164.postini.com [74.125.245.164])
-	by kanga.kvack.org (Postfix) with SMTP id 404696B004A
-	for <linux-mm@kvack.org>; Tue, 28 Feb 2012 17:37:40 -0500 (EST)
-Date: Tue, 28 Feb 2012 14:37:38 -0800
+Received: from psmtp.com (na3sys010amx188.postini.com [74.125.245.188])
+	by kanga.kvack.org (Postfix) with SMTP id 81EC86B004A
+	for <linux-mm@kvack.org>; Tue, 28 Feb 2012 17:45:09 -0500 (EST)
+Date: Tue, 28 Feb 2012 14:45:07 -0800
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 2/9] memcg: add dirty page accounting infrastructure
-Message-Id: <20120228143738.b84d49ff.akpm@linux-foundation.org>
-In-Reply-To: <20120228144746.971869014@intel.com>
+Subject: Re: [PATCH 4/9] memcg: dirty page accounting support routines
+Message-Id: <20120228144507.acd70d1e.akpm@linux-foundation.org>
+In-Reply-To: <20120228144747.124608935@intel.com>
 References: <20120228140022.614718843@intel.com>
-	<20120228144746.971869014@intel.com>
+	<20120228144747.124608935@intel.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Fengguang Wu <fengguang.wu@intel.com>
-Cc: Greg Thelen <gthelen@google.com>, Jan Kara <jack@suse.cz>, Ying Han <yinghan@google.com>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Andrea Righi <andrea@betterlinux.com>, Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+Cc: Greg Thelen <gthelen@google.com>, Jan Kara <jack@suse.cz>, Ying Han <yinghan@google.com>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Tue, 28 Feb 2012 22:00:24 +0800
+On Tue, 28 Feb 2012 22:00:26 +0800
 Fengguang Wu <fengguang.wu@intel.com> wrote:
 
 > From: Greg Thelen <gthelen@google.com>
 > 
-> Add memcg routines to count dirty, writeback, and unstable_NFS pages.
-> These routines are not yet used by the kernel to count such pages.  A
-> later change adds kernel calls to these new routines.
-> 
-> As inode pages are marked dirty, if the dirtied page's cgroup differs
-> from the inode's cgroup, then mark the inode shared across several
-> cgroup.
+> Added memcg dirty page accounting support routines.  These routines are
+> used by later changes to provide memcg aware writeback and dirty page
+> limiting.  A mem_cgroup_dirty_info() tracepoint is is also included to
+> allow for easier understanding of memcg writeback operation.
 > 
 > ...
 >
-> @@ -1885,6 +1888,44 @@ void mem_cgroup_update_page_stat(struct 
->  			ClearPageCgroupFileMapped(pc);
->  		idx = MEM_CGROUP_STAT_FILE_MAPPED;
->  		break;
+> +/*
+> + * Return the number of additional pages that the @memcg cgroup could allocate.
+> + * If use_hierarchy is set, then this involves checking parent mem cgroups to
+> + * find the cgroup with the smallest free space.
+> + */
+
+Comment needs revisting - use_hierarchy does not exist.
+
+> +static unsigned long
+> +mem_cgroup_hierarchical_free_pages(struct mem_cgroup *memcg)
+> +{
+> +	u64 free;
+> +	unsigned long min_free;
 > +
-> +	case MEMCG_NR_FILE_DIRTY:
-> +		/* Use Test{Set,Clear} to only un/charge the memcg once. */
-> +		if (val > 0) {
-> +			if (TestSetPageCgroupFileDirty(pc))
-> +				val = 0;
-> +		} else {
-> +			if (!TestClearPageCgroupFileDirty(pc))
-> +				val = 0;
-> +		}
+> +	min_free = global_page_state(NR_FREE_PAGES);
+> +
+> +	while (memcg) {
+> +		free = mem_cgroup_margin(memcg);
+> +		min_free = min_t(u64, min_free, free);
+> +		memcg = parent_mem_cgroup(memcg);
+> +	}
+> +
+> +	return min_free;
+> +}
+> +
+> +/*
+> + * mem_cgroup_page_stat() - get memory cgroup file cache statistics
+> + * @memcg:     memory cgroup to query
+> + * @item:      memory statistic item exported to the kernel
+> + *
+> + * Return the accounted statistic value.
+> + */
+> +unsigned long mem_cgroup_page_stat(struct mem_cgroup *memcg,
+> +				   enum mem_cgroup_page_stat_item item)
+> +{
+> +	struct mem_cgroup *iter;
+> +	s64 value;
+> +
+> +	/*
+> +	 * If we're looking for dirtyable pages we need to evaluate free pages
+> +	 * depending on the limit and usage of the parents first of all.
+> +	 */
+> +	if (item == MEMCG_NR_DIRTYABLE_PAGES)
+> +		value = mem_cgroup_hierarchical_free_pages(memcg);
+> +	else
+> +		value = 0;
+> +
+> +	/*
+> +	 * Recursively evaluate page statistics against all cgroup under
+> +	 * hierarchy tree
+> +	 */
+> +	for_each_mem_cgroup_tree(iter, memcg)
+> +		value += mem_cgroup_local_page_stat(iter, item);
 
-Made me scratch my head for a while, but I see now that the `val' arg
-to (the undocumented) mem_cgroup_update_page_stat() can only ever have
-the values 1 or -1.  I hope.
+What's the locking rule for for_each_mem_cgroup_tree()?  It's unobvious
+from the code and isn't documented?
 
+> +	/*
+> +	 * Summing of unlocked per-cpu counters is racy and may yield a slightly
+> +	 * negative value.  Zero is the only sensible value in such cases.
+> +	 */
+> +	if (unlikely(value < 0))
+> +		value = 0;
+> +
+> +	return value;
+> +}
+> +
 >
 > ...
 >
