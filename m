@@ -1,71 +1,156 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx136.postini.com [74.125.245.136])
-	by kanga.kvack.org (Postfix) with SMTP id 29F426B004D
-	for <linux-mm@kvack.org>; Tue, 28 Feb 2012 07:25:30 -0500 (EST)
-Date: Tue, 28 Feb 2012 13:25:27 +0100
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH 6/6] memcg: fix performance of
- mem_cgroup_begin_update_page_stat()
-Message-ID: <20120228122527.GD1702@cmpxchg.org>
-References: <20120217182426.86aebfde.kamezawa.hiroyu@jp.fujitsu.com>
- <20120217182851.2f8ee503.kamezawa.hiroyu@jp.fujitsu.com>
+Received: from psmtp.com (na3sys010amx132.postini.com [74.125.245.132])
+	by kanga.kvack.org (Postfix) with SMTP id 997D96B004A
+	for <linux-mm@kvack.org>; Tue, 28 Feb 2012 08:04:55 -0500 (EST)
+Message-ID: <4F4CD0AF.1050508@parallels.com>
+Date: Tue, 28 Feb 2012 10:03:43 -0300
+From: Glauber Costa <glommer@parallels.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20120217182851.2f8ee503.kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH 00/10] memcg: Kernel Memory Accounting.
+References: <1330383533-20711-1-git-send-email-ssouhlal@FreeBSD.org>
+In-Reply-To: <1330383533-20711-1-git-send-email-ssouhlal@FreeBSD.org>
+Content-Type: text/plain; charset="ISO-8859-1"; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, Hugh Dickins <hughd@google.com>, Greg Thelen <gthelen@google.com>, Ying Han <yinghan@google.com>
+To: Suleiman Souhlal <ssouhlal@FreeBSD.org>
+Cc: cgroups@vger.kernel.org, suleiman@google.com, kamezawa.hiroyu@jp.fujitsu.com, penberg@kernel.org, yinghan@google.com, hughd@google.com, gthelen@google.com, linux-mm@kvack.org, devel@openvz.org
 
-On Fri, Feb 17, 2012 at 06:28:51PM +0900, KAMEZAWA Hiroyuki wrote:
-> >From 07d3ce332ee4bc1eaef4b8fb2019b0c06bd7afb1 Mon Sep 17 00:00:00 2001
-> From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> Date: Mon, 6 Feb 2012 12:14:47 +0900
-> Subject: [PATCH 6/6] memcg: fix performance of mem_cgroup_begin_update_page_stat()
-> 
-> mem_cgroup_begin_update_page_stat() should be very fast because
-> it's called very frequently. Now, it needs to look up page_cgroup
-> and its memcg....this is slow.
-> 
-> This patch adds a global variable to check "any memcg is moving or not".
-> With this, the caller doesn't need to visit page_cgroup and memcg.
-> 
-> Here is a test result. A test program makes page faults onto a file,
-> MAP_SHARED and makes each page's page_mapcount(page) > 1, and free
-> the range by madvise() and page fault again.  This program causes
-> 26214400 times of page fault onto a file(size was 1G.) and shows
-> shows the cost of mem_cgroup_begin_update_page_stat().
-> 
-> Before this patch for mem_cgroup_begin_update_page_stat()
-> [kamezawa@bluextal test]$ time ./mmap 1G
-> 
-> real    0m21.765s
-> user    0m5.999s
-> sys     0m15.434s
-> 
->     27.46%     mmap  mmap               [.] reader
->     21.15%     mmap  [kernel.kallsyms]  [k] page_fault
->      9.17%     mmap  [kernel.kallsyms]  [k] filemap_fault
->      2.96%     mmap  [kernel.kallsyms]  [k] __do_fault
->      2.83%     mmap  [kernel.kallsyms]  [k] __mem_cgroup_begin_update_page_stat
-> 
-> After this patch
-> [root@bluextal test]# time ./mmap 1G
-> 
-> real    0m21.373s
-> user    0m6.113s
-> sys     0m15.016s
-> 
-> In usual path, calls to __mem_cgroup_begin_update_page_stat() goes away.
-> 
-> Note: we may be able to remove this optimization in future if
->       we can get pointer to memcg directly from struct page.
-> 
-> Acked-by: Greg Thelen <gthelen@google.com>
-> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Hi,
 
-Acked-by: Johannes Weiner <hannes@cmpxchg.org>
+On 02/27/2012 07:58 PM, Suleiman Souhlal wrote:
+> This patch series introduces kernel memory accounting to memcg.
+> It currently only accounts for slab.
+>
+> It's very similar to the patchset I sent back in October, but
+> with a number of fixes and improvements.
+> There is also overlap with Glauber's patchset, but I decided to
+> send this because there are some pretty significant differences.
+
+Indeed. I will comment in details at your patches. I hope we can reach 
+an agreement soon about the best way to move forward.
+
+> With this patchset, kernel memory gets counted in a memcg's
+> memory.kmem.usage_in_bytes.
+> It's possible to have a limit to the kernel memory by setting
+> memory.kmem.independent_kmem_limit to 1 and setting the limit in
+> memory.kmem.limit_in_bytes.
+> If memory.kmem.independent_kmem_limit is unset, kernel memory also
+> gets counted in the cgroup's memory.usage_in_bytes, and kernel
+> memory allocations may trigger memcg reclaim or OOM.
+>
+>
+> Slab gets accounted per-page, by using per-cgroup kmem_caches that
+> get created the first time an allocation of that type is done by
+> that cgroup.
+
+I don't particularly care, but doesn't that introduce potential high 
+latencies for task within the cgroup?
+
+Having the cgroup creation taking longer to complete is one thing,
+but having an object allocation taking a lot longer than it would
+take otherwise can be detrimental to some users. Again, for my usecase, 
+this is not terribly important.
+
+Maybe we can pick a couple of caches that we know to be of more 
+importance, (like the dcache), and create them at memcg create time ?
+
+> The main difference with Glauber's patches is here: We try to
+> track all the slab allocations, while Glauber only tracks ones
+> that are explicitly marked.
+> We feel that it's important to track everything, because there
+> are a lot of different slab allocations that may use significant
+> amounts of memory, that we may not know of ahead of time.
+
+Note that "explicitly marking" does not mean not tracking them all in 
+the end. I am just quite worried about having the heavy-caches like the 
+dcache lying around without a proper memcg-shrinker.
+
+But that said, this is not crucial to my patchset. I am prepared to 
+adopt your general idea about that.
+
+> This is also the main source of complexity in the patchset.
+Nothing is free =)
+
+> The per-cgroup kmem_cache approach makes it so that we only have
+> to do charges/uncharges in the slow path of the slab allocator,
+> which should have low performance impacts.
+>
+> A per-cgroup kmem_cache will appear in slabinfo named like its
+> original cache, with the cgroup's name in parenthesis.
+
+There is another problem associated with names. You can use just the 
+trailing piece of the cgroup name, since it may lead to duplicates like 
+memory/foo and memory/bar/foo all named "dcache-foo" (which I believe is 
+what you do here, right?). But then you need to include the full path, 
+and can end up with some quite monstruous things that will sure render 
+/proc/slabinfo useless for human readers.
+
+I was thinking: How about we don't bother to show them at all, and 
+instead, show a proc-like file inside the cgroup with information about 
+that cgroup?
+
+> On cgroup deletion, the accounting gets moved to the root cgroup
+> and any existing cgroup kmem_cache gets "dead" appended to its
+> name, to indicate that its accounting was migrated.
+> The dead caches get removed once they no longer have any active
+> objects in them.
+>
+>
+> This patchset does not include any shrinker changes. We already have
+> patches for that, but I felt like it's more important to get the
+> accounting right first, before concentrating on the slab shrinking.
+>
+>
+> Some caveats:
+> 	- Only supports slab.c.
+I only support slub.c, so we can at least leave this discussion with 
+both supported =)
+> 	- There is a difference with non-memcg slab allocation in
+> 	  that with this, some slab allocations might fail when
+> 	  they never failed before. For example, a GFP_NOIO slab
+> 	  allocation wouldn't fail, but now it might.
+> 	  We have a change that makes slab accounting behave
+> 	  the same as non-accounted allocations, but I wasn't sure
+> 	  how important it was to include.
+How about we don't account them, then ?
+
+> 	- We currently do two atomic operations on every accounted
+> 	  slab free, when we increment and decrement the kmem_cache's
+> 	  refcount. It's most likely possible to fix this.
+> 	- When CONFIG_CGROUP_MEM_RES_CTLR_KMEM is enabled, some
+> 	  conditional branches get added to the slab fast paths.
+> 	  That said, when the config option is disabled, this
+> 	  patchset is essentially a no-op.
+>
+>
+> I hope either this or Glauber's patchset will evolve into something
+> that is satisfactory to all the parties.
+>
+> Patch series, based on Linus HEAD from today:
+>
+> 1/10 memcg: Kernel memory accounting infrastructure.
+> 2/10 memcg: Uncharge all kmem when deleting a cgroup.
+> 3/10 memcg: Reclaim when more than one page needed.
+> 4/10 memcg: Introduce __GFP_NOACCOUNT.
+> 5/10 memcg: Slab accounting.
+> 6/10 memcg: Track all the memcg children of a kmem_cache.
+> 7/10 memcg: Stop res_counter underflows.
+> 8/10 memcg: Add CONFIG_CGROUP_MEM_RES_CTLR_KMEM_ACCT_ROOT.
+> 9/10 memcg: Per-memcg memory.kmem.slabinfo file.
+> 10/10 memcg: Document kernel memory accounting.
+>
+> Documentation/cgroups/memory.txt |   44 +++-
+> include/linux/gfp.h              |    2 +
+> include/linux/memcontrol.h       |   30 ++-
+> include/linux/slab.h             |    1 +
+> include/linux/slab_def.h         |  102 +++++++-
+> init/Kconfig                     |    8 +
+> mm/memcontrol.c                  |  607 ++++++++++++++++++++++++++++++++++++--
+> mm/slab.c                        |  395 ++++++++++++++++++++++---
+> 8 files changed, 1115 insertions(+), 74 deletions(-)
+>
+> -- Suleiman
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
