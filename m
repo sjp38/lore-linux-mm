@@ -1,30 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx132.postini.com [74.125.245.132])
-	by kanga.kvack.org (Postfix) with SMTP id 78E866B0083
-	for <linux-mm@kvack.org>; Tue, 28 Feb 2012 14:01:55 -0500 (EST)
-Message-ID: <4F4D2459.3010908@parallels.com>
-Date: Tue, 28 Feb 2012 16:00:41 -0300
+Received: from psmtp.com (na3sys010amx151.postini.com [74.125.245.151])
+	by kanga.kvack.org (Postfix) with SMTP id 6D5786B00E7
+	for <linux-mm@kvack.org>; Tue, 28 Feb 2012 14:03:42 -0500 (EST)
+Message-ID: <4F4D24C8.5020405@parallels.com>
+Date: Tue, 28 Feb 2012 16:02:32 -0300
 From: Glauber Costa <glommer@parallels.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 02/10] memcg: Uncharge all kmem when deleting a cgroup.
-References: <1330383533-20711-1-git-send-email-ssouhlal@FreeBSD.org> <1330383533-20711-3-git-send-email-ssouhlal@FreeBSD.org>
-In-Reply-To: <1330383533-20711-3-git-send-email-ssouhlal@FreeBSD.org>
+Subject: Re: [PATCH 0/7] memcg kernel memory tracking
+References: <1329824079-14449-1-git-send-email-glommer@parallels.com> <CALWz4izD0Ykx8YJWVoECk7jdBLTxSm1vXOjKfkAgUaUVv2FkJw@mail.gmail.com>
+In-Reply-To: <CALWz4izD0Ykx8YJWVoECk7jdBLTxSm1vXOjKfkAgUaUVv2FkJw@mail.gmail.com>
 Content-Type: text/plain; charset="ISO-8859-1"; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Suleiman Souhlal <ssouhlal@FreeBSD.org>
-Cc: cgroups@vger.kernel.org, suleiman@google.com, kamezawa.hiroyu@jp.fujitsu.com, penberg@kernel.org, yinghan@google.com, hughd@google.com, gthelen@google.com, linux-mm@kvack.org, devel@openvz.org
+To: Ying Han <yinghan@google.com>
+Cc: cgroups@vger.kernel.org, devel@openvz.org, linux-mm@kvack.org
 
-On 02/27/2012 07:58 PM, Suleiman Souhlal wrote:
-> A later patch will also use this to move the accounting to the root
-> cgroup.
+On 02/23/2012 04:18 PM, Ying Han wrote:
+> On Tue, Feb 21, 2012 at 3:34 AM, Glauber Costa<glommer@parallels.com>  wrote:
+>> This is a first structured approach to tracking general kernel
+>> memory within the memory controller. Please tell me what you think.
+>>
+>> As previously proposed, one has the option of keeping kernel memory
+>> accounted separatedly, or together with the normal userspace memory.
+>> However, this time I made the option to, in this later case, bill
+>> the memory directly to memcg->res. It has the disadvantage that it becomes
+>> complicated to know which memory came from user or kernel, but OTOH,
+>> it does not create any overhead of drawing from multiple res_counters
+>> at read time. (and if you want them to be joined, you probably don't care)
 >
+> Keeping one counter for user and kernel pages makes it easier for
+> admins to configure the system. About reporting, we should still
+> report the user and kernel memory separately. It will be extremely
+> useful when diagnosing the system like heavily memory pressure or OOM.
 
-Suleiman,
+It will also make us charge two different res_counters, which is not a 
+cheap operation.
 
-Did you do any measurements to figure out how long does it take, 
-average, for dangling caches to go away ? Under memory pressure, let's say
+I was wondering if we can do something smarter within the res_counter 
+itself to avoid taking locks for two different res_counters in the 
+charge path?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
