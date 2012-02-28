@@ -1,131 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx168.postini.com [74.125.245.168])
-	by kanga.kvack.org (Postfix) with SMTP id 5799F6B004A
-	for <linux-mm@kvack.org>; Tue, 28 Feb 2012 07:22:59 -0500 (EST)
-Date: Tue, 28 Feb 2012 13:22:50 +0100
+Received: from psmtp.com (na3sys010amx179.postini.com [74.125.245.179])
+	by kanga.kvack.org (Postfix) with SMTP id CA1836B004A
+	for <linux-mm@kvack.org>; Tue, 28 Feb 2012 07:24:50 -0500 (EST)
+Date: Tue, 28 Feb 2012 13:24:43 +0100
 From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH 4/6] memcg: use new logic for page stat accounting.
-Message-ID: <20120228122250.GB1702@cmpxchg.org>
-References: <20120217182426.86aebfde.kamezawa.hiroyu@jp.fujitsu.com>
- <20120217182743.2d5f629e.kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: + memcg-remove-pcg_file_mapped.patch added to -mm tree
+Message-ID: <20120228122443.GC1702@cmpxchg.org>
+References: <20120217214600.28F87A01B8@akpm.mtv.corp.google.com>
+ <20120220090935.1bd379b1.kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20120217182743.2d5f629e.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20120220090935.1bd379b1.kamezawa.hiroyu@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, Hugh Dickins <hughd@google.com>, Greg Thelen <gthelen@google.com>, Ying Han <yinghan@google.com>
+Cc: akpm@linux-foundation.org, gthelen@google.com, kosaki.motohiro@jp.fujitsu.com, mhocko@suse.cz, yinghan@google.com, "linux-mm@kvack.org" <linux-mm@kvack.org>, Hillf Danton <dhillf@gmail.com>
 
-On Fri, Feb 17, 2012 at 06:27:43PM +0900, KAMEZAWA Hiroyuki wrote:
-> >From 5bf592d432e4552db74e94a575afcd83aa652a9d Mon Sep 17 00:00:00 2001
+On Mon, Feb 20, 2012 at 09:09:35AM +0900, KAMEZAWA Hiroyuki wrote:
+> On Fri, 17 Feb 2012 13:46:00 -0800
+> akpm@linux-foundation.org wrote:
+> 
+> > 
+> > The patch titled
+> >      Subject: memcg: remove PCG_FILE_MAPPED
+> > has been added to the -mm tree.  Its filename is
+> >      memcg-remove-pcg_file_mapped.patch
+> > 
+> > Before you just go and hit "reply", please:
+> >    a) Consider who else should be cc'ed
+> >    b) Prefer to cc a suitable mailing list as well
+> >    c) Ideally: find the original patch on the mailing list and do a
+> >       reply-to-all to that, adding suitable additional cc's
+> > 
+> > *** Remember to use Documentation/SubmitChecklist when testing your code ***
+> > 
+> > The -mm tree is included into linux-next and is updated
+> > there every 3-4 working days
+> > 
+> > ------------------------------------------------------
+> > From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> > Subject: memcg: remove PCG_FILE_MAPPED
+> > 
+> > With the new lock scheme for updating memcg's page stat, we don't need a
+> > flag PCG_FILE_MAPPED which was duplicated information of page_mapped().
+> > 
+> 
+> Johannes and Hillf pointed out this is required.
+> Thank you!.
+> 
+> ==
+> >From eed3550a81bc53a3d084a295e56654a18455103f Mon Sep 17 00:00:00 2001
 > From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> Date: Thu, 2 Feb 2012 11:49:59 +0900
-> Subject: [PATCH 4/6] memcg: use new logic for page stat accounting.
+> Date: Mon, 20 Feb 2012 09:19:44 +0900
+> Subject: [PATCH] memcg: fix remove PCG_FILE_MAPPED
 > 
-> Now, page-stat-per-memcg is recorded into per page_cgroup flag by
-> duplicating page's status into the flag. The reason is that memcg
-> has a feature to move a page from a group to another group and we
-> have race between "move" and "page stat accounting",
+> At move_acount(), accounting information nr_file_mapped per memcg is moved
+> from old cgroup to new one.
+> The patch  memcg-remove-pcg_file_mapped.patch chesk the condition by
 > 
-> Under current logic, assume CPU-A and CPU-B. CPU-A does "move"
-> and CPU-B does "page stat accounting".
+> 	if (page_mapped(page))
 > 
-> When CPU-A goes 1st,
+> But we want to count only FILE_MAPPED. Then, this should be
 > 
->             CPU-A                           CPU-B
->                                     update "struct page" info.
->     move_lock_mem_cgroup(memcg)
->     see pc->flags
->     copy page stat to new group
->     overwrite pc->mem_cgroup.
->     move_unlock_mem_cgroup(memcg)
->                                     move_lock_mem_cgroup(mem)
->                                     set pc->flags
->                                     update page stat accounting
->                                     move_unlock_mem_cgroup(mem)
+> 	if (!PageAnon(page) && page_mapped(page))
 > 
-> stat accounting is guarded by move_lock_mem_cgroup() and "move"
-> logic (CPU-A) doesn't see changes in "struct page" information.
-> 
-> But it's costly to have the same information both in 'struct page' and
-> 'struct page_cgroup'. And, there is a potential problem.
-> 
-> For example, assume we have PG_dirty accounting in memcg.
-> PG_..is a flag for struct page.
-> PCG_ is a flag for struct page_cgroup.
-> (This is just an example. The same problem can be found in any
->  kind of page stat accounting.)
-> 
-> 	  CPU-A                               CPU-B
->       TestSet PG_dirty
->       (delay)                        TestClear PG_dirty
->                                      if (TestClear(PCG_dirty))
->                                           memcg->nr_dirty--
->       if (TestSet(PCG_dirty))
->           memcg->nr_dirty++
-> 
-> Here, memcg->nr_dirty = +1, this is wrong.
-> This race was reported by  Greg Thelen <gthelen@google.com>.
-> Now, only FILE_MAPPED is supported but fortunately, it's serialized by
-> page table lock and this is not real bug, _now_,
-> 
-> If this potential problem is caused by having duplicated information in
-> struct page and struct page_cgroup, we may be able to fix this by using
-> original 'struct page' information.
-> But we'll have a problem in "move account"
-> 
-> Assume we use only PG_dirty.
-> 
->          CPU-A                   CPU-B
->     TestSet PG_dirty
->     (delay)                    move_lock_mem_cgroup()
->                                if (PageDirty(page))
->                                       new_memcg->nr_dirty++
->                                pc->mem_cgroup = new_memcg;
->                                move_unlock_mem_cgroup()
->     move_lock_mem_cgroup()
->     memcg = pc->mem_cgroup
->     new_memcg->nr_dirty++
-> 
-> accounting information may be double-counted. This was original
-> reason to have PCG_xxx flags but it seems PCG_xxx has another problem.
-> 
-> I think we need a bigger lock as
-> 
->      move_lock_mem_cgroup(page)
->      TestSetPageDirty(page)
->      update page stats (without any checks)
->      move_unlock_mem_cgroup(page)
-> 
-> This fixes both of problems and we don't have to duplicate page flag
-> into page_cgroup. Please note: move_lock_mem_cgroup() is held
-> only when there are possibility of "account move" under the system.
-> So, in most path, status update will go without atomic locks.
-> 
-> This patch introduce mem_cgroup_begin_update_page_stat() and
-> mem_cgroup_end_update_page_stat() both should be called at modifying
-> 'struct page' information if memcg takes care of it. as
-> 
->      mem_cgroup_begin_update_page_stat()
->      modify page information
->      mem_cgroup_update_page_stat()
->      => never check any 'struct page' info, just update counters.
->      mem_cgroup_end_update_page_stat().
-> 
-> This patch is slow because we need to call begin_update_page_stat()/
-> end_update_page_stat() regardless of accounted will be changed or not.
-> A following patch adds an easy optimization and reduces the cost.
-> 
-> Changes since v4
->  - removed unused argument *lock
->  - added more comments.
-> Changes since v3
->  - fixed typos
+> This handles following cases.
+>   - anon  + mapped   => false
+>   - anon  + unmapped => false (swap cache)
+>   - shmem + mapped   => true
+>   - shmem + unmapped => false (swap cache)
+>   - file  + mapped   => true
+>   - file  + unmapped => false
 > 
 > Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
+With that one folded in,
+
 Acked-by: Johannes Weiner <hannes@cmpxchg.org>
+
+to the original patch 'memcg: remove PCG_FILE_MAPPED'.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
