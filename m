@@ -1,16 +1,16 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx114.postini.com [74.125.245.114])
-	by kanga.kvack.org (Postfix) with SMTP id 964B26B007E
-	for <linux-mm@kvack.org>; Tue, 28 Feb 2012 01:31:55 -0500 (EST)
-Received: by mail-bk0-f41.google.com with SMTP id y12so5958991bkt.14
-        for <linux-mm@kvack.org>; Mon, 27 Feb 2012 22:31:55 -0800 (PST)
-Message-ID: <4F4C74D7.90704@openvz.org>
-Date: Tue, 28 Feb 2012 10:31:51 +0400
+Received: from psmtp.com (na3sys010amx201.postini.com [74.125.245.201])
+	by kanga.kvack.org (Postfix) with SMTP id E16416B004A
+	for <linux-mm@kvack.org>; Tue, 28 Feb 2012 01:39:49 -0500 (EST)
+Received: by bkty12 with SMTP id y12so5963210bkt.14
+        for <linux-mm@kvack.org>; Mon, 27 Feb 2012 22:39:48 -0800 (PST)
+Message-ID: <4F4C76B1.8000503@openvz.org>
+Date: Tue, 28 Feb 2012 10:39:45 +0400
 From: Konstantin Khlebnikov <khlebnikov@openvz.org>
 MIME-Version: 1.0
-Subject: Re: [PATCH v3 02/21] memcg: make mm_match_cgroup() hirarchical
-References: <20120223133728.12988.5432.stgit@zurg>	<20120223135146.12988.47611.stgit@zurg> <20120228091144.d174ad7b.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20120228091144.d174ad7b.kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH v3 20/21] mm: split zone->lru_lock
+References: <20120223133728.12988.5432.stgit@zurg>	<20120223135323.12988.1605.stgit@zurg> <20120228104913.0fc13bfd.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20120228104913.0fc13bfd.kamezawa.hiroyu@jp.fujitsu.com>
 Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -19,89 +19,246 @@ To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 Cc: Hugh Dickins <hughd@google.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <andi@firstfloor.org>
 
 KAMEZAWA Hiroyuki wrote:
-> On Thu, 23 Feb 2012 17:51:46 +0400
+> On Thu, 23 Feb 2012 17:53:23 +0400
 > Konstantin Khlebnikov<khlebnikov@openvz.org>  wrote:
 >
->> Check mm-owner cgroup membership hierarchically.
+>> Looks like all ready for splitting zone->lru_lock into per-lruvec pieces.
+>>
+>> lruvec locking loop protected with rcu, actually there is irq-disabling instead
+>> of rcu_read_lock(). Memory controller already releases its lru-vectors after
+>> syncronize_rcu() in cgroup_diput(). Probably it should be replaced with synchronize_sched()
 >>
 >> Signed-off-by: Konstantin Khlebnikov<khlebnikov@openvz.org>
 >
+> Do we need rcu_read_lock() even if we check isolated pages at pre_destroy() ?
+> If pre_destroy() ends, pages under a memcg being destroyed were moved to other
+> cgroup while it's usolated.
 >
-> Ack. but ... see below.
->
->> ---
->>   include/linux/memcontrol.h |   11 ++---------
->>   mm/memcontrol.c            |   20 ++++++++++++++++++++
->>   2 files changed, 22 insertions(+), 9 deletions(-)
->>
->> diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
->> index 8c4d74f..4822d53 100644
->> --- a/include/linux/memcontrol.h
->> +++ b/include/linux/memcontrol.h
->> @@ -87,15 +87,8 @@ extern struct mem_cgroup *try_get_mem_cgroup_from_mm(struct mm_struct *mm);
->>   extern struct mem_cgroup *parent_mem_cgroup(struct mem_cgroup *memcg);
->>   extern struct mem_cgroup *mem_cgroup_from_cont(struct cgroup *cont);
->>
->> -static inline
->> -int mm_match_cgroup(const struct mm_struct *mm, const struct mem_cgroup *cgroup)
->> -{
->> -	struct mem_cgroup *memcg;
->> -	rcu_read_lock();
->> -	memcg = mem_cgroup_from_task(rcu_dereference((mm)->owner));
->> -	rcu_read_unlock();
->> -	return cgroup == memcg;
->> -}
->> +extern int mm_match_cgroup(const struct mm_struct *mm,
->> +			   const struct mem_cgroup *cgroup);
->>
->>   extern struct cgroup_subsys_state *mem_cgroup_css(struct mem_cgroup *memcg);
->>
->> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
->> index b8039d2..77f5d48 100644
->> --- a/mm/memcontrol.c
->> +++ b/mm/memcontrol.c
->> @@ -821,6 +821,26 @@ struct mem_cgroup *mem_cgroup_from_task(struct task_struct *p)
->>   				struct mem_cgroup, css);
->>   }
->>
->> +/**
->> + * mm_match_cgroup - cgroup hierarchy mm membership test
->> + * @mm		mm_struct to test
->> + * @cgroup	target cgroup
->> + *
->> + * Returns true if mm belong this cgroup or any its child in hierarchy
->
-> belongs to ?
->
->> + */
->> +int mm_match_cgroup(const struct mm_struct *mm, const struct mem_cgroup *cgroup)
->> +{
->
-> Please use "memcg" for representing "memory cgroup" (other function's arguments uses "memcg")
->
->> +	struct mem_cgroup *memcg;
->
-> So, rename this as *cur_memcg or some.
->
->> +
->> +	rcu_read_lock();
->> +	memcg = mem_cgroup_from_task(rcu_dereference((mm)->owner));
->> +	while (memcg != cgroup&&  memcg&&  memcg->use_hierarchy)
->> +		memcg = parent_mem_cgroup(memcg);
->
-> IIUC, parent_mem_cgroup() checks mem->res.parent. mem->res.parent is set only when
-> parent->use_hierarchy == true. Then,
->
-> 	while (memcg != cgroup)
-> 		memcg = parent_mem_cgroup(memcg);
->
-> will be enough.
+> So,
+>   - PageLRU(page) guarantees lruvec is valid.
+>   - if !PageLRU(page), the caller of lru_lock should know what it does.
+>     Once isolated, pre_destroy() never ends and page_lruvec(page) is always stable.
 
-Here will be mem_cgroup_same_or_subtree(), see reply from Johannes Weiner.
+This will be racy, because lruvec can be changed and released between checking PageLRU() and page_lruvec() or
+between page_lruvec() and spin_lock(), so we need to protect whole operation with single locking interval.
 
 >
 > Thanks,
 > -Kame
+>
+>> ---
+>>   include/linux/mmzone.h |    3 +-
+>>   mm/compaction.c        |    2 +
+>>   mm/internal.h          |   66 +++++++++++++++++++++++++-----------------------
+>>   mm/page_alloc.c        |    2 +
+>>   mm/swap.c              |    2 +
+>>   5 files changed, 40 insertions(+), 35 deletions(-)
+>>
+>> diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
+>> index 2e3a298..9880150 100644
+>> --- a/include/linux/mmzone.h
+>> +++ b/include/linux/mmzone.h
+>> @@ -304,6 +304,8 @@ struct zone_reclaim_stat {
+>>   };
+>>
+>>   struct lruvec {
+>> +	spinlock_t		lru_lock;
+>> +
+>>   	struct list_head	pages_lru[NR_LRU_LISTS];
+>>   	unsigned long		pages_count[NR_LRU_COUNTERS];
+>>
+>> @@ -386,7 +388,6 @@ struct zone {
+>>   	ZONE_PADDING(_pad1_)
+>>
+>>   	/* Fields commonly accessed by the page reclaim scanner */
+>> -	spinlock_t		lru_lock;
+>>   	struct lruvec		lruvec;
+>>
+>>   	unsigned long		pages_scanned;	   /* since last reclaim */
+>> diff --git a/mm/compaction.c b/mm/compaction.c
+>> index fa74cbe..8661bb58 100644
+>> --- a/mm/compaction.c
+>> +++ b/mm/compaction.c
+>> @@ -306,7 +306,7 @@ static isolate_migrate_t isolate_migratepages(struct zone *zone,
+>>   			lruvec = NULL;
+>>   		}
+>>   		if (need_resched() ||
+>> -		    (lruvec&&  spin_is_contended(&zone->lru_lock))) {
+>> +		    (lruvec&&  spin_is_contended(&lruvec->lru_lock))) {
+>>   			if (lruvec)
+>>   				unlock_lruvec_irq(lruvec);
+>>   			lruvec = NULL;
+>> diff --git a/mm/internal.h b/mm/internal.h
+>> index 6dd2e70..9a9fd53 100644
+>> --- a/mm/internal.h
+>> +++ b/mm/internal.h
+>> @@ -15,27 +15,27 @@
+>>
+>>   static inline void lock_lruvec(struct lruvec *lruvec, unsigned long *flags)
+>>   {
+>> -	spin_lock_irqsave(&lruvec_zone(lruvec)->lru_lock, *flags);
+>> +	spin_lock_irqsave(&lruvec->lru_lock, *flags);
+>>   }
+>>
+>>   static inline void lock_lruvec_irq(struct lruvec *lruvec)
+>>   {
+>> -	spin_lock_irq(&lruvec_zone(lruvec)->lru_lock);
+>> +	spin_lock_irq(&lruvec->lru_lock);
+>>   }
+>>
+>>   static inline void unlock_lruvec(struct lruvec *lruvec, unsigned long *flags)
+>>   {
+>> -	spin_unlock_irqrestore(&lruvec_zone(lruvec)->lru_lock, *flags);
+>> +	spin_unlock_irqrestore(&lruvec->lru_lock, *flags);
+>>   }
+>>
+>>   static inline void unlock_lruvec_irq(struct lruvec *lruvec)
+>>   {
+>> -	spin_unlock_irq(&lruvec_zone(lruvec)->lru_lock);
+>> +	spin_unlock_irq(&lruvec->lru_lock);
+>>   }
+>>
+>>   static inline void wait_lruvec_unlock(struct lruvec *lruvec)
+>>   {
+>> -	spin_unlock_wait(&lruvec_zone(lruvec)->lru_lock);
+>> +	spin_unlock_wait(&lruvec->lru_lock);
+>>   }
+>>
+>>   #ifdef CONFIG_CGROUP_MEM_RES_CTLR
+>> @@ -46,37 +46,39 @@ static inline void wait_lruvec_unlock(struct lruvec *lruvec)
+>>   static inline struct lruvec *__relock_page_lruvec(struct lruvec *locked_lruvec,
+>>   						  struct page *page)
+>>   {
+>> -	/* Currenyly only one lru_lock per-zone */
+>> -	return page_lruvec(page);
+>> +	struct lruvec *lruvec;
+>> +
+>> +	do {
+>> +		lruvec = page_lruvec(page);
+>> +		if (likely(lruvec == locked_lruvec))
+>> +			return lruvec;
+>> +		spin_unlock(&locked_lruvec->lru_lock);
+>> +		spin_lock(&lruvec->lru_lock);
+>> +		locked_lruvec = lruvec;
+>> +	} while (1);
+>>   }
+>>
+>>   static inline struct lruvec *relock_page_lruvec_irq(struct lruvec *lruvec,
+>>   						    struct page *page)
+>>   {
+>> -	struct zone *zone = page_zone(page);
+>> -
+>>   	if (!lruvec) {
+>> -		spin_lock_irq(&zone->lru_lock);
+>> -	} else if (zone != lruvec_zone(lruvec)) {
+>> -		unlock_lruvec_irq(lruvec);
+>> -		spin_lock_irq(&zone->lru_lock);
+>> +		local_irq_disable();
+>> +		lruvec = page_lruvec(page);
+>> +		spin_lock(&lruvec->lru_lock);
+>>   	}
+>> -	return page_lruvec(page);
+>> +	return __relock_page_lruvec(lruvec, page);
+>>   }
+>>
+>>   static inline struct lruvec *relock_page_lruvec(struct lruvec *lruvec,
+>>   						struct page *page,
+>>   						unsigned long *flags)
+>>   {
+>> -	struct zone *zone = page_zone(page);
+>> -
+>>   	if (!lruvec) {
+>> -		spin_lock_irqsave(&zone->lru_lock, *flags);
+>> -	} else if (zone != lruvec_zone(lruvec)) {
+>> -		unlock_lruvec(lruvec, flags);
+>> -		spin_lock_irqsave(&zone->lru_lock, *flags);
+>> +		local_irq_save(*flags);
+>> +		lruvec = page_lruvec(page);
+>> +		spin_lock(&lruvec->lru_lock);
+>>   	}
+>> -	return page_lruvec(page);
+>> +	return __relock_page_lruvec(lruvec, page);
+>>   }
+>>
+>>   /*
+>> @@ -87,22 +89,24 @@ static inline struct lruvec *relock_page_lruvec(struct lruvec *lruvec,
+>>   static inline bool __lock_page_lruvec_irq(struct lruvec **lruvec,
+>>   					  struct page *page)
+>>   {
+>> -	struct zone *zone;
+>>   	bool ret = false;
+>>
+>> +	rcu_read_lock();
+>> +	/*
+>> +	 * If we see there PageLRU(), it means page has valid lruvec link.
+>> +	 * We need protect whole operation with single rcu-interval, otherwise
+>> +	 * lruvec which hold this LRU sign can run out before we secure it.
+>> +	 */
+>>   	if (PageLRU(page)) {
+>>   		if (!*lruvec) {
+>> -			zone = page_zone(page);
+>> -			spin_lock_irq(&zone->lru_lock);
+>> -		} else
+>> -			zone = lruvec_zone(*lruvec);
+>> -
+>> -		if (PageLRU(page)) {
+>>   			*lruvec = page_lruvec(page);
+>> +			lock_lruvec_irq(*lruvec);
+>> +		}
+>> +		*lruvec = __relock_page_lruvec(*lruvec, page);
+>> +		if (PageLRU(page))
+>>   			ret = true;
+>> -		} else
+>> -			*lruvec =&zone->lruvec;
+>>   	}
+>> +	rcu_read_unlock();
+>>
+>>   	return ret;
+>>   }
+>> @@ -110,7 +114,7 @@ static inline bool __lock_page_lruvec_irq(struct lruvec **lruvec,
+>>   /* Wait for lruvec unlock before locking other lruvec for the same page */
+>>   static inline void __wait_lruvec_unlock(struct lruvec *lruvec)
+>>   {
+>> -	/* Currently only one lru_lock per-zone */
+>> +	wait_lruvec_unlock(lruvec);
+>>   }
+>>
+>>   #else /* CONFIG_CGROUP_MEM_RES_CTLR */
+>> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+>> index ab42446..beadcc9 100644
+>> --- a/mm/page_alloc.c
+>> +++ b/mm/page_alloc.c
+>> @@ -4294,6 +4294,7 @@ void init_zone_lruvec(struct zone *zone, struct lruvec *lruvec)
+>>   	enum lru_list lru;
+>>
+>>   	memset(lruvec, 0, sizeof(struct lruvec));
+>> +	spin_lock_init(&lruvec->lru_lock);
+>>   	for_each_lru(lru)
+>>   		INIT_LIST_HEAD(&lruvec->pages_lru[lru]);
+>>   #ifdef CONFIG_CGROUP_MEM_RES_CTLR
+>> @@ -4369,7 +4370,6 @@ static void __paginginit free_area_init_core(struct pglist_data *pgdat,
+>>   #endif
+>>   		zone->name = zone_names[j];
+>>   		spin_lock_init(&zone->lock);
+>> -		spin_lock_init(&zone->lru_lock);
+>>   		zone_seqlock_init(zone);
+>>   		zone->zone_pgdat = pgdat;
+>>
+>> diff --git a/mm/swap.c b/mm/swap.c
+>> index 998c71c..8156181 100644
+>> --- a/mm/swap.c
+>> +++ b/mm/swap.c
+>> @@ -700,7 +700,7 @@ void lru_add_page_tail(struct lruvec *lruvec,
+>>   	VM_BUG_ON(!PageHead(page));
+>>   	VM_BUG_ON(PageCompound(page_tail));
+>>   	VM_BUG_ON(PageLRU(page_tail));
+>> -	VM_BUG_ON(NR_CPUS != 1&&  !spin_is_locked(&lruvec_zone(lruvec)->lru_lock));
+>> +	VM_BUG_ON(NR_CPUS != 1&&  !spin_is_locked(&lruvec->lru_lock));
+>>
+>>   	SetPageLRU(page_tail);
+>>
+>>
+>>
 >
 
 --
