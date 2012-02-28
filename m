@@ -1,87 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx179.postini.com [74.125.245.179])
-	by kanga.kvack.org (Postfix) with SMTP id AB3F16B007E
-	for <linux-mm@kvack.org>; Mon, 27 Feb 2012 22:46:16 -0500 (EST)
-Received: by lahi5 with SMTP id i5so818131lah.25
-        for <linux-mm@kvack.org>; Mon, 27 Feb 2012 19:46:13 -0800 (PST)
-MIME-Version: 1.0
-In-Reply-To: <20120227144602.07f5ec33.akpm@linux-foundation.org>
-References: <1329990365-23779-1-git-send-email-jarkko.sakkinen@intel.com>
-	<alpine.LRH.2.02.1202241913400.30742@tundra.namei.org>
-	<alpine.LSU.2.00.1202241904070.22389@eggly.anvils>
-	<20120227144602.07f5ec33.akpm@linux-foundation.org>
-Date: Tue, 28 Feb 2012 12:46:13 +0900
-Message-ID: <CAGGTEhP=jbA664fbbZaVEN5Bxq9_3iiV84ME8QSTUohv2JLkqw@mail.gmail.com>
-Subject: Re: [PATCH] tmpfs: security xattr setting on inode creation
-From: "Ware, Ryan R" <ryan.r.ware@intel.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Received: from psmtp.com (na3sys010amx113.postini.com [74.125.245.113])
+	by kanga.kvack.org (Postfix) with SMTP id 122A96B007E
+	for <linux-mm@kvack.org>; Mon, 27 Feb 2012 23:01:00 -0500 (EST)
+From: Steven Truelove <steven.truelove@utoronto.ca>
+Subject: [PATCH] Correct alignment of huge page requests.
+Date: Mon, 27 Feb 2012 23:00:28 -0500
+Message-Id: <1330401628-30818-1-git-send-email-steven.truelove@utoronto.ca>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Hugh Dickins <hughd@google.com>, Jarkko Sakkinen <jarkko.sakkinen@intel.com>, James Morris <jmorris@namei.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-security-module@vger.kernel.org
+To: wli@holomorphy.com, akpm@linux-foundation.org
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Steven Truelove <steven.truelove@utoronto.ca>
 
-On Tue, Feb 28, 2012 at 7:46 AM, Andrew Morton
-<akpm@linux-foundation.org> wrote:
->
-> On Fri, 24 Feb 2012 19:19:22 -0800 (PST)
-> Hugh Dickins <hughd@google.com> wrote:
->
-> > +/*
-> > + * Callback for security_inode_init_security() for acquiring xattrs.
-> > + */
-> > +static int shmem_initxattrs(struct inode *inode,
-> > + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 const struct xattr *x=
-attr_array,
-> > + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 void *fs_info)
-> > +{
-> > + =A0 =A0 struct shmem_inode_info *info =3D SHMEM_I(inode);
-> > + =A0 =A0 const struct xattr *xattr;
-> > + =A0 =A0 struct shmem_xattr *new_xattr;
-> > + =A0 =A0 size_t len;
-> > +
-> > + =A0 =A0 for (xattr =3D xattr_array; xattr->name !=3D NULL; xattr++) {
-> > + =A0 =A0 =A0 =A0 =A0 =A0 new_xattr =3D shmem_xattr_alloc(xattr->value,
-> > xattr->value_len);
-> > + =A0 =A0 =A0 =A0 =A0 =A0 if (!new_xattr)
-> > + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 return -ENOMEM;
-> > +
-> > + =A0 =A0 =A0 =A0 =A0 =A0 len =3D strlen(xattr->name) + 1;
-> > + =A0 =A0 =A0 =A0 =A0 =A0 new_xattr->name =3D kmalloc(XATTR_SECURITY_PR=
-EFIX_LEN + len,
-> > + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =
-=A0 =A0 GFP_KERNEL);
-> > + =A0 =A0 =A0 =A0 =A0 =A0 if (!new_xattr->name) {
-> > + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 kfree(new_xattr);
-> > + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 return -ENOMEM;
-> > + =A0 =A0 =A0 =A0 =A0 =A0 }
-> > +
-> > + =A0 =A0 =A0 =A0 =A0 =A0 memcpy(new_xattr->name, XATTR_SECURITY_PREFIX=
-,
-> > + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0XATTR_SECURITY_PREFIX_LEN);
-> > + =A0 =A0 =A0 =A0 =A0 =A0 memcpy(new_xattr->name + XATTR_SECURITY_PREFI=
-X_LEN,
-> > + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0xattr->name, len);
-> > +
-> > + =A0 =A0 =A0 =A0 =A0 =A0 spin_lock(&info->lock);
-> > + =A0 =A0 =A0 =A0 =A0 =A0 list_add(&new_xattr->list, &info->xattr_list)=
-;
-> > + =A0 =A0 =A0 =A0 =A0 =A0 spin_unlock(&info->lock);
-> > + =A0 =A0 }
-> > +
-> > + =A0 =A0 return 0;
-> > +}
->
-> So if there's a kmalloc failure partway through the array, we leave a
-> partially xattrified inode in place.
->
-> Are we sure this is OK?
+When calling shmget() with SHM_HUGETLB, shmget aligns the request size to PAGE_SIZE, but this is not sufficient.  Modified hugetlb_file_setup() to align requests to the huge page size.  Also modified mmap_pgoff() to avoid duplicating this check and to align against the start address.
 
-I'm guessing Jarkko can clean that up a bit.  It wouldn't be a good
-idea to leave inaccurate data structures laying around during failure
-cases.
+Signed-off-by: Steven Truelove <steven.truelove@utoronto.ca>
+---
+ fs/hugetlbfs/inode.c |    9 ++++++---
+ mm/mmap.c            |    6 +++++-
+ 2 files changed, 11 insertions(+), 4 deletions(-)
 
-Ryan
+diff --git a/fs/hugetlbfs/inode.c b/fs/hugetlbfs/inode.c
+index 1e85a7a..b4bed46 100644
+--- a/fs/hugetlbfs/inode.c
++++ b/fs/hugetlbfs/inode.c
+@@ -938,6 +938,8 @@ struct file *hugetlb_file_setup(const char *name, size_t size,
+ 	struct path path;
+ 	struct dentry *root;
+ 	struct qstr quick_string;
++	struct hstate *hstate;
++	int num_pages;
+ 
+ 	*user = NULL;
+ 	if (!hugetlbfs_vfsmount)
+@@ -967,10 +969,11 @@ struct file *hugetlb_file_setup(const char *name, size_t size,
+ 	if (!inode)
+ 		goto out_dentry;
+ 
++	hstate = hstate_inode(inode);
++	num_pages = ALIGN(size, huge_page_size(hstate)) >>
++			huge_page_shift(hstate);
+ 	error = -ENOMEM;
+-	if (hugetlb_reserve_pages(inode, 0,
+-			size >> huge_page_shift(hstate_inode(inode)), NULL,
+-			acctflag))
++	if (hugetlb_reserve_pages(inode, 0, num_pages, NULL, acctflag))
+ 		goto out_inode;
+ 
+ 	d_instantiate(path.dentry, inode);
+diff --git a/mm/mmap.c b/mm/mmap.c
+index 3f758c7..1f44ccf 100644
+--- a/mm/mmap.c
++++ b/mm/mmap.c
+@@ -1098,8 +1098,12 @@ SYSCALL_DEFINE6(mmap_pgoff, unsigned long, addr, unsigned long, len,
+ 		 * taken when vm_ops->mmap() is called
+ 		 * A dummy user value is used because we are not locking
+ 		 * memory so no accounting is necessary
++		 * Length is increased by the amount necessary to align
++		 * the base address to the huge page size.
++		 * hugetlb_file_setup() aligns the end of the buffer to
++		 * the huge page size.
+ 		 */
+-		len = ALIGN(len, huge_page_size(&default_hstate));
++		len += ALIGN(addr, huge_page_size(&default_hstate)) - addr;
+ 		file = hugetlb_file_setup(HUGETLB_ANON_FILE, len, VM_NORESERVE,
+ 						&user, HUGETLB_ANONHUGE_INODE);
+ 		if (IS_ERR(file))
+-- 
+1.7.3.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
