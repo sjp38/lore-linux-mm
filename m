@@ -1,140 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx196.postini.com [74.125.245.196])
-	by kanga.kvack.org (Postfix) with SMTP id 55FEF6B004D
-	for <linux-mm@kvack.org>; Tue, 28 Feb 2012 09:15:01 -0500 (EST)
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: [patch 2/2] mm: memcg: count pte references from every member of the reclaimed hierarchy
-Date: Tue, 28 Feb 2012 15:14:49 +0100
-Message-Id: <1330438489-21909-2-git-send-email-hannes@cmpxchg.org>
-In-Reply-To: <1330438489-21909-1-git-send-email-hannes@cmpxchg.org>
-References: <1330438489-21909-1-git-send-email-hannes@cmpxchg.org>
+Received: from psmtp.com (na3sys010amx128.postini.com [74.125.245.128])
+	by kanga.kvack.org (Postfix) with SMTP id 22D6D6B004A
+	for <linux-mm@kvack.org>; Tue, 28 Feb 2012 09:56:20 -0500 (EST)
+Message-Id: <20120228140022.614718843@intel.com>
+Date: Tue, 28 Feb 2012 22:00:22 +0800
+From: Fengguang Wu <fengguang.wu@intel.com>
+Subject: [PATCH 0/9] [RFC] pageout work and dirty reclaim throttling
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Konstantin Khlebnikov <khlebnikov@openvz.org>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Greg Thelen <gthelen@google.com>, Jan Kara <jack@suse.cz>, Ying Han <yinghan@google.com>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Linux Memory Management List <linux-mm@kvack.org>, Fengguang Wu <fengguang.wu@intel.com>, LKML <linux-kernel@vger.kernel.org>
 
-The rmap walker checking page table references has historically
-ignored references from VMAs that were not part of the memcg that was
-being reclaimed during memcg hard limit reclaim.
+Andrew,
 
-When transitioning global reclaim to memcg hierarchy reclaim, I missed
-that bit and now references from outside a memcg are ignored even
-during global reclaim.
+This aims to improve two major page reclaim problems
 
-Reverting back to traditional behaviour - count all references during
-global reclaim and only mind references of the memcg being reclaimed
-during limit reclaim would be one option.
+a) pageout I/O efficiency, by sending pageout work to the flusher
+b) interactive performance, by selectively throttle the writing tasks
 
-However, the more generic idea is to ignore references exactly then
-when they are outside the hierarchy that is currently under reclaim;
-because only then will their reclamation be of any use to help the
-pressure situation.  It makes no sense to ignore references from a
-sibling memcg and then evict a page that will be immediately refaulted
-by that sibling which contributes to the same usage of the common
-ancestor under reclaim.
+when under heavy pressure of dirty/writeback pages. The tests results for 1)
+and 2) look promising and are included in patches 6 and 9.
 
-The solution: make the rmap walker ignore references from VMAs that
-are not part of the hierarchy that is being reclaimed.
+However there are still two open problems.
 
-Flat limit reclaim will stay the same, hierarchical limit reclaim will
-mind the references only to pages that the hierarchy owns.  Global
-reclaim, since it reclaims from all memcgs, will be fixed to regard
-all references.
+1) ext4 "hung task" problem, as put by Jan Kara:
 
-Reported-by: Konstantin Khlebnikov <khlebnikov@openvz.org>
-Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
----
- include/linux/memcontrol.h |    6 +++++-
- mm/memcontrol.c            |   16 +++++++++++-----
- mm/vmscan.c                |    6 ++++--
- 3 files changed, 20 insertions(+), 8 deletions(-)
+: We enter memcg reclaim from grab_cache_page_write_begin() and are
+: waiting in reclaim_wait(). Because grab_cache_page_write_begin() is
+: called with transaction started, this blocks transaction from
+: committing and subsequently blocks all other activity on the
+: filesystem. The fact is this isn't new with your patches, just your
+: changes or the fact that we are running in a memory constrained cgroup
+: make this more visible.
 
-diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
-index 8537c5d..661b54a 100644
---- a/include/linux/memcontrol.h
-+++ b/include/linux/memcontrol.h
-@@ -78,6 +78,7 @@ extern void mem_cgroup_uncharge_page(struct page *page);
- extern void mem_cgroup_uncharge_cache_page(struct page *page);
- 
- extern void mem_cgroup_out_of_memory(struct mem_cgroup *memcg, gfp_t gfp_mask);
-+bool __mem_cgroup_same_or_subtree(const struct mem_cgroup *, struct mem_cgroup *);
- int task_in_mem_cgroup(struct task_struct *task, const struct mem_cgroup *memcg);
- 
- extern struct mem_cgroup *try_get_mem_cgroup_from_page(struct page *page);
-@@ -88,10 +89,13 @@ static inline
- int mm_match_cgroup(const struct mm_struct *mm, const struct mem_cgroup *cgroup)
- {
- 	struct mem_cgroup *memcg;
-+	int match;
-+
- 	rcu_read_lock();
- 	memcg = mem_cgroup_from_task(rcu_dereference((mm)->owner));
-+	match = __mem_cgroup_same_or_subtree(cgroup, memcg);
- 	rcu_read_unlock();
--	return cgroup == memcg;
-+	return match;
- }
- 
- extern struct cgroup_subsys_state *mem_cgroup_css(struct mem_cgroup *memcg);
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index b4622fb..21004df 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -1044,17 +1044,23 @@ struct lruvec *mem_cgroup_lru_move_lists(struct zone *zone,
-  * Checks whether given mem is same or in the root_mem_cgroup's
-  * hierarchy subtree
-  */
--static bool mem_cgroup_same_or_subtree(const struct mem_cgroup *root_memcg,
--		struct mem_cgroup *memcg)
-+bool __mem_cgroup_same_or_subtree(const struct mem_cgroup *root_memcg,
-+				  struct mem_cgroup *memcg)
- {
--	bool ret;
--
- 	if (root_memcg == memcg)
- 		return true;
- 	if (!root_memcg->use_hierarchy)
- 		return false;
-+	return css_is_ancestor(&memcg->css, &root_memcg->css);
-+}
-+
-+static bool mem_cgroup_same_or_subtree(const struct mem_cgroup *root_memcg,
-+				       struct mem_cgroup *memcg)
-+{
-+	bool ret;
-+
- 	rcu_read_lock();
--	ret = css_is_ancestor(&memcg->css, &root_memcg->css);
-+	ret = __mem_cgroup_same_or_subtree(root_memcg, memcg);
- 	rcu_read_unlock();
- 	return ret;
- }
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index c631234..120646e 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -708,7 +708,8 @@ static enum page_references page_check_references(struct page *page,
- 	int referenced_ptes, referenced_page;
- 	unsigned long vm_flags;
- 
--	referenced_ptes = page_referenced(page, 1, mz->mem_cgroup, &vm_flags);
-+	referenced_ptes = page_referenced(page, 1, sc->target_mem_cgroup,
-+					  &vm_flags);
- 	referenced_page = TestClearPageReferenced(page);
- 
- 	/* Lumpy reclaim - ignore references */
-@@ -1710,7 +1711,8 @@ static void shrink_active_list(unsigned long nr_pages,
- 			continue;
- 		}
- 
--		if (page_referenced(page, 0, mz->mem_cgroup, &vm_flags)) {
-+		if (page_referenced(page, 0, sc->target_mem_cgroup,
-+				    &vm_flags)) {
- 			nr_rotated += hpage_nr_pages(page);
- 			/*
- 			 * Identify referenced, file-backed active pages and
--- 
-1.7.7.6
+2) the pageout work may be deferred by sync work
+
+Like 1), there is also no obvious good way out. The closest fix may be to
+service some pageout works each time the other work finishes with one inode.
+But problem is, the sync work does not limit chunk size at all. So it's
+possible for sync to work on one inode for 1 minute before giving the pageout
+works a chance...
+
+Due to problems (1) and (2), it's still not a complete solution. For ease of
+debug, several trace_printk() and debugfs interfaces are included for now.
+
+ [PATCH 1/9] memcg: add page_cgroup flags for dirty page tracking
+ [PATCH 2/9] memcg: add dirty page accounting infrastructure
+ [PATCH 3/9] memcg: add kernel calls for memcg dirty page stats
+ [PATCH 4/9] memcg: dirty page accounting support routines
+ [PATCH 5/9] writeback: introduce the pageout work
+ [PATCH 6/9] vmscan: dirty reclaim throttling
+ [PATCH 7/9] mm: pass __GFP_WRITE to memcg charge and reclaim routines
+ [PATCH 8/9] mm: dont set __GFP_WRITE on ramfs/sysfs writes                                                  
+ [PATCH 9/9] mm: debug vmscan waits
+
+ fs/fs-writeback.c                |  230 +++++++++++++++++++++-
+ fs/nfs/write.c                   |    4 
+ fs/super.c                       |    1 
+ include/linux/backing-dev.h      |    2 
+ include/linux/gfp.h              |    2 
+ include/linux/memcontrol.h       |   13 +
+ include/linux/mmzone.h           |    1 
+ include/linux/page_cgroup.h      |   23 ++
+ include/linux/sched.h            |    1 
+ include/linux/writeback.h        |   18 +
+ include/trace/events/vmscan.h    |   68 ++++++
+ include/trace/events/writeback.h |   12 -
+ mm/backing-dev.c                 |   10 
+ mm/filemap.c                     |   20 +
+ mm/internal.h                    |    7 
+ mm/memcontrol.c                  |  199 ++++++++++++++++++-
+ mm/migrate.c                     |    3 
+ mm/page-writeback.c              |    6 
+ mm/page_alloc.c                  |    1 
+ mm/swap.c                        |    4 
+ mm/truncate.c                    |    1 
+ mm/vmscan.c                      |  298 ++++++++++++++++++++++++++---
+ 22 files changed, 864 insertions(+), 60 deletions(-)
+
+Thanks,
+Fengguang
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
