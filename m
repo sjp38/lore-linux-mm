@@ -1,72 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx104.postini.com [74.125.245.104])
-	by kanga.kvack.org (Postfix) with SMTP id CD5396B00EB
-	for <linux-mm@kvack.org>; Tue, 28 Feb 2012 09:56:32 -0500 (EST)
-Message-Id: <20120228144747.360548589@intel.com>
-Date: Tue, 28 Feb 2012 22:00:29 +0800
+Received: from psmtp.com (na3sys010amx171.postini.com [74.125.245.171])
+	by kanga.kvack.org (Postfix) with SMTP id A6C366B004A
+	for <linux-mm@kvack.org>; Tue, 28 Feb 2012 10:21:21 -0500 (EST)
+Date: Tue, 28 Feb 2012 23:15:50 +0800
 From: Fengguang Wu <fengguang.wu@intel.com>
-Subject: [PATCH 7/9] mm: pass __GFP_WRITE to memcg charge and reclaim routines
+Subject: Re: [PATCH 4/9] memcg: dirty page accounting support routines
+Message-ID: <20120228151550.GA5490@localhost>
 References: <20120228140022.614718843@intel.com>
-Content-Disposition: inline; filename=memcg-pass-__GFP_WRITE-to-reclaim.patch
+ <20120228144747.124608935@intel.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20120228144747.124608935@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Greg Thelen <gthelen@google.com>, Jan Kara <jack@suse.cz>, Ying Han <yinghan@google.com>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Fengguang Wu <fengguang.wu@intel.com>, Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Greg Thelen <gthelen@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, Ying Han <yinghan@google.com>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-__GFP_WRITE will be tested in vmscan to find out the write tasks.
+On Tue, Feb 28, 2012 at 10:00:26PM +0800, Fengguang Wu wrote:
+> From: Greg Thelen <gthelen@google.com>
+> 
+> Added memcg dirty page accounting support routines.  These routines are
+> used by later changes to provide memcg aware writeback and dirty page
+> limiting.  A mem_cgroup_dirty_info() tracepoint is is also included to
+> allow for easier understanding of memcg writeback operation.
 
-For good interactive performance, we try to focus dirty reclaim waits on
-them and avoid blocking unrelated tasks.
+Greg, sorry that the mem_cgroup_dirty_info() interfaces and
+tracepoints are abridged since they are not used here. Obviously this
+patch series is not enough to keep the number of dirty pages under
+control. It only tries to improve page reclaim behavior given whatever
+dirty number. We'll need further schemes to keep dirty pages under
+sane levels, so that unrelated tasks do not suffer from reclaim waits
+when there are heavy writers in the same memcg.
 
-Signed-off-by: Fengguang Wu <fengguang.wu@intel.com>
----
- include/linux/gfp.h |    2 +-
- mm/filemap.c        |   13 +++++++------
- 2 files changed, 8 insertions(+), 7 deletions(-)
-
---- linux.orig/include/linux/gfp.h	2012-02-28 10:22:24.000000000 +0800
-+++ linux/include/linux/gfp.h	2012-02-28 10:22:42.936316697 +0800
-@@ -129,7 +129,7 @@ struct vm_area_struct;
- /* Control page allocator reclaim behavior */
- #define GFP_RECLAIM_MASK (__GFP_WAIT|__GFP_HIGH|__GFP_IO|__GFP_FS|\
- 			__GFP_NOWARN|__GFP_REPEAT|__GFP_NOFAIL|\
--			__GFP_NORETRY|__GFP_NOMEMALLOC)
-+			__GFP_NORETRY|__GFP_NOMEMALLOC|__GFP_WRITE)
- 
- /* Control slab gfp mask during early boot */
- #define GFP_BOOT_MASK (__GFP_BITS_MASK & ~(__GFP_WAIT|__GFP_IO|__GFP_FS))
---- linux.orig/mm/filemap.c	2012-02-28 10:22:25.000000000 +0800
-+++ linux/mm/filemap.c	2012-02-28 10:24:12.320318821 +0800
-@@ -2340,21 +2340,22 @@ struct page *grab_cache_page_write_begin
- 	int status;
- 	gfp_t gfp_mask;
- 	struct page *page;
--	gfp_t gfp_notmask = 0;
-+	gfp_t lru_gfp_mask = GFP_KERNEL | __GFP_WRITE;
- 
- 	gfp_mask = mapping_gfp_mask(mapping) | __GFP_WRITE;
--	if (flags & AOP_FLAG_NOFS)
--		gfp_notmask = __GFP_FS;
-+	if (flags & AOP_FLAG_NOFS) {
-+		gfp_mask &= ~__GFP_FS;
-+		lru_gfp_mask &= ~__GFP_FS;
-+	}
- repeat:
- 	page = find_lock_page(mapping, index);
- 	if (page)
- 		goto found;
- 
--	page = __page_cache_alloc(gfp_mask & ~gfp_notmask);
-+	page = __page_cache_alloc(gfp_mask);
- 	if (!page)
- 		return NULL;
--	status = add_to_page_cache_lru(page, mapping, index,
--						GFP_KERNEL & ~gfp_notmask);
-+	status = add_to_page_cache_lru(page, mapping, index, lru_gfp_mask);
- 	if (unlikely(status)) {
- 		page_cache_release(page);
- 		if (status == -EEXIST)
-
+Thanks,
+Fengguang
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
