@@ -1,78 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx128.postini.com [74.125.245.128])
-	by kanga.kvack.org (Postfix) with SMTP id 596E56B004D
-	for <linux-mm@kvack.org>; Tue, 28 Feb 2012 09:56:22 -0500 (EST)
-Message-Id: <20120228144746.900395448@intel.com>
-Date: Tue, 28 Feb 2012 22:00:23 +0800
+Received: from psmtp.com (na3sys010amx169.postini.com [74.125.245.169])
+	by kanga.kvack.org (Postfix) with SMTP id 4EC676B004A
+	for <linux-mm@kvack.org>; Tue, 28 Feb 2012 09:56:23 -0500 (EST)
+Message-Id: <20120228144747.440418051@intel.com>
+Date: Tue, 28 Feb 2012 22:00:30 +0800
 From: Fengguang Wu <fengguang.wu@intel.com>
-Subject: [PATCH 1/9] memcg: add page_cgroup flags for dirty page tracking
+Subject: [PATCH 8/9] mm: dont set __GFP_WRITE on ramfs/sysfs writes
 References: <20120228140022.614718843@intel.com>
-Content-Disposition: inline; filename=memcg-add-page_cgroup-flags-for-dirty-page-tracking.patch
+Content-Disposition: inline; filename=mm-__GFP_WRITE-cap_account_dirty.patch
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Greg Thelen <gthelen@google.com>, Jan Kara <jack@suse.cz>, Ying Han <yinghan@google.com>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Andrea Righi <andrea@betterlinux.com>, Minchan Kim <minchan.kim@gmail.com>, Fengguang Wu <fengguang.wu@intel.com>, Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+Cc: Greg Thelen <gthelen@google.com>, Jan Kara <jack@suse.cz>, Ying Han <yinghan@google.com>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Johannes Weiner <jweiner@redhat.com>, Fengguang Wu <fengguang.wu@intel.com>, Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-From: Greg Thelen <gthelen@google.com>
+Try to avoid page reclaim waits when writing to ramfs/sysfs etc.
 
-Add additional flags to page_cgroup to track dirty pages
-within a mem_cgroup.
+Maybe not a big deal...
 
-Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Signed-off-by: Andrea Righi <andrea@betterlinux.com>
-Signed-off-by: Greg Thelen <gthelen@google.com>
-Reviewed-by: Minchan Kim <minchan.kim@gmail.com>
+CC: Johannes Weiner <jweiner@redhat.com>
 Signed-off-by: Fengguang Wu <fengguang.wu@intel.com>
 ---
- include/linux/page_cgroup.h |   23 +++++++++++++++++++++++
- 1 file changed, 23 insertions(+)
+ mm/filemap.c |    8 ++++++--
+ 1 file changed, 6 insertions(+), 2 deletions(-)
 
---- linux.orig/include/linux/page_cgroup.h	2012-02-19 10:53:14.000000000 +0800
-+++ linux/include/linux/page_cgroup.h	2012-02-19 10:53:16.000000000 +0800
-@@ -10,6 +10,9 @@ enum {
- 	/* flags for mem_cgroup and file and I/O status */
- 	PCG_MOVE_LOCK, /* For race between move_account v.s. following bits */
- 	PCG_FILE_MAPPED, /* page is accounted as "mapped" */
-+	PCG_FILE_DIRTY, /* page is dirty */
-+	PCG_FILE_WRITEBACK, /* page is under writeback */
-+	PCG_FILE_UNSTABLE_NFS, /* page is NFS unstable */
- 	__NR_PCG_FLAGS,
- };
+--- linux.orig/mm/filemap.c	2012-02-28 10:24:12.000000000 +0800
++++ linux/mm/filemap.c	2012-02-28 10:25:55.568321275 +0800
+@@ -2340,9 +2340,13 @@ struct page *grab_cache_page_write_begin
+ 	int status;
+ 	gfp_t gfp_mask;
+ 	struct page *page;
+-	gfp_t lru_gfp_mask = GFP_KERNEL | __GFP_WRITE;
++	gfp_t lru_gfp_mask = GFP_KERNEL;
  
-@@ -64,6 +67,10 @@ static inline void ClearPageCgroup##unam
- static inline int TestClearPageCgroup##uname(struct page_cgroup *pc)	\
- 	{ return test_and_clear_bit(PCG_##lname, &pc->flags);  }
- 
-+#define TESTSETPCGFLAG(uname, lname)			\
-+static inline int TestSetPageCgroup##uname(struct page_cgroup *pc)	\
-+	{ return test_and_set_bit(PCG_##lname, &pc->flags); }
-+
- /* Cache flag is set only once (at allocation) */
- TESTPCGFLAG(Cache, CACHE)
- CLEARPCGFLAG(Cache, CACHE)
-@@ -77,6 +84,22 @@ SETPCGFLAG(FileMapped, FILE_MAPPED)
- CLEARPCGFLAG(FileMapped, FILE_MAPPED)
- TESTPCGFLAG(FileMapped, FILE_MAPPED)
- 
-+SETPCGFLAG(FileDirty, FILE_DIRTY)
-+CLEARPCGFLAG(FileDirty, FILE_DIRTY)
-+TESTPCGFLAG(FileDirty, FILE_DIRTY)
-+TESTCLEARPCGFLAG(FileDirty, FILE_DIRTY)
-+TESTSETPCGFLAG(FileDirty, FILE_DIRTY)
-+
-+SETPCGFLAG(FileWriteback, FILE_WRITEBACK)
-+CLEARPCGFLAG(FileWriteback, FILE_WRITEBACK)
-+TESTPCGFLAG(FileWriteback, FILE_WRITEBACK)
-+
-+SETPCGFLAG(FileUnstableNFS, FILE_UNSTABLE_NFS)
-+CLEARPCGFLAG(FileUnstableNFS, FILE_UNSTABLE_NFS)
-+TESTPCGFLAG(FileUnstableNFS, FILE_UNSTABLE_NFS)
-+TESTCLEARPCGFLAG(FileUnstableNFS, FILE_UNSTABLE_NFS)
-+TESTSETPCGFLAG(FileUnstableNFS, FILE_UNSTABLE_NFS)
-+
- SETPCGFLAG(Migration, MIGRATION)
- CLEARPCGFLAG(Migration, MIGRATION)
- TESTPCGFLAG(Migration, MIGRATION)
+-	gfp_mask = mapping_gfp_mask(mapping) | __GFP_WRITE;
++	gfp_mask = mapping_gfp_mask(mapping);
++	if (mapping_cap_account_dirty(mapping)) {
++		gfp_mask |= __GFP_WRITE;
++		lru_gfp_mask |= __GFP_WRITE;
++	}
+ 	if (flags & AOP_FLAG_NOFS) {
+ 		gfp_mask &= ~__GFP_FS;
+ 		lru_gfp_mask &= ~__GFP_FS;
 
 
 --
