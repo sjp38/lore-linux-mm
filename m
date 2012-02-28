@@ -1,9 +1,9 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx174.postini.com [74.125.245.174])
-	by kanga.kvack.org (Postfix) with SMTP id 4F2E16B004A
-	for <linux-mm@kvack.org>; Tue, 28 Feb 2012 08:11:51 -0500 (EST)
-Message-ID: <4F4CD231.907@parallels.com>
-Date: Tue, 28 Feb 2012 10:10:09 -0300
+Received: from psmtp.com (na3sys010amx189.postini.com [74.125.245.189])
+	by kanga.kvack.org (Postfix) with SMTP id 5666D6B004D
+	for <linux-mm@kvack.org>; Tue, 28 Feb 2012 08:12:27 -0500 (EST)
+Message-ID: <4F4CD274.1010509@parallels.com>
+Date: Tue, 28 Feb 2012 10:11:16 -0300
 From: Glauber Costa <glommer@parallels.com>
 MIME-Version: 1.0
 Subject: Re: [PATCH 01/10] memcg: Kernel memory accounting infrastructure.
@@ -169,81 +169,6 @@ memcg structure. How about we turn them into flags?
 > +
 > +	memcg = mem_cgroup_from_cont(cont);
 > +	BUG_ON(res_counter_read_u64(&memcg->kmem_bytes, RES_USAGE) != 0);
-That does not seem to make sense, specially if you are doing lazy 
-creation. What happens if you create a cgroup, don't put any tasks into 
-it (therefore, usage == 0), and then destroy it right away?
-
-Or am I missing something?
-
->   	mem_cgroup_sockets_destroy(cont, ss);
->   }
->   #else
-> @@ -4938,6 +5002,7 @@ mem_cgroup_create(struct cgroup_subsys *ss, struct cgroup *cont)
->   	}
->   	memcg->last_scanned_node = MAX_NUMNODES;
->   	INIT_LIST_HEAD(&memcg->oom_notify);
-> +	memcg_kmem_init(memcg, parent&&  parent->use_hierarchy ? parent : NULL);
->
->   	if (parent)
->   		memcg->swappiness = mem_cgroup_swappiness(parent);
-> @@ -5519,3 +5584,57 @@ static int __init enable_swap_account(char *s)
->   __setup("swapaccount=", enable_swap_account);
->
->   #endif
-> +
-> +#ifdef CONFIG_CGROUP_MEM_RES_CTLR_KMEM
-> +int
-> +memcg_charge_kmem(struct mem_cgroup *memcg, gfp_t gfp, long long delta)
-> +{
-> +	struct res_counter *fail_res;
-> +	struct mem_cgroup *_memcg;
-> +	int may_oom, ret;
-> +
-> +	may_oom = (gfp&  __GFP_WAIT)&&  (gfp&  __GFP_FS)&&
-> +	    !(gfp&  __GFP_NORETRY);
-> +
-> +	ret = 0;
-> +
-> +	if (memcg&&  !memcg->independent_kmem_limit) {
-> +		_memcg = memcg;
-> +		if (__mem_cgroup_try_charge(NULL, gfp, delta / PAGE_SIZE,
-> +		&_memcg, may_oom) != 0)
-> +			return -ENOMEM;
-> +	}
-> +
-> +	if (_memcg)
-> +		ret = res_counter_charge(&_memcg->kmem_bytes, delta,&fail_res);
-> +
-> +	return ret;
-> +}
-> +
-> +void
-> +memcg_uncharge_kmem(struct mem_cgroup *memcg, long long delta)
-> +{
-> +	if (memcg)
-> +		res_counter_uncharge(&memcg->kmem_bytes, delta);
-> +
-> +	if (memcg&&  !memcg->independent_kmem_limit)
-> +		res_counter_uncharge(&memcg->res, delta);
-> +}
-> +
-> +static void
-> +memcg_kmem_init(struct mem_cgroup *memcg, struct mem_cgroup *parent)
-> +{
-> +	struct res_counter *parent_res;
-> +
-> +	parent_res = NULL;
-> +	if (parent&&  parent != root_mem_cgroup)
-> +		parent_res =&parent->kmem_bytes;
-> +	res_counter_init(&memcg->kmem_bytes, parent_res);
-> +	memcg->independent_kmem_limit = 0;
-> +}
-> +#else /* CONFIG_CGROUP_MEM_RES_CTLR_KMEM */
-> +static void
-> +memcg_kmem_init(struct mem_cgroup *memcg, struct mem_cgroup *parent)
-> +{
-> +}
-> +#endif /* CONFIG_CGROUP_MEM_RES_CTLR_KMEM */
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
