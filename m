@@ -1,56 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx141.postini.com [74.125.245.141])
-	by kanga.kvack.org (Postfix) with SMTP id 99F9B6B004A
-	for <linux-mm@kvack.org>; Mon, 27 Feb 2012 19:02:39 -0500 (EST)
-Date: Tue, 28 Feb 2012 00:02:28 +0000
-From: Al Viro <viro@ZenIV.linux.org.uk>
-Subject: Re: [PATCH] hugetlbfs: Add new rw_semaphore to fix truncate/read race
-Message-ID: <20120228000228.GE23916@ZenIV.linux.org.uk>
-References: <1330280398-27956-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
- <20120227151135.7d4076c6.akpm@linux-foundation.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20120227151135.7d4076c6.akpm@linux-foundation.org>
+Received: from psmtp.com (na3sys010amx163.postini.com [74.125.245.163])
+	by kanga.kvack.org (Postfix) with SMTP id 886D96B004A
+	for <linux-mm@kvack.org>; Mon, 27 Feb 2012 19:06:55 -0500 (EST)
+Received: from m1.gw.fujitsu.co.jp (unknown [10.0.50.71])
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 797873EE0AE
+	for <linux-mm@kvack.org>; Tue, 28 Feb 2012 09:06:53 +0900 (JST)
+Received: from smail (m1 [127.0.0.1])
+	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 610FE45DE55
+	for <linux-mm@kvack.org>; Tue, 28 Feb 2012 09:06:53 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
+	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 4AC6445DE54
+	for <linux-mm@kvack.org>; Tue, 28 Feb 2012 09:06:53 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 3AFE7E08001
+	for <linux-mm@kvack.org>; Tue, 28 Feb 2012 09:06:53 +0900 (JST)
+Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.240.81.133])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id E8285E08002
+	for <linux-mm@kvack.org>; Tue, 28 Feb 2012 09:06:52 +0900 (JST)
+Date: Tue, 28 Feb 2012 09:05:26 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH v3 01/21] memcg: unify inactive_ratio calculation
+Message-Id: <20120228090526.201b4e9d.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20120223135141.12988.12236.stgit@zurg>
+References: <20120223133728.12988.5432.stgit@zurg>
+	<20120223135141.12988.12236.stgit@zurg>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, linux-mm@kvack.org, mgorman@suse.de, kamezawa.hiroyu@jp.fujitsu.com, dhillf@gmail.com, hughd@google.com, linux-kernel@vger.kernel.org
+To: Konstantin Khlebnikov <khlebnikov@openvz.org>
+Cc: Hugh Dickins <hughd@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <andi@firstfloor.org>
 
-On Mon, Feb 27, 2012 at 03:11:35PM -0800, Andrew Morton wrote:
+On Thu, 23 Feb 2012 17:51:41 +0400
+Konstantin Khlebnikov <khlebnikov@openvz.org> wrote:
 
-> This patch comes somewhat out of the blue and I'm unsure what's going on.
+> This patch removes precalculated zone->inactive_ratio.
+> Now it always calculated in inactive_anon_is_low() from current lru sizes.
+> After that we can merge memcg and non-memcg cases and drop duplicated code.
 > 
-> You say there's some (potential?) deadlock with mmap, but it is
-> undescribed.  Have people observed this deadlock?  Has it caused
-> lockdep warnings?  Please update the changelog to fully describe the
-> bug.
+> Signed-off-by: Konstantin Khlebnikov <khlebnikov@openvz.org>
 
-There's one simple rule: never, ever take ->i_mutex under ->mmap_sem.
-E.g.  in any ->mmap() (obvious - mmap(2) calls that under ->mmap_sem) or
-any ->release() of mappable file (munmap(2) does fput() under ->mmap_sem
-and that will call ->release() if no other references are still around).
+seems good to me.
 
-Hugetlbfs is slightly unusual since it takes ->i_mutex in read() - usually
-that's done in write(), while read() doesn't bother with that.  In either
-case you do copying to/from userland buffer while holding ->i_mutex, which
-nests ->mmap_sem within it.
-
-> Also, the new truncate_sem is undoumented.  This leaves readers to work
-> out for themselves what it might be for.  Please let's add code
-> comments which completely describe the race, and how this lock prevents
-> it.
-> 
-> We should also document our locking rules.
-
-Hell, yes.  I've spent the last couple of weeks crawling through VM-related
-code and locking in there is _scary_.  "Convoluted" doesn't even begin to
-cover it, especially when it gets to "what locks are required when accessing
-this field" ;-/  Got quite a catch out of that trawl by now...
-
->  When should code take this
-> lock?  What are its ranking rules with respect to i_mutex, i_mmap_mutex
-> and possibly others?
+Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
