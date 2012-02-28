@@ -1,77 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx132.postini.com [74.125.245.132])
-	by kanga.kvack.org (Postfix) with SMTP id 7D8706B004A
-	for <linux-mm@kvack.org>; Mon, 27 Feb 2012 18:42:19 -0500 (EST)
-Date: Mon, 27 Feb 2012 15:42:17 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] HUGETLBFS: Align memory request to multiple of huge
- page size to avoid underallocating.
-Message-Id: <20120227154217.0a0d5a06.akpm@linux-foundation.org>
-In-Reply-To: <1330351768-14874-1-git-send-email-steven.truelove@utoronto.ca>
-References: <1330351768-14874-1-git-send-email-steven.truelove@utoronto.ca>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx141.postini.com [74.125.245.141])
+	by kanga.kvack.org (Postfix) with SMTP id 99F9B6B004A
+	for <linux-mm@kvack.org>; Mon, 27 Feb 2012 19:02:39 -0500 (EST)
+Date: Tue, 28 Feb 2012 00:02:28 +0000
+From: Al Viro <viro@ZenIV.linux.org.uk>
+Subject: Re: [PATCH] hugetlbfs: Add new rw_semaphore to fix truncate/read race
+Message-ID: <20120228000228.GE23916@ZenIV.linux.org.uk>
+References: <1330280398-27956-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+ <20120227151135.7d4076c6.akpm@linux-foundation.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20120227151135.7d4076c6.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Steven Truelove <steven.truelove@utoronto.ca>
-Cc: wli@holomorphy.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, linux-mm@kvack.org, mgorman@suse.de, kamezawa.hiroyu@jp.fujitsu.com, dhillf@gmail.com, hughd@google.com, linux-kernel@vger.kernel.org
 
-On Mon, 27 Feb 2012 09:09:28 -0500
-Steven Truelove <steven.truelove@utoronto.ca> wrote:
+On Mon, Feb 27, 2012 at 03:11:35PM -0800, Andrew Morton wrote:
 
-> When calling shmget with SHM_HUGETLB, shmget aligns the request size to PAGE_SIZE, but this is not sufficient.  Modified hugetlb_file_setup to align requests to the huge page size.
+> This patch comes somewhat out of the blue and I'm unsure what's going on.
 > 
-> Signed-off-by: Steven Truelove <steven.truelove@utoronto.ca>
-> ---
->  fs/hugetlbfs/inode.c |    9 ++++++---
->  1 files changed, 6 insertions(+), 3 deletions(-)
+> You say there's some (potential?) deadlock with mmap, but it is
+> undescribed.  Have people observed this deadlock?  Has it caused
+> lockdep warnings?  Please update the changelog to fully describe the
+> bug.
+
+There's one simple rule: never, ever take ->i_mutex under ->mmap_sem.
+E.g.  in any ->mmap() (obvious - mmap(2) calls that under ->mmap_sem) or
+any ->release() of mappable file (munmap(2) does fput() under ->mmap_sem
+and that will call ->release() if no other references are still around).
+
+Hugetlbfs is slightly unusual since it takes ->i_mutex in read() - usually
+that's done in write(), while read() doesn't bother with that.  In either
+case you do copying to/from userland buffer while holding ->i_mutex, which
+nests ->mmap_sem within it.
+
+> Also, the new truncate_sem is undoumented.  This leaves readers to work
+> out for themselves what it might be for.  Please let's add code
+> comments which completely describe the race, and how this lock prevents
+> it.
 > 
-> diff --git a/fs/hugetlbfs/inode.c b/fs/hugetlbfs/inode.c
-> index 1e85a7a..6c23f09 100644
-> --- a/fs/hugetlbfs/inode.c
-> +++ b/fs/hugetlbfs/inode.c
-> @@ -938,6 +938,8 @@ struct file *hugetlb_file_setup(const char *name, size_t size,
->  	struct path path;
->  	struct dentry *root;
->  	struct qstr quick_string;
-> +	struct hstate *hstate;
-> +	int num_pages;
->  
->  	*user = NULL;
->  	if (!hugetlbfs_vfsmount)
-> @@ -967,10 +969,11 @@ struct file *hugetlb_file_setup(const char *name, size_t size,
->  	if (!inode)
->  		goto out_dentry;
->  
-> +	hstate = hstate_inode(inode);
-> +	num_pages = (size + huge_page_size(hstate) - 1) >>
-> +			huge_page_shift(hstate);
->  	error = -ENOMEM;
-> -	if (hugetlb_reserve_pages(inode, 0,
-> -			size >> huge_page_shift(hstate_inode(inode)), NULL,
-> -			acctflag))
-> +	if (hugetlb_reserve_pages(inode, 0, num_pages, NULL, acctflag))
->  		goto out_inode;
->  
->  	d_instantiate(path.dentry, inode);
+> We should also document our locking rules.
 
-A few things...
+Hell, yes.  I've spent the last couple of weeks crawling through VM-related
+code and locking in there is _scary_.  "Convoluted" doesn't even begin to
+cover it, especially when it gets to "what locks are required when accessing
+this field" ;-/  Got quite a catch out of that trawl by now...
 
-- sys_mmap_pgoff() does the rounding up prior to calling
-  hugetlb_file_setup().  ipc/shm.c:newseg() does not.
-
-  We should be consistent here: do it in the caller or the callee,
-  not both (or neither!).  I guess doing it in the callee would be
-  best.
-
-- The above code could/should have used ALIGN().  Or round_up(): the
-  difference presently escapes me, even though it was so obvious that
-  we left all these things undocumented.
-
-- What's the point in aligning the length if we don't also look at
-  the start address?  If that isn't a multiple of huge_page_size(), we
-  will need an additional page.
+>  When should code take this
+> lock?  What are its ranking rules with respect to i_mutex, i_mmap_mutex
+> and possibly others?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
