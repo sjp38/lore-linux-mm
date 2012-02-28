@@ -1,29 +1,29 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx197.postini.com [74.125.245.197])
-	by kanga.kvack.org (Postfix) with SMTP id C85C56B007E
-	for <linux-mm@kvack.org>; Mon, 27 Feb 2012 19:58:14 -0500 (EST)
-Received: from m4.gw.fujitsu.co.jp (unknown [10.0.50.74])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 194113EE0C7
-	for <linux-mm@kvack.org>; Tue, 28 Feb 2012 09:58:13 +0900 (JST)
-Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id ED1E945DE54
-	for <linux-mm@kvack.org>; Tue, 28 Feb 2012 09:58:12 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id D3C8245DE4F
-	for <linux-mm@kvack.org>; Tue, 28 Feb 2012 09:58:12 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 9C1E11DB8040
-	for <linux-mm@kvack.org>; Tue, 28 Feb 2012 09:58:12 +0900 (JST)
-Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.240.81.133])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 09BE31DB8037
-	for <linux-mm@kvack.org>; Tue, 28 Feb 2012 09:58:12 +0900 (JST)
-Date: Tue, 28 Feb 2012 09:56:42 +0900
+Received: from psmtp.com (na3sys010amx147.postini.com [74.125.245.147])
+	by kanga.kvack.org (Postfix) with SMTP id B0F9D6B007E
+	for <linux-mm@kvack.org>; Mon, 27 Feb 2012 20:02:27 -0500 (EST)
+Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
+	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 29ECF3EE0BD
+	for <linux-mm@kvack.org>; Tue, 28 Feb 2012 10:02:26 +0900 (JST)
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 0BB4A45DEA6
+	for <linux-mm@kvack.org>; Tue, 28 Feb 2012 10:02:26 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id E656645DEAD
+	for <linux-mm@kvack.org>; Tue, 28 Feb 2012 10:02:25 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id D96561DB8043
+	for <linux-mm@kvack.org>; Tue, 28 Feb 2012 10:02:25 +0900 (JST)
+Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.240.81.146])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 866261DB803B
+	for <linux-mm@kvack.org>; Tue, 28 Feb 2012 10:02:25 +0900 (JST)
+Date: Tue, 28 Feb 2012 10:01:00 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH v3 14/21] mm: introduce lruvec locking primitives
-Message-Id: <20120228095642.39eaab28.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20120223135247.12988.49745.stgit@zurg>
+Subject: Re: [PATCH v3 15/21] mm: handle lruvec relocks on lumpy reclaim
+Message-Id: <20120228100100.d59291d6.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20120223135252.12988.50017.stgit@zurg>
 References: <20120223133728.12988.5432.stgit@zurg>
-	<20120223135247.12988.49745.stgit@zurg>
+	<20120223135252.12988.50017.stgit@zurg>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
@@ -32,192 +32,179 @@ List-ID: <linux-mm.kvack.org>
 To: Konstantin Khlebnikov <khlebnikov@openvz.org>
 Cc: Hugh Dickins <hughd@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <andi@firstfloor.org>
 
-On Thu, 23 Feb 2012 17:52:47 +0400
+On Thu, 23 Feb 2012 17:52:52 +0400
 Konstantin Khlebnikov <khlebnikov@openvz.org> wrote:
 
-> This is initial preparation for lru_lock splitting.
+> Prepare for lock splitting in lumly reclaim logic.
+> Now move_active_pages_to_lru() and putback_inactive_pages()
+> can put pages into different lruvecs.
 > 
-> This locking primites designed to hide splitted nature of lru_lock
-> and to avoid overhead for non-splitted lru_lock in non-memcg case.
-> 
-> * Lock via lruvec reference
-> 
-> lock_lruvec(lruvec, flags)
-> lock_lruvec_irq(lruvec)
-> 
-> * Lock via page reference
-> 
-> lock_page_lruvec(page, flags)
-> lock_page_lruvec_irq(page)
-> relock_page_lruvec(lruvec, page, flags)
-> relock_page_lruvec_irq(lruvec, page)
-> __relock_page_lruvec(lruvec, page) ( lruvec != NULL, page in same zone )
-> 
-> They always returns pointer to some locked lruvec, page anyway can be
-> not in lru, PageLRU() sign is stable while we hold returned lruvec lock.
-> Caller must guarantee page to lruvec reference validity.
-> 
-> * Lock via page, without stable page reference
-> 
-> __lock_page_lruvec_irq(&lruvec, page)
-> 
-> It returns true of lruvec succesfully locked and PageLRU is set.
-> Initial lruvec can be NULL. Consequent calls must be in the same zone.
-> 
-> * Unlock
-> 
-> unlock_lruvec(lruvec, flags)
-> unlock_lruvec_irq(lruvec)
-> 
-> * Wait
-> 
-> wait_lruvec_unlock(lruvec)
-> Wait for lruvec unlock, caller must have stable reference to lruvec.
-> 
-> __wait_lruvec_unlock(lruvec)
-> Wait for lruvec unlock before locking other lrulock for same page,
-> nothing if there only one possible lruvec per page.
-> Used at page-to-lruvec reference switching to stabilize PageLRU sign.
+> * relock book before SetPageLRU()
+
+lruvec ?
+
+> * update reclaim_stat pointer after relocks
+> * return currently locked lruvec
 > 
 > Signed-off-by: Konstantin Khlebnikov <khlebnikov@openvz.org>
-
-O.K. I like this.
-
-Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-
-Hmm....Could you add a comment in memcg part ? (see below)
-
-
-
 > ---
->  mm/huge_memory.c |    8 +-
->  mm/internal.h    |  176 ++++++++++++++++++++++++++++++++++++++++++++++++++++++
->  mm/memcontrol.c  |   14 ++--
->  mm/swap.c        |   58 ++++++------------
->  mm/vmscan.c      |   77 ++++++++++--------------
->  5 files changed, 237 insertions(+), 96 deletions(-)
+>  mm/vmscan.c |   45 +++++++++++++++++++++++++++++++++------------
+>  1 files changed, 33 insertions(+), 12 deletions(-)
 > 
-> diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-> index 09e7069..74996b8 100644
-> --- a/mm/huge_memory.c
-> +++ b/mm/huge_memory.c
-> @@ -1228,13 +1228,11 @@ static int __split_huge_page_splitting(struct page *page,
->  static void __split_huge_page_refcount(struct page *page)
+> diff --git a/mm/vmscan.c b/mm/vmscan.c
+> index a3941d1..6eeeb4b 100644
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -1114,6 +1114,7 @@ static unsigned long isolate_lru_pages(unsigned long nr_to_scan,
+>  		unsigned long *nr_scanned, struct scan_control *sc,
+>  		isolate_mode_t mode, int active, int file)
 >  {
->  	int i;
-> -	struct zone *zone = page_zone(page);
->  	struct lruvec *lruvec;
->  	int tail_count = 0;
+> +	struct lruvec *cursor_lruvec = lruvec;
+>  	struct list_head *src;
+>  	unsigned long nr_taken = 0;
+>  	unsigned long nr_lumpy_taken = 0;
+> @@ -1197,14 +1198,17 @@ static unsigned long isolate_lru_pages(unsigned long nr_to_scan,
+>  			    !PageSwapCache(cursor_page))
+>  				break;
 >  
->  	/* prevent PageLRU to go away from under us, and freeze lru stats */
-> -	spin_lock_irq(&zone->lru_lock);
-> -	lruvec = page_lruvec(page);
-> +	lruvec = lock_page_lruvec_irq(page);
->  	compound_lock(page);
->  	/* complete memcg works before add pages to LRU */
->  	mem_cgroup_split_huge_fixup(page);
-> @@ -1316,11 +1314,11 @@ static void __split_huge_page_refcount(struct page *page)
->  	BUG_ON(atomic_read(&page->_count) <= 0);
+> +			/* Switch cursor_lruvec lock for lumpy isolate */
+> +			if (!__lock_page_lruvec_irq(&cursor_lruvec,
+> +						    cursor_page))
+> +				continue;
+> +
+>  			if (__isolate_lru_page(cursor_page, mode, file) == 0) {
+>  				unsigned int isolated_pages;
+> -				struct lruvec *cursor_lruvec;
+>  				int cursor_lru = page_lru(cursor_page);
 >  
->  	__dec_zone_page_state(page, NR_ANON_TRANSPARENT_HUGEPAGES);
-> -	__mod_zone_page_state(zone, NR_ANON_PAGES, HPAGE_PMD_NR);
-> +	__mod_zone_page_state(lruvec_zone(lruvec), NR_ANON_PAGES, HPAGE_PMD_NR);
+>  				list_move(&cursor_page->lru, dst);
+>  				isolated_pages = hpage_nr_pages(cursor_page);
+> -				cursor_lruvec = page_lruvec(cursor_page);
+>  				cursor_lruvec->pages_count[cursor_lru] -=
+>  								isolated_pages;
+>  				VM_BUG_ON((long)cursor_lruvec->
+> @@ -1235,6 +1239,9 @@ static unsigned long isolate_lru_pages(unsigned long nr_to_scan,
+>  			}
+>  		}
 >  
->  	ClearPageCompound(page);
->  	compound_unlock(page);
-> -	spin_unlock_irq(&zone->lru_lock);
-> +	unlock_lruvec_irq(lruvec);
+> +		/* Restore original lruvec lock */
+> +		cursor_lruvec = __relock_page_lruvec(cursor_lruvec, page);
+> +
+>  		/* If we break out of the loop above, lumpy reclaim failed */
+>  		if (pfn < end_pfn)
+>  			nr_lumpy_failed++;
+> @@ -1325,7 +1332,10 @@ static int too_many_isolated(struct zone *zone, int file,
+>  	return isolated > inactive;
+>  }
 >  
->  	for (i = 1; i < HPAGE_PMD_NR; i++) {
->  		struct page *page_tail = page + i;
-> diff --git a/mm/internal.h b/mm/internal.h
-> index ef49dbf..9454752 100644
-> --- a/mm/internal.h
-> +++ b/mm/internal.h
-> @@ -13,6 +13,182 @@
+> -static noinline_for_stack void
+> +/*
+> + * Returns currently locked lruvec
+> + */
+> +static noinline_for_stack struct lruvec *
+>  putback_inactive_pages(struct lruvec *lruvec,
+>  		       struct list_head *page_list)
+>  {
+> @@ -1347,10 +1357,13 @@ putback_inactive_pages(struct lruvec *lruvec,
+>  			lock_lruvec_irq(lruvec);
+>  			continue;
+>  		}
+> +
+> +		lruvec = __relock_page_lruvec(lruvec, page);
+> +		reclaim_stat = &lruvec->reclaim_stat;
+> +
+>  		SetPageLRU(page);
+>  		lru = page_lru(page);
 >  
->  #include <linux/mm.h>
+> -		lruvec = page_lruvec(page);
+>  		add_page_to_lru_list(lruvec, page, lru);
+>  		if (is_active_lru(lru)) {
+>  			int file = is_file_lru(lru);
+> @@ -1375,6 +1388,8 @@ putback_inactive_pages(struct lruvec *lruvec,
+>  	 * To save our caller's stack, now use input list for pages to free.
+>  	 */
+>  	list_splice(&pages_to_free, page_list);
+> +
+> +	return lruvec;
+>  }
 >  
-> +static inline void lock_lruvec(struct lruvec *lruvec, unsigned long *flags)
-> +{
-> +	spin_lock_irqsave(&lruvec_zone(lruvec)->lru_lock, *flags);
-> +}
+>  static noinline_for_stack void
+> @@ -1544,7 +1559,7 @@ shrink_inactive_list(unsigned long nr_to_scan, struct lruvec *lruvec,
+>  		__count_vm_events(KSWAPD_STEAL, nr_reclaimed);
+>  	__count_zone_vm_events(PGSTEAL, zone, nr_reclaimed);
+>  
+> -	putback_inactive_pages(lruvec, &page_list);
+> +	lruvec = putback_inactive_pages(lruvec, &page_list);
+>  
+>  	__mod_zone_page_state(zone, NR_ISOLATED_ANON, -nr_anon);
+>  	__mod_zone_page_state(zone, NR_ISOLATED_FILE, -nr_file);
+> @@ -1603,12 +1618,15 @@ shrink_inactive_list(unsigned long nr_to_scan, struct lruvec *lruvec,
+>   *
+>   * The downside is that we have to touch page->_count against each page.
+>   * But we had to alter page->flags anyway.
+> + *
+> + * Returns currently locked lruvec
+>   */
+>  
+> -static void move_active_pages_to_lru(struct lruvec *lruvec,
+> -				     struct list_head *list,
+> -				     struct list_head *pages_to_free,
+> -				     enum lru_list lru)
+> +static struct lruvec *
+> +move_active_pages_to_lru(struct lruvec *lruvec,
+> +			 struct list_head *list,
+> +			 struct list_head *pages_to_free,
+> +			 enum lru_list lru)
+>  {
+>  	unsigned long pgmoved = 0;
+>  	struct page *page;
+> @@ -1630,10 +1648,11 @@ static void move_active_pages_to_lru(struct lruvec *lruvec,
+>  
+>  		page = lru_to_page(list);
+>  
+> +		lruvec = __relock_page_lruvec(lruvec, page);
 > +
-> +static inline void lock_lruvec_irq(struct lruvec *lruvec)
-> +{
-> +	spin_lock_irq(&lruvec_zone(lruvec)->lru_lock);
-> +}
+>  		VM_BUG_ON(PageLRU(page));
+>  		SetPageLRU(page);
+>  
+> -		lruvec = page_lruvec(page);
+>  		list_move(&page->lru, &lruvec->pages_lru[lru]);
+>  		numpages = hpage_nr_pages(page);
+>  		lruvec->pages_count[lru] += numpages;
+> @@ -1655,6 +1674,8 @@ static void move_active_pages_to_lru(struct lruvec *lruvec,
+>  	__mod_zone_page_state(lruvec_zone(lruvec), NR_LRU_BASE + lru, pgmoved);
+>  	if (!is_active_lru(lru))
+>  		__count_vm_events(PGDEACTIVATE, pgmoved);
 > +
-> +static inline void unlock_lruvec(struct lruvec *lruvec, unsigned long *flags)
-> +{
-> +	spin_unlock_irqrestore(&lruvec_zone(lruvec)->lru_lock, *flags);
-> +}
-> +
-> +static inline void unlock_lruvec_irq(struct lruvec *lruvec)
-> +{
-> +	spin_unlock_irq(&lruvec_zone(lruvec)->lru_lock);
-> +}
-> +
-> +static inline void wait_lruvec_unlock(struct lruvec *lruvec)
-> +{
-> +	spin_unlock_wait(&lruvec_zone(lruvec)->lru_lock);
-> +}
-> +
-> +#ifdef CONFIG_CGROUP_MEM_RES_CTLR
-> +
-> +/* Dynamic page to lruvec mapping */
-> +
-> +/* Lock other lruvec for other page in the same zone */
-> +static inline struct lruvec *__relock_page_lruvec(struct lruvec *locked_lruvec,
-> +						  struct page *page)
-> +{
-> +	/* Currenyly only one lru_lock per-zone */
-> +	return page_lruvec(page);
-> +}
-> +
-> +static inline struct lruvec *relock_page_lruvec_irq(struct lruvec *lruvec,
-> +						    struct page *page)
-> +{
-> +	struct zone *zone = page_zone(page);
-> +
-> +	if (!lruvec) {
-> +		spin_lock_irq(&zone->lru_lock);
-> +	} else if (zone != lruvec_zone(lruvec)) {
-> +		unlock_lruvec_irq(lruvec);
-> +		spin_lock_irq(&zone->lru_lock);
-> +	}
-> +	return page_lruvec(page);
-> +}
+> +	return lruvec;
+>  }
+>  
+>  static void shrink_active_list(unsigned long nr_to_scan,
+> @@ -1744,9 +1765,9 @@ static void shrink_active_list(unsigned long nr_to_scan,
+>  	 */
+>  	reclaim_stat->recent_rotated[file] += nr_rotated;
+>  
+> -	move_active_pages_to_lru(lruvec, &l_active, &l_hold,
+> +	lruvec = move_active_pages_to_lru(lruvec, &l_active, &l_hold,
+>  						LRU_ACTIVE + file * LRU_FILE);
+> -	move_active_pages_to_lru(lruvec, &l_inactive, &l_hold,
+> +	lruvec = move_active_pages_to_lru(lruvec, &l_inactive, &l_hold,
+>  						LRU_BASE   + file * LRU_FILE);
+>  	__mod_zone_page_state(zone, NR_ISOLATED_ANON + file, -nr_taken);
+>  	unlock_lruvec_irq(lruvec);
+> 
 
-Could you add comments/caution to the caller 
+Hmm...could you add comments to each function as
+"The caller should _lock_ lruvec before calling this functions.
+ This function returns a lruvec with _locked_. It may be different from passed one.
+ And The callser should unlock lruvec"
 
- - !PageLRU(page) case ?
- - Can the caller assume page_lruvec(page) == lruvec ? If no, which lru_vec is locked ?
-
-etc...
-
-
-> +
-> +static inline struct lruvec *relock_page_lruvec(struct lruvec *lruvec,
-> +						struct page *page,
-> +						unsigned long *flags)
-> +{
-> +	struct zone *zone = page_zone(page);
-> +
-> +	if (!lruvec) {
-> +		spin_lock_irqsave(&zone->lru_lock, *flags);
-> +	} else if (zone != lruvec_zone(lruvec)) {
-> +		unlock_lruvec(lruvec, flags);
-> +		spin_lock_irqsave(&zone->lru_lock, *flags);
-> +	}
-> +	return page_lruvec(page);
-> +}
-
-
-Same here.
 
 Thanks,
 -Kame
+
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
