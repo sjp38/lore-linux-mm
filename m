@@ -1,65 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from psmtp.com (na3sys010amx163.postini.com [74.125.245.163])
-	by kanga.kvack.org (Postfix) with SMTP id DB3596B004A
-	for <linux-mm@kvack.org>; Tue, 28 Feb 2012 04:32:48 -0500 (EST)
-Received: by bkty12 with SMTP id y12so6083062bkt.14
-        for <linux-mm@kvack.org>; Tue, 28 Feb 2012 01:32:47 -0800 (PST)
+	by kanga.kvack.org (Postfix) with SMTP id 9E75B6B004D
+	for <linux-mm@kvack.org>; Tue, 28 Feb 2012 04:32:51 -0500 (EST)
+Received: by mail-bk0-f41.google.com with SMTP id y12so6083062bkt.14
+        for <linux-mm@kvack.org>; Tue, 28 Feb 2012 01:32:51 -0800 (PST)
 MIME-Version: 1.0
 From: Dmitry Antipov <dmitry.antipov@linaro.org>
-Subject: [PATCH 1/2] vmalloc: use ZERO_SIZE_PTR / ZERO_OR_NULL_PTR
-Date: Tue, 28 Feb 2012 13:33:59 +0400
-Message-Id: <1330421640-5137-1-git-send-email-dmitry.antipov@linaro.org>
+Subject: [PATCH 2/2] module: use ZERO_OR_NULL_PTR allocation pointer checking
+Date: Tue, 28 Feb 2012 13:34:00 +0400
+Message-Id: <1330421640-5137-2-git-send-email-dmitry.antipov@linaro.org>
+In-Reply-To: <1330421640-5137-1-git-send-email-dmitry.antipov@linaro.org>
+References: <1330421640-5137-1-git-send-email-dmitry.antipov@linaro.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Rusty Russell <rusty.russell@linaro.org>, Andrew Morton <akpm@linux-foundation.org>
 Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linaro-dev@lists.linaro.org, patches@linaro.org, Dmitry Antipov <dmitry.antipov@linaro.org>
 
- - Fix vmap() to return ZERO_SIZE_PTR if 0 pages are requested;
- - fix __vmalloc_node_range() to return ZERO_SIZE_PTR if 0 bytes
-   are requested;
- - fix __vunmap() to check passed pointer with ZERO_OR_NULL_PTR.
-
-Signed-off-by: Dmitry Antipov <dmitry.antipov@linaro.org>
+Use ZERO_OR_NULL_PTR allocation pointer checking where allocation
+function may return ZERO_SIZE_PTR.
 ---
- mm/vmalloc.c |   10 +++++++---
- 1 files changed, 7 insertions(+), 3 deletions(-)
+ kernel/module.c |    8 ++++----
+ 1 files changed, 4 insertions(+), 4 deletions(-)
 
-diff --git a/mm/vmalloc.c b/mm/vmalloc.c
-index 86ce9a5..040a9cd 100644
---- a/mm/vmalloc.c
-+++ b/mm/vmalloc.c
-@@ -1456,7 +1456,7 @@ static void __vunmap(const void *addr, int deallocate_pages)
+diff --git a/kernel/module.c b/kernel/module.c
+index 2c93276..ae438db 100644
+--- a/kernel/module.c
++++ b/kernel/module.c
+@@ -2322,14 +2322,14 @@ static void dynamic_debug_remove(struct _ddebug *debug)
+ 
+ void * __weak module_alloc(unsigned long size)
  {
- 	struct vm_struct *area;
+-	return size == 0 ? NULL : vmalloc_exec(size);
++	return vmalloc_exec(size);
+ }
  
--	if (!addr)
-+	if (unlikely(ZERO_OR_NULL_PTR(addr)))
- 		return;
+ static void *module_alloc_update_bounds(unsigned long size)
+ {
+ 	void *ret = module_alloc(size);
  
- 	if ((PAGE_SIZE-1) & (unsigned long)addr) {
-@@ -1548,7 +1548,9 @@ void *vmap(struct page **pages, unsigned int count,
+-	if (ret) {
++	if (likely(!ZERO_OR_NULL_PTR(ret))) {
+ 		mutex_lock(&module_mutex);
+ 		/* Update module bounds. */
+ 		if ((unsigned long)ret < module_addr_min)
+@@ -2638,7 +2638,7 @@ static int move_module(struct module *mod, struct load_info *info)
+ 	 * leak.
+ 	 */
+ 	kmemleak_not_leak(ptr);
+-	if (!ptr)
++	if (unlikely(ZERO_OR_NULL_PTR(ptr)))
+ 		return -ENOMEM;
  
- 	might_sleep();
- 
--	if (count > totalram_pages)
-+	if (unlikely(!count))
-+		return ZERO_SIZE_PTR;
-+	if (unlikely(count > totalram_pages))
- 		return NULL;
- 
- 	area = get_vm_area_caller((count << PAGE_SHIFT), flags,
-@@ -1648,8 +1650,10 @@ void *__vmalloc_node_range(unsigned long size, unsigned long align,
- 	void *addr;
- 	unsigned long real_size = size;
- 
-+	if (unlikely(!size))
-+		return ZERO_SIZE_PTR;
- 	size = PAGE_ALIGN(size);
--	if (!size || (size >> PAGE_SHIFT) > totalram_pages)
-+	if (unlikely((size >> PAGE_SHIFT) > totalram_pages))
- 		goto fail;
- 
- 	area = __get_vm_area_node(size, align, VM_ALLOC | VM_UNLIST,
+ 	memset(ptr, 0, mod->core_size);
+@@ -2652,7 +2652,7 @@ static int move_module(struct module *mod, struct load_info *info)
+ 	 * after the module is initialized.
+ 	 */
+ 	kmemleak_ignore(ptr);
+-	if (!ptr && mod->init_size) {
++	if (unlikely(ZERO_OR_NULL_PTR(ptr))) {
+ 		module_free(mod, mod->module_core);
+ 		return -ENOMEM;
+ 	}
 -- 
 1.7.7.6
 
