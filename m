@@ -1,14 +1,14 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx128.postini.com [74.125.245.128])
-	by kanga.kvack.org (Postfix) with SMTP id 529B06B0092
-	for <linux-mm@kvack.org>; Tue, 28 Feb 2012 08:32:41 -0500 (EST)
-Message-ID: <4F4CD731.60908@parallels.com>
-Date: Tue, 28 Feb 2012 10:31:29 -0300
+Received: from psmtp.com (na3sys010amx108.postini.com [74.125.245.108])
+	by kanga.kvack.org (Postfix) with SMTP id 791376B00E8
+	for <linux-mm@kvack.org>; Tue, 28 Feb 2012 08:35:46 -0500 (EST)
+Message-ID: <4F4CD7E7.1070901@parallels.com>
+Date: Tue, 28 Feb 2012 10:34:31 -0300
 From: Glauber Costa <glommer@parallels.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 07/10] memcg: Stop res_counter underflows.
-References: <1330383533-20711-1-git-send-email-ssouhlal@FreeBSD.org> <1330383533-20711-8-git-send-email-ssouhlal@FreeBSD.org>
-In-Reply-To: <1330383533-20711-8-git-send-email-ssouhlal@FreeBSD.org>
+Subject: Re: [PATCH 08/10] memcg: Add CONFIG_CGROUP_MEM_RES_CTLR_KMEM_ACCT_ROOT.
+References: <1330383533-20711-1-git-send-email-ssouhlal@FreeBSD.org> <1330383533-20711-9-git-send-email-ssouhlal@FreeBSD.org>
+In-Reply-To: <1330383533-20711-9-git-send-email-ssouhlal@FreeBSD.org>
 Content-Type: text/plain; charset="ISO-8859-1"; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -17,148 +17,139 @@ To: Suleiman Souhlal <ssouhlal@FreeBSD.org>
 Cc: cgroups@vger.kernel.org, suleiman@google.com, kamezawa.hiroyu@jp.fujitsu.com, penberg@kernel.org, yinghan@google.com, hughd@google.com, gthelen@google.com, linux-mm@kvack.org, devel@openvz.org
 
 On 02/27/2012 07:58 PM, Suleiman Souhlal wrote:
-> From: Hugh Dickins<hughd@google.com>
+> This config option dictates whether or not kernel memory in the
+> root cgroup should be accounted.
 >
-> If __mem_cgroup_try_charge() goes the "bypass" route in charging slab
-> (typically when the task has been OOM-killed), that later results in
-> res_counter_uncharge_locked() underflows - a stream of warnings from
-> kernel/res_counter.c:96!
->
-> Solve this by accounting kmem_bypass when we shift that charge to root,
-> and whenever a memcg has any kmem_bypass outstanding, deduct from that
-> when unaccounting kmem, before deducting from kmem_bytes: so that its
-> kmem_bytes soon returns to being a fair account.
+> This may be useful in an environment where everything is supposed to be
+> in a cgroup and accounted for. Large amounts of kernel memory in the
+> root cgroup would indicate problems with memory isolation or accounting.
 
-Ok, I was almost writing a pile of crap here =)
-Your changelog gave me the impression that you were disable the warning,
-until I was down to the middle of the code. Think you can reword it?
+I don't like accounting this stuff to the root memory cgroup. This 
+causes overhead for everybody, including people who couldn't care less 
+about memcg.
 
-> The amount of memory bypassed is shown in memory.stat as
-> kernel_bypassed_memory.
+If it were up to me, we would simply not account it, and end of story.
+
+However, if this is terribly important for you, I think you need to at
+least make it possible to enable it at runtime, and default it to disabled.
+
 >
-> Signed-off-by: Hugh Dickins<hughd@google.com>
 > Signed-off-by: Suleiman Souhlal<suleiman@google.com>
 > ---
->   mm/memcontrol.c |   43 ++++++++++++++++++++++++++++++++++++++++---
->   1 files changed, 40 insertions(+), 3 deletions(-)
+>   init/Kconfig    |    8 ++++++++
+>   mm/memcontrol.c |   44 ++++++++++++++++++++++++++++++++++++++++++++
+>   2 files changed, 52 insertions(+), 0 deletions(-)
 >
+> diff --git a/init/Kconfig b/init/Kconfig
+> index 3f42cd6..a119270 100644
+> --- a/init/Kconfig
+> +++ b/init/Kconfig
+> @@ -714,6 +714,14 @@ config CGROUP_MEM_RES_CTLR_KMEM
+>   	  Memory Controller, which are page-based, and can be swapped. Users of
+>   	  the kmem extension can use it to guarantee that no group of processes
+>   	  will ever exhaust kernel resources alone.
+> +config CGROUP_MEM_RES_CTLR_KMEM_ACCT_ROOT
+> +	bool "Root Cgroup Kernel Memory Accounting (EXPERIMENTAL)"
+> +	depends on CGROUP_MEM_RES_CTLR_KMEM
+> +	default n
+> +	help
+> +	  Account for kernel memory used by the root cgroup. This may be useful
+> +	  to know how much kernel memory isn't currently accounted to any
+> +	  cgroup.
+>
+>   config CGROUP_PERF
+>   	bool "Enable perf_event per-cpu per-container group (cgroup) monitoring"
 > diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index d1c0cd7..6a475ed 100644
+> index 6a475ed..d4cdb8e 100644
 > --- a/mm/memcontrol.c
 > +++ b/mm/memcontrol.c
-> @@ -302,6 +302,9 @@ struct mem_cgroup {
->   	/* Slab accounting */
->   	struct kmem_cache *slabs[MAX_KMEM_CACHE_TYPES];
->   #endif
-> +#ifdef CONFIG_CGROUP_MEM_RES_CTLR_KMEM
-> +	atomic64_t kmem_bypassed;
+> @@ -61,6 +61,10 @@ struct cgroup_subsys mem_cgroup_subsys __read_mostly;
+>   #define MEM_CGROUP_RECLAIM_RETRIES	5
+>   struct mem_cgroup *root_mem_cgroup __read_mostly;
+>
+> +#ifdef CONFIG_CGROUP_MEM_RES_CTLR_KMEM_ACCT_ROOT
+> +atomic64_t pre_memcg_kmem_bytes;	/* kmem usage before memcg is enabled */
 > +#endif
->   	int independent_kmem_limit;
->   };
->
-> @@ -4037,6 +4040,7 @@ enum {
->   	MCS_INACTIVE_FILE,
->   	MCS_ACTIVE_FILE,
->   	MCS_UNEVICTABLE,
-> +	MCS_KMEM_BYPASSED,
->   	NR_MCS_STAT,
->   };
->
-> @@ -4060,7 +4064,8 @@ struct {
->   	{"active_anon", "total_active_anon"},
->   	{"inactive_file", "total_inactive_file"},
->   	{"active_file", "total_active_file"},
-> -	{"unevictable", "total_unevictable"}
-> +	{"unevictable", "total_unevictable"},
-> +	{"kernel_bypassed_memory", "total_kernel_bypassed_memory"}
->   };
->
->
-> @@ -4100,6 +4105,10 @@ mem_cgroup_get_local_stat(struct mem_cgroup *memcg, struct mcs_total_stat *s)
->   	s->stat[MCS_ACTIVE_FILE] += val * PAGE_SIZE;
->   	val = mem_cgroup_nr_lru_pages(memcg, BIT(LRU_UNEVICTABLE));
->   	s->stat[MCS_UNEVICTABLE] += val * PAGE_SIZE;
 > +
-> +#ifdef CONFIG_CGROUP_MEM_RES_CTLR_KMEM
-> +	s->stat[MCS_KMEM_BYPASSED] += atomic64_read(&memcg->kmem_bypassed);
+>   #ifdef CONFIG_CGROUP_MEM_RES_CTLR_SWAP
+>   /* Turned on only when memory cgroup is enabled&&  really_do_swap_account = 1 */
+>   int do_swap_account __read_mostly;
+> @@ -5643,6 +5647,13 @@ memcg_charge_kmem(struct mem_cgroup *memcg, gfp_t gfp, long long delta)
+>
+>   	if (memcg)
+>   		ret = res_counter_charge(&memcg->kmem_bytes, delta,&fail_res);
+> +#ifdef CONFIG_CGROUP_MEM_RES_CTLR_KMEM_ACCT_ROOT
+> +	else if (root_mem_cgroup != NULL)
+> +		ret = res_counter_charge(&root_mem_cgroup->kmem_bytes, delta,
+> +		&fail_res);
+> +	else
+> +		atomic64_add(delta,&pre_memcg_kmem_bytes);
 > +#endif
->   }
->
->   static void
-> @@ -5616,14 +5625,24 @@ memcg_charge_kmem(struct mem_cgroup *memcg, gfp_t gfp, long long delta)
->   	ret = 0;
->
->   	if (memcg&&  !memcg->independent_kmem_limit) {
-> +		/*
-> +		 * __mem_cgroup_try_charge may decide to bypass the charge and
-> +		 * set _memcg to NULL, in which case we need to account to the
-> +		 * root.
-> +		 */
-I don't fully understand this.
-To me, the whole purpose of having a cache tied to a memcg, is that we 
-know all allocations from that particular cache should be billed to a 
-specific memcg. So after a cache is created, and has an assigned memcg,
-what's the point in bypassing it to root?
-
-It smells like you're just using this to circumvent something...
-
->   		_memcg = memcg;
->   		if (__mem_cgroup_try_charge(NULL, gfp, delta / PAGE_SIZE,
->   		&_memcg, may_oom) != 0)
->   			return -ENOMEM;
-> +
-> +		if (!_memcg&&  memcg != root_mem_cgroup) {
-> +			atomic64_add(delta,&memcg->kmem_bypassed);
-> +			memcg = NULL;
-> +		}
->   	}
->
-> -	if (_memcg)
-> -		ret = res_counter_charge(&_memcg->kmem_bytes, delta,&fail_res);
-> +	if (memcg)
-> +		ret = res_counter_charge(&memcg->kmem_bytes, delta,&fail_res);
 >
 >   	return ret;
 >   }
-> @@ -5631,6 +5650,22 @@ memcg_charge_kmem(struct mem_cgroup *memcg, gfp_t gfp, long long delta)
->   void
->   memcg_uncharge_kmem(struct mem_cgroup *memcg, long long delta)
->   {
-> +	long long bypassed;
-> +
-> +	if (memcg) {
-> +		bypassed = atomic64_read(&memcg->kmem_bypassed);
-> +		if (bypassed>  0) {
-> +			if (bypassed>  delta)
-> +				bypassed = delta;
-> +			do {
-> +				memcg_uncharge_kmem(NULL, bypassed);
-> +				delta -= bypassed;
-> +				bypassed = atomic64_sub_return(bypassed,
-> +				&memcg->kmem_bypassed);
-> +			} while (bypassed<  0);	/* Might have raced */
-> +		}
-> +	}
-> +
+> @@ -5668,6 +5679,12 @@ memcg_uncharge_kmem(struct mem_cgroup *memcg, long long delta)
+>
 >   	if (memcg)
 >   		res_counter_uncharge(&memcg->kmem_bytes, delta);
+> +#ifdef CONFIG_CGROUP_MEM_RES_CTLR_KMEM_ACCT_ROOT
+> +	else if (root_mem_cgroup != NULL)
+> +		res_counter_uncharge(&root_mem_cgroup->kmem_bytes, delta);
+> +	else
+> +		atomic64_sub(delta,&pre_memcg_kmem_bytes);
+> +#endif
 >
-> @@ -5956,6 +5991,7 @@ memcg_kmem_init(struct mem_cgroup *memcg, struct mem_cgroup *parent)
+>   	if (memcg&&  !memcg->independent_kmem_limit)
+>   		res_counter_uncharge(&memcg->res, delta);
+> @@ -5953,7 +5970,12 @@ memcg_slab_move(struct mem_cgroup *memcg)
+>   		cachep = rcu_access_pointer(memcg->slabs[i]);
+>   		if (cachep != NULL) {
+>   			rcu_assign_pointer(memcg->slabs[i], NULL);
+> +
+> +#ifdef CONFIG_CGROUP_MEM_RES_CTLR_KMEM_ACCT_ROOT
+> +			cachep->memcg = root_mem_cgroup;
+> +#else
+>   			cachep->memcg = NULL;
+> +#endif
+>
+>   			/* The space for this is already allocated */
+>   			strcat((char *)cachep->name, "dead");
+> @@ -5991,6 +6013,15 @@ memcg_kmem_init(struct mem_cgroup *memcg, struct mem_cgroup *parent)
 >
 >   	memcg_slab_init(memcg);
 >
-> +	atomic64_set(&memcg->kmem_bypassed, 0);
+> +#ifdef CONFIG_CGROUP_MEM_RES_CTLR_KMEM_ACCT_ROOT
+> +	if (memcg == root_mem_cgroup) {
+> +		long kmem_bytes;
+> +
+> +		kmem_bytes = atomic64_xchg(&pre_memcg_kmem_bytes, 0);
+> +		memcg->kmem_bytes.usage = kmem_bytes;
+> +	}
+> +#endif
+> +
+>   	atomic64_set(&memcg->kmem_bypassed, 0);
 >   	memcg->independent_kmem_limit = 0;
 >   }
->
-> @@ -5967,6 +6003,7 @@ memcg_kmem_move(struct mem_cgroup *memcg)
->
->   	memcg_slab_move(memcg);
->
-> +	atomic64_set(&memcg->kmem_bypassed, 0);
->   	spin_lock_irqsave(&memcg->kmem_bytes.lock, flags);
->   	kmem_bytes = memcg->kmem_bytes.usage;
->   	res_counter_uncharge_locked(&memcg->kmem_bytes, kmem_bytes);
+> @@ -6010,6 +6041,19 @@ memcg_kmem_move(struct mem_cgroup *memcg)
+>   	spin_unlock_irqrestore(&memcg->kmem_bytes.lock, flags);
+>   	if (!memcg->independent_kmem_limit)
+>   		res_counter_uncharge(&memcg->res, kmem_bytes);
+> +
+> +#ifdef CONFIG_CGROUP_MEM_RES_CTLR_KMEM_ACCT_ROOT
+> +	{
+> +		struct res_counter *dummy;
+> +		int err;
+> +
+> +		/* Can't fail because it's the root cgroup */
+> +		err = res_counter_charge(&root_mem_cgroup->kmem_bytes,
+> +		    kmem_bytes,&dummy);
+> +		err = res_counter_charge(&root_mem_cgroup->res, kmem_bytes,
+> +		&dummy);
+> +	}
+> +#endif
+>   }
+>   #else /* CONFIG_CGROUP_MEM_RES_CTLR_KMEM */
+>   static void
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
