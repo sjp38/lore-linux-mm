@@ -1,30 +1,29 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx102.postini.com [74.125.245.102])
-	by kanga.kvack.org (Postfix) with SMTP id 17B526B007E
-	for <linux-mm@kvack.org>; Mon, 27 Feb 2012 19:47:00 -0500 (EST)
+Received: from psmtp.com (na3sys010amx197.postini.com [74.125.245.197])
+	by kanga.kvack.org (Postfix) with SMTP id C85C56B007E
+	for <linux-mm@kvack.org>; Mon, 27 Feb 2012 19:58:14 -0500 (EST)
 Received: from m4.gw.fujitsu.co.jp (unknown [10.0.50.74])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 924DB3EE0C0
-	for <linux-mm@kvack.org>; Tue, 28 Feb 2012 09:46:58 +0900 (JST)
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 194113EE0C7
+	for <linux-mm@kvack.org>; Tue, 28 Feb 2012 09:58:13 +0900 (JST)
 Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 7A48A45DE52
-	for <linux-mm@kvack.org>; Tue, 28 Feb 2012 09:46:58 +0900 (JST)
+	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id ED1E945DE54
+	for <linux-mm@kvack.org>; Tue, 28 Feb 2012 09:58:12 +0900 (JST)
 Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 4F1F345DE4F
-	for <linux-mm@kvack.org>; Tue, 28 Feb 2012 09:46:58 +0900 (JST)
+	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id D3C8245DE4F
+	for <linux-mm@kvack.org>; Tue, 28 Feb 2012 09:58:12 +0900 (JST)
 Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 404001DB803F
-	for <linux-mm@kvack.org>; Tue, 28 Feb 2012 09:46:58 +0900 (JST)
-Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.240.81.134])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id EC2B51DB8037
-	for <linux-mm@kvack.org>; Tue, 28 Feb 2012 09:46:57 +0900 (JST)
-Date: Tue, 28 Feb 2012 09:45:33 +0900
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 9C1E11DB8040
+	for <linux-mm@kvack.org>; Tue, 28 Feb 2012 09:58:12 +0900 (JST)
+Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.240.81.133])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 09BE31DB8037
+	for <linux-mm@kvack.org>; Tue, 28 Feb 2012 09:58:12 +0900 (JST)
+Date: Tue, 28 Feb 2012 09:56:42 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH v3 13/21] mm: push lruvecs from pagevec_lru_move_fn() to
- iterator
-Message-Id: <20120228094533.f91b7720.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20120223135242.12988.38183.stgit@zurg>
+Subject: Re: [PATCH v3 14/21] mm: introduce lruvec locking primitives
+Message-Id: <20120228095642.39eaab28.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20120223135247.12988.49745.stgit@zurg>
 References: <20120223133728.12988.5432.stgit@zurg>
-	<20120223135242.12988.38183.stgit@zurg>
+	<20120223135247.12988.49745.stgit@zurg>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
@@ -33,16 +32,192 @@ List-ID: <linux-mm.kvack.org>
 To: Konstantin Khlebnikov <khlebnikov@openvz.org>
 Cc: Hugh Dickins <hughd@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <andi@firstfloor.org>
 
-On Thu, 23 Feb 2012 17:52:42 +0400
+On Thu, 23 Feb 2012 17:52:47 +0400
 Konstantin Khlebnikov <khlebnikov@openvz.org> wrote:
 
-> Push lruvec pointer from pagevec_lru_move_fn() to iterator function.
-> Push lruvec pointer into lru_add_page_tail()
+> This is initial preparation for lru_lock splitting.
+> 
+> This locking primites designed to hide splitted nature of lru_lock
+> and to avoid overhead for non-splitted lru_lock in non-memcg case.
+> 
+> * Lock via lruvec reference
+> 
+> lock_lruvec(lruvec, flags)
+> lock_lruvec_irq(lruvec)
+> 
+> * Lock via page reference
+> 
+> lock_page_lruvec(page, flags)
+> lock_page_lruvec_irq(page)
+> relock_page_lruvec(lruvec, page, flags)
+> relock_page_lruvec_irq(lruvec, page)
+> __relock_page_lruvec(lruvec, page) ( lruvec != NULL, page in same zone )
+> 
+> They always returns pointer to some locked lruvec, page anyway can be
+> not in lru, PageLRU() sign is stable while we hold returned lruvec lock.
+> Caller must guarantee page to lruvec reference validity.
+> 
+> * Lock via page, without stable page reference
+> 
+> __lock_page_lruvec_irq(&lruvec, page)
+> 
+> It returns true of lruvec succesfully locked and PageLRU is set.
+> Initial lruvec can be NULL. Consequent calls must be in the same zone.
+> 
+> * Unlock
+> 
+> unlock_lruvec(lruvec, flags)
+> unlock_lruvec_irq(lruvec)
+> 
+> * Wait
+> 
+> wait_lruvec_unlock(lruvec)
+> Wait for lruvec unlock, caller must have stable reference to lruvec.
+> 
+> __wait_lruvec_unlock(lruvec)
+> Wait for lruvec unlock before locking other lrulock for same page,
+> nothing if there only one possible lruvec per page.
+> Used at page-to-lruvec reference switching to stabilize PageLRU sign.
 > 
 > Signed-off-by: Konstantin Khlebnikov <khlebnikov@openvz.org>
 
+O.K. I like this.
+
 Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
+Hmm....Could you add a comment in memcg part ? (see below)
+
+
+
+> ---
+>  mm/huge_memory.c |    8 +-
+>  mm/internal.h    |  176 ++++++++++++++++++++++++++++++++++++++++++++++++++++++
+>  mm/memcontrol.c  |   14 ++--
+>  mm/swap.c        |   58 ++++++------------
+>  mm/vmscan.c      |   77 ++++++++++--------------
+>  5 files changed, 237 insertions(+), 96 deletions(-)
+> 
+> diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+> index 09e7069..74996b8 100644
+> --- a/mm/huge_memory.c
+> +++ b/mm/huge_memory.c
+> @@ -1228,13 +1228,11 @@ static int __split_huge_page_splitting(struct page *page,
+>  static void __split_huge_page_refcount(struct page *page)
+>  {
+>  	int i;
+> -	struct zone *zone = page_zone(page);
+>  	struct lruvec *lruvec;
+>  	int tail_count = 0;
+>  
+>  	/* prevent PageLRU to go away from under us, and freeze lru stats */
+> -	spin_lock_irq(&zone->lru_lock);
+> -	lruvec = page_lruvec(page);
+> +	lruvec = lock_page_lruvec_irq(page);
+>  	compound_lock(page);
+>  	/* complete memcg works before add pages to LRU */
+>  	mem_cgroup_split_huge_fixup(page);
+> @@ -1316,11 +1314,11 @@ static void __split_huge_page_refcount(struct page *page)
+>  	BUG_ON(atomic_read(&page->_count) <= 0);
+>  
+>  	__dec_zone_page_state(page, NR_ANON_TRANSPARENT_HUGEPAGES);
+> -	__mod_zone_page_state(zone, NR_ANON_PAGES, HPAGE_PMD_NR);
+> +	__mod_zone_page_state(lruvec_zone(lruvec), NR_ANON_PAGES, HPAGE_PMD_NR);
+>  
+>  	ClearPageCompound(page);
+>  	compound_unlock(page);
+> -	spin_unlock_irq(&zone->lru_lock);
+> +	unlock_lruvec_irq(lruvec);
+>  
+>  	for (i = 1; i < HPAGE_PMD_NR; i++) {
+>  		struct page *page_tail = page + i;
+> diff --git a/mm/internal.h b/mm/internal.h
+> index ef49dbf..9454752 100644
+> --- a/mm/internal.h
+> +++ b/mm/internal.h
+> @@ -13,6 +13,182 @@
+>  
+>  #include <linux/mm.h>
+>  
+> +static inline void lock_lruvec(struct lruvec *lruvec, unsigned long *flags)
+> +{
+> +	spin_lock_irqsave(&lruvec_zone(lruvec)->lru_lock, *flags);
+> +}
+> +
+> +static inline void lock_lruvec_irq(struct lruvec *lruvec)
+> +{
+> +	spin_lock_irq(&lruvec_zone(lruvec)->lru_lock);
+> +}
+> +
+> +static inline void unlock_lruvec(struct lruvec *lruvec, unsigned long *flags)
+> +{
+> +	spin_unlock_irqrestore(&lruvec_zone(lruvec)->lru_lock, *flags);
+> +}
+> +
+> +static inline void unlock_lruvec_irq(struct lruvec *lruvec)
+> +{
+> +	spin_unlock_irq(&lruvec_zone(lruvec)->lru_lock);
+> +}
+> +
+> +static inline void wait_lruvec_unlock(struct lruvec *lruvec)
+> +{
+> +	spin_unlock_wait(&lruvec_zone(lruvec)->lru_lock);
+> +}
+> +
+> +#ifdef CONFIG_CGROUP_MEM_RES_CTLR
+> +
+> +/* Dynamic page to lruvec mapping */
+> +
+> +/* Lock other lruvec for other page in the same zone */
+> +static inline struct lruvec *__relock_page_lruvec(struct lruvec *locked_lruvec,
+> +						  struct page *page)
+> +{
+> +	/* Currenyly only one lru_lock per-zone */
+> +	return page_lruvec(page);
+> +}
+> +
+> +static inline struct lruvec *relock_page_lruvec_irq(struct lruvec *lruvec,
+> +						    struct page *page)
+> +{
+> +	struct zone *zone = page_zone(page);
+> +
+> +	if (!lruvec) {
+> +		spin_lock_irq(&zone->lru_lock);
+> +	} else if (zone != lruvec_zone(lruvec)) {
+> +		unlock_lruvec_irq(lruvec);
+> +		spin_lock_irq(&zone->lru_lock);
+> +	}
+> +	return page_lruvec(page);
+> +}
+
+Could you add comments/caution to the caller 
+
+ - !PageLRU(page) case ?
+ - Can the caller assume page_lruvec(page) == lruvec ? If no, which lru_vec is locked ?
+
+etc...
+
+
+> +
+> +static inline struct lruvec *relock_page_lruvec(struct lruvec *lruvec,
+> +						struct page *page,
+> +						unsigned long *flags)
+> +{
+> +	struct zone *zone = page_zone(page);
+> +
+> +	if (!lruvec) {
+> +		spin_lock_irqsave(&zone->lru_lock, *flags);
+> +	} else if (zone != lruvec_zone(lruvec)) {
+> +		unlock_lruvec(lruvec, flags);
+> +		spin_lock_irqsave(&zone->lru_lock, *flags);
+> +	}
+> +	return page_lruvec(page);
+> +}
+
+
+Same here.
+
+Thanks,
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
