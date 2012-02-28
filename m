@@ -1,37 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx143.postini.com [74.125.245.143])
-	by kanga.kvack.org (Postfix) with SMTP id C5A596B004A
-	for <linux-mm@kvack.org>; Tue, 28 Feb 2012 03:49:55 -0500 (EST)
-Received: by lamf4 with SMTP id f4so8813614lam.14
-        for <linux-mm@kvack.org>; Tue, 28 Feb 2012 00:49:53 -0800 (PST)
-Date: Tue, 28 Feb 2012 10:49:46 +0200 (EET)
-From: Pekka Enberg <penberg@kernel.org>
-Subject: Re: [PATCH 00/10] memcg: Kernel Memory Accounting.
-In-Reply-To: <1330383533-20711-1-git-send-email-ssouhlal@FreeBSD.org>
-Message-ID: <alpine.LFD.2.02.1202281043420.4106@tux.localdomain>
-References: <1330383533-20711-1-git-send-email-ssouhlal@FreeBSD.org>
+Received: from psmtp.com (na3sys010amx163.postini.com [74.125.245.163])
+	by kanga.kvack.org (Postfix) with SMTP id DB3596B004A
+	for <linux-mm@kvack.org>; Tue, 28 Feb 2012 04:32:48 -0500 (EST)
+Received: by bkty12 with SMTP id y12so6083062bkt.14
+        for <linux-mm@kvack.org>; Tue, 28 Feb 2012 01:32:47 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+From: Dmitry Antipov <dmitry.antipov@linaro.org>
+Subject: [PATCH 1/2] vmalloc: use ZERO_SIZE_PTR / ZERO_OR_NULL_PTR
+Date: Tue, 28 Feb 2012 13:33:59 +0400
+Message-Id: <1330421640-5137-1-git-send-email-dmitry.antipov@linaro.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Suleiman Souhlal <ssouhlal@FreeBSD.org>
-Cc: cgroups@vger.kernel.org, suleiman@google.com, glommer@parallels.com, kamezawa.hiroyu@jp.fujitsu.com, yinghan@google.com, hughd@google.com, gthelen@google.com, linux-mm@kvack.org, devel@openvz.org, rientjes@google.com, cl@linux-foundation.org, akpm@linux-foundation.org
+To: Rusty Russell <rusty.russell@linaro.org>, Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linaro-dev@lists.linaro.org, patches@linaro.org, Dmitry Antipov <dmitry.antipov@linaro.org>
 
-On Mon, 27 Feb 2012, Suleiman Souhlal wrote:
-> The main difference with Glauber's patches is here: We try to
-> track all the slab allocations, while Glauber only tracks ones
-> that are explicitly marked.
-> We feel that it's important to track everything, because there
-> are a lot of different slab allocations that may use significant
-> amounts of memory, that we may not know of ahead of time.
-> This is also the main source of complexity in the patchset.
+ - Fix vmap() to return ZERO_SIZE_PTR if 0 pages are requested;
+ - fix __vmalloc_node_range() to return ZERO_SIZE_PTR if 0 bytes
+   are requested;
+ - fix __vunmap() to check passed pointer with ZERO_OR_NULL_PTR.
 
-Well, what are the performance implications of your patches? Can we 
-reasonably expect distributions to be able to enable this thing on 
-generic kernels and leave the feature disabled by default? Can we 
-accommodate your patches to support Glauber's use case?
+Signed-off-by: Dmitry Antipov <dmitry.antipov@linaro.org>
+---
+ mm/vmalloc.c |   10 +++++++---
+ 1 files changed, 7 insertions(+), 3 deletions(-)
 
-			Pekka
+diff --git a/mm/vmalloc.c b/mm/vmalloc.c
+index 86ce9a5..040a9cd 100644
+--- a/mm/vmalloc.c
++++ b/mm/vmalloc.c
+@@ -1456,7 +1456,7 @@ static void __vunmap(const void *addr, int deallocate_pages)
+ {
+ 	struct vm_struct *area;
+ 
+-	if (!addr)
++	if (unlikely(ZERO_OR_NULL_PTR(addr)))
+ 		return;
+ 
+ 	if ((PAGE_SIZE-1) & (unsigned long)addr) {
+@@ -1548,7 +1548,9 @@ void *vmap(struct page **pages, unsigned int count,
+ 
+ 	might_sleep();
+ 
+-	if (count > totalram_pages)
++	if (unlikely(!count))
++		return ZERO_SIZE_PTR;
++	if (unlikely(count > totalram_pages))
+ 		return NULL;
+ 
+ 	area = get_vm_area_caller((count << PAGE_SHIFT), flags,
+@@ -1648,8 +1650,10 @@ void *__vmalloc_node_range(unsigned long size, unsigned long align,
+ 	void *addr;
+ 	unsigned long real_size = size;
+ 
++	if (unlikely(!size))
++		return ZERO_SIZE_PTR;
+ 	size = PAGE_ALIGN(size);
+-	if (!size || (size >> PAGE_SHIFT) > totalram_pages)
++	if (unlikely((size >> PAGE_SHIFT) > totalram_pages))
+ 		goto fail;
+ 
+ 	area = __get_vm_area_node(size, align, VM_ALLOC | VM_UNLIST,
+-- 
+1.7.7.6
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
