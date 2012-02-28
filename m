@@ -1,76 +1,164 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx189.postini.com [74.125.245.189])
-	by kanga.kvack.org (Postfix) with SMTP id 415D16B007E
-	for <linux-mm@kvack.org>; Tue, 28 Feb 2012 08:28:45 -0500 (EST)
-Date: Tue, 28 Feb 2012 16:30:38 +0300
-From: Dan Carpenter <dan.carpenter@oracle.com>
-Subject: Re: [PATCH 1/2] vmalloc: use ZERO_SIZE_PTR / ZERO_OR_NULL_PTR
-Message-ID: <20120228133037.GG2817@mwanda>
-References: <1330421640-5137-1-git-send-email-dmitry.antipov@linaro.org>
- <20120228094415.GA2868@mwanda>
- <4F4CC19D.9040608@linaro.org>
+Received: from psmtp.com (na3sys010amx128.postini.com [74.125.245.128])
+	by kanga.kvack.org (Postfix) with SMTP id 529B06B0092
+	for <linux-mm@kvack.org>; Tue, 28 Feb 2012 08:32:41 -0500 (EST)
+Message-ID: <4F4CD731.60908@parallels.com>
+Date: Tue, 28 Feb 2012 10:31:29 -0300
+From: Glauber Costa <glommer@parallels.com>
 MIME-Version: 1.0
-Content-Type: multipart/signed; micalg=pgp-sha1;
-	protocol="application/pgp-signature"; boundary="bpVaumkpfGNUagdU"
-Content-Disposition: inline
-In-Reply-To: <4F4CC19D.9040608@linaro.org>
+Subject: Re: [PATCH 07/10] memcg: Stop res_counter underflows.
+References: <1330383533-20711-1-git-send-email-ssouhlal@FreeBSD.org> <1330383533-20711-8-git-send-email-ssouhlal@FreeBSD.org>
+In-Reply-To: <1330383533-20711-8-git-send-email-ssouhlal@FreeBSD.org>
+Content-Type: text/plain; charset="ISO-8859-1"; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dmitry Antipov <dmitry.antipov@linaro.org>
-Cc: Rusty Russell <rusty.russell@linaro.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linaro-dev@lists.linaro.org, patches@linaro.org
+To: Suleiman Souhlal <ssouhlal@FreeBSD.org>
+Cc: cgroups@vger.kernel.org, suleiman@google.com, kamezawa.hiroyu@jp.fujitsu.com, penberg@kernel.org, yinghan@google.com, hughd@google.com, gthelen@google.com, linux-mm@kvack.org, devel@openvz.org
 
+On 02/27/2012 07:58 PM, Suleiman Souhlal wrote:
+> From: Hugh Dickins<hughd@google.com>
+>
+> If __mem_cgroup_try_charge() goes the "bypass" route in charging slab
+> (typically when the task has been OOM-killed), that later results in
+> res_counter_uncharge_locked() underflows - a stream of warnings from
+> kernel/res_counter.c:96!
+>
+> Solve this by accounting kmem_bypass when we shift that charge to root,
+> and whenever a memcg has any kmem_bypass outstanding, deduct from that
+> when unaccounting kmem, before deducting from kmem_bytes: so that its
+> kmem_bytes soon returns to being a fair account.
 
---bpVaumkpfGNUagdU
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-Content-Transfer-Encoding: quoted-printable
+Ok, I was almost writing a pile of crap here =)
+Your changelog gave me the impression that you were disable the warning,
+until I was down to the middle of the code. Think you can reword it?
 
-On Tue, Feb 28, 2012 at 03:59:25PM +0400, Dmitry Antipov wrote:
-> On 02/28/2012 01:44 PM, Dan Carpenter wrote:
-> >On Tue, Feb 28, 2012 at 01:33:59PM +0400, Dmitry Antipov wrote:
-> >>  - Fix vmap() to return ZERO_SIZE_PTR if 0 pages are requested;
-> >>  - fix __vmalloc_node_range() to return ZERO_SIZE_PTR if 0 bytes
-> >>    are requested;
-> >>  - fix __vunmap() to check passed pointer with ZERO_OR_NULL_PTR.
-> >>
-> >
-> >Why?
->=20
-> 1) it was requested by the subsystem (co?)maintainer, see http://lkml.org=
-/lkml/2012/1/27/475;
-> 2) this looks to be a convenient way to trace/debug zero-size allocation =
-errors (although
->    I don't advocate it as a best way).
+> The amount of memory bypassed is shown in memory.stat as
+> kernel_bypassed_memory.
+>
+> Signed-off-by: Hugh Dickins<hughd@google.com>
+> Signed-off-by: Suleiman Souhlal<suleiman@google.com>
+> ---
+>   mm/memcontrol.c |   43 ++++++++++++++++++++++++++++++++++++++++---
+>   1 files changed, 40 insertions(+), 3 deletions(-)
+>
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index d1c0cd7..6a475ed 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -302,6 +302,9 @@ struct mem_cgroup {
+>   	/* Slab accounting */
+>   	struct kmem_cache *slabs[MAX_KMEM_CACHE_TYPES];
+>   #endif
+> +#ifdef CONFIG_CGROUP_MEM_RES_CTLR_KMEM
+> +	atomic64_t kmem_bypassed;
+> +#endif
+>   	int independent_kmem_limit;
+>   };
+>
+> @@ -4037,6 +4040,7 @@ enum {
+>   	MCS_INACTIVE_FILE,
+>   	MCS_ACTIVE_FILE,
+>   	MCS_UNEVICTABLE,
+> +	MCS_KMEM_BYPASSED,
+>   	NR_MCS_STAT,
+>   };
+>
+> @@ -4060,7 +4064,8 @@ struct {
+>   	{"active_anon", "total_active_anon"},
+>   	{"inactive_file", "total_inactive_file"},
+>   	{"active_file", "total_active_file"},
+> -	{"unevictable", "total_unevictable"}
+> +	{"unevictable", "total_unevictable"},
+> +	{"kernel_bypassed_memory", "total_kernel_bypassed_memory"}
+>   };
+>
+>
+> @@ -4100,6 +4105,10 @@ mem_cgroup_get_local_stat(struct mem_cgroup *memcg, struct mcs_total_stat *s)
+>   	s->stat[MCS_ACTIVE_FILE] += val * PAGE_SIZE;
+>   	val = mem_cgroup_nr_lru_pages(memcg, BIT(LRU_UNEVICTABLE));
+>   	s->stat[MCS_UNEVICTABLE] += val * PAGE_SIZE;
+> +
+> +#ifdef CONFIG_CGROUP_MEM_RES_CTLR_KMEM
+> +	s->stat[MCS_KMEM_BYPASSED] += atomic64_read(&memcg->kmem_bypassed);
+> +#endif
+>   }
+>
+>   static void
+> @@ -5616,14 +5625,24 @@ memcg_charge_kmem(struct mem_cgroup *memcg, gfp_t gfp, long long delta)
+>   	ret = 0;
+>
+>   	if (memcg&&  !memcg->independent_kmem_limit) {
+> +		/*
+> +		 * __mem_cgroup_try_charge may decide to bypass the charge and
+> +		 * set _memcg to NULL, in which case we need to account to the
+> +		 * root.
+> +		 */
+I don't fully understand this.
+To me, the whole purpose of having a cache tied to a memcg, is that we 
+know all allocations from that particular cache should be billed to a 
+specific memcg. So after a cache is created, and has an assigned memcg,
+what's the point in bypassing it to root?
 
-Could you include that in the changelog when the final version is
-ready?
+It smells like you're just using this to circumvent something...
 
-regards,
-dan carpenter
-
---bpVaumkpfGNUagdU
-Content-Type: application/pgp-signature; name="signature.asc"
-Content-Description: Digital signature
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1.4.11 (GNU/Linux)
-
-iQIcBAEBAgAGBQJPTNb9AAoJEOnZkXI/YHqRrqcP/jaoljPhqho4mWZ4LW0hUsec
-8t25uxiUsI/POB5AgBC250hQCLSQrLWJM/piQhKdV6cIMOtccBaiQdoUHVGVKpmT
-xe7EopnUnwn9OC45sY7iwGmLJ1BCw+1PJ4bpfFfJuxXs2+rMbToeR4sfiWt/T19d
-VA7N3sORxDCRgGT77VpCW+XG8xguvObQ4WhBtHOKxVfANxYlOwvC54vxzfpF1txo
-//RwLAXAC4hADMaeQHuneIT5NnI68t2O4QYjBb3OZI5q/uvyBe/dOnKdJZqgSPxz
-v6f0TCLY/Pueg/0+e0/ZB/4zUyIWOmt0oU8nAThZvdUYUtpGwjT8AZRoX8I7nJaP
-KOjWqsy1Z1FYnP7OnDMXkmQoPJqsR1gmtfhTXpdB5i/UZ6ofClnTuxsZ+/epAr1X
-S7fwIxCXGJuIfwxwb3+Y87dCzpV2KDjKvMPdlP6xwJ2KdHfB1MkuJAf4yCJfvFFf
-mBIPmnToOJmZJJLMzqHvRwhDX/bQSnAeFTVcEbCcaDnh3ERPqutqFeR5ugDth99r
-54SYTX6+iLAQg6fIOP34RzIrZ0bNlvV8V2DQxzZRTik0HjLK27eYQGeZMiMvkZMW
-6H9W0aCM7LfEdayERkjlR0IVQeVHI25+/JHPyk8YshZE5FFLELP5k1JMErsSh037
-DPmjyPhdmL5LytWbA5HX
-=b7tR
------END PGP SIGNATURE-----
-
---bpVaumkpfGNUagdU--
+>   		_memcg = memcg;
+>   		if (__mem_cgroup_try_charge(NULL, gfp, delta / PAGE_SIZE,
+>   		&_memcg, may_oom) != 0)
+>   			return -ENOMEM;
+> +
+> +		if (!_memcg&&  memcg != root_mem_cgroup) {
+> +			atomic64_add(delta,&memcg->kmem_bypassed);
+> +			memcg = NULL;
+> +		}
+>   	}
+>
+> -	if (_memcg)
+> -		ret = res_counter_charge(&_memcg->kmem_bytes, delta,&fail_res);
+> +	if (memcg)
+> +		ret = res_counter_charge(&memcg->kmem_bytes, delta,&fail_res);
+>
+>   	return ret;
+>   }
+> @@ -5631,6 +5650,22 @@ memcg_charge_kmem(struct mem_cgroup *memcg, gfp_t gfp, long long delta)
+>   void
+>   memcg_uncharge_kmem(struct mem_cgroup *memcg, long long delta)
+>   {
+> +	long long bypassed;
+> +
+> +	if (memcg) {
+> +		bypassed = atomic64_read(&memcg->kmem_bypassed);
+> +		if (bypassed>  0) {
+> +			if (bypassed>  delta)
+> +				bypassed = delta;
+> +			do {
+> +				memcg_uncharge_kmem(NULL, bypassed);
+> +				delta -= bypassed;
+> +				bypassed = atomic64_sub_return(bypassed,
+> +				&memcg->kmem_bypassed);
+> +			} while (bypassed<  0);	/* Might have raced */
+> +		}
+> +	}
+> +
+>   	if (memcg)
+>   		res_counter_uncharge(&memcg->kmem_bytes, delta);
+>
+> @@ -5956,6 +5991,7 @@ memcg_kmem_init(struct mem_cgroup *memcg, struct mem_cgroup *parent)
+>
+>   	memcg_slab_init(memcg);
+>
+> +	atomic64_set(&memcg->kmem_bypassed, 0);
+>   	memcg->independent_kmem_limit = 0;
+>   }
+>
+> @@ -5967,6 +6003,7 @@ memcg_kmem_move(struct mem_cgroup *memcg)
+>
+>   	memcg_slab_move(memcg);
+>
+> +	atomic64_set(&memcg->kmem_bypassed, 0);
+>   	spin_lock_irqsave(&memcg->kmem_bytes.lock, flags);
+>   	kmem_bytes = memcg->kmem_bytes.usage;
+>   	res_counter_uncharge_locked(&memcg->kmem_bytes, kmem_bytes);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
