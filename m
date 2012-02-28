@@ -1,114 +1,97 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx146.postini.com [74.125.245.146])
-	by kanga.kvack.org (Postfix) with SMTP id CA2546B0092
-	for <linux-mm@kvack.org>; Tue, 28 Feb 2012 10:47:42 -0500 (EST)
-Date: Tue, 28 Feb 2012 15:47:32 +0000
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH] sparsemem/bootmem: catch greater than section size
- allocations
-Message-ID: <20120228154732.GE1199@suse.de>
-References: <1330112038-18951-1-git-send-email-nacc@us.ibm.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <1330112038-18951-1-git-send-email-nacc@us.ibm.com>
+Received: from psmtp.com (na3sys010amx143.postini.com [74.125.245.143])
+	by kanga.kvack.org (Postfix) with SMTP id 9FAF66B004A
+	for <linux-mm@kvack.org>; Tue, 28 Feb 2012 13:12:34 -0500 (EST)
+From: Catalin Marinas <catalin.marinas@arm.com>
+Subject: [RFC] mm: Limit pgd range freeing to TASK_SIZE
+Date: Tue, 28 Feb 2012 18:12:01 +0000
+Message-Id: <1330452721-26947-1-git-send-email-catalin.marinas@arm.com>
+Content-Type: text/plain; charset=WINDOWS-1252
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Nishanth Aravamudan <nacc@us.ibm.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <haveblue@us.ibm.com>, Anton Blanchard <anton@au1.ibm.com>, Paul Mackerras <paulus@samba.org>, Ben Herrenschmidt <benh@kernel.crashing.org>, Robert Jennings <rcj@linux.vnet.ibm.com>, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org
+To: linux-arch@vger.kernel.org, linux-mm@kvack.org
+Cc: Russell King <linux@arm.linux.org.uk>, Andrew Morton <akpm@linux-foundation.org>, Alexander Viro <viro@zeniv.linux.org.uk>
 
-On Fri, Feb 24, 2012 at 11:33:58AM -0800, Nishanth Aravamudan wrote:
-> While testing AMS (Active Memory Sharing) / CMO (Cooperative Memory
-> Overcommit) on powerpc, we tripped the following:
-> 
-> kernel BUG at mm/bootmem.c:483!
-> cpu 0x0: Vector: 700 (Program Check) at [c000000000c03940]
->     pc: c000000000a62bd8: .alloc_bootmem_core+0x90/0x39c
->     lr: c000000000a64bcc: .sparse_early_usemaps_alloc_node+0x84/0x29c
->     sp: c000000000c03bc0
->    msr: 8000000000021032
->   current = 0xc000000000b0cce0
->   paca    = 0xc000000001d80000
->     pid   = 0, comm = swapper
-> kernel BUG at mm/bootmem.c:483!
-> enter ? for help
-> [c000000000c03c80] c000000000a64bcc
-> .sparse_early_usemaps_alloc_node+0x84/0x29c
-> [c000000000c03d50] c000000000a64f10 .sparse_init+0x12c/0x28c
-> [c000000000c03e20] c000000000a474f4 .setup_arch+0x20c/0x294
-> [c000000000c03ee0] c000000000a4079c .start_kernel+0xb4/0x460
-> [c000000000c03f90] c000000000009670 .start_here_common+0x1c/0x2c
-> 
-> This is
-> 
->         BUG_ON(limit && goal + size > limit);
-> 
-> and after some debugging, it seems that
-> 
-> 	goal = 0x7ffff000000
-> 	limit = 0x80000000000
-> 
-> and sparse_early_usemaps_alloc_node ->
-> sparse_early_usemaps_alloc_pgdat_section -> alloc_bootmem_section calls
-> 
-> 	return alloc_bootmem_section(usemap_size() * count, section_nr);
-> 
-> This is on a system with 8TB available via the AMS pool, and as a quirk
-> of AMS in firmware, all of that memory shows up in node 0. So, we end up
-> with an allocation that will fail the goal/limit constraints. In theory,
-> we could "fall-back" to alloc_bootmem_node() in
-> sparse_early_usemaps_alloc_node(), but since we actually have HOTREMOVE
-> defined, we'll BUG_ON() instead. A simple solution appears to be to
-> disable the limit check if the size of the allocation in
-> alloc_bootmem_secition exceeds the section size.
-> 
-> Signed-off-by: Nishanth Aravamudan <nacc@us.ibm.com>
-> Cc: Dave Hansen <haveblue@us.ibm.com>
-> Cc: Anton Blanchard <anton@au1.ibm.com>
-> Cc: Paul Mackerras <paulus@samba.org>
-> Cc: Ben Herrenschmidt <benh@kernel.crashing.org>
-> Cc: Robert Jennings <rcj@linux.vnet.ibm.com>
-> Cc: linux-mm@kvack.org
-> Cc: linuxppc-dev@lists.ozlabs.org
-> ---
->  include/linux/mmzone.h |    2 ++
->  mm/bootmem.c           |    5 ++++-
->  2 files changed, 6 insertions(+), 1 deletions(-)
-> 
-> diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-> index 650ba2f..4176834 100644
-> --- a/include/linux/mmzone.h
-> +++ b/include/linux/mmzone.h
-> @@ -967,6 +967,8 @@ static inline unsigned long early_pfn_to_nid(unsigned long pfn)
->   * PA_SECTION_SHIFT		physical address to/from section number
->   * PFN_SECTION_SHIFT		pfn to/from section number
->   */
-> +#define BYTES_PER_SECTION	(1UL << SECTION_SIZE_BITS)
-> +
->  #define SECTIONS_SHIFT		(MAX_PHYSMEM_BITS - SECTION_SIZE_BITS)
->  
->  #define PA_SECTION_SHIFT	(SECTION_SIZE_BITS)
-> diff --git a/mm/bootmem.c b/mm/bootmem.c
-> index 668e94d..5cbbc76 100644
-> --- a/mm/bootmem.c
-> +++ b/mm/bootmem.c
-> @@ -770,7 +770,10 @@ void * __init alloc_bootmem_section(unsigned long size,
->  
->  	pfn = section_nr_to_pfn(section_nr);
->  	goal = pfn << PAGE_SHIFT;
-> -	limit = section_nr_to_pfn(section_nr + 1) << PAGE_SHIFT;
-> +	if (size > BYTES_PER_SECTION)
-> +		limit = 0;
-> +	else
-> +		limit = section_nr_to_pfn(section_nr + 1) << PAGE_SHIFT;
+ARM processors with LPAE enabled use 3 levels of page tables, with an
+entry in the top one (pgd/pud) covering 1GB of virtual space. Because of
+the relocation limitations on ARM, the loadable modules are mapped 16MB
+below PAGE_OFFSET, making the corresponding 1GB pgd/pud shared between
+kernel modules and user space. During fault processing, pmd entries
+corresponding to modules are populated to point to the init_mm pte
+tables.
 
-As it's ok to spill the allocation over to an adjacent section, why not
-just make limit==0 unconditionally. That would avoid defining
-BYTES_PER_SECTION.
+Since free_pgtables() is called with ceiling =3D=3D 0, free_pgd_range() (an=
+d
+subsequently called functions) also clears the pgd/pud entry that is
+shared between user space and kernel modules. If a module interrupt
+routine is invoked during this window, the kernel gets a translation
+fault and becomes confused.
 
--- 
-Mel Gorman
-SUSE Labs
+There is proposed fix for ARM (within the arch/arm/ code) but it
+wouldn't be needed if the pgd range freeing is capped at TASK_SIZE. The
+concern is that there are architectures with vmas beyond TASK_SIZE, so
+the aim of this RFC is to ask whether those architectures rely on
+free_pgtables() to free any page tables beyond TASK_SIZE.
+
+Alternatively, we can define something like LAST_USER_ADDRESS,
+defaulting to 0 for most architectures.
+
+Signed-off-by: Catalin Marinas <catalin.marinas@arm.com>
+Cc: Russell King <linux@arm.linux.org.uk>
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: Alexander Viro <viro@zeniv.linux.org.uk>
+---
+ fs/exec.c |    4 ++--
+ mm/mmap.c |    4 ++--
+ 2 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/fs/exec.c b/fs/exec.c
+index 92ce83a..f2d66ab 100644
+--- a/fs/exec.c
++++ b/fs/exec.c
+@@ -626,7 +626,7 @@ static int shift_arg_pages(struct vm_area_struct *vma, =
+unsigned long shift)
+ =09=09 * when the old and new regions overlap clear from new_end.
+ =09=09 */
+ =09=09free_pgd_range(&tlb, new_end, old_end, new_end,
+-=09=09=09vma->vm_next ? vma->vm_next->vm_start : 0);
++=09=09=09vma->vm_next ? vma->vm_next->vm_start : TASK_SIZE);
+ =09} else {
+ =09=09/*
+ =09=09 * otherwise, clean from old_start; this is done to not touch
+@@ -635,7 +635,7 @@ static int shift_arg_pages(struct vm_area_struct *vma, =
+unsigned long shift)
+ =09=09 * for the others its just a little faster.
+ =09=09 */
+ =09=09free_pgd_range(&tlb, old_start, old_end, new_end,
+-=09=09=09vma->vm_next ? vma->vm_next->vm_start : 0);
++=09=09=09vma->vm_next ? vma->vm_next->vm_start : TASK_SIZE);
+ =09}
+ =09tlb_finish_mmu(&tlb, new_end, old_end);
+=20
+diff --git a/mm/mmap.c b/mm/mmap.c
+index 3f758c7..5e5c8a8 100644
+--- a/mm/mmap.c
++++ b/mm/mmap.c
+@@ -1866,7 +1866,7 @@ static void unmap_region(struct mm_struct *mm,
+ =09unmap_vmas(&tlb, vma, start, end, &nr_accounted, NULL);
+ =09vm_unacct_memory(nr_accounted);
+ =09free_pgtables(&tlb, vma, prev ? prev->vm_end : FIRST_USER_ADDRESS,
+-=09=09=09=09 next ? next->vm_start : 0);
++=09=09=09=09 next ? next->vm_start : TASK_SIZE);
+ =09tlb_finish_mmu(&tlb, start, end);
+ }
+=20
+@@ -2241,7 +2241,7 @@ void exit_mmap(struct mm_struct *mm)
+ =09end =3D unmap_vmas(&tlb, vma, 0, -1, &nr_accounted, NULL);
+ =09vm_unacct_memory(nr_accounted);
+=20
+-=09free_pgtables(&tlb, vma, FIRST_USER_ADDRESS, 0);
++=09free_pgtables(&tlb, vma, FIRST_USER_ADDRESS, TASK_SIZE);
+ =09tlb_finish_mmu(&tlb, 0, end);
+=20
+ =09/*
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
