@@ -1,70 +1,99 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx175.postini.com [74.125.245.175])
-	by kanga.kvack.org (Postfix) with SMTP id 95D2D6B004A
-	for <linux-mm@kvack.org>; Wed, 29 Feb 2012 14:28:57 -0500 (EST)
-Received: by qcsd16 with SMTP id d16so3463438qcs.14
-        for <linux-mm@kvack.org>; Wed, 29 Feb 2012 11:28:56 -0800 (PST)
+Received: from psmtp.com (na3sys010amx119.postini.com [74.125.245.119])
+	by kanga.kvack.org (Postfix) with SMTP id CEF666B004A
+	for <linux-mm@kvack.org>; Wed, 29 Feb 2012 14:35:32 -0500 (EST)
+Date: Wed, 29 Feb 2012 20:35:17 +0100
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH next] memcg: fix deadlock by avoiding stat lock when anon
+Message-ID: <20120229193517.GD1673@cmpxchg.org>
+References: <alpine.LSU.2.00.1202282121160.4875@eggly.anvils>
+ <alpine.LSU.2.00.1202282125240.4875@eggly.anvils>
 MIME-Version: 1.0
-In-Reply-To: <4F4E56A8.4000703@parallels.com>
-References: <1330383533-20711-1-git-send-email-ssouhlal@FreeBSD.org>
-	<4F4CD0AF.1050508@parallels.com>
-	<CABCjUKCQk0RDWH80uQw+SxYsu=1L4GSGBNJWNFD=20o_j8P+ng@mail.gmail.com>
-	<4F4E56A8.4000703@parallels.com>
-Date: Wed, 29 Feb 2012 11:28:56 -0800
-Message-ID: <CABCjUKB5GO18rcr6v=x6=NAOVXKT679OJDQ_NDW+WeUf0N05qg@mail.gmail.com>
-Subject: Re: [PATCH 00/10] memcg: Kernel Memory Accounting.
-From: Suleiman Souhlal <suleiman@google.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.LSU.2.00.1202282125240.4875@eggly.anvils>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Glauber Costa <glommer@parallels.com>
-Cc: Suleiman Souhlal <ssouhlal@freebsd.org>, cgroups@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, penberg@kernel.org, yinghan@google.com, hughd@google.com, gthelen@google.com, linux-mm@kvack.org, devel@openvz.org
+To: Hugh Dickins <hughd@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Konstantin Khlebnikov <khlebnikov@openvz.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Wed, Feb 29, 2012 at 8:47 AM, Glauber Costa <glommer@parallels.com> wrote:
-> On 02/28/2012 07:47 PM, Suleiman Souhlal wrote:
->> I hadn't considered the fact that two cgroups could have the same base
->> name.
->> I think having a name makes it a lot easier for a human to understand
->> which cgroup is using slab, so what about having both the base name of
->> the cgroup AND its css id, so that the caches are named like
->> "dentry(5:foo)"?
->
->
-> That would be better, so if you really want to keep names, I'd advise you to
-> go this route.
->
-> However, what does "5" really means to whoever is reading that? css ids are
-> not visible to the user, so there isn't really too much information you can
-> extract for that. So why not only dentry-5 ?
+On Tue, Feb 28, 2012 at 09:26:56PM -0800, Hugh Dickins wrote:
+> Fix deadlock in "memcg: use new logic for page stat accounting".
+> 
+> page_remove_rmap() first calls mem_cgroup_begin_update_page_stat(),
+> which may take move_lock_mem_cgroup(), unlocked at the end of
+> page_remove_rmap() by mem_cgroup_end_update_page_stat().
+> 
+> The PageAnon case never needs to mem_cgroup_dec_page_stat(page,
+> MEMCG_NR_FILE_MAPPED); but it often needs to mem_cgroup_uncharge_page(),
+> which does lock_page_cgroup(), while holding that move_lock_mem_cgroup().
+> Whereas mem_cgroup_move_account() calls move_lock_mem_cgroup() while
+> holding lock_page_cgroup().
+> 
+> Since mem_cgroup_begin and end are unnecessary here for PageAnon,
+> simply avoid the deadlock and wasted calls in that case.
+> 
+> Signed-off-by: Hugh Dickins <hughd@google.com>
 
-dentry-5 gives even less information.. :-)
+Eek.
 
->> This should let us use the name of the cgroup while still being able
->> to distiguish cgroups that have the same base name.
->
->
-> I am fine with name+css_id if you really want names on it.
->
->
->>> I was thinking: How about we don't bother to show them at all, and
->>> instead,
->>> show a proc-like file inside the cgroup with information about that
->>> cgroup?
->>
->>
->> One of the patches in the series adds a per-memcg memory.kmem.slabinfo.
->
-> I know. What I was wondering was if we wanted to show only the non-cgroup
-> slabs in /proc/slabinfo, and then show the per-cgroup slabs in the cgroup
-> only.
+Saving the begin/end_update_page_stat() calls for the anon case where
+we know in advance we don't need them is one thing, but this also
+hides a dependencies that even eludes lockdep behind what looks like a
+minor optimization of the anon case.
 
-I think /proc/slabinfo should show all the slabs in the system, to
-avoid confusion.
+Wouldn't this be more robust if we turned the ordering inside out in
+move_account instead?
 
-Thanks for your comments so far.
-I will try to get a v2 out soon that addresses them.
-
--- Suleiman
+> ---
+> 
+>  mm/rmap.c |   11 +++++++----
+>  1 file changed, 7 insertions(+), 4 deletions(-)
+> 
+> --- 3.3-rc5-next/mm/rmap.c	2012-02-26 23:51:46.506050210 -0800
+> +++ linux/mm/rmap.c	2012-02-27 20:25:56.423324211 -0800
+> @@ -1166,10 +1166,12 @@ void page_add_file_rmap(struct page *pag
+>   */
+>  void page_remove_rmap(struct page *page)
+>  {
+> +	bool anon = PageAnon(page);
+>  	bool locked;
+>  	unsigned long flags;
+>  
+> -	mem_cgroup_begin_update_page_stat(page, &locked, &flags);
+> +	if (!anon)
+> +		mem_cgroup_begin_update_page_stat(page, &locked, &flags);
+>  	/* page still mapped by someone else? */
+>  	if (!atomic_add_negative(-1, &page->_mapcount))
+>  		goto out;
+> @@ -1181,7 +1183,7 @@ void page_remove_rmap(struct page *page)
+>  	 * not if it's in swapcache - there might be another pte slot
+>  	 * containing the swap entry, but page not yet written to swap.
+>  	 */
+> -	if ((!PageAnon(page) || PageSwapCache(page)) &&
+> +	if ((!anon || PageSwapCache(page)) &&
+>  	    page_test_and_clear_dirty(page_to_pfn(page), 1))
+>  		set_page_dirty(page);
+>  	/*
+> @@ -1190,7 +1192,7 @@ void page_remove_rmap(struct page *page)
+>  	 */
+>  	if (unlikely(PageHuge(page)))
+>  		goto out;
+> -	if (PageAnon(page)) {
+> +	if (anon) {
+>  		mem_cgroup_uncharge_page(page);
+>  		if (!PageTransHuge(page))
+>  			__dec_zone_page_state(page, NR_ANON_PAGES);
+> @@ -1211,7 +1213,8 @@ void page_remove_rmap(struct page *page)
+>  	 * faster for those pages still in swapcache.
+>  	 */
+>  out:
+> -	mem_cgroup_end_update_page_stat(page, &locked, &flags);
+> +	if (!anon)
+> +		mem_cgroup_end_update_page_stat(page, &locked, &flags);
+>  }
+>  
+>  /*
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
