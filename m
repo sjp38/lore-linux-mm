@@ -1,87 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx144.postini.com [74.125.245.144])
-	by kanga.kvack.org (Postfix) with SMTP id B186B6B004A
-	for <linux-mm@kvack.org>; Wed, 29 Feb 2012 14:00:24 -0500 (EST)
-Received: by qcsd16 with SMTP id d16so3450166qcs.14
-        for <linux-mm@kvack.org>; Wed, 29 Feb 2012 11:00:23 -0800 (PST)
+Received: from psmtp.com (na3sys010amx120.postini.com [74.125.245.120])
+	by kanga.kvack.org (Postfix) with SMTP id D88D66B004D
+	for <linux-mm@kvack.org>; Wed, 29 Feb 2012 14:00:58 -0500 (EST)
+Date: Wed, 29 Feb 2012 20:00:46 +0100
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH 3.3] memcg: fix deadlock by inverting lrucare nesting
+Message-ID: <20120229190046.GC1673@cmpxchg.org>
+References: <alpine.LSU.2.00.1202282121160.4875@eggly.anvils>
 MIME-Version: 1.0
-In-Reply-To: <20120229152227.aa416668.kamezawa.hiroyu@jp.fujitsu.com>
-References: <1330383533-20711-1-git-send-email-ssouhlal@FreeBSD.org>
-	<1330383533-20711-3-git-send-email-ssouhlal@FreeBSD.org>
-	<20120229152227.aa416668.kamezawa.hiroyu@jp.fujitsu.com>
-Date: Wed, 29 Feb 2012 11:00:23 -0800
-Message-ID: <CABCjUKAt0gvnSU9-jbK9QjOWBECgohZ699Tptd6W2ucb8-B8=w@mail.gmail.com>
-Subject: Re: [PATCH 02/10] memcg: Uncharge all kmem when deleting a cgroup.
-From: Suleiman Souhlal <suleiman@google.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.LSU.2.00.1202282121160.4875@eggly.anvils>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Suleiman Souhlal <ssouhlal@freebsd.org>, cgroups@vger.kernel.org, glommer@parallels.com, penberg@kernel.org, yinghan@google.com, hughd@google.com, gthelen@google.com, linux-mm@kvack.org, devel@openvz.org
+To: Hugh Dickins <hughd@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Konstantin Khlebnikov <khlebnikov@openvz.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Tue, Feb 28, 2012 at 10:22 PM, KAMEZAWA Hiroyuki
-<kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> On Mon, 27 Feb 2012 14:58:45 -0800
-> Suleiman Souhlal <ssouhlal@FreeBSD.org> wrote:
->
->> A later patch will also use this to move the accounting to the root
->> cgroup.
->>
->> Signed-off-by: Suleiman Souhlal <suleiman@google.com>
->> ---
->> =A0mm/memcontrol.c | =A0 30 +++++++++++++++++++++++++++++-
->> =A01 files changed, 29 insertions(+), 1 deletions(-)
->>
->> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
->> index 11e31d6..6f44fcb 100644
->> --- a/mm/memcontrol.c
->> +++ b/mm/memcontrol.c
->> @@ -378,6 +378,7 @@ static void mem_cgroup_get(struct mem_cgroup *memcg)=
-;
->> =A0static void mem_cgroup_put(struct mem_cgroup *memcg);
->> =A0static void memcg_kmem_init(struct mem_cgroup *memcg,
->> =A0 =A0 =A0struct mem_cgroup *parent);
->> +static void memcg_kmem_move(struct mem_cgroup *memcg);
->>
->> =A0/* Writing them here to avoid exposing memcg's inner layout */
->> =A0#ifdef CONFIG_CGROUP_MEM_RES_CTLR_KMEM
->> @@ -3674,6 +3675,7 @@ static int mem_cgroup_force_empty(struct mem_cgrou=
-p *memcg, bool free_all)
->> =A0 =A0 =A0 int ret;
->> =A0 =A0 =A0 int node, zid, shrink;
->> =A0 =A0 =A0 int nr_retries =3D MEM_CGROUP_RECLAIM_RETRIES;
->> + =A0 =A0 unsigned long usage;
->> =A0 =A0 =A0 struct cgroup *cgrp =3D memcg->css.cgroup;
->>
->> =A0 =A0 =A0 css_get(&memcg->css);
->> @@ -3693,6 +3695,8 @@ move_account:
->> =A0 =A0 =A0 =A0 =A0 =A0 =A0 /* This is for making all *used* pages to be=
- on LRU. */
->> =A0 =A0 =A0 =A0 =A0 =A0 =A0 lru_add_drain_all();
->> =A0 =A0 =A0 =A0 =A0 =A0 =A0 drain_all_stock_sync(memcg);
->> + =A0 =A0 =A0 =A0 =A0 =A0 if (!free_all)
->> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 memcg_kmem_move(memcg);
->> =A0 =A0 =A0 =A0 =A0 =A0 =A0 ret =3D 0;
->> =A0 =A0 =A0 =A0 =A0 =A0 =A0 mem_cgroup_start_move(memcg);
->> =A0 =A0 =A0 =A0 =A0 =A0 =A0 for_each_node_state(node, N_HIGH_MEMORY) {
->> @@ -3714,8 +3718,13 @@ move_account:
->> =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (ret =3D=3D -ENOMEM)
->> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 goto try_to_free;
->> =A0 =A0 =A0 =A0 =A0 =A0 =A0 cond_resched();
->> + =A0 =A0 =A0 =A0 =A0 =A0 usage =3D memcg->res.usage;
->> +#ifdef CONFIG_CGROUP_MEM_RES_CTLR_KMEM
->> + =A0 =A0 =A0 =A0 =A0 =A0 if (free_all && !memcg->independent_kmem_limit=
-)
->> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 usage -=3D memcg->kmem_bytes.u=
-sage;
->> +#endif
->
-> Why we need this even if memcg_kmem_move() does uncharge ?
+On Tue, Feb 28, 2012 at 09:25:02PM -0800, Hugh Dickins wrote:
+> We have forgotten the rules of lock nesting: the irq-safe ones must be
+> taken inside the non-irq-safe ones, otherwise we are open to deadlock:
+> 
+> CPU0                          CPU1
+> ----                          ----
+> lock(&(&pc->lock)->rlock);
+>                               local_irq_disable();
+>                               lock(&(&zone->lru_lock)->rlock);
+>                               lock(&(&pc->lock)->rlock);
+> <Interrupt>
+> lock(&(&zone->lru_lock)->rlock);
+> 
+> To check a different locking issue, I happened to add a spin_lock to
+> memcg's bit_spin_lock in lock_page_cgroup(), and lockdep very quickly
+> complained about __mem_cgroup_commit_charge_lrucare() (on CPU1 above).
+> 
+> So delete __mem_cgroup_commit_charge_lrucare(), passing a bool lrucare
+> to __mem_cgroup_commit_charge() instead, taking zone->lru_lock under
+> lock_page_cgroup() in the lrucare case.
+> 
+> The original was using spin_lock_irqsave, but we'd be in more trouble
+> if it were ever called at interrupt time: unconditional _irq is enough.
+> And ClearPageLRU before del from lru, SetPageLRU before add to lru: no
+> strong reason, but that is the ordering used consistently elsewhere.
+> 
+> Signed-off-by: Hugh Dickins <hughd@google.com>
 
-We need it when manually calling force_empty.
-
--- Suleiman
+Acked-by: Johannes Weiner <hannes@cmpxchg.org>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
