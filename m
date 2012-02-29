@@ -1,80 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx196.postini.com [74.125.245.196])
-	by kanga.kvack.org (Postfix) with SMTP id 9EECA6B004A
-	for <linux-mm@kvack.org>; Wed, 29 Feb 2012 03:34:03 -0500 (EST)
-From: Namhyung Kim <namhyung.kim@lge.com>
-Subject: [PATCH -next] slub: set PG_slab on all of slab pages
-Date: Wed, 29 Feb 2012 17:54:34 +0900
-Message-Id: <1330505674-31610-1-git-send-email-namhyung.kim@lge.com>
+Received: from psmtp.com (na3sys010amx173.postini.com [74.125.245.173])
+	by kanga.kvack.org (Postfix) with SMTP id 732E46B004A
+	for <linux-mm@kvack.org>; Wed, 29 Feb 2012 04:15:41 -0500 (EST)
+Received: by bkwq16 with SMTP id q16so99930bkw.14
+        for <linux-mm@kvack.org>; Wed, 29 Feb 2012 01:15:39 -0800 (PST)
+Subject: [PATCH v4 ch1 0/7] mm: some cleanup/rework before lru_lock splitting
+From: Konstantin Khlebnikov <khlebnikov@openvz.org>
+Date: Wed, 29 Feb 2012 13:15:33 +0400
+Message-ID: <20120229090748.29236.35489.stgit@zurg>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux-foundation.org>, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>
-Cc: Namhyung Kim <namhyung@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Johannes Weiner <jweiner@redhat.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Unlike SLAB, SLUB doesn't set PG_slab on tail pages, so if a user would
-call free_pages() incorrectly on a object in a tail page, she will get
-confused with the undefined result. Setting the flag would help her by
-emitting a warning on bad_page() in such a case.
+Here is some cleanup/rework patches from Hugh Dickins and me.
+This is about one-third of my current patchset,
+so I prefer to merge this set before going further.
 
-Reported-by: Sangseok Lee <sangseok.lee@lge.com>
-Signed-off-by: Namhyung Kim <namhyung.kim@lge.com>
 ---
- mm/slub.c |   12 ++++++++++--
- 1 files changed, 10 insertions(+), 2 deletions(-)
 
-diff --git a/mm/slub.c b/mm/slub.c
-index 33bab2aca882..575baacbec9b 100644
---- a/mm/slub.c
-+++ b/mm/slub.c
-@@ -1287,6 +1287,7 @@ static struct page *allocate_slab(struct kmem_cache *s, gfp_t flags, int node)
- 	struct page *page;
- 	struct kmem_cache_order_objects oo = s->oo;
- 	gfp_t alloc_gfp;
-+	int i;
- 
- 	flags &= gfp_allowed_mask;
- 
-@@ -1320,6 +1321,9 @@ static struct page *allocate_slab(struct kmem_cache *s, gfp_t flags, int node)
- 	if (!page)
- 		return NULL;
- 
-+	for (i = 0; i < 1 << oo_order(oo); i++)
-+		__SetPageSlab(page + i);
-+
- 	if (kmemcheck_enabled
- 		&& !(s->flags & (SLAB_NOTRACK | DEBUG_DEFAULT_FLAGS))) {
- 		int pages = 1 << oo_order(oo);
-@@ -1369,7 +1373,6 @@ static struct page *new_slab(struct kmem_cache *s, gfp_t flags, int node)
- 
- 	inc_slabs_node(s, page_to_nid(page), page->objects);
- 	page->slab = s;
--	page->flags |= 1 << PG_slab;
- 
- 	start = page_address(page);
- 
-@@ -1396,6 +1399,7 @@ static void __free_slab(struct kmem_cache *s, struct page *page)
- {
- 	int order = compound_order(page);
- 	int pages = 1 << order;
-+	int i;
- 
- 	if (kmem_cache_debug(s)) {
- 		void *p;
-@@ -1413,7 +1417,11 @@ static void __free_slab(struct kmem_cache *s, struct page *page)
- 		NR_SLAB_RECLAIMABLE : NR_SLAB_UNRECLAIMABLE,
- 		-pages);
- 
--	__ClearPageSlab(page);
-+	for (i = 0; i < pages; i++) {
-+		BUG_ON(!PageSlab(page + i));
-+		__ClearPageSlab(page + i);
-+	}
-+
- 	reset_page_mapcount(page);
- 	if (current->reclaim_state)
- 		current->reclaim_state->reclaimed_slab += pages;
+Hugh Dickins (2):
+      mm/memcg: scanning_global_lru means mem_cgroup_disabled
+      mm/memcg: move reclaim_stat into lruvec
+
+Konstantin Khlebnikov (5):
+      mm: rework __isolate_lru_page() file/anon filter
+      mm: push lru index into shrink_[in]active_list()
+      mm: rework reclaim_stat counters
+      mm/memcg: rework inactive_ratio calculation
+      mm/memcg: use vm_swappiness from target memory cgroup
+
+
+ include/linux/memcontrol.h |   25 -----
+ include/linux/mmzone.h     |   43 ++++----
+ include/linux/swap.h       |    2 
+ mm/compaction.c            |    5 +
+ mm/memcontrol.c            |   86 ++++-------------
+ mm/page_alloc.c            |   50 ----------
+ mm/swap.c                  |   40 ++------
+ mm/vmscan.c                |  225 ++++++++++++++++++++++----------------------
+ mm/vmstat.c                |    6 -
+ 9 files changed, 173 insertions(+), 309 deletions(-)
+
 -- 
-1.7.9
+Signature
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
