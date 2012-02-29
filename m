@@ -1,61 +1,135 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx173.postini.com [74.125.245.173])
-	by kanga.kvack.org (Postfix) with SMTP id 9296D6B00E9
-	for <linux-mm@kvack.org>; Wed, 29 Feb 2012 04:16:09 -0500 (EST)
-Received: by mail-bk0-f41.google.com with SMTP id q16so99930bkw.14
-        for <linux-mm@kvack.org>; Wed, 29 Feb 2012 01:16:09 -0800 (PST)
-Subject: [PATCH 7/7] mm/memcg: use vm_swappiness from target memory cgroup
-From: Konstantin Khlebnikov <khlebnikov@openvz.org>
-Date: Wed, 29 Feb 2012 13:16:04 +0400
-Message-ID: <20120229091604.29236.63600.stgit@zurg>
-In-Reply-To: <20120229090748.29236.35489.stgit@zurg>
-References: <20120229090748.29236.35489.stgit@zurg>
+Received: from psmtp.com (na3sys010amx118.postini.com [74.125.245.118])
+	by kanga.kvack.org (Postfix) with SMTP id 8C42C6B007E
+	for <linux-mm@kvack.org>; Wed, 29 Feb 2012 04:17:52 -0500 (EST)
+Date: Wed, 29 Feb 2012 10:17:31 +0100
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH] sparsemem/bootmem: catch greater than section size
+ allocations
+Message-ID: <20120229091731.GA1673@cmpxchg.org>
+References: <1330112038-18951-1-git-send-email-nacc@us.ibm.com>
+ <20120228135326.GE1702@cmpxchg.org>
+ <20120228201151.GC5136@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20120228201151.GC5136@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Johannes Weiner <jweiner@redhat.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Nishanth Aravamudan <nacc@linux.vnet.ibm.com>
+Cc: Nishanth Aravamudan <nacc@us.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <haveblue@us.ibm.com>, Anton Blanchard <anton@au1.ibm.com>, Paul Mackerras <paulus@samba.org>, Ben Herrenschmidt <benh@kernel.crashing.org>, Robert Jennings <rcj@linux.vnet.ibm.com>, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org
 
-Use vm_swappiness from memory cgroup which is triggered this memory reclaim.
-This is more reasonable and allows to kill one argument.
+On Tue, Feb 28, 2012 at 12:11:51PM -0800, Nishanth Aravamudan wrote:
+> On 28.02.2012 [14:53:26 +0100], Johannes Weiner wrote:
+> > On Fri, Feb 24, 2012 at 11:33:58AM -0800, Nishanth Aravamudan wrote:
+> > > While testing AMS (Active Memory Sharing) / CMO (Cooperative Memory
+> > > Overcommit) on powerpc, we tripped the following:
+> > > 
+> > > kernel BUG at mm/bootmem.c:483!
+> > > cpu 0x0: Vector: 700 (Program Check) at [c000000000c03940]
+> > >     pc: c000000000a62bd8: .alloc_bootmem_core+0x90/0x39c
+> > >     lr: c000000000a64bcc: .sparse_early_usemaps_alloc_node+0x84/0x29c
+> > >     sp: c000000000c03bc0
+> > >    msr: 8000000000021032
+> > >   current = 0xc000000000b0cce0
+> > >   paca    = 0xc000000001d80000
+> > >     pid   = 0, comm = swapper
+> > > kernel BUG at mm/bootmem.c:483!
+> > > enter ? for help
+> > > [c000000000c03c80] c000000000a64bcc
+> > > .sparse_early_usemaps_alloc_node+0x84/0x29c
+> > > [c000000000c03d50] c000000000a64f10 .sparse_init+0x12c/0x28c
+> > > [c000000000c03e20] c000000000a474f4 .setup_arch+0x20c/0x294
+> > > [c000000000c03ee0] c000000000a4079c .start_kernel+0xb4/0x460
+> > > [c000000000c03f90] c000000000009670 .start_here_common+0x1c/0x2c
+> > > 
+> > > This is
+> > > 
+> > >         BUG_ON(limit && goal + size > limit);
+> > > 
+> > > and after some debugging, it seems that
+> > > 
+> > > 	goal = 0x7ffff000000
+> > > 	limit = 0x80000000000
+> > > 
+> > > and sparse_early_usemaps_alloc_node ->
+> > > sparse_early_usemaps_alloc_pgdat_section -> alloc_bootmem_section calls
+> > > 
+> > > 	return alloc_bootmem_section(usemap_size() * count, section_nr);
+> > > 
+> > > This is on a system with 8TB available via the AMS pool, and as a quirk
+> > > of AMS in firmware, all of that memory shows up in node 0. So, we end up
+> > > with an allocation that will fail the goal/limit constraints. In theory,
+> > > we could "fall-back" to alloc_bootmem_node() in
+> > > sparse_early_usemaps_alloc_node(), but since we actually have HOTREMOVE
+> > > defined, we'll BUG_ON() instead. A simple solution appears to be to
+> > > disable the limit check if the size of the allocation in
+> > > alloc_bootmem_secition exceeds the section size.
+> > 
+> > It makes sense to allow the usemaps to spill over to subsequent
+> > sections instead of panicking, so FWIW:
+> > 
+> > Acked-by: Johannes Weiner <hannes@cmpxchg.org>
+> > 
+> > That being said, it would be good if check_usemap_section_nr() printed
+> > the cross-dependencies between pgdats and sections when the usemaps of
+> > a node spilled over to other sections than the ones holding the pgdat.
+> > 
+> > How about this?
+> > 
+> > ---
+> > From: Johannes Weiner <hannes@cmpxchg.org>
+> > Subject: sparsemem/bootmem: catch greater than section size allocations fix
+> > 
+> > If alloc_bootmem_section() no longer guarantees section-locality, we
+> > need check_usemap_section_nr() to print possible cross-dependencies
+> > between node descriptors and the usemaps allocated through it.
+> > 
+> > Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+> > ---
+> > 
+> > diff --git a/mm/sparse.c b/mm/sparse.c
+> > index 61d7cde..9e032dc 100644
+> > --- a/mm/sparse.c
+> > +++ b/mm/sparse.c
+> > @@ -359,6 +359,7 @@ static void __init sparse_early_usemaps_alloc_node(unsigned long**usemap_map,
+> >  				continue;
+> >  			usemap_map[pnum] = usemap;
+> >  			usemap += size;
+> > +			check_usemap_section_nr(nodeid, usemap_map[pnum]);
+> >  		}
+> >  		return;
+> >  	}
+> 
+> This makes sense to me -- ok if I fold it into the re-worked patch
+> (based upon Mel's comments)?
 
-Signed-off-by: Konstantin Khlebnikov <khlebnikov@openvz.org>
----
- mm/vmscan.c |    9 ++++-----
- 1 files changed, 4 insertions(+), 5 deletions(-)
+Sure thing!
 
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index ab447df..fd96eb8 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -1873,12 +1873,11 @@ static unsigned long shrink_list(enum lru_list lru, unsigned long nr_to_scan,
- 	return shrink_inactive_list(nr_to_scan, mz, sc, priority, lru);
- }
- 
--static int vmscan_swappiness(struct mem_cgroup_zone *mz,
--			     struct scan_control *sc)
-+static int vmscan_swappiness(struct scan_control *sc)
- {
- 	if (global_reclaim(sc))
- 		return vm_swappiness;
--	return mem_cgroup_swappiness(mz->mem_cgroup);
-+	return mem_cgroup_swappiness(sc->target_mem_cgroup);
- }
- 
- /*
-@@ -1947,8 +1946,8 @@ static void get_scan_count(struct mem_cgroup_zone *mz, struct scan_control *sc,
- 	 * With swappiness at 100, anonymous and file have the same priority.
- 	 * This scanning priority is essentially the inverse of IO cost.
- 	 */
--	anon_prio = vmscan_swappiness(mz, sc);
--	file_prio = 200 - vmscan_swappiness(mz, sc);
-+	anon_prio = vmscan_swappiness(sc);
-+	file_prio = 200 - vmscan_swappiness(sc);
- 
- 	/*
- 	 * OK, so we have swap space and a fair amount of page cache
+> > Furthermore, I wonder if we can remove the sparse-specific stuff from
+> > bootmem.c as well, as now even more so than before, calculating the
+> > desired area is really none of bootmem's business.
+> > 
+> > Would something like this be okay?
+> > 
+> > ---
+> > From: Johannes Weiner <hannes@cmpxchg.org>
+> > Subject: [patch] mm: remove sparsemem allocation details from the bootmem allocator
+> > 
+> > alloc_bootmem_section() derives allocation area constraints from the
+> > specified sparsemem section.  This is a bit specific for a generic
+> > memory allocator like bootmem, though, so move it over to sparsemem.
+> > 
+> > Since __alloc_bootmem_node() already retries failed allocations with
+> > relaxed area constraints, the fallback code in sparsemem.c can be
+> > removed and the code becomes a bit more compact overall.
+> > 
+> > Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+> 
+> I've not tested it, but the intention seems sensible. I think it should
+> remain a separate change.
+
+Yes, I agree.  I'll resend it in a bit as stand-alone patch.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
