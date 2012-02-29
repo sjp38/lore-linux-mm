@@ -1,50 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx120.postini.com [74.125.245.120])
-	by kanga.kvack.org (Postfix) with SMTP id D88D66B004D
-	for <linux-mm@kvack.org>; Wed, 29 Feb 2012 14:00:58 -0500 (EST)
-Date: Wed, 29 Feb 2012 20:00:46 +0100
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH 3.3] memcg: fix deadlock by inverting lrucare nesting
-Message-ID: <20120229190046.GC1673@cmpxchg.org>
-References: <alpine.LSU.2.00.1202282121160.4875@eggly.anvils>
+Received: from psmtp.com (na3sys010amx127.postini.com [74.125.245.127])
+	by kanga.kvack.org (Postfix) with SMTP id 2957D6B004A
+	for <linux-mm@kvack.org>; Wed, 29 Feb 2012 14:09:52 -0500 (EST)
+Received: by qam2 with SMTP id 2so1830110qam.14
+        for <linux-mm@kvack.org>; Wed, 29 Feb 2012 11:09:51 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.LSU.2.00.1202282121160.4875@eggly.anvils>
+In-Reply-To: <20120229150041.62c1feeb.kamezawa.hiroyu@jp.fujitsu.com>
+References: <1330383533-20711-1-git-send-email-ssouhlal@FreeBSD.org>
+	<1330383533-20711-5-git-send-email-ssouhlal@FreeBSD.org>
+	<20120229150041.62c1feeb.kamezawa.hiroyu@jp.fujitsu.com>
+Date: Wed, 29 Feb 2012 11:09:50 -0800
+Message-ID: <CABCjUKBHjLHKUmW6_r0SOyw42WfV0zNO7Kd7FhhRQTT6jZdyeQ@mail.gmail.com>
+Subject: Re: [PATCH 04/10] memcg: Introduce __GFP_NOACCOUNT.
+From: Suleiman Souhlal <suleiman@google.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Konstantin Khlebnikov <khlebnikov@openvz.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Suleiman Souhlal <ssouhlal@freebsd.org>, cgroups@vger.kernel.org, glommer@parallels.com, penberg@kernel.org, yinghan@google.com, hughd@google.com, gthelen@google.com, linux-mm@kvack.org, devel@openvz.org
 
-On Tue, Feb 28, 2012 at 09:25:02PM -0800, Hugh Dickins wrote:
-> We have forgotten the rules of lock nesting: the irq-safe ones must be
-> taken inside the non-irq-safe ones, otherwise we are open to deadlock:
-> 
-> CPU0                          CPU1
-> ----                          ----
-> lock(&(&pc->lock)->rlock);
->                               local_irq_disable();
->                               lock(&(&zone->lru_lock)->rlock);
->                               lock(&(&pc->lock)->rlock);
-> <Interrupt>
-> lock(&(&zone->lru_lock)->rlock);
-> 
-> To check a different locking issue, I happened to add a spin_lock to
-> memcg's bit_spin_lock in lock_page_cgroup(), and lockdep very quickly
-> complained about __mem_cgroup_commit_charge_lrucare() (on CPU1 above).
-> 
-> So delete __mem_cgroup_commit_charge_lrucare(), passing a bool lrucare
-> to __mem_cgroup_commit_charge() instead, taking zone->lru_lock under
-> lock_page_cgroup() in the lrucare case.
-> 
-> The original was using spin_lock_irqsave, but we'd be in more trouble
-> if it were ever called at interrupt time: unconditional _irq is enough.
-> And ClearPageLRU before del from lru, SetPageLRU before add to lru: no
-> strong reason, but that is the ordering used consistently elsewhere.
-> 
-> Signed-off-by: Hugh Dickins <hughd@google.com>
+On Tue, Feb 28, 2012 at 10:00 PM, KAMEZAWA Hiroyuki
+<kamezawa.hiroyu@jp.fujitsu.com> wrote:
+> On Mon, 27 Feb 2012 14:58:47 -0800
+> Suleiman Souhlal <ssouhlal@FreeBSD.org> wrote:
+>
+>> This is used to indicate that we don't want an allocation to be accounte=
+d
+>> to the current cgroup.
+>>
+>> Signed-off-by: Suleiman Souhlal <suleiman@google.com>
+>
+> I don't like this.
+>
+> Please add
+>
+> ___GFP_ACCOUNT =A0"account this allocation to memcg"
+>
+> Or make this as slab's flag if this work is for slab allocation.
 
-Acked-by: Johannes Weiner <hannes@cmpxchg.org>
+We would like to account for all the slab allocations that happen in
+process context.
+
+Manually marking every single allocation or kmem_cache with a GFP flag
+really doesn't seem like the right thing to do..
+
+Can you explain why you don't like this flag?
+
+-- Suleiman
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
