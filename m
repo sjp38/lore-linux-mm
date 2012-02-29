@@ -1,171 +1,135 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx191.postini.com [74.125.245.191])
-	by kanga.kvack.org (Postfix) with SMTP id 175EA6B004A
-	for <linux-mm@kvack.org>; Wed, 29 Feb 2012 04:49:11 -0500 (EST)
-Received: by bkwq16 with SMTP id q16so133546bkw.14
-        for <linux-mm@kvack.org>; Wed, 29 Feb 2012 01:49:09 -0800 (PST)
-MIME-Version: 1.0
-In-Reply-To: <1329929337-16648-13-git-send-email-m.szyprowski@samsung.com>
-References: <1329929337-16648-1-git-send-email-m.szyprowski@samsung.com> <1329929337-16648-13-git-send-email-m.szyprowski@samsung.com>
-From: Barry Song <21cnbao@gmail.com>
-Date: Wed, 29 Feb 2012 17:48:49 +0800
-Message-ID: <CAGsJ_4z_TR_UKhjxg-rzATodKJoNn2R-17KkqbeC-fLh3dK3sQ@mail.gmail.com>
-Subject: Re: [Linaro-mm-sig] [PATCHv23 12/16] mm: trigger page reclaim in
- alloc_contig_range() to stabilise watermarks
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+Received: from psmtp.com (na3sys010amx204.postini.com [74.125.245.204])
+	by kanga.kvack.org (Postfix) with SMTP id 52D426B004A
+	for <linux-mm@kvack.org>; Wed, 29 Feb 2012 04:50:35 -0500 (EST)
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Subject: Re: [RFC][PATCH] memcg: avoid THP split in task migration
+Date: Wed, 29 Feb 2012 04:50:20 -0500
+Message-Id: <1330509020-6901-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+In-Reply-To: <20120229092859.a0411859.kamezawa.hiroyu@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Marek Szyprowski <m.szyprowski@samsung.com>
-Cc: linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-media@vger.kernel.org, linux-mm@kvack.org, linaro-mm-sig@lists.linaro.org, Ohad Ben-Cohen <ohad@wizery.com>, Daniel Walker <dwalker@codeaurora.org>, Russell King <linux@arm.linux.org.uk>, Arnd Bergmann <arnd@arndb.de>, Jonathan Corbet <corbet@lwn.net>, Mel Gorman <mel@csn.ul.ie>, Michal Nazarewicz <mina86@mina86.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Jesse Barker <jesse.barker@linaro.org>, Kyungmin Park <kyungmin.park@samsung.com>, Andrew Morton <akpm@linux-foundation.org>, Rob Clark <rob.clark@linaro.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Hillf Danton <dhillf@gmail.com>, linux-kernel@vger.kernel.org
 
-2012/2/23 Marek Szyprowski <m.szyprowski@samsung.com>:
-> alloc_contig_range() performs memory allocation so it also should keep
-> track on keeping the correct level of memory watermarks. This commit adds
-> a call to *_slowpath style reclaim to grab enough pages to make sure that
-> the final collection of contiguous pages from freelists will not starve
-> the system.
->
-> Signed-off-by: Marek Szyprowski <m.szyprowski@samsung.com>
-> Signed-off-by: Kyungmin Park <kyungmin.park@samsung.com>
-> CC: Michal Nazarewicz <mina86@mina86.com>
-> Tested-by: Rob Clark <rob.clark@linaro.org>
-> Tested-by: Ohad Ben-Cohen <ohad@wizery.com>
-> Tested-by: Benjamin Gaignard <benjamin.gaignard@linaro.org>
-> Tested-by: Robert Nelson <robertcnelson@gmail.com>
-> ---
-> =C2=A0include/linux/mmzone.h | =C2=A0 =C2=A09 +++++++
-> =C2=A0mm/page_alloc.c =C2=A0 =C2=A0 =C2=A0 =C2=A0| =C2=A0 62 ++++++++++++=
-++++++++++++++++++++++++++++++++++++
-> =C2=A02 files changed, 71 insertions(+), 0 deletions(-)
->
-> diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-> index 4781f30..77db8c0 100644
-> --- a/include/linux/mmzone.h
-> +++ b/include/linux/mmzone.h
-> @@ -63,8 +63,10 @@ enum {
->
-> =C2=A0#ifdef CONFIG_CMA
-> =C2=A0# =C2=A0define is_migrate_cma(migratetype) unlikely((migratetype) =
-=3D=3D MIGRATE_CMA)
-> +# =C2=A0define cma_wmark_pages(zone) =C2=A0 =C2=A0 =C2=A0 =C2=A0zone->mi=
-n_cma_pages
-> =C2=A0#else
-> =C2=A0# =C2=A0define is_migrate_cma(migratetype) false
-> +# =C2=A0define cma_wmark_pages(zone) 0
-> =C2=A0#endif
->
-> =C2=A0#define for_each_migratetype_order(order, type) \
-> @@ -371,6 +373,13 @@ struct zone {
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0/* see spanned/present_pages for more descript=
-ion */
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0seqlock_t =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-=C2=A0 =C2=A0 span_seqlock;
-> =C2=A0#endif
-> +#ifdef CONFIG_CMA
-> + =C2=A0 =C2=A0 =C2=A0 /*
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0* CMA needs to increase watermark levels dur=
-ing the allocation
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0* process to make sure that the system is no=
-t starved.
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0*/
-> + =C2=A0 =C2=A0 =C2=A0 unsigned long =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 m=
-in_cma_pages;
-> +#endif
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0struct free_area =C2=A0 =C2=A0 =C2=A0 =C2=A0fr=
-ee_area[MAX_ORDER];
->
-> =C2=A0#ifndef CONFIG_SPARSEMEM
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index 7a0d286..39cd74f 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -5092,6 +5092,11 @@ static void __setup_per_zone_wmarks(void)
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
-=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0low + (mi=
-n >> 2);
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0zone->watermark[WM=
-ARK_HIGH] =3D min_wmark_pages(zone) +
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
-=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0low + (mi=
-n >> 1);
-> +
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 zone->watermark[WMARK_=
-MIN] +=3D cma_wmark_pages(zone);
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 zone->watermark[WMARK_=
-LOW] +=3D cma_wmark_pages(zone);
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 zone->watermark[WMARK_=
-HIGH] +=3D cma_wmark_pages(zone);
-> +
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0setup_zone_migrate=
-_reserve(zone);
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0spin_unlock_irqres=
-tore(&zone->lock, flags);
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0}
-> @@ -5695,6 +5700,56 @@ static int __alloc_contig_migrate_range(unsigned l=
-ong start, unsigned long end)
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0return ret > 0 ? 0 : ret;
-> =C2=A0}
->
-> +/*
-> + * Update zone's cma pages counter used for watermark level calculation.
-> + */
-> +static inline void __update_cma_watermarks(struct zone *zone, int count)
-> +{
-> + =C2=A0 =C2=A0 =C2=A0 unsigned long flags;
-> + =C2=A0 =C2=A0 =C2=A0 spin_lock_irqsave(&zone->lock, flags);
-> + =C2=A0 =C2=A0 =C2=A0 zone->min_cma_pages +=3D count;
-> + =C2=A0 =C2=A0 =C2=A0 spin_unlock_irqrestore(&zone->lock, flags);
-> + =C2=A0 =C2=A0 =C2=A0 setup_per_zone_wmarks();
-> +}
-> +
-> +/*
-> + * Trigger memory pressure bump to reclaim some pages in order to be abl=
-e to
-> + * allocate 'count' pages in single page units. Does similar work as
-> + *__alloc_pages_slowpath() function.
-> + */
-> +static int __reclaim_pages(struct zone *zone, gfp_t gfp_mask, int count)
-> +{
-> + =C2=A0 =C2=A0 =C2=A0 enum zone_type high_zoneidx =3D gfp_zone(gfp_mask)=
-;
-> + =C2=A0 =C2=A0 =C2=A0 struct zonelist *zonelist =3D node_zonelist(0, gfp=
-_mask);
-> + =C2=A0 =C2=A0 =C2=A0 int did_some_progress =3D 0;
-> + =C2=A0 =C2=A0 =C2=A0 int order =3D 1;
-> + =C2=A0 =C2=A0 =C2=A0 unsigned long watermark;
-> +
-> + =C2=A0 =C2=A0 =C2=A0 /*
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0* Increase level of watermarks to force kswa=
-pd do his job
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0* to stabilise at new watermark level.
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0*/
-> + =C2=A0 =C2=A0 =C2=A0 __update_cma_watermarks(zone, count);
-> +
-> + =C2=A0 =C2=A0 =C2=A0 /* Obey watermarks as if the page was being alloca=
-ted */
-> + =C2=A0 =C2=A0 =C2=A0 watermark =3D low_wmark_pages(zone) + count;
-> + =C2=A0 =C2=A0 =C2=A0 while (!zone_watermark_ok(zone, 0, watermark, 0, 0=
-)) {
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 wake_all_kswapd(order,=
- zonelist, high_zoneidx, zone_idx(zone));
-> +
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 did_some_progress =3D =
-__perform_reclaim(gfp_mask, order, zonelist,
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
-=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 NULL);
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 if (!did_some_progress=
-) {
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-=C2=A0 /* Exhausted what can be done so it's blamo time */
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-=C2=A0 out_of_memory(zonelist, gfp_mask, order, NULL);
+Hi,
 
-out_of_memory() has got another param in the newest next/master tree,
-out_of_memory(zonelist, gfp_mask, order, NULL, false) should be OK.
+On Wed, Feb 29, 2012 at 09:28:59AM +0900, KAMEZAWA Hiroyuki wrote:
+> On Tue, 28 Feb 2012 16:12:32 -0500
+> Naoya Horiguchi <n-horiguchi@ah.jp.nec.com> wrote:
+...
+> > @@ -5378,16 +5420,38 @@ static int mem_cgroup_move_charge_pte_range(pmd_t *pmd,
+> >  	struct vm_area_struct *vma = walk->private;
+> >  	pte_t *pte;
+> >  	spinlock_t *ptl;
+> > +	int type;
+> > +	union mc_target target;
+> > +	struct page *page;
+> > +	struct page_cgroup *pc;
+> > +
+> > +	if (pmd_trans_huge_lock(pmd, vma) == 1) {
+> > +		if (!mc.precharge)
+> > +			return 0;
+> > +		type = is_target_huge_pmd_for_mc(vma, addr, *pmd, &target);
+> > +		if (type == MC_TARGET_PAGE) {
+> > +			page = target.page;
+> > +			if (!isolate_lru_page(page)) {
+> > +				pc = lookup_page_cgroup(page);
+>
+> Here is a diffuclut point. Please see mem_cgroup_split_huge_fixup(). It splits
+> updates memcg's status of splitted pages under lru_lock and compound_lock
+> but not under mm->page_table_lock.
 
--barry
+OK, I rethink locking.
+mem_cgroup_move_account() also states that the caller should hold compound_lock(),
+so I should follow that.
+
+> Looking into split_huge_page()
+>
+> 	split_huge_page()  # take anon_vma lock
+> 		__split_huge_page()
+> 			__split_huge_page_refcount() # take lru_lock, compound_lock.
+> 				mem_cgroup_split_huge_fixup()
+> 			__split_huge_page_map() # take page table lock.
+
+I'm afraid this callchain is not correct.
+Page table lock seems to be taken before we enter the main split work.
+
+    split_huge_page
+        take anon_vma lock
+        __split_huge_page
+            __split_huge_page_splitting
+                lock page_table_lock     <--- *1
+                page_check_address_pmd
+                unlock page_table_lock
+            __split_huge_page_refcount
+                lock lru_lock
+                compound_lock
+                mem_cgroup_split_huge_fixup
+                compound_unlock
+                unlock lru_lock
+            __split_huge_page_map
+                lock page_table_lock
+                ... some work
+                unlock page_table_lock
+        unlock anon_vma lock
+
+> I'm not fully sure but IIUC, pmd_trans_huge_lock() just guarantees a huge page "map"
+> never goes out. To avoid page splitting itself, compound_lock() is required, I think.
+>
+> So, the lock here should be
+>
+> 	page = target.page;
+> 	isolate_lru_page(page);
+> 	flags = compound_lock_irqsave(page);
+
+I think the race between task migration and thp split does not happen
+because of 2 reasons:
+
+  - when we enter the if-block, there is no concurrent thp splitting
+    (note that pmd_trans_huge_lock() returns 1 only if the thp is not
+     under splitting,)
+
+  - if another thread runs into split_huge_page() just after we entered
+    this if-block, the thread waits for page table lock to be unlocked
+    in __split_huge_page_splitting() (shown *1 above.) At this point,
+    the thp has not been split yet.
+
+But I think it's OK to add compound_lock to meet the requisition of
+mem_cgroup_move_account().
+
+>
+>
+> > +				if (!mem_cgroup_move_account(page, HPAGE_PMD_NR,
+> > +							     pc, mc.from, mc.to,
+> > +							     false)) {
+> > +					mc.precharge -= HPAGE_PMD_NR;
+> > +					mc.moved_charge += HPAGE_PMD_NR;
+> > +				}
+>
+> Here is PageTransHuge() is checked in mem_cgroup_move_account() and if !PageTransHuge(),
+> the function returns -EBUSY.
+
+If the above explanation is correct, PageTransHuge() should always be
+true here, so BUG_ON(!PageTransHuge()) looks suitable for me.
+
+> I'm not sure but....it's not worth to retry (but add a comment as FIXME later!)
+
+I agree.
+For regular size pages, retrying means that we run out of mc.precharge
+before addr reaches to end.
+But mem_cgroup_move_charge_pte_range() runs over a pmd in a single call and
+addr reaches to end only one call of mem_cgroup_move_account() for thp.
+So it makes no sense to retry.
+
+> 	compound_unlock_irqrestore(page);
+>
+> I may miss something, please check carefully, again.
+
+OK.
+
+Thanks,
+Naoya
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
