@@ -1,113 +1,123 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx106.postini.com [74.125.245.106])
-	by kanga.kvack.org (Postfix) with SMTP id CADA96B004A
-	for <linux-mm@kvack.org>; Tue, 28 Feb 2012 20:12:28 -0500 (EST)
-Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 04FA73EE0BB
-	for <linux-mm@kvack.org>; Wed, 29 Feb 2012 10:12:27 +0900 (JST)
-Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id DA36745DEAD
-	for <linux-mm@kvack.org>; Wed, 29 Feb 2012 10:12:26 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id B85B545DEA6
-	for <linux-mm@kvack.org>; Wed, 29 Feb 2012 10:12:26 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id AB8DD1DB803B
-	for <linux-mm@kvack.org>; Wed, 29 Feb 2012 10:12:26 +0900 (JST)
-Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.240.81.134])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 563CD1DB8038
-	for <linux-mm@kvack.org>; Wed, 29 Feb 2012 10:12:26 +0900 (JST)
-Date: Wed, 29 Feb 2012 10:10:54 +0900
+Received: from psmtp.com (na3sys010amx163.postini.com [74.125.245.163])
+	by kanga.kvack.org (Postfix) with SMTP id F11786B004A
+	for <linux-mm@kvack.org>; Tue, 28 Feb 2012 20:17:22 -0500 (EST)
+Received: from m4.gw.fujitsu.co.jp (unknown [10.0.50.74])
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 36FC43EE0C2
+	for <linux-mm@kvack.org>; Wed, 29 Feb 2012 10:17:21 +0900 (JST)
+Received: from smail (m4 [127.0.0.1])
+	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 132B645DE50
+	for <linux-mm@kvack.org>; Wed, 29 Feb 2012 10:17:21 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
+	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id E67DA45DE4D
+	for <linux-mm@kvack.org>; Wed, 29 Feb 2012 10:17:20 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id DAA5E1DB802F
+	for <linux-mm@kvack.org>; Wed, 29 Feb 2012 10:17:20 +0900 (JST)
+Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.240.81.145])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 87EAA1DB803B
+	for <linux-mm@kvack.org>; Wed, 29 Feb 2012 10:17:20 +0900 (JST)
+Date: Wed, 29 Feb 2012 10:15:49 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH 3/9] memcg: add kernel calls for memcg dirty page stats
-Message-Id: <20120229101054.98e121fc.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20120228144747.044421224@intel.com>
+Subject: Re: [PATCH 4/9] memcg: dirty page accounting support routines
+Message-Id: <20120229101549.1d4ef3f3.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20120228144507.acd70d1e.akpm@linux-foundation.org>
 References: <20120228140022.614718843@intel.com>
-	<20120228144747.044421224@intel.com>
+	<20120228144747.124608935@intel.com>
+	<20120228144507.acd70d1e.akpm@linux-foundation.org>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Fengguang Wu <fengguang.wu@intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Greg Thelen <gthelen@google.com>, Jan Kara <jack@suse.cz>, Ying Han <yinghan@google.com>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, Andrea Righi <andrea@betterlinux.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Minchan Kim <minchan.kim@gmail.com>, Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Fengguang Wu <fengguang.wu@intel.com>, Greg Thelen <gthelen@google.com>, Jan Kara <jack@suse.cz>, Ying Han <yinghan@google.com>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Tue, 28 Feb 2012 22:00:25 +0800
-Fengguang Wu <fengguang.wu@intel.com> wrote:
+On Tue, 28 Feb 2012 14:45:07 -0800
+Andrew Morton <akpm@linux-foundation.org> wrote:
 
-> From: Greg Thelen <gthelen@google.com>
+> On Tue, 28 Feb 2012 22:00:26 +0800
+> Fengguang Wu <fengguang.wu@intel.com> wrote:
 > 
-> Add calls into memcg dirty page accounting.  Notify memcg when pages
-> transition between clean, file dirty, writeback, and unstable nfs.  This
-> allows the memory controller to maintain an accurate view of the amount
-> of its memory that is dirty.
+> > From: Greg Thelen <gthelen@google.com>
+> > 
+> > Added memcg dirty page accounting support routines.  These routines are
+> > used by later changes to provide memcg aware writeback and dirty page
+> > limiting.  A mem_cgroup_dirty_info() tracepoint is is also included to
+> > allow for easier understanding of memcg writeback operation.
+> > 
+> > ...
+> >
+> > +/*
+> > + * Return the number of additional pages that the @memcg cgroup could allocate.
+> > + * If use_hierarchy is set, then this involves checking parent mem cgroups to
+> > + * find the cgroup with the smallest free space.
+> > + */
 > 
-> Signed-off-by: Greg Thelen <gthelen@google.com>
-> Signed-off-by: Andrea Righi <andrea@betterlinux.com>
-> Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> Reviewed-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-> Reviewed-by: Minchan Kim <minchan.kim@gmail.com>
-> Signed-off-by: Fengguang Wu <fengguang.wu@intel.com>
-> ---
->  fs/nfs/write.c      |    4 ++++
->  mm/filemap.c        |    1 +
->  mm/page-writeback.c |    4 ++++
->  mm/truncate.c       |    1 +
->  4 files changed, 10 insertions(+)
+> Comment needs revisting - use_hierarchy does not exist.
 > 
-> --- linux.orig/fs/nfs/write.c	2012-02-19 10:53:14.000000000 +0800
-> +++ linux/fs/nfs/write.c	2012-02-19 10:53:21.000000000 +0800
-> @@ -449,6 +449,7 @@ nfs_mark_request_commit(struct nfs_page 
->  	nfsi->ncommit++;
->  	spin_unlock(&inode->i_lock);
->  	pnfs_mark_request_commit(req, lseg);
-> +	mem_cgroup_inc_page_stat(req->wb_page, MEMCG_NR_FILE_UNSTABLE_NFS);
+> > +static unsigned long
+> > +mem_cgroup_hierarchical_free_pages(struct mem_cgroup *memcg)
+> > +{
+> > +	u64 free;
+> > +	unsigned long min_free;
+> > +
+> > +	min_free = global_page_state(NR_FREE_PAGES);
+> > +
+> > +	while (memcg) {
+> > +		free = mem_cgroup_margin(memcg);
+> > +		min_free = min_t(u64, min_free, free);
+> > +		memcg = parent_mem_cgroup(memcg);
+> > +	}
+> > +
+> > +	return min_free;
+> > +}
+> > +
+> > +/*
+> > + * mem_cgroup_page_stat() - get memory cgroup file cache statistics
+> > + * @memcg:     memory cgroup to query
+> > + * @item:      memory statistic item exported to the kernel
+> > + *
+> > + * Return the accounted statistic value.
+> > + */
+> > +unsigned long mem_cgroup_page_stat(struct mem_cgroup *memcg,
+> > +				   enum mem_cgroup_page_stat_item item)
+> > +{
+> > +	struct mem_cgroup *iter;
+> > +	s64 value;
+> > +
+> > +	/*
+> > +	 * If we're looking for dirtyable pages we need to evaluate free pages
+> > +	 * depending on the limit and usage of the parents first of all.
+> > +	 */
+> > +	if (item == MEMCG_NR_DIRTYABLE_PAGES)
+> > +		value = mem_cgroup_hierarchical_free_pages(memcg);
+> > +	else
+> > +		value = 0;
+> > +
+> > +	/*
+> > +	 * Recursively evaluate page statistics against all cgroup under
+> > +	 * hierarchy tree
+> > +	 */
+> > +	for_each_mem_cgroup_tree(iter, memcg)
+> > +		value += mem_cgroup_local_page_stat(iter, item);
+> 
+> What's the locking rule for for_each_mem_cgroup_tree()?  It's unobvious
+> from the code and isn't documented?
+> 
 
-Hmm...Is the status UNSTABLE_NFS cannot be obtaiend by 'struct page' ?
-
-One idea to avoid adding a new flag to pc->flags is..
-
-Can't we do this by following if 'req' exists per page ?
-
-	memcg = mem_cgroup_from_page(page);  # update memcg's refcnt+1
-	req->memcg = memcg;		     # record memcg to req.
-	mem_cgroup_inc_nfs_unstable(memcg)   # a new call
-
-
-
->  	inc_zone_page_state(req->wb_page, NR_UNSTABLE_NFS);
->  	inc_bdi_stat(req->wb_page->mapping->backing_dev_info, BDI_RECLAIMABLE);
->  	__mark_inode_dirty(inode, I_DIRTY_DATASYNC);
-> @@ -460,6 +461,7 @@ nfs_clear_request_commit(struct nfs_page
->  	struct page *page = req->wb_page;
->  
->  	if (test_and_clear_bit(PG_CLEAN, &(req)->wb_flags)) {
-> +		mem_cgroup_dec_page_stat(page, MEMCG_NR_FILE_UNSTABLE_NFS);
->  		dec_zone_page_state(page, NR_UNSTABLE_NFS);
->  		dec_bdi_stat(page->mapping->backing_dev_info, BDI_RECLAIMABLE);
->  		return 1;
-> @@ -1408,6 +1410,8 @@ void nfs_retry_commit(struct list_head *
->  		req = nfs_list_entry(page_list->next);
->  		nfs_list_remove_request(req);
->  		nfs_mark_request_commit(req, lseg);
-> +		mem_cgroup_dec_page_stat(req->wb_page,
-> +					 MEMCG_NR_FILE_UNSTABLE_NFS);
->  		dec_zone_page_state(req->wb_page, NR_UNSTABLE_NFS);
->  		dec_bdi_stat(req->wb_page->mapping->backing_dev_info,
->  			     BDI_RECLAIMABLE);
-> --- linux.orig/mm/filemap.c	2012-02-19 10:53:14.000000000 +0800
-> +++ linux/mm/filemap.c	2012-02-19 10:53:21.000000000 +0800
-> @@ -142,6 +142,7 @@ void __delete_from_page_cache(struct pag
->  	 * having removed the page entirely.
->  	 */
->  	if (PageDirty(page) && mapping_cap_account_dirty(mapping)) {
-> +		mem_cgroup_dec_page_stat(page, MEMCG_NR_FILE_DIRTY);
-
-
-I think we can make use of PageDirty() as explained.
+Because for_each_mem_cgroup_tree() uses rcu_read_lock() and referernce counting
+internally, it's not required to take any lock in callers.
+One rule is the caller shoud call mem_cgroup_iter_break() if he want to break
+the loop.
 
 Thanks,
 -Kame
+
+
+
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
