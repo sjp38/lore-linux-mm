@@ -1,55 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx180.postini.com [74.125.245.180])
-	by kanga.kvack.org (Postfix) with SMTP id 5921D6B004A
-	for <linux-mm@kvack.org>; Wed, 29 Feb 2012 12:10:37 -0500 (EST)
-Message-ID: <4F4E5BC5.9010408@parallels.com>
-Date: Wed, 29 Feb 2012 14:09:25 -0300
+Received: from psmtp.com (na3sys010amx187.postini.com [74.125.245.187])
+	by kanga.kvack.org (Postfix) with SMTP id 0BEC76B004A
+	for <linux-mm@kvack.org>; Wed, 29 Feb 2012 12:31:56 -0500 (EST)
+Message-ID: <4F4E60BB.9030007@parallels.com>
+Date: Wed, 29 Feb 2012 14:30:35 -0300
 From: Glauber Costa <glommer@parallels.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 08/10] memcg: Add CONFIG_CGROUP_MEM_RES_CTLR_KMEM_ACCT_ROOT.
-References: <1330383533-20711-1-git-send-email-ssouhlal@FreeBSD.org> <1330383533-20711-9-git-send-email-ssouhlal@FreeBSD.org> <4F4CD7E7.1070901@parallels.com> <CABCjUKAUQZuW9hFeMJ1Oh=0UeS2Ffx4-vHpnaGpjOFu+3KktAA@mail.gmail.com>
-In-Reply-To: <CABCjUKAUQZuW9hFeMJ1Oh=0UeS2Ffx4-vHpnaGpjOFu+3KktAA@mail.gmail.com>
+Subject: Re: [PATCH 1/7] small cleanup for memcontrol.c
+References: <1329824079-14449-1-git-send-email-glommer@parallels.com> <1329824079-14449-2-git-send-email-glommer@parallels.com> <20120222094619.caffc432.kamezawa.hiroyu@jp.fujitsu.com> <4F44F54A.8010902@parallels.com>
+In-Reply-To: <4F44F54A.8010902@parallels.com>
 Content-Type: text/plain; charset="ISO-8859-1"; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Suleiman Souhlal <suleiman@google.com>
-Cc: Suleiman Souhlal <ssouhlal@freebsd.org>, cgroups@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, penberg@kernel.org, yinghan@google.com, hughd@google.com, gthelen@google.com, linux-mm@kvack.org, devel@openvz.org
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: cgroups@vger.kernel.org, devel@openvz.org, linux-mm@kvack.org, "Kirill A. Shutemov" <kirill@shutemov.name>, Greg Thelen <gthelen@google.com>, Johannes Weiner <jweiner@redhat.com>, Michal Hocko <mhocko@suse.cz>, Paul Turner <pjt@google.com>, Frederic Weisbecker <fweisbec@gmail.com>
 
-On 02/28/2012 08:36 PM, Suleiman Souhlal wrote:
-> On Tue, Feb 28, 2012 at 5:34 AM, Glauber Costa<glommer@parallels.com>  wrote:
->> On 02/27/2012 07:58 PM, Suleiman Souhlal wrote:
+On 02/22/2012 12:01 PM, Glauber Costa wrote:
+> On 02/22/2012 04:46 AM, KAMEZAWA Hiroyuki wrote:
+>> On Tue, 21 Feb 2012 15:34:33 +0400
+>> Glauber Costa<glommer@parallels.com> wrote:
+>>
+>>> Move some hardcoded definitions to an enum type.
 >>>
->>> This config option dictates whether or not kernel memory in the
->>> root cgroup should be accounted.
+>>> Signed-off-by: Glauber Costa<glommer@parallels.com>
+>>> CC: Kirill A. Shutemov<kirill@shutemov.name>
+>>> CC: Greg Thelen<gthelen@google.com>
+>>> CC: Johannes Weiner<jweiner@redhat.com>
+>>> CC: Michal Hocko<mhocko@suse.cz>
+>>> CC: Hiroyouki Kamezawa<kamezawa.hiroyu@jp.fujitsu.com>
+>>> CC: Paul Turner<pjt@google.com>
+>>> CC: Frederic Weisbecker<fweisbec@gmail.com>
+>>
+>> seems ok to me.
+>>
+>> Acked-by: KAMEZAWA Hiroyuki<kamezawa.hiroyu@jp.fujitsu.com>
+>
+> BTW, this series is likely to go through many rounds of discussion.
+> This patch can be probably picked separately, if you want to.
+>
+>> a nitpick..
+>>
+>>> ---
+>>> mm/memcontrol.c | 10 +++++++---
+>>> 1 files changed, 7 insertions(+), 3 deletions(-)
 >>>
->>> This may be useful in an environment where everything is supposed to be
->>> in a cgroup and accounted for. Large amounts of kernel memory in the
->>> root cgroup would indicate problems with memory isolation or accounting.
+>>> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+>>> index 6728a7a..b15a693 100644
+>>> --- a/mm/memcontrol.c
+>>> +++ b/mm/memcontrol.c
+>>> @@ -351,9 +351,13 @@ enum charge_type {
+>>> };
+>>>
+>>> /* for encoding cft->private value on file */
+>>> -#define _MEM (0)
+>>> -#define _MEMSWAP (1)
+>>> -#define _OOM_TYPE (2)
+>>> +
+>>> +enum mem_type {
+>>> + _MEM = 0,
 >>
->>
->> I don't like accounting this stuff to the root memory cgroup. This causes
->> overhead for everybody, including people who couldn't care less about memcg.
->>
->> If it were up to me, we would simply not account it, and end of story.
->>
->> However, if this is terribly important for you, I think you need to at
->> least make it possible to enable it at runtime, and default it to disabled.
->
-> Yes, that is why I made it a config option. If the config option is
-> disabled, that memory does not get accounted at all.
+>> =0 is required ?
+> I believe not, but I always liked to use it to be 100 % explicit.
+> Personal taste... Can change it, if this is a big deal.
 
-Doesn't work. In reality, most of the distributions enable those stuff 
-if there is the possibility that someone will end up using. So everybody 
-gets to pay the penalty.
-
-> Making it configurable at runtime is not ideal, because we would
-> prefer slab memory that was allocated before cgroups are created to
-> still be counted toward root.
->
-
-Again: Why is that you really need it ? Accounting slab to the root 
-cgroup feels quite weird to me
+Kame, would you like me to send this cleanup without the = 0 ?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
