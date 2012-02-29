@@ -1,29 +1,29 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx171.postini.com [74.125.245.171])
-	by kanga.kvack.org (Postfix) with SMTP id D20846B004A
-	for <linux-mm@kvack.org>; Wed, 29 Feb 2012 01:20:36 -0500 (EST)
-Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 636ED3EE0C0
-	for <linux-mm@kvack.org>; Wed, 29 Feb 2012 15:20:35 +0900 (JST)
-Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 485B045DEB8
-	for <linux-mm@kvack.org>; Wed, 29 Feb 2012 15:20:35 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 93C6545DEB3
-	for <linux-mm@kvack.org>; Wed, 29 Feb 2012 15:20:34 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 812BF1DB803E
-	for <linux-mm@kvack.org>; Wed, 29 Feb 2012 15:20:34 +0900 (JST)
-Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.240.81.133])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 2D6CD1DB803B
-	for <linux-mm@kvack.org>; Wed, 29 Feb 2012 15:20:34 +0900 (JST)
-Date: Wed, 29 Feb 2012 15:18:52 +0900
+Received: from psmtp.com (na3sys010amx131.postini.com [74.125.245.131])
+	by kanga.kvack.org (Postfix) with SMTP id 29D4C6B004A
+	for <linux-mm@kvack.org>; Wed, 29 Feb 2012 01:24:05 -0500 (EST)
+Received: from m4.gw.fujitsu.co.jp (unknown [10.0.50.74])
+	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id B074F3EE0AE
+	for <linux-mm@kvack.org>; Wed, 29 Feb 2012 15:24:03 +0900 (JST)
+Received: from smail (m4 [127.0.0.1])
+	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 9802C45DE51
+	for <linux-mm@kvack.org>; Wed, 29 Feb 2012 15:24:03 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
+	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 72B2845DE4E
+	for <linux-mm@kvack.org>; Wed, 29 Feb 2012 15:24:03 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 644071DB803E
+	for <linux-mm@kvack.org>; Wed, 29 Feb 2012 15:24:03 +0900 (JST)
+Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.240.81.146])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 0E1D01DB8040
+	for <linux-mm@kvack.org>; Wed, 29 Feb 2012 15:24:03 +0900 (JST)
+Date: Wed, 29 Feb 2012 15:22:27 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH 03/10] memcg: Reclaim when more than one page needed.
-Message-Id: <20120229151852.b9980694.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <1330383533-20711-4-git-send-email-ssouhlal@FreeBSD.org>
+Subject: Re: [PATCH 02/10] memcg: Uncharge all kmem when deleting a cgroup.
+Message-Id: <20120229152227.aa416668.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <1330383533-20711-3-git-send-email-ssouhlal@FreeBSD.org>
 References: <1330383533-20711-1-git-send-email-ssouhlal@FreeBSD.org>
-	<1330383533-20711-4-git-send-email-ssouhlal@FreeBSD.org>
+	<1330383533-20711-3-git-send-email-ssouhlal@FreeBSD.org>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
@@ -32,154 +32,96 @@ List-ID: <linux-mm.kvack.org>
 To: Suleiman Souhlal <ssouhlal@FreeBSD.org>
 Cc: cgroups@vger.kernel.org, suleiman@google.com, glommer@parallels.com, penberg@kernel.org, yinghan@google.com, hughd@google.com, gthelen@google.com, linux-mm@kvack.org, devel@openvz.org
 
-On Mon, 27 Feb 2012 14:58:46 -0800
+On Mon, 27 Feb 2012 14:58:45 -0800
 Suleiman Souhlal <ssouhlal@FreeBSD.org> wrote:
 
-> From: Hugh Dickins <hughd@google.com>
+> A later patch will also use this to move the accounting to the root
+> cgroup.
 > 
-> mem_cgroup_do_charge() was written before slab accounting, and expects
-> three cases: being called for 1 page, being called for a stock of 32 pages,
-> or being called for a hugepage.  If we call for 2 pages (and several slabs
-> used in process creation are such, at least with the debug options I had),
-> it assumed it's being called for stock and just retried without reclaiming.
+> Signed-off-by: Suleiman Souhlal <suleiman@google.com>
+> ---
+>  mm/memcontrol.c |   30 +++++++++++++++++++++++++++++-
+>  1 files changed, 29 insertions(+), 1 deletions(-)
 > 
-> Fix that by passing down a minsize argument in addition to the csize;
-> and pass minsize to consume_stock() also, so that it can draw on stock
-> for higher order slabs, instead of accumulating an increasing surplus
-> of stock, as its "nr_pages == 1" tests previously caused.
-> 
-> And what to do about that (csize == PAGE_SIZE && ret) retry?  If it's
-> needed at all (and presumably is since it's there, perhaps to handle
-> races), then it should be extended to more than PAGE_SIZE, yet how far?
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index 11e31d6..6f44fcb 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -378,6 +378,7 @@ static void mem_cgroup_get(struct mem_cgroup *memcg);
+>  static void mem_cgroup_put(struct mem_cgroup *memcg);
+>  static void memcg_kmem_init(struct mem_cgroup *memcg,
+>      struct mem_cgroup *parent);
+> +static void memcg_kmem_move(struct mem_cgroup *memcg);
+>  
+>  /* Writing them here to avoid exposing memcg's inner layout */
+>  #ifdef CONFIG_CGROUP_MEM_RES_CTLR_KMEM
+> @@ -3674,6 +3675,7 @@ static int mem_cgroup_force_empty(struct mem_cgroup *memcg, bool free_all)
+>  	int ret;
+>  	int node, zid, shrink;
+>  	int nr_retries = MEM_CGROUP_RECLAIM_RETRIES;
+> +	unsigned long usage;
+>  	struct cgroup *cgrp = memcg->css.cgroup;
+>  
+>  	css_get(&memcg->css);
+> @@ -3693,6 +3695,8 @@ move_account:
+>  		/* This is for making all *used* pages to be on LRU. */
+>  		lru_add_drain_all();
+>  		drain_all_stock_sync(memcg);
+> +		if (!free_all)
+> +			memcg_kmem_move(memcg);
+>  		ret = 0;
+>  		mem_cgroup_start_move(memcg);
+>  		for_each_node_state(node, N_HIGH_MEMORY) {
+> @@ -3714,8 +3718,13 @@ move_account:
+>  		if (ret == -ENOMEM)
+>  			goto try_to_free;
+>  		cond_resched();
+> +		usage = memcg->res.usage;
+> +#ifdef CONFIG_CGROUP_MEM_RES_CTLR_KMEM
+> +		if (free_all && !memcg->independent_kmem_limit)
+> +			usage -= memcg->kmem_bytes.usage;
+> +#endif
 
-IIRC, this hack was added to avoid very-easy-oom-kill in a small memcg.
-If we can support dirty_ratio? and stop page reclaim to wait until
-writeback end, we can remove this, I think.
-
-> And should there be a retry count limit, of what?  For now retry up to
-> COSTLY_ORDER (as page_alloc.c does), stay safe with a cond_resched(),
-> and make sure not to do it if __GFP_NORETRY.
-> 
-
-Could you divide the changes to consume_stock() and mem_cgroup_do_charge() ?
-
-In these days, I personally don't like magical retry count..
-Let's see what happens if we can wait I/O for memcg. We may not have to
-have any retry and be able to clean up this loop.
+Why we need this even if memcg_kmem_move() does uncharge ?
 
 Thanks,
 -Kame
 
-
-> Signed-off-by: Hugh Dickins <hughd@google.com>
-> Signed-off-by: Suleiman Souhlal <suleiman@google.com>
-> ---
->  mm/memcontrol.c |   35 +++++++++++++++++++----------------
->  1 files changed, 19 insertions(+), 16 deletions(-)
-> 
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index 6f44fcb..c82ca1c 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -1928,19 +1928,19 @@ static DEFINE_PER_CPU(struct memcg_stock_pcp, memcg_stock);
->  static DEFINE_MUTEX(percpu_charge_mutex);
->  
->  /*
-> - * Try to consume stocked charge on this cpu. If success, one page is consumed
-> - * from local stock and true is returned. If the stock is 0 or charges from a
-> - * cgroup which is not current target, returns false. This stock will be
-> - * refilled.
-> + * Try to consume stocked charge on this cpu. If success, nr_pages pages are
-> + * consumed from local stock and true is returned. If the stock is 0 or
-> + * charges from a cgroup which is not current target, returns false.
-> + * This stock will be refilled.
->   */
-> -static bool consume_stock(struct mem_cgroup *memcg)
-> +static bool consume_stock(struct mem_cgroup *memcg, int nr_pages)
->  {
->  	struct memcg_stock_pcp *stock;
->  	bool ret = true;
->  
->  	stock = &get_cpu_var(memcg_stock);
-> -	if (memcg == stock->cached && stock->nr_pages)
-> -		stock->nr_pages--;
-> +	if (memcg == stock->cached && stock->nr_pages >= nr_pages)
-> +		stock->nr_pages -= nr_pages;
->  	else /* need to call res_counter_charge */
->  		ret = false;
->  	put_cpu_var(memcg_stock);
-> @@ -2131,7 +2131,7 @@ enum {
->  };
->  
->  static int mem_cgroup_do_charge(struct mem_cgroup *memcg, gfp_t gfp_mask,
-> -				unsigned int nr_pages, bool oom_check)
-> +    unsigned int nr_pages, unsigned int min_pages, bool oom_check)
->  {
->  	unsigned long csize = nr_pages * PAGE_SIZE;
->  	struct mem_cgroup *mem_over_limit;
-> @@ -2154,18 +2154,18 @@ static int mem_cgroup_do_charge(struct mem_cgroup *memcg, gfp_t gfp_mask,
->  	} else
->  		mem_over_limit = mem_cgroup_from_res_counter(fail_res, res);
->  	/*
-> -	 * nr_pages can be either a huge page (HPAGE_PMD_NR), a batch
-> -	 * of regular pages (CHARGE_BATCH), or a single regular page (1).
-> -	 *
->  	 * Never reclaim on behalf of optional batching, retry with a
->  	 * single page instead.
->  	 */
-> -	if (nr_pages == CHARGE_BATCH)
-> +	if (nr_pages > min_pages)
->  		return CHARGE_RETRY;
->  
->  	if (!(gfp_mask & __GFP_WAIT))
->  		return CHARGE_WOULDBLOCK;
->  
-> +	if (gfp_mask & __GFP_NORETRY)
-> +		return CHARGE_NOMEM;
+>  	/* "ret" should also be checked to ensure all lists are empty. */
+> -	} while (memcg->res.usage > 0 || ret);
+> +	} while (usage > 0 || ret);
+>  out:
+>  	css_put(&memcg->css);
+>  	return ret;
+> @@ -5632,9 +5641,28 @@ memcg_kmem_init(struct mem_cgroup *memcg, struct mem_cgroup *parent)
+>  	res_counter_init(&memcg->kmem_bytes, parent_res);
+>  	memcg->independent_kmem_limit = 0;
+>  }
 > +
->  	ret = mem_cgroup_reclaim(mem_over_limit, gfp_mask, flags);
->  	if (mem_cgroup_margin(mem_over_limit) >= nr_pages)
->  		return CHARGE_RETRY;
-> @@ -2178,8 +2178,10 @@ static int mem_cgroup_do_charge(struct mem_cgroup *memcg, gfp_t gfp_mask,
->  	 * unlikely to succeed so close to the limit, and we fall back
->  	 * to regular pages anyway in case of failure.
->  	 */
-> -	if (nr_pages == 1 && ret)
-> +	if (nr_pages <= (PAGE_SIZE << PAGE_ALLOC_COSTLY_ORDER) && ret) {
-> +		cond_resched();
->  		return CHARGE_RETRY;
-> +	}
->  
->  	/*
->  	 * At task move, charge accounts can be doubly counted. So, it's
-> @@ -2253,7 +2255,7 @@ again:
->  		VM_BUG_ON(css_is_removed(&memcg->css));
->  		if (mem_cgroup_is_root(memcg))
->  			goto done;
-> -		if (nr_pages == 1 && consume_stock(memcg))
-> +		if (consume_stock(memcg, nr_pages))
->  			goto done;
->  		css_get(&memcg->css);
->  	} else {
-> @@ -2278,7 +2280,7 @@ again:
->  			rcu_read_unlock();
->  			goto done;
->  		}
-> -		if (nr_pages == 1 && consume_stock(memcg)) {
-> +		if (consume_stock(memcg, nr_pages)) {
->  			/*
->  			 * It seems dagerous to access memcg without css_get().
->  			 * But considering how consume_stok works, it's not
-> @@ -2313,7 +2315,8 @@ again:
->  			nr_oom_retries = MEM_CGROUP_RECLAIM_RETRIES;
->  		}
->  
-> -		ret = mem_cgroup_do_charge(memcg, gfp_mask, batch, oom_check);
-> +		ret = mem_cgroup_do_charge(memcg, gfp_mask, batch, nr_pages,
-> +		    oom_check);
->  		switch (ret) {
->  		case CHARGE_OK:
->  			break;
+> +static void
+> +memcg_kmem_move(struct mem_cgroup *memcg)
+> +{
+> +	unsigned long flags;
+> +	long kmem_bytes;
+> +
+> +	spin_lock_irqsave(&memcg->kmem_bytes.lock, flags);
+> +	kmem_bytes = memcg->kmem_bytes.usage;
+> +	res_counter_uncharge_locked(&memcg->kmem_bytes, kmem_bytes);
+> +	spin_unlock_irqrestore(&memcg->kmem_bytes.lock, flags);
+> +	if (!memcg->independent_kmem_limit)
+> +		res_counter_uncharge(&memcg->res, kmem_bytes);
+> +}
+>  #else /* CONFIG_CGROUP_MEM_RES_CTLR_KMEM */
+>  static void
+>  memcg_kmem_init(struct mem_cgroup *memcg, struct mem_cgroup *parent)
+>  {
+>  }
+> +
+> +static void
+> +memcg_kmem_move(struct mem_cgroup *memcg)
+> +{
+> +}
+>  #endif /* CONFIG_CGROUP_MEM_RES_CTLR_KMEM */
 > -- 
 > 1.7.7.3
 > 
