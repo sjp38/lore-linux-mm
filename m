@@ -1,106 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx152.postini.com [74.125.245.152])
-	by kanga.kvack.org (Postfix) with SMTP id BEF016B004A
-	for <linux-mm@kvack.org>; Tue, 28 Feb 2012 19:37:30 -0500 (EST)
-Received: by qafl39 with SMTP id l39so1775551qaf.14
-        for <linux-mm@kvack.org>; Tue, 28 Feb 2012 16:37:29 -0800 (PST)
-MIME-Version: 1.0
-In-Reply-To: <4F4CD231.907@parallels.com>
-References: <1330383533-20711-1-git-send-email-ssouhlal@FreeBSD.org>
-	<1330383533-20711-2-git-send-email-ssouhlal@FreeBSD.org>
-	<4F4CD231.907@parallels.com>
-Date: Tue, 28 Feb 2012 16:37:29 -0800
-Message-ID: <CABCjUKAmM+DaNFuoUP_BiGdQ=SoWOXHijy8jmSPoEozBD-_JhA@mail.gmail.com>
-Subject: Re: [PATCH 01/10] memcg: Kernel memory accounting infrastructure.
-From: Suleiman Souhlal <suleiman@google.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Received: from psmtp.com (na3sys010amx106.postini.com [74.125.245.106])
+	by kanga.kvack.org (Postfix) with SMTP id 75A4F6B004A
+	for <linux-mm@kvack.org>; Tue, 28 Feb 2012 19:38:42 -0500 (EST)
+Received: from m4.gw.fujitsu.co.jp (unknown [10.0.50.74])
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 08EF23EE0AE
+	for <linux-mm@kvack.org>; Wed, 29 Feb 2012 09:38:41 +0900 (JST)
+Received: from smail (m4 [127.0.0.1])
+	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id DFE6645DE53
+	for <linux-mm@kvack.org>; Wed, 29 Feb 2012 09:38:40 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
+	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id C7C9445DE51
+	for <linux-mm@kvack.org>; Wed, 29 Feb 2012 09:38:40 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id B12DB1DB8042
+	for <linux-mm@kvack.org>; Wed, 29 Feb 2012 09:38:40 +0900 (JST)
+Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.240.81.146])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 6CE0C1DB8040
+	for <linux-mm@kvack.org>; Wed, 29 Feb 2012 09:38:40 +0900 (JST)
+Date: Wed, 29 Feb 2012 09:37:13 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH resend] mm: drain percpu lru add/rotate page-vectors on
+ cpu hot-unplug
+Message-Id: <20120229093713.e017c7f9.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20120228193620.32063.83425.stgit@zurg>
+References: <20120228193620.32063.83425.stgit@zurg>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Glauber Costa <glommer@parallels.com>
-Cc: Suleiman Souhlal <ssouhlal@freebsd.org>, cgroups@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, penberg@kernel.org, yinghan@google.com, hughd@google.com, gthelen@google.com, linux-mm@kvack.org, devel@openvz.org
+To: Konstantin Khlebnikov <khlebnikov@openvz.org>
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, Johannes Weiner <jweiner@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 
-On Tue, Feb 28, 2012 at 5:10 AM, Glauber Costa <glommer@parallels.com> wrot=
-e:
-> On 02/27/2012 07:58 PM, Suleiman Souhlal wrote:
->>
->> Enabled with CONFIG_CGROUP_MEM_RES_CTLR_KMEM.
->>
->> Adds the following files:
->> =A0 =A0 - memory.kmem.independent_kmem_limit
->> =A0 =A0 - memory.kmem.usage_in_bytes
->> =A0 =A0 - memory.kmem.limit_in_bytes
->>
->> Signed-off-by: Suleiman Souhlal<suleiman@google.com>
->> ---
->> =A0mm/memcontrol.c | =A0121
->> ++++++++++++++++++++++++++++++++++++++++++++++++++++++-
->> =A01 files changed, 120 insertions(+), 1 deletions(-)
->>
->> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
->> index 228d646..11e31d6 100644
->> --- a/mm/memcontrol.c
->> +++ b/mm/memcontrol.c
->> @@ -235,6 +235,10 @@ struct mem_cgroup {
->> =A0 =A0 =A0 =A0 */
->> =A0 =A0 =A0 =A0struct res_counter memsw;
->> =A0 =A0 =A0 =A0/*
->> + =A0 =A0 =A0 =A0* the counter to account for kernel memory usage.
->> + =A0 =A0 =A0 =A0*/
->> + =A0 =A0 =A0 struct res_counter kmem_bytes;
->> + =A0 =A0 =A0 /*
->
-> Not terribly important, but I find this name inconsistent. I like
-> just kmem better.
+On Tue, 28 Feb 2012 23:40:45 +0400
+Konstantin Khlebnikov <khlebnikov@openvz.org> wrote:
 
-I will change it.
+> This cpu hotplug hook was accidentally removed in commit v2.6.30-rc4-18-g00a62ce
+> ("mm: fix Committed_AS underflow on large NR_CPUS environment")
+> 
+> Signed-off-by: Konstantin Khlebnikov <khlebnikov@openvz.org>
 
->> =A0 =A0 =A0 =A0 * Per cgroup active and inactive list, similar to the
->> =A0 =A0 =A0 =A0 * per zone LRU lists.
->> =A0 =A0 =A0 =A0 */
->> @@ -293,6 +297,7 @@ struct mem_cgroup {
->> =A0#ifdef CONFIG_INET
->> =A0 =A0 =A0 =A0struct tcp_memcontrol tcp_mem;
->> =A0#endif
->> + =A0 =A0 =A0 int independent_kmem_limit;
->> =A0};
->
-> bool ?
->
-> But that said, we are now approaching some 4 or 5 selectables in the memc=
-g
-> structure. How about we turn them into flags?
-
-The only other selectable (that is a boolean) I see is use_hierarchy.
-Or do you also mean oom_lock and memsw_is_minimum?
-
-Either way, I'll try to make them into flags.
-
->> @@ -4587,6 +4647,10 @@ static int register_kmem_files(struct cgroup *con=
-t,
->> struct cgroup_subsys *ss)
->> =A0static void kmem_cgroup_destroy(struct cgroup_subsys *ss,
->> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0struct cg=
-roup *cont)
->> =A0{
->> + =A0 =A0 =A0 struct mem_cgroup *memcg;
->> +
->> + =A0 =A0 =A0 memcg =3D mem_cgroup_from_cont(cont);
->> + =A0 =A0 =A0 BUG_ON(res_counter_read_u64(&memcg->kmem_bytes, RES_USAGE)=
- !=3D 0);
->
-> That does not seem to make sense, specially if you are doing lazy creatio=
-n.
-> What happens if you create a cgroup, don't put any tasks into it (therefo=
-re,
-> usage =3D=3D 0), and then destroy it right away?
->
-> Or am I missing something?
-
-The BUG_ON will only trigger if there is any remaining kernel memory,
-so the situation you describe should not be a problem.
-
--- Suleiman
+Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
