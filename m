@@ -1,220 +1,261 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx205.postini.com [74.125.245.205])
-	by kanga.kvack.org (Postfix) with SMTP id B2DD46B004A
-	for <linux-mm@kvack.org>; Wed, 29 Feb 2012 09:07:06 -0500 (EST)
-Received: by werj55 with SMTP id j55so2567103wer.14
-        for <linux-mm@kvack.org>; Wed, 29 Feb 2012 06:07:05 -0800 (PST)
+Received: from psmtp.com (na3sys010amx156.postini.com [74.125.245.156])
+	by kanga.kvack.org (Postfix) with SMTP id 2DDED6B004A
+	for <linux-mm@kvack.org>; Wed, 29 Feb 2012 09:40:11 -0500 (EST)
+Received: by vbbey12 with SMTP id ey12so3276760vbb.14
+        for <linux-mm@kvack.org>; Wed, 29 Feb 2012 06:40:10 -0800 (PST)
 MIME-Version: 1.0
-From: Daniel Vetter <daniel.vetter@ffwll.ch>
-Subject: [PATCH] mm: extend prefault helpers to fault in more than PAGE_SIZE
-Date: Wed, 29 Feb 2012 15:03:31 +0100
-Message-Id: <1330524211-2698-1-git-send-email-daniel.vetter@ffwll.ch>
-In-Reply-To: <20120224124003.93780408.akpm@linux-foundation.org>
-References: <20120224124003.93780408.akpm@linux-foundation.org>
+In-Reply-To: <20120229092859.a0411859.kamezawa.hiroyu@jp.fujitsu.com>
+References: <1330463552-18473-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+	<20120229092859.a0411859.kamezawa.hiroyu@jp.fujitsu.com>
+Date: Wed, 29 Feb 2012 22:40:09 +0800
+Message-ID: <CAJd=RBAVaWud3f6AUSr1PDWS_VvBgiSMobRdLyokwx3bcHqCKQ@mail.gmail.com>
+Subject: Re: [RFC][PATCH] memcg: avoid THP split in task migration
+From: Hillf Danton <dhillf@gmail.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Intel Graphics Development <intel-gfx@lists.freedesktop.org>, DRI Development <dri-devel@lists.freedesktop.org>, LKML <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, Daniel Vetter <daniel.vetter@ffwll.ch>
+To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, linux-kernel@vger.kernel.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-drm/i915 wants to read/write more than one page in its fastpath
-and hence needs to prefault more than PAGE_SIZE bytes.
+On Wed, Feb 29, 2012 at 8:28 AM, KAMEZAWA Hiroyuki
+<kamezawa.hiroyu@jp.fujitsu.com> wrote:
+> On Tue, 28 Feb 2012 16:12:32 -0500
+> Naoya Horiguchi <n-horiguchi@ah.jp.nec.com> wrote:
+>
+>> Currently we can't do task migration among memory cgroups without THP sp=
+lit,
+>> which means processes heavily using THP experience large overhead in tas=
+k
+>> migration. This patch introduce the code for moving charge of THP and ma=
+kes
+>> THP more valuable.
+>>
+>> Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+>> Cc: Hillf Danton <dhillf@gmail.com>
+>
+>
+> Thank you!
 
-I've checked the callsites and they all already clamp size when
-calling fault_in_pages_* to the same as for the subsequent
-__copy_to|from_user and hence don't rely on the implicit clamping
-to PAGE_SIZE.
+   ++hd;
 
-Also kill a copy&pasted spurious space in both functions while at it.
+>
+> A comment below.
+>
+>> ---
+>> =C2=A0mm/memcontrol.c | =C2=A0 76 ++++++++++++++++++++++++++++++++++++++=
+++++++++++++----
+>> =C2=A01 files changed, 70 insertions(+), 6 deletions(-)
+>>
+>> diff --git linux-next-20120228.orig/mm/memcontrol.c linux-next-20120228/=
+mm/memcontrol.c
+>> index c83aeb5..e97c041 100644
+>> --- linux-next-20120228.orig/mm/memcontrol.c
+>> +++ linux-next-20120228/mm/memcontrol.c
+>> @@ -5211,6 +5211,42 @@ static int is_target_pte_for_mc(struct vm_area_st=
+ruct *vma,
+>> =C2=A0 =C2=A0 =C2=A0 return ret;
+>> =C2=A0}
+>>
+>> +#ifdef CONFIG_TRANSPARENT_HUGEPAGE
+>> +/*
+>> + * We don't consider swapping or file mapped pages because THP does not
+>> + * support them for now.
+>> + */
+>> +static int is_target_huge_pmd_for_mc(struct vm_area_struct *vma,
 
-v2: As suggested by Andrew Morton, add a multipage parameter to both
-functions to avoid the additional branch for the pagemap.c hotpath.
-My gcc 4.6 here seems to dtrt and indeed reap these branches where not
-needed.
+static int is_target_thp_for_mc(struct vm_area_struct *vma,
+or
+static int is_target_pmd_for_mc(struct vm_area_struct *vma,
+sounds better?
 
-Cc: linux-mm@kvack.org
-Signed-off-by: Daniel Vetter <daniel.vetter@ffwll.ch>
----
- drivers/gpu/drm/i915/i915_gem.c            |    4 +-
- drivers/gpu/drm/i915/i915_gem_execbuffer.c |    2 +-
- fs/pipe.c                                  |    4 +-
- fs/splice.c                                |    2 +-
- include/linux/pagemap.h                    |   39 ++++++++++++++++++---------
- mm/filemap.c                               |    4 +-
- 6 files changed, 34 insertions(+), 21 deletions(-)
+>> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 unsigned long addr, pmd_t pm=
+d, union mc_target *target)
+>> +{
+>> + =C2=A0 =C2=A0 struct page *page =3D NULL;
+>> + =C2=A0 =C2=A0 struct page_cgroup *pc;
+>> + =C2=A0 =C2=A0 int ret =3D 0;
+>> +
+>> + =C2=A0 =C2=A0 if (pmd_present(pmd))
+>> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 page =3D pmd_page(pmd);
+>> + =C2=A0 =C2=A0 if (!page)
+>> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 return 0;
+>> + =C2=A0 =C2=A0 VM_BUG_ON(!PageHead(page));
 
-diff --git a/drivers/gpu/drm/i915/i915_gem.c b/drivers/gpu/drm/i915/i915_gem.c
-index 544e528..9b200f4e 100644
---- a/drivers/gpu/drm/i915/i915_gem.c
-+++ b/drivers/gpu/drm/i915/i915_gem.c
-@@ -436,7 +436,7 @@ i915_gem_shmem_pread(struct drm_device *dev,
- 		mutex_unlock(&dev->struct_mutex);
- 
- 		if (!prefaulted) {
--			ret = fault_in_pages_writeable(user_data, remain);
-+			ret = fault_in_pages_writeable(user_data, remain, true);
- 			/* Userspace is tricking us, but we've already clobbered
- 			 * its pages with the prefault and promised to write the
- 			 * data up to the first fault. Hence ignore any errors
-@@ -823,7 +823,7 @@ i915_gem_pwrite_ioctl(struct drm_device *dev, void *data,
- 		return -EFAULT;
- 
- 	ret = fault_in_pages_readable((char __user *)(uintptr_t)args->data_ptr,
--				      args->size);
-+				      args->size, true);
- 	if (ret)
- 		return -EFAULT;
- 
-diff --git a/drivers/gpu/drm/i915/i915_gem_execbuffer.c b/drivers/gpu/drm/i915/i915_gem_execbuffer.c
-index 81687af..5f0b685 100644
---- a/drivers/gpu/drm/i915/i915_gem_execbuffer.c
-+++ b/drivers/gpu/drm/i915/i915_gem_execbuffer.c
-@@ -955,7 +955,7 @@ validate_exec_list(struct drm_i915_gem_exec_object2 *exec,
- 		if (!access_ok(VERIFY_WRITE, ptr, length))
- 			return -EFAULT;
- 
--		if (fault_in_pages_readable(ptr, length))
-+		if (fault_in_pages_readable(ptr, length, true))
- 			return -EFAULT;
- 	}
- 
-diff --git a/fs/pipe.c b/fs/pipe.c
-index a932ced..b29f71c 100644
---- a/fs/pipe.c
-+++ b/fs/pipe.c
-@@ -167,7 +167,7 @@ static int iov_fault_in_pages_write(struct iovec *iov, unsigned long len)
- 		unsigned long this_len;
- 
- 		this_len = min_t(unsigned long, len, iov->iov_len);
--		if (fault_in_pages_writeable(iov->iov_base, this_len))
-+		if (fault_in_pages_writeable(iov->iov_base, this_len, false))
- 			break;
- 
- 		len -= this_len;
-@@ -189,7 +189,7 @@ static void iov_fault_in_pages_read(struct iovec *iov, unsigned long len)
- 		unsigned long this_len;
- 
- 		this_len = min_t(unsigned long, len, iov->iov_len);
--		fault_in_pages_readable(iov->iov_base, this_len);
-+		fault_in_pages_readable(iov->iov_base, this_len, false);
- 		len -= this_len;
- 		iov++;
- 	}
-diff --git a/fs/splice.c b/fs/splice.c
-index 1ec0493..e919d78 100644
---- a/fs/splice.c
-+++ b/fs/splice.c
-@@ -1491,7 +1491,7 @@ static int pipe_to_user(struct pipe_inode_info *pipe, struct pipe_buffer *buf,
- 	 * See if we can use the atomic maps, by prefaulting in the
- 	 * pages and doing an atomic copy
- 	 */
--	if (!fault_in_pages_writeable(sd->u.userptr, sd->len)) {
-+	if (!fault_in_pages_writeable(sd->u.userptr, sd->len, false)) {
- 		src = buf->ops->map(pipe, buf, 1);
- 		ret = __copy_to_user_inatomic(sd->u.userptr, src + buf->offset,
- 							sd->len);
-diff --git a/include/linux/pagemap.h b/include/linux/pagemap.h
-index cfaaa69..60ac5c5 100644
---- a/include/linux/pagemap.h
-+++ b/include/linux/pagemap.h
-@@ -403,11 +403,14 @@ extern void add_page_wait_queue(struct page *page, wait_queue_t *waiter);
-  * Fault a userspace page into pagetables.  Return non-zero on a fault.
-  *
-  * This assumes that two userspace pages are always sufficient.  That's
-- * not true if PAGE_CACHE_SIZE > PAGE_SIZE.
-+ * not true if PAGE_CACHE_SIZE > PAGE_SIZE. If more than PAGE_SIZE needs to be
-+ * prefaulted, set multipage to true.
-  */
--static inline int fault_in_pages_writeable(char __user *uaddr, int size)
-+static inline int fault_in_pages_writeable(char __user *uaddr, int size,
-+					   bool multipage)
+With a huge and stable pmd, the above operations on page could be
+compacted into one line?
+
+	page =3D pmd_page(pmd);
+
+>> + =C2=A0 =C2=A0 get_page(page);
+>> + =C2=A0 =C2=A0 pc =3D lookup_page_cgroup(page);
+>> + =C2=A0 =C2=A0 if (PageCgroupUsed(pc) && pc->mem_cgroup =3D=3D mc.from)=
  {
- 	int ret;
-+	char __user *end = uaddr + size - 1;
- 
- 	if (unlikely(size == 0))
- 		return 0;
-@@ -416,36 +419,46 @@ static inline int fault_in_pages_writeable(char __user *uaddr, int size)
- 	 * Writing zeroes into userspace here is OK, because we know that if
- 	 * the zero gets there, we'll be overwriting it.
- 	 */
--	ret = __put_user(0, uaddr);
--	if (ret == 0) {
--		char __user *end = uaddr + size - 1;
-+	do {
-+		ret = __put_user(0, uaddr);
-+		if (ret != 0)
-+			return ret;
-+		uaddr += PAGE_SIZE;
-+	} while (multipage && uaddr <= end);
- 
-+	if (ret == 0) {
- 		/*
- 		 * If the page was already mapped, this will get a cache miss
- 		 * for sure, so try to avoid doing it.
- 		 */
--		if (((unsigned long)uaddr & PAGE_MASK) !=
-+		if (((unsigned long)uaddr & PAGE_MASK) ==
- 				((unsigned long)end & PAGE_MASK))
--		 	ret = __put_user(0, end);
-+			ret = __put_user(0, end);
- 	}
- 	return ret;
- }
- 
--static inline int fault_in_pages_readable(const char __user *uaddr, int size)
-+static inline int fault_in_pages_readable(const char __user *uaddr, int size,
-+					  bool multipage)
- {
- 	volatile char c;
- 	int ret;
-+	const char __user *end = uaddr + size - 1;
- 
- 	if (unlikely(size == 0))
- 		return 0;
- 
--	ret = __get_user(c, uaddr);
--	if (ret == 0) {
--		const char __user *end = uaddr + size - 1;
-+	do {
-+		ret = __get_user(c, uaddr);
-+		if (ret != 0)
-+			return ret;
-+		uaddr += PAGE_SIZE;
-+	} while (multipage && uaddr <= end);
- 
--		if (((unsigned long)uaddr & PAGE_MASK) !=
-+	if (ret == 0) {
-+		if (((unsigned long)uaddr & PAGE_MASK) ==
- 				((unsigned long)end & PAGE_MASK)) {
--		 	ret = __get_user(c, end);
-+			ret = __get_user(c, end);
- 			(void)c;
- 		}
- 	}
-diff --git a/mm/filemap.c b/mm/filemap.c
-index 97f49ed..af2cad5 100644
---- a/mm/filemap.c
-+++ b/mm/filemap.c
-@@ -1317,7 +1317,7 @@ int file_read_actor(read_descriptor_t *desc, struct page *page,
- 	 * Faults on the destination of a read are common, so do it before
- 	 * taking the kmap.
- 	 */
--	if (!fault_in_pages_writeable(desc->arg.buf, size)) {
-+	if (!fault_in_pages_writeable(desc->arg.buf, size, false)) {
- 		kaddr = kmap_atomic(page, KM_USER0);
- 		left = __copy_to_user_inatomic(desc->arg.buf,
- 						kaddr + offset, size);
-@@ -2138,7 +2138,7 @@ int iov_iter_fault_in_readable(struct iov_iter *i, size_t bytes)
- {
- 	char __user *buf = i->iov->iov_base + i->iov_offset;
- 	bytes = min(bytes, i->iov->iov_len - i->iov_offset);
--	return fault_in_pages_readable(buf, bytes);
-+	return fault_in_pages_readable(buf, bytes, false);
- }
- EXPORT_SYMBOL(iov_iter_fault_in_readable);
- 
--- 
-1.7.7.5
+>> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 ret =3D MC_TARGET_PAGE;
+>> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 if (target)
+
+After checking target, looks only get_page() needed?
+
+>> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
+target->page =3D page;
+>> + =C2=A0 =C2=A0 }
+>> + =C2=A0 =C2=A0 if (!ret || !target)
+>> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 put_page(page);
+>> + =C2=A0 =C2=A0 return ret;
+>> +}
+>> +#else
+>> +static inline int is_target_huge_pmd_for_mc(struct vm_area_struct *vma,
+>> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 unsigned long addr, pmd_t pm=
+d, union mc_target *target)
+>> +{
+>> + =C2=A0 =C2=A0 return 0;
+>> +}
+>> +#endif
+>> +
+>> =C2=A0static int mem_cgroup_count_precharge_pte_range(pmd_t *pmd,
+>> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
+=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 unsigned lon=
+g addr, unsigned long end,
+>> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
+=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 struct mm_wa=
+lk *walk)
+>> @@ -5219,7 +5255,13 @@ static int mem_cgroup_count_precharge_pte_range(p=
+md_t *pmd,
+>> =C2=A0 =C2=A0 =C2=A0 pte_t *pte;
+>> =C2=A0 =C2=A0 =C2=A0 spinlock_t *ptl;
+>>
+>> - =C2=A0 =C2=A0 split_huge_page_pmd(walk->mm, pmd);
+>> + =C2=A0 =C2=A0 if (pmd_trans_huge_lock(pmd, vma) =3D=3D 1) {
+>> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 if (is_target_huge_pmd_for_m=
+c(vma, addr, *pmd, NULL))
+
+		if (is_target_huge_pmd_for_mc(vma, addr, *pmd, NULL) =3D=3D MC_TARGET_PAG=
+E)
+looks clearer
+
+>> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
+mc.precharge +=3D HPAGE_PMD_NR;
+
+As HPAGE_PMD_NR is directly used, compiler beeps if THP disabled, I guess.
+
+If yes, please cleanup huge_mm.h with s/BUG()/BUILD_BUG()/ and with
+both HPAGE_PMD_ORDER and HPAGE_PMD_NR also defined,
+to easy others a bit.
+
+>> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 spin_unlock(&walk->mm->page_=
+table_lock);
+
+		spin_unlock(&vma->mm->page_table_lock);
+looks clearer
+>> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 cond_resched();
+>> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 return 0;
+>> + =C2=A0 =C2=A0 }
+>>
+>> =C2=A0 =C2=A0 =C2=A0 pte =3D pte_offset_map_lock(vma->vm_mm, pmd, addr, =
+&ptl);
+>> =C2=A0 =C2=A0 =C2=A0 for (; addr !=3D end; pte++, addr +=3D PAGE_SIZE)
+>> @@ -5378,16 +5420,38 @@ static int mem_cgroup_move_charge_pte_range(pmd_=
+t *pmd,
+>> =C2=A0 =C2=A0 =C2=A0 struct vm_area_struct *vma =3D walk->private;
+>> =C2=A0 =C2=A0 =C2=A0 pte_t *pte;
+>> =C2=A0 =C2=A0 =C2=A0 spinlock_t *ptl;
+>> + =C2=A0 =C2=A0 int type;
+>> + =C2=A0 =C2=A0 union mc_target target;
+>> + =C2=A0 =C2=A0 struct page *page;
+>> + =C2=A0 =C2=A0 struct page_cgroup *pc;
+>> +
+>> + =C2=A0 =C2=A0 if (pmd_trans_huge_lock(pmd, vma) =3D=3D 1) {
+>> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 if (!mc.precharge)
+>> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
+return 0;
+
+Bang, return without page table lock released.
+
+>> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 type =3D is_target_huge_pmd_=
+for_mc(vma, addr, *pmd, &target);
+>> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 if (type =3D=3D MC_TARGET_PA=
+GE) {
+>> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
+page =3D target.page;
+>> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
+if (!isolate_lru_page(page)) {
+>> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
+=C2=A0 =C2=A0 =C2=A0 =C2=A0 pc =3D lookup_page_cgroup(page);
+>
+> Here is a diffuclut point. Please see mem_cgroup_split_huge_fixup(). It s=
+plits
+
+Hard and hard point IMO.
+
+> updates memcg's status of splitted pages under lru_lock and compound_lock
+> but not under mm->page_table_lock.
+>
+> Looking into split_huge_page()
+>
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0split_huge_page() =C2=A0# take anon_vma lock
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0__split_huge_page(=
+)
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
+=A0 =C2=A0__split_huge_page_refcount() # take lru_lock, compound_lock.
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
+=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0mem_cgroup_split_huge_fixup()
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
+=A0 =C2=A0__split_huge_page_map() # take page table lock.
+>
+[copied from Naoya-san's reply]
+
+> I'm afraid this callchain is not correct.
+
+s/correct/complete/
+
+> Page table lock seems to be taken before we enter the main split work.
+>
+> =C2=A0 =C2=A0split_huge_page
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0take anon_vma lock
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0__split_huge_page
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0__split_huge_page_splitting
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0lock page_table_lo=
+ck =C2=A0 =C2=A0 <--- *1
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0page_check_address=
+_pmd
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0unlock page_table_=
+lock
+
+Yeah, splitters are blocked.
+Plus from the *ugly* documented lock function(another
+cleanup needed), the embedded mmap_sem also blocks splitters.
+
+That said, could we simply wait and see results of test cases?
+
+-hd
+
+/* mmap_sem must be held on entry */
+static inline int pmd_trans_huge_lock(pmd_t *pmd,
+				      struct vm_area_struct *vma)
+{
+	VM_BUG_ON(!rwsem_is_locked(&vma->vm_mm->mmap_sem));
+	if (pmd_trans_huge(*pmd))
+		return __pmd_trans_huge_lock(pmd, vma);
+	else
+		return 0;
+}
+
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0__split_huge_page_refcount
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0lock lru_lock
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0compound_lock
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0mem_cgroup_split_h=
+uge_fixup
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0compound_unlock
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0unlock lru_lock
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0__split_huge_page_map
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0lock page_table_lo=
+ck
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0... some work
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0unlock page_table_=
+lock
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0unlock anon_vma lock
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
