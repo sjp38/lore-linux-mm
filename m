@@ -1,98 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx154.postini.com [74.125.245.154])
-	by kanga.kvack.org (Postfix) with SMTP id 45EE86B004D
-	for <linux-mm@kvack.org>; Wed, 29 Feb 2012 15:10:35 -0500 (EST)
-Date: Wed, 29 Feb 2012 15:16:26 -0300
-From: Rafael Aquini <aquini@redhat.com>
-Subject: Re: [PATCH] mm: SLAB Out-of-memory diagnostics
-Message-ID: <20120229181625.GA7426@t510.redhat.com>
-References: <20120229032715.GA23758@t510.redhat.com>
- <alpine.LFD.2.02.1202290934020.4850@tux.localdomain>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.LFD.2.02.1202290934020.4850@tux.localdomain>
+Received: from psmtp.com (na3sys010amx133.postini.com [74.125.245.133])
+	by kanga.kvack.org (Postfix) with SMTP id 7C9A16B004A
+	for <linux-mm@kvack.org>; Wed, 29 Feb 2012 15:31:22 -0500 (EST)
+Date: Wed, 29 Feb 2012 12:31:20 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [RFC][PATCH] fix move/migrate_pages() race on task struct
+Message-Id: <20120229123120.127e21fd.akpm@linux-foundation.org>
+In-Reply-To: <alpine.DEB.2.00.1202281329190.25590@router.home>
+References: <20120223180740.C4EC4156@kernel>
+	<alpine.DEB.2.00.1202231240590.9878@router.home>
+	<4F468F09.5050200@linux.vnet.ibm.com>
+	<alpine.DEB.2.00.1202231334290.10914@router.home>
+	<4F469BC7.50705@linux.vnet.ibm.com>
+	<alpine.DEB.2.00.1202231536240.13554@router.home>
+	<m1ehtkapn9.fsf@fess.ebiederm.org>
+	<alpine.DEB.2.00.1202240859340.2621@router.home>
+	<4F47BF56.6010602@linux.vnet.ibm.com>
+	<alpine.DEB.2.00.1202241053220.3726@router.home>
+	<alpine.DEB.2.00.1202241105280.3726@router.home>
+	<4F47C800.4090903@linux.vnet.ibm.com>
+	<alpine.DEB.2.00.1202241131400.3726@router.home>
+	<87sjhzun47.fsf@xmission.com>
+	<alpine.DEB.2.00.1202271238450.32410@router.home>
+	<87d390janv.fsf@xmission.com>
+	<alpine.DEB.2.00.1202271636230.6435@router.home>
+	<alpine.DEB.2.00.1202281329190.25590@router.home>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pekka Enberg <penberg@kernel.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Randy Dunlap <rdunlap@xenotime.net>, Christoph Lameter <cl@linux-foundation.org>, Matt Mackall <mpm@selenic.com>, Rik van Riel <riel@redhat.com>, Josef Bacik <josef@redhat.com>, David Rientjes <rientjes@google.com>
+To: Christoph Lameter <cl@linux.com>
+Cc: "Eric W. Biederman" <ebiederm@xmission.com>, Dave Hansen <dave@linux.vnet.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Wed, Feb 29, 2012 at 09:37:23AM +0200, Pekka Enberg wrote:
-> On Wed, 29 Feb 2012, Rafael Aquini wrote:
-> > Following the example at mm/slub.c, add out-of-memory diagnostics to the SLAB
-> > allocator to help on debugging OOM conditions. This patch also adds a new
-> > sysctl, 'oom_dump_slabs_forced', that overrides the effect of __GFP_NOWARN page
-> > allocation flag and forces the kernel to report every slab allocation failure.
-> > 
-> > An example print out looks like this:
-> > 
-> >   <snip page allocator out-of-memory message>
-> >   SLAB: Unable to allocate memory on node 0 (gfp=0x11200)
-> >      cache: bio-0, object size: 192, order: 0
-> >      node0: slabs: 3/3, objs: 60/60, free: 0
-> > 
-> > Signed-off-by: Rafael Aquini <aquini@redhat.com>
-> > ---
-> >  Documentation/sysctl/vm.txt |   23 ++++++++++++++++++
-> >  include/linux/slab.h        |    2 +
-> >  kernel/sysctl.c             |    9 +++++++
-> >  mm/slab.c                   |   55 ++++++++++++++++++++++++++++++++++++++++++-
-> >  4 files changed, 88 insertions(+), 1 deletions(-)
+On Tue, 28 Feb 2012 13:30:19 -0600 (CST)
+Christoph Lameter <cl@linux.com> wrote:
+
+> Migration functions perform the rcu_read_unlock too early. As a result the
+> task pointed to may change from under us.
 > 
-> No SLUB support for this?
+> The following patch extend the period of the rcu_read_lock until after the
+> permissions checks are done. We also take a refcount so that the task
+> reference is stable when calling security check functions and performing
+> cpuset node validation (which takes a mutex).
 > 
-
-SLUB already has its version of slab_out_of_memory. I did not propose the sysctl
-knob for slub, however. (If we find the knob useful, I can propose its extention
-to slub, later). 
-
-> > diff --git a/Documentation/sysctl/vm.txt b/Documentation/sysctl/vm.txt
-> > index 96f0ee8..75bdf91 100644
-> > --- a/Documentation/sysctl/vm.txt
-> > +++ b/Documentation/sysctl/vm.txt
-> > @@ -498,6 +498,29 @@ this is causing problems for your system/application.
-> >  
-> >  ==============================================================
-> >  
-> > +oom_dump_slabs_forced
-> > +
-> > +Overrides the effects of __GFP_NOWARN page allocation flag, thus forcing
-> > +the system to print warnings about every allocation failure for the
-> > +slab allocator, and helping on debugging certain OOM conditions.
-> > +The print out is pretty similar, and complements data that is reported by
-> > +the page allocator out-of-memory warning:
-> > +
-> > +<snip page allocator out-of-memory message>
-> > +  SLAB: Unable to allocate memory on node 0 (gfp=0x11200)
-> > +     cache: bio-0, object size: 192, order: 0
-> > +     node0: slabs: 3/3, objs: 60/60, free: 0
-> > +
-> > +If this is set to zero, the default behavior is observed and warnings will only
-> > +be printed out for allocation requests that didn't set the __GFP_NOWARN flag.
-> > +
-> > +When set to non-zero, this information is shown whenever the allocator finds
-> > +itself failing to grant a request, regardless the __GFP_NOWARN flag status.
-> > +
-> > +The default value is 0 (disabled).
-> > +
-> > +==============================================================
-> > +
+> The refcount is dropped before actual page migration occurs so there is no
+> change to the refcounts held during page migration.
 > 
-> Why do you want to add a sysctl for this? That'd be an ABI that we need to 
-> keep around forever.
-> 
-> Is there any reason we shouldn't just enable this unconditionally?
+> Also move the determination of the mm of the task struct to immediately
+> before the do_migrate*() calls so that it is clear that we switch from
+> handling the task during permission checks to the mm for the actual
+> migration. Since the determination is only done once and we then no longer
+> use the task_struct we can be sure that we operate on a specific address
+> space that will not change from under us.
 
-I was afraid of this code becoming a source of garrulous and scaring warnings
-by just ignoring __GFP_NOWARN flag, however, I was also concerned with the
-'hiding' effect the flag imposes for certain requests, specially when one is
-interested in checking  all those requests out. Therefore, I thought a sysctl
-knob would be the best option to control the __GFP_NOWARN overriding behavior of
-slab_out_of_memory printouts without messing with the allocation flags
-themselves, as well as not imposing the need for reboots to start checking all
-slab allocation failures out.
+What was the user-visible impact of the bug?
 
- Rafael
+Please always include info this in bug fix changelogs - it helps me and
+others to decide which kernel version(s) the patch should be merged
+into.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
