@@ -1,13 +1,13 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from psmtp.com (na3sys010amx173.postini.com [74.125.245.173])
-	by kanga.kvack.org (Postfix) with SMTP id 163AB6B0092
-	for <linux-mm@kvack.org>; Wed, 29 Feb 2012 04:15:57 -0500 (EST)
+	by kanga.kvack.org (Postfix) with SMTP id 60A2F6B00E7
+	for <linux-mm@kvack.org>; Wed, 29 Feb 2012 04:16:01 -0500 (EST)
 Received: by mail-bk0-f41.google.com with SMTP id q16so99930bkw.14
-        for <linux-mm@kvack.org>; Wed, 29 Feb 2012 01:15:56 -0800 (PST)
-Subject: [PATCH 4/7] mm: push lru index into shrink_[in]active_list()
+        for <linux-mm@kvack.org>; Wed, 29 Feb 2012 01:16:00 -0800 (PST)
+Subject: [PATCH 5/7] mm: rework reclaim_stat counters
 From: Konstantin Khlebnikov <khlebnikov@openvz.org>
-Date: Wed, 29 Feb 2012 13:15:52 +0400
-Message-ID: <20120229091551.29236.27110.stgit@zurg>
+Date: Wed, 29 Feb 2012 13:15:56 +0400
+Message-ID: <20120229091556.29236.96896.stgit@zurg>
 In-Reply-To: <20120229090748.29236.35489.stgit@zurg>
 References: <20120229090748.29236.35489.stgit@zurg>
 MIME-Version: 1.0
@@ -18,168 +18,325 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Johannes Weiner <jweiner@redhat.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Let's toss lru index through call stack to isolate_lru_pages(),
-this is better than its reconstructing from individual bits.
+Currently there is two types of reclaim-stat counters:
+recent_scanned (pages picked from from lru),
+recent_rotated (pages putted back to active lru).
+Reclaimer uses ratio recent_rotated / recent_scanned
+for balancing pressure between file and anon pages.
+
+But if we pick page from lru we can either reclaim it or put it back to lru, thus:
+recent_scanned == recent_rotated[inactive] + recent_rotated[active] + reclaimed
+This can be called "The Law of Conservation of Memory" =)
+
+Thus recent_rotated counters for each lru list is enough, reclaimed pages can be
+counted as rotatation into inactive lru. After that reclaimer can use this ratio:
+recent_rotated[active] / (recent_rotated[active] + recent_rotated[inactive])
+
+After this patch struct zone_reclaimer_stat has only one array: recent_rotated,
+which is directly indexed by lru list index.
 
 Signed-off-by: Konstantin Khlebnikov <khlebnikov@openvz.org>
 ---
- mm/vmscan.c |   42 +++++++++++++++++-------------------------
- 1 files changed, 17 insertions(+), 25 deletions(-)
+ include/linux/mmzone.h |   11 +++++------
+ mm/memcontrol.c        |   29 +++++++++++++++++------------
+ mm/page_alloc.c        |    6 ++----
+ mm/swap.c              |   26 ++++++++------------------
+ mm/vmscan.c            |   42 ++++++++++++++++++++++--------------------
+ 5 files changed, 54 insertions(+), 60 deletions(-)
 
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 1b70338..483b98e 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -1119,15 +1119,14 @@ int __isolate_lru_page(struct page *page, isolate_mode_t mode)
-  * @nr_scanned:	The number of pages that were scanned.
-  * @sc:		The scan_control struct for this reclaim session
-  * @mode:	One of the LRU isolation modes
-- * @active:	True [1] if isolating active pages
-- * @file:	True [1] if isolating file [!anon] pages
-+ * @lru		LRU list id for isolating
-  *
-  * returns how many pages were moved onto *@dst.
-  */
- static unsigned long isolate_lru_pages(unsigned long nr_to_scan,
- 		struct mem_cgroup_zone *mz, struct list_head *dst,
- 		unsigned long *nr_scanned, struct scan_control *sc,
--		isolate_mode_t mode, int active, int file)
-+		isolate_mode_t mode, enum lru_list lru)
+diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
+index 2fed935..fdcd683 100644
+--- a/include/linux/mmzone.h
++++ b/include/linux/mmzone.h
+@@ -137,12 +137,14 @@ enum lru_list {
+ 	LRU_INACTIVE_FILE = LRU_BASE + LRU_FILE,
+ 	LRU_ACTIVE_FILE = LRU_BASE + LRU_FILE + LRU_ACTIVE,
+ 	LRU_UNEVICTABLE,
+-	NR_LRU_LISTS
++	NR_LRU_LISTS,
++	NR_EVICTABLE_LRU_LISTS = LRU_UNEVICTABLE,
+ };
+ 
+ #define for_each_lru(lru) for (lru = 0; lru < NR_LRU_LISTS; lru++)
+ 
+-#define for_each_evictable_lru(lru) for (lru = 0; lru <= LRU_ACTIVE_FILE; lru++)
++#define for_each_evictable_lru(lru) \
++	for (lru = 0; lru < NR_EVICTABLE_LRU_LISTS; lru++)
+ 
+ static inline int is_file_lru(enum lru_list lru)
  {
- 	struct lruvec *lruvec;
- 	struct list_head *src;
-@@ -1136,13 +1135,8 @@ static unsigned long isolate_lru_pages(unsigned long nr_to_scan,
- 	unsigned long nr_lumpy_dirty = 0;
- 	unsigned long nr_lumpy_failed = 0;
- 	unsigned long scan;
--	int lru = LRU_BASE;
+@@ -165,11 +167,8 @@ struct zone_reclaim_stat {
+ 	 * mem/swap backed and file backed pages are refeferenced.
+ 	 * The higher the rotated/scanned ratio, the more valuable
+ 	 * that cache is.
+-	 *
+-	 * The anon LRU stats live in [0], file LRU stats in [1]
+ 	 */
+-	unsigned long		recent_rotated[2];
+-	unsigned long		recent_scanned[2];
++	unsigned long		recent_rotated[NR_EVICTABLE_LRU_LISTS];
+ };
  
- 	lruvec = mem_cgroup_zone_lruvec(mz->zone, mz->mem_cgroup);
--	if (active)
--		lru += LRU_ACTIVE;
--	if (file)
--		lru += LRU_FILE;
- 	src = &lruvec->lists[lru];
+ struct lruvec {
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index aeebb9e..2809531 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -4189,26 +4189,31 @@ static int mem_control_stat_show(struct cgroup *cont, struct cftype *cft,
  
- 	for (scan = 0; scan < nr_to_scan && !list_empty(src); scan++) {
-@@ -1258,7 +1252,7 @@ static unsigned long isolate_lru_pages(unsigned long nr_to_scan,
- 			nr_to_scan, scan,
- 			nr_taken,
- 			nr_lumpy_taken, nr_lumpy_dirty, nr_lumpy_failed,
--			mode, file);
-+			mode, is_file_lru(lru));
- 	return nr_taken;
+ #ifdef CONFIG_DEBUG_VM
+ 	{
+-		int nid, zid;
++		int nid, zid, lru;
+ 		struct mem_cgroup_per_zone *mz;
+ 		struct zone_reclaim_stat *rstat;
+-		unsigned long recent_rotated[2] = {0, 0};
+-		unsigned long recent_scanned[2] = {0, 0};
++		unsigned long recent_rotated[NR_EVICTABLE_LRU_LISTS];
+ 
++		memset(recent_rotated, 0, sizeof(recent_rotated));
+ 		for_each_online_node(nid)
+ 			for (zid = 0; zid < MAX_NR_ZONES; zid++) {
+ 				mz = mem_cgroup_zoneinfo(memcg, nid, zid);
+ 				rstat = &mz->lruvec.reclaim_stat;
+-
+-				recent_rotated[0] += rstat->recent_rotated[0];
+-				recent_rotated[1] += rstat->recent_rotated[1];
+-				recent_scanned[0] += rstat->recent_scanned[0];
+-				recent_scanned[1] += rstat->recent_scanned[1];
++				for_each_evictable_lru(lru)
++					recent_rotated[lru] +=
++						rstat->recent_rotated[lru];
+ 			}
+-		cb->fill(cb, "recent_rotated_anon", recent_rotated[0]);
+-		cb->fill(cb, "recent_rotated_file", recent_rotated[1]);
+-		cb->fill(cb, "recent_scanned_anon", recent_scanned[0]);
+-		cb->fill(cb, "recent_scanned_file", recent_scanned[1]);
++
++		cb->fill(cb, "recent_rotated_anon",
++				recent_rotated[LRU_ACTIVE_ANON]);
++		cb->fill(cb, "recent_rotated_file",
++				recent_rotated[LRU_ACTIVE_FILE]);
++		cb->fill(cb, "recent_scanned_anon",
++				recent_rotated[LRU_ACTIVE_ANON] +
++				recent_rotated[LRU_INACTIVE_ANON]);
++		cb->fill(cb, "recent_scanned_file",
++				recent_rotated[LRU_ACTIVE_FILE] +
++				recent_rotated[LRU_INACTIVE_FILE]);
+ 	}
+ #endif
+ 
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index ab2d210..ea40034 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -4365,10 +4365,8 @@ static void __paginginit free_area_init_core(struct pglist_data *pgdat,
+ 		zone_pcp_init(zone);
+ 		for_each_lru(lru)
+ 			INIT_LIST_HEAD(&zone->lruvec.lists[lru]);
+-		zone->lruvec.reclaim_stat.recent_rotated[0] = 0;
+-		zone->lruvec.reclaim_stat.recent_rotated[1] = 0;
+-		zone->lruvec.reclaim_stat.recent_scanned[0] = 0;
+-		zone->lruvec.reclaim_stat.recent_scanned[1] = 0;
++		memset(&zone->lruvec.reclaim_stat, 0,
++				sizeof(struct zone_reclaim_stat));
+ 		zap_zone_vm_stats(zone);
+ 		zone->flags = 0;
+ 		if (!size)
+diff --git a/mm/swap.c b/mm/swap.c
+index 9a6850b..c7bcde7 100644
+--- a/mm/swap.c
++++ b/mm/swap.c
+@@ -277,7 +277,7 @@ void rotate_reclaimable_page(struct page *page)
  }
  
-@@ -1479,7 +1473,7 @@ static inline bool should_reclaim_stall(unsigned long nr_taken,
-  */
- static noinline_for_stack unsigned long
- shrink_inactive_list(unsigned long nr_to_scan, struct mem_cgroup_zone *mz,
--		     struct scan_control *sc, int priority, int file)
-+		     struct scan_control *sc, int priority, enum lru_list lru)
+ static void update_page_reclaim_stat(struct zone *zone, struct page *page,
+-				     int file, int rotated)
++				     enum lru_list lru)
  {
- 	LIST_HEAD(page_list);
- 	unsigned long nr_scanned;
-@@ -1489,6 +1483,7 @@ shrink_inactive_list(unsigned long nr_to_scan, struct mem_cgroup_zone *mz,
- 	unsigned long nr_file;
- 	unsigned long nr_dirty = 0;
- 	unsigned long nr_writeback = 0;
-+	int file = is_file_lru(lru);
- 	isolate_mode_t isolate_mode = ISOLATE_INACTIVE;
- 	struct zone *zone = mz->zone;
- 	struct zone_reclaim_stat *reclaim_stat = get_reclaim_stat(mz);
-@@ -1519,7 +1514,7 @@ shrink_inactive_list(unsigned long nr_to_scan, struct mem_cgroup_zone *mz,
+ 	struct zone_reclaim_stat *reclaim_stat;
+ 
+@@ -285,9 +285,7 @@ static void update_page_reclaim_stat(struct zone *zone, struct page *page,
+ 	if (!reclaim_stat)
+ 		reclaim_stat = &zone->lruvec.reclaim_stat;
+ 
+-	reclaim_stat->recent_scanned[file]++;
+-	if (rotated)
+-		reclaim_stat->recent_rotated[file]++;
++	reclaim_stat->recent_rotated[lru]++;
+ }
+ 
+ static void __activate_page(struct page *page, void *arg)
+@@ -295,7 +293,6 @@ static void __activate_page(struct page *page, void *arg)
+ 	struct zone *zone = page_zone(page);
+ 
+ 	if (PageLRU(page) && !PageActive(page) && !PageUnevictable(page)) {
+-		int file = page_is_file_cache(page);
+ 		int lru = page_lru_base_type(page);
+ 		del_page_from_lru_list(zone, page, lru);
+ 
+@@ -304,7 +301,7 @@ static void __activate_page(struct page *page, void *arg)
+ 		add_page_to_lru_list(zone, page, lru);
+ 		__count_vm_event(PGACTIVATE);
+ 
+-		update_page_reclaim_stat(zone, page, file, 1);
++		update_page_reclaim_stat(zone, page, lru);
+ 	}
+ }
+ 
+@@ -482,7 +479,7 @@ static void lru_deactivate_fn(struct page *page, void *arg)
+ 
+ 	if (active)
+ 		__count_vm_event(PGDEACTIVATE);
+-	update_page_reclaim_stat(zone, page, file, 0);
++	update_page_reclaim_stat(zone, page, lru);
+ }
+ 
+ /*
+@@ -646,9 +643,7 @@ EXPORT_SYMBOL(__pagevec_release);
+ void lru_add_page_tail(struct zone* zone,
+ 		       struct page *page, struct page *page_tail)
+ {
+-	int active;
+ 	enum lru_list lru;
+-	const int file = 0;
+ 
+ 	VM_BUG_ON(!PageHead(page));
+ 	VM_BUG_ON(PageCompound(page_tail));
+@@ -660,13 +655,10 @@ void lru_add_page_tail(struct zone* zone,
+ 	if (page_evictable(page_tail, NULL)) {
+ 		if (PageActive(page)) {
+ 			SetPageActive(page_tail);
+-			active = 1;
+ 			lru = LRU_ACTIVE_ANON;
+-		} else {
+-			active = 0;
++		} else
+ 			lru = LRU_INACTIVE_ANON;
+-		}
+-		update_page_reclaim_stat(zone, page_tail, file, active);
++		update_page_reclaim_stat(zone, page_tail, lru);
+ 	} else {
+ 		SetPageUnevictable(page_tail);
+ 		lru = LRU_UNEVICTABLE;
+@@ -694,17 +686,15 @@ static void __pagevec_lru_add_fn(struct page *page, void *arg)
+ {
+ 	enum lru_list lru = (enum lru_list)arg;
+ 	struct zone *zone = page_zone(page);
+-	int file = is_file_lru(lru);
+-	int active = is_active_lru(lru);
+ 
+ 	VM_BUG_ON(PageActive(page));
+ 	VM_BUG_ON(PageUnevictable(page));
+ 	VM_BUG_ON(PageLRU(page));
+ 
+ 	SetPageLRU(page);
+-	if (active)
++	if (is_active_lru(lru))
+ 		SetPageActive(page);
+-	update_page_reclaim_stat(zone, page, file, active);
++	update_page_reclaim_stat(zone, page, lru);
+ 	add_page_to_lru_list(zone, page, lru);
+ }
+ 
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index 483b98e..fe00a22 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -1355,11 +1355,7 @@ putback_inactive_pages(struct mem_cgroup_zone *mz,
+ 		SetPageLRU(page);
+ 		lru = page_lru(page);
+ 		add_page_to_lru_list(zone, page, lru);
+-		if (is_active_lru(lru)) {
+-			int file = is_file_lru(lru);
+-			int numpages = hpage_nr_pages(page);
+-			reclaim_stat->recent_rotated[file] += numpages;
+-		}
++		reclaim_stat->recent_rotated[lru] += hpage_nr_pages(page);
+ 		if (put_page_testzero(page)) {
+ 			__ClearPageLRU(page);
+ 			__ClearPageActive(page);
+@@ -1543,8 +1539,11 @@ shrink_inactive_list(unsigned long nr_to_scan, struct mem_cgroup_zone *mz,
+ 
  	spin_lock_irq(&zone->lru_lock);
  
- 	nr_taken = isolate_lru_pages(nr_to_scan, mz, &page_list, &nr_scanned,
--				     sc, isolate_mode, 0, file);
-+				     sc, isolate_mode, lru);
- 	if (global_reclaim(sc)) {
- 		zone->pages_scanned += nr_scanned;
- 		if (current_is_kswapd())
-@@ -1657,7 +1652,7 @@ static void move_active_pages_to_lru(struct zone *zone,
- static void shrink_active_list(unsigned long nr_to_scan,
- 			       struct mem_cgroup_zone *mz,
- 			       struct scan_control *sc,
--			       int priority, int file)
-+			       int priority, enum lru_list lru)
- {
- 	unsigned long nr_taken;
- 	unsigned long nr_scanned;
-@@ -1668,6 +1663,7 @@ static void shrink_active_list(unsigned long nr_to_scan,
- 	struct page *page;
- 	struct zone_reclaim_stat *reclaim_stat = get_reclaim_stat(mz);
- 	unsigned long nr_rotated = 0;
-+	int file = is_file_lru(lru);
- 	isolate_mode_t isolate_mode = ISOLATE_ACTIVE;
- 	struct zone *zone = mz->zone;
+-	reclaim_stat->recent_scanned[0] += nr_anon;
+-	reclaim_stat->recent_scanned[1] += nr_file;
++	/*
++	 * Count reclaimed pages as rotated, this helps balance scan pressure
++	 * between file and anonymous pages in get_scan_ratio.
++	 */
++	reclaim_stat->recent_rotated[lru] += nr_reclaimed;
  
-@@ -1685,17 +1681,14 @@ static void shrink_active_list(unsigned long nr_to_scan,
- 	spin_lock_irq(&zone->lru_lock);
- 
- 	nr_taken = isolate_lru_pages(nr_to_scan, mz, &l_hold, &nr_scanned, sc,
--				     isolate_mode, 1, file);
-+				     isolate_mode, lru);
+ 	if (current_is_kswapd())
+ 		__count_vm_events(KSWAPD_STEAL, nr_reclaimed);
+@@ -1685,8 +1684,6 @@ static void shrink_active_list(unsigned long nr_to_scan,
  	if (global_reclaim(sc))
  		zone->pages_scanned += nr_scanned;
  
- 	reclaim_stat->recent_scanned[file] += nr_taken;
- 
+-	reclaim_stat->recent_scanned[file] += nr_taken;
+-
  	__count_zone_vm_events(PGREFILL, zone, nr_scanned);
--	if (file)
--		__mod_zone_page_state(zone, NR_ACTIVE_FILE, -nr_taken);
--	else
--		__mod_zone_page_state(zone, NR_ACTIVE_ANON, -nr_taken);
-+	__mod_zone_page_state(zone, NR_LRU_BASE + lru, -nr_taken);
+ 	__mod_zone_page_state(zone, NR_LRU_BASE + lru, -nr_taken);
  	__mod_zone_page_state(zone, NR_ISOLATED_ANON + file, nr_taken);
- 	spin_unlock_irq(&zone->lru_lock);
- 
-@@ -1751,10 +1744,8 @@ static void shrink_active_list(unsigned long nr_to_scan,
+@@ -1742,7 +1739,7 @@ static void shrink_active_list(unsigned long nr_to_scan,
+ 	 * helps balance scan pressure between file and anonymous pages in
+ 	 * get_scan_ratio.
  	 */
- 	reclaim_stat->recent_rotated[file] += nr_rotated;
+-	reclaim_stat->recent_rotated[file] += nr_rotated;
++	reclaim_stat->recent_rotated[lru] += nr_rotated;
  
--	move_active_pages_to_lru(zone, &l_active, &l_hold,
--						LRU_ACTIVE + file * LRU_FILE);
--	move_active_pages_to_lru(zone, &l_inactive, &l_hold,
--						LRU_BASE   + file * LRU_FILE);
-+	move_active_pages_to_lru(zone, &l_active, &l_hold, lru);
-+	move_active_pages_to_lru(zone, &l_inactive, &l_hold, lru - LRU_ACTIVE);
- 	__mod_zone_page_state(zone, NR_ISOLATED_ANON + file, -nr_taken);
- 	spin_unlock_irq(&zone->lru_lock);
- 
-@@ -1854,11 +1845,11 @@ static unsigned long shrink_list(enum lru_list lru, unsigned long nr_to_scan,
- 
- 	if (is_active_lru(lru)) {
- 		if (inactive_list_is_low(mz, file))
--			shrink_active_list(nr_to_scan, mz, sc, priority, file);
-+			shrink_active_list(nr_to_scan, mz, sc, priority, lru);
- 		return 0;
+ 	move_active_pages_to_lru(zone, &l_active, &l_hold, lru);
+ 	move_active_pages_to_lru(zone, &l_inactive, &l_hold, lru - LRU_ACTIVE);
+@@ -1875,6 +1872,7 @@ static void get_scan_count(struct mem_cgroup_zone *mz, struct scan_control *sc,
+ 	unsigned long anon_prio, file_prio;
+ 	unsigned long ap, fp;
+ 	struct zone_reclaim_stat *reclaim_stat = get_reclaim_stat(mz);
++	unsigned long *recent_rotated = reclaim_stat->recent_rotated;
+ 	u64 fraction[2], denominator;
+ 	enum lru_list lru;
+ 	int noswap = 0;
+@@ -1940,14 +1938,16 @@ static void get_scan_count(struct mem_cgroup_zone *mz, struct scan_control *sc,
+ 	 * anon in [0], file in [1]
+ 	 */
+ 	spin_lock_irq(&mz->zone->lru_lock);
+-	if (unlikely(reclaim_stat->recent_scanned[0] > anon / 4)) {
+-		reclaim_stat->recent_scanned[0] /= 2;
+-		reclaim_stat->recent_rotated[0] /= 2;
++	if (unlikely(recent_rotated[LRU_INACTIVE_ANON] +
++		     recent_rotated[LRU_ACTIVE_ANON] > anon / 4)) {
++		recent_rotated[LRU_INACTIVE_ANON] /= 2;
++		recent_rotated[LRU_ACTIVE_ANON] /= 2;
  	}
  
--	return shrink_inactive_list(nr_to_scan, mz, sc, priority, file);
-+	return shrink_inactive_list(nr_to_scan, mz, sc, priority, lru);
- }
+-	if (unlikely(reclaim_stat->recent_scanned[1] > file / 4)) {
+-		reclaim_stat->recent_scanned[1] /= 2;
+-		reclaim_stat->recent_rotated[1] /= 2;
++	if (unlikely(recent_rotated[LRU_INACTIVE_FILE] +
++		     recent_rotated[LRU_ACTIVE_FILE] > file / 4)) {
++		recent_rotated[LRU_INACTIVE_FILE] /= 2;
++		recent_rotated[LRU_ACTIVE_FILE] /= 2;
+ 	}
  
- static int vmscan_swappiness(struct mem_cgroup_zone *mz,
-@@ -2109,7 +2100,8 @@ restart:
- 	 * rebalance the anon lru active/inactive ratio.
+ 	/*
+@@ -1955,11 +1955,13 @@ static void get_scan_count(struct mem_cgroup_zone *mz, struct scan_control *sc,
+ 	 * proportional to the fraction of recently scanned pages on
+ 	 * each list that were recently referenced and in active use.
  	 */
- 	if (inactive_anon_is_low(mz))
--		shrink_active_list(SWAP_CLUSTER_MAX, mz, sc, priority, 0);
-+		shrink_active_list(SWAP_CLUSTER_MAX, mz,
-+				   sc, priority, LRU_ACTIVE_ANON);
+-	ap = (anon_prio + 1) * (reclaim_stat->recent_scanned[0] + 1);
+-	ap /= reclaim_stat->recent_rotated[0] + 1;
++	ap = (anon_prio + 1) * (recent_rotated[LRU_INACTIVE_ANON] +
++				recent_rotated[LRU_ACTIVE_ANON] + 1);
++	ap /= recent_rotated[LRU_ACTIVE_ANON] + 1;
  
- 	/* reclaim/compaction might need reclaim to continue */
- 	if (should_continue_reclaim(mz, nr_reclaimed,
-@@ -2551,7 +2543,7 @@ static void age_active_anon(struct zone *zone, struct scan_control *sc,
+-	fp = (file_prio + 1) * (reclaim_stat->recent_scanned[1] + 1);
+-	fp /= reclaim_stat->recent_rotated[1] + 1;
++	fp = (file_prio + 1) * (recent_rotated[LRU_INACTIVE_FILE] +
++				recent_rotated[LRU_ACTIVE_FILE] + 1);
++	fp /= recent_rotated[LRU_ACTIVE_FILE] + 1;
+ 	spin_unlock_irq(&mz->zone->lru_lock);
  
- 		if (inactive_anon_is_low(&mz))
- 			shrink_active_list(SWAP_CLUSTER_MAX, &mz,
--					   sc, priority, 0);
-+					   sc, priority, LRU_ACTIVE_ANON);
- 
- 		memcg = mem_cgroup_iter(NULL, memcg, NULL);
- 	} while (memcg);
+ 	fraction[0] = ap;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
