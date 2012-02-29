@@ -1,67 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx167.postini.com [74.125.245.167])
-	by kanga.kvack.org (Postfix) with SMTP id 13E796B004D
-	for <linux-mm@kvack.org>; Wed, 29 Feb 2012 11:52:38 -0500 (EST)
-Message-ID: <4F4E578D.7080202@parallels.com>
-Date: Wed, 29 Feb 2012 13:51:25 -0300
+Received: from psmtp.com (na3sys010amx194.postini.com [74.125.245.194])
+	by kanga.kvack.org (Postfix) with SMTP id 7B2AF6B004D
+	for <linux-mm@kvack.org>; Wed, 29 Feb 2012 11:54:40 -0500 (EST)
+Message-ID: <4F4E5808.2020805@parallels.com>
+Date: Wed, 29 Feb 2012 13:53:28 -0300
 From: Glauber Costa <glommer@parallels.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 02/10] memcg: Uncharge all kmem when deleting a cgroup.
-References: <1330383533-20711-1-git-send-email-ssouhlal@FreeBSD.org> <1330383533-20711-3-git-send-email-ssouhlal@FreeBSD.org> <4F4D2459.3010908@parallels.com> <CABCjUKDYUwR9FsjFW_Ea30zbvFx80-ObuN92_cNcUfGjPqWJiQ@mail.gmail.com>
-In-Reply-To: <CABCjUKDYUwR9FsjFW_Ea30zbvFx80-ObuN92_cNcUfGjPqWJiQ@mail.gmail.com>
+Subject: Re: [PATCH 04/10] memcg: Introduce __GFP_NOACCOUNT.
+References: <1330383533-20711-1-git-send-email-ssouhlal@FreeBSD.org> <1330383533-20711-5-git-send-email-ssouhlal@FreeBSD.org> <20120229150041.62c1feeb.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20120229150041.62c1feeb.kamezawa.hiroyu@jp.fujitsu.com>
 Content-Type: text/plain; charset="ISO-8859-1"; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Suleiman Souhlal <suleiman@google.com>
-Cc: Suleiman Souhlal <ssouhlal@freebsd.org>, cgroups@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, penberg@kernel.org, yinghan@google.com, hughd@google.com, gthelen@google.com, linux-mm@kvack.org, devel@openvz.org
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Suleiman Souhlal <ssouhlal@FreeBSD.org>, cgroups@vger.kernel.org, suleiman@google.com, penberg@kernel.org, yinghan@google.com, hughd@google.com, gthelen@google.com, linux-mm@kvack.org, devel@openvz.org
 
-On 02/28/2012 09:24 PM, Suleiman Souhlal wrote:
-> On Tue, Feb 28, 2012 at 11:00 AM, Glauber Costa<glommer@parallels.com>  wrote:
->> On 02/27/2012 07:58 PM, Suleiman Souhlal wrote:
->>>
->>> A later patch will also use this to move the accounting to the root
->>> cgroup.
->>>
+On 02/29/2012 03:00 AM, KAMEZAWA Hiroyuki wrote:
+> On Mon, 27 Feb 2012 14:58:47 -0800
+> Suleiman Souhlal<ssouhlal@FreeBSD.org>  wrote:
+>
+>> This is used to indicate that we don't want an allocation to be accounted
+>> to the current cgroup.
 >>
->> Suleiman,
->>
->> Did you do any measurements to figure out how long does it take, average,
->> for dangling caches to go away ? Under memory pressure, let's say
+>> Signed-off-by: Suleiman Souhlal<suleiman@google.com>
 >
-> Unfortunately, I don't have any such measurements, other than a very artificial:
+> I don't like this.
 >
-> # mkdir /dev/cgroup/memory/c
-> # echo 1073741824>  /dev/cgroup/memory/c/memory.limit_in_bytes
-> # sync&&  echo 3>  /proc/sys/vm/drop_caches
-> # echo $$>  /dev/cgroup/memory/c/tasks
-> # find />  /dev/null
-> # grep '(c)' /proc/slabinfo | wc -l
-> 42
-> # echo $$>  /dev/cgroup/memory/tasks
-> # rmdir /dev/cgroup/memory/c
-> # grep '(c)dead' /proc/slabinfo | wc -l
-> 42
-> # sleep 60&&  sync&&  for i in `seq 1 1000`; do echo 3>
-> /proc/sys/vm/drop_caches ; done
-> # grep '(c)dead' /proc/slabinfo | wc -l
-> 6
-> # sleep 60&&  grep '(c)dead' /proc/slabinfo | wc -l
-> 5
-> # sleep 60&&  grep '(c)dead' /proc/slabinfo | wc -l
-> 5
+> Please add
 >
-> (Note that this is without any per-memcg shrinking patch applied. With
-> shrinking, things will be a bit better, because deleting the cgroup
-> will force the dentries to get shrunk.)
+> ___GFP_ACCOUNT  "account this allocation to memcg"
 >
-> Some of these dead caches may take a long time to go away, but we
-> haven't found them to be a problem for us, so far.
+> Or make this as slab's flag if this work is for slab allocation.
 >
+> Thanks,
+> -Kame
+>
+>
++1.
 
-Ok. When we start doing shrinking, however, I'd like to see a shrink 
-step being done before we destroy the memcg. This way we can at least 
-reduce the number of pages lying around.
+This is enough to replace the registration I originally proposed, and I 
+do think it'll do us good, despite the churn drawback of having to go 
+patching stuff everywhere.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
