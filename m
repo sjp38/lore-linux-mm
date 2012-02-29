@@ -1,68 +1,106 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx136.postini.com [74.125.245.136])
-	by kanga.kvack.org (Postfix) with SMTP id 9A1996B004A
-	for <linux-mm@kvack.org>; Tue, 28 Feb 2012 19:33:08 -0500 (EST)
-Date: Wed, 29 Feb 2012 08:27:43 +0800
-From: Fengguang Wu <fengguang.wu@intel.com>
-Subject: Re: [PATCH 2/9] memcg: add dirty page accounting infrastructure
-Message-ID: <20120229002743.GA11583@localhost>
-References: <20120228140022.614718843@intel.com>
- <20120228144746.971869014@intel.com>
- <20120228143738.b84d49ff.akpm@linux-foundation.org>
+Received: from psmtp.com (na3sys010amx152.postini.com [74.125.245.152])
+	by kanga.kvack.org (Postfix) with SMTP id BEF016B004A
+	for <linux-mm@kvack.org>; Tue, 28 Feb 2012 19:37:30 -0500 (EST)
+Received: by qafl39 with SMTP id l39so1775551qaf.14
+        for <linux-mm@kvack.org>; Tue, 28 Feb 2012 16:37:29 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20120228143738.b84d49ff.akpm@linux-foundation.org>
+In-Reply-To: <4F4CD231.907@parallels.com>
+References: <1330383533-20711-1-git-send-email-ssouhlal@FreeBSD.org>
+	<1330383533-20711-2-git-send-email-ssouhlal@FreeBSD.org>
+	<4F4CD231.907@parallels.com>
+Date: Tue, 28 Feb 2012 16:37:29 -0800
+Message-ID: <CABCjUKAmM+DaNFuoUP_BiGdQ=SoWOXHijy8jmSPoEozBD-_JhA@mail.gmail.com>
+Subject: Re: [PATCH 01/10] memcg: Kernel memory accounting infrastructure.
+From: Suleiman Souhlal <suleiman@google.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Greg Thelen <gthelen@google.com>, Jan Kara <jack@suse.cz>, Ying Han <yinghan@google.com>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Andrea Righi <andrea@betterlinux.com>, Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Glauber Costa <glommer@parallels.com>
+Cc: Suleiman Souhlal <ssouhlal@freebsd.org>, cgroups@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, penberg@kernel.org, yinghan@google.com, hughd@google.com, gthelen@google.com, linux-mm@kvack.org, devel@openvz.org
 
-On Tue, Feb 28, 2012 at 02:37:38PM -0800, Andrew Morton wrote:
-> On Tue, 28 Feb 2012 22:00:24 +0800
-> Fengguang Wu <fengguang.wu@intel.com> wrote:
-> 
-> > From: Greg Thelen <gthelen@google.com>
-> > 
-> > Add memcg routines to count dirty, writeback, and unstable_NFS pages.
-> > These routines are not yet used by the kernel to count such pages.  A
-> > later change adds kernel calls to these new routines.
-> > 
-> > As inode pages are marked dirty, if the dirtied page's cgroup differs
-> > from the inode's cgroup, then mark the inode shared across several
-> > cgroup.
-> > 
-> > ...
-> >
-> > @@ -1885,6 +1888,44 @@ void mem_cgroup_update_page_stat(struct 
-> >  			ClearPageCgroupFileMapped(pc);
-> >  		idx = MEM_CGROUP_STAT_FILE_MAPPED;
-> >  		break;
-> > +
-> > +	case MEMCG_NR_FILE_DIRTY:
-> > +		/* Use Test{Set,Clear} to only un/charge the memcg once. */
-> > +		if (val > 0) {
-> > +			if (TestSetPageCgroupFileDirty(pc))
-> > +				val = 0;
-> > +		} else {
-> > +			if (!TestClearPageCgroupFileDirty(pc))
-> > +				val = 0;
-> > +		}
-> 
-> Made me scratch my head for a while, but I see now that the `val' arg
-> to (the undocumented) mem_cgroup_update_page_stat() can only ever have
-> the values 1 or -1.  I hope.
+On Tue, Feb 28, 2012 at 5:10 AM, Glauber Costa <glommer@parallels.com> wrot=
+e:
+> On 02/27/2012 07:58 PM, Suleiman Souhlal wrote:
+>>
+>> Enabled with CONFIG_CGROUP_MEM_RES_CTLR_KMEM.
+>>
+>> Adds the following files:
+>> =A0 =A0 - memory.kmem.independent_kmem_limit
+>> =A0 =A0 - memory.kmem.usage_in_bytes
+>> =A0 =A0 - memory.kmem.limit_in_bytes
+>>
+>> Signed-off-by: Suleiman Souhlal<suleiman@google.com>
+>> ---
+>> =A0mm/memcontrol.c | =A0121
+>> ++++++++++++++++++++++++++++++++++++++++++++++++++++++-
+>> =A01 files changed, 120 insertions(+), 1 deletions(-)
+>>
+>> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+>> index 228d646..11e31d6 100644
+>> --- a/mm/memcontrol.c
+>> +++ b/mm/memcontrol.c
+>> @@ -235,6 +235,10 @@ struct mem_cgroup {
+>> =A0 =A0 =A0 =A0 */
+>> =A0 =A0 =A0 =A0struct res_counter memsw;
+>> =A0 =A0 =A0 =A0/*
+>> + =A0 =A0 =A0 =A0* the counter to account for kernel memory usage.
+>> + =A0 =A0 =A0 =A0*/
+>> + =A0 =A0 =A0 struct res_counter kmem_bytes;
+>> + =A0 =A0 =A0 /*
+>
+> Not terribly important, but I find this name inconsistent. I like
+> just kmem better.
 
-Yeah, I see it's called this way:
+I will change it.
 
-   3    151  /c/linux/include/linux/memcontrol.h <<mem_cgroup_inc_page_stat>>
-             mem_cgroup_update_page_stat(page, idx, 1);
+>> =A0 =A0 =A0 =A0 * Per cgroup active and inactive list, similar to the
+>> =A0 =A0 =A0 =A0 * per zone LRU lists.
+>> =A0 =A0 =A0 =A0 */
+>> @@ -293,6 +297,7 @@ struct mem_cgroup {
+>> =A0#ifdef CONFIG_INET
+>> =A0 =A0 =A0 =A0struct tcp_memcontrol tcp_mem;
+>> =A0#endif
+>> + =A0 =A0 =A0 int independent_kmem_limit;
+>> =A0};
+>
+> bool ?
+>
+> But that said, we are now approaching some 4 or 5 selectables in the memc=
+g
+> structure. How about we turn them into flags?
 
-   4    157  /c/linux/include/linux/memcontrol.h <<mem_cgroup_dec_page_stat>>
-             mem_cgroup_update_page_stat(page, idx, -1);
+The only other selectable (that is a boolean) I see is use_hierarchy.
+Or do you also mean oom_lock and memsw_is_minimum?
 
-Thanks,
-Fengguang
+Either way, I'll try to make them into flags.
+
+>> @@ -4587,6 +4647,10 @@ static int register_kmem_files(struct cgroup *con=
+t,
+>> struct cgroup_subsys *ss)
+>> =A0static void kmem_cgroup_destroy(struct cgroup_subsys *ss,
+>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0struct cg=
+roup *cont)
+>> =A0{
+>> + =A0 =A0 =A0 struct mem_cgroup *memcg;
+>> +
+>> + =A0 =A0 =A0 memcg =3D mem_cgroup_from_cont(cont);
+>> + =A0 =A0 =A0 BUG_ON(res_counter_read_u64(&memcg->kmem_bytes, RES_USAGE)=
+ !=3D 0);
+>
+> That does not seem to make sense, specially if you are doing lazy creatio=
+n.
+> What happens if you create a cgroup, don't put any tasks into it (therefo=
+re,
+> usage =3D=3D 0), and then destroy it right away?
+>
+> Or am I missing something?
+
+The BUG_ON will only trigger if there is any remaining kernel memory,
+so the situation you describe should not be a problem.
+
+-- Suleiman
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
