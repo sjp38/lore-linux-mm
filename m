@@ -1,166 +1,119 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx102.postini.com [74.125.245.102])
-	by kanga.kvack.org (Postfix) with SMTP id 880446B002C
-	for <linux-mm@kvack.org>; Wed, 29 Feb 2012 17:05:01 -0500 (EST)
-Date: Wed, 29 Feb 2012 14:04:58 -0800
+Received: from psmtp.com (na3sys010amx165.postini.com [74.125.245.165])
+	by kanga.kvack.org (Postfix) with SMTP id 619DB6B002C
+	for <linux-mm@kvack.org>; Wed, 29 Feb 2012 18:01:48 -0500 (EST)
+Date: Wed, 29 Feb 2012 15:01:46 -0800
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 3.3] memcg: fix deadlock by inverting lrucare nesting
-Message-Id: <20120229140458.c53352db.akpm@linux-foundation.org>
-In-Reply-To: <alpine.LSU.2.00.1202282121160.4875@eggly.anvils>
-References: <alpine.LSU.2.00.1202282121160.4875@eggly.anvils>
+Subject: Re: [PATCH] mm: extend prefault helpers to fault in more than
+ PAGE_SIZE
+Message-Id: <20120229150146.2cc64fac.akpm@linux-foundation.org>
+In-Reply-To: <1330524211-2698-1-git-send-email-daniel.vetter@ffwll.ch>
+References: <20120224124003.93780408.akpm@linux-foundation.org>
+	<1330524211-2698-1-git-send-email-daniel.vetter@ffwll.ch>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, Konstantin Khlebnikov <khlebnikov@openvz.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Daniel Vetter <daniel.vetter@ffwll.ch>
+Cc: Intel Graphics Development <intel-gfx@lists.freedesktop.org>, DRI Development <dri-devel@lists.freedesktop.org>, LKML <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>
 
-On Tue, 28 Feb 2012 21:25:02 -0800 (PST)
-Hugh Dickins <hughd@google.com> wrote:
+On Wed, 29 Feb 2012 15:03:31 +0100
+Daniel Vetter <daniel.vetter@ffwll.ch> wrote:
 
-> We have forgotten the rules of lock nesting: the irq-safe ones must be
-> taken inside the non-irq-safe ones, otherwise we are open to deadlock:
+> drm/i915 wants to read/write more than one page in its fastpath
+> and hence needs to prefault more than PAGE_SIZE bytes.
 > 
-> CPU0                          CPU1
-> ----                          ----
-> lock(&(&pc->lock)->rlock);
->                               local_irq_disable();
->                               lock(&(&zone->lru_lock)->rlock);
->                               lock(&(&pc->lock)->rlock);
-> <Interrupt>
-> lock(&(&zone->lru_lock)->rlock);
+> I've checked the callsites and they all already clamp size when
+> calling fault_in_pages_* to the same as for the subsequent
+> __copy_to|from_user and hence don't rely on the implicit clamping
+> to PAGE_SIZE.
 > 
-> To check a different locking issue, I happened to add a spin_lock to
-> memcg's bit_spin_lock in lock_page_cgroup(), and lockdep very quickly
-> complained about __mem_cgroup_commit_charge_lrucare() (on CPU1 above).
+> Also kill a copy&pasted spurious space in both functions while at it.
 > 
-> So delete __mem_cgroup_commit_charge_lrucare(), passing a bool lrucare
-> to __mem_cgroup_commit_charge() instead, taking zone->lru_lock under
-> lock_page_cgroup() in the lrucare case.
+> v2: As suggested by Andrew Morton, add a multipage parameter to both
+> functions to avoid the additional branch for the pagemap.c hotpath.
+> My gcc 4.6 here seems to dtrt and indeed reap these branches where not
+> needed.
 > 
-> The original was using spin_lock_irqsave, but we'd be in more trouble
-> if it were ever called at interrupt time: unconditional _irq is enough.
-> And ClearPageLRU before del from lru, SetPageLRU before add to lru: no
-> strong reason, but that is the ordering used consistently elsewhere.
 
-This patch makes rather a mess of "memcg: remove PCG_CACHE page_cgroup
-flag".
+I don't think this produced a very good result :(
 
---- mm/memcontrol.c~memcg-remove-pcg_cache-page_cgroup-flag
-+++ mm/memcontrol.c
-@@ -2410,6 +2414,8 @@
- 				       struct page_cgroup *pc,
- 				       enum charge_type ctype)
- {
-+	bool anon;
-+
- 	lock_page_cgroup(pc);
- 	if (unlikely(PageCgroupUsed(pc))) {
- 		unlock_page_cgroup(pc);
-@@ -2429,21 +2435,14 @@
- 	 * See mem_cgroup_add_lru_list(), etc.
-  	 */
- 	smp_wmb();
--	switch (ctype) {
--	case MEM_CGROUP_CHARGE_TYPE_CACHE:
--	case MEM_CGROUP_CHARGE_TYPE_SHMEM:
--		SetPageCgroupCache(pc);
--		SetPageCgroupUsed(pc);
--		break;
--	case MEM_CGROUP_CHARGE_TYPE_MAPPED:
--		ClearPageCgroupCache(pc);
--		SetPageCgroupUsed(pc);
--		break;
--	default:
--		break;
--	}
- 
--	mem_cgroup_charge_statistics(memcg, PageCgroupCache(pc), nr_pages);
-+	SetPageCgroupUsed(pc);
-+	if (ctype == MEM_CGROUP_CHARGE_TYPE_MAPPED)
-+		anon = true;
-+	else
-+		anon = false;
-+
-+	mem_cgroup_charge_statistics(memcg, anon, nr_pages);
- 	unlock_page_cgroup(pc);
- 	WARN_ON_ONCE(PageLRU(page));
- 	/*
+>
+> ...
+>
+> -static inline int fault_in_pages_writeable(char __user *uaddr, int size)
+> +static inline int fault_in_pages_writeable(char __user *uaddr, int size,
+> +					   bool multipage)
+>  {
+>  	int ret;
+> +	char __user *end = uaddr + size - 1;
+>  
+>  	if (unlikely(size == 0))
+>  		return 0;
+> @@ -416,36 +419,46 @@ static inline int fault_in_pages_writeable(char __user *uaddr, int size)
+>  	 * Writing zeroes into userspace here is OK, because we know that if
+>  	 * the zero gets there, we'll be overwriting it.
+>  	 */
+> -	ret = __put_user(0, uaddr);
+> -	if (ret == 0) {
+> -		char __user *end = uaddr + size - 1;
+> +	do {
+> +		ret = __put_user(0, uaddr);
+> +		if (ret != 0)
+> +			return ret;
+> +		uaddr += PAGE_SIZE;
+> +	} while (multipage && uaddr <= end);
+>  
+> +	if (ret == 0) {
+>  		/*
+>  		 * If the page was already mapped, this will get a cache miss
+>  		 * for sure, so try to avoid doing it.
+>  		 */
+> -		if (((unsigned long)uaddr & PAGE_MASK) !=
+> +		if (((unsigned long)uaddr & PAGE_MASK) ==
+>  				((unsigned long)end & PAGE_MASK))
+> -		 	ret = __put_user(0, end);
+> +			ret = __put_user(0, end);
+>  	}
+>  	return ret;
+>  }
 
-I did it this way:
+One effect of this change for the filemap.c callsite is that `uaddr'
+now gets incremented by PAGE_SIZE.  That happens to not break anything
+because we then mask `uaddr' with PAGE_MASK, and if gcc were really
+smart, it could remove that addition.  But it's a bit ugly.
 
-static void __mem_cgroup_commit_charge(struct mem_cgroup *memcg,
-				       struct page *page,
-				       unsigned int nr_pages,
-				       struct page_cgroup *pc,
-				       enum charge_type ctype,
-				       bool lrucare)
+Ideally the patch would have no effect upon filemap.o size, but with an
+allmodconfig config I'm seeing
+
+   text    data     bss     dec     hex filename
+  22876     118    7344   30338    7682 mm/filemap.o	(before)
+  22925     118    7392   30435    76e3 mm/filemap.o	(after)
+
+so we are adding read()/write() overhead, and bss mysteriously got larger.
+
+Can we improve on this?  Even if it's some dumb
+
+static inline int fault_in_pages_writeable(char __user *uaddr, int size,
+					   bool multipage)
 {
-	struct zone *uninitialized_var(zone);
-	bool was_on_lru = false;
-	bool anon;
-
-	lock_page_cgroup(pc);
-	if (unlikely(PageCgroupUsed(pc))) {
-		unlock_page_cgroup(pc);
-		__mem_cgroup_cancel_charge(memcg, nr_pages);
-		return;
+	if (multipage) {
+		do-this
+	} else {
+		do-that
 	}
-	/*
-	 * we don't need page_cgroup_lock about tail pages, becase they are not
-	 * accessed by any other context at this point.
-	 */
-
-	/*
-	 * In some cases, SwapCache and FUSE(splice_buf->radixtree), the page
-	 * may already be on some other mem_cgroup's LRU.  Take care of it.
-	 */
-	if (lrucare) {
-		zone = page_zone(page);
-		spin_lock_irq(&zone->lru_lock);
-		if (PageLRU(page)) {
-			ClearPageLRU(page);
-			del_page_from_lru_list(zone, page, page_lru(page));
-			was_on_lru = true;
-		}
-	}
-
-	pc->mem_cgroup = memcg;
-	/*
-	 * We access a page_cgroup asynchronously without lock_page_cgroup().
-	 * Especially when a page_cgroup is taken from a page, pc->mem_cgroup
-	 * is accessed after testing USED bit. To make pc->mem_cgroup visible
-	 * before USED bit, we need memory barrier here.
-	 * See mem_cgroup_add_lru_list(), etc.
- 	 */
-	smp_wmb();
-	SetPageCgroupUsed(pc);
-
-	if (lrucare) {
-		if (was_on_lru) {
-			VM_BUG_ON(PageLRU(page));
-			SetPageLRU(page);
-			add_page_to_lru_list(zone, page, page_lru(page));
-		}
-		spin_unlock_irq(&zone->lru_lock);
-	}
-
-	if (ctype == MEM_CGROUP_CHARGE_TYPE_MAPPED)
-		anon = true;
-	else
-		anon = false;
-
-	mem_cgroup_charge_statistics(memcg, anon, nr_pages);
-	unlock_page_cgroup(pc);
-
-	/*
-	 * "charge_statistics" updated event counter. Then, check it.
-	 * Insert ancestor (and ancestor's ancestors), to softlimit RB-tree.
-	 * if they exceeds softlimit.
-	 */
-	memcg_check_events(memcg, page);
 }
+
+the code duplication between do-this and do-that is regrettable, but at
+least it's all in the same place in the same file, so we won't
+accidentally introduce skew later on.
+
+Alternatively, add a separate fault_in_multi_pages_writeable() to
+pagemap.h.  I have a bad feeling this is what your original patch did!
+
+(But we *should* be able to make this work!  Why did this version of
+the patch go so wrong?)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
