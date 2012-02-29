@@ -1,180 +1,98 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx102.postini.com [74.125.245.102])
-	by kanga.kvack.org (Postfix) with SMTP id 707736B004A
-	for <linux-mm@kvack.org>; Wed, 29 Feb 2012 13:46:24 -0500 (EST)
-Date: Wed, 29 Feb 2012 19:45:53 +0100
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH v2] bootmem/sparsemem: remove limit constraint in
- alloc_bootmem_section
-Message-ID: <20120229184553.GB1673@cmpxchg.org>
-References: <1330112038-18951-1-git-send-email-nacc@us.ibm.com>
- <20120228154732.GE1199@suse.de>
- <20120229181233.GF5136@linux.vnet.ibm.com>
+Received: from psmtp.com (na3sys010amx161.postini.com [74.125.245.161])
+	by kanga.kvack.org (Postfix) with SMTP id D97496B004A
+	for <linux-mm@kvack.org>; Wed, 29 Feb 2012 13:48:21 -0500 (EST)
+Date: Wed, 29 Feb 2012 15:45:29 -0300
+From: Rafael Aquini <aquini@redhat.com>
+Subject: Re: [PATCH] mm: SLAB Out-of-memory diagnostics
+Message-ID: <20120229184528.GA8034@t510.redhat.com>
+References: <20120229032715.GA23758@t510.redhat.com>
+ <alpine.LFD.2.02.1202290934020.4850@tux.localdomain>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20120229181233.GF5136@linux.vnet.ibm.com>
+In-Reply-To: <alpine.LFD.2.02.1202290934020.4850@tux.localdomain>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Nishanth Aravamudan <nacc@linux.vnet.ibm.com>
-Cc: Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <haveblue@us.ibm.com>, Anton Blanchard <anton@au1.ibm.com>, Paul Mackerras <paulus@samba.org>, Ben Herrenschmidt <benh@kernel.crashing.org>, Robert Jennings <rcj@linux.vnet.ibm.com>, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org
+To: Pekka Enberg <penberg@kernel.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Randy Dunlap <rdunlap@xenotime.net>, Christoph Lameter <cl@linux-foundation.org>, Matt Mackall <mpm@selenic.com>, Rik van Riel <riel@redhat.com>, Josef Bacik <josef@redhat.com>, David Rientjes <rientjes@google.com>
 
-On Wed, Feb 29, 2012 at 10:12:33AM -0800, Nishanth Aravamudan wrote:
-> On 28.02.2012 [15:47:32 +0000], Mel Gorman wrote:
-> > On Fri, Feb 24, 2012 at 11:33:58AM -0800, Nishanth Aravamudan wrote:
-> > > While testing AMS (Active Memory Sharing) / CMO (Cooperative Memory
-> > > Overcommit) on powerpc, we tripped the following:
-> > > 
-> > > kernel BUG at mm/bootmem.c:483!
-> > > cpu 0x0: Vector: 700 (Program Check) at [c000000000c03940]
-> > >     pc: c000000000a62bd8: .alloc_bootmem_core+0x90/0x39c
-> > >     lr: c000000000a64bcc: .sparse_early_usemaps_alloc_node+0x84/0x29c
-> > >     sp: c000000000c03bc0
-> > >    msr: 8000000000021032
-> > >   current = 0xc000000000b0cce0
-> > >   paca    = 0xc000000001d80000
-> > >     pid   = 0, comm = swapper
-> > > kernel BUG at mm/bootmem.c:483!
-> > > enter ? for help
-> > > [c000000000c03c80] c000000000a64bcc
-> > > .sparse_early_usemaps_alloc_node+0x84/0x29c
-> > > [c000000000c03d50] c000000000a64f10 .sparse_init+0x12c/0x28c
-> > > [c000000000c03e20] c000000000a474f4 .setup_arch+0x20c/0x294
-> > > [c000000000c03ee0] c000000000a4079c .start_kernel+0xb4/0x460
-> > > [c000000000c03f90] c000000000009670 .start_here_common+0x1c/0x2c
-> > > 
-> > > This is
-> > > 
-> > >         BUG_ON(limit && goal + size > limit);
-> > > 
-> > > and after some debugging, it seems that
-> > > 
-> > > 	goal = 0x7ffff000000
-> > > 	limit = 0x80000000000
-> > > 
-> > > and sparse_early_usemaps_alloc_node ->
-> > > sparse_early_usemaps_alloc_pgdat_section -> alloc_bootmem_section calls
-> > > 
-> > > 	return alloc_bootmem_section(usemap_size() * count, section_nr);
-> > > 
-> > > This is on a system with 8TB available via the AMS pool, and as a quirk
-> > > of AMS in firmware, all of that memory shows up in node 0. So, we end up
-> > > with an allocation that will fail the goal/limit constraints. In theory,
-> > > we could "fall-back" to alloc_bootmem_node() in
-> > > sparse_early_usemaps_alloc_node(), but since we actually have HOTREMOVE
-> > > defined, we'll BUG_ON() instead. A simple solution appears to be to
-> > > disable the limit check if the size of the allocation in
-> > > alloc_bootmem_secition exceeds the section size.
-> > > 
-> > > Signed-off-by: Nishanth Aravamudan <nacc@us.ibm.com>
-> > > Cc: Dave Hansen <haveblue@us.ibm.com>
-> > > Cc: Anton Blanchard <anton@au1.ibm.com>
-> > > Cc: Paul Mackerras <paulus@samba.org>
-> > > Cc: Ben Herrenschmidt <benh@kernel.crashing.org>
-> > > Cc: Robert Jennings <rcj@linux.vnet.ibm.com>
-> > > Cc: linux-mm@kvack.org
-> > > Cc: linuxppc-dev@lists.ozlabs.org
-> > > ---
-> > >  include/linux/mmzone.h |    2 ++
-> > >  mm/bootmem.c           |    5 ++++-
-> > >  2 files changed, 6 insertions(+), 1 deletions(-)
-> > > 
-> > > diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-> > > index 650ba2f..4176834 100644
-> > > --- a/include/linux/mmzone.h
-> > > +++ b/include/linux/mmzone.h
-> > > @@ -967,6 +967,8 @@ static inline unsigned long early_pfn_to_nid(unsigned long pfn)
-> > >   * PA_SECTION_SHIFT		physical address to/from section number
-> > >   * PFN_SECTION_SHIFT		pfn to/from section number
-> > >   */
-> > > +#define BYTES_PER_SECTION	(1UL << SECTION_SIZE_BITS)
-> > > +
-> > >  #define SECTIONS_SHIFT		(MAX_PHYSMEM_BITS - SECTION_SIZE_BITS)
-> > >  
-> > >  #define PA_SECTION_SHIFT	(SECTION_SIZE_BITS)
-> > > diff --git a/mm/bootmem.c b/mm/bootmem.c
-> > > index 668e94d..5cbbc76 100644
-> > > --- a/mm/bootmem.c
-> > > +++ b/mm/bootmem.c
-> > > @@ -770,7 +770,10 @@ void * __init alloc_bootmem_section(unsigned long size,
-> > >  
-> > >  	pfn = section_nr_to_pfn(section_nr);
-> > >  	goal = pfn << PAGE_SHIFT;
-> > > -	limit = section_nr_to_pfn(section_nr + 1) << PAGE_SHIFT;
-> > > +	if (size > BYTES_PER_SECTION)
-> > > +		limit = 0;
-> > > +	else
-> > > +		limit = section_nr_to_pfn(section_nr + 1) << PAGE_SHIFT;
+On Wed, Feb 29, 2012 at 09:37:23AM +0200, Pekka Enberg wrote:
+> On Wed, 29 Feb 2012, Rafael Aquini wrote:
+> > Following the example at mm/slub.c, add out-of-memory diagnostics to the SLAB
+> > allocator to help on debugging OOM conditions. This patch also adds a new
+> > sysctl, 'oom_dump_slabs_forced', that overrides the effect of __GFP_NOWARN page
+> > allocation flag and forces the kernel to report every slab allocation failure.
 > > 
-> > As it's ok to spill the allocation over to an adjacent section, why not
-> > just make limit==0 unconditionally. That would avoid defining
-> > BYTES_PER_SECTION.
+> > An example print out looks like this:
+> > 
+> >   <snip page allocator out-of-memory message>
+> >   SLAB: Unable to allocate memory on node 0 (gfp=0x11200)
+> >      cache: bio-0, object size: 192, order: 0
+> >      node0: slabs: 3/3, objs: 60/60, free: 0
+> > 
+> > Signed-off-by: Rafael Aquini <aquini@redhat.com>
+> > ---
+> >  Documentation/sysctl/vm.txt |   23 ++++++++++++++++++
+> >  include/linux/slab.h        |    2 +
+> >  kernel/sysctl.c             |    9 +++++++
+> >  mm/slab.c                   |   55 ++++++++++++++++++++++++++++++++++++++++++-
+> >  4 files changed, 88 insertions(+), 1 deletions(-)
 > 
-> Something like this?
-> 
-> Andrew, presuming Mel & Johannes give their, ack this should presumably
-> supersede the patch you pulled into -mm.
-> 
-> Thanks,
-> Nish
-> 
-> -------
-> 
-> While testing AMS (Active Memory Sharing) / CMO (Cooperative Memory
-> Overcommit) on powerpc, we tripped the following:
-> 
-> kernel BUG at mm/bootmem.c:483!
-> cpu 0x0: Vector: 700 (Program Check) at [c000000000c03940]
->     pc: c000000000a62bd8: .alloc_bootmem_core+0x90/0x39c
->     lr: c000000000a64bcc: .sparse_early_usemaps_alloc_node+0x84/0x29c
->     sp: c000000000c03bc0
->    msr: 8000000000021032
->   current = 0xc000000000b0cce0
->   paca    = 0xc000000001d80000
->     pid   = 0, comm = swapper
-> kernel BUG at mm/bootmem.c:483!
-> enter ? for help
-> [c000000000c03c80] c000000000a64bcc
-> .sparse_early_usemaps_alloc_node+0x84/0x29c
-> [c000000000c03d50] c000000000a64f10 .sparse_init+0x12c/0x28c
-> [c000000000c03e20] c000000000a474f4 .setup_arch+0x20c/0x294
-> [c000000000c03ee0] c000000000a4079c .start_kernel+0xb4/0x460
-> [c000000000c03f90] c000000000009670 .start_here_common+0x1c/0x2c
-> 
-> This is
-> 
->         BUG_ON(limit && goal + size > limit);
-> 
-> and after some debugging, it seems that
-> 
-> 	goal = 0x7ffff000000
-> 	limit = 0x80000000000
-> 
-> and sparse_early_usemaps_alloc_node ->
-> sparse_early_usemaps_alloc_pgdat_section calls
-> 
-> 	return alloc_bootmem_section(usemap_size() * count, section_nr);
-> 
-> This is on a system with 8TB available via the AMS pool, and as a quirk
-> of AMS in firmware, all of that memory shows up in node 0. So, we end up
-> with an allocation that will fail the goal/limit constraints. In theory,
-> we could "fall-back" to alloc_bootmem_node() in
-> sparse_early_usemaps_alloc_node(), but since we actually have HOTREMOVE
-> defined, we'll BUG_ON() instead. A simple solution appears to be to
-> unconditionally remove the limit condition in alloc_bootmem_section,
-> meaning allocations are allowed to cross section boundaries (necessary
-> for systems of this size).
-> 
-> Johannes Weiner pointed out that if alloc_bootmem_section() no longer
-> guarantees section-locality, we need check_usemap_section_nr() to print
-> possible cross-dependencies between node descriptors and the usemaps
-> allocated through it. That makes the two loops in
-> sparse_early_usemaps_alloc_node() identical, so re-factor the code a
-> bit.
-> 
-> Signed-off-by: Nishanth Aravamudan <nacc@us.ibm.com>
+> No SLUB support for this?
 
-Acked-by: Johannes Weiner <hannes@cmpxchg.org>
+SLUB already has its version of slab_out_of_memory. I did not propose the sysctl
+knob for slub, however. (If we find the knob useful, I can propose its extention
+to slub, later).
+
+> 
+> > diff --git a/Documentation/sysctl/vm.txt b/Documentation/sysctl/vm.txt
+> > index 96f0ee8..75bdf91 100644
+> > --- a/Documentation/sysctl/vm.txt
+> > +++ b/Documentation/sysctl/vm.txt
+> > @@ -498,6 +498,29 @@ this is causing problems for your system/application.
+> >  
+> >  ==============================================================
+> >  
+> > +oom_dump_slabs_forced
+> > +
+> > +Overrides the effects of __GFP_NOWARN page allocation flag, thus forcing
+> > +the system to print warnings about every allocation failure for the
+> > +slab allocator, and helping on debugging certain OOM conditions.
+> > +The print out is pretty similar, and complements data that is reported by
+> > +the page allocator out-of-memory warning:
+> > +
+> > +<snip page allocator out-of-memory message>
+> > +  SLAB: Unable to allocate memory on node 0 (gfp=0x11200)
+> > +     cache: bio-0, object size: 192, order: 0
+> > +     node0: slabs: 3/3, objs: 60/60, free: 0
+> > +
+> > +If this is set to zero, the default behavior is observed and warnings will only
+> > +be printed out for allocation requests that didn't set the __GFP_NOWARN flag.
+> > +
+> > +When set to non-zero, this information is shown whenever the allocator finds
+> > +itself failing to grant a request, regardless the __GFP_NOWARN flag status.
+> > +
+> > +The default value is 0 (disabled).
+> > +
+> > +==============================================================
+> > +
+> 
+> Why do you want to add a sysctl for this? That'd be an ABI that we need to 
+> keep around forever.
+> 
+> Is there any reason we shouldn't just enable this unconditionally?
+
+I was afraid of this code becoming a source of garrulous and scaring warnings
+by just ignoring __GFP_NOWARN flag, however, I was also concerned with the
+'hiding' effect the flag imposes for certain requests, specially when one is
+interested in checking  all those requests out. Therefore, I thought a sysctl
+knob would be the best option to control the __GFP_NOWARN overriding behavior of
+slab_out_of_memory printouts without messing with the allocation flags
+themselves, as well as not imposing the need for reboots to start checking all
+slab allocation failures out.
+
+  Rafael
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
