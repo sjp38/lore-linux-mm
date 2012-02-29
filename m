@@ -1,75 +1,98 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx140.postini.com [74.125.245.140])
-	by kanga.kvack.org (Postfix) with SMTP id C8C666B004A
-	for <linux-mm@kvack.org>; Wed, 29 Feb 2012 14:43:11 -0500 (EST)
-Date: Wed, 29 Feb 2012 20:43:04 +0100
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH next] memcg: remove PCG_CACHE page_cgroup flag fix
-Message-ID: <20120229194304.GF1673@cmpxchg.org>
-References: <alpine.LSU.2.00.1202282121160.4875@eggly.anvils>
- <alpine.LSU.2.00.1202282128500.4875@eggly.anvils>
+Received: from psmtp.com (na3sys010amx154.postini.com [74.125.245.154])
+	by kanga.kvack.org (Postfix) with SMTP id 45EE86B004D
+	for <linux-mm@kvack.org>; Wed, 29 Feb 2012 15:10:35 -0500 (EST)
+Date: Wed, 29 Feb 2012 15:16:26 -0300
+From: Rafael Aquini <aquini@redhat.com>
+Subject: Re: [PATCH] mm: SLAB Out-of-memory diagnostics
+Message-ID: <20120229181625.GA7426@t510.redhat.com>
+References: <20120229032715.GA23758@t510.redhat.com>
+ <alpine.LFD.2.02.1202290934020.4850@tux.localdomain>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <alpine.LSU.2.00.1202282128500.4875@eggly.anvils>
+In-Reply-To: <alpine.LFD.2.02.1202290934020.4850@tux.localdomain>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Konstantin Khlebnikov <khlebnikov@openvz.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Pekka Enberg <penberg@kernel.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Randy Dunlap <rdunlap@xenotime.net>, Christoph Lameter <cl@linux-foundation.org>, Matt Mackall <mpm@selenic.com>, Rik van Riel <riel@redhat.com>, Josef Bacik <josef@redhat.com>, David Rientjes <rientjes@google.com>
 
-On Tue, Feb 28, 2012 at 09:30:17PM -0800, Hugh Dickins wrote:
-> Swapping tmpfs loads show absurd wrapped rss and wrong cache in memcg's
-> memory.stat statistics: __mem_cgroup_uncharge_common() is failing to
-> distinguish the anon and tmpfs cases.
+On Wed, Feb 29, 2012 at 09:37:23AM +0200, Pekka Enberg wrote:
+> On Wed, 29 Feb 2012, Rafael Aquini wrote:
+> > Following the example at mm/slub.c, add out-of-memory diagnostics to the SLAB
+> > allocator to help on debugging OOM conditions. This patch also adds a new
+> > sysctl, 'oom_dump_slabs_forced', that overrides the effect of __GFP_NOWARN page
+> > allocation flag and forces the kernel to report every slab allocation failure.
+> > 
+> > An example print out looks like this:
+> > 
+> >   <snip page allocator out-of-memory message>
+> >   SLAB: Unable to allocate memory on node 0 (gfp=0x11200)
+> >      cache: bio-0, object size: 192, order: 0
+> >      node0: slabs: 3/3, objs: 60/60, free: 0
+> > 
+> > Signed-off-by: Rafael Aquini <aquini@redhat.com>
+> > ---
+> >  Documentation/sysctl/vm.txt |   23 ++++++++++++++++++
+> >  include/linux/slab.h        |    2 +
+> >  kernel/sysctl.c             |    9 +++++++
+> >  mm/slab.c                   |   55 ++++++++++++++++++++++++++++++++++++++++++-
+> >  4 files changed, 88 insertions(+), 1 deletions(-)
 > 
-> Mostly we can decide between them by PageAnon, which is reliable once
-> it has been set; but there are several callers who need to uncharge a
-> MEM_CGROUP_CHARGE_TYPE_MAPPED page before it was fully initialized,
-> so allow that case to override the PageAnon decision.
+> No SLUB support for this?
 > 
-> Signed-off-by: Hugh Dickins <hughd@google.com>
-> ---
-> 
->  mm/memcontrol.c |    7 ++++---
->  1 file changed, 4 insertions(+), 3 deletions(-)
-> 
-> --- 3.3-rc5-next/mm/memcontrol.c	2012-02-25 10:06:52.496035568 -0800
-> +++ linux/mm/memcontrol.c	2012-02-26 10:44:32.146365398 -0800
-> @@ -2944,13 +2944,16 @@ __mem_cgroup_uncharge_common(struct page
->  	if (!PageCgroupUsed(pc))
->  		goto unlock_out;
->  
-> +	anon = PageAnon(page);
-> +
->  	switch (ctype) {
->  	case MEM_CGROUP_CHARGE_TYPE_MAPPED:
-> +		anon = true;
-> +		/* fallthrough */
 
-If you don't mind, could you add a small comment on why this is the
-exception where we don't trust page->mapping?
+SLUB already has its version of slab_out_of_memory. I did not propose the sysctl
+knob for slub, however. (If we find the knob useful, I can propose its extention
+to slub, later). 
 
-Other than that,
-Acked-by: Johannes Weiner <hannes@cmpxchg.org>
+> > diff --git a/Documentation/sysctl/vm.txt b/Documentation/sysctl/vm.txt
+> > index 96f0ee8..75bdf91 100644
+> > --- a/Documentation/sysctl/vm.txt
+> > +++ b/Documentation/sysctl/vm.txt
+> > @@ -498,6 +498,29 @@ this is causing problems for your system/application.
+> >  
+> >  ==============================================================
+> >  
+> > +oom_dump_slabs_forced
+> > +
+> > +Overrides the effects of __GFP_NOWARN page allocation flag, thus forcing
+> > +the system to print warnings about every allocation failure for the
+> > +slab allocator, and helping on debugging certain OOM conditions.
+> > +The print out is pretty similar, and complements data that is reported by
+> > +the page allocator out-of-memory warning:
+> > +
+> > +<snip page allocator out-of-memory message>
+> > +  SLAB: Unable to allocate memory on node 0 (gfp=0x11200)
+> > +     cache: bio-0, object size: 192, order: 0
+> > +     node0: slabs: 3/3, objs: 60/60, free: 0
+> > +
+> > +If this is set to zero, the default behavior is observed and warnings will only
+> > +be printed out for allocation requests that didn't set the __GFP_NOWARN flag.
+> > +
+> > +When set to non-zero, this information is shown whenever the allocator finds
+> > +itself failing to grant a request, regardless the __GFP_NOWARN flag status.
+> > +
+> > +The default value is 0 (disabled).
+> > +
+> > +==============================================================
+> > +
+> 
+> Why do you want to add a sysctl for this? That'd be an ABI that we need to 
+> keep around forever.
+> 
+> Is there any reason we shouldn't just enable this unconditionally?
 
->  	case MEM_CGROUP_CHARGE_TYPE_DROP:
->  		/* See mem_cgroup_prepare_migration() */
->  		if (page_mapped(page) || PageCgroupMigration(pc))
->  			goto unlock_out;
-> -		anon = true;
->  		break;
->  	case MEM_CGROUP_CHARGE_TYPE_SWAPOUT:
->  		if (!PageAnon(page)) {	/* Shared memory */
-> @@ -2958,10 +2961,8 @@ __mem_cgroup_uncharge_common(struct page
->  				goto unlock_out;
->  		} else if (page_mapped(page)) /* Anon */
->  				goto unlock_out;
-> -		anon = true;
->  		break;
->  	default:
-> -		anon = false;
->  		break;
->  	}
+I was afraid of this code becoming a source of garrulous and scaring warnings
+by just ignoring __GFP_NOWARN flag, however, I was also concerned with the
+'hiding' effect the flag imposes for certain requests, specially when one is
+interested in checking  all those requests out. Therefore, I thought a sysctl
+knob would be the best option to control the __GFP_NOWARN overriding behavior of
+slab_out_of_memory printouts without messing with the allocation flags
+themselves, as well as not imposing the need for reboots to start checking all
+slab allocation failures out.
+
+ Rafael
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
