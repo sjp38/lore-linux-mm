@@ -1,70 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx187.postini.com [74.125.245.187])
-	by kanga.kvack.org (Postfix) with SMTP id 0BEC76B004A
-	for <linux-mm@kvack.org>; Wed, 29 Feb 2012 12:31:56 -0500 (EST)
-Message-ID: <4F4E60BB.9030007@parallels.com>
-Date: Wed, 29 Feb 2012 14:30:35 -0300
-From: Glauber Costa <glommer@parallels.com>
+Received: from psmtp.com (na3sys010amx108.postini.com [74.125.245.108])
+	by kanga.kvack.org (Postfix) with SMTP id 5606E6B004A
+	for <linux-mm@kvack.org>; Wed, 29 Feb 2012 12:43:34 -0500 (EST)
+From: ebiederm@xmission.com (Eric W. Biederman)
+References: <1329399979-3647-1-git-send-email-jack@suse.cz>
+	<1329399979-3647-10-git-send-email-jack@suse.cz>
+	<1329419084.3121.39.camel@doink> <20120220110006.GA6799@quack.suse.cz>
+Date: Wed, 29 Feb 2012 09:46:40 -0800
+In-Reply-To: <20120220110006.GA6799@quack.suse.cz> (Jan Kara's message of
+	"Mon, 20 Feb 2012 12:00:06 +0100")
+Message-ID: <m1vcmp8rcv.fsf@fess.ebiederm.org>
 MIME-Version: 1.0
-Subject: Re: [PATCH 1/7] small cleanup for memcontrol.c
-References: <1329824079-14449-1-git-send-email-glommer@parallels.com> <1329824079-14449-2-git-send-email-glommer@parallels.com> <20120222094619.caffc432.kamezawa.hiroyu@jp.fujitsu.com> <4F44F54A.8010902@parallels.com>
-In-Reply-To: <4F44F54A.8010902@parallels.com>
-Content-Type: text/plain; charset="ISO-8859-1"; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Subject: Re: [PATCH 09/11] sysfs: Push file_update_time() into bin_page_mkwrite()
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: cgroups@vger.kernel.org, devel@openvz.org, linux-mm@kvack.org, "Kirill A. Shutemov" <kirill@shutemov.name>, Greg Thelen <gthelen@google.com>, Johannes Weiner <jweiner@redhat.com>, Michal Hocko <mhocko@suse.cz>, Paul Turner <pjt@google.com>, Frederic Weisbecker <fweisbec@gmail.com>
+To: Jan Kara <jack@suse.cz>
+Cc: Alex Elder <elder@dreamhost.com>, LKML <linux-kernel@vger.kernel.org>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Eric Sandeen <sandeen@redhat.com>, Dave Chinner <david@fromorbit.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>
 
-On 02/22/2012 12:01 PM, Glauber Costa wrote:
-> On 02/22/2012 04:46 AM, KAMEZAWA Hiroyuki wrote:
->> On Tue, 21 Feb 2012 15:34:33 +0400
->> Glauber Costa<glommer@parallels.com> wrote:
->>
->>> Move some hardcoded definitions to an enum type.
->>>
->>> Signed-off-by: Glauber Costa<glommer@parallels.com>
->>> CC: Kirill A. Shutemov<kirill@shutemov.name>
->>> CC: Greg Thelen<gthelen@google.com>
->>> CC: Johannes Weiner<jweiner@redhat.com>
->>> CC: Michal Hocko<mhocko@suse.cz>
->>> CC: Hiroyouki Kamezawa<kamezawa.hiroyu@jp.fujitsu.com>
->>> CC: Paul Turner<pjt@google.com>
->>> CC: Frederic Weisbecker<fweisbec@gmail.com>
->>
->> seems ok to me.
->>
->> Acked-by: KAMEZAWA Hiroyuki<kamezawa.hiroyu@jp.fujitsu.com>
->
-> BTW, this series is likely to go through many rounds of discussion.
-> This patch can be probably picked separately, if you want to.
->
->> a nitpick..
->>
->>> ---
->>> mm/memcontrol.c | 10 +++++++---
->>> 1 files changed, 7 insertions(+), 3 deletions(-)
->>>
->>> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
->>> index 6728a7a..b15a693 100644
->>> --- a/mm/memcontrol.c
->>> +++ b/mm/memcontrol.c
->>> @@ -351,9 +351,13 @@ enum charge_type {
->>> };
->>>
->>> /* for encoding cft->private value on file */
->>> -#define _MEM (0)
->>> -#define _MEMSWAP (1)
->>> -#define _OOM_TYPE (2)
->>> +
->>> +enum mem_type {
->>> + _MEM = 0,
->>
->> =0 is required ?
-> I believe not, but I always liked to use it to be 100 % explicit.
-> Personal taste... Can change it, if this is a big deal.
+Jan Kara <jack@suse.cz> writes:
 
-Kame, would you like me to send this cleanup without the = 0 ?
+> On Thu 16-02-12 13:04:44, Alex Elder wrote:
+>> On Thu, 2012-02-16 at 14:46 +0100, Jan Kara wrote:
+>> > CC: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+>> > Signed-off-by: Jan Kara <jack@suse.cz>
+>> > ---
+>> >  fs/sysfs/bin.c |    2 ++
+>> >  1 files changed, 2 insertions(+), 0 deletions(-)
+>> > 
+>> > diff --git a/fs/sysfs/bin.c b/fs/sysfs/bin.c
+>> > index a475983..6ceb16f 100644
+>> > --- a/fs/sysfs/bin.c
+>> > +++ b/fs/sysfs/bin.c
+>> > @@ -225,6 +225,8 @@ static int bin_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf)
+>> >  	if (!sysfs_get_active(attr_sd))
+>> >  		return VM_FAULT_SIGBUS;
+>> >  
+>> > +	file_update_time(file);
+>> > +
+>> >  	ret = 0;
+>> >  	if (bb->vm_ops->page_mkwrite)
+>> >  		ret = bb->vm_ops->page_mkwrite(vma, vmf);
+>> 
+>> If the filesystem's page_mkwrite() function is responsible
+>> for updating the time, can't the call to file_update_time()
+>> here be conditional?
+>> 
+>> I.e:
+>> 	ret = 0;
+>> 	if (bb->vm_ops->page_mkwrite)
+>>  		ret = bb->vm_ops->page_mkwrite(vma, vmf);
+>> 	else
+>> 		file_update_time(file);
+>   Hmm, I didn't look previously where do we get bb->vm_ops. It seems they
+> are inherited from vma->vm_ops so what you suggest should be safe without
+> any further changes. So I can do that if someone who understands the sysfs
+> code likes it more.
+
+I do.  Essentially sysfs is being a stackable filesystem here, because
+sysfs needs the ability to remove a file mapping.
+
+In practice we could probably get away without a single
+file_update_time(file) here because there are mmio mappings.  Normally
+for pci resources, but we might as well use good form since we can.
+
+Eric
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
