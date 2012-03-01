@@ -1,107 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx177.postini.com [74.125.245.177])
-	by kanga.kvack.org (Postfix) with SMTP id B214E6B002C
-	for <linux-mm@kvack.org>; Thu,  1 Mar 2012 01:07:26 -0500 (EST)
-Received: from m4.gw.fujitsu.co.jp (unknown [10.0.50.74])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 64BA53EE0AE
-	for <linux-mm@kvack.org>; Thu,  1 Mar 2012 15:07:24 +0900 (JST)
-Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 4F35245DE4F
-	for <linux-mm@kvack.org>; Thu,  1 Mar 2012 15:07:24 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 2E1BA45DE4D
-	for <linux-mm@kvack.org>; Thu,  1 Mar 2012 15:07:24 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 227C51DB803B
-	for <linux-mm@kvack.org>; Thu,  1 Mar 2012 15:07:24 +0900 (JST)
-Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.240.81.147])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id BFA3A1DB8037
-	for <linux-mm@kvack.org>; Thu,  1 Mar 2012 15:07:23 +0900 (JST)
-Date: Thu, 1 Mar 2012 15:05:37 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH 04/10] memcg: Introduce __GFP_NOACCOUNT.
-Message-Id: <20120301150537.8996bbf6.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <4F4EC1AB.8050506@parallels.com>
-References: <1330383533-20711-1-git-send-email-ssouhlal@FreeBSD.org>
-	<1330383533-20711-5-git-send-email-ssouhlal@FreeBSD.org>
-	<20120229150041.62c1feeb.kamezawa.hiroyu@jp.fujitsu.com>
-	<CABCjUKBHjLHKUmW6_r0SOyw42WfV0zNO7Kd7FhhRQTT6jZdyeQ@mail.gmail.com>
-	<20120301091044.1a62d42c.kamezawa.hiroyu@jp.fujitsu.com>
-	<4F4EC1AB.8050506@parallels.com>
+Received: from psmtp.com (na3sys010amx125.postini.com [74.125.245.125])
+	by kanga.kvack.org (Postfix) with SMTP id 965466B002C
+	for <linux-mm@kvack.org>; Thu,  1 Mar 2012 02:30:39 -0500 (EST)
+Received: by dakp5 with SMTP id p5so503320dak.8
+        for <linux-mm@kvack.org>; Wed, 29 Feb 2012 23:30:38 -0800 (PST)
+Subject: Re: [PATCH -next] slub: set PG_slab on all of slab pages
+From: Namhyung Kim <namhyung@gmail.com>
+In-Reply-To: <alpine.DEB.2.00.1202290922210.32268@router.home>
+References: <1330505674-31610-1-git-send-email-namhyung.kim@lge.com>
+	 <alpine.DEB.2.00.1202290922210.32268@router.home>
+Content-Type: text/plain; charset="UTF-8"
+Date: Thu, 01 Mar 2012 16:30:31 +0900
+Message-ID: <1330587031.1762.46.camel@leonhard>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Glauber Costa <glommer@parallels.com>
-Cc: Suleiman Souhlal <suleiman@google.com>, Suleiman Souhlal <ssouhlal@freebsd.org>, cgroups@vger.kernel.org, penberg@kernel.org, yinghan@google.com, hughd@google.com, gthelen@google.com, linux-mm@kvack.org, devel@openvz.org
+To: Christoph Lameter <cl@gentwo.org>
+Cc: Namhyung Kim <namhyung.kim@lge.com>, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Wed, 29 Feb 2012 21:24:11 -0300
-Glauber Costa <glommer@parallels.com> wrote:
+Hi,
 
-> On 02/29/2012 09:10 PM, KAMEZAWA Hiroyuki wrote:
-> > On Wed, 29 Feb 2012 11:09:50 -0800
-> > Suleiman Souhlal<suleiman@google.com>  wrote:
-> >
-> >> On Tue, Feb 28, 2012 at 10:00 PM, KAMEZAWA Hiroyuki
-> >> <kamezawa.hiroyu@jp.fujitsu.com>  wrote:
-> >>> On Mon, 27 Feb 2012 14:58:47 -0800
-> >>> Suleiman Souhlal<ssouhlal@FreeBSD.org>  wrote:
-> >>>
-> >>>> This is used to indicate that we don't want an allocation to be accounted
-> >>>> to the current cgroup.
-> >>>>
-> >>>> Signed-off-by: Suleiman Souhlal<suleiman@google.com>
-> >>>
-> >>> I don't like this.
-> >>>
-> >>> Please add
-> >>>
-> >>> ___GFP_ACCOUNT  "account this allocation to memcg"
-> >>>
-> >>> Or make this as slab's flag if this work is for slab allocation.
-> >>
-> >> We would like to account for all the slab allocations that happen in
-> >> process context.
-> >>
-> >> Manually marking every single allocation or kmem_cache with a GFP flag
-> >> really doesn't seem like the right thing to do..
-> >>
-> >> Can you explain why you don't like this flag?
-> >>
-> >
-> > For example, tcp buffer limiting has another logic for buffer size controling.
-> > _AND_, most of kernel pages are not reclaimable at all.
-> > I think you should start from reclaimable caches as dcache, icache etc.
-> >
-> > If you want to use this wider, you can discuss
-> >
-> > + #define GFP_KERNEL	(.....| ___GFP_ACCOUNT)
-> >
-> > in future. I'd like to see small start because memory allocation failure
-> > is always terrible and make the system unstable. Even if you notify
-> > "Ah, kernel memory allocation failed because of memory.limit? and
-> >   many unreclaimable memory usage. Please tweak the limitation or kill tasks!!"
-> >
-> > The user can't do anything because he can't create any new task because of OOM.
-> >
-> > The system will be being unstable until an admin, who is not under any limit,
-> > tweaks something or reboot the system.
-> >
-> > Please do small start until you provide Eco-System to avoid a case that
-> > the admin cannot login and what he can do was only reboot.
-> >
-> Having the root cgroup to be always unlimited should already take care 
-> of the most extreme cases, right?
+2012-02-29, 09:24 -0600, Christoph Lameter wrote:
+> On Wed, 29 Feb 2012, Namhyung Kim wrote:
 > 
-If an admin can login into root cgroup ;)
-Anyway, if someone have a container under cgroup via hosting service,
-he can do noting if oom killer cannot recover his container. It can be
-caused by kernel memory limit. And I'm not sure he can do shutdown because
-he can't login.
+> > Unlike SLAB, SLUB doesn't set PG_slab on tail pages, so if a user would
+> > call free_pages() incorrectly on a object in a tail page, she will get
+> > confused with the undefined result. Setting the flag would help her by
+> > emitting a warning on bad_page() in such a case.
+> 
+> NAK
+> 
+> You cannot free a tail page of a compound higher order page independently.
+> You must free the whole compound.
+> 
 
-Thanks,
--Kame
+I meant freeing a *slab object* resides in a compound page using buddy
+system API (e.g. free_pages). I know it's definitely a programming
+error. However there's no safety net to protect and/or warn such a
+misbehavior AFAICS - except for head page which has PG_slab set - when
+it happened by any chance.
+
+Without it, it might be possible to free part of tail pages silently,
+and cause unexpected not-so-funny results some time later. It should be
+hard to find out.
+
+When I ran such a bad code using SLAB, I was able to be notified
+immediately. That's why I'd like to add this patch to SLUB too. In
+addition, it will give more correct value for slab pages when
+using /proc/kpageflags IMHO.
+
+
+-- 
+Regards,
+Namhyung Kim
 
 
 --
