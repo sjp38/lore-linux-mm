@@ -1,99 +1,203 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx141.postini.com [74.125.245.141])
-	by kanga.kvack.org (Postfix) with SMTP id D63116B002C
-	for <linux-mm@kvack.org>; Wed, 29 Feb 2012 21:13:27 -0500 (EST)
-Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id B60953EE0C3
-	for <linux-mm@kvack.org>; Thu,  1 Mar 2012 11:13:25 +0900 (JST)
-Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 9C5A345DEB6
-	for <linux-mm@kvack.org>; Thu,  1 Mar 2012 11:13:25 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 8622045DEB5
-	for <linux-mm@kvack.org>; Thu,  1 Mar 2012 11:13:25 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 7AF471DB803C
-	for <linux-mm@kvack.org>; Thu,  1 Mar 2012 11:13:25 +0900 (JST)
-Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.240.81.147])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 3435F1DB8042
-	for <linux-mm@kvack.org>; Thu,  1 Mar 2012 11:13:25 +0900 (JST)
-Date: Thu, 1 Mar 2012 11:11:47 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH 1/7] small cleanup for memcontrol.c
-Message-Id: <20120301111147.8145b9d2.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <4F4E60BB.9030007@parallels.com>
-References: <1329824079-14449-1-git-send-email-glommer@parallels.com>
-	<1329824079-14449-2-git-send-email-glommer@parallels.com>
-	<20120222094619.caffc432.kamezawa.hiroyu@jp.fujitsu.com>
-	<4F44F54A.8010902@parallels.com>
-	<4F4E60BB.9030007@parallels.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx196.postini.com [74.125.245.196])
+	by kanga.kvack.org (Postfix) with SMTP id 04C7A6B002C
+	for <linux-mm@kvack.org>; Wed, 29 Feb 2012 21:33:22 -0500 (EST)
+Date: Thu, 1 Mar 2012 03:33:14 +0100
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [RFC][PATCH] memcg: avoid THP split in task migration
+Message-ID: <20120301023314.GF28383@redhat.com>
+References: <1330463552-18473-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1330463552-18473-1-git-send-email-n-horiguchi@ah.jp.nec.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Glauber Costa <glommer@parallels.com>
-Cc: cgroups@vger.kernel.org, devel@openvz.org, linux-mm@kvack.org, "Kirill A. Shutemov" <kirill@shutemov.name>, Greg Thelen <gthelen@google.com>, Johannes Weiner <jweiner@redhat.com>, Michal Hocko <mhocko@suse.cz>, Paul Turner <pjt@google.com>, Frederic Weisbecker <fweisbec@gmail.com>
+To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Hillf Danton <dhillf@gmail.com>, linux-kernel@vger.kernel.org
 
-On Wed, 29 Feb 2012 14:30:35 -0300
-Glauber Costa <glommer@parallels.com> wrote:
+Hi Naoya,
 
-> On 02/22/2012 12:01 PM, Glauber Costa wrote:
-> > On 02/22/2012 04:46 AM, KAMEZAWA Hiroyuki wrote:
-> >> On Tue, 21 Feb 2012 15:34:33 +0400
-> >> Glauber Costa<glommer@parallels.com> wrote:
-> >>
-> >>> Move some hardcoded definitions to an enum type.
-> >>>
-> >>> Signed-off-by: Glauber Costa<glommer@parallels.com>
-> >>> CC: Kirill A. Shutemov<kirill@shutemov.name>
-> >>> CC: Greg Thelen<gthelen@google.com>
-> >>> CC: Johannes Weiner<jweiner@redhat.com>
-> >>> CC: Michal Hocko<mhocko@suse.cz>
-> >>> CC: Hiroyouki Kamezawa<kamezawa.hiroyu@jp.fujitsu.com>
-> >>> CC: Paul Turner<pjt@google.com>
-> >>> CC: Frederic Weisbecker<fweisbec@gmail.com>
-> >>
-> >> seems ok to me.
-> >>
-> >> Acked-by: KAMEZAWA Hiroyuki<kamezawa.hiroyu@jp.fujitsu.com>
-> >
-> > BTW, this series is likely to go through many rounds of discussion.
-> > This patch can be probably picked separately, if you want to.
-> >
-> >> a nitpick..
-> >>
-> >>> ---
-> >>> mm/memcontrol.c | 10 +++++++---
-> >>> 1 files changed, 7 insertions(+), 3 deletions(-)
-> >>>
-> >>> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> >>> index 6728a7a..b15a693 100644
-> >>> --- a/mm/memcontrol.c
-> >>> +++ b/mm/memcontrol.c
-> >>> @@ -351,9 +351,13 @@ enum charge_type {
-> >>> };
-> >>>
-> >>> /* for encoding cft->private value on file */
-> >>> -#define _MEM (0)
-> >>> -#define _MEMSWAP (1)
-> >>> -#define _OOM_TYPE (2)
-> >>> +
-> >>> +enum mem_type {
-> >>> + _MEM = 0,
-> >>
-> >> =0 is required ?
-> > I believe not, but I always liked to use it to be 100 % explicit.
-> > Personal taste... Can change it, if this is a big deal.
-> 
-> Kame, would you like me to send this cleanup without the = 0 ?
-> 
+On Tue, Feb 28, 2012 at 04:12:32PM -0500, Naoya Horiguchi wrote:
+> Currently we can't do task migration among memory cgroups without THP split,
+> which means processes heavily using THP experience large overhead in task
+> migration. This patch introduce the code for moving charge of THP and makes
+> THP more valuable.
 
-Not necessary.  Sorry for delayed response.
-Lots of memcg patches are flying..
+Nice.
 
-Thanks,
--Kame
+> diff --git linux-next-20120228.orig/mm/memcontrol.c linux-next-20120228/mm/memcontrol.c
+> index c83aeb5..e97c041 100644
+> --- linux-next-20120228.orig/mm/memcontrol.c
+> +++ linux-next-20120228/mm/memcontrol.c
+> @@ -5211,6 +5211,42 @@ static int is_target_pte_for_mc(struct vm_area_struct *vma,
+>  	return ret;
+>  }
+>  
+> +#ifdef CONFIG_TRANSPARENT_HUGEPAGE
+> +/*
+> + * We don't consider swapping or file mapped pages because THP does not
+> + * support them for now.
+> + */
+> +static int is_target_huge_pmd_for_mc(struct vm_area_struct *vma,
+> +		unsigned long addr, pmd_t pmd, union mc_target *target)
+> +{
+> +	struct page *page = NULL;
+> +	struct page_cgroup *pc;
+> +	int ret = 0;
+> +
+> +	if (pmd_present(pmd))
+> +		page = pmd_page(pmd);
+> +	if (!page)
+> +		return 0;
+
+It can't be present and null at the same time.
+
+No need to check pmd_present if you already checked pmd_trans_huge. In
+fact checking pmd_present is a bug. For a little time the pmd won't be
+present if it's set as splitting. (that short clearing of pmd_present
+during pmd splitting is to deal with a vendor CPU errata without
+having to flush the smp TLB twice)
+
+Following Kame's suggestion is correct, an unconditional pmd_page is
+correct here:
+
+    page = pmd_page(pmd);
+
+We might actually decide to change pmd_present to return true if
+pmd_trans_splitting is set to avoid the risk of using an erratic
+pmd_present on a pmd_trans_huge pmd, but it's not really necessary if
+you never check pmd_present when a pmd is (or can be) a
+pmd_trans_huge.
+
+The safe check for pmd is only pmd_none, never pmd_present (as in
+__pte_alloc/pte_alloc_map/...).
+
+> +	VM_BUG_ON(!PageHead(page));
+> +	get_page(page);
+
+Other review mentioned we can do get_page only when it succeeds, but I
+think we can drop the whole get_page and simplify it further see the
+end.
+
+> @@ -5219,7 +5255,13 @@ static int mem_cgroup_count_precharge_pte_range(pmd_t *pmd,
+>  	pte_t *pte;
+>  	spinlock_t *ptl;
+>  
+> -	split_huge_page_pmd(walk->mm, pmd);
+> +	if (pmd_trans_huge_lock(pmd, vma) == 1) {
+> +		if (is_target_huge_pmd_for_mc(vma, addr, *pmd, NULL))
+> +			mc.precharge += HPAGE_PMD_NR;
+
+Your use of HPAGE_PMD_NR looks fine, that path will be eliminated at
+build time if THP is off. This is the nice way to write code that is
+already optimal for THP=off without making special cases or #ifdefs.
+
+Other review suggests changing HPAGE_PMD_NR as BUILD_BUG, that sounds
+good idea too, but in this (correct) usage of HPAGE_PMD_NR it wouldn't
+make a difference because of the whole branch is correctly eliminated
+at build time. In short changing it to BUILD_BUG will simply make sure
+the whole pmd_trans_huge_lock == 1 branch is eliminated at build
+time. It looks good change too but it's orthogonal so I'd leave it for
+a separate patch.
+
+> +		spin_unlock(&walk->mm->page_table_lock);
+
+Agree with other review, vma looks cleaner.
+
+> +		cond_resched();
+> +		return 0;
+> +	}
+>  
+>  	pte = pte_offset_map_lock(vma->vm_mm, pmd, addr, &ptl);
+>  	for (; addr != end; pte++, addr += PAGE_SIZE)
+> @@ -5378,16 +5420,38 @@ static int mem_cgroup_move_charge_pte_range(pmd_t *pmd,
+>  	struct vm_area_struct *vma = walk->private;
+>  	pte_t *pte;
+>  	spinlock_t *ptl;
+> +	int type;
+> +	union mc_target target;
+> +	struct page *page;
+> +	struct page_cgroup *pc;
+> +
+> +	if (pmd_trans_huge_lock(pmd, vma) == 1) {
+> +		if (!mc.precharge)
+> +			return 0;
+
+Agree with Hillf.
+
+> +		type = is_target_huge_pmd_for_mc(vma, addr, *pmd, &target);
+> +		if (type == MC_TARGET_PAGE) {
+> +			page = target.page;
+> +			if (!isolate_lru_page(page)) {
+> +				pc = lookup_page_cgroup(page);
+> +				if (!mem_cgroup_move_account(page, HPAGE_PMD_NR,
+> +							     pc, mc.from, mc.to,
+> +							     false)) {
+> +					mc.precharge -= HPAGE_PMD_NR;
+> +					mc.moved_charge += HPAGE_PMD_NR;
+> +				}
+
+Like you mentioned, a race with split_huge_page_refcount (and hence
+mem_cgroup_split_huge_fixup) is not possible because of
+pmd_trans_huge_lock succeeding.
+
+However the mmap_sem checked by pmd_trans_huge_lock is there just
+because we deal with pmds and so pagetables (and we aren't doing a
+lockless lookup like gup_fast). But it's not true that a concurrent
+split_huge_page would _not_ prevented by the mmap_sem. The swapout
+path will still split hugepages under you even if you hold the
+mmap_sem (even in write mode).
+
+The mmap_sem (either read or write) only prevents a concurrent
+collapsing/creation of hugepages (but that's irrelevant here). It
+won't stop split_huge_page.
+
+So - back to our issue - you're safe against split_huge_page not
+running here thanks to the pmd_trans_huge_lock.
+
+There's one tricky locking bit here, that is isolate_lru_page, that
+takes the lru_lock.
+
+So the lock order is the page_table_lock first and the lru_lock
+second, and so there must not be another place that takes the lru_lock
+first and the page_table_lock second. In general it's good idea to
+exercise locking code with lockdep prove locking enabled just in case.
+
+> +				putback_lru_page(page);
+> +			}
+> +			put_page(page);
+
+I wonder if you need a get_page at all in is_target_huge_pmd_for_mc if
+you drop the above put_page instead. How can this page go away from
+under us, if we've been holding the page_table_lock the whole time?
+You can probably drop both get_page above and put_page above.
+
+> +		}
+> +		spin_unlock(&walk->mm->page_table_lock);
+> +		cond_resched();
+> +		return 0;
+> +	}
+>  
+> -	split_huge_page_pmd(walk->mm, pmd);
+>  retry:
+>  	pte = pte_offset_map_lock(vma->vm_mm, pmd, addr, &ptl);
+>  	for (; addr != end; addr += PAGE_SIZE) {
+>  		pte_t ptent = *(pte++);
+> -		union mc_target target;
+> -		int type;
+> -		struct page *page;
+> -		struct page_cgroup *pc;
+>  		swp_entry_t ent;
+>  
+>  		if (!mc.precharge)
+
+I read the other two great reviews done so far in parallel with the
+code, and I ended up replying here to the code as I was reading it,
+hope it wasn't too confusing.
+
+Thanks!
+Andrea
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
