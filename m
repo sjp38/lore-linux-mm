@@ -1,76 +1,117 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx153.postini.com [74.125.245.153])
-	by kanga.kvack.org (Postfix) with SMTP id 619E36B007E
-	for <linux-mm@kvack.org>; Wed, 29 Feb 2012 19:25:25 -0500 (EST)
-Message-ID: <4F4EC1AB.8050506@parallels.com>
-Date: Wed, 29 Feb 2012 21:24:11 -0300
-From: Glauber Costa <glommer@parallels.com>
+Received: from psmtp.com (na3sys010amx152.postini.com [74.125.245.152])
+	by kanga.kvack.org (Postfix) with SMTP id 62AED6B002C
+	for <linux-mm@kvack.org>; Wed, 29 Feb 2012 19:43:42 -0500 (EST)
+Received: by dald2 with SMTP id d2so62562dal.9
+        for <linux-mm@kvack.org>; Wed, 29 Feb 2012 16:43:41 -0800 (PST)
+Date: Wed, 29 Feb 2012 16:43:07 -0800 (PST)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: [PATCH 3.3] memcg: fix deadlock by inverting lrucare nesting
+In-Reply-To: <20120229140458.c53352db.akpm@linux-foundation.org>
+Message-ID: <alpine.LSU.2.00.1202291635000.11821@eggly.anvils>
+References: <alpine.LSU.2.00.1202282121160.4875@eggly.anvils> <20120229140458.c53352db.akpm@linux-foundation.org>
 MIME-Version: 1.0
-Subject: Re: [PATCH 04/10] memcg: Introduce __GFP_NOACCOUNT.
-References: <1330383533-20711-1-git-send-email-ssouhlal@FreeBSD.org> <1330383533-20711-5-git-send-email-ssouhlal@FreeBSD.org> <20120229150041.62c1feeb.kamezawa.hiroyu@jp.fujitsu.com> <CABCjUKBHjLHKUmW6_r0SOyw42WfV0zNO7Kd7FhhRQTT6jZdyeQ@mail.gmail.com> <20120301091044.1a62d42c.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20120301091044.1a62d42c.kamezawa.hiroyu@jp.fujitsu.com>
-Content-Type: text/plain; charset="UTF-8"; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Suleiman Souhlal <suleiman@google.com>, Suleiman Souhlal <ssouhlal@freebsd.org>, cgroups@vger.kernel.org, penberg@kernel.org, yinghan@google.com, hughd@google.com, gthelen@google.com, linux-mm@kvack.org, devel@openvz.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, Konstantin Khlebnikov <khlebnikov@openvz.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On 02/29/2012 09:10 PM, KAMEZAWA Hiroyuki wrote:
-> On Wed, 29 Feb 2012 11:09:50 -0800
-> Suleiman Souhlal<suleiman@google.com>  wrote:
->
->> On Tue, Feb 28, 2012 at 10:00 PM, KAMEZAWA Hiroyuki
->> <kamezawa.hiroyu@jp.fujitsu.com>  wrote:
->>> On Mon, 27 Feb 2012 14:58:47 -0800
->>> Suleiman Souhlal<ssouhlal@FreeBSD.org>  wrote:
->>>
->>>> This is used to indicate that we don't want an allocation to be accounted
->>>> to the current cgroup.
->>>>
->>>> Signed-off-by: Suleiman Souhlal<suleiman@google.com>
->>>
->>> I don't like this.
->>>
->>> Please add
->>>
->>> ___GFP_ACCOUNT  "account this allocation to memcg"
->>>
->>> Or make this as slab's flag if this work is for slab allocation.
->>
->> We would like to account for all the slab allocations that happen in
->> process context.
->>
->> Manually marking every single allocation or kmem_cache with a GFP flag
->> really doesn't seem like the right thing to do..
->>
->> Can you explain why you don't like this flag?
->>
->
-> For example, tcp buffer limiting has another logic for buffer size controling.
-> _AND_, most of kernel pages are not reclaimable at all.
-> I think you should start from reclaimable caches as dcache, icache etc.
->
-> If you want to use this wider, you can discuss
->
-> + #define GFP_KERNEL	(.....| ___GFP_ACCOUNT)
->
-> in future. I'd like to see small start because memory allocation failure
-> is always terrible and make the system unstable. Even if you notify
-> "Ah, kernel memory allocation failed because of memory.limit? and
->   many unreclaimable memory usage. Please tweak the limitation or kill tasks!!"
->
-> The user can't do anything because he can't create any new task because of OOM.
->
-> The system will be being unstable until an admin, who is not under any limit,
-> tweaks something or reboot the system.
->
-> Please do small start until you provide Eco-System to avoid a case that
-> the admin cannot login and what he can do was only reboot.
->
-Having the root cgroup to be always unlimited should already take care 
-of the most extreme cases, right?
+On Wed, 29 Feb 2012, Andrew Morton wrote:
+> On Tue, 28 Feb 2012 21:25:02 -0800 (PST)
+> Hugh Dickins <hughd@google.com> wrote:
+> 
+> > We have forgotten the rules of lock nesting: the irq-safe ones must be
+> > taken inside the non-irq-safe ones, otherwise we are open to deadlock:
+> 
+> This patch makes rather a mess of "memcg: remove PCG_CACHE page_cgroup
+> flag".
 
+Sorry about that.
+
+> 
+> I did it this way:
+
+Exactly right, thank you.  In my tree I end up with a blank line
+in between the smp_wmb() and the SetPageCgroupUsed(pc), but I
+prefer the way you have grouped it.
+
+Hugh
+
+> 
+> static void __mem_cgroup_commit_charge(struct mem_cgroup *memcg,
+> 				       struct page *page,
+> 				       unsigned int nr_pages,
+> 				       struct page_cgroup *pc,
+> 				       enum charge_type ctype,
+> 				       bool lrucare)
+> {
+> 	struct zone *uninitialized_var(zone);
+> 	bool was_on_lru = false;
+> 	bool anon;
+> 
+> 	lock_page_cgroup(pc);
+> 	if (unlikely(PageCgroupUsed(pc))) {
+> 		unlock_page_cgroup(pc);
+> 		__mem_cgroup_cancel_charge(memcg, nr_pages);
+> 		return;
+> 	}
+> 	/*
+> 	 * we don't need page_cgroup_lock about tail pages, becase they are not
+> 	 * accessed by any other context at this point.
+> 	 */
+> 
+> 	/*
+> 	 * In some cases, SwapCache and FUSE(splice_buf->radixtree), the page
+> 	 * may already be on some other mem_cgroup's LRU.  Take care of it.
+> 	 */
+> 	if (lrucare) {
+> 		zone = page_zone(page);
+> 		spin_lock_irq(&zone->lru_lock);
+> 		if (PageLRU(page)) {
+> 			ClearPageLRU(page);
+> 			del_page_from_lru_list(zone, page, page_lru(page));
+> 			was_on_lru = true;
+> 		}
+> 	}
+> 
+> 	pc->mem_cgroup = memcg;
+> 	/*
+> 	 * We access a page_cgroup asynchronously without lock_page_cgroup().
+> 	 * Especially when a page_cgroup is taken from a page, pc->mem_cgroup
+> 	 * is accessed after testing USED bit. To make pc->mem_cgroup visible
+> 	 * before USED bit, we need memory barrier here.
+> 	 * See mem_cgroup_add_lru_list(), etc.
+>  	 */
+> 	smp_wmb();
+> 	SetPageCgroupUsed(pc);
+> 
+> 	if (lrucare) {
+> 		if (was_on_lru) {
+> 			VM_BUG_ON(PageLRU(page));
+> 			SetPageLRU(page);
+> 			add_page_to_lru_list(zone, page, page_lru(page));
+> 		}
+> 		spin_unlock_irq(&zone->lru_lock);
+> 	}
+> 
+> 	if (ctype == MEM_CGROUP_CHARGE_TYPE_MAPPED)
+> 		anon = true;
+> 	else
+> 		anon = false;
+> 
+> 	mem_cgroup_charge_statistics(memcg, anon, nr_pages);
+> 	unlock_page_cgroup(pc);
+> 
+> 	/*
+> 	 * "charge_statistics" updated event counter. Then, check it.
+> 	 * Insert ancestor (and ancestor's ancestors), to softlimit RB-tree.
+> 	 * if they exceeds softlimit.
+> 	 */
+> 	memcg_check_events(memcg, page);
+> }
+> 
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
