@@ -1,46 +1,34 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx107.postini.com [74.125.245.107])
-	by kanga.kvack.org (Postfix) with SMTP id DA2186B002C
-	for <linux-mm@kvack.org>; Thu,  1 Mar 2012 05:00:49 -0500 (EST)
-Date: Thu, 1 Mar 2012 11:00:35 +0100
+Received: from psmtp.com (na3sys010amx182.postini.com [74.125.245.182])
+	by kanga.kvack.org (Postfix) with SMTP id 3514F6B007E
+	for <linux-mm@kvack.org>; Thu,  1 Mar 2012 05:14:25 -0500 (EST)
+Date: Thu, 1 Mar 2012 11:13:54 +0100
 From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH v2 next] memcg: fix deadlock by avoiding stat lock when
- anon
-Message-ID: <20120301100035.GC1665@cmpxchg.org>
-References: <alpine.LSU.2.00.1202282121160.4875@eggly.anvils>
- <alpine.LSU.2.00.1202282125240.4875@eggly.anvils>
- <20120229193517.GD1673@cmpxchg.org>
- <alpine.LSU.2.00.1202291648340.11821@eggly.anvils>
- <alpine.LSU.2.00.1202291843120.14002@eggly.anvils>
+Subject: Re: [PATCH 8/9] mm: dont set __GFP_WRITE on ramfs/sysfs writes
+Message-ID: <20120301101354.GD1665@cmpxchg.org>
+References: <20120228140022.614718843@intel.com>
+ <20120228144747.440418051@intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <alpine.LSU.2.00.1202291843120.14002@eggly.anvils>
+In-Reply-To: <20120228144747.440418051@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Konstantin Khlebnikov <khlebnikov@openvz.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Fengguang Wu <fengguang.wu@intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Greg Thelen <gthelen@google.com>, Jan Kara <jack@suse.cz>, Ying Han <yinghan@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Johannes Weiner <jweiner@redhat.com>, Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Wed, Feb 29, 2012 at 06:44:59PM -0800, Hugh Dickins wrote:
-> Fix deadlock in "memcg: use new logic for page stat accounting".
+On Tue, Feb 28, 2012 at 10:00:30PM +0800, Fengguang Wu wrote:
+> Try to avoid page reclaim waits when writing to ramfs/sysfs etc.
 > 
-> page_remove_rmap() first calls mem_cgroup_begin_update_page_stat(),
-> which may take move_lock_mem_cgroup(), unlocked at the end of
-> page_remove_rmap() by mem_cgroup_end_update_page_stat().
-> 
-> The PageAnon case never needs to mem_cgroup_dec_page_stat(page,
-> MEMCG_NR_FILE_MAPPED); but it often needs to mem_cgroup_uncharge_page(),
-> which does lock_page_cgroup(), while holding that move_lock_mem_cgroup().
-> Whereas mem_cgroup_move_account() calls move_lock_mem_cgroup() while
-> holding lock_page_cgroup().
-> 
-> Since mem_cgroup_begin and end are unnecessary here for PageAnon,
-> simply avoid the deadlock and wasted calls in that case.
-> 
-> Signed-off-by: Hugh Dickins <hughd@google.com>
+> Maybe not a big deal...
 
-Agreed, let's keep that lock ordering for now, and the comment makes
-it clear.  Thanks!
+This looks like a separate fix that would make sense standalone.  It's
+not just the waits, there is not much of a point in skipping zones
+during allocation based on the dirty usage which they'll never
+contribute to.  Could you maybe pull this up front?
+
+> CC: Johannes Weiner <jweiner@redhat.com>
+> Signed-off-by: Fengguang Wu <fengguang.wu@intel.com>
 
 Acked-by: Johannes Weiner <hannes@cmpxchg.org>
 
