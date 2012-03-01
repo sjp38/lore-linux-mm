@@ -1,47 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx205.postini.com [74.125.245.205])
-	by kanga.kvack.org (Postfix) with SMTP id 967256B004D
+Received: from psmtp.com (na3sys010amx161.postini.com [74.125.245.161])
+	by kanga.kvack.org (Postfix) with SMTP id 072D76B007E
 	for <linux-mm@kvack.org>; Thu,  1 Mar 2012 17:40:31 -0500 (EST)
-Date: Thu, 1 Mar 2012 14:40:29 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH -V2 0/9] memcg: add HugeTLB resource tracking
-Message-Id: <20120301144029.545a5589.akpm@linux-foundation.org>
-In-Reply-To: <1330593380-1361-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
-References: <1330593380-1361-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Date: Thu, 1 Mar 2012 17:40:14 -0500
+From: Dave Jones <davej@redhat.com>
+Subject: Re: [PATCH -V2] hugetlbfs: Drop taking inode i_mutex lock from
+ hugetlbfs_read
+Message-ID: <20120301224014.GA21990@redhat.com>
+References: <1330593530-2022-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+ <20120301141007.274ad458.akpm@linux-foundation.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20120301141007.274ad458.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Cc: linux-mm@kvack.org, mgorman@suse.de, kamezawa.hiroyu@jp.fujitsu.com, dhillf@gmail.com, aarcange@redhat.com, mhocko@suse.cz, hannes@cmpxchg.org, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, David Gibson <david@gibson.dropbear.id.au>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, linux-mm@kvack.org, mgorman@suse.de, kamezawa.hiroyu@jp.fujitsu.com, dhillf@gmail.com, viro@zeniv.linux.org.uk, hughd@google.com, linux-kernel@vger.kernel.org
 
-On Thu,  1 Mar 2012 14:46:11 +0530
-"Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com> wrote:
+On Thu, Mar 01, 2012 at 02:10:07PM -0800, Andrew Morton wrote:
+ 
+ > > AFAIU i_mutex lock got added to  hugetlbfs_read as per
+ > > http://lkml.indiana.edu/hypermail/linux/kernel/0707.2/3066.html
+ > > to take care of the race between truncate and read. This patch fix
+ > > this by looking at page->mapping under page_lock (find_lock_page())
+ > > to ensure; the inode didn't get truncated in the range during a
+ > > parallel read.
+ > > 
+ > > Ideally we can extend the patch to make sure we don't increase i_size
+ > > in mmap. But that will break userspace, because application will now
+ > > have to use truncate(2) to increase i_size in hugetlbfs.
+ > 
+ > Looks OK to me.
+ > 
+ > Given that the bug has been there for four years, I'm assuming that
+ > we'll be OK merging this fix into 3.4.  Or we could merge it into 3.4
+ > and tag it for backporting into earlier kernels - it depends on whether
+ > people are hurting from it, which I don't know?
 
-> This patchset implements a memory controller extension to control
-> HugeTLB allocations. It is similar to the existing hugetlb quota
-> support in that, the limit is enforced at mmap(2) time and not at
-> fault time. HugeTLB's quota mechanism limits the number of huge pages
-> that can allocated per superblock.
-> 
-> For shared mappings we track the regions mapped by a task along with the
-> memcg. We keep the memory controller charged even after the task
-> that did mmap(2) exits. Uncharge happens during truncate. For Private
-> mappings we charge and uncharge from the current task cgroup.
+My testing hits this every day. It's not a real problem, but it's annoying
+to see the lockdep spew constantly.  We've had a couple Fedora users
+report it too in regular day-to-day use as opposed to the hostile
+workloads I use to provoke it.
 
-I haven't begin to get my head around this yet, but I'd like to draw
-your attention to https://lkml.org/lkml/2012/2/15/548.  That fix has
-been hanging around for a while, but I haven't done anything with it
-yet because I don't like its additional blurring of the separation
-between hugetlb core code and hugetlbfs.  I want to find time to sit
-down and see if the fix can be better architected but haven't got
-around to that yet.
+FWIW, I'll probably throw it in the Fedora kernels, so if it ends up
+in stable, it'll be one less patch to carry.
 
-I expect that your patches will conflict at least mechanically with
-David's, which is not a big issue.  But I wonder whether your patches
-will copy the same bug into other places, and whether you can think of
-a tidier way of addressing the bug which David is seeing?
+	Dave
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
