@@ -1,133 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx108.postini.com [74.125.245.108])
-	by kanga.kvack.org (Postfix) with SMTP id 498586B002C
-	for <linux-mm@kvack.org>; Thu,  1 Mar 2012 11:50:27 -0500 (EST)
-Date: Thu, 1 Mar 2012 17:50:24 +0100
-From: Jan Kara <jack@suse.cz>
-Subject: Re: [PATCH 5/9] writeback: introduce the pageout work
-Message-ID: <20120301165023.GB13104@quack.suse.cz>
-References: <20120228140022.614718843@intel.com>
- <20120228144747.198713792@intel.com>
- <20120228160403.9c9fa4dc.akpm@linux-foundation.org>
- <20120301110404.GC4385@quack.suse.cz>
- <20120301114151.GA19049@localhost>
+Received: from psmtp.com (na3sys010amx103.postini.com [74.125.245.103])
+	by kanga.kvack.org (Postfix) with SMTP id 24EEF6B004A
+	for <linux-mm@kvack.org>; Thu,  1 Mar 2012 13:27:39 -0500 (EST)
+Message-ID: <4F4FBF96.7070600@tilera.com>
+Date: Thu, 1 Mar 2012 13:27:34 -0500
+From: Chris Metcalf <cmetcalf@tilera.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20120301114151.GA19049@localhost>
+Subject: Re: [v7 0/8] Reduce cross CPU IPI interference
+References: <1327572121-13673-1-git-send-email-gilad@benyossef.com> <1327591185.2446.102.camel@twins> <CAOtvUMeAkPzcZtiPggacMQGa0EywTH5SzcXgWjMtssR6a5KFqA@mail.gmail.com> <20120201170443.GE6731@somewhere.redhat.com> <CAOtvUMc8L1nh2eGJez0x44UkfPCqd+xYQASsKOP76atopZi5mw@mail.gmail.com> <4F2AAEB9.9070302@tilera.com> <1328898816.25989.33.camel@laptop> <4F3C28AF.9080005@tilera.com> <20120221013443.GA13403@somewhere.redhat.com>
+In-Reply-To: <20120221013443.GA13403@somewhere.redhat.com>
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Fengguang Wu <fengguang.wu@intel.com>
-Cc: Jan Kara <jack@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Greg Thelen <gthelen@google.com>, Ying Han <yinghan@google.com>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan.kim@gmail.com>, Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Frederic Weisbecker <fweisbec@gmail.com>
+Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Gilad Ben-Yossef <gilad@benyossef.com>, linux-kernel@vger.kernel.org, Christoph Lameter <cl@linux.com>, linux-mm@kvack.org, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, Sasha Levin <levinsasha928@gmail.com>, Rik van Riel <riel@redhat.com>, Andi Kleen <andi@firstfloor.org>, Mel Gorman <mel@csn.ul.ie>, Andrew Morton <akpm@linux-foundation.org>, Alexander Viro <viro@zeniv.linux.org.uk>, Avi Kivity <avi@redhat.com>, Michal Nazarewicz <mina86@mina86.com>, Kosaki Motohiro <kosaki.motohiro@gmail.com>, Milton Miller <miltonm@bga.com>
 
-On Thu 01-03-12 19:41:51, Wu Fengguang wrote:
-> On Thu, Mar 01, 2012 at 12:04:04PM +0100, Jan Kara wrote:
-> > On Tue 28-02-12 16:04:03, Andrew Morton wrote:
-> > ...
-> > > > --- linux.orig/mm/vmscan.c	2012-02-28 19:07:06.065064464 +0800
-> > > > +++ linux/mm/vmscan.c	2012-02-28 20:26:15.559731455 +0800
-> > > > @@ -874,12 +874,22 @@ static unsigned long shrink_page_list(st
-> > > >  			nr_dirty++;
-> > > >  
-> > > >  			/*
-> > > > -			 * Only kswapd can writeback filesystem pages to
-> > > > -			 * avoid risk of stack overflow but do not writeback
-> > > > -			 * unless under significant pressure.
-> > > > +			 * Pages may be dirtied anywhere inside the LRU. This
-> > > > +			 * ensures they undergo a full period of LRU iteration
-> > > > +			 * before considering pageout. The intention is to
-> > > > +			 * delay writeout to the flusher thread, unless when
-> > > > +			 * run into a long segment of dirty pages.
-> > > > +			 */
-> > > > +			if (references == PAGEREF_RECLAIM_CLEAN &&
-> > > > +			    priority == DEF_PRIORITY)
-> > > > +				goto keep_locked;
-> > > > +
-> > > > +			/*
-> > > > +			 * Try relaying the pageout I/O to the flusher threads
-> > > > +			 * for better I/O efficiency and avoid stack overflow.
-> > > >  			 */
-> > > > -			if (page_is_file_cache(page) &&
-> > > > -					(!current_is_kswapd() || priority >= DEF_PRIORITY - 2)) {
-> > > > +			if (page_is_file_cache(page) && mapping &&
-> > > > +			    queue_pageout_work(mapping, page) >= 0) {
-> > > >  				/*
-> > > >  				 * Immediately reclaim when written back.
-> > > >  				 * Similar in principal to deactivate_page()
-> > > > @@ -892,8 +902,13 @@ static unsigned long shrink_page_list(st
-> > > >  				goto keep_locked;
-> > > >  			}
-> > > >  
-> > > > -			if (references == PAGEREF_RECLAIM_CLEAN)
-> > > > +			/*
-> > > > +			 * Only kswapd can writeback filesystem pages to
-> > > > +			 * avoid risk of stack overflow.
-> > > > +			 */
-> > > > +			if (page_is_file_cache(page) && !current_is_kswapd())
-> > > 
-> > > And here we run into big problems.
-> > > 
-> > > When a page-allocator enters direct reclaim, that process is trying to
-> > > allocate a page from a particular zone (or set of zones).  For example,
-> > > he wants a ZONE_NORMAL or ZONE_DMA page.  Asking flusher threads to go
-> > > off and write back three gigabytes of ZONE_HIGHMEM is pointless,
-> > > inefficient and doesn't fix the caller's problem at all.
-> > > 
-> > > This has always been the biggest problem with the
-> > > avoid-writeback-from-direct-reclaim patches.  And your patchset (as far
-> > > as I've read) doesn't address the problem at all and appears to be
-> > > blissfully unaware of its existence.
-> > > 
-> > > 
-> > > I've attempted versions of this I think twice, and thrown the patches
-> > > away in disgust.  One approach I tried was, within direct reclaim, to
-> > > grab the page I wanted (ie: one which is in one of the caller's desired
-> > > zones) and to pass that page over to the kernel threads.  The kernel
-> > > threads would ensure that this particular page was included in the
-> > > writearound preparation.  So that we at least make *some* progress
-> > > toward what the caller is asking us to do.
-> > > 
-> > > iirc, the way I "grabbed" the page was to actually lock it, with
-> > > [try_]_lock_page().  And unlock it again way over within the writeback
-> > > thread.  I forget why I did it this way, rather than get_page() or
-> > > whatever.  Locking the page is a good way of preventing anyone else
-> > > from futzing with it.  It also pins the inode, which perhaps meant that
-> > > with careful management, I could avoid the igrab()/iput() horrors
-> > > discussed above.
-> >   I think using get_page() might be a good way to go. Naive implementation:
-> > If we need to write a page from kswapd, we do get_page(), attach page to
-> > wb_writeback_work and push it to flusher thread to deal with it.
-> > Flusher thread sees the work, takes a page lock, verifies the page is still
-> > attached to some inode & dirty (it could have been truncated / cleaned by
-> > someone else) and if yes, it submits page for IO (possibly with some
-> > writearound). This scheme won't have problems with iput() and won't have
-> > problems with umount. Also we guarantee some progress - either flusher
-> > thread does it, or some else must have done the work before flusher thread
-> > got to it.
-> 
-> I like this idea.
-> 
-> get_page() looks the perfect solution to verify if the struct inode
-> pointer (w/o igrab) is still live and valid.
-> 
-> [...upon rethinking...] Oh but still we need to lock some page to pin
-> the inode during the writeout. Then there is the dilemma: if the page
-> is locked, we effectively keep it from being written out...
-  Well, we could just lock the page to grab inode reference like in the
-rest of writeback code and then unlock the page. Still there would be the
-advantage that we won't pin the inode for the time work is just waiting to
-be processed.
+(Sorry, away on vacation for a while, and just getting back to this thread.)
 
-Another idea I've got is that inodes could have a special usecount counter
-for writeback. It would have the same lifetime rules as I_SYNC flag and
-we'd wait in end_writeback() for the counter to drop to zero. That way
-writeback code could safely get inode reference for the time of writeback
-without incurring the risk of having to completely cleanup the inode.
+On 2/20/2012 8:34 PM, Frederic Weisbecker wrote:
+> On Wed, Feb 15, 2012 at 04:50:39PM -0500, Chris Metcalf wrote:
+>> The Tilera dataplane code is available on the "dataplane" branch (off of
+>> 3.3-rc3 at the moment):
+>>
+>> git://git.kernel.org/pub/scm/linux/kernel/git/cmetcalf/linux-tile.git
+>>
+>> I'm still looking at Frederic's git tree, but I'm assuming the following
+>> are all true of tasks that are running on a nohz cpuset core:
+>>
+>> - The core will not run the global scheduler to do work stealing, since
+>> otherwise you can't guarantee that only tasks that care about userspace
+>> nohz get to run there.  (I suppose you could loosen thus such that the core
+>> would do work stealing as long as no task was pinned to that core by
+>> affinity, at which point the pinned task would become the only runnable task.)
+> A nohz cpuset doesn't really control that. It actually reacts to the scheduler
+> actions. Like try to stop the tick if there is only one task on the runqueue,
+> restart it when we have more.
+>
+> Ensuring the CPU doesn't get distracted is rather the role of the user by
+> setting the right cpusets to get the desired affinity. And if we still have
+> noise with workqueues or something, this is something we need to look at
+> and fix on a case by case basis.
 
-								Honza
+So won't it still be the case that the nohz cpus will try to run the global
+scheduler to do load balancing?  Or are you relying on something like the
+idle load balancer functionality to do the load balancing externally?  The
+reason for isolcpus in the Tilera code is just to avoid having the
+dataplane cpus ever end up having to schedule a tick just so they can do
+load balancing work.
+
+Frederic, do you have a design document, or anything else I can read other
+than the code in your git tree?  I still haven't found time to do that,
+though I'd definitely like to start figuring out how I can integrate your
+stuff and the Tilera stuff into a single thing that both meets our
+customers' needs, AND is actually integrated into the kernel.org master :-)
+
+>> - Kernel "background" tasks are disabled on that core, at least while
+>> userspace nohz tasks are running: softlockup watchdog, slab reap timer,
+>> vmstat thread, etc.
+> Yeah that's examples of "noisy" things. Those are in fact a seperate issues
+> that nohz cpusets don't touch. nohz cpuset are really only about trying to
+> shut down the periodic tick, or defer it for a far as possible in the future.
+>
+> Now the nohz cpuset uses some user/kernel entry/exit hooks that we can extend
+> to cover some of these cases. We may want to make some timers "user-deferrable",
+> ie: deactivate, reactivate them on kernel entry and exit.
+>
+> That need some thinking though, this may not always be a win for every workload.
+> But those that are userspace-mostly can profit.
+
+Yes.  The workloads we are focused on (along with Gilad and some others) is
+just the very simple one where we want to be able to have something go into
+userspace, and get 100.000% of the cpu until the task itself takes some
+action that requires kernel support.
+
 -- 
-Jan Kara <jack@suse.cz>
-SUSE Labs, CR
+Chris Metcalf, Tilera Corp.
+http://www.tilera.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
