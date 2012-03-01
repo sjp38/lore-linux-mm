@@ -1,57 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx196.postini.com [74.125.245.196])
-	by kanga.kvack.org (Postfix) with SMTP id A32746B00E9
-	for <linux-mm@kvack.org>; Thu,  1 Mar 2012 04:32:53 -0500 (EST)
-From: Bob Liu <lliubbo@gmail.com>
-Subject: [PATCH 1/2] ksm: clean up page_trans_compound_anon_split
-Date: Thu, 1 Mar 2012 17:32:53 +0800
-Message-ID: <1330594374-13497-1-git-send-email-lliubbo@gmail.com>
+Received: from psmtp.com (na3sys010amx107.postini.com [74.125.245.107])
+	by kanga.kvack.org (Postfix) with SMTP id DA2186B002C
+	for <linux-mm@kvack.org>; Thu,  1 Mar 2012 05:00:49 -0500 (EST)
+Date: Thu, 1 Mar 2012 11:00:35 +0100
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH v2 next] memcg: fix deadlock by avoiding stat lock when
+ anon
+Message-ID: <20120301100035.GC1665@cmpxchg.org>
+References: <alpine.LSU.2.00.1202282121160.4875@eggly.anvils>
+ <alpine.LSU.2.00.1202282125240.4875@eggly.anvils>
+ <20120229193517.GD1673@cmpxchg.org>
+ <alpine.LSU.2.00.1202291648340.11821@eggly.anvils>
+ <alpine.LSU.2.00.1202291843120.14002@eggly.anvils>
 MIME-Version: 1.0
-Content-Type: text/plain
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.LSU.2.00.1202291843120.14002@eggly.anvils>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org
-Cc: hughd@google.com, rientjes@google.com, kamezawa.hiroyu@jp.fujitsu.com, minchan.kim@gmail.com, linux-mm@kvack.org, Bob Liu <lliubbo@gmail.com>
+To: Hugh Dickins <hughd@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Konstantin Khlebnikov <khlebnikov@openvz.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-Signed-off-by: Bob Liu <lliubbo@gmail.com>
----
- mm/ksm.c |   12 ++----------
- 1 files changed, 2 insertions(+), 10 deletions(-)
+On Wed, Feb 29, 2012 at 06:44:59PM -0800, Hugh Dickins wrote:
+> Fix deadlock in "memcg: use new logic for page stat accounting".
+> 
+> page_remove_rmap() first calls mem_cgroup_begin_update_page_stat(),
+> which may take move_lock_mem_cgroup(), unlocked at the end of
+> page_remove_rmap() by mem_cgroup_end_update_page_stat().
+> 
+> The PageAnon case never needs to mem_cgroup_dec_page_stat(page,
+> MEMCG_NR_FILE_MAPPED); but it often needs to mem_cgroup_uncharge_page(),
+> which does lock_page_cgroup(), while holding that move_lock_mem_cgroup().
+> Whereas mem_cgroup_move_account() calls move_lock_mem_cgroup() while
+> holding lock_page_cgroup().
+> 
+> Since mem_cgroup_begin and end are unnecessary here for PageAnon,
+> simply avoid the deadlock and wasted calls in that case.
+> 
+> Signed-off-by: Hugh Dickins <hughd@google.com>
 
-diff --git a/mm/ksm.c b/mm/ksm.c
-index 1925ffb..8e10786 100644
---- a/mm/ksm.c
-+++ b/mm/ksm.c
-@@ -817,7 +817,7 @@ out:
- 
- static int page_trans_compound_anon_split(struct page *page)
- {
--	int ret = 0;
-+	int ret = 1;
- 	struct page *transhuge_head = page_trans_compound_anon(page);
- 	if (transhuge_head) {
- 		/* Get the reference on the head to split it. */
-@@ -828,16 +828,8 @@ static int page_trans_compound_anon_split(struct page *page)
- 			 */
- 			if (PageAnon(transhuge_head))
- 				ret = split_huge_page(transhuge_head);
--			else
--				/*
--				 * Retry later if split_huge_page run
--				 * from under us.
--				 */
--				ret = 1;
- 			put_page(transhuge_head);
--		} else
--			/* Retry later if split_huge_page run from under us. */
--			ret = 1;
-+		}
- 	}
- 	return ret;
- }
--- 
-1.7.0.4
+Agreed, let's keep that lock ordering for now, and the comment makes
+it clear.  Thanks!
 
+Acked-by: Johannes Weiner <hannes@cmpxchg.org>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
