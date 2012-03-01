@@ -1,37 +1,38 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx168.postini.com [74.125.245.168])
-	by kanga.kvack.org (Postfix) with SMTP id D08EC6B0092
-	for <linux-mm@kvack.org>; Thu,  1 Mar 2012 06:41:55 -0500 (EST)
+Received: from psmtp.com (na3sys010amx143.postini.com [74.125.245.143])
+	by kanga.kvack.org (Postfix) with SMTP id EB2DA6B00EB
+	for <linux-mm@kvack.org>; Thu,  1 Mar 2012 06:41:57 -0500 (EST)
 From: Jan Kara <jack@suse.cz>
-Subject: [PATCH 6/9] fuse: Push file_update_time() into fuse_page_mkwrite()
-Date: Thu,  1 Mar 2012 12:41:40 +0100
-Message-Id: <1330602103-8851-7-git-send-email-jack@suse.cz>
+Subject: [PATCH 8/9] sysfs: Push file_update_time() into bin_page_mkwrite()
+Date: Thu,  1 Mar 2012 12:41:42 +0100
+Message-Id: <1330602103-8851-9-git-send-email-jack@suse.cz>
 In-Reply-To: <1330602103-8851-1-git-send-email-jack@suse.cz>
 References: <1330602103-8851-1-git-send-email-jack@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Al Viro <viro@ZenIV.linux.org.uk>, linux-fsdevel@vger.kernel.org, dchinner@redhat.com, Jan Kara <jack@suse.cz>, Miklos Szeredi <miklos@szeredi.hu>, fuse-devel@lists.sourceforge.net
+Cc: linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Al Viro <viro@ZenIV.linux.org.uk>, linux-fsdevel@vger.kernel.org, dchinner@redhat.com, Jan Kara <jack@suse.cz>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>
 
-CC: Miklos Szeredi <miklos@szeredi.hu>
-CC: fuse-devel@lists.sourceforge.net
+CC: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+Acked-by: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
 Signed-off-by: Jan Kara <jack@suse.cz>
 ---
- fs/fuse/file.c |    1 +
- 1 files changed, 1 insertions(+), 0 deletions(-)
+ fs/sysfs/bin.c |    2 ++
+ 1 files changed, 2 insertions(+), 0 deletions(-)
 
-diff --git a/fs/fuse/file.c b/fs/fuse/file.c
-index 4a199fd..eade72e 100644
---- a/fs/fuse/file.c
-+++ b/fs/fuse/file.c
-@@ -1323,6 +1323,7 @@ static int fuse_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf)
- 	 */
- 	struct inode *inode = vma->vm_file->f_mapping->host;
+diff --git a/fs/sysfs/bin.c b/fs/sysfs/bin.c
+index a475983..614b2b5 100644
+--- a/fs/sysfs/bin.c
++++ b/fs/sysfs/bin.c
+@@ -228,6 +228,8 @@ static int bin_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf)
+ 	ret = 0;
+ 	if (bb->vm_ops->page_mkwrite)
+ 		ret = bb->vm_ops->page_mkwrite(vma, vmf);
++	else
++		file_update_time(file);
  
-+	file_update_time(vma->vm_file);
- 	fuse_wait_on_page_writeback(inode, page->index);
- 	return 0;
- }
+ 	sysfs_put_active(attr_sd);
+ 	return ret;
 -- 
 1.7.1
 
