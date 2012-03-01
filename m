@@ -1,33 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx148.postini.com [74.125.245.148])
-	by kanga.kvack.org (Postfix) with SMTP id 43F1A6B002C
-	for <linux-mm@kvack.org>; Thu,  1 Mar 2012 08:40:34 -0500 (EST)
-Date: Thu, 1 Mar 2012 21:35:20 +0800
-From: Fengguang Wu <fengguang.wu@intel.com>
-Subject: Re: [PATCH v2 5/9] writeback: introduce the pageout work
-Message-ID: <20120301133520.GA7202@localhost>
-References: <20120228140022.614718843@intel.com>
- <20120228144747.198713792@intel.com>
- <20120229135156.GA31106@localhost>
+Received: from psmtp.com (na3sys010amx170.postini.com [74.125.245.170])
+	by kanga.kvack.org (Postfix) with SMTP id 5407D6B002C
+	for <linux-mm@kvack.org>; Thu,  1 Mar 2012 10:03:19 -0500 (EST)
+Date: Thu, 1 Mar 2012 09:03:16 -0600 (CST)
+From: Christoph Lameter <cl@gentwo.org>
+Subject: Re: [PATCH -next] slub: set PG_slab on all of slab pages
+In-Reply-To: <1330587031.1762.46.camel@leonhard>
+Message-ID: <alpine.DEB.2.00.1203010901020.5004@router.home>
+References: <1330505674-31610-1-git-send-email-namhyung.kim@lge.com>  <alpine.DEB.2.00.1202290922210.32268@router.home> <1330587031.1762.46.camel@leonhard>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20120229135156.GA31106@localhost>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Greg Thelen <gthelen@google.com>, Jan Kara <jack@suse.cz>, Ying Han <yinghan@google.com>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan.kim@gmail.com>, Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Namhyung Kim <namhyung@gmail.com>
+Cc: Namhyung Kim <namhyung.kim@lge.com>, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-> However the other type of works, if ever they come, can still block us
-> for long time. Will need a proper way to guarantee fairness.
+On Thu, 1 Mar 2012, Namhyung Kim wrote:
 
-The simplistic way around this may be to refuse to queue new pageout
-works when found other type of works in the queue. Then vmscan will
-fall back to pageout(). It's rare condition anyway and hardly deserves
-a comprehensive fairness scheme.
+> > You cannot free a tail page of a compound higher order page independently.
+> > You must free the whole compound.
+> >
+>
+> I meant freeing a *slab object* resides in a compound page using buddy
+> system API (e.g. free_pages). I know it's definitely a programming
+> error. However there's no safety net to protect and/or warn such a
+> misbehavior AFAICS - except for head page which has PG_slab set - when
+> it happened by any chance.
 
-Thanks,
-Fengguang
+?? One generally passed a struct page pointer to the page allocator. Slab
+allocator takes pointers to object. The calls that take a pointer to an
+object must have a page aligned value.
+
+> Without it, it might be possible to free part of tail pages silently,
+> and cause unexpected not-so-funny results some time later. It should be
+> hard to find out.
+
+Ok then fix the page allocator to BUG() on tail pages. That is an issue
+with the page allocator not the slab allocator.
+
+Adding PG_tail to the flags checked on free should do the trick (at least
+for 64 bit).
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
