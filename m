@@ -1,43 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx159.postini.com [74.125.245.159])
-	by kanga.kvack.org (Postfix) with SMTP id 89AF76B002C
-	for <linux-mm@kvack.org>; Wed, 29 Feb 2012 20:21:47 -0500 (EST)
-Received: by pbbro12 with SMTP id ro12so271122pbb.14
-        for <linux-mm@kvack.org>; Wed, 29 Feb 2012 17:21:46 -0800 (PST)
-Date: Wed, 29 Feb 2012 17:21:18 -0800 (PST)
-From: Hugh Dickins <hughd@google.com>
-Subject: Re: [PATCH next] memcg: remove PCG_CACHE page_cgroup flag fix
-In-Reply-To: <20120229194304.GF1673@cmpxchg.org>
-Message-ID: <alpine.LSU.2.00.1202291718450.11821@eggly.anvils>
-References: <alpine.LSU.2.00.1202282121160.4875@eggly.anvils> <alpine.LSU.2.00.1202282128500.4875@eggly.anvils> <20120229194304.GF1673@cmpxchg.org>
+Received: from psmtp.com (na3sys010amx206.postini.com [74.125.245.206])
+	by kanga.kvack.org (Postfix) with SMTP id A9A1A6B002C
+	for <linux-mm@kvack.org>; Wed, 29 Feb 2012 20:26:09 -0500 (EST)
+Received: by pbbro12 with SMTP id ro12so275739pbb.14
+        for <linux-mm@kvack.org>; Wed, 29 Feb 2012 17:26:08 -0800 (PST)
+Date: Wed, 29 Feb 2012 17:26:07 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH] mm: SLAB Out-of-memory diagnostics
+In-Reply-To: <20120229032715.GA23758@t510.redhat.com>
+Message-ID: <alpine.DEB.2.00.1202291724100.17729@chino.kir.corp.google.com>
+References: <20120229032715.GA23758@t510.redhat.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Konstantin Khlebnikov <khlebnikov@openvz.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Rafael Aquini <aquini@redhat.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Randy Dunlap <rdunlap@xenotime.net>, Christoph Lameter <cl@linux-foundation.org>, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, Rik van Riel <riel@redhat.com>, Josef Bacik <josef@redhat.com>
 
-On Wed, 29 Feb 2012, Johannes Weiner wrote:
-> On Tue, Feb 28, 2012 at 09:30:17PM -0800, Hugh Dickins wrote:
-> >  
-> > +	anon = PageAnon(page);
-> > +
-> >  	switch (ctype) {
-> >  	case MEM_CGROUP_CHARGE_TYPE_MAPPED:
-> > +		anon = true;
-> > +		/* fallthrough */
+On Wed, 29 Feb 2012, Rafael Aquini wrote:
+
+> Following the example at mm/slub.c, add out-of-memory diagnostics to the SLAB
+> allocator to help on debugging OOM conditions. This patch also adds a new
+> sysctl, 'oom_dump_slabs_forced', that overrides the effect of __GFP_NOWARN page
+> allocation flag and forces the kernel to report every slab allocation failure.
 > 
-> If you don't mind, could you add a small comment on why this is the
-> exception where we don't trust page->mapping?
-
-Right, I'll send an incremental fix for that.
-
+> An example print out looks like this:
 > 
-> Other than that,
-> Acked-by: Johannes Weiner <hannes@cmpxchg.org>
+>   <snip page allocator out-of-memory message>
+>   SLAB: Unable to allocate memory on node 0 (gfp=0x11200)
+>      cache: bio-0, object size: 192, order: 0
+>      node0: slabs: 3/3, objs: 60/60, free: 0
+> 
+> Signed-off-by: Rafael Aquini <aquini@redhat.com>
 
-Thanks,
-Hugh
+I like it, except for the addition of the sysctl.  __GFP_NOWARN is used 
+for a reason, usually because whatever is allocating memory can gracefully 
+handle a failure and should not be emitted to the kernel log under any 
+circumstances.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
