@@ -1,100 +1,259 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx115.postini.com [74.125.245.115])
-	by kanga.kvack.org (Postfix) with SMTP id 7BEC96B002C
+Received: from psmtp.com (na3sys010amx140.postini.com [74.125.245.140])
+	by kanga.kvack.org (Postfix) with SMTP id 7E8986B004A
 	for <linux-mm@kvack.org>; Thu,  1 Mar 2012 04:16:56 -0500 (EST)
 Received: from /spool/local
-	by e23smtp04.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e23smtp07.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
-	Thu, 1 Mar 2012 09:00:31 +1000
+	Thu, 1 Mar 2012 09:11:40 +1000
 Received: from d23av03.au.ibm.com (d23av03.au.ibm.com [9.190.234.97])
-	by d23relay05.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q219BAa41298558
-	for <linux-mm@kvack.org>; Thu, 1 Mar 2012 20:11:12 +1100
+	by d23relay05.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q219BLMq2896018
+	for <linux-mm@kvack.org>; Thu, 1 Mar 2012 20:11:21 +1100
 Received: from d23av03.au.ibm.com (loopback [127.0.0.1])
-	by d23av03.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q219Gea6003769
-	for <linux-mm@kvack.org>; Thu, 1 Mar 2012 20:16:41 +1100
+	by d23av03.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q219Gpw2004061
+	for <linux-mm@kvack.org>; Thu, 1 Mar 2012 20:16:52 +1100
 From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Subject: [PATCH -V2 0/9] memcg: add HugeTLB resource tracking
-Date: Thu,  1 Mar 2012 14:46:11 +0530
-Message-Id: <1330593380-1361-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+Subject: [PATCH -V2 3/9] hugetlbfs: Use the generic region API and drop local one
+Date: Thu,  1 Mar 2012 14:46:14 +0530
+Message-Id: <1330593380-1361-4-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+In-Reply-To: <1330593380-1361-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+References: <1330593380-1361-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org, mgorman@suse.de, kamezawa.hiroyu@jp.fujitsu.com, dhillf@gmail.com, aarcange@redhat.com, mhocko@suse.cz, akpm@linux-foundation.org, hannes@cmpxchg.org
-Cc: linux-kernel@vger.kernel.org, cgroups@vger.kernel.org
+Cc: linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
 
-Hi,
+From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
 
-This patchset implements a memory controller extension to control
-HugeTLB allocations. It is similar to the existing hugetlb quota
-support in that, the limit is enforced at mmap(2) time and not at
-fault time. HugeTLB's quota mechanism limits the number of huge pages
-that can allocated per superblock.
+Use the new region functions added.
 
-For shared mappings we track the regions mapped by a task along with the
-memcg. We keep the memory controller charged even after the task
-that did mmap(2) exits. Uncharge happens during truncate. For Private
-mappings we charge and uncharge from the current task cgroup.
+Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
+---
+ mm/hugetlb.c |  160 ++++------------------------------------------------------
+ 1 files changed, 10 insertions(+), 150 deletions(-)
 
-A sample strace output for an application doing malloc with hugectl is given
-below. libhugetlbfs will fall back to normal pagesize if the HugeTLB mmap fails.
-
-open("/mnt/libhugetlbfs.tmp.uhLMgy", O_RDWR|O_CREAT|O_EXCL, 0600) = 3
-unlink("/mnt/libhugetlbfs.tmp.uhLMgy")  = 0
-
-.........
-
-mmap(0x20000000000, 50331648, PROT_READ|PROT_WRITE, MAP_PRIVATE, 3, 0) = -1 ENOMEM (Cannot allocate memory)
-write(2, "libhugetlbfs", 12libhugetlbfs)            = 12
-write(2, ": WARNING: New heap segment map" ....
-mmap(NULL, 42008576, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0) = 0xfff946c0000
-....
-
-
-Goals:
-
-1) We want to keep the semantic closer to hugelb quota support. ie, we want
-   to extend quota semantics to a group of tasks. Currently hugetlb quota
-   mechanism allows one to control number of hugetlb pages allocated per
-   hugetlbfs superblock.
-
-2) Applications using hugetlbfs always fallback to normal page size allocation when they
-   fail to allocate huge pages. libhugetlbfs internally handles this for malloc(3). We
-   want to retain this behaviour when we enforce the controller limit. ie, when huge page
-   allocation fails due to controller limit, applications should fallback to
-   allocation using normal page size. The above implies that we need to enforce
-   limit at mmap(2).
-
-3) HugeTLBfs doesn't support page reclaim. It also doesn't support write(2). Applications
-   use hugetlbfs via mmap(2) interface. Important point to note here is hugetlbfs
-   extends file size in mmap.
-
-   With shared mappings, the file size gets extended in mmap and file will remain in hugetlbfs
-   consuming huge pages until it is truncated. We want to make sure we keep the controller
-   charged until the file is truncated. This implies, that the controller will be charged
-   even after the task that did mmap exit.
-
-Implementation details:
-
-In order to achieve the above goals we need to track the cgroup information
-along with mmap range in a charge list in inode for shared mapping and in
-vm_area_struct for private mapping. We won't be using page to track cgroup
-information because with the above goals we are not really tracking the pages used.
-
-Since we track cgroup in charge list, if we want to remove the cgroup, we need to update
-the charge list to point to the parent cgroup. Currently we take the easy route
-and prevent a cgroup removal if it's non reclaim resource usage is non zero.
-
-Changes from V1:
-* Changed the implementation as a memcg extension. We still use
-  the same logic to track the cgroup and range.
-
-Changes from RFC post:
-* Added support for HugeTLB cgroup hierarchy
-* Added support for task migration
-* Added documentation patch
-* Other bug fixes
-
--aneesh
-
+diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+index 5f34bd8..9fd6d38 100644
+--- a/mm/hugetlb.c
++++ b/mm/hugetlb.c
+@@ -21,6 +21,7 @@
+ #include <linux/rmap.h>
+ #include <linux/swap.h>
+ #include <linux/swapops.h>
++#include <linux/region.h>
+ 
+ #include <asm/page.h>
+ #include <asm/pgtable.h>
+@@ -66,151 +67,10 @@ static DEFINE_SPINLOCK(hugetlb_lock);
+  * or
+  *	down_read(&mm->mmap_sem);
+  *	mutex_lock(&hugetlb_instantiation_mutex);
++ * shared mapping regions are tracked in inode->i_mapping and
++ * private mapping regions in vma_rea_struct
++ *
+  */
+-struct file_region {
+-	struct list_head link;
+-	long from;
+-	long to;
+-};
+-
+-static long region_add(struct list_head *head, long f, long t)
+-{
+-	struct file_region *rg, *nrg, *trg;
+-
+-	/* Locate the region we are either in or before. */
+-	list_for_each_entry(rg, head, link)
+-		if (f <= rg->to)
+-			break;
+-
+-	/* Round our left edge to the current segment if it encloses us. */
+-	if (f > rg->from)
+-		f = rg->from;
+-
+-	/* Check for and consume any regions we now overlap with. */
+-	nrg = rg;
+-	list_for_each_entry_safe(rg, trg, rg->link.prev, link) {
+-		if (&rg->link == head)
+-			break;
+-		if (rg->from > t)
+-			break;
+-
+-		/* If this area reaches higher then extend our area to
+-		 * include it completely.  If this is not the first area
+-		 * which we intend to reuse, free it. */
+-		if (rg->to > t)
+-			t = rg->to;
+-		if (rg != nrg) {
+-			list_del(&rg->link);
+-			kfree(rg);
+-		}
+-	}
+-	nrg->from = f;
+-	nrg->to = t;
+-	return 0;
+-}
+-
+-static long region_chg(struct list_head *head, long f, long t)
+-{
+-	struct file_region *rg, *nrg;
+-	long chg = 0;
+-
+-	/* Locate the region we are before or in. */
+-	list_for_each_entry(rg, head, link)
+-		if (f <= rg->to)
+-			break;
+-
+-	/* If we are below the current region then a new region is required.
+-	 * Subtle, allocate a new region at the position but make it zero
+-	 * size such that we can guarantee to record the reservation. */
+-	if (&rg->link == head || t < rg->from) {
+-		nrg = kmalloc(sizeof(*nrg), GFP_KERNEL);
+-		if (!nrg)
+-			return -ENOMEM;
+-		nrg->from = f;
+-		nrg->to   = f;
+-		INIT_LIST_HEAD(&nrg->link);
+-		list_add(&nrg->link, rg->link.prev);
+-
+-		return t - f;
+-	}
+-
+-	/* Round our left edge to the current segment if it encloses us. */
+-	if (f > rg->from)
+-		f = rg->from;
+-	chg = t - f;
+-
+-	/* Check for and consume any regions we now overlap with. */
+-	list_for_each_entry(rg, rg->link.prev, link) {
+-		if (&rg->link == head)
+-			break;
+-		if (rg->from > t)
+-			return chg;
+-
+-		/* We overlap with this area, if it extends further than
+-		 * us then we must extend ourselves.  Account for its
+-		 * existing reservation. */
+-		if (rg->to > t) {
+-			chg += rg->to - t;
+-			t = rg->to;
+-		}
+-		chg -= rg->to - rg->from;
+-	}
+-	return chg;
+-}
+-
+-static long region_truncate(struct list_head *head, long end)
+-{
+-	struct file_region *rg, *trg;
+-	long chg = 0;
+-
+-	/* Locate the region we are either in or before. */
+-	list_for_each_entry(rg, head, link)
+-		if (end <= rg->to)
+-			break;
+-	if (&rg->link == head)
+-		return 0;
+-
+-	/* If we are in the middle of a region then adjust it. */
+-	if (end > rg->from) {
+-		chg = rg->to - end;
+-		rg->to = end;
+-		rg = list_entry(rg->link.next, typeof(*rg), link);
+-	}
+-
+-	/* Drop any remaining regions. */
+-	list_for_each_entry_safe(rg, trg, rg->link.prev, link) {
+-		if (&rg->link == head)
+-			break;
+-		chg += rg->to - rg->from;
+-		list_del(&rg->link);
+-		kfree(rg);
+-	}
+-	return chg;
+-}
+-
+-static long region_count(struct list_head *head, long f, long t)
+-{
+-	struct file_region *rg;
+-	long chg = 0;
+-
+-	/* Locate each segment we overlap with, and count that overlap. */
+-	list_for_each_entry(rg, head, link) {
+-		int seg_from;
+-		int seg_to;
+-
+-		if (rg->to <= f)
+-			continue;
+-		if (rg->from >= t)
+-			break;
+-
+-		seg_from = max(rg->from, f);
+-		seg_to = min(rg->to, t);
+-
+-		chg += seg_to - seg_from;
+-	}
+-
+-	return chg;
+-}
+ 
+ /*
+  * Convert the address within this vma to the page offset within
+@@ -981,7 +841,7 @@ static long vma_needs_reservation(struct hstate *h,
+ 	if (vma->vm_flags & VM_MAYSHARE) {
+ 		pgoff_t idx = vma_hugecache_offset(h, vma, addr);
+ 		return region_chg(&inode->i_mapping->private_list,
+-							idx, idx + 1);
++				  idx, idx + 1, 0);
+ 
+ 	} else if (!is_vma_resv_set(vma, HPAGE_RESV_OWNER)) {
+ 		return 1;
+@@ -991,7 +851,7 @@ static long vma_needs_reservation(struct hstate *h,
+ 		pgoff_t idx = vma_hugecache_offset(h, vma, addr);
+ 		struct resv_map *reservations = vma_resv_map(vma);
+ 
+-		err = region_chg(&reservations->regions, idx, idx + 1);
++		err = region_chg(&reservations->regions, idx, idx + 1, 0);
+ 		if (err < 0)
+ 			return err;
+ 		return 0;
+@@ -1005,14 +865,14 @@ static void vma_commit_reservation(struct hstate *h,
+ 
+ 	if (vma->vm_flags & VM_MAYSHARE) {
+ 		pgoff_t idx = vma_hugecache_offset(h, vma, addr);
+-		region_add(&inode->i_mapping->private_list, idx, idx + 1);
++		region_add(&inode->i_mapping->private_list, idx, idx + 1, 0);
+ 
+ 	} else if (is_vma_resv_set(vma, HPAGE_RESV_OWNER)) {
+ 		pgoff_t idx = vma_hugecache_offset(h, vma, addr);
+ 		struct resv_map *reservations = vma_resv_map(vma);
+ 
+ 		/* Mark this page used in the map. */
+-		region_add(&reservations->regions, idx, idx + 1);
++		region_add(&reservations->regions, idx, idx + 1, 0);
+ 	}
+ }
+ 
+@@ -2885,7 +2745,7 @@ int hugetlb_reserve_pages(struct inode *inode,
+ 	 * called to make the mapping read-write. Assume !vma is a shm mapping
+ 	 */
+ 	if (!vma || vma->vm_flags & VM_MAYSHARE)
+-		chg = region_chg(&inode->i_mapping->private_list, from, to);
++		chg = region_chg(&inode->i_mapping->private_list, from, to, 0);
+ 	else {
+ 		struct resv_map *resv_map = resv_map_alloc();
+ 		if (!resv_map)
+@@ -2926,7 +2786,7 @@ int hugetlb_reserve_pages(struct inode *inode,
+ 	 * else has to be done for private mappings here
+ 	 */
+ 	if (!vma || vma->vm_flags & VM_MAYSHARE)
+-		region_add(&inode->i_mapping->private_list, from, to);
++		region_add(&inode->i_mapping->private_list, from, to, 0);
+ 	return 0;
+ }
+ 
+-- 
+1.7.9
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
