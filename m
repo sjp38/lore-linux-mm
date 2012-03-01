@@ -1,54 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx172.postini.com [74.125.245.172])
-	by kanga.kvack.org (Postfix) with SMTP id 62A446B004A
-	for <linux-mm@kvack.org>; Thu,  1 Mar 2012 16:22:17 -0500 (EST)
-Date: Thu, 1 Mar 2012 13:22:15 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 5/9] writeback: introduce the pageout work
-Message-Id: <20120301132215.71246044.akpm@linux-foundation.org>
-In-Reply-To: <20120301211551.GD13104@quack.suse.cz>
-References: <20120228140022.614718843@intel.com>
-	<20120228144747.198713792@intel.com>
-	<20120228160403.9c9fa4dc.akpm@linux-foundation.org>
-	<20120301110404.GC4385@quack.suse.cz>
-	<20120301114201.d1dcacad.akpm@linux-foundation.org>
-	<20120301211551.GD13104@quack.suse.cz>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx205.postini.com [74.125.245.205])
+	by kanga.kvack.org (Postfix) with SMTP id EF7946B004A
+	for <linux-mm@kvack.org>; Thu,  1 Mar 2012 17:01:48 -0500 (EST)
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Subject: Re: [RFC][PATCH] memcg: avoid THP split in task migration
+Date: Thu,  1 Mar 2012 17:01:38 -0500
+Message-Id: <1330639298-10342-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+In-Reply-To: <1330633336-10707-1-git-send-email-n-horiguchi@ah.jp.nec.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jan Kara <jack@suse.cz>
-Cc: Fengguang Wu <fengguang.wu@intel.com>, Greg Thelen <gthelen@google.com>, Ying Han <yinghan@google.com>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan.kim@gmail.com>, Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Cc: Andrea Arcangeli <aarcange@redhat.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Hillf Danton <dhillf@gmail.com>, linux-kernel@vger.kernel.org
 
-On Thu, 1 Mar 2012 22:15:51 +0100
-Jan Kara <jack@suse.cz> wrote:
-
-> On Thu 01-03-12 11:42:01, Andrew Morton wrote:
-> > On Thu, 1 Mar 2012 12:04:04 +0100
-> > Jan Kara <jack@suse.cz> wrote:
-> > 
-> > > > iirc, the way I "grabbed" the page was to actually lock it, with
-> > > > [try_]_lock_page().  And unlock it again way over within the writeback
-> > > > thread.  I forget why I did it this way, rather than get_page() or
-> > > > whatever.  Locking the page is a good way of preventing anyone else
-> > > > from futzing with it.  It also pins the inode, which perhaps meant that
-> > > > with careful management, I could avoid the igrab()/iput() horrors
-> > > > discussed above.
+On Thu, Mar 01, 2012 at 03:22:16PM -0500, Naoya Horiguchi wrote:
+> > > @@ -5219,7 +5255,13 @@ static int mem_cgroup_count_precharge_pte_range(pmd_t *pmd,
+> > >  	pte_t *pte;
+> > >  	spinlock_t *ptl;
 > > >
-> > >   I think using get_page() might be a good way to go.
-> > 
-> > get_page() doesn't pin the inode - truncate() will still detach it
-> > from the address_space().
->   Yes, I know. And exactly because of that I'd like to use it. Flusher
-> thread would lock the page from the work item, check whether it is still
-> attached to the inode and if yes, it will proceed. Otherwise it will just
-> discard the work item because we know the page has already been written out
-> by someone else or truncated.
+> > > -	split_huge_page_pmd(walk->mm, pmd);
+> > > +	if (pmd_trans_huge_lock(pmd, vma) == 1) {
+> > > +		if (is_target_huge_pmd_for_mc(vma, addr, *pmd, NULL))
+> > > +			mc.precharge += HPAGE_PMD_NR;
+> >
+> > Your use of HPAGE_PMD_NR looks fine, that path will be eliminated at
+> > build time if THP is off. This is the nice way to write code that is
+> > already optimal for THP=off without making special cases or #ifdefs.
+> >
+> > Other review suggests changing HPAGE_PMD_NR as BUILD_BUG, that sounds
+> > good idea too, but in this (correct) usage of HPAGE_PMD_NR it wouldn't
+> > make a difference because of the whole branch is correctly eliminated
+> > at build time. In short changing it to BUILD_BUG will simply make sure
+> > the whole pmd_trans_huge_lock == 1 branch is eliminated at build
+> > time. It looks good change too but it's orthogonal so I'd leave it for
+> > a separate patch.
+> 
+> In my trial, without changing HPAGE_PMD_NR as BUILD_BUG a build did not
+> pass with !CONFIG_TRANSPARENT_HUGEPAGE as Hillf said.
+> Evaluating HPAGE_PMD_NR seems to be prior to eliminating whole
+> pmd_trans_huge_lock == 1 branch, so I think this change is necessary.
 
-That would work OK.  The vmscanning process won't know that its
-writeback effort failed, but it's hard to see how that could cause a
-problem.
+I said the wrong thing.
+The error I experienced was just "HPAGE_PMD_NR is undefined."
+This is not related to changeing BUG() to BUILD_BUG() in already defined
+HPAGE_PMD_(SHIFT|MASK|SIZE).
+And using BUILD_BUG() to confirm elimination is good for me. 
+
+Sorry for confusion.
+Naoya
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
