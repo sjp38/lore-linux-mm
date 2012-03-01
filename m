@@ -1,82 +1,170 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx103.postini.com [74.125.245.103])
-	by kanga.kvack.org (Postfix) with SMTP id 24EEF6B004A
-	for <linux-mm@kvack.org>; Thu,  1 Mar 2012 13:27:39 -0500 (EST)
-Message-ID: <4F4FBF96.7070600@tilera.com>
-Date: Thu, 1 Mar 2012 13:27:34 -0500
-From: Chris Metcalf <cmetcalf@tilera.com>
+Received: from psmtp.com (na3sys010amx135.postini.com [74.125.245.135])
+	by kanga.kvack.org (Postfix) with SMTP id EB6296B002C
+	for <linux-mm@kvack.org>; Thu,  1 Mar 2012 14:26:35 -0500 (EST)
+Received: by wgbdt12 with SMTP id dt12so91504wgb.26
+        for <linux-mm@kvack.org>; Thu, 01 Mar 2012 11:26:34 -0800 (PST)
 MIME-Version: 1.0
-Subject: Re: [v7 0/8] Reduce cross CPU IPI interference
-References: <1327572121-13673-1-git-send-email-gilad@benyossef.com> <1327591185.2446.102.camel@twins> <CAOtvUMeAkPzcZtiPggacMQGa0EywTH5SzcXgWjMtssR6a5KFqA@mail.gmail.com> <20120201170443.GE6731@somewhere.redhat.com> <CAOtvUMc8L1nh2eGJez0x44UkfPCqd+xYQASsKOP76atopZi5mw@mail.gmail.com> <4F2AAEB9.9070302@tilera.com> <1328898816.25989.33.camel@laptop> <4F3C28AF.9080005@tilera.com> <20120221013443.GA13403@somewhere.redhat.com>
-In-Reply-To: <20120221013443.GA13403@somewhere.redhat.com>
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: 7bit
+From: Daniel Vetter <daniel.vetter@ffwll.ch>
+Subject: [PATCH] mm: extend prefault helpers to fault in more than PAGE_SIZE
+Date: Thu,  1 Mar 2012 20:22:59 +0100
+Message-Id: <1330629779-1449-1-git-send-email-daniel.vetter@ffwll.ch>
+In-Reply-To: <20120229153216.8c3ae31d.akpm@linux-foundation.org>
+References: <20120229153216.8c3ae31d.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Frederic Weisbecker <fweisbec@gmail.com>
-Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Gilad Ben-Yossef <gilad@benyossef.com>, linux-kernel@vger.kernel.org, Christoph Lameter <cl@linux.com>, linux-mm@kvack.org, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, Sasha Levin <levinsasha928@gmail.com>, Rik van Riel <riel@redhat.com>, Andi Kleen <andi@firstfloor.org>, Mel Gorman <mel@csn.ul.ie>, Andrew Morton <akpm@linux-foundation.org>, Alexander Viro <viro@zeniv.linux.org.uk>, Avi Kivity <avi@redhat.com>, Michal Nazarewicz <mina86@mina86.com>, Kosaki Motohiro <kosaki.motohiro@gmail.com>, Milton Miller <miltonm@bga.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Intel Graphics Development <intel-gfx@lists.freedesktop.org>, DRI Development <dri-devel@lists.freedesktop.org>, LKML <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, Daniel Vetter <daniel.vetter@ffwll.ch>
 
-(Sorry, away on vacation for a while, and just getting back to this thread.)
+drm/i915 wants to read/write more than one page in its fastpath
+and hence needs to prefault more than PAGE_SIZE bytes.
 
-On 2/20/2012 8:34 PM, Frederic Weisbecker wrote:
-> On Wed, Feb 15, 2012 at 04:50:39PM -0500, Chris Metcalf wrote:
->> The Tilera dataplane code is available on the "dataplane" branch (off of
->> 3.3-rc3 at the moment):
->>
->> git://git.kernel.org/pub/scm/linux/kernel/git/cmetcalf/linux-tile.git
->>
->> I'm still looking at Frederic's git tree, but I'm assuming the following
->> are all true of tasks that are running on a nohz cpuset core:
->>
->> - The core will not run the global scheduler to do work stealing, since
->> otherwise you can't guarantee that only tasks that care about userspace
->> nohz get to run there.  (I suppose you could loosen thus such that the core
->> would do work stealing as long as no task was pinned to that core by
->> affinity, at which point the pinned task would become the only runnable task.)
-> A nohz cpuset doesn't really control that. It actually reacts to the scheduler
-> actions. Like try to stop the tick if there is only one task on the runqueue,
-> restart it when we have more.
->
-> Ensuring the CPU doesn't get distracted is rather the role of the user by
-> setting the right cpusets to get the desired affinity. And if we still have
-> noise with workqueues or something, this is something we need to look at
-> and fix on a case by case basis.
+Add new functions in filemap.h to make that possible.
 
-So won't it still be the case that the nohz cpus will try to run the global
-scheduler to do load balancing?  Or are you relying on something like the
-idle load balancer functionality to do the load balancing externally?  The
-reason for isolcpus in the Tilera code is just to avoid having the
-dataplane cpus ever end up having to schedule a tick just so they can do
-load balancing work.
+Also kill a copy&pasted spurious space in both functions while at it.
 
-Frederic, do you have a design document, or anything else I can read other
-than the code in your git tree?  I still haven't found time to do that,
-though I'd definitely like to start figuring out how I can integrate your
-stuff and the Tilera stuff into a single thing that both meets our
-customers' needs, AND is actually integrated into the kernel.org master :-)
+v2: As suggested by Andrew Morton, add a multipage parameter to both
+functions to avoid the additional branch for the pagemap.c hotpath.
+My gcc 4.6 here seems to dtrt and indeed reap these branches where not
+needed.
 
->> - Kernel "background" tasks are disabled on that core, at least while
->> userspace nohz tasks are running: softlockup watchdog, slab reap timer,
->> vmstat thread, etc.
-> Yeah that's examples of "noisy" things. Those are in fact a seperate issues
-> that nohz cpusets don't touch. nohz cpuset are really only about trying to
-> shut down the periodic tick, or defer it for a far as possible in the future.
->
-> Now the nohz cpuset uses some user/kernel entry/exit hooks that we can extend
-> to cover some of these cases. We may want to make some timers "user-deferrable",
-> ie: deactivate, reactivate them on kernel entry and exit.
->
-> That need some thinking though, this may not always be a win for every workload.
-> But those that are userspace-mostly can profit.
+v3: Becaus I couldn't find a way around adding a uaddr += PAGE_SIZE to
+the filemap.c hotpaths (that the compiler couldn't remove again),
+let's go with separate new functions for the multipage use-case.
 
-Yes.  The workloads we are focused on (along with Gilad and some others) is
-just the very simple one where we want to be able to have something go into
-userspace, and get 100.000% of the cpu until the task itself takes some
-action that requires kernel support.
+Cc: linux-mm@kvack.org
+Signed-off-by: Daniel Vetter <daniel.vetter@ffwll.ch>
+---
+ drivers/gpu/drm/i915/i915_gem.c            |    6 +-
+ drivers/gpu/drm/i915/i915_gem_execbuffer.c |    2 +-
+ include/linux/pagemap.h                    |   62 +++++++++++++++++++++++++++-
+ 3 files changed, 64 insertions(+), 6 deletions(-)
 
+diff --git a/drivers/gpu/drm/i915/i915_gem.c b/drivers/gpu/drm/i915/i915_gem.c
+index 544e528..3e631fc 100644
+--- a/drivers/gpu/drm/i915/i915_gem.c
++++ b/drivers/gpu/drm/i915/i915_gem.c
+@@ -436,7 +436,7 @@ i915_gem_shmem_pread(struct drm_device *dev,
+ 		mutex_unlock(&dev->struct_mutex);
+ 
+ 		if (!prefaulted) {
+-			ret = fault_in_pages_writeable(user_data, remain);
++			ret = fault_in_multipages_writeable(user_data, remain);
+ 			/* Userspace is tricking us, but we've already clobbered
+ 			 * its pages with the prefault and promised to write the
+ 			 * data up to the first fault. Hence ignore any errors
+@@ -822,8 +822,8 @@ i915_gem_pwrite_ioctl(struct drm_device *dev, void *data,
+ 		       args->size))
+ 		return -EFAULT;
+ 
+-	ret = fault_in_pages_readable((char __user *)(uintptr_t)args->data_ptr,
+-				      args->size);
++	ret = fault_in_multipages_readable((char __user *)(uintptr_t)args->data_ptr,
++					   args->size);
+ 	if (ret)
+ 		return -EFAULT;
+ 
+diff --git a/drivers/gpu/drm/i915/i915_gem_execbuffer.c b/drivers/gpu/drm/i915/i915_gem_execbuffer.c
+index 81687af..ef87f52 100644
+--- a/drivers/gpu/drm/i915/i915_gem_execbuffer.c
++++ b/drivers/gpu/drm/i915/i915_gem_execbuffer.c
+@@ -955,7 +955,7 @@ validate_exec_list(struct drm_i915_gem_exec_object2 *exec,
+ 		if (!access_ok(VERIFY_WRITE, ptr, length))
+ 			return -EFAULT;
+ 
+-		if (fault_in_pages_readable(ptr, length))
++		if (fault_in_multipages_readable(ptr, length))
+ 			return -EFAULT;
+ 	}
+ 
+diff --git a/include/linux/pagemap.h b/include/linux/pagemap.h
+index cfaaa69..0a91375 100644
+--- a/include/linux/pagemap.h
++++ b/include/linux/pagemap.h
+@@ -426,7 +426,7 @@ static inline int fault_in_pages_writeable(char __user *uaddr, int size)
+ 		 */
+ 		if (((unsigned long)uaddr & PAGE_MASK) !=
+ 				((unsigned long)end & PAGE_MASK))
+-		 	ret = __put_user(0, end);
++			ret = __put_user(0, end);
+ 	}
+ 	return ret;
+ }
+@@ -445,13 +445,71 @@ static inline int fault_in_pages_readable(const char __user *uaddr, int size)
+ 
+ 		if (((unsigned long)uaddr & PAGE_MASK) !=
+ 				((unsigned long)end & PAGE_MASK)) {
+-		 	ret = __get_user(c, end);
++			ret = __get_user(c, end);
+ 			(void)c;
+ 		}
+ 	}
+ 	return ret;
+ }
+ 
++/* Multipage variants of the above prefault helpers, useful if more than
++ * PAGE_SIZE of date needs to be prefaulted. These are separate from the above
++ * functions (which only handle up to PAGE_SIZE) to avoid clobbering the
++ * filemap.c hotpaths. */
++static inline int fault_in_multipages_writeable(char __user *uaddr, int size)
++{
++	int ret;
++	const char __user *end = uaddr + size - 1;
++
++	if (unlikely(size == 0))
++		return 0;
++
++	/*
++	 * Writing zeroes into userspace here is OK, because we know that if
++	 * the zero gets there, we'll be overwriting it.
++	 */
++	while (uaddr <= end) {
++		ret = __put_user(0, uaddr);
++		if (ret != 0)
++			return ret;
++		uaddr += PAGE_SIZE;
++	}
++
++	/* Check whether the range spilled into the next page. */
++	if (((unsigned long)uaddr & PAGE_MASK) ==
++			((unsigned long)end & PAGE_MASK))
++		ret = __put_user(0, end);
++
++	return ret;
++}
++
++static inline int fault_in_multipages_readable(const char __user *uaddr,
++					       int size)
++{
++	volatile char c;
++	int ret;
++	const char __user *end = uaddr + size - 1;
++
++	if (unlikely(size == 0))
++		return 0;
++
++	while (uaddr <= end) {
++		ret = __get_user(c, uaddr);
++		if (ret != 0)
++			return ret;
++		uaddr += PAGE_SIZE;
++	}
++
++	/* Check whether the range spilled into the next page. */
++	if (((unsigned long)uaddr & PAGE_MASK) ==
++			((unsigned long)end & PAGE_MASK)) {
++		ret = __get_user(c, end);
++		(void)c;
++	}
++
++	return ret;
++}
++
+ int add_to_page_cache_locked(struct page *page, struct address_space *mapping,
+ 				pgoff_t index, gfp_t gfp_mask);
+ int add_to_page_cache_lru(struct page *page, struct address_space *mapping,
 -- 
-Chris Metcalf, Tilera Corp.
-http://www.tilera.com
+1.7.7.6
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
