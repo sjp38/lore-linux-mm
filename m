@@ -1,60 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx125.postini.com [74.125.245.125])
-	by kanga.kvack.org (Postfix) with SMTP id 965466B002C
-	for <linux-mm@kvack.org>; Thu,  1 Mar 2012 02:30:39 -0500 (EST)
-Received: by dakp5 with SMTP id p5so503320dak.8
-        for <linux-mm@kvack.org>; Wed, 29 Feb 2012 23:30:38 -0800 (PST)
-Subject: Re: [PATCH -next] slub: set PG_slab on all of slab pages
-From: Namhyung Kim <namhyung@gmail.com>
-In-Reply-To: <alpine.DEB.2.00.1202290922210.32268@router.home>
-References: <1330505674-31610-1-git-send-email-namhyung.kim@lge.com>
-	 <alpine.DEB.2.00.1202290922210.32268@router.home>
-Content-Type: text/plain; charset="UTF-8"
-Date: Thu, 01 Mar 2012 16:30:31 +0900
-Message-ID: <1330587031.1762.46.camel@leonhard>
-Mime-Version: 1.0
+Received: from psmtp.com (na3sys010amx161.postini.com [74.125.245.161])
+	by kanga.kvack.org (Postfix) with SMTP id 0BBF56B002C
+	for <linux-mm@kvack.org>; Thu,  1 Mar 2012 03:06:51 -0500 (EST)
+Received: by bkwq16 with SMTP id q16so286490bkw.14
+        for <linux-mm@kvack.org>; Thu, 01 Mar 2012 00:06:49 -0800 (PST)
+Message-ID: <4F4F2E16.5080703@openvz.org>
+Date: Thu, 01 Mar 2012 12:06:46 +0400
+From: Konstantin Khlebnikov <khlebnikov@openvz.org>
+MIME-Version: 1.0
+Subject: Re: [PATCH resend] mm: drain percpu lru add/rotate page-vectors on
+ cpu hot-unplug
+References: <20120228193620.32063.83425.stgit@zurg> <20120229123818.61a61e9d.akpm@linux-foundation.org>
+In-Reply-To: <20120229123818.61a61e9d.akpm@linux-foundation.org>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@gentwo.org>
-Cc: Namhyung Kim <namhyung.kim@lge.com>, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <jweiner@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 
-Hi,
+Andrew Morton wrote:
+> On Tue, 28 Feb 2012 23:40:45 +0400
+> Konstantin Khlebnikov<khlebnikov@openvz.org>  wrote:
+>
+>> This cpu hotplug hook was accidentally removed in commit v2.6.30-rc4-18-g00a62ce
+>> ("mm: fix Committed_AS underflow on large NR_CPUS environment")
+>
+> That was a long time ago - maybe we should leave it removed ;) I mean,
+> did this bug(?) have any visible effect?  If so, what was that effect?
 
-2012-02-29, 09:24 -0600, Christoph Lameter wrote:
-> On Wed, 29 Feb 2012, Namhyung Kim wrote:
-> 
-> > Unlike SLAB, SLUB doesn't set PG_slab on tail pages, so if a user would
-> > call free_pages() incorrectly on a object in a tail page, she will get
-> > confused with the undefined result. Setting the flag would help her by
-> > emitting a warning on bad_page() in such a case.
-> 
-> NAK
-> 
-> You cannot free a tail page of a compound higher order page independently.
-> You must free the whole compound.
-> 
+It's because cpu hotplug/unplug isn't widely used feature.
+Visible effect -- some pages are borrowed in per-cpu page-vectors.
+Truncate can deal with it, but these pages cannot be reused while this cpu is offline.
+So this is like temporary memory leak.
 
-I meant freeing a *slab object* resides in a compound page using buddy
-system API (e.g. free_pages). I know it's definitely a programming
-error. However there's no safety net to protect and/or warn such a
-misbehavior AFAICS - except for head page which has PG_slab set - when
-it happened by any chance.
+>
+> IOW, the changelog didn't give anyone any reason to apply the patch to
+> anything!
 
-Without it, it might be possible to free part of tail pages silently,
-and cause unexpected not-so-funny results some time later. It should be
-hard to find out.
-
-When I ran such a bad code using SLAB, I was able to be notified
-immediately. That's why I'd like to add this patch to SLUB too. In
-addition, it will give more correct value for slab pages when
-using /proc/kpageflags IMHO.
-
-
--- 
-Regards,
-Namhyung Kim
-
+Sorry, I'm just stuck in pile of patches. It seems I should stop and send them one by one.
+This one isn't critical, so there no reasons for pushing it into stable branches.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
