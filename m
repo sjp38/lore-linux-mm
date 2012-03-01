@@ -1,95 +1,108 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx205.postini.com [74.125.245.205])
-	by kanga.kvack.org (Postfix) with SMTP id DCC2D6B002C
-	for <linux-mm@kvack.org>; Wed, 29 Feb 2012 21:45:27 -0500 (EST)
-Received: by dald2 with SMTP id d2so187532dal.9
-        for <linux-mm@kvack.org>; Wed, 29 Feb 2012 18:45:27 -0800 (PST)
-Date: Wed, 29 Feb 2012 18:44:59 -0800 (PST)
-From: Hugh Dickins <hughd@google.com>
-Subject: [PATCH v2 next] memcg: fix deadlock by avoiding stat lock when
- anon
-In-Reply-To: <alpine.LSU.2.00.1202291648340.11821@eggly.anvils>
-Message-ID: <alpine.LSU.2.00.1202291843120.14002@eggly.anvils>
-References: <alpine.LSU.2.00.1202282121160.4875@eggly.anvils> <alpine.LSU.2.00.1202282125240.4875@eggly.anvils> <20120229193517.GD1673@cmpxchg.org> <alpine.LSU.2.00.1202291648340.11821@eggly.anvils>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from psmtp.com (na3sys010amx177.postini.com [74.125.245.177])
+	by kanga.kvack.org (Postfix) with SMTP id B214E6B002C
+	for <linux-mm@kvack.org>; Thu,  1 Mar 2012 01:07:26 -0500 (EST)
+Received: from m4.gw.fujitsu.co.jp (unknown [10.0.50.74])
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 64BA53EE0AE
+	for <linux-mm@kvack.org>; Thu,  1 Mar 2012 15:07:24 +0900 (JST)
+Received: from smail (m4 [127.0.0.1])
+	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 4F35245DE4F
+	for <linux-mm@kvack.org>; Thu,  1 Mar 2012 15:07:24 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
+	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 2E1BA45DE4D
+	for <linux-mm@kvack.org>; Thu,  1 Mar 2012 15:07:24 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 227C51DB803B
+	for <linux-mm@kvack.org>; Thu,  1 Mar 2012 15:07:24 +0900 (JST)
+Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.240.81.147])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id BFA3A1DB8037
+	for <linux-mm@kvack.org>; Thu,  1 Mar 2012 15:07:23 +0900 (JST)
+Date: Thu, 1 Mar 2012 15:05:37 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH 04/10] memcg: Introduce __GFP_NOACCOUNT.
+Message-Id: <20120301150537.8996bbf6.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <4F4EC1AB.8050506@parallels.com>
+References: <1330383533-20711-1-git-send-email-ssouhlal@FreeBSD.org>
+	<1330383533-20711-5-git-send-email-ssouhlal@FreeBSD.org>
+	<20120229150041.62c1feeb.kamezawa.hiroyu@jp.fujitsu.com>
+	<CABCjUKBHjLHKUmW6_r0SOyw42WfV0zNO7Kd7FhhRQTT6jZdyeQ@mail.gmail.com>
+	<20120301091044.1a62d42c.kamezawa.hiroyu@jp.fujitsu.com>
+	<4F4EC1AB.8050506@parallels.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Konstantin Khlebnikov <khlebnikov@openvz.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Glauber Costa <glommer@parallels.com>
+Cc: Suleiman Souhlal <suleiman@google.com>, Suleiman Souhlal <ssouhlal@freebsd.org>, cgroups@vger.kernel.org, penberg@kernel.org, yinghan@google.com, hughd@google.com, gthelen@google.com, linux-mm@kvack.org, devel@openvz.org
 
-Fix deadlock in "memcg: use new logic for page stat accounting".
+On Wed, 29 Feb 2012 21:24:11 -0300
+Glauber Costa <glommer@parallels.com> wrote:
 
-page_remove_rmap() first calls mem_cgroup_begin_update_page_stat(),
-which may take move_lock_mem_cgroup(), unlocked at the end of
-page_remove_rmap() by mem_cgroup_end_update_page_stat().
+> On 02/29/2012 09:10 PM, KAMEZAWA Hiroyuki wrote:
+> > On Wed, 29 Feb 2012 11:09:50 -0800
+> > Suleiman Souhlal<suleiman@google.com>  wrote:
+> >
+> >> On Tue, Feb 28, 2012 at 10:00 PM, KAMEZAWA Hiroyuki
+> >> <kamezawa.hiroyu@jp.fujitsu.com>  wrote:
+> >>> On Mon, 27 Feb 2012 14:58:47 -0800
+> >>> Suleiman Souhlal<ssouhlal@FreeBSD.org>  wrote:
+> >>>
+> >>>> This is used to indicate that we don't want an allocation to be accounted
+> >>>> to the current cgroup.
+> >>>>
+> >>>> Signed-off-by: Suleiman Souhlal<suleiman@google.com>
+> >>>
+> >>> I don't like this.
+> >>>
+> >>> Please add
+> >>>
+> >>> ___GFP_ACCOUNT  "account this allocation to memcg"
+> >>>
+> >>> Or make this as slab's flag if this work is for slab allocation.
+> >>
+> >> We would like to account for all the slab allocations that happen in
+> >> process context.
+> >>
+> >> Manually marking every single allocation or kmem_cache with a GFP flag
+> >> really doesn't seem like the right thing to do..
+> >>
+> >> Can you explain why you don't like this flag?
+> >>
+> >
+> > For example, tcp buffer limiting has another logic for buffer size controling.
+> > _AND_, most of kernel pages are not reclaimable at all.
+> > I think you should start from reclaimable caches as dcache, icache etc.
+> >
+> > If you want to use this wider, you can discuss
+> >
+> > + #define GFP_KERNEL	(.....| ___GFP_ACCOUNT)
+> >
+> > in future. I'd like to see small start because memory allocation failure
+> > is always terrible and make the system unstable. Even if you notify
+> > "Ah, kernel memory allocation failed because of memory.limit? and
+> >   many unreclaimable memory usage. Please tweak the limitation or kill tasks!!"
+> >
+> > The user can't do anything because he can't create any new task because of OOM.
+> >
+> > The system will be being unstable until an admin, who is not under any limit,
+> > tweaks something or reboot the system.
+> >
+> > Please do small start until you provide Eco-System to avoid a case that
+> > the admin cannot login and what he can do was only reboot.
+> >
+> Having the root cgroup to be always unlimited should already take care 
+> of the most extreme cases, right?
+> 
+If an admin can login into root cgroup ;)
+Anyway, if someone have a container under cgroup via hosting service,
+he can do noting if oom killer cannot recover his container. It can be
+caused by kernel memory limit. And I'm not sure he can do shutdown because
+he can't login.
 
-The PageAnon case never needs to mem_cgroup_dec_page_stat(page,
-MEMCG_NR_FILE_MAPPED); but it often needs to mem_cgroup_uncharge_page(),
-which does lock_page_cgroup(), while holding that move_lock_mem_cgroup().
-Whereas mem_cgroup_move_account() calls move_lock_mem_cgroup() while
-holding lock_page_cgroup().
+Thanks,
+-Kame
 
-Since mem_cgroup_begin and end are unnecessary here for PageAnon,
-simply avoid the deadlock and wasted calls in that case.
-
-Signed-off-by: Hugh Dickins <hughd@google.com>
----
-v2: added comment in the code so it's not thought just an optimization.
-
- mm/rmap.c |   17 +++++++++++++----
- 1 file changed, 13 insertions(+), 4 deletions(-)
-
---- 3.3-rc5-next/mm/rmap.c	2012-02-26 23:51:46.506050210 -0800
-+++ linux/mm/rmap.c	2012-02-29 17:55:42.868665736 -0800
-@@ -1166,10 +1166,18 @@ void page_add_file_rmap(struct page *pag
-  */
- void page_remove_rmap(struct page *page)
- {
-+	bool anon = PageAnon(page);
- 	bool locked;
- 	unsigned long flags;
- 
--	mem_cgroup_begin_update_page_stat(page, &locked, &flags);
-+	/*
-+	 * The anon case has no mem_cgroup page_stat to update; but may
-+	 * uncharge_page() below, where the lock ordering can deadlock if
-+	 * we hold the lock against page_stat move: so avoid it on anon.
-+	 */
-+	if (!anon)
-+		mem_cgroup_begin_update_page_stat(page, &locked, &flags);
-+
- 	/* page still mapped by someone else? */
- 	if (!atomic_add_negative(-1, &page->_mapcount))
- 		goto out;
-@@ -1181,7 +1189,7 @@ void page_remove_rmap(struct page *page)
- 	 * not if it's in swapcache - there might be another pte slot
- 	 * containing the swap entry, but page not yet written to swap.
- 	 */
--	if ((!PageAnon(page) || PageSwapCache(page)) &&
-+	if ((!anon || PageSwapCache(page)) &&
- 	    page_test_and_clear_dirty(page_to_pfn(page), 1))
- 		set_page_dirty(page);
- 	/*
-@@ -1190,7 +1198,7 @@ void page_remove_rmap(struct page *page)
- 	 */
- 	if (unlikely(PageHuge(page)))
- 		goto out;
--	if (PageAnon(page)) {
-+	if (anon) {
- 		mem_cgroup_uncharge_page(page);
- 		if (!PageTransHuge(page))
- 			__dec_zone_page_state(page, NR_ANON_PAGES);
-@@ -1211,7 +1219,8 @@ void page_remove_rmap(struct page *page)
- 	 * faster for those pages still in swapcache.
- 	 */
- out:
--	mem_cgroup_end_update_page_stat(page, &locked, &flags);
-+	if (!anon)
-+		mem_cgroup_end_update_page_stat(page, &locked, &flags);
- }
- 
- /*
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
