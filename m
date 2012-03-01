@@ -1,41 +1,35 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx164.postini.com [74.125.245.164])
-	by kanga.kvack.org (Postfix) with SMTP id 230996B00ED
-	for <linux-mm@kvack.org>; Thu,  1 Mar 2012 06:41:58 -0500 (EST)
-From: Jan Kara <jack@suse.cz>
-Subject: [PATCH 4/9] cifs: Push file_update_time() into cifs_page_mkwrite()
-Date: Thu,  1 Mar 2012 12:41:38 +0100
-Message-Id: <1330602103-8851-5-git-send-email-jack@suse.cz>
-In-Reply-To: <1330602103-8851-1-git-send-email-jack@suse.cz>
-References: <1330602103-8851-1-git-send-email-jack@suse.cz>
+Received: from psmtp.com (na3sys010amx126.postini.com [74.125.245.126])
+	by kanga.kvack.org (Postfix) with SMTP id 58B606B00E9
+	for <linux-mm@kvack.org>; Thu,  1 Mar 2012 06:43:04 -0500 (EST)
+Date: Thu, 1 Mar 2012 11:42:54 +0000
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [PATCH v2] bootmem/sparsemem: remove limit constraint in
+ alloc_bootmem_section
+Message-ID: <20120301114254.GH1199@suse.de>
+References: <1330112038-18951-1-git-send-email-nacc@us.ibm.com>
+ <20120228154732.GE1199@suse.de>
+ <20120229181233.GF5136@linux.vnet.ibm.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20120229181233.GF5136@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Al Viro <viro@ZenIV.linux.org.uk>, linux-fsdevel@vger.kernel.org, dchinner@redhat.com, Jan Kara <jack@suse.cz>, Steve French <sfrench@samba.org>, linux-cifs@vger.kernel.org
+To: Nishanth Aravamudan <nacc@linux.vnet.ibm.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <haveblue@us.ibm.com>, Anton Blanchard <anton@au1.ibm.com>, Paul Mackerras <paulus@samba.org>, Ben Herrenschmidt <benh@kernel.crashing.org>, Robert Jennings <rcj@linux.vnet.ibm.com>, Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org
 
-CC: Steve French <sfrench@samba.org>
-CC: linux-cifs@vger.kernel.org
-Signed-off-by: Jan Kara <jack@suse.cz>
----
- fs/cifs/file.c |    3 +++
- 1 files changed, 3 insertions(+), 0 deletions(-)
+On Wed, Feb 29, 2012 at 10:12:33AM -0800, Nishanth Aravamudan wrote:
+> <SNIP>
+>
+> Signed-off-by: Nishanth Aravamudan <nacc@us.ibm.com>
+> 
 
-diff --git a/fs/cifs/file.c b/fs/cifs/file.c
-index 4dd9283..8e3b23b 100644
---- a/fs/cifs/file.c
-+++ b/fs/cifs/file.c
-@@ -2425,6 +2425,9 @@ cifs_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf)
- {
- 	struct page *page = vmf->page;
- 
-+	/* Update file times before taking page lock */
-+	file_update_time(vma->vm_file);
-+
- 	lock_page(page);
- 	return VM_FAULT_LOCKED;
- }
+Acked-by: Mel Gorman <mgorman@suse.de>
+
 -- 
-1.7.1
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
