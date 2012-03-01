@@ -1,21 +1,21 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx140.postini.com [74.125.245.140])
-	by kanga.kvack.org (Postfix) with SMTP id 480E06B00E7
+Received: from psmtp.com (na3sys010amx187.postini.com [74.125.245.187])
+	by kanga.kvack.org (Postfix) with SMTP id 52C616B00E9
 	for <linux-mm@kvack.org>; Thu,  1 Mar 2012 04:17:16 -0500 (EST)
 Received: from /spool/local
-	by e23smtp03.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e23smtp04.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
-	Thu, 1 Mar 2012 09:09:25 +1000
+	Thu, 1 Mar 2012 09:00:58 +1000
 Received: from d23av03.au.ibm.com (d23av03.au.ibm.com [9.190.234.97])
-	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q219HC9S1347712
-	for <linux-mm@kvack.org>; Thu, 1 Mar 2012 20:17:12 +1100
+	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q219HAfK1450218
+	for <linux-mm@kvack.org>; Thu, 1 Mar 2012 20:17:10 +1100
 Received: from d23av03.au.ibm.com (loopback [127.0.0.1])
-	by d23av03.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q219HBWi004758
-	for <linux-mm@kvack.org>; Thu, 1 Mar 2012 20:17:12 +1100
+	by d23av03.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q219H81g004631
+	for <linux-mm@kvack.org>; Thu, 1 Mar 2012 20:17:10 +1100
 From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Subject: [PATCH -V2 9/9] memcg: Add memory controller documentation for hugetlb management
-Date: Thu,  1 Mar 2012 14:46:20 +0530
-Message-Id: <1330593380-1361-10-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+Subject: [PATCH -V2 8/9] hugetlbfs: Add memcg control files for hugetlbfs
+Date: Thu,  1 Mar 2012 14:46:19 +0530
+Message-Id: <1330593380-1361-9-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
 In-Reply-To: <1330593380-1361-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
 References: <1330593380-1361-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
@@ -25,78 +25,169 @@ Cc: linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, "Aneesh Kumar K.V" <a
 
 From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
 
+This add control files for hugetlbfs in memcg
+
 Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
 ---
- Documentation/cgroups/memory.txt |   28 ++++++++++++++++++++++++++++
- 1 files changed, 28 insertions(+), 0 deletions(-)
+ include/linux/hugetlb.h |    5 ++++
+ mm/hugetlb.c            |   39 ++++++++++++++++++++++++++++++++++++-
+ mm/memcontrol.c         |   49 +++++++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 92 insertions(+), 1 deletions(-)
 
-diff --git a/Documentation/cgroups/memory.txt b/Documentation/cgroups/memory.txt
-index 4c95c00..f98d9af 100644
---- a/Documentation/cgroups/memory.txt
-+++ b/Documentation/cgroups/memory.txt
-@@ -43,6 +43,7 @@ Features:
-  - usage threshold notifier
-  - oom-killer disable knob and oom-notifier
-  - Root cgroup has no limit controls.
-+ - resource accounting for non reclaimable resources like HugeTLB pages
+diff --git a/include/linux/hugetlb.h b/include/linux/hugetlb.h
+index d9d6c86..8498fa8 100644
+--- a/include/linux/hugetlb.h
++++ b/include/linux/hugetlb.h
+@@ -4,6 +4,7 @@
+ #include <linux/mm_types.h>
+ #include <linux/fs.h>
+ #include <linux/hugetlb_inline.h>
++#include <linux/cgroup.h>
  
-  Kernel memory support is work in progress, and the current version provides
-  basically functionality. (See Section 2.7)
-@@ -75,6 +76,12 @@ Brief summary of control files.
-  memory.kmem.tcp.limit_in_bytes  # set/show hard limit for tcp buf memory
-  memory.kmem.tcp.usage_in_bytes  # show current tcp buf memory allocation
+ struct ctl_table;
+ struct user_struct;
+@@ -220,6 +221,10 @@ struct hstate {
+ 	unsigned int nr_huge_pages_node[MAX_NUMNODES];
+ 	unsigned int free_huge_pages_node[MAX_NUMNODES];
+ 	unsigned int surplus_huge_pages_node[MAX_NUMNODES];
++	/* cgroup control files */
++	struct cftype cgroup_limit_file;
++	struct cftype cgroup_usage_file;
++	struct cftype cgroup_max_usage_file;
+ 	char name[HSTATE_NAME_LEN];
+ };
  
+diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+index 2d99d0a..9229715 100644
+--- a/mm/hugetlb.c
++++ b/mm/hugetlb.c
+@@ -23,6 +23,7 @@
+ #include <linux/swapops.h>
+ #include <linux/region.h>
+ #include <linux/memcontrol.h>
++#include <linux/res_counter.h>
+ 
+ #include <asm/page.h>
+ #include <asm/pgtable.h>
+@@ -1761,6 +1762,42 @@ static int __init hugetlb_init(void)
+ }
+ module_init(hugetlb_init);
+ 
++#ifdef CONFIG_MEM_RES_CTLR_NORECLAIM
++int register_hugetlb_memcg_files(struct cgroup *cgroup,
++				 struct cgroup_subsys *ss)
++{
++	int ret = 0;
++	struct hstate *h;
 +
-+ memory.hugetlb.<hugepagesize>.limit_in_bytes     # set/show limit of "hugepagesize" hugetlb usage
-+ memory.hugetlb.<hugepagesize>.max_usage_in_bytes # show max "hugepagesize" hugetlb  usage recorded
-+ memory.hugetlb.<hugepagesize>.usage_in_bytes     # show current res_counter usage for "hugepagesize" hugetlb
-+						  # see 5.7 for details
++	for_each_hstate(h) {
++		ret = cgroup_add_file(cgroup, ss, &h->cgroup_limit_file);
++		if (ret)
++			return ret;
++		ret = cgroup_add_file(cgroup, ss, &h->cgroup_usage_file);
++		if (ret)
++			return ret;
++		ret = cgroup_add_file(cgroup, ss, &h->cgroup_max_usage_file);
++		if (ret)
++			return ret;
 +
- 1. History
- 
- The memory controller has a long history. A request for comments for the memory
-@@ -279,6 +286,14 @@ per cgroup, instead of globally.
- 
- * tcp memory pressure: sockets memory pressure for the tcp protocol.
- 
-+2.8 Non reclaim resouce management
++	}
++	return ret;
++}
++/* mm/memcontrol.c because mem_cgroup is not availabel outside */
++int hugetlb_memcg_file_init(struct hstate *h, int idx);
++#else
++int register_hugetlb_memcg_files(struct cgroup *cgroup,
++				  struct cgroup_subsys *ss)
++{
++	return 0;
++}
 +
-+This helps in enforcing limit on non reclaimable pages like HugeTLB pages.
-+For non reclaim resource, enforcing limit during actual page allocation
-+doesn't make sense. Hence this extension enforce limit during mmap(2).
-+This enables application to fall back to alternative allocation methods
-+such as allocations using normal page size when HugeTLB allocation fails.
++static int hugetlb_memcg_file_init(struct hstate *h, int idx)
++{
++	return 0;
++}
++#endif
 +
- 3. User Interface
+ /* Should be called on processing a hugepagesz=... option */
+ void __init hugetlb_add_hstate(unsigned order)
+ {
+@@ -1784,7 +1821,7 @@ void __init hugetlb_add_hstate(unsigned order)
+ 	h->next_nid_to_free = first_node(node_states[N_HIGH_MEMORY]);
+ 	snprintf(h->name, HSTATE_NAME_LEN, "hugepages-%lukB",
+ 					huge_page_size(h)/1024);
+-
++	hugetlb_memcg_file_init(h, max_hstate - 1);
+ 	parsed_hstate = h;
+ }
  
- 0. Configuration
-@@ -287,6 +302,7 @@ a. Enable CONFIG_CGROUPS
- b. Enable CONFIG_RESOURCE_COUNTERS
- c. Enable CONFIG_CGROUP_MEM_RES_CTLR
- d. Enable CONFIG_CGROUP_MEM_RES_CTLR_SWAP (to use swap extension)
-+f. Enable CONFIG_MEM_RES_CTLR_NORECLAIM (to use non reclaim extension)
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index 25bc5f7..410d53d 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -5012,6 +5012,52 @@ static void mem_cgroup_destroy(struct cgroup_subsys *ss,
+ 	mem_cgroup_put(memcg);
+ }
  
- 1. Prepare the cgroups (see cgroups.txt, Why are cgroups needed?)
- # mount -t tmpfs none /sys/fs/cgroup
-@@ -510,6 +526,18 @@ unevictable=<total anon pages> N0=<node 0 pages> N1=<node 1 pages> ...
- 
- And we have total = file + anon + unevictable.
- 
-+5.7 non reclaimable resource control files
-+For a system supporting two hugepage size (16M and 16G) the control
-+files include:
++#if defined(CONFIG_MEM_RES_CTLR_NORECLAIM) && defined(CONFIG_HUGETLBFS)
++static char *mem_fmt(char *buf, unsigned long n)
++{
++	if (n >= (1UL << 30))
++		sprintf(buf, "%luGB", n >> 30);
++	else if (n >= (1UL << 20))
++		sprintf(buf, "%luMB", n >> 20);
++	else
++		sprintf(buf, "%luKB", n >> 10);
++	return buf;
++}
 +
-+ memory.hugetlb.16GB.limit_in_bytes
-+ memory.hugetlb.16GB.max_usage_in_bytes
-+ memory.hugetlb.16GB.usage_in_bytes
-+ memory.hugetlb.16MB.limit_in_bytes
-+ memory.hugetlb.16MB.max_usage_in_bytes
-+ memory.hugetlb.16MB.usage_in_bytes
++int hugetlb_memcg_file_init(struct hstate *h, int idx)
++{
++	char buf[32];
++	struct cftype *cft;
 +
++	/* format the size */
++	mem_fmt(buf, huge_page_size(h));
 +
- 6. Hierarchy support
++	/* Add the limit file */
++	cft = &h->cgroup_limit_file;
++	snprintf(cft->name, MAX_CFTYPE_NAME, "hugetlb.%s.limit_in_bytes", buf);
++	cft->private = __MEMFILE_PRIVATE(idx, _MEMNORCL, RES_LIMIT);
++	cft->read_u64 = mem_cgroup_read;
++	cft->write_string = mem_cgroup_write;
++
++	/* Add the usage file */
++	cft = &h->cgroup_usage_file;
++	snprintf(cft->name, MAX_CFTYPE_NAME, "hugetlb.%s.usage_in_bytes", buf);
++	cft->private  = __MEMFILE_PRIVATE(idx, _MEMNORCL, RES_USAGE);
++	cft->read_u64 = mem_cgroup_read;
++
++	/* Add the MAX usage file */
++	cft = &h->cgroup_max_usage_file;
++	snprintf(cft->name, MAX_CFTYPE_NAME, "hugetlb.%s.max_usage_in_bytes", buf);
++	cft->private  = __MEMFILE_PRIVATE(idx, _MEMNORCL, RES_MAX_USAGE);
++	cft->trigger  = mem_cgroup_reset;
++	cft->read_u64 = mem_cgroup_read;
++
++	return 0;
++}
++#endif
++
++int register_hugetlb_memcg_files(struct cgroup *cgroup,
++				  struct cgroup_subsys *ss);
+ static int mem_cgroup_populate(struct cgroup_subsys *ss,
+ 				struct cgroup *cont)
+ {
+@@ -5026,6 +5072,9 @@ static int mem_cgroup_populate(struct cgroup_subsys *ss,
+ 	if (!ret)
+ 		ret = register_kmem_files(cont, ss);
  
- The memory controller supports a deep hierarchy and hierarchical accounting.
++	if (!ret)
++		ret = register_hugetlb_memcg_files(cont, ss);
++
+ 	return ret;
+ }
+ 
 -- 
 1.7.9
 
