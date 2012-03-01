@@ -1,48 +1,39 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx153.postini.com [74.125.245.153])
-	by kanga.kvack.org (Postfix) with SMTP id 880116B002C
-	for <linux-mm@kvack.org>; Thu,  1 Mar 2012 14:31:13 -0500 (EST)
-Received: by eaal1 with SMTP id l1so421155eaa.14
-        for <linux-mm@kvack.org>; Thu, 01 Mar 2012 11:31:11 -0800 (PST)
-From: Miklos Szeredi <miklos@szeredi.hu>
-Subject: Re: [PATCH 6/9] fuse: Push file_update_time() into fuse_page_mkwrite()
-References: <1330602103-8851-1-git-send-email-jack@suse.cz>
-	<1330602103-8851-7-git-send-email-jack@suse.cz>
-Date: Thu, 01 Mar 2012 20:31:17 +0100
-In-Reply-To: <1330602103-8851-7-git-send-email-jack@suse.cz> (Jan Kara's
-	message of "Thu, 1 Mar 2012 12:41:40 +0100")
-Message-ID: <87obsgce4a.fsf@tucsk.pomaz.szeredi.hu>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Received: from psmtp.com (na3sys010amx123.postini.com [74.125.245.123])
+	by kanga.kvack.org (Postfix) with SMTP id 764406B002C
+	for <linux-mm@kvack.org>; Thu,  1 Mar 2012 14:42:03 -0500 (EST)
+Date: Thu, 1 Mar 2012 11:42:01 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH 5/9] writeback: introduce the pageout work
+Message-Id: <20120301114201.d1dcacad.akpm@linux-foundation.org>
+In-Reply-To: <20120301110404.GC4385@quack.suse.cz>
+References: <20120228140022.614718843@intel.com>
+	<20120228144747.198713792@intel.com>
+	<20120228160403.9c9fa4dc.akpm@linux-foundation.org>
+	<20120301110404.GC4385@quack.suse.cz>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Jan Kara <jack@suse.cz>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Al Viro <viro@ZenIV.linux.org.uk>, linux-fsdevel@vger.kernel.org, dchinner@redhat.com, fuse-devel@lists.sourceforge.net
+Cc: Fengguang Wu <fengguang.wu@intel.com>, Greg Thelen <gthelen@google.com>, Ying Han <yinghan@google.com>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan.kim@gmail.com>, Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-Jan Kara <jack@suse.cz> writes:
+On Thu, 1 Mar 2012 12:04:04 +0100
+Jan Kara <jack@suse.cz> wrote:
 
-> CC: Miklos Szeredi <miklos@szeredi.hu>
-> CC: fuse-devel@lists.sourceforge.net
-> Signed-off-by: Jan Kara <jack@suse.cz>
-> ---
->  fs/fuse/file.c |    1 +
->  1 files changed, 1 insertions(+), 0 deletions(-)
+> > iirc, the way I "grabbed" the page was to actually lock it, with
+> > [try_]_lock_page().  And unlock it again way over within the writeback
+> > thread.  I forget why I did it this way, rather than get_page() or
+> > whatever.  Locking the page is a good way of preventing anyone else
+> > from futzing with it.  It also pins the inode, which perhaps meant that
+> > with careful management, I could avoid the igrab()/iput() horrors
+> > discussed above.
 >
-> diff --git a/fs/fuse/file.c b/fs/fuse/file.c
-> index 4a199fd..eade72e 100644
-> --- a/fs/fuse/file.c
-> +++ b/fs/fuse/file.c
-> @@ -1323,6 +1323,7 @@ static int fuse_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf)
->  	 */
->  	struct inode *inode = vma->vm_file->f_mapping->host;
->  
-> +	file_update_time(vma->vm_file);
+>   I think using get_page() might be a good way to go.
 
-Fuse sets S_CMTIME in inode flags, so this is a no-op.  IOW the patch is
-not needed.
-
-Thanks,
-Miklos
+get_page() doesn't pin the inode - truncate() will still detach it
+from the address_space().
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
