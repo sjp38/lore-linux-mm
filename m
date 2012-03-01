@@ -1,94 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx191.postini.com [74.125.245.191])
-	by kanga.kvack.org (Postfix) with SMTP id E10F46B004A
-	for <linux-mm@kvack.org>; Thu,  1 Mar 2012 18:12:44 -0500 (EST)
-Received: from /spool/local
-	by e36.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <nacc@linux.vnet.ibm.com>;
-	Thu, 1 Mar 2012 16:12:42 -0700
-Received: from d03relay01.boulder.ibm.com (d03relay01.boulder.ibm.com [9.17.195.226])
-	by d03dlp03.boulder.ibm.com (Postfix) with ESMTP id 930B019D804F
-	for <linux-mm@kvack.org>; Thu,  1 Mar 2012 16:12:15 -0700 (MST)
-Received: from d03av03.boulder.ibm.com (d03av03.boulder.ibm.com [9.17.195.169])
-	by d03relay01.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q21NCKb2140912
-	for <linux-mm@kvack.org>; Thu, 1 Mar 2012 16:12:20 -0700
-Received: from d03av03.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av03.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q21NCJfi002674
-	for <linux-mm@kvack.org>; Thu, 1 Mar 2012 16:12:20 -0700
-Date: Thu, 1 Mar 2012 15:12:16 -0800
-From: Nishanth Aravamudan <nacc@linux.vnet.ibm.com>
-Subject: Re: [PATCH v2] bootmem/sparsemem: remove limit constraint in
- alloc_bootmem_section
-Message-ID: <20120301231216.GA3252@linux.vnet.ibm.com>
-References: <1330112038-18951-1-git-send-email-nacc@us.ibm.com>
- <20120228154732.GE1199@suse.de>
- <20120229181233.GF5136@linux.vnet.ibm.com>
- <20120229152830.22fc72a2.akpm@linux-foundation.org>
+Received: from psmtp.com (na3sys010amx132.postini.com [74.125.245.132])
+	by kanga.kvack.org (Postfix) with SMTP id 3C1D16B004A
+	for <linux-mm@kvack.org>; Thu,  1 Mar 2012 18:29:57 -0500 (EST)
+Date: Thu, 1 Mar 2012 18:29:42 -0500
+From: Ted Ts'o <tytso@mit.edu>
+Subject: Re: [PATCH 00/11 v2] Push file_update_time() into .page_mkwrite
+Message-ID: <20120301232942.GH32588@thunk.org>
+References: <1330602103-8851-1-git-send-email-jack@suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20120229152830.22fc72a2.akpm@linux-foundation.org>
+In-Reply-To: <1330602103-8851-1-git-send-email-jack@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Mel Gorman <mgorman@suse.de>, Dave Hansen <haveblue@us.ibm.com>, Anton Blanchard <anton@au1.ibm.com>, Paul Mackerras <paulus@samba.org>, Ben Herrenschmidt <benh@kernel.crashing.org>, Robert Jennings <rcj@linux.vnet.ibm.com>, Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org, stable@vger.kernel.org
+To: Jan Kara <jack@suse.cz>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Al Viro <viro@ZenIV.linux.org.uk>, linux-fsdevel@vger.kernel.org, dchinner@redhat.com, Jaya Kumar <jayalk@intworks.biz>, Sage Weil <sage@newdream.net>, ceph-devel@vger.kernel.org, Steve French <sfrench@samba.org>, linux-cifs@vger.kernel.org, Eric Van Hensbergen <ericvh@gmail.com>, Ron Minnich <rminnich@sandia.gov>, Latchesar Ionkov <lucho@ionkov.net>, v9fs-developer@lists.sourceforge.net, Miklos Szeredi <miklos@szeredi.hu>, fuse-devel@lists.sourceforge.net, Steven Whitehouse <swhiteho@redhat.com>, cluster-devel@redhat.com, Greg Kroah-Hartman <gregkh@linuxfoundation.org>
 
-On 29.02.2012 [15:28:30 -0800], Andrew Morton wrote:
-> On Wed, 29 Feb 2012 10:12:33 -0800
-> Nishanth Aravamudan <nacc@linux.vnet.ibm.com> wrote:
+On Thu, Mar 01, 2012 at 12:41:34PM +0100, Jan Kara wrote:
 > 
-> > While testing AMS (Active Memory Sharing) / CMO (Cooperative Memory
-> > Overcommit) on powerpc, we tripped the following:
-> > 
-> > kernel BUG at mm/bootmem.c:483!
-> >
-> > ...
-> > 
-> > This is
-> > 
-> >         BUG_ON(limit && goal + size > limit);
-> > 
-> > and after some debugging, it seems that
-> > 
-> > 	goal = 0x7ffff000000
-> > 	limit = 0x80000000000
-> > 
-> > and sparse_early_usemaps_alloc_node ->
-> > sparse_early_usemaps_alloc_pgdat_section calls
-> > 
-> > 	return alloc_bootmem_section(usemap_size() * count, section_nr);
-> > 
-> > This is on a system with 8TB available via the AMS pool, and as a quirk
-> > of AMS in firmware, all of that memory shows up in node 0. So, we end up
-> > with an allocation that will fail the goal/limit constraints. In theory,
-> > we could "fall-back" to alloc_bootmem_node() in
-> > sparse_early_usemaps_alloc_node(), but since we actually have HOTREMOVE
-> > defined, we'll BUG_ON() instead. A simple solution appears to be to
-> > unconditionally remove the limit condition in alloc_bootmem_section,
-> > meaning allocations are allowed to cross section boundaries (necessary
-> > for systems of this size).
-> > 
-> > Johannes Weiner pointed out that if alloc_bootmem_section() no longer
-> > guarantees section-locality, we need check_usemap_section_nr() to print
-> > possible cross-dependencies between node descriptors and the usemaps
-> > allocated through it. That makes the two loops in
-> > sparse_early_usemaps_alloc_node() identical, so re-factor the code a
-> > bit.
-> 
-> The patch is a bit scary now, so I think we should merge it into
-> 3.4-rc1 and then backport it into 3.3.1 if nothing blows up.
-> 
-> Do you think it should be backported into 3.3.x?  Earlier kernels?
+> To fix the issue, this patch set changes page fault code to call
+> file_update_time() only when ->page_mkwrite() callback is not provided. If the
+> callback is provided, it is the responsibility of the filesystem to perform
+> update of i_mtime / i_ctime if needed. We also push file_update_time() call
+> to all existing ->page_mkwrite() implementations if the time update does not
+> obviously happen by other means. If you know your filesystem does not need
+> update of modification times in ->page_mkwrite() handler, please speak up and
+> I'll drop the patch for your filesystem.
 
-Upon review, it would be good if we can get it pushed back to kernels
-3.0.x, 3.1.x and 3.2.x.
+I don't know if this introductory text is going to be saved anywhere
+permanent, such as the merge commit (since git now has the ability to
+have much more informative merge descriptions).  But if it is going to
+be preserved, it might be worth mentioning that if the filesystem uses
+block_page_mkpage(), it will handled automatically for them since the
+patch series does push the call to file_update_time(0 into
+__block_page_mkpage().
 
-Thanks,
-Nish
-
--- 
-Nishanth Aravamudan <nacc@us.ibm.com>
-IBM Linux Technology Center
+					- Ted
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
