@@ -1,37 +1,30 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx202.postini.com [74.125.245.202])
-	by kanga.kvack.org (Postfix) with SMTP id 6BB8D6B002C
-	for <linux-mm@kvack.org>; Thu,  1 Mar 2012 07:42:03 -0500 (EST)
-Date: Thu, 1 Mar 2012 20:36:40 +0800
+Received: from psmtp.com (na3sys010amx148.postini.com [74.125.245.148])
+	by kanga.kvack.org (Postfix) with SMTP id 43F1A6B002C
+	for <linux-mm@kvack.org>; Thu,  1 Mar 2012 08:40:34 -0500 (EST)
+Date: Thu, 1 Mar 2012 21:35:20 +0800
 From: Fengguang Wu <fengguang.wu@intel.com>
-Subject: Re: [PATCH 5/9] writeback: introduce the pageout work
-Message-ID: <20120301123640.GA30369@localhost>
+Subject: Re: [PATCH v2 5/9] writeback: introduce the pageout work
+Message-ID: <20120301133520.GA7202@localhost>
 References: <20120228140022.614718843@intel.com>
  <20120228144747.198713792@intel.com>
- <20120228160403.9c9fa4dc.akpm@linux-foundation.org>
+ <20120229135156.GA31106@localhost>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20120228160403.9c9fa4dc.akpm@linux-foundation.org>
+In-Reply-To: <20120229135156.GA31106@localhost>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Greg Thelen <gthelen@google.com>, Jan Kara <jack@suse.cz>, Ying Han <yinghan@google.com>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan.kim@gmail.com>, Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-> Please have a think about all of this and see if you can demonstrate
-> how the iput() here is guaranteed safe.
+> However the other type of works, if ever they come, can still block us
+> for long time. Will need a proper way to guarantee fairness.
 
-There are already several __iget()/iput() calls inside fs-writeback.c.
-The existing iput() calls already demonstrate its safety?
-
-Basically the flusher works in this way
-
-- the dirty inode list i_wb_list does not reference count the inode at all
-
-- the flusher thread does something analog to igrab() and set I_SYNC
-  before going off to writeout the inode
-
-- evice() will wait for completion of I_SYNC
+The simplistic way around this may be to refuse to queue new pageout
+works when found other type of works in the queue. Then vmscan will
+fall back to pageout(). It's rare condition anyway and hardly deserves
+a comprehensive fairness scheme.
 
 Thanks,
 Fengguang
