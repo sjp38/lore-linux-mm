@@ -1,52 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx205.postini.com [74.125.245.205])
-	by kanga.kvack.org (Postfix) with SMTP id EF7946B004A
-	for <linux-mm@kvack.org>; Thu,  1 Mar 2012 17:01:48 -0500 (EST)
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: Re: [RFC][PATCH] memcg: avoid THP split in task migration
-Date: Thu,  1 Mar 2012 17:01:38 -0500
-Message-Id: <1330639298-10342-1-git-send-email-n-horiguchi@ah.jp.nec.com>
-In-Reply-To: <1330633336-10707-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+Received: from psmtp.com (na3sys010amx144.postini.com [74.125.245.144])
+	by kanga.kvack.org (Postfix) with SMTP id E6C516B004A
+	for <linux-mm@kvack.org>; Thu,  1 Mar 2012 17:10:09 -0500 (EST)
+Date: Thu, 1 Mar 2012 14:10:07 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH -V2] hugetlbfs: Drop taking inode i_mutex lock from
+ hugetlbfs_read
+Message-Id: <20120301141007.274ad458.akpm@linux-foundation.org>
+In-Reply-To: <1330593530-2022-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+References: <1330593530-2022-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: Andrea Arcangeli <aarcange@redhat.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Hillf Danton <dhillf@gmail.com>, linux-kernel@vger.kernel.org
+To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Cc: linux-mm@kvack.org, mgorman@suse.de, kamezawa.hiroyu@jp.fujitsu.com, dhillf@gmail.com, viro@zeniv.linux.org.uk, hughd@google.com, linux-kernel@vger.kernel.org
 
-On Thu, Mar 01, 2012 at 03:22:16PM -0500, Naoya Horiguchi wrote:
-> > > @@ -5219,7 +5255,13 @@ static int mem_cgroup_count_precharge_pte_range(pmd_t *pmd,
-> > >  	pte_t *pte;
-> > >  	spinlock_t *ptl;
-> > >
-> > > -	split_huge_page_pmd(walk->mm, pmd);
-> > > +	if (pmd_trans_huge_lock(pmd, vma) == 1) {
-> > > +		if (is_target_huge_pmd_for_mc(vma, addr, *pmd, NULL))
-> > > +			mc.precharge += HPAGE_PMD_NR;
-> >
-> > Your use of HPAGE_PMD_NR looks fine, that path will be eliminated at
-> > build time if THP is off. This is the nice way to write code that is
-> > already optimal for THP=off without making special cases or #ifdefs.
-> >
-> > Other review suggests changing HPAGE_PMD_NR as BUILD_BUG, that sounds
-> > good idea too, but in this (correct) usage of HPAGE_PMD_NR it wouldn't
-> > make a difference because of the whole branch is correctly eliminated
-> > at build time. In short changing it to BUILD_BUG will simply make sure
-> > the whole pmd_trans_huge_lock == 1 branch is eliminated at build
-> > time. It looks good change too but it's orthogonal so I'd leave it for
-> > a separate patch.
+On Thu,  1 Mar 2012 14:48:50 +0530
+"Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com> wrote:
+
+> Taking i_mutex lock in hugetlbfs_read can result in deadlock with mmap
+> as explained below
+>  Thread A:
+>   read() on hugetlbfs
+>    hugetlbfs_read() called
+>     i_mutex grabbed
+>      hugetlbfs_read_actor() called
+>       __copy_to_user() called
+>        page fault is triggered
+>  Thread B, sharing address space with A:
+>   mmap() the same file
+>    ->mmap_sem is grabbed on task_B->mm->mmap_sem
+>     hugetlbfs_file_mmap() is called
+>      attempt to grab ->i_mutex and block waiting for A to give it up
+>  Thread A:
+>   pagefault handled blocked on attempt to grab task_A->mm->mmap_sem,
+>  which happens to be the same thing as task_B->mm->mmap_sem.  Block waiting
+>  for B to give it up.
 > 
-> In my trial, without changing HPAGE_PMD_NR as BUILD_BUG a build did not
-> pass with !CONFIG_TRANSPARENT_HUGEPAGE as Hillf said.
-> Evaluating HPAGE_PMD_NR seems to be prior to eliminating whole
-> pmd_trans_huge_lock == 1 branch, so I think this change is necessary.
+> AFAIU i_mutex lock got added to  hugetlbfs_read as per
+> http://lkml.indiana.edu/hypermail/linux/kernel/0707.2/3066.html
+> to take care of the race between truncate and read. This patch fix
+> this by looking at page->mapping under page_lock (find_lock_page())
+> to ensure; the inode didn't get truncated in the range during a
+> parallel read.
+> 
+> Ideally we can extend the patch to make sure we don't increase i_size
+> in mmap. But that will break userspace, because application will now
+> have to use truncate(2) to increase i_size in hugetlbfs.
 
-I said the wrong thing.
-The error I experienced was just "HPAGE_PMD_NR is undefined."
-This is not related to changeing BUG() to BUILD_BUG() in already defined
-HPAGE_PMD_(SHIFT|MASK|SIZE).
-And using BUILD_BUG() to confirm elimination is good for me. 
+Looks OK to me.
 
-Sorry for confusion.
-Naoya
+Given that the bug has been there for four years, I'm assuming that
+we'll be OK merging this fix into 3.4.  Or we could merge it into 3.4
+and tag it for backporting into earlier kernels - it depends on whether
+people are hurting from it, which I don't know?
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
