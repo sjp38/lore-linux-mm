@@ -1,44 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx125.postini.com [74.125.245.125])
-	by kanga.kvack.org (Postfix) with SMTP id 728E66B004A
-	for <linux-mm@kvack.org>; Thu,  1 Mar 2012 17:44:45 -0500 (EST)
-Date: Thu, 1 Mar 2012 14:44:43 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH -V2] hugetlbfs: Drop taking inode i_mutex lock from
- hugetlbfs_read
-Message-Id: <20120301144443.7b4fe22a.akpm@linux-foundation.org>
-In-Reply-To: <CA+5PVA4AcTWHsUskGqxdka2G7JMsDpjtdhw23vSHafgAGg4opQ@mail.gmail.com>
-References: <1330593530-2022-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
-	<20120301141007.274ad458.akpm@linux-foundation.org>
-	<CA+5PVA4AcTWHsUskGqxdka2G7JMsDpjtdhw23vSHafgAGg4opQ@mail.gmail.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx191.postini.com [74.125.245.191])
+	by kanga.kvack.org (Postfix) with SMTP id E10F46B004A
+	for <linux-mm@kvack.org>; Thu,  1 Mar 2012 18:12:44 -0500 (EST)
+Received: from /spool/local
+	by e36.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <nacc@linux.vnet.ibm.com>;
+	Thu, 1 Mar 2012 16:12:42 -0700
+Received: from d03relay01.boulder.ibm.com (d03relay01.boulder.ibm.com [9.17.195.226])
+	by d03dlp03.boulder.ibm.com (Postfix) with ESMTP id 930B019D804F
+	for <linux-mm@kvack.org>; Thu,  1 Mar 2012 16:12:15 -0700 (MST)
+Received: from d03av03.boulder.ibm.com (d03av03.boulder.ibm.com [9.17.195.169])
+	by d03relay01.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q21NCKb2140912
+	for <linux-mm@kvack.org>; Thu, 1 Mar 2012 16:12:20 -0700
+Received: from d03av03.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av03.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q21NCJfi002674
+	for <linux-mm@kvack.org>; Thu, 1 Mar 2012 16:12:20 -0700
+Date: Thu, 1 Mar 2012 15:12:16 -0800
+From: Nishanth Aravamudan <nacc@linux.vnet.ibm.com>
+Subject: Re: [PATCH v2] bootmem/sparsemem: remove limit constraint in
+ alloc_bootmem_section
+Message-ID: <20120301231216.GA3252@linux.vnet.ibm.com>
+References: <1330112038-18951-1-git-send-email-nacc@us.ibm.com>
+ <20120228154732.GE1199@suse.de>
+ <20120229181233.GF5136@linux.vnet.ibm.com>
+ <20120229152830.22fc72a2.akpm@linux-foundation.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20120229152830.22fc72a2.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Josh Boyer <jwboyer@gmail.com>
-Cc: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, linux-mm@kvack.org, mgorman@suse.de, kamezawa.hiroyu@jp.fujitsu.com, dhillf@gmail.com, viro@zeniv.linux.org.uk, hughd@google.com, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Mel Gorman <mgorman@suse.de>, Dave Hansen <haveblue@us.ibm.com>, Anton Blanchard <anton@au1.ibm.com>, Paul Mackerras <paulus@samba.org>, Ben Herrenschmidt <benh@kernel.crashing.org>, Robert Jennings <rcj@linux.vnet.ibm.com>, Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org, stable@vger.kernel.org
 
-
-On Thu, 1 Mar 2012 17:40:41 -0500
-Josh Boyer <jwboyer@gmail.com> wrote:
-
-> We've gotten a few lockdep reports about it in Fedora on various kernels.
-> A CC to stable might be nice.
+On 29.02.2012 [15:28:30 -0800], Andrew Morton wrote:
+> On Wed, 29 Feb 2012 10:12:33 -0800
+> Nishanth Aravamudan <nacc@linux.vnet.ibm.com> wrote:
 > 
-
-On Thu, 1 Mar 2012 17:40:14 -0500
-Dave Jones <davej@redhat.com> wrote:
-
-> My testing hits this every day. It's not a real problem, but it's annoying
-> to see the lockdep spew constantly.  We've had a couple Fedora users
-> report it too in regular day-to-day use as opposed to the hostile
-> workloads I use to provoke it.
+> > While testing AMS (Active Memory Sharing) / CMO (Cooperative Memory
+> > Overcommit) on powerpc, we tripped the following:
+> > 
+> > kernel BUG at mm/bootmem.c:483!
+> >
+> > ...
+> > 
+> > This is
+> > 
+> >         BUG_ON(limit && goal + size > limit);
+> > 
+> > and after some debugging, it seems that
+> > 
+> > 	goal = 0x7ffff000000
+> > 	limit = 0x80000000000
+> > 
+> > and sparse_early_usemaps_alloc_node ->
+> > sparse_early_usemaps_alloc_pgdat_section calls
+> > 
+> > 	return alloc_bootmem_section(usemap_size() * count, section_nr);
+> > 
+> > This is on a system with 8TB available via the AMS pool, and as a quirk
+> > of AMS in firmware, all of that memory shows up in node 0. So, we end up
+> > with an allocation that will fail the goal/limit constraints. In theory,
+> > we could "fall-back" to alloc_bootmem_node() in
+> > sparse_early_usemaps_alloc_node(), but since we actually have HOTREMOVE
+> > defined, we'll BUG_ON() instead. A simple solution appears to be to
+> > unconditionally remove the limit condition in alloc_bootmem_section,
+> > meaning allocations are allowed to cross section boundaries (necessary
+> > for systems of this size).
+> > 
+> > Johannes Weiner pointed out that if alloc_bootmem_section() no longer
+> > guarantees section-locality, we need check_usemap_section_nr() to print
+> > possible cross-dependencies between node descriptors and the usemaps
+> > allocated through it. That makes the two loops in
+> > sparse_early_usemaps_alloc_node() identical, so re-factor the code a
+> > bit.
 > 
-> FWIW, I'll probably throw it in the Fedora kernels, so if it ends up
-> in stable, it'll be one less patch to carry.
+> The patch is a bit scary now, so I think we should merge it into
+> 3.4-rc1 and then backport it into 3.3.1 if nothing blows up.
+> 
+> Do you think it should be backported into 3.3.x?  Earlier kernels?
 
-OK, thanks guys.  Cc:stable is added.
+Upon review, it would be good if we can get it pushed back to kernels
+3.0.x, 3.1.x and 3.2.x.
+
+Thanks,
+Nish
+
+-- 
+Nishanth Aravamudan <nacc@us.ibm.com>
+IBM Linux Technology Center
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
