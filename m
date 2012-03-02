@@ -1,99 +1,143 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx185.postini.com [74.125.245.185])
-	by kanga.kvack.org (Postfix) with SMTP id 051FC6B004A
-	for <linux-mm@kvack.org>; Fri,  2 Mar 2012 17:47:46 -0500 (EST)
-Message-ID: <4F514E09.5060801@redhat.com>
-Date: Fri, 02 Mar 2012 17:47:37 -0500
-From: Rik van Riel <riel@redhat.com>
+Received: from psmtp.com (na3sys010amx158.postini.com [74.125.245.158])
+	by kanga.kvack.org (Postfix) with SMTP id 0D5336B007E
+	for <linux-mm@kvack.org>; Fri,  2 Mar 2012 17:54:06 -0500 (EST)
+Received: by dadv6 with SMTP id v6so2453007dad.14
+        for <linux-mm@kvack.org>; Fri, 02 Mar 2012 14:54:06 -0800 (PST)
+Date: Fri, 2 Mar 2012 14:53:32 -0800 (PST)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: exit_mmap() BUG_ON triggering since 3.1
+In-Reply-To: <20120216214245.GD23585@redhat.com>
+Message-ID: <alpine.LSU.2.00.1203021444040.3448@eggly.anvils>
+References: <20120215183317.GA26977@redhat.com> <alpine.LSU.2.00.1202151801020.19691@eggly.anvils> <20120216070753.GA23585@redhat.com> <alpine.LSU.2.00.1202160130500.16147@eggly.anvils> <20120216214245.GD23585@redhat.com>
 MIME-Version: 1.0
-Subject: Re: [RFC][PATCH] avoid swapping out with swappiness==0
-References: <65795E11DBF1E645A09CEC7EAEE94B9CB9455FE2@USINDEVS02.corp.hds.com>
-In-Reply-To: <65795E11DBF1E645A09CEC7EAEE94B9CB9455FE2@USINDEVS02.corp.hds.com>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Satoru Moriya <satoru.moriya@hds.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "lwoodman@redhat.com" <lwoodman@redhat.com>, "jweiner@redhat.com" <jweiner@redhat.com>, "shaohua.li@intel.com" <shaohua.li@intel.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, "dle-develop@lists.sourceforge.net" <dle-develop@lists.sourceforge.net>, Seiji Aguchi <seiji.aguchi@hds.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Andrea Arcangeli <aarcange@redhat.com>, Dave Jones <davej@redhat.com>, David Rientjes <rientjes@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, kernel-team@fedoraproject.org
 
-On 03/02/2012 12:36 PM, Satoru Moriya wrote:
-> Sometimes we'd like to avoid swapping out anonymous memory
-> in particular, avoid swapping out pages of important process or
-> process groups while there is a reasonable amount of pagecache
-> on RAM so that we can satisfy our customers' requirements.
->
-> OTOH, we can control how aggressive the kernel will swap memory pages
-> with /proc/sys/vm/swappiness for global and
-> /sys/fs/cgroup/memory/memory.swappiness for each memcg.
->
-> But with current reclaim implementation, the kernel may swap out
-> even if we set swappiness==0 and there is pagecache on RAM.
->
-> This patch changes the behavior with swappiness==0. If we set
-> swappiness==0, the kernel does not swap out completely
-> (for global reclaim until the amount of free pages and filebacked
-> pages in a zone has been reduced to something very very small
-> (nr_free + nr_filebacked<  high watermark)).
->
-> Any comments are welcome.
->
-> Regards,
-> Satoru Moriya
->
-> Signed-off-by: Satoru Moriya<satoru.moriya@hds.com>
-> ---
->   mm/vmscan.c |    6 +++---
->   1 files changed, 3 insertions(+), 3 deletions(-)
->
-> diff --git a/mm/vmscan.c b/mm/vmscan.c
-> index c52b235..27dc3e8 100644
-> --- a/mm/vmscan.c
-> +++ b/mm/vmscan.c
-> @@ -1983,10 +1983,10 @@ static void get_scan_count(struct mem_cgroup_zone *mz, struct scan_control *sc,
->   	 * proportional to the fraction of recently scanned pages on
->   	 * each list that were recently referenced and in active use.
->   	 */
-> -	ap = (anon_prio + 1) * (reclaim_stat->recent_scanned[0] + 1);
-> +	ap = anon_prio * (reclaim_stat->recent_scanned[0] + 1);
->   	ap /= reclaim_stat->recent_rotated[0] + 1;
->
-> -	fp = (file_prio + 1) * (reclaim_stat->recent_scanned[1] + 1);
-> +	fp = file_prio * (reclaim_stat->recent_scanned[1] + 1);
->   	fp /= reclaim_stat->recent_rotated[1] + 1;
->   	spin_unlock_irq(&mz->zone->lru_lock);
+On Thu, 16 Feb 2012, Andrea Arcangeli wrote:
+> On Thu, Feb 16, 2012 at 01:53:04AM -0800, Hugh Dickins wrote:
+> > Yes (and I think less troublesome than most BUGs, coming at exit
+> > while not holding locks; though we could well make it a WARN_ON,
+> > I don't think that existed back in the day).
+> 
+> A WARN_ON would be fine with me, go ahead if you prefer it... only
+> risk would be to go unnoticed or be underestimated. I am ok with the
+> BUG_ON too (even if this time it triggered false positives... sigh).
+> 
+> > Acked-by: Hugh Dickins <hughd@google.com>
+> 
+> Thanks for the quick review!
+> 
+> > In looking into the bug, it had actually bothered me a little that you
+> > were setting aside those pages, yet not counting them into nr_ptes;
+> > though the only thing that cares is oom_kill.c, and the count of pages
+> > in each hugepage can only dwarf the count in nr_ptes (whereas, without
+> > hugepages, it's possible to populate very sparsely and nr_ptes become
+> > significant).
+> 
+> Agreed, it's not significant either ways.
+> 
+> Running my two primary systems with this applied for half a day and no
+> problem so far so it should be good foro -mm at least.
 
-ACK on this bit of the patch.
+And I've had no trouble running your patch since then (but I never hit
+the bug it fixes either).  But we've all forgottent about it, so let me
+bring your patch back inline (I've added one introductory sentence) and
+address to akpm...
 
-> @@ -1999,7 +1999,7 @@ out:
->   		unsigned long scan;
->
->   		scan = zone_nr_lru_pages(mz, lru);
-> -		if (priority || noswap) {
-> +		if (priority || noswap || !vmscan_swappiness(mz, sc)) {
->   			scan>>= priority;
->   			if (!scan&&  force_scan)
->   				scan = SWAP_CLUSTER_MAX;
 
-However, I do not understand why we fail to scale
-the number of pages we want to scan with priority
-if "noswap".
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: [PATCH] mm: thp: fix BUG on mm->nr_ptes
 
-For that matter, surely if we do not want to swap
-out anonymous pages, we WANT to go into this if
-branch, in order to make sure we set "scan" to 0?
+Dave Jones reports a few Fedora users hitting the BUG_ON(mm->nr_ptes...)
+in exit_mmap() recently.
 
-scan = div64_u64(scan * fraction[file], denominator);
+Quoting Hugh's discovery and explanation of the SMP race condition:
 
-With your patch and swappiness=0, or no swap space, it
-looks like we do not zero out "scan" and may end up
-scanning anonymous pages.
+===
+mm->nr_ptes had unusual locking: down_read mmap_sem plus
+page_table_lock when incrementing, down_write mmap_sem (or mm_users 0)
+when decrementing; whereas THP is careful to increment and decrement
+it under page_table_lock.
 
-Am I overlooking something?  Is this correct?
+Now most of those paths in THP also hold mmap_sem for read or write
+(with appropriate checks on mm_users), but two do not: when
+split_huge_page() is called by hwpoison_user_mappings(), and when
+called by add_to_swap().
 
-I mean, it is Friday and my brain is very full...
+It's conceivable that the latter case is responsible for the
+exit_mmap() BUG_ON mm->nr_ptes that has been reported on Fedora.
+===
 
--- 
-All rights reversed
+The simplest way to fix it without having to alter the locking is to
+make split_huge_page() a noop in nr_ptes terms, so by counting the
+preallocated pagetables that exists for every mapped hugepage. It was
+an arbitrary choice not to count them and either way is not wrong or
+right, because they are not used but they're still allocated.
+
+Reported-by: Dave Jones <davej@redhat.com>
+Reported-by: Hugh Dickins <hughd@google.com>
+Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
+Acked-by: Hugh Dickins <hughd@google.com>
+---
+ mm/huge_memory.c |    6 +++---
+ 1 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+index 91d3efb..8f7fc39 100644
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -671,6 +671,7 @@ static int __do_huge_pmd_anonymous_page(struct mm_struct *mm,
+ 		set_pmd_at(mm, haddr, pmd, entry);
+ 		prepare_pmd_huge_pte(pgtable, mm);
+ 		add_mm_counter(mm, MM_ANONPAGES, HPAGE_PMD_NR);
++		mm->nr_ptes++;
+ 		spin_unlock(&mm->page_table_lock);
+ 	}
+ 
+@@ -789,6 +790,7 @@ int copy_huge_pmd(struct mm_struct *dst_mm, struct mm_struct *src_mm,
+ 	pmd = pmd_mkold(pmd_wrprotect(pmd));
+ 	set_pmd_at(dst_mm, addr, dst_pmd, pmd);
+ 	prepare_pmd_huge_pte(pgtable, dst_mm);
++	dst_mm->nr_ptes++;
+ 
+ 	ret = 0;
+ out_unlock:
+@@ -887,7 +889,6 @@ static int do_huge_pmd_wp_page_fallback(struct mm_struct *mm,
+ 	}
+ 	kfree(pages);
+ 
+-	mm->nr_ptes++;
+ 	smp_wmb(); /* make pte visible before pmd */
+ 	pmd_populate(mm, pmd, pgtable);
+ 	page_remove_rmap(page);
+@@ -1047,6 +1048,7 @@ int zap_huge_pmd(struct mmu_gather *tlb, struct vm_area_struct *vma,
+ 			VM_BUG_ON(page_mapcount(page) < 0);
+ 			add_mm_counter(tlb->mm, MM_ANONPAGES, -HPAGE_PMD_NR);
+ 			VM_BUG_ON(!PageHead(page));
++			tlb->mm->nr_ptes--;
+ 			spin_unlock(&tlb->mm->page_table_lock);
+ 			tlb_remove_page(tlb, page);
+ 			pte_free(tlb->mm, pgtable);
+@@ -1375,7 +1377,6 @@ static int __split_huge_page_map(struct page *page,
+ 			pte_unmap(pte);
+ 		}
+ 
+-		mm->nr_ptes++;
+ 		smp_wmb(); /* make pte visible before pmd */
+ 		/*
+ 		 * Up to this point the pmd is present and huge and
+@@ -1988,7 +1989,6 @@ static void collapse_huge_page(struct mm_struct *mm,
+ 	set_pmd_at(mm, address, pmd, _pmd);
+ 	update_mmu_cache(vma, address, _pmd);
+ 	prepare_pmd_huge_pte(pgtable, mm);
+-	mm->nr_ptes--;
+ 	spin_unlock(&mm->page_table_lock);
+ 
+ #ifndef CONFIG_NUMA
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
