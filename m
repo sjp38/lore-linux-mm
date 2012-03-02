@@ -1,110 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx153.postini.com [74.125.245.153])
-	by kanga.kvack.org (Postfix) with SMTP id 775996B004D
-	for <linux-mm@kvack.org>; Thu,  1 Mar 2012 21:58:52 -0500 (EST)
-From: Steven Truelove <steven.truelove@utoronto.ca>
-Subject: [PATCH] Correct alignment of huge page requests.
-Date: Thu,  1 Mar 2012 21:58:41 -0500
-Message-Id: <1330657121-18692-1-git-send-email-steven.truelove@utoronto.ca>
+Received: from psmtp.com (na3sys010amx203.postini.com [74.125.245.203])
+	by kanga.kvack.org (Postfix) with SMTP id 678EE6B004A
+	for <linux-mm@kvack.org>; Thu,  1 Mar 2012 22:35:00 -0500 (EST)
+Received: from /spool/local
+	by e23smtp01.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <dwg@au1.ibm.com>;
+	Fri, 2 Mar 2012 03:28:18 +1000
+Received: from d23av04.au.ibm.com (d23av04.au.ibm.com [9.190.235.139])
+	by d23relay04.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q223ShqZ3014686
+	for <linux-mm@kvack.org>; Fri, 2 Mar 2012 14:28:45 +1100
+Received: from d23av04.au.ibm.com (loopback [127.0.0.1])
+	by d23av04.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q223YCJB032289
+	for <linux-mm@kvack.org>; Fri, 2 Mar 2012 14:34:13 +1100
+Date: Fri, 2 Mar 2012 14:28:53 +1100
+From: David Gibson <dwg@au1.ibm.com>
+Subject: Re: [PATCH -V2 0/9] memcg: add HugeTLB resource tracking
+Message-ID: <20120302032853.GB2728@truffala.fritz.box>
+References: <1330593380-1361-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+ <20120301144029.545a5589.akpm@linux-foundation.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20120301144029.545a5589.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: wli@holomorphy.com, akpm@linux-foundation.org
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Steven Truelove <steven.truelove@utoronto.ca>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, linux-mm@kvack.org, mgorman@suse.de, kamezawa.hiroyu@jp.fujitsu.com, dhillf@gmail.com, aarcange@redhat.com, mhocko@suse.cz, hannes@cmpxchg.org, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org
 
-When calling shmget() with SHM_HUGETLB, shmget aligns the request size to PAGE_SIZE, but this is not sufficient.  Modified hugetlb_file_setup() to align requests to the huge page size, and to accept an address argument so that all alignment checks can be performed in hugetlb_file_setup(), rather than in its callers.  Changed newseg and mmap_pgoff to match new prototype and eliminated a now redundant alignment check.
+On Thu, Mar 01, 2012 at 02:40:29PM -0800, Andrew Morton wrote:
+> On Thu,  1 Mar 2012 14:46:11 +0530
+> "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com> wrote:
+> 
+> > This patchset implements a memory controller extension to control
+> > HugeTLB allocations. It is similar to the existing hugetlb quota
+> > support in that, the limit is enforced at mmap(2) time and not at
+> > fault time. HugeTLB's quota mechanism limits the number of huge pages
+> > that can allocated per superblock.
+> > 
+> > For shared mappings we track the regions mapped by a task along with the
+> > memcg. We keep the memory controller charged even after the task
+> > that did mmap(2) exits. Uncharge happens during truncate. For Private
+> > mappings we charge and uncharge from the current task cgroup.
+> 
+> I haven't begin to get my head around this yet, but I'd like to draw
+> your attention to https://lkml.org/lkml/2012/2/15/548.  That fix has
+> been hanging around for a while, but I haven't done anything with it
+> yet because I don't like its additional blurring of the separation
+> between hugetlb core code and hugetlbfs.  I want to find time to sit
+> down and see if the fix can be better architected but haven't got
+> around to that yet.
 
-Signed-off-by: Steven Truelove <steven.truelove@utoronto.ca>
----
- fs/hugetlbfs/inode.c    |   12 ++++++++----
- include/linux/hugetlb.h |    3 ++-
- ipc/shm.c               |    2 +-
- mm/mmap.c               |    6 +++---
- 4 files changed, 14 insertions(+), 9 deletions(-)
+So.. that version of the fix I specifically rebuilt to address your
+concerns about that blurring - in fact I think it reduces the current
+layer blurring.  I haven't had any reply - what problems do see it as
+still having?
 
-diff --git a/fs/hugetlbfs/inode.c b/fs/hugetlbfs/inode.c
-index 1e85a7a..a97b7cc 100644
---- a/fs/hugetlbfs/inode.c
-+++ b/fs/hugetlbfs/inode.c
-@@ -928,7 +928,7 @@ static int can_do_hugetlb_shm(void)
- 	return capable(CAP_IPC_LOCK) || in_group_p(sysctl_hugetlb_shm_group);
- }
- 
--struct file *hugetlb_file_setup(const char *name, size_t size,
-+struct file *hugetlb_file_setup(const char *name, unsigned long addr, size_t size,
- 				vm_flags_t acctflag,
- 				struct user_struct **user, int creat_flags)
- {
-@@ -938,6 +938,8 @@ struct file *hugetlb_file_setup(const char *name, size_t size,
- 	struct path path;
- 	struct dentry *root;
- 	struct qstr quick_string;
-+	struct hstate *hstate;
-+	int num_pages;
- 
- 	*user = NULL;
- 	if (!hugetlbfs_vfsmount)
-@@ -967,10 +969,12 @@ struct file *hugetlb_file_setup(const char *name, size_t size,
- 	if (!inode)
- 		goto out_dentry;
- 
-+	hstate = hstate_inode(inode);
-+	size += addr & ~huge_page_mask(hstate);
-+	num_pages = ALIGN(size, huge_page_size(hstate)) >>
-+			huge_page_shift(hstate);
- 	error = -ENOMEM;
--	if (hugetlb_reserve_pages(inode, 0,
--			size >> huge_page_shift(hstate_inode(inode)), NULL,
--			acctflag))
-+	if (hugetlb_reserve_pages(inode, 0, num_pages, NULL, acctflag))
- 		goto out_inode;
- 
- 	d_instantiate(path.dentry, inode);
-diff --git a/include/linux/hugetlb.h b/include/linux/hugetlb.h
-index d9d6c86..4b9e59d 100644
---- a/include/linux/hugetlb.h
-+++ b/include/linux/hugetlb.h
-@@ -164,7 +164,8 @@ static inline struct hugetlbfs_sb_info *HUGETLBFS_SB(struct super_block *sb)
- 
- extern const struct file_operations hugetlbfs_file_operations;
- extern const struct vm_operations_struct hugetlb_vm_ops;
--struct file *hugetlb_file_setup(const char *name, size_t size, vm_flags_t acct,
-+struct file *hugetlb_file_setup(const char *name, unsigned long addr,
-+				size_t size, vm_flags_t acct,
- 				struct user_struct **user, int creat_flags);
- int hugetlb_get_quota(struct address_space *mapping, long delta);
- void hugetlb_put_quota(struct address_space *mapping, long delta);
-diff --git a/ipc/shm.c b/ipc/shm.c
-index b76be5b..406c5b2 100644
---- a/ipc/shm.c
-+++ b/ipc/shm.c
-@@ -482,7 +482,7 @@ static int newseg(struct ipc_namespace *ns, struct ipc_params *params)
- 		/* hugetlb_file_setup applies strict accounting */
- 		if (shmflg & SHM_NORESERVE)
- 			acctflag = VM_NORESERVE;
--		file = hugetlb_file_setup(name, size, acctflag,
-+		file = hugetlb_file_setup(name, 0, size, acctflag,
- 					&shp->mlock_user, HUGETLB_SHMFS_INODE);
- 	} else {
- 		/*
-diff --git a/mm/mmap.c b/mm/mmap.c
-index 3f758c7..4bf211a 100644
---- a/mm/mmap.c
-+++ b/mm/mmap.c
-@@ -1099,9 +1099,9 @@ SYSCALL_DEFINE6(mmap_pgoff, unsigned long, addr, unsigned long, len,
- 		 * A dummy user value is used because we are not locking
- 		 * memory so no accounting is necessary
- 		 */
--		len = ALIGN(len, huge_page_size(&default_hstate));
--		file = hugetlb_file_setup(HUGETLB_ANON_FILE, len, VM_NORESERVE,
--						&user, HUGETLB_ANONHUGE_INODE);
-+		file = hugetlb_file_setup(HUGETLB_ANON_FILE, addr, len,
-+						VM_NORESERVE, &user,
-+						HUGETLB_ANONHUGE_INODE);
- 		if (IS_ERR(file))
- 			return PTR_ERR(file);
- 	}
+> I expect that your patches will conflict at least mechanically with
+> David's, which is not a big issue.  But I wonder whether your patches
+> will copy the same bug into other places, and whether you can think of
+> a tidier way of addressing the bug which David is seeing?
+
 -- 
-1.7.3.4
+David Gibson			| I'll have my music baroque, and my code
+david AT gibson.dropbear.id.au	| minimalist, thank you.  NOT _the_ _other_
+				| _way_ _around_!
+http://www.ozlabs.org/~dgibson
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
