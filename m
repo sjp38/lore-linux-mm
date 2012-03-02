@@ -1,112 +1,188 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx126.postini.com [74.125.245.126])
-	by kanga.kvack.org (Postfix) with SMTP id 779D36B004D
-	for <linux-mm@kvack.org>; Fri,  2 Mar 2012 03:05:32 -0500 (EST)
-Received: by lagz14 with SMTP id z14so2386573lag.14
-        for <linux-mm@kvack.org>; Fri, 02 Mar 2012 00:05:30 -0800 (PST)
-MIME-Version: 1.0
-In-Reply-To: <1330527862-16234-10-git-send-email-m.szyprowski@samsung.com>
-References: <1330527862-16234-1-git-send-email-m.szyprowski@samsung.com>
-	<1330527862-16234-10-git-send-email-m.szyprowski@samsung.com>
-Date: Fri, 2 Mar 2012 17:05:30 +0900
-Message-ID: <CAHQjnOO5DLOj8Fw=ZriSnXg8W3k7y8Dnu--Peqe6JJX0xGMhoQ@mail.gmail.com>
-Subject: Re: [PATCHv7 9/9] ARM: dma-mapping: add support for IOMMU mapper
-From: KyongHo Cho <pullip.cho@samsung.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Received: from psmtp.com (na3sys010amx156.postini.com [74.125.245.156])
+	by kanga.kvack.org (Postfix) with SMTP id A22476B002C
+	for <linux-mm@kvack.org>; Fri,  2 Mar 2012 03:18:39 -0500 (EST)
+Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 539203EE0C7
+	for <linux-mm@kvack.org>; Fri,  2 Mar 2012 17:18:37 +0900 (JST)
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 35F4345DEA6
+	for <linux-mm@kvack.org>; Fri,  2 Mar 2012 17:18:37 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 1E61445DE9E
+	for <linux-mm@kvack.org>; Fri,  2 Mar 2012 17:18:37 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 084B21DB803E
+	for <linux-mm@kvack.org>; Fri,  2 Mar 2012 17:18:37 +0900 (JST)
+Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.240.81.134])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id AA7421DB803B
+	for <linux-mm@kvack.org>; Fri,  2 Mar 2012 17:18:36 +0900 (JST)
+Date: Fri, 2 Mar 2012 17:17:08 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH 3/7] mm: rework __isolate_lru_page() file/anon filter
+Message-Id: <20120302171708.6f206bde.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <4F505FDF.80003@openvz.org>
+References: <20120229090748.29236.35489.stgit@zurg>
+	<20120229091547.29236.28230.stgit@zurg>
+	<20120302141739.b63677ad.kamezawa.hiroyu@jp.fujitsu.com>
+	<4F505FDF.80003@openvz.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Marek Szyprowski <m.szyprowski@samsung.com>
-Cc: linux-arm-kernel@lists.infradead.org, linaro-mm-sig@lists.linaro.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-samsung-soc@vger.kernel.org, iommu@lists.linux-foundation.org, Shariq Hasnain <shariq.hasnain@linaro.org>, Arnd Bergmann <arnd@arndb.de>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Krishna Reddy <vdumpa@nvidia.com>, Kyungmin Park <kyungmin.park@samsung.com>, Andrzej Pietrasiewicz <andrzej.p@samsung.com>, Russell King - ARM Linux <linux@arm.linux.org.uk>, Chunsang Jeong <chunsang.jeong@linaro.org>
+To: Konstantin Khlebnikov <khlebnikov@openvz.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Johannes Weiner <jweiner@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 
-On Thu, Mar 1, 2012 at 12:04 AM, Marek Szyprowski
-<m.szyprowski@samsung.com> wrote:
-> +/**
-> + * arm_iommu_map_sg - map a set of SG buffers for streaming mode DMA
-> + * @dev: valid struct device pointer
-> + * @sg: list of buffers
-> + * @nents: number of buffers to map
-> + * @dir: DMA transfer direction
-> + *
-> + * Map a set of buffers described by scatterlist in streaming mode for D=
-MA.
-> + * The scatter gather list elements are merged together (if possible) an=
-d
-> + * tagged with the appropriate dma address and length. They are obtained=
- via
-> + * sg_dma_{address,length}.
-> + */
-> +int arm_iommu_map_sg(struct device *dev, struct scatterlist *sg, int nen=
-ts,
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0enum dma_data_direction dir, str=
-uct dma_attrs *attrs)
-> +{
-> + =A0 =A0 =A0 struct scatterlist *s =3D sg, *dma =3D sg, *start =3D sg;
-> + =A0 =A0 =A0 int i, count =3D 0;
-> + =A0 =A0 =A0 unsigned int offset =3D s->offset;
-> + =A0 =A0 =A0 unsigned int size =3D s->offset + s->length;
-> + =A0 =A0 =A0 unsigned int max =3D dma_get_max_seg_size(dev);
-> +
-> + =A0 =A0 =A0 for (i =3D 1; i < nents; i++) {
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 s->dma_address =3D ARM_DMA_ERROR;
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 s->dma_length =3D 0;
-> +
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 s =3D sg_next(s);
-> +
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (s->offset || (size & ~PAGE_MASK) || siz=
-e + s->length > max) {
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (__map_sg_chunk(dev, sta=
-rt, size, &dma->dma_address,
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 dir) < 0)
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 goto bad_ma=
-pping;
-> +
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 dma->dma_address +=3D offse=
-t;
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 dma->dma_length =3D size - =
-offset;
-> +
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 size =3D offset =3D s->offs=
-et;
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 start =3D s;
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 dma =3D sg_next(dma);
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 count +=3D 1;
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 }
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 size +=3D s->length;
-> + =A0 =A0 =A0 }
-> + =A0 =A0 =A0 if (__map_sg_chunk(dev, start, size, &dma->dma_address, dir=
-) < 0)
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 goto bad_mapping;
-> +
-> + =A0 =A0 =A0 dma->dma_address +=3D offset;
-> + =A0 =A0 =A0 dma->dma_length =3D size - offset;
-> +
-> + =A0 =A0 =A0 return count+1;
-> +
-> +bad_mapping:
-> + =A0 =A0 =A0 for_each_sg(sg, s, count, i)
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 __iommu_remove_mapping(dev, sg_dma_address(=
-s), sg_dma_len(s));
-> + =A0 =A0 =A0 return 0;
-> +}
-> +
-This looks that the given sg list specifies the list of physical
-memory chunks and
-the list of IO virtual memory chunks at the same time after calling
-arm_dma_map_sg().
-It can happen that dma_address and dma_length of a sg entry does not
-correspond to
-physical memory information of the sg entry.
+On Fri, 02 Mar 2012 09:51:27 +0400
+Konstantin Khlebnikov <khlebnikov@openvz.org> wrote:
 
-I think it is beneficial for handling IO virtual memory.
+> KAMEZAWA Hiroyuki wrote:
+> > On Wed, 29 Feb 2012 13:15:47 +0400
+> > Konstantin Khlebnikov<khlebnikov@openvz.org>  wrote:
+> >
+> >> This patch adds file/anon filter bits into isolate_mode_t,
+> >> this allows to simplify checks in __isolate_lru_page().
+> >>
+> >> Signed-off-by: Konstantin Khlebnikov<khlebnikov@openvz.org>
+> >
+> > Hmm.. I like idea but..
+> >
+> >> ---
+> >>   include/linux/mmzone.h |    4 ++++
+> >>   include/linux/swap.h   |    2 +-
+> >>   mm/compaction.c        |    5 +++--
+> >>   mm/vmscan.c            |   27 +++++++++++++--------------
+> >>   4 files changed, 21 insertions(+), 17 deletions(-)
+> >>
+> >> diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
+> >> index eff4918..2fed935 100644
+> >> --- a/include/linux/mmzone.h
+> >> +++ b/include/linux/mmzone.h
+> >> @@ -193,6 +193,10 @@ struct lruvec {
+> >>   #define ISOLATE_UNMAPPED	((__force isolate_mode_t)0x8)
+> >>   /* Isolate for asynchronous migration */
+> >>   #define ISOLATE_ASYNC_MIGRATE	((__force isolate_mode_t)0x10)
+> >> +/* Isolate swap-backed pages */
+> >> +#define	ISOLATE_ANON		((__force isolate_mode_t)0x20)
+> >> +/* Isolate file-backed pages */
+> >> +#define	ISOLATE_FILE		((__force isolate_mode_t)0x40)
+> >>
+> >>   /* LRU Isolation modes. */
+> >>   typedef unsigned __bitwise__ isolate_mode_t;
+> >> diff --git a/include/linux/swap.h b/include/linux/swap.h
+> >> index ba2c8d7..dc6e6a3 100644
+> >> --- a/include/linux/swap.h
+> >> +++ b/include/linux/swap.h
+> >> @@ -254,7 +254,7 @@ static inline void lru_cache_add_file(struct page *page)
+> >>   /* linux/mm/vmscan.c */
+> >>   extern unsigned long try_to_free_pages(struct zonelist *zonelist, int order,
+> >>   					gfp_t gfp_mask, nodemask_t *mask);
+> >> -extern int __isolate_lru_page(struct page *page, isolate_mode_t mode, int file);
+> >> +extern int __isolate_lru_page(struct page *page, isolate_mode_t mode);
+> >>   extern unsigned long try_to_free_mem_cgroup_pages(struct mem_cgroup *mem,
+> >>   						  gfp_t gfp_mask, bool noswap);
+> >>   extern unsigned long mem_cgroup_shrink_node_zone(struct mem_cgroup *mem,
+> >> diff --git a/mm/compaction.c b/mm/compaction.c
+> >> index 74a8c82..cc054f7 100644
+> >> --- a/mm/compaction.c
+> >> +++ b/mm/compaction.c
+> >> @@ -261,7 +261,8 @@ static isolate_migrate_t isolate_migratepages(struct zone *zone,
+> >>   	unsigned long last_pageblock_nr = 0, pageblock_nr;
+> >>   	unsigned long nr_scanned = 0, nr_isolated = 0;
+> >>   	struct list_head *migratelist =&cc->migratepages;
+> >> -	isolate_mode_t mode = ISOLATE_ACTIVE|ISOLATE_INACTIVE;
+> >> +	isolate_mode_t mode = ISOLATE_ACTIVE | ISOLATE_INACTIVE |
+> >> +			      ISOLATE_FILE | ISOLATE_ANON;
+> >>
+> >>   	/* Do not scan outside zone boundaries */
+> >>   	low_pfn = max(cc->migrate_pfn, zone->zone_start_pfn);
+> >> @@ -375,7 +376,7 @@ static isolate_migrate_t isolate_migratepages(struct zone *zone,
+> >>   			mode |= ISOLATE_ASYNC_MIGRATE;
+> >>
+> >>   		/* Try isolate the page */
+> >> -		if (__isolate_lru_page(page, mode, 0) != 0)
+> >> +		if (__isolate_lru_page(page, mode) != 0)
+> >>   			continue;
+> >>
+> >>   		VM_BUG_ON(PageTransCompound(page));
+> >> diff --git a/mm/vmscan.c b/mm/vmscan.c
+> >> index af6cfe7..1b70338 100644
+> >> --- a/mm/vmscan.c
+> >> +++ b/mm/vmscan.c
+> >> @@ -1029,27 +1029,18 @@ keep_lumpy:
+> >>    *
+> >>    * returns 0 on success, -ve errno on failure.
+> >>    */
+> >> -int __isolate_lru_page(struct page *page, isolate_mode_t mode, int file)
+> >> +int __isolate_lru_page(struct page *page, isolate_mode_t mode)
+> >>   {
+> >> -	bool all_lru_mode;
+> >>   	int ret = -EINVAL;
+> >>
+> >>   	/* Only take pages on the LRU. */
+> >>   	if (!PageLRU(page))
+> >>   		return ret;
+> >>
+> >> -	all_lru_mode = (mode&  (ISOLATE_ACTIVE|ISOLATE_INACTIVE)) ==
+> >> -		(ISOLATE_ACTIVE|ISOLATE_INACTIVE);
+> >> -
+> >> -	/*
+> >> -	 * When checking the active state, we need to be sure we are
+> >> -	 * dealing with comparible boolean values.  Take the logical not
+> >> -	 * of each.
+> >> -	 */
+> >> -	if (!all_lru_mode&&  !PageActive(page) != !(mode&  ISOLATE_ACTIVE))
+> >> +	if (!(mode&  (PageActive(page) ? ISOLATE_ACTIVE : ISOLATE_INACTIVE)))
+> >>   		return ret;
+> >
+> > Isn't this complicated ?
+> 
+> But it doesn't blows my mind as old code does =)
+> 
+> Maybe someone can propose more clear variant?
+> 
 
-However, I worry about any other problems caused by a single sg entry conta=
-ins
-information from 2 different context.
+switch (mode & (ISOLATE_ACTIVE | ISOLATE_INACTIVE)) {
+	case ISOLATE_ACTIVE :
+		if (!PageActive(page))
+			return ret;
+	case ISOLATE_INACTIVE :
+		if (PageActive(page))
+			return ret;
+	default:
+		break;
+	}
+}
 
-Regards,
+?
 
-Cho KyongHo.
+Thanks,
+-Kame
+
+> >
+> >>
+> >> -	if (!all_lru_mode&&  !!page_is_file_cache(page) != file)
+> >> +	if (!(mode&  (page_is_file_cache(page) ? ISOLATE_FILE : ISOLATE_ANON)))
+> >>   		return ret;
+> >>
+> >>   	/*
+> >
+> > ditto.
+> >
+> > Where is simple  ?
+> >
+> > Thanks,
+> > -Kame
+> >
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Fight unfair telecom internet charges in Canada: sign http://stopthemeter.ca/
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
