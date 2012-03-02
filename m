@@ -1,41 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx132.postini.com [74.125.245.132])
-	by kanga.kvack.org (Postfix) with SMTP id 3C1D16B004A
-	for <linux-mm@kvack.org>; Thu,  1 Mar 2012 18:29:57 -0500 (EST)
-Date: Thu, 1 Mar 2012 18:29:42 -0500
-From: Ted Ts'o <tytso@mit.edu>
-Subject: Re: [PATCH 00/11 v2] Push file_update_time() into .page_mkwrite
-Message-ID: <20120301232942.GH32588@thunk.org>
-References: <1330602103-8851-1-git-send-email-jack@suse.cz>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1330602103-8851-1-git-send-email-jack@suse.cz>
+Received: from psmtp.com (na3sys010amx178.postini.com [74.125.245.178])
+	by kanga.kvack.org (Postfix) with SMTP id F1C246B004A
+	for <linux-mm@kvack.org>; Thu,  1 Mar 2012 19:32:09 -0500 (EST)
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Subject: [PATCH v2 1/2] thp: add HPAGE_PMD_* definitions for !CONFIG_TRANSPARENT_HUGEPAGE
+Date: Thu,  1 Mar 2012 19:31:52 -0500
+Message-Id: <1330648313-32593-1-git-send-email-n-horiguchi@ah.jp.nec.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jan Kara <jack@suse.cz>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Al Viro <viro@ZenIV.linux.org.uk>, linux-fsdevel@vger.kernel.org, dchinner@redhat.com, Jaya Kumar <jayalk@intworks.biz>, Sage Weil <sage@newdream.net>, ceph-devel@vger.kernel.org, Steve French <sfrench@samba.org>, linux-cifs@vger.kernel.org, Eric Van Hensbergen <ericvh@gmail.com>, Ron Minnich <rminnich@sandia.gov>, Latchesar Ionkov <lucho@ionkov.net>, v9fs-developer@lists.sourceforge.net, Miklos Szeredi <miklos@szeredi.hu>, fuse-devel@lists.sourceforge.net, Steven Whitehouse <swhiteho@redhat.com>, cluster-devel@redhat.com, Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+To: linux-mm@kvack.org
+Cc: Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Hillf Danton <dhillf@gmail.com>, linux-kernel@vger.kernel.org, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
 
-On Thu, Mar 01, 2012 at 12:41:34PM +0100, Jan Kara wrote:
-> 
-> To fix the issue, this patch set changes page fault code to call
-> file_update_time() only when ->page_mkwrite() callback is not provided. If the
-> callback is provided, it is the responsibility of the filesystem to perform
-> update of i_mtime / i_ctime if needed. We also push file_update_time() call
-> to all existing ->page_mkwrite() implementations if the time update does not
-> obviously happen by other means. If you know your filesystem does not need
-> update of modification times in ->page_mkwrite() handler, please speak up and
-> I'll drop the patch for your filesystem.
+These macros will be used in later patch, where all usage are expected
+to be optimized away without #ifdef CONFIG_TRANSPARENT_HUGEPAGE.
+But to detect unexpected usages, we convert existing BUG() to BUILD_BUG().
 
-I don't know if this introductory text is going to be saved anywhere
-permanent, such as the merge commit (since git now has the ability to
-have much more informative merge descriptions).  But if it is going to
-be preserved, it might be worth mentioning that if the filesystem uses
-block_page_mkpage(), it will handled automatically for them since the
-patch series does push the call to file_update_time(0 into
-__block_page_mkpage().
+Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+---
+ include/linux/huge_mm.h |   11 ++++++-----
+ 1 files changed, 6 insertions(+), 5 deletions(-)
 
-					- Ted
+diff --git linux-next-20120228.orig/include/linux/huge_mm.h linux-next-20120228/include/linux/huge_mm.h
+index f56cacb..c8af7a2 100644
+--- linux-next-20120228.orig/include/linux/huge_mm.h
++++ linux-next-20120228/include/linux/huge_mm.h
+@@ -51,6 +51,9 @@ extern pmd_t *page_check_address_pmd(struct page *page,
+ 				     unsigned long address,
+ 				     enum page_check_address_pmd_flag flag);
+ 
++#define HPAGE_PMD_ORDER (HPAGE_PMD_SHIFT-PAGE_SHIFT)
++#define HPAGE_PMD_NR (1<<HPAGE_PMD_ORDER)
++
+ #ifdef CONFIG_TRANSPARENT_HUGEPAGE
+ #define HPAGE_PMD_SHIFT HPAGE_SHIFT
+ #define HPAGE_PMD_MASK HPAGE_MASK
+@@ -102,8 +105,6 @@ extern void __split_huge_page_pmd(struct mm_struct *mm, pmd_t *pmd);
+ 		BUG_ON(pmd_trans_splitting(*____pmd) ||			\
+ 		       pmd_trans_huge(*____pmd));			\
+ 	} while (0)
+-#define HPAGE_PMD_ORDER (HPAGE_PMD_SHIFT-PAGE_SHIFT)
+-#define HPAGE_PMD_NR (1<<HPAGE_PMD_ORDER)
+ #if HPAGE_PMD_ORDER > MAX_ORDER
+ #error "hugepages can't be allocated by the buddy allocator"
+ #endif
+@@ -158,9 +159,9 @@ static inline struct page *compound_trans_head(struct page *page)
+ 	return page;
+ }
+ #else /* CONFIG_TRANSPARENT_HUGEPAGE */
+-#define HPAGE_PMD_SHIFT ({ BUG(); 0; })
+-#define HPAGE_PMD_MASK ({ BUG(); 0; })
+-#define HPAGE_PMD_SIZE ({ BUG(); 0; })
++#define HPAGE_PMD_SHIFT ({ BUILD_BUG(); 0; })
++#define HPAGE_PMD_MASK ({ BUILD_BUG(); 0; })
++#define HPAGE_PMD_SIZE ({ BUILD_BUG(); 0; })
+ 
+ #define hpage_nr_pages(x) 1
+ 
+-- 
+1.7.7.6
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
