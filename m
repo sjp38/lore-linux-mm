@@ -1,42 +1,100 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx116.postini.com [74.125.245.116])
-	by kanga.kvack.org (Postfix) with SMTP id 3BD0F6B002C
-	for <linux-mm@kvack.org>; Fri,  2 Mar 2012 04:41:28 -0500 (EST)
-Date: Fri, 2 Mar 2012 10:41:22 +0100
+Received: from psmtp.com (na3sys010amx139.postini.com [74.125.245.139])
+	by kanga.kvack.org (Postfix) with SMTP id C0EF16B002C
+	for <linux-mm@kvack.org>; Fri,  2 Mar 2012 04:59:13 -0500 (EST)
+Date: Fri, 2 Mar 2012 10:59:10 +0100
 From: Jan Kara <jack@suse.cz>
-Subject: Re: [PATCH 00/11 v2] Push file_update_time() into .page_mkwrite
-Message-ID: <20120302094122.GA1744@quack.suse.cz>
-References: <1330602103-8851-1-git-send-email-jack@suse.cz>
- <20120301232942.GH32588@thunk.org>
+Subject: Re: [PATCH 5/9] writeback: introduce the pageout work
+Message-ID: <20120302095910.GB1744@quack.suse.cz>
+References: <20120228140022.614718843@intel.com>
+ <20120228144747.198713792@intel.com>
+ <20120228160403.9c9fa4dc.akpm@linux-foundation.org>
+ <20120301123640.GA30369@localhost>
+ <20120301163837.GA13104@quack.suse.cz>
+ <20120302044858.GA14802@localhost>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20120301232942.GH32588@thunk.org>
+In-Reply-To: <20120302044858.GA14802@localhost>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ted Ts'o <tytso@mit.edu>
-Cc: Jan Kara <jack@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Al Viro <viro@ZenIV.linux.org.uk>, linux-fsdevel@vger.kernel.org, dchinner@redhat.com, Jaya Kumar <jayalk@intworks.biz>, Sage Weil <sage@newdream.net>, ceph-devel@vger.kernel.org, Steve French <sfrench@samba.org>, linux-cifs@vger.kernel.org, Eric Van Hensbergen <ericvh@gmail.com>, Ron Minnich <rminnich@sandia.gov>, Latchesar Ionkov <lucho@ionkov.net>, v9fs-developer@lists.sourceforge.net, Miklos Szeredi <miklos@szeredi.hu>, fuse-devel@lists.sourceforge.net, Steven Whitehouse <swhiteho@redhat.com>, cluster-devel@redhat.com, Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+To: Fengguang Wu <fengguang.wu@intel.com>
+Cc: Jan Kara <jack@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Greg Thelen <gthelen@google.com>, Ying Han <yinghan@google.com>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan.kim@gmail.com>, Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Thu 01-03-12 18:29:42, Ted Tso wrote:
-> On Thu, Mar 01, 2012 at 12:41:34PM +0100, Jan Kara wrote:
+On Fri 02-03-12 12:48:58, Wu Fengguang wrote:
+> On Thu, Mar 01, 2012 at 05:38:37PM +0100, Jan Kara wrote:
+> > On Thu 01-03-12 20:36:40, Wu Fengguang wrote:
+> > > > Please have a think about all of this and see if you can demonstrate
+> > > > how the iput() here is guaranteed safe.
+> > > 
+> > > There are already several __iget()/iput() calls inside fs-writeback.c.
+> > > The existing iput() calls already demonstrate its safety?
+> > > 
+> > > Basically the flusher works in this way
+> > > 
+> > > - the dirty inode list i_wb_list does not reference count the inode at all
+> > > 
+> > > - the flusher thread does something analog to igrab() and set I_SYNC
+> > >   before going off to writeout the inode
+> > > 
+> > > - evict() will wait for completion of I_SYNC
+> >   Yes, you are right that currently writeback code already holds inode
+> > references and so it can happen that flusher thread drops the last inode
+> > reference. But currently that could create problems only if someone waits
+> > for flusher thread to make progress while effectively blocking e.g.
+> > truncate from happening. Currently flusher thread handles sync(2) and
+> > background writeback and filesystems take care to not hold any locks
+> > blocking IO / truncate while possibly waiting for these.
 > > 
-> > To fix the issue, this patch set changes page fault code to call
-> > file_update_time() only when ->page_mkwrite() callback is not provided. If the
-> > callback is provided, it is the responsibility of the filesystem to perform
-> > update of i_mtime / i_ctime if needed. We also push file_update_time() call
-> > to all existing ->page_mkwrite() implementations if the time update does not
-> > obviously happen by other means. If you know your filesystem does not need
-> > update of modification times in ->page_mkwrite() handler, please speak up and
-> > I'll drop the patch for your filesystem.
+> > But with your addition situation changes significantly - now anyone doing
+> > allocation can block and do allocation from all sorts of places including
+> > ones where we hold locks blocking other fs activity. The good news is that
+> > we use GFP_NOFS in such places. So if GFP_NOFS allocation cannot possibly
+> > depend on a completion of some writeback work, then I'd still be
+> > comfortable with dropping inode references from writeback code. But Andrew
+> > is right this at least needs some arguing...
 > 
-> I don't know if this introductory text is going to be saved anywhere
-> permanent, such as the merge commit (since git now has the ability to
-> have much more informative merge descriptions).  But if it is going to
-> be preserved, it might be worth mentioning that if the filesystem uses
-> block_page_mkpage(), it will handled automatically for them since the
-> patch series does push the call to file_update_time(0 into
-> __block_page_mkpage().
-  Good point, added to description.
+> You seem to miss the point that we don't do wait or page allocations
+> inside queue_pageout_work().
+  I didn't miss this point. I know we don't wait directly. But if the only
+way to free pages from the zone where we need to do allocation is via flusher
+thread, then we effectively *are* waiting for the work to complete. And if
+the flusher thread is blocked, we have a problem. And I agree it's unlikely
+but given enough time and people, I believe someone finds a way to
+(inadvertedly) trigger this.
+
+> The final iput() will not block the
+> random tasks because the latter don't wait for completion of the work.
+> 
+>         random task                     flusher thread
+> 
+>         page allocation
+>           page reclaim
+>             queue_pageout_work()
+>               igrab()
+> 
+>                   ......  after a while  ......
+> 
+>                                         execute pageout work                
+>                                         iput()
+>                                         <work completed>
+> 
+> There will be some reclaim_wait()s if the pageout works are not
+> executed quickly, in which case vmscan will be impacted and slowed
+> down. However it's not waiting for any specific work to complete, so
+> there is no chance to form a loop of dependencies leading to deadlocks.
+> 
+> The iput() does have the theoretic possibility to deadlock the flusher
+> thread itself (but not with the other random tasks). Since the flusher
+> thread has always been doing iput() w/o running into such bugs, we can
+> reasonably expect the new iput() to be as safe in practical.
+  But so far, kswapd could do writeout itself so even if flusher thread is
+blocked in iput(), we could still do writeout from kswapd to clean zones.
+
+Now I don't think blocking on iput() can be a problem because of reasons I
+outlined in another email yesterday (GFP_NOFS allocations and such). Just
+I don't agree with your reasoning that it cannot be a problem because it
+was not problem previously. That's just not true.
 
 								Honza
 -- 
