@@ -1,29 +1,29 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx204.postini.com [74.125.245.204])
-	by kanga.kvack.org (Postfix) with SMTP id 2119F6B004D
-	for <linux-mm@kvack.org>; Fri,  2 Mar 2012 00:19:13 -0500 (EST)
+Received: from psmtp.com (na3sys010amx173.postini.com [74.125.245.173])
+	by kanga.kvack.org (Postfix) with SMTP id 031606B002C
+	for <linux-mm@kvack.org>; Fri,  2 Mar 2012 00:23:11 -0500 (EST)
 Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 91B073EE0C2
-	for <linux-mm@kvack.org>; Fri,  2 Mar 2012 14:19:11 +0900 (JST)
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 7EBA83EE0C2
+	for <linux-mm@kvack.org>; Fri,  2 Mar 2012 14:23:10 +0900 (JST)
 Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 78E6245DEB3
-	for <linux-mm@kvack.org>; Fri,  2 Mar 2012 14:19:11 +0900 (JST)
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 65DDA45DEB3
+	for <linux-mm@kvack.org>; Fri,  2 Mar 2012 14:23:10 +0900 (JST)
 Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 5FA7D45DEB2
-	for <linux-mm@kvack.org>; Fri,  2 Mar 2012 14:19:11 +0900 (JST)
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 5151845DEB2
+	for <linux-mm@kvack.org>; Fri,  2 Mar 2012 14:23:10 +0900 (JST)
 Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 1B4D01DB8041
-	for <linux-mm@kvack.org>; Fri,  2 Mar 2012 14:19:11 +0900 (JST)
-Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.240.81.134])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id AC0CE1DB803C
-	for <linux-mm@kvack.org>; Fri,  2 Mar 2012 14:19:10 +0900 (JST)
-Date: Fri, 2 Mar 2012 14:17:39 +0900
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 455901DB803F
+	for <linux-mm@kvack.org>; Fri,  2 Mar 2012 14:23:10 +0900 (JST)
+Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.240.81.146])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id F319C1DB803B
+	for <linux-mm@kvack.org>; Fri,  2 Mar 2012 14:23:09 +0900 (JST)
+Date: Fri, 2 Mar 2012 14:21:38 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH 3/7] mm: rework __isolate_lru_page() file/anon filter
-Message-Id: <20120302141739.b63677ad.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20120229091547.29236.28230.stgit@zurg>
+Subject: Re: [PATCH 4/7] mm: push lru index into shrink_[in]active_list()
+Message-Id: <20120302142138.f5e925a8.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20120229091551.29236.27110.stgit@zurg>
 References: <20120229090748.29236.35489.stgit@zurg>
-	<20120229091547.29236.28230.stgit@zurg>
+	<20120229091551.29236.27110.stgit@zurg>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
@@ -32,119 +32,18 @@ List-ID: <linux-mm.kvack.org>
 To: Konstantin Khlebnikov <khlebnikov@openvz.org>
 Cc: Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Johannes Weiner <jweiner@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Wed, 29 Feb 2012 13:15:47 +0400
+On Wed, 29 Feb 2012 13:15:52 +0400
 Konstantin Khlebnikov <khlebnikov@openvz.org> wrote:
 
-> This patch adds file/anon filter bits into isolate_mode_t,
-> this allows to simplify checks in __isolate_lru_page().
+> Let's toss lru index through call stack to isolate_lru_pages(),
+> this is better than its reconstructing from individual bits.
 > 
 > Signed-off-by: Konstantin Khlebnikov <khlebnikov@openvz.org>
 
-Hmm.. I like idea but..
+I like this.
 
-> ---
->  include/linux/mmzone.h |    4 ++++
->  include/linux/swap.h   |    2 +-
->  mm/compaction.c        |    5 +++--
->  mm/vmscan.c            |   27 +++++++++++++--------------
->  4 files changed, 21 insertions(+), 17 deletions(-)
-> 
-> diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-> index eff4918..2fed935 100644
-> --- a/include/linux/mmzone.h
-> +++ b/include/linux/mmzone.h
-> @@ -193,6 +193,10 @@ struct lruvec {
->  #define ISOLATE_UNMAPPED	((__force isolate_mode_t)0x8)
->  /* Isolate for asynchronous migration */
->  #define ISOLATE_ASYNC_MIGRATE	((__force isolate_mode_t)0x10)
-> +/* Isolate swap-backed pages */
-> +#define	ISOLATE_ANON		((__force isolate_mode_t)0x20)
-> +/* Isolate file-backed pages */
-> +#define	ISOLATE_FILE		((__force isolate_mode_t)0x40)
->  
->  /* LRU Isolation modes. */
->  typedef unsigned __bitwise__ isolate_mode_t;
-> diff --git a/include/linux/swap.h b/include/linux/swap.h
-> index ba2c8d7..dc6e6a3 100644
-> --- a/include/linux/swap.h
-> +++ b/include/linux/swap.h
-> @@ -254,7 +254,7 @@ static inline void lru_cache_add_file(struct page *page)
->  /* linux/mm/vmscan.c */
->  extern unsigned long try_to_free_pages(struct zonelist *zonelist, int order,
->  					gfp_t gfp_mask, nodemask_t *mask);
-> -extern int __isolate_lru_page(struct page *page, isolate_mode_t mode, int file);
-> +extern int __isolate_lru_page(struct page *page, isolate_mode_t mode);
->  extern unsigned long try_to_free_mem_cgroup_pages(struct mem_cgroup *mem,
->  						  gfp_t gfp_mask, bool noswap);
->  extern unsigned long mem_cgroup_shrink_node_zone(struct mem_cgroup *mem,
-> diff --git a/mm/compaction.c b/mm/compaction.c
-> index 74a8c82..cc054f7 100644
-> --- a/mm/compaction.c
-> +++ b/mm/compaction.c
-> @@ -261,7 +261,8 @@ static isolate_migrate_t isolate_migratepages(struct zone *zone,
->  	unsigned long last_pageblock_nr = 0, pageblock_nr;
->  	unsigned long nr_scanned = 0, nr_isolated = 0;
->  	struct list_head *migratelist = &cc->migratepages;
-> -	isolate_mode_t mode = ISOLATE_ACTIVE|ISOLATE_INACTIVE;
-> +	isolate_mode_t mode = ISOLATE_ACTIVE | ISOLATE_INACTIVE |
-> +			      ISOLATE_FILE | ISOLATE_ANON;
->  
->  	/* Do not scan outside zone boundaries */
->  	low_pfn = max(cc->migrate_pfn, zone->zone_start_pfn);
-> @@ -375,7 +376,7 @@ static isolate_migrate_t isolate_migratepages(struct zone *zone,
->  			mode |= ISOLATE_ASYNC_MIGRATE;
->  
->  		/* Try isolate the page */
-> -		if (__isolate_lru_page(page, mode, 0) != 0)
-> +		if (__isolate_lru_page(page, mode) != 0)
->  			continue;
->  
->  		VM_BUG_ON(PageTransCompound(page));
-> diff --git a/mm/vmscan.c b/mm/vmscan.c
-> index af6cfe7..1b70338 100644
-> --- a/mm/vmscan.c
-> +++ b/mm/vmscan.c
-> @@ -1029,27 +1029,18 @@ keep_lumpy:
->   *
->   * returns 0 on success, -ve errno on failure.
->   */
-> -int __isolate_lru_page(struct page *page, isolate_mode_t mode, int file)
-> +int __isolate_lru_page(struct page *page, isolate_mode_t mode)
->  {
-> -	bool all_lru_mode;
->  	int ret = -EINVAL;
->  
->  	/* Only take pages on the LRU. */
->  	if (!PageLRU(page))
->  		return ret;
->  
-> -	all_lru_mode = (mode & (ISOLATE_ACTIVE|ISOLATE_INACTIVE)) ==
-> -		(ISOLATE_ACTIVE|ISOLATE_INACTIVE);
-> -
-> -	/*
-> -	 * When checking the active state, we need to be sure we are
-> -	 * dealing with comparible boolean values.  Take the logical not
-> -	 * of each.
-> -	 */
-> -	if (!all_lru_mode && !PageActive(page) != !(mode & ISOLATE_ACTIVE))
-> +	if (!(mode & (PageActive(page) ? ISOLATE_ACTIVE : ISOLATE_INACTIVE)))
->  		return ret;
+Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-Isn't this complicated ?
-
->  
-> -	if (!all_lru_mode && !!page_is_file_cache(page) != file)
-> +	if (!(mode & (page_is_file_cache(page) ? ISOLATE_FILE : ISOLATE_ANON)))
->  		return ret;
->  
->  	/*
-
-ditto.
-
-Where is simple  ? 
-
-Thanks,
--Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
