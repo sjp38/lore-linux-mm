@@ -1,72 +1,141 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx193.postini.com [74.125.245.193])
-	by kanga.kvack.org (Postfix) with SMTP id B6AA26B002C
-	for <linux-mm@kvack.org>; Fri,  2 Mar 2012 07:20:29 -0500 (EST)
-Date: Fri, 2 Mar 2012 13:20:22 +0100
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [PATCH v2 1/2] thp: add HPAGE_PMD_* definitions for
- !CONFIG_TRANSPARENT_HUGEPAGE
-Message-ID: <20120302122022.GM28383@redhat.com>
-References: <1330648313-32593-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+Received: from psmtp.com (na3sys010amx190.postini.com [74.125.245.190])
+	by kanga.kvack.org (Postfix) with SMTP id D77176B002C
+	for <linux-mm@kvack.org>; Fri,  2 Mar 2012 07:22:30 -0500 (EST)
+Received: by vbbey12 with SMTP id ey12so1839128vbb.14
+        for <linux-mm@kvack.org>; Fri, 02 Mar 2012 04:22:29 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1330648313-32593-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+In-Reply-To: <1330648313-32593-2-git-send-email-n-horiguchi@ah.jp.nec.com>
+References: <1330648313-32593-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+	<1330648313-32593-2-git-send-email-n-horiguchi@ah.jp.nec.com>
+Date: Fri, 2 Mar 2012 20:22:29 +0800
+Message-ID: <CAJd=RBD46TioS0n7k6nZRG7p8+hiJkUddayr8=0sCxKq8Qct1Q@mail.gmail.com>
+Subject: Re: [PATCH v2 2/2] memcg: avoid THP split in task migration
+From: Hillf Danton <dhillf@gmail.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: base64
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Hillf Danton <dhillf@gmail.com>, linux-kernel@vger.kernel.org
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, linux-kernel@vger.kernel.org
 
-On Thu, Mar 01, 2012 at 07:31:52PM -0500, Naoya Horiguchi wrote:
-> These macros will be used in later patch, where all usage are expected
-> to be optimized away without #ifdef CONFIG_TRANSPARENT_HUGEPAGE.
-> But to detect unexpected usages, we convert existing BUG() to BUILD_BUG().
-> 
-> Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-> ---
->  include/linux/huge_mm.h |   11 ++++++-----
->  1 files changed, 6 insertions(+), 5 deletions(-)
-> 
-> diff --git linux-next-20120228.orig/include/linux/huge_mm.h linux-next-20120228/include/linux/huge_mm.h
-> index f56cacb..c8af7a2 100644
-> --- linux-next-20120228.orig/include/linux/huge_mm.h
-> +++ linux-next-20120228/include/linux/huge_mm.h
-> @@ -51,6 +51,9 @@ extern pmd_t *page_check_address_pmd(struct page *page,
->  				     unsigned long address,
->  				     enum page_check_address_pmd_flag flag);
->  
-> +#define HPAGE_PMD_ORDER (HPAGE_PMD_SHIFT-PAGE_SHIFT)
-> +#define HPAGE_PMD_NR (1<<HPAGE_PMD_ORDER)
-> +
->  #ifdef CONFIG_TRANSPARENT_HUGEPAGE
->  #define HPAGE_PMD_SHIFT HPAGE_SHIFT
->  #define HPAGE_PMD_MASK HPAGE_MASK
-> @@ -102,8 +105,6 @@ extern void __split_huge_page_pmd(struct mm_struct *mm, pmd_t *pmd);
->  		BUG_ON(pmd_trans_splitting(*____pmd) ||			\
->  		       pmd_trans_huge(*____pmd));			\
->  	} while (0)
-> -#define HPAGE_PMD_ORDER (HPAGE_PMD_SHIFT-PAGE_SHIFT)
-> -#define HPAGE_PMD_NR (1<<HPAGE_PMD_ORDER)
->  #if HPAGE_PMD_ORDER > MAX_ORDER
->  #error "hugepages can't be allocated by the buddy allocator"
->  #endif
-
-I did the same change to make AutoNUMA build in all configs/archs.
-
-> @@ -158,9 +159,9 @@ static inline struct page *compound_trans_head(struct page *page)
->  	return page;
->  }
->  #else /* CONFIG_TRANSPARENT_HUGEPAGE */
-> -#define HPAGE_PMD_SHIFT ({ BUG(); 0; })
-> -#define HPAGE_PMD_MASK ({ BUG(); 0; })
-> -#define HPAGE_PMD_SIZE ({ BUG(); 0; })
-> +#define HPAGE_PMD_SHIFT ({ BUILD_BUG(); 0; })
-> +#define HPAGE_PMD_MASK ({ BUILD_BUG(); 0; })
-> +#define HPAGE_PMD_SIZE ({ BUILD_BUG(); 0; })
-
-Builds with my config with THP=off. Thanks.
-
-Reviewed-by: Andrea Arcangeli <aarcange@redhat.com>
+T24gRnJpLCBNYXIgMiwgMjAxMiBhdCA4OjMxIEFNLCBOYW95YSBIb3JpZ3VjaGkKPG4taG9yaWd1
+Y2hpQGFoLmpwLm5lYy5jb20+IHdyb3RlOgo+IEN1cnJlbnRseSB3ZSBjYW4ndCBkbyB0YXNrIG1p
+Z3JhdGlvbiBhbW9uZyBtZW1vcnkgY2dyb3VwcyB3aXRob3V0IFRIUCBzcGxpdCwKPiB3aGljaCBt
+ZWFucyBwcm9jZXNzZXMgaGVhdmlseSB1c2luZyBUSFAgZXhwZXJpZW5jZSBsYXJnZSBvdmVyaGVh
+ZCBpbiB0YXNrCj4gbWlncmF0aW9uLiBUaGlzIHBhdGNoIGludHJvZHVjZSB0aGUgY29kZSBmb3Ig
+bW92aW5nIGNoYXJnZSBvZiBUSFAgYW5kIG1ha2VzCj4gVEhQIG1vcmUgdmFsdWFibGUuCj4KPiBD
+aGFuZ2VzIGZyb20gdjE6Cj4gLSByZW5hbWUgaXNfdGFyZ2V0X2h1Z2VfcG1kX2Zvcl9tYygpIHRv
+IGlzX3RhcmdldF90aHBfZm9yX21jKCkKPiAtIHJlbW92ZSBwbWRfcHJlc2VudCgpIGNoZWNrIChp
+dCdzIGJ1Z2d5IHdoZW4gcG1kX3RyYW5zX2h1Z2UocG1kKSBpcyB0cnVlKQo+IC0gaXNfdGFyZ2V0
+X3RocF9mb3JfbWMoKSBjYWxscyBnZXRfcGFnZSgpIG9ubHkgd2hlbiBjaGVja3MgYXJlIHBhc3Nl
+ZAo+IC0gdW5sb2NrIHBhZ2UgdGFibGUgbG9jayBpZiAhbWMucHJlY2hhcmdlCj4gLSBjb21wYXJl
+IHJldHVybiB2YWx1ZSBvZiBpc190YXJnZXRfdGhwX2Zvcl9tYygpIGV4cGxpY2l0bHkgdG8gTUNf
+VEFSR0VUX1RZUEUKPiAtIGNsZWFuIHVwICZ3YWxrLT5tbS0+cGFnZV90YWJsZV9sb2NrIHRvICZ2
+bWEtPnZtX21tLT5wYWdlX3RhYmxlX2xvY2sKPiAtIGFkZCBjb21tZW50IGFib3V0IHdoeSByYWNl
+IHdpdGggc3BsaXRfaHVnZV9wYWdlKCkgZG9lcyBub3QgaGFwcGVuCj4KPiBTaWduZWQtb2ZmLWJ5
+OiBOYW95YSBIb3JpZ3VjaGkgPG4taG9yaWd1Y2hpQGFoLmpwLm5lYy5jb20+Cj4gQ2M6IEhpbGxm
+IERhbnRvbiA8ZGhpbGxmQGdtYWlsLmNvbT4KPiAtLS0KPiDCoG1tL21lbWNvbnRyb2wuYyB8IMKg
+IDg3ICsrKysrKysrKysrKysrKysrKysrKysrKysrKysrKysrKysrKysrKysrKysrKysrKysrKy0t
+LS0KPiDCoDEgZmlsZXMgY2hhbmdlZCwgODEgaW5zZXJ0aW9ucygrKSwgNiBkZWxldGlvbnMoLSkK
+Pgo+IGRpZmYgLS1naXQgbGludXgtbmV4dC0yMDEyMDIyOC5vcmlnL21tL21lbWNvbnRyb2wuYyBs
+aW51eC1uZXh0LTIwMTIwMjI4L21tL21lbWNvbnRyb2wuYwo+IGluZGV4IGM4M2FlYjUuLmQ0NWIy
+MWMgMTAwNjQ0Cj4gLS0tIGxpbnV4LW5leHQtMjAxMjAyMjgub3JpZy9tbS9tZW1jb250cm9sLmMK
+PiArKysgbGludXgtbmV4dC0yMDEyMDIyOC9tbS9tZW1jb250cm9sLmMKPiBAQCAtNTIxMSw2ICs1
+MjExLDM5IEBAIHN0YXRpYyBpbnQgaXNfdGFyZ2V0X3B0ZV9mb3JfbWMoc3RydWN0IHZtX2FyZWFf
+c3RydWN0ICp2bWEsCj4gwqAgwqAgwqAgwqByZXR1cm4gcmV0Owo+IMKgfQo+Cj4gKyNpZmRlZiBD
+T05GSUdfVFJBTlNQQVJFTlRfSFVHRVBBR0UKPiArLyoKPiArICogV2UgZG9uJ3QgY29uc2lkZXIg
+c3dhcHBpbmcgb3IgZmlsZSBtYXBwZWQgcGFnZXMgYmVjYXVzZSBUSFAgZG9lcyBub3QKPiArICog
+c3VwcG9ydCB0aGVtIGZvciBub3cuCj4gKyAqIENhbGxlciBzaG91bGQgbWFrZSBzdXJlIHRoYXQg
+cG1kX3RyYW5zX2h1Z2UocG1kKSBpcyB0cnVlLgo+ICsgKi8KPiArc3RhdGljIGludCBpc190YXJn
+ZXRfdGhwX2Zvcl9tYyhzdHJ1Y3Qgdm1fYXJlYV9zdHJ1Y3QgKnZtYSwKPiArIMKgIMKgIMKgIMKg
+IMKgIMKgIMKgIHVuc2lnbmVkIGxvbmcgYWRkciwgcG1kX3QgcG1kLCB1bmlvbiBtY190YXJnZXQg
+KnRhcmdldCkKPiArewo+ICsgwqAgwqAgwqAgc3RydWN0IHBhZ2UgKnBhZ2UgPSBOVUxMOwo+ICsg
+wqAgwqAgwqAgc3RydWN0IHBhZ2VfY2dyb3VwICpwYzsKPiArIMKgIMKgIMKgIGludCByZXQgPSAw
+Owo+ICsKCk5lZWQgdG8gY2hlY2sgbW92ZV9hbm9uKCkgPwoKT3RoZXIgdGhhbiB0aGF0LApBY2tl
+ZC1ieTogSGlsbGYgRGFudG9uIDxkaGlsbGZAZ21haWwuY29tPgoKPiArIMKgIMKgIMKgIHBhZ2Ug
+PSBwbWRfcGFnZShwbWQpOwo+ICsgwqAgwqAgwqAgVk1fQlVHX09OKCFwYWdlIHx8ICFQYWdlSGVh
+ZChwYWdlKSk7Cj4gKyDCoCDCoCDCoCBwYyA9IGxvb2t1cF9wYWdlX2Nncm91cChwYWdlKTsKPiAr
+IMKgIMKgIMKgIGlmIChQYWdlQ2dyb3VwVXNlZChwYykgJiYgcGMtPm1lbV9jZ3JvdXAgPT0gbWMu
+ZnJvbSkgewo+ICsgwqAgwqAgwqAgwqAgwqAgwqAgwqAgcmV0ID0gTUNfVEFSR0VUX1BBR0U7Cj4g
+KyDCoCDCoCDCoCDCoCDCoCDCoCDCoCBpZiAodGFyZ2V0KSB7Cj4gKyDCoCDCoCDCoCDCoCDCoCDC
+oCDCoCDCoCDCoCDCoCDCoCBnZXRfcGFnZShwYWdlKTsKPiArIMKgIMKgIMKgIMKgIMKgIMKgIMKg
+IMKgIMKgIMKgIMKgIHRhcmdldC0+cGFnZSA9IHBhZ2U7Cj4gKyDCoCDCoCDCoCDCoCDCoCDCoCDC
+oCB9Cj4gKyDCoCDCoCDCoCB9Cj4gKyDCoCDCoCDCoCByZXR1cm4gcmV0Owo+ICt9Cj4gKyNlbHNl
+Cj4gK3N0YXRpYyBpbmxpbmUgaW50IGlzX3RhcmdldF90aHBfZm9yX21jKHN0cnVjdCB2bV9hcmVh
+X3N0cnVjdCAqdm1hLAo+ICsgwqAgwqAgwqAgwqAgwqAgwqAgwqAgdW5zaWduZWQgbG9uZyBhZGRy
+LCBwbWRfdCBwbWQsIHVuaW9uIG1jX3RhcmdldCAqdGFyZ2V0KQo+ICt7Cj4gKyDCoCDCoCDCoCBy
+ZXR1cm4gMDsKPiArfQo+ICsjZW5kaWYKPiArCj4gwqBzdGF0aWMgaW50IG1lbV9jZ3JvdXBfY291
+bnRfcHJlY2hhcmdlX3B0ZV9yYW5nZShwbWRfdCAqcG1kLAo+IMKgIMKgIMKgIMKgIMKgIMKgIMKg
+IMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgdW5zaWduZWQgbG9uZyBhZGRy
+LCB1bnNpZ25lZCBsb25nIGVuZCwKPiDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDC
+oCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoHN0cnVjdCBtbV93YWxrICp3YWxrKQo+IEBAIC01MjE5
+LDcgKzUyNTIsMTQgQEAgc3RhdGljIGludCBtZW1fY2dyb3VwX2NvdW50X3ByZWNoYXJnZV9wdGVf
+cmFuZ2UocG1kX3QgKnBtZCwKPiDCoCDCoCDCoCDCoHB0ZV90ICpwdGU7Cj4gwqAgwqAgwqAgwqBz
+cGlubG9ja190ICpwdGw7Cj4KPiAtIMKgIMKgIMKgIHNwbGl0X2h1Z2VfcGFnZV9wbWQod2Fsay0+
+bW0sIHBtZCk7Cj4gKyDCoCDCoCDCoCBpZiAocG1kX3RyYW5zX2h1Z2VfbG9jayhwbWQsIHZtYSkg
+PT0gMSkgewo+ICsgwqAgwqAgwqAgwqAgwqAgwqAgwqAgaWYgKGlzX3RhcmdldF90aHBfZm9yX21j
+KHZtYSwgYWRkciwgKnBtZCwgTlVMTCkKPiArIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgID09
+IE1DX1RBUkdFVF9QQUdFKQo+ICsgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgbWMu
+cHJlY2hhcmdlICs9IEhQQUdFX1BNRF9OUjsKPiArIMKgIMKgIMKgIMKgIMKgIMKgIMKgIHNwaW5f
+dW5sb2NrKCZ2bWEtPnZtX21tLT5wYWdlX3RhYmxlX2xvY2spOwo+ICsgwqAgwqAgwqAgwqAgwqAg
+wqAgwqAgY29uZF9yZXNjaGVkKCk7Cj4gKyDCoCDCoCDCoCDCoCDCoCDCoCDCoCByZXR1cm4gMDsK
+PiArIMKgIMKgIMKgIH0KPgo+IMKgIMKgIMKgIMKgcHRlID0gcHRlX29mZnNldF9tYXBfbG9jayh2
+bWEtPnZtX21tLCBwbWQsIGFkZHIsICZwdGwpOwo+IMKgIMKgIMKgIMKgZm9yICg7IGFkZHIgIT0g
+ZW5kOyBwdGUrKywgYWRkciArPSBQQUdFX1NJWkUpCj4gQEAgLTUzNzgsMTYgKzU0MTgsNTEgQEAg
+c3RhdGljIGludCBtZW1fY2dyb3VwX21vdmVfY2hhcmdlX3B0ZV9yYW5nZShwbWRfdCAqcG1kLAo+
+IMKgIMKgIMKgIMKgc3RydWN0IHZtX2FyZWFfc3RydWN0ICp2bWEgPSB3YWxrLT5wcml2YXRlOwo+
+IMKgIMKgIMKgIMKgcHRlX3QgKnB0ZTsKPiDCoCDCoCDCoCDCoHNwaW5sb2NrX3QgKnB0bDsKPiAr
+IMKgIMKgIMKgIGludCB0eXBlOwo+ICsgwqAgwqAgwqAgdW5pb24gbWNfdGFyZ2V0IHRhcmdldDsK
+PiArIMKgIMKgIMKgIHN0cnVjdCBwYWdlICpwYWdlOwo+ICsgwqAgwqAgwqAgc3RydWN0IHBhZ2Vf
+Y2dyb3VwICpwYzsKPiArCj4gKyDCoCDCoCDCoCAvKgo+ICsgwqAgwqAgwqAgwqAqIFdlIGRvbid0
+IHRha2UgY29tcG91bmRfbG9jaygpIGhlcmUgYnV0IG5vIHJhY2Ugd2l0aCBzcGxpdHRpbmcgdGhw
+Cj4gKyDCoCDCoCDCoCDCoCogaGFwcGVucyBiZWNhdXNlOgo+ICsgwqAgwqAgwqAgwqAqIMKgLSBp
+ZiBwbWRfdHJhbnNfaHVnZV9sb2NrKCkgcmV0dXJucyAxLCB0aGUgcmVsZXZhbnQgdGhwIGlzIG5v
+dAo+ICsgwqAgwqAgwqAgwqAqIMKgIMKgdW5kZXIgc3BsaXR0aW5nLCB3aGljaCBtZWFucyB0aGVy
+ZSdzIG5vIGNvbmN1cnJlbnQgdGhwIHNwbGl0LAo+ICsgwqAgwqAgwqAgwqAqIMKgLSBpZiBhbm90
+aGVyIHRocmVhZCBydW5zIGludG8gc3BsaXRfaHVnZV9wYWdlKCkganVzdCBhZnRlciB3ZQo+ICsg
+wqAgwqAgwqAgwqAqIMKgIMKgZW50ZXJlZCB0aGlzIGlmLWJsb2NrLCB0aGUgdGhyZWFkIG11c3Qg
+d2FpdCBmb3IgcGFnZSB0YWJsZSBsb2NrCj4gKyDCoCDCoCDCoCDCoCogwqAgwqB0byBiZSB1bmxv
+Y2tlZCBpbiBfX3NwbGl0X2h1Z2VfcGFnZV9zcGxpdHRpbmcoKSwgd2hlcmUgdGhlIG1haW4KPiAr
+IMKgIMKgIMKgIMKgKiDCoCDCoHBhcnQgb2YgdGhwIHNwbGl0IGlzIG5vdCBleGVjdXRlZCB5ZXQu
+Cj4gKyDCoCDCoCDCoCDCoCovCj4gKyDCoCDCoCDCoCBpZiAocG1kX3RyYW5zX2h1Z2VfbG9jayhw
+bWQsIHZtYSkgPT0gMSkgewo+ICsgwqAgwqAgwqAgwqAgwqAgwqAgwqAgaWYgKCFtYy5wcmVjaGFy
+Z2UpIHsKPiArIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIHNwaW5fdW5sb2NrKCZ2
+bWEtPnZtX21tLT5wYWdlX3RhYmxlX2xvY2spOwo+ICsgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAg
+wqAgwqAgwqAgY29uZF9yZXNjaGVkKCk7Cj4gKyDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDC
+oCDCoCByZXR1cm4gMDsKPiArIMKgIMKgIMKgIMKgIMKgIMKgIMKgIH0KPiArIMKgIMKgIMKgIMKg
+IMKgIMKgIMKgIHR5cGUgPSBpc190YXJnZXRfdGhwX2Zvcl9tYyh2bWEsIGFkZHIsICpwbWQsICZ0
+YXJnZXQpOwo+ICsgwqAgwqAgwqAgwqAgwqAgwqAgwqAgaWYgKHR5cGUgPT0gTUNfVEFSR0VUX1BB
+R0UpIHsKPiArIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIHBhZ2UgPSB0YXJnZXQu
+cGFnZTsKPiArIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIGlmICghaXNvbGF0ZV9s
+cnVfcGFnZShwYWdlKSkgewo+ICsgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAg
+wqAgwqAgwqAgcGMgPSBsb29rdXBfcGFnZV9jZ3JvdXAocGFnZSk7Cj4gKyDCoCDCoCDCoCDCoCDC
+oCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCBpZiAoIW1lbV9jZ3JvdXBfbW92ZV9hY2Nv
+dW50KHBhZ2UsIEhQQUdFX1BNRF9OUiwKPiArIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKg
+IMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKg
+IMKgcGMsIG1jLmZyb20sIG1jLnRvLAo+ICsgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAg
+wqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAg
+wqBmYWxzZSkpIHsKPiArIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKg
+IMKgIMKgIMKgIMKgIMKgIG1jLnByZWNoYXJnZSAtPSBIUEFHRV9QTURfTlI7Cj4gKyDCoCDCoCDC
+oCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCBtYy5tb3Zl
+ZF9jaGFyZ2UgKz0gSFBBR0VfUE1EX05SOwo+ICsgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAg
+wqAgwqAgwqAgwqAgwqAgwqAgfQo+ICsgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAg
+wqAgwqAgwqAgwqAgcHV0YmFja19scnVfcGFnZShwYWdlKTsKPiArIMKgIMKgIMKgIMKgIMKgIMKg
+IMKgIMKgIMKgIMKgIMKgIH0KPiArIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIHB1
+dF9wYWdlKHBhZ2UpOwo+ICsgwqAgwqAgwqAgwqAgwqAgwqAgwqAgfQo+ICsgwqAgwqAgwqAgwqAg
+wqAgwqAgwqAgc3Bpbl91bmxvY2soJnZtYS0+dm1fbW0tPnBhZ2VfdGFibGVfbG9jayk7Cj4gKyDC
+oCDCoCDCoCDCoCDCoCDCoCDCoCBjb25kX3Jlc2NoZWQoKTsKPiArIMKgIMKgIMKgIMKgIMKgIMKg
+IMKgIHJldHVybiAwOwo+ICsgwqAgwqAgwqAgfQo+Cj4gLSDCoCDCoCDCoCBzcGxpdF9odWdlX3Bh
+Z2VfcG1kKHdhbGstPm1tLCBwbWQpOwo+IMKgcmV0cnk6Cj4gwqAgwqAgwqAgwqBwdGUgPSBwdGVf
+b2Zmc2V0X21hcF9sb2NrKHZtYS0+dm1fbW0sIHBtZCwgYWRkciwgJnB0bCk7Cj4gwqAgwqAgwqAg
+wqBmb3IgKDsgYWRkciAhPSBlbmQ7IGFkZHIgKz0gUEFHRV9TSVpFKSB7Cj4gwqAgwqAgwqAgwqAg
+wqAgwqAgwqAgwqBwdGVfdCBwdGVudCA9ICoocHRlKyspOwo+IC0gwqAgwqAgwqAgwqAgwqAgwqAg
+wqAgdW5pb24gbWNfdGFyZ2V0IHRhcmdldDsKPiAtIMKgIMKgIMKgIMKgIMKgIMKgIMKgIGludCB0
+eXBlOwo+IC0gwqAgwqAgwqAgwqAgwqAgwqAgwqAgc3RydWN0IHBhZ2UgKnBhZ2U7Cj4gLSDCoCDC
+oCDCoCDCoCDCoCDCoCDCoCBzdHJ1Y3QgcGFnZV9jZ3JvdXAgKnBjOwo+IMKgIMKgIMKgIMKgIMKg
+IMKgIMKgIMKgc3dwX2VudHJ5X3QgZW50Owo+Cj4gwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqBpZiAo
+IW1jLnByZWNoYXJnZSkKPiAtLQo+IDEuNy43LjYKPgo=
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
