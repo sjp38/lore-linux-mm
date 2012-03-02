@@ -1,157 +1,113 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx156.postini.com [74.125.245.156])
-	by kanga.kvack.org (Postfix) with SMTP id 831AC6B007E
-	for <linux-mm@kvack.org>; Thu,  1 Mar 2012 19:32:11 -0500 (EST)
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: [PATCH v2 2/2] memcg: avoid THP split in task migration
-Date: Thu,  1 Mar 2012 19:31:53 -0500
-Message-Id: <1330648313-32593-2-git-send-email-n-horiguchi@ah.jp.nec.com>
-In-Reply-To: <1330648313-32593-1-git-send-email-n-horiguchi@ah.jp.nec.com>
-References: <1330648313-32593-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+Received: from psmtp.com (na3sys010amx115.postini.com [74.125.245.115])
+	by kanga.kvack.org (Postfix) with SMTP id D00FE6B004A
+	for <linux-mm@kvack.org>; Thu,  1 Mar 2012 21:30:08 -0500 (EST)
+Received: by vcbfk14 with SMTP id fk14so1449345vcb.14
+        for <linux-mm@kvack.org>; Thu, 01 Mar 2012 18:30:07 -0800 (PST)
+MIME-Version: 1.0
+In-Reply-To: <20120301125119.dee770f8.akpm@linux-foundation.org>
+References: <1330594374-13497-1-git-send-email-lliubbo@gmail.com>
+	<1330594374-13497-2-git-send-email-lliubbo@gmail.com>
+	<20120301125119.dee770f8.akpm@linux-foundation.org>
+Date: Fri, 2 Mar 2012 10:30:07 +0800
+Message-ID: <CAA_GA1fU-Ah6VpnJFyFg0GzGTpj_+4YpEd-XHc5AGbcrJiaK_Q@mail.gmail.com>
+Subject: Re: [PATCH 2/2] ksm: cleanup: introduce ksm_check_mm()
+From: Bob Liu <lliubbo@gmail.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Hillf Danton <dhillf@gmail.com>, linux-kernel@vger.kernel.org, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: hughd@google.com, rientjes@google.com, kamezawa.hiroyu@jp.fujitsu.com, minchan.kim@gmail.com, linux-mm@kvack.org
 
-Currently we can't do task migration among memory cgroups without THP split,
-which means processes heavily using THP experience large overhead in task
-migration. This patch introduce the code for moving charge of THP and makes
-THP more valuable.
+Hi Andrew,
 
-Changes from v1:
-- rename is_target_huge_pmd_for_mc() to is_target_thp_for_mc()
-- remove pmd_present() check (it's buggy when pmd_trans_huge(pmd) is true)
-- is_target_thp_for_mc() calls get_page() only when checks are passed
-- unlock page table lock if !mc.precharge
-- compare return value of is_target_thp_for_mc() explicitly to MC_TARGET_TYPE
-- clean up &walk->mm->page_table_lock to &vma->vm_mm->page_table_lock
-- add comment about why race with split_huge_page() does not happen
+On Fri, Mar 2, 2012 at 4:51 AM, Andrew Morton <akpm@linux-foundation.org> w=
+rote:
+> On Thu, 1 Mar 2012 17:32:54 +0800
+> Bob Liu <lliubbo@gmail.com> wrote:
+>
+>> +static int ksm_check_mm(struct mm_struct *mm, struct vm_area_struct *vm=
+a,
+>> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 unsigned long addr)
+>> +{
+>> + =C2=A0 =C2=A0 if (ksm_test_exit(mm))
+>> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 return 0;
+>> + =C2=A0 =C2=A0 vma =3D find_vma(mm, addr);
+>> + =C2=A0 =C2=A0 if (!vma || vma->vm_start > addr)
+>> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 return 0;
+>> + =C2=A0 =C2=A0 if (!(vma->vm_flags & VM_MERGEABLE) || !vma->anon_vma)
+>> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 return 0;
+>> + =C2=A0 =C2=A0 return 1;
+>> +}
+>
+> Can we please think of a suitable name for this check, other than
+> "check"? =C2=A0IOW, give the function a meaningful name which describes w=
+hat
+> it is checking?
+>
+> And it's not checking the mm, is it? =C2=A0It is checking the address: to
+> see whether it lies within a mergeable anon vma.
+>
+> So maybe
+>
+> --- a/mm/ksm.c~ksm-cleanup-introduce-ksm_check_mm-fix
+> +++ a/mm/ksm.c
+> @@ -375,17 +375,17 @@ static int break_ksm(struct vm_area_stru
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0return (ret & VM_FAULT_OOM) ? -ENOMEM : 0;
+> =C2=A0}
+>
+> -static int ksm_check_mm(struct mm_struct *mm, struct vm_area_struct *vma=
+,
+> - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 unsigned long addr)
+> +static bool in_mergeable_anon_vma(struct mm_struct *mm,
+> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
+=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0struct vm_area_struct *vma, unsign=
+ed long addr)
+> =C2=A0{
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0if (ksm_test_exit(mm))
+> - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 return 0;
+> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 return false;
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0vma =3D find_vma(mm, addr);
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0if (!vma || vma->vm_start > addr)
+> - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 return 0;
+> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 return false;
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0if (!(vma->vm_flags & VM_MERGEABLE) || !vma->a=
+non_vma)
+> - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 return 0;
+> - =C2=A0 =C2=A0 =C2=A0 return 1;
+> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 return false;
+> + =C2=A0 =C2=A0 =C2=A0 return true;
+> =C2=A0}
+>
+> =C2=A0static void break_cow(struct rmap_item *rmap_item)
+> @@ -401,7 +401,7 @@ static void break_cow(struct rmap_item *
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0put_anon_vma(rmap_item->anon_vma);
+>
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0down_read(&mm->mmap_sem);
+> - =C2=A0 =C2=A0 =C2=A0 if (ksm_check_mm(mm, vma, addr))
+> + =C2=A0 =C2=A0 =C2=A0 if (in_mergeable_anon_vma(mm, vma, addr))
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0break_ksm(vma, add=
+r);
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0up_read(&mm->mmap_sem);
+> =C2=A0}
+> @@ -428,7 +428,7 @@ static struct page *get_mergeable_page(s
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0struct page *page;
+>
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0down_read(&mm->mmap_sem);
+> - =C2=A0 =C2=A0 =C2=A0 if (!ksm_check_mm(mm, vma, addr))
+> + =C2=A0 =C2=A0 =C2=A0 if (!in_mergeable_anon_vma(mm, vma, addr))
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0goto out;
+>
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0page =3D follow_page(vma, addr, FOLL_GET);
+> _
+>
 
-Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: Hillf Danton <dhillf@gmail.com>
----
- mm/memcontrol.c |   87 +++++++++++++++++++++++++++++++++++++++++++++++++++----
- 1 files changed, 81 insertions(+), 6 deletions(-)
+Yeah, It looks much better than mine, Thanks!
 
-diff --git linux-next-20120228.orig/mm/memcontrol.c linux-next-20120228/mm/memcontrol.c
-index c83aeb5..d45b21c 100644
---- linux-next-20120228.orig/mm/memcontrol.c
-+++ linux-next-20120228/mm/memcontrol.c
-@@ -5211,6 +5211,39 @@ static int is_target_pte_for_mc(struct vm_area_struct *vma,
- 	return ret;
- }
- 
-+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
-+/*
-+ * We don't consider swapping or file mapped pages because THP does not
-+ * support them for now.
-+ * Caller should make sure that pmd_trans_huge(pmd) is true.
-+ */
-+static int is_target_thp_for_mc(struct vm_area_struct *vma,
-+		unsigned long addr, pmd_t pmd, union mc_target *target)
-+{
-+	struct page *page = NULL;
-+	struct page_cgroup *pc;
-+	int ret = 0;
-+
-+	page = pmd_page(pmd);
-+	VM_BUG_ON(!page || !PageHead(page));
-+	pc = lookup_page_cgroup(page);
-+	if (PageCgroupUsed(pc) && pc->mem_cgroup == mc.from) {
-+		ret = MC_TARGET_PAGE;
-+		if (target) {
-+			get_page(page);
-+			target->page = page;
-+		}
-+	}
-+	return ret;
-+}
-+#else
-+static inline int is_target_thp_for_mc(struct vm_area_struct *vma,
-+		unsigned long addr, pmd_t pmd, union mc_target *target)
-+{
-+	return 0;
-+}
-+#endif
-+
- static int mem_cgroup_count_precharge_pte_range(pmd_t *pmd,
- 					unsigned long addr, unsigned long end,
- 					struct mm_walk *walk)
-@@ -5219,7 +5252,14 @@ static int mem_cgroup_count_precharge_pte_range(pmd_t *pmd,
- 	pte_t *pte;
- 	spinlock_t *ptl;
- 
--	split_huge_page_pmd(walk->mm, pmd);
-+	if (pmd_trans_huge_lock(pmd, vma) == 1) {
-+		if (is_target_thp_for_mc(vma, addr, *pmd, NULL)
-+		    == MC_TARGET_PAGE)
-+			mc.precharge += HPAGE_PMD_NR;
-+		spin_unlock(&vma->vm_mm->page_table_lock);
-+		cond_resched();
-+		return 0;
-+	}
- 
- 	pte = pte_offset_map_lock(vma->vm_mm, pmd, addr, &ptl);
- 	for (; addr != end; pte++, addr += PAGE_SIZE)
-@@ -5378,16 +5418,51 @@ static int mem_cgroup_move_charge_pte_range(pmd_t *pmd,
- 	struct vm_area_struct *vma = walk->private;
- 	pte_t *pte;
- 	spinlock_t *ptl;
-+	int type;
-+	union mc_target target;
-+	struct page *page;
-+	struct page_cgroup *pc;
-+
-+	/*
-+	 * We don't take compound_lock() here but no race with splitting thp
-+	 * happens because:
-+	 *  - if pmd_trans_huge_lock() returns 1, the relevant thp is not
-+	 *    under splitting, which means there's no concurrent thp split,
-+	 *  - if another thread runs into split_huge_page() just after we
-+	 *    entered this if-block, the thread must wait for page table lock
-+	 *    to be unlocked in __split_huge_page_splitting(), where the main
-+	 *    part of thp split is not executed yet.
-+	 */
-+	if (pmd_trans_huge_lock(pmd, vma) == 1) {
-+		if (!mc.precharge) {
-+			spin_unlock(&vma->vm_mm->page_table_lock);
-+			cond_resched();
-+			return 0;
-+		}
-+		type = is_target_thp_for_mc(vma, addr, *pmd, &target);
-+		if (type == MC_TARGET_PAGE) {
-+			page = target.page;
-+			if (!isolate_lru_page(page)) {
-+				pc = lookup_page_cgroup(page);
-+				if (!mem_cgroup_move_account(page, HPAGE_PMD_NR,
-+							     pc, mc.from, mc.to,
-+							     false)) {
-+					mc.precharge -= HPAGE_PMD_NR;
-+					mc.moved_charge += HPAGE_PMD_NR;
-+				}
-+				putback_lru_page(page);
-+			}
-+			put_page(page);
-+		}
-+		spin_unlock(&vma->vm_mm->page_table_lock);
-+		cond_resched();
-+		return 0;
-+	}
- 
--	split_huge_page_pmd(walk->mm, pmd);
- retry:
- 	pte = pte_offset_map_lock(vma->vm_mm, pmd, addr, &ptl);
- 	for (; addr != end; addr += PAGE_SIZE) {
- 		pte_t ptent = *(pte++);
--		union mc_target target;
--		int type;
--		struct page *page;
--		struct page_cgroup *pc;
- 		swp_entry_t ent;
- 
- 		if (!mc.precharge)
--- 
-1.7.7.6
+--=20
+Regards,
+--Bob
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
