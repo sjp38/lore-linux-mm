@@ -1,78 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx158.postini.com [74.125.245.158])
-	by kanga.kvack.org (Postfix) with SMTP id AA2E76B00ED
-	for <linux-mm@kvack.org>; Fri,  2 Mar 2012 02:18:59 -0500 (EST)
-Message-ID: <4F507453.1020604@suse.com>
-Date: Fri, 02 Mar 2012 12:48:43 +0530
-From: Suresh Jayaraman <sjayaraman@suse.com>
-MIME-Version: 1.0
-Subject: [ATTEND] [LSF/MM TOPIC] Buffered writes throttling
-Content-Type: text/plain; charset=ISO-8859-1
+Received: from psmtp.com (na3sys010amx175.postini.com [74.125.245.175])
+	by kanga.kvack.org (Postfix) with SMTP id 807326B002C
+	for <linux-mm@kvack.org>; Fri,  2 Mar 2012 03:05:04 -0500 (EST)
+Received: from m1.gw.fujitsu.co.jp (unknown [10.0.50.71])
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 68F1C3EE0C0
+	for <linux-mm@kvack.org>; Fri,  2 Mar 2012 17:05:02 +0900 (JST)
+Received: from smail (m1 [127.0.0.1])
+	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 4771245DE5A
+	for <linux-mm@kvack.org>; Fri,  2 Mar 2012 17:05:02 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
+	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id F40D645DE5B
+	for <linux-mm@kvack.org>; Fri,  2 Mar 2012 17:05:01 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id DB3DA1DB8064
+	for <linux-mm@kvack.org>; Fri,  2 Mar 2012 17:05:01 +0900 (JST)
+Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.240.81.146])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 5251B1DB8056
+	for <linux-mm@kvack.org>; Fri,  2 Mar 2012 17:05:01 +0900 (JST)
+Date: Fri, 2 Mar 2012 17:03:28 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH 5/7] mm: rework reclaim_stat counters
+Message-Id: <20120302170328.37f42337.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <4F506486.4090204@openvz.org>
+References: <20120229090748.29236.35489.stgit@zurg>
+	<20120229091556.29236.96896.stgit@zurg>
+	<20120302142825.cd583b59.kamezawa.hiroyu@jp.fujitsu.com>
+	<4F506486.4090204@openvz.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: lsf-pc@lists.linux-foundation.org
-Cc: Vivek Goyal <vgoyal@redhat.com>, Andrea Righi <andrea@betterlinux.com>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Jan Kara <jack@suse.cz>
+To: Konstantin Khlebnikov <khlebnikov@openvz.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Johannes Weiner <jweiner@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 
-Committee members,
+On Fri, 02 Mar 2012 10:11:18 +0400
+Konstantin Khlebnikov <khlebnikov@openvz.org> wrote:
 
-Please consider inviting me to the Storage, Filesystem, & MM Summit. I
-am working for one of the kernel teams in SUSE Labs focusing on Network
-filesystems and block layer.
+> KAMEZAWA Hiroyuki wrote:
+> > On Wed, 29 Feb 2012 13:15:56 +0400
+> > Konstantin Khlebnikov<khlebnikov@openvz.org>  wrote:
+> >
+> >> Currently there is two types of reclaim-stat counters:
+> >> recent_scanned (pages picked from from lru),
+> >> recent_rotated (pages putted back to active lru).
+> >> Reclaimer uses ratio recent_rotated / recent_scanned
+> >> for balancing pressure between file and anon pages.
+> >>
+> >> But if we pick page from lru we can either reclaim it or put it back to lru, thus:
+> >> recent_scanned == recent_rotated[inactive] + recent_rotated[active] + reclaimed
+> >> This can be called "The Law of Conservation of Memory" =)
+> >>
+> > I'm sorry....where is the count for active->incative ?
+> 
+> If reclaimer deactivates page it will bump recent_rotated[LRU_INACTIVE_ANON/FILE],
+> (if I understand your question right) recent_rotated[] now count each evictable lru independently
+> 
 
-Recently, I have been trying to solve the problem of "throttling
-buffered writes" to make per-cgroup throttling of IO to the device
-possible. Currently the block IO controller does not throttle buffered
-writes. The writes would have lost the submitter's context (I/O comes in
-flusher thread's context) when they are at the block IO layer. I looked
-at the past work and many folks have attempted to solve this problem in
-the past years but this problem remains unsolved so far.
+Hm, then
 
-First, Andrea Righi tried to solve this by limiting the rate of async
-writes at the time a task is generating dirty pages in the page cache.
+	active -> active   : recent_rotated[active]   += 1 
+	active -> inactive : recent_rotated[inacitve] += 1
+	inactive->inactive : recent_rotated[inactive] += 1
+	inactive->active   : recent_rotated[active]   += 1 ?
 
-Next, Vivek Goyal tried to solve this by throttling writes at the time
-they are entering the page cache.
+Ok, it seems rotated[active] + rotated[inactive] == scan.
 
-Both these approches have limitations and not considered for merging.
-
-I have looked at the possibility of solving this at the filesystem level
-but the problem with ext* filesystems is that a commit will commit the
-whole transaction at once (which may contain writes from
-processes belonging to more than one cgroup). Making filesystems cgroup
-aware would need redesign of journalling layer itself.
-
-Dave Chinner thinks this problem should be solved and being solved in a
-different manner by making the bdi-flusher writeback cgroup aware.
-
-Greg Thelen's memcg writeback patchset (already been proposed for LSF/MM
-summit this year) adds cgroup awareness to writeback. Some aspects of
-this patchset could be borrowed for solving the problem of throttling
-buffered writes.
-
-As I understand the topic was discussed during last Kernel Summit as
-well and the idea is to get the IO-less throttling patchset into the
-kernel, then do per-memcg dirty memory limiting and add some memcg
-awareness to writeback Greg Thelen and then when these things settle
-down, think how to solve this problem since noone really seem to have a
-good answer to it.
-
-Having worked on linux filesystem/storage area for a few years now and
-having spent time understanding the various approaches tried and looked
-at other feasible way of solving this problem, I look forward to
-participate in the summit and discussions.
-
-So, the topic I would like to discuss is solving the problem of
-"throttling buffered writes". This could considered for discussion with
-memcg writeback session if that topic has been allocated a slot.
-
-I'm aware that this is a late submission and my apologies for not making
-it earlier. But, I want to take chances and see if it is possible still..
-
-
-Thanks
-Suresh
-
+Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
