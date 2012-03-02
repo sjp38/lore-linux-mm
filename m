@@ -1,70 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx203.postini.com [74.125.245.203])
-	by kanga.kvack.org (Postfix) with SMTP id 678EE6B004A
-	for <linux-mm@kvack.org>; Thu,  1 Mar 2012 22:35:00 -0500 (EST)
-Received: from /spool/local
-	by e23smtp01.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <dwg@au1.ibm.com>;
-	Fri, 2 Mar 2012 03:28:18 +1000
-Received: from d23av04.au.ibm.com (d23av04.au.ibm.com [9.190.235.139])
-	by d23relay04.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q223ShqZ3014686
-	for <linux-mm@kvack.org>; Fri, 2 Mar 2012 14:28:45 +1100
-Received: from d23av04.au.ibm.com (loopback [127.0.0.1])
-	by d23av04.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q223YCJB032289
-	for <linux-mm@kvack.org>; Fri, 2 Mar 2012 14:34:13 +1100
-Date: Fri, 2 Mar 2012 14:28:53 +1100
-From: David Gibson <dwg@au1.ibm.com>
-Subject: Re: [PATCH -V2 0/9] memcg: add HugeTLB resource tracking
-Message-ID: <20120302032853.GB2728@truffala.fritz.box>
-References: <1330593380-1361-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
- <20120301144029.545a5589.akpm@linux-foundation.org>
+Received: from psmtp.com (na3sys010amx177.postini.com [74.125.245.177])
+	by kanga.kvack.org (Postfix) with SMTP id EC4686B002C
+	for <linux-mm@kvack.org>; Thu,  1 Mar 2012 23:49:01 -0500 (EST)
+Date: Fri, 2 Mar 2012 12:48:58 +0800
+From: Fengguang Wu <fengguang.wu@intel.com>
+Subject: Re: [PATCH 5/9] writeback: introduce the pageout work
+Message-ID: <20120302044858.GA14802@localhost>
+References: <20120228140022.614718843@intel.com>
+ <20120228144747.198713792@intel.com>
+ <20120228160403.9c9fa4dc.akpm@linux-foundation.org>
+ <20120301123640.GA30369@localhost>
+ <20120301163837.GA13104@quack.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20120301144029.545a5589.akpm@linux-foundation.org>
+In-Reply-To: <20120301163837.GA13104@quack.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, linux-mm@kvack.org, mgorman@suse.de, kamezawa.hiroyu@jp.fujitsu.com, dhillf@gmail.com, aarcange@redhat.com, mhocko@suse.cz, hannes@cmpxchg.org, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org
+To: Jan Kara <jack@suse.cz>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Greg Thelen <gthelen@google.com>, Ying Han <yinghan@google.com>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan.kim@gmail.com>, Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Thu, Mar 01, 2012 at 02:40:29PM -0800, Andrew Morton wrote:
-> On Thu,  1 Mar 2012 14:46:11 +0530
-> "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com> wrote:
-> 
-> > This patchset implements a memory controller extension to control
-> > HugeTLB allocations. It is similar to the existing hugetlb quota
-> > support in that, the limit is enforced at mmap(2) time and not at
-> > fault time. HugeTLB's quota mechanism limits the number of huge pages
-> > that can allocated per superblock.
+On Thu, Mar 01, 2012 at 05:38:37PM +0100, Jan Kara wrote:
+> On Thu 01-03-12 20:36:40, Wu Fengguang wrote:
+> > > Please have a think about all of this and see if you can demonstrate
+> > > how the iput() here is guaranteed safe.
 > > 
-> > For shared mappings we track the regions mapped by a task along with the
-> > memcg. We keep the memory controller charged even after the task
-> > that did mmap(2) exits. Uncharge happens during truncate. For Private
-> > mappings we charge and uncharge from the current task cgroup.
+> > There are already several __iget()/iput() calls inside fs-writeback.c.
+> > The existing iput() calls already demonstrate its safety?
+> > 
+> > Basically the flusher works in this way
+> > 
+> > - the dirty inode list i_wb_list does not reference count the inode at all
+> > 
+> > - the flusher thread does something analog to igrab() and set I_SYNC
+> >   before going off to writeout the inode
+> > 
+> > - evict() will wait for completion of I_SYNC
+>   Yes, you are right that currently writeback code already holds inode
+> references and so it can happen that flusher thread drops the last inode
+> reference. But currently that could create problems only if someone waits
+> for flusher thread to make progress while effectively blocking e.g.
+> truncate from happening. Currently flusher thread handles sync(2) and
+> background writeback and filesystems take care to not hold any locks
+> blocking IO / truncate while possibly waiting for these.
 > 
-> I haven't begin to get my head around this yet, but I'd like to draw
-> your attention to https://lkml.org/lkml/2012/2/15/548.  That fix has
-> been hanging around for a while, but I haven't done anything with it
-> yet because I don't like its additional blurring of the separation
-> between hugetlb core code and hugetlbfs.  I want to find time to sit
-> down and see if the fix can be better architected but haven't got
-> around to that yet.
+> But with your addition situation changes significantly - now anyone doing
+> allocation can block and do allocation from all sorts of places including
+> ones where we hold locks blocking other fs activity. The good news is that
+> we use GFP_NOFS in such places. So if GFP_NOFS allocation cannot possibly
+> depend on a completion of some writeback work, then I'd still be
+> comfortable with dropping inode references from writeback code. But Andrew
+> is right this at least needs some arguing...
 
-So.. that version of the fix I specifically rebuilt to address your
-concerns about that blurring - in fact I think it reduces the current
-layer blurring.  I haven't had any reply - what problems do see it as
-still having?
+You seem to miss the point that we don't do wait or page allocations
+inside queue_pageout_work(). The final iput() will not block the
+random tasks because the latter don't wait for completion of the work.
 
-> I expect that your patches will conflict at least mechanically with
-> David's, which is not a big issue.  But I wonder whether your patches
-> will copy the same bug into other places, and whether you can think of
-> a tidier way of addressing the bug which David is seeing?
+        random task                     flusher thread
 
--- 
-David Gibson			| I'll have my music baroque, and my code
-david AT gibson.dropbear.id.au	| minimalist, thank you.  NOT _the_ _other_
-				| _way_ _around_!
-http://www.ozlabs.org/~dgibson
+        page allocation
+          page reclaim
+            queue_pageout_work()
+              igrab()
+
+                  ......  after a while  ......
+
+                                        execute pageout work                
+                                        iput()
+                                        <work completed>
+
+There will be some reclaim_wait()s if the pageout works are not
+executed quickly, in which case vmscan will be impacted and slowed
+down. However it's not waiting for any specific work to complete, so
+there is no chance to form a loop of dependencies leading to deadlocks.
+
+The iput() does have the theoretic possibility to deadlock the flusher
+thread itself (but not with the other random tasks). Since the flusher
+thread has always been doing iput() w/o running into such bugs, we can
+reasonably expect the new iput() to be as safe in practical.
+
+Thanks,
+Fengguang
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
