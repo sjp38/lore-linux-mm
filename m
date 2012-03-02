@@ -1,76 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx183.postini.com [74.125.245.183])
-	by kanga.kvack.org (Postfix) with SMTP id 99D716B0092
-	for <linux-mm@kvack.org>; Fri,  2 Mar 2012 15:09:16 -0500 (EST)
+Received: from psmtp.com (na3sys010amx189.postini.com [74.125.245.189])
+	by kanga.kvack.org (Postfix) with SMTP id 34D7E6B00E8
+	for <linux-mm@kvack.org>; Fri,  2 Mar 2012 15:13:23 -0500 (EST)
 From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: Re: [PATCH v2 2/2] memcg: avoid THP split in task migration
-Date: Fri,  2 Mar 2012 15:09:06 -0500
-Message-Id: <1330718946-19490-1-git-send-email-n-horiguchi@ah.jp.nec.com>
-In-Reply-To: <CAJd=RBD46TioS0n7k6nZRG7p8+hiJkUddayr8=0sCxKq8Qct1Q@mail.gmail.com>
+Subject: [PATCH v3 1/2] thp: add HPAGE_PMD_* definitions for !CONFIG_TRANSPARENT_HUGEPAGE
+Date: Fri,  2 Mar 2012 15:13:08 -0500
+Message-Id: <1330719189-20047-1-git-send-email-n-horiguchi@ah.jp.nec.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hillf Danton <dhillf@gmail.com>
-Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, linux-kernel@vger.kernel.org
+To: linux-mm@kvack.org
+Cc: Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Hillf Danton <dhillf@gmail.com>, linux-kernel@vger.kernel.org, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
 
-On Fri, Mar 02, 2012 at 08:22:29PM +0800, Hillf Danton wrote:
-> On Fri, Mar 2, 2012 at 8:31 AM, Naoya Horiguchi
-> <n-horiguchi@ah.jp.nec.com> wrote:
-...
-> > --- linux-next-20120228.orig/mm/memcontrol.c
-> > +++ linux-next-20120228/mm/memcontrol.c
-> > @@ -5211,6 +5211,39 @@ static int is_target_pte_for_mc(struct vm_area_struct *vma,
-> >    return ret;
-> > }
-> >
-> > +#ifdef CONFIG_TRANSPARENT_HUGEPAGE
-> > +/*
-> > + * We don't consider swapping or file mapped pages because THP does not
-> > + * support them for now.
-> > + * Caller should make sure that pmd_trans_huge(pmd) is true.
-> > + */
-> > +static int is_target_thp_for_mc(struct vm_area_struct *vma,
-> > +        unsigned long addr, pmd_t pmd, union mc_target *target)
-> > +{
-> > +    struct page *page = NULL;
-> > +    struct page_cgroup *pc;
-> > +    int ret = 0;
-> > +
->
-> Need to check move_anon() ?
+These macros will be used in later patch, where all usage are expected
+to be optimized away without #ifdef CONFIG_TRANSPARENT_HUGEPAGE.
+But to detect unexpected usages, we convert existing BUG() to BUILD_BUG().
 
-Right, we need it and page_mapcount check to be consistent with non thp code.
+Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Acked-by: Hillf Danton <dhillf@gmail.com>
+Reviewed-by: Andrea Arcangeli <aarcange@redhat.com>
+---
+ include/linux/huge_mm.h |   11 ++++++-----
+ 1 files changed, 6 insertions(+), 5 deletions(-)
 
-BTH it is maybe a bit off-topic, but I feel strange the following:
-
-  static struct page *mc_handle_present_pte(struct vm_area_struct *vma,
-                                            unsigned long addr, pte_t ptent)
-  {
-          ...
-          if (PageAnon(page)) {
-                  /* we don't move shared anon */
-                  if (!move_anon() || page_mapcount(page) > 2)
-                          return NULL;
-
-Here page_mapcount(page) > 2 means that a given page is shared among more
-than _three_ users. Documentation/cgroups/memory.txt sec.8.2 says that
-
-  "(for file pages) mapcount of the page is ignored(the page can be
-    moved even if page_mapcount(page) > 1)."
-
-It implies that we do not move charge for anonymous page if mapcount > 1.
-So I think the above mapcount check should be "> 1."
-I'll post fix patch separately if it's correct.
-
-> Other than that,
-> Acked-by: Hillf Danton <dhillf@gmail.com>
-
-Thank you!
-
-It's small fix, but I'll resend whole renewed patchset for Andrew to handle
-it easier.
-
-Thanks,
-Naoya
+diff --git linux-next-20120228.orig/include/linux/huge_mm.h linux-next-20120228/include/linux/huge_mm.h
+index f56cacb..c8af7a2 100644
+--- linux-next-20120228.orig/include/linux/huge_mm.h
++++ linux-next-20120228/include/linux/huge_mm.h
+@@ -51,6 +51,9 @@ extern pmd_t *page_check_address_pmd(struct page *page,
+ 				     unsigned long address,
+ 				     enum page_check_address_pmd_flag flag);
+ 
++#define HPAGE_PMD_ORDER (HPAGE_PMD_SHIFT-PAGE_SHIFT)
++#define HPAGE_PMD_NR (1<<HPAGE_PMD_ORDER)
++
+ #ifdef CONFIG_TRANSPARENT_HUGEPAGE
+ #define HPAGE_PMD_SHIFT HPAGE_SHIFT
+ #define HPAGE_PMD_MASK HPAGE_MASK
+@@ -102,8 +105,6 @@ extern void __split_huge_page_pmd(struct mm_struct *mm, pmd_t *pmd);
+ 		BUG_ON(pmd_trans_splitting(*____pmd) ||			\
+ 		       pmd_trans_huge(*____pmd));			\
+ 	} while (0)
+-#define HPAGE_PMD_ORDER (HPAGE_PMD_SHIFT-PAGE_SHIFT)
+-#define HPAGE_PMD_NR (1<<HPAGE_PMD_ORDER)
+ #if HPAGE_PMD_ORDER > MAX_ORDER
+ #error "hugepages can't be allocated by the buddy allocator"
+ #endif
+@@ -158,9 +159,9 @@ static inline struct page *compound_trans_head(struct page *page)
+ 	return page;
+ }
+ #else /* CONFIG_TRANSPARENT_HUGEPAGE */
+-#define HPAGE_PMD_SHIFT ({ BUG(); 0; })
+-#define HPAGE_PMD_MASK ({ BUG(); 0; })
+-#define HPAGE_PMD_SIZE ({ BUG(); 0; })
++#define HPAGE_PMD_SHIFT ({ BUILD_BUG(); 0; })
++#define HPAGE_PMD_MASK ({ BUILD_BUG(); 0; })
++#define HPAGE_PMD_SIZE ({ BUILD_BUG(); 0; })
+ 
+ #define hpage_nr_pages(x) 1
+ 
+-- 
+1.7.7.6
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
