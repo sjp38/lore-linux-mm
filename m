@@ -1,101 +1,109 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx124.postini.com [74.125.245.124])
-	by kanga.kvack.org (Postfix) with SMTP id 544BD6B002C
-	for <linux-mm@kvack.org>; Sat,  3 Mar 2012 09:01:26 -0500 (EST)
-Date: Sat, 3 Mar 2012 21:55:58 +0800
-From: Fengguang Wu <fengguang.wu@intel.com>
-Subject: Re: [PATCH 5/9] writeback: introduce the pageout work
-Message-ID: <20120303135558.GA9869@localhost>
-References: <20120228140022.614718843@intel.com>
- <20120228144747.198713792@intel.com>
- <20120228160403.9c9fa4dc.akpm@linux-foundation.org>
- <20120301123640.GA30369@localhost>
- <20120301163837.GA13104@quack.suse.cz>
- <20120302044858.GA14802@localhost>
- <20120302095910.GB1744@quack.suse.cz>
- <20120302103951.GA13378@localhost>
- <20120302115700.7d970497.akpm@linux-foundation.org>
+Received: from psmtp.com (na3sys010amx130.postini.com [74.125.245.130])
+	by kanga.kvack.org (Postfix) with SMTP id 12B0A6B007E
+	for <linux-mm@kvack.org>; Sat,  3 Mar 2012 09:23:40 -0500 (EST)
+Message-ID: <4F522910.1050402@parallels.com>
+Date: Sat, 3 Mar 2012 11:22:08 -0300
+From: Glauber Costa <glommer@parallels.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20120302115700.7d970497.akpm@linux-foundation.org>
+Subject: Re: [PATCH 04/10] memcg: Introduce __GFP_NOACCOUNT.
+References: <1330383533-20711-1-git-send-email-ssouhlal@FreeBSD.org> <1330383533-20711-5-git-send-email-ssouhlal@FreeBSD.org> <20120229150041.62c1feeb.kamezawa.hiroyu@jp.fujitsu.com> <CABCjUKBHjLHKUmW6_r0SOyw42WfV0zNO7Kd7FhhRQTT6jZdyeQ@mail.gmail.com> <20120301091044.1a62d42c.kamezawa.hiroyu@jp.fujitsu.com> <4F4EC1AB.8050506@parallels.com> <20120301150537.8996bbf6.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20120301150537.8996bbf6.kamezawa.hiroyu@jp.fujitsu.com>
+Content-Type: text/plain; charset="ISO-8859-1"; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Jan Kara <jack@suse.cz>, Greg Thelen <gthelen@google.com>, Ying Han <yinghan@google.com>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan.kim@gmail.com>, Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Adrian Hunter <ext-adrian.hunter@nokia.com>, Artem Bityutskiy <Artem.Bityutskiy@nokia.com>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Suleiman Souhlal <suleiman@google.com>, Suleiman Souhlal <ssouhlal@freebsd.org>, cgroups@vger.kernel.org, penberg@kernel.org, yinghan@google.com, hughd@google.com, gthelen@google.com, linux-mm@kvack.org, devel@openvz.org
 
-On Fri, Mar 02, 2012 at 11:57:00AM -0800, Andrew Morton wrote:
-> On Fri, 2 Mar 2012 18:39:51 +0800
-> Fengguang Wu <fengguang.wu@intel.com> wrote:
-> 
-> > > And I agree it's unlikely but given enough time and people, I
-> > > believe someone finds a way to (inadvertedly) trigger this.
-> > 
-> > Right. The pageout works could add lots more iput() to the flusher
-> > and turn some hidden statistical impossible bugs into real ones.
-> > 
-> > Fortunately the "flusher deadlocks itself" case is easy to detect and
-> > prevent as illustrated in another email.
-> 
-> It would be a heck of a lot safer and saner to avoid the iput().  We
-> know how to do this, so why not do it?
+On 03/01/2012 03:05 AM, KAMEZAWA Hiroyuki wrote:
+> On Wed, 29 Feb 2012 21:24:11 -0300
+> Glauber Costa<glommer@parallels.com>  wrote:
+>
+>> On 02/29/2012 09:10 PM, KAMEZAWA Hiroyuki wrote:
+>>> On Wed, 29 Feb 2012 11:09:50 -0800
+>>> Suleiman Souhlal<suleiman@google.com>   wrote:
+>>>
+>>>> On Tue, Feb 28, 2012 at 10:00 PM, KAMEZAWA Hiroyuki
+>>>> <kamezawa.hiroyu@jp.fujitsu.com>   wrote:
+>>>>> On Mon, 27 Feb 2012 14:58:47 -0800
+>>>>> Suleiman Souhlal<ssouhlal@FreeBSD.org>   wrote:
+>>>>>
+>>>>>> This is used to indicate that we don't want an allocation to be accounted
+>>>>>> to the current cgroup.
+>>>>>>
+>>>>>> Signed-off-by: Suleiman Souhlal<suleiman@google.com>
+>>>>>
+>>>>> I don't like this.
+>>>>>
+>>>>> Please add
+>>>>>
+>>>>> ___GFP_ACCOUNT  "account this allocation to memcg"
+>>>>>
+>>>>> Or make this as slab's flag if this work is for slab allocation.
+>>>>
+>>>> We would like to account for all the slab allocations that happen in
+>>>> process context.
+>>>>
+>>>> Manually marking every single allocation or kmem_cache with a GFP flag
+>>>> really doesn't seem like the right thing to do..
+>>>>
+>>>> Can you explain why you don't like this flag?
+>>>>
+>>>
+>>> For example, tcp buffer limiting has another logic for buffer size controling.
+>>> _AND_, most of kernel pages are not reclaimable at all.
+>>> I think you should start from reclaimable caches as dcache, icache etc.
+>>>
+>>> If you want to use this wider, you can discuss
+>>>
+>>> + #define GFP_KERNEL	(.....| ___GFP_ACCOUNT)
+>>>
+>>> in future. I'd like to see small start because memory allocation failure
+>>> is always terrible and make the system unstable. Even if you notify
+>>> "Ah, kernel memory allocation failed because of memory.limit? and
+>>>    many unreclaimable memory usage. Please tweak the limitation or kill tasks!!"
+>>>
+>>> The user can't do anything because he can't create any new task because of OOM.
+>>>
+>>> The system will be being unstable until an admin, who is not under any limit,
+>>> tweaks something or reboot the system.
+>>>
+>>> Please do small start until you provide Eco-System to avoid a case that
+>>> the admin cannot login and what he can do was only reboot.
+>>>
+>> Having the root cgroup to be always unlimited should already take care
+>> of the most extreme cases, right?
+>>
+> If an admin can login into root cgroup ;)
+> Anyway, if someone have a container under cgroup via hosting service,
+> he can do noting if oom killer cannot recover his container. It can be
+> caused by kernel memory limit. And I'm not sure he can do shutdown because
+> he can't login.
+>
 
-My concern about the page lock is, it costs more code and sounds like
-hacking around something. It seems we (including me) have been trying
-to shun away from the iput() problem. Since it's unlikely we are to
-get rid of the already existing iput() calls from the flusher context,
-why not face the problem, sort it out and use it with confident in new
-code?
+To be fair, I think this may be unavoidable. Even if we are only dealing 
+with reclaimable slabs, having reclaimable slabs doesn't mean they are 
+always reclaimable. Unlike user memory, that we can swap at will (unless 
+mlock'd, but that is a different issue), we can have so many objects 
+locked, that reclaim is effectively impossible. And with the right 
+pattern, that may not even need to be that many: all one needs to do, is 
+figure out a way to pin one object per slab page, and that's it: you'll 
+never get rid of them.
 
-Let me try it now. The only scheme iput() can deadlock the flusher is
-for the iput() path to come back to queue some work and wait for it.
-Here are the exhaust list of the queue+wait paths:
+So although obviously being nice making sure we did everything we could 
+to recover from oom scenarios, once we start tracking kernel memory, 
+this may not be possible. So the whole point for me, is guaranteeing 
+that one container cannot destroy the others - which is the reality if 
+one of them can go an grab all kmem =p
 
-writeback_inodes_sb_nr_if_idle
-  ext4_nonda_switch
-    ext4_page_mkwrite                   # from page fault
-    ext4_da_write_begin                 # from user writes
+That said, I gave this an extra thought. GFP flags are in theory 
+targeted at a single allocation. So I think this is wrong. We either 
+track or not a cache, not an allocation. Once we decided that a cache 
+should be tracked, it should be tracked and end of story.
 
-writeback_inodes_sb_nr
-  quotactl syscall                      # from syscall
-  __sync_filesystem                     # from sync/umount
-  shrink_liability                      # ubifs
-    make_free_space
-      ubifs_budget_space                # from all over ubifs:
+So how about using a SLAB flag instead?
 
-   2    274  /c/linux/fs/ubifs/dir.c <<ubifs_create>>
-   3    531  /c/linux/fs/ubifs/dir.c <<ubifs_link>>
-   4    586  /c/linux/fs/ubifs/dir.c <<ubifs_unlink>>
-   5    675  /c/linux/fs/ubifs/dir.c <<ubifs_rmdir>>
-   6    731  /c/linux/fs/ubifs/dir.c <<ubifs_mkdir>>
-   7    803  /c/linux/fs/ubifs/dir.c <<ubifs_mknod>>
-   8    871  /c/linux/fs/ubifs/dir.c <<ubifs_symlink>>
-   9   1006  /c/linux/fs/ubifs/dir.c <<ubifs_rename>>
-  10   1009  /c/linux/fs/ubifs/dir.c <<ubifs_rename>>
-  11    246  /c/linux/fs/ubifs/file.c <<write_begin_slow>>
-  12    388  /c/linux/fs/ubifs/file.c <<allocate_budget>>
-  13   1125  /c/linux/fs/ubifs/file.c <<do_truncation>>   <===== deadlockable
-  14   1217  /c/linux/fs/ubifs/file.c <<do_setattr>>
-  15   1381  /c/linux/fs/ubifs/file.c <<update_mctime>>
-  16   1486  /c/linux/fs/ubifs/file.c <<ubifs_vm_page_mkwrite>>
-  17    110  /c/linux/fs/ubifs/ioctl.c <<setflags>>
-  19    122  /c/linux/fs/ubifs/xattr.c <<create_xattr>>
-  20    201  /c/linux/fs/ubifs/xattr.c <<change_xattr>>
-  21    494  /c/linux/fs/ubifs/xattr.c <<remove_xattr>>
-
-It seems they are all safe except for ubifs. ubifs may actually
-deadlock from the above do_truncation() caller. However it should be
-fixable because the ubifs call for writeback_inodes_sb_nr() sounds
-very brute force writeback and wait and there may well be better way
-out.
-
-CCing ubifs developers for possible thoughts..
-
-Thanks,
-Fengguang
-
-PS. I'll be on travel in the following week and won't have much time
-for replying emails. Sorry about that.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
