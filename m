@@ -1,269 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx205.postini.com [74.125.245.205])
-	by kanga.kvack.org (Postfix) with SMTP id 9F2196B00E8
-	for <linux-mm@kvack.org>; Sat,  3 Mar 2012 04:30:31 -0500 (EST)
-Received: by bkwq16 with SMTP id q16so2916405bkw.14
-        for <linux-mm@kvack.org>; Sat, 03 Mar 2012 01:30:29 -0800 (PST)
-Message-ID: <4F51E4B1.4010607@openvz.org>
-Date: Sat, 03 Mar 2012 13:30:25 +0400
-From: Konstantin Khlebnikov <khlebnikov@openvz.org>
+Received: from psmtp.com (na3sys010amx123.postini.com [74.125.245.123])
+	by kanga.kvack.org (Postfix) with SMTP id E13606B002C
+	for <linux-mm@kvack.org>; Sat,  3 Mar 2012 08:31:06 -0500 (EST)
+Date: Sat, 3 Mar 2012 21:25:55 +0800
+From: Fengguang Wu <fengguang.wu@intel.com>
+Subject: Re: [PATCH 5/9] writeback: introduce the pageout work
+Message-ID: <20120303132555.GA6312@localhost>
+References: <20120228140022.614718843@intel.com>
+ <20120228144747.198713792@intel.com>
+ <20120228160403.9c9fa4dc.akpm@linux-foundation.org>
+ <20120301110404.GC4385@quack.suse.cz>
+ <20120301114151.GA19049@localhost>
+ <20120301114634.957da8d2.akpm@linux-foundation.org>
 MIME-Version: 1.0
-Subject: Re: [PATCH 3.3] memcg: fix GPF when cgroup removal races with last
- exit
-References: <alpine.LSU.2.00.1203021030140.2094@eggly.anvils>
-In-Reply-To: <alpine.LSU.2.00.1203021030140.2094@eggly.anvils>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20120301114634.957da8d2.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Jan Kara <jack@suse.cz>, Greg Thelen <gthelen@google.com>, Ying Han <yinghan@google.com>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan.kim@gmail.com>, Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-Hugh Dickins wrote:
-> When moving tasks from old memcg (with move_charge_at_immigrate on new
-> memcg), followed by removal of old memcg, hit General Protection Fault
-> in mem_cgroup_lru_del_list() (called from release_pages called from
-> free_pages_and_swap_cache from tlb_flush_mmu from tlb_finish_mmu from
-> exit_mmap from mmput from exit_mm from do_exit).
->
-> Somewhat reproducible, takes a few hours: the old struct mem_cgroup has
-> been freed and poisoned by SLAB_DEBUG, but mem_cgroup_lru_del_list() is
-> still trying to update its stats, and take page off lru before freeing.
->
-> A task, or a charge, or a page on lru: each secures a memcg against
-> removal.  In this case, the last task has been moved out of the old
-> memcg, and it is exiting: anonymous pages are uncharged one by one
-> from the memcg, as they are zapped from its pagetables, so the charge
-> gets down to 0; but the pages themselves are queued in an mmu_gather
-> for freeing.
->
-> Most of those pages will be on lru (and force_empty is careful to
-> lru_add_drain_all, to add pages from pagevec to lru first), but not
-> necessarily all: perhaps some have been isolated for page reclaim,
-> perhaps some isolated for other reasons.  So, force_empty may find
-> no task, no charge and no page on lru, and let the removal proceed.
->
-> There would still be no problem if these pages were immediately
-> freed; but typically (and the put_page_testzero protocol demands it)
-> they have to be added back to lru before they are found freeable,
-> then removed from lru and freed.  We don't see the issue when adding,
-> because the mem_cgroup_iter() loops keep their own reference to the
-> memcg being scanned; but when it comes to mem_cgroup_lru_del_list().
->
-> I believe this was not an issue in v3.2: there, PageCgroupAcctLRU and
-> PageCgroupUsed flags were used (like a trick with mirrors) to deflect
-> view of pc->mem_cgroup to the stable root_mem_cgroup when neither set.
-> 38c5d72f3ebe "memcg: simplify LRU handling by new rule" mercifully
-> removed those convolutions, but left this General Protection Fault.
->
-> But it's surprisingly easy to restore the old behaviour: just check
-> PageCgroupUsed in mem_cgroup_lru_add_list() (which decides on which
-> lruvec to add), and reset pc to root_mem_cgroup if page is uncharged.
-> A risky change? just going back to how it worked before; testing,
-> and an audit of uses of pc->mem_cgroup, show no problem.
->
-> And there's a nice bonus: with mem_cgroup_lru_add_list() itself making
-> sure that an uncharged page goes to root lru, mem_cgroup_reset_owner()
-> no longer has any purpose, and we can safely revert 4e5f01c2b9b9
-> "memcg: clear pc->mem_cgroup if necessary".
->
-> Calling update_page_reclaim_stat() after add_page_to_lru_list() in
-> swap.c is not strictly necessary: the lru_lock there, with RCU before
-> memcg structures are freed, makes mem_cgroup_get_reclaim_stat_from_page
-> safe without that; but it seems cleaner to rely on one dependency less.
->
-> Signed-off-by: Hugh Dickins<hughd@google.com>
-> ---
->
-> I had to delay sending this for a few days, since tests were still
-> crashing, but differently.  Now I understand why: it's a different bug,
-> and not even a regression, confined to memcg swap accounting - I'll
-> send a fix to that one in a couple of days.
->
-> Konstantin, I've not yet looked into how this patch affects your
-> patchsets; but I do know that this surreptitious-switch-to-root
-> behaviour seemed nightmarish when I was doing per-memcg per-zone
-> locking (particularly inside something like __activate_page(), where
-> we del and add under a single lock), and unnecessary once you and I
-> secure the memcg differently.  So you may just want to revert this in
-> patches for linux-next; but I've a suspicion that now we understand
-> it better, this technique might still be usable, and more efficient.
+On Thu, Mar 01, 2012 at 11:46:34AM -0800, Andrew Morton wrote:
+> On Thu, 1 Mar 2012 19:41:51 +0800
+> Fengguang Wu <fengguang.wu@intel.com> wrote:
+> 
+> > >   I think using get_page() might be a good way to go. Naive implementation:
+> > > If we need to write a page from kswapd, we do get_page(), attach page to
+> > > wb_writeback_work and push it to flusher thread to deal with it.
+> > > Flusher thread sees the work, takes a page lock, verifies the page is still
+> > > attached to some inode & dirty (it could have been truncated / cleaned by
+> > > someone else) and if yes, it submits page for IO (possibly with some
+> > > writearound). This scheme won't have problems with iput() and won't have
+> > > problems with umount. Also we guarantee some progress - either flusher
+> > > thread does it, or some else must have done the work before flusher thread
+> > > got to it.
+> > 
+> > I like this idea.
+> > 
+> > get_page() looks the perfect solution to verify if the struct inode
+> > pointer (w/o igrab) is still live and valid.
+> > 
+> > [...upon rethinking...] Oh but still we need to lock some page to pin
+> > the inode during the writeout. Then there is the dilemma: if the page
+> > is locked, we effectively keep it from being written out...
+> 
+> No, all you need to do is to structure the code so that after the page
+> gets unlocked, the kernel thread does not touch the address_space.  So
+> the processing within the kthread is along the lines of
+> 
+> writearound(locked_page)
+> {
+> 	write some pages preceding locked_page;	/* touches address_space */
 
-Yes, something like that. But, I  must fix my "isolated-pages" counters first,
-otherwise I just reintroduce this bug again.
+It seems the above line will lead to ABBA deadlock.
 
->
->   include/linux/memcontrol.h |    5 -----
->   mm/ksm.c                   |   11 -----------
->   mm/memcontrol.c            |   30 +++++++++++++-----------------
->   mm/migrate.c               |    2 --
->   mm/swap.c                  |    8 +++++---
->   mm/swap_state.c            |   10 ----------
->   6 files changed, 18 insertions(+), 48 deletions(-)
->
-> --- 3.3-rc5/include/linux/memcontrol.h	2012-01-24 20:40:19.201922679 -0800
-> +++ linux/include/linux/memcontrol.h	2012-02-29 10:17:45.180012045 -0800
-> @@ -129,7 +129,6 @@ extern void mem_cgroup_print_oom_info(st
->   extern void mem_cgroup_replace_page_cache(struct page *oldpage,
->   					struct page *newpage);
->
-> -extern void mem_cgroup_reset_owner(struct page *page);
->   #ifdef CONFIG_CGROUP_MEM_RES_CTLR_SWAP
->   extern int do_swap_account;
->   #endif
-> @@ -392,10 +391,6 @@ static inline void mem_cgroup_replace_pa
->   				struct page *newpage)
->   {
->   }
-> -
-> -static inline void mem_cgroup_reset_owner(struct page *page)
-> -{
-> -}
->   #endif /* CONFIG_CGROUP_MEM_CONT */
->
->   #if !defined(CONFIG_CGROUP_MEM_RES_CTLR) || !defined(CONFIG_DEBUG_VM)
-> --- 3.3-rc5/mm/ksm.c	2012-01-20 08:42:35.000000000 -0800
-> +++ linux/mm/ksm.c	2012-02-29 10:15:18.456008873 -0800
-> @@ -28,7 +28,6 @@
->   #include<linux/kthread.h>
->   #include<linux/wait.h>
->   #include<linux/slab.h>
-> -#include<linux/memcontrol.h>
->   #include<linux/rbtree.h>
->   #include<linux/memory.h>
->   #include<linux/mmu_notifier.h>
-> @@ -1572,16 +1571,6 @@ struct page *ksm_does_need_to_copy(struc
->
->   	new_page = alloc_page_vma(GFP_HIGHUSER_MOVABLE, vma, address);
->   	if (new_page) {
-> -		/*
-> -		 * The memcg-specific accounting when moving
-> -		 * pages around the LRU lists relies on the
-> -		 * page's owner (memcg) to be valid.  Usually,
-> -		 * pages are assigned to a new owner before
-> -		 * being put on the LRU list, but since this
-> -		 * is not the case here, the stale owner from
-> -		 * a previous allocation cycle must be reset.
-> -		 */
-> -		mem_cgroup_reset_owner(new_page);
->   		copy_user_highpage(new_page, page, address, vma);
->
->   		SetPageDirty(new_page);
-> --- 3.3-rc5/mm/memcontrol.c	2012-02-25 13:02:05.165830574 -0800
-> +++ linux/mm/memcontrol.c	2012-02-29 14:23:57.492362468 -0800
-> @@ -1042,6 +1042,19 @@ struct lruvec *mem_cgroup_lru_add_list(s
->
->   	pc = lookup_page_cgroup(page);
->   	memcg = pc->mem_cgroup;
-> +
-> +	/*
-> +	 * Surreptitiously switch any uncharged page to root:
-> +	 * an uncharged page off lru does nothing to secure
-> +	 * its former mem_cgroup from sudden removal.
-> +	 *
-> +	 * Our caller holds lru_lock, and PageCgroupUsed is updated
-> +	 * under page_cgroup lock: between them, they make all uses
-> +	 * of pc->mem_cgroup safe.
-> +	 */
-> +	if (!PageCgroupUsed(pc)&&  memcg != root_mem_cgroup)
-> +		pc->mem_cgroup = memcg = root_mem_cgroup;
-> +
->   	mz = page_cgroup_zoneinfo(memcg, page);
->   	/* compound_order() is stabilized through lru_lock */
->   	MEM_CGROUP_ZSTAT(mz, lru) += 1<<  compound_order(page);
-> @@ -3027,23 +3040,6 @@ void mem_cgroup_uncharge_end(void)
->   	batch->memcg = NULL;
->   }
->
-> -/*
-> - * A function for resetting pc->mem_cgroup for newly allocated pages.
-> - * This function should be called if the newpage will be added to LRU
-> - * before start accounting.
-> - */
-> -void mem_cgroup_reset_owner(struct page *newpage)
-> -{
-> -	struct page_cgroup *pc;
-> -
-> -	if (mem_cgroup_disabled())
-> -		return;
-> -
-> -	pc = lookup_page_cgroup(newpage);
-> -	VM_BUG_ON(PageCgroupUsed(pc));
-> -	pc->mem_cgroup = root_mem_cgroup;
-> -}
-> -
->   #ifdef CONFIG_SWAP
->   /*
->    * called after __delete_from_swap_cache() and drop "page" account.
-> --- 3.3-rc5/mm/migrate.c	2012-02-05 16:33:52.405387309 -0800
-> +++ linux/mm/migrate.c	2012-02-29 10:14:21.140006935 -0800
-> @@ -839,8 +839,6 @@ static int unmap_and_move(new_page_t get
->   	if (!newpage)
->   		return -ENOMEM;
->
-> -	mem_cgroup_reset_owner(newpage);
-> -
->   	if (page_count(page) == 1) {
->   		/* page was freed from under us. So we are done. */
->   		goto out;
-> --- 3.3-rc5/mm/swap.c	2012-02-08 20:50:28.365491381 -0800
-> +++ linux/mm/swap.c	2012-02-29 14:38:55.556384455 -0800
-> @@ -652,7 +652,7 @@ EXPORT_SYMBOL(__pagevec_release);
->   void lru_add_page_tail(struct zone* zone,
->   		       struct page *page, struct page *page_tail)
->   {
-> -	int active;
-> +	int uninitialized_var(active);
->   	enum lru_list lru;
->   	const int file = 0;
->
-> @@ -672,7 +672,6 @@ void lru_add_page_tail(struct zone* zone
->   			active = 0;
->   			lru = LRU_INACTIVE_ANON;
->   		}
-> -		update_page_reclaim_stat(zone, page_tail, file, active);
->   	} else {
->   		SetPageUnevictable(page_tail);
->   		lru = LRU_UNEVICTABLE;
-> @@ -693,6 +692,9 @@ void lru_add_page_tail(struct zone* zone
->   		list_head = page_tail->lru.prev;
->   		list_move_tail(&page_tail->lru, list_head);
->   	}
-> +
-> +	if (!PageUnevictable(page))
-> +		update_page_reclaim_stat(zone, page_tail, file, active);
->   }
->   #endif /* CONFIG_TRANSPARENT_HUGEPAGE */
->
-> @@ -710,8 +712,8 @@ static void __pagevec_lru_add_fn(struct
->   	SetPageLRU(page);
->   	if (active)
->   		SetPageActive(page);
-> -	update_page_reclaim_stat(zone, page, file, active);
->   	add_page_to_lru_list(zone, page, lru);
-> +	update_page_reclaim_stat(zone, page, file, active);
->   }
->
->   /*
-> --- 3.3-rc5/mm/swap_state.c	2012-01-20 08:42:35.000000000 -0800
-> +++ linux/mm/swap_state.c	2012-02-29 10:14:30.752007622 -0800
-> @@ -300,16 +300,6 @@ struct page *read_swap_cache_async(swp_e
->   			new_page = alloc_page_vma(gfp_mask, vma, addr);
->   			if (!new_page)
->   				break;		/* Out of memory */
-> -			/*
-> -			 * The memcg-specific accounting when moving
-> -			 * pages around the LRU lists relies on the
-> -			 * page's owner (memcg) to be valid.  Usually,
-> -			 * pages are assigned to a new owner before
-> -			 * being put on the LRU list, but since this
-> -			 * is not the case here, the stale owner from
-> -			 * a previous allocation cycle must be reset.
-> -			 */
-> -			mem_cgroup_reset_owner(new_page);
->   		}
->
->   		/*
+At least btrfs will lock a number of pages in lock_delalloc_pages().
+This demands that all page locks be taken in ascending order of the
+file offset. Otherwise it's possible some task doing
+__filemap_fdatawrite_range() which in turn call into
+lock_delalloc_pages() deadlock with the writearound() here, which is
+taking some page in the middle first. The fix is to only do
+"write ahead" which will obviously lead to more smaller I/Os.
+
+> 	write locked_page;
+> 	write pages following locked_page;	/* touches address_space */
+> 	unlock_page(locked_page);
+> }
+
+As it is in general a lock, which implies danger of deadlocks. If some
+filesystem do smart things like piggy backing more pages than we
+asked, it may try to lock the locked_page in writearound() and block
+the flusher for ever.
+
+Grabbing the page lock at work enqueue time is particular problematic.
+It's susceptible to the above ABBA deadlock scheme because we will be
+taking one page lock per pageout work and the pages are likely in
+_random_ order. Another scheme is, when the flusher is running sync
+work (or running some final iput() and therefore truncate),  and the
+vmscan is queuing a pageout work with one page locked. The flusher
+will then go deadlock on that page: the current sync/truncate is
+trying to lock a page that can only be unlocked when the flusher goes
+forward to execute the pageout work. The fix is to do get_page() at
+work enqueue time and only take the page lock at work execution time.
+
+Thanks,
+Fengguang
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
