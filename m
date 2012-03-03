@@ -1,157 +1,114 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx159.postini.com [74.125.245.159])
-	by kanga.kvack.org (Postfix) with SMTP id 974E66B00EC
-	for <linux-mm@kvack.org>; Fri,  2 Mar 2012 21:29:05 -0500 (EST)
-Received: by vbbey12 with SMTP id ey12so2680425vbb.14
-        for <linux-mm@kvack.org>; Fri, 02 Mar 2012 18:29:04 -0800 (PST)
+Received: from psmtp.com (na3sys010amx191.postini.com [74.125.245.191])
+	by kanga.kvack.org (Postfix) with SMTP id 043B06B004A
+	for <linux-mm@kvack.org>; Sat,  3 Mar 2012 03:27:44 -0500 (EST)
+Received: by bkwq16 with SMTP id q16so2893091bkw.14
+        for <linux-mm@kvack.org>; Sat, 03 Mar 2012 00:27:43 -0800 (PST)
+Message-ID: <4F51D5FB.4050106@openvz.org>
+Date: Sat, 03 Mar 2012 12:27:39 +0400
+From: Konstantin Khlebnikov <khlebnikov@openvz.org>
 MIME-Version: 1.0
-In-Reply-To: <4F514E09.5060801@redhat.com>
-References: <65795E11DBF1E645A09CEC7EAEE94B9CB9455FE2@USINDEVS02.corp.hds.com>
-	<4F514E09.5060801@redhat.com>
-Date: Sat, 3 Mar 2012 10:29:04 +0800
-Message-ID: <CAJd=RBBdnA-gCXo8w5afng_v+AgfQF797pKW0eDdVJbszULvhg@mail.gmail.com>
-Subject: Re: [RFC][PATCH] avoid swapping out with swappiness==0
-From: Hillf Danton <dhillf@gmail.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+Subject: Re: [PATCH 3/7] mm: rework __isolate_lru_page() file/anon filter
+References: <20120229090748.29236.35489.stgit@zurg> <20120229091547.29236.28230.stgit@zurg> <alpine.LSU.2.00.1203021542560.3578@eggly.anvils>
+In-Reply-To: <alpine.LSU.2.00.1203021542560.3578@eggly.anvils>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rik van Riel <riel@redhat.com>
-Cc: Satoru Moriya <satoru.moriya@hds.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "lwoodman@redhat.com" <lwoodman@redhat.com>, "jweiner@redhat.com" <jweiner@redhat.com>, "shaohua.li@intel.com" <shaohua.li@intel.com>
+To: Hugh Dickins <hughd@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <jweiner@redhat.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 
-On Sat, Mar 3, 2012 at 6:47 AM, Rik van Riel <riel@redhat.com> wrote:
-> On 03/02/2012 12:36 PM, Satoru Moriya wrote:
+Hugh Dickins wrote:
+> On Wed, 29 Feb 2012, Konstantin Khlebnikov wrote:
+>
+>> This patch adds file/anon filter bits into isolate_mode_t,
+>> this allows to simplify checks in __isolate_lru_page().
 >>
->> Sometimes we'd like to avoid swapping out anonymous memory
->> in particular, avoid swapping out pages of important process or
->> process groups while there is a reasonable amount of pagecache
->> on RAM so that we can satisfy our customers' requirements.
->>
->> OTOH, we can control how aggressive the kernel will swap memory pages
->> with /proc/sys/vm/swappiness for global and
->> /sys/fs/cgroup/memory/memory.swappiness for each memcg.
->>
->> But with current reclaim implementation, the kernel may swap out
->> even if we set swappiness=3D=3D0 and there is pagecache on RAM.
->>
->> This patch changes the behavior with swappiness=3D=3D0. If we set
->> swappiness=3D=3D0, the kernel does not swap out completely
->> (for global reclaim until the amount of free pages and filebacked
->> pages in a zone has been reduced to something very very small
->> (nr_free + nr_filebacked< =C2=A0high watermark)).
->>
->> Any comments are welcome.
->>
->> Regards,
->> Satoru Moriya
->>
->> Signed-off-by: Satoru Moriya<satoru.moriya@hds.com>
+>> Signed-off-by: Konstantin Khlebnikov<khlebnikov@openvz.org>
+>
+> Almost-Acked-by: Hugh Dickins<hughd@google.com>
+>
+> with one whitespace nit, and one functional addition requested.
+>
+> I'm perfectly happy with your :?s myself, but some people do dislike
+> them.  I'm happy with the switch alternative if it's as efficient:
+> something that surprised me very much when trying to get convincing
+> performance numbers for per-memcg per-zone lru_lock at home...
+>
+> ... __isolate_lru_page() featured astonishly high on the perf report
+> of streaming from files on ext4 on /dev/ram0 to /dev/null, coming
+> immediately below the obvious zeroing and copying: okay, the zeroing
+> and copying were around 30% each, and __isolate_lru_page() down around
+> 2% or below, but even so it seemed very odd that it should feature so
+> high, and any optimizations to it very welcome - unless it was purely
+> some bogus result.
+
+Actually ANON/FILE ACTIVE/INACTIVE checks does not required at non-lumpy reclaim
+(all pages are picked from right lru list) and compaction (it does not care).
+But seems like removing these two bit-checks cannot give noticeable performance gain.
+
+This patch can be postponed. It does not so important and
+it does not share context with other patches in this set.
+
+>
 >> ---
->> =C2=A0mm/vmscan.c | =C2=A0 =C2=A06 +++---
->> =C2=A01 files changed, 3 insertions(+), 3 deletions(-)
+>>   include/linux/mmzone.h |    4 ++++
+>>   include/linux/swap.h   |    2 +-
+>>   mm/compaction.c        |    5 +++--
+>>   mm/vmscan.c            |   27 +++++++++++++--------------
+>>   4 files changed, 21 insertions(+), 17 deletions(-)
 >>
+>> diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
+>> index eff4918..2fed935 100644
+>> --- a/include/linux/mmzone.h
+>> +++ b/include/linux/mmzone.h
+>> @@ -193,6 +193,10 @@ struct lruvec {
+>>   #define ISOLATE_UNMAPPED	((__force isolate_mode_t)0x8)
+>>   /* Isolate for asynchronous migration */
+>>   #define ISOLATE_ASYNC_MIGRATE	((__force isolate_mode_t)0x10)
+>> +/* Isolate swap-backed pages */
+>> +#define	ISOLATE_ANON		((__force isolate_mode_t)0x20)
+>> +/* Isolate file-backed pages */
+>> +#define	ISOLATE_FILE		((__force isolate_mode_t)0x40)
+>
+>  From the patch you can see that the #defines above yours used a
+> space where you have used a tab: better to use a space as above.
+>
+>> @@ -375,7 +376,7 @@ static isolate_migrate_t isolate_migratepages(struct zone *zone,
+>>   			mode |= ISOLATE_ASYNC_MIGRATE;
+>>
+>>   		/* Try isolate the page */
+>> -		if (__isolate_lru_page(page, mode, 0) != 0)
+>> +		if (__isolate_lru_page(page, mode) != 0)
+>>   			continue;
+>
+> I thought you were missing something there, but no, that's rather
+> the case you are simplifying.  However...
+>
 >> diff --git a/mm/vmscan.c b/mm/vmscan.c
->> index c52b235..27dc3e8 100644
+>> index af6cfe7..1b70338 100644
 >> --- a/mm/vmscan.c
 >> +++ b/mm/vmscan.c
->> @@ -1983,10 +1983,10 @@ static void get_scan_count(struct mem_cgroup_zon=
-e
->> *mz, struct scan_control *sc,
->> =C2=A0 =C2=A0 =C2=A0 =C2=A0 * proportional to the fraction of recently s=
-canned pages on
->> =C2=A0 =C2=A0 =C2=A0 =C2=A0 * each list that were recently referenced an=
-d in active use.
->> =C2=A0 =C2=A0 =C2=A0 =C2=A0 */
->> - =C2=A0 =C2=A0 =C2=A0 ap =3D (anon_prio + 1) * (reclaim_stat->recent_sc=
-anned[0] + 1);
->> + =C2=A0 =C2=A0 =C2=A0 ap =3D anon_prio * (reclaim_stat->recent_scanned[=
-0] + 1);
->> =C2=A0 =C2=A0 =C2=A0 =C2=A0ap /=3D reclaim_stat->recent_rotated[0] + 1;
->>
->> - =C2=A0 =C2=A0 =C2=A0 fp =3D (file_prio + 1) * (reclaim_stat->recent_sc=
-anned[1] + 1);
->> + =C2=A0 =C2=A0 =C2=A0 fp =3D file_prio * (reclaim_stat->recent_scanned[=
-1] + 1);
->> =C2=A0 =C2=A0 =C2=A0 =C2=A0fp /=3D reclaim_stat->recent_rotated[1] + 1;
->> =C2=A0 =C2=A0 =C2=A0 =C2=A0spin_unlock_irq(&mz->zone->lru_lock);
+>> @@ -1520,6 +1511,10 @@ shrink_inactive_list(unsigned long nr_to_scan, struct mem_cgroup_zone *mz,
+>>   		isolate_mode |= ISOLATE_UNMAPPED;
+>>   	if (!sc->may_writepage)
+>>   		isolate_mode |= ISOLATE_CLEAN;
+>> +	if (file)
+>> +		isolate_mode |= ISOLATE_FILE;
+>> +	else
+>> +		isolate_mode |= ISOLATE_ANON;
 >
+> Above here, under "if (sc->reclaim_mode&  RECLAIM_MODE_LUMPYRECLAIM)",
+> don't you need
 >
-> ACK on this bit of the patch.
+> 		isolate_mode |= ISOLATE_ACTIVE | ISOLATE_FILE | ISOLATE_ANON;
 >
->> @@ -1999,7 +1999,7 @@ out:
->> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0unsigned long sca=
-n;
->>
->> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0scan =3D zone_nr_=
-lru_pages(mz, lru);
->> - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 if (priority || noswa=
-p) {
->> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 if (priority || noswa=
-p || !vmscan_swappiness(mz, sc)) {
->> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-=C2=A0 =C2=A0scan>>=3D priority;
->> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-=C2=A0 =C2=A0if (!scan&& =C2=A0force_scan)
->> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0scan =3D SWAP_CLUSTER_MAX;
->
->
-> However, I do not understand why we fail to scale
-> the number of pages we want to scan with priority
-> if "noswap".
->
-> For that matter, surely if we do not want to swap
-> out anonymous pages, we WANT to go into this if
-> branch, in order to make sure we set "scan" to 0?
->
-> scan =3D div64_u64(scan * fraction[file], denominator);
->
-> With your patch and swappiness=3D0, or no swap space, it
-> looks like we do not zero out "scan" and may end up
-> scanning anonymous pages.
->
-> Am I overlooking something? =C2=A0Is this correct?
->
+> now to reproduce the same "all_lru_mode" behaviour as before?
 
-Try to simplify the complex a bit :)
+Yes, I missed this. Thanks.
 
-Good weekend
--hd
-
---- a/mm/vmscan.c	Wed Feb  8 20:10:14 2012
-+++ b/mm/vmscan.c	Sat Mar  3 10:02:10 2012
-@@ -1997,15 +1997,23 @@ static void get_scan_count(struct mem_cg
- out:
- 	for_each_evictable_lru(lru) {
- 		int file =3D is_file_lru(lru);
--		unsigned long scan;
-+		unsigned long scan =3D 0;
-
--		scan =3D zone_nr_lru_pages(mz, lru);
--		if (priority || noswap) {
--			scan >>=3D priority;
--			if (!scan && force_scan)
--				scan =3D SWAP_CLUSTER_MAX;
-+		/* First, check noswap */
-+		if (noswap && !file)
-+			goto set;
-+
-+		/* Second, apply priority */
-+		scan =3D zone_nr_lru_pages(mz, lru) >> priority;
-+
-+		/* Third, check force */
-+		if (!scan && force_scan)
-+			scan =3D SWAP_CLUSTER_MAX;
-+
-+		/* Finally, try to avoid div64 */
-+		if (scan)
- 			scan =3D div64_u64(scan * fraction[file], denominator);
--		}
-+set:
- 		nr[lru] =3D scan;
- 	}
- }
---
+>
+> Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
