@@ -1,91 +1,101 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx123.postini.com [74.125.245.123])
-	by kanga.kvack.org (Postfix) with SMTP id E13606B002C
-	for <linux-mm@kvack.org>; Sat,  3 Mar 2012 08:31:06 -0500 (EST)
-Date: Sat, 3 Mar 2012 21:25:55 +0800
+Received: from psmtp.com (na3sys010amx124.postini.com [74.125.245.124])
+	by kanga.kvack.org (Postfix) with SMTP id 544BD6B002C
+	for <linux-mm@kvack.org>; Sat,  3 Mar 2012 09:01:26 -0500 (EST)
+Date: Sat, 3 Mar 2012 21:55:58 +0800
 From: Fengguang Wu <fengguang.wu@intel.com>
 Subject: Re: [PATCH 5/9] writeback: introduce the pageout work
-Message-ID: <20120303132555.GA6312@localhost>
+Message-ID: <20120303135558.GA9869@localhost>
 References: <20120228140022.614718843@intel.com>
  <20120228144747.198713792@intel.com>
  <20120228160403.9c9fa4dc.akpm@linux-foundation.org>
- <20120301110404.GC4385@quack.suse.cz>
- <20120301114151.GA19049@localhost>
- <20120301114634.957da8d2.akpm@linux-foundation.org>
+ <20120301123640.GA30369@localhost>
+ <20120301163837.GA13104@quack.suse.cz>
+ <20120302044858.GA14802@localhost>
+ <20120302095910.GB1744@quack.suse.cz>
+ <20120302103951.GA13378@localhost>
+ <20120302115700.7d970497.akpm@linux-foundation.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20120301114634.957da8d2.akpm@linux-foundation.org>
+In-Reply-To: <20120302115700.7d970497.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Jan Kara <jack@suse.cz>, Greg Thelen <gthelen@google.com>, Ying Han <yinghan@google.com>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan.kim@gmail.com>, Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+Cc: Jan Kara <jack@suse.cz>, Greg Thelen <gthelen@google.com>, Ying Han <yinghan@google.com>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan.kim@gmail.com>, Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Adrian Hunter <ext-adrian.hunter@nokia.com>, Artem Bityutskiy <Artem.Bityutskiy@nokia.com>
 
-On Thu, Mar 01, 2012 at 11:46:34AM -0800, Andrew Morton wrote:
-> On Thu, 1 Mar 2012 19:41:51 +0800
+On Fri, Mar 02, 2012 at 11:57:00AM -0800, Andrew Morton wrote:
+> On Fri, 2 Mar 2012 18:39:51 +0800
 > Fengguang Wu <fengguang.wu@intel.com> wrote:
 > 
-> > >   I think using get_page() might be a good way to go. Naive implementation:
-> > > If we need to write a page from kswapd, we do get_page(), attach page to
-> > > wb_writeback_work and push it to flusher thread to deal with it.
-> > > Flusher thread sees the work, takes a page lock, verifies the page is still
-> > > attached to some inode & dirty (it could have been truncated / cleaned by
-> > > someone else) and if yes, it submits page for IO (possibly with some
-> > > writearound). This scheme won't have problems with iput() and won't have
-> > > problems with umount. Also we guarantee some progress - either flusher
-> > > thread does it, or some else must have done the work before flusher thread
-> > > got to it.
+> > > And I agree it's unlikely but given enough time and people, I
+> > > believe someone finds a way to (inadvertedly) trigger this.
 > > 
-> > I like this idea.
+> > Right. The pageout works could add lots more iput() to the flusher
+> > and turn some hidden statistical impossible bugs into real ones.
 > > 
-> > get_page() looks the perfect solution to verify if the struct inode
-> > pointer (w/o igrab) is still live and valid.
-> > 
-> > [...upon rethinking...] Oh but still we need to lock some page to pin
-> > the inode during the writeout. Then there is the dilemma: if the page
-> > is locked, we effectively keep it from being written out...
+> > Fortunately the "flusher deadlocks itself" case is easy to detect and
+> > prevent as illustrated in another email.
 > 
-> No, all you need to do is to structure the code so that after the page
-> gets unlocked, the kernel thread does not touch the address_space.  So
-> the processing within the kthread is along the lines of
-> 
-> writearound(locked_page)
-> {
-> 	write some pages preceding locked_page;	/* touches address_space */
+> It would be a heck of a lot safer and saner to avoid the iput().  We
+> know how to do this, so why not do it?
 
-It seems the above line will lead to ABBA deadlock.
+My concern about the page lock is, it costs more code and sounds like
+hacking around something. It seems we (including me) have been trying
+to shun away from the iput() problem. Since it's unlikely we are to
+get rid of the already existing iput() calls from the flusher context,
+why not face the problem, sort it out and use it with confident in new
+code?
 
-At least btrfs will lock a number of pages in lock_delalloc_pages().
-This demands that all page locks be taken in ascending order of the
-file offset. Otherwise it's possible some task doing
-__filemap_fdatawrite_range() which in turn call into
-lock_delalloc_pages() deadlock with the writearound() here, which is
-taking some page in the middle first. The fix is to only do
-"write ahead" which will obviously lead to more smaller I/Os.
+Let me try it now. The only scheme iput() can deadlock the flusher is
+for the iput() path to come back to queue some work and wait for it.
+Here are the exhaust list of the queue+wait paths:
 
-> 	write locked_page;
-> 	write pages following locked_page;	/* touches address_space */
-> 	unlock_page(locked_page);
-> }
+writeback_inodes_sb_nr_if_idle
+  ext4_nonda_switch
+    ext4_page_mkwrite                   # from page fault
+    ext4_da_write_begin                 # from user writes
 
-As it is in general a lock, which implies danger of deadlocks. If some
-filesystem do smart things like piggy backing more pages than we
-asked, it may try to lock the locked_page in writearound() and block
-the flusher for ever.
+writeback_inodes_sb_nr
+  quotactl syscall                      # from syscall
+  __sync_filesystem                     # from sync/umount
+  shrink_liability                      # ubifs
+    make_free_space
+      ubifs_budget_space                # from all over ubifs:
 
-Grabbing the page lock at work enqueue time is particular problematic.
-It's susceptible to the above ABBA deadlock scheme because we will be
-taking one page lock per pageout work and the pages are likely in
-_random_ order. Another scheme is, when the flusher is running sync
-work (or running some final iput() and therefore truncate),  and the
-vmscan is queuing a pageout work with one page locked. The flusher
-will then go deadlock on that page: the current sync/truncate is
-trying to lock a page that can only be unlocked when the flusher goes
-forward to execute the pageout work. The fix is to do get_page() at
-work enqueue time and only take the page lock at work execution time.
+   2    274  /c/linux/fs/ubifs/dir.c <<ubifs_create>>
+   3    531  /c/linux/fs/ubifs/dir.c <<ubifs_link>>
+   4    586  /c/linux/fs/ubifs/dir.c <<ubifs_unlink>>
+   5    675  /c/linux/fs/ubifs/dir.c <<ubifs_rmdir>>
+   6    731  /c/linux/fs/ubifs/dir.c <<ubifs_mkdir>>
+   7    803  /c/linux/fs/ubifs/dir.c <<ubifs_mknod>>
+   8    871  /c/linux/fs/ubifs/dir.c <<ubifs_symlink>>
+   9   1006  /c/linux/fs/ubifs/dir.c <<ubifs_rename>>
+  10   1009  /c/linux/fs/ubifs/dir.c <<ubifs_rename>>
+  11    246  /c/linux/fs/ubifs/file.c <<write_begin_slow>>
+  12    388  /c/linux/fs/ubifs/file.c <<allocate_budget>>
+  13   1125  /c/linux/fs/ubifs/file.c <<do_truncation>>   <===== deadlockable
+  14   1217  /c/linux/fs/ubifs/file.c <<do_setattr>>
+  15   1381  /c/linux/fs/ubifs/file.c <<update_mctime>>
+  16   1486  /c/linux/fs/ubifs/file.c <<ubifs_vm_page_mkwrite>>
+  17    110  /c/linux/fs/ubifs/ioctl.c <<setflags>>
+  19    122  /c/linux/fs/ubifs/xattr.c <<create_xattr>>
+  20    201  /c/linux/fs/ubifs/xattr.c <<change_xattr>>
+  21    494  /c/linux/fs/ubifs/xattr.c <<remove_xattr>>
+
+It seems they are all safe except for ubifs. ubifs may actually
+deadlock from the above do_truncation() caller. However it should be
+fixable because the ubifs call for writeback_inodes_sb_nr() sounds
+very brute force writeback and wait and there may well be better way
+out.
+
+CCing ubifs developers for possible thoughts..
 
 Thanks,
 Fengguang
+
+PS. I'll be on travel in the following week and won't have much time
+for replying emails. Sorry about that.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
