@@ -1,59 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx192.postini.com [74.125.245.192])
-	by kanga.kvack.org (Postfix) with SMTP id 337856B002C
-	for <linux-mm@kvack.org>; Sat,  3 Mar 2012 19:10:36 -0500 (EST)
-Received: by qcsu28 with SMTP id u28so1486489qcs.8
-        for <linux-mm@kvack.org>; Sat, 03 Mar 2012 16:10:35 -0800 (PST)
-MIME-Version: 1.0
-In-Reply-To: <4F52A81A.3030408@parallels.com>
-References: <1330383533-20711-1-git-send-email-ssouhlal@FreeBSD.org>
-	<1330383533-20711-5-git-send-email-ssouhlal@FreeBSD.org>
-	<20120229150041.62c1feeb.kamezawa.hiroyu@jp.fujitsu.com>
-	<CABCjUKBHjLHKUmW6_r0SOyw42WfV0zNO7Kd7FhhRQTT6jZdyeQ@mail.gmail.com>
-	<20120301091044.1a62d42c.kamezawa.hiroyu@jp.fujitsu.com>
-	<4F4EC1AB.8050506@parallels.com>
-	<20120301150537.8996bbf6.kamezawa.hiroyu@jp.fujitsu.com>
-	<4F522910.1050402@parallels.com>
-	<CABCjUKBngJx0o5jnJk3FEjWUDA6aNTAiFENdEF+M7BwB85NaLg@mail.gmail.com>
-	<4F52A81A.3030408@parallels.com>
-Date: Sat, 3 Mar 2012 16:10:34 -0800
-Message-ID: <CABCjUKBP=pKgDP5RkD4BimTjoE=bQQO7NxNNAiGUfy602T4c7A@mail.gmail.com>
-Subject: Re: [PATCH 04/10] memcg: Introduce __GFP_NOACCOUNT.
-From: Suleiman Souhlal <suleiman@google.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Received: from psmtp.com (na3sys010amx169.postini.com [74.125.245.169])
+	by kanga.kvack.org (Postfix) with SMTP id BECB76B002C
+	for <linux-mm@kvack.org>; Sat,  3 Mar 2012 22:03:07 -0500 (EST)
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Subject: Re: [PATCH] Correct alignment of huge page requests.
+Date: Sat,  3 Mar 2012 22:02:56 -0500
+Message-Id: <1330830176-19449-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+In-Reply-To: <1330657121-18692-1-git-send-email-steven.truelove@utoronto.ca>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Glauber Costa <glommer@parallels.com>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Suleiman Souhlal <ssouhlal@freebsd.org>, cgroups@vger.kernel.org, penberg@kernel.org, yinghan@google.com, hughd@google.com, gthelen@google.com, linux-mm@kvack.org, devel@openvz.org
+To: Steven Truelove <steven.truelove@utoronto.ca>
+Cc: wli@holomorphy.com, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Sat, Mar 3, 2012 at 3:24 PM, Glauber Costa <glommer@parallels.com> wrote=
-:
-> On 03/03/2012 01:38 PM, Suleiman Souhlal wrote:
->> Another possible example might be the skb data, which are just kmalloc
->> and are already accounted by your TCP accounting changes, so we might
->> not want to account them a second time.
->
->
-> How so?
->
-> struct sk_buff *__alloc_skb(unsigned int size, gfp_t gfp_mask,
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0int fclone, int no=
-de)
-> {
-> =A0 =A0 =A0 =A0[ ... ]
-> =A0 =A0 =A0 =A0cache =3D fclone ? skbuff_fclone_cache : skbuff_head_cache=
-;
->
-> =A0 =A0 =A0 =A0/* Get the HEAD */
-> =A0 =A0 =A0 =A0skb =3D kmem_cache_alloc_node(cache, gfp_mask & ~__GFP_DMA=
-, node);
+On Thu, Mar 01, 2012 at 09:58:41PM -0500, Steven Truelove wrote:
+> When calling shmget() with SHM_HUGETLB, shmget aligns the request size to PAGE_SIZE, but this is not sufficient.  Modified hugetlb_file_setup() to align requests to the huge page size, and to accept an address argument so that all alignment checks can be performed in hugetlb_file_setup(), rather than in its callers.  Changed newseg and mmap_pgoff to match new prototype and eliminated a now redundant alignment check.
 
-Just a few lines below:
+I think only rounding up request size in shmget() is not sufficient,
+because later shmat() also have alignment check and fails to mmap()
+to unaligned address.
+Maybe file->f_op->get_unmapped_area() (or hugetlb_get_unmapped_area())
+should have round up code, I think.
+Could you try it?
 
-        data =3D kmalloc_node_track_caller(size, gfp_mask, node);
+And a few comments below,
 
--- Suleiman
+> Signed-off-by: Steven Truelove <steven.truelove@utoronto.ca>
+> ---
+>  fs/hugetlbfs/inode.c    |   12 ++++++++----
+>  include/linux/hugetlb.h |    3 ++-
+>  ipc/shm.c               |    2 +-
+>  mm/mmap.c               |    6 +++---
+>  4 files changed, 14 insertions(+), 9 deletions(-)
+> 
+> diff --git a/fs/hugetlbfs/inode.c b/fs/hugetlbfs/inode.c
+> index 1e85a7a..a97b7cc 100644
+> --- a/fs/hugetlbfs/inode.c
+> +++ b/fs/hugetlbfs/inode.c
+> @@ -928,7 +928,7 @@ static int can_do_hugetlb_shm(void)
+>  	return capable(CAP_IPC_LOCK) || in_group_p(sysctl_hugetlb_shm_group);
+>  }
+>  
+> -struct file *hugetlb_file_setup(const char *name, size_t size,
+> +struct file *hugetlb_file_setup(const char *name, unsigned long addr, size_t size,
+
+Just a nitpick, this line is over 80 characters.
+checkpatch.pl should warn.
+
+>  				vm_flags_t acctflag,
+>  				struct user_struct **user, int creat_flags)
+>  {
+> @@ -938,6 +938,8 @@ struct file *hugetlb_file_setup(const char *name, size_t size,
+>  	struct path path;
+>  	struct dentry *root;
+>  	struct qstr quick_string;
+> +	struct hstate *hstate;
+> +	int num_pages;
+
+Is unsigned long better?
+
+Thanks,
+Naoya
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
