@@ -1,60 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx126.postini.com [74.125.245.126])
-	by kanga.kvack.org (Postfix) with SMTP id A92EB6B00E8
-	for <linux-mm@kvack.org>; Sun,  4 Mar 2012 12:38:54 -0500 (EST)
-Received: from /spool/local
-	by e23smtp05.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
-	Sun, 4 Mar 2012 17:34:55 +1000
-Received: from d23av02.au.ibm.com (d23av02.au.ibm.com [9.190.235.138])
-	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q24Hc4Jr934086
-	for <linux-mm@kvack.org>; Mon, 5 Mar 2012 04:38:12 +1100
-Received: from d23av02.au.ibm.com (loopback [127.0.0.1])
-	by d23av02.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q24Hc4cU026709
-	for <linux-mm@kvack.org>; Mon, 5 Mar 2012 04:38:04 +1100
-From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Subject: Re: [PATCH -V2 1/9] mm:  move hugetlbfs region tracking function to common code
-In-Reply-To: <20120301143345.7e928efe.akpm@linux-foundation.org>
-References: <1330593380-1361-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com> <1330593380-1361-2-git-send-email-aneesh.kumar@linux.vnet.ibm.com> <20120301143345.7e928efe.akpm@linux-foundation.org>
-Date: Sun, 04 Mar 2012 23:07:50 +0530
-Message-ID: <87linge07l.fsf@linux.vnet.ibm.com>
+Received: from psmtp.com (na3sys010amx160.postini.com [74.125.245.160])
+	by kanga.kvack.org (Postfix) with SMTP id 458846B00EA
+	for <linux-mm@kvack.org>; Sun,  4 Mar 2012 12:51:36 -0500 (EST)
+Received: by pbbro12 with SMTP id ro12so4676043pbb.14
+        for <linux-mm@kvack.org>; Sun, 04 Mar 2012 09:51:35 -0800 (PST)
+Date: Sun, 4 Mar 2012 09:51:01 -0800 (PST)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: [PATCH] mm: shmem: unlock valid page
+In-Reply-To: <CAJd=RBBYdY1rgoW+0bgKh6Cn8n=guB2_zq2nzaMr8-arqNkr_A@mail.gmail.com>
+Message-ID: <alpine.LSU.2.00.1203040943240.18498@eggly.anvils>
+References: <CAJd=RBBYdY1rgoW+0bgKh6Cn8n=guB2_zq2nzaMr8-arqNkr_A@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, mgorman@suse.de, kamezawa.hiroyu@jp.fujitsu.com, dhillf@gmail.com, aarcange@redhat.com, mhocko@suse.cz, hannes@cmpxchg.org, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, Andrea Righi <andrea@betterlinux.com>, John Stultz <john.stultz@linaro.org>
+To: Hillf Danton <dhillf@gmail.com>
+Cc: Linux-MM <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Thu, 1 Mar 2012 14:33:45 -0800, Andrew Morton <akpm@linux-foundation.org> wrote:
-> On Thu,  1 Mar 2012 14:46:12 +0530
-> "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com> wrote:
+On Sun, 4 Mar 2012, Hillf Danton wrote:
+> In shmem_read_mapping_page_gfp() page is unlocked if no error returned,
+> so the unlocked page has to valid.
 > 
-> > This patch moves the hugetlbfs region tracking function to
-> > common code. We will be using this in later patches in the
-> > series.
-> > 
-> > ...
-> >
-> > +struct file_region {
-> > +	struct list_head link;
-> > +	long from;
-> > +	long to;
-> > +};
+> To guarantee that validity, when getting page, success result is feed
+> back to caller only when page is valid.
 > 
-> Both Andrea Righi and John Stultz are working on (more sophisticated)
-> versions of file region tracking code.  And we already have a (poor)
-> implementation in fs/locks.c.
+> Signed-off-by: Hillf Danton <dhillf@gmail.com>
+
+I don't understand your description, nor its relation to the patch.
+
+NAK to the patch: when no page has previously been allocated, the
+SGP_READ case avoids allocation and returns NULL - do_shmem_file_read
+then copies the ZERO_PAGE instead, avoiding lots of unnecessary memory
+allocation when reading a large sparse file.
+
+Hugh
+
+> ---
 > 
-> That's four versions of the same thing floating around the place.  This
-> is nutty.
-
-
-We should be able to remove region.c once other alternatives are in
-upstream. I will also look at the alternatives and see if it would need
-any change to make it usable for this work.
-
-Thanks,
--aneesh
+> --- a/mm/shmem.c	Sun Mar  4 12:17:42 2012
+> +++ b/mm/shmem.c	Sun Mar  4 12:26:56 2012
+> @@ -889,13 +889,13 @@ repeat:
+>  		goto failed;
+>  	}
+> 
+> -	if (page || (sgp == SGP_READ && !swap.val)) {
+> +	if (page) {
+>  		/*
+>  		 * Once we can get the page lock, it must be uptodate:
+>  		 * if there were an error in reading back from swap,
+>  		 * the page would not be inserted into the filecache.
+>  		 */
+> -		BUG_ON(page && !PageUptodate(page));
+> +		BUG_ON(!PageUptodate(page));
+>  		*pagep = page;
+>  		return 0;
+>  	}
+> --
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
