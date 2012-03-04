@@ -1,44 +1,108 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx120.postini.com [74.125.245.120])
-	by kanga.kvack.org (Postfix) with SMTP id 0A7096B004D
-	for <linux-mm@kvack.org>; Sun,  4 Mar 2012 02:43:45 -0500 (EST)
-Received: by bkwq16 with SMTP id q16so3361151bkw.14
-        for <linux-mm@kvack.org>; Sat, 03 Mar 2012 23:43:44 -0800 (PST)
-Message-ID: <4F531D2C.7090105@openvz.org>
-Date: Sun, 04 Mar 2012 11:43:40 +0400
-From: Konstantin Khlebnikov <khlebnikov@openvz.org>
+Received: from psmtp.com (na3sys010amx179.postini.com [74.125.245.179])
+	by kanga.kvack.org (Postfix) with SMTP id DDD566B002C
+	for <linux-mm@kvack.org>; Sun,  4 Mar 2012 05:34:54 -0500 (EST)
+Received: by pbbro12 with SMTP id ro12so4419512pbb.14
+        for <linux-mm@kvack.org>; Sun, 04 Mar 2012 02:34:54 -0800 (PST)
+Date: Sun, 4 Mar 2012 19:34:46 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [PATCH -next] slub: set PG_slab on all of slab pages
+Message-ID: <20120304103446.GA9267@barrios>
+References: <1330505674-31610-1-git-send-email-namhyung.kim@lge.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 3.3] memcg: fix GPF when cgroup removal races with last
- exit
-References: <alpine.LSU.2.00.1203021030140.2094@eggly.anvils> <4F51E4B1.4010607@openvz.org>
-In-Reply-To: <4F51E4B1.4010607@openvz.org>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1330505674-31610-1-git-send-email-namhyung.kim@lge.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Namhyung Kim <namhyung.kim@lge.com>
+Cc: Christoph Lameter <cl@linux-foundation.org>, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, Namhyung Kim <namhyung@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Konstantin Khlebnikov wrote:
-> Hugh Dickins wrote:
->>
->> Konstantin, I've not yet looked into how this patch affects your
->> patchsets; but I do know that this surreptitious-switch-to-root
->> behaviour seemed nightmarish when I was doing per-memcg per-zone
->> locking (particularly inside something like __activate_page(), where
->> we del and add under a single lock), and unnecessary once you and I
->> secure the memcg differently.  So you may just want to revert this in
->> patches for linux-next; but I've a suspicion that now we understand
->> it better, this technique might still be usable, and more efficient.
->
-> Yes, something like that. But, I  must fix my "isolated-pages" counters first,
-> otherwise I just reintroduce this bug again.
->
+Hi Namhyung,
 
-I have thought little more and invented better approach: we can keep isolated pages
-counted in lruvec->lru_size[] and vmstat counters. Thus isolated pages will prevent
-removing it's memory cgroup. This method is more complicated than your tricky pushing
-pages to root lruvec, but it more generic and does not adds new page-counters.
+On Wed, Feb 29, 2012 at 05:54:34PM +0900, Namhyung Kim wrote:
+> Unlike SLAB, SLUB doesn't set PG_slab on tail pages, so if a user would
+> call free_pages() incorrectly on a object in a tail page, she will get
+>i confused with the undefined result. Setting the flag would help her by
+> emitting a warning on bad_page() in such a case.
+> 
+> Reported-by: Sangseok Lee <sangseok.lee@lge.com>
+> Signed-off-by: Namhyung Kim <namhyung.kim@lge.com>
+
+I read this thread and I feel the we don't reach right point.
+I think it's not a compound page problem.
+We can face above problem where we allocates big order page without __GFP_COMP
+and free middle page of it.
+
+Fortunately, We can catch such a problem by put_page_testzero in __free_pages
+if you enable CONFIG_DEBUG_VM.
+
+Did you tried that with CONFIG_DEBUG_VM?
+
+> ---
+>  mm/slub.c |   12 ++++++++++--
+>  1 files changed, 10 insertions(+), 2 deletions(-)
+> 
+> diff --git a/mm/slub.c b/mm/slub.c
+> index 33bab2aca882..575baacbec9b 100644
+> --- a/mm/slub.c
+> +++ b/mm/slub.c
+> @@ -1287,6 +1287,7 @@ static struct page *allocate_slab(struct kmem_cache *s, gfp_t flags, int node)
+>  	struct page *page;
+>  	struct kmem_cache_order_objects oo = s->oo;
+>  	gfp_t alloc_gfp;
+> +	int i;
+>  
+>  	flags &= gfp_allowed_mask;
+>  
+> @@ -1320,6 +1321,9 @@ static struct page *allocate_slab(struct kmem_cache *s, gfp_t flags, int node)
+>  	if (!page)
+>  		return NULL;
+>  
+> +	for (i = 0; i < 1 << oo_order(oo); i++)
+> +		__SetPageSlab(page + i);
+> +
+>  	if (kmemcheck_enabled
+>  		&& !(s->flags & (SLAB_NOTRACK | DEBUG_DEFAULT_FLAGS))) {
+>  		int pages = 1 << oo_order(oo);
+> @@ -1369,7 +1373,6 @@ static struct page *new_slab(struct kmem_cache *s, gfp_t flags, int node)
+>  
+>  	inc_slabs_node(s, page_to_nid(page), page->objects);
+>  	page->slab = s;
+> -	page->flags |= 1 << PG_slab;
+>  
+>  	start = page_address(page);
+>  
+> @@ -1396,6 +1399,7 @@ static void __free_slab(struct kmem_cache *s, struct page *page)
+>  {
+>  	int order = compound_order(page);
+>  	int pages = 1 << order;
+> +	int i;
+>  
+>  	if (kmem_cache_debug(s)) {
+>  		void *p;
+> @@ -1413,7 +1417,11 @@ static void __free_slab(struct kmem_cache *s, struct page *page)
+>  		NR_SLAB_RECLAIMABLE : NR_SLAB_UNRECLAIMABLE,
+>  		-pages);
+>  
+> -	__ClearPageSlab(page);
+> +	for (i = 0; i < pages; i++) {
+> +		BUG_ON(!PageSlab(page + i));
+> +		__ClearPageSlab(page + i);
+> +	}
+> +
+>  	reset_page_mapcount(page);
+>  	if (current->reclaim_state)
+>  		current->reclaim_state->reclaimed_slab += pages;
+> -- 
+> 1.7.9
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Fight unfair telecom internet charges in Canada: sign http://stopthemeter.ca/
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
