@@ -1,48 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx149.postini.com [74.125.245.149])
-	by kanga.kvack.org (Postfix) with SMTP id 923A46B002C
-	for <linux-mm@kvack.org>; Sun,  4 Mar 2012 00:17:26 -0500 (EST)
-Received: by vcbfk14 with SMTP id fk14so3400769vcb.14
-        for <linux-mm@kvack.org>; Sat, 03 Mar 2012 21:17:25 -0800 (PST)
+Received: from psmtp.com (na3sys010amx139.postini.com [74.125.245.139])
+	by kanga.kvack.org (Postfix) with SMTP id BDD346B002C
+	for <linux-mm@kvack.org>; Sun,  4 Mar 2012 01:58:08 -0500 (EST)
+Received: by pbbro12 with SMTP id ro12so4303229pbb.14
+        for <linux-mm@kvack.org>; Sat, 03 Mar 2012 22:58:07 -0800 (PST)
+Date: Sun, 4 Mar 2012 15:57:59 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [RFC][PATCH] avoid swapping out with swappiness==0
+Message-ID: <20120304065759.GA7824@barrios>
+References: <65795E11DBF1E645A09CEC7EAEE94B9CB9455FE2@USINDEVS02.corp.hds.com>
 MIME-Version: 1.0
-Date: Sun, 4 Mar 2012 13:17:25 +0800
-Message-ID: <CAJd=RBBYdY1rgoW+0bgKh6Cn8n=guB2_zq2nzaMr8-arqNkr_A@mail.gmail.com>
-Subject: [PATCH] mm: shmem: unlock valid page
-From: Hillf Danton <dhillf@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <65795E11DBF1E645A09CEC7EAEE94B9CB9455FE2@USINDEVS02.corp.hds.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linux-MM <linux-mm@kvack.org>
-Cc: Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Hillf Danton <dhillf@gmail.com>
+To: Satoru Moriya <satoru.moriya@hds.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Rik van Riel <riel@redhat.com>, "lwoodman@redhat.com" <lwoodman@redhat.com>, "jweiner@redhat.com" <jweiner@redhat.com>, "shaohua.li@intel.com" <shaohua.li@intel.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, "dle-develop@lists.sourceforge.net" <dle-develop@lists.sourceforge.net>, Seiji Aguchi <seiji.aguchi@hds.com>
 
-In shmem_read_mapping_page_gfp() page is unlocked if no error returned,
-so the unlocked page has to valid.
+Hi Satoru,
 
-To guarantee that validity, when getting page, success result is feed
-back to caller only when page is valid.
+On Fri, Mar 02, 2012 at 12:36:40PM -0500, Satoru Moriya wrote:
+> Sometimes we'd like to avoid swapping out anonymous memory
+> in particular, avoid swapping out pages of important process or
+> process groups while there is a reasonable amount of pagecache
+> on RAM so that we can satisfy our customers' requirements.
+> 
+> OTOH, we can control how aggressive the kernel will swap memory pages
+> with /proc/sys/vm/swappiness for global and
+> /sys/fs/cgroup/memory/memory.swappiness for each memcg.
+> 
+> But with current reclaim implementation, the kernel may swap out
+> even if we set swappiness==0 and there is pagecache on RAM.
+> 
+> This patch changes the behavior with swappiness==0. If we set
+> swappiness==0, the kernel does not swap out completely
+> (for global reclaim until the amount of free pages and filebacked
+> pages in a zone has been reduced to something very very small
+> (nr_free + nr_filebacked < high watermark)).
+> 
+> Any comments are welcome.
+> 
+> Regards,
+> Satoru Moriya
+> 
+> Signed-off-by: Satoru Moriya <satoru.moriya@hds.com>
 
-Signed-off-by: Hillf Danton <dhillf@gmail.com>
----
+Acked-by: Minchan Kim <minchan@kernel.org>
 
---- a/mm/shmem.c	Sun Mar  4 12:17:42 2012
-+++ b/mm/shmem.c	Sun Mar  4 12:26:56 2012
-@@ -889,13 +889,13 @@ repeat:
- 		goto failed;
- 	}
+I agree this feature but current code is rather ugly on readbility.
+It's not your fault because it is caused by adding 'noswap' to avoid
+scanning of anon pages when priority is 0. You just used that code. :)
 
--	if (page || (sgp == SGP_READ && !swap.val)) {
-+	if (page) {
- 		/*
- 		 * Once we can get the page lock, it must be uptodate:
- 		 * if there were an error in reading back from swap,
- 		 * the page would not be inserted into the filecache.
- 		 */
--		BUG_ON(page && !PageUptodate(page));
-+		BUG_ON(!PageUptodate(page));
- 		*pagep = page;
- 		return 0;
- 	}
---
+Hillf's version looks to be much clean refactoring so after we merge
+your patch, we can tidy it up with Hillf's patch.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
