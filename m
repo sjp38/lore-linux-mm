@@ -1,108 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx179.postini.com [74.125.245.179])
-	by kanga.kvack.org (Postfix) with SMTP id DDD566B002C
-	for <linux-mm@kvack.org>; Sun,  4 Mar 2012 05:34:54 -0500 (EST)
-Received: by pbbro12 with SMTP id ro12so4419512pbb.14
-        for <linux-mm@kvack.org>; Sun, 04 Mar 2012 02:34:54 -0800 (PST)
-Date: Sun, 4 Mar 2012 19:34:46 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH -next] slub: set PG_slab on all of slab pages
-Message-ID: <20120304103446.GA9267@barrios>
-References: <1330505674-31610-1-git-send-email-namhyung.kim@lge.com>
+Received: from psmtp.com (na3sys010amx107.postini.com [74.125.245.107])
+	by kanga.kvack.org (Postfix) with SMTP id E31156B002C
+	for <linux-mm@kvack.org>; Sun,  4 Mar 2012 11:35:21 -0500 (EST)
+Received: by lagz14 with SMTP id z14so5247478lag.14
+        for <linux-mm@kvack.org>; Sun, 04 Mar 2012 08:35:19 -0800 (PST)
+Date: Sun, 4 Mar 2012 18:35:13 +0200 (EET)
+From: Pekka Enberg <penberg@kernel.org>
+Subject: Re: [PATCH 1/3] vmevent: Fix build for SWAP=n case
+In-Reply-To: <20120303000909.GA30207@oksana.dev.rtsoft.ru>
+Message-ID: <alpine.LFD.2.02.1203041834180.1636@tux.localdomain>
+References: <20120303000909.GA30207@oksana.dev.rtsoft.ru>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1330505674-31610-1-git-send-email-namhyung.kim@lge.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Namhyung Kim <namhyung.kim@lge.com>
-Cc: Christoph Lameter <cl@linux-foundation.org>, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, Namhyung Kim <namhyung@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Anton Vorontsov <anton.vorontsov@linaro.org>
+Cc: John Stultz <john.stultz@linaro.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linaro-kernel@lists.linaro.org
 
-Hi Namhyung,
-
-On Wed, Feb 29, 2012 at 05:54:34PM +0900, Namhyung Kim wrote:
-> Unlike SLAB, SLUB doesn't set PG_slab on tail pages, so if a user would
-> call free_pages() incorrectly on a object in a tail page, she will get
->i confused with the undefined result. Setting the flag would help her by
-> emitting a warning on bad_page() in such a case.
+On Sat, 3 Mar 2012, Anton Vorontsov wrote:
+> Caught this build failure:
 > 
-> Reported-by: Sangseok Lee <sangseok.lee@lge.com>
-> Signed-off-by: Namhyung Kim <namhyung.kim@lge.com>
-
-I read this thread and I feel the we don't reach right point.
-I think it's not a compound page problem.
-We can face above problem where we allocates big order page without __GFP_COMP
-and free middle page of it.
-
-Fortunately, We can catch such a problem by put_page_testzero in __free_pages
-if you enable CONFIG_DEBUG_VM.
-
-Did you tried that with CONFIG_DEBUG_VM?
-
-> ---
->  mm/slub.c |   12 ++++++++++--
->  1 files changed, 10 insertions(+), 2 deletions(-)
+>   CC      mm/vmevent.o
+> mm/vmevent.c:17:6: error: expected identifier or '(' before numeric constant
+> mm/vmevent.c:18:1: warning: no semicolon at end of struct or union [enabled by default]
+> mm/vmevent.c: In function 'vmevent_sample':
+> mm/vmevent.c:84:36: error: expected identifier before numeric constant
+> make[1]: *** [mm/vmevent.o] Error 1
+> make: *** [mm/] Error 2
 > 
-> diff --git a/mm/slub.c b/mm/slub.c
-> index 33bab2aca882..575baacbec9b 100644
-> --- a/mm/slub.c
-> +++ b/mm/slub.c
-> @@ -1287,6 +1287,7 @@ static struct page *allocate_slab(struct kmem_cache *s, gfp_t flags, int node)
->  	struct page *page;
->  	struct kmem_cache_order_objects oo = s->oo;
->  	gfp_t alloc_gfp;
-> +	int i;
->  
->  	flags &= gfp_allowed_mask;
->  
-> @@ -1320,6 +1321,9 @@ static struct page *allocate_slab(struct kmem_cache *s, gfp_t flags, int node)
->  	if (!page)
->  		return NULL;
->  
-> +	for (i = 0; i < 1 << oo_order(oo); i++)
-> +		__SetPageSlab(page + i);
-> +
->  	if (kmemcheck_enabled
->  		&& !(s->flags & (SLAB_NOTRACK | DEBUG_DEFAULT_FLAGS))) {
->  		int pages = 1 << oo_order(oo);
-> @@ -1369,7 +1373,6 @@ static struct page *new_slab(struct kmem_cache *s, gfp_t flags, int node)
->  
->  	inc_slabs_node(s, page_to_nid(page), page->objects);
->  	page->slab = s;
-> -	page->flags |= 1 << PG_slab;
->  
->  	start = page_address(page);
->  
-> @@ -1396,6 +1399,7 @@ static void __free_slab(struct kmem_cache *s, struct page *page)
->  {
->  	int order = compound_order(page);
->  	int pages = 1 << order;
-> +	int i;
->  
->  	if (kmem_cache_debug(s)) {
->  		void *p;
-> @@ -1413,7 +1417,11 @@ static void __free_slab(struct kmem_cache *s, struct page *page)
->  		NR_SLAB_RECLAIMABLE : NR_SLAB_UNRECLAIMABLE,
->  		-pages);
->  
-> -	__ClearPageSlab(page);
-> +	for (i = 0; i < pages; i++) {
-> +		BUG_ON(!PageSlab(page + i));
-> +		__ClearPageSlab(page + i);
-> +	}
-> +
->  	reset_page_mapcount(page);
->  	if (current->reclaim_state)
->  		current->reclaim_state->reclaimed_slab += pages;
-> -- 
-> 1.7.9
+> This is because linux/swap.h defines nr_swap_pages to 0L, and so things
+> break.
 > 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Fight unfair telecom internet charges in Canada: sign http://stopthemeter.ca/
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> Fix this by undefinding it back, as we don't use it anyway.
+> 
+> Signed-off-by: Anton Vorontsov <anton.vorontsov@linaro.org>
+
+Applied, thanks!
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
