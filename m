@@ -1,129 +1,133 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx160.postini.com [74.125.245.160])
-	by kanga.kvack.org (Postfix) with SMTP id 8A8286B00EC
-	for <linux-mm@kvack.org>; Mon,  5 Mar 2012 00:06:06 -0500 (EST)
-Date: Sun, 4 Mar 2012 09:29:52 +0800
+Received: from psmtp.com (na3sys010amx207.postini.com [74.125.245.207])
+	by kanga.kvack.org (Postfix) with SMTP id 2FC7E6B002C
+	for <linux-mm@kvack.org>; Mon,  5 Mar 2012 00:16:18 -0500 (EST)
+Date: Sun, 4 Mar 2012 19:13:27 +0800
 From: Fengguang Wu <fengguang.wu@intel.com>
-Subject: Re: [PATCH 1/9] memcg: add page_cgroup flags for dirty page tracking
-Message-ID: <20120304012952.GA22066@localhost>
-References: <20120228140022.614718843@intel.com>
- <20120228144746.900395448@intel.com>
- <20120229095051.739bb363.kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH 5/9] writeback: introduce the pageout work
+Message-ID: <20120304111327.GA9255@localhost>
+References: <20120228144747.198713792@intel.com>
+ <20120228160403.9c9fa4dc.akpm@linux-foundation.org>
+ <20120301123640.GA30369@localhost>
+ <20120301163837.GA13104@quack.suse.cz>
+ <20120302044858.GA14802@localhost>
+ <20120302095910.GB1744@quack.suse.cz>
+ <20120302103951.GA13378@localhost>
+ <20120302115700.7d970497.akpm@linux-foundation.org>
+ <20120303135558.GA9869@localhost>
+ <20120303142745.GA17789@localhost>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20120229095051.739bb363.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20120303142745.GA17789@localhost>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Greg Thelen <gthelen@google.com>, Jan Kara <jack@suse.cz>, Ying Han <yinghan@google.com>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, Andrea Righi <andrea@betterlinux.com>, Minchan Kim <minchan.kim@gmail.com>, Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Jan Kara <jack@suse.cz>, Greg Thelen <gthelen@google.com>, Ying Han <yinghan@google.com>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan.kim@gmail.com>, Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Artem Bityutskiy <Artem.Bityutskiy@linux.intel.com>, Adrian Hunter <adrian.hunter@intel.com>, Chris Mason <chris.mason@oracle.com>, linux-fsdevel@vger.kernel.org
 
-On Wed, Feb 29, 2012 at 09:50:51AM +0900, KAMEZAWA Hiroyuki wrote:
-> On Tue, 28 Feb 2012 22:00:23 +0800
-> Fengguang Wu <fengguang.wu@intel.com> wrote:
+On Sat, Mar 03, 2012 at 10:27:45PM +0800, Fengguang Wu wrote:
+> [correct email addresses for Artem and Adrian]
 > 
-> > From: Greg Thelen <gthelen@google.com>
+> On Sat, Mar 03, 2012 at 09:55:58PM +0800, Fengguang Wu wrote:
+> > On Fri, Mar 02, 2012 at 11:57:00AM -0800, Andrew Morton wrote:
+> > > On Fri, 2 Mar 2012 18:39:51 +0800
+> > > Fengguang Wu <fengguang.wu@intel.com> wrote:
+> > > 
+> > > > > And I agree it's unlikely but given enough time and people, I
+> > > > > believe someone finds a way to (inadvertedly) trigger this.
+> > > > 
+> > > > Right. The pageout works could add lots more iput() to the flusher
+> > > > and turn some hidden statistical impossible bugs into real ones.
+> > > > 
+> > > > Fortunately the "flusher deadlocks itself" case is easy to detect and
+> > > > prevent as illustrated in another email.
+> > > 
+> > > It would be a heck of a lot safer and saner to avoid the iput().  We
+> > > know how to do this, so why not do it?
 > > 
-> > Add additional flags to page_cgroup to track dirty pages
-> > within a mem_cgroup.
+> > My concern about the page lock is, it costs more code and sounds like
+> > hacking around something. It seems we (including me) have been trying
+> > to shun away from the iput() problem. Since it's unlikely we are to
+> > get rid of the already existing iput() calls from the flusher context,
+> > why not face the problem, sort it out and use it with confident in new
+> > code?
 > > 
-> > Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> > Signed-off-by: Andrea Righi <andrea@betterlinux.com>
-> > Signed-off-by: Greg Thelen <gthelen@google.com>
-> > Reviewed-by: Minchan Kim <minchan.kim@gmail.com>
-> > Signed-off-by: Fengguang Wu <fengguang.wu@intel.com>
-> 
-> I'm sorry but I changed the design of page_cgroup's flags update
-> and never want to add new flags (I'd like to remove page_cgroup->flags.)
+> > Let me try it now. The only scheme iput() can deadlock the flusher is
+> > for the iput() path to come back to queue some work and wait for it.
+> > Here are the exhaust list of the queue+wait paths:
 
-No sorry - it makes good sense to reuse the native page flags :)
 
-> Please see linux-next.
-> 
-> A good example is PCG_FILE_MAPPED, which I removed.
-> 
-> memcg: use new logic for page stat accounting
-> memcg: remove PCG_FILE_MAPPED
-> 
-> You can make use of PageDirty() and PageWriteback() instead of new flags.. (I hope.)
+> > writeback_inodes_sb_nr_if_idle
 
-The dirty page accounting is currently done in account_page_dirtied()
-which is called from
-
-__set_page_dirty <= __set_page_dirty_buffers
-__set_page_dirty_nobuffers
-ceph_set_page_dirty
-
-inside &mapping->tree_lock. TestSetPageDirty() is also called inside
-&mapping->private_lock. So we'll be including the two mapping locks
-and possibly &ci->i_ceph_lock if doing
-
-         move_lock_mem_cgroup(page) # may take &memcg->move_lock
-         TestSetPageDirty(page)
-         update page stats (without any checks)
-         move_unlock_mem_cgroup(page)
-
-It should be feasible if that lock dependency is fine.
-
-The PG_writeback accounting is very similar to the PG_dirty accounting
-and can be handled in the same way.
+Sorry the above function is actually called from all over btrfs. ext4
+uses the much more heavy weight writeback_inodes_sb_if_idle(). I'm not
+sure if ext4/ubifs developers are fully aware that these functions may
+take seconds or even dozens of seconds to complete and show up as long
+delays to the users, because they write and wait ALL dirty pages on
+the superblock. Even w/o the iput() deadlock problem, it's still
+questionable to start and wait for such big writeback works from fs
+code.  If these waits could be turned into congestion_wait() style
+throttling, it should not only completely remove the possibility of
+iput() deadlock, but also make the delays much smaller.
+congestion_wait() is just an example and may not be a good fit, but
+the *_if_idle thing does indicate that the calling ext4/btrfs sites
+are pretty flexible (or careless) about the exact policy used.
 
 Thanks,
 Fengguang
 
-> > ---
-> >  include/linux/page_cgroup.h |   23 +++++++++++++++++++++++
-> >  1 file changed, 23 insertions(+)
+> >   ext4_nonda_switch
+> >     ext4_page_mkwrite                   # from page fault
+> >     ext4_da_write_begin                 # from user writes
 > > 
-> > --- linux.orig/include/linux/page_cgroup.h	2012-02-19 10:53:14.000000000 +0800
-> > +++ linux/include/linux/page_cgroup.h	2012-02-19 10:53:16.000000000 +0800
-> > @@ -10,6 +10,9 @@ enum {
-> >  	/* flags for mem_cgroup and file and I/O status */
-> >  	PCG_MOVE_LOCK, /* For race between move_account v.s. following bits */
-> >  	PCG_FILE_MAPPED, /* page is accounted as "mapped" */
-> > +	PCG_FILE_DIRTY, /* page is dirty */
-> > +	PCG_FILE_WRITEBACK, /* page is under writeback */
-> > +	PCG_FILE_UNSTABLE_NFS, /* page is NFS unstable */
-> >  	__NR_PCG_FLAGS,
-> >  };
-> >  
-> > @@ -64,6 +67,10 @@ static inline void ClearPageCgroup##unam
-> >  static inline int TestClearPageCgroup##uname(struct page_cgroup *pc)	\
-> >  	{ return test_and_clear_bit(PCG_##lname, &pc->flags);  }
-> >  
-> > +#define TESTSETPCGFLAG(uname, lname)			\
-> > +static inline int TestSetPageCgroup##uname(struct page_cgroup *pc)	\
-> > +	{ return test_and_set_bit(PCG_##lname, &pc->flags); }
-> > +
-> >  /* Cache flag is set only once (at allocation) */
-> >  TESTPCGFLAG(Cache, CACHE)
-> >  CLEARPCGFLAG(Cache, CACHE)
-> > @@ -77,6 +84,22 @@ SETPCGFLAG(FileMapped, FILE_MAPPED)
-> >  CLEARPCGFLAG(FileMapped, FILE_MAPPED)
-> >  TESTPCGFLAG(FileMapped, FILE_MAPPED)
-> >  
-> > +SETPCGFLAG(FileDirty, FILE_DIRTY)
-> > +CLEARPCGFLAG(FileDirty, FILE_DIRTY)
-> > +TESTPCGFLAG(FileDirty, FILE_DIRTY)
-> > +TESTCLEARPCGFLAG(FileDirty, FILE_DIRTY)
-> > +TESTSETPCGFLAG(FileDirty, FILE_DIRTY)
-> > +
-> > +SETPCGFLAG(FileWriteback, FILE_WRITEBACK)
-> > +CLEARPCGFLAG(FileWriteback, FILE_WRITEBACK)
-> > +TESTPCGFLAG(FileWriteback, FILE_WRITEBACK)
-> > +
-> > +SETPCGFLAG(FileUnstableNFS, FILE_UNSTABLE_NFS)
-> > +CLEARPCGFLAG(FileUnstableNFS, FILE_UNSTABLE_NFS)
-> > +TESTPCGFLAG(FileUnstableNFS, FILE_UNSTABLE_NFS)
-> > +TESTCLEARPCGFLAG(FileUnstableNFS, FILE_UNSTABLE_NFS)
-> > +TESTSETPCGFLAG(FileUnstableNFS, FILE_UNSTABLE_NFS)
-> > +
-> >  SETPCGFLAG(Migration, MIGRATION)
-> >  CLEARPCGFLAG(Migration, MIGRATION)
-> >  TESTPCGFLAG(Migration, MIGRATION)
+> > writeback_inodes_sb_nr
+> >   quotactl syscall                      # from syscall
+> >   __sync_filesystem                     # from sync/umount
+> >   shrink_liability                      # ubifs
+> >     make_free_space
+> >       ubifs_budget_space                # from all over ubifs:
 > > 
+> >    2    274  /c/linux/fs/ubifs/dir.c <<ubifs_create>>
+> >    3    531  /c/linux/fs/ubifs/dir.c <<ubifs_link>>
+> >    4    586  /c/linux/fs/ubifs/dir.c <<ubifs_unlink>>
+> >    5    675  /c/linux/fs/ubifs/dir.c <<ubifs_rmdir>>
+> >    6    731  /c/linux/fs/ubifs/dir.c <<ubifs_mkdir>>
+> >    7    803  /c/linux/fs/ubifs/dir.c <<ubifs_mknod>>
+> >    8    871  /c/linux/fs/ubifs/dir.c <<ubifs_symlink>>
+> >    9   1006  /c/linux/fs/ubifs/dir.c <<ubifs_rename>>
+> >   10   1009  /c/linux/fs/ubifs/dir.c <<ubifs_rename>>
+> >   11    246  /c/linux/fs/ubifs/file.c <<write_begin_slow>>
+> >   12    388  /c/linux/fs/ubifs/file.c <<allocate_budget>>
+> >   13   1125  /c/linux/fs/ubifs/file.c <<do_truncation>>   <===== deadlockable
+> >   14   1217  /c/linux/fs/ubifs/file.c <<do_setattr>>
+> >   15   1381  /c/linux/fs/ubifs/file.c <<update_mctime>>
+> >   16   1486  /c/linux/fs/ubifs/file.c <<ubifs_vm_page_mkwrite>>
+> >   17    110  /c/linux/fs/ubifs/ioctl.c <<setflags>>
+> >   19    122  /c/linux/fs/ubifs/xattr.c <<create_xattr>>
+> >   20    201  /c/linux/fs/ubifs/xattr.c <<change_xattr>>
+> >   21    494  /c/linux/fs/ubifs/xattr.c <<remove_xattr>>
 > > 
+> > It seems they are all safe except for ubifs. ubifs may actually
+> > deadlock from the above do_truncation() caller. However it should be
+> 
+> Sorry that do_truncation() is actually called from ubifs_setattr()
+> which is not related to iput().
+> 
+> Are there other possibilities for iput() to call into the above list
+> of ubifs functions, then start writeback work and wait for it which
+> will deadlock the flusher? ubifs_unlink() and perhaps remove_xattr()?
+> 
+> > fixable because the ubifs call for writeback_inodes_sb_nr() sounds
+> > very brute force writeback and wait and there may well be better way
+> > out.
 > > 
+> > CCing ubifs developers for possible thoughts..
+> > 
+> > Thanks,
+> > Fengguang
+> > 
+> > PS. I'll be on travel in the following week and won't have much time
+> > for replying emails. Sorry about that.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
