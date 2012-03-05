@@ -1,35 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx123.postini.com [74.125.245.123])
-	by kanga.kvack.org (Postfix) with SMTP id 2F3976B0092
-	for <linux-mm@kvack.org>; Mon,  5 Mar 2012 15:04:05 -0500 (EST)
-Message-ID: <4F551BE6.4050509@redhat.com>
-Date: Mon, 05 Mar 2012 15:02:46 -0500
-From: Rik van Riel <riel@redhat.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH -v2] mm: SLAB Out-of-memory diagnostics
-References: <20120305181041.GA9829@x61.redhat.com>
-In-Reply-To: <20120305181041.GA9829@x61.redhat.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Received: from psmtp.com (na3sys010amx137.postini.com [74.125.245.137])
+	by kanga.kvack.org (Postfix) with SMTP id AF8EB6B00E7
+	for <linux-mm@kvack.org>; Mon,  5 Mar 2012 15:04:29 -0500 (EST)
+Date: Mon, 5 Mar 2012 12:04:27 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: OOM killer even when not overcommiting
+Message-Id: <20120305120427.2d11d30e.akpm@linux-foundation.org>
+In-Reply-To: <1330977506.1589.59.camel@lappy>
+References: <1330977506.1589.59.camel@lappy>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rafael Aquini <aquini@redhat.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Randy Dunlap <rdunlap@xenotime.net>, Christoph Lameter <cl@linux-foundation.org>, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, Josef Bacik <josef@redhat.com>, David Rientjes <rientjes@google.com>
+To: Sasha Levin <levinsasha928@gmail.com>
+Cc: linux-mm@kvack.org, Dave Jones <davej@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Pekka Enberg <penberg@kernel.org>
 
-On 03/05/2012 01:10 PM, Rafael Aquini wrote:
-> Following the example at mm/slub.c, add out-of-memory diagnostics to the
-> SLAB allocator to help on debugging certain OOM conditions.
->
-> An example print out looks like this:
->
->    <snip page allocator out-of-memory message>
->    SLAB: Unable to allocate memory on node 0 (gfp=0x11200)
->       cache: bio-0, object size: 192, order: 0
->       node0: slabs: 3/3, objs: 60/60, free: 0
->
-> Signed-off-by: Rafael Aquini<aquini@redhat.com>
+On Mon, 05 Mar 2012 21:58:26 +0200
+Sasha Levin <levinsasha928@gmail.com> wrote:
 
-Acked-by: Rik van Riel <riel@redhat.com>
+> Hi all,
+
+> I assumed that when setting overcommit_memory=2 and
+> overcommit_ratio<100 that the OOM killer won't ever get invoked (since
+> we're not overcommiting memory), but it looks like I'm mistaken since
+> apparently a simple mmap from userspace will trigger the OOM killer if
+> it requests more memory than available.
+>
+> Is it how it's supposed to work?  Why does it resort to OOM killing
+> instead of just failing the allocation?
+>
+> Here is the dump I get when the OOM kicks in:
+> 
+> ...
+>
+> [ 3108.730350]  [<ffffffff81198e4a>] mlock_vma_pages_range+0x9a/0xa0
+> [ 3108.734486]  [<ffffffff8119b75b>] mmap_region+0x28b/0x510
+> ...
+
+The vma is mlocked for some reason - presumably the app is using
+mlockall() or mlock()?  So the kernel is trying to instantiate all the
+pages at mmap() time.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
