@@ -1,63 +1,120 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx166.postini.com [74.125.245.166])
-	by kanga.kvack.org (Postfix) with SMTP id 819B46B00E8
-	for <linux-mm@kvack.org>; Mon,  5 Mar 2012 09:54:31 -0500 (EST)
-From: Jan Kara <jack@suse.cz>
-Subject: [PATCH 0/7 v3] Push file_update_time() into .page_mkwrite
-Date: Mon,  5 Mar 2012 15:54:11 +0100
-Message-Id: <1330959258-23211-1-git-send-email-jack@suse.cz>
+Received: from psmtp.com (na3sys010amx175.postini.com [74.125.245.175])
+	by kanga.kvack.org (Postfix) with SMTP id 855AD6B002C
+	for <linux-mm@kvack.org>; Mon,  5 Mar 2012 11:10:32 -0500 (EST)
+MIME-version: 1.0
+Content-transfer-encoding: 7BIT
+Content-type: text/plain; charset=us-ascii
+Received: from euspt2 ([210.118.77.14]) by mailout4.w1.samsung.com
+ (Sun Java(tm) System Messaging Server 6.3-8.04 (built Jul 29 2009; 32bit))
+ with ESMTP id <0M0F00LXI69I0I00@mailout4.w1.samsung.com> for
+ linux-mm@kvack.org; Mon, 05 Mar 2012 16:10:30 +0000 (GMT)
+Received: from linux.samsung.com ([106.116.38.10])
+ by spt2.w1.samsung.com (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14
+ 2004)) with ESMTPA id <0M0F00DTX63RAI@spt2.w1.samsung.com> for
+ linux-mm@kvack.org; Mon, 05 Mar 2012 16:07:03 +0000 (GMT)
+Date: Mon, 05 Mar 2012 17:07:02 +0100
+From: Marek Szyprowski <m.szyprowski@samsung.com>
+Subject: RE: [PATCHv7 9/9] ARM: dma-mapping: add support for IOMMU mapper
+In-reply-to: <20120305134721.0ab0d0e6de56fa30250059b1@nvidia.com>
+Message-id: <000001ccfaea$00c16f70$02444e50$%szyprowski@samsung.com>
+Content-language: pl
+References: <1330527862-16234-1-git-send-email-m.szyprowski@samsung.com>
+ <1330527862-16234-10-git-send-email-m.szyprowski@samsung.com>
+ <20120305134721.0ab0d0e6de56fa30250059b1@nvidia.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Al Viro <viro@ZenIV.linux.org.uk>, Christoph Hellwig <hch@infradead.org>, Jan Kara <jack@suse.cz>, Jaya Kumar <jayalk@intworks.biz>, Sage Weil <sage@newdream.net>, ceph-devel@vger.kernel.org, Eric Van Hensbergen <ericvh@gmail.com>, Ron Minnich <rminnich@sandia.gov>, Latchesar Ionkov <lucho@ionkov.net>, v9fs-developer@lists.sourceforge.net, Steven Whitehouse <swhiteho@redhat.com>, cluster-devel@redhat.com, Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+To: 'Hiroshi Doyu' <hdoyu@nvidia.com>
+Cc: linux-arm-kernel@lists.infradead.org, linaro-mm-sig@lists.linaro.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-samsung-soc@vger.kernel.org, iommu@lists.linux-foundation.org, 'Shariq Hasnain' <shariq.hasnain@linaro.org>, 'Arnd Bergmann' <arnd@arndb.de>, 'Benjamin Herrenschmidt' <benh@kernel.crashing.org>, 'Krishna Reddy' <vdumpa@nvidia.com>, 'Kyungmin Park' <kyungmin.park@samsung.com>, Andrzej Pietrasiewicz <andrzej.p@samsung.com>, 'Russell King - ARM Linux' <linux@arm.linux.org.uk>, 'KyongHo Cho' <pullip.cho@samsung.com>, 'Chunsang Jeong' <chunsang.jeong@linaro.org>
 
-  Hello,
+Hello,
 
-  to provide reliable support for filesystem freezing, filesystems need to have
-complete control over when metadata is changed. In particular,
-file_update_time() calls from page fault code make it impossible for
-filesystems to prevent inodes from being dirtied while the filesystem is
-frozen.
+On Monday, March 05, 2012 12:47 PM Hiroshi Doyu wrote:
 
-To fix the issue, this patch set changes page fault code to call
-file_update_time() only when ->page_mkwrite() callback is not provided. If the
-callback is provided, it is the responsibility of the filesystem to perform
-update of i_mtime / i_ctime if needed. We also push file_update_time() call
-to all existing ->page_mkwrite() implementations if the time update does not
-obviously happen by other means. This is including __block_page_mkwrite() so
-filesystems using it are handled. If you know your filesystem does not need
-update of modification times in ->page_mkwrite() handler, please speak up and
-I'll drop the patch for your filesystem.
+> On Wed, 29 Feb 2012 16:04:22 +0100
+> Marek Szyprowski <m.szyprowski@samsung.com> wrote:
+> 
+> > This patch add a complete implementation of DMA-mapping API for
+> > devices that have IOMMU support. All DMA-mapping calls are supported.
+> >
+> > This patch contains some of the code kindly provided by Krishna Reddy
+> > <vdumpa@nvidia.com> and Andrzej Pietrasiewicz <andrzej.p@samsung.com>
+> >
+> > Signed-off-by: Marek Szyprowski <m.szyprowski@samsung.com>
+> > Signed-off-by: Kyungmin Park <kyungmin.park@samsung.com>
+> > Reviewed-by: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
+> > ---
 
-As a side note, an alternative would be to remove calls of file_update_time()
-from page fault code altogether and require all filesystems needing it to do
-that in their ->page_mkwrite() implementation. That is certainly possible
-although maybe slightly inefficient and would require auditting 100+
-vm_operations_structs *shiver*.
+(snipped)
 
-Changes since v1:
-* Dropped patches for filesystems which don't need them
-* Added some acks
-* Improved sysfs patch by Alex Elder's suggestion
+> > +/**
+> > + * arm_iommu_create_mapping
+> > + * @bus: pointer to the bus holding the client device (for IOMMU calls)
+> > + * @base: start address of the valid IO address space
+> > + * @size: size of the valid IO address space
+> > + * @order: accuracy of the IO addresses allocations
+> > + *
+> > + * Creates a mapping structure which holds information about used/unused
+> > + * IO address ranges, which is required to perform memory allocation and
+> > + * mapping with IOMMU aware functions.
+> > + *
+> > + * The client device need to be attached to the mapping with
+> > + * arm_iommu_attach_device function.
+> > + */
+> > +struct dma_iommu_mapping *
+> > +arm_iommu_create_mapping(struct bus_type *bus, dma_addr_t base, size_t size,
+> > +                        int order)
+> > +{
+> > +       unsigned int count = (size >> PAGE_SHIFT) - order;
+> > +       unsigned int bitmap_size = BITS_TO_LONGS(count) * sizeof(long);
+> > +       struct dma_iommu_mapping *mapping;
+> > +       int err = -ENOMEM;
+> > +
+> > +       mapping = kzalloc(sizeof(struct dma_iommu_mapping), GFP_KERNEL);
+> > +       if (!mapping)
+> > +               goto err;
+> > +
+> > +       mapping->bitmap = kzalloc(bitmap_size, GFP_KERNEL);
+> > +       if (!mapping->bitmap)
+> > +               goto err2;
+> > +
+> > +       mapping->base = base;
+> > +       mapping->bits = bitmap_size;
+> 
+> Shouldn't the above be as below?
+> 
+> From 093c77ac6f19899679f2f2447a9d2c684eab7b2e Mon Sep 17 00:00:00 2001
+> From: Hiroshi DOYU <hdoyu@nvidia.com>
+> Date: Mon, 5 Mar 2012 13:04:38 +0200
+> Subject: [PATCH 1/1] dma-mapping: Fix mapping->bits size
+> 
+> Amount of bits should be mutiplied by BITS_PER_BITE.
+> 
+> Signed-off-by: Hiroshi DOYU <hdoyu@nvidia.com>
+> ---
+>  arch/arm/mm/dma-mapping.c |    2 +-
+>  1 files changed, 1 insertions(+), 1 deletions(-)
+> 
+> diff --git a/arch/arm/mm/dma-mapping.c b/arch/arm/mm/dma-mapping.c
+> index e55f425..5ec7747 100644
+> --- a/arch/arm/mm/dma-mapping.c
+> +++ b/arch/arm/mm/dma-mapping.c
+> @@ -1495,7 +1495,7 @@ arm_iommu_create_mapping(struct bus_type *bus, dma_addr_t base, size_t
+> size,
+>  		goto err2;
+> 
+>  	mapping->base = base;
+> -	mapping->bits = bitmap_size;
+> +	mapping->bits = BITS_PER_BYTE * bitmap_size;
+>  	mapping->order = order;
+>  	spin_lock_init(&mapping->lock);
 
-Changes since v2:
-* Dropped patches for more filesystems
+You are right, thanks for spotting this issue!
 
-Andrew, would you be willing to merge these patches via your tree? This seems
-to be a final version.
-
-								Honza
-
-CC: Jaya Kumar <jayalk@intworks.biz>
-CC: Sage Weil <sage@newdream.net>
-CC: ceph-devel@vger.kernel.org
-CC: Eric Van Hensbergen <ericvh@gmail.com>
-CC: Ron Minnich <rminnich@sandia.gov>
-CC: Latchesar Ionkov <lucho@ionkov.net>
-CC: v9fs-developer@lists.sourceforge.net
-CC: Steven Whitehouse <swhiteho@redhat.com>
-CC: cluster-devel@redhat.com
-CC: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+Best regards
+-- 
+Marek Szyprowski
+Samsung Poland R&D Center
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
