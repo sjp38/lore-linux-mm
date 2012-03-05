@@ -1,47 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx118.postini.com [74.125.245.118])
-	by kanga.kvack.org (Postfix) with SMTP id 312AE6B002C
-	for <linux-mm@kvack.org>; Mon,  5 Mar 2012 07:15:39 -0500 (EST)
-Received: by dakp5 with SMTP id p5so5318217dak.8
-        for <linux-mm@kvack.org>; Mon, 05 Mar 2012 04:15:38 -0800 (PST)
+Received: from psmtp.com (na3sys010amx182.postini.com [74.125.245.182])
+	by kanga.kvack.org (Postfix) with SMTP id 3C0686B002C
+	for <linux-mm@kvack.org>; Mon,  5 Mar 2012 08:49:51 -0500 (EST)
+Message-ID: <4F54C460.2030405@redhat.com>
+Date: Mon, 05 Mar 2012 08:49:20 -0500
+From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-In-Reply-To: <alpine.LSU.2.00.1203040943240.18498@eggly.anvils>
-References: <CAJd=RBBYdY1rgoW+0bgKh6Cn8n=guB2_zq2nzaMr8-arqNkr_A@mail.gmail.com>
-	<alpine.LSU.2.00.1203040943240.18498@eggly.anvils>
-Date: Mon, 5 Mar 2012 20:15:38 +0800
-Message-ID: <CAJd=RBCpXUfxp+9wo5fk32K=_ojwb5yGO=CejN_eK_Ud=P6rUA@mail.gmail.com>
-Subject: Re: [PATCH] mm: shmem: unlock valid page
-From: Hillf Danton <dhillf@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+Subject: Re: [RFC][PATCH] avoid swapping out with swappiness==0
+References: <65795E11DBF1E645A09CEC7EAEE94B9CB9455FE2@USINDEVS02.corp.hds.com>
+In-Reply-To: <65795E11DBF1E645A09CEC7EAEE94B9CB9455FE2@USINDEVS02.corp.hds.com>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: Linux-MM <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>
+To: Satoru Moriya <satoru.moriya@hds.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "lwoodman@redhat.com" <lwoodman@redhat.com>, "jweiner@redhat.com" <jweiner@redhat.com>, "shaohua.li@intel.com" <shaohua.li@intel.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, "dle-develop@lists.sourceforge.net" <dle-develop@lists.sourceforge.net>, Seiji Aguchi <seiji.aguchi@hds.com>
 
-On Mon, Mar 5, 2012 at 1:51 AM, Hugh Dickins <hughd@google.com> wrote:
-> On Sun, 4 Mar 2012, Hillf Danton wrote:
->> In shmem_read_mapping_page_gfp() page is unlocked if no error returned,
->> so the unlocked page has to valid.
->>
->> To guarantee that validity, when getting page, success result is feed
->> back to caller only when page is valid.
->>
->> Signed-off-by: Hillf Danton <dhillf@gmail.com>
+On 03/02/2012 12:36 PM, Satoru Moriya wrote:
+> Sometimes we'd like to avoid swapping out anonymous memory
+> in particular, avoid swapping out pages of important process or
+> process groups while there is a reasonable amount of pagecache
+> on RAM so that we can satisfy our customers' requirements.
 >
-> I don't understand your description, nor its relation to the patch.
+> OTOH, we can control how aggressive the kernel will swap memory pages
+> with /proc/sys/vm/swappiness for global and
+> /sys/fs/cgroup/memory/memory.swappiness for each memcg.
 >
-> NAK to the patch: when no page has previously been allocated, the
-> SGP_READ case avoids allocation and returns NULL - do_shmem_file_read
-> then copies the ZERO_PAGE instead, avoiding lots of unnecessary memory
-> allocation when reading a large sparse file.
+> But with current reclaim implementation, the kernel may swap out
+> even if we set swappiness==0 and there is pagecache on RAM.
 >
-Hi Hugh
+> This patch changes the behavior with swappiness==0. If we set
+> swappiness==0, the kernel does not swap out completely
+> (for global reclaim until the amount of free pages and filebacked
+> pages in a zone has been reduced to something very very small
+> (nr_free + nr_filebacked<  high watermark)).
+>
+> Any comments are welcome.
 
-Thanks for your review.
+My mind is now rested by doing a nice 10 mile hike :)
 
-It was not well prepared as I missed SGP_CACHE.
+> Signed-off-by: Satoru Moriya<satoru.moriya@hds.com>
 
--hd
+Reviewed-by: Rik van Riel <riel@redhat.com>
+
+-- 
+All rights reversed
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
