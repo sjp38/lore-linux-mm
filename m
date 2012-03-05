@@ -1,55 +1,35 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx101.postini.com [74.125.245.101])
-	by kanga.kvack.org (Postfix) with SMTP id 549046B007E
-	for <linux-mm@kvack.org>; Mon,  5 Mar 2012 14:59:58 -0500 (EST)
-Date: Mon, 5 Mar 2012 14:59:53 -0500
-From: Josh Boyer <jwboyer@redhat.com>
-Subject: Re: exit_mmap() BUG_ON triggering since 3.1
-Message-ID: <20120305195952.GC17489@zod.bos.redhat.com>
-References: <20120215183317.GA26977@redhat.com>
- <alpine.LSU.2.00.1202151801020.19691@eggly.anvils>
- <20120216070753.GA23585@redhat.com>
- <alpine.LSU.2.00.1202160130500.16147@eggly.anvils>
- <20120216214245.GD23585@redhat.com>
- <alpine.LSU.2.00.1203021444040.3448@eggly.anvils>
- <20120302145811.93bb49e9.akpm@linux-foundation.org>
- <alpine.LSU.2.00.1203021503420.3541@eggly.anvils>
+Received: from psmtp.com (na3sys010amx123.postini.com [74.125.245.123])
+	by kanga.kvack.org (Postfix) with SMTP id 2F3976B0092
+	for <linux-mm@kvack.org>; Mon,  5 Mar 2012 15:04:05 -0500 (EST)
+Message-ID: <4F551BE6.4050509@redhat.com>
+Date: Mon, 05 Mar 2012 15:02:46 -0500
+From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.LSU.2.00.1203021503420.3541@eggly.anvils>
+Subject: Re: [PATCH -v2] mm: SLAB Out-of-memory diagnostics
+References: <20120305181041.GA9829@x61.redhat.com>
+In-Reply-To: <20120305181041.GA9829@x61.redhat.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Dave Jones <davej@redhat.com>, David Rientjes <rientjes@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, kernel-team@fedoraproject.org
+To: Rafael Aquini <aquini@redhat.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Randy Dunlap <rdunlap@xenotime.net>, Christoph Lameter <cl@linux-foundation.org>, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, Josef Bacik <josef@redhat.com>, David Rientjes <rientjes@google.com>
 
-On Fri, Mar 02, 2012 at 03:09:29PM -0800, Hugh Dickins wrote:
-> On Fri, 2 Mar 2012, Andrew Morton wrote:
-> > On Fri, 2 Mar 2012 14:53:32 -0800 (PST)
-> > Hugh Dickins <hughd@google.com> wrote:
-> > 
-> > > Subject: Re: exit_mmap() BUG_ON triggering since 3.1
-> > > ...
-> > > Subject: [PATCH] mm: thp: fix BUG on mm->nr_ptes
-> > 
-> > So it's needed in 3.1.x and 3.2.x?
-> 
-> Indeed it would be needed in -stable, thanks, I forgot to add that.
-> 
-> And although Fedora only got reports from 3.1 onwards, I believe it
-> would equally be needed in 3.0.x.  3.1.x is closed down now, but
-> 3.0.x and 3.2.x are still open.
-> 
-> I've not yet tried applying it to the latest of either of those: maybe
-> it applies cleanly and correctly, but I could imagine movements too.
-> But the first step, yes, is to Cc: stable@vger.kernel.org
+On 03/05/2012 01:10 PM, Rafael Aquini wrote:
+> Following the example at mm/slub.c, add out-of-memory diagnostics to the
+> SLAB allocator to help on debugging certain OOM conditions.
+>
+> An example print out looks like this:
+>
+>    <snip page allocator out-of-memory message>
+>    SLAB: Unable to allocate memory on node 0 (gfp=0x11200)
+>       cache: bio-0, object size: 192, order: 0
+>       node0: slabs: 3/3, objs: 60/60, free: 0
+>
+> Signed-off-by: Rafael Aquini<aquini@redhat.com>
 
-I don't see this in linux-next, 3.3-rcX, the stable-queue, or really
-anywhere at all at the moment.  Did the patch get swallowed up by some
-kind of evil code Eagle of Doom before making it into the safety of a
-tree somewhere?
-
-josh
+Acked-by: Rik van Riel <riel@redhat.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
