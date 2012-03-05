@@ -1,52 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx200.postini.com [74.125.245.200])
-	by kanga.kvack.org (Postfix) with SMTP id 03FBC6B00E8
-	for <linux-mm@kvack.org>; Sun,  4 Mar 2012 19:29:05 -0500 (EST)
-Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 8F3363EE0AE
-	for <linux-mm@kvack.org>; Mon,  5 Mar 2012 09:29:04 +0900 (JST)
-Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 774C545DEB4
-	for <linux-mm@kvack.org>; Mon,  5 Mar 2012 09:29:04 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 60EE545DE9E
-	for <linux-mm@kvack.org>; Mon,  5 Mar 2012 09:29:04 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 51EF61DB803B
-	for <linux-mm@kvack.org>; Mon,  5 Mar 2012 09:29:04 +0900 (JST)
-Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.240.81.145])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 0AAD91DB803F
-	for <linux-mm@kvack.org>; Mon,  5 Mar 2012 09:29:04 +0900 (JST)
-Date: Mon, 5 Mar 2012 09:27:33 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH 3/7 v2] mm: rework __isolate_lru_page() file/anon filter
-Message-Id: <20120305092733.78d4f433.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20120303091327.17599.80336.stgit@zurg>
-References: <20120229091547.29236.28230.stgit@zurg>
-	<20120303091327.17599.80336.stgit@zurg>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx166.postini.com [74.125.245.166])
+	by kanga.kvack.org (Postfix) with SMTP id 5D3676B004D
+	for <linux-mm@kvack.org>; Sun,  4 Mar 2012 19:46:37 -0500 (EST)
+Received: by obbta14 with SMTP id ta14so4362424obb.14
+        for <linux-mm@kvack.org>; Sun, 04 Mar 2012 16:46:36 -0800 (PST)
+MIME-Version: 1.0
+In-Reply-To: <CABv5NL-SquBQH8W+K1CXNBQQWqHyYO+p3Y9sPqsbfZKp5EafTg@mail.gmail.com>
+References: <CABv5NL-SquBQH8W+K1CXNBQQWqHyYO+p3Y9sPqsbfZKp5EafTg@mail.gmail.com>
+Date: Mon, 5 Mar 2012 01:46:36 +0100
+Message-ID: <CABv5NL-tAH3ph7UD5s77=ib_po+zp0XssLsf-ZqbPr2ZgZKOWg@mail.gmail.com>
+Subject: Fwd: (un)loadable module support for zcache
+From: Ilendir <ilendir@googlemail.com>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Konstantin Khlebnikov <khlebnikov@openvz.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Johannes Weiner <jweiner@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: linux-mm@kvack.org
+Cc: ngupta@vflare.org
 
-On Sat, 03 Mar 2012 13:16:48 +0400
-Konstantin Khlebnikov <khlebnikov@openvz.org> wrote:
+While experimenting with zcache on various systems, we discovered what
+seems to be a different impact on CPU and power consumption, varying
+from system to system and workload. While there has been some research
+effort about the effect of on-line memory compression on power
+consumption [1], the trade-off, for example when using SSDs or on
+mobile platforms (e.g. Android), remains still unclear. Therefore it
+would be desirable to improve the possibilities to study this effects
+on the example of zcache. But zcache is missing an important feature:
+dynamic disabling and enabling. This is a big obstacle for further
+analysis.
+Since we have to do some free-to-choose work on a Linux related topic
+while doing an internship at the University in Erlangen, we'd like to
+implement this feature.
 
-> This patch adds file/anon filter bits into isolate_mode_t,
-> this allows to simplify checks in __isolate_lru_page().
-> 
-> v2:
-> * use switch () instead of if ()
-> * fixed lumpy-reclaim isolation mode
-> 
-> Signed-off-by: Konstantin Khlebnikov <khlebnikov@openvz.org>
+Moreover, if we achieve our goal, the way to an unloadable zcache
+module isn=92t far way. If that is accomplished, one of the blockers to
+get zcache out of the staging tree is gone.
 
-seems simple.
+Any advice is appreciated.
 
-Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Florian Schmaus
+Stefan Hengelein
+Andor Daam
+
+
+[1] http://ziyang.eecs.umich.edu/~dickrp/publications/yang-crames-tecs.pdf
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
