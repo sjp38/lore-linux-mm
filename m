@@ -1,51 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx143.postini.com [74.125.245.143])
-	by kanga.kvack.org (Postfix) with SMTP id EAAD36B002C
-	for <linux-mm@kvack.org>; Mon,  5 Mar 2012 16:56:08 -0500 (EST)
-Date: Mon, 5 Mar 2012 22:56:02 +0100
-From: Johannes Weiner <jweiner@redhat.com>
-Subject: Re: [RFC][PATCH] avoid swapping out with swappiness==0
-Message-ID: <20120305215602.GA1693@redhat.com>
-References: <65795E11DBF1E645A09CEC7EAEE94B9CB9455FE2@USINDEVS02.corp.hds.com>
+Received: from psmtp.com (na3sys010amx205.postini.com [74.125.245.205])
+	by kanga.kvack.org (Postfix) with SMTP id E1B9C6B002C
+	for <linux-mm@kvack.org>; Mon,  5 Mar 2012 17:18:49 -0500 (EST)
+Date: Mon, 5 Mar 2012 17:18:43 -0500
+From: Vivek Goyal <vgoyal@redhat.com>
+Subject: Re: [Lsf-pc] [ATTEND] [LSF/MM TOPIC] Buffered writes throttling
+Message-ID: <20120305221843.GH18546@redhat.com>
+References: <4F507453.1020604@suse.com>
+ <20120302153322.GB26315@redhat.com>
+ <20120305202330.GD11238@quack.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <65795E11DBF1E645A09CEC7EAEE94B9CB9455FE2@USINDEVS02.corp.hds.com>
+In-Reply-To: <20120305202330.GD11238@quack.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Satoru Moriya <satoru.moriya@hds.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Rik van Riel <riel@redhat.com>, "lwoodman@redhat.com" <lwoodman@redhat.com>, "shaohua.li@intel.com" <shaohua.li@intel.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, "dle-develop@lists.sourceforge.net" <dle-develop@lists.sourceforge.net>, Seiji Aguchi <seiji.aguchi@hds.com>
+To: Jan Kara <jack@suse.cz>
+Cc: Andrea Righi <andrea@betterlinux.com>, Suresh Jayaraman <sjayaraman@suse.com>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, lsf-pc@lists.linux-foundation.org
 
-On Fri, Mar 02, 2012 at 12:36:40PM -0500, Satoru Moriya wrote:
-> Sometimes we'd like to avoid swapping out anonymous memory
-> in particular, avoid swapping out pages of important process or
-> process groups while there is a reasonable amount of pagecache
-> on RAM so that we can satisfy our customers' requirements.
-> 
-> OTOH, we can control how aggressive the kernel will swap memory pages
-> with /proc/sys/vm/swappiness for global and
-> /sys/fs/cgroup/memory/memory.swappiness for each memcg.
-> 
-> But with current reclaim implementation, the kernel may swap out
-> even if we set swappiness==0 and there is pagecache on RAM.
-> 
-> This patch changes the behavior with swappiness==0. If we set
-> swappiness==0, the kernel does not swap out completely
-> (for global reclaim until the amount of free pages and filebacked
-> pages in a zone has been reduced to something very very small
-> (nr_free + nr_filebacked < high watermark)).
-> 
-> Any comments are welcome.
+On Mon, Mar 05, 2012 at 09:23:30PM +0100, Jan Kara wrote:
 
-Last time I tried that (getting rid of sc->may_swap, using
-!swappiness), it was rejected it as there were users who relied on
-swapping very slowly with this setting.
+[..]
+> Having the limits for dirty rate and other IO separate means I
+> have to be rather pesimistic in setting the bounds so that combination of
+> dirty rate + other IO limit doesn't exceed the desired bound but this is
+> usually unnecessarily harsh...
 
-KOSAKI-san, do I remember correctly?  Do you still think it's an
-issue?
+We had solved this issue in my previous posting.
 
-Personally, I still think it's illogical that !swappiness allows
-swapping and would love to see this patch go in.
+https://lkml.org/lkml/2011/6/28/243
+
+I was accounting the buffered writes to associated block group in 
+balance dirty pages and throttling it if group was exceeding upper
+limit. This had common limit for all kind of writes (direct + buffered +
+sync etc).
+
+But it also had its share of issues.
+
+- Control was per device (not global) and was not applicable to NFS.
+- Will not prevent IO spikes at devices (caused by flusher threads).
+
+Dave Chinner preferred to throttle IO at devices much later.
+
+I personally think that "dirty rate limit" does not solve all problems
+but has some value and it will be interesting to merge any one
+implementation and see if it solves a real world problem. It does not
+block any other idea of buffered write proportional control or even
+implementing upper limit in blkcg. We could put "dirty rate limit" in
+memcg and develop rest of the ideas in blkcg, writeback etc.
+
+Thanks
+Vivek
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
