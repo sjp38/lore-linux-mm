@@ -1,120 +1,134 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx175.postini.com [74.125.245.175])
-	by kanga.kvack.org (Postfix) with SMTP id 855AD6B002C
-	for <linux-mm@kvack.org>; Mon,  5 Mar 2012 11:10:32 -0500 (EST)
-MIME-version: 1.0
-Content-transfer-encoding: 7BIT
-Content-type: text/plain; charset=us-ascii
-Received: from euspt2 ([210.118.77.14]) by mailout4.w1.samsung.com
- (Sun Java(tm) System Messaging Server 6.3-8.04 (built Jul 29 2009; 32bit))
- with ESMTP id <0M0F00LXI69I0I00@mailout4.w1.samsung.com> for
- linux-mm@kvack.org; Mon, 05 Mar 2012 16:10:30 +0000 (GMT)
-Received: from linux.samsung.com ([106.116.38.10])
- by spt2.w1.samsung.com (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14
- 2004)) with ESMTPA id <0M0F00DTX63RAI@spt2.w1.samsung.com> for
- linux-mm@kvack.org; Mon, 05 Mar 2012 16:07:03 +0000 (GMT)
-Date: Mon, 05 Mar 2012 17:07:02 +0100
-From: Marek Szyprowski <m.szyprowski@samsung.com>
-Subject: RE: [PATCHv7 9/9] ARM: dma-mapping: add support for IOMMU mapper
-In-reply-to: <20120305134721.0ab0d0e6de56fa30250059b1@nvidia.com>
-Message-id: <000001ccfaea$00c16f70$02444e50$%szyprowski@samsung.com>
-Content-language: pl
-References: <1330527862-16234-1-git-send-email-m.szyprowski@samsung.com>
- <1330527862-16234-10-git-send-email-m.szyprowski@samsung.com>
- <20120305134721.0ab0d0e6de56fa30250059b1@nvidia.com>
+Received: from psmtp.com (na3sys010amx191.postini.com [74.125.245.191])
+	by kanga.kvack.org (Postfix) with SMTP id 639616B002C
+	for <linux-mm@kvack.org>; Mon,  5 Mar 2012 11:57:27 -0500 (EST)
+MIME-Version: 1.0
+Message-ID: <04499111-84c1-45a2-a8e8-5c86a2447b56@default>
+Date: Mon, 5 Mar 2012 08:57:19 -0800 (PST)
+From: Dan Magenheimer <dan.magenheimer@oracle.com>
+Subject: RE: (un)loadable module support for zcache
+References: <CABv5NL-SquBQH8W+K1CXNBQQWqHyYO+p3Y9sPqsbfZKp5EafTg@mail.gmail.com>
+In-Reply-To: <CABv5NL-SquBQH8W+K1CXNBQQWqHyYO+p3Y9sPqsbfZKp5EafTg@mail.gmail.com>
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: 'Hiroshi Doyu' <hdoyu@nvidia.com>
-Cc: linux-arm-kernel@lists.infradead.org, linaro-mm-sig@lists.linaro.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-samsung-soc@vger.kernel.org, iommu@lists.linux-foundation.org, 'Shariq Hasnain' <shariq.hasnain@linaro.org>, 'Arnd Bergmann' <arnd@arndb.de>, 'Benjamin Herrenschmidt' <benh@kernel.crashing.org>, 'Krishna Reddy' <vdumpa@nvidia.com>, 'Kyungmin Park' <kyungmin.park@samsung.com>, Andrzej Pietrasiewicz <andrzej.p@samsung.com>, 'Russell King - ARM Linux' <linux@arm.linux.org.uk>, 'KyongHo Cho' <pullip.cho@samsung.com>, 'Chunsang Jeong' <chunsang.jeong@linaro.org>
+To: Ilendir <ilendir@googlemail.com>, linux-mm@kvack.org
+Cc: sjenning@linux.vnet.ibm.com, Konrad Wilk <konrad.wilk@oracle.com>, fschmaus@gmail.com, Andor Daam <andor.daam@googlemail.com>, i4passt@lists.informatik.uni-erlangen.de, devel@linuxdriverproject.org, Nitin Gupta <ngupta@vflare.org>
 
-Hello,
+> From: Ilendir [mailto:ilendir@googlemail.com]
+> Subject: (un)loadable module support for zcache
+>=20
+> While experimenting with zcache on various systems, we discovered what
+> seems to be a different impact on CPU and power consumption, varying
+> from system to system and workload. While there has been some research
+> effort about the effect of on-line memory compression on power
+> consumption [1], the trade-off, for example when using SSDs or on
+> mobile platforms (e.g. Android), remains still unclear. Therefore it
+> would be desirable to improve the possibilities to study this effects
+> on the example of zcache. But zcache is missing an important feature:
+> dynamic disabling and enabling. This is a big obstacle for further
+> analysis.
+> Since we have to do some free-to-choose work on a Linux related topic
+> while doing an internship at the University in Erlangen, we'd like to
+> implement this feature.
+>=20
+> Moreover, if we achieve our goal, the way to an unloadable zcache
+> module isn't far way. If that is accomplished, one of the blockers to
+> get zcache out of the staging tree is gone.
+>=20
+> Any advice is appreciated.
+>=20
+> Florian Schmaus
+> Stefan Hengelein
+> Andor Daam
 
-On Monday, March 05, 2012 12:47 PM Hiroshi Doyu wrote:
+Hi Florian, Stefan, and Andor --
 
-> On Wed, 29 Feb 2012 16:04:22 +0100
-> Marek Szyprowski <m.szyprowski@samsung.com> wrote:
-> 
-> > This patch add a complete implementation of DMA-mapping API for
-> > devices that have IOMMU support. All DMA-mapping calls are supported.
-> >
-> > This patch contains some of the code kindly provided by Krishna Reddy
-> > <vdumpa@nvidia.com> and Andrzej Pietrasiewicz <andrzej.p@samsung.com>
-> >
-> > Signed-off-by: Marek Szyprowski <m.szyprowski@samsung.com>
-> > Signed-off-by: Kyungmin Park <kyungmin.park@samsung.com>
-> > Reviewed-by: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
-> > ---
+Thanks for your interest in zcache development!
 
-(snipped)
+I see you've sent your original email separately to different lists
+so I will try to combine them into one cc list now so hopefully
+there will be one thread.
 
-> > +/**
-> > + * arm_iommu_create_mapping
-> > + * @bus: pointer to the bus holding the client device (for IOMMU calls)
-> > + * @base: start address of the valid IO address space
-> > + * @size: size of the valid IO address space
-> > + * @order: accuracy of the IO addresses allocations
-> > + *
-> > + * Creates a mapping structure which holds information about used/unused
-> > + * IO address ranges, which is required to perform memory allocation and
-> > + * mapping with IOMMU aware functions.
-> > + *
-> > + * The client device need to be attached to the mapping with
-> > + * arm_iommu_attach_device function.
-> > + */
-> > +struct dma_iommu_mapping *
-> > +arm_iommu_create_mapping(struct bus_type *bus, dma_addr_t base, size_t size,
-> > +                        int order)
-> > +{
-> > +       unsigned int count = (size >> PAGE_SHIFT) - order;
-> > +       unsigned int bitmap_size = BITS_TO_LONGS(count) * sizeof(long);
-> > +       struct dma_iommu_mapping *mapping;
-> > +       int err = -ENOMEM;
-> > +
-> > +       mapping = kzalloc(sizeof(struct dma_iommu_mapping), GFP_KERNEL);
-> > +       if (!mapping)
-> > +               goto err;
-> > +
-> > +       mapping->bitmap = kzalloc(bitmap_size, GFP_KERNEL);
-> > +       if (!mapping->bitmap)
-> > +               goto err2;
-> > +
-> > +       mapping->base = base;
-> > +       mapping->bits = bitmap_size;
-> 
-> Shouldn't the above be as below?
-> 
-> From 093c77ac6f19899679f2f2447a9d2c684eab7b2e Mon Sep 17 00:00:00 2001
-> From: Hiroshi DOYU <hdoyu@nvidia.com>
-> Date: Mon, 5 Mar 2012 13:04:38 +0200
-> Subject: [PATCH 1/1] dma-mapping: Fix mapping->bits size
-> 
-> Amount of bits should be mutiplied by BITS_PER_BITE.
-> 
-> Signed-off-by: Hiroshi DOYU <hdoyu@nvidia.com>
-> ---
->  arch/arm/mm/dma-mapping.c |    2 +-
->  1 files changed, 1 insertions(+), 1 deletions(-)
-> 
-> diff --git a/arch/arm/mm/dma-mapping.c b/arch/arm/mm/dma-mapping.c
-> index e55f425..5ec7747 100644
-> --- a/arch/arm/mm/dma-mapping.c
-> +++ b/arch/arm/mm/dma-mapping.c
-> @@ -1495,7 +1495,7 @@ arm_iommu_create_mapping(struct bus_type *bus, dma_addr_t base, size_t
-> size,
->  		goto err2;
-> 
->  	mapping->base = base;
-> -	mapping->bits = bitmap_size;
-> +	mapping->bits = BITS_PER_BYTE * bitmap_size;
->  	mapping->order = order;
->  	spin_lock_init(&mapping->lock);
+Your idea of studying power consumption tradeoffs is interesting
+and the work to allow zcache to be installed as a module will
+also be very useful.
 
-You are right, thanks for spotting this issue!
+I have given some thought on what would be necessary to allow
+zcache (or Xen tmem, or RAMster) to be insmod'ed and rmmod'ed.
+There are two main technical difficulties that I see.  There
+may be more but let's start with these two.
 
-Best regards
--- 
-Marek Szyprowski
-Samsung Poland R&D Center
+First, the "tmem frontend" code in cleancache and frontswap
+assumes that a "tmem backend" (such as zcache, Xen tmem, or
+RAMster) has already registered when filesystems are mounted
+(for cleancache) and when swapon is run (for frontswap).
+If no tmem backend has yet registered when the mount (or swapon)
+is invoked, then cleancache_enabled (or frontswap_enabled) has
+not been set to 1, and the corresponding init_fs/init routine
+has not been called and no tmem "pool" gets created.
+
+Then if zcache later registers with cleancache/frontend, it
+is too late... there are no mounts or swapons to trigger the
+calls that create the tmem pools.  As result, all gets and
+puts and flushes will fail, and zcache does not work.
+
+I think the answer here is for cleancache (and frontswap) to
+support "lazy pool creation".  If a backend has not yet
+registered when an init_fs/init call is made, cleancache
+(or frontswap) must record the attempt and generate a valid
+"fake poolid" to return.  Any calls to put/get/flush with
+a fake poolid is ignored as the zcache module is not
+yet loaded.  Later, when zcache is insmod'ed, it will attempt
+to register and cleancache must then call the init_fs/init
+routines (to "lazily" create the pools), obtain a "real poolid"
+from zcache for each pool and "map" the fake poolid to the real
+poolid on EVERY get/put/flush and on pool destroy (umount/swapoff).
+
+I think all changes for this will be in mm/cleancache.c and
+mm/frontswap.c... the backend does not need to know anything
+about it.
+
+This implementation will not be hard, but there may be a few
+corner cases that you will need to ensure are correct, and
+of course you will need to ensure that any coding changes follow
+proper Linux coding styles.
+
+Second issue: When zcache gets rmmod'ed, there is an issue of
+coherency.  You need to ensure that if zcache goes through
+
+=09insmod -> rmmod -> insmod
+
+that no stale data remains in any tmem pool.  If any
+stale data remains, a "get" of the old data may result in
+data corruption.
+
+The problem is that there may be millions of pages in
+cleancache and flushing those pages may take a very long
+time.  The user will not want to wait that long.  And
+for frontswap, frontswap_shrink must be called and since
+every page in frontswap contains real user data, you must
+ensure that all pages get decompressed and removed from
+frontswap either into physical RAM or a physical swap disk.
+(See frontswap_shrink in frontswap.c and frontswap_selfshrink
+in the RAMster code.) This may take a very VERY long time.
+
+So rmmod cannot complete until all the data in cleancache
+is freed and all the data in frontswap is repatriated to RAM
+or swap disk.
+
+I don't have an easy answer for this one.  It may be possible
+to have "zombie" lists of partially destroyed pages and a
+kernel thread that (after rmmod completes) walks the list and
+frees or frontswap_shrinks the pages.  I will leave this
+to you to solve... it is likely the hardest problem for
+making zcache work as a module.  If you can't get it to work,
+it would still be useful to be able to "insmod" zcache,
+even if "rmmod" is not possible.
+
+Thanks,
+Dan
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
