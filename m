@@ -1,109 +1,161 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx135.postini.com [74.125.245.135])
-	by kanga.kvack.org (Postfix) with SMTP id 4EE756B002C
-	for <linux-mm@kvack.org>; Mon,  5 Mar 2012 13:12:28 -0500 (EST)
-Date: Mon, 5 Mar 2012 15:10:46 -0300
-From: Rafael Aquini <aquini@redhat.com>
-Subject: [PATCH -v2] mm: SLAB Out-of-memory diagnostics
-Message-ID: <20120305181041.GA9829@x61.redhat.com>
+Received: from psmtp.com (na3sys010amx206.postini.com [74.125.245.206])
+	by kanga.kvack.org (Postfix) with SMTP id 424526B004A
+	for <linux-mm@kvack.org>; Mon,  5 Mar 2012 14:22:31 -0500 (EST)
+Date: Mon, 5 Mar 2012 11:22:26 -0800
+From: Fengguang Wu <fengguang.wu@intel.com>
+Subject: Re: [ATTEND] [LSF/MM TOPIC] Buffered writes throttling
+Message-ID: <20120305192226.GA3670@localhost>
+References: <4F507453.1020604@suse.com>
+ <20120302153322.GB26315@redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
+In-Reply-To: <20120302153322.GB26315@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org, Randy Dunlap <rdunlap@xenotime.net>, Christoph Lameter <cl@linux-foundation.org>, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, Rik van Riel <riel@redhat.com>, Josef Bacik <josef@redhat.com>, David Rientjes <rientjes@google.com>
+To: Vivek Goyal <vgoyal@redhat.com>
+Cc: Suresh Jayaraman <sjayaraman@suse.com>, lsf-pc@lists.linux-foundation.org, Andrea Righi <andrea@betterlinux.com>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Jan Kara <jack@suse.cz>, Greg Thelen <gthelen@google.com>
 
-Following the example at mm/slub.c, add out-of-memory diagnostics to the
-SLAB allocator to help on debugging certain OOM conditions.
+On Fri, Mar 02, 2012 at 10:33:23AM -0500, Vivek Goyal wrote:
+> On Fri, Mar 02, 2012 at 12:48:43PM +0530, Suresh Jayaraman wrote:
+> > Committee members,
+> > 
+> > Please consider inviting me to the Storage, Filesystem, & MM Summit. I
+> > am working for one of the kernel teams in SUSE Labs focusing on Network
+> > filesystems and block layer.
+> > 
+> > Recently, I have been trying to solve the problem of "throttling
+> > buffered writes" to make per-cgroup throttling of IO to the device
+> > possible. Currently the block IO controller does not throttle buffered
+> > writes. The writes would have lost the submitter's context (I/O comes in
+> > flusher thread's context) when they are at the block IO layer. I looked
+> > at the past work and many folks have attempted to solve this problem in
+> > the past years but this problem remains unsolved so far.
+> > 
+> > First, Andrea Righi tried to solve this by limiting the rate of async
+> > writes at the time a task is generating dirty pages in the page cache.
+> > 
+> > Next, Vivek Goyal tried to solve this by throttling writes at the time
+> > they are entering the page cache.
+> > 
+> > Both these approches have limitations and not considered for merging.
+> > 
+> > I have looked at the possibility of solving this at the filesystem level
+> > but the problem with ext* filesystems is that a commit will commit the
+> > whole transaction at once (which may contain writes from
+> > processes belonging to more than one cgroup). Making filesystems cgroup
+> > aware would need redesign of journalling layer itself.
+> > 
+> > Dave Chinner thinks this problem should be solved and being solved in a
+> > different manner by making the bdi-flusher writeback cgroup aware.
+> > 
+> > Greg Thelen's memcg writeback patchset (already been proposed for LSF/MM
+> > summit this year) adds cgroup awareness to writeback. Some aspects of
+> > this patchset could be borrowed for solving the problem of throttling
+> > buffered writes.
+> > 
+> > As I understand the topic was discussed during last Kernel Summit as
+> > well and the idea is to get the IO-less throttling patchset into the
+> > kernel, then do per-memcg dirty memory limiting and add some memcg
+> > awareness to writeback Greg Thelen and then when these things settle
+> > down, think how to solve this problem since noone really seem to have a
+> > good answer to it.
+> > 
+> > Having worked on linux filesystem/storage area for a few years now and
+> > having spent time understanding the various approaches tried and looked
+> > at other feasible way of solving this problem, I look forward to
+> > participate in the summit and discussions.
+> > 
+> > So, the topic I would like to discuss is solving the problem of
+> > "throttling buffered writes". This could considered for discussion with
+> > memcg writeback session if that topic has been allocated a slot.
+> > 
+> > I'm aware that this is a late submission and my apologies for not making
+> > it earlier. But, I want to take chances and see if it is possible still..
+> 
+> This is an interesting and complicated topic. As you mentioned we have had
+> tried to solve it but nothing has been merged yet. Personally, I am still
+> interested in having a discussion and see if we can come up with a way
+> forward.
 
-An example print out looks like this:
+I'm interested, too. Here is my attempt on the problem a year ago:
 
-  <snip page allocator out-of-memory message>
-  SLAB: Unable to allocate memory on node 0 (gfp=0x11200)
-     cache: bio-0, object size: 192, order: 0
-     node0: slabs: 3/3, objs: 60/60, free: 0
+blk-cgroup: async write IO controller ("buffered write" would be more precise)
+https://github.com/fengguang/linux/commit/99b1ca4549a79af736ab03247805f6a9fc31ca2d
+https://lkml.org/lkml/2011/4/4/205
 
-Signed-off-by: Rafael Aquini <aquini@redhat.com>
----
--v2:
-* drop the sysctl knob to override __GFP_NOWARN allocation flag.
+> Because filesystems are not cgroup aware, throtting IO below filesystem
+> has dangers of IO of faster cgroups being throttled behind slower cgroup
+> (journalling was one example and there could be others). Hence, I personally
+> think that this problem should be solved at higher layer and that is when
+> we are actually writting to the cache. That has the disadvantage of still
+> seeing IO spikes at the device but I guess we live with that. Doing it
+> at higher layer also allows to use the same logic for NFS too otherwise
+> NFS buffered write will continue to be a problem.
 
- mm/slab.c |   51 ++++++++++++++++++++++++++++++++++++++++++++++++++-
- 1 files changed, 50 insertions(+), 1 deletions(-)
+Totally agreed.
 
-diff --git a/mm/slab.c b/mm/slab.c
-index f0bd785..4aeb5e7 100644
---- a/mm/slab.c
-+++ b/mm/slab.c
-@@ -1731,6 +1731,52 @@ static int __init cpucache_init(void)
- }
- __initcall(cpucache_init);
- 
-+static noinline void
-+slab_out_of_memory(struct kmem_cache *cachep, gfp_t gfpflags, int nodeid)
-+{
-+	struct kmem_list3 *l3;
-+	struct slab *slabp;
-+	unsigned long flags;
-+	int node;
-+
-+	printk(KERN_WARNING
-+		"SLAB: Unable to allocate memory on node %d (gfp=0x%x)\n",
-+		nodeid, gfpflags);
-+	printk(KERN_WARNING "   cache: %s, object size: %d, order: %d\n",
-+		cachep->name, cachep->buffer_size, cachep->gfporder);
-+
-+	for_each_online_node(node) {
-+		unsigned long active_objs = 0, num_objs = 0, free_objects = 0;
-+		unsigned long active_slabs = 0, num_slabs = 0;
-+
-+		l3 = cachep->nodelists[node];
-+		if (!l3)
-+			continue;
-+
-+		spin_lock_irqsave(&l3->list_lock, flags);
-+		list_for_each_entry(slabp, &l3->slabs_full, list) {
-+			active_objs += cachep->num;
-+			active_slabs++;
-+		}
-+		list_for_each_entry(slabp, &l3->slabs_partial, list) {
-+			active_objs += slabp->inuse;
-+			active_slabs++;
-+		}
-+		list_for_each_entry(slabp, &l3->slabs_free, list)
-+			num_slabs++;
-+
-+		free_objects += l3->free_objects;
-+		spin_unlock_irqrestore(&l3->list_lock, flags);
-+
-+		num_slabs += active_slabs;
-+		num_objs = num_slabs * cachep->num;
-+		printk(KERN_WARNING
-+			"   node%d: slabs: %ld/%ld, objs: %ld/%ld, free: %ld\n",
-+			node, active_slabs, num_slabs, active_objs, num_objs,
-+			free_objects);
-+	}
-+}
-+
- /*
-  * Interface to system's page allocator. No need to hold the cache-lock.
-  *
-@@ -1757,8 +1803,11 @@ static void *kmem_getpages(struct kmem_cache *cachep, gfp_t flags, int nodeid)
- 		flags |= __GFP_RECLAIMABLE;
- 
- 	page = alloc_pages_exact_node(nodeid, flags | __GFP_NOTRACK, cachep->gfporder);
--	if (!page)
-+	if (!page) {
-+		if (!(flags & __GFP_NOWARN) && printk_ratelimit())
-+			slab_out_of_memory(cachep, flags, nodeid);
- 		return NULL;
-+	}
- 
- 	nr_pages = (1 << cachep->gfporder);
- 	if (cachep->flags & SLAB_RECLAIM_ACCOUNT)
--- 
-1.7.7.6
+> In case of memory controller it jsut becomes a write to memory issue,
+> and not sure if notion of dirty_ratio and dirty_bytes is enough or we 
+> need to rate limit the write to memory. 
+
+In a perfect world, the dirty size and rate may be each balanced
+around their targets. Ideally we could independently limit dirty size
+in memcg context and limit dirty rate in blkcg. If the user want to
+control both size/rate, he may put tasks into memcg as well as blkcg.
+
+In reality the dirty size limit will impact the dirty rate, because
+memcg needs to adjust its tasks' balanced dirty rate to drive the memcg
+dirty size to the target, so does the global dirty target. Comparing to
+the global dirty size balancing, memcg suffers from a unique problem: 
+given N memcg each running a dd task, each memcg's dirty size will be
+dropping suddenly on every (N/2) seconds. Because the flusher writeout
+the inodes in coarse time-split round-robin fashion, with up to
+(bdi->write_bandwidth/2) chunk size. That sudden drop of memcg dirty
+pages may drive the dirty size far from the target, as a result it
+will need to adjust the dirty rate heavily in order to drive the dirty
+size back to the target. So the memcg dirty size balance may create
+large fluctuations in the dirty rates, and even long stall time of the
+memcg tasks. What's more, due to the uncontrollable way the flusher
+walks through the dirty pages and how the dirty pages distribute among
+the dirty inodes and memcgs, the dirty rate will be impacted heavily
+by the workload and behavior of the flusher when enforcing the dirty
+size target.  There are no satisfactory solution to this till now.
+Currently I'm trying to shun away from this and look into improving
+the page reclaim so that it can work well with LRU lists with half
+pages being dirty/writeback. Then the 20% global dirty limit should be
+enough to serve most memcg tasks well taking into account the unevenly
+distributed dirty pages among different memcg and NUMA zones/nodes.
+There may still be few memcgs that need further dirty throttling, but
+they are likely mainly consist of heavy dirtiers and can afford less
+smoothness and longer delays.
+
+In comparison, the dirty rate limit for buffered writes seems less
+convolved to me. It sure has its own problems, so we see several
+solutions in circular, each with its unique trade offs. But at least
+we have relative simple solutions that work to their design goals.
+
+> Anyway, ideas to have better control of write rates are welcome. We have
+> seen issues wheren a virtual machine cloning operation is going on and
+> we also want a small direct write to be on disk and it can take a long
+> time with deadline. CFQ should still be fine as direct IO is synchronous
+> but deadline treats all WRITEs the same way.
+> 
+> May be deadline should be modified to differentiate between SYNC and ASYNC
+> IO instead of READ/WRITE. Jens?
+
+In general users definitely need higher priorities for SYNC writes. It
+will also enable the "buffered write I/O controller" and "direct write
+I/O controller" to co-exist well and operate independently this way:
+the direct writes always enjoy higher priority than the flusher, but
+will be rate limited by the already upstreamed blk-cgroup I/O
+controller. The remaining disk bandwidth will be split among the
+buffered write tasks by another I/O controller operating at the
+balance_dirty_pages() level.
+
+Thanks,
+Fengguang
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
