@@ -1,104 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx145.postini.com [74.125.245.145])
-	by kanga.kvack.org (Postfix) with SMTP id 8275B6B002C
-	for <linux-mm@kvack.org>; Sun,  4 Mar 2012 19:21:13 -0500 (EST)
-Received: from m2.gw.fujitsu.co.jp (unknown [10.0.50.72])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 760683EE0C2
-	for <linux-mm@kvack.org>; Mon,  5 Mar 2012 09:21:11 +0900 (JST)
-Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 5A7C845DE4D
-	for <linux-mm@kvack.org>; Mon,  5 Mar 2012 09:21:11 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 356AE45DE53
-	for <linux-mm@kvack.org>; Mon,  5 Mar 2012 09:21:11 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 202AE1DB8042
-	for <linux-mm@kvack.org>; Mon,  5 Mar 2012 09:21:11 +0900 (JST)
-Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.240.81.145])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id C924C1DB803C
-	for <linux-mm@kvack.org>; Mon,  5 Mar 2012 09:21:10 +0900 (JST)
-Date: Mon, 5 Mar 2012 09:19:34 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [RFC] memcg usage_in_bytes does not account file mapped and
- slab memory
-Message-Id: <20120305091934.588c160b.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20120302162753.GA11748@oksana.dev.rtsoft.ru>
-References: <20120302162753.GA11748@oksana.dev.rtsoft.ru>
+Received: from psmtp.com (na3sys010amx126.postini.com [74.125.245.126])
+	by kanga.kvack.org (Postfix) with SMTP id 28CC36B004A
+	for <linux-mm@kvack.org>; Sun,  4 Mar 2012 19:21:26 -0500 (EST)
+Date: Mon, 5 Mar 2012 09:17:19 +0900
+From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+Subject: Re: [PATCH] memcg: fix mapcount check in move charge code for
+ anonymous page
+Message-Id: <20120305091719.c9f93f1a.nishimura@mxp.nes.nec.co.jp>
+In-Reply-To: <1330720508-21019-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+References: <1330720508-21019-1-git-send-email-n-horiguchi@ah.jp.nec.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Anton Vorontsov <anton.vorontsov@linaro.org>
-Cc: cgroups@vger.kernel.org, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Balbir Singh <bsingharora@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, John Stultz <john.stultz@linaro.org>
+To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Cc: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Hillf Danton <dhillf@gmail.com>, linux-kernel@vger.kernel.org
 
-On Fri, 2 Mar 2012 20:27:53 +0400
-Anton Vorontsov <anton.vorontsov@linaro.org> wrote:
+Hi, Horiguchi-san.
 
-> ... and thus is useless for low memory notifications.
-> 
-> Hi all!
-> 
-> While working on userspace low memory killer daemon (a supposed
-> substitution for the kernel low memory killer, i.e.
-> drivers/staging/android/lowmemorykiller.c), I noticed that current
-> cgroups memory notifications aren't suitable for such a daemon.
-> 
-> Suppose we want to install a notification when free memory drops below
-> 8 MB. Logically (taking memory hotplug aside), using current usage_in_bytes
-> notifications we would install an event on 'total_ram - 8MB' threshold.
-> 
-> But as usage_in_bytes doesn't account file mapped memory and memory
-> used by kernel slab, the formula won't work.
-> 
-> Currently I use the following patch that makes things going:
-> 
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index 228d646..c8abdc5 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -3812,6 +3812,9 @@ static inline u64 mem_cgroup_usage(struct mem_cgroup *memcg, bool swap)
->  
->         val = mem_cgroup_recursive_stat(memcg, MEM_CGROUP_STAT_CACHE);
->         val += mem_cgroup_recursive_stat(memcg, MEM_CGROUP_STAT_RSS);
-> +       val += mem_cgroup_recursive_stat(memcg, MEM_CGROUP_STAT_FILE_MAPPED);
-> +       val += global_page_state(NR_SLAB_RECLAIMABLE);
-> +       val += global_page_state(NR_SLAB_UNRECLAIMABLE);
-> 
-> 
-> But here are some questions:
-> 
-> 1. Is there any particular reason we don't currently account file mapped
->    memory in usage_in_bytes?
-> 
+On Fri,  2 Mar 2012 15:35:08 -0500
+Naoya Horiguchi <n-horiguchi@ah.jp.nec.com> wrote:
 
-CACHE includes all file caches. Why do you think FILE_MAPPED is not included in CACHE ?
-
-
->    To me, MEM_CGROUP_STAT_FILE_MAPPED hunk seems logical even if we
->    don't use it for lowmemory notifications.
+> Currently charge on shared anonyous pages is supposed not to moved
+> in task migration. To implement this, we need to check that mapcount > 1,
+> instread of > 2. So this patch fixes it.
 > 
->    Plus, it seems that FILE_MAPPED _is_ accounted for the non-root
->    cgroups, so I guess it's clearly a bug for the root memcg?
+> Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+> ---
+>  mm/memcontrol.c |    2 +-
+>  1 files changed, 1 insertions(+), 1 deletions(-)
 > 
-> 2. As for NR_SLAB_RECLAIMABLE and NR_SLAB_UNRECLAIMABLE, it seems that
->    these numbers are only applicable for the root memcg.
->    I'm not sure that usage_in_bytes semantics should actually account
->    these, but I tend to think that we should.
+> diff --git linux-next-20120228.orig/mm/memcontrol.c linux-next-20120228/mm/memcontrol.c
+> index b6d1bab..785f6d3 100644
+> --- linux-next-20120228.orig/mm/memcontrol.c
+> +++ linux-next-20120228/mm/memcontrol.c
+> @@ -5102,7 +5102,7 @@ static struct page *mc_handle_present_pte(struct vm_area_struct *vma,
+>  		return NULL;
+>  	if (PageAnon(page)) {
+>  		/* we don't move shared anon */
+> -		if (!move_anon() || page_mapcount(page) > 2)
+> +		if (!move_anon() || page_mapcount(page) > 1)
+>  			return NULL;
+>  	} else if (!move_file())
+>  		/* we ignore mapcount for file pages */
+> -- 
+> 1.7.7.6
 > 
+Sorry, it's my fault..
+Thank you for catching this.
 
-Now, SLAB is not accounted by memcg at all.
-See memifo if necessary.
-
-> All in all, not accounting both 1. and 2. looks like bugs to me.
-> 
-
-It's spec. not bug. If you want to see slab status in memcg's file,
-Please add kernel memory accounting feature. There has been already 2 proposals.
-Check them and comment.
-
-Thanks,
--Kame
+Reviewed-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
