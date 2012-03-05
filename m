@@ -1,133 +1,135 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx207.postini.com [74.125.245.207])
-	by kanga.kvack.org (Postfix) with SMTP id 2FC7E6B002C
-	for <linux-mm@kvack.org>; Mon,  5 Mar 2012 00:16:18 -0500 (EST)
-Date: Sun, 4 Mar 2012 19:13:27 +0800
-From: Fengguang Wu <fengguang.wu@intel.com>
-Subject: Re: [PATCH 5/9] writeback: introduce the pageout work
-Message-ID: <20120304111327.GA9255@localhost>
-References: <20120228144747.198713792@intel.com>
- <20120228160403.9c9fa4dc.akpm@linux-foundation.org>
- <20120301123640.GA30369@localhost>
- <20120301163837.GA13104@quack.suse.cz>
- <20120302044858.GA14802@localhost>
- <20120302095910.GB1744@quack.suse.cz>
- <20120302103951.GA13378@localhost>
- <20120302115700.7d970497.akpm@linux-foundation.org>
- <20120303135558.GA9869@localhost>
- <20120303142745.GA17789@localhost>
+Received: from psmtp.com (na3sys010amx109.postini.com [74.125.245.109])
+	by kanga.kvack.org (Postfix) with SMTP id 3D06C6B00E9
+	for <linux-mm@kvack.org>; Mon,  5 Mar 2012 03:43:03 -0500 (EST)
+Message-ID: <4F547C90.4040007@lge.com>
+Date: Mon, 05 Mar 2012 17:42:56 +0900
+From: Namhyung Kim <namhyung.kim@lge.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20120303142745.GA17789@localhost>
+Subject: Re: [PATCH -next] slub: set PG_slab on all of slab pages
+References: <1330505674-31610-1-git-send-email-namhyung.kim@lge.com> <20120304103446.GA9267@barrios>
+In-Reply-To: <20120304103446.GA9267@barrios>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Jan Kara <jack@suse.cz>, Greg Thelen <gthelen@google.com>, Ying Han <yinghan@google.com>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan.kim@gmail.com>, Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Artem Bityutskiy <Artem.Bityutskiy@linux.intel.com>, Adrian Hunter <adrian.hunter@intel.com>, Chris Mason <chris.mason@oracle.com>, linux-fsdevel@vger.kernel.org
+To: Minchan Kim <minchan@kernel.org>
+Cc: Christoph Lameter <cl@linux-foundation.org>, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, Namhyung Kim <namhyung@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Sat, Mar 03, 2012 at 10:27:45PM +0800, Fengguang Wu wrote:
-> [correct email addresses for Artem and Adrian]
-> 
-> On Sat, Mar 03, 2012 at 09:55:58PM +0800, Fengguang Wu wrote:
-> > On Fri, Mar 02, 2012 at 11:57:00AM -0800, Andrew Morton wrote:
-> > > On Fri, 2 Mar 2012 18:39:51 +0800
-> > > Fengguang Wu <fengguang.wu@intel.com> wrote:
-> > > 
-> > > > > And I agree it's unlikely but given enough time and people, I
-> > > > > believe someone finds a way to (inadvertedly) trigger this.
-> > > > 
-> > > > Right. The pageout works could add lots more iput() to the flusher
-> > > > and turn some hidden statistical impossible bugs into real ones.
-> > > > 
-> > > > Fortunately the "flusher deadlocks itself" case is easy to detect and
-> > > > prevent as illustrated in another email.
-> > > 
-> > > It would be a heck of a lot safer and saner to avoid the iput().  We
-> > > know how to do this, so why not do it?
-> > 
-> > My concern about the page lock is, it costs more code and sounds like
-> > hacking around something. It seems we (including me) have been trying
-> > to shun away from the iput() problem. Since it's unlikely we are to
-> > get rid of the already existing iput() calls from the flusher context,
-> > why not face the problem, sort it out and use it with confident in new
-> > code?
-> > 
-> > Let me try it now. The only scheme iput() can deadlock the flusher is
-> > for the iput() path to come back to queue some work and wait for it.
-> > Here are the exhaust list of the queue+wait paths:
+2012-03-04 7:34 PM, Minchan Kim wrote:
+> Hi Namhyung,
+>
+
+Hi Minchan,
+glad to see you here again :)
 
 
-> > writeback_inodes_sb_nr_if_idle
+> On Wed, Feb 29, 2012 at 05:54:34PM +0900, Namhyung Kim wrote:
+>> Unlike SLAB, SLUB doesn't set PG_slab on tail pages, so if a user would
+>> call free_pages() incorrectly on a object in a tail page, she will get
+>> i confused with the undefined result. Setting the flag would help her by
+>> emitting a warning on bad_page() in such a case.
+>>
+>> Reported-by: Sangseok Lee <sangseok.lee@lge.com>
+>> Signed-off-by: Namhyung Kim <namhyung.kim@lge.com>
+>
+> I read this thread and I feel the we don't reach right point.
+> I think it's not a compound page problem.
+> We can face above problem where we allocates big order page without __GFP_COMP
+> and free middle page of it.
+>
+> Fortunately, We can catch such a problem by put_page_testzero in __free_pages
+> if you enable CONFIG_DEBUG_VM.
+>
+> Did you tried that with CONFIG_DEBUG_VM?
+>
 
-Sorry the above function is actually called from all over btrfs. ext4
-uses the much more heavy weight writeback_inodes_sb_if_idle(). I'm not
-sure if ext4/ubifs developers are fully aware that these functions may
-take seconds or even dozens of seconds to complete and show up as long
-delays to the users, because they write and wait ALL dirty pages on
-the superblock. Even w/o the iput() deadlock problem, it's still
-questionable to start and wait for such big writeback works from fs
-code.  If these waits could be turned into congestion_wait() style
-throttling, it should not only completely remove the possibility of
-iput() deadlock, but also make the delays much smaller.
-congestion_wait() is just an example and may not be a good fit, but
-the *_if_idle thing does indicate that the calling ext4/btrfs sites
-are pretty flexible (or careless) about the exact policy used.
+To be honest, I don't have a real test environment which brings this issue in 
+the first place. On my simple test environment, enabling CONFIG_DEBUG_VM emits 
+a bug when I tried to free middle of the slab pages. Thanks for pointing it out.
+
+However I guess there was a chance to bypass that test anyhow since it did 
+reach to __free_pages_ok(). If the page count was 0 already, free_pages() will 
+prevent it from getting to the function even though CONFIG_DEBUG_VM was 
+disabled. But I don't think it's a kernel bug - it seems entirely our fault :( 
+I'll recheck and talk about it with my colleagues.
 
 Thanks,
-Fengguang
+Namhyung
 
-> >   ext4_nonda_switch
-> >     ext4_page_mkwrite                   # from page fault
-> >     ext4_da_write_begin                 # from user writes
-> > 
-> > writeback_inodes_sb_nr
-> >   quotactl syscall                      # from syscall
-> >   __sync_filesystem                     # from sync/umount
-> >   shrink_liability                      # ubifs
-> >     make_free_space
-> >       ubifs_budget_space                # from all over ubifs:
-> > 
-> >    2    274  /c/linux/fs/ubifs/dir.c <<ubifs_create>>
-> >    3    531  /c/linux/fs/ubifs/dir.c <<ubifs_link>>
-> >    4    586  /c/linux/fs/ubifs/dir.c <<ubifs_unlink>>
-> >    5    675  /c/linux/fs/ubifs/dir.c <<ubifs_rmdir>>
-> >    6    731  /c/linux/fs/ubifs/dir.c <<ubifs_mkdir>>
-> >    7    803  /c/linux/fs/ubifs/dir.c <<ubifs_mknod>>
-> >    8    871  /c/linux/fs/ubifs/dir.c <<ubifs_symlink>>
-> >    9   1006  /c/linux/fs/ubifs/dir.c <<ubifs_rename>>
-> >   10   1009  /c/linux/fs/ubifs/dir.c <<ubifs_rename>>
-> >   11    246  /c/linux/fs/ubifs/file.c <<write_begin_slow>>
-> >   12    388  /c/linux/fs/ubifs/file.c <<allocate_budget>>
-> >   13   1125  /c/linux/fs/ubifs/file.c <<do_truncation>>   <===== deadlockable
-> >   14   1217  /c/linux/fs/ubifs/file.c <<do_setattr>>
-> >   15   1381  /c/linux/fs/ubifs/file.c <<update_mctime>>
-> >   16   1486  /c/linux/fs/ubifs/file.c <<ubifs_vm_page_mkwrite>>
-> >   17    110  /c/linux/fs/ubifs/ioctl.c <<setflags>>
-> >   19    122  /c/linux/fs/ubifs/xattr.c <<create_xattr>>
-> >   20    201  /c/linux/fs/ubifs/xattr.c <<change_xattr>>
-> >   21    494  /c/linux/fs/ubifs/xattr.c <<remove_xattr>>
-> > 
-> > It seems they are all safe except for ubifs. ubifs may actually
-> > deadlock from the above do_truncation() caller. However it should be
-> 
-> Sorry that do_truncation() is actually called from ubifs_setattr()
-> which is not related to iput().
-> 
-> Are there other possibilities for iput() to call into the above list
-> of ubifs functions, then start writeback work and wait for it which
-> will deadlock the flusher? ubifs_unlink() and perhaps remove_xattr()?
-> 
-> > fixable because the ubifs call for writeback_inodes_sb_nr() sounds
-> > very brute force writeback and wait and there may well be better way
-> > out.
-> > 
-> > CCing ubifs developers for possible thoughts..
-> > 
-> > Thanks,
-> > Fengguang
-> > 
-> > PS. I'll be on travel in the following week and won't have much time
-> > for replying emails. Sorry about that.
+
+>> ---
+>>   mm/slub.c |   12 ++++++++++--
+>>   1 files changed, 10 insertions(+), 2 deletions(-)
+>>
+>> diff --git a/mm/slub.c b/mm/slub.c
+>> index 33bab2aca882..575baacbec9b 100644
+>> --- a/mm/slub.c
+>> +++ b/mm/slub.c
+>> @@ -1287,6 +1287,7 @@ static struct page *allocate_slab(struct kmem_cache *s, gfp_t flags, int node)
+>>   	struct page *page;
+>>   	struct kmem_cache_order_objects oo = s->oo;
+>>   	gfp_t alloc_gfp;
+>> +	int i;
+>>
+>>   	flags&= gfp_allowed_mask;
+>>
+>> @@ -1320,6 +1321,9 @@ static struct page *allocate_slab(struct kmem_cache *s, gfp_t flags, int node)
+>>   	if (!page)
+>>   		return NULL;
+>>
+>> +	for (i = 0; i<  1<<  oo_order(oo); i++)
+>> +		__SetPageSlab(page + i);
+>> +
+>>   	if (kmemcheck_enabled
+>>   		&&  !(s->flags&  (SLAB_NOTRACK | DEBUG_DEFAULT_FLAGS))) {
+>>   		int pages = 1<<  oo_order(oo);
+>> @@ -1369,7 +1373,6 @@ static struct page *new_slab(struct kmem_cache *s, gfp_t flags, int node)
+>>
+>>   	inc_slabs_node(s, page_to_nid(page), page->objects);
+>>   	page->slab = s;
+>> -	page->flags |= 1<<  PG_slab;
+>>
+>>   	start = page_address(page);
+>>
+>> @@ -1396,6 +1399,7 @@ static void __free_slab(struct kmem_cache *s, struct page *page)
+>>   {
+>>   	int order = compound_order(page);
+>>   	int pages = 1<<  order;
+>> +	int i;
+>>
+>>   	if (kmem_cache_debug(s)) {
+>>   		void *p;
+>> @@ -1413,7 +1417,11 @@ static void __free_slab(struct kmem_cache *s, struct page *page)
+>>   		NR_SLAB_RECLAIMABLE : NR_SLAB_UNRECLAIMABLE,
+>>   		-pages);
+>>
+>> -	__ClearPageSlab(page);
+>> +	for (i = 0; i<  pages; i++) {
+>> +		BUG_ON(!PageSlab(page + i));
+>> +		__ClearPageSlab(page + i);
+>> +	}
+>> +
+>>   	reset_page_mapcount(page);
+>>   	if (current->reclaim_state)
+>>   		current->reclaim_state->reclaimed_slab += pages;
+>> --
+>> 1.7.9
+>>
+>> --
+>> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+>> the body to majordomo@kvack.org.  For more info on Linux MM,
+>> see: http://www.linux-mm.org/ .
+>> Fight unfair telecom internet charges in Canada: sign http://stopthemeter.ca/
+>> Don't email:<a href=mailto:"dont@kvack.org">  email@kvack.org</a>
+>
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Fight unfair telecom internet charges in Canada: sign http://stopthemeter.ca/
+> Don't email:<a href=mailto:"dont@kvack.org">  email@kvack.org</a>
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
