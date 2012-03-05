@@ -1,62 +1,36 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx150.postini.com [74.125.245.150])
-	by kanga.kvack.org (Postfix) with SMTP id 711216B004A
-	for <linux-mm@kvack.org>; Mon,  5 Mar 2012 09:18:51 -0500 (EST)
-Received: by pbcup15 with SMTP id up15so226313pbc.14
-        for <linux-mm@kvack.org>; Mon, 05 Mar 2012 06:18:50 -0800 (PST)
-From: Kautuk Consul <consul.kautuk@gmail.com>
-Subject: [PATCH 1/1] page_alloc.c: Slightly improve the logic in __alloc_pages_high_priority
-Date: Mon,  5 Mar 2012 09:18:25 -0500
-Message-Id: <1330957105-3595-1-git-send-email-consul.kautuk@gmail.com>
+Received: from psmtp.com (na3sys010amx119.postini.com [74.125.245.119])
+	by kanga.kvack.org (Postfix) with SMTP id EF5B26B002C
+	for <linux-mm@kvack.org>; Mon,  5 Mar 2012 09:48:37 -0500 (EST)
+Date: Mon, 5 Mar 2012 08:48:33 -0600 (CST)
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: [PATCH -next] slub: set PG_slab on all of slab pages
+In-Reply-To: <20120304103446.GA9267@barrios>
+Message-ID: <alpine.DEB.2.00.1203050845380.11722@router.home>
+References: <1330505674-31610-1-git-send-email-namhyung.kim@lge.com> <20120304103446.GA9267@barrios>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Tejun Heo <tj@kernel.org>, Minchan Kim <minchan.kim@gmail.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Kautuk Consul <consul.kautuk@gmail.com>
+To: Minchan Kim <minchan@kernel.org>
+Cc: Namhyung Kim <namhyung.kim@lge.com>, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, Namhyung Kim <namhyung@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-The loop in __alloc_pages_high_priority() seems to be checking for
-(!page) and (gfp_mask & __GFP_NOFAIL) multiple times.
+On Sun, 4 Mar 2012, Minchan Kim wrote:
 
-In fact, we don't really need to check (gfp_mask & __GFP_NOFAIL)
-for every iteration of the loop as the gfp_mask remains constant.
+> I read this thread and I feel the we don't reach right point.
+> I think it's not a compound page problem.
+> We can face above problem where we allocates big order page without __GFP_COMP
+> and free middle page of it.
 
-Slightly improve the logic in __alloc_pages_high_priority() to
-eliminate these multiple condition checks.
+Yes we can do that and doing such a thing seems to be more legitimate
+since one could argue that the user did not request an atomic allocation
+unit from the page allocator and therefore the freeing of individual
+pages in that group is permissible. If memory serves me right we do that
+sometimes.
 
-Signed-off-by: Kautuk Consul <consul.kautuk@gmail.com>
----
- mm/page_alloc.c |   13 +++++++++----
- 1 files changed, 9 insertions(+), 4 deletions(-)
-
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index a13ded1..6bb8b6d 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -2114,14 +2114,19 @@ __alloc_pages_high_priority(gfp_t gfp_mask, unsigned int order,
- {
- 	struct page *page;
- 
--	do {
--		page = get_page_from_freelist(gfp_mask, nodemask, order,
-+	page = get_page_from_freelist(gfp_mask, nodemask, order,
- 			zonelist, high_zoneidx, ALLOC_NO_WATERMARKS,
- 			preferred_zone, migratetype);
- 
--		if (!page && gfp_mask & __GFP_NOFAIL)
-+	if (gfp_mask & __GFP_NOFAIL) {
-+		while (!page) {
- 			wait_iff_congested(preferred_zone, BLK_RW_ASYNC, HZ/50);
--	} while (!page && (gfp_mask & __GFP_NOFAIL));
-+
-+			page = get_page_from_freelist(gfp_mask, nodemask, order,
-+				zonelist, high_zoneidx, ALLOC_NO_WATERMARKS,
-+				preferred_zone, migratetype);
-+		}
-+	}
- 
- 	return page;
- }
--- 
-1.7.5.4
+However if compound pages are requested then such an atomic allocation
+unit *was* requested and the page allocator should not allow to free
+individual pages.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
