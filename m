@@ -1,47 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx137.postini.com [74.125.245.137])
-	by kanga.kvack.org (Postfix) with SMTP id AF8EB6B00E7
-	for <linux-mm@kvack.org>; Mon,  5 Mar 2012 15:04:29 -0500 (EST)
-Date: Mon, 5 Mar 2012 12:04:27 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: OOM killer even when not overcommiting
-Message-Id: <20120305120427.2d11d30e.akpm@linux-foundation.org>
-In-Reply-To: <1330977506.1589.59.camel@lappy>
-References: <1330977506.1589.59.camel@lappy>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Received: from psmtp.com (na3sys010amx176.postini.com [74.125.245.176])
+	by kanga.kvack.org (Postfix) with SMTP id AD17F6B0092
+	for <linux-mm@kvack.org>; Mon,  5 Mar 2012 15:07:42 -0500 (EST)
+Message-ID: <4F551CB6.5010209@redhat.com>
+Date: Mon, 05 Mar 2012 15:06:14 -0500
+From: Rik van Riel <riel@redhat.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH] mm: use global_dirty_limit in throttle_vm_writeout()
+References: <20120302061451.GA6468@localhost>
+In-Reply-To: <20120302061451.GA6468@localhost>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sasha Levin <levinsasha928@gmail.com>
-Cc: linux-mm@kvack.org, Dave Jones <davej@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Pekka Enberg <penberg@kernel.org>
+To: Fengguang Wu <fengguang.wu@intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Jan Kara <jack@suse.cz>, Greg Thelen <gthelen@google.com>, Ying Han <yinghan@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan.kim@gmail.com>, Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Mon, 05 Mar 2012 21:58:26 +0200
-Sasha Levin <levinsasha928@gmail.com> wrote:
-
-> Hi all,
-
-> I assumed that when setting overcommit_memory=2 and
-> overcommit_ratio<100 that the OOM killer won't ever get invoked (since
-> we're not overcommiting memory), but it looks like I'm mistaken since
-> apparently a simple mmap from userspace will trigger the OOM killer if
-> it requests more memory than available.
+On 03/02/2012 01:14 AM, Fengguang Wu wrote:
+> When starting a memory hog task, a desktop box w/o swap is found to go
+> unresponsive for a long time. It's solely caused by lots of congestion
+> waits in throttle_vm_writeout():
 >
-> Is it how it's supposed to work?  Why does it resort to OOM killing
-> instead of just failing the allocation?
+>   gnome-system-mo-4201 553.073384: congestion_wait: throttle_vm_writeout+0x70/0x7f shrink_mem_cgroup_zone+0x48f/0x4a1
+>   gnome-system-mo-4201 553.073386: writeback_congestion_wait: usec_timeout=100000 usec_delayed=100000
+>             gtali-4237 553.080377: congestion_wait: throttle_vm_writeout+0x70/0x7f shrink_mem_cgroup_zone+0x48f/0x4a1
+>             gtali-4237 553.080378: writeback_congestion_wait: usec_timeout=100000 usec_delayed=100000
+>              Xorg-3483 553.103375: congestion_wait: throttle_vm_writeout+0x70/0x7f shrink_mem_cgroup_zone+0x48f/0x4a1
+>              Xorg-3483 553.103377: writeback_congestion_wait: usec_timeout=100000 usec_delayed=100000
 >
-> Here is the dump I get when the OOM kicks in:
-> 
-> ...
+> The root cause is, the dirty threshold is knocked down a lot by the
+> memory hog task. Fixed by using global_dirty_limit which decreases
+> gradually on such events and can guarantee we stay above (the also
+> decreasing) nr_dirty in the progress of following down to the new
+> dirty threshold.
 >
-> [ 3108.730350]  [<ffffffff81198e4a>] mlock_vma_pages_range+0x9a/0xa0
-> [ 3108.734486]  [<ffffffff8119b75b>] mmap_region+0x28b/0x510
-> ...
+> Signed-off-by: Fengguang Wu<fengguang.wu@intel.com>
 
-The vma is mlocked for some reason - presumably the app is using
-mlockall() or mlock()?  So the kernel is trying to instantiate all the
-pages at mmap() time.
-
+Reviewed-by: Rik van Riel <riel@redhat.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
