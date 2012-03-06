@@ -1,53 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx134.postini.com [74.125.245.134])
-	by kanga.kvack.org (Postfix) with SMTP id CC5006B002C
-	for <linux-mm@kvack.org>; Mon,  5 Mar 2012 23:53:30 -0500 (EST)
-Received: by pbcup15 with SMTP id up15so1131911pbc.14
-        for <linux-mm@kvack.org>; Mon, 05 Mar 2012 20:53:30 -0800 (PST)
-Date: Mon, 5 Mar 2012 20:52:55 -0800 (PST)
-From: Hugh Dickins <hughd@google.com>
-Subject: [PATCH] page_cgroup: fix horrid swap accounting regression
-Message-ID: <alpine.LSU.2.00.1203052046410.24068@eggly.anvils>
+Received: from psmtp.com (na3sys010amx104.postini.com [74.125.245.104])
+	by kanga.kvack.org (Postfix) with SMTP id C98766B002C
+	for <linux-mm@kvack.org>; Tue,  6 Mar 2012 00:03:01 -0500 (EST)
+Received: by vbbey12 with SMTP id ey12so5353608vbb.14
+        for <linux-mm@kvack.org>; Mon, 05 Mar 2012 21:03:00 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+In-Reply-To: <alpine.LSU.2.00.1203052046410.24068@eggly.anvils>
+References: <alpine.LSU.2.00.1203052046410.24068@eggly.anvils>
+Date: Tue, 6 Mar 2012 13:03:00 +0800
+Message-ID: <CAA_GA1cQ4i8Rtrh6OBrgw-dPc7dqnoJbbPRBrBoawihtgn2zLA@mail.gmail.com>
+Subject: Re: [PATCH] page_cgroup: fix horrid swap accounting regression
+From: Bob Liu <lliubbo@gmail.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Bob Liu <lliubbo@gmail.com>, Michal Hocko <mhocko@suse.cz>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <jweiner@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Hugh Dickins <hughd@google.com>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <jweiner@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-Why is memcg's swap accounting so broken?  Insane counts, wrong ownership,
-unfreeable structures, which later get freed and then accessed after free.
+Hi Hugh,
 
-Turns out to be a tiny a little 3.3-rc1 regression in 9fb4b7cc0724
-"page_cgroup: add helper function to get swap_cgroup": the helper
-function (actually named lookup_swap_cgroup()) returns an address
-using void* arithmetic, but the structure in question is a short.
+On Tue, Mar 6, 2012 at 12:52 PM, Hugh Dickins <hughd@google.com> wrote:
+> Why is memcg's swap accounting so broken? =C2=A0Insane counts, wrong owne=
+rship,
+> unfreeable structures, which later get freed and then accessed after free=
+.
+>
+> Turns out to be a tiny a little 3.3-rc1 regression in 9fb4b7cc0724
+> "page_cgroup: add helper function to get swap_cgroup": the helper
+> function (actually named lookup_swap_cgroup()) returns an address
+> using void* arithmetic, but the structure in question is a short.
+>
 
-Signed-off-by: Hugh Dickins <hughd@google.com>
----
+Sorry for my mistake.
 
- mm/page_cgroup.c |    4 +++-
- 1 file changed, 3 insertions(+), 1 deletion(-)
+> Signed-off-by: Hugh Dickins <hughd@google.com>
+> ---
+>
+> =C2=A0mm/page_cgroup.c | =C2=A0 =C2=A04 +++-
+> =C2=A01 file changed, 3 insertions(+), 1 deletion(-)
+>
+> --- 3.3-rc6/mm/page_cgroup.c =C2=A0 =C2=A02012-01-20 08:42:35.320020840 -=
+0800
+> +++ linux/mm/page_cgroup.c =C2=A0 =C2=A0 =C2=A02012-03-05 19:51:13.535372=
+098 -0800
+> @@ -379,13 +379,15 @@ static struct swap_cgroup *lookup_swap_c
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0pgoff_t offset =3D swp_offset(ent);
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0struct swap_cgroup_ctrl *ctrl;
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0struct page *mappage;
+> + =C2=A0 =C2=A0 =C2=A0 struct swap_cgroup *sc;
+>
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0ctrl =3D &swap_cgroup_ctrl[swp_type(ent)];
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0if (ctrlp)
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0*ctrlp =3D ctrl;
+>
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0mappage =3D ctrl->map[offset / SC_PER_PAGE];
+> - =C2=A0 =C2=A0 =C2=A0 return page_address(mappage) + offset % SC_PER_PAG=
+E;
+> + =C2=A0 =C2=A0 =C2=A0 sc =3D page_address(mappage);
+> + =C2=A0 =C2=A0 =C2=A0 return sc + offset % SC_PER_PAGE;
+> =C2=A0}
+>
+> =C2=A0/**
 
---- 3.3-rc6/mm/page_cgroup.c	2012-01-20 08:42:35.320020840 -0800
-+++ linux/mm/page_cgroup.c	2012-03-05 19:51:13.535372098 -0800
-@@ -379,13 +379,15 @@ static struct swap_cgroup *lookup_swap_c
- 	pgoff_t offset = swp_offset(ent);
- 	struct swap_cgroup_ctrl *ctrl;
- 	struct page *mappage;
-+	struct swap_cgroup *sc;
- 
- 	ctrl = &swap_cgroup_ctrl[swp_type(ent)];
- 	if (ctrlp)
- 		*ctrlp = ctrl;
- 
- 	mappage = ctrl->map[offset / SC_PER_PAGE];
--	return page_address(mappage) + offset % SC_PER_PAGE;
-+	sc = page_address(mappage);
-+	return sc + offset % SC_PER_PAGE;
- }
- 
- /**
+Reviewed-by: Bob Liu <lliubbo@gmail.com>
+
+--=20
+Regards,
+--Bob
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
