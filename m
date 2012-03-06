@@ -1,75 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx136.postini.com [74.125.245.136])
-	by kanga.kvack.org (Postfix) with SMTP id 19A396B002C
-	for <linux-mm@kvack.org>; Mon,  5 Mar 2012 19:46:07 -0500 (EST)
-Date: Tue, 6 Mar 2012 01:46:02 +0100
-From: Andrea Righi <andrea@betterlinux.com>
-Subject: Re: [ATTEND] [LSF/MM TOPIC] Buffered writes throttling
-Message-ID: <20120306004602.GA16061@thinkpad>
-References: <4F507453.1020604@suse.com>
- <20120302153322.GB26315@redhat.com>
- <20120305192226.GA3670@localhost>
- <20120305211114.GF18546@redhat.com>
- <20120305223029.GB16807@localhost>
- <20120305231930.GC7545@thinkpad>
- <20120305235132.GB13690@localhost>
+Received: from psmtp.com (na3sys010amx134.postini.com [74.125.245.134])
+	by kanga.kvack.org (Postfix) with SMTP id 5E76A6B002C
+	for <linux-mm@kvack.org>; Mon,  5 Mar 2012 20:16:32 -0500 (EST)
+Received: by pbcup15 with SMTP id up15so922842pbc.14
+        for <linux-mm@kvack.org>; Mon, 05 Mar 2012 17:16:31 -0800 (PST)
+Date: Tue, 6 Mar 2012 10:16:24 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [PATCH -next] slub: set PG_slab on all of slab pages
+Message-ID: <20120306011624.GA14274@barrios>
+References: <1330505674-31610-1-git-send-email-namhyung.kim@lge.com>
+ <20120304103446.GA9267@barrios>
+ <alpine.DEB.2.00.1203050845380.11722@router.home>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20120305235132.GB13690@localhost>
+In-Reply-To: <alpine.DEB.2.00.1203050845380.11722@router.home>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Fengguang Wu <fengguang.wu@intel.com>
-Cc: Vivek Goyal <vgoyal@redhat.com>, Suresh Jayaraman <sjayaraman@suse.com>, lsf-pc@lists.linux-foundation.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Jan Kara <jack@suse.cz>, Greg Thelen <gthelen@google.com>
+To: Christoph Lameter <cl@linux.com>
+Cc: Minchan Kim <minchan@kernel.org>, Namhyung Kim <namhyung.kim@lge.com>, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, Namhyung Kim <namhyung@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Mon, Mar 05, 2012 at 03:51:32PM -0800, Fengguang Wu wrote:
-> On Tue, Mar 06, 2012 at 12:19:30AM +0100, Andrea Righi wrote:
-> > On Mon, Mar 05, 2012 at 02:30:29PM -0800, Fengguang Wu wrote:
-> > > On Mon, Mar 05, 2012 at 04:11:15PM -0500, Vivek Goyal wrote:
-> > ...
-> > > > But looks like we don't much choice. As buffered writes can be controlled
-> > > > at two levels, we probably need two knobs. Also controlling writes while
-> > > > entring cache limits will be global and not per device (unlinke currnet
-> > > > per device limit in blkio controller). Having separate control for "dirty
-> > > > rate limit" leaves the scope for implementing write control at device
-> > > > level in the future (As some people prefer that). In possibly two 
-> > > > solutions can co-exist in future.
-> > > 
-> > > Good point. balance_dirty_pages() has no idea about the devices at
-> > > all. So the rate limit for buffered writes can hardly be unified with
-> > > the per-device rate limit for direct writes.
-> > > 
-> > 
-> > I think balance_dirty_pages() can have an idea about devices. We can get
-> > a reference to the right block device / request queue from the
-> > address_space:
-> > 
-> >   bdev = mapping->host->i_sb->s_bdev;
-> >   q = bdev_get_queue(bdev);
-> > 
-> > (NULL pointer dereferences apart).
+Hi Christoph,
+
+On Mon, Mar 05, 2012 at 08:48:33AM -0600, Christoph Lameter wrote:
+> On Sun, 4 Mar 2012, Minchan Kim wrote:
 > 
-> Problem is, there is no general 1:1 mapping between bdev and disks.
-> For the single disk multpile partitions (sda1, sda2...) case, the
-> above scheme is fine and makes the throttle happen at sda granularity.
+> > I read this thread and I feel the we don't reach right point.
+> > I think it's not a compound page problem.
+> > We can face above problem where we allocates big order page without __GFP_COMP
+> > and free middle page of it.
 > 
-> However for md/dm etc. there is no way (or need?) to reach the exact
-> disk that current blkcg is operating on.
+> Yes we can do that and doing such a thing seems to be more legitimate
+> since one could argue that the user did not request an atomic allocation
+> unit from the page allocator and therefore the freeing of individual
+> pages in that group is permissible. If memory serves me right we do that
+> sometimes.
+
+To be leitimate, user have to handle subpages's ref counter well.
+But I think it's not desirable. If user want it, he should use
+split_page instead of modifying ref counter directly.
+
 > 
-> Thanks,
-> Fengguang
+> However if compound pages are requested then such an atomic allocation
+> unit *was* requested and the page allocator should not allow to free
+> individual pages.
 
-Oh I see, the problem is with stacked block devices. Right, if we set a
-limit for sda and a stacked block device is defined over sda, we'd get
-only the bdev at the top of the stack at balance_dirty_pages() and the
-limits configured for the underlying block devices will be ignored.
+Yes. In fact, I am not sure this problem is related to compound page.
+If it is compound page, tail page's ref count should be zero.
+When user calls __free_pages in tail page by mistake, it should not pass
+into __free_pages_ok but reference count would be underflow.
+Later, when head page is freed, we could catch it in free_pages_check.
 
-However, maybe for the 90% of the cases this is fine, I can't see a real
-world scenario where we may want to limit only part or indirectly a
-stacked block device...
-
-Thanks,
--Andrea
+So I had a question to Namhyung that he can see bad page message by PG_slab when he uses SLUB
+with his patch. If the problem still happens, something seems to modify tail page's ref count
+directly without get_page. It's apparently BUG.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
