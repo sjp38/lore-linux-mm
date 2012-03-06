@@ -1,48 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx204.postini.com [74.125.245.204])
-	by kanga.kvack.org (Postfix) with SMTP id CC6B16B004D
-	for <linux-mm@kvack.org>; Mon,  5 Mar 2012 22:16:28 -0500 (EST)
-Received: by dakp5 with SMTP id p5so6324002dak.8
-        for <linux-mm@kvack.org>; Mon, 05 Mar 2012 19:16:28 -0800 (PST)
-Date: Tue, 6 Mar 2012 12:16:20 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH 1/1] page_alloc.c: Slightly improve the logic in
- __alloc_pages_high_priority
-Message-ID: <20120306031619.GB14274@barrios>
-References: <1330957105-3595-1-git-send-email-consul.kautuk@gmail.com>
+Received: from psmtp.com (na3sys010amx134.postini.com [74.125.245.134])
+	by kanga.kvack.org (Postfix) with SMTP id CC5006B002C
+	for <linux-mm@kvack.org>; Mon,  5 Mar 2012 23:53:30 -0500 (EST)
+Received: by pbcup15 with SMTP id up15so1131911pbc.14
+        for <linux-mm@kvack.org>; Mon, 05 Mar 2012 20:53:30 -0800 (PST)
+Date: Mon, 5 Mar 2012 20:52:55 -0800 (PST)
+From: Hugh Dickins <hughd@google.com>
+Subject: [PATCH] page_cgroup: fix horrid swap accounting regression
+Message-ID: <alpine.LSU.2.00.1203052046410.24068@eggly.anvils>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1330957105-3595-1-git-send-email-consul.kautuk@gmail.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kautuk Consul <consul.kautuk@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Tejun Heo <tj@kernel.org>, Minchan Kim <minchan.kim@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Bob Liu <lliubbo@gmail.com>, Michal Hocko <mhocko@suse.cz>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <jweiner@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-Hi Kautuk,
+Why is memcg's swap accounting so broken?  Insane counts, wrong ownership,
+unfreeable structures, which later get freed and then accessed after free.
 
-On Mon, Mar 05, 2012 at 09:18:25AM -0500, Kautuk Consul wrote:
-> The loop in __alloc_pages_high_priority() seems to be checking for
-> (!page) and (gfp_mask & __GFP_NOFAIL) multiple times.
-> 
-> In fact, we don't really need to check (gfp_mask & __GFP_NOFAIL)
-> for every iteration of the loop as the gfp_mask remains constant.
-> 
-> Slightly improve the logic in __alloc_pages_high_priority() to
-> eliminate these multiple condition checks.
+Turns out to be a tiny a little 3.3-rc1 regression in 9fb4b7cc0724
+"page_cgroup: add helper function to get swap_cgroup": the helper
+function (actually named lookup_swap_cgroup()) returns an address
+using void* arithmetic, but the structure in question is a short.
 
-Thansk for your effort.
+Signed-off-by: Hugh Dickins <hughd@google.com>
+---
 
-Surely we don't need mutliple condition check but it's not fast-path
-and not a problem about readability. So I don't want to increase text
-size unnecessary if it doesn't have a benefit.
+ mm/page_cgroup.c |    4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)
 
-barrios@barrios:~/linux-2.6$ size mm/page_alloc.o
-   text	   data	    bss	    dec	    hex	filename
-  32772	   1307	    576	  34655	   875f	mm/page_alloc.o
-barrios@barrios:~/linux-2.6$ size mm/page_alloc.o.your_patch 
-   text	   data	    bss	    dec	    hex	filename
-  32804	   1307	    576	  34687	   877f	mm/page_alloc.o.patch
+--- 3.3-rc6/mm/page_cgroup.c	2012-01-20 08:42:35.320020840 -0800
++++ linux/mm/page_cgroup.c	2012-03-05 19:51:13.535372098 -0800
+@@ -379,13 +379,15 @@ static struct swap_cgroup *lookup_swap_c
+ 	pgoff_t offset = swp_offset(ent);
+ 	struct swap_cgroup_ctrl *ctrl;
+ 	struct page *mappage;
++	struct swap_cgroup *sc;
+ 
+ 	ctrl = &swap_cgroup_ctrl[swp_type(ent)];
+ 	if (ctrlp)
+ 		*ctrlp = ctrl;
+ 
+ 	mappage = ctrl->map[offset / SC_PER_PAGE];
+-	return page_address(mappage) + offset % SC_PER_PAGE;
++	sc = page_address(mappage);
++	return sc + offset % SC_PER_PAGE;
+ }
+ 
+ /**
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
