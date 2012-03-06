@@ -1,61 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx148.postini.com [74.125.245.148])
-	by kanga.kvack.org (Postfix) with SMTP id 64FCB6B002C
-	for <linux-mm@kvack.org>; Mon,  5 Mar 2012 18:51:33 -0500 (EST)
-Date: Mon, 5 Mar 2012 15:51:32 -0800
-From: Fengguang Wu <fengguang.wu@intel.com>
+Received: from psmtp.com (na3sys010amx136.postini.com [74.125.245.136])
+	by kanga.kvack.org (Postfix) with SMTP id 19A396B002C
+	for <linux-mm@kvack.org>; Mon,  5 Mar 2012 19:46:07 -0500 (EST)
+Date: Tue, 6 Mar 2012 01:46:02 +0100
+From: Andrea Righi <andrea@betterlinux.com>
 Subject: Re: [ATTEND] [LSF/MM TOPIC] Buffered writes throttling
-Message-ID: <20120305235132.GB13690@localhost>
+Message-ID: <20120306004602.GA16061@thinkpad>
 References: <4F507453.1020604@suse.com>
  <20120302153322.GB26315@redhat.com>
  <20120305192226.GA3670@localhost>
  <20120305211114.GF18546@redhat.com>
  <20120305223029.GB16807@localhost>
  <20120305231930.GC7545@thinkpad>
+ <20120305235132.GB13690@localhost>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20120305231930.GC7545@thinkpad>
+In-Reply-To: <20120305235132.GB13690@localhost>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrea Righi <andrea@betterlinux.com>
+To: Fengguang Wu <fengguang.wu@intel.com>
 Cc: Vivek Goyal <vgoyal@redhat.com>, Suresh Jayaraman <sjayaraman@suse.com>, lsf-pc@lists.linux-foundation.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Jan Kara <jack@suse.cz>, Greg Thelen <gthelen@google.com>
 
-On Tue, Mar 06, 2012 at 12:19:30AM +0100, Andrea Righi wrote:
-> On Mon, Mar 05, 2012 at 02:30:29PM -0800, Fengguang Wu wrote:
-> > On Mon, Mar 05, 2012 at 04:11:15PM -0500, Vivek Goyal wrote:
-> ...
-> > > But looks like we don't much choice. As buffered writes can be controlled
-> > > at two levels, we probably need two knobs. Also controlling writes while
-> > > entring cache limits will be global and not per device (unlinke currnet
-> > > per device limit in blkio controller). Having separate control for "dirty
-> > > rate limit" leaves the scope for implementing write control at device
-> > > level in the future (As some people prefer that). In possibly two 
-> > > solutions can co-exist in future.
+On Mon, Mar 05, 2012 at 03:51:32PM -0800, Fengguang Wu wrote:
+> On Tue, Mar 06, 2012 at 12:19:30AM +0100, Andrea Righi wrote:
+> > On Mon, Mar 05, 2012 at 02:30:29PM -0800, Fengguang Wu wrote:
+> > > On Mon, Mar 05, 2012 at 04:11:15PM -0500, Vivek Goyal wrote:
+> > ...
+> > > > But looks like we don't much choice. As buffered writes can be controlled
+> > > > at two levels, we probably need two knobs. Also controlling writes while
+> > > > entring cache limits will be global and not per device (unlinke currnet
+> > > > per device limit in blkio controller). Having separate control for "dirty
+> > > > rate limit" leaves the scope for implementing write control at device
+> > > > level in the future (As some people prefer that). In possibly two 
+> > > > solutions can co-exist in future.
+> > > 
+> > > Good point. balance_dirty_pages() has no idea about the devices at
+> > > all. So the rate limit for buffered writes can hardly be unified with
+> > > the per-device rate limit for direct writes.
+> > > 
 > > 
-> > Good point. balance_dirty_pages() has no idea about the devices at
-> > all. So the rate limit for buffered writes can hardly be unified with
-> > the per-device rate limit for direct writes.
+> > I think balance_dirty_pages() can have an idea about devices. We can get
+> > a reference to the right block device / request queue from the
+> > address_space:
 > > 
+> >   bdev = mapping->host->i_sb->s_bdev;
+> >   q = bdev_get_queue(bdev);
+> > 
+> > (NULL pointer dereferences apart).
 > 
-> I think balance_dirty_pages() can have an idea about devices. We can get
-> a reference to the right block device / request queue from the
-> address_space:
+> Problem is, there is no general 1:1 mapping between bdev and disks.
+> For the single disk multpile partitions (sda1, sda2...) case, the
+> above scheme is fine and makes the throttle happen at sda granularity.
 > 
->   bdev = mapping->host->i_sb->s_bdev;
->   q = bdev_get_queue(bdev);
+> However for md/dm etc. there is no way (or need?) to reach the exact
+> disk that current blkcg is operating on.
 > 
-> (NULL pointer dereferences apart).
+> Thanks,
+> Fengguang
 
-Problem is, there is no general 1:1 mapping between bdev and disks.
-For the single disk multpile partitions (sda1, sda2...) case, the
-above scheme is fine and makes the throttle happen at sda granularity.
+Oh I see, the problem is with stacked block devices. Right, if we set a
+limit for sda and a stacked block device is defined over sda, we'd get
+only the bdev at the top of the stack at balance_dirty_pages() and the
+limits configured for the underlying block devices will be ignored.
 
-However for md/dm etc. there is no way (or need?) to reach the exact
-disk that current blkcg is operating on.
+However, maybe for the 90% of the cases this is fine, I can't see a real
+world scenario where we may want to limit only part or indirectly a
+stacked block device...
 
 Thanks,
-Fengguang
+-Andrea
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
