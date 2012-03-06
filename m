@@ -1,47 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx119.postini.com [74.125.245.119])
-	by kanga.kvack.org (Postfix) with SMTP id A417E6B002C
-	for <linux-mm@kvack.org>; Tue,  6 Mar 2012 02:25:58 -0500 (EST)
-Received: by lagz14 with SMTP id z14so7893683lag.14
-        for <linux-mm@kvack.org>; Mon, 05 Mar 2012 23:25:56 -0800 (PST)
-Date: Tue, 6 Mar 2012 09:25:39 +0200 (EET)
-From: Pekka Enberg <penberg@kernel.org>
-Subject: Re: [patch -vmevent/core] mm, vmevent: vmevent_fd is conditional on
- CONFIG_VMEVENT
-In-Reply-To: <alpine.DEB.2.00.1203052301050.25090@chino.kir.corp.google.com>
-Message-ID: <alpine.LFD.2.02.1203060925310.6280@tux.localdomain>
-References: <alpine.DEB.2.00.1203052301050.25090@chino.kir.corp.google.com>
+Received: from psmtp.com (na3sys010amx173.postini.com [74.125.245.173])
+	by kanga.kvack.org (Postfix) with SMTP id BECB56B002C
+	for <linux-mm@kvack.org>; Tue,  6 Mar 2012 05:37:56 -0500 (EST)
+Message-ID: <4F55E8BB.5060704@parallels.com>
+Date: Tue, 6 Mar 2012 14:36:43 +0400
+From: Glauber Costa <glommer@parallels.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [PATCH 04/10] memcg: Introduce __GFP_NOACCOUNT.
+References: <1330383533-20711-1-git-send-email-ssouhlal@FreeBSD.org> <1330383533-20711-5-git-send-email-ssouhlal@FreeBSD.org> <20120229150041.62c1feeb.kamezawa.hiroyu@jp.fujitsu.com> <CABCjUKBHjLHKUmW6_r0SOyw42WfV0zNO7Kd7FhhRQTT6jZdyeQ@mail.gmail.com> <20120301091044.1a62d42c.kamezawa.hiroyu@jp.fujitsu.com> <4F4EC1AB.8050506@parallels.com> <20120301150537.8996bbf6.kamezawa.hiroyu@jp.fujitsu.com> <4F522910.1050402@parallels.com> <CABCjUKBngJx0o5jnJk3FEjWUDA6aNTAiFENdEF+M7BwB85NaLg@mail.gmail.com> <4F52A81A.3030408@parallels.com> <CABCjUKBP=pKgDP5RkD4BimTjoE=bQQO7NxNNAiGUfy602T4c7A@mail.gmail.com>
+In-Reply-To: <CABCjUKBP=pKgDP5RkD4BimTjoE=bQQO7NxNNAiGUfy602T4c7A@mail.gmail.com>
+Content-Type: text/plain; charset="ISO-8859-1"; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: linux-mm@kvack.org
+To: Suleiman Souhlal <suleiman@google.com>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Suleiman Souhlal <ssouhlal@freebsd.org>, cgroups@vger.kernel.org, penberg@kernel.org, yinghan@google.com, hughd@google.com, gthelen@google.com, linux-mm@kvack.org, devel@openvz.org
 
-On Mon, 5 Mar 2012, David Rientjes wrote:
-> The vmevent_fd syscall is declared but not defined without CONFIG_VMEVENT, 
-> so make it conditional to avoid the following link error:
-> 
-> 	arch/x86/built-in.o:(.rodata+0xdb0): undefined reference to `sys_vmevent_fd'
-> 
-> Signed-off-by: David Rientjes <rientjes@google.com>
-> ---
->  kernel/sys_ni.c |    1 +
->  1 files changed, 1 insertions(+), 0 deletions(-)
-> 
-> diff --git a/kernel/sys_ni.c b/kernel/sys_ni.c
-> --- a/kernel/sys_ni.c
-> +++ b/kernel/sys_ni.c
-> @@ -191,6 +191,7 @@ cond_syscall(compat_sys_timerfd_settime);
->  cond_syscall(compat_sys_timerfd_gettime);
->  cond_syscall(sys_eventfd);
->  cond_syscall(sys_eventfd2);
-> +cond_syscall(sys_vmevent_fd);
->  
->  /* performance counters: */
->  cond_syscall(sys_perf_event_open);
-
-Applied, thanks David!
+On 03/04/2012 04:10 AM, Suleiman Souhlal wrote:
+> On Sat, Mar 3, 2012 at 3:24 PM, Glauber Costa<glommer@parallels.com>  wrote:
+>> On 03/03/2012 01:38 PM, Suleiman Souhlal wrote:
+>>> Another possible example might be the skb data, which are just kmalloc
+>>> and are already accounted by your TCP accounting changes, so we might
+>>> not want to account them a second time.
+>>
+>>
+>> How so?
+>>
+>> struct sk_buff *__alloc_skb(unsigned int size, gfp_t gfp_mask,
+>>                             int fclone, int node)
+>> {
+>>         [ ... ]
+>>         cache = fclone ? skbuff_fclone_cache : skbuff_head_cache;
+>>
+>>         /* Get the HEAD */
+>>         skb = kmem_cache_alloc_node(cache, gfp_mask&  ~__GFP_DMA, node);
+>
+> Just a few lines below:
+>
+>          data = kmalloc_node_track_caller(size, gfp_mask, node);
+>
+> -- Suleiman
+Can't we just make sure those come from the root cgroup's slabs?
+Then we need no flag.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
