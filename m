@@ -1,170 +1,101 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx161.postini.com [74.125.245.161])
-	by kanga.kvack.org (Postfix) with SMTP id 6FA986B002C
-	for <linux-mm@kvack.org>; Tue,  6 Mar 2012 07:54:05 -0500 (EST)
-Received: by bkwq16 with SMTP id q16so5680054bkw.14
-        for <linux-mm@kvack.org>; Tue, 06 Mar 2012 04:54:03 -0800 (PST)
-Message-ID: <4F5608E7.2060400@openvz.org>
-Date: Tue, 06 Mar 2012 16:53:59 +0400
-From: Konstantin Khlebnikov <khlebnikov@openvz.org>
+Received: from psmtp.com (na3sys010amx168.postini.com [74.125.245.168])
+	by kanga.kvack.org (Postfix) with SMTP id CE7D86B002C
+	for <linux-mm@kvack.org>; Tue,  6 Mar 2012 08:15:28 -0500 (EST)
+Message-ID: <4F560DA8.5040302@parallels.com>
+Date: Tue, 6 Mar 2012 17:14:16 +0400
+From: Glauber Costa <glommer@parallels.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 3/7] mm: rework __isolate_lru_page() file/anon filter
-References: <20120229090748.29236.35489.stgit@zurg> <20120229091547.29236.28230.stgit@zurg> <20120302141739.b63677ad.kamezawa.hiroyu@jp.fujitsu.com> <4F505FDF.80003@openvz.org> <20120302171708.6f206bde.kamezawa.hiroyu@jp.fujitsu.com> <4F55FBB1.2040206@parallels.com>
-In-Reply-To: <4F55FBB1.2040206@parallels.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Subject: Re: [RFC PATCH] checkpatch: Warn on use of yield()
+References: <20120302112358.GA3481@suse.de>  <1330723262.11248.233.camel@twins>  <20120305121804.3b4daed4.akpm@linux-foundation.org>  <1330999280.10358.3.camel@joe2Laptop> <1331037942.11248.307.camel@twins>
+In-Reply-To: <1331037942.11248.307.camel@twins>
+Content-Type: text/plain; charset="ISO-8859-1"; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Glauber Costa <glommer@parallels.com>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Johannes Weiner <jweiner@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Cc: Joe Perches <joe@perches.com>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Miao Xie <miaox@cn.fujitsu.com>, Christoph Lameter <cl@linux.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Theodore Ts'o <tytso@mit.edu>
 
-Glauber Costa wrote:
-> On 03/02/2012 12:17 PM, KAMEZAWA Hiroyuki wrote:
->> On Fri, 02 Mar 2012 09:51:27 +0400
->> Konstantin Khlebnikov<khlebnikov@openvz.org>   wrote:
->>
->>> KAMEZAWA Hiroyuki wrote:
->>>> On Wed, 29 Feb 2012 13:15:47 +0400
->>>> Konstantin Khlebnikov<khlebnikov@openvz.org>    wrote:
->>>>
->>>>> This patch adds file/anon filter bits into isolate_mode_t,
->>>>> this allows to simplify checks in __isolate_lru_page().
->>>>>
->>>>> Signed-off-by: Konstantin Khlebnikov<khlebnikov@openvz.org>
->>>>
->>>> Hmm.. I like idea but..
->>>>
->>>>> ---
->>>>>     include/linux/mmzone.h |    4 ++++
->>>>>     include/linux/swap.h   |    2 +-
->>>>>     mm/compaction.c        |    5 +++--
->>>>>     mm/vmscan.c            |   27 +++++++++++++--------------
->>>>>     4 files changed, 21 insertions(+), 17 deletions(-)
->>>>>
->>>>> diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
->>>>> index eff4918..2fed935 100644
->>>>> --- a/include/linux/mmzone.h
->>>>> +++ b/include/linux/mmzone.h
->>>>> @@ -193,6 +193,10 @@ struct lruvec {
->>>>>     #define ISOLATE_UNMAPPED	((__force isolate_mode_t)0x8)
->>>>>     /* Isolate for asynchronous migration */
->>>>>     #define ISOLATE_ASYNC_MIGRATE	((__force isolate_mode_t)0x10)
->>>>> +/* Isolate swap-backed pages */
->>>>> +#define	ISOLATE_ANON		((__force isolate_mode_t)0x20)
->>>>> +/* Isolate file-backed pages */
->>>>> +#define	ISOLATE_FILE		((__force isolate_mode_t)0x40)
->>>>>
->>>>>     /* LRU Isolation modes. */
->>>>>     typedef unsigned __bitwise__ isolate_mode_t;
->>>>> diff --git a/include/linux/swap.h b/include/linux/swap.h
->>>>> index ba2c8d7..dc6e6a3 100644
->>>>> --- a/include/linux/swap.h
->>>>> +++ b/include/linux/swap.h
->>>>> @@ -254,7 +254,7 @@ static inline void lru_cache_add_file(struct page *page)
->>>>>     /* linux/mm/vmscan.c */
->>>>>     extern unsigned long try_to_free_pages(struct zonelist *zonelist, int order,
->>>>>     					gfp_t gfp_mask, nodemask_t *mask);
->>>>> -extern int __isolate_lru_page(struct page *page, isolate_mode_t mode, int file);
->>>>> +extern int __isolate_lru_page(struct page *page, isolate_mode_t mode);
->>>>>     extern unsigned long try_to_free_mem_cgroup_pages(struct mem_cgroup *mem,
->>>>>     						  gfp_t gfp_mask, bool noswap);
->>>>>     extern unsigned long mem_cgroup_shrink_node_zone(struct mem_cgroup *mem,
->>>>> diff --git a/mm/compaction.c b/mm/compaction.c
->>>>> index 74a8c82..cc054f7 100644
->>>>> --- a/mm/compaction.c
->>>>> +++ b/mm/compaction.c
->>>>> @@ -261,7 +261,8 @@ static isolate_migrate_t isolate_migratepages(struct zone *zone,
->>>>>     	unsigned long last_pageblock_nr = 0, pageblock_nr;
->>>>>     	unsigned long nr_scanned = 0, nr_isolated = 0;
->>>>>     	struct list_head *migratelist =&cc->migratepages;
->>>>> -	isolate_mode_t mode = ISOLATE_ACTIVE|ISOLATE_INACTIVE;
->>>>> +	isolate_mode_t mode = ISOLATE_ACTIVE | ISOLATE_INACTIVE |
->>>>> +			      ISOLATE_FILE | ISOLATE_ANON;
->>>>>
->>>>>     	/* Do not scan outside zone boundaries */
->>>>>     	low_pfn = max(cc->migrate_pfn, zone->zone_start_pfn);
->>>>> @@ -375,7 +376,7 @@ static isolate_migrate_t isolate_migratepages(struct zone *zone,
->>>>>     			mode |= ISOLATE_ASYNC_MIGRATE;
->>>>>
->>>>>     		/* Try isolate the page */
->>>>> -		if (__isolate_lru_page(page, mode, 0) != 0)
->>>>> +		if (__isolate_lru_page(page, mode) != 0)
->>>>>     			continue;
->>>>>
->>>>>     		VM_BUG_ON(PageTransCompound(page));
->>>>> diff --git a/mm/vmscan.c b/mm/vmscan.c
->>>>> index af6cfe7..1b70338 100644
->>>>> --- a/mm/vmscan.c
->>>>> +++ b/mm/vmscan.c
->>>>> @@ -1029,27 +1029,18 @@ keep_lumpy:
->>>>>      *
->>>>>      * returns 0 on success, -ve errno on failure.
->>>>>      */
->>>>> -int __isolate_lru_page(struct page *page, isolate_mode_t mode, int file)
->>>>> +int __isolate_lru_page(struct page *page, isolate_mode_t mode)
->>>>>     {
->>>>> -	bool all_lru_mode;
->>>>>     	int ret = -EINVAL;
->>>>>
->>>>>     	/* Only take pages on the LRU. */
->>>>>     	if (!PageLRU(page))
->>>>>     		return ret;
->>>>>
->>>>> -	all_lru_mode = (mode&    (ISOLATE_ACTIVE|ISOLATE_INACTIVE)) ==
->>>>> -		(ISOLATE_ACTIVE|ISOLATE_INACTIVE);
->>>>> -
->>>>> -	/*
->>>>> -	 * When checking the active state, we need to be sure we are
->>>>> -	 * dealing with comparible boolean values.  Take the logical not
->>>>> -	 * of each.
->>>>> -	 */
->>>>> -	if (!all_lru_mode&&    !PageActive(page) != !(mode&    ISOLATE_ACTIVE))
->>>>> +	if (!(mode&    (PageActive(page) ? ISOLATE_ACTIVE : ISOLATE_INACTIVE)))
->>>>>     		return ret;
->>>>
->>>> Isn't this complicated ?
->>>
->>> But it doesn't blows my mind as old code does =)
->>>
->>> Maybe someone can propose more clear variant?
->>>
->>
->> switch (mode&   (ISOLATE_ACTIVE | ISOLATE_INACTIVE)) {
->> 	case ISOLATE_ACTIVE :
->> 		if (!PageActive(page))
->> 			return ret;
->> 	case ISOLATE_INACTIVE :
->> 		if (PageActive(page))
->> 			return ret;
->> 	default:
->> 		break;
->> 	}
->> }
->>
->> ?
->>
->> Thanks,
->> -Kame
->>
+On 03/06/2012 04:45 PM, Peter Zijlstra wrote:
+> On Mon, 2012-03-05 at 18:01 -0800, Joe Perches wrote:
 >
-> The switch gets a little bit too big (vertical-wise). Maybe just
-> splitting it into two lines is enough to clarify its purpose.
-> How about:
+>> +# check for use of yield()
+>> +		if ($line =~ /\byield\s*\(\s*\)/ {
+>> +			WARN("YIELD",
+>> +			     "yield() is deprecated, consider cpu_relax()\n"  . $herecurr);
+>> +		}
 >
-> int tmp_var = PageActive(page) ? ISOLATE_ACTIVE : ISOLATE_INACTIVE
-> if (!(mode&  tmp_var))
->      ret;
+> Its not deprecated as such, its just a very dangerous and ill considered
+> API.
+>
+> cpu_relax() is not a good substitute suggestion in that its still a busy
+> wait and prone to much of the same problems.
+>
+> The case at hand was a life-lock due to expecting that yield() would run
+> another process which it needed in order to complete. Yield() does not
+> provide that guarantee.
+>
+> Looking at fs/ext4/mballoc.c, we have this gem:
+>
+>
+> 		/*
+>                   * Yield the CPU here so that we don't get soft lockup
+>                   * in non preempt case.
+>                   */
+>                  yield();
+>
+> This is of course complete crap as well.. I suspect they want
+> cond_resched() there. And:
+>
+>                          /* let others to free the space */
+>                          yield();
+>
+> Like said, yield() doesn't guarantee anything like running anybody else,
+> does it rely on that? Or is it optimistic?
+>
+> Another fun user:
+>
+> void tasklet_kill(struct tasklet_struct *t)
+> {
+>          if (in_interrupt())
+>                  printk("Attempt to kill tasklet from interrupt\n");
+>
+>          while (test_and_set_bit(TASKLET_STATE_SCHED,&t->state)) {
+>                  do {
+>                          yield();
+>                  } while (test_bit(TASKLET_STATE_SCHED,&t->state));
+>          }
+>          tasklet_unlock_wait(t);
+>          clear_bit(TASKLET_STATE_SCHED,&t->state);
+> }
+>
+> The only reason that doesn't explode is because running tasklets is
+> non-preemptible, However since they're non-preemptible they shouldn't
+> run long and you might as well busy spin. If they can run long, yield()
+> isn't your biggest problem.
+>
+> mm/memory_hotplug.c has two yield() calls in offline_pages() and I've no
+> idea what they're trying to achieve.
+>
+> But really, yield() is basically _always_ the wrong thing. The right
+> thing can be:
+>
+>   cond_resched(); wait_event(); or something entirely different.
+>
+> So instead of suggesting an alternative, I would suggest thinking about
+> the actual problem in order to avoid the non-thinking solutions the
+> checkpatch brigade is so overly fond of :/
+>
+> Maybe something like:
+>
+>   "yield() is dangerous and wrong, rework your code to not use it."
+>
+> That at least requires some sort of thinking and doesn't suggest blind
+> substitution.
+>
 
-Code lines are cheap, if code is clear.
-I already sent [PATCH 3/7 v2] in reply to this patch.
-
->
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Fight unfair telecom internet charges in Canada: sign http://stopthemeter.ca/
-> Don't email:<a href=mailto:"dont@kvack.org">  email@kvack.org</a>
+Can't we point people to some Documentation file that explains the 
+alternatives?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
