@@ -1,41 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx181.postini.com [74.125.245.181])
-	by kanga.kvack.org (Postfix) with SMTP id 3FA3E6B00E8
-	for <linux-mm@kvack.org>; Tue,  6 Mar 2012 18:31:25 -0500 (EST)
-Received: by iajr24 with SMTP id r24so10076205iaj.14
-        for <linux-mm@kvack.org>; Tue, 06 Mar 2012 15:31:24 -0800 (PST)
-Date: Tue, 6 Mar 2012 15:31:22 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH] cpuset: mm: Remove memory barrier damage from the page
- allocator
-In-Reply-To: <20120305094411.GD3481@suse.de>
-Message-ID: <alpine.DEB.2.00.1203061529480.18656@chino.kir.corp.google.com>
-References: <20120302112358.GA3481@suse.de> <alpine.DEB.2.00.1203021018130.15125@router.home> <20120302174349.GB3481@suse.de> <1330723529.11248.237.camel@twins> <alpine.DEB.2.00.1203021540040.18377@chino.kir.corp.google.com> <20120305094411.GD3481@suse.de>
+Received: from psmtp.com (na3sys010amx135.postini.com [74.125.245.135])
+	by kanga.kvack.org (Postfix) with SMTP id B1A406B00EB
+	for <linux-mm@kvack.org>; Tue,  6 Mar 2012 18:36:53 -0500 (EST)
+From: Krishna Reddy <vdumpa@nvidia.com>
+Date: Tue, 6 Mar 2012 15:36:32 -0800
+Subject: RE: [PATCHv7 9/9] ARM: dma-mapping: add support for IOMMU mapper
+Message-ID: <401E54CE964CD94BAE1EB4A729C7087E3797011437@HQMAIL04.nvidia.com>
+References: <1330527862-16234-1-git-send-email-m.szyprowski@samsung.com>
+ <1330527862-16234-10-git-send-email-m.szyprowski@samsung.com>
+ <20120306232138.GF15201@n2100.arm.linux.org.uk>
+In-Reply-To: <20120306232138.GF15201@n2100.arm.linux.org.uk>
+Content-Language: en-US
+Content-Type: text/plain; charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Christoph Lameter <cl@linux.com>, Andrew Morton <akpm@linux-foundation.org>, Miao Xie <miaox@cn.fujitsu.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Russell King - ARM Linux <linux@arm.linux.org.uk>, Marek Szyprowski <m.szyprowski@samsung.com>
+Cc: "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "linaro-mm-sig@lists.linaro.org" <linaro-mm-sig@lists.linaro.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, "linux-samsung-soc@vger.kernel.org" <linux-samsung-soc@vger.kernel.org>, "iommu@lists.linux-foundation.org" <iommu@lists.linux-foundation.org>, Kyungmin Park <kyungmin.park@samsung.com>, Arnd Bergmann <arnd@arndb.de>, Joerg Roedel <joro@8bytes.org>, Shariq Hasnain <shariq.hasnain@linaro.org>, Chunsang Jeong <chunsang.jeong@linaro.org>, KyongHo Cho <pullip.cho@samsung.com>, Andrzej Pietrasiewicz <andrzej.p@samsung.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
 
-On Mon, 5 Mar 2012, Mel Gorman wrote:
+> On Wed, Feb 29, 2012 at 04:04:22PM +0100, Marek Szyprowski wrote:
+> > +static int arm_iommu_mmap_attrs(struct device *dev, struct
+> vm_area_struct *vma,
+> > +		    void *cpu_addr, dma_addr_t dma_addr, size_t size,
+> > +		    struct dma_attrs *attrs)
+> > +{
+> > +	struct arm_vmregion *c;
+> > +
+> > +	vma->vm_page_prot =3D __get_dma_pgprot(attrs, vma-
+> >vm_page_prot);
+> > +	c =3D arm_vmregion_find(&consistent_head, (unsigned
+> long)cpu_addr);
+>=20
+> What protects this against other insertions/removals from the list?
 
-> > It's very expensive even without memory barriers since the page allocator 
-> > wraps itself in {get,put}_mems_allowed() until a page or NULL is returned 
-> > and an update to current's set of allowed mems can stall indefinitely 
-> > trying to change the nodemask during this time. 
-> 
-> Hmm, this sounds problematic. Are you seeing a problem with the behaviour
-> with the patch applied or the existing behaviour?
-> 
+arm_vmregion_find uses a spin_lock internally before accessing consistent_h=
+ead.
+ So, it is protected.
 
-Sorry, yes, this is with the existing behavior prior to your patch.  We 
-definitely need fixes for get_mems_allowed() because it's possible that a 
-write to cpuset.mems will never return even when trying to add nodes to 
-its nodemask in oom conditions if one of the cpuset's tasks is looping 
-forever in the page allocator.
 
-I'll review your updated version posted from today.
+-KR
+
+--nvpublic
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
