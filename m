@@ -1,56 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx123.postini.com [74.125.245.123])
-	by kanga.kvack.org (Postfix) with SMTP id 155C46B002C
-	for <linux-mm@kvack.org>; Tue,  6 Mar 2012 12:41:09 -0500 (EST)
-Message-ID: <1331055666.2140.3.camel@joe2Laptop>
+Received: from psmtp.com (na3sys010amx102.postini.com [74.125.245.102])
+	by kanga.kvack.org (Postfix) with SMTP id 6E25F6B004A
+	for <linux-mm@kvack.org>; Tue,  6 Mar 2012 12:54:37 -0500 (EST)
+Message-ID: <1331056466.11248.327.camel@twins>
 Subject: Re: [RFC PATCH] checkpatch: Warn on use of yield()
-From: Joe Perches <joe@perches.com>
-Date: Tue, 06 Mar 2012 09:41:06 -0800
-In-Reply-To: <1331037942.11248.307.camel@twins>
+From: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Date: Tue, 06 Mar 2012 18:54:26 +0100
+In-Reply-To: <1331055666.2140.3.camel@joe2Laptop>
 References: <20120302112358.GA3481@suse.de>
 	 <1330723262.11248.233.camel@twins>
 	 <20120305121804.3b4daed4.akpm@linux-foundation.org>
 	 <1330999280.10358.3.camel@joe2Laptop> <1331037942.11248.307.camel@twins>
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: 7bit
+	 <1331055666.2140.3.camel@joe2Laptop>
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: quoted-printable
 Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <a.p.zijlstra@chello.nl>
+To: Joe Perches <joe@perches.com>
 Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Miao Xie <miaox@cn.fujitsu.com>, Christoph Lameter <cl@linux.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Theodore Ts'o <tytso@mit.edu>
 
-On Tue, 2012-03-06 at 13:45 +0100, Peter Zijlstra wrote:
-> The case at hand was a life-lock due to expecting that yield() would run
-> another process which it needed in order to complete. Yield() does not
-> provide that guarantee.
+On Tue, 2012-03-06 at 09:41 -0800, Joe Perches wrote:
+> Perhaps the kernel-doc comments in sched/core.c
+> should/could be expanded/updated.=20
 
-OK.
+Something like this?
 
-Perhaps the kernel-doc comments in sched/core.c
-should/could be expanded/updated.
+---
+ kernel/sched/core.c |   20 ++++++++++++++++++--
+ 1 files changed, 18 insertions(+), 2 deletions(-)
 
-/**
- * sys_sched_yield - yield the current processor to other threads.
- *
- * This function yields the current CPU to other tasks. If there are no
- * other threads running on this CPU then this function will return.
- */
-
-[]
-
-/**
- * yield - yield the current processor to other threads.
- *
- * This is a shortcut for kernel-space yielding - it marks the
- * thread runnable and calls sys_sched_yield().
- */
-void __sched yield(void)
-{
-	set_current_state(TASK_RUNNING);
-	sys_sched_yield();
-}
-EXPORT_SYMBOL(yield);
-
+diff --git a/kernel/sched/core.c b/kernel/sched/core.c
+index 2963fbb..a05a0f7 100644
+--- a/kernel/sched/core.c
++++ b/kernel/sched/core.c
+@@ -4577,8 +4577,24 @@ EXPORT_SYMBOL(__cond_resched_softirq);
+ /**
+  * yield - yield the current processor to other threads.
+  *
+- * This is a shortcut for kernel-space yielding - it marks the
+- * thread runnable and calls sys_sched_yield().
++ * Do not ever use this function, there's a 99% chance you're doing it wro=
+ng.
++ *
++ * The scheduler is at all times free to pick the calling task as the most
++ * eligible task to run, if removing the yield() call from your code break=
+s
++ * it, its already broken.
++ *
++ * Typical broken usage is:
++ *
++ * while (!event)
++ * 	yield();
++ *
++ * where one assumes that yield() will let 'the other' process run that wi=
+ll
++ * make event true. If the current task is a SCHED_FIFO task that will nev=
+er
++ * happen. Never use yield() as a progress guarantee!!
++ *
++ * If you want to use yield() to wait for something, use wait_event().
++ * If you want to use yield() to be 'nice' for others, use cond_resched().
++ * If you still want to use yield(), do not!
+  */
+ void __sched yield(void)
+ {
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
