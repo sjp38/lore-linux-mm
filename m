@@ -1,57 +1,112 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx134.postini.com [74.125.245.134])
-	by kanga.kvack.org (Postfix) with SMTP id 549C06B004A
-	for <linux-mm@kvack.org>; Wed,  7 Mar 2012 06:14:00 -0500 (EST)
-Message-ID: <4F5742AF.7090409@parallels.com>
-Date: Wed, 7 Mar 2012 15:12:47 +0400
-From: Glauber Costa <glommer@parallels.com>
+Received: from psmtp.com (na3sys010amx108.postini.com [74.125.245.108])
+	by kanga.kvack.org (Postfix) with SMTP id 19F346B004D
+	for <linux-mm@kvack.org>; Wed,  7 Mar 2012 06:22:06 -0500 (EST)
+Date: Wed, 7 Mar 2012 11:22:01 +0000
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [PATCH] cpuset: mm: Reduce large amounts of memory barrier
+ related damage v2
+Message-ID: <20120307112201.GC17697@suse.de>
+References: <20120306132735.GA2855@suse.de>
+ <4F572730.8000000@cn.fujitsu.com>
 MIME-Version: 1.0
-Subject: Re: [patch] mm, mempolicy: dummy slab_node return value for bugless
- kernels
-References: <alpine.DEB.2.00.1203041341340.9534@chino.kir.corp.google.com> <20120306160833.0e9bf50a.akpm@linux-foundation.org> <alpine.DEB.2.00.1203061950050.24600@chino.kir.corp.google.com>
-In-Reply-To: <alpine.DEB.2.00.1203061950050.24600@chino.kir.corp.google.com>
-Content-Type: text/plain; charset="ISO-8859-1"; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <4F572730.8000000@cn.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org
+To: Miao Xie <miaox@cn.fujitsu.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Christoph Lameter <cl@linux.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On 03/07/2012 08:25 AM, David Rientjes wrote:
-> On Tue, 6 Mar 2012, Andrew Morton wrote:
->
->>> diff --git a/mm/mempolicy.c b/mm/mempolicy.c
->>> --- a/mm/mempolicy.c
->>> +++ b/mm/mempolicy.c
->>> @@ -1611,6 +1611,7 @@ unsigned slab_node(struct mempolicy *policy)
->>>
->>>   	default:
->>>   		BUG();
->>> +		return numa_node_id();
->>>   	}
->>>   }
->>
->> Wait.  If the above code generated a warning then surely we get a *lot*
->> of warnings!  I'd expect that a lot of code assumes that BUG() never
->> returns?
->>
->
-> allyesconfig with CONFIG_BUG=n results in 50 such warnings tree wide, and
-> this is the only one in mm/*.
->
->> Also, does CONIG_BUG=n even make sense?  If we got here and we know
->> that the kernel has malfunctioned, what point is there in pretending
->> otherwise?  Odd.
->>
->
-> I don't suspect we'll be very popular if we try to remove it, I can see
-> how it would be useful when BUG() is used when the problem isn't really
-> fatal (to stop something like disk corruption), like the above case isn't.
-I guess everyone that is able to track the problem back to an instance 
-of BUG(), be skilled enough to be sure it is not fatal, and then 
-recompile the kernel with this option (that I bet many of us didn't even 
-know that existed), can very well just change it to a WARN_*, (and maybe 
-patch it upstream).
+On Wed, Mar 07, 2012 at 05:15:28PM +0800, Miao Xie wrote:
+> On Tue, 6 Mar 2012 13:27:35 +0000, Mel Gorman wrote:
+> [skip]
+> > @@ -964,7 +964,6 @@ static void cpuset_change_task_nodemask(struct task_struct *tsk,
+> >  {
+> >  	bool need_loop;
+> >  
+> > -repeat:
+> >  	/*
+> >  	 * Allow tasks that have access to memory reserves because they have
+> >  	 * been OOM killed to get memory anywhere.
+> > @@ -983,45 +982,19 @@ repeat:
+> >  	 */
+> >  	need_loop = task_has_mempolicy(tsk) ||
+> >  			!nodes_intersects(*newmems, tsk->mems_allowed);
+> > -	nodes_or(tsk->mems_allowed, tsk->mems_allowed, *newmems);
+> > -	mpol_rebind_task(tsk, newmems, MPOL_REBIND_STEP1);
+> >  
+> > -	/*
+> > -	 * ensure checking ->mems_allowed_change_disable after setting all new
+> > -	 * allowed nodes.
+> > -	 *
+> > -	 * the read-side task can see an nodemask with new allowed nodes and
+> > -	 * old allowed nodes. and if it allocates page when cpuset clears newly
+> > -	 * disallowed ones continuous, it can see the new allowed bits.
+> > -	 *
+> > -	 * And if setting all new allowed nodes is after the checking, setting
+> > -	 * all new allowed nodes and clearing newly disallowed ones will be done
+> > -	 * continuous, and the read-side task may find no node to alloc page.
+> > -	 */
+> > -	smp_mb();
+> > +	if (need_loop)
+> > +		write_seqcount_begin(&tsk->mems_allowed_seq);
+> >  
+> > -	/*
+> > -	 * Allocation of memory is very fast, we needn't sleep when waiting
+> > -	 * for the read-side.
+> > -	 */
+> > -	while (need_loop && ACCESS_ONCE(tsk->mems_allowed_change_disable)) {
+> > -		task_unlock(tsk);
+> > -		if (!task_curr(tsk))
+> > -			yield();
+> > -		goto repeat;
+> > -	}
+> > -
+> > -	/*
+> > -	 * ensure checking ->mems_allowed_change_disable before clearing all new
+> > -	 * disallowed nodes.
+> > -	 *
+> > -	 * if clearing newly disallowed bits before the checking, the read-side
+> > -	 * task may find no node to alloc page.
+> > -	 */
+> > -	smp_mb();
+> > +	nodes_or(tsk->mems_allowed, tsk->mems_allowed, *newmems);
+> > +	mpol_rebind_task(tsk, newmems, MPOL_REBIND_STEP1);
+> >  
+> >  	mpol_rebind_task(tsk, newmems, MPOL_REBIND_STEP2);
+> >  	tsk->mems_allowed = *newmems;
+> > +
+> > +	if (need_loop)
+> > +		write_seqcount_end(&tsk->mems_allowed_seq);
+> > +
+> >  	task_unlock(tsk);
+> >  }
+> 
+
+Thanks for reviewing this.
+
+> With this patch, we needn't break the nodemask update into two steps.
+> 
+
+Good point. At a glance it's sufficiently complex to warrent its own patch.
+
+> Beside that, we need deal with fork() carefully, or it is possible that the child
+> task will be set to a wrong nodemask.
+> 
+
+Can you clarify this statement please? It's not clear what the old code
+did that protected against problems in fork() versus this patch. fork is
+not calling get_mems_allowed() for example or doing anything special
+around mems_allowed.
+
+Maybe you are talking about an existing problem whereby during fork
+there should be get_mems_allowed/put_mems_allowed and the mems_allowed
+mask gets copied explicitly?
+
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
