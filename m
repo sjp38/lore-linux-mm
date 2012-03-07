@@ -1,81 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx145.postini.com [74.125.245.145])
-	by kanga.kvack.org (Postfix) with SMTP id BFF4C6B004D
-	for <linux-mm@kvack.org>; Wed,  7 Mar 2012 18:30:07 -0500 (EST)
-Message-ID: <4F57EF6F.2010408@utoronto.ca>
-Date: Wed, 07 Mar 2012 18:29:51 -0500
-From: Steven Truelove <steven.truelove@utoronto.ca>
+Received: from psmtp.com (na3sys010amx184.postini.com [74.125.245.184])
+	by kanga.kvack.org (Postfix) with SMTP id A949D6B002C
+	for <linux-mm@kvack.org>; Wed,  7 Mar 2012 18:39:42 -0500 (EST)
+Date: Wed, 7 Mar 2012 18:39:39 -0500
+From: Dave Jones <davej@redhat.com>
+Subject: decode GFP flags in oom killer output.
+Message-ID: <20120307233939.GB5574@redhat.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH] Correct alignment of huge page requests.
-References: <1330830176-19449-1-git-send-email-n-horiguchi@ah.jp.nec.com>
-In-Reply-To: <1330830176-19449-1-git-send-email-n-horiguchi@ah.jp.nec.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: wli@holomorphy.com, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Linux Kernel <linux-kernel@vger.kernel.org>
+Cc: linux-mm@kvack.org
 
-On 03/03/2012 10:02 PM, Naoya Horiguchi wrote:
-> On Thu, Mar 01, 2012 at 09:58:41PM -0500, Steven Truelove wrote:
->> When calling shmget() with SHM_HUGETLB, shmget aligns the request size to PAGE_SIZE, but this is not sufficient.  Modified hugetlb_file_setup() to align requests to the huge page size, and to accept an address argument so that all alignment checks can be performed in hugetlb_file_setup(), rather than in its callers.  Changed newseg and mmap_pgoff to match new prototype and eliminated a now redundant alignment check.
-> I think only rounding up request size in shmget() is not sufficient,
-> because later shmat() also have alignment check and fails to mmap()
-> to unaligned address.
-> Maybe file->f_op->get_unmapped_area() (or hugetlb_get_unmapped_area())
-> should have round up code, I think.
-> Could you try it?
+Decoding these flags by hand in oom reports is tedious,
+and error-prone.
 
-Because the allocation is done in shmget() and the the address is not 
-provided until shmat(), I don't see a way to make this work reasonably.  
-I would argue that only allowing aligned addresses, or allowing the 
-kernel to choose the address, is a reasonable restriction on SHM_HUGETLB 
-usage.
+Signed-off-by: Dave Jones <davej@redhat.com>
 
-Regarding your other comments, I will submit a revised patch.
-
-Thanks,
-
-Steven Truelove
-
-
-> And a few comments below,
->
->> Signed-off-by: Steven Truelove<steven.truelove@utoronto.ca>
->> ---
->>   fs/hugetlbfs/inode.c    |   12 ++++++++----
->>   include/linux/hugetlb.h |    3 ++-
->>   ipc/shm.c               |    2 +-
->>   mm/mmap.c               |    6 +++---
->>   4 files changed, 14 insertions(+), 9 deletions(-)
->>
->> diff --git a/fs/hugetlbfs/inode.c b/fs/hugetlbfs/inode.c
->> index 1e85a7a..a97b7cc 100644
->> --- a/fs/hugetlbfs/inode.c
->> +++ b/fs/hugetlbfs/inode.c
->> @@ -928,7 +928,7 @@ static int can_do_hugetlb_shm(void)
->>   	return capable(CAP_IPC_LOCK) || in_group_p(sysctl_hugetlb_shm_group);
->>   }
->>
->> -struct file *hugetlb_file_setup(const char *name, size_t size,
->> +struct file *hugetlb_file_setup(const char *name, unsigned long addr, size_t size,
-> Just a nitpick, this line is over 80 characters.
-> checkpatch.pl should warn.
->
->>   				vm_flags_t acctflag,
->>   				struct user_struct **user, int creat_flags)
->>   {
->> @@ -938,6 +938,8 @@ struct file *hugetlb_file_setup(const char *name, size_t size,
->>   	struct path path;
->>   	struct dentry *root;
->>   	struct qstr quick_string;
->> +	struct hstate *hstate;
->> +	int num_pages;
-> Is unsigned long better?
->
-> Thanks,
-> Naoya
->
+diff -durpN '--exclude-from=/home/davej/.exclude' -u src/git-trees/kernel/linux/include/linux/gfp.h linux-dj/include/linux/gfp.h
+--- linux/include/linux/gfp.h	2012-01-11 16:54:21.736395499 -0500
++++ linux-dj/include/linux/gfp.h	2012-03-06 13:17:37.294692113 -0500
+@@ -10,6 +10,7 @@
+ struct vm_area_struct;
+ 
+ /* Plain integer GFP bitmasks. Do not use this directly. */
++/* Update mm/oom_kill.c gfp_flag_texts when adding to/changing this list */
+ #define ___GFP_DMA		0x01u
+ #define ___GFP_HIGHMEM		0x02u
+ #define ___GFP_DMA32		0x04u
+diff -durpN '--exclude-from=/home/davej/.exclude' -u src/git-trees/kernel/linux/mm/oom_kill.c linux-dj/mm/oom_kill.c
+--- linux/mm/oom_kill.c	2012-01-17 17:54:14.541881964 -0500
++++ linux-dj/mm/oom_kill.c	2012-03-06 13:17:44.071680535 -0500
+@@ -416,13 +416,40 @@ static void dump_tasks(const struct mem_
+ 	}
+ }
+ 
++static unsigned char *gfp_flag_texts[32] = {
++	"DMA", "HIGHMEM", "DMA32", "MOVABLE",
++	"WAIT", "HIGH", "IO", "FS",
++	"COLD", "NOWARN", "REPEAT", "NOFAIL",
++	"NORETRY", NULL, "COMP", "ZERO",
++	"NOMEMALLOC", "HARDWALL", "THISNODE", "RECLAIMABLE",
++	NULL, "NOTRACK", "NO_KSWAPD", "OTHER_NODE",
++};
++
++static void decode_gfp_mask(gfp_t gfp_mask, char *out_string)
++{
++	unsigned int i;
++
++	for (i = 0; i < 32; i++) {
++		if (gfp_mask & (1 << i)) {
++			if (gfp_flag_texts[i])
++				out_string += sprintf(out_string, "%s ", gfp_flag_texts[i]);
++			else
++				out_string += sprintf(out_string, "reserved! ");
++		}
++	}
++	out_string = "\0";
++}
++
+ static void dump_header(struct task_struct *p, gfp_t gfp_mask, int order,
+ 			struct mem_cgroup *memcg, const nodemask_t *nodemask)
+ {
++	char gfp_string[80];
+ 	task_lock(current);
+-	pr_warning("%s invoked oom-killer: gfp_mask=0x%x, order=%d, "
++	decode_gfp_mask(gfp_mask, gfp_string);
++	pr_warning("%s invoked oom-killer: gfp_mask=0x%x [%s], order=%d, "
+ 		"oom_adj=%d, oom_score_adj=%d\n",
+-		current->comm, gfp_mask, order, current->signal->oom_adj,
++		current->comm, gfp_mask, gfp_string,
++		order, current->signal->oom_adj,
+ 		current->signal->oom_score_adj);
+ 	cpuset_print_task_mems_allowed(current);
+ 	task_unlock(current);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
