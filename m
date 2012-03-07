@@ -1,96 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx198.postini.com [74.125.245.198])
-	by kanga.kvack.org (Postfix) with SMTP id A93026B004A
-	for <linux-mm@kvack.org>; Wed,  7 Mar 2012 01:39:05 -0500 (EST)
-Received: by vbbey12 with SMTP id ey12so6743175vbb.14
-        for <linux-mm@kvack.org>; Tue, 06 Mar 2012 22:39:04 -0800 (PST)
-Message-ID: <4F570286.8020704@gmail.com>
-Date: Wed, 07 Mar 2012 01:39:02 -0500
-From: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
+Received: from psmtp.com (na3sys010amx159.postini.com [74.125.245.159])
+	by kanga.kvack.org (Postfix) with SMTP id 434836B004A
+	for <linux-mm@kvack.org>; Wed,  7 Mar 2012 01:47:57 -0500 (EST)
+Date: Tue, 6 Mar 2012 22:42:52 -0800
+From: Fengguang Wu <fengguang.wu@intel.com>
+Subject: Re: [Lsf-pc] [ATTEND] [LSF/MM TOPIC] Buffered writes throttling
+Message-ID: <20120307064252.GB2445@localhost>
+References: <4F507453.1020604@suse.com>
+ <20120302153322.GB26315@redhat.com>
+ <20120305202330.GD11238@quack.suse.cz>
+ <20120305221843.GH18546@redhat.com>
+ <20120305223637.GB5479@quack.suse.cz>
 MIME-Version: 1.0
-Subject: Re: [patch] mm, oom: allow exiting tasks to have access to memory
- reserves
-References: <alpine.DEB.2.00.1203061824280.9015@chino.kir.corp.google.com>
-In-Reply-To: <alpine.DEB.2.00.1203061824280.9015@chino.kir.corp.google.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20120305223637.GB5479@quack.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, kosaki.motohiro@gmail.com
+To: Jan Kara <jack@suse.cz>
+Cc: Vivek Goyal <vgoyal@redhat.com>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, lsf-pc@lists.linux-foundation.org, Andrea Righi <andrea@betterlinux.com>, Suresh Jayaraman <sjayaraman@suse.com>
 
-(3/6/12 9:25 PM), David Rientjes wrote:
-> The tasklist iteration only checks processes and avoids individual
-> threads so it is possible that threads that are currently exiting may not
-> appropriately being selected for oom kill.  This can lead to negative
-> results such as an innocent process being killed in the interim or, in
-> the worst case, the machine panicking because there is nothing else to kill.
->
-> We automatically select PF_EXITING threads during the tasklist iteration,
-> so this saves time and prevents threads that haven't yet exited (although
-> their parent has been oom killed) from getting missed.
->
-> Note that by doing this we aren't actually oom killing an exiting thread
-> but rather giving it full access to memory reserves so it may quickly
-> exit and free its memory.
->
-> Signed-off-by: David Rientjes<rientjes@google.com>
+On Mon, Mar 05, 2012 at 11:36:37PM +0100, Jan Kara wrote:
+> On Mon 05-03-12 17:18:43, Vivek Goyal wrote:
+> > On Mon, Mar 05, 2012 at 09:23:30PM +0100, Jan Kara wrote:
+> > 
+> > [..]
+> > > Having the limits for dirty rate and other IO separate means I
+> > > have to be rather pesimistic in setting the bounds so that combination of
+> > > dirty rate + other IO limit doesn't exceed the desired bound but this is
+> > > usually unnecessarily harsh...
+> > 
+> > We had solved this issue in my previous posting.
+> > 
+> > https://lkml.org/lkml/2011/6/28/243
+> > 
+> > I was accounting the buffered writes to associated block group in 
+> > balance dirty pages and throttling it if group was exceeding upper
+> > limit. This had common limit for all kind of writes (direct + buffered +
+> > sync etc).
+>   Ah, I didn't know that.
+> 
+> > But it also had its share of issues.
+> > 
+> > - Control was per device (not global) and was not applicable to NFS.
+> > - Will not prevent IO spikes at devices (caused by flusher threads).
+> > 
+> > Dave Chinner preferred to throttle IO at devices much later.
+> > 
+> > I personally think that "dirty rate limit" does not solve all problems
+> > but has some value and it will be interesting to merge any one
+> > implementation and see if it solves a real world problem.
+>   It rather works the other way around - you first have to show enough
+> users are interested in the particular feature you want to merge and then the
+> feature can get merged. Once the feature is merged we are stuck supporting
+> it forever so we have to be very cautious in what we merge...
 
-As far as I remembered, this idea was sometimes NAKed and you don't bring new idea here.
-When exiting a process which have plenty threads, this patch allow to eat all of reserve memory
-and bring us new serious failure.
+Agreed.
 
-Moreover, creating new thread isn't needed root privilege, then this trick can be used by attacker.
+> > It does not block any other idea of buffered write proportional control
+> > or even implementing upper limit in blkcg. We could put "dirty rate
+> > limit" in memcg and develop rest of the ideas in blkcg, writeback etc.
+>   Yes, it doesn't block them but OTOH we should have as few features as
+> possible because otherwise it's a configuration and maintenance nightmare
+> (both from admin and kernel POV). So we should think twice what set of
+> features we choose to satisfy user demand.
 
-- kosaki
+Yeah it's a good idea to first figure out the ideal set of user
+interfaces that are simple, natural, flexible and extensible. Then
+look into the implementations and see how can we provide interfaces
+closest to the ideal ones (if not 100% feasible).
 
-
-> ---
->   mm/oom_kill.c |   16 ++++++++--------
->   1 file changed, 8 insertions(+), 8 deletions(-)
->
-> diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-> --- a/mm/oom_kill.c
-> +++ b/mm/oom_kill.c
-> @@ -568,11 +568,11 @@ void mem_cgroup_out_of_memory(struct mem_cgroup *memcg, gfp_t gfp_mask)
->   	struct task_struct *p;
->
->   	/*
-> -	 * If current has a pending SIGKILL, then automatically select it.  The
-> -	 * goal is to allow it to allocate so that it may quickly exit and free
-> -	 * its memory.
-> +	 * If current is exiting (or going to exit), then automatically select
-> +	 * it.  The goal is to allow it to allocate so that it may quickly exit
-> +	 * and free its memory.
->   	 */
-> -	if (fatal_signal_pending(current)) {
-> +	if (fatal_signal_pending(current) || (current->flags&  PF_EXITING)) {
->   		set_thread_flag(TIF_MEMDIE);
->   		return;
->   	}
-> @@ -723,11 +723,11 @@ void out_of_memory(struct zonelist *zonelist, gfp_t gfp_mask,
->   		return;
->
->   	/*
-> -	 * If current has a pending SIGKILL, then automatically select it.  The
-> -	 * goal is to allow it to allocate so that it may quickly exit and free
-> -	 * its memory.
-> +	 * If current is exiting (or going to exit), then automatically select
-> +	 * it.  The goal is to allow it to allocate so that it may quickly exit
-> +	 * and free its memory.
->   	 */
-> -	if (fatal_signal_pending(current)) {
-> +	if (fatal_signal_pending(current) || (current->flags&  PF_EXITING)) {
->   		set_thread_flag(TIF_MEMDIE);
->   		return;
->   	}
->
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Fight unfair telecom internet charges in Canada: sign http://stopthemeter.ca/
-> Don't email:<a href=mailto:"dont@kvack.org">  email@kvack.org</a>
+Thanks,
+Fengguang
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
