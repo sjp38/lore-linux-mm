@@ -1,110 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx128.postini.com [74.125.245.128])
-	by kanga.kvack.org (Postfix) with SMTP id 510D56B004A
-	for <linux-mm@kvack.org>; Wed,  7 Mar 2012 02:22:39 -0500 (EST)
-Received: by iajr24 with SMTP id r24so10725002iaj.14
-        for <linux-mm@kvack.org>; Tue, 06 Mar 2012 23:22:38 -0800 (PST)
-Date: Tue, 6 Mar 2012 23:22:36 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
-Subject: [patch v2] mm, oom: allow exiting tasks to have access to memory
- reserves
-In-Reply-To: <alpine.DEB.2.00.1203062316430.4158@chino.kir.corp.google.com>
-Message-ID: <alpine.DEB.2.00.1203062321590.4158@chino.kir.corp.google.com>
-References: <alpine.DEB.2.00.1203061824280.9015@chino.kir.corp.google.com> <4F570286.8020704@gmail.com> <alpine.DEB.2.00.1203062316430.4158@chino.kir.corp.google.com>
+Received: from psmtp.com (na3sys010amx179.postini.com [74.125.245.179])
+	by kanga.kvack.org (Postfix) with SMTP id E31416B004A
+	for <linux-mm@kvack.org>; Wed,  7 Mar 2012 04:07:00 -0500 (EST)
+Message-ID: <4F5724BC.10207@cn.fujitsu.com>
+Date: Wed, 07 Mar 2012 17:05:00 +0800
+From: Miao Xie <miaox@cn.fujitsu.com>
+Reply-To: miaox@cn.fujitsu.com
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [PATCH] cpuset: mm: Reduce large amounts of memory barrier related
+ damage v2
+References: <20120306132735.GA2855@suse.de> <20120306122657.8e5b128d.akpm@linux-foundation.org> <20120306224201.GA17697@suse.de> <20120306145451.8eff82a6.akpm@linux-foundation.org>
+In-Reply-To: <20120306145451.8eff82a6.akpm@linux-foundation.org>
+Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>
-Cc: linux-mm@kvack.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Christoph Lameter <cl@linux.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-The tasklist iteration only checks processes and avoids individual
-threads so it is possible that threads that are currently exiting may not
-appropriately being selected for oom kill.  This can lead to negative
-results such as an innocent process being killed in the interim or, in
-the worst case, the machine panicking because there is nothing else to kill.
+On Tue, 6 Mar 2012 14:54:51 -0800, Andrew Morton wrote:
+>>>> -static inline void put_mems_allowed(void)
+>>>> +/*
+>>>> + * If this returns false, the operation that took place after get_mems_allowed
+>>>> + * may have failed. It is up to the caller to retry the operation if
+>>>> + * appropriate
+>>>> + */
+>>>> +static inline bool put_mems_allowed(unsigned int seq)
+>>>>  {
+>>>> -	/*
+>>>> -	 * ensure that reading mems_allowed and mempolicy before reducing
+>>>> -	 * mems_allowed_change_disable.
+>>>> -	 *
+>>>> -	 * the write-side task will know that the read-side task is still
+>>>> -	 * reading mems_allowed or mempolicy, don't clears old bits in the
+>>>> -	 * nodemask.
+>>>> -	 */
+>>>> -	smp_mb();
+>>>> -	--ACCESS_ONCE(current->mems_allowed_change_disable);
+>>>> +	return !read_seqcount_retry(&current->mems_allowed_seq, seq);
+>>>>  }
+>>>>  
+>>>>  static inline void set_mems_allowed(nodemask_t nodemask)
+>>>
+>>> How come set_mems_allowed() still uses task_lock()?
+>>>
+>>
+>> Consistency.
+>>
+>> The task_lock is taken by kernel/cpuset.c when updating
+>> mems_allowed so it is taken here. That said, it is unnecessary to take
+>> as the two places where set_mems_allowed is used are not going to be
+>> racing. In the unlikely event that set_mems_allowed() gets another user,
+>> there is no harm is leaving the task_lock as it is. It's not in a hot
+>> path of any description.
+> 
+> But shouldn't set_mems_allowed() bump mems_allowed_seq?
+> 
 
-We automatically select PF_EXITING threads during the tasklist iteration in
-select_bad_process(), so this saves time and prevents threads that haven't
-yet exited (although their parent has been oom killed) from getting missed.
-It also allows that code to be removed from select_bad_process().
+task_lock is also used to protect mempolicy, so ...
 
-Note that by doing this we aren't actually oom killing an exiting thread
-but rather giving it full access to memory reserves so it may quickly
-exit and free its memory.
-
-Signed-off-by: David Rientjes <rientjes@google.com>
----
- mm/oom_kill.c |   40 +++++++++++++---------------------------
- 1 file changed, 13 insertions(+), 27 deletions(-)
-
-diff --git a/mm/oom_kill.c b/mm/oom_kill.c
---- a/mm/oom_kill.c
-+++ b/mm/oom_kill.c
-@@ -342,26 +342,12 @@ static struct task_struct *select_bad_process(unsigned int *ppoints,
- 
- 		if (p->flags & PF_EXITING) {
- 			/*
--			 * If p is the current task and is in the process of
--			 * releasing memory, we allow the "kill" to set
--			 * TIF_MEMDIE, which will allow it to gain access to
--			 * memory reserves.  Otherwise, it may stall forever.
--			 *
--			 * The loop isn't broken here, however, in case other
--			 * threads are found to have already been oom killed.
-+			 * If this task is not being ptraced on exit, then wait
-+			 * for it to finish before killing some other task
-+			 * unnecessarily.
- 			 */
--			if (p == current) {
--				chosen = p;
--				*ppoints = 1000;
--			} else {
--				/*
--				 * If this task is not being ptraced on exit,
--				 * then wait for it to finish before killing
--				 * some other task unnecessarily.
--				 */
--				if (!(p->group_leader->ptrace & PT_TRACE_EXIT))
--					return ERR_PTR(-1UL);
--			}
-+			if (!(p->group_leader->ptrace & PT_TRACE_EXIT))
-+				return ERR_PTR(-1UL);
- 		}
- 
- 		points = oom_badness(p, memcg, nodemask, totalpages);
-@@ -568,11 +554,11 @@ void mem_cgroup_out_of_memory(struct mem_cgroup *memcg, gfp_t gfp_mask)
- 	struct task_struct *p;
- 
- 	/*
--	 * If current has a pending SIGKILL, then automatically select it.  The
--	 * goal is to allow it to allocate so that it may quickly exit and free
--	 * its memory.
-+	 * If current is exiting (or going to exit), then automatically select
-+	 * it.  The goal is to allow it to allocate so that it may quickly exit
-+	 * and free its memory.
- 	 */
--	if (fatal_signal_pending(current)) {
-+	if (fatal_signal_pending(current) || (current->flags & PF_EXITING)) {
- 		set_thread_flag(TIF_MEMDIE);
- 		return;
- 	}
-@@ -723,11 +709,11 @@ void out_of_memory(struct zonelist *zonelist, gfp_t gfp_mask,
- 		return;
- 
- 	/*
--	 * If current has a pending SIGKILL, then automatically select it.  The
--	 * goal is to allow it to allocate so that it may quickly exit and free
--	 * its memory.
-+	 * If current is exiting (or going to exit), then automatically select
-+	 * it.  The goal is to allow it to allocate so that it may quickly exit
-+	 * and free its memory.
- 	 */
--	if (fatal_signal_pending(current)) {
-+	if (fatal_signal_pending(current) || (current->flags & PF_EXITING)) {
- 		set_thread_flag(TIF_MEMDIE);
- 		return;
- 	}
+Thanks
+Miao
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
