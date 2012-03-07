@@ -1,112 +1,98 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx108.postini.com [74.125.245.108])
-	by kanga.kvack.org (Postfix) with SMTP id 19F346B004D
-	for <linux-mm@kvack.org>; Wed,  7 Mar 2012 06:22:06 -0500 (EST)
-Date: Wed, 7 Mar 2012 11:22:01 +0000
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH] cpuset: mm: Reduce large amounts of memory barrier
- related damage v2
-Message-ID: <20120307112201.GC17697@suse.de>
-References: <20120306132735.GA2855@suse.de>
- <4F572730.8000000@cn.fujitsu.com>
+Received: from psmtp.com (na3sys010amx118.postini.com [74.125.245.118])
+	by kanga.kvack.org (Postfix) with SMTP id EE1026B004A
+	for <linux-mm@kvack.org>; Wed,  7 Mar 2012 07:11:05 -0500 (EST)
+Received: from /spool/local
+	by e28smtp03.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <xiaoguangrong@linux.vnet.ibm.com>;
+	Wed, 7 Mar 2012 17:41:02 +0530
+Received: from d28av02.in.ibm.com (d28av02.in.ibm.com [9.184.220.64])
+	by d28relay05.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q27CAlY94231260
+	for <linux-mm@kvack.org>; Wed, 7 Mar 2012 17:40:48 +0530
+Received: from d28av02.in.ibm.com (loopback [127.0.0.1])
+	by d28av02.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q27HfNxR013831
+	for <linux-mm@kvack.org>; Thu, 8 Mar 2012 04:41:23 +1100
+Message-ID: <4F575045.9010904@linux.vnet.ibm.com>
+Date: Wed, 07 Mar 2012 20:10:45 +0800
+From: Xiao Guangrong <xiaoguangrong@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <4F572730.8000000@cn.fujitsu.com>
+Subject: PATCH 1/2] rmap: cleanup anon_vma_prepare
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Miao Xie <miaox@cn.fujitsu.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Christoph Lameter <cl@linux.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Hugh Dickins <hughd@google.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-On Wed, Mar 07, 2012 at 05:15:28PM +0800, Miao Xie wrote:
-> On Tue, 6 Mar 2012 13:27:35 +0000, Mel Gorman wrote:
-> [skip]
-> > @@ -964,7 +964,6 @@ static void cpuset_change_task_nodemask(struct task_struct *tsk,
-> >  {
-> >  	bool need_loop;
-> >  
-> > -repeat:
-> >  	/*
-> >  	 * Allow tasks that have access to memory reserves because they have
-> >  	 * been OOM killed to get memory anywhere.
-> > @@ -983,45 +982,19 @@ repeat:
-> >  	 */
-> >  	need_loop = task_has_mempolicy(tsk) ||
-> >  			!nodes_intersects(*newmems, tsk->mems_allowed);
-> > -	nodes_or(tsk->mems_allowed, tsk->mems_allowed, *newmems);
-> > -	mpol_rebind_task(tsk, newmems, MPOL_REBIND_STEP1);
-> >  
-> > -	/*
-> > -	 * ensure checking ->mems_allowed_change_disable after setting all new
-> > -	 * allowed nodes.
-> > -	 *
-> > -	 * the read-side task can see an nodemask with new allowed nodes and
-> > -	 * old allowed nodes. and if it allocates page when cpuset clears newly
-> > -	 * disallowed ones continuous, it can see the new allowed bits.
-> > -	 *
-> > -	 * And if setting all new allowed nodes is after the checking, setting
-> > -	 * all new allowed nodes and clearing newly disallowed ones will be done
-> > -	 * continuous, and the read-side task may find no node to alloc page.
-> > -	 */
-> > -	smp_mb();
-> > +	if (need_loop)
-> > +		write_seqcount_begin(&tsk->mems_allowed_seq);
-> >  
-> > -	/*
-> > -	 * Allocation of memory is very fast, we needn't sleep when waiting
-> > -	 * for the read-side.
-> > -	 */
-> > -	while (need_loop && ACCESS_ONCE(tsk->mems_allowed_change_disable)) {
-> > -		task_unlock(tsk);
-> > -		if (!task_curr(tsk))
-> > -			yield();
-> > -		goto repeat;
-> > -	}
-> > -
-> > -	/*
-> > -	 * ensure checking ->mems_allowed_change_disable before clearing all new
-> > -	 * disallowed nodes.
-> > -	 *
-> > -	 * if clearing newly disallowed bits before the checking, the read-side
-> > -	 * task may find no node to alloc page.
-> > -	 */
-> > -	smp_mb();
-> > +	nodes_or(tsk->mems_allowed, tsk->mems_allowed, *newmems);
-> > +	mpol_rebind_task(tsk, newmems, MPOL_REBIND_STEP1);
-> >  
-> >  	mpol_rebind_task(tsk, newmems, MPOL_REBIND_STEP2);
-> >  	tsk->mems_allowed = *newmems;
-> > +
-> > +	if (need_loop)
-> > +		write_seqcount_end(&tsk->mems_allowed_seq);
-> > +
-> >  	task_unlock(tsk);
-> >  }
-> 
+Using the common function anon_vma_chain_link() to link vma and anon_vma
 
-Thanks for reviewing this.
+Signed-off-by: Xiao Guangrong <xiaoguangrong@linux.vnet.ibm.com>
+---
+ mm/rmap.c |   35 ++++++++++++++++-------------------
+ 1 files changed, 16 insertions(+), 19 deletions(-)
 
-> With this patch, we needn't break the nodemask update into two steps.
-> 
+diff --git a/mm/rmap.c b/mm/rmap.c
+index c8454e0..55c5064 100644
+--- a/mm/rmap.c
++++ b/mm/rmap.c
+@@ -120,6 +120,21 @@ static void anon_vma_chain_free(struct anon_vma_chain *anon_vma_chain)
+ 	kmem_cache_free(anon_vma_chain_cachep, anon_vma_chain);
+ }
 
-Good point. At a glance it's sufficiently complex to warrent its own patch.
++static void anon_vma_chain_link(struct vm_area_struct *vma,
++				struct anon_vma_chain *avc,
++				struct anon_vma *anon_vma)
++{
++	avc->vma = vma;
++	avc->anon_vma = anon_vma;
++	list_add(&avc->same_vma, &vma->anon_vma_chain);
++
++	/*
++	 * It's critical to add new vmas to the tail of the anon_vma,
++	 * see comment in huge_memory.c:__split_huge_page().
++	 */
++	list_add_tail(&avc->same_anon_vma, &anon_vma->head);
++}
++
+ /**
+  * anon_vma_prepare - attach an anon_vma to a memory region
+  * @vma: the memory region in question
+@@ -175,10 +190,7 @@ int anon_vma_prepare(struct vm_area_struct *vma)
+ 		spin_lock(&mm->page_table_lock);
+ 		if (likely(!vma->anon_vma)) {
+ 			vma->anon_vma = anon_vma;
+-			avc->anon_vma = anon_vma;
+-			avc->vma = vma;
+-			list_add(&avc->same_vma, &vma->anon_vma_chain);
+-			list_add_tail(&avc->same_anon_vma, &anon_vma->head);
++			anon_vma_chain_link(vma, avc, anon_vma);
+ 			allocated = NULL;
+ 			avc = NULL;
+ 		}
+@@ -224,21 +236,6 @@ static inline void unlock_anon_vma_root(struct anon_vma *root)
+ 		mutex_unlock(&root->mutex);
+ }
 
-> Beside that, we need deal with fork() carefully, or it is possible that the child
-> task will be set to a wrong nodemask.
-> 
-
-Can you clarify this statement please? It's not clear what the old code
-did that protected against problems in fork() versus this patch. fork is
-not calling get_mems_allowed() for example or doing anything special
-around mems_allowed.
-
-Maybe you are talking about an existing problem whereby during fork
-there should be get_mems_allowed/put_mems_allowed and the mems_allowed
-mask gets copied explicitly?
-
+-static void anon_vma_chain_link(struct vm_area_struct *vma,
+-				struct anon_vma_chain *avc,
+-				struct anon_vma *anon_vma)
+-{
+-	avc->vma = vma;
+-	avc->anon_vma = anon_vma;
+-	list_add(&avc->same_vma, &vma->anon_vma_chain);
+-
+-	/*
+-	 * It's critical to add new vmas to the tail of the anon_vma,
+-	 * see comment in huge_memory.c:__split_huge_page().
+-	 */
+-	list_add_tail(&avc->same_anon_vma, &anon_vma->head);
+-}
+-
+ /*
+  * Attach the anon_vmas from src to dst.
+  * Returns 0 on success, -ENOMEM on failure.
 -- 
-Mel Gorman
-SUSE Labs
+1.7.7.6
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
