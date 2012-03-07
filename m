@@ -1,66 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx128.postini.com [74.125.245.128])
-	by kanga.kvack.org (Postfix) with SMTP id E11786B004A
-	for <linux-mm@kvack.org>; Wed,  7 Mar 2012 10:46:29 -0500 (EST)
-Message-ID: <1331135301.32316.29.camel@sauron.fi.intel.com>
-Subject: Re: [PATCH 5/9] writeback: introduce the pageout work
-From: Artem Bityutskiy <dedekind1@gmail.com>
-Reply-To: dedekind1@gmail.com
-Date: Wed, 07 Mar 2012 17:48:21 +0200
-In-Reply-To: <20120303135558.GA9869@localhost>
-References: <20120228140022.614718843@intel.com>
-	 <20120228144747.198713792@intel.com>
-	 <20120228160403.9c9fa4dc.akpm@linux-foundation.org>
-	 <20120301123640.GA30369@localhost> <20120301163837.GA13104@quack.suse.cz>
-	 <20120302044858.GA14802@localhost> <20120302095910.GB1744@quack.suse.cz>
-	 <20120302103951.GA13378@localhost>
-	 <20120302115700.7d970497.akpm@linux-foundation.org>
-	 <20120303135558.GA9869@localhost>
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: 7bit
-Mime-Version: 1.0
+Received: from psmtp.com (na3sys010amx137.postini.com [74.125.245.137])
+	by kanga.kvack.org (Postfix) with SMTP id D46216B004D
+	for <linux-mm@kvack.org>; Wed,  7 Mar 2012 10:47:38 -0500 (EST)
+Date: Wed, 7 Mar 2012 16:47:32 +0100
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [PATCH 1/2] ksm: clean up page_trans_compound_anon_split
+Message-ID: <20120307154732.GU13462@redhat.com>
+References: <1330594374-13497-1-git-send-email-lliubbo@gmail.com>
+ <alpine.LSU.2.00.1203061515470.1292@eggly.anvils>
+ <20120307001148.GO13462@redhat.com>
+ <20120307002616.GP13462@redhat.com>
+ <CAA_GA1d1MSQVcW=pabjVj0+oOyC1OzJmyqry-bNvZ=rDeTp--w@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CAA_GA1d1MSQVcW=pabjVj0+oOyC1OzJmyqry-bNvZ=rDeTp--w@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Fengguang Wu <fengguang.wu@intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, Greg Thelen <gthelen@google.com>, Ying Han <yinghan@google.com>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan.kim@gmail.com>, Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Adrian Hunter <ext-adrian.hunter@nokia.com>, Artem Bityutskiy <Artem.Bityutskiy@nokia.com>
+To: Bob Liu <lliubbo@gmail.com>
+Cc: Hugh Dickins <hughd@google.com>, akpm@linux-foundation.org, rientjes@google.com, kamezawa.hiroyu@jp.fujitsu.com, minchan.kim@gmail.com, linux-mm@kvack.org
 
-On Sat, 2012-03-03 at 21:55 +0800, Fengguang Wu wrote:
->   13   1125  /c/linux/fs/ubifs/file.c <<do_truncation>>   <===== deadlockable
+Hi Bob,
 
-Sorry, but could you please explain once again how the deadlock may
-happen?
+On Wed, Mar 07, 2012 at 06:39:12PM +0800, Bob Liu wrote:
+> Hi Andrea,
+> 
+> I think this patch may still break the origin meaning.
+> 
+> In case PageTransCompound(page) but !PageAnon(head) after this cleanup,
+> page_trans_compound_anon_split(page) will return 1 instead of 0 which
+> will cause following
+> PageAnon check to a compounded page.
 
-> It seems they are all safe except for ubifs. ubifs may actually
-> deadlock from the above do_truncation() caller. However it should be
-> fixable because the ubifs call for writeback_inodes_sb_nr() sounds
-> very brute force writeback and wait and there may well be better way
-> out.
+It won't check PageAnon if you return 1 in that case. Returning 1 will
+bail out immediately so it's always safe (simply it would become
+dangerous to call the page_trans_compound_anon_split on a page that
+wasn't PageTransCompound after the cleanup). The only downside is not
+a runtime one but a theoretical one: it makes the function less
+generic as it errors out even for regular pages now so it must only be
+called on compound pages after the cleanup (but it was already called
+only for compound pages so I couldn't argue against the cleanup, but
+hey I also feel like the original version was more generic).
 
-I do not think this "fixable" - this is part of UBIFS design to force
-write-back when we are not sure we have enough space.
+> 
+> So please just ignore this cleanup. Sorry for my noise.
 
-The problem is that we do not know how much space the dirty data in RAM
-will take on the flash media (after it is actually written-back) - e.g.,
-because we compress all the data (UBIFS performs on-the-flight
-compression). So we do pessimistic assumptions and allow dirtying more
-and more data as long as we know for sure that there is enough flash
-space on the media for the worst-case scenario (data are not
-compressible). This is what the UBIFS budgeting subsystem does.
+No problem, ok to drop it if you also like the current semantics more.
 
-Once the budgeting sub-system sees that we are not going to have enough
-flash space for the worst-case scenario, it starts forcing write-back to
-push some dirty data out to the flash media and update the budgeting
-numbers, and get more realistic picture.
-
-So basically, before you can change _anything_ on UBIFS file-system, you
-need to budget for the space. Even when you truncate - because
-truncation is also about allocating more space for writing the updated
-inode and update the FS index. (Remember, all writes are out-of-place in
-UBIFS because we work with raw flash, not a block device).
-
--- 
-Best Regards,
-Artem Bityutskiy
+Thanks,
+Andrea
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
