@@ -1,64 +1,220 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx166.postini.com [74.125.245.166])
-	by kanga.kvack.org (Postfix) with SMTP id 97FC76B004D
-	for <linux-mm@kvack.org>; Tue,  6 Mar 2012 22:21:44 -0500 (EST)
-Received: by mail-iy0-f169.google.com with SMTP id r24so10389355iaj.14
-        for <linux-mm@kvack.org>; Tue, 06 Mar 2012 19:21:44 -0800 (PST)
-Date: Tue, 6 Mar 2012 19:21:42 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
-Subject: [patch 2/2] mm, counters: fold __sync_task_rss_stat into
- sync_mm_rss
-In-Reply-To: <alpine.DEB.2.00.1203061919260.21806@chino.kir.corp.google.com>
-Message-ID: <alpine.DEB.2.00.1203061920370.21806@chino.kir.corp.google.com>
-References: <alpine.DEB.2.00.1203061919260.21806@chino.kir.corp.google.com>
+Received: from psmtp.com (na3sys010amx158.postini.com [74.125.245.158])
+	by kanga.kvack.org (Postfix) with SMTP id 246076B004A
+	for <linux-mm@kvack.org>; Tue,  6 Mar 2012 22:23:01 -0500 (EST)
+Received: by iajr24 with SMTP id r24so10391063iaj.14
+        for <linux-mm@kvack.org>; Tue, 06 Mar 2012 19:23:00 -0800 (PST)
+Date: Tue, 6 Mar 2012 19:22:21 -0800 (PST)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: [PATCH 3/7 v2] mm: rework __isolate_lru_page() file/anon
+ filter
+In-Reply-To: <20120303091327.17599.80336.stgit@zurg>
+Message-ID: <alpine.LSU.2.00.1203061904570.18675@eggly.anvils>
+References: <20120229091547.29236.28230.stgit@zurg> <20120303091327.17599.80336.stgit@zurg>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Konstantin Khlebnikov <khlebnikov@openvz.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <jweiner@redhat.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-There's no difference between sync_mm_rss() and __sync_task_rss_stat(),
-so fold the latter into the former.
+On Sat, 3 Mar 2012, Konstantin Khlebnikov wrote:
 
-Signed-off-by: David Rientjes <rientjes@google.com>
----
- mm/memory.c |    9 ++-------
- 1 file changed, 2 insertions(+), 7 deletions(-)
+> This patch adds file/anon filter bits into isolate_mode_t,
+> this allows to simplify checks in __isolate_lru_page().
+> 
+> v2:
+> * use switch () instead of if ()
+> * fixed lumpy-reclaim isolation mode
+> 
+> Signed-off-by: Konstantin Khlebnikov <khlebnikov@openvz.org>
 
-diff --git a/mm/memory.c b/mm/memory.c
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -125,7 +125,7 @@ core_initcall(init_zero_pfn);
- 
- #if defined(SPLIT_RSS_COUNTING)
- 
--static void __sync_task_rss_stat(struct mm_struct *mm)
-+void sync_mm_rss(struct mm_struct *mm)
- {
- 	int i;
- 
-@@ -157,7 +157,7 @@ static void check_sync_rss_stat(struct task_struct *task)
- 	if (unlikely(task != current))
- 		return;
- 	if (unlikely(task->rss_stat.events++ > TASK_RSS_EVENTS_THRESH))
--		__sync_task_rss_stat(task->mm);
-+		sync_mm_rss(task->mm);
- }
- 
- unsigned long get_mm_counter(struct mm_struct *mm, int member)
-@@ -177,11 +177,6 @@ unsigned long get_mm_counter(struct mm_struct *mm, int member)
- 		return 0;
- 	return (unsigned long)val;
- }
--
--void sync_mm_rss(struct mm_struct *mm)
--{
--	__sync_task_rss_stat(mm);
--}
- #else /* SPLIT_RSS_COUNTING */
- 
- #define inc_mm_counter_fast(mm, member) inc_mm_counter(mm, member)
+I'm sorry to be messing you around on this one, Konstantin, but...
+
+(a) if you do go with the switch statements,
+in kernel we align the "case"s underneath the "switch"
+
+but
+
+(b) I seem to be at odds with Kamezawa-san, I much preferred your
+original, which did in 2 lines what the switches do in 10 lines.
+And I'd say there's more opportunity for error in 10 lines than 2.
+
+What does the compiler say (4.5.1 here, OPTIMIZE_FOR_SIZE off)?
+   text	   data	    bss	    dec	    hex	filename
+  17723	    113	     17	  17853	   45bd	vmscan.o.0
+  17671	    113	     17	  17801	   4589	vmscan.o.1
+  17803	    113	     17	  17933	   460d	vmscan.o.2
+
+That suggests that your v2 is the worst and your v1 the best.
+Kame, can I persuade you to let the compiler decide on this?
+
+If people have to think for a moment about the concise expression,
+well, great, I don't mind people having to think about kernel code.
+
+Hugh
+
+> ---
+>  include/linux/mmzone.h |    4 ++++
+>  include/linux/swap.h   |    2 +-
+>  mm/compaction.c        |    5 +++--
+>  mm/vmscan.c            |   49 +++++++++++++++++++++++++++++++-----------------
+>  4 files changed, 40 insertions(+), 20 deletions(-)
+> 
+> diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
+> index 5f1e4ee..e60dcbd 100644
+> --- a/include/linux/mmzone.h
+> +++ b/include/linux/mmzone.h
+> @@ -192,6 +192,10 @@ struct lruvec {
+>  #define ISOLATE_UNMAPPED	((__force isolate_mode_t)0x8)
+>  /* Isolate for asynchronous migration */
+>  #define ISOLATE_ASYNC_MIGRATE	((__force isolate_mode_t)0x10)
+> +/* Isolate swap-backed pages */
+> +#define ISOLATE_ANON		((__force isolate_mode_t)0x20)
+> +/* Isolate file-backed pages */
+> +#define ISOLATE_FILE		((__force isolate_mode_t)0x40)
+>  
+>  /* LRU Isolation modes. */
+>  typedef unsigned __bitwise__ isolate_mode_t;
+> diff --git a/include/linux/swap.h b/include/linux/swap.h
+> index ba2c8d7..dc6e6a3 100644
+> --- a/include/linux/swap.h
+> +++ b/include/linux/swap.h
+> @@ -254,7 +254,7 @@ static inline void lru_cache_add_file(struct page *page)
+>  /* linux/mm/vmscan.c */
+>  extern unsigned long try_to_free_pages(struct zonelist *zonelist, int order,
+>  					gfp_t gfp_mask, nodemask_t *mask);
+> -extern int __isolate_lru_page(struct page *page, isolate_mode_t mode, int file);
+> +extern int __isolate_lru_page(struct page *page, isolate_mode_t mode);
+>  extern unsigned long try_to_free_mem_cgroup_pages(struct mem_cgroup *mem,
+>  						  gfp_t gfp_mask, bool noswap);
+>  extern unsigned long mem_cgroup_shrink_node_zone(struct mem_cgroup *mem,
+> diff --git a/mm/compaction.c b/mm/compaction.c
+> index 74a8c82..cc054f7 100644
+> --- a/mm/compaction.c
+> +++ b/mm/compaction.c
+> @@ -261,7 +261,8 @@ static isolate_migrate_t isolate_migratepages(struct zone *zone,
+>  	unsigned long last_pageblock_nr = 0, pageblock_nr;
+>  	unsigned long nr_scanned = 0, nr_isolated = 0;
+>  	struct list_head *migratelist = &cc->migratepages;
+> -	isolate_mode_t mode = ISOLATE_ACTIVE|ISOLATE_INACTIVE;
+> +	isolate_mode_t mode = ISOLATE_ACTIVE | ISOLATE_INACTIVE |
+> +			      ISOLATE_FILE | ISOLATE_ANON;
+>  
+>  	/* Do not scan outside zone boundaries */
+>  	low_pfn = max(cc->migrate_pfn, zone->zone_start_pfn);
+> @@ -375,7 +376,7 @@ static isolate_migrate_t isolate_migratepages(struct zone *zone,
+>  			mode |= ISOLATE_ASYNC_MIGRATE;
+>  
+>  		/* Try isolate the page */
+> -		if (__isolate_lru_page(page, mode, 0) != 0)
+> +		if (__isolate_lru_page(page, mode) != 0)
+>  			continue;
+>  
+>  		VM_BUG_ON(PageTransCompound(page));
+> diff --git a/mm/vmscan.c b/mm/vmscan.c
+> index 7de3acc..cce1e14 100644
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -1029,28 +1029,35 @@ keep_lumpy:
+>   *
+>   * returns 0 on success, -ve errno on failure.
+>   */
+> -int __isolate_lru_page(struct page *page, isolate_mode_t mode, int file)
+> +int __isolate_lru_page(struct page *page, isolate_mode_t mode)
+>  {
+> -	bool all_lru_mode;
+>  	int ret = -EINVAL;
+>  
+>  	/* Only take pages on the LRU. */
+>  	if (!PageLRU(page))
+>  		return ret;
+>  
+> -	all_lru_mode = (mode & (ISOLATE_ACTIVE|ISOLATE_INACTIVE)) ==
+> -		(ISOLATE_ACTIVE|ISOLATE_INACTIVE);
+> -
+> -	/*
+> -	 * When checking the active state, we need to be sure we are
+> -	 * dealing with comparible boolean values.  Take the logical not
+> -	 * of each.
+> -	 */
+> -	if (!all_lru_mode && !PageActive(page) != !(mode & ISOLATE_ACTIVE))
+> -		return ret;
+> +	switch (mode & (ISOLATE_ACTIVE | ISOLATE_INACTIVE)) {
+> +		case ISOLATE_ACTIVE:
+> +			if (!PageActive(page))
+> +				return ret;
+> +			break;
+> +		case ISOLATE_INACTIVE:
+> +			if (PageActive(page))
+> +				return ret;
+> +			break;
+> +	}
+>  
+> -	if (!all_lru_mode && !!page_is_file_cache(page) != file)
+> -		return ret;
+> +	switch (mode & (ISOLATE_FILE | ISOLATE_ANON)) {
+> +		case ISOLATE_FILE:
+> +			if (!page_is_file_cache(page))
+> +				return ret;
+> +			break;
+> +		case ISOLATE_ANON:
+> +			if (page_is_file_cache(page))
+> +				return ret;
+> +			break;
+> +	}
+>  
+>  	/*
+>  	 * When this function is being called for lumpy reclaim, we
+> @@ -1160,7 +1167,7 @@ static unsigned long isolate_lru_pages(unsigned long nr_to_scan,
+>  
+>  		VM_BUG_ON(!PageLRU(page));
+>  
+> -		switch (__isolate_lru_page(page, mode, file)) {
+> +		switch (__isolate_lru_page(page, mode)) {
+>  		case 0:
+>  			mem_cgroup_lru_del(page);
+>  			list_move(&page->lru, dst);
+> @@ -1218,7 +1225,7 @@ static unsigned long isolate_lru_pages(unsigned long nr_to_scan,
+>  			    !PageSwapCache(cursor_page))
+>  				break;
+>  
+> -			if (__isolate_lru_page(cursor_page, mode, file) == 0) {
+> +			if (__isolate_lru_page(cursor_page, mode) == 0) {
+>  				unsigned int isolated_pages;
+>  
+>  				mem_cgroup_lru_del(cursor_page);
+> @@ -1503,7 +1510,7 @@ shrink_inactive_list(unsigned long nr_to_scan, struct mem_cgroup_zone *mz,
+>  
+>  	set_reclaim_mode(priority, sc, false);
+>  	if (sc->reclaim_mode & RECLAIM_MODE_LUMPYRECLAIM)
+> -		isolate_mode |= ISOLATE_ACTIVE;
+> +		isolate_mode |= ISOLATE_ACTIVE | ISOLATE_FILE | ISOLATE_ANON;
+>  
+>  	lru_add_drain();
+>  
+> @@ -1511,6 +1518,10 @@ shrink_inactive_list(unsigned long nr_to_scan, struct mem_cgroup_zone *mz,
+>  		isolate_mode |= ISOLATE_UNMAPPED;
+>  	if (!sc->may_writepage)
+>  		isolate_mode |= ISOLATE_CLEAN;
+> +	if (file)
+> +		isolate_mode |= ISOLATE_FILE;
+> +	else
+> +		isolate_mode |= ISOLATE_ANON;
+>  
+>  	spin_lock_irq(&zone->lru_lock);
+>  
+> @@ -1677,6 +1688,10 @@ static void shrink_active_list(unsigned long nr_to_scan,
+>  		isolate_mode |= ISOLATE_UNMAPPED;
+>  	if (!sc->may_writepage)
+>  		isolate_mode |= ISOLATE_CLEAN;
+> +	if (file)
+> +		isolate_mode |= ISOLATE_FILE;
+> +	else
+> +		isolate_mode |= ISOLATE_ANON;
+>  
+>  	spin_lock_irq(&zone->lru_lock);
+>  
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
