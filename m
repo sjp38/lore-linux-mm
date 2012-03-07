@@ -1,236 +1,656 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx121.postini.com [74.125.245.121])
-	by kanga.kvack.org (Postfix) with SMTP id 2EB146B007E
-	for <linux-mm@kvack.org>; Wed,  7 Mar 2012 12:45:07 -0500 (EST)
-Received: by pbcup15 with SMTP id up15so884891pbc.14
-        for <linux-mm@kvack.org>; Wed, 07 Mar 2012 09:45:06 -0800 (PST)
+Received: from psmtp.com (na3sys010amx192.postini.com [74.125.245.192])
+	by kanga.kvack.org (Postfix) with SMTP id 9B8F36B004A
+	for <linux-mm@kvack.org>; Wed,  7 Mar 2012 13:08:58 -0500 (EST)
+Date: Wed, 7 Mar 2012 18:08:52 +0000
+From: Mel Gorman <mgorman@suse.de>
+Subject: [PATCH] cpuset: mm: Reduce large amounts of memory barrier related
+ damage v3
+Message-ID: <20120307180852.GE17697@suse.de>
 MIME-Version: 1.0
-In-Reply-To: <4F41F1C2.3030908@openvz.org>
-References: <20120217092205.GA9462@gmail.com>
-	<4F3EB675.9030702@openvz.org>
-	<20120220062006.GA5028@gmail.com>
-	<4F41F1C2.3030908@openvz.org>
-Date: Thu, 8 Mar 2012 01:45:06 +0800
-Message-ID: <CANWLp03njY11Swiic7_mv6Gk3C=v4YYe5nLzbAjLH0KftyQftA@mail.gmail.com>
-Subject: Re: Fine granularity page reclaim
-From: Zheng Liu <gnehzuil.liu@gmail.com>
-Content-Type: multipart/alternative; boundary=047d7b2eda4f4e414f04baaab87d
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Konstantin Khlebnikov <khlebnikov@openvz.org>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Miao Xie <miaox@cn.fujitsu.com>, David Rientjes <rientjes@google.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Christoph Lameter <cl@linux.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
---047d7b2eda4f4e414f04baaab87d
-Content-Type: text/plain; charset=ISO-8859-1
+Changelog since V2
+  o Documentation						(akpm)
+  o Do not retry hugetlb allocations in the event of an error	(akpm)
+  o Properly initialise seqcount				(akpm)
 
-On Monday, February 20, 2012, Konstantin Khlebnikov <khlebnikov@openvz.org>
-wrote:
-> Zheng Liu wrote:
->>
->> Cc linux-kernel mailing list.
->>
->> On Sat, Feb 18, 2012 at 12:20:05AM +0400, Konstantin Khlebnikov wrote:
->>>
->>> Zheng Liu wrote:
->>>>
->>>> Hi all,
->>>>
->>>> Currently, we encounter a problem about page reclaim. In our product
-system,
->>>> there is a lot of applictions that manipulate a number of files. In
-these
->>>> files, they can be divided into two categories. One is index file,
-another is
->>>> block file. The number of index files is about 15,000, and the number
-of
->>>> block files is about 23,000 in a 2TB disk. The application accesses
-index
->>>> file using mmap(2), and read/write block file using
-pread(2)/pwrite(2). We hope
->>>> to hold index file in memory as much as possible, and it works well in
-Redhat
->>>> 2.6.18-164. It is about 60-70% of index files that can be hold in
-memory.
->>>> However, it doesn't work well in Redhat 2.6.32-133. I know in 2.6.18
-that the
->>>> linux uses an active list and an inactive list to handle page reclaim,
-and in
->>>> 2.6.32 that they are divided into anonymous list and file list. So I am
->>>> curious about why most of index files can be hold in 2.6.18? The index
-file
->>>> should be replaced because mmap doesn't impact the lru list.
->>>
->>> There was my patch for fixing similar problem with shared/executable
-mapped pages
->>> "vmscan: promote shared file mapped pages" commit 34dbc67a644f and
-commit c909e99364c
->>> maybe it will help in your case.
->>
->> Hi Konstantin,
->>
->> Thank you for your reply.  I have tested it in upstream kernel.  These
->> patches are useful for multi-processes applications.  But, in our product
->> system, there are some applications that are multi-thread.  So
->> 'references_ptes>  1' cannot help these applications to hold the data in
->> memory.
->
-> Ok, what if you mmap you data as executable, just to test.
-> Then these pages will be activated after first touch.
-> In attachment patch with per-mm flag with the same effect.
->
+Changelog since V1
+  o Use seqcount with rmb instead of atomics (Peter, Christoph)
 
-Hi Konstantin,
+Commit [c0ff7453: cpuset,mm: fix no node to alloc memory when changing
+cpuset's mems] wins a super prize for the largest number of memory
+barriers entered into fast paths for one commit. [get|put]_mems_allowed
+is incredibly heavy with pairs of full memory barriers inserted into a
+number of hot paths. This was detected while investigating at large page
+allocator slowdown introduced some time after 2.6.32. The largest portion
+of this overhead was shown by oprofile to be at an mfence introduced by
+this commit into the page allocator hot path.
 
-Sorry for the delay reply.  Last two weeks I was trying these two solutions
-and evaluating the impacts for the performance in our product system.
-Good news is that these two solutions both work well. They can keep
-mapped files in memory under mult-thread.  But I have a question for
-the first solution (map the file with PROT_EXEC flag).  I think this way is
-too tricky.  As I said previously, these files that needs to be mapped only
-are normal index file, and they shouldn't be mapped with PROT_EXEC flag
-from the view of an application programmer.  So actually the key issue is
-that we should provide a mechanism, which lets different file sets can be
-reclaimed separately.  I am not sure whether this idea is useful or not.  So
-any feedbacks are welcomed.:-).  Thank you.
+For extra style points, the commit introduced the use of yield() in an
+implementation of what looks like a spinning mutex.
 
-Regards,
-Zheng
+This patch replaces the full memory barriers on both read and write sides
+with a sequence counter with just read barriers on the fast path side.
+This is much cheaper on some architectures, including x86.  The main bulk
+of the patch is the retry logic if the nodemask changes in a manner that
+can cause a false failure.
 
->>
->> Regards,
->> Zheng
->>
->>>
->>>>
->>>> BTW, I have some problems that need to be discussed.
->>>>
->>>> 1. I want to let index and block files are separately reclaimed. Is
-there any
->>>> ways to satisify me in current upstream?
->>>>
->>>> 2. Maybe we can provide a mechansim to let different files to be
-mapped into
->>>> differnet nodes. we can provide a ioctl(2) to tell kernel that this
-file should
->>>> be mapped into a specific node id. A nid member is added into
-addpress_space
->>>> struct. When alloc_page is called, the page can be allocated from that
-specific
->>>> node id.
->>>>
->>>> 3. Currently the page can be reclaimed according to pid in memcg. But
-it is too
->>>> coarse. I don't know whether memcg could provide a fine granularity
-page
->>>> reclaim mechansim. For example, the page is reclaimed according to
-inode number.
->>>>
->>>> I don't subscribe this mailing list, So please Cc me. Thank you.
->>>>
->>>> Regards,
->>>> Zheng
->>>>
->>>> --
->>>> To unsubscribe, send a message with 'unsubscribe linux-mm' in
->>>> the body to majordomo@kvack.org.  For more info on Linux MM,
->>>> see: http://www.linux-mm.org/ .
->>>> Fight unfair telecom internet charges in Canada: sign
-http://stopthemeter.ca/
->>>> Don't email:<a href=mailto:"dont@kvack.org">   email@kvack.org</a>
->>>
->
->
+While updating the nodemask, a check is made to see if a false failure is
+a risk. If it is, the sequence number gets bumped and parallel allocators
+will briefly stall while the nodemask update takes place.
 
---047d7b2eda4f4e414f04baaab87d
-Content-Type: text/html; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+In a page fault test microbenchmark, oprofile samples from
+__alloc_pages_nodemask went from 4.53% of all samples to 1.15%. The actual
+results were
 
-<br><br>On Monday, February 20, 2012, Konstantin Khlebnikov &lt;<a href=3D"=
-mailto:khlebnikov@openvz.org">khlebnikov@openvz.org</a>&gt; wrote:<br>&gt; =
-Zheng Liu wrote:<br>&gt;&gt;<br>&gt;&gt; Cc linux-kernel mailing list.<br>
-&gt;&gt;<br>&gt;&gt; On Sat, Feb 18, 2012 at 12:20:05AM +0400, Konstantin K=
-hlebnikov wrote:<br>&gt;&gt;&gt;<br>&gt;&gt;&gt; Zheng Liu wrote:<br>&gt;&g=
-t;&gt;&gt;<br>&gt;&gt;&gt;&gt; Hi all,<br>&gt;&gt;&gt;&gt;<br>&gt;&gt;&gt;&=
-gt; Currently, we encounter a problem about page reclaim. In our product sy=
-stem,<br>
-&gt;&gt;&gt;&gt; there is a lot of applictions that manipulate a number of =
-files. In these<br>&gt;&gt;&gt;&gt; files, they can be divided into two cat=
-egories. One is index file, another is<br>&gt;&gt;&gt;&gt; block file. The =
-number of index files is about 15,000, and the number of<br>
-&gt;&gt;&gt;&gt; block files is about 23,000 in a 2TB disk. The application=
- accesses index<br>&gt;&gt;&gt;&gt; file using mmap(2), and read/write bloc=
-k file using pread(2)/pwrite(2). We hope<br>&gt;&gt;&gt;&gt; to hold index =
-file in memory as much as possible, and it works well in Redhat<br>
-&gt;&gt;&gt;&gt; 2.6.18-164. It is about 60-70% of index files that can be =
-hold in memory.<br>&gt;&gt;&gt;&gt; However, it doesn&#39;t work well in Re=
-dhat 2.6.32-133. I know in 2.6.18 that the<br>&gt;&gt;&gt;&gt; linux uses a=
-n active list and an inactive list to handle page reclaim, and in<br>
-&gt;&gt;&gt;&gt; 2.6.32 that they are divided into anonymous list and file =
-list. So I am<br>&gt;&gt;&gt;&gt; curious about why most of index files can=
- be hold in 2.6.18? The index file<br>&gt;&gt;&gt;&gt; should be replaced b=
-ecause mmap doesn&#39;t impact the lru list.<br>
-&gt;&gt;&gt;<br>&gt;&gt;&gt; There was my patch for fixing similar problem =
-with shared/executable mapped pages<br>&gt;&gt;&gt; &quot;vmscan: promote s=
-hared file mapped pages&quot; commit 34dbc67a644f and commit c909e99364c<br=
->
-&gt;&gt;&gt; maybe it will help in your case.<br>&gt;&gt;<br>&gt;&gt; Hi Ko=
-nstantin,<br>&gt;&gt;<br>&gt;&gt; Thank you for your reply. =A0I have teste=
-d it in upstream kernel. =A0These<br>&gt;&gt; patches are useful for multi-=
-processes applications. =A0But, in our product<br>
-&gt;&gt; system, there are some applications that are multi-thread. =A0So<b=
-r>&gt;&gt; &#39;references_ptes&gt; =A01&#39; cannot help these application=
-s to hold the data in<br>&gt;&gt; memory.<br>&gt;<br>&gt; Ok, what if you m=
-map you data as executable, just to test.<br>
-&gt; Then these pages will be activated after first touch.<br>&gt; In attac=
-hment patch with per-mm flag with the same effect.<br>&gt;<br><br>Hi Konsta=
-ntin,<br><br>Sorry for the delay reply. =A0Last two weeks I was trying thes=
-e two solutions<br>
-and evaluating the impacts for the performance in our product system.<br>Go=
-od news is that these two solutions both work well. They can keep<br>mapped=
- files in memory under mult-thread. =A0But I have a question for<br>the fir=
-st solution (map the file with PROT_EXEC flag). =A0I think this way is<br>
-too tricky. =A0As I said previously, these files that needs to be mapped on=
-ly<br>are normal index file, and they shouldn&#39;t be mapped with PROT_EXE=
-C flag<br>from the view of an application programmer. =A0So actually the ke=
-y issue is<br>
-that we should provide a mechanism, which lets different file sets can be<b=
-r>reclaimed separately. =A0I am not sure whether this idea is useful or not=
-. =A0So<br>any feedbacks are welcomed.:-). =A0Thank you.<br><br>Regards,<br=
->Zheng<br>
-<br>&gt;&gt;<br>&gt;&gt; Regards,<br>&gt;&gt; Zheng<br>&gt;&gt;<br>&gt;&gt;=
-&gt;<br>&gt;&gt;&gt;&gt;<br>&gt;&gt;&gt;&gt; BTW, I have some problems that=
- need to be discussed.<br>&gt;&gt;&gt;&gt;<br>&gt;&gt;&gt;&gt; 1. I want to=
- let index and block files are separately reclaimed. Is there any<br>
-&gt;&gt;&gt;&gt; ways to satisify me in current upstream?<br>&gt;&gt;&gt;&g=
-t;<br>&gt;&gt;&gt;&gt; 2. Maybe we can provide a mechansim to let different=
- files to be mapped into<br>&gt;&gt;&gt;&gt; differnet nodes. we can provid=
-e a ioctl(2) to tell kernel that this file should<br>
-&gt;&gt;&gt;&gt; be mapped into a specific node id. A nid member is added i=
-nto addpress_space<br>&gt;&gt;&gt;&gt; struct. When alloc_page is called, t=
-he page can be allocated from that specific<br>&gt;&gt;&gt;&gt; node id.<br=
->
-&gt;&gt;&gt;&gt;<br>&gt;&gt;&gt;&gt; 3. Currently the page can be reclaimed=
- according to pid in memcg. But it is too<br>&gt;&gt;&gt;&gt; coarse. I don=
-&#39;t know whether memcg could provide a fine granularity page<br>&gt;&gt;=
-&gt;&gt; reclaim mechansim. For example, the page is reclaimed according to=
- inode number.<br>
-&gt;&gt;&gt;&gt;<br>&gt;&gt;&gt;&gt; I don&#39;t subscribe this mailing lis=
-t, So please Cc me. Thank you.<br>&gt;&gt;&gt;&gt;<br>&gt;&gt;&gt;&gt; Rega=
-rds,<br>&gt;&gt;&gt;&gt; Zheng<br>&gt;&gt;&gt;&gt;<br>&gt;&gt;&gt;&gt; --<b=
-r>
-&gt;&gt;&gt;&gt; To unsubscribe, send a message with &#39;unsubscribe linux=
--mm&#39; in<br>&gt;&gt;&gt;&gt; the body to <a href=3D"mailto:majordomo@kva=
-ck.org">majordomo@kvack.org</a>. =A0For more info on Linux MM,<br>&gt;&gt;&=
-gt;&gt; see: <a href=3D"http://www.linux-mm.org/">http://www.linux-mm.org/<=
-/a> .<br>
-&gt;&gt;&gt;&gt; Fight unfair telecom internet charges in Canada: sign <a h=
-ref=3D"http://stopthemeter.ca/">http://stopthemeter.ca/</a><br>&gt;&gt;&gt;=
-&gt; Don&#39;t email:&lt;a href=3Dmailto:&quot;<a href=3D"mailto:dont@kvack=
-.org">dont@kvack.org</a>&quot;&gt; =A0 <a href=3D"mailto:email@kvack.org">e=
-mail@kvack.org</a>&lt;/a&gt;<br>
-&gt;&gt;&gt;<br>&gt;<br>&gt;
+                         3.3.0-rc3          3.3.0-rc3
+                         rc3-vanilla        nobarrier-v2r1
+Clients   1 UserTime       0.07 (  0.00%)   0.08 (-14.19%)
+Clients   2 UserTime       0.07 (  0.00%)   0.07 (  2.72%)
+Clients   4 UserTime       0.08 (  0.00%)   0.07 (  3.29%)
+Clients   1 SysTime        0.70 (  0.00%)   0.65 (  6.65%)
+Clients   2 SysTime        0.85 (  0.00%)   0.82 (  3.65%)
+Clients   4 SysTime        1.41 (  0.00%)   1.41 (  0.32%)
+Clients   1 WallTime       0.77 (  0.00%)   0.74 (  4.19%)
+Clients   2 WallTime       0.47 (  0.00%)   0.45 (  3.73%)
+Clients   4 WallTime       0.38 (  0.00%)   0.37 (  1.58%)
+Clients   1 Flt/sec/cpu  497620.28 (  0.00%) 520294.53 (  4.56%)
+Clients   2 Flt/sec/cpu  414639.05 (  0.00%) 429882.01 (  3.68%)
+Clients   4 Flt/sec/cpu  257959.16 (  0.00%) 258761.48 (  0.31%)
+Clients   1 Flt/sec      495161.39 (  0.00%) 517292.87 (  4.47%)
+Clients   2 Flt/sec      820325.95 (  0.00%) 850289.77 (  3.65%)
+Clients   4 Flt/sec      1020068.93 (  0.00%) 1022674.06 (  0.26%)
+MMTests Statistics: duration
+Sys Time Running Test (seconds)             135.68    132.17
+User+Sys Time Running Test (seconds)         164.2    160.13
+Total Elapsed Time (seconds)                123.46    120.87
 
---047d7b2eda4f4e414f04baaab87d--
+The overall improvement is small but the System CPU time is much improved
+and roughly in correlation to what oprofile reported (these performance
+figures are without profiling so skew is expected). The actual number of
+page faults is noticeably improved.
+
+For benchmarks like kernel builds, the overall benefit is marginal but
+the system CPU time is slightly reduced.
+
+To test the actual bug the commit fixed I opened two terminals. The first
+ran within a cpuset and continually ran a small program that faulted 100M
+of anonymous data. In a second window, the nodemask of the cpuset was
+continually randomised in a loop. Without the commit, the program would
+fail every so often (usually within 10 seconds) and obviously with the
+commit everything worked fine. With this patch applied, it also worked
+fine so the fix should be functionally equivalent.
+
+Signed-off-by: Mel Gorman <mgorman@suse.de>
+---
+ include/linux/cpuset.h    |   47 +++++++++++++++++++--------------------------
+ include/linux/init_task.h |    8 ++++++++
+ include/linux/sched.h     |    2 +-
+ kernel/cpuset.c           |   43 ++++++++---------------------------------
+ kernel/fork.c             |    1 +
+ mm/filemap.c              |   11 +++++++----
+ mm/hugetlb.c              |   15 +++++++++++----
+ mm/mempolicy.c            |   28 ++++++++++++++++++++-------
+ mm/page_alloc.c           |   33 +++++++++++++++++++++----------
+ mm/slab.c                 |   13 ++++++++-----
+ mm/slub.c                 |   40 +++++++++++++++++++++++---------------
+ mm/vmscan.c               |    2 --
+ 12 files changed, 133 insertions(+), 110 deletions(-)
+
+diff --git a/include/linux/cpuset.h b/include/linux/cpuset.h
+index e9eaec5..7a7e5fd 100644
+--- a/include/linux/cpuset.h
++++ b/include/linux/cpuset.h
+@@ -89,42 +89,33 @@ extern void rebuild_sched_domains(void);
+ extern void cpuset_print_task_mems_allowed(struct task_struct *p);
+ 
+ /*
+- * reading current mems_allowed and mempolicy in the fastpath must protected
+- * by get_mems_allowed()
++ * get_mems_allowed is required when making decisions involving mems_allowed
++ * such as during page allocation. mems_allowed can be updated in parallel
++ * and depending on the new value an operation can fail potentially causing
++ * process failure. A retry loop with get_mems_allowed and put_mems_allowed
++ * prevents these artificial failures.
+  */
+-static inline void get_mems_allowed(void)
++static inline unsigned int get_mems_allowed(void)
+ {
+-	current->mems_allowed_change_disable++;
+-
+-	/*
+-	 * ensure that reading mems_allowed and mempolicy happens after the
+-	 * update of ->mems_allowed_change_disable.
+-	 *
+-	 * the write-side task finds ->mems_allowed_change_disable is not 0,
+-	 * and knows the read-side task is reading mems_allowed or mempolicy,
+-	 * so it will clear old bits lazily.
+-	 */
+-	smp_mb();
++	return read_seqcount_begin(&current->mems_allowed_seq);
+ }
+ 
+-static inline void put_mems_allowed(void)
++/*
++ * If this returns false, the operation that took place after get_mems_allowed
++ * may have failed. It is up to the caller to retry the operation if
++ * appropriate.
++ */
++static inline bool put_mems_allowed(unsigned int seq)
+ {
+-	/*
+-	 * ensure that reading mems_allowed and mempolicy before reducing
+-	 * mems_allowed_change_disable.
+-	 *
+-	 * the write-side task will know that the read-side task is still
+-	 * reading mems_allowed or mempolicy, don't clears old bits in the
+-	 * nodemask.
+-	 */
+-	smp_mb();
+-	--ACCESS_ONCE(current->mems_allowed_change_disable);
++	return !read_seqcount_retry(&current->mems_allowed_seq, seq);
+ }
+ 
+ static inline void set_mems_allowed(nodemask_t nodemask)
+ {
+ 	task_lock(current);
++	write_seqcount_begin(&current->mems_allowed_seq);
+ 	current->mems_allowed = nodemask;
++	write_seqcount_end(&current->mems_allowed_seq);
+ 	task_unlock(current);
+ }
+ 
+@@ -234,12 +225,14 @@ static inline void set_mems_allowed(nodemask_t nodemask)
+ {
+ }
+ 
+-static inline void get_mems_allowed(void)
++static inline unsigned int get_mems_allowed(void)
+ {
++	return 0;
+ }
+ 
+-static inline void put_mems_allowed(void)
++static inline bool put_mems_allowed(unsigned int seq)
+ {
++	return true;
+ }
+ 
+ #endif /* !CONFIG_CPUSETS */
+diff --git a/include/linux/init_task.h b/include/linux/init_task.h
+index 9c66b1a..fa7d16d 100644
+--- a/include/linux/init_task.h
++++ b/include/linux/init_task.h
+@@ -29,6 +29,13 @@ extern struct fs_struct init_fs;
+ #define INIT_GROUP_RWSEM(sig)
+ #endif
+ 
++#ifdef CONFIG_CPUSETS
++#define INIT_CPUSET_SEQ							\
++	.mems_allowed_seq = SEQCNT_ZERO,
++#else
++#define INIT_CPUSET_SEQ
++#endif
++
+ #define INIT_SIGNALS(sig) {						\
+ 	.nr_threads	= 1,						\
+ 	.wait_chldexit	= __WAIT_QUEUE_HEAD_INITIALIZER(sig.wait_chldexit),\
+@@ -192,6 +199,7 @@ extern struct cred init_cred;
+ 	INIT_FTRACE_GRAPH						\
+ 	INIT_TRACE_RECURSION						\
+ 	INIT_TASK_RCU_PREEMPT(tsk)					\
++	INIT_CPUSET_SEQ							\
+ }
+ 
+ 
+diff --git a/include/linux/sched.h b/include/linux/sched.h
+index 7d379a6..a0bb87a 100644
+--- a/include/linux/sched.h
++++ b/include/linux/sched.h
+@@ -1498,7 +1498,7 @@ struct task_struct {
+ #endif
+ #ifdef CONFIG_CPUSETS
+ 	nodemask_t mems_allowed;	/* Protected by alloc_lock */
+-	int mems_allowed_change_disable;
++	seqcount_t mems_allowed_seq;	/* Seqence no to catch updates */
+ 	int cpuset_mem_spread_rotor;
+ 	int cpuset_slab_spread_rotor;
+ #endif
+diff --git a/kernel/cpuset.c b/kernel/cpuset.c
+index a09ac2b..5014493 100644
+--- a/kernel/cpuset.c
++++ b/kernel/cpuset.c
+@@ -964,7 +964,6 @@ static void cpuset_change_task_nodemask(struct task_struct *tsk,
+ {
+ 	bool need_loop;
+ 
+-repeat:
+ 	/*
+ 	 * Allow tasks that have access to memory reserves because they have
+ 	 * been OOM killed to get memory anywhere.
+@@ -983,45 +982,19 @@ repeat:
+ 	 */
+ 	need_loop = task_has_mempolicy(tsk) ||
+ 			!nodes_intersects(*newmems, tsk->mems_allowed);
+-	nodes_or(tsk->mems_allowed, tsk->mems_allowed, *newmems);
+-	mpol_rebind_task(tsk, newmems, MPOL_REBIND_STEP1);
+ 
+-	/*
+-	 * ensure checking ->mems_allowed_change_disable after setting all new
+-	 * allowed nodes.
+-	 *
+-	 * the read-side task can see an nodemask with new allowed nodes and
+-	 * old allowed nodes. and if it allocates page when cpuset clears newly
+-	 * disallowed ones continuous, it can see the new allowed bits.
+-	 *
+-	 * And if setting all new allowed nodes is after the checking, setting
+-	 * all new allowed nodes and clearing newly disallowed ones will be done
+-	 * continuous, and the read-side task may find no node to alloc page.
+-	 */
+-	smp_mb();
++	if (need_loop)
++		write_seqcount_begin(&tsk->mems_allowed_seq);
+ 
+-	/*
+-	 * Allocation of memory is very fast, we needn't sleep when waiting
+-	 * for the read-side.
+-	 */
+-	while (need_loop && ACCESS_ONCE(tsk->mems_allowed_change_disable)) {
+-		task_unlock(tsk);
+-		if (!task_curr(tsk))
+-			yield();
+-		goto repeat;
+-	}
+-
+-	/*
+-	 * ensure checking ->mems_allowed_change_disable before clearing all new
+-	 * disallowed nodes.
+-	 *
+-	 * if clearing newly disallowed bits before the checking, the read-side
+-	 * task may find no node to alloc page.
+-	 */
+-	smp_mb();
++	nodes_or(tsk->mems_allowed, tsk->mems_allowed, *newmems);
++	mpol_rebind_task(tsk, newmems, MPOL_REBIND_STEP1);
+ 
+ 	mpol_rebind_task(tsk, newmems, MPOL_REBIND_STEP2);
+ 	tsk->mems_allowed = *newmems;
++
++	if (need_loop)
++		write_seqcount_end(&tsk->mems_allowed_seq);
++
+ 	task_unlock(tsk);
+ }
+ 
+diff --git a/kernel/fork.c b/kernel/fork.c
+index e2cd3e2..d79526b 100644
+--- a/kernel/fork.c
++++ b/kernel/fork.c
+@@ -1195,6 +1195,7 @@ static struct task_struct *copy_process(unsigned long clone_flags,
+ #ifdef CONFIG_CPUSETS
+ 	p->cpuset_mem_spread_rotor = NUMA_NO_NODE;
+ 	p->cpuset_slab_spread_rotor = NUMA_NO_NODE;
++	seqcount_init(&p->mems_allowed_seq);
+ #endif
+ #ifdef CONFIG_TRACE_IRQFLAGS
+ 	p->irq_events = 0;
+diff --git a/mm/filemap.c b/mm/filemap.c
+index b662757..dee0860 100644
+--- a/mm/filemap.c
++++ b/mm/filemap.c
+@@ -500,10 +500,13 @@ struct page *__page_cache_alloc(gfp_t gfp)
+ 	struct page *page;
+ 
+ 	if (cpuset_do_page_mem_spread()) {
+-		get_mems_allowed();
+-		n = cpuset_mem_spread_node();
+-		page = alloc_pages_exact_node(n, gfp, 0);
+-		put_mems_allowed();
++		unsigned int cpuset_mems_cookie;
++		do {
++			cpuset_mems_cookie = get_mems_allowed();
++			n = cpuset_mem_spread_node();
++			page = alloc_pages_exact_node(n, gfp, 0);
++		} while (!put_mems_allowed(cpuset_mems_cookie) && !page);
++
+ 		return page;
+ 	}
+ 	return alloc_pages(gfp, 0);
+diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+index 5f34bd8..1434b7f 100644
+--- a/mm/hugetlb.c
++++ b/mm/hugetlb.c
+@@ -454,14 +454,16 @@ static struct page *dequeue_huge_page_vma(struct hstate *h,
+ 				struct vm_area_struct *vma,
+ 				unsigned long address, int avoid_reserve)
+ {
+-	struct page *page = NULL;
++	struct page *page;
+ 	struct mempolicy *mpol;
+ 	nodemask_t *nodemask;
+ 	struct zonelist *zonelist;
+ 	struct zone *zone;
+ 	struct zoneref *z;
++	unsigned int cpuset_mems_cookie;
+ 
+-	get_mems_allowed();
++retry_cpuset:
++	cpuset_mems_cookie = get_mems_allowed();
+ 	zonelist = huge_zonelist(vma, address,
+ 					htlb_alloc_mask, &mpol, &nodemask);
+ 	/*
+@@ -488,10 +490,15 @@ static struct page *dequeue_huge_page_vma(struct hstate *h,
+ 			}
+ 		}
+ 	}
+-err:
++
+ 	mpol_cond_put(mpol);
+-	put_mems_allowed();
++	if (unlikely(!put_mems_allowed(cpuset_mems_cookie) && !page))
++		goto retry_cpuset;
+ 	return page;
++
++err:
++	mpol_cond_put(mpol);
++	return NULL;
+ }
+ 
+ static void update_and_free_page(struct hstate *h, struct page *page)
+diff --git a/mm/mempolicy.c b/mm/mempolicy.c
+index 06b145f..013d981 100644
+--- a/mm/mempolicy.c
++++ b/mm/mempolicy.c
+@@ -1843,18 +1843,24 @@ struct page *
+ alloc_pages_vma(gfp_t gfp, int order, struct vm_area_struct *vma,
+ 		unsigned long addr, int node)
+ {
+-	struct mempolicy *pol = get_vma_policy(current, vma, addr);
++	struct mempolicy *pol;
+ 	struct zonelist *zl;
+ 	struct page *page;
++	unsigned int cpuset_mems_cookie;
++
++retry_cpuset:
++	pol = get_vma_policy(current, vma, addr);
++	cpuset_mems_cookie = get_mems_allowed();
+ 
+-	get_mems_allowed();
+ 	if (unlikely(pol->mode == MPOL_INTERLEAVE)) {
+ 		unsigned nid;
+ 
+ 		nid = interleave_nid(pol, vma, addr, PAGE_SHIFT + order);
+ 		mpol_cond_put(pol);
+ 		page = alloc_page_interleave(gfp, order, nid);
+-		put_mems_allowed();
++		if (unlikely(!put_mems_allowed(cpuset_mems_cookie) && !page))
++			goto retry_cpuset;
++
+ 		return page;
+ 	}
+ 	zl = policy_zonelist(gfp, pol, node);
+@@ -1865,7 +1871,8 @@ alloc_pages_vma(gfp_t gfp, int order, struct vm_area_struct *vma,
+ 		struct page *page =  __alloc_pages_nodemask(gfp, order,
+ 						zl, policy_nodemask(gfp, pol));
+ 		__mpol_put(pol);
+-		put_mems_allowed();
++		if (unlikely(!put_mems_allowed(cpuset_mems_cookie) && !page))
++			goto retry_cpuset;
+ 		return page;
+ 	}
+ 	/*
+@@ -1873,7 +1880,8 @@ alloc_pages_vma(gfp_t gfp, int order, struct vm_area_struct *vma,
+ 	 */
+ 	page = __alloc_pages_nodemask(gfp, order, zl,
+ 				      policy_nodemask(gfp, pol));
+-	put_mems_allowed();
++	if (unlikely(!put_mems_allowed(cpuset_mems_cookie) && !page))
++		goto retry_cpuset;
+ 	return page;
+ }
+ 
+@@ -1900,11 +1908,14 @@ struct page *alloc_pages_current(gfp_t gfp, unsigned order)
+ {
+ 	struct mempolicy *pol = current->mempolicy;
+ 	struct page *page;
++	unsigned int cpuset_mems_cookie;
+ 
+ 	if (!pol || in_interrupt() || (gfp & __GFP_THISNODE))
+ 		pol = &default_policy;
+ 
+-	get_mems_allowed();
++retry_cpuset:
++	cpuset_mems_cookie = get_mems_allowed();
++
+ 	/*
+ 	 * No reference counting needed for current->mempolicy
+ 	 * nor system default_policy
+@@ -1915,7 +1926,10 @@ struct page *alloc_pages_current(gfp_t gfp, unsigned order)
+ 		page = __alloc_pages_nodemask(gfp, order,
+ 				policy_zonelist(gfp, pol, numa_node_id()),
+ 				policy_nodemask(gfp, pol));
+-	put_mems_allowed();
++
++	if (unlikely(!put_mems_allowed(cpuset_mems_cookie) && !page))
++		goto retry_cpuset;
++
+ 	return page;
+ }
+ EXPORT_SYMBOL(alloc_pages_current);
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index a13ded1..453c348 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -2378,8 +2378,9 @@ __alloc_pages_nodemask(gfp_t gfp_mask, unsigned int order,
+ {
+ 	enum zone_type high_zoneidx = gfp_zone(gfp_mask);
+ 	struct zone *preferred_zone;
+-	struct page *page;
++	struct page *page = NULL;
+ 	int migratetype = allocflags_to_migratetype(gfp_mask);
++	unsigned int cpuset_mems_cookie;
+ 
+ 	gfp_mask &= gfp_allowed_mask;
+ 
+@@ -2398,15 +2399,15 @@ __alloc_pages_nodemask(gfp_t gfp_mask, unsigned int order,
+ 	if (unlikely(!zonelist->_zonerefs->zone))
+ 		return NULL;
+ 
+-	get_mems_allowed();
++retry_cpuset:
++	cpuset_mems_cookie = get_mems_allowed();
++
+ 	/* The preferred zone is used for statistics later */
+ 	first_zones_zonelist(zonelist, high_zoneidx,
+ 				nodemask ? : &cpuset_current_mems_allowed,
+ 				&preferred_zone);
+-	if (!preferred_zone) {
+-		put_mems_allowed();
+-		return NULL;
+-	}
++	if (!preferred_zone)
++		goto out;
+ 
+ 	/* First allocation attempt */
+ 	page = get_page_from_freelist(gfp_mask|__GFP_HARDWALL, nodemask, order,
+@@ -2416,9 +2417,19 @@ __alloc_pages_nodemask(gfp_t gfp_mask, unsigned int order,
+ 		page = __alloc_pages_slowpath(gfp_mask, order,
+ 				zonelist, high_zoneidx, nodemask,
+ 				preferred_zone, migratetype);
+-	put_mems_allowed();
+ 
+ 	trace_mm_page_alloc(page, order, gfp_mask, migratetype);
++
++out:
++	/*
++	 * When updating a task's mems_allowed, it is possible to race with
++	 * parallel threads in such a way that an allocation can fail while
++	 * the mask is being updated. If a page allocation is about to fail,
++	 * check if the cpuset changed during allocation and if so, retry.
++	 */
++	if (unlikely(!put_mems_allowed(cpuset_mems_cookie) && !page))
++		goto retry_cpuset;
++
+ 	return page;
+ }
+ EXPORT_SYMBOL(__alloc_pages_nodemask);
+@@ -2632,13 +2643,15 @@ void si_meminfo_node(struct sysinfo *val, int nid)
+ bool skip_free_areas_node(unsigned int flags, int nid)
+ {
+ 	bool ret = false;
++	unsigned int cpuset_mems_cookie;
+ 
+ 	if (!(flags & SHOW_MEM_FILTER_NODES))
+ 		goto out;
+ 
+-	get_mems_allowed();
+-	ret = !node_isset(nid, cpuset_current_mems_allowed);
+-	put_mems_allowed();
++	do {
++		cpuset_mems_cookie = get_mems_allowed();
++		ret = !node_isset(nid, cpuset_current_mems_allowed);
++	} while (!put_mems_allowed(cpuset_mems_cookie));
+ out:
+ 	return ret;
+ }
+diff --git a/mm/slab.c b/mm/slab.c
+index f0bd785..29c8716 100644
+--- a/mm/slab.c
++++ b/mm/slab.c
+@@ -3284,12 +3284,10 @@ static void *alternate_node_alloc(struct kmem_cache *cachep, gfp_t flags)
+ 	if (in_interrupt() || (flags & __GFP_THISNODE))
+ 		return NULL;
+ 	nid_alloc = nid_here = numa_mem_id();
+-	get_mems_allowed();
+ 	if (cpuset_do_slab_mem_spread() && (cachep->flags & SLAB_MEM_SPREAD))
+ 		nid_alloc = cpuset_slab_spread_node();
+ 	else if (current->mempolicy)
+ 		nid_alloc = slab_node(current->mempolicy);
+-	put_mems_allowed();
+ 	if (nid_alloc != nid_here)
+ 		return ____cache_alloc_node(cachep, flags, nid_alloc);
+ 	return NULL;
+@@ -3312,14 +3310,17 @@ static void *fallback_alloc(struct kmem_cache *cache, gfp_t flags)
+ 	enum zone_type high_zoneidx = gfp_zone(flags);
+ 	void *obj = NULL;
+ 	int nid;
++	unsigned int cpuset_mems_cookie;
+ 
+ 	if (flags & __GFP_THISNODE)
+ 		return NULL;
+ 
+-	get_mems_allowed();
+-	zonelist = node_zonelist(slab_node(current->mempolicy), flags);
+ 	local_flags = flags & (GFP_CONSTRAINT_MASK|GFP_RECLAIM_MASK);
+ 
++retry_cpuset:
++	cpuset_mems_cookie = get_mems_allowed();
++	zonelist = node_zonelist(slab_node(current->mempolicy), flags);
++
+ retry:
+ 	/*
+ 	 * Look through allowed nodes for objects available
+@@ -3372,7 +3373,9 @@ retry:
+ 			}
+ 		}
+ 	}
+-	put_mems_allowed();
++
++	if (unlikely(!put_mems_allowed(cpuset_mems_cookie) && !obj))
++		goto retry_cpuset;
+ 	return obj;
+ }
+ 
+diff --git a/mm/slub.c b/mm/slub.c
+index 4907563..f4a6229 100644
+--- a/mm/slub.c
++++ b/mm/slub.c
+@@ -1581,6 +1581,7 @@ static struct page *get_any_partial(struct kmem_cache *s, gfp_t flags,
+ 	struct zone *zone;
+ 	enum zone_type high_zoneidx = gfp_zone(flags);
+ 	void *object;
++	unsigned int cpuset_mems_cookie;
+ 
+ 	/*
+ 	 * The defrag ratio allows a configuration of the tradeoffs between
+@@ -1604,23 +1605,32 @@ static struct page *get_any_partial(struct kmem_cache *s, gfp_t flags,
+ 			get_cycles() % 1024 > s->remote_node_defrag_ratio)
+ 		return NULL;
+ 
+-	get_mems_allowed();
+-	zonelist = node_zonelist(slab_node(current->mempolicy), flags);
+-	for_each_zone_zonelist(zone, z, zonelist, high_zoneidx) {
+-		struct kmem_cache_node *n;
+-
+-		n = get_node(s, zone_to_nid(zone));
+-
+-		if (n && cpuset_zone_allowed_hardwall(zone, flags) &&
+-				n->nr_partial > s->min_partial) {
+-			object = get_partial_node(s, n, c);
+-			if (object) {
+-				put_mems_allowed();
+-				return object;
++	do {
++		cpuset_mems_cookie = get_mems_allowed();
++		zonelist = node_zonelist(slab_node(current->mempolicy), flags);
++		for_each_zone_zonelist(zone, z, zonelist, high_zoneidx) {
++			struct kmem_cache_node *n;
++
++			n = get_node(s, zone_to_nid(zone));
++
++			if (n && cpuset_zone_allowed_hardwall(zone, flags) &&
++					n->nr_partial > s->min_partial) {
++				object = get_partial_node(s, n, c);
++				if (object) {
++					/*
++					 * Return the object even if
++					 * put_mems_allowed indicated that
++					 * the cpuset mems_allowed was
++					 * updated in parallel. It's a
++					 * harmless race between the alloc
++					 * and the cpuset update.
++					 */
++					put_mems_allowed(cpuset_mems_cookie);
++					return object;
++				}
+ 			}
+ 		}
+-	}
+-	put_mems_allowed();
++	} while (!put_mems_allowed(cpuset_mems_cookie));
+ #endif
+ 	return NULL;
+ }
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index c52b235..fccc048 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -2337,7 +2337,6 @@ static unsigned long do_try_to_free_pages(struct zonelist *zonelist,
+ 	unsigned long writeback_threshold;
+ 	bool aborted_reclaim;
+ 
+-	get_mems_allowed();
+ 	delayacct_freepages_start();
+ 
+ 	if (global_reclaim(sc))
+@@ -2401,7 +2400,6 @@ static unsigned long do_try_to_free_pages(struct zonelist *zonelist,
+ 
+ out:
+ 	delayacct_freepages_end();
+-	put_mems_allowed();
+ 
+ 	if (sc->nr_reclaimed)
+ 		return sc->nr_reclaimed;
+
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
