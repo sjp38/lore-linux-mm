@@ -1,88 +1,122 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx182.postini.com [74.125.245.182])
-	by kanga.kvack.org (Postfix) with SMTP id 316636B002C
-	for <linux-mm@kvack.org>; Wed,  7 Mar 2012 15:33:27 -0500 (EST)
-Received: by bkwq16 with SMTP id q16so7725834bkw.14
-        for <linux-mm@kvack.org>; Wed, 07 Mar 2012 12:33:25 -0800 (PST)
-Message-ID: <4F57C610.8050101@openvz.org>
-Date: Thu, 08 Mar 2012 00:33:20 +0400
-From: Konstantin Khlebnikov <khlebnikov@openvz.org>
+Received: from psmtp.com (na3sys010amx149.postini.com [74.125.245.149])
+	by kanga.kvack.org (Postfix) with SMTP id 142ED6B002C
+	for <linux-mm@kvack.org>; Wed,  7 Mar 2012 15:52:15 -0500 (EST)
+Date: Wed, 7 Mar 2012 15:52:09 -0500
+From: Vivek Goyal <vgoyal@redhat.com>
+Subject: Re: [ATTEND] [LSF/MM TOPIC] Buffered writes throttling
+Message-ID: <20120307205209.GK13430@redhat.com>
+References: <4F507453.1020604@suse.com>
+ <20120302153322.GB26315@redhat.com>
+ <20120305192226.GA3670@localhost>
+ <20120305211114.GF18546@redhat.com>
+ <20120305225801.GB7545@thinkpad>
 MIME-Version: 1.0
-Subject: Re: Fine granularity page reclaim
-References: <20120217092205.GA9462@gmail.com>	<4F3EB675.9030702@openvz.org> <20120220062006.GA5028@gmail.com>	<4F41F1C2.3030908@openvz.org> <CANWLp03njY11Swiic7_mv6Gk3C=v4YYe5nLzbAjLH0KftyQftA@mail.gmail.com>
-In-Reply-To: <CANWLp03njY11Swiic7_mv6Gk3C=v4YYe5nLzbAjLH0KftyQftA@mail.gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20120305225801.GB7545@thinkpad>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Zheng Liu <gnehzuil.liu@gmail.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: Andrea Righi <andrea@betterlinux.com>
+Cc: Fengguang Wu <fengguang.wu@intel.com>, Suresh Jayaraman <sjayaraman@suse.com>, lsf-pc@lists.linux-foundation.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Jan Kara <jack@suse.cz>, Greg Thelen <gthelen@google.com>
 
-Zheng Liu wrote:
->
->
-> On Monday, February 20, 2012, Konstantin Khlebnikov <khlebnikov@openvz.org <mailto:khlebnikov@openvz.org>> wrote:
->  > Zheng Liu wrote:
->  >>
->  >> Cc linux-kernel mailing list.
->  >>
->  >> On Sat, Feb 18, 2012 at 12:20:05AM +0400, Konstantin Khlebnikov wrote:
->  >>>
->  >>> Zheng Liu wrote:
->  >>>>
->  >>>> Hi all,
->  >>>>
->  >>>> Currently, we encounter a problem about page reclaim. In our product system,
->  >>>> there is a lot of applictions that manipulate a number of files. In these
->  >>>> files, they can be divided into two categories. One is index file, another is
->  >>>> block file. The number of index files is about 15,000, and the number of
->  >>>> block files is about 23,000 in a 2TB disk. The application accesses index
->  >>>> file using mmap(2), and read/write block file using pread(2)/pwrite(2). We hope
->  >>>> to hold index file in memory as much as possible, and it works well in Redhat
->  >>>> 2.6.18-164. It is about 60-70% of index files that can be hold in memory.
->  >>>> However, it doesn't work well in Redhat 2.6.32-133. I know in 2.6.18 that the
->  >>>> linux uses an active list and an inactive list to handle page reclaim, and in
->  >>>> 2.6.32 that they are divided into anonymous list and file list. So I am
->  >>>> curious about why most of index files can be hold in 2.6.18? The index file
->  >>>> should be replaced because mmap doesn't impact the lru list.
->  >>>
->  >>> There was my patch for fixing similar problem with shared/executable mapped pages
->  >>> "vmscan: promote shared file mapped pages" commit 34dbc67a644f and commit c909e99364c
->  >>> maybe it will help in your case.
->  >>
->  >> Hi Konstantin,
->  >>
->  >> Thank you for your reply.  I have tested it in upstream kernel.  These
->  >> patches are useful for multi-processes applications.  But, in our product
->  >> system, there are some applications that are multi-thread.  So
->  >> 'references_ptes>  1' cannot help these applications to hold the data in
->  >> memory.
->  >
->  > Ok, what if you mmap you data as executable, just to test.
->  > Then these pages will be activated after first touch.
->  > In attachment patch with per-mm flag with the same effect.
->  >
->
-> Hi Konstantin,
->
-> Sorry for the delay reply.  Last two weeks I was trying these two solutions
-> and evaluating the impacts for the performance in our product system.
-> Good news is that these two solutions both work well. They can keep
-> mapped files in memory under mult-thread.  But I have a question for
-> the first solution (map the file with PROT_EXEC flag).  I think this way is
-> too tricky.  As I said previously, these files that needs to be mapped only
-> are normal index file, and they shouldn't be mapped with PROT_EXEC flag
-> from the view of an application programmer.  So actually the key issue is
-> that we should provide a mechanism, which lets different file sets can be
-> reclaimed separately.  I am not sure whether this idea is useful or not.  So
-> any feedbacks are welcomed.:-).  Thank you.
->
+On Mon, Mar 05, 2012 at 11:58:01PM +0100, Andrea Righi wrote:
 
-Sounds good. Yes, PROT_EXEC isn't very usable and secure, per-mm flag not
-very flexible too. I prefer setting some kind of memory pressure priorities
-for each vma and inode. Probably we can sort vma and inodes into different
-cgroup-like sets and balance memory pressure between them.
-Maybe someone was thought about it...
+[..]
+> What about this scenario? (Sorry, I've not followed some of the recent
+> discussions on this topic, so I'm sure I'm oversimplifying a bit or
+> ignoring some details):
+> 
+>  - track inodes per-memcg for writeback IO (provided Greg's patch)
+>  - provide per-memcg dirty limit (global, not per-device); when this
+>    limit is exceeded flusher threads are awekened and all tasks that
+>    continue to generate new dirty pages inside the memcg are put to
+>    sleep
+>  - flusher threads start to write some dirty inodes of this memcg (using
+>    the inode tracking feature), let say they start with a chunk of N
+>    pages of the first dirty inode
+>  - flusher threads can't flush in this way more than N pages / sec
+>    (where N * PAGE_SIZE / sec is the blkcg "buffered write rate limit"
+>    on the inode's block device); if a flusher thread exceeds this limit
+>    it won't be blocked directly, it just stops flushing pages for this
+>    memcg after the first chunk and it can continue to flush dirty pages
+>    of a different memcg.
+> 
+
+So, IIUC, the only thing little different here is that throttling is
+implemented by flusher thread. But it is still per device per cgroup. I
+think that is just a implementation detail whether we implement it
+in block layer, or in writeback or somewhere else.  We can very well
+implement it in block layer and provide per bdi/per_group congestion
+flag in bdi so that flusher will stop pushing more IO if group on 
+a bdi is congested (because IO is throttled).
+
+I think first important thing is to figure out what is minimal set of
+requirement (As jan said in another mail), which will solve wide
+variety of cases. I am trying to list some of points. 
+
+
+- Throttling for buffered writes
+	- Do we want per device throttling limits or global throttling
+	  limtis.
+
+	- Exising direct write limtis are per device and implemented in
+	  block layer.
+
+	- I personally think that both kind of limits might make sense.
+	  But a global limit for async write might make more sense at
+	  least for the workloads like backup which can run on a throttled
+  	  speed.
+
+	- Absolute throttling IO will make most sense on top level device
+	  in the IO stack.
+
+	- For per device rate throttling, do we want a common limit for
+	  direct write and buffered write or a separate limit just for
+	  buffered writes.
+
+- Proportional IO for async writes
+	- Will probably make most sense on bottom most devices in the IO
+	  stack (If we are able to somehow retain the submitter's context).
+	
+	- Logically it will make sense to keep sync and async writes in
+	  same group and try to provide fair share of disk between groups.
+	  Technically CFQ can do that but in practice I think it will be
+ 	  problematic. Writes of one group will take precedence of reads
+	  of another group. Currently any read is prioritized over 
+	  buffered writes. So by splitting buffered writes in their own
+	  cgroups, they can serverly impact the latency of reads in
+	  another group. Not sure how many people really want to do
+	  that in practice.
+
+	- Do we really need proportional IO for async writes. CFQ had
+	  tried implementing ioprio for async writes but it does not
+	  work. Should we just care about groups of sync IO and let
+	  all the async IO on device go in a single queue and lets
+	  make suere it is not starved while sync IO is going on.
+
+
+	- I thought that most of the people cared about not impacting
+	  sync latencies badly while buffered writes are happening. Not
+	  many complained that buffered writes of one application should
+	  happen faster than other application. 
+
+	- If we agree that not many people require service differentation
+	  between buffered writes, then we probably don't have to do
+	  anything in this space and we can keep things simple. I
+	  personally prefer this option. Trying to provide proportional
+	  IO for async writes will make things complicated and we might
+	  not achieve much. 
+
+	- CFQ already does a very good job of prioritizing sync over async
+	  (at the cost of reduced throuhgput on fast devices). So what's
+	  the use case of proportion IO for async writes.
+
+Once we figure out what are the requirements, we can discuss the
+implementation details.
+
+Thanks
+Vivek
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
