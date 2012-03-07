@@ -1,76 +1,153 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx159.postini.com [74.125.245.159])
-	by kanga.kvack.org (Postfix) with SMTP id BA9D26B004A
-	for <linux-mm@kvack.org>; Wed,  7 Mar 2012 01:34:19 -0500 (EST)
-Received: by vbbey12 with SMTP id ey12so6740273vbb.14
-        for <linux-mm@kvack.org>; Tue, 06 Mar 2012 22:34:18 -0800 (PST)
-Message-ID: <4F570168.6050008@gmail.com>
-Date: Wed, 07 Mar 2012 01:34:16 -0500
-From: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
+Received: from psmtp.com (na3sys010amx153.postini.com [74.125.245.153])
+	by kanga.kvack.org (Postfix) with SMTP id 7CE3E6B004A
+	for <linux-mm@kvack.org>; Wed,  7 Mar 2012 01:36:37 -0500 (EST)
+Date: Tue, 6 Mar 2012 22:31:34 -0800
+From: Fengguang Wu <fengguang.wu@intel.com>
+Subject: Re: [Lsf-pc] [ATTEND] [LSF/MM TOPIC] Buffered writes throttling
+Message-ID: <20120307063134.GA2445@localhost>
+References: <4F507453.1020604@suse.com>
+ <20120302153322.GB26315@redhat.com>
+ <20120305202330.GD11238@quack.suse.cz>
 MIME-Version: 1.0
-Subject: Re: [patch] mm, mempolicy: make mempolicies robust against errors
-References: <alpine.DEB.2.00.1203041341340.9534@chino.kir.corp.google.com> <20120306160833.0e9bf50a.akpm@linux-foundation.org> <alpine.DEB.2.00.1203061950050.24600@chino.kir.corp.google.com> <alpine.DEB.2.00.1203062025490.24600@chino.kir.corp.google.com> <CAHGf_=qG1Lah00fGTNENvtgacsUt1=FcMKyt+kmPG1=UD6ecNw@mail.gmail.com> <alpine.DEB.2.00.1203062151530.6424@chino.kir.corp.google.com>
-In-Reply-To: <alpine.DEB.2.00.1203062151530.6424@chino.kir.corp.google.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20120305202330.GD11238@quack.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org, kosaki.motohiro@gmail.com
+To: Jan Kara <jack@suse.cz>
+Cc: Vivek Goyal <vgoyal@redhat.com>, Suresh Jayaraman <sjayaraman@suse.com>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, lsf-pc@lists.linux-foundation.org, Andrea Righi <andrea@betterlinux.com>
 
-(3/7/12 12:58 AM), David Rientjes wrote:
-> On Wed, 7 Mar 2012, KOSAKI Motohiro wrote:
->
->>> It's unnecessary to BUG() in situations when a mempolicy has an
->>> unsupported mode, it just means that a mode doesn't have complete coverage
->>> in all mempolicy functions -- which is an error, but not a fatal error --
->>> or that a bit has flipped.  Regardless, it's sufficient to warn the user
->>> in the kernel log of the situation once and then proceed without crashing
->>> the system.
->>>
->>> This patch converts nearly all the BUG()'s in mm/mempolicy.c to
->>> WARN_ON_ONCE(1) and provides the necessary code to return successfully.
->>
->> I'm sorry. I simple don't understand the purpose of this patch. every
->> mem policy  syscalls have input check then we can't hit BUG()s in
->> mempolicy.c. To me, BUG() is obvious notation than WARN_ON_ONCE().
->>
->
-> Right, this patch doesn't functionally change anything except it will (1)
-> continue to warn users when there's a legitimate mempolicy code error by
-> way of WARN_ON_ONCE() (which is good), just without crashing the machine
-> unnecessarily and (2) allow the system to stay alive since no mempolicy
-> error changed by this bug is fatal.  We should only be using BUG() when
-> the side-effects of continuing are fatal; doing WARN_ON_ONCE(1) is
-> sufficient annotation, I think, that this code should never be reached --
-> BUG() has no advantage here.
->
->> We usually use WARN_ON_ONCE() for hw drivers code. Because of, the
->> warn-on mean "we believe this route never reach, but we afraid there
->> is crazy buggy hardware".
->>
->> And, now BUG() has renreachable() annotation. why don't it work?
->>
->>
->> #define BUG()                                                   \
->> do {                                                            \
->>          asm volatile("ud2");                                    \
->>          unreachable();                                          \
->> } while (0)
->>
->
-> That's not compiled for CONFIG_BUG=n; such a config fallsback to
-> include/asm-generic/bug.h which just does
->
-> 	#define BUG()	do {} while (0)
->
-> because CONFIG_BUG specifically _wants_ to bypass BUG()s and is reasonably
-> protected by CONFIG_EXPERT.
+On Mon, Mar 05, 2012 at 09:23:30PM +0100, Jan Kara wrote:
+> On Fri 02-03-12 10:33:23, Vivek Goyal wrote:
+> > On Fri, Mar 02, 2012 at 12:48:43PM +0530, Suresh Jayaraman wrote:
+> > > Committee members,
+> > > 
+> > > Please consider inviting me to the Storage, Filesystem, & MM Summit. I
+> > > am working for one of the kernel teams in SUSE Labs focusing on Network
+> > > filesystems and block layer.
+> > > 
+> > > Recently, I have been trying to solve the problem of "throttling
+> > > buffered writes" to make per-cgroup throttling of IO to the device
+> > > possible. Currently the block IO controller does not throttle buffered
+> > > writes. The writes would have lost the submitter's context (I/O comes in
+> > > flusher thread's context) when they are at the block IO layer. I looked
+> > > at the past work and many folks have attempted to solve this problem in
+> > > the past years but this problem remains unsolved so far.
+> > > 
+> > > First, Andrea Righi tried to solve this by limiting the rate of async
+> > > writes at the time a task is generating dirty pages in the page cache.
+> > > 
+> > > Next, Vivek Goyal tried to solve this by throttling writes at the time
+> > > they are entering the page cache.
+> > > 
+> > > Both these approches have limitations and not considered for merging.
+> > > 
+> > > I have looked at the possibility of solving this at the filesystem level
+> > > but the problem with ext* filesystems is that a commit will commit the
+> > > whole transaction at once (which may contain writes from
+> > > processes belonging to more than one cgroup). Making filesystems cgroup
+> > > aware would need redesign of journalling layer itself.
+> > > 
+> > > Dave Chinner thinks this problem should be solved and being solved in a
+> > > different manner by making the bdi-flusher writeback cgroup aware.
+> > > 
+> > > Greg Thelen's memcg writeback patchset (already been proposed for LSF/MM
+> > > summit this year) adds cgroup awareness to writeback. Some aspects of
+> > > this patchset could be borrowed for solving the problem of throttling
+> > > buffered writes.
+> > > 
+> > > As I understand the topic was discussed during last Kernel Summit as
+> > > well and the idea is to get the IO-less throttling patchset into the
+> > > kernel, then do per-memcg dirty memory limiting and add some memcg
+> > > awareness to writeback Greg Thelen and then when these things settle
+> > > down, think how to solve this problem since noone really seem to have a
+> > > good answer to it.
+> > > 
+> > > Having worked on linux filesystem/storage area for a few years now and
+> > > having spent time understanding the various approaches tried and looked
+> > > at other feasible way of solving this problem, I look forward to
+> > > participate in the summit and discussions.
+> > > 
+> > > So, the topic I would like to discuss is solving the problem of
+> > > "throttling buffered writes". This could considered for discussion with
+> > > memcg writeback session if that topic has been allocated a slot.
+> > > 
+> > > I'm aware that this is a late submission and my apologies for not making
+> > > it earlier. But, I want to take chances and see if it is possible still..
+> > 
+> > This is an interesting and complicated topic. As you mentioned we have had
+> > tried to solve it but nothing has been merged yet. Personally, I am still
+> > interested in having a discussion and see if we can come up with a way
+> > forward.
+> > 
+> > Because filesystems are not cgroup aware, throtting IO below filesystem
+> > has dangers of IO of faster cgroups being throttled behind slower cgroup
+> > (journalling was one example and there could be others). Hence, I personally
+> > think that this problem should be solved at higher layer and that is when
+> > we are actually writting to the cache. That has the disadvantage of still
+> > seeing IO spikes at the device but I guess we live with that. Doing it
+> > at higher layer also allows to use the same logic for NFS too otherwise
+> > NFS buffered write will continue to be a problem.
+>   Well, I agree limiting of memory dirty rate has a value but if I look at
+> a natural use case where I have several cgroups and I want to make sure
+> disk time is fairly divided among them, then limiting dirty rate doesn't
+> quite do what I need. Because I'm interested in time it takes disk to
+> process the combination of reads, direct IO, and buffered writes the cgroup
+> generates. Having the limits for dirty rate and other IO separate means I
+> have to be rather pesimistic in setting the bounds so that combination of
+> dirty rate + other IO limit doesn't exceed the desired bound but this is
+> usually unnecessarily harsh...
 
-So, I strongly suggest to remove CONFIG_BUG=n. It is neglected very long time and
-much plenty code assume BUG() is not no-op. I don't think we can fix all place.
+Yeah it's quite possible some use cases may need to control read/write
+respectively and others may want to simply limit the overall r/w
+throughput or disk utilization.
 
-Just one instruction don't hurt code size nor performance.
+It seems more a matter of interface rather than implementation.  If we
+have code to limit the buffered/direct write bandwidth respectively,
+it should also be able to limit the overall buffered+direct write
+bandwidth or even read+write bandwidth.
+
+However for the "overall" r+w limit interface to work, some implicit
+rule of precedences or weight will be necessary, eg. read > DIRECT
+write > buffered write, or read:DIRECT write:buffered write=10:10:1 or
+whatever. Which the users may not totally agree.
+
+In the end it looks there are always the distinguish of the main
+SYNC/ASYNC and read/write I/O types and no chance to hide them from
+the I/O controller interfaces. Then we might export interfaces to
+allow the users to specify the overall I/O rate limit, the weights for
+each type of I/O, the individual rate limits for each type of I/O,
+etc. to the users' heart content.
+
+> We agree though (as we spoke together last year) that throttling at block
+> layer isn't really an option at least for some filesystems such as ext3/4.
+> But what seemed like a plausible idea to me was that we'd account all IO
+> including buffered writes at block layer (there we'd need at least
+
+Account buffered write I/O when they reach the block layer? It sounds
+too late.
+
+> approximate tracking of originator of the IO - tracking inodes as Greg did
+> in his patch set seemed OK) but throttle only direct IO & reads. Limitting
+> of buffered writes would then be achieved by
+>   a) having flusher thread choose inodes to write depending on how much
+> available disk time cgroup has and
+
+The flusher is fundamentally
+
+- coarsely controllable due to the large write chunk size
+- not controllable in the case of shared inodes
+
+so any dirty size/rate limiting scheme based on controlling the
+flusher behavior is not going to be an exact/reliable solution...
+
+>   b) throttling buffered writers when cgroup has too many dirty pages.
+
+That looks still be throttling at the balance_dirty_pages() level?
+
+Thanks,
+Fengguang
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
