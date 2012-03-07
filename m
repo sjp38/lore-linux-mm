@@ -1,94 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx108.postini.com [74.125.245.108])
-	by kanga.kvack.org (Postfix) with SMTP id CC0B86B004A
-	for <linux-mm@kvack.org>; Wed,  7 Mar 2012 04:17:27 -0500 (EST)
-Message-ID: <4F572730.8000000@cn.fujitsu.com>
-Date: Wed, 07 Mar 2012 17:15:28 +0800
-From: Miao Xie <miaox@cn.fujitsu.com>
-Reply-To: miaox@cn.fujitsu.com
+Received: from psmtp.com (na3sys010amx121.postini.com [74.125.245.121])
+	by kanga.kvack.org (Postfix) with SMTP id 817766B004A
+	for <linux-mm@kvack.org>; Wed,  7 Mar 2012 05:39:13 -0500 (EST)
+Received: by vcbfk14 with SMTP id fk14so6935015vcb.14
+        for <linux-mm@kvack.org>; Wed, 07 Mar 2012 02:39:12 -0800 (PST)
 MIME-Version: 1.0
-Subject: Re: [PATCH] cpuset: mm: Reduce large amounts of memory barrier related
- damage v2
-References: <20120306132735.GA2855@suse.de>
-In-Reply-To: <20120306132735.GA2855@suse.de>
-Content-Transfer-Encoding: 7bit
-Content-Type: text/plain; charset=ISO-8859-15
+In-Reply-To: <20120307002616.GP13462@redhat.com>
+References: <1330594374-13497-1-git-send-email-lliubbo@gmail.com>
+	<alpine.LSU.2.00.1203061515470.1292@eggly.anvils>
+	<20120307001148.GO13462@redhat.com>
+	<20120307002616.GP13462@redhat.com>
+Date: Wed, 7 Mar 2012 18:39:12 +0800
+Message-ID: <CAA_GA1d1MSQVcW=pabjVj0+oOyC1OzJmyqry-bNvZ=rDeTp--w@mail.gmail.com>
+Subject: Re: [PATCH 1/2] ksm: clean up page_trans_compound_anon_split
+From: Bob Liu <lliubbo@gmail.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Christoph Lameter <cl@linux.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: Hugh Dickins <hughd@google.com>, akpm@linux-foundation.org, rientjes@google.com, kamezawa.hiroyu@jp.fujitsu.com, minchan.kim@gmail.com, linux-mm@kvack.org
 
-On Tue, 6 Mar 2012 13:27:35 +0000, Mel Gorman wrote:
-[skip]
-> @@ -964,7 +964,6 @@ static void cpuset_change_task_nodemask(struct task_struct *tsk,
->  {
->  	bool need_loop;
->  
-> -repeat:
->  	/*
->  	 * Allow tasks that have access to memory reserves because they have
->  	 * been OOM killed to get memory anywhere.
-> @@ -983,45 +982,19 @@ repeat:
->  	 */
->  	need_loop = task_has_mempolicy(tsk) ||
->  			!nodes_intersects(*newmems, tsk->mems_allowed);
-> -	nodes_or(tsk->mems_allowed, tsk->mems_allowed, *newmems);
-> -	mpol_rebind_task(tsk, newmems, MPOL_REBIND_STEP1);
->  
-> -	/*
-> -	 * ensure checking ->mems_allowed_change_disable after setting all new
-> -	 * allowed nodes.
-> -	 *
-> -	 * the read-side task can see an nodemask with new allowed nodes and
-> -	 * old allowed nodes. and if it allocates page when cpuset clears newly
-> -	 * disallowed ones continuous, it can see the new allowed bits.
-> -	 *
-> -	 * And if setting all new allowed nodes is after the checking, setting
-> -	 * all new allowed nodes and clearing newly disallowed ones will be done
-> -	 * continuous, and the read-side task may find no node to alloc page.
-> -	 */
-> -	smp_mb();
-> +	if (need_loop)
-> +		write_seqcount_begin(&tsk->mems_allowed_seq);
->  
-> -	/*
-> -	 * Allocation of memory is very fast, we needn't sleep when waiting
-> -	 * for the read-side.
-> -	 */
-> -	while (need_loop && ACCESS_ONCE(tsk->mems_allowed_change_disable)) {
-> -		task_unlock(tsk);
-> -		if (!task_curr(tsk))
-> -			yield();
-> -		goto repeat;
-> -	}
-> -
-> -	/*
-> -	 * ensure checking ->mems_allowed_change_disable before clearing all new
-> -	 * disallowed nodes.
-> -	 *
-> -	 * if clearing newly disallowed bits before the checking, the read-side
-> -	 * task may find no node to alloc page.
-> -	 */
-> -	smp_mb();
-> +	nodes_or(tsk->mems_allowed, tsk->mems_allowed, *newmems);
-> +	mpol_rebind_task(tsk, newmems, MPOL_REBIND_STEP1);
->  
->  	mpol_rebind_task(tsk, newmems, MPOL_REBIND_STEP2);
->  	tsk->mems_allowed = *newmems;
-> +
-> +	if (need_loop)
-> +		write_seqcount_end(&tsk->mems_allowed_seq);
-> +
->  	task_unlock(tsk);
->  }
+Hi Andrea,
 
-With this patch, we needn't break the nodemask update into two steps.
+On Wed, Mar 7, 2012 at 8:26 AM, Andrea Arcangeli <aarcange@redhat.com> wrot=
+e:
+> On Wed, Mar 07, 2012 at 01:11:48AM +0100, Andrea Arcangeli wrote:
+>> (the function was invoked only on compound pages in the first place).
+>
+> BTW, most certainly I did at some point this change:
+>
+> - =C2=A0 =C2=A0 =C2=A0 if (page_trans_compound_anon_split(page))
+> + =C2=A0 =C2=A0 =C2=A0 if (PageTransCompound(page) && page_trans_compound=
+_anon_split(page))
+>
+> Before doing this change, the "cleaned up" version would have been
+> broken.
+>
 
-Beside that, we need deal with fork() carefully, or it is possible that the child
-task will be set to a wrong nodemask.
+I think this patch may still break the origin meaning.
 
-Thanks
-Miao
+In case PageTransCompound(page) but !PageAnon(head) after this cleanup,
+page_trans_compound_anon_split(page) will return 1 instead of 0 which
+will cause following
+PageAnon check to a compounded page.
+
+So please just ignore this cleanup. Sorry for my noise.
+
+
+Hugh,  Thank you for your review also.
+
+--=20
+Regards,
+--Bob
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
