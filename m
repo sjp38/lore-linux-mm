@@ -1,109 +1,106 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx150.postini.com [74.125.245.150])
-	by kanga.kvack.org (Postfix) with SMTP id 7D7906B0092
-	for <linux-mm@kvack.org>; Wed,  7 Mar 2012 16:43:08 -0500 (EST)
-Received: by obbta14 with SMTP id ta14so9759203obb.14
-        for <linux-mm@kvack.org>; Wed, 07 Mar 2012 13:43:07 -0800 (PST)
-Date: Wed, 7 Mar 2012 13:43:05 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
-Subject: [patch] mm, memcg: pass charge order to oom killer
-Message-ID: <alpine.DEB.2.00.1203071341320.4520@chino.kir.corp.google.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from psmtp.com (na3sys010amx172.postini.com [74.125.245.172])
+	by kanga.kvack.org (Postfix) with SMTP id 7E7296B002C
+	for <linux-mm@kvack.org>; Wed,  7 Mar 2012 17:01:03 -0500 (EST)
+Date: Wed, 7 Mar 2012 14:01:01 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH 2/5] hugetlb: drop prev_vma in
+ hugetlb_get_unmapped_area_topdown
+Message-Id: <20120307140101.b0624e80.akpm@linux-foundation.org>
+In-Reply-To: <4F101935.1040108@linux.vnet.ibm.com>
+References: <4F101904.8090405@linux.vnet.ibm.com>
+	<4F101935.1040108@linux.vnet.ibm.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Balbir Singh <bsingharora@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, cgroups@vger.kernel.org, linux-mm@kvack.org
+To: Xiao Guangrong <xiaoguangrong@linux.vnet.ibm.com>
+Cc: William Irwin <wli@holomorphy.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-The oom killer typically displays the allocation order at the time of oom
-as a part of its diangostic messages (for global, cpuset, and mempolicy
-ooms).
+On Fri, 13 Jan 2012 19:44:53 +0800
+Xiao Guangrong <xiaoguangrong@linux.vnet.ibm.com> wrote:
 
-The memory controller may also pass the charge order to the oom killer so
-it can emit the same information.  This is useful in determining how
-large the memory allocation is that triggered the oom killer.
+> Afte call find_vma_prev(mm, addr, &prev_vma), following condition is always
+> true:
+> 	!prev_vma || (addr >= prev_vma->vm_end)
+> it can be happily drop prev_vma and use find_vma instead of find_vma_prev
 
-Signed-off-by: David Rientjes <rientjes@google.com>
+I had to rework this patch due to 097d59106a8e4b ("vm: avoid using
+find_vma_prev() unnecessarily") in mainline.  Can you please check my
+handiwork?
+
+
+
+From: Xiao Guangrong <xiaoguangrong@linux.vnet.ibm.com>
+Subject: hugetlb: drop prev_vma in hugetlb_get_unmapped_area_topdown()
+
+After the call find_vma_prev(mm, addr, &prev_vma), the following condition
+is always true:
+
+	!prev_vma || (addr >= prev_vma->vm_end)
+
+it can happily drop prev_vma and use find_vma() instead of find_vma_prev().
+
+Signed-off-by: Xiao Guangrong <xiaoguangrong@linux.vnet.ibm.com>
+Cc: Thomas Gleixner <tglx@linutronix.de>
+Cc: Ingo Molnar <mingo@redhat.com>
+Cc: "H. Peter Anvin" <hpa@zytor.com>
+Cc: Michal Hocko <mhocko@suse.cz>
+Cc: Hillf Danton <dhillf@gmail.com>
+Cc: Andrea Arcangeli <aarcange@redhat.com>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
 ---
- include/linux/memcontrol.h |    3 ++-
- mm/memcontrol.c            |    6 +++---
- mm/oom_kill.c              |    7 ++++---
- 3 files changed, 9 insertions(+), 7 deletions(-)
 
-diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
---- a/include/linux/memcontrol.h
-+++ b/include/linux/memcontrol.h
-@@ -77,7 +77,8 @@ extern void mem_cgroup_uncharge_end(void);
- extern void mem_cgroup_uncharge_page(struct page *page);
- extern void mem_cgroup_uncharge_cache_page(struct page *page);
- 
--extern void mem_cgroup_out_of_memory(struct mem_cgroup *memcg, gfp_t gfp_mask);
-+extern void mem_cgroup_out_of_memory(struct mem_cgroup *memcg, gfp_t gfp_mask,
-+				     int order);
- int task_in_mem_cgroup(struct task_struct *task, const struct mem_cgroup *memcg);
- 
- extern struct mem_cgroup *try_get_mem_cgroup_from_page(struct page *page);
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -1791,7 +1791,7 @@ static void memcg_oom_recover(struct mem_cgroup *memcg)
- /*
-  * try to call OOM killer. returns false if we should exit memory-reclaim loop.
-  */
--bool mem_cgroup_handle_oom(struct mem_cgroup *memcg, gfp_t mask)
-+bool mem_cgroup_handle_oom(struct mem_cgroup *memcg, gfp_t mask, int order)
+ arch/x86/mm/hugetlbpage.c |   23 +++++++----------------
+ 1 file changed, 7 insertions(+), 16 deletions(-)
+
+diff -puN arch/x86/mm/hugetlbpage.c~hugetlb-drop-prev_vma-in-hugetlb_get_unmapped_area_topdown arch/x86/mm/hugetlbpage.c
+--- a/arch/x86/mm/hugetlbpage.c~hugetlb-drop-prev_vma-in-hugetlb_get_unmapped_area_topdown
++++ a/arch/x86/mm/hugetlbpage.c
+@@ -308,7 +308,7 @@ static unsigned long hugetlb_get_unmappe
  {
- 	struct oom_wait_info owait;
- 	bool locked, need_to_kill;
-@@ -1821,7 +1821,7 @@ bool mem_cgroup_handle_oom(struct mem_cgroup *memcg, gfp_t mask)
+ 	struct hstate *h = hstate_file(file);
+ 	struct mm_struct *mm = current->mm;
+-	struct vm_area_struct *vma, *prev_vma;
++	struct vm_area_struct *vma;
+ 	unsigned long base = mm->mmap_base, addr = addr0;
+ 	unsigned long largest_hole = mm->cached_hole_size;
+ 	int first_time = 1;
+@@ -334,25 +334,16 @@ try_again:
+ 		 * i.e. return with success:
+ 		 */
+ 		vma = find_vma(mm, addr);
+-		if (!vma)
+-			return addr;
+-
+-		/*
+-		 * new region fits between prev_vma->vm_end and
+-		 * vma->vm_start, use it:
+-		 */
+-		prev_vma = vma->vm_prev;
+-		if (addr + len <= vma->vm_start &&
+-		            (!prev_vma || (addr >= prev_vma->vm_end))) {
++		if (vma)
++			prev_vma = vma->vm_prev;
++		if (!vma || addr + len <= vma->vm_start) {
+ 			/* remember the address as a hint for next time */
+ 		        mm->cached_hole_size = largest_hole;
+ 		        return (mm->free_area_cache = addr);
+-		} else {
++		} else if (mm->free_area_cache == vma->vm_end) {
+ 			/* pull free_area_cache down to the first hole */
+-		        if (mm->free_area_cache == vma->vm_end) {
+-				mm->free_area_cache = vma->vm_start;
+-				mm->cached_hole_size = largest_hole;
+-			}
++			mm->free_area_cache = vma->vm_start;
++			mm->cached_hole_size = largest_hole;
+ 		}
  
- 	if (need_to_kill) {
- 		finish_wait(&memcg_oom_waitq, &owait.wait);
--		mem_cgroup_out_of_memory(memcg, mask);
-+		mem_cgroup_out_of_memory(memcg, mask, order);
- 	} else {
- 		schedule();
- 		finish_wait(&memcg_oom_waitq, &owait.wait);
-@@ -2192,7 +2192,7 @@ static int mem_cgroup_do_charge(struct mem_cgroup *memcg, gfp_t gfp_mask,
- 	if (!oom_check)
- 		return CHARGE_NOMEM;
- 	/* check OOM */
--	if (!mem_cgroup_handle_oom(mem_over_limit, gfp_mask))
-+	if (!mem_cgroup_handle_oom(mem_over_limit, gfp_mask, get_order(csize)))
- 		return CHARGE_OOM_DIE;
- 
- 	return CHARGE_RETRY;
-diff --git a/mm/oom_kill.c b/mm/oom_kill.c
---- a/mm/oom_kill.c
-+++ b/mm/oom_kill.c
-@@ -561,7 +561,8 @@ static void check_panic_on_oom(enum oom_constraint constraint, gfp_t gfp_mask,
- }
- 
- #ifdef CONFIG_CGROUP_MEM_RES_CTLR
--void mem_cgroup_out_of_memory(struct mem_cgroup *memcg, gfp_t gfp_mask)
-+void mem_cgroup_out_of_memory(struct mem_cgroup *memcg, gfp_t gfp_mask,
-+			      int order)
- {
- 	unsigned long limit;
- 	unsigned int points = 0;
-@@ -577,7 +578,7 @@ void mem_cgroup_out_of_memory(struct mem_cgroup *memcg, gfp_t gfp_mask)
- 		return;
- 	}
- 
--	check_panic_on_oom(CONSTRAINT_MEMCG, gfp_mask, 0, NULL);
-+	check_panic_on_oom(CONSTRAINT_MEMCG, gfp_mask, order, NULL);
- 	limit = mem_cgroup_get_limit(memcg) >> PAGE_SHIFT;
- 	read_lock(&tasklist_lock);
- retry:
-@@ -585,7 +586,7 @@ retry:
- 	if (!p || PTR_ERR(p) == -1UL)
- 		goto out;
- 
--	if (oom_kill_process(p, gfp_mask, 0, points, limit, memcg, NULL,
-+	if (oom_kill_process(p, gfp_mask, order, points, limit, memcg, NULL,
- 				"Memory cgroup out of memory"))
- 		goto retry;
- out:
+ 		/* remember the largest hole we saw so far */
+_
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
