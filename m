@@ -1,78 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx138.postini.com [74.125.245.138])
-	by kanga.kvack.org (Postfix) with SMTP id 3BAB36B004A
-	for <linux-mm@kvack.org>; Wed,  7 Mar 2012 00:58:44 -0500 (EST)
-Received: by iajr24 with SMTP id r24so10599841iaj.14
-        for <linux-mm@kvack.org>; Tue, 06 Mar 2012 21:58:43 -0800 (PST)
-Date: Tue, 6 Mar 2012 21:58:41 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [patch] mm, mempolicy: make mempolicies robust against errors
-In-Reply-To: <CAHGf_=qG1Lah00fGTNENvtgacsUt1=FcMKyt+kmPG1=UD6ecNw@mail.gmail.com>
-Message-ID: <alpine.DEB.2.00.1203062151530.6424@chino.kir.corp.google.com>
-References: <alpine.DEB.2.00.1203041341340.9534@chino.kir.corp.google.com> <20120306160833.0e9bf50a.akpm@linux-foundation.org> <alpine.DEB.2.00.1203061950050.24600@chino.kir.corp.google.com> <alpine.DEB.2.00.1203062025490.24600@chino.kir.corp.google.com>
- <CAHGf_=qG1Lah00fGTNENvtgacsUt1=FcMKyt+kmPG1=UD6ecNw@mail.gmail.com>
+Received: from psmtp.com (na3sys010amx136.postini.com [74.125.245.136])
+	by kanga.kvack.org (Postfix) with SMTP id BCDEC6B004A
+	for <linux-mm@kvack.org>; Wed,  7 Mar 2012 01:10:26 -0500 (EST)
+From: Hiroshi Doyu <hdoyu@nvidia.com>
+Date: Wed, 7 Mar 2012 07:09:52 +0100
+Subject: Re: [PATCHv7 9/9] ARM: dma-mapping: add support for IOMMU mapper
+Message-ID: <20120307.080952.2152478004740487196.hdoyu@nvidia.com>
+References: <20120305134721.0ab0d0e6de56fa30250059b1@nvidia.com><000001ccfaea$00c16f70$02444e50$%szyprowski@samsung.com><401E54CE964CD94BAE1EB4A729C7087E37970113FE@HQMAIL04.nvidia.com>
+In-Reply-To: <401E54CE964CD94BAE1EB4A729C7087E37970113FE@HQMAIL04.nvidia.com>
+Content-Type: text/plain; charset="iso-8859-1"
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-Content-Type: MULTIPART/MIXED; BOUNDARY="397155492-664089629-1331099922=:6424"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org
+To: Krishna Reddy <vdumpa@nvidia.com>
+Cc: "m.szyprowski@samsung.com" <m.szyprowski@samsung.com>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "linaro-mm-sig@lists.linaro.org" <linaro-mm-sig@lists.linaro.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, "linux-samsung-soc@vger.kernel.org" <linux-samsung-soc@vger.kernel.org>, "iommu@lists.linux-foundation.org" <iommu@lists.linux-foundation.org>, "shariq.hasnain@linaro.org" <shariq.hasnain@linaro.org>, "arnd@arndb.de" <arnd@arndb.de>, "benh@kernel.crashing.org" <benh@kernel.crashing.org>, "kyungmin.park@samsung.com" <kyungmin.park@samsung.com>, "andrzej.p@samsung.com" <andrzej.p@samsung.com>, "linux@arm.linux.org.uk" <linux@arm.linux.org.uk>, "pullip.cho@samsung.com" <pullip.cho@samsung.com>, "chunsang.jeong@linaro.org" <chunsang.jeong@linaro.org>
 
-  This message is in MIME format.  The first part should be readable text,
-  while the remaining parts are likely unreadable without MIME-aware tools.
+From: Krishna Reddy <vdumpa@nvidia.com>
+Subject: RE: [PATCHv7 9/9] ARM: dma-mapping: add support for IOMMU mapper
+Date: Tue, 6 Mar 2012 23:48:42 +0100
+Message-ID: <401E54CE964CD94BAE1EB4A729C7087E37970113FE@HQMAIL04.nvidia.com=
+>
 
---397155492-664089629-1331099922=:6424
-Content-Type: TEXT/PLAIN; charset=ISO-8859-1
-Content-Transfer-Encoding: 8BIT
+> > > +struct dma_iommu_mapping *
+> > > +arm_iommu_create_mapping(struct bus_type *bus, dma_addr_t base, size=
+_t size,
+> > > +                        int order)
+> > > +{
+> > > +       unsigned int count =3D (size >> PAGE_SHIFT) - order;
+> > > +       unsigned int bitmap_size =3D BITS_TO_LONGS(count) * sizeof(lo=
+ng);
+>=20
+> The count calculation doesn't seem correct. "order" is log2 number and
+>  size >> PAGE_SHIFT is number of pages.=20
+>=20
+> If size is passed as 64*4096(256KB) and order is 6(allocation granularity=
+ is 2^6 pages=3D256KB),
+>  just 1 bit is enough to manage allocations.  So it should be 4 bytes or =
+one long.
 
-On Wed, 7 Mar 2012, KOSAKI Motohiro wrote:
+Good catch!
 
-> > It's unnecessary to BUG() in situations when a mempolicy has an
-> > unsupported mode, it just means that a mode doesn't have complete coverage
-> > in all mempolicy functions -- which is an error, but not a fatal error --
-> > or that a bit has flipped.  Regardless, it's sufficient to warn the user
-> > in the kernel log of the situation once and then proceed without crashing
-> > the system.
-> >
-> > This patch converts nearly all the BUG()'s in mm/mempolicy.c to
-> > WARN_ON_ONCE(1) and provides the necessary code to return successfully.
-> 
-> I'm sorry. I simple don't understand the purpose of this patch. every
-> mem policy  syscalls have input check then we can't hit BUG()s in
-> mempolicy.c. To me, BUG() is obvious notation than WARN_ON_ONCE().
-> 
+> But the calculation gives count =3D 64 - 6 =3D 58 and=20
+> Bitmap_size gets set to (58/(4*8)) * 4 =3D 8 bytes, which is incorrect.
 
-Right, this patch doesn't functionally change anything except it will (1) 
-continue to warn users when there's a legitimate mempolicy code error by 
-way of WARN_ON_ONCE() (which is good), just without crashing the machine 
-unnecessarily and (2) allow the system to stay alive since no mempolicy 
-error changed by this bug is fatal.  We should only be using BUG() when 
-the side-effects of continuing are fatal; doing WARN_ON_ONCE(1) is 
-sufficient annotation, I think, that this code should never be reached -- 
-BUG() has no advantage here.
+"order" isn't the order of size passed, which is minimal *page*
+allocation order which client decides whatever, just in case.
 
-> We usually use WARN_ON_ONCE() for hw drivers code. Because of, the
-> warn-on mean "we believe this route never reach, but we afraid there
-> is crazy buggy hardware".
-> 
-> And, now BUG() has renreachable() annotation. why don't it work?
-> 
-> 
-> #define BUG()                                                   \
-> do {                                                            \
->         asm volatile("ud2");                                    \
->         unreachable();                                          \
-> } while (0)
-> 
-
-That's not compiled for CONFIG_BUG=n; such a config fallsback to 
-include/asm-generic/bug.h which just does
-
-	#define BUG()	do {} while (0)
-
-because CONFIG_BUG specifically _wants_ to bypass BUG()s and is reasonably 
-protected by CONFIG_EXPERT.
---397155492-664089629-1331099922=:6424--
+> It should be as follows.
+> unsigned int count =3D 1 << get_order(size) - order;
+> unsigned int bitmap_size =3D BITS_TO_LONGS(count) * sizeof(long) * BITS_P=
+ER_BYTE;
+>=20
+> -KR
+>=20
+> --nvpublic
+>=20
+>=20
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
