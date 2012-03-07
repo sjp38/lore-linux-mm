@@ -1,64 +1,34 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx192.postini.com [74.125.245.192])
-	by kanga.kvack.org (Postfix) with SMTP id 45C886B007E
-	for <linux-mm@kvack.org>; Wed,  7 Mar 2012 17:16:21 -0500 (EST)
-Date: Thu, 8 Mar 2012 01:08:19 +0200
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCH] memcg: Free spare array to avoid memory leak
-Message-ID: <20120307230819.GA10238@shutemov.name>
-References: <1331036004-7550-1-git-send-email-handai.szj@taobao.com>
+Received: from psmtp.com (na3sys010amx118.postini.com [74.125.245.118])
+	by kanga.kvack.org (Postfix) with SMTP id B53266B007E
+	for <linux-mm@kvack.org>; Wed,  7 Mar 2012 17:21:45 -0500 (EST)
+Received: by ggeq1 with SMTP id q1so3413886gge.14
+        for <linux-mm@kvack.org>; Wed, 07 Mar 2012 14:21:44 -0800 (PST)
+Date: Wed, 7 Mar 2012 14:21:42 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: PATCH 1/2] rmap: cleanup anon_vma_prepare
+In-Reply-To: <4F575100.30502@linux.vnet.ibm.com>
+Message-ID: <alpine.DEB.2.00.1203071421320.22091@chino.kir.corp.google.com>
+References: <4F575045.9010904@linux.vnet.ibm.com> <4F575100.30502@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-Content-Transfer-Encoding: quoted-printable
-In-Reply-To: <1331036004-7550-1-git-send-email-handai.szj@taobao.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sha Zhengju <handai.szj@gmail.com>
-Cc: linux-mm@kvack.org, cgroups@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, Sha Zhengju <handai.szj@taobao.com>
+To: Xiao Guangrong <xiaoguangrong@linux.vnet.ibm.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-On Tue, Mar 06, 2012 at 08:13:24PM +0800, Sha Zhengju wrote:
-> From: Sha Zhengju <handai.szj@taobao.com>
->=20
-> When the last event is unregistered, there is no need to keep the spare
-> array anymore. So free it to avoid memory leak.
+On Wed, 7 Mar 2012, Xiao Guangrong wrote:
 
-It's not a leak. It will be freed on next event register.
+> Sorry for the title typo, repost it.
+> 
+> -------------------->
+> Subject: [PATCH 1/2] rmap: cleanup anon_vma_prepare
+> 
+> Using the common function anon_vma_chain_link() to link vma and anon_vma
+> 
+> Signed-off-by: Xiao Guangrong <xiaoguangrong@linux.vnet.ibm.com>
 
-Yeah, we don't have to keep spare if primary is empty. But is it worth to
-make code more complicated to save few bytes of memory?
-
->=20
-> Signed-off-by: Sha Zhengju <handai.szj@taobao.com>
->=20
-> ---
->  mm/memcontrol.c |    6 ++++++
->  1 files changed, 6 insertions(+), 0 deletions(-)
->=20
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index 22d94f5..3c09a84 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -4412,6 +4412,12 @@ static void mem_cgroup_usage_unregister_event(stru=
-ct cgroup *cgrp,
->  swap_buffers:
->  	/* Swap primary and spare array */
->  	thresholds->spare =3D thresholds->primary;
-> +	/* If all events are unregistered, free the spare array */
-> +	if (!new) {
-> +		kfree(thresholds->spare);
-> +		thresholds->spare =3D NULL;
-> +	}
-> +
->  	rcu_assign_pointer(thresholds->primary, new);
-> =20
->  	/* To be sure that nobody uses thresholds */
-> --=20
-> 1.7.4.1
->=20
-
---=20
- Kirill A. Shutemov
+Acked-by: David Rientjes <rientjes@google.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
