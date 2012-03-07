@@ -1,57 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx152.postini.com [74.125.245.152])
-	by kanga.kvack.org (Postfix) with SMTP id 7103C6B004A
-	for <linux-mm@kvack.org>; Tue,  6 Mar 2012 22:41:58 -0500 (EST)
-Received: by iajr24 with SMTP id r24so10418205iaj.14
-        for <linux-mm@kvack.org>; Tue, 06 Mar 2012 19:41:57 -0800 (PST)
-Date: Tue, 6 Mar 2012 19:41:55 -0800 (PST)
+Received: from psmtp.com (na3sys010amx137.postini.com [74.125.245.137])
+	by kanga.kvack.org (Postfix) with SMTP id 067EA6B004A
+	for <linux-mm@kvack.org>; Tue,  6 Mar 2012 23:25:41 -0500 (EST)
+Received: by iajr24 with SMTP id r24so10473624iaj.14
+        for <linux-mm@kvack.org>; Tue, 06 Mar 2012 20:25:41 -0800 (PST)
+Date: Tue, 6 Mar 2012 20:25:39 -0800 (PST)
 From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH -v2] mm: SLAB Out-of-memory diagnostics
-In-Reply-To: <20120305181041.GA9829@x61.redhat.com>
-Message-ID: <alpine.DEB.2.00.1203061941210.24600@chino.kir.corp.google.com>
-References: <20120305181041.GA9829@x61.redhat.com>
+Subject: Re: [patch] mm, mempolicy: dummy slab_node return value for bugless
+ kernels
+In-Reply-To: <20120306160833.0e9bf50a.akpm@linux-foundation.org>
+Message-ID: <alpine.DEB.2.00.1203061950050.24600@chino.kir.corp.google.com>
+References: <alpine.DEB.2.00.1203041341340.9534@chino.kir.corp.google.com> <20120306160833.0e9bf50a.akpm@linux-foundation.org>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rafael Aquini <aquini@redhat.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Randy Dunlap <rdunlap@xenotime.net>, Christoph Lameter <cl@linux-foundation.org>, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, Rik van Riel <riel@redhat.com>, Josef Bacik <josef@redhat.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org
 
-On Mon, 5 Mar 2012, Rafael Aquini wrote:
+On Tue, 6 Mar 2012, Andrew Morton wrote:
 
-> diff --git a/mm/slab.c b/mm/slab.c
-> index f0bd785..4aeb5e7 100644
-> --- a/mm/slab.c
-> +++ b/mm/slab.c
-> @@ -1731,6 +1731,52 @@ static int __init cpucache_init(void)
->  }
->  __initcall(cpucache_init);
->  
-> +static noinline void
-> +slab_out_of_memory(struct kmem_cache *cachep, gfp_t gfpflags, int nodeid)
-> +{
-> +	struct kmem_list3 *l3;
-> +	struct slab *slabp;
-> +	unsigned long flags;
-> +	int node;
-> +
-> +	printk(KERN_WARNING
-> +		"SLAB: Unable to allocate memory on node %d (gfp=0x%x)\n",
-> +		nodeid, gfpflags);
-> +	printk(KERN_WARNING "   cache: %s, object size: %d, order: %d\n",
-> +		cachep->name, cachep->buffer_size, cachep->gfporder);
-> +
-> +	for_each_online_node(node) {
-> +		unsigned long active_objs = 0, num_objs = 0, free_objects = 0;
-> +		unsigned long active_slabs = 0, num_slabs = 0;
-> +
-> +		l3 = cachep->nodelists[node];
-> +		if (!l3)
-> +			continue;
-> +
-> +		spin_lock_irqsave(&l3->list_lock, flags);
+> > diff --git a/mm/mempolicy.c b/mm/mempolicy.c
+> > --- a/mm/mempolicy.c
+> > +++ b/mm/mempolicy.c
+> > @@ -1611,6 +1611,7 @@ unsigned slab_node(struct mempolicy *policy)
+> >  
+> >  	default:
+> >  		BUG();
+> > +		return numa_node_id();
+> >  	}
+> >  }
+> 
+> Wait.  If the above code generated a warning then surely we get a *lot*
+> of warnings!  I'd expect that a lot of code assumes that BUG() never
+> returns?
+> 
 
-Could be spin_lock_irq(&l3->list_lock);
+allyesconfig with CONFIG_BUG=n results in 50 such warnings tree wide, and 
+this is the only one in mm/*.
+
+> Also, does CONIG_BUG=n even make sense?  If we got here and we know
+> that the kernel has malfunctioned, what point is there in pretending
+> otherwise?  Odd.
+> 
+
+I don't suspect we'll be very popular if we try to remove it, I can see 
+how it would be useful when BUG() is used when the problem isn't really 
+fatal (to stop something like disk corruption), like the above case isn't. 
+If policy->mode isn't one of MPOL_{BIND,INTERLEAVE,PREFERRED} then we'd 
+want WARN_ON_ONCE() at best; someone either didn't test their patch or 
+we've flipped a bit, but the kernel can run happily along using the local 
+node for slab allocations while still notifying the user.
+
+mm/mempolicy.c misuses BUG() in every case,  Not having the perfect NUMA 
+optimizations is surely annoying, but let's not crash someone's kernel.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
