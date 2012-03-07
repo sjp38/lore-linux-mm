@@ -1,43 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx122.postini.com [74.125.245.122])
-	by kanga.kvack.org (Postfix) with SMTP id DE8FD6B002C
-	for <linux-mm@kvack.org>; Wed,  7 Mar 2012 15:08:12 -0500 (EST)
-Message-ID: <4F578BCA.1090706@jp.fujitsu.com>
-Date: Wed, 07 Mar 2012 11:24:42 -0500
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Received: from psmtp.com (na3sys010amx200.postini.com [74.125.245.200])
+	by kanga.kvack.org (Postfix) with SMTP id ADD9D6B002C
+	for <linux-mm@kvack.org>; Wed,  7 Mar 2012 15:26:22 -0500 (EST)
+Date: Wed, 7 Mar 2012 15:26:16 -0500
+From: Vivek Goyal <vgoyal@redhat.com>
+Subject: Re: [ATTEND] [LSF/MM TOPIC] Buffered writes throttling
+Message-ID: <20120307202616.GJ13430@redhat.com>
+References: <4F507453.1020604@suse.com>
+ <20120302153322.GB26315@redhat.com>
+ <20120305192226.GA3670@localhost>
+ <20120305211114.GF18546@redhat.com>
+ <20120305223029.GB16807@localhost>
+ <20120305231930.GC7545@thinkpad>
+ <20120305235132.GB13690@localhost>
+ <20120306004602.GA16061@thinkpad>
 MIME-Version: 1.0
-Subject: Re: [patch] mm, mempolicy: make mempolicies robust against errors
-References: <alpine.DEB.2.00.1203041341340.9534@chino.kir.corp.google.com> <20120306160833.0e9bf50a.akpm@linux-foundation.org> <alpine.DEB.2.00.1203061950050.24600@chino.kir.corp.google.com> <alpine.DEB.2.00.1203062025490.24600@chino.kir.corp.google.com> <CAHGf_=qG1Lah00fGTNENvtgacsUt1=FcMKyt+kmPG1=UD6ecNw@mail.gmail.com> <alpine.DEB.2.00.1203062151530.6424@chino.kir.corp.google.com> <4F570168.6050008@gmail.com> <alpine.DEB.2.00.1203062253150.1427@chino.kir.corp.google.com>
-In-Reply-To: <alpine.DEB.2.00.1203062253150.1427@chino.kir.corp.google.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20120306004602.GA16061@thinkpad>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: rientjes@google.com
-Cc: kosaki.motohiro@gmail.com, kosaki.motohiro@jp.fujitsu.com, akpm@linux-foundation.org, kamezawa.hiroyu@jp.fujitsu.com, linux-mm@kvack.org
+To: Andrea Righi <andrea@betterlinux.com>
+Cc: Fengguang Wu <fengguang.wu@intel.com>, Suresh Jayaraman <sjayaraman@suse.com>, lsf-pc@lists.linux-foundation.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Jan Kara <jack@suse.cz>, Greg Thelen <gthelen@google.com>
 
-On 3/7/2012 1:56 AM, David Rientjes wrote:
-> On Wed, 7 Mar 2012, KOSAKI Motohiro wrote:
+On Tue, Mar 06, 2012 at 01:46:02AM +0100, Andrea Righi wrote:
+
+[..]
+> > > > Good point. balance_dirty_pages() has no idea about the devices at
+> > > > all. So the rate limit for buffered writes can hardly be unified with
+> > > > the per-device rate limit for direct writes.
+> > > > 
+> > > 
+> > > I think balance_dirty_pages() can have an idea about devices. We can get
+> > > a reference to the right block device / request queue from the
+> > > address_space:
+> > > 
+> > >   bdev = mapping->host->i_sb->s_bdev;
+> > >   q = bdev_get_queue(bdev);
+> > > 
+> > > (NULL pointer dereferences apart).
+> > 
+> > Problem is, there is no general 1:1 mapping between bdev and disks.
+> > For the single disk multpile partitions (sda1, sda2...) case, the
+> > above scheme is fine and makes the throttle happen at sda granularity.
+> > 
+> > However for md/dm etc. there is no way (or need?) to reach the exact
+> > disk that current blkcg is operating on.
+> > 
+> > Thanks,
+> > Fengguang
 > 
->> So, I strongly suggest to remove CONFIG_BUG=n. It is neglected very long time
->> and
->> much plenty code assume BUG() is not no-op. I don't think we can fix all
->> place.
->>
->> Just one instruction don't hurt code size nor performance.
+> Oh I see, the problem is with stacked block devices. Right, if we set a
+> limit for sda and a stacked block device is defined over sda, we'd get
+> only the bdev at the top of the stack at balance_dirty_pages() and the
+> limits configured for the underlying block devices will be ignored.
 > 
-> It's a different topic, the proposal here is whether an error in 
-> mempolicies (either the code or flipped bit) should crash the kernel or 
-> not since it's a condition that can easily be recovered from and leave 
-> BUG() to errors that actually are fatal.  Crashing the kernel offers no 
-> advantage.
+> However, maybe for the 90% of the cases this is fine, I can't see a real
+> world scenario where we may want to limit only part or indirectly a
+> stacked block device...
 
-Should crash? The code path never reach. thus there is no ideal behavior.
-In this case, BUG() is just unreachable annotation. So let's just annotate
-unreachable() even though CONFIG_BUG=n.
+I agree that throttling will make most sense on the top most device in the 
+stack. If we try to do anything on the intermediate device, it might not
+make much sense and we will most likely lose context also.
 
-WARN_ON_ONCE makes code broat and no positive impact.
-
+Thanks
+Vivek
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
