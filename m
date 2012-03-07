@@ -1,72 +1,96 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx181.postini.com [74.125.245.181])
-	by kanga.kvack.org (Postfix) with SMTP id 2B5C36B004A
-	for <linux-mm@kvack.org>; Wed,  7 Mar 2012 01:37:36 -0500 (EST)
-From: Hiroshi Doyu <hdoyu@nvidia.com>
-Date: Wed, 7 Mar 2012 07:37:06 +0100
-Subject: Re: [PATCHv7 9/9] ARM: dma-mapping: add support for IOMMU mapper
-Message-ID: <20120307.083706.2087121294965856946.hdoyu@nvidia.com>
-References: <000001ccfaea$00c16f70$02444e50$%szyprowski@samsung.com><401E54CE964CD94BAE1EB4A729C7087E37970113FE@HQMAIL04.nvidia.com><20120307.080952.2152478004740487196.hdoyu@nvidia.com>
-In-Reply-To: <20120307.080952.2152478004740487196.hdoyu@nvidia.com>
-Content-Type: text/plain; charset="iso-8859-1"
-Content-Transfer-Encoding: quoted-printable
+Received: from psmtp.com (na3sys010amx198.postini.com [74.125.245.198])
+	by kanga.kvack.org (Postfix) with SMTP id A93026B004A
+	for <linux-mm@kvack.org>; Wed,  7 Mar 2012 01:39:05 -0500 (EST)
+Received: by vbbey12 with SMTP id ey12so6743175vbb.14
+        for <linux-mm@kvack.org>; Tue, 06 Mar 2012 22:39:04 -0800 (PST)
+Message-ID: <4F570286.8020704@gmail.com>
+Date: Wed, 07 Mar 2012 01:39:02 -0500
+From: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
 MIME-Version: 1.0
+Subject: Re: [patch] mm, oom: allow exiting tasks to have access to memory
+ reserves
+References: <alpine.DEB.2.00.1203061824280.9015@chino.kir.corp.google.com>
+In-Reply-To: <alpine.DEB.2.00.1203061824280.9015@chino.kir.corp.google.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Krishna Reddy <vdumpa@nvidia.com>
-Cc: "m.szyprowski@samsung.com" <m.szyprowski@samsung.com>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "linaro-mm-sig@lists.linaro.org" <linaro-mm-sig@lists.linaro.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, "linux-samsung-soc@vger.kernel.org" <linux-samsung-soc@vger.kernel.org>, "iommu@lists.linux-foundation.org" <iommu@lists.linux-foundation.org>, "shariq.hasnain@linaro.org" <shariq.hasnain@linaro.org>, "arnd@arndb.de" <arnd@arndb.de>, "benh@kernel.crashing.org" <benh@kernel.crashing.org>, "kyungmin.park@samsung.com" <kyungmin.park@samsung.com>, "andrzej.p@samsung.com" <andrzej.p@samsung.com>, "linux@arm.linux.org.uk" <linux@arm.linux.org.uk>, "pullip.cho@samsung.com" <pullip.cho@samsung.com>, "chunsang.jeong@linaro.org" <chunsang.jeong@linaro.org>
+To: David Rientjes <rientjes@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, kosaki.motohiro@gmail.com
 
-From: Hiroshi DOYU <hdoyu@nvidia.com>
-Subject: Re: [PATCHv7 9/9] ARM: dma-mapping: add support for IOMMU mapper
-Date: Wed, 07 Mar 2012 08:09:52 +0200 (EET)
-Message-ID: <20120307.080952.2152478004740487196.hdoyu@nvidia.com>
+(3/6/12 9:25 PM), David Rientjes wrote:
+> The tasklist iteration only checks processes and avoids individual
+> threads so it is possible that threads that are currently exiting may not
+> appropriately being selected for oom kill.  This can lead to negative
+> results such as an innocent process being killed in the interim or, in
+> the worst case, the machine panicking because there is nothing else to kill.
+>
+> We automatically select PF_EXITING threads during the tasklist iteration,
+> so this saves time and prevents threads that haven't yet exited (although
+> their parent has been oom killed) from getting missed.
+>
+> Note that by doing this we aren't actually oom killing an exiting thread
+> but rather giving it full access to memory reserves so it may quickly
+> exit and free its memory.
+>
+> Signed-off-by: David Rientjes<rientjes@google.com>
 
-> From: Krishna Reddy <vdumpa@nvidia.com>
-> Subject: RE: [PATCHv7 9/9] ARM: dma-mapping: add support for IOMMU mapper
-> Date: Tue, 6 Mar 2012 23:48:42 +0100
-> Message-ID: <401E54CE964CD94BAE1EB4A729C7087E37970113FE@HQMAIL04.nvidia.c=
-om>
->=20
-> > > > +struct dma_iommu_mapping *
-> > > > +arm_iommu_create_mapping(struct bus_type *bus, dma_addr_t base, si=
-ze_t size,
-> > > > +                        int order)
-> > > > +{
-> > > > +       unsigned int count =3D (size >> PAGE_SHIFT) - order;
-> > > > +       unsigned int bitmap_size =3D BITS_TO_LONGS(count) * sizeof(=
-long);
-> >=20
-> > The count calculation doesn't seem correct. "order" is log2 number and
-> >  size >> PAGE_SHIFT is number of pages.=20
-> >=20
-> > If size is passed as 64*4096(256KB) and order is 6(allocation granulari=
-ty is 2^6 pages=3D256KB),
-> >  just 1 bit is enough to manage allocations.  So it should be 4 bytes o=
-r one long.
->=20
-> Good catch!
->=20
-> > But the calculation gives count =3D 64 - 6 =3D 58 and=20
-> > Bitmap_size gets set to (58/(4*8)) * 4 =3D 8 bytes, which is incorrect.
->=20
-> "order" isn't the order of size passed, which is minimal *page*
-> allocation order which client decides whatever, just in case.
->=20
-> > It should be as follows.
-> > unsigned int count =3D 1 << get_order(size) - order;
+As far as I remembered, this idea was sometimes NAKed and you don't bring new idea here.
+When exiting a process which have plenty threads, this patch allow to eat all of reserve memory
+and bring us new serious failure.
 
-To be precise, as below?
+Moreover, creating new thread isn't needed root privilege, then this trick can be used by attacker.
 
- unsigned int count =3D 1 << (get_order(size) - order);
+- kosaki
 
-> > unsigned int bitmap_size =3D BITS_TO_LONGS(count) * sizeof(long) * BITS=
-_PER_BYTE;
-> >=20
-> > -KR
-> >=20
-> > --nvpublic
-> >=20
-> >=20
+
+> ---
+>   mm/oom_kill.c |   16 ++++++++--------
+>   1 file changed, 8 insertions(+), 8 deletions(-)
+>
+> diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+> --- a/mm/oom_kill.c
+> +++ b/mm/oom_kill.c
+> @@ -568,11 +568,11 @@ void mem_cgroup_out_of_memory(struct mem_cgroup *memcg, gfp_t gfp_mask)
+>   	struct task_struct *p;
+>
+>   	/*
+> -	 * If current has a pending SIGKILL, then automatically select it.  The
+> -	 * goal is to allow it to allocate so that it may quickly exit and free
+> -	 * its memory.
+> +	 * If current is exiting (or going to exit), then automatically select
+> +	 * it.  The goal is to allow it to allocate so that it may quickly exit
+> +	 * and free its memory.
+>   	 */
+> -	if (fatal_signal_pending(current)) {
+> +	if (fatal_signal_pending(current) || (current->flags&  PF_EXITING)) {
+>   		set_thread_flag(TIF_MEMDIE);
+>   		return;
+>   	}
+> @@ -723,11 +723,11 @@ void out_of_memory(struct zonelist *zonelist, gfp_t gfp_mask,
+>   		return;
+>
+>   	/*
+> -	 * If current has a pending SIGKILL, then automatically select it.  The
+> -	 * goal is to allow it to allocate so that it may quickly exit and free
+> -	 * its memory.
+> +	 * If current is exiting (or going to exit), then automatically select
+> +	 * it.  The goal is to allow it to allocate so that it may quickly exit
+> +	 * and free its memory.
+>   	 */
+> -	if (fatal_signal_pending(current)) {
+> +	if (fatal_signal_pending(current) || (current->flags&  PF_EXITING)) {
+>   		set_thread_flag(TIF_MEMDIE);
+>   		return;
+>   	}
+>
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Fight unfair telecom internet charges in Canada: sign http://stopthemeter.ca/
+> Don't email:<a href=mailto:"dont@kvack.org">  email@kvack.org</a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
