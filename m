@@ -1,15 +1,15 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx118.postini.com [74.125.245.118])
-	by kanga.kvack.org (Postfix) with SMTP id B53266B007E
-	for <linux-mm@kvack.org>; Wed,  7 Mar 2012 17:21:45 -0500 (EST)
-Received: by ggeq1 with SMTP id q1so3413886gge.14
-        for <linux-mm@kvack.org>; Wed, 07 Mar 2012 14:21:44 -0800 (PST)
-Date: Wed, 7 Mar 2012 14:21:42 -0800 (PST)
+Received: from psmtp.com (na3sys010amx122.postini.com [74.125.245.122])
+	by kanga.kvack.org (Postfix) with SMTP id A65426B0083
+	for <linux-mm@kvack.org>; Wed,  7 Mar 2012 17:22:00 -0500 (EST)
+Received: by iajr24 with SMTP id r24so12062011iaj.14
+        for <linux-mm@kvack.org>; Wed, 07 Mar 2012 14:22:00 -0800 (PST)
+Date: Wed, 7 Mar 2012 14:21:57 -0800 (PST)
 From: David Rientjes <rientjes@google.com>
-Subject: Re: PATCH 1/2] rmap: cleanup anon_vma_prepare
-In-Reply-To: <4F575100.30502@linux.vnet.ibm.com>
-Message-ID: <alpine.DEB.2.00.1203071421320.22091@chino.kir.corp.google.com>
-References: <4F575045.9010904@linux.vnet.ibm.com> <4F575100.30502@linux.vnet.ibm.com>
+Subject: Re: [PATCH 2/2] rmap: remove __anon_vma_link
+In-Reply-To: <4F575073.60909@linux.vnet.ibm.com>
+Message-ID: <alpine.DEB.2.00.1203071421490.22091@chino.kir.corp.google.com>
+References: <4F575045.9010904@linux.vnet.ibm.com> <4F575073.60909@linux.vnet.ibm.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -19,12 +19,7 @@ Cc: Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, 
 
 On Wed, 7 Mar 2012, Xiao Guangrong wrote:
 
-> Sorry for the title typo, repost it.
-> 
-> -------------------->
-> Subject: [PATCH 1/2] rmap: cleanup anon_vma_prepare
-> 
-> Using the common function anon_vma_chain_link() to link vma and anon_vma
+> This declaration is not used anymore, remove it
 > 
 > Signed-off-by: Xiao Guangrong <xiaoguangrong@linux.vnet.ibm.com>
 
