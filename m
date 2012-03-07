@@ -1,61 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx173.postini.com [74.125.245.173])
-	by kanga.kvack.org (Postfix) with SMTP id 8007D6B00E7
-	for <linux-mm@kvack.org>; Wed,  7 Mar 2012 17:22:01 -0500 (EST)
-Date: Thu, 8 Mar 2012 01:13:59 +0200
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCH] memcg: revise the position of threshold index while
- unregistering event
-Message-ID: <20120307231359.GB10238@shutemov.name>
-References: <1331035943-7456-1-git-send-email-handai.szj@taobao.com>
+Received: from psmtp.com (na3sys010amx145.postini.com [74.125.245.145])
+	by kanga.kvack.org (Postfix) with SMTP id BFF4C6B004D
+	for <linux-mm@kvack.org>; Wed,  7 Mar 2012 18:30:07 -0500 (EST)
+Message-ID: <4F57EF6F.2010408@utoronto.ca>
+Date: Wed, 07 Mar 2012 18:29:51 -0500
+From: Steven Truelove <steven.truelove@utoronto.ca>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-Content-Transfer-Encoding: quoted-printable
-In-Reply-To: <1331035943-7456-1-git-send-email-handai.szj@taobao.com>
+Subject: Re: [PATCH] Correct alignment of huge page requests.
+References: <1330830176-19449-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+In-Reply-To: <1330830176-19449-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sha Zhengju <handai.szj@gmail.com>
-Cc: linux-mm@kvack.org, cgroups@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, Sha Zhengju <handai.szj@taobao.com>
+To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Cc: wli@holomorphy.com, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Tue, Mar 06, 2012 at 08:12:23PM +0800, Sha Zhengju wrote:
-> From: Sha Zhengju <handai.szj@taobao.com>
->=20
-> Index current_threshold should point to threshold just below or equal to =
+On 03/03/2012 10:02 PM, Naoya Horiguchi wrote:
+> On Thu, Mar 01, 2012 at 09:58:41PM -0500, Steven Truelove wrote:
+>> When calling shmget() with SHM_HUGETLB, shmget aligns the request size to PAGE_SIZE, but this is not sufficient.  Modified hugetlb_file_setup() to align requests to the huge page size, and to accept an address argument so that all alignment checks can be performed in hugetlb_file_setup(), rather than in its callers.  Changed newseg and mmap_pgoff to match new prototype and eliminated a now redundant alignment check.
+> I think only rounding up request size in shmget() is not sufficient,
+> because later shmat() also have alignment check and fails to mmap()
+> to unaligned address.
+> Maybe file->f_op->get_unmapped_area() (or hugetlb_get_unmapped_area())
+> should have round up code, I think.
+> Could you try it?
+
+Because the allocation is done in shmget() and the the address is not 
+provided until shmat(), I don't see a way to make this work reasonably.  
+I would argue that only allowing aligned addresses, or allowing the 
+kernel to choose the address, is a reasonable restriction on SHM_HUGETLB 
 usage.
-> See below:
-> http://www.spinics.net/lists/cgroups/msg00844.html
->=20
->=20
-> Signed-off-by: Sha Zhengju <handai.szj@taobao.com>
 
-Reviewved-by: Kirill A. Shutemov <kirill@shutemov.name>
+Regarding your other comments, I will submit a revised patch.
 
->=20
-> ---
->  mm/memcontrol.c |    2 +-
->  1 files changed, 1 insertions(+), 1 deletions(-)
->=20
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index 22d94f5..cd40d67 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -4398,7 +4398,7 @@ static void mem_cgroup_usage_unregister_event(struc=
-t cgroup *cgrp,
->  			continue;
-> =20
->  		new->entries[j] =3D thresholds->primary->entries[i];
-> -		if (new->entries[j].threshold < usage) {
-> +		if (new->entries[j].threshold <=3D usage) {
->  			/*
->  			 * new->current_threshold will not be used
->  			 * until rcu_assign_pointer(), so it's safe to increment
-> --=20
-> 1.7.4.1
->=20
+Thanks,
 
---=20
- Kirill A. Shutemov
+Steven Truelove
+
+
+> And a few comments below,
+>
+>> Signed-off-by: Steven Truelove<steven.truelove@utoronto.ca>
+>> ---
+>>   fs/hugetlbfs/inode.c    |   12 ++++++++----
+>>   include/linux/hugetlb.h |    3 ++-
+>>   ipc/shm.c               |    2 +-
+>>   mm/mmap.c               |    6 +++---
+>>   4 files changed, 14 insertions(+), 9 deletions(-)
+>>
+>> diff --git a/fs/hugetlbfs/inode.c b/fs/hugetlbfs/inode.c
+>> index 1e85a7a..a97b7cc 100644
+>> --- a/fs/hugetlbfs/inode.c
+>> +++ b/fs/hugetlbfs/inode.c
+>> @@ -928,7 +928,7 @@ static int can_do_hugetlb_shm(void)
+>>   	return capable(CAP_IPC_LOCK) || in_group_p(sysctl_hugetlb_shm_group);
+>>   }
+>>
+>> -struct file *hugetlb_file_setup(const char *name, size_t size,
+>> +struct file *hugetlb_file_setup(const char *name, unsigned long addr, size_t size,
+> Just a nitpick, this line is over 80 characters.
+> checkpatch.pl should warn.
+>
+>>   				vm_flags_t acctflag,
+>>   				struct user_struct **user, int creat_flags)
+>>   {
+>> @@ -938,6 +938,8 @@ struct file *hugetlb_file_setup(const char *name, size_t size,
+>>   	struct path path;
+>>   	struct dentry *root;
+>>   	struct qstr quick_string;
+>> +	struct hstate *hstate;
+>> +	int num_pages;
+> Is unsigned long better?
+>
+> Thanks,
+> Naoya
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
