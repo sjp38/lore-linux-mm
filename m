@@ -1,54 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx189.postini.com [74.125.245.189])
-	by kanga.kvack.org (Postfix) with SMTP id 20C2A6B0083
-	for <linux-mm@kvack.org>; Wed,  7 Mar 2012 00:30:31 -0500 (EST)
-Received: by yhr47 with SMTP id 47so3359986yhr.14
-        for <linux-mm@kvack.org>; Tue, 06 Mar 2012 21:30:30 -0800 (PST)
+Received: from psmtp.com (na3sys010amx126.postini.com [74.125.245.126])
+	by kanga.kvack.org (Postfix) with SMTP id C80A36B004D
+	for <linux-mm@kvack.org>; Wed,  7 Mar 2012 00:43:00 -0500 (EST)
+Received: by iajr24 with SMTP id r24so10578895iaj.14
+        for <linux-mm@kvack.org>; Tue, 06 Mar 2012 21:43:00 -0800 (PST)
+Date: Tue, 6 Mar 2012 21:42:57 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH -v2] mm: SLAB Out-of-memory diagnostics
+In-Reply-To: <4F56ECE6.4010100@gmail.com>
+Message-ID: <alpine.DEB.2.00.1203062142290.6424@chino.kir.corp.google.com>
+References: <20120305181041.GA9829@x61.redhat.com> <4F56ECE6.4010100@gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <alpine.DEB.2.00.1203062025490.24600@chino.kir.corp.google.com>
-References: <alpine.DEB.2.00.1203041341340.9534@chino.kir.corp.google.com>
- <20120306160833.0e9bf50a.akpm@linux-foundation.org> <alpine.DEB.2.00.1203061950050.24600@chino.kir.corp.google.com>
- <alpine.DEB.2.00.1203062025490.24600@chino.kir.corp.google.com>
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Date: Wed, 7 Mar 2012 00:30:10 -0500
-Message-ID: <CAHGf_=qG1Lah00fGTNENvtgacsUt1=FcMKyt+kmPG1=UD6ecNw@mail.gmail.com>
-Subject: Re: [patch] mm, mempolicy: make mempolicies robust against errors
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org
+To: Cong Wang <xiyou.wangcong@gmail.com>
+Cc: Rafael Aquini <aquini@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Randy Dunlap <rdunlap@xenotime.net>, Christoph Lameter <cl@linux-foundation.org>, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, Rik van Riel <riel@redhat.com>, Josef Bacik <josef@redhat.com>
 
-2012/3/6 David Rientjes <rientjes@google.com>:
-> It's unnecessary to BUG() in situations when a mempolicy has an
-> unsupported mode, it just means that a mode doesn't have complete coverag=
-e
-> in all mempolicy functions -- which is an error, but not a fatal error --
-> or that a bit has flipped. =A0Regardless, it's sufficient to warn the use=
-r
-> in the kernel log of the situation once and then proceed without crashing
-> the system.
->
-> This patch converts nearly all the BUG()'s in mm/mempolicy.c to
-> WARN_ON_ONCE(1) and provides the necessary code to return successfully.
+On Wed, 7 Mar 2012, Cong Wang wrote:
 
-I'm sorry. I simple don't understand the purpose of this patch. every
-mem policy  syscalls have input check then we can't hit BUG()s in
-mempolicy.c. To me, BUG() is obvious notation than WARN_ON_ONCE().
+> > Following the example at mm/slub.c, add out-of-memory diagnostics to the
+> > SLAB allocator to help on debugging certain OOM conditions.
+> > 
+> > An example print out looks like this:
+> > 
+> >    <snip page allocator out-of-memory message>
+> >    SLAB: Unable to allocate memory on node 0 (gfp=0x11200)
+> >       cache: bio-0, object size: 192, order: 0
+> >       node0: slabs: 3/3, objs: 60/60, free: 0
+> > 
+> 
+> Nitpick:
+> 
+> What about "node: 0" instead of "node0: " ?
+> 
 
-We usually use WARN_ON_ONCE() for hw drivers code. Because of, the
-warn-on mean "we believe this route never reach, but we afraid there
-is crazy buggy hardware".
-
-And, now BUG() has renreachable() annotation. why don't it work?
-
-
-#define BUG()                                                   \
-do {                                                            \
-        asm volatile("ud2");                                    \
-        unreachable();                                          \
-} while (0)
+Good catch, that format would match the output of the slub out-of-memory 
+messages.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
