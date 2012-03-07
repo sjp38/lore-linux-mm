@@ -1,63 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx179.postini.com [74.125.245.179])
-	by kanga.kvack.org (Postfix) with SMTP id E31416B004A
-	for <linux-mm@kvack.org>; Wed,  7 Mar 2012 04:07:00 -0500 (EST)
-Message-ID: <4F5724BC.10207@cn.fujitsu.com>
-Date: Wed, 07 Mar 2012 17:05:00 +0800
+Received: from psmtp.com (na3sys010amx108.postini.com [74.125.245.108])
+	by kanga.kvack.org (Postfix) with SMTP id CC0B86B004A
+	for <linux-mm@kvack.org>; Wed,  7 Mar 2012 04:17:27 -0500 (EST)
+Message-ID: <4F572730.8000000@cn.fujitsu.com>
+Date: Wed, 07 Mar 2012 17:15:28 +0800
 From: Miao Xie <miaox@cn.fujitsu.com>
 Reply-To: miaox@cn.fujitsu.com
 MIME-Version: 1.0
 Subject: Re: [PATCH] cpuset: mm: Reduce large amounts of memory barrier related
  damage v2
-References: <20120306132735.GA2855@suse.de> <20120306122657.8e5b128d.akpm@linux-foundation.org> <20120306224201.GA17697@suse.de> <20120306145451.8eff82a6.akpm@linux-foundation.org>
-In-Reply-To: <20120306145451.8eff82a6.akpm@linux-foundation.org>
+References: <20120306132735.GA2855@suse.de>
+In-Reply-To: <20120306132735.GA2855@suse.de>
 Content-Transfer-Encoding: 7bit
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: text/plain; charset=ISO-8859-15
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Christoph Lameter <cl@linux.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Mel Gorman <mgorman@suse.de>
+Cc: Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Christoph Lameter <cl@linux.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Tue, 6 Mar 2012 14:54:51 -0800, Andrew Morton wrote:
->>>> -static inline void put_mems_allowed(void)
->>>> +/*
->>>> + * If this returns false, the operation that took place after get_mems_allowed
->>>> + * may have failed. It is up to the caller to retry the operation if
->>>> + * appropriate
->>>> + */
->>>> +static inline bool put_mems_allowed(unsigned int seq)
->>>>  {
->>>> -	/*
->>>> -	 * ensure that reading mems_allowed and mempolicy before reducing
->>>> -	 * mems_allowed_change_disable.
->>>> -	 *
->>>> -	 * the write-side task will know that the read-side task is still
->>>> -	 * reading mems_allowed or mempolicy, don't clears old bits in the
->>>> -	 * nodemask.
->>>> -	 */
->>>> -	smp_mb();
->>>> -	--ACCESS_ONCE(current->mems_allowed_change_disable);
->>>> +	return !read_seqcount_retry(&current->mems_allowed_seq, seq);
->>>>  }
->>>>  
->>>>  static inline void set_mems_allowed(nodemask_t nodemask)
->>>
->>> How come set_mems_allowed() still uses task_lock()?
->>>
->>
->> Consistency.
->>
->> The task_lock is taken by kernel/cpuset.c when updating
->> mems_allowed so it is taken here. That said, it is unnecessary to take
->> as the two places where set_mems_allowed is used are not going to be
->> racing. In the unlikely event that set_mems_allowed() gets another user,
->> there is no harm is leaving the task_lock as it is. It's not in a hot
->> path of any description.
-> 
-> But shouldn't set_mems_allowed() bump mems_allowed_seq?
-> 
+On Tue, 6 Mar 2012 13:27:35 +0000, Mel Gorman wrote:
+[skip]
+> @@ -964,7 +964,6 @@ static void cpuset_change_task_nodemask(struct task_struct *tsk,
+>  {
+>  	bool need_loop;
+>  
+> -repeat:
+>  	/*
+>  	 * Allow tasks that have access to memory reserves because they have
+>  	 * been OOM killed to get memory anywhere.
+> @@ -983,45 +982,19 @@ repeat:
+>  	 */
+>  	need_loop = task_has_mempolicy(tsk) ||
+>  			!nodes_intersects(*newmems, tsk->mems_allowed);
+> -	nodes_or(tsk->mems_allowed, tsk->mems_allowed, *newmems);
+> -	mpol_rebind_task(tsk, newmems, MPOL_REBIND_STEP1);
+>  
+> -	/*
+> -	 * ensure checking ->mems_allowed_change_disable after setting all new
+> -	 * allowed nodes.
+> -	 *
+> -	 * the read-side task can see an nodemask with new allowed nodes and
+> -	 * old allowed nodes. and if it allocates page when cpuset clears newly
+> -	 * disallowed ones continuous, it can see the new allowed bits.
+> -	 *
+> -	 * And if setting all new allowed nodes is after the checking, setting
+> -	 * all new allowed nodes and clearing newly disallowed ones will be done
+> -	 * continuous, and the read-side task may find no node to alloc page.
+> -	 */
+> -	smp_mb();
+> +	if (need_loop)
+> +		write_seqcount_begin(&tsk->mems_allowed_seq);
+>  
+> -	/*
+> -	 * Allocation of memory is very fast, we needn't sleep when waiting
+> -	 * for the read-side.
+> -	 */
+> -	while (need_loop && ACCESS_ONCE(tsk->mems_allowed_change_disable)) {
+> -		task_unlock(tsk);
+> -		if (!task_curr(tsk))
+> -			yield();
+> -		goto repeat;
+> -	}
+> -
+> -	/*
+> -	 * ensure checking ->mems_allowed_change_disable before clearing all new
+> -	 * disallowed nodes.
+> -	 *
+> -	 * if clearing newly disallowed bits before the checking, the read-side
+> -	 * task may find no node to alloc page.
+> -	 */
+> -	smp_mb();
+> +	nodes_or(tsk->mems_allowed, tsk->mems_allowed, *newmems);
+> +	mpol_rebind_task(tsk, newmems, MPOL_REBIND_STEP1);
+>  
+>  	mpol_rebind_task(tsk, newmems, MPOL_REBIND_STEP2);
+>  	tsk->mems_allowed = *newmems;
+> +
+> +	if (need_loop)
+> +		write_seqcount_end(&tsk->mems_allowed_seq);
+> +
+>  	task_unlock(tsk);
+>  }
 
-task_lock is also used to protect mempolicy, so ...
+With this patch, we needn't break the nodemask update into two steps.
+
+Beside that, we need deal with fork() carefully, or it is possible that the child
+task will be set to a wrong nodemask.
 
 Thanks
 Miao
