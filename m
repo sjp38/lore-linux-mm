@@ -1,51 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx164.postini.com [74.125.245.164])
-	by kanga.kvack.org (Postfix) with SMTP id B28D46B00E8
-	for <linux-mm@kvack.org>; Tue,  6 Mar 2012 19:37:44 -0500 (EST)
-Date: Tue, 6 Mar 2012 16:37:42 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 5/9] writeback: introduce the pageout work
-Message-Id: <20120306163742.b71bf57b.akpm@linux-foundation.org>
-In-Reply-To: <20120303132555.GA6312@localhost>
-References: <20120228140022.614718843@intel.com>
-	<20120228144747.198713792@intel.com>
-	<20120228160403.9c9fa4dc.akpm@linux-foundation.org>
-	<20120301110404.GC4385@quack.suse.cz>
-	<20120301114151.GA19049@localhost>
-	<20120301114634.957da8d2.akpm@linux-foundation.org>
-	<20120303132555.GA6312@localhost>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx177.postini.com [74.125.245.177])
+	by kanga.kvack.org (Postfix) with SMTP id C32706B00EA
+	for <linux-mm@kvack.org>; Tue,  6 Mar 2012 19:57:37 -0500 (EST)
+Date: Tue, 6 Mar 2012 21:55:54 -0300
+From: Rafael Aquini <aquini@redhat.com>
+Subject: Re: [patch] mm, mempolicy: dummy slab_node return value for bugless
+ kernels
+Message-ID: <20120307005553.GB2613@x61.redhat.com>
+References: <alpine.DEB.2.00.1203041341340.9534@chino.kir.corp.google.com>
+ <20120306160833.0e9bf50a.akpm@linux-foundation.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20120306160833.0e9bf50a.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Fengguang Wu <fengguang.wu@intel.com>
-Cc: Jan Kara <jack@suse.cz>, Greg Thelen <gthelen@google.com>, Ying Han <yinghan@google.com>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan.kim@gmail.com>, Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: David Rientjes <rientjes@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org
 
-On Sat, 3 Mar 2012 21:25:55 +0800
-Fengguang Wu <fengguang.wu@intel.com> wrote:
-
-> > > get_page() looks the perfect solution to verify if the struct inode
-> > > pointer (w/o igrab) is still live and valid.
-> > > 
-> > > [...upon rethinking...] Oh but still we need to lock some page to pin
-> > > the inode during the writeout. Then there is the dilemma: if the page
-> > > is locked, we effectively keep it from being written out...
-> > 
-> > No, all you need to do is to structure the code so that after the page
-> > gets unlocked, the kernel thread does not touch the address_space.  So
-> > the processing within the kthread is along the lines of
-> > 
-> > writearound(locked_page)
-> > {
-> > 	write some pages preceding locked_page;	/* touches address_space */
+On Tue, Mar 06, 2012 at 04:08:33PM -0800, Andrew Morton wrote:
+> On Sun, 4 Mar 2012 13:43:32 -0800 (PST)
+> David Rientjes <rientjes@google.com> wrote:
 > 
-> It seems the above line will lead to ABBA deadlock.
+> > BUG() is a no-op when CONFIG_BUG is disabled, so slab_node() needs a
+> > dummy return value to avoid reaching the end of a non-void function.
+> > 
+> > Signed-off-by: David Rientjes <rientjes@google.com>
+> > ---
+> >  mm/mempolicy.c |    1 +
+> >  1 file changed, 1 insertion(+)
+> > 
+> > diff --git a/mm/mempolicy.c b/mm/mempolicy.c
+> > --- a/mm/mempolicy.c
+> > +++ b/mm/mempolicy.c
+> > @@ -1611,6 +1611,7 @@ unsigned slab_node(struct mempolicy *policy)
+> >  
+> >  	default:
+> >  		BUG();
+> > +		return numa_node_id();
+> >  	}
+> >  }
 > 
-> At least btrfs will lock a number of pages in lock_delalloc_pages().
+> Wait.  If the above code generated a warning then surely we get a *lot*
+> of warnings!  I'd expect that a lot of code assumes that BUG() never
+> returns?
+In a quick make (ARCH=um defconfig | CONFIG_BUG=n) the following four
+warnings have popped out: 
 
-Well, this code locks multiple pages too.  I forget what I did about
-that - probably trylock.  Dirty pages aren't locked for very long.
+kernel/sched/core.c:3144:1: warning: control reaches end of non-void function
+[-Wreturn-type]
+mm/bootmem.c:352:1: warning: control reaches end of non-void function
+[-Wreturn-type]
+fs/locks.c:1469:1: warning: control reaches end of non-void function
+[-Wreturn-type]
+block/cfq-iosched.c:2912:1: warning: control reaches end of non-void function
+[-Wreturn-type]
+net/core/ethtool.c:211:1: warning: control reaches end of non-void function
+[-Wreturn-type]
+
+
+So, yes... Unfortunately, we would see a lot more warnings for a (more) complete
+kernel configuration.
+
+> 
+> Can we fix this within the BUG() definition?  I can't think of a way,
+> unless gcc gives us a way of accessing the return type of the current
+> function, and I don't think it does that.
+> 
+> 
+> Also, does CONIG_BUG=n even make sense?  If we got here and we know
+> that the kernel has malfunctioned, what point is there in pretending
+> otherwise?  Odd.
+
+I admit I was thinking about in follow David's example and start chasing
+similar cases to propose a janitorial patch, however, I couldn't agree more with
+your point here. It seems odd turning CONFIG_BUG off and neglect well known buggy
+conditions within the code. Perhaps, then, the best way to cope with this oddity
+would be just drop CONFIG_BUG config knob at all, making it permanently "on".
+
+Any other thoughts?
+
+  Rafael
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
