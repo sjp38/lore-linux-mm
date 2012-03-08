@@ -1,96 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx120.postini.com [74.125.245.120])
-	by kanga.kvack.org (Postfix) with SMTP id 6D1876B002C
-	for <linux-mm@kvack.org>; Thu,  8 Mar 2012 14:39:14 -0500 (EST)
-Received: by iajr24 with SMTP id r24so1518470iaj.14
-        for <linux-mm@kvack.org>; Thu, 08 Mar 2012 11:39:13 -0800 (PST)
-Date: Thu, 8 Mar 2012 11:38:25 -0800 (PST)
-From: Hugh Dickins <hughd@google.com>
-Subject: Re: [PATCH v2] ksm: cleanup: introduce find_mergeable_vma()
-In-Reply-To: <1331118588-1391-1-git-send-email-lliubbo@gmail.com>
-Message-ID: <alpine.LSU.2.00.1203081137480.8460@eggly.anvils>
-References: <1331118588-1391-1-git-send-email-lliubbo@gmail.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from psmtp.com (na3sys010amx113.postini.com [74.125.245.113])
+	by kanga.kvack.org (Postfix) with SMTP id 4B6276B002C
+	for <linux-mm@kvack.org>; Thu,  8 Mar 2012 15:02:41 -0500 (EST)
+Date: Thu, 8 Mar 2012 12:02:38 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [patch] mm, hugetlb: add thread name and pid to SHM_HUGETLB
+ mlock rlimit warning
+Message-Id: <20120308120238.c4486547.akpm@linux-foundation.org>
+In-Reply-To: <alpine.DEB.2.00.1203061825070.9015@chino.kir.corp.google.com>
+References: <alpine.DEB.2.00.1203061825070.9015@chino.kir.corp.google.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Bob Liu <lliubbo@gmail.com>
-Cc: akpm@linux-foundation.org, rientjes@google.com, kamezawa.hiroyu@jp.fujitsu.com, minchan.kim@gmail.com, linux-mm@kvack.org, aarcange@redhat.com
+To: David Rientjes <rientjes@google.com>
+Cc: Dave Jones <davej@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Wed, 7 Mar 2012, Bob Liu wrote:
+On Tue, 6 Mar 2012 18:26:11 -0800 (PST)
+David Rientjes <rientjes@google.com> wrote:
 
-> There are multi place do the same check, using find_mergeable_vma() to
-> replace.
+> Add the thread name and pid of the application that is allocating shm
+> segments with MAP_HUGETLB without being a part of
+> /proc/sys/vm/hugetlb_shm_group or having CAP_IPC_LOCK.
 > 
-> Signed-off-by: Bob Liu <lliubbo@gmail.com>
-
-Acked-by: Hugh Dickins <hughd@google.com>
-
-> ---
->  mm/ksm.c |   34 +++++++++++++++++++---------------
->  1 files changed, 19 insertions(+), 15 deletions(-)
+> This identifies the application so it may be fixed by avoiding using the
+> deprecated exception (see Documentation/feature-removal-schedule.txt).
 > 
-> diff --git a/mm/ksm.c b/mm/ksm.c
-> index 1925ffb..3a00767 100644
-> --- a/mm/ksm.c
-> +++ b/mm/ksm.c
-> @@ -375,6 +375,20 @@ static int break_ksm(struct vm_area_struct *vma, unsigned long addr)
->  	return (ret & VM_FAULT_OOM) ? -ENOMEM : 0;
->  }
->  
-> +static struct vm_area_struct *find_mergeable_vma(struct mm_struct *mm,
-> +		unsigned long addr)
-> +{
-> +	struct vm_area_struct *vma;
-> +	if (ksm_test_exit(mm))
-> +		return NULL;
-> +	vma = find_vma(mm, addr);
-> +	if (!vma || vma->vm_start > addr)
-> +		return NULL;
-> +	if (!(vma->vm_flags & VM_MERGEABLE) || !vma->anon_vma)
-> +		return NULL;
-> +	return vma;
-> +}
-> +
->  static void break_cow(struct rmap_item *rmap_item)
->  {
->  	struct mm_struct *mm = rmap_item->mm;
-> @@ -388,15 +402,9 @@ static void break_cow(struct rmap_item *rmap_item)
->  	put_anon_vma(rmap_item->anon_vma);
->  
->  	down_read(&mm->mmap_sem);
-> -	if (ksm_test_exit(mm))
-> -		goto out;
-> -	vma = find_vma(mm, addr);
-> -	if (!vma || vma->vm_start > addr)
-> -		goto out;
-> -	if (!(vma->vm_flags & VM_MERGEABLE) || !vma->anon_vma)
-> -		goto out;
-> -	break_ksm(vma, addr);
-> -out:
-> +	vma = find_mergeable_vma(mm, addr);
-> +	if (vma)
-> +		break_ksm(vma, addr);
->  	up_read(&mm->mmap_sem);
->  }
->  
-> @@ -422,12 +430,8 @@ static struct page *get_mergeable_page(struct rmap_item *rmap_item)
->  	struct page *page;
->  
->  	down_read(&mm->mmap_sem);
-> -	if (ksm_test_exit(mm))
-> -		goto out;
-> -	vma = find_vma(mm, addr);
-> -	if (!vma || vma->vm_start > addr)
-> -		goto out;
-> -	if (!(vma->vm_flags & VM_MERGEABLE) || !vma->anon_vma)
-> +	vma = find_mergeable_vma(mm, addr);
-> +	if (!vma)
->  		goto out;
->  
->  	page = follow_page(vma, addr, FOLL_GET);
-> -- 
-> 1.7.0.4
+> ...
+>
+> --- a/fs/hugetlbfs/inode.c
+> +++ b/fs/hugetlbfs/inode.c
+> @@ -946,7 +946,11 @@ struct file *hugetlb_file_setup(const char *name, size_t size,
+>  	if (creat_flags == HUGETLB_SHMFS_INODE && !can_do_hugetlb_shm()) {
+>  		*user = current_user();
+>  		if (user_shm_lock(size, *user)) {
+> -			printk_once(KERN_WARNING "Using mlock ulimits for SHM_HUGETLB is deprecated\n");
+> +			task_lock(current);
+> +			printk_once(KERN_WARNING
+> +				"%s (%d): Using mlock ulimits for SHM_HUGETLB is deprecated\n",
+> +				current->comm, current->pid);
+> +			task_unlock(current);
+
+I assume the task_lock() is there to protect current->comm.  If so, it
+is unneeded - we're protecting against prctl(PR_SET_NAME), and
+PR_SET_NAME only operates on current, and we know this task isn't
+currently running PR_SET_NAME.
+
+If there's a way for another task to alter this task's ->comm then we
+_do_ need locking.  But there isn't a way, I hope.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
