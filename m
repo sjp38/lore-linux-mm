@@ -1,54 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx119.postini.com [74.125.245.119])
-	by kanga.kvack.org (Postfix) with SMTP id 20EA46B007E
-	for <linux-mm@kvack.org>; Thu,  8 Mar 2012 16:59:34 -0500 (EST)
-Received: by iajr24 with SMTP id r24so1722927iaj.14
-        for <linux-mm@kvack.org>; Thu, 08 Mar 2012 13:59:33 -0800 (PST)
-Date: Thu, 8 Mar 2012 13:59:31 -0800 (PST)
+Received: from psmtp.com (na3sys010amx193.postini.com [74.125.245.193])
+	by kanga.kvack.org (Postfix) with SMTP id 596A16B007E
+	for <linux-mm@kvack.org>; Thu,  8 Mar 2012 17:08:33 -0500 (EST)
+Received: by iajr24 with SMTP id r24so1736978iaj.14
+        for <linux-mm@kvack.org>; Thu, 08 Mar 2012 14:08:32 -0800 (PST)
+Date: Thu, 8 Mar 2012 14:08:30 -0800 (PST)
 From: David Rientjes <rientjes@google.com>
-Subject: Re: [patch] mm, oom: allow exiting tasks to have access to memory
- reserves
-In-Reply-To: <20120308120859.f7bc8cad.akpm@linux-foundation.org>
-Message-ID: <alpine.DEB.2.00.1203081353150.23632@chino.kir.corp.google.com>
-References: <alpine.DEB.2.00.1203061824280.9015@chino.kir.corp.google.com> <4F570286.8020704@gmail.com> <alpine.DEB.2.00.1203062316430.4158@chino.kir.corp.google.com> <20120308120859.f7bc8cad.akpm@linux-foundation.org>
+Subject: Re: [patch] mm, hugetlb: add thread name and pid to SHM_HUGETLB
+ mlock rlimit warning
+In-Reply-To: <20120308135643.225920ad.akpm@linux-foundation.org>
+Message-ID: <alpine.DEB.2.00.1203081400340.23632@chino.kir.corp.google.com>
+References: <alpine.DEB.2.00.1203061825070.9015@chino.kir.corp.google.com> <20120308120238.c4486547.akpm@linux-foundation.org> <alpine.DEB.2.00.1203081333300.23632@chino.kir.corp.google.com> <20120308135643.225920ad.akpm@linux-foundation.org>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: KOSAKI Motohiro <kosaki.motohiro@gmail.com>, linux-mm@kvack.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: Dave Jones <davej@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
 On Thu, 8 Mar 2012, Andrew Morton wrote:
 
-> > It closes the risk of livelock if an oom killed thread, thread A, cannot 
-> > exit because it's blocked on another thread, thread B, which cannot exit 
-> > because it requires memory in the exit path and doesn't have access to 
-> > memory reserves.  So this patch makes it more likely that an oom killed 
-> > thread will be able to exit without livelocking.
+> >  We have a get_task_comm() that does the task_lock() 
+> > internally but requires a TASK_COMM_LEN buffer in the calling code.  It's 
+> > just easier for the calling code to the task_lock() itself for a tiny 
+> > little printk().
 > 
-> But it also "allow to eat all of reserve memory and bring us new
-> serious failure".  In theory, at least.
+> Well for a tiny little printk we could just omit the locking?  The
+> printk() won't oops and once in a million years one person will see a
+> garbled comm[] string?
 > 
 
-Exactly, "in theory."  We've never seen an issue where a set of threads in 
-do_exit() allocated memory at the same time to deplete all memory reserves 
-while never freeing the memory so that reclaim consistently fails and all 
-threads continue to enter into the oom killer to get access to memory 
-reserves.
-
-And, with the way the code is written before this patch, only one thread 
-will have access to memory reserves and the oom killer will be a no-op 
-until it exits.  There's a much higher liklihood that an oom killed thread 
-may not exit because it's blocked on another thread that requires memory.  
-That's what this patch addresses.
-
-> And afaict the proposed patch is a theoretical thing as well.  Has
-> anyone sat down and created tests to demonstrate either problem?
-
-We've run with this patch internally for a year because an oom killed 
-thread can't exit.  We used to address this with an oom killer timeout 
-that would kill another thread only after 10s but it was much faster to 
-just give access to memory reserves and to let them exit.
+Sure, but task_lock() shouldn't be highly contended when the thread isn't 
+forking or exiting (everything else is attaching/detaching from a cgroup 
+or testing a mempolicy).  I've always added it (like in the oom killer for 
+the same reason) just because the race exists.  Taking it for every thread 
+on the system for one call to the oom killer has never slowed it down.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
