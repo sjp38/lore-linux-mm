@@ -1,73 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx195.postini.com [74.125.245.195])
-	by kanga.kvack.org (Postfix) with SMTP id 9A0CF6B002C
-	for <linux-mm@kvack.org>; Thu,  8 Mar 2012 16:40:52 -0500 (EST)
-Date: Thu, 8 Mar 2012 13:40:50 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
+Received: from psmtp.com (na3sys010amx130.postini.com [74.125.245.130])
+	by kanga.kvack.org (Postfix) with SMTP id 6608A6B004D
+	for <linux-mm@kvack.org>; Thu,  8 Mar 2012 16:44:36 -0500 (EST)
+Date: Thu, 8 Mar 2012 21:44:25 +0000
+From: Al Viro <viro@ZenIV.linux.org.uk>
 Subject: Re: [PATCH] hugetlbfs: lockdep annotate root inode properly
-Message-Id: <20120308134050.f53a0b2f.akpm@linux-foundation.org>
-In-Reply-To: <20120308211926.GB6546@boyd>
+Message-ID: <20120308214425.GA23916@ZenIV.linux.org.uk>
 References: <1331198116-13670-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
-	<20120308130256.c7855cbd.akpm@linux-foundation.org>
-	<20120308211926.GB6546@boyd>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+ <20120308130256.c7855cbd.akpm@linux-foundation.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20120308130256.c7855cbd.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tyler Hicks <tyhicks@canonical.com>
-Cc: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, linux-mm@kvack.org, davej@redhat.com, jboyer@redhat.com, linux-kernel@vger.kernel.org, Al Viro <viro@zeniv.linux.org.uk>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Mimi Zohar <zohar@linux.vnet.ibm.com>, David Gibson <david@gibson.dropbear.id.au>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, linux-mm@kvack.org, davej@redhat.com, jboyer@redhat.com, tyhicks@canonical.com, linux-kernel@vger.kernel.org, Peter Zijlstra <a.p.zijlstra@chello.nl>, Mimi Zohar <zohar@linux.vnet.ibm.com>
 
-On Thu, 8 Mar 2012 15:19:27 -0600
-Tyler Hicks <tyhicks@canonical.com> wrote:
-
-> > 
-> > 
-> > Sigh.  Was lockdep_annotate_inode_mutex_key() sufficiently
-> > self-explanatory to justify leaving it undocumented?
-> > 
-> > <goes off and reads e096d0c7e2e>
-> > 
-> > OK, the patch looks correct given the explanation in e096d0c7e2e, but
-> > I'd like to understand why it becomes necessary only now.
-> > 
-> > > NOTE: This patch also require 
-> > > http://thread.gmane.org/gmane.linux.file-systems/58795/focus=59565
-> > > to remove the lockdep warning
-> > 
-> > And that patch has been basically ignored.
+On Thu, Mar 08, 2012 at 01:02:56PM -0800, Andrew Morton wrote:
+> > This fix the below lockdep warning
 > 
-> Al commented on it here:
-> 
-> https://lkml.org/lkml/2012/2/16/518
-> 
-> He said that while my patch is correct, taking i_mutex inside mmap_sem
-> is still wrong.
+> OK, what's going on here.
 
-OK, thanks, yup.  Taking i_mutex in file_operations.mmap() is wrong.
+Deadlock in hugetlbfs mmap getting misreported.
 
-Is hugetlbfs actually deadlockable because of this, or is it the case
-that the i_mutex->mmap_sem ordering happens to never happen for this
-filesystem?  Although we shouldn't go and create incompatible lock
-ranking rules for different filesystems!
+One last time: ->mmap_sem nests inside ->i_mutex.  Both for regular
+files and for directories.  Always had.
 
-So we need to pull the i_mutex out of hugetlbfs_file_mmap().  What's it
-actually trying to do in there?  If we switch to
-i_size_read()/i_size_write() then AFAICT the problem comes down to
-hugetlb_reserve_pages().
+For directories there's copy_to_user() from ->readdir() done under ->i_mutex.
+For regular files there's copy_from_user() from ->write(), usually done under
+->i_mutex.  On hugetlbfs there's copy_to_user() from ->read() done under
+->i_mutex.
 
-hugetlb_reserve_pages() fiddles with i_mapping->private_list and the fs
-owns private_list and is free to use a lock other than i_mutex to
-protect it.  (In fact i_mapping.private_lock is the usual lock for
-private_list).
+It had not changed at all.  Lockdep sees both call chains; the only question
+is which chain is seen first.  And usually reading a directory happens earlier
+in the boot than writing into a file.  That's all there is to it.
 
+Unfortunately, the fact that call chain being reported is obviously about
+directories leads to false hopes that deadlock doesn't exist - mmap()
+obviously can't happen to a directory inode, so people hope that it's a
+false positive.  It isn't.
 
+Patch separating directory and non-directory ->i_mutex into different classes
+went in at some point, precisely due to those hopes.  It had a braino that
+made it useless.  Fix for that braino had been posted and sits my queue; I'll
+push it to Linus along with other pending fixes tonight.
 
-So from a quick scan here I'm thinking that a decent fix is to remove
-the i_mutex locking from hugetlbfs_file_mmap(), switch
-hugetlbfs_file_mmap() to i_size_read/write then use a hugetlb-private
-lock to protect i_mapping->private_list.  region_chg() will do
-GFP_KERNEL allocations under that lock, so some care is needed.
+It will *not* eliminate the (very real) deadlock.  It might make the warning
+go away, but only if read() on hugetlbfs files doesn't happen during boot.
+
+I suspect that they right thing would be to have a way to set explicit
+nesting rules, not tied to speficic call trace.  I hadn't looked into
+lockdep guts, so no idea how much will that hurt to implement.  As in
+lockdep_lock_nests(class_outer, class_inner, message), acting as if
+there had been a call chain where class_outer had been taken before
+class_inner, with message going in place of call trace for that chain
+when we run into a conflict...
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
