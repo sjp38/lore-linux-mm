@@ -1,69 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx184.postini.com [74.125.245.184])
-	by kanga.kvack.org (Postfix) with SMTP id 173CA6B00E9
-	for <linux-mm@kvack.org>; Thu,  8 Mar 2012 01:14:09 -0500 (EST)
-Received: from m4.gw.fujitsu.co.jp (unknown [10.0.50.74])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id AB14D3EE0B6
-	for <linux-mm@kvack.org>; Thu,  8 Mar 2012 15:14:07 +0900 (JST)
-Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 6B34645DE55
-	for <linux-mm@kvack.org>; Thu,  8 Mar 2012 15:14:07 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 482A145DE50
-	for <linux-mm@kvack.org>; Thu,  8 Mar 2012 15:14:07 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 33D2E1DB8044
-	for <linux-mm@kvack.org>; Thu,  8 Mar 2012 15:14:07 +0900 (JST)
-Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.240.81.147])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id DF3DC1DB8037
-	for <linux-mm@kvack.org>; Thu,  8 Mar 2012 15:14:06 +0900 (JST)
-Date: Thu, 8 Mar 2012 15:12:32 +0900
+Received: from psmtp.com (na3sys010amx192.postini.com [74.125.245.192])
+	by kanga.kvack.org (Postfix) with SMTP id 5FDEF6B0092
+	for <linux-mm@kvack.org>; Thu,  8 Mar 2012 01:16:56 -0500 (EST)
+Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id F0C8D3EE0C1
+	for <linux-mm@kvack.org>; Thu,  8 Mar 2012 15:16:54 +0900 (JST)
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id D720A45DEB3
+	for <linux-mm@kvack.org>; Thu,  8 Mar 2012 15:16:54 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id BFE9D45DEAD
+	for <linux-mm@kvack.org>; Thu,  8 Mar 2012 15:16:54 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id B3DA91DB803F
+	for <linux-mm@kvack.org>; Thu,  8 Mar 2012 15:16:54 +0900 (JST)
+Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.240.81.146])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 6808B1DB803B
+	for <linux-mm@kvack.org>; Thu,  8 Mar 2012 15:16:54 +0900 (JST)
+Date: Thu, 8 Mar 2012 15:15:21 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH 3.3] memcg: free mem_cgroup by RCU to fix oops
-Message-Id: <20120308151232.8a9c6e3d.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <alpine.LSU.2.00.1203072155140.11048@eggly.anvils>
-References: <alpine.LSU.2.00.1203072155140.11048@eggly.anvils>
+Subject: Re: [patch] mm, memcg: do not allow tasks to be attached with zero
+ limit
+Message-Id: <20120308151521.82187123.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <alpine.DEB.2.00.1203071914150.15244@chino.kir.corp.google.com>
+References: <alpine.DEB.2.00.1203071914150.15244@chino.kir.corp.google.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Konstantin Khlebnikov <khlebnikov@openvz.org>, Tejun Heo <tj@kernel.org>, Ying Han <yinghan@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: David Rientjes <rientjes@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Balbir Singh <bsingharora@gmail.com>, cgroups@vger.kernel.org, linux-mm@kvack.org
 
-On Wed, 7 Mar 2012 22:01:50 -0800 (PST)
-Hugh Dickins <hughd@google.com> wrote:
+On Wed, 7 Mar 2012 19:14:49 -0800 (PST)
+David Rientjes <rientjes@google.com> wrote:
 
-> After fixing the GPF in mem_cgroup_lru_del_list(), three times one
-> machine running a similar load (moving and removing memcgs while swapping)
-> has oopsed in mem_cgroup_zone_nr_lru_pages(), when retrieving memcg zone
-> numbers for get_scan_count() for shrink_mem_cgroup_zone(): this is where a
-> struct mem_cgroup is first accessed after being chosen by mem_cgroup_iter().
+> This patch prevents tasks from being attached to a memcg if there is a
+> hard limit of zero.  Additionally, the hard limit may not be changed to
+> zero if there are tasks attached.
 > 
-> Just what protects a struct mem_cgroup from being freed, in between
-> mem_cgroup_iter()'s css_get_next() and its css_tryget()?  css_tryget()
-> fails once css->refcnt is zero with CSS_REMOVED set in flags, yes: but
-> what if that memory is freed and reused for something else, which sets
-> "refcnt" non-zero?  Hmm, and scope for an indefinite freeze if refcnt
-> is left at zero but flags are cleared.
+> This is consistent with cpusets which do not allow tasks to be attached
+> if there are no mems and prevents all mems from being removed if there
+> are tasks attached.
 > 
-> It's tempting to move the css_tryget() into css_get_next(), to make it
-> really "get" the css, but I don't think that actually solves anything:
-> the same difficulty in moving from css_id found to stable css remains.
-> 
-> But we already have rcu_read_lock() around the two, so it's easily
-> fixed if __mem_cgroup_free() just uses kfree_rcu() to free mem_cgroup.
-> 
-> However, a big struct mem_cgroup is allocated with vzalloc() instead
-> of kzalloc(), and we're not allowed to vfree() at interrupt time:
-> there doesn't appear to be a general vfree_rcu() to help with this,
-> so roll our own using schedule_work().  The compiler decently removes
-> vfree_work() and vfree_rcu() when the config doesn't need them.
-> 
-> Signed-off-by: Hugh Dickins <hughd@google.com>
+> Signed-off-by: David Rientjes <rientjes@google.com>
 
-Thank you.
+I hope Documenation/cgroup/memory.txt should be updated and make this behavior as 'spec'.
+
 Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+
+
+> ---
+>  mm/memcontrol.c |   13 +++++++++++--
+>  1 file changed, 11 insertions(+), 2 deletions(-)
+> 
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -3868,9 +3868,14 @@ static int mem_cgroup_write(struct cgroup *cont, struct cftype *cft,
+>  		ret = res_counter_memparse_write_strategy(buffer, &val);
+>  		if (ret)
+>  			break;
+> -		if (type == _MEM)
+> +		if (type == _MEM) {
+> +			/* Don't allow zero limit with tasks attached */
+> +			if (!val && cgroup_task_count(cont)) {
+> +				ret = -ENOSPC;
+> +				break;
+> +			}
+>  			ret = mem_cgroup_resize_limit(memcg, val);
+> -		else
+> +		} else
+>  			ret = mem_cgroup_resize_memsw_limit(memcg, val);
+>  		break;
+>  	case RES_SOFT_LIMIT:
+> @@ -5306,6 +5311,10 @@ static int mem_cgroup_can_attach(struct cgroup_subsys *ss,
+>  	int ret = 0;
+>  	struct mem_cgroup *memcg = mem_cgroup_from_cont(cgroup);
+>  
+> +	/* Don't allow tasks attached with a zero limit */
+> +	if (!res_counter_read_u64(&memcg->res, RES_LIMIT))
+> +		return -ENOSPC;
+> +
+>  	if (memcg->move_charge_at_immigrate) {
+>  		struct mm_struct *mm;
+>  		struct mem_cgroup *from = mem_cgroup_from_task(p);
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
