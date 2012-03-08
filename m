@@ -1,68 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx137.postini.com [74.125.245.137])
-	by kanga.kvack.org (Postfix) with SMTP id 051326B002C
-	for <linux-mm@kvack.org>; Wed,  7 Mar 2012 21:11:35 -0500 (EST)
-Received: by pbcup15 with SMTP id up15so1270686pbc.14
-        for <linux-mm@kvack.org>; Wed, 07 Mar 2012 18:11:35 -0800 (PST)
-Message-ID: <4F581554.6020801@gmail.com>
-Date: Thu, 08 Mar 2012 10:11:32 +0800
-From: Sha Zhengju <handai.szj@gmail.com>
+Received: from psmtp.com (na3sys010amx163.postini.com [74.125.245.163])
+	by kanga.kvack.org (Postfix) with SMTP id D4FDD6B002C
+	for <linux-mm@kvack.org>; Wed,  7 Mar 2012 21:29:08 -0500 (EST)
+Received: from /spool/local
+	by e23smtp09.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <xiaoguangrong@linux.vnet.ibm.com>;
+	Thu, 8 Mar 2012 03:19:36 +1000
+Received: from d23av03.au.ibm.com (d23av03.au.ibm.com [9.190.234.97])
+	by d23relay05.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q282NBHh3612718
+	for <linux-mm@kvack.org>; Thu, 8 Mar 2012 13:23:12 +1100
+Received: from d23av03.au.ibm.com (loopback [127.0.0.1])
+	by d23av03.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q282SqD3026739
+	for <linux-mm@kvack.org>; Thu, 8 Mar 2012 13:28:52 +1100
+Message-ID: <4F581962.8040403@linux.vnet.ibm.com>
+Date: Thu, 08 Mar 2012 10:28:50 +0800
+From: Xiao Guangrong <xiaoguangrong@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH] memcg: Free spare array to avoid memory leak
-References: <1331036004-7550-1-git-send-email-handai.szj@taobao.com> <20120307230819.GA10238@shutemov.name>
-In-Reply-To: <20120307230819.GA10238@shutemov.name>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Subject: Re: [PATCH 2/5] hugetlb: drop prev_vma in hugetlb_get_unmapped_area_topdown
+References: <4F101904.8090405@linux.vnet.ibm.com> <4F101935.1040108@linux.vnet.ibm.com> <20120307140101.b0624e80.akpm@linux-foundation.org>
+In-Reply-To: <20120307140101.b0624e80.akpm@linux-foundation.org>
+Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: linux-mm@kvack.org, cgroups@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, Sha Zhengju <handai.szj@taobao.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: William Irwin <wli@holomorphy.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-On 03/08/2012 07:08 AM, Kirill A. Shutemov wrote:
-> On Tue, Mar 06, 2012 at 08:13:24PM +0800, Sha Zhengju wrote:
->> From: Sha Zhengju<handai.szj@taobao.com>
->>
->> When the last event is unregistered, there is no need to keep the spare
->> array anymore. So free it to avoid memory leak.
-> It's not a leak. It will be freed on next event register.
+On 03/08/2012 06:01 AM, Andrew Morton wrote:
+
+> On Fri, 13 Jan 2012 19:44:53 +0800
+> Xiao Guangrong <xiaoguangrong@linux.vnet.ibm.com> wrote:
+> 
+>> Afte call find_vma_prev(mm, addr, &prev_vma), following condition is always
+>> true:
+>> 	!prev_vma || (addr >= prev_vma->vm_end)
+>> it can be happily drop prev_vma and use find_vma instead of find_vma_prev
+> 
+> I had to rework this patch due to 097d59106a8e4b ("vm: avoid using
+> find_vma_prev() unnecessarily") in mainline.  Can you please check my
+> handiwork?
+> 
 
 
-Yeah, I noticed that. But what if it is just the last one and no more
-event registering ?
-
-
-Thanks,
-Sha
-
-> Yeah, we don't have to keep spare if primary is empty. But is it worth to
-> make code more complicated to save few bytes of memory?
->
->> Signed-off-by: Sha Zhengju<handai.szj@taobao.com>
->>
->> ---
->>   mm/memcontrol.c |    6 ++++++
->>   1 files changed, 6 insertions(+), 0 deletions(-)
->>
->> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
->> index 22d94f5..3c09a84 100644
->> --- a/mm/memcontrol.c
->> +++ b/mm/memcontrol.c
->> @@ -4412,6 +4412,12 @@ static void mem_cgroup_usage_unregister_event(struct cgroup *cgrp,
->>   swap_buffers:
->>   	/* Swap primary and spare array */
->>   	thresholds->spare = thresholds->primary;
->> +	/* If all events are unregistered, free the spare array */
->> +	if (!new) {
->> +		kfree(thresholds->spare);
->> +		thresholds->spare = NULL;
->> +	}
->> +
->>   	rcu_assign_pointer(thresholds->primary, new);
->>
->>   	/* To be sure that nobody uses thresholds */
->> -- 
->> 1.7.4.1
->>
+It looks good to me, thanks Andrew!
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
