@@ -1,50 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx129.postini.com [74.125.245.129])
-	by kanga.kvack.org (Postfix) with SMTP id 34E946B002C
-	for <linux-mm@kvack.org>; Thu,  8 Mar 2012 16:50:00 -0500 (EST)
-Date: Thu, 8 Mar 2012 21:49:52 +0000
-From: Al Viro <viro@ZenIV.linux.org.uk>
-Subject: Re: [PATCH] hugetlbfs: lockdep annotate root inode properly
-Message-ID: <20120308214951.GB23916@ZenIV.linux.org.uk>
-References: <1331198116-13670-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
- <20120308130256.c7855cbd.akpm@linux-foundation.org>
- <20120308211926.GB6546@boyd>
- <20120308134050.f53a0b2f.akpm@linux-foundation.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20120308134050.f53a0b2f.akpm@linux-foundation.org>
+Received: from psmtp.com (na3sys010amx145.postini.com [74.125.245.145])
+	by kanga.kvack.org (Postfix) with SMTP id 4C91E6B002C
+	for <linux-mm@kvack.org>; Thu,  8 Mar 2012 16:56:46 -0500 (EST)
+Date: Thu, 8 Mar 2012 13:56:43 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [patch] mm, hugetlb: add thread name and pid to SHM_HUGETLB
+ mlock rlimit warning
+Message-Id: <20120308135643.225920ad.akpm@linux-foundation.org>
+In-Reply-To: <alpine.DEB.2.00.1203081333300.23632@chino.kir.corp.google.com>
+References: <alpine.DEB.2.00.1203061825070.9015@chino.kir.corp.google.com>
+	<20120308120238.c4486547.akpm@linux-foundation.org>
+	<alpine.DEB.2.00.1203081333300.23632@chino.kir.corp.google.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Tyler Hicks <tyhicks@canonical.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, linux-mm@kvack.org, davej@redhat.com, jboyer@redhat.com, linux-kernel@vger.kernel.org, Peter Zijlstra <a.p.zijlstra@chello.nl>, Mimi Zohar <zohar@linux.vnet.ibm.com>, David Gibson <david@gibson.dropbear.id.au>
+To: David Rientjes <rientjes@google.com>
+Cc: Dave Jones <davej@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Thu, Mar 08, 2012 at 01:40:50PM -0800, Andrew Morton wrote:
+On Thu, 8 Mar 2012 13:37:57 -0800 (PST)
+David Rientjes <rientjes@google.com> wrote:
 
-> OK, thanks, yup.  Taking i_mutex in file_operations.mmap() is wrong.
+> On Thu, 8 Mar 2012, Andrew Morton wrote:
+> 
+> > > --- a/fs/hugetlbfs/inode.c
+> > > +++ b/fs/hugetlbfs/inode.c
+> > > @@ -946,7 +946,11 @@ struct file *hugetlb_file_setup(const char *name, size_t size,
+> > >  	if (creat_flags == HUGETLB_SHMFS_INODE && !can_do_hugetlb_shm()) {
+> > >  		*user = current_user();
+> > >  		if (user_shm_lock(size, *user)) {
+> > > -			printk_once(KERN_WARNING "Using mlock ulimits for SHM_HUGETLB is deprecated\n");
+> > > +			task_lock(current);
+> > > +			printk_once(KERN_WARNING
+> > > +				"%s (%d): Using mlock ulimits for SHM_HUGETLB is deprecated\n",
+> > > +				current->comm, current->pid);
+> > > +			task_unlock(current);
+> > 
+> > I assume the task_lock() is there to protect current->comm.
+> 
+> Yup.
+> 
+> > If so, it
+> > is unneeded - we're protecting against prctl(PR_SET_NAME), and
+> > PR_SET_NAME only operates on current, and we know this task isn't
+> > currently running PR_SET_NAME.
+> > 
+> > If there's a way for another task to alter this task's ->comm then we
+> > _do_ need locking.  But there isn't a way, I hope.
+> > 
+> 
+> I wish there wasn't as well, it would prevent a lot of the currently buggy 
+> reads to current->comm and allow us to avoid so many otherwise pointless 
+> task_lock()s.
+> 
+> This protects against /proc/pid/comm, which is writable by threads in the 
+> same thread group.
 
-... or in .release() (munmap() does fput() under mmap_sem).
+Oh crap.
 
-> Is hugetlbfs actually deadlockable because of this, or is it the case
-> that the i_mutex->mmap_sem ordering happens to never happen for this
-> filesystem?
+>  We have a get_task_comm() that does the task_lock() 
+> internally but requires a TASK_COMM_LEN buffer in the calling code.  It's 
+> just easier for the calling code to the task_lock() itself for a tiny 
+> little printk().
 
-Yes, it is.  Look at read(2) on hugetlbfs; it copies userland data
-while holding ->i_mutex.  So we have
-
-read(2):
-mutex_lock(&A)
-down_read(&B)
-
-mmap(2):
-down_write(&B);
-mutex_lock(&A);
-
-which is an obvious deadlock.
-
-> So we need to pull the i_mutex out of hugetlbfs_file_mmap().
-
-IIRC, you have a patch in your tree doing just that...
+Well for a tiny little printk we could just omit the locking?  The
+printk() won't oops and once in a million years one person will see a
+garbled comm[] string?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
