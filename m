@@ -1,65 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx193.postini.com [74.125.245.193])
-	by kanga.kvack.org (Postfix) with SMTP id CBCEB6B002C
-	for <linux-mm@kvack.org>; Wed,  7 Mar 2012 22:14:52 -0500 (EST)
-Received: by iajr24 with SMTP id r24so95541iaj.14
-        for <linux-mm@kvack.org>; Wed, 07 Mar 2012 19:14:52 -0800 (PST)
-Date: Wed, 7 Mar 2012 19:14:49 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
-Subject: [patch] mm, memcg: do not allow tasks to be attached with zero
- limit
-Message-ID: <alpine.DEB.2.00.1203071914150.15244@chino.kir.corp.google.com>
+Received: from psmtp.com (na3sys010amx104.postini.com [74.125.245.104])
+	by kanga.kvack.org (Postfix) with SMTP id E0EED6B007E
+	for <linux-mm@kvack.org>; Wed,  7 Mar 2012 22:42:38 -0500 (EST)
+Message-ID: <4F582A37.8060802@cn.fujitsu.com>
+Date: Thu, 08 Mar 2012 11:40:39 +0800
+From: Miao Xie <miaox@cn.fujitsu.com>
+Reply-To: miaox@cn.fujitsu.com
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [PATCH] cpuset: mm: Reduce large amounts of memory barrier related
+ damage v2
+References: <20120306132735.GA2855@suse.de> <4F572730.8000000@cn.fujitsu.com> <20120307112201.GC17697@suse.de>
+In-Reply-To: <20120307112201.GC17697@suse.de>
+Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=ISO-8859-15
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Balbir Singh <bsingharora@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, cgroups@vger.kernel.org, linux-mm@kvack.org
+To: Mel Gorman <mgorman@suse.de>
+Cc: Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Christoph Lameter <cl@linux.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-This patch prevents tasks from being attached to a memcg if there is a
-hard limit of zero.  Additionally, the hard limit may not be changed to
-zero if there are tasks attached.
+On wed, 7 Mar 2012 11:22:01 +0000, Mel Gorman wrote:
+>> Beside that, we need deal with fork() carefully, or it is possible that the child
+>> task will be set to a wrong nodemask.
+>>
+> 
+> Can you clarify this statement please? It's not clear what the old code
+> did that protected against problems in fork() versus this patch. fork is
+> not calling get_mems_allowed() for example or doing anything special
+> around mems_allowed.
+> 
+> Maybe you are talking about an existing problem whereby during fork
+> there should be get_mems_allowed/put_mems_allowed and the mems_allowed
+> mask gets copied explicitly?
 
-This is consistent with cpusets which do not allow tasks to be attached
-if there are no mems and prevents all mems from being removed if there
-are tasks attached.
+Yes, If someone updates cpuset's nodemask or cpumask before the child task is attached
+into the cpuset cgroup, the child task's nodemask and cpumask can not be updated, just
+holds the old mask.
 
-Signed-off-by: David Rientjes <rientjes@google.com>
----
- mm/memcontrol.c |   13 +++++++++++--
- 1 file changed, 11 insertions(+), 2 deletions(-)
+We can fix this problem by seqcounter in a new patch.(It seems the freeze subsystem also
+has the same problem)
 
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -3868,9 +3868,14 @@ static int mem_cgroup_write(struct cgroup *cont, struct cftype *cft,
- 		ret = res_counter_memparse_write_strategy(buffer, &val);
- 		if (ret)
- 			break;
--		if (type == _MEM)
-+		if (type == _MEM) {
-+			/* Don't allow zero limit with tasks attached */
-+			if (!val && cgroup_task_count(cont)) {
-+				ret = -ENOSPC;
-+				break;
-+			}
- 			ret = mem_cgroup_resize_limit(memcg, val);
--		else
-+		} else
- 			ret = mem_cgroup_resize_memsw_limit(memcg, val);
- 		break;
- 	case RES_SOFT_LIMIT:
-@@ -5306,6 +5311,10 @@ static int mem_cgroup_can_attach(struct cgroup_subsys *ss,
- 	int ret = 0;
- 	struct mem_cgroup *memcg = mem_cgroup_from_cont(cgroup);
- 
-+	/* Don't allow tasks attached with a zero limit */
-+	if (!res_counter_read_u64(&memcg->res, RES_LIMIT))
-+		return -ENOSPC;
-+
- 	if (memcg->move_charge_at_immigrate) {
- 		struct mm_struct *mm;
- 		struct mem_cgroup *from = mem_cgroup_from_task(p);
+Thanks
+Miao
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
