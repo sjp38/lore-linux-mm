@@ -1,45 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx155.postini.com [74.125.245.155])
-	by kanga.kvack.org (Postfix) with SMTP id B8CD46B0092
-	for <linux-mm@kvack.org>; Thu,  8 Mar 2012 00:43:12 -0500 (EST)
-Received: from m4.gw.fujitsu.co.jp (unknown [10.0.50.74])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 3F7883EE0C1
-	for <linux-mm@kvack.org>; Thu,  8 Mar 2012 14:43:11 +0900 (JST)
-Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 283B245DE4F
-	for <linux-mm@kvack.org>; Thu,  8 Mar 2012 14:43:11 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 0F74145DE4D
-	for <linux-mm@kvack.org>; Thu,  8 Mar 2012 14:43:11 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 001CE1DB8037
-	for <linux-mm@kvack.org>; Thu,  8 Mar 2012 14:43:11 +0900 (JST)
+Received: from psmtp.com (na3sys010amx121.postini.com [74.125.245.121])
+	by kanga.kvack.org (Postfix) with SMTP id 818BE6B0092
+	for <linux-mm@kvack.org>; Thu,  8 Mar 2012 00:46:22 -0500 (EST)
+Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 11E113EE0C0
+	for <linux-mm@kvack.org>; Thu,  8 Mar 2012 14:46:21 +0900 (JST)
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id EBD1445DEB3
+	for <linux-mm@kvack.org>; Thu,  8 Mar 2012 14:46:20 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id D21FF45DEAD
+	for <linux-mm@kvack.org>; Thu,  8 Mar 2012 14:46:20 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id C538B1DB803E
+	for <linux-mm@kvack.org>; Thu,  8 Mar 2012 14:46:20 +0900 (JST)
 Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.240.81.145])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id AFC881DB802F
-	for <linux-mm@kvack.org>; Thu,  8 Mar 2012 14:43:10 +0900 (JST)
-Date: Thu, 8 Mar 2012 14:41:38 +0900
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 7D35B1DB8038
+	for <linux-mm@kvack.org>; Thu,  8 Mar 2012 14:46:20 +0900 (JST)
+Date: Thu, 8 Mar 2012 14:44:48 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [patch 2/2] mm, counters: fold __sync_task_rss_stat into
- sync_mm_rss
-Message-Id: <20120308144138.d8ace9d3.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <alpine.DEB.2.00.1203061920370.21806@chino.kir.corp.google.com>
-References: <alpine.DEB.2.00.1203061919260.21806@chino.kir.corp.google.com>
-	<alpine.DEB.2.00.1203061920370.21806@chino.kir.corp.google.com>
+Subject: Re: [PATCH] memcg: revise the position of threshold index while
+ unregistering event
+Message-Id: <20120308144448.889337cf.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <1331035943-7456-1-git-send-email-handai.szj@taobao.com>
+References: <1331035943-7456-1-git-send-email-handai.szj@taobao.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Sha Zhengju <handai.szj@gmail.com>
+Cc: linux-mm@kvack.org, cgroups@vger.kernel.org, kirill@shutemov.name, Sha Zhengju <handai.szj@taobao.com>
 
-On Tue, 6 Mar 2012 19:21:42 -0800 (PST)
-David Rientjes <rientjes@google.com> wrote:
+On Tue,  6 Mar 2012 20:12:23 +0800
+Sha Zhengju <handai.szj@gmail.com> wrote:
 
-> There's no difference between sync_mm_rss() and __sync_task_rss_stat(),
-> so fold the latter into the former.
+> From: Sha Zhengju <handai.szj@taobao.com>
 > 
-> Signed-off-by: David Rientjes <rientjes@google.com>
+> Index current_threshold should point to threshold just below or equal to usage.
+> See below:
+> http://www.spinics.net/lists/cgroups/msg00844.html
+> 
+> 
+> Signed-off-by: Sha Zhengju <handai.szj@taobao.com>
+
+Thank you for resending.
 
 Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
