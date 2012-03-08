@@ -1,13 +1,15 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from psmtp.com (na3sys010amx126.postini.com [74.125.245.126])
-	by kanga.kvack.org (Postfix) with SMTP id 63F846B002C
-	for <linux-mm@kvack.org>; Thu,  8 Mar 2012 13:04:04 -0500 (EST)
-Received: by bkwq16 with SMTP id q16so787924bkw.14
-        for <linux-mm@kvack.org>; Thu, 08 Mar 2012 10:04:02 -0800 (PST)
-Subject: [PATCH v5 0/7] mm: some cleanup/rework before lru_lock splitting
+	by kanga.kvack.org (Postfix) with SMTP id 524AC6B004D
+	for <linux-mm@kvack.org>; Thu,  8 Mar 2012 13:04:07 -0500 (EST)
+Received: by mail-bk0-f41.google.com with SMTP id q16so787924bkw.14
+        for <linux-mm@kvack.org>; Thu, 08 Mar 2012 10:04:06 -0800 (PST)
+Subject: [PATCH v5 1/7] mm/memcg: scanning_global_lru means mem_cgroup_disabled
 From: Konstantin Khlebnikov <khlebnikov@openvz.org>
-Date: Thu, 08 Mar 2012 22:03:43 +0400
-Message-ID: <20120308175752.27621.54781.stgit@zurg>
+Date: Thu, 08 Mar 2012 22:04:01 +0400
+Message-ID: <20120308180401.27621.31137.stgit@zurg>
+In-Reply-To: <20120308175752.27621.54781.stgit@zurg>
+References: <20120308175752.27621.54781.stgit@zurg>
 MIME-Version: 1.0
 Content-Type: text/plain; charset="utf-8"
 Content-Transfer-Encoding: 7bit
@@ -16,39 +18,87 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Johannes Weiner <jweiner@redhat.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-v5:
-* rebase to next-20120308
-* reworked cleanup for __isolate_lru_page()
-* bloat-o-meter results for each patch
+From: Hugh Dickins <hughd@google.com>
+
+Although one has to admire the skill with which it has been concealed,
+scanning_global_lru(mz) is actually just an interesting way to test
+mem_cgroup_disabled().  Too many developer hours have been wasted on
+confusing it with global_reclaim(): just use mem_cgroup_disabled().
+
+Signed-off-by: Hugh Dickins <hughd@google.com>
+Signed-off-by: Konstantin Khlebnikov <khlebnikov@openvz.org>
 
 ---
 
-Hugh Dickins (2):
-      mm/memcg: scanning_global_lru means mem_cgroup_disabled
-      mm/memcg: move reclaim_stat into lruvec
+add/remove: 0/0 grow/shrink: 3/1 up/down: 17/-16 (1)
+function                                     old     new   delta
+inactive_anon_is_low                         101     110      +9
+zone_nr_lru_pages                            108     114      +6
+get_reclaim_stat                              44      46      +2
+shrink_inactive_list                        1227    1211     -16
+---
+ mm/vmscan.c |   18 ++++--------------
+ 1 files changed, 4 insertions(+), 14 deletions(-)
 
-Konstantin Khlebnikov (5):
-      mm: push lru index into shrink_[in]active_list()
-      mm: rework __isolate_lru_page() page lru filter
-      mm: rework reclaim_stat counters
-      mm/memcg: rework inactive_ratio calculation
-      mm/memcg: use vm_swappiness from target memory cgroup
-
-
- include/linux/memcontrol.h |   25 -----
- include/linux/mm_inline.h  |    2 
- include/linux/mmzone.h     |   51 ++++-----
- include/linux/swap.h       |    2 
- mm/compaction.c            |    4 -
- mm/memcontrol.c            |   86 ++++------------
- mm/page_alloc.c            |   50 ---------
- mm/swap.c                  |   43 +++-----
- mm/vmscan.c                |  241 +++++++++++++++++++++-----------------------
- mm/vmstat.c                |    6 -
- 10 files changed, 178 insertions(+), 332 deletions(-)
-
--- 
-Signature
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index 57d8ef6..8d1745c 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -164,26 +164,16 @@ static bool global_reclaim(struct scan_control *sc)
+ {
+ 	return !sc->target_mem_cgroup;
+ }
+-
+-static bool scanning_global_lru(struct mem_cgroup_zone *mz)
+-{
+-	return !mz->mem_cgroup;
+-}
+ #else
+ static bool global_reclaim(struct scan_control *sc)
+ {
+ 	return true;
+ }
+-
+-static bool scanning_global_lru(struct mem_cgroup_zone *mz)
+-{
+-	return true;
+-}
+ #endif
+ 
+ static struct zone_reclaim_stat *get_reclaim_stat(struct mem_cgroup_zone *mz)
+ {
+-	if (!scanning_global_lru(mz))
++	if (!mem_cgroup_disabled())
+ 		return mem_cgroup_get_reclaim_stat(mz->mem_cgroup, mz->zone);
+ 
+ 	return &mz->zone->reclaim_stat;
+@@ -192,7 +182,7 @@ static struct zone_reclaim_stat *get_reclaim_stat(struct mem_cgroup_zone *mz)
+ static unsigned long zone_nr_lru_pages(struct mem_cgroup_zone *mz,
+ 				       enum lru_list lru)
+ {
+-	if (!scanning_global_lru(mz))
++	if (!mem_cgroup_disabled())
+ 		return mem_cgroup_zone_nr_lru_pages(mz->mem_cgroup,
+ 						    zone_to_nid(mz->zone),
+ 						    zone_idx(mz->zone),
+@@ -1804,7 +1794,7 @@ static int inactive_anon_is_low(struct mem_cgroup_zone *mz)
+ 	if (!total_swap_pages)
+ 		return 0;
+ 
+-	if (!scanning_global_lru(mz))
++	if (!mem_cgroup_disabled())
+ 		return mem_cgroup_inactive_anon_is_low(mz->mem_cgroup,
+ 						       mz->zone);
+ 
+@@ -1843,7 +1833,7 @@ static int inactive_file_is_low_global(struct zone *zone)
+  */
+ static int inactive_file_is_low(struct mem_cgroup_zone *mz)
+ {
+-	if (!scanning_global_lru(mz))
++	if (!mem_cgroup_disabled())
+ 		return mem_cgroup_inactive_file_is_low(mz->mem_cgroup,
+ 						       mz->zone);
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
