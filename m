@@ -1,76 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx107.postini.com [74.125.245.107])
-	by kanga.kvack.org (Postfix) with SMTP id 525466B007E
-	for <linux-mm@kvack.org>; Thu,  8 Mar 2012 18:13:02 -0500 (EST)
-Received: by obbta14 with SMTP id ta14so1671038obb.14
-        for <linux-mm@kvack.org>; Thu, 08 Mar 2012 15:13:01 -0800 (PST)
-Message-ID: <4F593CF8.2000105@amacapital.net>
-Date: Thu, 08 Mar 2012 15:12:56 -0800
-From: Andy Lutomirski <luto@amacapital.net>
-MIME-Version: 1.0
-Subject: Re: [PATCH 00/11 v2] Push file_update_time() into .page_mkwrite
-References: <1330602103-8851-1-git-send-email-jack@suse.cz>
-In-Reply-To: <1330602103-8851-1-git-send-email-jack@suse.cz>
-Content-Type: text/plain; charset=ISO-8859-1
+Received: from psmtp.com (na3sys010amx120.postini.com [74.125.245.120])
+	by kanga.kvack.org (Postfix) with SMTP id E64C86B002C
+	for <linux-mm@kvack.org>; Thu,  8 Mar 2012 18:51:40 -0500 (EST)
+Date: Thu, 8 Mar 2012 15:51:39 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [patch] mm, mempolicy: make mempolicies robust against errors
+Message-Id: <20120308155139.19f0ce7e.akpm@linux-foundation.org>
+In-Reply-To: <4F570168.6050008@gmail.com>
+References: <alpine.DEB.2.00.1203041341340.9534@chino.kir.corp.google.com>
+	<20120306160833.0e9bf50a.akpm@linux-foundation.org>
+	<alpine.DEB.2.00.1203061950050.24600@chino.kir.corp.google.com>
+	<alpine.DEB.2.00.1203062025490.24600@chino.kir.corp.google.com>
+	<CAHGf_=qG1Lah00fGTNENvtgacsUt1=FcMKyt+kmPG1=UD6ecNw@mail.gmail.com>
+	<alpine.DEB.2.00.1203062151530.6424@chino.kir.corp.google.com>
+	<4F570168.6050008@gmail.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jan Kara <jack@suse.cz>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Al Viro <viro@ZenIV.linux.org.uk>, linux-fsdevel@vger.kernel.org, dchinner@redhat.com, Jaya Kumar <jayalk@intworks.biz>, Sage Weil <sage@newdream.net>, ceph-devel@vger.kernel.org, Steve French <sfrench@samba.org>, linux-cifs@vger.kernel.org, Eric Van Hensbergen <ericvh@gmail.com>, Ron Minnich <rminnich@sandia.gov>, Latchesar Ionkov <lucho@ionkov.net>, v9fs-developer@lists.sourceforge.net, Miklos Szeredi <miklos@szeredi.hu>, fuse-devel@lists.sourceforge.net, Steven Whitehouse <swhiteho@redhat.com>, cluster-devel@redhat.com, Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+To: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
+Cc: David Rientjes <rientjes@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org
 
-On 03/01/2012 03:41 AM, Jan Kara wrote:
->   Hello,
+On Wed, 07 Mar 2012 01:34:16 -0500
+KOSAKI Motohiro <kosaki.motohiro@gmail.com> wrote:
+
+> >> And, now BUG() has renreachable() annotation. why don't it work?
+> >>
+> >>
+> >> #define BUG()                                                   \
+> >> do {                                                            \
+> >>          asm volatile("ud2");                                    \
+> >>          unreachable();                                          \
+> >> } while (0)
+> >>
+> >
+> > That's not compiled for CONFIG_BUG=n; such a config fallsback to
+> > include/asm-generic/bug.h which just does
+> >
+> > 	#define BUG()	do {} while (0)
+> >
+> > because CONFIG_BUG specifically _wants_ to bypass BUG()s and is reasonably
+> > protected by CONFIG_EXPERT.
 > 
->   to provide reliable support for filesystem freezing, filesystems need to have
-> complete control over when metadata is changed. In particular,
-> file_update_time() calls from page fault code make it impossible for
-> filesystems to prevent inodes from being dirtied while the filesystem is
-> frozen.
+> So, I strongly suggest to remove CONFIG_BUG=n. It is neglected very long time and
+> much plenty code assume BUG() is not no-op. I don't think we can fix all place.
 > 
-> To fix the issue, this patch set changes page fault code to call
-> file_update_time() only when ->page_mkwrite() callback is not provided. If the
-> callback is provided, it is the responsibility of the filesystem to perform
-> update of i_mtime / i_ctime if needed. We also push file_update_time() call
-> to all existing ->page_mkwrite() implementations if the time update does not
-> obviously happen by other means. If you know your filesystem does not need
-> update of modification times in ->page_mkwrite() handler, please speak up and
-> I'll drop the patch for your filesystem.
-> 
-> As a side note, an alternative would be to remove call of file_update_time()
-> from page fault code altogether and require all filesystems needing it to do
-> that in their ->page_mkwrite() implementation. That is certainly possible
-> although maybe slightly inefficient and would require auditting 100+
-> vm_operations_structs *shiver*.
+> Just one instruction don't hurt code size nor performance.
 
+Well yes, CONFIG_BUG=n is a crazy thing to do.  a) because programmers
+universally assume that BUG() doesn't return and b) given that the
+kernel KNOWS that it is about to fall off a cliff, why would anyone
+want to deprive themselves of information about the forthcoming crash?
 
-
-IMO updating file times should happen when changes get written out, not
-when a page is made writable, for two reasons:
-
-1. Correctness.  With the current approach, it's very easy for files to
-be changed after the last mtime update -- any changes between mkwrite
-and actual writeback won't affect mtime.
-
-2. Performance.  I have an application (presumably guessable from my
-email address) for which blocking in page_mkwrite is an absolute
-show-stopper.  (In fact it's so bad that we reverted back to running on
-Windows until I hacked up a kernel to not do this.)  I have an incorrect
-patch [1] to fix it, but I haven't gotten around to a real fix.  (I also
-have stable pages reverted in my kernel.  Some day I'll submit a patch
-to make it a filesystem option.  Or maybe it should even be a block
-device / queue property like the alignment offset and optimal io size --
-there are plenty of block device and file combinations which don't
-benefit at all from stable pages.)
-
-I'd prefer if file_update_time in page_mkwrite didn't proliferate.  A
-better fix is probably to introduce a new inode flag, update it when a
-page is undirtied, and then dirty and write the inode from the writeback
-path.  (Kind of like my patch, but with an inode flag instead of a page
-flag, and with the file_update_time done from the fs.)
-
-[1] http://patchwork.ozlabs.org/patch/122516/
-
---Andy
+So perhaps a good compromise here is to do nothing: let the
+CONFIG_BUG=n build spew a pile of warnings, and let the crazy
+CONFIG_BUG=n people suffer.  That's if any such people exist...
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
