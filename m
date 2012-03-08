@@ -1,35 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx168.postini.com [74.125.245.168])
-	by kanga.kvack.org (Postfix) with SMTP id 7519B6B002C
-	for <linux-mm@kvack.org>; Wed,  7 Mar 2012 18:53:26 -0500 (EST)
-Received: by obbta14 with SMTP id ta14so9935010obb.14
-        for <linux-mm@kvack.org>; Wed, 07 Mar 2012 15:53:25 -0800 (PST)
-Date: Wed, 7 Mar 2012 15:53:23 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
+Received: from psmtp.com (na3sys010amx103.postini.com [74.125.245.103])
+	by kanga.kvack.org (Postfix) with SMTP id 434B46B002C
+	for <linux-mm@kvack.org>; Wed,  7 Mar 2012 19:02:37 -0500 (EST)
+Date: Wed, 7 Mar 2012 19:02:33 -0500
+From: Dave Jones <davej@redhat.com>
 Subject: Re: decode GFP flags in oom killer output.
-In-Reply-To: <20120307233939.GB5574@redhat.com>
-Message-ID: <alpine.DEB.2.00.1203071548200.29642@chino.kir.corp.google.com>
+Message-ID: <20120308000233.GA10695@redhat.com>
 References: <20120307233939.GB5574@redhat.com>
+ <op.watq2ixr3l0zgt@mpn-glaptop>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <op.watq2ixr3l0zgt@mpn-glaptop>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Jones <davej@redhat.com>, Linux Kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: Michal Nazarewicz <mina86@mina86.com>
+Cc: Linux Kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 
-On Wed, 7 Mar 2012, Dave Jones wrote:
+On Thu, Mar 08, 2012 at 12:48:08AM +0100, Michal Nazarewicz wrote:
+ 
+ > > +static void decode_gfp_mask(gfp_t gfp_mask, char *out_string)
+ > > +{
+ > > +	unsigned int i;
+ > > +
+ > > +	for (i = 0; i < 32; i++) {
+ > > +		if (gfp_mask & (1 << i)) {
+ > > +			if (gfp_flag_texts[i])
+ > > +				out_string += sprintf(out_string, "%s ", gfp_flag_texts[i]);
+ > > +			else
+ > > +				out_string += sprintf(out_string, "reserved! ");
+ > > +		}
+ > > +	}
+ > > +	out_string = "\0";
+ > 
+ > Uh?  Did you mean a??*out_string = 0;a?? which is redundant anyway?
 
-> Decoding these flags by hand in oom reports is tedious,
-> and error-prone.
-> 
+Yeah, that was the intent.
+ 
+ > Also, this leaves a trailing space at the end of the string.
 
-Something like this is already done in include/trace/events/gfpflags.h so 
-there should be a generic version of this or something you can already 
-use.
+The zero was supposed to wipe it out, but I just realized it's advanced past it.
+ 
+ > >  static void dump_header(struct task_struct *p, gfp_t gfp_mask, int order,
+ > >  			struct mem_cgroup *memcg, const nodemask_t *nodemask)
+ > >  {
+ > > +	char gfp_string[80];
+ > 
+ > For ~0, the string will be 256 characters followed by a NUL byte byte at the end.
+ > This combination may make no sense, but the point is that you need to take length
+ > of the buffer into account, probably by using snprintf() and a counter.
 
-The problem here is that you have to allocate an additional 80-bytes for 
-the string and the oom killer is notorious for being called deep in the 
-stack and you can't statically allocate a string buffer without adding 
-additional syncronization.
+alternatively, we could just use a bigger buffer here.
+
+thanks,
+
+	Dave
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
