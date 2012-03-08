@@ -1,43 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx162.postini.com [74.125.245.162])
-	by kanga.kvack.org (Postfix) with SMTP id 0B4596B002C
-	for <linux-mm@kvack.org>; Thu,  8 Mar 2012 16:25:54 -0500 (EST)
-Received: by bkwq16 with SMTP id q16so991717bkw.14
-        for <linux-mm@kvack.org>; Thu, 08 Mar 2012 13:25:53 -0800 (PST)
+Received: from psmtp.com (na3sys010amx124.postini.com [74.125.245.124])
+	by kanga.kvack.org (Postfix) with SMTP id F12CD6B002C
+	for <linux-mm@kvack.org>; Thu,  8 Mar 2012 16:37:59 -0500 (EST)
+Received: by iajr24 with SMTP id r24so1691222iaj.14
+        for <linux-mm@kvack.org>; Thu, 08 Mar 2012 13:37:59 -0800 (PST)
+Date: Thu, 8 Mar 2012 13:37:57 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [patch] mm, hugetlb: add thread name and pid to SHM_HUGETLB
+ mlock rlimit warning
+In-Reply-To: <20120308120238.c4486547.akpm@linux-foundation.org>
+Message-ID: <alpine.DEB.2.00.1203081333300.23632@chino.kir.corp.google.com>
+References: <alpine.DEB.2.00.1203061825070.9015@chino.kir.corp.google.com> <20120308120238.c4486547.akpm@linux-foundation.org>
 MIME-Version: 1.0
-In-Reply-To: <1329929337-16648-13-git-send-email-m.szyprowski@samsung.com>
-References: <1329929337-16648-1-git-send-email-m.szyprowski@samsung.com> <1329929337-16648-13-git-send-email-m.szyprowski@samsung.com>
-From: Sandeep Patil <psandeep.s@gmail.com>
-Date: Thu, 8 Mar 2012 13:25:13 -0800
-Message-ID: <CA+K6fF5aN7Z3roKOzZe+a87ey4YcLd5Fr1U794wvb+8H3qP2+w@mail.gmail.com>
-Subject: Re: [Linaro-mm-sig] [PATCHv23 12/16] mm: trigger page reclaim in
- alloc_contig_range() to stabilise watermarks
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Marek Szyprowski <m.szyprowski@samsung.com>
-Cc: linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-media@vger.kernel.org, linux-mm@kvack.org, linaro-mm-sig@lists.linaro.org, Ohad Ben-Cohen <ohad@wizery.com>, Daniel Walker <dwalker@codeaurora.org>, Russell King <linux@arm.linux.org.uk>, Arnd Bergmann <arnd@arndb.de>, Jonathan Corbet <corbet@lwn.net>, Mel Gorman <mel@csn.ul.ie>, Michal Nazarewicz <mina86@mina86.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Jesse Barker <jesse.barker@linaro.org>, Kyungmin Park <kyungmin.park@samsung.com>, Andrew Morton <akpm@linux-foundation.org>, Rob Clark <rob.clark@linaro.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Dave Jones <davej@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-> +static int __reclaim_pages(struct zone *zone, gfp_t gfp_mask, int count)
-> +{
-> + =A0 =A0 =A0 /*
-> + =A0 =A0 =A0 =A0* Increase level of watermarks to force kswapd do his jo=
-b
-> + =A0 =A0 =A0 =A0* to stabilise at new watermark level.
-> + =A0 =A0 =A0 =A0*/
-> + =A0 =A0 =A0 __update_cma_watermarks(zone, count);
-> +
-> + =A0 =A0 =A0 /* Obey watermarks as if the page was being allocated */
-> + =A0 =A0 =A0 watermark =3D low_wmark_pages(zone) + count;
-> + =A0 =A0 =A0 while (!zone_watermark_ok(zone, 0, watermark, 0, 0)) {
+On Thu, 8 Mar 2012, Andrew Morton wrote:
 
-Wouldn't this reclaim (2 * count pages) above low wmark?
+> > --- a/fs/hugetlbfs/inode.c
+> > +++ b/fs/hugetlbfs/inode.c
+> > @@ -946,7 +946,11 @@ struct file *hugetlb_file_setup(const char *name, size_t size,
+> >  	if (creat_flags == HUGETLB_SHMFS_INODE && !can_do_hugetlb_shm()) {
+> >  		*user = current_user();
+> >  		if (user_shm_lock(size, *user)) {
+> > -			printk_once(KERN_WARNING "Using mlock ulimits for SHM_HUGETLB is deprecated\n");
+> > +			task_lock(current);
+> > +			printk_once(KERN_WARNING
+> > +				"%s (%d): Using mlock ulimits for SHM_HUGETLB is deprecated\n",
+> > +				current->comm, current->pid);
+> > +			task_unlock(current);
+> 
+> I assume the task_lock() is there to protect current->comm.
 
-You are updating the low wmark first and then adding "count"
-for the zone_watermark_ok() check as well ..
+Yup.
 
-Sandeep
+> If so, it
+> is unneeded - we're protecting against prctl(PR_SET_NAME), and
+> PR_SET_NAME only operates on current, and we know this task isn't
+> currently running PR_SET_NAME.
+> 
+> If there's a way for another task to alter this task's ->comm then we
+> _do_ need locking.  But there isn't a way, I hope.
+> 
+
+I wish there wasn't as well, it would prevent a lot of the currently buggy 
+reads to current->comm and allow us to avoid so many otherwise pointless 
+task_lock()s.
+
+This protects against /proc/pid/comm, which is writable by threads in the 
+same thread group.  We have a get_task_comm() that does the task_lock() 
+internally but requires a TASK_COMM_LEN buffer in the calling code.  It's 
+just easier for the calling code to the task_lock() itself for a tiny 
+little printk().
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
