@@ -1,82 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx157.postini.com [74.125.245.157])
-	by kanga.kvack.org (Postfix) with SMTP id 74C546B002C
-	for <linux-mm@kvack.org>; Thu,  8 Mar 2012 00:32:22 -0500 (EST)
-Received: from m1.gw.fujitsu.co.jp (unknown [10.0.50.71])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 614503EE0BB
-	for <linux-mm@kvack.org>; Thu,  8 Mar 2012 14:32:20 +0900 (JST)
-Received: from smail (m1 [127.0.0.1])
-	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 482B645DE59
-	for <linux-mm@kvack.org>; Thu,  8 Mar 2012 14:32:20 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
-	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 2FDAC45DE58
-	for <linux-mm@kvack.org>; Thu,  8 Mar 2012 14:32:20 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 1FDC31DB8047
-	for <linux-mm@kvack.org>; Thu,  8 Mar 2012 14:32:20 +0900 (JST)
-Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.240.81.147])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id CC649E08002
-	for <linux-mm@kvack.org>; Thu,  8 Mar 2012 14:32:19 +0900 (JST)
-Date: Thu, 8 Mar 2012 14:30:34 +0900
+Received: from psmtp.com (na3sys010amx167.postini.com [74.125.245.167])
+	by kanga.kvack.org (Postfix) with SMTP id 0C4346B007E
+	for <linux-mm@kvack.org>; Thu,  8 Mar 2012 00:37:53 -0500 (EST)
+Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 1D9863EE0C2
+	for <linux-mm@kvack.org>; Thu,  8 Mar 2012 14:37:52 +0900 (JST)
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 0242645DEB5
+	for <linux-mm@kvack.org>; Thu,  8 Mar 2012 14:37:52 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id D25EF45DEAD
+	for <linux-mm@kvack.org>; Thu,  8 Mar 2012 14:37:51 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id C2DE91DB8044
+	for <linux-mm@kvack.org>; Thu,  8 Mar 2012 14:37:51 +0900 (JST)
+Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.240.81.145])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 781571DB803E
+	for <linux-mm@kvack.org>; Thu,  8 Mar 2012 14:37:51 +0900 (JST)
+Date: Thu, 8 Mar 2012 14:36:19 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH 3/7 v2] mm: rework __isolate_lru_page() file/anon filter
-Message-Id: <20120308143034.f3521b1e.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <alpine.LSU.2.00.1203061904570.18675@eggly.anvils>
-References: <20120229091547.29236.28230.stgit@zurg>
-	<20120303091327.17599.80336.stgit@zurg>
-	<alpine.LSU.2.00.1203061904570.18675@eggly.anvils>
+Subject: Re: [PATCH 6/7] mm/memcg: rework inactive_ratio calculation
+Message-Id: <20120308143619.4f25880e.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <4F50678C.6010800@openvz.org>
+References: <20120229090748.29236.35489.stgit@zurg>
+	<20120229091600.29236.69514.stgit@zurg>
+	<20120302143106.d4238cda.kamezawa.hiroyu@jp.fujitsu.com>
+	<4F50678C.6010800@openvz.org>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: Konstantin Khlebnikov <khlebnikov@openvz.org>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <jweiner@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Konstantin Khlebnikov <khlebnikov@openvz.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Johannes Weiner <jweiner@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 
-On Tue, 6 Mar 2012 19:22:21 -0800 (PST)
-Hugh Dickins <hughd@google.com> wrote:
+On Fri, 02 Mar 2012 10:24:12 +0400
+Konstantin Khlebnikov <khlebnikov@openvz.org> wrote:
 
-> On Sat, 3 Mar 2012, Konstantin Khlebnikov wrote:
+> KAMEZAWA Hiroyuki wrote:
+> > On Wed, 29 Feb 2012 13:16:00 +0400
+> > Konstantin Khlebnikov<khlebnikov@openvz.org>  wrote:
+> >
+> >> This patch removes precalculated zone->inactive_ratio.
+> >> Now it always calculated in inactive_anon_is_low() from current lru size.
+> >> After that we can merge memcg and non-memcg cases and drop duplicated code.
+> >>
+> >> We can drop precalculated ratio, because its calculation fast enough to do it
+> >> each time. Plus precalculation uses zone size as basis, this estimation not
+> >> always match with page lru size, for example if a significant proportion
+> >> of memory occupied by kernel objects.om memory cgroup which is triggered this memory reclaim.
+> This is more reason
+> >>
+> >> Signed-off-by: Konstantin Khlebnikov<khlebnikov@openvz.org>
+> >
+> > Maybe good....but please don't change the user interface /proc/zoneinfo implicitly.
+> > How about calculating inactive_ratio at reading /proc/zoneinfo ?
 > 
-> > This patch adds file/anon filter bits into isolate_mode_t,
-> > this allows to simplify checks in __isolate_lru_page().
-> > 
-> > v2:
-> > * use switch () instead of if ()
-> > * fixed lumpy-reclaim isolation mode
-> > 
-> > Signed-off-by: Konstantin Khlebnikov <khlebnikov@openvz.org>
-> 
-> I'm sorry to be messing you around on this one, Konstantin, but...
-> 
-> (a) if you do go with the switch statements,
-> in kernel we align the "case"s underneath the "switch"
-> 
-> but
-> 
-> (b) I seem to be at odds with Kamezawa-san, I much preferred your
-> original, which did in 2 lines what the switches do in 10 lines.
-> And I'd say there's more opportunity for error in 10 lines than 2.
-> 
-> What does the compiler say (4.5.1 here, OPTIMIZE_FOR_SIZE off)?
->    text	   data	    bss	    dec	    hex	filename
->   17723	    113	     17	  17853	   45bd	vmscan.o.0
->   17671	    113	     17	  17801	   4589	vmscan.o.1
->   17803	    113	     17	  17933	   460d	vmscan.o.2
-> 
-> That suggests that your v2 is the worst and your v1 the best.
-> Kame, can I persuade you to let the compiler decide on this?
-> 
+> I don't know... Anybody need this?
 
-Hmm. How about Costa' proposal ? as
-
-int tmp_var = PageActive(page) ? ISOLATE_ACTIVE : ISOLATE_INACTIVE
-if (!(mode & tmp_var))
-    ret;
+I don't like changes in user interface without any caution in feature-removal-schedule.txt
+I just don't Ack. If others say ok, please go ahead with them.
 
 Thanks,
 -Kame
-
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
