@@ -1,54 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx157.postini.com [74.125.245.157])
-	by kanga.kvack.org (Postfix) with SMTP id 0DEC76B002C
-	for <linux-mm@kvack.org>; Thu,  8 Mar 2012 02:28:57 -0500 (EST)
-Received: by dadv6 with SMTP id v6so211080dad.14
-        for <linux-mm@kvack.org>; Wed, 07 Mar 2012 23:28:57 -0800 (PST)
-Date: Thu, 8 Mar 2012 15:34:13 +0800
-From: Zheng Liu <gnehzuil.liu@gmail.com>
-Subject: Control page reclaim granularity
-Message-ID: <20120308073412.GA6975@gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+Received: from psmtp.com (na3sys010amx111.postini.com [74.125.245.111])
+	by kanga.kvack.org (Postfix) with SMTP id 3F7416B002C
+	for <linux-mm@kvack.org>; Thu,  8 Mar 2012 02:32:05 -0500 (EST)
+Received: from m4.gw.fujitsu.co.jp (unknown [10.0.50.74])
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 83F653EE0C3
+	for <linux-mm@kvack.org>; Thu,  8 Mar 2012 16:32:03 +0900 (JST)
+Received: from smail (m4 [127.0.0.1])
+	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 36DF645DE5A
+	for <linux-mm@kvack.org>; Thu,  8 Mar 2012 16:32:03 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
+	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id ED35645DE56
+	for <linux-mm@kvack.org>; Thu,  8 Mar 2012 16:32:02 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id DEC351DB802F
+	for <linux-mm@kvack.org>; Thu,  8 Mar 2012 16:32:02 +0900 (JST)
+Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.240.81.145])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 7C0C71DB8043
+	for <linux-mm@kvack.org>; Thu,  8 Mar 2012 16:32:02 +0900 (JST)
+Date: Thu, 8 Mar 2012 16:30:28 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH] memcg: revise the position of threshold index while
+ unregistering event
+Message-Id: <20120308163028.df8b6bde.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <4F58599A.3090100@gmail.com>
+References: <1331035943-7456-1-git-send-email-handai.szj@taobao.com>
+	<20120308144448.889337cf.kamezawa.hiroyu@jp.fujitsu.com>
+	<4F58599A.3090100@gmail.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>
-Cc: Konstantin Khlebnikov <khlebnikov@openvz.org>
+To: Sha Zhengju <handai.szj@gmail.com>
+Cc: linux-mm@kvack.org, cgroups@vger.kernel.org, kirill@shutemov.name, Sha Zhengju <handai.szj@taobao.com>
 
-Hi list,
+On Thu, 08 Mar 2012 15:02:50 +0800
+Sha Zhengju <handai.szj@gmail.com> wrote:
 
-Recently we encounter a problem about page reclaim.  I abstract it in here.
-The problem is that there are two different file types.  One is small index
-file, and another is large data file.  The index file is mmaped into memory,
-and application hope that they can be kept in memory and don't be reclaimed
-too frequently.  The data file is manipulted by read/write, and they should
-be reclaimed more frequently than the index file.
+> On 03/08/2012 01:44 PM, KAMEZAWA Hiroyuki wrote:
+> > On Tue,  6 Mar 2012 20:12:23 +0800
+> > Sha Zhengju<handai.szj@gmail.com>  wrote:
+> >
+> >> From: Sha Zhengju<handai.szj@taobao.com>
+> >>
+> >> Index current_threshold should point to threshold just below or equal to usage.
+> >> See below:
+> >> http://www.spinics.net/lists/cgroups/msg00844.html
+> >>
+> >>
+> >> Signed-off-by: Sha Zhengju<handai.szj@taobao.com>
+> > Thank you for resending.
+> >
+> > Acked-by: KAMEZAWA Hiroyuki<kamezawa.hiroyu@jp.fujitsu.com>
+> >
+> It's not a resending, though they are for the same reason.  May be I should
+> merge them together ...
+> 
+Ah. Hmm..If your previous patch isn't picked up yet, could you send it again 
+(or merge and post merged one ) ?
 
-As previously discussion [1], Konstantin suggest me to mmap index file with
-PROT_EXEC flag.  Meanwhile he provides a patch to set a flag in mm_flags to
-increase the priority of mmaped file pages.  However, these solutions are
-not perfect.  I review the related patches (8cab4754 and c909e993) and I
-think that mmaped index file with PROT_EXEC flag is too tricky.  From the
-view of applicaton programmer, index file is a regular file that stores
-some data.  So they should be mmap with PROT_READ | PROT_WRITE rather than
-with PROT_EXEC.  As commit log said (8cab4754), the purpose of this patch
-is to keep executable code in memory to improve the response of application.
-In addition, Kongstantin's patch needs to adjust the application program.
-So in some cases, we cannot touch the code of application, and this patch is
-useless.
+Thanks,
+-Kame
 
-I have discussed with Kongstantin about this problem and we think maybe
-kernel should provide some mechanism.  For example, user can set memory
-pressure priorities for vma or inode, or mmaped pages and file pages can be
-reclaimed separately.  If someone has thought about it, please let me know.
-Any feedbacks are welcomed.  Thank you.
-
-Previously discussion:
-1. http://marc.info/?l=linux-mm&m=132947026019538&w=2
-
-Regards,
-Zheng
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
