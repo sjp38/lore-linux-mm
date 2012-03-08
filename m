@@ -1,195 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx155.postini.com [74.125.245.155])
-	by kanga.kvack.org (Postfix) with SMTP id 137C96B00E8
-	for <linux-mm@kvack.org>; Thu,  8 Mar 2012 00:58:09 -0500 (EST)
-Received: from m2.gw.fujitsu.co.jp (unknown [10.0.50.72])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id A6C9A3EE0C1
-	for <linux-mm@kvack.org>; Thu,  8 Mar 2012 14:58:07 +0900 (JST)
-Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 8D48F45DE52
-	for <linux-mm@kvack.org>; Thu,  8 Mar 2012 14:58:07 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 5D92F45DE4E
-	for <linux-mm@kvack.org>; Thu,  8 Mar 2012 14:58:07 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 4A8D21DB803F
-	for <linux-mm@kvack.org>; Thu,  8 Mar 2012 14:58:07 +0900 (JST)
+Received: from psmtp.com (na3sys010amx145.postini.com [74.125.245.145])
+	by kanga.kvack.org (Postfix) with SMTP id B99086B002C
+	for <linux-mm@kvack.org>; Thu,  8 Mar 2012 01:01:39 -0500 (EST)
+Received: from m4.gw.fujitsu.co.jp (unknown [10.0.50.74])
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 435B83EE081
+	for <linux-mm@kvack.org>; Thu,  8 Mar 2012 15:01:38 +0900 (JST)
+Received: from smail (m4 [127.0.0.1])
+	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 27E4745DE51
+	for <linux-mm@kvack.org>; Thu,  8 Mar 2012 15:01:38 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
+	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 0F0CD45DE4D
+	for <linux-mm@kvack.org>; Thu,  8 Mar 2012 15:01:38 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id EE6EFE08002
+	for <linux-mm@kvack.org>; Thu,  8 Mar 2012 15:01:37 +0900 (JST)
 Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.240.81.133])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id EC96D1DB803A
-	for <linux-mm@kvack.org>; Thu,  8 Mar 2012 14:58:06 +0900 (JST)
-Date: Thu, 8 Mar 2012 14:56:28 +0900
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 9D1921DB8037
+	for <linux-mm@kvack.org>; Thu,  8 Mar 2012 15:01:37 +0900 (JST)
+Date: Thu, 8 Mar 2012 15:00:02 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH -V2 4/9] memcg: Add non reclaim resource tracking to
- memcg
-Message-Id: <20120308145628.f911419d.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <87ipikdyud.fsf@linux.vnet.ibm.com>
-References: <1330593380-1361-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
-	<1330593380-1361-5-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
-	<20120302173816.9796f243.kamezawa.hiroyu@jp.fujitsu.com>
-	<87ipikdyud.fsf@linux.vnet.ibm.com>
+Subject: Re: [PATCH] page_cgroup: fix horrid swap accounting regression
+Message-Id: <20120308150002.c900b38c.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <alpine.LSU.2.00.1203052046410.24068@eggly.anvils>
+References: <alpine.LSU.2.00.1203052046410.24068@eggly.anvils>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Cc: linux-mm@kvack.org, mgorman@suse.de, dhillf@gmail.com, aarcange@redhat.com, mhocko@suse.cz, akpm@linux-foundation.org, hannes@cmpxchg.org, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org
+To: Hugh Dickins <hughd@google.com>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Bob Liu <lliubbo@gmail.com>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <jweiner@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Sun, 04 Mar 2012 23:37:22 +0530
-"Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com> wrote:
+On Mon, 5 Mar 2012 20:52:55 -0800 (PST)
+Hugh Dickins <hughd@google.com> wrote:
 
-> On Fri, 2 Mar 2012 17:38:16 +0900, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> > On Thu,  1 Mar 2012 14:46:15 +0530
-> > "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com> wrote:
-> > 
-> > > From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-
-> > 
-> > > +	help
-> > > +	  Add non reclaim resource management to memory resource controller.
-> > > +	  Currently only HugeTLB pages will be managed using this extension.
-> > > +	  The controller limit is enforced during mmap(2), so that
-> > > +	  application can fall back to allocations using smaller page size
-> > > +	  if the memory controller limit prevented them from allocating HugeTLB
-> > > +	  pages.
-> > > +
-> > 
-> > Hm. In other thread, KMEM accounting is discussed. There is 2 proposals and
-> >  - 1st is accounting only reclaimable slabs (as dcache etc.)
-> >  - 2nd is accounting all slab allocations.
-> > 
-> > Here, 2nd one includes NORECLAIM kmem cache. (Discussion is not ended.)
-> > 
-> > So, for your developments,  How about MEM_RES_CTLR_HUGEPAGE ?
+> Why is memcg's swap accounting so broken?  Insane counts, wrong ownership,
+> unfreeable structures, which later get freed and then accessed after free.
 > 
-> Frankly I didn't like the noreclaim name, I also didn't want to indicate
-> HUGEPAGE, because the code doesn't make any huge page assumption.
-
-You can add this config for HUGEPAGE interfaces.
-Later we can sort out other configs.
-
-
-> > 
-> > 
-> > >  config CGROUP_MEM_RES_CTLR_SWAP
-> > >  	bool "Memory Resource Controller Swap Extension"
-> > >  	depends on CGROUP_MEM_RES_CTLR && SWAP
-> > > diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> > > index 6728a7a..b00d028 100644
-> > > --- a/mm/memcontrol.c
-> > > +++ b/mm/memcontrol.c
-> > > @@ -49,6 +49,7 @@
-> > >  #include <linux/page_cgroup.h>
-> > >  #include <linux/cpu.h>
-> > >  #include <linux/oom.h>
-> > > +#include <linux/region.h>
-> > >  #include "internal.h"
-> > >  #include <net/sock.h>
-> > >  #include <net/tcp_memcontrol.h>
-> > > @@ -214,6 +215,11 @@ static void mem_cgroup_threshold(struct mem_cgroup *memcg);
-> > >  static void mem_cgroup_oom_notify(struct mem_cgroup *memcg);
-> > >  
-> > >  /*
-> > > + * Currently only hugetlbfs pages are tracked using no reclaim
-> > > + * resource count. So we need only MAX_HSTATE res counter
-> > > + */
-> > > +#define MEMCG_MAX_NORECLAIM HUGE_MAX_HSTATE
-> > > +/*
-> > >   * The memory controller data structure. The memory controller controls both
-> > >   * page cache and RSS per cgroup. We would eventually like to provide
-> > >   * statistics based on the statistics developed by Rik Van Riel for clock-pro,
-> > > @@ -235,6 +241,11 @@ struct mem_cgroup {
-> > >  	 */
-> > >  	struct res_counter memsw;
-> > >  	/*
-> > > +	 * the counter to account for non reclaim resources
-> > > +	 * like hugetlb pages
-> > > +	 */
-> > > +	struct res_counter no_rcl_res[MEMCG_MAX_NORECLAIM];
-> > 
-> > struct res_counter hugepages;
-> > 
-> > will be ok.
-> > 
+> Turns out to be a tiny a little 3.3-rc1 regression in 9fb4b7cc0724
+> "page_cgroup: add helper function to get swap_cgroup": the helper
+> function (actually named lookup_swap_cgroup()) returns an address
+> using void* arithmetic, but the structure in question is a short.
 > 
-> My goal was to make this patch not to mention hugepages, because
-> it doesn't really have any depedency on hugepages. That is one of the reason
-> for adding MEMCG_MAX_NORECLAIM. Later if we want other in memory file system
-> (shmemfs) to limit the resource usage in a similar fashion, we should be
-> able to use this memcg changes.
-> 
-> May be for this patchset I can make the changes you suggested and later
-> when we want to reuse the code make it more generic ?
-> 
+> Signed-off-by: Hugh Dickins <hughd@google.com>
 
-yes. If there is no user interface change, internal code change will be welcomed.
+Thank you for testing/fixes.
+
+Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
 
+> ---
 > 
-> > 
-> > > +	/*
-> > >  	 * Per cgroup active and inactive list, similar to the
-> > >  	 * per zone LRU lists.
-> > >  	 */
-> > > @@ -4887,6 +4898,7 @@ err_cleanup:
-> > >  static struct cgroup_subsys_state * __ref
-> > >  mem_cgroup_create(struct cgroup_subsys *ss, struct cgroup *cont)
-> > >  {
-> > > +	int idx;
-> > >  	struct mem_cgroup *memcg, *parent;
-> > >  	long error = -ENOMEM;
-> > >  	int node;
-> > > @@ -4922,6 +4934,10 @@ mem_cgroup_create(struct cgroup_subsys *ss, struct cgroup *cont)
-> > >  	if (parent && parent->use_hierarchy) {
-> > >  		res_counter_init(&memcg->res, &parent->res);
-> > >  		res_counter_init(&memcg->memsw, &parent->memsw);
-> > > +		for (idx = 0; idx < MEMCG_MAX_NORECLAIM; idx++) {
-> > > +			res_counter_init(&memcg->no_rcl_res[idx],
-> > > +					 &parent->no_rcl_res[idx]);
-> > > +		}
-> > 
-> > You can remove this kinds of loop and keep your implemenation simple.
+>  mm/page_cgroup.c |    4 +++-
+>  1 file changed, 3 insertions(+), 1 deletion(-)
 > 
-> 
-> Can you explain this ? How can we remote the loop ?. We want to track
-> each huge page size as a seperate resource. 
-> 
-Ah, sorry. I miseed it. please ignore.
-
-
-
-> > > +long mem_cgroup_try_noreclaim_charge(struct list_head *chg_list,
-> > > +				     unsigned long from, unsigned long to,
-> > > +				     int idx)
-> > > +{
-> > > +	long chg;
-> > > +	int ret = 0;
-> > > +	unsigned long csize;
-> > > +	struct mem_cgroup *memcg;
-> > > +	struct res_counter *fail_res;
-> > > +
-> > > +	/*
-> > > +	 * Get the task cgroup within rcu_readlock and also
-> > > +	 * get cgroup reference to make sure cgroup destroy won't
-> > > +	 * race with page_charge. We don't allow a cgroup destroy
-> > > +	 * when the cgroup have some charge against it
-> > > +	 */
-> > > +	rcu_read_lock();
-> > > +	memcg = mem_cgroup_from_task(current);
-> > > +	css_get(&memcg->css);
-> > 
-> > css_tryget() ?
-> > 
-> 
-> 
-> Why ?
-> 
-
-current<->cgroup relationship isn't under any locks. So, we do speculative
-access with rcu_read_lock() and css_tryget().
-
-Thanks,
--Kame
+> --- 3.3-rc6/mm/page_cgroup.c	2012-01-20 08:42:35.320020840 -0800
+> +++ linux/mm/page_cgroup.c	2012-03-05 19:51:13.535372098 -0800
+> @@ -379,13 +379,15 @@ static struct swap_cgroup *lookup_swap_c
+>  	pgoff_t offset = swp_offset(ent);
+>  	struct swap_cgroup_ctrl *ctrl;
+>  	struct page *mappage;
+> +	struct swap_cgroup *sc;
+>  
+>  	ctrl = &swap_cgroup_ctrl[swp_type(ent)];
+>  	if (ctrlp)
+>  		*ctrlp = ctrl;
+>  
+>  	mappage = ctrl->map[offset / SC_PER_PAGE];
+> -	return page_address(mappage) + offset % SC_PER_PAGE;
+> +	sc = page_address(mappage);
+> +	return sc + offset % SC_PER_PAGE;
+>  }
+>  
+>  /**
+> --
+> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+> Please read the FAQ at  http://www.tux.org/lkml/
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
