@@ -1,77 +1,195 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx188.postini.com [74.125.245.188])
-	by kanga.kvack.org (Postfix) with SMTP id A724E6B0092
-	for <linux-mm@kvack.org>; Thu,  8 Mar 2012 00:50:31 -0500 (EST)
-Received: from m1.gw.fujitsu.co.jp (unknown [10.0.50.71])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 42EAC3EE0C1
-	for <linux-mm@kvack.org>; Thu,  8 Mar 2012 14:50:30 +0900 (JST)
-Received: from smail (m1 [127.0.0.1])
-	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 29AA445DE5E
-	for <linux-mm@kvack.org>; Thu,  8 Mar 2012 14:50:30 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
-	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 100D345DE58
-	for <linux-mm@kvack.org>; Thu,  8 Mar 2012 14:50:30 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id E387CE08002
-	for <linux-mm@kvack.org>; Thu,  8 Mar 2012 14:50:29 +0900 (JST)
+Received: from psmtp.com (na3sys010amx155.postini.com [74.125.245.155])
+	by kanga.kvack.org (Postfix) with SMTP id 137C96B00E8
+	for <linux-mm@kvack.org>; Thu,  8 Mar 2012 00:58:09 -0500 (EST)
+Received: from m2.gw.fujitsu.co.jp (unknown [10.0.50.72])
+	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id A6C9A3EE0C1
+	for <linux-mm@kvack.org>; Thu,  8 Mar 2012 14:58:07 +0900 (JST)
+Received: from smail (m2 [127.0.0.1])
+	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 8D48F45DE52
+	for <linux-mm@kvack.org>; Thu,  8 Mar 2012 14:58:07 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
+	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 5D92F45DE4E
+	for <linux-mm@kvack.org>; Thu,  8 Mar 2012 14:58:07 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 4A8D21DB803F
+	for <linux-mm@kvack.org>; Thu,  8 Mar 2012 14:58:07 +0900 (JST)
 Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.240.81.133])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 9A16D1DB8049
-	for <linux-mm@kvack.org>; Thu,  8 Mar 2012 14:50:29 +0900 (JST)
-Date: Thu, 8 Mar 2012 14:48:55 +0900
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id EC96D1DB803A
+	for <linux-mm@kvack.org>; Thu,  8 Mar 2012 14:58:06 +0900 (JST)
+Date: Thu, 8 Mar 2012 14:56:28 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH] memcg: fix mapcount check in move charge code for
- anonymous page
-Message-Id: <20120308144855.271ed829.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <1330720508-21019-1-git-send-email-n-horiguchi@ah.jp.nec.com>
-References: <1330720508-21019-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+Subject: Re: [PATCH -V2 4/9] memcg: Add non reclaim resource tracking to
+ memcg
+Message-Id: <20120308145628.f911419d.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <87ipikdyud.fsf@linux.vnet.ibm.com>
+References: <1330593380-1361-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+	<1330593380-1361-5-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+	<20120302173816.9796f243.kamezawa.hiroyu@jp.fujitsu.com>
+	<87ipikdyud.fsf@linux.vnet.ibm.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Hillf Danton <dhillf@gmail.com>, linux-kernel@vger.kernel.org
+To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Cc: linux-mm@kvack.org, mgorman@suse.de, dhillf@gmail.com, aarcange@redhat.com, mhocko@suse.cz, akpm@linux-foundation.org, hannes@cmpxchg.org, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org
 
-On Fri,  2 Mar 2012 15:35:08 -0500
-Naoya Horiguchi <n-horiguchi@ah.jp.nec.com> wrote:
+On Sun, 04 Mar 2012 23:37:22 +0530
+"Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com> wrote:
 
-> Currently charge on shared anonyous pages is supposed not to moved
-> in task migration. To implement this, we need to check that mapcount > 1,
-> instread of > 2. So this patch fixes it.
+> On Fri, 2 Mar 2012 17:38:16 +0900, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+> > On Thu,  1 Mar 2012 14:46:15 +0530
+> > "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com> wrote:
+> > 
+> > > From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+
+> > 
+> > > +	help
+> > > +	  Add non reclaim resource management to memory resource controller.
+> > > +	  Currently only HugeTLB pages will be managed using this extension.
+> > > +	  The controller limit is enforced during mmap(2), so that
+> > > +	  application can fall back to allocations using smaller page size
+> > > +	  if the memory controller limit prevented them from allocating HugeTLB
+> > > +	  pages.
+> > > +
+> > 
+> > Hm. In other thread, KMEM accounting is discussed. There is 2 proposals and
+> >  - 1st is accounting only reclaimable slabs (as dcache etc.)
+> >  - 2nd is accounting all slab allocations.
+> > 
+> > Here, 2nd one includes NORECLAIM kmem cache. (Discussion is not ended.)
+> > 
+> > So, for your developments,  How about MEM_RES_CTLR_HUGEPAGE ?
 > 
-> Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+> Frankly I didn't like the noreclaim name, I also didn't want to indicate
+> HUGEPAGE, because the code doesn't make any huge page assumption.
 
-Hm. I don't remember why this check uses mapcount > 2...maybe bug.
+You can add this config for HUGEPAGE interfaces.
+Later we can sort out other configs.
 
-Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-
-> ---
->  mm/memcontrol.c |    2 +-
->  1 files changed, 1 insertions(+), 1 deletions(-)
+> > 
+> > 
+> > >  config CGROUP_MEM_RES_CTLR_SWAP
+> > >  	bool "Memory Resource Controller Swap Extension"
+> > >  	depends on CGROUP_MEM_RES_CTLR && SWAP
+> > > diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> > > index 6728a7a..b00d028 100644
+> > > --- a/mm/memcontrol.c
+> > > +++ b/mm/memcontrol.c
+> > > @@ -49,6 +49,7 @@
+> > >  #include <linux/page_cgroup.h>
+> > >  #include <linux/cpu.h>
+> > >  #include <linux/oom.h>
+> > > +#include <linux/region.h>
+> > >  #include "internal.h"
+> > >  #include <net/sock.h>
+> > >  #include <net/tcp_memcontrol.h>
+> > > @@ -214,6 +215,11 @@ static void mem_cgroup_threshold(struct mem_cgroup *memcg);
+> > >  static void mem_cgroup_oom_notify(struct mem_cgroup *memcg);
+> > >  
+> > >  /*
+> > > + * Currently only hugetlbfs pages are tracked using no reclaim
+> > > + * resource count. So we need only MAX_HSTATE res counter
+> > > + */
+> > > +#define MEMCG_MAX_NORECLAIM HUGE_MAX_HSTATE
+> > > +/*
+> > >   * The memory controller data structure. The memory controller controls both
+> > >   * page cache and RSS per cgroup. We would eventually like to provide
+> > >   * statistics based on the statistics developed by Rik Van Riel for clock-pro,
+> > > @@ -235,6 +241,11 @@ struct mem_cgroup {
+> > >  	 */
+> > >  	struct res_counter memsw;
+> > >  	/*
+> > > +	 * the counter to account for non reclaim resources
+> > > +	 * like hugetlb pages
+> > > +	 */
+> > > +	struct res_counter no_rcl_res[MEMCG_MAX_NORECLAIM];
+> > 
+> > struct res_counter hugepages;
+> > 
+> > will be ok.
+> > 
 > 
-> diff --git linux-next-20120228.orig/mm/memcontrol.c linux-next-20120228/mm/memcontrol.c
-> index b6d1bab..785f6d3 100644
-> --- linux-next-20120228.orig/mm/memcontrol.c
-> +++ linux-next-20120228/mm/memcontrol.c
-> @@ -5102,7 +5102,7 @@ static struct page *mc_handle_present_pte(struct vm_area_struct *vma,
->  		return NULL;
->  	if (PageAnon(page)) {
->  		/* we don't move shared anon */
-> -		if (!move_anon() || page_mapcount(page) > 2)
-> +		if (!move_anon() || page_mapcount(page) > 1)
->  			return NULL;
->  	} else if (!move_file())
->  		/* we ignore mapcount for file pages */
-> -- 
-> 1.7.7.6
+> My goal was to make this patch not to mention hugepages, because
+> it doesn't really have any depedency on hugepages. That is one of the reason
+> for adding MEMCG_MAX_NORECLAIM. Later if we want other in memory file system
+> (shmemfs) to limit the resource usage in a similar fashion, we should be
+> able to use this memcg changes.
 > 
-> --
-> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
-> Please read the FAQ at  http://www.tux.org/lkml/
+> May be for this patchset I can make the changes you suggested and later
+> when we want to reuse the code make it more generic ?
 > 
+
+yes. If there is no user interface change, internal code change will be welcomed.
+
+
+> 
+> > 
+> > > +	/*
+> > >  	 * Per cgroup active and inactive list, similar to the
+> > >  	 * per zone LRU lists.
+> > >  	 */
+> > > @@ -4887,6 +4898,7 @@ err_cleanup:
+> > >  static struct cgroup_subsys_state * __ref
+> > >  mem_cgroup_create(struct cgroup_subsys *ss, struct cgroup *cont)
+> > >  {
+> > > +	int idx;
+> > >  	struct mem_cgroup *memcg, *parent;
+> > >  	long error = -ENOMEM;
+> > >  	int node;
+> > > @@ -4922,6 +4934,10 @@ mem_cgroup_create(struct cgroup_subsys *ss, struct cgroup *cont)
+> > >  	if (parent && parent->use_hierarchy) {
+> > >  		res_counter_init(&memcg->res, &parent->res);
+> > >  		res_counter_init(&memcg->memsw, &parent->memsw);
+> > > +		for (idx = 0; idx < MEMCG_MAX_NORECLAIM; idx++) {
+> > > +			res_counter_init(&memcg->no_rcl_res[idx],
+> > > +					 &parent->no_rcl_res[idx]);
+> > > +		}
+> > 
+> > You can remove this kinds of loop and keep your implemenation simple.
+> 
+> 
+> Can you explain this ? How can we remote the loop ?. We want to track
+> each huge page size as a seperate resource. 
+> 
+Ah, sorry. I miseed it. please ignore.
+
+
+
+> > > +long mem_cgroup_try_noreclaim_charge(struct list_head *chg_list,
+> > > +				     unsigned long from, unsigned long to,
+> > > +				     int idx)
+> > > +{
+> > > +	long chg;
+> > > +	int ret = 0;
+> > > +	unsigned long csize;
+> > > +	struct mem_cgroup *memcg;
+> > > +	struct res_counter *fail_res;
+> > > +
+> > > +	/*
+> > > +	 * Get the task cgroup within rcu_readlock and also
+> > > +	 * get cgroup reference to make sure cgroup destroy won't
+> > > +	 * race with page_charge. We don't allow a cgroup destroy
+> > > +	 * when the cgroup have some charge against it
+> > > +	 */
+> > > +	rcu_read_lock();
+> > > +	memcg = mem_cgroup_from_task(current);
+> > > +	css_get(&memcg->css);
+> > 
+> > css_tryget() ?
+> > 
+> 
+> 
+> Why ?
+> 
+
+current<->cgroup relationship isn't under any locks. So, we do speculative
+access with rcu_read_lock() and css_tryget().
+
+Thanks,
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
