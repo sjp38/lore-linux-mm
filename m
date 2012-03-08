@@ -1,33 +1,32 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx168.postini.com [74.125.245.168])
-	by kanga.kvack.org (Postfix) with SMTP id B066A6B0083
-	for <linux-mm@kvack.org>; Thu,  8 Mar 2012 11:08:00 -0500 (EST)
-Received: by pbcup15 with SMTP id up15so1929263pbc.14
-        for <linux-mm@kvack.org>; Thu, 08 Mar 2012 08:08:00 -0800 (PST)
-Date: Fri, 9 Mar 2012 00:13:18 +0800
-From: Zheng Liu <gnehzuil.liu@gmail.com>
-Subject: Re: Control page reclaim granularity
-Message-ID: <20120308161318.GA9904@gmail.com>
+Received: from psmtp.com (na3sys010amx186.postini.com [74.125.245.186])
+	by kanga.kvack.org (Postfix) with SMTP id 791F16B007E
+	for <linux-mm@kvack.org>; Thu,  8 Mar 2012 11:24:45 -0500 (EST)
+Date: Thu, 8 Mar 2012 16:24:41 +0000
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: decode GFP flags in oom killer output.
+Message-ID: <20120308162441.GG17697@suse.de>
+References: <20120307233939.GB5574@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <xr93haxzo59m.fsf@gthelen.mtv.corp.google.com>
+In-Reply-To: <20120307233939.GB5574@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Greg Thelen <gthelen@google.com>
-Cc: linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, Konstantin Khlebnikov <khlebnikov@openvz.org>
+To: Dave Jones <davej@redhat.com>, Linux Kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 
-Hi Greg,
+On Wed, Mar 07, 2012 at 06:39:39PM -0500, Dave Jones wrote:
+> Decoding these flags by hand in oom reports is tedious,
+> and error-prone.
+> 
 
-Sorry, I forgot to say that I don't subscribe linux-mm and linux-kernel
-mailing list.  So please Cc me.
+It's not really a proper solution but scripts/gfp-translate is less
+error-prone than doing it by hand but requires that you have the kernel
+source available.
 
-I am glad to receive your reply and I am very interesting for your
-approach.  Actually I am not very familiar with CGroup.  So would you
-please send your patch to me if you can?  Thank you all the same.
-
-Regards,
-Zheng
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
