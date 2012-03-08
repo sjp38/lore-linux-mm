@@ -1,46 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx104.postini.com [74.125.245.104])
-	by kanga.kvack.org (Postfix) with SMTP id E0EED6B007E
-	for <linux-mm@kvack.org>; Wed,  7 Mar 2012 22:42:38 -0500 (EST)
-Message-ID: <4F582A37.8060802@cn.fujitsu.com>
-Date: Thu, 08 Mar 2012 11:40:39 +0800
-From: Miao Xie <miaox@cn.fujitsu.com>
-Reply-To: miaox@cn.fujitsu.com
-MIME-Version: 1.0
-Subject: Re: [PATCH] cpuset: mm: Reduce large amounts of memory barrier related
- damage v2
-References: <20120306132735.GA2855@suse.de> <4F572730.8000000@cn.fujitsu.com> <20120307112201.GC17697@suse.de>
-In-Reply-To: <20120307112201.GC17697@suse.de>
+Received: from psmtp.com (na3sys010amx157.postini.com [74.125.245.157])
+	by kanga.kvack.org (Postfix) with SMTP id 74C546B002C
+	for <linux-mm@kvack.org>; Thu,  8 Mar 2012 00:32:22 -0500 (EST)
+Received: from m1.gw.fujitsu.co.jp (unknown [10.0.50.71])
+	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 614503EE0BB
+	for <linux-mm@kvack.org>; Thu,  8 Mar 2012 14:32:20 +0900 (JST)
+Received: from smail (m1 [127.0.0.1])
+	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 482B645DE59
+	for <linux-mm@kvack.org>; Thu,  8 Mar 2012 14:32:20 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
+	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 2FDAC45DE58
+	for <linux-mm@kvack.org>; Thu,  8 Mar 2012 14:32:20 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 1FDC31DB8047
+	for <linux-mm@kvack.org>; Thu,  8 Mar 2012 14:32:20 +0900 (JST)
+Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.240.81.147])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id CC649E08002
+	for <linux-mm@kvack.org>; Thu,  8 Mar 2012 14:32:19 +0900 (JST)
+Date: Thu, 8 Mar 2012 14:30:34 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH 3/7 v2] mm: rework __isolate_lru_page() file/anon filter
+Message-Id: <20120308143034.f3521b1e.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <alpine.LSU.2.00.1203061904570.18675@eggly.anvils>
+References: <20120229091547.29236.28230.stgit@zurg>
+	<20120303091327.17599.80336.stgit@zurg>
+	<alpine.LSU.2.00.1203061904570.18675@eggly.anvils>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
-Content-Type: text/plain; charset=ISO-8859-15
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Christoph Lameter <cl@linux.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Hugh Dickins <hughd@google.com>
+Cc: Konstantin Khlebnikov <khlebnikov@openvz.org>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <jweiner@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On wed, 7 Mar 2012 11:22:01 +0000, Mel Gorman wrote:
->> Beside that, we need deal with fork() carefully, or it is possible that the child
->> task will be set to a wrong nodemask.
->>
+On Tue, 6 Mar 2012 19:22:21 -0800 (PST)
+Hugh Dickins <hughd@google.com> wrote:
+
+> On Sat, 3 Mar 2012, Konstantin Khlebnikov wrote:
 > 
-> Can you clarify this statement please? It's not clear what the old code
-> did that protected against problems in fork() versus this patch. fork is
-> not calling get_mems_allowed() for example or doing anything special
-> around mems_allowed.
+> > This patch adds file/anon filter bits into isolate_mode_t,
+> > this allows to simplify checks in __isolate_lru_page().
+> > 
+> > v2:
+> > * use switch () instead of if ()
+> > * fixed lumpy-reclaim isolation mode
+> > 
+> > Signed-off-by: Konstantin Khlebnikov <khlebnikov@openvz.org>
 > 
-> Maybe you are talking about an existing problem whereby during fork
-> there should be get_mems_allowed/put_mems_allowed and the mems_allowed
-> mask gets copied explicitly?
+> I'm sorry to be messing you around on this one, Konstantin, but...
+> 
+> (a) if you do go with the switch statements,
+> in kernel we align the "case"s underneath the "switch"
+> 
+> but
+> 
+> (b) I seem to be at odds with Kamezawa-san, I much preferred your
+> original, which did in 2 lines what the switches do in 10 lines.
+> And I'd say there's more opportunity for error in 10 lines than 2.
+> 
+> What does the compiler say (4.5.1 here, OPTIMIZE_FOR_SIZE off)?
+>    text	   data	    bss	    dec	    hex	filename
+>   17723	    113	     17	  17853	   45bd	vmscan.o.0
+>   17671	    113	     17	  17801	   4589	vmscan.o.1
+>   17803	    113	     17	  17933	   460d	vmscan.o.2
+> 
+> That suggests that your v2 is the worst and your v1 the best.
+> Kame, can I persuade you to let the compiler decide on this?
+> 
 
-Yes, If someone updates cpuset's nodemask or cpumask before the child task is attached
-into the cpuset cgroup, the child task's nodemask and cpumask can not be updated, just
-holds the old mask.
+Hmm. How about Costa' proposal ? as
 
-We can fix this problem by seqcounter in a new patch.(It seems the freeze subsystem also
-has the same problem)
+int tmp_var = PageActive(page) ? ISOLATE_ACTIVE : ISOLATE_INACTIVE
+if (!(mode & tmp_var))
+    ret;
 
-Thanks
-Miao
+Thanks,
+-Kame
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
