@@ -1,115 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx185.postini.com [74.125.245.185])
-	by kanga.kvack.org (Postfix) with SMTP id 7BEB36B002C
-	for <linux-mm@kvack.org>; Thu,  8 Mar 2012 04:16:06 -0500 (EST)
-Received: from /spool/local
-	by e23smtp07.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
-	Thu, 8 Mar 2012 09:10:27 +1000
-Received: from d23av02.au.ibm.com (d23av02.au.ibm.com [9.190.235.138])
-	by d23relay05.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q2899uT22617500
-	for <linux-mm@kvack.org>; Thu, 8 Mar 2012 20:10:04 +1100
-Received: from d23av02.au.ibm.com (loopback [127.0.0.1])
-	by d23av02.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q289Fbvc032009
-	for <linux-mm@kvack.org>; Thu, 8 Mar 2012 20:15:37 +1100
-From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Subject: [PATCH] hugetlbfs: lockdep annotate root inode properly
-Date: Thu,  8 Mar 2012 14:45:16 +0530
-Message-Id: <1331198116-13670-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+Received: from psmtp.com (na3sys010amx168.postini.com [74.125.245.168])
+	by kanga.kvack.org (Postfix) with SMTP id E6A6D6B002C
+	for <linux-mm@kvack.org>; Thu,  8 Mar 2012 04:35:23 -0500 (EST)
+Received: by pbcup15 with SMTP id up15so1564043pbc.14
+        for <linux-mm@kvack.org>; Thu, 08 Mar 2012 01:35:23 -0800 (PST)
+Date: Thu, 8 Mar 2012 18:35:14 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: Control page reclaim granularity
+Message-ID: <20120308093514.GA28856@barrios>
+References: <20120308073412.GA6975@gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20120308073412.GA6975@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org, akpm@linux-foundation.org, davej@redhat.com, jboyer@redhat.com, tyhicks@canonical.com
-Cc: linux-kernel@vger.kernel.org, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+To: linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, Konstantin Khlebnikov <khlebnikov@openvz.org>
+Cc: riel@redhat.com, kosaki.motohiro@jp.fujitsu.com
 
-From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+On Thu, Mar 08, 2012 at 03:34:13PM +0800, Zheng Liu wrote:
+> Hi list,
+> 
+> Recently we encounter a problem about page reclaim.  I abstract it in here.
+> The problem is that there are two different file types.  One is small index
+> file, and another is large data file.  The index file is mmaped into memory,
+> and application hope that they can be kept in memory and don't be reclaimed
+> too frequently.  The data file is manipulted by read/write, and they should
+> be reclaimed more frequently than the index file.
+> 
+> As previously discussion [1], Konstantin suggest me to mmap index file with
+> PROT_EXEC flag.  Meanwhile he provides a patch to set a flag in mm_flags to
+> increase the priority of mmaped file pages.  However, these solutions are
+> not perfect.  I review the related patches (8cab4754 and c909e993) and I
+> think that mmaped index file with PROT_EXEC flag is too tricky.  From the
+> view of applicaton programmer, index file is a regular file that stores
+> some data.  So they should be mmap with PROT_READ | PROT_WRITE rather than
+> with PROT_EXEC.  As commit log said (8cab4754), the purpose of this patch
+> is to keep executable code in memory to improve the response of application.
+> In addition, Kongstantin's patch needs to adjust the application program.
+> So in some cases, we cannot touch the code of application, and this patch is
+> useless.
+> 
+> I have discussed with Kongstantin about this problem and we think maybe
+> kernel should provide some mechanism.  For example, user can set memory
+> pressure priorities for vma or inode, or mmaped pages and file pages can be
+> reclaimed separately.  If someone has thought about it, please let me know.
+> Any feedbacks are welcomed.  Thank you.
+> 
+> Previously discussion:
+> 1. http://marc.info/?l=linux-mm&m=132947026019538&w=2
+> 
+> Regards,
+> Zheng
 
-This fix the below lockdep warning
+I  think it's a regression since 2.6.28.
+Before we were trying to keep mapped pages in memory(See calc_reclaim_mapped).
+But we removed that routine when we applied split lru page replacement.
+Rik, KOSAKI. What's the rationale?
+We have to decide whether recovering that routine or creating new logic to keep
+mapped page in memory.
 
- ======================================================
- [ INFO: possible circular locking dependency detected ]
- 3.3.0-rc4+ #190 Not tainted
- -------------------------------------------------------
- shared/1568 is trying to acquire lock:
-  (&sb->s_type->i_mutex_key#12){+.+.+.}, at: [<ffffffff811efa0f>] hugetlbfs_file_mmap+0x7d/0x108
-
- but task is already holding lock:
-  (&mm->mmap_sem){++++++}, at: [<ffffffff810f5589>] sys_mmap_pgoff+0xd4/0x12f
-
- which lock already depends on the new lock.
-
-
- the existing dependency chain (in reverse order) is:
-
- -> #1 (&mm->mmap_sem){++++++}:
-        [<ffffffff8109fb8f>] lock_acquire+0xd5/0xfa
-        [<ffffffff810ee439>] might_fault+0x6d/0x90
-        [<ffffffff8111bc12>] filldir+0x6a/0xc2
-        [<ffffffff81129942>] dcache_readdir+0x5c/0x222
-        [<ffffffff8111be58>] vfs_readdir+0x76/0xac
-        [<ffffffff8111bf6a>] sys_getdents+0x79/0xc9
-        [<ffffffff816940a2>] system_call_fastpath+0x16/0x1b
-
- -> #0 (&sb->s_type->i_mutex_key#12){+.+.+.}:
-        [<ffffffff8109f40a>] __lock_acquire+0xa6c/0xd60
-        [<ffffffff8109fb8f>] lock_acquire+0xd5/0xfa
-        [<ffffffff816916be>] __mutex_lock_common+0x48/0x350
-        [<ffffffff81691a85>] mutex_lock_nested+0x2a/0x31
-        [<ffffffff811efa0f>] hugetlbfs_file_mmap+0x7d/0x108
-        [<ffffffff810f4fd0>] mmap_region+0x26f/0x466
-        [<ffffffff810f545b>] do_mmap_pgoff+0x294/0x2ee
-        [<ffffffff810f55a9>] sys_mmap_pgoff+0xf4/0x12f
-        [<ffffffff8103d1f2>] sys_mmap+0x1d/0x1f
-        [<ffffffff816940a2>] system_call_fastpath+0x16/0x1b
-
- other info that might help us debug this:
-
-  Possible unsafe locking scenario:
-
-        CPU0                    CPU1
-        ----                    ----
-   lock(&mm->mmap_sem);
-                                lock(&sb->s_type->i_mutex_key#12);
-                                lock(&mm->mmap_sem);
-   lock(&sb->s_type->i_mutex_key#12);
-
-  *** DEADLOCK ***
-
- 1 lock held by shared/1568:
-  #0:  (&mm->mmap_sem){++++++}, at: [<ffffffff810f5589>] sys_mmap_pgoff+0xd4/0x12f
-
- stack backtrace:
- Pid: 1568, comm: shared Not tainted 3.3.0-rc4+ #190
- Call Trace:
-  [<ffffffff81688bf9>] print_circular_bug+0x1f8/0x209
-  [<ffffffff8109f40a>] __lock_acquire+0xa6c/0xd60
-  [<ffffffff8110e7b6>] ? files_lglock_local_lock_cpu+0x61/0x61
-  [<ffffffff811efa0f>] ? hugetlbfs_file_mmap+0x7d/0x108
-  [<ffffffff8109fb8f>] lock_acquire+0xd5/0xfa
-  [<ffffffff811efa0f>] ? hugetlbfs_file_mmap+0x7d/0x108
-
-Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
----
- fs/hugetlbfs/inode.c |    1 +
- 1 files changed, 1 insertions(+), 0 deletions(-)
-
-NOTE: This patch also require 
-http://thread.gmane.org/gmane.linux.file-systems/58795/focus=59565
-to remove the lockdep warning
-
-diff --git a/fs/hugetlbfs/inode.c b/fs/hugetlbfs/inode.c
-index 3645cd3..ca4fa70 100644
---- a/fs/hugetlbfs/inode.c
-+++ b/fs/hugetlbfs/inode.c
-@@ -459,6 +459,7 @@ static struct inode *hugetlbfs_get_root(struct super_block *sb,
- 		inode->i_fop = &simple_dir_operations;
- 		/* directory inodes start off with i_nlink == 2 (for "." entry) */
- 		inc_nlink(inode);
-+		lockdep_annotate_inode_mutex_key(inode);
- 	}
- 	return inode;
- }
--- 
-1.7.9
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Fight unfair telecom internet charges in Canada: sign http://stopthemeter.ca/
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
