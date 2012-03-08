@@ -1,38 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx161.postini.com [74.125.245.161])
-	by kanga.kvack.org (Postfix) with SMTP id BDE646B002C
-	for <linux-mm@kvack.org>; Wed,  7 Mar 2012 21:07:16 -0500 (EST)
-Date: Wed, 7 Mar 2012 18:09:17 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [patch 1/2] mm, counters: remove task argument to sync_mm_rss
- and __sync_task_rss_stat
-Message-Id: <20120307180917.7d570d95.akpm@linux-foundation.org>
-In-Reply-To: <alpine.DEB.2.00.1203071739150.26591@chino.kir.corp.google.com>
-References: <alpine.DEB.2.00.1203061919260.21806@chino.kir.corp.google.com>
-	<20120307171155.f9bb71b6.akpm@linux-foundation.org>
-	<alpine.DEB.2.00.1203071739150.26591@chino.kir.corp.google.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Received: from psmtp.com (na3sys010amx137.postini.com [74.125.245.137])
+	by kanga.kvack.org (Postfix) with SMTP id 051326B002C
+	for <linux-mm@kvack.org>; Wed,  7 Mar 2012 21:11:35 -0500 (EST)
+Received: by pbcup15 with SMTP id up15so1270686pbc.14
+        for <linux-mm@kvack.org>; Wed, 07 Mar 2012 18:11:35 -0800 (PST)
+Message-ID: <4F581554.6020801@gmail.com>
+Date: Thu, 08 Mar 2012 10:11:32 +0800
+From: Sha Zhengju <handai.szj@gmail.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH] memcg: Free spare array to avoid memory leak
+References: <1331036004-7550-1-git-send-email-handai.szj@taobao.com> <20120307230819.GA10238@shutemov.name>
+In-Reply-To: <20120307230819.GA10238@shutemov.name>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: linux-mm@kvack.org, cgroups@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, Sha Zhengju <handai.szj@taobao.com>
 
-On Wed, 7 Mar 2012 17:40:04 -0800 (PST) David Rientjes <rientjes@google.com> wrote:
+On 03/08/2012 07:08 AM, Kirill A. Shutemov wrote:
+> On Tue, Mar 06, 2012 at 08:13:24PM +0800, Sha Zhengju wrote:
+>> From: Sha Zhengju<handai.szj@taobao.com>
+>>
+>> When the last event is unregistered, there is no need to keep the spare
+>> array anymore. So free it to avoid memory leak.
+> It's not a leak. It will be freed on next event register.
 
-> On Wed, 7 Mar 2012, Andrew Morton wrote:
-> 
-> > hm, with my gcc it's beneficial to cache `current' in a local.  But
-> > when I tried that, Weird Things happened, because gcc has gone and
-> > decided to inline __sync_task_rss_stat() into its callers.  I don't see
-> > how that could have been the right thing to do.
-> > 
-> 
-> c06b1fca18c3 offers some advice :)
 
-But is it right?  I handled a patch a month or two ago where caching
-current made a nice improvement.
+Yeah, I noticed that. But what if it is just the last one and no more
+event registering ?
+
+
+Thanks,
+Sha
+
+> Yeah, we don't have to keep spare if primary is empty. But is it worth to
+> make code more complicated to save few bytes of memory?
+>
+>> Signed-off-by: Sha Zhengju<handai.szj@taobao.com>
+>>
+>> ---
+>>   mm/memcontrol.c |    6 ++++++
+>>   1 files changed, 6 insertions(+), 0 deletions(-)
+>>
+>> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+>> index 22d94f5..3c09a84 100644
+>> --- a/mm/memcontrol.c
+>> +++ b/mm/memcontrol.c
+>> @@ -4412,6 +4412,12 @@ static void mem_cgroup_usage_unregister_event(struct cgroup *cgrp,
+>>   swap_buffers:
+>>   	/* Swap primary and spare array */
+>>   	thresholds->spare = thresholds->primary;
+>> +	/* If all events are unregistered, free the spare array */
+>> +	if (!new) {
+>> +		kfree(thresholds->spare);
+>> +		thresholds->spare = NULL;
+>> +	}
+>> +
+>>   	rcu_assign_pointer(thresholds->primary, new);
+>>
+>>   	/* To be sure that nobody uses thresholds */
+>> -- 
+>> 1.7.4.1
+>>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
