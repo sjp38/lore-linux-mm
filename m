@@ -1,67 +1,96 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx126.postini.com [74.125.245.126])
-	by kanga.kvack.org (Postfix) with SMTP id 7A3D86B00EA
-	for <linux-mm@kvack.org>; Thu,  8 Mar 2012 13:04:36 -0500 (EST)
-Received: by mail-bk0-f41.google.com with SMTP id q16so787924bkw.14
-        for <linux-mm@kvack.org>; Thu, 08 Mar 2012 10:04:35 -0800 (PST)
-Subject: [PATCH v5 7/7] mm/memcg: use vm_swappiness from target memory cgroup
-From: Konstantin Khlebnikov <khlebnikov@openvz.org>
-Date: Thu, 08 Mar 2012 22:04:30 +0400
-Message-ID: <20120308180430.27621.99232.stgit@zurg>
-In-Reply-To: <20120308175752.27621.54781.stgit@zurg>
-References: <20120308175752.27621.54781.stgit@zurg>
+Received: from psmtp.com (na3sys010amx120.postini.com [74.125.245.120])
+	by kanga.kvack.org (Postfix) with SMTP id 6D1876B002C
+	for <linux-mm@kvack.org>; Thu,  8 Mar 2012 14:39:14 -0500 (EST)
+Received: by iajr24 with SMTP id r24so1518470iaj.14
+        for <linux-mm@kvack.org>; Thu, 08 Mar 2012 11:39:13 -0800 (PST)
+Date: Thu, 8 Mar 2012 11:38:25 -0800 (PST)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: [PATCH v2] ksm: cleanup: introduce find_mergeable_vma()
+In-Reply-To: <1331118588-1391-1-git-send-email-lliubbo@gmail.com>
+Message-ID: <alpine.LSU.2.00.1203081137480.8460@eggly.anvils>
+References: <1331118588-1391-1-git-send-email-lliubbo@gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Johannes Weiner <jweiner@redhat.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Bob Liu <lliubbo@gmail.com>
+Cc: akpm@linux-foundation.org, rientjes@google.com, kamezawa.hiroyu@jp.fujitsu.com, minchan.kim@gmail.com, linux-mm@kvack.org, aarcange@redhat.com
 
-Use vm_swappiness from memory cgroup which is triggered this memory reclaim.
-This is more reasonable and allows to kill one argument.
+On Wed, 7 Mar 2012, Bob Liu wrote:
 
-Signed-off-by: Konstantin Khlebnikov <khlebnikov@openvz.org>
+> There are multi place do the same check, using find_mergeable_vma() to
+> replace.
+> 
+> Signed-off-by: Bob Liu <lliubbo@gmail.com>
 
----
+Acked-by: Hugh Dickins <hughd@google.com>
 
-add/remove: 0/0 grow/shrink: 0/1 up/down: 0/-2 (-2)
-function                                     old     new   delta
-shrink_mem_cgroup_zone                      1583    1581      -2
----
- mm/vmscan.c |    9 ++++-----
- 1 files changed, 4 insertions(+), 5 deletions(-)
-
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 9a41769..95719f3 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -1859,12 +1859,11 @@ static unsigned long shrink_list(enum lru_list lru, unsigned long nr_to_scan,
- 	return shrink_inactive_list(nr_to_scan, mz, sc, priority, lru);
- }
- 
--static int vmscan_swappiness(struct mem_cgroup_zone *mz,
--			     struct scan_control *sc)
-+static int vmscan_swappiness(struct scan_control *sc)
- {
- 	if (global_reclaim(sc))
- 		return vm_swappiness;
--	return mem_cgroup_swappiness(mz->mem_cgroup);
-+	return mem_cgroup_swappiness(sc->target_mem_cgroup);
- }
- 
- /*
-@@ -1933,8 +1932,8 @@ static void get_scan_count(struct mem_cgroup_zone *mz, struct scan_control *sc,
- 	 * With swappiness at 100, anonymous and file have the same priority.
- 	 * This scanning priority is essentially the inverse of IO cost.
- 	 */
--	anon_prio = vmscan_swappiness(mz, sc);
--	file_prio = 200 - vmscan_swappiness(mz, sc);
-+	anon_prio = vmscan_swappiness(sc);
-+	file_prio = 200 - vmscan_swappiness(sc);
- 
- 	/*
- 	 * OK, so we have swap space and a fair amount of page cache
+> ---
+>  mm/ksm.c |   34 +++++++++++++++++++---------------
+>  1 files changed, 19 insertions(+), 15 deletions(-)
+> 
+> diff --git a/mm/ksm.c b/mm/ksm.c
+> index 1925ffb..3a00767 100644
+> --- a/mm/ksm.c
+> +++ b/mm/ksm.c
+> @@ -375,6 +375,20 @@ static int break_ksm(struct vm_area_struct *vma, unsigned long addr)
+>  	return (ret & VM_FAULT_OOM) ? -ENOMEM : 0;
+>  }
+>  
+> +static struct vm_area_struct *find_mergeable_vma(struct mm_struct *mm,
+> +		unsigned long addr)
+> +{
+> +	struct vm_area_struct *vma;
+> +	if (ksm_test_exit(mm))
+> +		return NULL;
+> +	vma = find_vma(mm, addr);
+> +	if (!vma || vma->vm_start > addr)
+> +		return NULL;
+> +	if (!(vma->vm_flags & VM_MERGEABLE) || !vma->anon_vma)
+> +		return NULL;
+> +	return vma;
+> +}
+> +
+>  static void break_cow(struct rmap_item *rmap_item)
+>  {
+>  	struct mm_struct *mm = rmap_item->mm;
+> @@ -388,15 +402,9 @@ static void break_cow(struct rmap_item *rmap_item)
+>  	put_anon_vma(rmap_item->anon_vma);
+>  
+>  	down_read(&mm->mmap_sem);
+> -	if (ksm_test_exit(mm))
+> -		goto out;
+> -	vma = find_vma(mm, addr);
+> -	if (!vma || vma->vm_start > addr)
+> -		goto out;
+> -	if (!(vma->vm_flags & VM_MERGEABLE) || !vma->anon_vma)
+> -		goto out;
+> -	break_ksm(vma, addr);
+> -out:
+> +	vma = find_mergeable_vma(mm, addr);
+> +	if (vma)
+> +		break_ksm(vma, addr);
+>  	up_read(&mm->mmap_sem);
+>  }
+>  
+> @@ -422,12 +430,8 @@ static struct page *get_mergeable_page(struct rmap_item *rmap_item)
+>  	struct page *page;
+>  
+>  	down_read(&mm->mmap_sem);
+> -	if (ksm_test_exit(mm))
+> -		goto out;
+> -	vma = find_vma(mm, addr);
+> -	if (!vma || vma->vm_start > addr)
+> -		goto out;
+> -	if (!(vma->vm_flags & VM_MERGEABLE) || !vma->anon_vma)
+> +	vma = find_mergeable_vma(mm, addr);
+> +	if (!vma)
+>  		goto out;
+>  
+>  	page = follow_page(vma, addr, FOLL_GET);
+> -- 
+> 1.7.0.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
