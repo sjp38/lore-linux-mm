@@ -1,54 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx113.postini.com [74.125.245.113])
-	by kanga.kvack.org (Postfix) with SMTP id 4B6276B002C
-	for <linux-mm@kvack.org>; Thu,  8 Mar 2012 15:02:41 -0500 (EST)
-Date: Thu, 8 Mar 2012 12:02:38 -0800
+Received: from psmtp.com (na3sys010amx137.postini.com [74.125.245.137])
+	by kanga.kvack.org (Postfix) with SMTP id D41146B002C
+	for <linux-mm@kvack.org>; Thu,  8 Mar 2012 15:09:00 -0500 (EST)
+Date: Thu, 8 Mar 2012 12:08:59 -0800
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [patch] mm, hugetlb: add thread name and pid to SHM_HUGETLB
- mlock rlimit warning
-Message-Id: <20120308120238.c4486547.akpm@linux-foundation.org>
-In-Reply-To: <alpine.DEB.2.00.1203061825070.9015@chino.kir.corp.google.com>
-References: <alpine.DEB.2.00.1203061825070.9015@chino.kir.corp.google.com>
+Subject: Re: [patch] mm, oom: allow exiting tasks to have access to memory
+ reserves
+Message-Id: <20120308120859.f7bc8cad.akpm@linux-foundation.org>
+In-Reply-To: <alpine.DEB.2.00.1203062316430.4158@chino.kir.corp.google.com>
+References: <alpine.DEB.2.00.1203061824280.9015@chino.kir.corp.google.com>
+	<4F570286.8020704@gmail.com>
+	<alpine.DEB.2.00.1203062316430.4158@chino.kir.corp.google.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: David Rientjes <rientjes@google.com>
-Cc: Dave Jones <davej@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: KOSAKI Motohiro <kosaki.motohiro@gmail.com>, linux-mm@kvack.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 
-On Tue, 6 Mar 2012 18:26:11 -0800 (PST)
+On Tue, 6 Mar 2012 23:21:52 -0800 (PST)
 David Rientjes <rientjes@google.com> wrote:
 
-> Add the thread name and pid of the application that is allocating shm
-> segments with MAP_HUGETLB without being a part of
-> /proc/sys/vm/hugetlb_shm_group or having CAP_IPC_LOCK.
+> Nope, all patches I've ever proposed for the oom killer have been merged 
+> in some form or another.
 > 
-> This identifies the application so it may be fixed by avoiding using the
-> deprecated exception (see Documentation/feature-removal-schedule.txt).
+> > When exiting a process which have plenty threads, this patch allow to eat all
+> > of reserve memory
+> > and bring us new serious failure.
+> > 
 > 
-> ...
->
-> --- a/fs/hugetlbfs/inode.c
-> +++ b/fs/hugetlbfs/inode.c
-> @@ -946,7 +946,11 @@ struct file *hugetlb_file_setup(const char *name, size_t size,
->  	if (creat_flags == HUGETLB_SHMFS_INODE && !can_do_hugetlb_shm()) {
->  		*user = current_user();
->  		if (user_shm_lock(size, *user)) {
-> -			printk_once(KERN_WARNING "Using mlock ulimits for SHM_HUGETLB is deprecated\n");
-> +			task_lock(current);
-> +			printk_once(KERN_WARNING
-> +				"%s (%d): Using mlock ulimits for SHM_HUGETLB is deprecated\n",
-> +				current->comm, current->pid);
-> +			task_unlock(current);
+> It closes the risk of livelock if an oom killed thread, thread A, cannot 
+> exit because it's blocked on another thread, thread B, which cannot exit 
+> because it requires memory in the exit path and doesn't have access to 
+> memory reserves.  So this patch makes it more likely that an oom killed 
+> thread will be able to exit without livelocking.
 
-I assume the task_lock() is there to protect current->comm.  If so, it
-is unneeded - we're protecting against prctl(PR_SET_NAME), and
-PR_SET_NAME only operates on current, and we know this task isn't
-currently running PR_SET_NAME.
+But it also "allow to eat all of reserve memory and bring us new
+serious failure".  In theory, at least.
 
-If there's a way for another task to alter this task's ->comm then we
-_do_ need locking.  But there isn't a way, I hope.
+And afaict the proposed patch is a theoretical thing as well.  Has
+anyone sat down and created tests to demonstrate either problem?  This
+patch is either two-steps-forward-and-one-back or it is
+one-step-forward-and-two-steps-back.  How are we to determine which of
+these it is?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
