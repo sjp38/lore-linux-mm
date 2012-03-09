@@ -1,112 +1,115 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx177.postini.com [74.125.245.177])
-	by kanga.kvack.org (Postfix) with SMTP id 19B166B007E
-	for <linux-mm@kvack.org>; Fri,  9 Mar 2012 02:34:19 -0500 (EST)
-Received: from m2.gw.fujitsu.co.jp (unknown [10.0.50.72])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 725A43EE0C3
-	for <linux-mm@kvack.org>; Fri,  9 Mar 2012 16:34:16 +0900 (JST)
-Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 48C1E45DE56
-	for <linux-mm@kvack.org>; Fri,  9 Mar 2012 16:34:16 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 208B445DE4D
-	for <linux-mm@kvack.org>; Fri,  9 Mar 2012 16:34:16 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 133C91DB8038
-	for <linux-mm@kvack.org>; Fri,  9 Mar 2012 16:34:16 +0900 (JST)
-Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.240.81.147])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id B26401DB8040
-	for <linux-mm@kvack.org>; Fri,  9 Mar 2012 16:34:15 +0900 (JST)
-Date: Fri, 9 Mar 2012 16:32:45 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH v3 2/2] memcg: avoid THP split in task migration
-Message-Id: <20120309163245.d6241d9b.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <1331267128-4673-1-git-send-email-n-horiguchi@ah.jp.nec.com>
-References: <20120309101658.8b36ce4f.kamezawa.hiroyu@jp.fujitsu.com>
-	<1331267128-4673-1-git-send-email-n-horiguchi@ah.jp.nec.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx189.postini.com [74.125.245.189])
+	by kanga.kvack.org (Postfix) with SMTP id F2FAC6B0092
+	for <linux-mm@kvack.org>; Fri,  9 Mar 2012 02:36:14 -0500 (EST)
+Date: Thu, 8 Mar 2012 23:31:13 -0800
+From: Fengguang Wu <fengguang.wu@intel.com>
+Subject: Re: [PATCH 5/9] writeback: introduce the pageout work
+Message-ID: <20120309073113.GA5337@localhost>
+References: <20120228144747.198713792@intel.com>
+ <20120228160403.9c9fa4dc.akpm@linux-foundation.org>
+ <20120301123640.GA30369@localhost>
+ <20120301163837.GA13104@quack.suse.cz>
+ <20120302044858.GA14802@localhost>
+ <20120302095910.GB1744@quack.suse.cz>
+ <20120302103951.GA13378@localhost>
+ <20120302115700.7d970497.akpm@linux-foundation.org>
+ <20120303135558.GA9869@localhost>
+ <1331135301.32316.29.camel@sauron.fi.intel.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1331135301.32316.29.camel@sauron.fi.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Hillf Danton <dhillf@gmail.com>, linux-kernel@vger.kernel.org
+To: Artem Bityutskiy <dedekind1@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, Greg Thelen <gthelen@google.com>, Ying Han <yinghan@google.com>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan.kim@gmail.com>, Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Adrian Hunter <adrian.hunter@intel.com>
 
-On Thu,  8 Mar 2012 23:25:28 -0500
-Naoya Horiguchi <n-horiguchi@ah.jp.nec.com> wrote:
+Artem,
 
-> Hi KAMEZAWA-san,
+On Wed, Mar 07, 2012 at 05:48:21PM +0200, Artem Bityutskiy wrote:
+> On Sat, 2012-03-03 at 21:55 +0800, Fengguang Wu wrote:
+> >   13   1125  /c/linux/fs/ubifs/file.c <<do_truncation>>   <===== deadlockable
 > 
-> > On Fri,  2 Mar 2012 15:13:09 -0500
-> > Naoya Horiguchi <n-horiguchi@ah.jp.nec.com> wrote:
-> ...
-> > > +
-> > > +	page = pmd_page(pmd);
-> > > +	VM_BUG_ON(!page || !PageHead(page));
-> > > +	if (!move_anon() || page_mapcount(page) != 1)
-> > > +		return 0;
-> >
-> > Could you add this ?
-> > ==
-> > static bool move_check_shared_map(struct page *page)
-> > {
-> >   /*
-> >    * Handling of shared pages between processes is a big trouble in memcg.
-> >    * Now, we never move shared-mapped pages between memcg at 'task' moving because
-> >    * we have no hint which task the page is really belongs to. For example,
-> >    * When a task does "fork()-> move to the child other group -> exec()", the charges
-> >    * should be stay in the original cgroup.
-> >    * So, check mapcount to determine we can move or not.
-> >    */
-> >    return page_mapcount(page) != 1;
-> > }
-> > ==
-> 
-> Thank you.
-> 
-> We check mapcount only for anonymous pages, so we had better also describe
-> that viewpoint?  And this function returns whether the target page of moving
-> charge is shared or not, so a name like is_mctgt_shared() looks better to me.
-> Moreover, this function explains why we have current implementation, rather
-> than why return value is mapcount != 1, so I put the comment above function
-> declaration like this:
-> 
->   /*
->    * Handling of shared pages between processes is a big trouble in memcg.
->    * Now, we never move shared anonymous pages between memcg at 'task'
->    * moving because we have no hint which task the page is really belongs to.
->    * For example, when a task does "fork() -> move to the child other group
->    * -> exec()", the charges should be stay in the original cgroup.
->    * So, check if a given page is shared or not to determine to move charge.
->    */
->   static bool is_mctgt_shared(struct page *page)
->   {
->      return page_mapcount(page) != 1;
->   }
-> 
-> As for the difference between anon page and filemapped page, I have no idea
-> about current charge moving policy. Is this explained anywhere? (sorry to
-> question before researching by myself ...)
-> 
-> 
+> Sorry, but could you please explain once again how the deadlock may
+> happen?
 
-Now, I think it's okay to move mapcount check. I posted a patch for reference. 
-Please check it.
-https://lkml.org/lkml/2012/3/9/40
+Sorry I confused ubifs do_truncation() with the truncate_inode_pages()
+that may be called from iput().
 
-> > We may be able to support madvise(MOVE_MEMCG) or fadvise(MOVE_MEMCG), if necessary.
-> 
-> Is this mean moving charge policy can depend on users?
-> I feel that's strange because I don't think resouce management should be
-> under users' control.
-> 
-You're right. I 
+The once suspected deadlock scheme is when the flusher thread calls
+the final iput:
 
-Hm. I remember some guy suggested 'how about passing prefer memcg as mount option'
-or some. Anyway, shared page handling is trouble since memory cgroup was born.
+        flusher thread
+          iput_final
+            <some ubifs function>
+              ubifs_budget_space
+                shrink_liability
+                  writeback_inodes_sb
+                    writeback_inodes_sb_nr
+                      bdi_queue_work
+                      wait_for_completion  => end up waiting for the flusher itself
+
+However I cannot find any ubifs functions to form the above loop, so
+ubifs should be safe for now.
+
+> > It seems they are all safe except for ubifs. ubifs may actually
+> > deadlock from the above do_truncation() caller. However it should be
+> > fixable because the ubifs call for writeback_inodes_sb_nr() sounds
+> > very brute force writeback and wait and there may well be better way
+> > out.
+> 
+> I do not think this "fixable" - this is part of UBIFS design to force
+> write-back when we are not sure we have enough space.
+> 
+> The problem is that we do not know how much space the dirty data in RAM
+> will take on the flash media (after it is actually written-back) - e.g.,
+> because we compress all the data (UBIFS performs on-the-flight
+> compression). So we do pessimistic assumptions and allow dirtying more
+> and more data as long as we know for sure that there is enough flash
+> space on the media for the worst-case scenario (data are not
+> compressible). This is what the UBIFS budgeting subsystem does.
+> 
+> Once the budgeting sub-system sees that we are not going to have enough
+> flash space for the worst-case scenario, it starts forcing write-back to
+> push some dirty data out to the flash media and update the budgeting
+> numbers, and get more realistic picture.
+> 
+> So basically, before you can change _anything_ on UBIFS file-system, you
+> need to budget for the space. Even when you truncate - because
+> truncation is also about allocating more space for writing the updated
+> inode and update the FS index. (Remember, all writes are out-of-place in
+> UBIFS because we work with raw flash, not a block device).
+
+Thanks for the detailed explanations!
+
+Judging from the git log, ubifs starts with flushing NR_TO_WRITE=16
+pages at one time commit 2acf80675800d ("UBIFS: simplify
+make_free_space") and is later changed to flushing *the whole*
+superblock by a writeback change ("writeback: get rid of
+generic_sync_sb_inodes() export"). This could greatly increase the
+wait time. I'd suggest to limit the write chunk size to about 125ms
+as the below change:
+
+--- linux.orig/fs/ubifs/budget.c	2012-03-08 23:16:01.661194026 -0800
++++ linux/fs/ubifs/budget.c	2012-03-08 23:16:02.477194003 -0800
+@@ -63,7 +63,9 @@
+ static void shrink_liability(struct ubifs_info *c, int nr_to_write)
+ {
+ 	down_read(&c->vfs_sb->s_umount);
+-	writeback_inodes_sb(c->vfs_sb, WB_REASON_FS_FREE_SPACE);
++	writeback_inodes_sb_nr(c->vfs_sb,
++			       c->bdi.avg_write_bandwidth / 8 + nr_to_write,
++			       WB_REASON_FS_FREE_SPACE);
+ 	up_read(&c->vfs_sb->s_umount);
+ }
+ 
+Here nr_to_write=16 merely serves as some minimal safeguard in case
+bdi.avg_write_bandwidth drops to 0. Perhaps we can eliminate the
+parameter and use the constant number directly.
 
 Thanks,
--Kame
+Fengguang
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
