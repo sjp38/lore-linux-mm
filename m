@@ -1,59 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx152.postini.com [74.125.245.152])
-	by kanga.kvack.org (Postfix) with SMTP id B8F1B6B0044
-	for <linux-mm@kvack.org>; Fri,  9 Mar 2012 17:46:22 -0500 (EST)
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: Re: [PATCH] memcg: revert fix to mapcount check for this release
-Date: Fri,  9 Mar 2012 17:46:11 -0500
-Message-Id: <1331333171-27972-1-git-send-email-n-horiguchi@ah.jp.nec.com>
-In-Reply-To: <alpine.LSU.2.00.1203091335020.19372@eggly.anvils>
+Received: from psmtp.com (na3sys010amx180.postini.com [74.125.245.180])
+	by kanga.kvack.org (Postfix) with SMTP id D350B6B0044
+	for <linux-mm@kvack.org>; Fri,  9 Mar 2012 18:46:53 -0500 (EST)
+Received: by iajr24 with SMTP id r24so3966122iaj.14
+        for <linux-mm@kvack.org>; Fri, 09 Mar 2012 15:46:53 -0800 (PST)
+Date: Fri, 9 Mar 2012 15:46:51 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH v3] mm: SLAB Out-of-memory diagnostics
+In-Reply-To: <20120309202722.GA10323@x61.redhat.com>
+Message-ID: <alpine.DEB.2.00.1203091546360.2419@chino.kir.corp.google.com>
+References: <20120309202722.GA10323@x61.redhat.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Andrea Arcangeli <aarcange@redhat.com>, Hillf Danton <dhillf@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Rafael Aquini <aquini@redhat.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Randy Dunlap <rdunlap@xenotime.net>, Christoph Lameter <cl@linux-foundation.org>, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, Rik van Riel <riel@redhat.com>, Josef Bacik <josef@redhat.com>, Cong Wang <xiyou.wangcong@gmail.com>
 
-On Fri, Mar 09, 2012 at 01:37:32PM -0800, Hugh Dickins wrote:
-> Respectfully revert commit e6ca7b89dc76 "memcg: fix mapcount check
-> in move charge code for anonymous page" for the 3.3 release, so that
-> it behaves exactly like releases 2.6.35 through 3.2 in this respect.
-> 
-> Horiguchi-san's commit is correct in itself, 1 makes much more sense
-> than 2 in that check; but it does not go far enough - swapcount
-> should be considered too - if we really want such a check at all.
+On Fri, 9 Mar 2012, Rafael Aquini wrote:
 
-Agreed. We should rethink whole design rather than detail.
+> Following the example at mm/slub.c, add out-of-memory diagnostics to the
+> SLAB allocator to help on debugging certain OOM conditions.
+> 
+> An example print out looks like this:
+> 
+>   <snip page allocator out-of-memory message>
+>   SLAB: Unable to allocate memory on node 0 (gfp=0x11200)
+>     cache: bio-0, object size: 192, order: 0
+>     node 0: slabs: 3/3, objs: 60/60, free: 0
+> 
+> Signed-off-by: Rafael Aquini <aquini@redhat.com>
+> Acked-by: Rik van Riel <riel@redhat.com>
 
-> We appear to have reached agreement now, and expect that 3.4 will
-> remove the mapcount check, but had better not make 3.3 different.
-> 
-> Signed-off-by: Hugh Dickins <hughd@google.com>
+Acked-by: David Rientjes <rientjes@google.com>
 
-Reviewed-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-
-> ---
-> 
->  mm/memcontrol.c |    2 +-
->  1 file changed, 1 insertion(+), 1 deletion(-)
-> 
-> --- 3.3-rc6+/mm/memcontrol.c	2012-03-05 22:03:45.940000832 -0800
-> +++ linux/mm/memcontrol.c	2012-03-09 13:06:41.716250093 -0800
-> @@ -5075,7 +5075,7 @@ static struct page *mc_handle_present_pt
->  		return NULL;
->  	if (PageAnon(page)) {
->  		/* we don't move shared anon */
-> -		if (!move_anon() || page_mapcount(page) > 1)
-> +		if (!move_anon() || page_mapcount(page) > 2)
->  			return NULL;
->  	} else if (!move_file())
->  		/* we ignore mapcount for file pages */
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Fight unfair telecom internet charges in Canada: sign http://stopthemeter.ca/
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-> 
+Thanks for following through with this!
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
