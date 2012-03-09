@@ -1,88 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx176.postini.com [74.125.245.176])
-	by kanga.kvack.org (Postfix) with SMTP id 537BD6B002C
-	for <linux-mm@kvack.org>; Thu,  8 Mar 2012 20:58:41 -0500 (EST)
-Received: from m1.gw.fujitsu.co.jp (unknown [10.0.50.71])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id C11433EE0C0
-	for <linux-mm@kvack.org>; Fri,  9 Mar 2012 10:58:39 +0900 (JST)
-Received: from smail (m1 [127.0.0.1])
-	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id A71E545DE64
-	for <linux-mm@kvack.org>; Fri,  9 Mar 2012 10:58:39 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
-	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 8E6C545DE5D
-	for <linux-mm@kvack.org>; Fri,  9 Mar 2012 10:58:39 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 7B09E1DB8053
-	for <linux-mm@kvack.org>; Fri,  9 Mar 2012 10:58:39 +0900 (JST)
-Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.240.81.146])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 2AAEE1DB804A
-	for <linux-mm@kvack.org>; Fri,  9 Mar 2012 10:58:39 +0900 (JST)
-Date: Fri, 9 Mar 2012 10:57:06 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [patch] mm, memcg: do not allow tasks to be attached with zero
- limit
-Message-Id: <20120309105706.4001646a.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20120308173818.ae5f621b.akpm@linux-foundation.org>
-References: <alpine.DEB.2.00.1203071914150.15244@chino.kir.corp.google.com>
-	<20120308122951.2988ec4e.akpm@linux-foundation.org>
-	<20120309102255.bbf94164.kamezawa.hiroyu@jp.fujitsu.com>
-	<20120308173818.ae5f621b.akpm@linux-foundation.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx129.postini.com [74.125.245.129])
+	by kanga.kvack.org (Postfix) with SMTP id 571BD6B004D
+	for <linux-mm@kvack.org>; Thu,  8 Mar 2012 21:07:26 -0500 (EST)
+Received: by iajr24 with SMTP id r24so2080509iaj.14
+        for <linux-mm@kvack.org>; Thu, 08 Mar 2012 18:07:25 -0800 (PST)
+Date: Thu, 8 Mar 2012 18:06:50 -0800 (PST)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: [PATCH 3/7 v2] mm: rework __isolate_lru_page() file/anon
+ filter
+In-Reply-To: <20120308143034.f3521b1e.kamezawa.hiroyu@jp.fujitsu.com>
+Message-ID: <alpine.LSU.2.00.1203081758490.18195@eggly.anvils>
+References: <20120229091547.29236.28230.stgit@zurg> <20120303091327.17599.80336.stgit@zurg> <alpine.LSU.2.00.1203061904570.18675@eggly.anvils> <20120308143034.f3521b1e.kamezawa.hiroyu@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: David Rientjes <rientjes@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Balbir Singh <bsingharora@gmail.com>, cgroups@vger.kernel.org, linux-mm@kvack.org
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Konstantin Khlebnikov <khlebnikov@openvz.org>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <jweiner@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Thu, 8 Mar 2012 17:38:18 -0800
-Andrew Morton <akpm@linux-foundation.org> wrote:
-
-> On Fri, 9 Mar 2012 10:22:55 +0900 KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> 
-> > On Thu, 8 Mar 2012 12:29:51 -0800
-> > Andrew Morton <akpm@linux-foundation.org> wrote:
+On Thu, 8 Mar 2012, KAMEZAWA Hiroyuki wrote:
+> On Tue, 6 Mar 2012 19:22:21 -0800 (PST)
+> Hugh Dickins <hughd@google.com> wrote:
 > > 
-> > > On Wed, 7 Mar 2012 19:14:49 -0800 (PST)
-> > > David Rientjes <rientjes@google.com> wrote:
-> > > 
-> > > > This patch prevents tasks from being attached to a memcg if there is a
-> > > > hard limit of zero.
-> > > 
-> > > We're talking about the memcg's limit_in_bytes here, yes?
-> > > 
-> > > > Additionally, the hard limit may not be changed to
-> > > > zero if there are tasks attached.
-> > > 
-> > > hm, well...  why?  That would be user error, wouldn't it?  What is
-> > > special about limit_in_bytes=0?  The memcg will also be unviable if
-> > > limit_in_bytes=1, but we permit that.
-> > > 
-> > > IOW, confused.
-> > > 
-> > Ah, yes. limit_in_bytes < some small size can cause the same trouble.
-> > Hmm... should we have configurable min_limit_in_bytes as sysctl or root memcg's
-> > attaribute.. ?
+> > What does the compiler say (4.5.1 here, OPTIMIZE_FOR_SIZE off)?
+> >    text	   data	    bss	    dec	    hex	filename
+> >   17723	    113	     17	  17853	   45bd	vmscan.o.0
+> >   17671	    113	     17	  17801	   4589	vmscan.o.1
+> >   17803	    113	     17	  17933	   460d	vmscan.o.2
+> > 
+> > That suggests that your v2 is the worst and your v1 the best.
+> > Kame, can I persuade you to let the compiler decide on this?
+> > 
 > 
-> Why do *anything*?  If the operator chose an irrational configuration
-> then things won't work correctly and the operator will then fix the
-> configuration?
+> Hmm. How about Costa' proposal ? as
 > 
+> int tmp_var = PageActive(page) ? ISOLATE_ACTIVE : ISOLATE_INACTIVE
+> if (!(mode & tmp_var))
+>     ret;
 
-Because the result of 'error operaton' is SIGKILL to a task, which may be
-owned by very importang customer of hosting service.
+Yes, that would have been a good compromise (given a better name
+than "tmp_var"!), I didn't realize that one was acceptable to you.
 
-Isn't this severe punishment for error operation ?
+But I see that Konstantin has been inspired by our disagreement to a
+more creative solution.
 
-Considering again, I have 2 thoughts.
+I like very much the look of what he's come up with, but I'm still
+puzzling over why it barely makes any improvement to __isolate_lru_page():
+seems significantly inferior (in code size terms) to his original (which
+I imagine Glauber's compromise would be equivalent to).
 
-- it should be guarded by MiddleWare, it's not kernel job !
-- memcg should be more easy-to-use, friendly to users.
+At some point I ought to give up on niggling about this,
+but I haven't quite got there yet.
 
-If the result is just an error as EINVAL or EBUSY, I may not be nervous....
-
-Thanks,
--Kame 
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
