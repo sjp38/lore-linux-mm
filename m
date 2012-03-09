@@ -1,42 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx115.postini.com [74.125.245.115])
-	by kanga.kvack.org (Postfix) with SMTP id 6555D6B0044
-	for <linux-mm@kvack.org>; Fri,  9 Mar 2012 05:21:50 -0500 (EST)
-Message-ID: <1331288661.22872.53.camel@sauron.fi.intel.com>
-Subject: Re: [PATCH 5/9] writeback: introduce the pageout work
-From: Artem Bityutskiy <dedekind1@gmail.com>
-Reply-To: dedekind1@gmail.com
-Date: Fri, 09 Mar 2012 12:24:21 +0200
-In-Reply-To: <20120309095135.GC21038@quack.suse.cz>
-References: <20120228160403.9c9fa4dc.akpm@linux-foundation.org>
-	 <20120301123640.GA30369@localhost> <20120301163837.GA13104@quack.suse.cz>
-	 <20120302044858.GA14802@localhost> <20120302095910.GB1744@quack.suse.cz>
-	 <20120302103951.GA13378@localhost>
-	 <20120302115700.7d970497.akpm@linux-foundation.org>
-	 <20120303135558.GA9869@localhost>
-	 <1331135301.32316.29.camel@sauron.fi.intel.com>
-	 <20120309073113.GA5337@localhost> <20120309095135.GC21038@quack.suse.cz>
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: 7bit
-Mime-Version: 1.0
+Received: from psmtp.com (na3sys010amx132.postini.com [74.125.245.132])
+	by kanga.kvack.org (Postfix) with SMTP id 501236B0044
+	for <linux-mm@kvack.org>; Fri,  9 Mar 2012 09:54:21 -0500 (EST)
+Received: from euspt1 (mailout1.w1.samsung.com [210.118.77.11])
+ by mailout1.w1.samsung.com
+ (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14 2004))
+ with ESMTP id <0M0M00B0XHEH00@mailout1.w1.samsung.com> for linux-mm@kvack.org;
+ Fri, 09 Mar 2012 14:54:17 +0000 (GMT)
+Received: from linux.samsung.com ([106.116.38.10])
+ by spt1.w1.samsung.com (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14
+ 2004)) with ESMTPA id <0M0M0012WHEI66@spt1.w1.samsung.com> for
+ linux-mm@kvack.org; Fri, 09 Mar 2012 14:54:19 +0000 (GMT)
+Date: Fri, 09 Mar 2012 15:53:32 +0100
+From: Marek Szyprowski <m.szyprowski@samsung.com>
+Subject: [PATCH] ARM: dma-mapping: fix calculation of iova bitmap size
+In-reply-to: <011701ccfc83$78030180$68090480$%szyprowski@samsung.com>
+Message-id: <1331304812-10386-1-git-send-email-m.szyprowski@samsung.com>
+MIME-version: 1.0
+Content-type: TEXT/PLAIN
+Content-transfer-encoding: 7BIT
+References: <011701ccfc83$78030180$68090480$%szyprowski@samsung.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jan Kara <jack@suse.cz>
-Cc: Fengguang Wu <fengguang.wu@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Greg Thelen <gthelen@google.com>, Ying Han <yinghan@google.com>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan.kim@gmail.com>, Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Adrian Hunter <adrian.hunter@intel.com>
+To: linux-arm-kernel@lists.infradead.org, linaro-mm-sig@lists.linaro.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-samsung-soc@vger.kernel.org, iommu@lists.linux-foundation.org
+Cc: Marek Szyprowski <m.szyprowski@samsung.com>, Kyungmin Park <kyungmin.park@samsung.com>, Arnd Bergmann <arnd@arndb.de>, Joerg Roedel <joro@8bytes.org>, Russell King - ARM Linux <linux@arm.linux.org.uk>, Chunsang Jeong <chunsang.jeong@linaro.org>, Krishna Reddy <vdumpa@nvidia.com>, KyongHo Cho <pullip.cho@samsung.com>, Andrzej Pietrasiewicz <andrzej.p@samsung.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Hiroshi Doyu <hdoyu@nvidia.com>
 
-On Fri, 2012-03-09 at 10:51 +0100, Jan Kara wrote:
-> > However I cannot find any ubifs functions to form the above loop, so
-> > ubifs should be safe for now.
->   Yeah, me neither but I also failed to find a place where
-> ubifs_evict_inode() truncates inode space when deleting the inode... Artem?
+Fix calculation of iova address space for IOMMU-aware dma mapping.
 
-evict_inode() stuff was introduced by Al relatively recently and I did
-not even look at what it does, so I do not know what to answer. I'll
-look at this and and answer.
+Reported-by: Krishna Reddy <vdumpa@nvidia.com>
+Signed-off-by: Marek Szyprowski <m.szyprowski@samsung.com>
+---
+ arch/arm/mm/dma-mapping.c |    5 ++++-
+ 1 files changed, 4 insertions(+), 1 deletions(-)
 
+diff --git a/arch/arm/mm/dma-mapping.c b/arch/arm/mm/dma-mapping.c
+index ea5a0ad..f0f600a 100644
+--- a/arch/arm/mm/dma-mapping.c
++++ b/arch/arm/mm/dma-mapping.c
+@@ -1601,11 +1601,14 @@ struct dma_iommu_mapping *
+ arm_iommu_create_mapping(struct bus_type *bus, dma_addr_t base, size_t size,
+ 			 int order)
+ {
+-	unsigned int count = (size >> PAGE_SHIFT) - order;
++	unsigned int count = size >> (PAGE_SHIFT + order);
+ 	unsigned int bitmap_size = BITS_TO_LONGS(count) * sizeof(long);
+ 	struct dma_iommu_mapping *mapping;
+ 	int err = -ENOMEM;
+ 
++	if (!count)
++		return ERR_PTR(-EINVAL);
++
+ 	mapping = kzalloc(sizeof(struct dma_iommu_mapping), GFP_KERNEL);
+ 	if (!mapping)
+ 		goto err;
 -- 
-Best Regards,
-Artem Bityutskiy
+1.7.1.569.g6f426
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
