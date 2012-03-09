@@ -1,87 +1,112 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx144.postini.com [74.125.245.144])
-	by kanga.kvack.org (Postfix) with SMTP id 3EF286B004D
-	for <linux-mm@kvack.org>; Fri,  9 Mar 2012 00:03:40 -0500 (EST)
-Received: from /spool/local
-	by e23smtp09.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
-	Fri, 9 Mar 2012 05:54:12 +1000
-Received: from d23av03.au.ibm.com (d23av03.au.ibm.com [9.190.234.97])
-	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q2953YDb970788
-	for <linux-mm@kvack.org>; Fri, 9 Mar 2012 16:03:34 +1100
-Received: from d23av03.au.ibm.com (loopback [127.0.0.1])
-	by d23av03.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q2953XSD026090
-	for <linux-mm@kvack.org>; Fri, 9 Mar 2012 16:03:34 +1100
-From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Subject: Re: [PATCH] hugetlbfs: lockdep annotate root inode properly
-In-Reply-To: <20120308134050.f53a0b2f.akpm@linux-foundation.org>
-References: <1331198116-13670-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com> <20120308130256.c7855cbd.akpm@linux-foundation.org> <20120308211926.GB6546@boyd> <20120308134050.f53a0b2f.akpm@linux-foundation.org>
-Date: Fri, 09 Mar 2012 10:33:24 +0530
-Message-ID: <87vcme8ixv.fsf@linux.vnet.ibm.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Received: from psmtp.com (na3sys010amx175.postini.com [74.125.245.175])
+	by kanga.kvack.org (Postfix) with SMTP id B51976B004D
+	for <linux-mm@kvack.org>; Fri,  9 Mar 2012 01:04:22 -0500 (EST)
+Date: Fri, 9 Mar 2012 15:01:09 +0900
+From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+Subject: Re: [PATCH v3 2/2] memcg: avoid THP split in task migration
+Message-Id: <20120309150109.51ba8ea1.nishimura@mxp.nes.nec.co.jp>
+In-Reply-To: <20120309122448.92931dc6.kamezawa.hiroyu@jp.fujitsu.com>
+References: <1330719189-20047-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+	<1330719189-20047-2-git-send-email-n-horiguchi@ah.jp.nec.com>
+	<20120309101658.8b36ce4f.kamezawa.hiroyu@jp.fujitsu.com>
+	<alpine.LSU.2.00.1203081816170.18242@eggly.anvils>
+	<20120309122448.92931dc6.kamezawa.hiroyu@jp.fujitsu.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Tyler Hicks <tyhicks@canonical.com>
-Cc: linux-mm@kvack.org, davej@redhat.com, jboyer@redhat.com, linux-kernel@vger.kernel.org, Al Viro <viro@zeniv.linux.org.uk>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Mimi Zohar <zohar@linux.vnet.ibm.com>, David Gibson <david@gibson.dropbear.id.au>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Hugh Dickins <hughd@google.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Hillf Danton <dhillf@gmail.com>, linux-kernel@vger.kernel.org
 
-On Thu, 8 Mar 2012 13:40:50 -0800, Andrew Morton <akpm@linux-foundation.org> wrote:
-> On Thu, 8 Mar 2012 15:19:27 -0600
-> Tyler Hicks <tyhicks@canonical.com> wrote:
-> 
-> > > 
-> > > 
-> > > Sigh.  Was lockdep_annotate_inode_mutex_key() sufficiently
-> > > self-explanatory to justify leaving it undocumented?
-> > > 
-> > > <goes off and reads e096d0c7e2e>
-> > > 
-> > > OK, the patch looks correct given the explanation in e096d0c7e2e, but
-> > > I'd like to understand why it becomes necessary only now.
-> > > 
-> > > > NOTE: This patch also require 
-> > > > http://thread.gmane.org/gmane.linux.file-systems/58795/focus=59565
-> > > > to remove the lockdep warning
-> > > 
-> > > And that patch has been basically ignored.
-> > 
-> > Al commented on it here:
-> > 
-> > https://lkml.org/lkml/2012/2/16/518
-> > 
-> > He said that while my patch is correct, taking i_mutex inside mmap_sem
-> > is still wrong.
-> 
-> OK, thanks, yup.  Taking i_mutex in file_operations.mmap() is wrong.
-> 
-> Is hugetlbfs actually deadlockable because of this, or is it the case
-> that the i_mutex->mmap_sem ordering happens to never happen for this
-> filesystem?  Although we shouldn't go and create incompatible lock
-> ranking rules for different filesystems!
-> 
-> So we need to pull the i_mutex out of hugetlbfs_file_mmap().  What's it
-> actually trying to do in there?  If we switch to
-> i_size_read()/i_size_write() then AFAICT the problem comes down to
-> hugetlb_reserve_pages().
-> 
-> hugetlb_reserve_pages() fiddles with i_mapping->private_list and the fs
-> owns private_list and is free to use a lock other than i_mutex to
-> protect it.  (In fact i_mapping.private_lock is the usual lock for
-> private_list).
-> 
-> 
-> 
-> So from a quick scan here I'm thinking that a decent fix is to remove
-> the i_mutex locking from hugetlbfs_file_mmap(), switch
-> hugetlbfs_file_mmap() to i_size_read/write then use a hugetlb-private
-> lock to protect i_mapping->private_list.  region_chg() will do
-> GFP_KERNEL allocations under that lock, so some care is needed.
-> 
+On Fri, 9 Mar 2012 12:24:48 +0900
+KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
 
-But as per 7762f5a0b709b415fda132258ad37b9f2a1db994 i_size_write should
-always happen with i_mutex held 
+> On Thu, 8 Mar 2012 18:33:14 -0800 (PST)
+> Hugh Dickins <hughd@google.com> wrote:
+> 
+> > On Fri, 9 Mar 2012, KAMEZAWA Hiroyuki wrote:
+> > > > +
+> > > > +	page = pmd_page(pmd);
+> > > > +	VM_BUG_ON(!page || !PageHead(page));
+> > > > +	if (!move_anon() || page_mapcount(page) != 1)
+> > > > +		return 0;
+> > > 
+> > > Could you add this ?
+> > > ==
+> > > static bool move_check_shared_map(struct page *page)
+> > > {
+> > >   /*
+> > >    * Handling of shared pages between processes is a big trouble in memcg.
+> > >    * Now, we never move shared-mapped pages between memcg at 'task' moving because
+> > >    * we have no hint which task the page is really belongs to. For example, 
+> > >    * When a task does "fork()-> move to the child other group -> exec()", the charges
+> > >    * should be stay in the original cgroup. 
+> > >    * So, check mapcount to determine we can move or not.
+> > >    */
+> > >    return page_mapcount(page) != 1;
+> > > }
+> > 
+> > That's a helpful elucidation, thank you.  However...
+> > 
+> > That is not how it has actually been behaving for the last 18 months
+> > (because of the "> 2" bug), so in practice you are asking for a change
+> > in behaviour there.
+> > 
+> Yes.
+> 
+> 
+> > And it's not how it has been and continues to behave with file pages.
+> > 
+> It's ok to add somethink like..
+> 
+> 	if (PageAnon(page) && !move_anon())
+> 		return false;
+> 	...
+> 
+> > Isn't getting that behaviour in fork-move-exec just a good reason not
+> > to set move_charge_at_immigrate?
+> > 
+> Hmm. Maybe.
+> 
+> > I think there are other scenarios where you do want all the pages to
+> > move if move_charge_at_immigrate: and that's certainly easier to
+> > describe and to understand and to code.
+> > 
+> > But if you do insist on not moving the shared, then it needs to involve
+> > something like mem_cgroup_count_swap_user() on PageSwapCache pages,
+> > rather than just the bare page_mapcount().
+> > 
+> 
+> This 'moving swap account' was a requirement from a user (NEC?).
+> But no user doesn't say 'I want to move shared pages between cgroups at task
+> move !' and I don't like to move shared objects.
+> 
+> > I'd rather delete than add code here!
+> > 
+> 
+> As a user, for Fujitsu, I believe it's insane to move task between cgroups.
+> So, I have no benefit from this code, at all.
+> Ok, maybe I'm not a stakeholder,here.
+> 
+I agree that moving tasks between cgroup is not a sane operation,
+users won't do it so frequently, but I cannot prevent that.
+That's why I implemented this feature.
 
--aneesh
+> If users say all shared pages should be moved, ok, let's move.
+> But change of behavior should be documented and implemented in an independet
+> patch. CC'ed Nishimura-san, he implemetned this, a real user.
+> 
+To be honest, shared anon is not my concern. My concern is 
+shared memory(that's why, mapcount is not checked as for file pages.
+I assume all processes sharing the same shared memory will be moved together).
+So, it's all right for me to change the behavior for shared anon(or leave
+it as it is).
+
+
+Thanks,
+Daisuke Nishimura.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
