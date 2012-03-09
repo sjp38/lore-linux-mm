@@ -1,62 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx152.postini.com [74.125.245.152])
-	by kanga.kvack.org (Postfix) with SMTP id 2E9F46B002C
-	for <linux-mm@kvack.org>; Thu,  8 Mar 2012 20:24:28 -0500 (EST)
+Received: from psmtp.com (na3sys010amx153.postini.com [74.125.245.153])
+	by kanga.kvack.org (Postfix) with SMTP id C278A6B004D
+	for <linux-mm@kvack.org>; Thu,  8 Mar 2012 20:26:04 -0500 (EST)
 Received: from m1.gw.fujitsu.co.jp (unknown [10.0.50.71])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 34D283EE0BD
-	for <linux-mm@kvack.org>; Fri,  9 Mar 2012 10:24:26 +0900 (JST)
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 3FCE93EE0C3
+	for <linux-mm@kvack.org>; Fri,  9 Mar 2012 10:26:03 +0900 (JST)
 Received: from smail (m1 [127.0.0.1])
-	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 1232945DE5B
-	for <linux-mm@kvack.org>; Fri,  9 Mar 2012 10:24:26 +0900 (JST)
+	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 2749545DE56
+	for <linux-mm@kvack.org>; Fri,  9 Mar 2012 10:26:03 +0900 (JST)
 Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
-	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id ECC8B45DE55
-	for <linux-mm@kvack.org>; Fri,  9 Mar 2012 10:24:25 +0900 (JST)
+	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 0F25545DE55
+	for <linux-mm@kvack.org>; Fri,  9 Mar 2012 10:26:03 +0900 (JST)
 Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id D83921DB8053
-	for <linux-mm@kvack.org>; Fri,  9 Mar 2012 10:24:25 +0900 (JST)
-Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.240.81.134])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 8BDCB1DB804A
-	for <linux-mm@kvack.org>; Fri,  9 Mar 2012 10:24:25 +0900 (JST)
-Date: Fri, 9 Mar 2012 10:22:55 +0900
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 0049D1DB804E
+	for <linux-mm@kvack.org>; Fri,  9 Mar 2012 10:26:03 +0900 (JST)
+Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.240.81.147])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id AE8B11DB8048
+	for <linux-mm@kvack.org>; Fri,  9 Mar 2012 10:26:02 +0900 (JST)
+Date: Fri, 9 Mar 2012 10:24:31 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [patch] mm, memcg: do not allow tasks to be attached with zero
- limit
-Message-Id: <20120309102255.bbf94164.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20120308122951.2988ec4e.akpm@linux-foundation.org>
-References: <alpine.DEB.2.00.1203071914150.15244@chino.kir.corp.google.com>
-	<20120308122951.2988ec4e.akpm@linux-foundation.org>
+Subject: Re: [PATCH] memcg: Free spare array to avoid memory leak
+Message-Id: <20120309102431.5a8a1c3d.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <4F588DF5.60300@gmail.com>
+References: <1331036004-7550-1-git-send-email-handai.szj@taobao.com>
+	<20120307230819.GA10238@shutemov.name>
+	<4F581554.6020801@gmail.com>
+	<20120308103510.GA12897@shutemov.name>
+	<4F588DF5.60300@gmail.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: David Rientjes <rientjes@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Balbir Singh <bsingharora@gmail.com>, cgroups@vger.kernel.org, linux-mm@kvack.org
+To: Sha Zhengju <handai.szj@gmail.com>
+Cc: "Kirill A. Shutemov" <kirill@shutemov.name>, linux-mm@kvack.org, cgroups@vger.kernel.org, Sha Zhengju <handai.szj@taobao.com>
 
-On Thu, 8 Mar 2012 12:29:51 -0800
-Andrew Morton <akpm@linux-foundation.org> wrote:
+On Thu, 08 Mar 2012 18:46:13 +0800
+Sha Zhengju <handai.szj@gmail.com> wrote:
 
-> On Wed, 7 Mar 2012 19:14:49 -0800 (PST)
-> David Rientjes <rientjes@google.com> wrote:
+> On 03/08/2012 06:35 PM, Kirill A. Shutemov wrote:
+> > On Thu, Mar 08, 2012 at 10:11:32AM +0800, Sha Zhengju wrote:
+> >> On 03/08/2012 07:08 AM, Kirill A. Shutemov wrote:
+> >>> On Tue, Mar 06, 2012 at 08:13:24PM +0800, Sha Zhengju wrote:
+> >>>> From: Sha Zhengju<handai.szj@taobao.com>
+> >>>>
+> >>>> When the last event is unregistered, there is no need to keep the spare
+> >>>> array anymore. So free it to avoid memory leak.
+> >>> It's not a leak. It will be freed on next event register.
+> >>
+> >> Yeah, I noticed that. But what if it is just the last one and no more
+> >> event registering ?
+> > See my question below. ;)
+> >
+> >>> Yeah, we don't have to keep spare if primary is empty. But is it worth to
+> >>> make code more complicated to save few bytes of memory?
+> >>>
+> If we unregister the last event and *don't* register a new event anymore,
+> the primary is freed but the spare is still kept which has no chance to
+> free.
 > 
-> > This patch prevents tasks from being attached to a memcg if there is a
-> > hard limit of zero.
+> IMHO, it's obvious not a problem of saving bytes but *memory leak*.
 > 
-> We're talking about the memcg's limit_in_bytes here, yes?
-> 
-> > Additionally, the hard limit may not be changed to
-> > zero if there are tasks attached.
-> 
-> hm, well...  why?  That would be user error, wouldn't it?  What is
-> special about limit_in_bytes=0?  The memcg will also be unviable if
-> limit_in_bytes=1, but we permit that.
-> 
-> IOW, confused.
-> 
-Ah, yes. limit_in_bytes < some small size can cause the same trouble.
-Hmm... should we have configurable min_limit_in_bytes as sysctl or root memcg's
-attaribute.. ?
 
+IMHO, it's cached. It will be freed when a memcg is destroyed.
+
+Thanks,
 -Kame
 
 --
