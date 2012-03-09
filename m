@@ -1,56 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx194.postini.com [74.125.245.194])
-	by kanga.kvack.org (Postfix) with SMTP id ED6986B0044
-	for <linux-mm@kvack.org>; Fri,  9 Mar 2012 16:11:59 -0500 (EST)
-Date: Fri, 9 Mar 2012 22:11:56 +0100
-From: Jan Kara <jack@suse.cz>
-Subject: Re: [PATCH 5/9] writeback: introduce the pageout work
-Message-ID: <20120309211156.GA6262@quack.suse.cz>
-References: <20120301163837.GA13104@quack.suse.cz>
- <20120302044858.GA14802@localhost>
- <20120302095910.GB1744@quack.suse.cz>
- <20120302103951.GA13378@localhost>
- <20120302115700.7d970497.akpm@linux-foundation.org>
- <20120303135558.GA9869@localhost>
- <1331135301.32316.29.camel@sauron.fi.intel.com>
- <20120309073113.GA5337@localhost>
- <20120309095135.GC21038@quack.suse.cz>
- <1331309451.29445.42.camel@sauron.fi.intel.com>
+Received: from psmtp.com (na3sys010amx119.postini.com [74.125.245.119])
+	by kanga.kvack.org (Postfix) with SMTP id C4B106B0044
+	for <linux-mm@kvack.org>; Fri,  9 Mar 2012 16:38:02 -0500 (EST)
+Received: by iajr24 with SMTP id r24so3781538iaj.14
+        for <linux-mm@kvack.org>; Fri, 09 Mar 2012 13:38:02 -0800 (PST)
+Date: Fri, 9 Mar 2012 13:37:32 -0800 (PST)
+From: Hugh Dickins <hughd@google.com>
+Subject: [PATCH] memcg: revert fix to mapcount check for this release
+In-Reply-To: <alpine.LSU.2.00.1203091225440.19372@eggly.anvils>
+Message-ID: <alpine.LSU.2.00.1203091335020.19372@eggly.anvils>
+References: <1330719189-20047-1-git-send-email-n-horiguchi@ah.jp.nec.com> <1330719189-20047-2-git-send-email-n-horiguchi@ah.jp.nec.com> <20120309101658.8b36ce4f.kamezawa.hiroyu@jp.fujitsu.com> <alpine.LSU.2.00.1203081816170.18242@eggly.anvils>
+ <20120309122448.92931dc6.kamezawa.hiroyu@jp.fujitsu.com> <20120309150109.51ba8ea1.nishimura@mxp.nes.nec.co.jp> <20120309162357.71c8c573.kamezawa.hiroyu@jp.fujitsu.com> <alpine.LSU.2.00.1203091225440.19372@eggly.anvils>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1331309451.29445.42.camel@sauron.fi.intel.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Artem Bityutskiy <dedekind1@gmail.com>
-Cc: Jan Kara <jack@suse.cz>, Fengguang Wu <fengguang.wu@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Greg Thelen <gthelen@google.com>, Ying Han <yinghan@google.com>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan.kim@gmail.com>, Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Adrian Hunter <adrian.hunter@intel.com>
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Andrea Arcangeli <aarcange@redhat.com>, Hillf Danton <dhillf@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Fri 09-03-12 18:10:51, Artem Bityutskiy wrote:
-> On Fri, 2012-03-09 at 10:51 +0100, Jan Kara wrote:
-> > > However I cannot find any ubifs functions to form the above loop, so
-> > > ubifs should be safe for now.
-> >   Yeah, me neither but I also failed to find a place where
-> > ubifs_evict_inode() truncates inode space when deleting the inode... Artem?
-> 
-> We do call 'truncate_inode_pages()':
-> 
-> static void ubifs_evict_inode(struct inode *inode)
-> {
-> 	...
-> 
->         truncate_inode_pages(&inode->i_data, 0);
-> 
->         ...
-> }
-  Well, but that just removes pages from page cache. You should somewhere
-also free allocated blocks and free the inode... And I'm sure you do,
-otherwise you would pretty quickly notice that file deletion does not work
-:) Just I could not find which function does it.
+Respectfully revert commit e6ca7b89dc76 "memcg: fix mapcount check
+in move charge code for anonymous page" for the 3.3 release, so that
+it behaves exactly like releases 2.6.35 through 3.2 in this respect.
 
-								Honza
--- 
-Jan Kara <jack@suse.cz>
-SUSE Labs, CR
+Horiguchi-san's commit is correct in itself, 1 makes much more sense
+than 2 in that check; but it does not go far enough - swapcount
+should be considered too - if we really want such a check at all.
+
+We appear to have reached agreement now, and expect that 3.4 will
+remove the mapcount check, but had better not make 3.3 different.
+
+Signed-off-by: Hugh Dickins <hughd@google.com>
+---
+
+ mm/memcontrol.c |    2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+--- 3.3-rc6+/mm/memcontrol.c	2012-03-05 22:03:45.940000832 -0800
++++ linux/mm/memcontrol.c	2012-03-09 13:06:41.716250093 -0800
+@@ -5075,7 +5075,7 @@ static struct page *mc_handle_present_pt
+ 		return NULL;
+ 	if (PageAnon(page)) {
+ 		/* we don't move shared anon */
+-		if (!move_anon() || page_mapcount(page) > 1)
++		if (!move_anon() || page_mapcount(page) > 2)
+ 			return NULL;
+ 	} else if (!move_file())
+ 		/* we ignore mapcount for file pages */
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
