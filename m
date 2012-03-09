@@ -1,196 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx207.postini.com [74.125.245.207])
-	by kanga.kvack.org (Postfix) with SMTP id 6EA836B002C
-	for <linux-mm@kvack.org>; Thu,  8 Mar 2012 20:48:08 -0500 (EST)
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: Re: [PATCH v3 2/2] memcg: avoid THP split in task migration
-Date: Thu,  8 Mar 2012 20:47:57 -0500
-Message-Id: <1331257677-32357-1-git-send-email-n-horiguchi@ah.jp.nec.com>
-In-Reply-To: <20120308163008.664dcdaf.akpm@linux-foundation.org>
+Received: from psmtp.com (na3sys010amx176.postini.com [74.125.245.176])
+	by kanga.kvack.org (Postfix) with SMTP id 537BD6B002C
+	for <linux-mm@kvack.org>; Thu,  8 Mar 2012 20:58:41 -0500 (EST)
+Received: from m1.gw.fujitsu.co.jp (unknown [10.0.50.71])
+	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id C11433EE0C0
+	for <linux-mm@kvack.org>; Fri,  9 Mar 2012 10:58:39 +0900 (JST)
+Received: from smail (m1 [127.0.0.1])
+	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id A71E545DE64
+	for <linux-mm@kvack.org>; Fri,  9 Mar 2012 10:58:39 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
+	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 8E6C545DE5D
+	for <linux-mm@kvack.org>; Fri,  9 Mar 2012 10:58:39 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 7B09E1DB8053
+	for <linux-mm@kvack.org>; Fri,  9 Mar 2012 10:58:39 +0900 (JST)
+Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.240.81.146])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 2AAEE1DB804A
+	for <linux-mm@kvack.org>; Fri,  9 Mar 2012 10:58:39 +0900 (JST)
+Date: Fri, 9 Mar 2012 10:57:06 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [patch] mm, memcg: do not allow tasks to be attached with zero
+ limit
+Message-Id: <20120309105706.4001646a.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20120308173818.ae5f621b.akpm@linux-foundation.org>
+References: <alpine.DEB.2.00.1203071914150.15244@chino.kir.corp.google.com>
+	<20120308122951.2988ec4e.akpm@linux-foundation.org>
+	<20120309102255.bbf94164.kamezawa.hiroyu@jp.fujitsu.com>
+	<20120308173818.ae5f621b.akpm@linux-foundation.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, linux-mm@kvack.org, Andrea Arcangeli <aarcange@redhat.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Hillf Danton <dhillf@gmail.com>, linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>
+Cc: David Rientjes <rientjes@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Balbir Singh <bsingharora@gmail.com>, cgroups@vger.kernel.org, linux-mm@kvack.org
 
-On Thu, Mar 08, 2012 at 04:30:08PM -0800, Andrew Morton wrote:
-> On Fri,  2 Mar 2012 15:13:09 -0500
-> Naoya Horiguchi <n-horiguchi@ah.jp.nec.com> wrote:
-> 
-> > Currently we can't do task migration among memory cgroups without THP split,
-> > which means processes heavily using THP experience large overhead in task
-> > migration. This patch introduce the code for moving charge of THP and makes
-> > THP more valuable.
-> 
-> Some review input from Kame and Andrea would be good, please.
-> 
-> > diff --git linux-next-20120228.orig/mm/memcontrol.c linux-next-20120228/mm/memcontrol.c
-> > index c83aeb5..b6d1bab 100644
-> > --- linux-next-20120228.orig/mm/memcontrol.c
-> > +++ linux-next-20120228/mm/memcontrol.c
-> > @@ -5211,6 +5211,41 @@ static int is_target_pte_for_mc(struct vm_area_struct *vma,
-> >  	return ret;
-> >  }
-> >  
-> > +#ifdef CONFIG_TRANSPARENT_HUGEPAGE
-> > +/*
-> > + * We don't consider swapping or file mapped pages because THP does not
-> > + * support them for now.
-> > + * Caller should make sure that pmd_trans_huge(pmd) is true.
-> > + */
-> > +static int is_target_thp_for_mc(struct vm_area_struct *vma,
-> > +		unsigned long addr, pmd_t pmd, union mc_target *target)
-> > +{
-> > +	struct page *page = NULL;
-> > +	struct page_cgroup *pc;
-> > +	int ret = 0;
-> 
-> This should be MC_TARGET_NONE.  And this function should have a return
-> type of "enum mc_target_type".  And local variable `ret' should have
-> type "enum mc_target_type" as well.
+On Thu, 8 Mar 2012 17:38:18 -0800
+Andrew Morton <akpm@linux-foundation.org> wrote:
 
-OK.
-And I'll also refactor the similar points on is_target_pte_for_mc()
-with a separate patch.
+> On Fri, 9 Mar 2012 10:22:55 +0900 KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+> 
+> > On Thu, 8 Mar 2012 12:29:51 -0800
+> > Andrew Morton <akpm@linux-foundation.org> wrote:
+> > 
+> > > On Wed, 7 Mar 2012 19:14:49 -0800 (PST)
+> > > David Rientjes <rientjes@google.com> wrote:
+> > > 
+> > > > This patch prevents tasks from being attached to a memcg if there is a
+> > > > hard limit of zero.
+> > > 
+> > > We're talking about the memcg's limit_in_bytes here, yes?
+> > > 
+> > > > Additionally, the hard limit may not be changed to
+> > > > zero if there are tasks attached.
+> > > 
+> > > hm, well...  why?  That would be user error, wouldn't it?  What is
+> > > special about limit_in_bytes=0?  The memcg will also be unviable if
+> > > limit_in_bytes=1, but we permit that.
+> > > 
+> > > IOW, confused.
+> > > 
+> > Ah, yes. limit_in_bytes < some small size can cause the same trouble.
+> > Hmm... should we have configurable min_limit_in_bytes as sysctl or root memcg's
+> > attaribute.. ?
+> 
+> Why do *anything*?  If the operator chose an irrational configuration
+> then things won't work correctly and the operator will then fix the
+> configuration?
+> 
 
-> Also, the name "is_target_thp_for_mc" doesn't make sense: an "is_foo"
-> function should return a boolean result, but this function doesn't do
-> that.
+Because the result of 'error operaton' is SIGKILL to a task, which may be
+owned by very importang customer of hosting service.
 
-Agreed. I replace it with descriptive and shorter "get_mctgt_type_thp."
-Someont can feel the abbreviation like "mctgt" odd, so I also add
-comments to describe what this function does. And I do the similar on
-is_target_pte_for_mc().
+Isn't this severe punishment for error operation ?
 
-> > +	page = pmd_page(pmd);
-> > +	VM_BUG_ON(!page || !PageHead(page));
-> > +	if (!move_anon() || page_mapcount(page) != 1)
-> 
-> More page_mapcount tricks, and we just fixed a bug in the other one and
-> Hugh got upset.
-> 
-> Can we please at least document what we're doing here?  This reader
-> forgot, and cannot reremember.
+Considering again, I have 2 thoughts.
 
-Yes. Documentation seems to be obsolete and we are in danger of forgetting
-why we have this restriction, so I add comment here that says this is
-temporary one to take simple approarch of accounting for shared pages.
+- it should be guarded by MiddleWare, it's not kernel job !
+- memcg should be more easy-to-use, friendly to users.
 
-> 
-> > +		return 0;
-> 
-> MC_TARGET_NONE.
-> 
-> > +	pc = lookup_page_cgroup(page);
-> > +	if (PageCgroupUsed(pc) && pc->mem_cgroup == mc.from) {
-> > +		ret = MC_TARGET_PAGE;
-> > +		if (target) {
-> > +			get_page(page);
-> > +			target->page = page;
-> > +		}
-> > +	}
-> > +	return ret;
-> > +}
-> > +#else
-> > +static inline int is_target_thp_for_mc(struct vm_area_struct *vma,
-> > +		unsigned long addr, pmd_t pmd, union mc_target *target)
-> > +{
-> > +	return 0;
-> 
-> MC_TARGET_NONE.
-> 
-> > +}
-> > +#endif
-> > +
-> >  static int mem_cgroup_count_precharge_pte_range(pmd_t *pmd,
-> >  					unsigned long addr, unsigned long end,
-> >  					struct mm_walk *walk)
-> > @@ -5219,7 +5254,14 @@ static int mem_cgroup_count_precharge_pte_range(pmd_t *pmd,
-> >  	pte_t *pte;
-> >  	spinlock_t *ptl;
-> >  
-> > -	split_huge_page_pmd(walk->mm, pmd);
-> > +	if (pmd_trans_huge_lock(pmd, vma) == 1) {
-> > +		if (is_target_thp_for_mc(vma, addr, *pmd, NULL)
-> > +		    == MC_TARGET_PAGE)
-> > +			mc.precharge += HPAGE_PMD_NR;
-> 
-> That code layout is rather an eyesore :(
-> 
-> This:
-> 
-> 		if (is_target_thp_for_mc(vma, addr, *pmd, NULL) == MC_TARGET_PAGE)
-> 			mc.precharge += HPAGE_PMD_NR;
-> 
-> is probably better, but still an eyesore.  See if we can come up with a
-> shorter name than "is_target_thp_for_mc" and all will be fixed!
-
-2 letters shorter get_mctgt_type_thp() can fix it like above :)
-
-> > +		spin_unlock(&vma->vm_mm->page_table_lock);
-> > +		cond_resched();
-> > +		return 0;
-> > +	}
-> >  
-> >  	pte = pte_offset_map_lock(vma->vm_mm, pmd, addr, &ptl);
-> >  	for (; addr != end; pte++, addr += PAGE_SIZE)
-> > @@ -5378,16 +5420,51 @@ static int mem_cgroup_move_charge_pte_range(pmd_t *pmd,
-> >  	struct vm_area_struct *vma = walk->private;
-> >  	pte_t *pte;
-> >  	spinlock_t *ptl;
-> > +	int type;
-> 
-> "enum mc_target_type".  Also choose a more specific name?  Perhaps
-> `target_type'.
-
-OK. I'll take it.
-
-> > +	union mc_target target;
-> > +	struct page *page;
-> > +	struct page_cgroup *pc;
-> > +
-> > +	/*
-> > +	 * We don't take compound_lock() here but no race with splitting thp
-> > +	 * happens because:
-> > +	 *  - if pmd_trans_huge_lock() returns 1, the relevant thp is not
-> > +	 *    under splitting, which means there's no concurrent thp split,
-> > +	 *  - if another thread runs into split_huge_page() just after we
-> > +	 *    entered this if-block, the thread must wait for page table lock
-> > +	 *    to be unlocked in __split_huge_page_splitting(), where the main
-> > +	 *    part of thp split is not executed yet.
-> > +	 */
-> > +	if (pmd_trans_huge_lock(pmd, vma) == 1) {
-> > +		if (!mc.precharge) {
-> > +			spin_unlock(&vma->vm_mm->page_table_lock);
-> > +			cond_resched();
-> > +			return 0;
-> > +		}
-> > +		type = is_target_thp_for_mc(vma, addr, *pmd, &target);
-> > +		if (type == MC_TARGET_PAGE) {
-> > +			page = target.page;
-> > +			if (!isolate_lru_page(page)) {
-> > +				pc = lookup_page_cgroup(page);
-> > +				if (!mem_cgroup_move_account(page, HPAGE_PMD_NR,
-> > +							     pc, mc.from, mc.to,
-> > +							     false)) {
-> > +					mc.precharge -= HPAGE_PMD_NR;
-> > +					mc.moved_charge += HPAGE_PMD_NR;
-> > +				}
-> > +				putback_lru_page(page);
-> > +			}
-> > +			put_page(page);
-> > +		}
-> > +		spin_unlock(&vma->vm_mm->page_table_lock);
-> > +		cond_resched();
-> > +		return 0;
-> > +	}
-> 
-> cond_resched() is an ugly thing.  Are we sure that it is needed here?
-
-This is copied from regular size page path just below, but thp path takes
-much shorter time than regular page path. So we can drop it.
+If the result is just an error as EINVAL or EBUSY, I may not be nervous....
 
 Thanks,
-Naoya
+-Kame 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
