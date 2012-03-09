@@ -1,13 +1,13 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx109.postini.com [74.125.245.109])
-	by kanga.kvack.org (Postfix) with SMTP id A72316B00E7
+Received: from psmtp.com (na3sys010amx130.postini.com [74.125.245.130])
+	by kanga.kvack.org (Postfix) with SMTP id 513186B007E
 	for <linux-mm@kvack.org>; Fri,  9 Mar 2012 15:39:40 -0500 (EST)
-Received: by yhpp61 with SMTP id p61so256088yhp.2
+Received: by vcqp1 with SMTP id p1so257682vcq.2
         for <linux-mm@kvack.org>; Fri, 09 Mar 2012 12:39:39 -0800 (PST)
 From: Suleiman Souhlal <ssouhlal@FreeBSD.org>
-Subject: [PATCH v2 04/13] memcg: Make it possible to use the stock for more than one page.
-Date: Fri,  9 Mar 2012 12:39:07 -0800
-Message-Id: <1331325556-16447-5-git-send-email-ssouhlal@FreeBSD.org>
+Subject: [PATCH v2 05/13] memcg: Reclaim when more than one page needed.
+Date: Fri,  9 Mar 2012 12:39:08 -0800
+Message-Id: <1331325556-16447-6-git-send-email-ssouhlal@FreeBSD.org>
 In-Reply-To: <1331325556-16447-1-git-send-email-ssouhlal@FreeBSD.org>
 References: <1331325556-16447-1-git-send-email-ssouhlal@FreeBSD.org>
 Sender: owner-linux-mm@kvack.org
@@ -15,60 +15,84 @@ List-ID: <linux-mm.kvack.org>
 To: cgroups@vger.kernel.org
 Cc: suleiman@google.com, glommer@parallels.com, kamezawa.hiroyu@jp.fujitsu.com, penberg@kernel.org, cl@linux.com, yinghan@google.com, hughd@google.com, gthelen@google.com, peterz@infradead.org, dan.magenheimer@oracle.com, hannes@cmpxchg.org, mgorman@suse.de, James.Bottomley@HansenPartnership.com, linux-mm@kvack.org, devel@openvz.org, linux-kernel@vger.kernel.org, Suleiman Souhlal <ssouhlal@FreeBSD.org>
 
+mem_cgroup_do_charge() was written before slab accounting, and expects
+three cases: being called for 1 page, being called for a stock of 32 pages,
+or being called for a hugepage.  If we call for 2 pages (and several slabs
+used in process creation are such, at least with the debug options I had),
+it assumed it's being called for stock and just retried without reclaiming.
+
+Fix that by passing down a minsize argument in addition to the csize.
+
+And what to do about that (csize == PAGE_SIZE && ret) retry?  If it's
+needed at all (and presumably is since it's there, perhaps to handle
+races), then it should be extended to more than PAGE_SIZE, yet how far?
+And should there be a retry count limit, of what?  For now retry up to
+COSTLY_ORDER (as page_alloc.c does), stay safe with a cond_resched(),
+and make sure not to do it if __GFP_NORETRY.
+
 Signed-off-by: Suleiman Souhlal <suleiman@google.com>
 ---
- mm/memcontrol.c |   18 +++++++++---------
- 1 files changed, 9 insertions(+), 9 deletions(-)
+ mm/memcontrol.c |   17 ++++++++++-------
+ 1 files changed, 10 insertions(+), 7 deletions(-)
 
 diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 6fbb438..f605100 100644
+index f605100..2576a2b 100644
 --- a/mm/memcontrol.c
 +++ b/mm/memcontrol.c
-@@ -1965,19 +1965,19 @@ static DEFINE_PER_CPU(struct memcg_stock_pcp, memcg_stock);
- static DEFINE_MUTEX(percpu_charge_mutex);
+@@ -2168,7 +2168,7 @@ enum {
+ };
  
- /*
-- * Try to consume stocked charge on this cpu. If success, one page is consumed
-- * from local stock and true is returned. If the stock is 0 or charges from a
-- * cgroup which is not current target, returns false. This stock will be
-- * refilled.
-+ * Try to consume stocked charge on this cpu. If success, nr_pages pages are
-+ * consumed from local stock and true is returned. If the stock is 0 or
-+ * charges from a cgroup which is not current target, returns false.
-+ * This stock will be refilled.
-  */
--static bool consume_stock(struct mem_cgroup *memcg)
-+static bool consume_stock(struct mem_cgroup *memcg, int nr_pages)
+ static int mem_cgroup_do_charge(struct mem_cgroup *memcg, gfp_t gfp_mask,
+-				unsigned int nr_pages, bool oom_check)
++    unsigned int nr_pages, unsigned int min_pages, bool oom_check)
  {
- 	struct memcg_stock_pcp *stock;
- 	bool ret = true;
+ 	unsigned long csize = nr_pages * PAGE_SIZE;
+ 	struct mem_cgroup *mem_over_limit;
+@@ -2191,18 +2191,18 @@ static int mem_cgroup_do_charge(struct mem_cgroup *memcg, gfp_t gfp_mask,
+ 	} else
+ 		mem_over_limit = mem_cgroup_from_res_counter(fail_res, res);
+ 	/*
+-	 * nr_pages can be either a huge page (HPAGE_PMD_NR), a batch
+-	 * of regular pages (CHARGE_BATCH), or a single regular page (1).
+-	 *
+ 	 * Never reclaim on behalf of optional batching, retry with a
+ 	 * single page instead.
+ 	 */
+-	if (nr_pages == CHARGE_BATCH)
++	if (nr_pages > min_pages)
+ 		return CHARGE_RETRY;
  
- 	stock = &get_cpu_var(memcg_stock);
--	if (memcg == stock->cached && stock->nr_pages)
--		stock->nr_pages--;
-+	if (memcg == stock->cached && stock->nr_pages >= nr_pages)
-+		stock->nr_pages -= nr_pages;
- 	else /* need to call res_counter_charge */
- 		ret = false;
- 	put_cpu_var(memcg_stock);
-@@ -2290,7 +2290,7 @@ again:
- 		VM_BUG_ON(css_is_removed(&memcg->css));
- 		if (mem_cgroup_is_root(memcg))
- 			goto done;
--		if (nr_pages == 1 && consume_stock(memcg))
-+		if (consume_stock(memcg, nr_pages))
- 			goto done;
- 		css_get(&memcg->css);
- 	} else {
-@@ -2315,7 +2315,7 @@ again:
- 			rcu_read_unlock();
- 			goto done;
+ 	if (!(gfp_mask & __GFP_WAIT))
+ 		return CHARGE_WOULDBLOCK;
+ 
++	if (gfp_mask & __GFP_NORETRY)
++		return CHARGE_NOMEM;
++
+ 	ret = mem_cgroup_reclaim(mem_over_limit, gfp_mask, flags);
+ 	if (mem_cgroup_margin(mem_over_limit) >= nr_pages)
+ 		return CHARGE_RETRY;
+@@ -2215,8 +2215,10 @@ static int mem_cgroup_do_charge(struct mem_cgroup *memcg, gfp_t gfp_mask,
+ 	 * unlikely to succeed so close to the limit, and we fall back
+ 	 * to regular pages anyway in case of failure.
+ 	 */
+-	if (nr_pages == 1 && ret)
++	if (nr_pages <= (PAGE_SIZE << PAGE_ALLOC_COSTLY_ORDER) && ret) {
++		cond_resched();
+ 		return CHARGE_RETRY;
++	}
+ 
+ 	/*
+ 	 * At task move, charge accounts can be doubly counted. So, it's
+@@ -2350,7 +2352,8 @@ again:
+ 			nr_oom_retries = MEM_CGROUP_RECLAIM_RETRIES;
  		}
--		if (nr_pages == 1 && consume_stock(memcg)) {
-+		if (consume_stock(memcg, nr_pages)) {
- 			/*
- 			 * It seems dagerous to access memcg without css_get().
- 			 * But considering how consume_stok works, it's not
+ 
+-		ret = mem_cgroup_do_charge(memcg, gfp_mask, batch, oom_check);
++		ret = mem_cgroup_do_charge(memcg, gfp_mask, batch, nr_pages,
++		    oom_check);
+ 		switch (ret) {
+ 		case CHARGE_OK:
+ 			break;
 -- 
 1.7.7.3
 
