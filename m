@@ -1,87 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx131.postini.com [74.125.245.131])
-	by kanga.kvack.org (Postfix) with SMTP id 859D96B0044
-	for <linux-mm@kvack.org>; Fri,  9 Mar 2012 03:19:57 -0500 (EST)
-Date: Fri, 9 Mar 2012 09:19:52 +0100
-From: Jan Kara <jack@suse.cz>
-Subject: Re: [PATCH 00/11 v2] Push file_update_time() into .page_mkwrite
-Message-ID: <20120309081952.GA21038@quack.suse.cz>
-References: <1330602103-8851-1-git-send-email-jack@suse.cz>
- <4F593CF8.2000105@amacapital.net>
+Received: from psmtp.com (na3sys010amx206.postini.com [74.125.245.206])
+	by kanga.kvack.org (Postfix) with SMTP id AC3F46B0044
+	for <linux-mm@kvack.org>; Fri,  9 Mar 2012 03:46:36 -0500 (EST)
+Date: Fri, 9 Mar 2012 11:38:37 +0200
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [PATCH] memcg: Free spare array to avoid memory leak
+Message-ID: <20120309093837.GA16348@shutemov.name>
+References: <1331036004-7550-1-git-send-email-handai.szj@taobao.com>
+ <20120309124021.810f5267.kamezawa.hiroyu@jp.fujitsu.com>
+ <4F598204.9030504@gmail.com>
+ <20120309132016.e372a2ef.kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=utf-8
 Content-Disposition: inline
-In-Reply-To: <4F593CF8.2000105@amacapital.net>
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <20120309132016.e372a2ef.kamezawa.hiroyu@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andy Lutomirski <luto@amacapital.net>
-Cc: Jan Kara <jack@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Al Viro <viro@ZenIV.linux.org.uk>, linux-fsdevel@vger.kernel.org, dchinner@redhat.com, Jaya Kumar <jayalk@intworks.biz>, Sage Weil <sage@newdream.net>, ceph-devel@vger.kernel.org, Steve French <sfrench@samba.org>, linux-cifs@vger.kernel.org, Eric Van Hensbergen <ericvh@gmail.com>, Ron Minnich <rminnich@sandia.gov>, Latchesar Ionkov <lucho@ionkov.net>, v9fs-developer@lists.sourceforge.net, Miklos Szeredi <miklos@szeredi.hu>, fuse-devel@lists.sourceforge.net, Steven Whitehouse <swhiteho@redhat.com>, cluster-devel@redhat.com, Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Sha Zhengju <handai.szj@gmail.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, Sha Zhengju <handai.szj@taobao.com>
 
-  Hello,
+On Fri, Mar 09, 2012 at 01:20:16PM +0900, KAMEZAWA Hiroyuki wrote:
+> On Fri, 09 Mar 2012 12:07:32 +0800
+> Sha Zhengju <handai.szj@gmail.com> wrote:
+> 
+> > On 03/09/2012 11:40 AM, KAMEZAWA Hiroyuki wrote:
+> > > On Tue,  6 Mar 2012 20:13:24 +0800
+> > > Sha Zhengju<handai.szj@gmail.com>  wrote:
+> > >
+> > >> From: Sha Zhengju<handai.szj@taobao.com>
+> > >>
+> > >> When the last event is unregistered, there is no need to keep the spare
+> > >> array anymore. So free it to avoid memory leak.
+> > >>
+> > >> Signed-off-by: Sha Zhengju<handai.szj@taobao.com>
+> > >>
+> > >> ---
+> > >>   mm/memcontrol.c |    6 ++++++
+> > >>   1 files changed, 6 insertions(+), 0 deletions(-)
+> > >>
+> > >> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> > >> index 22d94f5..3c09a84 100644
+> > >> --- a/mm/memcontrol.c
+> > >> +++ b/mm/memcontrol.c
+> > >> @@ -4412,6 +4412,12 @@ static void mem_cgroup_usage_unregister_event(struct cgroup *cgrp,
+> > >>   swap_buffers:
+> > >>   	/* Swap primary and spare array */
+> > >>   	thresholds->spare = thresholds->primary;
+> > >> +	/* If all events are unregistered, free the spare array */
+> > >> +	if (!new) {
+> > >> +		kfree(thresholds->spare);
+> > >> +		thresholds->spare = NULL;
+> > >> +	}
+> > >> +
+> > > Could you clear thresholds->primary ? I don't like a pointer points to freed memory.
+> > Do you meaning I should set a??thresholds->primary = NULLa?? i 1/4 ?
+> > But the following rcu_assign_pointer will do this :
+> > 
+> > +	/* If all events are unregistered, free the spare array */
+> > +	if (!new) {
+> > +		kfree(thresholds->spare);
+> > +		thresholds->spare = NULL;
+> > +	}
+> > +
+> >   	rcu_assign_pointer(thresholds->primary, new);<---------*HERE*
+> > 
+> 
+> Hm, ok.
+> 
+> Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> 
+> 
+> BTW, can memory cgroup be destroyed while there are registered events ?
 
-On Thu 08-03-12 15:12:56, Andy Lutomirski wrote:
-> On 03/01/2012 03:41 AM, Jan Kara wrote:
-> >   Hello,
-> > 
-> >   to provide reliable support for filesystem freezing, filesystems need to have
-> > complete control over when metadata is changed. In particular,
-> > file_update_time() calls from page fault code make it impossible for
-> > filesystems to prevent inodes from being dirtied while the filesystem is
-> > frozen.
-> > 
-> > To fix the issue, this patch set changes page fault code to call
-> > file_update_time() only when ->page_mkwrite() callback is not provided. If the
-> > callback is provided, it is the responsibility of the filesystem to perform
-> > update of i_mtime / i_ctime if needed. We also push file_update_time() call
-> > to all existing ->page_mkwrite() implementations if the time update does not
-> > obviously happen by other means. If you know your filesystem does not need
-> > update of modification times in ->page_mkwrite() handler, please speak up and
-> > I'll drop the patch for your filesystem.
-> > 
-> > As a side note, an alternative would be to remove call of file_update_time()
-> > from page fault code altogether and require all filesystems needing it to do
-> > that in their ->page_mkwrite() implementation. That is certainly possible
-> > although maybe slightly inefficient and would require auditting 100+
-> > vm_operations_structs *shiver*.
-> 
-> 
-> 
-> IMO updating file times should happen when changes get written out, not
-> when a page is made writable, for two reasons:
-> 
-> 1. Correctness.  With the current approach, it's very easy for files to
-> be changed after the last mtime update -- any changes between mkwrite
-> and actual writeback won't affect mtime.
-> 
-> 2. Performance.  I have an application (presumably guessable from my
-> email address) for which blocking in page_mkwrite is an absolute
-> show-stopper.  (In fact it's so bad that we reverted back to running on
-> Windows until I hacked up a kernel to not do this.)  I have an incorrect
-> patch [1] to fix it, but I haven't gotten around to a real fix.  (I also
-> have stable pages reverted in my kernel.  Some day I'll submit a patch
-> to make it a filesystem option.  Or maybe it should even be a block
-> device / queue property like the alignment offset and optimal io size --
-> there are plenty of block device and file combinations which don't
-> benefit at all from stable pages.)
-> 
-> I'd prefer if file_update_time in page_mkwrite didn't proliferate.  A
-> better fix is probably to introduce a new inode flag, update it when a
-> page is undirtied, and then dirty and write the inode from the writeback
-> path.  (Kind of like my patch, but with an inode flag instead of a page
-> flag, and with the file_update_time done from the fs.)
-> 
-> [1] http://patchwork.ozlabs.org/patch/122516/
-  Andy, I'm aware of your problems. Just firstly, I wouldn't like to
-complicate the filesystem freezing patch set even more by improving unrelated
-things. And secondly, I think these changes won't make fixing your problem
-harder. I'd even argue it will be easier because you can do conversion
-filesystem by filesystem. Getting lock ordering and other things right for
-all filesystems at once is much harded.
+Yes, it can. All eventfds will be closed first. See cgroup_rmdir().
 
-								Honza
+And here's possibility of leak. If we have an eventfd with >1 threasholds
+attached to it, mem_cgroup_usage_unregister_event() will leave spare
+not freed. And then we destroy cgroup...
+
+Reviewed-by: Kirill A. Shutemov <kirill@shutemov.name>
+
 -- 
-Jan Kara <jack@suse.cz>
-SUSE Labs, CR
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
