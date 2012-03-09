@@ -1,52 +1,114 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx156.postini.com [74.125.245.156])
-	by kanga.kvack.org (Postfix) with SMTP id 454806B002C
-	for <linux-mm@kvack.org>; Thu,  8 Mar 2012 22:24:26 -0500 (EST)
-Received: by pbcup15 with SMTP id up15so2456715pbc.14
-        for <linux-mm@kvack.org>; Thu, 08 Mar 2012 19:24:25 -0800 (PST)
-Message-ID: <4F5977E6.5040205@gmail.com>
-Date: Fri, 09 Mar 2012 11:24:22 +0800
-From: Sha Zhengju <handai.szj@gmail.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH] memcg: Free spare array to avoid memory leak
-References: <1331036004-7550-1-git-send-email-handai.szj@taobao.com>	<20120307230819.GA10238@shutemov.name>	<4F581554.6020801@gmail.com>	<20120308103510.GA12897@shutemov.name>	<4F588DF5.60300@gmail.com> <20120309102431.5a8a1c3d.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20120309102431.5a8a1c3d.kamezawa.hiroyu@jp.fujitsu.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Received: from psmtp.com (na3sys010amx199.postini.com [74.125.245.199])
+	by kanga.kvack.org (Postfix) with SMTP id 03F096B007E
+	for <linux-mm@kvack.org>; Thu,  8 Mar 2012 22:26:28 -0500 (EST)
+Received: from m2.gw.fujitsu.co.jp (unknown [10.0.50.72])
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 42E743EE0AE
+	for <linux-mm@kvack.org>; Fri,  9 Mar 2012 12:26:27 +0900 (JST)
+Received: from smail (m2 [127.0.0.1])
+	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 2C9E845DD78
+	for <linux-mm@kvack.org>; Fri,  9 Mar 2012 12:26:27 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
+	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 0D50545DD74
+	for <linux-mm@kvack.org>; Fri,  9 Mar 2012 12:26:27 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 001131DB8038
+	for <linux-mm@kvack.org>; Fri,  9 Mar 2012 12:26:26 +0900 (JST)
+Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.240.81.145])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id A00A01DB803A
+	for <linux-mm@kvack.org>; Fri,  9 Mar 2012 12:26:26 +0900 (JST)
+Date: Fri, 9 Mar 2012 12:24:48 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH v3 2/2] memcg: avoid THP split in task migration
+Message-Id: <20120309122448.92931dc6.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <alpine.LSU.2.00.1203081816170.18242@eggly.anvils>
+References: <1330719189-20047-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+	<1330719189-20047-2-git-send-email-n-horiguchi@ah.jp.nec.com>
+	<20120309101658.8b36ce4f.kamezawa.hiroyu@jp.fujitsu.com>
+	<alpine.LSU.2.00.1203081816170.18242@eggly.anvils>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: "Kirill A. Shutemov" <kirill@shutemov.name>, linux-mm@kvack.org, cgroups@vger.kernel.org, Sha Zhengju <handai.szj@taobao.com>
+To: Hugh Dickins <hughd@google.com>
+Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Hillf Danton <dhillf@gmail.com>, linux-kernel@vger.kernel.org"nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>
 
-On 03/09/2012 09:24 AM, KAMEZAWA Hiroyuki wrote:
-> On Thu, 08 Mar 2012 18:46:13 +0800
-> Sha Zhengju<handai.szj@gmail.com>  wrote:
->
->> On 03/08/2012 06:35 PM, Kirill A. Shutemov wrote:
->>> On Thu, Mar 08, 2012 at 10:11:32AM +0800, Sha Zhengju wrote:
->>>> On 03/08/2012 07:08 AM, Kirill A. Shutemov wrote:
->>>>> On Tue, Mar 06, 2012 at 08:13:24PM +0800, Sha Zhengju wrote:
->>>>>> From: Sha Zhengju<handai.szj@taobao.com>
->>>>>>
->>>>>> When the last event is unregistered, there is no need to keep the spare
->>>>>> array anymore. So free it to avoid memory leak.
->>>>> It's not a leak. It will be freed on next event register.
->>>> Yeah, I noticed that. But what if it is just the last one and no more
->>>> event registering ?
->>> See my question below. ;)
->>>
->>>>> Yeah, we don't have to keep spare if primary is empty. But is it worth to
->>>>> make code more complicated to save few bytes of memory?
->>>>>
->> If we unregister the last event and *don't* register a new event anymore,
->> the primary is freed but the spare is still kept which has no chance to
->> free.
->>
->> IMHO, it's obvious not a problem of saving bytes but *memory leak*.
->>
-> IMHO, it's cached. It will be freed when a memcg is destroyed.
+On Thu, 8 Mar 2012 18:33:14 -0800 (PST)
+Hugh Dickins <hughd@google.com> wrote:
 
-I didn't see that behavior.  Could you point it out ? :-)
+> On Fri, 9 Mar 2012, KAMEZAWA Hiroyuki wrote:
+> > > +
+> > > +	page = pmd_page(pmd);
+> > > +	VM_BUG_ON(!page || !PageHead(page));
+> > > +	if (!move_anon() || page_mapcount(page) != 1)
+> > > +		return 0;
+> > 
+> > Could you add this ?
+> > ==
+> > static bool move_check_shared_map(struct page *page)
+> > {
+> >   /*
+> >    * Handling of shared pages between processes is a big trouble in memcg.
+> >    * Now, we never move shared-mapped pages between memcg at 'task' moving because
+> >    * we have no hint which task the page is really belongs to. For example, 
+> >    * When a task does "fork()-> move to the child other group -> exec()", the charges
+> >    * should be stay in the original cgroup. 
+> >    * So, check mapcount to determine we can move or not.
+> >    */
+> >    return page_mapcount(page) != 1;
+> > }
+> 
+> That's a helpful elucidation, thank you.  However...
+> 
+> That is not how it has actually been behaving for the last 18 months
+> (because of the "> 2" bug), so in practice you are asking for a change
+> in behaviour there.
+> 
+Yes.
+
+
+> And it's not how it has been and continues to behave with file pages.
+> 
+It's ok to add somethink like..
+
+	if (PageAnon(page) && !move_anon())
+		return false;
+	...
+
+> Isn't getting that behaviour in fork-move-exec just a good reason not
+> to set move_charge_at_immigrate?
+> 
+Hmm. Maybe.
+
+> I think there are other scenarios where you do want all the pages to
+> move if move_charge_at_immigrate: and that's certainly easier to
+> describe and to understand and to code.
+> 
+> But if you do insist on not moving the shared, then it needs to involve
+> something like mem_cgroup_count_swap_user() on PageSwapCache pages,
+> rather than just the bare page_mapcount().
+> 
+
+This 'moving swap account' was a requirement from a user (NEC?).
+But no user doesn't say 'I want to move shared pages between cgroups at task
+move !' and I don't like to move shared objects.
+
+> I'd rather delete than add code here!
+> 
+
+As a user, for Fujitsu, I believe it's insane to move task between cgroups.
+So, I have no benefit from this code, at all.
+Ok, maybe I'm not a stakeholder,here.
+
+If users say all shared pages should be moved, ok, let's move.
+But change of behavior should be documented and implemented in an independet
+patch. CC'ed Nishimura-san, he implemetned this, a real user.
+
+Thanks,
+-Kame
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
