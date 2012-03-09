@@ -1,60 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx132.postini.com [74.125.245.132])
-	by kanga.kvack.org (Postfix) with SMTP id 501236B0044
-	for <linux-mm@kvack.org>; Fri,  9 Mar 2012 09:54:21 -0500 (EST)
-Received: from euspt1 (mailout1.w1.samsung.com [210.118.77.11])
- by mailout1.w1.samsung.com
- (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14 2004))
- with ESMTP id <0M0M00B0XHEH00@mailout1.w1.samsung.com> for linux-mm@kvack.org;
- Fri, 09 Mar 2012 14:54:17 +0000 (GMT)
-Received: from linux.samsung.com ([106.116.38.10])
- by spt1.w1.samsung.com (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14
- 2004)) with ESMTPA id <0M0M0012WHEI66@spt1.w1.samsung.com> for
- linux-mm@kvack.org; Fri, 09 Mar 2012 14:54:19 +0000 (GMT)
-Date: Fri, 09 Mar 2012 15:53:32 +0100
-From: Marek Szyprowski <m.szyprowski@samsung.com>
-Subject: [PATCH] ARM: dma-mapping: fix calculation of iova bitmap size
-In-reply-to: <011701ccfc83$78030180$68090480$%szyprowski@samsung.com>
-Message-id: <1331304812-10386-1-git-send-email-m.szyprowski@samsung.com>
-MIME-version: 1.0
-Content-type: TEXT/PLAIN
-Content-transfer-encoding: 7BIT
-References: <011701ccfc83$78030180$68090480$%szyprowski@samsung.com>
+Received: from psmtp.com (na3sys010amx146.postini.com [74.125.245.146])
+	by kanga.kvack.org (Postfix) with SMTP id CA5B16B0044
+	for <linux-mm@kvack.org>; Fri,  9 Mar 2012 10:15:48 -0500 (EST)
+Date: Fri, 9 Mar 2012 07:10:46 -0800
+From: Fengguang Wu <fengguang.wu@intel.com>
+Subject: Re: [PATCH 5/9] writeback: introduce the pageout work
+Message-ID: <20120309151046.GA32749@localhost>
+References: <20120228144747.198713792@intel.com>
+ <20120228160403.9c9fa4dc.akpm@linux-foundation.org>
+ <20120301123640.GA30369@localhost>
+ <20120301163837.GA13104@quack.suse.cz>
+ <20120302044858.GA14802@localhost>
+ <20120302095910.GB1744@quack.suse.cz>
+ <20120302103951.GA13378@localhost>
+ <20120302115700.7d970497.akpm@linux-foundation.org>
+ <20120303135558.GA9869@localhost>
+ <20120309101546.GA14159@quack.suse.cz>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20120309101546.GA14159@quack.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-arm-kernel@lists.infradead.org, linaro-mm-sig@lists.linaro.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-samsung-soc@vger.kernel.org, iommu@lists.linux-foundation.org
-Cc: Marek Szyprowski <m.szyprowski@samsung.com>, Kyungmin Park <kyungmin.park@samsung.com>, Arnd Bergmann <arnd@arndb.de>, Joerg Roedel <joro@8bytes.org>, Russell King - ARM Linux <linux@arm.linux.org.uk>, Chunsang Jeong <chunsang.jeong@linaro.org>, Krishna Reddy <vdumpa@nvidia.com>, KyongHo Cho <pullip.cho@samsung.com>, Andrzej Pietrasiewicz <andrzej.p@samsung.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Hiroshi Doyu <hdoyu@nvidia.com>
+To: Jan Kara <jack@suse.cz>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Greg Thelen <gthelen@google.com>, Ying Han <yinghan@google.com>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan.kim@gmail.com>, Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Adrian Hunter <ext-adrian.hunter@nokia.com>, Artem Bityutskiy <Artem.Bityutskiy@nokia.com>
 
-Fix calculation of iova address space for IOMMU-aware dma mapping.
+On Fri, Mar 09, 2012 at 11:15:46AM +0100, Jan Kara wrote:
+> On Sat 03-03-12 21:55:58, Wu Fengguang wrote:
+> > On Fri, Mar 02, 2012 at 11:57:00AM -0800, Andrew Morton wrote:
+> > > On Fri, 2 Mar 2012 18:39:51 +0800
+> > > Fengguang Wu <fengguang.wu@intel.com> wrote:
+> > > 
+> > > > > And I agree it's unlikely but given enough time and people, I
+> > > > > believe someone finds a way to (inadvertedly) trigger this.
+> > > > 
+> > > > Right. The pageout works could add lots more iput() to the flusher
+> > > > and turn some hidden statistical impossible bugs into real ones.
+> > > > 
+> > > > Fortunately the "flusher deadlocks itself" case is easy to detect and
+> > > > prevent as illustrated in another email.
+> > > 
+> > > It would be a heck of a lot safer and saner to avoid the iput().  We
+> > > know how to do this, so why not do it?
+> > 
+> > My concern about the page lock is, it costs more code and sounds like
+> > hacking around something. It seems we (including me) have been trying
+> > to shun away from the iput() problem. Since it's unlikely we are to
+> > get rid of the already existing iput() calls from the flusher context,
+> > why not face the problem, sort it out and use it with confident in new
+> > code?
+>   We can get rid of it in the current code - see my patch set. And also we
+> don't have to introduce new iput() with your patch set... I don't think
+> using ->writepage() directly on a locked page would be a good thing because
+> filesystems tend to ignore it completely (e.g. ext4 if it needs to do an
+> allocation, or btrfs) or are much less efficient than when ->writepages()
+> is used.  So I'd prefer going through writeback_single_inode() as the rest
+> of flusher thread.
 
-Reported-by: Krishna Reddy <vdumpa@nvidia.com>
-Signed-off-by: Marek Szyprowski <m.szyprowski@samsung.com>
----
- arch/arm/mm/dma-mapping.c |    5 ++++-
- 1 files changed, 4 insertions(+), 1 deletions(-)
+Totally agreed. I was also not feeling good to use ->writepage() on
+the locked page. It looks very nice to pin the inode with I_SYNC
+rather than igrab or lock_page.
 
-diff --git a/arch/arm/mm/dma-mapping.c b/arch/arm/mm/dma-mapping.c
-index ea5a0ad..f0f600a 100644
---- a/arch/arm/mm/dma-mapping.c
-+++ b/arch/arm/mm/dma-mapping.c
-@@ -1601,11 +1601,14 @@ struct dma_iommu_mapping *
- arm_iommu_create_mapping(struct bus_type *bus, dma_addr_t base, size_t size,
- 			 int order)
- {
--	unsigned int count = (size >> PAGE_SHIFT) - order;
-+	unsigned int count = size >> (PAGE_SHIFT + order);
- 	unsigned int bitmap_size = BITS_TO_LONGS(count) * sizeof(long);
- 	struct dma_iommu_mapping *mapping;
- 	int err = -ENOMEM;
- 
-+	if (!count)
-+		return ERR_PTR(-EINVAL);
-+
- 	mapping = kzalloc(sizeof(struct dma_iommu_mapping), GFP_KERNEL);
- 	if (!mapping)
- 		goto err;
--- 
-1.7.1.569.g6f426
+> > Let me try it now. The only scheme iput() can deadlock the flusher is
+> > for the iput() path to come back to queue some work and wait for it.
+>   Let me stop you right here. You severely underestimate the complexity of
+> filesystems :). Take for example ext4. To do truncate you need to start a
+> transaction, to start a transaction, you have to have a space in journal.
+> To have a space in journal, you may have to wait for any other process to
+> finish writing. If that process needs to wait for flusher thread to be able
+> to finish writing, you have a deadlock. And there are other implicit
+> dependencies like this. And it's similar for other filesystems as well. So
+> you really want to make flusher thread as light as possible with the
+> dependencies.
+
+Ah OK, please forgive my ignorance. Let's get rid of the existing
+iput()s in the flusher thread.
+
+Thanks,
+Fengguang
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
