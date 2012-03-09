@@ -1,13 +1,13 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx130.postini.com [74.125.245.130])
-	by kanga.kvack.org (Postfix) with SMTP id 513186B007E
-	for <linux-mm@kvack.org>; Fri,  9 Mar 2012 15:39:40 -0500 (EST)
-Received: by vcqp1 with SMTP id p1so257682vcq.2
-        for <linux-mm@kvack.org>; Fri, 09 Mar 2012 12:39:39 -0800 (PST)
+Received: from psmtp.com (na3sys010amx103.postini.com [74.125.245.103])
+	by kanga.kvack.org (Postfix) with SMTP id 4D1F26B00EC
+	for <linux-mm@kvack.org>; Fri,  9 Mar 2012 15:39:41 -0500 (EST)
+Received: by ggki24 with SMTP id i24so257046ggk.2
+        for <linux-mm@kvack.org>; Fri, 09 Mar 2012 12:39:40 -0800 (PST)
 From: Suleiman Souhlal <ssouhlal@FreeBSD.org>
-Subject: [PATCH v2 05/13] memcg: Reclaim when more than one page needed.
-Date: Fri,  9 Mar 2012 12:39:08 -0800
-Message-Id: <1331325556-16447-6-git-send-email-ssouhlal@FreeBSD.org>
+Subject: [PATCH v2 13/13] memcg: Document kernel memory accounting.
+Date: Fri,  9 Mar 2012 12:39:16 -0800
+Message-Id: <1331325556-16447-14-git-send-email-ssouhlal@FreeBSD.org>
 In-Reply-To: <1331325556-16447-1-git-send-email-ssouhlal@FreeBSD.org>
 References: <1331325556-16447-1-git-send-email-ssouhlal@FreeBSD.org>
 Sender: owner-linux-mm@kvack.org
@@ -15,84 +15,81 @@ List-ID: <linux-mm.kvack.org>
 To: cgroups@vger.kernel.org
 Cc: suleiman@google.com, glommer@parallels.com, kamezawa.hiroyu@jp.fujitsu.com, penberg@kernel.org, cl@linux.com, yinghan@google.com, hughd@google.com, gthelen@google.com, peterz@infradead.org, dan.magenheimer@oracle.com, hannes@cmpxchg.org, mgorman@suse.de, James.Bottomley@HansenPartnership.com, linux-mm@kvack.org, devel@openvz.org, linux-kernel@vger.kernel.org, Suleiman Souhlal <ssouhlal@FreeBSD.org>
 
-mem_cgroup_do_charge() was written before slab accounting, and expects
-three cases: being called for 1 page, being called for a stock of 32 pages,
-or being called for a hugepage.  If we call for 2 pages (and several slabs
-used in process creation are such, at least with the debug options I had),
-it assumed it's being called for stock and just retried without reclaiming.
-
-Fix that by passing down a minsize argument in addition to the csize.
-
-And what to do about that (csize == PAGE_SIZE && ret) retry?  If it's
-needed at all (and presumably is since it's there, perhaps to handle
-races), then it should be extended to more than PAGE_SIZE, yet how far?
-And should there be a retry count limit, of what?  For now retry up to
-COSTLY_ORDER (as page_alloc.c does), stay safe with a cond_resched(),
-and make sure not to do it if __GFP_NORETRY.
-
 Signed-off-by: Suleiman Souhlal <suleiman@google.com>
 ---
- mm/memcontrol.c |   17 ++++++++++-------
- 1 files changed, 10 insertions(+), 7 deletions(-)
+ Documentation/cgroups/memory.txt |   44 ++++++++++++++++++++++++++++++++++---
+ 1 files changed, 40 insertions(+), 4 deletions(-)
 
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index f605100..2576a2b 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -2168,7 +2168,7 @@ enum {
- };
+diff --git a/Documentation/cgroups/memory.txt b/Documentation/cgroups/memory.txt
+index 4c95c00..73f2e38 100644
+--- a/Documentation/cgroups/memory.txt
++++ b/Documentation/cgroups/memory.txt
+@@ -74,6 +74,11 @@ Brief summary of control files.
  
- static int mem_cgroup_do_charge(struct mem_cgroup *memcg, gfp_t gfp_mask,
--				unsigned int nr_pages, bool oom_check)
-+    unsigned int nr_pages, unsigned int min_pages, bool oom_check)
- {
- 	unsigned long csize = nr_pages * PAGE_SIZE;
- 	struct mem_cgroup *mem_over_limit;
-@@ -2191,18 +2191,18 @@ static int mem_cgroup_do_charge(struct mem_cgroup *memcg, gfp_t gfp_mask,
- 	} else
- 		mem_over_limit = mem_cgroup_from_res_counter(fail_res, res);
- 	/*
--	 * nr_pages can be either a huge page (HPAGE_PMD_NR), a batch
--	 * of regular pages (CHARGE_BATCH), or a single regular page (1).
--	 *
- 	 * Never reclaim on behalf of optional batching, retry with a
- 	 * single page instead.
- 	 */
--	if (nr_pages == CHARGE_BATCH)
-+	if (nr_pages > min_pages)
- 		return CHARGE_RETRY;
+  memory.kmem.tcp.limit_in_bytes  # set/show hard limit for tcp buf memory
+  memory.kmem.tcp.usage_in_bytes  # show current tcp buf memory allocation
++ memory.kmem.usage_in_bytes	 # show current kernel memory usage
++ memory.kmem.limit_in_bytes	 # show/set limit of kernel memory usage
++ memory.kmem.independent_kmem_limit # show/set control of kernel memory limit
++ 				    (See 2.7 for details)
++ memory.kmem.slabinfo		 # show cgroup's slabinfo
  
- 	if (!(gfp_mask & __GFP_WAIT))
- 		return CHARGE_WOULDBLOCK;
+ 1. History
  
-+	if (gfp_mask & __GFP_NORETRY)
-+		return CHARGE_NOMEM;
+@@ -265,11 +270,19 @@ the amount of kernel memory used by the system. Kernel memory is fundamentally
+ different than user memory, since it can't be swapped out, which makes it
+ possible to DoS the system by consuming too much of this precious resource.
+ 
+-Kernel memory limits are not imposed for the root cgroup. Usage for the root
+-cgroup may or may not be accounted.
++Kernel memory limits are not imposed for the root cgroup.
+ 
+-Currently no soft limit is implemented for kernel memory. It is future work
+-to trigger slab reclaim when those limits are reached.
++A cgroup's kernel memory is counted into its memory.kmem.usage_in_bytes.
 +
- 	ret = mem_cgroup_reclaim(mem_over_limit, gfp_mask, flags);
- 	if (mem_cgroup_margin(mem_over_limit) >= nr_pages)
- 		return CHARGE_RETRY;
-@@ -2215,8 +2215,10 @@ static int mem_cgroup_do_charge(struct mem_cgroup *memcg, gfp_t gfp_mask,
- 	 * unlikely to succeed so close to the limit, and we fall back
- 	 * to regular pages anyway in case of failure.
- 	 */
--	if (nr_pages == 1 && ret)
-+	if (nr_pages <= (PAGE_SIZE << PAGE_ALLOC_COSTLY_ORDER) && ret) {
-+		cond_resched();
- 		return CHARGE_RETRY;
-+	}
++memory.kmem.independent_kmem_limit controls whether or not kernel memory
++should also be counted into the cgroup's memory.usage_in_bytes.
++If it is set, it is possible to specify a limit for kernel memory with
++memory.kmem.limit_in_bytes.
++
++Upon cgroup deletion, all the remaining kernel memory becomes unaccounted.
++
++An accounted kernel memory allocation may trigger reclaim in that cgroup,
++and may also OOM.
  
- 	/*
- 	 * At task move, charge accounts can be doubly counted. So, it's
-@@ -2350,7 +2352,8 @@ again:
- 			nr_oom_retries = MEM_CGROUP_RECLAIM_RETRIES;
- 		}
+ 2.7.1 Current Kernel Memory resources accounted
  
--		ret = mem_cgroup_do_charge(memcg, gfp_mask, batch, oom_check);
-+		ret = mem_cgroup_do_charge(memcg, gfp_mask, batch, nr_pages,
-+		    oom_check);
- 		switch (ret) {
- 		case CHARGE_OK:
- 			break;
+@@ -279,6 +292,29 @@ per cgroup, instead of globally.
+ 
+ * tcp memory pressure: sockets memory pressure for the tcp protocol.
+ 
++* slab memory.
++
++2.7.1.1 Slab memory accounting
++
++Any slab type created with the SLAB_MEMCG_ACCT kmem_cache_create() flag
++is accounted.
++
++Slab gets accounted on a per-page basis, which is done by using per-cgroup
++kmem_caches. These per-cgroup kmem_caches get created on-demand, the first
++time a specific kmem_cache gets used by a cgroup.
++
++Only slab memory that can be attributed to a cgroup gets accounted in this
++fashion.
++
++A per-cgroup kmem_cache is named like the original, with the cgroup's name
++in parentheses.
++
++When a cgroup is destroyed, all its kmem_caches get migrated to the root
++cgroup, and "dead" is appended to their name, to indicate that they are not
++going to be used for new allocations.
++These dead caches automatically get removed once there are no more active
++slab objects in them.
++
+ 3. User Interface
+ 
+ 0. Configuration
 -- 
 1.7.7.3
 
