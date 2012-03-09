@@ -1,56 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx129.postini.com [74.125.245.129])
-	by kanga.kvack.org (Postfix) with SMTP id 571BD6B004D
-	for <linux-mm@kvack.org>; Thu,  8 Mar 2012 21:07:26 -0500 (EST)
-Received: by iajr24 with SMTP id r24so2080509iaj.14
-        for <linux-mm@kvack.org>; Thu, 08 Mar 2012 18:07:25 -0800 (PST)
-Date: Thu, 8 Mar 2012 18:06:50 -0800 (PST)
+Received: from psmtp.com (na3sys010amx165.postini.com [74.125.245.165])
+	by kanga.kvack.org (Postfix) with SMTP id 318A66B002C
+	for <linux-mm@kvack.org>; Thu,  8 Mar 2012 21:33:51 -0500 (EST)
+Received: by iajr24 with SMTP id r24so2116112iaj.14
+        for <linux-mm@kvack.org>; Thu, 08 Mar 2012 18:33:50 -0800 (PST)
+Date: Thu, 8 Mar 2012 18:33:14 -0800 (PST)
 From: Hugh Dickins <hughd@google.com>
-Subject: Re: [PATCH 3/7 v2] mm: rework __isolate_lru_page() file/anon
- filter
-In-Reply-To: <20120308143034.f3521b1e.kamezawa.hiroyu@jp.fujitsu.com>
-Message-ID: <alpine.LSU.2.00.1203081758490.18195@eggly.anvils>
-References: <20120229091547.29236.28230.stgit@zurg> <20120303091327.17599.80336.stgit@zurg> <alpine.LSU.2.00.1203061904570.18675@eggly.anvils> <20120308143034.f3521b1e.kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH v3 2/2] memcg: avoid THP split in task migration
+In-Reply-To: <20120309101658.8b36ce4f.kamezawa.hiroyu@jp.fujitsu.com>
+Message-ID: <alpine.LSU.2.00.1203081816170.18242@eggly.anvils>
+References: <1330719189-20047-1-git-send-email-n-horiguchi@ah.jp.nec.com> <1330719189-20047-2-git-send-email-n-horiguchi@ah.jp.nec.com> <20120309101658.8b36ce4f.kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Konstantin Khlebnikov <khlebnikov@openvz.org>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <jweiner@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Hillf Danton <dhillf@gmail.com>, linux-kernel@vger.kernel.org
 
-On Thu, 8 Mar 2012, KAMEZAWA Hiroyuki wrote:
-> On Tue, 6 Mar 2012 19:22:21 -0800 (PST)
-> Hugh Dickins <hughd@google.com> wrote:
-> > 
-> > What does the compiler say (4.5.1 here, OPTIMIZE_FOR_SIZE off)?
-> >    text	   data	    bss	    dec	    hex	filename
-> >   17723	    113	     17	  17853	   45bd	vmscan.o.0
-> >   17671	    113	     17	  17801	   4589	vmscan.o.1
-> >   17803	    113	     17	  17933	   460d	vmscan.o.2
-> > 
-> > That suggests that your v2 is the worst and your v1 the best.
-> > Kame, can I persuade you to let the compiler decide on this?
-> > 
+On Fri, 9 Mar 2012, KAMEZAWA Hiroyuki wrote:
+> > +
+> > +	page = pmd_page(pmd);
+> > +	VM_BUG_ON(!page || !PageHead(page));
+> > +	if (!move_anon() || page_mapcount(page) != 1)
+> > +		return 0;
 > 
-> Hmm. How about Costa' proposal ? as
-> 
-> int tmp_var = PageActive(page) ? ISOLATE_ACTIVE : ISOLATE_INACTIVE
-> if (!(mode & tmp_var))
->     ret;
+> Could you add this ?
+> ==
+> static bool move_check_shared_map(struct page *page)
+> {
+>   /*
+>    * Handling of shared pages between processes is a big trouble in memcg.
+>    * Now, we never move shared-mapped pages between memcg at 'task' moving because
+>    * we have no hint which task the page is really belongs to. For example, 
+>    * When a task does "fork()-> move to the child other group -> exec()", the charges
+>    * should be stay in the original cgroup. 
+>    * So, check mapcount to determine we can move or not.
+>    */
+>    return page_mapcount(page) != 1;
+> }
 
-Yes, that would have been a good compromise (given a better name
-than "tmp_var"!), I didn't realize that one was acceptable to you.
+That's a helpful elucidation, thank you.  However...
 
-But I see that Konstantin has been inspired by our disagreement to a
-more creative solution.
+That is not how it has actually been behaving for the last 18 months
+(because of the "> 2" bug), so in practice you are asking for a change
+in behaviour there.
 
-I like very much the look of what he's come up with, but I'm still
-puzzling over why it barely makes any improvement to __isolate_lru_page():
-seems significantly inferior (in code size terms) to his original (which
-I imagine Glauber's compromise would be equivalent to).
+And it's not how it has been and continues to behave with file pages.
 
-At some point I ought to give up on niggling about this,
-but I haven't quite got there yet.
+Isn't getting that behaviour in fork-move-exec just a good reason not
+to set move_charge_at_immigrate?
+
+I think there are other scenarios where you do want all the pages to
+move if move_charge_at_immigrate: and that's certainly easier to
+describe and to understand and to code.
+
+But if you do insist on not moving the shared, then it needs to involve
+something like mem_cgroup_count_swap_user() on PageSwapCache pages,
+rather than just the bare page_mapcount().
+
+I'd rather delete than add code here!
 
 Hugh
 
