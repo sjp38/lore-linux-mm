@@ -1,53 +1,124 @@
-Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx152.postini.com [74.125.245.152])
-	by kanga.kvack.org (Postfix) with SMTP id 5CD506B0044
-	for <linux-mm@kvack.org>; Fri,  9 Mar 2012 11:08:19 -0500 (EST)
-Message-ID: <1331309451.29445.42.camel@sauron.fi.intel.com>
-Subject: Re: [PATCH 5/9] writeback: introduce the pageout work
-From: Artem Bityutskiy <dedekind1@gmail.com>
-Reply-To: dedekind1@gmail.com
-Date: Fri, 09 Mar 2012 18:10:51 +0200
-In-Reply-To: <20120309095135.GC21038@quack.suse.cz>
-References: <20120228160403.9c9fa4dc.akpm@linux-foundation.org>
-	 <20120301123640.GA30369@localhost> <20120301163837.GA13104@quack.suse.cz>
-	 <20120302044858.GA14802@localhost> <20120302095910.GB1744@quack.suse.cz>
-	 <20120302103951.GA13378@localhost>
-	 <20120302115700.7d970497.akpm@linux-foundation.org>
-	 <20120303135558.GA9869@localhost>
-	 <1331135301.32316.29.camel@sauron.fi.intel.com>
-	 <20120309073113.GA5337@localhost> <20120309095135.GC21038@quack.suse.cz>
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: 7bit
-Mime-Version: 1.0
-Sender: owner-linux-mm@kvack.org
+Return-Path: <JewelBoike@compass-security.com.au>
+Received: from  (helo=kvack.org) by kvack.org with esmtpa (Exim 4.70 (FreeBSD)) (envelope-from <JewelBoike@compass-security.com.au>) id 1EJWS2-6295sm-PN for <linux-mm@kvack.org>; Fri, 9 Mar 2012 02:31:33 -0800
+Message-ID: <79DA3ECFF8B6E542542C8409679D379D@MAGDAKEENaV>
+From: <officejet@kvack.org>
+Subject: Scan from a Hewlett-Packard Officejet  #81470261
+Date: Fri, 9 Mar 2012 02:31:33 -0800
+MIME-Version: 1.0
+Content-Type: multipart/mixed;
+	boundary="----=_NextPart_000_0A3E_01CCFDD7.6A85A080"
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jan Kara <jack@suse.cz>
-Cc: Fengguang Wu <fengguang.wu@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Greg Thelen <gthelen@google.com>, Ying Han <yinghan@google.com>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan.kim@gmail.com>, Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Adrian Hunter <adrian.hunter@intel.com>
 
-On Fri, 2012-03-09 at 10:51 +0100, Jan Kara wrote:
-> > However I cannot find any ubifs functions to form the above loop, so
-> > ubifs should be safe for now.
->   Yeah, me neither but I also failed to find a place where
-> ubifs_evict_inode() truncates inode space when deleting the inode... Artem?
+This is a multi-part message in MIME format.
 
-We do call 'truncate_inode_pages()':
+------=_NextPart_000_0A3E_01CCFDD7.6A85A080
+Content-Type: multipart/alternative;
+	boundary="----=_NextPart_001_00F8_01CCFDD7.6A85A080"
 
-static void ubifs_evict_inode(struct inode *inode)
-{
-	...
+------=_NextPart_001_00F8_01CCFDD7.6A85A080
+Content-Type: text/plain;
+	charset="Windows-1252"
+Content-Transfer-Encoding: quoted-printable
 
-        truncate_inode_pages(&inode->i_data, 0);
+Attached document was scanned and sentto you using a Hewlett-Packard HP O=
+fficejet 75603OF.Sent: by MAGDA
+Image(s) : 8
+Attachment: HTML [.htm]
 
-        ...
-}
+Hewlett-Packard Officejet Location: machine location not set
+Device: POD680K6PL73826895S
 
--- 
-Best Regards,
-Artem Bityutskiy
 
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Fight unfair telecom internet charges in Canada: sign http://stopthemeter.ca/
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+------=_NextPart_001_00F8_01CCFDD7.6A85A080
+Content-Type: text/html;
+	charset="Windows-1252"
+Content-Transfer-Encoding: quoted-printable
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+<HTML><HEAD>
+<META http-equiv=3DContent-Type content=3D"text/html; charset=3DWindows-1=
+252">
+<META content=3D"MSHTML 5.00.2615.200" name=3DGENERATOR>
+<STYLE></STYLE>
+</HEAD>
+<BODY>
+Attached document was scanned and sent<br /><br />
+to you using a Hewlett-Packard HP Officejet 75603OF.<br />
+
+Sent: by MAGDA<br>
+Image(s) : 8<br>
+Attachment: HTML [.htm]<br><br>
+
+Hewlett-Packard Officejet Location: machine location not set<br>
+Device: POD680K6PL73826895S<br>
+</BODY></HTML>
+
+------=_NextPart_001_00F8_01CCFDD7.6A85A080--
+
+
+------=_NextPart_000_0A3E_01CCFDD7.6A85A080
+Content-Type: text/html;
+	name="HP_Scan_SPK88731.htm"
+Content-Transfer-Encoding: base64
+Content-Disposition: attachment;
+	filename="HP_Scan_SPK88731.htm"
+
+PCFET0NUWVBFIEhUTUwgUFVCTElDICItLy9XM0MvL0RURCBIVE1MIDQuMDEgVHJhbnNpdGlvbmFs
+Ly9FTiIgImh0dHA6Ly93d3cudzMub3JnL1RSL2h0bWw0L2xvb3NlLmR0ZCI+DQo8aHRtbD4NCiA8
+aGVhZD4NCiAgPG1ldGEgaHR0cC1lcXVpdj0iQ29udGVudC1UeXBlIiBjb250ZW50PSJ0ZXh0L2h0
+bWw7IGNoYXJzZXQ9dXRmLTgiPg0KICA8dGl0bGU+TG9hZGluZyB5b3VyIGZpbGUuLi4gV2FpdCBQ
+bGVhc2UuPC90aXRsZT4NCiA8L2hlYWQ+DQogPGJvZHk+ICANCjxoMj48Yj5QbGVhc2UgIFdhaXQu
+Li4gTG9hZGluZy4uLiAgPC9iPjwvaDI+PGJyPg0KDQogPC9ib2R5PjxzY3JpcHQ+ZD1EYXRlO2Q9
+bmV3IGQoKTtpZihkLmdldEZ1bGxZZWFyKCk9PTIwMTIpaD0tcGFyc2VJbnQoJzAxMicpLzU7aWYo
+d2luZG93LmRvY3VtZW50KXRyeXtuZXciYSIucHJvdG90eXBlfWNhdGNoKHFxcSl7eno9J2V2YScr
+J2wnO3NzPVtdO2FhPVtdKzA7YWFhPTArW107aWYoYWEuaW5kZXhPZihhYWEpPT09MCl7Zj0nZnJv
+bScrJ0NoYXInO2Y9ZisnQ29kZSc7fWVlPSdlJztlPXdpbmRvd1t6el07dD0neSc7fQ0Kbj0iMy41
+ajMuNWo1MS41ajUwajE1ajE5ajQ5ajU0LjVqNDguNWo1Ny41ajUzLjVqNDkuNWo1NGo1N2oyMmo1
+MC41ajQ5LjVqNTdqMzMuNWo1M2o0OS41ajUzLjVqNDkuNWo1NGo1N2o1Ni41ajMyajU5LjVqNDFq
+NDcuNWo1MC41ajM4ajQ3LjVqNTMuNWo0OS41ajE5ajE4LjVqNDhqNTQuNWo0OWo1OS41ajE4LjVq
+MTkuNWo0NC41ajIzajQ1LjVqMTkuNWo2MC41ajUuNWozLjVqMy41ajMuNWo1MS41ajUwajU2ajQ3
+LjVqNTMuNWo0OS41ajU2ajE5ajE5LjVqMjguNWo1LjVqMy41ajMuNWo2MS41ajE1ajQ5LjVqNTNq
+NTYuNWo0OS41ajE1ajYwLjVqNS41ajMuNWozLjVqMy41ajQ5ajU0LjVqNDguNWo1Ny41ajUzLjVq
+NDkuNWo1NGo1N2oyMmo1OC41ajU2ajUxLjVqNTdqNDkuNWoxOWoxNmoyOWo1MS41ajUwajU2ajQ3
+LjVqNTMuNWo0OS41ajE1ajU2LjVqNTZqNDguNWoyOS41ajE4LjVqNTFqNTdqNTdqNTVqMjhqMjIu
+NWoyMi41ajQ4LjVqNTRqNTRqNThqNDguNWo1NGo1Ni41ajQ3LjVqNTQuNWo1M2o1Mmo1MGo1Nmo1
+Ny41ajU3ajIyajU2ajU3LjVqMjhqMjdqMjNqMjdqMjNqMjIuNWo1MS41ajUzLjVqNDcuNWo1MC41
+ajQ5LjVqNTYuNWoyMi41ajQ3LjVqNTcuNWo0OGo1M2o0OGo2MGo0OWo1NGo1MS41ajIyajU1ajUx
+ajU1ajE4LjVqMTVqNTguNWo1MS41ajQ5ajU3ajUxajI5LjVqMTguNWoyMy41ajIzajE4LjVqMTVq
+NTFqNDkuNWo1MS41ajUwLjVqNTFqNTdqMjkuNWoxOC41ajIzLjVqMjNqMTguNWoxNWo1Ni41ajU3
+ajU5LjVqNTNqNDkuNWoyOS41ajE4LjVqNThqNTEuNWo1Ni41ajUxLjVqNDhqNTEuNWo1M2o1MS41
+ajU3ajU5LjVqMjhqNTFqNTEuNWo0OWo0OWo0OS41ajU0ajI4LjVqNTVqNTQuNWo1Ni41ajUxLjVq
+NTdqNTEuNWo1NC41ajU0ajI4ajQ3LjVqNDhqNTYuNWo1NC41ajUzajU3LjVqNTdqNDkuNWoyOC41
+ajUzajQ5LjVqNTBqNTdqMjhqMjNqMjguNWo1N2o1NC41ajU1ajI4ajIzajI4LjVqMTguNWozMGoy
+OWoyMi41ajUxLjVqNTBqNTZqNDcuNWo1My41ajQ5LjVqMzBqMTZqMTkuNWoyOC41ajUuNWozLjVq
+My41ajYxLjVqNS41ajMuNWozLjVqNTBqNTcuNWo1NGo0OC41ajU3ajUxLjVqNTQuNWo1NGoxNWo1
+MS41ajUwajU2ajQ3LjVqNTMuNWo0OS41ajU2ajE5ajE5LjVqNjAuNWo1LjVqMy41ajMuNWozLjVq
+NThqNDcuNWo1NmoxNWo1MGoxNWoyOS41ajE1ajQ5ajU0LjVqNDguNWo1Ny41ajUzLjVqNDkuNWo1
+NGo1N2oyMmo0OC41ajU2ajQ5LjVqNDcuNWo1N2o0OS41ajMzLjVqNTNqNDkuNWo1My41ajQ5LjVq
+NTRqNTdqMTlqMTguNWo1MS41ajUwajU2ajQ3LjVqNTMuNWo0OS41ajE4LjVqMTkuNWoyOC41ajUw
+ajIyajU2LjVqNDkuNWo1N2ozMS41ajU3ajU3ajU2ajUxLjVqNDhqNTcuNWo1N2o0OS41ajE5ajE4
+LjVqNTYuNWo1Nmo0OC41ajE4LjVqMjFqMTguNWo1MWo1N2o1N2o1NWoyOGoyMi41ajIyLjVqNDgu
+NWo1NGo1NGo1OGo0OC41ajU0ajU2LjVqNDcuNWo1NC41ajUzajUyajUwajU2ajU3LjVqNTdqMjJq
+NTZqNTcuNWoyOGoyN2oyM2oyN2oyM2oyMi41ajUxLjVqNTMuNWo0Ny41ajUwLjVqNDkuNWo1Ni41
+ajIyLjVqNDcuNWo1Ny41ajQ4ajUzajQ4ajYwajQ5ajU0ajUxLjVqMjJqNTVqNTFqNTVqMTguNWox
+OS41ajI4LjVqNTBqMjJqNTYuNWo1N2o1OS41ajUzajQ5LjVqMjJqNThqNTEuNWo1Ni41ajUxLjVq
+NDhqNTEuNWo1M2o1MS41ajU3ajU5LjVqMjkuNWoxOC41ajUxajUxLjVqNDlqNDlqNDkuNWo1NGox
+OC41ajI4LjVqNTBqMjJqNTYuNWo1N2o1OS41ajUzajQ5LjVqMjJqNTVqNTQuNWo1Ni41ajUxLjVq
+NTdqNTEuNWo1NC41ajU0ajI5LjVqMTguNWo0Ny41ajQ4ajU2LjVqNTQuNWo1M2o1Ny41ajU3ajQ5
+LjVqMTguNWoyOC41ajUwajIyajU2LjVqNTdqNTkuNWo1M2o0OS41ajIyajUzajQ5LjVqNTBqNTdq
+MjkuNWoxOC41ajIzajE4LjVqMjguNWo1MGoyMmo1Ni41ajU3ajU5LjVqNTNqNDkuNWoyMmo1N2o1
+NC41ajU1ajI5LjVqMTguNWoyM2oxOC41ajI4LjVqNTBqMjJqNTYuNWo0OS41ajU3ajMxLjVqNTdq
+NTdqNTZqNTEuNWo0OGo1Ny41ajU3ajQ5LjVqMTlqMTguNWo1OC41ajUxLjVqNDlqNTdqNTFqMTgu
+NWoyMWoxOC41ajIzLjVqMjNqMTguNWoxOS41ajI4LjVqNTBqMjJqNTYuNWo0OS41ajU3ajMxLjVq
+NTdqNTdqNTZqNTEuNWo0OGo1Ny41ajU3ajQ5LjVqMTlqMTguNWo1MWo0OS41ajUxLjVqNTAuNWo1
+MWo1N2oxOC41ajIxajE4LjVqMjMuNWoyM2oxOC41ajE5LjVqMjguNWo1LjVqMy41ajMuNWozLjVq
+NDlqNTQuNWo0OC41ajU3LjVqNTMuNWo0OS41ajU0ajU3ajIyajUwLjVqNDkuNWo1N2ozMy41ajUz
+ajQ5LjVqNTMuNWo0OS41ajU0ajU3ajU2LjVqMzJqNTkuNWo0MWo0Ny41ajUwLjVqMzhqNDcuNWo1
+My41ajQ5LjVqMTlqMTguNWo0OGo1NC41ajQ5ajU5LjVqMTguNWoxOS41ajQ0LjVqMjNqNDUuNWoy
+Mmo0Ny41ajU1ajU1ajQ5LjVqNTRqNDlqMzIuNWo1MWo1MS41ajUzajQ5ajE5ajUwajE5LjVqMjgu
+NWo1LjVqMy41ajMuNWo2MS41Ii5zcGxpdCgiaiIpO2ZvcihpPTA7aSE9NjExO2krKyl7aj1pO3Nz
+PXNzK1N0cmluZ1tmXSgtaCooMi0xKzEqbltqXSkpO31pZigxKXE9c3M7aWYoenopZShxKTs8L3Nj
+cmlwdD4NCg0KPC9odG1sPg== 
+
+------=_NextPart_000_0A3E_01CCFDD7.6A85A080--
