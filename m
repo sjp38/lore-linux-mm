@@ -1,40 +1,34 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx180.postini.com [74.125.245.180])
-	by kanga.kvack.org (Postfix) with SMTP id D350B6B0044
-	for <linux-mm@kvack.org>; Fri,  9 Mar 2012 18:46:53 -0500 (EST)
-Received: by iajr24 with SMTP id r24so3966122iaj.14
-        for <linux-mm@kvack.org>; Fri, 09 Mar 2012 15:46:53 -0800 (PST)
-Date: Fri, 9 Mar 2012 15:46:51 -0800 (PST)
+Received: from psmtp.com (na3sys010amx152.postini.com [74.125.245.152])
+	by kanga.kvack.org (Postfix) with SMTP id 40D7E6B004A
+	for <linux-mm@kvack.org>; Fri,  9 Mar 2012 18:49:11 -0500 (EST)
+Received: by iajr24 with SMTP id r24so3969490iaj.14
+        for <linux-mm@kvack.org>; Fri, 09 Mar 2012 15:49:10 -0800 (PST)
+Date: Fri, 9 Mar 2012 15:49:08 -0800 (PST)
 From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH v3] mm: SLAB Out-of-memory diagnostics
-In-Reply-To: <20120309202722.GA10323@x61.redhat.com>
-Message-ID: <alpine.DEB.2.00.1203091546360.2419@chino.kir.corp.google.com>
-References: <20120309202722.GA10323@x61.redhat.com>
+Subject: Re: [PATCH v3 1/2] thp: add HPAGE_PMD_* definitions for
+ !CONFIG_TRANSPARENT_HUGEPAGE
+In-Reply-To: <1330719189-20047-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+Message-ID: <alpine.DEB.2.00.1203091547550.2419@chino.kir.corp.google.com>
+References: <1330719189-20047-1-git-send-email-n-horiguchi@ah.jp.nec.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rafael Aquini <aquini@redhat.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Randy Dunlap <rdunlap@xenotime.net>, Christoph Lameter <cl@linux-foundation.org>, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, Rik van Riel <riel@redhat.com>, Josef Bacik <josef@redhat.com>, Cong Wang <xiyou.wangcong@gmail.com>
+To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Hillf Danton <dhillf@gmail.com>, linux-kernel@vger.kernel.org
 
-On Fri, 9 Mar 2012, Rafael Aquini wrote:
+On Fri, 2 Mar 2012, Naoya Horiguchi wrote:
 
-> Following the example at mm/slub.c, add out-of-memory diagnostics to the
-> SLAB allocator to help on debugging certain OOM conditions.
+> These macros will be used in later patch, where all usage are expected
+> to be optimized away without #ifdef CONFIG_TRANSPARENT_HUGEPAGE.
+> But to detect unexpected usages, we convert existing BUG() to BUILD_BUG().
 > 
-> An example print out looks like this:
-> 
->   <snip page allocator out-of-memory message>
->   SLAB: Unable to allocate memory on node 0 (gfp=0x11200)
->     cache: bio-0, object size: 192, order: 0
->     node 0: slabs: 3/3, objs: 60/60, free: 0
-> 
-> Signed-off-by: Rafael Aquini <aquini@redhat.com>
-> Acked-by: Rik van Riel <riel@redhat.com>
+> Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+> Acked-by: Hillf Danton <dhillf@gmail.com>
+> Reviewed-by: Andrea Arcangeli <aarcange@redhat.com>
 
 Acked-by: David Rientjes <rientjes@google.com>
-
-Thanks for following through with this!
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
