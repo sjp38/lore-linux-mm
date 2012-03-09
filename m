@@ -1,45 +1,114 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx163.postini.com [74.125.245.163])
-	by kanga.kvack.org (Postfix) with SMTP id 2F42E6B0044
-	for <linux-mm@kvack.org>; Fri,  9 Mar 2012 14:59:11 -0500 (EST)
-Received: by iajr24 with SMTP id r24so3636631iaj.14
-        for <linux-mm@kvack.org>; Fri, 09 Mar 2012 11:59:09 -0800 (PST)
-Date: Fri, 9 Mar 2012 11:58:34 -0800 (PST)
-From: Hugh Dickins <hughd@google.com>
-Subject: Re: [PATCH 3.3] memcg: free mem_cgroup by RCU to fix oops
-In-Reply-To: <alpine.LSU.2.00.1203072155140.11048@eggly.anvils>
-Message-ID: <alpine.LSU.2.00.1203091138260.19300@eggly.anvils>
-References: <alpine.LSU.2.00.1203072155140.11048@eggly.anvils>
+Received: from psmtp.com (na3sys010amx129.postini.com [74.125.245.129])
+	by kanga.kvack.org (Postfix) with SMTP id 6519E6B0044
+	for <linux-mm@kvack.org>; Fri,  9 Mar 2012 15:29:17 -0500 (EST)
+Date: Fri, 9 Mar 2012 17:27:27 -0300
+From: Rafael Aquini <aquini@redhat.com>
+Subject: [PATCH v3] mm: SLAB Out-of-memory diagnostics
+Message-ID: <20120309202722.GA10323@x61.redhat.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CAOJsxLFQjV1c7nQZMA2voybN0AdhGrKFN5svQHC2C=oP3vOD4g@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Konstantin Khlebnikov <khlebnikov@openvz.org>, Tejun Heo <tj@kernel.org>, Ying Han <yinghan@google.com>, Stanislaw Gruszka <sgruszka@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org, Randy Dunlap <rdunlap@xenotime.net>, Christoph Lameter <cl@linux-foundation.org>, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, Rik van Riel <riel@redhat.com>, Josef Bacik <josef@redhat.com>, David Rientjes <rientjes@google.com>, Cong Wang <xiyou.wangcong@gmail.com>
 
-On Wed, 7 Mar 2012, Hugh Dickins wrote:
-> 
-> I'm posting this a little prematurely to get eyes on it, since it's
-> more than a two-liner, but 3.3 time is running out.  If it is what's
-> needed to fix my oopses, I won't really be sure before Friday morning.
-> What's running now on the machine affected is using kfree_rcu(), but I
-> did hack it earlier to check that the vfree_rcu() alternative works.
+Following the example at mm/slub.c, add out-of-memory diagnostics to the
+SLAB allocator to help on debugging certain OOM conditions.
 
-Yes, please do send that patch on to Linus for 3.3.
+An example print out looks like this:
 
-It did not get as much as the 36 hours of testing I had hoped for, only
-25 hours so far.  12 hours while I was out yesterday got wasted by a
-wireless driver interrupt spewing approximately one million messages:
+  <snip page allocator out-of-memory message>
+  SLAB: Unable to allocate memory on node 0 (gfp=0x11200)
+    cache: bio-0, object size: 192, order: 0
+    node 0: slabs: 3/3, objs: 60/60, free: 0
 
-iwl3945 0000:08:00.0: MAC is in deep sleep!. CSR_GP_CNTRL = 0xFFFFFFFF
+Signed-off-by: Rafael Aquini <aquini@redhat.com>
+Acked-by: Rik van Riel <riel@redhat.com>
+---
+v2:
+* drop the sysctl knob to override __GFP_NOWARN allocation flag (Pekka, David)
 
-which I've not suffered from before, and hope not again.  Having kdb
-in, I did take a look what was going on with the memcg load when it was
-interrupted: it appeared to be normal, and I've no reason to suppose that
-my kfree_rcu() was in any way responsible for the wireless aberration.
+v3:
+* adjust the print output to match slub's warning printout (WANG Cong)
 
-Thanks,
-Hugh
+ mm/slab.c |   51 ++++++++++++++++++++++++++++++++++++++++++++++++++-
+ 1 files changed, 50 insertions(+), 1 deletions(-)
+
+diff --git a/mm/slab.c b/mm/slab.c
+index f0bd785..cda1ff6 100644
+--- a/mm/slab.c
++++ b/mm/slab.c
+@@ -1731,6 +1731,52 @@ static int __init cpucache_init(void)
+ }
+ __initcall(cpucache_init);
+ 
++static noinline void
++slab_out_of_memory(struct kmem_cache *cachep, gfp_t gfpflags, int nodeid)
++{
++	struct kmem_list3 *l3;
++	struct slab *slabp;
++	unsigned long flags;
++	int node;
++
++	printk(KERN_WARNING
++		"SLAB: Unable to allocate memory on node %d (gfp=0x%x)\n",
++		nodeid, gfpflags);
++	printk(KERN_WARNING "  cache: %s, object size: %d, order: %d\n",
++		cachep->name, cachep->buffer_size, cachep->gfporder);
++
++	for_each_online_node(node) {
++		unsigned long active_objs = 0, num_objs = 0, free_objects = 0;
++		unsigned long active_slabs = 0, num_slabs = 0;
++
++		l3 = cachep->nodelists[node];
++		if (!l3)
++			continue;
++
++		spin_lock_irqsave(&l3->list_lock, flags);
++		list_for_each_entry(slabp, &l3->slabs_full, list) {
++			active_objs += cachep->num;
++			active_slabs++;
++		}
++		list_for_each_entry(slabp, &l3->slabs_partial, list) {
++			active_objs += slabp->inuse;
++			active_slabs++;
++		}
++		list_for_each_entry(slabp, &l3->slabs_free, list)
++			num_slabs++;
++
++		free_objects += l3->free_objects;
++		spin_unlock_irqrestore(&l3->list_lock, flags);
++
++		num_slabs += active_slabs;
++		num_objs = num_slabs * cachep->num;
++		printk(KERN_WARNING
++			"  node %d: slabs: %ld/%ld, objs: %ld/%ld, free: %ld\n",
++			node, active_slabs, num_slabs, active_objs, num_objs,
++			free_objects);
++	}
++}
++
+ /*
+  * Interface to system's page allocator. No need to hold the cache-lock.
+  *
+@@ -1757,8 +1803,11 @@ static void *kmem_getpages(struct kmem_cache *cachep, gfp_t flags, int nodeid)
+ 		flags |= __GFP_RECLAIMABLE;
+ 
+ 	page = alloc_pages_exact_node(nodeid, flags | __GFP_NOTRACK, cachep->gfporder);
+-	if (!page)
++	if (!page) {
++		if (!(flags & __GFP_NOWARN) && printk_ratelimit())
++			slab_out_of_memory(cachep, flags, nodeid);
+ 		return NULL;
++	}
+ 
+ 	nr_pages = (1 << cachep->gfporder);
+ 	if (cachep->flags & SLAB_RECLAIM_ACCOUNT)
+-- 
+1.7.7.6
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
