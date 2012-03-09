@@ -1,77 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx101.postini.com [74.125.245.101])
-	by kanga.kvack.org (Postfix) with SMTP id 9E8C16B0044
-	for <linux-mm@kvack.org>; Fri,  9 Mar 2012 05:15:49 -0500 (EST)
-Date: Fri, 9 Mar 2012 11:15:46 +0100
-From: Jan Kara <jack@suse.cz>
+Received: from psmtp.com (na3sys010amx115.postini.com [74.125.245.115])
+	by kanga.kvack.org (Postfix) with SMTP id 6555D6B0044
+	for <linux-mm@kvack.org>; Fri,  9 Mar 2012 05:21:50 -0500 (EST)
+Message-ID: <1331288661.22872.53.camel@sauron.fi.intel.com>
 Subject: Re: [PATCH 5/9] writeback: introduce the pageout work
-Message-ID: <20120309101546.GA14159@quack.suse.cz>
-References: <20120228140022.614718843@intel.com>
- <20120228144747.198713792@intel.com>
- <20120228160403.9c9fa4dc.akpm@linux-foundation.org>
- <20120301123640.GA30369@localhost>
- <20120301163837.GA13104@quack.suse.cz>
- <20120302044858.GA14802@localhost>
- <20120302095910.GB1744@quack.suse.cz>
- <20120302103951.GA13378@localhost>
- <20120302115700.7d970497.akpm@linux-foundation.org>
- <20120303135558.GA9869@localhost>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20120303135558.GA9869@localhost>
+From: Artem Bityutskiy <dedekind1@gmail.com>
+Reply-To: dedekind1@gmail.com
+Date: Fri, 09 Mar 2012 12:24:21 +0200
+In-Reply-To: <20120309095135.GC21038@quack.suse.cz>
+References: <20120228160403.9c9fa4dc.akpm@linux-foundation.org>
+	 <20120301123640.GA30369@localhost> <20120301163837.GA13104@quack.suse.cz>
+	 <20120302044858.GA14802@localhost> <20120302095910.GB1744@quack.suse.cz>
+	 <20120302103951.GA13378@localhost>
+	 <20120302115700.7d970497.akpm@linux-foundation.org>
+	 <20120303135558.GA9869@localhost>
+	 <1331135301.32316.29.camel@sauron.fi.intel.com>
+	 <20120309073113.GA5337@localhost> <20120309095135.GC21038@quack.suse.cz>
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: 7bit
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Fengguang Wu <fengguang.wu@intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, Greg Thelen <gthelen@google.com>, Ying Han <yinghan@google.com>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan.kim@gmail.com>, Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Adrian Hunter <ext-adrian.hunter@nokia.com>, Artem Bityutskiy <Artem.Bityutskiy@nokia.com>
+To: Jan Kara <jack@suse.cz>
+Cc: Fengguang Wu <fengguang.wu@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Greg Thelen <gthelen@google.com>, Ying Han <yinghan@google.com>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan.kim@gmail.com>, Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Adrian Hunter <adrian.hunter@intel.com>
 
-On Sat 03-03-12 21:55:58, Wu Fengguang wrote:
-> On Fri, Mar 02, 2012 at 11:57:00AM -0800, Andrew Morton wrote:
-> > On Fri, 2 Mar 2012 18:39:51 +0800
-> > Fengguang Wu <fengguang.wu@intel.com> wrote:
-> > 
-> > > > And I agree it's unlikely but given enough time and people, I
-> > > > believe someone finds a way to (inadvertedly) trigger this.
-> > > 
-> > > Right. The pageout works could add lots more iput() to the flusher
-> > > and turn some hidden statistical impossible bugs into real ones.
-> > > 
-> > > Fortunately the "flusher deadlocks itself" case is easy to detect and
-> > > prevent as illustrated in another email.
-> > 
-> > It would be a heck of a lot safer and saner to avoid the iput().  We
-> > know how to do this, so why not do it?
-> 
-> My concern about the page lock is, it costs more code and sounds like
-> hacking around something. It seems we (including me) have been trying
-> to shun away from the iput() problem. Since it's unlikely we are to
-> get rid of the already existing iput() calls from the flusher context,
-> why not face the problem, sort it out and use it with confident in new
-> code?
-  We can get rid of it in the current code - see my patch set. And also we
-don't have to introduce new iput() with your patch set... I don't think
-using ->writepage() directly on a locked page would be a good thing because
-filesystems tend to ignore it completely (e.g. ext4 if it needs to do an
-allocation, or btrfs) or are much less efficient than when ->writepages()
-is used.  So I'd prefer going through writeback_single_inode() as the rest
-of flusher thread.
+On Fri, 2012-03-09 at 10:51 +0100, Jan Kara wrote:
+> > However I cannot find any ubifs functions to form the above loop, so
+> > ubifs should be safe for now.
+>   Yeah, me neither but I also failed to find a place where
+> ubifs_evict_inode() truncates inode space when deleting the inode... Artem?
 
-> Let me try it now. The only scheme iput() can deadlock the flusher is
-> for the iput() path to come back to queue some work and wait for it.
-  Let me stop you right here. You severely underestimate the complexity of
-filesystems :). Take for example ext4. To do truncate you need to start a
-transaction, to start a transaction, you have to have a space in journal.
-To have a space in journal, you may have to wait for any other process to
-finish writing. If that process needs to wait for flusher thread to be able
-to finish writing, you have a deadlock. And there are other implicit
-dependencies like this. And it's similar for other filesystems as well. So
-you really want to make flusher thread as light as possible with the
-dependencies.
+evict_inode() stuff was introduced by Al relatively recently and I did
+not even look at what it does, so I do not know what to answer. I'll
+look at this and and answer.
 
-								Honza
 -- 
-Jan Kara <jack@suse.cz>
-SUSE Labs, CR
+Best Regards,
+Artem Bityutskiy
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
