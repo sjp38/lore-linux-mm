@@ -1,46 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx167.postini.com [74.125.245.167])
-	by kanga.kvack.org (Postfix) with SMTP id BA3396B0044
-	for <linux-mm@kvack.org>; Sat, 10 Mar 2012 03:48:20 -0500 (EST)
-Received: by lbbgf7 with SMTP id gf7so716701lbb.14
-        for <linux-mm@kvack.org>; Sat, 10 Mar 2012 00:48:18 -0800 (PST)
-Date: Sat, 10 Mar 2012 10:48:12 +0200 (EET)
-From: Pekka Enberg <penberg@kernel.org>
-Subject: Re: [PATCH v3] mm: SLAB Out-of-memory diagnostics
-In-Reply-To: <alpine.DEB.2.00.1203091546360.2419@chino.kir.corp.google.com>
-Message-ID: <alpine.LFD.2.02.1203101046510.1718@tux.localdomain>
-References: <20120309202722.GA10323@x61.redhat.com> <alpine.DEB.2.00.1203091546360.2419@chino.kir.corp.google.com>
+Received: from psmtp.com (na3sys010amx130.postini.com [74.125.245.130])
+	by kanga.kvack.org (Postfix) with SMTP id 143A86B0044
+	for <linux-mm@kvack.org>; Sat, 10 Mar 2012 04:46:12 -0500 (EST)
+Received: by bkwq16 with SMTP id q16so2314585bkw.14
+        for <linux-mm@kvack.org>; Sat, 10 Mar 2012 01:46:10 -0800 (PST)
+Message-ID: <4F5B22DE.4020402@openvz.org>
+Date: Sat, 10 Mar 2012 13:46:06 +0400
+From: Konstantin Khlebnikov <khlebnikov@openvz.org>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [PATCH 3/7 v2] mm: rework __isolate_lru_page() file/anon filter
+References: <20120229091547.29236.28230.stgit@zurg> <20120303091327.17599.80336.stgit@zurg> <alpine.LSU.2.00.1203061904570.18675@eggly.anvils> <20120308143034.f3521b1e.kamezawa.hiroyu@jp.fujitsu.com> <alpine.LSU.2.00.1203081758490.18195@eggly.anvils> <4F59AE3C.5040200@openvz.org> <alpine.LSU.2.00.1203091559260.23317@eggly.anvils> <4F5AFAF0.6060608@openvz.org>
+In-Reply-To: <4F5AFAF0.6060608@openvz.org>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Rafael Aquini <aquini@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Randy Dunlap <rdunlap@xenotime.net>, Christoph Lameter <cl@linux-foundation.org>, Matt Mackall <mpm@selenic.com>, Rik van Riel <riel@redhat.com>, Josef Bacik <josef@redhat.com>, Cong Wang <xiyou.wangcong@gmail.com>
+To: Hugh Dickins <hughd@google.com>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <jweiner@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 
+Konstantin Khlebnikov wrote:
+> Hugh Dickins wrote:
+>> On Fri, 9 Mar 2012, Konstantin Khlebnikov wrote:
+>>>
+>>> Actually __isolate_lru_page() even little bit bigger
+>>
+>> I was coming to realize that it must be your page_lru()ing:
+>> although it's dressed up in one line, there's several branches there.
+>
+> Yes, but I think we can optimize page_lru(): we can prepare ready-to-use
+> page lru index in lower bits of page->flags, if we swap page flags and split
+> LRU_UNEVICTABLE into FILE/ANON parts.
+>
+>>
+>> I think you'll find you have a clear winner at last, if you just pass
+>> lru on down as third arg to __isolate_lru_page(), where file used to
+>> be passed, instead of re-evaluating it inside.
+>>
+>> shrink callers already have the lru, and compaction works it out
+>> immediately afterwards.
+>
+> No, for non-lumpy isolation we don't need this check at all,
+> because all pages already picked from right lru list.
+>
+> I'll send separate patch for this (on top v5 patchset), after meditation =)
 
-> On Fri, 9 Mar 2012, Rafael Aquini wrote:
-> 
-> > Following the example at mm/slub.c, add out-of-memory diagnostics to the
-> > SLAB allocator to help on debugging certain OOM conditions.
-> > 
-> > An example print out looks like this:
-> > 
-> >   <snip page allocator out-of-memory message>
-> >   SLAB: Unable to allocate memory on node 0 (gfp=0x11200)
-> >     cache: bio-0, object size: 192, order: 0
-> >     node 0: slabs: 3/3, objs: 60/60, free: 0
-> > 
-> > Signed-off-by: Rafael Aquini <aquini@redhat.com>
-> > Acked-by: Rik van Riel <riel@redhat.com>
+Heh, looks like we don't need these checks at all:
+without RECLAIM_MODE_LUMPYRECLAIM we isolate only pages from right lru,
+with RECLAIM_MODE_LUMPYRECLAIM we isolate pages from all evictable lru.
+Thus we should check only PageUnevictable() on lumpy reclaim.
 
-On Fri, 9 Mar 2012, David Rientjes wrote:
-> Acked-by: David Rientjes <rientjes@google.com>
-> 
-> Thanks for following through with this!
-
-Applied, thanks guys!
-
-			Pekka
+>
+>>
+>> Though we do need to be careful: the lumpy case would then have to
+>> pass page_lru(cursor_page).  Oh, actually no (though it would deserve
+>> a comment): since the lumpy case selects LRU_ALL_EVICTABLE, it's
+>> irrelevant what it passes for lru, so might as well stick with
+>> the one passed down.  Though you may decide I'm being too tricky
+>> there, and prefer to calculate page_lru(cursor_page) anyway, it
+>> not being the hottest path.
+>>
+>> Whether you'd still want page_lru(page) __always_inline, I don't know.
+>>
+>> Hugh
+>
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Fight unfair telecom internet charges in Canada: sign http://stopthemeter.ca/
+> Don't email:<a href=mailto:"dont@kvack.org">  email@kvack.org</a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
