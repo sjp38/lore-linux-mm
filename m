@@ -1,100 +1,127 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx127.postini.com [74.125.245.127])
-	by kanga.kvack.org (Postfix) with SMTP id AF5796B0044
-	for <linux-mm@kvack.org>; Fri,  9 Mar 2012 19:04:52 -0500 (EST)
-Received: by iajr24 with SMTP id r24so3992057iaj.14
-        for <linux-mm@kvack.org>; Fri, 09 Mar 2012 16:04:52 -0800 (PST)
-Date: Fri, 9 Mar 2012 16:04:18 -0800 (PST)
-From: Hugh Dickins <hughd@google.com>
-Subject: Re: [PATCH 3/7 v2] mm: rework __isolate_lru_page() file/anon
- filter
-In-Reply-To: <4F59AE3C.5040200@openvz.org>
-Message-ID: <alpine.LSU.2.00.1203091559260.23317@eggly.anvils>
-References: <20120229091547.29236.28230.stgit@zurg> <20120303091327.17599.80336.stgit@zurg> <alpine.LSU.2.00.1203061904570.18675@eggly.anvils> <20120308143034.f3521b1e.kamezawa.hiroyu@jp.fujitsu.com> <alpine.LSU.2.00.1203081758490.18195@eggly.anvils>
- <4F59AE3C.5040200@openvz.org>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from psmtp.com (na3sys010amx194.postini.com [74.125.245.194])
+	by kanga.kvack.org (Postfix) with SMTP id 6021D6B0044
+	for <linux-mm@kvack.org>; Fri,  9 Mar 2012 19:23:44 -0500 (EST)
+Received: by yhr47 with SMTP id 47so1689754yhr.14
+        for <linux-mm@kvack.org>; Fri, 09 Mar 2012 16:23:43 -0800 (PST)
+Subject: Re: [PATCH v3] mm: SLAB Out-of-memory diagnostics
+From: Eric Dumazet <eric.dumazet@gmail.com>
+In-Reply-To: <20120309202722.GA10323@x61.redhat.com>
+References: <20120309202722.GA10323@x61.redhat.com>
+Content-Type: text/plain; charset="UTF-8"
+Date: Fri, 09 Mar 2012 16:23:39 -0800
+Message-ID: <1331339019.4063.365.camel@edumazet-glaptop>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Konstantin Khlebnikov <khlebnikov@openvz.org>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <jweiner@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: Rafael Aquini <aquini@redhat.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Randy Dunlap <rdunlap@xenotime.net>, Christoph Lameter <cl@linux-foundation.org>, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, Rik van Riel <riel@redhat.com>, Josef Bacik <josef@redhat.com>, David Rientjes <rientjes@google.com>, Cong Wang <xiyou.wangcong@gmail.com>
 
-On Fri, 9 Mar 2012, Konstantin Khlebnikov wrote:
-> Hugh Dickins wrote:
-> > 
-> > I like very much the look of what he's come up with, but I'm still
-> > puzzling over why it barely makes any improvement to __isolate_lru_page():
-> > seems significantly inferior (in code size terms) to his original (which
-> > I imagine Glauber's compromise would be equivalent to).
-> > 
-> > At some point I ought to give up on niggling about this,
-> > but I haven't quite got there yet.
+On Fri, 2012-03-09 at 17:27 -0300, Rafael Aquini wrote:
+> Following the example at mm/slub.c, add out-of-memory diagnostics to the
+> SLAB allocator to help on debugging certain OOM conditions.
 > 
-> (with if())
-> $ ./scripts/bloat-o-meter built-in.o built-in.o-v1
-> add/remove: 0/0 grow/shrink: 2/1 up/down: 32/-20 (12)
-> function                                     old     new   delta
-> static.shrink_active_list                    837     853     +16
-> shrink_inactive_list                        1259    1275     +16
-> static.isolate_lru_pages                    1055    1035     -20
+> An example print out looks like this:
 > 
-> (with switch())
-> $ ./scripts/bloat-o-meter built-in.o built-in.o-v2
-> add/remove: 0/0 grow/shrink: 4/2 up/down: 111/-23 (88)
-> function                                     old     new   delta
-> __isolate_lru_page                           301     377     +76
-> static.shrink_active_list                    837     853     +16
-> shrink_inactive_list                        1259    1275     +16
-> page_evictable                               170     173      +3
-> __remove_mapping                             322     319      -3
-> static.isolate_lru_pages                    1055    1035     -20
+>   <snip page allocator out-of-memory message>
+>   SLAB: Unable to allocate memory on node 0 (gfp=0x11200)
+>     cache: bio-0, object size: 192, order: 0
+>     node 0: slabs: 3/3, objs: 60/60, free: 0
+
+Should probably be :
+
+   node: 0 slabs: 3/3, objs: 60/60, free: 0
+
+
 > 
-> (without __always_inline on page_lru())
-> $ ./scripts/bloat-o-meter built-in.o built-in.o-v5-noinline
-> add/remove: 0/0 grow/shrink: 5/2 up/down: 93/-23 (70)
-> function                                     old     new   delta
-> __isolate_lru_page                           301     333     +32
-> isolate_lru_page                             359     385     +26
-> static.shrink_active_list                    837     853     +16
-> putback_inactive_pages                       635     651     +16
-> page_evictable                               170     173      +3
-> __remove_mapping                             322     319      -3
-> static.isolate_lru_pages                    1055    1035     -20
+> Signed-off-by: Rafael Aquini <aquini@redhat.com>
+> Acked-by: Rik van Riel <riel@redhat.com>
+> ---
+> v2:
+> * drop the sysctl knob to override __GFP_NOWARN allocation flag (Pekka, David)
 > 
-> $ ./scripts/bloat-o-meter built-in.o built-in.o-v5
-> add/remove: 0/0 grow/shrink: 3/4 up/down: 35/-67 (-32)
-> function                                     old     new   delta
-> static.shrink_active_list                    837     853     +16
-> __isolate_lru_page                           301     317     +16
-> page_evictable                               170     173      +3
-> __remove_mapping                             322     319      -3
-> mem_cgroup_lru_del                            73      65      -8
-> static.isolate_lru_pages                    1055    1035     -20
-> __mem_cgroup_commit_charge                   676     640     -36
+> v3:
+> * adjust the print output to match slub's warning printout (WANG Cong)
 > 
-> Actually __isolate_lru_page() even little bit bigger
+>  mm/slab.c |   51 ++++++++++++++++++++++++++++++++++++++++++++++++++-
+>  1 files changed, 50 insertions(+), 1 deletions(-)
+> 
+> diff --git a/mm/slab.c b/mm/slab.c
+> index f0bd785..cda1ff6 100644
+> --- a/mm/slab.c
+> +++ b/mm/slab.c
+> @@ -1731,6 +1731,52 @@ static int __init cpucache_init(void)
+>  }
+>  __initcall(cpucache_init);
+>  
+> +static noinline void
+> +slab_out_of_memory(struct kmem_cache *cachep, gfp_t gfpflags, int nodeid)
+> +{
+> +	struct kmem_list3 *l3;
+> +	struct slab *slabp;
+> +	unsigned long flags;
+> +	int node;
+> +
+> +	printk(KERN_WARNING
+> +		"SLAB: Unable to allocate memory on node %d (gfp=0x%x)\n",
+> +		nodeid, gfpflags);
+> +	printk(KERN_WARNING "  cache: %s, object size: %d, order: %d\n",
+> +		cachep->name, cachep->buffer_size, cachep->gfporder);
+> +
+> +	for_each_online_node(node) {
+> +		unsigned long active_objs = 0, num_objs = 0, free_objects = 0;
+> +		unsigned long active_slabs = 0, num_slabs = 0;
+> +
+> +		l3 = cachep->nodelists[node];
+> +		if (!l3)
+> +			continue;
+> +
+> +		spin_lock_irqsave(&l3->list_lock, flags);
+> +		list_for_each_entry(slabp, &l3->slabs_full, list) {
+> +			active_objs += cachep->num;
+> +			active_slabs++;
+> +		}
+> +		list_for_each_entry(slabp, &l3->slabs_partial, list) {
+> +			active_objs += slabp->inuse;
+> +			active_slabs++;
+> +		}
+> +		list_for_each_entry(slabp, &l3->slabs_free, list)
+> +			num_slabs++;
+> +
+> +		free_objects += l3->free_objects;
+> +		spin_unlock_irqrestore(&l3->list_lock, flags);
+> +
+> +		num_slabs += active_slabs;
+> +		num_objs = num_slabs * cachep->num;
+> +		printk(KERN_WARNING
+> +			"  node %d: slabs: %ld/%ld, objs: %ld/%ld, free: %ld\n",
 
-I was coming to realize that it must be your page_lru()ing:
-although it's dressed up in one line, there's several branches there.
+Probably should be :
+		"  node: %d slabs: %ld/%ld, objs: %ld/%ld, free: %ld\n",
 
-I think you'll find you have a clear winner at last, if you just pass
-lru on down as third arg to __isolate_lru_page(), where file used to
-be passed, instead of re-evaluating it inside.
+> +			node, active_slabs, num_slabs, active_objs, num_objs,
+> +			free_objects);
+> +	}
+> +}
+> +
+>  /*
+>   * Interface to system's page allocator. No need to hold the cache-lock.
+>   *
+> @@ -1757,8 +1803,11 @@ static void *kmem_getpages(struct kmem_cache *cachep, gfp_t flags, int nodeid)
+>  		flags |= __GFP_RECLAIMABLE;
+>  
+>  	page = alloc_pages_exact_node(nodeid, flags | __GFP_NOTRACK, cachep->gfporder);
+> -	if (!page)
+> +	if (!page) {
+> +		if (!(flags & __GFP_NOWARN) && printk_ratelimit())
+> +			slab_out_of_memory(cachep, flags, nodeid);
+>  		return NULL;
+> +	}
+>  
+>  	nr_pages = (1 << cachep->gfporder);
+>  	if (cachep->flags & SLAB_RECLAIM_ACCOUNT)
 
-shrink callers already have the lru, and compaction works it out
-immediately afterwards.
-
-Though we do need to be careful: the lumpy case would then have to
-pass page_lru(cursor_page).  Oh, actually no (though it would deserve
-a comment): since the lumpy case selects LRU_ALL_EVICTABLE, it's
-irrelevant what it passes for lru, so might as well stick with
-the one passed down.  Though you may decide I'm being too tricky
-there, and prefer to calculate page_lru(cursor_page) anyway, it
-not being the hottest path.
-
-Whether you'd still want page_lru(page) __always_inline, I don't know.
-
-Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
