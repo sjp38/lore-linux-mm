@@ -1,1006 +1,275 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx164.postini.com [74.125.245.164])
-	by kanga.kvack.org (Postfix) with SMTP id AAB1C6B00EC
-	for <linux-mm@kvack.org>; Sat, 10 Mar 2012 12:49:16 -0500 (EST)
-Received: from /spool/local
-	by e28smtp05.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <srikar@linux.vnet.ibm.com>;
-	Sat, 10 Mar 2012 23:19:12 +0530
-Received: from d28av05.in.ibm.com (d28av05.in.ibm.com [9.184.220.67])
-	by d28relay01.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q2AHn8jv4579570
-	for <linux-mm@kvack.org>; Sat, 10 Mar 2012 23:19:08 +0530
-Received: from d28av05.in.ibm.com (loopback [127.0.0.1])
-	by d28av05.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q2ANJZ8e014836
-	for <linux-mm@kvack.org>; Sun, 11 Mar 2012 10:19:36 +1100
-From: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-Date: Sat, 10 Mar 2012 23:16:29 +0530
-Message-Id: <20120310174629.19949.38039.sendpatchset@srdronam.in.ibm.com>
-In-Reply-To: <20120310174501.19949.50137.sendpatchset@srdronam.in.ibm.com>
-References: <20120310174501.19949.50137.sendpatchset@srdronam.in.ibm.com>
-Subject: [PATCH 7/7] uprobes/core: handle breakpoint and singlestep exception.
+Received: from psmtp.com (na3sys010amx108.postini.com [74.125.245.108])
+	by kanga.kvack.org (Postfix) with SMTP id 6CB436B00F2
+	for <linux-mm@kvack.org>; Sun, 11 Mar 2012 03:51:34 -0400 (EDT)
+Message-ID: <4F5C592B.7000905@parallels.com>
+Date: Sun, 11 Mar 2012 11:50:03 +0400
+From: Glauber Costa <glommer@parallels.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH v2 01/13] memcg: Consolidate various flags into a single
+ flags field.
+References: <1331325556-16447-1-git-send-email-ssouhlal@FreeBSD.org> <1331325556-16447-2-git-send-email-ssouhlal@FreeBSD.org>
+In-Reply-To: <1331325556-16447-2-git-send-email-ssouhlal@FreeBSD.org>
+Content-Type: text/plain; charset="ISO-8859-1"; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@elte.hu>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, LKML <linux-kernel@vger.kernel.org>, Linux-mm <linux-mm@kvack.org>, Oleg Nesterov <oleg@redhat.com>, Andi Kleen <andi@firstfloor.org>, Christoph Hellwig <hch@infradead.org>, Steven Rostedt <rostedt@goodmis.org>, Arnaldo Carvalho de Melo <acme@infradead.org>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Thomas Gleixner <tglx@linutronix.de>
+To: Suleiman Souhlal <ssouhlal@FreeBSD.org>
+Cc: cgroups@vger.kernel.org, suleiman@google.com, kamezawa.hiroyu@jp.fujitsu.com, penberg@kernel.org, cl@linux.com, yinghan@google.com, hughd@google.com, gthelen@google.com, peterz@infradead.org, dan.magenheimer@oracle.com, hannes@cmpxchg.org, mgorman@suse.de, James.Bottomley@HansenPartnership.com, linux-mm@kvack.org, devel@openvz.org, linux-kernel@vger.kernel.org
 
-From: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
+On 03/10/2012 12:39 AM, Suleiman Souhlal wrote:
+> Since there is an ever-increasing number of flags in the memcg
+> struct, consolidate them into a single flags field.
+> The flags that we consolidate are:
+>      - use_hierarchy
+>      - memsw_is_minimum
+>      - oom_kill_disable
+>
+> Signed-off-by: Suleiman Souhlal<suleiman@google.com>
 
-Uprobes uses exception notifiers to get to know if a thread hit a
-breakpoint or singlestep exception.
+> ---
+>   mm/memcontrol.c |  112 ++++++++++++++++++++++++++++++++++++++-----------------
+>   1 files changed, 78 insertions(+), 34 deletions(-)
+>
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index 5585dc3..37ad2cb 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -213,6 +213,15 @@ struct mem_cgroup_eventfd_list {
+>   static void mem_cgroup_threshold(struct mem_cgroup *memcg);
+>   static void mem_cgroup_oom_notify(struct mem_cgroup *memcg);
+>
+> +enum memcg_flags {
+> +	MEMCG_USE_HIERARCHY,	/*
+> +				 * Should the accounting and control be
+> +				 * hierarchical, per subtree?
+> +				 */
+Perhaps we should use the opportunity to make this comment shorter, so 
+it can fit in a single line. How about:
 
-When a thread hits a uprobe or is singlestepping post a uprobe hit,
-the uprobe exception notifier sets its TIF_UPROBE bit, which will
-then be checked on its return to userspace path (do_notify_resume()
-->uprobe_notify_resume()), where the consumers handlers are run
-(in task context) based on the defined filters.
+/* per-subtree hierarchical accounting */ ?
 
-Uprobe hits are thread specific and hence we need to maintain
-information about if a task hit a uprobe, what uprobe was hit, the slot
-where the original instruction was copied for xol so that it can be
-singlestepped with appropriate fixups.
+>
+> +static inline bool
+> +mem_cgroup_test_flag(const struct mem_cgroup *memcg, enum memcg_flags flag)
+> +{
+> +	return test_bit(flag,&memcg->flags);
+> +}
+> +
+> +static inline void
+> +mem_cgroup_set_flag(struct mem_cgroup *memcg, enum memcg_flags flag)
+> +{
+> +	set_bit(flag,&memcg->flags);
+> +}
+> +
+> +static inline void
+> +mem_cgroup_clear_flag(struct mem_cgroup *memcg, enum memcg_flags flag)
+> +{
+> +	clear_bit(flag,&memcg->flags);
+> +}
+> +
+>   /* Writing them here to avoid exposing memcg's inner layout */
+>   #ifdef CONFIG_CGROUP_MEM_RES_CTLR_KMEM
+>   #include<net/sock.h>
+> @@ -876,7 +895,8 @@ struct mem_cgroup *mem_cgroup_iter(struct mem_cgroup *root,
+>   	if (prev&&  prev != root)
+>   		css_put(&prev->css);
+>
+> -	if (!root->use_hierarchy&&  root != root_mem_cgroup) {
+> +	if (!mem_cgroup_test_flag(root, MEMCG_USE_HIERARCHY)&&  root !=
+> +	    root_mem_cgroup) {
+>   		if (prev)
+>   			return NULL;
+>   		return root;
 
-In some cases, special care is needed for instructions that are
-executed out of line (xol). These are architecture specific artefacts,
-such as handling RIP relative instructions on x86_64.
+Although I like this change in principle, the end result is that many of 
+the lines we are touching, used to be single-lines and now span two 
+rows. I know not everybody cares about that, but maybe we could provide 
+functions specific to each flag?
 
-Since the instruction at which the uprobe was inserted is executed out
-of line, architecture specific fixups are added so that the thread
-continues normal execution in the presence of a uprobe.
+For the record, that is what cgroup.c does:
 
-Postpone the signals until we execute the probed insn. post_xol()
-path does a recalc_sigpending() before return to user-mode, this
-ensures the signal can't be lost.
+static int notify_on_release(const struct cgroup *cgrp)
+{
+         return test_bit(CGRP_NOTIFY_ON_RELEASE, &cgrp->flags);
+}
 
-Uprobes relies on DIE_DEBUG notification to notify if a singlestep is
-complete.
+static int clone_children(const struct cgroup *cgrp)
+{
+         return test_bit(CGRP_CLONE_CHILDREN, &cgrp->flags);
+}
 
-Adds x86 specific uprobe exception notifiers and appropriate hooks
-needed to determine a uprobe hit and subsequent post processing.
 
-Add requisite x86 fixups for xol for uprobes. Specific cases needing
-fixups include relative jumps (x86_64), calls, etc.
-
-Where possible, we check and skip singlestepping the breakpointed
-instructions. For now we skip single byte as well as few multibyte
-nop instructions. However this can be extended to other
-instructions too.
-
-Credits to Oleg Nesterov for suggestions/patches related to signal,
-breakpoint, singlestep handling code.
-
-Signed-off-by: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
----
-Changelog
-
-(v10):
- - Resolve comments suggested by Ingo Molnar.
- - arch specific functions start with arch_uprobe_
- - factor out few cleanup into separate patches
-
-(v9):
- - Use instruction_pointer_set instead of set_instruction_pointer.
- - Changed can_skip_xol to uprobe_skip_sstep as suggested by Ananth
-
-(v7):
- - Resolve comments from Dan Carpenter.
- - add_utask returns NULL on error.
- - Handles architecture agnostic parts of a uprobe breakpoint hit and
-   subsequent xol singlestepping.
-
-(v6)
- - added x86 specific hook for aborting xol.
-
-(v5)
- - Use srcu_raw instead of synchronize_sched
- - Introduce per task srcu_id to store the srcu_id
- - Modified comments.
- - No more do a i386 specific enable interrupts. (Its not part of another
-   patch posted separately)
-
- arch/x86/include/asm/thread_info.h |    2 
- arch/x86/include/asm/uprobes.h     |   16 ++
- arch/x86/kernel/signal.c           |    6 +
- arch/x86/kernel/uprobes.c          |  261 ++++++++++++++++++++++++++++++
- include/linux/sched.h              |    4 
- include/linux/uprobes.h            |   44 +++++
- kernel/events/uprobes.c            |  310 ++++++++++++++++++++++++++++++++++++
- kernel/fork.c                      |    7 +
- kernel/signal.c                    |    4 
- 9 files changed, 645 insertions(+), 9 deletions(-)
-
-diff --git a/arch/x86/include/asm/thread_info.h b/arch/x86/include/asm/thread_info.h
-index af1db7e..2f06cdf 100644
---- a/arch/x86/include/asm/thread_info.h
-+++ b/arch/x86/include/asm/thread_info.h
-@@ -85,6 +85,7 @@ struct thread_info {
- #define TIF_SECCOMP		8	/* secure computing */
- #define TIF_MCE_NOTIFY		10	/* notify userspace of an MCE */
- #define TIF_USER_RETURN_NOTIFY	11	/* notify kernel of userspace return */
-+#define TIF_UPROBE		12	/* breakpointed or singlestepping */
- #define TIF_NOTSC		16	/* TSC is not accessible in userland */
- #define TIF_IA32		17	/* IA32 compatibility process */
- #define TIF_FORK		18	/* ret_from_fork */
-@@ -109,6 +110,7 @@ struct thread_info {
- #define _TIF_SECCOMP		(1 << TIF_SECCOMP)
- #define _TIF_MCE_NOTIFY		(1 << TIF_MCE_NOTIFY)
- #define _TIF_USER_RETURN_NOTIFY	(1 << TIF_USER_RETURN_NOTIFY)
-+#define _TIF_UPROBE		(1 << TIF_UPROBE)
- #define _TIF_NOTSC		(1 << TIF_NOTSC)
- #define _TIF_IA32		(1 << TIF_IA32)
- #define _TIF_FORK		(1 << TIF_FORK)
-diff --git a/arch/x86/include/asm/uprobes.h b/arch/x86/include/asm/uprobes.h
-index 0500391..930620a 100644
---- a/arch/x86/include/asm/uprobes.h
-+++ b/arch/x86/include/asm/uprobes.h
-@@ -23,6 +23,8 @@
-  *	Jim Keniston
-  */
- 
-+#include <linux/notifier.h>
-+
- typedef u8 uprobe_opcode_t;
- 
- #define MAX_UINSN_BYTES			  16
-@@ -39,5 +41,17 @@ struct arch_uprobe {
- #endif
- };
- 
--extern int arch_uprobes_analyze_insn(struct arch_uprobe *aup, struct mm_struct *mm);
-+struct arch_uprobe_task {
-+	unsigned long saved_trap_nr;
-+#ifdef CONFIG_X86_64
-+	unsigned long saved_scratch_register;
-+#endif
-+};
-+
-+extern int arch_uprobe_analyze_insn(struct arch_uprobe *aup, struct mm_struct *mm);
-+extern int arch_uprobe_pre_xol(struct arch_uprobe *aup, struct pt_regs *regs);
-+extern int arch_uprobe_post_xol(struct arch_uprobe *aup, struct pt_regs *regs);
-+extern bool arch_uprobe_xol_was_trapped(struct task_struct *tsk);
-+extern int arch_uprobe_exception_notify(struct notifier_block *self, unsigned long val, void *data);
-+extern void arch_uprobe_abort_xol(struct arch_uprobe *aup, struct pt_regs *regs);
- #endif	/* _ASM_UPROBES_H */
-diff --git a/arch/x86/kernel/signal.c b/arch/x86/kernel/signal.c
-index 30108c1..c266253 100644
---- a/arch/x86/kernel/signal.c
-+++ b/arch/x86/kernel/signal.c
-@@ -18,6 +18,7 @@
- #include <linux/personality.h>
- #include <linux/uaccess.h>
- #include <linux/user-return-notifier.h>
-+#include <linux/uprobes.h>
- 
- #include <asm/processor.h>
- #include <asm/ucontext.h>
-@@ -818,6 +819,11 @@ do_notify_resume(struct pt_regs *regs, void *unused, __u32 thread_info_flags)
- 		mce_notify_process();
- #endif /* CONFIG_X86_64 && CONFIG_X86_MCE */
- 
-+	if (thread_info_flags & _TIF_UPROBE) {
-+		clear_thread_flag(TIF_UPROBE);
-+		uprobe_notify_resume(regs);
-+	}
-+
- 	/* deal with pending signal delivery */
- 	if (thread_info_flags & _TIF_SIGPENDING)
- 		do_signal(regs);
-diff --git a/arch/x86/kernel/uprobes.c b/arch/x86/kernel/uprobes.c
-index 851a11b..1156fe6 100644
---- a/arch/x86/kernel/uprobes.c
-+++ b/arch/x86/kernel/uprobes.c
-@@ -24,8 +24,10 @@
- #include <linux/sched.h>
- #include <linux/ptrace.h>
- #include <linux/uprobes.h>
-+#include <linux/uaccess.h>
- 
- #include <linux/kdebug.h>
-+#include <asm/compat.h>
- #include <asm/insn.h>
- 
- /* Post-execution fixups. */
-@@ -40,6 +42,8 @@
- #define UPROBE_FIX_RIP_AX	0x8000
- #define UPROBE_FIX_RIP_CX	0x4000
- 
-+#define	UPROBE_TRAP_NR		UINT_MAX
-+
- /* Adaptations for mhiramat x86 decoder v14. */
- #define OPCODE1(insn)		((insn)->opcode.bytes[0])
- #define OPCODE2(insn)		((insn)->opcode.bytes[1])
-@@ -221,10 +225,9 @@ static int validate_insn_32bits(struct arch_uprobe *auprobe, struct insn *insn)
- }
- 
- /*
-- * Figure out which fixups post_xol() will need to perform, and annotate
-- * arch_uprobe->fixups accordingly.  To start with,
-- * arch_uprobe->fixups is either zero or it reflects rip-related
-- * fixups.
-+ * Figure out which fixups arch_uprobe_post_xol() will need to perform, and
-+ * annotate arch_uprobe->fixups accordingly.  To start with,
-+ * arch_uprobe->fixups is either zero or it reflects rip-related fixups.
-  */
- static void prepare_fixups(struct arch_uprobe *auprobe, struct insn *insn)
- {
-@@ -401,12 +404,12 @@ static int validate_insn_bits(struct arch_uprobe *auprobe, struct mm_struct *mm,
- #endif /* CONFIG_X86_64 */
- 
- /**
-- * arch_uprobes_analyze_insn - instruction analysis including validity and fixups.
-+ * arch_uprobe_analyze_insn - instruction analysis including validity and fixups.
-  * @mm: the probed address space.
-  * @arch_uprobe: the probepoint information.
-  * Return 0 on success or a -ve number on error.
-  */
--int arch_uprobes_analyze_insn(struct arch_uprobe *auprobe, struct mm_struct *mm)
-+int arch_uprobe_analyze_insn(struct arch_uprobe *auprobe, struct mm_struct *mm)
- {
- 	int ret;
- 	struct insn insn;
-@@ -421,3 +424,249 @@ int arch_uprobes_analyze_insn(struct arch_uprobe *auprobe, struct mm_struct *mm)
- 
- 	return 0;
- }
-+
-+#ifdef CONFIG_X86_64
-+/*
-+ * If we're emulating a rip-relative instruction, save the contents
-+ * of the scratch register and store the target address in that register.
-+ */
-+static void
-+pre_xol_rip_insn(struct arch_uprobe *auprobe, struct pt_regs *regs,
-+				struct arch_uprobe_task *autask)
-+{
-+	if (auprobe->fixups & UPROBE_FIX_RIP_AX) {
-+		autask->saved_scratch_register = regs->ax;
-+		regs->ax = current->utask->vaddr;
-+		regs->ax += auprobe->rip_rela_target_address;
-+	} else if (auprobe->fixups & UPROBE_FIX_RIP_CX) {
-+		autask->saved_scratch_register = regs->cx;
-+		regs->cx = current->utask->vaddr;
-+		regs->cx += auprobe->rip_rela_target_address;
-+	}
-+}
-+#else
-+static void
-+pre_xol_rip_insn(struct arch_uprobe *auprobe, struct pt_regs *regs,
-+				struct arch_uprobe_task *autask)
-+{
-+	/* No RIP-relative addressing on 32-bit */
-+}
-+#endif
-+
-+/*
-+ * arch_uprobe_pre_xol - prepare to execute out of line.
-+ * @auprobe: the probepoint information.
-+ * @regs: reflects the saved user state of current task.
-+ */
-+int arch_uprobe_pre_xol(struct arch_uprobe *auprobe, struct pt_regs *regs)
-+{
-+	struct arch_uprobe_task *autask;
-+
-+	autask = &current->utask->autask;
-+	autask->saved_trap_nr = current->thread.trap_nr;
-+	current->thread.trap_nr = UPROBE_TRAP_NR;
-+	regs->ip = current->utask->xol_vaddr;
-+	pre_xol_rip_insn(auprobe, regs, autask);
-+
-+	return 0;
-+}
-+
-+/*
-+ * This function is called by arch_uprobe_post_xol() to adjust the return
-+ * address pushed by a call instruction executed out of line.
-+ */
-+static int adjust_ret_addr(unsigned long sp, long correction)
-+{
-+	int rasize, ncopied;
-+	long ra = 0;
-+
-+	if (is_ia32_compat_task(current))
-+		rasize = 4;
-+	else
-+		rasize = 8;
-+
-+	ncopied = copy_from_user(&ra, (void __user *)sp, rasize);
-+	if (unlikely(ncopied))
-+		return -EFAULT;
-+
-+	ra += correction;
-+	ncopied = copy_to_user((void __user *)sp, &ra, rasize);
-+	if (unlikely(ncopied))
-+		return -EFAULT;
-+
-+	return 0;
-+}
-+
-+#ifdef CONFIG_X86_64
-+static bool is_riprel_insn(struct arch_uprobe *auprobe)
-+{
-+	return ((auprobe->fixups & (UPROBE_FIX_RIP_AX | UPROBE_FIX_RIP_CX)) != 0);
-+}
-+
-+static void
-+handle_riprel_post_xol(struct arch_uprobe *auprobe, struct pt_regs *regs, long *correction)
-+{
-+	if (is_riprel_insn(auprobe)) {
-+		struct arch_uprobe_task *autask;
-+
-+		autask = &current->utask->autask;
-+		if (auprobe->fixups & UPROBE_FIX_RIP_AX)
-+			regs->ax = autask->saved_scratch_register;
-+		else
-+			regs->cx = autask->saved_scratch_register;
-+
-+		/*
-+		 * The original instruction includes a displacement, and so
-+		 * is 4 bytes longer than what we've just single-stepped.
-+		 * Fall through to handle stuff like "jmpq *...(%rip)" and
-+		 * "callq *...(%rip)".
-+		 */
-+		if (correction)
-+			*correction += 4;
-+	}
-+}
-+#else
-+static void
-+handle_riprel_post_xol(struct arch_uprobe *auprobe, struct pt_regs *regs, long *correction)
-+{
-+	/* No RIP-relative addressing on 32-bit */
-+}
-+#endif
-+
-+/*
-+ * If xol insn itself traps and generates a signal(Say,
-+ * SIGILL/SIGSEGV/etc), then detect the case where a singlestepped
-+ * instruction jumps back to its own address. It is assumed that anything
-+ * like do_page_fault/do_trap/etc sets thread.trap_nr != -1.
-+ *
-+ * arch_uprobe_pre_xol/arch_uprobe_post_xol save/restore thread.trap_nr,
-+ * arch_uprobe_xol_was_trapped() simply checks that ->trap_nr is not equal to
-+ * UPROBE_TRAP_NR == -1 set by arch_uprobe_pre_xol().
-+ */
-+bool arch_uprobe_xol_was_trapped(struct task_struct *t)
-+{
-+	if (t->thread.trap_nr != UPROBE_TRAP_NR)
-+		return true;
-+
-+	return false;
-+}
-+
-+/*
-+ * Called after single-stepping. To avoid the SMP problems that can
-+ * occur when we temporarily put back the original opcode to
-+ * single-step, we single-stepped a copy of the instruction.
-+ *
-+ * This function prepares to resume execution after the single-step.
-+ * We have to fix things up as follows:
-+ *
-+ * Typically, the new ip is relative to the copied instruction.  We need
-+ * to make it relative to the original instruction (FIX_IP).  Exceptions
-+ * are return instructions and absolute or indirect jump or call instructions.
-+ *
-+ * If the single-stepped instruction was a call, the return address that
-+ * is atop the stack is the address following the copied instruction.  We
-+ * need to make it the address following the original instruction (FIX_CALL).
-+ *
-+ * If the original instruction was a rip-relative instruction such as
-+ * "movl %edx,0xnnnn(%rip)", we have instead executed an equivalent
-+ * instruction using a scratch register -- e.g., "movl %edx,(%rax)".
-+ * We need to restore the contents of the scratch register and adjust
-+ * the ip, keeping in mind that the instruction we executed is 4 bytes
-+ * shorter than the original instruction (since we squeezed out the offset
-+ * field).  (FIX_RIP_AX or FIX_RIP_CX)
-+ */
-+int arch_uprobe_post_xol(struct arch_uprobe *auprobe, struct pt_regs *regs)
-+{
-+	struct uprobe_task *utask;
-+	long correction;
-+	int result = 0;
-+
-+	WARN_ON_ONCE(current->thread.trap_nr != UPROBE_TRAP_NR);
-+
-+	utask = current->utask;
-+	current->thread.trap_nr = utask->autask.saved_trap_nr;
-+	correction = (long)(utask->vaddr - utask->xol_vaddr);
-+	handle_riprel_post_xol(auprobe, regs, &correction);
-+	if (auprobe->fixups & UPROBE_FIX_IP)
-+		regs->ip += correction;
-+
-+	if (auprobe->fixups & UPROBE_FIX_CALL)
-+		result = adjust_ret_addr(regs->sp, correction);
-+
-+	return result;
-+}
-+
-+/* callback routine for handling exceptions. */
-+int arch_uprobe_exception_notify(struct notifier_block *self, unsigned long val, void *data)
-+{
-+	struct die_args *args = data;
-+	struct pt_regs *regs = args->regs;
-+	int ret = NOTIFY_DONE;
-+
-+	/* We are only interested in userspace traps */
-+	if (regs && !user_mode_vm(regs))
-+		return NOTIFY_DONE;
-+
-+	switch (val) {
-+	case DIE_INT3:
-+		if (uprobe_pre_sstep_notifier(regs))
-+			ret = NOTIFY_STOP;
-+
-+		break;
-+
-+	case DIE_DEBUG:
-+		if (uprobe_post_sstep_notifier(regs))
-+			ret = NOTIFY_STOP;
-+
-+	default:
-+		break;
-+	}
-+
-+	return ret;
-+}
-+
-+/*
-+ * This function gets called when XOL instruction either gets trapped or
-+ * the thread has a fatal signal, so reset the instruction pointer to its
-+ * probed address.
-+ */
-+void arch_uprobe_abort_xol(struct arch_uprobe *auprobe, struct pt_regs *regs)
-+{
-+	struct uprobe_task *utask = current->utask;
-+
-+	current->thread.trap_nr = utask->autask.saved_trap_nr;
-+	handle_riprel_post_xol(auprobe, regs, NULL);
-+	instruction_pointer_set(regs, utask->vaddr);
-+}
-+
-+/*
-+ * Skip these instructions as per the currently known x86 ISA.
-+ * 0x66* { 0x90 | 0x0f 0x1f | 0x0f 0x19 | 0x87 0xc0 }
-+ */
-+bool arch_uprobe_skip_sstep(struct arch_uprobe *auprobe, struct pt_regs *regs)
-+{
-+	int i;
-+
-+	for (i = 0; i < MAX_UINSN_BYTES; i++) {
-+		if ((auprobe->insn[i] == 0x66))
-+			continue;
-+
-+		if (auprobe->insn[i] == 0x90)
-+			return true;
-+
-+		if (i == (MAX_UINSN_BYTES - 1))
-+			break;
-+
-+		if ((auprobe->insn[i] == 0x0f) && (auprobe->insn[i+1] == 0x1f))
-+			return true;
-+
-+		if ((auprobe->insn[i] == 0x0f) && (auprobe->insn[i+1] == 0x19))
-+			return true;
-+
-+		if ((auprobe->insn[i] == 0x87) && (auprobe->insn[i+1] == 0xc0))
-+			return true;
-+
-+		break;
-+	}
-+	return false;
-+}
-diff --git a/include/linux/sched.h b/include/linux/sched.h
-index 0cd5759..ca4a21f 100644
---- a/include/linux/sched.h
-+++ b/include/linux/sched.h
-@@ -1606,6 +1606,10 @@ struct task_struct {
- #ifdef CONFIG_HAVE_HW_BREAKPOINT
- 	atomic_t ptrace_bp_refcnt;
- #endif
-+#ifdef CONFIG_UPROBES
-+	struct uprobe_task *utask;
-+	int uprobe_srcu_id;
-+#endif
- };
- 
- /* Future-safe accessor for struct task_struct's cpus_allowed. */
-diff --git a/include/linux/uprobes.h b/include/linux/uprobes.h
-index eac525f..b020e23 100644
---- a/include/linux/uprobes.h
-+++ b/include/linux/uprobes.h
-@@ -39,6 +39,8 @@ struct vm_area_struct;
- 
- /* Dont run handlers when first register/ last unregister in progress*/
- #define UPROBE_RUN_HANDLER	0x2
-+/* Can skip singlestep */
-+#define UPROBE_SKIP_SSTEP	0x4
- 
- struct uprobe_consumer {
- 	int (*handler)(struct uprobe_consumer *self, struct pt_regs *regs);
-@@ -52,12 +54,40 @@ struct uprobe_consumer {
- };
- 
- #ifdef CONFIG_UPROBES
-+enum uprobe_task_state {
-+	UTASK_RUNNING,
-+	UTASK_BP_HIT,
-+	UTASK_SSTEP,
-+	UTASK_SSTEP_ACK,
-+	UTASK_SSTEP_TRAPPED,
-+};
-+
-+/*
-+ * uprobe_task: Metadata of a task while it singlesteps.
-+ */
-+struct uprobe_task {
-+	enum uprobe_task_state		state;
-+	struct arch_uprobe_task		autask;
-+
-+	struct uprobe 			*active_uprobe;
-+
-+	unsigned long			xol_vaddr;
-+	unsigned long			vaddr;
-+};
-+
- extern int __weak set_swbp(struct arch_uprobe *aup, struct mm_struct *mm, unsigned long vaddr);
- extern int __weak set_orig_insn(struct arch_uprobe *aup, struct mm_struct *mm,  unsigned long vaddr, bool verify);
- extern bool __weak is_swbp_insn(uprobe_opcode_t *insn);
- extern int uprobe_register(struct inode *inode, loff_t offset, struct uprobe_consumer *uc);
- extern void uprobe_unregister(struct inode *inode, loff_t offset, struct uprobe_consumer *uc);
- extern int uprobe_mmap(struct vm_area_struct *vma);
-+extern void uprobe_free_utask(struct task_struct *t);
-+extern unsigned long __weak uprobe_get_swbp_addr(struct pt_regs *regs);
-+extern int uprobe_post_sstep_notifier(struct pt_regs *regs);
-+extern int uprobe_pre_sstep_notifier(struct pt_regs *regs);
-+extern void uprobe_notify_resume(struct pt_regs *regs);
-+extern bool uprobe_deny_signal(void);
-+extern bool __weak arch_uprobe_skip_sstep(struct arch_uprobe *aup, struct pt_regs *regs);
- #else /* CONFIG_UPROBES is not defined */
- static inline int
- uprobe_register(struct inode *inode, loff_t offset, struct uprobe_consumer *uc)
-@@ -72,5 +102,19 @@ static inline int uprobe_mmap(struct vm_area_struct *vma)
- {
- 	return 0;
- }
-+static inline void uprobe_notify_resume(struct pt_regs *regs)
-+{
-+}
-+static inline bool uprobe_deny_signal(void)
-+{
-+	return false;
-+}
-+static inline unsigned long uprobe_get_swbp_addr(struct pt_regs *regs)
-+{
-+	return 0;
-+}
-+static inline void uprobe_free_utask(struct task_struct *t)
-+{
-+}
- #endif /* CONFIG_UPROBES */
- #endif	/* _LINUX_UPROBES_H */
-diff --git a/kernel/events/uprobes.c b/kernel/events/uprobes.c
-index e56e56a..a146c35 100644
---- a/kernel/events/uprobes.c
-+++ b/kernel/events/uprobes.c
-@@ -30,9 +30,12 @@
- #include <linux/rmap.h>		/* anon_vma_prepare */
- #include <linux/mmu_notifier.h>	/* set_pte_at_notify */
- #include <linux/swap.h>		/* try_to_free_swap */
-+#include <linux/ptrace.h>	/* user_enable_single_step */
-+#include <linux/kdebug.h>	/* notifier mechanism */
- 
- #include <linux/uprobes.h>
- 
-+static struct srcu_struct uprobes_srcu;
- static struct rb_root uprobes_tree = RB_ROOT;
- 
- static DEFINE_SPINLOCK(uprobes_treelock);	/* serialize rbtree access */
-@@ -486,6 +489,9 @@ static struct uprobe *insert_uprobe(struct uprobe *uprobe)
- 	u = __insert_uprobe(uprobe);
- 	spin_unlock_irqrestore(&uprobes_treelock, flags);
- 
-+	/* For now assume that the instruction need not be single-stepped */
-+	uprobe->flags |= UPROBE_SKIP_SSTEP;
-+
- 	return u;
- }
- 
-@@ -523,6 +529,21 @@ static struct uprobe *alloc_uprobe(struct inode *inode, loff_t offset)
- 	return uprobe;
- }
- 
-+static void handler_chain(struct uprobe *uprobe, struct pt_regs *regs)
-+{
-+	struct uprobe_consumer *uc;
-+
-+	if (!(uprobe->flags & UPROBE_RUN_HANDLER))
-+		return;
-+
-+	down_read(&uprobe->consumer_rwsem);
-+	for (uc = uprobe->consumers; uc; uc = uc->next) {
-+		if (!uc->filter || uc->filter(uc, current))
-+			uc->handler(uc, regs);
-+	}
-+	up_read(&uprobe->consumer_rwsem);
-+}
-+
- /* Returns the previous consumer */
- static struct uprobe_consumer *
- consumer_add(struct uprobe *uprobe, struct uprobe_consumer *uc)
-@@ -645,7 +666,7 @@ install_breakpoint(struct uprobe *uprobe, struct mm_struct *mm,
- 		if (is_swbp_insn((uprobe_opcode_t *)uprobe->arch.insn))
- 			return -EEXIST;
- 
--		ret = arch_uprobes_analyze_insn(&uprobe->arch, mm);
-+		ret = arch_uprobe_analyze_insn(&uprobe->arch, mm);
- 		if (ret)
- 			return ret;
- 
-@@ -662,10 +683,21 @@ remove_breakpoint(struct uprobe *uprobe, struct mm_struct *mm, loff_t vaddr)
- 	set_orig_insn(&uprobe->arch, mm, (unsigned long)vaddr, true);
- }
- 
-+/*
-+ * There could be threads that have hit the breakpoint and are entering the
-+ * notifier code and trying to acquire the uprobes_treelock. The thread
-+ * calling delete_uprobe() that is removing the uprobe from the rb_tree can
-+ * race with these threads and might acquire the uprobes_treelock compared
-+ * to some of the breakpoint hit threads. In such a case, the breakpoint
-+ * hit threads will not find the uprobe. The current unregistering thread
-+ * waits till all other threads have hit a breakpoint, to acquire the
-+ * uprobes_treelock before the uprobe is removed from the rbtree.
-+ */
- static void delete_uprobe(struct uprobe *uprobe)
- {
- 	unsigned long flags;
- 
-+	synchronize_srcu(&uprobes_srcu);
- 	spin_lock_irqsave(&uprobes_treelock, flags);
- 	rb_erase(&uprobe->rb_node, &uprobes_tree);
- 	spin_unlock_irqrestore(&uprobes_treelock, flags);
-@@ -1010,6 +1042,279 @@ int uprobe_mmap(struct vm_area_struct *vma)
- 	return ret;
- }
- 
-+/**
-+ * uprobe_get_swbp_addr - compute address of swbp given post-swbp regs
-+ * @regs: Reflects the saved state of the task after it has hit a breakpoint
-+ * instruction.
-+ * Return the address of the breakpoint instruction.
-+ */
-+unsigned long __weak uprobe_get_swbp_addr(struct pt_regs *regs)
-+{
-+	return instruction_pointer(regs) - UPROBE_SWBP_INSN_SIZE;
-+}
-+
-+/*
-+ * Called with no locks held.
-+ * Called in context of a exiting or a exec-ing thread.
-+ */
-+void uprobe_free_utask(struct task_struct *t)
-+{
-+	struct uprobe_task *utask = t->utask;
-+
-+	if (t->uprobe_srcu_id != -1)
-+		srcu_read_unlock_raw(&uprobes_srcu, t->uprobe_srcu_id);
-+
-+	if (!utask)
-+		return;
-+
-+	if (utask->active_uprobe)
-+		put_uprobe(utask->active_uprobe);
-+
-+	kfree(utask);
-+	t->utask = NULL;
-+}
-+
-+/*
-+ * Allocate a uprobe_task object for the task.
-+ * Called when the thread hits a breakpoint for the first time.
-+ *
-+ * Returns:
-+ * - pointer to new uprobe_task on success
-+ * - NULL otherwise
-+ */
-+static struct uprobe_task *add_utask(void)
-+{
-+	struct uprobe_task *utask;
-+
-+	utask = kzalloc(sizeof *utask, GFP_KERNEL);
-+	if (unlikely(!utask))
-+		return NULL;
-+
-+	utask->active_uprobe = NULL;
-+	current->utask = utask;
-+	return utask;
-+}
-+
-+/* Prepare to single-step probed instruction out of line. */
-+static int
-+pre_ssout(struct uprobe *uprobe, struct pt_regs *regs, unsigned long vaddr)
-+{
-+	return -EFAULT;
-+}
-+
-+/*
-+ * If we are singlestepping, then ensure this thread is not connected to
-+ * non-fatal signals until completion of singlestep.  When xol insn itself
-+ * triggers the signal,  restart the original insn even if the task is
-+ * already SIGKILL'ed (since coredump should report the correct ip).  This
-+ * is even more important if the task has a handler for SIGSEGV/etc, The
-+ * _same_ instruction should be repeated again after return from the signal
-+ * handler, and SSTEP can never finish in this case.
-+ */
-+bool uprobe_deny_signal(void)
-+{
-+	struct task_struct *t = current;
-+	struct uprobe_task *utask = t->utask;
-+
-+	if (likely(!utask || !utask->active_uprobe))
-+		return false;
-+
-+	WARN_ON_ONCE(utask->state != UTASK_SSTEP);
-+
-+	if (signal_pending(t)) {
-+		spin_lock_irq(&t->sighand->siglock);
-+		clear_tsk_thread_flag(t, TIF_SIGPENDING);
-+		spin_unlock_irq(&t->sighand->siglock);
-+
-+		if (__fatal_signal_pending(t) || arch_uprobe_xol_was_trapped(t)) {
-+			utask->state = UTASK_SSTEP_TRAPPED;
-+			set_tsk_thread_flag(t, TIF_UPROBE);
-+			set_tsk_thread_flag(t, TIF_NOTIFY_RESUME);
-+		}
-+	}
-+
-+	return true;
-+}
-+
-+/*
-+ * Avoid singlestepping the original instruction if the original instruction
-+ * is a NOP or can be emulated.
-+ */
-+static bool can_skip_sstep(struct uprobe *uprobe, struct pt_regs *regs)
-+{
-+	if (arch_uprobe_skip_sstep(&uprobe->arch, regs))
-+		return true;
-+
-+	uprobe->flags &= ~UPROBE_SKIP_SSTEP;
-+	return false;
-+}
-+
-+/*
-+ * Run handler and ask thread to singlestep.
-+ * Ensure all non-fatal signals cannot interrupt thread while it singlesteps.
-+ */
-+static void handle_swbp(struct pt_regs *regs)
-+{
-+	struct vm_area_struct *vma;
-+	struct uprobe_task *utask;
-+	struct uprobe *uprobe;
-+	struct mm_struct *mm;
-+	unsigned long bp_vaddr;
-+
-+	uprobe = NULL;
-+	bp_vaddr = uprobe_get_swbp_addr(regs);
-+	mm = current->mm;
-+	down_read(&mm->mmap_sem);
-+	vma = find_vma(mm, bp_vaddr);
-+
-+	if (vma && vma->vm_start <= bp_vaddr && valid_vma(vma, false)) {
-+		struct inode *inode;
-+		loff_t offset;
-+
-+		inode = vma->vm_file->f_mapping->host;
-+		offset = bp_vaddr - vma->vm_start;
-+		offset += (vma->vm_pgoff << PAGE_SHIFT);
-+		uprobe = find_uprobe(inode, offset);
-+	}
-+
-+	srcu_read_unlock_raw(&uprobes_srcu, current->uprobe_srcu_id);
-+	current->uprobe_srcu_id = -1;
-+	up_read(&mm->mmap_sem);
-+
-+	if (!uprobe) {
-+		/* No matching uprobe; signal SIGTRAP. */
-+		send_sig(SIGTRAP, current, 0);
-+		return;
-+	}
-+
-+	utask = current->utask;
-+	if (!utask) {
-+		utask = add_utask();
-+		/* Cannot allocate; re-execute the instruction. */
-+		if (!utask)
-+			goto cleanup_ret;
-+	}
-+	utask->active_uprobe = uprobe;
-+	handler_chain(uprobe, regs);
-+	if (uprobe->flags & UPROBE_SKIP_SSTEP && can_skip_sstep(uprobe, regs))
-+		goto cleanup_ret;
-+
-+	utask->state = UTASK_SSTEP;
-+	if (!pre_ssout(uprobe, regs, bp_vaddr)) {
-+		user_enable_single_step(current);
-+		return;
-+	}
-+
-+cleanup_ret:
-+	if (utask) {
-+		utask->active_uprobe = NULL;
-+		utask->state = UTASK_RUNNING;
-+	}
-+	if (uprobe) {
-+		if (!(uprobe->flags & UPROBE_SKIP_SSTEP))
-+
-+			/*
-+			 * cannot singlestep; cannot skip instruction;
-+			 * re-execute the instruction.
-+			 */
-+			instruction_pointer_set(regs, bp_vaddr);
-+
-+		put_uprobe(uprobe);
-+	}
-+}
-+
-+/*
-+ * Perform required fix-ups and disable singlestep.
-+ * Allow pending signals to take effect.
-+ */
-+static void handle_singlestep(struct uprobe_task *utask, struct pt_regs *regs)
-+{
-+	struct uprobe *uprobe;
-+
-+	uprobe = utask->active_uprobe;
-+	if (utask->state == UTASK_SSTEP_ACK)
-+		arch_uprobe_post_xol(&uprobe->arch, regs);
-+	else if (utask->state == UTASK_SSTEP_TRAPPED)
-+		arch_uprobe_abort_xol(&uprobe->arch, regs);
-+	else
-+		WARN_ON_ONCE(1);
-+
-+	put_uprobe(uprobe);
-+	utask->active_uprobe = NULL;
-+	utask->state = UTASK_RUNNING;
-+	user_disable_single_step(current);
-+
-+	spin_lock_irq(&current->sighand->siglock);
-+	recalc_sigpending(); /* see uprobe_deny_signal() */
-+	spin_unlock_irq(&current->sighand->siglock);
-+}
-+
-+/*
-+ * On breakpoint hit, breakpoint notifier sets the TIF_UPROBE flag.  (and on
-+ * subsequent probe hits on the thread sets the state to UTASK_BP_HIT) and
-+ * allows the thread to return from interrupt.
-+ *
-+ * On singlestep exception, singlestep notifier sets the TIF_UPROBE flag and
-+ * also sets the state to UTASK_SSTEP_ACK and allows the thread to return from
-+ * interrupt.
-+ *
-+ * While returning to userspace, thread notices the TIF_UPROBE flag and calls
-+ * uprobe_notify_resume().
-+ */
-+void uprobe_notify_resume(struct pt_regs *regs)
-+{
-+	struct uprobe_task *utask;
-+
-+	utask = current->utask;
-+	if (!utask || utask->state == UTASK_BP_HIT)
-+		handle_swbp(regs);
-+	else
-+		handle_singlestep(utask, regs);
-+}
-+
-+/*
-+ * uprobe_pre_sstep_notifier gets called from interrupt context as part of
-+ * notifier mechanism. Set TIF_UPROBE flag and indicate breakpoint hit.
-+ */
-+int uprobe_pre_sstep_notifier(struct pt_regs *regs)
-+{
-+	struct uprobe_task *utask;
-+
-+	if (!current->mm)
-+		return 0;
-+
-+	utask = current->utask;
-+	if (utask)
-+		utask->state = UTASK_BP_HIT;
-+
-+	set_thread_flag(TIF_UPROBE);
-+	current->uprobe_srcu_id = srcu_read_lock_raw(&uprobes_srcu);
-+
-+	return 1;
-+}
-+
-+/*
-+ * uprobe_post_sstep_notifier gets called in interrupt context as part of notifier
-+ * mechanism. Set TIF_UPROBE flag and indicate completion of singlestep.
-+ */
-+int uprobe_post_sstep_notifier(struct pt_regs *regs)
-+{
-+	struct uprobe_task *utask = current->utask;
-+
-+	if (!current->mm || !utask || !utask->active_uprobe)
-+		/* task is currently not uprobed */
-+		return 0;
-+
-+	utask->state = UTASK_SSTEP_ACK;
-+	set_thread_flag(TIF_UPROBE);
-+	return 1;
-+}
-+
-+static struct notifier_block uprobe_exception_nb = {
-+	.notifier_call = arch_uprobe_exception_notify,
-+	.priority = INT_MAX - 1,	/* notified after kprobes, kgdb */
-+};
-+
- static int __init init_uprobes(void)
- {
- 	int i;
-@@ -1018,7 +1323,8 @@ static int __init init_uprobes(void)
- 		mutex_init(&uprobes_mutex[i]);
- 		mutex_init(&uprobes_mmap_mutex[i]);
- 	}
--	return 0;
-+	init_srcu_struct(&uprobes_srcu);
-+	return register_die_notifier(&uprobe_exception_nb);
- }
- 
- static void __exit exit_uprobes(void)
-diff --git a/kernel/fork.c b/kernel/fork.c
-index 26a7a67..36508b9 100644
---- a/kernel/fork.c
-+++ b/kernel/fork.c
-@@ -67,6 +67,7 @@
- #include <linux/oom.h>
- #include <linux/khugepaged.h>
- #include <linux/signalfd.h>
-+#include <linux/uprobes.h>
- 
- #include <asm/pgtable.h>
- #include <asm/pgalloc.h>
-@@ -731,6 +732,8 @@ void mm_release(struct task_struct *tsk, struct mm_struct *mm)
- 		exit_pi_state_list(tsk);
- #endif
- 
-+	uprobe_free_utask(tsk);
-+
- 	/* Get rid of any cached register state */
- 	deactivate_mm(tsk, mm);
- 
-@@ -1322,6 +1325,10 @@ static struct task_struct *copy_process(unsigned long clone_flags,
- 	INIT_LIST_HEAD(&p->pi_state_list);
- 	p->pi_state_cache = NULL;
- #endif
-+#ifdef CONFIG_UPROBES
-+	p->utask = NULL;
-+	p->uprobe_srcu_id = -1;
-+#endif
- 	/*
- 	 * sigaltstack should be cleared when sharing the same VM
- 	 */
-diff --git a/kernel/signal.c b/kernel/signal.c
-index 8511e39..e93ff0a 100644
---- a/kernel/signal.c
-+++ b/kernel/signal.c
-@@ -29,6 +29,7 @@
- #include <linux/pid_namespace.h>
- #include <linux/nsproxy.h>
- #include <linux/user_namespace.h>
-+#include <linux/uprobes.h>
- #define CREATE_TRACE_POINTS
- #include <trace/events/signal.h>
- 
-@@ -2192,6 +2193,9 @@ int get_signal_to_deliver(siginfo_t *info, struct k_sigaction *return_ka,
- 	struct signal_struct *signal = current->signal;
- 	int signr;
- 
-+	if (unlikely(uprobe_deny_signal()))
-+		return 0;
-+
- relock:
- 	/*
- 	 * We'll jump back here after any time we were stopped in TASK_STOPPED.
-
+> @@ -1126,8 +1146,8 @@ static bool mem_cgroup_same_or_subtree(const struct mem_cgroup *root_memcg,
+>   		struct mem_cgroup *memcg)
+>   {
+>   	if (root_memcg != memcg) {
+> -		return (root_memcg->use_hierarchy&&
+> -			css_is_ancestor(&memcg->css,&root_memcg->css));
+> +		return mem_cgroup_test_flag(root_memcg, MEMCG_USE_HIERARCHY)&&
+> +			css_is_ancestor(&memcg->css,&root_memcg->css);
+>   	}
+>
+>   	return true;
+> @@ -1460,7 +1480,8 @@ static unsigned long mem_cgroup_reclaim(struct mem_cgroup *memcg,
+>
+>   	if (flags&  MEM_CGROUP_RECLAIM_NOSWAP)
+>   		noswap = true;
+> -	if (!(flags&  MEM_CGROUP_RECLAIM_SHRINK)&&  memcg->memsw_is_minimum)
+> +	if (!(flags&  MEM_CGROUP_RECLAIM_SHRINK)&&  mem_cgroup_test_flag(memcg,
+> +	    MEMCG_MEMSW_IS_MINIMUM))
+>   		noswap = true;
+>
+>   	for (loop = 0; loop<  MEM_CGROUP_MAX_RECLAIM_LOOPS; loop++) {
+> @@ -1813,7 +1834,7 @@ bool mem_cgroup_handle_oom(struct mem_cgroup *memcg, gfp_t mask)
+>   	 * under OOM is always welcomed, use TASK_KILLABLE here.
+>   	 */
+>   	prepare_to_wait(&memcg_oom_waitq,&owait.wait, TASK_KILLABLE);
+> -	if (!locked || memcg->oom_kill_disable)
+> +	if (!locked || mem_cgroup_test_flag(memcg, MEMCG_OOM_KILL_DISABLE))
+>   		need_to_kill = false;
+>   	if (locked)
+>   		mem_cgroup_oom_notify(memcg);
+> @@ -3416,9 +3437,11 @@ static int mem_cgroup_resize_limit(struct mem_cgroup *memcg,
+>   		ret = res_counter_set_limit(&memcg->res, val);
+>   		if (!ret) {
+>   			if (memswlimit == val)
+> -				memcg->memsw_is_minimum = true;
+> +				mem_cgroup_set_flag(memcg,
+> +				    MEMCG_MEMSW_IS_MINIMUM);
+>   			else
+> -				memcg->memsw_is_minimum = false;
+> +				mem_cgroup_clear_flag(memcg,
+> +				    MEMCG_MEMSW_IS_MINIMUM);
+>   		}
+>   		mutex_unlock(&set_limit_mutex);
+>
+> @@ -3475,9 +3498,11 @@ static int mem_cgroup_resize_memsw_limit(struct mem_cgroup *memcg,
+>   		ret = res_counter_set_limit(&memcg->memsw, val);
+>   		if (!ret) {
+>   			if (memlimit == val)
+> -				memcg->memsw_is_minimum = true;
+> +				mem_cgroup_set_flag(memcg,
+> +				    MEMCG_MEMSW_IS_MINIMUM);
+>   			else
+> -				memcg->memsw_is_minimum = false;
+> +				mem_cgroup_clear_flag(memcg,
+> +				    MEMCG_MEMSW_IS_MINIMUM);
+>   		}
+>   		mutex_unlock(&set_limit_mutex);
+>
+> @@ -3745,7 +3770,8 @@ int mem_cgroup_force_empty_write(struct cgroup *cont, unsigned int event)
+>
+>   static u64 mem_cgroup_hierarchy_read(struct cgroup *cont, struct cftype *cft)
+>   {
+> -	return mem_cgroup_from_cont(cont)->use_hierarchy;
+> +	return mem_cgroup_test_flag(mem_cgroup_from_cont(cont),
+> +	    MEMCG_USE_HIERARCHY);
+>   }
+>
+>   static int mem_cgroup_hierarchy_write(struct cgroup *cont, struct cftype *cft,
+> @@ -3768,10 +3794,14 @@ static int mem_cgroup_hierarchy_write(struct cgroup *cont, struct cftype *cft,
+>   	 * For the root cgroup, parent_mem is NULL, we allow value to be
+>   	 * set if there are no children.
+>   	 */
+> -	if ((!parent_memcg || !parent_memcg->use_hierarchy)&&
+> -				(val == 1 || val == 0)) {
+> +	if ((!parent_memcg || !mem_cgroup_test_flag(parent_memcg,
+> +	    MEMCG_USE_HIERARCHY))&&  (val == 1 || val == 0)) {
+>   		if (list_empty(&cont->children))
+> -			memcg->use_hierarchy = val;
+> +			if (val)
+> +				mem_cgroup_set_flag(memcg, MEMCG_USE_HIERARCHY);
+> +			else
+> +				mem_cgroup_clear_flag(memcg,
+> +				    MEMCG_USE_HIERARCHY);
+>   		else
+>   			retval = -EBUSY;
+>   	} else
+> @@ -3903,13 +3933,13 @@ static void memcg_get_hierarchical_limit(struct mem_cgroup *memcg,
+>   	min_limit = res_counter_read_u64(&memcg->res, RES_LIMIT);
+>   	min_memsw_limit = res_counter_read_u64(&memcg->memsw, RES_LIMIT);
+>   	cgroup = memcg->css.cgroup;
+> -	if (!memcg->use_hierarchy)
+> +	if (!mem_cgroup_test_flag(memcg, MEMCG_USE_HIERARCHY))
+>   		goto out;
+>
+>   	while (cgroup->parent) {
+>   		cgroup = cgroup->parent;
+>   		memcg = mem_cgroup_from_cont(cgroup);
+> -		if (!memcg->use_hierarchy)
+> +		if (!mem_cgroup_test_flag(memcg, MEMCG_USE_HIERARCHY))
+>   			break;
+>   		tmp = res_counter_read_u64(&memcg->res, RES_LIMIT);
+>   		min_limit = min(min_limit, tmp);
+> @@ -4206,8 +4236,9 @@ static int mem_cgroup_swappiness_write(struct cgroup *cgrp, struct cftype *cft,
+>   	cgroup_lock();
+>
+>   	/* If under hierarchy, only empty-root can set this value */
+> -	if ((parent->use_hierarchy) ||
+> -	    (memcg->use_hierarchy&&  !list_empty(&cgrp->children))) {
+> +	if (mem_cgroup_test_flag(parent, MEMCG_USE_HIERARCHY) ||
+> +	    (mem_cgroup_test_flag(memcg, MEMCG_USE_HIERARCHY)&&
+> +	    !list_empty(&cgrp->children))) {
+>   		cgroup_unlock();
+>   		return -EINVAL;
+>   	}
+> @@ -4518,7 +4549,8 @@ static int mem_cgroup_oom_control_read(struct cgroup *cgrp,
+>   {
+>   	struct mem_cgroup *memcg = mem_cgroup_from_cont(cgrp);
+>
+> -	cb->fill(cb, "oom_kill_disable", memcg->oom_kill_disable);
+> +	cb->fill(cb, "oom_kill_disable", mem_cgroup_test_flag(memcg,
+> +	    MEMCG_OOM_KILL_DISABLE));
+>
+>   	if (atomic_read(&memcg->under_oom))
+>   		cb->fill(cb, "under_oom", 1);
+> @@ -4541,14 +4573,18 @@ static int mem_cgroup_oom_control_write(struct cgroup *cgrp,
+>
+>   	cgroup_lock();
+>   	/* oom-kill-disable is a flag for subhierarchy. */
+> -	if ((parent->use_hierarchy) ||
+> -	    (memcg->use_hierarchy&&  !list_empty(&cgrp->children))) {
+> +	if (mem_cgroup_test_flag(parent, MEMCG_USE_HIERARCHY) ||
+> +	    (mem_cgroup_test_flag(memcg, MEMCG_USE_HIERARCHY)&&
+> +	    !list_empty(&cgrp->children))) {
+>   		cgroup_unlock();
+>   		return -EINVAL;
+>   	}
+> -	memcg->oom_kill_disable = val;
+> -	if (!val)
+> +	if (val)
+> +		mem_cgroup_set_flag(memcg, MEMCG_OOM_KILL_DISABLE);
+> +	else {
+> +		mem_cgroup_clear_flag(memcg, MEMCG_OOM_KILL_DISABLE);
+>   		memcg_oom_recover(memcg);
+> +	}
+>   	cgroup_unlock();
+>   	return 0;
+>   }
+> @@ -4916,11 +4952,19 @@ mem_cgroup_create(struct cgroup_subsys *ss, struct cgroup *cont)
+>   		hotcpu_notifier(memcg_cpu_hotplug_callback, 0);
+>   	} else {
+>   		parent = mem_cgroup_from_cont(cont->parent);
+> -		memcg->use_hierarchy = parent->use_hierarchy;
+> -		memcg->oom_kill_disable = parent->oom_kill_disable;
+> +
+> +		if (mem_cgroup_test_flag(parent, MEMCG_USE_HIERARCHY))
+> +			mem_cgroup_set_flag(memcg, MEMCG_USE_HIERARCHY);
+> +		else
+> +			mem_cgroup_clear_flag(memcg, MEMCG_USE_HIERARCHY);
+> +
+> +		if (mem_cgroup_test_flag(parent, MEMCG_OOM_KILL_DISABLE))
+> +			mem_cgroup_set_flag(memcg, MEMCG_OOM_KILL_DISABLE);
+> +		else
+> +			mem_cgroup_clear_flag(memcg, MEMCG_OOM_KILL_DISABLE);
+>   	}
+>
+> -	if (parent&&  parent->use_hierarchy) {
+> +	if (parent&&  mem_cgroup_test_flag(parent, MEMCG_USE_HIERARCHY)) {
+>   		res_counter_init(&memcg->res,&parent->res);
+>   		res_counter_init(&memcg->memsw,&parent->memsw);
+>   		/*
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
