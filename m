@@ -1,14 +1,15 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx102.postini.com [74.125.245.102])
-	by kanga.kvack.org (Postfix) with SMTP id 07CFD6B00F5
-	for <linux-mm@kvack.org>; Sun, 11 Mar 2012 06:43:25 -0400 (EDT)
-Message-ID: <4F5C8178.7000601@parallels.com>
-Date: Sun, 11 Mar 2012 14:42:00 +0400
+Received: from psmtp.com (na3sys010amx130.postini.com [74.125.245.130])
+	by kanga.kvack.org (Postfix) with SMTP id 763016B00F5
+	for <linux-mm@kvack.org>; Sun, 11 Mar 2012 06:51:19 -0400 (EDT)
+Message-ID: <4F5C8350.9080102@parallels.com>
+Date: Sun, 11 Mar 2012 14:49:52 +0400
 From: Glauber Costa <glommer@parallels.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH v2 13/13] memcg: Document kernel memory accounting.
-References: <1331325556-16447-1-git-send-email-ssouhlal@FreeBSD.org> <1331325556-16447-14-git-send-email-ssouhlal@FreeBSD.org>
-In-Reply-To: <1331325556-16447-14-git-send-email-ssouhlal@FreeBSD.org>
+Subject: Re: [PATCH v2 04/13] memcg: Make it possible to use the stock for
+ more than one page.
+References: <1331325556-16447-1-git-send-email-ssouhlal@FreeBSD.org> <1331325556-16447-5-git-send-email-ssouhlal@FreeBSD.org>
+In-Reply-To: <1331325556-16447-5-git-send-email-ssouhlal@FreeBSD.org>
 Content-Type: text/plain; charset="ISO-8859-1"; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -19,83 +20,71 @@ Cc: cgroups@vger.kernel.org, suleiman@google.com, kamezawa.hiroyu@jp.fujitsu.com
 On 03/10/2012 12:39 AM, Suleiman Souhlal wrote:
 > Signed-off-by: Suleiman Souhlal<suleiman@google.com>
 > ---
->   Documentation/cgroups/memory.txt |   44 ++++++++++++++++++++++++++++++++++---
->   1 files changed, 40 insertions(+), 4 deletions(-)
+>   mm/memcontrol.c |   18 +++++++++---------
+>   1 files changed, 9 insertions(+), 9 deletions(-)
 >
-> diff --git a/Documentation/cgroups/memory.txt b/Documentation/cgroups/memory.txt
-> index 4c95c00..73f2e38 100644
-> --- a/Documentation/cgroups/memory.txt
-> +++ b/Documentation/cgroups/memory.txt
-> @@ -74,6 +74,11 @@ Brief summary of control files.
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index 6fbb438..f605100 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -1965,19 +1965,19 @@ static DEFINE_PER_CPU(struct memcg_stock_pcp, memcg_stock);
+>   static DEFINE_MUTEX(percpu_charge_mutex);
 >
->    memory.kmem.tcp.limit_in_bytes  # set/show hard limit for tcp buf memory
->    memory.kmem.tcp.usage_in_bytes  # show current tcp buf memory allocation
-> + memory.kmem.usage_in_bytes	 # show current kernel memory usage
-> + memory.kmem.limit_in_bytes	 # show/set limit of kernel memory usage
-> + memory.kmem.independent_kmem_limit # show/set control of kernel memory limit
-> + 				    (See 2.7 for details)
-> + memory.kmem.slabinfo		 # show cgroup's slabinfo
+>   /*
+> - * Try to consume stocked charge on this cpu. If success, one page is consumed
+> - * from local stock and true is returned. If the stock is 0 or charges from a
+> - * cgroup which is not current target, returns false. This stock will be
+> - * refilled.
+> + * Try to consume stocked charge on this cpu. If success, nr_pages pages are
+> + * consumed from local stock and true is returned. If the stock is 0 or
+> + * charges from a cgroup which is not current target, returns false.
+> + * This stock will be refilled.
+>    */
+> -static bool consume_stock(struct mem_cgroup *memcg)
+> +static bool consume_stock(struct mem_cgroup *memcg, int nr_pages)
+>   {
+>   	struct memcg_stock_pcp *stock;
+>   	bool ret = true;
 >
->   1. History
->
-> @@ -265,11 +270,19 @@ the amount of kernel memory used by the system. Kernel memory is fundamentally
->   different than user memory, since it can't be swapped out, which makes it
->   possible to DoS the system by consuming too much of this precious resource.
->
-> -Kernel memory limits are not imposed for the root cgroup. Usage for the root
-> -cgroup may or may not be accounted.
-> +Kernel memory limits are not imposed for the root cgroup.
->
-> -Currently no soft limit is implemented for kernel memory. It is future work
-> -to trigger slab reclaim when those limits are reached.
-> +A cgroup's kernel memory is counted into its memory.kmem.usage_in_bytes.
-> +
-> +memory.kmem.independent_kmem_limit controls whether or not kernel memory
-> +should also be counted into the cgroup's memory.usage_in_bytes.
-> +If it is set, it is possible to specify a limit for kernel memory with
-> +memory.kmem.limit_in_bytes.
-> +
-> +Upon cgroup deletion, all the remaining kernel memory becomes unaccounted.
-> +
-> +An accounted kernel memory allocation may trigger reclaim in that cgroup,
-> +and may also OOM.
-Why delete the softlimit bit? Since we're not shrinking, at least for 
-the independent kmem case, we effectively don't do softlimits here. The 
-file for it does not even exist...
+>   	stock =&get_cpu_var(memcg_stock);
+> -	if (memcg == stock->cached&&  stock->nr_pages)
+> -		stock->nr_pages--;
+> +	if (memcg == stock->cached&&  stock->nr_pages>= nr_pages)
+> +		stock->nr_pages -= nr_pages;
+>   	else /* need to call res_counter_charge */
+>   		ret = false;
+>   	put_cpu_var(memcg_stock);
+> @@ -2290,7 +2290,7 @@ again:
+>   		VM_BUG_ON(css_is_removed(&memcg->css));
+>   		if (mem_cgroup_is_root(memcg))
+>   			goto done;
+> -		if (nr_pages == 1&&  consume_stock(memcg))
+> +		if (consume_stock(memcg, nr_pages))
+>   			goto done;
+>   		css_get(&memcg->css);
+>   	} else {
+> @@ -2315,7 +2315,7 @@ again:
+>   			rcu_read_unlock();
+>   			goto done;
+>   		}
+> -		if (nr_pages == 1&&  consume_stock(memcg)) {
+> +		if (consume_stock(memcg, nr_pages)) {
+>   			/*
+>   			 * It seems dagerous to access memcg without css_get().
+>   			 * But considering how consume_stok works, it's not
 
->
->   2.7.1 Current Kernel Memory resources accounted
->
-> @@ -279,6 +292,29 @@ per cgroup, instead of globally.
->
->   * tcp memory pressure: sockets memory pressure for the tcp protocol.
->
-> +* slab memory.
-> +
-> +2.7.1.1 Slab memory accounting
-> +
-> +Any slab type created with the SLAB_MEMCG_ACCT kmem_cache_create() flag
-> +is accounted.
-> +
-> +Slab gets accounted on a per-page basis, which is done by using per-cgroup
-> +kmem_caches. These per-cgroup kmem_caches get created on-demand, the first
-> +time a specific kmem_cache gets used by a cgroup.
-> +
-> +Only slab memory that can be attributed to a cgroup gets accounted in this
-> +fashion.
-> +
-> +A per-cgroup kmem_cache is named like the original, with the cgroup's name
-> +in parentheses.
-> +
-> +When a cgroup is destroyed, all its kmem_caches get migrated to the root
-> +cgroup, and "dead" is appended to their name, to indicate that they are not
-> +going to be used for new allocations.
-> +These dead caches automatically get removed once there are no more active
-> +slab objects in them.
-> +
->   3. User Interface
->
->   0. Configuration
+This patch itself is fine in what it wants to achieve.
+But it made me think:
+
+We'll jump into the stock code which makes user allocation faster.
+but we're not getting the benefit of it when we're accounting kmem.
+since we're allocating to both res_counters, we're actually defeating it 
+altogether, since we now have to go to the global poll *everytime* (for 
+memcg->kmem).
+
+It would make a whole lot more sense to have the stock code moved to the
+res_counter. We're now starting to have more users of that anyway, so
+a common implementation makes sense.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
