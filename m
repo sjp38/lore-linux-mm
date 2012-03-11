@@ -1,14 +1,14 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx197.postini.com [74.125.245.197])
-	by kanga.kvack.org (Postfix) with SMTP id 7AF2D6B00F5
-	for <linux-mm@kvack.org>; Sun, 11 Mar 2012 06:37:15 -0400 (EDT)
-Message-ID: <4F5C8004.7010103@parallels.com>
-Date: Sun, 11 Mar 2012 14:35:48 +0400
+Received: from psmtp.com (na3sys010amx102.postini.com [74.125.245.102])
+	by kanga.kvack.org (Postfix) with SMTP id 07CFD6B00F5
+	for <linux-mm@kvack.org>; Sun, 11 Mar 2012 06:43:25 -0400 (EDT)
+Message-ID: <4F5C8178.7000601@parallels.com>
+Date: Sun, 11 Mar 2012 14:42:00 +0400
 From: Glauber Costa <glommer@parallels.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH v2 12/13] memcg: Per-memcg memory.kmem.slabinfo file.
-References: <1331325556-16447-1-git-send-email-ssouhlal@FreeBSD.org> <1331325556-16447-13-git-send-email-ssouhlal@FreeBSD.org>
-In-Reply-To: <1331325556-16447-13-git-send-email-ssouhlal@FreeBSD.org>
+Subject: Re: [PATCH v2 13/13] memcg: Document kernel memory accounting.
+References: <1331325556-16447-1-git-send-email-ssouhlal@FreeBSD.org> <1331325556-16447-14-git-send-email-ssouhlal@FreeBSD.org>
+In-Reply-To: <1331325556-16447-14-git-send-email-ssouhlal@FreeBSD.org>
 Content-Type: text/plain; charset="ISO-8859-1"; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -17,226 +17,85 @@ To: Suleiman Souhlal <ssouhlal@FreeBSD.org>
 Cc: cgroups@vger.kernel.org, suleiman@google.com, kamezawa.hiroyu@jp.fujitsu.com, penberg@kernel.org, cl@linux.com, yinghan@google.com, hughd@google.com, gthelen@google.com, peterz@infradead.org, dan.magenheimer@oracle.com, hannes@cmpxchg.org, mgorman@suse.de, James.Bottomley@HansenPartnership.com, linux-mm@kvack.org, devel@openvz.org, linux-kernel@vger.kernel.org
 
 On 03/10/2012 12:39 AM, Suleiman Souhlal wrote:
-> This file shows all the kmem_caches used by a memcg.
->
 > Signed-off-by: Suleiman Souhlal<suleiman@google.com>
-Reviewed-by: Glauber Costa <glommer@parallels.com>
-
 > ---
->   include/linux/slab.h     |    6 +++
->   include/linux/slab_def.h |    1 +
->   mm/memcontrol.c          |   18 +++++++++
->   mm/slab.c                |   88 ++++++++++++++++++++++++++++++++++------------
->   4 files changed, 90 insertions(+), 23 deletions(-)
+>   Documentation/cgroups/memory.txt |   44 ++++++++++++++++++++++++++++++++++---
+>   1 files changed, 40 insertions(+), 4 deletions(-)
 >
-> diff --git a/include/linux/slab.h b/include/linux/slab.h
-> index fd1d2ba..0ff5ee2 100644
-> --- a/include/linux/slab.h
-> +++ b/include/linux/slab.h
-> @@ -401,6 +401,12 @@ static inline void *kmalloc_no_account(size_t size, gfp_t flags)
->   	return kmalloc(size, flags);
->   }
+> diff --git a/Documentation/cgroups/memory.txt b/Documentation/cgroups/memory.txt
+> index 4c95c00..73f2e38 100644
+> --- a/Documentation/cgroups/memory.txt
+> +++ b/Documentation/cgroups/memory.txt
+> @@ -74,6 +74,11 @@ Brief summary of control files.
 >
-> +static inline int
-> +mem_cgroup_slabinfo(struct mem_cgroup *mem, struct seq_file *m)
-> +{
-> +	return 0;
-> +}
-> +
->   #endif /* CONFIG_CGROUP_MEM_RES_CTLR_KMEM&&  CONFIG_SLAB */
+>    memory.kmem.tcp.limit_in_bytes  # set/show hard limit for tcp buf memory
+>    memory.kmem.tcp.usage_in_bytes  # show current tcp buf memory allocation
+> + memory.kmem.usage_in_bytes	 # show current kernel memory usage
+> + memory.kmem.limit_in_bytes	 # show/set limit of kernel memory usage
+> + memory.kmem.independent_kmem_limit # show/set control of kernel memory limit
+> + 				    (See 2.7 for details)
+> + memory.kmem.slabinfo		 # show cgroup's slabinfo
 >
->   #endif	/* _LINUX_SLAB_H */
-> diff --git a/include/linux/slab_def.h b/include/linux/slab_def.h
-> index 248b8a9..fa6b272 100644
-> --- a/include/linux/slab_def.h
-> +++ b/include/linux/slab_def.h
-> @@ -227,6 +227,7 @@ found:
->   #ifdef CONFIG_CGROUP_MEM_RES_CTLR_KMEM
+>   1. History
 >
->   void kmem_cache_drop_ref(struct kmem_cache *cachep);
-> +int mem_cgroup_slabinfo(struct mem_cgroup *mem, struct seq_file *m);
+> @@ -265,11 +270,19 @@ the amount of kernel memory used by the system. Kernel memory is fundamentally
+>   different than user memory, since it can't be swapped out, which makes it
+>   possible to DoS the system by consuming too much of this precious resource.
 >
->   static inline void
->   kmem_cache_get_ref(struct kmem_cache *cachep)
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index 9f5e9d8..4a4fa48 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -4672,6 +4672,20 @@ static int mem_cgroup_independent_kmem_limit_write(struct cgroup *cgrp,
->   	return 0;
->   }
+> -Kernel memory limits are not imposed for the root cgroup. Usage for the root
+> -cgroup may or may not be accounted.
+> +Kernel memory limits are not imposed for the root cgroup.
 >
-> +static int
-> +mem_cgroup_slabinfo_show(struct cgroup *cgroup, struct cftype *ctf,
-> +    struct seq_file *m)
-> +{
-> +	struct mem_cgroup *mem;
+> -Currently no soft limit is implemented for kernel memory. It is future work
+> -to trigger slab reclaim when those limits are reached.
+> +A cgroup's kernel memory is counted into its memory.kmem.usage_in_bytes.
 > +
-> +	mem  = mem_cgroup_from_cont(cgroup);
+> +memory.kmem.independent_kmem_limit controls whether or not kernel memory
+> +should also be counted into the cgroup's memory.usage_in_bytes.
+> +If it is set, it is possible to specify a limit for kernel memory with
+> +memory.kmem.limit_in_bytes.
 > +
-> +	if (mem == root_mem_cgroup)
-> +		mem = NULL;
+> +Upon cgroup deletion, all the remaining kernel memory becomes unaccounted.
 > +
-> +	return mem_cgroup_slabinfo(mem, m);
-> +}
-> +
->   static struct cftype kmem_cgroup_files[] = {
->   	{
->   		.name = "kmem.independent_kmem_limit",
-> @@ -4689,6 +4703,10 @@ static struct cftype kmem_cgroup_files[] = {
->   		.private = MEMFILE_PRIVATE(_KMEM, RES_USAGE),
->   		.read_u64 = mem_cgroup_read,
->   	},
-> +	{
-> +		.name = "kmem.slabinfo",
-> +		.read_seq_string = mem_cgroup_slabinfo_show,
-> +	},
->   };
+> +An accounted kernel memory allocation may trigger reclaim in that cgroup,
+> +and may also OOM.
+Why delete the softlimit bit? Since we're not shrinking, at least for 
+the independent kmem case, we effectively don't do softlimits here. The 
+file for it does not even exist...
+
 >
->   static int register_kmem_files(struct cgroup *cont, struct cgroup_subsys *ss)
-> diff --git a/mm/slab.c b/mm/slab.c
-> index 02239ed..1b35799 100644
-> --- a/mm/slab.c
-> +++ b/mm/slab.c
-> @@ -4528,21 +4528,26 @@ static void s_stop(struct seq_file *m, void *p)
->   	mutex_unlock(&cache_chain_mutex);
->   }
+>   2.7.1 Current Kernel Memory resources accounted
 >
-> -static int s_show(struct seq_file *m, void *p)
-> -{
-> -	struct kmem_cache *cachep = list_entry(p, struct kmem_cache, next);
-> -	struct slab *slabp;
-> +struct slab_counts {
->   	unsigned long active_objs;
-> +	unsigned long active_slabs;
-> +	unsigned long num_slabs;
-> +	unsigned long free_objects;
-> +	unsigned long shared_avail;
->   	unsigned long num_objs;
-> -	unsigned long active_slabs = 0;
-> -	unsigned long num_slabs, free_objects = 0, shared_avail = 0;
-> -	const char *name;
-> -	char *error = NULL;
-> -	int node;
-> +};
-> +
-> +static char *
-> +get_slab_counts(struct kmem_cache *cachep, struct slab_counts *c)
-> +{
->   	struct kmem_list3 *l3;
-> +	struct slab *slabp;
-> +	char *error;
-> +	int node;
-> +
-> +	error = NULL;
-> +	memset(c, 0, sizeof(struct slab_counts));
+> @@ -279,6 +292,29 @@ per cgroup, instead of globally.
 >
-> -	active_objs = 0;
-> -	num_slabs = 0;
->   	for_each_online_node(node) {
->   		l3 = cachep->nodelists[node];
->   		if (!l3)
-> @@ -4554,31 +4559,43 @@ static int s_show(struct seq_file *m, void *p)
->   		list_for_each_entry(slabp,&l3->slabs_full, list) {
->   			if (slabp->inuse != cachep->num&&  !error)
->   				error = "slabs_full accounting error";
-> -			active_objs += cachep->num;
-> -			active_slabs++;
-> +			c->active_objs += cachep->num;
-> +			c->active_slabs++;
->   		}
->   		list_for_each_entry(slabp,&l3->slabs_partial, list) {
->   			if (slabp->inuse == cachep->num&&  !error)
->   				error = "slabs_partial inuse accounting error";
->   			if (!slabp->inuse&&  !error)
->   				error = "slabs_partial/inuse accounting error";
-> -			active_objs += slabp->inuse;
-> -			active_slabs++;
-> +			c->active_objs += slabp->inuse;
-> +			c->active_slabs++;
->   		}
->   		list_for_each_entry(slabp,&l3->slabs_free, list) {
->   			if (slabp->inuse&&  !error)
->   				error = "slabs_free/inuse accounting error";
-> -			num_slabs++;
-> +			c->num_slabs++;
->   		}
-> -		free_objects += l3->free_objects;
-> +		c->free_objects += l3->free_objects;
->   		if (l3->shared)
-> -			shared_avail += l3->shared->avail;
-> +			c->shared_avail += l3->shared->avail;
+>   * tcp memory pressure: sockets memory pressure for the tcp protocol.
 >
->   		spin_unlock_irq(&l3->list_lock);
->   	}
-> -	num_slabs += active_slabs;
-> -	num_objs = num_slabs * cachep->num;
-> -	if (num_objs - active_objs != free_objects&&  !error)
-> +	c->num_slabs += c->active_slabs;
-> +	c->num_objs = c->num_slabs * cachep->num;
+> +* slab memory.
 > +
-> +	return error;
-> +}
+> +2.7.1.1 Slab memory accounting
 > +
-> +static int s_show(struct seq_file *m, void *p)
-> +{
-> +	struct kmem_cache *cachep = list_entry(p, struct kmem_cache, next);
-> +	struct slab_counts c;
-> +	const char *name;
-> +	char *error;
+> +Any slab type created with the SLAB_MEMCG_ACCT kmem_cache_create() flag
+> +is accounted.
 > +
-> +	error = get_slab_counts(cachep,&c);
-> +	if (c.num_objs - c.active_objs != c.free_objects&&  !error)
->   		error = "free_objects accounting error";
+> +Slab gets accounted on a per-page basis, which is done by using per-cgroup
+> +kmem_caches. These per-cgroup kmem_caches get created on-demand, the first
+> +time a specific kmem_cache gets used by a cgroup.
+> +
+> +Only slab memory that can be attributed to a cgroup gets accounted in this
+> +fashion.
+> +
+> +A per-cgroup kmem_cache is named like the original, with the cgroup's name
+> +in parentheses.
+> +
+> +When a cgroup is destroyed, all its kmem_caches get migrated to the root
+> +cgroup, and "dead" is appended to their name, to indicate that they are not
+> +going to be used for new allocations.
+> +These dead caches automatically get removed once there are no more active
+> +slab objects in them.
+> +
+>   3. User Interface
 >
->   	name = cachep->name;
-> @@ -4586,12 +4603,12 @@ static int s_show(struct seq_file *m, void *p)
->   		printk(KERN_ERR "slab: cache %s error: %s\n", name, error);
->
->   	seq_printf(m, "%-17s %6lu %6lu %6u %4u %4d",
-> -		   name, active_objs, num_objs, cachep->buffer_size,
-> +		   name, c.active_objs, c.num_objs, cachep->buffer_size,
->   		   cachep->num, (1<<  cachep->gfporder));
->   	seq_printf(m, " : tunables %4u %4u %4u",
->   		   cachep->limit, cachep->batchcount, cachep->shared);
->   	seq_printf(m, " : slabdata %6lu %6lu %6lu",
-> -		   active_slabs, num_slabs, shared_avail);
-> +		   c.active_slabs, c.num_slabs, c.shared_avail);
->   #if STATS
->   	{			/* list3 stats */
->   		unsigned long high = cachep->high_mark;
-> @@ -4726,6 +4743,31 @@ static const struct file_operations proc_slabinfo_operations = {
->   	.release	= seq_release,
->   };
->
-> +#ifdef CONFIG_CGROUP_MEM_RES_CTLR_KMEM
-> +int
-> +mem_cgroup_slabinfo(struct mem_cgroup *mem, struct seq_file *m)
-> +{
-> +	struct kmem_cache *cachep;
-> +	struct slab_counts c;
-> +
-> +	seq_printf(m, "# name<active_objs>  <num_objs>  <objsize>\n");
-> +
-> +	mutex_lock(&cache_chain_mutex);
-> +	list_for_each_entry(cachep,&cache_chain, next) {
-> +		if (cachep->memcg_params.memcg != mem)
-> +			continue;
-> +
-> +		get_slab_counts(cachep,&c);
-> +
-> +		seq_printf(m, "%-17s %6lu %6lu %6u\n", cachep->name,
-> +		   c.active_objs, c.num_objs, cachep->buffer_size);
-> +	}
-> +	mutex_unlock(&cache_chain_mutex);
-> +
-> +	return 0;
-> +}
-> +#endif /* CONFIG_CGROUP_MEM_RES_CTLR_KMEM */
-> +
->   #ifdef CONFIG_DEBUG_SLAB_LEAK
->
->   static void *leaks_start(struct seq_file *m, loff_t *pos)
+>   0. Configuration
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
