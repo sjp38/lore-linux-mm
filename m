@@ -1,45 +1,206 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx170.postini.com [74.125.245.170])
-	by kanga.kvack.org (Postfix) with SMTP id 0BDF06B0044
-	for <linux-mm@kvack.org>; Mon, 12 Mar 2012 04:22:30 -0400 (EDT)
-Date: Mon, 12 Mar 2012 09:22:20 +0100
-From: Jan Kara <jack@suse.cz>
-Subject: Re: [PATCH 0/7 v3] Push file_update_time() into .page_mkwrite
-Message-ID: <20120312082220.GA5998@quack.suse.cz>
-References: <1330959258-23211-1-git-send-email-jack@suse.cz>
- <1331497397.4641.87.camel@fourier>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1331497397.4641.87.camel@fourier>
+Received: from psmtp.com (na3sys010amx124.postini.com [74.125.245.124])
+	by kanga.kvack.org (Postfix) with SMTP id 4FD686B0044
+	for <linux-mm@kvack.org>; Mon, 12 Mar 2012 05:28:33 -0400 (EDT)
+Received: from /spool/local
+	by e23smtp04.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <srikar@linux.vnet.ibm.com>;
+	Mon, 12 Mar 2012 09:11:39 +1000
+Received: from d23av02.au.ibm.com (d23av02.au.ibm.com [9.190.235.138])
+	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q2C9SDIU794878
+	for <linux-mm@kvack.org>; Mon, 12 Mar 2012 20:28:15 +1100
+Received: from d23av02.au.ibm.com (loopback [127.0.0.1])
+	by d23av02.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q2C9SBD9010836
+	for <linux-mm@kvack.org>; Mon, 12 Mar 2012 20:28:13 +1100
+From: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
+Date: Mon, 12 Mar 2012 14:55:14 +0530
+Message-Id: <20120312092514.5379.36595.sendpatchset@srdronam.in.ibm.com>
+Subject: [PATCH v2 1/7] uprobes/core: Make macro names consistent.
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kamal Mostafa <kamal@canonical.com>
-Cc: Jan Kara <jack@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Al Viro <viro@ZenIV.linux.org.uk>, Christoph Hellwig <hch@infradead.org>, Jaya Kumar <jayalk@intworks.biz>, Sage Weil <sage@newdream.net>, ceph-devel@vger.kernel.org, Eric Van Hensbergen <ericvh@gmail.com>, Ron Minnich <rminnich@sandia.gov>, Latchesar Ionkov <lucho@ionkov.net>, v9fs-developer@lists.sourceforge.net, Steven Whitehouse <swhiteho@redhat.com>, cluster-devel@redhat.com, Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+To: Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@elte.hu>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, LKML <linux-kernel@vger.kernel.org>, Linux-mm <linux-mm@kvack.org>, Oleg Nesterov <oleg@redhat.com>, Andi Kleen <andi@firstfloor.org>, Christoph Hellwig <hch@infradead.org>, Steven Rostedt <rostedt@goodmis.org>, Arnaldo Carvalho de Melo <acme@infradead.org>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Thomas Gleixner <tglx@linutronix.de>
 
-On Sun 11-03-12 13:23:17, Kamal Mostafa wrote:
-> On Mon, 2012-03-05 at 15:54 +0100, Jan Kara wrote:
-> > Hello,
-> > 
-> >   to provide reliable support for filesystem freezing, filesystems need to have
-> > complete control over when metadata is changed.  [...]
-> 
-> This patch set has been tested at Canonical along with the testing for
-> "[PATCH 00/19] Fix filesystem freezing deadlocks".
-> 
-> Please add the following endorsements for these patches (those actually
-> exercised by our test case):  1, 2, 6, 7
-> 
-> Tested-by: Kamal Mostafa <kamal@canonical.com>
-> Tested-by: Peter M. Petrakis <peter.petrakis@canonical.com>
-> Tested-by: Dann Frazier <dann.frazier@canonical.com>
-> Tested-by: Massimo Morana <massimo.morana@canonical.com>
-  Thanks for testing guys!
+From: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
 
-								Honza
--- 
-Jan Kara <jack@suse.cz>
-SUSE Labs, CR
+Rename macros that refer to individual uprobe to start with UPROBE_ instead
+of UPROBES_.
+
+This is pure cleanup, no functional change intended.
+
+Signed-off-by: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
+---
+ arch/x86/include/asm/uprobes.h |    6 +++---
+ arch/x86/kernel/uprobes.c      |   18 +++++++++---------
+ include/linux/uprobes.h        |    4 ++--
+ kernel/events/uprobes.c        |   18 +++++++++---------
+ 4 files changed, 23 insertions(+), 23 deletions(-)
+
+diff --git a/arch/x86/include/asm/uprobes.h b/arch/x86/include/asm/uprobes.h
+index f7ce310..5c399e4 100644
+--- a/arch/x86/include/asm/uprobes.h
++++ b/arch/x86/include/asm/uprobes.h
+@@ -26,10 +26,10 @@
+ typedef u8 uprobe_opcode_t;
+ 
+ #define MAX_UINSN_BYTES			  16
+-#define UPROBES_XOL_SLOT_BYTES		 128	/* to keep it cache aligned */
++#define UPROBE_XOL_SLOT_BYTES		 128	/* to keep it cache aligned */
+ 
+-#define UPROBES_BKPT_INSN		0xcc
+-#define UPROBES_BKPT_INSN_SIZE		   1
++#define UPROBE_BKPT_INSN		0xcc
++#define UPROBE_BKPT_INSN_SIZE		   1
+ 
+ struct arch_uprobe {
+ 	u16				fixups;
+diff --git a/arch/x86/kernel/uprobes.c b/arch/x86/kernel/uprobes.c
+index 04dfcef..6dfa89e 100644
+--- a/arch/x86/kernel/uprobes.c
++++ b/arch/x86/kernel/uprobes.c
+@@ -31,14 +31,14 @@
+ /* Post-execution fixups. */
+ 
+ /* No fixup needed */
+-#define UPROBES_FIX_NONE	0x0
++#define UPROBE_FIX_NONE	0x0
+ /* Adjust IP back to vicinity of actual insn */
+-#define UPROBES_FIX_IP		0x1
++#define UPROBE_FIX_IP		0x1
+ /* Adjust the return address of a call insn */
+-#define UPROBES_FIX_CALL	0x2
++#define UPROBE_FIX_CALL	0x2
+ 
+-#define UPROBES_FIX_RIP_AX	0x8000
+-#define UPROBES_FIX_RIP_CX	0x4000
++#define UPROBE_FIX_RIP_AX	0x8000
++#define UPROBE_FIX_RIP_CX	0x4000
+ 
+ /* Adaptations for mhiramat x86 decoder v14. */
+ #define OPCODE1(insn)		((insn)->opcode.bytes[0])
+@@ -269,9 +269,9 @@ static void prepare_fixups(struct arch_uprobe *auprobe, struct insn *insn)
+ 		break;
+ 	}
+ 	if (fix_ip)
+-		auprobe->fixups |= UPROBES_FIX_IP;
++		auprobe->fixups |= UPROBE_FIX_IP;
+ 	if (fix_call)
+-		auprobe->fixups |= UPROBES_FIX_CALL;
++		auprobe->fixups |= UPROBE_FIX_CALL;
+ }
+ 
+ #ifdef CONFIG_X86_64
+@@ -341,12 +341,12 @@ static void handle_riprel_insn(struct mm_struct *mm, struct arch_uprobe *auprobe
+ 		 * is NOT the register operand, so we use %rcx (register
+ 		 * #1) for the scratch register.
+ 		 */
+-		auprobe->fixups = UPROBES_FIX_RIP_CX;
++		auprobe->fixups = UPROBE_FIX_RIP_CX;
+ 		/* Change modrm from 00 000 101 to 00 000 001. */
+ 		*cursor = 0x1;
+ 	} else {
+ 		/* Use %rax (register #0) for the scratch register. */
+-		auprobe->fixups = UPROBES_FIX_RIP_AX;
++		auprobe->fixups = UPROBE_FIX_RIP_AX;
+ 		/* Change modrm from 00 xxx 101 to 00 xxx 000 */
+ 		*cursor = (reg << 3);
+ 	}
+diff --git a/include/linux/uprobes.h b/include/linux/uprobes.h
+index f85797e..838fb31 100644
+--- a/include/linux/uprobes.h
++++ b/include/linux/uprobes.h
+@@ -35,10 +35,10 @@ struct vm_area_struct;
+ /* flags that denote/change uprobes behaviour */
+ 
+ /* Have a copy of original instruction */
+-#define UPROBES_COPY_INSN	0x1
++#define UPROBE_COPY_INSN	0x1
+ 
+ /* Dont run handlers when first register/ last unregister in progress*/
+-#define UPROBES_RUN_HANDLER	0x2
++#define UPROBE_RUN_HANDLER	0x2
+ 
+ struct uprobe_consumer {
+ 	int (*handler)(struct uprobe_consumer *self, struct pt_regs *regs);
+diff --git a/kernel/events/uprobes.c b/kernel/events/uprobes.c
+index 5ce32e3..0d36bf3 100644
+--- a/kernel/events/uprobes.c
++++ b/kernel/events/uprobes.c
+@@ -177,7 +177,7 @@ static int __replace_page(struct vm_area_struct *vma, struct page *page, struct 
+  */
+ bool __weak is_bkpt_insn(uprobe_opcode_t *insn)
+ {
+-	return *insn == UPROBES_BKPT_INSN;
++	return *insn == UPROBE_BKPT_INSN;
+ }
+ 
+ /*
+@@ -259,8 +259,8 @@ static int write_opcode(struct mm_struct *mm, struct arch_uprobe *auprobe,
+ 
+ 	/* poke the new insn in, ASSUMES we don't cross page boundary */
+ 	vaddr &= ~PAGE_MASK;
+-	BUG_ON(vaddr + UPROBES_BKPT_INSN_SIZE > PAGE_SIZE);
+-	memcpy(vaddr_new + vaddr, &opcode, UPROBES_BKPT_INSN_SIZE);
++	BUG_ON(vaddr + UPROBE_BKPT_INSN_SIZE > PAGE_SIZE);
++	memcpy(vaddr_new + vaddr, &opcode, UPROBE_BKPT_INSN_SIZE);
+ 
+ 	kunmap_atomic(vaddr_new);
+ 	kunmap_atomic(vaddr_old);
+@@ -308,7 +308,7 @@ static int read_opcode(struct mm_struct *mm, unsigned long vaddr, uprobe_opcode_
+ 	lock_page(page);
+ 	vaddr_new = kmap_atomic(page);
+ 	vaddr &= ~PAGE_MASK;
+-	memcpy(opcode, vaddr_new + vaddr, UPROBES_BKPT_INSN_SIZE);
++	memcpy(opcode, vaddr_new + vaddr, UPROBE_BKPT_INSN_SIZE);
+ 	kunmap_atomic(vaddr_new);
+ 	unlock_page(page);
+ 
+@@ -352,7 +352,7 @@ int __weak set_bkpt(struct mm_struct *mm, struct arch_uprobe *auprobe, unsigned 
+ 	if (result)
+ 		return result;
+ 
+-	return write_opcode(mm, auprobe, vaddr, UPROBES_BKPT_INSN);
++	return write_opcode(mm, auprobe, vaddr, UPROBE_BKPT_INSN);
+ }
+ 
+ /**
+@@ -635,7 +635,7 @@ static int install_breakpoint(struct mm_struct *mm, struct uprobe *uprobe,
+ 
+ 	addr = (unsigned long)vaddr;
+ 
+-	if (!(uprobe->flags & UPROBES_COPY_INSN)) {
++	if (!(uprobe->flags & UPROBE_COPY_INSN)) {
+ 		ret = copy_insn(uprobe, vma, addr);
+ 		if (ret)
+ 			return ret;
+@@ -647,7 +647,7 @@ static int install_breakpoint(struct mm_struct *mm, struct uprobe *uprobe,
+ 		if (ret)
+ 			return ret;
+ 
+-		uprobe->flags |= UPROBES_COPY_INSN;
++		uprobe->flags |= UPROBE_COPY_INSN;
+ 	}
+ 	ret = set_bkpt(mm, &uprobe->arch, addr);
+ 
+@@ -857,7 +857,7 @@ int uprobe_register(struct inode *inode, loff_t offset, struct uprobe_consumer *
+ 			uprobe->consumers = NULL;
+ 			__uprobe_unregister(uprobe);
+ 		} else {
+-			uprobe->flags |= UPROBES_RUN_HANDLER;
++			uprobe->flags |= UPROBE_RUN_HANDLER;
+ 		}
+ 	}
+ 
+@@ -889,7 +889,7 @@ void uprobe_unregister(struct inode *inode, loff_t offset, struct uprobe_consume
+ 	if (consumer_del(uprobe, consumer)) {
+ 		if (!uprobe->consumers) {
+ 			__uprobe_unregister(uprobe);
+-			uprobe->flags &= ~UPROBES_RUN_HANDLER;
++			uprobe->flags &= ~UPROBE_RUN_HANDLER;
+ 		}
+ 	}
+ 
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
