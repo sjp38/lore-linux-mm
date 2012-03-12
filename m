@@ -1,56 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx199.postini.com [74.125.245.199])
-	by kanga.kvack.org (Postfix) with SMTP id D05266B0044
-	for <linux-mm@kvack.org>; Mon, 12 Mar 2012 10:55:34 -0400 (EDT)
-Message-ID: <4F5E0E5C.8040508@redhat.com>
-Date: Mon, 12 Mar 2012 10:55:24 -0400
-From: Rik van Riel <riel@redhat.com>
+Received: from psmtp.com (na3sys010amx124.postini.com [74.125.245.124])
+	by kanga.kvack.org (Postfix) with SMTP id AB6686B0044
+	for <linux-mm@kvack.org>; Mon, 12 Mar 2012 11:10:04 -0400 (EDT)
+Date: Mon, 12 Mar 2012 16:09:46 +0100
+From: Stanislaw Gruszka <sgruszka@redhat.com>
+Subject: Re: [PATCH 3.3] memcg: free mem_cgroup by RCU to fix oops
+Message-ID: <20120312150945.GA14551@redhat.com>
+References: <alpine.LSU.2.00.1203072155140.11048@eggly.anvils>
+ <alpine.LSU.2.00.1203091138260.19300@eggly.anvils>
 MIME-Version: 1.0
-Subject: Re: Control page reclaim granularity
-References: <20120308073412.GA6975@gmail.com> <20120308093514.GA28856@barrios>
-In-Reply-To: <20120308093514.GA28856@barrios>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.LSU.2.00.1203091138260.19300@eggly.anvils>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, Konstantin Khlebnikov <khlebnikov@openvz.org>, kosaki.motohiro@jp.fujitsu.com
+To: Hugh Dickins <hughd@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Konstantin Khlebnikov <khlebnikov@openvz.org>, Tejun Heo <tj@kernel.org>, Ying Han <yinghan@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On 03/08/2012 04:35 AM, Minchan Kim wrote:
-> On Thu, Mar 08, 2012 at 03:34:13PM +0800, Zheng Liu wrote:
->> Hi list,
->>
->> Recently we encounter a problem about page reclaim.  I abstract it in here.
->> The problem is that there are two different file types.  One is small index
->> file, and another is large data file.  The index file is mmaped into memory,
->> and application hope that they can be kept in memory and don't be reclaimed
->> too frequently.  The data file is manipulted by read/write, and they should
->> be reclaimed more frequently than the index file.
+On Fri, Mar 09, 2012 at 11:58:34AM -0800, Hugh Dickins wrote:
+> On Wed, 7 Mar 2012, Hugh Dickins wrote:
+> > 
+> > I'm posting this a little prematurely to get eyes on it, since it's
+> > more than a two-liner, but 3.3 time is running out.  If it is what's
+> > needed to fix my oopses, I won't really be sure before Friday morning.
+> > What's running now on the machine affected is using kfree_rcu(), but I
+> > did hack it earlier to check that the vfree_rcu() alternative works.
+> 
+> Yes, please do send that patch on to Linus for 3.3.
+> 
+> It did not get as much as the 36 hours of testing I had hoped for, only
+> 25 hours so far.  12 hours while I was out yesterday got wasted by a
+> wireless driver interrupt spewing approximately one million messages:
+> 
+> iwl3945 0000:08:00.0: MAC is in deep sleep!. CSR_GP_CNTRL = 0xFFFFFFFF
 
-They should indeed be.  The data pages should not get promoted
-to the active list unless they get referenced twice while on
-the inactive list.
+I replaced that with WARN_ONCE
+http://marc.info/?l=linux-wireless&m=132912863701997&w=2
+(the patch is currently in net-next).
 
-Mmaped pages, on the other hand, get promoted to the active
-list after just one reference.
+> which I've not suffered from before, and hope not again.  Having kdb
+> in, I did take a look what was going on with the memcg load when it was
+> interrupted: it appeared to be normal, and I've no reason to suppose that
+> my kfree_rcu() was in any way responsible for the wireless aberration.
 
-Also, as long as the inactive file list is larger than the
-active file list, we do not reclaim active file pages at
-all.
+I don't know if is possible if test patch influence pci or mac80211 code
+(we use rcu quite intensively in mac8021). Those "MAC is in deep sleep" 
+usually mean that wireless device registers can not be read through pcie
+bus - i.e. when pcie bridge is erroneously disabled like in report here:
+http://marc.info/?l=linux-wireless&m=132577331132329&w=2
 
-> I  think it's a regression since 2.6.28.
-> Before we were trying to keep mapped pages in memory(See calc_reclaim_mapped).
-> But we removed that routine when we applied split lru page replacement.
-> Rik, KOSAKI. What's the rationale?
+Note that wireless device is one of a few connected through pcie bridge
+on most of the laptops, others external pcie devices like mmc are not
+used frequently, hence breakage in pci code looks frequently like
+breakage in wireless driver. Not sure if that was the case here though.
 
-One main reason is scalability.  We have to treat pages
-in such a way that we do not have to search through
-gigabytes of memory to find a few eviction candidates
-to place on the inactive list - where they could get
-reused and stopped from eviction again.
-
--- 
-All rights reversed
+Stanislaw
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
