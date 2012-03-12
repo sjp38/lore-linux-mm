@@ -1,112 +1,164 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from psmtp.com (na3sys010asp105.postini.com [74.125.245.225])
-	by kanga.kvack.org (Postfix) with SMTP id 4DC196B004D
+	by kanga.kvack.org (Postfix) with SMTP id E2DEF6B0092
 	for <linux-mm@kvack.org>; Mon, 12 Mar 2012 19:10:28 -0400 (EDT)
 From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: [PATCH v4 1/3] memcg: clean up existing move charge code
-Date: Mon, 12 Mar 2012 18:30:54 -0400
-Message-Id: <1331591456-20769-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+Subject: [PATCH v4 3/3] memcg: avoid THP split in task migration
+Date: Mon, 12 Mar 2012 18:30:56 -0400
+Message-Id: <1331591456-20769-3-git-send-email-n-horiguchi@ah.jp.nec.com>
+In-Reply-To: <1331591456-20769-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+References: <1331591456-20769-1-git-send-email-n-horiguchi@ah.jp.nec.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Andrea Arcangeli <aarcange@redhat.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Hillf Danton <dhillf@gmail.com>, David Rientjes <rientjes@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
 
-We'll introduce the thp variant of move charge code in later patches,
-but before doing that let's start with refactoring existing code.
-Here we replace lengthy function name is_target_pte_for_mc() with
-shorter one in order to avoid ugly line breaks.
-And for better readability, we explicitly use MC_TARGET_* instead of
-simply using integers.
+Currently we can't do task migration among memory cgroups without THP split,
+which means processes heavily using THP experience large overhead in task
+migration. This patch introduces the code for moving charge of THP and makes
+THP more valuable.
+
+Changes from v3:
+- use enum mc_target_type and MC_TARGET_* explicitly
+- replace lengthy name is_target_thp_for_mc() with get_mctgt_type_thp()
+- drop cond_resched()
+- drop mapcount check of page sharing (Hugh and KAMEZAWA-san are preparing
+  patches to change the behavior of moving charge of shared pages, so this
+  patch keeps up with the change to avoid potential conflict.)
+
+Changes from v2:
+- add move_anon() and mapcount check
+
+Changes from v1:
+- rename is_target_huge_pmd_for_mc() to is_target_thp_for_mc()
+- remove pmd_present() check (it's buggy when pmd_trans_huge(pmd) is true)
+- is_target_thp_for_mc() calls get_page() only when checks are passed
+- unlock page table lock if !mc.precharge
+- compare return value of is_target_thp_for_mc() explicitly to MC_TARGET_TYPE
+- clean up &walk->mm->page_table_lock to &vma->vm_mm->page_table_lock
+- add comment about why race with split_huge_page() does not happen
 
 Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Acked-by: Hillf Danton <dhillf@gmail.com>
 ---
- mm/memcontrol.c |   20 ++++++++++----------
- 1 files changed, 10 insertions(+), 10 deletions(-)
+ mm/memcontrol.c |   85 +++++++++++++++++++++++++++++++++++++++++++++++++++----
+ 1 files changed, 79 insertions(+), 6 deletions(-)
 
 diff --git linux-next-20120307.orig/mm/memcontrol.c linux-next-20120307/mm/memcontrol.c
-index a288855..3d16618 100644
+index 3d16618..7b345a3 100644
 --- linux-next-20120307.orig/mm/memcontrol.c
 +++ linux-next-20120307/mm/memcontrol.c
-@@ -5069,7 +5069,7 @@ one_by_one:
+@@ -5215,6 +5215,41 @@ static enum mc_target_type get_mctgt_type(struct vm_area_struct *vma,
+ 	return ret;
  }
  
- /**
-- * is_target_pte_for_mc - check a pte whether it is valid for move charge
-+ * get_mctgt_type - get target type of moving charge
-  * @vma: the vma the pte to be checked belongs
-  * @addr: the address corresponding to the pte to be checked
-  * @ptent: the pte to be checked
-@@ -5092,7 +5092,7 @@ union mc_target {
- };
- 
- enum mc_target_type {
--	MC_TARGET_NONE,	/* not used */
-+	MC_TARGET_NONE,
- 	MC_TARGET_PAGE,
- 	MC_TARGET_SWAP,
- };
-@@ -5173,12 +5173,12 @@ static struct page *mc_handle_file_pte(struct vm_area_struct *vma,
- 	return page;
- }
- 
--static int is_target_pte_for_mc(struct vm_area_struct *vma,
-+static enum mc_target_type get_mctgt_type(struct vm_area_struct *vma,
- 		unsigned long addr, pte_t ptent, union mc_target *target)
- {
- 	struct page *page = NULL;
- 	struct page_cgroup *pc;
--	int ret = 0;
++#ifdef CONFIG_TRANSPARENT_HUGEPAGE
++/*
++ * We don't consider swapping or file mapped pages because THP does not
++ * support them for now.
++ * Caller should make sure that pmd_trans_huge(pmd) is true.
++ */
++static enum mc_target_type get_mctgt_type_thp(struct vm_area_struct *vma,
++		unsigned long addr, pmd_t pmd, union mc_target *target)
++{
++	struct page *page = NULL;
++	struct page_cgroup *pc;
 +	enum mc_target_type ret = MC_TARGET_NONE;
- 	swp_entry_t ent = { .val = 0 };
- 
- 	if (pte_present(ptent))
-@@ -5189,7 +5189,7 @@ static int is_target_pte_for_mc(struct vm_area_struct *vma,
- 		page = mc_handle_file_pte(vma, addr, ptent, &ent);
- 
- 	if (!page && !ent.val)
--		return 0;
++
++	page = pmd_page(pmd);
++	VM_BUG_ON(!page || !PageHead(page));
++	if (!move_anon())
 +		return ret;
- 	if (page) {
- 		pc = lookup_page_cgroup(page);
- 		/*
-@@ -5206,7 +5206,7 @@ static int is_target_pte_for_mc(struct vm_area_struct *vma,
- 			put_page(page);
- 	}
- 	/* There is a swap entry and a page doesn't exist or isn't charged */
--	if (ent.val && !ret &&
-+	if (ent.val && ret != MC_TARGET_NONE &&
- 			css_id(&mc.from->css) == lookup_swap_cgroup_id(ent)) {
- 		ret = MC_TARGET_SWAP;
- 		if (target)
-@@ -5227,7 +5227,7 @@ static int mem_cgroup_count_precharge_pte_range(pmd_t *pmd,
++	pc = lookup_page_cgroup(page);
++	if (PageCgroupUsed(pc) && pc->mem_cgroup == mc.from) {
++		ret = MC_TARGET_PAGE;
++		if (target) {
++			get_page(page);
++			target->page = page;
++		}
++	}
++	return ret;
++}
++#else
++static inline enum mc_target_type get_mctgt_type_thp(struct vm_area_struct *vma,
++		unsigned long addr, pmd_t pmd, union mc_target *target)
++{
++	return MC_TARGET_NONE;
++}
++#endif
++
+ static int mem_cgroup_count_precharge_pte_range(pmd_t *pmd,
+ 					unsigned long addr, unsigned long end,
+ 					struct mm_walk *walk)
+@@ -5223,7 +5258,12 @@ static int mem_cgroup_count_precharge_pte_range(pmd_t *pmd,
+ 	pte_t *pte;
+ 	spinlock_t *ptl;
+ 
+-	split_huge_page_pmd(walk->mm, pmd);
++	if (pmd_trans_huge_lock(pmd, vma) == 1) {
++		if (get_mctgt_type_thp(vma, addr, *pmd, NULL) == MC_TARGET_PAGE)
++			mc.precharge += HPAGE_PMD_NR;
++		spin_unlock(&vma->vm_mm->page_table_lock);
++		return 0;
++	}
  
  	pte = pte_offset_map_lock(vma->vm_mm, pmd, addr, &ptl);
  	for (; addr != end; pte++, addr += PAGE_SIZE)
--		if (is_target_pte_for_mc(vma, addr, *pte, NULL))
-+		if (get_mctgt_type(vma, addr, *pte, NULL))
- 			mc.precharge++;	/* increment precharge temporarily */
- 	pte_unmap_unlock(pte - 1, ptl);
- 	cond_resched();
-@@ -5397,8 +5397,8 @@ retry:
- 		if (!mc.precharge)
- 			break;
+@@ -5382,16 +5422,49 @@ static int mem_cgroup_move_charge_pte_range(pmd_t *pmd,
+ 	struct vm_area_struct *vma = walk->private;
+ 	pte_t *pte;
+ 	spinlock_t *ptl;
++	enum mc_target_type target_type;
++	union mc_target target;
++	struct page *page;
++	struct page_cgroup *pc;
++
++	/*
++	 * We don't take compound_lock() here but no race with splitting thp
++	 * happens because:
++	 *  - if pmd_trans_huge_lock() returns 1, the relevant thp is not
++	 *    under splitting, which means there's no concurrent thp split,
++	 *  - if another thread runs into split_huge_page() just after we
++	 *    entered this if-block, the thread must wait for page table lock
++	 *    to be unlocked in __split_huge_page_splitting(), where the main
++	 *    part of thp split is not executed yet.
++	 */
++	if (pmd_trans_huge_lock(pmd, vma) == 1) {
++		if (!mc.precharge) {
++			spin_unlock(&vma->vm_mm->page_table_lock);
++			return 0;
++		}
++		target_type = get_mctgt_type_thp(vma, addr, *pmd, &target);
++		if (target_type == MC_TARGET_PAGE) {
++			page = target.page;
++			if (!isolate_lru_page(page)) {
++				pc = lookup_page_cgroup(page);
++				if (!mem_cgroup_move_account(page, HPAGE_PMD_NR,
++							     pc, mc.from, mc.to,
++							     false)) {
++					mc.precharge -= HPAGE_PMD_NR;
++					mc.moved_charge += HPAGE_PMD_NR;
++				}
++				putback_lru_page(page);
++			}
++			put_page(page);
++		}
++		spin_unlock(&vma->vm_mm->page_table_lock);
++		return 0;
++	}
  
--		type = is_target_pte_for_mc(vma, addr, ptent, &target);
--		switch (type) {
-+		target_type = get_mctgt_type(vma, addr, ptent, &target);
-+		switch (target_type) {
- 		case MC_TARGET_PAGE:
- 			page = target.page;
- 			if (isolate_lru_page(page))
-@@ -5411,7 +5411,7 @@ retry:
- 				mc.moved_charge++;
- 			}
- 			putback_lru_page(page);
--put:			/* is_target_pte_for_mc() gets the page */
-+put:			/* get_mctgt_type() gets the page */
- 			put_page(page);
- 			break;
- 		case MC_TARGET_SWAP:
+-	split_huge_page_pmd(walk->mm, pmd);
+ retry:
+ 	pte = pte_offset_map_lock(vma->vm_mm, pmd, addr, &ptl);
+ 	for (; addr != end; addr += PAGE_SIZE) {
+ 		pte_t ptent = *(pte++);
+-		union mc_target target;
+-		int type;
+-		struct page *page;
+-		struct page_cgroup *pc;
+ 		swp_entry_t ent;
+ 
+ 		if (!mc.precharge)
 -- 
 1.7.7.6
 
