@@ -1,48 +1,159 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx107.postini.com [74.125.245.107])
-	by kanga.kvack.org (Postfix) with SMTP id D29CA6B0044
-	for <linux-mm@kvack.org>; Mon, 12 Mar 2012 09:38:29 -0400 (EDT)
-Date: Mon, 12 Mar 2012 14:38:25 +0100
-From: Jan Kara <jack@suse.cz>
-Subject: Re: ext3/4, btrfs, ocfs2: How to assure that
- cleancache_invalidate_fs is called on every superblock free
-Message-ID: <20120312133825.GF5998@quack.suse.cz>
-References: <CACQs63L2wfXKaD5sH6OOV+Bm_+37F3QOdt1QMFbWnB9AE4iCpA@mail.gmail.com>
+Received: from psmtp.com (na3sys010amx179.postini.com [74.125.245.179])
+	by kanga.kvack.org (Postfix) with SMTP id B4AFA6B0044
+	for <linux-mm@kvack.org>; Mon, 12 Mar 2012 09:42:35 -0400 (EDT)
+Received: by dadv6 with SMTP id v6so5843015dad.14
+        for <linux-mm@kvack.org>; Mon, 12 Mar 2012 06:42:34 -0700 (PDT)
+Date: Mon, 12 Mar 2012 22:42:26 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: Fwd: Control page reclaim granularity
+Message-ID: <20120312134226.GA5120@barrios>
+References: <4F5D95AF.1020108@openvz.org>
+ <20120312081413.GA10923@gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CACQs63L2wfXKaD5sH6OOV+Bm_+37F3QOdt1QMFbWnB9AE4iCpA@mail.gmail.com>
+In-Reply-To: <20120312081413.GA10923@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andor Daam <andor.daam@googlemail.com>
-Cc: linux-fsdevel@vger.kernel.org, linux-btrfs@vger.kernel.org, linux-ext4@vger.kernel.org, ocfs2-devel@oss.oracle.com, dan.magenheimer@oracle.com, fschmaus@gmail.com, linux-mm@kvack.org, ilendir@googlemail.com, sjenning@linux.vnet.ibm.com, konrad.wilk@oracle.com, i4passt@lists.informatik.uni-erlangen.de, ngupta@vflare.org
+To: Konstantin Khlebnikov <khlebnikov@openvz.org>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, Minchan Kim <minchan@kernel.org>, riel@redhat.com, kosaki.motohiro@jp.fujitsu.com
 
-  Hello,
-
-On Fri 09-03-12 14:40:22, Andor Daam wrote:
-> Is it ever possible for a superblock for a mounted filesystem to be
-> free'd without a previous call to unmount the filesystem?
-  No, I don't think so (well, except for cases where we do not manage to
-fully setup the superblock). But be aware that mount/umount need not be
-really the entry points you are looking for since filesystem can be mounted
-several times. Rather deactivate_locked_supers() is the place you are
-looking for...
-
-> I need to be certain that the function cleancache_invalidate_fs, which is
-> at the moment called by deactivate_locked_super (fs/super.c) [1], is
-> called before every free on a superblock of cleancache-enabled
-> filesystems.  Is this already the case or are there situations in which
-> this does not happen?
+On Mon, Mar 12, 2012 at 04:14:14PM +0800, Zheng Liu wrote:
+> On 03/12/2012 02:20 PM, Konstantin Khlebnikov wrote:
+> > Minchan Kim wrote:
+> >> On Mon, Mar 12, 2012 at 10:06:09AM +0800, Zheng Liu wrote:
+> >>> On Mon, Mar 12, 2012 at 09:29:34AM +0900, Minchan Kim wrote:
+> >>>> I forgot to Ccing you.
+> >>>> Sorry.
+> >>>>
+> >>>> ---------- Forwarded message ----------
+> >>>> From: Minchan Kim<minchan@kernel.org>
+> >>>> Date: Mon, Mar 12, 2012 at 9:28 AM
+> >>>> Subject: Re: Control page reclaim granularity
+> >>>> To: Minchan Kim<minchan@kernel.org>, linux-mm<linux-mm@kvack.org>,
+> >>>> linux-kernel<linux-kernel@vger.kernel.org>, Konstantin Khlebnikov<
+> >>>> khlebnikov@openvz.org>, riel@redhat.com, kosaki.motohiro@jp.fujitsu.com
+> >>>>
+> >>>>
+> >>>> On Fri, Mar 09, 2012 at 12:54:03AM +0800, Zheng Liu wrote:
+> >>>>> Hi Minchan,
+> >>>>>
+> >>>>> Sorry, I forgot to say that I don't subscribe linux-mm and
+> >>>>> linux-kernel
+> >>>>> mailing list.  So please Cc me.
+> >>>>>
+> >>>>> IMHO, maybe we should re-think about how does user use mmap(2).  I
+> >>>>> describe the cases I known in our product system.  They can be
+> >>>>> categorized into two cases.  One is mmaped all data files into memory
+> >>>>> and sometime it uses write(2) to append some data, and another uses
+> >>>>> mmap(2)/munmap(2) and read(2)/write(2) to manipulate the files.  In
+> >>>>> the
+> >>>>> second case,  the application wants to keep mmaped page into memory
+> >>>>> and
+> >>>>> let file pages to be reclaimed firstly.  So, IMO, when application
+> >>>>> uses
+> >>>>> mmap(2) to manipulate files, it is possible to imply that it wants
+> >>>>> keep
+> >>>>> these mmaped pages into memory and do not be reclaimed.  At least
+> >>>>> these
+> >>>>> pages do not be reclaimed early than file pages.  I think that
+> >>>>> maybe we
+> >>>>> can recover that routine and provide a sysctl parameter to let the
+> >>>>> user
+> >>>>> to set this ratio between mmaped pages and file pages.
+> >>>>
+> >>>> I am not convinced why we should handle mapped page specially.
+> >>>> Sometimem, someone may use mmap by reducing buffer copy compared to
+> >>>> read
+> >>>> system call.
+> >>>> So I think we can't make sure mmaped pages are always win.
+> >>>>
+> >>>> My suggestion is that it would be better to declare by user explicitly.
+> >>>> I think we can implement it by madvise and fadvise's WILLNEED option.
+> >>>> Current implementation is just readahead if there isn't a page in
+> >>>> memory
+> >>>> but I think
+> >>>> we can promote from inactive to active if there is already a page in
+> >>>> memory.
+> >>>>
+> >>>> It's more clear and it couldn't be affected by kernel page reclaim
+> >>>> algorithm change
+> >>>> like this.
+> >>>
+> >>> Thank you for your advice.  But I still have question about this
+> >>> solution.  If we improve the madvise(2) and fadvise(2)'s WILLNEED
+> >>> option,  it will cause an inconsistently status for pages that be
+> >>> manipulated by madvise(2) and/or fadvise(2).  For example, when I call
+> >>> madvise with WILLNEED flag, some pages will be moved into active list if
+> >>> they already have been in memory, and other pages will be read into
+> >>> memory and be saved in inactive list if they don't be in memory.  Then
+> >>> pages that are in inactive list are possible to be reclaim.  So from the
+> >>> view of users, it is inconsistent because some pages are in memory and
+> >>> some pages are reclaimed.  But actually the user hopes that all of pages
+> >>> can be kept in memory.  IMHO, this inconsistency is weird and makes
+> >>> users
+> >>> puzzled.
+> >>
+> >> Now problem is that
+> >>
+> >> 1. User want to keep pages which are used once in a while in memory.
+> >> 2. Kernel want to reclaim them because they are surely reclaim target
+> >>     pages in point of view by LRU.
+> >>
+> >> The most desriable approach is that user should use mlock to guarantee
+> >> them in memory. But mlock is too big overhead and user doesn't want to
+> >> keep
+> >> memory all pages all at once.(Ie, he want demand paging when he need
+> >> the page)
+> >> Right?
+> >>
+> >> madvise, it's a just hint for kernel and kernel doesn't need to make
+> >> sure madvise's behavior.
+> >> In point of view, such inconsistency might not be a big problem.
+> >>
+> >> Big problem I think now is that user should use madvise(WILLNEED)
+> >> periodically because such
+> >> activation happens once when user calls madvise. If user doesn't use
+> >> page frequently after
+> >> user calls it, it ends up moving into inactive list and even could be
+> >> reclaimed.
+> >> It's not good. :-(
+> >>
+> >> Okay. How about adding new VM_WORKINGSET?
+> >> And reclaimer would give one more round trip in active/inactive list
+> >> erwhen reclaim happens
+> >> if the page is referenced.
+> >>
+> >> Sigh. We have no room for new VM_FLAG in 32 bit.
+> > p
+> > It would be nice to mark struct address_space with this flag and export
+> > AS_UNEVICTABLE somehow.
+> > Maybe we can reuse file-locking engine for managing these bits =)
 > 
-> It would be interesting to know this, as we are planning to have
-> cleancache save pointers to superblocks of every mounted
-> cleancache-enabled filesystem [2] and it would be fatal if a
-> superblock is free'd without cleancache being notified.
+> Make sense to me.  We can mark this flag in struct address_space and check
+> it in page_refereneced_file().  If this flag is set, it will be cleard and
 
-								Honza
--- 
-Jan Kara <jack@suse.cz>
-SUSE Labs, CR
+Disadvantage is that we could set reclaim granularity as per-inode.
+I want to set it as per-vma, not per-inode.
+
+> the function returns referenced > 1.  Then this page can be promoted into
+> activate list.  But I prefer to set/clear this flag in madvise.
+
+Hmm, My idea is following as,
+If we can set new VM flag into VMA or something, reclaimer can check it when shrink_[in]active_list
+and he can prevent to deactivate/reclaim if he takes a look the page is in VMA which
+are set by new VM flag and the page is referenced recently at least once.
+It means it gives one more round trip in his list(ie, active/inactive list)
+rather than activation so that the page would become less reclaimable.
+
+> 
+> PS, I have subscribed linux-mm mailing list. :-)
+
+Congratulations! :)
+
+> 
+> Regards,
+> Zheng
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
