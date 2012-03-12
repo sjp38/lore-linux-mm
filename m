@@ -1,72 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx167.postini.com [74.125.245.167])
-	by kanga.kvack.org (Postfix) with SMTP id CAA3B6B0044
-	for <linux-mm@kvack.org>; Mon, 12 Mar 2012 08:40:01 -0400 (EDT)
-Message-ID: <4F5DEE42.6050607@parallels.com>
-Date: Mon, 12 Mar 2012 16:38:26 +0400
-From: Glauber Costa <glommer@parallels.com>
+Received: from psmtp.com (na3sys010amx107.postini.com [74.125.245.107])
+	by kanga.kvack.org (Postfix) with SMTP id D29CA6B0044
+	for <linux-mm@kvack.org>; Mon, 12 Mar 2012 09:38:29 -0400 (EDT)
+Date: Mon, 12 Mar 2012 14:38:25 +0100
+From: Jan Kara <jack@suse.cz>
+Subject: Re: ext3/4, btrfs, ocfs2: How to assure that
+ cleancache_invalidate_fs is called on every superblock free
+Message-ID: <20120312133825.GF5998@quack.suse.cz>
+References: <CACQs63L2wfXKaD5sH6OOV+Bm_+37F3QOdt1QMFbWnB9AE4iCpA@mail.gmail.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH v2 02/13] memcg: Kernel memory accounting infrastructure.
-References: <1331325556-16447-1-git-send-email-ssouhlal@FreeBSD.org> <1331325556-16447-3-git-send-email-ssouhlal@FreeBSD.org>
-In-Reply-To: <1331325556-16447-3-git-send-email-ssouhlal@FreeBSD.org>
-Content-Type: text/plain; charset="ISO-8859-1"; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CACQs63L2wfXKaD5sH6OOV+Bm_+37F3QOdt1QMFbWnB9AE4iCpA@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Suleiman Souhlal <ssouhlal@FreeBSD.org>
-Cc: cgroups@vger.kernel.org, suleiman@google.com, kamezawa.hiroyu@jp.fujitsu.com, penberg@kernel.org, cl@linux.com, yinghan@google.com, hughd@google.com, gthelen@google.com, peterz@infradead.org, dan.magenheimer@oracle.com, hannes@cmpxchg.org, mgorman@suse.de, James.Bottomley@HansenPartnership.com, linux-mm@kvack.org, devel@openvz.org, linux-kernel@vger.kernel.org
+To: Andor Daam <andor.daam@googlemail.com>
+Cc: linux-fsdevel@vger.kernel.org, linux-btrfs@vger.kernel.org, linux-ext4@vger.kernel.org, ocfs2-devel@oss.oracle.com, dan.magenheimer@oracle.com, fschmaus@gmail.com, linux-mm@kvack.org, ilendir@googlemail.com, sjenning@linux.vnet.ibm.com, konrad.wilk@oracle.com, i4passt@lists.informatik.uni-erlangen.de, ngupta@vflare.org
 
-On 03/10/2012 12:39 AM, Suleiman Souhlal wrote:
-> +#ifdef CONFIG_CGROUP_MEM_RES_CTLR_KMEM
-> +int
-> +memcg_charge_kmem(struct mem_cgroup *memcg, gfp_t gfp, long long delta)
-> +{
-> +	struct res_counter *fail_res;
-> +	struct mem_cgroup *_memcg;
-> +	int may_oom, ret;
-> +
-> +	may_oom = (gfp&  __GFP_WAIT)&&  (gfp&  __GFP_FS)&&
-> +	    !(gfp&  __GFP_NORETRY);
-> +
-> +	ret = 0;
-> +
-> +	_memcg = memcg;
-> +	if (memcg&&  !mem_cgroup_test_flag(memcg,
-> +	    MEMCG_INDEPENDENT_KMEM_LIMIT)) {
-> +		ret = __mem_cgroup_try_charge(NULL, gfp, delta / PAGE_SIZE,
-> +		&_memcg, may_oom);
-> +		if (ret == -ENOMEM)
-> +			return ret;
-> +	}
-> +
-> +	if (memcg&&  _memcg == memcg)
-> +		ret = res_counter_charge(&memcg->kmem, delta,&fail_res);
-> +
-> +	return ret;
-> +}
-> +
-> +void
-Ok.
+  Hello,
 
-So I've spent most of the day today trying to come up with a way not to 
-kill the whole performance we gain from consume_stock() by this 
-res_counter_charge() to kmem afterwards...
+On Fri 09-03-12 14:40:22, Andor Daam wrote:
+> Is it ever possible for a superblock for a mounted filesystem to be
+> free'd without a previous call to unmount the filesystem?
+  No, I don't think so (well, except for cases where we do not manage to
+fully setup the superblock). But be aware that mount/umount need not be
+really the entry points you are looking for since filesystem can be mounted
+several times. Rather deactivate_locked_supers() is the place you are
+looking for...
 
-You mentioned you want to still be able to bill to memcg->kmem mostly 
-for debugging/display purposes. So we're surely not using all of the 
-res_counter infrastructure (limiting, soft limits, etc)
+> I need to be certain that the function cleancache_invalidate_fs, which is
+> at the moment called by deactivate_locked_super (fs/super.c) [1], is
+> called before every free on a superblock of cleancache-enabled
+> filesystems.  Is this already the case or are there situations in which
+> this does not happen?
+> 
+> It would be interesting to know this, as we are planning to have
+> cleancache save pointers to superblocks of every mounted
+> cleancache-enabled filesystem [2] and it would be fatal if a
+> superblock is free'd without cleancache being notified.
 
-I was thinking: Can't we have a percpu_counter that we use for this 
-purpose when !kmem_independent ?
-
-we may not even need to bloat the struct, since we can fold it into a 
-union with struct res_counter kmem (which is bigger than a percpu 
-counter anyway).
-
-We just need to be a bit more careful not to allow kmem_independent to 
-change when we already have charges to any of them (but we need to do it 
-anyway)
-
+								Honza
+-- 
+Jan Kara <jack@suse.cz>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
