@@ -1,113 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx194.postini.com [74.125.245.194])
-	by kanga.kvack.org (Postfix) with SMTP id 536006B0044
-	for <linux-mm@kvack.org>; Mon, 12 Mar 2012 01:19:12 -0400 (EDT)
-Received: by dadv6 with SMTP id v6so5147604dad.14
-        for <linux-mm@kvack.org>; Sun, 11 Mar 2012 22:19:11 -0700 (PDT)
-Date: Mon, 12 Mar 2012 14:19:04 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: Fwd: Control page reclaim granularity
-Message-ID: <20120312051904.GA3831@barrios>
-References: <20120312002806.GA2436@barrios>
- <20120312020609.GA9610@gmail.com>
+Received: from psmtp.com (na3sys010amx116.postini.com [74.125.245.116])
+	by kanga.kvack.org (Postfix) with SMTP id CA03D6B0044
+	for <linux-mm@kvack.org>; Mon, 12 Mar 2012 01:57:42 -0400 (EDT)
+Received: from /spool/local
+	by e4.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <srikar@linux.vnet.ibm.com>;
+	Mon, 12 Mar 2012 01:57:41 -0400
+Received: from d01relay01.pok.ibm.com (d01relay01.pok.ibm.com [9.56.227.233])
+	by d01dlp02.pok.ibm.com (Postfix) with ESMTP id AE2176E804C
+	for <linux-mm@kvack.org>; Mon, 12 Mar 2012 01:57:38 -0400 (EDT)
+Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
+	by d01relay01.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q2C5vc8l195008
+	for <linux-mm@kvack.org>; Mon, 12 Mar 2012 01:57:38 -0400
+Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
+	by d01av02.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q2C5vZpJ021350
+	for <linux-mm@kvack.org>; Mon, 12 Mar 2012 02:57:38 -0300
+Date: Mon, 12 Mar 2012 11:24:37 +0530
+From: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
+Subject: Re: [PATCH 1/7] uprobes/core: make macro names consistent.
+Message-ID: <20120312055437.GH13284@linux.vnet.ibm.com>
+Reply-To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
+References: <20120310174501.19949.50137.sendpatchset@srdronam.in.ibm.com>
+ <20120311140735.GA27053@elte.hu>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
-In-Reply-To: <20120312020609.GA9610@gmail.com>
+In-Reply-To: <20120311140735.GA27053@elte.hu>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, Konstantin Khlebnikov <khlebnikov@openvz.org>, riel@redhat.com, kosaki.motohiro@jp.fujitsu.com
+To: Ingo Molnar <mingo@elte.hu>
+Cc: Peter Zijlstra <peterz@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, LKML <linux-kernel@vger.kernel.org>, Linux-mm <linux-mm@kvack.org>, Oleg Nesterov <oleg@redhat.com>, Andi Kleen <andi@firstfloor.org>, Christoph Hellwig <hch@infradead.org>, Steven Rostedt <rostedt@goodmis.org>, Arnaldo Carvalho de Melo <acme@infradead.org>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Thomas Gleixner <tglx@linutronix.de>
 
-On Mon, Mar 12, 2012 at 10:06:09AM +0800, Zheng Liu wrote:
-> On Mon, Mar 12, 2012 at 09:29:34AM +0900, Minchan Kim wrote:
-> > I forgot to Ccing you.
-> > Sorry.
-> > 
-> > ---------- Forwarded message ----------
-> > From: Minchan Kim <minchan@kernel.org>
-> > Date: Mon, Mar 12, 2012 at 9:28 AM
-> > Subject: Re: Control page reclaim granularity
-> > To: Minchan Kim <minchan@kernel.org>, linux-mm <linux-mm@kvack.org>,
-> > linux-kernel <linux-kernel@vger.kernel.org>, Konstantin Khlebnikov <
-> > khlebnikov@openvz.org>, riel@redhat.com, kosaki.motohiro@jp.fujitsu.com
-> > 
-> > 
-> > On Fri, Mar 09, 2012 at 12:54:03AM +0800, Zheng Liu wrote:
-> > > Hi Minchan,
-> > >
-> > > Sorry, I forgot to say that I don't subscribe linux-mm and linux-kernel
-> > > mailing list.  So please Cc me.
-> > >
-> > > IMHO, maybe we should re-think about how does user use mmap(2).  I
-> > > describe the cases I known in our product system.  They can be
-> > > categorized into two cases.  One is mmaped all data files into memory
-> > > and sometime it uses write(2) to append some data, and another uses
-> > > mmap(2)/munmap(2) and read(2)/write(2) to manipulate the files.  In the
-> > > second case,  the application wants to keep mmaped page into memory and
-> > > let file pages to be reclaimed firstly.  So, IMO, when application uses
-> > > mmap(2) to manipulate files, it is possible to imply that it wants keep
-> > > these mmaped pages into memory and do not be reclaimed.  At least these
-> > > pages do not be reclaimed early than file pages.  I think that maybe we
-> > > can recover that routine and provide a sysctl parameter to let the user
-> > > to set this ratio between mmaped pages and file pages.
-> > 
-> > I am not convinced why we should handle mapped page specially.
-> > Sometimem, someone may use mmap by reducing buffer copy compared to read
-> > system call.
-> > So I think we can't make sure mmaped pages are always win.
-> > 
-> > My suggestion is that it would be better to declare by user explicitly.
-> > I think we can implement it by madvise and fadvise's WILLNEED option.
-> > Current implementation is just readahead if there isn't a page in memory
-> > but I think
-> > we can promote from inactive to active if there is already a page in
-> > memory.
-> > 
-> > It's more clear and it couldn't be affected by kernel page reclaim
-> > algorithm change
-> > like this.
-> 
-> Thank you for your advice.  But I still have question about this
-> solution.  If we improve the madvise(2) and fadvise(2)'s WILLNEED
-> option,  it will cause an inconsistently status for pages that be
-> manipulated by madvise(2) and/or fadvise(2).  For example, when I call
-> madvise with WILLNEED flag, some pages will be moved into active list if
-> they already have been in memory, and other pages will be read into
-> memory and be saved in inactive list if they don't be in memory.  Then
-> pages that are in inactive list are possible to be reclaim.  So from the
-> view of users, it is inconsistent because some pages are in memory and
-> some pages are reclaimed.  But actually the user hopes that all of pages
-> can be kept in memory.  IMHO, this inconsistency is weird and makes users
-> puzzled.
-
-Now problem is that
-
-1. User want to keep pages which are used once in a while in memory.
-2. Kernel want to reclaim them because they are surely reclaim target
-   pages in point of view by LRU.
-
-The most desriable approach is that user should use mlock to guarantee
-them in memory. But mlock is too big overhead and user doesn't want to keep
-memory all pages all at once.(Ie, he want demand paging when he need the page)
-Right?
-
-madvise, it's a just hint for kernel and kernel doesn't need to make sure madvise's behavior.
-In point of view, such inconsistency might not be a big problem.
-
-Big problem I think now is that user should use madvise(WILLNEED) periodically because such
-activation happens once when user calls madvise. If user doesn't use page frequently after
-user calls it, it ends up moving into inactive list and even could be reclaimed.
-It's not good. :-(
-
-Okay. How about adding new VM_WORKINGSET?
-And reclaimer would give one more round trip in active/inactive list when reclaim happens
-if the page is referenced.
-
-Sigh. We have no room for new VM_FLAG in 32 bit.
+* Ingo Molnar <mingo@elte.hu> [2012-03-11 15:07:36]:
 
 > 
-> Regards,
-> Zheng
+> Which tree are these patches against? They don't apply to 
+> tip:master cleanly.
+
+To me it applied cleanly on top of 
+commit 90549600c550ab189c4611060603f7f15bda2b5e
+Merge: f14da8d 708adc5
+Author: Ingo Molnar <mingo@elte.hu>
+Date:   Thu Mar 8 12:26:01 2012 +0100
+
+	Merge branch 'tools/kvm'
+
+
+
+> 
+> Also, for patch titles please use the same capitalization style 
+> as you see in the commits I've already applied.
+> 
+
+Okay.
+Will resend the patchset on top of tip/master 81549e96cec66b0eb5efac58df9e503290dad5c1 
+
+-- 
+Thanks and Regards
+Srikar
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
