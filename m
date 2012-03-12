@@ -1,166 +1,544 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010asp105.postini.com [74.125.245.225])
-	by kanga.kvack.org (Postfix) with SMTP id E2DEF6B0092
-	for <linux-mm@kvack.org>; Mon, 12 Mar 2012 19:10:28 -0400 (EDT)
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: [PATCH v4 3/3] memcg: avoid THP split in task migration
-Date: Mon, 12 Mar 2012 18:30:56 -0400
-Message-Id: <1331591456-20769-3-git-send-email-n-horiguchi@ah.jp.nec.com>
-In-Reply-To: <1331591456-20769-1-git-send-email-n-horiguchi@ah.jp.nec.com>
-References: <1331591456-20769-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+Received: from psmtp.com (na3sys010amx156.postini.com [74.125.245.156])
+	by kanga.kvack.org (Postfix) with SMTP id 9BA776B004A
+	for <linux-mm@kvack.org>; Mon, 12 Mar 2012 19:23:56 -0400 (EDT)
+Received: by dadv6 with SMTP id v6so6603198dad.14
+        for <linux-mm@kvack.org>; Mon, 12 Mar 2012 16:23:55 -0700 (PDT)
+Date: Mon, 12 Mar 2012 16:23:51 -0700
+From: Tejun Heo <tj@kernel.org>
+Subject: Re: [RFC REPOST] cgroup: removing css reference drain wait during
+ cgroup removal
+Message-ID: <20120312232351.GO23255@google.com>
+References: <20120312213155.GE23255@google.com>
+ <20120312213343.GF23255@google.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20120312213343.GF23255@google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Andrea Arcangeli <aarcange@redhat.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Hillf Danton <dhillf@gmail.com>, David Rientjes <rientjes@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, gthelen@google.com, Hugh Dickins <hughd@google.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Vivek Goyal <vgoyal@redhat.com>, Jens Axboe <axboe@kernel.dk>, Li Zefan <lizf@cn.fujitsu.com>, containers@lists.linux-foundation.org, cgroups@vger.kernel.org
 
-Currently we can't do task migration among memory cgroups without THP split,
-which means processes heavily using THP experience large overhead in task
-migration. This patch introduces the code for moving charge of THP and makes
-THP more valuable.
+On Mon, Mar 12, 2012 at 02:33:43PM -0700, Tejun Heo wrote:
+> I'm appending the patch for the cgroup part of the change.  It removes
+> good amount of complication.  I think cgroup_has_css_refs() check
+> should be dropped from check_for_release() but other than that it
+> seems to work fine with blkcg in linux-next.
 
-Changes from v3:
-- use enum mc_target_type and MC_TARGET_* explicitly
-- replace lengthy name is_target_thp_for_mc() with get_mctgt_type_thp()
-- drop cond_resched()
-- drop mapcount check of page sharing (Hugh and KAMEZAWA-san are preparing
-  patches to change the behavior of moving charge of shared pages, so this
-  patch keeps up with the change to avoid potential conflict.)
+Here's a version w/ cgroup_has_css_refs() removed.  It removes 160
+lines.  I'm liking it.
 
-Changes from v2:
-- add move_anon() and mapcount check
-
-Changes from v1:
-- rename is_target_huge_pmd_for_mc() to is_target_thp_for_mc()
-- remove pmd_present() check (it's buggy when pmd_trans_huge(pmd) is true)
-- is_target_thp_for_mc() calls get_page() only when checks are passed
-- unlock page table lock if !mc.precharge
-- compare return value of is_target_thp_for_mc() explicitly to MC_TARGET_TYPE
-- clean up &walk->mm->page_table_lock to &vma->vm_mm->page_table_lock
-- add comment about why race with split_huge_page() does not happen
-
-Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Acked-by: Hillf Danton <dhillf@gmail.com>
 ---
- mm/memcontrol.c |   85 +++++++++++++++++++++++++++++++++++++++++++++++++++----
- 1 files changed, 79 insertions(+), 6 deletions(-)
+ include/linux/cgroup.h |   41 +------
+ kernel/cgroup.c        |  265 +++++++++++--------------------------------------
+ 2 files changed, 71 insertions(+), 235 deletions(-)
 
-diff --git linux-next-20120307.orig/mm/memcontrol.c linux-next-20120307/mm/memcontrol.c
-index 3d16618..7b345a3 100644
---- linux-next-20120307.orig/mm/memcontrol.c
-+++ linux-next-20120307/mm/memcontrol.c
-@@ -5215,6 +5215,41 @@ static enum mc_target_type get_mctgt_type(struct vm_area_struct *vma,
- 	return ret;
+Index: work/include/linux/cgroup.h
+===================================================================
+--- work.orig/include/linux/cgroup.h
++++ work/include/linux/cgroup.h
+@@ -16,6 +16,7 @@
+ #include <linux/prio_heap.h>
+ #include <linux/rwsem.h>
+ #include <linux/idr.h>
++#include <linux/workqueue.h>
+ 
+ #ifdef CONFIG_CGROUPS
+ 
+@@ -81,7 +82,6 @@ struct cgroup_subsys_state {
+ /* bits in struct cgroup_subsys_state flags field */
+ enum {
+ 	CSS_ROOT, /* This CSS is the root of the subsystem */
+-	CSS_REMOVED, /* This CSS is dead */
+ };
+ 
+ /* Caller must verify that the css is not for root cgroup */
+@@ -104,27 +104,18 @@ static inline void css_get(struct cgroup
+ 		__css_get(css, 1);
  }
  
-+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
-+/*
-+ * We don't consider swapping or file mapped pages because THP does not
-+ * support them for now.
-+ * Caller should make sure that pmd_trans_huge(pmd) is true.
-+ */
-+static enum mc_target_type get_mctgt_type_thp(struct vm_area_struct *vma,
-+		unsigned long addr, pmd_t pmd, union mc_target *target)
-+{
-+	struct page *page = NULL;
-+	struct page_cgroup *pc;
-+	enum mc_target_type ret = MC_TARGET_NONE;
+-static inline bool css_is_removed(struct cgroup_subsys_state *css)
+-{
+-	return test_bit(CSS_REMOVED, &css->flags);
+-}
+-
+ /*
+  * Call css_tryget() to take a reference on a css if your existing
+  * (known-valid) reference isn't already ref-counted. Returns false if
+  * the css has been destroyed.
+  */
+ 
++extern bool __css_tryget(struct cgroup_subsys_state *css);
+ static inline bool css_tryget(struct cgroup_subsys_state *css)
+ {
+ 	if (test_bit(CSS_ROOT, &css->flags))
+ 		return true;
+-	while (!atomic_inc_not_zero(&css->refcnt)) {
+-		if (test_bit(CSS_REMOVED, &css->flags))
+-			return false;
+-		cpu_relax();
+-	}
+-	return true;
++	return __css_tryget(css);
+ }
+ 
+ /*
+@@ -132,11 +123,11 @@ static inline bool css_tryget(struct cgr
+  * css_get() or css_tryget()
+  */
+ 
+-extern void __css_put(struct cgroup_subsys_state *css, int count);
++extern void __css_put(struct cgroup_subsys_state *css);
+ static inline void css_put(struct cgroup_subsys_state *css)
+ {
+ 	if (!test_bit(CSS_ROOT, &css->flags))
+-		__css_put(css, 1);
++		__css_put(css);
+ }
+ 
+ /* bits in struct cgroup flags field */
+@@ -211,6 +202,9 @@ struct cgroup {
+ 	/* List of events which userspace want to receive */
+ 	struct list_head event_list;
+ 	spinlock_t event_list_lock;
 +
-+	page = pmd_page(pmd);
-+	VM_BUG_ON(!page || !PageHead(page));
-+	if (!move_anon())
-+		return ret;
-+	pc = lookup_page_cgroup(page);
-+	if (PageCgroupUsed(pc) && pc->mem_cgroup == mc.from) {
-+		ret = MC_TARGET_PAGE;
-+		if (target) {
-+			get_page(page);
-+			target->page = page;
++	/* Used to dput @cgroup->dentry from css_put() */
++	struct work_struct dput_work;
+ };
+ 
+ /*
+@@ -408,23 +402,6 @@ int cgroup_task_count(const struct cgrou
+ int cgroup_is_descendant(const struct cgroup *cgrp, struct task_struct *task);
+ 
+ /*
+- * When the subsys has to access css and may add permanent refcnt to css,
+- * it should take care of racy conditions with rmdir(). Following set of
+- * functions, is for stop/restart rmdir if necessary.
+- * Because these will call css_get/put, "css" should be alive css.
+- *
+- *  cgroup_exclude_rmdir();
+- *  ...do some jobs which may access arbitrary empty cgroup
+- *  cgroup_release_and_wakeup_rmdir();
+- *
+- *  When someone removes a cgroup while cgroup_exclude_rmdir() holds it,
+- *  it sleeps and cgroup_release_and_wakeup_rmdir() will wake him up.
+- */
+-
+-void cgroup_exclude_rmdir(struct cgroup_subsys_state *css);
+-void cgroup_release_and_wakeup_rmdir(struct cgroup_subsys_state *css);
+-
+-/*
+  * Control Group taskset, used to pass around set of tasks to cgroup_subsys
+  * methods.
+  */
+@@ -453,7 +430,7 @@ int cgroup_taskset_size(struct cgroup_ta
+ 
+ struct cgroup_subsys {
+ 	struct cgroup_subsys_state *(*create)(struct cgroup *cgrp);
+-	int (*pre_destroy)(struct cgroup *cgrp);
++	void (*pre_destroy)(struct cgroup *cgrp);
+ 	void (*destroy)(struct cgroup *cgrp);
+ 	int (*can_attach)(struct cgroup *cgrp, struct cgroup_taskset *tset);
+ 	void (*cancel_attach)(struct cgroup *cgrp, struct cgroup_taskset *tset);
+Index: work/kernel/cgroup.c
+===================================================================
+--- work.orig/kernel/cgroup.c
++++ work/kernel/cgroup.c
+@@ -63,6 +63,8 @@
+ 
+ #include <linux/atomic.h>
+ 
++#define CSS_DEAD_BIAS		INT_MIN
++
+ /*
+  * cgroup_mutex is the master lock.  Any modification to cgroup or its
+  * hierarchy must be performed while holding it.
+@@ -154,8 +156,8 @@ struct css_id {
+ 	 * The css to which this ID points. This pointer is set to valid value
+ 	 * after cgroup is populated. If cgroup is removed, this will be NULL.
+ 	 * This pointer is expected to be RCU-safe because destroy()
+-	 * is called after synchronize_rcu(). But for safe use, css_is_removed()
+-	 * css_tryget() should be used for avoiding race.
++	 * is called after synchronize_rcu(). But for safe use, css_tryget()
++	 * should be used for avoiding race.
+ 	 */
+ 	struct cgroup_subsys_state __rcu *css;
+ 	/*
+@@ -807,39 +809,14 @@ static struct inode *cgroup_new_inode(um
+ 	return inode;
+ }
+ 
+-/*
+- * Call subsys's pre_destroy handler.
+- * This is called before css refcnt check.
+- */
+-static int cgroup_call_pre_destroy(struct cgroup *cgrp)
+-{
+-	struct cgroup_subsys *ss;
+-	int ret = 0;
+-
+-	for_each_subsys(cgrp->root, ss)
+-		if (ss->pre_destroy) {
+-			ret = ss->pre_destroy(cgrp);
+-			if (ret)
+-				break;
+-		}
+-
+-	return ret;
+-}
+-
+ static void cgroup_diput(struct dentry *dentry, struct inode *inode)
+ {
+ 	/* is dentry a directory ? if so, kfree() associated cgroup */
+ 	if (S_ISDIR(inode->i_mode)) {
+ 		struct cgroup *cgrp = dentry->d_fsdata;
+ 		struct cgroup_subsys *ss;
++
+ 		BUG_ON(!(cgroup_is_removed(cgrp)));
+-		/* It's possible for external users to be holding css
+-		 * reference counts on a cgroup; css_put() needs to
+-		 * be able to access the cgroup after decrementing
+-		 * the reference count in order to know if it needs to
+-		 * queue the cgroup to be handled by the release
+-		 * agent */
+-		synchronize_rcu();
+ 
+ 		mutex_lock(&cgroup_mutex);
+ 		/*
+@@ -931,33 +908,6 @@ static void cgroup_d_remove_dir(struct d
+ }
+ 
+ /*
+- * A queue for waiters to do rmdir() cgroup. A tasks will sleep when
+- * cgroup->count == 0 && list_empty(&cgroup->children) && subsys has some
+- * reference to css->refcnt. In general, this refcnt is expected to goes down
+- * to zero, soon.
+- *
+- * CGRP_WAIT_ON_RMDIR flag is set under cgroup's inode->i_mutex;
+- */
+-static DECLARE_WAIT_QUEUE_HEAD(cgroup_rmdir_waitq);
+-
+-static void cgroup_wakeup_rmdir_waiter(struct cgroup *cgrp)
+-{
+-	if (unlikely(test_and_clear_bit(CGRP_WAIT_ON_RMDIR, &cgrp->flags)))
+-		wake_up_all(&cgroup_rmdir_waitq);
+-}
+-
+-void cgroup_exclude_rmdir(struct cgroup_subsys_state *css)
+-{
+-	css_get(css);
+-}
+-
+-void cgroup_release_and_wakeup_rmdir(struct cgroup_subsys_state *css)
+-{
+-	cgroup_wakeup_rmdir_waiter(css->cgroup);
+-	css_put(css);
+-}
+-
+-/*
+  * Call with cgroup_mutex held. Drops reference counts on modules, including
+  * any duplicate ones that parse_cgroupfs_options took. If this function
+  * returns an error, no reference counts are touched.
+@@ -1329,6 +1279,13 @@ static const struct super_operations cgr
+ 	.remount_fs = cgroup_remount,
+ };
+ 
++static void cgroup_dput_fn(struct work_struct *work)
++{
++	struct cgroup *cgrp = container_of(work, struct cgroup, dput_work);
++
++	dput(cgrp->dentry);
++}
++
+ static void init_cgroup_housekeeping(struct cgroup *cgrp)
+ {
+ 	INIT_LIST_HEAD(&cgrp->sibling);
+@@ -1339,6 +1296,7 @@ static void init_cgroup_housekeeping(str
+ 	mutex_init(&cgrp->pidlist_mutex);
+ 	INIT_LIST_HEAD(&cgrp->event_list);
+ 	spin_lock_init(&cgrp->event_list_lock);
++	INIT_WORK(&cgrp->dput_work, cgroup_dput_fn);
+ }
+ 
+ static void init_cgroup_root(struct cgroupfs_root *root)
+@@ -1936,12 +1894,6 @@ int cgroup_attach_task(struct cgroup *cg
+ 	}
+ 
+ 	synchronize_rcu();
+-
+-	/*
+-	 * wake up rmdir() waiter. the rmdir should fail since the cgroup
+-	 * is no longer empty.
+-	 */
+-	cgroup_wakeup_rmdir_waiter(cgrp);
+ out:
+ 	if (retval) {
+ 		for_each_subsys(root, ss) {
+@@ -2111,7 +2063,6 @@ static int cgroup_attach_proc(struct cgr
+ 	 * step 5: success! and cleanup
+ 	 */
+ 	synchronize_rcu();
+-	cgroup_wakeup_rmdir_waiter(cgrp);
+ 	retval = 0;
+ out_put_css_set_refs:
+ 	if (retval) {
+@@ -3768,6 +3719,7 @@ static long cgroup_create(struct cgroup 
+ 			err = PTR_ERR(css);
+ 			goto err_destroy;
+ 		}
++		dget(dentry);		/* will be put on the last @css put */
+ 		init_cgroup_css(css, ss, cgrp);
+ 		if (ss->use_id) {
+ 			err = alloc_css_id(ss, parent, cgrp);
+@@ -3809,8 +3761,10 @@ static long cgroup_create(struct cgroup 
+  err_destroy:
+ 
+ 	for_each_subsys(root, ss) {
+-		if (cgrp->subsys[ss->subsys_id])
++		if (cgrp->subsys[ss->subsys_id]) {
++			dput(dentry);
+ 			ss->destroy(cgrp);
 +		}
-+	}
-+	return ret;
-+}
-+#else
-+static inline enum mc_target_type get_mctgt_type_thp(struct vm_area_struct *vma,
-+		unsigned long addr, pmd_t pmd, union mc_target *target)
-+{
-+	return MC_TARGET_NONE;
-+}
-+#endif
+ 	}
+ 
+ 	mutex_unlock(&cgroup_mutex);
+@@ -3830,106 +3784,15 @@ static int cgroup_mkdir(struct inode *di
+ 	return cgroup_create(c_parent, dentry, mode | S_IFDIR);
+ }
+ 
+-static int cgroup_has_css_refs(struct cgroup *cgrp)
+-{
+-	/* Check the reference count on each subsystem. Since we
+-	 * already established that there are no tasks in the
+-	 * cgroup, if the css refcount is also 1, then there should
+-	 * be no outstanding references, so the subsystem is safe to
+-	 * destroy. We scan across all subsystems rather than using
+-	 * the per-hierarchy linked list of mounted subsystems since
+-	 * we can be called via check_for_release() with no
+-	 * synchronization other than RCU, and the subsystem linked
+-	 * list isn't RCU-safe */
+-	int i;
+-	/*
+-	 * We won't need to lock the subsys array, because the subsystems
+-	 * we're concerned about aren't going anywhere since our cgroup root
+-	 * has a reference on them.
+-	 */
+-	for (i = 0; i < CGROUP_SUBSYS_COUNT; i++) {
+-		struct cgroup_subsys *ss = subsys[i];
+-		struct cgroup_subsys_state *css;
+-		/* Skip subsystems not present or not in this hierarchy */
+-		if (ss == NULL || ss->root != cgrp->root)
+-			continue;
+-		css = cgrp->subsys[ss->subsys_id];
+-		/* When called from check_for_release() it's possible
+-		 * that by this point the cgroup has been removed
+-		 * and the css deleted. But a false-positive doesn't
+-		 * matter, since it can only happen if the cgroup
+-		 * has been deleted and hence no longer needs the
+-		 * release agent to be called anyway. */
+-		if (css && (atomic_read(&css->refcnt) > 1))
+-			return 1;
+-	}
+-	return 0;
+-}
+-
+-/*
+- * Atomically mark all (or else none) of the cgroup's CSS objects as
+- * CSS_REMOVED. Return true on success, or false if the cgroup has
+- * busy subsystems. Call with cgroup_mutex held
+- */
+-
+-static int cgroup_clear_css_refs(struct cgroup *cgrp)
+-{
+-	struct cgroup_subsys *ss;
+-	unsigned long flags;
+-	bool failed = false;
+-	local_irq_save(flags);
+-	for_each_subsys(cgrp->root, ss) {
+-		struct cgroup_subsys_state *css = cgrp->subsys[ss->subsys_id];
+-		int refcnt;
+-		while (1) {
+-			/* We can only remove a CSS with a refcnt==1 */
+-			refcnt = atomic_read(&css->refcnt);
+-			if (refcnt > 1) {
+-				failed = true;
+-				goto done;
+-			}
+-			BUG_ON(!refcnt);
+-			/*
+-			 * Drop the refcnt to 0 while we check other
+-			 * subsystems. This will cause any racing
+-			 * css_tryget() to spin until we set the
+-			 * CSS_REMOVED bits or abort
+-			 */
+-			if (atomic_cmpxchg(&css->refcnt, refcnt, 0) == refcnt)
+-				break;
+-			cpu_relax();
+-		}
+-	}
+- done:
+-	for_each_subsys(cgrp->root, ss) {
+-		struct cgroup_subsys_state *css = cgrp->subsys[ss->subsys_id];
+-		if (failed) {
+-			/*
+-			 * Restore old refcnt if we previously managed
+-			 * to clear it from 1 to 0
+-			 */
+-			if (!atomic_read(&css->refcnt))
+-				atomic_set(&css->refcnt, 1);
+-		} else {
+-			/* Commit the fact that the CSS is removed */
+-			set_bit(CSS_REMOVED, &css->flags);
+-		}
+-	}
+-	local_irq_restore(flags);
+-	return !failed;
+-}
+-
+ static int cgroup_rmdir(struct inode *unused_dir, struct dentry *dentry)
+ {
+ 	struct cgroup *cgrp = dentry->d_fsdata;
+ 	struct dentry *d;
+ 	struct cgroup *parent;
+-	DEFINE_WAIT(wait);
++	struct cgroup_subsys *ss;
+ 	struct cgroup_event *event, *tmp;
+-	int ret;
+ 
+ 	/* the vfs holds both inode->i_mutex already */
+-again:
+ 	mutex_lock(&cgroup_mutex);
+ 	if (atomic_read(&cgrp->count) != 0) {
+ 		mutex_unlock(&cgroup_mutex);
+@@ -3941,52 +3804,34 @@ again:
+ 	}
+ 	mutex_unlock(&cgroup_mutex);
+ 
+-	/*
+-	 * In general, subsystem has no css->refcnt after pre_destroy(). But
+-	 * in racy cases, subsystem may have to get css->refcnt after
+-	 * pre_destroy() and it makes rmdir return with -EBUSY. This sometimes
+-	 * make rmdir return -EBUSY too often. To avoid that, we use waitqueue
+-	 * for cgroup's rmdir. CGRP_WAIT_ON_RMDIR is for synchronizing rmdir
+-	 * and subsystem's reference count handling. Please see css_get/put
+-	 * and css_tryget() and cgroup_wakeup_rmdir_waiter() implementation.
+-	 */
+-	set_bit(CGRP_WAIT_ON_RMDIR, &cgrp->flags);
+-
+-	/*
+-	 * Call pre_destroy handlers of subsys. Notify subsystems
+-	 * that rmdir() request comes.
+-	 */
+-	ret = cgroup_call_pre_destroy(cgrp);
+-	if (ret) {
+-		clear_bit(CGRP_WAIT_ON_RMDIR, &cgrp->flags);
+-		return ret;
+-	}
+-
+ 	mutex_lock(&cgroup_mutex);
+ 	parent = cgrp->parent;
+ 	if (atomic_read(&cgrp->count) || !list_empty(&cgrp->children)) {
+-		clear_bit(CGRP_WAIT_ON_RMDIR, &cgrp->flags);
+ 		mutex_unlock(&cgroup_mutex);
+ 		return -EBUSY;
+ 	}
+-	prepare_to_wait(&cgroup_rmdir_waitq, &wait, TASK_INTERRUPTIBLE);
+-	if (!cgroup_clear_css_refs(cgrp)) {
+-		mutex_unlock(&cgroup_mutex);
+-		/*
+-		 * Because someone may call cgroup_wakeup_rmdir_waiter() before
+-		 * prepare_to_wait(), we need to check this flag.
+-		 */
+-		if (test_bit(CGRP_WAIT_ON_RMDIR, &cgrp->flags))
+-			schedule();
+-		finish_wait(&cgroup_rmdir_waitq, &wait);
+-		clear_bit(CGRP_WAIT_ON_RMDIR, &cgrp->flags);
+-		if (signal_pending(current))
+-			return -EINTR;
+-		goto again;
 +
- static int mem_cgroup_count_precharge_pte_range(pmd_t *pmd,
- 					unsigned long addr, unsigned long end,
- 					struct mm_walk *walk)
-@@ -5223,7 +5258,12 @@ static int mem_cgroup_count_precharge_pte_range(pmd_t *pmd,
- 	pte_t *pte;
- 	spinlock_t *ptl;
- 
--	split_huge_page_pmd(walk->mm, pmd);
-+	if (pmd_trans_huge_lock(pmd, vma) == 1) {
-+		if (get_mctgt_type_thp(vma, addr, *pmd, NULL) == MC_TARGET_PAGE)
-+			mc.precharge += HPAGE_PMD_NR;
-+		spin_unlock(&vma->vm_mm->page_table_lock);
-+		return 0;
++	/* deny new css_tryget() attempts */
++	for_each_subsys(cgrp->root, ss) {
++		struct cgroup_subsys_state *css = cgrp->subsys[ss->subsys_id];
++
++		WARN_ON(atomic_read(&css->refcnt) < 0);
++		atomic_add(CSS_DEAD_BIAS, &css->refcnt);
 +	}
- 
- 	pte = pte_offset_map_lock(vma->vm_mm, pmd, addr, &ptl);
- 	for (; addr != end; pte++, addr += PAGE_SIZE)
-@@ -5382,16 +5422,49 @@ static int mem_cgroup_move_charge_pte_range(pmd_t *pmd,
- 	struct vm_area_struct *vma = walk->private;
- 	pte_t *pte;
- 	spinlock_t *ptl;
-+	enum mc_target_type target_type;
-+	union mc_target target;
-+	struct page *page;
-+	struct page_cgroup *pc;
 +
 +	/*
-+	 * We don't take compound_lock() here but no race with splitting thp
-+	 * happens because:
-+	 *  - if pmd_trans_huge_lock() returns 1, the relevant thp is not
-+	 *    under splitting, which means there's no concurrent thp split,
-+	 *  - if another thread runs into split_huge_page() just after we
-+	 *    entered this if-block, the thread must wait for page table lock
-+	 *    to be unlocked in __split_huge_page_splitting(), where the main
-+	 *    part of thp split is not executed yet.
++	 * No new tryget reference will be handed out.  Tell subsystems to
++	 * drain the existing references.
 +	 */
-+	if (pmd_trans_huge_lock(pmd, vma) == 1) {
-+		if (!mc.precharge) {
-+			spin_unlock(&vma->vm_mm->page_table_lock);
-+			return 0;
-+		}
-+		target_type = get_mctgt_type_thp(vma, addr, *pmd, &target);
-+		if (target_type == MC_TARGET_PAGE) {
-+			page = target.page;
-+			if (!isolate_lru_page(page)) {
-+				pc = lookup_page_cgroup(page);
-+				if (!mem_cgroup_move_account(page, HPAGE_PMD_NR,
-+							     pc, mc.from, mc.to,
-+							     false)) {
-+					mc.precharge -= HPAGE_PMD_NR;
-+					mc.moved_charge += HPAGE_PMD_NR;
-+				}
-+				putback_lru_page(page);
-+			}
-+			put_page(page);
-+		}
-+		spin_unlock(&vma->vm_mm->page_table_lock);
-+		return 0;
++	for_each_subsys(cgrp->root, ss)
++		if (ss->pre_destroy)
++			ss->pre_destroy(cgrp);
++
++	for_each_subsys(cgrp->root, ss) {
++		struct cgroup_subsys_state *css = cgrp->subsys[ss->subsys_id];
++
++		css_put(css);
+ 	}
+-	/* NO css_tryget() can success after here. */
+-	finish_wait(&cgroup_rmdir_waitq, &wait);
+-	clear_bit(CGRP_WAIT_ON_RMDIR, &cgrp->flags);
+ 
+ 	raw_spin_lock(&release_list_lock);
+ 	set_bit(CGRP_REMOVED, &cgrp->flags);
+@@ -4670,8 +4515,8 @@ static void check_for_release(struct cgr
+ {
+ 	/* All of these checks rely on RCU to keep the cgroup
+ 	 * structure alive */
+-	if (cgroup_is_releasable(cgrp) && !atomic_read(&cgrp->count)
+-	    && list_empty(&cgrp->children) && !cgroup_has_css_refs(cgrp)) {
++	if (cgroup_is_releasable(cgrp) && !atomic_read(&cgrp->count) &&
++	    list_empty(&cgrp->children)) {
+ 		/* Control Group is currently removeable. If it's not
+ 		 * already queued for a userspace notification, queue
+ 		 * it now */
+@@ -4689,21 +4534,35 @@ static void check_for_release(struct cgr
+ }
+ 
+ /* Caller must verify that the css is not for root cgroup */
+-void __css_put(struct cgroup_subsys_state *css, int count)
++bool __css_tryget(struct cgroup_subsys_state *css)
++{
++	while (1) {
++		int v, t;
++
++		v = atomic_read(&css->refcnt);
++		if (unlikely(v < 0))
++			return false;
++
++		t = atomic_cmpxchg(&css->refcnt, v, v + 1);
++		if (likely(t == v))
++			return true;
 +	}
++}
++
++/* Caller must verify that the css is not for root cgroup */
++void __css_put(struct cgroup_subsys_state *css)
+ {
+ 	struct cgroup *cgrp = css->cgroup;
+ 	int val;
+-	rcu_read_lock();
+-	val = atomic_sub_return(count, &css->refcnt);
+-	if (val == 1) {
++
++	val = atomic_dec_return(&css->refcnt);
++	if (val == CSS_DEAD_BIAS) {
+ 		if (notify_on_release(cgrp)) {
+ 			set_bit(CGRP_RELEASABLE, &cgrp->flags);
+ 			check_for_release(cgrp);
+ 		}
+-		cgroup_wakeup_rmdir_waiter(cgrp);
++		schedule_work(&cgrp->dput_work);
+ 	}
+-	rcu_read_unlock();
+-	WARN_ON_ONCE(val < 1);
+ }
+ EXPORT_SYMBOL_GPL(__css_put);
  
--	split_huge_page_pmd(walk->mm, pmd);
- retry:
- 	pte = pte_offset_map_lock(vma->vm_mm, pmd, addr, &ptl);
- 	for (; addr != end; addr += PAGE_SIZE) {
- 		pte_t ptent = *(pte++);
--		union mc_target target;
--		int type;
--		struct page *page;
--		struct page_cgroup *pc;
- 		swp_entry_t ent;
- 
- 		if (!mc.precharge)
--- 
-1.7.7.6
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
