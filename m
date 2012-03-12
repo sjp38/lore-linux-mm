@@ -1,142 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx149.postini.com [74.125.245.149])
-	by kanga.kvack.org (Postfix) with SMTP id 188DE6B0044
-	for <linux-mm@kvack.org>; Mon, 12 Mar 2012 04:08:48 -0400 (EDT)
-Received: by dadv6 with SMTP id v6so5376515dad.14
-        for <linux-mm@kvack.org>; Mon, 12 Mar 2012 01:08:47 -0700 (PDT)
-Date: Mon, 12 Mar 2012 16:14:14 +0800
-From: Zheng Liu <gnehzuil.liu@gmail.com>
-Subject: Re: Fwd: Control page reclaim granularity
-Message-ID: <20120312081413.GA10923@gmail.com>
+Received: from psmtp.com (na3sys010amx170.postini.com [74.125.245.170])
+	by kanga.kvack.org (Postfix) with SMTP id 0BDF06B0044
+	for <linux-mm@kvack.org>; Mon, 12 Mar 2012 04:22:30 -0400 (EDT)
+Date: Mon, 12 Mar 2012 09:22:20 +0100
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [PATCH 0/7 v3] Push file_update_time() into .page_mkwrite
+Message-ID: <20120312082220.GA5998@quack.suse.cz>
+References: <1330959258-23211-1-git-send-email-jack@suse.cz>
+ <1331497397.4641.87.camel@fourier>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <4F5D95AF.1020108@openvz.org>
+In-Reply-To: <1331497397.4641.87.camel@fourier>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Konstantin Khlebnikov <khlebnikov@openvz.org>
-Cc: linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, Minchan Kim <minchan@kernel.org>, riel@redhat.com, kosaki.motohiro@jp.fujitsu.com
+To: Kamal Mostafa <kamal@canonical.com>
+Cc: Jan Kara <jack@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Al Viro <viro@ZenIV.linux.org.uk>, Christoph Hellwig <hch@infradead.org>, Jaya Kumar <jayalk@intworks.biz>, Sage Weil <sage@newdream.net>, ceph-devel@vger.kernel.org, Eric Van Hensbergen <ericvh@gmail.com>, Ron Minnich <rminnich@sandia.gov>, Latchesar Ionkov <lucho@ionkov.net>, v9fs-developer@lists.sourceforge.net, Steven Whitehouse <swhiteho@redhat.com>, cluster-devel@redhat.com, Greg Kroah-Hartman <gregkh@linuxfoundation.org>
 
-On 03/12/2012 02:20 PM, Konstantin Khlebnikov wrote:
-> Minchan Kim wrote:
->> On Mon, Mar 12, 2012 at 10:06:09AM +0800, Zheng Liu wrote:
->>> On Mon, Mar 12, 2012 at 09:29:34AM +0900, Minchan Kim wrote:
->>>> I forgot to Ccing you.
->>>> Sorry.
->>>>
->>>> ---------- Forwarded message ----------
->>>> From: Minchan Kim<minchan@kernel.org>
->>>> Date: Mon, Mar 12, 2012 at 9:28 AM
->>>> Subject: Re: Control page reclaim granularity
->>>> To: Minchan Kim<minchan@kernel.org>, linux-mm<linux-mm@kvack.org>,
->>>> linux-kernel<linux-kernel@vger.kernel.org>, Konstantin Khlebnikov<
->>>> khlebnikov@openvz.org>, riel@redhat.com, kosaki.motohiro@jp.fujitsu.com
->>>>
->>>>
->>>> On Fri, Mar 09, 2012 at 12:54:03AM +0800, Zheng Liu wrote:
->>>>> Hi Minchan,
->>>>>
->>>>> Sorry, I forgot to say that I don't subscribe linux-mm and
->>>>> linux-kernel
->>>>> mailing list.  So please Cc me.
->>>>>
->>>>> IMHO, maybe we should re-think about how does user use mmap(2).  I
->>>>> describe the cases I known in our product system.  They can be
->>>>> categorized into two cases.  One is mmaped all data files into memory
->>>>> and sometime it uses write(2) to append some data, and another uses
->>>>> mmap(2)/munmap(2) and read(2)/write(2) to manipulate the files.  In
->>>>> the
->>>>> second case,  the application wants to keep mmaped page into memory
->>>>> and
->>>>> let file pages to be reclaimed firstly.  So, IMO, when application
->>>>> uses
->>>>> mmap(2) to manipulate files, it is possible to imply that it wants
->>>>> keep
->>>>> these mmaped pages into memory and do not be reclaimed.  At least
->>>>> these
->>>>> pages do not be reclaimed early than file pages.  I think that
->>>>> maybe we
->>>>> can recover that routine and provide a sysctl parameter to let the
->>>>> user
->>>>> to set this ratio between mmaped pages and file pages.
->>>>
->>>> I am not convinced why we should handle mapped page specially.
->>>> Sometimem, someone may use mmap by reducing buffer copy compared to
->>>> read
->>>> system call.
->>>> So I think we can't make sure mmaped pages are always win.
->>>>
->>>> My suggestion is that it would be better to declare by user explicitly.
->>>> I think we can implement it by madvise and fadvise's WILLNEED option.
->>>> Current implementation is just readahead if there isn't a page in
->>>> memory
->>>> but I think
->>>> we can promote from inactive to active if there is already a page in
->>>> memory.
->>>>
->>>> It's more clear and it couldn't be affected by kernel page reclaim
->>>> algorithm change
->>>> like this.
->>>
->>> Thank you for your advice.  But I still have question about this
->>> solution.  If we improve the madvise(2) and fadvise(2)'s WILLNEED
->>> option,  it will cause an inconsistently status for pages that be
->>> manipulated by madvise(2) and/or fadvise(2).  For example, when I call
->>> madvise with WILLNEED flag, some pages will be moved into active list if
->>> they already have been in memory, and other pages will be read into
->>> memory and be saved in inactive list if they don't be in memory.  Then
->>> pages that are in inactive list are possible to be reclaim.  So from the
->>> view of users, it is inconsistent because some pages are in memory and
->>> some pages are reclaimed.  But actually the user hopes that all of pages
->>> can be kept in memory.  IMHO, this inconsistency is weird and makes
->>> users
->>> puzzled.
->>
->> Now problem is that
->>
->> 1. User want to keep pages which are used once in a while in memory.
->> 2. Kernel want to reclaim them because they are surely reclaim target
->>     pages in point of view by LRU.
->>
->> The most desriable approach is that user should use mlock to guarantee
->> them in memory. But mlock is too big overhead and user doesn't want to
->> keep
->> memory all pages all at once.(Ie, he want demand paging when he need
->> the page)
->> Right?
->>
->> madvise, it's a just hint for kernel and kernel doesn't need to make
->> sure madvise's behavior.
->> In point of view, such inconsistency might not be a big problem.
->>
->> Big problem I think now is that user should use madvise(WILLNEED)
->> periodically because such
->> activation happens once when user calls madvise. If user doesn't use
->> page frequently after
->> user calls it, it ends up moving into inactive list and even could be
->> reclaimed.
->> It's not good. :-(
->>
->> Okay. How about adding new VM_WORKINGSET?
->> And reclaimer would give one more round trip in active/inactive list
->> when reclaim happens
->> if the page is referenced.
->>
->> Sigh. We have no room for new VM_FLAG in 32 bit.
+On Sun 11-03-12 13:23:17, Kamal Mostafa wrote:
+> On Mon, 2012-03-05 at 15:54 +0100, Jan Kara wrote:
+> > Hello,
+> > 
+> >   to provide reliable support for filesystem freezing, filesystems need to have
+> > complete control over when metadata is changed.  [...]
 > 
-> It would be nice to mark struct address_space with this flag and export
-> AS_UNEVICTABLE somehow.
-> Maybe we can reuse file-locking engine for managing these bits =)
+> This patch set has been tested at Canonical along with the testing for
+> "[PATCH 00/19] Fix filesystem freezing deadlocks".
+> 
+> Please add the following endorsements for these patches (those actually
+> exercised by our test case):  1, 2, 6, 7
+> 
+> Tested-by: Kamal Mostafa <kamal@canonical.com>
+> Tested-by: Peter M. Petrakis <peter.petrakis@canonical.com>
+> Tested-by: Dann Frazier <dann.frazier@canonical.com>
+> Tested-by: Massimo Morana <massimo.morana@canonical.com>
+  Thanks for testing guys!
 
-Make sense to me.  We can mark this flag in struct address_space and check
-it in page_refereneced_file().  If this flag is set, it will be cleard and
-the function returns referenced > 1.  Then this page can be promoted into
-activate list.  But I prefer to set/clear this flag in madvise.
-
-PS, I have subscribed linux-mm mailing list. :-)
-
-Regards,
-Zheng
+								Honza
+-- 
+Jan Kara <jack@suse.cz>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
