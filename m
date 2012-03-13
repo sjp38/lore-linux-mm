@@ -1,21 +1,21 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx204.postini.com [74.125.245.204])
-	by kanga.kvack.org (Postfix) with SMTP id ED97A6B004A
-	for <linux-mm@kvack.org>; Tue, 13 Mar 2012 03:09:04 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx194.postini.com [74.125.245.194])
+	by kanga.kvack.org (Postfix) with SMTP id CB2876B004D
+	for <linux-mm@kvack.org>; Tue, 13 Mar 2012 03:09:15 -0400 (EDT)
 Received: from /spool/local
-	by e28smtp04.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e28smtp08.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
-	Tue, 13 Mar 2012 12:39:02 +0530
+	Tue, 13 Mar 2012 12:39:12 +0530
 Received: from d28av01.in.ibm.com (d28av01.in.ibm.com [9.184.220.63])
-	by d28relay02.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q2D78xsh4092128
-	for <linux-mm@kvack.org>; Tue, 13 Mar 2012 12:38:59 +0530
+	by d28relay05.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q2D78k2p475346
+	for <linux-mm@kvack.org>; Tue, 13 Mar 2012 12:38:46 +0530
 Received: from d28av01.in.ibm.com (loopback [127.0.0.1])
-	by d28av01.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q2DCcjce009956
-	for <linux-mm@kvack.org>; Tue, 13 Mar 2012 18:08:46 +0530
+	by d28av01.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q2DCcWiA009189
+	for <linux-mm@kvack.org>; Tue, 13 Mar 2012 18:08:33 +0530
 From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Subject: [PATCH -V3 6/8] hugetlbfs: Add a list for tracking in-use HugeTLB pages
-Date: Tue, 13 Mar 2012 12:37:10 +0530
-Message-Id: <1331622432-24683-7-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+Subject: [PATCH -V3 5/8] hugetlbfs: Add memcg control files for hugetlbfs
+Date: Tue, 13 Mar 2012 12:37:09 +0530
+Message-Id: <1331622432-24683-6-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
 In-Reply-To: <1331622432-24683-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
 References: <1331622432-24683-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
@@ -25,110 +25,168 @@ Cc: linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, "Aneesh Kumar K.V" <a
 
 From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
 
-hugepage_activelist will be used to track currently used HugeTLB pages.
-We need to find the in-use HugeTLB pages to support memcg removal.
-On memcg removal we update the page's memory cgroup to point to
-parent cgroup.
+This add control files for hugetlbfs in memcg
 
 Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
 ---
- include/linux/hugetlb.h |    1 +
- mm/hugetlb.c            |   23 ++++++++++++++++++-----
- 2 files changed, 19 insertions(+), 5 deletions(-)
+ include/linux/hugetlb.h |   15 +++++++++++++++
+ mm/hugetlb.c            |   32 +++++++++++++++++++++++++++++++-
+ mm/memcontrol.c         |   47 +++++++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 93 insertions(+), 1 deletions(-)
 
 diff --git a/include/linux/hugetlb.h b/include/linux/hugetlb.h
-index 8c1e855..e62eee7 100644
+index 5ed0ad7..8c1e855 100644
 --- a/include/linux/hugetlb.h
 +++ b/include/linux/hugetlb.h
-@@ -217,6 +217,7 @@ struct hstate {
- 	unsigned long resv_huge_pages;
- 	unsigned long surplus_huge_pages;
- 	unsigned long nr_overcommit_huge_pages;
-+	struct list_head hugepage_activelist;
- 	struct list_head hugepage_freelists[MAX_NUMNODES];
+@@ -4,6 +4,7 @@
+ #include <linux/mm_types.h>
+ #include <linux/fs.h>
+ #include <linux/hugetlb_inline.h>
++#include <linux/cgroup.h>
+ 
+ struct ctl_table;
+ struct user_struct;
+@@ -220,6 +221,10 @@ struct hstate {
  	unsigned int nr_huge_pages_node[MAX_NUMNODES];
  	unsigned int free_huge_pages_node[MAX_NUMNODES];
+ 	unsigned int surplus_huge_pages_node[MAX_NUMNODES];
++	/* cgroup control files */
++	struct cftype cgroup_limit_file;
++	struct cftype cgroup_usage_file;
++	struct cftype cgroup_max_usage_file;
+ 	char name[HSTATE_NAME_LEN];
+ };
+ 
+@@ -332,4 +337,14 @@ static inline unsigned int pages_per_huge_page(struct hstate *h)
+ #define hstate_index_to_shift(index) 0
+ #endif
+ 
++#ifdef CONFIG_MEM_RES_CTLR_HUGETLB
++extern int register_hugetlb_memcg_files(struct cgroup *cgroup,
++					struct cgroup_subsys *ss);
++#else
++static inline int register_hugetlb_memcg_files(struct cgroup *cgroup,
++					       struct cgroup_subsys *ss)
++{
++	return 0;
++}
++#endif
+ #endif /* _LINUX_HUGETLB_H */
 diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-index 30f66f1..e038fdc 100644
+index b7152d1..30f66f1 100644
 --- a/mm/hugetlb.c
 +++ b/mm/hugetlb.c
-@@ -433,7 +433,7 @@ void copy_huge_page(struct page *dst, struct page *src)
- static void enqueue_huge_page(struct hstate *h, struct page *page)
- {
- 	int nid = page_to_nid(page);
--	list_add(&page->lru, &h->hugepage_freelists[nid]);
-+	list_move(&page->lru, &h->hugepage_freelists[nid]);
- 	h->free_huge_pages++;
- 	h->free_huge_pages_node[nid]++;
+@@ -1817,6 +1817,36 @@ static int __init hugetlb_init(void)
  }
-@@ -445,7 +445,7 @@ static struct page *dequeue_huge_page_node(struct hstate *h, int nid)
- 	if (list_empty(&h->hugepage_freelists[nid]))
- 		return NULL;
- 	page = list_entry(h->hugepage_freelists[nid].next, struct page, lru);
--	list_del(&page->lru);
-+	list_move(&page->lru, &h->hugepage_activelist);
- 	set_page_refcounted(page);
- 	h->free_huge_pages--;
- 	h->free_huge_pages_node[nid]--;
-@@ -542,13 +542,14 @@ static void free_huge_page(struct page *page)
- 	page->mapping = NULL;
- 	BUG_ON(page_count(page));
- 	BUG_ON(page_mapcount(page));
--	INIT_LIST_HEAD(&page->lru);
+ module_init(hugetlb_init);
  
- 	if (mapping)
- 		mem_cgroup_hugetlb_uncharge_page(h - hstates,
- 						 pages_per_huge_page(h), page);
- 	spin_lock(&hugetlb_lock);
- 	if (h->surplus_huge_pages_node[nid] && huge_page_order(h) < MAX_ORDER) {
-+		/* remove the page from active list */
-+		list_del(&page->lru);
- 		update_and_free_page(h, page);
- 		h->surplus_huge_pages--;
- 		h->surplus_huge_pages_node[nid]--;
-@@ -562,6 +563,7 @@ static void free_huge_page(struct page *page)
- 
- static void prep_new_huge_page(struct hstate *h, struct page *page, int nid)
++#ifdef CONFIG_MEM_RES_CTLR_HUGETLB
++int register_hugetlb_memcg_files(struct cgroup *cgroup,
++				 struct cgroup_subsys *ss)
++{
++	int ret = 0;
++	struct hstate *h;
++
++	for_each_hstate(h) {
++		ret = cgroup_add_file(cgroup, ss, &h->cgroup_limit_file);
++		if (ret)
++			return ret;
++		ret = cgroup_add_file(cgroup, ss, &h->cgroup_usage_file);
++		if (ret)
++			return ret;
++		ret = cgroup_add_file(cgroup, ss, &h->cgroup_max_usage_file);
++		if (ret)
++			return ret;
++
++	}
++	return ret;
++}
++/* mm/memcontrol.c because mem_cgroup_read/write is not availabel outside */
++int mem_cgroup_hugetlb_file_init(struct hstate *h, int idx);
++#else
++static int mem_cgroup_hugetlb_file_init(struct hstate *h, int idx)
++{
++	return 0;
++}
++#endif
++
+ /* Should be called on processing a hugepagesz=... option */
+ void __init hugetlb_add_hstate(unsigned order)
  {
-+	INIT_LIST_HEAD(&page->lru);
- 	set_compound_page_dtor(page, free_huge_page);
- 	spin_lock(&hugetlb_lock);
- 	h->nr_huge_pages++;
-@@ -1866,6 +1868,7 @@ void __init hugetlb_add_hstate(unsigned order)
- 	h->free_huge_pages = 0;
- 	for (i = 0; i < MAX_NUMNODES; ++i)
- 		INIT_LIST_HEAD(&h->hugepage_freelists[i]);
-+	INIT_LIST_HEAD(&h->hugepage_activelist);
- 	h->next_nid_to_alloc = first_node(node_states[N_HIGH_MEMORY]);
+@@ -1840,7 +1870,7 @@ void __init hugetlb_add_hstate(unsigned order)
  	h->next_nid_to_free = first_node(node_states[N_HIGH_MEMORY]);
  	snprintf(h->name, HSTATE_NAME_LEN, "hugepages-%lukB",
-@@ -2324,14 +2327,24 @@ void __unmap_hugepage_range(struct vm_area_struct *vma, unsigned long start,
- 		page = pte_page(pte);
- 		if (pte_dirty(pte))
- 			set_page_dirty(page);
--		list_add(&page->lru, &page_list);
-+
-+		spin_lock(&hugetlb_lock);
-+		list_move(&page->lru, &page_list);
-+		spin_unlock(&hugetlb_lock);
- 	}
- 	spin_unlock(&mm->page_table_lock);
- 	flush_tlb_range(vma, start, end);
- 	mmu_notifier_invalidate_range_end(mm, start, end);
- 	list_for_each_entry_safe(page, tmp, &page_list, lru) {
- 		page_remove_rmap(page);
--		list_del(&page->lru);
-+		/*
-+		 * We need to move it back huge page active list. If we are
-+		 * holding the last reference, below put_page will move it
-+		 * back to free list.
-+		 */
-+		spin_lock(&hugetlb_lock);
-+		list_move(&page->lru, &h->hugepage_activelist);
-+		spin_unlock(&hugetlb_lock);
- 		put_page(page);
- 	}
+ 					huge_page_size(h)/1024);
+-
++	mem_cgroup_hugetlb_file_init(h, hugetlb_max_hstate - 1);
+ 	parsed_hstate = h;
  }
+ 
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index 7ac8489..405e17d 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -5123,6 +5123,50 @@ static void mem_cgroup_destroy(struct cgroup_subsys *ss,
+ 	mem_cgroup_put(memcg);
+ }
+ 
++#ifdef CONFIG_MEM_RES_CTLR_HUGETLB
++static char *mem_fmt(char *buf, unsigned long n)
++{
++	if (n >= (1UL << 30))
++		sprintf(buf, "%luGB", n >> 30);
++	else if (n >= (1UL << 20))
++		sprintf(buf, "%luMB", n >> 20);
++	else
++		sprintf(buf, "%luKB", n >> 10);
++	return buf;
++}
++
++int mem_cgroup_hugetlb_file_init(struct hstate *h, int idx)
++{
++	char buf[32];
++	struct cftype *cft;
++
++	/* format the size */
++	mem_fmt(buf, huge_page_size(h));
++
++	/* Add the limit file */
++	cft = &h->cgroup_limit_file;
++	snprintf(cft->name, MAX_CFTYPE_NAME, "hugetlb.%s.limit_in_bytes", buf);
++	cft->private = __MEMFILE_PRIVATE(idx, _MEMHUGETLB, RES_LIMIT);
++	cft->read_u64 = mem_cgroup_read;
++	cft->write_string = mem_cgroup_write;
++
++	/* Add the usage file */
++	cft = &h->cgroup_usage_file;
++	snprintf(cft->name, MAX_CFTYPE_NAME, "hugetlb.%s.usage_in_bytes", buf);
++	cft->private  = __MEMFILE_PRIVATE(idx, _MEMHUGETLB, RES_USAGE);
++	cft->read_u64 = mem_cgroup_read;
++
++	/* Add the MAX usage file */
++	cft = &h->cgroup_max_usage_file;
++	snprintf(cft->name, MAX_CFTYPE_NAME, "hugetlb.%s.max_usage_in_bytes", buf);
++	cft->private  = __MEMFILE_PRIVATE(idx, _MEMHUGETLB, RES_MAX_USAGE);
++	cft->trigger  = mem_cgroup_reset;
++	cft->read_u64 = mem_cgroup_read;
++
++	return 0;
++}
++#endif
++
+ static int mem_cgroup_populate(struct cgroup_subsys *ss,
+ 				struct cgroup *cont)
+ {
+@@ -5137,6 +5181,9 @@ static int mem_cgroup_populate(struct cgroup_subsys *ss,
+ 	if (!ret)
+ 		ret = register_kmem_files(cont, ss);
+ 
++	if (!ret)
++		ret = register_hugetlb_memcg_files(cont, ss);
++
+ 	return ret;
+ }
+ 
 -- 
 1.7.9
 
