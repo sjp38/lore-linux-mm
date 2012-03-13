@@ -1,57 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx113.postini.com [74.125.245.113])
-	by kanga.kvack.org (Postfix) with SMTP id EE4C56B004A
-	for <linux-mm@kvack.org>; Tue, 13 Mar 2012 09:50:25 -0400 (EDT)
-Message-ID: <1331646604.18960.76.camel@twins>
-Subject: Re: [PATCH 0/5] Persist printk buffer across reboots.
-From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Date: Tue, 13 Mar 2012 14:50:04 +0100
-In-Reply-To: <20120312.225302.488696931454771146.davem@davemloft.net>
-References: <1331617001-20906-1-git-send-email-apenwarr@gmail.com>
-	 <20120312.225302.488696931454771146.davem@davemloft.net>
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: quoted-printable
-Mime-Version: 1.0
+Received: from psmtp.com (na3sys010amx170.postini.com [74.125.245.170])
+	by kanga.kvack.org (Postfix) with SMTP id CB1B16B004A
+	for <linux-mm@kvack.org>; Tue, 13 Mar 2012 10:06:27 -0400 (EDT)
+Received: from /spool/local
+	by e28smtp05.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <srikar@linux.vnet.ibm.com>;
+	Tue, 13 Mar 2012 19:36:23 +0530
+Received: from d28av01.in.ibm.com (d28av01.in.ibm.com [9.184.220.63])
+	by d28relay04.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q2DE67lI4391096
+	for <linux-mm@kvack.org>; Tue, 13 Mar 2012 19:36:08 +0530
+Received: from d28av01.in.ibm.com (loopback [127.0.0.1])
+	by d28av01.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q2DJZqZk014901
+	for <linux-mm@kvack.org>; Wed, 14 Mar 2012 01:05:54 +0530
+From: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
+Date: Tue, 13 Mar 2012 19:33:03 +0530
+Message-Id: <20120313140303.17134.1401.sendpatchset@srdronam.in.ibm.com>
+Subject: [PATCH 1/2] x86: Move is_ia32_task to asm/thread_info.h from asm/compat.h
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Miller <davem@davemloft.net>
-Cc: apenwarr@gmail.com, akpm@linux-foundation.org, josh@joshtriplett.org, paulmck@linux.vnet.ibm.com, mingo@elte.hu, fdinitto@redhat.com, hannes@cmpxchg.org, olaf@aepfle.de, paul.gortmaker@windriver.com, tj@kernel.org, hpa@linux.intel.com, yinghai@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@elte.hu>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, LKML <linux-kernel@vger.kernel.org>, Linux-mm <linux-mm@kvack.org>, Oleg Nesterov <oleg@redhat.com>, Andi Kleen <andi@firstfloor.org>, Christoph Hellwig <hch@infradead.org>, Steven Rostedt <rostedt@goodmis.org>, Arnaldo Carvalho de Melo <acme@infradead.org>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Thomas Gleixner <tglx@linutronix.de>
 
-On Mon, 2012-03-12 at 22:53 -0700, David Miller wrote:
-> From: Avery Pennarun <apenwarr@gmail.com>
-> Date: Tue, 13 Mar 2012 01:36:36 -0400
->=20
-> > The last patch in this series implements a new CONFIG_PRINTK_PERSIST op=
-tion
-> > that, when enabled, puts the printk buffer in a well-defined memory loc=
-ation
-> > so that we can keep appending to it after a reboot.  The upshot is that=
-,
-> > even after a kernel panic or non-panic hard lockup, on the next boot
-> > userspace will be able to grab the kernel messages leading up to it.  I=
-t
-> > could then upload the messages to a server (for example) to keep crash
-> > statistics.
->=20
-> On some platforms there are formal ways to reserve areas of memory
-> such that the bootup firmware will know to not touch it on soft resets
-> no matter what.  For example, on Sparc there are OpenFirmware calls to
-> set aside such an area of soft-reset preserved memory.
->=20
-> I think some formal agreement with the system firmware is a lot better
-> when available, and should be explicitly accomodated in these changes
-> so that those of us with such facilities can very easily hook it up.
+From: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
 
-Shouldn't this all be near the pstore effort? I know pstore and the
-soft-reset stuff aren't quite the same, but if that's the best Sparc can
-do, then why not?
+is_ia32_task is useful even in !CONFIG_COMPAT cases. Hence move it
+to a more generic file asm/thread_info.h
 
-OTOH if Sparc can actually do pstore too, then it might make sense.
+Also now is_ia32_task returns true if CONFIG_X86_32 is defined.
 
-What I guess I'm saying is that we should try and minimize the duplicate
-efforts here.. and it seems to me that writing a soft reset x86 backend
-to pstore for those machines that don't actually have the acpi flash
-crap might be more useful and less duplicative.
+Signed-off-by: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
+---
+ arch/x86/include/asm/compat.h      |    9 ---------
+ arch/x86/include/asm/thread_info.h |   12 ++++++++++++
+ 2 files changed, 12 insertions(+), 9 deletions(-)
+
+diff --git a/arch/x86/include/asm/compat.h b/arch/x86/include/asm/compat.h
+index 355edc0..d680579 100644
+--- a/arch/x86/include/asm/compat.h
++++ b/arch/x86/include/asm/compat.h
+@@ -235,15 +235,6 @@ static inline void __user *arch_compat_alloc_user_space(long len)
+ 	return (void __user *)round_down(sp - len, 16);
+ }
+ 
+-static inline bool is_ia32_task(void)
+-{
+-#ifdef CONFIG_IA32_EMULATION
+-	if (current_thread_info()->status & TS_COMPAT)
+-		return true;
+-#endif
+-	return false;
+-}
+-
+ static inline bool is_x32_task(void)
+ {
+ #ifdef CONFIG_X86_X32_ABI
+diff --git a/arch/x86/include/asm/thread_info.h b/arch/x86/include/asm/thread_info.h
+index af1db7e..130fd4e 100644
+--- a/arch/x86/include/asm/thread_info.h
++++ b/arch/x86/include/asm/thread_info.h
+@@ -266,6 +266,18 @@ static inline void set_restore_sigmask(void)
+ 	ti->status |= TS_RESTORE_SIGMASK;
+ 	set_bit(TIF_SIGPENDING, (unsigned long *)&ti->flags);
+ }
++
++static inline bool is_ia32_task(void)
++{
++#ifdef CONFIG_X86_32
++	return true;
++#endif
++#if defined CONFIG_X86_64 && defined CONFIG_IA32_EMULATION
++	if (current_thread_info()->status & TS_COMPAT)
++		return true;
++#endif
++	return false;
++}
+ #endif	/* !__ASSEMBLY__ */
+ 
+ #ifndef __ASSEMBLY__
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
