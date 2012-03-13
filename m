@@ -1,16 +1,16 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx132.postini.com [74.125.245.132])
-	by kanga.kvack.org (Postfix) with SMTP id C84BA6B004A
-	for <linux-mm@kvack.org>; Tue, 13 Mar 2012 09:13:01 -0400 (EDT)
-Received: by vcbfk14 with SMTP id fk14so854481vcb.14
-        for <linux-mm@kvack.org>; Tue, 13 Mar 2012 06:13:00 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx161.postini.com [74.125.245.161])
+	by kanga.kvack.org (Postfix) with SMTP id D3A136B004A
+	for <linux-mm@kvack.org>; Tue, 13 Mar 2012 09:20:23 -0400 (EDT)
+Received: by eeke53 with SMTP id e53so234726eek.14
+        for <linux-mm@kvack.org>; Tue, 13 Mar 2012 06:20:22 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <1331622432-24683-2-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+In-Reply-To: <1331622432-24683-4-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
 References: <1331622432-24683-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
-	<1331622432-24683-2-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
-Date: Tue, 13 Mar 2012 21:13:00 +0800
-Message-ID: <CAJd=RBA+D0MyjwuCNp3WtKRq-d3F_t9rKHLgmyLhznhZ9HjG4g@mail.gmail.com>
-Subject: Re: [PATCH -V3 1/8] hugetlb: rename max_hstate to hugetlb_max_hstate
+	<1331622432-24683-4-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+Date: Tue, 13 Mar 2012 21:20:21 +0800
+Message-ID: <CAJd=RBAHYi-BOXBO+u0u9-C=35Lu=ow=L77w2WSsndUBxVKf9w@mail.gmail.com>
+Subject: Re: [PATCH -V3 3/8] hugetlb: add charge/uncharge calls for HugeTLB alloc/free
 From: Hillf Danton <dhillf@gmail.com>
 Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: quoted-printable
@@ -23,89 +23,146 @@ On Tue, Mar 13, 2012 at 3:07 PM, Aneesh Kumar K.V
 <aneesh.kumar@linux.vnet.ibm.com> wrote:
 > From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
 >
-> We will be using this from other subsystems like memcg
-> in later patches.
+> This adds necessary charge/uncharge calls in the HugeTLB code
 >
 > Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
 > ---
+> =C2=A0mm/hugetlb.c =C2=A0 =C2=A0| =C2=A0 21 ++++++++++++++++++++-
+> =C2=A0mm/memcontrol.c | =C2=A0 =C2=A05 +++++
+> =C2=A02 files changed, 25 insertions(+), 1 deletions(-)
+>
+> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+> index fe7aefd..b7152d1 100644
+> --- a/mm/hugetlb.c
+> +++ b/mm/hugetlb.c
+> @@ -21,6 +21,8 @@
+> =C2=A0#include <linux/rmap.h>
+> =C2=A0#include <linux/swap.h>
+> =C2=A0#include <linux/swapops.h>
+> +#include <linux/memcontrol.h>
+> +#include <linux/page_cgroup.h>
+>
+> =C2=A0#include <asm/page.h>
+> =C2=A0#include <asm/pgtable.h>
+> @@ -542,6 +544,9 @@ static void free_huge_page(struct page *page)
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0BUG_ON(page_mapcount(page));
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0INIT_LIST_HEAD(&page->lru);
+>
+> + =C2=A0 =C2=A0 =C2=A0 if (mapping)
+> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 mem_cgroup_hugetlb_unc=
+harge_page(h - hstates,
+> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
+=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
+=A0 =C2=A0 =C2=A0 =C2=A0pages_per_huge_page(h), page);
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0spin_lock(&hugetlb_lock);
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0if (h->surplus_huge_pages_node[nid] && huge_pa=
+ge_order(h) < MAX_ORDER) {
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0update_and_free_pa=
+ge(h, page);
+> @@ -1019,12 +1024,15 @@ static void vma_commit_reservation(struct hstate =
+*h,
+> =C2=A0static struct page *alloc_huge_page(struct vm_area_struct *vma,
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
+=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0unsigned long addr, int=
+ avoid_reserve)
+> =C2=A0{
+> + =C2=A0 =C2=A0 =C2=A0 int ret, idx;
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0struct hstate *h =3D hstate_vma(vma);
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0struct page *page;
+> + =C2=A0 =C2=A0 =C2=A0 struct mem_cgroup *memcg =3D NULL;
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0struct address_space *mapping =3D vma->vm_file=
+->f_mapping;
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0struct inode *inode =3D mapping->host;
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0long chg;
+>
+> + =C2=A0 =C2=A0 =C2=A0 idx =3D h - hstates;
+
+Better if hstate index is computed with a tiny inline helper?
+Other than that,
 
 Acked-by: Hillf Danton <dhillf@gmail.com>
 
-> =C2=A0mm/hugetlb.c | =C2=A0 14 +++++++-------
-> =C2=A01 files changed, 7 insertions(+), 7 deletions(-)
->
-> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-> index 5f34bd8..d623e71 100644
-> --- a/mm/hugetlb.c
-> +++ b/mm/hugetlb.c
-> @@ -34,7 +34,7 @@ const unsigned long hugetlb_zero =3D 0, hugetlb_infinit=
-y =3D ~0UL;
-> =C2=A0static gfp_t htlb_alloc_mask =3D GFP_HIGHUSER;
-> =C2=A0unsigned long hugepages_treat_as_movable;
->
-> -static int max_hstate;
-> +static int hugetlb_max_hstate;
-> =C2=A0unsigned int default_hstate_idx;
-> =C2=A0struct hstate hstates[HUGE_MAX_HSTATE];
->
-> @@ -46,7 +46,7 @@ static unsigned long __initdata default_hstate_max_huge=
-_pages;
-> =C2=A0static unsigned long __initdata default_hstate_size;
->
-> =C2=A0#define for_each_hstate(h) \
-> - =C2=A0 =C2=A0 =C2=A0 for ((h) =3D hstates; (h) < &hstates[max_hstate]; =
-(h)++)
-> + =C2=A0 =C2=A0 =C2=A0 for ((h) =3D hstates; (h) < &hstates[hugetlb_max_h=
-state]; (h)++)
->
-> =C2=A0/*
-> =C2=A0* Protects updates to hugepage_freelists, nr_huge_pages, and free_h=
-uge_pages
-> @@ -1808,9 +1808,9 @@ void __init hugetlb_add_hstate(unsigned order)
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0printk(KERN_WARNIN=
-G "hugepagesz=3D specified twice, ignoring\n");
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0return;
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0}
-> - =C2=A0 =C2=A0 =C2=A0 BUG_ON(max_hstate >=3D HUGE_MAX_HSTATE);
-> + =C2=A0 =C2=A0 =C2=A0 BUG_ON(hugetlb_max_hstate >=3D HUGE_MAX_HSTATE);
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0BUG_ON(order =3D=3D 0);
-> - =C2=A0 =C2=A0 =C2=A0 h =3D &hstates[max_hstate++];
-> + =C2=A0 =C2=A0 =C2=A0 h =3D &hstates[hugetlb_max_hstate++];
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0h->order =3D order;
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0h->mask =3D ~((1ULL << (order + PAGE_SHIFT)) -=
- 1);
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0h->nr_huge_pages =3D 0;
-> @@ -1831,10 +1831,10 @@ static int __init hugetlb_nrpages_setup(char *s)
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0static unsigned long *last_mhp;
->
 > =C2=A0 =C2=A0 =C2=A0 =C2=A0/*
-> - =C2=A0 =C2=A0 =C2=A0 =C2=A0* !max_hstate means we haven't parsed a huge=
-pagesz=3D parameter yet,
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0* !hugetlb_max_hstate means we haven't parse=
-d a hugepagesz=3D parameter yet,
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0 * so this hugepages=3D parameter goes to the =
-"default hstate".
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0 */
-> - =C2=A0 =C2=A0 =C2=A0 if (!max_hstate)
-> + =C2=A0 =C2=A0 =C2=A0 if (!hugetlb_max_hstate)
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0mhp =3D &default_h=
-state_max_huge_pages;
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0else
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0mhp =3D &parsed_hs=
-tate->max_huge_pages;
-> @@ -1853,7 +1853,7 @@ static int __init hugetlb_nrpages_setup(char *s)
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0 * But we need to allocate >=3D MAX_ORDER hsta=
-tes here early to still
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0 * use the bootmem allocator.
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0 */
-> - =C2=A0 =C2=A0 =C2=A0 if (max_hstate && parsed_hstate->order >=3D MAX_OR=
-DER)
-> + =C2=A0 =C2=A0 =C2=A0 if (hugetlb_max_hstate && parsed_hstate->order >=
-=3D MAX_ORDER)
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0hugetlb_hstate_all=
-oc_pages(parsed_hstate);
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 * Processes that did not create the mapping w=
+ill have no reserves and
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 * will not have accounted against quota. Chec=
+k that the quota can be
+> @@ -1039,6 +1047,12 @@ static struct page *alloc_huge_page(struct vm_area=
+_struct *vma,
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0if (hugetlb_get_qu=
+ota(inode->i_mapping, chg))
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
+=A0 =C2=A0return ERR_PTR(-VM_FAULT_SIGBUS);
 >
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0last_mhp =3D mhp;
+> + =C2=A0 =C2=A0 =C2=A0 ret =3D mem_cgroup_hugetlb_charge_page(idx, pages_=
+per_huge_page(h),
+> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
+=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
+=A0 =C2=A0&memcg);
+> + =C2=A0 =C2=A0 =C2=A0 if (ret) {
+> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 hugetlb_put_quota(inod=
+e->i_mapping, chg);
+> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 return ERR_PTR(-VM_FAU=
+LT_SIGBUS);
+> + =C2=A0 =C2=A0 =C2=A0 }
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0spin_lock(&hugetlb_lock);
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0page =3D dequeue_huge_page_vma(h, vma, addr, a=
+void_reserve);
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0spin_unlock(&hugetlb_lock);
+> @@ -1046,6 +1060,9 @@ static struct page *alloc_huge_page(struct vm_area_=
+struct *vma,
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0if (!page) {
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0page =3D alloc_bud=
+dy_huge_page(h, NUMA_NO_NODE);
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0if (!page) {
+> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
+=C2=A0 mem_cgroup_hugetlb_uncharge_memcg(idx,
+> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
+=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
+=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0pages_per_huge_page(h),
+> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
+=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
+=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0memcg);
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
+=A0 =C2=A0hugetlb_put_quota(inode->i_mapping, chg);
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
+=A0 =C2=A0return ERR_PTR(-VM_FAULT_SIGBUS);
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0}
+> @@ -1054,7 +1071,9 @@ static struct page *alloc_huge_page(struct vm_area_=
+struct *vma,
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0set_page_private(page, (unsigned long) mapping=
+);
+>
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0vma_commit_reservation(h, vma, addr);
+> -
+> + =C2=A0 =C2=A0 =C2=A0 /* update page cgroup details */
+> + =C2=A0 =C2=A0 =C2=A0 mem_cgroup_hugetlb_commit_charge(idx, pages_per_hu=
+ge_page(h),
+> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
+=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0memcg,=
+ page);
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0return page;
+> =C2=A0}
+>
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index 8cac77b..f4aa11c 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -2901,6 +2901,11 @@ __mem_cgroup_uncharge_common(struct page *page, en=
+um charge_type ctype)
+>
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0if (PageSwapCache(page))
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0return NULL;
+> + =C2=A0 =C2=A0 =C2=A0 /*
+> + =C2=A0 =C2=A0 =C2=A0 =C2=A0* HugeTLB page uncharge happen in the HugeTL=
+B compound page destructor
+> + =C2=A0 =C2=A0 =C2=A0 =C2=A0*/
+> + =C2=A0 =C2=A0 =C2=A0 if (PageHuge(page))
+> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 return NULL;
+>
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0if (PageTransHuge(page)) {
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0nr_pages <<=3D com=
+pound_order(page);
 > --
 > 1.7.9
 >
