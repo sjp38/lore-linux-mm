@@ -1,65 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx176.postini.com [74.125.245.176])
-	by kanga.kvack.org (Postfix) with SMTP id 539A16B004A
-	for <linux-mm@kvack.org>; Tue, 13 Mar 2012 04:32:36 -0400 (EDT)
-Message-ID: <4F5F0620.2020404@codeaurora.org>
-Date: Tue, 13 Mar 2012 01:32:32 -0700
-From: Stephen Boyd <sboyd@codeaurora.org>
+Received: from psmtp.com (na3sys010amx181.postini.com [74.125.245.181])
+	by kanga.kvack.org (Postfix) with SMTP id 6AE156B004A
+	for <linux-mm@kvack.org>; Tue, 13 Mar 2012 04:36:29 -0400 (EDT)
+Received: by ggeq1 with SMTP id q1so332800gge.14
+        for <linux-mm@kvack.org>; Tue, 13 Mar 2012 01:36:28 -0700 (PDT)
 MIME-Version: 1.0
-Subject: Re: [PATCH 0/5] Persist printk buffer across reboots.
-References: <1331617001-20906-1-git-send-email-apenwarr@gmail.com>
-In-Reply-To: <1331617001-20906-1-git-send-email-apenwarr@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <20120313082818.GA5421@gmail.com>
+References: <20120313024818.GA7125@barrios>
+	<1331620214-4893-1-git-send-email-wenqing.lz@taobao.com>
+	<20120313064832.GA4968@gmail.com>
+	<4F5EF563.5000700@openvz.org>
+	<CAFPAmTTPxGzrZrW+FR4B_MYDB372HyzdnioO0=CRwx0zQueRSQ@mail.gmail.com>
+	<CAFPAmTS-ExDtS7rpJoygc6MCwC10spapyThq7=5cCCGFbjZtqA@mail.gmail.com>
+	<20120313080535.GA5243@gmail.com>
+	<CAFPAmTSR_Lvsi2+Uid3a9RQK5bBnN3vD_cje6o02f-gBusCJHQ@mail.gmail.com>
+	<CAFPAmTQWsq5sjnTVYL5ark6=LSOmOwiRsCr7wqTp=4ymBAUdUQ@mail.gmail.com>
+	<20120313082818.GA5421@gmail.com>
+Date: Tue, 13 Mar 2012 14:06:28 +0530
+Message-ID: <CAFPAmTQ-7GiDfQkU5wKFfR5UVacrN-HrP5h_yNmAdK8tRO-xTA@mail.gmail.com>
+Subject: Re: Fwd: Control page reclaim granularity
+From: Kautuk Consul <consul.kautuk@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Avery Pennarun <apenwarr@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Josh Triplett <josh@joshtriplett.org>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Ingo Molnar <mingo@elte.hu>, "David S. Miller" <davem@davemloft.net>, Peter Zijlstra <a.p.zijlstra@chello.nl>, "Fabio M. Di Nitto" <fdinitto@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Olaf Hering <olaf@aepfle.de>, Paul Gortmaker <paul.gortmaker@windriver.com>, Tejun Heo <tj@kernel.org>, "H. Peter Anvin" <hpa@linux.intel.com>, Yinghai LU <yinghai@kernel.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: minchan@kernel.org, riel@redhat.com, kosaki.motohiro@jp.fujitsu.com, Zheng Liu <wenqing.lz@taobao.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On 3/12/2012 10:36 PM, Avery Pennarun wrote:
-> The last patch in this series implements a new CONFIG_PRINTK_PERSIST option
-> that, when enabled, puts the printk buffer in a well-defined memory location
-> so that we can keep appending to it after a reboot.  The upshot is that,
-> even after a kernel panic or non-panic hard lockup, on the next boot
-> userspace will be able to grab the kernel messages leading up to it.  It
-> could then upload the messages to a server (for example) to keep crash
-> statistics.
 >
-> The preceding patches in the series are mostly just things I fixed up while
-> working on that patch.
+> Yes, I think so. =A0But it seems that there has some codes that are
+> possible to be abused. =A0For example, as I said previously, applications
+> can mmap a normal data file with PROT_EXEC flag. =A0Then this file gets a
+> high priority to keep in memory (commit: 8cab4754). =A0So my point is tha=
+t
+> we cannot control applications how to use these mechanisms. =A0We just
+> provide them and let applications to choose how to use them.
+> :-)
 >
-> Some notes:
->
-> - I'm not totally sure of the locking or portability issues when calling
->    memblock or bootmem.  This all happens really early, and I *think*
->    interrupts are still disabled at that time, so it's probably okay.
->
-> - Tested this version on x86 (kvm) and it works with soft reboot (ie. reboot
->    -f).  Since some BIOSes wipe the memory during boot, you might not have
->    any luck.  It should be great on many embedded systems, though, including
->    the MIPS system I've tested a variant of this patch on.  (Our MIPS build
->    is based on a slightly older kernel so it's not 100% the same, but I think
->    this should behave identically.)
->
-> - The way we choose a well-defined memory location is slightly suspicious
->    (we just count down from the top of the address space) but I've tested it
->    pretty carefully, and it seems to be okay.
->
-> - In printk.c with CONFIG_PRINTK_PERSIST set, we're #defining words like
->    log_end.  It might be cleaner to replace all instances of log_end with
->    LOG_END to make this more clear.  This is also the reason the struct
->    logbits members start with _: because otherwise they conflict with the
->    macro.  Suggestions welcome.
 
-Android has something similar called ram_console (see 
-staging/android/ram_console.c). The console is dumped to a ram buffer 
-that is reserved very early in platform setup code. Then when the phone 
-reboots you can cat /proc/last_kmsg to get the previous kernel message 
-for debugging. Can you use that code?
+That's true, but we are not talking about higher priority here,
+because in extreme memory reclaim case
+even PROT_EXEC pages will be reclaimed.
 
--- 
-Sent by an employee of the Qualcomm Innovation Center, Inc.
-The Qualcomm Innovation Center, Inc. is a member of the Code Aurora Forum.
+But I understand your point. It might be okay to have this for all
+privileges applications.
+
+The only problem that might happen might be in OOM because we will
+have to include selection points for
+these page-cache pages (proportionately) while finding the most
+expensive process to kill.
+( I'm talking about the page-cache pages which are not mapped to
+usermode page-tables at all. )
+
+If any usermode application reads in an extremely huge file, whose
+inode has been set to AS_UNEVICTABLE,
+we might want to kill those applications that read in those
+pages(proportionately) so that the guilty application
+can be killed.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
