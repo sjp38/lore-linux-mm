@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx146.postini.com [74.125.245.146])
-	by kanga.kvack.org (Postfix) with SMTP id 8F1A16B004D
-	for <linux-mm@kvack.org>; Tue, 13 Mar 2012 19:16:19 -0400 (EDT)
-Received: by yenm8 with SMTP id m8so1515286yen.14
-        for <linux-mm@kvack.org>; Tue, 13 Mar 2012 16:16:18 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx173.postini.com [74.125.245.173])
+	by kanga.kvack.org (Postfix) with SMTP id 2E3656B004A
+	for <linux-mm@kvack.org>; Tue, 13 Mar 2012 19:21:05 -0400 (EDT)
+Received: by ghrr18 with SMTP id r18so1479002ghr.14
+        for <linux-mm@kvack.org>; Tue, 13 Mar 2012 16:21:04 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <4F5C602B.4050806@parallels.com>
+In-Reply-To: <4F5C8414.5090800@parallels.com>
 References: <1331325556-16447-1-git-send-email-ssouhlal@FreeBSD.org>
-	<1331325556-16447-4-git-send-email-ssouhlal@FreeBSD.org>
-	<4F5C602B.4050806@parallels.com>
-Date: Tue, 13 Mar 2012 16:16:18 -0700
-Message-ID: <CABCjUKBUQ7QS-pJbzrN=8_AFj20uP+dgOH44AWfK4ZecpprybA@mail.gmail.com>
-Subject: Re: [PATCH v2 03/13] memcg: Uncharge all kmem when deleting a cgroup.
+	<1331325556-16447-7-git-send-email-ssouhlal@FreeBSD.org>
+	<4F5C8414.5090800@parallels.com>
+Date: Tue, 13 Mar 2012 16:21:03 -0700
+Message-ID: <CABCjUKCioWO-F7k=hVs_18B3uyL4zG3-krPFDh++YAnmejKKdg@mail.gmail.com>
+Subject: Re: [PATCH v2 06/13] slab: Add kmem_cache_gfp_flags() helper function.
 From: Suleiman Souhlal <suleiman@google.com>
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: quoted-printable
@@ -20,52 +20,79 @@ List-ID: <linux-mm.kvack.org>
 To: Glauber Costa <glommer@parallels.com>
 Cc: Suleiman Souhlal <ssouhlal@freebsd.org>, cgroups@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, penberg@kernel.org, cl@linux.com, yinghan@google.com, hughd@google.com, gthelen@google.com, peterz@infradead.org, dan.magenheimer@oracle.com, hannes@cmpxchg.org, mgorman@suse.de, James.Bottomley@hansenpartnership.com, linux-mm@kvack.org, devel@openvz.org, linux-kernel@vger.kernel.org
 
-On Sun, Mar 11, 2012 at 12:19 AM, Glauber Costa <glommer@parallels.com> wro=
-te:
+On Sun, Mar 11, 2012 at 3:53 AM, Glauber Costa <glommer@parallels.com> wrot=
+e:
 > On 03/10/2012 12:39 AM, Suleiman Souhlal wrote:
+>>
+>> This function returns the gfp flags that are always applied to
+>> allocations of a kmem_cache.
 >>
 >> Signed-off-by: Suleiman Souhlal<suleiman@google.com>
 >> ---
->> =A0mm/memcontrol.c | =A0 31 ++++++++++++++++++++++++++++++-
->> =A01 files changed, 30 insertions(+), 1 deletions(-)
+>> =A0include/linux/slab_def.h | =A0 =A06 ++++++
+>> =A0include/linux/slob_def.h | =A0 =A06 ++++++
+>> =A0include/linux/slub_def.h | =A0 =A06 ++++++
+>> =A03 files changed, 18 insertions(+), 0 deletions(-)
 >>
->> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
->> index e6fd558..6fbb438 100644
->> --- a/mm/memcontrol.c
->> +++ b/mm/memcontrol.c
->> @@ -382,6 +382,7 @@ static void mem_cgroup_get(struct mem_cgroup *memcg)=
-;
->> =A0static void mem_cgroup_put(struct mem_cgroup *memcg);
->> =A0static void memcg_kmem_init(struct mem_cgroup *memcg,
->> =A0 =A0 =A0struct mem_cgroup *parent);
->> +static void memcg_kmem_move(struct mem_cgroup *memcg);
+>> diff --git a/include/linux/slab_def.h b/include/linux/slab_def.h
+>> index fbd1117..25f9a6a 100644
+>> --- a/include/linux/slab_def.h
+>> +++ b/include/linux/slab_def.h
+>> @@ -159,6 +159,12 @@ found:
+>> =A0 =A0 =A0 =A0return __kmalloc(size, flags);
+>> =A0}
 >>
->> =A0static inline bool
->> =A0mem_cgroup_test_flag(const struct mem_cgroup *memcg, enum memcg_flags
->> flag)
->> @@ -3700,6 +3701,7 @@ static int mem_cgroup_force_empty(struct mem_cgrou=
-p
->> *memcg, bool free_all)
->> =A0 =A0 =A0 =A0int ret;
->> =A0 =A0 =A0 =A0int node, zid, shrink;
->> =A0 =A0 =A0 =A0int nr_retries =3D MEM_CGROUP_RECLAIM_RETRIES;
->> + =A0 =A0 =A0 unsigned long usage;
->> =A0 =A0 =A0 =A0struct cgroup *cgrp =3D memcg->css.cgroup;
+>> +static inline gfp_t
+>> +kmem_cache_gfp_flags(struct kmem_cache *cachep)
+>> +{
+>> + =A0 =A0 =A0 return cachep->gfpflags;
+>> +}
+>> +
+>> =A0#ifdef CONFIG_NUMA
+>> =A0extern void *__kmalloc_node(size_t size, gfp_t flags, int node);
+>> =A0extern void *kmem_cache_alloc_node(struct kmem_cache *, gfp_t flags, =
+int
+>> node);
+>> diff --git a/include/linux/slob_def.h b/include/linux/slob_def.h
+>> index 0ec00b3..3fa527d 100644
+>> --- a/include/linux/slob_def.h
+>> +++ b/include/linux/slob_def.h
+>> @@ -34,4 +34,10 @@ static __always_inline void *__kmalloc(size_t size,
+>> gfp_t flags)
+>> =A0 =A0 =A0 =A0return kmalloc(size, flags);
+>> =A0}
 >>
->> =A0 =A0 =A0 =A0css_get(&memcg->css);
->> @@ -3719,6 +3721,8 @@ move_account:
->> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0/* This is for making all *used* pages to=
- be on LRU. */
->> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0lru_add_drain_all();
->> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0drain_all_stock_sync(memcg);
->> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (!free_all)
->> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 memcg_kmem_move(memcg);
+>> +static inline gfp_t
+>> +kmem_cache_gfp_flags(struct kmem_cache *cachep)
+>> +{
+>> + =A0 =A0 =A0 return 0;
+>> +}
+>> +
+>> =A0#endif /* __LINUX_SLOB_DEF_H */
+>> diff --git a/include/linux/slub_def.h b/include/linux/slub_def.h
+>> index a32bcfd..5911d81 100644
+>> --- a/include/linux/slub_def.h
+>> +++ b/include/linux/slub_def.h
+>> @@ -313,4 +313,10 @@ static __always_inline void *kmalloc_node(size_t
+>> size, gfp_t flags, int node)
+>> =A0}
+>> =A0#endif
+>>
+>> +static inline gfp_t
+>> +kmem_cache_gfp_flags(struct kmem_cache *cachep)
+>> +{
+>> + =A0 =A0 =A0 return cachep->allocflags;
+>> +}
+>> +
 >
-> Any reason we're not moving kmem charges when free_all is set as well?
+>
+> Why is this needed? Can't the caller just call
+> mem_cgroup_get_kmem_cache(cachep, flags | cachep->allocflags) ?
 
-Because the slab moving code expects to be synchronized with
-allocations (and itself). We can't call it when there are still tasks
-in the cgroup.
+Because slub calls this cachep->allocflags, while slab calls it
+cachep->gfpflags.
+
+I'll look into renaming one of them to match the other.
 
 -- Suleiman
 
