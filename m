@@ -1,75 +1,99 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx163.postini.com [74.125.245.163])
-	by kanga.kvack.org (Postfix) with SMTP id B4EF76B004A
-	for <linux-mm@kvack.org>; Tue, 13 Mar 2012 12:51:40 -0400 (EDT)
-Date: Tue, 13 Mar 2012 17:51:18 +0100
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [patch] mm, memcg: do not allow tasks to be attached with zero
- limit
-Message-ID: <20120313165117.GA1708@cmpxchg.org>
-References: <alpine.DEB.2.00.1203071914150.15244@chino.kir.corp.google.com>
- <20120308122951.2988ec4e.akpm@linux-foundation.org>
- <20120309102255.bbf94164.kamezawa.hiroyu@jp.fujitsu.com>
- <20120308173818.ae5f621b.akpm@linux-foundation.org>
- <20120309105706.4001646a.kamezawa.hiroyu@jp.fujitsu.com>
+Received: from psmtp.com (na3sys010amx182.postini.com [74.125.245.182])
+	by kanga.kvack.org (Postfix) with SMTP id 67E936B007E
+	for <linux-mm@kvack.org>; Tue, 13 Mar 2012 12:56:06 -0400 (EDT)
+Message-ID: <1331657760.65900.YahooMailClassic@web193006.mail.sg3.yahoo.com>
+Date: Wed, 14 Mar 2012 00:56:00 +0800 (SGT)
+From: Rokhya Dddah <ramia1ritha@hotmail.com>
+Reply-To: rokhyada@yahoo.com
+Subject: Happy New Year
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20120309105706.4001646a.kamezawa.hiroyu@jp.fujitsu.com>
+Content-Type: multipart/alternative; boundary="-488649105-940559927-1331657760=:65900"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Michal Hocko <mhocko@suse.cz>, Balbir Singh <bsingharora@gmail.com>, cgroups@vger.kernel.org, linux-mm@kvack.org
+To: rokhya1@yahoo.com
 
-On Fri, Mar 09, 2012 at 10:57:06AM +0900, KAMEZAWA Hiroyuki wrote:
-> On Thu, 8 Mar 2012 17:38:18 -0800
-> Andrew Morton <akpm@linux-foundation.org> wrote:
-> 
-> > On Fri, 9 Mar 2012 10:22:55 +0900 KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> > 
-> > > On Thu, 8 Mar 2012 12:29:51 -0800
-> > > Andrew Morton <akpm@linux-foundation.org> wrote:
-> > > 
-> > > > On Wed, 7 Mar 2012 19:14:49 -0800 (PST)
-> > > > David Rientjes <rientjes@google.com> wrote:
-> > > > 
-> > > > > This patch prevents tasks from being attached to a memcg if there is a
-> > > > > hard limit of zero.
-> > > > 
-> > > > We're talking about the memcg's limit_in_bytes here, yes?
-> > > > 
-> > > > > Additionally, the hard limit may not be changed to
-> > > > > zero if there are tasks attached.
-> > > > 
-> > > > hm, well...  why?  That would be user error, wouldn't it?  What is
-> > > > special about limit_in_bytes=0?  The memcg will also be unviable if
-> > > > limit_in_bytes=1, but we permit that.
-> > > > 
-> > > > IOW, confused.
-> > > > 
-> > > Ah, yes. limit_in_bytes < some small size can cause the same trouble.
-> > > Hmm... should we have configurable min_limit_in_bytes as sysctl or root memcg's
-> > > attaribute.. ?
-> > 
-> > Why do *anything*?  If the operator chose an irrational configuration
-> > then things won't work correctly and the operator will then fix the
-> > configuration?
-> > 
-> 
-> Because the result of 'error operaton' is SIGKILL to a task, which may be
-> owned by very importang customer of hosting service.
-> 
-> Isn't this severe punishment for error operation ?
-> 
-> Considering again, I have 2 thoughts.
-> 
-> - it should be guarded by MiddleWare, it's not kernel job !
-> - memcg should be more easy-to-use, friendly to users.
-> 
-> If the result is just an error as EINVAL or EBUSY, I may not be nervous....
+---488649105-940559927-1331657760=:65900
+Content-Type: text/plain; charset=iso-8859-1
+Content-Transfer-Encoding: quoted-printable
 
-You can still disable the OOM killer.  If you don't, you can always
-get killed, so I'm not convinced by this patch or a sysctl, either.
+Happy New YearMy=0Aname is Rokhyai am just a simple lady in need of a goodf=
+riend,if=0Ayou feel the same,you can reply me for a confidential discussion=
+s so=0Athat we can know ourselves better,hope to hear from you soon,=A0 =A0=
+ =A0 =A0 =A0 =A0 =A0 =A0 cheers Rokhya
+
+---488649105-940559927-1331657760=:65900
+Content-Type: text/html; charset=iso-8859-1
+Content-Transfer-Encoding: quoted-printable
+
+<table cellspacing=3D"0" cellpadding=3D"0" border=3D"0" ><tr><td valign=3D"=
+top" style=3D"font: inherit;"><div id=3D"yiv1116928475"><table cellspacing=
+=3D"0" cellpadding=3D"0" border=3D"0" id=3D"yiv1116928475bodyDrftID" class=
+=3D"yiv1116928475"><tbody><tr><td id=3D"yiv1116928475drftMsgContent" style=
+=3D"font:inherit;font-family:arial;font-size:10pt;"><div id=3D"yiv111692847=
+5"><table id=3D"yiv1116928475bodyDrftID" class=3D"yiv1116928475" border=3D"=
+0" cellpadding=3D"0" cellspacing=3D"0"><tbody><tr><td id=3D"yiv1116928475dr=
+ftMsgContent" style=3D"font-style:inherit;font-variant:inherit;font-weight:=
+inherit;line-height:inherit;font-size-adjust:inherit;font-stretch:inherit;f=
+ont-family:arial;font-size:10pt;"><div id=3D"yiv1116928475"><table id=3D"yi=
+v1116928475bodyDrftID" class=3D"yiv1116928475" border=3D"0" cellpadding=3D"=
+0" cellspacing=3D"0"><tbody><tr><td id=3D"yiv1116928475drftMsgContent"
+ style=3D"font-style:inherit;font-variant:inherit;font-weight:inherit;line-=
+height:inherit;font-size-adjust:inherit;font-stretch:inherit;font-family:ar=
+ial;font-size:10pt;"><div id=3D"yiv1116928475"><table id=3D"yiv1116928475bo=
+dyDrftID" class=3D"yiv1116928475" border=3D"0" cellpadding=3D"0" cellspacin=
+g=3D"0"><tbody><tr><td id=3D"yiv1116928475drftMsgContent" style=3D"font-sty=
+le:inherit;font-variant:inherit;font-weight:inherit;line-height:inherit;fon=
+t-size-adjust:inherit;font-stretch:inherit;font-family:arial;font-size:10pt=
+;"><div id=3D"yiv1116928475"><table id=3D"yiv1116928475bodyDrftID" class=3D=
+"yiv1116928475" border=3D"0" cellpadding=3D"0" cellspacing=3D"0"><tbody><tr=
+><td id=3D"yiv1116928475drftMsgContent" style=3D"font-style:inherit;font-va=
+riant:inherit;font-weight:inherit;line-height:inherit;font-size-adjust:inhe=
+rit;font-stretch:inherit;font-family:arial;font-size:10pt;"><div id=3D"yiv1=
+116928475"><table id=3D"yiv1116928475bodyDrftID" class=3D"yiv1116928475" bo=
+rder=3D"0" cellpadding=3D"0"
+ cellspacing=3D"0"><tbody><tr><td id=3D"yiv1116928475drftMsgContent" style=
+=3D"font-style:inherit;font-variant:inherit;font-weight:inherit;line-height=
+:inherit;font-size-adjust:inherit;font-stretch:inherit;font-family:arial;=
+=0Afont-size:10pt;"><div id=3D"yiv1116928475"><table id=3D"yiv1116928475bod=
+yDrftID" class=3D"yiv1116928475" border=3D"0" cellpadding=3D"0" cellspacing=
+=3D"0"><tbody><tr><td id=3D"yiv1116928475drftMsgContent" style=3D"font-styl=
+e:inherit;font-variant:inherit;font-weight:inherit;line-height:inherit;font=
+-size-adjust:inherit;font-stretch:inherit;font-family:arial;font-size:10pt;=
+"><div id=3D"yiv1116928475"><table id=3D"yiv1116928475bodyDrftID" class=3D"=
+yiv1116928475" border=3D"0" cellpadding=3D"0" cellspacing=3D"0"><tbody><tr>=
+<td id=3D"yiv1116928475drftMsgContent" style=3D"font-style:inherit;font-var=
+iant:inherit;font-weight:inherit;line-height:inherit;font-size-adjust:inher=
+it;font-stretch:inherit;font-family:arial;font-size:10pt;"><div id=3D"yiv11=
+16928475"><table id=3D"yiv1116928475bodyDrftID" class=3D"yiv1116928475" bor=
+der=3D"0" cellpadding=3D"0" cellspacing=3D"0"><tbody><tr><td id=3D"yiv11169=
+28475drftMsgContent" style=3D"font-style:inherit;font-variant:inherit;font-=
+weight:inherit;=0Aline-height:inherit;font-size-adjust:inherit;font-stretch=
+:inherit;font-family:arial;font-size:10pt;"><div id=3D"yiv1116928475"><tabl=
+e id=3D"yiv1116928475bodyDrftID" class=3D"yiv1116928475" border=3D"0" cellp=
+adding=3D"0" cellspacing=3D"0"><tbody><tr><td id=3D"yiv1116928475drftMsgCon=
+tent" style=3D"font-style:inherit;font-variant:inherit;font-weight:inherit;=
+line-height:inherit;font-size-adjust:inherit;font-stretch:inherit;font-fami=
+ly:arial;font-size:10pt;"><div id=3D"yiv1116928475"><table id=3D"yiv1116928=
+475bodyDrftID" class=3D"yiv1116928475" border=3D"0" cellpadding=3D"0" cells=
+pacing=3D"0"><tbody><tr><td id=3D"yiv1116928475drftMsgContent" style=3D"fon=
+t-style:inherit;font-variant:inherit;font-weight:inherit;line-height:inheri=
+t;font-size-adjust:inherit;font-stretch:inherit;font-family:arial;font-size=
+:10pt;"><font style=3D"font-family:comic sans ms;" size=3D"3"><span class=
+=3D"yiv1116928475Apple-style-span" style=3D"color:rgb(0, 0, 0);"><div><font=
+ class=3D"yiv1116928475Apple-style-span">Happy New
+ Year</font></div><div><font class=3D"yiv1116928475Apple-style-span">My=0An=
+ame is Rokhyai am just a simple lady in need of a goodfriend,if=0Ayou feel =
+the same,you can reply me for a confidential discussions so=0Athat we can k=
+now ourselves better,hope to hear from you soon,</font></div><div><font cla=
+ss=3D"yiv1116928475Apple-style-span">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nb=
+sp; &nbsp; &nbsp; cheers Rokhya<br></font></div></span></font></td></tr></t=
+body></table></div></td></tr></tbody></table></div></td></tr></tbody></tabl=
+e></div></td></tr></tbody></table></div></td></tr></tbody></table></div></t=
+d></tr></tbody></table></div></td></tr></tbody></table></div></td></tr></tb=
+ody></table></div></td></tr></tbody></table></div></td></tr></tbody></table=
+></div></td></tr></tbody></table></div></td></tr></table>
+---488649105-940559927-1331657760=:65900--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
