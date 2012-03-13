@@ -1,32 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx113.postini.com [74.125.245.113])
-	by kanga.kvack.org (Postfix) with SMTP id 17DC06B004D
-	for <linux-mm@kvack.org>; Tue, 13 Mar 2012 16:48:32 -0400 (EDT)
-Received: by iajr24 with SMTP id r24so1796352iaj.14
-        for <linux-mm@kvack.org>; Tue, 13 Mar 2012 13:48:31 -0700 (PDT)
-Date: Tue, 13 Mar 2012 13:48:29 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH 1/2] page_alloc.c: kill add_from_early_node_map
-In-Reply-To: <1331652720-3054-1-git-send-email-consul.kautuk@gmail.com>
-Message-ID: <alpine.DEB.2.00.1203131348160.27008@chino.kir.corp.google.com>
-References: <1331652720-3054-1-git-send-email-consul.kautuk@gmail.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from psmtp.com (na3sys010amx140.postini.com [74.125.245.140])
+	by kanga.kvack.org (Postfix) with SMTP id C1AE36B004A
+	for <linux-mm@kvack.org>; Tue, 13 Mar 2012 17:33:18 -0400 (EDT)
+Date: Tue, 13 Mar 2012 14:33:16 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH -V3 2/8] memcg: Add HugeTLB extension
+Message-Id: <20120313143316.0ef74d0e.akpm@linux-foundation.org>
+In-Reply-To: <1331622432-24683-3-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+References: <1331622432-24683-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+	<1331622432-24683-3-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kautuk Consul <consul.kautuk@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Al Viro <viro@zeniv.linux.org.uk>, Mel Gorman <mgorman@suse.de>, Tejun Heo <tj@kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Cc: linux-mm@kvack.org, mgorman@suse.de, kamezawa.hiroyu@jp.fujitsu.com, dhillf@gmail.com, aarcange@redhat.com, mhocko@suse.cz, hannes@cmpxchg.org, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org
 
-On Tue, 13 Mar 2012, Kautuk Consul wrote:
+On Tue, 13 Mar 2012 12:37:06 +0530
+"Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com> wrote:
 
-> No one seems to be calling add_from_early_node_map anywhere from the
-> kernel.
-> 
-> Also, deleting this function decreases page_alloc.o file size.
-> 
-> Signed-off-by: Kautuk Consul <consul.kautuk@gmail.com>
+> +static int mem_cgroup_hugetlb_usage(struct mem_cgroup *memcg)
+> +{
+> +	int idx;
+> +	for (idx = 0; idx < hugetlb_max_hstate; idx++) {
+> +		if (memcg->hugepage[idx].usage > 0)
+> +			return memcg->hugepage[idx].usage;
+> +	}
+> +	return 0;
+> +}
 
-Acked-by: David Rientjes <rientjes@google.com>
+Please document the function?  Had you done this, I might have been
+able to work out why the function bales out on the first used hugepage
+size, but I can't :(
+
+This could have used for_each_hstate(), had that macro been better
+designed (or updated).
+
+Upon return this function coerces an unsigned long long into an "int". 
+We decided last week that more than 2^32 hugepages was not
+inconceivable, so I guess that's a bug.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
