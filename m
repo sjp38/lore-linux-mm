@@ -1,78 +1,96 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx120.postini.com [74.125.245.120])
-	by kanga.kvack.org (Postfix) with SMTP id 3FC8F6B004A
-	for <linux-mm@kvack.org>; Mon, 12 Mar 2012 22:58:04 -0400 (EDT)
-Received: by dadv6 with SMTP id v6so167143dad.14
-        for <linux-mm@kvack.org>; Mon, 12 Mar 2012 19:58:03 -0700 (PDT)
-Date: Tue, 13 Mar 2012 11:57:57 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: Control page reclaim granularity
-Message-ID: <20120313025756.GC7125@barrios>
-References: <20120308073412.GA6975@gmail.com>
- <20120308093514.GA28856@barrios>
- <4F5E0E5C.8040508@redhat.com>
+Received: from psmtp.com (na3sys010amx113.postini.com [74.125.245.113])
+	by kanga.kvack.org (Postfix) with SMTP id BDEBF6B004A
+	for <linux-mm@kvack.org>; Tue, 13 Mar 2012 00:37:26 -0400 (EDT)
+Received: by bkwq16 with SMTP id q16so110337bkw.14
+        for <linux-mm@kvack.org>; Mon, 12 Mar 2012 21:37:24 -0700 (PDT)
+Message-ID: <4F5ECF01.2000402@openvz.org>
+Date: Tue, 13 Mar 2012 08:37:21 +0400
+From: Konstantin Khlebnikov <khlebnikov@openvz.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <4F5E0E5C.8040508@redhat.com>
+Subject: Re: Fwd: Control page reclaim granularity
+References: <4F5D95AF.1020108@openvz.org> <20120312081413.GA10923@gmail.com> <20120312134226.GA5120@barrios> <4F5E05AD.20200@openvz.org> <20120313024818.GA7125@barrios>
+In-Reply-To: <20120313024818.GA7125@barrios>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rik van Riel <riel@redhat.com>
-Cc: Minchan Kim <minchan@kernel.org>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, Konstantin Khlebnikov <khlebnikov@openvz.org>, kosaki.motohiro@jp.fujitsu.com
+To: Minchan Kim <minchan@kernel.org>
+Cc: linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, "riel@redhat.com" <riel@redhat.com>, "kosaki.motohiro@jp.fujitsu.com" <kosaki.motohiro@jp.fujitsu.com>
 
-On Mon, Mar 12, 2012 at 10:55:24AM -0400, Rik van Riel wrote:
-> On 03/08/2012 04:35 AM, Minchan Kim wrote:
-> >On Thu, Mar 08, 2012 at 03:34:13PM +0800, Zheng Liu wrote:
-> >>Hi list,
-> >>
-> >>Recently we encounter a problem about page reclaim.  I abstract it in here.
-> >>The problem is that there are two different file types.  One is small index
-> >>file, and another is large data file.  The index file is mmaped into memory,
-> >>and application hope that they can be kept in memory and don't be reclaimed
-> >>too frequently.  The data file is manipulted by read/write, and they should
-> >>be reclaimed more frequently than the index file.
-> 
-> They should indeed be.  The data pages should not get promoted
-> to the active list unless they get referenced twice while on
-> the inactive list.
-> 
-> Mmaped pages, on the other hand, get promoted to the active
-> list after just one reference.
+Minchan Kim wrote:
+> On Mon, Mar 12, 2012 at 06:18:21PM +0400, Konstantin Khlebnikov wrote:
+>> Minchan Kim wrote:
+>>> On Mon, Mar 12, 2012 at 04:14:14PM +0800, Zheng Liu wrote:
+>>>> On 03/12/2012 02:20 PM, Konstantin Khlebnikov wrote:
+>>>>> Minchan Kim wrote:
+>>>>>> On Mon, Mar 12, 2012 at 10:06:09AM +0800, Zheng Liu wrote:
+<CUT>
+>>>>>>
+>>>>>> Now problem is that
+>>>>>>
+>>>>>> 1. User want to keep pages which are used once in a while in memory.
+>>>>>> 2. Kernel want to reclaim them because they are surely reclaim target
+>>>>>>      pages in point of view by LRU.
+>>>>>>
+>>>>>> The most desriable approach is that user should use mlock to guarantee
+>>>>>> them in memory. But mlock is too big overhead and user doesn't want to
+>>>>>> keep
+>>>>>> memory all pages all at once.(Ie, he want demand paging when he need
+>>>>>> the page)
+>>>>>> Right?
+>>>>>>
+>>>>>> madvise, it's a just hint for kernel and kernel doesn't need to make
+>>>>>> sure madvise's behavior.
+>>>>>> In point of view, such inconsistency might not be a big problem.
+>>>>>>
+>>>>>> Big problem I think now is that user should use madvise(WILLNEED)
+>>>>>> periodically because such
+>>>>>> activation happens once when user calls madvise. If user doesn't use
+>>>>>> page frequently after
+>>>>>> user calls it, it ends up moving into inactive list and even could be
+>>>>>> reclaimed.
+>>>>>> It's not good. :-(
+>>>>>>
+>>>>>> Okay. How about adding new VM_WORKINGSET?
+>>>>>> And reclaimer would give one more round trip in active/inactive list
+>>>>>> erwhen reclaim happens
+>>>>>> if the page is referenced.
+>>>>>>
+>>>>>> Sigh. We have no room for new VM_FLAG in 32 bit.
+>>>>> p
+>>>>> It would be nice to mark struct address_space with this flag and export
+>>>>> AS_UNEVICTABLE somehow.
+>>>>> Maybe we can reuse file-locking engine for managing these bits =)
+>>>>
+>>>> Make sense to me.  We can mark this flag in struct address_space and check
+>>>> it in page_refereneced_file().  If this flag is set, it will be cleard and
+>>>
+>>> Disadvantage is that we could set reclaim granularity as per-inode.
+>>> I want to set it as per-vma, not per-inode.
+>>
+>> But with per-inode flag we can tune all files, not only memory-mapped.
+>
+> I don't oppose per-inode setting but I believe we need file range or mmapped vma,
+> still. One file may have different characteristic part, something is working set
+> something is streaming part.
+>
+>> See, attached patch. Currently I thinking about managing code,
+>> file-locking engine really fits perfectly =)
+>
+> file-locking engine?
+> You consider fcntl as interface for it?
+> What do you mean?
+>
 
-As I look the code, mmaped page doesn't get promoted by one reference.
-It will get promoted by second-round trip or touched by several mapping
-when first round trip.
+If we set bits on inode we somehow account its users and clear AS_WORKINGSET and AS_UNEVICTABLE
+at last file close. We can use file-locking engine for locking inodes in memory -- file lock automatically
+release inode at last fput(). Maybe it's too tricky and we should add couple simple atomic counters to
+generic strict inode (like i_writecount/i_readcount) but in this case we will add new code on fast-path.
+So, looks like invention new kind of struct file_lock is best approach.
+I don't want implement range-locking for now, but I can do it if somebody really wants this.
 
-                if (referenced_page || referenced_ptes > 1) 
-		        return PAGEREF_ACTIVATE;
-
-> 
-> Also, as long as the inactive file list is larger than the
-> active file list, we do not reclaim active file pages at
-> all.
-
-True.
-
-> 
-> >I  think it's a regression since 2.6.28.
-> >Before we were trying to keep mapped pages in memory(See calc_reclaim_mapped).
-> >But we removed that routine when we applied split lru page replacement.
-> >Rik, KOSAKI. What's the rationale?
-> 
-> One main reason is scalability.  We have to treat pages
-> in such a way that we do not have to search through
-> gigabytes of memory to find a few eviction candidates
-> to place on the inactive list - where they could get
-> reused and stopped from eviction again.
-
-Okay. Thanks, Rik.
-Then, another question.
-Why did we handle mmaped page specially at that time?
-Just out of curiosity.
-
-> 
-> -- 
-> All rights reversed
+Yes, we can use fcntl(), but fadvise() is much better.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
