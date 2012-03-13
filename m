@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx155.postini.com [74.125.245.155])
-	by kanga.kvack.org (Postfix) with SMTP id 6BDE36B004A
-	for <linux-mm@kvack.org>; Tue, 13 Mar 2012 05:43:38 -0400 (EDT)
-Date: Tue, 13 Mar 2012 02:43:15 -0700
+Received: from psmtp.com (na3sys010amx109.postini.com [74.125.245.109])
+	by kanga.kvack.org (Postfix) with SMTP id 7CD4F6B004A
+	for <linux-mm@kvack.org>; Tue, 13 Mar 2012 05:44:34 -0400 (EDT)
+Date: Tue, 13 Mar 2012 02:44:03 -0700
 From: tip-bot for Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-Message-ID: <tip-5cb4ac3a583d4ee18c8682ab857e093c4a0d0895@git.kernel.org>
-Reply-To: linux-kernel@vger.kernel.org, hpa@zytor.com, mingo@redhat.com,
-        andi@firstfloor.org, torvalds@linux-foundation.org,
-        peterz@infradead.org, hch@infradead.org, ananth@in.ibm.com,
+Message-ID: <tip-51e7dc7011c99e1e5294658c7b551b92ca069985@git.kernel.org>
+Reply-To: mingo@redhat.com, torvalds@linux-foundation.org,
+        peterz@infradead.org, mingo@eltu.hu, rostedt@goodmis.org,
+        jkenisto@linux.vnet.ibm.com, oleg@redhat.com, tglx@linutronix.de,
+        linux-mm@kvack.org, hpa@zytor.com, linux-kernel@vger.kernel.org,
+        andi@firstfloor.org, hch@infradead.org, ananth@in.ibm.com,
         masami.hiramatsu.pt@hitachi.com, acme@infradead.org,
-        rostedt@goodmis.org, jkenisto@linux.vnet.ibm.com,
-        srikar@linux.vnet.ibm.com, tglx@linutronix.de, oleg@redhat.com,
-        linux-mm@kvack.org, mingo@elte.hu
-In-Reply-To: <20120312092545.5379.91251.sendpatchset@srdronam.in.ibm.com>
-References: <20120312092545.5379.91251.sendpatchset@srdronam.in.ibm.com>
-Subject: [tip:perf/uprobes] uprobes/core: Rename bkpt to swbp
+        srikar@linux.vnet.ibm.com, mingo@elte.hu
+In-Reply-To: <20120312092555.5379.942.sendpatchset@srdronam.in.ibm.com>
+References: <20120312092555.5379.942.sendpatchset@srdronam.in.ibm.com>
+Subject: [tip:x86/cleanups] x86: Rename trap_no to trap_nr in thread_struct
 MIME-Version: 1.0
 Content-Transfer-Encoding: 8bit
 Content-Type: text/plain; charset=UTF-8
@@ -22,23 +22,26 @@ Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-tip-commits@vger.kernel.org
-Cc: mingo@redhat.com, torvalds@linux-foundation.org, peterz@infradead.org, rostedt@goodmis.org, jkenisto@linux.vnet.ibm.com, tglx@linutronix.de, oleg@redhat.com, linux-mm@kvack.org, hpa@zytor.com, linux-kernel@vger.kernel.org, andi@firstfloor.org, hch@infradead.org, ananth@in.ibm.com, masami.hiramatsu.pt@hitachi.com, acme@infradead.org, srikar@linux.vnet.ibm.com, mingo@elte.hu
+Cc: mingo@redhat.com, torvalds@linux-foundation.org, peterz@infradead.org, mingo@eltu.hu, rostedt@goodmis.org, jkenisto@linux.vnet.ibm.com, oleg@redhat.com, tglx@linutronix.de, linux-mm@kvack.org, hpa@zytor.com, linux-kernel@vger.kernel.org, andi@firstfloor.org, hch@infradead.org, ananth@in.ibm.com, masami.hiramatsu.pt@hitachi.com, acme@infradead.org, srikar@linux.vnet.ibm.com, mingo@elte.hu
 
-Commit-ID:  5cb4ac3a583d4ee18c8682ab857e093c4a0d0895
-Gitweb:     http://git.kernel.org/tip/5cb4ac3a583d4ee18c8682ab857e093c4a0d0895
+Commit-ID:  51e7dc7011c99e1e5294658c7b551b92ca069985
+Gitweb:     http://git.kernel.org/tip/51e7dc7011c99e1e5294658c7b551b92ca069985
 Author:     Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-AuthorDate: Mon, 12 Mar 2012 14:55:45 +0530
+AuthorDate: Mon, 12 Mar 2012 14:55:55 +0530
 Committer:  Ingo Molnar <mingo@elte.hu>
-CommitDate: Tue, 13 Mar 2012 06:22:21 +0100
+CommitDate: Tue, 13 Mar 2012 06:24:09 +0100
 
-uprobes/core: Rename bkpt to swbp
+x86: Rename trap_no to trap_nr in thread_struct
 
-bkpt doesnt seem to be a correct abbrevation for breakpoint.
-Choice was between bp and breakpoint. Since bp can refer to
-things other than breakpoint, use swbp to refer to breakpoints.
+There are precedences of trap number being referred to as
+trap_nr. However thread struct refers trap number as trap_no.
+Change it to trap_nr.
+
+Also use enum instead of left-over literals for trap values.
 
 This is pure cleanup, no functional change intended.
 
+Suggested-by: Ingo Molnar <mingo@eltu.hu>
 Signed-off-by: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
 Cc: Linus Torvalds <torvalds@linux-foundation.org>
 Cc: Ananth N Mavinakayanahalli <ananth@in.ibm.com>
@@ -51,172 +54,276 @@ Cc: Steven Rostedt <rostedt@goodmis.org>
 Cc: Arnaldo Carvalho de Melo <acme@infradead.org>
 Cc: Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>
 Cc: Peter Zijlstra <peterz@infradead.org>
-Link: http://lkml.kernel.org/r/20120312092545.5379.91251.sendpatchset@srdronam.in.ibm.com
+Link: http://lkml.kernel.org/r/20120312092555.5379.942.sendpatchset@srdronam.in.ibm.com
+[ Fixed the math-emu build ]
 Signed-off-by: Ingo Molnar <mingo@elte.hu>
 ---
- arch/x86/include/asm/uprobes.h |    4 ++--
- include/linux/uprobes.h        |    4 ++--
- kernel/events/uprobes.c        |   34 +++++++++++++++++-----------------
- 3 files changed, 21 insertions(+), 21 deletions(-)
+ arch/x86/ia32/ia32_signal.c      |    2 +-
+ arch/x86/include/asm/processor.h |    2 +-
+ arch/x86/kernel/dumpstack.c      |    2 +-
+ arch/x86/kernel/ptrace.c         |    3 ++-
+ arch/x86/kernel/signal.c         |    2 +-
+ arch/x86/kernel/traps.c          |   16 ++++++++--------
+ arch/x86/kernel/vm86_32.c        |    2 +-
+ arch/x86/kernel/vsyscall_64.c    |    2 +-
+ arch/x86/math-emu/fpu_entry.c    |    5 +++--
+ arch/x86/mm/fault.c              |   10 +++++-----
+ 10 files changed, 24 insertions(+), 22 deletions(-)
 
-diff --git a/arch/x86/include/asm/uprobes.h b/arch/x86/include/asm/uprobes.h
-index 384f1be..0500391 100644
---- a/arch/x86/include/asm/uprobes.h
-+++ b/arch/x86/include/asm/uprobes.h
-@@ -28,8 +28,8 @@ typedef u8 uprobe_opcode_t;
- #define MAX_UINSN_BYTES			  16
- #define UPROBE_XOL_SLOT_BYTES		 128	/* to keep it cache aligned */
- 
--#define UPROBE_BKPT_INSN		0xcc
--#define UPROBE_BKPT_INSN_SIZE		   1
-+#define UPROBE_SWBP_INSN		0xcc
-+#define UPROBE_SWBP_INSN_SIZE		   1
- 
- struct arch_uprobe {
- 	u16				fixups;
-diff --git a/include/linux/uprobes.h b/include/linux/uprobes.h
-index 5869918..eac525f 100644
---- a/include/linux/uprobes.h
-+++ b/include/linux/uprobes.h
-@@ -52,9 +52,9 @@ struct uprobe_consumer {
- };
- 
- #ifdef CONFIG_UPROBES
--extern int __weak set_bkpt(struct arch_uprobe *aup, struct mm_struct *mm, unsigned long vaddr);
-+extern int __weak set_swbp(struct arch_uprobe *aup, struct mm_struct *mm, unsigned long vaddr);
- extern int __weak set_orig_insn(struct arch_uprobe *aup, struct mm_struct *mm,  unsigned long vaddr, bool verify);
--extern bool __weak is_bkpt_insn(uprobe_opcode_t *insn);
-+extern bool __weak is_swbp_insn(uprobe_opcode_t *insn);
- extern int uprobe_register(struct inode *inode, loff_t offset, struct uprobe_consumer *uc);
- extern void uprobe_unregister(struct inode *inode, loff_t offset, struct uprobe_consumer *uc);
- extern int uprobe_mmap(struct vm_area_struct *vma);
-diff --git a/kernel/events/uprobes.c b/kernel/events/uprobes.c
-index 9c5ddff..e56e56a 100644
---- a/kernel/events/uprobes.c
-+++ b/kernel/events/uprobes.c
-@@ -170,14 +170,14 @@ out:
- }
- 
- /**
-- * is_bkpt_insn - check if instruction is breakpoint instruction.
-+ * is_swbp_insn - check if instruction is breakpoint instruction.
-  * @insn: instruction to be checked.
-- * Default implementation of is_bkpt_insn
-+ * Default implementation of is_swbp_insn
-  * Returns true if @insn is a breakpoint instruction.
-  */
--bool __weak is_bkpt_insn(uprobe_opcode_t *insn)
-+bool __weak is_swbp_insn(uprobe_opcode_t *insn)
- {
--	return *insn == UPROBE_BKPT_INSN;
-+	return *insn == UPROBE_SWBP_INSN;
- }
- 
- /*
-@@ -227,7 +227,7 @@ static int write_opcode(struct arch_uprobe *auprobe, struct mm_struct *mm,
- 	 * adding probes in write mapped pages since the breakpoints
- 	 * might end up in the file copy.
- 	 */
--	if (!valid_vma(vma, is_bkpt_insn(&opcode)))
-+	if (!valid_vma(vma, is_swbp_insn(&opcode)))
- 		goto put_out;
- 
- 	uprobe = container_of(auprobe, struct uprobe, arch);
-@@ -259,8 +259,8 @@ static int write_opcode(struct arch_uprobe *auprobe, struct mm_struct *mm,
- 
- 	/* poke the new insn in, ASSUMES we don't cross page boundary */
- 	vaddr &= ~PAGE_MASK;
--	BUG_ON(vaddr + UPROBE_BKPT_INSN_SIZE > PAGE_SIZE);
--	memcpy(vaddr_new + vaddr, &opcode, UPROBE_BKPT_INSN_SIZE);
-+	BUG_ON(vaddr + UPROBE_SWBP_INSN_SIZE > PAGE_SIZE);
-+	memcpy(vaddr_new + vaddr, &opcode, UPROBE_SWBP_INSN_SIZE);
- 
- 	kunmap_atomic(vaddr_new);
- 	kunmap_atomic(vaddr_old);
-@@ -308,7 +308,7 @@ static int read_opcode(struct mm_struct *mm, unsigned long vaddr, uprobe_opcode_
- 	lock_page(page);
- 	vaddr_new = kmap_atomic(page);
- 	vaddr &= ~PAGE_MASK;
--	memcpy(opcode, vaddr_new + vaddr, UPROBE_BKPT_INSN_SIZE);
-+	memcpy(opcode, vaddr_new + vaddr, UPROBE_SWBP_INSN_SIZE);
- 	kunmap_atomic(vaddr_new);
- 	unlock_page(page);
- 
-@@ -317,7 +317,7 @@ static int read_opcode(struct mm_struct *mm, unsigned long vaddr, uprobe_opcode_
- 	return 0;
- }
- 
--static int is_bkpt_at_addr(struct mm_struct *mm, unsigned long vaddr)
-+static int is_swbp_at_addr(struct mm_struct *mm, unsigned long vaddr)
- {
- 	uprobe_opcode_t opcode;
- 	int result;
-@@ -326,14 +326,14 @@ static int is_bkpt_at_addr(struct mm_struct *mm, unsigned long vaddr)
- 	if (result)
- 		return result;
- 
--	if (is_bkpt_insn(&opcode))
-+	if (is_swbp_insn(&opcode))
+diff --git a/arch/x86/ia32/ia32_signal.c b/arch/x86/ia32/ia32_signal.c
+index bc09ed2..45b4fdd 100644
+--- a/arch/x86/ia32/ia32_signal.c
++++ b/arch/x86/ia32/ia32_signal.c
+@@ -345,7 +345,7 @@ static int ia32_setup_sigcontext(struct sigcontext_ia32 __user *sc,
+ 		put_user_ex(regs->dx, &sc->dx);
+ 		put_user_ex(regs->cx, &sc->cx);
+ 		put_user_ex(regs->ax, &sc->ax);
+-		put_user_ex(current->thread.trap_no, &sc->trapno);
++		put_user_ex(current->thread.trap_nr, &sc->trapno);
+ 		put_user_ex(current->thread.error_code, &sc->err);
+ 		put_user_ex(regs->ip, &sc->ip);
+ 		put_user_ex(regs->cs, (unsigned int __user *)&sc->cs);
+diff --git a/arch/x86/include/asm/processor.h b/arch/x86/include/asm/processor.h
+index 02ce0b3..f6d0d2e 100644
+--- a/arch/x86/include/asm/processor.h
++++ b/arch/x86/include/asm/processor.h
+@@ -453,7 +453,7 @@ struct thread_struct {
+ 	unsigned long           ptrace_dr7;
+ 	/* Fault info: */
+ 	unsigned long		cr2;
+-	unsigned long		trap_no;
++	unsigned long		trap_nr;
+ 	unsigned long		error_code;
+ 	/* floating point and extended processor state */
+ 	struct fpu		fpu;
+diff --git a/arch/x86/kernel/dumpstack.c b/arch/x86/kernel/dumpstack.c
+index 4025fe4..28f9870 100644
+--- a/arch/x86/kernel/dumpstack.c
++++ b/arch/x86/kernel/dumpstack.c
+@@ -265,7 +265,7 @@ int __kprobes __die(const char *str, struct pt_regs *regs, long err)
+ #endif
+ 	printk("\n");
+ 	if (notify_die(DIE_OOPS, str, regs, err,
+-			current->thread.trap_no, SIGSEGV) == NOTIFY_STOP)
++			current->thread.trap_nr, SIGSEGV) == NOTIFY_STOP)
  		return 1;
  
- 	return 0;
- }
+ 	show_registers(regs);
+diff --git a/arch/x86/kernel/ptrace.c b/arch/x86/kernel/ptrace.c
+index 93e7877a..6fb330a 100644
+--- a/arch/x86/kernel/ptrace.c
++++ b/arch/x86/kernel/ptrace.c
+@@ -33,6 +33,7 @@
+ #include <asm/prctl.h>
+ #include <asm/proto.h>
+ #include <asm/hw_breakpoint.h>
++#include <asm/traps.h>
  
- /**
-- * set_bkpt - store breakpoint at a given address.
-+ * set_swbp - store breakpoint at a given address.
-  * @auprobe: arch specific probepoint information.
-  * @mm: the probed process address space.
-  * @vaddr: the virtual address to insert the opcode.
-@@ -341,18 +341,18 @@ static int is_bkpt_at_addr(struct mm_struct *mm, unsigned long vaddr)
-  * For mm @mm, store the breakpoint instruction at @vaddr.
-  * Return 0 (success) or a negative errno.
-  */
--int __weak set_bkpt(struct arch_uprobe *auprobe, struct mm_struct *mm, unsigned long vaddr)
-+int __weak set_swbp(struct arch_uprobe *auprobe, struct mm_struct *mm, unsigned long vaddr)
+ #include "tls.h"
+ 
+@@ -1425,7 +1426,7 @@ static void fill_sigtrap_info(struct task_struct *tsk,
+ 				int error_code, int si_code,
+ 				struct siginfo *info)
  {
- 	int result;
+-	tsk->thread.trap_no = 1;
++	tsk->thread.trap_nr = X86_TRAP_DB;
+ 	tsk->thread.error_code = error_code;
  
--	result = is_bkpt_at_addr(mm, vaddr);
-+	result = is_swbp_at_addr(mm, vaddr);
- 	if (result == 1)
- 		return -EEXIST;
+ 	memset(info, 0, sizeof(*info));
+diff --git a/arch/x86/kernel/signal.c b/arch/x86/kernel/signal.c
+index c3846b6..9c73acc 100644
+--- a/arch/x86/kernel/signal.c
++++ b/arch/x86/kernel/signal.c
+@@ -150,7 +150,7 @@ int setup_sigcontext(struct sigcontext __user *sc, void __user *fpstate,
+ 		put_user_ex(regs->r15, &sc->r15);
+ #endif /* CONFIG_X86_64 */
  
- 	if (result)
- 		return result;
+-		put_user_ex(current->thread.trap_no, &sc->trapno);
++		put_user_ex(current->thread.trap_nr, &sc->trapno);
+ 		put_user_ex(current->thread.error_code, &sc->err);
+ 		put_user_ex(regs->ip, &sc->ip);
+ #ifdef CONFIG_X86_32
+diff --git a/arch/x86/kernel/traps.c b/arch/x86/kernel/traps.c
+index 037fc2b..c6d17ad 100644
+--- a/arch/x86/kernel/traps.c
++++ b/arch/x86/kernel/traps.c
+@@ -132,7 +132,7 @@ do_trap(int trapnr, int signr, char *str, struct pt_regs *regs,
+ trap_signal:
+ #endif
+ 	/*
+-	 * We want error_code and trap_no set for userspace faults and
++	 * We want error_code and trap_nr set for userspace faults and
+ 	 * kernelspace faults which result in die(), but not
+ 	 * kernelspace faults which are fixed up.  die() gives the
+ 	 * process no chance to handle the signal and notice the
+@@ -141,7 +141,7 @@ trap_signal:
+ 	 * delivered, faults.  See also do_general_protection below.
+ 	 */
+ 	tsk->thread.error_code = error_code;
+-	tsk->thread.trap_no = trapnr;
++	tsk->thread.trap_nr = trapnr;
  
--	return write_opcode(auprobe, mm, vaddr, UPROBE_BKPT_INSN);
-+	return write_opcode(auprobe, mm, vaddr, UPROBE_SWBP_INSN);
- }
- 
- /**
-@@ -371,7 +371,7 @@ set_orig_insn(struct arch_uprobe *auprobe, struct mm_struct *mm, unsigned long v
- 	if (verify) {
- 		int result;
- 
--		result = is_bkpt_at_addr(mm, vaddr);
-+		result = is_swbp_at_addr(mm, vaddr);
- 		if (!result)
- 			return -EINVAL;
- 
-@@ -642,7 +642,7 @@ install_breakpoint(struct uprobe *uprobe, struct mm_struct *mm,
- 		if (ret)
- 			return ret;
- 
--		if (is_bkpt_insn((uprobe_opcode_t *)uprobe->arch.insn))
-+		if (is_swbp_insn((uprobe_opcode_t *)uprobe->arch.insn))
- 			return -EEXIST;
- 
- 		ret = arch_uprobes_analyze_insn(&uprobe->arch, mm);
-@@ -651,7 +651,7 @@ install_breakpoint(struct uprobe *uprobe, struct mm_struct *mm,
- 
- 		uprobe->flags |= UPROBE_COPY_INSN;
+ #ifdef CONFIG_X86_64
+ 	if (show_unhandled_signals && unhandled_signal(tsk, signr) &&
+@@ -164,7 +164,7 @@ trap_signal:
+ kernel_trap:
+ 	if (!fixup_exception(regs)) {
+ 		tsk->thread.error_code = error_code;
+-		tsk->thread.trap_no = trapnr;
++		tsk->thread.trap_nr = trapnr;
+ 		die(str, regs, error_code);
  	}
--	ret = set_bkpt(&uprobe->arch, mm, addr);
-+	ret = set_swbp(&uprobe->arch, mm, addr);
+ 	return;
+@@ -240,7 +240,7 @@ dotraplinkage void do_double_fault(struct pt_regs *regs, long error_code)
+ 	notify_die(DIE_TRAP, str, regs, error_code, X86_TRAP_DF, SIGSEGV);
  
- 	return ret;
- }
+ 	tsk->thread.error_code = error_code;
+-	tsk->thread.trap_no = X86_TRAP_DF;
++	tsk->thread.trap_nr = X86_TRAP_DF;
+ 
+ 	/*
+ 	 * This is always a kernel trap and never fixable (and thus must
+@@ -268,7 +268,7 @@ do_general_protection(struct pt_regs *regs, long error_code)
+ 		goto gp_in_kernel;
+ 
+ 	tsk->thread.error_code = error_code;
+-	tsk->thread.trap_no = X86_TRAP_GP;
++	tsk->thread.trap_nr = X86_TRAP_GP;
+ 
+ 	if (show_unhandled_signals && unhandled_signal(tsk, SIGSEGV) &&
+ 			printk_ratelimit()) {
+@@ -295,7 +295,7 @@ gp_in_kernel:
+ 		return;
+ 
+ 	tsk->thread.error_code = error_code;
+-	tsk->thread.trap_no = X86_TRAP_GP;
++	tsk->thread.trap_nr = X86_TRAP_GP;
+ 	if (notify_die(DIE_GPF, "general protection fault", regs, error_code,
+ 			X86_TRAP_GP, SIGSEGV) == NOTIFY_STOP)
+ 		return;
+@@ -475,7 +475,7 @@ void math_error(struct pt_regs *regs, int error_code, int trapnr)
+ 	{
+ 		if (!fixup_exception(regs)) {
+ 			task->thread.error_code = error_code;
+-			task->thread.trap_no = trapnr;
++			task->thread.trap_nr = trapnr;
+ 			die(str, regs, error_code);
+ 		}
+ 		return;
+@@ -485,7 +485,7 @@ void math_error(struct pt_regs *regs, int error_code, int trapnr)
+ 	 * Save the info for the exception handler and clear the error.
+ 	 */
+ 	save_init_fpu(task);
+-	task->thread.trap_no = trapnr;
++	task->thread.trap_nr = trapnr;
+ 	task->thread.error_code = error_code;
+ 	info.si_signo = SIGFPE;
+ 	info.si_errno = 0;
+diff --git a/arch/x86/kernel/vm86_32.c b/arch/x86/kernel/vm86_32.c
+index b466cab..a1315ab 100644
+--- a/arch/x86/kernel/vm86_32.c
++++ b/arch/x86/kernel/vm86_32.c
+@@ -567,7 +567,7 @@ int handle_vm86_trap(struct kernel_vm86_regs *regs, long error_code, int trapno)
+ 	}
+ 	if (trapno != 1)
+ 		return 1; /* we let this handle by the calling routine */
+-	current->thread.trap_no = trapno;
++	current->thread.trap_nr = trapno;
+ 	current->thread.error_code = error_code;
+ 	force_sig(SIGTRAP, current);
+ 	return 0;
+diff --git a/arch/x86/kernel/vsyscall_64.c b/arch/x86/kernel/vsyscall_64.c
+index b07ba93..327509b 100644
+--- a/arch/x86/kernel/vsyscall_64.c
++++ b/arch/x86/kernel/vsyscall_64.c
+@@ -153,7 +153,7 @@ static bool write_ok_or_segv(unsigned long ptr, size_t size)
+ 
+ 		thread->error_code	= 6;  /* user fault, no page, write */
+ 		thread->cr2		= ptr;
+-		thread->trap_no		= 14;
++		thread->trap_nr		= X86_TRAP_PF;
+ 
+ 		memset(&info, 0, sizeof(info));
+ 		info.si_signo		= SIGSEGV;
+diff --git a/arch/x86/math-emu/fpu_entry.c b/arch/x86/math-emu/fpu_entry.c
+index 7718541..9b86812 100644
+--- a/arch/x86/math-emu/fpu_entry.c
++++ b/arch/x86/math-emu/fpu_entry.c
+@@ -28,6 +28,7 @@
+ #include <linux/regset.h>
+ 
+ #include <asm/uaccess.h>
++#include <asm/traps.h>
+ #include <asm/desc.h>
+ #include <asm/user.h>
+ #include <asm/i387.h>
+@@ -269,7 +270,7 @@ void math_emulate(struct math_emu_info *info)
+ 			FPU_EIP = FPU_ORIG_EIP;	/* Point to current FPU instruction. */
+ 
+ 			RE_ENTRANT_CHECK_OFF;
+-			current->thread.trap_no = 16;
++			current->thread.trap_nr = X86_TRAP_MF;
+ 			current->thread.error_code = 0;
+ 			send_sig(SIGFPE, current, 1);
+ 			return;
+@@ -662,7 +663,7 @@ static int valid_prefix(u_char *Byte, u_char __user **fpu_eip,
+ void math_abort(struct math_emu_info *info, unsigned int signal)
+ {
+ 	FPU_EIP = FPU_ORIG_EIP;
+-	current->thread.trap_no = 16;
++	current->thread.trap_nr = X86_TRAP_MF;
+ 	current->thread.error_code = 0;
+ 	send_sig(signal, current, 1);
+ 	RE_ENTRANT_CHECK_OFF;
+diff --git a/arch/x86/mm/fault.c b/arch/x86/mm/fault.c
+index f0b4caf..3ecfd1a 100644
+--- a/arch/x86/mm/fault.c
++++ b/arch/x86/mm/fault.c
+@@ -615,7 +615,7 @@ pgtable_bad(struct pt_regs *regs, unsigned long error_code,
+ 	dump_pagetable(address);
+ 
+ 	tsk->thread.cr2		= address;
+-	tsk->thread.trap_no	= 14;
++	tsk->thread.trap_nr	= X86_TRAP_PF;
+ 	tsk->thread.error_code	= error_code;
+ 
+ 	if (__die("Bad pagetable", regs, error_code))
+@@ -636,7 +636,7 @@ no_context(struct pt_regs *regs, unsigned long error_code,
+ 	/* Are we prepared to handle this kernel fault? */
+ 	if (fixup_exception(regs)) {
+ 		if (current_thread_info()->sig_on_uaccess_error && signal) {
+-			tsk->thread.trap_no = 14;
++			tsk->thread.trap_nr = X86_TRAP_PF;
+ 			tsk->thread.error_code = error_code | PF_USER;
+ 			tsk->thread.cr2 = address;
+ 
+@@ -676,7 +676,7 @@ no_context(struct pt_regs *regs, unsigned long error_code,
+ 		printk(KERN_EMERG "Thread overran stack, or stack corrupted\n");
+ 
+ 	tsk->thread.cr2		= address;
+-	tsk->thread.trap_no	= 14;
++	tsk->thread.trap_nr	= X86_TRAP_PF;
+ 	tsk->thread.error_code	= error_code;
+ 
+ 	sig = SIGKILL;
+@@ -754,7 +754,7 @@ __bad_area_nosemaphore(struct pt_regs *regs, unsigned long error_code,
+ 		/* Kernel addresses are always protection faults: */
+ 		tsk->thread.cr2		= address;
+ 		tsk->thread.error_code	= error_code | (address >= TASK_SIZE);
+-		tsk->thread.trap_no	= 14;
++		tsk->thread.trap_nr	= X86_TRAP_PF;
+ 
+ 		force_sig_info_fault(SIGSEGV, si_code, address, tsk, 0);
+ 
+@@ -838,7 +838,7 @@ do_sigbus(struct pt_regs *regs, unsigned long error_code, unsigned long address,
+ 
+ 	tsk->thread.cr2		= address;
+ 	tsk->thread.error_code	= error_code;
+-	tsk->thread.trap_no	= 14;
++	tsk->thread.trap_nr	= X86_TRAP_PF;
+ 
+ #ifdef CONFIG_MEMORY_FAILURE
+ 	if (fault & (VM_FAULT_HWPOISON|VM_FAULT_HWPOISON_LARGE)) {
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
