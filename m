@@ -1,228 +1,184 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx178.postini.com [74.125.245.178])
-	by kanga.kvack.org (Postfix) with SMTP id 7E07A6B00E9
-	for <linux-mm@kvack.org>; Tue, 13 Mar 2012 01:36:59 -0400 (EDT)
-Received: by lbbgg6 with SMTP id gg6so3131lbb.2
-        for <linux-mm@kvack.org>; Mon, 12 Mar 2012 22:36:57 -0700 (PDT)
-From: Avery Pennarun <apenwarr@gmail.com>
-Subject: [PATCH 5/5] printk: CONFIG_PRINTK_PERSIST: persist printk buffer across reboots.
-Date: Tue, 13 Mar 2012 01:36:41 -0400
-Message-Id: <1331617001-20906-6-git-send-email-apenwarr@gmail.com>
-In-Reply-To: <1331617001-20906-1-git-send-email-apenwarr@gmail.com>
-References: <1331617001-20906-1-git-send-email-apenwarr@gmail.com>
+Received: from psmtp.com (na3sys010amx104.postini.com [74.125.245.104])
+	by kanga.kvack.org (Postfix) with SMTP id 7A8586B004D
+	for <linux-mm@kvack.org>; Tue, 13 Mar 2012 01:46:38 -0400 (EDT)
+Received: from m1.gw.fujitsu.co.jp (unknown [10.0.50.71])
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 140733EE0C1
+	for <linux-mm@kvack.org>; Tue, 13 Mar 2012 14:46:37 +0900 (JST)
+Received: from smail (m1 [127.0.0.1])
+	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id E264845DE61
+	for <linux-mm@kvack.org>; Tue, 13 Mar 2012 14:46:36 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
+	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id CAD2A45DE5C
+	for <linux-mm@kvack.org>; Tue, 13 Mar 2012 14:46:36 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id B9F5E1DB804D
+	for <linux-mm@kvack.org>; Tue, 13 Mar 2012 14:46:36 +0900 (JST)
+Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.240.81.133])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 62A0B1DB8051
+	for <linux-mm@kvack.org>; Tue, 13 Mar 2012 14:46:36 +0900 (JST)
+Date: Tue, 13 Mar 2012 14:45:01 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH v4 1/3] memcg: clean up existing move charge code
+Message-Id: <20120313144501.d031f25d.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <1331591456-20769-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+References: <1331591456-20769-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Josh Triplett <josh@joshtriplett.org>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Ingo Molnar <mingo@elte.hu>, "David S. Miller" <davem@davemloft.net>, Peter Zijlstra <a.p.zijlstra@chello.nl>, "Fabio M. Di Nitto" <fdinitto@redhat.com>, Avery Pennarun <apenwarr@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Olaf Hering <olaf@aepfle.de>, Paul Gortmaker <paul.gortmaker@windriver.com>, Tejun Heo <tj@kernel.org>, "H. Peter Anvin" <hpa@linux.intel.com>, Yinghai LU <yinghai@kernel.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Hillf Danton <dhillf@gmail.com>, David Rientjes <rientjes@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-Instead of using alloc_bootmem() when log_buf_len= is provided on the
-command line, use reserve_bootmem() instead to try to reserve the memory at
-a predictable physical address.  If we manage to get such an address, check
-whether it has a valid header from last time, and if so, keep the data in
-the existing buffer as if it had been printk'd as part of the current
-session.  You can then retrieve or clear it with dmesg.  Note: you must
-supply log_buf_len= on the kernel command line to activate this feature.
+On Mon, 12 Mar 2012 18:30:54 -0400
+Naoya Horiguchi <n-horiguchi@ah.jp.nec.com> wrote:
 
-If reserve_bootmem() doesn't work out, we fall back to the old
-alloc_bootmem() method.
+> We'll introduce the thp variant of move charge code in later patches,
+> but before doing that let's start with refactoring existing code.
+> Here we replace lengthy function name is_target_pte_for_mc() with
+> shorter one in order to avoid ugly line breaks.
+> And for better readability, we explicitly use MC_TARGET_* instead of
+> simply using integers.
+> 
+> Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
 
-The nice thing about this feature is it allows us to capture and upload
-printk results after a crash and reboot, even if the system had hard crashed
-so there was no chance to do something like panic or kexec.  The last few
-messages before the crash might give a clue as to the crash.
+Thanks.
 
-Note: None of this is any use if your bootloader or BIOS wipes memory
-between reboots.  On embedded systems, you have somewhat more control over
-this.
+Seems ok to me.
+Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.futjisu.com>
 
-Signed-off-by: Avery Pennarun <apenwarr@gmail.com>
----
- init/Kconfig    |   12 ++++++
- kernel/printk.c |  106 ++++++++++++++++++++++++++++++++++++++++++++++++++-----
- 2 files changed, 109 insertions(+), 9 deletions(-)
+Hmm. some nitpicks.
 
-diff --git a/init/Kconfig b/init/Kconfig
-index 3f42cd6..d182c07 100644
---- a/init/Kconfig
-+++ b/init/Kconfig
-@@ -1040,6 +1040,18 @@ config PRINTK
- 	  very difficult to diagnose system problems, saying N here is
- 	  strongly discouraged.
+> ---
+>  mm/memcontrol.c |   20 ++++++++++----------
+>  1 files changed, 10 insertions(+), 10 deletions(-)
+> 
+> diff --git linux-next-20120307.orig/mm/memcontrol.c linux-next-20120307/mm/memcontrol.c
+> index a288855..3d16618 100644
+> --- linux-next-20120307.orig/mm/memcontrol.c
+> +++ linux-next-20120307/mm/memcontrol.c
+> @@ -5069,7 +5069,7 @@ one_by_one:
+>  }
+>  
+>  /**
+> - * is_target_pte_for_mc - check a pte whether it is valid for move charge
+> + * get_mctgt_type - get target type of moving charge
+>   * @vma: the vma the pte to be checked belongs
+>   * @addr: the address corresponding to the pte to be checked
+>   * @ptent: the pte to be checked
+> @@ -5092,7 +5092,7 @@ union mc_target {
+>  };
+>  
+>  enum mc_target_type {
+> -	MC_TARGET_NONE,	/* not used */
+> +	MC_TARGET_NONE, 
+
+How about
+
+	MC_TARGET_NONE = 0,
+
+Becasue you use 
+	if (get_mctgt_type()) 
+later.
+
+
+
+>  	MC_TARGET_PAGE,
+>  	MC_TARGET_SWAP,
+>  };
+> @@ -5173,12 +5173,12 @@ static struct page *mc_handle_file_pte(struct vm_area_struct *vma,
+>  	return page;
+>  }
+>  
+> -static int is_target_pte_for_mc(struct vm_area_struct *vma,
+> +static enum mc_target_type get_mctgt_type(struct vm_area_struct *vma,
+>  		unsigned long addr, pte_t ptent, union mc_target *target)
+
+I admit old name is too long. But...Hm...get_mctgt_type()...how about
+
+	move_charge_type() or
+	mctgt_type() or
+	mc_type() ?
+
+I don't have good sense of naming ;(
+
+>  {
+>  	struct page *page = NULL;
+>  	struct page_cgroup *pc;
+> -	int ret = 0;
+> +	enum mc_target_type ret = MC_TARGET_NONE;
+>  	swp_entry_t ent = { .val = 0 };
+>  
+>  	if (pte_present(ptent))
+> @@ -5189,7 +5189,7 @@ static int is_target_pte_for_mc(struct vm_area_struct *vma,
+>  		page = mc_handle_file_pte(vma, addr, ptent, &ent);
+>  
+>  	if (!page && !ent.val)
+> -		return 0;
+> +		return ret;
+>  	if (page) {
+>  		pc = lookup_page_cgroup(page);
+>  		/*
+> @@ -5206,7 +5206,7 @@ static int is_target_pte_for_mc(struct vm_area_struct *vma,
+>  			put_page(page);
+>  	}
+>  	/* There is a swap entry and a page doesn't exist or isn't charged */
+> -	if (ent.val && !ret &&
+> +	if (ent.val && ret != MC_TARGET_NONE &&
+
+If you do MC_TARGET_NONE = 0 in above, using !ret seems ok to me.
+
+>  			css_id(&mc.from->css) == lookup_swap_cgroup_id(ent)) {
+>  		ret = MC_TARGET_SWAP;
+>  		if (target)
+> @@ -5227,7 +5227,7 @@ static int mem_cgroup_count_precharge_pte_range(pmd_t *pmd,
+>  
+>  	pte = pte_offset_map_lock(vma->vm_mm, pmd, addr, &ptl);
+>  	for (; addr != end; pte++, addr += PAGE_SIZE)
+> -		if (is_target_pte_for_mc(vma, addr, *pte, NULL))
+> +		if (get_mctgt_type(vma, addr, *pte, NULL))
+>  			mc.precharge++;	/* increment precharge temporarily */
+>  	pte_unmap_unlock(pte - 1, ptl);
+>  	cond_resched();
+> @@ -5397,8 +5397,8 @@ retry:
+>  		if (!mc.precharge)
+>  			break;
+>  
+> -		type = is_target_pte_for_mc(vma, addr, ptent, &target);
+> -		switch (type) {
+> +		target_type = get_mctgt_type(vma, addr, ptent, &target);
+> +		switch (target_type) {
+
+It 'target_type' is unused later
  
-+config PRINTK_PERSIST
-+	default n
-+	bool "printk log persists across reboots" if PRINTK
-+	help
-+	  This option tries to keep the printk memory buffer in a well-known
-+	  location in physical memory. It isn't cleared on reboot (unless RAM
-+	  is wiped by your boot loader or BIOS) so if your system crashes
-+	  or panics, you might get to examine all the log messages next time you
-+	  boot. The persisted log messages show up in your 'dmesg' output.
-+	  Note: you must supply the log_buf_len= kernel parameter to
-+	  activate this feature.
-+
- config BUG
- 	bool "BUG() support" if EXPERT
- 	default y
-diff --git a/kernel/printk.c b/kernel/printk.c
-index bf96a7d..f9045d9 100644
---- a/kernel/printk.c
-+++ b/kernel/printk.c
-@@ -110,7 +110,12 @@ static DEFINE_RAW_SPINLOCK(logbuf_lock);
-  */
- static unsigned log_start;	/* Index into log_buf: next char to be read by syslog() */
- static unsigned con_start;	/* Index into log_buf: next char to be sent to consoles */
-+
-+#ifdef CONFIG_PRINTK_PERSIST
-+#define log_end (logbits->_log_end)
-+#else
- static unsigned log_end;	/* Index into log_buf: most-recently-written-char + 1 */
-+#endif
- 
- /*
-  * If exclusive_console is non-NULL then only this console is to be printed to.
-@@ -143,11 +148,93 @@ static int console_may_schedule;
- 
- #ifdef CONFIG_PRINTK
- 
-+static int saved_console_loglevel = -1;
- static char __log_buf[__LOG_BUF_LEN];
- static char *log_buf = __log_buf;
-+
-+#ifndef CONFIG_PRINTK_PERSIST
-+
- static int log_buf_len = __LOG_BUF_LEN;
- static unsigned logged_chars; /* Number of chars produced since last read+clear operation */
--static int saved_console_loglevel = -1;
-+
-+#else  /* CONFIG_PRINTK_PERSIST */
-+
-+struct logbits {
-+	int magic; /* needed to verify the memory across reboots */
-+	int _log_buf_len; /* leading _ so they aren't replaced by #define */
-+	unsigned _logged_chars;
-+	unsigned _log_end;
-+};
-+static struct logbits __logbits = {
-+	._log_buf_len = __LOG_BUF_LEN,
-+};
-+static struct logbits *logbits = &__logbits;
-+#define log_buf_len (logbits->_log_buf_len)
-+#define logged_chars (logbits->_logged_chars)
-+
-+#define PERSIST_SEARCH_END 0xfe000000
-+#define PERSIST_SEARCH_JUMP (16*1024*1024)
-+#define PERSIST_MAGIC 0xbabb1e
-+
-+#endif /* CONFIG_PRINTK_PERSIST */
-+
-+/*
-+ * size is a power of 2 so that the printk offset mask will work.  We'll add
-+ * a bit more space to the end of the buffer for our extra data, but that
-+ * won't change the alignment of the buffer itself.
-+ */
-+static __init char *log_buf_alloc(int early, unsigned long size,
-+	unsigned *dest_offset)
-+{
-+#ifdef CONFIG_PRINTK_PERSIST
-+	unsigned long where;
-+	char *buf;
-+	unsigned long full_size = size + sizeof(struct logbits);
-+	struct logbits *new_logbits;
-+
-+	for (where = PERSIST_SEARCH_END - size;
-+			where >= PERSIST_SEARCH_JUMP;
-+			where -= PERSIST_SEARCH_JUMP) {
-+		where &= ~(roundup_pow_of_two(size) - 1);
-+		if (reserve_bootmem(where, full_size, BOOTMEM_EXCLUSIVE))
-+			continue;
-+
-+		printk(KERN_INFO "printk_persist: memory reserved @ 0x%08lx\n",
-+			where);
-+		buf = phys_to_virt(where);
-+		new_logbits = phys_to_virt(where + size);
-+		if (new_logbits->magic != PERSIST_MAGIC ||
-+				new_logbits->_log_buf_len != size ||
-+				new_logbits->_logged_chars > size ||
-+				new_logbits->_log_end > size * 2) {
-+			printk(KERN_INFO "printk_persist: header invalid, "
-+				"cleared.\n");
-+			memset(buf, 0, full_size);
-+			new_logbits->magic = PERSIST_MAGIC;
-+			new_logbits->_log_buf_len = size;
-+			new_logbits->_logged_chars = 0;
-+			new_logbits->_log_end = 0;
-+		} else {
-+			printk(KERN_INFO "printk_persist: header valid; "
-+				"logged=%d next=%d\n",
-+				new_logbits->_logged_chars,
-+				new_logbits->_log_end);
-+		}
-+		*dest_offset = new_logbits->_log_end;
-+		new_logbits->_log_end = log_end;
-+		new_logbits->_logged_chars += logged_chars;
-+		logbits = new_logbits;
-+		return buf;
-+	}
-+	goto error;
-+
-+error:
-+	/* replace the buffer, but don't bother to swap struct logbits */
-+	printk(KERN_ERR "printk_persist: failed to reserve bootmem "
-+		"area. disabled.\n");
-+#endif  /* CONFIG_PRINTK_PERSIST */
-+	return alloc_bootmem_nopanic(size);
-+}
- 
- #ifdef CONFIG_KEXEC
- /*
-@@ -187,14 +274,14 @@ early_param("log_buf_len", log_buf_len_setup);
- void __init setup_log_buf(int early)
- {
- 	unsigned long flags;
--	unsigned start, dest_idx, offset;
-+	unsigned start, dest_idx, dest_offset = 0, offset;
- 	char *new_log_buf;
- 	int free;
- 
- 	if (!new_log_buf_len)
- 		return;
- 
--	new_log_buf = alloc_bootmem_nopanic(new_log_buf_len);
-+	new_log_buf = log_buf_alloc(early, new_log_buf_len, &dest_offset);
- 	if (unlikely(!new_log_buf)) {
- 		pr_err("log_buf_len: %ld bytes not available\n",
- 			new_log_buf_len);
-@@ -204,21 +291,22 @@ void __init setup_log_buf(int early)
- 	raw_spin_lock_irqsave(&logbuf_lock, flags);
- 	log_buf_len = new_log_buf_len;
- 	log_buf = new_log_buf;
--	new_log_buf_len = 0;
- 	free = __LOG_BUF_LEN - log_end;
- 
- 	offset = start = min(con_start, log_start);
--	dest_idx = 0;
-+	dest_idx = dest_offset;
- 	while (start != log_end) {
- 		unsigned log_idx_mask = start & (__LOG_BUF_LEN - 1);
- 
--		log_buf[dest_idx] = __log_buf[log_idx_mask];
-+		log_buf[dest_idx & (new_log_buf_len - 1)] =
-+			__log_buf[log_idx_mask];
- 		start++;
- 		dest_idx++;
- 	}
--	log_start -= offset;
--	con_start -= offset;
--	log_end -= offset;
-+	log_start += dest_offset - offset;
-+	con_start += dest_offset - offset;
-+	log_end += dest_offset - offset;
-+	new_log_buf_len = 0;
- 	raw_spin_unlock_irqrestore(&logbuf_lock, flags);
- 
- 	pr_info("log_buf_len: %d\n", log_buf_len);
--- 
-1.7.7.3
+	switch(get_mctgt_type(vma, addr, ptent, &target))
+
+is ok ?
+
+Thanks,
+-Kame
+
+>  		case MC_TARGET_PAGE:
+>  			page = target.page;
+>  			if (isolate_lru_page(page))
+> @@ -5411,7 +5411,7 @@ retry:
+>  				mc.moved_charge++;
+>  			}
+>  			putback_lru_page(page);
+> -put:			/* is_target_pte_for_mc() gets the page */
+> +put:			/* get_mctgt_type() gets the page */
+>  			put_page(page);
+>  			break;
+>  		case MC_TARGET_SWAP:
+> -- 
+> 1.7.7.6
+> 
+> --
+> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+> Please read the FAQ at  http://www.tux.org/lkml/
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
