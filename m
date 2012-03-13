@@ -1,56 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx163.postini.com [74.125.245.163])
-	by kanga.kvack.org (Postfix) with SMTP id 289EF6B004A
-	for <linux-mm@kvack.org>; Tue, 13 Mar 2012 02:00:52 -0400 (EDT)
-Received: by vcbfk14 with SMTP id fk14so320159vcb.14
-        for <linux-mm@kvack.org>; Mon, 12 Mar 2012 23:00:51 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx146.postini.com [74.125.245.146])
+	by kanga.kvack.org (Postfix) with SMTP id EB4656B004A
+	for <linux-mm@kvack.org>; Tue, 13 Mar 2012 02:13:24 -0400 (EDT)
+Received: by dadv6 with SMTP id v6so462630dad.14
+        for <linux-mm@kvack.org>; Mon, 12 Mar 2012 23:13:24 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <20120312.225302.488696931454771146.davem@davemloft.net>
-References: <1331617001-20906-1-git-send-email-apenwarr@gmail.com> <20120312.225302.488696931454771146.davem@davemloft.net>
-From: Avery Pennarun <apenwarr@gmail.com>
-Date: Tue, 13 Mar 2012 02:00:30 -0400
-Message-ID: <CAHqTa-3DiZhd_yoRTzp2Np0Rp=_zrfL7CbN_twu+ZZeu7f4ENg@mail.gmail.com>
-Subject: Re: [PATCH 0/5] Persist printk buffer across reboots.
+In-Reply-To: <1331617001-20906-5-git-send-email-apenwarr@gmail.com>
+References: <1331617001-20906-1-git-send-email-apenwarr@gmail.com>
+	<1331617001-20906-5-git-send-email-apenwarr@gmail.com>
+Date: Mon, 12 Mar 2012 23:13:24 -0700
+Message-ID: <CAE9FiQUakjaxE3fTm1w3SuuE-cAXAg2fePmEdwmjomAgp88Psg@mail.gmail.com>
+Subject: Re: [PATCH 4/5] printk: use alloc_bootmem() instead of memblock_alloc().
+From: Yinghai Lu <yinghai@kernel.org>
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Miller <davem@davemloft.net>
-Cc: akpm@linux-foundation.org, josh@joshtriplett.org, paulmck@linux.vnet.ibm.com, mingo@elte.hu, a.p.zijlstra@chello.nl, fdinitto@redhat.com, hannes@cmpxchg.org, olaf@aepfle.de, paul.gortmaker@windriver.com, tj@kernel.org, hpa@linux.intel.com, yinghai@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Avery Pennarun <apenwarr@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Josh Triplett <josh@joshtriplett.org>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Ingo Molnar <mingo@elte.hu>, "David S. Miller" <davem@davemloft.net>, Peter Zijlstra <a.p.zijlstra@chello.nl>, "Fabio M. Di Nitto" <fdinitto@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Olaf Hering <olaf@aepfle.de>, Paul Gortmaker <paul.gortmaker@windriver.com>, Tejun Heo <tj@kernel.org>, "H. Peter Anvin" <hpa@linux.intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Tue, Mar 13, 2012 at 1:53 AM, David Miller <davem@davemloft.net> wrote:
-> From: Avery Pennarun <apenwarr@gmail.com>
-> Date: Tue, 13 Mar 2012 01:36:36 -0400
+On Mon, Mar 12, 2012 at 10:36 PM, Avery Pennarun <apenwarr@gmail.com> wrote=
+:
+> The code in setup_log_buf() had two memory allocation branches, depending
+> on the value of 'early'. =A0If early=3D=3D1, it would use memblock_alloc(=
+); if
+> early=3D=3D0, it would use alloc_bootmem_nopanic().
 >
->> The last patch in this series implements a new CONFIG_PRINTK_PERSIST opt=
-ion
->> that, when enabled, puts the printk buffer in a well-defined memory loca=
-tion
->> so that we can keep appending to it after a reboot. =A0The upshot is tha=
-t,
->> even after a kernel panic or non-panic hard lockup, on the next boot
->> userspace will be able to grab the kernel messages leading up to it. =A0=
-It
->> could then upload the messages to a server (for example) to keep crash
->> statistics.
+> bootmem should already configured by the time setup_log_buf(early=3D1) is
+> called, so there's no reason to have the separation. =A0Furthermore, on
+> arches with nobootmem, memblock_alloc is essentially the same as
+> alloc_bootmem anyway. =A0x86 is one such arch, and also the only one
+> that uses early=3D1.
 >
-> On some platforms there are formal ways to reserve areas of memory
-> such that the bootup firmware will know to not touch it on soft resets
-> no matter what. =A0For example, on Sparc there are OpenFirmware calls to
-> set aside such an area of soft-reset preserved memory.
+> Signed-off-by: Avery Pennarun <apenwarr@gmail.com>
+> ---
+> =A0kernel/printk.c | =A0 13 +------------
+> =A01 files changed, 1 insertions(+), 12 deletions(-)
 >
-> I think some formal agreement with the system firmware is a lot better
-> when available, and should be explicitly accomodated in these changes
-> so that those of us with such facilities can very easily hook it up.
+> diff --git a/kernel/printk.c b/kernel/printk.c
+> index 32690a0..bf96a7d 100644
+> --- a/kernel/printk.c
+> +++ b/kernel/printk.c
+> @@ -31,7 +31,6 @@
+> =A0#include <linux/smp.h>
+> =A0#include <linux/security.h>
+> =A0#include <linux/bootmem.h>
+> -#include <linux/memblock.h>
+> =A0#include <linux/syscalls.h>
+> =A0#include <linux/kexec.h>
+> =A0#include <linux/kdb.h>
+> @@ -195,17 +194,7 @@ void __init setup_log_buf(int early)
+> =A0 =A0 =A0 =A0if (!new_log_buf_len)
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0return;
+>
+> - =A0 =A0 =A0 if (early) {
+> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 unsigned long mem;
+> -
+> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 mem =3D memblock_alloc(new_log_buf_len, PAG=
+E_SIZE);
+> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (!mem)
+> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 return;
+> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 new_log_buf =3D __va(mem);
+> - =A0 =A0 =A0 } else {
+> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 new_log_buf =3D alloc_bootmem_nopanic(new_l=
+og_buf_len);
+> - =A0 =A0 =A0 }
+> -
+> + =A0 =A0 =A0 new_log_buf =3D alloc_bootmem_nopanic(new_log_buf_len);
+> =A0 =A0 =A0 =A0if (unlikely(!new_log_buf)) {
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0pr_err("log_buf_len: %ld bytes not availab=
+le\n",
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0new_log_buf_len);
+> --
 
-Sounds good to me.  Do you have any pointers?  Just use an
-early_param?  If we see the early_param but we can't reserve the
-requested address, should we fall back to probing or disable the
-PRINTK_PERSIST mode entirely?
+that seems not right.
 
-Thanks,
+for x86, setup_log_buf(1) is quite early called in setup_arch() before
+bootmem is there.
 
-Avery
+bootmem should be killed after memblock is supported for arch that
+current support bootmem.
+
+Yinghai
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
