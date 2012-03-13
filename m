@@ -1,93 +1,114 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx180.postini.com [74.125.245.180])
-	by kanga.kvack.org (Postfix) with SMTP id AA89D6B004A
-	for <linux-mm@kvack.org>; Tue, 13 Mar 2012 06:39:03 -0400 (EDT)
-Message-ID: <4F5F236A.1070609@parallels.com>
-Date: Tue, 13 Mar 2012 14:37:30 +0400
-From: Glauber Costa <glommer@parallels.com>
+Received: from psmtp.com (na3sys010amx132.postini.com [74.125.245.132])
+	by kanga.kvack.org (Postfix) with SMTP id C84BA6B004A
+	for <linux-mm@kvack.org>; Tue, 13 Mar 2012 09:13:01 -0400 (EDT)
+Received: by vcbfk14 with SMTP id fk14so854481vcb.14
+        for <linux-mm@kvack.org>; Tue, 13 Mar 2012 06:13:00 -0700 (PDT)
 MIME-Version: 1.0
-Subject: Re: [PATCH v2 02/13] memcg: Kernel memory accounting infrastructure.
-References: <1331325556-16447-1-git-send-email-ssouhlal@FreeBSD.org> <1331325556-16447-3-git-send-email-ssouhlal@FreeBSD.org> <4F5C5E54.2020408@parallels.com> <20120313152446.28b0d696.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20120313152446.28b0d696.kamezawa.hiroyu@jp.fujitsu.com>
-Content-Type: text/plain; charset="ISO-8859-1"; format=flowed
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <1331622432-24683-2-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+References: <1331622432-24683-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+	<1331622432-24683-2-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+Date: Tue, 13 Mar 2012 21:13:00 +0800
+Message-ID: <CAJd=RBA+D0MyjwuCNp3WtKRq-d3F_t9rKHLgmyLhznhZ9HjG4g@mail.gmail.com>
+Subject: Re: [PATCH -V3 1/8] hugetlb: rename max_hstate to hugetlb_max_hstate
+From: Hillf Danton <dhillf@gmail.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Suleiman Souhlal <ssouhlal@FreeBSD.org>, cgroups@vger.kernel.org, suleiman@google.com, penberg@kernel.org, cl@linux.com, yinghan@google.com, hughd@google.com, gthelen@google.com, peterz@infradead.org, dan.magenheimer@oracle.com, hannes@cmpxchg.org, mgorman@suse.de, James.Bottomley@HansenPartnership.com, linux-mm@kvack.org, devel@openvz.org, linux-kernel@vger.kernel.org
+To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Cc: linux-mm@kvack.org, mgorman@suse.de, kamezawa.hiroyu@jp.fujitsu.com, aarcange@redhat.com, mhocko@suse.cz, akpm@linux-foundation.org, hannes@cmpxchg.org, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org
 
-> After looking codes, I think we need to think
-> whether independent_kmem_limit is good or not....
+On Tue, Mar 13, 2012 at 3:07 PM, Aneesh Kumar K.V
+<aneesh.kumar@linux.vnet.ibm.com> wrote:
+> From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
 >
-> How about adding MEMCG_KMEM_ACCOUNT flag instead of this and use only
-> memcg->res/memcg->memsw rather than adding a new counter, memcg->kmem ?
+> We will be using this from other subsystems like memcg
+> in later patches.
 >
-> if MEMCG_KMEM_ACCOUNT is set     ->  slab is accoutned to mem->res/memsw.
-> if MEMCG_KMEM_ACCOUNT is not set ->  slab is never accounted.
+> Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
+> ---
+
+Acked-by: Hillf Danton <dhillf@gmail.com>
+
+> =C2=A0mm/hugetlb.c | =C2=A0 14 +++++++-------
+> =C2=A01 files changed, 7 insertions(+), 7 deletions(-)
 >
-> (I think On/Off switch is required..)
+> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+> index 5f34bd8..d623e71 100644
+> --- a/mm/hugetlb.c
+> +++ b/mm/hugetlb.c
+> @@ -34,7 +34,7 @@ const unsigned long hugetlb_zero =3D 0, hugetlb_infinit=
+y =3D ~0UL;
+> =C2=A0static gfp_t htlb_alloc_mask =3D GFP_HIGHUSER;
+> =C2=A0unsigned long hugepages_treat_as_movable;
 >
-> Thanks,
-> -Kame
+> -static int max_hstate;
+> +static int hugetlb_max_hstate;
+> =C2=A0unsigned int default_hstate_idx;
+> =C2=A0struct hstate hstates[HUGE_MAX_HSTATE];
 >
-
-This has been discussed before, I can probably find it in the archives 
-if you want to go back and see it.
-
-But in a nutshell:
-
-1) Supposing independent knob disappear (I will explain in item 2 why I 
-don't want it to), I don't thing a flag makes sense either. *If* we are 
-planning to enable/disable this, it might make more sense to put some 
-work on it, and allow particular slabs to be enabled/disabled by writing 
-to memory.kmem.slabinfo (-* would disable all, +* enable all, +kmalloc* 
-enable all kmalloc, etc).
-
-Alternatively, what we could do instead, is something similar to what 
-ended up being done for tcp, by request of the network people: if you 
-never touch the limit file, don't bother with it at all, and simply does 
-not account. With Suleiman's lazy allocation infrastructure, that should 
-actually be trivial. And then again, a flag is not necessary, because 
-writing to the limit file does the job, and also convey the meaning well 
-enough.
-
-2) For the kernel itself, we are mostly concerned that a malicious 
-container may pin into memory big amounts of kernel memory which is, 
-ultimately, unreclaimable. In particular, with overcommit allowed 
-scenarios, you can fill the whole physical memory (or at least a 
-significant part) with those objects, well beyond your softlimit 
-allowance, making the creation of further containers impossible.
-With user memory, you can reclaim the cgroup back to its place. With 
-kernel memory, you can't.
-
-In the particular example of 32-bit boxes, you can easily fill up a 
-large part of the available 1gb kernel memory with pinned memory and 
-render the whole system unresponsive.
-
-Never allowing the kernel memory to go beyond the soft limit was one of 
-the proposed alternatives. However, it may force you to establish a soft
-limit where one was not previously needed. Or, establish a low soft 
-limit when you really need a bigger one.
-
-All that said, while reading your message, thinking a bit, the following 
-crossed my mind:
-
-- We can account the slabs to memcg->res normally, and just store the
-   information that this is kernel memory into a percpu counter, as
-   I proposed recently.
-- The knob goes away, and becomes implicit: if you ever write anything
-   to memory.kmem.limit_in_bytes, we transfer that memory to a separate
-   kmem res_counter, and proceed from there. We can keep accounting to
-   memcg->res anyway, just that kernel memory will now have a separate
-   limit.
-- With this scheme, it may not be necessary to ever have a file
-   memory.kmem.soft_limit_in_bytes. Reclaim is always part of the normal
-   memcg reclaim.
-
-The outlined above would work for us, and make the whole scheme simpler, 
-I believe.
-
-What do you think ?
+> @@ -46,7 +46,7 @@ static unsigned long __initdata default_hstate_max_huge=
+_pages;
+> =C2=A0static unsigned long __initdata default_hstate_size;
+>
+> =C2=A0#define for_each_hstate(h) \
+> - =C2=A0 =C2=A0 =C2=A0 for ((h) =3D hstates; (h) < &hstates[max_hstate]; =
+(h)++)
+> + =C2=A0 =C2=A0 =C2=A0 for ((h) =3D hstates; (h) < &hstates[hugetlb_max_h=
+state]; (h)++)
+>
+> =C2=A0/*
+> =C2=A0* Protects updates to hugepage_freelists, nr_huge_pages, and free_h=
+uge_pages
+> @@ -1808,9 +1808,9 @@ void __init hugetlb_add_hstate(unsigned order)
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0printk(KERN_WARNIN=
+G "hugepagesz=3D specified twice, ignoring\n");
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0return;
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0}
+> - =C2=A0 =C2=A0 =C2=A0 BUG_ON(max_hstate >=3D HUGE_MAX_HSTATE);
+> + =C2=A0 =C2=A0 =C2=A0 BUG_ON(hugetlb_max_hstate >=3D HUGE_MAX_HSTATE);
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0BUG_ON(order =3D=3D 0);
+> - =C2=A0 =C2=A0 =C2=A0 h =3D &hstates[max_hstate++];
+> + =C2=A0 =C2=A0 =C2=A0 h =3D &hstates[hugetlb_max_hstate++];
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0h->order =3D order;
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0h->mask =3D ~((1ULL << (order + PAGE_SHIFT)) -=
+ 1);
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0h->nr_huge_pages =3D 0;
+> @@ -1831,10 +1831,10 @@ static int __init hugetlb_nrpages_setup(char *s)
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0static unsigned long *last_mhp;
+>
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0/*
+> - =C2=A0 =C2=A0 =C2=A0 =C2=A0* !max_hstate means we haven't parsed a huge=
+pagesz=3D parameter yet,
+> + =C2=A0 =C2=A0 =C2=A0 =C2=A0* !hugetlb_max_hstate means we haven't parse=
+d a hugepagesz=3D parameter yet,
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 * so this hugepages=3D parameter goes to the =
+"default hstate".
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 */
+> - =C2=A0 =C2=A0 =C2=A0 if (!max_hstate)
+> + =C2=A0 =C2=A0 =C2=A0 if (!hugetlb_max_hstate)
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0mhp =3D &default_h=
+state_max_huge_pages;
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0else
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0mhp =3D &parsed_hs=
+tate->max_huge_pages;
+> @@ -1853,7 +1853,7 @@ static int __init hugetlb_nrpages_setup(char *s)
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 * But we need to allocate >=3D MAX_ORDER hsta=
+tes here early to still
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 * use the bootmem allocator.
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 */
+> - =C2=A0 =C2=A0 =C2=A0 if (max_hstate && parsed_hstate->order >=3D MAX_OR=
+DER)
+> + =C2=A0 =C2=A0 =C2=A0 if (hugetlb_max_hstate && parsed_hstate->order >=
+=3D MAX_ORDER)
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0hugetlb_hstate_all=
+oc_pages(parsed_hstate);
+>
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0last_mhp =3D mhp;
+> --
+> 1.7.9
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
