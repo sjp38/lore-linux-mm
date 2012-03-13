@@ -1,103 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx176.postini.com [74.125.245.176])
-	by kanga.kvack.org (Postfix) with SMTP id AE4C26B004A
-	for <linux-mm@kvack.org>; Tue, 13 Mar 2012 01:00:12 -0400 (EDT)
-Received: by bkwq16 with SMTP id q16so120078bkw.14
-        for <linux-mm@kvack.org>; Mon, 12 Mar 2012 22:00:11 -0700 (PDT)
-Message-ID: <4F5ED458.5070301@openvz.org>
-Date: Tue, 13 Mar 2012 09:00:08 +0400
-From: Konstantin Khlebnikov <khlebnikov@openvz.org>
-MIME-Version: 1.0
-Subject: Re: Fwd: Control page reclaim granularity
-References: <4F5D95AF.1020108@openvz.org> <20120312081413.GA10923@gmail.com> <20120312134226.GA5120@barrios> <4F5E05AD.20200@openvz.org> <20120313024818.GA7125@barrios> <4F5ECF01.2000402@openvz.org>
-In-Reply-To: <4F5ECF01.2000402@openvz.org>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Received: from psmtp.com (na3sys010amx161.postini.com [74.125.245.161])
+	by kanga.kvack.org (Postfix) with SMTP id 2B4E16B004A
+	for <linux-mm@kvack.org>; Tue, 13 Mar 2012 01:15:32 -0400 (EDT)
+Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 17D873EE0C0
+	for <linux-mm@kvack.org>; Tue, 13 Mar 2012 14:15:30 +0900 (JST)
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id EF3CA45DEB5
+	for <linux-mm@kvack.org>; Tue, 13 Mar 2012 14:15:29 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id D4D7745DEB4
+	for <linux-mm@kvack.org>; Tue, 13 Mar 2012 14:15:29 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id B9C541DB803F
+	for <linux-mm@kvack.org>; Tue, 13 Mar 2012 14:15:29 +0900 (JST)
+Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.240.81.134])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 539551DB8044
+	for <linux-mm@kvack.org>; Tue, 13 Mar 2012 14:15:29 +0900 (JST)
+Date: Tue, 13 Mar 2012 14:13:52 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH] memcg: revert fix to mapcount check for this release
+Message-Id: <20120313141352.e390056f.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <alpine.LSU.2.00.1203091335020.19372@eggly.anvils>
+References: <1330719189-20047-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+	<1330719189-20047-2-git-send-email-n-horiguchi@ah.jp.nec.com>
+	<20120309101658.8b36ce4f.kamezawa.hiroyu@jp.fujitsu.com>
+	<alpine.LSU.2.00.1203081816170.18242@eggly.anvils>
+	<20120309122448.92931dc6.kamezawa.hiroyu@jp.fujitsu.com>
+	<20120309150109.51ba8ea1.nishimura@mxp.nes.nec.co.jp>
+	<20120309162357.71c8c573.kamezawa.hiroyu@jp.fujitsu.com>
+	<alpine.LSU.2.00.1203091225440.19372@eggly.anvils>
+	<alpine.LSU.2.00.1203091335020.19372@eggly.anvils>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, "riel@redhat.com" <riel@redhat.com>, "kosaki.motohiro@jp.fujitsu.com" <kosaki.motohiro@jp.fujitsu.com>
+To: Hugh Dickins <hughd@google.com>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Andrea Arcangeli <aarcange@redhat.com>, Hillf Danton <dhillf@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-Konstantin Khlebnikov wrote:
-> Minchan Kim wrote:
->> On Mon, Mar 12, 2012 at 06:18:21PM +0400, Konstantin Khlebnikov wrote:
->>> Minchan Kim wrote:
->>>> On Mon, Mar 12, 2012 at 04:14:14PM +0800, Zheng Liu wrote:
->>>>> On 03/12/2012 02:20 PM, Konstantin Khlebnikov wrote:
->>>>>> Minchan Kim wrote:
->>>>>>> On Mon, Mar 12, 2012 at 10:06:09AM +0800, Zheng Liu wrote:
-> <CUT>
->>>>>>>
->>>>>>> Now problem is that
->>>>>>>
->>>>>>> 1. User want to keep pages which are used once in a while in memory.
->>>>>>> 2. Kernel want to reclaim them because they are surely reclaim target
->>>>>>> pages in point of view by LRU.
->>>>>>>
->>>>>>> The most desriable approach is that user should use mlock to guarantee
->>>>>>> them in memory. But mlock is too big overhead and user doesn't want to
->>>>>>> keep
->>>>>>> memory all pages all at once.(Ie, he want demand paging when he need
->>>>>>> the page)
->>>>>>> Right?
->>>>>>>
->>>>>>> madvise, it's a just hint for kernel and kernel doesn't need to make
->>>>>>> sure madvise's behavior.
->>>>>>> In point of view, such inconsistency might not be a big problem.
->>>>>>>
->>>>>>> Big problem I think now is that user should use madvise(WILLNEED)
->>>>>>> periodically because such
->>>>>>> activation happens once when user calls madvise. If user doesn't use
->>>>>>> page frequently after
->>>>>>> user calls it, it ends up moving into inactive list and even could be
->>>>>>> reclaimed.
->>>>>>> It's not good. :-(
->>>>>>>
->>>>>>> Okay. How about adding new VM_WORKINGSET?
->>>>>>> And reclaimer would give one more round trip in active/inactive list
->>>>>>> erwhen reclaim happens
->>>>>>> if the page is referenced.
->>>>>>>
->>>>>>> Sigh. We have no room for new VM_FLAG in 32 bit.
->>>>>> p
->>>>>> It would be nice to mark struct address_space with this flag and export
->>>>>> AS_UNEVICTABLE somehow.
->>>>>> Maybe we can reuse file-locking engine for managing these bits =)
->>>>>
->>>>> Make sense to me. We can mark this flag in struct address_space and check
->>>>> it in page_refereneced_file(). If this flag is set, it will be cleard and
->>>>
->>>> Disadvantage is that we could set reclaim granularity as per-inode.
->>>> I want to set it as per-vma, not per-inode.
->>>
->>> But with per-inode flag we can tune all files, not only memory-mapped.
->>
->> I don't oppose per-inode setting but I believe we need file range or mmapped vma,
->> still. One file may have different characteristic part, something is working set
->> something is streaming part.
->>
->>> See, attached patch. Currently I thinking about managing code,
->>> file-locking engine really fits perfectly =)
->>
->> file-locking engine?
->> You consider fcntl as interface for it?
->> What do you mean?
->>
->
-> If we set bits on inode we somehow account its users and clear AS_WORKINGSET and AS_UNEVICTABLE
-> at last file close. We can use file-locking engine for locking inodes in memory -- file lock automatically
-> release inode at last fput(). Maybe it's too tricky and we should add couple simple atomic counters to
-> generic strict inode (like i_writecount/i_readcount) but in this case we will add new code on fast-path.
-> So, looks like invention new kind of struct file_lock is best approach.
-> I don't want implement range-locking for now, but I can do it if somebody really wants this.
->
-> Yes, we can use fcntl(), but fadvise() is much better.
+On Fri, 9 Mar 2012 13:37:32 -0800 (PST)
+Hugh Dickins <hughd@google.com> wrote:
 
-Another mad idea: if we mark vma, then we can add fake vma (belong init_mm for example) to
-inode rmap to lock inode's pages range in memory without actually mapping file.
-In page_referenced_one() we should handle this fake vma differently,
-because page_check_address() will always fail for it.
-Thus we can effectively implement AS_WORKINGSET and AS_UNEVICTABLE for arbitrary page ranges.
+> Respectfully revert commit e6ca7b89dc76 "memcg: fix mapcount check
+> in move charge code for anonymous page" for the 3.3 release, so that
+> it behaves exactly like releases 2.6.35 through 3.2 in this respect.
+> 
+> Horiguchi-san's commit is correct in itself, 1 makes much more sense
+> than 2 in that check; but it does not go far enough - swapcount
+> should be considered too - if we really want such a check at all.
+> 
+> We appear to have reached agreement now, and expect that 3.4 will
+> remove the mapcount check, but had better not make 3.3 different.
+> 
+> Signed-off-by: Hugh Dickins <hughd@google.com>
+
+Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
