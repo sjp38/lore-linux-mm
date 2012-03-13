@@ -1,56 +1,35 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx166.postini.com [74.125.245.166])
-	by kanga.kvack.org (Postfix) with SMTP id B13F16B007E
-	for <linux-mm@kvack.org>; Tue, 13 Mar 2012 04:22:53 -0400 (EDT)
-Received: by dadv6 with SMTP id v6so691208dad.14
-        for <linux-mm@kvack.org>; Tue, 13 Mar 2012 01:22:53 -0700 (PDT)
-Date: Tue, 13 Mar 2012 16:28:18 +0800
-From: Zheng Liu <gnehzuil.liu@gmail.com>
-Subject: Re: Fwd: Control page reclaim granularity
-Message-ID: <20120313082818.GA5421@gmail.com>
-References: <20120313024818.GA7125@barrios>
- <1331620214-4893-1-git-send-email-wenqing.lz@taobao.com>
- <20120313064832.GA4968@gmail.com>
- <4F5EF563.5000700@openvz.org>
- <CAFPAmTTPxGzrZrW+FR4B_MYDB372HyzdnioO0=CRwx0zQueRSQ@mail.gmail.com>
- <CAFPAmTS-ExDtS7rpJoygc6MCwC10spapyThq7=5cCCGFbjZtqA@mail.gmail.com>
- <20120313080535.GA5243@gmail.com>
- <CAFPAmTSR_Lvsi2+Uid3a9RQK5bBnN3vD_cje6o02f-gBusCJHQ@mail.gmail.com>
- <CAFPAmTQWsq5sjnTVYL5ark6=LSOmOwiRsCr7wqTp=4ymBAUdUQ@mail.gmail.com>
+Received: from psmtp.com (na3sys010amx205.postini.com [74.125.245.205])
+	by kanga.kvack.org (Postfix) with SMTP id ACDD46B004A
+	for <linux-mm@kvack.org>; Tue, 13 Mar 2012 04:27:06 -0400 (EDT)
+Date: Tue, 13 Mar 2012 09:26:43 +0100
+From: Ingo Molnar <mingo@elte.hu>
+Subject: Re: [PATCH 4/5] printk: use alloc_bootmem() instead of
+ memblock_alloc().
+Message-ID: <20120313082643.GA1888@elte.hu>
+References: <1331617001-20906-1-git-send-email-apenwarr@gmail.com>
+ <1331617001-20906-5-git-send-email-apenwarr@gmail.com>
+ <CAE9FiQUakjaxE3fTm1w3SuuE-cAXAg2fePmEdwmjomAgp88Psg@mail.gmail.com>
+ <CAHqTa-0b1DBDNYzDQ6UHHCivF9S-H3zvZWH0KZ21OQ8gQq6WYg@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CAFPAmTQWsq5sjnTVYL5ark6=LSOmOwiRsCr7wqTp=4ymBAUdUQ@mail.gmail.com>
+In-Reply-To: <CAHqTa-0b1DBDNYzDQ6UHHCivF9S-H3zvZWH0KZ21OQ8gQq6WYg@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kautuk Consul <consul.kautuk@gmail.com>
-Cc: minchan@kernel.org, riel@redhat.com, kosaki.motohiro@jp.fujitsu.com, Zheng Liu <wenqing.lz@taobao.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Avery Pennarun <apenwarr@gmail.com>
+Cc: Yinghai Lu <yinghai@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Josh Triplett <josh@joshtriplett.org>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, "David S. Miller" <davem@davemloft.net>, Peter Zijlstra <a.p.zijlstra@chello.nl>, "Fabio M. Di Nitto" <fdinitto@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Olaf Hering <olaf@aepfle.de>, Paul Gortmaker <paul.gortmaker@windriver.com>, Tejun Heo <tj@kernel.org>, "H. Peter Anvin" <hpa@linux.intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Tue, Mar 13, 2012 at 01:38:56PM +0530, Kautuk Consul wrote:
-> >
-> > I agree, but that's not my point.
-> >
-> > All I'm saying is that we probably don't want to give normal
-> > unprivileged usermode apps
-> > the capability to set the mapping to AS_UNEVICTABLE as anyone can then
-> > write an application
-> > that hogs memory without allowing the kernel to free it through memory reclaim.
 
-Yes, I think so.  But it seems that there has some codes that are
-possible to be abused.  For example, as I said previously, applications
-can mmap a normal data file with PROT_EXEC flag.  Then this file gets a
-high priority to keep in memory (commit: 8cab4754).  So my point is that
-we cannot control applications how to use these mechanisms.  We just
-provide them and let applications to choose how to use them.
-:-)
+* Avery Pennarun <apenwarr@gmail.com> wrote:
 
-Regards,
-Zheng
+> Hmm.  x86 uses nobootmem.c, [...]
 
-> 
-> Sorry, I mean :
-> "... that hogs kernel unmapped page-cache memory without allowing the
-> kernel to free it through memory reclaim."
+For new code, we use memblock_reserve(), memblock_alloc(), et al.
+
+Thanks,
+
+	Ingo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
