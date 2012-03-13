@@ -1,65 +1,108 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx182.postini.com [74.125.245.182])
-	by kanga.kvack.org (Postfix) with SMTP id 526356B004A
-	for <linux-mm@kvack.org>; Tue, 13 Mar 2012 11:35:48 -0400 (EDT)
-Date: Tue, 13 Mar 2012 16:35:25 +0100
-From: Ingo Molnar <mingo@elte.hu>
-Subject: Re: [PATCH 2/2] uprobes/core: Handle breakpoint and singlestep
- exception.
-Message-ID: <20120313153524.GB12193@elte.hu>
+Received: from psmtp.com (na3sys010amx107.postini.com [74.125.245.107])
+	by kanga.kvack.org (Postfix) with SMTP id E2BC06B004A
+	for <linux-mm@kvack.org>; Tue, 13 Mar 2012 12:17:32 -0400 (EDT)
+Date: Tue, 13 Mar 2012 09:16:55 -0700
+From: tip-bot for Srikar Dronamraju <srikar@linux.vnet.ibm.com>
+Message-ID: <tip-ef334a20d84f52407a8a2afd02ddeaecbef0ad3d@git.kernel.org>
+Reply-To: linux-kernel@vger.kernel.org, hpa@zytor.com, mingo@redhat.com,
+        andi@firstfloor.org, torvalds@linux-foundation.org,
+        peterz@infradead.org, hch@infradead.org, ananth@in.ibm.com,
+        masami.hiramatsu.pt@hitachi.com, acme@infradead.org,
+        rostedt@goodmis.org, jkenisto@linux.vnet.ibm.com,
+        srikar@linux.vnet.ibm.com, tglx@linutronix.de, oleg@redhat.com,
+        linux-mm@kvack.org, mingo@elte.hu
+In-Reply-To: <20120313140303.17134.1401.sendpatchset@srdronam.in.ibm.com>
 References: <20120313140303.17134.1401.sendpatchset@srdronam.in.ibm.com>
- <20120313140313.17134.52012.sendpatchset@srdronam.in.ibm.com>
+Subject: [tip:perf/uprobes] x86: Move is_ia32_task to asm/thread_info.
+ h from asm/compat.h
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=UTF-8
 Content-Disposition: inline
-In-Reply-To: <20120313140313.17134.52012.sendpatchset@srdronam.in.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-Cc: Peter Zijlstra <peterz@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, LKML <linux-kernel@vger.kernel.org>, Linux-mm <linux-mm@kvack.org>, Oleg Nesterov <oleg@redhat.com>, Andi Kleen <andi@firstfloor.org>, Christoph Hellwig <hch@infradead.org>, Steven Rostedt <rostedt@goodmis.org>, Arnaldo Carvalho de Melo <acme@infradead.org>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Thomas Gleixner <tglx@linutronix.de>
+To: linux-tip-commits@vger.kernel.org
+Cc: mingo@redhat.com, torvalds@linux-foundation.org, peterz@infradead.org, rostedt@goodmis.org, jkenisto@linux.vnet.ibm.com, tglx@linutronix.de, oleg@redhat.com, linux-mm@kvack.org, hpa@zytor.com, linux-kernel@vger.kernel.org, andi@firstfloor.org, hch@infradead.org, ananth@in.ibm.com, masami.hiramatsu.pt@hitachi.com, acme@infradead.org, srikar@linux.vnet.ibm.com, mingo@elte.hu
 
+Commit-ID:  ef334a20d84f52407a8a2afd02ddeaecbef0ad3d
+Gitweb:     http://git.kernel.org/tip/ef334a20d84f52407a8a2afd02ddeaecbef0ad3d
+Author:     Srikar Dronamraju <srikar@linux.vnet.ibm.com>
+AuthorDate: Tue, 13 Mar 2012 19:33:03 +0530
+Committer:  Ingo Molnar <mingo@elte.hu>
+CommitDate: Tue, 13 Mar 2012 16:31:09 +0100
 
-* Srikar Dronamraju <srikar@linux.vnet.ibm.com> wrote:
+x86: Move is_ia32_task to asm/thread_info.h from asm/compat.h
 
-> diff --git a/kernel/fork.c b/kernel/fork.c
-> index 26a7a67..36508b9 100644
-> --- a/kernel/fork.c
-> +++ b/kernel/fork.c
-> @@ -67,6 +67,7 @@
->  #include <linux/oom.h>
->  #include <linux/khugepaged.h>
->  #include <linux/signalfd.h>
-> +#include <linux/uprobes.h>
->  
->  #include <asm/pgtable.h>
->  #include <asm/pgalloc.h>
-> @@ -731,6 +732,8 @@ void mm_release(struct task_struct *tsk, struct mm_struct *mm)
->  		exit_pi_state_list(tsk);
->  #endif
->  
-> +	uprobe_free_utask(tsk);
-> +
->  	/* Get rid of any cached register state */
->  	deactivate_mm(tsk, mm);
->  
-> @@ -1322,6 +1325,10 @@ static struct task_struct *copy_process(unsigned long clone_flags,
->  	INIT_LIST_HEAD(&p->pi_state_list);
->  	p->pi_state_cache = NULL;
->  #endif
-> +#ifdef CONFIG_UPROBES
-> +	p->utask = NULL;
-> +	p->uprobe_srcu_id = -1;
-> +#endif
->  	/*
->  	 * sigaltstack should be cleared when sharing the same VM
->  	 */
+is_ia32_task() is useful even in !CONFIG_COMPAT cases - utrace will
+use it for example. Hence move it to a more generic file: asm/thread_info.h
 
-Hm, I suspect by looking at the first two hunks you can guess 
-how the third hunk should be done more cleanly?
+Also now is_ia32_task() returns true if CONFIG_X86_32 is defined.
 
-Thanks,
+Signed-off-by: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
+Acked-by: H. Peter Anvin <hpa@zytor.com>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Ananth N Mavinakayanahalli <ananth@in.ibm.com>
+Cc: Jim Keniston <jkenisto@linux.vnet.ibm.com>
+Cc: Linux-mm <linux-mm@kvack.org>
+Cc: Oleg Nesterov <oleg@redhat.com>
+Cc: Andi Kleen <andi@firstfloor.org>
+Cc: Christoph Hellwig <hch@infradead.org>
+Cc: Steven Rostedt <rostedt@goodmis.org>
+Cc: Arnaldo Carvalho de Melo <acme@infradead.org>
+Cc: Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>
+Cc: Peter Zijlstra <peterz@infradead.org>
+Link: http://lkml.kernel.org/r/20120313140303.17134.1401.sendpatchset@srdronam.in.ibm.com
+[ Performed minor cleanup ]
+Signed-off-by: Ingo Molnar <mingo@elte.hu>
+---
+ arch/x86/include/asm/compat.h      |    9 ---------
+ arch/x86/include/asm/thread_info.h |   12 ++++++++++++
+ 2 files changed, 12 insertions(+), 9 deletions(-)
 
-	Ingo
+diff --git a/arch/x86/include/asm/compat.h b/arch/x86/include/asm/compat.h
+index 355edc0..d680579 100644
+--- a/arch/x86/include/asm/compat.h
++++ b/arch/x86/include/asm/compat.h
+@@ -235,15 +235,6 @@ static inline void __user *arch_compat_alloc_user_space(long len)
+ 	return (void __user *)round_down(sp - len, 16);
+ }
+ 
+-static inline bool is_ia32_task(void)
+-{
+-#ifdef CONFIG_IA32_EMULATION
+-	if (current_thread_info()->status & TS_COMPAT)
+-		return true;
+-#endif
+-	return false;
+-}
+-
+ static inline bool is_x32_task(void)
+ {
+ #ifdef CONFIG_X86_X32_ABI
+diff --git a/arch/x86/include/asm/thread_info.h b/arch/x86/include/asm/thread_info.h
+index af1db7e..ad6df8c 100644
+--- a/arch/x86/include/asm/thread_info.h
++++ b/arch/x86/include/asm/thread_info.h
+@@ -266,6 +266,18 @@ static inline void set_restore_sigmask(void)
+ 	ti->status |= TS_RESTORE_SIGMASK;
+ 	set_bit(TIF_SIGPENDING, (unsigned long *)&ti->flags);
+ }
++
++static inline bool is_ia32_task(void)
++{
++#ifdef CONFIG_X86_32
++	return true;
++#endif
++#ifdef CONFIG_IA32_EMULATION
++	if (current_thread_info()->status & TS_COMPAT)
++		return true;
++#endif
++	return false;
++}
+ #endif	/* !__ASSEMBLY__ */
+ 
+ #ifndef __ASSEMBLY__
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
