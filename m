@@ -1,99 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx182.postini.com [74.125.245.182])
-	by kanga.kvack.org (Postfix) with SMTP id 67E936B007E
-	for <linux-mm@kvack.org>; Tue, 13 Mar 2012 12:56:06 -0400 (EDT)
-Message-ID: <1331657760.65900.YahooMailClassic@web193006.mail.sg3.yahoo.com>
-Date: Wed, 14 Mar 2012 00:56:00 +0800 (SGT)
-From: Rokhya Dddah <ramia1ritha@hotmail.com>
-Reply-To: rokhyada@yahoo.com
-Subject: Happy New Year
+Received: from psmtp.com (na3sys010amx106.postini.com [74.125.245.106])
+	by kanga.kvack.org (Postfix) with SMTP id 9D5816B007E
+	for <linux-mm@kvack.org>; Tue, 13 Mar 2012 13:04:22 -0400 (EDT)
+Received: by ggki24 with SMTP id i24so125571ggk.2
+        for <linux-mm@kvack.org>; Tue, 13 Mar 2012 10:04:21 -0700 (PDT)
+From: Greg Thelen <gthelen@google.com>
+Subject: Re: [PATCH v2 02/13] memcg: Kernel memory accounting infrastructure.
+References: <1331325556-16447-1-git-send-email-ssouhlal@FreeBSD.org>
+	<1331325556-16447-3-git-send-email-ssouhlal@FreeBSD.org>
+	<4F5C5E54.2020408@parallels.com>
+	<20120313152446.28b0d696.kamezawa.hiroyu@jp.fujitsu.com>
+	<4F5F236A.1070609@parallels.com>
+Date: Tue, 13 Mar 2012 10:00:58 -0700
+In-Reply-To: <4F5F236A.1070609@parallels.com> (Glauber Costa's message of
+	"Tue, 13 Mar 2012 14:37:30 +0400")
+Message-ID: <xr93d38g77w5.fsf@gthelen.mtv.corp.google.com>
 MIME-Version: 1.0
-Content-Type: multipart/alternative; boundary="-488649105-940559927-1331657760=:65900"
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: rokhya1@yahoo.com
+To: Glauber Costa <glommer@parallels.com>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Suleiman Souhlal <ssouhlal@FreeBSD.org>, cgroups@vger.kernel.org, suleiman@google.com, penberg@kernel.org, cl@linux.com, yinghan@google.com, hughd@google.com, peterz@infradead.org, dan.magenheimer@oracle.com, hannes@cmpxchg.org, mgorman@suse.de, James.Bottomley@HansenPartnership.com, linux-mm@kvack.org, devel@openvz.org, linux-kernel@vger.kernel.org, rientjes@google.com
 
----488649105-940559927-1331657760=:65900
-Content-Type: text/plain; charset=iso-8859-1
-Content-Transfer-Encoding: quoted-printable
+Glauber Costa <glommer@parallels.com> writes:
+> 2) For the kernel itself, we are mostly concerned that a malicious container may
+> pin into memory big amounts of kernel memory which is, ultimately,
+> unreclaimable. In particular, with overcommit allowed scenarios, you can fill
+> the whole physical memory (or at least a significant part) with those objects,
+> well beyond your softlimit allowance, making the creation of further containers
+> impossible.
+> With user memory, you can reclaim the cgroup back to its place. With kernel
+> memory, you can't.
 
-Happy New YearMy=0Aname is Rokhyai am just a simple lady in need of a goodf=
-riend,if=0Ayou feel the same,you can reply me for a confidential discussion=
-s so=0Athat we can know ourselves better,hope to hear from you soon,=A0 =A0=
- =A0 =A0 =A0 =A0 =A0 =A0 cheers Rokhya
-
----488649105-940559927-1331657760=:65900
-Content-Type: text/html; charset=iso-8859-1
-Content-Transfer-Encoding: quoted-printable
-
-<table cellspacing=3D"0" cellpadding=3D"0" border=3D"0" ><tr><td valign=3D"=
-top" style=3D"font: inherit;"><div id=3D"yiv1116928475"><table cellspacing=
-=3D"0" cellpadding=3D"0" border=3D"0" id=3D"yiv1116928475bodyDrftID" class=
-=3D"yiv1116928475"><tbody><tr><td id=3D"yiv1116928475drftMsgContent" style=
-=3D"font:inherit;font-family:arial;font-size:10pt;"><div id=3D"yiv111692847=
-5"><table id=3D"yiv1116928475bodyDrftID" class=3D"yiv1116928475" border=3D"=
-0" cellpadding=3D"0" cellspacing=3D"0"><tbody><tr><td id=3D"yiv1116928475dr=
-ftMsgContent" style=3D"font-style:inherit;font-variant:inherit;font-weight:=
-inherit;line-height:inherit;font-size-adjust:inherit;font-stretch:inherit;f=
-ont-family:arial;font-size:10pt;"><div id=3D"yiv1116928475"><table id=3D"yi=
-v1116928475bodyDrftID" class=3D"yiv1116928475" border=3D"0" cellpadding=3D"=
-0" cellspacing=3D"0"><tbody><tr><td id=3D"yiv1116928475drftMsgContent"
- style=3D"font-style:inherit;font-variant:inherit;font-weight:inherit;line-=
-height:inherit;font-size-adjust:inherit;font-stretch:inherit;font-family:ar=
-ial;font-size:10pt;"><div id=3D"yiv1116928475"><table id=3D"yiv1116928475bo=
-dyDrftID" class=3D"yiv1116928475" border=3D"0" cellpadding=3D"0" cellspacin=
-g=3D"0"><tbody><tr><td id=3D"yiv1116928475drftMsgContent" style=3D"font-sty=
-le:inherit;font-variant:inherit;font-weight:inherit;line-height:inherit;fon=
-t-size-adjust:inherit;font-stretch:inherit;font-family:arial;font-size:10pt=
-;"><div id=3D"yiv1116928475"><table id=3D"yiv1116928475bodyDrftID" class=3D=
-"yiv1116928475" border=3D"0" cellpadding=3D"0" cellspacing=3D"0"><tbody><tr=
-><td id=3D"yiv1116928475drftMsgContent" style=3D"font-style:inherit;font-va=
-riant:inherit;font-weight:inherit;line-height:inherit;font-size-adjust:inhe=
-rit;font-stretch:inherit;font-family:arial;font-size:10pt;"><div id=3D"yiv1=
-116928475"><table id=3D"yiv1116928475bodyDrftID" class=3D"yiv1116928475" bo=
-rder=3D"0" cellpadding=3D"0"
- cellspacing=3D"0"><tbody><tr><td id=3D"yiv1116928475drftMsgContent" style=
-=3D"font-style:inherit;font-variant:inherit;font-weight:inherit;line-height=
-:inherit;font-size-adjust:inherit;font-stretch:inherit;font-family:arial;=
-=0Afont-size:10pt;"><div id=3D"yiv1116928475"><table id=3D"yiv1116928475bod=
-yDrftID" class=3D"yiv1116928475" border=3D"0" cellpadding=3D"0" cellspacing=
-=3D"0"><tbody><tr><td id=3D"yiv1116928475drftMsgContent" style=3D"font-styl=
-e:inherit;font-variant:inherit;font-weight:inherit;line-height:inherit;font=
--size-adjust:inherit;font-stretch:inherit;font-family:arial;font-size:10pt;=
-"><div id=3D"yiv1116928475"><table id=3D"yiv1116928475bodyDrftID" class=3D"=
-yiv1116928475" border=3D"0" cellpadding=3D"0" cellspacing=3D"0"><tbody><tr>=
-<td id=3D"yiv1116928475drftMsgContent" style=3D"font-style:inherit;font-var=
-iant:inherit;font-weight:inherit;line-height:inherit;font-size-adjust:inher=
-it;font-stretch:inherit;font-family:arial;font-size:10pt;"><div id=3D"yiv11=
-16928475"><table id=3D"yiv1116928475bodyDrftID" class=3D"yiv1116928475" bor=
-der=3D"0" cellpadding=3D"0" cellspacing=3D"0"><tbody><tr><td id=3D"yiv11169=
-28475drftMsgContent" style=3D"font-style:inherit;font-variant:inherit;font-=
-weight:inherit;=0Aline-height:inherit;font-size-adjust:inherit;font-stretch=
-:inherit;font-family:arial;font-size:10pt;"><div id=3D"yiv1116928475"><tabl=
-e id=3D"yiv1116928475bodyDrftID" class=3D"yiv1116928475" border=3D"0" cellp=
-adding=3D"0" cellspacing=3D"0"><tbody><tr><td id=3D"yiv1116928475drftMsgCon=
-tent" style=3D"font-style:inherit;font-variant:inherit;font-weight:inherit;=
-line-height:inherit;font-size-adjust:inherit;font-stretch:inherit;font-fami=
-ly:arial;font-size:10pt;"><div id=3D"yiv1116928475"><table id=3D"yiv1116928=
-475bodyDrftID" class=3D"yiv1116928475" border=3D"0" cellpadding=3D"0" cells=
-pacing=3D"0"><tbody><tr><td id=3D"yiv1116928475drftMsgContent" style=3D"fon=
-t-style:inherit;font-variant:inherit;font-weight:inherit;line-height:inheri=
-t;font-size-adjust:inherit;font-stretch:inherit;font-family:arial;font-size=
-:10pt;"><font style=3D"font-family:comic sans ms;" size=3D"3"><span class=
-=3D"yiv1116928475Apple-style-span" style=3D"color:rgb(0, 0, 0);"><div><font=
- class=3D"yiv1116928475Apple-style-span">Happy New
- Year</font></div><div><font class=3D"yiv1116928475Apple-style-span">My=0An=
-ame is Rokhyai am just a simple lady in need of a goodfriend,if=0Ayou feel =
-the same,you can reply me for a confidential discussions so=0Athat we can k=
-now ourselves better,hope to hear from you soon,</font></div><div><font cla=
-ss=3D"yiv1116928475Apple-style-span">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nb=
-sp; &nbsp; &nbsp; cheers Rokhya<br></font></div></span></font></td></tr></t=
-body></table></div></td></tr></tbody></table></div></td></tr></tbody></tabl=
-e></div></td></tr></tbody></table></div></td></tr></tbody></table></div></t=
-d></tr></tbody></table></div></td></tr></tbody></table></div></td></tr></tb=
-ody></table></div></td></tr></tbody></table></div></td></tr></tbody></table=
-></div></td></tr></tbody></table></div></td></tr></table>
----488649105-940559927-1331657760=:65900--
+In overcommit situations the page allocator starts failing even though
+memcg page can charge pages.  When page allocations fail the oom killer
+plays a role.  Page allocations can fail even without malicious usage of
+kernel memory (e.g. lots of mlock or anon without swap can fill a
+machine).  I assume that the kernel memory pinned the malicious
+containers will be freed or at least become reclaimable once the
+processes in malicious containers are killed (oom or otherwise).  We
+have been making use of the oom killer to save a system from
+irreconcilable overcommit situations.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
