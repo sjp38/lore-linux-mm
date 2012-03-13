@@ -1,40 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx193.postini.com [74.125.245.193])
-	by kanga.kvack.org (Postfix) with SMTP id BB7EC6B004A
-	for <linux-mm@kvack.org>; Tue, 13 Mar 2012 04:19:56 -0400 (EDT)
-Date: Tue, 13 Mar 2012 01:16:33 -0700 (PDT)
-Message-Id: <20120313.011633.151968036751263435.davem@davemloft.net>
-Subject: Re: [PATCH 0/5] Persist printk buffer across reboots.
-From: David Miller <davem@davemloft.net>
-In-Reply-To: <CAHqTa-2c7pOTicWO8stNJfVfep4gSPHwKdr3kv_Jk-oi=dU5bw@mail.gmail.com>
-References: <CAHqTa-3sMRJ0p7driNF+d=f_NZNCF-+TWnCSNO2efEdfv0ayVQ@mail.gmail.com>
-	<20120313.001842.1454669292182923878.davem@davemloft.net>
-	<CAHqTa-2c7pOTicWO8stNJfVfep4gSPHwKdr3kv_Jk-oi=dU5bw@mail.gmail.com>
-Mime-Version: 1.0
-Content-Type: Text/Plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx166.postini.com [74.125.245.166])
+	by kanga.kvack.org (Postfix) with SMTP id B13F16B007E
+	for <linux-mm@kvack.org>; Tue, 13 Mar 2012 04:22:53 -0400 (EDT)
+Received: by dadv6 with SMTP id v6so691208dad.14
+        for <linux-mm@kvack.org>; Tue, 13 Mar 2012 01:22:53 -0700 (PDT)
+Date: Tue, 13 Mar 2012 16:28:18 +0800
+From: Zheng Liu <gnehzuil.liu@gmail.com>
+Subject: Re: Fwd: Control page reclaim granularity
+Message-ID: <20120313082818.GA5421@gmail.com>
+References: <20120313024818.GA7125@barrios>
+ <1331620214-4893-1-git-send-email-wenqing.lz@taobao.com>
+ <20120313064832.GA4968@gmail.com>
+ <4F5EF563.5000700@openvz.org>
+ <CAFPAmTTPxGzrZrW+FR4B_MYDB372HyzdnioO0=CRwx0zQueRSQ@mail.gmail.com>
+ <CAFPAmTS-ExDtS7rpJoygc6MCwC10spapyThq7=5cCCGFbjZtqA@mail.gmail.com>
+ <20120313080535.GA5243@gmail.com>
+ <CAFPAmTSR_Lvsi2+Uid3a9RQK5bBnN3vD_cje6o02f-gBusCJHQ@mail.gmail.com>
+ <CAFPAmTQWsq5sjnTVYL5ark6=LSOmOwiRsCr7wqTp=4ymBAUdUQ@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CAFPAmTQWsq5sjnTVYL5ark6=LSOmOwiRsCr7wqTp=4ymBAUdUQ@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: apenwarr@gmail.com
-Cc: akpm@linux-foundation.org, josh@joshtriplett.org, paulmck@linux.vnet.ibm.com, mingo@elte.hu, a.p.zijlstra@chello.nl, fdinitto@redhat.com, hannes@cmpxchg.org, olaf@aepfle.de, paul.gortmaker@windriver.com, tj@kernel.org, hpa@linux.intel.com, yinghai@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Kautuk Consul <consul.kautuk@gmail.com>
+Cc: minchan@kernel.org, riel@redhat.com, kosaki.motohiro@jp.fujitsu.com, Zheng Liu <wenqing.lz@taobao.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-From: Avery Pennarun <apenwarr@gmail.com>
-Date: Tue, 13 Mar 2012 04:10:42 -0400
+On Tue, Mar 13, 2012 at 01:38:56PM +0530, Kautuk Consul wrote:
+> >
+> > I agree, but that's not my point.
+> >
+> > All I'm saying is that we probably don't want to give normal
+> > unprivileged usermode apps
+> > the capability to set the mapping to AS_UNEVICTABLE as anyone can then
+> > write an application
+> > that hogs memory without allowing the kernel to free it through memory reclaim.
 
-> On Tue, Mar 13, 2012 at 3:18 AM, David Miller <davem@davemloft.net> wrote:
->> I'm only saying that you should design your stuff such that an
->> architecture with such features could easily hook into it using this
->> kind facility.
+Yes, I think so.  But it seems that there has some codes that are
+possible to be abused.  For example, as I said previously, applications
+can mmap a normal data file with PROT_EXEC flag.  Then this file gets a
+high priority to keep in memory (commit: 8cab4754).  So my point is that
+we cannot control applications how to use these mechanisms.  We just
+provide them and let applications to choose how to use them.
+:-)
+
+Regards,
+Zheng
+
 > 
-> How about this?
-
-Function signature looks good.
-
-But on a platform with firmware based memory retaining facilitites
-we're going to need to invoke this way before bootmem or memblocks are
-even setup, because the retain call influences the free memory lists
-that the firmware gives to us and those free memory lists are what we
-use to populate the memblock tables.
+> Sorry, I mean :
+> "... that hogs kernel unmapped page-cache memory without allowing the
+> kernel to free it through memory reclaim."
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
