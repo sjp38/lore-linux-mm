@@ -1,48 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx149.postini.com [74.125.245.149])
-	by kanga.kvack.org (Postfix) with SMTP id 20D626B004D
-	for <linux-mm@kvack.org>; Wed, 14 Mar 2012 06:42:40 -0400 (EDT)
-Received: by yenm8 with SMTP id m8so2076727yen.14
-        for <linux-mm@kvack.org>; Wed, 14 Mar 2012 03:42:39 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx199.postini.com [74.125.245.199])
+	by kanga.kvack.org (Postfix) with SMTP id 219086B004D
+	for <linux-mm@kvack.org>; Wed, 14 Mar 2012 06:42:44 -0400 (EDT)
+Received: from /spool/local
+	by e23smtp01.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
+	Wed, 14 Mar 2012 10:35:46 +1000
+Received: from d23av02.au.ibm.com (d23av02.au.ibm.com [9.190.235.138])
+	by d23relay04.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q2EAaH7m3108982
+	for <linux-mm@kvack.org>; Wed, 14 Mar 2012 21:36:17 +1100
+Received: from d23av02.au.ibm.com (loopback [127.0.0.1])
+	by d23av02.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q2EAg3k1018832
+	for <linux-mm@kvack.org>; Wed, 14 Mar 2012 21:42:04 +1100
+From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Subject: Re: [PATCH -V3 3/8] hugetlb: add charge/uncharge calls for HugeTLB alloc/free
+In-Reply-To: <4F5F4C48.8050001@parallels.com>
+References: <1331622432-24683-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com> <1331622432-24683-4-git-send-email-aneesh.kumar@linux.vnet.ibm.com> <4F5F4C48.8050001@parallels.com>
+Date: Wed, 14 Mar 2012 16:11:58 +0530
+Message-ID: <87ty1r8nwp.fsf@linux.vnet.ibm.com>
 MIME-Version: 1.0
-In-Reply-To: <alpine.DEB.2.00.1203131345290.27008@chino.kir.corp.google.com>
-References: <1331652803-3092-1-git-send-email-consul.kautuk@gmail.com>
-	<alpine.DEB.2.00.1203131345290.27008@chino.kir.corp.google.com>
-Date: Wed, 14 Mar 2012 16:12:39 +0530
-Message-ID: <CAFPAmTSUuWW1gc5U=CB1MEoWqEWoDoAkay0svv--qF4n3cOcdg@mail.gmail.com>
-Subject: Re: [PATCH 2/2] page_alloc: Remove argument to find_zone_movable_pfns_for_nodes
-From: Kautuk Consul <consul.kautuk@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Tejun Heo <tj@kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Glauber Costa <glommer@parallels.com>
+Cc: linux-mm@kvack.org, mgorman@suse.de, kamezawa.hiroyu@jp.fujitsu.com, dhillf@gmail.com, aarcange@redhat.com, mhocko@suse.cz, akpm@linux-foundation.org, hannes@cmpxchg.org, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org
 
-On Wed, Mar 14, 2012 at 2:17 AM, David Rientjes <rientjes@google.com> wrote=
-:
-> On Tue, 13 Mar 2012, Kautuk Consul wrote:
->
->> The find_zone_movable_pfns_for_nodes() function does not utiilize
->> the argument to it.
->>
->
-> It could, though, if we made it to do so.
->
->> Removing this argument from the function prototype as well as its
->> caller, i.e. free_area_init_nodes().
->>
->
-> Not sure if we'd ever want it or not for other purposes, but
-> find_zone_movable_pfns_for_nodes() could easily be made to use the passed
-> in array rather than zone_movable_pfn in file scope directly. =A0That see=
-ms
-> to be why it took an argument in the first place.
->
+On Tue, 13 Mar 2012 17:31:52 +0400, Glauber Costa <glommer@parallels.com> wrote:
+> On 03/13/2012 11:07 AM, Aneesh Kumar K.V wrote:
+> > diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> > index 8cac77b..f4aa11c 100644
+> > --- a/mm/memcontrol.c
+> > +++ b/mm/memcontrol.c
+> > @@ -2901,6 +2901,11 @@ __mem_cgroup_uncharge_common(struct page *page, enum charge_type ctype)
+> >
+> >   	if (PageSwapCache(page))
+> >   		return NULL;
+> > +	/*
+> > +	 * HugeTLB page uncharge happen in the HugeTLB compound page destructor
+> > +	 */
+> > +	if (PageHuge(page))
+> > +		return NULL;
+> 
+> Maybe it is better to call uncharge_common from the compound destructor,
+> so we can have all the uncharge code in a single place.
+> 
 
-No function is calling this function and I just wanted to remove the
-slight overhead of passing an
-argument which does not get used.
+PageHuge is not represented by a page flags as SwapCache. Hence I was
+not able to call uncharge_common from compound destructor. For
+SwapCache, we clear the flag and call uncharge_common again. Also I will
+have to update those functions to take the resource counter index as
+argument so that we end up updated the right resource counter in the
+counter array. That would result in more code changes and I was not sure
+about that.
+
+-aneesh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
