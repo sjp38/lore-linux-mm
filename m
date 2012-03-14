@@ -1,119 +1,122 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx154.postini.com [74.125.245.154])
-	by kanga.kvack.org (Postfix) with SMTP id 5A73A6B004A
-	for <linux-mm@kvack.org>; Wed, 14 Mar 2012 07:13:29 -0400 (EDT)
-Received: from /spool/local
-	by e28smtp07.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
-	Wed, 14 Mar 2012 16:41:23 +0530
-Received: from d28av02.in.ibm.com (d28av02.in.ibm.com [9.184.220.64])
-	by d28relay01.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q2EBB1T33125378
-	for <linux-mm@kvack.org>; Wed, 14 Mar 2012 16:41:01 +0530
-Received: from d28av02.in.ibm.com (loopback [127.0.0.1])
-	by d28av02.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q2EGfaFg000866
-	for <linux-mm@kvack.org>; Thu, 15 Mar 2012 03:41:37 +1100
-From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Subject: Re: [PATCH -V3 5/8] hugetlbfs: Add memcg control files for hugetlbfs
-In-Reply-To: <20120313144233.49026e6a.akpm@linux-foundation.org>
-References: <1331622432-24683-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com> <1331622432-24683-6-git-send-email-aneesh.kumar@linux.vnet.ibm.com> <20120313144233.49026e6a.akpm@linux-foundation.org>
-Date: Wed, 14 Mar 2012 16:40:58 +0530
-Message-ID: <87lin38mkd.fsf@linux.vnet.ibm.com>
+Received: from psmtp.com (na3sys010amx203.postini.com [74.125.245.203])
+	by kanga.kvack.org (Postfix) with SMTP id CEC9D6B004D
+	for <linux-mm@kvack.org>; Wed, 14 Mar 2012 07:14:00 -0400 (EDT)
+Date: Wed, 14 Mar 2012 12:13:57 +0100
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH] mm: hugetlb: defer freeing pages when gathering surplus
+ pages
+Message-ID: <20120314111357.GD4434@tiehlicka.suse.cz>
+References: <CAJd=RBATj97k5UESDFx82bzt0K4OquhBoDkfjPBPacdmdfJE8g@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CAJd=RBATj97k5UESDFx82bzt0K4OquhBoDkfjPBPacdmdfJE8g@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, mgorman@suse.de, kamezawa.hiroyu@jp.fujitsu.com, dhillf@gmail.com, aarcange@redhat.com, mhocko@suse.cz, hannes@cmpxchg.org, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org
+To: Hillf Danton <dhillf@gmail.com>
+Cc: Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>
 
-On Tue, 13 Mar 2012 14:42:33 -0700, Andrew Morton <akpm@linux-foundation.org> wrote:
-> On Tue, 13 Mar 2012 12:37:09 +0530
-> "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com> wrote:
-> 
-> > From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-> > 
-> > This add control files for hugetlbfs in memcg
-> > 
-> > ...
-> >
-> > --- a/include/linux/hugetlb.h
-> > +++ b/include/linux/hugetlb.h
-> > @@ -220,6 +221,10 @@ struct hstate {
-> >  	unsigned int nr_huge_pages_node[MAX_NUMNODES];
-> >  	unsigned int free_huge_pages_node[MAX_NUMNODES];
-> >  	unsigned int surplus_huge_pages_node[MAX_NUMNODES];
-> > +	/* cgroup control files */
-> > +	struct cftype cgroup_limit_file;
-> > +	struct cftype cgroup_usage_file;
-> > +	struct cftype cgroup_max_usage_file;
-> >  	char name[HSTATE_NAME_LEN];
-> >  };
-> 
-> We don't need all these in here if, for example, cgroups is disabled?
+[Sorry for the late reply but I was away from email for quite sometime]
 
-Will fix.
+On Tue 14-02-12 20:53:51, Hillf Danton wrote:
+> When gathering surplus pages, the number of needed pages is recomputed after
+> reacquiring hugetlb lock to catch changes in resv_huge_pages and
+> free_huge_pages. Plus it is recomputed with the number of newly allocated
+> pages involved.
+> 
+> Thus freeing pages could be deferred a bit to see if the final page request is
+> satisfied, though pages could be allocated less than needed.
 
-> 
-> > ...
-> >
-> > --- a/mm/hugetlb.c
-> > +++ b/mm/hugetlb.c
-> > @@ -1817,6 +1817,36 @@ static int __init hugetlb_init(void)
-> >  }
-> >  module_init(hugetlb_init);
-> >  
-> > +#ifdef CONFIG_MEM_RES_CTLR_HUGETLB
-> > +int register_hugetlb_memcg_files(struct cgroup *cgroup,
-> > +				 struct cgroup_subsys *ss)
-> > +{
-> > +	int ret = 0;
-> > +	struct hstate *h;
-> > +
-> > +	for_each_hstate(h) {
-> > +		ret = cgroup_add_file(cgroup, ss, &h->cgroup_limit_file);
-> > +		if (ret)
-> > +			return ret;
-> > +		ret = cgroup_add_file(cgroup, ss, &h->cgroup_usage_file);
-> > +		if (ret)
-> > +			return ret;
-> > +		ret = cgroup_add_file(cgroup, ss, &h->cgroup_max_usage_file);
-> > +		if (ret)
-> > +			return ret;
-> > +
-> > +	}
-> > +	return ret;
-> > +}
-> > +/* mm/memcontrol.c because mem_cgroup_read/write is not availabel outside */
-> 
-> Comment has a spelling mistake.
+The patch looks OK but I am missing a word why we need it. I guess
+your primary motivation is that we want to reduce false positives when
+we fail to allocate surplus pages while somebody freed some in the
+background.
+What is the workload that you observed such a behavior? Or is this just
+from the code review?
 
-Will fix
+> Signed-off-by: Hillf Danton <dhillf@gmail.com>
+> ---
+> 
+> --- a/mm/hugetlb.c	Tue Feb 14 20:10:46 2012
+> +++ b/mm/hugetlb.c	Tue Feb 14 20:19:42 2012
+> @@ -852,6 +852,7 @@ static int gather_surplus_pages(struct h
+>  	struct page *page, *tmp;
+>  	int ret, i;
+>  	int needed, allocated;
+> +	bool alloc_ok = true;
+> 
+>  	needed = (h->resv_huge_pages + delta) - h->free_huge_pages;
+>  	if (needed <= 0) {
+> @@ -867,17 +868,13 @@ retry:
+>  	spin_unlock(&hugetlb_lock);
+>  	for (i = 0; i < needed; i++) {
+>  		page = alloc_buddy_huge_page(h, NUMA_NO_NODE);
+> -		if (!page)
+> -			/*
+> -			 * We were not able to allocate enough pages to
+> -			 * satisfy the entire reservation so we free what
+> -			 * we've allocated so far.
+> -			 */
+> -			goto free;
+> -
+> +		if (!page) {
+> +			alloc_ok = false;
+> +			break;
+> +		}
+>  		list_add(&page->lru, &surplus_list);
+>  	}
+> -	allocated += needed;
+> +	allocated += i;
+> 
+>  	/*
+>  	 * After retaking hugetlb_lock, we need to recalculate 'needed'
+> @@ -886,9 +883,16 @@ retry:
+>  	spin_lock(&hugetlb_lock);
+>  	needed = (h->resv_huge_pages + delta) -
+>  			(h->free_huge_pages + allocated);
+> -	if (needed > 0)
+> -		goto retry;
+> -
+> +	if (needed > 0) {
+> +		if (alloc_ok)
+> +			goto retry;
+> +		/*
+> +		 * We were not able to allocate enough pages to
+> +		 * satisfy the entire reservation so we free what
+> +		 * we've allocated so far.
+> +		 */
+> +		goto free;
+> +	}
+>  	/*
+>  	 * The surplus_list now contains _at_least_ the number of extra pages
+>  	 * needed to accommodate the reservation.  Add the appropriate number
+> @@ -914,10 +918,10 @@ retry:
+>  		VM_BUG_ON(page_count(page));
+>  		enqueue_huge_page(h, page);
+>  	}
+> +free:
+>  	spin_unlock(&hugetlb_lock);
+> 
+>  	/* Free unnecessary surplus pages to the buddy allocator */
+> -free:
+>  	if (!list_empty(&surplus_list)) {
+>  		list_for_each_entry_safe(page, tmp, &surplus_list, lru) {
+>  			list_del(&page->lru);
+> --
+> --
+> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+> Please read the FAQ at  http://www.tux.org/lkml/
 
-> 
-> > +int mem_cgroup_hugetlb_file_init(struct hstate *h, int idx);
-> 
-> 
-> No, please put it in a header file.  Always.  Where both callers and
-> the implementation see the same propotype.
-> 
-> > +#else
-> > +static int mem_cgroup_hugetlb_file_init(struct hstate *h, int idx)
-> > +{
-> > +	return 0;
-> > +}
-> > +#endif
-> 
-> So this will go into the same header file.
-> 
-
-I was not sure whether i want to put mem_cgroup_hugetlb_file_init in
-linux/memcontrol.h . Ideally i want to have that in mm/hugetlb.c and in
-linux/hugetlb.h. That would require me to make mem_cgroup_read and
-others non static and move few #defines to memcontrol.h. That would
-involve larger code movement which i didn't want to do. ? What do you
-suggest ? Just move mem_cgroup_hugetlb_file_init to memcontrol.h ?
-
-
--aneesh
+-- 
+Michal Hocko
+SUSE Labs
+SUSE LINUX s.r.o.
+Lihovarska 1060/12
+190 00 Praha 9    
+Czech Republic
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
