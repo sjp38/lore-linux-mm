@@ -1,68 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx169.postini.com [74.125.245.169])
-	by kanga.kvack.org (Postfix) with SMTP id 2AFE26B004D
-	for <linux-mm@kvack.org>; Wed, 14 Mar 2012 06:02:44 -0400 (EDT)
-Date: Wed, 14 Mar 2012 11:02:41 +0100
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH] page_cgroup: fix horrid swap accounting regression
-Message-ID: <20120314100240.GB4434@tiehlicka.suse.cz>
-References: <alpine.LSU.2.00.1203052046410.24068@eggly.anvils>
+Received: from psmtp.com (na3sys010amx173.postini.com [74.125.245.173])
+	by kanga.kvack.org (Postfix) with SMTP id C4ED66B004A
+	for <linux-mm@kvack.org>; Wed, 14 Mar 2012 06:23:14 -0400 (EDT)
+Received: from /spool/local
+	by e28smtp07.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
+	Wed, 14 Mar 2012 15:53:08 +0530
+Received: from d28av03.in.ibm.com (d28av03.in.ibm.com [9.184.220.65])
+	by d28relay01.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q2EAM4OP1433686
+	for <linux-mm@kvack.org>; Wed, 14 Mar 2012 15:52:05 +0530
+Received: from d28av03.in.ibm.com (loopback [127.0.0.1])
+	by d28av03.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q2EFpAUo032420
+	for <linux-mm@kvack.org>; Thu, 15 Mar 2012 02:51:12 +1100
+From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Subject: Re: [PATCH -V3 2/8] memcg: Add HugeTLB extension
+In-Reply-To: <20120313143316.0ef74d0e.akpm@linux-foundation.org>
+References: <1331622432-24683-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com> <1331622432-24683-3-git-send-email-aneesh.kumar@linux.vnet.ibm.com> <20120313143316.0ef74d0e.akpm@linux-foundation.org>
+Date: Wed, 14 Mar 2012 15:51:50 +0530
+Message-ID: <87zkbj8ou9.fsf@linux.vnet.ibm.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.LSU.2.00.1203052046410.24068@eggly.anvils>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Bob Liu <lliubbo@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <jweiner@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, mgorman@suse.de, kamezawa.hiroyu@jp.fujitsu.com, dhillf@gmail.com, aarcange@redhat.com, mhocko@suse.cz, hannes@cmpxchg.org, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org
 
-On Mon 05-03-12 20:52:55, Hugh Dickins wrote:
-> Why is memcg's swap accounting so broken?  Insane counts, wrong ownership,
-> unfreeable structures, which later get freed and then accessed after free.
+On Tue, 13 Mar 2012 14:33:16 -0700, Andrew Morton <akpm@linux-foundation.org> wrote:
+> On Tue, 13 Mar 2012 12:37:06 +0530
+> "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com> wrote:
 > 
-> Turns out to be a tiny a little 3.3-rc1 regression in 9fb4b7cc0724
-> "page_cgroup: add helper function to get swap_cgroup": the helper
-> function (actually named lookup_swap_cgroup()) returns an address
-> using void* arithmetic, but the structure in question is a short.
+> > +static int mem_cgroup_hugetlb_usage(struct mem_cgroup *memcg)
+> > +{
+> > +	int idx;
+> > +	for (idx = 0; idx < hugetlb_max_hstate; idx++) {
+> > +		if (memcg->hugepage[idx].usage > 0)
+> > +			return memcg->hugepage[idx].usage;
+> > +	}
+> > +	return 0;
+> > +}
 > 
-> Signed-off-by: Hugh Dickins <hughd@google.com>
+> Please document the function?  Had you done this, I might have been
+> able to work out why the function bales out on the first used hugepage
+> size, but I can't :(
 
-Thanks, this one looks really nasty.
+I guess the function is named wrongly. I will rename it to
+mem_cgroup_have_hugetlb_usage() in the next iteration ? The function
+will return (bool) 1 if it has any hugetlb resource usage.
 
-Acked-by: Michal Hocko <mhocko@suse.cz>
-
-> ---
 > 
->  mm/page_cgroup.c |    4 +++-
->  1 file changed, 3 insertions(+), 1 deletion(-)
+> This could have used for_each_hstate(), had that macro been better
+> designed (or updated).
 > 
-> --- 3.3-rc6/mm/page_cgroup.c	2012-01-20 08:42:35.320020840 -0800
-> +++ linux/mm/page_cgroup.c	2012-03-05 19:51:13.535372098 -0800
-> @@ -379,13 +379,15 @@ static struct swap_cgroup *lookup_swap_c
->  	pgoff_t offset = swp_offset(ent);
->  	struct swap_cgroup_ctrl *ctrl;
->  	struct page *mappage;
-> +	struct swap_cgroup *sc;
->  
->  	ctrl = &swap_cgroup_ctrl[swp_type(ent)];
->  	if (ctrlp)
->  		*ctrlp = ctrl;
->  
->  	mappage = ctrl->map[offset / SC_PER_PAGE];
-> -	return page_address(mappage) + offset % SC_PER_PAGE;
-> +	sc = page_address(mappage);
-> +	return sc + offset % SC_PER_PAGE;
->  }
->  
->  /**
 
--- 
-Michal Hocko
-SUSE Labs
-SUSE LINUX s.r.o.
-Lihovarska 1060/12
-190 00 Praha 9    
-Czech Republic
+Can you explain this ?. for_each_hstate allows to iterate over
+different hstates. But here we need to look at different hugepage
+rescounter in memcg. I can still use for_each_hstate() and find the
+hstate index (h - hstates) and use that to index memcg rescounter
+array. But that would make it more complex ?
+
+> Upon return this function coerces an unsigned long long into an "int". 
+> We decided last week that more than 2^32 hugepages was not
+> inconceivable, so I guess that's a bug.
+> 
+
+-aneesh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
