@@ -1,51 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx152.postini.com [74.125.245.152])
-	by kanga.kvack.org (Postfix) with SMTP id DF8A76B004A
-	for <linux-mm@kvack.org>; Wed, 14 Mar 2012 10:51:16 -0400 (EDT)
-Received: by vcbfk14 with SMTP id fk14so2816775vcb.14
-        for <linux-mm@kvack.org>; Wed, 14 Mar 2012 07:51:15 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx186.postini.com [74.125.245.186])
+	by kanga.kvack.org (Postfix) with SMTP id 582A86B004A
+	for <linux-mm@kvack.org>; Wed, 14 Mar 2012 11:58:13 -0400 (EDT)
+Received: from /spool/local
+	by e28smtp07.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
+	Wed, 14 Mar 2012 21:28:08 +0530
+Received: from d28av04.in.ibm.com (d28av04.in.ibm.com [9.184.220.66])
+	by d28relay03.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q2EFw54E3932308
+	for <linux-mm@kvack.org>; Wed, 14 Mar 2012 21:28:05 +0530
+Received: from d28av04.in.ibm.com (loopback [127.0.0.1])
+	by d28av04.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q2ELRqZU031860
+	for <linux-mm@kvack.org>; Thu, 15 Mar 2012 08:27:53 +1100
+From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Subject: Re: [PATCH -V3 5/8] hugetlbfs: Add memcg control files for hugetlbfs
+In-Reply-To: <20120314043530.d6f3d424.akpm@linux-foundation.org>
+References: <1331622432-24683-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com> <1331622432-24683-6-git-send-email-aneesh.kumar@linux.vnet.ibm.com> <20120313144233.49026e6a.akpm@linux-foundation.org> <87lin38mkd.fsf@linux.vnet.ibm.com> <20120314043530.d6f3d424.akpm@linux-foundation.org>
+Date: Wed, 14 Mar 2012 21:27:57 +0530
+Message-ID: <87d38f89a2.fsf@linux.vnet.ibm.com>
 MIME-Version: 1.0
-In-Reply-To: <alpine.DEB.2.00.1203140908010.5485@router.home>
-References: <CAOtvUMdVrjUHLx2jZ2xbpBoDBMCX8sdCASEkmXCtBrU-gQ3EhQ@mail.gmail.com>
-	<alpine.DEB.2.00.1203140908010.5485@router.home>
-Date: Wed, 14 Mar 2012 16:51:15 +0200
-Message-ID: <CAOtvUMcPEbG0_CTazCgf0Tb4kinzP+nmhjWQL=Juok_Bxc-r5A@mail.gmail.com>
-Subject: Re: [PATCH] mm: fix vmstat_update to keep scheduling itself on all cores
-From: Gilad Ben-Yossef <gilad@benyossef.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andi Kleen <ak@linux.intel.com>, Linux-MM <linux-mm@kvack.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, mgorman@suse.de, kamezawa.hiroyu@jp.fujitsu.com, dhillf@gmail.com, aarcange@redhat.com, mhocko@suse.cz, hannes@cmpxchg.org, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org
 
-On Wed, Mar 14, 2012 at 4:09 PM, Christoph Lameter <cl@linux.com> wrote:
-> On Wed, 14 Mar 2012, Gilad Ben-Yossef wrote:
->
->> We set up per-cpu work structures for vmstat and schedule them on
->> each cpu when they go online only to re-schedule them on the general
->> work queue when they first run.
->
-> schedule_delayed_work queues on the current cpu unless the
-> WQ_UNBOUND flag is set. Which is not set for vmstat_work.
+On Wed, 14 Mar 2012 04:35:30 -0700, Andrew Morton <akpm@linux-foundation.org> wrote:
+> On Wed, 14 Mar 2012 16:40:58 +0530 "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com> wrote:
+> 
+> > > 
+> > > > +int mem_cgroup_hugetlb_file_init(struct hstate *h, int idx);
+> > > 
+> > > 
+> > > No, please put it in a header file.  Always.  Where both callers and
+> > > the implementation see the same propotype.
+> > > 
+> > > > +#else
+> > > > +static int mem_cgroup_hugetlb_file_init(struct hstate *h, int idx)
+> > > > +{
+> > > > +	return 0;
+> > > > +}
+> > > > +#endif
+> > > 
+> > > So this will go into the same header file.
+> > > 
+> > 
+> > I was not sure whether i want to put mem_cgroup_hugetlb_file_init in
+> > linux/memcontrol.h .
+> 
+> The above is a declaration, not the definition (implementation).
+> 
+> > Ideally i want to have that in mm/hugetlb.c and in
+> > linux/hugetlb.h. That would require me to make mem_cgroup_read and
+> > others non static and move few #defines to memcontrol.h. That would
+> > involve larger code movement which i didn't want to do. ? What do you
+> > suggest ? Just move mem_cgroup_hugetlb_file_init to memcontrol.h ?
+> 
+> In memcontrol.h:
+> 
+> #ifdef CONFIG_FOO
+> extern int mem_cgroup_hugetlb_file_init(struct hstate *h, int idx);
+> #else
+> static inline int mem_cgroup_hugetlb_file_init(struct hstate *h, int idx)
+> {
+> 	return 0;
+> }
+> #endif
+> 
 
-I've missed that. My bad. Sorry for the noise.
+Will do that in the next iteration.
 
-Gilad
-
-
-
---=20
-Gilad Ben-Yossef
-Chief Coffee Drinker
-gilad@benyossef.com
-Israel Cell: +972-52-8260388
-US Cell: +1-973-8260388
-http://benyossef.com
-
-"If you take a class in large-scale robotics, can you end up in a
-situation where the homework eats your dog?"
-=A0-- Jean-Baptiste Queru
+-aneesh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
