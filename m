@@ -1,89 +1,36 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx118.postini.com [74.125.245.118])
-	by kanga.kvack.org (Postfix) with SMTP id 8F3D06B004A
-	for <linux-mm@kvack.org>; Wed, 14 Mar 2012 05:42:59 -0400 (EDT)
-Date: Wed, 14 Mar 2012 10:42:55 +0100
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [patch] mm, memcg: do not allow tasks to be attached with zero
- limit
-Message-ID: <20120314094255.GA4434@tiehlicka.suse.cz>
-References: <alpine.DEB.2.00.1203071914150.15244@chino.kir.corp.google.com>
- <20120308122951.2988ec4e.akpm@linux-foundation.org>
- <20120309102255.bbf94164.kamezawa.hiroyu@jp.fujitsu.com>
- <20120308173818.ae5f621b.akpm@linux-foundation.org>
- <20120309105706.4001646a.kamezawa.hiroyu@jp.fujitsu.com>
- <20120313165117.GA1708@cmpxchg.org>
+Received: from psmtp.com (na3sys010amx164.postini.com [74.125.245.164])
+	by kanga.kvack.org (Postfix) with SMTP id 043CC6B004A
+	for <linux-mm@kvack.org>; Wed, 14 Mar 2012 05:48:11 -0400 (EDT)
+Message-ID: <4F6068F4.4090909@parallels.com>
+Date: Wed, 14 Mar 2012 13:46:28 +0400
+From: Glauber Costa <glommer@parallels.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20120313165117.GA1708@cmpxchg.org>
+Subject: Re: [RFC REPOST] cgroup: removing css reference drain wait during
+ cgroup removal
+References: <20120312213155.GE23255@google.com> <20120312213343.GF23255@google.com> <20120313151148.f8004a00.kamezawa.hiroyu@jp.fujitsu.com> <20120313163914.GD7349@google.com> <20120314092828.3321731c.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20120314092828.3321731c.kamezawa.hiroyu@jp.fujitsu.com>
+Content-Type: text/plain; charset="ISO-8859-1"; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Balbir Singh <bsingharora@gmail.com>, cgroups@vger.kernel.org, linux-mm@kvack.org
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Tejun Heo <tj@kernel.org>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, gthelen@google.com, Hugh Dickins <hughd@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Vivek Goyal <vgoyal@redhat.com>, Jens Axboe <axboe@kernel.dk>, Li Zefan <lizf@cn.fujitsu.com>, containers@lists.linux-foundation.org, cgroups@vger.kernel.org, Peter Zijlstra <a.p.zijlstra@chello.nl>
 
-On Tue 13-03-12 17:51:18, Johannes Weiner wrote:
-> On Fri, Mar 09, 2012 at 10:57:06AM +0900, KAMEZAWA Hiroyuki wrote:
-> > On Thu, 8 Mar 2012 17:38:18 -0800
-> > Andrew Morton <akpm@linux-foundation.org> wrote:
-> > 
-> > > On Fri, 9 Mar 2012 10:22:55 +0900 KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> > > 
-> > > > On Thu, 8 Mar 2012 12:29:51 -0800
-> > > > Andrew Morton <akpm@linux-foundation.org> wrote:
-> > > > 
-> > > > > On Wed, 7 Mar 2012 19:14:49 -0800 (PST)
-> > > > > David Rientjes <rientjes@google.com> wrote:
-> > > > > 
-> > > > > > This patch prevents tasks from being attached to a memcg if there is a
-> > > > > > hard limit of zero.
-> > > > > 
-> > > > > We're talking about the memcg's limit_in_bytes here, yes?
-> > > > > 
-> > > > > > Additionally, the hard limit may not be changed to
-> > > > > > zero if there are tasks attached.
-> > > > > 
-> > > > > hm, well...  why?  That would be user error, wouldn't it?  What is
-> > > > > special about limit_in_bytes=0?  The memcg will also be unviable if
-> > > > > limit_in_bytes=1, but we permit that.
-> > > > > 
-> > > > > IOW, confused.
-> > > > > 
-> > > > Ah, yes. limit_in_bytes < some small size can cause the same trouble.
-> > > > Hmm... should we have configurable min_limit_in_bytes as sysctl or root memcg's
-> > > > attaribute.. ?
-> > > 
-> > > Why do *anything*?  If the operator chose an irrational configuration
-> > > then things won't work correctly and the operator will then fix the
-> > > configuration?
-> > > 
-> > 
-> > Because the result of 'error operaton' is SIGKILL to a task, which may be
-> > owned by very importang customer of hosting service.
-> > 
-> > Isn't this severe punishment for error operation ?
-> > 
-> > Considering again, I have 2 thoughts.
-> > 
-> > - it should be guarded by MiddleWare, it's not kernel job !
-> > - memcg should be more easy-to-use, friendly to users.
-> > 
-> > If the result is just an error as EINVAL or EBUSY, I may not be nervous....
-> 
-> You can still disable the OOM killer.  If you don't, you can always
-> get killed, so I'm not convinced by this patch or a sysctl, either.
+On 03/14/2012 04:28 AM, KAMEZAWA Hiroyuki wrote:
+> IIUC, in general, even in the processes are in a tree, in major case
+> of servers, their workloads are independent.
+> I think FLAT mode is the dafault. 'heararchical' is a crazy thing which
+> cannot be managed.
 
-Agreed, kernel usually doesn't care about insane settings and it does
-what it is told to do (why to safe somebody from shooting its own
-foot?).
+Better pay attention to the current overall cgroups discussions being 
+held by Tejun then. ([RFD] cgroup: about multiple hierarchies)
 
--- 
-Michal Hocko
-SUSE Labs
-SUSE LINUX s.r.o.
-Lihovarska 1060/12
-190 00 Praha 9    
-Czech Republic
+The topic of whether of adapting all cgroups to be hierarchical by 
+deafult is a recurring one.
+
+I personally think that it is not unachievable to make res_counters 
+cheaper, therefore making this less of a problem.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
