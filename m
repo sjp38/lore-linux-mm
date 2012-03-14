@@ -1,34 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx160.postini.com [74.125.245.160])
-	by kanga.kvack.org (Postfix) with SMTP id 679A66B004A
-	for <linux-mm@kvack.org>; Wed, 14 Mar 2012 03:51:11 -0400 (EDT)
-Date: Wed, 14 Mar 2012 03:51:09 -0400
-From: Christoph Hellwig <hch@infradead.org>
-Subject: Re: [PATCH 0/4] radix-tree: iterating general cleanup
-Message-ID: <20120314075109.GA32717@infradead.org>
-References: <20120207074905.29797.60353.stgit@zurg>
- <20120314073629.GA17016@infradead.org>
- <4F604D81.1060607@openvz.org>
+Received: from psmtp.com (na3sys010amx118.postini.com [74.125.245.118])
+	by kanga.kvack.org (Postfix) with SMTP id 8F3D06B004A
+	for <linux-mm@kvack.org>; Wed, 14 Mar 2012 05:42:59 -0400 (EDT)
+Date: Wed, 14 Mar 2012 10:42:55 +0100
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [patch] mm, memcg: do not allow tasks to be attached with zero
+ limit
+Message-ID: <20120314094255.GA4434@tiehlicka.suse.cz>
+References: <alpine.DEB.2.00.1203071914150.15244@chino.kir.corp.google.com>
+ <20120308122951.2988ec4e.akpm@linux-foundation.org>
+ <20120309102255.bbf94164.kamezawa.hiroyu@jp.fujitsu.com>
+ <20120308173818.ae5f621b.akpm@linux-foundation.org>
+ <20120309105706.4001646a.kamezawa.hiroyu@jp.fujitsu.com>
+ <20120313165117.GA1708@cmpxchg.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <4F604D81.1060607@openvz.org>
+In-Reply-To: <20120313165117.GA1708@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Konstantin Khlebnikov <khlebnikov@openvz.org>
-Cc: Christoph Hellwig <hch@infradead.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Linus Torvalds <torvalds@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Balbir Singh <bsingharora@gmail.com>, cgroups@vger.kernel.org, linux-mm@kvack.org
 
-On Wed, Mar 14, 2012 at 11:49:21AM +0400, Konstantin Khlebnikov wrote:
-> Christoph Hellwig wrote:
-> >Any updates on this series?
+On Tue 13-03-12 17:51:18, Johannes Weiner wrote:
+> On Fri, Mar 09, 2012 at 10:57:06AM +0900, KAMEZAWA Hiroyuki wrote:
+> > On Thu, 8 Mar 2012 17:38:18 -0800
+> > Andrew Morton <akpm@linux-foundation.org> wrote:
+> > 
+> > > On Fri, 9 Mar 2012 10:22:55 +0900 KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+> > > 
+> > > > On Thu, 8 Mar 2012 12:29:51 -0800
+> > > > Andrew Morton <akpm@linux-foundation.org> wrote:
+> > > > 
+> > > > > On Wed, 7 Mar 2012 19:14:49 -0800 (PST)
+> > > > > David Rientjes <rientjes@google.com> wrote:
+> > > > > 
+> > > > > > This patch prevents tasks from being attached to a memcg if there is a
+> > > > > > hard limit of zero.
+> > > > > 
+> > > > > We're talking about the memcg's limit_in_bytes here, yes?
+> > > > > 
+> > > > > > Additionally, the hard limit may not be changed to
+> > > > > > zero if there are tasks attached.
+> > > > > 
+> > > > > hm, well...  why?  That would be user error, wouldn't it?  What is
+> > > > > special about limit_in_bytes=0?  The memcg will also be unviable if
+> > > > > limit_in_bytes=1, but we permit that.
+> > > > > 
+> > > > > IOW, confused.
+> > > > > 
+> > > > Ah, yes. limit_in_bytes < some small size can cause the same trouble.
+> > > > Hmm... should we have configurable min_limit_in_bytes as sysctl or root memcg's
+> > > > attaribute.. ?
+> > > 
+> > > Why do *anything*?  If the operator chose an irrational configuration
+> > > then things won't work correctly and the operator will then fix the
+> > > configuration?
+> > > 
+> > 
+> > Because the result of 'error operaton' is SIGKILL to a task, which may be
+> > owned by very importang customer of hosting service.
+> > 
+> > Isn't this severe punishment for error operation ?
+> > 
+> > Considering again, I have 2 thoughts.
+> > 
+> > - it should be guarded by MiddleWare, it's not kernel job !
+> > - memcg should be more easy-to-use, friendly to users.
+> > 
+> > If the result is just an error as EINVAL or EBUSY, I may not be nervous....
 > 
-> I had sent "[PATCH v2 0/3] radix-tree: general iterator" February 10, there is no more updates after that.
-> I just checked v2 on top "next-20120314" -- looks like all ok.
+> You can still disable the OOM killer.  If you don't, you can always
+> get killed, so I'm not convinced by this patch or a sysctl, either.
 
-this was more a question to the MM maintainers if this is getting
-merged or if there were any further comments.
+Agreed, kernel usually doesn't care about insane settings and it does
+what it is told to do (why to safe somebody from shooting its own
+foot?).
 
-We'd really like to have this interface to simplify some code in XFS.
+-- 
+Michal Hocko
+SUSE Labs
+SUSE LINUX s.r.o.
+Lihovarska 1060/12
+190 00 Praha 9    
+Czech Republic
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
