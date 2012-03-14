@@ -1,150 +1,117 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx113.postini.com [74.125.245.113])
-	by kanga.kvack.org (Postfix) with SMTP id 214FE6B004A
-	for <linux-mm@kvack.org>; Wed, 14 Mar 2012 08:31:46 -0400 (EDT)
-Received: by wibhq7 with SMTP id hq7so5683795wib.8
-        for <linux-mm@kvack.org>; Wed, 14 Mar 2012 05:31:44 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx180.postini.com [74.125.245.180])
+	by kanga.kvack.org (Postfix) with SMTP id EF3CB6B004A
+	for <linux-mm@kvack.org>; Wed, 14 Mar 2012 08:41:54 -0400 (EDT)
+Date: Wed, 14 Mar 2012 13:41:50 +0100
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [patch 1/2] kernel: cgroup: push rcu read locking from
+ css_is_ancestor() to callsite
+Message-ID: <20120314124150.GE4434@tiehlicka.suse.cz>
+References: <1330438489-21909-1-git-send-email-hannes@cmpxchg.org>
 MIME-Version: 1.0
-In-Reply-To: <1331676929-25774-1-git-send-email-n-horiguchi@ah.jp.nec.com>
-References: <20120313144501.d031f25d.kamezawa.hiroyu@jp.fujitsu.com>
-	<1331676929-25774-1-git-send-email-n-horiguchi@ah.jp.nec.com>
-Date: Wed, 14 Mar 2012 20:31:43 +0800
-Message-ID: <CAJd=RBBjX2nL3UXoHZox3oU6Ve0xSawLNdXCawbdLaPpE8tQ1w@mail.gmail.com>
-Subject: Re: [PATCH v4 1/3] memcg: clean up existing move charge code
-From: Hillf Danton <dhillf@gmail.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1330438489-21909-1-git-send-email-hannes@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, David Rientjes <rientjes@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Konstantin Khlebnikov <khlebnikov@openvz.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Wed, Mar 14, 2012 at 6:15 AM, Naoya Horiguchi
-<n-horiguchi@ah.jp.nec.com> wrote:
-> From c9bdd8f19040f3cea1c7d36e98b03ee13c1b8505 Mon Sep 17 00:00:00 2001
-> From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-> Date: Tue, 13 Mar 2012 15:21:47 -0400
-> Subject: [PATCH 1/3] memcg: clean up existing move charge code
->
-> We'll introduce the thp variant of move charge code in later patches,
-> but before doing that let's start with refactoring existing code.
-> Here we replace lengthy function name is_target_pte_for_mc() with
-> shorter one in order to avoid ugly line breaks.
-> And for better readability, we explicitly use MC_TARGET_* instead of
-> simply using integers.
->
-> Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-> Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.futjisu.com>
+On Tue 28-02-12 15:14:48, Johannes Weiner wrote:
+> Library functions should not grab locks when the callsites can do it,
+> even if the lock nests like the rcu read-side lock does.
+> 
+> Push the rcu_read_lock() from css_is_ancestor() to its single user,
+> mem_cgroup_same_or_subtree() in preparation for another user that may
+> already hold the rcu read-side lock.
+> 
+> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
 
-Acked-by: Hillf Danton <dhillf@gmail.com>
+Acked-by: Michal Hocko <mhocko@suse.cz>
 
 > ---
-> =C2=A0mm/memcontrol.c | =C2=A0 17 ++++++++---------
-> =C2=A01 files changed, 8 insertions(+), 9 deletions(-)
->
+>  kernel/cgroup.c |   20 ++++++++++----------
+>  mm/memcontrol.c |   14 +++++++++-----
+>  2 files changed, 19 insertions(+), 15 deletions(-)
+> 
+> diff --git a/kernel/cgroup.c b/kernel/cgroup.c
+> index 4be474d..9003bd8 100644
+> --- a/kernel/cgroup.c
+> +++ b/kernel/cgroup.c
+> @@ -4841,7 +4841,7 @@ EXPORT_SYMBOL_GPL(css_depth);
+>   * @root: the css supporsed to be an ancestor of the child.
+>   *
+>   * Returns true if "root" is an ancestor of "child" in its hierarchy. Because
+> - * this function reads css->id, this use rcu_dereference() and rcu_read_lock().
+> + * this function reads css->id, the caller must hold rcu_read_lock().
+>   * But, considering usual usage, the csses should be valid objects after test.
+>   * Assuming that the caller will do some action to the child if this returns
+>   * returns true, the caller must take "child";s reference count.
+> @@ -4853,18 +4853,18 @@ bool css_is_ancestor(struct cgroup_subsys_state *child,
+>  {
+>  	struct css_id *child_id;
+>  	struct css_id *root_id;
+> -	bool ret = true;
+>  
+> -	rcu_read_lock();
+>  	child_id  = rcu_dereference(child->id);
+> +	if (!child_id)
+> +		return false;
+>  	root_id = rcu_dereference(root->id);
+> -	if (!child_id
+> -	    || !root_id
+> -	    || (child_id->depth < root_id->depth)
+> -	    || (child_id->stack[root_id->depth] != root_id->id))
+> -		ret = false;
+> -	rcu_read_unlock();
+> -	return ret;
+> +	if (!root_id)
+> +		return false;
+> +	if (child_id->depth < root_id->depth)
+> +		return false;
+> +	if (child_id->stack[root_id->depth] != root_id->id)
+> +		return false;
+> +	return true;
+>  }
+>  
+>  void free_css_id(struct cgroup_subsys *ss, struct cgroup_subsys_state *css)
 > diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index a288855..508a7ed 100644
+> index e4be95a..b4622fb 100644
 > --- a/mm/memcontrol.c
 > +++ b/mm/memcontrol.c
-> @@ -5069,7 +5069,7 @@ one_by_one:
-> =C2=A0}
->
-> =C2=A0/**
-> - * is_target_pte_for_mc - check a pte whether it is valid for move charg=
-e
-> + * get_mctgt_type - get target type of moving charge
-> =C2=A0* @vma: the vma the pte to be checked belongs
-> =C2=A0* @addr: the address corresponding to the pte to be checked
-> =C2=A0* @ptent: the pte to be checked
-> @@ -5092,7 +5092,7 @@ union mc_target {
-> =C2=A0};
->
-> =C2=A0enum mc_target_type {
-> - =C2=A0 =C2=A0 =C2=A0 MC_TARGET_NONE, /* not used */
-> + =C2=A0 =C2=A0 =C2=A0 MC_TARGET_NONE =3D 0,
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0MC_TARGET_PAGE,
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0MC_TARGET_SWAP,
-> =C2=A0};
-> @@ -5173,12 +5173,12 @@ static struct page *mc_handle_file_pte(struct vm_=
-area_struct *vma,
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0return page;
-> =C2=A0}
->
-> -static int is_target_pte_for_mc(struct vm_area_struct *vma,
-> +static enum mc_target_type get_mctgt_type(struct vm_area_struct *vma,
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0unsigned long addr=
-, pte_t ptent, union mc_target *target)
-> =C2=A0{
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0struct page *page =3D NULL;
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0struct page_cgroup *pc;
-> - =C2=A0 =C2=A0 =C2=A0 int ret =3D 0;
-> + =C2=A0 =C2=A0 =C2=A0 enum mc_target_type ret =3D MC_TARGET_NONE;
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0swp_entry_t ent =3D { .val =3D 0 };
->
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0if (pte_present(ptent))
-> @@ -5189,7 +5189,7 @@ static int is_target_pte_for_mc(struct vm_area_stru=
-ct *vma,
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0page =3D mc_handle=
-_file_pte(vma, addr, ptent, &ent);
->
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0if (!page && !ent.val)
-> - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 return 0;
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 return ret;
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0if (page) {
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0pc =3D lookup_page=
-_cgroup(page);
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0/*
-> @@ -5227,7 +5227,7 @@ static int mem_cgroup_count_precharge_pte_range(pmd=
-_t *pmd,
->
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0pte =3D pte_offset_map_lock(vma->vm_mm, pmd, a=
-ddr, &ptl);
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0for (; addr !=3D end; pte++, addr +=3D PAGE_SI=
-ZE)
-> - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 if (is_target_pte_for_=
-mc(vma, addr, *pte, NULL))
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 if (get_mctgt_type(vma=
-, addr, *pte, NULL))
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
-=A0 =C2=A0mc.precharge++; /* increment precharge temporarily */
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0pte_unmap_unlock(pte - 1, ptl);
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0cond_resched();
-> @@ -5397,8 +5397,7 @@ retry:
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0if (!mc.precharge)
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
-=A0 =C2=A0break;
->
-> - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 type =3D is_target_pte=
-_for_mc(vma, addr, ptent, &target);
-> - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 switch (type) {
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 switch (get_mctgt_type=
-(vma, addr, ptent, &target)) {
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0case MC_TARGET_PAG=
-E:
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
-=A0 =C2=A0page =3D target.page;
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
-=A0 =C2=A0if (isolate_lru_page(page))
-> @@ -5411,7 +5410,7 @@ retry:
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
-=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0mc.moved_charge++;
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
-=A0 =C2=A0}
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
-=A0 =C2=A0putback_lru_page(page);
-> -put: =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 /* i=
-s_target_pte_for_mc() gets the page */
-> +put: =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 /* g=
-et_mctgt_type() gets the page */
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
-=A0 =C2=A0put_page(page);
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
-=A0 =C2=A0break;
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0case MC_TARGET_SWA=
-P:
-> --
+> @@ -1047,12 +1047,16 @@ struct lruvec *mem_cgroup_lru_move_lists(struct zone *zone,
+>  static bool mem_cgroup_same_or_subtree(const struct mem_cgroup *root_memcg,
+>  		struct mem_cgroup *memcg)
+>  {
+> -	if (root_memcg != memcg) {
+> -		return (root_memcg->use_hierarchy &&
+> -			css_is_ancestor(&memcg->css, &root_memcg->css));
+> -	}
+> +	bool ret;
+>  
+> -	return true;
+> +	if (root_memcg == memcg)
+> +		return true;
+> +	if (!root_memcg->use_hierarchy)
+> +		return false;
+> +	rcu_read_lock();
+> +	ret = css_is_ancestor(&memcg->css, &root_memcg->css);
+> +	rcu_read_unlock();
+> +	return ret;
+>  }
+>  
+>  int task_in_mem_cgroup(struct task_struct *task, const struct mem_cgroup *memcg)
+> -- 
 > 1.7.7.6
->
+> 
+
+-- 
+Michal Hocko
+SUSE Labs
+SUSE LINUX s.r.o.
+Lihovarska 1060/12
+190 00 Praha 9    
+Czech Republic
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
