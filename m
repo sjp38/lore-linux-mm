@@ -1,170 +1,150 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx122.postini.com [74.125.245.122])
-	by kanga.kvack.org (Postfix) with SMTP id E0AC06B004A
-	for <linux-mm@kvack.org>; Wed, 14 Mar 2012 08:31:05 -0400 (EDT)
-Message-ID: <4F608F25.3010700@parallels.com>
-Date: Wed, 14 Mar 2012 16:29:25 +0400
-From: Glauber Costa <glommer@parallels.com>
+Received: from psmtp.com (na3sys010amx113.postini.com [74.125.245.113])
+	by kanga.kvack.org (Postfix) with SMTP id 214FE6B004A
+	for <linux-mm@kvack.org>; Wed, 14 Mar 2012 08:31:46 -0400 (EDT)
+Received: by wibhq7 with SMTP id hq7so5683795wib.8
+        for <linux-mm@kvack.org>; Wed, 14 Mar 2012 05:31:44 -0700 (PDT)
 MIME-Version: 1.0
-Subject: Re: [PATCH v2 02/13] memcg: Kernel memory accounting infrastructure.
-References: <1331325556-16447-1-git-send-email-ssouhlal@FreeBSD.org> <1331325556-16447-3-git-send-email-ssouhlal@FreeBSD.org> <4F5C5E54.2020408@parallels.com> <20120313152446.28b0d696.kamezawa.hiroyu@jp.fujitsu.com> <4F5F236A.1070609@parallels.com> <20120314091526.3c079693.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20120314091526.3c079693.kamezawa.hiroyu@jp.fujitsu.com>
-Content-Type: text/plain; charset="ISO-8859-1"; format=flowed
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <1331676929-25774-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+References: <20120313144501.d031f25d.kamezawa.hiroyu@jp.fujitsu.com>
+	<1331676929-25774-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+Date: Wed, 14 Mar 2012 20:31:43 +0800
+Message-ID: <CAJd=RBBjX2nL3UXoHZox3oU6Ve0xSawLNdXCawbdLaPpE8tQ1w@mail.gmail.com>
+Subject: Re: [PATCH v4 1/3] memcg: clean up existing move charge code
+From: Hillf Danton <dhillf@gmail.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Suleiman Souhlal <ssouhlal@FreeBSD.org>, cgroups@vger.kernel.org, suleiman@google.com, penberg@kernel.org, cl@linux.com, yinghan@google.com, hughd@google.com, gthelen@google.com, peterz@infradead.org, dan.magenheimer@oracle.com, hannes@cmpxchg.org, mgorman@suse.de, James.Bottomley@HansenPartnership.com, linux-mm@kvack.org, devel@openvz.org, linux-kernel@vger.kernel.org
+To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, David Rientjes <rientjes@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
+On Wed, Mar 14, 2012 at 6:15 AM, Naoya Horiguchi
+<n-horiguchi@ah.jp.nec.com> wrote:
+> From c9bdd8f19040f3cea1c7d36e98b03ee13c1b8505 Mon Sep 17 00:00:00 2001
+> From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+> Date: Tue, 13 Mar 2012 15:21:47 -0400
+> Subject: [PATCH 1/3] memcg: clean up existing move charge code
+>
+> We'll introduce the thp variant of move charge code in later patches,
+> but before doing that let's start with refactoring existing code.
+> Here we replace lengthy function name is_target_pte_for_mc() with
+> shorter one in order to avoid ugly line breaks.
+> And for better readability, we explicitly use MC_TARGET_* instead of
+> simply using integers.
+>
+> Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+> Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.futjisu.com>
 
->> This has been discussed before, I can probably find it in the archives
->> if you want to go back and see it.
->>
->
-> Yes. IIUC, we agreed to have independet kmem limit. I just want to think it
-> again because there are too many proposals and it seems I'm in confusion.
->
+Acked-by: Hillf Danton <dhillf@gmail.com>
 
-Sure thing. The discussion turned out good, so I'm glad you asked =)
-
+> ---
+> =C2=A0mm/memcontrol.c | =C2=A0 17 ++++++++---------
+> =C2=A01 files changed, 8 insertions(+), 9 deletions(-)
 >
->> But in a nutshell:
->>
->> 1) Supposing independent knob disappear (I will explain in item 2 why I
->> don't want it to), I don't thing a flag makes sense either. *If* we are
->> planning to enable/disable this, it might make more sense to put some
->> work on it, and allow particular slabs to be enabled/disabled by writing
->> to memory.kmem.slabinfo (-* would disable all, +* enable all, +kmalloc*
->> enable all kmalloc, etc).
->>
-> seems interesting.
-I'll try to cook a PoC.
-
->> All that said, while reading your message, thinking a bit, the following
->> crossed my mind:
->>
->> - We can account the slabs to memcg->res normally, and just store the
->>     information that this is kernel memory into a percpu counter, as
->>     I proposed recently.
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index a288855..508a7ed 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -5069,7 +5069,7 @@ one_by_one:
+> =C2=A0}
 >
-> Ok, then user can see the amount of kernel memory.
+> =C2=A0/**
+> - * is_target_pte_for_mc - check a pte whether it is valid for move charg=
+e
+> + * get_mctgt_type - get target type of moving charge
+> =C2=A0* @vma: the vma the pte to be checked belongs
+> =C2=A0* @addr: the address corresponding to the pte to be checked
+> =C2=A0* @ptent: the pte to be checked
+> @@ -5092,7 +5092,7 @@ union mc_target {
+> =C2=A0};
 >
+> =C2=A0enum mc_target_type {
+> - =C2=A0 =C2=A0 =C2=A0 MC_TARGET_NONE, /* not used */
+> + =C2=A0 =C2=A0 =C2=A0 MC_TARGET_NONE =3D 0,
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0MC_TARGET_PAGE,
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0MC_TARGET_SWAP,
+> =C2=A0};
+> @@ -5173,12 +5173,12 @@ static struct page *mc_handle_file_pte(struct vm_=
+area_struct *vma,
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0return page;
+> =C2=A0}
 >
->> - The knob goes away, and becomes implicit: if you ever write anything
->>     to memory.kmem.limit_in_bytes, we transfer that memory to a separate
->>     kmem res_counter, and proceed from there. We can keep accounting to
->>     memcg->res anyway, just that kernel memory will now have a separate
->>     limit.
+> -static int is_target_pte_for_mc(struct vm_area_struct *vma,
+> +static enum mc_target_type get_mctgt_type(struct vm_area_struct *vma,
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0unsigned long addr=
+, pte_t ptent, union mc_target *target)
+> =C2=A0{
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0struct page *page =3D NULL;
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0struct page_cgroup *pc;
+> - =C2=A0 =C2=A0 =C2=A0 int ret =3D 0;
+> + =C2=A0 =C2=A0 =C2=A0 enum mc_target_type ret =3D MC_TARGET_NONE;
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0swp_entry_t ent =3D { .val =3D 0 };
 >
-> Okay, then,
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0if (pte_present(ptent))
+> @@ -5189,7 +5189,7 @@ static int is_target_pte_for_mc(struct vm_area_stru=
+ct *vma,
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0page =3D mc_handle=
+_file_pte(vma, addr, ptent, &ent);
 >
-> 	kmem_limit<  memory.limit<  memsw.limit
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0if (!page && !ent.val)
+> - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 return 0;
+> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 return ret;
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0if (page) {
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0pc =3D lookup_page=
+_cgroup(page);
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0/*
+> @@ -5227,7 +5227,7 @@ static int mem_cgroup_count_precharge_pte_range(pmd=
+_t *pmd,
 >
-> ...seems reasonable to me.
-> This means, user can specify 'ratio' of kmem in memory.limit.
-Yes, I believe so. It is a big improvement over the current interface
-we have today, IMHO.
-
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0pte =3D pte_offset_map_lock(vma->vm_mm, pmd, a=
+ddr, &ptl);
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0for (; addr !=3D end; pte++, addr +=3D PAGE_SI=
+ZE)
+> - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 if (is_target_pte_for_=
+mc(vma, addr, *pte, NULL))
+> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 if (get_mctgt_type(vma=
+, addr, *pte, NULL))
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
+=A0 =C2=A0mc.precharge++; /* increment precharge temporarily */
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0pte_unmap_unlock(pte - 1, ptl);
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0cond_resched();
+> @@ -5397,8 +5397,7 @@ retry:
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0if (!mc.precharge)
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
+=A0 =C2=A0break;
 >
-> More consideration will be interesting.
->
->   - We can show the amount of reclaimable kmem by some means ?
-That's hard to do. The users of the cache have this information, the 
-underlying slab/slub/slut code do not. We need to rely on the cache 
-owner to provide this, and provide correctly. So the chances we'll have 
-incorrect information here grows by quite a bit.
-
->   - What happens when a new cgroup created ?
-
-mem_cgroup_create() is called =)
-Heh, jokes apart, I don't really follow here. What exactly do you mean? 
-There shouldn't be anything extremely out of the ordinary.
-
->   - Should we have 'ratio' interface in kernel level ?
-I personally don't like a ratio interface. I believe specifying "kmem 
-should never be allowed to go over X bytes" is more than enough.
-
->   - What happens at task moving ?
-
- From kmem PoV, nothing. It is ultimately impossible to track a slab 
-page to a task. The page contains objects that were allocated from 
-multiple tasks. Only when the whole cgroup is destroyed, is that
-we take any action.
-
->   - Should we allow per-slab accounting knob in /sys/kernel/slab/xxx ?
->     or somewhere ?
-
-Not really follow.
-
->   - Should we show per-memcg usage in /sys/kernel/slab/xxx ?
-I guess so.
-
->   - Should we have force_empty for kmem (as last resort) ?
-We do that when the cgroup is going away. From user action, I suspect 
-the best we can do is call the shrinkers, and see if they get freed.
-
->
-> With any implementation, my concern is
->   - overhead/performance.
-Yes. For the next round, we need to add some more detailed benchmarks.
->   - unreclaimable kmem
-That's actually the reason behind all that!
-
-So if you have a 1 Gb mem allowance, and you fill it with unreclaimable 
-kmem, you are in trouble, yes.
-
-Point is, at least all your allocations will stop working, and something 
-will be done soon. Without kmem tracking, this can grow and grow, 
-outside the cgroups border.
-
->   - shared kmem between cgroups.
-
-Right now both proposals ended up doing account to first user. In 
-theory, it leaves a gap under which a smart cgroup can go pinning a lot 
-of kmem without owning it.
-
-But I still believe this to be the best way forward.
-It is hard to determine who the object user is without cooperation from 
-the object caches. And even then, it is even harder to do so without 
-penalizing every single object allocation (right now we only penalize a 
-new page allocation, which is way better performance-wise).
-
-
-
-
-
->
->
->> - With this scheme, it may not be necessary to ever have a file
->>     memory.kmem.soft_limit_in_bytes. Reclaim is always part of the normal
->>     memcg reclaim.
->>
-> Good.
->
->> The outlined above would work for us, and make the whole scheme simpler,
->> I believe.
->>
->> What do you think ?
->
-> It sounds interesting to me.
->
-> Thanks,
-> -Kame
->
->
->
->
->
->
->
->
->
->
->
+> - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 type =3D is_target_pte=
+_for_mc(vma, addr, ptent, &target);
+> - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 switch (type) {
+> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 switch (get_mctgt_type=
+(vma, addr, ptent, &target)) {
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0case MC_TARGET_PAG=
+E:
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
+=A0 =C2=A0page =3D target.page;
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
+=A0 =C2=A0if (isolate_lru_page(page))
+> @@ -5411,7 +5410,7 @@ retry:
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
+=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0mc.moved_charge++;
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
+=A0 =C2=A0}
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
+=A0 =C2=A0putback_lru_page(page);
+> -put: =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 /* i=
+s_target_pte_for_mc() gets the page */
+> +put: =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 /* g=
+et_mctgt_type() gets the page */
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
+=A0 =C2=A0put_page(page);
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
+=A0 =C2=A0break;
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0case MC_TARGET_SWA=
+P:
 > --
-> To unsubscribe from this list: send the line "unsubscribe cgroups" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+> 1.7.7.6
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
