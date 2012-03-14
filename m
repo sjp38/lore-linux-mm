@@ -1,81 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx134.postini.com [74.125.245.134])
-	by kanga.kvack.org (Postfix) with SMTP id 9E7BB6B004A
-	for <linux-mm@kvack.org>; Wed, 14 Mar 2012 10:25:22 -0400 (EDT)
-Date: Wed, 14 Mar 2012 15:25:19 +0100
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [patch 2/2] mm: memcg: count pte references from every member of
- the reclaimed hierarchy
-Message-ID: <20120314142519.GF4434@tiehlicka.suse.cz>
-References: <1330438489-21909-1-git-send-email-hannes@cmpxchg.org>
- <1330438489-21909-2-git-send-email-hannes@cmpxchg.org>
+Received: from psmtp.com (na3sys010amx152.postini.com [74.125.245.152])
+	by kanga.kvack.org (Postfix) with SMTP id DF8A76B004A
+	for <linux-mm@kvack.org>; Wed, 14 Mar 2012 10:51:16 -0400 (EDT)
+Received: by vcbfk14 with SMTP id fk14so2816775vcb.14
+        for <linux-mm@kvack.org>; Wed, 14 Mar 2012 07:51:15 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1330438489-21909-2-git-send-email-hannes@cmpxchg.org>
+In-Reply-To: <alpine.DEB.2.00.1203140908010.5485@router.home>
+References: <CAOtvUMdVrjUHLx2jZ2xbpBoDBMCX8sdCASEkmXCtBrU-gQ3EhQ@mail.gmail.com>
+	<alpine.DEB.2.00.1203140908010.5485@router.home>
+Date: Wed, 14 Mar 2012 16:51:15 +0200
+Message-ID: <CAOtvUMcPEbG0_CTazCgf0Tb4kinzP+nmhjWQL=Juok_Bxc-r5A@mail.gmail.com>
+Subject: Re: [PATCH] mm: fix vmstat_update to keep scheduling itself on all cores
+From: Gilad Ben-Yossef <gilad@benyossef.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Konstantin Khlebnikov <khlebnikov@openvz.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Christoph Lameter <cl@linux.com>
+Cc: linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andi Kleen <ak@linux.intel.com>, Linux-MM <linux-mm@kvack.org>
 
-On Tue 28-02-12 15:14:49, Johannes Weiner wrote:
-[...]
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index b4622fb..21004df 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -1044,17 +1044,23 @@ struct lruvec *mem_cgroup_lru_move_lists(struct zone *zone,
->   * Checks whether given mem is same or in the root_mem_cgroup's
->   * hierarchy subtree
->   */
-> -static bool mem_cgroup_same_or_subtree(const struct mem_cgroup *root_memcg,
-> -		struct mem_cgroup *memcg)
-> +bool __mem_cgroup_same_or_subtree(const struct mem_cgroup *root_memcg,
-> +				  struct mem_cgroup *memcg)
->  {
-> -	bool ret;
-> -
->  	if (root_memcg == memcg)
->  		return true;
->  	if (!root_memcg->use_hierarchy)
->  		return false;
-> +	return css_is_ancestor(&memcg->css, &root_memcg->css);
-> +}
-> +
-> +static bool mem_cgroup_same_or_subtree(const struct mem_cgroup *root_memcg,
-> +				       struct mem_cgroup *memcg)
-> +{
-> +	bool ret;
-> +
->  	rcu_read_lock();
-> -	ret = css_is_ancestor(&memcg->css, &root_memcg->css);
-> +	ret = __mem_cgroup_same_or_subtree(root_memcg, memcg);
->  	rcu_read_unlock();
->  	return ret;
->  }
-> diff --git a/mm/vmscan.c b/mm/vmscan.c
-> index c631234..120646e 100644
-> --- a/mm/vmscan.c
-> +++ b/mm/vmscan.c
-> @@ -708,7 +708,8 @@ static enum page_references page_check_references(struct page *page,
->  	int referenced_ptes, referenced_page;
->  	unsigned long vm_flags;
->  
-> -	referenced_ptes = page_referenced(page, 1, mz->mem_cgroup, &vm_flags);
-> +	referenced_ptes = page_referenced(page, 1, sc->target_mem_cgroup,
-> +					  &vm_flags);
->  	referenced_page = TestClearPageReferenced(page);
+On Wed, Mar 14, 2012 at 4:09 PM, Christoph Lameter <cl@linux.com> wrote:
+> On Wed, 14 Mar 2012, Gilad Ben-Yossef wrote:
+>
+>> We set up per-cpu work structures for vmstat and schedule them on
+>> each cpu when they go online only to re-schedule them on the general
+>> work queue when they first run.
+>
+> schedule_delayed_work queues on the current cpu unless the
+> WQ_UNBOUND flag is set. Which is not set for vmstat_work.
 
-Maybe a stupid question but isn't target_mem_cgroup NULL in the global
-reclaim case? And we doesn't handle that in __mem_cgroup_same_or_subtree...
+I've missed that. My bad. Sorry for the noise.
 
--- 
-Michal Hocko
-SUSE Labs
-SUSE LINUX s.r.o.
-Lihovarska 1060/12
-190 00 Praha 9    
-Czech Republic
+Gilad
+
+
+
+--=20
+Gilad Ben-Yossef
+Chief Coffee Drinker
+gilad@benyossef.com
+Israel Cell: +972-52-8260388
+US Cell: +1-973-8260388
+http://benyossef.com
+
+"If you take a class in large-scale robotics, can you end up in a
+situation where the homework eats your dog?"
+=A0-- Jean-Baptiste Queru
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
