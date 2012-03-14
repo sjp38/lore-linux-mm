@@ -1,28 +1,28 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx136.postini.com [74.125.245.136])
-	by kanga.kvack.org (Postfix) with SMTP id DEA666B004A
-	for <linux-mm@kvack.org>; Tue, 13 Mar 2012 21:57:59 -0400 (EDT)
-Date: Tue, 13 Mar 2012 18:57:56 -0700
+Received: from psmtp.com (na3sys010amx202.postini.com [74.125.245.202])
+	by kanga.kvack.org (Postfix) with SMTP id AE90D6B004A
+	for <linux-mm@kvack.org>; Tue, 13 Mar 2012 22:19:13 -0400 (EDT)
+Date: Tue, 13 Mar 2012 19:19:06 -0700
 From: Daniel Walker <dwalker@fifo99.com>
 Subject: Re: [PATCH 0/5] Persist printk buffer across reboots.
-Message-ID: <20120314015755.GB5218@fifo99.com>
+Message-ID: <20120314021906.GC5218@fifo99.com>
 References: <1331617001-20906-1-git-send-email-apenwarr@gmail.com>
- <20120312.225302.488696931454771146.davem@davemloft.net>
- <1331646604.18960.76.camel@twins>
+ <20120313170851.GA5218@fifo99.com>
+ <20120313151049.fa33d232.akpm@linux-foundation.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1331646604.18960.76.camel@twins>
+In-Reply-To: <20120313151049.fa33d232.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Cc: David Miller <davem@davemloft.net>, apenwarr@gmail.com, akpm@linux-foundation.org, josh@joshtriplett.org, paulmck@linux.vnet.ibm.com, mingo@elte.hu, fdinitto@redhat.com, hannes@cmpxchg.org, olaf@aepfle.de, paul.gortmaker@windriver.com, tj@kernel.org, hpa@linux.intel.com, yinghai@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Avery Pennarun <apenwarr@gmail.com>, Josh Triplett <josh@joshtriplett.org>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Ingo Molnar <mingo@elte.hu>, "David S. Miller" <davem@davemloft.net>, Peter Zijlstra <a.p.zijlstra@chello.nl>, "Fabio M. Di Nitto" <fdinitto@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Olaf Hering <olaf@aepfle.de>, Paul Gortmaker <paul.gortmaker@windriver.com>, Tejun Heo <tj@kernel.org>, "H. Peter Anvin" <hpa@linux.intel.com>, Yinghai LU <yinghai@kernel.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Seiji Aguchi <seiji.aguchi@hds.com>
 
-On Tue, Mar 13, 2012 at 02:50:04PM +0100, Peter Zijlstra wrote:
-> On Mon, 2012-03-12 at 22:53 -0700, David Miller wrote:
-> > From: Avery Pennarun <apenwarr@gmail.com>
-> > Date: Tue, 13 Mar 2012 01:36:36 -0400
-> > 
+On Tue, Mar 13, 2012 at 03:10:49PM -0700, Andrew Morton wrote:
+> On Tue, 13 Mar 2012 10:08:51 -0700
+> Daniel Walker <dwalker@fifo99.com> wrote:
+> 
+> > On Tue, Mar 13, 2012 at 01:36:36AM -0400, Avery Pennarun wrote:
 > > > The last patch in this series implements a new CONFIG_PRINTK_PERSIST option
 > > > that, when enabled, puts the printk buffer in a well-defined memory location
 > > > so that we can keep appending to it after a reboot.  The upshot is that,
@@ -31,40 +31,34 @@ On Tue, Mar 13, 2012 at 02:50:04PM +0100, Peter Zijlstra wrote:
 > > > could then upload the messages to a server (for example) to keep crash
 > > > statistics.
 > > 
-> > On some platforms there are formal ways to reserve areas of memory
-> > such that the bootup firmware will know to not touch it on soft resets
-> > no matter what.  For example, on Sparc there are OpenFirmware calls to
-> > set aside such an area of soft-reset preserved memory.
+> > There's currently driver/mtd/mtdoops.c, fs/pstore/, and
+> > drivers/staging/android/ram_console.c that do similar things
+> > as this. Did you investigate those for potentially modifying them to add
+> > this functionality ? If so what issues did you find?
 > > 
-> > I think some formal agreement with the system firmware is a lot better
-> > when available, and should be explicitly accomodated in these changes
-> > so that those of us with such facilities can very easily hook it up.
+> > I have a arm MSM G1 with persistent memory at 0x16d00000 size 20000bytes..
+> > It's fairly simple you just have to ioremap the memory, but then it's good
+> > for writing.. Currently the android ram_console uses this. How would I
+> > convert this area for use with your changes?
 > 
-> Shouldn't this all be near the pstore effort? I know pstore and the
-> soft-reset stuff aren't quite the same, but if that's the best Sparc can
-> do, then why not?
+> Yes, and various local implementations which do things such as stuffing
+> the log buffer into NVRAM as the kernel is crashing.
 > 
-> OTOH if Sparc can actually do pstore too, then it might make sense.
+> I do think we'd need some back-end driver arrangement which will permit
+> the use of stores which aren't in addressible mamory.
 > 
-> What I guess I'm saying is that we should try and minimize the duplicate
-> efforts here.. and it seems to me that writing a soft reset x86 backend
-> to pstore for those machines that don't actually have the acpi flash
-> crap might be more useful and less duplicative.
+> It's quite the can of worms, but definitely worth doing if we can get
+> it approximately correct.
 
-I don't disagree, but pstore is written with this transactional notion in
-mind. It's doesn't appear to be setup to handle just a straight memory
-area. Changing mtdoops to do this would be more trivial. It would be merging
-android ram_console with mtdoops basically. However, I don't know if that would
-cover what Avery is doing here.
+For sure.. I've had at least a couple non-OOPS based crashed I would
+have liked to get logs for.
 
-pstore does seems to have the nicest user interface (might be better in
-debugfs tho). If someone wanted to move forward with pstore they
-would have to write some some sort of,
+There is also this series,
 
-int pstore_register_simple(unsigned long addr, unsigned long size);
+http://lists.infradead.org/pipermail/kexec/2011-July/005258.html
 
-to cover all the memory areas that aren't transaction based, or make
-pstore accept a platform_device.
+It seems awkward that pstore is in fs/pstore/ then pstore ends up as the
+"back end" where it could just be the whole solution.
 
 Daniel
 
