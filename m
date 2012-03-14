@@ -1,25 +1,29 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx170.postini.com [74.125.245.170])
-	by kanga.kvack.org (Postfix) with SMTP id CC76F6B004A
-	for <linux-mm@kvack.org>; Wed, 14 Mar 2012 09:55:36 -0400 (EDT)
-Message-ID: <1331733335.28753.YahooMailNeo@web162004.mail.bf1.yahoo.com>
-Date: Wed, 14 Mar 2012 06:55:35 -0700 (PDT)
-From: PINTU KUMAR <pintu_agarwal@yahoo.com>
-Reply-To: PINTU KUMAR <pintu_agarwal@yahoo.com>
-Subject: [HELP]: How to use ION memory manager from user space ?
+Received: from psmtp.com (na3sys010amx194.postini.com [74.125.245.194])
+	by kanga.kvack.org (Postfix) with SMTP id 121246B004A
+	for <linux-mm@kvack.org>; Wed, 14 Mar 2012 10:09:43 -0400 (EDT)
+Date: Wed, 14 Mar 2012 09:09:39 -0500 (CDT)
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: [PATCH] mm: fix vmstat_update to keep scheduling itself on all
+ cores
+In-Reply-To: <CAOtvUMdVrjUHLx2jZ2xbpBoDBMCX8sdCASEkmXCtBrU-gQ3EhQ@mail.gmail.com>
+Message-ID: <alpine.DEB.2.00.1203140908010.5485@router.home>
+References: <CAOtvUMdVrjUHLx2jZ2xbpBoDBMCX8sdCASEkmXCtBrU-gQ3EhQ@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Transfer-Encoding: quoted-printable
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Gilad Ben-Yossef <gilad@benyossef.com>
+Cc: linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andi Kleen <ak@linux.intel.com>, Linux-MM <linux-mm@kvack.org>
 
-Dear All,=0A=A0=0AI need a sample user space program that uses ION memory m=
-anager to allocate memory.=0A=0AThat is to use /dev/ion and use ION ioctl c=
-alls to allocate and share memory from user space.=0A=A0=0AI enabled ION me=
-mory manager in kernel but I could not find any test program to test ION.=
-=0A=A0=0AIf anybody knows about any test program/utility for testing ION ma=
-nager. Please let me know.=0A=A0=0A=A0=0AThanks,=0APintu
+On Wed, 14 Mar 2012, Gilad Ben-Yossef wrote:
+
+> We set up per-cpu work structures for vmstat and schedule them on
+> each cpu when they go online only to re-schedule them on the general
+> work queue when they first run.
+
+schedule_delayed_work queues on the current cpu unless the
+WQ_UNBOUND flag is set. Which is not set for vmstat_work.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
