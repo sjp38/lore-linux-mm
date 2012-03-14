@@ -1,51 +1,25 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx185.postini.com [74.125.245.185])
-	by kanga.kvack.org (Postfix) with SMTP id 3999A6B004A
-	for <linux-mm@kvack.org>; Wed, 14 Mar 2012 09:08:16 -0400 (EDT)
-Received: by eaal1 with SMTP id l1so1089740eaa.14
-        for <linux-mm@kvack.org>; Wed, 14 Mar 2012 06:08:14 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx170.postini.com [74.125.245.170])
+	by kanga.kvack.org (Postfix) with SMTP id CC76F6B004A
+	for <linux-mm@kvack.org>; Wed, 14 Mar 2012 09:55:36 -0400 (EDT)
+Message-ID: <1331733335.28753.YahooMailNeo@web162004.mail.bf1.yahoo.com>
+Date: Wed, 14 Mar 2012 06:55:35 -0700 (PDT)
+From: PINTU KUMAR <pintu_agarwal@yahoo.com>
+Reply-To: PINTU KUMAR <pintu_agarwal@yahoo.com>
+Subject: [HELP]: How to use ION memory manager from user space ?
 MIME-Version: 1.0
-In-Reply-To: <20120314111357.GD4434@tiehlicka.suse.cz>
-References: <CAJd=RBATj97k5UESDFx82bzt0K4OquhBoDkfjPBPacdmdfJE8g@mail.gmail.com>
-	<20120314111357.GD4434@tiehlicka.suse.cz>
-Date: Wed, 14 Mar 2012 21:08:13 +0800
-Message-ID: <CAJd=RBBd0vF1waARU5FQbomLQLAG5ekmiWg+WDpALke9SaGP1g@mail.gmail.com>
-Subject: Re: [PATCH] mm: hugetlb: defer freeing pages when gathering surplus pages
-From: Hillf Danton <dhillf@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=iso-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>
+To: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On Wed, Mar 14, 2012 at 7:13 PM, Michal Hocko <mhocko@suse.cz> wrote:
-> [Sorry for the late reply but I was away from email for quite sometime]
->
-
-Nice to see you back:)
-
-> On Tue 14-02-12 20:53:51, Hillf Danton wrote:
->> When gathering surplus pages, the number of needed pages is recomputed after
->> reacquiring hugetlb lock to catch changes in resv_huge_pages and
->> free_huge_pages. Plus it is recomputed with the number of newly allocated
->> pages involved.
->>
->> Thus freeing pages could be deferred a bit to see if the final page request is
->> satisfied, though pages could be allocated less than needed.
->
-> The patch looks OK but I am missing a word why we need it. I guess
-
-False negative is removed as it should be.
-
-> your primary motivation is that we want to reduce false positives when
-> we fail to allocate surplus pages while somebody freed some in the
-> background.
-> What is the workload that you observed such a behavior? Or is this just
-> from the code review?
->
-The second.
-
--hd
+Dear All,=0A=A0=0AI need a sample user space program that uses ION memory m=
+anager to allocate memory.=0A=0AThat is to use /dev/ion and use ION ioctl c=
+alls to allocate and share memory from user space.=0A=A0=0AI enabled ION me=
+mory manager in kernel but I could not find any test program to test ION.=
+=0A=A0=0AIf anybody knows about any test program/utility for testing ION ma=
+nager. Please let me know.=0A=A0=0A=A0=0AThanks,=0APintu
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
