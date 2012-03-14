@@ -1,110 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx117.postini.com [74.125.245.117])
-	by kanga.kvack.org (Postfix) with SMTP id A32F26B004A
-	for <linux-mm@kvack.org>; Tue, 13 Mar 2012 20:30:05 -0400 (EDT)
-Received: from m4.gw.fujitsu.co.jp (unknown [10.0.50.74])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id C28543EE0BB
-	for <linux-mm@kvack.org>; Wed, 14 Mar 2012 09:30:03 +0900 (JST)
-Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 8B2A245DE52
-	for <linux-mm@kvack.org>; Wed, 14 Mar 2012 09:30:03 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 4189B45DE51
-	for <linux-mm@kvack.org>; Wed, 14 Mar 2012 09:30:03 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 294A0E08001
-	for <linux-mm@kvack.org>; Wed, 14 Mar 2012 09:30:03 +0900 (JST)
-Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.240.81.147])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id C8E511DB8040
-	for <linux-mm@kvack.org>; Wed, 14 Mar 2012 09:30:02 +0900 (JST)
-Date: Wed, 14 Mar 2012 09:28:28 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [RFC REPOST] cgroup: removing css reference drain wait during
- cgroup removal
-Message-Id: <20120314092828.3321731c.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20120313163914.GD7349@google.com>
-References: <20120312213155.GE23255@google.com>
-	<20120312213343.GF23255@google.com>
-	<20120313151148.f8004a00.kamezawa.hiroyu@jp.fujitsu.com>
-	<20120313163914.GD7349@google.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx136.postini.com [74.125.245.136])
+	by kanga.kvack.org (Postfix) with SMTP id DEA666B004A
+	for <linux-mm@kvack.org>; Tue, 13 Mar 2012 21:57:59 -0400 (EDT)
+Date: Tue, 13 Mar 2012 18:57:56 -0700
+From: Daniel Walker <dwalker@fifo99.com>
+Subject: Re: [PATCH 0/5] Persist printk buffer across reboots.
+Message-ID: <20120314015755.GB5218@fifo99.com>
+References: <1331617001-20906-1-git-send-email-apenwarr@gmail.com>
+ <20120312.225302.488696931454771146.davem@davemloft.net>
+ <1331646604.18960.76.camel@twins>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1331646604.18960.76.camel@twins>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>
-Cc: Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, gthelen@google.com, Hugh Dickins <hughd@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Vivek Goyal <vgoyal@redhat.com>, Jens Axboe <axboe@kernel.dk>, Li Zefan <lizf@cn.fujitsu.com>, containers@lists.linux-foundation.org, cgroups@vger.kernel.org
+To: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Cc: David Miller <davem@davemloft.net>, apenwarr@gmail.com, akpm@linux-foundation.org, josh@joshtriplett.org, paulmck@linux.vnet.ibm.com, mingo@elte.hu, fdinitto@redhat.com, hannes@cmpxchg.org, olaf@aepfle.de, paul.gortmaker@windriver.com, tj@kernel.org, hpa@linux.intel.com, yinghai@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Tue, 13 Mar 2012 09:39:14 -0700
-Tejun Heo <tj@kernel.org> wrote:
-
-> Hello, KAMEZAWA.
-> 
-> On Tue, Mar 13, 2012 at 03:11:48PM +0900, KAMEZAWA Hiroyuki wrote:
-> > The trouble for pre_destroy() is _not_ refcount, Memory cgroup has its own refcnt
-> > and use it internally. The problem is 'charges'. It's not related to refcnt.
-> 
-> Hmmm.... yeah, I'm not familiar with memcg internals at all.  For
-> blkcg, refcnt matters but if it doesn't for memcg, great.
-> 
-> > Cgroup is designed to exists with 'tasks'. But memory may not be related to any
-> > task...just related to a cgroup.
+On Tue, Mar 13, 2012 at 02:50:04PM +0100, Peter Zijlstra wrote:
+> On Mon, 2012-03-12 at 22:53 -0700, David Miller wrote:
+> > From: Avery Pennarun <apenwarr@gmail.com>
+> > Date: Tue, 13 Mar 2012 01:36:36 -0400
 > > 
-> > But ok, pre_destory() & rmdir() is complicated, I agree.
+> > > The last patch in this series implements a new CONFIG_PRINTK_PERSIST option
+> > > that, when enabled, puts the printk buffer in a well-defined memory location
+> > > so that we can keep appending to it after a reboot.  The upshot is that,
+> > > even after a kernel panic or non-panic hard lockup, on the next boot
+> > > userspace will be able to grab the kernel messages leading up to it.  It
+> > > could then upload the messages to a server (for example) to keep crash
+> > > statistics.
 > > 
-> > Now, we prevent rmdir() if we can't move charges to its parent. If pre_destory()
-> > shouldn't fail, I can think of some alternatives.
+> > On some platforms there are formal ways to reserve areas of memory
+> > such that the bootup firmware will know to not touch it on soft resets
+> > no matter what.  For example, on Sparc there are OpenFirmware calls to
+> > set aside such an area of soft-reset preserved memory.
 > > 
-> >  * move all charges to the parent and if it fails...move all charges to
-> >    root cgroup.
-> >    (drop_from_memory may not work well in swapless system.)
+> > I think some formal agreement with the system firmware is a lot better
+> > when available, and should be explicitly accomodated in these changes
+> > so that those of us with such facilities can very easily hook it up.
 > 
-> I think this one is better and this shouldn't fail if hierarchical
-> mode is in use, right?
+> Shouldn't this all be near the pstore effort? I know pstore and the
+> soft-reset stuff aren't quite the same, but if that's the best Sparc can
+> do, then why not?
 > 
-
-Right.
-
-
-> > I think.. if pre_destory() never fails, we don't need pre_destroy().
+> OTOH if Sparc can actually do pstore too, then it might make sense.
 > 
-> For memcg maybe, blkcg still needs it.
-> 
-> > >   The last one seems more tricky.  On destruction of cgroup, the
-> > >   charges are transferred to its parent and the parent may not have
-> > >   enough room for that.  Greg told me that this should only be a
-> > >   problem for !hierarchical case.  I think this can be dealt with by
-> > >   dumping what's left over to root cgroup with a warning message.
-> > 
-> > I don't like warning ;) 
-> 
-> I agree this isn't perfect but then again failing rmdir isn't perfect
-> either and given that the condition can be wholly avoided in
-> hierarchical mode, which should be the default anyway (is there any
-> reason to keep flat mode except for backward compatibility?), I don't
-> think the trade off is too bad.
-> 
+> What I guess I'm saying is that we should try and minimize the duplicate
+> efforts here.. and it seems to me that writing a soft reset x86 backend
+> to pstore for those machines that don't actually have the acpi flash
+> crap might be more useful and less duplicative.
 
-One reason is 'performance'. You can see performance trouble when you
-creates deep tree of memcgs in hierarchy mode. The deeper memcg tree,
-the more res_coutners will be shared.
+I don't disagree, but pstore is written with this transactional notion in
+mind. It's doesn't appear to be setup to handle just a straight memory
+area. Changing mtdoops to do this would be more trivial. It would be merging
+android ram_console with mtdoops basically. However, I don't know if that would
+cover what Avery is doing here.
 
-For example, libvirt creates cgroup tree as
+pstore does seems to have the nicest user interface (might be better in
+debugfs tho). If someone wanted to move forward with pstore they
+would have to write some some sort of,
 
-	/cgroup/memory/libvirt/qemu/GuestXXX/....
-        /cgroup/memory/libvirt/lxc/GuestXXX/...
+int pstore_register_simple(unsigned long addr, unsigned long size);
 
-No one don't want to count up 4 res_coutner, which is very very heavy,
-for handling independent workloads of "Guest".
+to cover all the memory areas that aren't transaction based, or make
+pstore accept a platform_device.
 
-IIUC, in general, even in the processes are in a tree, in major case
-of servers, their workloads are independent.
-I think FLAT mode is the dafault. 'heararchical' is a crazy thing which
-cannot be managed.
-
-
-Thanks,
--Kame
+Daniel
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
