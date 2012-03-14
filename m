@@ -1,36 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx164.postini.com [74.125.245.164])
-	by kanga.kvack.org (Postfix) with SMTP id 043CC6B004A
-	for <linux-mm@kvack.org>; Wed, 14 Mar 2012 05:48:11 -0400 (EDT)
-Message-ID: <4F6068F4.4090909@parallels.com>
-Date: Wed, 14 Mar 2012 13:46:28 +0400
-From: Glauber Costa <glommer@parallels.com>
+Received: from psmtp.com (na3sys010amx169.postini.com [74.125.245.169])
+	by kanga.kvack.org (Postfix) with SMTP id 2AFE26B004D
+	for <linux-mm@kvack.org>; Wed, 14 Mar 2012 06:02:44 -0400 (EDT)
+Date: Wed, 14 Mar 2012 11:02:41 +0100
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH] page_cgroup: fix horrid swap accounting regression
+Message-ID: <20120314100240.GB4434@tiehlicka.suse.cz>
+References: <alpine.LSU.2.00.1203052046410.24068@eggly.anvils>
 MIME-Version: 1.0
-Subject: Re: [RFC REPOST] cgroup: removing css reference drain wait during
- cgroup removal
-References: <20120312213155.GE23255@google.com> <20120312213343.GF23255@google.com> <20120313151148.f8004a00.kamezawa.hiroyu@jp.fujitsu.com> <20120313163914.GD7349@google.com> <20120314092828.3321731c.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20120314092828.3321731c.kamezawa.hiroyu@jp.fujitsu.com>
-Content-Type: text/plain; charset="ISO-8859-1"; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.LSU.2.00.1203052046410.24068@eggly.anvils>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Tejun Heo <tj@kernel.org>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, gthelen@google.com, Hugh Dickins <hughd@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Vivek Goyal <vgoyal@redhat.com>, Jens Axboe <axboe@kernel.dk>, Li Zefan <lizf@cn.fujitsu.com>, containers@lists.linux-foundation.org, cgroups@vger.kernel.org, Peter Zijlstra <a.p.zijlstra@chello.nl>
+To: Hugh Dickins <hughd@google.com>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Bob Liu <lliubbo@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <jweiner@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On 03/14/2012 04:28 AM, KAMEZAWA Hiroyuki wrote:
-> IIUC, in general, even in the processes are in a tree, in major case
-> of servers, their workloads are independent.
-> I think FLAT mode is the dafault. 'heararchical' is a crazy thing which
-> cannot be managed.
+On Mon 05-03-12 20:52:55, Hugh Dickins wrote:
+> Why is memcg's swap accounting so broken?  Insane counts, wrong ownership,
+> unfreeable structures, which later get freed and then accessed after free.
+> 
+> Turns out to be a tiny a little 3.3-rc1 regression in 9fb4b7cc0724
+> "page_cgroup: add helper function to get swap_cgroup": the helper
+> function (actually named lookup_swap_cgroup()) returns an address
+> using void* arithmetic, but the structure in question is a short.
+> 
+> Signed-off-by: Hugh Dickins <hughd@google.com>
 
-Better pay attention to the current overall cgroups discussions being 
-held by Tejun then. ([RFD] cgroup: about multiple hierarchies)
+Thanks, this one looks really nasty.
 
-The topic of whether of adapting all cgroups to be hierarchical by 
-deafult is a recurring one.
+Acked-by: Michal Hocko <mhocko@suse.cz>
 
-I personally think that it is not unachievable to make res_counters 
-cheaper, therefore making this less of a problem.
+> ---
+> 
+>  mm/page_cgroup.c |    4 +++-
+>  1 file changed, 3 insertions(+), 1 deletion(-)
+> 
+> --- 3.3-rc6/mm/page_cgroup.c	2012-01-20 08:42:35.320020840 -0800
+> +++ linux/mm/page_cgroup.c	2012-03-05 19:51:13.535372098 -0800
+> @@ -379,13 +379,15 @@ static struct swap_cgroup *lookup_swap_c
+>  	pgoff_t offset = swp_offset(ent);
+>  	struct swap_cgroup_ctrl *ctrl;
+>  	struct page *mappage;
+> +	struct swap_cgroup *sc;
+>  
+>  	ctrl = &swap_cgroup_ctrl[swp_type(ent)];
+>  	if (ctrlp)
+>  		*ctrlp = ctrl;
+>  
+>  	mappage = ctrl->map[offset / SC_PER_PAGE];
+> -	return page_address(mappage) + offset % SC_PER_PAGE;
+> +	sc = page_address(mappage);
+> +	return sc + offset % SC_PER_PAGE;
+>  }
+>  
+>  /**
+
+-- 
+Michal Hocko
+SUSE Labs
+SUSE LINUX s.r.o.
+Lihovarska 1060/12
+190 00 Praha 9    
+Czech Republic
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
