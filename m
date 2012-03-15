@@ -1,64 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx175.postini.com [74.125.245.175])
-	by kanga.kvack.org (Postfix) with SMTP id 0D2246B0044
-	for <linux-mm@kvack.org>; Wed, 14 Mar 2012 19:43:36 -0400 (EDT)
-Date: Wed, 14 Mar 2012 16:43:34 -0700
+Received: from psmtp.com (na3sys010amx141.postini.com [74.125.245.141])
+	by kanga.kvack.org (Postfix) with SMTP id 1710E6B007E
+	for <linux-mm@kvack.org>; Wed, 14 Mar 2012 20:06:20 -0400 (EDT)
+Date: Wed, 14 Mar 2012 17:06:18 -0700
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH -V3 2/8] memcg: Add HugeTLB extension
-Message-Id: <20120314164334.5e35f3b6.akpm@linux-foundation.org>
-In-Reply-To: <87zkbj8ou9.fsf@linux.vnet.ibm.com>
-References: <1331622432-24683-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
-	<1331622432-24683-3-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
-	<20120313143316.0ef74d0e.akpm@linux-foundation.org>
-	<87zkbj8ou9.fsf@linux.vnet.ibm.com>
+Subject: Re: [PATCH 0/4] radix-tree: iterating general cleanup
+Message-Id: <20120314170618.ae51230b.akpm@linux-foundation.org>
+In-Reply-To: <alpine.LSU.2.00.1203141210290.3870@eggly.anvils>
+References: <20120207074905.29797.60353.stgit@zurg>
+	<20120314073629.GA17016@infradead.org>
+	<4F604D81.1060607@openvz.org>
+	<20120314075109.GA32717@infradead.org>
+	<alpine.LSU.2.00.1203141210290.3870@eggly.anvils>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Cc: linux-mm@kvack.org, mgorman@suse.de, kamezawa.hiroyu@jp.fujitsu.com, dhillf@gmail.com, aarcange@redhat.com, mhocko@suse.cz, hannes@cmpxchg.org, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org
+To: Hugh Dickins <hughd@google.com>
+Cc: Christoph Hellwig <hch@infradead.org>, Konstantin Khlebnikov <khlebnikov@openvz.org>, Linus Torvalds <torvalds@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Wed, 14 Mar 2012 15:51:50 +0530
-"Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com> wrote:
+On Wed, 14 Mar 2012 12:36:11 -0700 (PDT)
+Hugh Dickins <hughd@google.com> wrote:
 
-> On Tue, 13 Mar 2012 14:33:16 -0700, Andrew Morton <akpm@linux-foundation.org> wrote:
-> > On Tue, 13 Mar 2012 12:37:06 +0530
-> > "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com> wrote:
+> On Wed, 14 Mar 2012, Christoph Hellwig wrote:
+> > On Wed, Mar 14, 2012 at 11:49:21AM +0400, Konstantin Khlebnikov wrote:
+> > > Christoph Hellwig wrote:
+> > > >Any updates on this series?
+
+Linus took an interest, so I went to sleep.  It seems that a role
+reversal is in order ;)
+
+> > > I had sent "[PATCH v2 0/3] radix-tree: general iterator" February 10, there is no more updates after that.
+> > > I just checked v2 on top "next-20120314" -- looks like all ok.
 > > 
-> > > +static int mem_cgroup_hugetlb_usage(struct mem_cgroup *memcg)
-> > > +{
-> > > +	int idx;
-> > > +	for (idx = 0; idx < hugetlb_max_hstate; idx++) {
-> > > +		if (memcg->hugepage[idx].usage > 0)
-> > > +			return memcg->hugepage[idx].usage;
-> > > +	}
-> > > +	return 0;
-> > > +}
-> > 
-> > Please document the function?  Had you done this, I might have been
-> > able to work out why the function bales out on the first used hugepage
-> > size, but I can't :(
+> > this was more a question to the MM maintainers if this is getting
+> > merged or if there were any further comments.
 > 
-> I guess the function is named wrongly. I will rename it to
-> mem_cgroup_have_hugetlb_usage() in the next iteration ? The function
-> will return (bool) 1 if it has any hugetlb resource usage.
-> 
-> > 
-> > This could have used for_each_hstate(), had that macro been better
-> > designed (or updated).
-> > 
-> 
-> Can you explain this ?. for_each_hstate allows to iterate over
-> different hstates. But here we need to look at different hugepage
-> rescounter in memcg. I can still use for_each_hstate() and find the
-> hstate index (h - hstates) and use that to index memcg rescounter
-> array. But that would make it more complex ?
+> I haven't studied the code at all - I'm afraid Konstantin is rather
+> more productive than I can keep up with, and other bugs and patches
+> appeared to be more urgent and important.
 
-If the for_each_hstate() macro took an additional arg which holds the
-base address of the array, that macro could have been used here.
+I'll take a look.
 
-Or perhaps not - I didn't look too closely ;)  It isn't important.
+>  And I made a patch for the
+> radix-tree test harness which akpm curates, to update its radix-tree.c
+> to Konstantin's: those tests ran perfectly on 64-bit and on 32-bit.
+> That patch to rtth appended below.
+
+Thanks.
+
+> (I do have, or expect to have once I study them, reservations about
+> his subsequent changes to radix-tree usage in mm/shmem.c; and even
+> if I end up agreeing with his changes, would prefer to hold them off
+> until after the tmpfs fallocation mods are in - other work which
+> had to yield to higher priorities, ready but not yet commented.)
+
+OK, I shall forget all about that followup series this time around.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
