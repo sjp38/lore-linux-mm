@@ -1,324 +1,135 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx200.postini.com [74.125.245.200])
-	by kanga.kvack.org (Postfix) with SMTP id 520BF6B0044
-	for <linux-mm@kvack.org>; Thu, 15 Mar 2012 14:24:33 -0400 (EDT)
-Date: Thu, 15 Mar 2012 14:20:28 -0400
-From: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
-Subject: Re: [PATCH 2/2] cleancache: allow backends to register after
- cleancache initilaization
-Message-ID: <20120315182028.GB2293@phenom.dumpdata.com>
-References: <1331745208-1010-1-git-send-email-andor.daam@googlemail.com>
- <1331745208-1010-3-git-send-email-andor.daam@googlemail.com>
+Received: from psmtp.com (na3sys010amx177.postini.com [74.125.245.177])
+	by kanga.kvack.org (Postfix) with SMTP id CDA866B0044
+	for <linux-mm@kvack.org>; Thu, 15 Mar 2012 16:15:46 -0400 (EDT)
+Received: by wibhn6 with SMTP id hn6so4085329wib.8
+        for <linux-mm@kvack.org>; Thu, 15 Mar 2012 13:15:45 -0700 (PDT)
+Message-ID: <4F624DED.2060302@suse.cz>
+Date: Thu, 15 Mar 2012 21:15:41 +0100
+From: Jiri Slaby <jslaby@suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1331745208-1010-3-git-send-email-andor.daam@googlemail.com>
+Subject: Re: Too much free memory (not used for FS cache)
+References: <4F624C88.6050503@suse.cz>
+In-Reply-To: <4F624C88.6050503@suse.cz>
+Content-Type: text/plain; charset=ISO-8859-2
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andor Daam <andor.daam@googlemail.com>
-Cc: linux-mm@kvack.org, dan.magenheimer@oracle.com, sjenning@linux.vnet.ibm.com, ilendir@googlemail.com, fschmaus@gmail.com, i4passt@lists.informatik.uni-erlangen.de, ngupta@vflare.org
+To: Jiri Slaby <jirislaby@gmail.com>
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Wed, Mar 14, 2012 at 06:13:28PM +0100, Andor Daam wrote:
-> This patch allows backends to register to cleancache even after
-> filesystems were mounted. Calls to inif_fs and init_shared_fs are
-> remembered, fake poolids but no real tmem_pools created. On backend
-> registration the fake poolids are mapped to real poolids and respective
-> tmem_pools.
+On 03/15/2012 09:09 PM, Jiri Slaby wrote:
+> Hi,
 > 
-> Signed-off-by: Stefan Hengelein <ilendir@googlemail.com>
-> Signed-off-by: Florian Schmaus <fschmaus@gmail.com>
-> Signed-off-by: Andor Daam <andor.daam@googlemail.com>
-> ---
->  mm/cleancache.c |  157 +++++++++++++++++++++++++++++++++++++++++++++++++------
->  1 files changed, 140 insertions(+), 17 deletions(-)
+> since today's -next (20120315), the MM/VFS system is very sluggish.
+> Especially when committing, diffing and similar with git. I still have
+> 2G of 6G of memory free. But with each commit I have to wait for git to
+> fetch all data from disk.
 > 
-> diff --git a/mm/cleancache.c b/mm/cleancache.c
-> index 5646c74..9f504b6 100644
-> --- a/mm/cleancache.c
-> +++ b/mm/cleancache.c
-> @@ -45,15 +45,42 @@ static u64 cleancache_puts;
->  static u64 cleancache_invalidates;
->  
->  /*
-> + * When no backend is registered all calls to init_fs and init_shard_fs
-> + * are registered and fake poolids are given to the respective
-> + * super block but no tmem_pools are created. When a backend
-> + * registers with cleancache the previous calls to init_fs and
-> + * init_shared_fs are executed to create tmem_pools and set the
-> + * respective poolids. While no backend is registered all "puts",
-> + * "gets" and "flushes" are ignored or fail.
-> + */
-> +#define MAX_INITIALIZABLE_FS 32
-> +#define FAKE_FS_POOLID_OFFSET 1000
+> I'm using ext4 on a raid for the partition with git kernel repository if
+> that matters.
+> 
+> Any idea what that could be?
 
-Hmm, why 1000? 
-> +#define FAKE_SHARED_FS_POOLID_OFFSET 2000
-> +static int fs_poolid_map[MAX_INITIALIZABLE_FS];
-> +static int shared_fs_poolid_map[MAX_INITIALIZABLE_FS];
-> +static char *uuids[MAX_INITIALIZABLE_FS];
+Please ignore this. It's not as easy as that. It doesn't wait for IO and
+needs more investigation...
 
-Could all of this be remade into a struct and a list?
-And potentially a 'hot' item which is the one last accessed?
+> nr_free_pages 555469
+> nr_inactive_anon 16787
+> nr_active_anon 414439
+> nr_inactive_file 315585
+> nr_active_file 137446
+> nr_unevictable 0
+> nr_mlock 0
+> nr_anon_pages 277729
+> nr_mapped 95971
+> nr_file_pages 524644
+> nr_dirty 11
+> nr_writeback 0
+> nr_slab_reclaimable 35548
+> nr_slab_unreclaimable 7450
+> nr_page_table_pages 11493
+> nr_kernel_stack 464
+> nr_unstable 0
+> nr_bounce 0
+> nr_vmscan_write 0
+> nr_vmscan_immediate_reclaim 0
+> nr_writeback_temp 0
+> nr_isolated_anon 0
+> nr_isolated_file 0
+> nr_shmem 71614
+> nr_dirtied 1165398
+> nr_written 1147058
+> nr_anon_transparent_hugepages 160
+> nr_dirty_threshold 97608
+> nr_dirty_background_threshold 48804
+> pgpgin 2446144
+> pgpgout 4844237
+> pswpin 0
+> pswpout 0
+> pgalloc_dma 0
+> pgalloc_dma32 21764611
+> pgalloc_normal 38307626
+> pgalloc_movable 0
+> pgfree 60640227
+> pgactivate 913299
+> pgdeactivate 109336
+> pgfault 51012433
+> pgmajfault 8476
+> pgrefill_dma 0
+> pgrefill_dma32 79208
+> pgrefill_normal 41244
+> pgrefill_movable 0
+> pgsteal_dma 0
+> pgsteal_dma32 162966
+> pgsteal_normal 185373
+> pgsteal_movable 0
+> pgscan_kswapd_dma 0
+> pgscan_kswapd_dma32 162559
+> pgscan_kswapd_normal 215360
+> pgscan_kswapd_movable 0
+> pgscan_direct_dma 0
+> pgscan_direct_dma32 1624
+> pgscan_direct_normal 3927
+> pgscan_direct_movable 0
+> pginodesteal 4
+> slabs_scanned 102400
+> kswapd_steal 342881
+> kswapd_inodesteal 756
+> kswapd_low_wmark_hit_quickly 0
+> kswapd_high_wmark_hit_quickly 119
+> kswapd_skip_congestion_wait 0
+> pageoutrun 3493
+> allocstall 5
+> pgrotated 240
+> compact_blocks_moved 432
+> compact_pages_moved 10699
+> compact_pagemigrate_failed 0
+> compact_stall 14
+> compact_fail 5
+> compact_success 9
+> htlb_buddy_alloc_success 0
+> htlb_buddy_alloc_fail 0
+> unevictable_pgs_culled 327
+> unevictable_pgs_scanned 0
+> unevictable_pgs_rescued 2618
+> unevictable_pgs_mlocked 2618
+> unevictable_pgs_munlocked 2618
+> unevictable_pgs_cleared 0
+> unevictable_pgs_stranded 0
+> unevictable_pgs_mlockfreed 0
+> thp_fault_alloc 13147
+> thp_fault_fallback 0
+> thp_collapse_alloc 3543
+> thp_collapse_alloc_failed 0
+> thp_split 183
+> 
+> thanks,
 
-> +static int backend_registered;
-> +
-> +/*
->   * register operations for cleancache, returning previous thus allowing
->   * detection of multiple backends and possible nesting
->   */
->  struct cleancache_ops cleancache_register_ops(struct cleancache_ops *ops)
->  {
->  	struct cleancache_ops old = cleancache_ops;
-> +	int i;
->  
->  	cleancache_ops = *ops;
-> -	cleancache_enabled = 1;
-> +
-> +	backend_registered = 1;
-> +	for (i = 0; i < MAX_INITIALIZABLE_FS; i++) {
-> +		if (fs_poolid_map[i] == -1)
-> +			fs_poolid_map[i] = (*cleancache_ops.init_fs)(PAGE_SIZE);
-> +		if (shared_fs_poolid_map[i] == -1)
-> +			shared_fs_poolid_map[i] =
-> +				(*cleancache_ops.init_shared_fs)
-> +					(uuids[i], PAGE_SIZE);
-> +	}
->  	return old;
->  }
->  EXPORT_SYMBOL(cleancache_register_ops);
-> @@ -61,15 +88,42 @@ EXPORT_SYMBOL(cleancache_register_ops);
->  /* Called by a cleancache-enabled filesystem at time of mount */
->  void __cleancache_init_fs(struct super_block *sb)
->  {
-> -	sb->cleancache_poolid = (*cleancache_ops.init_fs)(PAGE_SIZE);
-> +	int i;
-> +
-> +	for (i = 0; i < MAX_INITIALIZABLE_FS; i++) {
-> +		if (fs_poolid_map[i] == -2) {
-> +			sb->cleancache_poolid =
-> +				i + FAKE_FS_POOLID_OFFSET;
-> +			if (backend_registered)
-> +				fs_poolid_map[i] =
-> +					(*cleancache_ops.init_fs)(PAGE_SIZE);
-> +			else
-> +				fs_poolid_map[i] = -1;
-> +			break;
-> +		}
-> +	}
->  }
->  EXPORT_SYMBOL(__cleancache_init_fs);
->  
->  /* Called by a cleancache-enabled clustered filesystem at time of mount */
->  void __cleancache_init_shared_fs(char *uuid, struct super_block *sb)
->  {
-> -	sb->cleancache_poolid =
-> -		(*cleancache_ops.init_shared_fs)(uuid, PAGE_SIZE);
-> +	int i;
-> +
-> +	for (i = 0; i < MAX_INITIALIZABLE_FS; i++) {
-> +		if (shared_fs_poolid_map[i] == -2) {
-> +			sb->cleancache_poolid =
-> +				i + FAKE_SHARED_FS_POOLID_OFFSET;
-> +			uuids[i] = uuid;
-> +			if (backend_registered)
-> +				shared_fs_poolid_map[i] =
-> +					(*cleancache_ops.init_shared_fs)
-> +						(uuid, PAGE_SIZE);
-> +			else
-> +				shared_fs_poolid_map[i] = -1;
-> +			break;
-> +		}
-> +	}
->  }
->  EXPORT_SYMBOL(__cleancache_init_shared_fs);
->  
-> @@ -101,6 +155,19 @@ static int cleancache_get_key(struct inode *inode,
->  }
->  
->  /*
-> + * Returns a pool_id that is associated with a given fake poolid.
-> + */
-> +static int get_poolid_from_fake(int fake_pool_id)
-> +{
-> +	if (fake_pool_id >= FAKE_SHARED_FS_POOLID_OFFSET)
-> +		return shared_fs_poolid_map[fake_pool_id -
-> +			FAKE_SHARED_FS_POOLID_OFFSET];
-> +	else if (fake_pool_id >= FAKE_FS_POOLID_OFFSET)
-> +		return fs_poolid_map[fake_pool_id - FAKE_FS_POOLID_OFFSET];
-> +	return -1;
-> +}
-> +
-> +/*
->   * "Get" data from cleancache associated with the poolid/inode/index
->   * that were specified when the data was put to cleanache and, if
->   * successful, use it to fill the specified page with data and return 0.
-> @@ -111,17 +178,26 @@ int __cleancache_get_page(struct page *page)
->  {
->  	int ret = -1;
->  	int pool_id;
-> +	int fake_pool_id;
->  	struct cleancache_filekey key = { .u.key = { 0 } };
->  
-> +	if (!backend_registered) {
-> +		cleancache_failed_gets++;
-> +		goto out;
-> +	}
-> +
->  	VM_BUG_ON(!PageLocked(page));
-> -	pool_id = page->mapping->host->i_sb->cleancache_poolid;
-> -	if (pool_id < 0)
-> +	fake_pool_id = page->mapping->host->i_sb->cleancache_poolid;
-> +	if (fake_pool_id < 0)
->  		goto out;
-> +	pool_id = get_poolid_from_fake(fake_pool_id);
->  
->  	if (cleancache_get_key(page->mapping->host, &key) < 0)
->  		goto out;
->  
-> -	ret = (*cleancache_ops.get_page)(pool_id, key, page->index, page);
-> +	if (pool_id >= 0)
-> +		ret = (*cleancache_ops.get_page)(pool_id,
-> +				key, page->index, page);
->  	if (ret == 0)
->  		cleancache_succ_gets++;
->  	else
-> @@ -140,12 +216,23 @@ EXPORT_SYMBOL(__cleancache_get_page);
->  void __cleancache_put_page(struct page *page)
->  {
->  	int pool_id;
-> +	int fake_pool_id;
->  	struct cleancache_filekey key = { .u.key = { 0 } };
->  
-> +	if (!backend_registered) {
-> +		cleancache_puts++;
-> +		return;
-> +	}
-> +
->  	VM_BUG_ON(!PageLocked(page));
-> -	pool_id = page->mapping->host->i_sb->cleancache_poolid;
-> +	fake_pool_id = page->mapping->host->i_sb->cleancache_poolid;
-> +	if (fake_pool_id < 0)
-> +		return;
-> +
-> +	pool_id = get_poolid_from_fake(fake_pool_id);
-> +
->  	if (pool_id >= 0 &&
-> -	      cleancache_get_key(page->mapping->host, &key) >= 0) {
-> +		cleancache_get_key(page->mapping->host, &key) >= 0) {
->  		(*cleancache_ops.put_page)(pool_id, key, page->index, page);
->  		cleancache_puts++;
->  	}
-> @@ -160,14 +247,22 @@ void __cleancache_invalidate_page(struct address_space *mapping,
->  					struct page *page)
->  {
->  	/* careful... page->mapping is NULL sometimes when this is called */
-> -	int pool_id = mapping->host->i_sb->cleancache_poolid;
-> +	int pool_id;
-> +	int fake_pool_id = mapping->host->i_sb->cleancache_poolid;
->  	struct cleancache_filekey key = { .u.key = { 0 } };
->  
-> -	if (pool_id >= 0) {
-> +	if (!backend_registered)
-> +		return;
-> +
-> +	if (fake_pool_id >= 0) {
-> +		pool_id = get_poolid_from_fake(fake_pool_id);
-> +		if (pool_id < 0)
-> +			return;
-> +
->  		VM_BUG_ON(!PageLocked(page));
->  		if (cleancache_get_key(mapping->host, &key) >= 0) {
->  			(*cleancache_ops.invalidate_page)(pool_id,
-> -							  key, page->index);
-> +					key, page->index);
->  			cleancache_invalidates++;
->  		}
->  	}
-> @@ -181,9 +276,18 @@ EXPORT_SYMBOL(__cleancache_invalidate_page);
->   */
->  void __cleancache_invalidate_inode(struct address_space *mapping)
->  {
-> -	int pool_id = mapping->host->i_sb->cleancache_poolid;
-> +	int pool_id;
-> +	int fake_pool_id = mapping->host->i_sb->cleancache_poolid;
->  	struct cleancache_filekey key = { .u.key = { 0 } };
->  
-> +	if (!backend_registered)
-> +		return;
-> +
-> +	if (fake_pool_id < 0)
-> +		return;
-> +
-> +	pool_id = get_poolid_from_fake(fake_pool_id);
-> +
->  	if (pool_id >= 0 && cleancache_get_key(mapping->host, &key) >= 0)
->  		(*cleancache_ops.invalidate_inode)(pool_id, key);
->  }
-> @@ -196,16 +300,30 @@ EXPORT_SYMBOL(__cleancache_invalidate_inode);
->   */
->  void __cleancache_invalidate_fs(struct super_block *sb)
->  {
-> -	if (sb->cleancache_poolid >= 0) {
-> -		int old_poolid = sb->cleancache_poolid;
-> -		sb->cleancache_poolid = -1;
-> -		(*cleancache_ops.invalidate_fs)(old_poolid);
-> +	int old_poolid;
-> +	int index;
-> +	int fake_pool_id = sb->cleancache_poolid;
-> +
-> +	if (fake_pool_id >= FAKE_SHARED_FS_POOLID_OFFSET) {
-> +		index = fake_pool_id - FAKE_SHARED_FS_POOLID_OFFSET;
-> +		old_poolid = shared_fs_poolid_map[index];
-> +		shared_fs_poolid_map[index] = -2;
-> +		uuids[index] = NULL;
-> +	} else if (fake_pool_id >= FAKE_FS_POOLID_OFFSET) {
-> +		index = fake_pool_id - FAKE_FS_POOLID_OFFSET;
-> +		old_poolid = fs_poolid_map[index];
-> +		fs_poolid_map[index] = -2;
->  	}
-> +	sb->cleancache_poolid = -1;
-> +	if (backend_registered)
-> +		(*cleancache_ops.invalidate_fs)(old_poolid);
->  }
->  EXPORT_SYMBOL(__cleancache_invalidate_fs);
->  
->  static int __init init_cleancache(void)
->  {
-> +	int i;
-> +
->  #ifdef CONFIG_DEBUG_FS
->  	struct dentry *root = debugfs_create_dir("cleancache", NULL);
->  	if (root == NULL)
-> @@ -217,6 +335,11 @@ static int __init init_cleancache(void)
->  	debugfs_create_u64("invalidates", S_IRUGO,
->  				root, &cleancache_invalidates);
->  #endif
-> +	for (i = 0; i < MAX_INITIALIZABLE_FS; i++) {
-> +		fs_poolid_map[i] = -2;
-> +		shared_fs_poolid_map[i] = -2;
 
-You should declare an #define for these. But I am wondering
-whether this would be made easier if you had something like this:
-
-struct cleancache_clients {
-	struct list_head	next;
-	struct cleancache_clients	*hot;
-#define UNREGISTERED	(0<<1)
-#define REGISTERED	(1<<1)
-#define SOMETHING	(2<<1)
-
-	unsigned int	flags;
-	int		poolid;
-	...
-}
-
-> +	}
-> +	cleancache_enabled = 1;
->  	return 0;
->  }
->  module_init(init_cleancache)
-> -- 
-> 1.7.5.4
+-- 
+js
+suse labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
