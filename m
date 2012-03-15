@@ -1,59 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx149.postini.com [74.125.245.149])
-	by kanga.kvack.org (Postfix) with SMTP id 6425E6B0044
-	for <linux-mm@kvack.org>; Wed, 14 Mar 2012 20:50:19 -0400 (EDT)
-Received: from m1.gw.fujitsu.co.jp (unknown [10.0.50.71])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 6C0313EE0C0
-	for <linux-mm@kvack.org>; Thu, 15 Mar 2012 09:50:17 +0900 (JST)
-Received: from smail (m1 [127.0.0.1])
-	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 4D88745DE5C
-	for <linux-mm@kvack.org>; Thu, 15 Mar 2012 09:50:17 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
-	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 347F045DE5A
-	for <linux-mm@kvack.org>; Thu, 15 Mar 2012 09:50:17 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 239C01DB8054
-	for <linux-mm@kvack.org>; Thu, 15 Mar 2012 09:50:17 +0900 (JST)
-Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.240.81.134])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id CF8ED1DB804E
-	for <linux-mm@kvack.org>; Thu, 15 Mar 2012 09:50:16 +0900 (JST)
-Message-ID: <4F613C5B.8030304@jp.fujitsu.com>
-Date: Thu, 15 Mar 2012 09:48:27 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Received: from psmtp.com (na3sys010amx123.postini.com [74.125.245.123])
+	by kanga.kvack.org (Postfix) with SMTP id 4B12C6B004D
+	for <linux-mm@kvack.org>; Wed, 14 Mar 2012 21:48:29 -0400 (EDT)
+Received: by dakn40 with SMTP id n40so4019606dak.9
+        for <linux-mm@kvack.org>; Wed, 14 Mar 2012 18:48:28 -0700 (PDT)
+Date: Wed, 14 Mar 2012 18:47:54 -0700 (PDT)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: [PATCH 3/7 v2] mm: rework __isolate_lru_page() file/anon
+ filter
+In-Reply-To: <4F5B22DE.4020402@openvz.org>
+Message-ID: <alpine.LSU.2.00.1203141842490.2232@eggly.anvils>
+References: <20120229091547.29236.28230.stgit@zurg> <20120303091327.17599.80336.stgit@zurg> <alpine.LSU.2.00.1203061904570.18675@eggly.anvils> <20120308143034.f3521b1e.kamezawa.hiroyu@jp.fujitsu.com> <alpine.LSU.2.00.1203081758490.18195@eggly.anvils>
+ <4F59AE3C.5040200@openvz.org> <alpine.LSU.2.00.1203091559260.23317@eggly.anvils> <4F5AFAF0.6060608@openvz.org> <4F5B22DE.4020402@openvz.org>
 MIME-Version: 1.0
-Subject: Re: [PATCH v2 02/13] memcg: Kernel memory accounting infrastructure.
-References: <1331325556-16447-1-git-send-email-ssouhlal@FreeBSD.org> <1331325556-16447-3-git-send-email-ssouhlal@FreeBSD.org> <4F5C5E54.2020408@parallels.com> <20120313152446.28b0d696.kamezawa.hiroyu@jp.fujitsu.com> <4F5F236A.1070609@parallels.com> <20120314091526.3c079693.kamezawa.hiroyu@jp.fujitsu.com> <4F608F25.3010700@parallels.com>
-In-Reply-To: <4F608F25.3010700@parallels.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Glauber Costa <glommer@parallels.com>
-Cc: Suleiman Souhlal <ssouhlal@FreeBSD.org>, cgroups@vger.kernel.org, suleiman@google.com, penberg@kernel.org, cl@linux.com, yinghan@google.com, hughd@google.com, gthelen@google.com, peterz@infradead.org, dan.magenheimer@oracle.com, hannes@cmpxchg.org, mgorman@suse.de, James.Bottomley@HansenPartnership.com, linux-mm@kvack.org, devel@openvz.org, linux-kernel@vger.kernel.org
+To: Konstantin Khlebnikov <khlebnikov@openvz.org>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <jweiner@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 
-(2012/03/14 21:29), Glauber Costa wrote:
-
-
->>   - What happens when a new cgroup created ?
+On Sat, 10 Mar 2012, Konstantin Khlebnikov wrote:
+> Konstantin Khlebnikov wrote:
+> > 
+> > No, for non-lumpy isolation we don't need this check at all,
+> > because all pages already picked from right lru list.
+> > 
+> > I'll send separate patch for this (on top v5 patchset), after meditation =)
 > 
-> mem_cgroup_create() is called =)
-> Heh, jokes apart, I don't really follow here. What exactly do you mean? 
-> There shouldn't be anything extremely out of the ordinary.
-> 
+> Heh, looks like we don't need these checks at all:
+> without RECLAIM_MODE_LUMPYRECLAIM we isolate only pages from right lru,
+> with RECLAIM_MODE_LUMPYRECLAIM we isolate pages from all evictable lru.
+> Thus we should check only PageUnevictable() on lumpy reclaim.
 
+Yes, those were great simplfying insights: I'm puzzling over why you
+didn't follow through on them in your otherwise nice 4.5/7, which
+still involves lru bits in the isolate mode?
 
-Sorry, too short words.
-
-Assume a cgroup with
-	cgroup.memory.limit_in_bytes=1G
-	cgroup.memory.kmem.limit_in_bytes=400M
-
-When a child cgroup is created, what should be the default values.
-'unlimited' as current implementation ?
-Hmm..maybe yes.
-
-Thanks,
--Kame
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
