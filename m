@@ -1,42 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx123.postini.com [74.125.245.123])
-	by kanga.kvack.org (Postfix) with SMTP id 4B12C6B004D
-	for <linux-mm@kvack.org>; Wed, 14 Mar 2012 21:48:29 -0400 (EDT)
-Received: by dakn40 with SMTP id n40so4019606dak.9
-        for <linux-mm@kvack.org>; Wed, 14 Mar 2012 18:48:28 -0700 (PDT)
-Date: Wed, 14 Mar 2012 18:47:54 -0700 (PDT)
-From: Hugh Dickins <hughd@google.com>
-Subject: Re: [PATCH 3/7 v2] mm: rework __isolate_lru_page() file/anon
- filter
-In-Reply-To: <4F5B22DE.4020402@openvz.org>
-Message-ID: <alpine.LSU.2.00.1203141842490.2232@eggly.anvils>
-References: <20120229091547.29236.28230.stgit@zurg> <20120303091327.17599.80336.stgit@zurg> <alpine.LSU.2.00.1203061904570.18675@eggly.anvils> <20120308143034.f3521b1e.kamezawa.hiroyu@jp.fujitsu.com> <alpine.LSU.2.00.1203081758490.18195@eggly.anvils>
- <4F59AE3C.5040200@openvz.org> <alpine.LSU.2.00.1203091559260.23317@eggly.anvils> <4F5AFAF0.6060608@openvz.org> <4F5B22DE.4020402@openvz.org>
+Received: from psmtp.com (na3sys010amx142.postini.com [74.125.245.142])
+	by kanga.kvack.org (Postfix) with SMTP id 0A4B56B0044
+	for <linux-mm@kvack.org>; Wed, 14 Mar 2012 22:15:12 -0400 (EDT)
+Received: by dakn40 with SMTP id n40so4056297dak.9
+        for <linux-mm@kvack.org>; Wed, 14 Mar 2012 19:15:12 -0700 (PDT)
+Date: Wed, 14 Mar 2012 19:15:10 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: [patch] mm, coredump: fail allocations when coredumping instead of
+ oom killing
+Message-ID: <alpine.DEB.2.00.1203141914160.24180@chino.kir.corp.google.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Konstantin Khlebnikov <khlebnikov@openvz.org>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <jweiner@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Mel Gorman <mgorman@suse.de>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>, Oleg Nesterov <oleg@redhat.com>, linux-mm@kvack.org
 
-On Sat, 10 Mar 2012, Konstantin Khlebnikov wrote:
-> Konstantin Khlebnikov wrote:
-> > 
-> > No, for non-lumpy isolation we don't need this check at all,
-> > because all pages already picked from right lru list.
-> > 
-> > I'll send separate patch for this (on top v5 patchset), after meditation =)
-> 
-> Heh, looks like we don't need these checks at all:
-> without RECLAIM_MODE_LUMPYRECLAIM we isolate only pages from right lru,
-> with RECLAIM_MODE_LUMPYRECLAIM we isolate pages from all evictable lru.
-> Thus we should check only PageUnevictable() on lumpy reclaim.
+The size of coredump files is limited by RLIMIT_CORE, however, allocating
+large amounts of memory results in three negative consequences:
 
-Yes, those were great simplfying insights: I'm puzzling over why you
-didn't follow through on them in your otherwise nice 4.5/7, which
-still involves lru bits in the isolate mode?
+ - the coredumping process may be chosen for oom kill and quickly deplete
+   all memory reserves in oom conditions preventing further progress from
+   being made or tasks from exiting,
 
-Hugh
+ - the coredumping process may cause other processes to be oom killed
+   without fault of their own as the result of a SIGSEGV, for example, in
+   the coredumping process, or
+
+ - the coredumping process may result in a livelock while writing to the
+   dump file if it needs memory to allocate while other threads are in
+   the exit path waiting on the coredumper to complete.
+
+This is fixed by implying __GFP_NORETRY in the page allocator for
+coredumping processes when reclaim has failed so the allocations fail and
+the process continues to exit.
+
+Signed-off-by: David Rientjes <rientjes@google.com>
+---
+ mm/page_alloc.c |    4 ++++
+ 1 file changed, 4 insertions(+)
+
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -2306,6 +2306,10 @@ rebalance:
+ 		if ((gfp_mask & __GFP_FS) && !(gfp_mask & __GFP_NORETRY)) {
+ 			if (oom_killer_disabled)
+ 				goto nopage;
++			/* Coredumps can quickly deplete all memory reserves */
++			if ((current->flags & PF_DUMPCORE) &&
++			    !(gfp_mask & __GFP_NOFAIL))
++				goto nopage;
+ 			page = __alloc_pages_may_oom(gfp_mask, order,
+ 					zonelist, high_zoneidx,
+ 					nodemask, preferred_zone,
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
