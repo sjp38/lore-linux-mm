@@ -1,54 +1,38 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx162.postini.com [74.125.245.162])
-	by kanga.kvack.org (Postfix) with SMTP id 010FB6B0044
-	for <linux-mm@kvack.org>; Thu, 15 Mar 2012 18:21:45 -0400 (EDT)
-From: Seiji Aguchi <seiji.aguchi@hds.com>
-Date: Thu, 15 Mar 2012 18:10:29 -0400
-Subject: RE: [PATCH 0/5] Persist printk buffer across reboots.
-Message-ID: <5C4C569E8A4B9B42A84A977CF070A35B2E31C6F891@USINDEVS01.corp.hds.com>
-References: <1331617001-20906-1-git-send-email-apenwarr@gmail.com>
- <20120313170851.GA5218@fifo99.com>
- <20120313151049.fa33d232.akpm@linux-foundation.org>
- <20120314021906.GC5218@fifo99.com>
-In-Reply-To: <20120314021906.GC5218@fifo99.com>
-Content-Language: en-US
-Content-Type: text/plain; charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
-MIME-Version: 1.0
+Received: from psmtp.com (na3sys010amx128.postini.com [74.125.245.128])
+	by kanga.kvack.org (Postfix) with SMTP id 8A75C6B0044
+	for <linux-mm@kvack.org>; Thu, 15 Mar 2012 18:30:05 -0400 (EDT)
+Date: Thu, 15 Mar 2012 15:30:01 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] mm: thp: fix pmd_bad() triggering in code paths holding
+ mmap_sem read mode
+Message-Id: <20120315153001.fd97d3fa.akpm@linux-foundation.org>
+In-Reply-To: <20120315174128.GS6329@redhat.com>
+References: <1331822671-21508-1-git-send-email-aarcange@redhat.com>
+	<20120315171627.GB22255@redhat.com>
+	<20120315174128.GS6329@redhat.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Daniel Walker <dwalker@fifo99.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: Avery Pennarun <apenwarr@gmail.com>, Josh Triplett <josh@joshtriplett.org>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Ingo Molnar <mingo@elte.hu>, "David S. Miller" <davem@davemloft.net>, Peter Zijlstra <a.p.zijlstra@chello.nl>, "Fabio M. Di Nitto" <fdinitto@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Olaf Hering <olaf@aepfle.de>, Paul Gortmaker <paul.gortmaker@windriver.com>, Tejun Heo <tj@kernel.org>, "H.
- Peter Anvin" <hpa@linux.intel.com>, Yinghai LU <yinghai@kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "Luck, Tony (tony.luck@intel.com)" <tony.luck@intel.com>
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: Dave Jones <davej@redhat.com>, linux-mm@kvack.org, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>, Larry Woodman <lwoodman@redhat.com>, Rik van Riel <riel@redhat.com>, Ulrich Obergfell <uobergfe@redhat.com>, stable@kernel.org
 
-Hi,
+On Thu, 15 Mar 2012 18:41:28 +0100
+Andrea Arcangeli <aarcange@redhat.com> wrote:
 
-> There is also this series,
->=20
-> http://lists.infradead.org/pipermail/kexec/2011-July/005258.html
->=20
-> It seems awkward that pstore is in fs/pstore/ then pstore ends up as the =
-"back end" where it could just be the whole solution.
+> >  > Reported-by: Ulrich Obergfell <uobergfe@redhat.com>
+> >  > Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
+> > 
+> > Should probably go to stable too ? How far back does this bug go ?
+> 
+> This goes back to 2.6.38 (included). After it gets a bit more of
+> testing and reviews it'll be ok for stable yes.
 
-I just wanted to avoid deadlocks of pstore and its drivers such as mtdoops,=
- ramoops, and efi_pstore in panic case.
-That is still under discussion in lkml.
-
-I have no objection to modifying mtdoops/ram_console to use pstore.
-
->pstore does seems to have the nicest user interface (might be better in de=
-bugfs tho). If someone wanted to move forward with pstore they would have t=
-o write some some sort of,
->
->int pstore_register_simple(unsigned long addr, unsigned long size);
->
->to cover all the memory areas that aren't transaction based, or make pstor=
-e accept a platform_device.
-
-If you would like to introduce new feature to pstore, Tony Luck is the appr=
-opriate person to discuss.
-
-Seiji
+I'm thinking that we merge it into 3.4-rc1, marked for backporting. 
+That will give us a bit of time to shake it down in mainline before it
+turns up in stable trees.  So 3.3 itself will still have the bug.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
