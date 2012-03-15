@@ -1,105 +1,404 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx175.postini.com [74.125.245.175])
-	by kanga.kvack.org (Postfix) with SMTP id F38ED6B0092
-	for <linux-mm@kvack.org>; Wed, 14 Mar 2012 20:18:29 -0400 (EDT)
-Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id A9FFA3EE0C1
-	for <linux-mm@kvack.org>; Thu, 15 Mar 2012 09:18:27 +0900 (JST)
-Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 8EAE645DEB4
-	for <linux-mm@kvack.org>; Thu, 15 Mar 2012 09:18:27 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 75B8A45DEB8
-	for <linux-mm@kvack.org>; Thu, 15 Mar 2012 09:18:27 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 6070A1DB8043
-	for <linux-mm@kvack.org>; Thu, 15 Mar 2012 09:18:27 +0900 (JST)
-Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.240.81.145])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 0EF431DB803F
-	for <linux-mm@kvack.org>; Thu, 15 Mar 2012 09:18:27 +0900 (JST)
-Message-ID: <4F6134E1.5090601@jp.fujitsu.com>
-Date: Thu, 15 Mar 2012 09:16:33 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-MIME-Version: 1.0
-Subject: Re: [RFC REPOST] cgroup: removing css reference drain wait during
- cgroup removal
-References: <20120312213155.GE23255@google.com> <20120312213343.GF23255@google.com> <20120313151148.f8004a00.kamezawa.hiroyu@jp.fujitsu.com> <20120313163914.GD7349@google.com> <20120314092828.3321731c.kamezawa.hiroyu@jp.fujitsu.com> <4F6068F4.4090909@parallels.com>
-In-Reply-To: <4F6068F4.4090909@parallels.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Received: from psmtp.com (na3sys010amx155.postini.com [74.125.245.155])
+	by kanga.kvack.org (Postfix) with SMTP id C93746B007E
+	for <linux-mm@kvack.org>; Wed, 14 Mar 2012 20:44:03 -0400 (EDT)
+Date: Wed, 14 Mar 2012 17:43:56 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH v2 1/3] radix-tree: introduce bit-optimized iterator
+Message-Id: <20120314174356.40c35a07.akpm@linux-foundation.org>
+In-Reply-To: <20120210192542.5881.91143.stgit@zurg>
+References: <20120210191611.5881.12646.stgit@zurg>
+	<20120210192542.5881.91143.stgit@zurg>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Glauber Costa <glommer@parallels.com>
-Cc: Tejun Heo <tj@kernel.org>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, gthelen@google.com, Hugh Dickins <hughd@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Vivek Goyal <vgoyal@redhat.com>, Jens Axboe <axboe@kernel.dk>, Li Zefan <lizf@cn.fujitsu.com>, containers@lists.linux-foundation.org, cgroups@vger.kernel.org, Peter Zijlstra <a.p.zijlstra@chello.nl>
+To: Konstantin Khlebnikov <khlebnikov@openvz.org>
+Cc: Hugh Dickins <hughd@google.com>, Linus Torvalds <torvalds@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-(2012/03/14 18:46), Glauber Costa wrote:
+On Fri, 10 Feb 2012 23:25:42 +0400
+Konstantin Khlebnikov <khlebnikov@openvz.org> wrote:
 
-> On 03/14/2012 04:28 AM, KAMEZAWA Hiroyuki wrote:
->> IIUC, in general, even in the processes are in a tree, in major case
->> of servers, their workloads are independent.
->> I think FLAT mode is the dafault. 'heararchical' is a crazy thing which
->> cannot be managed.
+> This patch implements clean, simple and effective radix-tree iteration routine.
 > 
-> Better pay attention to the current overall cgroups discussions being 
-> held by Tejun then. ([RFD] cgroup: about multiple hierarchies)
+> Iterating divided into two phases:
+> * lookup next chunk in radix-tree leaf node
+> * iterating through slots in this chunk
 > 
-> The topic of whether of adapting all cgroups to be hierarchical by 
-> deafult is a recurring one.
+> Main iterator function radix_tree_next_chunk() returns pointer to first slot,
+> and stores in the struct radix_tree_iter index of next-to-last slot.
+> For tagged-iterating it also constuct bitmask of tags for retunted chunk.
+> All additional logic implemented as static-inline functions and macroses.
 > 
-> I personally think that it is not unachievable to make res_counters 
-> cheaper, therefore making this less of a problem.
+> Also patch adds radix_tree_find_next_bit() static-inline variant of
+> find_next_bit() optimized for small constant size arrays, because
+> find_next_bit() too heavy for searching in an array with one/two long elements.
 > 
+> ...
+>
+> +
+> +static inline
+> +void **radix_tree_iter_init(struct radix_tree_iter *iter, unsigned long start)
 
+Nit: if we're going to line break a function definition/declaration
+line like this then the usual way is to split it before the function
+name, so
 
-I thought of this a little yesterday. Current my idea is applying following
-rule for res_counter.
+static inline void **
+radix_tree_iter_init(struct radix_tree_iter *iter, unsigned long start)
 
-1. All res_counter is hierarchical. But behavior should be optimized.
+Old-school people did this so they could find the function with
+/^radix_tree_iter_init in vi ;)
 
-2. If parent res_counter has UNLIMITED limit, 'usage' will not be propagated
-   to its parent at _charge_.
+> +{
+> +	iter->index = 0; /* to bypass next_index overflow protection */
+> +	iter->next_index = start;
+> +	return NULL;
+> +}
 
-3. If a res_counter has UNLIMITED limit, at reading usage, it must visit
-   all children and returns a sum of them.
+Why didn't it initialize .tags?
 
-Then,
-	/cgroup/
-		memory/                       (unlimited)
-			libivirt/             (unlimited)
-				 qeumu/       (unlimited)
-				        guest/(limited)
+In fact .tags only ever gets initialized deep inside
+radix_tree_next_chunk(), if !radix_tree_is_indirect_ptr().  Is this
+correct?
 
-All dir can show hierarchical usage and the guest will not have
-any lock contention at runtime.
+>
+> ...
+>
+> +/**
+> + * radix_tree_next_slot - find next slot in chunk
+> + *
+> + * @slot	pointer to slot
+> + * @iter	iterator state
+> + * @flags	RADIX_TREE_ITER_*
+> + *
+> + * Returns pointer to next slot, or NULL if no more left.
+> + */
+> +static __always_inline
+> +void **radix_tree_next_slot(void **slot, struct radix_tree_iter *iter,
+> +			    unsigned flags)
+> +{
+> +	unsigned size, offset;
 
+'offset' could be made local to the single code block which uses it. 
+personally I find that this leads to clearer code.
 
-By this
- 1. no runtime overhead if the parent has unlimited limit.
- 2. All res_counter can show aggregate resource usage of children.
+> +	size = radix_tree_chunk_size(iter) - 1;
 
-To do this
- 1. res_coutner should have children list by itself.
+radix_tree_chunk_size() returns unsigned long, and we just threw away
+the upper 32 bits.  I'm unsure if that's a bug, but it's messy and
+possibly inefficient.
 
-Implementation problem
- - What should happens when a user set new limit to a res_counter which have
-   childrens ? Shouldn't we allow it ? Or take all locks of children and
-   update in atomic ?
- - memory.use_hierarchy should be obsolete ?
+> +	if (flags & RADIX_TREE_ITER_TAGGED) {
+> +		iter->tags >>= 1;
+> +		if (likely(iter->tags & 1ul)) {
+> +			iter->index++;
+> +			return slot + 1;
+> +		}
+> +		if ((flags & RADIX_TREE_ITER_CONTIG) && size)
+> +			return NULL;
+> +		if (likely(iter->tags)) {
+> +			offset = __ffs(iter->tags);
+> +			iter->tags >>= offset;
+> +			iter->index += offset + 1;
+> +			return slot + offset + 1;
+> +		}
+> +	} else {
+> +		while (size--) {
+> +			slot++;
+> +			iter->index++;
+> +			if (likely(*slot))
+> +				return slot;
+> +			if (flags & RADIX_TREE_ITER_CONTIG)
+> +				return NULL;
+> +		}
+> +	}
+> +	return NULL;
+> +}
 
-Other problem I'm not sure at all
- - blkcg doesn't support hierarchy at all.
+This is a whopping big function.  Why was it inlined?  Are you sure
+that was a correct decision?
 
-Hmm. 
+> +/**
+> + * radix_tree_for_each_chunk - iterate over chunks
+> + *
+> + * @slot:	the void** for pointer to chunk first slot
+> + * @root	the struct radix_tree_root pointer
+> + * @iter	the struct radix_tree_iter pointer
+> + * @start	starting index
+> + * @flags	RADIX_TREE_ITER_* and tag index
 
-Thanks,
--Kame
+Some of the arguments have a colon, others don't.
 
+> + * Locks can be released and reasquired between iterations.
 
+"reacquired"
 
+> + */
+> +#define radix_tree_for_each_chunk(slot, root, iter, start, flags)	\
+> +	for ( slot = radix_tree_iter_init(iter, start) ;		\
+> +	      (slot = radix_tree_next_chunk(root, iter, flags)) ; )
 
+I don't think I understand this whole interface :(
 
+The term "chunk" has not been defined anywhere in the code, which
+doesn't help.
 
+Neither radix_tree_for_each_chunk() nor
+radix_tree_for_each_chunk_slot() get used anywhere in this patchset so
+one can't go look at call sites to work out what they're for.
 
+It's a strange iterator - it never terminates.  It requires that the
+caller have an open-coded `break' in the search loop.
+
+A bit more description and perhaps a usage example would help.
+
+> +/**
+> + * radix_tree_for_each_chunk_slot - iterate over slots in one chunk
+> + *
+> + * @slot:	the void** for pointer to slot
+> + * @iter	the struct radix_tree_iter pointer
+> + * @flags	RADIX_TREE_ITER_*
+> + */
+> +#define radix_tree_for_each_chunk_slot(slot, iter, flags)	\
+> +	for ( ; slot ; slot = radix_tree_next_slot(slot, iter, flags) )
+
+Similar observations here.
+
+> +/**
+> + * radix_tree_for_each_slot - iterate over all slots
+> + *
+> + * @slot:	the void** for pointer to slot
+> + * @root	the struct radix_tree_root pointer
+> + * @iter	the struct radix_tree_iter pointer
+> + * @start	starting index
+> + */
+> +#define radix_tree_for_each_slot(slot, root, iter, start)	\
+> +	for ( slot = radix_tree_iter_init(iter, start) ;	\
+> +	      slot || (slot = radix_tree_next_chunk(root, iter, 0)) ; \
+> +	      slot = radix_tree_next_slot(slot, iter, 0) )
+
+All of these macros reference some of their arguments more than once. 
+So wierd and wrong things will happen if they are invoked with an
+expression-with-side-effects.  Also they lack parenthesisation, so
+
+	radix_tree_for_each_slot(myslot + 1, ...)
+
+won't compile.  The first problem is more serious than the second.
+
+This is always a pain with complex macros and fixing it here would
+deeply uglify the code.  It's unlikely that anyone will be invoking
+these with expression-with-side-effects so I'd be inclined to just live
+with the dangers.
+
+otoh, someone *might* do
+
+	radix_tree_for_each_slot(slot,
+				 expensive_function_which_returns_a_root(),
+				 iter, start);
+
+and we'd call expensive_function_which_returns_a_root() each time
+around the loop.  But I don't think this is fixable.
+
+Anyway, have a think about it all.
+
+> +/**
+> + * radix_tree_for_each_contig - iterate over all contiguous slots
+
+Now what does this mean?  Given a slot, iterate over that slot and all
+contiguous successor slots until we encounter a hole?
+
+Maybe.  Again, better interface descriptions are needed, please.
+
+> + * @slot:	the void** for pointer to slot
+> + * @root	the struct radix_tree_root pointer
+> + * @iter	the struct radix_tree_iter pointer
+> + * @start	starting index
+> + */
+> +#define radix_tree_for_each_contig(slot, root, iter, start)		\
+> +	for ( slot = radix_tree_iter_init(iter, start) ;		\
+> +	      slot || (slot = radix_tree_next_chunk(root, iter,		\
+> +				RADIX_TREE_ITER_CONTIG)) ;		\
+> +	      slot = radix_tree_next_slot(slot, iter,			\
+> +				RADIX_TREE_ITER_CONTIG) )
+> +
+> +/**
+> + * radix_tree_for_each_tagged - iterate over all tagged slots
+> + *
+> + * @slot:	the void** for pointer to slot
+> + * @root	the struct radix_tree_root pointer
+> + * @iter	the struct radix_tree_iter pointer
+> + * @start	starting index
+> + * @tag		tag index
+> + */
+> +#define radix_tree_for_each_tagged(slot, root, iter, start, tag)	\
+> +	for ( slot = radix_tree_iter_init(iter, start) ;		\
+> +	      slot || (slot = radix_tree_next_chunk(root, iter,		\
+> +			      RADIX_TREE_ITER_TAGGED | tag)) ;		\
+> +	      slot = radix_tree_next_slot(slot, iter,			\
+> +				RADIX_TREE_ITER_TAGGED) )
+> +
+>  #endif /* _LINUX_RADIX_TREE_H */
+> 
+> ...
+>
+> +static inline unsigned long radix_tree_find_next_bit(const unsigned long *addr,
+> +		unsigned long size, unsigned long offset)
+> +{
+> +	if (!__builtin_constant_p(size))
+> +		return find_next_bit(addr, size, offset);
+> +
+> +	if (offset < size) {
+> +		unsigned long tmp;
+> +
+> +		addr += offset / BITS_PER_LONG;
+> +		tmp = *addr >> (offset % BITS_PER_LONG);
+> +		if (tmp)
+> +			return __ffs(tmp) + offset;
+> +		offset = (offset + BITS_PER_LONG) & ~(BITS_PER_LONG - 1);
+> +		while (offset < size) {
+> +			tmp = *++addr;
+> +			if (tmp)
+> +				return __ffs(tmp) + offset;
+> +			offset += BITS_PER_LONG;
+> +		}
+> +	}
+> +	return size;
+> +}
+
+Beware that gcc will freely ignore your "inline" directive.
+
+When I compiled it, gcc did appear to inline it.  Then I added
+__always_inline and it was still inlined, but the text section in the
+.o file got 20 bytes larger.  Odd.
+
+>  /*
+>   * This assumes that the caller has performed appropriate preallocation, and
+>   * that the caller has pinned this thread of control to the current CPU.
+> @@ -613,6 +649,117 @@ int radix_tree_tag_get(struct radix_tree_root *root,
+>  EXPORT_SYMBOL(radix_tree_tag_get);
+>  
+>  /**
+> + * radix_tree_next_chunk - find next chunk of slots for iteration
+> + *
+> + * @root:		radix tree root
+> + * @iter:		iterator state
+> + * @flags		RADIX_TREE_ITER_* flags and tag index
+> + *
+> + * Returns pointer to first slots in chunk, or NULL if there no more left
+> + */
+> +void **radix_tree_next_chunk(struct radix_tree_root *root,
+> +			     struct radix_tree_iter *iter, unsigned flags)
+> +{
+> +	unsigned shift, tag = flags & RADIX_TREE_ITER_TAG_MASK;
+> +	struct radix_tree_node *rnode, *node;
+> +	unsigned long i, index;
+
+When a c programmer sees a variable called "i", he solidly expects it
+to have type "int".  Please choose a better name for this guy! 
+Perferably something which helps the reader understand what the
+variable's role is.
+
+> +	if ((flags & RADIX_TREE_ITER_TAGGED) && !root_tag_get(root, tag))
+> +		return NULL;
+> +
+> +	/*
+> +	 * Catch next_index overflow after ~0UL.
+> +	 * iter->index can be zero only at the beginning.
+> +	 * Because RADIX_TREE_MAP_SHIFT < BITS_PER_LONG we cannot
+> +	 * oveflow iter->next_index in single step.
+> +	 */
+> +	index = iter->next_index;
+> +	if (!index && iter->index)
+> +		return NULL;
+> +
+> +	rnode = rcu_dereference_raw(root->rnode);
+> +	if (radix_tree_is_indirect_ptr(rnode)) {
+> +		rnode = indirect_to_ptr(rnode);
+> +	} else if (rnode && !index) {
+> +		/* Single-slot tree */
+> +		iter->index = 0;
+> +		iter->next_index = 1;
+> +		iter->tags = 1;
+> +		return (void **)&root->rnode;
+> +	} else
+> +		return NULL;
+> +
+> +restart:
+> +	shift = (rnode->height - 1) * RADIX_TREE_MAP_SHIFT;
+> +	i = index >> shift;
+> +
+> +	/* Index ouside of the tree */
+> +	if (i >= RADIX_TREE_MAP_SIZE)
+> +		return NULL;
+> +
+> +	node = rnode;
+> +	while (1) {
+> +		if ((flags & RADIX_TREE_ITER_TAGGED) ?
+> +				!test_bit(i, node->tags[tag]) :
+> +				!node->slots[i]) {
+> +			/* Hole detected */
+> +			if (flags & RADIX_TREE_ITER_CONTIG)
+> +				return NULL;
+> +
+> +			if (flags & RADIX_TREE_ITER_TAGGED)
+> +				i = radix_tree_find_next_bit(node->tags[tag],
+> +						RADIX_TREE_MAP_SIZE, i + 1);
+> +			else
+> +				while (++i < RADIX_TREE_MAP_SIZE &&
+> +						!node->slots[i]);
+> +
+> +			index &= ~((RADIX_TREE_MAP_SIZE << shift) - 1);
+> +			index += i << shift;
+> +			/* Overflow after ~0UL */
+> +			if (!index)
+> +				return NULL;
+> +			if (i == RADIX_TREE_MAP_SIZE)
+> +				goto restart;
+> +		}
+> +
+> +		/* This is leaf-node */
+> +		if (!shift)
+> +			break;
+> +
+> +		node = rcu_dereference_raw(node->slots[i]);
+> +		if (node == NULL)
+> +			goto restart;
+> +		shift -= RADIX_TREE_MAP_SHIFT;
+> +		i = (index >> shift) & RADIX_TREE_MAP_MASK;
+> +	}
+> +
+> +	/* Update the iterator state */
+> +	iter->index = index;
+> +	iter->next_index = (index | RADIX_TREE_MAP_MASK) + 1;
+> +
+> +	/* Construct iter->tags bitmask from node->tags[tag] array */
+> +	if (flags & RADIX_TREE_ITER_TAGGED) {
+> +		unsigned tag_long, tag_bit;
+> +
+> +		tag_long = i / BITS_PER_LONG;
+> +		tag_bit  = i % BITS_PER_LONG;
+> +		iter->tags = node->tags[tag][tag_long] >> tag_bit;
+> +		/* This never happens if RADIX_TREE_TAG_LONGS == 1 */
+> +		if (tag_long < RADIX_TREE_TAG_LONGS - 1) {
+> +			/* Pick tags from next element */
+> +			if (tag_bit)
+> +				iter->tags |= node->tags[tag][tag_long + 1] <<
+> +						(BITS_PER_LONG - tag_bit);
+> +			/* Clip chunk size, here only BITS_PER_LONG tags */
+> +			iter->next_index = index + BITS_PER_LONG;
+> +		}
+> +	}
+> +
+> +	return node->slots + i;
+> +}
+> +EXPORT_SYMBOL(radix_tree_next_chunk);
+> +
+> +/**
+>   * radix_tree_range_tag_if_tagged - for each item in given range set given
+>   *				   tag if item has another tag set
+>   * @root:		radix tree root
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
