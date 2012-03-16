@@ -1,137 +1,128 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx135.postini.com [74.125.245.135])
-	by kanga.kvack.org (Postfix) with SMTP id 4FC2D6B00E8
+Received: from psmtp.com (na3sys010amx143.postini.com [74.125.245.143])
+	by kanga.kvack.org (Postfix) with SMTP id A829C6B00ED
 	for <linux-mm@kvack.org>; Fri, 16 Mar 2012 10:53:05 -0400 (EDT)
-Message-Id: <20120316144240.889278872@chello.nl>
-Date: Fri, 16 Mar 2012 15:40:40 +0100
+Message-Id: <20120316144240.690180983@chello.nl>
+Date: Fri, 16 Mar 2012 15:40:37 +0100
 From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Subject: [RFC][PATCH 12/26] sched, mm: sched_{fork,exec} node assignment
+Subject: [RFC][PATCH 09/26] sched, mm: Introduce tsk_home_node()
 References: <20120316144028.036474157@chello.nl>
-Content-Disposition: inline; filename=numa-foo-4.patch
+Content-Disposition: inline; filename=numa-foo-1.patch
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>, Paul Turner <pjt@google.com>, Suresh Siddha <suresh.b.siddha@intel.com>, Mike Galbraith <efault@gmx.de>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Dan Smith <danms@us.ibm.com>, Bharata B Rao <bharata.rao@gmail.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Andrea Arcangeli <aarcange@redhat.com>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>
 Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Peter Zijlstra <a.p.zijlstra@chello.nl>
 
-Rework the scheduler fork,exec hooks to allow home-node assignment.
+Introduce the home-node concept for tasks. In order to keep memory
+locality we need to have a something to stay local to, we define the
+home-node of a task as the node we prefer to allocate memory from and
+prefer to execute on.
 
-In particular:
-  - call sched_fork() after the mm is set up and the thread
-    group list is initialized (such that we can iterate the mm_owner
-    thread group).
-  - call sched_exec() after we've got our fresh mm.
+These are no hard guarantees, merely preferences. This allows for
+optimal resource usage, we can run a task away from the home-node, the
+remote memory hit -- while expensive -- is less expensive than not
+running at all, or very little, due to severe cpu overload.
+
+Similarly, we can allocate memory from another node if our home-node
+is depleted, again, some memory is better than no memory.
+
+This patch merely introduces the basic infrastructure, all policy
+comes later.
 
 Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
 ---
- fs/exec.c             |    4 ++--
- include/linux/sched.h |    4 ++--
- kernel/fork.c         |    9 +++++----
- kernel/sched/core.c   |    7 +++++--
- kernel/sched/sched.h  |    2 ++
- 5 files changed, 16 insertions(+), 10 deletions(-)
---- a/fs/exec.c
-+++ b/fs/exec.c
-@@ -1505,8 +1505,6 @@ static int do_execve_common(const char *
- 	if (IS_ERR(file))
- 		goto out_unmark;
+ include/linux/init_task.h |    8 ++++++++
+ include/linux/sched.h     |    6 ++++++
+ kernel/sched/core.c       |   32 ++++++++++++++++++++++++++++++++
+ 3 files changed, 46 insertions(+)
+
+--- a/include/linux/init_task.h
++++ b/include/linux/init_task.h
+@@ -127,6 +127,13 @@ extern struct cred init_cred;
  
--	sched_exec();
--
- 	bprm->file = file;
- 	bprm->filename = filename;
- 	bprm->interp = filename;
-@@ -1515,6 +1513,8 @@ static int do_execve_common(const char *
- 	if (retval)
- 		goto out_file;
+ #define INIT_TASK_COMM "swapper"
  
-+	sched_exec(bprm->mm);
++#ifdef CONFIG_NUMA
++# define INIT_TASK_NUMA(tsk)						\
++	.node = -1,
++#else
++# define INIT_TASK_NUMA(tsk)
++#endif
 +
- 	bprm->argc = count(argv, MAX_ARG_STRINGS);
- 	if ((retval = bprm->argc) < 0)
- 		goto out;
---- a/include/linux/sched.h
-+++ b/include/linux/sched.h
-@@ -1999,9 +1999,9 @@ task_sched_runtime(struct task_struct *t
- 
- /* sched_exec is called by processes performing an exec */
- #ifdef CONFIG_SMP
--extern void sched_exec(void);
-+extern void sched_exec(struct mm_struct *mm);
- #else
--#define sched_exec()   {}
-+#define sched_exec(mm)   {}
- #endif
- 
- extern void sched_clock_idle_sleep_event(void);
---- a/kernel/fork.c
-+++ b/kernel/fork.c
-@@ -1229,9 +1229,6 @@ static struct task_struct *copy_process(
- 	p->memcg_batch.memcg = NULL;
- #endif
- 
--	/* Perform scheduler related setup. Assign this task to a CPU. */
--	sched_fork(p);
--
- 	retval = perf_event_init_task(p);
- 	if (retval)
- 		goto bad_fork_cleanup_policy;
-@@ -1284,6 +1281,11 @@ static struct task_struct *copy_process(
- 	 * Clear TID on mm_release()?
- 	 */
- 	p->clear_child_tid = (clone_flags & CLONE_CHILD_CLEARTID) ? child_tidptr : NULL;
-+
-+	INIT_LIST_HEAD(&p->thread_group);
-+	/* Perform scheduler related setup. Assign this task to a CPU. */
-+	sched_fork(p);
-+
- #ifdef CONFIG_BLOCK
- 	p->plug = NULL;
- #endif
-@@ -1326,7 +1328,6 @@ static struct task_struct *copy_process(
- 	 * We dont wake it up yet.
- 	 */
- 	p->group_leader = p;
--	INIT_LIST_HEAD(&p->thread_group);
- 
- 	/* Now that the task is set up, run cgroup callbacks if
- 	 * necessary. We need to run them before the task is visible
---- a/kernel/sched/core.c
-+++ b/kernel/sched/core.c
-@@ -1767,8 +1767,9 @@ void sched_fork(struct task_struct *p)
- #ifdef CONFIG_SMP
- 	plist_node_init(&p->pushable_tasks, MAX_PRIO);
- #endif
--
- 	put_cpu();
-+
-+	select_task_node(p, p->mm, SD_BALANCE_FORK);
+ /*
+  *  INIT_TASK is used to set up the first task table, touch at
+  * your own risk!. Base=0, limit=0x1fffff (=2MB)
+@@ -192,6 +199,7 @@ extern struct cred init_cred;
+ 	INIT_FTRACE_GRAPH						\
+ 	INIT_TRACE_RECURSION						\
+ 	INIT_TASK_RCU_PREEMPT(tsk)					\
++	INIT_TASK_NUMA(tsk)						\
  }
  
- /*
-@@ -2507,12 +2508,14 @@ static void update_cpu_load_active(struc
-  * sched_exec - execve() is a valuable balancing opportunity, because at
-  * this point the task has the smallest effective memory and cache footprint.
-  */
--void sched_exec(void)
-+void sched_exec(struct mm_struct *mm)
- {
- 	struct task_struct *p = current;
- 	unsigned long flags;
- 	int dest_cpu;
  
-+	select_task_node(p, mm, SD_BALANCE_EXEC);
-+
- 	raw_spin_lock_irqsave(&p->pi_lock, flags);
- 	dest_cpu = p->sched_class->select_task_rq(p, SD_BALANCE_EXEC, 0);
- 	if (dest_cpu == smp_processor_id())
---- a/kernel/sched/sched.h
-+++ b/kernel/sched/sched.h
-@@ -1153,3 +1153,5 @@ enum rq_nohz_flag_bits {
- 
- #define nohz_flags(cpu)	(&cpu_rq(cpu)->nohz_flags)
+--- a/include/linux/sched.h
++++ b/include/linux/sched.h
+@@ -1541,6 +1541,7 @@ struct task_struct {
+ 	struct mempolicy *mempolicy;	/* Protected by alloc_lock */
+ 	short il_next;
+ 	short pref_node_fork;
++	int node;
  #endif
+ 	struct rcu_head rcu;
+ 
+@@ -1615,6 +1616,11 @@ struct task_struct {
+ /* Future-safe accessor for struct task_struct's cpus_allowed. */
+ #define tsk_cpus_allowed(tsk) (&(tsk)->cpus_allowed)
+ 
++static inline int tsk_home_node(struct task_struct *p)
++{
++	return p->node;
++}
 +
-+static inline void select_task_node(struct task_struct *p, struct mm_struct *mm, int sd_flags) { }
+ /*
+  * Priority of a process goes from 0..MAX_PRIO-1, valid RT
+  * priority is 0..MAX_RT_PRIO-1, and SCHED_NORMAL/SCHED_BATCH
+--- a/kernel/sched/core.c
++++ b/kernel/sched/core.c
+@@ -5874,6 +5874,38 @@ __setup("isolcpus=", isolated_cpu_setup)
+ 
+ #ifdef CONFIG_NUMA
+ 
++/*
++ * Requeues a task ensuring its on the right load-balance list so
++ * that it might get migrated to its new home.
++ *
++ * Note that we cannot actively migrate ourselves since our callers
++ * can be from atomic context. We rely on the regular load-balance
++ * mechanisms to move us around -- its all preference anyway.
++ */
++void sched_setnode(struct task_struct *p, int node)
++{
++	unsigned long flags;
++	int on_rq, running;
++	struct rq *rq;
++
++	rq = task_rq_lock(p, &flags);
++	on_rq = p->on_rq;
++	running = task_current(rq, p);
++
++	if (on_rq)
++		dequeue_task(rq, p, 0);
++	if (running)
++		p->sched_class->put_prev_task(rq, p);
++
++	p->node = node;
++
++	if (running)
++		p->sched_class->set_curr_task(rq);
++	if (on_rq)
++		enqueue_task(rq, p, 0);
++	task_rq_unlock(rq, p, &flags);
++}
++
+ /**
+  * find_next_best_node - find the next node to include in a sched_domain
+  * @node: node whose sched_domain we're building
 
 
 --
