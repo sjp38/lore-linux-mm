@@ -1,247 +1,101 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx161.postini.com [74.125.245.161])
-	by kanga.kvack.org (Postfix) with SMTP id 4FF0C6B00F1
-	for <linux-mm@kvack.org>; Fri, 16 Mar 2012 10:53:06 -0400 (EDT)
-Message-Id: <20120316144241.682156918@chello.nl>
-Date: Fri, 16 Mar 2012 15:40:52 +0100
+Received: from psmtp.com (na3sys010amx131.postini.com [74.125.245.131])
+	by kanga.kvack.org (Postfix) with SMTP id 94B3B6B00F1
+	for <linux-mm@kvack.org>; Fri, 16 Mar 2012 10:53:07 -0400 (EDT)
+Message-Id: <20120316144241.477101322@chello.nl>
+Date: Fri, 16 Mar 2012 15:40:49 +0100
 From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Subject: [RFC][PATCH 24/26] mm, mpol: Implement numa_group RSS accounting
+Subject: [RFC][PATCH 21/26] mm, mpol: Introduce vma_put_policy()
 References: <20120316144028.036474157@chello.nl>
-Content-Disposition: inline; filename=numa-rss.patch
+Content-Disposition: inline; filename=mpol-vma_put_policy.patch
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>, Paul Turner <pjt@google.com>, Suresh Siddha <suresh.b.siddha@intel.com>, Mike Galbraith <efault@gmx.de>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Dan Smith <danms@us.ibm.com>, Bharata B Rao <bharata.rao@gmail.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Andrea Arcangeli <aarcange@redhat.com>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>
 Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Peter Zijlstra <a.p.zijlstra@chello.nl>
 
-Somewhat invasive, add another call next to every
-{add,dec}_mm_counter() that takes a vma argument instead.
-
-Should we fold and do a single call taking both mm and vma?
+In preparation of other changes, create a new interface so that we can
+later extend its behaviour without having to touch all these sites.
 
 Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
 ---
- mm/filemap_xip.c |    1 +
- mm/fremap.c      |    2 ++
- mm/huge_memory.c |    4 ++++
- mm/memory.c      |   26 ++++++++++++++++++++------
- mm/rmap.c        |   14 +++++++++++---
- mm/swapfile.c    |    2 ++
- 6 files changed, 40 insertions(+), 9 deletions(-)
---- a/mm/filemap_xip.c
-+++ b/mm/filemap_xip.c
-@@ -196,6 +196,7 @@ __xip_unmap (struct address_space * mapp
- 			pteval = ptep_clear_flush_notify(vma, address, pte);
- 			page_remove_rmap(page);
- 			dec_mm_counter(mm, MM_FILEPAGES);
-+			numa_add_vma_counter(vma, MM_FILEPAGES, -1);
- 			BUG_ON(pte_dirty(pteval));
- 			pte_unmap_unlock(pte, ptl);
- 			page_cache_release(page);
---- a/mm/fremap.c
-+++ b/mm/fremap.c
-@@ -15,6 +15,7 @@
- #include <linux/rmap.h>
- #include <linux/syscalls.h>
- #include <linux/mmu_notifier.h>
-+#include <linux/mempolicy.h>
+ include/linux/mempolicy.h |    5 +++++
+ mm/mempolicy.c            |    5 +++++
+ mm/mmap.c                 |    8 ++++----
+ 3 files changed, 14 insertions(+), 4 deletions(-)
+
+--- a/include/linux/mempolicy.h
++++ b/include/linux/mempolicy.h
+@@ -169,6 +169,7 @@ static inline struct mempolicy *mpol_dup
+ #define vma_set_policy(vma, pol) ((vma)->vm_policy = (pol))
  
- #include <asm/mmu_context.h>
- #include <asm/cacheflush.h>
-@@ -40,6 +41,7 @@ static void zap_pte(struct mm_struct *mm
- 			page_cache_release(page);
- 			update_hiwater_rss(mm);
- 			dec_mm_counter(mm, MM_FILEPAGES);
-+			numa_add_vma_counter(vma, MM_FILEPAGES, -1);
- 		}
- 	} else {
- 		if (!pte_file(pte))
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -672,6 +672,7 @@ static int __do_huge_pmd_anonymous_page(
- 		prepare_pmd_huge_pte(pgtable, mm);
- 		add_mm_counter(mm, MM_ANONPAGES, HPAGE_PMD_NR);
- 		mm->nr_ptes++;
-+		numa_add_vma_counter(vma, MM_ANONPAGES, HPAGE_PMD_NR);
- 		spin_unlock(&mm->page_table_lock);
- 	}
+ extern int vma_dup_policy(struct vm_area_struct *new, struct vm_area_struct *old);
++extern void vma_put_policy(struct vm_area_struct *vma);
  
-@@ -785,6 +786,7 @@ int copy_huge_pmd(struct mm_struct *dst_
- 	get_page(src_page);
- 	page_dup_rmap(src_page);
- 	add_mm_counter(dst_mm, MM_ANONPAGES, HPAGE_PMD_NR);
-+	numa_add_vma_counter(vma, MM_ANONPAGES, HPAGE_PMD_NR);
- 
- 	pmdp_set_wrprotect(src_mm, addr, src_pmd);
- 	pmd = pmd_mkold(pmd_wrprotect(pmd));
-@@ -1047,6 +1049,7 @@ int zap_huge_pmd(struct mmu_gather *tlb,
- 			page_remove_rmap(page);
- 			VM_BUG_ON(page_mapcount(page) < 0);
- 			add_mm_counter(tlb->mm, MM_ANONPAGES, -HPAGE_PMD_NR);
-+			numa_add_vma_counter(vma, MM_ANONPAGES, -HPAGE_PMD_NR);
- 			VM_BUG_ON(!PageHead(page));
- 			tlb->mm->nr_ptes--;
- 			spin_unlock(&tlb->mm->page_table_lock);
-@@ -1805,6 +1808,7 @@ static void __collapse_huge_page_copy(pt
- 		if (pte_none(pteval)) {
- 			clear_user_highpage(page, address);
- 			add_mm_counter(vma->vm_mm, MM_ANONPAGES, 1);
-+			numa_add_vma_counter(vma, MM_ANONPAGES, 1);
- 		} else {
- 			src_page = pte_page(pteval);
- 			copy_user_highpage(page, src_page, address, vma);
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -657,15 +657,19 @@ static inline void init_rss_vec(int *rss
- 	memset(rss, 0, sizeof(int) * NR_MM_COUNTERS);
- }
- 
--static inline void add_mm_rss_vec(struct mm_struct *mm, int *rss)
-+static inline
-+void add_mm_rss_vec(struct mm_struct *mm, struct vm_area_struct *vma, int *rss)
+ static inline void mpol_get(struct mempolicy *pol)
  {
- 	int i;
+@@ -315,6 +316,10 @@ mpol_shared_policy_lookup(struct shared_
+ #define vma_set_policy(vma, pol) do {} while(0)
+ #define vma_dup_policy(new, old) (0)
  
- 	if (current->mm == mm)
- 		sync_mm_rss(current, mm);
--	for (i = 0; i < NR_MM_COUNTERS; i++)
--		if (rss[i])
-+	for (i = 0; i < NR_MM_COUNTERS; i++) {
-+		if (rss[i]) {
- 			add_mm_counter(mm, i, rss[i]);
-+			numa_add_vma_counter(vma, i, rss[i]);
-+		}
-+	}
++static inline void vma_put_policy(struct vm_area_struct *)
++{
++}
++
+ static inline void numa_policy_init(void)
+ {
+ }
+--- a/mm/mempolicy.c
++++ b/mm/mempolicy.c
+@@ -1982,6 +1982,11 @@ int vma_dup_policy(struct vm_area_struct
+ 	return 0;
  }
  
++void vma_put_policy(struct vm_area_struct *vma)
++{
++	mpol_put(vma_policy(vma));
++}
++
  /*
-@@ -983,7 +987,7 @@ int copy_pte_range(struct mm_struct *dst
- 	arch_leave_lazy_mmu_mode();
- 	spin_unlock(src_ptl);
- 	pte_unmap(orig_src_pte);
--	add_mm_rss_vec(dst_mm, rss);
-+	add_mm_rss_vec(dst_mm, vma, rss);
- 	pte_unmap_unlock(orig_dst_pte, dst_ptl);
- 	cond_resched();
- 
-@@ -1217,7 +1221,7 @@ static unsigned long zap_pte_range(struc
- 		pte_clear_not_present_full(mm, addr, pte, tlb->fullmm);
- 	} while (pte++, addr += PAGE_SIZE, addr != end);
- 
--	add_mm_rss_vec(mm, rss);
-+	add_mm_rss_vec(mm, vma, rss);
- 	arch_leave_lazy_mmu_mode();
- 	pte_unmap_unlock(start_pte, ptl);
- 
-@@ -2024,6 +2028,7 @@ static int insert_page(struct vm_area_st
- 	/* Ok, finally just insert the thing.. */
- 	get_page(page);
- 	inc_mm_counter_fast(mm, MM_FILEPAGES);
-+	numa_add_vma_counter(vma, MM_FILEPAGES, 1);
- 	page_add_file_rmap(page);
- 	set_pte_at(mm, addr, pte, mk_pte(page, prot));
- 
-@@ -2680,9 +2685,13 @@ static int do_wp_page(struct mm_struct *
- 			if (!PageAnon(old_page)) {
- 				dec_mm_counter_fast(mm, MM_FILEPAGES);
- 				inc_mm_counter_fast(mm, MM_ANONPAGES);
-+				numa_add_vma_counter(vma, MM_FILEPAGES, -1);
-+				numa_add_vma_counter(vma, MM_ANONPAGES, 1);
- 			}
--		} else
-+		} else {
- 			inc_mm_counter_fast(mm, MM_ANONPAGES);
-+			numa_add_vma_counter(vma, MM_ANONPAGES, 1);
-+		}
- 		flush_cache_page(vma, address, pte_pfn(orig_pte));
- 		entry = mk_pte(new_page, vma->vm_page_prot);
- 		entry = maybe_mkwrite(pte_mkdirty(entry), vma);
-@@ -3006,6 +3015,8 @@ static int do_swap_page(struct mm_struct
- 
- 	inc_mm_counter_fast(mm, MM_ANONPAGES);
- 	dec_mm_counter_fast(mm, MM_SWAPENTS);
-+	numa_add_vma_counter(vma, MM_ANONPAGES, 1);
-+	numa_add_vma_counter(vma, MM_SWAPENTS, -1);
- 	pte = mk_pte(page, vma->vm_page_prot);
- 	if ((flags & FAULT_FLAG_WRITE) && reuse_swap_page(page)) {
- 		pte = maybe_mkwrite(pte_mkdirty(pte), vma);
-@@ -3146,6 +3157,7 @@ static int do_anonymous_page(struct mm_s
- 		goto release;
- 
- 	inc_mm_counter_fast(mm, MM_ANONPAGES);
-+	numa_add_vma_counter(vma, MM_ANONPAGES, 1);
- 	page_add_new_anon_rmap(page, vma, address);
- setpte:
- 	set_pte_at(mm, address, page_table, entry);
-@@ -3301,9 +3313,11 @@ static int __do_fault(struct mm_struct *
- 			entry = maybe_mkwrite(pte_mkdirty(entry), vma);
- 		if (anon) {
- 			inc_mm_counter_fast(mm, MM_ANONPAGES);
-+			numa_add_vma_counter(vma, MM_ANONPAGES, 1);
- 			page_add_new_anon_rmap(page, vma, address);
- 		} else {
- 			inc_mm_counter_fast(mm, MM_FILEPAGES);
-+			numa_add_vma_counter(vma, MM_FILEPAGES, 1);
- 			page_add_file_rmap(page);
- 			if (flags & FAULT_FLAG_WRITE) {
- 				dirty_page = page;
---- a/mm/rmap.c
-+++ b/mm/rmap.c
-@@ -1255,10 +1255,13 @@ int try_to_unmap_one(struct page *page,
- 	update_hiwater_rss(mm);
- 
- 	if (PageHWPoison(page) && !(flags & TTU_IGNORE_HWPOISON)) {
--		if (PageAnon(page))
-+		if (PageAnon(page)) {
- 			dec_mm_counter(mm, MM_ANONPAGES);
--		else
-+			numa_add_vma_counter(vma, MM_ANONPAGES, -1);
-+		} else {
- 			dec_mm_counter(mm, MM_FILEPAGES);
-+			numa_add_vma_counter(vma, MM_FILEPAGES, -1);
-+		}
- 		set_pte_at(mm, address, pte,
- 				swp_entry_to_pte(make_hwpoison_entry(page)));
- 	} else if (PageAnon(page)) {
-@@ -1282,6 +1285,8 @@ int try_to_unmap_one(struct page *page,
- 			}
- 			dec_mm_counter(mm, MM_ANONPAGES);
- 			inc_mm_counter(mm, MM_SWAPENTS);
-+			numa_add_vma_counter(vma, MM_ANONPAGES, -1);
-+			numa_add_vma_counter(vma, MM_SWAPENTS, 1);
- 		} else if (PAGE_MIGRATION) {
- 			/*
- 			 * Store the pfn of the page in a special migration
-@@ -1299,8 +1304,10 @@ int try_to_unmap_one(struct page *page,
- 		swp_entry_t entry;
- 		entry = make_migration_entry(page, pte_write(pteval));
- 		set_pte_at(mm, address, pte, swp_entry_to_pte(entry));
--	} else
-+	} else {
- 		dec_mm_counter(mm, MM_FILEPAGES);
-+		numa_add_vma_counter(vma, MM_FILEPAGES, -1);
-+	}
- 
- 	page_remove_rmap(page);
- 	page_cache_release(page);
-@@ -1440,6 +1447,7 @@ static int try_to_unmap_cluster(unsigned
- 		page_remove_rmap(page);
- 		page_cache_release(page);
- 		dec_mm_counter(mm, MM_FILEPAGES);
-+		numa_add_vma_counter(vma, MM_FILEPAGES, -1);
- 		(*mapcount)--;
+  * If *frompol needs [has] an extra ref, copy *frompol to *tompol ,
+  * eliminate the * MPOL_F_* flags that require conditional ref and
+--- a/mm/mmap.c
++++ b/mm/mmap.c
+@@ -236,7 +236,7 @@ static struct vm_area_struct *remove_vma
+ 		if (vma->vm_flags & VM_EXECUTABLE)
+ 			removed_exe_file_vma(vma->vm_mm);
  	}
- 	pte_unmap_unlock(pte - 1, ptl);
---- a/mm/swapfile.c
-+++ b/mm/swapfile.c
-@@ -881,6 +881,8 @@ static int unuse_pte(struct vm_area_stru
+-	mpol_put(vma_policy(vma));
++	vma_put_policy(vma);
+ 	kmem_cache_free(vm_area_cachep, vma);
+ 	return next;
+ }
+@@ -633,7 +633,7 @@ again:			remove_next = 1 + (end > next->
+ 		if (next->anon_vma)
+ 			anon_vma_merge(vma, next);
+ 		mm->map_count--;
+-		mpol_put(vma_policy(next));
++		vma_put_policy(next);
+ 		kmem_cache_free(vm_area_cachep, next);
+ 		/*
+ 		 * In mprotect's case 6 (see comments on vma_merge),
+@@ -1994,7 +1994,7 @@ static int __split_vma(struct mm_struct
+ 	}
+ 	unlink_anon_vmas(new);
+  out_free_mpol:
+-	mpol_put(new->vm_policy);
++	vma_put_policy(new);
+  out_free_vma:
+ 	kmem_cache_free(vm_area_cachep, new);
+  out_err:
+@@ -2392,7 +2392,7 @@ struct vm_area_struct *copy_vma(struct v
+ 	return new_vma;
  
- 	dec_mm_counter(vma->vm_mm, MM_SWAPENTS);
- 	inc_mm_counter(vma->vm_mm, MM_ANONPAGES);
-+	numa_add_vma_counter(vma, MM_SWAPENTS, -1);
-+	numa_add_vma_counter(vma, MM_ANONPAGES, 1);
- 	get_page(page);
- 	set_pte_at(vma->vm_mm, addr, pte,
- 		   pte_mkold(mk_pte(page, vma->vm_page_prot)));
+  out_free_mempol:
+-	mpol_put(new_vma->vm_policy);
++	vma_put_policy(new_vma);
+  out_free_vma:
+ 	kmem_cache_free(vm_area_cachep, new_vma);
+ 	return NULL;
 
 
 --
