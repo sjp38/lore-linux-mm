@@ -1,88 +1,170 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx134.postini.com [74.125.245.134])
-	by kanga.kvack.org (Postfix) with SMTP id 712706B00F2
+Received: from psmtp.com (na3sys010amx132.postini.com [74.125.245.132])
+	by kanga.kvack.org (Postfix) with SMTP id 6C10E6B00ED
 	for <linux-mm@kvack.org>; Fri, 16 Mar 2012 10:53:06 -0400 (EDT)
-Message-Id: <20120316144240.829453337@chello.nl>
-Date: Fri, 16 Mar 2012 15:40:39 +0100
+Message-Id: <20120316144240.234456258@chello.nl>
+Date: Fri, 16 Mar 2012 15:40:30 +0100
 From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Subject: [RFC][PATCH 11/26] mm, mpol: Lazy migrate a process/vma
+Subject: [RFC][PATCH 02/26] mm, mpol: Remove NUMA_INTERLEAVE_HIT
 References: <20120316144028.036474157@chello.nl>
-Content-Disposition: inline; filename=numa-foo-3.patch
+Content-Disposition: inline; filename=peter_zijlstra-mm-remove_numa_interleave_hit.patch
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>, Paul Turner <pjt@google.com>, Suresh Siddha <suresh.b.siddha@intel.com>, Mike Galbraith <efault@gmx.de>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Dan Smith <danms@us.ibm.com>, Bharata B Rao <bharata.rao@gmail.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Andrea Arcangeli <aarcange@redhat.com>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>
 Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Peter Zijlstra <a.p.zijlstra@chello.nl>
 
-Provide simple functions to lazy migrate a process (or part thereof).
-These will be used to implement memory migration for NUMA process
-migration.
+Since the NUMA_INTERLEAVE_HIT statistic is useless on its own; it wants
+to be compared to either a total of interleave allocations or to a miss
+count, remove it.
+
+Fixing it would be possible, but since we've gone years without these
+statistics I figure we can continue that way.
+
+This cleans up some of the weird MPOL_INTERLEAVE allocation exceptions.
 
 Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
 ---
- include/linux/mempolicy.h |    3 +++
- mm/mempolicy.c            |   40 ++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 43 insertions(+)
---- a/include/linux/mempolicy.h
-+++ b/include/linux/mempolicy.h
-@@ -250,6 +250,9 @@ extern int vma_migratable(struct vm_area
- 
- extern int mpol_misplaced(struct page *, struct vm_area_struct *, unsigned long);
- 
-+extern void lazy_migrate_vma(struct vm_area_struct *vma, int node);
-+extern void lazy_migrate_process(struct mm_struct *mm, int node);
-+
- #else
- 
- struct mempolicy {};
+ drivers/base/node.c    |    2 +-
+ include/linux/mmzone.h |    1 -
+ mm/mempolicy.c         |   66 +++++++++++++++--------------------------------
+ 3 files changed, 22 insertions(+), 47 deletions(-)
+
+diff --git a/drivers/base/node.c b/drivers/base/node.c
+index 5693ece..942cdbc 100644
+--- a/drivers/base/node.c
++++ b/drivers/base/node.c
+@@ -172,7 +172,7 @@ static ssize_t node_read_numastat(struct sys_device * dev,
+ 		       node_page_state(dev->id, NUMA_HIT),
+ 		       node_page_state(dev->id, NUMA_MISS),
+ 		       node_page_state(dev->id, NUMA_FOREIGN),
+-		       node_page_state(dev->id, NUMA_INTERLEAVE_HIT),
++		       0UL,
+ 		       node_page_state(dev->id, NUMA_LOCAL),
+ 		       node_page_state(dev->id, NUMA_OTHER));
+ }
+diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
+index 3ac040f..3a3be81 100644
+--- a/include/linux/mmzone.h
++++ b/include/linux/mmzone.h
+@@ -111,7 +111,6 @@ enum zone_stat_item {
+ 	NUMA_HIT,		/* allocated in intended node */
+ 	NUMA_MISS,		/* allocated in non intended node */
+ 	NUMA_FOREIGN,		/* was intended here, hit elsewhere */
+-	NUMA_INTERLEAVE_HIT,	/* interleaver preferred this zone */
+ 	NUMA_LOCAL,		/* allocation from local node */
+ 	NUMA_OTHER,		/* allocation from other node */
+ #endif
+diff --git a/mm/mempolicy.c b/mm/mempolicy.c
+index c3fdbcb..2c48c45 100644
 --- a/mm/mempolicy.c
 +++ b/mm/mempolicy.c
-@@ -1173,6 +1173,46 @@ static long do_mbind(unsigned long start
- 	return err;
+@@ -1530,11 +1530,29 @@ static nodemask_t *policy_nodemask(gfp_t gfp, struct mempolicy *policy)
+ 	return NULL;
  }
  
-+void lazy_migrate_vma(struct vm_area_struct *vma, int node)
++/* Do dynamic interleaving for a process */
++static unsigned interleave_nodes(struct mempolicy *policy)
 +{
-+	nodemask_t nmask = nodemask_of_node(node);
-+	LIST_HEAD(pagelist);
++	unsigned nid, next;
++	struct task_struct *me = current;
 +
-+	struct mempol_walk_data data = {
-+		.nodes = &nmask,
-+		.flags = MPOL_MF_MOVE | MPOL_MF_INVERT, /* move all pages not in set */
-+		.private = &pagelist,
-+		.vma = vma,
-+	};
-+
-+	struct mm_walk walk = {
-+		.pte_entry = check_pte_entry,
-+		.mm = vma->vm_mm,
-+		.private = &data,
-+	};
-+
-+	if (vma->vm_file)
-+		return;
-+
-+	if (!vma_migratable(vma))
-+		return;
-+
-+	if (!walk_page_range(vma->vm_start, vma->vm_end, &walk))
-+		migrate_pages_unmap_only(&pagelist);
-+
-+	putback_lru_pages(&pagelist);
++	nid = me->il_next;
++	next = next_node(nid, policy->v.nodes);
++	if (next >= MAX_NUMNODES)
++		next = first_node(policy->v.nodes);
++	if (next < MAX_NUMNODES)
++		me->il_next = next;
++	return nid;
 +}
 +
-+void lazy_migrate_process(struct mm_struct *mm, int node)
-+{
-+	struct vm_area_struct *vma;
-+
-+	down_read(&mm->mmap_sem);
-+	for (vma = mm->mmap; vma; vma = vma->vm_next)
-+		lazy_migrate_vma(vma, node);
-+	up_read(&mm->mmap_sem);
-+}
-+
+ /* Return a zonelist indicated by gfp for node representing a mempolicy */
+ static struct zonelist *policy_zonelist(gfp_t gfp, struct mempolicy *policy,
+ 	int nd)
+ {
+ 	switch (policy->mode) {
++	case MPOL_INTERLEAVE:
++		nd = interleave_nodes(policy);
++		break;
+ 	case MPOL_PREFERRED:
+ 		if (!(policy->flags & MPOL_F_LOCAL))
+ 			nd = policy->v.preferred_node;
+@@ -1556,21 +1574,6 @@ static struct zonelist *policy_zonelist(gfp_t gfp, struct mempolicy *policy,
+ 	return node_zonelist(nd, gfp);
+ }
+ 
+-/* Do dynamic interleaving for a process */
+-static unsigned interleave_nodes(struct mempolicy *policy)
+-{
+-	unsigned nid, next;
+-	struct task_struct *me = current;
+-
+-	nid = me->il_next;
+-	next = next_node(nid, policy->v.nodes);
+-	if (next >= MAX_NUMNODES)
+-		next = first_node(policy->v.nodes);
+-	if (next < MAX_NUMNODES)
+-		me->il_next = next;
+-	return nid;
+-}
+-
  /*
-  * User space interface with variable sized bitmaps for nodelists.
-  */
+  * Depending on the memory policy provide a node from which to allocate the
+  * next slab entry.
+@@ -1801,21 +1804,6 @@ out:
+ 	return ret;
+ }
+ 
+-/* Allocate a page in interleaved policy.
+-   Own path because it needs to do special accounting. */
+-static struct page *alloc_page_interleave(gfp_t gfp, unsigned order,
+-					unsigned nid)
+-{
+-	struct zonelist *zl;
+-	struct page *page;
+-
+-	zl = node_zonelist(nid, gfp);
+-	page = __alloc_pages(gfp, order, zl);
+-	if (page && page_zone(page) == zonelist_zone(&zl->_zonerefs[0]))
+-		inc_zone_page_state(page, NUMA_INTERLEAVE_HIT);
+-	return page;
+-}
+-
+ /**
+  * 	alloc_pages_vma	- Allocate a page for a VMA.
+  *
+@@ -1848,15 +1836,6 @@ alloc_pages_vma(gfp_t gfp, int order, struct vm_area_struct *vma,
+ 	struct page *page;
+ 
+ 	get_mems_allowed();
+-	if (unlikely(pol->mode == MPOL_INTERLEAVE)) {
+-		unsigned nid;
+-
+-		nid = interleave_nid(pol, vma, addr, PAGE_SHIFT + order);
+-		mpol_cond_put(pol);
+-		page = alloc_page_interleave(gfp, order, nid);
+-		put_mems_allowed();
+-		return page;
+-	}
+ 	zl = policy_zonelist(gfp, pol, node);
+ 	if (unlikely(mpol_needs_cond_ref(pol))) {
+ 		/*
+@@ -1909,12 +1888,9 @@ struct page *alloc_pages_current(gfp_t gfp, unsigned order)
+ 	 * No reference counting needed for current->mempolicy
+ 	 * nor system default_policy
+ 	 */
+-	if (pol->mode == MPOL_INTERLEAVE)
+-		page = alloc_page_interleave(gfp, order, interleave_nodes(pol));
+-	else
+-		page = __alloc_pages_nodemask(gfp, order,
+-				policy_zonelist(gfp, pol, numa_node_id()),
+-				policy_nodemask(gfp, pol));
++	page = __alloc_pages_nodemask(gfp, order,
++			policy_zonelist(gfp, pol, numa_node_id()),
++			policy_nodemask(gfp, pol));
+ 	put_mems_allowed();
+ 	return page;
+ }
+
 
 
 --
