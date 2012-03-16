@@ -1,21 +1,21 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx142.postini.com [74.125.245.142])
-	by kanga.kvack.org (Postfix) with SMTP id B93996B00E7
-	for <linux-mm@kvack.org>; Fri, 16 Mar 2012 13:39:55 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx184.postini.com [74.125.245.184])
+	by kanga.kvack.org (Postfix) with SMTP id 33DBE6B00E8
+	for <linux-mm@kvack.org>; Fri, 16 Mar 2012 13:39:58 -0400 (EDT)
 Received: from /spool/local
-	by e28smtp08.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e28smtp05.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
-	Fri, 16 Mar 2012 23:09:50 +0530
+	Fri, 16 Mar 2012 23:09:54 +0530
 Received: from d28av03.in.ibm.com (d28av03.in.ibm.com [9.184.220.65])
-	by d28relay02.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q2GHdkkT3182808
-	for <linux-mm@kvack.org>; Fri, 16 Mar 2012 23:09:46 +0530
+	by d28relay05.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q2GHdpZQ2191442
+	for <linux-mm@kvack.org>; Fri, 16 Mar 2012 23:09:51 +0530
 Received: from d28av03.in.ibm.com (loopback [127.0.0.1])
-	by d28av03.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q2GN90jk030641
-	for <linux-mm@kvack.org>; Sat, 17 Mar 2012 10:09:00 +1100
+	by d28av03.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q2GN95th030882
+	for <linux-mm@kvack.org>; Sat, 17 Mar 2012 10:09:05 +1100
 From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Subject: [PATCH -V4 02/10] hugetlbfs: don't use ERR_PTR with VM_FAULT* values
-Date: Fri, 16 Mar 2012 23:09:22 +0530
-Message-Id: <1331919570-2264-3-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+Subject: [PATCH -V4 05/10] hugetlb: add charge/uncharge calls for HugeTLB alloc/free
+Date: Fri, 16 Mar 2012 23:09:25 +0530
+Message-Id: <1331919570-2264-6-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
 In-Reply-To: <1331919570-2264-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
 References: <1331919570-2264-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
@@ -25,73 +25,104 @@ Cc: linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, "Aneesh Kumar K.V" <a
 
 From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
 
-Using VM_FAULT_* codes with ERR_PTR will require us to make sure
-VM_FAULT_* values will not exceed MAX_ERRNO value.
+This adds necessary charge/uncharge calls in the HugeTLB code
 
+Acked-by: Hillf Danton <dhillf@gmail.com>
 Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
 ---
- mm/hugetlb.c |   18 +++++++++++++-----
- 1 files changed, 13 insertions(+), 5 deletions(-)
+ mm/hugetlb.c    |   21 ++++++++++++++++++++-
+ mm/memcontrol.c |    5 +++++
+ 2 files changed, 25 insertions(+), 1 deletions(-)
 
 diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-index d623e71..3782da8 100644
+index c672187..91361a0 100644
 --- a/mm/hugetlb.c
 +++ b/mm/hugetlb.c
-@@ -1034,10 +1034,10 @@ static struct page *alloc_huge_page(struct vm_area_struct *vma,
- 	 */
- 	chg = vma_needs_reservation(h, vma, addr);
- 	if (chg < 0)
--		return ERR_PTR(-VM_FAULT_OOM);
-+		return ERR_PTR(-ENOMEM);
- 	if (chg)
- 		if (hugetlb_get_quota(inode->i_mapping, chg))
--			return ERR_PTR(-VM_FAULT_SIGBUS);
-+			return ERR_PTR(-ENOSPC);
+@@ -21,6 +21,8 @@
+ #include <linux/rmap.h>
+ #include <linux/swap.h>
+ #include <linux/swapops.h>
++#include <linux/memcontrol.h>
++#include <linux/page_cgroup.h>
  
+ #include <asm/page.h>
+ #include <asm/pgtable.h>
+@@ -542,6 +544,9 @@ static void free_huge_page(struct page *page)
+ 	BUG_ON(page_mapcount(page));
+ 	INIT_LIST_HEAD(&page->lru);
+ 
++	if (mapping)
++		mem_cgroup_hugetlb_uncharge_page(hstate_index(h),
++						 pages_per_huge_page(h), page);
+ 	spin_lock(&hugetlb_lock);
+ 	if (h->surplus_huge_pages_node[nid] && huge_page_order(h) < MAX_ORDER) {
+ 		update_and_free_page(h, page);
+@@ -1019,12 +1024,15 @@ static void vma_commit_reservation(struct hstate *h,
+ static struct page *alloc_huge_page(struct vm_area_struct *vma,
+ 				    unsigned long addr, int avoid_reserve)
+ {
++	int ret, idx;
+ 	struct hstate *h = hstate_vma(vma);
+ 	struct page *page;
++	struct mem_cgroup *memcg = NULL;
+ 	struct address_space *mapping = vma->vm_file->f_mapping;
+ 	struct inode *inode = mapping->host;
+ 	long chg;
+ 
++	idx = hstate_index(h);
+ 	/*
+ 	 * Processes that did not create the mapping will have no reserves and
+ 	 * will not have accounted against quota. Check that the quota can be
+@@ -1039,6 +1047,12 @@ static struct page *alloc_huge_page(struct vm_area_struct *vma,
+ 		if (hugetlb_get_quota(inode->i_mapping, chg))
+ 			return ERR_PTR(-ENOSPC);
+ 
++	ret = mem_cgroup_hugetlb_charge_page(idx, pages_per_huge_page(h),
++					     &memcg);
++	if (ret) {
++		hugetlb_put_quota(inode->i_mapping, chg);
++		return ERR_PTR(-ENOSPC);
++	}
  	spin_lock(&hugetlb_lock);
  	page = dequeue_huge_page_vma(h, vma, addr, avoid_reserve);
-@@ -1047,7 +1047,7 @@ static struct page *alloc_huge_page(struct vm_area_struct *vma,
+ 	spin_unlock(&hugetlb_lock);
+@@ -1046,6 +1060,9 @@ static struct page *alloc_huge_page(struct vm_area_struct *vma,
+ 	if (!page) {
  		page = alloc_buddy_huge_page(h, NUMA_NO_NODE);
  		if (!page) {
++			mem_cgroup_hugetlb_uncharge_memcg(idx,
++							 pages_per_huge_page(h),
++							 memcg);
  			hugetlb_put_quota(inode->i_mapping, chg);
--			return ERR_PTR(-VM_FAULT_SIGBUS);
-+			return ERR_PTR(-ENOSPC);
+ 			return ERR_PTR(-ENOSPC);
  		}
- 	}
+@@ -1054,7 +1071,9 @@ static struct page *alloc_huge_page(struct vm_area_struct *vma,
+ 	set_page_private(page, (unsigned long) mapping);
  
-@@ -2395,6 +2395,7 @@ retry_avoidcopy:
- 	new_page = alloc_huge_page(vma, address, outside_reserve);
+ 	vma_commit_reservation(h, vma, addr);
+-
++	/* update page cgroup details */
++	mem_cgroup_hugetlb_commit_charge(idx, pages_per_huge_page(h),
++					 memcg, page);
+ 	return page;
+ }
  
- 	if (IS_ERR(new_page)) {
-+		int err = PTR_ERR(new_page);
- 		page_cache_release(old_page);
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index 4b36c5e..7a9ea94 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -2901,6 +2901,11 @@ __mem_cgroup_uncharge_common(struct page *page, enum charge_type ctype)
  
- 		/*
-@@ -2424,7 +2425,10 @@ retry_avoidcopy:
+ 	if (PageSwapCache(page))
+ 		return NULL;
++	/*
++	 * HugeTLB page uncharge happen in the HugeTLB compound page destructor
++	 */
++	if (PageHuge(page))
++		return NULL;
  
- 		/* Caller expects lock to be held */
- 		spin_lock(&mm->page_table_lock);
--		return -PTR_ERR(new_page);
-+		if (err == -ENOMEM)
-+			return VM_FAULT_OOM;
-+		else
-+			return VM_FAULT_SIGBUS;
- 	}
- 
- 	/*
-@@ -2542,7 +2546,11 @@ retry:
- 			goto out;
- 		page = alloc_huge_page(vma, address, 0);
- 		if (IS_ERR(page)) {
--			ret = -PTR_ERR(page);
-+			ret = PTR_ERR(page);
-+			if (ret == -ENOMEM)
-+				ret = VM_FAULT_OOM;
-+			else
-+				ret = VM_FAULT_SIGBUS;
- 			goto out;
- 		}
- 		clear_huge_page(page, address, pages_per_huge_page(h));
+ 	if (PageTransHuge(page)) {
+ 		nr_pages <<= compound_order(page);
 -- 
 1.7.9
 
