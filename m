@@ -1,231 +1,198 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx106.postini.com [74.125.245.106])
-	by kanga.kvack.org (Postfix) with SMTP id 7D9066B00F9
-	for <linux-mm@kvack.org>; Fri, 16 Mar 2012 10:53:11 -0400 (EDT)
-Message-Id: <20120316144241.540630849@chello.nl>
-Date: Fri, 16 Mar 2012 15:40:50 +0100
+Received: from psmtp.com (na3sys010amx139.postini.com [74.125.245.139])
+	by kanga.kvack.org (Postfix) with SMTP id 8C6F36B00FA
+	for <linux-mm@kvack.org>; Fri, 16 Mar 2012 10:53:12 -0400 (EDT)
+Message-Id: <20120316144241.154053094@chello.nl>
+Date: Fri, 16 Mar 2012 15:40:44 +0100
 From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Subject: [RFC][PATCH 22/26] mm, mpol: Split and explose some mempolicy functions
+Subject: [RFC][PATCH 16/26] sched, numa: Abstract the numa_entity
 References: <20120316144028.036474157@chello.nl>
-Content-Disposition: inline; filename=mpol-mbind-split.patch
+Content-Disposition: inline; filename=numa-foo-7.patch
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>, Paul Turner <pjt@google.com>, Suresh Siddha <suresh.b.siddha@intel.com>, Mike Galbraith <efault@gmx.de>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Dan Smith <danms@us.ibm.com>, Bharata B Rao <bharata.rao@gmail.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Andrea Arcangeli <aarcange@redhat.com>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>
 Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Peter Zijlstra <a.p.zijlstra@chello.nl>
 
-In order to allow creating 'custom' mpols, expose some guts. In
-particular means to allocate fresh mpols and to bind them to memory
-ranges, skipping out on the intermediate -- policy -- part of
-sys_mbind().
+In order to prepare the NUMA balancer for non-process entities, add
+further abstraction to the thing.
 
 Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
 ---
- include/linux/mempolicy.h |    8 +++
- mm/mempolicy.c            |  111 ++++++++++++++++++++++++++--------------------
- 2 files changed, 71 insertions(+), 48 deletions(-)
---- a/include/linux/mempolicy.h
-+++ b/include/linux/mempolicy.h
-@@ -203,6 +203,12 @@ struct shared_policy {
- 	spinlock_t lock;
+ include/linux/mm_types.h |    5 +-
+ kernel/sched/numa.c      |   85 +++++++++++++++++++++++++++++------------------
+ 2 files changed, 57 insertions(+), 33 deletions(-)
+--- a/include/linux/mm_types.h
++++ b/include/linux/mm_types.h
+@@ -287,8 +287,9 @@ struct mm_rss_stat {
+ 
+ struct numa_entity {
+ #ifdef CONFIG_NUMA
+-	int		 node;		/* home node */
+-	struct list_head numa_entry;	/* balance list */
++	int			node;		/* home node */
++	struct list_head	numa_entry;	/* balance list */
++	const struct numa_ops	*nops;
+ #endif
  };
  
-+extern struct mempolicy *mpol_new(unsigned short mode, unsigned short flags,
-+				  nodemask_t *nodes);
-+extern long mpol_do_mbind(unsigned long start, unsigned long len,
-+				struct mempolicy *policy, unsigned long mode,
-+				nodemask_t *nmask, unsigned long flags);
+--- a/kernel/sched/numa.c
++++ b/kernel/sched/numa.c
+@@ -7,6 +7,17 @@
+ 
+ static const int numa_balance_interval = 2 * HZ; /* 2 seconds */
+ 
++struct numa_ops {
++	unsigned long	(*mem_load)(struct numa_entity *ne);
++	unsigned long	(*cpu_load)(struct numa_entity *ne);
 +
- void mpol_shared_policy_init(struct shared_policy *sp, struct mempolicy *mpol);
- int mpol_set_shared_policy(struct shared_policy *info,
- 				struct vm_area_struct *vma,
-@@ -216,6 +222,8 @@ struct mempolicy *get_vma_policy(struct 
- 
- extern void numa_default_policy(void);
- extern void numa_policy_init(void);
-+extern void mpol_rebind_policy(struct mempolicy *pol, const nodemask_t *new,
-+				enum mpol_rebind_step step);
- extern void mpol_rebind_task(struct task_struct *tsk, const nodemask_t *new,
- 				enum mpol_rebind_step step);
- extern void mpol_rebind_mm(struct mm_struct *mm, nodemask_t *new);
---- a/mm/mempolicy.c
-+++ b/mm/mempolicy.c
-@@ -259,7 +259,7 @@ static int mpol_set_nodemask(struct memp
-  * This function just creates a new policy, does some check and simple
-  * initialization. You must invoke mpol_set_nodemask() to set nodes.
-  */
--static struct mempolicy *mpol_new(unsigned short mode, unsigned short flags,
-+struct mempolicy *mpol_new(unsigned short mode, unsigned short flags,
- 				  nodemask_t *nodes)
- {
- 	struct mempolicy *policy;
-@@ -401,7 +401,7 @@ static void mpol_rebind_preferred(struct
-  * 	MPOL_REBIND_STEP1 - set all the newly nodes
-  * 	MPOL_REBIND_STEP2 - clean all the disallowed nodes
-  */
--static void mpol_rebind_policy(struct mempolicy *pol, const nodemask_t *newmask,
-+void mpol_rebind_policy(struct mempolicy *pol, const nodemask_t *newmask,
- 				enum mpol_rebind_step step)
- {
- 	if (!pol)
-@@ -1067,55 +1067,28 @@ static struct page *new_vma_page(struct 
++	void		(*mem_migrate)(struct numa_entity *ne, int node);
++	void		(*cpu_migrate)(struct numa_entity *ne, int node);
++
++	bool		(*tryget)(struct numa_entity *ne);
++	void		(*put)(struct numa_entity *ne);
++};
++
+ struct numa_cpu_load {
+ 	unsigned long	remote; /* load of tasks running away from their home node */
+ 	unsigned long	all;	/* load of tasks that should be running on this node */
+@@ -147,6 +158,26 @@ static inline struct task_struct *ne_own
+ 	return rcu_dereference(ne_mm(ne)->owner);
  }
- #endif
  
--static long do_mbind(unsigned long start, unsigned long len,
--		     unsigned short mode, unsigned short mode_flags,
--		     nodemask_t *nmask, unsigned long flags)
-+long mpol_do_mbind(unsigned long start, unsigned long len,
-+		struct mempolicy *new, unsigned long mode,
-+		nodemask_t *nmask, unsigned long flags)
- {
--	struct vm_area_struct *vma;
- 	struct mm_struct *mm = current->mm;
--	struct mempolicy *new = NULL;
--	unsigned long end;
-+	struct vm_area_struct *vma;
- 	int err, nr_failed = 0;
-+	unsigned long end;
- 	LIST_HEAD(pagelist);
- 
--  	if (flags & ~(unsigned long)MPOL_MF_VALID)
--		return -EINVAL;
--	if ((flags & MPOL_MF_MOVE_ALL) && !capable(CAP_SYS_NICE))
--		return -EPERM;
--
--	if (start & ~PAGE_MASK)
--		return -EINVAL;
--
--	if (mode == MPOL_DEFAULT || mode == MPOL_NOOP)
--		flags &= ~MPOL_MF_STRICT;
--
- 	len = (len + PAGE_SIZE - 1) & PAGE_MASK;
- 	end = start + len;
- 
--	if (end < start)
--		return -EINVAL;
--	if (end == start)
--		return 0;
--
--	if (mode != MPOL_NOOP) {
--		new = mpol_new(mode, mode_flags, nmask);
--		if (IS_ERR(new))
--			return PTR_ERR(new);
--
--		if (flags & MPOL_MF_LAZY)
--			new->flags |= MPOL_F_MOF;
--
-+	if (end < start) {
-+		err = -EINVAL;
-+		goto mpol_out;
- 	}
--	/*
--	 * If we are using the default policy then operation
--	 * on discontinuous address spaces is okay after all
--	 */
--	if (!new)
--		flags |= MPOL_MF_DISCONTIG_OK;
- 
--	pr_debug("mbind %lx-%lx mode:%d flags:%d nodes:%lx\n",
--		 start, start + len, mode, mode_flags,
--		 nmask ? nodes_addr(*nmask)[0] : -1);
-+	if (end == start) {
-+		err = 0;
-+		goto mpol_out;
-+	}
- 
- 	if (flags & (MPOL_MF_MOVE | MPOL_MF_MOVE_ALL)) {
- 		err = migrate_prep();
-@@ -1123,8 +1096,6 @@ static long do_mbind(unsigned long start
- 			goto mpol_out;
- 	}
- 
--	down_write(&mm->mmap_sem);
--
- 	if (mode != MPOL_NOOP) {
- 		NODEMASK_SCRATCH(scratch);
- 		err = -ENOMEM;
-@@ -1135,7 +1106,7 @@ static long do_mbind(unsigned long start
- 		}
- 		NODEMASK_SCRATCH_FREE(scratch);
- 		if (err)
--			goto mpol_out_unlock;
-+			goto mpol_out;
- 	}
- 
- 	vma = check_range(mm, start, end, nmask,
-@@ -1143,12 +1114,12 @@ static long do_mbind(unsigned long start
- 
- 	err = PTR_ERR(vma);	/* maybe ... */
- 	if (IS_ERR(vma))
--		goto mpol_out_unlock;
-+		goto mpol_out_putback;
- 
- 	if (mode != MPOL_NOOP) {
- 		err = mbind_range(mm, start, end, new);
- 		if (err)
--			goto mpol_out_unlock;
-+			goto mpol_out_putback;
- 	}
- 
- 	if (!list_empty(&pagelist)) {
-@@ -1164,12 +1135,56 @@ static long do_mbind(unsigned long start
- 	if (nr_failed && (flags & MPOL_MF_STRICT))
- 		err = -EIO;
- 
-+mpol_out_putback:
- 	putback_lru_pages(&pagelist);
- 
--mpol_out_unlock:
--	up_write(&mm->mmap_sem);
- mpol_out:
-+	return err;
++static unsigned long process_cpu_load(struct numa_entity *ne)
++{
++	unsigned long load = 0;
++	struct task_struct *t, *p;
++
++	rcu_read_lock();
++	t = p = ne_owner(ne);
++	if (p) do {
++		load += t->numa_contrib;
++	} while ((t = next_thread(t)) != p);
++	rcu_read_unlock();
++
++	return load;
 +}
 +
-+static long do_mbind(unsigned long start, unsigned long len,
-+		     unsigned short mode, unsigned short mode_flags,
-+		     nodemask_t *nmask, unsigned long flags)
++static unsigned long process_mem_load(struct numa_entity *ne)
 +{
-+	struct mm_struct *mm = current->mm;
-+	struct mempolicy *new = NULL;
-+	int err;
++	return get_mm_counter(ne_mm(ne), MM_ANONPAGES);
++}
 +
-+	if (flags & ~(unsigned long)MPOL_MF_VALID)
-+		return -EINVAL;
-+	if ((flags & MPOL_MF_MOVE_ALL) && !capable(CAP_SYS_NICE))
-+		return -EPERM;
-+
-+	if (start & ~PAGE_MASK)
-+		return -EINVAL;
-+
-+	if (mode == MPOL_DEFAULT || mode == MPOL_NOOP)
-+		flags &= ~MPOL_MF_STRICT;
-+
-+	if (mode != MPOL_NOOP) {
-+		new = mpol_new(mode, mode_flags, nmask);
-+		if (IS_ERR(new))
-+			return PTR_ERR(new);
-+
-+		if (flags & MPOL_MF_LAZY)
-+			new->flags |= MPOL_F_MOF;
-+	}
-+	/*
-+	 * If we are using the default policy then operation
-+	 * on discontinuous address spaces is okay after all
-+	 */
-+	if (!new)
-+		flags |= MPOL_MF_DISCONTIG_OK;
-+
-+	pr_debug("mbind %lx-%lx mode:%d flags:%d nodes:%lx\n",
-+		 start, start + len, mode, mode_flags,
-+		 nmask ? nodes_addr(*nmask)[0] : -1);
-+
-+	down_write(&mm->mmap_sem);
-+	err = mpol_do_mbind(start, len, new, mode, nmask, flags);
-+	up_write(&mm->mmap_sem);
- 	mpol_put(new);
-+
- 	return err;
+ static void process_cpu_migrate(struct numa_entity *ne, int node)
+ {
+ 	struct task_struct *p, *t;
+@@ -164,7 +195,7 @@ static void process_mem_migrate(struct n
+ 	lazy_migrate_process(ne_mm(ne), node);
  }
+ 
+-static int process_tryget(struct numa_entity *ne)
++static bool process_tryget(struct numa_entity *ne)
+ {
+ 	/*
+ 	 * This is possible when we hold &nq_of(ne->node)->lock since then
+@@ -180,6 +211,17 @@ static void process_put(struct numa_enti
+ 	mmput(ne_mm(ne));
+ }
+ 
++static const struct numa_ops process_numa_ops = {
++	.mem_load	= process_mem_load,
++	.cpu_load	= process_cpu_load,
++
++	.mem_migrate	= process_mem_migrate,
++	.cpu_migrate	= process_cpu_migrate,
++
++	.tryget		= process_tryget,
++	.put		= process_put,
++};
++
+ static struct node_queue *lock_ne_nq(struct numa_entity *ne)
+ {
+ 	struct node_queue *nq;
+@@ -239,8 +281,8 @@ static void enqueue_ne(struct numa_entit
+ 
+ 	BUG_ON(ne->node != -1);
+ 
+-	process_cpu_migrate(ne, node);
+-	process_mem_migrate(ne, node);
++	ne->nops->cpu_migrate(ne, node);
++	ne->nops->mem_migrate(ne, node);
+ 
+ 	spin_lock(&nq->lock);
+ 	__enqueue_ne(nq, ne);
+@@ -260,14 +302,15 @@ static void dequeue_ne(struct numa_entit
+ 	spin_unlock(&nq->lock);
+ }
+ 
+-static void init_ne(struct numa_entity *ne)
++static void init_ne(struct numa_entity *ne, const struct numa_ops *nops)
+ {
+ 	ne->node = -1;
++	ne->nops = nops;
+ }
+ 
+ void mm_init_numa(struct mm_struct *mm)
+ {
+-	init_ne(&mm->numa);
++	init_ne(&mm->numa, &process_numa_ops);
+ }
+ 
+ void exit_numa(struct mm_struct *mm)
+@@ -449,26 +492,6 @@ struct numa_imbalance {
+ 	enum numa_balance_type type;
+ };
+ 
+-static unsigned long process_cpu_load(struct numa_entity *ne)
+-{
+-	unsigned long load = 0;
+-	struct task_struct *t, *p;
+-
+-	rcu_read_lock();
+-	t = p = ne_owner(ne);
+-	if (p) do {
+-		load += t->numa_contrib;
+-	} while ((t = next_thread(t)) != p);
+-	rcu_read_unlock();
+-
+-	return load;
+-}
+-
+-static unsigned long process_mem_load(struct numa_entity *ne)
+-{
+-	return get_mm_counter(ne_mm(ne), MM_ANONPAGES);
+-}
+-
+ static int find_busiest_node(int this_node, struct numa_imbalance *imb)
+ {
+ 	unsigned long cpu_load, mem_load;
+@@ -590,8 +613,8 @@ static void move_processes(struct node_q
+ 				     struct numa_entity,
+ 				     numa_entry);
+ 
+-		ne_cpu = process_cpu_load(ne);
+-		ne_mem = process_mem_load(ne);
++		ne_cpu = ne->nops->cpu_load(ne);
++		ne_mem = ne->nops->mem_load(ne);
+ 
+ 		if (sched_feat(NUMA_BALANCE_FILTER)) {
+ 			/*
+@@ -616,13 +639,13 @@ static void move_processes(struct node_q
+ 
+ 		__dequeue_ne(busiest_nq, ne);
+ 		__enqueue_ne(this_nq, ne);
+-		if (process_tryget(ne)) {
++		if (ne->nops->tryget(ne)) {
+ 			double_unlock_nq(this_nq, busiest_nq);
+ 
+-			process_cpu_migrate(ne, this_nq->node);
+-			process_mem_migrate(ne, this_nq->node);
++			ne->nops->cpu_migrate(ne, this_nq->node);
++			ne->nops->mem_migrate(ne, this_nq->node);
++			ne->nops->put(ne);
+ 
+-			process_put(ne);
+ 			double_lock_nq(this_nq, busiest_nq);
+ 		}
  
 
 
