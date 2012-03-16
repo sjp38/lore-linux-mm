@@ -1,21 +1,21 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx145.postini.com [74.125.245.145])
-	by kanga.kvack.org (Postfix) with SMTP id 71FE96B004D
-	for <linux-mm@kvack.org>; Fri, 16 Mar 2012 13:39:54 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx131.postini.com [74.125.245.131])
+	by kanga.kvack.org (Postfix) with SMTP id B443D6B0083
+	for <linux-mm@kvack.org>; Fri, 16 Mar 2012 13:39:55 -0400 (EDT)
 Received: from /spool/local
-	by e28smtp01.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e28smtp08.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
-	Fri, 16 Mar 2012 23:09:52 +0530
+	Fri, 16 Mar 2012 23:09:51 +0530
 Received: from d28av03.in.ibm.com (d28av03.in.ibm.com [9.184.220.65])
-	by d28relay02.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q2GHdlGA4309052
-	for <linux-mm@kvack.org>; Fri, 16 Mar 2012 23:09:48 +0530
+	by d28relay05.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q2GHdib63760348
+	for <linux-mm@kvack.org>; Fri, 16 Mar 2012 23:09:45 +0530
 Received: from d28av03.in.ibm.com (loopback [127.0.0.1])
-	by d28av03.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q2GN91N6030709
-	for <linux-mm@kvack.org>; Sat, 17 Mar 2012 10:09:02 +1100
+	by d28av03.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q2GN8w9d030590
+	for <linux-mm@kvack.org>; Sat, 17 Mar 2012 10:08:59 +1100
 From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Subject: [PATCH -V4 03/10] hugetlbfs: Add an inline helper for finding hstate index
-Date: Fri, 16 Mar 2012 23:09:23 +0530
-Message-Id: <1331919570-2264-4-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+Subject: [PATCH -V4 01/10] hugetlb: rename max_hstate to hugetlb_max_hstate
+Date: Fri, 16 Mar 2012 23:09:21 +0530
+Message-Id: <1331919570-2264-2-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
 In-Reply-To: <1331919570-2264-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
 References: <1331919570-2264-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
@@ -25,96 +25,71 @@ Cc: linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, "Aneesh Kumar K.V" <a
 
 From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
 
-Add and inline helper and use it in the code.
+We will be using this from other subsystems like memcg
+in later patches.
 
+Acked-by: Hillf Danton <dhillf@gmail.com>
 Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
 ---
- include/linux/hugetlb.h |    6 ++++++
- mm/hugetlb.c            |   18 ++++++++++--------
- 2 files changed, 16 insertions(+), 8 deletions(-)
+ mm/hugetlb.c |   14 +++++++-------
+ 1 files changed, 7 insertions(+), 7 deletions(-)
 
-diff --git a/include/linux/hugetlb.h b/include/linux/hugetlb.h
-index d9d6c86..a2675b0 100644
---- a/include/linux/hugetlb.h
-+++ b/include/linux/hugetlb.h
-@@ -311,6 +311,11 @@ static inline unsigned hstate_index_to_shift(unsigned index)
- 	return hstates[index].order + PAGE_SHIFT;
- }
- 
-+static inline int hstate_index(struct hstate *h)
-+{
-+	return h - hstates;
-+}
-+
- #else
- struct hstate {};
- #define alloc_huge_page_node(h, nid) NULL
-@@ -329,6 +334,7 @@ static inline unsigned int pages_per_huge_page(struct hstate *h)
- 	return 1;
- }
- #define hstate_index_to_shift(index) 0
-+#define hstate_index(h) 0
- #endif
- 
- #endif /* _LINUX_HUGETLB_H */
 diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-index 3782da8..ebe245c 100644
+index 5f34bd8..d623e71 100644
 --- a/mm/hugetlb.c
 +++ b/mm/hugetlb.c
-@@ -1557,7 +1557,7 @@ static int hugetlb_sysfs_add_hstate(struct hstate *h, struct kobject *parent,
- 				    struct attribute_group *hstate_attr_group)
- {
- 	int retval;
--	int hi = h - hstates;
-+	int hi = hstate_index(h);
+@@ -34,7 +34,7 @@ const unsigned long hugetlb_zero = 0, hugetlb_infinity = ~0UL;
+ static gfp_t htlb_alloc_mask = GFP_HIGHUSER;
+ unsigned long hugepages_treat_as_movable;
  
- 	hstate_kobjs[hi] = kobject_create_and_add(h->name, parent);
- 	if (!hstate_kobjs[hi])
-@@ -1652,11 +1652,13 @@ void hugetlb_unregister_node(struct node *node)
- 	if (!nhs->hugepages_kobj)
- 		return;		/* no hstate attributes */
+-static int max_hstate;
++static int hugetlb_max_hstate;
+ unsigned int default_hstate_idx;
+ struct hstate hstates[HUGE_MAX_HSTATE];
  
--	for_each_hstate(h)
--		if (nhs->hstate_kobjs[h - hstates]) {
--			kobject_put(nhs->hstate_kobjs[h - hstates]);
--			nhs->hstate_kobjs[h - hstates] = NULL;
-+	for_each_hstate(h) {
-+		int idx = hstate_index(h);
-+		if (nhs->hstate_kobjs[idx]) {
-+			kobject_put(nhs->hstate_kobjs[idx]);
-+			nhs->hstate_kobjs[idx] = NULL;
- 		}
-+	}
+@@ -46,7 +46,7 @@ static unsigned long __initdata default_hstate_max_huge_pages;
+ static unsigned long __initdata default_hstate_size;
  
- 	kobject_put(nhs->hugepages_kobj);
- 	nhs->hugepages_kobj = NULL;
-@@ -1759,7 +1761,7 @@ static void __exit hugetlb_exit(void)
- 	hugetlb_unregister_all_nodes();
+ #define for_each_hstate(h) \
+-	for ((h) = hstates; (h) < &hstates[max_hstate]; (h)++)
++	for ((h) = hstates; (h) < &hstates[hugetlb_max_hstate]; (h)++)
  
- 	for_each_hstate(h) {
--		kobject_put(hstate_kobjs[h - hstates]);
-+		kobject_put(hstate_kobjs[hstate_index(h)]);
+ /*
+  * Protects updates to hugepage_freelists, nr_huge_pages, and free_huge_pages
+@@ -1808,9 +1808,9 @@ void __init hugetlb_add_hstate(unsigned order)
+ 		printk(KERN_WARNING "hugepagesz= specified twice, ignoring\n");
+ 		return;
  	}
+-	BUG_ON(max_hstate >= HUGE_MAX_HSTATE);
++	BUG_ON(hugetlb_max_hstate >= HUGE_MAX_HSTATE);
+ 	BUG_ON(order == 0);
+-	h = &hstates[max_hstate++];
++	h = &hstates[hugetlb_max_hstate++];
+ 	h->order = order;
+ 	h->mask = ~((1ULL << (order + PAGE_SHIFT)) - 1);
+ 	h->nr_huge_pages = 0;
+@@ -1831,10 +1831,10 @@ static int __init hugetlb_nrpages_setup(char *s)
+ 	static unsigned long *last_mhp;
  
- 	kobject_put(hugepages_kobj);
-@@ -2587,7 +2589,7 @@ retry:
- 		 */
- 		if (unlikely(PageHWPoison(page))) {
- 			ret = VM_FAULT_HWPOISON |
--			      VM_FAULT_SET_HINDEX(h - hstates);
-+				VM_FAULT_SET_HINDEX(hstate_index(h));
- 			goto backout_unlocked;
- 		}
- 	}
-@@ -2660,7 +2662,7 @@ int hugetlb_fault(struct mm_struct *mm, struct vm_area_struct *vma,
- 			return 0;
- 		} else if (unlikely(is_hugetlb_entry_hwpoisoned(entry)))
- 			return VM_FAULT_HWPOISON_LARGE |
--			       VM_FAULT_SET_HINDEX(h - hstates);
-+				VM_FAULT_SET_HINDEX(hstate_index(h));
- 	}
+ 	/*
+-	 * !max_hstate means we haven't parsed a hugepagesz= parameter yet,
++	 * !hugetlb_max_hstate means we haven't parsed a hugepagesz= parameter yet,
+ 	 * so this hugepages= parameter goes to the "default hstate".
+ 	 */
+-	if (!max_hstate)
++	if (!hugetlb_max_hstate)
+ 		mhp = &default_hstate_max_huge_pages;
+ 	else
+ 		mhp = &parsed_hstate->max_huge_pages;
+@@ -1853,7 +1853,7 @@ static int __init hugetlb_nrpages_setup(char *s)
+ 	 * But we need to allocate >= MAX_ORDER hstates here early to still
+ 	 * use the bootmem allocator.
+ 	 */
+-	if (max_hstate && parsed_hstate->order >= MAX_ORDER)
++	if (hugetlb_max_hstate && parsed_hstate->order >= MAX_ORDER)
+ 		hugetlb_hstate_alloc_pages(parsed_hstate);
  
- 	ptep = huge_pte_alloc(mm, address, huge_page_size(h));
+ 	last_mhp = mhp;
 -- 
 1.7.9
 
