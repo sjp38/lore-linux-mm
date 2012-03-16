@@ -1,101 +1,135 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx131.postini.com [74.125.245.131])
-	by kanga.kvack.org (Postfix) with SMTP id 94B3B6B00F1
+Received: from psmtp.com (na3sys010amx125.postini.com [74.125.245.125])
+	by kanga.kvack.org (Postfix) with SMTP id C69A76B00ED
 	for <linux-mm@kvack.org>; Fri, 16 Mar 2012 10:53:07 -0400 (EDT)
-Message-Id: <20120316144241.477101322@chello.nl>
-Date: Fri, 16 Mar 2012 15:40:49 +0100
+Message-Id: <20120316144241.812642744@chello.nl>
+Date: Fri, 16 Mar 2012 15:40:54 +0100
 From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Subject: [RFC][PATCH 21/26] mm, mpol: Introduce vma_put_policy()
+Subject: [RFC][PATCH 26/26] sched, numa: A few debug bits
 References: <20120316144028.036474157@chello.nl>
-Content-Disposition: inline; filename=mpol-vma_put_policy.patch
+Content-Disposition: inline; filename=numa-debug.patch
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>, Paul Turner <pjt@google.com>, Suresh Siddha <suresh.b.siddha@intel.com>, Mike Galbraith <efault@gmx.de>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Dan Smith <danms@us.ibm.com>, Bharata B Rao <bharata.rao@gmail.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Andrea Arcangeli <aarcange@redhat.com>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>
 Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Peter Zijlstra <a.p.zijlstra@chello.nl>
 
-In preparation of other changes, create a new interface so that we can
-later extend its behaviour without having to touch all these sites.
+These shouldn't ever get in.. 
 
 Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
 ---
- include/linux/mempolicy.h |    5 +++++
- mm/mempolicy.c            |    5 +++++
- mm/mmap.c                 |    8 ++++----
- 3 files changed, 14 insertions(+), 4 deletions(-)
+ kernel/sched/numa.c |   41 ++++++++++++++++++++++++++++++++++++-----
+ 1 file changed, 36 insertions(+), 5 deletions(-)
 
---- a/include/linux/mempolicy.h
-+++ b/include/linux/mempolicy.h
-@@ -169,6 +169,7 @@ static inline struct mempolicy *mpol_dup
- #define vma_set_policy(vma, pol) ((vma)->vm_policy = (pol))
+--- a/kernel/sched/numa.c
++++ b/kernel/sched/numa.c
+@@ -219,7 +219,9 @@ static u64 process_cpu_runtime(struct nu
+ 	rcu_read_lock();
+ 	t = p = ne_owner(ne);
+ 	if (p) do {
+-		runtime += t->se.sum_exec_runtime; // @#$#@ 32bit
++		u64 tmp = t->se.sum_exec_runtime;
++		trace_printk("pid: %d ran: %llu ns\n", t->pid, tmp);
++		runtime += tmp; // @#$#@ 32bit
+ 	} while ((t = next_thread(t)) != p);
+ 	rcu_read_unlock();
  
- extern int vma_dup_policy(struct vm_area_struct *new, struct vm_area_struct *old);
-+extern void vma_put_policy(struct vm_area_struct *vma);
+@@ -518,7 +520,8 @@ static void update_node_load(struct node
+ 	 * If there was NUMA_FOREIGN load, that means this node was at its
+ 	 * maximum memory capacity, record that.
+ 	 */
+-	set_max_mem_load(node_pages_load(nq->node));
++	set_max_mem_load(node_pages_load(nq->node) +
++			node_page_state(nq->node, NR_FREE_PAGES));
+ }
  
- static inline void mpol_get(struct mempolicy *pol)
- {
-@@ -315,6 +316,10 @@ mpol_shared_policy_lookup(struct shared_
- #define vma_set_policy(vma, pol) do {} while(0)
- #define vma_dup_policy(new, old) (0)
+ enum numa_balance_type {
+@@ -556,6 +559,10 @@ static int find_busiest_node(int this_no
+ 		cpu_load = nq->remote_cpu_load;
+ 		mem_load = nq->remote_mem_load;
  
-+static inline void vma_put_policy(struct vm_area_struct *)
-+{
-+}
++		trace_printk("node_load(%d/%d): cpu: %ld, mem: %ld abs_cpu: %ld abs_mem: %ld\n",
++				node, this_node, cpu_load, mem_load,
++				nq->cpu_load, node_pages_load(node));
 +
- static inline void numa_policy_init(void)
- {
- }
---- a/mm/mempolicy.c
-+++ b/mm/mempolicy.c
-@@ -1982,6 +1982,11 @@ int vma_dup_policy(struct vm_area_struct
- 	return 0;
- }
- 
-+void vma_put_policy(struct vm_area_struct *vma)
-+{
-+	mpol_put(vma_policy(vma));
-+}
-+
- /*
-  * If *frompol needs [has] an extra ref, copy *frompol to *tompol ,
-  * eliminate the * MPOL_F_* flags that require conditional ref and
---- a/mm/mmap.c
-+++ b/mm/mmap.c
-@@ -236,7 +236,7 @@ static struct vm_area_struct *remove_vma
- 		if (vma->vm_flags & VM_EXECUTABLE)
- 			removed_exe_file_vma(vma->vm_mm);
- 	}
--	mpol_put(vma_policy(vma));
-+	vma_put_policy(vma);
- 	kmem_cache_free(vm_area_cachep, vma);
- 	return next;
- }
-@@ -633,7 +633,7 @@ again:			remove_next = 1 + (end > next->
- 		if (next->anon_vma)
- 			anon_vma_merge(vma, next);
- 		mm->map_count--;
--		mpol_put(vma_policy(next));
-+		vma_put_policy(next);
- 		kmem_cache_free(vm_area_cachep, next);
  		/*
- 		 * In mprotect's case 6 (see comments on vma_merge),
-@@ -1994,7 +1994,7 @@ static int __split_vma(struct mm_struct
+ 		 * If this node is overloaded on memory, we don't want more
+ 		 * tasks, bail!
+@@ -580,6 +587,12 @@ static int find_busiest_node(int this_no
+ 		}
  	}
- 	unlink_anon_vmas(new);
-  out_free_mpol:
--	mpol_put(new->vm_policy);
-+	vma_put_policy(new);
-  out_free_vma:
- 	kmem_cache_free(vm_area_cachep, new);
-  out_err:
-@@ -2392,7 +2392,7 @@ struct vm_area_struct *copy_vma(struct v
- 	return new_vma;
  
-  out_free_mempol:
--	mpol_put(new_vma->vm_policy);
-+	vma_put_policy(new_vma);
-  out_free_vma:
- 	kmem_cache_free(vm_area_cachep, new_vma);
- 	return NULL;
++	trace_printk("cpu_node: %d, cpu_load: %ld, mem_load: %ld, sum_cpu_load: %ld\n",
++			cpu_node, max_cpu_load, cpu_mem_load, sum_cpu_load);
++
++	trace_printk("mem_node: %d, cpu_load: %ld, mem_load: %ld, sum_mem_load: %ld\n",
++			mem_node, mem_cpu_load, max_mem_load, sum_mem_load);
++
+ 	/*
+ 	 * Nobody had overload of any kind, cool we're done!
+ 	 */
+@@ -626,6 +639,9 @@ static int find_busiest_node(int this_no
+ 		imb->mem = (long)(node_pages_load(node) - imb->mem_load) / 2;
+ 	}
+ 
++	trace_printk("busiest_node: %d, cpu_imb: %ld, mem_imb: %ld, type: %d\n",
++			node, imb->cpu, imb->mem, imb->type);
++
+ 	return node;
+ }
+ 
+@@ -663,6 +679,9 @@ static void move_processes(struct node_q
+ 				     struct numa_entity,
+ 				     numa_entry);
+ 
++		trace_printk("numa_migrate(%d <- %d): candidate: %p\n",
++				this_nq->node, busiest_nq->node, ne);
++
+ 		ne_cpu = ne->nops->cpu_load(ne);
+ 		ne_mem = ne->nops->mem_load(ne);
+ 
+@@ -672,20 +691,27 @@ static void move_processes(struct node_q
+ 			 * on the other end.
+ 			 */
+ 			if ((imb->type & NUMA_BALANCE_CPU) &&
+-			    imb->cpu - cpu_moved < ne_cpu / 2)
++			    imb->cpu - cpu_moved < ne_cpu / 2) {
++				trace_printk("fail cpu: %ld %ld %ld\n", imb->cpu, cpu_moved, ne_cpu);
+ 				goto next;
++			}
+ 
+ 			/*
+ 			 * Avoid migrating ne's when we'll know we'll push our
+ 			 * node over the memory limit.
+ 			 */
+ 			if (max_mem_load &&
+-			    imb->mem_load + mem_moved + ne_mem > max_mem_load)
++			    imb->mem_load + mem_moved + ne_mem > max_mem_load) {
++				trace_printk("fail mem: %ld %ld %ld %ld\n",
++						imb->mem_load, mem_moved, ne_mem, max_mem_load);
+ 				goto next;
++			}
+ 		}
+ 
+-		if (!can_move_ne(ne))
++		if (!can_move_ne(ne)) {
++			trace_printk("%p, can_move_ne() fail\n", ne);
+ 			goto next;
++		}
+ 
+ 		__dequeue_ne(busiest_nq, ne);
+ 		__enqueue_ne(this_nq, ne);
+@@ -702,6 +728,11 @@ static void move_processes(struct node_q
+ 		cpu_moved += ne_cpu;
+ 		mem_moved += ne_mem;
+ 
++		trace_printk("numa_migrate(%d <- %d): cpu_load: %ld mem_load: %ld, "
++				"cpu_moved: %ld, mem_moved: %ld\n",
++				this_nq->node, busiest_nq->node,
++				ne_cpu, ne_mem, cpu_moved, mem_moved);
++
+ 		if (imb->cpu - cpu_moved <= 0 &&
+ 		    imb->mem - mem_moved <= 0)
+ 			break;
 
 
 --
