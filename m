@@ -1,103 +1,179 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx141.postini.com [74.125.245.141])
-	by kanga.kvack.org (Postfix) with SMTP id 2D7E16B0044
-	for <linux-mm@kvack.org>; Thu, 15 Mar 2012 19:59:07 -0400 (EDT)
-Received: by iajr24 with SMTP id r24so6351755iaj.14
-        for <linux-mm@kvack.org>; Thu, 15 Mar 2012 16:59:06 -0700 (PDT)
-Date: Thu, 15 Mar 2012 16:58:31 -0700 (PDT)
-From: Hugh Dickins <hughd@google.com>
-Subject: Re: [PATCH 3/7 v2] mm: rework __isolate_lru_page() file/anon
- filter
-In-Reply-To: <4F618645.8020507@openvz.org>
-Message-ID: <alpine.LSU.2.00.1203151618150.1291@eggly.anvils>
-References: <20120229091547.29236.28230.stgit@zurg> <20120303091327.17599.80336.stgit@zurg> <alpine.LSU.2.00.1203061904570.18675@eggly.anvils> <20120308143034.f3521b1e.kamezawa.hiroyu@jp.fujitsu.com> <alpine.LSU.2.00.1203081758490.18195@eggly.anvils>
- <4F59AE3C.5040200@openvz.org> <alpine.LSU.2.00.1203091559260.23317@eggly.anvils> <4F5AFAF0.6060608@openvz.org> <4F5B22DE.4020402@openvz.org> <alpine.LSU.2.00.1203141842490.2232@eggly.anvils> <4F618645.8020507@openvz.org>
+Received: from psmtp.com (na3sys010amx179.postini.com [74.125.245.179])
+	by kanga.kvack.org (Postfix) with SMTP id 476646B0044
+	for <linux-mm@kvack.org>; Thu, 15 Mar 2012 20:04:20 -0400 (EDT)
+Received: from m2.gw.fujitsu.co.jp (unknown [10.0.50.72])
+	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 4DD3E3EE0BB
+	for <linux-mm@kvack.org>; Fri, 16 Mar 2012 09:04:18 +0900 (JST)
+Received: from smail (m2 [127.0.0.1])
+	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 34AF445DE4D
+	for <linux-mm@kvack.org>; Fri, 16 Mar 2012 09:04:18 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
+	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 1C7F145DD6D
+	for <linux-mm@kvack.org>; Fri, 16 Mar 2012 09:04:18 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 0A69D1DB803A
+	for <linux-mm@kvack.org>; Fri, 16 Mar 2012 09:04:18 +0900 (JST)
+Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.240.81.146])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id AE4B71DB802C
+	for <linux-mm@kvack.org>; Fri, 16 Mar 2012 09:04:17 +0900 (JST)
+Message-ID: <4F62830F.4060303@jp.fujitsu.com>
+Date: Fri, 16 Mar 2012 09:02:23 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [RFC REPOST] cgroup: removing css reference drain wait during
+ cgroup removal
+References: <20120312213155.GE23255@google.com> <20120312213343.GF23255@google.com> <20120313151148.f8004a00.kamezawa.hiroyu@jp.fujitsu.com> <20120313163914.GD7349@google.com> <20120314092828.3321731c.kamezawa.hiroyu@jp.fujitsu.com> <4F6068F4.4090909@parallels.com> <4F6134E1.5090601@jp.fujitsu.com> <4F61D167.4000402@parallels.com>
+In-Reply-To: <4F61D167.4000402@parallels.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Konstantin Khlebnikov <khlebnikov@openvz.org>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <jweiner@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: Glauber Costa <glommer@parallels.com>
+Cc: Tejun Heo <tj@kernel.org>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, gthelen@google.com, Hugh Dickins <hughd@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Vivek Goyal <vgoyal@redhat.com>, Jens Axboe <axboe@kernel.dk>, Li Zefan <lizf@cn.fujitsu.com>, containers@lists.linux-foundation.org, cgroups@vger.kernel.org, Peter Zijlstra <a.p.zijlstra@chello.nl>
 
-On Thu, 15 Mar 2012, Konstantin Khlebnikov wrote:
-> Hugh Dickins wrote:
-> > On Sat, 10 Mar 2012, Konstantin Khlebnikov wrote:
-> > > Konstantin Khlebnikov wrote:
-> > > 
-> > > Heh, looks like we don't need these checks at all:
-> > > without RECLAIM_MODE_LUMPYRECLAIM we isolate only pages from right lru,
-> > > with RECLAIM_MODE_LUMPYRECLAIM we isolate pages from all evictable lru.
-> > > Thus we should check only PageUnevictable() on lumpy reclaim.
-> > 
-> > Yes, those were great simplfying insights: I'm puzzling over why you
-> > didn't follow through on them in your otherwise nice 4.5/7, which
-> > still involves lru bits in the isolate mode?
+(2012/03/15 20:24), Glauber Costa wrote:
+
+> On 03/15/2012 04:16 AM, KAMEZAWA Hiroyuki wrote:
+>> (2012/03/14 18:46), Glauber Costa wrote:
+>>
+>>> On 03/14/2012 04:28 AM, KAMEZAWA Hiroyuki wrote:
+>>>> IIUC, in general, even in the processes are in a tree, in major case
+>>>> of servers, their workloads are independent.
+>>>> I think FLAT mode is the dafault. 'heararchical' is a crazy thing which
+>>>> cannot be managed.
+>>>
+>>> Better pay attention to the current overall cgroups discussions being
+>>> held by Tejun then. ([RFD] cgroup: about multiple hierarchies)
+>>>
+>>> The topic of whether of adapting all cgroups to be hierarchical by
+>>> deafult is a recurring one.
+>>>
+>>> I personally think that it is not unachievable to make res_counters
+>>> cheaper, therefore making this less of a problem.
+>>>
+>>
+>>
+>> I thought of this a little yesterday. Current my idea is applying following
+>> rule for res_counter.
+>>
+>> 1. All res_counter is hierarchical. But behavior should be optimized.
+>>
+>> 2. If parent res_counter has UNLIMITED limit, 'usage' will not be propagated
+>>    to its parent at _charge_.
 > 
-> Actually filter is required for single case: lumpy isolation for
-> shrink_active_list().
-> Maybe I'm wrong,
+> That doesn't seem to make much sense. If you are unlimited, but your 
+> parent is limited,
+> he has a lot more interest to know about the charge than you do. 
 
-You are right.  I thought you were wrong, but testing proved you right.
 
-> or this is bug, but I don't see any reasons why this can not happen:
+Sorry, I should write "If all ancestors are umlimited'.
+If parent is limited, the children should be treated as limited.
 
-It's very close to being a bug: perhaps I'd call it overlooked silliness.
+> So the 
+> logic should rather be the opposite: Don't go around getting locks and 
+> all that if you are unlimited. Your parent might, though.
+> 
+> I am trying to experiment a bit with billing to percpu counters for 
+> unlimited res_counters. But their inexact nature is giving me quite a 
+> headache.
+> 
 
-> sc->reclaim_mode manipulations are very tricky.
 
-And you are right on that too.  Particularly those reset_reclaim_mode()s
-in shrink_page_list(), when the set_reclaim_mode() is done at the head of
-shrink_inactive_list().
+Personally, I think percpu counter is not the best one. Yes, it will work but...
+Because of its nature of error range, it has scalability problem. Considering
+to have a tree like
 
-With no set_reclaim_mode() or reset_reclaim_mode() in shrink_active_list(),
-so its isolate_lru_pages() test for RECLAIM_MODE_LUMPYRECLAIM just picks up
-whatever sc->reclaim_mode was left over from earlier shrink_inactive_list().
+	/A/B/Guest0/tasks
+             Guest1/tasks
+             Guest2/tasks
+             Guest4/tasks
+             Guest5/tasks
+             ......
 
-Or none: the age_active_anon() call to shrink_active_list() never sets
-sc->reclaim_mode, and is lucky that the only test for RECLAIM_MODE_SINGLE
-is in code that it won't reach.
+percpu res_counter may work scarable in GuestX level but will conflict in level B.
+And I don't want to think what happens in 256 cpu system. Error in B will be
+very big.
 
-(Or maybe I've got some of those details wrong again, it's convoluted.)
+Another idea is to borrow a resource from memcg to the tasks. i.e.having per-task
+caching of charges. But it has two problems that draining unused resource is difficult
+and precise usage is unknown.
 
-I contend that what we want is
+IMHO, hard-limited resource counter itself may be a problem ;)
 
---- next/mm/vmscan.c	2012-03-13 03:52:15.360030839 -0700
-+++ linux/mm/vmscan.c	2012-03-15 14:53:47.035519540 -0700
-@@ -1690,6 +1690,8 @@ static void shrink_active_list(unsigned
- 
- 	lru_add_drain();
- 
-+	reset_reclaim_mode(sc);
-+
- 	if (!sc->may_unmap)
- 		isolate_mode |= ISOLATE_UNMAPPED;
- 	if (!sc->may_writepage)
+So, an idea, 'if all ancestors are unlimited, don't propagate charges.'
+comes to my mind. With this, people use resource in FLAT (but has hierarchical cgroup
+tree) will not see any performance problem.
 
-but admit that's a slight change in behaviour - though I think only
-a sensible one.  It's silly to embark upon lumpy reclaim of adjacent
-pages, while tying your hands to pull only from file for file or from
-anon for anon (though not so silly to restrict in/activity).
 
-Shrinking the active list is about repopulating an inactive list when
-it's low: shrinking the active list is not going to free any pages
-(except when they're concurrently freed while it holds them isolated),
-it's just going to move them to inactive; so aiming for adjacency at
-this stage is pointless.  Counter-productive even: if it's going to
-make any contribution to the lumpy reclaim, it should be populating
-the inactive list with a variety of good candidates to seed the next
-lump (whose adjacent pages will be isolated whichever list they're on):
-by populating with adjacent pages itself, it lowers the chance of
-later success, and increases the perturbation of lru-ness.
 
-And if we do a reset_reclaim_mode(sc) in shrink_active_list(), then you
-can remove the leftover lru stuff which spoils the simplicity of 4.5/7.
+>> 3. If a res_counter has UNLIMITED limit, at reading usage, it must visit
+>>     all children and returns a sum of them.
+>>
+>> Then,
+>> 	/cgroup/
+>> 		memory/                       (unlimited)
+>> 			libivirt/             (unlimited)
+>> 				 qeumu/       (unlimited)
+>> 				        guest/(limited)
+>>
+>> All dir can show hierarchical usage and the guest will not have
+>> any lock contention at runtime.
+> 
+> If we are okay with summing it up at read time, we may as well
+> keep everything in percpu counters at all times.
+>
 
-But you are right not to mix such a change in with your reorganization:
-would you like to add the patch above into your series as a separate
-patch (Cc Rik and Mel), or would you like me to send it separately
-for discusssion, or do you see reason to disagree with it?
 
-Hugh
+If all ancestors are unlimited, we don't need to propagate usage upwards
+at charging. If one of ancestors are limited, we need to propagate and
+check usage at charging.
+
+
+
+>> By this
+>>   1. no runtime overhead if the parent has unlimited limit.
+>>   2. All res_counter can show aggregate resource usage of children.
+>>
+>> To do this
+>>   1. res_coutner should have children list by itself.
+>>
+>> Implementation problem
+>>   - What should happens when a user set new limit to a res_counter which have
+>>     childrens ? Shouldn't we allow it ? Or take all locks of children and
+>>     update in atomic ?
+> Well, increasing the limit should be always possible.
+> 
+
+
+> As for the kids, how about:
+> 
+> - ) Take their locks
+> - ) scan through them seeing if their usage is bellow the new allowance
+>      -) if it is, then ok
+>      -) if it is not, then try to reclaim (*). Fail if it is not possible.
+> 
+> (*) May be hard to implement, because we already have the res_counter 
+> lock taken, and the code may get nasty. So maybe it is better just fail 
+> if any of your kids usage is over the new allowance...
+> 
+
+
+Seems enough and seems worth to try.
+
+
+> 
+> 
+>>   - memory.use_hierarchy should be obsolete ?
+> If we're going fully hierarchical, yes.
+> 
+
+Another big problem is 'when' we should do this change..
+Maybe this 'hierarchical' problem will be good topic in MM summit.
+
+Thanks,
+-Kame
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
