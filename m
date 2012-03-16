@@ -1,38 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx105.postini.com [74.125.245.105])
-	by kanga.kvack.org (Postfix) with SMTP id 40D4C6B0044
-	for <linux-mm@kvack.org>; Fri, 16 Mar 2012 14:34:43 -0400 (EDT)
-Date: Fri, 16 Mar 2012 13:34:37 -0500 (CDT)
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: [RFC][PATCH 10/26] mm, mpol: Make mempolicy home-node aware
-In-Reply-To: <20120316144240.763518310@chello.nl>
-Message-ID: <alpine.DEB.2.00.1203161333370.10211@router.home>
-References: <20120316144028.036474157@chello.nl> <20120316144240.763518310@chello.nl>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from psmtp.com (na3sys010amx151.postini.com [74.125.245.151])
+	by kanga.kvack.org (Postfix) with SMTP id DB99F6B0044
+	for <linux-mm@kvack.org>; Fri, 16 Mar 2012 15:28:20 -0400 (EDT)
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: [PATCH] numa_emulation: fix cpumask_of_node()
+Date: Fri, 16 Mar 2012 20:28:11 +0100
+Message-Id: <1331926091-22548-2-git-send-email-aarcange@redhat.com>
+In-Reply-To: <1331926091-22548-1-git-send-email-aarcange@redhat.com>
+References: <1331926091-22548-1-git-send-email-aarcange@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>, Paul Turner <pjt@google.com>, Suresh Siddha <suresh.b.siddha@intel.com>, Mike Galbraith <efault@gmx.de>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Dan Smith <danms@us.ibm.com>, Bharata B Rao <bharata.rao@gmail.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Andrea Arcangeli <aarcange@redhat.com>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: linux-mm@kvack.org, linux-numa@vger.kernel.org
+Cc: Andi Kleen <andi@firstfloor.org>, Johannes Weiner <jweiner@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
 
-On Fri, 16 Mar 2012, Peter Zijlstra wrote:
+Without this fix the cpumask_of_node() for a fake=numa=2 is:
 
-> Add another layer of fallback policy to make the home node concept
-> useful from a memory allocation PoV.
->
-> This changes the mpol order to:
->
->  - vma->vm_ops->get_policy	[if applicable]
->  - vma->vm_policy		[if applicable]
->  - task->mempolicy
->  - tsk_home_node() preferred	[NEW]
->  - default_policy
->
-> Note that the tsk_home_node() policy has Migrate-on-Fault enabled to
-> facilitate efficient on-demand memory migration.
+cpumask 0 ff
+cpumask 1 ff
 
-The numa hierachy is already complex. Could we avoid adding another layer
-by adding a MPOL_HOME_NODE and make that the default?
+with the fix it's correct and it's set to:
+
+cpumask 0 55
+cpumask 1 aa
+
+Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
+---
+ arch/x86/mm/numa_emulation.c |    2 +-
+ 1 files changed, 1 insertions(+), 1 deletions(-)
+
+diff --git a/arch/x86/mm/numa_emulation.c b/arch/x86/mm/numa_emulation.c
+index 46db568..740b0a3 100644
+--- a/arch/x86/mm/numa_emulation.c
++++ b/arch/x86/mm/numa_emulation.c
+@@ -60,7 +60,7 @@ static int __init emu_setup_memblk(struct numa_meminfo *ei,
+ 	eb->nid = nid;
+ 
+ 	if (emu_nid_to_phys[nid] == NUMA_NO_NODE)
+-		emu_nid_to_phys[nid] = pb->nid;
++		emu_nid_to_phys[nid] = nid;
+ 
+ 	pb->start += size;
+ 	if (pb->start >= pb->end) {
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
