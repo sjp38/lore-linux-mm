@@ -1,42 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx106.postini.com [74.125.245.106])
-	by kanga.kvack.org (Postfix) with SMTP id 5B8326B00F9
-	for <linux-mm@kvack.org>; Mon, 19 Mar 2012 15:13:37 -0400 (EDT)
-Message-ID: <1332184396.18960.387.camel@twins>
-Subject: Re: [RFC][PATCH 00/26] sched/numa
-From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Date: Mon, 19 Mar 2012 20:13:16 +0100
-In-Reply-To: <20120319135745.GL24602@redhat.com>
-References: <20120316144028.036474157@chello.nl>
-	 <4F670325.7080700@redhat.com> <1332155527.18960.292.camel@twins>
-	 <20120319130401.GI24602@redhat.com> <1332163591.18960.334.camel@twins>
-	 <20120319135745.GL24602@redhat.com>
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: quoted-printable
-Mime-Version: 1.0
+Received: from psmtp.com (na3sys010amx145.postini.com [74.125.245.145])
+	by kanga.kvack.org (Postfix) with SMTP id 9948A6B00FB
+	for <linux-mm@kvack.org>; Mon, 19 Mar 2012 15:59:59 -0400 (EDT)
+Received: by bkwq16 with SMTP id q16so6472480bkw.14
+        for <linux-mm@kvack.org>; Mon, 19 Mar 2012 12:59:57 -0700 (PDT)
+Message-ID: <4F679039.6070609@openvz.org>
+Date: Mon, 19 Mar 2012 23:59:53 +0400
+From: Konstantin Khlebnikov <khlebnikov@openvz.org>
+MIME-Version: 1.0
+Subject: Re: [RFC][PATCH 0/3] page cgroup diet
+References: <4F66E6A5.10804@jp.fujitsu.com>
+In-Reply-To: <4F66E6A5.10804@jp.fujitsu.com>
+Content-Type: text/plain; charset=ISO-2022-JP
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: Avi Kivity <avi@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>, Paul Turner <pjt@google.com>, Suresh Siddha <suresh.b.siddha@intel.com>, Mike Galbraith <efault@gmx.de>, "Paul E.
- McKenney" <paulmck@linux.vnet.ibm.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Dan Smith <danms@us.ibm.com>, Bharata B Rao <bharata.rao@gmail.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "cgroups@vger.kernel.org" <cgroups@vger.kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Hugh Dickins <hughd@google.com>, Han Ying <yinghan@google.com>, Glauber Costa <glommer@parallels.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, "suleiman@google.com" <suleiman@google.com>, "n-horiguchi@ah.jp.nec.com" <n-horiguchi@ah.jp.nec.com>, Tejun Heo <tj@kernel.org>
 
-On Mon, 2012-03-19 at 14:57 +0100, Andrea Arcangeli wrote:
-> With your code they will get -ENOMEM from split_vma and a slowdown in
-> all regular page faults and vma mangling operations, before they run
-> out of memory...=20
+KAMEZAWA Hiroyuki wrote:
+> This is just an RFC...test is not enough yet.
+> 
+> I know it's merge window..this post is just for sharing idea.
+> 
+> This patch merges pc->flags and pc->mem_cgroup into a word. Then,
+> memcg's overhead will be 8bytes per page(4096bytes?).
+> 
+> Because this patch will affect all memory cgroup developers, I'd like to
+> show patches before MM Summit. I think we can agree the direction to
+> reduce size of page_cgroup..and finally integrate into 'struct page'
+> (and remove cgroup_disable= boot option...)
+> 
+> Patch 1/3 - introduce pc_to_mem_cgroup and hide pc->mem_cgroup
+> Patch 2/3 - remove pc->mem_cgroup
+> Patch 3/3 - remove memory barriers.
+> 
+> I'm now wondering when this change should be merged....
+> 
 
-But why would you want to create that many vmas? If you're going to call
-sys_numa_mbind() at object level you're doing it wrong.=20
+This is cool, but maybe we should skip this temporary step and merge all this stuff into page->flags.
+I think we can replace zone-id and node-id in page->flags with cumulative dynamically allocated lruvec-id,
+so there will be enough space for hundred cgroups even on 32-bit systems.
 
-Typical usage would be to call it on the chunks your allocator asks from
-the system. Depending on how your application decomposes this is per
-thread or per thread-pool.
-
-But again, who is writing such large threaded apps. The shared address
-space thing is cute, but the shared address space thing is also the
-bottleneck. Sharing mmap_sem et al across the entire machine has been
-enough reason not to use threads for plenty people.
-
+After lru_lock splitting page to lruvec translation will be much frequently used than page to zone,
+so page->zone and page->node translations can be implemented as page->lruvec->zone and page->lruvec->node.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
