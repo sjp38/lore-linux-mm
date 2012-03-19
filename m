@@ -1,75 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx183.postini.com [74.125.245.183])
-	by kanga.kvack.org (Postfix) with SMTP id 6CF986B00F1
-	for <linux-mm@kvack.org>; Mon, 19 Mar 2012 14:55:28 -0400 (EDT)
-Received: from /spool/local
-	by e37.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <sjenning@linux.vnet.ibm.com>;
-	Mon, 19 Mar 2012 12:55:27 -0600
-Received: from d03relay05.boulder.ibm.com (d03relay05.boulder.ibm.com [9.17.195.107])
-	by d03dlp02.boulder.ibm.com (Postfix) with ESMTP id 0CB853E4004A
-	for <linux-mm@kvack.org>; Mon, 19 Mar 2012 12:55:25 -0600 (MDT)
-Received: from d03av03.boulder.ibm.com (d03av03.boulder.ibm.com [9.17.195.169])
-	by d03relay05.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q2JIt1pd200338
-	for <linux-mm@kvack.org>; Mon, 19 Mar 2012 12:55:04 -0600
-Received: from d03av03.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av03.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q2JIswXl010261
-	for <linux-mm@kvack.org>; Mon, 19 Mar 2012 12:55:00 -0600
-Message-ID: <4F678100.1000707@linux.vnet.ibm.com>
-Date: Mon, 19 Mar 2012 13:54:56 -0500
-From: Seth Jennings <sjenning@linux.vnet.ibm.com>
+Received: from psmtp.com (na3sys010amx156.postini.com [74.125.245.156])
+	by kanga.kvack.org (Postfix) with SMTP id D5C6C6B00F3
+	for <linux-mm@kvack.org>; Mon, 19 Mar 2012 15:03:03 -0400 (EDT)
+Date: Mon, 19 Mar 2012 20:02:34 +0100
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [RFC] AutoNUMA alpha6
+Message-ID: <20120319190234.GH24602@redhat.com>
+References: <20120316144028.036474157@chello.nl>
+ <20120316182511.GJ24602@redhat.com>
+ <1332182842.18960.376.camel@twins>
 MIME-Version: 1.0
-Subject: Re: [PATCH] staging: zsmalloc: add user-definable alloc/free funcs
-References: <1331931888-14175-1-git-send-email-sjenning@linux.vnet.ibm.com> <20120316213227.GB24556@kroah.com>
-In-Reply-To: <20120316213227.GB24556@kroah.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1332182842.18960.376.camel@twins>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-Cc: Dan Magenheimer <dan.magenheimer@oracle.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Nitin Gupta <ngupta@vflare.org>, Robert Jennings <rcj@linux.vnet.ibm.com>, devel@driverdev.osuosl.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>, Paul Turner <pjt@google.com>, Suresh Siddha <suresh.b.siddha@intel.com>, Mike Galbraith <efault@gmx.de>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Dan Smith <danms@us.ibm.com>, Bharata B Rao <bharata.rao@gmail.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On 03/16/2012 04:32 PM, Greg Kroah-Hartman wrote:
-> On Fri, Mar 16, 2012 at 04:04:48PM -0500, Seth Jennings wrote:
->> This patch allows a zsmalloc user to define the page
->> allocation and free functions to be used when growing
->> or releasing parts of the memory pool.
->>
->> The functions are passed in the struct zs_pool_ops parameter
->> of zs_create_pool() at pool creation time.  If this parameter
->> is NULL, zsmalloc uses alloc_page and __free_page() by default.
->>
->> While there is no current user of this functionality, zcache
->> development plans to make use of it in the near future.
+On Mon, Mar 19, 2012 at 07:47:22PM +0100, Peter Zijlstra wrote:
+> On Fri, 2012-03-16 at 19:25 +0100, Andrea Arcangeli wrote:
+> > http://git.kernel.org/?p=linux/kernel/git/andrea/aa.git;a=patch;h=30ed50adf6cfe85f7feb12c4279359ec52f5f2cd;hp=c03cf0621ed5941f7a9c1e0a343d4df30dbfb7a1
+> > 
+> > It's a big monlithic patch, but I'll split it.
 > 
-> I'm starting to get tired of seeing new features be added to this chunk
-> of code, and the other related bits, without any noticable movement
-> toward getting it merged into the mainline tree.
-
-Fair enough
-
+> I applied this big patch to a fairly recent tree from Linus but it
+> failed to boot. It got stuck somewhere in SMP bringup.
 > 
-> So, I'm going to take a stance here and say, no more new features until
-> it gets merged into the "real" part of the kernel tree, as you all
-> should not be spinning your wheels on new stuff, when there's no
-> guarantee that the whole thing could just be rejected outright tomorrow.
+> I waited for several seconds but pressed the remote power switch when
+> nothing more came out..
 > 
-> I'm sorry, I know this isn't fair for your specific patch, but we have
-> to stop this sometime, and as this patch adds code isn't even used by
-> anyone, its a good of a time as any.
+> The last bit out of my serial console looked like:
 
-So, this the my first "promotion from staging" rodeo.  I would love to
-see this code mainlined ASAP.  How would I/we go about doing that?
+btw, the dump_stack in your trace are very superflous and I should
+remove them... They were meant to debug a problem in numa emulation
+that I fixed some time ago and sent to Andrew just a few days ago.
 
-I guess another way to ask is, what needs to be done in the way of
-code quality and acks in the community to promote zcache to
-/drivers/misc for example?
+http://git.kernel.org/?p=linux/kernel/git/andrea/aa.git;a=commit;h=c03cf0621ed5941f7a9c1e0a343d4df30dbfb7a1
 
-Also, the tmem part of zcache will (probably, Dan?) be broken
-out an placed in /lib.
+You may want to try to checkout a full git tree to be sure it's not a
+collision with something else, at that point of the boot stage
+autonuma shouldn't run at all so it's unlikely related.
 
---
-Seth
+Hillf just sent me a fix for large systems which I already committed,
+maybe that's your problem?
+
+http://git.kernel.org/?p=linux/kernel/git/andrea/aa.git;a=shortlog;h=refs/heads/autonuma
+
+I also added checks for cpu_online that are probably needed but those
+aren't visible yet but you don't need them to boot...
+
+If you want to extract the patch and all other patches to apply it
+hand, the simplest is to:
+
+git clone --reference linux -b autonuma git://git.kernel.org/pub/scm/linux/kernel/git/andrea/aa.git
+git diff origin/master origin/autonuma > x
+
+Or "git format-patch origin/master..origin/autonuma"
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
