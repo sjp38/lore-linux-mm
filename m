@@ -1,133 +1,39 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx201.postini.com [74.125.245.201])
-	by kanga.kvack.org (Postfix) with SMTP id 723196B0092
-	for <linux-mm@kvack.org>; Mon, 19 Mar 2012 07:22:38 -0400 (EDT)
-Date: Mon, 19 Mar 2012 19:17:30 +0800
-From: Fengguang Wu <fengguang.wu@intel.com>
-Subject: Re: [PATCH 4/4] writeback: Avoid iput() from flusher thread
-Message-ID: <20120319111730.GA23688@localhost>
-References: <1331283748-12959-1-git-send-email-jack@suse.cz>
- <1331283748-12959-5-git-send-email-jack@suse.cz>
- <20120319085515.GA25478@infradead.org>
- <20120319104659.GH4359@quack.suse.cz>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20120319104659.GH4359@quack.suse.cz>
+Received: from psmtp.com (na3sys010amx187.postini.com [74.125.245.187])
+	by kanga.kvack.org (Postfix) with SMTP id 429516B00EA
+	for <linux-mm@kvack.org>; Mon, 19 Mar 2012 07:31:14 -0400 (EDT)
+Message-ID: <1332156655.18960.297.camel@twins>
+Subject: Re: [RFC][PATCH 00/26] sched/numa
+From: Peter Zijlstra <peterz@infradead.org>
+Date: Mon, 19 Mar 2012 12:30:55 +0100
+In-Reply-To: <1332155527.18960.292.camel@twins>
+References: <20120316144028.036474157@chello.nl>
+	 <4F670325.7080700@redhat.com> <1332155527.18960.292.camel@twins>
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: quoted-printable
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jan Kara <jack@suse.cz>
-Cc: Christoph Hellwig <hch@infradead.org>, linux-fsdevel@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
+To: Avi Kivity <avi@redhat.com>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>, Paul Turner <pjt@google.com>, Suresh Siddha <suresh.b.siddha@intel.com>, Mike Galbraith <efault@gmx.de>, "Paul E.
+ McKenney" <paulmck@linux.vnet.ibm.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Dan Smith <danms@us.ibm.com>, Bharata B Rao <bharata.rao@gmail.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Andrea Arcangeli <aarcange@redhat.com>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Mon, Mar 19, 2012 at 11:46:59AM +0100, Jan Kara wrote:
-> On Mon 19-03-12 04:55:15, Christoph Hellwig wrote:
-> > On Fri, Mar 09, 2012 at 10:02:28AM +0100, Jan Kara wrote:
-> > > Doing iput() from flusher thread (writeback_sb_inodes()) can create problems
-> > > because iput() can do a lot of work - for example truncate the inode if it's
-> > > the last iput on unlinked file. Some filesystems (e.g. ubifs) may need to
-> > > allocate blocks during truncate (due to their COW nature) and in some cases
-> > > they thus need to flush dirty data from truncate to reduce uncertainty in the
-> > > amount of free space. This effectively creates a deadlock.
-> > > 
-> > > We get rid of iput() in flusher thread by using the fact that I_SYNC inode
-> > > flag effectively pins the inode in memory. So if we take care to either hold
-> > > i_lock or have I_SYNC set, we can get away without taking inode reference
-> > > in writeback_sb_inodes().
-> > > 
-> > > As a side effect, we also fix possible use-after-free in wb_writeback() because
-> > > inode_wait_for_writeback() call could try to reacquire i_lock on the inode that
-> > > was already free.
-> > > 
-> > > Signed-off-by: Jan Kara <jack@suse.cz>
-> > > ---
-> > >  fs/fs-writeback.c         |   38 ++++++++++++++++++++++++--------------
-> > >  fs/inode.c                |   11 ++++++++++-
-> > >  include/linux/fs.h        |    7 ++++---
-> > >  include/linux/writeback.h |    7 +------
-> > >  4 files changed, 39 insertions(+), 24 deletions(-)
-> > > 
-> > > diff --git a/fs/fs-writeback.c b/fs/fs-writeback.c
-> > > index 1e8bf44..f9f9b61 100644
-> > > --- a/fs/fs-writeback.c
-> > > +++ b/fs/fs-writeback.c
-> > > @@ -325,19 +325,21 @@ static int write_inode(struct inode *inode, struct writeback_control *wbc)
-> > >  }
-> > >  
-> > >  /*
-> > > - * Wait for writeback on an inode to complete.
-> > > + * Wait for writeback on an inode to complete. Called with i_lock held.
-> > > + * Return 1 if we dropped i_lock and waited, 0 is returned otherwise.
-> > >   */
-> > > -static void inode_wait_for_writeback(struct inode *inode)
-> > > +int __must_check inode_wait_for_writeback(struct inode *inode)
-> > >  {
-> > >  	DEFINE_WAIT_BIT(wq, &inode->i_state, __I_SYNC);
-> > >  	wait_queue_head_t *wqh;
-> > >  
-> > >  	wqh = bit_waitqueue(&inode->i_state, __I_SYNC);
-> > > +	if (inode->i_state & I_SYNC) {
-> > >  		spin_unlock(&inode->i_lock);
-> > >  		__wait_on_bit(wqh, &wq, inode_wait, TASK_UNINTERRUPTIBLE);
-> > > +		return 1;
-> > >  	}
-> > > +	return 0;
-> > 
-> > This is a horribly ugl primitive.
-> > 
-> > I'd rather add a
-> > 
-> > void inode_wait_for_writeback(struct inode *inode)
-> > {
-> >  	DEFINE_WAIT_BIT(wq, &inode->i_state, __I_SYNC);
-> >  	wait_queue_head_t *wqh = bit_waitqueue(&inode->i_state, __I_SYNC);
-> > 
-> > 	__wait_on_bit(wqh, &wq, inode_wait, TASK_UNINTERRUPTIBLE);
-> > }
-> > 
-> > and opencode all the locking ad I_SYNC checking logic in the callers.
->   I agree the primitive is ugly. And actually it is buggy the way I wrote
-> it. It should have been:
->   __wait_on_bit(wqh, &wq, isync_wait, TASK_UNINTERRUPTIBLE);
-> 
-> where isync_wait is:
-> 
-> int isync_wait(void *word)
-> {
-> 	struct inode *inode = container_of(word, struct inode, i_state);
-> 
-> 	spin_unlock(&inode->i_lock);
-> 	schedule();
-> 	return 1;
-> }
-> 
->   The problem is i_lock pins the inode for us in some cases. So once we
-> drop i_lock, inode can go away so we cannot test the bit anymore.
+On Mon, 2012-03-19 at 12:12 +0100, Peter Zijlstra wrote:
+> Also, if you go scan memory, you need some storage -- see how aa grows
+> struct page, sure he wants to move that storage some place else, but the
+> memory overhead is still there -- this means less memory to actually do
+> useful stuff in (it also probably means more cache-misses since his
+> proposed shadow array in pgdat is someplace else).=20
 
-Good point, it may not be valid to test &inode->i_state any more...
+Going by the sizes in aa's patch, that's 96M of my 16G box gone. That
+puts HPC people in a rather awkward position of having to choose between
+more memory and slightly smarter kernel. I'm thinking they're going to
+opt for going the way they are now (hard affinity/userspace balancers)
+and use the extra memory.
 
-Given that __wait_on_bit() is
-
-        do {    
-                prepare_to_wait(wq, &q->wait, mode);
-                if (test_bit(q->key.bit_nr, q->key.flags))
-                        ret = (*action)(q->key.flags);
-        } while (test_bit(q->key.bit_nr, q->key.flags) && !ret);
-
-The isync_wait() will do good for the first test_bit, however still
-cannot avoid invalid access for the second test_bit.
-
-The fix could be
-
--        } while (test_bit(q->key.bit_nr, q->key.flags) && !ret);
-+        } while (!ret && test_bit(q->key.bit_nr, q->key.flags));
-
-> But there are just two places where we really need this. So maybe I can
-> just opencode it there and for others use normal obvious variant.
-
-OK.
-
-Thanks,
-Fengguang
+This even though typical MPI implementations use the multi-process
+scheme, so the simple home-node approach I used works just fine for
+them.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
