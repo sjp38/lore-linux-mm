@@ -1,60 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx174.postini.com [74.125.245.174])
-	by kanga.kvack.org (Postfix) with SMTP id 800596B00E8
-	for <linux-mm@kvack.org>; Mon, 19 Mar 2012 08:10:25 -0400 (EDT)
-Message-ID: <1332158992.18960.316.camel@twins>
-Subject: Re: [RFC][PATCH 00/26] sched/numa
-From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Date: Mon, 19 Mar 2012 13:09:52 +0100
-In-Reply-To: <4F671B90.3010209@redhat.com>
-References: <20120316144028.036474157@chello.nl>
-	  <4F670325.7080700@redhat.com> <1332155527.18960.292.camel@twins>
-	 <4F671B90.3010209@redhat.com>
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: quoted-printable
-Mime-Version: 1.0
+Received: from psmtp.com (na3sys010amx138.postini.com [74.125.245.138])
+	by kanga.kvack.org (Postfix) with SMTP id 2BFF06B00EA
+	for <linux-mm@kvack.org>; Mon, 19 Mar 2012 08:12:52 -0400 (EDT)
+Received: from m2.gw.fujitsu.co.jp (unknown [10.0.50.72])
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id C70EB3EE0C2
+	for <linux-mm@kvack.org>; Mon, 19 Mar 2012 21:12:50 +0900 (JST)
+Received: from smail (m2 [127.0.0.1])
+	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id AC97845DD78
+	for <linux-mm@kvack.org>; Mon, 19 Mar 2012 21:12:50 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
+	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 807A045DE50
+	for <linux-mm@kvack.org>; Mon, 19 Mar 2012 21:12:50 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 710281DB8042
+	for <linux-mm@kvack.org>; Mon, 19 Mar 2012 21:12:50 +0900 (JST)
+Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.240.81.146])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 241651DB803C
+	for <linux-mm@kvack.org>; Mon, 19 Mar 2012 21:12:50 +0900 (JST)
+Message-ID: <4F67225B.9010002@jp.fujitsu.com>
+Date: Mon, 19 Mar 2012 21:11:07 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+MIME-Version: 1.0
+Subject: Re: [RFC][PATCH 1/3] memcg: add methods to access pc->mem_cgroup
+References: <4F66E6A5.10804@jp.fujitsu.com> <4F66E773.4000807@jp.fujitsu.com> <4F671138.3000508@parallels.com>
+In-Reply-To: <4F671138.3000508@parallels.com>
+Content-Type: text/plain; charset=ISO-2022-JP
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Avi Kivity <avi@redhat.com>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>, Paul Turner <pjt@google.com>, Suresh Siddha <suresh.b.siddha@intel.com>, Mike Galbraith <efault@gmx.de>, "Paul E.
- McKenney" <paulmck@linux.vnet.ibm.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Dan Smith <danms@us.ibm.com>, Bharata B Rao <bharata.rao@gmail.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Andrea Arcangeli <aarcange@redhat.com>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Glauber Costa <glommer@parallels.com>
+Cc: linux-mm@kvack.org, cgroups@vger.kernel.org, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Hugh Dickins <hughd@google.com>, Han Ying <yinghan@google.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, suleiman@google.com, n-horiguchi@ah.jp.nec.com, khlebnikov@openvz.org, Tejun Heo <tj@kernel.org>
 
-On Mon, 2012-03-19 at 13:42 +0200, Avi Kivity wrote:
-> > That's intentional, it keeps the work accounted to the tasks that need
-> > it.
->=20
-> The accounting part is good, the extra latency is not.  If you have
-> spare resources (processors or dma engines) you can employ for eager
-> migration why not make use of them.
+(2012/03/19 19:58), Glauber Costa wrote:
 
-Afaik we do not use dma engines for memory migration.=20
+> On 03/19/2012 11:59 AM, KAMEZAWA Hiroyuki wrote:
+>> In order to encode pc->mem_cgroup and pc->flags to be in a word,
+>> access function to pc->mem_cgroup is required.
+>>
+>> This patch replaces access to pc->mem_cgroup with
+>>   pc_to_mem_cgroup(pc)          : pc->mem_cgroup
+>>   pc_set_mem_cgroup(pc, memcg)  : pc->mem_cgroup = memcg
+>>
+>> Following patch will remove pc->mem_cgroup.
+>>
+>> Signed-off-by: KAMEZAWA Hiroyuki<kamezawa.hiroyu@jp.fujitsu.com>
+> Kame,
+> 
+> I can't see a reason not to merge this patch right now, regardless of
+> the other ones.
+> 
 
-In any case, if you do cross-node migration frequently enough that the
-overhead of copying pages is a significant part of your time then I'm
-guessing there's something wrong.
+Ok, if names of functions seems good, I'll post again.
 
-If not, the latency should be armortised enough to not matter.
-
-> > > - doesn't work with dma engines
-> >
-> > How does that work anyway? You'd have to reprogram your dma engine, so
-> > either the ->migratepage() callback does that and we're good either way=
-,
-> > or it simply doesn't work at all.
->=20
-> If it's called from the faulting task's context you have to sleep, and
-> the latency gets increased even more, plus you're dependant on the dma
-> engine's backlog.  If you do all that from a background thread you don't
-> have to block (you might have to cancel or discard a migration if the
-> page was changed while being copied).=20
-
-The current MoF implementation simply bails and uses the old page. It
-will never block.
-
-Its all a best effort approach, a 'few' stray pages is OK as long as the
-bulk of the pages are local.
-
-If you're concerned, we can add per mm/vma counters to track this.
+Thanks,
+-Kame 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
