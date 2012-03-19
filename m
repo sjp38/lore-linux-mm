@@ -1,53 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx143.postini.com [74.125.245.143])
-	by kanga.kvack.org (Postfix) with SMTP id 5A8756B00E9
-	for <linux-mm@kvack.org>; Mon, 19 Mar 2012 05:13:10 -0400 (EDT)
-Received: from /spool/local
-	by e28smtp01.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
-	Mon, 19 Mar 2012 14:30:07 +0530
-Received: from d28av05.in.ibm.com (d28av05.in.ibm.com [9.184.220.67])
-	by d28relay01.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q2J8xG8V4030584
-	for <linux-mm@kvack.org>; Mon, 19 Mar 2012 14:29:17 +0530
-Received: from d28av05.in.ibm.com (loopback [127.0.0.1])
-	by d28av05.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q2JETiax010068
-	for <linux-mm@kvack.org>; Tue, 20 Mar 2012 01:29:45 +1100
-From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Subject: Re: [PATCH -V4 08/10] hugetlbfs: Add a list for tracking in-use HugeTLB pages
-In-Reply-To: <4F66A15B.7070804@jp.fujitsu.com>
-References: <1331919570-2264-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com> <1331919570-2264-9-git-send-email-aneesh.kumar@linux.vnet.ibm.com> <4F66A15B.7070804@jp.fujitsu.com>
-Date: Mon, 19 Mar 2012 14:29:14 +0530
-Message-ID: <87ty1lj7a5.fsf@linux.vnet.ibm.com>
+Received: from psmtp.com (na3sys010amx122.postini.com [74.125.245.122])
+	by kanga.kvack.org (Postfix) with SMTP id 4D0076B00EC
+	for <linux-mm@kvack.org>; Mon, 19 Mar 2012 05:18:26 -0400 (EDT)
+Received: by bkwq16 with SMTP id q16so5779428bkw.14
+        for <linux-mm@kvack.org>; Mon, 19 Mar 2012 02:18:24 -0700 (PDT)
+Subject: [PATCH] mm: forbid lumpy-reclaim in shrink_active_list()
+From: Konstantin Khlebnikov <khlebnikov@openvz.org>
+Date: Mon, 19 Mar 2012 13:18:21 +0400
+Message-ID: <20120319091821.17716.54031.stgit@zurg>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: linux-mm@kvack.org, mgorman@suse.de, dhillf@gmail.com, aarcange@redhat.com, mhocko@suse.cz, akpm@linux-foundation.org, hannes@cmpxchg.org, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org
+To: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org
+Cc: Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Minchan Kim <minchan@kernel.org>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <jweiner@redhat.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-On Mon, 19 Mar 2012 12:00:43 +0900, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> (2012/03/17 2:39), Aneesh Kumar K.V wrote:
-> 
-> > From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-> > 
-> > hugepage_activelist will be used to track currently used HugeTLB pages.
-> > We need to find the in-use HugeTLB pages to support memcg removal.
-> > On memcg removal we update the page's memory cgroup to point to
-> > parent cgroup.
-> > 
-> > Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
-> 
-> 
-> Reviewed-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> 
-> seems ok to me but...why the new list is not per node ? no benefit ?
-> 
+This patch reset reclaim mode in shrink_active_list() to RECLAIM_MODE_SINGLE | RECLAIM_MODE_ASYNC.
+(sync/async sign is used only in shrink_page_list and does not affect shrink_active_list)
 
-I am not sure whether having per node will bring any performance
-benefit. For cgroup removal we need to look at all the list entries
-anyway. 
+Currenly shrink_active_list() sometimes works in lumpy-reclaim mode,
+if RECLAIM_MODE_LUMPYRECLAIM left over from earlier shrink_inactive_list().
+Meanwhile, in age_active_anon() sc->reclaim_mode is totally zero.
+So, current behavior is too complex and confusing, all this looks like bug.
 
--aneesh
+In general, shrink_active_list() populate inactive list for next shrink_inactive_list().
+Lumpy shring_inactive_list() isolate pages around choosen one from both active and
+inactive lists. So, there no reasons for lumpy-isolation in shrink_active_list()
+
+Proposed-by: Hugh Dickins <hughd@google.com>
+Link: https://lkml.org/lkml/2012/3/15/583
+Signed-off-by: Konstantin Khlebnikov <khlebnikov@openvz.org>
+---
+ mm/vmscan.c |    2 ++
+ 1 files changed, 2 insertions(+), 0 deletions(-)
+
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index 57d8ef6..ae83ca3 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -1690,6 +1690,8 @@ static void shrink_active_list(unsigned long nr_to_scan,
+ 
+ 	lru_add_drain();
+ 
++	reset_reclaim_mode(sc);
++
+ 	if (!sc->may_unmap)
+ 		isolate_mode |= ISOLATE_UNMAPPED;
+ 	if (!sc->may_writepage)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
