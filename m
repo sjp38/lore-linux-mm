@@ -1,49 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx206.postini.com [74.125.245.206])
-	by kanga.kvack.org (Postfix) with SMTP id 802C86B004D
-	for <linux-mm@kvack.org>; Mon, 19 Mar 2012 10:06:20 -0400 (EDT)
-Message-ID: <1332165959.18960.340.camel@twins>
-Subject: Re: [RFC][PATCH 10/26] mm, mpol: Make mempolicy home-node aware
-From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Date: Mon, 19 Mar 2012 15:05:59 +0100
-In-Reply-To: <alpine.DEB.2.00.1203190852380.16879@router.home>
-References: <20120316144028.036474157@chello.nl>
-	 <20120316144240.763518310@chello.nl>
-	 <alpine.DEB.2.00.1203161333370.10211@router.home>
-	 <1331932375.18960.237.camel@twins>
-	 <alpine.DEB.2.00.1203190852380.16879@router.home>
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: quoted-printable
-Mime-Version: 1.0
+Received: from psmtp.com (na3sys010amx172.postini.com [74.125.245.172])
+	by kanga.kvack.org (Postfix) with SMTP id 5B6A56B004A
+	for <linux-mm@kvack.org>; Mon, 19 Mar 2012 10:07:34 -0400 (EDT)
+Message-ID: <4F673D73.90106@redhat.com>
+Date: Mon, 19 Mar 2012 16:06:43 +0200
+From: Avi Kivity <avi@redhat.com>
+MIME-Version: 1.0
+Subject: Re: [RFC][PATCH 00/26] sched/numa
+References: <20120316144028.036474157@chello.nl> <4F670325.7080700@redhat.com> <1332155527.18960.292.camel@twins> <20120319130401.GI24602@redhat.com> <1332163591.18960.334.camel@twins> <20120319135745.GL24602@redhat.com>
+In-Reply-To: <20120319135745.GL24602@redhat.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>, Paul Turner <pjt@google.com>, Suresh Siddha <suresh.b.siddha@intel.com>, Mike Galbraith <efault@gmx.de>, "Paul E.
- McKenney" <paulmck@linux.vnet.ibm.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Dan Smith <danms@us.ibm.com>, Bharata B Rao <bharata.rao@gmail.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Andrea Arcangeli <aarcange@redhat.com>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>, Paul Turner <pjt@google.com>, Suresh Siddha <suresh.b.siddha@intel.com>, Mike Galbraith <efault@gmx.de>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Dan Smith <danms@us.ibm.com>, Bharata B Rao <bharata.rao@gmail.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Mon, 2012-03-19 at 08:53 -0500, Christoph Lameter wrote:
-> On Fri, 16 Mar 2012, Peter Zijlstra wrote:
->=20
-> > > > Note that the tsk_home_node() policy has Migrate-on-Fault enabled t=
-o
-> > > > facilitate efficient on-demand memory migration.
-> > >
-> > > The numa hierachy is already complex. Could we avoid adding another l=
-ayer
-> > > by adding a MPOL_HOME_NODE and make that the default?
-> >
-> > Not sure that's really a win, the behaviour would be the same we just
-> > have to implement another policy, which is likely more code.
->=20
-> A HOME_NODE policy would also help to ensure that existing applications
-> continue to work as expected. Given that people in the HPC industry and
-> elsewhere have been fine tuning around the scheduler for years this is a
-> desirable goal and ensures backward compatibility.
+On 03/19/2012 03:57 PM, Andrea Arcangeli wrote:
+> On Mon, Mar 19, 2012 at 02:26:31PM +0100, Peter Zijlstra wrote:
+> > On Mon, 2012-03-19 at 14:04 +0100, Andrea Arcangeli wrote:
+> > > If you boot with memcg compiled in, that's taking an equivalent amount
+> > > of memory per-page.
+> > > 
+> > > If you can bear the memory loss when memcg is compiled in even when
+> > > not enabled, you sure can bear it on NUMA systems that have lots of
+> > > memory, so it's perfectly ok to sacrifice a bit of it so that it
+> > > performs like not-NUMA but you still have more memory than not-NUMA.
+> > > 
+> > I think the overhead of memcg is quite insane as well. And no I cannot
+> > bear that and have it disabled in all my kernels.
+> > 
+> > NUMA systems having lots of memory is a false argument, that doesn't
+> > mean we can just waste tons of it, people pay good money for that
+> > memory, they want to use it.
+> > 
+> > I fact, I know that HPC people want things like swap-over-nfs so they
+> > can push infrequently running system crap out into swap so they can get
+> > these few extra megabytes of memory. And you're proposing they give up
+> > ~100M just like that?
+>
+> With your code they will get -ENOMEM from split_vma and a slowdown in
+> all regular page faults and vma mangling operations, before they run
+> out of memory...
+>
+> The per-page memory loss is 24bytes, AutoNUMA in page terms costs 0.5%
+> of ram (and only if booted on NUMA hardware, unless noautonuma is
+> passed as parameter), and I can't imagine that to be a problem on a
+> system where hardware vendor took shortcuts to install massive amounts
+> of RAM that is fast to access only locally. If you buy that kind of
+> hardware losing the cost of 0.5% of RAM of it, is ridiculous compared
+> to the programmer cost of patching all apps.
 
-I really have no idea what you're saying. Existing applications that use
-mbind/set_mempolicy already continue to function exactly like before,
-see how the new layer is below all that.
+I agree with Peter on this, but perhaps it's because my app will take
+all of 15 minutes to patch.  Up front knowledge is better than the
+kernel discovering it on its own.
 
+-- 
+error compiling committee.c: too many arguments to function
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
