@@ -1,55 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx130.postini.com [74.125.245.130])
-	by kanga.kvack.org (Postfix) with SMTP id 676AE6B004A
-	for <linux-mm@kvack.org>; Sun, 18 Mar 2012 18:23:25 -0400 (EDT)
-Date: Sun, 18 Mar 2012 22:23:21 +0000
-From: Al Viro <viro@ZenIV.linux.org.uk>
-Subject: Re: [rfc][patches] fix for munmap/truncate races
-Message-ID: <20120318222321.GE6589@ZenIV.linux.org.uk>
-References: <20120318190744.GA6589@ZenIV.linux.org.uk>
+Received: from psmtp.com (na3sys010amx140.postini.com [74.125.245.140])
+	by kanga.kvack.org (Postfix) with SMTP id 12F216B004A
+	for <linux-mm@kvack.org>; Sun, 18 Mar 2012 20:35:08 -0400 (EDT)
+Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
+	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 0352D3EE0BC
+	for <linux-mm@kvack.org>; Mon, 19 Mar 2012 09:35:06 +0900 (JST)
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id CA8CB45DE9E
+	for <linux-mm@kvack.org>; Mon, 19 Mar 2012 09:35:05 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 9C95B45DEB3
+	for <linux-mm@kvack.org>; Mon, 19 Mar 2012 09:35:05 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 83B411DB804B
+	for <linux-mm@kvack.org>; Mon, 19 Mar 2012 09:35:05 +0900 (JST)
+Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.240.81.147])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 2B2951DB803E
+	for <linux-mm@kvack.org>; Mon, 19 Mar 2012 09:35:05 +0900 (JST)
+Message-ID: <4F667ED4.60204@jp.fujitsu.com>
+Date: Mon, 19 Mar 2012 09:33:24 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20120318190744.GA6589@ZenIV.linux.org.uk>
+Subject: Re: [PATCH 1/1] TRIVIAL: mmap.c: fix comment for __insert_vm_struct()
+References: <1331918590-2786-1-git-send-email-consul.kautuk@gmail.com>
+In-Reply-To: <1331918590-2786-1-git-send-email-consul.kautuk@gmail.com>
+Content-Type: text/plain; charset=ISO-2022-JP
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Kautuk Consul <consul.kautuk@gmail.com>
+Cc: Jiri Kosina <trivial@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Sun, Mar 18, 2012 at 07:07:45PM +0000, Al Viro wrote:
-> 	Background: truncate() ends up going through the shared mappings
-> of file being truncated (under ->i_mmap_mutex, to protect them from
-> getting removed while we do that) and calling unmap_vmas() on them,
-> with range passed to unmap_vmas() sitting entirely within the vma
-> being passed to it.  The trouble is, unmap_vmas() expects a chain of
-> vmas.  It will look into the next vma, see that it's beyond the range
-> we'd been given and do nothing to it.  Fine, except that there's nothing
-> to protect that next vma from being removed just as we do that - we do
-> *not* hold ->i_mmap and ->i_mmap_mutex held on our file won't do anything
-> to mappings that have nothing to do with the file in question.
+(2012/03/17 2:23), Kautuk Consul wrote:
+
+> The comment above __insert_vm_struct seems to suggest that this
+> function is also going to link the VMA with the anon_vma, but
+> this is not true.
+> This function only links the VMA to the mm->mm_rb tree and the mm->mmap linked
+> list.
 > 
-> 	There's an obvious way to deal with that - introducing a variant
-> of unmap_vmas() that would handle a single vma and switch these callers
-> of unmap_vmas() to using it.  It requires some preparations; below is
-> the combined diff, for those who prefer to review the splitup, it is in
-> git://git.kernel.org/pub/scm/linux/kernel/git/viro/vfs.git #vm
+> Signed-off-by: Kautuk Consul <consul.kautuk@gmail.com>
+> ---
+>  mm/mmap.c |    4 ++--
+>  1 files changed, 2 insertions(+), 2 deletions(-)
+> 
+> diff --git a/mm/mmap.c b/mm/mmap.c
+> index da15a79..6328a36 100644
+> --- a/mm/mmap.c
+> +++ b/mm/mmap.c
+> @@ -452,8 +452,8 @@ static void vma_link(struct mm_struct *mm, struct vm_area_struct *vma,
+>  
+>  /*
+>   * Helper for vma_adjust in the split_vma insert case:
+> - * insert vm structure into list and rbtree and anon_vma,
+> - * but it has already been inserted into prio_tree earlier.
+> + * insert vm structure into list and rbtree, but it has
+> + * already been inserted into prio_tree earlier.
+>   */
+>  static void __insert_vm_struct(struct mm_struct *mm, struct vm_area_struct *vma)
+>  {
 
-BTW, the missing part of pull request:
 
-Shortlog:
-Al Viro (6):
-      VM: unmap_page_range() can return void
-      VM: can't go through the inner loop in unmap_vmas() more than once...
-      VM: make zap_page_range() return void
-      VM: don't bother with feeding upper limit to tlb_finish_mmu() in exit_mmap()
-      VM: make unmap_vmas() return void
-      VM: make zap_page_range() callers that act on a single VMA use separate helper
+Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-Diffstat:
- include/linux/mm.h |    4 +-
- mm/memory.c        |  133 +++++++++++++++++++++++++++++++---------------------
- mm/mmap.c          |    5 +-
- 3 files changed, 84 insertions(+), 58 deletions(-)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
