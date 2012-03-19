@@ -1,277 +1,254 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx134.postini.com [74.125.245.134])
-	by kanga.kvack.org (Postfix) with SMTP id 6C7FF6B004D
-	for <linux-mm@kvack.org>; Sun, 18 Mar 2012 23:06:39 -0400 (EDT)
-Received: from m4.gw.fujitsu.co.jp (unknown [10.0.50.74])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 026BE3EE0BC
-	for <linux-mm@kvack.org>; Mon, 19 Mar 2012 12:06:38 +0900 (JST)
-Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id DCDE445DE55
-	for <linux-mm@kvack.org>; Mon, 19 Mar 2012 12:06:37 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 8690745DE53
-	for <linux-mm@kvack.org>; Mon, 19 Mar 2012 12:06:37 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 79FCA1DB8040
-	for <linux-mm@kvack.org>; Mon, 19 Mar 2012 12:06:37 +0900 (JST)
-Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.240.81.134])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 1E2621DB803B
-	for <linux-mm@kvack.org>; Mon, 19 Mar 2012 12:06:37 +0900 (JST)
-Message-ID: <4F66A258.5060301@jp.fujitsu.com>
-Date: Mon, 19 Mar 2012 12:04:56 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Received: from psmtp.com (na3sys010amx155.postini.com [74.125.245.155])
+	by kanga.kvack.org (Postfix) with SMTP id E07646B007E
+	for <linux-mm@kvack.org>; Sun, 18 Mar 2012 23:48:01 -0400 (EDT)
+Date: Mon, 19 Mar 2012 11:42:31 +0800
+From: Fengguang Wu <fengguang.wu@intel.com>
+Subject: Re: [PATCH 4/4] writeback: Avoid iput() from flusher thread
+Message-ID: <20120319034231.GA14213@localhost>
+References: <1331283748-12959-1-git-send-email-jack@suse.cz>
+ <1331283748-12959-5-git-send-email-jack@suse.cz>
 MIME-Version: 1.0
-Subject: Re: [PATCH -V4 09/10] memcg: move HugeTLB resource count to parent
- cgroup on memcg removal
-References: <1331919570-2264-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com> <1331919570-2264-10-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
-In-Reply-To: <1331919570-2264-10-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
-Content-Type: text/plain; charset=ISO-2022-JP
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1331283748-12959-5-git-send-email-jack@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Cc: linux-mm@kvack.org, mgorman@suse.de, dhillf@gmail.com, aarcange@redhat.com, mhocko@suse.cz, akpm@linux-foundation.org, hannes@cmpxchg.org, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org
+To: Jan Kara <jack@suse.cz>
+Cc: linux-fsdevel@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
 
-(2012/03/17 2:39), Aneesh Kumar K.V wrote:
-
-> From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+On Fri, Mar 09, 2012 at 10:02:28AM +0100, Jan Kara wrote:
+> Doing iput() from flusher thread (writeback_sb_inodes()) can create problems
+> because iput() can do a lot of work - for example truncate the inode if it's
+> the last iput on unlinked file. Some filesystems (e.g. ubifs) may need to
+> allocate blocks during truncate (due to their COW nature) and in some cases
+> they thus need to flush dirty data from truncate to reduce uncertainty in the
+> amount of free space. This effectively creates a deadlock.
 > 
-> This add support for memcg removal with HugeTLB resource usage.
-> 
-> Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
+> We get rid of iput() in flusher thread by using the fact that I_SYNC inode
+> flag effectively pins the inode in memory. So if we take care to either hold
+> i_lock or have I_SYNC set, we can get away without taking inode reference
+> in writeback_sb_inodes().
+
+I created this graph while trying to understand/prove the new locking
+rules, and it looks perfectly fine.
+
+flusher:
+
+                       I_FREEING check               requeue/dequeue
+                           .                                .
+                b_io.prev  .       writepages  write_inode  .
+                    .      .            .           .       .
+                    .      .            .           .       .
+I_SYNC		    .      .    ==============================
+i_lock		    .  ============           ===        ======
+list_lock	============= .                .        ==============
+                              .                .
+                              .                .
+                   check/wait I_SYNC        I_DIRTY handling
 
 
-seems ok for now.
+evict/end_writeback:
 
-Now, Tejun and Costa, and I are discussing removeing -EBUSY from rmdir().
-We're now considering 'if use_hierarchy=false and parent seems full, 
-reclaim all or move charges to the root cgroup.' then -EBUSY will go away.
+                                 check I_SYNC
+               set I_FREEING           .     wait I_SYNC     destroy_inode
+                    .          dequeue .          .                 .
+I_SYNC		    .             .    . *********************      .
+i_lock		  =====           .  ====                     *==== .
+list_lock	                ======
 
-Is it accesptable for hugetlb ? Do you have another idea ?
+It may be worthwhile to note that evict() needs to grab i_lock *after*
+waiting for I_SYNC, so that the flusher won't be accessing possibly
+freed inode when unlocking i_lock.
 
-Thanks,
--Kame 
+> As a side effect, we also fix possible use-after-free in wb_writeback() because
+> inode_wait_for_writeback() call could try to reacquire i_lock on the inode that
+> was already free.
 
+Good catch! I think you are referring to this code:
 
+                /*
+                 * Nothing written. Wait for some inode to
+                 * become available for writeback. Otherwise
+                 * we'll just busyloop.
+                 */     
+                if (!list_empty(&wb->b_more_io))  {
+                        trace_writeback_wait(wb->bdi, work);
+                        inode = wb_inode(wb->b_more_io.prev);
+                        spin_lock(&inode->i_lock);
+                        inode_wait_for_writeback(inode, wb);
+                        spin_unlock(&inode->i_lock);
+                }       
+
+> Signed-off-by: Jan Kara <jack@suse.cz>
 > ---
->  include/linux/hugetlb.h    |    6 ++++
->  include/linux/memcontrol.h |   15 +++++++++-
->  mm/hugetlb.c               |   41 ++++++++++++++++++++++++++
->  mm/memcontrol.c            |   68 +++++++++++++++++++++++++++++++++++++------
->  4 files changed, 119 insertions(+), 11 deletions(-)
+>  fs/fs-writeback.c         |   38 ++++++++++++++++++++++++--------------
+>  fs/inode.c                |   11 ++++++++++-
+>  include/linux/fs.h        |    7 ++++---
+>  include/linux/writeback.h |    7 +------
+>  4 files changed, 39 insertions(+), 24 deletions(-)
 > 
-> diff --git a/include/linux/hugetlb.h b/include/linux/hugetlb.h
-> index 6919100..32e948c 100644
-> --- a/include/linux/hugetlb.h
-> +++ b/include/linux/hugetlb.h
-> @@ -349,11 +349,17 @@ static inline unsigned int pages_per_huge_page(struct hstate *h)
->  #ifdef CONFIG_MEM_RES_CTLR_HUGETLB
->  extern int register_hugetlb_memcg_files(struct cgroup *cgroup,
->  					struct cgroup_subsys *ss);
-> +extern int hugetlb_force_memcg_empty(struct cgroup *cgroup);
->  #else
->  static inline int register_hugetlb_memcg_files(struct cgroup *cgroup,
->  					       struct cgroup_subsys *ss)
+> diff --git a/fs/fs-writeback.c b/fs/fs-writeback.c
+> index 1e8bf44..f9f9b61 100644
+> --- a/fs/fs-writeback.c
+> +++ b/fs/fs-writeback.c
+> @@ -325,19 +325,21 @@ static int write_inode(struct inode *inode, struct writeback_control *wbc)
+>  }
+>  
+>  /*
+> - * Wait for writeback on an inode to complete.
+> + * Wait for writeback on an inode to complete. Called with i_lock held.
+> + * Return 1 if we dropped i_lock and waited, 0 is returned otherwise.
+>   */
+> -static void inode_wait_for_writeback(struct inode *inode)
+> +int __must_check inode_wait_for_writeback(struct inode *inode)
 >  {
->  	return 0;
->  }
-> +
-> +static inline int hugetlb_force_memcg_empty(struct cgroup *cgroup)
-> +{
-> +	return 0;
-> +}
->  #endif
->  #endif /* _LINUX_HUGETLB_H */
-> diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
-> index 73900b9..0980122 100644
-> --- a/include/linux/memcontrol.h
-> +++ b/include/linux/memcontrol.h
-> @@ -441,7 +441,9 @@ extern void mem_cgroup_hugetlb_uncharge_page(int idx, unsigned long nr_pages,
->  extern void mem_cgroup_hugetlb_uncharge_memcg(int idx, unsigned long nr_pages,
->  					      struct mem_cgroup *memcg);
->  extern int mem_cgroup_hugetlb_file_init(int idx);
-> -
-> +extern int mem_cgroup_move_hugetlb_parent(int idx, struct cgroup *cgroup,
-> +					  struct page *page);
-> +extern bool mem_cgroup_have_hugetlb_usage(struct cgroup *cgroup);
->  #else
->  static inline int
->  mem_cgroup_hugetlb_charge_page(int idx, unsigned long nr_pages,
-> @@ -477,6 +479,17 @@ static inline int mem_cgroup_hugetlb_file_init(int idx)
->  	return 0;
->  }
+>  	DEFINE_WAIT_BIT(wq, &inode->i_state, __I_SYNC);
+>  	wait_queue_head_t *wqh;
 >  
-> +static inline int
-> +mem_cgroup_move_hugetlb_parent(int idx, struct cgroup *cgroup,
-> +			       struct page *page)
-> +{
-> +	return 0;
-> +}
-> +
-> +static inline bool mem_cgroup_have_hugetlb_usage(struct cgroup *cgroup)
-> +{
-> +	return 0;
-> +}
->  #endif  /* CONFIG_MEM_RES_CTLR_HUGETLB */
->  #endif /* _LINUX_MEMCONTROL_H */
->  
-> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-> index 8fd465d..685f0d5 100644
-> --- a/mm/hugetlb.c
-> +++ b/mm/hugetlb.c
-> @@ -1842,6 +1842,47 @@ int register_hugetlb_memcg_files(struct cgroup *cgroup,
+>  	wqh = bit_waitqueue(&inode->i_state, __I_SYNC);
+> -	while (inode->i_state & I_SYNC) {
+> +	if (inode->i_state & I_SYNC) {
+>  		spin_unlock(&inode->i_lock);
+>  		__wait_on_bit(wqh, &wq, inode_wait, TASK_UNINTERRUPTIBLE);
+> -		spin_lock(&inode->i_lock);
+> +		return 1;
 >  	}
->  	return ret;
+> +	return 0;
 >  }
-> +
-> +/*
-> + * Force the memcg to empty the hugetlb resources by moving them to
-> + * the parent cgroup. We can fail if the parent cgroup's limit prevented
-> + * the charging. This should only happen if use_hierarchy is not set.
-> + */
-> +int hugetlb_force_memcg_empty(struct cgroup *cgroup)
-> +{
-> +	struct hstate *h;
-> +	struct page *page;
-> +	int ret = 0, idx = 0;
-> +
-> +	do {
-> +		if (cgroup_task_count(cgroup) || !list_empty(&cgroup->children))
-> +			goto out;
+>  
+>  /*
+> @@ -426,9 +428,12 @@ writeback_single_inode(struct inode *inode, struct bdi_writeback *wb,
+>  			return 0;
+>  		}
+>  		/*
+> -		 * It's a data-integrity sync.  We must wait.
+> +		 * It's a data-integrity sync. We must wait. Since callers hold
+> +		 * inode reference or inode has I_WILL_FREE set, it cannot go
+> +		 * away under us.
+>  		 */
+> -		inode_wait_for_writeback(inode);
+> +		while (inode_wait_for_writeback(inode))
+> +			spin_lock(&inode->i_lock);
+>  	}
+>  
+>  	ret = __writeback_single_inode(inode, wb, wbc);
+> @@ -604,12 +609,20 @@ static long writeback_sb_inodes(struct super_block *sb,
+>  		}
+>  		spin_unlock(&wb->list_lock);
+>  
+> -		__iget(inode);
+> -		inode_wait_for_writeback(inode);
+> +		/* Did we drop i_lock to wait for I_SYNC? */
+> +		if (inode_wait_for_writeback(inode)) {
+> +			/* Inode may be gone, start again */
+> +			spin_lock(&wb->list_lock);
+> +			continue;
+> +		}
+>  		write_chunk = writeback_chunk_size(wb->bdi, work);
+>  		wbc.nr_to_write = write_chunk;
+>  		wbc.pages_skipped = 0;
+>  
 > +		/*
-> +		 * If the task doing the cgroup_rmdir got a signal
-> +		 * we don't really need to loop till the hugetlb resource
-> +		 * usage become zero.
+> +		 * We use I_SYNC to pin the inode in memory. While it is set
+> +		 * end_writeback() will wait so the inode cannot be freed.
 > +		 */
-> +		if (signal_pending(current)) {
-> +			ret = -EINTR;
-> +			goto out;
-> +		}
-> +		for_each_hstate(h) {
-> +			spin_lock(&hugetlb_lock);
-> +			list_for_each_entry(page, &h->hugepage_activelist, lru) {
-> +				ret = mem_cgroup_move_hugetlb_parent(idx, cgroup, page);
-> +				if (ret) {
-> +					spin_unlock(&hugetlb_lock);
-> +					goto out;
-> +				}
-> +			}
-> +			spin_unlock(&hugetlb_lock);
-> +			idx++;
-> +		}
-> +		cond_resched();
-> +	} while (mem_cgroup_have_hugetlb_usage(cgroup));
-> +out:
-> +	return ret;
-> +}
->  #endif
+>  		__writeback_single_inode(inode, wb, &wbc);
 >  
->  /* Should be called on processing a hugepagesz=... option */
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index 4900b72..e29d86d 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -3171,9 +3171,11 @@ static inline int mem_cgroup_move_swap_account(swp_entry_t entry,
->  #endif
->  
->  #ifdef CONFIG_MEM_RES_CTLR_HUGETLB
-> -static bool mem_cgroup_have_hugetlb_usage(struct mem_cgroup *memcg)
-> +bool mem_cgroup_have_hugetlb_usage(struct cgroup *cgroup)
->  {
->  	int idx;
-> +	struct mem_cgroup *memcg = mem_cgroup_from_cont(cgroup);
-> +
->  	for (idx = 0; idx < hugetlb_max_hstate; idx++) {
->  		if (memcg->hugepage[idx].usage > 0)
->  			return 1;
-> @@ -3285,10 +3287,57 @@ void mem_cgroup_hugetlb_uncharge_memcg(int idx, unsigned long nr_pages,
->  		res_counter_uncharge(&memcg->hugepage[idx], csize);
->  	return;
->  }
-> -#else
-> -static bool mem_cgroup_have_hugetlb_usage(struct mem_cgroup *memcg)
-> +
-> +int mem_cgroup_move_hugetlb_parent(int idx, struct cgroup *cgroup,
-> +				   struct page *page)
->  {
-> -	return 0;
-> +	struct page_cgroup *pc;
-> +	int csize,  ret = 0;
-> +	struct res_counter *fail_res;
-> +	struct cgroup *pcgrp = cgroup->parent;
-> +	struct mem_cgroup *parent = mem_cgroup_from_cont(pcgrp);
-> +	struct mem_cgroup *memcg  = mem_cgroup_from_cont(cgroup);
-> +
-> +	if (!get_page_unless_zero(page))
-> +		goto out;
-> +
-> +	pc = lookup_page_cgroup(page);
-> +	lock_page_cgroup(pc);
-> +	if (!PageCgroupUsed(pc) || pc->mem_cgroup != memcg)
-> +		goto err_out;
-> +
-> +	csize = PAGE_SIZE << compound_order(page);
+>  		work->nr_pages -= write_chunk - wbc.nr_to_write;
+> @@ -633,10 +646,7 @@ static long writeback_sb_inodes(struct super_block *sb,
+>  continue_unlock:
+>  		inode_sync_complete(inode);
+>  		spin_unlock(&inode->i_lock);
+> -		spin_unlock(&wb->list_lock);
+> -		iput(inode);
+> -		cond_resched();
+> -		spin_lock(&wb->list_lock);
+> +		cond_resched_lock(&wb->list_lock);
+>  		/*
+>  		 * bail out to wb_writeback() often enough to check
+>  		 * background threshold and other termination conditions.
+> @@ -831,8 +841,8 @@ static long wb_writeback(struct bdi_writeback *wb,
+>  			inode = wb_inode(wb->b_more_io.prev);
+>  			spin_lock(&inode->i_lock);
+>  			spin_unlock(&wb->list_lock);
+> -			inode_wait_for_writeback(inode);
+> -			spin_unlock(&inode->i_lock);
+> +			if (!inode_wait_for_writeback(inode))
+> +				spin_unlock(&inode->i_lock);
+>  			spin_lock(&wb->list_lock);
+>  		}
+>  	}
+> diff --git a/fs/inode.c b/fs/inode.c
+> index d3ebdbe..b64e2fe 100644
+> --- a/fs/inode.c
+> +++ b/fs/inode.c
+> @@ -510,7 +510,16 @@ void end_writeback(struct inode *inode)
+>  	BUG_ON(!list_empty(&inode->i_data.private_list));
+>  	BUG_ON(!(inode->i_state & I_FREEING));
+>  	BUG_ON(inode->i_state & I_CLEAR);
+> -	inode_sync_wait(inode);
 > +	/*
-> +	 * uncharge from child and charge the parent. If we have
-> +	 * use_hierarchy set, we can never fail here. In-order to make
-> +	 * sure we don't get -ENOMEM on parent charge, we first uncharge
-> +	 * the child and then charge the parent.
+> +	 * Wait for flusher thread to be done with the inode. Since the inode
+> +	 * has I_FREEING set, flusher thread won't start new work on the inode.
+> +	 * We just have to wait for running writeback to finish. We must use
+> +	 * i_lock here because flusher thread might be working with the inode
+> +	 * without I_SYNC set but under i_lock.
 > +	 */
-> +	if (parent->use_hierarchy) {
-> +		res_counter_uncharge(&memcg->hugepage[idx], csize);
-> +		if (!mem_cgroup_is_root(parent))
-> +			ret = res_counter_charge(&parent->hugepage[idx],
-> +						 csize, &fail_res);
-> +	} else {
-> +		if (!mem_cgroup_is_root(parent)) {
-> +			ret = res_counter_charge(&parent->hugepage[idx],
-> +						 csize, &fail_res);
-> +			if (ret) {
-> +				ret = -EBUSY;
-> +				goto err_out;
-> +			}
-> +		}
-> +		res_counter_uncharge(&memcg->hugepage[idx], csize);
-> +	}
-> +	/*
-> +	 * caller should have done css_get
-> +	 */
-> +	pc->mem_cgroup = parent;
-> +err_out:
-> +	unlock_page_cgroup(pc);
-> +	put_page(page);
-> +out:
-> +	return ret;
+> +	spin_lock(&inode->i_lock);
+> +	if (!inode_wait_for_writeback(inode))
+> +		spin_unlock(&inode->i_lock);
+>  	/* don't need i_lock here, no concurrent mods to i_state */
+>  	inode->i_state = I_FREEING | I_CLEAR;
 >  }
->  #endif /* CONFIG_MEM_RES_CTLR_HUGETLB */
+> diff --git a/include/linux/fs.h b/include/linux/fs.h
+> index 69cd5bb..e1f0f5a 100644
+> --- a/include/linux/fs.h
+> +++ b/include/linux/fs.h
+> @@ -1742,9 +1742,10 @@ struct super_operations {
+>   *			anew.  Other functions will just ignore such inodes,
+>   *			if appropriate.  I_NEW is used for waiting.
+>   *
+> - * I_SYNC		Synchonized write of dirty inode data.  The bits is
+> - *			set during data writeback, and cleared with a wakeup
+> - *			on the bit address once it is done.
+> + * I_SYNC		Writeback of inode is running. The bits is set during
+
+s/bits/bit/
+
+> + *			data writeback, and cleared with a wakeup on the bit
+> + *			address once it is done. The bit is also used to pin
+> + *			the inode in memory for flusher thread.
+>   *
+>   * I_REFERENCED		Marks the inode as recently references on the LRU list.
+>   *
+> diff --git a/include/linux/writeback.h b/include/linux/writeback.h
+> index 995b8bf..3a34dc0 100644
+> --- a/include/linux/writeback.h
+> +++ b/include/linux/writeback.h
+> @@ -94,6 +94,7 @@ long writeback_inodes_wb(struct bdi_writeback *wb, long nr_pages,
+>  				enum wb_reason reason);
+>  long wb_do_writeback(struct bdi_writeback *wb, int force_wait);
+>  void wakeup_flusher_threads(long nr_pages, enum wb_reason reason);
+> +int __must_check inode_wait_for_writeback(struct inode *inode);
 >  
-> @@ -3806,6 +3855,11 @@ static int mem_cgroup_force_empty(struct mem_cgroup *memcg, bool free_all)
->  	/* should free all ? */
->  	if (free_all)
->  		goto try_to_free;
-> +
-> +	/* move the hugetlb charges */
-> +	ret = hugetlb_force_memcg_empty(cgrp);
-> +	if (ret)
-> +		goto out;
->  move_account:
->  	do {
->  		ret = -EBUSY;
-> @@ -5103,12 +5157,6 @@ static int mem_cgroup_pre_destroy(struct cgroup_subsys *ss,
->  					struct cgroup *cont)
->  {
->  	struct mem_cgroup *memcg = mem_cgroup_from_cont(cont);
-> -	/*
-> -	 * Don't allow memcg removal if we have HugeTLB resource
-> -	 * usage.
-> -	 */
-> -	if (mem_cgroup_have_hugetlb_usage(memcg))
-> -		return -EBUSY;
->  
->  	return mem_cgroup_force_empty(memcg, false);
+>  /* writeback.h requires fs.h; it, too, is not included from here. */
+>  static inline void wait_on_inode(struct inode *inode)
+> @@ -101,12 +102,6 @@ static inline void wait_on_inode(struct inode *inode)
+>  	might_sleep();
+>  	wait_on_bit(&inode->i_state, __I_NEW, inode_wait, TASK_UNINTERRUPTIBLE);
 >  }
-
-
+> -static inline void inode_sync_wait(struct inode *inode)
+> -{
+> -	might_sleep();
+> -	wait_on_bit(&inode->i_state, __I_SYNC, inode_wait,
+> -							TASK_UNINTERRUPTIBLE);
+> -}
+>  
+>  
+>  /*
+> -- 
+> 1.7.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
