@@ -1,53 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx122.postini.com [74.125.245.122])
-	by kanga.kvack.org (Postfix) with SMTP id 4D0076B00EC
-	for <linux-mm@kvack.org>; Mon, 19 Mar 2012 05:18:26 -0400 (EDT)
-Received: by bkwq16 with SMTP id q16so5779428bkw.14
-        for <linux-mm@kvack.org>; Mon, 19 Mar 2012 02:18:24 -0700 (PDT)
-Subject: [PATCH] mm: forbid lumpy-reclaim in shrink_active_list()
-From: Konstantin Khlebnikov <khlebnikov@openvz.org>
-Date: Mon, 19 Mar 2012 13:18:21 +0400
-Message-ID: <20120319091821.17716.54031.stgit@zurg>
+Received: from psmtp.com (na3sys010amx116.postini.com [74.125.245.116])
+	by kanga.kvack.org (Postfix) with SMTP id D9C476B004A
+	for <linux-mm@kvack.org>; Mon, 19 Mar 2012 05:58:36 -0400 (EDT)
+Message-ID: <4F670325.7080700@redhat.com>
+Date: Mon, 19 Mar 2012 11:57:57 +0200
+From: Avi Kivity <avi@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="utf-8"
+Subject: Re: [RFC][PATCH 00/26] sched/numa
+References: <20120316144028.036474157@chello.nl>
+In-Reply-To: <20120316144028.036474157@chello.nl>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org
-Cc: Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Minchan Kim <minchan@kernel.org>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <jweiner@redhat.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>, Paul Turner <pjt@google.com>, Suresh Siddha <suresh.b.siddha@intel.com>, Mike Galbraith <efault@gmx.de>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Dan Smith <danms@us.ibm.com>, Bharata B Rao <bharata.rao@gmail.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Andrea Arcangeli <aarcange@redhat.com>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-This patch reset reclaim mode in shrink_active_list() to RECLAIM_MODE_SINGLE | RECLAIM_MODE_ASYNC.
-(sync/async sign is used only in shrink_page_list and does not affect shrink_active_list)
+On 03/16/2012 04:40 PM, Peter Zijlstra wrote:
+> The home-node migration handles both cpu and memory (anonymous only for now) in
+> an integrated fashion. The memory migration uses migrate-on-fault to avoid
+> doing a lot of work from the actual numa balancer kernl thread and only
+> migrates the active memory.
+>
 
-Currenly shrink_active_list() sometimes works in lumpy-reclaim mode,
-if RECLAIM_MODE_LUMPYRECLAIM left over from earlier shrink_inactive_list().
-Meanwhile, in age_active_anon() sc->reclaim_mode is totally zero.
-So, current behavior is too complex and confusing, all this looks like bug.
+IMO, this needs to be augmented with eager migration, for the following
+reasons:
 
-In general, shrink_active_list() populate inactive list for next shrink_inactive_list().
-Lumpy shring_inactive_list() isolate pages around choosen one from both active and
-inactive lists. So, there no reasons for lumpy-isolation in shrink_active_list()
+- lazy migration adds a bit of latency to page faults
+- doesn't work well with large pages
+- doesn't work with dma engines
 
-Proposed-by: Hugh Dickins <hughd@google.com>
-Link: https://lkml.org/lkml/2012/3/15/583
-Signed-off-by: Konstantin Khlebnikov <khlebnikov@openvz.org>
----
- mm/vmscan.c |    2 ++
- 1 files changed, 2 insertions(+), 0 deletions(-)
+So I think that in addition to migrate on fault we need a background
+thread to do eager migration.  We might prioritize pages based on the
+active bit in the PDE (cheaper to clear and scan than the PTE, but gives
+less accurate information).
 
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 57d8ef6..ae83ca3 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -1690,6 +1690,8 @@ static void shrink_active_list(unsigned long nr_to_scan,
- 
- 	lru_add_drain();
- 
-+	reset_reclaim_mode(sc);
-+
- 	if (!sc->may_unmap)
- 		isolate_mode |= ISOLATE_UNMAPPED;
- 	if (!sc->may_writepage)
+-- 
+error compiling committee.c: too many arguments to function
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
