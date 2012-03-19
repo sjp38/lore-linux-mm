@@ -1,86 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx142.postini.com [74.125.245.142])
-	by kanga.kvack.org (Postfix) with SMTP id B88526B00F2
-	for <linux-mm@kvack.org>; Mon, 19 Mar 2012 04:55:19 -0400 (EDT)
-Date: Mon, 19 Mar 2012 04:55:15 -0400
-From: Christoph Hellwig <hch@infradead.org>
-Subject: Re: [PATCH 4/4] writeback: Avoid iput() from flusher thread
-Message-ID: <20120319085515.GA25478@infradead.org>
-References: <1331283748-12959-1-git-send-email-jack@suse.cz>
- <1331283748-12959-5-git-send-email-jack@suse.cz>
+Received: from psmtp.com (na3sys010amx125.postini.com [74.125.245.125])
+	by kanga.kvack.org (Postfix) with SMTP id 87D996B004A
+	for <linux-mm@kvack.org>; Mon, 19 Mar 2012 05:00:33 -0400 (EDT)
+Received: from /spool/local
+	by e28smtp08.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
+	Mon, 19 Mar 2012 14:30:29 +0530
+Received: from d28av03.in.ibm.com (d28av03.in.ibm.com [9.184.220.65])
+	by d28relay03.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q2J90Qhw3358948
+	for <linux-mm@kvack.org>; Mon, 19 Mar 2012 14:30:26 +0530
+Received: from d28av03.in.ibm.com (loopback [127.0.0.1])
+	by d28av03.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q2JETdE7017679
+	for <linux-mm@kvack.org>; Tue, 20 Mar 2012 01:29:40 +1100
+From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Subject: Re: [PATCH -V4 09/10] memcg: move HugeTLB resource count to parent cgroup on memcg removal
+In-Reply-To: <4F66A258.5060301@jp.fujitsu.com>
+References: <1331919570-2264-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com> <1331919570-2264-10-git-send-email-aneesh.kumar@linux.vnet.ibm.com> <4F66A258.5060301@jp.fujitsu.com>
+Date: Mon, 19 Mar 2012 14:30:24 +0530
+Message-ID: <87r4wpj787.fsf@linux.vnet.ibm.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1331283748-12959-5-git-send-email-jack@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jan Kara <jack@suse.cz>
-Cc: Wu Fengguang <fengguang.wu@intel.com>, linux-fsdevel@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: linux-mm@kvack.org, mgorman@suse.de, dhillf@gmail.com, aarcange@redhat.com, mhocko@suse.cz, akpm@linux-foundation.org, hannes@cmpxchg.org, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org
 
-On Fri, Mar 09, 2012 at 10:02:28AM +0100, Jan Kara wrote:
-> Doing iput() from flusher thread (writeback_sb_inodes()) can create problems
-> because iput() can do a lot of work - for example truncate the inode if it's
-> the last iput on unlinked file. Some filesystems (e.g. ubifs) may need to
-> allocate blocks during truncate (due to their COW nature) and in some cases
-> they thus need to flush dirty data from truncate to reduce uncertainty in the
-> amount of free space. This effectively creates a deadlock.
+On Mon, 19 Mar 2012 12:04:56 +0900, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+> (2012/03/17 2:39), Aneesh Kumar K.V wrote:
 > 
-> We get rid of iput() in flusher thread by using the fact that I_SYNC inode
-> flag effectively pins the inode in memory. So if we take care to either hold
-> i_lock or have I_SYNC set, we can get away without taking inode reference
-> in writeback_sb_inodes().
+> > From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+> > 
+> > This add support for memcg removal with HugeTLB resource usage.
+> > 
+> > Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
 > 
-> As a side effect, we also fix possible use-after-free in wb_writeback() because
-> inode_wait_for_writeback() call could try to reacquire i_lock on the inode that
-> was already free.
 > 
-> Signed-off-by: Jan Kara <jack@suse.cz>
-> ---
->  fs/fs-writeback.c         |   38 ++++++++++++++++++++++++--------------
->  fs/inode.c                |   11 ++++++++++-
->  include/linux/fs.h        |    7 ++++---
->  include/linux/writeback.h |    7 +------
->  4 files changed, 39 insertions(+), 24 deletions(-)
+> seems ok for now.
 > 
-> diff --git a/fs/fs-writeback.c b/fs/fs-writeback.c
-> index 1e8bf44..f9f9b61 100644
-> --- a/fs/fs-writeback.c
-> +++ b/fs/fs-writeback.c
-> @@ -325,19 +325,21 @@ static int write_inode(struct inode *inode, struct writeback_control *wbc)
->  }
->  
->  /*
-> - * Wait for writeback on an inode to complete.
-> + * Wait for writeback on an inode to complete. Called with i_lock held.
-> + * Return 1 if we dropped i_lock and waited, 0 is returned otherwise.
->   */
-> -static void inode_wait_for_writeback(struct inode *inode)
-> +int __must_check inode_wait_for_writeback(struct inode *inode)
->  {
->  	DEFINE_WAIT_BIT(wq, &inode->i_state, __I_SYNC);
->  	wait_queue_head_t *wqh;
->  
->  	wqh = bit_waitqueue(&inode->i_state, __I_SYNC);
-> +	if (inode->i_state & I_SYNC) {
->  		spin_unlock(&inode->i_lock);
->  		__wait_on_bit(wqh, &wq, inode_wait, TASK_UNINTERRUPTIBLE);
-> +		return 1;
->  	}
-> +	return 0;
+> Now, Tejun and Costa, and I are discussing removeing -EBUSY from rmdir().
+> We're now considering 'if use_hierarchy=false and parent seems full, 
+> reclaim all or move charges to the root cgroup.' then -EBUSY will go away.
+> 
+> Is it accesptable for hugetlb ? Do you have another idea ?
+> 
 
-This is a horribly ugl primitive.
+That should work even for hugetlb. 
 
-I'd rather add a
-
-void inode_wait_for_writeback(struct inode *inode)
-{
- 	DEFINE_WAIT_BIT(wq, &inode->i_state, __I_SYNC);
- 	wait_queue_head_t *wqh = bit_waitqueue(&inode->i_state, __I_SYNC);
-
-	__wait_on_bit(wqh, &wq, inode_wait, TASK_UNINTERRUPTIBLE);
-}
-
-and opencode all the locking ad I_SYNC checking logic in the callers.
+-aneesh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
