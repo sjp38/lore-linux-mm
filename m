@@ -1,82 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx127.postini.com [74.125.245.127])
-	by kanga.kvack.org (Postfix) with SMTP id A5E646B0112
-	for <linux-mm@kvack.org>; Mon, 19 Mar 2012 17:52:47 -0400 (EDT)
-Date: Mon, 19 Mar 2012 14:52:45 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [patch] mm, coredump: fail allocations when coredumping instead
- of oom killing
-Message-Id: <20120319145245.7efb0cd4.akpm@linux-foundation.org>
-In-Reply-To: <alpine.DEB.2.00.1203151433380.14978@chino.kir.corp.google.com>
-References: <alpine.DEB.2.00.1203141914160.24180@chino.kir.corp.google.com>
-	<20120315102011.GD22384@suse.de>
-	<alpine.DEB.2.00.1203151433380.14978@chino.kir.corp.google.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx198.postini.com [74.125.245.198])
+	by kanga.kvack.org (Postfix) with SMTP id 0FFAB6B004D
+	for <linux-mm@kvack.org>; Mon, 19 Mar 2012 18:21:00 -0400 (EDT)
+Received: by yhr47 with SMTP id 47so7577166yhr.14
+        for <linux-mm@kvack.org>; Mon, 19 Mar 2012 15:20:56 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <4F66E7D7.4040406@jp.fujitsu.com>
+References: <4F66E6A5.10804@jp.fujitsu.com>
+	<4F66E7D7.4040406@jp.fujitsu.com>
+Date: Mon, 19 Mar 2012 15:20:55 -0700
+Message-ID: <CABCjUKAr+F=Pz-JCWfjGfyL4AcHt6m97p13=0VdwjeVm5SKW7w@mail.gmail.com>
+Subject: Re: [RFC][PATCH 2/3] memcg: reduce size of struct page_cgroup.
+From: Suleiman Souhlal <suleiman@google.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Mel Gorman <mgorman@suse.de>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>, Oleg Nesterov <oleg@redhat.com>, linux-mm@kvack.org
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: linux-mm@kvack.org, cgroups@vger.kernel.org, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Hugh Dickins <hughd@google.com>, Han Ying <yinghan@google.com>, Glauber Costa <glommer@parallels.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, n-horiguchi@ah.jp.nec.com, khlebnikov@openvz.org, Tejun Heo <tj@kernel.org>
 
-On Thu, 15 Mar 2012 14:47:50 -0700 (PDT)
-David Rientjes <rientjes@google.com> wrote:
+2012/3/19 KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>:
+> Now, page_cgroup->flags has only 3bits. Considering alignment of
+> struct mem_cgroup, which is allocated by kmalloc(), we can encode
+> pointer to mem_cgroup and flags into a word.
+>
+> After this patch, pc->flags is encoded as
+>
+> =A063 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 2 =A0 =A0 0
+> =A0| pointer to memcg..........|flags|
+>
+> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> ---
+> =A0include/linux/page_cgroup.h | =A0 15 ++++++++++++---
+> =A01 files changed, 12 insertions(+), 3 deletions(-)
+>
+> diff --git a/include/linux/page_cgroup.h b/include/linux/page_cgroup.h
+> index 92768cb..bca5447 100644
+> --- a/include/linux/page_cgroup.h
+> +++ b/include/linux/page_cgroup.h
+> @@ -1,6 +1,10 @@
+> =A0#ifndef __LINUX_PAGE_CGROUP_H
+> =A0#define __LINUX_PAGE_CGROUP_H
+>
+> +/*
+> + * Because these flags are encoded into ->flags with a pointer,
+> + * we cannot have too much flags.
+> + */
+> =A0enum {
+> =A0 =A0 =A0 =A0/* flags for mem_cgroup */
+> =A0 =A0 =A0 =A0PCG_LOCK, =A0/* Lock for pc->mem_cgroup and following bits=
+. */
+> @@ -9,6 +13,8 @@ enum {
+> =A0 =A0 =A0 =A0__NR_PCG_FLAGS,
+> =A0};
+>
+> +#define PCG_FLAGS_MASK ((1 << __NR_PCG_FLAGS) - 1)
+> +
+> =A0#ifndef __GENERATING_BOUNDS_H
+> =A0#include <generated/bounds.h>
+>
+> @@ -21,10 +27,12 @@ enum {
+> =A0* page_cgroup helps us identify information about the cgroup
+> =A0* All page cgroups are allocated at boot or memory hotplug event,
+> =A0* then the page cgroup for pfn always exists.
+> + *
+> + * flags and a pointer to memory cgroup are encoded into ->flags.
+> + * Lower 3bits are used for flags and others are used for a pointer to m=
+emcg.
 
-> On Thu, 15 Mar 2012, Mel Gorman wrote:
-> 
-> > Where is all the memory going?  A brief look at elf_core_dump() looks
-> > fairly innocent.
-> > 
-> > o kmalloc for a header note
-> > o kmalloc potentially for a short header
-> > o dump_write() verifies access and calls f_op->write. I guess this could
-> >   be doing a lot of allocations underneath, is this where all the memory
-> >   is going?
-> 
-> Yup, this is the one.  We only currently see this when a memcg is at its 
-> limit and there are other threads that are trying to exit that are blocked 
-> on a coredumper that can no longer get memory.  dump_write() calling 
-> ->write() (ext4 in this case) causes a livelock when 
-> add_to_page_cache_locked() tries to charge the soon-to-be-added pagecache 
-> to the coredumper's memcg that is oom and calls 
-> mem_cgroup_charge_common().  That allows the oom, but the oom killer will 
-> find the other threads that are exiting and choose to be a no-op to avoid 
-> needlessly killing threads.  The coredumper only has PF_DUMPCORE and not 
-> PF_EXITING so it doesn't get immediately killed.
+Would it be worth adding a BUILD_BUG_ON(__NR_PCG_FLAGS > 3) ?
 
-I don't understand the description of the livelock.  Does
-add_to_page_cache_locked() succeed, or fail?  What does "allows the
-oom" mean?
-
-IOW, please have another attempt at explaining the livelock?
-
-> So we have a decision to either immediately oom kill the coredumper or 
-> just fail its allocations and exit since this code does seem to have good 
-> error handling.  If RLIMIT_CORE is relatively small, it's not a problem to 
-> kill the coredumper and give it access to memory reserves.  We don't want 
-> to take that chance, however, since memcg allows all charges to be 
-> bypassed for threads that have been oom killed and have access to memory 
-> reserves with their TIF_MEMDIE bit set.  In the worst case, when 
-> RLIMIT_CORE is high or even unlimited, this could quickly cause a system 
-> oom condition and then we'd be stuck again because the oom killer finds an 
-> eligible thread with TIF_MEMDIE and all memory reserves have been 
-> depleted.
-
-AFAICT, dumping core should only require the allocation of 2-3
-unreclaimable pages at any one time.  That's if reclaim is working
-properly.  So I'd have thought that permitting the core-dumper to
-allocate those pages would cause everything to run to completion
-nicely.
-
-Relatedly, RLIMIT_CORE shouldn't affect this?  The core dumper only
-really needs to pin a single pagecache page: the one into which it is
-presently copying data.
-
-
-My vague take on this patch is that we should instead try to let
-everything run to completion, rather than failing allocations or
-oom-killing anything.  But I don't yet understand the problem which the
-patch is addressing...
+-- Suleiman
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
