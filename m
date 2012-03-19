@@ -1,101 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx173.postini.com [74.125.245.173])
-	by kanga.kvack.org (Postfix) with SMTP id 2267B6B00E7
-	for <linux-mm@kvack.org>; Mon, 19 Mar 2012 08:09:01 -0400 (EDT)
-Received: from m2.gw.fujitsu.co.jp (unknown [10.0.50.72])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 3C6DF3EE0C1
-	for <linux-mm@kvack.org>; Mon, 19 Mar 2012 21:08:59 +0900 (JST)
-Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 2287845DE54
-	for <linux-mm@kvack.org>; Mon, 19 Mar 2012 21:08:59 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id EE91945DE4D
-	for <linux-mm@kvack.org>; Mon, 19 Mar 2012 21:08:58 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id D93F91DB803E
-	for <linux-mm@kvack.org>; Mon, 19 Mar 2012 21:08:58 +0900 (JST)
-Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.240.81.145])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 93F151DB803A
-	for <linux-mm@kvack.org>; Mon, 19 Mar 2012 21:08:58 +0900 (JST)
-Message-ID: <4F672165.4050506@jp.fujitsu.com>
-Date: Mon, 19 Mar 2012 21:07:01 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH -V4 04/10] memcg: Add HugeTLB extension
-References: <1331919570-2264-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com> <1331919570-2264-5-git-send-email-aneesh.kumar@linux.vnet.ibm.com> <4F669C2E.1010502@jp.fujitsu.com> <874ntlkrp6.fsf@linux.vnet.ibm.com> <4F66D993.2080100@jp.fujitsu.com> <4F671AE6.5020204@parallels.com>
-In-Reply-To: <4F671AE6.5020204@parallels.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx174.postini.com [74.125.245.174])
+	by kanga.kvack.org (Postfix) with SMTP id 800596B00E8
+	for <linux-mm@kvack.org>; Mon, 19 Mar 2012 08:10:25 -0400 (EDT)
+Message-ID: <1332158992.18960.316.camel@twins>
+Subject: Re: [RFC][PATCH 00/26] sched/numa
+From: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Date: Mon, 19 Mar 2012 13:09:52 +0100
+In-Reply-To: <4F671B90.3010209@redhat.com>
+References: <20120316144028.036474157@chello.nl>
+	  <4F670325.7080700@redhat.com> <1332155527.18960.292.camel@twins>
+	 <4F671B90.3010209@redhat.com>
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: quoted-printable
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Glauber Costa <glommer@parallels.com>
-Cc: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, linux-mm@kvack.org, mgorman@suse.de, dhillf@gmail.com, aarcange@redhat.com, mhocko@suse.cz, akpm@linux-foundation.org, hannes@cmpxchg.org, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org
+To: Avi Kivity <avi@redhat.com>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>, Paul Turner <pjt@google.com>, Suresh Siddha <suresh.b.siddha@intel.com>, Mike Galbraith <efault@gmx.de>, "Paul E.
+ McKenney" <paulmck@linux.vnet.ibm.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Dan Smith <danms@us.ibm.com>, Bharata B Rao <bharata.rao@gmail.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Andrea Arcangeli <aarcange@redhat.com>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-(2012/03/19 20:39), Glauber Costa wrote:
+On Mon, 2012-03-19 at 13:42 +0200, Avi Kivity wrote:
+> > That's intentional, it keeps the work accounted to the tasks that need
+> > it.
+>=20
+> The accounting part is good, the extra latency is not.  If you have
+> spare resources (processors or dma engines) you can employ for eager
+> migration why not make use of them.
 
-> On 03/19/2012 11:00 AM, KAMEZAWA Hiroyuki wrote:
->> (2012/03/19 15:52), Aneesh Kumar K.V wrote:
->>
->>> On Mon, 19 Mar 2012 11:38:38 +0900, KAMEZAWA Hiroyuki<kamezawa.hiroyu@jp.fujitsu.com>  wrote:
->>>> (2012/03/17 2:39), Aneesh Kumar K.V wrote:
->>>>
->>>>> From: "Aneesh Kumar K.V"<aneesh.kumar@linux.vnet.ibm.com>
->>>>>
->>>>> This patch implements a memcg extension that allows us to control
->>>>> HugeTLB allocations via memory controller.
->>>>>
->>>>
->>>>
->>>> If you write some details here, it will be helpful for review and
->>>> seeing log after merge.
->>>
->>> Will add more info.
->>>
->>>>
->>>>
->>>>> Signed-off-by: Aneesh Kumar K.V<aneesh.kumar@linux.vnet.ibm.com>
->>>>> ---
->>>>>   include/linux/hugetlb.h    |    1 +
->>>>>   include/linux/memcontrol.h |   42 +++++++++++++
->>>>>   init/Kconfig               |    8 +++
->>>>>   mm/hugetlb.c               |    2 +-
->>>>>   mm/memcontrol.c            |  138 ++++++++++++++++++++++++++++++++++++++++++++
->>>>>   5 files changed, 190 insertions(+), 1 deletions(-)
->>>
->>> ....
->>>
->>>>> +#ifdef CONFIG_MEM_RES_CTLR_HUGETLB
->>>>> +static bool mem_cgroup_have_hugetlb_usage(struct mem_cgroup *memcg)
->>>>> +{
->>>>> +	int idx;
->>>>> +	for (idx = 0; idx<  hugetlb_max_hstate; idx++) {
->>>>> +		if (memcg->hugepage[idx].usage>  0)
->>>>> +			return 1;
->>>>> +	}
->>>>> +	return 0;
->>>>> +}
->>>>
->>>>
->>>> Please use res_counter_read_u64() rather than reading the value directly.
->>>>
->>>
->>> The open-coded variant is mostly derived from mem_cgroup_force_empty. I
->>> have updated the patch to use res_counter_read_u64.
->>>
->>
->> Ah, ok. it's(maybe) my bad. I'll schedule a fix.
->>
-> Kame,
-> 
-> I actually have it ready here. I can submit it if you want.
-> 
+Afaik we do not use dma engines for memory migration.=20
 
+In any case, if you do cross-node migration frequently enough that the
+overhead of copying pages is a significant part of your time then I'm
+guessing there's something wrong.
 
-That's good :) please post.
-(But I'm sorry I'll be absent tomorrow.)
+If not, the latency should be armortised enough to not matter.
 
-Thanks,
--Kame
+> > > - doesn't work with dma engines
+> >
+> > How does that work anyway? You'd have to reprogram your dma engine, so
+> > either the ->migratepage() callback does that and we're good either way=
+,
+> > or it simply doesn't work at all.
+>=20
+> If it's called from the faulting task's context you have to sleep, and
+> the latency gets increased even more, plus you're dependant on the dma
+> engine's backlog.  If you do all that from a background thread you don't
+> have to block (you might have to cancel or discard a migration if the
+> page was changed while being copied).=20
+
+The current MoF implementation simply bails and uses the old page. It
+will never block.
+
+Its all a best effort approach, a 'few' stray pages is OK as long as the
+bulk of the pages are local.
+
+If you're concerned, we can add per mm/vma counters to track this.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
