@@ -1,37 +1,38 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx124.postini.com [74.125.245.124])
-	by kanga.kvack.org (Postfix) with SMTP id BE6BE6B0100
-	for <linux-mm@kvack.org>; Mon, 19 Mar 2012 16:07:19 -0400 (EDT)
-Message-ID: <1332187616.18960.391.camel@twins>
-Subject: Re: [RFC][PATCH 00/26] sched/numa
-From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Date: Mon, 19 Mar 2012 21:06:56 +0100
-In-Reply-To: <20120319134029.GK24602@redhat.com>
-References: <20120316144028.036474157@chello.nl>
-	 <4F670325.7080700@redhat.com> <1332155527.18960.292.camel@twins>
-	 <4F671B90.3010209@redhat.com> <20120319134029.GK24602@redhat.com>
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: quoted-printable
-Mime-Version: 1.0
+Received: from psmtp.com (na3sys010amx171.postini.com [74.125.245.171])
+	by kanga.kvack.org (Postfix) with SMTP id 9CC7C6B0102
+	for <linux-mm@kvack.org>; Mon, 19 Mar 2012 16:14:49 -0400 (EDT)
+Message-ID: <4F6793B0.50601@redhat.com>
+Date: Mon, 19 Mar 2012 16:14:40 -0400
+From: Rik van Riel <riel@redhat.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH] mm: forbid lumpy-reclaim in shrink_active_list()
+References: <20120319091821.17716.54031.stgit@zurg> <4F676FA4.50905@redhat.com> <4F6773CC.2010705@openvz.org> <4F6774E8.2050202@redhat.com> <alpine.LSU.2.00.1203191239570.3498@eggly.anvils>
+In-Reply-To: <alpine.LSU.2.00.1203191239570.3498@eggly.anvils>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: Avi Kivity <avi@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>, Paul Turner <pjt@google.com>, Suresh Siddha <suresh.b.siddha@intel.com>, Mike Galbraith <efault@gmx.de>, "Paul E.
- McKenney" <paulmck@linux.vnet.ibm.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Dan Smith <danms@us.ibm.com>, Bharata B Rao <bharata.rao@gmail.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Hugh Dickins <hughd@google.com>
+Cc: Konstantin Khlebnikov <khlebnikov@openvz.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Minchan Kim <minchan@kernel.org>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <jweiner@redhat.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-On Mon, 2012-03-19 at 14:40 +0100, Andrea Arcangeli wrote:
-> > I agree with this, but it's really widespread throughout the kernel,
-> > from interrupts to work items to background threads.  It needs to be
-> > solved generically (IIRC vhost has some accouting fix for a similar iss=
-ue).
->=20
-> Exactly.=20
+On 03/19/2012 04:05 PM, Hugh Dickins wrote:
+> On Mon, 19 Mar 2012, Rik van Riel wrote:
 
-The fact that we all agree its a problem and that nobody has a sane idea
-on how to solve it might argue against this.
+>> It was done that way, because Mel explained to me that deactivating
+>> a whole chunk of active pages at once is a desired feature that makes
+>> it more likely that a whole contiguous chunk of pages will eventually
+>> reach the end of the inactive list.
+>
+> I'm rather sceptical about this: is there a test which demonstrates
+> a useful effect of that kind?
 
-Also, the fact that there's existing ugly isn't excuse to stop worrying
-about it and add more.
+I am somewhat sceptical too, but since lumpy reclaim is
+due to be removed anyway, I did not bother to investigate
+its behaviour in any detail :)
+
+-- 
+All rights reversed
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
