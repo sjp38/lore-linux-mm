@@ -1,132 +1,35 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx187.postini.com [74.125.245.187])
-	by kanga.kvack.org (Postfix) with SMTP id 8BBC96B00E8
-	for <linux-mm@kvack.org>; Mon, 19 Mar 2012 02:53:48 -0400 (EDT)
-Received: from /spool/local
-	by e28smtp07.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
-	Mon, 19 Mar 2012 12:23:00 +0530
-Received: from d28av05.in.ibm.com (d28av05.in.ibm.com [9.184.220.67])
-	by d28relay02.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q2J6qtAm4014312
-	for <linux-mm@kvack.org>; Mon, 19 Mar 2012 12:22:55 +0530
-Received: from d28av05.in.ibm.com (loopback [127.0.0.1])
-	by d28av05.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q2JCNME2023189
-	for <linux-mm@kvack.org>; Mon, 19 Mar 2012 23:23:23 +1100
-From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Subject: Re: [PATCH -V4 04/10] memcg: Add HugeTLB extension
-In-Reply-To: <4F669C2E.1010502@jp.fujitsu.com>
-References: <1331919570-2264-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com> <1331919570-2264-5-git-send-email-aneesh.kumar@linux.vnet.ibm.com> <4F669C2E.1010502@jp.fujitsu.com>
-Date: Mon, 19 Mar 2012 12:22:53 +0530
-Message-ID: <874ntlkrp6.fsf@linux.vnet.ibm.com>
+Received: from psmtp.com (na3sys010amx124.postini.com [74.125.245.124])
+	by kanga.kvack.org (Postfix) with SMTP id B927B6B00E9
+	for <linux-mm@kvack.org>; Mon, 19 Mar 2012 02:57:45 -0400 (EDT)
+Date: Mon, 19 Mar 2012 02:57:39 -0400
+From: Christoph Hellwig <hch@infradead.org>
+Subject: Re: [PATCH 1/4] fs: Remove bogus wait in write_inode_now()
+Message-ID: <20120319065739.GA11113@infradead.org>
+References: <1331283748-12959-1-git-send-email-jack@suse.cz>
+ <1331283748-12959-2-git-send-email-jack@suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1331283748-12959-2-git-send-email-jack@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: linux-mm@kvack.org, mgorman@suse.de, dhillf@gmail.com, aarcange@redhat.com, mhocko@suse.cz, akpm@linux-foundation.org, hannes@cmpxchg.org, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org
+To: Jan Kara <jack@suse.cz>
+Cc: Wu Fengguang <fengguang.wu@intel.com>, linux-fsdevel@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
 
-On Mon, 19 Mar 2012 11:38:38 +0900, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> (2012/03/17 2:39), Aneesh Kumar K.V wrote:
+On Fri, Mar 09, 2012 at 10:02:25AM +0100, Jan Kara wrote:
+> inode_sync_wait() in write_inode_now() is just bogus. That function waits for
+> I_SYNC bit to be cleared but writeback_single_inode() clears the bit on return
+> so the wait is effectivelly a nop unless someone else submits the inode for
+> writeback again. All the waiting write_inode_now() needs is achieved by using
+> WB_SYNC_ALL writeback mode.
 > 
-> > From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-> > 
-> > This patch implements a memcg extension that allows us to control
-> > HugeTLB allocations via memory controller.
-> > 
-> 
-> 
-> If you write some details here, it will be helpful for review and
-> seeing log after merge.
+> Signed-off-by: Jan Kara <jack@suse.cz>
 
-Will add more info.
+Loks good - I have the same in my patchkit to kill write_inode_now
+(which I really need to get out soon).
 
-> 
-> 
-> > Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
-> > ---
-> >  include/linux/hugetlb.h    |    1 +
-> >  include/linux/memcontrol.h |   42 +++++++++++++
-> >  init/Kconfig               |    8 +++
-> >  mm/hugetlb.c               |    2 +-
-> >  mm/memcontrol.c            |  138 ++++++++++++++++++++++++++++++++++++++++++++
-> >  5 files changed, 190 insertions(+), 1 deletions(-)
-
-....
-
-> > +#ifdef CONFIG_MEM_RES_CTLR_HUGETLB
-> > +static bool mem_cgroup_have_hugetlb_usage(struct mem_cgroup *memcg)
-> > +{
-> > +	int idx;
-> > +	for (idx = 0; idx < hugetlb_max_hstate; idx++) {
-> > +		if (memcg->hugepage[idx].usage > 0)
-> > +			return 1;
-> > +	}
-> > +	return 0;
-> > +}
-> 
-> 
-> Please use res_counter_read_u64() rather than reading the value directly.
-> 
-
-The open-coded variant is mostly derived from mem_cgroup_force_empty. I
-have updated the patch to use res_counter_read_u64. 
-
-> 
-> > +
-> > +int mem_cgroup_hugetlb_charge_page(int idx, unsigned long nr_pages,
-> > +				   struct mem_cgroup **ptr)
-> > +{
-> > +	int ret = 0;
-> > +	struct mem_cgroup *memcg;
-> > +	struct res_counter *fail_res;
-> > +	unsigned long csize = nr_pages * PAGE_SIZE;
-> > +
-> > +	if (mem_cgroup_disabled())
-> > +		return 0;
-> > +again:
-> > +	rcu_read_lock();
-> > +	memcg = mem_cgroup_from_task(current);
-> > +	if (!memcg)
-> > +		memcg = root_mem_cgroup;
-> > +	if (mem_cgroup_is_root(memcg)) {
-> > +		rcu_read_unlock();
-> > +		goto done;
-> > +	}
-> 
-> 
-> One concern is.... Now, yes, memory cgroup doesn't account root cgroup
-> and doesn't update res->usage to avoid updating shared counter overheads
-> when memcg is not mounted. But memory.usage_in_bytes files works
-> for root memcg with reading percpu statistics.
-> 
-> So, how about counting usage for root cgroup even if it cannot be limited ?
-> Considering hugetlb fs usage, updating res_counter here doesn't have
-> performance problem of false sharing..
-> Then, you can remove root_mem_cgroup() checks inserted several places.
-> 
-
-Yes. That is a good idea. Will update the patch.
-
-
-> <snip>
-> 
-> >  	struct mem_cgroup *memcg = mem_cgroup_from_cont(cont);
-> > +	/*
-> > +	 * Don't allow memcg removal if we have HugeTLB resource
-> > +	 * usage.
-> > +	 */
-> > +	if (mem_cgroup_have_hugetlb_usage(memcg))
-> > +		return -EBUSY;
-> >  
-> >  	return mem_cgroup_force_empty(memcg, false);
-> >  }
-> 
-> 
-> Is this fixed by patch 8+9 ?
-
-Yes. 
-
--aneesh
+Signed-off-by: Christoph Hellwig <hch@lst.de>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
