@@ -1,45 +1,36 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx127.postini.com [74.125.245.127])
-	by kanga.kvack.org (Postfix) with SMTP id 801636B004A
-	for <linux-mm@kvack.org>; Mon, 19 Mar 2012 09:40:55 -0400 (EDT)
-Date: Mon, 19 Mar 2012 14:40:29 +0100
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [RFC][PATCH 00/26] sched/numa
-Message-ID: <20120319134029.GK24602@redhat.com>
-References: <20120316144028.036474157@chello.nl>
- <4F670325.7080700@redhat.com>
- <1332155527.18960.292.camel@twins>
- <4F671B90.3010209@redhat.com>
+Received: from psmtp.com (na3sys010amx132.postini.com [74.125.245.132])
+	by kanga.kvack.org (Postfix) with SMTP id B2B3E6B004A
+	for <linux-mm@kvack.org>; Mon, 19 Mar 2012 09:54:03 -0400 (EDT)
+Date: Mon, 19 Mar 2012 08:53:57 -0500 (CDT)
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: [RFC][PATCH 10/26] mm, mpol: Make mempolicy home-node aware
+In-Reply-To: <1331932375.18960.237.camel@twins>
+Message-ID: <alpine.DEB.2.00.1203190852380.16879@router.home>
+References: <20120316144028.036474157@chello.nl> <20120316144240.763518310@chello.nl> <alpine.DEB.2.00.1203161333370.10211@router.home> <1331932375.18960.237.camel@twins>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <4F671B90.3010209@redhat.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Avi Kivity <avi@redhat.com>
-Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>, Paul Turner <pjt@google.com>, Suresh Siddha <suresh.b.siddha@intel.com>, Mike Galbraith <efault@gmx.de>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Dan Smith <danms@us.ibm.com>, Bharata B Rao <bharata.rao@gmail.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>, Paul Turner <pjt@google.com>, Suresh Siddha <suresh.b.siddha@intel.com>, Mike Galbraith <efault@gmx.de>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Dan Smith <danms@us.ibm.com>, Bharata B Rao <bharata.rao@gmail.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Andrea Arcangeli <aarcange@redhat.com>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Mon, Mar 19, 2012 at 01:42:08PM +0200, Avi Kivity wrote:
-> Extra work, and more slowness until they get rebuilt.  Why not migrate
-> entire large pages?
+On Fri, 16 Mar 2012, Peter Zijlstra wrote:
 
-The main problem is the double copy, first copy for migrate, second
-for khugepaged. This is why we want it native over time. So it also
-only stops the accesses to the pages for a shorter period of time.
+> > > Note that the tsk_home_node() policy has Migrate-on-Fault enabled to
+> > > facilitate efficient on-demand memory migration.
+> >
+> > The numa hierachy is already complex. Could we avoid adding another layer
+> > by adding a MPOL_HOME_NODE and make that the default?
+>
+> Not sure that's really a win, the behaviour would be the same we just
+> have to implement another policy, which is likely more code.
 
-> I agree with this, but it's really widespread throughout the kernel,
-> from interrupts to work items to background threads.  It needs to be
-> solved generically (IIRC vhost has some accouting fix for a similar issue).
+A HOME_NODE policy would also help to ensure that existing applications
+continue to work as expected. Given that people in the HPC industry and
+elsewhere have been fine tuning around the scheduler for years this is a
+desirable goal and ensures backward compatibility.
 
-Exactly.
-
-> It's the standard space/time tradeoff.  Once solution wants more
-> storage, the other wants more faults.
-
-I didn't grow it much more than memcg, and at least if you boot on
-NUMA hardware you'll be sure to use AutoNUMA. The fact it's in the
-struct page it's an implementation detail, it'll only be allocated if
-the kernel is booted on NUMA hardware later.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
