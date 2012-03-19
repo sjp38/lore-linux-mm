@@ -1,38 +1,36 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx136.postini.com [74.125.245.136])
-	by kanga.kvack.org (Postfix) with SMTP id C6A1E6B010D
-	for <linux-mm@kvack.org>; Mon, 19 Mar 2012 16:43:15 -0400 (EDT)
-Date: Mon, 19 Mar 2012 15:43:09 -0500 (CDT)
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: [RFC][PATCH 00/26] sched/numa
-In-Reply-To: <20120319202846.GA26555@gmail.com>
-Message-ID: <alpine.DEB.2.00.1203191536390.23632@router.home>
-References: <20120316144028.036474157@chello.nl> <4F670325.7080700@redhat.com> <1332155527.18960.292.camel@twins> <20120319130401.GI24602@redhat.com> <1332164371.18960.339.camel@twins> <20120319142046.GP24602@redhat.com> <alpine.DEB.2.00.1203191513110.23632@router.home>
- <20120319202846.GA26555@gmail.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from psmtp.com (na3sys010amx117.postini.com [74.125.245.117])
+	by kanga.kvack.org (Postfix) with SMTP id D29036B010F
+	for <linux-mm@kvack.org>; Mon, 19 Mar 2012 17:21:55 -0400 (EDT)
+Message-ID: <1332192095.18960.394.camel@twins>
+Subject: Re: [RFC][PATCH 10/26] mm, mpol: Make mempolicy home-node aware
+From: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Date: Mon, 19 Mar 2012 22:21:35 +0100
+In-Reply-To: <1332188909.143015.46.camel@zaphod.localdomain>
+References: <20120316144028.036474157@chello.nl>
+	 <20120316144240.763518310@chello.nl>
+	 <alpine.DEB.2.00.1203161333370.10211@router.home>
+	 <1331932375.18960.237.camel@twins>
+	 <alpine.DEB.2.00.1203190852380.16879@router.home>
+	 <1332165959.18960.340.camel@twins>
+	 <alpine.DEB.2.00.1203191012530.17008@router.home>
+	 <1332170628.18960.349.camel@twins>
+	 <alpine.DEB.2.00.1203191029090.19189@router.home>
+	 <1332176969.18960.351.camel@twins>
+	 <1332188909.143015.46.camel@zaphod.localdomain>
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: quoted-printable
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ingo Molnar <mingo@kernel.org>
-Cc: Andrea Arcangeli <aarcange@redhat.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Avi Kivity <avi@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>, Paul Turner <pjt@google.com>, Suresh Siddha <suresh.b.siddha@intel.com>, Mike Galbraith <efault@gmx.de>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Dan Smith <danms@us.ibm.com>, Bharata B Rao <bharata.rao@gmail.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+Cc: Christoph Lameter <cl@linux.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>, Paul Turner <pjt@google.com>, Suresh Siddha <suresh.b.siddha@intel.com>, Mike Galbraith <efault@gmx.de>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Dan Smith <danms@us.ibm.com>, Bharata B Rao <bharata.rao@gmail.com>, Andrea Arcangeli <aarcange@redhat.com>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Mon, 19 Mar 2012, Ingo Molnar wrote:
+On Mon, 2012-03-19 at 16:28 -0400, Lee Schermerhorn wrote:
+> Because default behavior for task policy is local allocation,
+> MPOL_DEFAULT does sometimes get confused with local allocation.=20
 
-> > I wonder how we can verify that the automatic migration
-> > schemes are a real benefit to the application? We have a
-> > history of developing a kernel that decreases in performance
-> > as development proceeds. How can we make sure that these
-> > schemes are actually beneficial overall for all loads and do
-> > not cause regressions elsewhere? [...]
->
-> The usual way?
-
-Which is merge after a couple of benchmarks and then deal with the
-regressions for a couple of years?
-
-Patch verification occurs in an artificial bubble of software run/known by
-kernel developers. It can take years before the code is exposed to
-real life situations.
+Right, its this confusion I wanted to avoid.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
