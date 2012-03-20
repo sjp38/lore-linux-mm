@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx142.postini.com [74.125.245.142])
-	by kanga.kvack.org (Postfix) with SMTP id E71406B0083
-	for <linux-mm@kvack.org>; Tue, 20 Mar 2012 06:16:26 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx173.postini.com [74.125.245.173])
+	by kanga.kvack.org (Postfix) with SMTP id B7E086B00E8
+	for <linux-mm@kvack.org>; Tue, 20 Mar 2012 06:16:27 -0400 (EDT)
 From: Lai Jiangshan <laijs@cn.fujitsu.com>
-Subject: [RFC PATCH 3/6] slab: add kmalloc_align()
-Date: Tue, 20 Mar 2012 18:21:21 +0800
-Message-Id: <1332238884-6237-4-git-send-email-laijs@cn.fujitsu.com>
+Subject: [RFC PATCH 5/6] slob: add kmalloc_align()
+Date: Tue, 20 Mar 2012 18:21:23 +0800
+Message-Id: <1332238884-6237-6-git-send-email-laijs@cn.fujitsu.com>
 In-Reply-To: <1332238884-6237-1-git-send-email-laijs@cn.fujitsu.com>
 References: <1332238884-6237-1-git-send-email-laijs@cn.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
@@ -13,74 +13,76 @@ List-ID: <linux-mm.kvack.org>
 To: Christoph Lameter <cl@linux-foundation.org>, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, Tejun Heo <tj@kernel.org>, Andrew Morton <akpm@linux-foundation.org>
 Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Lai Jiangshan <laijs@cn.fujitsu.com>
 
-ALIGN_OF_LAST_BIT(sizes[INDEX_AC].cs_size) is used instead of
-ARCH_KMALLOC_MINALIGN when kmalloc kmem_caches are created.
-
-No behavior changed except debug.
+Add a __kmalloc_node_align() for kmalloc_align().
 
 Signed-off-by: Lai Jiangshan <laijs@cn.fujitsu.com>
 ---
- include/linux/slab_def.h |    6 ++++++
- mm/slab.c                |    8 ++++----
- 2 files changed, 10 insertions(+), 4 deletions(-)
+ include/linux/slob_def.h |   14 +++++++++++++-
+ mm/slob.c                |    8 ++++----
+ 2 files changed, 17 insertions(+), 5 deletions(-)
 
-diff --git a/include/linux/slab_def.h b/include/linux/slab_def.h
-index fbd1117..fb0c8ab 100644
---- a/include/linux/slab_def.h
-+++ b/include/linux/slab_def.h
-@@ -159,6 +159,12 @@ found:
- 	return __kmalloc(size, flags);
+diff --git a/include/linux/slob_def.h b/include/linux/slob_def.h
+index 0ec00b3..f2b0fe3 100644
+--- a/include/linux/slob_def.h
++++ b/include/linux/slob_def.h
+@@ -9,7 +9,13 @@ static __always_inline void *kmem_cache_alloc(struct kmem_cache *cachep,
+ 	return kmem_cache_alloc_node(cachep, flags, -1);
+ }
+ 
+-void *__kmalloc_node(size_t size, gfp_t flags, int node);
++void *__kmalloc_node_align(size_t size, gfp_t gfp, int align, int node);
++
++static __always_inline
++void *__kmalloc_node(size_t size, gfp_t flags, int node)
++{
++	return __kmalloc_node_align(size, flags, 0, -1);
++}
+ 
+ static __always_inline void *kmalloc_node(size_t size, gfp_t flags, int node)
+ {
+@@ -34,4 +40,10 @@ static __always_inline void *__kmalloc(size_t size, gfp_t flags)
+ 	return kmalloc(size, flags);
  }
  
 +static __always_inline
 +void *kmalloc_align(size_t size, gfp_t flags, size_t align)
 +{
-+	return kmalloc(ALIGN(size, align), flags);
++	return __kmalloc_node_align(ALIGN(size, align), flags, align, -1);
 +}
 +
- #ifdef CONFIG_NUMA
- extern void *__kmalloc_node(size_t size, gfp_t flags, int node);
- extern void *kmem_cache_alloc_node(struct kmem_cache *, gfp_t flags, int node);
-diff --git a/mm/slab.c b/mm/slab.c
-index f0bd785..df8edbe 100644
---- a/mm/slab.c
-+++ b/mm/slab.c
-@@ -1587,7 +1587,7 @@ void __init kmem_cache_init(void)
+ #endif /* __LINUX_SLOB_DEF_H */
+diff --git a/mm/slob.c b/mm/slob.c
+index 266e518..d46b986 100644
+--- a/mm/slob.c
++++ b/mm/slob.c
+@@ -478,15 +478,15 @@ out:
+  * End of slob allocator proper. Begin kmem_cache_alloc and kmalloc frontend.
+  */
  
- 	sizes[INDEX_AC].cs_cachep = kmem_cache_create(names[INDEX_AC].name,
- 					sizes[INDEX_AC].cs_size,
--					ARCH_KMALLOC_MINALIGN,
-+					ALIGN_OF_LAST_BIT(sizes[INDEX_AC].cs_size),
- 					ARCH_KMALLOC_FLAGS|SLAB_PANIC,
- 					NULL);
+-void *__kmalloc_node(size_t size, gfp_t gfp, int node)
++void *__kmalloc_node_align(size_t size, gfp_t gfp, int align, int node)
+ {
+ 	unsigned int *m;
+ 	int hsize = max(ARCH_KMALLOC_MINALIGN, ARCH_SLAB_MINALIGN);
+-	int align;
+ 	void *ret;
  
-@@ -1595,7 +1595,7 @@ void __init kmem_cache_init(void)
- 		sizes[INDEX_L3].cs_cachep =
- 			kmem_cache_create(names[INDEX_L3].name,
- 				sizes[INDEX_L3].cs_size,
--				ARCH_KMALLOC_MINALIGN,
-+				ALIGN_OF_LAST_BIT(sizes[INDEX_L3].cs_size),
- 				ARCH_KMALLOC_FLAGS|SLAB_PANIC,
- 				NULL);
- 	}
-@@ -1613,7 +1613,7 @@ void __init kmem_cache_init(void)
- 		if (!sizes->cs_cachep) {
- 			sizes->cs_cachep = kmem_cache_create(names->name,
- 					sizes->cs_size,
--					ARCH_KMALLOC_MINALIGN,
-+					ALIGN_OF_LAST_BIT(sizes->cs_size),
- 					ARCH_KMALLOC_FLAGS|SLAB_PANIC,
- 					NULL);
- 		}
-@@ -1621,7 +1621,7 @@ void __init kmem_cache_init(void)
- 		sizes->cs_dmacachep = kmem_cache_create(
- 					names->name_dma,
- 					sizes->cs_size,
--					ARCH_KMALLOC_MINALIGN,
-+					ALIGN_OF_LAST_BIT(sizes->cs_size),
- 					ARCH_KMALLOC_FLAGS|SLAB_CACHE_DMA|
- 						SLAB_PANIC,
- 					NULL);
+ 	gfp &= gfp_allowed_mask;
+-	align = hsize;
++	if (align < hsize)
++		align = hsize;
+ 
+ 	lockdep_trace_alloc(gfp);
+ 
+@@ -522,7 +522,7 @@ void *__kmalloc_node(size_t size, gfp_t gfp, int node)
+ 	kmemleak_alloc(ret, size, 1, gfp);
+ 	return ret;
+ }
+-EXPORT_SYMBOL(__kmalloc_node);
++EXPORT_SYMBOL(__kmalloc_node_align);
+ 
+ void kfree(const void *block)
+ {
 -- 
 1.7.4.4
 
