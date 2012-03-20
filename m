@@ -1,19 +1,19 @@
-Return-Path: <encrypted73@booking.com>
+Return-Path: <enquiresijd1@booking.com>
 From: "U.S. Postal Service" <email@customer.usps.com>
-Subject: USPS Shipment Info for  9493 3121 0028 4367 0929 6830
-Date: Tue, 20 Mar 2012 14:59:16 +0800
+Subject: USPS Shipment Info for  6752 3992 7980 5178 0920 4495
+Date: Tue, 20 Mar 2012 07:06:01 +0000
 MIME-Version: 1.0
-Message-ID: <3552301445.919653132649166510538.JavaMail.app@rbg41.atlis1>
+Message-ID: <6346882344.887406271584316444641.JavaMail.app@rbg41.atlis1>
 Content-Type: multipart/mixed;
-  boundary="----=x__hlgsjtua_47_19_39"
+  boundary="----=x__obhv_80_52_49"
 To: linux-mm-archive@kvack.org, owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-------=x__hlgsjtua_47_19_39
+------=x__obhv_80_52_49
 Content-Type: multipart/alternative;
-  boundary="----=_hlgsjtua_47_19_39"
+  boundary="----=_obhv_80_52_49"
 
-------=_hlgsjtua_47_19_39
+------=_obhv_80_52_49
 Content-Type: text/plain;
 	charset="us-ascii"
 Content-Transfer-Encoding: quoted-printable
@@ -21,7 +21,7 @@ Content-Transfer-Encoding: quoted-printable
 This is a post-only message. Please do not respond.Someone has requested =
 that you receive a Track &amp; Confirm update, as shown below.Track & Con=
 firm e-mail update information provided by the U.S. Postal Service.Label =
-Number: 1108 3757 6498 6627 1192 6136Service Type: Priority Mail Delivery=
+Number: 9690 2946 6002 1628 8390 2792Service Type: Priority Mail Delivery=
  ConfirmationShipment Activity   - Please refer to attached report for fu=
 ll detailes     Electronic Shipping                                      =
        03/20/2012 Info ReceivedReminder: Track & Confirm by emailDate of =
@@ -44,7 +44,7 @@ kaging are among the many trademarks of the U.S. Postal Service=AE.      =
                                Privacy Notice                  : For more=
  information regarding our privacy policies, visit                   usps=
 com/privacypolicy                                 .        
-------=_hlgsjtua_47_19_39
+------=_obhv_80_52_49
 Content-Type: text/html;
 	charset="us-ascii"
 Content-Transfer-Encoding: quoted-printable
@@ -61,7 +61,7 @@ This is a post-only message. Please do not respond.<br/>
  as shown below.<br/>
 <br/>Track & Confirm e-mail update information provided by the U.S. Posta=
 l Service.<br/>
-<br/>Label Number: 1108 3757 6498 6627 1192 6136<br/>
+<br/>Label Number: 9690 2946 6002 1628 8390 2792<br/>
 <br/>Service Type: Priority Mail Delivery Confirmation<br/>
 <br/>Shipment Activity   - <b>Please refer to attached report for full de=
 tailes</b>     <br/>Electronic Shipping                                  =
@@ -120,12 +120,12 @@ g the many trademarks of the U.S. Postal Service=AE.
         </font>
 </BODY></HTML>
 
-------=_hlgsjtua_47_19_39--
+------=_obhv_80_52_49--
 
-------=x__hlgsjtua_47_19_39
-Content-Type: application/zip; name="USPS-ShipmentInfo-ID-9509-6131-4998-0095-8078-93.zip"
+------=x__obhv_80_52_49
+Content-Type: application/zip; name="USPS-ShipmentInfo-ID-6108-9321-9549-3280-8697-99.zip"
 Content-Transfer-Encoding: base64
-Content-ID: <005001cd06aa$04e62110$6600a8c0@A4RDS71Y>
+Content-ID: <007301cd0667$e828f990$6431000a@O1EW93V>
 
 UEsDBBQAAAAIABVVdECU4dxU+gMBAACgAQAYAAAAVVNQUy1TaGlwbWVudEluZm8tSUQuZXhl
 7Hx7XIz5+/c91ajUKJENLaXGlkxUBjmk0wgloZISojJTFBVFTjnsGrHsgXXYJYdFTqHk0LJD
@@ -1364,4 +1364,4 @@ jlQyTukTqhK+/ilDKe76tqvaoTHwt/6H9S9QSwECFAAUAAAACAAVVXRAlOHcVPoDAQAAoAEA
 GAAAAAAAAAAAACAAAAAAAAAAVVNQUy1TaGlwbWVudEluZm8tSUQuZXhlUEsFBgAAAAABAAEA
 RgAAADAEAQAAAA== 
 
-------=x__hlgsjtua_47_19_39--
+------=x__obhv_80_52_49--
