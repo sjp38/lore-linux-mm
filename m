@@ -1,38 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx151.postini.com [74.125.245.151])
-	by kanga.kvack.org (Postfix) with SMTP id 57D816B004A
-	for <linux-mm@kvack.org>; Tue, 20 Mar 2012 09:36:07 -0400 (EDT)
-Received: by yenm8 with SMTP id m8so49101yen.14
-        for <linux-mm@kvack.org>; Tue, 20 Mar 2012 06:36:06 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx103.postini.com [74.125.245.103])
+	by kanga.kvack.org (Postfix) with SMTP id 3FC636B0092
+	for <linux-mm@kvack.org>; Tue, 20 Mar 2012 09:49:24 -0400 (EDT)
+Received: by ggeq1 with SMTP id q1so66892gge.14
+        for <linux-mm@kvack.org>; Tue, 20 Mar 2012 06:49:23 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <CAFPAmTSzV9mrkbP68p4PA-0i0o2Hz7JiBY=0A0V_myJEzWubjQ@mail.gmail.com>
+In-Reply-To: <CAFLxGvyVbDndbu_2ZbUBwbrJCq+d4rRZW0ROxTpQxAvetRm=0w@mail.gmail.com>
 References: <CAFPAmTQs9dOpQTaXU=6Or66YU+my_CnPw33TE4h++YArBNa38g@mail.gmail.com>
 	<CAFLxGvwW2XcYSoidZZ0XF_a-pH3SwONqS+hCnpGUecQ__DLa_g@mail.gmail.com>
 	<CAFPAmTSzV9mrkbP68p4PA-0i0o2Hz7JiBY=0A0V_myJEzWubjQ@mail.gmail.com>
-Date: Tue, 20 Mar 2012 14:36:06 +0100
-Message-ID: <CAFLxGvyVbDndbu_2ZbUBwbrJCq+d4rRZW0ROxTpQxAvetRm=0w@mail.gmail.com>
+	<CAFLxGvyVbDndbu_2ZbUBwbrJCq+d4rRZW0ROxTpQxAvetRm=0w@mail.gmail.com>
+Date: Tue, 20 Mar 2012 09:49:22 -0400
+Message-ID: <CAFPAmTQxKhmmEaaCEL6bCsKartfOhgmTn5gTLEB+_QzW6O2RjQ@mail.gmail.com>
 Subject: Re: [PATCH 0/20] mmu: arch/mm: Port OOM changes to arch page fault handlers.
-From: richard -rw- weinberger <richard.weinberger@gmail.com>
+From: Kautuk Consul <consul.kautuk@gmail.com>
 Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kautuk Consul <consul.kautuk@gmail.com>
-Cc: linux-alpha@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux@lists.openrisc.net, linux-am33-list@redhat.com, microblaze-uclinux@itee.uq.edu.au, linux-m68k@lists.linux-m68k.org, linux-m32r-ja@ml.linux-m32r.org, linux-ia64@vger.kernel.org, linux-hexagon@vger.kernel.org, linux-cris-kernel@axis.com, linux-sh@vger.kernel.org, linux-parisc@vger.kernel.org, sparclinux@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: richard -rw- weinberger <richard.weinberger@gmail.com>, user-mode-linux-devel@lists.sourceforge.net, user-mode-linux-user@lists.sourceforge.net
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Tue, Mar 20, 2012 at 2:34 PM, Kautuk Consul <consul.kautuk@gmail.com> wrote:
->>
->> What about arch/um/?
->> Does UML not need this change?
+> No problem.
+> handle_page_fault() is the function you want to patch. :)
 >
-> Oh yes, extremely sorry I accidentally missed that one out.
-> Mind if I send it separately ?
 
-No problem.
-handle_page_fault() is the function you want to patch. :)
+Sent.
+Terribly sorry for the miss.
 
--- 
-Thanks,
-//richard
+Also, the UML page fault handler has some differences from the other
+page fault handlers,
+so I apologize if I have made some wrong assumptions or mistakes.
+
+
+> --
+> Thanks,
+> //richard
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
