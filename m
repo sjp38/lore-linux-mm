@@ -1,122 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx175.postini.com [74.125.245.175])
-	by kanga.kvack.org (Postfix) with SMTP id 1DE036B004A
-	for <linux-mm@kvack.org>; Tue, 20 Mar 2012 03:24:51 -0400 (EDT)
-MIME-version: 1.0
-Content-transfer-encoding: 7BIT
-Content-type: TEXT/PLAIN
-Received: from euspt2 ([210.118.77.13]) by mailout3.w1.samsung.com
- (Sun Java(tm) System Messaging Server 6.3-8.04 (built Jul 29 2009; 32bit))
- with ESMTP id <0M1600EXP9X7VN40@mailout3.w1.samsung.com> for
- linux-mm@kvack.org; Tue, 20 Mar 2012 07:24:43 +0000 (GMT)
-Received: from linux.samsung.com ([106.116.38.10])
- by spt2.w1.samsung.com (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14
- 2004)) with ESMTPA id <0M16007EE9XAS4@spt2.w1.samsung.com> for
- linux-mm@kvack.org; Tue, 20 Mar 2012 07:24:47 +0000 (GMT)
-Date: Tue, 20 Mar 2012 08:24:43 +0100
-From: Marek Szyprowski <m.szyprowski@samsung.com>
-Subject: [GIT PULL] DMA-mapping framework updates for 3.4
-Message-id: <1332228283-29077-1-git-send-email-m.szyprowski@samsung.com>
+Received: from psmtp.com (na3sys010amx127.postini.com [74.125.245.127])
+	by kanga.kvack.org (Postfix) with SMTP id D91156B004A
+	for <linux-mm@kvack.org>; Tue, 20 Mar 2012 03:31:52 -0400 (EDT)
+Received: by wgbdt10 with SMTP id dt10so187124wgb.2
+        for <linux-mm@kvack.org>; Tue, 20 Mar 2012 00:31:51 -0700 (PDT)
+Date: Tue, 20 Mar 2012 08:31:47 +0100
+From: Ingo Molnar <mingo@kernel.org>
+Subject: Re: [RFC][PATCH 00/26] sched/numa
+Message-ID: <20120320073147.GA27213@gmail.com>
+References: <20120316144028.036474157@chello.nl>
+ <4F670325.7080700@redhat.com>
+ <1332155527.18960.292.camel@twins>
+ <20120319130401.GI24602@redhat.com>
+ <1332164371.18960.339.camel@twins>
+ <20120319142046.GP24602@redhat.com>
+ <alpine.DEB.2.00.1203191513110.23632@router.home>
+ <20120319202846.GA26555@gmail.com>
+ <CA+55aFwa-81x2Dysk8WS8ez2WkYSbaQDyQvpH0qE7fGJgxTbUQ@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <CA+55aFwa-81x2Dysk8WS8ez2WkYSbaQDyQvpH0qE7fGJgxTbUQ@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Thomas Gleixner <tglx@linutronix.de>, Andrew Morton <akpm@linux-foundation.org>, Arnd Bergmann <arnd@arndb.de>, FUJITA Tomonori <fujita.tomonori@lab.ntt.co.jp>, microblaze-uclinux@itee.uq.edu.au, linux-arch@vger.kernel.org, x86@kernel.org, linux-sh@vger.kernel.org, linux-alpha@vger.kernel.org, sparclinux@vger.kernel.org, linux-ia64@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-mips@linux-mips.org, discuss@x86-64.org, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, linaro-mm-sig@lists.linaro.org, Jonathan Corbet <corbet@lwn.net>, Marek Szyprowski <m.szyprowski@samsung.com>, Kyungmin Park <kyungmin.park@samsung.com>, Andrzej Pietrasiewicz <andrzej.p@samsung.com>
+Cc: Christoph Lameter <cl@linux.com>, Andrea Arcangeli <aarcange@redhat.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Avi Kivity <avi@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>, Paul Turner <pjt@google.com>, Suresh Siddha <suresh.b.siddha@intel.com>, Mike Galbraith <efault@gmx.de>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Dan Smith <danms@us.ibm.com>, Bharata B Rao <bharata.rao@gmail.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-Hi Linus,
 
-Please pull the dma-mapping framework updates for v3.4 since commit
-c16fa4f2ad19908a47c63d8fa436a1178438c7e7:
+* Linus Torvalds <torvalds@linux-foundation.org> wrote:
 
-  Linux 3.3
+> On Mon, Mar 19, 2012 at 1:28 PM, Ingo Molnar <mingo@kernel.org> wrote:
+> >
+> > That having said PeterZ's numbers showed some pretty good
+> > improvement for the streams workload:
+> >
+> >  before: 512.8M
+> >  after: 615.7M
+> >
+> > i.e. a +20% improvement on a not very heavily NUMA box.
+> 
+> Well, streams really isn't a very interesting benchmark. It's 
+> the traditional single-threaded cpu-only thing that just 
+> accesses things linearly, and I'm not convinced the numbers 
+> should be taken to mean anything at all.
 
-with the top-most commit e749a9f707f1102735e02338fa564be86be3bb69
+Yeah, I considered it the 'ideal improvement' for memory-bound, 
+private-working-set workloads on commodity hardware - i.e. the 
+upper envelope of anything that might matter. We don't know the 
+worst-case regression percentage, nor the median improvement - 
+which might very well be a negative number.
 
-  common: DMA-mapping: add NON-CONSISTENT attribute
+More fundamentally we don't even know whether such access 
+patterns matter at all.
 
-from the git repository at:
+> The HPC people want to multi-thread things these days, and 
+> "cpu/memory affinity" is a lot less clear then.
+> 
+> So I can easily imagine that the performance improvement is 
+> real, but I really don't think "streams improves by X %" is 
+> all that interesting. Are there any more relevant loads that 
+> actually matter to people that we could show improvement on?
 
-  git://git.infradead.org/users/kmpark/linux-samsung dma-mapping-next
+That would be interesting to see.
 
-Those patches introduce a new alloc method (with support for memory
-attributes) in dma_map_ops structure, which will later replace
-dma_alloc_coherent and dma_alloc_writecombine functions.
+I could queue this up in a topical branch in a pure opt-in 
+fashion, to make it easier to test.
 
-Thanks!
+Assuming there will be real improvements on real workloads, do 
+you have any fundamental objections against the 'home node' 
+concept itself and its placement into mm_struct? I think it 
+makes sense and mm_struct is the most logical place to host it.
 
-Best regards
-Marek Szyprowski
-Samsung Poland R&D Center
+The rest looks rather non-controversial to me, apps that want 
+more memory affinity should get it and both the VM and the 
+scheduler should help achieve that goal, within memory and CPU 
+allocation constraints.
 
-Patch summary:
+Thanks,
 
-Andrzej Pietrasiewicz (9):
-      X86: adapt for dma_map_ops changes
-      MIPS: adapt for dma_map_ops changes
-      PowerPC: adapt for dma_map_ops changes
-      IA64: adapt for dma_map_ops changes
-      SPARC: adapt for dma_map_ops changes
-      Alpha: adapt for dma_map_ops changes
-      SH: adapt for dma_map_ops changes
-      Microblaze: adapt for dma_map_ops changes
-      Unicore32: adapt for dma_map_ops changes
-
-Marek Szyprowski (6):
-      common: dma-mapping: introduce alloc_attrs and free_attrs methods
-      Hexagon: adapt for dma_map_ops changes
-      common: dma-mapping: remove old alloc_coherent and free_coherent methods
-      common: dma-mapping: introduce mmap method
-      common: DMA-mapping: add WRITE_COMBINE attribute
-      common: DMA-mapping: add NON-CONSISTENT attribute
-
- Documentation/DMA-attributes.txt          |   19 +++++++++++++++++++
- arch/alpha/include/asm/dma-mapping.h      |   18 ++++++++++++------
- arch/alpha/kernel/pci-noop.c              |   10 ++++++----
- arch/alpha/kernel/pci_iommu.c             |   10 ++++++----
- arch/hexagon/include/asm/dma-mapping.h    |   18 ++++++++++++------
- arch/hexagon/kernel/dma.c                 |    9 +++++----
- arch/ia64/hp/common/sba_iommu.c           |   11 ++++++-----
- arch/ia64/include/asm/dma-mapping.h       |   18 ++++++++++++------
- arch/ia64/kernel/pci-swiotlb.c            |    9 +++++----
- arch/ia64/sn/pci/pci_dma.c                |    9 +++++----
- arch/microblaze/include/asm/dma-mapping.h |   18 ++++++++++++------
- arch/microblaze/kernel/dma.c              |   10 ++++++----
- arch/mips/cavium-octeon/dma-octeon.c      |   16 ++++++++--------
- arch/mips/include/asm/dma-mapping.h       |   18 ++++++++++++------
- arch/mips/mm/dma-default.c                |    8 ++++----
- arch/powerpc/include/asm/dma-mapping.h    |   24 ++++++++++++++++--------
- arch/powerpc/kernel/dma-iommu.c           |   10 ++++++----
- arch/powerpc/kernel/dma-swiotlb.c         |    4 ++--
- arch/powerpc/kernel/dma.c                 |   10 ++++++----
- arch/powerpc/kernel/ibmebus.c             |   10 ++++++----
- arch/powerpc/kernel/vio.c                 |   14 ++++++++------
- arch/powerpc/platforms/cell/iommu.c       |   16 +++++++++-------
- arch/powerpc/platforms/ps3/system-bus.c   |   13 +++++++------
- arch/sh/include/asm/dma-mapping.h         |   28 ++++++++++++++++++----------
- arch/sh/kernel/dma-nommu.c                |    4 ++--
- arch/sh/mm/consistent.c                   |    6 ++++--
- arch/sparc/include/asm/dma-mapping.h      |   18 ++++++++++++------
- arch/sparc/kernel/iommu.c                 |   10 ++++++----
- arch/sparc/kernel/ioport.c                |   18 ++++++++++--------
- arch/sparc/kernel/pci_sun4v.c             |    9 +++++----
- arch/unicore32/include/asm/dma-mapping.h  |   18 ++++++++++++------
- arch/unicore32/mm/dma-swiotlb.c           |    4 ++--
- arch/x86/include/asm/dma-mapping.h        |   26 ++++++++++++++++----------
- arch/x86/kernel/amd_gart_64.c             |   11 ++++++-----
- arch/x86/kernel/pci-calgary_64.c          |    9 +++++----
- arch/x86/kernel/pci-dma.c                 |    3 ++-
- arch/x86/kernel/pci-nommu.c               |    6 +++---
- arch/x86/kernel/pci-swiotlb.c             |   12 +++++++-----
- arch/x86/xen/pci-swiotlb-xen.c            |    4 ++--
- drivers/iommu/amd_iommu.c                 |   10 ++++++----
- drivers/iommu/intel-iommu.c               |    9 +++++----
- drivers/xen/swiotlb-xen.c                 |    5 +++--
- include/linux/dma-attrs.h                 |    2 ++
- include/linux/dma-mapping.h               |   13 +++++++++----
- include/linux/swiotlb.h                   |    6 ++++--
- include/xen/swiotlb-xen.h                 |    6 ++++--
- lib/swiotlb.c                             |    5 +++--
- 47 files changed, 338 insertions(+), 206 deletions(-)
-
+	Ingo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
