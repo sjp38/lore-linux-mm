@@ -1,56 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx184.postini.com [74.125.245.184])
-	by kanga.kvack.org (Postfix) with SMTP id 31A786B0044
-	for <linux-mm@kvack.org>; Tue, 20 Mar 2012 12:55:16 -0400 (EDT)
-From: Glauber Costa <glommer@parallels.com>
-Subject: [PATCH] memcg: Do not open code accesses to res_counter members
-Date: Tue, 20 Mar 2012 20:53:44 +0400
-Message-Id: <1332262424-13484-1-git-send-email-glommer@parallels.com>
+Received: from psmtp.com (na3sys010amx188.postini.com [74.125.245.188])
+	by kanga.kvack.org (Postfix) with SMTP id 521B96B004D
+	for <linux-mm@kvack.org>; Tue, 20 Mar 2012 14:21:33 -0400 (EDT)
+Received: from localhost (localhost [127.0.0.1])
+	by node6.dwd.de (Postfix) with ESMTP id 22852C58121
+	for <linux-mm@kvack.org>; Tue, 20 Mar 2012 18:21:32 +0000 (UTC)
+Received: from node6.dwd.de ([127.0.0.1])
+	by localhost (node6.csg-cluster.lan [127.0.0.1]) (amavisd-new, port 10024)
+	with LMTP id lHHGlJ3fQeBN for <linux-mm@kvack.org>;
+	Tue, 20 Mar 2012 18:21:31 +0000 (UTC)
+Date: Tue, 20 Mar 2012 18:21:29 +0000 (GMT)
+From: Holger Kiehl <Holger.Kiehl@dwd.de>
+Subject: Re: [RFC]swap: don't do discard if no discard option added
+In-Reply-To: <4F68795E.9030304@kernel.org>
+Message-ID: <alpine.LRH.2.02.1203201812260.18801@diagnostix.dwd.de>
+References: <4F68795E.9030304@kernel.org>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII; format=flowed
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: cgroups@vger.kernel.org
-Cc: linux-mm@kvack.org, devel@openvz.org, Glauber Costa <glommer@parallels.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: Shaohua Li <shli@kernel.org>
+Cc: linux-mm@kvack.org, akpm@linux-foundation.org
 
-We should use the acessor res_counter_read_u64 for that.
-Although a purely cosmetic change is sometimes better of delayed,
-to avoid conflicting with other people's work, we are starting to
-have people touching this code as well, and reproducing the open
-code behavior because that's the standard =)
+Hello,
 
-Time to fix it, then.
+just tested this patch and this solves my problem where I have very
+long boot times and even some timeout problems.
 
-Signed-off-by: Glauber Costa <glommer@parallels.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Michal Hocko <mhocko@suse.cz>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
----
- mm/memcontrol.c |    4 ++--
- 1 files changed, 2 insertions(+), 2 deletions(-)
+Regards,
+Holger
 
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 87a1e21..27c1bfa 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -3708,7 +3708,7 @@ move_account:
- 			goto try_to_free;
- 		cond_resched();
- 	/* "ret" should also be checked to ensure all lists are empty. */
--	} while (memcg->res.usage > 0 || ret);
-+	} while (res_counter_read_u64(&memcg->res, RES_USAGE) > 0 || ret);
- out:
- 	css_put(&memcg->css);
- 	return ret;
-@@ -3723,7 +3723,7 @@ try_to_free:
- 	lru_add_drain_all();
- 	/* try to free all pages in this cgroup */
- 	shrink = 1;
--	while (nr_retries && memcg->res.usage > 0) {
-+	while (nr_retries && res_counter_read_u64(&memcg->res, RES_USAGE) > 0) {
- 		int progress;
- 
- 		if (signal_pending(current)) {
--- 
-1.7.7.6
+
+On Tue, 20 Mar 2012, Shaohua Li wrote:
+
+>
+> Even don't add discard option, swapon will do discard, this sounds buggy,
+> especially when discard is slow or buggy.
+>
+> Reported-by: Holger Kiehl <Holger.Kiehl@dwd.de>
+> Signed-off-by: Shaohua Li <shli@fusionio.com>
+> ---
+>  mm/swapfile.c |    2 +-
+>  1 file changed, 1 insertion(+), 1 deletion(-)
+>
+> Index: linux/mm/swapfile.c
+> ===================================================================
+> --- linux.orig/mm/swapfile.c	2012-03-20 20:11:59.222767526 +0800
+> +++ linux/mm/swapfile.c	2012-03-20 20:13:25.362767387 +0800
+> @@ -2105,7 +2105,7 @@ SYSCALL_DEFINE2(swapon, const char __use
+> 			 p->flags |= SWP_SOLIDSTATE;
+> 			 p->cluster_next = 1 + (random32() % p->highest_bit);
+> 		}
+> -		if (discard_swap(p) == 0 && (swap_flags & SWAP_FLAG_DISCARD))
+> +		if ((swap_flags & SWAP_FLAG_DISCARD) && discard_swap(p) == 0)
+> 	 		p->flags |= SWP_DISCARDABLE;
+> 	 }
+>
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
