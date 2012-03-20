@@ -1,50 +1,103 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx196.postini.com [74.125.245.196])
-	by kanga.kvack.org (Postfix) with SMTP id BAC026B011C
-	for <linux-mm@kvack.org>; Mon, 19 Mar 2012 20:05:54 -0400 (EDT)
-Received: by dadv6 with SMTP id v6so13298612dad.14
-        for <linux-mm@kvack.org>; Mon, 19 Mar 2012 17:05:54 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx167.postini.com [74.125.245.167])
+	by kanga.kvack.org (Postfix) with SMTP id CD2986B011F
+	for <linux-mm@kvack.org>; Mon, 19 Mar 2012 20:46:50 -0400 (EDT)
+Received: by dadv6 with SMTP id v6so13346383dad.14
+        for <linux-mm@kvack.org>; Mon, 19 Mar 2012 17:46:49 -0700 (PDT)
+Date: Mon, 19 Mar 2012 17:46:47 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [patch] mm, coredump: fail allocations when coredumping instead
+ of oom killing
+In-Reply-To: <20120319145245.7efb0cd4.akpm@linux-foundation.org>
+Message-ID: <alpine.DEB.2.00.1203191723470.3609@chino.kir.corp.google.com>
+References: <alpine.DEB.2.00.1203141914160.24180@chino.kir.corp.google.com> <20120315102011.GD22384@suse.de> <alpine.DEB.2.00.1203151433380.14978@chino.kir.corp.google.com> <20120319145245.7efb0cd4.akpm@linux-foundation.org>
 MIME-Version: 1.0
-In-Reply-To: <20120319202846.GA26555@gmail.com>
-References: <20120316144028.036474157@chello.nl> <4F670325.7080700@redhat.com>
- <1332155527.18960.292.camel@twins> <20120319130401.GI24602@redhat.com>
- <1332164371.18960.339.camel@twins> <20120319142046.GP24602@redhat.com>
- <alpine.DEB.2.00.1203191513110.23632@router.home> <20120319202846.GA26555@gmail.com>
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Date: Mon, 19 Mar 2012 17:05:33 -0700
-Message-ID: <CA+55aFwa-81x2Dysk8WS8ez2WkYSbaQDyQvpH0qE7fGJgxTbUQ@mail.gmail.com>
-Subject: Re: [RFC][PATCH 00/26] sched/numa
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ingo Molnar <mingo@kernel.org>
-Cc: Christoph Lameter <cl@linux.com>, Andrea Arcangeli <aarcange@redhat.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Avi Kivity <avi@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>, Paul Turner <pjt@google.com>, Suresh Siddha <suresh.b.siddha@intel.com>, Mike Galbraith <efault@gmx.de>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Dan Smith <danms@us.ibm.com>, Bharata B Rao <bharata.rao@gmail.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Mel Gorman <mgorman@suse.de>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>, Oleg Nesterov <oleg@redhat.com>, linux-mm@kvack.org
 
-On Mon, Mar 19, 2012 at 1:28 PM, Ingo Molnar <mingo@kernel.org> wrote:
->
-> That having said PeterZ's numbers showed some pretty good
-> improvement for the streams workload:
->
-> =A0before: 512.8M
-> =A0after: 615.7M
->
-> i.e. a +20% improvement on a not very heavily NUMA box.
+On Mon, 19 Mar 2012, Andrew Morton wrote:
 
-Well, streams really isn't a very interesting benchmark. It's the
-traditional single-threaded cpu-only thing that just accesses things
-linearly, and I'm not convinced the numbers should be taken to mean
-anything at all.
+> > Yup, this is the one.  We only currently see this when a memcg is at its 
+> > limit and there are other threads that are trying to exit that are blocked 
+> > on a coredumper that can no longer get memory.  dump_write() calling 
+> > ->write() (ext4 in this case) causes a livelock when 
+> > add_to_page_cache_locked() tries to charge the soon-to-be-added pagecache 
+> > to the coredumper's memcg that is oom and calls 
+> > mem_cgroup_charge_common().  That allows the oom, but the oom killer will 
+> > find the other threads that are exiting and choose to be a no-op to avoid 
+> > needlessly killing threads.  The coredumper only has PF_DUMPCORE and not 
+> > PF_EXITING so it doesn't get immediately killed.
+> 
+> I don't understand the description of the livelock.  Does
+> add_to_page_cache_locked() succeed, or fail?  What does "allows the
+> oom" mean?
+> 
 
-The HPC people want to multi-thread things these days, and "cpu/memory
-affinity" is a lot less clear then.
+Sorry if it wasn't clear.  The coredumper calling into 
+add_to_page_cache_locked() calls the oom killer because the memcg is oom 
+(and would call the global oom killer if the entire system were oom).  The 
+oom killer, both memcg and global, doesn't do anything because it sees 
+eligible threads with PF_EXITING set.  This logic has existed for several 
+years to avoid needlessly oom killing additional threads when others are 
+already in the process of exiting and freeing their memory.  Those 
+PF_EXITING threads, however, are blocked on the coredumper to exit in 
+exit_mm(), so they'll never actually exit.  Thus, the coredumper must make 
+forward progress for anything to actually exit and the oom killer is 
+useless.
 
-So I can easily imagine that the performance improvement is real, but
-I really don't think "streams improves by X %" is all that
-interesting. Are there any more relevant loads that actually matter to
-people that we could show improvement on?
+In this condition, there are a few options:
 
-                     Linus
+ - give the coredumper access to memory reserves and allow it to allocate,
+   essentially oom killing it,
+
+ - fail coredumper memory allocations because of the oom condition and 
+   allow the threads blocked on it to exit, or
+
+ - implement an oom killer timeout that would kill additional threads if 
+   we repeatedly call into it without making forward progress over a small 
+   period of time.
+
+The first and last, in my opinion, are non-starters because it allows a 
+complete depletion of memory reserves if the coredumper is chosen and then 
+nothing is guaranteed to be able to ever exit.  This patch implements the 
+middle option where we do our best effort to allow the coredump to be 
+successful (we even try direct reclaim before failing) but choose to fail 
+before calling into the oom killer and causing a livelock.
+
+> AFAICT, dumping core should only require the allocation of 2-3
+> unreclaimable pages at any one time.  That's if reclaim is working
+> properly.  So I'd have thought that permitting the core-dumper to
+> allocate those pages would cause everything to run to completion
+> nicely.
+> 
+
+If there's nothing to reclaim (more obvious when running in a memcg) then 
+we prohibit the allocation and livelock in the presence of PF_EXITING 
+threads that are waiting on the coredump; there's nothing that allows 
+those allocations in the kernel to succeed currently.  If we can guarantee 
+that the call to ->write() allocates 2-3 pages at most then we could 
+perhaps get away with doing something like
+
+	if (current->flags & PF_DUMPCORE) {
+		set_thread_flag(TIF_MEMDIE);
+		return 0;
+	}
+
+in the oom killer like we allow for fatal_signal_pending() right now.  I 
+chose to be more conservative, however, because the amount of memory it 
+allocates is filesystem dependent and may deplete all memory reserves.
+
+> Relatedly, RLIMIT_CORE shouldn't affect this?  The core dumper only
+> really needs to pin a single pagecache page: the one into which it is
+> presently copying data.
+> 
+
+It's filesystem dependent, the VM doesn't safeguard against a livelock of 
+the memcg and the system without this patch.  But even with one page the 
+vulnerability still exists.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
