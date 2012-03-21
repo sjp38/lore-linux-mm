@@ -1,41 +1,32 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx176.postini.com [74.125.245.176])
-	by kanga.kvack.org (Postfix) with SMTP id A3B986B0044
-	for <linux-mm@kvack.org>; Tue, 20 Mar 2012 20:28:53 -0400 (EDT)
-Received: by dadv6 with SMTP id v6so919361dad.14
-        for <linux-mm@kvack.org>; Tue, 20 Mar 2012 17:28:53 -0700 (PDT)
-Date: Wed, 21 Mar 2012 09:28:43 +0900
+Received: from psmtp.com (na3sys010amx125.postini.com [74.125.245.125])
+	by kanga.kvack.org (Postfix) with SMTP id EA24A6B0044
+	for <linux-mm@kvack.org>; Tue, 20 Mar 2012 20:32:31 -0400 (EDT)
+Received: by pbcup15 with SMTP id up15so530797pbc.14
+        for <linux-mm@kvack.org>; Tue, 20 Mar 2012 17:32:31 -0700 (PDT)
+Date: Wed, 21 Mar 2012 09:32:22 +0900
 From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH] mm: forbid lumpy-reclaim in shrink_active_list()
-Message-ID: <20120321002843.GA14584@barrios>
-References: <20120319091821.17716.54031.stgit@zurg>
+Subject: Re: [PATCH 1/2] page_alloc.c: kill add_from_early_node_map
+Message-ID: <20120321003222.GB14584@barrios>
+References: <1331652720-3054-1-git-send-email-consul.kautuk@gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20120319091821.17716.54031.stgit@zurg>
+In-Reply-To: <1331652720-3054-1-git-send-email-consul.kautuk@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Konstantin Khlebnikov <khlebnikov@openvz.org>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Minchan Kim <minchan@kernel.org>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <jweiner@redhat.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: Kautuk Consul <consul.kautuk@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Al Viro <viro@zeniv.linux.org.uk>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Tejun Heo <tj@kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Mon, Mar 19, 2012 at 01:18:21PM +0400, Konstantin Khlebnikov wrote:
-> This patch reset reclaim mode in shrink_active_list() to RECLAIM_MODE_SINGLE | RECLAIM_MODE_ASYNC.
-> (sync/async sign is used only in shrink_page_list and does not affect shrink_active_list)
+On Tue, Mar 13, 2012 at 11:32:00AM -0400, Kautuk Consul wrote:
+> No one seems to be calling add_from_early_node_map anywhere from the
+> kernel.
 > 
-> Currenly shrink_active_list() sometimes works in lumpy-reclaim mode,
-> if RECLAIM_MODE_LUMPYRECLAIM left over from earlier shrink_inactive_list().
-> Meanwhile, in age_active_anon() sc->reclaim_mode is totally zero.
-> So, current behavior is too complex and confusing, all this looks like bug.
+> Also, deleting this function decreases page_alloc.o file size.
 > 
-> In general, shrink_active_list() populate inactive list for next shrink_inactive_list().
-> Lumpy shring_inactive_list() isolate pages around choosen one from both active and
-> inactive lists. So, there no reasons for lumpy-isolation in shrink_active_list()
-> 
-> Proposed-by: Hugh Dickins <hughd@google.com>
-> Link: https://lkml.org/lkml/2012/3/15/583
-> Signed-off-by: Konstantin Khlebnikov <khlebnikov@openvz.org>
- 
- Acked-by: Minchan Kim <minchan@kernel.org>
+> Signed-off-by: Kautuk Consul <consul.kautuk@gmail.com>
+
+Reviewed-by: Minchan Kim <minchan@kernel.org>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
