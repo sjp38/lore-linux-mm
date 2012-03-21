@@ -1,125 +1,164 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx111.postini.com [74.125.245.111])
-	by kanga.kvack.org (Postfix) with SMTP id 3DF8C6B004A
-	for <linux-mm@kvack.org>; Wed, 21 Mar 2012 07:45:49 -0400 (EDT)
-Date: Wed, 21 Mar 2012 11:45:43 +0000
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH] mm: forbid lumpy-reclaim in shrink_active_list()
-Message-ID: <20120321114543.GD16573@suse.de>
-References: <20120319091821.17716.54031.stgit@zurg>
- <4F676FA4.50905@redhat.com>
- <4F6773CC.2010705@openvz.org>
- <4F6774E8.2050202@redhat.com>
- <alpine.LSU.2.00.1203191239570.3498@eggly.anvils>
+Received: from psmtp.com (na3sys010amx167.postini.com [74.125.245.167])
+	by kanga.kvack.org (Postfix) with SMTP id 22B006B004A
+	for <linux-mm@kvack.org>; Wed, 21 Mar 2012 08:01:16 -0400 (EDT)
+Received: by bkwq16 with SMTP id q16so1134303bkw.14
+        for <linux-mm@kvack.org>; Wed, 21 Mar 2012 05:01:14 -0700 (PDT)
+Subject: [PATCH v2 04/16] mm/nommu: use vm_flags_t for vma flags
+From: Konstantin Khlebnikov <khlebnikov@openvz.org>
+Date: Wed, 21 Mar 2012 16:01:10 +0400
+Message-ID: <20120321115632.4571.77859.stgit@zurg>
+In-Reply-To: <20120321065629.13852.5630.stgit@zurg>
+References: <20120321065629.13852.5630.stgit@zurg>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <alpine.LSU.2.00.1203191239570.3498@eggly.anvils>
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: Rik van Riel <riel@redhat.com>, Konstantin Khlebnikov <khlebnikov@openvz.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Minchan Kim <minchan@kernel.org>, Johannes Weiner <jweiner@redhat.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: David Howells <dhowells@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Greg Ungerer <gerg@uclinux.org>
 
-On Mon, Mar 19, 2012 at 01:05:55PM -0700, Hugh Dickins wrote:
-> On Mon, 19 Mar 2012, Rik van Riel wrote:
-> > On 03/19/2012 01:58 PM, Konstantin Khlebnikov wrote:
-> > > Rik van Riel wrote:
-> > > > On 03/19/2012 05:18 AM, Konstantin Khlebnikov wrote:
-> > > > > This patch reset reclaim mode in shrink_active_list() to
-> > > > > RECLAIM_MODE_SINGLE | RECLAIM_MODE_ASYNC.
-> > > > > (sync/async sign is used only in shrink_page_list and does not affect
-> > > > > shrink_active_list)
-> > > > > 
-> > > > > Currenly shrink_active_list() sometimes works in lumpy-reclaim mode,
-> > > > > if RECLAIM_MODE_LUMPYRECLAIM left over from earlier
-> > > > > shrink_inactive_list().
-> > > > > Meanwhile, in age_active_anon() sc->reclaim_mode is totally zero.
-> > > > > So, current behavior is too complex and confusing, all this looks
-> > > > > like bug.
-> > > > > 
-> > > > > In general, shrink_active_list() populate inactive list for next
-> > > > > shrink_inactive_list().
-> > > > > Lumpy shring_inactive_list() isolate pages around choosen one from
-> > > > > both active and
-> > > > > inactive lists. So, there no reasons for lumpy-isolation in
-> > > > > shrink_active_list()
-> > > > > 
-> > > > > Proposed-by: Hugh Dickins<hughd@google.com>
-> > > > > Link: https://lkml.org/lkml/2012/3/15/583
-> > > > > Signed-off-by: Konstantin Khlebnikov<khlebnikov@openvz.org>
-> > > > 
-> > > > Confirmed, this is already done by commit
-> > > > 26f5f2f1aea7687565f55c20d69f0f91aa644fb8 in the
-> > > > linux-next tree.
-> > > > 
-> > > 
-> > > No, your patch fix this problem only if CONFIG_COMPACTION=y
-> > 
-> > True.
-> > 
-> > It was done that way, because Mel explained to me that deactivating
-> > a whole chunk of active pages at once is a desired feature that makes
-> > it more likely that a whole contiguous chunk of pages will eventually
-> > reach the end of the inactive list.
-> 
-> I'm rather sceptical about this: is there a test which demonstrates
-> a useful effect of that kind?
-> 
+v2: fix compilation
 
-Testing was done on this over a number of releases around the time that
-lumpy reclaim was merged. It made a measurable difference both to allocation
-success rates and latency. It is not something I have tested recently
-because the focus has been on compaction but it acted as expected once upon
-a time. This is why I asked Rik not to change the behaviour in his
-patch. My preference would be that lumpy reclaim be removed in the next
-cycle and it was on my TODO list to write the patch around 3.4-rc1 after
-the merge window closed.
+Signed-off-by: Konstantin Khlebnikov <khlebnikov@openvz.org>
+Cc: David Howells <dhowells@redhat.com>
+Cc: Greg Ungerer <gerg@uclinux.org>
 
-> Lumpy movement from active won't help a lumpy allocation this time,
-> because lumpy reclaim from inactive doesn't care which lru the
-> surrounding pages come from anyway - and I argue that lumpy movement
-> from active actually reduces the number of choices which lumpy
-> reclaim will have, if they do near the bottom of inactive together.
-> 
+---
 
-The behaviour at the time was that lumpy reclaim would move a number of
-hugepage-aligned regions including pages from the active list.  Lumpy reclaim
-would reclaim some these but as order-0 reclaim aged the other regions,
-it also tended to free pages in contiguous ranges.  In the event there
-was a burst of lumpy reclaim requests, the latency of the allocation was
-lower on average with this decision. This was disruptive of course but
-at the time this only happened if the hugepage pool was being resized or
-a large application was starting up using dynamic hugepage pool resizing
-so the disruption was relatively short lived.
+This time, I honestly checked the compiling for arm/at91x40_defconfig
+last linux-next is broken, but my parts are ok.
 
-> So if lumpy movement from active (miscategorizing physically adjacent
-> pages as inactive too) is actually useful (the miscategorization turning
-> out to have been a good bet, since they're not activated again before
-> they reach the bottom of the inactive), and a nice buddyable group of
-> pages is later reclaimed from the inactive list because of it (without
-> any need for lumpy reclaim that time), then wouldn't we want to be
-> doing it more?
-> 
+---
+ fs/proc/nommu.c      |   14 ++++++++------
+ fs/proc/task_nommu.c |   14 ++++++++------
+ mm/nommu.c           |   19 ++++++++++---------
+ 3 files changed, 26 insertions(+), 21 deletions(-)
 
-Possibly but there is little point in working on making lumpy reclaim
-more efficient right now.
-
-> It should not be done only when inactive_is_low coincides with reclaim
-> for a high-order allocation: we would want to note that there's a load
-> which is making high-order requests, and do lumpy movement from active
-> whenever replenishing inactive while such a load is in force.
-> 
-> If it does more good than harm; but I'm sceptical about that.
-> 
-
-My preference at this point is not to merge this patch and instead remove
-lumpy reclaim in one go during the next cycle. If a user is really depending
-on it, it would then be slightly easier to revert. The only potential user
-I can think of is NOMMU but even then I'm skeptical they care.
-
--- 
-Mel Gorman
-SUSE Labs
+diff --git a/fs/proc/nommu.c b/fs/proc/nommu.c
+index b1822dd..6046ddb 100644
+--- a/fs/proc/nommu.c
++++ b/fs/proc/nommu.c
+@@ -39,9 +39,10 @@ static int nommu_region_show(struct seq_file *m, struct vm_region *region)
+ 	unsigned long ino = 0;
+ 	struct file *file;
+ 	dev_t dev = 0;
+-	int flags, len;
++	int len;
++	vm_flags_t vm_flags;
+ 
+-	flags = region->vm_flags;
++	vm_flags = region->vm_flags;
+ 	file = region->vm_file;
+ 
+ 	if (file) {
+@@ -54,10 +55,11 @@ static int nommu_region_show(struct seq_file *m, struct vm_region *region)
+ 		   "%08lx-%08lx %c%c%c%c %08llx %02x:%02x %lu %n",
+ 		   region->vm_start,
+ 		   region->vm_end,
+-		   flags & VM_READ ? 'r' : '-',
+-		   flags & VM_WRITE ? 'w' : '-',
+-		   flags & VM_EXEC ? 'x' : '-',
+-		   flags & VM_MAYSHARE ? flags & VM_SHARED ? 'S' : 's' : 'p',
++		   vm_flags & VM_READ ? 'r' : '-',
++		   vm_flags & VM_WRITE ? 'w' : '-',
++		   vm_flags & VM_EXEC ? 'x' : '-',
++		   vm_flags & VM_MAYSHARE ?
++			vm_flags & VM_SHARED ? 'S' : 's' : 'p',
+ 		   ((loff_t)region->vm_pgoff) << PAGE_SHIFT,
+ 		   MAJOR(dev), MINOR(dev), ino, &len);
+ 
+diff --git a/fs/proc/task_nommu.c b/fs/proc/task_nommu.c
+index 74fe164..9447caa 100644
+--- a/fs/proc/task_nommu.c
++++ b/fs/proc/task_nommu.c
+@@ -142,10 +142,11 @@ static int nommu_vma_show(struct seq_file *m, struct vm_area_struct *vma,
+ 	unsigned long ino = 0;
+ 	struct file *file;
+ 	dev_t dev = 0;
+-	int flags, len;
++	int len;
++	vm_flags_t vm_flags;
+ 	unsigned long long pgoff = 0;
+ 
+-	flags = vma->vm_flags;
++	vm_flags = vma->vm_flags;
+ 	file = vma->vm_file;
+ 
+ 	if (file) {
+@@ -159,10 +160,11 @@ static int nommu_vma_show(struct seq_file *m, struct vm_area_struct *vma,
+ 		   "%08lx-%08lx %c%c%c%c %08llx %02x:%02x %lu %n",
+ 		   vma->vm_start,
+ 		   vma->vm_end,
+-		   flags & VM_READ ? 'r' : '-',
+-		   flags & VM_WRITE ? 'w' : '-',
+-		   flags & VM_EXEC ? 'x' : '-',
+-		   flags & VM_MAYSHARE ? flags & VM_SHARED ? 'S' : 's' : 'p',
++		   vm_flags & VM_READ ? 'r' : '-',
++		   vm_flags & VM_WRITE ? 'w' : '-',
++		   vm_flags & VM_EXEC ? 'x' : '-',
++		   vm_flags & VM_MAYSHARE ?
++			vm_flags & VM_SHARED ? 'S' : 's' : 'p',
+ 		   pgoff,
+ 		   MAJOR(dev), MINOR(dev), ino, &len);
+ 
+diff --git a/mm/nommu.c b/mm/nommu.c
+index f59e170..33d0ab7 100644
+--- a/mm/nommu.c
++++ b/mm/nommu.c
+@@ -130,7 +130,7 @@ int __get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
+ 		     int *retry)
+ {
+ 	struct vm_area_struct *vma;
+-	unsigned long vm_flags;
++	vm_flags_t vm_flags;
+ 	int i;
+ 
+ 	/* calculate required read or write permissions.
+@@ -658,13 +658,13 @@ static void put_nommu_region(struct vm_region *region)
+ /*
+  * update protection on a vma
+  */
+-static void protect_vma(struct vm_area_struct *vma, unsigned long flags)
++static void protect_vma(struct vm_area_struct *vma, vm_flags_t vm_flags)
+ {
+ #ifdef CONFIG_MPU
+ 	struct mm_struct *mm = vma->vm_mm;
+ 	long start = vma->vm_start & PAGE_MASK;
+ 	while (start < vma->vm_end) {
+-		protect_page(mm, start, flags);
++		protect_page(mm, start, vm_flags);
+ 		start += PAGE_SIZE;
+ 	}
+ 	update_protections(mm);
+@@ -1060,12 +1060,12 @@ static int validate_mmap_request(struct file *file,
+  * we've determined that we can make the mapping, now translate what we
+  * now know into VMA flags
+  */
+-static unsigned long determine_vm_flags(struct file *file,
+-					unsigned long prot,
+-					unsigned long flags,
+-					unsigned long capabilities)
++static vm_flags_t determine_vm_flags(struct file *file,
++				     unsigned long prot,
++				     unsigned long flags,
++				     unsigned long capabilities)
+ {
+-	unsigned long vm_flags;
++	vm_flags_t vm_flags;
+ 
+ 	vm_flags = calc_vm_prot_bits(prot) | calc_vm_flag_bits(flags);
+ 	/* vm_flags |= mm->def_flags; */
+@@ -1243,7 +1243,8 @@ unsigned long do_mmap_pgoff(struct file *file,
+ 	struct vm_area_struct *vma;
+ 	struct vm_region *region;
+ 	struct rb_node *rb;
+-	unsigned long capabilities, vm_flags, result;
++	unsigned long capabilities, result;
++	vm_flags_t vm_flags;
+ 	int ret;
+ 
+ 	kenter(",%lx,%lx,%lx,%lx,%lx", addr, len, prot, flags, pgoff);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
