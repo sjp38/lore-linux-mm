@@ -1,69 +1,36 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx182.postini.com [74.125.245.182])
-	by kanga.kvack.org (Postfix) with SMTP id 4370E6B007E
-	for <linux-mm@kvack.org>; Wed, 21 Mar 2012 00:49:04 -0400 (EDT)
-Received: from /spool/local
-	by e28smtp09.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
-	Wed, 21 Mar 2012 10:18:53 +0530
-Received: from d28av05.in.ibm.com (d28av05.in.ibm.com [9.184.220.67])
-	by d28relay04.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q2L4mnZi4325388
-	for <linux-mm@kvack.org>; Wed, 21 Mar 2012 10:18:50 +0530
-Received: from d28av05.in.ibm.com (loopback [127.0.0.1])
-	by d28av05.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q2LAJHJF021597
-	for <linux-mm@kvack.org>; Wed, 21 Mar 2012 21:19:17 +1100
-From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Subject: Re: [PATCH -V4 04/10] memcg: Add HugeTLB extension
-In-Reply-To: <4F671AE6.5020204@parallels.com>
-References: <1331919570-2264-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com> <1331919570-2264-5-git-send-email-aneesh.kumar@linux.vnet.ibm.com> <4F669C2E.1010502@jp.fujitsu.com> <874ntlkrp6.fsf@linux.vnet.ibm.com> <4F66D993.2080100@jp.fujitsu.com> <4F671AE6.5020204@parallels.com>User-Agent: Notmuch/0.11.1+346~g13d19c3 (http://notmuchmail.org) Emacs/23.3.1 (x86_64-pc-linux-gnu)
-Date: Wed, 21 Mar 2012 10:18:43 +0530
-Message-ID: <87obrqsgno.fsf@linux.vnet.ibm.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Received: from psmtp.com (na3sys010amx133.postini.com [74.125.245.133])
+	by kanga.kvack.org (Postfix) with SMTP id 835E76B004A
+	for <linux-mm@kvack.org>; Wed, 21 Mar 2012 00:53:42 -0400 (EDT)
+Date: Tue, 20 Mar 2012 21:56:47 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [RFC]swap: don't do discard if no discard option added
+Message-Id: <20120320215647.f1268b05.akpm@linux-foundation.org>
+In-Reply-To: <CANejiEUyPSNQ7q85ZDz-B3iHikHLgZLBNOF-p4evkxjGo5+M0g@mail.gmail.com>
+References: <4F68795E.9030304@kernel.org>
+	<alpine.LSU.2.00.1203202019140.1842@eggly.anvils>
+	<CANejiEUyPSNQ7q85ZDz-B3iHikHLgZLBNOF-p4evkxjGo5+M0g@mail.gmail.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Glauber Costa <glommer@parallels.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: linux-mm@kvack.org, mgorman@suse.de, dhillf@gmail.com, aarcange@redhat.com, mhocko@suse.cz, akpm@linux-foundation.org, hannes@cmpxchg.org, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org
+To: Shaohua Li <shli@kernel.org>
+Cc: Hugh Dickins <hughd@google.com>, Holger Kiehl <Holger.Kiehl@dwd.de>, "Martin K. Petersen" <martin.petersen@oracle.com>, linux-mm@kvack.org
 
-Glauber Costa <glommer@parallels.com> writes:
+On Wed, 21 Mar 2012 12:31:47 +0800 Shaohua Li <shli@kernel.org> wrote:
 
-> On 03/19/2012 11:00 AM, KAMEZAWA Hiroyuki wrote:
->> (2012/03/19 15:52), Aneesh Kumar K.V wrote:
->>
->>>
->>>>> +#ifdef CONFIG_MEM_RES_CTLR_HUGETLB
->>>>> +static bool mem_cgroup_have_hugetlb_usage(struct mem_cgroup *memcg)
->>>>> +{
->>>>> +	int idx;
->>>>> +	for (idx = 0; idx<  hugetlb_max_hstate; idx++) {
->>>>> +		if (memcg->hugepage[idx].usage>  0)
->>>>> +			return 1;
->>>>> +	}
->>>>> +	return 0;
->>>>> +}
->>>>
->>>>
->>>> Please use res_counter_read_u64() rather than reading the value directly.
->>>>
->>>
->>> The open-coded variant is mostly derived from mem_cgroup_force_empty. I
->>> have updated the patch to use res_counter_read_u64.
->>>
->>
->> Ah, ok. it's(maybe) my bad. I'll schedule a fix.
->>
-> Kame,
->
-> I actually have it ready here. I can submit it if you want.
->
-> This one has bitten me as well when I was trying to experiment with the 
-> res_counter performance...
+>  But on
+> the other hand, if user doesn't explictly enable discard, why enable
+> it? Like fs, we didn't do runtime discard and only run trim occasionally
+> since discard is slow.
 
-Do we really need memcg.res.usage to be accurate in that while loop ? If
-we miss a zero update because we encountered a partial update; in the
-next loop we will find it zero right ?
+This.  Neither the swapon manpage nor the SWAP_FLAG_DISCARD comment nor
+.c code comments nor the 339944663 changelog explain why we do a single
+discard at swapon() time and then never again.
 
--aneesh
+It sure *looks* like a bug.  If it isn't then some explanation is sorely
+needed.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
