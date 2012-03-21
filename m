@@ -1,85 +1,114 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx187.postini.com [74.125.245.187])
-	by kanga.kvack.org (Postfix) with SMTP id 5A4846B004A
-	for <linux-mm@kvack.org>; Wed, 21 Mar 2012 02:32:30 -0400 (EDT)
-Received: from m1.gw.fujitsu.co.jp (unknown [10.0.50.71])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 412DA3EE0BD
-	for <linux-mm@kvack.org>; Wed, 21 Mar 2012 15:32:28 +0900 (JST)
-Received: from smail (m1 [127.0.0.1])
-	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 1EAB345DE5D
-	for <linux-mm@kvack.org>; Wed, 21 Mar 2012 15:32:28 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
-	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 010A445DE54
-	for <linux-mm@kvack.org>; Wed, 21 Mar 2012 15:32:28 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id E47211DB8054
-	for <linux-mm@kvack.org>; Wed, 21 Mar 2012 15:32:27 +0900 (JST)
-Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.240.81.145])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 97F4C1DB804A
-	for <linux-mm@kvack.org>; Wed, 21 Mar 2012 15:32:27 +0900 (JST)
-Message-ID: <4F69757E.5030103@jp.fujitsu.com>
-Date: Wed, 21 Mar 2012 15:30:22 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Received: from psmtp.com (na3sys010amx163.postini.com [74.125.245.163])
+	by kanga.kvack.org (Postfix) with SMTP id 4E87E6B004A
+	for <linux-mm@kvack.org>; Wed, 21 Mar 2012 02:56:17 -0400 (EDT)
+Received: by bkwq16 with SMTP id q16so872729bkw.14
+        for <linux-mm@kvack.org>; Tue, 20 Mar 2012 23:56:15 -0700 (PDT)
+Subject: [PATCH 00/16] mm: prepare for converting vm->vm_flags to 64-bit
+From: Konstantin Khlebnikov <khlebnikov@openvz.org>
+Date: Wed, 21 Mar 2012 10:56:07 +0400
+Message-ID: <20120321065140.13852.52315.stgit@zurg>
 MIME-Version: 1.0
-Subject: Re: [RFC][PATCH 0/3] page cgroup diet
-References: <4F66E6A5.10804@jp.fujitsu.com> <4F679039.6070609@openvz.org> <4F692895.8020908@jp.fujitsu.com> <4F69718E.8010603@openvz.org>
-In-Reply-To: <4F69718E.8010603@openvz.org>
-Content-Type: text/plain; charset=ISO-2022-JP
+Content-Type: text/plain; charset="utf-8"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Konstantin Khlebnikov <khlebnikov@openvz.org>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "cgroups@vger.kernel.org" <cgroups@vger.kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Hugh Dickins <hughd@google.com>, Han Ying <yinghan@google.com>, Glauber Costa <glommer@parallels.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, "suleiman@google.com" <suleiman@google.com>, "n-horiguchi@ah.jp.nec.com" <n-horiguchi@ah.jp.nec.com>, Tejun Heo <tj@kernel.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-(2012/03/21 15:13), Konstantin Khlebnikov wrote:
+There is good old tradition: every year somebody submit patches for extending
+vma->vm_flags upto 64-bits, because there no free bits left on 32-bit systems.
 
-> KAMEZAWA Hiroyuki wrote:
->> (2012/03/20 4:59), Konstantin Khlebnikov wrote:
->>
->>> KAMEZAWA Hiroyuki wrote:
->>>> This is just an RFC...test is not enough yet.
->>>>
->>>> I know it's merge window..this post is just for sharing idea.
->>>>
->>>> This patch merges pc->flags and pc->mem_cgroup into a word. Then,
->>>> memcg's overhead will be 8bytes per page(4096bytes?).
->>>>
->>>> Because this patch will affect all memory cgroup developers, I'd like to
->>>> show patches before MM Summit. I think we can agree the direction to
->>>> reduce size of page_cgroup..and finally integrate into 'struct page'
->>>> (and remove cgroup_disable= boot option...)
->>>>
->>>> Patch 1/3 - introduce pc_to_mem_cgroup and hide pc->mem_cgroup
->>>> Patch 2/3 - remove pc->mem_cgroup
->>>> Patch 3/3 - remove memory barriers.
->>>>
->>>> I'm now wondering when this change should be merged....
->>>>
->>>
->>> This is cool, but maybe we should skip this temporary step and merge all this stuff into page->flags.
->>
->>
->> Why we should skip and delay reduction of size of page_cgroup
->> which is considered as very big problem ?
-> 
-> I think it would be better to solve problem completely and kill page_cgroup in one step.
-> 
+previous attempts:
+https://lkml.org/lkml/2011/4/12/24	(KOSAKI Motohiro)
+https://lkml.org/lkml/2010/4/27/23	(Benjamin Herrenschmidt)
+https://lkml.org/lkml/2009/10/1/202	(Hugh Dickins)
+
+Here already exist special type for this: vm_flags_t, but not all code uses it.
+So, before switching vm_flags_t from unsinged long to u64 we must spread
+vm_flags_t everywhere and fix all possible type-casting problems.
+
+There is no functional changes in this patch set,
+it only prepares code for vma->vm_flags converting.
+
+---
+
+Konstantin Khlebnikov (16):
+      mm: introduce NR_VMA_FLAGS
+      mm: use vm_flags_t for vma flags
+      mm/shmem: use vm_flags_t for vma flags
+      mm/nommu: use vm_flags_t for vma flags
+      mm/drivers: use vm_flags_t for vma flags
+      mm/x86: use vm_flags_t for vma flags
+      mm/arm: use vm_flags_t for vma flags
+      mm/unicore32: use vm_flags_t for vma flags
+      mm/ia64: use vm_flags_t for vma flags
+      mm/powerpc: use vm_flags_t for vma flags
+      mm/s390: use vm_flags_t for vma flags
+      mm/mips: use vm_flags_t for vma flags
+      mm/parisc: use vm_flags_t for vma flags
+      mm/score: use vm_flags_t for vma flags
+      mm: cast vm_flags_t to u64 before printing
+      mm: vm_flags_t strict type checking
 
 
-I like step-by-step rather than a big step. I devided this page_cgroup diet patch set
-into 3 steps (2012-Jan, 2012-Feb, and the next one is the last.)
+ arch/arm/include/asm/cacheflush.h                |    5 -
+ arch/arm/kernel/asm-offsets.c                    |    6 +
+ arch/arm/mm/fault.c                              |    2 
+ arch/ia64/mm/fault.c                             |    9 +
+ arch/mips/mm/c-r3k.c                             |    2 
+ arch/mips/mm/c-r4k.c                             |    6 -
+ arch/mips/mm/c-tx39.c                            |    2 
+ arch/parisc/mm/fault.c                           |    4 -
+ arch/powerpc/include/asm/mman.h                  |    2 
+ arch/s390/mm/fault.c                             |    8 +
+ arch/score/mm/cache.c                            |    6 -
+ arch/sh/mm/tlbflush_64.c                         |    2 
+ arch/unicore32/kernel/asm-offsets.c              |    6 +
+ arch/unicore32/mm/fault.c                        |    2 
+ arch/x86/mm/hugetlbpage.c                        |    4 -
+ drivers/char/mem.c                               |    2 
+ drivers/infiniband/hw/ipath/ipath_file_ops.c     |    6 +
+ drivers/infiniband/hw/qib/qib_file_ops.c         |    6 +
+ drivers/media/video/omap3isp/ispqueue.h          |    2 
+ drivers/staging/android/ashmem.c                 |    2 
+ drivers/staging/android/binder.c                 |   15 +-
+ drivers/staging/tidspbridge/core/tiomap3430.c    |   13 +-
+ drivers/staging/tidspbridge/rmgr/drv_interface.c |    4 -
+ fs/binfmt_elf.c                                  |    2 
+ fs/binfmt_elf_fdpic.c                            |   24 ++-
+ fs/exec.c                                        |    2 
+ fs/proc/nommu.c                                  |    3 
+ fs/proc/task_nommu.c                             |   14 +-
+ include/linux/backing-dev.h                      |    7 -
+ include/linux/huge_mm.h                          |    4 -
+ include/linux/ksm.h                              |    8 +
+ include/linux/mm.h                               |  163 +++++++++++++++-------
+ include/linux/mm_types.h                         |   11 +
+ include/linux/mman.h                             |    4 -
+ include/linux/rmap.h                             |    8 +
+ include/linux/shmem_fs.h                         |    5 -
+ kernel/bounds.c                                  |    2 
+ kernel/events/core.c                             |    4 -
+ kernel/fork.c                                    |    2 
+ kernel/sys.c                                     |    4 -
+ mm/backing-dev.c                                 |    4 +
+ mm/huge_memory.c                                 |    2 
+ mm/ksm.c                                         |    4 -
+ mm/madvise.c                                     |    2 
+ mm/memory.c                                      |    9 +
+ mm/mlock.c                                       |    2 
+ mm/mmap.c                                        |   36 ++---
+ mm/mprotect.c                                    |    9 +
+ mm/mremap.c                                      |    2 
+ mm/nommu.c                                       |   19 +--
+ mm/rmap.c                                        |   16 +-
+ mm/shmem.c                                       |   54 ++++---
+ mm/vmscan.c                                      |    4 -
+ 53 files changed, 322 insertions(+), 224 deletions(-)
 
-This change may introduce new races as step1 and step2 did (Thanks to Hugh Dickins!).
-
-Finally, IIUC, 'struct page' has 8bytes of padding now. I think we can use that space
-if we can be agreed.
-
-Hm. BTW, using lruvec in page->flags implies you add a dynamic table lookup in
-free_page() and you need to reset page->flags to point a valid
-lruvec at page allocation. Please take care of performance.
-
-Thanks,
--Kame
+-- 
+Signature
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
