@@ -1,44 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx154.postini.com [74.125.245.154])
-	by kanga.kvack.org (Postfix) with SMTP id ED19B6B0044
-	for <linux-mm@kvack.org>; Wed, 21 Mar 2012 19:13:47 -0400 (EDT)
-From: Dan Smith <danms@us.ibm.com>
-Subject: Re: [RFC] AutoNUMA alpha6
-References: <20120316144028.036474157@chello.nl>
-	<20120316182511.GJ24602@redhat.com> <87k42edenh.fsf@danplanet.com>
-	<20120321021239.GQ24602@redhat.com> <87fwd2d2kp.fsf@danplanet.com>
-	<20120321124937.GX24602@redhat.com> <87limtboet.fsf@danplanet.com>
-	<20120321225242.GL24602@redhat.com>
-Date: Wed, 21 Mar 2012 16:13:45 -0700
-Message-ID: <87aa39bl92.fsf@danplanet.com>
+Received: from psmtp.com (na3sys010amx135.postini.com [74.125.245.135])
+	by kanga.kvack.org (Postfix) with SMTP id 640C96B0044
+	for <linux-mm@kvack.org>; Wed, 21 Mar 2012 19:26:13 -0400 (EDT)
+Received: by ggeq1 with SMTP id q1so1780603gge.14
+        for <linux-mm@kvack.org>; Wed, 21 Mar 2012 16:26:12 -0700 (PDT)
+Message-ID: <4F6A6391.1070105@gmail.com>
+Date: Wed, 21 Mar 2012 16:26:09 -0700
+From: David Daney <ddaney.cavm@gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Subject: Re: [PATCH v4 2/3] thp: add HPAGE_PMD_* definitions for !CONFIG_TRANSPARENT_HUGEPAGE
+References: <1331591456-20769-1-git-send-email-n-horiguchi@ah.jp.nec.com>	<1331591456-20769-2-git-send-email-n-horiguchi@ah.jp.nec.com>	<CAP=VYLoGSckJH+2GytZN0V0P3Uuv-PiVneKbFsVb5kQa3kcTCQ@mail.gmail.com> <20120321151900.42234501.akpm@linux-foundation.org> <4F6A57D0.4020406@windriver.com>
+In-Reply-To: <4F6A57D0.4020406@windriver.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>, Paul Turner <pjt@google.com>, Suresh Siddha <suresh.b.siddha@intel.com>, Mike Galbraith <efault@gmx.de>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Bharata B Rao <bharata.rao@gmail.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Paul Gortmaker <paul.gortmaker@windriver.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Andrea Arcangeli <aarcange@redhat.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Hillf Danton <dhillf@gmail.com>, David Rientjes <rientjes@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-next@vger.kernel.org
 
-AA> available: 2 nodes (0-1)
-AA> node 0 cpus: 0 1 2 3 4 5 12 13 14 15 16 17
-AA> node 1 cpus: 6 7 8 9 10 11 18 19 20 21 22 23
+On 03/21/2012 03:36 PM, Paul Gortmaker wrote:
+> On 12-03-21 06:19 PM, Andrew Morton wrote:
+>> On Wed, 21 Mar 2012 18:07:41 -0400
+>> Paul Gortmaker<paul.gortmaker@windriver.com>  wrote:
+>>
+>>> On Mon, Mar 12, 2012 at 6:30 PM, Naoya Horiguchi
+>>> <n-horiguchi@ah.jp.nec.com>  wrote:
+>>>> These macros will be used in later patch, where all usage are expected
+>>>> to be optimized away without #ifdef CONFIG_TRANSPARENT_HUGEPAGE.
+>>>> But to detect unexpected usages, we convert existing BUG() to BUILD_BUG().
+>>>
+>>> Just a heads up that this showed up in linux-next today as the
+>>> cause of a new build failure for an ARM board:
+>>
+>> Dammit.
+>>
+>>> http://kisskb.ellerman.id.au/kisskb/buildresult/5930053/
+>>
+>> Site is dead.  What was failure, please?
+>
+> Odd, I just reloaded the above link and it seems alive?
+> Anyway here is where it goes off the rails.
+>
+> mm/pgtable-generic.c: In function 'pmdp_clear_flush_young':
+> mm/pgtable-generic.c:76:136: error: call to '__build_bug_failed' declared with attribute error: BUILD_BUG failed
+> make[2]: *** [mm/pgtable-generic.o] Error 1
+>
 
-available: 2 nodes (0-1)
-node 0 cpus: 0 1 2 3 4 5 12 13 14 15 16 17
-node 0 size: 12276 MB
-node 0 free: 11769 MB
-node 1 cpus: 6 7 8 9 10 11 18 19 20 21 22 23
-node 1 size: 12288 MB
-node 1 free: 11727 MB
-node distances:
-node   0   1 
-  0:  10  21 
-  1:  21  10 
+This is just another instance of:
 
-Same enough?
+https://lkml.org/lkml/2011/12/16/507
 
--- 
-Dan Smith
-IBM Linux Technology Center
+There was some discussion in that thread of how it might be fixed.
+
+David Daney
+
+
+> Build was for ARM, tct_hammer_defconfig
+>
+> Paul.
+> --
+> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+> Please read the FAQ at  http://www.tux.org/lkml/
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
