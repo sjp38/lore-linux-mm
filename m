@@ -1,90 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx171.postini.com [74.125.245.171])
-	by kanga.kvack.org (Postfix) with SMTP id 1BD356B004A
-	for <linux-mm@kvack.org>; Wed, 21 Mar 2012 01:24:49 -0400 (EDT)
-Received: from m4.gw.fujitsu.co.jp (unknown [10.0.50.74])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id CD24F3EE0C0
-	for <linux-mm@kvack.org>; Wed, 21 Mar 2012 14:24:46 +0900 (JST)
-Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id B22B345DE53
-	for <linux-mm@kvack.org>; Wed, 21 Mar 2012 14:24:46 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 953D345DE50
-	for <linux-mm@kvack.org>; Wed, 21 Mar 2012 14:24:46 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 88F801DB802F
-	for <linux-mm@kvack.org>; Wed, 21 Mar 2012 14:24:46 +0900 (JST)
-Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.240.81.146])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 373AC1DB8037
-	for <linux-mm@kvack.org>; Wed, 21 Mar 2012 14:24:46 +0900 (JST)
-Message-ID: <4F6965AC.4070004@jp.fujitsu.com>
-Date: Wed, 21 Mar 2012 14:22:52 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Received: from psmtp.com (na3sys010amx167.postini.com [74.125.245.167])
+	by kanga.kvack.org (Postfix) with SMTP id 17A4C6B004A
+	for <linux-mm@kvack.org>; Wed, 21 Mar 2012 02:13:40 -0400 (EDT)
+Received: by bkwq16 with SMTP id q16so850431bkw.14
+        for <linux-mm@kvack.org>; Tue, 20 Mar 2012 23:13:38 -0700 (PDT)
+Message-ID: <4F69718E.8010603@openvz.org>
+Date: Wed, 21 Mar 2012 10:13:34 +0400
+From: Konstantin Khlebnikov <khlebnikov@openvz.org>
 MIME-Version: 1.0
-Subject: Re: [PATCH -V4 04/10] memcg: Add HugeTLB extension
-References: <1331919570-2264-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com> <1331919570-2264-5-git-send-email-aneesh.kumar@linux.vnet.ibm.com> <4F669C2E.1010502@jp.fujitsu.com> <874ntlkrp6.fsf@linux.vnet.ibm.com> <4F66D993.2080100@jp.fujitsu.com> <4F671AE6.5020204@parallels.com>User-Agent: Notmuch/0.11.1+346~g13d19c3 (http://notmuchmail.org) Emacs/23.3.1 (x86_64-pc-linux-gnu) <87obrqsgno.fsf@linux.vnet.ibm.com>
-In-Reply-To: <87obrqsgno.fsf@linux.vnet.ibm.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Subject: Re: [RFC][PATCH 0/3] page cgroup diet
+References: <4F66E6A5.10804@jp.fujitsu.com> <4F679039.6070609@openvz.org> <4F692895.8020908@jp.fujitsu.com>
+In-Reply-To: <4F692895.8020908@jp.fujitsu.com>
+Content-Type: text/plain; charset=ISO-2022-JP
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Cc: Glauber Costa <glommer@parallels.com>, linux-mm@kvack.org, mgorman@suse.de, dhillf@gmail.com, aarcange@redhat.com, mhocko@suse.cz, akpm@linux-foundation.org, hannes@cmpxchg.org, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "cgroups@vger.kernel.org" <cgroups@vger.kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Hugh Dickins <hughd@google.com>, Han Ying <yinghan@google.com>, Glauber Costa <glommer@parallels.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, "suleiman@google.com" <suleiman@google.com>, "n-horiguchi@ah.jp.nec.com" <n-horiguchi@ah.jp.nec.com>, Tejun Heo <tj@kernel.org>
 
-(2012/03/21 13:48), Aneesh Kumar K.V wrote:
-
-> Glauber Costa <glommer@parallels.com> writes:
+KAMEZAWA Hiroyuki wrote:
+> (2012/03/20 4:59), Konstantin Khlebnikov wrote:
 > 
->> On 03/19/2012 11:00 AM, KAMEZAWA Hiroyuki wrote:
->>> (2012/03/19 15:52), Aneesh Kumar K.V wrote:
+>> KAMEZAWA Hiroyuki wrote:
+>>> This is just an RFC...test is not enough yet.
 >>>
->>>>
->>>>>> +#ifdef CONFIG_MEM_RES_CTLR_HUGETLB
->>>>>> +static bool mem_cgroup_have_hugetlb_usage(struct mem_cgroup *memcg)
->>>>>> +{
->>>>>> +	int idx;
->>>>>> +	for (idx = 0; idx<  hugetlb_max_hstate; idx++) {
->>>>>> +		if (memcg->hugepage[idx].usage>  0)
->>>>>> +			return 1;
->>>>>> +	}
->>>>>> +	return 0;
->>>>>> +}
->>>>>
->>>>>
->>>>> Please use res_counter_read_u64() rather than reading the value directly.
->>>>>
->>>>
->>>> The open-coded variant is mostly derived from mem_cgroup_force_empty. I
->>>> have updated the patch to use res_counter_read_u64.
->>>>
+>>> I know it's merge window..this post is just for sharing idea.
 >>>
->>> Ah, ok. it's(maybe) my bad. I'll schedule a fix.
+>>> This patch merges pc->flags and pc->mem_cgroup into a word. Then,
+>>> memcg's overhead will be 8bytes per page(4096bytes?).
 >>>
->> Kame,
+>>> Because this patch will affect all memory cgroup developers, I'd like to
+>>> show patches before MM Summit. I think we can agree the direction to
+>>> reduce size of page_cgroup..and finally integrate into 'struct page'
+>>> (and remove cgroup_disable= boot option...)
+>>>
+>>> Patch 1/3 - introduce pc_to_mem_cgroup and hide pc->mem_cgroup
+>>> Patch 2/3 - remove pc->mem_cgroup
+>>> Patch 3/3 - remove memory barriers.
+>>>
+>>> I'm now wondering when this change should be merged....
+>>>
 >>
->> I actually have it ready here. I can submit it if you want.
+>> This is cool, but maybe we should skip this temporary step and merge all this stuff into page->flags.
+> 
+> 
+> Why we should skip and delay reduction of size of page_cgroup
+> which is considered as very big problem ?
+
+I think it would be better to solve problem completely and kill page_cgroup in one step.
+
+> 
+>> I think we can replace zone-id and node-id in page->flags with cumulative dynamically allocated lruvec-id,
+>> so there will be enough space for hundred cgroups even on 32-bit systems.
+> 
+> 
+> Where section-id  is ?
+> IIUC, now, page->section->zone/node is calculated if CONFIG_SPARSEMEM.
+
+Yeah, sections are biggest problem there. I hope we can unravel this knot.
+In the worst case we can extend page->flags upto 64-bits.
+
+> 
+> BTW, I doubt that we can modify page->flags dynamically with multi-bit operations...using
+> cmpxchg per each page when it's charged/uncharged/other ?
+
+we can do atomic_xor(&page->flags, new-lruvec-id ^ old-lruvec-id) or
+atomic_add(&page->flags, new-lruvec-id - old-lruvec-id) they should work faster than cmpxchg
+
+> 
 >>
->> This one has bitten me as well when I was trying to experiment with the 
->> res_counter performance...
+>> After lru_lock splitting page to lruvec translation will be much frequently used than page to zone,
+>> so page->zone and page->node translations can be implemented as page->lruvec->zone and page->lruvec->node.
+>>
 > 
-> Do we really need memcg.res.usage to be accurate in that while loop ? If
-> we miss a zero update because we encountered a partial update; in the
-> next loop we will find it zero right ?
+> And need to take rcu_read_lock() around page_zone() ?
+
+Hmm, it depends. For kernel-pages there will be pointer to root-lruvec, so no protection required.
+If we hold lru_lock we also don't need this rcu_read_lock.
+
 > 
-
-At rmdir(), I assume there is no task in memcg. It means res->usage never
-increase and no other thread than force_empty will touch res->counter.
-So, I think memcg->res.usage > 0 never be wrong and we'll find correct comparison
-by continuing the loop.
-
-But recent kmem accounting at el may break the assumption (I'm not fully sure..)
-So, I think it will be good to use res_counter_u64(). This part is not important for
-performance, anyway.
-
-Thanks,
--Kame
-
-
+> Thanks,
+> -Kame
+> 
+> 
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
