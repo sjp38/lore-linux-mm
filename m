@@ -1,45 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx101.postini.com [74.125.245.101])
-	by kanga.kvack.org (Postfix) with SMTP id 4A1386B0044
-	for <linux-mm@kvack.org>; Wed, 21 Mar 2012 12:04:23 -0400 (EDT)
-Received: by pbcup15 with SMTP id up15so1141890pbc.14
-        for <linux-mm@kvack.org>; Wed, 21 Mar 2012 09:04:22 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx138.postini.com [74.125.245.138])
+	by kanga.kvack.org (Postfix) with SMTP id DF5766B0044
+	for <linux-mm@kvack.org>; Wed, 21 Mar 2012 12:09:15 -0400 (EDT)
+Received: by dadv6 with SMTP id v6so2185763dad.14
+        for <linux-mm@kvack.org>; Wed, 21 Mar 2012 09:09:15 -0700 (PDT)
+Date: Wed, 21 Mar 2012 09:09:10 -0700
+From: Tejun Heo <tj@kernel.org>
 Subject: Re: Patch workqueue: create new slab cache instead of hacking
-From: Eric Dumazet <eric.dumazet@gmail.com>
-In-Reply-To: <alpine.DEB.2.00.1203210959500.21932@router.home>
+Message-ID: <20120321160910.GB4246@google.com>
 References: <1332238884-6237-1-git-send-email-laijs@cn.fujitsu.com>
-	 <1332238884-6237-7-git-send-email-laijs@cn.fujitsu.com>
-	 <20120320154619.GA5684@google.com> <4F6944D9.5090002@cn.fujitsu.com>
-	 <CAOS58YPydFUap4HjuRATxza6VZgyrXmQHVxR83G7GRJL50ZTRQ@mail.gmail.com>
-	 <alpine.DEB.2.00.1203210910450.20482@router.home>
-	 <1332341381.7893.17.camel@edumazet-glaptop>
-	 <alpine.DEB.2.00.1203210959500.21932@router.home>
-Content-Type: text/plain; charset="UTF-8"
-Date: Wed, 21 Mar 2012 09:04:19 -0700
-Message-ID: <1332345859.5330.8.camel@edumazet-glaptop>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+ <1332238884-6237-7-git-send-email-laijs@cn.fujitsu.com>
+ <20120320154619.GA5684@google.com>
+ <4F6944D9.5090002@cn.fujitsu.com>
+ <CAOS58YPydFUap4HjuRATxza6VZgyrXmQHVxR83G7GRJL50ZTRQ@mail.gmail.com>
+ <alpine.DEB.2.00.1203210910450.20482@router.home>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.00.1203210910450.20482@router.home>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Christoph Lameter <cl@linux.com>
-Cc: Tejun Heo <tj@kernel.org>, Lai Jiangshan <laijs@cn.fujitsu.com>, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: Lai Jiangshan <laijs@cn.fujitsu.com>, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Wed, 2012-03-21 at 10:03 -0500, Christoph Lameter wrote:
-> On Wed, 21 Mar 2012, Eric Dumazet wrote:
+On Wed, Mar 21, 2012 at 09:12:04AM -0500, Christoph Lameter wrote:
+> How about this instead?
 > 
-> > Creating a dedicated cache for few objects ? Thats a lot of overhead, at
-> > least for SLAB (no merges of caches)
+> Subject: workqueues: Use new kmem cache to get aligned memory for workqueues
 > 
-> Its some overhead for SLAB (a lot is what? If you tune down the per cpu
-> caches it should be a couple of pages) but its none for SLUB.
+> The workqueue logic currently improvises by doing a kmalloc allocation and
+> then aligning the object. Create a slab cache for that purpose with the
+> proper alignment instead.
+> 
+> Cleans up the code and makes things much simpler. No need anymore to carry
+> an additional pointer to the beginning of the kmalloc object.
+> 
+> Signed-off-by: Christoph Lameter <cl@linux.com>
 
-SLAB overhead per cache is O(CPUS * nr_node_ids)  (unless alien caches
-are disabled)
+I don't know.  At this point, this is only for singlethread and
+unbound workqueues and we don't have too many of them left at this
+point.  I'd like to avoid creating a slab cache for this.  How about
+just leaving it be?  If we develop other use cases for larger
+alignments, let's worry about implementing something common then.
 
-For few in flight objects, its just better to use standard kmalloc-xxxx
-caches.
+Thanks.
 
-
+-- 
+tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
