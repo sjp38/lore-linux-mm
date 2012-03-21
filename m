@@ -1,84 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx169.postini.com [74.125.245.169])
-	by kanga.kvack.org (Postfix) with SMTP id 338CA6B004A
-	for <linux-mm@kvack.org>; Wed, 21 Mar 2012 08:13:33 -0400 (EDT)
-Date: Wed, 21 Mar 2012 13:08:07 +0100
+Received: from psmtp.com (na3sys010amx147.postini.com [74.125.245.147])
+	by kanga.kvack.org (Postfix) with SMTP id D7D676B004A
+	for <linux-mm@kvack.org>; Wed, 21 Mar 2012 08:17:54 -0400 (EDT)
+Date: Wed, 21 Mar 2012 13:17:03 +0100
 From: Andrea Arcangeli <aarcange@redhat.com>
 Subject: Re: [RFC] AutoNUMA alpha6
-Message-ID: <20120321120807.GV24602@redhat.com>
+Message-ID: <20120321121703.GW24602@redhat.com>
 References: <20120316144028.036474157@chello.nl>
  <20120316182511.GJ24602@redhat.com>
  <87k42edenh.fsf@danplanet.com>
- <20120321021239.GQ24602@redhat.com>
- <20120321071258.GA24997@gmail.com>
+ <20120321075349.GB24997@gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20120321071258.GA24997@gmail.com>
+In-Reply-To: <20120321075349.GB24997@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Ingo Molnar <mingo@kernel.org>
 Cc: Dan Smith <danms@us.ibm.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>, Paul Turner <pjt@google.com>, Suresh Siddha <suresh.b.siddha@intel.com>, Mike Galbraith <efault@gmx.de>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Bharata B Rao <bharata.rao@gmail.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Wed, Mar 21, 2012 at 08:12:58AM +0100, Ingo Molnar wrote:
-> 
-> * Andrea Arcangeli <aarcange@redhat.com> wrote:
-> 
-> > [...]
-> > 
-> > So give me a break... you must have made a real mess in your 
-> > benchmarking. numasched is always doing worse than upstream 
-> > here, in fact two times massively worse. Almost as bad as the 
-> > inverse binds.
-> 
-> Andrea, please stop attacking the messenger.
+On Wed, Mar 21, 2012 at 08:53:49AM +0100, Ingo Molnar wrote:
+> My impression is that while threading is on the rise due to its 
+> ease of use, many threaded HPC workloads still fall into the 
+> second category.
 
-I am simply informing him. Why should not inform him that the way he
-performed the benchmark wasn't the best way?
+This is why after Peter's initial complains that a threaded
+application had to be handled perfectly by AutoNUMA even if it had
+more threads than CPU in a node, I had to take a break, and rewrite
+part of AutoNUMA to handle this scenario automatically, by introducing
+the numa hinting page faults. Before Peter complains I only had the
+pagetable scanner. So I appreciate his criticism for having convinced
+me that AutoNUMA had to have this working immediately.
 
-I informed him because it wasn't entirely documented how to properly
-run by benchmark set. I would have expected people to read my pdf I
-posted 2 months ago already that explains it:
+Perhaps somebody remembers what I told at KVMForum on stage about
+this, back then I was planning to automatically handle only processes
+that fit in a node. So the talk with Peter has been fundamental to add
+one more gear to the design or I wouldn't be able to compete with his
+syscalls.
 
-http://www.kernel.org/pub/linux/kernel/people/andrea/autonuma/
-http://www.kernel.org/pub/linux/kernel/people/andrea/autonuma/autonuma_bench-20120126.pdf
+> In fact they are often explicitly *turned* into the second 
+> category at the application level by duplicating shared global 
+> data explicitly and turning it into per thread local data.
 
-Jump to page 7.
+per-thread local data is the best case of AutoNUMA. AutoNUMA already
+detects and reacts to false sharing putting all false-sharing threads
+in the same node statistically over time. It also cancels pending
+migration pages queued, and requires two more consecutive hits from
+threads in the same node before re-allowing migration. There's quite a
+bit of work I did to make false sharing handled properly. But the
+absolute best case is per-thread local storage (both numa01
+-DTHREAD_ALLOC and numa02, numa02 spans over the whole system with the
+same process, numa01 has two processes, where each fit in a node, with
+local thread storage).
 
-Two modes:
+> And to default-enable any of this on stock kernels we'd need to 
+> even more testing and widespread, feel-good speedups in almost 
+> every key Linux workload... I don't see that happening though, 
+> so the best we can get are probably some easy and flexible knobs 
+> for HPC.
 
-numa01 -DNO_BIND_FORCE_SAME_NODE
-numa01 -DTHREAD_ALLOC
+This is a very good point. We can merge AutoNUMA in a disabled way. It
+won't ever do anything unless explicitly enabled, and even more
+important if you disable it (echo 0 >enabled) it will deactivate
+completely and everything will settle down like if has never run, it
+will leave zero signs in the VM and scheduler.
 
-I recommend Dan to now as last thing repeat the numasched benchmark
-with the numa01 built was -DNO_BIND_FORCE_SAME_NODE.
+There are three gears, if the pagetable scanner never runs (first
+gear), all other gears never activates and it is a complete bypass (noop).
 
-For me neither -DNO_BIND_FORCE_SAME_NODE nor DTHREAD_ALLOC nor numa02
-perform, in fact numa01 tends to hang and they never end.
-
-> We wanted and needed more testing, and I'm glad that we got it.
-
-Yes, I also posted the specjbb and I did a kernel build as measurement
-of the worst case overhead of the numa hinting page fault.
-
-You can see it here:
-
-http://www.kernel.org/pub/linux/kernel/people/andrea/autonuma/autonuma_bench-20120321.pdf
-
-> Can we please figure out all the details *without* accusing 
-> anyone of having made a mess? It is quite possible as well that 
-> *you* made a mess of it somewhere, either at the conceptual 
-> stage or at the implementational stage, right?
-
-I didn't make a mess. I also repeated without lockdep still same
-thing, in fact now it never ends. I'll have to reboot a few more times
-to see if I can get at least some number out.
-
-Maybe it takes -DNO_BIND_FORCE_SAME_NODE to show the brokeness, I'll
-wait Dan to repeat the numasched test with either
--DNO_BIND_FORCE_SAME_NODE or -DTHREAD_ALLOC.
-
-Or maybe the higher ram (24G vs my 16G) could have played a role.
+There are environments like virt that are quite memory static and
+predictable, so if demonstrated it would work for them, it would be
+real easy for virt admin to echo 1 >/sys/kernel/mm/autonuma/enabled .
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
