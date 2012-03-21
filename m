@@ -1,54 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx157.postini.com [74.125.245.157])
-	by kanga.kvack.org (Postfix) with SMTP id C3FD06B0044
-	for <linux-mm@kvack.org>; Wed, 21 Mar 2012 14:02:30 -0400 (EDT)
-Date: Wed, 21 Mar 2012 19:02:27 +0100
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [PATCH V3] mm: convert rcu_read_lock() to srcu_read_lock(), thus
- allowing to sleep in callbacks
-Message-ID: <20120321180227.GH24602@redhat.com>
-References: <1328709344-6058-1-git-send-email-sagig@mellanox.co.il>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1328709344-6058-1-git-send-email-sagig@mellanox.co.il>
+Received: from psmtp.com (na3sys010amx185.postini.com [74.125.245.185])
+	by kanga.kvack.org (Postfix) with SMTP id 93F986B004D
+	for <linux-mm@kvack.org>; Wed, 21 Mar 2012 14:05:23 -0400 (EDT)
+Received: by pbcup15 with SMTP id up15so1226907pbc.14
+        for <linux-mm@kvack.org>; Wed, 21 Mar 2012 11:05:22 -0700 (PDT)
+Subject: Re: Patch workqueue: create new slab cache instead of hacking
+From: Eric Dumazet <eric.dumazet@gmail.com>
+In-Reply-To: <alpine.DEB.2.00.1203211253520.21932@router.home>
+References: <1332238884-6237-1-git-send-email-laijs@cn.fujitsu.com>
+	 <1332238884-6237-7-git-send-email-laijs@cn.fujitsu.com>
+	 <20120320154619.GA5684@google.com> <4F6944D9.5090002@cn.fujitsu.com>
+	 <CAOS58YPydFUap4HjuRATxza6VZgyrXmQHVxR83G7GRJL50ZTRQ@mail.gmail.com>
+	 <alpine.DEB.2.00.1203210910450.20482@router.home>
+	 <1332341381.7893.17.camel@edumazet-glaptop>
+	 <alpine.DEB.2.00.1203210959500.21932@router.home>
+	 <1332345859.5330.8.camel@edumazet-glaptop>
+	 <alpine.DEB.2.00.1203211253520.21932@router.home>
+Content-Type: text/plain; charset="UTF-8"
+Date: Wed, 21 Mar 2012 11:05:19 -0700
+Message-ID: <1332353119.9433.2.camel@edumazet-glaptop>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sagi Grimberg <sagig@mellanox.com>
-Cc: linux-mm@kvack.org, ogrelitz@mellanox.com
+To: Christoph Lameter <cl@linux.com>
+Cc: Tejun Heo <tj@kernel.org>, Lai Jiangshan <laijs@cn.fujitsu.com>, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-Hi Sagi,
+On Wed, 2012-03-21 at 12:54 -0500, Christoph Lameter wrote:
+> On Wed, 21 Mar 2012, Eric Dumazet wrote:
+> 
+> > On Wed, 2012-03-21 at 10:03 -0500, Christoph Lameter wrote:
+> > > On Wed, 21 Mar 2012, Eric Dumazet wrote:
+> > >
+> > > > Creating a dedicated cache for few objects ? Thats a lot of overhead, at
+> > > > least for SLAB (no merges of caches)
+> > >
+> > > Its some overhead for SLAB (a lot is what? If you tune down the per cpu
+> > > caches it should be a couple of pages) but its none for SLUB.
+> >
+> > SLAB overhead per cache is O(CPUS * nr_node_ids)  (unless alien caches
+> > are disabled)
+> 
+> nr_node_ids==2 in the standard case these days. Alien caches are minimal.
 
-There are a couple of rcu_read_lock not converted at the top.
 
-On Wed, Feb 08, 2012 at 03:55:43PM +0200, Sagi Grimberg wrote:
-> @@ -196,6 +200,9 @@ static int do_mmu_notifier_register(struct mmu_notifier *mn,
->  	if (unlikely(!mmu_notifier_mm))
->  		goto out;
->  
-> +	if (init_srcu_struct(&mmu_notifier_mm->srcu))
-> +		goto out_cleanup;
-> +
->  	if (take_mmap_sem)
->  		down_write(&mm->mmap_sem);
+Thats not true. Some machines use lots of nodes (fake nodes) for various
+reasons.
 
-out_cleanup will up_write if take_mmap_sem is set, and at that point
-the mmap_sem hasn't been taken yet.
+And they cant disable alien caches for performance reasons.
 
->  	ret = mm_take_all_locks(mm);
-> @@ -226,8 +233,11 @@ static int do_mmu_notifier_register(struct mmu_notifier *mn,
->  out_cleanup:
->  	if (take_mmap_sem)
->  		up_write(&mm->mmap_sem);
-> -	/* kfree() does nothing if mmu_notifier_mm is NULL */
-> -	kfree(mmu_notifier_mm);
-> +
-> +	if (mm->mmu_notifier_mm) {
 
-I guess this should be "if (mmu_notifier_mm)";
 
-I happened to notice my older patch still applies cleanly and it has
-the above issues already correct, so I'm appending it after refreshing
-it to upstream.
-
-====
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Fight unfair telecom internet charges in Canada: sign http://stopthemeter.ca/
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
