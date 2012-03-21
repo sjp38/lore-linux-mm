@@ -1,229 +1,144 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx140.postini.com [74.125.245.140])
-	by kanga.kvack.org (Postfix) with SMTP id 9A8BA6B004A
-	for <linux-mm@kvack.org>; Wed, 21 Mar 2012 05:53:55 -0400 (EDT)
-Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id ABC283EE0C0
-	for <linux-mm@kvack.org>; Wed, 21 Mar 2012 18:53:53 +0900 (JST)
-Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 8860A45DEB5
-	for <linux-mm@kvack.org>; Wed, 21 Mar 2012 18:53:53 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 6E5EB45DEB2
-	for <linux-mm@kvack.org>; Wed, 21 Mar 2012 18:53:53 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 5DEE01DB803F
-	for <linux-mm@kvack.org>; Wed, 21 Mar 2012 18:53:53 +0900 (JST)
-Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.240.81.146])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 057D51DB803C
-	for <linux-mm@kvack.org>; Wed, 21 Mar 2012 18:53:53 +0900 (JST)
-Message-ID: <4F69A4C4.4080602@jp.fujitsu.com>
-Date: Wed, 21 Mar 2012 18:52:04 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Received: from psmtp.com (na3sys010amx196.postini.com [74.125.245.196])
+	by kanga.kvack.org (Postfix) with SMTP id D68CF6B004D
+	for <linux-mm@kvack.org>; Wed, 21 Mar 2012 06:06:10 -0400 (EDT)
+Received: by yhr47 with SMTP id 47so945079yhr.14
+        for <linux-mm@kvack.org>; Wed, 21 Mar 2012 03:06:10 -0700 (PDT)
+Date: Wed, 21 Mar 2012 19:06:02 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [PATCH 00/16] mm: prepare for converting vm->vm_flags to 64-bit
+Message-ID: <20120321100602.GA5522@barrios>
+References: <20120321065140.13852.52315.stgit@zurg>
 MIME-Version: 1.0
-Subject: [PATCH] memcg: change behavior of moving charges at task move
-Content-Type: text/plain; charset=ISO-2022-JP
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20120321065140.13852.52315.stgit@zurg>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "linux-mm@kvack.org" <linux-mm@kvack.org>, Linux Kernel <linux-kernel@vger.kernel.org>, "cgroups@vger.kernel.org" <cgroups@vger.kernel.org>, Hugh Dickins <hughd@google.com>, "n-horiguchi@ah.jp.nec.com" <n-horiguchi@ah.jp.nec.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Glauber Costa <glommer@parallels.com>, Andrew Morton <akpm@linux-foundation.org>
+To: Konstantin Khlebnikov <khlebnikov@openvz.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Linus Torvalds <torvalds@linux-foundation.org>, Hugh Dickins <hughd@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Ben Herrenschmidt <benh@kernel.crashing.org>, linux@arm.linux.org.uk
 
-As discussed before, I post this to fix the spec and implementation of task moving.
-Then, do you think what target kernel version should be ? 3.4/3.5 ?
-but yes, it may be late for 3.4....
+Hi Konstantin,
 
-==
-In documentation, it's said that 'shared anon are not moved'.
-But in implementation, the check was wrong.
+It seems to be nice clean up to me and you are a volunteer we have been wanted
+for a long time. Thanks!
+I am one of people who really want to expand vm_flags to 64 bit but when KOSAKI
+tried it, Linus said his concerning, I guess you already saw that.
 
-  if (!move_anon() || page_mapcount(page) > 2)
+He want to tidy vm_flags's usage up rather than expanding it.
+Without the discussion about that, just expanding vm_flags would make us use 
+it up easily so that we might need more space. 
 
-Ah, memcg has been moving shared anon pages for a long time.
+Readahead flags are good candidate to move into another space and arch-specific flags, I guess.
+Another candidate I think of is THP flag. It's just for only anonymous vma now
+(But I am not sure we have a plan to support it for file-backed pages in future)
+so we can move it to anon_vma or somewhere.
+I think other guys might find more somethings
 
-Then, here is a discussion about handling of shared anon pages.
+The point is that at least, we have to discuss about clean up current vm_flags's
+use cases before expanding it unconditionally.
 
- - It's complex
- - Now, shared file caches are moved in force.
- - It adds unclear check as page_mapcount(). To do correct check,
-   we should check swap users, etc.
- - No one notice this implementation behavior. So, no one get benefit
-   from the design.
- - In general, once task is moved to a cgroup for running, it will not
-   be moved....
- - Finally, we have control knob as memory.move_charge_at_immigrate.
-
-Here is a patch to allow moving shared pages, completely. This makes
-memcg simpler and fix current broken code.
-
-Note:
- IIUC, libcgroup's cgroup daemon moves tasks after exec().
- So, it's not affected.
- libcgroup's command "cgexec" does move itsef to a memcg and call exec()
- without fork(). it's not affected.
-
-Changelog:
- - fixed PageAnon() check.
- - remove call of lookup_swap_cache()
- - fixed Documentation.
-
-Suggested-by: Hugh Dickins <hughd@google.com>
-Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
----
- Documentation/cgroups/memory.txt |    9 ++++-----
- include/linux/swap.h             |    9 ---------
- mm/memcontrol.c                  |   15 +++++++--------
- mm/swapfile.c                    |   31 -------------------------------
- 4 files changed, 11 insertions(+), 53 deletions(-)
-
-diff --git a/Documentation/cgroups/memory.txt b/Documentation/cgroups/memory.txt
-index 4c95c00..84d4f00 100644
---- a/Documentation/cgroups/memory.txt
-+++ b/Documentation/cgroups/memory.txt
-@@ -185,12 +185,14 @@ behind this approach is that a cgroup that aggressively uses a shared
- page will eventually get charged for it (once it is uncharged from
- the cgroup that brought it in -- this will happen on memory pressure).
- 
-+But see section 8.2: when moving a task to another cgroup, its pages may
-+be recharged to the new cgroup, if move_charge_at_immigrate has been chosen.
-+
- Exception: If CONFIG_CGROUP_CGROUP_MEM_RES_CTLR_SWAP is not used.
- When you do swapoff and make swapped-out pages of shmem(tmpfs) to
- be backed into memory in force, charges for pages are accounted against the
- caller of swapoff rather than the users of shmem.
- 
--
- 2.4 Swap Extension (CONFIG_CGROUP_MEM_RES_CTLR_SWAP)
- 
- Swap Extension allows you to record charge for swap. A swapped-in page is
-@@ -623,8 +625,7 @@ memory cgroup.
-   bit | what type of charges would be moved ?
-  -----+------------------------------------------------------------------------
-    0  | A charge of an anonymous page(or swap of it) used by the target task.
--      | Those pages and swaps must be used only by the target task. You must
--      | enable Swap Extension(see 2.4) to enable move of swap charges.
-+      | You must enable Swap Extension(see 2.4) to enable move of swap charges.
-  -----+------------------------------------------------------------------------
-    1  | A charge of file pages(normal file, tmpfs file(e.g. ipc shared memory)
-       | and swaps of tmpfs file) mmapped by the target task. Unlike the case of
-@@ -637,8 +638,6 @@ memory cgroup.
- 
- 8.3 TODO
- 
--- Implement madvise(2) to let users decide the vma to be moved or not to be
--  moved.
- - All of moving charge operations are done under cgroup_mutex. It's not good
-   behavior to hold the mutex too long, so we may need some trick.
- 
-diff --git a/include/linux/swap.h b/include/linux/swap.h
-index 6e66c03..70d2c74 100644
---- a/include/linux/swap.h
-+++ b/include/linux/swap.h
-@@ -387,7 +387,6 @@ static inline void deactivate_swap_token(struct mm_struct *mm, bool swap_token)
- #ifdef CONFIG_CGROUP_MEM_RES_CTLR
- extern void
- mem_cgroup_uncharge_swapcache(struct page *page, swp_entry_t ent, bool swapout);
--extern int mem_cgroup_count_swap_user(swp_entry_t ent, struct page **pagep);
- #else
- static inline void
- mem_cgroup_uncharge_swapcache(struct page *page, swp_entry_t ent, bool swapout)
-@@ -532,14 +531,6 @@ mem_cgroup_uncharge_swapcache(struct page *page, swp_entry_t ent)
- {
- }
- 
--#ifdef CONFIG_CGROUP_MEM_RES_CTLR
--static inline int
--mem_cgroup_count_swap_user(swp_entry_t ent, struct page **pagep)
--{
--	return 0;
--}
--#endif
--
- #endif /* CONFIG_SWAP */
- #endif /* __KERNEL__*/
- #endif /* _LINUX_SWAP_H */
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index b2ee6df..a48d185 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -5147,7 +5147,7 @@ static struct page *mc_handle_present_pte(struct vm_area_struct *vma,
- 		return NULL;
- 	if (PageAnon(page)) {
- 		/* we don't move shared anon */
--		if (!move_anon() || page_mapcount(page) > 2)
-+		if (!move_anon())
- 			return NULL;
- 	} else if (!move_file())
- 		/* we ignore mapcount for file pages */
-@@ -5161,18 +5161,17 @@ static struct page *mc_handle_present_pte(struct vm_area_struct *vma,
- static struct page *mc_handle_swap_pte(struct vm_area_struct *vma,
- 			unsigned long addr, pte_t ptent, swp_entry_t *entry)
- {
--	int usage_count;
- 	struct page *page = NULL;
- 	swp_entry_t ent = pte_to_swp_entry(ptent);
- 
- 	if (!move_anon() || non_swap_entry(ent))
- 		return NULL;
--	usage_count = mem_cgroup_count_swap_user(ent, &page);
--	if (usage_count > 1) { /* we don't move shared anon */
--		if (page)
--			put_page(page);
--		return NULL;
--	}
-+#ifdef CONFIG_SWAP
-+	/*
-+	 * Avoid lookup_swap_cache() not to update statistics.
-+	 */
-+	page = find_get_page(&swapper_space, ent.val);
-+#endif
- 	if (do_swap_account)
- 		entry->val = ent.val;
- 
-diff --git a/mm/swapfile.c b/mm/swapfile.c
-index dae42f3..fedeb6b 100644
---- a/mm/swapfile.c
-+++ b/mm/swapfile.c
-@@ -717,37 +717,6 @@ int free_swap_and_cache(swp_entry_t entry)
- 	return p != NULL;
- }
- 
--#ifdef CONFIG_CGROUP_MEM_RES_CTLR
--/**
-- * mem_cgroup_count_swap_user - count the user of a swap entry
-- * @ent: the swap entry to be checked
-- * @pagep: the pointer for the swap cache page of the entry to be stored
-- *
-- * Returns the number of the user of the swap entry. The number is valid only
-- * for swaps of anonymous pages.
-- * If the entry is found on swap cache, the page is stored to pagep with
-- * refcount of it being incremented.
-- */
--int mem_cgroup_count_swap_user(swp_entry_t ent, struct page **pagep)
--{
--	struct page *page;
--	struct swap_info_struct *p;
--	int count = 0;
--
--	page = find_get_page(&swapper_space, ent.val);
--	if (page)
--		count += page_mapcount(page);
--	p = swap_info_get(ent);
--	if (p) {
--		count += swap_count(p->swap_map[swp_offset(ent)]);
--		spin_unlock(&swap_lock);
--	}
--
--	*pagep = page;
--	return count;
--}
--#endif
--
- #ifdef CONFIG_HIBERNATION
- /*
-  * Find the swap type that corresponds to given device (if any).
--- 
-1.7.4.1
-
+On Wed, Mar 21, 2012 at 10:56:07AM +0400, Konstantin Khlebnikov wrote:
+> There is good old tradition: every year somebody submit patches for extending
+> vma->vm_flags upto 64-bits, because there no free bits left on 32-bit systems.
+> 
+> previous attempts:
+> https://lkml.org/lkml/2011/4/12/24	(KOSAKI Motohiro)
+> https://lkml.org/lkml/2010/4/27/23	(Benjamin Herrenschmidt)
+> https://lkml.org/lkml/2009/10/1/202	(Hugh Dickins)
+> 
+> Here already exist special type for this: vm_flags_t, but not all code uses it.
+> So, before switching vm_flags_t from unsinged long to u64 we must spread
+> vm_flags_t everywhere and fix all possible type-casting problems.
+> 
+> There is no functional changes in this patch set,
+> it only prepares code for vma->vm_flags converting.
+> 
+> ---
+> 
+> Konstantin Khlebnikov (16):
+>       mm: introduce NR_VMA_FLAGS
+>       mm: use vm_flags_t for vma flags
+>       mm/shmem: use vm_flags_t for vma flags
+>       mm/nommu: use vm_flags_t for vma flags
+>       mm/drivers: use vm_flags_t for vma flags
+>       mm/x86: use vm_flags_t for vma flags
+>       mm/arm: use vm_flags_t for vma flags
+>       mm/unicore32: use vm_flags_t for vma flags
+>       mm/ia64: use vm_flags_t for vma flags
+>       mm/powerpc: use vm_flags_t for vma flags
+>       mm/s390: use vm_flags_t for vma flags
+>       mm/mips: use vm_flags_t for vma flags
+>       mm/parisc: use vm_flags_t for vma flags
+>       mm/score: use vm_flags_t for vma flags
+>       mm: cast vm_flags_t to u64 before printing
+>       mm: vm_flags_t strict type checking
+> 
+> 
+>  arch/arm/include/asm/cacheflush.h                |    5 -
+>  arch/arm/kernel/asm-offsets.c                    |    6 +
+>  arch/arm/mm/fault.c                              |    2 
+>  arch/ia64/mm/fault.c                             |    9 +
+>  arch/mips/mm/c-r3k.c                             |    2 
+>  arch/mips/mm/c-r4k.c                             |    6 -
+>  arch/mips/mm/c-tx39.c                            |    2 
+>  arch/parisc/mm/fault.c                           |    4 -
+>  arch/powerpc/include/asm/mman.h                  |    2 
+>  arch/s390/mm/fault.c                             |    8 +
+>  arch/score/mm/cache.c                            |    6 -
+>  arch/sh/mm/tlbflush_64.c                         |    2 
+>  arch/unicore32/kernel/asm-offsets.c              |    6 +
+>  arch/unicore32/mm/fault.c                        |    2 
+>  arch/x86/mm/hugetlbpage.c                        |    4 -
+>  drivers/char/mem.c                               |    2 
+>  drivers/infiniband/hw/ipath/ipath_file_ops.c     |    6 +
+>  drivers/infiniband/hw/qib/qib_file_ops.c         |    6 +
+>  drivers/media/video/omap3isp/ispqueue.h          |    2 
+>  drivers/staging/android/ashmem.c                 |    2 
+>  drivers/staging/android/binder.c                 |   15 +-
+>  drivers/staging/tidspbridge/core/tiomap3430.c    |   13 +-
+>  drivers/staging/tidspbridge/rmgr/drv_interface.c |    4 -
+>  fs/binfmt_elf.c                                  |    2 
+>  fs/binfmt_elf_fdpic.c                            |   24 ++-
+>  fs/exec.c                                        |    2 
+>  fs/proc/nommu.c                                  |    3 
+>  fs/proc/task_nommu.c                             |   14 +-
+>  include/linux/backing-dev.h                      |    7 -
+>  include/linux/huge_mm.h                          |    4 -
+>  include/linux/ksm.h                              |    8 +
+>  include/linux/mm.h                               |  163 +++++++++++++++-------
+>  include/linux/mm_types.h                         |   11 +
+>  include/linux/mman.h                             |    4 -
+>  include/linux/rmap.h                             |    8 +
+>  include/linux/shmem_fs.h                         |    5 -
+>  kernel/bounds.c                                  |    2 
+>  kernel/events/core.c                             |    4 -
+>  kernel/fork.c                                    |    2 
+>  kernel/sys.c                                     |    4 -
+>  mm/backing-dev.c                                 |    4 +
+>  mm/huge_memory.c                                 |    2 
+>  mm/ksm.c                                         |    4 -
+>  mm/madvise.c                                     |    2 
+>  mm/memory.c                                      |    9 +
+>  mm/mlock.c                                       |    2 
+>  mm/mmap.c                                        |   36 ++---
+>  mm/mprotect.c                                    |    9 +
+>  mm/mremap.c                                      |    2 
+>  mm/nommu.c                                       |   19 +--
+>  mm/rmap.c                                        |   16 +-
+>  mm/shmem.c                                       |   54 ++++---
+>  mm/vmscan.c                                      |    4 -
+>  53 files changed, 322 insertions(+), 224 deletions(-)
+> 
+> -- 
+> Signature
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Fight unfair telecom internet charges in Canada: sign http://stopthemeter.ca/
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
