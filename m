@@ -1,13 +1,13 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from psmtp.com (na3sys010amx163.postini.com [74.125.245.163])
-	by kanga.kvack.org (Postfix) with SMTP id 6F15A6B00EF
-	for <linux-mm@kvack.org>; Wed, 21 Mar 2012 02:56:49 -0400 (EDT)
+	by kanga.kvack.org (Postfix) with SMTP id 5791F6B004D
+	for <linux-mm@kvack.org>; Wed, 21 Mar 2012 02:56:53 -0400 (EDT)
 Received: by mail-bk0-f41.google.com with SMTP id q16so872729bkw.14
-        for <linux-mm@kvack.org>; Tue, 20 Mar 2012 23:56:48 -0700 (PDT)
-Subject: [PATCH 08/16] mm/unicore32: use vm_flags_t for vma flags
+        for <linux-mm@kvack.org>; Tue, 20 Mar 2012 23:56:52 -0700 (PDT)
+Subject: [PATCH 09/16] mm/ia64: use vm_flags_t for vma flags
 From: Konstantin Khlebnikov <khlebnikov@openvz.org>
-Date: Wed, 21 Mar 2012 10:56:46 +0400
-Message-ID: <20120321065645.13852.83925.stgit@zurg>
+Date: Wed, 21 Mar 2012 10:56:50 +0400
+Message-ID: <20120321065650.13852.75898.stgit@zurg>
 In-Reply-To: <20120321065140.13852.52315.stgit@zurg>
 References: <20120321065140.13852.52315.stgit@zurg>
 MIME-Version: 1.0
@@ -16,50 +16,43 @@ Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, Guan Xuetao <gxt@mprc.pku.edu.cn>, linux-kernel@vger.kernel.org
-
-The same magic like in arm: assembler code wants to test VM_EXEC,
-but for big-endian we should get upper word for this.
+Cc: linux-mm@kvack.org, Tony Luck <tony.luck@intel.com>, linux-ia64@vger.kernel.org, linux-kernel@vger.kernel.org, Fenghua Yu <fenghua.yu@intel.com>
 
 Signed-off-by: Konstantin Khlebnikov <khlebnikov@openvz.org>
-Cc: Guan Xuetao <gxt@mprc.pku.edu.cn>
+Cc: Tony Luck <tony.luck@intel.com>
+Cc: Fenghua Yu <fenghua.yu@intel.com>
+Cc: linux-ia64@vger.kernel.org
 ---
- arch/unicore32/kernel/asm-offsets.c |    6 +++++-
- arch/unicore32/mm/fault.c           |    2 +-
- 2 files changed, 6 insertions(+), 2 deletions(-)
+ arch/ia64/mm/fault.c |    9 ++++-----
+ 1 files changed, 4 insertions(+), 5 deletions(-)
 
-diff --git a/arch/unicore32/kernel/asm-offsets.c b/arch/unicore32/kernel/asm-offsets.c
-index ffcbe75..e3199b5 100644
---- a/arch/unicore32/kernel/asm-offsets.c
-+++ b/arch/unicore32/kernel/asm-offsets.c
-@@ -87,9 +87,13 @@ int main(void)
- 	DEFINE(S_FRAME_SIZE,	sizeof(struct pt_regs));
- 	BLANK();
- 	DEFINE(VMA_VM_MM,	offsetof(struct vm_area_struct, vm_mm));
-+#if defined(CONFIG_CPU_BIG_ENDIAN) && (NR_VMA_FLAGS > 32)
-+	DEFINE(VMA_VM_FLAGS,	offsetof(struct vm_area_struct, vm_flags) + 4);
-+#else
- 	DEFINE(VMA_VM_FLAGS,	offsetof(struct vm_area_struct, vm_flags));
-+#endif
- 	BLANK();
--	DEFINE(VM_EXEC,		VM_EXEC);
-+	DEFINE(VM_EXEC,		(__force unsigned int)VM_EXEC);
- 	BLANK();
- 	DEFINE(PAGE_SZ,		PAGE_SIZE);
- 	BLANK();
-diff --git a/arch/unicore32/mm/fault.c b/arch/unicore32/mm/fault.c
-index 283aa4b..9137996 100644
---- a/arch/unicore32/mm/fault.c
-+++ b/arch/unicore32/mm/fault.c
-@@ -158,7 +158,7 @@ void do_bad_area(unsigned long addr, unsigned int fsr, struct pt_regs *regs)
-  */
- static inline bool access_error(unsigned int fsr, struct vm_area_struct *vma)
- {
--	unsigned int mask = VM_READ | VM_WRITE | VM_EXEC;
-+	vm_flags_t mask = VM_READ | VM_WRITE | VM_EXEC;
+diff --git a/arch/ia64/mm/fault.c b/arch/ia64/mm/fault.c
+index 20b3593..e50259d 100644
+--- a/arch/ia64/mm/fault.c
++++ b/arch/ia64/mm/fault.c
+@@ -80,7 +80,7 @@ ia64_do_page_fault (unsigned long address, unsigned long isr, struct pt_regs *re
+ 	struct vm_area_struct *vma, *prev_vma;
+ 	struct mm_struct *mm = current->mm;
+ 	struct siginfo si;
+-	unsigned long mask;
++	vm_flags_t mask;
+ 	int fault;
  
- 	if (!(fsr ^ 0x12))	/* write? */
- 		mask = VM_WRITE;
+ 	/* mmap_sem is performance critical.... */
+@@ -135,10 +135,9 @@ ia64_do_page_fault (unsigned long address, unsigned long isr, struct pt_regs *re
+ #	define VM_WRITE_BIT	1
+ #	define VM_EXEC_BIT	2
+ 
+-#	if (((1 << VM_READ_BIT) != VM_READ || (1 << VM_WRITE_BIT) != VM_WRITE) \
+-	    || (1 << VM_EXEC_BIT) != VM_EXEC)
+-#		error File is out of sync with <linux/mm.h>.  Please update.
+-#	endif
++	BUILD_BUG_ON((1 << VM_READ_BIT) != VM_READ);
++	BUILD_BUG_ON((1 << VM_WRITE_BIT) != VM_WRITE);
++	BUILD_BUG_ON((1 << VM_EXEC_BIT) != VM_EXEC);
+ 
+ 	if (((isr >> IA64_ISR_R_BIT) & 1UL) && (!(vma->vm_flags & (VM_READ | VM_WRITE))))
+ 		goto bad_area;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
