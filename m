@@ -1,52 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx138.postini.com [74.125.245.138])
-	by kanga.kvack.org (Postfix) with SMTP id DF5766B0044
-	for <linux-mm@kvack.org>; Wed, 21 Mar 2012 12:09:15 -0400 (EDT)
-Received: by dadv6 with SMTP id v6so2185763dad.14
-        for <linux-mm@kvack.org>; Wed, 21 Mar 2012 09:09:15 -0700 (PDT)
-Date: Wed, 21 Mar 2012 09:09:10 -0700
-From: Tejun Heo <tj@kernel.org>
-Subject: Re: Patch workqueue: create new slab cache instead of hacking
-Message-ID: <20120321160910.GB4246@google.com>
-References: <1332238884-6237-1-git-send-email-laijs@cn.fujitsu.com>
- <1332238884-6237-7-git-send-email-laijs@cn.fujitsu.com>
- <20120320154619.GA5684@google.com>
- <4F6944D9.5090002@cn.fujitsu.com>
- <CAOS58YPydFUap4HjuRATxza6VZgyrXmQHVxR83G7GRJL50ZTRQ@mail.gmail.com>
- <alpine.DEB.2.00.1203210910450.20482@router.home>
+Received: from psmtp.com (na3sys010amx166.postini.com [74.125.245.166])
+	by kanga.kvack.org (Postfix) with SMTP id 16EC66B004D
+	for <linux-mm@kvack.org>; Wed, 21 Mar 2012 13:08:35 -0400 (EDT)
+Date: Wed, 21 Mar 2012 17:50:30 +0100
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [RFC][PATCH 00/26] sched/numa
+Message-ID: <20120321165030.GC24602@redhat.com>
+References: <20120316144028.036474157@chello.nl>
+ <4F670325.7080700@redhat.com>
+ <1332155527.18960.292.camel@twins>
+ <20120319130401.GI24602@redhat.com>
+ <1332163591.18960.334.camel@twins>
+ <20120319135745.GL24602@redhat.com>
+ <4F673D73.90106@redhat.com>
+ <20120319143002.GQ24602@redhat.com>
+ <1332182523.18960.372.camel@twins>
+ <4F69022D.3080300@redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.00.1203210910450.20482@router.home>
+In-Reply-To: <4F69022D.3080300@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: Lai Jiangshan <laijs@cn.fujitsu.com>, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Rik van Riel <riel@redhat.com>
+Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Avi Kivity <avi@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>, Paul Turner <pjt@google.com>, Suresh Siddha <suresh.b.siddha@intel.com>, Mike Galbraith <efault@gmx.de>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Dan Smith <danms@us.ibm.com>, Bharata B Rao <bharata.rao@gmail.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Johannes Weiner <hannes@cmpxchg.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Wed, Mar 21, 2012 at 09:12:04AM -0500, Christoph Lameter wrote:
-> How about this instead?
-> 
-> Subject: workqueues: Use new kmem cache to get aligned memory for workqueues
-> 
-> The workqueue logic currently improvises by doing a kmalloc allocation and
-> then aligning the object. Create a slab cache for that purpose with the
-> proper alignment instead.
-> 
-> Cleans up the code and makes things much simpler. No need anymore to carry
-> an additional pointer to the beginning of the kmalloc object.
-> 
-> Signed-off-by: Christoph Lameter <cl@linux.com>
+Hi,
 
-I don't know.  At this point, this is only for singlethread and
-unbound workqueues and we don't have too many of them left at this
-point.  I'd like to avoid creating a slab cache for this.  How about
-just leaving it be?  If we develop other use cases for larger
-alignments, let's worry about implementing something common then.
+On Tue, Mar 20, 2012 at 06:18:21PM -0400, Rik van Riel wrote:
+> Getting high level documentation of the ideas behind both
+> of the NUMA implementations could really help smooth out
+> the debate.
 
-Thanks.
+If I didn't explain it in detail so far, has been because of lack of
+time. Plus nobody asked specific questions on the internals yet. And I
+do my best to avoid writing books through email even if I fail at that
+sometime.
 
--- 
-tejun
+I wanted do a few more code changes to make it faster first (like
+badly needed THP migration).
+
+For sure, I'll prepare some initial highlevel documentation on the
+AutoNUMA algorithms for the MM summit (the resulting pdf I will
+publish it of course), in addition to more benchmark data.
+
+Thanks,
+Andrea
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
