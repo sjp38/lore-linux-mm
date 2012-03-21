@@ -1,96 +1,101 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx199.postini.com [74.125.245.199])
-	by kanga.kvack.org (Postfix) with SMTP id BB4A56B004A
-	for <linux-mm@kvack.org>; Tue, 20 Mar 2012 22:13:22 -0400 (EDT)
-Date: Wed, 21 Mar 2012 03:12:39 +0100
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [RFC] AutoNUMA alpha6
-Message-ID: <20120321021239.GQ24602@redhat.com>
-References: <20120316144028.036474157@chello.nl>
- <20120316182511.GJ24602@redhat.com>
- <87k42edenh.fsf@danplanet.com>
+Received: from psmtp.com (na3sys010amx156.postini.com [74.125.245.156])
+	by kanga.kvack.org (Postfix) with SMTP id 52F4A6B004A
+	for <linux-mm@kvack.org>; Tue, 20 Mar 2012 22:57:45 -0400 (EDT)
+Message-ID: <4F6944D9.5090002@cn.fujitsu.com>
+Date: Wed, 21 Mar 2012 11:02:49 +0800
+From: Lai Jiangshan <laijs@cn.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <87k42edenh.fsf@danplanet.com>
+Subject: Re: [RFC PATCH 6/6] workqueue: use kmalloc_align() instead of hacking
+References: <1332238884-6237-1-git-send-email-laijs@cn.fujitsu.com> <1332238884-6237-7-git-send-email-laijs@cn.fujitsu.com> <20120320154619.GA5684@google.com>
+In-Reply-To: <20120320154619.GA5684@google.com>
+Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Smith <danms@us.ibm.com>
-Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>, Paul Turner <pjt@google.com>, Suresh Siddha <suresh.b.siddha@intel.com>, Mike Galbraith <efault@gmx.de>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Bharata B Rao <bharata.rao@gmail.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Tejun Heo <tj@kernel.org>, Pekka Enberg <penberg@kernel.org>
+Cc: Christoph Lameter <cl@linux-foundation.org>, Matt Mackall <mpm@selenic.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Tue, Mar 20, 2012 at 04:41:06PM -0700, Dan Smith wrote:
-> AA> Could you try my two trivial benchmarks I sent on lkml too?
+On 03/20/2012 11:46 PM, Tejun Heo wrote:
+> On Tue, Mar 20, 2012 at 06:21:24PM +0800, Lai Jiangshan wrote:
+>> kmalloc_align() makes the code simpler.
+>>
+>> Signed-off-by: Lai Jiangshan <laijs@cn.fujitsu.com>
+>> ---
+>>  kernel/workqueue.c |   23 +++++------------------
+>>  1 files changed, 5 insertions(+), 18 deletions(-)
+>>
+>> diff --git a/kernel/workqueue.c b/kernel/workqueue.c
+>> index 5abf42f..beec5fd 100644
+>> --- a/kernel/workqueue.c
+>> +++ b/kernel/workqueue.c
+>> @@ -2897,20 +2897,9 @@ static int alloc_cwqs(struct workqueue_struct *wq)
+>>  
+>>  	if (!(wq->flags & WQ_UNBOUND))
+>>  		wq->cpu_wq.pcpu = __alloc_percpu(size, align);
+>> -	else {
+>> -		void *ptr;
+>> -
+>> -		/*
+>> -		 * Allocate enough room to align cwq and put an extra
+>> -		 * pointer at the end pointing back to the originally
+>> -		 * allocated pointer which will be used for free.
+>> -		 */
+>> -		ptr = kzalloc(size + align + sizeof(void *), GFP_KERNEL);
+>> -		if (ptr) {
+>> -			wq->cpu_wq.single = PTR_ALIGN(ptr, align);
+>> -			*(void **)(wq->cpu_wq.single + 1) = ptr;
+>> -		}
+>> -	}
+>> +	else
+>> +		wq->cpu_wq.single = kmalloc_align(size,
+>> +				GFP_KERNEL | __GFP_ZERO, align);
+>>  
+>>  	/* just in case, make sure it's actually aligned */
+>>  	BUG_ON(!IS_ALIGNED(wq->cpu_wq.v, align));
+>> @@ -2921,10 +2910,8 @@ static void free_cwqs(struct workqueue_struct *wq)
+>>  {
+>>  	if (!(wq->flags & WQ_UNBOUND))
+>>  		free_percpu(wq->cpu_wq.pcpu);
+>> -	else if (wq->cpu_wq.single) {
+>> -		/* the pointer to free is stored right after the cwq */
+>> -		kfree(*(void **)(wq->cpu_wq.single + 1));
+>> -	}
+>> +	else if (wq->cpu_wq.single)
+>> +		kfree(wq->cpu_wq.single);
 > 
-> I just got around to running your numa01 test on mainline, autonuma, and
-> numasched.  This is on a 2-socket, 6-cores-per-socket,
-> 2-threads-per-core machine, with your test configured to run 24
-> threads. I also ran Peter's modified stream_d on all three as well, with
-> 24 instances in parallel. I know it's already been pointed out that it's
-> not the ideal or end-all benchmark, but I figured it was still
-> worthwhile to see if the trend continued.
+> Yes, this is hacky but I don't think building the whole
+> kmalloc_align() for only this is a good idea.  If the open coded hack
+> bothers you just write a simplistic wrapper somewhere.  We can make
+> that better integrated / more efficient when there are multiple users
+> of the interface, which I kinda doubt would happen.  The reason why
+> cwq requiring larger alignment is more historic than anything else
+> after all.
 > 
-> On your numa01 test:
-> 
->   Autonuma is 22% faster than mainline
->   Numasched is 42% faster than mainline
-> 
-> On Peter's modified stream_d test:
-> 
->   Autonuma is 35% *slower* than mainline
->   Numasched is 55% faster than mainline
 
-I repeated the benchmark here after applying all Peter's patches in
-the same setup where I run this loop of benchmarks on the AutoNUMA
-code 24/7 for the last 3 months. So it was pretty quick to do it for
-me.
+Yes, I don't want to build a complex kmalloc_align(). But after I found
+that SLAB/SLUB's kmalloc-objects are natural/automatic aligned to
+a proper big power of two. I will do nothing if I introduce kmalloc_align()
+except just care the debugging.
 
-THP was disabled as the only kernel tune tweak to compare apples with
-apples (it was already disabled in all my measurements with the
-numa01/numa02).
+o	SLAB/SLUB's kmalloc-objects are natural/automatic aligned.
+o	70LOC in total, and about 90% are just renaming or wrapping.
 
-        upstream autonuma numasched hard inverse
-numa02  64       45       66        42   81
-numa01  491      328      607       321  623 -D THREAD_ALLOC
-numa01  305      207      338       196  378 -D NO_BIND_FORCE_SAME_NODE
+I think it is a worth trade-off, it give us convenience and we pay
+zero overhead(when runtime) and 70LOC(when coding, pay in a lump sum).
 
-So give me a break... you must have made a real mess in your
-benchmarking. numasched is always doing worse than upstream here, in
-fact two times massively worse. Almost as bad as the inverse binds.
+And kmalloc_align() can be used in the following case:
+o	a type object need to be aligned with cache-line for it contains a frequent
+	update-part and a frequent read-part.
+o	The total number of these objects in a given type is not much, creating
+	a new slab cache for a given type will be overkill.
 
-Maybe you've more than 16g? I've 16G and that leaves 1G free on both
-nodes at the peak load with AutoNUMA. That shall be enough for
-numasched too (Peter complained me I waste 80MB on a 16G system, so he
-can't possibly be intentionally wasting me 2GB).
+This is a RFC patch and it seems mm gurus don't like it. I'm sorry I bother all of you.
 
-In any case your results were already _obviously_ broken without me
-having to benchmark numasched to verify, because it's impossible
-numasched could be 20% faster than autonuma on numa01, because
-otherwise it would mean that numasched is like 18% faster than hard
-bindings which is mathematically impossible unless your hardware is
-not NUMA or superNUMAbroken.
+Thanks,
+Lai
 
-Also note that I had to even "reboot -f" after the first run of -D
-NO_BIND_FORCE_SAME_NODE because otherwise it would never end and it
-went 3G in swap already when I rebooted. Maybe a memleak from previous
-runs? no idea. After rebooting I run numa01 -D NO_BIND_FORCE_SAME_NODE
-after fresh after reboot and after rebooted it looked not in swap. I
-just did a "ssh host vmstat 1" to see if it was swapping again and
-never ending, and I killed vmstat it after a second, otherwise the
-systems are totally undisturbed and there's no cron or anything so the
-results are reliable.
 
-I'll repeat the benchmarks for numasched tomorrow with lockdep
-disabled (lockdep on or off won't alter autonuma runtime) and to also
-run the last numa01+numa02 test. Then I'll update the pdf and
-overwrite it so that the pages 3-6 of the pdf will include a 5h column
-showing numasched results.
-
-Note that I didn't alter my .config, I just checkout origin/master and
-git am the patchset and run make oldconfig (after fixing one trivial
-reject in the syscall registration).
-
-Maybe there's a slight chance I won't have to throw autonuma into the
-trash after all considering how staggering the difference is.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
