@@ -1,164 +1,210 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx167.postini.com [74.125.245.167])
-	by kanga.kvack.org (Postfix) with SMTP id 22B006B004A
-	for <linux-mm@kvack.org>; Wed, 21 Mar 2012 08:01:16 -0400 (EDT)
-Received: by bkwq16 with SMTP id q16so1134303bkw.14
-        for <linux-mm@kvack.org>; Wed, 21 Mar 2012 05:01:14 -0700 (PDT)
-Subject: [PATCH v2 04/16] mm/nommu: use vm_flags_t for vma flags
+Received: from psmtp.com (na3sys010amx181.postini.com [74.125.245.181])
+	by kanga.kvack.org (Postfix) with SMTP id 982D26B004A
+	for <linux-mm@kvack.org>; Wed, 21 Mar 2012 08:12:07 -0400 (EDT)
+Received: by bkwq16 with SMTP id q16so1146447bkw.14
+        for <linux-mm@kvack.org>; Wed, 21 Mar 2012 05:12:05 -0700 (PDT)
+Subject: [PATCH v2 16/16] mm: vm_flags_t strict type checking
 From: Konstantin Khlebnikov <khlebnikov@openvz.org>
-Date: Wed, 21 Mar 2012 16:01:10 +0400
-Message-ID: <20120321115632.4571.77859.stgit@zurg>
-In-Reply-To: <20120321065629.13852.5630.stgit@zurg>
-References: <20120321065629.13852.5630.stgit@zurg>
+Date: Wed, 21 Mar 2012 16:11:47 +0400
+Message-ID: <20120321121056.5944.98593.stgit@zurg>
+In-Reply-To: <20120321065718.13852.29789.stgit@zurg>
+References: <20120321065718.13852.29789.stgit@zurg>
 MIME-Version: 1.0
 Content-Type: text/plain; charset="utf-8"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: David Howells <dhowells@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Greg Ungerer <gerg@uclinux.org>
+Cc: linux-mm@kvack.org, Hugh Dickins <hughd@google.com>, linux-kernel@vger.kernel.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>
 
-v2: fix compilation
+Now nobody uses VM_* constants in macro-expressions, so we can add type to them.
+
+v2: resolve conflict with patch "coredump: add VM_NODUMP, MADV_NODUMP, MADV_CLEAR_NODUMP"
 
 Signed-off-by: Konstantin Khlebnikov <khlebnikov@openvz.org>
-Cc: David Howells <dhowells@redhat.com>
-Cc: Greg Ungerer <gerg@uclinux.org>
-
+Cc: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: Hugh Dickins <hughd@google.com>
 ---
+ include/linux/mm.h       |  135 ++++++++++++++++++++++++++++++++--------------
+ include/linux/mm_types.h |    4 +
+ 2 files changed, 96 insertions(+), 43 deletions(-)
 
-This time, I honestly checked the compiling for arm/at91x40_defconfig
-last linux-next is broken, but my parts are ok.
-
----
- fs/proc/nommu.c      |   14 ++++++++------
- fs/proc/task_nommu.c |   14 ++++++++------
- mm/nommu.c           |   19 ++++++++++---------
- 3 files changed, 26 insertions(+), 21 deletions(-)
-
-diff --git a/fs/proc/nommu.c b/fs/proc/nommu.c
-index b1822dd..6046ddb 100644
---- a/fs/proc/nommu.c
-+++ b/fs/proc/nommu.c
-@@ -39,9 +39,10 @@ static int nommu_region_show(struct seq_file *m, struct vm_region *region)
- 	unsigned long ino = 0;
- 	struct file *file;
- 	dev_t dev = 0;
--	int flags, len;
-+	int len;
-+	vm_flags_t vm_flags;
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index 4ff7bad..4aeb3f5 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -74,59 +74,112 @@ extern unsigned int kobjsize(const void *objp);
+  * vm_flags in vm_area_struct, see mm_types.h.
+  */
  
--	flags = region->vm_flags;
-+	vm_flags = region->vm_flags;
- 	file = region->vm_file;
+-#define VM_NONE		0x00000000
++enum {
++	__VM_READ,
++	__VM_WRITE,
++	__VM_EXEC,
++	__VM_SHARED,
++
++	__VM_MAYREAD,
++	__VM_MAYWRITE,
++	__VM_MAYEXEC,
++	__VM_MAYSHARE,
++
++	__VM_GROWSDOWN,
++#if defined(CONFIG_STACK_GROWSUP) || defined(CONFIG_IA64)
++	__VM_GROWSUP,
++#else
++	__VM_NOHUGEPAGE,
++#endif
++	__VM_PFNMAP,
++	__VM_DENYWRITE,
++
++	__VM_EXECUTABLE,
++	__VM_LOCKED,
++	__VM_IO,
++	__VM_SEQ_READ,
++
++	__VM_RAND_READ,
++	__VM_DONTCOPY,
++	__VM_DONTEXPAND,
++	__VM_RESERVED,
++
++	__VM_ACCOUNT,
++	__VM_NORESERVE,
++	__VM_HUGETLB,
++	__VM_NONLINEAR,
++
++#ifndef CONFIG_TRANSPARENT_HUGEPAGE
++	__VM_MAPPED_COPY,
++#else
++	__VM_HUGEPAGE,
++#endif
++	__VM_INSERTPAGE,
++	__VM_NODUMP,
++	__VM_CAN_NONLINEAR,
++
++	__VM_MIXEDMAP,
++	__VM_SAO,
++	__VM_PFN_AT_MMAP,
++	__VM_MERGEABLE,
++
++	__NR_VMA_FLAGS
++};
++
++#define VM_NONE		((__force vm_flags_t)0)
++
++#define __VMF(name)	((__force vm_flags_t)(1ull << (__VM_##name)))
  
- 	if (file) {
-@@ -54,10 +55,11 @@ static int nommu_region_show(struct seq_file *m, struct vm_region *region)
- 		   "%08lx-%08lx %c%c%c%c %08llx %02x:%02x %lu %n",
- 		   region->vm_start,
- 		   region->vm_end,
--		   flags & VM_READ ? 'r' : '-',
--		   flags & VM_WRITE ? 'w' : '-',
--		   flags & VM_EXEC ? 'x' : '-',
--		   flags & VM_MAYSHARE ? flags & VM_SHARED ? 'S' : 's' : 'p',
-+		   vm_flags & VM_READ ? 'r' : '-',
-+		   vm_flags & VM_WRITE ? 'w' : '-',
-+		   vm_flags & VM_EXEC ? 'x' : '-',
-+		   vm_flags & VM_MAYSHARE ?
-+			vm_flags & VM_SHARED ? 'S' : 's' : 'p',
- 		   ((loff_t)region->vm_pgoff) << PAGE_SHIFT,
- 		   MAJOR(dev), MINOR(dev), ino, &len);
+-#define VM_READ		0x00000001	/* currently active flags */
+-#define VM_WRITE	0x00000002
+-#define VM_EXEC		0x00000004
+-#define VM_SHARED	0x00000008
++#define VM_READ		__VMF(READ)	/* currently active flags */
++#define VM_WRITE	__VMF(WRITE)
++#define VM_EXEC		__VMF(EXEC)
++#define VM_SHARED	__VMF(SHARED)
  
-diff --git a/fs/proc/task_nommu.c b/fs/proc/task_nommu.c
-index 74fe164..9447caa 100644
---- a/fs/proc/task_nommu.c
-+++ b/fs/proc/task_nommu.c
-@@ -142,10 +142,11 @@ static int nommu_vma_show(struct seq_file *m, struct vm_area_struct *vma,
- 	unsigned long ino = 0;
- 	struct file *file;
- 	dev_t dev = 0;
--	int flags, len;
-+	int len;
-+	vm_flags_t vm_flags;
- 	unsigned long long pgoff = 0;
+ /* mprotect() hardcodes VM_MAYREAD >> 4 == VM_READ, and so for r/w/x bits. */
+-#define VM_MAYREAD	0x00000010	/* limits for mprotect() etc */
+-#define VM_MAYWRITE	0x00000020
+-#define VM_MAYEXEC	0x00000040
+-#define VM_MAYSHARE	0x00000080
++#define VM_MAYREAD	__VMF(MAYREAD)	/* limits for mprotect() etc */
++#define VM_MAYWRITE	__VMF(MAYWRITE)
++#define VM_MAYEXEC	__VMF(MAYEXEC)
++#define VM_MAYSHARE	__VMF(MAYSHARE)
  
--	flags = vma->vm_flags;
-+	vm_flags = vma->vm_flags;
- 	file = vma->vm_file;
+-#define VM_GROWSDOWN	0x00000100	/* general info on the segment */
++#define VM_GROWSDOWN	__VMF(GROWSDOWN) /* general info on the segment */
+ #if defined(CONFIG_STACK_GROWSUP) || defined(CONFIG_IA64)
+-#define VM_GROWSUP	0x00000200
++#define VM_GROWSUP	__VMF(GROWSUP)
+ #else
+-#define VM_GROWSUP	0x00000000
+-#define VM_NOHUGEPAGE	0x00000200	/* MADV_NOHUGEPAGE marked this vma */
++#define VM_GROWSUP	VM_NONE
++#define VM_NOHUGEPAGE	__VMF(NOHUGEPAGE) /* MADV_NOHUGEPAGE marked this vma */
+ #endif
+-#define VM_PFNMAP	0x00000400	/* Page-ranges managed without "struct page", just pure PFN */
+-#define VM_DENYWRITE	0x00000800	/* ETXTBSY on write attempts.. */
+-
+-#define VM_EXECUTABLE	0x00001000
+-#define VM_LOCKED	0x00002000
+-#define VM_IO           0x00004000	/* Memory mapped I/O or similar */
+-
+-					/* Used by sys_madvise() */
+-#define VM_SEQ_READ	0x00008000	/* App will access data sequentially */
+-#define VM_RAND_READ	0x00010000	/* App will not benefit from clustered reads */
+-
+-#define VM_DONTCOPY	0x00020000      /* Do not copy this vma on fork */
+-#define VM_DONTEXPAND	0x00040000	/* Cannot expand with mremap() */
+-#define VM_RESERVED	0x00080000	/* Count as reserved_vm like IO */
+-#define VM_ACCOUNT	0x00100000	/* Is a VM accounted object */
+-#define VM_NORESERVE	0x00200000	/* should the VM suppress accounting */
+-#define VM_HUGETLB	0x00400000	/* Huge TLB Page VM */
+-#define VM_NONLINEAR	0x00800000	/* Is non-linear (remap_file_pages) */
++#define VM_PFNMAP	__VMF(PFNMAP)	/* Page-ranges managed without "struct page", just pure PFN */
++#define VM_DENYWRITE	__VMF(DENYWRITE)/* ETXTBSY on write attempts.. */
++
++#define VM_EXECUTABLE	__VMF(EXECUTABLE)
++#define VM_LOCKED	__VMF(LOCKED)
++#define VM_IO		__VMF(IO)	/* Memory mapped I/O or similar */
++
++					  /* Used by sys_madvise() */
++#define VM_SEQ_READ	__VMF(SEQ_READ)	/* App will access data sequentially */
++#define VM_RAND_READ	__VMF(RAND_READ) /* App will not benefit from clustered reads */
++
++#define VM_DONTCOPY	__VMF(DONTCOPY)	/* Do not copy this vma on fork */
++#define VM_DONTEXPAND	__VMF(DONTEXPAND) /* Cannot expand with mremap() */
++#define VM_RESERVED	__VMF(RESERVED)	/* Count as reserved_vm like IO */
++#define VM_ACCOUNT	__VMF(ACCOUNT)	/* Is a VM accounted object */
++#define VM_NORESERVE	__VMF(NORESERVE) /* should the VM suppress accounting */
++#define VM_HUGETLB	__VMF(HUGETLB)	/* Huge TLB Page VM */
++#define VM_NONLINEAR	__VMF(NONLINEAR) /* Is non-linear (remap_file_pages) */
+ #ifndef CONFIG_TRANSPARENT_HUGEPAGE
+-#define VM_MAPPED_COPY	0x01000000	/* T if mapped copy of data (nommu mmap) */
++#define VM_MAPPED_COPY	__VMF(MAPPED_COPY) /* T if mapped copy of data (nommu mmap) */
+ #else
+-#define VM_HUGEPAGE	0x01000000	/* MADV_HUGEPAGE marked this vma */
++#define VM_HUGEPAGE	__VMF(HUGEPAGE)	/* MADV_HUGEPAGE marked this vma */
+ #endif
+-#define VM_INSERTPAGE	0x02000000	/* The vma has had "vm_insert_page()" done on it */
+-#define VM_NODUMP	0x04000000	/* Do not include in the core dump */
  
- 	if (file) {
-@@ -159,10 +160,11 @@ static int nommu_vma_show(struct seq_file *m, struct vm_area_struct *vma,
- 		   "%08lx-%08lx %c%c%c%c %08llx %02x:%02x %lu %n",
- 		   vma->vm_start,
- 		   vma->vm_end,
--		   flags & VM_READ ? 'r' : '-',
--		   flags & VM_WRITE ? 'w' : '-',
--		   flags & VM_EXEC ? 'x' : '-',
--		   flags & VM_MAYSHARE ? flags & VM_SHARED ? 'S' : 's' : 'p',
-+		   vm_flags & VM_READ ? 'r' : '-',
-+		   vm_flags & VM_WRITE ? 'w' : '-',
-+		   vm_flags & VM_EXEC ? 'x' : '-',
-+		   vm_flags & VM_MAYSHARE ?
-+			vm_flags & VM_SHARED ? 'S' : 's' : 'p',
- 		   pgoff,
- 		   MAJOR(dev), MINOR(dev), ino, &len);
+-#define VM_CAN_NONLINEAR 0x08000000	/* Has ->fault & does nonlinear pages */
+-#define VM_MIXEDMAP	0x10000000	/* Can contain "struct page" and pure PFN pages */
+-#define VM_SAO		0x20000000	/* Strong Access Ordering (powerpc) */
+-#define VM_PFN_AT_MMAP	0x40000000	/* PFNMAP vma that is fully mapped at mmap time */
+-#define VM_MERGEABLE	0x80000000	/* KSM may merge identical pages */
++#define VM_INSERTPAGE	__VMF(INSERTPAGE) /* The vma has had "vm_insert_page()" done on it */
++#define VM_NODUMP	__VMF(NODUMP)	/* Do not include in the core dump */
  
-diff --git a/mm/nommu.c b/mm/nommu.c
-index f59e170..33d0ab7 100644
---- a/mm/nommu.c
-+++ b/mm/nommu.c
-@@ -130,7 +130,7 @@ int __get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
- 		     int *retry)
- {
- 	struct vm_area_struct *vma;
--	unsigned long vm_flags;
-+	vm_flags_t vm_flags;
- 	int i;
+-#define __NR_VMA_FLAGS	32
++#define VM_CAN_NONLINEAR __VMF(CAN_NONLINEAR) /* Has ->fault & does nonlinear pages */
++#define VM_MIXEDMAP	__VMF(MIXEDMAP)	/* Can contain "struct page" and pure PFN pages */
++#define VM_SAO		__VMF(SAO)	/* Strong Access Ordering (powerpc) */
++#define VM_PFN_AT_MMAP	__VMF(PFN_AT_MMAP) /* PFNMAP vma that is fully mapped at mmap time */
++#define VM_MERGEABLE	__VMF(MERGEABLE) /* KSM may merge identical pages */
  
- 	/* calculate required read or write permissions.
-@@ -658,13 +658,13 @@ static void put_nommu_region(struct vm_region *region)
+ #ifndef __GENERATING_BOUNDS_H
+ 
+diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
+index d57e764..f14cc5e 100644
+--- a/include/linux/mm_types.h
++++ b/include/linux/mm_types.h
+@@ -172,9 +172,9 @@ struct page_frag {
+ };
+ 
+ #if (NR_VMA_FLAGS > 32)
+-typedef unsigned long long __nocast vm_flags_t;
++typedef unsigned long long __bitwise__ vm_flags_t;
+ #else
+-typedef unsigned long __nocast vm_flags_t;
++typedef unsigned long __bitwise__ vm_flags_t;
+ #endif
+ 
  /*
-  * update protection on a vma
-  */
--static void protect_vma(struct vm_area_struct *vma, unsigned long flags)
-+static void protect_vma(struct vm_area_struct *vma, vm_flags_t vm_flags)
- {
- #ifdef CONFIG_MPU
- 	struct mm_struct *mm = vma->vm_mm;
- 	long start = vma->vm_start & PAGE_MASK;
- 	while (start < vma->vm_end) {
--		protect_page(mm, start, flags);
-+		protect_page(mm, start, vm_flags);
- 		start += PAGE_SIZE;
- 	}
- 	update_protections(mm);
-@@ -1060,12 +1060,12 @@ static int validate_mmap_request(struct file *file,
-  * we've determined that we can make the mapping, now translate what we
-  * now know into VMA flags
-  */
--static unsigned long determine_vm_flags(struct file *file,
--					unsigned long prot,
--					unsigned long flags,
--					unsigned long capabilities)
-+static vm_flags_t determine_vm_flags(struct file *file,
-+				     unsigned long prot,
-+				     unsigned long flags,
-+				     unsigned long capabilities)
- {
--	unsigned long vm_flags;
-+	vm_flags_t vm_flags;
- 
- 	vm_flags = calc_vm_prot_bits(prot) | calc_vm_flag_bits(flags);
- 	/* vm_flags |= mm->def_flags; */
-@@ -1243,7 +1243,8 @@ unsigned long do_mmap_pgoff(struct file *file,
- 	struct vm_area_struct *vma;
- 	struct vm_region *region;
- 	struct rb_node *rb;
--	unsigned long capabilities, vm_flags, result;
-+	unsigned long capabilities, result;
-+	vm_flags_t vm_flags;
- 	int ret;
- 
- 	kenter(",%lx,%lx,%lx,%lx,%lx", addr, len, prot, flags, pgoff);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
