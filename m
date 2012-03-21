@@ -1,93 +1,112 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx191.postini.com [74.125.245.191])
-	by kanga.kvack.org (Postfix) with SMTP id 5F5396B0044
-	for <linux-mm@kvack.org>; Tue, 20 Mar 2012 20:49:16 -0400 (EDT)
-Received: from m2.gw.fujitsu.co.jp (unknown [10.0.50.72])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 719773EE0BD
-	for <linux-mm@kvack.org>; Wed, 21 Mar 2012 09:49:14 +0900 (JST)
-Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 56D6945DD74
-	for <linux-mm@kvack.org>; Wed, 21 Mar 2012 09:49:14 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 3C3BF45DE4E
-	for <linux-mm@kvack.org>; Wed, 21 Mar 2012 09:49:14 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 2D39C1DB8044
-	for <linux-mm@kvack.org>; Wed, 21 Mar 2012 09:49:14 +0900 (JST)
-Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.240.81.134])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id D380F1DB803A
-	for <linux-mm@kvack.org>; Wed, 21 Mar 2012 09:49:13 +0900 (JST)
-Message-ID: <4F692521.8010607@jp.fujitsu.com>
-Date: Wed, 21 Mar 2012 09:47:29 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Received: from psmtp.com (na3sys010amx108.postini.com [74.125.245.108])
+	by kanga.kvack.org (Postfix) with SMTP id 587B06B0044
+	for <linux-mm@kvack.org>; Tue, 20 Mar 2012 21:01:09 -0400 (EDT)
+Date: Wed, 21 Mar 2012 02:00:12 +0100
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [RFC] AutoNUMA alpha6
+Message-ID: <20120321010012.GO24602@redhat.com>
+References: <20120316144028.036474157@chello.nl>
+ <20120316182511.GJ24602@redhat.com>
+ <87k42edenh.fsf@danplanet.com>
 MIME-Version: 1.0
-Subject: Re: [RFC][PATCH 2/3] memcg: reduce size of struct page_cgroup.
-References: <4F66E6A5.10804@jp.fujitsu.com> <4F66E7D7.4040406@jp.fujitsu.com> <CABCjUKAr+F=Pz-JCWfjGfyL4AcHt6m97p13=0VdwjeVm5SKW7w@mail.gmail.com>
-In-Reply-To: <CABCjUKAr+F=Pz-JCWfjGfyL4AcHt6m97p13=0VdwjeVm5SKW7w@mail.gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <87k42edenh.fsf@danplanet.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Suleiman Souhlal <suleiman@google.com>
-Cc: linux-mm@kvack.org, cgroups@vger.kernel.org, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Hugh Dickins <hughd@google.com>, Han Ying <yinghan@google.com>, Glauber Costa <glommer@parallels.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, n-horiguchi@ah.jp.nec.com, khlebnikov@openvz.org, Tejun Heo <tj@kernel.org>
+To: Dan Smith <danms@us.ibm.com>
+Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>, Paul Turner <pjt@google.com>, Suresh Siddha <suresh.b.siddha@intel.com>, Mike Galbraith <efault@gmx.de>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Bharata B Rao <bharata.rao@gmail.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-(2012/03/20 7:20), Suleiman Souhlal wrote:
-
-> 2012/3/19 KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>:
->> Now, page_cgroup->flags has only 3bits. Considering alignment of
->> struct mem_cgroup, which is allocated by kmalloc(), we can encode
->> pointer to mem_cgroup and flags into a word.
->>
->> After this patch, pc->flags is encoded as
->>
->>  63                           2     0
->>  | pointer to memcg..........|flags|
->>
->> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
->> ---
->>  include/linux/page_cgroup.h |   15 ++++++++++++---
->>  1 files changed, 12 insertions(+), 3 deletions(-)
->>
->> diff --git a/include/linux/page_cgroup.h b/include/linux/page_cgroup.h
->> index 92768cb..bca5447 100644
->> --- a/include/linux/page_cgroup.h
->> +++ b/include/linux/page_cgroup.h
->> @@ -1,6 +1,10 @@
->>  #ifndef __LINUX_PAGE_CGROUP_H
->>  #define __LINUX_PAGE_CGROUP_H
->>
->> +/*
->> + * Because these flags are encoded into ->flags with a pointer,
->> + * we cannot have too much flags.
->> + */
->>  enum {
->>        /* flags for mem_cgroup */
->>        PCG_LOCK,  /* Lock for pc->mem_cgroup and following bits. */
->> @@ -9,6 +13,8 @@ enum {
->>        __NR_PCG_FLAGS,
->>  };
->>
->> +#define PCG_FLAGS_MASK ((1 << __NR_PCG_FLAGS) - 1)
->> +
->>  #ifndef __GENERATING_BOUNDS_H
->>  #include <generated/bounds.h>
->>
->> @@ -21,10 +27,12 @@ enum {
->>  * page_cgroup helps us identify information about the cgroup
->>  * All page cgroups are allocated at boot or memory hotplug event,
->>  * then the page cgroup for pfn always exists.
->> + *
->> + * flags and a pointer to memory cgroup are encoded into ->flags.
->> + * Lower 3bits are used for flags and others are used for a pointer to memcg.
+On Tue, Mar 20, 2012 at 04:41:06PM -0700, Dan Smith wrote:
+> AA> Could you try my two trivial benchmarks I sent on lkml too?
 > 
-> Would it be worth adding a BUILD_BUG_ON(__NR_PCG_FLAGS > 3) ?
+> I just got around to running your numa01 test on mainline, autonuma, and
+> numasched.  This is on a 2-socket, 6-cores-per-socket,
+> 2-threads-per-core machine, with your test configured to run 24
+> threads. I also ran Peter's modified stream_d on all three as well, with
+> 24 instances in parallel. I know it's already been pointed out that it's
+> not the ideal or end-all benchmark, but I figured it was still
+> worthwhile to see if the trend continued.
 > 
+> On your numa01 test:
+> 
+>   Autonuma is 22% faster than mainline
+>   Numasched is 42% faster than mainline
 
+Can you please disable THP for the benchmarks? Until native THP
+migration is available that tends to skews the results because the
+migrated memory is not backed by THP.
 
-Ok, I'll add that.
+Or if you prefer not to disable THP, just set
+khugepaged/scan_sleep_millisecs to 10.
 
-Thanks,
--Kame
+Can you also build it with?
+
+gcc -DNO_BIND_FORCE_SAME_NODE -O2 -o numa01 kernel/proggy/numa01.c -lnuma -lpthread
+
+If you can run numa02 as well (no special -D flags there), that would
+be interesting.
+
+You could report the results of -DHARD_BIND and -DINVERSE_BIND too as
+a sanity check.
+
+My raw numbers are:
+
+numa01 -DNO_BIND_FORCE_SAME_NODE (12 thread per process, 2 process)
+thread uses shared memory
+
+upstream 3.2	bind	reverse bind	autonuma
+305.36	        196.07	378.34	        207.47
+
+What's the percentage if you calculate the same way you did on your
+numbers?
+
+(I don't know how you calculated it)
+
+Maybe it was the lack of get -DDNO_BIND_FORCE_SAME_NODE that reduced
+the difference but it shouldn't have been so different. Maybe it was a
+THP effect dunno.
+
+> On Peter's modified stream_d test:
+> 
+>   Autonuma is 35% *slower* than mainline
+>   Numasched is 55% faster than mainline
+
+Is the modified stream_d posted somewhere? I missed it. How long it
+takes to run? What's the measurement error of it? On my tests the
+measurement error is within 2%.
+
+In the meantime I've more benchmark data too (including a worst case
+kernel build benchmark with autonuma on and off with THP on) and
+specjbb (with THP on).
+
+You can jump to slide 8 if you already read the previous pdf:
+
+http://www.kernel.org/pub/linux/kernel/people/andrea/autonuma/autonuma_bench-20120321.pdf
+
+If numbers like above will be be confirmed across the board including
+specjbb and pretty much everything I'll happily "rm -r autonuma"
+:). For now your numa01 numbers are so out of sync with mine that I
+wouldn't take too many conclusions from them, I'm so close to the hard
+bindings already in numa01 that there's no way anything else can
+perform 20% faster than AutoNUMA.
+
+The numbers in slide 10 of the pdf were provided to me by a
+professional, I didn't measure it myself.
+
+And about measurement errors: numa01 is 100% reproducible here, I run
+it in a loop for months and not a single time it deviates more than
+10sec from the average.
+
+About stream_d, the only chance for autonuma to underperform like -35%
+is if you get massive amount of migration going to the wrong place in
+a trashing way. I never seen it happening here since I run these
+algorithms, but hopefully fixable if that really has happened... So
+I'm very interested to gain access to the source of modified stream_d.
+
+Enjoy,
+Andrea
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
