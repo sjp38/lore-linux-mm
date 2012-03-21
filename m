@@ -1,161 +1,95 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx142.postini.com [74.125.245.142])
-	by kanga.kvack.org (Postfix) with SMTP id 9963F6B0100
-	for <linux-mm@kvack.org>; Wed, 21 Mar 2012 03:20:25 -0400 (EDT)
-Received: by bkwq16 with SMTP id q16so887189bkw.14
-        for <linux-mm@kvack.org>; Wed, 21 Mar 2012 00:20:23 -0700 (PDT)
-Message-ID: <4F698134.9010104@openvz.org>
-Date: Wed, 21 Mar 2012 11:20:20 +0400
-From: Konstantin Khlebnikov <khlebnikov@openvz.org>
+Received: from psmtp.com (na3sys010amx147.postini.com [74.125.245.147])
+	by kanga.kvack.org (Postfix) with SMTP id 6D5B96B00ED
+	for <linux-mm@kvack.org>; Wed, 21 Mar 2012 03:53:54 -0400 (EDT)
+Received: by wibhq7 with SMTP id hq7so4968100wib.8
+        for <linux-mm@kvack.org>; Wed, 21 Mar 2012 00:53:52 -0700 (PDT)
+Date: Wed, 21 Mar 2012 08:53:49 +0100
+From: Ingo Molnar <mingo@kernel.org>
+Subject: Re: [RFC] AutoNUMA alpha6
+Message-ID: <20120321075349.GB24997@gmail.com>
+References: <20120316144028.036474157@chello.nl>
+ <20120316182511.GJ24602@redhat.com>
+ <87k42edenh.fsf@danplanet.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 04/16] mm/nommu: use vm_flags_t for vma flags
-References: <20120321065140.13852.52315.stgit@zurg> <20120321065629.13852.5630.stgit@zurg> <4F697E7E.6090301@snapgear.com>
-In-Reply-To: <4F697E7E.6090301@snapgear.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <87k42edenh.fsf@danplanet.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Greg Ungerer <gerg@snapgear.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, David Howells <dhowells@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Greg Ungerer <gerg@uclinux.org>
+To: Dan Smith <danms@us.ibm.com>
+Cc: Andrea Arcangeli <aarcange@redhat.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>, Paul Turner <pjt@google.com>, Suresh Siddha <suresh.b.siddha@intel.com>, Mike Galbraith <efault@gmx.de>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Bharata B Rao <bharata.rao@gmail.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-Greg Ungerer wrote:
->
-> Hi Konstantin,
->
-> On 21/03/12 16:56, Konstantin Khlebnikov wrote:
->> Signed-off-by: Konstantin Khlebnikov<khlebnikov@openvz.org>
->> Cc: David Howells<dhowells@redhat.com>
->> Cc: Greg Ungerer<gerg@uclinux.org>
->> ---
->>    fs/proc/nommu.c      |    3 ++-
->>    fs/proc/task_nommu.c |   14 ++++++++------
->>    mm/nommu.c           |   19 ++++++++++---------
->>    3 files changed, 20 insertions(+), 16 deletions(-)
->>
->> diff --git a/fs/proc/nommu.c b/fs/proc/nommu.c
->> index b1822dd..cadc798 100644
->> --- a/fs/proc/nommu.c
->> +++ b/fs/proc/nommu.c
->> @@ -39,7 +39,8 @@ static int nommu_region_show(struct seq_file *m, struct vm_region *region)
->>    	unsigned long ino = 0;
->>    	struct file *file;
->>    	dev_t dev = 0;
->> -	int flags, len;
->> +	int len;
->> +	vm_flags_t vm_flags;
->>
->>    	flags = region->vm_flags;
->           ^^^^^
-> I think you want vm_flags here right?
-> There is other uses of "flags" in this function as well.
 
-Right, I missed this.
+* Dan Smith <danms@us.ibm.com> wrote:
 
-Sorry for my cheating, I didn't check compiling for all possible targets =)
+> On your numa01 test:
+> 
+>   Autonuma is 22% faster than mainline
+>   Numasched is 42% faster than mainline
+> 
+> On Peter's modified stream_d test:
+> 
+>   Autonuma is 35% *slower* than mainline
+>   Numasched is 55% faster than mainline
+> 
+> I know that the "real" performance guys here are going to be 
+> posting some numbers from more interesting benchmarks soon, 
+> but since nobody had answered Andrea's question, I figured I'd 
+> do it.
 
->
-> Regards
-> Greg
->
->
->>    	file = region->vm_file;
->> diff --git a/fs/proc/task_nommu.c b/fs/proc/task_nommu.c
->> index 8aaba8c..9abbc66 100644
->> --- a/fs/proc/task_nommu.c
->> +++ b/fs/proc/task_nommu.c
->> @@ -142,10 +142,11 @@ static int nommu_vma_show(struct seq_file *m, struct vm_area_struct *vma,
->>    	unsigned long ino = 0;
->>    	struct file *file;
->>    	dev_t dev = 0;
->> -	int flags, len;
->> +	int len;
->> +	vm_flags_t vm_flags;
->>    	unsigned long long pgoff = 0;
->>
->> -	flags = vma->vm_flags;
->> +	vm_flags = vma->vm_flags;
->>    	file = vma->vm_file;
->>
->>    	if (file) {
->> @@ -159,10 +160,11 @@ static int nommu_vma_show(struct seq_file *m, struct vm_area_struct *vma,
->>    		   "%08lx-%08lx %c%c%c%c %08llx %02x:%02x %lu %n",
->>    		   vma->vm_start,
->>    		   vma->vm_end,
->> -		   flags&   VM_READ ? 'r' : '-',
->> -		   flags&   VM_WRITE ? 'w' : '-',
->> -		   flags&   VM_EXEC ? 'x' : '-',
->> -		   flags&   VM_MAYSHARE ? flags&   VM_SHARED ? 'S' : 's' : 'p',
->> +		   vm_flags&   VM_READ ? 'r' : '-',
->> +		   vm_flags&   VM_WRITE ? 'w' : '-',
->> +		   vm_flags&   VM_EXEC ? 'x' : '-',
->> +		   vm_flags&   VM_MAYSHARE ?
->> +			vm_flags&   VM_SHARED ? 'S' : 's' : 'p',
->>    		   pgoff,
->>    		   MAJOR(dev), MINOR(dev), ino,&len);
->>
->> diff --git a/mm/nommu.c b/mm/nommu.c
->> index f59e170..33d0ab7 100644
->> --- a/mm/nommu.c
->> +++ b/mm/nommu.c
->> @@ -130,7 +130,7 @@ int __get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
->>    		     int *retry)
->>    {
->>    	struct vm_area_struct *vma;
->> -	unsigned long vm_flags;
->> +	vm_flags_t vm_flags;
->>    	int i;
->>
->>    	/* calculate required read or write permissions.
->> @@ -658,13 +658,13 @@ static void put_nommu_region(struct vm_region *region)
->>    /*
->>     * update protection on a vma
->>     */
->> -static void protect_vma(struct vm_area_struct *vma, unsigned long flags)
->> +static void protect_vma(struct vm_area_struct *vma, vm_flags_t vm_flags)
->>    {
->>    #ifdef CONFIG_MPU
->>    	struct mm_struct *mm = vma->vm_mm;
->>    	long start = vma->vm_start&   PAGE_MASK;
->>    	while (start<   vma->vm_end) {
->> -		protect_page(mm, start, flags);
->> +		protect_page(mm, start, vm_flags);
->>    		start += PAGE_SIZE;
->>    	}
->>    	update_protections(mm);
->> @@ -1060,12 +1060,12 @@ static int validate_mmap_request(struct file *file,
->>     * we've determined that we can make the mapping, now translate what we
->>     * now know into VMA flags
->>     */
->> -static unsigned long determine_vm_flags(struct file *file,
->> -					unsigned long prot,
->> -					unsigned long flags,
->> -					unsigned long capabilities)
->> +static vm_flags_t determine_vm_flags(struct file *file,
->> +				     unsigned long prot,
->> +				     unsigned long flags,
->> +				     unsigned long capabilities)
->>    {
->> -	unsigned long vm_flags;
->> +	vm_flags_t vm_flags;
->>
->>    	vm_flags = calc_vm_prot_bits(prot) | calc_vm_flag_bits(flags);
->>    	/* vm_flags |= mm->def_flags; */
->> @@ -1243,7 +1243,8 @@ unsigned long do_mmap_pgoff(struct file *file,
->>    	struct vm_area_struct *vma;
->>    	struct vm_region *region;
->>    	struct rb_node *rb;
->> -	unsigned long capabilities, vm_flags, result;
->> +	unsigned long capabilities, result;
->> +	vm_flags_t vm_flags;
->>    	int ret;
->>
->>    	kenter(",%lx,%lx,%lx,%lx,%lx", addr, len, prot, flags, pgoff);
->>
->>
->>
->>
->
->
+It would also be nice to find and run *real* HPC workloads that 
+were not written by Andrea or Peter and which computes something 
+non-trivial and real - and then compare the various methods.
+
+Ideally we'd like to measure the two conceptual working set 
+corner cases:
+
+  - global working set HPC with a large shared working set:
+
+      - Many types of Monte-Carlo optimizations tend to be
+        like this - they have a large shared time series and
+        threads compute on those with comparatively little
+        private state.
+
+      - 3D rendering with physical modelling: a large, complex
+        3D scene set with private worker threads. (much of this 
+        tends to be done in GPUs these days though.)
+
+  - private working set HPC with little shared/global working 
+    set and lots of per process/thread private memory 
+    allocations:
+
+      - Quantum chemistry optimization runs tend to be like this
+        with their often gigabytes large matrices.
+
+      - Gas, fluid, solid state and gravitational particle
+        simulations - most ab initio methods tend to have very
+        little global shared state, each thread iterates its own
+        version of the universe.
+
+      - More complex runs of ray tracing as well IIRC.
+
+My impression is that while threading is on the rise due to its 
+ease of use, many threaded HPC workloads still fall into the 
+second category.
+
+In fact they are often explicitly *turned* into the second 
+category at the application level by duplicating shared global 
+data explicitly and turning it into per thread local data.
+
+So we need to cover these major HPC usecases - we won't merge 
+any of this based on just synthetic benchmarks.
+
+And to default-enable any of this on stock kernels we'd need to 
+even more testing and widespread, feel-good speedups in almost 
+every key Linux workload... I don't see that happening though, 
+so the best we can get are probably some easy and flexible knobs 
+for HPC.
+
+Thanks,
+
+	Ingo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
