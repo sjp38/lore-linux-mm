@@ -1,69 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx135.postini.com [74.125.245.135])
-	by kanga.kvack.org (Postfix) with SMTP id 640C96B0044
-	for <linux-mm@kvack.org>; Wed, 21 Mar 2012 19:26:13 -0400 (EDT)
-Received: by ggeq1 with SMTP id q1so1780603gge.14
-        for <linux-mm@kvack.org>; Wed, 21 Mar 2012 16:26:12 -0700 (PDT)
-Message-ID: <4F6A6391.1070105@gmail.com>
-Date: Wed, 21 Mar 2012 16:26:09 -0700
-From: David Daney <ddaney.cavm@gmail.com>
+Received: from psmtp.com (na3sys010amx105.postini.com [74.125.245.105])
+	by kanga.kvack.org (Postfix) with SMTP id 90C5D6B0044
+	for <linux-mm@kvack.org>; Wed, 21 Mar 2012 19:41:43 -0400 (EDT)
 MIME-Version: 1.0
-Subject: Re: [PATCH v4 2/3] thp: add HPAGE_PMD_* definitions for !CONFIG_TRANSPARENT_HUGEPAGE
-References: <1331591456-20769-1-git-send-email-n-horiguchi@ah.jp.nec.com>	<1331591456-20769-2-git-send-email-n-horiguchi@ah.jp.nec.com>	<CAP=VYLoGSckJH+2GytZN0V0P3Uuv-PiVneKbFsVb5kQa3kcTCQ@mail.gmail.com> <20120321151900.42234501.akpm@linux-foundation.org> <4F6A57D0.4020406@windriver.com>
-In-Reply-To: <4F6A57D0.4020406@windriver.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Message-ID: <cb50b439-1e5f-443e-9369-4f7c989d3565@default>
+Date: Wed, 21 Mar 2012 16:30:03 -0700 (PDT)
+From: Dan Magenheimer <dan.magenheimer@oracle.com>
+Subject: zcache preliminary benchmark results
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Paul Gortmaker <paul.gortmaker@windriver.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Andrea Arcangeli <aarcange@redhat.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Hillf Danton <dhillf@gmail.com>, David Rientjes <rientjes@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-next@vger.kernel.org
+To: linux-kernel@vger.kernel.org, linux-mm@kvack.org, James Bottomley <James.Bottomley@HansenPartnership.com>
+Cc: Nitin Gupta <ngupta@vflare.org>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Konrad Wilk <konrad.wilk@oracle.com>, riel@redhat.com, Chris Mason <chris.mason@oracle.com>, Akshay Karle <akshay.a.karle@gmail.com>, Andrea Arcangeli <aarcange@redhat.com>
 
-On 03/21/2012 03:36 PM, Paul Gortmaker wrote:
-> On 12-03-21 06:19 PM, Andrew Morton wrote:
->> On Wed, 21 Mar 2012 18:07:41 -0400
->> Paul Gortmaker<paul.gortmaker@windriver.com>  wrote:
->>
->>> On Mon, Mar 12, 2012 at 6:30 PM, Naoya Horiguchi
->>> <n-horiguchi@ah.jp.nec.com>  wrote:
->>>> These macros will be used in later patch, where all usage are expected
->>>> to be optimized away without #ifdef CONFIG_TRANSPARENT_HUGEPAGE.
->>>> But to detect unexpected usages, we convert existing BUG() to BUILD_BUG().
->>>
->>> Just a heads up that this showed up in linux-next today as the
->>> cause of a new build failure for an ARM board:
->>
->> Dammit.
->>
->>> http://kisskb.ellerman.id.au/kisskb/buildresult/5930053/
->>
->> Site is dead.  What was failure, please?
->
-> Odd, I just reloaded the above link and it seems alive?
-> Anyway here is where it goes off the rails.
->
-> mm/pgtable-generic.c: In function 'pmdp_clear_flush_young':
-> mm/pgtable-generic.c:76:136: error: call to '__build_bug_failed' declared with attribute error: BUILD_BUG failed
-> make[2]: *** [mm/pgtable-generic.o] Error 1
->
+Last November, in an LKML thread I would rather forget*, James
+Bottomley and others asked for some benchmarking to be done for
+zcache (among other things).  For various reasons, that benchmarking
+is just now getting underway and more will be done, but it might be
+useful to publish some interesting preliminary results now.
 
-This is just another instance of:
+Summary: On a kernel compile "make -jN" workload, with different
+values of N to test varying memory pressure, zcache
+shows no performance loss when memory pressure is low,
+and up to 31% performance improvement when memory pressure
+is moderate to high.  RAMster does even better.
 
-https://lkml.org/lkml/2011/12/16/507
+(Note that RAM is intentionally constrained to 1GB to force
+memory pressure for higher N in the workload.)
 
-There was some discussion in that thread of how it might be fixed.
+* thread summarized in LWN (http://lwn.net/Articles/465317/)
 
-David Daney
+=3D=3D=3D=3D=3D=3D=3D=3D=3D
 
+Benchmark results and description:
 
-> Build was for ARM, tct_hammer_defconfig
->
-> Paul.
-> --
-> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
-> Please read the FAQ at  http://www.tux.org/lkml/
->
+(all results in seconds so smaller is better)
+N=3D=09nozcache=09zcache=09faster by=09RAMster=09faster by
+4=09879=09=09877=09=090%=09=09887=09=09-1%
+8=09858=09=09856=09=090%=09=09866=09=09-1%
+12=09858=09=09856=09=090%=09=09875=09=09-2%
+16=091009=09=09922=09=099%=09=09949=09=096%
+20=091316=09=091154=09=0914%=09=091162=09=0913%
+24=092164=09=091714=09=0926%=09=091788=09=0921%
+28=093293=09=092500=09=0931%=09=092177=09=0951%
+32=094286=09=094282=09=090%=09=093599=09=0919%
+36=096516=09=096602=09=09-1%=09=095394=09=0922%
+40=09DNC=09=0913755=09=09=09=098172=09=0968% (over zcache)
+
+DNC=3Ddid not complete: stopped after 5 hours =3D 18000
+
+Workload:
+=09kernel compile "make -jN" with varying N
+=09measurements in elapsed seconds
+=09boot kernel: 3.2 + frontswap/ramster commits
+=09Oracle Linux 6 distro with ext4
+=09fresh reboot for each test run
+=09all tests run as root in multi-user mode
+
+Hardware:
+=09Dell Optiplex 790 =3D ~$500 (two used for RAMster)
+=09Intel Core i5-2400 @ 3.10 GHz, 4coreX2thread, 6M cache
+=091GB RAM DDR3 1333Mhz (for RAMster, other server has 8GB)
+=09One 7200rpm SATA 6.0Gb/s drive with 8MB cache
+=0910GB swap partition
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
