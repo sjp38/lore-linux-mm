@@ -1,13 +1,13 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from psmtp.com (na3sys010amx163.postini.com [74.125.245.163])
-	by kanga.kvack.org (Postfix) with SMTP id 9C61E6B00F0
-	for <linux-mm@kvack.org>; Wed, 21 Mar 2012 02:56:57 -0400 (EDT)
+	by kanga.kvack.org (Postfix) with SMTP id A99316B007E
+	for <linux-mm@kvack.org>; Wed, 21 Mar 2012 02:57:01 -0400 (EDT)
 Received: by mail-bk0-f41.google.com with SMTP id q16so872729bkw.14
-        for <linux-mm@kvack.org>; Tue, 20 Mar 2012 23:56:57 -0700 (PDT)
-Subject: [PATCH 10/16] mm/powerpc: use vm_flags_t for vma flags
+        for <linux-mm@kvack.org>; Tue, 20 Mar 2012 23:57:01 -0700 (PDT)
+Subject: [PATCH 11/16] mm/s390: use vm_flags_t for vma flags
 From: Konstantin Khlebnikov <khlebnikov@openvz.org>
-Date: Wed, 21 Mar 2012 10:56:54 +0400
-Message-ID: <20120321065653.13852.20099.stgit@zurg>
+Date: Wed, 21 Mar 2012 10:56:58 +0400
+Message-ID: <20120321065658.13852.52636.stgit@zurg>
 In-Reply-To: <20120321065140.13852.52315.stgit@zurg>
 References: <20120321065140.13852.52315.stgit@zurg>
 MIME-Version: 1.0
@@ -16,29 +16,50 @@ Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org, Paul Mackerras <paulus@samba.org>, linux-kernel@vger.kernel.org, Benjamin Herrenschmidt <benh@kernel.crashing.org>
+Cc: linux-s390@vger.kernel.org, Heiko Carstens <heiko.carstens@de.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Martin Schwidefsky <schwidefsky@de.ibm.com>, linux390@de.ibm.com
 
 Signed-off-by: Konstantin Khlebnikov <khlebnikov@openvz.org>
-Cc: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-Cc: Paul Mackerras <paulus@samba.org>
-Cc: linuxppc-dev@lists.ozlabs.org
+Cc: Martin Schwidefsky <schwidefsky@de.ibm.com>
+Cc: Heiko Carstens <heiko.carstens@de.ibm.com>
+Cc: linux390@de.ibm.com
+Cc: linux-s390@vger.kernel.org
 ---
- arch/powerpc/include/asm/mman.h |    2 +-
- 1 files changed, 1 insertions(+), 1 deletions(-)
+ arch/s390/mm/fault.c |    8 +++++---
+ 1 files changed, 5 insertions(+), 3 deletions(-)
 
-diff --git a/arch/powerpc/include/asm/mman.h b/arch/powerpc/include/asm/mman.h
-index d4a7f64..451de1c 100644
---- a/arch/powerpc/include/asm/mman.h
-+++ b/arch/powerpc/include/asm/mman.h
-@@ -44,7 +44,7 @@ static inline unsigned long arch_calc_vm_prot_bits(unsigned long prot)
- }
- #define arch_calc_vm_prot_bits(prot) arch_calc_vm_prot_bits(prot)
- 
--static inline pgprot_t arch_vm_get_page_prot(unsigned long vm_flags)
-+static inline pgprot_t arch_vm_get_page_prot(vm_flags_t vm_flags)
+diff --git a/arch/s390/mm/fault.c b/arch/s390/mm/fault.c
+index b17c42d..f8909e5 100644
+--- a/arch/s390/mm/fault.c
++++ b/arch/s390/mm/fault.c
+@@ -260,7 +260,7 @@ static noinline void do_fault_error(struct pt_regs *regs, int fault)
+  *   11       Page translation     ->  Not present       (nullification)
+  *   3b       Region third trans.  ->  Not present       (nullification)
+  */
+-static inline int do_exception(struct pt_regs *regs, int access)
++static inline int do_exception(struct pt_regs *regs, vm_flags_t access)
  {
- 	return (vm_flags & VM_SAO) ? __pgprot(_PAGE_SAO) : __pgprot(0);
- }
+ 	struct task_struct *tsk;
+ 	struct mm_struct *mm;
+@@ -399,7 +399,8 @@ void __kprobes do_protection_exception(struct pt_regs *regs)
+ 
+ void __kprobes do_dat_exception(struct pt_regs *regs)
+ {
+-	int access, fault;
++	int fault;
++	vm_flags_t access;
+ 
+ 	access = VM_READ | VM_EXEC | VM_WRITE;
+ 	fault = do_exception(regs, access);
+@@ -441,7 +442,8 @@ no_context:
+ int __handle_fault(unsigned long uaddr, unsigned long pgm_int_code, int write)
+ {
+ 	struct pt_regs regs;
+-	int access, fault;
++	int fault;
++	vm_flags_t access;
+ 
+ 	regs.psw.mask = psw_kernel_bits | PSW_MASK_DAT | PSW_MASK_MCHECK;
+ 	if (!irqs_disabled())
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
