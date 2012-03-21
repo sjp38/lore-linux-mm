@@ -1,114 +1,119 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from psmtp.com (na3sys010amx163.postini.com [74.125.245.163])
-	by kanga.kvack.org (Postfix) with SMTP id 4E87E6B004A
-	for <linux-mm@kvack.org>; Wed, 21 Mar 2012 02:56:17 -0400 (EDT)
-Received: by bkwq16 with SMTP id q16so872729bkw.14
-        for <linux-mm@kvack.org>; Tue, 20 Mar 2012 23:56:15 -0700 (PDT)
-Subject: [PATCH 00/16] mm: prepare for converting vm->vm_flags to 64-bit
+	by kanga.kvack.org (Postfix) with SMTP id 80E876B004D
+	for <linux-mm@kvack.org>; Wed, 21 Mar 2012 02:56:20 -0400 (EDT)
+Received: by mail-bk0-f41.google.com with SMTP id q16so872729bkw.14
+        for <linux-mm@kvack.org>; Tue, 20 Mar 2012 23:56:20 -0700 (PDT)
+Subject: [PATCH 01/16] mm: introduce NR_VMA_FLAGS
 From: Konstantin Khlebnikov <khlebnikov@openvz.org>
-Date: Wed, 21 Mar 2012 10:56:07 +0400
-Message-ID: <20120321065140.13852.52315.stgit@zurg>
+Date: Wed, 21 Mar 2012 10:56:16 +0400
+Message-ID: <20120321065616.13852.56502.stgit@zurg>
+In-Reply-To: <20120321065140.13852.52315.stgit@zurg>
+References: <20120321065140.13852.52315.stgit@zurg>
 MIME-Version: 1.0
 Content-Type: text/plain; charset="utf-8"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: linux-mm@kvack.org, Hugh Dickins <hughd@google.com>, linux-kernel@vger.kernel.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>
 
-There is good old tradition: every year somebody submit patches for extending
-vma->vm_flags upto 64-bits, because there no free bits left on 32-bit systems.
+This patch adds NR_VMA_FLAGS constant into generated/bounds.h
+and switch type of vm_flags_t depending on it.
 
-previous attempts:
-https://lkml.org/lkml/2011/4/12/24	(KOSAKI Motohiro)
-https://lkml.org/lkml/2010/4/27/23	(Benjamin Herrenschmidt)
-https://lkml.org/lkml/2009/10/1/202	(Hugh Dickins)
-
-Here already exist special type for this: vm_flags_t, but not all code uses it.
-So, before switching vm_flags_t from unsinged long to u64 we must spread
-vm_flags_t everywhere and fix all possible type-casting problems.
-
-There is no functional changes in this patch set,
-it only prepares code for vma->vm_flags converting.
-
+Signed-off-by: Konstantin Khlebnikov <khlebnikov@openvz.org>
+Cc: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: Hugh Dickins <hughd@google.com>
 ---
+ include/linux/mm.h       |    8 ++++++++
+ include/linux/mm_types.h |    5 +++++
+ kernel/bounds.c          |    2 ++
+ 3 files changed, 15 insertions(+), 0 deletions(-)
 
-Konstantin Khlebnikov (16):
-      mm: introduce NR_VMA_FLAGS
-      mm: use vm_flags_t for vma flags
-      mm/shmem: use vm_flags_t for vma flags
-      mm/nommu: use vm_flags_t for vma flags
-      mm/drivers: use vm_flags_t for vma flags
-      mm/x86: use vm_flags_t for vma flags
-      mm/arm: use vm_flags_t for vma flags
-      mm/unicore32: use vm_flags_t for vma flags
-      mm/ia64: use vm_flags_t for vma flags
-      mm/powerpc: use vm_flags_t for vma flags
-      mm/s390: use vm_flags_t for vma flags
-      mm/mips: use vm_flags_t for vma flags
-      mm/parisc: use vm_flags_t for vma flags
-      mm/score: use vm_flags_t for vma flags
-      mm: cast vm_flags_t to u64 before printing
-      mm: vm_flags_t strict type checking
-
-
- arch/arm/include/asm/cacheflush.h                |    5 -
- arch/arm/kernel/asm-offsets.c                    |    6 +
- arch/arm/mm/fault.c                              |    2 
- arch/ia64/mm/fault.c                             |    9 +
- arch/mips/mm/c-r3k.c                             |    2 
- arch/mips/mm/c-r4k.c                             |    6 -
- arch/mips/mm/c-tx39.c                            |    2 
- arch/parisc/mm/fault.c                           |    4 -
- arch/powerpc/include/asm/mman.h                  |    2 
- arch/s390/mm/fault.c                             |    8 +
- arch/score/mm/cache.c                            |    6 -
- arch/sh/mm/tlbflush_64.c                         |    2 
- arch/unicore32/kernel/asm-offsets.c              |    6 +
- arch/unicore32/mm/fault.c                        |    2 
- arch/x86/mm/hugetlbpage.c                        |    4 -
- drivers/char/mem.c                               |    2 
- drivers/infiniband/hw/ipath/ipath_file_ops.c     |    6 +
- drivers/infiniband/hw/qib/qib_file_ops.c         |    6 +
- drivers/media/video/omap3isp/ispqueue.h          |    2 
- drivers/staging/android/ashmem.c                 |    2 
- drivers/staging/android/binder.c                 |   15 +-
- drivers/staging/tidspbridge/core/tiomap3430.c    |   13 +-
- drivers/staging/tidspbridge/rmgr/drv_interface.c |    4 -
- fs/binfmt_elf.c                                  |    2 
- fs/binfmt_elf_fdpic.c                            |   24 ++-
- fs/exec.c                                        |    2 
- fs/proc/nommu.c                                  |    3 
- fs/proc/task_nommu.c                             |   14 +-
- include/linux/backing-dev.h                      |    7 -
- include/linux/huge_mm.h                          |    4 -
- include/linux/ksm.h                              |    8 +
- include/linux/mm.h                               |  163 +++++++++++++++-------
- include/linux/mm_types.h                         |   11 +
- include/linux/mman.h                             |    4 -
- include/linux/rmap.h                             |    8 +
- include/linux/shmem_fs.h                         |    5 -
- kernel/bounds.c                                  |    2 
- kernel/events/core.c                             |    4 -
- kernel/fork.c                                    |    2 
- kernel/sys.c                                     |    4 -
- mm/backing-dev.c                                 |    4 +
- mm/huge_memory.c                                 |    2 
- mm/ksm.c                                         |    4 -
- mm/madvise.c                                     |    2 
- mm/memory.c                                      |    9 +
- mm/mlock.c                                       |    2 
- mm/mmap.c                                        |   36 ++---
- mm/mprotect.c                                    |    9 +
- mm/mremap.c                                      |    2 
- mm/nommu.c                                       |   19 +--
- mm/rmap.c                                        |   16 +-
- mm/shmem.c                                       |   54 ++++---
- mm/vmscan.c                                      |    4 -
- 53 files changed, 322 insertions(+), 224 deletions(-)
-
--- 
-Signature
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index 5b29b4f..69915a2 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -4,6 +4,7 @@
+ #include <linux/errno.h>
+ 
+ #ifdef __KERNEL__
++#ifndef __GENERATING_BOUNDS_H
+ 
+ #include <linux/gfp.h>
+ #include <linux/bug.h>
+@@ -67,6 +68,8 @@ extern struct rw_semaphore nommu_region_sem;
+ extern unsigned int kobjsize(const void *objp);
+ #endif
+ 
++#endif /* __GENERATING_BOUNDS_H */
++
+ /*
+  * vm_flags in vm_area_struct, see mm_types.h.
+  */
+@@ -120,6 +123,10 @@ extern unsigned int kobjsize(const void *objp);
+ #define VM_PFN_AT_MMAP	0x40000000	/* PFNMAP vma that is fully mapped at mmap time */
+ #define VM_MERGEABLE	0x80000000	/* KSM may merge identical pages */
+ 
++#define __NR_VMA_FLAGS	32
++
++#ifndef __GENERATING_BOUNDS_H
++
+ /* Bits set in the VMA until the stack is in its final location */
+ #define VM_STACK_INCOMPLETE_SETUP	(VM_RAND_READ | VM_SEQ_READ)
+ 
+@@ -1642,5 +1649,6 @@ static inline unsigned int debug_guardpage_minorder(void) { return 0; }
+ static inline bool page_is_guard(struct page *page) { return false; }
+ #endif /* CONFIG_DEBUG_PAGEALLOC */
+ 
++#endif /* __GENERATING_BOUNDS_H */
+ #endif /* __KERNEL__ */
+ #endif /* _LINUX_MM_H */
+diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
+index 76bbdaf..3aeb8f6 100644
+--- a/include/linux/mm_types.h
++++ b/include/linux/mm_types.h
+@@ -12,6 +12,7 @@
+ #include <linux/completion.h>
+ #include <linux/cpumask.h>
+ #include <linux/page-debug-flags.h>
++#include <generated/bounds.h>
+ #include <asm/page.h>
+ #include <asm/mmu.h>
+ 
+@@ -170,7 +171,11 @@ struct page_frag {
+ #endif
+ };
+ 
++#if (NR_VMA_FLAGS > 32)
++typedef unsigned long long __nocast vm_flags_t;
++#else
+ typedef unsigned long __nocast vm_flags_t;
++#endif
+ 
+ /*
+  * A region containing a mapping of a non-memory backed file under NOMMU
+diff --git a/kernel/bounds.c b/kernel/bounds.c
+index 0c9b862..6d2732f 100644
+--- a/kernel/bounds.c
++++ b/kernel/bounds.c
+@@ -7,6 +7,7 @@
+ #define __GENERATING_BOUNDS_H
+ /* Include headers that define the enum constants of interest */
+ #include <linux/page-flags.h>
++#include <linux/mm.h>
+ #include <linux/mmzone.h>
+ #include <linux/kbuild.h>
+ #include <linux/page_cgroup.h>
+@@ -15,6 +16,7 @@ void foo(void)
+ {
+ 	/* The enum constants to put into include/generated/bounds.h */
+ 	DEFINE(NR_PAGEFLAGS, __NR_PAGEFLAGS);
++	DEFINE(NR_VMA_FLAGS, __NR_VMA_FLAGS);
+ 	DEFINE(MAX_NR_ZONES, __MAX_NR_ZONES);
+ 	DEFINE(NR_PCG_FLAGS, __NR_PCG_FLAGS);
+ 	/* End of constants */
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
