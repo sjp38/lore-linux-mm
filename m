@@ -1,210 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx181.postini.com [74.125.245.181])
-	by kanga.kvack.org (Postfix) with SMTP id 982D26B004A
-	for <linux-mm@kvack.org>; Wed, 21 Mar 2012 08:12:07 -0400 (EDT)
-Received: by bkwq16 with SMTP id q16so1146447bkw.14
-        for <linux-mm@kvack.org>; Wed, 21 Mar 2012 05:12:05 -0700 (PDT)
-Subject: [PATCH v2 16/16] mm: vm_flags_t strict type checking
-From: Konstantin Khlebnikov <khlebnikov@openvz.org>
-Date: Wed, 21 Mar 2012 16:11:47 +0400
-Message-ID: <20120321121056.5944.98593.stgit@zurg>
-In-Reply-To: <20120321065718.13852.29789.stgit@zurg>
-References: <20120321065718.13852.29789.stgit@zurg>
+Received: from psmtp.com (na3sys010amx169.postini.com [74.125.245.169])
+	by kanga.kvack.org (Postfix) with SMTP id 338CA6B004A
+	for <linux-mm@kvack.org>; Wed, 21 Mar 2012 08:13:33 -0400 (EDT)
+Date: Wed, 21 Mar 2012 13:08:07 +0100
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [RFC] AutoNUMA alpha6
+Message-ID: <20120321120807.GV24602@redhat.com>
+References: <20120316144028.036474157@chello.nl>
+ <20120316182511.GJ24602@redhat.com>
+ <87k42edenh.fsf@danplanet.com>
+ <20120321021239.GQ24602@redhat.com>
+ <20120321071258.GA24997@gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20120321071258.GA24997@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, Hugh Dickins <hughd@google.com>, linux-kernel@vger.kernel.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>
+To: Ingo Molnar <mingo@kernel.org>
+Cc: Dan Smith <danms@us.ibm.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>, Paul Turner <pjt@google.com>, Suresh Siddha <suresh.b.siddha@intel.com>, Mike Galbraith <efault@gmx.de>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Bharata B Rao <bharata.rao@gmail.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-Now nobody uses VM_* constants in macro-expressions, so we can add type to them.
+On Wed, Mar 21, 2012 at 08:12:58AM +0100, Ingo Molnar wrote:
+> 
+> * Andrea Arcangeli <aarcange@redhat.com> wrote:
+> 
+> > [...]
+> > 
+> > So give me a break... you must have made a real mess in your 
+> > benchmarking. numasched is always doing worse than upstream 
+> > here, in fact two times massively worse. Almost as bad as the 
+> > inverse binds.
+> 
+> Andrea, please stop attacking the messenger.
 
-v2: resolve conflict with patch "coredump: add VM_NODUMP, MADV_NODUMP, MADV_CLEAR_NODUMP"
+I am simply informing him. Why should not inform him that the way he
+performed the benchmark wasn't the best way?
 
-Signed-off-by: Konstantin Khlebnikov <khlebnikov@openvz.org>
-Cc: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: Hugh Dickins <hughd@google.com>
----
- include/linux/mm.h       |  135 ++++++++++++++++++++++++++++++++--------------
- include/linux/mm_types.h |    4 +
- 2 files changed, 96 insertions(+), 43 deletions(-)
+I informed him because it wasn't entirely documented how to properly
+run by benchmark set. I would have expected people to read my pdf I
+posted 2 months ago already that explains it:
 
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index 4ff7bad..4aeb3f5 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -74,59 +74,112 @@ extern unsigned int kobjsize(const void *objp);
-  * vm_flags in vm_area_struct, see mm_types.h.
-  */
- 
--#define VM_NONE		0x00000000
-+enum {
-+	__VM_READ,
-+	__VM_WRITE,
-+	__VM_EXEC,
-+	__VM_SHARED,
-+
-+	__VM_MAYREAD,
-+	__VM_MAYWRITE,
-+	__VM_MAYEXEC,
-+	__VM_MAYSHARE,
-+
-+	__VM_GROWSDOWN,
-+#if defined(CONFIG_STACK_GROWSUP) || defined(CONFIG_IA64)
-+	__VM_GROWSUP,
-+#else
-+	__VM_NOHUGEPAGE,
-+#endif
-+	__VM_PFNMAP,
-+	__VM_DENYWRITE,
-+
-+	__VM_EXECUTABLE,
-+	__VM_LOCKED,
-+	__VM_IO,
-+	__VM_SEQ_READ,
-+
-+	__VM_RAND_READ,
-+	__VM_DONTCOPY,
-+	__VM_DONTEXPAND,
-+	__VM_RESERVED,
-+
-+	__VM_ACCOUNT,
-+	__VM_NORESERVE,
-+	__VM_HUGETLB,
-+	__VM_NONLINEAR,
-+
-+#ifndef CONFIG_TRANSPARENT_HUGEPAGE
-+	__VM_MAPPED_COPY,
-+#else
-+	__VM_HUGEPAGE,
-+#endif
-+	__VM_INSERTPAGE,
-+	__VM_NODUMP,
-+	__VM_CAN_NONLINEAR,
-+
-+	__VM_MIXEDMAP,
-+	__VM_SAO,
-+	__VM_PFN_AT_MMAP,
-+	__VM_MERGEABLE,
-+
-+	__NR_VMA_FLAGS
-+};
-+
-+#define VM_NONE		((__force vm_flags_t)0)
-+
-+#define __VMF(name)	((__force vm_flags_t)(1ull << (__VM_##name)))
- 
--#define VM_READ		0x00000001	/* currently active flags */
--#define VM_WRITE	0x00000002
--#define VM_EXEC		0x00000004
--#define VM_SHARED	0x00000008
-+#define VM_READ		__VMF(READ)	/* currently active flags */
-+#define VM_WRITE	__VMF(WRITE)
-+#define VM_EXEC		__VMF(EXEC)
-+#define VM_SHARED	__VMF(SHARED)
- 
- /* mprotect() hardcodes VM_MAYREAD >> 4 == VM_READ, and so for r/w/x bits. */
--#define VM_MAYREAD	0x00000010	/* limits for mprotect() etc */
--#define VM_MAYWRITE	0x00000020
--#define VM_MAYEXEC	0x00000040
--#define VM_MAYSHARE	0x00000080
-+#define VM_MAYREAD	__VMF(MAYREAD)	/* limits for mprotect() etc */
-+#define VM_MAYWRITE	__VMF(MAYWRITE)
-+#define VM_MAYEXEC	__VMF(MAYEXEC)
-+#define VM_MAYSHARE	__VMF(MAYSHARE)
- 
--#define VM_GROWSDOWN	0x00000100	/* general info on the segment */
-+#define VM_GROWSDOWN	__VMF(GROWSDOWN) /* general info on the segment */
- #if defined(CONFIG_STACK_GROWSUP) || defined(CONFIG_IA64)
--#define VM_GROWSUP	0x00000200
-+#define VM_GROWSUP	__VMF(GROWSUP)
- #else
--#define VM_GROWSUP	0x00000000
--#define VM_NOHUGEPAGE	0x00000200	/* MADV_NOHUGEPAGE marked this vma */
-+#define VM_GROWSUP	VM_NONE
-+#define VM_NOHUGEPAGE	__VMF(NOHUGEPAGE) /* MADV_NOHUGEPAGE marked this vma */
- #endif
--#define VM_PFNMAP	0x00000400	/* Page-ranges managed without "struct page", just pure PFN */
--#define VM_DENYWRITE	0x00000800	/* ETXTBSY on write attempts.. */
--
--#define VM_EXECUTABLE	0x00001000
--#define VM_LOCKED	0x00002000
--#define VM_IO           0x00004000	/* Memory mapped I/O or similar */
--
--					/* Used by sys_madvise() */
--#define VM_SEQ_READ	0x00008000	/* App will access data sequentially */
--#define VM_RAND_READ	0x00010000	/* App will not benefit from clustered reads */
--
--#define VM_DONTCOPY	0x00020000      /* Do not copy this vma on fork */
--#define VM_DONTEXPAND	0x00040000	/* Cannot expand with mremap() */
--#define VM_RESERVED	0x00080000	/* Count as reserved_vm like IO */
--#define VM_ACCOUNT	0x00100000	/* Is a VM accounted object */
--#define VM_NORESERVE	0x00200000	/* should the VM suppress accounting */
--#define VM_HUGETLB	0x00400000	/* Huge TLB Page VM */
--#define VM_NONLINEAR	0x00800000	/* Is non-linear (remap_file_pages) */
-+#define VM_PFNMAP	__VMF(PFNMAP)	/* Page-ranges managed without "struct page", just pure PFN */
-+#define VM_DENYWRITE	__VMF(DENYWRITE)/* ETXTBSY on write attempts.. */
-+
-+#define VM_EXECUTABLE	__VMF(EXECUTABLE)
-+#define VM_LOCKED	__VMF(LOCKED)
-+#define VM_IO		__VMF(IO)	/* Memory mapped I/O or similar */
-+
-+					  /* Used by sys_madvise() */
-+#define VM_SEQ_READ	__VMF(SEQ_READ)	/* App will access data sequentially */
-+#define VM_RAND_READ	__VMF(RAND_READ) /* App will not benefit from clustered reads */
-+
-+#define VM_DONTCOPY	__VMF(DONTCOPY)	/* Do not copy this vma on fork */
-+#define VM_DONTEXPAND	__VMF(DONTEXPAND) /* Cannot expand with mremap() */
-+#define VM_RESERVED	__VMF(RESERVED)	/* Count as reserved_vm like IO */
-+#define VM_ACCOUNT	__VMF(ACCOUNT)	/* Is a VM accounted object */
-+#define VM_NORESERVE	__VMF(NORESERVE) /* should the VM suppress accounting */
-+#define VM_HUGETLB	__VMF(HUGETLB)	/* Huge TLB Page VM */
-+#define VM_NONLINEAR	__VMF(NONLINEAR) /* Is non-linear (remap_file_pages) */
- #ifndef CONFIG_TRANSPARENT_HUGEPAGE
--#define VM_MAPPED_COPY	0x01000000	/* T if mapped copy of data (nommu mmap) */
-+#define VM_MAPPED_COPY	__VMF(MAPPED_COPY) /* T if mapped copy of data (nommu mmap) */
- #else
--#define VM_HUGEPAGE	0x01000000	/* MADV_HUGEPAGE marked this vma */
-+#define VM_HUGEPAGE	__VMF(HUGEPAGE)	/* MADV_HUGEPAGE marked this vma */
- #endif
--#define VM_INSERTPAGE	0x02000000	/* The vma has had "vm_insert_page()" done on it */
--#define VM_NODUMP	0x04000000	/* Do not include in the core dump */
- 
--#define VM_CAN_NONLINEAR 0x08000000	/* Has ->fault & does nonlinear pages */
--#define VM_MIXEDMAP	0x10000000	/* Can contain "struct page" and pure PFN pages */
--#define VM_SAO		0x20000000	/* Strong Access Ordering (powerpc) */
--#define VM_PFN_AT_MMAP	0x40000000	/* PFNMAP vma that is fully mapped at mmap time */
--#define VM_MERGEABLE	0x80000000	/* KSM may merge identical pages */
-+#define VM_INSERTPAGE	__VMF(INSERTPAGE) /* The vma has had "vm_insert_page()" done on it */
-+#define VM_NODUMP	__VMF(NODUMP)	/* Do not include in the core dump */
- 
--#define __NR_VMA_FLAGS	32
-+#define VM_CAN_NONLINEAR __VMF(CAN_NONLINEAR) /* Has ->fault & does nonlinear pages */
-+#define VM_MIXEDMAP	__VMF(MIXEDMAP)	/* Can contain "struct page" and pure PFN pages */
-+#define VM_SAO		__VMF(SAO)	/* Strong Access Ordering (powerpc) */
-+#define VM_PFN_AT_MMAP	__VMF(PFN_AT_MMAP) /* PFNMAP vma that is fully mapped at mmap time */
-+#define VM_MERGEABLE	__VMF(MERGEABLE) /* KSM may merge identical pages */
- 
- #ifndef __GENERATING_BOUNDS_H
- 
-diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
-index d57e764..f14cc5e 100644
---- a/include/linux/mm_types.h
-+++ b/include/linux/mm_types.h
-@@ -172,9 +172,9 @@ struct page_frag {
- };
- 
- #if (NR_VMA_FLAGS > 32)
--typedef unsigned long long __nocast vm_flags_t;
-+typedef unsigned long long __bitwise__ vm_flags_t;
- #else
--typedef unsigned long __nocast vm_flags_t;
-+typedef unsigned long __bitwise__ vm_flags_t;
- #endif
- 
- /*
+http://www.kernel.org/pub/linux/kernel/people/andrea/autonuma/
+http://www.kernel.org/pub/linux/kernel/people/andrea/autonuma/autonuma_bench-20120126.pdf
+
+Jump to page 7.
+
+Two modes:
+
+numa01 -DNO_BIND_FORCE_SAME_NODE
+numa01 -DTHREAD_ALLOC
+
+I recommend Dan to now as last thing repeat the numasched benchmark
+with the numa01 built was -DNO_BIND_FORCE_SAME_NODE.
+
+For me neither -DNO_BIND_FORCE_SAME_NODE nor DTHREAD_ALLOC nor numa02
+perform, in fact numa01 tends to hang and they never end.
+
+> We wanted and needed more testing, and I'm glad that we got it.
+
+Yes, I also posted the specjbb and I did a kernel build as measurement
+of the worst case overhead of the numa hinting page fault.
+
+You can see it here:
+
+http://www.kernel.org/pub/linux/kernel/people/andrea/autonuma/autonuma_bench-20120321.pdf
+
+> Can we please figure out all the details *without* accusing 
+> anyone of having made a mess? It is quite possible as well that 
+> *you* made a mess of it somewhere, either at the conceptual 
+> stage or at the implementational stage, right?
+
+I didn't make a mess. I also repeated without lockdep still same
+thing, in fact now it never ends. I'll have to reboot a few more times
+to see if I can get at least some number out.
+
+Maybe it takes -DNO_BIND_FORCE_SAME_NODE to show the brokeness, I'll
+wait Dan to repeat the numasched test with either
+-DNO_BIND_FORCE_SAME_NODE or -DTHREAD_ALLOC.
+
+Or maybe the higher ram (24G vs my 16G) could have played a role.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
