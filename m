@@ -1,63 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx201.postini.com [74.125.245.201])
-	by kanga.kvack.org (Postfix) with SMTP id 7AA3D6B0044
-	for <linux-mm@kvack.org>; Wed, 21 Mar 2012 18:47:23 -0400 (EDT)
-Date: Wed, 21 Mar 2012 15:47:21 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH v4 2/3] thp: add HPAGE_PMD_* definitions for
- !CONFIG_TRANSPARENT_HUGEPAGE
-Message-Id: <20120321154721.3b8884bd.akpm@linux-foundation.org>
-In-Reply-To: <CAP=VYLoGSckJH+2GytZN0V0P3Uuv-PiVneKbFsVb5kQa3kcTCQ@mail.gmail.com>
-References: <1331591456-20769-1-git-send-email-n-horiguchi@ah.jp.nec.com>
-	<1331591456-20769-2-git-send-email-n-horiguchi@ah.jp.nec.com>
-	<CAP=VYLoGSckJH+2GytZN0V0P3Uuv-PiVneKbFsVb5kQa3kcTCQ@mail.gmail.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx196.postini.com [74.125.245.196])
+	by kanga.kvack.org (Postfix) with SMTP id A60A96B0044
+	for <linux-mm@kvack.org>; Wed, 21 Mar 2012 18:53:58 -0400 (EDT)
+Received: by wgbds10 with SMTP id ds10so813956wgb.26
+        for <linux-mm@kvack.org>; Wed, 21 Mar 2012 15:53:56 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <20120316144028.036474157@chello.nl>
+References: <20120316144028.036474157@chello.nl>
+Date: Wed, 21 Mar 2012 15:53:56 -0700
+Message-ID: <CAOhV88NafiU7hseTzQfApthMk3X=_GT09gEM2Zzx5OJ=8z6vvw@mail.gmail.com>
+Subject: Re: [RFC][PATCH 00/26] sched/numa
+From: Nish Aravamudan <nish.aravamudan@gmail.com>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Paul Gortmaker <paul.gortmaker@windriver.com>
-Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Andrea Arcangeli <aarcange@redhat.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Hillf Danton <dhillf@gmail.com>, David Rientjes <rientjes@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-next@vger.kernel.org
+To: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>, Paul Turner <pjt@google.com>, Suresh Siddha <suresh.b.siddha@intel.com>, Mike Galbraith <efault@gmx.de>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Dan Smith <danms@us.ibm.com>, Bharata B Rao <bharata.rao@gmail.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Andrea Arcangeli <aarcange@redhat.com>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Wed, 21 Mar 2012 18:07:41 -0400
-Paul Gortmaker <paul.gortmaker@windriver.com> wrote:
+Hi Peter,
 
-> On Mon, Mar 12, 2012 at 6:30 PM, Naoya Horiguchi
-> <n-horiguchi@ah.jp.nec.com> wrote:
-> > These macros will be used in later patch, where all usage are expected
-> > to be optimized away without #ifdef CONFIG_TRANSPARENT_HUGEPAGE.
-> > But to detect unexpected usages, we convert existing BUG() to BUILD_BUG().
-> 
-> Just a heads up that this showed up in linux-next today as the
-> cause of a new build failure for an ARM board:
-> 
-> http://kisskb.ellerman.id.au/kisskb/buildresult/5930053/
+Sorry if this has already been reported, but
 
-The internet started working again.
+On Fri, Mar 16, 2012 at 7:40 AM, Peter Zijlstra <a.p.zijlstra@chello.nl> wr=
+ote:
+>
+> Hi All,
+>
+> While the current scheduler has knowledge of the machine topology, includ=
+ing
+> NUMA (although there's room for improvement there as well [1]), it is
+> completely insensitive to which nodes a task's memory actually is on.
+>
+> Current upstream task memory allocation prefers to use the node the task =
+is
+> currently running on (unless explicitly told otherwise, see
+> mbind()/set_mempolicy()), and with the scheduler free to move the task ab=
+out at
+> will, the task's memory can end up being spread all over the machine's no=
+des.
+>
+> While the scheduler does a reasonable job of keeping short running tasks =
+on a
+> single node (by means of simply not doing the cross-node migration very o=
+ften),
+> it completely blows for long-running processes with a large memory footpr=
+int.
+>
+> This patch-set aims at improving this situation. It does so by assigning =
+a
+> preferred, or home, node to every process/thread_group. Memory allocation=
+ is
+> then directed by this preference instead of the node the task might actua=
+lly be
+> running on momentarily. The load-balancer is also modified to prefer runn=
+ing
+> the task on its home-node, although not at the cost of letting CPUs go id=
+le or
+> at the cost of execution fairness.
+<snip>
 
-mm/pgtable-generic.c: In function 'pmdp_clear_flush_young':
-mm/pgtable-generic.c:76: error: call to '__build_bug_failed' declared with attribute error: BUILD_BUG failed
+> =A0[24/26] mm, mpol: Implement numa_group RSS accounting
 
-I guess we shouldn't be evaluating HPAGE_PMD_MASK at all if
-!CONFIG_TRANSPARENT_HUGEPAGE, so...
+I was going to try and test this on power, but it fails to build:
 
---- a/mm/pgtable-generic.c~thp-add-hpage_pmd_-definitions-for-config_transparent_hugepage-fix
-+++ a/mm/pgtable-generic.c
-@@ -70,10 +70,11 @@ int pmdp_clear_flush_young(struct vm_are
- 			   unsigned long address, pmd_t *pmdp)
- {
- 	int young;
--#ifndef CONFIG_TRANSPARENT_HUGEPAGE
-+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
-+	VM_BUG_ON(address & ~HPAGE_PMD_MASK);
-+#else
- 	BUG();
- #endif /* CONFIG_TRANSPARENT_HUGEPAGE */
--	VM_BUG_ON(address & ~HPAGE_PMD_MASK);
- 	young = pmdp_test_and_clear_young(vma, address, pmdp);
- 	if (young)
- 		flush_tlb_range(vma, address, address + HPAGE_PMD_SIZE);
-_
+  mm/filemap_xip.c: In function =91__xip_unmap=92:
+  mm/filemap_xip.c:199: error: implicit declaration of function
+=91numa_add_vma_counter=92
+
+and I think
+
+
+> =A0[26/26] sched, numa: A few debug bits
+
+introduced a new warning:
+
+  kernel/sched/numa.c: In function =91process_cpu_runtime=92:
+  kernel/sched/numa.c:210: warning: format =91%lu=92 expects type =91long
+unsigned int=92, but argument 3 has type =91u64=92
+  kernel/sched/numa.c:210: warning: format =91%lu=92 expects type =91long
+unsigned int=92, but argument 4 has type =91u64=92
+
+Thanks,
+Nish
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
