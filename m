@@ -1,38 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx184.postini.com [74.125.245.184])
-	by kanga.kvack.org (Postfix) with SMTP id E1D6C6B007E
-	for <linux-mm@kvack.org>; Thu, 22 Mar 2012 09:58:32 -0400 (EDT)
-From: Dan Smith <danms@us.ibm.com>
-Subject: Re: [RFC] AutoNUMA alpha6
-References: <20120316144028.036474157@chello.nl>
-	<20120316182511.GJ24602@redhat.com> <87k42edenh.fsf@danplanet.com>
-	<20120321021239.GQ24602@redhat.com> <87fwd2d2kp.fsf@danplanet.com>
-	<20120321124937.GX24602@redhat.com> <87limtboet.fsf@danplanet.com>
-	<20120321225242.GL24602@redhat.com>
-	<20120322001722.GQ24602@redhat.com>
-Date: Thu, 22 Mar 2012 06:58:29 -0700
-In-Reply-To: <20120322001722.GQ24602@redhat.com> (Andrea Arcangeli's message
-	of "Thu, 22 Mar 2012 01:17:22 +0100")
-Message-ID: <873990buuy.fsf@danplanet.com>
+Received: from psmtp.com (na3sys010amx148.postini.com [74.125.245.148])
+	by kanga.kvack.org (Postfix) with SMTP id 808436B007E
+	for <linux-mm@kvack.org>; Thu, 22 Mar 2012 09:59:50 -0400 (EDT)
+Received: by yhr47 with SMTP id 47so2228161yhr.14
+        for <linux-mm@kvack.org>; Thu, 22 Mar 2012 06:59:49 -0700 (PDT)
+Message-ID: <4F6B304E.5010402@gmail.com>
+Date: Thu, 22 Mar 2012 19:29:42 +0530
+From: Subash Patel <subashrp@gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Subject: Re: [PATCHv7 9/9] ARM: dma-mapping: add support for IOMMU mapper
+References: <1330527862-16234-1-git-send-email-m.szyprowski@samsung.com> <1330527862-16234-10-git-send-email-m.szyprowski@samsung.com> <CAHQjnOO5DLOj8Fw=ZriSnXg8W3k7y8Dnu--Peqe6JJX0xGMhoQ@mail.gmail.com> <4F688B2D.20808@gmail.com> <CAHQjnOMjSPDOymJe356AWnJszQv+X-QWrVrB7ahYDkXBr5HrQw@mail.gmail.com>
+In-Reply-To: <CAHQjnOMjSPDOymJe356AWnJszQv+X-QWrVrB7ahYDkXBr5HrQw@mail.gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>, Paul Turner <pjt@google.com>, Suresh Siddha <suresh.b.siddha@intel.com>, Mike Galbraith <efault@gmx.de>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Bharata B Rao <bharata.rao@gmail.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: KyongHo Cho <pullip.cho@samsung.com>
+Cc: Marek Szyprowski <m.szyprowski@samsung.com>, linux-arm-kernel@lists.infradead.org, linaro-mm-sig@lists.linaro.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-samsung-soc@vger.kernel.org, iommu@lists.linux-foundation.org, Shariq Hasnain <shariq.hasnain@linaro.org>, Arnd Bergmann <arnd@arndb.de>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Krishna Reddy <vdumpa@nvidia.com>, Kyungmin Park <kyungmin.park@samsung.com>, Andrzej Pietrasiewicz <andrzej.p@samsung.com>, Russell King - ARM Linux <linux@arm.linux.org.uk>, Chunsang Jeong <chunsang.jeong@linaro.org>
 
-AA> The only reasonable explanation I can imagine for the weird stuff
-AA> going on with "numa01_inverse" is that maybe it was compiled without
-AA> -DHARD_BIND? I forgot to specify -DINVERSE_BIND is a noop unless
-AA> -DHARD_BIND is specified too at the same time. -DINVERSE_BIND alone
-AA> results in the default build without -D parameters.
+Hi KyongHo,
 
-Ah, yeah, that's probably it. Later I'll try re-running some of the
-cases to verify.
-
--- 
-Dan Smith
-IBM Linux Technology Center
+On 03/21/2012 05:26 AM, KyongHo Cho wrote:
+> On Tue, Mar 20, 2012 at 10:50 PM, Subash Patel<subashrp@gmail.com>  wrote:
+>> Sorry for digging this very late. But as part of integrating dma_map v7&
+>> sysmmu v12 on 3.3-rc5, I am facing below issue:
+>>
+>> a) By un-selecting IOMMU in menu config, I am able to allocate memory in
+>> vb2-dma-contig
+>>
+>> b) When I enable SYSMMU support for the IP's, I am receiving below fault:
+>>
+>> Unhandled fault: external abort on non-linefetch (0x818) at 0xb6f55000
+>>
+>> I think this has something to do with the access to the SYSMMU registers for
+>> writing the page table. Has anyone of you faced this issue while testing
+>> these(dma_map+iommu) patches on kernel mentioned above? This must be
+>> something related to recent changes, as I didn't have issues with these
+>> patches on 3.2 kernel.
+>>
+>
+> 0xb6f55000 is not an address of SYSMMU register if your kernel starts
+> at 0xc0000000.
+>
+> Can you tell me any detailed information or situation?
+I hate to say this, but I am not able to catch the fault location even 
+with JTAG. Once the fault comes, the debugger looses all control over. I 
+think now possible method is reproduction at your end :)
+>
+> Regards,
+>
+> KyongHo.
+Regards,
+Subash
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
