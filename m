@@ -1,11 +1,10 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx155.postini.com [74.125.245.155])
-	by kanga.kvack.org (Postfix) with SMTP id EF4EA6B007E
-	for <linux-mm@kvack.org>; Thu, 22 Mar 2012 15:07:02 -0400 (EDT)
-Message-ID: <4F6B7854.1040203@redhat.com>
-Date: Thu, 22 Mar 2012 15:07:00 -0400
-From: Larry Woodman <lwoodman@redhat.com>
-Reply-To: lwoodman@redhat.com
+Received: from psmtp.com (na3sys010amx127.postini.com [74.125.245.127])
+	by kanga.kvack.org (Postfix) with SMTP id 4182A6B0092
+	for <linux-mm@kvack.org>; Thu, 22 Mar 2012 15:07:33 -0400 (EDT)
+Message-ID: <4F6B787B.4050109@redhat.com>
+Date: Thu, 22 Mar 2012 15:07:39 -0400
+From: KOSAKI Motohiro <mkosaki@redhat.com>
 MIME-Version: 1.0
 Subject: Re: [PATCH -mm] do_migrate_pages() calls migrate_to_node() even if
  task is already on a correct node
@@ -16,9 +15,9 @@ Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Christoph Lameter <cl@linux.com>
-Cc: KOSAKI Motohiro <kosaki.motohiro@gmail.com>, linux-mm@kvack.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Motohiro Kosaki <mkosaki@redhat.com>
+Cc: KOSAKI Motohiro <kosaki.motohiro@gmail.com>, lwoodman@redhat.com, linux-mm@kvack.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Motohiro Kosaki <mkosaki@redhat.com>
 
-On 03/22/2012 02:51 PM, Christoph Lameter wrote:
+(3/22/12 2:51 PM), Christoph Lameter wrote:
 > On Thu, 22 Mar 2012, KOSAKI Motohiro wrote:
 >
 >> CC to Christoph.
@@ -49,6 +48,7 @@ On 03/22/2012 02:51 PM, Christoph Lameter wrote:
 >>> Migrating 3 to 4
 >>> Migrating 0 to 3
 >>> Migrating 2 to 3
+>>
 >> Wait.
 >>
 >> This may be non-optimal for cpusets, but maybe optimal migrate_pages,
@@ -57,28 +57,20 @@ On 03/22/2012 02:51 PM, Christoph Lameter wrote:
 >> Christoph's intention.
 >>
 >> But, I'm not against this if he has no objection.
+>
 > The use case for this is if you have an app running on nodes 3,4,5 on your
 > machine and now you want to shift it to 4,5,6. The expectation is that the
 > location of the pages relative to the first node stay the same.
 > Application may manage their locality given a range of nodes and each of
 > the x .. x+n nodes has their particular purpose.
-So to be clear on this, in that case the intention would be move 3 to 4, 
-4 to 5 and 5 to 6
-to keep the node ordering the same?
-
-Larry
+>
 > If you justd copy 3 to 6 then the app may get confused when doing
 > additional allocations since different types of information is now stored
 > on the "first" node (which is now 4).
->
->
->
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Fight unfair telecom internet charges in Canada: sign http://stopthemeter.ca/
-> Don't email:<a href=mailto:"dont@kvack.org">  email@kvack.org</a>
+
+MPOL_INTERLEAVE is more simple situaltion. applications naturally assume the
+memory is mapped intealeaving and application threads optimize for it. if we
+broke intereaving, the applications may slow down.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
