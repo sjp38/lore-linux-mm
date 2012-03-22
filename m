@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx174.postini.com [74.125.245.174])
-	by kanga.kvack.org (Postfix) with SMTP id 5CA096B0044
-	for <linux-mm@kvack.org>; Thu, 22 Mar 2012 17:29:43 -0400 (EDT)
-Date: Thu, 22 Mar 2012 14:29:41 -0700
+Received: from psmtp.com (na3sys010amx149.postini.com [74.125.245.149])
+	by kanga.kvack.org (Postfix) with SMTP id 023786B0044
+	for <linux-mm@kvack.org>; Thu, 22 Mar 2012 17:36:12 -0400 (EDT)
+Date: Thu, 22 Mar 2012 14:36:10 -0700
 From: Andrew Morton <akpm@linux-foundation.org>
 Subject: Re: [PATCH] memcg: change behavior of moving charges at task move
-Message-Id: <20120322142941.01e601c0.akpm@linux-foundation.org>
+Message-Id: <20120322143610.e4df49c9.akpm@linux-foundation.org>
 In-Reply-To: <4F69A4C4.4080602@jp.fujitsu.com>
 References: <4F69A4C4.4080602@jp.fujitsu.com>
 Mime-Version: 1.0
@@ -19,47 +19,36 @@ Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, Linux Kernel <linux-kernel@vger.k
 On Wed, 21 Mar 2012 18:52:04 +0900
 KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
 
-> As discussed before, I post this to fix the spec and implementation of task moving.
-> Then, do you think what target kernel version should be ? 3.4/3.5 ?
-> but yes, it may be late for 3.4....
+>  static struct page *mc_handle_swap_pte(struct vm_area_struct *vma,
+>  			unsigned long addr, pte_t ptent, swp_entry_t *entry)
+>  {
+> -	int usage_count;
+>  	struct page *page = NULL;
+>  	swp_entry_t ent = pte_to_swp_entry(ptent);
+>  
+>  	if (!move_anon() || non_swap_entry(ent))
+>  		return NULL;
+> -	usage_count = mem_cgroup_count_swap_user(ent, &page);
+> -	if (usage_count > 1) { /* we don't move shared anon */
+> -		if (page)
+> -			put_page(page);
+> -		return NULL;
+> -	}
+> +#ifdef CONFIG_SWAP
+> +	/*
+> +	 * Avoid lookup_swap_cache() not to update statistics.
+> +	 */
 
-Well, the key information here is "what effect does the bug have upon
-users".
+I don't understand this comment - what is it trying to tell us?
 
-> In documentation, it's said that 'shared anon are not moved'.
-> But in implementation, the check was wrong.
-> 
->   if (!move_anon() || page_mapcount(page) > 2)
-> 
-> Ah, memcg has been moving shared anon pages for a long time.
-> 
-> Then, here is a discussion about handling of shared anon pages.
-> 
->  - It's complex
->  - Now, shared file caches are moved in force.
->  - It adds unclear check as page_mapcount(). To do correct check,
->    we should check swap users, etc.
->  - No one notice this implementation behavior. So, no one get benefit
->    from the design.
->  - In general, once task is moved to a cgroup for running, it will not
->    be moved....
->  - Finally, we have control knob as memory.move_charge_at_immigrate.
-> 
-> Here is a patch to allow moving shared pages, completely. This makes
-> memcg simpler and fix current broken code.
-> 
-> Note:
->  IIUC, libcgroup's cgroup daemon moves tasks after exec().
->  So, it's not affected.
->  libcgroup's command "cgexec" does move itsef to a memcg and call exec()
->  without fork(). it's not affected.
-> 
-> Changelog:
->  - fixed PageAnon() check.
->  - remove call of lookup_swap_cache()
->  - fixed Documentation.
+> +	page = find_get_page(&swapper_space, ent.val);
 
-But you forgot to tell us :(
+The code won't even compile if CONFIG_SWAP=n?
+
+> +#endif
+>  	if (do_swap_account)
+>  		entry->val = ent.val;
+>  
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
