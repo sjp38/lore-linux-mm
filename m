@@ -1,130 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx162.postini.com [74.125.245.162])
-	by kanga.kvack.org (Postfix) with SMTP id 14CCA6B0044
-	for <linux-mm@kvack.org>; Thu, 22 Mar 2012 09:21:24 -0400 (EDT)
-Received: by yenm8 with SMTP id m8so2155604yen.14
-        for <linux-mm@kvack.org>; Thu, 22 Mar 2012 06:21:23 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx123.postini.com [74.125.245.123])
+	by kanga.kvack.org (Postfix) with SMTP id 718C36B0044
+	for <linux-mm@kvack.org>; Thu, 22 Mar 2012 09:38:23 -0400 (EDT)
+Date: Thu, 22 Mar 2012 14:38:20 +0100
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [RFC][PATCH 3/3] memcg: atomic update of memcg pointer and other
+ bits.
+Message-ID: <20120322133820.GE18665@tiehlicka.suse.cz>
+References: <4F66E6A5.10804@jp.fujitsu.com>
+ <4F66E85E.6030000@jp.fujitsu.com>
 MIME-Version: 1.0
-In-Reply-To: <20120321140019.9ca39a31.akpm@linux-foundation.org>
-References: <CAJd=RBALNtedfq+PLPnGKd4i4D0mLiVPdW_7pWWopnSZNC_vqA@mail.gmail.com>
-	<20120222130659.d75b6f69.akpm@linux-foundation.org>
-	<CAJd=RBA53nS70Q7GEeskKFas-hfg4GKmUf=Zut5anSN0P+d1KA@mail.gmail.com>
-	<20120223121238.b597e7e4.akpm@linux-foundation.org>
-	<20120321140019.9ca39a31.akpm@linux-foundation.org>
-Date: Thu, 22 Mar 2012 21:21:22 +0800
-Message-ID: <CAJd=RBC9wN_M6T=vxmw+HxwxJF8Me1pq+UwZGEGoxto+HmG-3Q@mail.gmail.com>
-Subject: Re: [PATCH] mm: hugetlb: bail out unmapping after serving reference page
-From: Hillf Danton <dhillf@gmail.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <4F66E85E.6030000@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.cz>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Hugh Dickins <hughd@google.com>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: linux-mm@kvack.org, cgroups@vger.kernel.org, Johannes Weiner <hannes@cmpxchg.org>, Hugh Dickins <hughd@google.com>, Han Ying <yinghan@google.com>, Glauber Costa <glommer@parallels.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, suleiman@google.com, n-horiguchi@ah.jp.nec.com, khlebnikov@openvz.org, Tejun Heo <tj@kernel.org>
 
-On Thu, Mar 22, 2012 at 5:00 AM, Andrew Morton
-<akpm@linux-foundation.org> wrote:
-> On Thu, 23 Feb 2012 12:12:38 -0800
-> Andrew Morton <akpm@linux-foundation.org> wrote:
->
->> On Thu, 23 Feb 2012 21:05:41 +0800
->> Hillf Danton <dhillf@gmail.com> wrote:
->>
->> > and a follow-up cleanup also attached.
->>
->> Please, never put more than one patches in an email - it is rather a
->> pain to manually unpick everything.
->>
->> > When unmapping given VM range, a couple of code duplicate, such as pte=
-_page()
->> > and huge_pte_none(), so a cleanup needed to compact them together.
->> >
->> > Signed-off-by: Hillf Danton <dhillf@gmail.com>
->> > ---
->> >
->> > --- a/mm/hugetlb.c =C2=A0Thu Feb 23 20:13:06 2012
->> > +++ b/mm/hugetlb.c =C2=A0Thu Feb 23 20:30:16 2012
->> > @@ -2245,16 +2245,23 @@ void __unmap_hugepage_range(struct vm_ar
->> > =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 if (huge_pmd_unshare(mm, &ad=
-dress, ptep))
->> > =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-continue;
->> >
->> > + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 pte =3D huge_ptep_get(ptep);
->> > + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 if (huge_pte_none(pte))
->> > + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 conti=
-nue;
->> > +
->> > + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 /*
->> > + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0* HWPoisoned hugepage is al=
-ready unmapped and dropped reference
->> > + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0*/
->> > + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 if (unlikely(is_hugetlb_entry_hwp=
-oisoned(pte)))
->> > + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 conti=
-nue;
->> > +
->> > + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 page =3D pte_page(pte);
->> > =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 /*
->> > =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0* If a reference page =
-is supplied, it is because a specific
->> > =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0* page is being unmapp=
-ed, not a range. Ensure the page we
->> > =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0* are about to unmap i=
-s the actual page of interest.
->> > =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0*/
->> > =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 if (ref_page) {
->> > - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 pte =
-=3D huge_ptep_get(ptep);
->> > - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 if (h=
-uge_pte_none(pte))
->> > - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
-=A0 =C2=A0 =C2=A0 =C2=A0 continue;
->> > - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 page =
-=3D pte_page(pte);
->> > =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-if (page !=3D ref_page)
->> > =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-=C2=A0 =C2=A0 =C2=A0 =C2=A0 continue;
->> >
->> > @@ -2267,16 +2274,6 @@ void __unmap_hugepage_range(struct vm_ar
->> > =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 }
->> >
->> > =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 pte =3D huge_ptep_get_and_cl=
-ear(mm, address, ptep);
->> > - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 if (huge_pte_none(pte))
->> > - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 conti=
-nue;
->> > -
->> > - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 /*
->> > - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0* HWPoisoned hugepage is al=
-ready unmapped and dropped reference
->> > - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0*/
->> > - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 if (unlikely(is_hugetlb_entry_hwp=
-oisoned(pte)))
->> > - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 conti=
-nue;
->> > -
->> > - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 page =3D pte_page(pte);
->> > =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 if (pte_dirty(pte))
->> > =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-set_page_dirty(page);
->> > =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 list_add(&page->lru, &page_l=
-ist);
->>
->> This changes behaviour when ref_page refers to a hwpoisoned page.
->
-> Respond, please?
+On Mon 19-03-12 17:03:42, KAMEZAWA Hiroyuki wrote:
+[...]
+> @@ -1237,8 +1237,6 @@ mem_cgroup_get_reclaim_stat_from_page(struct page *page)
+>  	pc = lookup_page_cgroup(page);
+>  	if (!PageCgroupUsed(pc))
+>  		return NULL;
+> -	/* Ensure pc's mem_cgroup is visible after reading PCG_USED. */
+> -	smp_rmb();
+>  	mz = page_cgroup_zoneinfo(pc_to_mem_cgroup(pc), page);
+>  	return &mz->reclaim_stat;
+>  }
+> @@ -2491,16 +2489,7 @@ static void __mem_cgroup_commit_charge(struct mem_cgroup *memcg,
+>  		}
+>  	}
+>  
+> -	pc_set_mem_cgroup(pc, memcg);
+> -	/*
+> -	 * We access a page_cgroup asynchronously without lock_page_cgroup().
+> -	 * Especially when a page_cgroup is taken from a page, pc's mem_cgroup
+> -	 * is accessed after testing USED bit. To make pc's mem_cgroup visible
+> -	 * before USED bit, we need memory barrier here.
+> -	 * See mem_cgroup_add_lru_list(), etc.
+> - 	 */
+> -	smp_wmb();
+> -	SetPageCgroupUsed(pc);
+> +	pc_set_mem_cgroup(pc, memcg, BIT(PCG_USED) | BIT(PCG_LOCK));
 
-First say sorry to you, Andrew.
+This is not nice. Maybe we need two variants (pc_set_mem_cgroup[_flags])?
 
-The comment says, HWPoisoned hugepage is already unmapped;
-and even if ref_page =3D=3D HWPoisoned page, it is not added onto
-page_list and no page_remove_rmap() is issued for it, so we end
-up with no behavior change.
+>  	if (lrucare) {
+>  		if (was_on_lru) {
+> @@ -2529,7 +2518,6 @@ static void __mem_cgroup_commit_charge(struct mem_cgroup *memcg,
+>  
+>  #ifdef CONFIG_TRANSPARENT_HUGEPAGE
+>  
+> -#define PCGF_NOCOPY_AT_SPLIT ((1 << PCG_LOCK) | (1 << PCG_MIGRATION))
+>  /*
+>   * Because tail pages are not marked as "used", set it. We're under
+>   * zone->lru_lock, 'splitting on pmd' and compound_lock.
+> @@ -2547,9 +2535,7 @@ void mem_cgroup_split_huge_fixup(struct page *head)
+>  		return;
+>  	for (i = 1; i < HPAGE_PMD_NR; i++) {
+>  		pc = head_pc + i;
+> -		pc_set_mem_cgroup(pc, memcg);
+> -		smp_wmb();/* see __commit_charge() */
+> -		pc->flags = head_pc->flags & ~PCGF_NOCOPY_AT_SPLIT;
+> +		pc_set_mem_cgroup(pc, memcg, BIT(PCG_USED));
 
-Thanks
--hd
+Maybe it would be cleaner to remove PCGF_NOCOPY_AT_SPLIT in a separate patch with 
+VM_BUG_ON(!head_pc->flags & BIT(PCG_USED))?
+
+>  	}
+>  }
+>  #endif /* CONFIG_TRANSPARENT_HUGEPAGE */
+> @@ -2616,7 +2602,7 @@ static int mem_cgroup_move_account(struct page *page,
+>  		__mem_cgroup_cancel_charge(from, nr_pages);
+>  
+>  	/* caller should have done css_get */
+> -	pc_set_mem_cgroup(pc, to);
+> +	pc_set_mem_cgroup(pc, to, BIT(PCG_USED) | BIT(PCG_LOCK));
+
+Same here.
+
+-- 
+Michal Hocko
+SUSE Labs
+SUSE LINUX s.r.o.
+Lihovarska 1060/12
+190 00 Praha 9    
+Czech Republic
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
