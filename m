@@ -1,65 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx132.postini.com [74.125.245.132])
-	by kanga.kvack.org (Postfix) with SMTP id 477FA6B0044
-	for <linux-mm@kvack.org>; Thu, 22 Mar 2012 11:18:19 -0400 (EDT)
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: Re: [PATCH] memcg: change behavior of moving charges at task move
-Date: Thu, 22 Mar 2012 11:17:20 -0400
-Message-Id: <1332429440-7167-1-git-send-email-n-horiguchi@ah.jp.nec.com>
-In-Reply-To: <4F69A4C4.4080602@jp.fujitsu.com>
+Received: from psmtp.com (na3sys010amx207.postini.com [74.125.245.207])
+	by kanga.kvack.org (Postfix) with SMTP id A769E6B0044
+	for <linux-mm@kvack.org>; Thu, 22 Mar 2012 12:15:09 -0400 (EDT)
+Date: Thu, 22 Mar 2012 11:15:07 -0500 (CDT)
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: object allocation benchmark
+In-Reply-To: <4F6B3591.10003@parallels.com>
+Message-ID: <alpine.DEB.2.00.1203221113530.25011@router.home>
+References: <4F6743C2.3090906@parallels.com> <alpine.DEB.2.00.1203191028160.19189@router.home> <4F6B3591.10003@parallels.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, Hugh Dickins <hughd@google.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Glauber Costa <glommer@parallels.com>, Andrew Morton <akpm@linux-foundation.org>
+To: Glauber Costa <glommer@parallels.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, Pekka Enberg <penberg@kernel.org>, Suleiman Souhlal <suleiman@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-On Wed, Mar 21, 2012 at 06:52:04PM +0900, KAMEZAWA Hiroyuki wrote:
-> As discussed before, I post this to fix the spec and implementation of task moving.
-> Then, do you think what target kernel version should be ? 3.4/3.5 ?
-> but yes, it may be late for 3.4....
-> 
-> ==
-> In documentation, it's said that 'shared anon are not moved'.
-> But in implementation, the check was wrong.
-> 
->   if (!move_anon() || page_mapcount(page) > 2)
-> 
-> Ah, memcg has been moving shared anon pages for a long time.
-> 
-> Then, here is a discussion about handling of shared anon pages.
-> 
->  - It's complex
->  - Now, shared file caches are moved in force.
->  - It adds unclear check as page_mapcount(). To do correct check,
->    we should check swap users, etc.
->  - No one notice this implementation behavior. So, no one get benefit
->    from the design.
->  - In general, once task is moved to a cgroup for running, it will not
->    be moved....
->  - Finally, we have control knob as memory.move_charge_at_immigrate.
-> 
-> Here is a patch to allow moving shared pages, completely. This makes
-> memcg simpler and fix current broken code.
-> 
-> Note:
->  IIUC, libcgroup's cgroup daemon moves tasks after exec().
->  So, it's not affected.
->  libcgroup's command "cgexec" does move itsef to a memcg and call exec()
->  without fork(). it's not affected.
-> 
-> Changelog:
->  - fixed PageAnon() check.
->  - remove call of lookup_swap_cache()
->  - fixed Documentation.
-> 
-> Suggested-by: Hugh Dickins <hughd@google.com>
-> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+On Thu, 22 Mar 2012, Glauber Costa wrote:
 
-It looks good to me.
+> On 03/19/2012 07:28 PM, Christoph Lameter wrote:
+> > On Mon, 19 Mar 2012, Glauber Costa wrote:
+> >
+> > > I was wondering: Which benchmark would be considered the canonical one to
+> > > demonstrate the speed of the slub/slab after changes? In particular, I
+> > > have
+> > > the kmem-memcg in mind
+> >
+> > I have some in kernel benchmarking tools for page allocator and slab
+> > allocators. But they are not really clean patches.
+> >
+> >
+> I'd given it a try.
+>
+> So in general, Suleiman patches perform fine against bare slab, the
+> differences being in the order of ~ 1%. There are some spikes a little bit
+> above that, that would deserve more analysis.
+>
+> However, reason I decided to report early, is this test:
+> "1 alloc N free test". It is quite erratic. memcg+kmem sometimes performs 15 %
+> worse, sometimes 30 % better... Always right after a cold boot.
+>
+> I was wondering if you usually see such behavior for this test, and has some
+> tips on the setup in case I'm doing anything wrong ?
 
-Reviewed-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Well some of these tests are sensitive to memory fragmentation in the page
+allocator and slab allocator. One approach is to do these tests
+immediately after boot with minimal user space bringup.
 
-Thanks,
-Naoya
+The other is to run a stress tests for an predefined period to get memory
+into a sufficiently fragmented state and then run the test.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
