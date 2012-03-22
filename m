@@ -1,62 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx141.postini.com [74.125.245.141])
-	by kanga.kvack.org (Postfix) with SMTP id 422706B00EB
-	for <linux-mm@kvack.org>; Thu, 22 Mar 2012 17:56:47 -0400 (EDT)
-Received: by mail-bk0-f41.google.com with SMTP id q16so2948567bkw.14
-        for <linux-mm@kvack.org>; Thu, 22 Mar 2012 14:56:46 -0700 (PDT)
-Subject: [PATCH v6 7/7] mm/memcg: use vm_swappiness from target memory cgroup
-From: Konstantin Khlebnikov <khlebnikov@openvz.org>
-Date: Fri, 23 Mar 2012 01:56:43 +0400
-Message-ID: <20120322215643.27814.58756.stgit@zurg>
-In-Reply-To: <20120322214944.27814.42039.stgit@zurg>
-References: <20120322214944.27814.42039.stgit@zurg>
+Received: from psmtp.com (na3sys010amx156.postini.com [74.125.245.156])
+	by kanga.kvack.org (Postfix) with SMTP id 421026B00F5
+	for <linux-mm@kvack.org>; Thu, 22 Mar 2012 17:57:53 -0400 (EDT)
+Date: Thu, 22 Mar 2012 21:57:45 +0000
+From: Al Viro <viro@ZenIV.linux.org.uk>
+Subject: Re: [PATCH 00/16] mm: prepare for converting vm->vm_flags to 64-bit
+Message-ID: <20120322215744.GF6589@ZenIV.linux.org.uk>
+References: <20120321065140.13852.52315.stgit@zurg>
+ <20120321100602.GA5522@barrios>
+ <4F69D496.2040509@openvz.org>
+ <20120322142647.42395398.akpm@linux-foundation.org>
+ <20120322212810.GE6589@ZenIV.linux.org.uk>
+ <20120322144122.59d12051.akpm@linux-foundation.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20120322144122.59d12051.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujtisu.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Konstantin Khlebnikov <khlebnikov@openvz.org>, Minchan Kim <minchan@kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, Hugh Dickins <hughd@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Ben Herrenschmidt <benh@kernel.crashing.org>, "linux@arm.linux.org.uk" <linux@arm.linux.org.uk>
 
-Use vm_swappiness from memory cgroup which is triggered this memory reclaim.
-This is more reasonable and allows to kill one argument.
+On Thu, Mar 22, 2012 at 02:41:22PM -0700, Andrew Morton wrote:
+> On Thu, 22 Mar 2012 21:28:11 +0000
+> Al Viro <viro@ZenIV.linux.org.uk> wrote:
+> 
+> > On Thu, Mar 22, 2012 at 02:26:47PM -0700, Andrew Morton wrote:
+> > > It would be nice to find some way of triggering compiler warnings or
+> > > sparse warnings if someone mixes a 32-bit type with a vm_flags_t.  Any
+> > > thoughts on this?
+> > > 
+> > > (Maybe that's what __nocast does, but Documentation/sparse.txt doesn't
+> > > describe it)
+> > 
+> > Use __bitwise for that - check how gfp_t is handled.
+> 
+> So what does __nocast do?
 
-Signed-off-by: Konstantin Khlebnikov <khlebnikov@openvz.org>
-Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujtisu.com>
----
- mm/vmscan.c |    9 ++++-----
- 1 files changed, 4 insertions(+), 5 deletions(-)
+Not much...  Basically, extending conversions.  __nocast int can be
+freely mixed with int - no complaints will be given.
 
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 9de66be..5e2906d 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -1840,12 +1840,11 @@ static unsigned long shrink_list(enum lru_list lru, unsigned long nr_to_scan,
- 	return shrink_inactive_list(nr_to_scan, mz, sc, priority, lru);
- }
- 
--static int vmscan_swappiness(struct mem_cgroup_zone *mz,
--			     struct scan_control *sc)
-+static int vmscan_swappiness(struct scan_control *sc)
- {
- 	if (global_reclaim(sc))
- 		return vm_swappiness;
--	return mem_cgroup_swappiness(mz->mem_cgroup);
-+	return mem_cgroup_swappiness(sc->target_mem_cgroup);
- }
- 
- /*
-@@ -1913,8 +1912,8 @@ static void get_scan_count(struct mem_cgroup_zone *mz, struct scan_control *sc,
- 	 * With swappiness at 100, anonymous and file have the same priority.
- 	 * This scanning priority is essentially the inverse of IO cost.
- 	 */
--	anon_prio = vmscan_swappiness(mz, sc);
--	file_prio = 200 - vmscan_swappiness(mz, sc);
-+	anon_prio = vmscan_swappiness(sc);
-+	file_prio = 200 - vmscan_swappiness(sc);
- 
- 	/*
- 	 * OK, so we have swap space and a fair amount of page cache
+As far as I'm concerned, it's deprecated - it's weaker than __bitwise and
+doesn't have particulary useful semantics.  For this kind of stuff (flags)
+__bitwise is definitely better - that's what it had been implemented for.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
