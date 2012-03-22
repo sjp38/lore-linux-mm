@@ -1,35 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx182.postini.com [74.125.245.182])
-	by kanga.kvack.org (Postfix) with SMTP id B06B56B0044
-	for <linux-mm@kvack.org>; Thu, 22 Mar 2012 02:23:01 -0400 (EDT)
-Message-ID: <1332397358.2982.82.camel@pasglop>
-Subject: Re: [PATCH 00/16] mm: prepare for converting vm->vm_flags to 64-bit
-From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-Date: Thu, 22 Mar 2012 17:22:38 +1100
-In-Reply-To: <20120322053958.GA5278@barrios>
-References: <20120321065140.13852.52315.stgit@zurg>
-	 <20120321100602.GA5522@barrios> <4F69D496.2040509@openvz.org>
-	 <20120322053958.GA5278@barrios>
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: 7bit
-Mime-Version: 1.0
+Received: from psmtp.com (na3sys010amx131.postini.com [74.125.245.131])
+	by kanga.kvack.org (Postfix) with SMTP id 02CDC6B0044
+	for <linux-mm@kvack.org>; Thu, 22 Mar 2012 05:11:50 -0400 (EDT)
+Date: Thu, 22 Mar 2012 10:11:47 +0100
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: memcg-devel updated for v3.3
+Message-ID: <20120322091147.GB18665@tiehlicka.suse.cz>
+References: <20120321094545.GA10450@tiehlicka.suse.cz>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20120321094545.GA10450@tiehlicka.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Konstantin Khlebnikov <khlebnikov@openvz.org>, Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, Hugh Dickins <hughd@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, "linux@arm.linux.org.uk" <linux@arm.linux.org.uk>
+To: linux-mm@kvack.org, cgroups@vger.kernel.org
+Cc: LKML <linux-kernel@vger.kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, Balbir Singh <bsingharora@gmail.com>, Hugh Dickins <hughd@google.com>, Ying Han <yinghan@google.com>, Andrew Morton <akpm@linux-foundation.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Konstantin Khlebnikov <khlebnikov@openvz.org>, Glauber Costa <glommer@parallels.com>
 
-On Thu, 2012-03-22 at 14:39 +0900, Minchan Kim wrote:
-> I think we can also unify VM_MAPPED_COPY(nommu) and VM_SAO(powerpc)
-> with one VM_ARCH_1
-> Okay. After this series is merged, let's try to remove flags we can
-> do. Then, other guys
-> might suggest another ideas.
+On Wed 21-03-12 10:45:45, Michal Hocko wrote:
+[...]
+> Hugh Dickins (15):
+>       memcg-clear-pc-mem_cgorup-if-necessary-fix-2
+>       memcg-clear-pc-mem_cgorup-if-necessary fix 3
+>       memcg: fix page migration to reset_owner
+>       memcg: replace MEM_CONT by MEM_RES_CTLR
+>       memcg: replace mem and mem_cont stragglers
+>       memcg: lru_size instead of MEM_CGROUP_ZSTAT
+>       memcg: enum lru_list lru
+>       memcg: remove redundant returns
+>       idr: make idr_get_next() good for rcu_read_lock()
+>       cgroup: revert ss_id_lock to spinlock
+>       memcg: let css_get_next() rely upon rcu_read_lock()
+>       memcg: remove PCG_CACHE page_cgroup flag fix
+>       memcg: remove PCG_CACHE page_cgroup flag fix2
+>       memcg: remove PCG_FILE_MAPPED fix cosmetic fix
+>       memcg: fix GPF when cgroup removal races with last exit
 
-Agreed. I would like more VM_ARCH while at it :-)
+I have just noticed I forgot about one fix.
+Hugh Dickins (1):
+      memcg: fix deadlock by avoiding stat lock when anon
 
-Cheers,
-Ben.
+pushed and sorry
 
+-- 
+Michal Hocko
+SUSE Labs
+SUSE LINUX s.r.o.
+Lihovarska 1060/12
+190 00 Praha 9    
+Czech Republic
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
