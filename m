@@ -1,33 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx115.postini.com [74.125.245.115])
-	by kanga.kvack.org (Postfix) with SMTP id C38326B0044
-	for <linux-mm@kvack.org>; Thu, 22 Mar 2012 17:28:21 -0400 (EDT)
-Date: Thu, 22 Mar 2012 21:28:11 +0000
-From: Al Viro <viro@ZenIV.linux.org.uk>
-Subject: Re: [PATCH 00/16] mm: prepare for converting vm->vm_flags to 64-bit
-Message-ID: <20120322212810.GE6589@ZenIV.linux.org.uk>
-References: <20120321065140.13852.52315.stgit@zurg>
- <20120321100602.GA5522@barrios>
- <4F69D496.2040509@openvz.org>
- <20120322142647.42395398.akpm@linux-foundation.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20120322142647.42395398.akpm@linux-foundation.org>
+Received: from psmtp.com (na3sys010amx174.postini.com [74.125.245.174])
+	by kanga.kvack.org (Postfix) with SMTP id 5CA096B0044
+	for <linux-mm@kvack.org>; Thu, 22 Mar 2012 17:29:43 -0400 (EDT)
+Date: Thu, 22 Mar 2012 14:29:41 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] memcg: change behavior of moving charges at task move
+Message-Id: <20120322142941.01e601c0.akpm@linux-foundation.org>
+In-Reply-To: <4F69A4C4.4080602@jp.fujitsu.com>
+References: <4F69A4C4.4080602@jp.fujitsu.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Konstantin Khlebnikov <khlebnikov@openvz.org>, Minchan Kim <minchan@kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, Hugh Dickins <hughd@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Ben Herrenschmidt <benh@kernel.crashing.org>, "linux@arm.linux.org.uk" <linux@arm.linux.org.uk>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, Linux Kernel <linux-kernel@vger.kernel.org>, "cgroups@vger.kernel.org" <cgroups@vger.kernel.org>, Hugh Dickins <hughd@google.com>, "n-horiguchi@ah.jp.nec.com" <n-horiguchi@ah.jp.nec.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Glauber Costa <glommer@parallels.com>
 
-On Thu, Mar 22, 2012 at 02:26:47PM -0700, Andrew Morton wrote:
-> It would be nice to find some way of triggering compiler warnings or
-> sparse warnings if someone mixes a 32-bit type with a vm_flags_t.  Any
-> thoughts on this?
+On Wed, 21 Mar 2012 18:52:04 +0900
+KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+
+> As discussed before, I post this to fix the spec and implementation of task moving.
+> Then, do you think what target kernel version should be ? 3.4/3.5 ?
+> but yes, it may be late for 3.4....
+
+Well, the key information here is "what effect does the bug have upon
+users".
+
+> In documentation, it's said that 'shared anon are not moved'.
+> But in implementation, the check was wrong.
 > 
-> (Maybe that's what __nocast does, but Documentation/sparse.txt doesn't
-> describe it)
+>   if (!move_anon() || page_mapcount(page) > 2)
+> 
+> Ah, memcg has been moving shared anon pages for a long time.
+> 
+> Then, here is a discussion about handling of shared anon pages.
+> 
+>  - It's complex
+>  - Now, shared file caches are moved in force.
+>  - It adds unclear check as page_mapcount(). To do correct check,
+>    we should check swap users, etc.
+>  - No one notice this implementation behavior. So, no one get benefit
+>    from the design.
+>  - In general, once task is moved to a cgroup for running, it will not
+>    be moved....
+>  - Finally, we have control knob as memory.move_charge_at_immigrate.
+> 
+> Here is a patch to allow moving shared pages, completely. This makes
+> memcg simpler and fix current broken code.
+> 
+> Note:
+>  IIUC, libcgroup's cgroup daemon moves tasks after exec().
+>  So, it's not affected.
+>  libcgroup's command "cgexec" does move itsef to a memcg and call exec()
+>  without fork(). it's not affected.
+> 
+> Changelog:
+>  - fixed PageAnon() check.
+>  - remove call of lookup_swap_cache()
+>  - fixed Documentation.
 
-Use __bitwise for that - check how gfp_t is handled.
+But you forgot to tell us :(
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
