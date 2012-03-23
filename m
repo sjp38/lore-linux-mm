@@ -1,48 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx150.postini.com [74.125.245.150])
-	by kanga.kvack.org (Postfix) with SMTP id F3E9F6B0044
-	for <linux-mm@kvack.org>; Thu, 22 Mar 2012 21:50:12 -0400 (EDT)
-Received: from m4.gw.fujitsu.co.jp (unknown [10.0.50.74])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 8BFEF3EE0AE
-	for <linux-mm@kvack.org>; Fri, 23 Mar 2012 10:50:11 +0900 (JST)
-Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 7516245DE4F
-	for <linux-mm@kvack.org>; Fri, 23 Mar 2012 10:50:11 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 5C9BF45DE4E
-	for <linux-mm@kvack.org>; Fri, 23 Mar 2012 10:50:11 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 4F0901DB8040
-	for <linux-mm@kvack.org>; Fri, 23 Mar 2012 10:50:11 +0900 (JST)
-Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.240.81.134])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 08EE31DB803B
-	for <linux-mm@kvack.org>; Fri, 23 Mar 2012 10:50:11 +0900 (JST)
-Message-ID: <4F6BD671.4040902@jp.fujitsu.com>
-Date: Fri, 23 Mar 2012 10:48:33 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Received: from psmtp.com (na3sys010amx172.postini.com [74.125.245.172])
+	by kanga.kvack.org (Postfix) with SMTP id 1BF456B0044
+	for <linux-mm@kvack.org>; Fri, 23 Mar 2012 00:48:20 -0400 (EDT)
+Received: by iajr24 with SMTP id r24so5360153iaj.14
+        for <linux-mm@kvack.org>; Thu, 22 Mar 2012 21:48:19 -0700 (PDT)
+Date: Fri, 23 Mar 2012 13:48:11 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [PATCH v6 3/7] mm: push lru index into shrink_[in]active_list()
+Message-ID: <20120323044811.GA2717@barrios-desktop>
+References: <20120322214944.27814.42039.stgit@zurg>
+ <20120322215627.27814.4499.stgit@zurg>
 MIME-Version: 1.0
-Subject: Re: [PATCH v6 6/7] mm/memcg: kill mem_cgroup_lru_del()
-References: <20120322214944.27814.42039.stgit@zurg> <20120322215639.27814.4996.stgit@zurg>
-In-Reply-To: <20120322215639.27814.4996.stgit@zurg>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20120322215627.27814.4499.stgit@zurg>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Konstantin Khlebnikov <khlebnikov@openvz.org>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-(2012/03/23 6:56), Konstantin Khlebnikov wrote:
-
-> This patch kills mem_cgroup_lru_del(), we can use mem_cgroup_lru_del_list()
-> instead. On 0-order isolation we already have right lru list id.
+On Fri, Mar 23, 2012 at 01:56:27AM +0400, Konstantin Khlebnikov wrote:
+> Let's toss lru index through call stack to isolate_lru_pages(),
+> this is better than its reconstructing from individual bits.
 > 
 > Signed-off-by: Konstantin Khlebnikov <khlebnikov@openvz.org>
-> Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> Cc: Hugh Dickins <hughd@google.com>
+> Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> Acked-by: Hugh Dickins <hughd@google.com>
+> ---
+>  mm/vmscan.c |   41 +++++++++++++++++------------------------
+>  1 files changed, 17 insertions(+), 24 deletions(-)
+> 
+> diff --git a/mm/vmscan.c b/mm/vmscan.c
+> index f4dca0c..fb6d54e 100644
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -1127,15 +1127,14 @@ int __isolate_lru_page(struct page *page, isolate_mode_t mode, int file)
+>   * @nr_scanned:	The number of pages that were scanned.
+>   * @sc:		The scan_control struct for this reclaim session
+>   * @mode:	One of the LRU isolation modes
+> - * @active:	True [1] if isolating active pages
+> - * @file:	True [1] if isolating file [!anon] pages
+> + * @lru		LRU list id for isolating
 
+Missing colon.
 
-Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Otherwise, nice cleanup!
 
+Reviewed-by: Minchan Kim <minchan@kernel.org>
+-- 
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
