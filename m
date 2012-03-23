@@ -1,82 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from psmtp.com (na3sys010amx207.postini.com [74.125.245.207])
-	by kanga.kvack.org (Postfix) with SMTP id A3A836B0044
-	for <linux-mm@kvack.org>; Fri, 23 Mar 2012 04:54:20 -0400 (EDT)
-Date: Fri, 23 Mar 2012 09:54:16 +0100
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [RFC][PATCH 3/3] memcg: atomic update of memcg pointer and other
- bits.
-Message-ID: <20120323085416.GA2816@tiehlicka.suse.cz>
-References: <4F66E6A5.10804@jp.fujitsu.com>
- <4F66E85E.6030000@jp.fujitsu.com>
- <20120322133820.GE18665@tiehlicka.suse.cz>
- <4F6BCBD1.1030602@jp.fujitsu.com>
+	by kanga.kvack.org (Postfix) with SMTP id 415806B0044
+	for <linux-mm@kvack.org>; Fri, 23 Mar 2012 05:00:23 -0400 (EDT)
+Received: by obbta14 with SMTP id ta14so2898718obb.14
+        for <linux-mm@kvack.org>; Fri, 23 Mar 2012 02:00:22 -0700 (PDT)
+Message-ID: <4F6C3B7F.1070705@gmail.com>
+Date: Fri, 23 Mar 2012 16:59:43 +0800
+From: bill4carson <bill4carson@gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <4F6BCBD1.1030602@jp.fujitsu.com>
+Subject: Re: Why memory.usage_in_bytes is always increasing after every mmap/dirty/unmap
+ sequence
+References: <4F6C2E9B.9010200@gmail.com> <4F6C31F7.2010804@jp.fujitsu.com>
+In-Reply-To: <4F6C31F7.2010804@jp.fujitsu.com>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: linux-mm@kvack.org, cgroups@vger.kernel.org, Johannes Weiner <hannes@cmpxchg.org>, Hugh Dickins <hughd@google.com>, Han Ying <yinghan@google.com>, Glauber Costa <glommer@parallels.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, suleiman@google.com, n-horiguchi@ah.jp.nec.com, khlebnikov@openvz.org, Tejun Heo <tj@kernel.org>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On Fri 23-03-12 10:03:13, KAMEZAWA Hiroyuki wrote:
-> (2012/03/22 22:38), Michal Hocko wrote:
-[...]
-> >>  	if (lrucare) {
-> >>  		if (was_on_lru) {
-> >> @@ -2529,7 +2518,6 @@ static void __mem_cgroup_commit_charge(struct mem_cgroup *memcg,
-> >>  
-> >>  #ifdef CONFIG_TRANSPARENT_HUGEPAGE
-> >>  
-> >> -#define PCGF_NOCOPY_AT_SPLIT ((1 << PCG_LOCK) | (1 << PCG_MIGRATION))
-> >>  /*
-> >>   * Because tail pages are not marked as "used", set it. We're under
-> >>   * zone->lru_lock, 'splitting on pmd' and compound_lock.
-> >> @@ -2547,9 +2535,7 @@ void mem_cgroup_split_huge_fixup(struct page *head)
-> >>  		return;
-> >>  	for (i = 1; i < HPAGE_PMD_NR; i++) {
-> >>  		pc = head_pc + i;
-> >> -		pc_set_mem_cgroup(pc, memcg);
-> >> -		smp_wmb();/* see __commit_charge() */
-> >> -		pc->flags = head_pc->flags & ~PCGF_NOCOPY_AT_SPLIT;
-> >> +		pc_set_mem_cgroup(pc, memcg, BIT(PCG_USED));
-> > 
-> > Maybe it would be cleaner to remove PCGF_NOCOPY_AT_SPLIT in a separate patch with 
-> > VM_BUG_ON(!head_pc->flags & BIT(PCG_USED))?
-> > 
-> 
-> 
-> Hm, ok. I'll divide this patch.
 
-Thanks!
 
-> 
-> >>  	}
-> >>  }
-> >>  #endif /* CONFIG_TRANSPARENT_HUGEPAGE */
-> >> @@ -2616,7 +2602,7 @@ static int mem_cgroup_move_account(struct page *page,
-> >>  		__mem_cgroup_cancel_charge(from, nr_pages);
-> >>  
-> >>  	/* caller should have done css_get */
-> >> -	pc_set_mem_cgroup(pc, to);
-> >> +	pc_set_mem_cgroup(pc, to, BIT(PCG_USED) | BIT(PCG_LOCK));
-> > 
-> > Same here.
-> > 
-> 
-> 
-> pc_set_mem_cgroup_flags() ?
+On 2012a1'03ae??23ae?JPY 16:19, KAMEZAWA Hiroyuki wrote:
+> (2012/03/23 17:04), bill4carson wrote:
+>
+>> Hi, all
+>>
+>> I'm playing with memory cgroup, I'm a bit confused why
+>> memory.usage in bytes is steadily increasing at 4K page pace
+>> after every mmap/dirty/unmap sequence.
+>>
+>> On linux-3.6.34.10/linux-3.3.0-rc5
+>> A simple test case does following:
+>>
+>> a) mmap 128k memory in private anonymous way
+>> b) dirty all 128k to demand physical page
+>> c) print memory.usage_in_bytes<-- increased at 4K after every loop
+>> d) unmap previous 128 memory
+>> e) goto a) to repeat
+>
+> In Documentation/cgroup/memory.txt
+> ==
+> 5.5 usage_in_bytes
+>
+> For efficiency, as other kernel components, memory cgroup uses some optimization
+> to avoid unnecessary cacheline false sharing. usage_in_bytes is affected by the
+> method and doesn't show 'exact' value of memory(and swap) usage, it's an fuzz
+> value for efficient access. (Of course, when necessary, it's synchronized.)
+> If you want to know more exact memory usage, you should use RSS+CACHE(+SWAP)
+> value in memory.stat(see 5.2).
+> ==
+>
+> In current implementation, memcg tries to charge resource in size of 32 pages.
+> So, if you get 32 pages and free 32pages, usage_in_bytes may not change.
+> This is affected by caches in other cpus and other flushing operations caused
+> by some workload in other cgroups. memcg's usage_in_bytes is not precise in
+> 128k degree.
+>
+Yes, I tried to mmap/dirty/unmap in 32 times, when the usage_in_bytes
+reached 128k, it rolls back to 4k again. So it doesn't hurt any more.
 
-This sounds like we set only flags but to be honest I didn't come to a
-better name which wouldn't be terribly long as well.
+I haven't found the code regarding to this behavior.
+
+
+> - How memory.stat changes ?
+> - What happens when you do test with 4M alloc/free ?
+>
+> Thanks,
+> -Kame
+>
+>
+>
+>
+>
+>
+>
+>
+>
+
 -- 
-Michal Hocko
-SUSE Labs
-SUSE LINUX s.r.o.
-Lihovarska 1060/12
-190 00 Praha 9    
-Czech Republic
+Love each day!
+
+--bill
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
