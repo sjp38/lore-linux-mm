@@ -1,270 +1,135 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx119.postini.com [74.125.245.119])
-	by kanga.kvack.org (Postfix) with SMTP id 1E5766B0044
-	for <linux-mm@kvack.org>; Fri, 23 Mar 2012 05:16:03 -0400 (EDT)
-Received: by obbta14 with SMTP id ta14so2911800obb.14
-        for <linux-mm@kvack.org>; Fri, 23 Mar 2012 02:16:02 -0700 (PDT)
-Message-ID: <4F6C3F29.8090402@gmail.com>
-Date: Fri, 23 Mar 2012 17:15:21 +0800
-From: bill4carson <bill4carson@gmail.com>
+Received: from psmtp.com (na3sys010amx151.postini.com [74.125.245.151])
+	by kanga.kvack.org (Postfix) with SMTP id 88C386B0044
+	for <linux-mm@kvack.org>; Fri, 23 Mar 2012 05:46:00 -0400 (EDT)
+Date: Fri, 23 Mar 2012 10:45:57 +0100
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH] memcg: change behavior of moving charges at task move
+Message-ID: <20120323094557.GA5123@tiehlicka.suse.cz>
+References: <4F69A4C4.4080602@jp.fujitsu.com>
+ <20120322143610.e4df49c9.akpm@linux-foundation.org>
+ <4F6BC166.80407@jp.fujitsu.com>
+ <20120322173000.f078a43f.akpm@linux-foundation.org>
+ <4F6BC94C.80301@jp.fujitsu.com>
+ <20120323085301.GA1739@cmpxchg.org>
+ <4F6C3BB2.6090108@jp.fujitsu.com>
 MIME-Version: 1.0
-Subject: Re: Why memory.usage_in_bytes is always increasing after every mmap/dirty/unmap
- sequence
-References: <4F6C2E9B.9010200@gmail.com> <4F6C31F7.2010804@jp.fujitsu.com> <4F6C3B7F.1070705@gmail.com> <4F6C3C88.5090800@jp.fujitsu.com>
-In-Reply-To: <4F6C3C88.5090800@jp.fujitsu.com>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <4F6C3BB2.6090108@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Linux Kernel <linux-kernel@vger.kernel.org>, "cgroups@vger.kernel.org" <cgroups@vger.kernel.org>, Hugh Dickins <hughd@google.com>, "n-horiguchi@ah.jp.nec.com" <n-horiguchi@ah.jp.nec.com>, Glauber Costa <glommer@parallels.com>
 
+On Fri 23-03-12 18:00:34, KAMEZAWA Hiroyuki wrote:
+> (2012/03/23 17:53), Johannes Weiner wrote:
+> 
+> > On Fri, Mar 23, 2012 at 09:52:28AM +0900, KAMEZAWA Hiroyuki wrote:
+> >> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> >> index b2ee6df..ca8b3a1 100644
+> >> --- a/mm/memcontrol.c
+> >> +++ b/mm/memcontrol.c
+> >> @@ -5147,7 +5147,7 @@ static struct page *mc_handle_present_pte(struct vm_area_struct *vma,
+> >>  		return NULL;
+> >>  	if (PageAnon(page)) {
+> >>  		/* we don't move shared anon */
+> >> -		if (!move_anon() || page_mapcount(page) > 2)
+> >> +		if (!move_anon())
+> >>  			return NULL;
+> >>  	} else if (!move_file())
+> >>  		/* we ignore mapcount for file pages */
+> >> @@ -5158,26 +5158,32 @@ static struct page *mc_handle_present_pte(struct vm_area_struct *vma,
+> >>  	return page;
+> >>  }
+> >>  
+> >> +#ifdef CONFFIG_SWAP
+> > 
+> > That will probably disable it for good :)
+> > 
+> 
+> 
+> Thank you for your good eyes.. I feel I can't trust my eyes ;(
+> 
+> 
+> ==
+> From d7ed385bad22d352bb28aeb9380591b72ec5bec5 Mon Sep 17 00:00:00 2001
+> From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> Date: Wed, 21 Mar 2012 19:03:40 +0900
+> Subject: [PATCH] memcg: fix/change behavior of shared anon at moving task.
+> 
+> This patch changes memcg's behavior at task_move().
+> 
+> At task_move(), the kernel scans a task's page table and move
+> the changes for mapped pages from source cgroup to target cgroup.
 
+charges?
 
-On 2012a1'03ae??23ae?JPY 17:04, KAMEZAWA Hiroyuki wrote:
-> (2012/03/23 17:59), bill4carson wrote:
->
->>
->>
->> On 2012a1'03ae??23ae?JPY 16:19, KAMEZAWA Hiroyuki wrote:
->>> (2012/03/23 17:04), bill4carson wrote:
->>>
->>>> Hi, all
->>>>
->>>> I'm playing with memory cgroup, I'm a bit confused why
->>>> memory.usage in bytes is steadily increasing at 4K page pace
->>>> after every mmap/dirty/unmap sequence.
->>>>
->>>> On linux-3.6.34.10/linux-3.3.0-rc5
->>>> A simple test case does following:
->>>>
->>>> a) mmap 128k memory in private anonymous way
->>>> b) dirty all 128k to demand physical page
->>>> c) print memory.usage_in_bytes<-- increased at 4K after every loop
->>>> d) unmap previous 128 memory
->>>> e) goto a) to repeat
->>>
->>> In Documentation/cgroup/memory.txt
->>> ==
->>> 5.5 usage_in_bytes
->>>
->>> For efficiency, as other kernel components, memory cgroup uses some optimization
->>> to avoid unnecessary cacheline false sharing. usage_in_bytes is affected by the
->>> method and doesn't show 'exact' value of memory(and swap) usage, it's an fuzz
->>> value for efficient access. (Of course, when necessary, it's synchronized.)
->>> If you want to know more exact memory usage, you should use RSS+CACHE(+SWAP)
->>> value in memory.stat(see 5.2).
->>> ==
->>>
->>> In current implementation, memcg tries to charge resource in size of 32 pages.
->>> So, if you get 32 pages and free 32pages, usage_in_bytes may not change.
->>> This is affected by caches in other cpus and other flushing operations caused
->>> by some workload in other cgroups. memcg's usage_in_bytes is not precise in
->>> 128k degree.
->>>
->> Yes, I tried to mmap/dirty/unmap in 32 times, when the usage_in_bytes
->> reached 128k, it rolls back to 4k again. So it doesn't hurt any more.
->
->
-> rolls back before unmap() ?
->
-After unmap
+> There has been a bug at handling shared anonymous pages for a long time.
+> 
+> Before patch:
+>   - The spec says 'shared anonymous pages are not moved.'
+>   - The implementation was 'shared anonymoys pages may be moved'.
+>     If page_mapcount <=2, shared anonymous pages's charge were moved.
+> 
+> After patch:
+>   - The spec says 'all anonymous pages are moved'.
+>   - The implementation is 'all anonymous pages are moved'.
+> 
+> Considering usage of memcg, this will not affect user's experience.
+> 'shared anonymous' pages only exists between a tree of processes
+> which don't do exec(). Moving one of process without exec() seems
+> not sane. 
 
->>
->> I haven't found the code regarding to this behavior.
->
->
-> Could you post your test program ?
->
-Yes, it's a bit of messy, you can mock at me:)
+Why it wouldn't be sane?
 
--------------------------------------------------------------
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
-#include <errno.h>
-#include <sys/mman.h>
-#include <sys/types.h>
-#include <unistd.h>
-#include <sys/eventfd.h>
-#include <fcntl.h>
-#include <limits.h>
+> For example, libcgroup will not be affected by this change.
+> (Anyway, no one noticed the implementation for a long time...)
+> 
+> Below is a discussion log:
+> 
+>  - current spec/implementation are complex
+>  - Now, shared file caches are moved
+>  - It adds unclear check as page_mapcount(). To do correct check,
+>    we should check swap users, etc.
+>  - No one notice this implementation behavior. So, no one get benefit
+>    from the design.
+>  - In general, once task is moved to a cgroup for running, it will not
+>    be moved....
+>  - Finally, we have control knob as memory.move_charge_at_immigrate.
+> 
+> Here is a patch to allow moving shared pages, completely. This makes
+> memcg simpler and fix current broken code.
+> 
+> Changelog:
+>   - fixed CONFFIG_SWAP...
+> Changelog:
+>   - fixed comment around find_get_page()
+>   - changed CONFIG_SWAP handling
+>   - updated patch description
 
-#define MMAP_SIZE (128*1024)
+Anyway the patch looks good to me and I agree that we should make anon
+moving easier.
+Acked-by: Michal Hocko <mhocko@suse.cz>
 
-int * ptr_array[1024];
-int depth=0;
-
-char cmd;
-int pagesize;
-int mapsize;
-
-void get_key(void)
-{
-
-	cmd = getchar();
-	putchar('\n');
-	getchar();
-}
-
-int is_this_key(char key)
-{
-	return (cmd == key) ? 1:0;
-}
-
-void getpage(int *ptr)
-{
-	int i;
-	for (i = 0; i < mapsize/4098; i++){
-		*ptr = 4;/* alloc a physical page */
-		ptr += 1024; /*move to next page*/
-	}
-}
-void show_stat(void)
-{
-	int i;
-
-	for (i = depth; i--; i < 0){
-		printf("[%2d]:%8p\n", i, ptr_array[i]);
-	}
-
-}
-int main(int argc, char ** argv)
-{
-
-	int *ptr;
-	int i;
-     char usage_in_bytes_path[PATH_MAX];
-	char          tasks_path[PATH_MAX];
-     char                 tmp[PATH_MAX];
-     int usage_in_bytes = -1;
-	int fd_tasks = -1;
-
-	char *root_path;
-	int ret;
-
-	if (argc > 2)
-		printf("Usage: oomtst [map size]\n");
-
-	mapsize = MMAP_SIZE;
-
-
-	strcpy(tmp, argv[1]);
-	root_path = dirname(tmp);
-	printf("root_path:%s\n", root_path);
-
-	ret = snprintf(usage_in_bytes_path, PATH_MAX, 
-"%s/memory.usage_in_bytes", root_path);
-	if (ret >= PATH_MAX) {
-		fputs("Path to memory.usage_in_bytes is too long\n", stderr);
-		goto out;
-	}
-	puts(usage_in_bytes_path);
-
-	ret = snprintf(tasks_path, PATH_MAX, "%s/tasks", root_path);
-	if (ret >= PATH_MAX) {
-		fputs("Path to memory.usage_in_bytes is too long\n", stderr);
-		goto out;
-	}
-	puts(tasks_path);
-	
-	fd_tasks = open(tasks_path, O_WRONLY);
-	if (fd_tasks == -1) {
-		fprintf(stderr, "Cannot open %s: %s\n", tasks_path,
-				strerror(errno));
-		goto out;
-	}
-
-	printf("Using PID:%u\n", getpid());
-	{
-		char tasks_str[32];
-
-		ret = sprintf(tasks_str, "%d", getpid());
-		ret = write(fd_tasks, tasks_str, strlen(tasks_str));
-
-	}
-
-
-	while(1){
-		char used_bytes[64];
-		uint64_t tmp;
-
-		usage_in_bytes = open(usage_in_bytes_path, O_RDWR);
-		if (usage_in_bytes == -1) {
-			fprintf(stderr, "Cannot open %s: %s\n", usage_in_bytes_path,
-				strerror(errno));
-			goto out;
-		}
-
-
-
-		printf("Enter a command (m: malloc f: free ?: exit):");
-		get_key();
-
-		if (is_this_key('m')) {	
-			ptr_array[depth] = mmap(NULL, mapsize, PROT_READ | PROT_WRITE, 
-MAP_PRIVATE|MAP_ANON, 0, 0);
-			if (ptr_array[depth] == NULL){
-				perror("msg: cannot malloc\n");
-				exit(2);
-			}
-
-			printf("malloc %d Kbytes at %p\n", mapsize/1024, ptr_array[depth]);
-			getpage(ptr_array[depth]);
-			depth++;
-
-		}else if (is_this_key('f')) {
-			if (depth == 0)
-				break;
-
-			printf("free %d Kbytes at %p\n", mapsize/1024, ptr_array[depth -1]);
-			munmap(ptr_array[depth -1], mapsize);
-			--depth;
-
-		}else
-			break;
-
-		show_stat();
-
-
-		memset(&used_bytes, 0, 33/*sizeof(used_bytes)*/);
-		ret = read(usage_in_bytes, &used_bytes, 32);
-		if (ret == -1) {
-			perror("Cannot read from usage_in_bytes");
-			break;
-		}
-		tmp = atoll(used_bytes);
-         printf("used_bytes:%llu Kbytes\n", tmp/1024);
-
-		if (usage_in_bytes >= 0)
-			close(usage_in_bytes);
-
-	}
-	
-	out:
-		for (i = 0; i < depth; i++){
-			printf("free %d Kbytes at %p\n", mapsize/1024, ptr_array[i]);
-			munmap(ptr_array[i], mapsize);
-		}
-
-
-	if (usage_in_bytes >= 0)
-		close(usage_in_bytes);
-
-	return 0;
-}
-
-
-
-> Thanks,
-> -Kame
->
->
-
+> 
+> Suggested-by: Hugh Dickins <hughd@google.com>
+> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> ---
+>  Documentation/cgroups/memory.txt |    9 ++++-----
+>  include/linux/swap.h             |    9 ---------
+>  mm/memcontrol.c                  |   22 ++++++++++++++--------
+>  mm/swapfile.c                    |   31 -------------------------------
+>  4 files changed, 18 insertions(+), 53 deletions(-)
+> 
+[...]
 -- 
-Love each day!
-
---bill
+Michal Hocko
+SUSE Labs
+SUSE LINUX s.r.o.
+Lihovarska 1060/12
+190 00 Praha 9    
+Czech Republic
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
