@@ -1,47 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx184.postini.com [74.125.245.184])
-	by kanga.kvack.org (Postfix) with SMTP id 379116B00E8
-	for <linux-mm@kvack.org>; Fri, 23 Mar 2012 17:15:27 -0400 (EDT)
-Received: by ghrr18 with SMTP id r18so3980138ghr.14
-        for <linux-mm@kvack.org>; Fri, 23 Mar 2012 14:15:26 -0700 (PDT)
-Date: Fri, 23 Mar 2012 14:14:54 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx195.postini.com [74.125.245.195])
+	by kanga.kvack.org (Postfix) with SMTP id 21A526B00EA
+	for <linux-mm@kvack.org>; Fri, 23 Mar 2012 17:20:59 -0400 (EDT)
+Received: by ghrr18 with SMTP id r18so3984641ghr.14
+        for <linux-mm@kvack.org>; Fri, 23 Mar 2012 14:20:58 -0700 (PDT)
+Date: Fri, 23 Mar 2012 14:20:27 -0700 (PDT)
 From: Hugh Dickins <hughd@google.com>
-Subject: Re: [PATCH] mm for fs: add truncate_pagecache_range
-In-Reply-To: <20120323140120.11f95cd5.akpm@linux-foundation.org>
-Message-ID: <alpine.LSU.2.00.1203231406090.2207@eggly.anvils>
-References: <alpine.LSU.2.00.1203231343380.1940@eggly.anvils> <20120323140120.11f95cd5.akpm@linux-foundation.org>
+Subject: Re: [PATCH] swapon: check validity of swap_flags
+In-Reply-To: <20120323135356.6b2376d6.akpm@linux-foundation.org>
+Message-ID: <alpine.LSU.2.00.1203231416260.2235@eggly.anvils>
+References: <alpine.LSU.2.00.1203231346500.1940@eggly.anvils> <20120323135356.6b2376d6.akpm@linux-foundation.org>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Christoph Hellwig <hch@infradead.org>, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
+Cc: Al Viro <viro@zeniv.linux.org.uk>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
 On Fri, 23 Mar 2012, Andrew Morton wrote:
+> On Fri, 23 Mar 2012 13:48:35 -0700 (PDT)
+> Hugh Dickins <hughd@google.com> wrote:
 > 
-> --- a/mm/truncate.c~mm-for-fs-add-truncate_pagecache_range-fix
-> +++ a/mm/truncate.c
-> @@ -639,6 +639,9 @@ int vmtruncate_range(struct inode *inode
->   * with on-disk format, and the filesystem would not have to deal with
->   * situations such as writepage being called for a page that has already
->   * had its underlying blocks deallocated.
-> + *
-> + * Must be called with inode->i_mapping->i_mutex held.
-
-You catch me offguard: I forget whether that's an absolute requirement or
-just commonly the case.  What do the other interfaces in truncate.c say ?-)
-
-> + * Takes inode->i_mapping->i_mmap_mutex.
-
-Yes, and inode->i_mapping->tree_lock.
-
->   */
->  void truncate_pagecache_range(struct inode *inode, loff_t lstart, loff_t lend)
->  {
+> > Most system calls taking flags first check that the flags passed in are
+> > valid, and that helps userspace to detect when new flags are supported.
+> > 
+> > But swapon never did so: start checking now, to help if we ever want to
+> > support more swap_flags in future.
+> > 
+> > It's difficult to get stray bits set in an int, and swapon is not widely
+> > used, so this is most unlikely to break any userspace; but we can just
+> > revert if it turns out to do so.
 > 
-> yes?
+> It would be safer to emit a nasty message then let the swapon proceed
+> as before.
 
-Probably!
+Safer, I suppose, but I really don't expect that case to arise (we'll
+have been doing those lovely runtime discards without asking for a year
+now if so).  And it does spoil the checking of supported flags.
 
 Hugh
 
