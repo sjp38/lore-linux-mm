@@ -1,66 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx119.postini.com [74.125.245.119])
-	by kanga.kvack.org (Postfix) with SMTP id 8934F6B007E
-	for <linux-mm@kvack.org>; Thu, 22 Mar 2012 20:26:45 -0400 (EDT)
-Date: Thu, 22 Mar 2012 17:30:00 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] memcg: change behavior of moving charges at task move
-Message-Id: <20120322173000.f078a43f.akpm@linux-foundation.org>
-In-Reply-To: <4F6BC166.80407@jp.fujitsu.com>
-References: <4F69A4C4.4080602@jp.fujitsu.com>
-	<20120322143610.e4df49c9.akpm@linux-foundation.org>
-	<4F6BC166.80407@jp.fujitsu.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Received: from psmtp.com (na3sys010amx203.postini.com [74.125.245.203])
+	by kanga.kvack.org (Postfix) with SMTP id 76FF36B0044
+	for <linux-mm@kvack.org>; Thu, 22 Mar 2012 20:49:51 -0400 (EDT)
+Message-ID: <4F6BC8A8.6080202@storytotell.org>
+Date: Thu, 22 Mar 2012 18:49:44 -0600
+From: Jason Mattax <jmattax@storytotell.org>
+MIME-Version: 1.0
+Subject: Re: Possible Swapfile bug
+References: <4F6B5236.20805@storytotell.org> <20120322124635.85fd4673.akpm@linux-foundation.org>
+In-Reply-To: <20120322124635.85fd4673.akpm@linux-foundation.org>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, Linux Kernel <linux-kernel@vger.kernel.org>, "cgroups@vger.kernel.org" <cgroups@vger.kernel.org>, Hugh Dickins <hughd@google.com>, "n-horiguchi@ah.jp.nec.com" <n-horiguchi@ah.jp.nec.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Glauber Costa <glommer@parallels.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: kamezawa.hiroyu@jp.fujitsu.com, cesarb@cesarb.net, emunson@mgebm.net, penberg@kernel.org, linux-mm@kvack.org, Hugh Dickins <hughd@google.com>
 
-On Fri, 23 Mar 2012 09:18:46 +0900 KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+On 03/22/2012 01:46 PM, Andrew Morton wrote:
+> On Thu, 22 Mar 2012 10:24:22 -0600
+> Jason Mattax<jmattax@storytotell.org>  wrote:
+>
+>> Swapon very slow with swapfiles.
+>>
+>> After upgrading the kernel my swap file loads very slowly, while a swap
+>> partition is unaffected. With the newer kernel (2.6.33.1) I get
+>>
+>> # time swapon -v /var/swapfile
+>> swapon on /var/swapfile
+>> swapon: /var/swapfile: found swap signature: version 1, page-size 4,
+>> same byte order
+>> swapon: /var/swapfile: pagesize=4096, swapsize=6442450944,
+>> devsize=6442450944
+>>
+>> real    4m35.355s
+>> user    0m0.001s
+>> sys    0m1.786s
+>>
+>> while with the older kernel (2.6.32.27) I get
+>> # time swapon -v /var/swapfile
+>> swapon on /var/swapfile
+>> swapon: /var/swapfile: found swap signature: version 1, page-size 4,
+>> same byte order
+>> swapon: /var/swapfile: pagesize=4096, swapsize=6442450944,
+>> devsize=6442450944
+>>
+>> real    0m1.158s
+>> user    0m0.000s
+>> sys     0m0.876s
+>>
+>> this stays true even for new swapfiles I create with dd.
+>>
+>> the file is on an OCZ Vertex2 SSD.
+> Probably the vertex2 discard problem.
+>
+> We just merged a patch which will hopefully fix it:
+>
+> --- a/mm/swapfile.c~swap-dont-do-discard-if-no-discard-option-added
+> +++ a/mm/swapfile.c
+> @@ -2103,7 +2103,7 @@ SYSCALL_DEFINE2(swapon, const char __use
+>   			p->flags |= SWP_SOLIDSTATE;
+>   			p->cluster_next = 1 + (random32() % p->highest_bit);
+>   		}
+> -		if (discard_swap(p) == 0&&  (swap_flags&  SWAP_FLAG_DISCARD))
+> +		if ((swap_flags&  SWAP_FLAG_DISCARD)&&  discard_swap(p) == 0)
+>   			p->flags |= SWP_DISCARDABLE;
+>   	}
+>
+>
+> But Hugh doesn't like it and won't tell us why :)
+>
 
-> >> +#ifdef CONFIG_SWAP
-> >> +	/*
-> >> +	 * Avoid lookup_swap_cache() not to update statistics.
-> >> +	 */
-> > 
-> > I don't understand this comment - what is it trying to tell us?
-> > 
-> 
-> 
-> High Dickins advised me to use find_get_page() rather than lookup_swap_cache()
-> because lookup_swap_cache() has some statistics with swap.
+Patch worked like a charm for me, thanks.
 
-ah.
-
---- a/mm/memcontrol.c~memcg-change-behavior-of-moving-charges-at-task-move-fix
-+++ a/mm/memcontrol.c
-@@ -5137,7 +5137,8 @@ static struct page *mc_handle_swap_pte(s
- 		return NULL;
- #ifdef CONFIG_SWAP
- 	/*
--	 * Avoid lookup_swap_cache() not to update statistics.
-+	 * Use find_get_page() rather than lookup_swap_cache() because the
-+	 * latter alters statistics.
- 	 */
- 	page = find_get_page(&swapper_space, ent.val);
- #endif
-
-> >> +	page = find_get_page(&swapper_space, ent.val);
-> > 
-> > The code won't even compile if CONFIG_SWAP=n?
-> > 
-> 
-> mm/built-in.o: In function `mc_handle_swap_pte':
-> /home/kamezawa/Kernel/next/linux/mm/memcontrol.c:5172: undefined reference to `swapper_space'
-> make: *** [.tmp_vmlinux1] Error 1
-> 
-> Ah...but I think this function (mc_handle_swap_pte) itself should be under CONFIG_SWAP.
-> I'll post v2.
-
-Confused.  The new reference to swapper_space is already inside #ifdef
-CONFIG_SWAP.
+-- 
+Jason Mattax
+575-418-1791
+jmattax@storytotell.org
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
