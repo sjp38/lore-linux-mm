@@ -1,69 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx180.postini.com [74.125.245.180])
-	by kanga.kvack.org (Postfix) with SMTP id 4EBBB6B00EC
-	for <linux-mm@kvack.org>; Fri, 23 Mar 2012 17:36:10 -0400 (EDT)
-Received: by wibhq7 with SMTP id hq7so2055028wib.8
-        for <linux-mm@kvack.org>; Fri, 23 Mar 2012 14:36:08 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <1332228283-29077-1-git-send-email-m.szyprowski@samsung.com>
-References: <1332228283-29077-1-git-send-email-m.szyprowski@samsung.com>
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Date: Fri, 23 Mar 2012 14:35:48 -0700
-Message-ID: <CA+55aFy9oxMrfm-+deMqV=XnFOa98aKXqW+8PR-P-zOARtC2BQ@mail.gmail.com>
-Subject: Re: [GIT PULL] DMA-mapping framework updates for 3.4
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Received: from psmtp.com (na3sys010amx184.postini.com [74.125.245.184])
+	by kanga.kvack.org (Postfix) with SMTP id 3DD4C6B0044
+	for <linux-mm@kvack.org>; Fri, 23 Mar 2012 18:59:53 -0400 (EDT)
+Date: Fri, 23 Mar 2012 15:59:50 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] mm for fs: add truncate_pagecache_range
+Message-Id: <20120323155950.f9bfb097.akpm@linux-foundation.org>
+In-Reply-To: <alpine.LSU.2.00.1203231406090.2207@eggly.anvils>
+References: <alpine.LSU.2.00.1203231343380.1940@eggly.anvils>
+	<20120323140120.11f95cd5.akpm@linux-foundation.org>
+	<alpine.LSU.2.00.1203231406090.2207@eggly.anvils>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Marek Szyprowski <m.szyprowski@samsung.com>, Dave Airlie <airlied@linux.ie>
-Cc: linux-kernel@vger.kernel.org, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Thomas Gleixner <tglx@linutronix.de>, Andrew Morton <akpm@linux-foundation.org>, Arnd Bergmann <arnd@arndb.de>, FUJITA Tomonori <fujita.tomonori@lab.ntt.co.jp>, microblaze-uclinux@itee.uq.edu.au, linux-arch@vger.kernel.org, x86@kernel.org, linux-sh@vger.kernel.org, linux-alpha@vger.kernel.org, sparclinux@vger.kernel.org, linux-ia64@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-mips@linux-mips.org, discuss@x86-64.org, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, linaro-mm-sig@lists.linaro.org, Jonathan Corbet <corbet@lwn.net>, Kyungmin Park <kyungmin.park@samsung.com>, Andrzej Pietrasiewicz <andrzej.p@samsung.com>
+To: Hugh Dickins <hughd@google.com>
+Cc: Christoph Hellwig <hch@infradead.org>, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
 
-On Tue, Mar 20, 2012 at 12:24 AM, Marek Szyprowski
-<m.szyprowski@samsung.com> wrote:
->
-> =A0git://git.infradead.org/users/kmpark/linux-samsung dma-mapping-next
->
-> Those patches introduce a new alloc method (with support for memory
-> attributes) in dma_map_ops structure, which will later replace
-> dma_alloc_coherent and dma_alloc_writecombine functions.
+On Fri, 23 Mar 2012 14:14:54 -0700 (PDT)
+Hugh Dickins <hughd@google.com> wrote:
 
-So I'm quite unhappy with these patches.
+> On Fri, 23 Mar 2012, Andrew Morton wrote:
+> > 
+> > --- a/mm/truncate.c~mm-for-fs-add-truncate_pagecache_range-fix
+> > +++ a/mm/truncate.c
+> > @@ -639,6 +639,9 @@ int vmtruncate_range(struct inode *inode
+> >   * with on-disk format, and the filesystem would not have to deal with
+> >   * situations such as writepage being called for a page that has already
+> >   * had its underlying blocks deallocated.
+> > + *
+> > + * Must be called with inode->i_mapping->i_mutex held.
+> 
+> You catch me offguard: I forget whether that's an absolute requirement or
+> just commonly the case.  What do the other interfaces in truncate.c say ?-)
 
-Here's just the few problems I saw from some *very* quick look-through
-of the git tree:
+i_mutex is generally required, to stabilise i_size.
 
- - I'm not seeing ack's from the architecture maintainers for the
-patches that change some architecture.
+> > + * Takes inode->i_mapping->i_mmap_mutex.
+> 
+> Yes, and inode->i_mapping->tree_lock.
 
- - Even more importantly, what I really want is acks and comments from
-the people who are expected to *use* this.
+I don't think it's necessary to get into the spinning locks for a
+high-level function which clearly does sleeping things.
 
- - it looks like patches break compilation half-way through the
-series. Just one example I noticed: the "x86 adaptation" patch changes
-the functions in lib/swiotlb.c, but afaik ia64 *also* uses those. So
-now ia64 is broken until a couple of patches later. I suspect there
-are other examples like that.
-
- - the sign-off chains are odd. What happened there? Several patches
-are signed off by Kyungmin Park, but he doesn't seem to be "in the
-chain" at all. Whazzup? (*)
-
-(Btw, I notice the same thing in the tree I pulled from Dave Airlie,
-btw - what the F is going on with samsung submissions - those are
-marked as committed by Dave Airlie, and don't have Dave in the
-sign-off chain at all!)
-
- - Finally, how/why are "dma attributes" different from the per-device
-dma limits ("device_dma_parameters")
-
-Hmm?
-
-                  Linus
-
-(*) Btw, I notice the same thing in the tree I pulled from Dave
-Airlie, btw - what the F is going on with samsung submissions - those
-are marked as committed by Dave Airlie, and don't have Dave in the
-sign-off chain at all! Dave?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
