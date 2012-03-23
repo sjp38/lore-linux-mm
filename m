@@ -1,51 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx150.postini.com [74.125.245.150])
-	by kanga.kvack.org (Postfix) with SMTP id 27F9F6B0044
-	for <linux-mm@kvack.org>; Fri, 23 Mar 2012 12:41:20 -0400 (EDT)
-MIME-Version: 1.0
-Message-ID: <2d2c494d-64e3-4968-a406-a8ede7eb39bb@default>
-Date: Fri, 23 Mar 2012 09:40:15 -0700 (PDT)
-From: Dan Magenheimer <dan.magenheimer@oracle.com>
-Subject: [GIT PULL] staging: ramster: unbreak my heart
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: quoted-printable
+Received: from psmtp.com (na3sys010amx157.postini.com [74.125.245.157])
+	by kanga.kvack.org (Postfix) with SMTP id 777CB6B004D
+	for <linux-mm@kvack.org>; Fri, 23 Mar 2012 12:42:50 -0400 (EDT)
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: [PATCH] mm: thp: fixup pmd_trans_unstable() locations
+Date: Fri, 23 Mar 2012 17:42:44 +0100
+Message-Id: <1332520964-30491-2-git-send-email-aarcange@redhat.com>
+In-Reply-To: <1332520964-30491-1-git-send-email-aarcange@redhat.com>
+References: <1332520964-30491-1-git-send-email-aarcange@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-Cc: Konrad Wilk <konrad.wilk@oracle.com>, Linus Torvalds <torvalds@linux-foundation.org>, linux-kernel@vger.kernel.org, devel@driverdev.osuosl.org, linux-mm@kvack.org
+To: linux-mm@kvack.org
+Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>, Larry Woodman <lwoodman@redhat.com>, Ulrich Obergfell <uobergfe@redhat.com>, Rik van Riel <riel@redhat.com>, Mark Salter <msalter@redhat.com>
 
-Hey Greg  --
+pmd_trans_unstable shall be called before pmd_offset_map in the
+locations where the mmap_sem is hold for reading.
 
-The just-merged ramster staging driver was dependent on a cleanup patch in
-cleancache, so was marked CONFIG_BROKEN until that patch could be
-merged.  That cleancache patch is now merged (and the correct SHA of the
-cleancache patch is 3167760f83899ccda312b9ad9306ec9e5dda06d4 rather than
-the one shown in the comment removed in the patch below).
+Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
+---
+ fs/proc/task_mmu.c |    5 ++---
+ mm/memcontrol.c    |    4 ++++
+ 2 files changed, 6 insertions(+), 3 deletions(-)
 
-So remove the CONFIG_BROKEN now and the comment that is no longer true...
-
-Signed-off-by: Dan Magenheimer <dan.magenheimer@oracle.com>
-
-diff --git a/drivers/staging/ramster/Kconfig b/drivers/staging/ramster/Kcon=
-fig
-index 8b57b87..4af1f8d 100644
---- a/drivers/staging/ramster/Kconfig
-+++ b/drivers/staging/ramster/Kconfig
-@@ -1,10 +1,6 @@
--# Dependency on CONFIG_BROKEN is because there is a commit dependency
--# on a cleancache naming change to be submitted by Konrad Wilk
--# a39c00ded70339603ffe1b0ffdf3ade85bcf009a "Merge branch 'stable/cleancach=
-e.v13'
--# into linux-next.  Once this commit is present, BROKEN can be removed
- config RAMSTER
- =09bool "Cross-machine RAM capacity sharing, aka peer-to-peer tmem"
--=09depends on (CLEANCACHE || FRONTSWAP) && CONFIGFS_FS=3Dy && !ZCACHE && !=
-XVMALLOC && !HIGHMEM && BROKEN
-+=09depends on (CLEANCACHE || FRONTSWAP) && CONFIGFS_FS=3Dy && !ZCACHE && !=
-XVMALLOC && !HIGHMEM
- =09select LZO_COMPRESS
- =09select LZO_DECOMPRESS
- =09default n
+diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
+index 9694cc2..c283832 100644
+--- a/fs/proc/task_mmu.c
++++ b/fs/proc/task_mmu.c
+@@ -781,9 +781,6 @@ static int pagemap_pte_range(pmd_t *pmd, unsigned long addr, unsigned long end,
+ 	int err = 0;
+ 	pagemap_entry_t pme = make_pme(PM_NOT_PRESENT);
+ 
+-	if (pmd_trans_unstable(pmd))
+-		return 0;
+-
+ 	/* find the first VMA at or above 'addr' */
+ 	vma = find_vma(walk->mm, addr);
+ 	spin_lock(&walk->mm->page_table_lock);
+@@ -802,6 +799,8 @@ static int pagemap_pte_range(pmd_t *pmd, unsigned long addr, unsigned long end,
+ 		return err;
+ 	}
+ 
++	if (pmd_trans_unstable(pmd))
++		return 0;
+ 	for (; addr != end; addr += PAGE_SIZE) {
+ 
+ 		/* check to see if we've left 'vma' behind
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index b2ee6df..7d698df 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -5306,6 +5306,8 @@ static int mem_cgroup_count_precharge_pte_range(pmd_t *pmd,
+ 		return 0;
+ 	}
+ 
++	if (pmd_trans_unstable(pmd))
++		return 0;
+ 	pte = pte_offset_map_lock(vma->vm_mm, pmd, addr, &ptl);
+ 	for (; addr != end; pte++, addr += PAGE_SIZE)
+ 		if (get_mctgt_type(vma, addr, *pte, NULL))
+@@ -5502,6 +5504,8 @@ static int mem_cgroup_move_charge_pte_range(pmd_t *pmd,
+ 		return 0;
+ 	}
+ 
++	if (pmd_trans_unstable(pmd))
++		return 0;
+ retry:
+ 	pte = pte_offset_map_lock(vma->vm_mm, pmd, addr, &ptl);
+ 	for (; addr != end; addr += PAGE_SIZE) {
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
