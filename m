@@ -1,57 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx186.postini.com [74.125.245.186])
-	by kanga.kvack.org (Postfix) with SMTP id B138E6B0044
-	for <linux-mm@kvack.org>; Sat, 24 Mar 2012 10:46:03 -0400 (EDT)
-Date: Sat, 24 Mar 2012 10:45:59 -0400
-Message-Id: <E1SBSEB-0008Mf-4s@tytso-glaptop.cam.corp.google.com>
-Subject: RCU stalls in merge-window (v3.3-6946-gf1d38e4)
-From: "Theodore Ts'o" <tytso@mit.edu>
+Received: from psmtp.com (na3sys010amx169.postini.com [74.125.245.169])
+	by kanga.kvack.org (Postfix) with SMTP id 27CA16B0044
+	for <linux-mm@kvack.org>; Sat, 24 Mar 2012 10:46:52 -0400 (EDT)
+Received: by bkwq16 with SMTP id q16so4367385bkw.14
+        for <linux-mm@kvack.org>; Sat, 24 Mar 2012 07:46:50 -0700 (PDT)
+Message-ID: <4F6DDE56.3090401@openvz.org>
+Date: Sat, 24 Mar 2012 18:46:46 +0400
+From: Konstantin Khlebnikov <khlebnikov@openvz.org>
+MIME-Version: 1.0
+Subject: Re: [PATCH 00/16] mm: prepare for converting vm->vm_flags to 64-bit
+References: <20120321065140.13852.52315.stgit@zurg>  <20120321100602.GA5522@barrios> <4F69D496.2040509@openvz.org>  <20120322053958.GA5278@barrios> <1332397358.2982.82.camel@pasglop>
+In-Reply-To: <1332397358.2982.82.camel@pasglop>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
-Cc: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
+To: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+Cc: Minchan Kim <minchan@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, Hugh Dickins <hughd@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, "linux@arm.linux.org.uk" <linux@arm.linux.org.uk>
 
+Benjamin Herrenschmidt wrote:
+> On Thu, 2012-03-22 at 14:39 +0900, Minchan Kim wrote:
+>> I think we can also unify VM_MAPPED_COPY(nommu) and VM_SAO(powerpc)
+>> with one VM_ARCH_1
+>> Okay. After this series is merged, let's try to remove flags we can
+>> do. Then, other guys
+>> might suggest another ideas.
+>
+> Agreed. I would like more VM_ARCH while at it :-)
 
-I've been running xfstests of my ext4 dev branch merged in with
-v3.3-6946-gf1d38e3 --- the latest from Linus's tree as of this morning
---- as a last minute check before sending a pull request to Linus, and
-I'm seeing that xfstests #76 is quite reliably causing an rcu_sched
-self-detecting stall warning, followed by a wedged kernel.
+Currently I see here four architecture-specific flags =)
 
-A quick web search shows that Dan Carpenter noticed a similar problem
-about two weeks ago, but there was no follow-up as far as I could tell:
+             VM_ARCH_1       VM_ARCH_2       VM_ARCH_3       VM_ARCH_4
+     x86     VM_NOHUGEPAGE   VM_HUGEPAGE     -               VM_PFN_AT_MMAP
+     powerpc -               -               VM_SAO          -
+     parisc  VM_GROWSUP      -               -               -
+     ia64    VM_GROWSUP      -               -               -
+     nommu   -               VM_MAPPED_COPY  -               -
 
-	https://lkml.org/lkml/2012/3/13/360
-
-Since Dan reported that "light e-mail and the occasional git pull" on
-his netbook is sufficient to reproduce this problem, it seems rather
-serious...
-
-Any updates on this issue?
-
-					- Ted
-
-
-076	[  216.353320] INFO: rcu_sched self-detected stall on CPU { 0}  (t=18000 jiffies)
-[  216.353321] Pid: 623, comm: kswapd0 Not tainted 3.3.0-07010-g1a897e3 #36
-[  216.353321] Call Trace:
-[  216.353321]  [<c01b91be>] __rcu_pending+0x9e/0x34e
-[  216.353321]  [<c01b948f>] rcu_pending+0x21/0x4d
-[  216.353321]  [<c01b9956>] rcu_check_callbacks+0x79/0x97
-[  216.353321]  [<c0163869>] update_process_times+0x32/0x5d
-[  216.353321]  [<c019349b>] tick_sched_timer+0x6d/0x9b
-[  216.353321]  [<c01744f2>] __run_hrtimer+0xa7/0x11e
-[  216.353321]  [<c019342e>] ? tick_nohz_handler+0xd9/0xd9
-[  216.353321]  [<c0174773>] hrtimer_interrupt+0xe6/0x1ec
-[  216.353321]  [<c0147f7a>] smp_apic_timer_interrupt+0x6c/0x7f
-[  216.353321]  [<c06db117>] apic_timer_interrupt+0x2f/0x34
-[  216.353321]  [<c01dfa12>] ? zone_watermark_ok_safe+0x22/0x85
-[  216.353321]  [<c01e9eb5>] kswapd+0x3d8/0x7f9
-[  216.353321]  [<c0170d68>] ? wake_up_bit+0x60/0x60
-[  216.353321]  [<c01e9add>] ? shrink_all_memory+0xa8/0xa8
-[  216.353321]  [<c01709e6>] kthread+0x6c/0x71
-[  216.353321]  [<c017097a>] ? __init_kthread_worker+0x47/0x47
-[  216.353321]  [<c06e08ba>] kernel_thread_helper+0x6/0x10
+Obviously we can combine VM_PFN_AT_MMAP, VM_SAO, VM_GROWSUP and VM_MAPPED_COPY into one.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
