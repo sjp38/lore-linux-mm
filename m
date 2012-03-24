@@ -1,49 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx124.postini.com [74.125.245.124])
-	by kanga.kvack.org (Postfix) with SMTP id 0C3426B0044
-	for <linux-mm@kvack.org>; Sat, 24 Mar 2012 11:00:07 -0400 (EDT)
-Received: by bkwq16 with SMTP id q16so4372467bkw.14
-        for <linux-mm@kvack.org>; Sat, 24 Mar 2012 08:00:06 -0700 (PDT)
-Message-ID: <4F6DE172.7010604@openvz.org>
-Date: Sat, 24 Mar 2012 19:00:02 +0400
-From: Konstantin Khlebnikov <khlebnikov@openvz.org>
+Received: from psmtp.com (na3sys010amx171.postini.com [74.125.245.171])
+	by kanga.kvack.org (Postfix) with SMTP id C0F556B0044
+	for <linux-mm@kvack.org>; Sat, 24 Mar 2012 12:22:58 -0400 (EDT)
+Received: by bkwq16 with SMTP id q16so4408388bkw.14
+        for <linux-mm@kvack.org>; Sat, 24 Mar 2012 09:22:56 -0700 (PDT)
+Date: Sat, 24 Mar 2012 20:21:52 +0400
+From: Anton Vorontsov <anton.vorontsov@linaro.org>
+Subject: Re: [PATCH 10/10] oom: Make find_lock_task_mm() sparse-aware
+Message-ID: <20120324162151.GA3640@lizard>
+References: <20120324102609.GA28356@lizard>
+ <20120324103127.GJ29067@lizard>
+ <1332593574.16159.31.camel@twins>
 MIME-Version: 1.0
-Subject: Re: [PATCH 00/16] mm: prepare for converting vm->vm_flags to 64-bit
-References: <20120321065140.13852.52315.stgit@zurg>  <20120321100602.GA5522@barrios> <4F69D496.2040509@openvz.org>  <20120322053958.GA5278@barrios> <1332397358.2982.82.camel@pasglop> <4F6DDE56.3090401@openvz.org>
-In-Reply-To: <4F6DDE56.3090401@openvz.org>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+In-Reply-To: <1332593574.16159.31.camel@twins>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-Cc: Minchan Kim <minchan@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, Hugh Dickins <hughd@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, "linux@arm.linux.org.uk" <linux@arm.linux.org.uk>
+To: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Oleg Nesterov <oleg@redhat.com>, Russell King <linux@arm.linux.org.uk>, Mike Frysinger <vapier@gentoo.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Richard Weinberger <richard@nod.at>, Paul Mundt <lethal@linux-sh.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, John Stultz <john.stultz@linaro.org>, linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org, uclinux-dist-devel@blackfin.uclinux.org, linuxppc-dev@lists.ozlabs.org, linux-sh@vger.kernel.org, user-mode-linux-devel@lists.sourceforge.net, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>
 
-Konstantin Khlebnikov wrote:
-> Benjamin Herrenschmidt wrote:
->> On Thu, 2012-03-22 at 14:39 +0900, Minchan Kim wrote:
->>> I think we can also unify VM_MAPPED_COPY(nommu) and VM_SAO(powerpc)
->>> with one VM_ARCH_1
->>> Okay. After this series is merged, let's try to remove flags we can
->>> do. Then, other guys
->>> might suggest another ideas.
->>
->> Agreed. I would like more VM_ARCH while at it :-)
->
-> Currently I see here four architecture-specific flags =)
->
-> VM_ARCH_1 VM_ARCH_2 VM_ARCH_3 VM_ARCH_4
-> x86 VM_NOHUGEPAGE VM_HUGEPAGE - VM_PFN_AT_MMAP
-> powerpc - - VM_SAO -
-> parisc VM_GROWSUP - - -
-> ia64 VM_GROWSUP - - -
-> nommu - VM_MAPPED_COPY - -
->
-> Obviously we can combine VM_PFN_AT_MMAP, VM_SAO, VM_GROWSUP and VM_MAPPED_COPY into one.
+On Sat, Mar 24, 2012 at 01:52:54PM +0100, Peter Zijlstra wrote:
+[...]
+> > p.s. I know Peter Zijlstra detest the __cond_lock() stuff, but untill
+> >      we have anything better in sparse, let's use it. This particular
+> >      patch helped me to detect one bug that I myself made during
+> >      task->mm fixup series. So, it is useful.
+> 
+> Yeah, so Nacked-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
+> 
+> Also, why didn't lockdep catch it?
 
-Also logic and usage of VM_IO, VM_RESERVED, VM_PFNMAP, VM_MIXEDMAP,
-VM_INSERTPAGE, VM_DONTEXPAND and VM_DONTCOPY are very messy.
-I think some of them can be replaced with two flags:
-VM_SPECIAL_PFN and VM_SPECIAL_PAGE, or something like this.
+Because patch authors test their patches on architectures they own
+(well, sometimes I do check patches on exotic architectures w/ qemu,
+but it is less convenient than just build/sparse-test the patch w/
+a cross compiler).
+
+And since lockdep is a runtime checker, it is not very useful.
+
+Sparse is a build-time checker, so it is even better in the sense
+that it is able to catch bugs even in code that is executed rarely.
+
+> Fix sparse already instead of smearing ugly all over.
+
+Just wonder how do you see the feature implemented?
+
+Something like this?
+
+#define __ret_cond_locked(l, c)	__attribute__((ret_cond_locked(l, c)))
+#define __ret_value		__attribute__((ret_value))
+#define __ret_locked_nonnull(l)	__ret_cond_locked(l, __ret_value);
+
+extern struct task_struct *find_lock_task_mm(struct task_struct *p)
+	__ret_locked_nonnull(&__ret_value->alloc_lock);
+
+Thanks,
+
+-- 
+Anton Vorontsov
+Email: cbouatmailru@gmail.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
