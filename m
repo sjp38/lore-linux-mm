@@ -1,48 +1,37 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx157.postini.com [74.125.245.157])
-	by kanga.kvack.org (Postfix) with SMTP id F2D636B0044
-	for <linux-mm@kvack.org>; Sat, 24 Mar 2012 01:53:30 -0400 (EDT)
-Received: from list by plane.gmane.org with local (Exim 4.69)
-	(envelope-from <glkm-linux-mm-2@m.gmane.org>)
-	id 1SBJuo-0001Qa-Dk
-	for linux-mm@kvack.org; Sat, 24 Mar 2012 06:53:26 +0100
-Received: from 125.70.184.203 ([125.70.184.203])
-        by main.gmane.org with esmtp (Gmexim 0.1 (Debian))
-        id 1AlnuQ-0007hv-00
-        for <linux-mm@kvack.org>; Sat, 24 Mar 2012 06:53:26 +0100
-Received: from xiyou.wangcong by 125.70.184.203 with local (Gmexim 0.1 (Debian))
-        id 1AlnuQ-0007hv-00
-        for <linux-mm@kvack.org>; Sat, 24 Mar 2012 06:53:26 +0100
-From: Cong Wang <xiyou.wangcong@gmail.com>
-Subject: Re: [PATCH] memcg swap: mem_cgroup_move_swap_account never needs
- fixup
-Date: Sat, 24 Mar 2012 05:53:15 +0000 (UTC)
-Message-ID: <jkjng9$iu2$1@dough.gmane.org>
-References: <alpine.LSU.2.00.1203231348510.1940@eggly.anvils>
- <20120323140918.804b3860.akpm@linux-foundation.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx181.postini.com [74.125.245.181])
+	by kanga.kvack.org (Postfix) with SMTP id 0C2EF6B0044
+	for <linux-mm@kvack.org>; Sat, 24 Mar 2012 06:27:20 -0400 (EDT)
+Received: by bkwq16 with SMTP id q16so4262776bkw.14
+        for <linux-mm@kvack.org>; Sat, 24 Mar 2012 03:27:19 -0700 (PDT)
+Date: Sat, 24 Mar 2012 14:26:12 +0400
+From: Anton Vorontsov <anton.vorontsov@linaro.org>
+Subject: [PATCH v2 0/10] Fixes for common mistakes w/ for_each_process and
+ task->mm
+Message-ID: <20120324102609.GA28356@lizard>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>, Oleg Nesterov <oleg@redhat.com>
+Cc: Russell King <linux@arm.linux.org.uk>, Mike Frysinger <vapier@gentoo.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Richard Weinberger <richard@nod.at>, Paul Mundt <lethal@linux-sh.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, John Stultz <john.stultz@linaro.org>, linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org, uclinux-dist-devel@blackfin.uclinux.org, linuxppc-dev@lists.ozlabs.org, linux-sh@vger.kernel.org, user-mode-linux-devel@lists.sourceforge.net, linux-mm@kvack.org
 
-On Fri, 23 Mar 2012 at 21:09 GMT, Andrew Morton <akpm@linux-foundation.org> wrote:
-> On Fri, 23 Mar 2012 13:51:26 -0700 (PDT)
-> Hugh Dickins <hughd@google.com> wrote:
->
->> I believe it's now agreed that an 81-column line is better left unsplit.
->
-> There's always a way ;)
->
->> +			if (!mem_cgroup_move_swap_account(ent, mc.from, mc.to)) {
->
-> The code sometimes uses "mem_cgroup" and sometimes "memcg".  I don't
-> think the _, r, o, u and p add any value...
->
+Hi all,
 
-It seems that all global function/structs use "mem_cgroup", while local
-variables use "memcg", don't know if this is a rule...
+This is a reincarnation of the task->mm fixes. Several architectures
+were traverse the tasklist in an unsafe manner, plus there are a
+few cases of unsafe access to task->mm.
+
+In v2 I decided to introduce a small helper in cpu.c: most arches
+duplicate the same [buggy] code snippet, so it's better to fix it
+and move the logic into a common function.
+
+Thanks!
+
+-- 
+Anton Vorontsov
+Email: cbouatmailru@gmail.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
