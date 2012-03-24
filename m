@@ -1,13 +1,13 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from psmtp.com (na3sys010amx157.postini.com [74.125.245.157])
-	by kanga.kvack.org (Postfix) with SMTP id 575176B007E
-	for <linux-mm@kvack.org>; Sat, 24 Mar 2012 06:29:02 -0400 (EDT)
-Received: by bkwq16 with SMTP id q16so4263417bkw.14
-        for <linux-mm@kvack.org>; Sat, 24 Mar 2012 03:29:00 -0700 (PDT)
-Date: Sat, 24 Mar 2012 14:27:51 +0400
+	by kanga.kvack.org (Postfix) with SMTP id 916866B0083
+	for <linux-mm@kvack.org>; Sat, 24 Mar 2012 06:29:16 -0400 (EDT)
+Received: by mail-bk0-f41.google.com with SMTP id q16so4263417bkw.14
+        for <linux-mm@kvack.org>; Sat, 24 Mar 2012 03:29:16 -0700 (PDT)
+Date: Sat, 24 Mar 2012 14:28:08 +0400
 From: Anton Vorontsov <anton.vorontsov@linaro.org>
-Subject: [PATCH 01/10] cpu: Introduce clear_tasks_mm_cpumask() helper
-Message-ID: <20120324102751.GA29067@lizard>
+Subject: [PATCH 02/10] arm: Use clear_tasks_mm_cpumask()
+Message-ID: <20120324102808.GB29067@lizard>
 References: <20120324102609.GA28356@lizard>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=utf-8
@@ -18,89 +18,57 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>, Oleg Nesterov <oleg@redhat.com>
 Cc: Russell King <linux@arm.linux.org.uk>, Mike Frysinger <vapier@gentoo.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Richard Weinberger <richard@nod.at>, Paul Mundt <lethal@linux-sh.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, John Stultz <john.stultz@linaro.org>, linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org, uclinux-dist-devel@blackfin.uclinux.org, linuxppc-dev@lists.ozlabs.org, linux-sh@vger.kernel.org, user-mode-linux-devel@lists.sourceforge.net, linux-mm@kvack.org
 
-Many architctures clear tasks' mm_cpumask like this:
-
-	read_lock(&tasklist_lock);
-	for_each_process(p) {
-		if (p->mm)
-			cpumask_clear_cpu(cpu, mm_cpumask(p->mm));
-	}
-	read_unlock(&tasklist_lock);
-
-The code above has several problems, such as:
+Current CPU hotplug code has some task->mm handling issues:
 
 1. Working with task->mm w/o getting mm or grabing the task lock is
    dangerous as ->mm might disappear (exit_mm() assigns NULL under
    task_lock(), so tasklist lock is not enough).
 
+   We can't use get_task_mm()/mmput() pair as mmput() might sleep,
+   so we must take the task lock while handle its mm.
+
 2. Checking for process->mm is not enough because process' main
    thread may exit or detach its mm via use_mm(), but other threads
    may still have a valid mm.
 
-This patch implements a small helper function that does things
-correctly, i.e.:
+   To fix this we would need to use find_lock_task_mm(), which would
+   walk up all threads and returns an appropriate task (with task
+   lock held).
 
-1. We take the task's lock while whe handle its mm (we can't use
-   get_task_mm()/mmput() pair as mmput() might sleep);
+clear_tasks_mm_cpumask() has all the issues fixed, so let's use it.
 
-2. To catch exited main thread case, we use find_lock_task_mm(),
-   which walks up all threads and returns an appropriate task
-   (with task lock held).
-
+Suggested-by: Oleg Nesterov <oleg@redhat.com>
 Signed-off-by: Anton Vorontsov <anton.vorontsov@linaro.org>
 ---
- include/linux/cpu.h |    1 +
- kernel/cpu.c        |   18 ++++++++++++++++++
- 2 files changed, 19 insertions(+)
+ arch/arm/kernel/smp.c |    8 +-------
+ 1 file changed, 1 insertion(+), 7 deletions(-)
 
-diff --git a/include/linux/cpu.h b/include/linux/cpu.h
-index 1f65875..941e865 100644
---- a/include/linux/cpu.h
-+++ b/include/linux/cpu.h
-@@ -171,6 +171,7 @@ extern void put_online_cpus(void);
- #define hotcpu_notifier(fn, pri)	cpu_notifier(fn, pri)
- #define register_hotcpu_notifier(nb)	register_cpu_notifier(nb)
- #define unregister_hotcpu_notifier(nb)	unregister_cpu_notifier(nb)
-+void clear_tasks_mm_cpumask(int cpu);
- int cpu_down(unsigned int cpu);
- 
- #ifdef CONFIG_ARCH_CPU_PROBE_RELEASE
-diff --git a/kernel/cpu.c b/kernel/cpu.c
-index 2060c6e..5255936 100644
---- a/kernel/cpu.c
-+++ b/kernel/cpu.c
-@@ -10,6 +10,7 @@
- #include <linux/sched.h>
- #include <linux/unistd.h>
- #include <linux/cpu.h>
-+#include <linux/oom.h>
- #include <linux/export.h>
- #include <linux/kthread.h>
- #include <linux/stop_machine.h>
-@@ -171,6 +172,23 @@ void __ref unregister_cpu_notifier(struct notifier_block *nb)
- }
- EXPORT_SYMBOL(unregister_cpu_notifier);
- 
-+void clear_tasks_mm_cpumask(int cpu)
-+{
-+	struct task_struct *p;
-+
-+	read_lock(&tasklist_lock);
-+	for_each_process(p) {
-+		struct task_struct *t;
-+
-+		t = find_lock_task_mm(p);
-+		if (!t)
-+			continue;
-+		cpumask_clear_cpu(cpu, mm_cpumask(t->mm));
-+		task_unlock(t);
-+	}
-+	read_unlock(&tasklist_lock);
-+}
-+
- static inline void check_for_tasks(int cpu)
+diff --git a/arch/arm/kernel/smp.c b/arch/arm/kernel/smp.c
+index cdeb727..880b93a 100644
+--- a/arch/arm/kernel/smp.c
++++ b/arch/arm/kernel/smp.c
+@@ -136,7 +136,6 @@ static void percpu_timer_stop(void);
+ int __cpu_disable(void)
  {
- 	struct task_struct *p;
+ 	unsigned int cpu = smp_processor_id();
+-	struct task_struct *p;
+ 	int ret;
+ 
+ 	ret = platform_cpu_disable(cpu);
+@@ -166,12 +165,7 @@ int __cpu_disable(void)
+ 	flush_cache_all();
+ 	local_flush_tlb_all();
+ 
+-	read_lock(&tasklist_lock);
+-	for_each_process(p) {
+-		if (p->mm)
+-			cpumask_clear_cpu(cpu, mm_cpumask(p->mm));
+-	}
+-	read_unlock(&tasklist_lock);
++	clear_tasks_mm_cpumask(cpu);
+ 
+ 	return 0;
+ }
 -- 
 1.7.9.2
 
