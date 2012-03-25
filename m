@@ -1,53 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx122.postini.com [74.125.245.122])
-	by kanga.kvack.org (Postfix) with SMTP id CB6966B0044
-	for <linux-mm@kvack.org>; Sun, 25 Mar 2012 09:31:02 -0400 (EDT)
-Date: Sun, 25 Mar 2012 15:30:27 +0200
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [RFC] AutoNUMA alpha6
-Message-ID: <20120325133027.GG5906@redhat.com>
-References: <20120321021239.GQ24602@redhat.com>
- <87fwd2d2kp.fsf@danplanet.com>
- <20120321124937.GX24602@redhat.com>
- <87limtboet.fsf@danplanet.com>
- <20120321225242.GL24602@redhat.com>
- <20120322001722.GQ24602@redhat.com>
- <873990buuy.fsf@danplanet.com>
- <20120322142735.GE24602@redhat.com>
- <20120322184925.GT24602@redhat.com>
- <87limsa2hm.fsf@danplanet.com>
+Received: from psmtp.com (na3sys010amx202.postini.com [74.125.245.202])
+	by kanga.kvack.org (Postfix) with SMTP id 3B9D66B0044
+	for <linux-mm@kvack.org>; Sun, 25 Mar 2012 13:51:07 -0400 (EDT)
+Date: Sun, 25 Mar 2012 19:42:10 +0200
+From: Oleg Nesterov <oleg@redhat.com>
+Subject: Re: [PATCH v2.1 01/10] cpu: Introduce clear_tasks_mm_cpumask()
+	helper
+Message-ID: <20120325174210.GA23605@redhat.com>
+References: <20120324102609.GA28356@lizard> <20120324102751.GA29067@lizard> <1332593021.16159.27.camel@twins> <20120324164316.GB3640@lizard>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <87limsa2hm.fsf@danplanet.com>
+In-Reply-To: <20120324164316.GB3640@lizard>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Smith <danms@us.ibm.com>
-Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>, Paul Turner <pjt@google.com>, Suresh Siddha <suresh.b.siddha@intel.com>, Mike Galbraith <efault@gmx.de>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Bharata B Rao <bharata.rao@gmail.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Hillf Danton <dhillf@gmail.com>
+To: Anton Vorontsov <anton.vorontsov@linaro.org>
+Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Andrew Morton <akpm@linux-foundation.org>, Russell King <linux@arm.linux.org.uk>, Mike Frysinger <vapier@gentoo.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Richard Weinberger <richard@nod.at>, Paul Mundt <lethal@linux-sh.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, John Stultz <john.stultz@linaro.org>, linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org, uclinux-dist-devel@blackfin.uclinux.org, linuxppc-dev@lists.ozlabs.org, linux-sh@vger.kernel.org, user-mode-linux-devel@lists.sourceforge.net, linux-mm@kvack.org
 
-On Thu, Mar 22, 2012 at 11:56:37AM -0700, Dan Smith wrote:
-> I dunno about everyone else, but I think the thing I'd like to see most
-> (other than more interesting benchmarks) is a broken out and documented
-> set of patches instead of the monolithic commit you have now. I know you
-> weren't probably planning to do that until numasched came along, but it
-> sure would help me digest the differences in the two approaches.
+On 03/24, Anton Vorontsov wrote:
+>
+> Many architctures clear tasks' mm_cpumask like this:
+>
+> 	read_lock(&tasklist_lock);
+> 	for_each_process(p) {
+> 		if (p->mm)
+> 			cpumask_clear_cpu(cpu, mm_cpumask(p->mm));
+> 	}
+> 	read_unlock(&tasklist_lock);
 
-Ok this is a start. I'll have to review it again tomorrow and add more
-docs before I can do proper submit by email. If you're willing to
-contribute you can review it already using "git format-patch 9ca11f1"
-after fetching the repo. Comments welcome!
+Namely arm, powerpc, and sh.
 
-git clone --reference linux -b autonuma-dev-smt git://git.kernel.org/pub/scm/linux/kernel/git/andaa.git
+> The code above has several problems, such as:
+>
+> 1. Working with task->mm w/o getting mm or grabing the task lock is
+>    dangerous as ->mm might disappear (exit_mm() assigns NULL under
+>    task_lock(), so tasklist lock is not enough).
 
-The last patch in that branch is the last feature I worked on
-yesterday and it fixes the SMT load with numa02.c modified to use only
-1 thread per core, which means changing THREADS from 24 to 12 in the
-numa02.c source at the top (and then building it again in the
--DHARD_BIND and -DHARD_BIND -DINVERSE_BIND versions to compare with
-autonuma on and off). It also fixes building the kernel in a loop in
-KVM with 12 vcpus (now the load spreads over the two nodes). echo 0
->/sys/kernel/mm/autonuma/scheduler/smt would disable the SMT
-awareness.
+This is not actually true for arm and sh, afaics. They do not even
+need tasklist or rcu lock for for_each_process().
+
+__cpu_disable() is called by __stop_machine(), we know that nobody
+can preempt us and other CPUs can do nothing.
+
+> 2. Checking for process->mm is not enough because process' main
+>    thread may exit or detach its mm via use_mm(), but other threads
+>    may still have a valid mm.
+
+Yes,
+
+> Also, Per Peter Zijlstra's idea, now we don't grab tasklist_lock in
+> the new helper, instead we take the rcu read lock. We can do this
+> because the function is called after the cpu is taken down and marked
+> offline, so no new tasks will get this cpu set in their mm mask.
+
+And only powerpc needs rcu_read_lock() and task_lock().
+
+OTOH, I do not understand why powepc does this on CPU_DEAD...
+And probably CPU_UP_CANCELED doesn't need to clear mm_cpumask().
+
+That said, personally I think these patches are fine, the common
+helper makes sense.
+
+Oleg.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
