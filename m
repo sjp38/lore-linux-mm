@@ -1,76 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx119.postini.com [74.125.245.119])
-	by kanga.kvack.org (Postfix) with SMTP id 77DD96B0044
-	for <linux-mm@kvack.org>; Sun, 25 Mar 2012 07:11:16 -0400 (EDT)
-Message-ID: <4F6EFD3F.5010706@redhat.com>
-Date: Sun, 25 Mar 2012 13:10:55 +0200
-From: Avi Kivity <avi@redhat.com>
+Received: from psmtp.com (na3sys010amx122.postini.com [74.125.245.122])
+	by kanga.kvack.org (Postfix) with SMTP id CB6966B0044
+	for <linux-mm@kvack.org>; Sun, 25 Mar 2012 09:31:02 -0400 (EDT)
+Date: Sun, 25 Mar 2012 15:30:27 +0200
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [RFC] AutoNUMA alpha6
+Message-ID: <20120325133027.GG5906@redhat.com>
+References: <20120321021239.GQ24602@redhat.com>
+ <87fwd2d2kp.fsf@danplanet.com>
+ <20120321124937.GX24602@redhat.com>
+ <87limtboet.fsf@danplanet.com>
+ <20120321225242.GL24602@redhat.com>
+ <20120322001722.GQ24602@redhat.com>
+ <873990buuy.fsf@danplanet.com>
+ <20120322142735.GE24602@redhat.com>
+ <20120322184925.GT24602@redhat.com>
+ <87limsa2hm.fsf@danplanet.com>
 MIME-Version: 1.0
-Subject: Re: mm: hung task (handle_pte_fault)
-References: <CA+1xoqczdjPD0OGEuZAu6f9Q8gxAQuhVL-ZhhUcELaz_B=Jfjg@mail.gmail.com>
-In-Reply-To: <CA+1xoqczdjPD0OGEuZAu6f9Q8gxAQuhVL-ZhhUcELaz_B=Jfjg@mail.gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <87limsa2hm.fsf@danplanet.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sasha Levin <levinsasha928@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Peter Zijlstra <peterz@infradead.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>, Pekka Enberg <penberg@kernel.org>, Dave Jones <davej@redhat.com>, linux-mm@kvack.org, "linux-kernel@vger.kernel.org List" <linux-kernel@vger.kernel.org>
+To: Dan Smith <danms@us.ibm.com>
+Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>, Paul Turner <pjt@google.com>, Suresh Siddha <suresh.b.siddha@intel.com>, Mike Galbraith <efault@gmx.de>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Bharata B Rao <bharata.rao@gmail.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Hillf Danton <dhillf@gmail.com>
 
-On 03/23/2012 12:45 PM, Sasha Levin wrote:
-> Hi guys,
->
-> During fuzzing using trinity inside a KVM tools guest with latest
-> linux-next, I seem to be getting it hung once in a while, with the
-> following spew:
->
-> [ 1441.420617] INFO: task trinity:2706 blocked for more than 120 seconds.
-> [ 1441.421894] "echo 0 > /proc/sys/kernel/hung_task_timeout_secs"
-> disables this message.
-> [ 1441.424493] trinity         D 0000000000000000  3472  2706  16846 0x00000004
-> [ 1441.426749]  ffff880029dbbb38 0000000000000086 ffff880029dbbae8
-> ffff880029dbbfd8
-> [ 1441.428582]  00000000001d45c0 ffff880029dba000 00000000001d45c0
-> 00000000001d45c0
-> [ 1441.430156]  00000000001d45c0 00000000001d45c0 ffff880029dbbfd8
-> 00000000001d45c0
-> [ 1441.432371] Call Trace:
-> [ 1441.433042]  [<ffffffff81176dd0>] ? file_read_actor+0x1d0/0x1d0
-> [ 1441.434251]  [<ffffffff827148d4>] schedule+0x24/0x70
-> [ 1441.435314]  [<ffffffff82714e67>] io_schedule+0x87/0xd0
-> [ 1441.436357]  [<ffffffff81176dd9>] sleep_on_page+0x9/0x10
-> [ 1441.437442]  [<ffffffff82712cb7>] __wait_on_bit+0x57/0x80
-> [ 1441.438584]  [<ffffffff81177bff>] ? __lock_page_or_retry+0x8f/0xd0
-> [ 1441.439948]  [<ffffffff811775de>] wait_on_page_bit+0x6e/0x80
-> [ 1441.440859]  [<ffffffff810d6d20>] ? autoremove_wake_function+0x40/0x40
-> [ 1441.441700]  [<ffffffff810dbfbe>] ? up_read+0x1e/0x40
-> [ 1441.442428]  [<ffffffff81177c36>] __lock_page_or_retry+0xc6/0xd0
-> [ 1441.443270]  [<ffffffff81178490>] filemap_fault+0x440/0x4e0
-> [ 1441.444072]  [<ffffffff811991cf>] __do_fault+0x7f/0x5f0
-> [ 1441.444829]  [<ffffffff81112c00>] ?
-> add_lock_to_list.clone.18.clone.27+0xd0/0xe0
-> [ 1441.445886]  [<ffffffff8119cd27>] handle_pte_fault+0xf7/0x1e0
-> [ 1441.446740]  [<ffffffff8119e1ce>] handle_mm_fault+0x1ce/0x330
-> [ 1441.447537]  [<ffffffff8119e53c>] __get_user_pages+0x14c/0x640
-> [ 1441.448399]  [<ffffffff811129ae>] ? put_lock_stats.clone.19+0xe/0x40
-> [ 1441.449288]  [<ffffffff81117b1d>] ? __lock_acquired+0x19d/0x270
-> [ 1441.450164]  [<ffffffff811a0087>] __mlock_vma_pages_range+0x87/0xa0
-> [ 1441.451127]  [<ffffffff811a0129>] do_mlock_pages+0x89/0x160
-> [ 1441.451932]  [<ffffffff811a0b71>] sys_mlockall+0x111/0x1a0
-> [ 1441.452761]  [<ffffffff827176bd>] system_call_fastpath+0x1a/0x1f
-> [ 1441.453659] no locks held by trinity/2706.
-> [ 1441.454267] Kernel panic - not syncing: hung_task: blocked tasks
->
-> According to the logs, it's not the direct result of anything specific
-> happening, so I can't give an exact scenario to reproduce it. It does
-> happen rather often.
->
+On Thu, Mar 22, 2012 at 11:56:37AM -0700, Dan Smith wrote:
+> I dunno about everyone else, but I think the thing I'd like to see most
+> (other than more interesting benchmarks) is a broken out and documented
+> set of patches instead of the monolithic commit you have now. I know you
+> weren't probably planning to do that until numasched came along, but it
+> sure would help me digest the differences in the two approaches.
 
-Ingo notes that this could well be a kvm problem.  Does your processor
-support EPT/NPT?  Can you provide kvm_stat and traces of what's
-happening in the host when this triggers?
+Ok this is a start. I'll have to review it again tomorrow and add more
+docs before I can do proper submit by email. If you're willing to
+contribute you can review it already using "git format-patch 9ca11f1"
+after fetching the repo. Comments welcome!
 
--- 
-error compiling committee.c: too many arguments to function
+git clone --reference linux -b autonuma-dev-smt git://git.kernel.org/pub/scm/linux/kernel/git/andaa.git
+
+The last patch in that branch is the last feature I worked on
+yesterday and it fixes the SMT load with numa02.c modified to use only
+1 thread per core, which means changing THREADS from 24 to 12 in the
+numa02.c source at the top (and then building it again in the
+-DHARD_BIND and -DHARD_BIND -DINVERSE_BIND versions to compare with
+autonuma on and off). It also fixes building the kernel in a loop in
+KVM with 12 vcpus (now the load spreads over the two nodes). echo 0
+>/sys/kernel/mm/autonuma/scheduler/smt would disable the SMT
+awareness.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
