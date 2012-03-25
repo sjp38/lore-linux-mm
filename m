@@ -1,67 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx202.postini.com [74.125.245.202])
-	by kanga.kvack.org (Postfix) with SMTP id 3B9D66B0044
-	for <linux-mm@kvack.org>; Sun, 25 Mar 2012 13:51:07 -0400 (EDT)
-Date: Sun, 25 Mar 2012 19:42:10 +0200
-From: Oleg Nesterov <oleg@redhat.com>
-Subject: Re: [PATCH v2.1 01/10] cpu: Introduce clear_tasks_mm_cpumask()
-	helper
-Message-ID: <20120325174210.GA23605@redhat.com>
-References: <20120324102609.GA28356@lizard> <20120324102751.GA29067@lizard> <1332593021.16159.27.camel@twins> <20120324164316.GB3640@lizard>
+Received: from psmtp.com (na3sys010amx136.postini.com [74.125.245.136])
+	by kanga.kvack.org (Postfix) with SMTP id 5EFF56B007E
+	for <linux-mm@kvack.org>; Sun, 25 Mar 2012 15:17:02 -0400 (EDT)
+Received: by pbcup15 with SMTP id up15so6180309pbc.14
+        for <linux-mm@kvack.org>; Sun, 25 Mar 2012 12:17:01 -0700 (PDT)
+Date: Sun, 25 Mar 2012 12:16:26 -0700 (PDT)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: [PATCH] Re: kswapd stuck using 100% CPU
+In-Reply-To: <20120324102621.353114da@annuminas.surriel.com>
+Message-ID: <alpine.LSU.2.00.1203251212050.1984@eggly.anvils>
+References: <20120324130353.48f2e4c8@kryten> <20120324102621.353114da@annuminas.surriel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20120324164316.GB3640@lizard>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Anton Vorontsov <anton.vorontsov@linaro.org>
-Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Andrew Morton <akpm@linux-foundation.org>, Russell King <linux@arm.linux.org.uk>, Mike Frysinger <vapier@gentoo.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Richard Weinberger <richard@nod.at>, Paul Mundt <lethal@linux-sh.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, John Stultz <john.stultz@linaro.org>, linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org, uclinux-dist-devel@blackfin.uclinux.org, linuxppc-dev@lists.ozlabs.org, linux-sh@vger.kernel.org, user-mode-linux-devel@lists.sourceforge.net, linux-mm@kvack.org
+To: Rik van Riel <riel@redhat.com>
+Cc: Anton Blanchard <anton@samba.org>, aarcange@redhat.com, mel@csn.ul.ie, akpm@linux-foundation.org, lkml <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>
 
-On 03/24, Anton Vorontsov wrote:
->
-> Many architctures clear tasks' mm_cpumask like this:
->
-> 	read_lock(&tasklist_lock);
-> 	for_each_process(p) {
-> 		if (p->mm)
-> 			cpumask_clear_cpu(cpu, mm_cpumask(p->mm));
-> 	}
-> 	read_unlock(&tasklist_lock);
+On Sat, 24 Mar 2012, Rik van Riel wrote:
+> 
+> Only test compaction_suitable if the kernel is built with CONFIG_COMPACTION,
+> otherwise the stub compaction_suitable function will always return
+> COMPACT_SKIPPED and send kswapd into an infinite loop.
+> 
+> Signed-off-by: Rik van Riel <riel@redhat.com>
+> Reported-by: Anton Blanchard <anton@samba.org>
 
-Namely arm, powerpc, and sh.
+Thank you, Anton and Rik.  I never quite got around to investigating
+why swapping had been nearly twice as slow with linux-next on my Aspire
+One (with a relatively minimal config, omitting COMPACTION).  That was
+the reason (one half of the HT cpu busy in kswapd), and this fixes it.
 
-> The code above has several problems, such as:
->
-> 1. Working with task->mm w/o getting mm or grabing the task lock is
->    dangerous as ->mm might disappear (exit_mm() assigns NULL under
->    task_lock(), so tasklist lock is not enough).
+Tested-by: Hugh Dickins <hughd@google.com>
 
-This is not actually true for arm and sh, afaics. They do not even
-need tasklist or rcu lock for for_each_process().
-
-__cpu_disable() is called by __stop_machine(), we know that nobody
-can preempt us and other CPUs can do nothing.
-
-> 2. Checking for process->mm is not enough because process' main
->    thread may exit or detach its mm via use_mm(), but other threads
->    may still have a valid mm.
-
-Yes,
-
-> Also, Per Peter Zijlstra's idea, now we don't grab tasklist_lock in
-> the new helper, instead we take the rcu read lock. We can do this
-> because the function is called after the cpu is taken down and marked
-> offline, so no new tasks will get this cpu set in their mm mask.
-
-And only powerpc needs rcu_read_lock() and task_lock().
-
-OTOH, I do not understand why powepc does this on CPU_DEAD...
-And probably CPU_UP_CANCELED doesn't need to clear mm_cpumask().
-
-That said, personally I think these patches are fine, the common
-helper makes sense.
-
-Oleg.
+> 
+> diff --git a/mm/vmscan.c b/mm/vmscan.c
+> index 7658fd6..33c332b 100644
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -2946,7 +2946,8 @@ out:
+>  				continue;
+>  
+>  			/* Would compaction fail due to lack of free memory? */
+> -			if (compaction_suitable(zone, order) == COMPACT_SKIPPED)
+> +			if (COMPACTION_BUILD &&
+> +			    compaction_suitable(zone, order) == COMPACT_SKIPPED)
+>  				goto loop_again;
+>  
+>  			/* Confirm the zone is balanced for order-0 */
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
