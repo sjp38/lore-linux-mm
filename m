@@ -1,53 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx136.postini.com [74.125.245.136])
-	by kanga.kvack.org (Postfix) with SMTP id 5EFF56B007E
-	for <linux-mm@kvack.org>; Sun, 25 Mar 2012 15:17:02 -0400 (EDT)
-Received: by pbcup15 with SMTP id up15so6180309pbc.14
-        for <linux-mm@kvack.org>; Sun, 25 Mar 2012 12:17:01 -0700 (PDT)
-Date: Sun, 25 Mar 2012 12:16:26 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx170.postini.com [74.125.245.170])
+	by kanga.kvack.org (Postfix) with SMTP id 1249A6B0092
+	for <linux-mm@kvack.org>; Sun, 25 Mar 2012 15:39:32 -0400 (EDT)
+Received: by pbcup15 with SMTP id up15so6203800pbc.14
+        for <linux-mm@kvack.org>; Sun, 25 Mar 2012 12:39:31 -0700 (PDT)
+Date: Sun, 25 Mar 2012 12:39:08 -0700 (PDT)
 From: Hugh Dickins <hughd@google.com>
-Subject: Re: [PATCH] Re: kswapd stuck using 100% CPU
-In-Reply-To: <20120324102621.353114da@annuminas.surriel.com>
-Message-ID: <alpine.LSU.2.00.1203251212050.1984@eggly.anvils>
-References: <20120324130353.48f2e4c8@kryten> <20120324102621.353114da@annuminas.surriel.com>
+Subject: Re: Possible Swapfile bug
+In-Reply-To: <4F6D45F2.9080201@storytotell.org>
+Message-ID: <alpine.LSU.2.00.1203251217160.1984@eggly.anvils>
+References: <4F6B5236.20805@storytotell.org> <20120322124635.85fd4673.akpm@linux-foundation.org> <4F6BC8A8.6080202@storytotell.org> <alpine.LSU.2.00.1203230440360.31745@eggly.anvils> <4F6D45F2.9080201@storytotell.org>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rik van Riel <riel@redhat.com>
-Cc: Anton Blanchard <anton@samba.org>, aarcange@redhat.com, mel@csn.ul.ie, akpm@linux-foundation.org, lkml <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>
+To: Jason Mattax <jmattax@storytotell.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, kamezawa.hiroyu@jp.fujitsu.com, cesarb@cesarb.net, penberg@kernel.org, linux-mm@kvack.org
 
-On Sat, 24 Mar 2012, Rik van Riel wrote:
-> 
-> Only test compaction_suitable if the kernel is built with CONFIG_COMPACTION,
-> otherwise the stub compaction_suitable function will always return
-> COMPACT_SKIPPED and send kswapd into an infinite loop.
-> 
-> Signed-off-by: Rik van Riel <riel@redhat.com>
-> Reported-by: Anton Blanchard <anton@samba.org>
+On Fri, 23 Mar 2012, Jason Mattax wrote:
+> On 03/23/2012 06:05 AM, Hugh Dickins wrote:
+> > 
+> > I'm not surprised that you saw no problem on 2.6.32.27, but I am
+> > very surprised that you see the problem on 2.6.33.1 - I'm wondering
+> > if that's a typo for something else, or a distro kernel which actually
+> > contains changes from later releases?
 
-Thank you, Anton and Rik.  I never quite got around to investigating
-why swapping had been nearly twice as slow with linux-next on my Aspire
-One (with a relatively minimal config, omitting COMPACTION).  That was
-the reason (one half of the HT cpu busy in kswapd), and this fixes it.
+> I can't say why I saw it then, but I got the 2.6.33.1 kernel off of
+> http://www.kernel.org/pub/linux/kernel/v2.6/ so that I wouldn't have to worry
+> about distribution changes when reporting the bug here. I just recompiled the
+> source and verified that it is still affected even with the newest firmware.
 
-Tested-by: Hugh Dickins <hughd@google.com>
+Thank you for going to that trouble to narrow it down, thank you for
+confirming, and I apologize for shedding doubt on your finding.
 
-> 
-> diff --git a/mm/vmscan.c b/mm/vmscan.c
-> index 7658fd6..33c332b 100644
-> --- a/mm/vmscan.c
-> +++ b/mm/vmscan.c
-> @@ -2946,7 +2946,8 @@ out:
->  				continue;
->  
->  			/* Would compaction fail due to lack of free memory? */
-> -			if (compaction_suitable(zone, order) == COMPACT_SKIPPED)
-> +			if (COMPACTION_BUILD &&
-> +			    compaction_suitable(zone, order) == COMPACT_SKIPPED)
->  				goto loop_again;
->  
->  			/* Confirm the zone is balanced for order-0 */
+It appears that there's something else involved here, which I know nothing
+about as yet; perhaps an earlier change in block layer handling of discard.
+
+Although it's just history now, I ought to investigate once my Vertex2
+arrives - well, several weeks later, I won't have time immediately.
+
+Please would you clarify one thing.  2.6.33.1 was the earliest kernel
+you saw the slowdown on.  I assume from that that you tried 2.6.33 itself,
+and it did not show the slowdown.  Or were you testing releases in some
+other order? if so please let me know the latest without the slowdown.
+
+Thanks,
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
