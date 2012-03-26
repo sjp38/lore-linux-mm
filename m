@@ -1,279 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx121.postini.com [74.125.245.121])
-	by kanga.kvack.org (Postfix) with SMTP id 820E66B0044
-	for <linux-mm@kvack.org>; Mon, 26 Mar 2012 11:16:49 -0400 (EDT)
-Date: Mon, 26 Mar 2012 17:16:47 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH v6 2/7] mm/memcg: move reclaim_stat into lruvec
-Message-ID: <20120326151647.GB22754@tiehlicka.suse.cz>
+Received: from psmtp.com (na3sys010amx115.postini.com [74.125.245.115])
+	by kanga.kvack.org (Postfix) with SMTP id 076556B004D
+	for <linux-mm@kvack.org>; Mon, 26 Mar 2012 11:18:26 -0400 (EDT)
+Date: Mon, 26 Mar 2012 17:18:15 +0200
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH v6 1/7] mm/memcg: scanning_global_lru means
+ mem_cgroup_disabled
+Message-ID: <20120326151815.GA1820@cmpxchg.org>
 References: <20120322214944.27814.42039.stgit@zurg>
- <20120322215623.27814.16959.stgit@zurg>
+ <20120322215616.27814.40563.stgit@zurg>
+ <20120326150429.GA22754@tiehlicka.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20120322215623.27814.16959.stgit@zurg>
+In-Reply-To: <20120326150429.GA22754@tiehlicka.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Konstantin Khlebnikov <khlebnikov@openvz.org>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: Michal Hocko <mhocko@suse.cz>
+Cc: Konstantin Khlebnikov <khlebnikov@openvz.org>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Glauber Costa <glommer@parallels.com>
 
-On Fri 23-03-12 01:56:23, Konstantin Khlebnikov wrote:
-> From: Hugh Dickins <hughd@google.com>
+On Mon, Mar 26, 2012 at 05:04:29PM +0200, Michal Hocko wrote:
+> [Adding Johannes to CC]
 > 
-> With mem_cgroup_disabled() now explicit, it becomes clear that the
-> zone_reclaim_stat structure actually belongs in lruvec, per-zone
-> when memcg is disabled but per-memcg per-zone when it's enabled.
+> On Fri 23-03-12 01:56:16, Konstantin Khlebnikov wrote:
+> > From: Hugh Dickins <hughd@google.com>
+> > 
+> > Although one has to admire the skill with which it has been concealed,
+> > scanning_global_lru(mz) is actually just an interesting way to test
+> > mem_cgroup_disabled().  Too many developer hours have been wasted on
+> > confusing it with global_reclaim(): just use mem_cgroup_disabled().
 > 
-> We can delete mem_cgroup_get_reclaim_stat(), and change
-> update_page_reclaim_stat() to update just the one set of stats,
-> the one which get_scan_count() will actually use.
-> 
-> Signed-off-by: Hugh Dickins <hughd@google.com>
-> Signed-off-by: Konstantin Khlebnikov <khlebnikov@openvz.org>
-> Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> Is this really correct?
 
-I really like this one. I always hated how we do double accounting.
-Happily 
-Acked-by: Michal Hocko <mhocko@suse.cz>
+Yes, if the memory controller is enabled, we never have a global LRU
+and always scan the per-memcg lists.
 
-> ---
->  include/linux/memcontrol.h |    9 ---------
->  include/linux/mmzone.h     |   29 ++++++++++++++---------------
->  mm/memcontrol.c            |   27 +++++++--------------------
->  mm/page_alloc.c            |    8 ++++----
->  mm/swap.c                  |   14 ++++----------
->  mm/vmscan.c                |    5 +----
->  6 files changed, 30 insertions(+), 62 deletions(-)
+> > Signed-off-by: Hugh Dickins <hughd@google.com>
+> > Signed-off-by: Konstantin Khlebnikov <khlebnikov@openvz.org>
+> > Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> > Acked-by: Glauber Costa <glommer@parallels.com>
+> > ---
+> >  mm/vmscan.c |   18 ++++--------------
+> >  1 files changed, 4 insertions(+), 14 deletions(-)
+> > 
+> > diff --git a/mm/vmscan.c b/mm/vmscan.c
+> > index 49f15ef..c684f44 100644
+> > --- a/mm/vmscan.c
+> > +++ b/mm/vmscan.c
+> [...]
+> > @@ -1806,7 +1796,7 @@ static int inactive_anon_is_low(struct mem_cgroup_zone *mz)
+> >  	if (!total_swap_pages)
+> >  		return 0;
+> >  
+> > -	if (!scanning_global_lru(mz))
+> > +	if (!mem_cgroup_disabled())
+> >  		return mem_cgroup_inactive_anon_is_low(mz->mem_cgroup,
+> >  						       mz->zone);
 > 
-> diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
-> index f94efd2..95dc32c 100644
-> --- a/include/linux/memcontrol.h
-> +++ b/include/linux/memcontrol.h
-> @@ -121,8 +121,6 @@ int mem_cgroup_inactive_file_is_low(struct mem_cgroup *memcg,
->  int mem_cgroup_select_victim_node(struct mem_cgroup *memcg);
->  unsigned long mem_cgroup_zone_nr_lru_pages(struct mem_cgroup *memcg,
->  					int nid, int zid, unsigned int lrumask);
-> -struct zone_reclaim_stat *mem_cgroup_get_reclaim_stat(struct mem_cgroup *memcg,
-> -						      struct zone *zone);
->  struct zone_reclaim_stat*
->  mem_cgroup_get_reclaim_stat_from_page(struct page *page);
->  extern void mem_cgroup_print_oom_info(struct mem_cgroup *memcg,
-> @@ -351,13 +349,6 @@ mem_cgroup_zone_nr_lru_pages(struct mem_cgroup *memcg, int nid, int zid,
->  	return 0;
->  }
->  
-> -
-> -static inline struct zone_reclaim_stat*
-> -mem_cgroup_get_reclaim_stat(struct mem_cgroup *memcg, struct zone *zone)
-> -{
-> -	return NULL;
-> -}
-> -
->  static inline struct zone_reclaim_stat*
->  mem_cgroup_get_reclaim_stat_from_page(struct page *page)
->  {
-> diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-> index dff7115..9316931 100644
-> --- a/include/linux/mmzone.h
-> +++ b/include/linux/mmzone.h
-> @@ -159,8 +159,22 @@ static inline int is_unevictable_lru(enum lru_list lru)
->  	return (lru == LRU_UNEVICTABLE);
->  }
->  
-> +struct zone_reclaim_stat {
-> +	/*
-> +	 * The pageout code in vmscan.c keeps track of how many of the
-> +	 * mem/swap backed and file backed pages are refeferenced.
-> +	 * The higher the rotated/scanned ratio, the more valuable
-> +	 * that cache is.
-> +	 *
-> +	 * The anon LRU stats live in [0], file LRU stats in [1]
-> +	 */
-> +	unsigned long		recent_rotated[2];
-> +	unsigned long		recent_scanned[2];
-> +};
-> +
->  struct lruvec {
->  	struct list_head lists[NR_LRU_LISTS];
-> +	struct zone_reclaim_stat reclaim_stat;
->  };
->  
->  /* Mask used at gathering information at once (see memcontrol.c) */
-> @@ -287,19 +301,6 @@ enum zone_type {
->  #error ZONES_SHIFT -- too many zones configured adjust calculation
->  #endif
->  
-> -struct zone_reclaim_stat {
-> -	/*
-> -	 * The pageout code in vmscan.c keeps track of how many of the
-> -	 * mem/swap backed and file backed pages are refeferenced.
-> -	 * The higher the rotated/scanned ratio, the more valuable
-> -	 * that cache is.
-> -	 *
-> -	 * The anon LRU stats live in [0], file LRU stats in [1]
-> -	 */
-> -	unsigned long		recent_rotated[2];
-> -	unsigned long		recent_scanned[2];
-> -};
-> -
->  struct zone {
->  	/* Fields commonly accessed by the page allocator */
->  
-> @@ -374,8 +375,6 @@ struct zone {
->  	spinlock_t		lru_lock;
->  	struct lruvec		lruvec;
->  
-> -	struct zone_reclaim_stat reclaim_stat;
-> -
->  	unsigned long		pages_scanned;	   /* since last reclaim */
->  	unsigned long		flags;		   /* zone flags, see below */
->  
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index b2ee6df..59697fb 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -138,7 +138,6 @@ struct mem_cgroup_per_zone {
->  
->  	struct mem_cgroup_reclaim_iter reclaim_iter[DEF_PRIORITY + 1];
->  
-> -	struct zone_reclaim_stat reclaim_stat;
->  	struct rb_node		tree_node;	/* RB tree node */
->  	unsigned long long	usage_in_excess;/* Set to the value by which */
->  						/* the soft limit is exceeded*/
-> @@ -1233,16 +1232,6 @@ int mem_cgroup_inactive_file_is_low(struct mem_cgroup *memcg, struct zone *zone)
->  	return (active > inactive);
->  }
->  
-> -struct zone_reclaim_stat *mem_cgroup_get_reclaim_stat(struct mem_cgroup *memcg,
-> -						      struct zone *zone)
-> -{
-> -	int nid = zone_to_nid(zone);
-> -	int zid = zone_idx(zone);
-> -	struct mem_cgroup_per_zone *mz = mem_cgroup_zoneinfo(memcg, nid, zid);
-> -
-> -	return &mz->reclaim_stat;
-> -}
-> -
->  struct zone_reclaim_stat *
->  mem_cgroup_get_reclaim_stat_from_page(struct page *page)
->  {
-> @@ -1258,7 +1247,7 @@ mem_cgroup_get_reclaim_stat_from_page(struct page *page)
->  	/* Ensure pc->mem_cgroup is visible after reading PCG_USED. */
->  	smp_rmb();
->  	mz = page_cgroup_zoneinfo(pc->mem_cgroup, page);
-> -	return &mz->reclaim_stat;
-> +	return &mz->lruvec.reclaim_stat;
->  }
->  
->  #define mem_cgroup_from_res_counter(counter, member)	\
-> @@ -4216,21 +4205,19 @@ static int mem_control_stat_show(struct cgroup *cont, struct cftype *cft,
->  	{
->  		int nid, zid;
->  		struct mem_cgroup_per_zone *mz;
-> +		struct zone_reclaim_stat *rstat;
->  		unsigned long recent_rotated[2] = {0, 0};
->  		unsigned long recent_scanned[2] = {0, 0};
->  
->  		for_each_online_node(nid)
->  			for (zid = 0; zid < MAX_NR_ZONES; zid++) {
->  				mz = mem_cgroup_zoneinfo(memcg, nid, zid);
-> +				rstat = &mz->lruvec.reclaim_stat;
->  
-> -				recent_rotated[0] +=
-> -					mz->reclaim_stat.recent_rotated[0];
-> -				recent_rotated[1] +=
-> -					mz->reclaim_stat.recent_rotated[1];
-> -				recent_scanned[0] +=
-> -					mz->reclaim_stat.recent_scanned[0];
-> -				recent_scanned[1] +=
-> -					mz->reclaim_stat.recent_scanned[1];
-> +				recent_rotated[0] += rstat->recent_rotated[0];
-> +				recent_rotated[1] += rstat->recent_rotated[1];
-> +				recent_scanned[0] += rstat->recent_scanned[0];
-> +				recent_scanned[1] += rstat->recent_scanned[1];
->  			}
->  		cb->fill(cb, "recent_rotated_anon", recent_rotated[0]);
->  		cb->fill(cb, "recent_rotated_file", recent_rotated[1]);
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index caea788..95ac749 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -4317,10 +4317,10 @@ static void __paginginit free_area_init_core(struct pglist_data *pgdat,
->  		zone_pcp_init(zone);
->  		for_each_lru(lru)
->  			INIT_LIST_HEAD(&zone->lruvec.lists[lru]);
-> -		zone->reclaim_stat.recent_rotated[0] = 0;
-> -		zone->reclaim_stat.recent_rotated[1] = 0;
-> -		zone->reclaim_stat.recent_scanned[0] = 0;
-> -		zone->reclaim_stat.recent_scanned[1] = 0;
-> +		zone->lruvec.reclaim_stat.recent_rotated[0] = 0;
-> +		zone->lruvec.reclaim_stat.recent_rotated[1] = 0;
-> +		zone->lruvec.reclaim_stat.recent_scanned[0] = 0;
-> +		zone->lruvec.reclaim_stat.recent_scanned[1] = 0;
->  		zap_zone_vm_stats(zone);
->  		zone->flags = 0;
->  		if (!size)
-> diff --git a/mm/swap.c b/mm/swap.c
-> index 5c13f13..60d14da 100644
-> --- a/mm/swap.c
-> +++ b/mm/swap.c
-> @@ -279,21 +279,15 @@ void rotate_reclaimable_page(struct page *page)
->  static void update_page_reclaim_stat(struct zone *zone, struct page *page,
->  				     int file, int rotated)
->  {
-> -	struct zone_reclaim_stat *reclaim_stat = &zone->reclaim_stat;
-> -	struct zone_reclaim_stat *memcg_reclaim_stat;
-> +	struct zone_reclaim_stat *reclaim_stat;
->  
-> -	memcg_reclaim_stat = mem_cgroup_get_reclaim_stat_from_page(page);
-> +	reclaim_stat = mem_cgroup_get_reclaim_stat_from_page(page);
-> +	if (!reclaim_stat)
-> +		reclaim_stat = &zone->lruvec.reclaim_stat;
->  
->  	reclaim_stat->recent_scanned[file]++;
->  	if (rotated)
->  		reclaim_stat->recent_rotated[file]++;
-> -
-> -	if (!memcg_reclaim_stat)
-> -		return;
-> -
-> -	memcg_reclaim_stat->recent_scanned[file]++;
-> -	if (rotated)
-> -		memcg_reclaim_stat->recent_rotated[file]++;
->  }
->  
->  static void __activate_page(struct page *page, void *arg)
-> diff --git a/mm/vmscan.c b/mm/vmscan.c
-> index c684f44..f4dca0c 100644
-> --- a/mm/vmscan.c
-> +++ b/mm/vmscan.c
-> @@ -173,10 +173,7 @@ static bool global_reclaim(struct scan_control *sc)
->  
->  static struct zone_reclaim_stat *get_reclaim_stat(struct mem_cgroup_zone *mz)
->  {
-> -	if (!mem_cgroup_disabled())
-> -		return mem_cgroup_get_reclaim_stat(mz->mem_cgroup, mz->zone);
-> -
-> -	return &mz->zone->reclaim_stat;
-> +	return &mem_cgroup_zone_lruvec(mz->zone, mz->mem_cgroup)->reclaim_stat;
->  }
->  
->  static unsigned long zone_nr_lru_pages(struct mem_cgroup_zone *mz,
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Fight unfair telecom internet charges in Canada: sign http://stopthemeter.ca/
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> mem_cgroup_inactive_anon_is_low calculation is slightly different than
+> what we have for cgroup_disabled case. calculate_zone_inactive_ratio
+> considers _all_ present pages in the zone while memcg variant only
+> active+inactive.
 
--- 
-Michal Hocko
-SUSE Labs
-SUSE LINUX s.r.o.
-Lihovarska 1060/12
-190 00 Praha 9    
-Czech Republic
+The memcg has nothing to go by but actual number of LRU pages; there
+is no 'present pages' equivalent.
+
+I don't think that it matters much in reality given the sqrt scale,
+but the difference is still unfortunate.  Konstantin was meaning to
+unify all this, though.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
