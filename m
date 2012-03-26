@@ -1,54 +1,34 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx133.postini.com [74.125.245.133])
-	by kanga.kvack.org (Postfix) with SMTP id 21FA16B0044
-	for <linux-mm@kvack.org>; Mon, 26 Mar 2012 07:04:38 -0400 (EDT)
-Received: by ghrr18 with SMTP id r18so4649480ghr.14
-        for <linux-mm@kvack.org>; Mon, 26 Mar 2012 04:04:37 -0700 (PDT)
-Message-ID: <4F704D3C.50003@gmail.com>
-Date: Mon, 26 Mar 2012 16:34:28 +0530
-From: Subash Patel <subashrp@gmail.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH 0/2] ARM: dma-mapping: Fix mmap support for coherent buffers
-References: <08af01cd08ee$2fd04770$8f70d650$%szyprowski@samsung.com> <1332505563-17646-1-git-send-email-m.szyprowski@samsung.com>
-In-Reply-To: <1332505563-17646-1-git-send-email-m.szyprowski@samsung.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx163.postini.com [74.125.245.163])
+	by kanga.kvack.org (Postfix) with SMTP id 750406B007E
+	for <linux-mm@kvack.org>; Mon, 26 Mar 2012 07:08:04 -0400 (EDT)
+Message-ID: <1332760047.16159.93.camel@twins>
+Subject: Re: [PATCH] cpuset: mm: Reduce large amounts of memory barrier
+ related damage v3
+From: Peter Zijlstra <peterz@infradead.org>
+Date: Mon, 26 Mar 2012 13:07:27 +0200
+In-Reply-To: <1332759384.16159.92.camel@twins>
+References: <20120307180852.GE17697@suse.de>
+	 <1332759384.16159.92.camel@twins>
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: quoted-printable
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Marek Szyprowski <m.szyprowski@samsung.com>
-Cc: linux-arm-kernel@lists.infradead.org, linaro-mm-sig@lists.linaro.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-samsung-soc@vger.kernel.org, iommu@lists.linux-foundation.org, Kyungmin Park <kyungmin.park@samsung.com>, Arnd Bergmann <arnd@arndb.de>, Joerg Roedel <joro@8bytes.org>, Russell King - ARM Linux <linux@arm.linux.org.uk>, Chunsang Jeong <chunsang.jeong@linaro.org>, Krishna Reddy <vdumpa@nvidia.com>, KyongHo Cho <pullip.cho@samsung.com>, Andrzej Pietrasiewicz <andrzej.p@samsung.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Hiroshi Doyu <hdoyu@nvidia.com>
+To: Mel Gorman <mgorman@suse.de>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Miao Xie <miaox@cn.fujitsu.com>, David Rientjes <rientjes@google.com>, Christoph Lameter <cl@linux.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Hi Marek,
+On Mon, 2012-03-26 at 12:56 +0200, Peter Zijlstra wrote:
+>  static inline bool put_mems_allowed(unsigned int seq)
+>  {
+> -       return !read_seqcount_retry(&current->mems_allowed_seq, seq);
+> +       return likely(!read_seqcount_retry(&current->mems_allowed_seq, se=
+q));
+>  }=20
 
-I have tested these patch series for origen board, and they mmap the 
-buffers to user-space for the coherent pool. You can add:
-
-Tested-By: Subash Patel <subashrp@gmail.com>
-
-Regards,
-Subash
-
-On 03/23/2012 05:56 PM, Marek Szyprowski wrote:
-> Hello,
->
-> This patchset contains patches to fix broken mmap operation for memory
-> buffers allocated from 'dma_declare_coherent' pool after applying my dma
-> mapping redesign patches [1]. These issues have been reported by Subash
-> Patel.
->
-> [1] http://thread.gmane.org/gmane.linux.kernel.cross-arch/12819
->
-> Patch summary:
->
-> Marek Szyprowski (2):
->    common: add dma_mmap_from_coherent() function
->    arm: dma-mapping: use dma_mmap_from_coherent()
->
->   arch/arm/mm/dma-mapping.c          |    3 ++
->   drivers/base/dma-coherent.c        |   42 ++++++++++++++++++++++++++++++++++++
->   include/asm-generic/dma-coherent.h |    4 ++-
->   3 files changed, 48 insertions(+), 1 deletions(-)
->
+Ignore this hunk, read_seqcount_retry() already has a branch hint in.
+I'll send a new version if people thing the rest of the patch is worth
+it.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
