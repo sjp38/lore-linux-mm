@@ -1,32 +1,33 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx105.postini.com [74.125.245.105])
-	by kanga.kvack.org (Postfix) with SMTP id 6917A6B0044
-	for <linux-mm@kvack.org>; Mon, 26 Mar 2012 17:40:18 -0400 (EDT)
-Received: by pbcup15 with SMTP id up15so8013372pbc.14
-        for <linux-mm@kvack.org>; Mon, 26 Mar 2012 14:40:17 -0700 (PDT)
-Date: Mon, 26 Mar 2012 14:39:49 -0700 (PDT)
-From: Hugh Dickins <hughd@google.com>
-Subject: Re: [PATCH v6 1/7] mm/memcg: scanning_global_lru means
- mem_cgroup_disabled
-In-Reply-To: <20120326153131.GA22715@tiehlicka.suse.cz>
-Message-ID: <alpine.LSU.2.00.1203261435110.3550@eggly.anvils>
-References: <20120322214944.27814.42039.stgit@zurg> <20120322215616.27814.40563.stgit@zurg> <20120326150429.GA22754@tiehlicka.suse.cz> <20120326151815.GA1820@cmpxchg.org> <20120326153131.GA22715@tiehlicka.suse.cz>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from psmtp.com (na3sys010amx178.postini.com [74.125.245.178])
+	by kanga.kvack.org (Postfix) with SMTP id 835D06B0044
+	for <linux-mm@kvack.org>; Mon, 26 Mar 2012 18:35:59 -0400 (EDT)
+Message-ID: <1332788223.16159.185.camel@twins>
+Subject: Re: [PATCH 39/39] autonuma: NUMA scheduler SMT awareness
+From: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Date: Mon, 26 Mar 2012 20:57:03 +0200
+In-Reply-To: <1332783986-24195-40-git-send-email-aarcange@redhat.com>
+References: <1332783986-24195-1-git-send-email-aarcange@redhat.com>
+	 <1332783986-24195-40-git-send-email-aarcange@redhat.com>
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: quoted-printable
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Konstantin Khlebnikov <khlebnikov@openvz.org>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Glauber Costa <glommer@parallels.com>
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Hillf Danton <dhillf@gmail.com>, Dan Smith <danms@us.ibm.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>, Paul Turner <pjt@google.com>, Suresh Siddha <suresh.b.siddha@intel.com>, Mike Galbraith <efault@gmx.de>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Bharata B Rao <bharata.rao@gmail.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>
 
-On Mon, 26 Mar 2012, Michal Hocko wrote:
-> 
-> I guess that a note about changed ratio calculation should be added to
-> the changelog.
+On Mon, 2012-03-26 at 19:46 +0200, Andrea Arcangeli wrote:
+> Add SMT awareness to the NUMA scheduler so that it will not move load
+> from fully idle SMT threads, to semi idle SMT threads.
 
-To the changelog of a patch which changes the ratio calculation, yes; but
-not to the changelog of this patch, which changes only the name of the test.
+This shows a complete fail in design, you're working around the regular
+scheduler/load-balancer instead of with it and hence are duplicating all
+kinds of stuff.
 
-Hugh
+I'll not have that..
+
+Nacked-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
