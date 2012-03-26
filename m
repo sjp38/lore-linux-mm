@@ -1,41 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx198.postini.com [74.125.245.198])
-	by kanga.kvack.org (Postfix) with SMTP id 985056B004A
-	for <linux-mm@kvack.org>; Mon, 26 Mar 2012 14:41:00 -0400 (EDT)
-Message-ID: <1332786353.16159.173.camel@twins>
-Subject: Re: [PATCH 11/39] autonuma: CPU follow memory algorithm
-From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Date: Mon, 26 Mar 2012 20:25:53 +0200
-In-Reply-To: <1332783986-24195-12-git-send-email-aarcange@redhat.com>
+Received: from psmtp.com (na3sys010amx123.postini.com [74.125.245.123])
+	by kanga.kvack.org (Postfix) with SMTP id 7C4B66B0044
+	for <linux-mm@kvack.org>; Mon, 26 Mar 2012 14:57:10 -0400 (EDT)
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: [PATCH 38/39] autonuma: boost khugepaged scanning rate
+Date: Mon, 26 Mar 2012 19:46:25 +0200
+Message-Id: <1332783986-24195-39-git-send-email-aarcange@redhat.com>
+In-Reply-To: <1332783986-24195-1-git-send-email-aarcange@redhat.com>
 References: <1332783986-24195-1-git-send-email-aarcange@redhat.com>
-	 <1332783986-24195-12-git-send-email-aarcange@redhat.com>
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: quoted-printable
-Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Hillf Danton <dhillf@gmail.com>, Dan Smith <danms@us.ibm.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>, Paul Turner <pjt@google.com>, Suresh Siddha <suresh.b.siddha@intel.com>, Mike Galbraith <efault@gmx.de>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Bharata B Rao <bharata.rao@gmail.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>
+To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: Hillf Danton <dhillf@gmail.com>, Dan Smith <danms@us.ibm.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>, Paul Turner <pjt@google.com>, Suresh Siddha <suresh.b.siddha@intel.com>, Mike Galbraith <efault@gmx.de>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Bharata B Rao <bharata.rao@gmail.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>
 
-On Mon, 2012-03-26 at 19:45 +0200, Andrea Arcangeli wrote:
-> @@ -3220,6 +3214,8 @@ need_resched:
-> =20
->         post_schedule(rq);
-> =20
-> +       sched_autonuma_balance();
-> +
->         sched_preempt_enable_no_resched();
->         if (need_resched())
->                 goto need_resched;=20
+Until THP native migration is implemented it's safer to boost
+khugepaged scanning rate because all memory migration are splitting
+the hugepages. So the regular rate of scanning becomes too low when
+lots of memory is migrated.
 
-I already told you, this isn't ever going to happen. You do _NOT_ put a
-for_each_online_cpu() loop in the middle of schedule().
+Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
+---
+ mm/huge_memory.c |    8 ++++++++
+ 1 files changed, 8 insertions(+), 0 deletions(-)
 
-You also do not call stop_one_cpu(migration_cpu_stop) in schedule to
-force migrate the task you just scheduled to away from this cpu. That's
-retarded.
-
-Nacked-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
+diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+index 017c0a3..b919c0c 100644
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -573,6 +573,14 @@ static int __init hugepage_init(void)
+ 
+ 	set_recommended_min_free_kbytes();
+ 
++#ifdef CONFIG_AUTONUMA
++	/* Hack, remove after THP native migration */
++	if (num_possible_nodes() > 1) {
++		khugepaged_scan_sleep_millisecs = 100;
++		khugepaged_alloc_sleep_millisecs = 10000;
++	}
++#endif
++
+ 	return 0;
+ out:
+ 	hugepage_exit_sysfs(hugepage_kobj);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
