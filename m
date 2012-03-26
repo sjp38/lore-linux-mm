@@ -1,61 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx199.postini.com [74.125.245.199])
-	by kanga.kvack.org (Postfix) with SMTP id 4C0596B0044
-	for <linux-mm@kvack.org>; Mon, 26 Mar 2012 15:45:06 -0400 (EDT)
-Date: Mon, 26 Mar 2012 21:44:35 +0200
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [PATCH 11/39] autonuma: CPU follow memory algorithm
-Message-ID: <20120326194435.GW5906@redhat.com>
-References: <1332783986-24195-1-git-send-email-aarcange@redhat.com>
- <1332783986-24195-12-git-send-email-aarcange@redhat.com>
- <1332786353.16159.173.camel@twins>
- <4F70C365.8020009@redhat.com>
+Received: from psmtp.com (na3sys010amx120.postini.com [74.125.245.120])
+	by kanga.kvack.org (Postfix) with SMTP id 3F1706B0044
+	for <linux-mm@kvack.org>; Mon, 26 Mar 2012 15:58:08 -0400 (EDT)
+Received: by wgbds10 with SMTP id ds10so3433093wgb.26
+        for <linux-mm@kvack.org>; Mon, 26 Mar 2012 12:58:06 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <4F70C365.8020009@redhat.com>
+In-Reply-To: <20120326194435.GW5906@redhat.com>
+References: <1332783986-24195-1-git-send-email-aarcange@redhat.com>
+	<1332783986-24195-12-git-send-email-aarcange@redhat.com>
+	<1332786353.16159.173.camel@twins>
+	<4F70C365.8020009@redhat.com>
+	<20120326194435.GW5906@redhat.com>
+Date: Mon, 26 Mar 2012 12:58:05 -0700
+Message-ID: <CA+55aFwk0Etg_UhoZcKsfFJ7PQNLdQ58xxXiwcA-jemuXdZCZQ@mail.gmail.com>
+Subject: Re: [PATCH 11/39] autonuma: CPU follow memory algorithm
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Content-Type: multipart/alternative; boundary=001636c5b7aeed121904bc2aca8b
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rik van Riel <riel@redhat.com>
-Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Hillf Danton <dhillf@gmail.com>, Dan Smith <danms@us.ibm.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>, Paul Turner <pjt@google.com>, Suresh Siddha <suresh.b.siddha@intel.com>, Mike Galbraith <efault@gmx.de>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Bharata B Rao <bharata.rao@gmail.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Johannes Weiner <hannes@cmpxchg.org>
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: Hillf Danton <dhillf@gmail.com>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Dan Smith <danms@us.ibm.com>, Paul Turner <pjt@google.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Lai Jiangshan <laijs@cn.fujitsu.com>, Rik van Riel <riel@redhat.com>, Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, linux-mm@kvack.org, Suresh Siddha <suresh.b.siddha@intel.com>, Mike Galbraith <efault@gmx.de>, Bharata B Rao <bharata.rao@gmail.com>, Thomas Gleixner <tglx@linutronix.de>, Johannes Weiner <hannes@cmpxchg.org>, linux-kernel@vger.kernel.org
 
-On Mon, Mar 26, 2012 at 03:28:37PM -0400, Rik van Riel wrote:
-> Agreed, it looks O(N), but because every CPU will be calling
-> it its behaviour will be O(N^2) and has the potential to
-> completely break systems with a large number of CPUs.
+--001636c5b7aeed121904bc2aca8b
+Content-Type: text/plain; charset=ISO-8859-1
 
-As I wrote in the comment before the function, math speaking, this
-looks like O(N) but it is O(1), not O(N) nor O(N^2). This is because N
-= NR_CPUS = 1.
+On Mar 26, 2012 12:45 PM, "Andrea Arcangeli" <aarcange@redhat.com> wrote:
+>
+> As I wrote in the comment before the function, math speaking, this
+> looks like O(N) but it is O(1), not O(N) nor O(N^2). This is because N
+> = NR_CPUS = 1.
 
-As I also wrote in the comment before the function, this is called at
-every schedule in the short term primarily because I want to see a
-flood if this algorithm does something wrong after I do.
+That's just stupid sophistry.
 
-echo 1 >/sys/kernel/mm/autonuma/debug
+No, you can't just say that it's limited to some large constant, and thus
+the same as O(1).
 
- * This has O(N) complexity but N isn't the number of running
- * processes, but the number of CPUs, so if you assume a constant
- * number of CPUs (capped at NR_CPUS) it is O(1). O(1) misleading math
- * aside, the number of cachelines touched with thousands of CPU might
- * make it measurable. Calling this at every schedule may also be
- * overkill and it may be enough to call it with a frequency similar
- * to the load balancing, but by doing so we're also verifying the
- * algorithm is a converging one in all workloads if performance is
- * improved and there's no frequent CPU migration, so it's good in the
- * short term for stressing the algorithm.
+That's the worst kind of lie: something that's technically true if you look
+at it a certain stupid way, but isn't actually true in practice.
 
-Over time (not urgent) this can be called at a regular interval like
-load_balance() or be more integrated within CFS so it doesn't need to
-be called at all.
+It's clearly O(n) in number of CPUs, and people told you it can't go into
+the scheduler. Stop arguing idiotic things. Just say you'll fix it, instead
+of looking like a tool.
 
-For the short term it shall be called at every schedule for debug
-reasons so I wouldn't suggest to make an effort to call it at lower
-frequency right now. If somebody wants to make an effort to make it
-more integrated in CFS that's welcome though, but I would still like a
-tweak to force the algorithm synchronously during every schedule
-decision like now so I can verify it converges at the scheduler level
-and there is not a flood of worthless bounces.
+      Linus
+
+--001636c5b7aeed121904bc2aca8b
+Content-Type: text/html; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
+
+<p><br>
+On Mar 26, 2012 12:45 PM, &quot;Andrea Arcangeli&quot; &lt;<a href=3D"mailt=
+o:aarcange@redhat.com">aarcange@redhat.com</a>&gt; wrote:<br>
+&gt;<br>
+&gt; As I wrote in the comment before the function, math speaking, this<br>
+&gt; looks like O(N) but it is O(1), not O(N) nor O(N^2). This is because N=
+<br>
+&gt; =3D NR_CPUS =3D 1.</p>
+<p>That&#39;s just stupid sophistry.</p>
+<p>No, you can&#39;t just say that it&#39;s limited to some large constant,=
+ and thus the same as O(1).</p>
+<p>That&#39;s the worst kind of lie: something that&#39;s technically true =
+if you look at it a certain stupid way, but isn&#39;t actually true in prac=
+tice.</p>
+<p>It&#39;s clearly O(n) in number of CPUs, and people told you it can&#39;=
+t go into the scheduler. Stop arguing idiotic things. Just say you&#39;ll f=
+ix it, instead of looking like a tool.</p>
+<p>=A0=A0=A0=A0=A0 Linus<br>
+</p>
+
+--001636c5b7aeed121904bc2aca8b--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
