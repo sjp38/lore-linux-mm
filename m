@@ -1,57 +1,30 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx203.postini.com [74.125.245.203])
-	by kanga.kvack.org (Postfix) with SMTP id 27F4D6B0044
-	for <linux-mm@kvack.org>; Sun, 25 Mar 2012 22:00:17 -0400 (EDT)
-Message-ID: <4F6FCDAD.4060701@cn.fujitsu.com>
-Date: Mon, 26 Mar 2012 10:00:13 +0800
-From: Lai Jiangshan <laijs@cn.fujitsu.com>
-MIME-Version: 1.0
-Subject: Re: [RFC PATCH 6/6] workqueue: use kmalloc_align() instead of hacking
-References: <1332238884-6237-1-git-send-email-laijs@cn.fujitsu.com> <1332238884-6237-7-git-send-email-laijs@cn.fujitsu.com> <20120320154619.GA5684@google.com> <4F6944D9.5090002@cn.fujitsu.com> <alpine.DEB.2.00.1203210842200.20382@router.home>
-In-Reply-To: <alpine.DEB.2.00.1203210842200.20382@router.home>
-Content-Transfer-Encoding: 7bit
-Content-Type: text/plain; charset=UTF-8
+Received: from psmtp.com (na3sys010amx115.postini.com [74.125.245.115])
+	by kanga.kvack.org (Postfix) with SMTP id 246936B0044
+	for <linux-mm@kvack.org>; Mon, 26 Mar 2012 03:59:41 -0400 (EDT)
+Message-ID: <1332748746.16159.62.camel@twins>
+Subject: Re: [PATCH v2.1 01/10] cpu: Introduce clear_tasks_mm_cpumask()
+ helper
+From: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Date: Mon, 26 Mar 2012 09:59:06 +0200
+In-Reply-To: <20120325174210.GA23605@redhat.com>
+References: <20120324102609.GA28356@lizard> <20120324102751.GA29067@lizard>
+	 <1332593021.16159.27.camel@twins> <20120324164316.GB3640@lizard>
+	 <20120325174210.GA23605@redhat.com>
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: quoted-printable
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: Tejun Heo <tj@kernel.org>, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Oleg Nesterov <oleg@redhat.com>
+Cc: Anton Vorontsov <anton.vorontsov@linaro.org>, Andrew Morton <akpm@linux-foundation.org>, Russell King <linux@arm.linux.org.uk>, Mike Frysinger <vapier@gentoo.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Richard Weinberger <richard@nod.at>, Paul Mundt <lethal@linux-sh.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, John Stultz <john.stultz@linaro.org>, linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org, uclinux-dist-devel@blackfin.uclinux.org, linuxppc-dev@lists.ozlabs.org, linux-sh@vger.kernel.org, user-mode-linux-devel@lists.sourceforge.net, linux-mm@kvack.org
 
-On 03/21/2012 09:45 PM, Christoph Lameter wrote:
-> On Wed, 21 Mar 2012, Lai Jiangshan wrote:
-> 
->> Yes, I don't want to build a complex kmalloc_align(). But after I found
->> that SLAB/SLUB's kmalloc-objects are natural/automatic aligned to
->> a proper big power of two. I will do nothing if I introduce kmalloc_align()
->> except just care the debugging.
-> 
-> They are not guaranteed to be aligned to the big power of two! There are
-> kmalloc caches that are not power of two. Debugging and other
-> necessary meta data may change alignment in both SLAB and SLUB. SLAB needs
-> a metadata structure in each page even without debugging that may cause
-> alignment issues.
+On Sun, 2012-03-25 at 19:42 +0200, Oleg Nesterov wrote:
+> __cpu_disable() is called by __stop_machine(), we know that nobody
+> can preempt us and other CPUs can do nothing.=20
 
-"Debugging and other necessary meta data" are handled in special way in my patches.
-(You have already checked the patches.)
-
-Normally, as I said, SLAB/SLUB's kmalloc-objects are natural/automatic aligned,
-and my patch does not touch the general cases. Sorry for my bad reply.
-
-
-> 
->> And kmalloc_align() can be used in the following case:
->> o	a type object need to be aligned with cache-line for it contains a frequent
->> 	update-part and a frequent read-part.
->> o	The total number of these objects in a given type is not much, creating
->> 	a new slab cache for a given type will be overkill.
->>
->> This is a RFC patch and it seems mm gurus don't like it. I'm sorry I
->> bother all of you.
-> 
-> Ideas are always welcome. Please do not get offended by our problems with
-> your patch.
-> 
-> 
-> 
+It would be very good to not rely on that though, I would love to get
+rid of the stop_machine usage in cpu hotplug some day.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
