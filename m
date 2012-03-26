@@ -1,86 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx158.postini.com [74.125.245.158])
-	by kanga.kvack.org (Postfix) with SMTP id 4D7B26B0044
-	for <linux-mm@kvack.org>; Mon, 26 Mar 2012 11:04:33 -0400 (EDT)
-Date: Mon, 26 Mar 2012 17:04:29 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH v6 1/7] mm/memcg: scanning_global_lru means
- mem_cgroup_disabled
-Message-ID: <20120326150429.GA22754@tiehlicka.suse.cz>
-References: <20120322214944.27814.42039.stgit@zurg>
- <20120322215616.27814.40563.stgit@zurg>
+Received: from psmtp.com (na3sys010amx186.postini.com [74.125.245.186])
+	by kanga.kvack.org (Postfix) with SMTP id EEA5B6B004D
+	for <linux-mm@kvack.org>; Mon, 26 Mar 2012 11:10:15 -0400 (EDT)
+Received: by yhr47 with SMTP id 47so4940998yhr.14
+        for <linux-mm@kvack.org>; Mon, 26 Mar 2012 08:10:15 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20120322215616.27814.40563.stgit@zurg>
+In-Reply-To: <20120326135609.GM1007@csn.ul.ie>
+References: <20120324130353.48f2e4c8@kryten>
+	<20120324102621.353114da@annuminas.surriel.com>
+	<20120326093201.GL1007@csn.ul.ie>
+	<CAOJsxLGcoxxdhe2sNmAbC2e5afnZm9960XxBjY+QoCoc0RRb2w@mail.gmail.com>
+	<20120326135609.GM1007@csn.ul.ie>
+Date: Mon, 26 Mar 2012 18:10:13 +0300
+Message-ID: <CAOJsxLHEHQOQsn9p8v6cq6SKM-E39WAy=CeaY=EN8gb9P5LEKQ@mail.gmail.com>
+Subject: Re: [PATCH] Re: kswapd stuck using 100% CPU
+From: Pekka Enberg <penberg@kernel.org>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Konstantin Khlebnikov <khlebnikov@openvz.org>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Glauber Costa <glommer@parallels.com>, Johannes Weiner <hannes@cmpxchg.org>
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: Rik van Riel <riel@redhat.com>, Anton Blanchard <anton@samba.org>, aarcange@redhat.com, akpm@linux-foundation.org, hughd@google.com, lkml <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>
 
-[Adding Johannes to CC]
+Hi Mel,
 
-On Fri 23-03-12 01:56:16, Konstantin Khlebnikov wrote:
-> From: Hugh Dickins <hughd@google.com>
-> 
-> Although one has to admire the skill with which it has been concealed,
-> scanning_global_lru(mz) is actually just an interesting way to test
-> mem_cgroup_disabled().  Too many developer hours have been wasted on
-> confusing it with global_reclaim(): just use mem_cgroup_disabled().
+On Mon, Mar 26, 2012 at 4:56 PM, Mel Gorman <mel@csn.ul.ie> wrote:
+>> The API looks fragile and this patch isn't exactly making it any
+>> better. Why don't we make compaction_suitable() return something other
+>> than COMPACT_SKIPPED for !CONFIG_COMPACTION case?
+>
+> Returning COMPACT_PARTIAL or COMPACT_CONTINUE would confuse the check in
+> should_continue_reclaim. A fourth return type could be added but an
+> obvious name does not spring to mind that would end up being similar to
+> just adding a CONFIG_COMPACTION check.
 
-Is this really correct?
+How about COMPACT_DISABLED?
 
-> Signed-off-by: Hugh Dickins <hughd@google.com>
-> Signed-off-by: Konstantin Khlebnikov <khlebnikov@openvz.org>
-> Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> Acked-by: Glauber Costa <glommer@parallels.com>
-> ---
->  mm/vmscan.c |   18 ++++--------------
->  1 files changed, 4 insertions(+), 14 deletions(-)
-> 
-> diff --git a/mm/vmscan.c b/mm/vmscan.c
-> index 49f15ef..c684f44 100644
-> --- a/mm/vmscan.c
-> +++ b/mm/vmscan.c
-[...]
-> @@ -1806,7 +1796,7 @@ static int inactive_anon_is_low(struct mem_cgroup_zone *mz)
->  	if (!total_swap_pages)
->  		return 0;
->  
-> -	if (!scanning_global_lru(mz))
-> +	if (!mem_cgroup_disabled())
->  		return mem_cgroup_inactive_anon_is_low(mz->mem_cgroup,
->  						       mz->zone);
+The current API just doesn't make sense from practical point of view.
+Anyone calling compaction_suitable() needs to do the COMPAT_BUILD
+check first which is a non-obvious and error-prone API.
 
-mem_cgroup_inactive_anon_is_low calculation is slightly different than
-what we have for cgroup_disabled case. calculate_zone_inactive_ratio
-considers _all_ present pages in the zone while memcg variant only
-active+inactive.
-
->  
-> @@ -1845,7 +1835,7 @@ static int inactive_file_is_low_global(struct zone *zone)
->   */
->  static int inactive_file_is_low(struct mem_cgroup_zone *mz)
->  {
-> -	if (!scanning_global_lru(mz))
-> +	if (!mem_cgroup_disabled())
->  		return mem_cgroup_inactive_file_is_low(mz->mem_cgroup,
->  						       mz->zone);
->  
-> 
-> --
-> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
-> Please read the FAQ at  http://www.tux.org/lkml/
-
--- 
-Michal Hocko
-SUSE Labs
-SUSE LINUX s.r.o.
-Lihovarska 1060/12
-190 00 Praha 9    
-Czech Republic
+                        Pekka
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
