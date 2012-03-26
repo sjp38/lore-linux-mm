@@ -1,30 +1,37 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx115.postini.com [74.125.245.115])
-	by kanga.kvack.org (Postfix) with SMTP id 246936B0044
-	for <linux-mm@kvack.org>; Mon, 26 Mar 2012 03:59:41 -0400 (EDT)
-Message-ID: <1332748746.16159.62.camel@twins>
-Subject: Re: [PATCH v2.1 01/10] cpu: Introduce clear_tasks_mm_cpumask()
- helper
-From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Date: Mon, 26 Mar 2012 09:59:06 +0200
-In-Reply-To: <20120325174210.GA23605@redhat.com>
-References: <20120324102609.GA28356@lizard> <20120324102751.GA29067@lizard>
-	 <1332593021.16159.27.camel@twins> <20120324164316.GB3640@lizard>
-	 <20120325174210.GA23605@redhat.com>
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: quoted-printable
-Mime-Version: 1.0
+Received: from psmtp.com (na3sys010amx190.postini.com [74.125.245.190])
+	by kanga.kvack.org (Postfix) with SMTP id 4A6036B0044
+	for <linux-mm@kvack.org>; Mon, 26 Mar 2012 05:32:05 -0400 (EDT)
+Date: Mon, 26 Mar 2012 10:32:01 +0100
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: [PATCH] Re: kswapd stuck using 100% CPU
+Message-ID: <20120326093201.GL1007@csn.ul.ie>
+References: <20120324130353.48f2e4c8@kryten>
+ <20120324102621.353114da@annuminas.surriel.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20120324102621.353114da@annuminas.surriel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Oleg Nesterov <oleg@redhat.com>
-Cc: Anton Vorontsov <anton.vorontsov@linaro.org>, Andrew Morton <akpm@linux-foundation.org>, Russell King <linux@arm.linux.org.uk>, Mike Frysinger <vapier@gentoo.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Richard Weinberger <richard@nod.at>, Paul Mundt <lethal@linux-sh.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, John Stultz <john.stultz@linaro.org>, linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org, uclinux-dist-devel@blackfin.uclinux.org, linuxppc-dev@lists.ozlabs.org, linux-sh@vger.kernel.org, user-mode-linux-devel@lists.sourceforge.net, linux-mm@kvack.org
+To: Rik van Riel <riel@redhat.com>
+Cc: Anton Blanchard <anton@samba.org>, aarcange@redhat.com, akpm@linux-foundation.org, hughd@google.com, lkml <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>
 
-On Sun, 2012-03-25 at 19:42 +0200, Oleg Nesterov wrote:
-> __cpu_disable() is called by __stop_machine(), we know that nobody
-> can preempt us and other CPUs can do nothing.=20
+On Sat, Mar 24, 2012 at 10:26:21AM -0400, Rik van Riel wrote:
+> 
+> Only test compaction_suitable if the kernel is built with CONFIG_COMPACTION,
+> otherwise the stub compaction_suitable function will always return
+> COMPACT_SKIPPED and send kswapd into an infinite loop.
+> 
+> Signed-off-by: Rik van Riel <riel@redhat.com>
+> Reported-by: Anton Blanchard <anton@samba.org>
+> 
 
-It would be very good to not rely on that though, I would love to get
-rid of the stop_machine usage in cpu hotplug some day.
+Acked-by: Mel Gorman <mel@csn.ul.ie>
+
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
