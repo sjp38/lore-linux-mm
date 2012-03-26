@@ -1,197 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx185.postini.com [74.125.245.185])
-	by kanga.kvack.org (Postfix) with SMTP id 7D2FB6B0044
-	for <linux-mm@kvack.org>; Mon, 26 Mar 2012 11:39:34 -0400 (EDT)
-Date: Mon, 26 Mar 2012 17:39:32 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH v6 3/7] mm: push lru index into shrink_[in]active_list()
-Message-ID: <20120326153932.GD22754@tiehlicka.suse.cz>
-References: <20120322214944.27814.42039.stgit@zurg>
- <20120322215627.27814.4499.stgit@zurg>
+Received: from psmtp.com (na3sys010amx109.postini.com [74.125.245.109])
+	by kanga.kvack.org (Postfix) with SMTP id C79D36B0044
+	for <linux-mm@kvack.org>; Mon, 26 Mar 2012 11:50:32 -0400 (EDT)
+Date: Mon, 26 Mar 2012 16:50:27 +0100
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [PATCH] cpuset: mm: Reduce large amounts of memory barrier
+ related damage v3
+Message-ID: <20120326155027.GF16573@suse.de>
+References: <20120307180852.GE17697@suse.de>
+ <1332759384.16159.92.camel@twins>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <20120322215627.27814.4499.stgit@zurg>
+In-Reply-To: <1332759384.16159.92.camel@twins>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Konstantin Khlebnikov <khlebnikov@openvz.org>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Miao Xie <miaox@cn.fujitsu.com>, David Rientjes <rientjes@google.com>, Christoph Lameter <cl@linux.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Fri 23-03-12 01:56:27, Konstantin Khlebnikov wrote:
-> Let's toss lru index through call stack to isolate_lru_pages(),
-> this is better than its reconstructing from individual bits.
+On Mon, Mar 26, 2012 at 12:56:24PM +0200, Peter Zijlstra wrote:
+> On Wed, 2012-03-07 at 18:08 +0000, Mel Gorman wrote:
+> > +               } while (!put_mems_allowed(cpuset_mems_cookie) && !page);
 > 
-> Signed-off-by: Konstantin Khlebnikov <khlebnikov@openvz.org>
-> Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> Acked-by: Hugh Dickins <hughd@google.com>
-
-Looks nice
-Reviewed-by: Michal Hocko <mhocko@suse.cz>
-
-> ---
->  mm/vmscan.c |   41 +++++++++++++++++------------------------
->  1 files changed, 17 insertions(+), 24 deletions(-)
+> Sorry for only noticing this now, but wouldn't it be better to first
+> check page and only then bother with the put_mems_allowed() thing? That
+> avoids the smp_rmb() and seqcount conditional all together in the likely
+> case the allocation actually succeeded.
 > 
-> diff --git a/mm/vmscan.c b/mm/vmscan.c
-> index f4dca0c..fb6d54e 100644
-> --- a/mm/vmscan.c
-> +++ b/mm/vmscan.c
-> @@ -1127,15 +1127,14 @@ int __isolate_lru_page(struct page *page, isolate_mode_t mode, int file)
->   * @nr_scanned:	The number of pages that were scanned.
->   * @sc:		The scan_control struct for this reclaim session
->   * @mode:	One of the LRU isolation modes
-> - * @active:	True [1] if isolating active pages
-> - * @file:	True [1] if isolating file [!anon] pages
-> + * @lru		LRU list id for isolating
->   *
->   * returns how many pages were moved onto *@dst.
->   */
->  static unsigned long isolate_lru_pages(unsigned long nr_to_scan,
->  		struct mem_cgroup_zone *mz, struct list_head *dst,
->  		unsigned long *nr_scanned, struct scan_control *sc,
-> -		isolate_mode_t mode, int active, int file)
-> +		isolate_mode_t mode, enum lru_list lru)
->  {
->  	struct lruvec *lruvec;
->  	struct list_head *src;
-> @@ -1144,13 +1143,9 @@ static unsigned long isolate_lru_pages(unsigned long nr_to_scan,
->  	unsigned long nr_lumpy_dirty = 0;
->  	unsigned long nr_lumpy_failed = 0;
->  	unsigned long scan;
-> -	int lru = LRU_BASE;
-> +	int file = is_file_lru(lru);
+> <SNIP>
+>
+> diff --git a/mm/filemap.c b/mm/filemap.c
+> index c3811bc..3b41553 100644
+> --- a/mm/filemap.c
+> +++ b/mm/filemap.c
+> @@ -504,7 +504,7 @@ struct page *__page_cache_alloc(gfp_t gfp)
+>  			cpuset_mems_cookie = get_mems_allowed();
+>  			n = cpuset_mem_spread_node();
+>  			page = alloc_pages_exact_node(n, gfp, 0);
+> -		} while (!put_mems_allowed(cpuset_mems_cookie) && !page);
+> +		} while (!page && !put_mems_allowed(cpuset_mems_cookie));
 >  
->  	lruvec = mem_cgroup_zone_lruvec(mz->zone, mz->mem_cgroup);
-> -	if (active)
-> -		lru += LRU_ACTIVE;
-> -	if (file)
-> -		lru += LRU_FILE;
->  	src = &lruvec->lists[lru];
->  
->  	for (scan = 0; scan < nr_to_scan && !list_empty(src); scan++) {
-> @@ -1487,7 +1482,7 @@ static inline bool should_reclaim_stall(unsigned long nr_taken,
->   */
->  static noinline_for_stack unsigned long
->  shrink_inactive_list(unsigned long nr_to_scan, struct mem_cgroup_zone *mz,
-> -		     struct scan_control *sc, int priority, int file)
-> +		     struct scan_control *sc, int priority, enum lru_list lru)
->  {
->  	LIST_HEAD(page_list);
->  	unsigned long nr_scanned;
-> @@ -1498,6 +1493,7 @@ shrink_inactive_list(unsigned long nr_to_scan, struct mem_cgroup_zone *mz,
->  	unsigned long nr_dirty = 0;
->  	unsigned long nr_writeback = 0;
->  	isolate_mode_t isolate_mode = ISOLATE_INACTIVE;
-> +	int file = is_file_lru(lru);
->  	struct zone *zone = mz->zone;
->  	struct zone_reclaim_stat *reclaim_stat = get_reclaim_stat(mz);
->  
-> @@ -1523,7 +1519,7 @@ shrink_inactive_list(unsigned long nr_to_scan, struct mem_cgroup_zone *mz,
->  	spin_lock_irq(&zone->lru_lock);
->  
->  	nr_taken = isolate_lru_pages(nr_to_scan, mz, &page_list, &nr_scanned,
-> -				     sc, isolate_mode, 0, file);
-> +				     sc, isolate_mode, lru);
->  	if (global_reclaim(sc)) {
->  		zone->pages_scanned += nr_scanned;
->  		if (current_is_kswapd())
-> @@ -1661,7 +1657,7 @@ static void move_active_pages_to_lru(struct zone *zone,
->  static void shrink_active_list(unsigned long nr_to_scan,
->  			       struct mem_cgroup_zone *mz,
->  			       struct scan_control *sc,
-> -			       int priority, int file)
-> +			       int priority, enum lru_list lru)
->  {
->  	unsigned long nr_taken;
->  	unsigned long nr_scanned;
-> @@ -1673,6 +1669,7 @@ static void shrink_active_list(unsigned long nr_to_scan,
->  	struct zone_reclaim_stat *reclaim_stat = get_reclaim_stat(mz);
->  	unsigned long nr_rotated = 0;
->  	isolate_mode_t isolate_mode = ISOLATE_ACTIVE;
-> +	int file = is_file_lru(lru);
->  	struct zone *zone = mz->zone;
->  
->  	lru_add_drain();
-> @@ -1687,17 +1684,14 @@ static void shrink_active_list(unsigned long nr_to_scan,
->  	spin_lock_irq(&zone->lru_lock);
->  
->  	nr_taken = isolate_lru_pages(nr_to_scan, mz, &l_hold, &nr_scanned, sc,
-> -				     isolate_mode, 1, file);
-> +				     isolate_mode, lru);
->  	if (global_reclaim(sc))
->  		zone->pages_scanned += nr_scanned;
->  
->  	reclaim_stat->recent_scanned[file] += nr_taken;
->  
->  	__count_zone_vm_events(PGREFILL, zone, nr_scanned);
-> -	if (file)
-> -		__mod_zone_page_state(zone, NR_ACTIVE_FILE, -nr_taken);
-> -	else
-> -		__mod_zone_page_state(zone, NR_ACTIVE_ANON, -nr_taken);
-> +	__mod_zone_page_state(zone, NR_LRU_BASE + lru, -nr_taken);
->  	__mod_zone_page_state(zone, NR_ISOLATED_ANON + file, nr_taken);
->  	spin_unlock_irq(&zone->lru_lock);
->  
-> @@ -1752,10 +1746,8 @@ static void shrink_active_list(unsigned long nr_to_scan,
->  	 */
->  	reclaim_stat->recent_rotated[file] += nr_rotated;
->  
-> -	move_active_pages_to_lru(zone, &l_active, &l_hold,
-> -						LRU_ACTIVE + file * LRU_FILE);
-> -	move_active_pages_to_lru(zone, &l_inactive, &l_hold,
-> -						LRU_BASE   + file * LRU_FILE);
-> +	move_active_pages_to_lru(zone, &l_active, &l_hold, lru);
-> +	move_active_pages_to_lru(zone, &l_inactive, &l_hold, lru - LRU_ACTIVE);
->  	__mod_zone_page_state(zone, NR_ISOLATED_ANON + file, -nr_taken);
->  	spin_unlock_irq(&zone->lru_lock);
->  
-> @@ -1855,11 +1847,11 @@ static unsigned long shrink_list(enum lru_list lru, unsigned long nr_to_scan,
->  
->  	if (is_active_lru(lru)) {
->  		if (inactive_list_is_low(mz, file))
-> -			shrink_active_list(nr_to_scan, mz, sc, priority, file);
-> +			shrink_active_list(nr_to_scan, mz, sc, priority, lru);
->  		return 0;
+>  		return page;
 >  	}
->  
-> -	return shrink_inactive_list(nr_to_scan, mz, sc, priority, file);
-> +	return shrink_inactive_list(nr_to_scan, mz, sc, priority, lru);
->  }
->  
->  static int vmscan_swappiness(struct mem_cgroup_zone *mz,
-> @@ -2110,7 +2102,8 @@ restart:
->  	 * rebalance the anon lru active/inactive ratio.
->  	 */
->  	if (inactive_anon_is_low(mz))
-> -		shrink_active_list(SWAP_CLUSTER_MAX, mz, sc, priority, 0);
-> +		shrink_active_list(SWAP_CLUSTER_MAX, mz,
-> +				   sc, priority, LRU_ACTIVE_ANON);
->  
->  	/* reclaim/compaction might need reclaim to continue */
->  	if (should_continue_reclaim(mz, nr_reclaimed,
-> @@ -2550,7 +2543,7 @@ static void age_active_anon(struct zone *zone, struct scan_control *sc,
->  
->  		if (inactive_anon_is_low(&mz))
->  			shrink_active_list(SWAP_CLUSTER_MAX, &mz,
-> -					   sc, priority, 0);
-> +					   sc, priority, LRU_ACTIVE_ANON);
->  
->  		memcg = mem_cgroup_iter(NULL, memcg, NULL);
->  	} while (memcg);
-> 
-> --
-> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
-> Please read the FAQ at  http://www.tux.org/lkml/
+
+I think such a change would be better but should also rename the API.
+If developers see a get_foo type call, they will expect to see a put_foo
+call or assume it's a bug even though the implementation happens to be ok
+with that. Any suggestion on what a good new name would be?
+
+How about read_mems_allowed_begin() and read_mems_allowed_retry()?
+
+read_mems_allowed_begin would be a rename of get_mems_allowed().  In an
+error path, read_mems_allowed_retry() would documented to be *optionally*
+called when deciding whether to retry the operation or not. In this scheme,
+!put_mems_allowed would become read_mems_allowed_retry() which might be
+a bit easier to read overall.
 
 -- 
-Michal Hocko
+Mel Gorman
 SUSE Labs
-SUSE LINUX s.r.o.
-Lihovarska 1060/12
-190 00 Praha 9    
-Czech Republic
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
