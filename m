@@ -1,57 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx113.postini.com [74.125.245.113])
-	by kanga.kvack.org (Postfix) with SMTP id 94DDB6B00F7
-	for <linux-mm@kvack.org>; Tue, 27 Mar 2012 09:43:33 -0400 (EDT)
-MIME-version: 1.0
-Content-transfer-encoding: 7BIT
-Content-type: TEXT/PLAIN
-Received: from euspt2 ([210.118.77.13]) by mailout3.w1.samsung.com
- (Sun Java(tm) System Messaging Server 6.3-8.04 (built Jul 29 2009; 32bit))
- with ESMTP id <0M1J00EXKQ42PD60@mailout3.w1.samsung.com> for
- linux-mm@kvack.org; Tue, 27 Mar 2012 14:43:15 +0100 (BST)
-Received: from linux.samsung.com ([106.116.38.10])
- by spt2.w1.samsung.com (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14
- 2004)) with ESMTPA id <0M1J00KRZQ4AN9@spt2.w1.samsung.com> for
- linux-mm@kvack.org; Tue, 27 Mar 2012 14:43:23 +0100 (BST)
-Date: Tue, 27 Mar 2012 15:42:46 +0200
-From: Marek Szyprowski <m.szyprowski@samsung.com>
-Subject: [PATCHv2 12/14] common: dma-mapping: introduce mmap method
-In-reply-to: <1332855768-32583-1-git-send-email-m.szyprowski@samsung.com>
-Message-id: <1332855768-32583-13-git-send-email-m.szyprowski@samsung.com>
-References: <1332855768-32583-1-git-send-email-m.szyprowski@samsung.com>
+Received: from psmtp.com (na3sys010amx196.postini.com [74.125.245.196])
+	by kanga.kvack.org (Postfix) with SMTP id 038686B00F9
+	for <linux-mm@kvack.org>; Tue, 27 Mar 2012 10:43:28 -0400 (EDT)
+Date: Mon, 26 Mar 2012 11:50:19 -0400
+From: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
+Subject: Re: [PATCH] staging: zsmalloc: add user-definable alloc/free funcs
+Message-ID: <20120326155018.GA6163@phenom.dumpdata.com>
+References: <1331931888-14175-1-git-send-email-sjenning@linux.vnet.ibm.com>
+ <20120316213227.GB24556@kroah.com>
+ <4F678100.1000707@linux.vnet.ibm.com>
+ <20120319233409.GA16124@kroah.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20120319233409.GA16124@kroah.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: Benjamin Herrenschmidt <benh@kernel.crashing.org>, Thomas Gleixner <tglx@linutronix.de>, Andrew Morton <akpm@linux-foundation.org>, Arnd Bergmann <arnd@arndb.de>, Stephen Rothwell <sfr@canb.auug.org.au>, FUJITA Tomonori <fujita.tomonori@lab.ntt.co.jp>, microblaze-uclinux@itee.uq.edu.au, linux-arch@vger.kernel.org, x86@kernel.org, linux-sh@vger.kernel.org, linux-alpha@vger.kernel.org, sparclinux@vger.kernel.org, linux-ia64@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-mips@linux-mips.org, discuss@x86-64.org, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, linaro-mm-sig@lists.linaro.org, Jonathan Corbet <corbet@lwn.net>, Marek Szyprowski <m.szyprowski@samsung.com>, Kyungmin Park <kyungmin.park@samsung.com>, Andrzej Pietrasiewicz <andrzej.p@samsung.com>, Kevin Cernekee <cernekee@gmail.com>, Dezhong Diao <dediao@cisco.com>, Richard Kuo <rkuo@codeaurora.org>, "David S. Miller" <davem@davemloft.net>, Michal Simek <monstr@monstr.eu>, Guan Xuetao <gxt@mprc.pku.edu.cn>, Paul Mundt <lethal@linux-sh.org>, Richard Henderson <rth@twiddle.net>, Ivan Kokshaysky <ink@jurassic.park.msu.ru>, Matt Turner <mattst88@gmail.com>, Tony Luck <tony.luck@intel.com>, Fenghua Yu <fenghua.yu@intel.com>
+To: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+Cc: Seth Jennings <sjenning@linux.vnet.ibm.com>, devel@driverdev.osuosl.org, Dan Magenheimer <dan.magenheimer@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Robert Jennings <rcj@linux.vnet.ibm.com>, Nitin Gupta <ngupta@vflare.org>
 
-Introduce new generic mmap method with attributes argument.
+On Mon, Mar 19, 2012 at 04:34:09PM -0700, Greg Kroah-Hartman wrote:
+> On Mon, Mar 19, 2012 at 01:54:56PM -0500, Seth Jennings wrote:
+> > > I'm sorry, I know this isn't fair for your specific patch, but we have
+> > > to stop this sometime, and as this patch adds code isn't even used by
+> > > anyone, its a good of a time as any.
+> > 
+> > So, this the my first "promotion from staging" rodeo.  I would love to
+> > see this code mainlined ASAP.  How would I/we go about doing that?
+> 
+> What subsystem should this code live in?  The -mm code, I'm guessing,
+> right?  If so, submit it to the linux-mm mailing list for inclusion, you
+> can point them at what is in drivers/staging right now, or probably it's
+> easier if you just make a new patch that adds the code that is in
+> drivers/staging/ to the correct location in the kernel.  That way it's
+> easier to review and change.  When it finally gets accepted, we can then
+> delete the drivers/staging code.
 
-This method lets drivers to create a userspace mapping for a DMA buffer
-in generic, architecture independent way.
 
-Signed-off-by: Marek Szyprowski <m.szyprowski@samsung.com>
-Acked-by: Kyungmin Park <kyungmin.park@samsung.com>
-Reviewed-by: Arnd Bergmann <arnd@arndb.de>
----
- include/linux/dma-mapping.h |    3 +++
- 1 files changed, 3 insertions(+), 0 deletions(-)
+Hey Greg,
 
-diff --git a/include/linux/dma-mapping.h b/include/linux/dma-mapping.h
-index 2fc413a..b903a20 100644
---- a/include/linux/dma-mapping.h
-+++ b/include/linux/dma-mapping.h
-@@ -15,6 +15,9 @@ struct dma_map_ops {
- 	void (*free)(struct device *dev, size_t size,
- 			      void *vaddr, dma_addr_t dma_handle,
- 			      struct dma_attrs *attrs);
-+	int (*mmap)(struct device *, struct vm_area_struct *,
-+			  void *, dma_addr_t, size_t, struct dma_attrs *attrs);
-+
- 	dma_addr_t (*map_page)(struct device *dev, struct page *page,
- 			       unsigned long offset, size_t size,
- 			       enum dma_data_direction dir,
--- 
-1.7.1.569.g6f426
+Little background - for zcache to kick-butts (both Dan and Seth posted some
+pretty awesome benchmark numbers) it depends on the frontswap - which is in
+the #linux-next. Dan made an attempt to post it for a GIT PULL and an interesting
+conversation ensued where folks decided it needs more additions before they were
+comfortable with it. zcache isn't using those additions, but I don't see why
+it couldn't use them.
+
+The things that bouncing around in my head are:
+ - get a punch-out list (ie todo) of what MM needs for the zcache to get out.
+   I think posting it as a new driver would be right way to do it (And then
+   based on feedback work out the issues in drivers/staging). But what
+   about authorship - there are mulitple authors ?
+
+ - zcache is a bit different that the normal drivers type - and it is unclear
+   yet what will be required to get it out - and both Seth and Nitin have this
+   hungry look in their eyes of wanting to make it super-duper. So doing
+   the work to do it - is not going to be a problem at all - just some form
+   of clear goals of what we need "now" vs "would love to have".
+
+ - folks are using it, which means continued -stable kernel back-porting.
+
+So with that in mind I was wondering whether you would be up for:
+ - me sending to you before a merge window some updates to the zcache
+   as a git pull - that way you won't have to deal with a bunch of
+   small patches and when there is something you don't like we can fix
+   it up to your liking. The goal would be for us - Dan, Nitin, Seth and me
+   working on promoting the driver out of staging and you won't have to
+   be bugged every time we have a new change that might be perceived
+   as feature, but is in fact a step towards mainstreaming it. I figured
+   that is what you are most annoyed at - handling those uncoordinated
+   requests and not seeing a clear target.
+
+ - alongside of that, I work on making those frontswap changes folks
+   have asked for. Since those changes can affect zcache, that means
+   adding them in zcache alongside.
+
+Hopefully, by the time those two items are done, both pieces can go in
+the kernel at the same time-ish.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
