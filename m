@@ -1,37 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx190.postini.com [74.125.245.190])
-	by kanga.kvack.org (Postfix) with SMTP id 4A6036B0044
-	for <linux-mm@kvack.org>; Mon, 26 Mar 2012 05:32:05 -0400 (EDT)
-Date: Mon, 26 Mar 2012 10:32:01 +0100
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH] Re: kswapd stuck using 100% CPU
-Message-ID: <20120326093201.GL1007@csn.ul.ie>
-References: <20120324130353.48f2e4c8@kryten>
- <20120324102621.353114da@annuminas.surriel.com>
+Received: from psmtp.com (na3sys010amx108.postini.com [74.125.245.108])
+	by kanga.kvack.org (Postfix) with SMTP id 640656B0044
+	for <linux-mm@kvack.org>; Mon, 26 Mar 2012 06:40:42 -0400 (EDT)
+Received: by obbta14 with SMTP id ta14so6526219obb.14
+        for <linux-mm@kvack.org>; Mon, 26 Mar 2012 03:40:41 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20120324102621.353114da@annuminas.surriel.com>
+In-Reply-To: <20120326093201.GL1007@csn.ul.ie>
+References: <20120324130353.48f2e4c8@kryten>
+	<20120324102621.353114da@annuminas.surriel.com>
+	<20120326093201.GL1007@csn.ul.ie>
+Date: Mon, 26 Mar 2012 13:40:41 +0300
+Message-ID: <CAOJsxLGcoxxdhe2sNmAbC2e5afnZm9960XxBjY+QoCoc0RRb2w@mail.gmail.com>
+Subject: Re: [PATCH] Re: kswapd stuck using 100% CPU
+From: Pekka Enberg <penberg@kernel.org>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rik van Riel <riel@redhat.com>
-Cc: Anton Blanchard <anton@samba.org>, aarcange@redhat.com, akpm@linux-foundation.org, hughd@google.com, lkml <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: Rik van Riel <riel@redhat.com>, Anton Blanchard <anton@samba.org>, aarcange@redhat.com, akpm@linux-foundation.org, hughd@google.com, lkml <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>
 
-On Sat, Mar 24, 2012 at 10:26:21AM -0400, Rik van Riel wrote:
-> 
-> Only test compaction_suitable if the kernel is built with CONFIG_COMPACTION,
-> otherwise the stub compaction_suitable function will always return
-> COMPACT_SKIPPED and send kswapd into an infinite loop.
-> 
-> Signed-off-by: Rik van Riel <riel@redhat.com>
-> Reported-by: Anton Blanchard <anton@samba.org>
-> 
+On Mon, Mar 26, 2012 at 12:32 PM, Mel Gorman <mel@csn.ul.ie> wrote:
+> On Sat, Mar 24, 2012 at 10:26:21AM -0400, Rik van Riel wrote:
+>>
+>> Only test compaction_suitable if the kernel is built with CONFIG_COMPACTION,
+>> otherwise the stub compaction_suitable function will always return
+>> COMPACT_SKIPPED and send kswapd into an infinite loop.
+>>
+>> Signed-off-by: Rik van Riel <riel@redhat.com>
+>> Reported-by: Anton Blanchard <anton@samba.org>
+>
+> Acked-by: Mel Gorman <mel@csn.ul.ie>
 
-Acked-by: Mel Gorman <mel@csn.ul.ie>
+The API looks fragile and this patch isn't exactly making it any
+better. Why don't we make compaction_suitable() return something other
+than COMPACT_SKIPPED for !CONFIG_COMPACTION case?
 
--- 
-Mel Gorman
-SUSE Labs
+                        Pekka
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
