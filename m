@@ -1,64 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx109.postini.com [74.125.245.109])
-	by kanga.kvack.org (Postfix) with SMTP id C79D36B0044
-	for <linux-mm@kvack.org>; Mon, 26 Mar 2012 11:50:32 -0400 (EDT)
-Date: Mon, 26 Mar 2012 16:50:27 +0100
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH] cpuset: mm: Reduce large amounts of memory barrier
- related damage v3
-Message-ID: <20120326155027.GF16573@suse.de>
-References: <20120307180852.GE17697@suse.de>
- <1332759384.16159.92.camel@twins>
+Received: from psmtp.com (na3sys010amx168.postini.com [74.125.245.168])
+	by kanga.kvack.org (Postfix) with SMTP id A8ACF6B0044
+	for <linux-mm@kvack.org>; Mon, 26 Mar 2012 11:59:39 -0400 (EDT)
+Date: Mon, 26 Mar 2012 17:59:35 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH v6 7/7] mm/memcg: use vm_swappiness from target memory
+ cgroup
+Message-ID: <20120326155935.GE22754@tiehlicka.suse.cz>
+References: <20120322214944.27814.42039.stgit@zurg>
+ <20120322215643.27814.58756.stgit@zurg>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1332759384.16159.92.camel@twins>
+In-Reply-To: <20120322215643.27814.58756.stgit@zurg>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Miao Xie <miaox@cn.fujitsu.com>, David Rientjes <rientjes@google.com>, Christoph Lameter <cl@linux.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Konstantin Khlebnikov <khlebnikov@openvz.org>
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujtisu.com>
 
-On Mon, Mar 26, 2012 at 12:56:24PM +0200, Peter Zijlstra wrote:
-> On Wed, 2012-03-07 at 18:08 +0000, Mel Gorman wrote:
-> > +               } while (!put_mems_allowed(cpuset_mems_cookie) && !page);
+On Fri 23-03-12 01:56:43, Konstantin Khlebnikov wrote:
+> Use vm_swappiness from memory cgroup which is triggered this memory reclaim.
+> This is more reasonable and allows to kill one argument.
+
+Could you be more specific why is this more reasonable? 
+I am afraid this might lead to an unexpected behavior when the target
+memcg has quite high swappiness while other groups in the hierarchy have
+it 0 so we would end up swapping even from those groups.
+
 > 
-> Sorry for only noticing this now, but wouldn't it be better to first
-> check page and only then bother with the put_mems_allowed() thing? That
-> avoids the smp_rmb() and seqcount conditional all together in the likely
-> case the allocation actually succeeded.
+> Signed-off-by: Konstantin Khlebnikov <khlebnikov@openvz.org>
+> Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujtisu.com>
+> ---
+>  mm/vmscan.c |    9 ++++-----
+>  1 files changed, 4 insertions(+), 5 deletions(-)
 > 
-> <SNIP>
->
-> diff --git a/mm/filemap.c b/mm/filemap.c
-> index c3811bc..3b41553 100644
-> --- a/mm/filemap.c
-> +++ b/mm/filemap.c
-> @@ -504,7 +504,7 @@ struct page *__page_cache_alloc(gfp_t gfp)
->  			cpuset_mems_cookie = get_mems_allowed();
->  			n = cpuset_mem_spread_node();
->  			page = alloc_pages_exact_node(n, gfp, 0);
-> -		} while (!put_mems_allowed(cpuset_mems_cookie) && !page);
-> +		} while (!page && !put_mems_allowed(cpuset_mems_cookie));
+> diff --git a/mm/vmscan.c b/mm/vmscan.c
+> index 9de66be..5e2906d 100644
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -1840,12 +1840,11 @@ static unsigned long shrink_list(enum lru_list lru, unsigned long nr_to_scan,
+>  	return shrink_inactive_list(nr_to_scan, mz, sc, priority, lru);
+>  }
 >  
->  		return page;
->  	}
-
-I think such a change would be better but should also rename the API.
-If developers see a get_foo type call, they will expect to see a put_foo
-call or assume it's a bug even though the implementation happens to be ok
-with that. Any suggestion on what a good new name would be?
-
-How about read_mems_allowed_begin() and read_mems_allowed_retry()?
-
-read_mems_allowed_begin would be a rename of get_mems_allowed().  In an
-error path, read_mems_allowed_retry() would documented to be *optionally*
-called when deciding whether to retry the operation or not. In this scheme,
-!put_mems_allowed would become read_mems_allowed_retry() which might be
-a bit easier to read overall.
+> -static int vmscan_swappiness(struct mem_cgroup_zone *mz,
+> -			     struct scan_control *sc)
+> +static int vmscan_swappiness(struct scan_control *sc)
+>  {
+>  	if (global_reclaim(sc))
+>  		return vm_swappiness;
+> -	return mem_cgroup_swappiness(mz->mem_cgroup);
+> +	return mem_cgroup_swappiness(sc->target_mem_cgroup);
+>  }
+>  
+>  /*
+> @@ -1913,8 +1912,8 @@ static void get_scan_count(struct mem_cgroup_zone *mz, struct scan_control *sc,
+>  	 * With swappiness at 100, anonymous and file have the same priority.
+>  	 * This scanning priority is essentially the inverse of IO cost.
+>  	 */
+> -	anon_prio = vmscan_swappiness(mz, sc);
+> -	file_prio = 200 - vmscan_swappiness(mz, sc);
+> +	anon_prio = vmscan_swappiness(sc);
+> +	file_prio = 200 - vmscan_swappiness(sc);
+>  
+>  	/*
+>  	 * OK, so we have swap space and a fair amount of page cache
+> 
+> --
+> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+> Please read the FAQ at  http://www.tux.org/lkml/
 
 -- 
-Mel Gorman
+Michal Hocko
 SUSE Labs
+SUSE LINUX s.r.o.
+Lihovarska 1060/12
+190 00 Praha 9    
+Czech Republic
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
