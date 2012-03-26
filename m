@@ -1,57 +1,134 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx205.postini.com [74.125.245.205])
-	by kanga.kvack.org (Postfix) with SMTP id 641676B0044
-	for <linux-mm@kvack.org>; Mon, 26 Mar 2012 16:54:27 -0400 (EDT)
-Date: Mon, 26 Mar 2012 22:53:52 +0200
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [PATCH 20/39] autonuma: avoid CFS select_task_rq_fair to return
- -1
-Message-ID: <20120326205352.GA5906@redhat.com>
-References: <1332783986-24195-1-git-send-email-aarcange@redhat.com>
- <1332783986-24195-21-git-send-email-aarcange@redhat.com>
- <1332790614.16159.188.camel@twins>
+Received: from psmtp.com (na3sys010amx125.postini.com [74.125.245.125])
+	by kanga.kvack.org (Postfix) with SMTP id 0BADF6B007E
+	for <linux-mm@kvack.org>; Mon, 26 Mar 2012 17:08:29 -0400 (EDT)
+Received: by yenm8 with SMTP id m8so5360149yen.14
+        for <linux-mm@kvack.org>; Mon, 26 Mar 2012 14:08:29 -0700 (PDT)
+Date: Mon, 26 Mar 2012 14:08:00 -0700 (PDT)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: [PATCH 1/1] mmap.c: find_vma: replace if(mm) check with
+ BUG_ON(!mm)
+In-Reply-To: <1332777965-2534-1-git-send-email-consul.kautuk@gmail.com>
+Message-ID: <alpine.LSU.2.00.1203261346360.3443@eggly.anvils>
+References: <1332777965-2534-1-git-send-email-consul.kautuk@gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1332790614.16159.188.camel@twins>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Hillf Danton <dhillf@gmail.com>, Dan Smith <danms@us.ibm.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>, Paul Turner <pjt@google.com>, Suresh Siddha <suresh.b.siddha@intel.com>, Mike Galbraith <efault@gmx.de>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Bharata B Rao <bharata.rao@gmail.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>
+To: Kautuk Consul <consul.kautuk@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Al Viro <viro@zeniv.linux.org.uk>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Ralf Baechle <ralf@linux-mips.org>, linux-mips@linux-mips.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Mon, Mar 26, 2012 at 09:36:54PM +0200, Peter Zijlstra wrote:
-> On Mon, 2012-03-26 at 19:46 +0200, Andrea Arcangeli wrote:
-> > Fix to avoid -1 retval.
+On Mon, 26 Mar 2012, Kautuk Consul wrote:
+> find_vma is called from kernel code where it is absolutely
+> sure that the mm_struct arg being passed to it is non-NULL.
 > 
-> Please fold this and the following 5 patches into something sane. 6
-> patches changing the same few lines and none of them with a useful
-> changelog isn't how we do thing.
+> Convert the if check to a BUG_ON.
+> This will also serve the purpose of mandating that the execution
+> context(user-mode/kernel-mode) be known before find_vma is called.
+> 
+> Also fixed 2 checkpatch.pl errors in this function for the rb_node
+> and vma_tmp local variables.
+> 
+> I have tested this patch on my x86 PC and there are no BUG_ON crashes
+> due to this in the course of normal desktop execution.
+> 
+> Signed-off-by: Kautuk Consul <consul.kautuk@gmail.com>
 
-I folded the next two patches, and other two patches into the later
-CFS patch (still kept 2 patches total for such file as there are two
-things happening so it should be simpler to review those
-separately).
+That seems very reasonable: perhaps there was a reason for checking
+find_vma()'s mm way back in the distant past, but I cannot see it now.
+But please make two small changes noted below before resubmitting.
 
-I should have folded those in the first place but I tried to retain
-exact attribution of the fixes but I agree for now the priority should
-be given to keep the code as easy to review as possible. So I added
-attribution in the header of a common commit as I already did for
-other commits before.
+Since we ask for mm->mmap_sem to be held before calling find_vma(),
+it's hard to reach here with NULL mm.  There are a few strange places
+in arch and drivers/media/video which appear to be taking risks by
+not holding mmap_sem, but only one of them looks like it _might_ be
+endangered by your change.
 
-You can review the folded version in the autonuma-dev-smt branch which
-I just pushed (not fast forward):
+Ralf, that octeon_flush_cache_sigtramp() in arch/mips/mm/c-octeon.c:
+is there ever a danger that it can be called with NULL current->mm?  Is
+current->mm set to &init_mm in the initial call from octeon_cache_init()?
 
-git clone --reference linux -b autonuma-dev-smt git://git.kernel.org/pub/scm/linux/kernel/git/andrea/aa.git
-check head is 3b1ff002978862264c4a24308bddc5e7da24e9ee
-git format-patch 0b100d7
+> ---
+>  mm/mmap.c |   52 ++++++++++++++++++++++++++--------------------------
+>  1 files changed, 26 insertions(+), 26 deletions(-)
+> 
+> diff --git a/mm/mmap.c b/mm/mmap.c
+> index a7bf6a3..7589965 100644
+> --- a/mm/mmap.c
+> +++ b/mm/mmap.c
+> @@ -1589,33 +1589,33 @@ struct vm_area_struct *find_vma(struct mm_struct *mm, unsigned long addr)
+>  {
+>  	struct vm_area_struct *vma = NULL;
 
-0020-autonuma-avoid-CFS-select_task_rq_fair-to-return-1.patch
-0021-autonuma-teach-CFS-about-autonuma-affinity.patch
+Please remove the " = NULL": vma is immediately set to mm->mmap_cache.
 
-This should be much simpler to review, sorry for the confusion.
+>  
+> -	if (mm) {
+> -		/* Check the cache first. */
+> -		/* (Cache hit rate is typically around 35%.) */
+> -		vma = mm->mmap_cache;
+> -		if (!(vma && vma->vm_end > addr && vma->vm_start <= addr)) {
+> -			struct rb_node * rb_node;
+> -
+> -			rb_node = mm->mm_rb.rb_node;
+> -			vma = NULL;
+> -
+> -			while (rb_node) {
+> -				struct vm_area_struct * vma_tmp;
+> -
+> -				vma_tmp = rb_entry(rb_node,
+> -						struct vm_area_struct, vm_rb);
+> -
+> -				if (vma_tmp->vm_end > addr) {
+> -					vma = vma_tmp;
+> -					if (vma_tmp->vm_start <= addr)
+> -						break;
+> -					rb_node = rb_node->rb_left;
+> -				} else
+> -					rb_node = rb_node->rb_right;
+> -			}
+> -			if (vma)
+> -				mm->mmap_cache = vma;
+> +	BUG_ON(!mm);
+
+And please remove the BUG_ON(!mm): it's a waste of space and time,
+it gives very little value over the easily recognizable oops we
+shall get from "vma = mm->mmap_cache" with NULL mm.
 
 Thanks,
-Andrea
+Hugh
+
+> +
+> +	/* Check the cache first. */
+> +	/* (Cache hit rate is typically around 35%.) */
+> +	vma = mm->mmap_cache;
+> +	if (!(vma && vma->vm_end > addr && vma->vm_start <= addr)) {
+> +		struct rb_node *rb_node;
+> +
+> +		rb_node = mm->mm_rb.rb_node;
+> +		vma = NULL;
+> +
+> +		while (rb_node) {
+> +			struct vm_area_struct *vma_tmp;
+> +
+> +			vma_tmp = rb_entry(rb_node,
+> +					struct vm_area_struct, vm_rb);
+> +
+> +			if (vma_tmp->vm_end > addr) {
+> +				vma = vma_tmp;
+> +				if (vma_tmp->vm_start <= addr)
+> +					break;
+> +				rb_node = rb_node->rb_left;
+> +			} else
+> +				rb_node = rb_node->rb_right;
+>  		}
+> +		if (vma)
+> +			mm->mmap_cache = vma;
+>  	}
+>  	return vma;
+>  }
+> -- 
+> 1.7.5.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
