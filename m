@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx196.postini.com [74.125.245.196])
-	by kanga.kvack.org (Postfix) with SMTP id AA4186B0092
+Received: from psmtp.com (na3sys010amx109.postini.com [74.125.245.109])
+	by kanga.kvack.org (Postfix) with SMTP id AE2796B00EC
 	for <linux-mm@kvack.org>; Mon, 26 Mar 2012 14:27:31 -0400 (EDT)
 From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: [PATCH 32/39] autonuma: retain page last_nid information in khugepaged
-Date: Mon, 26 Mar 2012 19:46:19 +0200
-Message-Id: <1332783986-24195-33-git-send-email-aarcange@redhat.com>
+Subject: [PATCH 25/39] autonuma: fix selecting idle sibling
+Date: Mon, 26 Mar 2012 19:46:12 +0200
+Message-Id: <1332783986-24195-26-git-send-email-aarcange@redhat.com>
 In-Reply-To: <1332783986-24195-1-git-send-email-aarcange@redhat.com>
 References: <1332783986-24195-1-git-send-email-aarcange@redhat.com>
 Sender: owner-linux-mm@kvack.org
@@ -13,37 +13,74 @@ List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 Cc: Hillf Danton <dhillf@gmail.com>, Dan Smith <danms@us.ibm.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>, Paul Turner <pjt@google.com>, Suresh Siddha <suresh.b.siddha@intel.com>, Mike Galbraith <efault@gmx.de>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Bharata B Rao <bharata.rao@gmail.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>
 
-When pages are collapsed try to keep the last_nid information from one
-of the original pages.
+From: Hillf Danton <dhillf@gmail.com>
 
+Autonuma cpu is selected only from the idle group without the requirement that
+each cpu in the group is autonuma for given task.
+
+Signed-off-by: Hillf Danton <dhillf@gmail.com>
 Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
 ---
- mm/huge_memory.c |   11 +++++++++++
- 1 files changed, 11 insertions(+), 0 deletions(-)
+ kernel/sched/fair.c |   25 +++++++++++++------------
+ 1 files changed, 13 insertions(+), 12 deletions(-)
 
-diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index d388517..76bdc48 100644
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -1805,7 +1805,18 @@ static bool __collapse_huge_page_copy(pte_t *pte, struct page *page,
- 			clear_user_highpage(page, address);
- 			add_mm_counter(vma->vm_mm, MM_ANONPAGES, 1);
- 		} else {
-+#ifdef CONFIG_AUTONUMA
-+			int autonuma_last_nid;
-+#endif
- 			src_page = pte_page(pteval);
-+#ifdef CONFIG_AUTONUMA
-+			/* pick the last one, better than nothing */
-+			autonuma_last_nid =
-+				ACCESS_ONCE(src_page->autonuma_last_nid);
-+			if (autonuma_last_nid >= 0)
-+				ACCESS_ONCE(page->autonuma_last_nid) =
-+					autonuma_last_nid;
-+#endif
- 			copy_user_highpage(page, src_page, address, vma);
- 			VM_BUG_ON(page_mapcount(src_page) != 1);
- 			VM_BUG_ON(page_count(src_page) != 2);
+diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
+index bf109cc..0d2fe26 100644
+--- a/kernel/sched/fair.c
++++ b/kernel/sched/fair.c
+@@ -2642,7 +2642,6 @@ static int select_idle_sibling(struct task_struct *p, int target)
+ 	struct sched_domain *sd;
+ 	struct sched_group *sg;
+ 	int i;
+-	bool numa;
+ 
+ 	/*
+ 	 * If the task is going to be woken-up on this cpu and if it is
+@@ -2662,8 +2661,6 @@ static int select_idle_sibling(struct task_struct *p, int target)
+ 	/*
+ 	 * Otherwise, iterate the domains and find an elegible idle cpu.
+ 	 */
+-	numa = true;
+-again:
+ 	sd = rcu_dereference(per_cpu(sd_llc, target));
+ 	for_each_lower_domain(sd) {
+ 		sg = sd->groups;
+@@ -2673,22 +2670,26 @@ again:
+ 				goto next;
+ 
+ 			for_each_cpu(i, sched_group_cpus(sg)) {
+-				if (!idle_cpu(i) ||
+-				    (numa && !task_autonuma_cpu(p, i)))
++				if (!idle_cpu(i))
+ 					goto next;
+ 			}
+ 
+-			target = cpumask_first_and(sched_group_cpus(sg),
+-					tsk_cpus_allowed(p));
+-			goto done;
++			cpu = -1;
++			for_each_cpu_and(i, sched_group_cpus(sg),
++						tsk_cpus_allowed(p)) {
++				/* Find autonuma cpu only in idle group */
++				if (task_autonuma_cpu(p, i)) {
++					target = i;
++					goto done;
++				}
++				if (cpu == -1)
++					cpu = i;
++			}
++			target = cpu;
+ next:
+ 			sg = sg->next;
+ 		} while (sg != sd->groups);
+ 	}
+-	if (numa) {
+-		numa = false;
+-		goto again;
+-	}
+ done:
+ 	return target;
+ }
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
