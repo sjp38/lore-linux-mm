@@ -1,71 +1,110 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx195.postini.com [74.125.245.195])
-	by kanga.kvack.org (Postfix) with SMTP id 69AA66B0044
-	for <linux-mm@kvack.org>; Tue, 27 Mar 2012 07:36:35 -0400 (EDT)
-Received: by wgbds10 with SMTP id ds10so3879562wgb.26
-        for <linux-mm@kvack.org>; Tue, 27 Mar 2012 04:36:33 -0700 (PDT)
-Date: Tue, 27 Mar 2012 13:37:17 +0200
-From: Daniel Vetter <daniel@ffwll.ch>
-Subject: Re: [PATCH] mm: extend prefault helpers to fault in more than
- PAGE_SIZE
-Message-ID: <20120327113717.GJ4276@phenom.ffwll.local>
-References: <20120229153216.8c3ae31d.akpm@linux-foundation.org>
- <1330629779-1449-1-git-send-email-daniel.vetter@ffwll.ch>
- <20120301121557.0e0fd728.akpm@linux-foundation.org>
+Received: from psmtp.com (na3sys010amx179.postini.com [74.125.245.179])
+	by kanga.kvack.org (Postfix) with SMTP id EA6876B007E
+	for <linux-mm@kvack.org>; Tue, 27 Mar 2012 08:47:40 -0400 (EDT)
+Date: Tue, 27 Mar 2012 13:47:34 +0100
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [PATCH] cpuset: mm: Reduce large amounts of memory barrier
+ related damage v3
+Message-ID: <20120327124734.GH16573@suse.de>
+References: <20120307180852.GE17697@suse.de>
+ <1332759384.16159.92.camel@twins>
+ <20120326155027.GF16573@suse.de>
+ <1332778852.16159.138.camel@twins>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <20120301121557.0e0fd728.akpm@linux-foundation.org>
+In-Reply-To: <1332778852.16159.138.camel@twins>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Daniel Vetter <daniel.vetter@ffwll.ch>, Intel Graphics Development <intel-gfx@lists.freedesktop.org>, DRI Development <dri-devel@lists.freedesktop.org>, LKML <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>
+To: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Miao Xie <miaox@cn.fujitsu.com>, David Rientjes <rientjes@google.com>, Christoph Lameter <cl@linux.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Thu, Mar 01, 2012 at 12:15:57PM -0800, Andrew Morton wrote:
-> On Thu,  1 Mar 2012 20:22:59 +0100
-> Daniel Vetter <daniel.vetter@ffwll.ch> wrote:
-> 
-> > drm/i915 wants to read/write more than one page in its fastpath
-> > and hence needs to prefault more than PAGE_SIZE bytes.
+On Mon, Mar 26, 2012 at 06:20:52PM +0200, Peter Zijlstra wrote:
+> > <SNIP>
 > > 
-> > Add new functions in filemap.h to make that possible.
+> > I think such a change would be better but should also rename the API.
+> > If developers see a get_foo type call, they will expect to see a put_foo
+> > call or assume it's a bug even though the implementation happens to be ok
+> > with that. Any suggestion on what a good new name would be?
 > > 
-> > Also kill a copy&pasted spurious space in both functions while at it.
+> > How about read_mems_allowed_begin() and read_mems_allowed_retry()?
 > > 
-> >
-> > ...
-> >
-> > +/* Multipage variants of the above prefault helpers, useful if more than
-> > + * PAGE_SIZE of date needs to be prefaulted. These are separate from the above
-> > + * functions (which only handle up to PAGE_SIZE) to avoid clobbering the
-> > + * filemap.c hotpaths. */
+> > read_mems_allowed_begin would be a rename of get_mems_allowed().  In an
+> > error path, read_mems_allowed_retry() would documented to be *optionally*
+> > called when deciding whether to retry the operation or not. In this scheme,
+> > !put_mems_allowed would become read_mems_allowed_retry() which might be
+> > a bit easier to read overall.
 > 
-> Like this please:
+> One:
 > 
-> /*
->  * Multipage variants of the above prefault helpers, useful if more than
->  * PAGE_SIZE of date needs to be prefaulted. These are separate from the above
->  * functions (which only handle up to PAGE_SIZE) to avoid clobbering the
->  * filemap.c hotpaths.
->  */
+> git grep -l "\(get\|put\)_mems_allowed" | while read file; do sed -i -e
+> 's/\<get_mems_allowed\>/read_mems_allowed_begin/g' -e
+> 's/\<put_mems_allowed\>/read_mems_allowed_retry/g' $file; done
 > 
-> and s/date/data/
+> and a few edits later..
+> 
+> ---
+>  include/linux/cpuset.h |   18 +++++++++---------
+>  kernel/cpuset.c        |    2 +-
+>  mm/filemap.c           |    4 ++--
+>  mm/hugetlb.c           |    4 ++--
+>  mm/mempolicy.c         |   14 +++++++-------
+>  mm/page_alloc.c        |    8 ++++----
+>  mm/slab.c              |    4 ++--
+>  mm/slub.c              |   16 +++-------------
+>  8 files changed, 30 insertions(+), 40 deletions(-)
+> 
+> diff --git a/include/linux/cpuset.h b/include/linux/cpuset.h
+> index 7a7e5fd..d008b03 100644
+> --- a/include/linux/cpuset.h
+> +++ b/include/linux/cpuset.h
+> @@ -89,25 +89,25 @@ extern void rebuild_sched_domains(void);
+>  extern void cpuset_print_task_mems_allowed(struct task_struct *p);
+>  
+>  /*
+> - * get_mems_allowed is required when making decisions involving mems_allowed
+> + * read_mems_allowed_begin is required when making decisions involving mems_allowed
+>   * such as during page allocation. mems_allowed can be updated in parallel
+>   * and depending on the new value an operation can fail potentially causing
+> - * process failure. A retry loop with get_mems_allowed and put_mems_allowed
+> + * process failure. A retry loop with read_mems_allowed_begin and read_mems_allowed_retry
+>   * prevents these artificial failures.
+>   */
 
-...
+Going over 80 columns there. This happens in other places in the patch
+but the alternative in those cases is less readable.
 
-> Please merge it via the DRI tree.
+> -static inline unsigned int get_mems_allowed(void)
+> +static inline unsigned int read_mems_allowed_begin(void)
+>  {
+>  	return read_seqcount_begin(&current->mems_allowed_seq);
+>  }
+>  
+>  /*
+> - * If this returns false, the operation that took place after get_mems_allowed
+> + * If this returns false, the operation that took place after read_mems_allowed_begin
+>   * may have failed. It is up to the caller to retry the operation if
+>   * appropriate.
+>   */
 
-Ok, I've queued this up 3.5 (it missed the 3.4 merge because a few of the
-drm/i915 patches from that series haven't been reviewed in time) with the
-comment fixed up and your Acked-by on the commit message. I hope the later
-is ok, otherwise please yell.
+80 cols again and it should be "returns true". Something like this?
 
-Thanks for reviewing this.
--Daniel
+/*
+ * If this returns true, the operation that took place after 
+ * read_mems_allowed_begin may have failed artifically due to a paralle
+ * update of mems_allowed. It is up to the caller to retry the operation
+ * if appropriate.
+ */
+
+Other than that, the changes looked good and I agree that it is better
+overall.
+
+Acked-by: Mel Gorman <mgorman@suse.de>
+
 -- 
-Daniel Vetter
-Mail: daniel@ffwll.ch
-Mobile: +41 (0)79 365 57 48
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
