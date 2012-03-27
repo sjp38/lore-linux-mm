@@ -1,57 +1,103 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx101.postini.com [74.125.245.101])
-	by kanga.kvack.org (Postfix) with SMTP id 124896B00F0
-	for <linux-mm@kvack.org>; Tue, 27 Mar 2012 11:18:37 -0400 (EDT)
-Date: Tue, 27 Mar 2012 16:37:37 +0200
+Received: from psmtp.com (na3sys010amx175.postini.com [74.125.245.175])
+	by kanga.kvack.org (Postfix) with SMTP id 205D76B00F8
+	for <linux-mm@kvack.org>; Tue, 27 Mar 2012 11:23:03 -0400 (EDT)
+Date: Tue, 27 Mar 2012 17:22:09 +0200
 From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [PATCH 11/39] autonuma: CPU follow memory algorithm
-Message-ID: <20120327143737.GI5906@redhat.com>
+Subject: Re: [PATCH 07/39] autonuma: introduce kthread_bind_node()
+Message-ID: <20120327152209.GL5906@redhat.com>
 References: <1332783986-24195-1-git-send-email-aarcange@redhat.com>
- <1332783986-24195-12-git-send-email-aarcange@redhat.com>
- <1332786353.16159.173.camel@twins>
- <4F70C365.8020009@redhat.com>
- <20120326194435.GW5906@redhat.com>
- <CA+55aFwk0Etg_UhoZcKsfFJ7PQNLdQ58xxXiwcA-jemuXdZCZQ@mail.gmail.com>
- <20120326203951.GZ5906@redhat.com>
- <1332837595.16159.208.camel@twins>
+ <1332783986-24195-8-git-send-email-aarcange@redhat.com>
+ <1332786755.16159.174.camel@twins>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1332837595.16159.208.camel@twins>
+In-Reply-To: <1332786755.16159.174.camel@twins>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Hillf Danton <dhillf@gmail.com>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Dan Smith <danms@us.ibm.com>, Paul Turner <pjt@google.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Rik van Riel <riel@redhat.com>, Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, linux-mm@kvack.org, Suresh Siddha <suresh.b.siddha@intel.com>, Mike Galbraith <efault@gmx.de>, Bharata B Rao <bharata.rao@gmail.com>, Thomas Gleixner <tglx@linutronix.de>, Johannes Weiner <hannes@cmpxchg.org>, linux-kernel@vger.kernel.org
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Hillf Danton <dhillf@gmail.com>, Dan Smith <danms@us.ibm.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>, Paul Turner <pjt@google.com>, Suresh Siddha <suresh.b.siddha@intel.com>, Mike Galbraith <efault@gmx.de>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Bharata B Rao <bharata.rao@gmail.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>
 
-On Tue, Mar 27, 2012 at 10:39:55AM +0200, Peter Zijlstra wrote:
-> You can talk pretty much anything down to O(1) that way. Take an
-> algorithm that is O(n) in the number of tasks, since you know you have a
-> pid-space constraint of 30bits you can never have more than 2^30 (aka
-> 1Gi) tasks, hence your algorithm is O(2^30) aka O(1).
+On Mon, Mar 26, 2012 at 08:32:35PM +0200, Peter Zijlstra wrote:
+> On Mon, 2012-03-26 at 19:45 +0200, Andrea Arcangeli wrote:
+> > +void kthread_bind_node(struct task_struct *p, int nid)
+> > +{
+> > +       /* Must have done schedule() in kthread() before we set_task_cpu */
+> > +       if (!wait_task_inactive(p, TASK_UNINTERRUPTIBLE)) {
+> > +               WARN_ON(1);
+> > +               return;
+> > +       }
+> > +
+> > +       /* It's safe because the task is inactive. */
+> > +       do_set_cpus_allowed(p, cpumask_of_node(nid));
+> > +       p->flags |= PF_THREAD_BOUND;
+> > +}
+> > +EXPORT_SYMBOL(kthread_bind_node);
+> 
+> That's a wrong use of PF_THREAD_BOUND, we should only use that for
+> cpumask_weight(tsk_cpus_allowed()) == 1.
 
-Still this O notation thingy... This is not about the max value but
-about the fact the number is _variable_ or _fixed_.
+I don't see what's wrong with more than 1 CPU in the hard bind cpumask.
 
-If you have a variable amount of entries (and variable amount of
-memory) in a list it's O(N) where N is the number of entries (even if
-we know the max ram is maybe 4TB?). If you've a _fixed_ number of them
-it's O(1). Even if the fixed number is very large.
+The only two places that care about PF_THREAD_BOUND are quoted.
 
-It basically shows it won't degraded depending on load, and the cost
-per-schedule remains exactly fixed at all times (non liner cacheline
-and out-of-order CPU execution/HT effects aside).
+This is just to avoid the "root" user to shoot itself in the foot and
+crash the kernel by changing the CPU bindings for the kernel thread
+(potentially leading to breaking assumptions the kernel thread does on
+numa_node_id).
 
-If it was O(N) the time this would take to run for each schedule shall
-have to vary at runtime depending on a some variable factor N and
-that's not the case here.
+knuma_migratedN for example BUG_ON if the binding is changed under it
+before anything bad can happen.
 
-You can argue about CPU hotplug though.
+Maybe this wasn't the supposed initial semantic of PF_THREAD_BOUND,
+but this extends it without apparent downsides and it adds a bit more
+of robustness.
 
-But this is just math nitpicking because I already pointed out I agree
-the cacheline hits on a 1024 way would be measurable and needs fixing.
+int set_cpus_allowed_ptr(struct task_struct *p, const struct cpumask *new_mask)
+{
+	unsigned long flags;
+	struct rq *rq;
+	unsigned int dest_cpu;
+	int ret = 0;
 
-I'm not sure how useful it is to keep arguing on the O notation when
-we agree on what shall be optimized in practice.
+	rq = task_rq_lock(p, &flags);
+
+	if (cpumask_equal(&p->cpus_allowed, new_mask))
+		goto out;
+
+	if (!cpumask_intersects(new_mask, cpu_active_mask)) {
+		ret = -EINVAL;
+		goto out;
+	}
+
+	if (unlikely((p->flags & PF_THREAD_BOUND) && p != current)) {
+		ret = -EINVAL;
+		goto out;
+	}
+[..]
+
+static int cpuset_can_attach(struct cgroup *cgrp, struct cgroup_taskset *tset)
+{
+	struct cpuset *cs = cgroup_cs(cgrp);
+	struct task_struct *task;
+	int ret;
+
+	if (cpumask_empty(cs->cpus_allowed) || nodes_empty(cs->mems_allowed))
+		return -ENOSPC;
+
+	cgroup_taskset_for_each(task, cgrp, tset) {
+		/*
+		 * Kthreads bound to specific cpus cannot be moved to a new
+		 * cpuset; we cannot change their cpu affinity and
+		 * isolating such threads by their set of allowed nodes is
+		 * unnecessary.  Thus, cpusets are not applicable for such
+		 * threads.  This prevents checking for success of
+		 * set_cpus_allowed_ptr() on all attached tasks before
+		 * cpus_allowed may be changed.
+		 */
+		if (task->flags & PF_THREAD_BOUND)
+			return -EINVAL;
+[..]
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
