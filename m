@@ -1,54 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx102.postini.com [74.125.245.102])
-	by kanga.kvack.org (Postfix) with SMTP id 9D64D6B007E
-	for <linux-mm@kvack.org>; Mon, 26 Mar 2012 20:00:39 -0400 (EDT)
-Date: Tue, 27 Mar 2012 02:00:12 +0200
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [PATCH 39/39] autonuma: NUMA scheduler SMT awareness
-Message-ID: <20120327000012.GC5906@redhat.com>
-References: <1332783986-24195-1-git-send-email-aarcange@redhat.com>
- <1332783986-24195-40-git-send-email-aarcange@redhat.com>
- <1332788223.16159.185.camel@twins>
+Received: from psmtp.com (na3sys010amx141.postini.com [74.125.245.141])
+	by kanga.kvack.org (Postfix) with SMTP id EDF776B0044
+	for <linux-mm@kvack.org>; Mon, 26 Mar 2012 23:37:09 -0400 (EDT)
+Message-ID: <4F71361E.1000802@mprc.pku.edu.cn>
+Date: Tue, 27 Mar 2012 11:38:06 +0800
+From: Guan Xuetao <gxt@mprc.pku.edu.cn>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1332788223.16159.185.camel@twins>
+Subject: Re: [PATCH 08/16] mm/unicore32: use vm_flags_t for vma flags
+References: <20120321065140.13852.52315.stgit@zurg> <20120321065645.13852.83925.stgit@zurg>
+In-Reply-To: <20120321065645.13852.83925.stgit@zurg>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Hillf Danton <dhillf@gmail.com>, Dan Smith <danms@us.ibm.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>, Paul Turner <pjt@google.com>, Suresh Siddha <suresh.b.siddha@intel.com>, Mike Galbraith <efault@gmx.de>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Bharata B Rao <bharata.rao@gmail.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>
+To: Konstantin Khlebnikov <khlebnikov@openvz.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Mon, Mar 26, 2012 at 08:57:03PM +0200, Peter Zijlstra wrote:
-> On Mon, 2012-03-26 at 19:46 +0200, Andrea Arcangeli wrote:
-> > Add SMT awareness to the NUMA scheduler so that it will not move load
-> > from fully idle SMT threads, to semi idle SMT threads.
-> 
-> This shows a complete fail in design, you're working around the regular
-> scheduler/load-balancer instead of with it and hence are duplicating all
-> kinds of stuff.
-> 
-> I'll not have that..
+On 03/21/2012 02:56 PM, Konstantin Khlebnikov wrote:
+> The same magic like in arm: assembler code wants to test VM_EXEC,
+> but for big-endian we should get upper word for this.
+>
+> Signed-off-by: Konstantin Khlebnikov<khlebnikov@openvz.org>
+> Cc: Guan Xuetao<gxt@mprc.pku.edu.cn>
+> ---
+>   arch/unicore32/kernel/asm-offsets.c |    6 +++++-
+>   arch/unicore32/mm/fault.c           |    2 +-
+>   2 files changed, 6 insertions(+), 2 deletions(-)
+>
+> diff --git a/arch/unicore32/kernel/asm-offsets.c b/arch/unicore32/kernel/asm-offsets.c
+> index ffcbe75..e3199b5 100644
+> --- a/arch/unicore32/kernel/asm-offsets.c
+> +++ b/arch/unicore32/kernel/asm-offsets.c
+> @@ -87,9 +87,13 @@ int main(void)
+>   	DEFINE(S_FRAME_SIZE,	sizeof(struct pt_regs));
+>   	BLANK();
+>   	DEFINE(VMA_VM_MM,	offsetof(struct vm_area_struct, vm_mm));
+> +#if defined(CONFIG_CPU_BIG_ENDIAN)&&  (NR_VMA_FLAGS>  32)
+> +	DEFINE(VMA_VM_FLAGS,	offsetof(struct vm_area_struct, vm_flags) + 4);
+> +#else
+CONFIG_CPU_BIG/LITTLE_ENDIAN is defined only in some archs, and not 
+supported by unicore32.
 
-I think here you're misunderstanding implementation issues with
-design.
+>   	DEFINE(VMA_VM_FLAGS,	offsetof(struct vm_area_struct, vm_flags));
+> +#endif
+>   	BLANK();
+> -	DEFINE(VM_EXEC,		VM_EXEC);
+> +	DEFINE(VM_EXEC,		(__force unsigned int)VM_EXEC);
+Is this check useful for asm-offsets.h?
 
-I already mentioned the need of closer integration in CFS as point 4
-of my TODO list in the first email of this thread. The current
-implementation is just good enough to evaluate the AutoNUMA math and
-the resulting final performance (and after cleaning it up, it'll run
-even faster if something).
+>   	BLANK();
+>   	DEFINE(PAGE_SZ,		PAGE_SIZE);
+>   	BLANK();
+> diff --git a/arch/unicore32/mm/fault.c b/arch/unicore32/mm/fault.c
+> index 283aa4b..9137996 100644
+> --- a/arch/unicore32/mm/fault.c
+> +++ b/arch/unicore32/mm/fault.c
+> @@ -158,7 +158,7 @@ void do_bad_area(unsigned long addr, unsigned int fsr, struct pt_regs *regs)
+>    */
+>   static inline bool access_error(unsigned int fsr, struct vm_area_struct *vma)
+>   {
+> -	unsigned int mask = VM_READ | VM_WRITE | VM_EXEC;
+> +	vm_flags_t mask = VM_READ | VM_WRITE | VM_EXEC;
 
-If you want to contribute to sched/numa.c integrate it with CFS and
-remove the code duplication you're welcome. I tried for a short while
-but it wasn't even obvious the exact lines in fair.c where SMT is
-handled (I'm aware of SD_SHARE_CPUPOWER in SD_SIBLING_INIT but things
-weren't crystal clear there, in fact it's even hard to extrapolate the
-exact semantics of all SD_ bitflags, the comment on the right isn't
-very helpful either). An explanation of the exact lines in CFS where
-SMT is handled would be welcome too if I shall do the cleanup.
+I am confused  for the type of vm_flags in vm_area_struct being 
+'unsigned long',  not vm_flags_t.
 
-Thanks,
-Andrea
+Regards,
+
+Guan Xuetao
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
