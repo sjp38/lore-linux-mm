@@ -1,24 +1,23 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx194.postini.com [74.125.245.194])
-	by kanga.kvack.org (Postfix) with SMTP id 903D76B00EF
-	for <linux-mm@kvack.org>; Tue, 27 Mar 2012 09:43:27 -0400 (EDT)
-Received: from euspt2 (mailout1.w1.samsung.com [210.118.77.11])
- by mailout1.w1.samsung.com
- (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14 2004))
- with ESMTP id <0M1J00BLPQ3ELT@mailout1.w1.samsung.com> for linux-mm@kvack.org;
- Tue, 27 Mar 2012 14:42:51 +0100 (BST)
+Received: from psmtp.com (na3sys010amx113.postini.com [74.125.245.113])
+	by kanga.kvack.org (Postfix) with SMTP id 15F1F6B00F0
+	for <linux-mm@kvack.org>; Tue, 27 Mar 2012 09:43:28 -0400 (EDT)
+MIME-version: 1.0
+Content-transfer-encoding: 7BIT
+Content-type: TEXT/PLAIN
+Received: from euspt2 ([210.118.77.13]) by mailout3.w1.samsung.com
+ (Sun Java(tm) System Messaging Server 6.3-8.04 (built Jul 29 2009; 32bit))
+ with ESMTP id <0M1J00EXKQ42PD60@mailout3.w1.samsung.com> for
+ linux-mm@kvack.org; Tue, 27 Mar 2012 14:43:14 +0100 (BST)
 Received: from linux.samsung.com ([106.116.38.10])
  by spt2.w1.samsung.com (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14
- 2004)) with ESMTPA id <0M1J0001NQ47U6@spt2.w1.samsung.com> for
- linux-mm@kvack.org; Tue, 27 Mar 2012 14:43:20 +0100 (BST)
-Date: Tue, 27 Mar 2012 15:42:37 +0200
+ 2004)) with ESMTPA id <0M1J0022WQ491V@spt2.w1.samsung.com> for
+ linux-mm@kvack.org; Tue, 27 Mar 2012 14:43:22 +0100 (BST)
+Date: Tue, 27 Mar 2012 15:42:41 +0200
 From: Marek Szyprowski <m.szyprowski@samsung.com>
-Subject: [PATCHv2 03/14] MIPS: adapt for dma_map_ops changes
+Subject: [PATCHv2 07/14] SH: adapt for dma_map_ops changes
 In-reply-to: <1332855768-32583-1-git-send-email-m.szyprowski@samsung.com>
-Message-id: <1332855768-32583-4-git-send-email-m.szyprowski@samsung.com>
-MIME-version: 1.0
-Content-type: TEXT/PLAIN
-Content-transfer-encoding: 7BIT
+Message-id: <1332855768-32583-8-git-send-email-m.szyprowski@samsung.com>
 References: <1332855768-32583-1-git-send-email-m.szyprowski@samsung.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
@@ -27,72 +26,26 @@ Cc: Benjamin Herrenschmidt <benh@kernel.crashing.org>, Thomas Gleixner <tglx@lin
 
 From: Andrzej Pietrasiewicz <andrzej.p@samsung.com>
 
-Adapt core MIPS architecture code for dma_map_ops changes: replace
+Adapt core SH architecture code for dma_map_ops changes: replace
 alloc/free_coherent with generic alloc/free methods.
 
 Signed-off-by: Andrzej Pietrasiewicz <andrzej.p@samsung.com>
 Acked-by: Kyungmin Park <kyungmin.park@samsung.com>
-[added missing changes to arch/mips/cavium-octeon/dma-octeon.c,
- fixed attrs argument in dma-mapping.h]
 Signed-off-by: Marek Szyprowski <m.szyprowski@samsung.com>
 Reviewed-by: Arnd Bergmann <arnd@arndb.de>
 ---
- arch/mips/cavium-octeon/dma-octeon.c |   12 ++++++------
- arch/mips/include/asm/dma-mapping.h  |   18 ++++++++++++------
- arch/mips/mm/dma-default.c           |    8 ++++----
- 3 files changed, 22 insertions(+), 16 deletions(-)
+ arch/sh/include/asm/dma-mapping.h |   28 ++++++++++++++++++----------
+ arch/sh/kernel/dma-nommu.c        |    4 ++--
+ arch/sh/mm/consistent.c           |    6 ++++--
+ 3 files changed, 24 insertions(+), 14 deletions(-)
 
-diff --git a/arch/mips/cavium-octeon/dma-octeon.c b/arch/mips/cavium-octeon/dma-octeon.c
-index b6bb92c..41dd0088 100644
---- a/arch/mips/cavium-octeon/dma-octeon.c
-+++ b/arch/mips/cavium-octeon/dma-octeon.c
-@@ -157,7 +157,7 @@ static void octeon_dma_sync_sg_for_device(struct device *dev,
+diff --git a/arch/sh/include/asm/dma-mapping.h b/arch/sh/include/asm/dma-mapping.h
+index 1a73c3e..8bd965e 100644
+--- a/arch/sh/include/asm/dma-mapping.h
++++ b/arch/sh/include/asm/dma-mapping.h
+@@ -52,25 +52,31 @@ static inline int dma_mapping_error(struct device *dev, dma_addr_t dma_addr)
+ 	return dma_addr == 0;
  }
- 
- static void *octeon_dma_alloc_coherent(struct device *dev, size_t size,
--	dma_addr_t *dma_handle, gfp_t gfp)
-+	dma_addr_t *dma_handle, gfp_t gfp, struct dma_attrs *attrs)
- {
- 	void *ret;
- 
-@@ -192,7 +192,7 @@ static void *octeon_dma_alloc_coherent(struct device *dev, size_t size,
- }
- 
- static void octeon_dma_free_coherent(struct device *dev, size_t size,
--	void *vaddr, dma_addr_t dma_handle)
-+	void *vaddr, dma_addr_t dma_handle, struct dma_attrs *attrs)
- {
- 	int order = get_order(size);
- 
-@@ -240,8 +240,8 @@ EXPORT_SYMBOL(dma_to_phys);
- 
- static struct octeon_dma_map_ops octeon_linear_dma_map_ops = {
- 	.dma_map_ops = {
--		.alloc_coherent = octeon_dma_alloc_coherent,
--		.free_coherent = octeon_dma_free_coherent,
-+		.alloc = octeon_dma_alloc_coherent,
-+		.free = octeon_dma_free_coherent,
- 		.map_page = octeon_dma_map_page,
- 		.unmap_page = swiotlb_unmap_page,
- 		.map_sg = octeon_dma_map_sg,
-@@ -325,8 +325,8 @@ void __init plat_swiotlb_setup(void)
- #ifdef CONFIG_PCI
- static struct octeon_dma_map_ops _octeon_pci_dma_map_ops = {
- 	.dma_map_ops = {
--		.alloc_coherent = octeon_dma_alloc_coherent,
--		.free_coherent = octeon_dma_free_coherent,
-+		.alloc = octeon_dma_alloc_coherent,
-+		.free = octeon_dma_free_coherent,
- 		.map_page = octeon_dma_map_page,
- 		.unmap_page = swiotlb_unmap_page,
- 		.map_sg = octeon_dma_map_sg,
-diff --git a/arch/mips/include/asm/dma-mapping.h b/arch/mips/include/asm/dma-mapping.h
-index 7aa37dd..be39a12 100644
---- a/arch/mips/include/asm/dma-mapping.h
-+++ b/arch/mips/include/asm/dma-mapping.h
-@@ -57,25 +57,31 @@ dma_set_mask(struct device *dev, u64 mask)
- extern void dma_cache_sync(struct device *dev, void *vaddr, size_t size,
- 	       enum dma_data_direction direction);
  
 -static inline void *dma_alloc_coherent(struct device *dev, size_t size,
 -				       dma_addr_t *dma_handle, gfp_t gfp)
@@ -102,15 +55,20 @@ index 7aa37dd..be39a12 100644
 +				    dma_addr_t *dma_handle, gfp_t gfp,
 +				    struct dma_attrs *attrs)
  {
- 	void *ret;
  	struct dma_map_ops *ops = get_dma_ops(dev);
+ 	void *memory;
  
--	ret = ops->alloc_coherent(dev, size, dma_handle, gfp);
-+	ret = ops->alloc(dev, size, dma_handle, gfp, attrs);
+ 	if (dma_alloc_from_coherent(dev, size, dma_handle, &memory))
+ 		return memory;
+-	if (!ops->alloc_coherent)
++	if (!ops->alloc)
+ 		return NULL;
  
- 	debug_dma_alloc_coherent(dev, size, *dma_handle, ret);
+-	memory = ops->alloc_coherent(dev, size, dma_handle, gfp);
++	memory = ops->alloc(dev, size, dma_handle, gfp, attrs);
+ 	debug_dma_alloc_coherent(dev, size, *dma_handle, memory);
  
- 	return ret;
+ 	return memory;
  }
  
 -static inline void dma_free_coherent(struct device *dev, size_t size,
@@ -123,44 +81,66 @@ index 7aa37dd..be39a12 100644
  {
  	struct dma_map_ops *ops = get_dma_ops(dev);
  
--	ops->free_coherent(dev, size, vaddr, dma_handle);
-+	ops->free(dev, size, vaddr, dma_handle, attrs);
+@@ -78,14 +84,16 @@ static inline void dma_free_coherent(struct device *dev, size_t size,
+ 		return;
  
  	debug_dma_free_coherent(dev, size, vaddr, dma_handle);
+-	if (ops->free_coherent)
+-		ops->free_coherent(dev, size, vaddr, dma_handle);
++	if (ops->free)
++		ops->free(dev, size, vaddr, dma_handle, attrs);
  }
-diff --git a/arch/mips/mm/dma-default.c b/arch/mips/mm/dma-default.c
-index 4608491..3fab204 100644
---- a/arch/mips/mm/dma-default.c
-+++ b/arch/mips/mm/dma-default.c
-@@ -98,7 +98,7 @@ void *dma_alloc_noncoherent(struct device *dev, size_t size,
- EXPORT_SYMBOL(dma_alloc_noncoherent);
  
- static void *mips_dma_alloc_coherent(struct device *dev, size_t size,
--	dma_addr_t * dma_handle, gfp_t gfp)
-+	dma_addr_t * dma_handle, gfp_t gfp, struct dma_attrs *attrs)
+ /* arch/sh/mm/consistent.c */
+ extern void *dma_generic_alloc_coherent(struct device *dev, size_t size,
+-					dma_addr_t *dma_addr, gfp_t flag);
++					dma_addr_t *dma_addr, gfp_t flag,
++					struct dma_attrs *attrs);
+ extern void dma_generic_free_coherent(struct device *dev, size_t size,
+-				      void *vaddr, dma_addr_t dma_handle);
++				      void *vaddr, dma_addr_t dma_handle,
++				      struct dma_attrs *attrs);
+ 
+ #endif /* __ASM_SH_DMA_MAPPING_H */
+diff --git a/arch/sh/kernel/dma-nommu.c b/arch/sh/kernel/dma-nommu.c
+index 3c55b87..5b0bfcd 100644
+--- a/arch/sh/kernel/dma-nommu.c
++++ b/arch/sh/kernel/dma-nommu.c
+@@ -63,8 +63,8 @@ static void nommu_sync_sg(struct device *dev, struct scatterlist *sg,
+ #endif
+ 
+ struct dma_map_ops nommu_dma_ops = {
+-	.alloc_coherent		= dma_generic_alloc_coherent,
+-	.free_coherent		= dma_generic_free_coherent,
++	.alloc			= dma_generic_alloc_coherent,
++	.free			= dma_generic_free_coherent,
+ 	.map_page		= nommu_map_page,
+ 	.map_sg			= nommu_map_sg,
+ #ifdef CONFIG_DMA_NONCOHERENT
+diff --git a/arch/sh/mm/consistent.c b/arch/sh/mm/consistent.c
+index f251b5f..b81d9db 100644
+--- a/arch/sh/mm/consistent.c
++++ b/arch/sh/mm/consistent.c
+@@ -33,7 +33,8 @@ static int __init dma_init(void)
+ fs_initcall(dma_init);
+ 
+ void *dma_generic_alloc_coherent(struct device *dev, size_t size,
+-				 dma_addr_t *dma_handle, gfp_t gfp)
++				 dma_addr_t *dma_handle, gfp_t gfp,
++				 struct dma_attrs *attrs)
  {
- 	void *ret;
- 
-@@ -132,7 +132,7 @@ void dma_free_noncoherent(struct device *dev, size_t size, void *vaddr,
- EXPORT_SYMBOL(dma_free_noncoherent);
- 
- static void mips_dma_free_coherent(struct device *dev, size_t size, void *vaddr,
--	dma_addr_t dma_handle)
-+	dma_addr_t dma_handle, struct dma_attrs *attrs)
- {
- 	unsigned long addr = (unsigned long) vaddr;
+ 	void *ret, *ret_nocache;
  	int order = get_order(size);
-@@ -323,8 +323,8 @@ void dma_cache_sync(struct device *dev, void *vaddr, size_t size,
- EXPORT_SYMBOL(dma_cache_sync);
+@@ -64,7 +65,8 @@ void *dma_generic_alloc_coherent(struct device *dev, size_t size,
+ }
  
- static struct dma_map_ops mips_default_dma_map_ops = {
--	.alloc_coherent = mips_dma_alloc_coherent,
--	.free_coherent = mips_dma_free_coherent,
-+	.alloc = mips_dma_alloc_coherent,
-+	.free = mips_dma_free_coherent,
- 	.map_page = mips_dma_map_page,
- 	.unmap_page = mips_dma_unmap_page,
- 	.map_sg = mips_dma_map_sg,
+ void dma_generic_free_coherent(struct device *dev, size_t size,
+-			       void *vaddr, dma_addr_t dma_handle)
++			       void *vaddr, dma_addr_t dma_handle,
++			       struct dma_attrs *attrs)
+ {
+ 	int order = get_order(size);
+ 	unsigned long pfn = dma_handle >> PAGE_SHIFT;
 -- 
 1.7.1.569.g6f426
 
