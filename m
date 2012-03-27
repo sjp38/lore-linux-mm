@@ -1,57 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx108.postini.com [74.125.245.108])
-	by kanga.kvack.org (Postfix) with SMTP id 0FE406B007E
-	for <linux-mm@kvack.org>; Tue, 27 Mar 2012 06:17:38 -0400 (EDT)
-From: Borislav Petkov <bp@amd64.org>
-Subject: [PATCH] mm/memory_failure: Let the compiler add the function name
-Date: Tue, 27 Mar 2012 12:17:30 +0200
-Message-Id: <1332843450-7100-1-git-send-email-bp@amd64.org>
+Received: from psmtp.com (na3sys010amx195.postini.com [74.125.245.195])
+	by kanga.kvack.org (Postfix) with SMTP id 69AA66B0044
+	for <linux-mm@kvack.org>; Tue, 27 Mar 2012 07:36:35 -0400 (EDT)
+Received: by wgbds10 with SMTP id ds10so3879562wgb.26
+        for <linux-mm@kvack.org>; Tue, 27 Mar 2012 04:36:33 -0700 (PDT)
+Date: Tue, 27 Mar 2012 13:37:17 +0200
+From: Daniel Vetter <daniel@ffwll.ch>
+Subject: Re: [PATCH] mm: extend prefault helpers to fault in more than
+ PAGE_SIZE
+Message-ID: <20120327113717.GJ4276@phenom.ffwll.local>
+References: <20120229153216.8c3ae31d.akpm@linux-foundation.org>
+ <1330629779-1449-1-git-send-email-daniel.vetter@ffwll.ch>
+ <20120301121557.0e0fd728.akpm@linux-foundation.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20120301121557.0e0fd728.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: LKML <linux-kernel@vger.kernel.org>
-Cc: Borislav Petkov <borislav.petkov@amd.com>, Andi Kleen <andi@firstfloor.org>, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Daniel Vetter <daniel.vetter@ffwll.ch>, Intel Graphics Development <intel-gfx@lists.freedesktop.org>, DRI Development <dri-devel@lists.freedesktop.org>, LKML <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>
 
-From: Borislav Petkov <borislav.petkov@amd.com>
+On Thu, Mar 01, 2012 at 12:15:57PM -0800, Andrew Morton wrote:
+> On Thu,  1 Mar 2012 20:22:59 +0100
+> Daniel Vetter <daniel.vetter@ffwll.ch> wrote:
+> 
+> > drm/i915 wants to read/write more than one page in its fastpath
+> > and hence needs to prefault more than PAGE_SIZE bytes.
+> > 
+> > Add new functions in filemap.h to make that possible.
+> > 
+> > Also kill a copy&pasted spurious space in both functions while at it.
+> > 
+> >
+> > ...
+> >
+> > +/* Multipage variants of the above prefault helpers, useful if more than
+> > + * PAGE_SIZE of date needs to be prefaulted. These are separate from the above
+> > + * functions (which only handle up to PAGE_SIZE) to avoid clobbering the
+> > + * filemap.c hotpaths. */
+> 
+> Like this please:
+> 
+> /*
+>  * Multipage variants of the above prefault helpers, useful if more than
+>  * PAGE_SIZE of date needs to be prefaulted. These are separate from the above
+>  * functions (which only handle up to PAGE_SIZE) to avoid clobbering the
+>  * filemap.c hotpaths.
+>  */
+> 
+> and s/date/data/
 
-These things tend to get out of sync with time so let the compiler
-automatically enter the current function name using __func__.
+...
 
-No functional change.
+> Please merge it via the DRI tree.
 
-Cc: Andi Kleen <andi@firstfloor.org>
-Cc: linux-mm@kvack.org
-Signed-off-by: Borislav Petkov <borislav.petkov@amd.com>
----
- mm/memory-failure.c |    8 ++++----
- 1 file changed, 4 insertions(+), 4 deletions(-)
+Ok, I've queued this up 3.5 (it missed the 3.4 merge because a few of the
+drm/i915 patches from that series haven't been reviewed in time) with the
+comment fixed up and your Acked-by on the commit message. I hope the later
+is ok, otherwise please yell.
 
-diff --git a/mm/memory-failure.c b/mm/memory-failure.c
-index 56080ea36140..7d78d5ec61a7 100644
---- a/mm/memory-failure.c
-+++ b/mm/memory-failure.c
-@@ -1384,16 +1384,16 @@ static int get_any_page(struct page *p, unsigned long pfn, int flags)
- 	 */
- 	if (!get_page_unless_zero(compound_head(p))) {
- 		if (PageHuge(p)) {
--			pr_info("get_any_page: %#lx free huge page\n", pfn);
-+			pr_info("%s: %#lx free huge page\n", __func__, pfn);
- 			ret = dequeue_hwpoisoned_huge_page(compound_head(p));
- 		} else if (is_free_buddy_page(p)) {
--			pr_info("get_any_page: %#lx free buddy page\n", pfn);
-+			pr_info("%s: %#lx free buddy page\n", __func__, pfn);
- 			/* Set hwpoison bit while page is still isolated */
- 			SetPageHWPoison(p);
- 			ret = 0;
- 		} else {
--			pr_info("get_any_page: %#lx: unknown zero refcount page type %lx\n",
--				pfn, p->flags);
-+			pr_info("%s: %#lx: unknown zero refcount page type %lx\n",
-+				__func__, pfn, p->flags);
- 			ret = -EIO;
- 		}
- 	} else {
+Thanks for reviewing this.
+-Daniel
 -- 
-1.7.9.3.362.g71319
+Daniel Vetter
+Mail: daniel@ffwll.ch
+Mobile: +41 (0)79 365 57 48
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
