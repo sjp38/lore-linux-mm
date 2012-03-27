@@ -1,49 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx187.postini.com [74.125.245.187])
-	by kanga.kvack.org (Postfix) with SMTP id 68A086B0107
-	for <linux-mm@kvack.org>; Tue, 27 Mar 2012 13:09:37 -0400 (EDT)
-Received: by wgbds10 with SMTP id ds10so112510wgb.26
-        for <linux-mm@kvack.org>; Tue, 27 Mar 2012 10:09:35 -0700 (PDT)
-Date: Tue, 27 Mar 2012 19:09:30 +0200
-From: Ingo Molnar <mingo@kernel.org>
-Subject: Re: [PATCH 11/39] autonuma: CPU follow memory algorithm
-Message-ID: <20120327170929.GA28771@gmail.com>
-References: <1332783986-24195-1-git-send-email-aarcange@redhat.com>
- <1332783986-24195-12-git-send-email-aarcange@redhat.com>
- <1332786353.16159.173.camel@twins>
- <4F70C365.8020009@redhat.com>
- <20120326194435.GW5906@redhat.com>
- <CA+55aFwk0Etg_UhoZcKsfFJ7PQNLdQ58xxXiwcA-jemuXdZCZQ@mail.gmail.com>
- <20120326203951.GZ5906@redhat.com>
- <1332837595.16159.208.camel@twins>
+Received: from psmtp.com (na3sys010amx178.postini.com [74.125.245.178])
+	by kanga.kvack.org (Postfix) with SMTP id A21426B00FE
+	for <linux-mm@kvack.org>; Tue, 27 Mar 2012 17:09:11 -0400 (EDT)
+Date: Tue, 27 Mar 2012 23:08:58 +0200
+From: Jan Kara <jack@suse.cz>
+Subject: [TOPIC] Last iput() from flusher thread, last fput() from
+ munmap()...
+Message-ID: <20120327210858.GH5020@quack.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1332837595.16159.208.camel@twins>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Cc: Andrea Arcangeli <aarcange@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, Hillf Danton <dhillf@gmail.com>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Dan Smith <danms@us.ibm.com>, Paul Turner <pjt@google.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Rik van Riel <riel@redhat.com>, Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, linux-mm@kvack.org, Suresh Siddha <suresh.b.siddha@intel.com>, Mike Galbraith <efault@gmx.de>, Bharata B Rao <bharata.rao@gmail.com>, Thomas Gleixner <tglx@linutronix.de>, Johannes Weiner <hannes@cmpxchg.org>, linux-kernel@vger.kernel.org
+To: lsf-pc@lists.linux-foundation.org
+Cc: linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
 
+  Hello,
 
-* Peter Zijlstra <a.p.zijlstra@chello.nl> wrote:
+  maybe the name of this topic could be "How hard should be life of
+filesystems?" but that's kind of broad topic and suggests too much of
+bikeshedding. I'd like to concentrate on concrete possible pain points
+between filesystems & VFS (possibly writeback or even generally MM).
+Lately, I've myself came across the two issues in $SUBJECT:
+1) dropping of last file reference can happen from munmap() and in that
+   case mmap_sem will be held when ->release() is called. Even more it
+   could be held when ->evict_inode() is called to delete inode because
+   inode was unlinked.
+2) since flusher thread takes inode reference when writing inode out, the
+   last inode reference can be dropped from flusher thread. Thus inode may
+   get deleted in the flusher thread context. This does not seem that
+   problematic on its own but if we realize progress of memory reclaim
+   depends (at least from a longterm perspective) on flusher thread making
+   progress, things start looking a bit uncertain. Even more so when we
+   would like avoid ->writepage() calls from reclaim and let flusher thread
+   do the work instead. That would then require filesystems to carefully
+   design their ->evict_inode() routines so that things are not
+   deadlockable.
 
-> You can talk pretty much anything down to O(1) that way. Take 
-> an algorithm that is O(n) in the number of tasks, since you 
-> know you have a pid-space constraint of 30bits you can never 
-> have more than 2^30 (aka 1Gi) tasks, hence your algorithm is 
-> O(2^30) aka O(1).
+  Both these issues should be avoidable (we can postpone fput() after we
+drop mmap_sem; we can tweak inode refcounting to avoid last iput() from
+flusher thread) but obviously there's some cost in the complexity of generic
+layer. So the question is, is it worth it?
 
-We can go even further than that, IIRC all physical states of 
-this universe fit into a roughly 2^1000 finite state-space, so 
-every computing problem in this universe is O(2^1000), i.e. 
-every computing problem we can ever work on is O(1).
+Certainly we can also discuss other pain points if people come with them.
+We should have enough know-how in place to be able to tell which changes
+are reasonably possible and which are not...
 
-Really, I think Andrea is missing the big picture here.
-
-Thanks,
-
-	Ingo
+								Honza
+-- 
+Jan Kara <jack@suse.cz>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
