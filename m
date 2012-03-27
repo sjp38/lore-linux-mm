@@ -1,82 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx196.postini.com [74.125.245.196])
-	by kanga.kvack.org (Postfix) with SMTP id 038686B00F9
-	for <linux-mm@kvack.org>; Tue, 27 Mar 2012 10:43:28 -0400 (EDT)
-Date: Mon, 26 Mar 2012 11:50:19 -0400
-From: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
-Subject: Re: [PATCH] staging: zsmalloc: add user-definable alloc/free funcs
-Message-ID: <20120326155018.GA6163@phenom.dumpdata.com>
-References: <1331931888-14175-1-git-send-email-sjenning@linux.vnet.ibm.com>
- <20120316213227.GB24556@kroah.com>
- <4F678100.1000707@linux.vnet.ibm.com>
- <20120319233409.GA16124@kroah.com>
+Received: from psmtp.com (na3sys010amx101.postini.com [74.125.245.101])
+	by kanga.kvack.org (Postfix) with SMTP id 124896B00F0
+	for <linux-mm@kvack.org>; Tue, 27 Mar 2012 11:18:37 -0400 (EDT)
+Date: Tue, 27 Mar 2012 16:37:37 +0200
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [PATCH 11/39] autonuma: CPU follow memory algorithm
+Message-ID: <20120327143737.GI5906@redhat.com>
+References: <1332783986-24195-1-git-send-email-aarcange@redhat.com>
+ <1332783986-24195-12-git-send-email-aarcange@redhat.com>
+ <1332786353.16159.173.camel@twins>
+ <4F70C365.8020009@redhat.com>
+ <20120326194435.GW5906@redhat.com>
+ <CA+55aFwk0Etg_UhoZcKsfFJ7PQNLdQ58xxXiwcA-jemuXdZCZQ@mail.gmail.com>
+ <20120326203951.GZ5906@redhat.com>
+ <1332837595.16159.208.camel@twins>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20120319233409.GA16124@kroah.com>
+In-Reply-To: <1332837595.16159.208.camel@twins>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-Cc: Seth Jennings <sjenning@linux.vnet.ibm.com>, devel@driverdev.osuosl.org, Dan Magenheimer <dan.magenheimer@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Robert Jennings <rcj@linux.vnet.ibm.com>, Nitin Gupta <ngupta@vflare.org>
+To: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Hillf Danton <dhillf@gmail.com>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Dan Smith <danms@us.ibm.com>, Paul Turner <pjt@google.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Rik van Riel <riel@redhat.com>, Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, linux-mm@kvack.org, Suresh Siddha <suresh.b.siddha@intel.com>, Mike Galbraith <efault@gmx.de>, Bharata B Rao <bharata.rao@gmail.com>, Thomas Gleixner <tglx@linutronix.de>, Johannes Weiner <hannes@cmpxchg.org>, linux-kernel@vger.kernel.org
 
-On Mon, Mar 19, 2012 at 04:34:09PM -0700, Greg Kroah-Hartman wrote:
-> On Mon, Mar 19, 2012 at 01:54:56PM -0500, Seth Jennings wrote:
-> > > I'm sorry, I know this isn't fair for your specific patch, but we have
-> > > to stop this sometime, and as this patch adds code isn't even used by
-> > > anyone, its a good of a time as any.
-> > 
-> > So, this the my first "promotion from staging" rodeo.  I would love to
-> > see this code mainlined ASAP.  How would I/we go about doing that?
-> 
-> What subsystem should this code live in?  The -mm code, I'm guessing,
-> right?  If so, submit it to the linux-mm mailing list for inclusion, you
-> can point them at what is in drivers/staging right now, or probably it's
-> easier if you just make a new patch that adds the code that is in
-> drivers/staging/ to the correct location in the kernel.  That way it's
-> easier to review and change.  When it finally gets accepted, we can then
-> delete the drivers/staging code.
+On Tue, Mar 27, 2012 at 10:39:55AM +0200, Peter Zijlstra wrote:
+> You can talk pretty much anything down to O(1) that way. Take an
+> algorithm that is O(n) in the number of tasks, since you know you have a
+> pid-space constraint of 30bits you can never have more than 2^30 (aka
+> 1Gi) tasks, hence your algorithm is O(2^30) aka O(1).
 
+Still this O notation thingy... This is not about the max value but
+about the fact the number is _variable_ or _fixed_.
 
-Hey Greg,
+If you have a variable amount of entries (and variable amount of
+memory) in a list it's O(N) where N is the number of entries (even if
+we know the max ram is maybe 4TB?). If you've a _fixed_ number of them
+it's O(1). Even if the fixed number is very large.
 
-Little background - for zcache to kick-butts (both Dan and Seth posted some
-pretty awesome benchmark numbers) it depends on the frontswap - which is in
-the #linux-next. Dan made an attempt to post it for a GIT PULL and an interesting
-conversation ensued where folks decided it needs more additions before they were
-comfortable with it. zcache isn't using those additions, but I don't see why
-it couldn't use them.
+It basically shows it won't degraded depending on load, and the cost
+per-schedule remains exactly fixed at all times (non liner cacheline
+and out-of-order CPU execution/HT effects aside).
 
-The things that bouncing around in my head are:
- - get a punch-out list (ie todo) of what MM needs for the zcache to get out.
-   I think posting it as a new driver would be right way to do it (And then
-   based on feedback work out the issues in drivers/staging). But what
-   about authorship - there are mulitple authors ?
+If it was O(N) the time this would take to run for each schedule shall
+have to vary at runtime depending on a some variable factor N and
+that's not the case here.
 
- - zcache is a bit different that the normal drivers type - and it is unclear
-   yet what will be required to get it out - and both Seth and Nitin have this
-   hungry look in their eyes of wanting to make it super-duper. So doing
-   the work to do it - is not going to be a problem at all - just some form
-   of clear goals of what we need "now" vs "would love to have".
+You can argue about CPU hotplug though.
 
- - folks are using it, which means continued -stable kernel back-porting.
+But this is just math nitpicking because I already pointed out I agree
+the cacheline hits on a 1024 way would be measurable and needs fixing.
 
-So with that in mind I was wondering whether you would be up for:
- - me sending to you before a merge window some updates to the zcache
-   as a git pull - that way you won't have to deal with a bunch of
-   small patches and when there is something you don't like we can fix
-   it up to your liking. The goal would be for us - Dan, Nitin, Seth and me
-   working on promoting the driver out of staging and you won't have to
-   be bugged every time we have a new change that might be perceived
-   as feature, but is in fact a step towards mainstreaming it. I figured
-   that is what you are most annoyed at - handling those uncoordinated
-   requests and not seeing a clear target.
-
- - alongside of that, I work on making those frontswap changes folks
-   have asked for. Since those changes can affect zcache, that means
-   adding them in zcache alongside.
-
-Hopefully, by the time those two items are done, both pieces can go in
-the kernel at the same time-ish.
+I'm not sure how useful it is to keep arguing on the O notation when
+we agree on what shall be optimized in practice.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
