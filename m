@@ -1,46 +1,198 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx193.postini.com [74.125.245.193])
-	by kanga.kvack.org (Postfix) with SMTP id 62D5B6B00E7
-	for <linux-mm@kvack.org>; Wed, 28 Mar 2012 07:30:42 -0400 (EDT)
-Received: by bkwq16 with SMTP id q16so1060411bkw.14
-        for <linux-mm@kvack.org>; Wed, 28 Mar 2012 04:30:40 -0700 (PDT)
-Message-ID: <4F72F603.2000803@mvista.com>
-Date: Wed, 28 Mar 2012 15:29:07 +0400
-From: Sergei Shtylyov <sshtylyov@mvista.com>
+Received: from psmtp.com (na3sys010amx173.postini.com [74.125.245.173])
+	by kanga.kvack.org (Postfix) with SMTP id 887376B00F1
+	for <linux-mm@kvack.org>; Wed, 28 Mar 2012 07:33:09 -0400 (EDT)
+Date: Wed, 28 Mar 2012 13:33:04 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH -V4 04/10] memcg: Add HugeTLB extension
+Message-ID: <20120328113304.GE20949@tiehlicka.suse.cz>
+References: <1331919570-2264-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+ <1331919570-2264-5-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Subject: Re: [PATCHv2 01/14] common: dma-mapping: introduce alloc_attrs and
- free_attrs methods
-References: <1332855768-32583-1-git-send-email-m.szyprowski@samsung.com> <1332855768-32583-2-git-send-email-m.szyprowski@samsung.com>
-In-Reply-To: <1332855768-32583-2-git-send-email-m.szyprowski@samsung.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1331919570-2264-5-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Marek Szyprowski <m.szyprowski@samsung.com>
-Cc: linux-kernel@vger.kernel.org, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Thomas Gleixner <tglx@linutronix.de>, Andrew Morton <akpm@linux-foundation.org>, Arnd Bergmann <arnd@arndb.de>, Stephen Rothwell <sfr@canb.auug.org.au>, FUJITA Tomonori <fujita.tomonori@lab.ntt.co.jp>, microblaze-uclinux@itee.uq.edu.au, linux-arch@vger.kernel.org, x86@kernel.org, linux-sh@vger.kernel.org, linux-alpha@vger.kernel.org, sparclinux@vger.kernel.org, linux-ia64@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-mips@linux-mips.org, discuss@x86-64.org, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, linaro-mm-sig@lists.linaro.org, Jonathan Corbet <corbet@lwn.net>, Kyungmin Park <kyungmin.park@samsung.com>, Andrzej Pietrasiewicz <andrzej.p@samsung.com>, Kevin Cernekee <cernekee@gmail.com>, Dezhong Diao <dediao@cisco.com>, Richard Kuo <rkuo@codeaurora.org>, "David S. Miller" <davem@davemloft.net>, Michal Simek <monstr@monstr.eu>, Guan Xuetao <gxt@mprc.pku.edu.cn>, Paul Mundt <lethal@linux-sh.org>, Richard Henderson <rth@twiddle.net>, Ivan Kokshaysky <ink@jurassic.park.msu.ru>, Matt Turner <mattst88@gmail.com>, Tony Luck <tony.luck@intel.com>, Fenghua Yu <fenghua.yu@intel.com>
+To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Cc: linux-mm@kvack.org, mgorman@suse.de, kamezawa.hiroyu@jp.fujitsu.com, dhillf@gmail.com, aarcange@redhat.com, akpm@linux-foundation.org, hannes@cmpxchg.org, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org
 
-Hello.
+On Fri 16-03-12 23:09:24, Aneesh Kumar K.V wrote:
+> From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+> 
+> This patch implements a memcg extension that allows us to control
+> HugeTLB allocations via memory controller.
 
-On 27-03-2012 17:42, Marek Szyprowski wrote:
+And the infrastructure is not used at this stage (you forgot to
+mention).
+The changelog should be much more descriptive.
 
-> Introduce new generic alloc and free methods with attributes argument.
+> 
+> Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
+> ---
+>  include/linux/hugetlb.h    |    1 +
+>  include/linux/memcontrol.h |   42 +++++++++++++
+>  init/Kconfig               |    8 +++
+>  mm/hugetlb.c               |    2 +-
+>  mm/memcontrol.c            |  138 ++++++++++++++++++++++++++++++++++++++++++++
+>  5 files changed, 190 insertions(+), 1 deletions(-)
+> 
+[...]
+> diff --git a/init/Kconfig b/init/Kconfig
+> index 3f42cd6..f0eb8aa 100644
+> --- a/init/Kconfig
+> +++ b/init/Kconfig
+> @@ -725,6 +725,14 @@ config CGROUP_PERF
+>  
+>  	  Say N if unsure.
+>  
+> +config MEM_RES_CTLR_HUGETLB
+> +	bool "Memory Resource Controller HugeTLB Extension (EXPERIMENTAL)"
+> +	depends on CGROUP_MEM_RES_CTLR && HUGETLB_PAGE && EXPERIMENTAL
+> +	default n
+> +	help
+> +	  Add HugeTLB management to memory resource controller. When you
+> +	  enable this, you can put a per cgroup limit on HugeTLB usage.
 
-    The method names don't match the ones in the subject.
+How does it interact with the hard/soft limists etc...
 
-> Existing alloc_coherent and free_coherent can be implemented on top of the
-> new calls with NULL attributes argument. Later also dma_alloc_non_coherent
-> can be implemented using DMA_ATTR_NONCOHERENT attribute as well as
-> dma_alloc_writecombine with separate DMA_ATTR_WRITECOMBINE attribute.
+[...]
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index 6728a7a..4b36c5e 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -235,6 +235,10 @@ struct mem_cgroup {
+>  	 */
+>  	struct res_counter memsw;
+>  	/*
+> +	 * the counter to account for hugepages from hugetlb.
+> +	 */
+> +	struct res_counter hugepage[HUGE_MAX_HSTATE];
+> +	/*
+>  	 * Per cgroup active and inactive list, similar to the
+>  	 * per zone LRU lists.
+>  	 */
+> @@ -3156,6 +3160,128 @@ static inline int mem_cgroup_move_swap_account(swp_entry_t entry,
+>  }
+>  #endif
+>  
+> +#ifdef CONFIG_MEM_RES_CTLR_HUGETLB
+> +static bool mem_cgroup_have_hugetlb_usage(struct mem_cgroup *memcg)
+> +{
+> +	int idx;
+> +	for (idx = 0; idx < hugetlb_max_hstate; idx++) {
 
-> This way the drivers will get more generic, platform independent way of
-> allocating dma buffers with specific parameters.
+Maybe we should expose for_each_hstate as well...
 
-> Signed-off-by: Marek Szyprowski <m.szyprowski@samsung.com>
-> Acked-by: Kyungmin Park <kyungmin.park@samsung.com>
-> Reviewed-by: David Gibson <david@gibson.dropbear.ud.au>
-> Reviewed-by: Arnd Bergmann <arnd@arndb.de>
+> +		if (memcg->hugepage[idx].usage > 0)
+> +			return 1;
+> +	}
+> +	return 0;
+> +}
+> +
+> +int mem_cgroup_hugetlb_charge_page(int idx, unsigned long nr_pages,
+> +				   struct mem_cgroup **ptr)
+> +{
+> +	int ret = 0;
+> +	struct mem_cgroup *memcg;
+> +	struct res_counter *fail_res;
+> +	unsigned long csize = nr_pages * PAGE_SIZE;
+> +
+> +	if (mem_cgroup_disabled())
+> +		return 0;
+> +again:
+> +	rcu_read_lock();
+> +	memcg = mem_cgroup_from_task(current);
+> +	if (!memcg)
+> +		memcg = root_mem_cgroup;
+> +	if (mem_cgroup_is_root(memcg)) {
+> +		rcu_read_unlock();
+> +		goto done;
+> +	}
+> +	if (!css_tryget(&memcg->css)) {
+> +		rcu_read_unlock();
+> +		goto again;
+> +	}
+> +	rcu_read_unlock();
+> +
+> +	ret = res_counter_charge(&memcg->hugepage[idx], csize, &fail_res);
+> +	css_put(&memcg->css);
+> +done:
+> +	*ptr = memcg;
 
-WBR, Sergei
+Why do we set ptr even for the failure case after we dropped a
+reference?
+
+> +	return ret;
+> +}
+> +
+> +void mem_cgroup_hugetlb_commit_charge(int idx, unsigned long nr_pages,
+> +				      struct mem_cgroup *memcg,
+> +				      struct page *page)
+> +{
+> +	struct page_cgroup *pc;
+> +
+> +	if (mem_cgroup_disabled())
+> +		return;
+> +
+> +	pc = lookup_page_cgroup(page);
+> +	lock_page_cgroup(pc);
+> +	if (unlikely(PageCgroupUsed(pc))) {
+> +		unlock_page_cgroup(pc);
+> +		mem_cgroup_hugetlb_uncharge_memcg(idx, nr_pages, memcg);
+> +		return;
+> +	}
+> +	pc->mem_cgroup = memcg;
+> +	/*
+> +	 * We access a page_cgroup asynchronously without lock_page_cgroup().
+> +	 * Especially when a page_cgroup is taken from a page, pc->mem_cgroup
+> +	 * is accessed after testing USED bit. To make pc->mem_cgroup visible
+> +	 * before USED bit, we need memory barrier here.
+> +	 * See mem_cgroup_add_lru_list(), etc.
+> +	 */
+> +	smp_wmb();
+
+Is this really necessary for hugetlb pages as well?
+
+> +	SetPageCgroupUsed(pc);
+> +
+> +	unlock_page_cgroup(pc);
+> +	return;
+> +}
+> +
+[...]
+> @@ -4887,6 +5013,7 @@ err_cleanup:
+>  static struct cgroup_subsys_state * __ref
+>  mem_cgroup_create(struct cgroup_subsys *ss, struct cgroup *cont)
+>  {
+> +	int idx;
+>  	struct mem_cgroup *memcg, *parent;
+>  	long error = -ENOMEM;
+>  	int node;
+> @@ -4929,9 +5056,14 @@ mem_cgroup_create(struct cgroup_subsys *ss, struct cgroup *cont)
+>  		 * mem_cgroup(see mem_cgroup_put).
+>  		 */
+>  		mem_cgroup_get(parent);
+> +		for (idx = 0; idx < HUGE_MAX_HSTATE; idx++)
+
+Do we have to init all hstates or is hugetlb_max_hstate enough?
+
+> +			res_counter_init(&memcg->hugepage[idx],
+> +					 &parent->hugepage[idx]);
+>  	} else {
+>  		res_counter_init(&memcg->res, NULL);
+>  		res_counter_init(&memcg->memsw, NULL);
+> +		for (idx = 0; idx < HUGE_MAX_HSTATE; idx++)
+> +			res_counter_init(&memcg->hugepage[idx], NULL);
+
+Same here
+-- 
+Michal Hocko
+SUSE Labs
+SUSE LINUX s.r.o.
+Lihovarska 1060/12
+190 00 Praha 9    
+Czech Republic
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
