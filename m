@@ -1,86 +1,138 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx180.postini.com [74.125.245.180])
-	by kanga.kvack.org (Postfix) with SMTP id F359D6B00F6
-	for <linux-mm@kvack.org>; Wed, 28 Mar 2012 08:10:30 -0400 (EDT)
-Date: Wed, 28 Mar 2012 14:10:18 +0200
-From: Jan Kara <jack@suse.cz>
-Subject: Re: [Lsf-pc] [TOPIC] Last iput() from flusher thread, last fput()
- from munmap()...
-Message-ID: <20120328121018.GG18751@quack.suse.cz>
-References: <20120327210858.GH5020@quack.suse.cz>
- <20120328023852.GP6589@ZenIV.linux.org.uk>
+Received: from psmtp.com (na3sys010amx108.postini.com [74.125.245.108])
+	by kanga.kvack.org (Postfix) with SMTP id 5BEE96B00F9
+	for <linux-mm@kvack.org>; Wed, 28 Mar 2012 09:17:09 -0400 (EDT)
+Date: Wed, 28 Mar 2012 15:17:06 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH -V4 05/10] hugetlb: add charge/uncharge calls for HugeTLB
+ alloc/free
+Message-ID: <20120328131706.GF20949@tiehlicka.suse.cz>
+References: <1331919570-2264-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+ <1331919570-2264-6-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20120328023852.GP6589@ZenIV.linux.org.uk>
+In-Reply-To: <1331919570-2264-6-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Al Viro <viro@ZenIV.linux.org.uk>
-Cc: Jan Kara <jack@suse.cz>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, lsf-pc@lists.linux-foundation.org
+To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Cc: linux-mm@kvack.org, mgorman@suse.de, kamezawa.hiroyu@jp.fujitsu.com, dhillf@gmail.com, aarcange@redhat.com, akpm@linux-foundation.org, hannes@cmpxchg.org, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org
 
-On Wed 28-03-12 03:38:52, Al Viro wrote:
-> On Tue, Mar 27, 2012 at 11:08:58PM +0200, Jan Kara wrote:
-> >   Hello,
-> > 
-> >   maybe the name of this topic could be "How hard should be life of
-> > filesystems?" but that's kind of broad topic and suggests too much of
-> > bikeshedding. I'd like to concentrate on concrete possible pain points
-> > between filesystems & VFS (possibly writeback or even generally MM).
-> > Lately, I've myself came across the two issues in $SUBJECT:
-> > 1) dropping of last file reference can happen from munmap() and in that
-> >    case mmap_sem will be held when ->release() is called. Even more it
-> >    could be held when ->evict_inode() is called to delete inode because
-> >    inode was unlinked.
+On Fri 16-03-12 23:09:25, Aneesh Kumar K.V wrote:
+> From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
 > 
-> Yes, it can.
-> 
-> > 2) since flusher thread takes inode reference when writing inode out, the
-> >    last inode reference can be dropped from flusher thread. Thus inode may
-> >    get deleted in the flusher thread context. This does not seem that
-> >    problematic on its own but if we realize progress of memory reclaim
-> >    depends (at least from a longterm perspective) on flusher thread making
-> >    progress, things start looking a bit uncertain. Even more so when we
-> >    would like avoid ->writepage() calls from reclaim and let flusher thread
-> >    do the work instead. That would then require filesystems to carefully
-> >    design their ->evict_inode() routines so that things are not
-> >    deadlockable.
-> 
-> You mean "use GFP_NOIO for allocations when holding fs-internal locks"?
-  Well, but in ->evict_inode filesystem isn't necessarily holding any
-internal locks it knows about. So it should be perfectly fine doing
-GFP_KERNEL allocation. But if ->evict_inode is called from flusher thread
-and we do GFP_KERNEL allocation, things start to be a bit uncertain IMHO.
+> This adds necessary charge/uncharge calls in the HugeTLB code
 
-> >   Both these issues should be avoidable (we can postpone fput() after we
-> > drop mmap_sem; we can tweak inode refcounting to avoid last iput() from
-> > flusher thread) but obviously there's some cost in the complexity of generic
-> > layer. So the question is, is it worth it?
+This begs for more description...
+Other than that it looks correct.
+
+> Acked-by: Hillf Danton <dhillf@gmail.com>
+> Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
+> ---
+>  mm/hugetlb.c    |   21 ++++++++++++++++++++-
+>  mm/memcontrol.c |    5 +++++
+>  2 files changed, 25 insertions(+), 1 deletions(-)
 > 
-> I don't thing it is.  ->i_mutex in ->release() is never needed; existing
-> cases are racy and dropping preallocation that way is simply wrong.
-  Yes. And my point really is, if fs developers get this often wrong,
-shouldn't we change the interface so that it's harder to get it wrong? In
-this particular case it shouldn't be a big burden on VFS.
-
-> And ->evict_inode() is a non-issue, since it has no reason whatsoever to
-> take *any* locks in mutex - the damn thing is called when nobody has
-> references to struct inode anymore.
-  As Steven pointed out, at least clustered filesystems need to do complex
-synchronization in ->evict_inode(). I think OCFS2 offloads some of this
-stuff to separate kernel thread to avoid deadlocks (at least the obvious
-ones which you can hit during testing / which lockdep can catch).
-
-> Deadlocks with flusher... that's what NOIO and NOFS are for.
+> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+> index c672187..91361a0 100644
+> --- a/mm/hugetlb.c
+> +++ b/mm/hugetlb.c
+> @@ -21,6 +21,8 @@
+>  #include <linux/rmap.h>
+>  #include <linux/swap.h>
+>  #include <linux/swapops.h>
+> +#include <linux/memcontrol.h>
+> +#include <linux/page_cgroup.h>
+>  
+>  #include <asm/page.h>
+>  #include <asm/pgtable.h>
+> @@ -542,6 +544,9 @@ static void free_huge_page(struct page *page)
+>  	BUG_ON(page_mapcount(page));
+>  	INIT_LIST_HEAD(&page->lru);
+>  
+> +	if (mapping)
+> +		mem_cgroup_hugetlb_uncharge_page(hstate_index(h),
+> +						 pages_per_huge_page(h), page);
+>  	spin_lock(&hugetlb_lock);
+>  	if (h->surplus_huge_pages_node[nid] && huge_page_order(h) < MAX_ORDER) {
+>  		update_and_free_page(h, page);
+> @@ -1019,12 +1024,15 @@ static void vma_commit_reservation(struct hstate *h,
+>  static struct page *alloc_huge_page(struct vm_area_struct *vma,
+>  				    unsigned long addr, int avoid_reserve)
+>  {
+> +	int ret, idx;
+>  	struct hstate *h = hstate_vma(vma);
+>  	struct page *page;
+> +	struct mem_cgroup *memcg = NULL;
+>  	struct address_space *mapping = vma->vm_file->f_mapping;
+>  	struct inode *inode = mapping->host;
+>  	long chg;
+>  
+> +	idx = hstate_index(h);
+>  	/*
+>  	 * Processes that did not create the mapping will have no reserves and
+>  	 * will not have accounted against quota. Check that the quota can be
+> @@ -1039,6 +1047,12 @@ static struct page *alloc_huge_page(struct vm_area_struct *vma,
+>  		if (hugetlb_get_quota(inode->i_mapping, chg))
+>  			return ERR_PTR(-ENOSPC);
+>  
+> +	ret = mem_cgroup_hugetlb_charge_page(idx, pages_per_huge_page(h),
+> +					     &memcg);
+> +	if (ret) {
+> +		hugetlb_put_quota(inode->i_mapping, chg);
+> +		return ERR_PTR(-ENOSPC);
+> +	}
+>  	spin_lock(&hugetlb_lock);
+>  	page = dequeue_huge_page_vma(h, vma, addr, avoid_reserve);
+>  	spin_unlock(&hugetlb_lock);
+> @@ -1046,6 +1060,9 @@ static struct page *alloc_huge_page(struct vm_area_struct *vma,
+>  	if (!page) {
+>  		page = alloc_buddy_huge_page(h, NUMA_NO_NODE);
+>  		if (!page) {
+> +			mem_cgroup_hugetlb_uncharge_memcg(idx,
+> +							 pages_per_huge_page(h),
+> +							 memcg);
+>  			hugetlb_put_quota(inode->i_mapping, chg);
+>  			return ERR_PTR(-ENOSPC);
+>  		}
+> @@ -1054,7 +1071,9 @@ static struct page *alloc_huge_page(struct vm_area_struct *vma,
+>  	set_page_private(page, (unsigned long) mapping);
+>  
+>  	vma_commit_reservation(h, vma, addr);
+> -
+> +	/* update page cgroup details */
+> +	mem_cgroup_hugetlb_commit_charge(idx, pages_per_huge_page(h),
+> +					 memcg, page);
+>  	return page;
+>  }
+>  
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index 4b36c5e..7a9ea94 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -2901,6 +2901,11 @@ __mem_cgroup_uncharge_common(struct page *page, enum charge_type ctype)
+>  
+>  	if (PageSwapCache(page))
+>  		return NULL;
+> +	/*
+> +	 * HugeTLB page uncharge happen in the HugeTLB compound page destructor
+> +	 */
+> +	if (PageHuge(page))
+> +		return NULL;
+>  
+>  	if (PageTransHuge(page)) {
+>  		nr_pages <<= compound_order(page);
+> -- 
+> 1.7.9
 > 
-> As for the IMA issues...  We probably ought to use a separate mutex for
-> xattr and relying on ->i_mutex for its internal locking is unconvincing,
-> to put it mildly...
-  Agreed.
 
-								Honza
 -- 
-Jan Kara <jack@suse.cz>
-SUSE Labs, CR
+Michal Hocko
+SUSE Labs
+SUSE LINUX s.r.o.
+Lihovarska 1060/12
+190 00 Praha 9    
+Czech Republic
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
