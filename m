@@ -1,43 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx105.postini.com [74.125.245.105])
-	by kanga.kvack.org (Postfix) with SMTP id A8A886B0111
-	for <linux-mm@kvack.org>; Wed, 28 Mar 2012 13:29:04 -0400 (EDT)
-Message-ID: <4F6CA298.4000301@jp.fujitsu.com>
-Date: Fri, 23 Mar 2012 12:19:36 -0400
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Received: from psmtp.com (na3sys010amx193.postini.com [74.125.245.193])
+	by kanga.kvack.org (Postfix) with SMTP id 54F946B0112
+	for <linux-mm@kvack.org>; Wed, 28 Mar 2012 13:35:58 -0400 (EDT)
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Subject: Re: mm: hung task (handle_pte_fault)
+Date: Wed, 28 Mar 2012 13:35:12 -0400
+Message-Id: <1332956112-5274-1-git-send-email-n-horiguchi@ah.jp.nec.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 00/16] mm: prepare for converting vm->vm_flags to 64-bit
-References: <20120321065140.13852.52315.stgit@zurg> <20120321100602.GA5522@barrios> <4F69D496.2040509@openvz.org> <20120322142647.42395398.akpm@linux-foundation.org> <20120322212810.GE6589@ZenIV.linux.org.uk>
-In-Reply-To: <20120322212810.GE6589@ZenIV.linux.org.uk>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=UTF-8
+In-Reply-To: <alpine.LSU.2.00.1203272145250.5922@eggly.anvils>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: viro@ZenIV.linux.org.uk
-Cc: akpm@linux-foundation.org, khlebnikov@openvz.org, minchan@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, torvalds@linux-foundation.org, hughd@google.com, kosaki.motohiro@jp.fujitsu.com, benh@kernel.crashing.org, linux@arm.linux.org.uk
+To: Hugh Dickins <hughd@google.com>
+Cc: Sasha Levin <levinsasha928@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Peter Zijlstra <peterz@infradead.org>, Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>, Pekka Enberg <penberg@kernel.org>, Dave Jones <davej@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On 3/22/2012 5:28 PM, Al Viro wrote:
-> On Thu, Mar 22, 2012 at 02:26:47PM -0700, Andrew Morton wrote:
->> It would be nice to find some way of triggering compiler warnings or
->> sparse warnings if someone mixes a 32-bit type with a vm_flags_t.  Any
->> thoughts on this?
->>
->> (Maybe that's what __nocast does, but Documentation/sparse.txt doesn't
->> describe it)
+On Tue, Mar 27, 2012 at 09:53:41PM -0700, Hugh Dickins wrote:
+> On Wed, 28 Mar 2012, Sasha Levin wrote:
+> > On Tue, Mar 27, 2012 at 1:17 AM, Andrew Morton
+> > <akpm@linux-foundation.org> wrote:
+> > > The task is waiting for IO to complete against a page, and it isn't
+> > > happening.
+> > >
+> > > There are quite a lot of things which could cause this, alas. VM,
+> > > readahead, scheduler, core wait/wakeup code, IO system, interrupt
+> > > system (if it happens outside KVM, I guess).
+> > >
+> > > So.... ugh. Hopefully someone will hit this in a situation where it
+> > > can be narrowed down or bisected.
+> > 
+> > I've only managed to reproduce it once, and was unable to get anything
+> > useful out of it due to technical reasons.
+> > 
+> > The good part is that I've managed to hit something similar (although
+> > I'm not 100% sure it's the same problem as the one in the original
+> > mail).
 > 
-> Use __bitwise for that - check how gfp_t is handled.
+> I don't think this one has anything to do with the first you posted,
+> but it does look like a good catch against current linux-next, where
+> pagemap_pte_range() appears to do a spin_lock(&walk->mm->page_table_lock)
+> which should have been removed by "thp: optimize away unnecessary page
+> table locking".  Some kind of mismerge perhaps: Horiguchi-san added to Cc.
 
-Hmm..
+Thanks for reporting.
+This spin_lock() also exists in mainline, so we need a fix on it.
+I'll post later for -stable tree.
 
-If now we activate __bitwise, really plenty driver start create lots warnings.
-Does it make sense?
-
-In fact, x86-32 keep 32bit vma_t forever. thus all x86 specific driver don't
-need any change. Moreover many ancient drivers has no maintainer and I can't
-expect such driver will be fixed even though a warning occur.
-
-So, I think __nocast weakness is better than strict __bitwise annotation for
-this situation.
+Thanks,
+Naoya
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
