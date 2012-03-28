@@ -1,112 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx118.postini.com [74.125.245.118])
-	by kanga.kvack.org (Postfix) with SMTP id 2831E6B010E
-	for <linux-mm@kvack.org>; Wed, 28 Mar 2012 18:03:14 -0400 (EDT)
-Message-Id: <20120328131153.305137134@intel.com>
-Date: Wed, 28 Mar 2012 20:13:11 +0800
+Received: from psmtp.com (na3sys010amx127.postini.com [74.125.245.127])
+	by kanga.kvack.org (Postfix) with SMTP id 9DCF16B0113
+	for <linux-mm@kvack.org>; Wed, 28 Mar 2012 18:16:56 -0400 (EDT)
+Message-Id: <20120328131153.227169439@intel.com>
+Date: Wed, 28 Mar 2012 20:13:10 +0800
 From: Fengguang Wu <fengguang.wu@intel.com>
-Subject: [PATCH 3/6] blk-cgroup: buffered write IO controller - bandwidth weight
+Subject: [PATCH 2/6] blk-cgroup: account dirtied pages
 References: <20120328121308.568545879@intel.com>
-Content-Disposition: inline; filename=writeback-io-controller-weight.patch
+Content-Disposition: inline; filename=blk-cgroup-nr-dirtied.patch
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Linux Memory Management List <linux-mm@kvack.org>
-Cc: Vivek Goyal <vgoyal@redhat.com>, Fengguang Wu <fengguang.wu@intel.com>, Suresh Jayaraman <sjayaraman@suse.com>, Andrea Righi <andrea@betterlinux.com>, Jeff Moyer <jmoyer@redhat.com>, linux-fsdevel@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>
+Cc: Vivek Goyal <vgoyal@redhat.com>, Wu Fengguang <fengguang.wu@intel.com>, Suresh Jayaraman <sjayaraman@suse.com>, Andrea Righi <andrea@betterlinux.com>, Jeff Moyer <jmoyer@redhat.com>, linux-fsdevel@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>
 
-blkcg->weight can be trivially supported for buffered writes by directly
-scaling task_ratelimit in balance_dirty_pages().
 
-However the sementics are not quite the same with direct IO.
-
-- for direct IO, weight is normally applied to disk time
-- for buffered writes, weight is applied to dirty rate
-
-Notes about the (balanced_dirty_ratelimit > write_bw) check removal:
-
-When there is only one dd running and its weight is set to
-BLKIO_WEIGHT_MIN=10, bdi->dirty_ratelimit will end up balancing around
-
-	write_bw * BLKIO_WEIGHT_DEFAULT / BLKIO_WEIGHT_MIN 
-	= write_bw * 50
-
-So the limit should now be raised to (write_bw * 50) to deal with the
-above extreme case, which seems too large to be useful for normal cases.
-So just remove it.
-
-Signed-off-by: Fengguang Wu <fengguang.wu@intel.com>
+Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
 ---
- include/linux/blk-cgroup.h |   18 ++++++++++++++----
- mm/page-writeback.c        |   10 +++++-----
- 2 files changed, 19 insertions(+), 9 deletions(-)
+ block/blk-cgroup.c         |    4 ++++
+ include/linux/blk-cgroup.h |    1 +
+ mm/page-writeback.c        |    6 ++++++
+ 3 files changed, 11 insertions(+)
 
---- linux-next.orig/include/linux/blk-cgroup.h	2012-03-28 13:42:26.686233288 +0800
-+++ linux-next/include/linux/blk-cgroup.h	2012-03-28 14:25:16.150180560 +0800
-@@ -21,6 +21,10 @@ enum blkio_policy_id {
- 	BLKIO_POLICY_THROTL,		/* Throttling */
+--- linux-next.orig/block/blk-cgroup.c	2012-03-28 14:55:47.522142976 +0800
++++ linux-next/block/blk-cgroup.c	2012-03-28 15:39:46.722088815 +0800
+@@ -1594,6 +1594,7 @@ static void blkiocg_destroy(struct cgrou
+ 
+ 	free_css_id(&blkio_subsys, &blkcg->css);
+ 	rcu_read_unlock();
++	percpu_counter_destroy(&blkcg->nr_dirtied);
+ 	if (blkcg != &blkio_root_cgroup)
+ 		kfree(blkcg);
+ }
+@@ -1619,6 +1620,9 @@ done:
+ 	INIT_HLIST_HEAD(&blkcg->blkg_list);
+ 
+ 	INIT_LIST_HEAD(&blkcg->policy_list);
++
++	percpu_counter_init(&blkcg->nr_dirtied, 0);
++
+ 	return &blkcg->css;
+ }
+ 
+--- linux-next.orig/include/linux/blk-cgroup.h	2012-03-28 14:55:47.530142977 +0800
++++ linux-next/include/linux/blk-cgroup.h	2012-03-28 15:40:27.754087973 +0800
+@@ -117,6 +117,7 @@ struct blkio_cgroup {
+ 	spinlock_t lock;
+ 	struct hlist_head blkg_list;
+ 	struct list_head policy_list; /* list of blkio_policy_node */
++	struct percpu_counter nr_dirtied;
  };
  
-+#define BLKIO_WEIGHT_MIN	10
-+#define BLKIO_WEIGHT_MAX	1000
-+#define BLKIO_WEIGHT_DEFAULT	500
-+
- /* Max limits for throttle policy */
- #define THROTL_IOPS_MAX		UINT_MAX
+ struct blkio_group_stats {
+--- linux-next.orig/mm/page-writeback.c	2012-03-28 14:55:47.510142976 +0800
++++ linux-next/mm/page-writeback.c	2012-03-28 15:40:39.366087735 +0800
+@@ -34,6 +34,7 @@
+ #include <linux/syscalls.h>
+ #include <linux/buffer_head.h> /* __set_page_dirty_buffers */
+ #include <linux/pagevec.h>
++#include <linux/blk-cgroup.h>
+ #include <trace/events/writeback.h>
  
-@@ -209,6 +213,11 @@ extern unsigned int blkcg_get_read_iops(
- extern unsigned int blkcg_get_write_iops(struct blkio_cgroup *blkcg,
- 				     dev_t dev);
- 
-+static inline unsigned int blkcg_weight(struct blkio_cgroup *blkcg)
-+{
-+	return blkcg->weight;
-+}
-+
- typedef void (blkio_unlink_group_fn) (void *key, struct blkio_group *blkg);
- 
- typedef void (blkio_update_group_weight_fn) (void *key,
-@@ -259,11 +268,12 @@ static inline void blkio_policy_unregist
- 
- static inline char *blkg_path(struct blkio_group *blkg) { return NULL; }
- 
--#endif
-+static inline unsigned int blkcg_weight(struct blkio_cgroup *blkcg)
-+{
-+	return BLKIO_WEIGHT_DEFAULT;
-+}
- 
--#define BLKIO_WEIGHT_MIN	10
--#define BLKIO_WEIGHT_MAX	1000
--#define BLKIO_WEIGHT_DEFAULT	500
+ /*
+@@ -1933,6 +1934,11 @@ int __set_page_dirty_no_writeback(struct
+ void account_page_dirtied(struct page *page, struct address_space *mapping)
+ {
+ 	if (mapping_cap_account_dirty(mapping)) {
++#ifdef CONFIG_BLK_DEV_THROTTLING
++		struct blkio_cgroup *blkcg = task_blkio_cgroup(current);
++		if (blkcg)
++			__percpu_counter_add(&blkcg->nr_dirtied, 1, BDI_STAT_BATCH);
 +#endif
- 
- #ifdef CONFIG_DEBUG_BLK_CGROUP
- void blkiocg_update_avg_queue_size_stats(struct blkio_group *blkg);
---- linux-next.orig/mm/page-writeback.c	2012-03-28 13:42:26.678233289 +0800
-+++ linux-next/mm/page-writeback.c	2012-03-28 14:26:02.694179605 +0800
-@@ -905,11 +905,6 @@ static void bdi_update_dirty_ratelimit(s
- 	 */
- 	balanced_dirty_ratelimit = div_u64((u64)task_ratelimit * write_bw,
- 					   dirty_rate | 1);
--	/*
--	 * balanced_dirty_ratelimit ~= (write_bw / N) <= write_bw
--	 */
--	if (unlikely(balanced_dirty_ratelimit > write_bw))
--		balanced_dirty_ratelimit = write_bw;
- 
- 	/*
- 	 * We could safely do this and return immediately:
-@@ -1263,6 +1258,11 @@ static void balance_dirty_pages(struct a
- 					       bdi_thresh, bdi_dirty);
- 		task_ratelimit = ((u64)dirty_ratelimit * pos_ratio) >>
- 							RATELIMIT_CALC_SHIFT;
-+
-+		if (blkcg_weight(blkcg) != BLKIO_WEIGHT_DEFAULT)
-+			task_ratelimit = (u64)task_ratelimit *
-+				blkcg_weight(blkcg) / BLKIO_WEIGHT_DEFAULT;
-+
- 		max_pause = bdi_max_pause(bdi, bdi_dirty);
- 		min_pause = bdi_min_pause(bdi, max_pause,
- 					  task_ratelimit, dirty_ratelimit,
+ 		__inc_zone_page_state(page, NR_FILE_DIRTY);
+ 		__inc_zone_page_state(page, NR_DIRTIED);
+ 		__inc_bdi_stat(mapping->backing_dev_info, BDI_RECLAIMABLE);
 
 
 --
