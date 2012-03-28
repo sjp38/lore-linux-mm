@@ -1,224 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx167.postini.com [74.125.245.167])
-	by kanga.kvack.org (Postfix) with SMTP id 93E606B00EF
-	for <linux-mm@kvack.org>; Wed, 28 Mar 2012 07:08:13 -0400 (EDT)
-Received: from m4.gw.fujitsu.co.jp (unknown [10.0.50.74])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 32CC63EE0AE
-	for <linux-mm@kvack.org>; Wed, 28 Mar 2012 20:08:12 +0900 (JST)
-Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 18EF345DE51
-	for <linux-mm@kvack.org>; Wed, 28 Mar 2012 20:08:12 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id F3C4245DE4F
-	for <linux-mm@kvack.org>; Wed, 28 Mar 2012 20:08:11 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id E54931DB803E
-	for <linux-mm@kvack.org>; Wed, 28 Mar 2012 20:08:11 +0900 (JST)
-Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.240.81.145])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 954E31DB8037
-	for <linux-mm@kvack.org>; Wed, 28 Mar 2012 20:08:11 +0900 (JST)
-Message-ID: <4F72F0AF.4080208@jp.fujitsu.com>
-Date: Wed, 28 Mar 2012 20:06:23 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-MIME-Version: 1.0
-Subject: [RFC][PATCH 6/6] memcg: config for integrate page_cgroup into memmap
-References: <4F72EB84.7080000@jp.fujitsu.com>
-In-Reply-To: <4F72EB84.7080000@jp.fujitsu.com>
-Content-Type: text/plain; charset=ISO-2022-JP
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx126.postini.com [74.125.245.126])
+	by kanga.kvack.org (Postfix) with SMTP id 63BF96B007E
+	for <linux-mm@kvack.org>; Wed, 28 Mar 2012 07:26:28 -0400 (EDT)
+Message-ID: <1332933968.2528.26.camel@twins>
+Subject: Re: [PATCH 11/39] autonuma: CPU follow memory algorithm
+From: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Date: Wed, 28 Mar 2012 13:26:08 +0200
+In-Reply-To: <20120327161540.GS5906@redhat.com>
+References: <1332783986-24195-1-git-send-email-aarcange@redhat.com>
+	 <1332783986-24195-12-git-send-email-aarcange@redhat.com>
+	 <1332786353.16159.173.camel@twins> <4F70C365.8020009@redhat.com>
+	 <20120326194435.GW5906@redhat.com>
+	 <CA+55aFwk0Etg_UhoZcKsfFJ7PQNLdQ58xxXiwcA-jemuXdZCZQ@mail.gmail.com>
+	 <20120326203951.GZ5906@redhat.com> <1332837595.16159.208.camel@twins>
+	 <20120327161540.GS5906@redhat.com>
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: quoted-printable
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "linux-mm@kvack.org" <linux-mm@kvack.org>
-Cc: Linux Kernel <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, Han Ying <yinghan@google.com>, Glauber Costa <glommer@parallels.com>, Konstantin Khlebnikov <khlebnikov@openvz.org>, Suleiman Souhlal <suleiman@google.com>
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Hillf Danton <dhillf@gmail.com>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Dan Smith <danms@us.ibm.com>, Paul Turner <pjt@google.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Rik van Riel <riel@redhat.com>, Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, linux-mm@kvack.org, Suresh Siddha <suresh.b.siddha@intel.com>, Mike Galbraith <efault@gmx.de>, Bharata B Rao <bharata.rao@gmail.com>, Thomas Gleixner <tglx@linutronix.de>, Johannes Weiner <hannes@cmpxchg.org>, linux-kernel@vger.kernel.org
 
-This patch is an experimental patch.
-Considering 32bit archs, I think this should be CONFIG option...
-==
-Now, struct page_cgroup is 8byte object and allocated per a page.
-This patch adds a config option to allocate page_cgroup in struct page.
+On Tue, 2012-03-27 at 18:15 +0200, Andrea Arcangeli wrote:
+> This is _purely_ a performance optimization so if my design is so bad,
+> and you're also requiring all apps that spans over more than one NUMA
+> node to be modified to use your new syscalls, you won't have problems
+> to win against AutoNUMA in the benchmarks.=20
 
-By this
-Pros.
-  - lookup_page_cgroup() is almost 0 cost.
-  - implementation seems very natural...
-Cons.
-  - size of 'struct page' will be increased  (to 64bytes in typical case)
-  - cgroup_disable=memory will not allow user to avoid 8bytes of overhead.
+Right, so can we agree that the only case where they diverge is single
+processes that have multiple threads and are bigger than a single node (eit=
+her
+in memory, cputime or both)?
 
-Tested 'kernel make' on tmpfs.
+I've asked you several times why you care about that one case so much, but
+without answer.
 
-Config=n
- Performance counter stats for 'make -j 8':
+I'll grant you that unmodified such processes might do better with your
+stuff, however:
 
- 1,180,857,100,495 instructions              #    0.00  insns per cycle
-       923,084,678 cache-misses
+ - your stuff assumes there is a fair amount of locality to exploit.
 
-      71.346377273 seconds time elapsed
+   I'm not seeing how this is true in general, since data partitioning is h=
+ard
+   and for those problems where its possible people tend to already do so,
+   yielding natural points to add the syscalls.
 
-Config=y
-Performance counter stats for 'make -j 8':
+ - your stuff doesn't actually nest, since a guest kernel has no clue as to
+   what constitutes a node (or if there even is such a thing) it will rando=
+mly
+   move tasks around on the vcpus, with complete disrespect for whatever ho=
+st
+   vcpu<->page mappings you set up.
 
- 1,178,404,304,530 instructions              #    0.00  insns per cycle
-       911,098,615 cache-misses
+   guest kernels actively scramble whatever relations you're building by
+   scanning, destroying whatever (temporal) locality you think you might
+   have found.
 
-      71.607477840 seconds time elapsed
+ - also, by not exposing NUMA to the guest kernel, the guest kernel/userspa=
+ce
+   has no clue it needs to behave as if there's multiple nodes etc..
 
-seems instructions and cache-misses decreased to some extent.
-But no visible change in total execution time...
+Furthermore, most applications that are really big tend to have already tho=
+ught
+about parallelism and have employed things like data-parallelism if at all
+possible. If this is not possible (many problems fall in this category) the=
+re
+really isn't much you can do.
 
-Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
----
- include/linux/mm_types.h    |    4 +++-
- include/linux/page_cgroup.h |   33 ++++++++++++++++++++++++++++++++-
- init/Kconfig                |   14 ++++++++++++++
- mm/memcontrol.c             |    3 ++-
- mm/page_alloc.c             |    1 +
- mm/page_cgroup.c            |    3 ++-
- 6 files changed, 54 insertions(+), 4 deletions(-)
+Related to this is that all applications that currently use mbind() and
+sched_setaffinity() are trivial to convert.
 
-diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
-index 76bbdaf..2beda78 100644
---- a/include/linux/mm_types.h
-+++ b/include/linux/mm_types.h
-@@ -141,7 +141,9 @@ struct page {
- #ifdef CONFIG_WANT_PAGE_DEBUG_FLAGS
- 	unsigned long debug_flags;	/* Use atomic bitops on this */
- #endif
--
-+#ifdef CONFIG_INTEGRATED_PAGE_CGROUP
-+	unsigned long page_cgroup;	/* see page_cgroup.h */
-+#endif
- #ifdef CONFIG_KMEMCHECK
- 	/*
- 	 * kmemcheck wants to track the status of each byte in a page; this
-diff --git a/include/linux/page_cgroup.h b/include/linux/page_cgroup.h
-index 7e3a3c7..0e02632 100644
---- a/include/linux/page_cgroup.h
-+++ b/include/linux/page_cgroup.h
-@@ -35,8 +35,9 @@ struct page_cgroup {
- 	unsigned long flags;
- };
- 
--void __meminit pgdat_page_cgroup_init(struct pglist_data *pgdat);
- 
-+#ifndef CONFIG_INTEGRATED_PAGE_CGROUP
-+void __meminit pgdat_page_cgroup_init(struct pglist_data *pgdat);
- #ifdef CONFIG_SPARSEMEM
- static inline void __init page_cgroup_init_flatmem(void)
- {
-@@ -51,6 +52,36 @@ static inline void __init page_cgroup_init(void)
- 
- struct page_cgroup *lookup_page_cgroup(struct page *page);
- struct page *lookup_cgroup_page(struct page_cgroup *pc);
-+static inline void memmap_init_cgroup(struct page *page)
-+{
-+}
-+#else
-+static inline struct page_cgroup *lookup_page_cgroup(struct page *page)
-+{
-+	return (struct page_cgroup*)&page->page_cgroup;
-+}
-+
-+static inline struct page *lookup_cgroup_page(struct page_cgroup *pc)
-+{
-+	return container_of((unsigned long*)pc, struct page, page_cgroup);
-+}
-+
-+static inline void memmap_init_cgroup(struct page *page)
-+{
-+	page->page_cgroup = 0;
-+}
-+
-+static inline void __init page_cgroup_init_flatmem(void)
-+{
-+}
-+static inline void __init page_cgroup_init(void)
-+{
-+}
-+
-+static inline void pgdat_page_cgroup_init(struct pglist_data *pgdat)
-+{
-+}
-+#endif
- 
- #define TESTPCGFLAG(uname, lname)			\
- static inline int PageCgroup##uname(struct page_cgroup *pc)	\
-diff --git a/init/Kconfig b/init/Kconfig
-index e0bfe92..99514c2 100644
---- a/init/Kconfig
-+++ b/init/Kconfig
-@@ -694,6 +694,20 @@ config CGROUP_MEM_RES_CTLR_SWAP_ENABLED
- 	  For those who want to have the feature enabled by default should
- 	  select this option (if, for some reason, they need to disable it
- 	  then swapaccount=0 does the trick).
-+
-+config INTEGRATED_PAGE_CGROUP
-+	bool "record memory cgroup information into struct page"
-+	depends on CGROUP_MEM_RES_CTLR
-+	default n
-+	help
-+	  Memory Resource Controller consumes 4/(8 if 64bit)bytes per page.
-+	  It's independent of 'struct page'. If you say Y here, memory cgroup
-+	  information is recorded into struct page and increase size of it
-+	  4/8 bytes. With this, cpu overheads in runtime will be reduced
-+	  but you cannot avoid above overheads of 4/8 bytes per page by boot
-+	  option. If unsure, say N.
-+
-+
- config CGROUP_MEM_RES_CTLR_KMEM
- 	bool "Memory Resource Controller Kernel Memory accounting (EXPERIMENTAL)"
- 	depends on CGROUP_MEM_RES_CTLR && EXPERIMENTAL
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 767bef3..0c5b15c 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -2557,7 +2557,8 @@ void mem_cgroup_split_huge_fixup(struct page *head)
- 	if (!PageCgroupUsed(head_pc))
- 		return;
- 	for (i = 1; i < HPAGE_PMD_NR; i++) {
--		pc = head_pc + i;
-+		/* page struct is contiguous in hugepage. */
-+		pc = lookup_page_cgroup(head + i);
- 		pc_set_mem_cgroup_and_flags(pc, memcg, BIT(PCG_USED));
- 	}
- }
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 0b37873..9be94df 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -3682,6 +3682,7 @@ void __meminit memmap_init_zone(unsigned long size, int nid, unsigned long zone,
- 		if (!is_highmem_idx(zone))
- 			set_page_address(page, __va(pfn << PAGE_SHIFT));
- #endif
-+		memmap_init_cgroup(page);
- 	}
- }
- 
-diff --git a/mm/page_cgroup.c b/mm/page_cgroup.c
-index 1ccbd71..036c8ea 100644
---- a/mm/page_cgroup.c
-+++ b/mm/page_cgroup.c
-@@ -11,6 +11,7 @@
- #include <linux/swapops.h>
- #include <linux/kmemleak.h>
- 
-+#ifndef CONFIG_INTEGRATED_PAGE_CGROUP
- static unsigned long total_usage;
- 
- #if !defined(CONFIG_SPARSEMEM)
-@@ -315,7 +316,7 @@ void __meminit pgdat_page_cgroup_init(struct pglist_data *pgdat)
- }
- 
- #endif
--
-+#endif
- 
- #ifdef CONFIG_CGROUP_MEM_RES_CTLR_SWAP
- 
--- 
-1.7.4.1
+Also, really big threaded programs have a natural enemy, the shared state t=
+hat
+makes it a process, most dominantly the shared address space (mmap_sem etc.=
+.).
 
+There's also the reason Avi mentioned, core count tends to go up, which mea=
+ns
+nodes are getting bigger and bigger.
 
+But most importantly, your solution is big, complex and costly specifically=
+ to
+handle this case which, as per the above reasons, I think is not very
+interesting.
+
+So why not do the simple thing first before going overboard for a case that
+might be irrelevant?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
