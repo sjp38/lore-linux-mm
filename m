@@ -1,65 +1,195 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx127.postini.com [74.125.245.127])
-	by kanga.kvack.org (Postfix) with SMTP id 2FA9E6B010C
-	for <linux-mm@kvack.org>; Wed, 28 Mar 2012 10:38:47 -0400 (EDT)
-MIME-version: 1.0
-Content-transfer-encoding: 7BIT
-Content-type: text/plain; charset=us-ascii
-Received: from euspt2 ([210.118.77.14]) by mailout4.w1.samsung.com
- (Sun Java(tm) System Messaging Server 6.3-8.04 (built Jul 29 2009; 32bit))
- with ESMTP id <0M1L00LAXNCP3W70@mailout4.w1.samsung.com> for
- linux-mm@kvack.org; Wed, 28 Mar 2012 15:38:49 +0100 (BST)
-Received: from linux.samsung.com ([106.116.38.10])
- by spt2.w1.samsung.com (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14
- 2004)) with ESMTPA id <0M1L00KDSNCIKQ@spt2.w1.samsung.com> for
- linux-mm@kvack.org; Wed, 28 Mar 2012 15:38:43 +0100 (BST)
-Date: Wed, 28 Mar 2012 16:38:40 +0200
-From: Marek Szyprowski <m.szyprowski@samsung.com>
-Subject: RE: [PATCHv2 01/14] common: dma-mapping: introduce alloc_attrs and
- free_attrs methods
-In-reply-to: <4F72F603.2000803@mvista.com>
-Message-id: <016001cd0cf0$7807bdb0$68173910$%szyprowski@samsung.com>
-Content-language: pl
-References: <1332855768-32583-1-git-send-email-m.szyprowski@samsung.com>
- <1332855768-32583-2-git-send-email-m.szyprowski@samsung.com>
- <4F72F603.2000803@mvista.com>
+Received: from psmtp.com (na3sys010amx186.postini.com [74.125.245.186])
+	by kanga.kvack.org (Postfix) with SMTP id F09FC6B004A
+	for <linux-mm@kvack.org>; Wed, 28 Mar 2012 11:44:36 -0400 (EDT)
+Date: Wed, 28 Mar 2012 17:44:34 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH -V4 04/10] memcg: Add HugeTLB extension
+Message-ID: <20120328154434.GN20949@tiehlicka.suse.cz>
+References: <1331919570-2264-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+ <1331919570-2264-5-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+ <20120328113304.GE20949@tiehlicka.suse.cz>
+ <87d37wetd7.fsf@skywalker.in.ibm.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <87d37wetd7.fsf@skywalker.in.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: 'Sergei Shtylyov' <sshtylyov@mvista.com>
-Cc: linux-kernel@vger.kernel.org, 'Benjamin Herrenschmidt' <benh@kernel.crashing.org>, 'Thomas Gleixner' <tglx@linutronix.de>, 'Andrew Morton' <akpm@linux-foundation.org>, 'Arnd Bergmann' <arnd@arndb.de>, 'Stephen Rothwell' <sfr@canb.auug.org.au>, 'FUJITA Tomonori' <fujita.tomonori@lab.ntt.co.jp>, microblaze-uclinux@itee.uq.edu.au, linux-arch@vger.kernel.org, x86@kernel.org, linux-sh@vger.kernel.org, linux-alpha@vger.kernel.org, sparclinux@vger.kernel.org, linux-ia64@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-mips@linux-mips.org, discuss@x86-64.org, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, linaro-mm-sig@lists.linaro.org, 'Jonathan Corbet' <corbet@lwn.net>, 'Kyungmin Park' <kyungmin.park@samsung.com>, Andrzej Pietrasiewicz <andrzej.p@samsung.com>, 'Kevin Cernekee' <cernekee@gmail.com>, 'Dezhong Diao' <dediao@cisco.com>, 'Richard Kuo' <rkuo@codeaurora.org>, "'David S. Miller'" <davem@davemloft.net>, 'Michal Simek' <monstr@monstr.eu>, 'Guan Xuetao' <gxt@mprc.pku.edu.cn>, 'Paul Mundt' <lethal@linux-sh.org>, 'Richard Henderson' <rth@twiddle.net>, 'Ivan Kokshaysky' <ink@jurassic.park.msu.ru>, 'Matt Turner' <mattst88@gmail.com>, 'Tony Luck' <tony.luck@intel.com>, 'Fenghua Yu' <fenghua.yu@intel.com>
+To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Cc: linux-mm@kvack.org, mgorman@suse.de, kamezawa.hiroyu@jp.fujitsu.com, dhillf@gmail.com, aarcange@redhat.com, akpm@linux-foundation.org, hannes@cmpxchg.org, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org
 
-Hi Sergei,
-
-On Wednesday, March 28, 2012 1:29 PM Sergei Shtylyov wrote:
-
-> On 27-03-2012 17:42, Marek Szyprowski wrote:
+On Wed 28-03-12 19:10:36, Aneesh Kumar K.V wrote:
+> Michal Hocko <mhocko@suse.cz> writes:
 > 
-> > Introduce new generic alloc and free methods with attributes argument.
+> > On Fri 16-03-12 23:09:24, Aneesh Kumar K.V wrote:
+> >> From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+> >> 
+> >> This patch implements a memcg extension that allows us to control
+> >> HugeTLB allocations via memory controller.
+> >
+> > And the infrastructure is not used at this stage (you forgot to
+> > mention).
+> > The changelog should be much more descriptive.
 > 
->     The method names don't match the ones in the subject.
+> 
+> Will update the changelog.
 
-Right, I will reword the subject to "common: dma-mapping: introduce generic alloc()
-and free() methods".
+Thx
 
-> > Existing alloc_coherent and free_coherent can be implemented on top of the
-> > new calls with NULL attributes argument. Later also dma_alloc_non_coherent
-> > can be implemented using DMA_ATTR_NONCOHERENT attribute as well as
-> > dma_alloc_writecombine with separate DMA_ATTR_WRITECOMBINE attribute.
 > 
-> > This way the drivers will get more generic, platform independent way of
-> > allocating dma buffers with specific parameters.
+> >
+> >> 
+> >> Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
+> >> ---
+> >>  include/linux/hugetlb.h    |    1 +
+> >>  include/linux/memcontrol.h |   42 +++++++++++++
+> >>  init/Kconfig               |    8 +++
+> >>  mm/hugetlb.c               |    2 +-
+> >>  mm/memcontrol.c            |  138 ++++++++++++++++++++++++++++++++++++++++++++
+> >>  5 files changed, 190 insertions(+), 1 deletions(-)
+> >> 
+> > [...]
+> >> diff --git a/init/Kconfig b/init/Kconfig
+> >> index 3f42cd6..f0eb8aa 100644
+> >> --- a/init/Kconfig
+> >> +++ b/init/Kconfig
+> >> @@ -725,6 +725,14 @@ config CGROUP_PERF
+> >>  
+> >>  	  Say N if unsure.
+> >>  
+> >> +config MEM_RES_CTLR_HUGETLB
+> >> +	bool "Memory Resource Controller HugeTLB Extension (EXPERIMENTAL)"
+> >> +	depends on CGROUP_MEM_RES_CTLR && HUGETLB_PAGE && EXPERIMENTAL
+> >> +	default n
+> >> +	help
+> >> +	  Add HugeTLB management to memory resource controller. When you
+> >> +	  enable this, you can put a per cgroup limit on HugeTLB usage.
+> >
+> > How does it interact with the hard/soft limists etc...
 > 
-> > Signed-off-by: Marek Szyprowski <m.szyprowski@samsung.com>
-> > Acked-by: Kyungmin Park <kyungmin.park@samsung.com>
-> > Reviewed-by: David Gibson <david@gibson.dropbear.ud.au>
-> > Reviewed-by: Arnd Bergmann <arnd@arndb.de>
 > 
+> There is no softlimit support for HugeTLB extension.
 
-Best regards
+Sure, sorry for not being precise. The point was how this interacts with
+memcg hard/soft limit (they are independent) etc...
+
+> > [...]
+> >> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> >> index 6728a7a..4b36c5e 100644
+> >> --- a/mm/memcontrol.c
+> >> +++ b/mm/memcontrol.c
+> >> @@ -235,6 +235,10 @@ struct mem_cgroup {
+> >>  	 */
+> >>  	struct res_counter memsw;
+> >>  	/*
+> >> +	 * the counter to account for hugepages from hugetlb.
+> >> +	 */
+> >> +	struct res_counter hugepage[HUGE_MAX_HSTATE];
+> >> +	/*
+> >>  	 * Per cgroup active and inactive list, similar to the
+> >>  	 * per zone LRU lists.
+> >>  	 */
+> >> @@ -3156,6 +3160,128 @@ static inline int mem_cgroup_move_swap_account(swp_entry_t entry,
+> >>  }
+> >>  #endif
+> >>  
+> >> +#ifdef CONFIG_MEM_RES_CTLR_HUGETLB
+> >> +static bool mem_cgroup_have_hugetlb_usage(struct mem_cgroup *memcg)
+> >> +{
+> >> +	int idx;
+> >> +	for (idx = 0; idx < hugetlb_max_hstate; idx++) {
+> >
+> > Maybe we should expose for_each_hstate as well...
+> 
+> 
+> That will not really help here. If we use for_each_hstate then we will
+> need to use hstate_index to get the index.
+
+Fair enough
+
+> >> +		if (memcg->hugepage[idx].usage > 0)
+> >> +			return 1;
+> >> +	}
+> >> +	return 0;
+> >> +}
+> >> +
+> >> +int mem_cgroup_hugetlb_charge_page(int idx, unsigned long nr_pages,
+> >> +				   struct mem_cgroup **ptr)
+> >> +{
+> >> +	int ret = 0;
+> >> +	struct mem_cgroup *memcg;
+> >> +	struct res_counter *fail_res;
+> >> +	unsigned long csize = nr_pages * PAGE_SIZE;
+> >> +
+> >> +	if (mem_cgroup_disabled())
+> >> +		return 0;
+> >> +again:
+> >> +	rcu_read_lock();
+> >> +	memcg = mem_cgroup_from_task(current);
+> >> +	if (!memcg)
+> >> +		memcg = root_mem_cgroup;
+> >> +	if (mem_cgroup_is_root(memcg)) {
+> >> +		rcu_read_unlock();
+> >> +		goto done;
+> >> +	}
+> >> +	if (!css_tryget(&memcg->css)) {
+> >> +		rcu_read_unlock();
+> >> +		goto again;
+> >> +	}
+> >> +	rcu_read_unlock();
+> >> +
+> >> +	ret = res_counter_charge(&memcg->hugepage[idx], csize, &fail_res);
+> >> +	css_put(&memcg->css);
+> >> +done:
+> >> +	*ptr = memcg;
+> >
+> > Why do we set ptr even for the failure case after we dropped a
+> > reference?
+> 
+> That ensures that *ptr is NULL. 
+
+Does it? AFAICS res_counter_charge might fail and you would use non NULL
+memcg (with a dropped reference).
+
+[...]
+> >> +	SetPageCgroupUsed(pc);
+> >> +
+> >> +	unlock_page_cgroup(pc);
+> >> +	return;
+> >> +}
+> >> +
+> > [...]
+> >> @@ -4887,6 +5013,7 @@ err_cleanup:
+> >>  static struct cgroup_subsys_state * __ref
+> >>  mem_cgroup_create(struct cgroup_subsys *ss, struct cgroup *cont)
+> >>  {
+> >> +	int idx;
+> >>  	struct mem_cgroup *memcg, *parent;
+> >>  	long error = -ENOMEM;
+> >>  	int node;
+> >> @@ -4929,9 +5056,14 @@ mem_cgroup_create(struct cgroup_subsys *ss, struct cgroup *cont)
+> >>  		 * mem_cgroup(see mem_cgroup_put).
+> >>  		 */
+> >>  		mem_cgroup_get(parent);
+> >> +		for (idx = 0; idx < HUGE_MAX_HSTATE; idx++)
+> >
+> > Do we have to init all hstates or is hugetlb_max_hstate enough?
+> 
+> 
+> Yes. we do call mem_cgroup_create for root cgroup before initialzing
+> hugetlb hstate.
+
+drop a comment?
+
+
 -- 
-Marek Szyprowski
-Samsung Poland R&D Center
-
+Michal Hocko
+SUSE Labs
+SUSE LINUX s.r.o.
+Lihovarska 1060/12
+190 00 Praha 9    
+Czech Republic
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
