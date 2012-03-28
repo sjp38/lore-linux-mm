@@ -1,139 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx178.postini.com [74.125.245.178])
-	by kanga.kvack.org (Postfix) with SMTP id B2B796B007E
-	for <linux-mm@kvack.org>; Wed, 28 Mar 2012 05:41:36 -0400 (EDT)
-Date: Wed, 28 Mar 2012 11:41:34 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH -V4 03/10] hugetlbfs: Add an inline helper for finding
- hstate index
-Message-ID: <20120328094134.GD20949@tiehlicka.suse.cz>
-References: <1331919570-2264-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
- <1331919570-2264-4-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+Received: from psmtp.com (na3sys010amx202.postini.com [74.125.245.202])
+	by kanga.kvack.org (Postfix) with SMTP id 60F966B0044
+	for <linux-mm@kvack.org>; Wed, 28 Mar 2012 06:46:31 -0400 (EDT)
+Received: from m4.gw.fujitsu.co.jp (unknown [10.0.50.74])
+	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 8ADD33EE0BC
+	for <linux-mm@kvack.org>; Wed, 28 Mar 2012 19:46:29 +0900 (JST)
+Received: from smail (m4 [127.0.0.1])
+	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 7072445DE50
+	for <linux-mm@kvack.org>; Wed, 28 Mar 2012 19:46:29 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
+	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 56B2745DE54
+	for <linux-mm@kvack.org>; Wed, 28 Mar 2012 19:46:29 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 33CDB1DB803F
+	for <linux-mm@kvack.org>; Wed, 28 Mar 2012 19:46:29 +0900 (JST)
+Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.240.81.147])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id DC5691DB803E
+	for <linux-mm@kvack.org>; Wed, 28 Mar 2012 19:46:28 +0900 (JST)
+Message-ID: <4F72EB84.7080000@jp.fujitsu.com>
+Date: Wed, 28 Mar 2012 19:44:20 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1331919570-2264-4-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+Subject: [RFC][PATCH 0/6 v2] reducing page_cgroup size
+Content-Type: text/plain; charset=ISO-2022-JP
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Cc: linux-mm@kvack.org, mgorman@suse.de, kamezawa.hiroyu@jp.fujitsu.com, dhillf@gmail.com, aarcange@redhat.com, akpm@linux-foundation.org, hannes@cmpxchg.org, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org
+To: "linux-mm@kvack.org" <linux-mm@kvack.org>
+Cc: Linux Kernel <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, Han Ying <yinghan@google.com>, Glauber Costa <glommer@parallels.com>, Konstantin Khlebnikov <khlebnikov@openvz.org>, Suleiman Souhlal <suleiman@google.com>
 
-On Fri 16-03-12 23:09:23, Aneesh Kumar K.V wrote:
-> From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-> 
-> Add and inline helper and use it in the code.
+Hi, here is v2 (still RFC again because I changed many parts.)
+I'd like to post v3 without 'RFC' tag after Lsf-MM Summit.
 
-OK, helper function looks much nicer.
+This series is for reducing size of 'struct page_cgroup' to 8 bytes.
+v2 contains 6 patches and did clean-ups and fixes race in v1 and
+adds a trial to integrate struct page_cgroup into struct page.
 
-> 
-> Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
+each patches are...
 
-Acked-by: Michal Hocko <mhocko@suse.cz>
+1/6 ....add methods to access pc->mem_cgroup
+2/6 ....add pc_set_mem_cgroup_and_flags() to set ->mem_cgroup and flags by one call.
+3/6 ....add PageCgroupReset() for handling a race.
+4/6 ....reduce size of struct page_cgroup by removing ->mem_cgroup
+5/6 ....remove unnecessary memory barrier
+6/6 ....add CONFIG_INTEGRATED_PAGE_CGROUP to place page_cgroup in struct page.
 
-> ---
->  include/linux/hugetlb.h |    6 ++++++
->  mm/hugetlb.c            |   18 ++++++++++--------
->  2 files changed, 16 insertions(+), 8 deletions(-)
-> 
-> diff --git a/include/linux/hugetlb.h b/include/linux/hugetlb.h
-> index d9d6c86..a2675b0 100644
-> --- a/include/linux/hugetlb.h
-> +++ b/include/linux/hugetlb.h
-> @@ -311,6 +311,11 @@ static inline unsigned hstate_index_to_shift(unsigned index)
->  	return hstates[index].order + PAGE_SHIFT;
->  }
->  
-> +static inline int hstate_index(struct hstate *h)
-> +{
-> +	return h - hstates;
-> +}
-> +
->  #else
->  struct hstate {};
->  #define alloc_huge_page_node(h, nid) NULL
-> @@ -329,6 +334,7 @@ static inline unsigned int pages_per_huge_page(struct hstate *h)
->  	return 1;
->  }
->  #define hstate_index_to_shift(index) 0
-> +#define hstate_index(h) 0
->  #endif
->  
->  #endif /* _LINUX_HUGETLB_H */
-> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-> index 3782da8..ebe245c 100644
-> --- a/mm/hugetlb.c
-> +++ b/mm/hugetlb.c
-> @@ -1557,7 +1557,7 @@ static int hugetlb_sysfs_add_hstate(struct hstate *h, struct kobject *parent,
->  				    struct attribute_group *hstate_attr_group)
->  {
->  	int retval;
-> -	int hi = h - hstates;
-> +	int hi = hstate_index(h);
->  
->  	hstate_kobjs[hi] = kobject_create_and_add(h->name, parent);
->  	if (!hstate_kobjs[hi])
-> @@ -1652,11 +1652,13 @@ void hugetlb_unregister_node(struct node *node)
->  	if (!nhs->hugepages_kobj)
->  		return;		/* no hstate attributes */
->  
-> -	for_each_hstate(h)
-> -		if (nhs->hstate_kobjs[h - hstates]) {
-> -			kobject_put(nhs->hstate_kobjs[h - hstates]);
-> -			nhs->hstate_kobjs[h - hstates] = NULL;
-> +	for_each_hstate(h) {
-> +		int idx = hstate_index(h);
-> +		if (nhs->hstate_kobjs[idx]) {
-> +			kobject_put(nhs->hstate_kobjs[idx]);
-> +			nhs->hstate_kobjs[idx] = NULL;
->  		}
-> +	}
->  
->  	kobject_put(nhs->hugepages_kobj);
->  	nhs->hugepages_kobj = NULL;
-> @@ -1759,7 +1761,7 @@ static void __exit hugetlb_exit(void)
->  	hugetlb_unregister_all_nodes();
->  
->  	for_each_hstate(h) {
-> -		kobject_put(hstate_kobjs[h - hstates]);
-> +		kobject_put(hstate_kobjs[hstate_index(h)]);
->  	}
->  
->  	kobject_put(hugepages_kobj);
-> @@ -2587,7 +2589,7 @@ retry:
->  		 */
->  		if (unlikely(PageHWPoison(page))) {
->  			ret = VM_FAULT_HWPOISON |
-> -			      VM_FAULT_SET_HINDEX(h - hstates);
-> +				VM_FAULT_SET_HINDEX(hstate_index(h));
->  			goto backout_unlocked;
->  		}
->  	}
-> @@ -2660,7 +2662,7 @@ int hugetlb_fault(struct mm_struct *mm, struct vm_area_struct *vma,
->  			return 0;
->  		} else if (unlikely(is_hugetlb_entry_hwpoisoned(entry)))
->  			return VM_FAULT_HWPOISON_LARGE |
-> -			       VM_FAULT_SET_HINDEX(h - hstates);
-> +				VM_FAULT_SET_HINDEX(hstate_index(h));
->  	}
->  
->  	ptep = huge_pte_alloc(mm, address, huge_page_size(h));
-> -- 
-> 1.7.9
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Fight unfair telecom internet charges in Canada: sign http://stopthemeter.ca/
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-
--- 
-Michal Hocko
-SUSE Labs
-SUSE LINUX s.r.o.
-Lihovarska 1060/12
-190 00 Praha 9    
-Czech Republic
+Regards,
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
