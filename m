@@ -1,80 +1,97 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx150.postini.com [74.125.245.150])
-	by kanga.kvack.org (Postfix) with SMTP id 287866B0101
-	for <linux-mm@kvack.org>; Wed, 28 Mar 2012 09:58:51 -0400 (EDT)
-Date: Wed, 28 Mar 2012 15:58:46 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH -V4 08/10] hugetlbfs: Add a list for tracking in-use
- HugeTLB pages
-Message-ID: <20120328135845.GH20949@tiehlicka.suse.cz>
-References: <1331919570-2264-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
- <1331919570-2264-9-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1331919570-2264-9-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+Received: from psmtp.com (na3sys010amx161.postini.com [74.125.245.161])
+	by kanga.kvack.org (Postfix) with SMTP id E54016B0104
+	for <linux-mm@kvack.org>; Wed, 28 Mar 2012 10:07:25 -0400 (EDT)
+Subject: Re: [Lsf-pc] [TOPIC] Last iput() from flusher thread, last fput()
+ from munmap()...
+From: Steven Whitehouse <swhiteho@redhat.com>
+In-Reply-To: <20120328115430.GF18751@quack.suse.cz>
+References: <20120327210858.GH5020@quack.suse.cz>
+	 <20120328023852.GP6589@ZenIV.linux.org.uk>
+	 <1332925455.2728.19.camel@menhir>  <20120328115430.GF18751@quack.suse.cz>
+Content-Type: text/plain; charset="UTF-8"
+Date: Wed, 28 Mar 2012 15:07:40 +0100
+Message-ID: <1332943660.2728.66.camel@menhir>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Cc: linux-mm@kvack.org, mgorman@suse.de, kamezawa.hiroyu@jp.fujitsu.com, dhillf@gmail.com, aarcange@redhat.com, akpm@linux-foundation.org, hannes@cmpxchg.org, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org
+To: Jan Kara <jack@suse.cz>
+Cc: Al Viro <viro@ZenIV.linux.org.uk>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, lsf-pc@lists.linux-foundation.org
 
-On Fri 16-03-12 23:09:28, Aneesh Kumar K.V wrote:
-> From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Hi,
+
+On Wed, 2012-03-28 at 13:54 +0200, Jan Kara wrote:
+> Hi,
 > 
-> hugepage_activelist will be used to track currently used HugeTLB pages.
-> We need to find the in-use HugeTLB pages to support memcg removal.
-> On memcg removal we update the page's memory cgroup to point to
-> parent cgroup.
+> On Wed 28-03-12 10:04:15, Steven Whitehouse wrote:
+> > On Wed, 2012-03-28 at 03:38 +0100, Al Viro wrote:
+> > > On Tue, Mar 27, 2012 at 11:08:58PM +0200, Jan Kara wrote:
+> > > >   Hello,
+> > > > 
+> > > >   maybe the name of this topic could be "How hard should be life of
+> > > > filesystems?" but that's kind of broad topic and suggests too much of
+> > > > bikeshedding. I'd like to concentrate on concrete possible pain points
+> > > > between filesystems & VFS (possibly writeback or even generally MM).
+> > > > Lately, I've myself came across the two issues in $SUBJECT:
+> > > > 1) dropping of last file reference can happen from munmap() and in that
+> > > >    case mmap_sem will be held when ->release() is called. Even more it
+> > > >    could be held when ->evict_inode() is called to delete inode because
+> > > >    inode was unlinked.
+> > > 
+> > > Yes, it can.
+> > > 
+> > > > 2) since flusher thread takes inode reference when writing inode out, the
+> > > >    last inode reference can be dropped from flusher thread. Thus inode may
+> > > >    get deleted in the flusher thread context. This does not seem that
+> > > >    problematic on its own but if we realize progress of memory reclaim
+> > > >    depends (at least from a longterm perspective) on flusher thread making
+> > > >    progress, things start looking a bit uncertain. Even more so when we
+> > > >    would like avoid ->writepage() calls from reclaim and let flusher thread
+> > > >    do the work instead. That would then require filesystems to carefully
+> > > >    design their ->evict_inode() routines so that things are not
+> > > >    deadlockable.
+> > > 
+> > > You mean "use GFP_NOIO for allocations when holding fs-internal locks"?
+> > > 
+> > > >   Both these issues should be avoidable (we can postpone fput() after we
+> > > > drop mmap_sem; we can tweak inode refcounting to avoid last iput() from
+> > > > flusher thread) but obviously there's some cost in the complexity of generic
+> > > > layer. So the question is, is it worth it?
+> > > 
+> > > I don't thing it is.  ->i_mutex in ->release() is never needed; existing
+> > > cases are racy and dropping preallocation that way is simply wrong.  And
+> > > ->evict_inode() is a non-issue, since it has no reason whatsoever to take
+> > > *any* locks in mutex - the damn thing is called when nobody has references
+> > > to struct inode anymore.  Deadlocks with flusher... that's what NOIO and
+> > > NOFS are for.
+> > > 
+> > For cluster filesystems, we have to take locks (cluster wide) in
+> > ->evict_inode() in order to establish for certain whether we are the
+> > last opener of the inode. Just because there are no references on the
+> > local node, doesn't mean that a remote node doesn't hold the file open
+> > still.
+> > 
+> > We do always use GFP_NOFS when allocating memory while holding such
+> > locks, so I'm not quite sure from the above whether or not that will be
+> > an issue,
+>   Yeah, but you have to use networking to communicate with other nodes
+> about locks and this creates another interesting dependecy.
 > 
-> Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
-> ---
->  include/linux/hugetlb.h |    1 +
->  mm/hugetlb.c            |   23 ++++++++++++++++++-----
->  2 files changed, 19 insertions(+), 5 deletions(-)
+> Currently, everything seems to work out just fine and I don't say I know
+> about a particular deadlock. I just say that the dependencies are so
+> complex that I don't know whether things will work OK e.g. if we change
+> page reclaim to offload more to flusher thread. And that's what I feel
+> uneasy about.
 > 
-> diff --git a/include/linux/hugetlb.h b/include/linux/hugetlb.h
-> index cbd8dc5..6919100 100644
-> --- a/include/linux/hugetlb.h
-> +++ b/include/linux/hugetlb.h
-[...]
-> @@ -2319,14 +2322,24 @@ void __unmap_hugepage_range(struct vm_area_struct *vma, unsigned long start,
->  		page = pte_page(pte);
->  		if (pte_dirty(pte))
->  			set_page_dirty(page);
-> -		list_add(&page->lru, &page_list);
-> +
-> +		spin_lock(&hugetlb_lock);
-> +		list_move(&page->lru, &page_list);
-> +		spin_unlock(&hugetlb_lock);
+> 								Honza
 
-Why do we really need the spinlock here?
+Yes, I agree. I've certainly seen some issues with this code path in
+GFS2 in the past though, so making it more robust in this way seems to
+be a good plan to me,
 
->  	}
->  	spin_unlock(&mm->page_table_lock);
->  	flush_tlb_range(vma, start, end);
->  	mmu_notifier_invalidate_range_end(mm, start, end);
->  	list_for_each_entry_safe(page, tmp, &page_list, lru) {
->  		page_remove_rmap(page);
-> -		list_del(&page->lru);
-> +		/*
-> +		 * We need to move it back huge page active list. If we are
-> +		 * holding the last reference, below put_page will move it
-> +		 * back to free list.
-> +		 */
-> +		spin_lock(&hugetlb_lock);
-> +		list_move(&page->lru, &h->hugepage_activelist);
-> +		spin_unlock(&hugetlb_lock);
+Steve.
 
-This spinlock usage doesn't look nice but I guess we do not have many
-other options.
-
--- 
-Michal Hocko
-SUSE Labs
-SUSE LINUX s.r.o.
-Lihovarska 1060/12
-190 00 Praha 9    
-Czech Republic
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
