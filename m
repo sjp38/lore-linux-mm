@@ -1,64 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx107.postini.com [74.125.245.107])
-	by kanga.kvack.org (Postfix) with SMTP id 631CB6B00F4
-	for <linux-mm@kvack.org>; Wed, 28 Mar 2012 07:36:09 -0400 (EDT)
-Received: from /spool/local
-	by e23smtp04.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
-	Wed, 28 Mar 2012 11:18:35 +1000
-Received: from d23av03.au.ibm.com (d23av03.au.ibm.com [9.190.234.97])
-	by d23relay05.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q2SBTkKd3694632
-	for <linux-mm@kvack.org>; Wed, 28 Mar 2012 22:29:46 +1100
-Received: from d23av03.au.ibm.com (loopback [127.0.0.1])
-	by d23av03.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q2SBZs5T019441
-	for <linux-mm@kvack.org>; Wed, 28 Mar 2012 22:35:55 +1100
-From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Subject: Re: [PATCH -V4 02/10] hugetlbfs: don't use ERR_PTR with VM_FAULT* values
-In-Reply-To: <20120328092547.GC20949@tiehlicka.suse.cz>
-References: <1331919570-2264-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com> <1331919570-2264-3-git-send-email-aneesh.kumar@linux.vnet.ibm.com> <20120328092547.GC20949@tiehlicka.suse.cz>User-Agent: Notmuch/0.11.1+346~g13d19c3 (http://notmuchmail.org) Emacs/23.3.1 (x86_64-pc-linux-gnu)
-Date: Wed, 28 Mar 2012 17:05:49 +0530
-Message-ID: <87vclpyn3e.fsf@skywalker.in.ibm.com>
+Received: from psmtp.com (na3sys010amx153.postini.com [74.125.245.153])
+	by kanga.kvack.org (Postfix) with SMTP id 082006B00F5
+	for <linux-mm@kvack.org>; Wed, 28 Mar 2012 07:54:43 -0400 (EDT)
+Date: Wed, 28 Mar 2012 13:54:30 +0200
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [Lsf-pc] [TOPIC] Last iput() from flusher thread, last fput()
+ from munmap()...
+Message-ID: <20120328115430.GF18751@quack.suse.cz>
+References: <20120327210858.GH5020@quack.suse.cz>
+ <20120328023852.GP6589@ZenIV.linux.org.uk>
+ <1332925455.2728.19.camel@menhir>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1332925455.2728.19.camel@menhir>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: linux-mm@kvack.org, mgorman@suse.de, kamezawa.hiroyu@jp.fujitsu.com, dhillf@gmail.com, aarcange@redhat.com, akpm@linux-foundation.org, hannes@cmpxchg.org, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org
+To: Steven Whitehouse <swhiteho@redhat.com>
+Cc: Al Viro <viro@ZenIV.linux.org.uk>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, lsf-pc@lists.linux-foundation.org, Jan Kara <jack@suse.cz>
 
-Michal Hocko <mhocko@suse.cz> writes:
+  Hi,
 
-> On Fri 16-03-12 23:09:22, Aneesh Kumar K.V wrote:
->> From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
->> 
->> Using VM_FAULT_* codes with ERR_PTR will require us to make sure
->> VM_FAULT_* values will not exceed MAX_ERRNO value.
->> 
->> Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
->> ---
->>  mm/hugetlb.c |   18 +++++++++++++-----
->>  1 files changed, 13 insertions(+), 5 deletions(-)
->> 
->> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
->> index d623e71..3782da8 100644
->> --- a/mm/hugetlb.c
->> +++ b/mm/hugetlb.c
-> [...]
->> @@ -1047,7 +1047,7 @@ static struct page *alloc_huge_page(struct vm_area_struct *vma,
->>  		page = alloc_buddy_huge_page(h, NUMA_NO_NODE);
->>  		if (!page) {
->>  			hugetlb_put_quota(inode->i_mapping, chg);
->> -			return ERR_PTR(-VM_FAULT_SIGBUS);
->> +			return ERR_PTR(-ENOSPC);
->
-> Hmm, so one error code abuse replaced by another?
-> I know that ENOMEM would revert 4a6018f7 which would be unfortunate but
-> ENOSPC doesn't feel right as well.
->
+On Wed 28-03-12 10:04:15, Steven Whitehouse wrote:
+> On Wed, 2012-03-28 at 03:38 +0100, Al Viro wrote:
+> > On Tue, Mar 27, 2012 at 11:08:58PM +0200, Jan Kara wrote:
+> > >   Hello,
+> > > 
+> > >   maybe the name of this topic could be "How hard should be life of
+> > > filesystems?" but that's kind of broad topic and suggests too much of
+> > > bikeshedding. I'd like to concentrate on concrete possible pain points
+> > > between filesystems & VFS (possibly writeback or even generally MM).
+> > > Lately, I've myself came across the two issues in $SUBJECT:
+> > > 1) dropping of last file reference can happen from munmap() and in that
+> > >    case mmap_sem will be held when ->release() is called. Even more it
+> > >    could be held when ->evict_inode() is called to delete inode because
+> > >    inode was unlinked.
+> > 
+> > Yes, it can.
+> > 
+> > > 2) since flusher thread takes inode reference when writing inode out, the
+> > >    last inode reference can be dropped from flusher thread. Thus inode may
+> > >    get deleted in the flusher thread context. This does not seem that
+> > >    problematic on its own but if we realize progress of memory reclaim
+> > >    depends (at least from a longterm perspective) on flusher thread making
+> > >    progress, things start looking a bit uncertain. Even more so when we
+> > >    would like avoid ->writepage() calls from reclaim and let flusher thread
+> > >    do the work instead. That would then require filesystems to carefully
+> > >    design their ->evict_inode() routines so that things are not
+> > >    deadlockable.
+> > 
+> > You mean "use GFP_NOIO for allocations when holding fs-internal locks"?
+> > 
+> > >   Both these issues should be avoidable (we can postpone fput() after we
+> > > drop mmap_sem; we can tweak inode refcounting to avoid last iput() from
+> > > flusher thread) but obviously there's some cost in the complexity of generic
+> > > layer. So the question is, is it worth it?
+> > 
+> > I don't thing it is.  ->i_mutex in ->release() is never needed; existing
+> > cases are racy and dropping preallocation that way is simply wrong.  And
+> > ->evict_inode() is a non-issue, since it has no reason whatsoever to take
+> > *any* locks in mutex - the damn thing is called when nobody has references
+> > to struct inode anymore.  Deadlocks with flusher... that's what NOIO and
+> > NOFS are for.
+> > 
+> For cluster filesystems, we have to take locks (cluster wide) in
+> ->evict_inode() in order to establish for certain whether we are the
+> last opener of the inode. Just because there are no references on the
+> local node, doesn't mean that a remote node doesn't hold the file open
+> still.
+> 
+> We do always use GFP_NOFS when allocating memory while holding such
+> locks, so I'm not quite sure from the above whether or not that will be
+> an issue,
+  Yeah, but you have to use networking to communicate with other nodes
+about locks and this creates another interesting dependecy.
 
-File systems do map ENOSPC to SIGBUS. block_page_mkwrite_return() does
-that.
+Currently, everything seems to work out just fine and I don't say I know
+about a particular deadlock. I just say that the dependencies are so
+complex that I don't know whether things will work OK e.g. if we change
+page reclaim to offload more to flusher thread. And that's what I feel
+uneasy about.
 
--aneesh
+								Honza
+-- 
+Jan Kara <jack@suse.cz>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
