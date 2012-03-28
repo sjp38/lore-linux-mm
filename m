@@ -1,97 +1,113 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx161.postini.com [74.125.245.161])
-	by kanga.kvack.org (Postfix) with SMTP id E54016B0104
-	for <linux-mm@kvack.org>; Wed, 28 Mar 2012 10:07:25 -0400 (EDT)
-Subject: Re: [Lsf-pc] [TOPIC] Last iput() from flusher thread, last fput()
- from munmap()...
-From: Steven Whitehouse <swhiteho@redhat.com>
-In-Reply-To: <20120328115430.GF18751@quack.suse.cz>
-References: <20120327210858.GH5020@quack.suse.cz>
-	 <20120328023852.GP6589@ZenIV.linux.org.uk>
-	 <1332925455.2728.19.camel@menhir>  <20120328115430.GF18751@quack.suse.cz>
-Content-Type: text/plain; charset="UTF-8"
-Date: Wed, 28 Mar 2012 15:07:40 +0100
-Message-ID: <1332943660.2728.66.camel@menhir>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx111.postini.com [74.125.245.111])
+	by kanga.kvack.org (Postfix) with SMTP id CCF526B0105
+	for <linux-mm@kvack.org>; Wed, 28 Mar 2012 10:07:35 -0400 (EDT)
+Date: Wed, 28 Mar 2012 16:07:33 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH -V4 09/10] memcg: move HugeTLB resource count to parent
+ cgroup on memcg removal
+Message-ID: <20120328140733.GI20949@tiehlicka.suse.cz>
+References: <1331919570-2264-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+ <1331919570-2264-10-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1331919570-2264-10-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jan Kara <jack@suse.cz>
-Cc: Al Viro <viro@ZenIV.linux.org.uk>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, lsf-pc@lists.linux-foundation.org
+To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Cc: linux-mm@kvack.org, mgorman@suse.de, kamezawa.hiroyu@jp.fujitsu.com, dhillf@gmail.com, aarcange@redhat.com, akpm@linux-foundation.org, hannes@cmpxchg.org, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org
 
-Hi,
-
-On Wed, 2012-03-28 at 13:54 +0200, Jan Kara wrote:
-> Hi,
+On Fri 16-03-12 23:09:29, Aneesh Kumar K.V wrote:
+> From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
 > 
-> On Wed 28-03-12 10:04:15, Steven Whitehouse wrote:
-> > On Wed, 2012-03-28 at 03:38 +0100, Al Viro wrote:
-> > > On Tue, Mar 27, 2012 at 11:08:58PM +0200, Jan Kara wrote:
-> > > >   Hello,
-> > > > 
-> > > >   maybe the name of this topic could be "How hard should be life of
-> > > > filesystems?" but that's kind of broad topic and suggests too much of
-> > > > bikeshedding. I'd like to concentrate on concrete possible pain points
-> > > > between filesystems & VFS (possibly writeback or even generally MM).
-> > > > Lately, I've myself came across the two issues in $SUBJECT:
-> > > > 1) dropping of last file reference can happen from munmap() and in that
-> > > >    case mmap_sem will be held when ->release() is called. Even more it
-> > > >    could be held when ->evict_inode() is called to delete inode because
-> > > >    inode was unlinked.
-> > > 
-> > > Yes, it can.
-> > > 
-> > > > 2) since flusher thread takes inode reference when writing inode out, the
-> > > >    last inode reference can be dropped from flusher thread. Thus inode may
-> > > >    get deleted in the flusher thread context. This does not seem that
-> > > >    problematic on its own but if we realize progress of memory reclaim
-> > > >    depends (at least from a longterm perspective) on flusher thread making
-> > > >    progress, things start looking a bit uncertain. Even more so when we
-> > > >    would like avoid ->writepage() calls from reclaim and let flusher thread
-> > > >    do the work instead. That would then require filesystems to carefully
-> > > >    design their ->evict_inode() routines so that things are not
-> > > >    deadlockable.
-> > > 
-> > > You mean "use GFP_NOIO for allocations when holding fs-internal locks"?
-> > > 
-> > > >   Both these issues should be avoidable (we can postpone fput() after we
-> > > > drop mmap_sem; we can tweak inode refcounting to avoid last iput() from
-> > > > flusher thread) but obviously there's some cost in the complexity of generic
-> > > > layer. So the question is, is it worth it?
-> > > 
-> > > I don't thing it is.  ->i_mutex in ->release() is never needed; existing
-> > > cases are racy and dropping preallocation that way is simply wrong.  And
-> > > ->evict_inode() is a non-issue, since it has no reason whatsoever to take
-> > > *any* locks in mutex - the damn thing is called when nobody has references
-> > > to struct inode anymore.  Deadlocks with flusher... that's what NOIO and
-> > > NOFS are for.
-> > > 
-> > For cluster filesystems, we have to take locks (cluster wide) in
-> > ->evict_inode() in order to establish for certain whether we are the
-> > last opener of the inode. Just because there are no references on the
-> > local node, doesn't mean that a remote node doesn't hold the file open
-> > still.
-> > 
-> > We do always use GFP_NOFS when allocating memory while holding such
-> > locks, so I'm not quite sure from the above whether or not that will be
-> > an issue,
->   Yeah, but you have to use networking to communicate with other nodes
-> about locks and this creates another interesting dependecy.
+> This add support for memcg removal with HugeTLB resource usage.
 > 
-> Currently, everything seems to work out just fine and I don't say I know
-> about a particular deadlock. I just say that the dependencies are so
-> complex that I don't know whether things will work OK e.g. if we change
-> page reclaim to offload more to flusher thread. And that's what I feel
-> uneasy about.
+> Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
+> ---
+>  include/linux/hugetlb.h    |    6 ++++
+>  include/linux/memcontrol.h |   15 +++++++++-
+>  mm/hugetlb.c               |   41 ++++++++++++++++++++++++++
+>  mm/memcontrol.c            |   68 +++++++++++++++++++++++++++++++++++++------
+>  4 files changed, 119 insertions(+), 11 deletions(-)
 > 
-> 								Honza
+[...]
+> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+> index 8fd465d..685f0d5 100644
+> --- a/mm/hugetlb.c
+> +++ b/mm/hugetlb.c
+[...]
+> @@ -3285,10 +3287,57 @@ void mem_cgroup_hugetlb_uncharge_memcg(int idx, unsigned long nr_pages,
+>  		res_counter_uncharge(&memcg->hugepage[idx], csize);
+>  	return;
+>  }
+> -#else
+> -static bool mem_cgroup_have_hugetlb_usage(struct mem_cgroup *memcg)
+> +
+> +int mem_cgroup_move_hugetlb_parent(int idx, struct cgroup *cgroup,
+> +				   struct page *page)
+>  {
+> -	return 0;
+> +	struct page_cgroup *pc;
+> +	int csize,  ret = 0;
+> +	struct res_counter *fail_res;
+> +	struct cgroup *pcgrp = cgroup->parent;
+> +	struct mem_cgroup *parent = mem_cgroup_from_cont(pcgrp);
+> +	struct mem_cgroup *memcg  = mem_cgroup_from_cont(cgroup);
+> +
+> +	if (!get_page_unless_zero(page))
+> +		goto out;
+> +
+> +	pc = lookup_page_cgroup(page);
+> +	lock_page_cgroup(pc);
+> +	if (!PageCgroupUsed(pc) || pc->mem_cgroup != memcg)
+> +		goto err_out;
+> +
+> +	csize = PAGE_SIZE << compound_order(page);
+> +	/*
+> +	 * uncharge from child and charge the parent. If we have
+> +	 * use_hierarchy set, we can never fail here. In-order to make
+> +	 * sure we don't get -ENOMEM on parent charge, we first uncharge
+> +	 * the child and then charge the parent.
+> +	 */
+> +	if (parent->use_hierarchy) {
+> +		res_counter_uncharge(&memcg->hugepage[idx], csize);
+> +		if (!mem_cgroup_is_root(parent))
+> +			ret = res_counter_charge(&parent->hugepage[idx],
+> +						 csize, &fail_res);
 
-Yes, I agree. I've certainly seen some issues with this code path in
-GFS2 in the past though, so making it more robust in this way seems to
-be a good plan to me,
+You can still race with other hugetlb charge which would make this fail.
 
-Steve.
-
+> +	} else {
+> +		if (!mem_cgroup_is_root(parent)) {
+> +			ret = res_counter_charge(&parent->hugepage[idx],
+> +						 csize, &fail_res);
+> +			if (ret) {
+> +				ret = -EBUSY;
+> +				goto err_out;
+> +			}
+> +		}
+> +		res_counter_uncharge(&memcg->hugepage[idx], csize);
+> +	}
+> +	/*
+> +	 * caller should have done css_get
+> +	 */
+> +	pc->mem_cgroup = parent;
+> +err_out:
+> +	unlock_page_cgroup(pc);
+> +	put_page(page);
+> +out:
+> +	return ret;
+>  }
+>  #endif /* CONFIG_MEM_RES_CTLR_HUGETLB */
+[...]
+-- 
+Michal Hocko
+SUSE Labs
+SUSE LINUX s.r.o.
+Lihovarska 1060/12
+190 00 Praha 9    
+Czech Republic
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
