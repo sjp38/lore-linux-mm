@@ -1,206 +1,491 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx155.postini.com [74.125.245.155])
-	by kanga.kvack.org (Postfix) with SMTP id ACB7F6B0100
-	for <linux-mm@kvack.org>; Wed, 28 Mar 2012 12:06:27 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx170.postini.com [74.125.245.170])
+	by kanga.kvack.org (Postfix) with SMTP id 3BC916B0102
+	for <linux-mm@kvack.org>; Wed, 28 Mar 2012 12:06:28 -0400 (EDT)
 From: Mel Gorman <mgorman@suse.de>
-Subject: [RFC PATCH 0/2] Removal of lumpy reclaim
-Date: Wed, 28 Mar 2012 17:06:21 +0100
-Message-Id: <1332950783-31662-1-git-send-email-mgorman@suse.de>
+Subject: [PATCH 1/2] mm: vmscan: Remove lumpy reclaim
+Date: Wed, 28 Mar 2012 17:06:22 +0100
+Message-Id: <1332950783-31662-2-git-send-email-mgorman@suse.de>
+In-Reply-To: <1332950783-31662-1-git-send-email-mgorman@suse.de>
+References: <1332950783-31662-1-git-send-email-mgorman@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Konstantin Khlebnikov <khlebnikov@openvz.org>, Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@suse.de>
 
-(cc'ing active people in the thread "[patch 68/92] mm: forbid lumpy-reclaim
-in shrink_active_list()")
+Lumpy reclaim had a purpose but in the mind of some, it was to kick
+the system so hard it trashed. For others the purpose was to complicate
+vmscan.c. Over time it was giving softer shoes and a nicer attitude but
+memory compaction needs to step up and replace it so this patch sends
+lumpy reclaim to the farm.
 
-In the interest of keeping my fingers from the flames at LSF/MM, I'm
-releasing an RFC for lumpy reclaim removal. The first patch removes removes
-lumpy reclaim itself and the second removes reclaim_mode_t. They can be
-merged together but the resulting patch is harder to review.
+Here are the important notes related to the patch.
 
-The patches are based on commit e22057c8599373e5caef0bc42bdb95d2a361ab0d
-which is after Andrew's tree was merged but before 3.4-rc1 is released.
+1. The tracepoint format changes for isolating LRU pages.
 
-Roughly 1K of text is removed, over 200 lines of code and struct scan_control
-is smaller.
+2. This patch stops reclaim/compaction entering sync reclaim as this
+   was only intended for lumpy reclaim and an oversight. Page migration
+   has its own logic for stalling on writeback pages if necessary and
+   memory compaction is already using it. This is a behaviour change.
 
-   text	   data	    bss	    dec	    hex	filename
-6723455	1931304	2260992	10915751	 a68fa7	vmlinux-3.3.0-git
-6722303	1931304	2260992	10914599	 a68b27	vmlinux-3.3.0-lumpyremove-v1
+3. RECLAIM_MODE_SYNC no longer exists. pageout() does not stall
+   on PageWriteback with CONFIG_COMPACTION has been this way for a while.
+   I am calling it out in case this is a surpise to people. This behaviour
+   avoids a situation where we wait on a page being written back to
+   slow storage like USB. Currently we depend on wait_iff_congested()
+   for throttling if if too many dirty pages are scanned.
 
-There are behaviour changes caused by the series with details in the
-patches themselves. I ran some preliminary tests but coverage is shaky
-due to time constraints. The kernels tested were
+4. Reclaim/compaction can no longer queue dirty pages in pageout()
+   if the underlying BDI is congested. Lumpy reclaim used this logic and
+   reclaim/compaction was using it in error. This is a behaviour change.
 
-3.2.0		  Vanilla 3.2.0 kernel
-3.3.0-git	  Commit e22057c which will be part of 3.4-rc1
-3.3.0-lumpyremove These two patches
+Signed-off-by: Mel Gorman <mgorman@suse.de>
+---
+ include/trace/events/vmscan.h |   36 ++-----
+ mm/vmscan.c                   |  209 +++--------------------------------------
+ 2 files changed, 22 insertions(+), 223 deletions(-)
 
-fs-mark running in a threaded configuration showed nothing useful
-
-postmark had interesting results. I know postmark is not very useful
-as a mail server benchmark but it pushes page reclaim in a manner that
-is useful from a testing perspective. Regressions in page reclaim can
-result in regressions in postmark when the WSS for postmark is larger than
-physical memory.
-
-POSTMARK
-                                        3.2.0-vanilla     3.3.0-git      lumpyremove-v1r3
-Transactions per second:               16.00 ( 0.00%)    19.00 (18.75%)    19.00 (18.75%)
-Data megabytes read per second:        18.62 ( 0.00%)    23.18 (24.49%)    22.56 (21.16%)
-Data megabytes written per second:     35.49 ( 0.00%)    44.18 (24.49%)    42.99 (21.13%)
-Files created alone per second:        26.00 ( 0.00%)    35.00 (34.62%)    34.00 (30.77%)
-Files create/transact per second:       8.00 ( 0.00%)     9.00 (12.50%)     9.00 (12.50%)
-Files deleted alone per second:       680.00 ( 0.00%)  6124.00 (800.59%)  2041.00 (200.15%)
-Files delete/transact per second:       8.00 ( 0.00%)     9.00 (12.50%)     9.00 (12.50%)
-
-MMTests Statistics: duration
-Sys Time Running Test (seconds)             119.61    111.16    111.40
-User+Sys Time Running Test (seconds)        153.19    144.13    143.29
-Total Elapsed Time (seconds)               1171.34    940.97    966.97
-
-MMTests Statistics: vmstat
-Page Ins                                    13797412    13734736    13731792
-Page Outs                                   43284036    42959856    42744668
-Swap Ins                                        7751           0           0
-Swap Outs                                       9617           0           0
-Direct pages scanned                          334395           0           0
-Kswapd pages scanned                         9664358     9933599     9929577
-Kswapd pages reclaimed                       9621893     9932913     9928893
-Direct pages reclaimed                        334395           0           0
-Kswapd efficiency                                99%         99%         99%
-Kswapd velocity                             8250.686   10556.765   10268.754
-Direct efficiency                               100%        100%        100%
-Direct velocity                              285.481       0.000       0.000
-Percentage direct scans                           3%          0%          0%
-Page writes by reclaim                          9619           0           0
-Page writes file                                   2           0           0
-Page writes anon                                9617           0           0
-Page reclaim immediate                             7           0           0
-Page rescued immediate                             0           0           0
-Slabs scanned                                  38912       38912       38912
-Direct inode steals                                0           0           0
-Kswapd inode steals                           154304      160972      158444
-Kswapd skipped wait                                0           0           0
-THP fault alloc                                    4           4           4
-THP collapse alloc                                 0           0           0
-THP splits                                         3           0           0
-THP fault fallback                                 0           0           0
-THP collapse fail                                  0           0           0
-Compaction stalls                                  1           0           0
-Compaction success                                 1           0           0
-Compaction failures                                0           0           0
-Compaction pages moved                             0           0           0
-Compaction move failure                            0           0           0
-
-It looks like 3.3.0-git is better in general although that "Files deleted
-alone per second" looks like an anomaly. Removing lumpy reclaim fully
-affects things a bit but not enough to be of concern as monitoring was
-running at the same time which disrupts results. Dirty pages were not
-being encountered at the end of the LRU so the behaviour change related
-to THP allocations stalling on dirty pages would not be triggered.
-
-Note that swap in/out, direct reclaim and page writes from reclaim dropped
-to 0 between 3.2.0 and 3.3.0-git. According to a range of results I have
-for mainline kernels between 2.6.32 and 3.3.0 on a different machine, this
-swap in/out and direct reclaim problem was introduced after 3.0 and fixed
-by 3.3.0 with 3.1.x and 3.2.x both showing swap in/out, direct reclaim
-and page writes from reclaim. If I had to guess, it was fixed by commits
-e0887c19, fe4b1b24 and 0cee34fd but I did not double check[1].
-
-Removing direct reclaim does not make an obvious difference but note that
-THP was barely used at all in this benchmark. Benchmarks that stress both
-page reclaim and THP at the same time in a meaningful manner are thin on
-the ground.
-
-A benchmark that DD writes a large file also showed nothing interesting
-but I was not really expecting it to. The test looks for problems related to
-a large linear writer and removing lumpy reclaim was unlikely to affect it.
-
-I ran a benchmark that stressed high-order allocation. This is very
-artifical load but was used in the past to evaluate lumpy reclaim and
-compaction. Generally I look at allocation success rates and latency figures.
-
-STRESS-HIGHALLOC
-                 3.2.0-vanilla     3.3.0-git        lumpyremove-v1r3
-Pass 1          82.00 ( 0.00%)    27.00 (-55.00%)    32.00 (-50.00%)
-Pass 2          70.00 ( 0.00%)    37.00 (-33.00%)    40.00 (-30.00%)
-while Rested    90.00 ( 0.00%)    88.00 (-2.00%)    88.00 (-2.00%)
-
-MMTests Statistics: duration
-Sys Time Running Test (seconds)             735.12    688.13    683.91
-User+Sys Time Running Test (seconds)       2764.46   3278.45   3271.41
-Total Elapsed Time (seconds)               1204.41   1140.29   1137.58
-
-MMTests Statistics: vmstat
-Page Ins                                     5426648     2840348     2695120
-Page Outs                                    7206376     7854516     7860408
-Swap Ins                                       36799           0           0
-Swap Outs                                      76903           4           0
-Direct pages scanned                           31981       43749      160647
-Kswapd pages scanned                        26658682     1285341     1195956
-Kswapd pages reclaimed                       2248583     1271621     1178420
-Direct pages reclaimed                          6397       14416       94093
-Kswapd efficiency                                 8%         98%         98%
-Kswapd velocity                            22134.225    1127.205    1051.316
-Direct efficiency                                20%         32%         58%
-Direct velocity                               26.553      38.367     141.218
-Percentage direct scans                           0%          3%         11%
-Page writes by reclaim                       6530481           4           0
-Page writes file                             6453578           0           0
-Page writes anon                               76903           4           0
-Page reclaim immediate                        256742       17832       61576
-Page rescued immediate                             0           0           0
-Slabs scanned                                1073152      971776      975872
-Direct inode steals                                0      196279      205178
-Kswapd inode steals                           139260       70390       64323
-Kswapd skipped wait                            21711           1           0
-THP fault alloc                                    1         126         143
-THP collapse alloc                               324         294         224
-THP splits                                        32           8          10
-THP fault fallback                                 0           0           0
-THP collapse fail                                  5           6           7
-Compaction stalls                                364        1312        1324
-Compaction success                               255         343         366
-Compaction failures                              109         969         958
-Compaction pages moved                        265107     3952630     4489215
-Compaction move failure                         7493       26038       24739
-
-Success rates are completely hosed for 3.4-rc1 which is almost certainly
-due to [fe2c2a10: vmscan: reclaim at order 0 when compaction is enabled]. I
-expected this would happen for kswapd and impair allocation success rates
-(https://lkml.org/lkml/2012/1/25/166) but I did not anticipate this much
-a difference: 95% less scanning, 43% less reclaim by kswapd
-
-In comparison, reclaim/compaction is not aggressive and gives up easily
-which is the intended behaviour. hugetlbfs uses __GFP_REPEAT and would be
-much more aggressive about reclaim/compaction than THP allocations are. The
-stress test above is allocating like neither THP or hugetlbfs but is much
-closer to THP.
-
-Mainline is now impared in terms of high order allocation under heavy load
-although I do not know to what degree as I did not test with __GFP_REPEAT.
-Still, keep it in mind for bugs related to hugepage pool resizing, THP
-allocation and high order atomic allocation failures from network devices.
-
-Despite this, I think we should merge the patches in this series. The
-stress tests were very useful when the main user was hugetlb pool resizing
-and when rattling out bugs in memory compaction but are now too unrealistic
-to draw solid conclusions from. They need to be replaced but that should
-not delay the lumpy reclaim removal.
-
-I'd appreciate it people took a look at the patches and see if there was
-anything I missed.
-
-[1] Where are these results you say? They are generated using MM Tests to
-    see what negative trends could be identified. They are still in the
-    process of running. I've had limited time to dig through the data.
-
- include/trace/events/vmscan.h |   40 ++-----
- mm/vmscan.c                   |  263 ++++-------------------------------------
- 2 files changed, 37 insertions(+), 266 deletions(-)
-
+diff --git a/include/trace/events/vmscan.h b/include/trace/events/vmscan.h
+index f64560e..6f60b33 100644
+--- a/include/trace/events/vmscan.h
++++ b/include/trace/events/vmscan.h
+@@ -13,7 +13,7 @@
+ #define RECLAIM_WB_ANON		0x0001u
+ #define RECLAIM_WB_FILE		0x0002u
+ #define RECLAIM_WB_MIXED	0x0010u
+-#define RECLAIM_WB_SYNC		0x0004u
++#define RECLAIM_WB_SYNC		0x0004u	/* Unused, all reclaim async */
+ #define RECLAIM_WB_ASYNC	0x0008u
+ 
+ #define show_reclaim_flags(flags)				\
+@@ -27,13 +27,13 @@
+ 
+ #define trace_reclaim_flags(page, sync) ( \
+ 	(page_is_file_cache(page) ? RECLAIM_WB_FILE : RECLAIM_WB_ANON) | \
+-	(sync & RECLAIM_MODE_SYNC ? RECLAIM_WB_SYNC : RECLAIM_WB_ASYNC)   \
++	(RECLAIM_WB_ASYNC)   \
+ 	)
+ 
+ #define trace_shrink_flags(file, sync) ( \
+-	(sync & RECLAIM_MODE_SYNC ? RECLAIM_WB_MIXED : \
+-			(file ? RECLAIM_WB_FILE : RECLAIM_WB_ANON)) |  \
+-	(sync & RECLAIM_MODE_SYNC ? RECLAIM_WB_SYNC : RECLAIM_WB_ASYNC) \
++	( \
++		(file ? RECLAIM_WB_FILE : RECLAIM_WB_ANON) |  \
++		(RECLAIM_WB_ASYNC) \
+ 	)
+ 
+ TRACE_EVENT(mm_vmscan_kswapd_sleep,
+@@ -263,22 +263,16 @@ DECLARE_EVENT_CLASS(mm_vmscan_lru_isolate_template,
+ 		unsigned long nr_requested,
+ 		unsigned long nr_scanned,
+ 		unsigned long nr_taken,
+-		unsigned long nr_lumpy_taken,
+-		unsigned long nr_lumpy_dirty,
+-		unsigned long nr_lumpy_failed,
+ 		isolate_mode_t isolate_mode,
+ 		int file),
+ 
+-	TP_ARGS(order, nr_requested, nr_scanned, nr_taken, nr_lumpy_taken, nr_lumpy_dirty, nr_lumpy_failed, isolate_mode, file),
++	TP_ARGS(order, nr_requested, nr_scanned, nr_taken, isolate_mode, file),
+ 
+ 	TP_STRUCT__entry(
+ 		__field(int, order)
+ 		__field(unsigned long, nr_requested)
+ 		__field(unsigned long, nr_scanned)
+ 		__field(unsigned long, nr_taken)
+-		__field(unsigned long, nr_lumpy_taken)
+-		__field(unsigned long, nr_lumpy_dirty)
+-		__field(unsigned long, nr_lumpy_failed)
+ 		__field(isolate_mode_t, isolate_mode)
+ 		__field(int, file)
+ 	),
+@@ -288,22 +282,16 @@ DECLARE_EVENT_CLASS(mm_vmscan_lru_isolate_template,
+ 		__entry->nr_requested = nr_requested;
+ 		__entry->nr_scanned = nr_scanned;
+ 		__entry->nr_taken = nr_taken;
+-		__entry->nr_lumpy_taken = nr_lumpy_taken;
+-		__entry->nr_lumpy_dirty = nr_lumpy_dirty;
+-		__entry->nr_lumpy_failed = nr_lumpy_failed;
+ 		__entry->isolate_mode = isolate_mode;
+ 		__entry->file = file;
+ 	),
+ 
+-	TP_printk("isolate_mode=%d order=%d nr_requested=%lu nr_scanned=%lu nr_taken=%lu contig_taken=%lu contig_dirty=%lu contig_failed=%lu file=%d",
++	TP_printk("isolate_mode=%d order=%d nr_requested=%lu nr_scanned=%lu nr_taken=%lu file=%d",
+ 		__entry->isolate_mode,
+ 		__entry->order,
+ 		__entry->nr_requested,
+ 		__entry->nr_scanned,
+ 		__entry->nr_taken,
+-		__entry->nr_lumpy_taken,
+-		__entry->nr_lumpy_dirty,
+-		__entry->nr_lumpy_failed,
+ 		__entry->file)
+ );
+ 
+@@ -313,13 +301,10 @@ DEFINE_EVENT(mm_vmscan_lru_isolate_template, mm_vmscan_lru_isolate,
+ 		unsigned long nr_requested,
+ 		unsigned long nr_scanned,
+ 		unsigned long nr_taken,
+-		unsigned long nr_lumpy_taken,
+-		unsigned long nr_lumpy_dirty,
+-		unsigned long nr_lumpy_failed,
+ 		isolate_mode_t isolate_mode,
+ 		int file),
+ 
+-	TP_ARGS(order, nr_requested, nr_scanned, nr_taken, nr_lumpy_taken, nr_lumpy_dirty, nr_lumpy_failed, isolate_mode, file)
++	TP_ARGS(order, nr_requested, nr_scanned, nr_taken, isolate_mode, file)
+ 
+ );
+ 
+@@ -329,13 +314,10 @@ DEFINE_EVENT(mm_vmscan_lru_isolate_template, mm_vmscan_memcg_isolate,
+ 		unsigned long nr_requested,
+ 		unsigned long nr_scanned,
+ 		unsigned long nr_taken,
+-		unsigned long nr_lumpy_taken,
+-		unsigned long nr_lumpy_dirty,
+-		unsigned long nr_lumpy_failed,
+ 		isolate_mode_t isolate_mode,
+ 		int file),
+ 
+-	TP_ARGS(order, nr_requested, nr_scanned, nr_taken, nr_lumpy_taken, nr_lumpy_dirty, nr_lumpy_failed, isolate_mode, file)
++	TP_ARGS(order, nr_requested, nr_scanned, nr_taken, isolate_mode, file)
+ 
+ );
+ 
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index 33c332b..68319e4 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -56,19 +56,11 @@
+ /*
+  * reclaim_mode determines how the inactive list is shrunk
+  * RECLAIM_MODE_SINGLE: Reclaim only order-0 pages
+- * RECLAIM_MODE_ASYNC:  Do not block
+- * RECLAIM_MODE_SYNC:   Allow blocking e.g. call wait_on_page_writeback
+- * RECLAIM_MODE_LUMPYRECLAIM: For high-order allocations, take a reference
+- *			page from the LRU and reclaim all pages within a
+- *			naturally aligned range
+  * RECLAIM_MODE_COMPACTION: For high-order allocations, reclaim a number of
+  *			order-0 pages and then compact the zone
+  */
+ typedef unsigned __bitwise__ reclaim_mode_t;
+ #define RECLAIM_MODE_SINGLE		((__force reclaim_mode_t)0x01u)
+-#define RECLAIM_MODE_ASYNC		((__force reclaim_mode_t)0x02u)
+-#define RECLAIM_MODE_SYNC		((__force reclaim_mode_t)0x04u)
+-#define RECLAIM_MODE_LUMPYRECLAIM	((__force reclaim_mode_t)0x08u)
+ #define RECLAIM_MODE_COMPACTION		((__force reclaim_mode_t)0x10u)
+ 
+ struct scan_control {
+@@ -364,37 +356,23 @@ out:
+ 	return ret;
+ }
+ 
+-static void set_reclaim_mode(int priority, struct scan_control *sc,
+-				   bool sync)
++static void set_reclaim_mode(int priority, struct scan_control *sc)
+ {
+-	reclaim_mode_t syncmode = sync ? RECLAIM_MODE_SYNC : RECLAIM_MODE_ASYNC;
+-
+ 	/*
+-	 * Initially assume we are entering either lumpy reclaim or
+-	 * reclaim/compaction.Depending on the order, we will either set the
+-	 * sync mode or just reclaim order-0 pages later.
+-	 */
+-	if (COMPACTION_BUILD)
+-		sc->reclaim_mode = RECLAIM_MODE_COMPACTION;
+-	else
+-		sc->reclaim_mode = RECLAIM_MODE_LUMPYRECLAIM;
+-
+-	/*
+-	 * Avoid using lumpy reclaim or reclaim/compaction if possible by
+-	 * restricting when its set to either costly allocations or when
++	 * Restrict reclaim/compaction to costly allocations or when
+ 	 * under memory pressure
+ 	 */
+-	if (sc->order > PAGE_ALLOC_COSTLY_ORDER)
+-		sc->reclaim_mode |= syncmode;
+-	else if (sc->order && priority < DEF_PRIORITY - 2)
+-		sc->reclaim_mode |= syncmode;
++	if (COMPACTION_BUILD && sc->order &&
++			(sc->order > PAGE_ALLOC_COSTLY_ORDER ||
++			 priority < DEF_PRIORITY - 2))
++		sc->reclaim_mode = RECLAIM_MODE_COMPACTION;
+ 	else
+-		sc->reclaim_mode = RECLAIM_MODE_SINGLE | RECLAIM_MODE_ASYNC;
++		sc->reclaim_mode = RECLAIM_MODE_SINGLE;
+ }
+ 
+ static void reset_reclaim_mode(struct scan_control *sc)
+ {
+-	sc->reclaim_mode = RECLAIM_MODE_SINGLE | RECLAIM_MODE_ASYNC;
++	sc->reclaim_mode = RECLAIM_MODE_SINGLE;
+ }
+ 
+ static inline int is_page_cache_freeable(struct page *page)
+@@ -416,10 +394,6 @@ static int may_write_to_queue(struct backing_dev_info *bdi,
+ 		return 1;
+ 	if (bdi == current->backing_dev_info)
+ 		return 1;
+-
+-	/* lumpy reclaim for hugepage often need a lot of write */
+-	if (sc->order > PAGE_ALLOC_COSTLY_ORDER)
+-		return 1;
+ 	return 0;
+ }
+ 
+@@ -710,10 +684,6 @@ static enum page_references page_check_references(struct page *page,
+ 	referenced_ptes = page_referenced(page, 1, mz->mem_cgroup, &vm_flags);
+ 	referenced_page = TestClearPageReferenced(page);
+ 
+-	/* Lumpy reclaim - ignore references */
+-	if (sc->reclaim_mode & RECLAIM_MODE_LUMPYRECLAIM)
+-		return PAGEREF_RECLAIM;
+-
+ 	/*
+ 	 * Mlock lost the isolation race with us.  Let try_to_unmap()
+ 	 * move the page to the unevictable list.
+@@ -813,19 +783,8 @@ static unsigned long shrink_page_list(struct list_head *page_list,
+ 
+ 		if (PageWriteback(page)) {
+ 			nr_writeback++;
+-			/*
+-			 * Synchronous reclaim cannot queue pages for
+-			 * writeback due to the possibility of stack overflow
+-			 * but if it encounters a page under writeback, wait
+-			 * for the IO to complete.
+-			 */
+-			if ((sc->reclaim_mode & RECLAIM_MODE_SYNC) &&
+-			    may_enter_fs)
+-				wait_on_page_writeback(page);
+-			else {
+-				unlock_page(page);
+-				goto keep_lumpy;
+-			}
++			unlock_page(page);
++			goto keep;
+ 		}
+ 
+ 		references = page_check_references(page, mz, sc);
+@@ -908,7 +867,7 @@ static unsigned long shrink_page_list(struct list_head *page_list,
+ 				goto activate_locked;
+ 			case PAGE_SUCCESS:
+ 				if (PageWriteback(page))
+-					goto keep_lumpy;
++					goto keep;
+ 				if (PageDirty(page))
+ 					goto keep;
+ 
+@@ -1007,8 +966,6 @@ activate_locked:
+ keep_locked:
+ 		unlock_page(page);
+ keep:
+-		reset_reclaim_mode(sc);
+-keep_lumpy:
+ 		list_add(&page->lru, &ret_pages);
+ 		VM_BUG_ON(PageLRU(page) || PageUnevictable(page));
+ 	}
+@@ -1064,11 +1021,7 @@ int __isolate_lru_page(struct page *page, isolate_mode_t mode, int file)
+ 	if (!all_lru_mode && !!page_is_file_cache(page) != file)
+ 		return ret;
+ 
+-	/*
+-	 * When this function is being called for lumpy reclaim, we
+-	 * initially look into all LRU pages, active, inactive and
+-	 * unevictable; only give shrink_page_list evictable pages.
+-	 */
++	/* Do not give back unevictable pages for compaction */
+ 	if (PageUnevictable(page))
+ 		return ret;
+ 
+@@ -1153,9 +1106,6 @@ static unsigned long isolate_lru_pages(unsigned long nr_to_scan,
+ 	struct lruvec *lruvec;
+ 	struct list_head *src;
+ 	unsigned long nr_taken = 0;
+-	unsigned long nr_lumpy_taken = 0;
+-	unsigned long nr_lumpy_dirty = 0;
+-	unsigned long nr_lumpy_failed = 0;
+ 	unsigned long scan;
+ 	int lru = LRU_BASE;
+ 
+@@ -1168,10 +1118,6 @@ static unsigned long isolate_lru_pages(unsigned long nr_to_scan,
+ 
+ 	for (scan = 0; scan < nr_to_scan && !list_empty(src); scan++) {
+ 		struct page *page;
+-		unsigned long pfn;
+-		unsigned long end_pfn;
+-		unsigned long page_pfn;
+-		int zone_id;
+ 
+ 		page = lru_to_page(src);
+ 		prefetchw_prev_lru_page(page, src, flags);
+@@ -1193,84 +1139,6 @@ static unsigned long isolate_lru_pages(unsigned long nr_to_scan,
+ 		default:
+ 			BUG();
+ 		}
+-
+-		if (!sc->order || !(sc->reclaim_mode & RECLAIM_MODE_LUMPYRECLAIM))
+-			continue;
+-
+-		/*
+-		 * Attempt to take all pages in the order aligned region
+-		 * surrounding the tag page.  Only take those pages of
+-		 * the same active state as that tag page.  We may safely
+-		 * round the target page pfn down to the requested order
+-		 * as the mem_map is guaranteed valid out to MAX_ORDER,
+-		 * where that page is in a different zone we will detect
+-		 * it from its zone id and abort this block scan.
+-		 */
+-		zone_id = page_zone_id(page);
+-		page_pfn = page_to_pfn(page);
+-		pfn = page_pfn & ~((1 << sc->order) - 1);
+-		end_pfn = pfn + (1 << sc->order);
+-		for (; pfn < end_pfn; pfn++) {
+-			struct page *cursor_page;
+-
+-			/* The target page is in the block, ignore it. */
+-			if (unlikely(pfn == page_pfn))
+-				continue;
+-
+-			/* Avoid holes within the zone. */
+-			if (unlikely(!pfn_valid_within(pfn)))
+-				break;
+-
+-			cursor_page = pfn_to_page(pfn);
+-
+-			/* Check that we have not crossed a zone boundary. */
+-			if (unlikely(page_zone_id(cursor_page) != zone_id))
+-				break;
+-
+-			/*
+-			 * If we don't have enough swap space, reclaiming of
+-			 * anon page which don't already have a swap slot is
+-			 * pointless.
+-			 */
+-			if (nr_swap_pages <= 0 && PageSwapBacked(cursor_page) &&
+-			    !PageSwapCache(cursor_page))
+-				break;
+-
+-			if (__isolate_lru_page(cursor_page, mode, file) == 0) {
+-				unsigned int isolated_pages;
+-
+-				mem_cgroup_lru_del(cursor_page);
+-				list_move(&cursor_page->lru, dst);
+-				isolated_pages = hpage_nr_pages(cursor_page);
+-				nr_taken += isolated_pages;
+-				nr_lumpy_taken += isolated_pages;
+-				if (PageDirty(cursor_page))
+-					nr_lumpy_dirty += isolated_pages;
+-				scan++;
+-				pfn += isolated_pages - 1;
+-			} else {
+-				/*
+-				 * Check if the page is freed already.
+-				 *
+-				 * We can't use page_count() as that
+-				 * requires compound_head and we don't
+-				 * have a pin on the page here. If a
+-				 * page is tail, we may or may not
+-				 * have isolated the head, so assume
+-				 * it's not free, it'd be tricky to
+-				 * track the head status without a
+-				 * page pin.
+-				 */
+-				if (!PageTail(cursor_page) &&
+-				    !atomic_read(&cursor_page->_count))
+-					continue;
+-				break;
+-			}
+-		}
+-
+-		/* If we break out of the loop above, lumpy reclaim failed */
+-		if (pfn < end_pfn)
+-			nr_lumpy_failed++;
+ 	}
+ 
+ 	*nr_scanned = scan;
+@@ -1278,7 +1146,6 @@ static unsigned long isolate_lru_pages(unsigned long nr_to_scan,
+ 	trace_mm_vmscan_lru_isolate(sc->order,
+ 			nr_to_scan, scan,
+ 			nr_taken,
+-			nr_lumpy_taken, nr_lumpy_dirty, nr_lumpy_failed,
+ 			mode, file);
+ 	return nr_taken;
+ }
+@@ -1454,47 +1321,6 @@ update_isolated_counts(struct mem_cgroup_zone *mz,
+ }
+ 
+ /*
+- * Returns true if a direct reclaim should wait on pages under writeback.
+- *
+- * If we are direct reclaiming for contiguous pages and we do not reclaim
+- * everything in the list, try again and wait for writeback IO to complete.
+- * This will stall high-order allocations noticeably. Only do that when really
+- * need to free the pages under high memory pressure.
+- */
+-static inline bool should_reclaim_stall(unsigned long nr_taken,
+-					unsigned long nr_freed,
+-					int priority,
+-					struct scan_control *sc)
+-{
+-	int lumpy_stall_priority;
+-
+-	/* kswapd should not stall on sync IO */
+-	if (current_is_kswapd())
+-		return false;
+-
+-	/* Only stall on lumpy reclaim */
+-	if (sc->reclaim_mode & RECLAIM_MODE_SINGLE)
+-		return false;
+-
+-	/* If we have reclaimed everything on the isolated list, no stall */
+-	if (nr_freed == nr_taken)
+-		return false;
+-
+-	/*
+-	 * For high-order allocations, there are two stall thresholds.
+-	 * High-cost allocations stall immediately where as lower
+-	 * order allocations such as stacks require the scanning
+-	 * priority to be much higher before stalling.
+-	 */
+-	if (sc->order > PAGE_ALLOC_COSTLY_ORDER)
+-		lumpy_stall_priority = DEF_PRIORITY;
+-	else
+-		lumpy_stall_priority = DEF_PRIORITY / 3;
+-
+-	return priority <= lumpy_stall_priority;
+-}
+-
+-/*
+  * shrink_inactive_list() is a helper for shrink_zone().  It returns the number
+  * of reclaimed pages
+  */
+@@ -1522,9 +1348,7 @@ shrink_inactive_list(unsigned long nr_to_scan, struct mem_cgroup_zone *mz,
+ 			return SWAP_CLUSTER_MAX;
+ 	}
+ 
+-	set_reclaim_mode(priority, sc, false);
+-	if (sc->reclaim_mode & RECLAIM_MODE_LUMPYRECLAIM)
+-		isolate_mode |= ISOLATE_ACTIVE;
++	set_reclaim_mode(priority, sc);
+ 
+ 	lru_add_drain();
+ 
+@@ -1556,13 +1380,6 @@ shrink_inactive_list(unsigned long nr_to_scan, struct mem_cgroup_zone *mz,
+ 	nr_reclaimed = shrink_page_list(&page_list, mz, sc, priority,
+ 						&nr_dirty, &nr_writeback);
+ 
+-	/* Check if we should syncronously wait for writeback */
+-	if (should_reclaim_stall(nr_taken, nr_reclaimed, priority, sc)) {
+-		set_reclaim_mode(priority, sc, true);
+-		nr_reclaimed += shrink_page_list(&page_list, mz, sc,
+-					priority, &nr_dirty, &nr_writeback);
+-	}
+-
+ 	spin_lock_irq(&zone->lru_lock);
+ 
+ 	reclaim_stat->recent_scanned[0] += nr_anon;
 -- 
 1.7.9.2
 
