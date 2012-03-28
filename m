@@ -1,11 +1,13 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx102.postini.com [74.125.245.102])
-	by kanga.kvack.org (Postfix) with SMTP id C714A6B00EA
+Received: from psmtp.com (na3sys010amx122.postini.com [74.125.245.122])
+	by kanga.kvack.org (Postfix) with SMTP id 02E9C6B00EB
 	for <linux-mm@kvack.org>; Tue, 27 Mar 2012 20:41:04 -0400 (EDT)
 From: Andi Kleen <andi@firstfloor.org>
-Subject: [PATCH 1/2] Avoid lock contention on page draining
-Date: Tue, 27 Mar 2012 17:40:32 -0700
-Message-Id: <1332895233-32471-1-git-send-email-andi@firstfloor.org>
+Subject: [PATCH 2/2] Implement simple hierarchical draining
+Date: Tue, 27 Mar 2012 17:40:33 -0700
+Message-Id: <1332895233-32471-2-git-send-email-andi@firstfloor.org>
+In-Reply-To: <1332895233-32471-1-git-send-email-andi@firstfloor.org>
+References: <1332895233-32471-1-git-send-email-andi@firstfloor.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
@@ -13,96 +15,83 @@ Cc: linux-kernel@vger.kernel.org, tim.c.chen@linux.intel.com, Andi Kleen <ak@lin
 
 From: Andi Kleen <ak@linux.intel.com>
 
-drain_all_pages asks all CPUs to drain their PCP lists. This causes a lot
-of lock contention because they try to free into the same zones in lock
-step.
+Instead of draining all CPUs immediately try the neighbors first.
+Currently this is core, socket, all
 
-Make half of the CPUs go through the zones forwards and the other half
-backwards. This should lower the contention to half.
+Global draining is a quite expensive operation on a larger system,
+and it does suffer from quite high lock contention because all
+CPUs bang on the same zones.
 
-I opencoded the backwards walk: there were no macros for it, but it seemed
-to obscure to create some extra for this.
+This gives a moderate speedup on a drain intensive workload,
+and significantly lowers spinlock contention.
 
 Signed-off-by: Andi Kleen <ak@linux.intel.com>
 ---
- mm/page_alloc.c |   56 +++++++++++++++++++++++++++++++++++++++++-------------
- 1 files changed, 42 insertions(+), 14 deletions(-)
+ mm/page_alloc.c |   38 ++++++++++++++++++++++++++++++++++----
+ 1 files changed, 34 insertions(+), 4 deletions(-)
 
 diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index a13ded1..8cd4f6a 100644
+index 8cd4f6a..d7dea3f 100644
 --- a/mm/page_alloc.c
 +++ b/mm/page_alloc.c
-@@ -1124,6 +1124,23 @@ void drain_zone_pages(struct zone *zone, struct per_cpu_pages *pcp)
+@@ -1196,6 +1196,36 @@ void drain_all_pages(void)
+ 	on_each_cpu(drain_local_pages, NULL, 1);
  }
- #endif
  
-+static void do_drain_zone(struct zone *zone, int cpu)
-+{
-+	unsigned long flags;
-+	struct per_cpu_pageset *pset;
-+	struct per_cpu_pages *pcp;
-+	
-+	local_irq_save(flags);
-+	pset = per_cpu_ptr(zone->pageset, cpu);
-+	
-+	pcp = &pset->pcp;
-+	if (pcp->count) {
-+		free_pcppages_bulk(zone, pcp->count, pcp);
-+		pcp->count = 0;
++enum { 
++	DRAIN_CORE,
++	DRAIN_SOCKET,
++	DRAIN_ALL,
++	/* Could do nearby nodes here? */
++	NUM_DRAIN_LEVELS,
++};
++
++/* 
++ * Drain nearby CPUs, reaching out the farther the higher level is.
++ */
++static void drain_all_pages_level(int level)
++{	
++	const cpumask_t *mask;
++	int cpu = smp_processor_id();
++
++	switch (level) { 
++	case DRAIN_CORE:
++		mask = topology_thread_cpumask(cpu);
++		break;
++	case DRAIN_SOCKET:
++		mask = topology_core_cpumask(cpu);
++		break;
++	case DRAIN_ALL:
++		mask = cpu_online_mask;
++		break;
 +	}
-+	local_irq_restore(flags);
++	smp_call_function_many(mask, drain_local_pages, NULL, 1);
 +}
 +
- /*
-  * Drain pages of the indicated processor.
-  *
-@@ -1133,22 +1150,33 @@ void drain_zone_pages(struct zone *zone, struct per_cpu_pages *pcp)
-  */
- static void drain_pages(unsigned int cpu)
- {
--	unsigned long flags;
- 	struct zone *zone;
+ #ifdef CONFIG_HIBERNATION
  
--	for_each_populated_zone(zone) {
--		struct per_cpu_pageset *pset;
--		struct per_cpu_pages *pcp;
--
--		local_irq_save(flags);
--		pset = per_cpu_ptr(zone->pageset, cpu);
--
--		pcp = &pset->pcp;
--		if (pcp->count) {
--			free_pcppages_bulk(zone, pcp->count, pcp);
--			pcp->count = 0;
--		}
--		local_irq_restore(flags);
-+	/* 
-+	 * Let half of the CPUs go through the zones forwards
-+	 * and the other half backwards. This reduces lock contention.
-+	 */
-+	if ((cpu % 2) == 0) { 
-+		for_each_populated_zone(zone)
-+			do_drain_zone(zone, cpu);
-+	} else {
-+		int i, j, k = 0;
-+	 
-+		/* 
-+		 * Backwards zone walk. Opencoded because its quite obscure.
-+		 */
-+		for (i = MAX_NUMNODES - 1; i >= 0; i--) {
-+			if (!node_states[N_ONLINE].bits[i / BITS_PER_LONG]) {
-+				i -= i % BITS_PER_LONG;
-+				continue;				
-+			}				
-+			if (!node_isset(i, node_states[N_ONLINE]))
-+				continue;
-+			k++;
-+			for (j = MAX_NR_ZONES - 1; j >= 0; j--)
-+				do_drain_zone(&NODE_DATA(i)->node_zones[j], cpu);
-+		}		
-+		WARN_ON(k != num_online_nodes());
+ void mark_free_pages(struct zone *zone)
+@@ -2085,7 +2115,7 @@ __alloc_pages_direct_reclaim(gfp_t gfp_mask, unsigned int order,
+ {
+ 	struct page *page = NULL;
+ 	struct reclaim_state reclaim_state;
+-	bool drained = false;
++	int drained = 0;
+ 
+ 	cond_resched();
+ 
+@@ -2121,9 +2151,9 @@ retry:
+ 	 * If an allocation failed after direct reclaim, it could be because
+ 	 * pages are pinned on the per-cpu lists. Drain them and try again
+ 	 */
+-	if (!page && !drained) {
+-		drain_all_pages();
+-		drained = true;
++	if (!page && drained < NUM_DRAIN_LEVELS) {
++		drain_all_pages_level(drained);
++		drained++;
+ 		goto retry;
  	}
- }
  
 -- 
 1.7.7.6
