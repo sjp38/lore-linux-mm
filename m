@@ -1,56 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx195.postini.com [74.125.245.195])
-	by kanga.kvack.org (Postfix) with SMTP id E2C116B0044
-	for <linux-mm@kvack.org>; Tue, 27 Mar 2012 23:43:01 -0400 (EDT)
-Received: by ghrr18 with SMTP id r18so615748ghr.14
-        for <linux-mm@kvack.org>; Tue, 27 Mar 2012 20:43:01 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <20120327151238.302a5920.akpm@linux-foundation.org>
-References: <1332805767-2013-1-git-send-email-consul.kautuk@gmail.com>
-	<20120327151238.302a5920.akpm@linux-foundation.org>
-Date: Wed, 28 Mar 2012 09:13:00 +0530
-Message-ID: <CAFPAmTR67R6aF9U7-idXGDsbfvhTxEn=D3pu_Jjhq37rhcez8Q@mail.gmail.com>
-Subject: Re: [PATCH 1/1] mmap.c: find_vma: remove if(mm) check
-From: Kautuk Consul <consul.kautuk@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Received: from psmtp.com (na3sys010amx146.postini.com [74.125.245.146])
+	by kanga.kvack.org (Postfix) with SMTP id 7F1276B0044
+	for <linux-mm@kvack.org>; Tue, 27 Mar 2012 23:57:48 -0400 (EDT)
+Message-ID: <1332907000.2882.74.camel@pasglop>
+Subject: Re: [PATCHv2 04/14] PowerPC: adapt for dma_map_ops changes
+From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+Date: Wed, 28 Mar 2012 14:56:40 +1100
+In-Reply-To: <1332855768-32583-5-git-send-email-m.szyprowski@samsung.com>
+References: <1332855768-32583-1-git-send-email-m.szyprowski@samsung.com>
+	 <1332855768-32583-5-git-send-email-m.szyprowski@samsung.com>
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: 7bit
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Hugh Dickins <hughd@google.com>, Al Viro <viro@zeniv.linux.org.uk>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Marek Szyprowski <m.szyprowski@samsung.com>
+Cc: linux-kernel@vger.kernel.org, linux-mips@linux-mips.org, Kevin Cernekee <cernekee@gmail.com>, linux-ia64@vger.kernel.org, linux-sh@vger.kernel.org, linux-mm@kvack.org, sparclinux@vger.kernel.org, Guan Xuetao <gxt@mprc.pku.edu.cn>, linux-arch@vger.kernel.org, Stephen Rothwell <sfr@canb.auug.org.au>, Jonathan Corbet <corbet@lwn.net>, x86@kernel.org, Matt Turner <mattst88@gmail.com>, Dezhong Diao <dediao@cisco.com>, Fenghua Yu <fenghua.yu@intel.com>, Arnd Bergmann <arnd@arndb.de>, microblaze-uclinux@itee.uq.edu.au, linaro-mm-sig@lists.linaro.org, Ivan Kokshaysky <ink@jurassic.park.msu.ru>, Andrzej Pietrasiewicz <andrzej.p@samsung.com>, Thomas Gleixner <tglx@linutronix.de>, linux-arm-kernel@lists.infradead.org, Richard Henderson <rth@twiddle.net>, discuss@x86-64.org, Michal Simek <monstr@monstr.eu>, Tony Luck <tony.luck@intel.com>, Richard Kuo <rkuo@codeaurora.org>, FUJITA Tomonori <fujita.tomonori@lab.ntt.co.jp>, Kyungmin Park <kyungmin.park@samsung.com>, Paul Mundt <lethal@linux-sh.org>, linux-alpha@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, linuxppc-dev@lists.ozlabs.org, "David
+ S. Miller" <davem@davemloft.net>
 
-On Wed, Mar 28, 2012 at 3:42 AM, Andrew Morton
-<akpm@linux-foundation.org> wrote:
-> On Mon, 26 Mar 2012 19:49:27 -0400
-> Kautuk Consul <consul.kautuk@gmail.com> wrote:
->
->> find_vma is called from kernel code where it is absolutely
->> sure that the mm_struct arg being passed to it is non-NULL.
->>
->> Remove the if(mm) check.
->
-> It's odd that the if(mm) test exists - I wonder why it was originally
-> added. =A0My repo only goes back ten years, and it's there in 2.4.18.
->
-> Any code which calls find_vma() without an mm is surely pretty busted?
->
->
-> Still, I think I'd prefer to do
->
-> =A0 =A0 =A0 =A0if (WARN_ON_ONCE(!mm))
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0return NULL;
->
+On Tue, 2012-03-27 at 15:42 +0200, Marek Szyprowski wrote:
+> From: Andrzej Pietrasiewicz <andrzej.p@samsung.com>
+> 
+> Adapt core PowerPC architecture code for dma_map_ops changes: replace
+> alloc/free_coherent with generic alloc/free methods.
+> 
+> Signed-off-by: Andrzej Pietrasiewicz <andrzej.p@samsung.com>
+> [added missing changes to arch/powerpc/kernel/vio.c]
+> Signed-off-by: Kyungmin Park <kyungmin.park@samsung.com>
+> Signed-off-by: Marek Szyprowski <m.szyprowski@samsung.com>
+> Reviewed-by: David Gibson <david@gibson.dropbear.id.au>
+> Reviewed-by: Arnd Bergmann <arnd@arndb.de>
+> ---
 
-yes, I agree. that is safe for now as there are a huge number of calls
-to this API.
+FYI. David and Arnd reviews are good enough for me ppc-side.
 
-> then let that bake for a kernel release, just to find out if we have a
-> weird caller out there, such as a function which is called by both user
-> threads and by kernel threads.
+Cheers,
+Ben.
 
-ok. I'll spin another one and send it to you with your suggestions in a day=
- or
-two when I go back home after my day job.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
