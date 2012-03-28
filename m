@@ -1,55 +1,32 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx198.postini.com [74.125.245.198])
-	by kanga.kvack.org (Postfix) with SMTP id 7CEA06B0044
-	for <linux-mm@kvack.org>; Wed, 28 Mar 2012 03:19:37 -0400 (EDT)
-Received: by iajr24 with SMTP id r24so1376341iaj.14
-        for <linux-mm@kvack.org>; Wed, 28 Mar 2012 00:19:36 -0700 (PDT)
-Date: Wed, 28 Mar 2012 00:19:34 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx146.postini.com [74.125.245.146])
+	by kanga.kvack.org (Postfix) with SMTP id 484D66B007E
+	for <linux-mm@kvack.org>; Wed, 28 Mar 2012 03:20:36 -0400 (EDT)
+Received: by iajr24 with SMTP id r24so1378145iaj.14
+        for <linux-mm@kvack.org>; Wed, 28 Mar 2012 00:20:35 -0700 (PDT)
+Date: Wed, 28 Mar 2012 00:20:32 -0700 (PDT)
 From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH] mm/memory_failure: Let the compiler add the function
- name
-In-Reply-To: <1332843450-7100-1-git-send-email-bp@amd64.org>
-Message-ID: <alpine.DEB.2.00.1203280018390.16201@chino.kir.corp.google.com>
-References: <1332843450-7100-1-git-send-email-bp@amd64.org>
+Subject: Re: [PATCH 10/10] oom: Make find_lock_task_mm() sparse-aware
+In-Reply-To: <1332593574.16159.31.camel@twins>
+Message-ID: <alpine.DEB.2.00.1203280020100.16201@chino.kir.corp.google.com>
+References: <20120324102609.GA28356@lizard> <20120324103127.GJ29067@lizard> <1332593574.16159.31.camel@twins>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Borislav Petkov <bp@amd64.org>
-Cc: LKML <linux-kernel@vger.kernel.org>, Borislav Petkov <borislav.petkov@amd.com>, Andi Kleen <andi@firstfloor.org>, linux-mm@kvack.org
+To: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Cc: Anton Vorontsov <anton.vorontsov@linaro.org>, Andrew Morton <akpm@linux-foundation.org>, Oleg Nesterov <oleg@redhat.com>, Russell King <linux@arm.linux.org.uk>, Mike Frysinger <vapier@gentoo.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Richard Weinberger <richard@nod.at>, Paul Mundt <lethal@linux-sh.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, John Stultz <john.stultz@linaro.org>, linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org, uclinux-dist-devel@blackfin.uclinux.org, linuxppc-dev@lists.ozlabs.org, linux-sh@vger.kernel.org, user-mode-linux-devel@lists.sourceforge.net, linux-mm@kvack.org
 
-On Tue, 27 Mar 2012, Borislav Petkov wrote:
+On Sat, 24 Mar 2012, Peter Zijlstra wrote:
 
-> diff --git a/mm/memory-failure.c b/mm/memory-failure.c
-> index 56080ea36140..7d78d5ec61a7 100644
-> --- a/mm/memory-failure.c
-> +++ b/mm/memory-failure.c
-> @@ -1384,16 +1384,16 @@ static int get_any_page(struct page *p, unsigned long pfn, int flags)
->  	 */
->  	if (!get_page_unless_zero(compound_head(p))) {
->  		if (PageHuge(p)) {
-> -			pr_info("get_any_page: %#lx free huge page\n", pfn);
-> +			pr_info("%s: %#lx free huge page\n", __func__, pfn);
->  			ret = dequeue_hwpoisoned_huge_page(compound_head(p));
->  		} else if (is_free_buddy_page(p)) {
-> -			pr_info("get_any_page: %#lx free buddy page\n", pfn);
-> +			pr_info("%s: %#lx free buddy page\n", __func__, pfn);
->  			/* Set hwpoison bit while page is still isolated */
->  			SetPageHWPoison(p);
->  			ret = 0;
->  		} else {
-> -			pr_info("get_any_page: %#lx: unknown zero refcount page type %lx\n",
-> -				pfn, p->flags);
-> +			pr_info("%s: %#lx: unknown zero refcount page type %lx\n",
-> +				__func__, pfn, p->flags);
->  			ret = -EIO;
->  		}
->  	} else {
+> Yeah, so Nacked-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
+> 
+> Also, why didn't lockdep catch it?
+> 
+> Fix sparse already instead of smearing ugly all over.
+> 
 
-I agree with your change, but I'm not sure these should be pr_info() to 
-start with, these seem more like debugging messages?  I can't see how 
-they'd be useful in standard operation so could we just convert them to be 
-debug instead?
+Fully agreed, please don't add this to the oom killer.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
