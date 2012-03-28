@@ -1,173 +1,118 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx123.postini.com [74.125.245.123])
-	by kanga.kvack.org (Postfix) with SMTP id B54226B0108
-	for <linux-mm@kvack.org>; Wed, 28 Mar 2012 10:28:18 -0400 (EDT)
-Message-Id: <20120328131153.382173637@intel.com>
-Date: Wed, 28 Mar 2012 20:13:12 +0800
-From: Fengguang Wu <fengguang.wu@intel.com>
-Subject: [PATCH 4/6] blk-cgroup: buffered write IO controller - bandwidth limit
-References: <20120328121308.568545879@intel.com>
-Content-Disposition: inline; filename=writeback-io-controller.patch
+Received: from psmtp.com (na3sys010amx164.postini.com [74.125.245.164])
+	by kanga.kvack.org (Postfix) with SMTP id 95ED16B010A
+	for <linux-mm@kvack.org>; Wed, 28 Mar 2012 10:37:01 -0400 (EDT)
+Date: Wed, 28 Mar 2012 16:36:58 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH -V4 10/10] memcg: Add memory controller documentation for
+ hugetlb management
+Message-ID: <20120328143658.GJ20949@tiehlicka.suse.cz>
+References: <1331919570-2264-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+ <1331919570-2264-11-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1331919570-2264-11-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linux Memory Management List <linux-mm@kvack.org>
-Cc: Vivek Goyal <vgoyal@redhat.com>, Andrea Righi <arighi@develer.com>, Wu Fengguang <fengguang.wu@intel.com>, Suresh Jayaraman <sjayaraman@suse.com>, Andrea Righi <andrea@betterlinux.com>, Jeff Moyer <jmoyer@redhat.com>, linux-fsdevel@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>
+To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Cc: linux-mm@kvack.org, mgorman@suse.de, kamezawa.hiroyu@jp.fujitsu.com, dhillf@gmail.com, aarcange@redhat.com, akpm@linux-foundation.org, hannes@cmpxchg.org, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org
 
-A bare per-cgroup buffered write IO controller.
+On Fri 16-03-12 23:09:30, Aneesh Kumar K.V wrote:
+> From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+> 
+> Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
+> ---
+>  Documentation/cgroups/memory.txt |   29 +++++++++++++++++++++++++++++
+>  1 files changed, 29 insertions(+), 0 deletions(-)
+> 
+> diff --git a/Documentation/cgroups/memory.txt b/Documentation/cgroups/memory.txt
+> index 4c95c00..d99c41b 100644
+> --- a/Documentation/cgroups/memory.txt
+> +++ b/Documentation/cgroups/memory.txt
+> @@ -43,6 +43,7 @@ Features:
+>   - usage threshold notifier
+>   - oom-killer disable knob and oom-notifier
+>   - Root cgroup has no limit controls.
+> + - resource accounting for HugeTLB pages
+>  
+>   Kernel memory support is work in progress, and the current version provides
+>   basically functionality. (See Section 2.7)
+> @@ -75,6 +76,12 @@ Brief summary of control files.
+>   memory.kmem.tcp.limit_in_bytes  # set/show hard limit for tcp buf memory
+>   memory.kmem.tcp.usage_in_bytes  # show current tcp buf memory allocation
+>  
+> +
+> + memory.hugetlb.<hugepagesize>.limit_in_bytes     # set/show limit of "hugepagesize" hugetlb usage
+> + memory.hugetlb.<hugepagesize>.max_usage_in_bytes # show max "hugepagesize" hugetlb  usage recorded
+> + memory.hugetlb.<hugepagesize>.usage_in_bytes     # show current res_counter usage for "hugepagesize" hugetlb
+> +						  # see 5.7 for details
+> +
+>  1. History
+>  
+>  The memory controller has a long history. A request for comments for the memory
+> @@ -279,6 +286,15 @@ per cgroup, instead of globally.
+>  
+>  * tcp memory pressure: sockets memory pressure for the tcp protocol.
+>  
+> +2.8 HugeTLB extension
+> +
+> +This extension allows to limit the HugeTLB usage per control group and
+> +enforces the controller limit during page fault. Since HugeTLB doesn't
+> +support page reclaim, enforcing the limit at page fault time implies that,
+> +the application will get SIGBUS signal if it tries to access HugeTLB pages
+> +beyond its limit. 
 
-Basically, when there are N dd tasks running in the blkcg,
-blkcg->dirty_ratelimit will be balanced around
+This is consistent with the quota so we should mention that. We should
+also add a note how we interact with quotas.
 
-	blkcg->buffered_write_bps / N
+Another important thing to note is that the limit/usage are
+unrelated to memcg hard/soft limit/usage.
 
-and each blkcg task will be throttled under
+> This requires the application to know beforehand how much
+> +HugeTLB pages it would require for its use.
+> +
+>  3. User Interface
+>  
+>  0. Configuration
+> @@ -287,6 +303,7 @@ a. Enable CONFIG_CGROUPS
+>  b. Enable CONFIG_RESOURCE_COUNTERS
+>  c. Enable CONFIG_CGROUP_MEM_RES_CTLR
+>  d. Enable CONFIG_CGROUP_MEM_RES_CTLR_SWAP (to use swap extension)
+> +f. Enable CONFIG_MEM_RES_CTLR_HUGETLB (to use HugeTLB extension)
+>  
+>  1. Prepare the cgroups (see cgroups.txt, Why are cgroups needed?)
+>  # mount -t tmpfs none /sys/fs/cgroup
+> @@ -510,6 +527,18 @@ unevictable=<total anon pages> N0=<node 0 pages> N1=<node 1 pages> ...
+>  
+>  And we have total = file + anon + unevictable.
+>  
+> +5.7 HugeTLB resource control files
+> +For a system supporting two hugepage size (16M and 16G) the control
+> +files include:
+> +
+> + memory.hugetlb.16GB.limit_in_bytes
+> + memory.hugetlb.16GB.max_usage_in_bytes
+> + memory.hugetlb.16GB.usage_in_bytes
+> + memory.hugetlb.16MB.limit_in_bytes
+> + memory.hugetlb.16MB.max_usage_in_bytes
+> + memory.hugetlb.16MB.usage_in_bytes
+> +
+> +
+>  6. Hierarchy support
+>  
+>  The memory controller supports a deep hierarchy and hierarchical accounting.
+> -- 
+> 1.7.9
+> 
 
-	blkcg->dirty_ratelimit
-or 
-	min(blkcg->dirty_ratelimit, bdi->dirty_ratelimit)
-when there are other dirtier tasks in the system.
-
-CC: Vivek Goyal <vgoyal@redhat.com>
-CC: Andrea Righi <arighi@develer.com>
-Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
----
- include/linux/blk-cgroup.h |   20 +++++++++++
- mm/page-writeback.c        |   59 +++++++++++++++++++++++++++++++++++
- 2 files changed, 79 insertions(+)
-
---- linux-next.orig/mm/page-writeback.c	2012-03-28 15:36:16.414093131 +0800
-+++ linux-next/mm/page-writeback.c	2012-03-28 15:40:25.446088022 +0800
-@@ -1145,6 +1145,54 @@ static long bdi_min_pause(struct backing
- 	return pages >= DIRTY_POLL_THRESH ? 1 + t / 2 : t;
- }
- 
-+#ifdef CONFIG_BLK_DEV_THROTTLING
-+static void blkcg_update_dirty_ratelimit(struct blkio_cgroup *blkcg,
-+					 unsigned long dirtied,
-+					 unsigned long elapsed)
-+{
-+	unsigned long long bps = blkcg_buffered_write_bps(blkcg);
-+	unsigned long long ratelimit;
-+	unsigned long dirty_rate;
-+
-+	dirty_rate = (dirtied - blkcg->dirtied_stamp) * HZ;
-+	dirty_rate /= elapsed;
-+
-+	ratelimit = blkcg->dirty_ratelimit;
-+	ratelimit *= div_u64(bps, dirty_rate + 1);
-+	ratelimit = min(ratelimit, bps);
-+	ratelimit >>= PAGE_SHIFT;
-+
-+	blkcg->dirty_ratelimit = (blkcg->dirty_ratelimit + ratelimit) / 2 + 1;
-+}
-+
-+void blkcg_update_bandwidth(struct blkio_cgroup *blkcg)
-+{
-+	unsigned long now = jiffies;
-+	unsigned long dirtied;
-+	unsigned long elapsed;
-+
-+	if (!blkcg)
-+		return;
-+	if (!spin_trylock(&blkcg->lock))
-+		return;
-+
-+	elapsed = now - blkcg->bw_time_stamp;
-+	dirtied = percpu_counter_read(&blkcg->nr_dirtied);
-+
-+	if (elapsed > MAX_PAUSE * 2)
-+		goto snapshot;
-+	if (elapsed <= MAX_PAUSE)
-+		goto unlock;
-+
-+	blkcg_update_dirty_ratelimit(blkcg, dirtied, elapsed);
-+snapshot:
-+	blkcg->dirtied_stamp = dirtied;
-+	blkcg->bw_time_stamp = now;
-+unlock:
-+	spin_unlock(&blkcg->lock);
-+}
-+#endif
-+
- /*
-  * balance_dirty_pages() must be called by processes which are generating dirty
-  * data.  It looks at the number of dirty pages in the machine and will force
-@@ -1174,6 +1222,7 @@ static void balance_dirty_pages(struct a
- 	unsigned long pos_ratio;
- 	struct backing_dev_info *bdi = mapping->backing_dev_info;
- 	unsigned long start_time = jiffies;
-+	struct blkio_cgroup *blkcg = task_blkio_cgroup(current);
- 
- 	for (;;) {
- 		unsigned long now = jiffies;
-@@ -1198,6 +1247,8 @@ static void balance_dirty_pages(struct a
- 		freerun = dirty_freerun_ceiling(dirty_thresh,
- 						background_thresh);
- 		if (nr_dirty <= freerun) {
-+			if (blkcg_buffered_write_bps(blkcg))
-+				goto blkcg_bps;
- 			current->dirty_paused_when = now;
- 			current->nr_dirtied = 0;
- 			current->nr_dirtied_pause =
-@@ -1263,6 +1314,14 @@ static void balance_dirty_pages(struct a
- 			task_ratelimit = (u64)task_ratelimit *
- 				blkcg_weight(blkcg) / BLKIO_WEIGHT_DEFAULT;
- 
-+		if (blkcg_buffered_write_bps(blkcg) &&
-+		    task_ratelimit > blkcg_dirty_ratelimit(blkcg)) {
-+blkcg_bps:
-+			blkcg_update_bandwidth(blkcg);
-+			dirty_ratelimit = blkcg_dirty_ratelimit(blkcg);
-+			task_ratelimit = dirty_ratelimit;
-+		}
-+
- 		max_pause = bdi_max_pause(bdi, bdi_dirty);
- 		min_pause = bdi_min_pause(bdi, max_pause,
- 					  task_ratelimit, dirty_ratelimit,
---- linux-next.orig/include/linux/blk-cgroup.h	2012-03-28 15:36:16.414093131 +0800
-+++ linux-next/include/linux/blk-cgroup.h	2012-03-28 15:39:46.730088815 +0800
-@@ -122,6 +122,10 @@ struct blkio_cgroup {
- 	struct hlist_head blkg_list;
- 	struct list_head policy_list; /* list of blkio_policy_node */
- 	struct percpu_counter nr_dirtied;
-+	unsigned long bw_time_stamp;
-+	unsigned long dirtied_stamp;
-+	unsigned long dirty_ratelimit;
-+	unsigned long long buffered_write_bps;
- };
- 
- struct blkio_group_stats {
-@@ -217,6 +221,14 @@ static inline unsigned int blkcg_weight(
- {
- 	return blkcg->weight;
- }
-+static inline uint64_t blkcg_buffered_write_bps(struct blkio_cgroup *blkcg)
-+{
-+	return blkcg->buffered_write_bps;
-+}
-+static inline unsigned long blkcg_dirty_ratelimit(struct blkio_cgroup *blkcg)
-+{
-+	return blkcg->dirty_ratelimit;
-+}
- 
- typedef void (blkio_unlink_group_fn) (void *key, struct blkio_group *blkg);
- 
-@@ -272,6 +284,14 @@ static inline unsigned int blkcg_weight(
- {
- 	return BLKIO_WEIGHT_DEFAULT;
- }
-+static inline uint64_t blkcg_buffered_write_bps(struct blkio_cgroup *blkcg)
-+{
-+	return 0;
-+}
-+static inline unsigned long blkcg_dirty_ratelimit(struct blkio_cgroup *blkcg)
-+{
-+	return 0;
-+}
- 
- #endif
- 
-
+-- 
+Michal Hocko
+SUSE Labs
+SUSE LINUX s.r.o.
+Lihovarska 1060/12
+190 00 Praha 9    
+Czech Republic
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
