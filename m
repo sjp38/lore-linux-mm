@@ -1,44 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx111.postini.com [74.125.245.111])
-	by kanga.kvack.org (Postfix) with SMTP id B45326B0044
-	for <linux-mm@kvack.org>; Thu, 29 Mar 2012 09:52:18 -0400 (EDT)
-Date: Thu, 29 Mar 2012 15:51:36 +0200 (CEST)
-From: Thomas Gleixner <tglx@linutronix.de>
-Subject: Re: [PATCHv2 02/14] X86 & IA64: adapt for dma_map_ops changes
-In-Reply-To: <1332855768-32583-3-git-send-email-m.szyprowski@samsung.com>
-Message-ID: <alpine.LFD.2.02.1203291545520.2542@ionos>
-References: <1332855768-32583-1-git-send-email-m.szyprowski@samsung.com> <1332855768-32583-3-git-send-email-m.szyprowski@samsung.com>
+Received: from psmtp.com (na3sys010amx136.postini.com [74.125.245.136])
+	by kanga.kvack.org (Postfix) with SMTP id 8EF8B6B0044
+	for <linux-mm@kvack.org>; Thu, 29 Mar 2012 10:10:39 -0400 (EDT)
+Date: Thu, 29 Mar 2012 22:05:25 +0800
+From: Fengguang Wu <fengguang.wu@intel.com>
+Subject: Re: [PATCH] mm/memory_failure: Let the compiler add the function name
+Message-ID: <20120329140525.GA10452@localhost>
+References: <1332843450-7100-1-git-send-email-bp@amd64.org>
+ <alpine.DEB.2.00.1203280018390.16201@chino.kir.corp.google.com>
+ <20120328090909.GX22197@one.firstfloor.org>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20120328090909.GX22197@one.firstfloor.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Marek Szyprowski <m.szyprowski@samsung.com>
-Cc: linux-kernel@vger.kernel.org, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Andrew Morton <akpm@linux-foundation.org>, Arnd Bergmann <arnd@arndb.de>, Stephen Rothwell <sfr@canb.auug.org.au>, FUJITA Tomonori <fujita.tomonori@lab.ntt.co.jp>, microblaze-uclinux@itee.uq.edu.au, linux-arch@vger.kernel.org, x86@kernel.org, linux-sh@vger.kernel.org, linux-alpha@vger.kernel.org, sparclinux@vger.kernel.org, linux-ia64@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-mips@linux-mips.org, discuss@x86-64.org, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, linaro-mm-sig@lists.linaro.org, Jonathan Corbet <corbet@lwn.net>, Kyungmin Park <kyungmin.park@samsung.com>, Andrzej Pietrasiewicz <andrzej.p@samsung.com>, Kevin Cernekee <cernekee@gmail.com>, Dezhong Diao <dediao@cisco.com>, Richard Kuo <rkuo@codeaurora.org>, "David S. Miller" <davem@davemloft.net>, Michal Simek <monstr@monstr.eu>, Guan Xuetao <gxt@mprc.pku.edu.cn>, Paul Mundt <lethal@linux-sh.org>, Richard Henderson <rth@twiddle.net>, Ivan Kokshaysky <ink@jurassic.park.msu.ru>, Matt Turner <mattst88@gmail.com>, Tony Luck <tony.luck@intel.com>, Fenghua Yu <fenghua.yu@intel.com>
+To: Andi Kleen <andi@firstfloor.org>
+Cc: David Rientjes <rientjes@google.com>, Borislav Petkov <bp@amd64.org>, LKML <linux-kernel@vger.kernel.org>, Borislav Petkov <borislav.petkov@amd.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
 
-On Tue, 27 Mar 2012, Marek Szyprowski wrote:
-> From: Andrzej Pietrasiewicz <andrzej.p@samsung.com>
-> -static inline void *dma_alloc_coherent(struct device *dev, size_t size,
-> -				       dma_addr_t *daddr, gfp_t gfp)
-> +#define dma_alloc_coherent(d,s,h,f)	dma_alloc_attrs(d,s,h,f,NULL)
+On Wed, Mar 28, 2012 at 11:09:09AM +0200, Andi Kleen wrote:
+> > I agree with your change, but I'm not sure these should be pr_info() to 
+> > start with, these seem more like debugging messages?  I can't see how 
+> > they'd be useful in standard operation so could we just convert them to be 
+> > debug instead?
+> 
+> Well it tells why the page recovery didn't work.
+> 
+> Memory recovery is a somewhat obscure path, so it's better to have
+> full information.
 
-Please make this an inline function.
+Nod, and it won't disturb the users unless something really bad happens.
 
->  
-> +#define dma_alloc_coherent(d,s,h,f)	dma_alloc_attrs(d,s,h,f,NULL)
-
-Inline please.
-
-> -static inline void dma_free_coherent(struct device *dev, size_t size,
-> -				     void *vaddr, dma_addr_t bus)
-> +#define dma_free_coherent(d,s,c,h) dma_free_attrs(d,s,c,h,NULL)
-
-Ditto
-
-Reviewed-by: Thomas Gleixner <tglx@linutronix.de>
+I'm fine with the patch, too.
 
 Thanks,
-
-	tglx
+Fengguang
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
