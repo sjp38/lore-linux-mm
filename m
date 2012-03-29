@@ -1,91 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx175.postini.com [74.125.245.175])
-	by kanga.kvack.org (Postfix) with SMTP id E1B866B0044
-	for <linux-mm@kvack.org>; Thu, 29 Mar 2012 03:19:33 -0400 (EDT)
-Date: Thu, 29 Mar 2012 10:19:27 +0300
-From: Hiroshi Doyu <hdoyu@nvidia.com>
-Subject: Re: [PATCHv7 9/9] ARM: dma-mapping: add support for IOMMU mapper
-Message-ID: <20120329101927.8ab6b1993475b7e16ae2258f@nvidia.com>
-In-Reply-To: <1330527862-16234-10-git-send-email-m.szyprowski@samsung.com>
-References: <1330527862-16234-1-git-send-email-m.szyprowski@samsung.com>
-	<1330527862-16234-10-git-send-email-m.szyprowski@samsung.com>
+Received: from psmtp.com (na3sys010amx101.postini.com [74.125.245.101])
+	by kanga.kvack.org (Postfix) with SMTP id 7D0C36B0044
+	for <linux-mm@kvack.org>; Thu, 29 Mar 2012 03:57:25 -0400 (EDT)
+Date: Thu, 29 Mar 2012 09:57:22 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH -V4 04/10] memcg: Add HugeTLB extension
+Message-ID: <20120329075722.GB30465@tiehlicka.suse.cz>
+References: <1331919570-2264-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+ <1331919570-2264-5-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+ <20120328134020.GG20949@tiehlicka.suse.cz>
+ <87y5qk1vat.fsf@skywalker.in.ibm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <87y5qk1vat.fsf@skywalker.in.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Marek Szyprowski <m.szyprowski@samsung.com>
-Cc: "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "linaro-mm-sig@lists.linaro.org" <linaro-mm-sig@lists.linaro.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, "linux-samsung-soc@vger.kernel.org" <linux-samsung-soc@vger.kernel.org>, "iommu@lists.linux-foundation.org" <iommu@lists.linux-foundation.org>, Shariq Hasnain <shariq.hasnain@linaro.org>, Arnd Bergmann <arnd@arndb.de>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Krishna Reddy <vdumpa@nvidia.com>, Kyungmin Park <kyungmin.park@samsung.com>, Andrzej
- Pietrasiewicz <andrzej.p@samsung.com>, Russell King - ARM Linux <linux@arm.linux.org.uk>, KyongHo Cho <pullip.cho@samsung.com>, Chunsang
- Jeong <chunsang.jeong@linaro.org>
+To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Cc: linux-mm@kvack.org, mgorman@suse.de, kamezawa.hiroyu@jp.fujitsu.com, dhillf@gmail.com, aarcange@redhat.com, akpm@linux-foundation.org, hannes@cmpxchg.org, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org
 
-Hi Marek,
-
-On Wed, 29 Feb 2012 16:04:22 +0100
-Marek Szyprowski <m.szyprowski@samsung.com> wrote:
-
-> This patch add a complete implementation of DMA-mapping API for
-> devices that have IOMMU support. All DMA-mapping calls are supported.
+On Wed 28-03-12 23:07:14, Aneesh Kumar K.V wrote:
+> Michal Hocko <mhocko@suse.cz> writes:
 > 
-> This patch contains some of the code kindly provided by Krishna Reddy
-> <vdumpa@nvidia.com> and Andrzej Pietrasiewicz <andrzej.p@samsung.com>
+> > On Fri 16-03-12 23:09:24, Aneesh Kumar K.V wrote:
+> > [...]
+> >> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> >> index 6728a7a..4b36c5e 100644
+> >> --- a/mm/memcontrol.c
+> >> +++ b/mm/memcontrol.c
+> > [...]
+> >> @@ -4887,6 +5013,7 @@ err_cleanup:
+> >>  static struct cgroup_subsys_state * __ref
+> >>  mem_cgroup_create(struct cgroup_subsys *ss, struct cgroup *cont)
+> >>  {
+> >> +	int idx;
+> >>  	struct mem_cgroup *memcg, *parent;
+> >>  	long error = -ENOMEM;
+> >>  	int node;
+> >> @@ -4929,9 +5056,14 @@ mem_cgroup_create(struct cgroup_subsys *ss, struct cgroup *cont)
+> >>  		 * mem_cgroup(see mem_cgroup_put).
+> >>  		 */
+> >>  		mem_cgroup_get(parent);
+> >> +		for (idx = 0; idx < HUGE_MAX_HSTATE; idx++)
+> >> +			res_counter_init(&memcg->hugepage[idx],
+> >> +					 &parent->hugepage[idx]);
+> >
+> > Hmm, I do not think we want to make groups deeper in the hierarchy
+> > unlimited as we cannot reclaim. Shouldn't we copy the limit from the parent?
+> > Still not ideal but slightly more expected behavior IMO.
 > 
-> Signed-off-by: Marek Szyprowski <m.szyprowski@samsung.com>
-> Signed-off-by: Kyungmin Park <kyungmin.park@samsung.com>
-> Reviewed-by: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
-> ---
->  arch/arm/Kconfig                 |    8 +
->  arch/arm/include/asm/device.h    |    3 +
->  arch/arm/include/asm/dma-iommu.h |   34 ++
->  arch/arm/mm/dma-mapping.c        |  726 +++++++++++++++++++++++++++++++++++++-
->  arch/arm/mm/vmregion.h           |    2 +-
->  5 files changed, 758 insertions(+), 15 deletions(-)
->  create mode 100644 arch/arm/include/asm/dma-iommu.h
+> But we should be limiting the child group based on parent's limit only
+> when hierarchy is set right ?
+
+Yes. Everything else should be unlimited by default.
+
 > 
+> >
+> > The hierarchy setups are still interesting and the limitations should be
+> > described in the documentation...
+> >
+> 
+> It should behave similar to memcg. ie, if hierarchy is set, then we limit
+> using MIN(parent's limit, child's limit). May be I am missing some of
+> the details of memcg use_hierarchy config. My goal was to keep it
+> similar to memcg. Can you explain why do you think the patch would
+> make it any different ?
 
-<snip>
+Yes, the patch tries to be consistent with the memcg limits. That is OK
+and I have no objections for that. It is just that consequences are
+different. The hugetlb limit is really hard...
 
-> +/*
-> + * Map a part of the scatter-gather list into contiguous io address space
-> + */
-> +static int __map_sg_chunk(struct device *dev, struct scatterlist *sg,
-> +                         size_t size, dma_addr_t *handle,
-> +                         enum dma_data_direction dir)
-> +{
-> +       struct dma_iommu_mapping *mapping = dev->archdata.mapping;
-> +       dma_addr_t iova, iova_base;
-> +       int ret = 0;
-> +       unsigned int count;
-> +       struct scatterlist *s;
-> +
-> +       size = PAGE_ALIGN(size);
-> +       *handle = ARM_DMA_ERROR;
-> +
-> +       iova_base = iova = __alloc_iova(mapping, size);
-> +       if (iova == ARM_DMA_ERROR)
-> +               return -ENOMEM;
-> +
-> +       for (count = 0, s = sg; count < (size >> PAGE_SHIFT); s = sg_next(s))
-> +       {
-> +               phys_addr_t phys = page_to_phys(sg_page(s));
-> +               unsigned int len = PAGE_ALIGN(s->offset + s->length);
-> +
-> +               if (!arch_is_coherent())
-> +                       __dma_page_cpu_to_dev(sg_page(s), s->offset, s->length, dir);
-> +
-> +               ret = iommu_map(mapping->domain, iova, phys, len, 0);
-> +               if (ret < 0)
-> +                       goto fail;
-> +               count += len >> PAGE_SHIFT;
-> +               iova += len;
-> +       }
-> +       *handle = iova_base;
-> +
-> +       return 0;
-> +fail:
-> +       iommu_unmap(mapping->domain, iova_base, count * PAGE_SIZE);
-> +       __free_iova(mapping, iova_base, size);
-> +       return ret;
-> +}
+> 
+> -aneesh
+> 
+> --
+> To unsubscribe from this list: send the line "unsubscribe cgroups" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
 
-Do we need to set dma_address as below?
+-- 
+Michal Hocko
+SUSE Labs
+SUSE LINUX s.r.o.
+Lihovarska 1060/12
+190 00 Praha 9    
+Czech Republic
+
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Fight unfair telecom internet charges in Canada: sign http://stopthemeter.ca/
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
