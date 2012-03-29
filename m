@@ -1,53 +1,32 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx187.postini.com [74.125.245.187])
-	by kanga.kvack.org (Postfix) with SMTP id F02C76B0044
-	for <linux-mm@kvack.org>; Thu, 29 Mar 2012 17:12:47 -0400 (EDT)
-From: =?UTF-8?q?Uwe=20Kleine-K=C3=B6nig?= <u.kleine-koenig@pengutronix.de>
-Subject: [PATCH 01/17] percpu: mark const init data with __initconst instead of __initdata
-Date: Thu, 29 Mar 2012 23:12:18 +0200
-Message-Id: <1333055554-31300-1-git-send-email-u.kleine-koenig@pengutronix.de>
-In-Reply-To: <20120329211131.GA31250@pengutronix.de>
-References: <20120329211131.GA31250@pengutronix.de>
+Received: from psmtp.com (na3sys010amx131.postini.com [74.125.245.131])
+	by kanga.kvack.org (Postfix) with SMTP id 034636B0044
+	for <linux-mm@kvack.org>; Thu, 29 Mar 2012 18:53:44 -0400 (EDT)
+Message-ID: <4F74E7CD.3030807@ah.jp.nec.com>
+Date: Thu, 29 Mar 2012 18:53:01 -0400
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 8bit
+Subject: Re: [PATCH] pagemap: fix order of pmd_trans_unstable() and pmd_trans_huge_lock()
+References: <1333010501-31218-1-git-send-email-n-horiguchi@ah.jp.nec.com> <20120329202514.GC20930@redhat.com>
+In-Reply-To: <20120329202514.GC20930@redhat.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>
-Cc: kernel@pengutronix.de, Christoph Lameter <cl@linux-foundation.org>, Tejun Heo <tj@kernel.org>, linux-mm@kvack.org
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Sasha Levin <levinsasha928@gmail.com>, Hugh Dickins <hughd@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-As long as there is no other non-const variable marked __initdata in the
-same compilation unit it doesn't hurt. If there were one however
-compilation would fail with
+(3/29/2012 16:25), Andrea Arcangeli wrote:
+> Hi,
+> 
+> On Thu, Mar 29, 2012 at 04:41:41AM -0400, Naoya Horiguchi wrote:
+>> pmd_trans_unstable() in pagemap_pte_range() comes before pmd_trans_huge_lock()
+>> now, which means that pagewalk kicked by reading /proc/pid/pagemap does not
+>> run over thp. This patch fixes it.
+> 
+> This should be fixed already.
 
-	error: $variablename causes a section type conflict
-
-because a section containing const variables is marked read only and so
-cannot contain non-const variables.
-
-Signed-off-by: Uwe Kleine-KA?nig <u.kleine-koenig@pengutronix.de>
-Cc: Christoph Lameter <cl@linux-foundation.org>
-Cc: Tejun Heo <tj@kernel.org>
-Cc: linux-mm@kvack.org
----
- mm/percpu.c |    2 +-
- 1 files changed, 1 insertions(+), 1 deletions(-)
-
-diff --git a/mm/percpu.c b/mm/percpu.c
-index f47af91..5e812f5 100644
---- a/mm/percpu.c
-+++ b/mm/percpu.c
-@@ -1370,7 +1370,7 @@ int __init pcpu_setup_first_chunk(const struct pcpu_alloc_info *ai,
- 
- #ifdef CONFIG_SMP
- 
--const char *pcpu_fc_names[PCPU_FC_NR] __initdata = {
-+const char *pcpu_fc_names[PCPU_FC_NR] __initconst = {
- 	[PCPU_FC_AUTO]	= "auto",
- 	[PCPU_FC_EMBED]	= "embed",
- 	[PCPU_FC_PAGE]	= "page",
--- 
-1.7.9.1
+Oh, you're right. Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
