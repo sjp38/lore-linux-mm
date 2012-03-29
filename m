@@ -1,78 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx132.postini.com [74.125.245.132])
-	by kanga.kvack.org (Postfix) with SMTP id DFFC36B011A
-	for <linux-mm@kvack.org>; Wed, 28 Mar 2012 18:40:47 -0400 (EDT)
-Date: Thu, 29 Mar 2012 06:35:42 +0800
-From: Fengguang Wu <fengguang.wu@intel.com>
-Subject: Re: [PATCH 0/6] buffered write IO controller in balance_dirty_pages()
-Message-ID: <20120328223542.GA11065@localhost>
-References: <20120328121308.568545879@intel.com>
- <20120328211017.GF3376@redhat.com>
+Received: from psmtp.com (na3sys010amx160.postini.com [74.125.245.160])
+	by kanga.kvack.org (Postfix) with SMTP id 804806B011F
+	for <linux-mm@kvack.org>; Wed, 28 Mar 2012 20:01:37 -0400 (EDT)
+Received: by qcsd16 with SMTP id d16so1287619qcs.14
+        for <linux-mm@kvack.org>; Wed, 28 Mar 2012 17:01:36 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20120328211017.GF3376@redhat.com>
+In-Reply-To: <1332952945-15909-1-git-send-email-glommer@parallels.com>
+References: <1332952945-15909-1-git-send-email-glommer@parallels.com>
+Date: Wed, 28 Mar 2012 17:01:36 -0700
+Message-ID: <CABCjUKDVK2wpCXBxK-J=s9BL+Gaa_E=qA=R_YZhY0xujwf-4Tg@mail.gmail.com>
+Subject: Re: [RFC] simple system for enable/disable slabs being tracked by memcg.
+From: Suleiman Souhlal <suleiman@google.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vivek Goyal <vgoyal@redhat.com>
-Cc: Linux Memory Management List <linux-mm@kvack.org>, Suresh Jayaraman <sjayaraman@suse.com>, Andrea Righi <andrea@betterlinux.com>, Jeff Moyer <jmoyer@redhat.com>, linux-fsdevel@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>
+To: Glauber Costa <glommer@parallels.com>
+Cc: linux-mm@kvack.org, Hiroyouki Kamezawa <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>
 
-Hi Vivek,
+Hi Glauber,
 
-On Wed, Mar 28, 2012 at 05:10:18PM -0400, Vivek Goyal wrote:
-> On Wed, Mar 28, 2012 at 08:13:08PM +0800, Fengguang Wu wrote:
-> > 
-> > Here is one possible solution to "buffered write IO controller", based on Linux
-> > v3.3
-> > 
-> > git://git.kernel.org/pub/scm/linux/kernel/git/wfg/linux.git  buffered-write-io-controller
-> > 
-> > Features:
-> > - support blkio.weight
-> 
-> So this does proportional write bandwidth division on bdi for buffered
-> writes?
+On Wed, Mar 28, 2012 at 9:42 AM, Glauber Costa <glommer@parallels.com> wrot=
+e:
+> Hi.
+>
+> This is a proposal I've got for how to finally settle down the
+> question of which slabs should be tracked. The patch I am providing
+> is for discussion only, and should apply ontop of Suleiman's latest
+> version posted to the list.
+>
+> The idea is to create a new file, memory.kmem.slabs_allowed.
+> I decided not to overload the slabinfo file for that, but I can,
+> if you ultimately want to. I just think it is cleaner this way.
+> As a small rationale, I'd like to somehow show which caches are
+> available but disabled. And yet, keep the format compatible with
+> /proc/slabinfo.
+>
+> Reading from this file will provide this information
+> Writers should write a string:
+> =A0[+-]cache_name
+>
+> The wild card * is accepted, but only that. I am leaving
+> any complex processing to userspace.
+>
+> The * wildcard, though, is nice. It allows us to do:
+> =A0-* (disable all)
+> =A0+cache1
+> =A0+cache2
+>
+> and so on.
+>
+> Part of this patch is actually converting the slab pointers in memcg
+> to a complex memcg-specific structure that can hold a disabled pointer.
+>
+> We could actually store it in a free bit in the address, but that is
+> a first version. Let me know if this is how you would like me to tackle
+> this.
+>
+> With a system like this (either this, or something alike), my opposition
+> to Suleiman's idea of tracking everything under the sun basically vanishe=
+s,
+> since I can then selectively disable most of them.
+>
+> I still prefer a special kmalloc call than a GFP flag, though.
 
-Right. That is done in patch 3, costing only 3 lines in balance_dirty_pages().
+How would something like this interact with slab types that will have
+a per-memcg shrinker?
+Only do memcg shrinking for a slab type if it's not disabled?
 
-> > - support blkio.throttle.buffered_write_bps
-> 
-> This is absolute limit systemwide or per bdi?
+While I like the idea of making it configurable by the user, I wonder
+if we should be adding even more complexity to an already large
+patchset, at this point.
+I am also afraid that we might make this too hard setup correctly and use.
 
-It's per-blkcg absolute limit. It can be extended to per-blkcg-per-bdi
-limits w/o changing the basic algorithms. We only need to change interface and
-vectorize the variables:
-        struct percpu_counter nr_dirtied;
-        unsigned long bw_time_stamp;
-        unsigned long dirtied_stamp;
-        unsigned long dirty_ratelimit;
-        unsigned long long buffered_write_bps;
-and add a "bdi" parameter to relevant functions.
+If it's ok, I'd prefer to keep going with a slab flag being passed to
+kmem_cache_create, to determine if a slab type should be accounted or
+not (opt-in), for now.
 
-> [..]
-> > The test results included in the last patch look pretty good in despite of the
-> > simple implementation.
-> > 
-> >  [PATCH 1/6] blk-cgroup: move blk-cgroup.h in include/linux/blk-cgroup.h
-> >  [PATCH 2/6] blk-cgroup: account dirtied pages
-> >  [PATCH 3/6] blk-cgroup: buffered write IO controller - bandwidth weight
-> >  [PATCH 4/6] blk-cgroup: buffered write IO controller - bandwidth limit
-> >  [PATCH 5/6] blk-cgroup: buffered write IO controller - bandwidth limit interface
-> >  [PATCH 6/6] blk-cgroup: buffered write IO controller - debug trace
-> > 
-> 
-> Hi Fengguang,
-> 
-> Only patch 0 and patch 4 have shown up in my mail box. Same seems to be
-> the case for lkml. I am wondering what happened to rest of the patches.
-
-Sorry I shut down my laptop before all emails are sent out.
-
-> Will understand the patches better once I have the full set.
-
-OK, thanks!
-
-Fengguang
+-- Suleiman
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
