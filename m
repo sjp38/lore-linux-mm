@@ -1,26 +1,26 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx182.postini.com [74.125.245.182])
-	by kanga.kvack.org (Postfix) with SMTP id 47D176B004A
-	for <linux-mm@kvack.org>; Thu, 29 Mar 2012 07:10:42 -0400 (EDT)
-Message-ID: <4F744327.3010704@parallels.com>
-Date: Thu, 29 Mar 2012 13:10:31 +0200
+Received: from psmtp.com (na3sys010amx131.postini.com [74.125.245.131])
+	by kanga.kvack.org (Postfix) with SMTP id 67B9F6B0044
+	for <linux-mm@kvack.org>; Thu, 29 Mar 2012 07:23:14 -0400 (EDT)
+Message-ID: <4F74460E.9070709@parallels.com>
+Date: Thu, 29 Mar 2012 13:22:54 +0200
 From: Glauber Costa <glommer@parallels.com>
 MIME-Version: 1.0
 Subject: Re: [RFC] simple system for enable/disable slabs being tracked by
  memcg.
-References: <1332952945-15909-1-git-send-email-glommer@parallels.com> <CABCjUKDVK2wpCXBxK-J=s9BL+Gaa_E=qA=R_YZhY0xujwf-4Tg@mail.gmail.com>
-In-Reply-To: <CABCjUKDVK2wpCXBxK-J=s9BL+Gaa_E=qA=R_YZhY0xujwf-4Tg@mail.gmail.com>
-Content-Type: text/plain; charset="ISO-8859-1"; format=flowed
+References: <1332952945-15909-1-git-send-email-glommer@parallels.com> <4F73A6E8.8010402@jp.fujitsu.com>
+In-Reply-To: <4F73A6E8.8010402@jp.fujitsu.com>
+Content-Type: text/plain; charset="ISO-2022-JP"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Suleiman Souhlal <suleiman@google.com>
-Cc: linux-mm@kvack.org, Hiroyouki Kamezawa <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: linux-mm@kvack.org, Suleiman Souhlal <suleiman@google.com>, Johannes
+ Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>
 
-On 03/29/2012 02:01 AM, Suleiman Souhlal wrote:
-> Hi Glauber,
->
-> On Wed, Mar 28, 2012 at 9:42 AM, Glauber Costa<glommer@parallels.com>  wrote:
+On 03/29/2012 02:03 AM, KAMEZAWA Hiroyuki wrote:
+> (2012/03/29 1:42), Glauber Costa wrote:
+> 
 >> Hi.
 >>
 >> This is a proposal I've got for how to finally settle down the
@@ -47,72 +47,74 @@ On 03/29/2012 02:01 AM, Suleiman Souhlal wrote:
 >>   +cache1
 >>   +cache2
 >>
->> and so on.
->>
->> Part of this patch is actually converting the slab pointers in memcg
->> to a complex memcg-specific structure that can hold a disabled pointer.
->>
->> We could actually store it in a free bit in the address, but that is
->> a first version. Let me know if this is how you would like me to tackle
->> this.
->>
->> With a system like this (either this, or something alike), my opposition
->> to Suleiman's idea of tracking everything under the sun basically vanishes,
->> since I can then selectively disable most of them.
->>
->> I still prefer a special kmalloc call than a GFP flag, though.
->
-> How would something like this interact with slab types that will have
-> a per-memcg shrinker?
-> Only do memcg shrinking for a slab type if it's not disabled?
+> 
+> I like to pass a word 'all' explicitly rather than wildcard..
+I don't for a very simple reason:
 
-The idea is that if the slab type is disabled, it should not even be 
-created.
+We don't have a cache called "all", but one could very well come up with
+one in a driver.
+And then we have problems.
 
-I actually plan to include some tests to disallow disabling slabs after 
-either they are created already, or we have tasks in the cgroup.
+Now, it is a lot less likely that someone will ever create a cache
+called "*"
 
-Regardless of the path, this is only sane if it is a setup-like thing 
-much like it is for use_hierarchy today.
+Also, the wildcard allows us to do things like size-*. But that it is
+not terribly important,
+since I am leaving all the heavy processing for userspace, though. It is
+convenient and I
+like it, but if you really oppose, we can have * to mean all, but not
+allow the * symbol to be
+used as a wildcard in the middle of a string.
 
-Enabling a disabled cache, though, can always be fine...
+We could, of course, not even have it, and simply rely on userspace to
+read all
+caches from the available list and move them to the deny list.
 
-So if the cache was never created, there is nothing to worry about wrt 
-shrinkers.
+But I think the "disable all" and "enable all" are somewhat special.
+There can
+be races associated with caches appearing in the middle of those two
+operations,
+and this semantics avoids them.
 
-> While I like the idea of making it configurable by the user, I wonder
-> if we should be adding even more complexity to an already large
-> patchset, at this point.
-I don't see a reason not to, specially because it is pretty 
-self-contained. Moreover, one of the reasons I moved forward with this, 
-is that I believe the kind of interfaces we'll have at hand can 
-interfere in some design decisions.
+That actually applies to the use of * as a wildcard as well. The only
+sane way to say:
+"Enable/Disable" all size-type caches, is to have it done atomically.
 
-Now, whether or not we should *merge* them all at the same time, is a 
-different story. We do can phase it if needed.
+> 
+> Hmm, but having private format of list is good ?
+> In another idea, how about having 3 files as device cgroup ?
+> 
+> 	memory.kmem.slabs.allow   (similar to device.allow)
+> 	memory.kmem.slabs.deny    (similar to device.deny)
+> 	memory.kmem.slabs.list	    (similar to device.list)
+> 
+> BTW, when a slab which is accounted is changed to be unaccounted,
+> res_counter.usage will decrease properly ?
+> 
+> small comments in below.
+> 
+> 
 
-> I am also afraid that we might make this too hard setup correctly and use.
+>> -	if (cmpxchg(&memcg->slabs[idx], NULL, new_cachep) != NULL) {
+>> +	if (cmpxchg(&memcg->slabs[idx].cache, NULL, new_cachep) != NULL) {
+>>   		kmem_cache_destroy(new_cachep);
+>>   		return cachep;
+>>   	}
+> 
+> 
+> I'm sorry if I misunderstand.... can we use cmpxchg in generic code of the kernel ?
+> We need to put this under #if defined(__HAVE_ARCH_CMPXCHG) ?
+> 
+> 
 
-Can you please try to make this a bit more sound? At this point, I think 
-that getting the interface right is more important than the 
-implementation, so your concerns would be a very nice outcome of this 
-discussion.
+The cmpxchg was already there. I am just patching the cache access.
+Now for the question itself, If I'm not mistaken this macro should be
+safe. xchg() seems
+to be used quite extensively, and I would expect a emulation function to
+be provided for arches
+lacking cmpxchg ?
 
-> If it's ok, I'd prefer to keep going with a slab flag being passed to
-> kmem_cache_create, to determine if a slab type should be accounted or
-> not (opt-in), for now.
-See, now that's something I don't agree with.
-
-It's too important of a change for us to keep flipping. So I believe if
-everybody agrees with a general interface for disabling/enabling the 
-caches, we should design with that in mind (even if we phase the 
-merging), and stick to it.
-
-What works best for your use case, I'll leave to you: if it is tracking 
-everything, or have a flag for the tracked ones.
-
-But let's make the decision based on how it should look like, not as an 
-intermediate step.
+Still, is better to have Suleiman to confirm this.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
