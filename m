@@ -1,33 +1,33 @@
 Return-Path: <owner-linux-mm@kvack.org>
 From: owner-linux-mm@kvack.org
 Subject: BOUNCE linux-mm@kvack.org: Header field too long (>2048)
-Message-Id: <20120329211252.400E96B004D@kanga.kvack.org>
-Date: Thu, 29 Mar 2012 17:12:52 -0400 (EDT)
+Message-Id: <20120330100002.8F5896B004D@kanga.kvack.org>
+Date: Fri, 30 Mar 2012 06:00:02 -0400 (EDT)
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-mm-approval@kvack.org
 
->From bcrl@kvack.org  Thu Mar 29 17:12:52 2012
+>From bcrl@kvack.org  Fri Mar 30 06:00:02 2012
 Return-Path: <bcrl@kvack.org>
 X-Original-To: int-list-linux-mm@kvack.org
 Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 2A2D56B007E; Thu, 29 Mar 2012 17:12:52 -0400 (EDT)
+	id 71D416B007E; Fri, 30 Mar 2012 06:00:02 -0400 (EDT)
 X-Original-To: linux-mm@kvack.org
 Delivered-To: linux-mm@kvack.org
-Received: from psmtp.com (na3sys010amx143.postini.com [74.125.245.143])
-	by kanga.kvack.org (Postfix) with SMTP id 70C396B004A
-	for <linux-mm@kvack.org>; Thu, 29 Mar 2012 17:12:51 -0400 (EDT)
-Received: from metis.ext.pengutronix.de ([92.198.50.35]) (using TLSv1) by na3sys010amx143.postini.com ([74.125.244.10]) with SMTP;
-	Thu, 29 Mar 2012 15:12:51 CST
+Received: from psmtp.com (na3sys010amx139.postini.com [74.125.245.139])
+	by kanga.kvack.org (Postfix) with SMTP id BCB776B004A
+	for <linux-mm@kvack.org>; Fri, 30 Mar 2012 06:00:01 -0400 (EDT)
+Received: from metis.ext.pengutronix.de ([92.198.50.35]) (using TLSv1) by na3sys010amx139.postini.com ([74.125.244.10]) with SMTP;
+	Fri, 30 Mar 2012 10:00:01 GMT
 Received: from dude.hi.pengutronix.de ([2001:6f8:1178:2:21e:67ff:fe11:9c5c])
 	by metis.ext.pengutronix.de with esmtp (Exim 4.72)
 	(envelope-from <ukl@pengutronix.de>)
-	id 1SDMdX-0007pY-6j; Thu, 29 Mar 2012 23:12:03 +0200
+	id 1SDYc7-0004Tg-IU; Fri, 30 Mar 2012 11:59:23 +0200
 Received: from ukl by dude.hi.pengutronix.de with local (Exim 4.77)
 	(envelope-from <ukl@pengutronix.de>)
-	id 1SDMd1-00088m-Gz; Thu, 29 Mar 2012 23:11:31 +0200
-Date: Thu, 29 Mar 2012 23:11:31 +0200
+	id 1SDYbk-0004Z4-0y; Fri, 30 Mar 2012 11:59:00 +0200
+Date: Fri, 30 Mar 2012 11:59:00 +0200
 From: Uwe =?iso-8859-1?Q?Kleine-K=F6nig?= <u.kleine-koenig@pengutronix.de>
 To: linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>
 Cc: Alexey Dobriyan <adobriyan@gmail.com>,
@@ -86,13 +86,15 @@ Cc: Alexey Dobriyan <adobriyan@gmail.com>,
 	Tomasz Stanislawski <t.stanislaws@samsung.com>,
 	Tony Lindgren <tony@atomide.com>, Tony Luck <tony.luck@intel.com>,
 	Yoshinori Sato <ysato@users.sourceforge.jp>
-Subject: [PATCH 00/17] mark const init data with __initconst instead of
+Subject: Re: [PATCH 00/17] mark const init data with __initconst instead of
  __initdata
-Message-ID: <20120329211131.GA31250@pengutronix.de>
+Message-ID: <20120330095859.GT15647@pengutronix.de>
+References: <20120329211131.GA31250@pengutronix.de>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
 Content-Transfer-Encoding: 8bit
+In-Reply-To: <20120329211131.GA31250@pengutronix.de>
 User-Agent: Mutt/1.5.21 (2010-09-15)
 X-SA-Exim-Connect-IP: 2001:6f8:1178:2:21e:67ff:fe11:9c5c
 X-SA-Exim-Mail-From: ukl@pengutronix.de
@@ -105,21 +107,31 @@ X-pstn-settings: 3 (1.0000:1.0000) s cv gt3 gt2 gt1 r p m c
 X-pstn-addresses: from <u.kleine-koenig@pengutronix.de> [db-null] 
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.2
 
-Hello,
+On Thu, Mar 29, 2012 at 11:11:31PM +0200, Uwe Kleine-Ki? 1/2 nig wrote:
+> Hello,
+> 
+> this series fixes a common error to use __initdata to mark const
+> variables. Most of the time this works well enough to go unnoticed
+> (though I wonder why the linker doesn't warn about that).
+> Just try adding something like
+> 
+> 	int something __initdata;
+> 
+> to one of the patched files and compile to see the error.
+> 
+> While touching these annotations I also corrected the position where it
+> was wrong to go between the variable name and the =.
+> 
+> Note this series is not compile tested.
+After a question by Shawn Guo I noticed that my command to do the changes
+was to lax and changed things that must not be changed (at least not
+with further care). Affected are lines like:
 
-this series fixes a common error to use __initdata to mark const
-variables. Most of the time this works well enough to go unnoticed
-(though I wonder why the linker doesn't warn about that).
-Just try adding something like
+	static const char *at91_dt_board_compat[] __initconst = {
 
-	int something __initdata;
+While at91_dt_board_compat[0] is const, at91_dt_board_compat is not.
 
-to one of the patched files and compile to see the error.
-
-While touching these annotations I also corrected the position where it
-was wrong to go between the variable name and the =.
-
-Note this series is not compile tested.
+I will send a fixed series later today.
 
 Best regards
 Uwe
