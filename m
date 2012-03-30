@@ -1,71 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx168.postini.com [74.125.245.168])
-	by kanga.kvack.org (Postfix) with SMTP id D62236B0044
-	for <linux-mm@kvack.org>; Fri, 30 Mar 2012 04:06:01 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx190.postini.com [74.125.245.190])
+	by kanga.kvack.org (Postfix) with SMTP id ACF876B004A
+	for <linux-mm@kvack.org>; Fri, 30 Mar 2012 04:06:05 -0400 (EDT)
 From: Glauber Costa <glommer@parallels.com>
-Subject: [RFC 1/7] split percpu_counter_sum
-Date: Fri, 30 Mar 2012 10:04:39 +0200
-Message-Id: <1333094685-5507-2-git-send-email-glommer@parallels.com>
-In-Reply-To: <1333094685-5507-1-git-send-email-glommer@parallels.com>
-References: <1333094685-5507-1-git-send-email-glommer@parallels.com>
+Subject: [RFC 0/7] Initial proposal for faster res_counter updates
+Date: Fri, 30 Mar 2012 10:04:38 +0200
+Message-Id: <1333094685-5507-1-git-send-email-glommer@parallels.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: cgroups@vger.kernel.org
-Cc: Li Zefan <lizefan@huawei.com>, kamezawa.hiroyu@jp.fujitsu.com, Tejun Heo <tj@kernel.org>, devel@openvz.org, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Linux MM <linux-mm@kvack.org>, Pavel Emelyanov <xemul@parallels.com>, Glauber Costa <glommer@parallels.com>
+Cc: Li Zefan <lizefan@huawei.com>, kamezawa.hiroyu@jp.fujitsu.com, Tejun Heo <tj@kernel.org>, devel@openvz.org, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Linux MM <linux-mm@kvack.org>, Pavel Emelyanov <xemul@parallels.com>
 
-Split the locked part so we can do other operations with the counter
-in other call sites.
+Hi,
 
-Signed-off-by: Glauber Costa <glommer@parallels.com>
----
- include/linux/percpu_counter.h |    1 +
- lib/percpu_counter.c           |   12 ++++++++++--
- 2 files changed, 11 insertions(+), 2 deletions(-)
+Here is my take about how we can make res_counter updates faster.
+Keep in mind this is a bit of a hack intended as a proof of concept.
 
-diff --git a/include/linux/percpu_counter.h b/include/linux/percpu_counter.h
-index b9df9ed..8310548 100644
---- a/include/linux/percpu_counter.h
-+++ b/include/linux/percpu_counter.h
-@@ -40,6 +40,7 @@ void percpu_counter_destroy(struct percpu_counter *fbc);
- void percpu_counter_set(struct percpu_counter *fbc, s64 amount);
- void __percpu_counter_add(struct percpu_counter *fbc, s64 amount, s32 batch);
- s64 __percpu_counter_sum(struct percpu_counter *fbc);
-+s64 __percpu_counter_sum_locked(struct percpu_counter *fbc);
- int percpu_counter_compare(struct percpu_counter *fbc, s64 rhs);
- 
- static inline void percpu_counter_add(struct percpu_counter *fbc, s64 amount)
-diff --git a/lib/percpu_counter.c b/lib/percpu_counter.c
-index f8a3f1a..0b6a672 100644
---- a/lib/percpu_counter.c
-+++ b/lib/percpu_counter.c
-@@ -93,17 +93,25 @@ EXPORT_SYMBOL(__percpu_counter_add);
-  * Add up all the per-cpu counts, return the result.  This is a more accurate
-  * but much slower version of percpu_counter_read_positive()
-  */
--s64 __percpu_counter_sum(struct percpu_counter *fbc)
-+s64 __percpu_counter_sum_locked(struct percpu_counter *fbc)
- {
- 	s64 ret;
- 	int cpu;
- 
--	raw_spin_lock(&fbc->lock);
- 	ret = fbc->count;
- 	for_each_online_cpu(cpu) {
- 		s32 *pcount = per_cpu_ptr(fbc->counters, cpu);
- 		ret += *pcount;
- 	}
-+	return ret;
-+}
-+EXPORT_SYMBOL(__percpu_counter_sum_locked);
-+
-+s64 __percpu_counter_sum(struct percpu_counter *fbc)
-+{
-+	s64 ret;
-+	raw_spin_lock(&fbc->lock);
-+	ret = __percpu_counter_sum_locked(fbc);
- 	raw_spin_unlock(&fbc->lock);
- 	return ret;
- }
+The pros I see with this:
+
+* free updates in non-constrained paths. non-constrained paths includes
+  unlimited scenarios, but also ones in which we are far from the limit.
+
+* No need to have a special cache mechanism in memcg. The problem with
+  the caching is my opinion, is that we will forward-account pages, meaning
+  that we'll consider accounted pages we never used. I am not sure
+  anyone actually ran into this, but in theory, this can fire events
+  much earlier than it should.
+
+But the cons:
+
+* percpu counters have signed quantities, so this would limit us 4G.
+  We can add a shift and then count pages instead of bytes, but we
+  are still in the 16T area here. Maybe we really need more than that.
+
+* some of the additions here may slow down the percpu_counters for
+  users that don't care about our usage. Things about min/max tracking
+  enter in this category.
+
+* growth of the percpu memory.
+
+It is still not clear for me if we should use percpu_counters as this
+patch implies, or if we should just replicate its functionality.
+
+I need to go through at least one more full round of auditing before
+making sure the locking is safe, specially my use of synchronize_rcu().
+
+As for measurements, the cache we have in memcg kind of distort things.
+I need to either disable it, or find the cases in which it is likely
+to lose and benchmark them, such as deep hierarchy concurrent updates
+with common parents.
+
+I also included a possible optimization that can be done when we
+are close to the limit to avoid the initial tests altogether, but
+it needs to be extended to avoid scanning the percpu areas as well.
+
+In summary, if this is to be carried forward, it definitely needs
+some love. It should be, however, more than enough to make the
+proposal clear.
+
+Comments are appreciated.
+
+Glauber Costa (7):
+  split percpu_counter_sum
+  consolidate all res_counter manipulation
+  bundle a percpu counter into res_counters and use its lock
+  move res_counter_set limit to res_counter.c
+  use percpu_counters for res_counter usage
+  Add min and max statistics to percpu_counter
+  Global optimization
+
+ include/linux/percpu_counter.h |    3 +
+ include/linux/res_counter.h    |   63 ++++++-----------
+ kernel/res_counter.c           |  151 +++++++++++++++++++++++++++++-----------
+ lib/percpu_counter.c           |   16 ++++-
+ 4 files changed, 151 insertions(+), 82 deletions(-)
+
 -- 
 1.7.4.1
 
