@@ -1,49 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx149.postini.com [74.125.245.149])
-	by kanga.kvack.org (Postfix) with SMTP id 6E9276B0044
-	for <linux-mm@kvack.org>; Fri, 30 Mar 2012 09:53:24 -0400 (EDT)
-Message-ID: <4F75BACC.7050704@parallels.com>
-Date: Fri, 30 Mar 2012 15:53:16 +0200
-From: Glauber Costa <glommer@parallels.com>
+Received: from psmtp.com (na3sys010amx127.postini.com [74.125.245.127])
+	by kanga.kvack.org (Postfix) with SMTP id 2347D6B0044
+	for <linux-mm@kvack.org>; Fri, 30 Mar 2012 12:15:04 -0400 (EDT)
+Date: Fri, 30 Mar 2012 11:15:01 -0500 (CDT)
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: [PATCH -mm] do_migrate_pages() calls migrate_to_node() even if
+ task is already on a correct node
+In-Reply-To: <4F74BB67.30703@gmail.com>
+Message-ID: <alpine.DEB.2.00.1203301113530.22502@router.home>
+References: <4F6B6BFF.1020701@redhat.com> <4F6B7358.60800@gmail.com> <alpine.DEB.2.00.1203221348470.25011@router.home> <4F6B7854.1040203@redhat.com> <alpine.DEB.2.00.1203221421570.25011@router.home> <4F74A344.7070805@redhat.com> <4F74BB67.30703@gmail.com>
 MIME-Version: 1.0
-Subject: Re: [RFC 5/7] use percpu_counters for res_counter usage
-References: <1333094685-5507-1-git-send-email-glommer@parallels.com> <1333094685-5507-6-git-send-email-glommer@parallels.com> <4F757DEB.4030006@jp.fujitsu.com> <4F7583AB.3070304@jp.fujitsu.com>
-In-Reply-To: <4F7583AB.3070304@jp.fujitsu.com>
-Content-Type: text/plain; charset="ISO-2022-JP"
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: cgroups@vger.kernel.org, Li Zefan <lizefan@huawei.com>, Tejun Heo <tj@kernel.org>, devel@openvz.org, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Linux MM <linux-mm@kvack.org>, Pavel Emelyanov <xemul@parallels.com>
+To: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
+Cc: lwoodman@redhat.com, linux-mm@kvack.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Motohiro Kosaki <mkosaki@redhat.com>
 
-On 03/30/2012 11:58 AM, KAMEZAWA Hiroyuki wrote:
-> ==
-> 
-> Now, we do consume 'reserved' usage, we can avoid css_get(), an heavy atomic
-> ops. You may need to move this code as
-> 
-> 	rcu_read_lock()
-> 	....
-> 	res_counter_charge()
-> 	if (failure) {
-> 		css_tryget()
-> 		rcu_read_unlock()
-> 	} else {
-> 		rcu_read_unlock()
-> 		return success;
-> 	}
-> 
-> to compare performance. This css_get() affects performance very very much.
+On Thu, 29 Mar 2012, KOSAKI Motohiro wrote:
 
-thanks for the tip.
+> >
+> > 		for_each_node_mask(s, tmp) {
+> > +
+> > +			/* IFF there is an equal number of source and
+> > +			 * destination nodes, maintain relative node distance
+> > +			 * even when source and destination nodes overlap.
+> > +			 * However, when the node weight is unequal, never
+> > move
+> > +			 * memory out of any destination nodes */
+> > +			if ((nodes_weight(*from_nodes) !=
+> > nodes_weight(*to_nodes)) &&
+> > +						(node_isset(s, *to_nodes)))
+> > +				continue;
+> > +
+> > 			d = node_remap(s, *from_nodes, *to_nodes);
+> > 			if (s == d)
+> > 				continue;
+>
+> I'm confused. Could you please explain why you choose nodes_weight()? On my
+> first impression,
+> it seems almostly unrelated factor.
 
-But one thing:
-
-To be sure: it effectively mean that we are drawing from a dead memcg
-(because we pre-allocated, right?
-
-
-
+Isnt this the original code by Paul? I would think that the 1-1 movement
+is only useful to do if the number of nodes in both the destination and
+the source is the same.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
