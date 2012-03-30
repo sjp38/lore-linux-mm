@@ -1,53 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx157.postini.com [74.125.245.157])
-	by kanga.kvack.org (Postfix) with SMTP id 74B7C6B0044
-	for <linux-mm@kvack.org>; Thu, 29 Mar 2012 22:19:58 -0400 (EDT)
-Date: Fri, 30 Mar 2012 03:19:45 +0100
-From: Al Viro <viro@ZenIV.linux.org.uk>
-Subject: Re: [PATCH 00/16] mm: prepare for converting vm->vm_flags to 64-bit
-Message-ID: <20120330021945.GT6589@ZenIV.linux.org.uk>
-References: <20120321065140.13852.52315.stgit@zurg>
- <20120321100602.GA5522@barrios>
- <4F69D496.2040509@openvz.org>
- <20120322142647.42395398.akpm@linux-foundation.org>
- <20120322212810.GE6589@ZenIV.linux.org.uk>
- <4F6CA298.4000301@jp.fujitsu.com>
+Received: from psmtp.com (na3sys010amx167.postini.com [74.125.245.167])
+	by kanga.kvack.org (Postfix) with SMTP id C2D866B004D
+	for <linux-mm@kvack.org>; Thu, 29 Mar 2012 22:24:47 -0400 (EDT)
+From: Krishna Reddy <vdumpa@nvidia.com>
+Date: Thu, 29 Mar 2012 19:24:21 -0700
+Subject: RE: [PATCHv7 9/9] ARM: dma-mapping: add support for IOMMU mapper
+Message-ID: <401E54CE964CD94BAE1EB4A729C7087E37978A1E66@HQMAIL04.nvidia.com>
+References: <1330527862-16234-1-git-send-email-m.szyprowski@samsung.com>
+ <1330527862-16234-10-git-send-email-m.szyprowski@samsung.com>
+ <20120329101927.8ab6b1993475b7e16ae2258f@nvidia.com>
+ <01b301cd0d81$f935d750$eba185f0$%szyprowski@samsung.com>
+In-Reply-To: <01b301cd0d81$f935d750$eba185f0$%szyprowski@samsung.com>
+Content-Language: en-US
+Content-Type: text/plain; charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <4F6CA298.4000301@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: akpm@linux-foundation.org, khlebnikov@openvz.org, minchan@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, torvalds@linux-foundation.org, hughd@google.com, benh@kernel.crashing.org, linux@arm.linux.org.uk
+To: Marek Szyprowski <m.szyprowski@samsung.com>
+Cc: "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "linaro-mm-sig@lists.linaro.org" <linaro-mm-sig@lists.linaro.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, "linux-samsung-soc@vger.kernel.org" <linux-samsung-soc@vger.kernel.org>, "iommu@lists.linux-foundation.org" <iommu@lists.linux-foundation.org>, 'Shariq Hasnain' <shariq.hasnain@linaro.org>, 'Arnd Bergmann' <arnd@arndb.de>, 'Benjamin Herrenschmidt' <benh@kernel.crashing.org>, 'Kyungmin Park' <kyungmin.park@samsung.com>, Andrzej Pietrasiewicz <andrzej.p@samsung.com>, 'Russell King - ARM Linux' <linux@arm.linux.org.uk>, 'KyongHo Cho' <pullip.cho@samsung.com>, Hiroshi Doyu <hdoyu@nvidia.com>, 'Chunsang Jeong' <chunsang.jeong@linaro.org>
 
-On Fri, Mar 23, 2012 at 12:19:36PM -0400, KOSAKI Motohiro wrote:
-> On 3/22/2012 5:28 PM, Al Viro wrote:
-> > On Thu, Mar 22, 2012 at 02:26:47PM -0700, Andrew Morton wrote:
-> >> It would be nice to find some way of triggering compiler warnings or
-> >> sparse warnings if someone mixes a 32-bit type with a vm_flags_t.  Any
-> >> thoughts on this?
-> >>
-> >> (Maybe that's what __nocast does, but Documentation/sparse.txt doesn't
-> >> describe it)
-> > 
-> > Use __bitwise for that - check how gfp_t is handled.
-> 
-> Hmm..
-> 
-> If now we activate __bitwise, really plenty driver start create lots warnings.
-> Does it make sense?
+Hi,
+I have found a bug in arm_iommu_map_sg().=20
 
-Huh?  Why would they?  Just adjust definitions of VM_... to include
-force-cast to vm_flags_t and we should be OK...
+> +int arm_iommu_map_sg(struct device *dev, struct scatterlist *sg, int nen=
+ts,
+> +		     enum dma_data_direction dir, struct dma_attrs *attrs) {
+> +	struct scatterlist *s =3D sg, *dma =3D sg, *start =3D sg;
+> +	int i, count =3D 0;
+> +	unsigned int offset =3D s->offset;
+> +	unsigned int size =3D s->offset + s->length;
+> +	unsigned int max =3D dma_get_max_seg_size(dev);
+> +
+> +	for (i =3D 1; i < nents; i++) {
+> +		s->dma_address =3D ARM_DMA_ERROR;
+> +		s->dma_length =3D 0;
+> +
+> +		s =3D sg_next(s);
 
-> In fact, x86-32 keep 32bit vma_t forever. thus all x86 specific driver don't
-> need any change. Moreover many ancient drivers has no maintainer and I can't
-> expect such driver will be fixed even though a warning occur.
+With above code, the last sg element's dma_length is not getting set to zer=
+o.
+This causing additional incorrect  unmapping during arm_iommu_unmap_sg call=
+ and=20
+leading to random crashes.
+The order of above three lines should be as follows.
+		s =3D sg_next(s);
 
-What warning?  If something does manual vma->vm_flags = 0xwhatever, then yes,
-we do want it dealt with.  If it's vma->vm_flags |= VM_something, there should
-be no warnings at all...
+		s->dma_address =3D ARM_DMA_ERROR;
+		s->dma_length =3D 0;
+
+
+-KR
+--nvpublic
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
