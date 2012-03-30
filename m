@@ -1,33 +1,33 @@
 Return-Path: <owner-linux-mm@kvack.org>
 From: owner-linux-mm@kvack.org
 Subject: BOUNCE linux-mm@kvack.org: Header field too long (>2048)
-Message-Id: <20120330100002.8F5896B004D@kanga.kvack.org>
-Date: Fri, 30 Mar 2012 06:00:02 -0400 (EDT)
+Message-Id: <20120330200458.65C1C6B004A@kanga.kvack.org>
+Date: Fri, 30 Mar 2012 16:04:58 -0400 (EDT)
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-mm-approval@kvack.org
 
->From bcrl@kvack.org  Fri Mar 30 06:00:02 2012
+>From bcrl@kvack.org  Fri Mar 30 16:04:58 2012
 Return-Path: <bcrl@kvack.org>
 X-Original-To: int-list-linux-mm@kvack.org
 Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 71D416B007E; Fri, 30 Mar 2012 06:00:02 -0400 (EDT)
+	id 46AFA6B004D; Fri, 30 Mar 2012 16:04:58 -0400 (EDT)
 X-Original-To: linux-mm@kvack.org
 Delivered-To: linux-mm@kvack.org
-Received: from psmtp.com (na3sys010amx139.postini.com [74.125.245.139])
-	by kanga.kvack.org (Postfix) with SMTP id BCB776B004A
-	for <linux-mm@kvack.org>; Fri, 30 Mar 2012 06:00:01 -0400 (EDT)
-Received: from metis.ext.pengutronix.de ([92.198.50.35]) (using TLSv1) by na3sys010amx139.postini.com ([74.125.244.10]) with SMTP;
-	Fri, 30 Mar 2012 10:00:01 GMT
+Received: from psmtp.com (na3sys010amx137.postini.com [74.125.245.137])
+	by kanga.kvack.org (Postfix) with SMTP id 99D676B0044
+	for <linux-mm@kvack.org>; Fri, 30 Mar 2012 16:04:57 -0400 (EDT)
+Received: from metis.ext.pengutronix.de ([92.198.50.35]) (using TLSv1) by na3sys010amx137.postini.com ([74.125.244.10]) with SMTP;
+	Fri, 30 Mar 2012 15:04:57 CDT
 Received: from dude.hi.pengutronix.de ([2001:6f8:1178:2:21e:67ff:fe11:9c5c])
 	by metis.ext.pengutronix.de with esmtp (Exim 4.72)
 	(envelope-from <ukl@pengutronix.de>)
-	id 1SDYc7-0004Tg-IU; Fri, 30 Mar 2012 11:59:23 +0200
+	id 1SDi3Z-0002ah-Lz; Fri, 30 Mar 2012 22:04:21 +0200
 Received: from ukl by dude.hi.pengutronix.de with local (Exim 4.77)
 	(envelope-from <ukl@pengutronix.de>)
-	id 1SDYbk-0004Z4-0y; Fri, 30 Mar 2012 11:59:00 +0200
-Date: Fri, 30 Mar 2012 11:59:00 +0200
+	id 1SDi3C-0003aa-3i; Fri, 30 Mar 2012 22:03:58 +0200
+Date: Fri, 30 Mar 2012 22:03:58 +0200
 From: Uwe =?iso-8859-1?Q?Kleine-K=F6nig?= <u.kleine-koenig@pengutronix.de>
 To: linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>
 Cc: Alexey Dobriyan <adobriyan@gmail.com>,
@@ -86,9 +86,9 @@ Cc: Alexey Dobriyan <adobriyan@gmail.com>,
 	Tomasz Stanislawski <t.stanislaws@samsung.com>,
 	Tony Lindgren <tony@atomide.com>, Tony Luck <tony.luck@intel.com>,
 	Yoshinori Sato <ysato@users.sourceforge.jp>
-Subject: Re: [PATCH 00/17] mark const init data with __initconst instead of
+Subject: [PATCH v2 00/15] mark const init data with __initconst instead of
  __initdata
-Message-ID: <20120330095859.GT15647@pengutronix.de>
+Message-ID: <20120330200358.GV15647@pengutronix.de>
 References: <20120329211131.GA31250@pengutronix.de>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-1
@@ -100,16 +100,16 @@ X-SA-Exim-Connect-IP: 2001:6f8:1178:2:21e:67ff:fe11:9c5c
 X-SA-Exim-Mail-From: ukl@pengutronix.de
 X-SA-Exim-Scanned: No (on metis.ext.pengutronix.de); SAEximRunCond expanded to false
 X-PTX-Original-Recipient: linux-mm@kvack.org
-X-pstn-neptune: 1/1/1.00/100
+X-pstn-neptune: 0/0/0.00/0
 X-pstn-levels:     (S:99.90000/99.90000 CV:99.9000 FC:95.5390 LC:95.5390 R:95.9108 P:95.9108 M:97.0282 C:98.6951 )
 X-pstn-dkim: 0 skipped:not-enabled
 X-pstn-settings: 3 (1.0000:1.0000) s cv gt3 gt2 gt1 r p m c 
 X-pstn-addresses: from <u.kleine-koenig@pengutronix.de> [db-null] 
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.2
 
+Hello,
+
 On Thu, Mar 29, 2012 at 11:11:31PM +0200, Uwe Kleine-Ki? 1/2 nig wrote:
-> Hello,
-> 
 > this series fixes a common error to use __initdata to mark const
 > variables. Most of the time this works well enough to go unnoticed
 > (though I wonder why the linker doesn't warn about that).
@@ -123,17 +123,18 @@ On Thu, Mar 29, 2012 at 11:11:31PM +0200, Uwe Kleine-Ki? 1/2 nig wrote:
 > was wrong to go between the variable name and the =.
 > 
 > Note this series is not compile tested.
-After a question by Shawn Guo I noticed that my command to do the changes
-was to lax and changed things that must not be changed (at least not
-with further care). Affected are lines like:
+I now dropped the wrong annotations. So two patches became obsolete
+(mtd and percpu). Note that I also dropped fixing the position of
+__initdata if changing it to __initconst was wrong. (I think if
+__initdata is placed before the variable name it doesn't have any
+effect.)
 
-	static const char *at91_dt_board_compat[] __initconst = {
+I didn't promote the Acks I got because all acked changes changed in v2.
 
-While at91_dt_board_compat[0] is const, at91_dt_board_compat is not.
+For the details changed in each patch see the changelogs in the
+respective patch mails that I follow up to this mail.
 
-I will send a fixed series later today.
-
-Best regards
+Thanks
 Uwe
 
 -- 
