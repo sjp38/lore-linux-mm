@@ -1,34 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx191.postini.com [74.125.245.191])
-	by kanga.kvack.org (Postfix) with SMTP id 58A806B007E
-	for <linux-mm@kvack.org>; Sat, 31 Mar 2012 16:39:17 -0400 (EDT)
-Received: by bkwq16 with SMTP id q16so1769743bkw.14
-        for <linux-mm@kvack.org>; Sat, 31 Mar 2012 13:39:15 -0700 (PDT)
-Date: Sun, 1 Apr 2012 00:39:12 +0400
-From: Cyrill Gorcunov <gorcunov@openvz.org>
-Subject: Re: [PATCH 6/7] mm: kill vma flag VM_EXECUTABLE
-Message-ID: <20120331203912.GB687@moon>
+Received: from psmtp.com (na3sys010amx128.postini.com [74.125.245.128])
+	by kanga.kvack.org (Postfix) with SMTP id 7D3E56B0044
+	for <linux-mm@kvack.org>; Sat, 31 Mar 2012 18:25:24 -0400 (EDT)
+Message-ID: <1333232714.30734.6.camel@pasglop>
+Subject: Re: [PATCH 2/7] mm: introduce vma flag VM_ARCH_1
+From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+Date: Sun, 01 Apr 2012 08:25:14 +1000
+In-Reply-To: <20120331092910.19920.29396.stgit@zurg>
 References: <20120331091049.19373.28994.stgit@zurg>
- <20120331092929.19920.54540.stgit@zurg>
- <20120331201324.GA17565@redhat.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20120331201324.GA17565@redhat.com>
+	 <20120331092910.19920.29396.stgit@zurg>
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: 7bit
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Oleg Nesterov <oleg@redhat.com>
-Cc: Konstantin Khlebnikov <khlebnikov@openvz.org>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, Eric Paris <eparis@redhat.com>, linux-security-module@vger.kernel.org, oprofile-list@lists.sf.net, Matt Helsley <matthltc@us.ibm.com>, Linus Torvalds <torvalds@linux-foundation.org>, Al Viro <viro@zeniv.linux.org.uk>
+To: Konstantin Khlebnikov <khlebnikov@openvz.org>
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, Andrea Arcangeli <aarcange@redhat.com>, Minchan Kim <minchan@kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>
 
-On Sat, Mar 31, 2012 at 10:13:24PM +0200, Oleg Nesterov wrote:
+On Sat, 2012-03-31 at 13:29 +0400, Konstantin Khlebnikov wrote:
+> This patch shuffles some bits in vma->vm_flags
 > 
-> Add Cyrill. This conflicts with
-> c-r-prctl-add-ability-to-set-new-mm_struct-exe_file.patch in -mm.
+> before patch:
+> 
+>         0x00000200      0x01000000      0x20000000      0x40000000
+> x86     VM_NOHUGEPAGE   VM_HUGEPAGE     -               VM_PAT
+> powerpc -               -               VM_SAO          -
+> parisc  VM_GROWSUP      -               -               -
+> ia64    VM_GROWSUP      -               -               -
+> nommu   -               VM_MAPPED_COPY  -               -
+> others  -               -               -               -
+> 
+> after patch:
+> 
+>         0x00000200      0x01000000      0x20000000      0x40000000
+> x86     -               VM_PAT          VM_HUGEPAGE     VM_NOHUGEPAGE
+> powerpc -               VM_SAO          -               -
+> parisc  -               VM_GROWSUP      -               -
+> ia64    -               VM_GROWSUP      -               -
+> nommu   -               VM_MAPPED_COPY  -               -
+> others  -               VM_ARCH_1       -               -
+> 
+> And voila! One completely free bit.
 
-Thanks for CC'ing, Oleg. I think if thise series go in it won't
-be a problem to update my patch accordingly.
+Great :-) Let me know when you free VM_ARCH_2 as well as I have good use
+for it too :-)
 
-	Cyrill
+Cheers,
+Ben.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
