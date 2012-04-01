@@ -1,17 +1,19 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx193.postini.com [74.125.245.193])
-	by kanga.kvack.org (Postfix) with SMTP id CC9286B0092
-	for <linux-mm@kvack.org>; Sun,  1 Apr 2012 08:10:32 -0400 (EDT)
-Received: by vcbfk14 with SMTP id fk14so1761326vcb.14
-        for <linux-mm@kvack.org>; Sun, 01 Apr 2012 05:10:31 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx145.postini.com [74.125.245.145])
+	by kanga.kvack.org (Postfix) with SMTP id 069616B00E8
+	for <linux-mm@kvack.org>; Sun,  1 Apr 2012 08:33:06 -0400 (EDT)
+Received: by vcbfk14 with SMTP id fk14so1768924vcb.14
+        for <linux-mm@kvack.org>; Sun, 01 Apr 2012 05:33:06 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <201203311339.q2VDdJMD006254@farm-0012.internal.tilera.com>
+In-Reply-To: <201203311612.q2VGCqPA012710@farm-0012.internal.tilera.com>
 References: <201203302018.q2UKIFH5020745@farm-0012.internal.tilera.com>
 	<CAJd=RBCoLNB+iRX1shKGAwSbE8PsZXyk9e3inPTREcm2kk3nXA@mail.gmail.com>
-	<201203311339.q2VDdJMD006254@farm-0012.internal.tilera.com>
-Date: Sun, 1 Apr 2012 20:10:31 +0800
-Message-ID: <CAJd=RBBWx7uZcw=_oA06RVunPAGeFcJ7LY=RwFCyB_BreJb_kg@mail.gmail.com>
-Subject: Re: [PATCH v2] hugetlb: fix race condition in hugetlb_fault()
+	<201203311334.q2VDYGiL005854@farm-0012.internal.tilera.com>
+	<CAJd=RBDEAMgDviSwugt7dHKPGXCCF5jQSDtHdXvt5VnSBmK3bA@mail.gmail.com>
+	<201203311612.q2VGCqPA012710@farm-0012.internal.tilera.com>
+Date: Sun, 1 Apr 2012 20:33:05 +0800
+Message-ID: <CAJd=RBDqQ2jwxyVgn-WwoJfu0vOs9YUHfKxkcqUczr=cnk+8wg@mail.gmail.com>
+Subject: Re: [PATCH v3] arch/tile: support multiple huge page sizes dynamically
 From: Hillf Danton <dhillf@gmail.com>
 Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: quoted-printable
@@ -20,103 +22,55 @@ List-ID: <linux-mm.kvack.org>
 To: Chris Metcalf <cmetcalf@tilera.com>
 Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Hugh Dickins <hughd@google.com>
 
-On Sat, Mar 31, 2012 at 4:07 AM, Chris Metcalf <cmetcalf@tilera.com> wrote:
-> The race is as follows. =C2=A0Suppose a multi-threaded task forks a new
-> process, thus bumping up the ref count on all the pages. =C2=A0While the =
-fork
-> is occurring (and thus we have marked all the PTEs as read-only), another
-> thread in the original process tries to write to a huge page, taking an
-> access violation from the write-protect and calling hugetlb_cow(). =C2=A0=
-Now,
-> suppose the fork() fails. =C2=A0It will undo the COW and decrement the re=
-f
-> count on the pages, so the ref count on the huge page drops back to 1.
-> Meanwhile hugetlb_cow() also decrements the ref count by one on the
-> original page, since the original address space doesn't need it any more,
-> having copied a new page to replace the original page. =C2=A0This leaves =
-the
-> ref count at zero, and when we call unlock_page(), we panic.
+On Sat, Mar 31, 2012 at 3:37 AM, Chris Metcalf <cmetcalf@tilera.com> wrote:
+> This change adds support for a new "super" bit in the PTE, and a
+> new arch_make_huge_pte() method called from make_huge_pte().
+> The Tilera hypervisor sees the bit set at a given level of the page
+> table and gangs together 4, 16, or 64 consecutive pages from
+> that level of the hierarchy to create a larger TLB entry.
 >
-> The solution is to take an extra reference to the page while we are
-> holding the lock on it.
+> One extra "super" page size can be specified at each of the
+> three levels of the page table hierarchy on tilegx, using the
+> "hugepagesz" argument on the boot command line. =C2=A0A new hypervisor
+> API is added to allow Linux to tell the hypervisor how many PTEs
+> to gang together at each level of the page table.
 >
-If the following chart matches the above description,
-
-=3D=3D=3D
-	fork on CPU A				fault on CPU B
-	=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D				=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
-=3D=3D=3D=3D
-	...
-	down_write(&parent->mmap_sem);
-	down_write_nested(&child->mmap_sem);
-	...
-	while duplicating vmas
-		if error
-			break;
-	...
-	up_write(&child->mmap_sem);
-	up_write(&parent->mmap_sem);		...
-						down_read(&parent->mmap_sem);
-						...
-						lock_page(page);
-						handle COW
-						page_mapcount(old_page) =3D=3D 2
-						alloc and prepare new_page
-	...
-	handle error
-	page_remove_rmap(page);
-	put_page(page);
-	...
-						fold new_page into pte
-						page_remove_rmap(page);
-						put_page(page);
-						...
-				oops =3D=3D>	unlock_page(page);
-						up_read(&parent->mmap_sem);
-=3D=3D=3D
-
-would you please spin with description refreshed?
-
-> Cc: stable@kernel.org
-
-Let Andrew do the stable work, ok?
-
-Best Regards
--hd
-
+> To allow pre-allocating huge pages larger than the buddy allocator
+> can handle, this change modifies the Tilera bootmem support to
+> put all of memory on tilegx platforms into bootmem.
+>
+> As part of this change I eliminate the vestigial CONFIG_HIGHPTE
+> support, which never worked anyway, and eliminate the hv_page_size()
+> API in favor of the standard vma_kernel_pagesize() API.
+>
+> Reviewed-by: Hillf Danton <dhillf@gmail.com>
 > Signed-off-by: Chris Metcalf <cmetcalf@tilera.com>
 > ---
-> This change incorporates Hillf Danton's suggestion to just unconditionall=
-y
-> get and put the page around the region of code in question.
+> This version of the patch adds a generic no-op definition to
+> <linux/hugetlb.h> if "arch_make_huge_pte" is not #defined. =C2=A0I'm foll=
+owing
+> Linus's model in https://lkml.org/lkml/2012/1/19/443 which says you creat=
+e
+> the inline, then "#define func func" to indicate that the function exists=
+.
 >
-> =C2=A0mm/hugetlb.c | =C2=A0 =C2=A02 ++
-> =C2=A01 files changed, 2 insertions(+), 0 deletions(-)
+> Hillf, let me know if you want to provide an Acked-by, or I'll leave it
+> as Reviewed-by. =C2=A0I'm glad you didn't like the v2 patch;
 >
-> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-> index 1871753..5f53d6b 100644
-> --- a/mm/hugetlb.c
-> +++ b/mm/hugetlb.c
-> @@ -2701,6 +2701,7 @@ int hugetlb_fault(struct mm_struct *mm, struct vm_a=
-rea_struct *vma,
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0 * so no worry about deadlock.
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0 */
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0page =3D pte_page(entry);
-> + =C2=A0 =C2=A0 =C2=A0 get_page(page);
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0if (page !=3D pagecache_page)
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0lock_page(page);
->
-> @@ -2732,6 +2733,7 @@ out_page_table_lock:
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0}
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0if (page !=3D pagecache_page)
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0unlock_page(page);
-> + =C2=A0 =C2=A0 =C2=A0 put_page(page);
->
-> =C2=A0out_mutex:
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0mutex_unlock(&hugetlb_instantiation_mutex);
-> --
-> 1.6.5.2
->
+Frankly I like this work, if merged, many tile users benefit.
+
+And a few more words,
+1, the Reviewed-by tag does not match what I did, really, and
+over 98% of this work should be reviewed by tile gurus IMO.
+
+2, this work was delivered in a monolithic huge patch, and it is hard
+to be reviewed. The rule of thumb is to split it into several parts, then
+reviewers read a good story, chapter after another.
+
+3, I look forward to reading the mm/hugetlb.c chapter.
+
+Good weekend
+-hd
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
