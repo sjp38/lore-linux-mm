@@ -1,119 +1,81 @@
-From: Jiri Slaby <jslaby@suse.cz>
-Subject: Too much free memory (not used for FS cache)
-Date: Thu, 15 Mar 2012 21:09:44 +0100
-Message-ID: <4F624C88.6050503@suse.cz>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-2
+Return-Path: <owner-linux-mm@kvack.org>
+Received: from psmtp.com (na3sys010amx176.postini.com [74.125.245.176])
+	by kanga.kvack.org (Postfix) with SMTP id EE4EB6B0044
+	for <linux-mm@kvack.org>; Sun,  1 Apr 2012 00:16:21 -0400 (EDT)
+Message-ID: <4F77D686.3020308@suse.com>
+Date: Sun, 01 Apr 2012 09:46:06 +0530
+From: Suresh Jayaraman <sjayaraman@suse.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH 0/6] buffered write IO controller in balance_dirty_pages()
+References: <20120328121308.568545879@intel.com>
+In-Reply-To: <20120328121308.568545879@intel.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
-Return-path: <linux-kernel-owner@vger.kernel.org>
-Sender: linux-kernel-owner@vger.kernel.org
-To: linux-mm@kvack.org
-Cc: Jiri Slaby <jirislaby@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>
-List-Id: linux-mm.kvack.org
+Sender: owner-linux-mm@kvack.org
+List-ID: <linux-mm.kvack.org>
+To: Fengguang Wu <fengguang.wu@intel.com>
+Cc: Linux Memory Management List <linux-mm@kvack.org>, Vivek Goyal <vgoyal@redhat.com>, Andrea Righi <andrea@betterlinux.com>, Jeff Moyer <jmoyer@redhat.com>, linux-fsdevel@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>
 
-Hi,
+On 03/28/2012 05:43 PM, Fengguang Wu wrote:
+> Here is one possible solution to "buffered write IO controller", based on Linux
+> v3.3
+> 
+> git://git.kernel.org/pub/scm/linux/kernel/git/wfg/linux.git  buffered-write-io-controller
+> 
 
-since today's -next (20120315), the MM/VFS system is very sluggish.
-Especially when committing, diffing and similar with git. I still have
-2G of 6G of memory free. But with each commit I have to wait for git to
-fetch all data from disk.
+The implementation looks unbelievably simple. I ran a few tests
+(throttling) and I found it working well generally.
 
-I'm using ext4 on a raid for the partition with git kernel repository if
-that matters.
+> Features:
+> - support blkio.weight
+> - support blkio.throttle.buffered_write_bps
+> 
+> Possibilities:
+> - it's trivial to support per-bdi .weight or .buffered_write_bps
+> 
+> Pros:
+> 1) simple
+> 2) virtually no space/time overheads
+> 3) independent of the block layer and IO schedulers, hence
+> 3.1) supports all filesystems/storages, eg. NFS/pNFS, CIFS, sshfs, ...
+> 3.2) supports all IO schedulers. One may use noop for SSDs, inside virtual machines, over iSCSI, etc.
+> 
+> Cons:
+> 1) don't try to smooth bursty IO submission in the flusher thread (*)
+> 2) don't support IOPS based throttling
+> 3) introduces semantic differences to blkio.weight, which will be
+>    - working by "bandwidth" for buffered writes
+>    - working by "device time" for direct IO
 
-Any idea what that could be?
+There is a chance that this semantic difference might confuse users.
 
-nr_free_pages 555469
-nr_inactive_anon 16787
-nr_active_anon 414439
-nr_inactive_file 315585
-nr_active_file 137446
-nr_unevictable 0
-nr_mlock 0
-nr_anon_pages 277729
-nr_mapped 95971
-nr_file_pages 524644
-nr_dirty 11
-nr_writeback 0
-nr_slab_reclaimable 35548
-nr_slab_unreclaimable 7450
-nr_page_table_pages 11493
-nr_kernel_stack 464
-nr_unstable 0
-nr_bounce 0
-nr_vmscan_write 0
-nr_vmscan_immediate_reclaim 0
-nr_writeback_temp 0
-nr_isolated_anon 0
-nr_isolated_file 0
-nr_shmem 71614
-nr_dirtied 1165398
-nr_written 1147058
-nr_anon_transparent_hugepages 160
-nr_dirty_threshold 97608
-nr_dirty_background_threshold 48804
-pgpgin 2446144
-pgpgout 4844237
-pswpin 0
-pswpout 0
-pgalloc_dma 0
-pgalloc_dma32 21764611
-pgalloc_normal 38307626
-pgalloc_movable 0
-pgfree 60640227
-pgactivate 913299
-pgdeactivate 109336
-pgfault 51012433
-pgmajfault 8476
-pgrefill_dma 0
-pgrefill_dma32 79208
-pgrefill_normal 41244
-pgrefill_movable 0
-pgsteal_dma 0
-pgsteal_dma32 162966
-pgsteal_normal 185373
-pgsteal_movable 0
-pgscan_kswapd_dma 0
-pgscan_kswapd_dma32 162559
-pgscan_kswapd_normal 215360
-pgscan_kswapd_movable 0
-pgscan_direct_dma 0
-pgscan_direct_dma32 1624
-pgscan_direct_normal 3927
-pgscan_direct_movable 0
-pginodesteal 4
-slabs_scanned 102400
-kswapd_steal 342881
-kswapd_inodesteal 756
-kswapd_low_wmark_hit_quickly 0
-kswapd_high_wmark_hit_quickly 119
-kswapd_skip_congestion_wait 0
-pageoutrun 3493
-allocstall 5
-pgrotated 240
-compact_blocks_moved 432
-compact_pages_moved 10699
-compact_pagemigrate_failed 0
-compact_stall 14
-compact_fail 5
-compact_success 9
-htlb_buddy_alloc_success 0
-htlb_buddy_alloc_fail 0
-unevictable_pgs_culled 327
-unevictable_pgs_scanned 0
-unevictable_pgs_rescued 2618
-unevictable_pgs_mlocked 2618
-unevictable_pgs_munlocked 2618
-unevictable_pgs_cleared 0
-unevictable_pgs_stranded 0
-unevictable_pgs_mlockfreed 0
-thp_fault_alloc 13147
-thp_fault_fallback 0
-thp_collapse_alloc 3543
-thp_collapse_alloc_failed 0
-thp_split 183
+> (*) Maybe not a big concern, since the bursties are limited to 500ms: if one dd
+> is throttled to 50% disk bandwidth, the flusher thread will be waking up on
+> every 1 second, keep the disk busy for 500ms and then go idle for 500ms; if
+> throttled to 10% disk bandwidth, the flusher thread will wake up on every 5s,
+> keep busy for 500ms and stay idle for 4.5s.
+> 
+> The test results included in the last patch look pretty good in despite of the
+> simple implementation.
+> 
+>  [PATCH 1/6] blk-cgroup: move blk-cgroup.h in include/linux/blk-cgroup.h
+>  [PATCH 2/6] blk-cgroup: account dirtied pages
+>  [PATCH 3/6] blk-cgroup: buffered write IO controller - bandwidth weight
+>  [PATCH 4/6] blk-cgroup: buffered write IO controller - bandwidth limit
+>  [PATCH 5/6] blk-cgroup: buffered write IO controller - bandwidth limit interface
+>  [PATCH 6/6] blk-cgroup: buffered write IO controller - debug trace
+> 
 
-thanks,
--- 
-js
-suse labs
+How about a BOF on this topic during LSF/MM as there seems to be enough
+interest?
+
+
+Thanks
+Suresh
+
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Fight unfair telecom internet charges in Canada: sign http://stopthemeter.ca/
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
