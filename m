@@ -1,57 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx113.postini.com [74.125.245.113])
-	by kanga.kvack.org (Postfix) with SMTP id 1C00B6B007E
-	for <linux-mm@kvack.org>; Sun,  1 Apr 2012 12:51:52 -0400 (EDT)
-Message-ID: <4F7887A5.3060700@tilera.com>
-Date: Sun, 1 Apr 2012 12:51:49 -0400
-From: Chris Metcalf <cmetcalf@tilera.com>
+Received: from psmtp.com (na3sys010amx148.postini.com [74.125.245.148])
+	by kanga.kvack.org (Postfix) with SMTP id ADA566B0083
+	for <linux-mm@kvack.org>; Sun,  1 Apr 2012 12:51:54 -0400 (EDT)
+Date: Sun, 1 Apr 2012 01:30:30 -0700
+From: Fengguang Wu <fengguang.wu@intel.com>
+Subject: Re: [PATCH 0/6] buffered write IO controller in balance_dirty_pages()
+Message-ID: <20120401083030.GA5326@localhost>
+References: <20120328121308.568545879@intel.com>
+ <4F77D686.3020308@suse.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH v2] hugetlb: fix race condition in hugetlb_fault()
-References: <201203302018.q2UKIFH5020745@farm-0012.internal.tilera.com> <CAJd=RBCoLNB+iRX1shKGAwSbE8PsZXyk9e3inPTREcm2kk3nXA@mail.gmail.com> <201203311339.q2VDdJMD006254@farm-0012.internal.tilera.com> <CAJd=RBBWx7uZcw=_oA06RVunPAGeFcJ7LY=RwFCyB_BreJb_kg@mail.gmail.com>
-In-Reply-To: <CAJd=RBBWx7uZcw=_oA06RVunPAGeFcJ7LY=RwFCyB_BreJb_kg@mail.gmail.com>
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <4F77D686.3020308@suse.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hillf Danton <dhillf@gmail.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Hugh Dickins <hughd@google.com>
+To: Suresh Jayaraman <sjayaraman@suse.com>
+Cc: Linux Memory Management List <linux-mm@kvack.org>, Vivek Goyal <vgoyal@redhat.com>, Andrea Righi <andrea@betterlinux.com>, Jeff Moyer <jmoyer@redhat.com>, linux-fsdevel@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>
 
-On 4/1/2012 8:10 AM, Hillf Danton wrote:
-> On Sat, Mar 31, 2012 at 4:07 AM, Chris Metcalf <cmetcalf@tilera.com> wrote:
->> The race is as follows.  Suppose a multi-threaded task forks a new
->> process, thus bumping up the ref count on all the pages.  While the fork
->> is occurring (and thus we have marked all the PTEs as read-only), another
->> thread in the original process tries to write to a huge page, taking an
->> access violation from the write-protect and calling hugetlb_cow().  Now,
->> suppose the fork() fails.  It will undo the COW and decrement the ref
->> count on the pages, so the ref count on the huge page drops back to 1.
->> Meanwhile hugetlb_cow() also decrements the ref count by one on the
->> original page, since the original address space doesn't need it any more,
->> having copied a new page to replace the original page.  This leaves the
->> ref count at zero, and when we call unlock_page(), we panic.
->>
->> The solution is to take an extra reference to the page while we are
->> holding the lock on it.
->>
-> If the following chart matches the above description,
->
-> [...]
->
-> would you please spin with description refreshed?
+On Sun, Apr 01, 2012 at 09:46:06AM +0530, Suresh Jayaraman wrote:
+> On 03/28/2012 05:43 PM, Fengguang Wu wrote:
+> > Here is one possible solution to "buffered write IO controller", based on Linux
+> > v3.3
+> > 
+> > git://git.kernel.org/pub/scm/linux/kernel/git/wfg/linux.git  buffered-write-io-controller
+> > 
+> 
+> The implementation looks unbelievably simple. I ran a few tests
+> (throttling) and I found it working well generally.
 
-Done, and thanks!  I added your timeline chart to my description; I figure
-no harm in having it both ways.
+Thanks for test it out :)
 
->> Cc: stable@kernel.org
-> Let Andrew do the stable work, ok?
+> > Features:
+> > - support blkio.weight
+> > - support blkio.throttle.buffered_write_bps
+> > 
+> > Possibilities:
+> > - it's trivial to support per-bdi .weight or .buffered_write_bps
+> > 
+> > Pros:
+> > 1) simple
+> > 2) virtually no space/time overheads
+> > 3) independent of the block layer and IO schedulers, hence
+> > 3.1) supports all filesystems/storages, eg. NFS/pNFS, CIFS, sshfs, ...
+> > 3.2) supports all IO schedulers. One may use noop for SSDs, inside virtual machines, over iSCSI, etc.
+> > 
+> > Cons:
+> > 1) don't try to smooth bursty IO submission in the flusher thread (*)
+> > 2) don't support IOPS based throttling
+> > 3) introduces semantic differences to blkio.weight, which will be
+> >    - working by "bandwidth" for buffered writes
+> >    - working by "device time" for direct IO
+> 
+> There is a chance that this semantic difference might confuse users.
 
-Fair point.  I'm used to adding the Cc myself for things I push through the
-arch/tile tree.  This of course does make more sense to go through Andrew,
-so I'll remove it.
+Yeah.
 
--- 
-Chris Metcalf, Tilera Corp.
-http://www.tilera.com
+> > (*) Maybe not a big concern, since the bursties are limited to 500ms: if one dd
+> > is throttled to 50% disk bandwidth, the flusher thread will be waking up on
+> > every 1 second, keep the disk busy for 500ms and then go idle for 500ms; if
+> > throttled to 10% disk bandwidth, the flusher thread will wake up on every 5s,
+> > keep busy for 500ms and stay idle for 4.5s.
+> > 
+> > The test results included in the last patch look pretty good in despite of the
+> > simple implementation.
+> > 
+> >  [PATCH 1/6] blk-cgroup: move blk-cgroup.h in include/linux/blk-cgroup.h
+> >  [PATCH 2/6] blk-cgroup: account dirtied pages
+> >  [PATCH 3/6] blk-cgroup: buffered write IO controller - bandwidth weight
+> >  [PATCH 4/6] blk-cgroup: buffered write IO controller - bandwidth limit
+> >  [PATCH 5/6] blk-cgroup: buffered write IO controller - bandwidth limit interface
+> >  [PATCH 6/6] blk-cgroup: buffered write IO controller - debug trace
+> > 
+> 
+> How about a BOF on this topic during LSF/MM as there seems to be enough
+> interest?
+
+Sure. I'll talk briefly about the block IO cgroup in the writeback
+session. I'm open to more oriented technical discussions in some later
+time if necessary.
+
+Thanks,
+Fengguang
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
