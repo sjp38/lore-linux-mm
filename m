@@ -1,93 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx184.postini.com [74.125.245.184])
-	by kanga.kvack.org (Postfix) with SMTP id F33BA6B00E8
-	for <linux-mm@kvack.org>; Sun,  1 Apr 2012 13:59:07 -0400 (EDT)
-Message-Id: <201204011759.q31Hx5ej030121@farm-0012.internal.tilera.com>
-From: Chris Metcalf <cmetcalf@tilera.com>
-Date: Fri, 30 Mar 2012 16:07:12 -0400
-Subject: [PATCH v3] hugetlb: fix race condition in hugetlb_fault()
-In-Reply-To: <4F7887A5.3060700@tilera.com>
-References: <4F7887A5.3060700@tilera.com> <201203302018.q2UKIFH5020745@farm-0012.internal.tilera.com> <CAJd=RBCoLNB+iRX1shKGAwSbE8PsZXyk9e3inPTREcm2kk3nXA@mail.gmail.com> <201203311339.q2VDdJMD006254@farm-0012.internal.tilera.com> <CAJd=RBBWx7uZcw=_oA06RVunPAGeFcJ7LY=RwFCyB_BreJb_kg@mail.gmail.com>
+Received: from psmtp.com (na3sys010amx148.postini.com [74.125.245.148])
+	by kanga.kvack.org (Postfix) with SMTP id 3ABD96B0044
+	for <linux-mm@kvack.org>; Sun,  1 Apr 2012 16:56:55 -0400 (EDT)
+Date: Sun, 1 Apr 2012 16:56:47 -0400
+From: Vivek Goyal <vgoyal@redhat.com>
+Subject: Re: [PATCH 0/6] buffered write IO controller in balance_dirty_pages()
+Message-ID: <20120401205647.GD6116@redhat.com>
+References: <20120328121308.568545879@intel.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20120328121308.568545879@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hillf Danton <dhillf@gmail.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Hugh Dickins <hughd@google.com>
+To: Fengguang Wu <fengguang.wu@intel.com>
+Cc: Linux Memory Management List <linux-mm@kvack.org>, Suresh Jayaraman <sjayaraman@suse.com>, Andrea Righi <andrea@betterlinux.com>, Jeff Moyer <jmoyer@redhat.com>, linux-fsdevel@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>
 
-The race is as follows.
+On Wed, Mar 28, 2012 at 08:13:08PM +0800, Fengguang Wu wrote:
+> 
+> Here is one possible solution to "buffered write IO controller", based on Linux
+> v3.3
+> 
+> git://git.kernel.org/pub/scm/linux/kernel/git/wfg/linux.git  buffered-write-io-controller
+> 
+> Features:
+> - support blkio.weight
+> - support blkio.throttle.buffered_write_bps
 
-Suppose a multi-threaded task forks a new process (on cpu A), thus
-bumping up the ref count on all the pages.  While the fork is occurring
-(and thus we have marked all the PTEs as read-only), another thread in
-the original process (on cpu B) tries to write to a huge page, taking
-an access violation from the write-protect and calling hugetlb_cow().
-Now, suppose the fork() fails.  It will undo the COW and decrement the
-ref count on the pages, so the ref count on the huge page drops back
-to 1.  Meanwhile hugetlb_cow() also decrements the ref count by one on
-the original page, since the original address space doesn't need it any
-more, having copied a new page to replace the original page.  This leaves
-the ref count at zero, and when we call unlock_page(), we panic.
+Introducing separate knob for buffered write makes sense. It is different
+throttling done at block layer.
 
-	fork on CPU A				fault on CPU B
-	=============				==============
-	...
-	down_write(&parent->mmap_sem);
-	down_write_nested(&child->mmap_sem);
-	...
-	while duplicating vmas
-		if error
-			break;
-	...
-	up_write(&child->mmap_sem);
-	up_write(&parent->mmap_sem);		...
-						down_read(&parent->mmap_sem);
-						...
-						lock_page(page);
-						handle COW
-						page_mapcount(old_page) == 2
-						alloc and prepare new_page
-	...
-	handle error
-	page_remove_rmap(page);
-	put_page(page);
-	...
-						fold new_page into pte
-						page_remove_rmap(page);
-						put_page(page);
-						...
-				oops ==>	unlock_page(page);
-						up_read(&parent->mmap_sem);
+> 
+> Possibilities:
+> - it's trivial to support per-bdi .weight or .buffered_write_bps
+> 
+> Pros:
+> 1) simple
+> 2) virtually no space/time overheads
+> 3) independent of the block layer and IO schedulers, hence
+> 3.1) supports all filesystems/storages, eg. NFS/pNFS, CIFS, sshfs, ...
+> 3.2) supports all IO schedulers. One may use noop for SSDs, inside virtual machines, over iSCSI, etc.
+> 
+> Cons:
+> 1) don't try to smooth bursty IO submission in the flusher thread (*)
 
-The solution is to take an extra reference to the page while we are
-holding the lock on it.
+Yes, this is a core limitation of throttling while writing to cache. I think
+once we had agreed that IO scheduler in general should be able to handle
+burstiness caused by WRITES. CFQ does it well. deadline not so much.
 
-Reviewed-by: Hillf Danton <dhillf@gmail.com>
-Signed-off-by: Chris Metcalf <cmetcalf@tilera.com>
----
- mm/hugetlb.c |    2 ++
- 1 files changed, 2 insertions(+), 0 deletions(-)
+> 2) don't support IOPS based throttling
 
-diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-index 1871753..2a04cfd 100644
---- a/mm/hugetlb.c
-+++ b/mm/hugetlb.c
-@@ -2701,6 +2701,7 @@ int hugetlb_fault(struct mm_struct *mm, struct vm_area_struct *vma,
- 	 * so no worry about deadlock.
- 	 */
- 	page = pte_page(entry);
-+	get_page(page);
- 	if (page != pagecache_page)
- 		lock_page(page);
- 
-@@ -2732,6 +2733,7 @@ out_page_table_lock:
- 	}
- 	if (page != pagecache_page)
- 		unlock_page(page);
-+	put_page(page);
- 
- out_mutex:
- 	mutex_unlock(&hugetlb_instantiation_mutex);
--- 
-1.6.5.2
+If need be then you can still support it. Isn't it? Just that it will
+require more code in buffered write controller to keep track of number
+of operations per second and throttle task if IOPS limit is crossed. So
+it does not sound like a limitation of design but just limitation of
+current set of patches?
+
+> 3) introduces semantic differences to blkio.weight, which will be
+>    - working by "bandwidth" for buffered writes
+>    - working by "device time" for direct IO
+
+I think blkio.weight can be thought of a system wide weight of a cgroup
+and more than one entity/subsystem should be able to make use of it and
+differentiate between IO in its own way. CFQ can decide to do proportional
+time division, and buffered write controller should be able to use the
+same weight and do write bandwidth differentiation. I think it is better
+than introducing another buffered write controller tunable for weight.
+
+Personally, I am not too worried about this point. We can document and
+explain it well.
+
+
+> 
+> (*) Maybe not a big concern, since the bursties are limited to 500ms: if one dd
+> is throttled to 50% disk bandwidth, the flusher thread will be waking up on
+> every 1 second, keep the disk busy for 500ms and then go idle for 500ms; if
+> throttled to 10% disk bandwidth, the flusher thread will wake up on every 5s,
+> keep busy for 500ms and stay idle for 4.5s.
+> 
+> The test results included in the last patch look pretty good in despite of the
+> simple implementation.
+
+Can you give more details about test results. Did you test throttling or you
+tested write speed differentation based on weight too.
+
+Thanks
+Vivek
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
