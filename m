@@ -1,54 +1,108 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx181.postini.com [74.125.245.181])
-	by kanga.kvack.org (Postfix) with SMTP id DDA4B6B0044
-	for <linux-mm@kvack.org>; Mon,  2 Apr 2012 02:35:41 -0400 (EDT)
-Received: by werj55 with SMTP id j55so1996957wer.14
-        for <linux-mm@kvack.org>; Sun, 01 Apr 2012 23:35:40 -0700 (PDT)
-Date: Mon, 2 Apr 2012 09:35:32 +0300
+Received: from psmtp.com (na3sys010amx159.postini.com [74.125.245.159])
+	by kanga.kvack.org (Postfix) with SMTP id 3C2F66B0044
+	for <linux-mm@kvack.org>; Mon,  2 Apr 2012 03:09:20 -0400 (EDT)
+Received: by wibhn6 with SMTP id hn6so2018143wib.8
+        for <linux-mm@kvack.org>; Mon, 02 Apr 2012 00:09:18 -0700 (PDT)
+Date: Mon, 2 Apr 2012 10:09:11 +0300
 From: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
-Subject: [PATCH] kmemleak: do not leak object after tree insertion error
-Message-ID: <20120402063532.GA3464@swordfish>
+Subject: kmemleak: illegal RCU use assertion error
+Message-ID: <20120402070911.GB3464@swordfish>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Catalin Marinas <catalin.marinas@arm.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-[PATCH] kmemleak: do not leak object after tree insertion error
+Hello,
 
-In case when tree insertion fails due to already existing object
-error, pointer to allocated object gets lost due to lookup_object()
-overwrite. Free allocated object before lookup happens.
+commit e5601400081651060a59bd1f45f2821bb8e97f95
+Author: Paul E. McKenney <paul.mckenney@linaro.org>
+Date:   Sat Jan 7 11:03:57 2012 -0800
 
-Signed-off-by: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+    rcu: Simplify offline processing
+    
+    Move ->qsmaskinit and blkd_tasks[] manipulation to the CPU_DYING
+    notifier.  This simplifies the code by eliminating a potential
+    deadlock and by reducing the responsibilities of force_quiescent_state().
+    Also rename functions to make their connection to the CPU-hotplug
+    stages explicit.
+    
+    Signed-off-by: Paul E. McKenney <paul.mckenney@linaro.org>
+    Signed-off-by: Paul E. McKenney <paulmck@linux.vnet.ibm.com>
 
----
 
- mm/kmemleak.c |    2 ++
- 1 file changed, 2 insertions(+)
+introduced WARN_ON_ONCE(cpu_is_offline(smp_processor_id())); to __call_rcu()
+function, Paul also added cpu_offline checks to other routines (e.g. callbacks)
+in later commits. It happens that kmemleak() triggers one of them.
 
-diff --git a/mm/kmemleak.c b/mm/kmemleak.c
-index 45eb621..d6eec2d 100644
---- a/mm/kmemleak.c
-+++ b/mm/kmemleak.c
-@@ -260,6 +260,7 @@ static struct early_log
- static int crt_early_log __initdata;
- 
- static void kmemleak_disable(void);
-+static void __delete_object(struct kmemleak_object *);
- 
- /*
-  * Print a warning and dump the stack trace.
-@@ -576,6 +577,7 @@ static struct kmemleak_object *create_object(unsigned long ptr, size_t size,
- 	 * random memory blocks.
- 	 */
- 	if (node != &object->tree_node) {
-+		__delete_object(object);
- 		kmemleak_stop("Cannot insert 0x%lx into the object search tree "
- 			      "(already existing)\n", ptr);
- 		object = lookup_object(ptr, 1);
+During cpu core offline, kfree()->kmemleak_free()->put_object()-->__call_rcu() chain
+for struct intel_shared_regs * is executed when no struct users left on this core -- 
+all CPUs are dead or dying.
+
+
+[ 4703.342462] CPU 3 is now offline
+[ 4705.588116] ------------[ cut here ]------------
+[ 4705.588129] WARNING: at kernel/rcutree.c:1823 __call_rcu+0x9d/0x1d2()
+[..]
+[ 4705.588196] Call Trace:
+[ 4705.588207]  [<ffffffff81059a00>] ? synchronize_srcu+0x6/0x17
+[ 4705.588215]  [<ffffffff8103364e>] warn_slowpath_common+0x83/0x9c
+[ 4705.588223]  [<ffffffff8111e627>] ? get_object+0x31/0x31
+[ 4705.588229]  [<ffffffff81033681>] warn_slowpath_null+0x1a/0x1c
+[ 4705.588235]  [<ffffffff810af770>] __call_rcu+0x9d/0x1d2
+[ 4705.588243]  [<ffffffff81013f52>] ? intel_pmu_cpu_dying+0x3b/0x5d
+[ 4705.588249]  [<ffffffff810af8f1>] call_rcu_sched+0x17/0x19
+[ 4705.588255]  [<ffffffff8111eb7e>] put_object+0x47/0x4b
+[ 4705.588261]  [<ffffffff8111ed8b>] delete_object_full+0x2a/0x2e
+[ 4705.588269]  [<ffffffff81491dc8>] kmemleak_free+0x26/0x45
+[ 4705.588274]  [<ffffffff8111691f>] kfree+0x130/0x221
+[ 4705.588280]  [<ffffffff81013f52>] intel_pmu_cpu_dying+0x3b/0x5d
+[ 4705.588287]  [<ffffffff8149cb83>] x86_pmu_notifier+0xaf/0xb9
+[ 4705.588296]  [<ffffffff814b0e9d>] notifier_call_chain+0xac/0xd9
+[ 4705.588303]  [<ffffffff81059c9e>] __raw_notifier_call_chain+0xe/0x10
+[ 4705.588309]  [<ffffffff810354ec>] __cpu_notify+0x20/0x37
+[ 4705.588314]  [<ffffffff81035516>] cpu_notify+0x13/0x15
+[ 4705.588320]  [<ffffffff81490fab>] take_cpu_down+0x28/0x2e
+[ 4705.588326]  [<ffffffff8109ef7f>] stop_machine_cpu_stop+0x96/0xf1
+[ 4705.588332]  [<ffffffff8109ece3>] cpu_stopper_thread+0xe3/0x183
+[ 4705.588338]  [<ffffffff8109eee9>] ? queue_stop_cpus_work+0xd0/0xd0
+[ 4705.588344]  [<ffffffff814ad382>] ? _raw_spin_unlock_irqrestore+0x47/0x65
+[ 4705.588353]  [<ffffffff81087d0d>] ? trace_hardirqs_on_caller+0x119/0x175
+[ 4705.588358]  [<ffffffff81087d76>] ? trace_hardirqs_on+0xd/0xf
+[ 4705.588364]  [<ffffffff8109ec00>] ? cpu_stop_signal_done+0x2c/0x2c
+[ 4705.588370]  [<ffffffff810544a9>] kthread+0x8b/0x93
+[ 4705.588378]  [<ffffffff814b5f34>] kernel_thread_helper+0x4/0x10
+[ 4705.588385]  [<ffffffff814ad7f0>] ? retint_restore_args+0x13/0x13
+[ 4705.588391]  [<ffffffff8105441e>] ? __init_kthread_worker+0x5a/0x5a
+[ 4705.588397]  [<ffffffff814b5f30>] ? gs_change+0x13/0x13
+[ 4705.588400] ---[ end trace 720328982e35a713 ]---
+[ 4705.588507] CPU 2 is now offline
+
+
+My first solution was to return from delete_object() if object deallocation
+performed on cpu_is_offline(smp_processor_id()), marking object with special
+flag, say OBJECT_ORPHAN. And issue real object_delete() during scan (for example)
+when we see OBJECT_ORPHAN object.  
+That, however, requires to handle special case when cpu core offlined
+for small period of time, leading to object insertion error in
+create_object(), which either may be handled in 2 possible ways (assuming
+that lookup_object() returned OBJECT_ORPHAN):
+#1 delete orphaned object and retry with insertion (*)
+#2 re-set existing orphan object
+
+
+(*) performing delete_object() from within create_object() requires releasing
+of held kmemleak and object locks, which is racy with other create_object() and
+any possible scan() activities.
+
+Yet I'm not exactly sure that option #2 is the correct one.
+(I've kind of a patch [not properly tested, etc.] for #2 option).
+
+
+	Sergey
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
