@@ -1,42 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx111.postini.com [74.125.245.111])
-	by kanga.kvack.org (Postfix) with SMTP id 98C276B007E
-	for <linux-mm@kvack.org>; Mon,  2 Apr 2012 10:48:33 -0400 (EDT)
-Date: Mon, 2 Apr 2012 16:48:21 +0200
-From: Oleg Nesterov <oleg@redhat.com>
-Subject: Re: [PATCH 6/7] mm: kill vma flag VM_EXECUTABLE
-Message-ID: <20120402144821.GA3334@redhat.com>
-References: <20120331091049.19373.28994.stgit@zurg> <20120331092929.19920.54540.stgit@zurg> <20120331201324.GA17565@redhat.com> <20120331203912.GB687@moon> <4F79755B.3030703@openvz.org>
+Received: from psmtp.com (na3sys010amx154.postini.com [74.125.245.154])
+	by kanga.kvack.org (Postfix) with SMTP id AA1186B0092
+	for <linux-mm@kvack.org>; Mon,  2 Apr 2012 10:55:40 -0400 (EDT)
+From: Arnd Bergmann <arnd@arndb.de>
+Subject: Re: swap on eMMC and other flash
+Date: Mon, 2 Apr 2012 14:55:24 +0000
+References: <201203301744.16762.arnd@arndb.de> <201204021145.43222.arnd@arndb.de> <alpine.LSU.2.00.1204020734560.1847@eggly.anvils>
+In-Reply-To: <alpine.LSU.2.00.1204020734560.1847@eggly.anvils>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <4F79755B.3030703@openvz.org>
+Content-Type: Text/Plain;
+  charset="iso-8859-1"
+Content-Transfer-Encoding: 7bit
+Message-Id: <201204021455.25029.arnd@arndb.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Konstantin Khlebnikov <khlebnikov@openvz.org>
-Cc: Cyrill Gorcunov <gorcunov@openvz.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Eric Paris <eparis@redhat.com>, "linux-security-module@vger.kernel.org"@jasper.es
+To: Hugh Dickins <hughd@google.com>
+Cc: linaro-kernel@lists.linaro.org, Rik van Riel <riel@redhat.com>, "linux-mmc@vger.kernel.org" <linux-mmc@vger.kernel.org>, Alex Lemberg <alex.lemberg@sandisk.com>, linux-kernel@vger.kernel.org, "Luca Porzio (lporzio)" <lporzio@micron.com>, linux-mm@kvack.org, Hyojin Jeong <syr.jeong@samsung.com>, kernel-team@android.com, Yejin Moon <yejin.moon@samsung.com>
 
-On 04/02, Konstantin Khlebnikov wrote:
->
-> In this patch I leave mm->exe_file lockless.
-> After exec/fork we can change it only for current task and only if mm->mm_users == 1.
->
-> something like this:
->
-> task_lock(current);
+On Monday 02 April 2012, Hugh Dickins wrote:
+> On Mon, 2 Apr 2012, Arnd Bergmann wrote:
+> > 
+> > Another option would be batched discard as we do it for file systems:
+> > occasionally stop writing to swap space and scanning for areas that
+> > have become available since the last discard, then send discard
+> > commands for those.
+> 
+> I'm not sure whether you've missed "swapon --discard", which switches
+> on discard_swap_cluster() just before we allocate from a new cluster;
+> or whether you're musing that it's no use to you because you want to
+> repurpose the swap cluster to match erase block: I'm mentioning it in
+> case you missed that it's already there (but few use it, since even
+> done at that scale it's often more trouble than it's worth).
 
-OK, this protects against the race with get_task_mm()
+I actually argued that discard_swap_cluster is exactly the right thing
+to do, especially when clusters match erase blocks on the less capable
+devices like SD cards.
 
-> if (atomic_read(&current->mm->mm_users) == 1)
+Luca was arguing that on some hardware there is no point in ever
+submitting a discard just before we start reusing space, because
+at that point it the hardware already discards the old data by
+overwriting the logical addresses with new blocks, while
+issuing a discard on all blocks as soon as they become available
+would make a bigger difference. I would be interested in hearing
+from Hyojin Jeong and Alex Lemberg what they think is the best
+time to issue a discard, because they would know about other hardware
+than Luca.
 
-this means PR_SET_MM_EXE_FILE can fail simply because someone did
-get_task_mm(). Or the caller is multithreaded.
-
-> 	set_mm_exe_file(current->mm, new_file);
-
-No, fput() can sleep.
-
-Oleg.
+	Arnd
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
