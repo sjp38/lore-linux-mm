@@ -1,37 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx201.postini.com [74.125.245.201])
-	by kanga.kvack.org (Postfix) with SMTP id 7C6F96B007E
-	for <linux-mm@kvack.org>; Mon,  2 Apr 2012 10:42:32 -0400 (EDT)
-Received: by iajr24 with SMTP id r24so5661098iaj.14
-        for <linux-mm@kvack.org>; Mon, 02 Apr 2012 07:42:31 -0700 (PDT)
-Date: Mon, 2 Apr 2012 07:41:56 -0700 (PDT)
-From: Hugh Dickins <hughd@google.com>
-Subject: Re: swap on eMMC and other flash
-In-Reply-To: <201204021145.43222.arnd@arndb.de>
-Message-ID: <alpine.LSU.2.00.1204020734560.1847@eggly.anvils>
-References: <201203301744.16762.arnd@arndb.de> <201203301850.22784.arnd@arndb.de> <alpine.LSU.2.00.1203311230490.10965@eggly.anvils> <201204021145.43222.arnd@arndb.de>
+Received: from psmtp.com (na3sys010amx111.postini.com [74.125.245.111])
+	by kanga.kvack.org (Postfix) with SMTP id 98C276B007E
+	for <linux-mm@kvack.org>; Mon,  2 Apr 2012 10:48:33 -0400 (EDT)
+Date: Mon, 2 Apr 2012 16:48:21 +0200
+From: Oleg Nesterov <oleg@redhat.com>
+Subject: Re: [PATCH 6/7] mm: kill vma flag VM_EXECUTABLE
+Message-ID: <20120402144821.GA3334@redhat.com>
+References: <20120331091049.19373.28994.stgit@zurg> <20120331092929.19920.54540.stgit@zurg> <20120331201324.GA17565@redhat.com> <20120331203912.GB687@moon> <4F79755B.3030703@openvz.org>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <4F79755B.3030703@openvz.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Arnd Bergmann <arnd@arndb.de>
-Cc: linaro-kernel@lists.linaro.org, Rik van Riel <riel@redhat.com>, "linux-mmc@vger.kernel.org" <linux-mmc@vger.kernel.org>, Alex Lemberg <alex.lemberg@sandisk.com>, linux-kernel@vger.kernel.org, "Luca Porzio (lporzio)" <lporzio@micron.com>, linux-mm@kvack.org, Hyojin Jeong <syr.jeong@samsung.com>, kernel-team@android.com, Yejin Moon <yejin.moon@samsung.com>
+To: Konstantin Khlebnikov <khlebnikov@openvz.org>
+Cc: Cyrill Gorcunov <gorcunov@openvz.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Eric Paris <eparis@redhat.com>, "linux-security-module@vger.kernel.org"@jasper.es
 
-On Mon, 2 Apr 2012, Arnd Bergmann wrote:
-> 
-> Another option would be batched discard as we do it for file systems:
-> occasionally stop writing to swap space and scanning for areas that
-> have become available since the last discard, then send discard
-> commands for those.
+On 04/02, Konstantin Khlebnikov wrote:
+>
+> In this patch I leave mm->exe_file lockless.
+> After exec/fork we can change it only for current task and only if mm->mm_users == 1.
+>
+> something like this:
+>
+> task_lock(current);
 
-I'm not sure whether you've missed "swapon --discard", which switches
-on discard_swap_cluster() just before we allocate from a new cluster;
-or whether you're musing that it's no use to you because you want to
-repurpose the swap cluster to match erase block: I'm mentioning it in
-case you missed that it's already there (but few use it, since even
-done at that scale it's often more trouble than it's worth).
+OK, this protects against the race with get_task_mm()
 
-Hugh
+> if (atomic_read(&current->mm->mm_users) == 1)
+
+this means PR_SET_MM_EXE_FILE can fail simply because someone did
+get_task_mm(). Or the caller is multithreaded.
+
+> 	set_mm_exe_file(current->mm, new_file);
+
+No, fput() can sleep.
+
+Oleg.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
