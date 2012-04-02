@@ -1,91 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx148.postini.com [74.125.245.148])
-	by kanga.kvack.org (Postfix) with SMTP id 3ABD96B0044
-	for <linux-mm@kvack.org>; Sun,  1 Apr 2012 16:56:55 -0400 (EDT)
-Date: Sun, 1 Apr 2012 16:56:47 -0400
-From: Vivek Goyal <vgoyal@redhat.com>
-Subject: Re: [PATCH 0/6] buffered write IO controller in balance_dirty_pages()
-Message-ID: <20120401205647.GD6116@redhat.com>
-References: <20120328121308.568545879@intel.com>
+Received: from psmtp.com (na3sys010amx156.postini.com [74.125.245.156])
+	by kanga.kvack.org (Postfix) with SMTP id D04DB6B0044
+	for <linux-mm@kvack.org>; Sun,  1 Apr 2012 22:21:18 -0400 (EDT)
+Received: by vbbey12 with SMTP id ey12so2058098vbb.14
+        for <linux-mm@kvack.org>; Sun, 01 Apr 2012 19:21:17 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20120328121308.568545879@intel.com>
+In-Reply-To: <4F788675.6060604@tilera.com>
+References: <201203302018.q2UKIFH5020745@farm-0012.internal.tilera.com>
+	<CAJd=RBCoLNB+iRX1shKGAwSbE8PsZXyk9e3inPTREcm2kk3nXA@mail.gmail.com>
+	<201203311334.q2VDYGiL005854@farm-0012.internal.tilera.com>
+	<CAJd=RBDEAMgDviSwugt7dHKPGXCCF5jQSDtHdXvt5VnSBmK3bA@mail.gmail.com>
+	<201203311612.q2VGCqPA012710@farm-0012.internal.tilera.com>
+	<CAJd=RBDqQ2jwxyVgn-WwoJfu0vOs9YUHfKxkcqUczr=cnk+8wg@mail.gmail.com>
+	<4F788675.6060604@tilera.com>
+Date: Mon, 2 Apr 2012 10:21:17 +0800
+Message-ID: <CAJd=RBAXv+vsMTsGJwdHzG1L6TbZ2C7nTBSwmQg+M0vVczkfUw@mail.gmail.com>
+Subject: Re: [PATCH v3] arch/tile: support multiple huge page sizes dynamically
+From: Hillf Danton <dhillf@gmail.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Fengguang Wu <fengguang.wu@intel.com>
-Cc: Linux Memory Management List <linux-mm@kvack.org>, Suresh Jayaraman <sjayaraman@suse.com>, Andrea Righi <andrea@betterlinux.com>, Jeff Moyer <jmoyer@redhat.com>, linux-fsdevel@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>
+To: Chris Metcalf <cmetcalf@tilera.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Hugh Dickins <hughd@google.com>
 
-On Wed, Mar 28, 2012 at 08:13:08PM +0800, Fengguang Wu wrote:
-> 
-> Here is one possible solution to "buffered write IO controller", based on Linux
-> v3.3
-> 
-> git://git.kernel.org/pub/scm/linux/kernel/git/wfg/linux.git  buffered-write-io-controller
-> 
-> Features:
-> - support blkio.weight
-> - support blkio.throttle.buffered_write_bps
+On Mon, Apr 2, 2012 at 12:46 AM, Chris Metcalf <cmetcalf@tilera.com> wrote:
+>
+> =C2=A0As it happens, I am the tile guru for this code :-)
+>
+I see.
 
-Introducing separate knob for buffered write makes sense. It is different
-throttling done at block layer.
-
-> 
-> Possibilities:
-> - it's trivial to support per-bdi .weight or .buffered_write_bps
-> 
-> Pros:
-> 1) simple
-> 2) virtually no space/time overheads
-> 3) independent of the block layer and IO schedulers, hence
-> 3.1) supports all filesystems/storages, eg. NFS/pNFS, CIFS, sshfs, ...
-> 3.2) supports all IO schedulers. One may use noop for SSDs, inside virtual machines, over iSCSI, etc.
-> 
-> Cons:
-> 1) don't try to smooth bursty IO submission in the flusher thread (*)
-
-Yes, this is a core limitation of throttling while writing to cache. I think
-once we had agreed that IO scheduler in general should be able to handle
-burstiness caused by WRITES. CFQ does it well. deadline not so much.
-
-> 2) don't support IOPS based throttling
-
-If need be then you can still support it. Isn't it? Just that it will
-require more code in buffered write controller to keep track of number
-of operations per second and throttle task if IOPS limit is crossed. So
-it does not sound like a limitation of design but just limitation of
-current set of patches?
-
-> 3) introduces semantic differences to blkio.weight, which will be
->    - working by "bandwidth" for buffered writes
->    - working by "device time" for direct IO
-
-I think blkio.weight can be thought of a system wide weight of a cgroup
-and more than one entity/subsystem should be able to make use of it and
-differentiate between IO in its own way. CFQ can decide to do proportional
-time division, and buffered write controller should be able to use the
-same weight and do write bandwidth differentiation. I think it is better
-than introducing another buffered write controller tunable for weight.
-
-Personally, I am not too worried about this point. We can document and
-explain it well.
-
-
-> 
-> (*) Maybe not a big concern, since the bursties are limited to 500ms: if one dd
-> is throttled to 50% disk bandwidth, the flusher thread will be waking up on
-> every 1 second, keep the disk busy for 500ms and then go idle for 500ms; if
-> throttled to 10% disk bandwidth, the flusher thread will wake up on every 5s,
-> keep busy for 500ms and stay idle for 4.5s.
-> 
-> The test results included in the last patch look pretty good in despite of the
-> simple implementation.
-
-Can you give more details about test results. Did you test throttling or you
-tested write speed differentation based on weight too.
-
-Thanks
-Vivek
+>
+> So does it make sense for me to push the two resulting changes through th=
+e
+> tile tree? =C2=A0I'd like to ask Linus to pull this stuff for 3.4 (I know=
+, I'm
+> late in the cycle for that), but obviously it's not much use without the
+> part that you reviewed.
+>
+No more question:)
+-hd
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
