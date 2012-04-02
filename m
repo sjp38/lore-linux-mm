@@ -1,45 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx156.postini.com [74.125.245.156])
-	by kanga.kvack.org (Postfix) with SMTP id D04DB6B0044
-	for <linux-mm@kvack.org>; Sun,  1 Apr 2012 22:21:18 -0400 (EDT)
-Received: by vbbey12 with SMTP id ey12so2058098vbb.14
-        for <linux-mm@kvack.org>; Sun, 01 Apr 2012 19:21:17 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx181.postini.com [74.125.245.181])
+	by kanga.kvack.org (Postfix) with SMTP id DDA4B6B0044
+	for <linux-mm@kvack.org>; Mon,  2 Apr 2012 02:35:41 -0400 (EDT)
+Received: by werj55 with SMTP id j55so1996957wer.14
+        for <linux-mm@kvack.org>; Sun, 01 Apr 2012 23:35:40 -0700 (PDT)
+Date: Mon, 2 Apr 2012 09:35:32 +0300
+From: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+Subject: [PATCH] kmemleak: do not leak object after tree insertion error
+Message-ID: <20120402063532.GA3464@swordfish>
 MIME-Version: 1.0
-In-Reply-To: <4F788675.6060604@tilera.com>
-References: <201203302018.q2UKIFH5020745@farm-0012.internal.tilera.com>
-	<CAJd=RBCoLNB+iRX1shKGAwSbE8PsZXyk9e3inPTREcm2kk3nXA@mail.gmail.com>
-	<201203311334.q2VDYGiL005854@farm-0012.internal.tilera.com>
-	<CAJd=RBDEAMgDviSwugt7dHKPGXCCF5jQSDtHdXvt5VnSBmK3bA@mail.gmail.com>
-	<201203311612.q2VGCqPA012710@farm-0012.internal.tilera.com>
-	<CAJd=RBDqQ2jwxyVgn-WwoJfu0vOs9YUHfKxkcqUczr=cnk+8wg@mail.gmail.com>
-	<4F788675.6060604@tilera.com>
-Date: Mon, 2 Apr 2012 10:21:17 +0800
-Message-ID: <CAJd=RBAXv+vsMTsGJwdHzG1L6TbZ2C7nTBSwmQg+M0vVczkfUw@mail.gmail.com>
-Subject: Re: [PATCH v3] arch/tile: support multiple huge page sizes dynamically
-From: Hillf Danton <dhillf@gmail.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Chris Metcalf <cmetcalf@tilera.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Hugh Dickins <hughd@google.com>
+To: Catalin Marinas <catalin.marinas@arm.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Mon, Apr 2, 2012 at 12:46 AM, Chris Metcalf <cmetcalf@tilera.com> wrote:
->
-> =C2=A0As it happens, I am the tile guru for this code :-)
->
-I see.
+[PATCH] kmemleak: do not leak object after tree insertion error
 
->
-> So does it make sense for me to push the two resulting changes through th=
-e
-> tile tree? =C2=A0I'd like to ask Linus to pull this stuff for 3.4 (I know=
-, I'm
-> late in the cycle for that), but obviously it's not much use without the
-> part that you reviewed.
->
-No more question:)
--hd
+In case when tree insertion fails due to already existing object
+error, pointer to allocated object gets lost due to lookup_object()
+overwrite. Free allocated object before lookup happens.
+
+Signed-off-by: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+
+---
+
+ mm/kmemleak.c |    2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/mm/kmemleak.c b/mm/kmemleak.c
+index 45eb621..d6eec2d 100644
+--- a/mm/kmemleak.c
++++ b/mm/kmemleak.c
+@@ -260,6 +260,7 @@ static struct early_log
+ static int crt_early_log __initdata;
+ 
+ static void kmemleak_disable(void);
++static void __delete_object(struct kmemleak_object *);
+ 
+ /*
+  * Print a warning and dump the stack trace.
+@@ -576,6 +577,7 @@ static struct kmemleak_object *create_object(unsigned long ptr, size_t size,
+ 	 * random memory blocks.
+ 	 */
+ 	if (node != &object->tree_node) {
++		__delete_object(object);
+ 		kmemleak_stop("Cannot insert 0x%lx into the object search tree "
+ 			      "(already existing)\n", ptr);
+ 		object = lookup_object(ptr, 1);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
