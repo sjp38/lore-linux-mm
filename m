@@ -1,154 +1,486 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx103.postini.com [74.125.245.103])
-	by kanga.kvack.org (Postfix) with SMTP id 92AE86B004D
-	for <linux-mm@kvack.org>; Mon,  2 Apr 2012 19:10:52 -0400 (EDT)
-Received: by wgbds1 with SMTP id ds1so3110386wgb.2
-        for <linux-mm@kvack.org>; Mon, 02 Apr 2012 16:10:50 -0700 (PDT)
-Date: Tue, 3 Apr 2012 02:10:43 +0300
-From: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
-Subject: Re: kmemleak: illegal RCU use assertion error
-Message-ID: <20120402231042.GB4353@swordfish>
-References: <20120402070911.GB3464@swordfish>
- <20120402130936.GF2450@linux.vnet.ibm.com>
+Received: from psmtp.com (na3sys010amx106.postini.com [74.125.245.106])
+	by kanga.kvack.org (Postfix) with SMTP id 2B5736B004D
+	for <linux-mm@kvack.org>; Mon,  2 Apr 2012 19:18:45 -0400 (EDT)
+Received: from /spool/local
+	by e8.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <matthltc@us.ibm.com>;
+	Mon, 2 Apr 2012 19:18:44 -0400
+Received: from d01relay06.pok.ibm.com (d01relay06.pok.ibm.com [9.56.227.116])
+	by d01dlp01.pok.ibm.com (Postfix) with ESMTP id F3B6838C8052
+	for <linux-mm@kvack.org>; Mon,  2 Apr 2012 19:18:40 -0400 (EDT)
+Received: from d01av03.pok.ibm.com (d01av03.pok.ibm.com [9.56.224.217])
+	by d01relay06.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q32NIfZH3600492
+	for <linux-mm@kvack.org>; Mon, 2 Apr 2012 19:18:41 -0400
+Received: from d01av03.pok.ibm.com (loopback [127.0.0.1])
+	by d01av03.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q32NIeut013665
+	for <linux-mm@kvack.org>; Mon, 2 Apr 2012 20:18:40 -0300
+Date: Mon, 2 Apr 2012 16:18:37 -0700
+From: Matt Helsley <matthltc@us.ibm.com>
+Subject: Re: [PATCH 6/7] mm: kill vma flag VM_EXECUTABLE
+Message-ID: <20120402231837.GC32299@count0.beaverton.ibm.com>
+References: <20120331091049.19373.28994.stgit@zurg>
+ <20120331092929.19920.54540.stgit@zurg>
 MIME-Version: 1.0
-Content-Type: multipart/signed; micalg=pgp-sha1;
-	protocol="application/pgp-signature"; boundary="lrZ03NoBR/3+SXJZ"
-Content-Disposition: inline
-In-Reply-To: <20120402130936.GF2450@linux.vnet.ibm.com>
-Sender: owner-linux-mm@kvack.org
-List-ID: <linux-mm.kvack.org>
-To: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
-Cc: Catalin Marinas <catalin.marinas@arm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
-
-
---lrZ03NoBR/3+SXJZ
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: quoted-printable
+In-Reply-To: <20120331092929.19920.54540.stgit@zurg>
+Sender: owner-linux-mm@kvack.org
+List-ID: <linux-mm.kvack.org>
+To: Konstantin Khlebnikov <khlebnikov@openvz.org>
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, Oleg Nesterov <oleg@redhat.com>, Eric Paris <eparis@redhat.com>, linux-security-module@vger.kernel.org, oprofile-list@lists.sf.net, Matt Helsley <matthltc@us.ibm.com>, Linus Torvalds <torvalds@linux-foundation.org>, Al Viro <viro@zeniv.linux.org.uk>
 
-On (04/02/12 06:09), Paul E. McKenney wrote:
-> On Mon, Apr 02, 2012 at 10:09:11AM +0300, Sergey Senozhatsky wrote:
-> > Hello,
-> >=20
-> > commit e5601400081651060a59bd1f45f2821bb8e97f95
-> > Author: Paul E. McKenney <paul.mckenney@linaro.org>
-> > Date:   Sat Jan 7 11:03:57 2012 -0800
-> >=20
-> >     rcu: Simplify offline processing
-> >    =20
-> >     Move ->qsmaskinit and blkd_tasks[] manipulation to the CPU_DYING
-> >     notifier.  This simplifies the code by eliminating a potential
-> >     deadlock and by reducing the responsibilities of force_quiescent_st=
-ate().
-> >     Also rename functions to make their connection to the CPU-hotplug
-> >     stages explicit.
-> >    =20
-> >     Signed-off-by: Paul E. McKenney <paul.mckenney@linaro.org>
-> >     Signed-off-by: Paul E. McKenney <paulmck@linux.vnet.ibm.com>
-> >=20
-> >=20
-> > introduced WARN_ON_ONCE(cpu_is_offline(smp_processor_id())); to __call_=
-rcu()
-> > function, Paul also added cpu_offline checks to other routines (e.g. ca=
-llbacks)
-> > in later commits. It happens that kmemleak() triggers one of them.
-> >=20
-> > During cpu core offline, kfree()->kmemleak_free()->put_object()-->__cal=
-l_rcu() chain
-> > for struct intel_shared_regs * is executed when no struct users left on=
- this core --=20
-> > all CPUs are dead or dying.
-> >=20
-> >=20
-> > [ 4703.342462] CPU 3 is now offline
-> > [ 4705.588116] ------------[ cut here ]------------
-> > [ 4705.588129] WARNING: at kernel/rcutree.c:1823 __call_rcu+0x9d/0x1d2()
-> > [..]
-> > [ 4705.588196] Call Trace:
-> > [ 4705.588207]  [<ffffffff81059a00>] ? synchronize_srcu+0x6/0x17
-> > [ 4705.588215]  [<ffffffff8103364e>] warn_slowpath_common+0x83/0x9c
-> > [ 4705.588223]  [<ffffffff8111e627>] ? get_object+0x31/0x31
-> > [ 4705.588229]  [<ffffffff81033681>] warn_slowpath_null+0x1a/0x1c
-> > [ 4705.588235]  [<ffffffff810af770>] __call_rcu+0x9d/0x1d2
-> > [ 4705.588243]  [<ffffffff81013f52>] ? intel_pmu_cpu_dying+0x3b/0x5d
-> > [ 4705.588249]  [<ffffffff810af8f1>] call_rcu_sched+0x17/0x19
-> > [ 4705.588255]  [<ffffffff8111eb7e>] put_object+0x47/0x4b
-> > [ 4705.588261]  [<ffffffff8111ed8b>] delete_object_full+0x2a/0x2e
-> > [ 4705.588269]  [<ffffffff81491dc8>] kmemleak_free+0x26/0x45
-> > [ 4705.588274]  [<ffffffff8111691f>] kfree+0x130/0x221
-> > [ 4705.588280]  [<ffffffff81013f52>] intel_pmu_cpu_dying+0x3b/0x5d
-> > [ 4705.588287]  [<ffffffff8149cb83>] x86_pmu_notifier+0xaf/0xb9
-> > [ 4705.588296]  [<ffffffff814b0e9d>] notifier_call_chain+0xac/0xd9
-> > [ 4705.588303]  [<ffffffff81059c9e>] __raw_notifier_call_chain+0xe/0x10
-> > [ 4705.588309]  [<ffffffff810354ec>] __cpu_notify+0x20/0x37
-> > [ 4705.588314]  [<ffffffff81035516>] cpu_notify+0x13/0x15
-> > [ 4705.588320]  [<ffffffff81490fab>] take_cpu_down+0x28/0x2e
-> > [ 4705.588326]  [<ffffffff8109ef7f>] stop_machine_cpu_stop+0x96/0xf1
-> > [ 4705.588332]  [<ffffffff8109ece3>] cpu_stopper_thread+0xe3/0x183
-> > [ 4705.588338]  [<ffffffff8109eee9>] ? queue_stop_cpus_work+0xd0/0xd0
-> > [ 4705.588344]  [<ffffffff814ad382>] ? _raw_spin_unlock_irqrestore+0x47=
-/0x65
-> > [ 4705.588353]  [<ffffffff81087d0d>] ? trace_hardirqs_on_caller+0x119/0=
-x175
-> > [ 4705.588358]  [<ffffffff81087d76>] ? trace_hardirqs_on+0xd/0xf
-> > [ 4705.588364]  [<ffffffff8109ec00>] ? cpu_stop_signal_done+0x2c/0x2c
-> > [ 4705.588370]  [<ffffffff810544a9>] kthread+0x8b/0x93
-> > [ 4705.588378]  [<ffffffff814b5f34>] kernel_thread_helper+0x4/0x10
-> > [ 4705.588385]  [<ffffffff814ad7f0>] ? retint_restore_args+0x13/0x13
-> > [ 4705.588391]  [<ffffffff8105441e>] ? __init_kthread_worker+0x5a/0x5a
-> > [ 4705.588397]  [<ffffffff814b5f30>] ? gs_change+0x13/0x13
-> > [ 4705.588400] ---[ end trace 720328982e35a713 ]---
-> > [ 4705.588507] CPU 2 is now offline
-> >=20
-> >=20
-> > My first solution was to return from delete_object() if object dealloca=
-tion
-> > performed on cpu_is_offline(smp_processor_id()), marking object with sp=
-ecial
-> > flag, say OBJECT_ORPHAN. And issue real object_delete() during scan (fo=
-r example)
-> > when we see OBJECT_ORPHAN object. =20
-> > That, however, requires to handle special case when cpu core offlined
-> > for small period of time, leading to object insertion error in
-> > create_object(), which either may be handled in 2 possible ways (assumi=
-ng
-> > that lookup_object() returned OBJECT_ORPHAN):
-> > #1 delete orphaned object and retry with insertion (*)
-> > #2 re-set existing orphan object
-> >=20
-> >=20
-> > (*) performing delete_object() from within create_object() requires rel=
-easing
-> > of held kmemleak and object locks, which is racy with other create_obje=
-ct() and
-> > any possible scan() activities.
-> >=20
-> > Yet I'm not exactly sure that option #2 is the correct one.
-> > (I've kind of a patch [not properly tested, etc.] for #2 option).
->=20
-> Alternatively, I can make RCU tolerate __call_rcu() from late in the
-> CPU_DYING notifiers without too much trouble.
->=20
+On Sat, Mar 31, 2012 at 01:29:29PM +0400, Konstantin Khlebnikov wrote:
+> Currently the kernel sets mm->exe_file during sys_execve() and then tracks
+> number of vmas with VM_EXECUTABLE flag in mm->num_exe_file_vmas, as soon as
+> this counter drops to zero kernel resets mm->exe_file to NULL. Plus it resets
+> mm->exe_file at last mmput() when mm->mm_users drops to zero.
+> 
+> Vma with VM_EXECUTABLE flag appears after mapping file with flag MAP_EXECUTABLE,
+> such vmas can appears only at sys_execve() or after vma splitting, because
+> sys_mmap ignores this flag. Usually binfmt module sets mm->exe_file and mmaps
+> some executable vmas with this file, they hold mm->exe_file while task is running.
+> 
+> comment from v2.6.25-6245-g925d1c4 ("procfs task exe symlink"),
+> where all this stuff was introduced:
+> 
+> > The kernel implements readlink of /proc/pid/exe by getting the file from
+> > the first executable VMA.  Then the path to the file is reconstructed and
+> > reported as the result.
+> >
+> > Because of the VMA walk the code is slightly different on nommu systems.
+> > This patch avoids separate /proc/pid/exe code on nommu systems.  Instead of
+> > walking the VMAs to find the first executable file-backed VMA we store a
+> > reference to the exec'd file in the mm_struct.
+> >
+> > That reference would prevent the filesystem holding the executable file
+> > from being unmounted even after unmapping the VMAs.  So we track the number
+> > of VM_EXECUTABLE VMAs and drop the new reference when the last one is
+> > unmapped.  This avoids pinning the mounted filesystem.
+> 
+> So, this logic is hooked into every file mmap/unmmap and vma split/merge just to
+> fix some hypothetical pinning fs from umounting by mm which already unmapped all
+> its executable files, but still alive. Does anyone know any real world example?
+> mm can be borrowed by swapoff or some get_task_mm() user, but it's not a big problem.
+> 
+> Thus, we can remove all this stuff together with VM_EXECUTABLE flag and
+> keep mm->exe_file alive till final mmput().
+> 
+> After that we can access current->mm->exe_file without any locks
+> (after checking current->mm and mm->exe_file for NULL)
+> 
+> Some code around security and oprofile still uses VM_EXECUTABLE for retrieving
+> task's executable file, after this patch they will use mm->exe_file directly.
+> In tomoyo and audit mm is always current->mm, oprofile uses get_task_mm().
 
-Well, if that will `do the trick', then I'm ready to test it.
+Perhaps I'm missing something but it seems like you ought to split
+this into two patches. The first could fix up the cell, tile, etc. arch
+code to use the exe_file reference rather than walk the VMAs. Then the
+second patch could remove the unusual logic used to allow userspace to unpin
+the mount and we could continue to discuss that separately. It would
+also make the git log somewhat cleaner I think...
 
+Cheers,
+	-Matt Helsley <matthltc@us.ibm.com>
 
-	Sergey
-
---lrZ03NoBR/3+SXJZ
-Content-Type: application/pgp-signature
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v2.0.19 (GNU/Linux)
-
-iJwEAQECAAYFAk96MfIACgkQfKHnntdSXjSRxAP/QjaJzvZFzgGdLHUvveNCeVdd
-EtYw4vkYccNSx/iRBq/pTQqlppuC28FtbXRuoOUFTWtjLuzwHrVAapsC0w0rr3Ln
-almvUQvZJyMTTtjnld9VueChc/9WAiYRcmmdP6wjrOo7nzTjBhokZgckpjJ2lzSJ
-lrnR/zj6K9M5KtPlhZ8=
-=VE6m
------END PGP SIGNATURE-----
-
---lrZ03NoBR/3+SXJZ--
+> 
+> Signed-off-by: Konstantin Khlebnikov <khlebnikov@openvz.org>
+> Cc: Matt Helsley <matthltc@us.ibm.com>
+> Cc: Al Viro <viro@zeniv.linux.org.uk>
+> Cc: Eric Paris <eparis@redhat.com>
+> Cc: Oleg Nesterov <oleg@redhat.com>
+> Cc: linux-security-module@vger.kernel.org
+> Cc: oprofile-list@lists.sf.net
+> ---
+>  arch/powerpc/oprofile/cell/spu_task_sync.c |   15 ++++----------
+>  arch/tile/mm/elf.c                         |   12 ++++--------
+>  drivers/oprofile/buffer_sync.c             |   17 +++-------------
+>  include/linux/mm.h                         |    4 ----
+>  include/linux/mm_types.h                   |    1 -
+>  include/linux/mman.h                       |    1 -
+>  kernel/auditsc.c                           |   17 ++--------------
+>  kernel/fork.c                              |   29 ++++------------------------
+>  mm/mmap.c                                  |   27 +++++---------------------
+>  mm/nommu.c                                 |   11 +----------
+>  security/tomoyo/util.c                     |   14 +++-----------
+>  11 files changed, 26 insertions(+), 122 deletions(-)
+> 
+> diff --git a/arch/powerpc/oprofile/cell/spu_task_sync.c b/arch/powerpc/oprofile/cell/spu_task_sync.c
+> index 642fca1..28f1af2 100644
+> --- a/arch/powerpc/oprofile/cell/spu_task_sync.c
+> +++ b/arch/powerpc/oprofile/cell/spu_task_sync.c
+> @@ -304,7 +304,7 @@ static inline unsigned long fast_get_dcookie(struct path *path)
+>  	return cookie;
+>  }
+> 
+> -/* Look up the dcookie for the task's first VM_EXECUTABLE mapping,
+> +/* Look up the dcookie for the task's mm->exe_file,
+>   * which corresponds loosely to "application name". Also, determine
+>   * the offset for the SPU ELF object.  If computed offset is
+>   * non-zero, it implies an embedded SPU object; otherwise, it's a
+> @@ -321,7 +321,6 @@ get_exec_dcookie_and_offset(struct spu *spu, unsigned int *offsetp,
+>  {
+>  	unsigned long app_cookie = 0;
+>  	unsigned int my_offset = 0;
+> -	struct file *app = NULL;
+>  	struct vm_area_struct *vma;
+>  	struct mm_struct *mm = spu->mm;
+> 
+> @@ -330,16 +329,10 @@ get_exec_dcookie_and_offset(struct spu *spu, unsigned int *offsetp,
+> 
+>  	down_read(&mm->mmap_sem);
+> 
+> -	for (vma = mm->mmap; vma; vma = vma->vm_next) {
+> -		if (!vma->vm_file)
+> -			continue;
+> -		if (!(vma->vm_flags & VM_EXECUTABLE))
+> -			continue;
+> -		app_cookie = fast_get_dcookie(&vma->vm_file->f_path);
+> +	if (mm->exe_file) {
+> +		app_cookie = fast_get_dcookie(&mm->exe_file->f_path);
+>  		pr_debug("got dcookie for %s\n",
+> -			 vma->vm_file->f_dentry->d_name.name);
+> -		app = vma->vm_file;
+> -		break;
+> +			 mm->exe_file->f_dentry->d_name.name);
+>  	}
+> 
+>  	for (vma = mm->mmap; vma; vma = vma->vm_next) {
+> diff --git a/arch/tile/mm/elf.c b/arch/tile/mm/elf.c
+> index 758b603..43e5279 100644
+> --- a/arch/tile/mm/elf.c
+> +++ b/arch/tile/mm/elf.c
+> @@ -39,16 +39,12 @@ static void sim_notify_exec(const char *binary_name)
+>  static int notify_exec(void)
+>  {
+>  	int retval = 0;  /* failure */
+> -	struct vm_area_struct *vma = current->mm->mmap;
+> -	while (vma) {
+> -		if ((vma->vm_flags & VM_EXECUTABLE) && vma->vm_file)
+> -			break;
+> -		vma = vma->vm_next;
+> -	}
+> -	if (vma) {
+> +	struct mm_struct *mm = current->mm;
+> +
+> +	if (mm->exe_file) {
+>  		char *buf = (char *) __get_free_page(GFP_KERNEL);
+>  		if (buf) {
+> -			char *path = d_path(&vma->vm_file->f_path,
+> +			char *path = d_path(&mm->exe_file->f_path,
+>  					    buf, PAGE_SIZE);
+>  			if (!IS_ERR(path)) {
+>  				sim_notify_exec(path);
+> diff --git a/drivers/oprofile/buffer_sync.c b/drivers/oprofile/buffer_sync.c
+> index f34b5b2..d93b2b6 100644
+> --- a/drivers/oprofile/buffer_sync.c
+> +++ b/drivers/oprofile/buffer_sync.c
+> @@ -216,7 +216,7 @@ static inline unsigned long fast_get_dcookie(struct path *path)
+>  }
+> 
+> 
+> -/* Look up the dcookie for the task's first VM_EXECUTABLE mapping,
+> +/* Look up the dcookie for the task's mm->exe_file,
+>   * which corresponds loosely to "application name". This is
+>   * not strictly necessary but allows oprofile to associate
+>   * shared-library samples with particular applications
+> @@ -224,21 +224,10 @@ static inline unsigned long fast_get_dcookie(struct path *path)
+>  static unsigned long get_exec_dcookie(struct mm_struct *mm)
+>  {
+>  	unsigned long cookie = NO_COOKIE;
+> -	struct vm_area_struct *vma;
+> -
+> -	if (!mm)
+> -		goto out;
+> 
+> -	for (vma = mm->mmap; vma; vma = vma->vm_next) {
+> -		if (!vma->vm_file)
+> -			continue;
+> -		if (!(vma->vm_flags & VM_EXECUTABLE))
+> -			continue;
+> -		cookie = fast_get_dcookie(&vma->vm_file->f_path);
+> -		break;
+> -	}
+> +	if (mm && mm->exe_file)
+> +		cookie = fast_get_dcookie(&mm->exe_file->f_path);
+> 
+> -out:
+>  	return cookie;
+>  }
+> 
+> diff --git a/include/linux/mm.h b/include/linux/mm.h
+> index 553d134..3a4d721 100644
+> --- a/include/linux/mm.h
+> +++ b/include/linux/mm.h
+> @@ -88,7 +88,6 @@ extern unsigned int kobjsize(const void *objp);
+>  #define VM_PFNMAP	0x00000400	/* Page-ranges managed without "struct page", just pure PFN */
+>  #define VM_DENYWRITE	0x00000800	/* ETXTBSY on write attempts.. */
+> 
+> -#define VM_EXECUTABLE	0x00001000
+>  #define VM_LOCKED	0x00002000
+>  #define VM_IO           0x00004000	/* Memory mapped I/O or similar */
+> 
+> @@ -1374,9 +1373,6 @@ extern void exit_mmap(struct mm_struct *);
+>  extern int mm_take_all_locks(struct mm_struct *mm);
+>  extern void mm_drop_all_locks(struct mm_struct *mm);
+> 
+> -/* From fs/proc/base.c. callers must _not_ hold the mm's exe_file_lock */
+> -extern void added_exe_file_vma(struct mm_struct *mm);
+> -extern void removed_exe_file_vma(struct mm_struct *mm);
+>  extern void set_mm_exe_file(struct mm_struct *mm, struct file *new_exe_file);
+>  extern struct file *get_mm_exe_file(struct mm_struct *mm);
+> 
+> diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
+> index 3cc3062..b480c06 100644
+> --- a/include/linux/mm_types.h
+> +++ b/include/linux/mm_types.h
+> @@ -378,7 +378,6 @@ struct mm_struct {
+> 
+>  	/* store ref to file /proc/<pid>/exe symlink points to */
+>  	struct file *exe_file;
+> -	unsigned long num_exe_file_vmas;
+>  #ifdef CONFIG_MMU_NOTIFIER
+>  	struct mmu_notifier_mm *mmu_notifier_mm;
+>  #endif
+> diff --git a/include/linux/mman.h b/include/linux/mman.h
+> index 8b74e9b..77cec2f 100644
+> --- a/include/linux/mman.h
+> +++ b/include/linux/mman.h
+> @@ -86,7 +86,6 @@ calc_vm_flag_bits(unsigned long flags)
+>  {
+>  	return _calc_vm_trans(flags, MAP_GROWSDOWN,  VM_GROWSDOWN ) |
+>  	       _calc_vm_trans(flags, MAP_DENYWRITE,  VM_DENYWRITE ) |
+> -	       _calc_vm_trans(flags, MAP_EXECUTABLE, VM_EXECUTABLE) |
+>  	       _calc_vm_trans(flags, MAP_LOCKED,     VM_LOCKED    );
+>  }
+>  #endif /* __KERNEL__ */
+> diff --git a/kernel/auditsc.c b/kernel/auditsc.c
+> index af1de0f..aa27a00 100644
+> --- a/kernel/auditsc.c
+> +++ b/kernel/auditsc.c
+> @@ -1164,21 +1164,8 @@ static void audit_log_task_info(struct audit_buffer *ab, struct task_struct *tsk
+>  	get_task_comm(name, tsk);
+>  	audit_log_format(ab, " comm=");
+>  	audit_log_untrustedstring(ab, name);
+> -
+> -	if (mm) {
+> -		down_read(&mm->mmap_sem);
+> -		vma = mm->mmap;
+> -		while (vma) {
+> -			if ((vma->vm_flags & VM_EXECUTABLE) &&
+> -			    vma->vm_file) {
+> -				audit_log_d_path(ab, " exe=",
+> -						 &vma->vm_file->f_path);
+> -				break;
+> -			}
+> -			vma = vma->vm_next;
+> -		}
+> -		up_read(&mm->mmap_sem);
+> -	}
+> +	if (mm && mm->exe_file)
+> +		audit_log_d_path(ab, " exe=", &mm->exe_file->f_path);
+>  	audit_log_task_context(ab);
+>  }
+> 
+> diff --git a/kernel/fork.c b/kernel/fork.c
+> index b9372a0..40e4b49 100644
+> --- a/kernel/fork.c
+> +++ b/kernel/fork.c
+> @@ -587,26 +587,6 @@ void mmput(struct mm_struct *mm)
+>  }
+>  EXPORT_SYMBOL_GPL(mmput);
+> 
+> -/*
+> - * We added or removed a vma mapping the executable. The vmas are only mapped
+> - * during exec and are not mapped with the mmap system call.
+> - * Callers must hold down_write() on the mm's mmap_sem for these
+> - */
+> -void added_exe_file_vma(struct mm_struct *mm)
+> -{
+> -	mm->num_exe_file_vmas++;
+> -}
+> -
+> -void removed_exe_file_vma(struct mm_struct *mm)
+> -{
+> -	mm->num_exe_file_vmas--;
+> -	if ((mm->num_exe_file_vmas == 0) && mm->exe_file) {
+> -		fput(mm->exe_file);
+> -		mm->exe_file = NULL;
+> -	}
+> -
+> -}
+> -
+>  void set_mm_exe_file(struct mm_struct *mm, struct file *new_exe_file)
+>  {
+>  	if (new_exe_file)
+> @@ -614,20 +594,19 @@ void set_mm_exe_file(struct mm_struct *mm, struct file *new_exe_file)
+>  	if (mm->exe_file)
+>  		fput(mm->exe_file);
+>  	mm->exe_file = new_exe_file;
+> -	mm->num_exe_file_vmas = 0;
+>  }
+> 
+> +/*
+> + * Caller must have mm->mm_users reference,
+> + * for example current->mm or acquired by get_task_mm().
+> + */
+>  struct file *get_mm_exe_file(struct mm_struct *mm)
+>  {
+>  	struct file *exe_file;
+> 
+> -	/* We need mmap_sem to protect against races with removal of
+> -	 * VM_EXECUTABLE vmas */
+> -	down_read(&mm->mmap_sem);
+>  	exe_file = mm->exe_file;
+>  	if (exe_file)
+>  		get_file(exe_file);
+> -	up_read(&mm->mmap_sem);
+>  	return exe_file;
+>  }
+> 
+> diff --git a/mm/mmap.c b/mm/mmap.c
+> index 3d254ca..2647bb7 100644
+> --- a/mm/mmap.c
+> +++ b/mm/mmap.c
+> @@ -230,11 +230,8 @@ static struct vm_area_struct *remove_vma(struct vm_area_struct *vma)
+>  	might_sleep();
+>  	if (vma->vm_ops && vma->vm_ops->close)
+>  		vma->vm_ops->close(vma);
+> -	if (vma->vm_file) {
+> +	if (vma->vm_file)
+>  		fput(vma->vm_file);
+> -		if (vma->vm_flags & VM_EXECUTABLE)
+> -			removed_exe_file_vma(vma->vm_mm);
+> -	}
+>  	mpol_put(vma_policy(vma));
+>  	kmem_cache_free(vm_area_cachep, vma);
+>  	return next;
+> @@ -616,11 +613,8 @@ again:			remove_next = 1 + (end > next->vm_end);
+>  		mutex_unlock(&mapping->i_mmap_mutex);
+> 
+>  	if (remove_next) {
+> -		if (file) {
+> +		if (file)
+>  			fput(file);
+> -			if (next->vm_flags & VM_EXECUTABLE)
+> -				removed_exe_file_vma(mm);
+> -		}
+>  		if (next->anon_vma)
+>  			anon_vma_merge(vma, next);
+>  		mm->map_count--;
+> @@ -1293,8 +1287,6 @@ munmap_back:
+>  		error = file->f_op->mmap(file, vma);
+>  		if (error)
+>  			goto unmap_and_free_vma;
+> -		if (vm_flags & VM_EXECUTABLE)
+> -			added_exe_file_vma(mm);
+> 
+>  		/* Can addr have changed??
+>  		 *
+> @@ -1969,11 +1961,8 @@ static int __split_vma(struct mm_struct * mm, struct vm_area_struct * vma,
+>  	if (anon_vma_clone(new, vma))
+>  		goto out_free_mpol;
+> 
+> -	if (new->vm_file) {
+> +	if (new->vm_file)
+>  		get_file(new->vm_file);
+> -		if (vma->vm_flags & VM_EXECUTABLE)
+> -			added_exe_file_vma(mm);
+> -	}
+> 
+>  	if (new->vm_ops && new->vm_ops->open)
+>  		new->vm_ops->open(new);
+> @@ -1991,11 +1980,8 @@ static int __split_vma(struct mm_struct * mm, struct vm_area_struct * vma,
+>  	/* Clean everything up if vma_adjust failed. */
+>  	if (new->vm_ops && new->vm_ops->close)
+>  		new->vm_ops->close(new);
+> -	if (new->vm_file) {
+> -		if (vma->vm_flags & VM_EXECUTABLE)
+> -			removed_exe_file_vma(mm);
+> +	if (new->vm_file)
+>  		fput(new->vm_file);
+> -	}
+>  	unlink_anon_vmas(new);
+>   out_free_mpol:
+>  	mpol_put(pol);
+> @@ -2377,11 +2363,8 @@ struct vm_area_struct *copy_vma(struct vm_area_struct **vmap,
+>  			new_vma->vm_start = addr;
+>  			new_vma->vm_end = addr + len;
+>  			new_vma->vm_pgoff = pgoff;
+> -			if (new_vma->vm_file) {
+> +			if (new_vma->vm_file)
+>  				get_file(new_vma->vm_file);
+> -				if (vma->vm_flags & VM_EXECUTABLE)
+> -					added_exe_file_vma(mm);
+> -			}
+>  			if (new_vma->vm_ops && new_vma->vm_ops->open)
+>  				new_vma->vm_ops->open(new_vma);
+>  			vma_link(mm, new_vma, prev, rb_link, rb_parent);
+> diff --git a/mm/nommu.c b/mm/nommu.c
+> index afa0a15..d617d5c 100644
+> --- a/mm/nommu.c
+> +++ b/mm/nommu.c
+> @@ -789,11 +789,8 @@ static void delete_vma(struct mm_struct *mm, struct vm_area_struct *vma)
+>  	kenter("%p", vma);
+>  	if (vma->vm_ops && vma->vm_ops->close)
+>  		vma->vm_ops->close(vma);
+> -	if (vma->vm_file) {
+> +	if (vma->vm_file)
+>  		fput(vma->vm_file);
+> -		if (vma->vm_flags & VM_EXECUTABLE)
+> -			removed_exe_file_vma(mm);
+> -	}
+>  	put_nommu_region(vma->vm_region);
+>  	kmem_cache_free(vm_area_cachep, vma);
+>  }
+> @@ -1287,10 +1284,6 @@ unsigned long do_mmap_pgoff(struct file *file,
+>  		get_file(file);
+>  		vma->vm_file = file;
+>  		get_file(file);
+> -		if (vm_flags & VM_EXECUTABLE) {
+> -			added_exe_file_vma(current->mm);
+> -			vma->vm_mm = current->mm;
+> -		}
+>  	}
+> 
+>  	down_write(&nommu_region_sem);
+> @@ -1443,8 +1436,6 @@ error:
+>  	kmem_cache_free(vm_region_jar, region);
+>  	if (vma->vm_file)
+>  		fput(vma->vm_file);
+> -	if (vma->vm_flags & VM_EXECUTABLE)
+> -		removed_exe_file_vma(vma->vm_mm);
+>  	kmem_cache_free(vm_area_cachep, vma);
+>  	kleave(" = %d", ret);
+>  	return ret;
+> diff --git a/security/tomoyo/util.c b/security/tomoyo/util.c
+> index 867558c..b929dd3 100644
+> --- a/security/tomoyo/util.c
+> +++ b/security/tomoyo/util.c
+> @@ -949,19 +949,11 @@ bool tomoyo_path_matches_pattern(const struct tomoyo_path_info *filename,
+>  const char *tomoyo_get_exe(void)
+>  {
+>  	struct mm_struct *mm = current->mm;
+> -	struct vm_area_struct *vma;
+>  	const char *cp = NULL;
+> 
+> -	if (!mm)
+> -		return NULL;
+> -	down_read(&mm->mmap_sem);
+> -	for (vma = mm->mmap; vma; vma = vma->vm_next) {
+> -		if ((vma->vm_flags & VM_EXECUTABLE) && vma->vm_file) {
+> -			cp = tomoyo_realpath_from_path(&vma->vm_file->f_path);
+> -			break;
+> -		}
+> -	}
+> -	up_read(&mm->mmap_sem);
+> +	if (mm && mm->exe_file)
+> +		cp = tomoyo_realpath_from_path(&mm->exe_file->f_path);
+> +
+>  	return cp;
+>  }
+> 
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
