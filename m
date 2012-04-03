@@ -1,78 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx113.postini.com [74.125.245.113])
-	by kanga.kvack.org (Postfix) with SMTP id 705756B004A
-	for <linux-mm@kvack.org>; Tue,  3 Apr 2012 16:35:37 -0400 (EDT)
-Received: from /spool/local
-	by e28smtp02.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <vatsa@linux.vnet.ibm.com>;
-	Wed, 4 Apr 2012 02:05:33 +0530
-Received: from d28av02.in.ibm.com (d28av02.in.ibm.com [9.184.220.64])
-	by d28relay04.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q33KZGui4300962
-	for <linux-mm@kvack.org>; Wed, 4 Apr 2012 02:05:17 +0530
-Received: from d28av02.in.ibm.com (loopback [127.0.0.1])
-	by d28av02.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q3425qMW007501
-	for <linux-mm@kvack.org>; Wed, 4 Apr 2012 12:05:53 +1000
-Date: Wed, 4 Apr 2012 02:05:00 +0530
-From: Srivatsa Vaddagiri <vatsa@linux.vnet.ibm.com>
-Subject: Re: [PATCH 00/39] [RFC] AutoNUMA alpha10
-Message-ID: <20120403203500.GA14386@linux.vnet.ibm.com>
-Reply-To: Srivatsa Vaddagiri <vatsa@linux.vnet.ibm.com>
-References: <1332783986-24195-1-git-send-email-aarcange@redhat.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-In-Reply-To: <1332783986-24195-1-git-send-email-aarcange@redhat.com>
+Received: from psmtp.com (na3sys010amx142.postini.com [74.125.245.142])
+	by kanga.kvack.org (Postfix) with SMTP id E396E6B004A
+	for <linux-mm@kvack.org>; Tue,  3 Apr 2012 19:12:56 -0400 (EDT)
+Subject: Re: [x86 PAT PATCH 0/2] x86 PAT vm_flag code refactoring
+From: Suresh Siddha <suresh.b.siddha@intel.com>
+Reply-To: Suresh Siddha <suresh.b.siddha@intel.com>
+Date: Tue, 03 Apr 2012 16:14:28 -0700
+In-Reply-To: <4F7A92AB.5010809@openvz.org>
+References: <20120331170947.7773.46399.stgit@zurg>
+	 <1333413969-30761-1-git-send-email-suresh.b.siddha@intel.com>
+	 <4F7A92AB.5010809@openvz.org>
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: 7bit
+Message-ID: <1333494871.12400.10.camel@sbsiddha-desk.sc.intel.com>
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Hillf Danton <dhillf@gmail.com>, Dan Smith <danms@us.ibm.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>, Paul Turner <pjt@google.com>, Suresh Siddha <suresh.b.siddha@intel.com>, Mike Galbraith <efault@gmx.de>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Bharata B Rao <bharata.rao@gmail.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>
+To: Konstantin Khlebnikov <khlebnikov@openvz.org>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Andi Kleen <andi@firstfloor.org>, Pallipadi Venkatesh <venki@google.com>, Ingo Molnar <mingo@redhat.com>, "H. Peter
+ Anvin" <hpa@zytor.com>, Linus Torvalds <torvalds@linux-foundation.org>, Nick Piggin <npiggin@kernel.dk>
 
-* Andrea Arcangeli <aarcange@redhat.com> [2012-03-26 19:45:47]:
+On Tue, 2012-04-03 at 10:03 +0400, Konstantin Khlebnikov wrote:
+> Suresh Siddha wrote:
+> > Konstantin,
+> >
+> > On Sat, 2012-03-31 at 21:09 +0400, Konstantin Khlebnikov wrote:
+> >> v2: Do not use batched pfn reserving for single-page VMA. This is not optimal
+> >> and breaks something, because I see glitches on the screen with i915/drm driver.
+> >> With this version glitches are gone, and I see the same regions in
+> >> /sys/kernel/debug/x86/pat_memtype_list as before patch. So, please review this
+> >> carefully, probably I'm wrong somewhere, or I have triggered some hidden bug.
+> >
+> > Actually it is not a hidden bug. In the original code, we were setting
+> > VM_PFN_AT_MMAP only for remap_pfn_range() but not for the vm_insert_pfn().
+> > Also the value of 'vm_pgoff' depends on the driver/mmap_region() in the case of
+> > vm_insert_pfn(). But with your proposed code, you were setting
+> > the VM_PAT for the single-page VMA also and end-up using wrong vm_pgoff in
+> > untrack_pfn_vma().
+> 
+> But I set correct vma->vm_pgoff together with VM_PAT. But, it shouldn't work if vma is expandable...
+> 
 
-> This is the result of the first round of cleanups of the AutoNUMA patch.
+Also, I am not sure if we can override vm_pgoff in the fault handling
+path. For example, looking at unmap_mapping_range_tree() it does depend
+on the vm_pgoff value and it might break if we change the vm_pgoff in
+track_pfn_vma_new() (which gets called from vm_insert_pfn() as part of
+the i915_gem_fault()).
 
-I happened to test numasched and autonuma against a Java benchmark and
-here are some results (higher scores are better).
+thanks,
+suresh
 
-Base            : 1 (std. dev : 91%)
-Numa sched      : 2.17 (std. dev : 15%)
-Autonuma        : 2.56 (std. dev : 10.7%)
 
-Numa sched is ~200% better compared to "base" case. Autonuma is ~18% better 
-compared to numasched. Note the high standard deviation in base case.
-
-Also given the differences in base kernel versions for both, this is
-admittedly not a apple-2-apple comparison. Getting both patches onto
-common code base would help do that type of comparison!
-
-Details:
-
-Base = tip (ee415e2) + numasched patches posted on 3/16.
-       qemu-kvm 0.12.1
-
-Numa sched = tip (ee415e2) + numasched patches posted on 3/16.
-             Modified version of qemu-kvm 1.0.50 that creates memsched groups
-
-Autonuma = Autonuma alpha10 (SHA1 4596315). qemu-kvm 0.12.1
-
-Machine with 2 Quad-core (w/ HT) Intel Nehalem CPUs. Two NUMA nodes each with
-8GB memory.
-
-3 VMs are created:
-	VM1 and VM2, each with 4vcpus, 3GB memory and 1024 cpu.shares.
-        Each of them runs memory hogs to consume total of 2.5 GB total
-	memory (2.5GB memory first written to and then continuously read in a
-	loop)
-
-        VM3 of 8vcpus, 4GB memory and 2048 cpu.shares. Runs
-	SPECJbb2000 benchmark w/ 8 warehouses (and consuming 2GB heap)
-
-Benchmark was repeated 5 times. Each run consisted of launching VM1 first, 
-waiting for it to initialize (wrt memory footprint), launching VM2 next, waiting
-for it to initialize before launching VM3 and the benchmark inside VM3. At the 
-end of benchmark, all VMs are destroyed and process repeated.
-
-- vatsa
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
