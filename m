@@ -1,69 +1,105 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx125.postini.com [74.125.245.125])
-	by kanga.kvack.org (Postfix) with SMTP id 17DE46B0092
-	for <linux-mm@kvack.org>; Tue,  3 Apr 2012 01:10:25 -0400 (EDT)
-Received: by bkwq16 with SMTP id q16so3829956bkw.14
-        for <linux-mm@kvack.org>; Mon, 02 Apr 2012 22:10:23 -0700 (PDT)
-Message-ID: <4F7A863C.5020407@openvz.org>
-Date: Tue, 03 Apr 2012 09:10:20 +0400
+Received: from psmtp.com (na3sys010amx180.postini.com [74.125.245.180])
+	by kanga.kvack.org (Postfix) with SMTP id 6C8816B0092
+	for <linux-mm@kvack.org>; Tue,  3 Apr 2012 01:37:29 -0400 (EDT)
+Received: by bkwq16 with SMTP id q16so3844604bkw.14
+        for <linux-mm@kvack.org>; Mon, 02 Apr 2012 22:37:27 -0700 (PDT)
+Message-ID: <4F7A8C94.3040708@openvz.org>
+Date: Tue, 03 Apr 2012 09:37:24 +0400
 From: Konstantin Khlebnikov <khlebnikov@openvz.org>
 MIME-Version: 1.0
-Subject: Re: [PATCH 6/7] mm: kill vma flag VM_EXECUTABLE
-References: <20120331091049.19373.28994.stgit@zurg> <20120331092929.19920.54540.stgit@zurg> <20120331201324.GA17565@redhat.com> <20120402230423.GB32299@count0.beaverton.ibm.com>
-In-Reply-To: <20120402230423.GB32299@count0.beaverton.ibm.com>
+Subject: Re: [x86 PAT PATCH 1/2] x86, pat: remove the dependency on 'vm_pgoff'
+ in track/untrack pfn vma routines
+References: <20120331170947.7773.46399.stgit@zurg> <1333413969-30761-1-git-send-email-suresh.b.siddha@intel.com> <1333413969-30761-2-git-send-email-suresh.b.siddha@intel.com>
+In-Reply-To: <1333413969-30761-2-git-send-email-suresh.b.siddha@intel.com>
 Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matt Helsley <matthltc@us.ibm.com>
-Cc: Oleg Nesterov <oleg@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Eric Paris <eparis@redhat.com>, "linux-security-module@vger.kernel.org" <linux-security-module@vger.kernel.org>, "oprofile-list@lists.sf.net" <oprofile-list@lists.sf.net>, Linus Torvalds <torvalds@linux-foundation.org>, Al Viro <viro@zeniv.linux.org.uk>, Cyrill Gorcunov <gorcunov@openvz.org>
+To: Suresh Siddha <suresh.b.siddha@intel.com>
+Cc: Konstantin Khlebnikov <koct9i@gmail.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Andi Kleen <andi@firstfloor.org>, Pallipadi Venkatesh <venki@google.com>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Linus Torvalds <torvalds@linux-foundation.org>, Nick Piggin <npiggin@kernel.dk>
 
-Matt Helsley wrote:
-> On Sat, Mar 31, 2012 at 10:13:24PM +0200, Oleg Nesterov wrote:
->> On 03/31, Konstantin Khlebnikov wrote:
->>>
->>> comment from v2.6.25-6245-g925d1c4 ("procfs task exe symlink"),
->>> where all this stuff was introduced:
->>>
->>>> ...
->>>> This avoids pinning the mounted filesystem.
->>>
->>> So, this logic is hooked into every file mmap/unmmap and vma split/merge just to
->>> fix some hypothetical pinning fs from umounting by mm which already unmapped all
->>> its executable files, but still alive. Does anyone know any real world example?
->>
->> This is the question to Matt.
+Suresh Siddha wrote:
+> 'pfn' argument for track_pfn_vma_new() can be used for reserving the attribute
+> for the pfn range. No need to depend on 'vm_pgoff'
 >
-> This is where I got the scenario:
+> Similarly, untrack_pfn_vma() can depend on the 'pfn' argument if it
+> is non-zero or can use follow_phys() to get the starting value of the pfn
+> range.
 >
-> https://lkml.org/lkml/2007/7/12/398
+> Also the non zero 'size' argument can be used instead of recomputing
+> it from vma.
+>
+> This cleanup also prepares the ground for the track/untrack pfn vma routines
+> to take over the ownership of setting PAT specific vm_flag in the 'vma'.
+>
+> Signed-off-by: Suresh Siddha<suresh.b.siddha@intel.com>
+> Cc: Venkatesh Pallipadi<venki@google.com>
+> Cc: Konstantin Khlebnikov<khlebnikov@openvz.org>
+> ---
+>   arch/x86/mm/pat.c |   30 +++++++++++++++++-------------
+>   1 files changed, 17 insertions(+), 13 deletions(-)
+>
+> diff --git a/arch/x86/mm/pat.c b/arch/x86/mm/pat.c
+> index f6ff57b..617f42b 100644
+> --- a/arch/x86/mm/pat.c
+> +++ b/arch/x86/mm/pat.c
+> @@ -693,14 +693,10 @@ int track_pfn_vma_new(struct vm_area_struct *vma, pgprot_t *prot,
+>   			unsigned long pfn, unsigned long size)
+>   {
+>   	unsigned long flags;
+> -	resource_size_t paddr;
+> -	unsigned long vma_size = vma->vm_end - vma->vm_start;
+>
+> -	if (is_linear_pfn_mapping(vma)) {
+> -		/* reserve the whole chunk starting from vm_pgoff */
+> -		paddr = (resource_size_t)vma->vm_pgoff<<  PAGE_SHIFT;
+> -		return reserve_pfn_range(paddr, vma_size, prot, 0);
+> -	}
+> +	/* reserve the whole chunk starting from pfn */
+> +	if (is_linear_pfn_mapping(vma))
+> +		return reserve_pfn_range(pfn, size, prot, 0);
 
-Cyrill Gogcunov's patch "c/r: prctl: add ability to set new mm_struct::exe_file"
-gives userspace ability to unpin vfsmount explicitly.
-
-https://lkml.org/lkml/2012/3/16/449
+you mix here pfn and paddr: old code passes paddr as first argument of reserve_pfn_range().
 
 >
-> Cheers,
-> 	-Matt Helsley
+>   	if (!pat_enabled)
+>   		return 0;
+> @@ -716,20 +712,28 @@ int track_pfn_vma_new(struct vm_area_struct *vma, pgprot_t *prot,
+>   /*
+>    * untrack_pfn_vma is called while unmapping a pfnmap for a region.
+>    * untrack can be called for a specific region indicated by pfn and size or
+> - * can be for the entire vma (in which case size can be zero).
+> + * can be for the entire vma (in which case pfn, size are zero).
+>    */
+>   void untrack_pfn_vma(struct vm_area_struct *vma, unsigned long pfn,
+>   			unsigned long size)
+>   {
+>   	resource_size_t paddr;
+> -	unsigned long vma_size = vma->vm_end - vma->vm_start;
+> +	unsigned long prot;
 >
-> PS: I seem to keep coming back to this so I hope folks don't mind if I leave
-> some more references to make (re)searching this topic easier:
+> -	if (is_linear_pfn_mapping(vma)) {
+> -		/* free the whole chunk starting from vm_pgoff */
+> -		paddr = (resource_size_t)vma->vm_pgoff<<  PAGE_SHIFT;
+> -		free_pfn_range(paddr, vma_size);
+> +	if (!is_linear_pfn_mapping(vma))
+>   		return;
+> +
+> +	/* free the chunk starting from pfn or the whole chunk */
+> +	paddr = (resource_size_t)pfn;
+> +	if (!paddr&&  !size) {
+> +		if (follow_phys(vma, vma->vm_start, 0,&prot,&paddr)) {
+> +			WARN_ON_ONCE(1);
+> +			return;
+> +		}
+> +
+> +		size = vma->vm_end - vma->vm_start;
+>   	}
+> +	free_pfn_range(paddr, size);
+>   }
 >
-> Thread with Cyrill Gorcunov discussing c/r of symlink:
-> https://lkml.org/lkml/2012/3/16/448
->
-> Thread with Oleg Nesterov re: cleanups:
-> https://lkml.org/lkml/2012/3/5/240
->
-> Thread with Alexey Dobriyan re: cleanups:
-> https://lkml.org/lkml/2009/6/4/625
->
-> mainline commit 925d1c401fa6cfd0df5d2e37da8981494ccdec07
-> Date:   Tue Apr 29 01:01:36 2008 -0700
->
-> 	procfs task exe symlink
->
+>   pgprot_t pgprot_writecombine(pgprot_t prot)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
