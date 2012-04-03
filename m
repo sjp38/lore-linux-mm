@@ -1,57 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx185.postini.com [74.125.245.185])
-	by kanga.kvack.org (Postfix) with SMTP id 801986B0044
-	for <linux-mm@kvack.org>; Tue,  3 Apr 2012 13:32:16 -0400 (EDT)
-From: Dan Smith <danms@us.ibm.com>
-Subject: Re: [RFC][PATCH 06/26] mm: Migrate misplaced page
-References: <20120316144028.036474157@chello.nl>
-	<20120316144240.492318994@chello.nl>
-Date: Tue, 03 Apr 2012 10:32:13 -0700
-In-Reply-To: <20120316144240.492318994@chello.nl> (Peter Zijlstra's message of
-	"Fri, 16 Mar 2012 15:40:34 +0100")
-Message-ID: <87iphg67s2.fsf@danplanet.com>
+Received: from psmtp.com (na3sys010amx145.postini.com [74.125.245.145])
+	by kanga.kvack.org (Postfix) with SMTP id 3BBFF6B0044
+	for <linux-mm@kvack.org>; Tue,  3 Apr 2012 14:16:50 -0400 (EDT)
+Received: from /spool/local
+	by e37.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <matthltc@us.ibm.com>;
+	Tue, 3 Apr 2012 12:16:49 -0600
+Received: from d03relay01.boulder.ibm.com (d03relay01.boulder.ibm.com [9.17.195.226])
+	by d03dlp03.boulder.ibm.com (Postfix) with ESMTP id C746419D804A
+	for <linux-mm@kvack.org>; Tue,  3 Apr 2012 12:16:38 -0600 (MDT)
+Received: from d03av04.boulder.ibm.com (d03av04.boulder.ibm.com [9.17.195.170])
+	by d03relay01.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q33IGZ8i057478
+	for <linux-mm@kvack.org>; Tue, 3 Apr 2012 12:16:39 -0600
+Received: from d03av04.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av04.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q33IGWQN030073
+	for <linux-mm@kvack.org>; Tue, 3 Apr 2012 12:16:33 -0600
+Date: Tue, 3 Apr 2012 11:16:31 -0700
+From: Matt Helsley <matthltc@us.ibm.com>
+Subject: Re: [PATCH 6/7] mm: kill vma flag VM_EXECUTABLE
+Message-ID: <20120403181631.GD32299@count0.beaverton.ibm.com>
+References: <20120331091049.19373.28994.stgit@zurg>
+ <20120331092929.19920.54540.stgit@zurg>
+ <20120331201324.GA17565@redhat.com>
+ <20120402230423.GB32299@count0.beaverton.ibm.com>
+ <4F7A863C.5020407@openvz.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <4F7A863C.5020407@openvz.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>, Paul Turner <pjt@google.com>, Suresh Siddha <suresh.b.siddha@intel.com>, Mike Galbraith <efault@gmx.de>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Bharata B Rao <bharata.rao@gmail.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Andrea Arcangeli <aarcange@redhat.com>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Konstantin Khlebnikov <khlebnikov@openvz.org>
+Cc: Matt Helsley <matthltc@us.ibm.com>, Oleg Nesterov <oleg@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Eric Paris <eparis@redhat.com>, "linux-security-module@vger.kernel.org" <linux-security-module@vger.kernel.org>, "oprofile-list@lists.sf.net" <oprofile-list@lists.sf.net>, Linus Torvalds <torvalds@linux-foundation.org>, Al Viro <viro@zeniv.linux.org.uk>, Cyrill Gorcunov <gorcunov@openvz.org>
 
-PZ> XXX: hnaz, dansmith saw some bad_page() reports when using memcg, I
-PZ> could not reproduce -- is there something funny with the mem_cgroup
-PZ> calls in the below patch?
+On Tue, Apr 03, 2012 at 09:10:20AM +0400, Konstantin Khlebnikov wrote:
+> Matt Helsley wrote:
+> >On Sat, Mar 31, 2012 at 10:13:24PM +0200, Oleg Nesterov wrote:
+> >>On 03/31, Konstantin Khlebnikov wrote:
+> >>>
+> >>>comment from v2.6.25-6245-g925d1c4 ("procfs task exe symlink"),
+> >>>where all this stuff was introduced:
+> >>>
+> >>>>...
+> >>>>This avoids pinning the mounted filesystem.
+> >>>
+> >>>So, this logic is hooked into every file mmap/unmmap and vma split/merge just to
+> >>>fix some hypothetical pinning fs from umounting by mm which already unmapped all
+> >>>its executable files, but still alive. Does anyone know any real world example?
+> >>
+> >>This is the question to Matt.
+> >
+> >This is where I got the scenario:
+> >
+> >https://lkml.org/lkml/2007/7/12/398
+> 
+> Cyrill Gogcunov's patch "c/r: prctl: add ability to set new mm_struct::exe_file"
+> gives userspace ability to unpin vfsmount explicitly.
 
-I think the problem stems from the final put_page() on the old page
-being called before the charge commit. I think something like the
-following should do the trick (and appears to work for me):
+Doesn't that break the semantics of the kernel ABI?
 
-diff --git a/mm/migrate.c b/mm/migrate.c
-index b7fa472..fd88f4b 100644
---- a/mm/migrate.c
-+++ b/mm/migrate.c
-@@ -1590,7 +1590,6 @@ migrate_misplaced_page(struct page *page, struct mm_struct
-                put_page(page);         /* drop       "          "  */
- 
-                unlock_page(page);
--               put_page(page);         /* drop fault path ref & free */
- 
-                page = newpage;
-        }
-@@ -1599,6 +1598,9 @@ out:
-        if (!charge)
-                mem_cgroup_end_migration(mcg, oldpage, newpage, !rc);
- 
-+       if (oldpage != page)
-+               put_page(oldpage);
-+
-        if (rc) {
-                unlock_page(newpage);
-                __free_page(newpage);
-
-
--- 
-Dan Smith
-IBM Linux Technology Center
+Cheers,
+	-Matt Helsley
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
