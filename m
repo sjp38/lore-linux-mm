@@ -1,73 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx122.postini.com [74.125.245.122])
-	by kanga.kvack.org (Postfix) with SMTP id BAFDD6B0044
-	for <linux-mm@kvack.org>; Tue,  3 Apr 2012 07:25:28 -0400 (EDT)
-Message-ID: <4F7ADE1A.2050004@redhat.com>
-Date: Tue, 03 Apr 2012 13:25:14 +0200
-From: Jerome Marchand <jmarchan@redhat.com>
-MIME-Version: 1.0
-Subject: Re: [RFC][PATCH] avoid swapping out with swappiness==0
-References: <65795E11DBF1E645A09CEC7EAEE94B9CB9455FE2@USINDEVS02.corp.hds.com> <20120305215602.GA1693@redhat.com> <4F5798B1.5070005@jp.fujitsu.com> <65795E11DBF1E645A09CEC7EAEE94B9CB951A45F@USINDEVS02.corp.hds.com> <65795E11DBF1E645A09CEC7EAEE94B9C01454D13A6@USINDEVS02.corp.hds.com> <CAHGf_=p9OgVC9J-Nh78CTbuMbc9CVt-+-G+CNbYUsgz70Uc8Qg@mail.gmail.com>
-In-Reply-To: <CAHGf_=p9OgVC9J-Nh78CTbuMbc9CVt-+-G+CNbYUsgz70Uc8Qg@mail.gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx157.postini.com [74.125.245.157])
+	by kanga.kvack.org (Postfix) with SMTP id 95A9C6B0044
+	for <linux-mm@kvack.org>; Tue,  3 Apr 2012 10:10:25 -0400 (EDT)
+MIME-version: 1.0
+Content-transfer-encoding: 7BIT
+Content-type: TEXT/PLAIN
+Received: from euspt1 ([210.118.77.14]) by mailout4.w1.samsung.com
+ (Sun Java(tm) System Messaging Server 6.3-8.04 (built Jul 29 2009; 32bit))
+ with ESMTP id <0M1W00GRPQ1FDB70@mailout4.w1.samsung.com> for
+ linux-mm@kvack.org; Tue, 03 Apr 2012 15:10:27 +0100 (BST)
+Received: from linux.samsung.com ([106.116.38.10])
+ by spt1.w1.samsung.com (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14
+ 2004)) with ESMTPA id <0M1W00KPDQ1A84@spt1.w1.samsung.com> for
+ linux-mm@kvack.org; Tue, 03 Apr 2012 15:10:23 +0100 (BST)
+Date: Tue, 03 Apr 2012 16:10:08 +0200
+From: Marek Szyprowski <m.szyprowski@samsung.com>
+Subject: [PATCHv24 03/16] mm: compaction: introduce map_pages()
+In-reply-to: <1333462221-3987-1-git-send-email-m.szyprowski@samsung.com>
+Message-id: <1333462221-3987-4-git-send-email-m.szyprowski@samsung.com>
+References: <1333462221-3987-1-git-send-email-m.szyprowski@samsung.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: Satoru Moriya <satoru.moriya@hds.com>, "jweiner@redhat.com" <jweiner@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "riel@redhat.com" <riel@redhat.com>, "lwoodman@redhat.com" <lwoodman@redhat.com>, "shaohua.li@intel.com" <shaohua.li@intel.com>, "dle-develop@lists.sourceforge.net" <dle-develop@lists.sourceforge.net>, Seiji Aguchi <seiji.aguchi@hds.com>
+To: linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-media@vger.kernel.org, linux-mm@kvack.org, linaro-mm-sig@lists.linaro.org
+Cc: Michal Nazarewicz <mina86@mina86.com>, Marek Szyprowski <m.szyprowski@samsung.com>, Kyungmin Park <kyungmin.park@samsung.com>, Russell King <linux@arm.linux.org.uk>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daniel Walker <dwalker@codeaurora.org>, Mel Gorman <mel@csn.ul.ie>, Arnd Bergmann <arnd@arndb.de>, Jesse Barker <jesse.barker@linaro.org>, Jonathan Corbet <corbet@lwn.net>, Chunsang Jeong <chunsang.jeong@linaro.org>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Gaignard <benjamin.gaignard@linaro.org>, Rob Clark <rob.clark@linaro.org>, Ohad Ben-Cohen <ohad@wizery.com>, Sandeep Patil <psandeep.s@gmail.com>
 
-On 04/02/2012 07:10 PM, KOSAKI Motohiro wrote:
-> 2012/3/30 Satoru Moriya <satoru.moriya@hds.com>:
->> Hello Kosaki-san,
->>
->> On 03/07/2012 01:18 PM, Satoru Moriya wrote:
->>> On 03/07/2012 12:19 PM, KOSAKI Motohiro wrote:
->>>> Thank you. I brought back to memory it. Unfortunately DB folks are
->>>> still mainly using RHEL5 generation distros. At that time,
->>>> swapiness=0 doesn't mean disabling swap.
->>>>
->>>> They want, "don't swap as far as kernel has any file cache page". but
->>>> linux don't have such feature. then they used swappiness for emulate
->>>> it. So, I think this patch clearly make userland harm. Because of, we
->>>> don't have an alternative way.
->>
->> As I wrote in the previous mail(see below), with this patch
->> the kernel begins to swap out when the sum of free pages and
->> filebacked pages reduces less than watermark_high.
+From: Michal Nazarewicz <mina86@mina86.com>
 
-Actually, this is true only for global reclaims. Reclaims in cgroup can fail
-in this case.
+This commit creates a map_pages() function which map pages freed
+using split_free_pages().  This merely moves some code from
+isolate_freepages() so that it can be reused in other places.
 
->>
->> So the kernel reclaims pages like following.
->>
->> nr_free + nr_filebacked >= watermark_high: reclaim only filebacked pages
->> nr_free + nr_filebacked <  watermark_high: reclaim only anonymous pages
-> 
-> How?
+Signed-off-by: Michal Nazarewicz <mina86@mina86.com>
+Signed-off-by: Marek Szyprowski <m.szyprowski@samsung.com>
+Acked-by: Mel Gorman <mel@csn.ul.ie>
+Reviewed-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Tested-by: Robert Nelson <robertcnelson@gmail.com>
+Tested-by: Barry Song <Baohua.Song@csr.com>
+---
+ mm/compaction.c |   15 +++++++++++----
+ 1 files changed, 11 insertions(+), 4 deletions(-)
 
-get_scan_count() checks that case explicitly:
-
-	if (global_reclaim(sc)) {
-		free  = zone_page_state(mz->zone, NR_FREE_PAGES);
-		/* If we have very few page cache pages,
-		   force-scan anon pages. */
-		if (unlikely(file + free <= high_wmark_pages(mz->zone))) {
-			fraction[0] = 1;
-			fraction[1] = 0;
-			denominator = 1;
-			goto out;
-		}
-	}
-
-Regards,
-Jerome
-
-> --
-> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
-> Please read the FAQ at  http://www.tux.org/lkml/
+diff --git a/mm/compaction.c b/mm/compaction.c
+index ee20fc0..d9d7b35 100644
+--- a/mm/compaction.c
++++ b/mm/compaction.c
+@@ -127,6 +127,16 @@ static bool suitable_migration_target(struct page *page)
+ 	return false;
+ }
+ 
++static void map_pages(struct list_head *list)
++{
++	struct page *page;
++
++	list_for_each_entry(page, list, lru) {
++		arch_alloc_page(page, 0);
++		kernel_map_pages(page, 1, 1);
++	}
++}
++
+ /*
+  * Based on information in the current compact_control, find blocks
+  * suitable for isolating free pages from and then isolate them.
+@@ -206,10 +216,7 @@ static void isolate_freepages(struct zone *zone,
+ 	}
+ 
+ 	/* split_free_page does not map the pages */
+-	list_for_each_entry(page, freelist, lru) {
+-		arch_alloc_page(page, 0);
+-		kernel_map_pages(page, 1, 1);
+-	}
++	map_pages(freelist);
+ 
+ 	cc->free_pfn = high_pfn;
+ 	cc->nr_freepages = nr_freepages;
+-- 
+1.7.1.569.g6f426
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
