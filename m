@@ -1,86 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx147.postini.com [74.125.245.147])
-	by kanga.kvack.org (Postfix) with SMTP id 6DA8A6B0044
-	for <linux-mm@kvack.org>; Tue,  3 Apr 2012 11:17:56 -0400 (EDT)
-From: Satoru Moriya <satoru.moriya@hds.com>
-Date: Tue, 3 Apr 2012 11:15:30 -0400
-Subject: RE: [RFC][PATCH] avoid swapping out with swappiness==0
-Message-ID: <65795E11DBF1E645A09CEC7EAEE94B9C014536F9A3@USINDEVS02.corp.hds.com>
-References: <65795E11DBF1E645A09CEC7EAEE94B9CB9455FE2@USINDEVS02.corp.hds.com>
- <20120305215602.GA1693@redhat.com> <4F5798B1.5070005@jp.fujitsu.com>
- <65795E11DBF1E645A09CEC7EAEE94B9CB951A45F@USINDEVS02.corp.hds.com>
- <65795E11DBF1E645A09CEC7EAEE94B9C01454D13A6@USINDEVS02.corp.hds.com>
- <CAHGf_=p9OgVC9J-Nh78CTbuMbc9CVt-+-G+CNbYUsgz70Uc8Qg@mail.gmail.com>,<4F7ADE1A.2050004@redhat.com>
-In-Reply-To: <4F7ADE1A.2050004@redhat.com>
-Content-Language: ja-JP
-Content-Type: text/plain; charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
+Received: from psmtp.com (na3sys010amx185.postini.com [74.125.245.185])
+	by kanga.kvack.org (Postfix) with SMTP id 801986B0044
+	for <linux-mm@kvack.org>; Tue,  3 Apr 2012 13:32:16 -0400 (EDT)
+From: Dan Smith <danms@us.ibm.com>
+Subject: Re: [RFC][PATCH 06/26] mm: Migrate misplaced page
+References: <20120316144028.036474157@chello.nl>
+	<20120316144240.492318994@chello.nl>
+Date: Tue, 03 Apr 2012 10:32:13 -0700
+In-Reply-To: <20120316144240.492318994@chello.nl> (Peter Zijlstra's message of
+	"Fri, 16 Mar 2012 15:40:34 +0100")
+Message-ID: <87iphg67s2.fsf@danplanet.com>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jerome Marchand <jmarchan@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: "jweiner@redhat.com" <jweiner@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "riel@redhat.com" <riel@redhat.com>, "lwoodman@redhat.com" <lwoodman@redhat.com>, "dle-develop@lists.sourceforge.net" <dle-develop@lists.sourceforge.net>, Seiji Aguchi <seiji.aguchi@hds.com>
+To: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>, Paul Turner <pjt@google.com>, Suresh Siddha <suresh.b.siddha@intel.com>, Mike Galbraith <efault@gmx.de>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Bharata B Rao <bharata.rao@gmail.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Andrea Arcangeli <aarcange@redhat.com>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On 04/03/2012 07:25 AM, Jerome Marchand wrote:
-> On 04/02/2012 07:10 PM, KOSAKI Motohiro wrote:
->> 2012/3/30 Satoru Moriya <satoru.moriya@hds.com>:
->>> Hello Kosaki-san,
->>>
->>> On 03/07/2012 01:18 PM, Satoru Moriya wrote:
->>>> On 03/07/2012 12:19 PM, KOSAKI Motohiro wrote:
->>>>> Thank you. I brought back to memory it. Unfortunately DB folks are
->>>>> still mainly using RHEL5 generation distros. At that time,
->>>>> swapiness=3D0 doesn't mean disabling swap.
->>>>>
->>>>> They want, "don't swap as far as kernel has any file cache page". but
->>>>> linux don't have such feature. then they used swappiness for emulate
->>>>> it. So, I think this patch clearly make userland harm. Because of, we
->>>>> don't have an alternative way.
->>>
->>> As I wrote in the previous mail(see below), with this patch
->>> the kernel begins to swap out when the sum of free pages and
->>> filebacked pages reduces less than watermark_high.
->
-> Actually, this is true only for global reclaims. Reclaims in cgroup can f=
-ail
-> in this case.
+PZ> XXX: hnaz, dansmith saw some bad_page() reports when using memcg, I
+PZ> could not reproduce -- is there something funny with the mem_cgroup
+PZ> calls in the below patch?
 
-Right.
-As long as we consider RHEL5 users above, I believe they don't care
-about cgroup case.
+I think the problem stems from the final put_page() on the old page
+being called before the charge commit. I think something like the
+following should do the trick (and appears to work for me):
 
->>>
->>> So the kernel reclaims pages like following.
->>>
->>> nr_free + nr_filebacked >=3D watermark_high: reclaim only filebacked pa=
-ges
->>> nr_free + nr_filebacked <  watermark_high: reclaim only anonymous pages
+diff --git a/mm/migrate.c b/mm/migrate.c
+index b7fa472..fd88f4b 100644
+--- a/mm/migrate.c
++++ b/mm/migrate.c
+@@ -1590,7 +1590,6 @@ migrate_misplaced_page(struct page *page, struct mm_struct
+                put_page(page);         /* drop       "          "  */
+ 
+                unlock_page(page);
+-               put_page(page);         /* drop fault path ref & free */
+ 
+                page = newpage;
+        }
+@@ -1599,6 +1598,9 @@ out:
+        if (!charge)
+                mem_cgroup_end_migration(mcg, oldpage, newpage, !rc);
+ 
++       if (oldpage != page)
++               put_page(oldpage);
++
+        if (rc) {
+                unlock_page(newpage);
+                __free_page(newpage);
 
-I made a tiny mistake.
-Correct one is following ;p
 
-nr_free + nr_filebacked >  watermark_high: reclaim only filebacked pages
-nr_free + nr_filebacked <=3D watermark_high: reclaim only anonymous pages
-
->> How?
->
-> get_scan_count() checks that case explicitly:
->
->        if (global_reclaim(sc)) {
->                free  =3D zone_page_state(mz->zone, NR_FREE_PAGES);
->                /* If we have very few page cache pages,
->                   force-scan anon pages. */
->                if (unlikely(file + free <=3D high_wmark_pages(mz->zone)))=
- {
->                        fraction[0] =3D 1;
->                        fraction[1] =3D 0;
->                        denominator =3D 1;
->                        goto out;
->                }
->        }
-
-Regards,
-Satoru=
+-- 
+Dan Smith
+IBM Linux Technology Center
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
