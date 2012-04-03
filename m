@@ -1,105 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx180.postini.com [74.125.245.180])
-	by kanga.kvack.org (Postfix) with SMTP id 6C8816B0092
-	for <linux-mm@kvack.org>; Tue,  3 Apr 2012 01:37:29 -0400 (EDT)
-Received: by bkwq16 with SMTP id q16so3844604bkw.14
-        for <linux-mm@kvack.org>; Mon, 02 Apr 2012 22:37:27 -0700 (PDT)
-Message-ID: <4F7A8C94.3040708@openvz.org>
-Date: Tue, 03 Apr 2012 09:37:24 +0400
-From: Konstantin Khlebnikov <khlebnikov@openvz.org>
+Received: from psmtp.com (na3sys010amx120.postini.com [74.125.245.120])
+	by kanga.kvack.org (Postfix) with SMTP id 73F8E6B004D
+	for <linux-mm@kvack.org>; Tue,  3 Apr 2012 01:45:55 -0400 (EDT)
+Date: Mon, 2 Apr 2012 22:45:29 -0700
+From: Joel Becker <jlbec@evilplan.org>
+Subject: Re: [PATCH] mm for fs: add truncate_pagecache_range
+Message-ID: <20120403054528.GD15739@dhcp-172-17-9-228.mtv.corp.google.com>
+References: <alpine.LSU.2.00.1203231343380.1940@eggly.anvils>
+ <20120323140120.11f95cd5.akpm@linux-foundation.org>
+ <alpine.LSU.2.00.1203231406090.2207@eggly.anvils>
+ <20120323155950.f9bfb097.akpm@linux-foundation.org>
+ <alpine.LSU.2.00.1203251254570.1505@eggly.anvils>
 MIME-Version: 1.0
-Subject: Re: [x86 PAT PATCH 1/2] x86, pat: remove the dependency on 'vm_pgoff'
- in track/untrack pfn vma routines
-References: <20120331170947.7773.46399.stgit@zurg> <1333413969-30761-1-git-send-email-suresh.b.siddha@intel.com> <1333413969-30761-2-git-send-email-suresh.b.siddha@intel.com>
-In-Reply-To: <1333413969-30761-2-git-send-email-suresh.b.siddha@intel.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.LSU.2.00.1203251254570.1505@eggly.anvils>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Suresh Siddha <suresh.b.siddha@intel.com>
-Cc: Konstantin Khlebnikov <koct9i@gmail.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Andi Kleen <andi@firstfloor.org>, Pallipadi Venkatesh <venki@google.com>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Linus Torvalds <torvalds@linux-foundation.org>, Nick Piggin <npiggin@kernel.dk>
+To: Hugh Dickins <hughd@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Christoph Hellwig <hch@infradead.org>, Theodore Ts'o <tytso@mit.edu>, Al Viro <viro@zeniv.linux.org.uk>, Alex Elder <elder@kernel.org>, Andreas Dilger <adilger.kernel@dilger.ca>, Ben Myers <bpm@sgi.com>, Dave Chinner <david@fromorbit.com>, Mark Fasheh <mfasheh@suse.com>, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
 
-Suresh Siddha wrote:
-> 'pfn' argument for track_pfn_vma_new() can be used for reserving the attribute
-> for the pfn range. No need to depend on 'vm_pgoff'
->
-> Similarly, untrack_pfn_vma() can depend on the 'pfn' argument if it
-> is non-zero or can use follow_phys() to get the starting value of the pfn
-> range.
->
-> Also the non zero 'size' argument can be used instead of recomputing
-> it from vma.
->
-> This cleanup also prepares the ground for the track/untrack pfn vma routines
-> to take over the ownership of setting PAT specific vm_flag in the 'vma'.
->
-> Signed-off-by: Suresh Siddha<suresh.b.siddha@intel.com>
-> Cc: Venkatesh Pallipadi<venki@google.com>
-> Cc: Konstantin Khlebnikov<khlebnikov@openvz.org>
-> ---
->   arch/x86/mm/pat.c |   30 +++++++++++++++++-------------
->   1 files changed, 17 insertions(+), 13 deletions(-)
->
-> diff --git a/arch/x86/mm/pat.c b/arch/x86/mm/pat.c
-> index f6ff57b..617f42b 100644
-> --- a/arch/x86/mm/pat.c
-> +++ b/arch/x86/mm/pat.c
-> @@ -693,14 +693,10 @@ int track_pfn_vma_new(struct vm_area_struct *vma, pgprot_t *prot,
->   			unsigned long pfn, unsigned long size)
->   {
->   	unsigned long flags;
-> -	resource_size_t paddr;
-> -	unsigned long vma_size = vma->vm_end - vma->vm_start;
->
-> -	if (is_linear_pfn_mapping(vma)) {
-> -		/* reserve the whole chunk starting from vm_pgoff */
-> -		paddr = (resource_size_t)vma->vm_pgoff<<  PAGE_SHIFT;
-> -		return reserve_pfn_range(paddr, vma_size, prot, 0);
-> -	}
-> +	/* reserve the whole chunk starting from pfn */
-> +	if (is_linear_pfn_mapping(vma))
-> +		return reserve_pfn_range(pfn, size, prot, 0);
+On Sun, Mar 25, 2012 at 01:26:10PM -0700, Hugh Dickins wrote:
+> On Fri, 23 Mar 2012, Andrew Morton wrote:
+> > On Fri, 23 Mar 2012 14:14:54 -0700 (PDT)
+> > Hugh Dickins <hughd@google.com> wrote:
+> > > On Fri, 23 Mar 2012, Andrew Morton wrote:
+> > > > 
+> > > > --- a/mm/truncate.c~mm-for-fs-add-truncate_pagecache_range-fix
+> > > > +++ a/mm/truncate.c
+> > > > @@ -639,6 +639,9 @@ int vmtruncate_range(struct inode *inode
+> > > >   * with on-disk format, and the filesystem would not have to deal with
+> > > >   * situations such as writepage being called for a page that has already
+> > > >   * had its underlying blocks deallocated.
+> > > > + *
+> > > > + * Must be called with inode->i_mapping->i_mutex held.
+> > > 
+> > > You catch me offguard: I forget whether that's an absolute requirement or
+> > > just commonly the case.  What do the other interfaces in truncate.c say ?-)
+> > 
+> > i_mutex is generally required, to stabilise i_size.
+> 
+> Sorry for being quarrelsome, but I do want to Nak your followup "fix".
+> 
+> Building a test kernel quickly told me that inode->i_mapping->i_mutex
+> doesn't exist, of course it's inode->i_mutex.
+> 
+> Then running the test kernel quickly told me that neither ext4 nor xfs
+> (I didn't try ocfs2) holds inode->i_mutex where holepunching calls
+> truncate_inode_pages_range().
 
-you mix here pfn and paddr: old code passes paddr as first argument of reserve_pfn_range().
+Just for completeness:
 
->
->   	if (!pat_enabled)
->   		return 0;
-> @@ -716,20 +712,28 @@ int track_pfn_vma_new(struct vm_area_struct *vma, pgprot_t *prot,
->   /*
->    * untrack_pfn_vma is called while unmapping a pfnmap for a region.
->    * untrack can be called for a specific region indicated by pfn and size or
-> - * can be for the entire vma (in which case size can be zero).
-> + * can be for the entire vma (in which case pfn, size are zero).
->    */
->   void untrack_pfn_vma(struct vm_area_struct *vma, unsigned long pfn,
->   			unsigned long size)
->   {
->   	resource_size_t paddr;
-> -	unsigned long vma_size = vma->vm_end - vma->vm_start;
-> +	unsigned long prot;
->
-> -	if (is_linear_pfn_mapping(vma)) {
-> -		/* free the whole chunk starting from vm_pgoff */
-> -		paddr = (resource_size_t)vma->vm_pgoff<<  PAGE_SHIFT;
-> -		free_pfn_range(paddr, vma_size);
-> +	if (!is_linear_pfn_mapping(vma))
->   		return;
-> +
-> +	/* free the chunk starting from pfn or the whole chunk */
-> +	paddr = (resource_size_t)pfn;
-> +	if (!paddr&&  !size) {
-> +		if (follow_phys(vma, vma->vm_start, 0,&prot,&paddr)) {
-> +			WARN_ON_ONCE(1);
-> +			return;
-> +		}
-> +
-> +		size = vma->vm_end - vma->vm_start;
->   	}
-> +	free_pfn_range(paddr, size);
->   }
->
->   pgprot_t pgprot_writecombine(pgprot_t prot)
+ocfs2 holds i_mutex around the entire ocfs2_change_file_space() call,
+which can do hole punching and unwritten extent allocation (it is a
+clone of xfs_change_file_space()).  xfs itself seems hold its own idea
+of a shared lock while doing the work and an exclusive lock around the
+transaction join.  I'm not clear enough about xfs to say how this
+compares or even if I read it right.
+
+But ocfs2 uses an allocation sem to protect allocation changes,
+including i_size, so perhaps i_mutex isn't strictly necessary.  I don't
+think we contend enough here to try hard to remove it :-)
+
+Joel
+
+-- 
+
+"The question of whether computers can think is just like the question
+ of whether submarines can swim."
+	- Edsger W. Dijkstra
+
+			http://www.jlbec.org/
+			jlbec@evilplan.org
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
