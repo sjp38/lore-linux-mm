@@ -1,7 +1,7 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from psmtp.com (na3sys010amx157.postini.com [74.125.245.157])
-	by kanga.kvack.org (Postfix) with SMTP id A73396B00EF
-	for <linux-mm@kvack.org>; Tue,  3 Apr 2012 10:10:36 -0400 (EDT)
+	by kanga.kvack.org (Postfix) with SMTP id 9E4836B00F0
+	for <linux-mm@kvack.org>; Tue,  3 Apr 2012 10:10:38 -0400 (EDT)
 Received: from euspt2 (mailout2.w1.samsung.com [210.118.77.12])
  by mailout2.w1.samsung.com
  (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14 2004))
@@ -9,14 +9,13 @@ Received: from euspt2 (mailout2.w1.samsung.com [210.118.77.12])
  Tue, 03 Apr 2012 15:10:26 +0100 (BST)
 Received: from linux.samsung.com ([106.116.38.10])
  by spt2.w1.samsung.com (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14
- 2004)) with ESMTPA id <0M1W00DTZQ1A2J@spt2.w1.samsung.com> for
- linux-mm@kvack.org; Tue, 03 Apr 2012 15:10:23 +0100 (BST)
-Date: Tue, 03 Apr 2012 16:10:14 +0200
+ 2004)) with ESMTPA id <0M1W00IOHQ1BT3@spt2.w1.samsung.com> for
+ linux-mm@kvack.org; Tue, 03 Apr 2012 15:10:24 +0100 (BST)
+Date: Tue, 03 Apr 2012 16:10:19 +0200
 From: Marek Szyprowski <m.szyprowski@samsung.com>
-Subject: [PATCHv24 09/16] mm: page_isolation: MIGRATE_CMA isolation functions
- added
+Subject: [PATCHv24 14/16] X86: integrate CMA with DMA-mapping subsystem
 In-reply-to: <1333462221-3987-1-git-send-email-m.szyprowski@samsung.com>
-Message-id: <1333462221-3987-10-git-send-email-m.szyprowski@samsung.com>
+Message-id: <1333462221-3987-15-git-send-email-m.szyprowski@samsung.com>
 MIME-version: 1.0
 Content-type: TEXT/PLAIN
 Content-transfer-encoding: 7BIT
@@ -26,261 +25,165 @@ List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-media@vger.kernel.org, linux-mm@kvack.org, linaro-mm-sig@lists.linaro.org
 Cc: Michal Nazarewicz <mina86@mina86.com>, Marek Szyprowski <m.szyprowski@samsung.com>, Kyungmin Park <kyungmin.park@samsung.com>, Russell King <linux@arm.linux.org.uk>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daniel Walker <dwalker@codeaurora.org>, Mel Gorman <mel@csn.ul.ie>, Arnd Bergmann <arnd@arndb.de>, Jesse Barker <jesse.barker@linaro.org>, Jonathan Corbet <corbet@lwn.net>, Chunsang Jeong <chunsang.jeong@linaro.org>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Gaignard <benjamin.gaignard@linaro.org>, Rob Clark <rob.clark@linaro.org>, Ohad Ben-Cohen <ohad@wizery.com>, Sandeep Patil <psandeep.s@gmail.com>
 
-From: Michal Nazarewicz <mina86@mina86.com>
+This patch adds support for CMA to dma-mapping subsystem for x86
+architecture that uses common pci-dma/pci-nommu implementation. This
+allows to test CMA on KVM/QEMU and a lot of common x86 boxes.
 
-This commit changes various functions that change pages and
-pageblocks migrate type between MIGRATE_ISOLATE and
-MIGRATE_MOVABLE in such a way as to allow to work with
-MIGRATE_CMA migrate type.
-
-Signed-off-by: Michal Nazarewicz <mina86@mina86.com>
 Signed-off-by: Marek Szyprowski <m.szyprowski@samsung.com>
-Reviewed-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Tested-by: Rob Clark <rob.clark@linaro.org>
-Tested-by: Ohad Ben-Cohen <ohad@wizery.com>
-Tested-by: Benjamin Gaignard <benjamin.gaignard@linaro.org>
-Tested-by: Robert Nelson <robertcnelson@gmail.com>
-Tested-by: Barry Song <Baohua.Song@csr.com>
+Signed-off-by: Kyungmin Park <kyungmin.park@samsung.com>
+CC: Michal Nazarewicz <mina86@mina86.com>
+Acked-by: Arnd Bergmann <arnd@arndb.de>
 ---
- include/linux/gfp.h            |    3 ++-
- include/linux/page-isolation.h |   18 +++++++++---------
- mm/memory-failure.c            |    2 +-
- mm/memory_hotplug.c            |    6 +++---
- mm/page_alloc.c                |   17 +++++++++++------
- mm/page_isolation.c            |   15 ++++++++-------
- 6 files changed, 34 insertions(+), 27 deletions(-)
+ arch/x86/Kconfig                      |    1 +
+ arch/x86/include/asm/dma-contiguous.h |   13 +++++++++++++
+ arch/x86/include/asm/dma-mapping.h    |    4 ++++
+ arch/x86/kernel/pci-dma.c             |   18 ++++++++++++++++--
+ arch/x86/kernel/pci-nommu.c           |    8 +-------
+ arch/x86/kernel/setup.c               |    2 ++
+ 6 files changed, 37 insertions(+), 9 deletions(-)
+ create mode 100644 arch/x86/include/asm/dma-contiguous.h
 
-diff --git a/include/linux/gfp.h b/include/linux/gfp.h
-index 78d32a7..1e49be4 100644
---- a/include/linux/gfp.h
-+++ b/include/linux/gfp.h
-@@ -394,7 +394,8 @@ static inline bool pm_suspended_storage(void)
- #ifdef CONFIG_CMA
+diff --git a/arch/x86/Kconfig b/arch/x86/Kconfig
+index 1d14cc6..bc1cfa8 100644
+--- a/arch/x86/Kconfig
++++ b/arch/x86/Kconfig
+@@ -31,6 +31,7 @@ config X86
+ 	select ARCH_WANT_OPTIONAL_GPIOLIB
+ 	select ARCH_WANT_FRAME_POINTERS
+ 	select HAVE_DMA_ATTRS
++	select HAVE_DMA_CONTIGUOUS if !SWIOTLB
+ 	select HAVE_KRETPROBES
+ 	select HAVE_OPTPROBES
+ 	select HAVE_FTRACE_MCOUNT_RECORD
+diff --git a/arch/x86/include/asm/dma-contiguous.h b/arch/x86/include/asm/dma-contiguous.h
+new file mode 100644
+index 0000000..c092416
+--- /dev/null
++++ b/arch/x86/include/asm/dma-contiguous.h
+@@ -0,0 +1,13 @@
++#ifndef ASMX86_DMA_CONTIGUOUS_H
++#define ASMX86_DMA_CONTIGUOUS_H
++
++#ifdef __KERNEL__
++
++#include <linux/types.h>
++#include <asm-generic/dma-contiguous.h>
++
++static inline void
++dma_contiguous_early_fixup(phys_addr_t base, unsigned long size) { }
++
++#endif
++#endif
+diff --git a/arch/x86/include/asm/dma-mapping.h b/arch/x86/include/asm/dma-mapping.h
+index ed3065f..90ac6f0 100644
+--- a/arch/x86/include/asm/dma-mapping.h
++++ b/arch/x86/include/asm/dma-mapping.h
+@@ -13,6 +13,7 @@
+ #include <asm/io.h>
+ #include <asm/swiotlb.h>
+ #include <asm-generic/dma-coherent.h>
++#include <linux/dma-contiguous.h>
  
- /* The below functions must be run on a range from a single zone. */
--extern int alloc_contig_range(unsigned long start, unsigned long end);
-+extern int alloc_contig_range(unsigned long start, unsigned long end,
-+			      unsigned migratetype);
- extern void free_contig_range(unsigned long pfn, unsigned nr_pages);
+ #ifdef CONFIG_ISA
+ # define ISA_DMA_BIT_MASK DMA_BIT_MASK(24)
+@@ -61,6 +62,9 @@ extern int dma_set_mask(struct device *dev, u64 mask);
+ extern void *dma_generic_alloc_coherent(struct device *dev, size_t size,
+ 					dma_addr_t *dma_addr, gfp_t flag);
  
- /* CMA stuff */
-diff --git a/include/linux/page-isolation.h b/include/linux/page-isolation.h
-index 051c1b1..3bdcab3 100644
---- a/include/linux/page-isolation.h
-+++ b/include/linux/page-isolation.h
-@@ -3,7 +3,7 @@
++extern void dma_generic_free_coherent(struct device *dev, size_t size,
++				      void *vaddr, dma_addr_t dma_addr);
++
+ static inline bool dma_capable(struct device *dev, dma_addr_t addr, size_t size)
+ {
+ 	if (!dev->dma_mask)
+diff --git a/arch/x86/kernel/pci-dma.c b/arch/x86/kernel/pci-dma.c
+index 28e5e06..89094c3 100644
+--- a/arch/x86/kernel/pci-dma.c
++++ b/arch/x86/kernel/pci-dma.c
+@@ -99,14 +99,18 @@ void *dma_generic_alloc_coherent(struct device *dev, size_t size,
+ 				 dma_addr_t *dma_addr, gfp_t flag)
+ {
+ 	unsigned long dma_mask;
+-	struct page *page;
++	struct page *page = NULL;
++	unsigned int count = PAGE_ALIGN(size) >> PAGE_SHIFT;
+ 	dma_addr_t addr;
  
+ 	dma_mask = dma_alloc_coherent_mask(dev, flag);
+ 
+ 	flag |= __GFP_ZERO;
+ again:
+-	page = alloc_pages_node(dev_to_node(dev), flag, get_order(size));
++	if (!(flag & GFP_ATOMIC))
++		page = dma_alloc_from_contiguous(dev, count, get_order(size));
++	if (!page)
++		page = alloc_pages_node(dev_to_node(dev), flag, get_order(size));
+ 	if (!page)
+ 		return NULL;
+ 
+@@ -126,6 +130,16 @@ again:
+ 	return page_address(page);
+ }
+ 
++void dma_generic_free_coherent(struct device *dev, size_t size, void *vaddr,
++			       dma_addr_t dma_addr)
++{
++	unsigned int count = PAGE_ALIGN(size) >> PAGE_SHIFT;
++	struct page *page = virt_to_page(vaddr);
++
++	if (!dma_release_from_contiguous(dev, page, count))
++		free_pages((unsigned long)vaddr, get_order(size));
++}
++
  /*
-  * Changes migrate type in [start_pfn, end_pfn) to be MIGRATE_ISOLATE.
-- * If specified range includes migrate types other than MOVABLE,
-+ * If specified range includes migrate types other than MOVABLE or CMA,
-  * this will fail with -EBUSY.
-  *
-  * For isolating all pages in the range finally, the caller have to
-@@ -11,27 +11,27 @@
-  * test it.
-  */
- extern int
--start_isolate_page_range(unsigned long start_pfn, unsigned long end_pfn);
-+start_isolate_page_range(unsigned long start_pfn, unsigned long end_pfn,
-+			 unsigned migratetype);
+  * See <Documentation/x86/x86_64/boot-options.txt> for the iommu kernel
+  * parameter documentation.
+diff --git a/arch/x86/kernel/pci-nommu.c b/arch/x86/kernel/pci-nommu.c
+index 3af4af8..656566f 100644
+--- a/arch/x86/kernel/pci-nommu.c
++++ b/arch/x86/kernel/pci-nommu.c
+@@ -74,12 +74,6 @@ static int nommu_map_sg(struct device *hwdev, struct scatterlist *sg,
+ 	return nents;
+ }
  
- /*
-  * Changes MIGRATE_ISOLATE to MIGRATE_MOVABLE.
-  * target range is [start_pfn, end_pfn)
-  */
- extern int
--undo_isolate_page_range(unsigned long start_pfn, unsigned long end_pfn);
-+undo_isolate_page_range(unsigned long start_pfn, unsigned long end_pfn,
-+			unsigned migratetype);
+-static void nommu_free_coherent(struct device *dev, size_t size, void *vaddr,
+-				dma_addr_t dma_addr)
+-{
+-	free_pages((unsigned long)vaddr, get_order(size));
+-}
+-
+ static void nommu_sync_single_for_device(struct device *dev,
+ 			dma_addr_t addr, size_t size,
+ 			enum dma_data_direction dir)
+@@ -97,7 +91,7 @@ static void nommu_sync_sg_for_device(struct device *dev,
  
- /*
-- * test all pages in [start_pfn, end_pfn)are isolated or not.
-+ * Test all pages in [start_pfn, end_pfn) are isolated or not.
-  */
--extern int
--test_pages_isolated(unsigned long start_pfn, unsigned long end_pfn);
-+int test_pages_isolated(unsigned long start_pfn, unsigned long end_pfn);
+ struct dma_map_ops nommu_dma_ops = {
+ 	.alloc_coherent		= dma_generic_alloc_coherent,
+-	.free_coherent		= nommu_free_coherent,
++	.free_coherent		= dma_generic_free_coherent,
+ 	.map_sg			= nommu_map_sg,
+ 	.map_page		= nommu_map_page,
+ 	.sync_single_for_device = nommu_sync_single_for_device,
+diff --git a/arch/x86/kernel/setup.c b/arch/x86/kernel/setup.c
+index 1a29015..d6c956e 100644
+--- a/arch/x86/kernel/setup.c
++++ b/arch/x86/kernel/setup.c
+@@ -50,6 +50,7 @@
+ #include <asm/pci-direct.h>
+ #include <linux/init_ohci1394_dma.h>
+ #include <linux/kvm_para.h>
++#include <linux/dma-contiguous.h>
  
- /*
-- * Internal funcs.Changes pageblock's migrate type.
-- * Please use make_pagetype_isolated()/make_pagetype_movable().
-+ * Internal functions. Changes pageblock's migrate type.
-  */
- extern int set_migratetype_isolate(struct page *page);
--extern void unset_migratetype_isolate(struct page *page);
-+extern void unset_migratetype_isolate(struct page *page, unsigned migratetype);
- 
- 
+ #include <linux/errno.h>
+ #include <linux/kernel.h>
+@@ -934,6 +935,7 @@ void __init setup_arch(char **cmdline_p)
+ 	}
  #endif
-diff --git a/mm/memory-failure.c b/mm/memory-failure.c
-index 97cc2733..c99ad4e 100644
---- a/mm/memory-failure.c
-+++ b/mm/memory-failure.c
-@@ -1404,7 +1404,7 @@ static int get_any_page(struct page *p, unsigned long pfn, int flags)
- 		/* Not a free page */
- 		ret = 1;
- 	}
--	unset_migratetype_isolate(p);
-+	unset_migratetype_isolate(p, MIGRATE_MOVABLE);
- 	unlock_memory_hotplug();
- 	return ret;
- }
-diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-index 6629faf..fc898cb 100644
---- a/mm/memory_hotplug.c
-+++ b/mm/memory_hotplug.c
-@@ -891,7 +891,7 @@ static int __ref offline_pages(unsigned long start_pfn,
- 	nr_pages = end_pfn - start_pfn;
+ 	memblock.current_limit = get_max_mapped();
++	dma_contiguous_reserve(0);
  
- 	/* set above range as isolated */
--	ret = start_isolate_page_range(start_pfn, end_pfn);
-+	ret = start_isolate_page_range(start_pfn, end_pfn, MIGRATE_MOVABLE);
- 	if (ret)
- 		goto out;
- 
-@@ -956,7 +956,7 @@ repeat:
- 	   We cannot do rollback at this point. */
- 	offline_isolated_pages(start_pfn, end_pfn);
- 	/* reset pagetype flags and makes migrate type to be MOVABLE */
--	undo_isolate_page_range(start_pfn, end_pfn);
-+	undo_isolate_page_range(start_pfn, end_pfn, MIGRATE_MOVABLE);
- 	/* removal success */
- 	zone->present_pages -= offlined_pages;
- 	zone->zone_pgdat->node_present_pages -= offlined_pages;
-@@ -981,7 +981,7 @@ failed_removal:
- 		start_pfn, end_pfn);
- 	memory_notify(MEM_CANCEL_OFFLINE, &arg);
- 	/* pushback to free area */
--	undo_isolate_page_range(start_pfn, end_pfn);
-+	undo_isolate_page_range(start_pfn, end_pfn, MIGRATE_MOVABLE);
- 
- out:
- 	unlock_memory_hotplug();
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 26d8b9f..216e575 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -5582,7 +5582,7 @@ out:
- 	return ret;
- }
- 
--void unset_migratetype_isolate(struct page *page)
-+void unset_migratetype_isolate(struct page *page, unsigned migratetype)
- {
- 	struct zone *zone;
- 	unsigned long flags;
-@@ -5590,8 +5590,8 @@ void unset_migratetype_isolate(struct page *page)
- 	spin_lock_irqsave(&zone->lock, flags);
- 	if (get_pageblock_migratetype(page) != MIGRATE_ISOLATE)
- 		goto out;
--	set_pageblock_migratetype(page, MIGRATE_MOVABLE);
--	move_freepages_block(zone, page, MIGRATE_MOVABLE);
-+	set_pageblock_migratetype(page, migratetype);
-+	move_freepages_block(zone, page, migratetype);
- out:
- 	spin_unlock_irqrestore(&zone->lock, flags);
- }
-@@ -5669,6 +5669,10 @@ static int __alloc_contig_migrate_range(unsigned long start, unsigned long end)
-  * alloc_contig_range() -- tries to allocate given range of pages
-  * @start:	start PFN to allocate
-  * @end:	one-past-the-last PFN to allocate
-+ * @migratetype:	migratetype of the underlaying pageblocks (either
-+ *			#MIGRATE_MOVABLE or #MIGRATE_CMA).  All pageblocks
-+ *			in range must have the same migratetype and it must
-+ *			be either of the two.
-  *
-  * The PFN range does not have to be pageblock or MAX_ORDER_NR_PAGES
-  * aligned, however it's the caller's responsibility to guarantee that
-@@ -5681,7 +5685,8 @@ static int __alloc_contig_migrate_range(unsigned long start, unsigned long end)
-  * pages which PFN is in [start, end) are allocated for the caller and
-  * need to be freed with free_contig_range().
-  */
--int alloc_contig_range(unsigned long start, unsigned long end)
-+int alloc_contig_range(unsigned long start, unsigned long end,
-+		       unsigned migratetype)
- {
- 	struct zone *zone = page_zone(pfn_to_page(start));
- 	unsigned long outer_start, outer_end;
-@@ -5712,7 +5717,7 @@ int alloc_contig_range(unsigned long start, unsigned long end)
- 	 */
- 
- 	ret = start_isolate_page_range(pfn_max_align_down(start),
--				       pfn_max_align_up(end));
-+				       pfn_max_align_up(end), migratetype);
- 	if (ret)
- 		goto done;
- 
-@@ -5772,7 +5777,7 @@ int alloc_contig_range(unsigned long start, unsigned long end)
- 
- done:
- 	undo_isolate_page_range(pfn_max_align_down(start),
--				pfn_max_align_up(end));
-+				pfn_max_align_up(end), migratetype);
- 	return ret;
- }
- 
-diff --git a/mm/page_isolation.c b/mm/page_isolation.c
-index 4ae42bb..c9f0477 100644
---- a/mm/page_isolation.c
-+++ b/mm/page_isolation.c
-@@ -24,6 +24,7 @@ __first_valid_page(unsigned long pfn, unsigned long nr_pages)
-  * to be MIGRATE_ISOLATE.
-  * @start_pfn: The lower PFN of the range to be isolated.
-  * @end_pfn: The upper PFN of the range to be isolated.
-+ * @migratetype: migrate type to set in error recovery.
-  *
-  * Making page-allocation-type to be MIGRATE_ISOLATE means free pages in
-  * the range will never be allocated. Any free pages and pages freed in the
-@@ -32,8 +33,8 @@ __first_valid_page(unsigned long pfn, unsigned long nr_pages)
-  * start_pfn/end_pfn must be aligned to pageblock_order.
-  * Returns 0 on success and -EBUSY if any part of range cannot be isolated.
-  */
--int
--start_isolate_page_range(unsigned long start_pfn, unsigned long end_pfn)
-+int start_isolate_page_range(unsigned long start_pfn, unsigned long end_pfn,
-+			     unsigned migratetype)
- {
- 	unsigned long pfn;
- 	unsigned long undo_pfn;
-@@ -56,7 +57,7 @@ undo:
- 	for (pfn = start_pfn;
- 	     pfn < undo_pfn;
- 	     pfn += pageblock_nr_pages)
--		unset_migratetype_isolate(pfn_to_page(pfn));
-+		unset_migratetype_isolate(pfn_to_page(pfn), migratetype);
- 
- 	return -EBUSY;
- }
-@@ -64,8 +65,8 @@ undo:
- /*
-  * Make isolated pages available again.
-  */
--int
--undo_isolate_page_range(unsigned long start_pfn, unsigned long end_pfn)
-+int undo_isolate_page_range(unsigned long start_pfn, unsigned long end_pfn,
-+			    unsigned migratetype)
- {
- 	unsigned long pfn;
- 	struct page *page;
-@@ -77,7 +78,7 @@ undo_isolate_page_range(unsigned long start_pfn, unsigned long end_pfn)
- 		page = __first_valid_page(pfn, pageblock_nr_pages);
- 		if (!page || get_pageblock_migratetype(page) != MIGRATE_ISOLATE)
- 			continue;
--		unset_migratetype_isolate(page);
-+		unset_migratetype_isolate(page, migratetype);
- 	}
- 	return 0;
- }
-@@ -86,7 +87,7 @@ undo_isolate_page_range(unsigned long start_pfn, unsigned long end_pfn)
-  * all pages in [start_pfn...end_pfn) must be in the same zone.
-  * zone->lock must be held before call this.
-  *
-- * Returns 1 if all pages in the range is isolated.
-+ * Returns 1 if all pages in the range are isolated.
-  */
- static int
- __test_page_isolated_in_pageblock(unsigned long pfn, unsigned long end_pfn)
+ 	/*
+ 	 * NOTE: On x86-32, only from this point on, fixmaps are ready for use.
 -- 
 1.7.1.569.g6f426
 
