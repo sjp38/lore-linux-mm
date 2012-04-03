@@ -1,82 +1,156 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx182.postini.com [74.125.245.182])
-	by kanga.kvack.org (Postfix) with SMTP id 150746B004A
-	for <linux-mm@kvack.org>; Tue,  3 Apr 2012 19:34:40 -0400 (EDT)
-Received: by iajr24 with SMTP id r24so434150iaj.14
-        for <linux-mm@kvack.org>; Tue, 03 Apr 2012 16:34:39 -0700 (PDT)
-Date: Tue, 3 Apr 2012 16:34:36 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: [patch] mm, oom: avoid checking set of allowed nodes twice when
- selecting a victim
-Message-ID: <alpine.DEB.2.00.1204031633460.8112@chino.kir.corp.google.com>
+Received: from psmtp.com (na3sys010amx170.postini.com [74.125.245.170])
+	by kanga.kvack.org (Postfix) with SMTP id 06E5B6B004A
+	for <linux-mm@kvack.org>; Tue,  3 Apr 2012 19:37:32 -0400 (EDT)
+Date: Tue, 3 Apr 2012 16:32:31 -0700
+From: Fengguang Wu <fengguang.wu@intel.com>
+Subject: Re: [PATCH 0/6] buffered write IO controller in balance_dirty_pages()
+Message-ID: <20120403233231.GA24333@localhost>
+References: <20120328121308.568545879@intel.com>
+ <20120401205647.GD6116@redhat.com>
+ <20120403080014.GA15546@localhost>
+ <20120403145301.GG5913@redhat.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20120403145301.GG5913@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org
+To: Vivek Goyal <vgoyal@redhat.com>
+Cc: Linux Memory Management List <linux-mm@kvack.org>, Suresh Jayaraman <sjayaraman@suse.com>, Andrea Righi <andrea@betterlinux.com>, Jeff Moyer <jmoyer@redhat.com>, linux-fsdevel@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, Tejun Heo <tj@kernel.org>, Jan Kara <jack@suse.cz>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Linux NFS Mailing List <linux-nfs@vger.kernel.org>, Jens Axboe <axboe@kernel.dk>
 
-For systems with high CONFIG_NODES_SHIFT, checking nodes_intersect() for
-each thread's set of allowed nodes is very expensive.  It's unnecessary
-to do this twice for each thread, once in select_bad_process() and once
-in oom_badness().  We've already filtered unkillable threads at the point
-where oom_badness() is called.
+On Tue, Apr 03, 2012 at 10:53:01AM -0400, Vivek Goyal wrote:
+> On Tue, Apr 03, 2012 at 01:00:14AM -0700, Fengguang Wu wrote:
+> 
+> [CC Jens]
+> 
+> [..]
+> > > I think blkio.weight can be thought of a system wide weight of a cgroup
+> > > and more than one entity/subsystem should be able to make use of it and
+> > > differentiate between IO in its own way. CFQ can decide to do proportional
+> > > time division, and buffered write controller should be able to use the
+> > > same weight and do write bandwidth differentiation. I think it is better
+> > > than introducing another buffered write controller tunable for weight.
+> > > 
+> > > Personally, I am not too worried about this point. We can document and
+> > > explain it well.
+> > 
+> > Agreed. The throttling may work in *either* bps, IOPS or disk time
+> > modes. In each mode blkio.weight is naturally tied to the
+> > corresponding IO metrics.
+> 
+> Well, Tejun does not like the idea of sharing config variables among
+> different policies. So I guess you shall have to come up with your
+> own configurations variables as desired. As each policy will have its
+> own configuration and stats, prefixing the vairable/stat name with
+> policy name will help identify it. Not sure what's a good name for
+> buffered write policy.
+> 
+> May be
+> 
+> blkio.dirty.weight
+> blkio.dirty.bps
+> blkio.buffered_write.* or
+> blkio.buf_write* or
+> blkio.dirty_rate.* or
 
-oom_badness() must still check if a thread is a kthread, however, to
-ensure /proc/pid/oom_score doesn't report one as killable.
+OK. dirty.* or buffered_write.*, whatever looks more user friendly will be fine.
 
-This significantly speeds up the tasklist iteration when there are a
-large number of threads on the system and CONFIG_NODES_SHIFT is high.
+> [..]
+> > 
+> > Patch 6/6 shows simple test results for bps based throttling.
+> > 
+> > Since then I've improved the patches to work in a more "contained" way
+> > when blkio.throttle.buffered_write_bps is not set.
+> > 
+> > The old behavior is, if blkcg A contains 1 dd and blkcg B contains 10
+> > dd tasks and they have equal weight, B will get 10 times bandwidth
+> > than A.
+> > 
+> > With the below updated core bits, A and B will get equal share of
+> > write bandwidth. The basic idea is to use
+> 
+> Yes, this new behavior makes more sense. Two equal weight groups get
+> equal bandwidth irrpesctive of number of tasks in cgroup.
 
-Signed-off-by: David Rientjes <rientjes@google.com>
----
- mm/oom_kill.c |   16 +++++++++-------
- 1 file changed, 9 insertions(+), 7 deletions(-)
+Yeah, Andrew Morton reminded me of this during the writeback talk in
+google :) Fortunately the current dirty throttling algorithm can
+handle it easily. What's more, hierarchical cgroups can be supported
+by simply using the parent's blkcg->dirty_ratelimit as the throttling
+bps for the child.
 
-diff --git a/mm/oom_kill.c b/mm/oom_kill.c
---- a/mm/oom_kill.c
-+++ b/mm/oom_kill.c
-@@ -151,13 +151,16 @@ struct task_struct *find_lock_task_mm(struct task_struct *p)
- 	return NULL;
- }
- 
-+static bool is_unkillable_kthread(struct task_struct *p)
-+{
-+	return is_global_init(p) || (p->flags & PF_KTHREAD);
-+}
-+
- /* return true if the task is not adequate as candidate victim task. */
- static bool oom_unkillable_task(struct task_struct *p,
- 		const struct mem_cgroup *memcg, const nodemask_t *nodemask)
- {
--	if (is_global_init(p))
--		return true;
--	if (p->flags & PF_KTHREAD)
-+	if (is_unkillable_kthread(p))
- 		return true;
- 
- 	/* When mem_cgroup_out_of_memory() and p is not member of the group */
-@@ -185,7 +188,7 @@ unsigned int oom_badness(struct task_struct *p, struct mem_cgroup *memcg,
- {
- 	long points;
- 
--	if (oom_unkillable_task(p, memcg, nodemask))
-+	if (is_unkillable_kthread(p))
- 		return 0;
- 
- 	p = find_lock_task_mm(p);
-@@ -478,9 +481,8 @@ static void oom_kill_process(struct task_struct *p, gfp_t gfp_mask, int order,
- 
- 			if (child->mm == p->mm)
- 				continue;
--			/*
--			 * oom_badness() returns 0 if the thread is unkillable
--			 */
-+			if (oom_unkillable_task(child, memcg, nodemask))
-+				continue;
- 			child_points = oom_badness(child, memcg, nodemask,
- 								totalpages);
- 			if (child_points > victim_points) {
+> [..]
+> > Test results are "pretty good looking" :-) The attached graphs
+> > illustrates nice attributes of accuracy, fairness and smoothness
+> > for the following tests.
+> 
+> Indeed. These results are pretty cool. It is hard to belive that lines
+> are so smooth and lines for two tasks are overlapping each other such 
+> that it is not obivious initially that they are overlapping and dirtying
+> equal amount of memory. I had to take a second look to figure that out.
+
+Thanks for noticing this! :)
+
+> Just that results for third graph (weight 500 and 1000 respectively) are
+> not perfect. I think Ideally all the 3 tasks should have dirtied same
+> amount of memory.
+
+Yeah, but note that it's not the fault of the throttling algorithm.
+
+The unfairness is created at the very beginning ~0.1s, where dirty
+pages are far under the dirty limits and the dd tasks are not
+throttled at all. Since the first task manages to start 0.1s earlier
+than the other two tasks, it manages to dirty at full (memory write)
+speed which makes the gap.
+
+Once the dirty throttling mechanism comes into play, you can see that
+the lines for the three tasks grow fairly at the same speed/slope.
+
+> But I think achieving perfection here might not be easy and may be
+> not many people will care.
+
+The formula itself looks simple, however it does ask for some
+debugging/tuning efforts to make it behave well under various
+situations.
+
+> Given the fact that you are doing a reasonable job of providing service
+> differentiation between buffered writers, I am wondering if you should
+> look at the ioprio of writers with-in cgroup and provide service
+> differentiation among those too. CFQ has separate queues but it loses
+> the context information by the time IO is submitted. So you might be
+> able to do a much better job. Anyway, this is a possible future
+> enhancement and not necessarily related to this patchset.
+
+Good point. It seems applicable to the general dirty throttling
+(not relying on cgroups). It would mainly be a problem of how to map
+the priority classes/values to each tasks' throttling weight (or bps).
+
+> Also, we are controlling the rate of dirtying the memory. I am again 
+> wondering whether these configuration knobs should be part of memory
+> controller and not block controller. Think of NFS case. There is no
+> block device or block layer involved but we will control the rate of
+> dirtying memory. So some control in memory controller might make
+> sense. And following kind of knobs might make sense there.
+> 
+> memcg.dirty_weight or memcg.dirty.weight
+> memcg.dirty_bps or memcg.dirty.write_bps
+> 
+> Just that we control not the *absolute amount* of memory but *rate* of
+> writing to memory and I think that makes it somewhat confusing and
+> gives the impression that it should be part of block IO controller.
+
+There is the future prospective of "buffered+direct write bps" interface.
+Considering this, I'm a little inclined towards the blkio.* interfaces,
+in despite of the fact that it's currently tightly tied to the block layer :)
+
+> I am kind of split on this (rather little inclined towards memory
+> controller), so I am raising the question and others can weigh in with
+> their thoughts on what makes more sense here.
+
+Yeah, we definitely need more inputs on the "interface" stuff.
+
+Thanks,
+Fengguang
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
