@@ -1,55 +1,117 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx155.postini.com [74.125.245.155])
-	by kanga.kvack.org (Postfix) with SMTP id 9D5356B00E9
-	for <linux-mm@kvack.org>; Tue,  3 Apr 2012 10:38:06 -0400 (EDT)
-Date: Tue, 3 Apr 2012 16:37:52 +0200
-From: Oleg Nesterov <oleg@redhat.com>
-Subject: Re: [PATCH RFC] mm: account VMA before forced-COW via /proc/pid/mem
-Message-ID: <20120403143752.GA5150@redhat.com>
-References: <20120402153631.5101.44091.stgit@zurg>
+Received: from psmtp.com (na3sys010amx153.postini.com [74.125.245.153])
+	by kanga.kvack.org (Postfix) with SMTP id 1EA726B004A
+	for <linux-mm@kvack.org>; Tue,  3 Apr 2012 10:53:17 -0400 (EDT)
+Date: Tue, 3 Apr 2012 10:53:01 -0400
+From: Vivek Goyal <vgoyal@redhat.com>
+Subject: Re: [PATCH 0/6] buffered write IO controller in balance_dirty_pages()
+Message-ID: <20120403145301.GG5913@redhat.com>
+References: <20120328121308.568545879@intel.com>
+ <20120401205647.GD6116@redhat.com>
+ <20120403080014.GA15546@localhost>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20120402153631.5101.44091.stgit@zurg>
+In-Reply-To: <20120403080014.GA15546@localhost>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Konstantin Khlebnikov <khlebnikov@openvz.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>
+To: Fengguang Wu <fengguang.wu@intel.com>
+Cc: Linux Memory Management List <linux-mm@kvack.org>, Suresh Jayaraman <sjayaraman@suse.com>, Andrea Righi <andrea@betterlinux.com>, Jeff Moyer <jmoyer@redhat.com>, linux-fsdevel@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, Tejun Heo <tj@kernel.org>, Jan Kara <jack@suse.cz>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Linux NFS Mailing List <linux-nfs@vger.kernel.org>, Jens Axboe <axboe@kernel.dk>
 
-On 04/02, Konstantin Khlebnikov wrote:
->
-> Currently kernel does not account read-only private mappings into memory commitment.
-> But these mappings can be force-COW-ed in get_user_pages().
+On Tue, Apr 03, 2012 at 01:00:14AM -0700, Fengguang Wu wrote:
 
-Heh. tail -n3 Documentation/vm/overcommit-accounting
-may be you should update it then.
+[CC Jens]
 
-Can't really comment the patch, this is not my area. Still,
+[..]
+> > I think blkio.weight can be thought of a system wide weight of a cgroup
+> > and more than one entity/subsystem should be able to make use of it and
+> > differentiate between IO in its own way. CFQ can decide to do proportional
+> > time division, and buffered write controller should be able to use the
+> > same weight and do write bandwidth differentiation. I think it is better
+> > than introducing another buffered write controller tunable for weight.
+> > 
+> > Personally, I am not too worried about this point. We can document and
+> > explain it well.
+> 
+> Agreed. The throttling may work in *either* bps, IOPS or disk time
+> modes. In each mode blkio.weight is naturally tied to the
+> corresponding IO metrics.
 
-> +	down_write(&mm->mmap_sem);
-> +	*pvma = vma = find_vma(mm, addr);
-> +	if (vma && vma->vm_start <= addr) {
-> +		ret = vma->vm_end - addr;
-> +		if ((vma->vm_flags & (VM_ACCOUNT | VM_NORESERVE | VM_SHARED |
-> +				VM_HUGETLB | VM_MAYWRITE)) == VM_MAYWRITE) {
-> +			if (!security_vm_enough_memory_mm(mm, vma_pages(vma)))
+Well, Tejun does not like the idea of sharing config variables among
+different policies. So I guess you shall have to come up with your
+own configurations variables as desired. As each policy will have its
+own configuration and stats, prefixing the vairable/stat name with
+policy name will help identify it. Not sure what's a good name for
+buffered write policy.
 
-Oooooh, the whole vma. Say, gdb installs the single breakpoint into
-the huge .text mapping...
+May be
 
-I am not sure, but probably you want to check at least VM_IO/PFNMAP
-as well. We do not want to charge this memory and retry with FOLL_FORCE
-before vm_ops->access(). Say, /dev/mem.
+blkio.dirty.weight
+blkio.dirty.bps
+blkio.buffered_write.* or
+blkio.buf_write* or
+blkio.dirty_rate.* or
 
-Hmm. OTOH, if I am right then mprotect_fixup() should be fixed??
+[..]
+> 
+> Patch 6/6 shows simple test results for bps based throttling.
+> 
+> Since then I've improved the patches to work in a more "contained" way
+> when blkio.throttle.buffered_write_bps is not set.
+> 
+> The old behavior is, if blkcg A contains 1 dd and blkcg B contains 10
+> dd tasks and they have equal weight, B will get 10 times bandwidth
+> than A.
+> 
+> With the below updated core bits, A and B will get equal share of
+> write bandwidth. The basic idea is to use
 
+Yes, this new behavior makes more sense. Two equal weight groups get
+equal bandwidth irrpesctive of number of tasks in cgroup.
 
-We drop ->mmap_sem... Say, the task does mremap() in between and
-len == 2 * PAGE_SIZE. Then, for example, copy_to_user_page() can
-write to the same page twice. Perhaps not a problem in practice,
-I dunno.
+[..]
+> Test results are "pretty good looking" :-) The attached graphs
+> illustrates nice attributes of accuracy, fairness and smoothness
+> for the following tests.
 
-Oleg.
+Indeed. These results are pretty cool. It is hard to belive that lines
+are so smooth and lines for two tasks are overlapping each other such 
+that it is not obivious initially that they are overlapping and dirtying
+equal amount of memory. I had to take a second look to figure that out.
+
+Just that results for third graph (weight 500 and 1000 respectively) are
+not perfect. I think Ideally all the 3 tasks should have dirtied same
+amount of memory. But I think achieving perfection here might not be
+easy and may be not many people will care.
+
+Given the fact that you are doing a reasonable job of providing service
+differentiation between buffered writers, I am wondering if you should
+look at the ioprio of writers with-in cgroup and provide service
+differentiation among those too. CFQ has separate queues but it loses
+the context information by the time IO is submitted. So you might be
+able to do a much better job. Anyway, this is a possible future
+enhancement and not necessarily related to this patchset.
+
+Also, we are controlling the rate of dirtying the memory. I am again 
+wondering whether these configuration knobs should be part of memory
+controller and not block controller. Think of NFS case. There is no
+block device or block layer involved but we will control the rate of
+dirtying memory. So some control in memory controller might make
+sense. And following kind of knobs might make sense there.
+
+memcg.dirty_weight or memcg.dirty.weight
+memcg.dirty_bps or memcg.dirty.write_bps
+
+Just that we control not the *absolute amount* of memory but *rate* of
+writing to memory and I think that makes it somewhat confusing and
+gives the impression that it should be part of block IO controller.
+
+I am kind of split on this (rather little inclined towards memory
+controller), so I am raising the question and others can weigh in with
+their thoughts on what makes more sense here.
+
+Thanks
+Vivek
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
