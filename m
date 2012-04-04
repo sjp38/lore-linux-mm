@@ -1,79 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx195.postini.com [74.125.245.195])
-	by kanga.kvack.org (Postfix) with SMTP id C0DCE6B0100
-	for <linux-mm@kvack.org>; Wed,  4 Apr 2012 16:32:54 -0400 (EDT)
-Date: Wed, 4 Apr 2012 16:32:39 -0400
-From: Vivek Goyal <vgoyal@redhat.com>
-Subject: Re: [RFC] writeback and cgroup
-Message-ID: <20120404203239.GM12676@redhat.com>
-References: <20120403183655.GA23106@dhcp-172-17-108-109.mtv.corp.google.com>
- <20120404145134.GC12676@redhat.com>
- <20120404184909.GB29686@dhcp-172-17-108-109.mtv.corp.google.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20120404184909.GB29686@dhcp-172-17-108-109.mtv.corp.google.com>
+Received: from psmtp.com (na3sys010amx152.postini.com [74.125.245.152])
+	by kanga.kvack.org (Postfix) with SMTP id AD9056B0105
+	for <linux-mm@kvack.org>; Wed,  4 Apr 2012 17:34:05 -0400 (EDT)
+Date: Wed, 4 Apr 2012 14:34:03 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH 5/6] memcg: fix broken boolen expression
+Message-Id: <20120404143403.fd05a284.akpm@linux-foundation.org>
+In-Reply-To: <1324695619-5537-5-git-send-email-kirill@shutemov.name>
+References: <1324695619-5537-1-git-send-email-kirill@shutemov.name>
+	<1324695619-5537-5-git-send-email-kirill@shutemov.name>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>
-Cc: Fengguang Wu <fengguang.wu@intel.com>, Jan Kara <jack@suse.cz>, Jens Axboe <axboe@kernel.dk>, linux-mm@kvack.org, sjayaraman@suse.com, andrea@betterlinux.com, jmoyer@redhat.com, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, lizefan@huawei.com, containers@lists.linux-foundation.org, cgroups@vger.kernel.org, ctalbott@google.com, rni@google.com, lsf@lists.linux-foundation.org
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, containers@lists.linux-foundation.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Balbir Singh <bsingharora@gmail.com>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>
 
-On Wed, Apr 04, 2012 at 11:49:09AM -0700, Tejun Heo wrote:
+On Sat, 24 Dec 2011 05:00:18 +0200
+"Kirill A. Shutemov" <kirill@shutemov.name> wrote:
 
-[..]
+> From: "Kirill A. Shutemov" <kirill@shutemov.name>
+> 
+> action != CPU_DEAD || action != CPU_DEAD_FROZEN is always true.
+> 
+> Signed-off-by: Kirill A. Shutemov <kirill@shutemov.name>
+> ---
+>  mm/memcontrol.c |    2 +-
+>  1 files changed, 1 insertions(+), 1 deletions(-)
+> 
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index b27ce0f..3833a7b 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -2100,7 +2100,7 @@ static int __cpuinit memcg_cpu_hotplug_callback(struct notifier_block *nb,
+>  		return NOTIFY_OK;
+>  	}
+>  
+> -	if ((action != CPU_DEAD) || action != CPU_DEAD_FROZEN)
+> +	if (action != CPU_DEAD && action != CPU_DEAD_FROZEN)
+>  		return NOTIFY_OK;
+>  
+>  	for_each_mem_cgroup(iter)
 
-> Thirdly, I don't see how writeback can control all the IOs.  I mean,
-> what about reads or direct IOs?  It's not like IO devices have
-> separate channels for those different types of IOs.  They interact
-> heavily.
+This spent too long in the backlog, sorry.
 
-> Let's say we have iops/bps limitation applied on top of proportional IO
-> distribution
+I don't want to merge this patch into either mainline or -stable until
+I find out what it does!
 
-We already do that. First IO is subjected to throttling limit and only 
-then it is passed to the elevator to do the proportional IO. So throttling
-is already stacked on top of proportional IO. The only question is 
-should it be pushed to even higher layers or not.
+afacit the patch will newly cause the kernel to drain various resource
+counters away from the target CPU when the CPU_DEAD or CPU_DEAD_FROZEN
+events occur for thet CPU, yes?
 
+So the user-visible effects of the bug whcih was just fixed is that
+these counters will be somewhat inaccurate after a CPU is taken down,
+yes?
 
-> or a device holds two partitions and one
-> of them is being used for direct IO w/o filesystems.  How would that
-> work?  I think the question goes even deeper, what do the separate
-> limits even mean?
+Why wasn't this bug noticed before?  Has anyone tested the patch and
+confirmed that the numbers are now correct?
 
-Separate limits for buffered writes are just filling the gap. Agreed it
-is not a very neat solution.
-
->  Does the IO sched have to calculate allocation of
-> IO resource to different types of IOs and then give a "number" to
-> writeback which in turn enforces that limit?  How does the elevator
-> know what number to give?  Is the number iops or bps or weight?
-
-If we push up all the throttling somewhere in higher layer, say some
-of kind of per bdi throttling interface, then elevator just have to
-worry about doing proportional IO. No interaction with higher layers
-regarding iops/bps etc. (Not that elevator worries about it today).
-
-> If
-> the iosched doesn't know how much write workload exists, how does it
-> distribute the surplus buffered writeback resource across different
-> cgroups?  If so, what makes the limit actualy enforceable (due to
-> inaccuracies in estimation, fluctuation in workload, delay in
-> enforcement in different layers and whatnot) except for block layer
-> applying the limit *again* on the resulting stream of combined IOs?
-
-So split model is definitely confusing. Anyway, block layer will not
-apply the limits again as flusher IO will go in root cgroup which 
-generally goes to root which is unthrottled generally. Or flusher
-could mark the bios with a flag saying "do not throttle" bios again as
-these have been throttled already. So throttling again is probably not
-an issue. 
-
-In summary, agreed that split is confusing and it fills a gap existing
-today.
-
-Thanks
-Vivek
+Given that this bug has been present for 1.5 years and nobody noticed,
+I don't think a backport into -stable is warranted?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
