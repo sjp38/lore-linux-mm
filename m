@@ -1,86 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx157.postini.com [74.125.245.157])
-	by kanga.kvack.org (Postfix) with SMTP id C31E46B0044
-	for <linux-mm@kvack.org>; Tue,  3 Apr 2012 21:56:16 -0400 (EDT)
-Received: by iajr24 with SMTP id r24so635287iaj.14
-        for <linux-mm@kvack.org>; Tue, 03 Apr 2012 18:56:16 -0700 (PDT)
-Date: Tue, 3 Apr 2012 18:56:13 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: [patch] thp, memcg: split hugepage for memcg oom on cow
-Message-ID: <alpine.DEB.2.00.1204031854530.30629@chino.kir.corp.google.com>
+Received: from psmtp.com (na3sys010amx103.postini.com [74.125.245.103])
+	by kanga.kvack.org (Postfix) with SMTP id 04D1A6B0044
+	for <linux-mm@kvack.org>; Wed,  4 Apr 2012 00:40:16 -0400 (EDT)
+Received: by bkwq16 with SMTP id q16so473895bkw.14
+        for <linux-mm@kvack.org>; Tue, 03 Apr 2012 21:40:15 -0700 (PDT)
+Message-ID: <4F7BD0AB.1000401@openvz.org>
+Date: Wed, 04 Apr 2012 08:40:11 +0400
+From: Konstantin Khlebnikov <khlebnikov@openvz.org>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [x86 PAT PATCH 0/2] x86 PAT vm_flag code refactoring
+References: <20120331170947.7773.46399.stgit@zurg>  <1333413969-30761-1-git-send-email-suresh.b.siddha@intel.com>  <4F7A92AB.5010809@openvz.org> <1333494871.12400.10.camel@sbsiddha-desk.sc.intel.com>
+In-Reply-To: <1333494871.12400.10.camel@sbsiddha-desk.sc.intel.com>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <jweiner@redhat.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org
+To: Suresh Siddha <suresh.b.siddha@intel.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Andi Kleen <andi@firstfloor.org>, Pallipadi Venkatesh <venki@google.com>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Linus Torvalds <torvalds@linux-foundation.org>, Nick Piggin <npiggin@kernel.dk>
 
-On COW, a new hugepage is allocated and charged to the memcg.  If the
-memcg is oom, however, this charge will fail and will return VM_FAULT_OOM
-to the page fault handler which results in an oom kill.
+Suresh Siddha wrote:
+> On Tue, 2012-04-03 at 10:03 +0400, Konstantin Khlebnikov wrote:
+>> Suresh Siddha wrote:
+>>> Konstantin,
+>>>
+>>> On Sat, 2012-03-31 at 21:09 +0400, Konstantin Khlebnikov wrote:
+>>>> v2: Do not use batched pfn reserving for single-page VMA. This is not optimal
+>>>> and breaks something, because I see glitches on the screen with i915/drm driver.
+>>>> With this version glitches are gone, and I see the same regions in
+>>>> /sys/kernel/debug/x86/pat_memtype_list as before patch. So, please review this
+>>>> carefully, probably I'm wrong somewhere, or I have triggered some hidden bug.
+>>>
+>>> Actually it is not a hidden bug. In the original code, we were setting
+>>> VM_PFN_AT_MMAP only for remap_pfn_range() but not for the vm_insert_pfn().
+>>> Also the value of 'vm_pgoff' depends on the driver/mmap_region() in the case of
+>>> vm_insert_pfn(). But with your proposed code, you were setting
+>>> the VM_PAT for the single-page VMA also and end-up using wrong vm_pgoff in
+>>> untrack_pfn_vma().
+>>
+>> But I set correct vma->vm_pgoff together with VM_PAT. But, it shouldn't work if vma is expandable...
+>>
+>
+> Also, I am not sure if we can override vm_pgoff in the fault handling
+> path. For example, looking at unmap_mapping_range_tree() it does depend
+> on the vm_pgoff value and it might break if we change the vm_pgoff in
+> track_pfn_vma_new() (which gets called from vm_insert_pfn() as part of
+> the i915_gem_fault()).
 
-Instead, it's possible to fallback to splitting the hugepage so that the
-COW results only in an order-0 page being charged to the memcg which has
-a higher liklihood to succeed.  This is expensive because the hugepage
-must be split in the page fault handler, but it is much better than
-unnecessarily oom killing a process.
+Yes, and we shouldn't change vma under mm->mmap_sem read-lock.
 
-Signed-off-by: David Rientjes <rientjes@google.com>
----
- mm/huge_memory.c |    1 +
- mm/memory.c      |   18 +++++++++++++++---
- 2 files changed, 16 insertions(+), 3 deletions(-)
-
-diff --git a/mm/huge_memory.c b/mm/huge_memory.c
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -959,6 +959,7 @@ int do_huge_pmd_wp_page(struct mm_struct *mm, struct vm_area_struct *vma,
- 
- 	if (unlikely(mem_cgroup_newpage_charge(new_page, mm, GFP_KERNEL))) {
- 		put_page(new_page);
-+		split_huge_page(page);
- 		put_page(page);
- 		ret |= VM_FAULT_OOM;
- 		goto out;
-diff --git a/mm/memory.c b/mm/memory.c
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -3489,6 +3489,7 @@ int handle_mm_fault(struct mm_struct *mm, struct vm_area_struct *vma,
- 	if (unlikely(is_vm_hugetlb_page(vma)))
- 		return hugetlb_fault(mm, vma, address, flags);
- 
-+retry:
- 	pgd = pgd_offset(mm, address);
- 	pud = pud_alloc(mm, pgd, address);
- 	if (!pud)
-@@ -3502,13 +3503,24 @@ int handle_mm_fault(struct mm_struct *mm, struct vm_area_struct *vma,
- 							  pmd, flags);
- 	} else {
- 		pmd_t orig_pmd = *pmd;
-+		int ret;
-+
- 		barrier();
- 		if (pmd_trans_huge(orig_pmd)) {
- 			if (flags & FAULT_FLAG_WRITE &&
- 			    !pmd_write(orig_pmd) &&
--			    !pmd_trans_splitting(orig_pmd))
--				return do_huge_pmd_wp_page(mm, vma, address,
--							   pmd, orig_pmd);
-+			    !pmd_trans_splitting(orig_pmd)) {
-+				ret = do_huge_pmd_wp_page(mm, vma, address, pmd,
-+							  orig_pmd);
-+				/*
-+				 * If COW results in an oom memcg, the huge pmd
-+				 * will already have been split, so retry the
-+				 * fault on the pte for a smaller charge.
-+				 */
-+				if (unlikely(ret & VM_FAULT_OOM))
-+					goto retry;
-+				return ret;
-+			}
- 			return 0;
- 		}
- 	}
+>
+> thanks,
+> suresh
+>
+>
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
