@@ -1,72 +1,176 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx169.postini.com [74.125.245.169])
-	by kanga.kvack.org (Postfix) with SMTP id 9510C6B0044
-	for <linux-mm@kvack.org>; Wed,  4 Apr 2012 08:48:03 -0400 (EDT)
-From: Arnd Bergmann <arnd@arndb.de>
-Subject: Re: swap on eMMC and other flash
-Date: Wed, 4 Apr 2012 12:47:53 +0000
-References: <201203301744.16762.arnd@arndb.de> <201203301850.22784.arnd@arndb.de> <4F7C3CE2.5070803@intel.com>
-In-Reply-To: <4F7C3CE2.5070803@intel.com>
+Received: from psmtp.com (na3sys010amx105.postini.com [74.125.245.105])
+	by kanga.kvack.org (Postfix) with SMTP id 551B76B004D
+	for <linux-mm@kvack.org>; Wed,  4 Apr 2012 10:51:49 -0400 (EDT)
+Date: Wed, 4 Apr 2012 10:51:34 -0400
+From: Vivek Goyal <vgoyal@redhat.com>
+Subject: Re: [RFC] writeback and cgroup
+Message-ID: <20120404145134.GC12676@redhat.com>
+References: <20120403183655.GA23106@dhcp-172-17-108-109.mtv.corp.google.com>
 MIME-Version: 1.0
-Content-Type: Text/Plain;
-  charset="iso-8859-1"
-Content-Transfer-Encoding: 7bit
-Message-Id: <201204041247.53289.arnd@arndb.de>
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20120403183655.GA23106@dhcp-172-17-108-109.mtv.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Adrian Hunter <adrian.hunter@intel.com>
-Cc: linaro-kernel@lists.linaro.org, linux-mm@kvack.org, "Luca Porzio (lporzio)" <lporzio@micron.com>, Alex Lemberg <alex.lemberg@sandisk.com>, linux-kernel@vger.kernel.org, Saugata Das <saugata.das@linaro.org>, Venkatraman S <venkat@linaro.org>, Yejin Moon <yejin.moon@samsung.com>, Hyojin Jeong <syr.jeong@samsung.com>, "linux-mmc@vger.kernel.org" <linux-mmc@vger.kernel.org>, kernel-team@android.com
+To: Tejun Heo <tj@kernel.org>
+Cc: Fengguang Wu <fengguang.wu@intel.com>, Jan Kara <jack@suse.cz>, Jens Axboe <axboe@kernel.dk>, linux-mm@kvack.org, sjayaraman@suse.com, andrea@betterlinux.com, jmoyer@redhat.com, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, lizefan@huawei.com, containers@lists.linux-foundation.org, cgroups@vger.kernel.org, ctalbott@google.com, rni@google.com, lsf@lists.linux-foundation.org
 
-On Wednesday 04 April 2012, Adrian Hunter wrote:
-> On 30/03/12 21:50, Arnd Bergmann wrote:
-> > (sorry for the duplicated email, this corrects the address of the android
-> > kernel team, please reply here)
-> > 
-> > On Friday 30 March 2012, Arnd Bergmann wrote:
-> > 
-> >  We've had a discussion in the Linaro storage team (Saugata, Venkat and me,
-> >  with Luca joining in on the discussion) about swapping to flash based media
-> >  such as eMMC. This is a summary of what we found and what we think should
-> >  be done. If people agree that this is a good idea, we can start working
-> >  on it.
+On Tue, Apr 03, 2012 at 11:36:55AM -0700, Tejun Heo wrote:
+
+Hi Tejun,
+
+Thanks for the RFC and looking into this issue. Few thoughts inline.
+
+[..]
+> IIUC, without cgroup, the current writeback code works more or less
+> like this.  Throwing in cgroup doesn't really change the fundamental
+> design.  Instead of a single pipe going down, we just have multiple
+> pipes to the same device, each of which should be treated separately.
+> Of course, a spinning disk can't be divided that easily and their
+> performance characteristics will be inter-dependent, but the place to
+> solve that problem is where the problem is, the block layer.
+
+How do you take care of thorottling IO to NFS case in this model? Current
+throttling logic is tied to block device and in case of NFS, there is no
+block device.
+
+[..]
+> In the discussion, for such implementation, the following obstacles
+> were identified.
 > 
-> There is mtdswap.
-
-Ah, very interesting. I wasn't aware of that. Obviously we can't directly
-use it on block devices that have their own garbage collection and wear
-leveling built into them, but it's interesting to see how this was solved
-before.
-
-While we could build something similar that remaps blocks between an
-eMMC device and the logical swap space that is used by the mm code,
-my feeling is that it would be easier to modify the swap code itself
-to do the right thing.
-
-> Also the old Nokia N900 had swap to eMMC.
+> * There are a lot of cases where IOs are issued by a task which isn't
+>   the originiator.  ie. Writeback issues IOs for pages which are
+>   dirtied by some other tasks.  So, by the time an IO reaches the
+>   block layer, we don't know which cgroup the IO belongs to.
 > 
-> The last I heard was that swap was considered to be simply too slow on hand
-> held devices.
+>   Recently, block layer has grown support to attach a task to a bio
+>   which causes the bio to be handled as if it were issued by the
+>   associated task regardless of the actual issuing task.  It currently
+>   only allows attaching %current to a bio - bio_associate_current() -
+>   but changing it to support other tasks is trivial.
+> 
+>   We'll need to update the async issuers to tag the IOs they issue but
+>   the mechanism is already there.
 
-That's the part that we want to solve here. It has nothing to do with
-handheld devices, but more with specific incompatibilities of the
-block allocation in the swap code vs. what an eMMC device expects
-to see for fast operation. If you write data in the wrong order on
-flash devices, you get long delays that you don't get when you do
-it the right way. The same problem exists for file systems, and is
-being addressed there as well.
+Most likely this tagging will take place in "struct page" and I am not
+sure if we will be allowed to grow size of "struct page" for this reason.
 
-> As systems adopt more RAM, isn't there a decreasing demand for swap?
+> 
+> * There's a single request pool shared by all issuers per a request
+>   queue.  This can lead to priority inversion among cgroups.  Note
+>   that problem also exists without cgroups.  Lower ioprio issuer may
+>   be holding a request holding back highprio issuer.
+> 
+>   We'll need to make request allocation cgroup (and hopefully ioprio)
+>   aware.  Probably in the form of separate request pools.  This will
+>   take some work but I don't think this will be too challenging.  I'll
+>   work on it.
 
-No. You would never be able to make hibernate work, no matter how much
-RAM you add ;-)
+This should be doable. I had implemented it long back with single request
+pool but internal limits for each group. That is block the task in the
+group if group has enough pending requests allocated from the pool. But
+separate request pool should work equally well. 
 
-More seriously, the need for swap is not to work around the fact that
-we have too little memory, it's one of the fundamental assumptions of
-the mm subsystem that swap exists, and it's generally a good idea to
-have, so you treat file backed memory in the same way as anonymous
-memory.
+Just that it conflits a bit with current definition of q->nr_requests.
+Which specifies number of total outstanding requests on the queue. Once
+you make the pool per queue, I guess this limit will have to be
+transformed into per group upper limit.
 
-	Arnd
+> 
+> * cfq cgroup policy throws all async IOs, which all buffered writes
+>   are, into the shared cgroup regardless of the actual cgroup.  This
+>   behavior is, I believe, mostly historical and changing it isn't
+>   difficult.  Prolly only few tens of lines of changes.  This may
+>   cause significant changes to actual IO behavior with cgroups tho.  I
+>   personally think the previous behavior was too wrong to keep (the
+>   weight was completely ignored for buffered writes) but we may want
+>   to introduce a switch to toggle between the two behaviors.
+
+I had kept all buffered writes in in same cgroup (root cgroup) for few
+reasons.
+
+- Because of single request descriptor pool for writes, anyway one writer
+  gets backlogged behind other. So creating separate async queues per
+  group is not going to help.
+
+- Writeback logic was not cgroup aware. So it might not send enough IO
+  from each writer to maintain parallelism. So creating separate async
+  queues did not make sense till that was fixed.
+
+- As you said, it is historical also. We prioritize READS at the expense
+  of writes. Now by putting buffered/async writes in a separate group, we
+  will might end up prioritizing a group's async write over other group's
+  synchronous read. How many people really want that behavior? To me
+  keeping service differentiation among the sync IO matters most. Even
+  if all async IO is treated same, I guess not many people might care.
+
+> 
+>   Note that blk-throttle doesn't have this problem.
+
+I am not sure what are you trying to say here. But primarily blk-throttle
+will throttle read and direct IO. Buffered writes will go to root cgroup
+which is typically unthrottled.
+
+> 
+> * Unlike dirty data pages, metadata tends to have strict ordering
+>   requirements and thus is susceptible to priority inversion.  Two
+>   solutions were suggested - 1. allow overdrawl for metadata writes so
+>   that low prio metadata writes don't block the whole FS, 2. provide
+>   an interface to query and wait for bdi-cgroup congestion which can
+>   be called from FS metadata paths to throttle metadata operations
+>   before they enter the stream of ordered operations.
+
+So that probably will mean changing the order of operations also. IIUC, 
+in case of fsync (ordered mode), we opened a meta data transaction first,
+then tried to flush all the cached data and then flush metadata. So if
+fsync is throttled, all the metadata operations behind it will get 
+serialized for ext3/ext4.
+
+So you seem to be suggesting that we change the design so that metadata
+operation does not thrown into ordered stream till we have finished
+writing all the data back to disk? I am not a filesystem developer, so
+I don't know how feasible this change is.
+
+This is just one of the points. In the past while talking to Dave Chinner,
+he mentioned that in XFS, if two cgroups fall into same allocation group
+then there were cases where IO of one cgroup can get serialized behind
+other.
+
+In general, the core of the issue is that filesystems are not cgroup aware
+and if you do throttling below filesystems, then invariably one or other
+serialization issue will come up and I am concerned that we will be constantly
+fixing those serialization issues. Or the desgin point could be so central
+to filesystem design that it can't be changed.
+
+In general, if you do throttling deeper in the stakc and build back
+pressure, then all the layers sitting above should be cgroup aware
+to avoid problems. Two layers identified so far are writeback and
+filesystems. Is it really worth the complexity. How about doing 
+throttling in higher layers when IO is entering the kernel and
+keep proportional IO logic at the lowest level and current mechanism
+of building pressure continues to work?
+
+Why to split. Proportional IO logic is work conserving so even if
+some serialization happens, that situation should clear up pretty
+soon as IO from other cgroup will dry up and IO from the group causing
+serialization will make progress and at max we will lose fairness for
+certain duration.
+
+With throttling limits come from the user and one can put really low
+artificial limits. So even if the underlying resources are free the
+IO from throttled cgroup might not make any progress in turn choking
+every other cgroup which is serialized behind it. 
+
+So in general throttling at block layer and building back pressure is
+fine. I am concerned about two cases.
+
+- How to handle NFS.
+- Do filesystem developers agree with this approach and are they willing
+  to address any serialization issues arising due to this design.
+
+Thanks
+Vivek
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
