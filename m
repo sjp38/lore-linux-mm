@@ -1,72 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx156.postini.com [74.125.245.156])
-	by kanga.kvack.org (Postfix) with SMTP id 398606B0044
-	for <linux-mm@kvack.org>; Wed,  4 Apr 2012 05:59:09 -0400 (EDT)
-Received: by bkwq16 with SMTP id q16so102777bkw.14
-        for <linux-mm@kvack.org>; Wed, 04 Apr 2012 02:59:07 -0700 (PDT)
-Message-ID: <4F7C1B67.6030300@openvz.org>
-Date: Wed, 04 Apr 2012 13:59:03 +0400
-From: Konstantin Khlebnikov <khlebnikov@openvz.org>
+Received: from psmtp.com (na3sys010amx198.postini.com [74.125.245.198])
+	by kanga.kvack.org (Postfix) with SMTP id 8141C6B0044
+	for <linux-mm@kvack.org>; Wed,  4 Apr 2012 08:21:44 -0400 (EDT)
+Message-ID: <4F7C3CE2.5070803@intel.com>
+Date: Wed, 04 Apr 2012 15:21:54 +0300
+From: Adrian Hunter <adrian.hunter@intel.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH RFC] mm: account VMA before forced-COW via /proc/pid/mem
-References: <20120402153631.5101.44091.stgit@zurg> <20120403143752.GA5150@redhat.com>
-In-Reply-To: <20120403143752.GA5150@redhat.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Subject: Re: swap on eMMC and other flash
+References: <201203301744.16762.arnd@arndb.de> <201203301850.22784.arnd@arndb.de>
+In-Reply-To: <201203301850.22784.arnd@arndb.de>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Oleg Nesterov <oleg@redhat.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>
+To: Arnd Bergmann <arnd@arndb.de>
+Cc: linaro-kernel@lists.linaro.org, linux-mm@kvack.org, "Luca Porzio (lporzio)" <lporzio@micron.com>, Alex Lemberg <alex.lemberg@sandisk.com>, linux-kernel@vger.kernel.org, Saugata Das <saugata.das@linaro.org>, Venkatraman S <venkat@linaro.org>, Yejin Moon <yejin.moon@samsung.com>, Hyojin Jeong <syr.jeong@samsung.com>, "linux-mmc@vger.kernel.org" <linux-mmc@vger.kernel.org>, kernel-team@android.com
 
-Oleg Nesterov wrote:
-> On 04/02, Konstantin Khlebnikov wrote:
->>
->> Currently kernel does not account read-only private mappings into memory commitment.
->> But these mappings can be force-COW-ed in get_user_pages().
->
-> Heh. tail -n3 Documentation/vm/overcommit-accounting
-> may be you should update it then.
+On 30/03/12 21:50, Arnd Bergmann wrote:
+> (sorry for the duplicated email, this corrects the address of the android
+> kernel team, please reply here)
+> 
+> On Friday 30 March 2012, Arnd Bergmann wrote:
+> 
+>  We've had a discussion in the Linaro storage team (Saugata, Venkat and me,
+>  with Luca joining in on the discussion) about swapping to flash based media
+>  such as eMMC. This is a summary of what we found and what we think should
+>  be done. If people agree that this is a good idea, we can start working
+>  on it.
 
-I just wonder how fragile this accounting...
+There is mtdswap.
 
->
-> Can't really comment the patch, this is not my area. Still,
->
->> +	down_write(&mm->mmap_sem);
->> +	*pvma = vma = find_vma(mm, addr);
->> +	if (vma&&  vma->vm_start<= addr) {
->> +		ret = vma->vm_end - addr;
->> +		if ((vma->vm_flags&  (VM_ACCOUNT | VM_NORESERVE | VM_SHARED |
->> +				VM_HUGETLB | VM_MAYWRITE)) == VM_MAYWRITE) {
->> +			if (!security_vm_enough_memory_mm(mm, vma_pages(vma)))
->
-> Oooooh, the whole vma. Say, gdb installs the single breakpoint into
-> the huge .text mapping...
+Also the old Nokia N900 had swap to eMMC.
 
-We cannot split vma right there, this will be really weird. =)
+The last I heard was that swap was considered to be simply too slow on hand
+held devices.
 
->
-> I am not sure, but probably you want to check at least VM_IO/PFNMAP
-> as well. We do not want to charge this memory and retry with FOLL_FORCE
-> before vm_ops->access(). Say, /dev/mem
-
-No, VM_IO/PFNMAP aren't affect accounting, there is VM_NORESERVE for this.
-
->
-> Hmm. OTOH, if I am right then mprotect_fixup() should be fixed??
-
-mprotect_fixup() does not account area if it already accounted, so all ok.
-
->
->
-> We drop ->mmap_sem... Say, the task does mremap() in between and
-> len == 2 * PAGE_SIZE. Then, for example, copy_to_user_page() can
-> write to the same page twice. Perhaps not a problem in practice,
-> I dunno.
-
-I have an old unfinished patch which implements upgrade_read() for rw-semaphore =)
-
- >
+As systems adopt more RAM, isn't there a decreasing demand for swap?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
