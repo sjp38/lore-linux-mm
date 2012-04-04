@@ -1,114 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx106.postini.com [74.125.245.106])
-	by kanga.kvack.org (Postfix) with SMTP id 056736B00E8
-	for <linux-mm@kvack.org>; Wed,  4 Apr 2012 12:03:32 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx195.postini.com [74.125.245.195])
+	by kanga.kvack.org (Postfix) with SMTP id 654EA6B00EA
+	for <linux-mm@kvack.org>; Wed,  4 Apr 2012 12:27:23 -0400 (EDT)
+Received: from /spool/local
+	by e36.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <sjenning@linux.vnet.ibm.com>;
+	Wed, 4 Apr 2012 10:27:20 -0600
+Received: from d01relay05.pok.ibm.com (d01relay05.pok.ibm.com [9.56.227.237])
+	by d01dlp03.pok.ibm.com (Postfix) with ESMTP id 72803C9006C
+	for <linux-mm@kvack.org>; Wed,  4 Apr 2012 12:26:19 -0400 (EDT)
+Received: from d03av06.boulder.ibm.com (d03av06.boulder.ibm.com [9.17.195.245])
+	by d01relay05.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q34GQJET257266
+	for <linux-mm@kvack.org>; Wed, 4 Apr 2012 12:26:19 -0400
+Received: from d03av06.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av06.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q34GQjtF025358
+	for <linux-mm@kvack.org>; Wed, 4 Apr 2012 10:26:45 -0600
+Message-ID: <4F7C7626.40506@linux.vnet.ibm.com>
+Date: Wed, 04 Apr 2012 11:26:14 -0500
+From: Seth Jennings <sjenning@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Message-ID: <d858d87f-6e07-4303-a9b3-e41ff93c8080@default>
-Date: Wed, 4 Apr 2012 09:03:22 -0700 (PDT)
-From: Dan Magenheimer <dan.magenheimer@oracle.com>
-Subject: RE: [PATCH] staging: zsmalloc: fix memory leak
-References: <<1333376036-9841-1-git-send-email-sjenning@linux.vnet.ibm.com>>
-In-Reply-To: <<1333376036-9841-1-git-send-email-sjenning@linux.vnet.ibm.com>>
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: quoted-printable
+Subject: Re: [PATCH] staging: zsmalloc: fix memory leak
+References: <<1333376036-9841-1-git-send-email-sjenning@linux.vnet.ibm.com>> <d858d87f-6e07-4303-a9b3-e41ff93c8080@default>
+In-Reply-To: <d858d87f-6e07-4303-a9b3-e41ff93c8080@default>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Seth Jennings <sjenning@linux.vnet.ibm.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-Cc: Nitin Gupta <ngupta@vflare.org>, Dan Magenheimer <dan.magenheimer@oracle.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Robert Jennings <rcj@linux.vnet.ibm.com>, devel@driverdev.osuosl.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Dan Magenheimer <dan.magenheimer@oracle.com>
+Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Nitin Gupta <ngupta@vflare.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Robert Jennings <rcj@linux.vnet.ibm.com>, devel@driverdev.osuosl.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-> From: Seth Jennings [mailto:sjenning@linux.vnet.ibm.com]
-> Sent: Monday, April 02, 2012 8:14 AM
-> To: Greg Kroah-Hartman
-> Cc: Nitin Gupta; Dan Magenheimer; Konrad Rzeszutek Wilk; Robert Jennings;=
- Seth Jennings;
-> devel@driverdev.osuosl.org; linux-kernel@vger.kernel.org; linux-mm@kvack.=
-org
-> Subject: [PATCH] staging: zsmalloc: fix memory leak
->=20
-> From: Nitin Gupta <ngupta@vflare.org>
->=20
-> This patch fixes a memory leak in zsmalloc where the first
-> subpage of each zspage is leaked when the zspage is freed.
->=20
-> Based on 3.4-rc1.
->=20
-> Signed-off-by: Nitin Gupta <ngupta@vflare.org>
-> Acked-by: Seth Jennings <sjenning@linux.vnet.ibm.com>
+On 04/04/2012 11:03 AM, Dan Magenheimer wrote:
+>> From: Seth Jennings [mailto:sjenning@linux.vnet.ibm.com]
+>> Sent: Monday, April 02, 2012 8:14 AM
+>> To: Greg Kroah-Hartman
+>> Cc: Nitin Gupta; Dan Magenheimer; Konrad Rzeszutek Wilk; Robert Jennings; Seth Jennings;
+>> devel@driverdev.osuosl.org; linux-kernel@vger.kernel.org; linux-mm@kvack.org
+>> Subject: [PATCH] staging: zsmalloc: fix memory leak
+>>
+>> From: Nitin Gupta <ngupta@vflare.org>
+>>
+>> This patch fixes a memory leak in zsmalloc where the first
+>> subpage of each zspage is leaked when the zspage is freed.
+>>
+>> Based on 3.4-rc1.
+>>
+>> Signed-off-by: Nitin Gupta <ngupta@vflare.org>
+>> Acked-by: Seth Jennings <sjenning@linux.vnet.ibm.com>
+> 
+> This is a rather severe memory leak and will affect most
+> benchmarking anyone does to evaluate zcache in 3.4 (e.g. as
+> to whether zcache is suitable for promotion), so t'would be nice
+> to get this patch in for -rc2.  (Note it fixes a "regression"
+> since it affects zcache only in 3.4+ because the fix is to
+> the new zsmalloc allocator... so no change to stable trees.)
+> 
+> Acked-by: Dan Magenheimer <dan.magenheimer@oracle.com>
 
-This is a rather severe memory leak and will affect most
-benchmarking anyone does to evaluate zcache in 3.4 (e.g. as
-to whether zcache is suitable for promotion), so t'would be nice
-to get this patch in for -rc2.  (Note it fixes a "regression"
-since it affects zcache only in 3.4+ because the fix is to
-the new zsmalloc allocator... so no change to stable trees.)
+Thanks Dan for this clarification and the Ack.
 
-Acked-by: Dan Magenheimer <dan.magenheimer@oracle.com>
+I should have tagged this as urgent for the 3.4 release
+and no impact on stable trees, since 3.4 is the first release
+with this code.
 
-> ---
->  drivers/staging/zsmalloc/zsmalloc-main.c |   30 ++++++++++++++++++------=
-------
->  1 files changed, 18 insertions(+), 12 deletions(-)
->=20
-> diff --git a/drivers/staging/zsmalloc/zsmalloc-main.c b/drivers/staging/z=
-smalloc/zsmalloc-main.c
-> index 09caa4f..917461c 100644
-> --- a/drivers/staging/zsmalloc/zsmalloc-main.c
-> +++ b/drivers/staging/zsmalloc/zsmalloc-main.c
-> @@ -267,33 +267,39 @@ static unsigned long obj_idx_to_offset(struct page =
-*page,
->  =09return off + obj_idx * class_size;
->  }
->=20
-> +static void reset_page(struct page *page)
-> +{
-> +=09clear_bit(PG_private, &page->flags);
-> +=09clear_bit(PG_private_2, &page->flags);
-> +=09set_page_private(page, 0);
-> +=09page->mapping =3D NULL;
-> +=09page->freelist =3D NULL;
-> +=09reset_page_mapcount(page);
-> +}
-> +
->  static void free_zspage(struct page *first_page)
->  {
-> -=09struct page *nextp, *tmp;
-> +=09struct page *nextp, *tmp, *head_extra;
->=20
->  =09BUG_ON(!is_first_page(first_page));
->  =09BUG_ON(first_page->inuse);
->=20
-> -=09nextp =3D (struct page *)page_private(first_page);
-> +=09head_extra =3D (struct page *)page_private(first_page);
->=20
-> -=09clear_bit(PG_private, &first_page->flags);
-> -=09clear_bit(PG_private_2, &first_page->flags);
-> -=09set_page_private(first_page, 0);
-> -=09first_page->mapping =3D NULL;
-> -=09first_page->freelist =3D NULL;
-> -=09reset_page_mapcount(first_page);
-> +=09reset_page(first_page);
->  =09__free_page(first_page);
->=20
->  =09/* zspage with only 1 system page */
-> -=09if (!nextp)
-> +=09if (!head_extra)
->  =09=09return;
->=20
-> -=09list_for_each_entry_safe(nextp, tmp, &nextp->lru, lru) {
-> +=09list_for_each_entry_safe(nextp, tmp, &head_extra->lru, lru) {
->  =09=09list_del(&nextp->lru);
-> -=09=09clear_bit(PG_private_2, &nextp->flags);
-> -=09=09nextp->index =3D 0;
-> +=09=09reset_page(nextp);
->  =09=09__free_page(nextp);
->  =09}
-> +=09reset_page(head_extra);
-> +=09__free_page(head_extra);
->  }
->=20
->  /* Initialize a newly allocated zspage */
-> --
-> 1.7.5.4
+--
+Seth
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
