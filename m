@@ -1,66 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx152.postini.com [74.125.245.152])
-	by kanga.kvack.org (Postfix) with SMTP id AD9056B0105
-	for <linux-mm@kvack.org>; Wed,  4 Apr 2012 17:34:05 -0400 (EDT)
-Date: Wed, 4 Apr 2012 14:34:03 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 5/6] memcg: fix broken boolen expression
-Message-Id: <20120404143403.fd05a284.akpm@linux-foundation.org>
-In-Reply-To: <1324695619-5537-5-git-send-email-kirill@shutemov.name>
-References: <1324695619-5537-1-git-send-email-kirill@shutemov.name>
-	<1324695619-5537-5-git-send-email-kirill@shutemov.name>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx158.postini.com [74.125.245.158])
+	by kanga.kvack.org (Postfix) with SMTP id 9B7606B0107
+	for <linux-mm@kvack.org>; Wed,  4 Apr 2012 17:47:29 -0400 (EDT)
+Date: Wed, 4 Apr 2012 14:42:28 -0700
+From: Fengguang Wu <fengguang.wu@intel.com>
+Subject: Re: [RFC] writeback and cgroup
+Message-ID: <20120404214228.GA6471@localhost>
+References: <20120403183655.GA23106@dhcp-172-17-108-109.mtv.corp.google.com>
+ <20120404175124.GA8931@localhost>
+ <20120404183528.GJ12676@redhat.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20120404183528.GJ12676@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, containers@lists.linux-foundation.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Balbir Singh <bsingharora@gmail.com>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>
+To: Vivek Goyal <vgoyal@redhat.com>
+Cc: Tejun Heo <tj@kernel.org>, Jan Kara <jack@suse.cz>, Jens Axboe <axboe@kernel.dk>, linux-mm@kvack.org, sjayaraman@suse.com, andrea@betterlinux.com, jmoyer@redhat.com, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, lizefan@huawei.com, containers@lists.linux-foundation.org, cgroups@vger.kernel.org, ctalbott@google.com, rni@google.com, lsf@lists.linux-foundation.org
 
-On Sat, 24 Dec 2011 05:00:18 +0200
-"Kirill A. Shutemov" <kirill@shutemov.name> wrote:
-
-> From: "Kirill A. Shutemov" <kirill@shutemov.name>
+On Wed, Apr 04, 2012 at 02:35:29PM -0400, Vivek Goyal wrote:
+> On Wed, Apr 04, 2012 at 10:51:24AM -0700, Fengguang Wu wrote:
 > 
-> action != CPU_DEAD || action != CPU_DEAD_FROZEN is always true.
+> [..]
+> > The sweet split point would be for balance_dirty_pages() to do cgroup
+> > aware buffered write throttling and leave other IOs to the current
+> > blkcg. For this to work well as a total solution for end users, I hope
+> > we can cooperate and figure out ways for the two throttling entities
+> > to work well with each other.
 > 
-> Signed-off-by: Kirill A. Shutemov <kirill@shutemov.name>
-> ---
->  mm/memcontrol.c |    2 +-
->  1 files changed, 1 insertions(+), 1 deletions(-)
-> 
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index b27ce0f..3833a7b 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -2100,7 +2100,7 @@ static int __cpuinit memcg_cpu_hotplug_callback(struct notifier_block *nb,
->  		return NOTIFY_OK;
->  	}
->  
-> -	if ((action != CPU_DEAD) || action != CPU_DEAD_FROZEN)
-> +	if (action != CPU_DEAD && action != CPU_DEAD_FROZEN)
->  		return NOTIFY_OK;
->  
->  	for_each_mem_cgroup(iter)
+> Throttling read + direct IO, higher up has few issues too. Users will
 
-This spent too long in the backlog, sorry.
+Yeah I have a bit worry about high layer throttling, too.
+Anyway here are the ideas.
 
-I don't want to merge this patch into either mainline or -stable until
-I find out what it does!
+> not like that a task got blocked as it tried to submit a read from a
+> throttled group.
 
-afacit the patch will newly cause the kernel to drain various resource
-counters away from the target CPU when the CPU_DEAD or CPU_DEAD_FROZEN
-events occur for thet CPU, yes?
+That's not the same issue I worried about :) Throttling is about
+inserting small sleep/waits into selected points. For reads, the ideal
+sleep point is immediately after readahead IO is summited, at the end
+of __do_page_cache_readahead(). The same should be applicable to
+direct IO.
 
-So the user-visible effects of the bug whcih was just fixed is that
-these counters will be somewhat inaccurate after a CPU is taken down,
-yes?
+> Current async behavior works well where we queue up the
+> bio from the task in throttled group and let task do other things. Same
+> is true for AIO where we would not like to block in bio submission.
 
-Why wasn't this bug noticed before?  Has anyone tested the patch and
-confirmed that the numbers are now correct?
+For AIO, we'll need to delay the IO completion notification or status
+update, which may involve computing some delay time and delay the
+calls to io_complete() with the help of some delayed work queue. There
+may be more issues to deal with as I didn't look into aio.c carefully.
 
-Given that this bug has been present for 1.5 years and nobody noticed,
-I don't think a backport into -stable is warranted?
+The thing worried me is that in the proportional throttling case, the
+high level throttling works on the *estimated* task_ratelimit =
+disk_bandwidth / N, where N is the number of read IO tasks. When N
+suddenly changes from 2 to 1, it may take 1 second for the estimated
+task_ratelimit to adapt from disk_bandwidth/2 up to disk_bandwidth,
+during which time the disk won't get 100% utilized because of the
+temporally over-throttling of the remaining IO task.
+
+This is not a problem when throttling at the block/cfq layer, since it
+has the full information of pending requests and should not depend on
+such estimations.
+
+The workaround I can think of, is to put the throttled task into a wait
+queue, and let block layer wake up the waiters when the IO queue runs
+empty. This should be able to avoid most disk idle time.
+
+Thanks,
+Fengguang
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
