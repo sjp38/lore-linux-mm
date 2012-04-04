@@ -1,41 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx198.postini.com [74.125.245.198])
-	by kanga.kvack.org (Postfix) with SMTP id 8141C6B0044
-	for <linux-mm@kvack.org>; Wed,  4 Apr 2012 08:21:44 -0400 (EDT)
-Message-ID: <4F7C3CE2.5070803@intel.com>
-Date: Wed, 04 Apr 2012 15:21:54 +0300
-From: Adrian Hunter <adrian.hunter@intel.com>
+Received: from psmtp.com (na3sys010amx193.postini.com [74.125.245.193])
+	by kanga.kvack.org (Postfix) with SMTP id 2BFE36B0044
+	for <linux-mm@kvack.org>; Wed,  4 Apr 2012 08:22:46 -0400 (EDT)
+Received: by pbcup15 with SMTP id up15so273856pbc.14
+        for <linux-mm@kvack.org>; Wed, 04 Apr 2012 05:22:45 -0700 (PDT)
 MIME-Version: 1.0
-Subject: Re: swap on eMMC and other flash
-References: <201203301744.16762.arnd@arndb.de> <201203301850.22784.arnd@arndb.de>
-In-Reply-To: <201203301850.22784.arnd@arndb.de>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <alpine.DEB.2.00.1204032348470.3865@chino.kir.corp.google.com>
+References: <4EE6F24B.7050204@gmail.com>
+	<alpine.DEB.2.00.1203071331150.15255@chino.kir.corp.google.com>
+	<alpine.DEB.2.00.1204032348470.3865@chino.kir.corp.google.com>
+Date: Wed, 4 Apr 2012 20:22:45 +0800
+Message-ID: <CAJd=RBB0+TpK6Y+VrWgisAJ9J0xOOCYuuFo2vBTw-i2Huj4uKw@mail.gmail.com>
+Subject: Re: [PATCH] mm/hugetlb.c: cleanup to use long vars instead of int in region_count
+From: Hillf Danton <dhillf@gmail.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Arnd Bergmann <arnd@arndb.de>
-Cc: linaro-kernel@lists.linaro.org, linux-mm@kvack.org, "Luca Porzio (lporzio)" <lporzio@micron.com>, Alex Lemberg <alex.lemberg@sandisk.com>, linux-kernel@vger.kernel.org, Saugata Das <saugata.das@linaro.org>, Venkatraman S <venkat@linaro.org>, Yejin Moon <yejin.moon@samsung.com>, Hyojin Jeong <syr.jeong@samsung.com>, "linux-mmc@vger.kernel.org" <linux-mmc@vger.kernel.org>, kernel-team@android.com
+To: David Rientjes <rientjes@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Wang Sheng-Hui <shhuiw@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hillf Danton <dhillf@gmail.com>
 
-On 30/03/12 21:50, Arnd Bergmann wrote:
-> (sorry for the duplicated email, this corrects the address of the android
-> kernel team, please reply here)
-> 
-> On Friday 30 March 2012, Arnd Bergmann wrote:
-> 
->  We've had a discussion in the Linaro storage team (Saugata, Venkat and me,
->  with Luca joining in on the discussion) about swapping to flash based media
->  such as eMMC. This is a summary of what we found and what we think should
->  be done. If people agree that this is a good idea, we can start working
->  on it.
+On Wed, Apr 4, 2012 at 2:49 PM, David Rientjes <rientjes@google.com> wrote:
+> On Wed, 7 Mar 2012, David Rientjes wrote:
+>
+>> On Tue, 13 Dec 2011, Wang Sheng-Hui wrote:
+>>
+>> > args f & t and fields from & to of struct file_region are defined
+>> > as long. Use long instead of int to type the temp vars.
+>> >
+>> > Signed-off-by: Wang Sheng-Hui <shhuiw@gmail.com>
+>> > ---
+>> > =C2=A0mm/hugetlb.c | =C2=A0 =C2=A04 ++--
+>> > =C2=A01 files changed, 2 insertions(+), 2 deletions(-)
+>> >
+>> > diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+>> > index dae27ba..e666287 100644
+>> > --- a/mm/hugetlb.c
+>> > +++ b/mm/hugetlb.c
+>> > @@ -195,8 +195,8 @@ static long region_count(struct list_head *head, l=
+ong f, long t)
+>> >
+>> > =C2=A0 =C2=A0 /* Locate each segment we overlap with, and count that o=
+verlap. */
+>> > =C2=A0 =C2=A0 list_for_each_entry(rg, head, link) {
+>> > - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 int seg_from;
+>> > - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 int seg_to;
+>> > + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 long seg_from;
+>> > + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 long seg_to;
+>> >
+>> > =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 if (rg->to <=3D f)
+>> > =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
+continue;
+>>
+>> Acked-by: David Rientjes <rientjes@google.com>
+>>
 
-There is mtdswap.
-
-Also the old Nokia N900 had swap to eMMC.
-
-The last I heard was that swap was considered to be simply too slow on hand
-held devices.
-
-As systems adopt more RAM, isn't there a decreasing demand for swap?
+Acked-by: Hillf Danton <dhillf@gmail.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
