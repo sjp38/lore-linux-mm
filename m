@@ -1,62 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx171.postini.com [74.125.245.171])
-	by kanga.kvack.org (Postfix) with SMTP id 505396B004A
-	for <linux-mm@kvack.org>; Thu,  5 Apr 2012 11:46:19 -0400 (EDT)
-Message-ID: <4F7DBE00.9070800@freebox.fr>
-Date: Thu, 05 Apr 2012 17:45:04 +0200
-From: Florian Fainelli <ffainelli@freebox.fr>
+Received: from psmtp.com (na3sys010amx153.postini.com [74.125.245.153])
+	by kanga.kvack.org (Postfix) with SMTP id 079896B004A
+	for <linux-mm@kvack.org>; Thu,  5 Apr 2012 12:31:19 -0400 (EDT)
+Received: by iajr24 with SMTP id r24so2727971iaj.14
+        for <linux-mm@kvack.org>; Thu, 05 Apr 2012 09:31:19 -0700 (PDT)
+Date: Thu, 5 Apr 2012 09:31:13 -0700
+From: Tejun Heo <tj@kernel.org>
+Subject: Re: [RFC] writeback and cgroup
+Message-ID: <20120405163113.GD12854@google.com>
+References: <20120403183655.GA23106@dhcp-172-17-108-109.mtv.corp.google.com>
+ <20120404175124.GA8931@localhost>
+ <20120404193355.GD29686@dhcp-172-17-108-109.mtv.corp.google.com>
+ <20120404201816.GL12676@redhat.com>
 MIME-Version: 1.0
-Subject: Re: Caching issues with tmpfs?
-References: <4F7DB53D.9070508@freebox.fr>
-In-Reply-To: <4F7DB53D.9070508@freebox.fr>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20120404201816.GL12676@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Vivek Goyal <vgoyal@redhat.com>
+Cc: Fengguang Wu <fengguang.wu@intel.com>, Jan Kara <jack@suse.cz>, Jens Axboe <axboe@kernel.dk>, linux-mm@kvack.org, sjayaraman@suse.com, andrea@betterlinux.com, jmoyer@redhat.com, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, lizefan@huawei.com, containers@lists.linux-foundation.org, cgroups@vger.kernel.org, ctalbott@google.com, rni@google.com, lsf@lists.linux-foundation.org
 
-Hi again Hugh,
+Hey, Vivek.
 
-Le 04/05/12 17:07, Florian Fainelli a A(C)crit :
-> Hi Hugh,
->
-> I am encountering a very weird and serious issue with tmpfs, which I
-> have seen both in 2.6.39 and 3.2.13. The issue is the following:
->
-> 1) I read a file from a NAND device back to /tmp/bar
-> 2) /tmp/bar is loopback mounted to /tmp/bar_mount/
-> 3) when I list the contents of /tmp/bar_mount I see only half of my
-> files, and using hexdump on /tmp/bar shows that the cramfs header is
-> correct and contains all, which rules out the cramfs issue
-> 4) if I move /tmp/bar to /tmp/bar.move and loopback mount /tmp/bar.move
-> to /tmp/bar_mount, I now see all the files present
->
-> I have compared the md5sums of the cramfs file before mounting, after
-> mounting, before moving, after moving, they are all the same. Also, the
-> loopback mount does not yiel when mounting the cramfs file, which rules
-> out its bad integrity.
->
-> the /tmp directory is mounted with the defaults attributes (rw,relatime).
->
-> My system is a x86 Atom-based System-on-a-Chip and should not suffer
-> from the CPU data cache aliasing issue mentioned here:
-> http://lkml.indiana.edu/hypermail/linux/kernel/1202.0/00090.html
->
-> I backported this patch however, and it does not make any difference as
-> expected.
->
-> This behavior has been observed on several devices.
->
-> I will try to provide you with a test case to reproduce the issue,
-> meanwhile any hints are appreciated :)
+On Wed, Apr 04, 2012 at 04:18:16PM -0400, Vivek Goyal wrote:
+> Hey how about reconsidering my other proposal for which I had posted
+> the patches. And that is keep throttling still at device level. Reads
+> and direct IO get throttled asynchronously but buffered writes get
+> throttled synchronously.
+> 
+> Advantages of this scheme.
+> 
+> - There are no separate knobs.
+> 
+> - All the IO (read, direct IO and buffered write) is controlled using
+>   same set of knobs and goes in queue of same cgroup.
+> 
+> - Writeback logic has no knowledge of throttling. It just invokes a 
+>   hook into throttling logic of device queue.
+> 
+> I guess this is a hybrid of active writeback throttling and back pressure
+> mechanism.
+> 
+> But it still does not solve the NFS issue as well as for direct IO,
+> filesystems still can get serialized, so metadata issue still needs to 
+> be resolved. So one can argue that why not go for full "back pressure"
+> method, despite it being more complex.
+> 
+> Here is the link, just to refresh the memory. Something to keep in mind
+> while assessing alternatives.
+> 
+> https://lkml.org/lkml/2011/6/28/243
 
-I am terribly sorry for suspecting tmpfs, the issue is actually in 
-busybox, which is smart enough not to delete the loop device after an 
-umount and keep a stale copy of the file used as source. Consequent 
-mounts are then given the same stale copy because the name of the source 
-file matches the non-deleted loopback setup.
---
-Florian
+Hmmm... so, this only works for blk-throttle and not with the weight.
+How do you manage interaction between buffered writes and direct
+writes for the same cgroup?
+
+Thanks.
+
+-- 
+tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
