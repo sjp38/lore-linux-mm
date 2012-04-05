@@ -1,52 +1,137 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx103.postini.com [74.125.245.103])
-	by kanga.kvack.org (Postfix) with SMTP id 243946B004D
-	for <linux-mm@kvack.org>; Thu,  5 Apr 2012 12:48:36 -0400 (EDT)
-Received: by yhr47 with SMTP id 47so1041692yhr.14
-        for <linux-mm@kvack.org>; Thu, 05 Apr 2012 09:48:35 -0700 (PDT)
-From: Masanari Iida <standby24x7@gmail.com>
-Subject: [PATCH 2/2] Documentation: mm: Fix path to extfrag_index in vm.txt
-Date: Fri,  6 Apr 2012 01:48:09 +0900
-Message-Id: <1333644489-31466-2-git-send-email-standby24x7@gmail.com>
-In-Reply-To: <1333644489-31466-1-git-send-email-standby24x7@gmail.com>
-References: <1333644489-31466-1-git-send-email-standby24x7@gmail.com>
+Received: from psmtp.com (na3sys010amx153.postini.com [74.125.245.153])
+	by kanga.kvack.org (Postfix) with SMTP id 7A0356B004A
+	for <linux-mm@kvack.org>; Thu,  5 Apr 2012 12:55:51 -0400 (EDT)
+Subject: Re: [PATCH 2/3] tracing: Extract out common code for
+ kprobes/uprobes traceevents
+From: Steven Rostedt <rostedt@goodmis.org>
+In-Reply-To: <20120403010452.17852.14232.sendpatchset@srdronam.in.ibm.com>
+References: <20120403010442.17852.9888.sendpatchset@srdronam.in.ibm.com>
+	 <20120403010452.17852.14232.sendpatchset@srdronam.in.ibm.com>
+Content-Type: text/plain; charset="UTF-8"
+Date: Thu, 05 Apr 2012 12:55:41 -0400
+Message-ID: <1333644941.3764.32.camel@pippen.local.home>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org, Masanari Iida <standby24x7@gmail.com>
+To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
+Cc: Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, LKML <linux-kernel@vger.kernel.org>, Linux-mm <linux-mm@kvack.org>, Oleg Nesterov <oleg@redhat.com>, Andi Kleen <andi@firstfloor.org>, Christoph Hellwig <hch@infradead.org>, Arnaldo Carvalho de Melo <acme@infradead.org>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Thomas Gleixner <tglx@linutronix.de>, Anton Arapov <anton@redhat.com>
 
-The path for extfrag_index has not been updated even after it moved
-to under /sys. This patch fixed the path.
+On Tue, 2012-04-03 at 06:34 +0530, Srikar Dronamraju wrote:
 
-Signed-off-by: Masanari Iida <standby24x7@gmail.com>
----
- Documentation/sysctl/vm.txt |   11 ++++++-----
- 1 file changed, 6 insertions(+), 5 deletions(-)
 
-diff --git a/Documentation/sysctl/vm.txt b/Documentation/sysctl/vm.txt
-index c94acad..9dd8555 100644
---- a/Documentation/sysctl/vm.txt
-+++ b/Documentation/sysctl/vm.txt
-@@ -166,11 +166,12 @@ user should run `sync' first.
- extfrag_threshold
- 
- This parameter affects whether the kernel will compact memory or direct
--reclaim to satisfy a high-order allocation. /proc/extfrag_index shows what
--the fragmentation index for each order is in each zone in the system. Values
--tending towards 0 imply allocations would fail due to lack of memory,
--values towards 1000 imply failures are due to fragmentation and -1 implies
--that the allocation will succeed as long as watermarks are met.
-+reclaim to satisfy a high-order allocation. 
-+/sys/kernel/debug/extfrag/extfrag_index shows what the fragmentation index 
-+for each order is in each zone in the system. Values tending towards 0 
-+imply allocations would fail due to lack of memory, values towards 1000 
-+imply failures are due to fragmentation and -1 implies that the allocation 
-+will succeed as long as watermarks are met.
- 
- The kernel will not compact memory in a zone if the
- fragmentation index is <= extfrag_threshold. The default value is 500.
--- 
-1.7.10.rc4
+> -/*
+> - * Fetch a null-terminated string. Caller MUST set *(u32 *)dest with max
+> - * length and relative data location.
+> - */
+> -static __kprobes void FETCH_FUNC_NAME(memory, string)(struct pt_regs *regs,
+> -                                                     void *addr, void *dest)
+> -{
+> -       long ret;
+> -       int maxlen = get_rloc_len(*(u32 *)dest);
+> -       u8 *dst = get_rloc_data(dest);
+> -       u8 *src = addr;
+> -       mm_segment_t old_fs = get_fs();
+> -       if (!maxlen)
+> -               return;
+
+> diff --git a/kernel/trace/trace_probe.c b/kernel/trace/trace_probe.c
+> new file mode 100644
+> index 0000000..deb375a
+> --- /dev/null
+> +++ b/kernel/trace/trace_probe.c
+
+> +DEFINE_BASIC_FETCH_FUNCS(memory)
+> +/*
+> + * Fetch a null-terminated string. Caller MUST set *(u32 *)dest with max
+> + * length and relative data location.
+> + */
+> +static __kprobes void FETCH_FUNC_NAME(memory, string)(struct pt_regs *regs,
+> +						      void *addr, void *dest)
+> +{
+> +	int maxlen;
+> +	long ret;
+> +
+> +	maxlen = get_rloc_len(*(u32 *)dest);
+> +	u8 *dst = get_rloc_data(dest);
+> +	u8 *src = addr;
+
+
+Please do not mix declarations and actual code. The above declares
+maxlen and ret, then assigns maxlen (actual code) and then you declare
+dst and src (as well as assign it).
+
+The original version (shown at the top) is fine. Why did you change it?
+Although the original should have a space:
+
+static __kprobes void FETCH_FUNC_NAME(memory, string)(struct pt_regs *regs,
+                                                     void *addr, void *dest)
+{
+       long ret;
+       int maxlen = get_rloc_len(*(u32 *)dest);
+       u8 *dst = get_rloc_data(dest);
+       u8 *src = addr;
+       mm_segment_t old_fs = get_fs();
+					<--- new line needed (from original)
+       if (!maxlen)
+               return;
+
+> +	mm_segment_t old_fs = get_fs();
+> +
+> +	if (!maxlen)
+> +		return;
+> +
+> +	/*
+> +	 * Try to get string again, since the string can be changed while
+> +	 * probing.
+> +	 */
+> +	set_fs(KERNEL_DS);
+> +	pagefault_disable();
+> +
+> +	do
+> +		ret = __copy_from_user_inatomic(dst++, src++, 1);
+> +	while (dst[-1] && ret == 0 && src - (u8 *)addr < maxlen);
+> +
+> +	dst[-1] = '\0';
+> +	pagefault_enable();
+> +	set_fs(old_fs);
+> +
+> +	if (ret < 0) {	/* Failed to fetch string */
+> +		((u8 *)get_rloc_data(dest))[0] = '\0';
+> +		*(u32 *)dest = make_data_rloc(0, get_rloc_offs(*(u32 *)dest));
+> +	} else {
+> +		*(u32 *)dest = make_data_rloc(src - (u8 *)addr,
+> +					      get_rloc_offs(*(u32 *)dest));
+> +	}
+> +}
+
+
+> +
+> +#define WRITE_BUFSIZE 128
+
+The original code had WRITE_BUFSIZE as 4096 this has it with 128. That's
+a big difference. Even if you have a reason for changing this, don't do
+it in this patch. That should be a separate patch with an explanation of
+why this was changed.
+
+The rest of the patch looks fine.
+
+-- Steve
+
+> +
+> +ssize_t traceprobe_probes_write(struct file *file, const char __user *buffer,
+> +				size_t count, loff_t *ppos,
+> +				int (*createfn)(int, char **))
+> +{
+> +	char *kbuf, *tmp;
+> +	int ret = 0;
+> +	size_t done = 0;
+> +	size_t size;
+> +
+> +
+> 
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
