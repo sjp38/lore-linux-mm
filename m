@@ -1,56 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx151.postini.com [74.125.245.151])
-	by kanga.kvack.org (Postfix) with SMTP id EA11B6B0083
-	for <linux-mm@kvack.org>; Thu,  5 Apr 2012 14:08:07 -0400 (EDT)
-Date: Thu, 5 Apr 2012 13:13:21 -0400
-From: Vivek Goyal <vgoyal@redhat.com>
-Subject: Re: [RFC] writeback and cgroup
-Message-ID: <20120405171321.GF23999@redhat.com>
-References: <20120403183655.GA23106@dhcp-172-17-108-109.mtv.corp.google.com>
- <20120404145134.GC12676@redhat.com>
- <20120404184909.GB29686@dhcp-172-17-108-109.mtv.corp.google.com>
- <20120405163854.GE12854@google.com>
+Received: from psmtp.com (na3sys010amx136.postini.com [74.125.245.136])
+	by kanga.kvack.org (Postfix) with SMTP id 2C5816B004A
+	for <linux-mm@kvack.org>; Thu,  5 Apr 2012 16:35:37 -0400 (EDT)
+Received: from /spool/local
+	by e1.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <matthltc@us.ibm.com>;
+	Thu, 5 Apr 2012 16:35:35 -0400
+Received: from d01relay07.pok.ibm.com (d01relay07.pok.ibm.com [9.56.227.147])
+	by d01dlp02.pok.ibm.com (Postfix) with ESMTP id 277C26E8057
+	for <linux-mm@kvack.org>; Thu,  5 Apr 2012 16:29:07 -0400 (EDT)
+Received: from d01av01.pok.ibm.com (d01av01.pok.ibm.com [9.56.224.215])
+	by d01relay07.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q35KT6Gj3604630
+	for <linux-mm@kvack.org>; Thu, 5 Apr 2012 16:29:06 -0400
+Received: from d01av01.pok.ibm.com (loopback [127.0.0.1])
+	by d01av01.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q361xwMw015108
+	for <linux-mm@kvack.org>; Thu, 5 Apr 2012 21:59:59 -0400
+Date: Thu, 5 Apr 2012 13:29:04 -0700
+From: Matt Helsley <matthltc@us.ibm.com>
+Subject: Re: [PATCH 6/7] mm: kill vma flag VM_EXECUTABLE
+Message-ID: <20120405202904.GB7761@count0.beaverton.ibm.com>
+References: <20120331091049.19373.28994.stgit@zurg>
+ <20120331092929.19920.54540.stgit@zurg>
+ <20120331201324.GA17565@redhat.com>
+ <20120402230423.GB32299@count0.beaverton.ibm.com>
+ <4F7A863C.5020407@openvz.org>
+ <20120403181631.GD32299@count0.beaverton.ibm.com>
+ <20120403193204.GE3370@moon>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20120405163854.GE12854@google.com>
+In-Reply-To: <20120403193204.GE3370@moon>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>
-Cc: Fengguang Wu <fengguang.wu@intel.com>, Jan Kara <jack@suse.cz>, Jens Axboe <axboe@kernel.dk>, linux-mm@kvack.org, sjayaraman@suse.com, andrea@betterlinux.com, jmoyer@redhat.com, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, lizefan@huawei.com, containers@lists.linux-foundation.org, cgroups@vger.kernel.org, ctalbott@google.com, rni@google.com, lsf@lists.linux-foundation.org
+To: Cyrill Gorcunov <gorcunov@openvz.org>
+Cc: Matt Helsley <matthltc@us.ibm.com>, Konstantin Khlebnikov <khlebnikov@openvz.org>, Oleg Nesterov <oleg@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Eric Paris <eparis@redhat.com>, "linux-security-module@vger.kernel.org" <linux-security-module@vger.kernel.org>, "oprofile-list@lists.sf.net" <oprofile-list@lists.sf.net>, Linus Torvalds <torvalds@linux-foundation.org>, Al Viro <viro@zeniv.linux.org.uk>
 
-On Thu, Apr 05, 2012 at 09:38:54AM -0700, Tejun Heo wrote:
-> Hey, Vivek.
-> 
-> On Wed, Apr 04, 2012 at 11:49:09AM -0700, Tejun Heo wrote:
-> > > I am not sure what are you trying to say here. But primarily blk-throttle
-> > > will throttle read and direct IO. Buffered writes will go to root cgroup
-> > > which is typically unthrottled.
+On Tue, Apr 03, 2012 at 11:32:04PM +0400, Cyrill Gorcunov wrote:
+> On Tue, Apr 03, 2012 at 11:16:31AM -0700, Matt Helsley wrote:
+> > On Tue, Apr 03, 2012 at 09:10:20AM +0400, Konstantin Khlebnikov wrote:
+> > > Matt Helsley wrote:
+> > > >On Sat, Mar 31, 2012 at 10:13:24PM +0200, Oleg Nesterov wrote:
+> > > >>On 03/31, Konstantin Khlebnikov wrote:
+> > > >>>
+> > > >>>comment from v2.6.25-6245-g925d1c4 ("procfs task exe symlink"),
+> > > >>>where all this stuff was introduced:
+> > > >>>
+> > > >>>>...
+> > > >>>>This avoids pinning the mounted filesystem.
+> > > >>>
+> > > >>>So, this logic is hooked into every file mmap/unmmap and vma split/merge just to
+> > > >>>fix some hypothetical pinning fs from umounting by mm which already unmapped all
+> > > >>>its executable files, but still alive. Does anyone know any real world example?
+> > > >>
+> > > >>This is the question to Matt.
+> > > >
+> > > >This is where I got the scenario:
+> > > >
+> > > >https://lkml.org/lkml/2007/7/12/398
+> > > 
+> > > Cyrill Gogcunov's patch "c/r: prctl: add ability to set new mm_struct::exe_file"
+> > > gives userspace ability to unpin vfsmount explicitly.
 > > 
-> > Ooh, my bad then.  Anyways, then the same applies to blk-throttle.
-> > Our current implementation essentially collapses at the face of
-> > write-heavy workload.
+> > Doesn't that break the semantics of the kernel ABI?
 > 
-> I went through the code and couldn't find where blk-throttle is
-> discriminating async IOs.  Were you saying that blk-throttle currently
-> doesn't throttle because those IOs aren't associated with the dirtying
-> task?
+> Which one? exe_file can be changed iif there is no MAP_EXECUTABLE left.
+> Still, once assigned (via this prctl) the mm_struct::exe_file can't be changed
+> again, until program exit.
 
-Yes that's what I meant. Currently most of the async IO will come from
-flusher thread which is in root cgroup. So all the async IO will be in
-root group and we typically keep root group unthrottled. Sorry for the
-confusion here.
+The prctl() interface itself is fine as it stands now.
 
-> If so, note that it's different from cfq which explicitly
-> assigns all async IOs when choosing cfqq even if we fix tagging.
+As far as I can tell Konstantin is proposing that we remove the unusual
+counter that tracks the number of mappings of the exe_file and require
+userspace use the prctl() to drop the last reference. That's what I think
+will break the ABI because after that change you *must* change userspace
+code to use the prctl(). It's an ABI change because the same sequence of
+system calls with the same input bits produces different behavior.
 
-Yes. So if we can properly account for submitter, and for blk-throttle,
-async IO will go in right cgroup. Unlike CFQ, there is no hard coded logic
-to keep async IO in a particular group. It is just a matter of getting
-the right cgroup information.
-
-Thanks
-Vivek
+Cheers,
+	-Matt
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
