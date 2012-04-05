@@ -1,71 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx162.postini.com [74.125.245.162])
-	by kanga.kvack.org (Postfix) with SMTP id E936C6B004A
-	for <linux-mm@kvack.org>; Thu,  5 Apr 2012 12:32:29 -0400 (EDT)
-MIME-version: 1.0
-Content-transfer-encoding: 7BIT
-Content-type: TEXT/PLAIN
-Received: from euspt2 ([210.118.77.13]) by mailout3.w1.samsung.com
- (Sun Java(tm) System Messaging Server 6.3-8.04 (built Jul 29 2009; 32bit))
- with ESMTP id <0M2000NP9LXN0J80@mailout3.w1.samsung.com> for
- linux-mm@kvack.org; Thu, 05 Apr 2012 17:32:11 +0100 (BST)
+Received: from psmtp.com (na3sys010amx144.postini.com [74.125.245.144])
+	by kanga.kvack.org (Postfix) with SMTP id 9CAA76B004D
+	for <linux-mm@kvack.org>; Thu,  5 Apr 2012 12:32:38 -0400 (EDT)
+Received: from euspt2 (mailout2.w1.samsung.com [210.118.77.12])
+ by mailout2.w1.samsung.com
+ (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14 2004))
+ with ESMTP id <0M2000390LY87S@mailout2.w1.samsung.com> for linux-mm@kvack.org;
+ Thu, 05 Apr 2012 17:32:32 +0100 (BST)
 Received: from linux.samsung.com ([106.116.38.10])
  by spt2.w1.samsung.com (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14
- 2004)) with ESMTPA id <0M2000MD7LY1VB@spt2.w1.samsung.com> for
- linux-mm@kvack.org; Thu, 05 Apr 2012 17:32:25 +0100 (BST)
-Date: Thu, 05 Apr 2012 18:32:11 +0200
+ 2004)) with ESMTPA id <0M2000AAULYANV@spt2.w1.samsung.com> for
+ linux-mm@kvack.org; Thu, 05 Apr 2012 17:32:34 +0100 (BST)
+Date: Thu, 05 Apr 2012 18:32:12 +0200
 From: Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>
-Subject: [PATCH 0/2] mm: compaction: improve free pages selection
-Message-id: <1333643534-1591-1-git-send-email-b.zolnierkie@samsung.com>
+Subject: [PATCH 1/2] mm: compaction: try harder to isolate free pages
+In-reply-to: <1333643534-1591-1-git-send-email-b.zolnierkie@samsung.com>
+Message-id: <1333643534-1591-2-git-send-email-b.zolnierkie@samsung.com>
+MIME-version: 1.0
+Content-type: TEXT/PLAIN
+Content-transfer-encoding: 7BIT
+References: <1333643534-1591-1-git-send-email-b.zolnierkie@samsung.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
-Cc: mgorman@suse.de, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>
+Cc: mgorman@suse.de, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, Kyungmin Park <kyungmin.park@samsung.com>
 
-These patches lift some limitations on free pages selection so there
-is a much higher chance of memory migration succeeding in case of heavy
-memory fragmentation.
+In isolate_freepages() check each page in a pageblock
+instead of checking only first pages of pageblock_nr_pages
+intervals (suitable_migration_target(page) is called before
+isolate_freepages_block() so if page is "unsuitable" whole
+pageblock_nr_pages pages will be ommited from the check).
+It greatly improves possibility of finding free pages to
+isolate during compaction_alloc() phase.
 
-[ From looking at the compaction free pages selection code I'm under
-  the impression that the noticed limitations exist because the code
-  was originally designed to mainly deal with hugepages? ]
+Cc: Mel Gorman <mgorman@suse.de>
+Signed-off-by: Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>
+Signed-off-by: Kyungmin Park <kyungmin.park@samsung.com>
+---
+ mm/compaction.c |    5 ++---
+ 1 file changed, 2 insertions(+), 3 deletions(-)
 
-
-My test case on a ARM EXYNOS4 device with 512 MiB (to be exact:
-131072 standard 4KiB pages in 'Normal' zone) is to:
-- allocate 120000 pages for kernel's usage
-- free every second page (60000 pages) of memory just allocated
-- allocate and use 60000 pages from user space
-- free remaining 60000 pages of kernel memory
-(now we have fragmented memory occupied mostly by user space pages)
-- try to allocate 100 order-9 (2048 KiB) pages for kernel's usage
-
-The results:
-- with compaction disabled I get 11 successful allocations
-- with compaction enabled - 14 successful allocations
-- with patch #1 - 34 successful allocations
-- with patches #1+2 all 100 allocations succeed
-
-
-On the cons side of the changes is the increased CPU usage spent on
-finding suitable free pages.  However once we try memory compaction to
-help us to allocate higher order pages we are already in the slow-path
-and it is better to spent some extra cycles than to fail the allocation
-completely.
-
-Best regards,
---
-Bartlomiej Zolnierkiewicz
-Samsung Poland R&D Center
-
-
-Bartlomiej Zolnierkiewicz (2):
-  mm: compaction: try harder to isolate free pages
-  mm: compaction: allow isolation of lower order buddy pages
-
- mm/compaction.c |    9 ++++-----
- 1 file changed, 4 insertions(+), 5 deletions(-)
-
+diff --git a/mm/compaction.c b/mm/compaction.c
+index d9ebebe..bc77135 100644
+--- a/mm/compaction.c
++++ b/mm/compaction.c
+@@ -65,7 +65,7 @@ static unsigned long isolate_freepages_block(struct zone *zone,
+ 
+ 	/* Get the last PFN we should scan for free pages at */
+ 	zone_end_pfn = zone->zone_start_pfn + zone->spanned_pages;
+-	end_pfn = min(blockpfn + pageblock_nr_pages, zone_end_pfn);
++	end_pfn = min(blockpfn + 1, zone_end_pfn);
+ 
+ 	/* Find the first usable PFN in the block to initialse page cursor */
+ 	for (; blockpfn < end_pfn; blockpfn++) {
+@@ -160,8 +160,7 @@ static void isolate_freepages(struct zone *zone,
+ 	 * pages on cc->migratepages. We stop searching if the migrate
+ 	 * and free page scanners meet or enough free pages are isolated.
+ 	 */
+-	for (; pfn > low_pfn && cc->nr_migratepages > nr_freepages;
+-					pfn -= pageblock_nr_pages) {
++	for (; pfn > low_pfn && cc->nr_migratepages > nr_freepages; pfn--) {
+ 		unsigned long isolated;
+ 
+ 		if (!pfn_valid(pfn))
 -- 
 1.7.9.4
 
