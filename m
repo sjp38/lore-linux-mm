@@ -1,40 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx170.postini.com [74.125.245.170])
-	by kanga.kvack.org (Postfix) with SMTP id 59C186B004A
-	for <linux-mm@kvack.org>; Thu,  5 Apr 2012 16:53:11 -0400 (EDT)
-Received: by bkwq16 with SMTP id q16so2120765bkw.14
-        for <linux-mm@kvack.org>; Thu, 05 Apr 2012 13:53:09 -0700 (PDT)
-Date: Fri, 6 Apr 2012 00:53:04 +0400
-From: Cyrill Gorcunov <gorcunov@openvz.org>
-Subject: Re: [PATCH 6/7] mm: kill vma flag VM_EXECUTABLE
-Message-ID: <20120405205304.GL8718@moon>
-References: <20120331091049.19373.28994.stgit@zurg>
- <20120331092929.19920.54540.stgit@zurg>
- <20120331201324.GA17565@redhat.com>
- <20120402230423.GB32299@count0.beaverton.ibm.com>
- <4F7A863C.5020407@openvz.org>
- <20120403181631.GD32299@count0.beaverton.ibm.com>
- <20120403193204.GE3370@moon>
- <20120405202904.GB7761@count0.beaverton.ibm.com>
+Received: from psmtp.com (na3sys010amx104.postini.com [74.125.245.104])
+	by kanga.kvack.org (Postfix) with SMTP id 0A23C6B004A
+	for <linux-mm@kvack.org>; Thu,  5 Apr 2012 17:04:48 -0400 (EDT)
+Received: by bkwq16 with SMTP id q16so2129124bkw.14
+        for <linux-mm@kvack.org>; Thu, 05 Apr 2012 14:04:46 -0700 (PDT)
+Message-ID: <4F7E08EB.5070600@openvz.org>
+Date: Fri, 06 Apr 2012 01:04:43 +0400
+From: Konstantin Khlebnikov <khlebnikov@openvz.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+Subject: Re: [PATCH 6/7] mm: kill vma flag VM_EXECUTABLE
+References: <20120331091049.19373.28994.stgit@zurg> <20120331092929.19920.54540.stgit@zurg> <20120331201324.GA17565@redhat.com> <20120402230423.GB32299@count0.beaverton.ibm.com> <4F7A863C.5020407@openvz.org> <20120403181631.GD32299@count0.beaverton.ibm.com> <20120403193204.GE3370@moon> <20120405202904.GB7761@count0.beaverton.ibm.com>
 In-Reply-To: <20120405202904.GB7761@count0.beaverton.ibm.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Matt Helsley <matthltc@us.ibm.com>
-Cc: Konstantin Khlebnikov <khlebnikov@openvz.org>, Oleg Nesterov <oleg@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Eric Paris <eparis@redhat.com>, "linux-security-module@vger.kernel.org" <linux-security-module@vger.kernel.org>, "oprofile-list@lists.sf.net" <oprofile-list@lists.sf.net>, Linus Torvalds <torvalds@linux-foundation.org>, Al Viro <viro@zeniv.linux.org.uk>
+Cc: Cyrill Gorcunov <gorcunov@openvz.org>, Oleg Nesterov <oleg@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Eric Paris <eparis@redhat.com>, "linux-security-module@vger.kernel.org" <linux-security-module@vger.kernel.org>, "oprofile-list@lists.sf.net" <oprofile-list@lists.sf.net>, Linus Torvalds <torvalds@linux-foundation.org>, Al Viro <viro@zeniv.linux.org.uk>
 
-On Thu, Apr 05, 2012 at 01:29:04PM -0700, Matt Helsley wrote:
-...
-> > > Doesn't that break the semantics of the kernel ABI?
-> > 
-> > Which one? exe_file can be changed iif there is no MAP_EXECUTABLE left.
-> > Still, once assigned (via this prctl) the mm_struct::exe_file can't be changed
-> > again, until program exit.
-> 
+Matt Helsley wrote:
+> On Tue, Apr 03, 2012 at 11:32:04PM +0400, Cyrill Gorcunov wrote:
+>> On Tue, Apr 03, 2012 at 11:16:31AM -0700, Matt Helsley wrote:
+>>> On Tue, Apr 03, 2012 at 09:10:20AM +0400, Konstantin Khlebnikov wrote:
+>>>> Matt Helsley wrote:
+>>>>> On Sat, Mar 31, 2012 at 10:13:24PM +0200, Oleg Nesterov wrote:
+>>>>>> On 03/31, Konstantin Khlebnikov wrote:
+>>>>>>>
+>>>>>>> comment from v2.6.25-6245-g925d1c4 ("procfs task exe symlink"),
+>>>>>>> where all this stuff was introduced:
+>>>>>>>
+>>>>>>>> ...
+>>>>>>>> This avoids pinning the mounted filesystem.
+>>>>>>>
+>>>>>>> So, this logic is hooked into every file mmap/unmmap and vma split/merge just to
+>>>>>>> fix some hypothetical pinning fs from umounting by mm which already unmapped all
+>>>>>>> its executable files, but still alive. Does anyone know any real world example?
+>>>>>>
+>>>>>> This is the question to Matt.
+>>>>>
+>>>>> This is where I got the scenario:
+>>>>>
+>>>>> https://lkml.org/lkml/2007/7/12/398
+>>>>
+>>>> Cyrill Gogcunov's patch "c/r: prctl: add ability to set new mm_struct::exe_file"
+>>>> gives userspace ability to unpin vfsmount explicitly.
+>>>
+>>> Doesn't that break the semantics of the kernel ABI?
+>>
+>> Which one? exe_file can be changed iif there is no MAP_EXECUTABLE left.
+>> Still, once assigned (via this prctl) the mm_struct::exe_file can't be changed
+>> again, until program exit.
+>
 > The prctl() interface itself is fine as it stands now.
-> 
+>
 > As far as I can tell Konstantin is proposing that we remove the unusual
 > counter that tracks the number of mappings of the exe_file and require
 > userspace use the prctl() to drop the last reference. That's what I think
@@ -42,15 +60,12 @@ On Thu, Apr 05, 2012 at 01:29:04PM -0700, Matt Helsley wrote:
 > code to use the prctl(). It's an ABI change because the same sequence of
 > system calls with the same input bits produces different behavior.
 
-Hi Matt, I see what you mean (I misread your email at first, sorry).
-Sure it's impossible to patch already existing programs (and btw, this
-prctl code actually won't help a program to drop symlink completely
-and live without it then, because old one will gone but new one
-will be assigned) so personally I can't answer here on Konstantin's
-behalf, but I guess the main question is -- which programs use this
-'drop-all-MAP_EXECUTABLE' feature?
-
-	Cyrill
+But common software does not require this at all. I did not found real examples,
+only hypothesis by Al Viro: https://lkml.org/lkml/2007/7/12/398
+libhugetlbfs isn't good example too, the man proc says: /proc/[pid]/exe is alive until
+main thread is alive, but in case libhugetlbfs /proc/[pid]/exe disappears too early.
+Also I would not call it ABI, this corner-case isn't documented, I'm afraid only few
+people in the world knows about it =)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
