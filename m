@@ -1,106 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx204.postini.com [74.125.245.204])
-	by kanga.kvack.org (Postfix) with SMTP id 972876B004A
-	for <linux-mm@kvack.org>; Thu,  5 Apr 2012 04:31:27 -0400 (EDT)
-Received: by bkwq16 with SMTP id q16so1372401bkw.14
-        for <linux-mm@kvack.org>; Thu, 05 Apr 2012 01:31:25 -0700 (PDT)
-Message-ID: <4F7D5859.5050106@openvz.org>
-Date: Thu, 05 Apr 2012 12:31:21 +0400
-From: Konstantin Khlebnikov <khlebnikov@openvz.org>
+Received: from psmtp.com (na3sys010amx187.postini.com [74.125.245.187])
+	by kanga.kvack.org (Postfix) with SMTP id 299CA6B004A
+	for <linux-mm@kvack.org>; Thu,  5 Apr 2012 05:24:16 -0400 (EDT)
+Date: Thu, 5 Apr 2012 13:17:08 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [PATCH 5/6] memcg: fix broken boolen expression
+Message-ID: <20120405101708.GA13824@shutemov.name>
+References: <1324695619-5537-1-git-send-email-kirill@shutemov.name>
+ <1324695619-5537-5-git-send-email-kirill@shutemov.name>
+ <20120404143403.fd05a284.akpm@linux-foundation.org>
 MIME-Version: 1.0
-Subject: Re: [PATCH RFC] mm: account VMA before forced-COW via /proc/pid/mem
-References: <20120402153631.5101.44091.stgit@zurg> <20120403143752.GA5150@redhat.com> <4F7C1B67.6030300@openvz.org> <20120404154148.GA7105@redhat.com>
-In-Reply-To: <20120404154148.GA7105@redhat.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20120404143403.fd05a284.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Oleg Nesterov <oleg@redhat.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, containers@lists.linux-foundation.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Balbir Singh <bsingharora@gmail.com>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>
 
-Oleg Nesterov wrote:
-> On 04/04, Konstantin Khlebnikov wrote:
->>
->> Oleg Nesterov wrote:
->>> On 04/02, Konstantin Khlebnikov wrote:
->>>>
->>>> Currently kernel does not account read-only private mappings into memory commitment.
->>>> But these mappings can be force-COW-ed in get_user_pages().
->>>
->>> Heh. tail -n3 Documentation/vm/overcommit-accounting
->>> may be you should update it then.
->>
->> I just wonder how fragile this accounting...
->
-> I meant, this patch could also remove this "TODO" from the docs.
+On Wed, Apr 04, 2012 at 02:34:03PM -0700, Andrew Morton wrote:
+> On Sat, 24 Dec 2011 05:00:18 +0200
+> "Kirill A. Shutemov" <kirill@shutemov.name> wrote:
+> 
+> > From: "Kirill A. Shutemov" <kirill@shutemov.name>
+> > 
+> > action != CPU_DEAD || action != CPU_DEAD_FROZEN is always true.
+> > 
+> > Signed-off-by: Kirill A. Shutemov <kirill@shutemov.name>
+> > ---
+> >  mm/memcontrol.c |    2 +-
+> >  1 files changed, 1 insertions(+), 1 deletions(-)
+> > 
+> > diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> > index b27ce0f..3833a7b 100644
+> > --- a/mm/memcontrol.c
+> > +++ b/mm/memcontrol.c
+> > @@ -2100,7 +2100,7 @@ static int __cpuinit memcg_cpu_hotplug_callback(struct notifier_block *nb,
+> >  		return NOTIFY_OK;
+> >  	}
+> >  
+> > -	if ((action != CPU_DEAD) || action != CPU_DEAD_FROZEN)
+> > +	if (action != CPU_DEAD && action != CPU_DEAD_FROZEN)
+> >  		return NOTIFY_OK;
+> >  
+> >  	for_each_mem_cgroup(iter)
+> 
+> This spent too long in the backlog, sorry.
+> 
+> I don't want to merge this patch into either mainline or -stable until
+> I find out what it does!
+> 
+> afacit the patch will newly cause the kernel to drain various resource
+> counters away from the target CPU when the CPU_DEAD or CPU_DEAD_FROZEN
+> events occur for thet CPU, yes?
 
-Actually I dug into this code for killing VM_ACCOUNT vma flag.
-Currently we cannot do this only because asymmetry in mprotect_fixup():
-it account vma on read-only -> writable conversion, but keep on backward operation.
-Probably we can kill this asymmetry, and after that we can recognize accountable vma
-by its others flags state, so we don't need special VM_ACCOUNT for this.
+Yes.
 
->
->>> Can't really comment the patch, this is not my area. Still,
->>>
->>>> +	down_write(&mm->mmap_sem);
->>>> +	*pvma = vma = find_vma(mm, addr);
->>>> +	if (vma&&   vma->vm_start<= addr) {
->>>> +		ret = vma->vm_end - addr;
->>>> +		if ((vma->vm_flags&   (VM_ACCOUNT | VM_NORESERVE | VM_SHARED |
->>>> +				VM_HUGETLB | VM_MAYWRITE)) == VM_MAYWRITE) {
->>>> +			if (!security_vm_enough_memory_mm(mm, vma_pages(vma)))
->>>
->>> Oooooh, the whole vma. Say, gdb installs the single breakpoint into
->>> the huge .text mapping...
->>
->> We cannot split vma right there, this will be really weird. =)
->
-> Sure, I understand why you did it this way.
->
->>> I am not sure, but probably you want to check at least VM_IO/PFNMAP
->>> as well. We do not want to charge this memory and retry with FOLL_FORCE
->>> before vm_ops->access(). Say, /dev/mem
->>
->> No, VM_IO/PFNMAP aren't affect accounting, there is VM_NORESERVE for this.
->
-> You misunderstood. Again, I can be wrong, but.
->
-> Suppose the task mmmaps /dev/mem (for example). This vma doesn't have
-> VM_NORESERVE (but it has VM_IO).
->
-> gup() fails correctly with or without FOLL_FORCE, we should fallback
-> to vma_ops->access().
+> So the user-visible effects of the bug whcih was just fixed is that
+> these counters will be somewhat inaccurate after a CPU is taken down,
+> yes?
 
-Yes, seems so. Maybe we should use ->access() before get_user_pages().
+Correct.
 
->
-> However. With your patch __access_remote_vm() tries gup() without
-> FOLL_FORCE first and wrongly assumes that it fails because it neeeds
-> FOLL_FORCE and we are going to force-cow.
->
-> So __account_vma() adds VM_ACCOUNT before (unnecessary) retry, and
-> this is unnecessary too and wrong.
->
->>> Hmm. OTOH, if I am right then mprotect_fixup() should be fixed??
->>
->> mprotect_fixup() does not account area if it already accounted, so all ok.
->
-> No, I meant another thing. But yes, I think I was wrong, mprotect_fixup()
-> is fine.
->
->>> We drop ->mmap_sem... Say, the task does mremap() in between and
->>> len == 2 * PAGE_SIZE. Then, for example, copy_to_user_page() can
->>> write to the same page twice. Perhaps not a problem in practice,
->>> I dunno.
->>
->> I have an old unfinished patch which implements upgrade_read() for rw-semaphore =)
->
-> Interesting ;)
+> Why wasn't this bug noticed before?
 
-Yeah, after upgrade_read() we cannot remove vmas, but we can add new and change existing.
+I guess CPU hotplug is not a usual test case for memcg changes. And the
+result of the bug is inaccurate statistics, but not something dramatic
+(oops, panic, etc.).
 
->
+> Has anyone tested the patch and
+> confirmed that the numbers are now correct?
+
+I haven't. I found the bug with sparse.
+
+> Given that this bug has been present for 1.5 years and nobody noticed,
+> I don't think a backport into -stable is warranted?
+> 
+
+-- 
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
