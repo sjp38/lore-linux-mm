@@ -1,137 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx153.postini.com [74.125.245.153])
-	by kanga.kvack.org (Postfix) with SMTP id 7A0356B004A
-	for <linux-mm@kvack.org>; Thu,  5 Apr 2012 12:55:51 -0400 (EDT)
-Subject: Re: [PATCH 2/3] tracing: Extract out common code for
- kprobes/uprobes traceevents
-From: Steven Rostedt <rostedt@goodmis.org>
-In-Reply-To: <20120403010452.17852.14232.sendpatchset@srdronam.in.ibm.com>
-References: <20120403010442.17852.9888.sendpatchset@srdronam.in.ibm.com>
-	 <20120403010452.17852.14232.sendpatchset@srdronam.in.ibm.com>
-Content-Type: text/plain; charset="UTF-8"
-Date: Thu, 05 Apr 2012 12:55:41 -0400
-Message-ID: <1333644941.3764.32.camel@pippen.local.home>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx117.postini.com [74.125.245.117])
+	by kanga.kvack.org (Postfix) with SMTP id 4802E6B007E
+	for <linux-mm@kvack.org>; Thu,  5 Apr 2012 13:10:22 -0400 (EDT)
+Date: Thu, 5 Apr 2012 13:09:56 -0400
+From: Vivek Goyal <vgoyal@redhat.com>
+Subject: Re: [RFC] writeback and cgroup
+Message-ID: <20120405170956.GE23999@redhat.com>
+References: <20120403183655.GA23106@dhcp-172-17-108-109.mtv.corp.google.com>
+ <20120404175124.GA8931@localhost>
+ <20120404193355.GD29686@dhcp-172-17-108-109.mtv.corp.google.com>
+ <20120404201816.GL12676@redhat.com>
+ <20120405163113.GD12854@google.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20120405163113.GD12854@google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-Cc: Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, LKML <linux-kernel@vger.kernel.org>, Linux-mm <linux-mm@kvack.org>, Oleg Nesterov <oleg@redhat.com>, Andi Kleen <andi@firstfloor.org>, Christoph Hellwig <hch@infradead.org>, Arnaldo Carvalho de Melo <acme@infradead.org>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Thomas Gleixner <tglx@linutronix.de>, Anton Arapov <anton@redhat.com>
+To: Tejun Heo <tj@kernel.org>
+Cc: Fengguang Wu <fengguang.wu@intel.com>, Jan Kara <jack@suse.cz>, Jens Axboe <axboe@kernel.dk>, linux-mm@kvack.org, sjayaraman@suse.com, andrea@betterlinux.com, jmoyer@redhat.com, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, lizefan@huawei.com, containers@lists.linux-foundation.org, cgroups@vger.kernel.org, ctalbott@google.com, rni@google.com, lsf@lists.linux-foundation.org
 
-On Tue, 2012-04-03 at 06:34 +0530, Srikar Dronamraju wrote:
-
-
-> -/*
-> - * Fetch a null-terminated string. Caller MUST set *(u32 *)dest with max
-> - * length and relative data location.
-> - */
-> -static __kprobes void FETCH_FUNC_NAME(memory, string)(struct pt_regs *regs,
-> -                                                     void *addr, void *dest)
-> -{
-> -       long ret;
-> -       int maxlen = get_rloc_len(*(u32 *)dest);
-> -       u8 *dst = get_rloc_data(dest);
-> -       u8 *src = addr;
-> -       mm_segment_t old_fs = get_fs();
-> -       if (!maxlen)
-> -               return;
-
-> diff --git a/kernel/trace/trace_probe.c b/kernel/trace/trace_probe.c
-> new file mode 100644
-> index 0000000..deb375a
-> --- /dev/null
-> +++ b/kernel/trace/trace_probe.c
-
-> +DEFINE_BASIC_FETCH_FUNCS(memory)
-> +/*
-> + * Fetch a null-terminated string. Caller MUST set *(u32 *)dest with max
-> + * length and relative data location.
-> + */
-> +static __kprobes void FETCH_FUNC_NAME(memory, string)(struct pt_regs *regs,
-> +						      void *addr, void *dest)
-> +{
-> +	int maxlen;
-> +	long ret;
-> +
-> +	maxlen = get_rloc_len(*(u32 *)dest);
-> +	u8 *dst = get_rloc_data(dest);
-> +	u8 *src = addr;
-
-
-Please do not mix declarations and actual code. The above declares
-maxlen and ret, then assigns maxlen (actual code) and then you declare
-dst and src (as well as assign it).
-
-The original version (shown at the top) is fine. Why did you change it?
-Although the original should have a space:
-
-static __kprobes void FETCH_FUNC_NAME(memory, string)(struct pt_regs *regs,
-                                                     void *addr, void *dest)
-{
-       long ret;
-       int maxlen = get_rloc_len(*(u32 *)dest);
-       u8 *dst = get_rloc_data(dest);
-       u8 *src = addr;
-       mm_segment_t old_fs = get_fs();
-					<--- new line needed (from original)
-       if (!maxlen)
-               return;
-
-> +	mm_segment_t old_fs = get_fs();
-> +
-> +	if (!maxlen)
-> +		return;
-> +
-> +	/*
-> +	 * Try to get string again, since the string can be changed while
-> +	 * probing.
-> +	 */
-> +	set_fs(KERNEL_DS);
-> +	pagefault_disable();
-> +
-> +	do
-> +		ret = __copy_from_user_inatomic(dst++, src++, 1);
-> +	while (dst[-1] && ret == 0 && src - (u8 *)addr < maxlen);
-> +
-> +	dst[-1] = '\0';
-> +	pagefault_enable();
-> +	set_fs(old_fs);
-> +
-> +	if (ret < 0) {	/* Failed to fetch string */
-> +		((u8 *)get_rloc_data(dest))[0] = '\0';
-> +		*(u32 *)dest = make_data_rloc(0, get_rloc_offs(*(u32 *)dest));
-> +	} else {
-> +		*(u32 *)dest = make_data_rloc(src - (u8 *)addr,
-> +					      get_rloc_offs(*(u32 *)dest));
-> +	}
-> +}
-
-
-> +
-> +#define WRITE_BUFSIZE 128
-
-The original code had WRITE_BUFSIZE as 4096 this has it with 128. That's
-a big difference. Even if you have a reason for changing this, don't do
-it in this patch. That should be a separate patch with an explanation of
-why this was changed.
-
-The rest of the patch looks fine.
-
--- Steve
-
-> +
-> +ssize_t traceprobe_probes_write(struct file *file, const char __user *buffer,
-> +				size_t count, loff_t *ppos,
-> +				int (*createfn)(int, char **))
-> +{
-> +	char *kbuf, *tmp;
-> +	int ret = 0;
-> +	size_t done = 0;
-> +	size_t size;
-> +
-> +
+On Thu, Apr 05, 2012 at 09:31:13AM -0700, Tejun Heo wrote:
+> Hey, Vivek.
+> 
+> On Wed, Apr 04, 2012 at 04:18:16PM -0400, Vivek Goyal wrote:
+> > Hey how about reconsidering my other proposal for which I had posted
+> > the patches. And that is keep throttling still at device level. Reads
+> > and direct IO get throttled asynchronously but buffered writes get
+> > throttled synchronously.
+> > 
+> > Advantages of this scheme.
+> > 
+> > - There are no separate knobs.
+> > 
+> > - All the IO (read, direct IO and buffered write) is controlled using
+> >   same set of knobs and goes in queue of same cgroup.
+> > 
+> > - Writeback logic has no knowledge of throttling. It just invokes a 
+> >   hook into throttling logic of device queue.
+> > 
+> > I guess this is a hybrid of active writeback throttling and back pressure
+> > mechanism.
+> > 
+> > But it still does not solve the NFS issue as well as for direct IO,
+> > filesystems still can get serialized, so metadata issue still needs to 
+> > be resolved. So one can argue that why not go for full "back pressure"
+> > method, despite it being more complex.
+> > 
+> > Here is the link, just to refresh the memory. Something to keep in mind
+> > while assessing alternatives.
+> > 
+> > https://lkml.org/lkml/2011/6/28/243
+> 
+> Hmmm... so, this only works for blk-throttle and not with the weight.
+> How do you manage interaction between buffered writes and direct
+> writes for the same cgroup?
 > 
 
+Yes, it is only for blk-throttle. We just account for buffered write
+in balance_dirty_pages() instead of when they are actually submitted to
+device by flusher thread.
+
+IIRC, I just had two queues. In one queue I had bios and in another queue
+I had  tasks with information how much memory they are dirtying. So I 
+did round robin in terms of dispatch between two queues depending on
+throttling rate. I will allow dispatch bio from direct IO queue, then 
+look at the other queue and see how much IO other task wanted to do and
+when sufficient time had passed based on throttling rate, I will remove
+that task from my wait queue and wake it up. 
+
+That way it becomes equivalent to that two IO paths (direct IO + buffered
+write),  doing IO to single pipe which has throttling limit. Both the
+IOs are sujected to same common limit (and no split). Just that we round
+robin between two types of IO and try to divide available bandwidth
+equally (This ofcourse could be made tunable).
+
+Thanks
+Vivek
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
