@@ -1,58 +1,108 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx139.postini.com [74.125.245.139])
-	by kanga.kvack.org (Postfix) with SMTP id EE3526B00FA
-	for <linux-mm@kvack.org>; Wed,  4 Apr 2012 19:02:43 -0400 (EDT)
-Received: by pbcup15 with SMTP id up15so956383pbc.14
-        for <linux-mm@kvack.org>; Wed, 04 Apr 2012 16:02:43 -0700 (PDT)
-Date: Wed, 4 Apr 2012 16:02:37 -0700
-From: Tejun Heo <tj@kernel.org>
-Subject: Re: [RFC] writeback and cgroup
-Message-ID: <20120404230237.GA2173@dhcp-172-17-108-109.mtv.corp.google.com>
-References: <20120403183655.GA23106@dhcp-172-17-108-109.mtv.corp.google.com>
- <20120404145134.GC12676@redhat.com>
- <20120404184909.GB29686@dhcp-172-17-108-109.mtv.corp.google.com>
- <20120404203239.GM12676@redhat.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20120404203239.GM12676@redhat.com>
+Received: from psmtp.com (na3sys010amx196.postini.com [74.125.245.196])
+	by kanga.kvack.org (Postfix) with SMTP id B51596B010B
+	for <linux-mm@kvack.org>; Wed,  4 Apr 2012 20:17:21 -0400 (EDT)
+Received: from epcpsbgm1.samsung.com (mailout1.samsung.com [203.254.224.24])
+ by mailout1.samsung.com
+ (Oracle Communications Messaging Exchange Server 7u4-19.01 64bit (built Sep  7
+ 2010)) with ESMTP id <0M1Z0084ECSVE0A0@mailout1.samsung.com> for
+ linux-mm@kvack.org; Thu, 05 Apr 2012 09:17:19 +0900 (KST)
+Received: from NOSYRJEONG01 ([12.52.126.171])
+ by mmp1.samsung.com (Oracle Communications Messaging Exchange Server 7u4-19.01
+ 64bit (built Sep  7 2010)) with ESMTPA id <0M1Z0086DCSUFR90@mmp1.samsung.com>
+ for linux-mm@kvack.org; Thu, 05 Apr 2012 09:17:19 +0900 (KST)
+From: =?ks_c_5601-1987?B?waTIv8H4?= <syr.jeong@samsung.com>
+References: <201203301744.16762.arnd@arndb.de>
+ <201204021145.43222.arnd@arndb.de>
+ <alpine.LSU.2.00.1204020734560.1847@eggly.anvils>
+ <201204021455.25029.arnd@arndb.de>
+In-reply-to: 
+Subject: RE: swap on eMMC and other flash
+Date: Thu, 05 Apr 2012 09:17:18 +0900
+Message-id: <02cc01cd12c1$769421e0$63bc65a0$%jeong@samsung.com>
+MIME-version: 1.0
+Content-type: text/plain; charset=ks_c_5601-1987
+Content-transfer-encoding: 7bit
+Content-language: ko
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vivek Goyal <vgoyal@redhat.com>
-Cc: Fengguang Wu <fengguang.wu@intel.com>, Jan Kara <jack@suse.cz>, Jens Axboe <axboe@kernel.dk>, linux-mm@kvack.org, sjayaraman@suse.com, andrea@betterlinux.com, jmoyer@redhat.com, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, lizefan@huawei.com, containers@lists.linux-foundation.org, cgroups@vger.kernel.org, ctalbott@google.com, rni@google.com, lsf@lists.linux-foundation.org
+To: =?ks_c_5601-1987?B?J8GkyL/B+Cc=?= <syr.jeong@samsung.com>, 'Arnd Bergmann' <arnd@arndb.de>, 'Hugh Dickins' <hughd@google.com>, cpgs@samsung.com
+Cc: linaro-kernel@lists.linaro.org, 'Rik van Riel' <riel@redhat.com>, linux-mmc@vger.kernel.org, 'Alex Lemberg' <alex.lemberg@sandisk.com>, linux-kernel@vger.kernel.org, "'Luca Porzio (lporzio)'" <lporzio@micron.com>, linux-mm@kvack.org, kernel-team@android.com, 'Yejin Moon' <yejin.moon@samsung.com>
 
-Hello, Vivek.
 
-On Wed, Apr 04, 2012 at 04:32:39PM -0400, Vivek Goyal wrote:
-> > Let's say we have iops/bps limitation applied on top of proportional IO
-> > distribution
+Dear Arnd
+
+Hello, 
+
+I'm not clearly understand the history of this e-mail communication because
+I joined in the middle of mail thread.
+Anyhow I would like to make comments for discard in swap area.
+eMMC device point of view, there is no information of files which is used
+in System S/W(Linux filesystem).
+So...  In the eMMC, there is no way to know the address info of data which
+was already erased.
+If discard CMD send this information(address of erased files) to eMMC, old
+data should be erased in the physical NAND level and get the free space
+with minimizing internal merge.
+
+I'm not sure that how Linux manage swap area.
+If there are difference of information for invalid data between host and
+eMMC device, discard to eMMC is good for performance of IO. It is as same
+as general case of discard of user partition which is formatted with
+filesystem.
+As your e-mail mentioned, overwriting the logical address is the another
+way to send info of invalid data address just for the overwrite area,
+however it is not a best way for eMMC to manage physical NAND array. In
+this case, eMMC have to trim physical NAND array, and do write operation at
+the same time. It needs more latency.
+If host send discard with invalid data address info in advance, eMMC can
+find beat way to manage physical NAND page before host usage(write
+operation).
+I'm not sure it is the right comments of your concern.
+If you need more info, please let me know
+
+Best Regards
+Hyojin
+
+
+-----Original Message-----
+From: Arnd Bergmann [mailto:arnd@arndb.de]
+Sent: Monday, April 02, 2012 11:55 PM
+To: Hugh Dickins
+Cc: linaro-kernel@lists.linaro.org; Rik van Riel; linux-
+mmc@vger.kernel.org; Alex Lemberg; linux-kernel@vger.kernel.org; Luca
+Porzio (lporzio); linux-mm@kvack.org; Hyojin Jeong; kernel-
+team@android.com; Yejin Moon
+Subject: Re: swap on eMMC and other flash
+
+On Monday 02 April 2012, Hugh Dickins wrote:
+> On Mon, 2 Apr 2012, Arnd Bergmann wrote:
+> > 
+> > Another option would be batched discard as we do it for file systems:
+> > occasionally stop writing to swap space and scanning for areas that 
+> > have become available since the last discard, then send discard 
+> > commands for those.
 > 
-> We already do that. First IO is subjected to throttling limit and only 
-> then it is passed to the elevator to do the proportional IO. So throttling
-> is already stacked on top of proportional IO. The only question is 
-> should it be pushed to even higher layers or not.
+> I'm not sure whether you've missed "swapon --discard", which switches 
+> on discard_swap_cluster() just before we allocate from a new cluster; 
+> or whether you're musing that it's no use to you because you want to 
+> repurpose the swap cluster to match erase block: I'm mentioning it in 
+> case you missed that it's already there (but few use it, since even 
+> done at that scale it's often more trouble than it's worth).
 
-Yeah, I know we already can do that.  I was trying to give an example
-of non-trivial IO limit configuration.
+I actually argued that discard_swap_cluster is exactly the right thing to
+do, especially when clusters match erase blocks on the less capable devices
+like SD cards.
 
-> So split model is definitely confusing. Anyway, block layer will not
-> apply the limits again as flusher IO will go in root cgroup which 
-> generally goes to root which is unthrottled generally. Or flusher
-> could mark the bios with a flag saying "do not throttle" bios again as
-> these have been throttled already. So throttling again is probably not
-> an issue. 
-> 
-> In summary, agreed that split is confusing and it fills a gap existing
-> today.
+Luca was arguing that on some hardware there is no point in ever submitting
+a discard just before we start reusing space, because at that point it the
+hardware already discards the old data by overwriting the logical addresses
+with new blocks, while issuing a discard on all blocks as soon as they
+become available would make a bigger difference. I would be interested in
+hearing from Hyojin Jeong and Alex Lemberg what they think is the best time
+to issue a discard, because they would know about other hardware than Luca.
 
-It's not only confusing.  It's broken.  So, what you're saying is that
-there's no provision to orchestrate between buffered writes and other
-types of IOs.  So, it would essentially work as if there are two
-separate controls controlling each of two heavily interacting parts
-with no designed provision between them.  What the....
-
--- 
-tejun
+	Arnd
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
