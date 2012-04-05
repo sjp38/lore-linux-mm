@@ -1,65 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx153.postini.com [74.125.245.153])
-	by kanga.kvack.org (Postfix) with SMTP id 079896B004A
-	for <linux-mm@kvack.org>; Thu,  5 Apr 2012 12:31:19 -0400 (EDT)
-Received: by iajr24 with SMTP id r24so2727971iaj.14
-        for <linux-mm@kvack.org>; Thu, 05 Apr 2012 09:31:19 -0700 (PDT)
-Date: Thu, 5 Apr 2012 09:31:13 -0700
-From: Tejun Heo <tj@kernel.org>
-Subject: Re: [RFC] writeback and cgroup
-Message-ID: <20120405163113.GD12854@google.com>
-References: <20120403183655.GA23106@dhcp-172-17-108-109.mtv.corp.google.com>
- <20120404175124.GA8931@localhost>
- <20120404193355.GD29686@dhcp-172-17-108-109.mtv.corp.google.com>
- <20120404201816.GL12676@redhat.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20120404201816.GL12676@redhat.com>
+Received: from psmtp.com (na3sys010amx162.postini.com [74.125.245.162])
+	by kanga.kvack.org (Postfix) with SMTP id E936C6B004A
+	for <linux-mm@kvack.org>; Thu,  5 Apr 2012 12:32:29 -0400 (EDT)
+MIME-version: 1.0
+Content-transfer-encoding: 7BIT
+Content-type: TEXT/PLAIN
+Received: from euspt2 ([210.118.77.13]) by mailout3.w1.samsung.com
+ (Sun Java(tm) System Messaging Server 6.3-8.04 (built Jul 29 2009; 32bit))
+ with ESMTP id <0M2000NP9LXN0J80@mailout3.w1.samsung.com> for
+ linux-mm@kvack.org; Thu, 05 Apr 2012 17:32:11 +0100 (BST)
+Received: from linux.samsung.com ([106.116.38.10])
+ by spt2.w1.samsung.com (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14
+ 2004)) with ESMTPA id <0M2000MD7LY1VB@spt2.w1.samsung.com> for
+ linux-mm@kvack.org; Thu, 05 Apr 2012 17:32:25 +0100 (BST)
+Date: Thu, 05 Apr 2012 18:32:11 +0200
+From: Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>
+Subject: [PATCH 0/2] mm: compaction: improve free pages selection
+Message-id: <1333643534-1591-1-git-send-email-b.zolnierkie@samsung.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vivek Goyal <vgoyal@redhat.com>
-Cc: Fengguang Wu <fengguang.wu@intel.com>, Jan Kara <jack@suse.cz>, Jens Axboe <axboe@kernel.dk>, linux-mm@kvack.org, sjayaraman@suse.com, andrea@betterlinux.com, jmoyer@redhat.com, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, lizefan@huawei.com, containers@lists.linux-foundation.org, cgroups@vger.kernel.org, ctalbott@google.com, rni@google.com, lsf@lists.linux-foundation.org
+To: linux-mm@kvack.org
+Cc: mgorman@suse.de, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>
 
-Hey, Vivek.
+These patches lift some limitations on free pages selection so there
+is a much higher chance of memory migration succeeding in case of heavy
+memory fragmentation.
 
-On Wed, Apr 04, 2012 at 04:18:16PM -0400, Vivek Goyal wrote:
-> Hey how about reconsidering my other proposal for which I had posted
-> the patches. And that is keep throttling still at device level. Reads
-> and direct IO get throttled asynchronously but buffered writes get
-> throttled synchronously.
-> 
-> Advantages of this scheme.
-> 
-> - There are no separate knobs.
-> 
-> - All the IO (read, direct IO and buffered write) is controlled using
->   same set of knobs and goes in queue of same cgroup.
-> 
-> - Writeback logic has no knowledge of throttling. It just invokes a 
->   hook into throttling logic of device queue.
-> 
-> I guess this is a hybrid of active writeback throttling and back pressure
-> mechanism.
-> 
-> But it still does not solve the NFS issue as well as for direct IO,
-> filesystems still can get serialized, so metadata issue still needs to 
-> be resolved. So one can argue that why not go for full "back pressure"
-> method, despite it being more complex.
-> 
-> Here is the link, just to refresh the memory. Something to keep in mind
-> while assessing alternatives.
-> 
-> https://lkml.org/lkml/2011/6/28/243
+[ From looking at the compaction free pages selection code I'm under
+  the impression that the noticed limitations exist because the code
+  was originally designed to mainly deal with hugepages? ]
 
-Hmmm... so, this only works for blk-throttle and not with the weight.
-How do you manage interaction between buffered writes and direct
-writes for the same cgroup?
 
-Thanks.
+My test case on a ARM EXYNOS4 device with 512 MiB (to be exact:
+131072 standard 4KiB pages in 'Normal' zone) is to:
+- allocate 120000 pages for kernel's usage
+- free every second page (60000 pages) of memory just allocated
+- allocate and use 60000 pages from user space
+- free remaining 60000 pages of kernel memory
+(now we have fragmented memory occupied mostly by user space pages)
+- try to allocate 100 order-9 (2048 KiB) pages for kernel's usage
+
+The results:
+- with compaction disabled I get 11 successful allocations
+- with compaction enabled - 14 successful allocations
+- with patch #1 - 34 successful allocations
+- with patches #1+2 all 100 allocations succeed
+
+
+On the cons side of the changes is the increased CPU usage spent on
+finding suitable free pages.  However once we try memory compaction to
+help us to allocate higher order pages we are already in the slow-path
+and it is better to spent some extra cycles than to fail the allocation
+completely.
+
+Best regards,
+--
+Bartlomiej Zolnierkiewicz
+Samsung Poland R&D Center
+
+
+Bartlomiej Zolnierkiewicz (2):
+  mm: compaction: try harder to isolate free pages
+  mm: compaction: allow isolation of lower order buddy pages
+
+ mm/compaction.c |    9 ++++-----
+ 1 file changed, 4 insertions(+), 5 deletions(-)
 
 -- 
-tejun
+1.7.9.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
