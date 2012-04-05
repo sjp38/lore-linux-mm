@@ -1,108 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx196.postini.com [74.125.245.196])
-	by kanga.kvack.org (Postfix) with SMTP id B51596B010B
-	for <linux-mm@kvack.org>; Wed,  4 Apr 2012 20:17:21 -0400 (EDT)
-Received: from epcpsbgm1.samsung.com (mailout1.samsung.com [203.254.224.24])
- by mailout1.samsung.com
- (Oracle Communications Messaging Exchange Server 7u4-19.01 64bit (built Sep  7
- 2010)) with ESMTP id <0M1Z0084ECSVE0A0@mailout1.samsung.com> for
- linux-mm@kvack.org; Thu, 05 Apr 2012 09:17:19 +0900 (KST)
-Received: from NOSYRJEONG01 ([12.52.126.171])
- by mmp1.samsung.com (Oracle Communications Messaging Exchange Server 7u4-19.01
- 64bit (built Sep  7 2010)) with ESMTPA id <0M1Z0086DCSUFR90@mmp1.samsung.com>
- for linux-mm@kvack.org; Thu, 05 Apr 2012 09:17:19 +0900 (KST)
-From: =?ks_c_5601-1987?B?waTIv8H4?= <syr.jeong@samsung.com>
-References: <201203301744.16762.arnd@arndb.de>
- <201204021145.43222.arnd@arndb.de>
- <alpine.LSU.2.00.1204020734560.1847@eggly.anvils>
- <201204021455.25029.arnd@arndb.de>
-In-reply-to: 
-Subject: RE: swap on eMMC and other flash
-Date: Thu, 05 Apr 2012 09:17:18 +0900
-Message-id: <02cc01cd12c1$769421e0$63bc65a0$%jeong@samsung.com>
-MIME-version: 1.0
-Content-type: text/plain; charset=ks_c_5601-1987
-Content-transfer-encoding: 7bit
-Content-language: ko
+Received: from psmtp.com (na3sys010amx156.postini.com [74.125.245.156])
+	by kanga.kvack.org (Postfix) with SMTP id 01CD46B010D
+	for <linux-mm@kvack.org>; Wed,  4 Apr 2012 21:10:07 -0400 (EDT)
+Message-ID: <4F7CF0EF.2090302@codeaurora.org>
+Date: Wed, 04 Apr 2012 18:10:07 -0700
+From: Laura Abbott <lauraa@codeaurora.org>
+MIME-Version: 1.0
+Subject: Missing initialization of pages removed with memblock_remove
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: =?ks_c_5601-1987?B?J8GkyL/B+Cc=?= <syr.jeong@samsung.com>, 'Arnd Bergmann' <arnd@arndb.de>, 'Hugh Dickins' <hughd@google.com>, cpgs@samsung.com
-Cc: linaro-kernel@lists.linaro.org, 'Rik van Riel' <riel@redhat.com>, linux-mmc@vger.kernel.org, 'Alex Lemberg' <alex.lemberg@sandisk.com>, linux-kernel@vger.kernel.org, "'Luca Porzio (lporzio)'" <lporzio@micron.com>, linux-mm@kvack.org, kernel-team@android.com, 'Yejin Moon' <yejin.moon@samsung.com>
+To: linux-arm-kernel@lists.infradead.org, linux-arm-msm@vger.kernel.org, linux-mm@kvack.org
+Cc: vgandhi@codeaurora.org, ohaugan@codeaurora.org
 
+Hi,
 
-Dear Arnd
+We seem to have hit an odd edge case related to the use of 
+memblock_remove. We carve out memory for certain use cases using 
+memblock_remove, which gives a layout such as:
 
-Hello, 
+<4>[    0.000000] Zone PFN ranges:
+<4>[    0.000000]   Normal   0x00080200 -> 0x000a1200
+<4>[    0.000000]   HighMem  0x000a1200 -> 0x000c0000
+<4>[    0.000000] Movable zone start PFN for each node
+<4>[    0.000000] early_node_map[3] active PFN ranges
+<4>[    0.000000]     0: 0x00080200 -> 0x00088f00
+<4>[    0.000000]     0: 0x00090000 -> 0x000ac680
+<4>[    0.000000]     0: 0x000b7a02 -> 0x000c0000
 
-I'm not clearly understand the history of this e-mail communication because
-I joined in the middle of mail thread.
-Anyhow I would like to make comments for discard in swap area.
-eMMC device point of view, there is no information of files which is used
-in System S/W(Linux filesystem).
-So...  In the eMMC, there is no way to know the address info of data which
-was already erased.
-If discard CMD send this information(address of erased files) to eMMC, old
-data should be erased in the physical NAND level and get the free space
-with minimizing internal merge.
+Since pfn_valid uses memblock_is_memory, pfn_valid will return false on 
+all memory removed with memblock_remove. As a result, none of the page 
+structures for the memblock_remove regions will have been initialized 
+since memmap_init_zone calls pfn_valid before trying to initialize the 
+memmap. Normally this isn't an issue but a recent test case ends up 
+hitting a BUG_ON in move_freepages_block identical to the case in 
+http://lists.infradead.org/pipermail/linux-arm-kernel/2011-August/059934.html
+(BUG_ON(page_zone(start_page) != page_zone(end_page)))
 
-I'm not sure that how Linux manage swap area.
-If there are difference of information for invalid data between host and
-eMMC device, discard to eMMC is good for performance of IO. It is as same
-as general case of discard of user partition which is formatted with
-filesystem.
-As your e-mail mentioned, overwriting the logical address is the another
-way to send info of invalid data address just for the overwrite area,
-however it is not a best way for eMMC to manage physical NAND array. In
-this case, eMMC have to trim physical NAND array, and do write operation at
-the same time. It needs more latency.
-If host send discard with invalid data address info in advance, eMMC can
-find beat way to manage physical NAND page before host usage(write
-operation).
-I'm not sure it is the right comments of your concern.
-If you need more info, please let me know
+What's happening is the calculation of start_page in 
+move_freepages_block returns a page within a range removed by 
+memblock_remove which means the page structure is uninitialized. (e.g. 
+0xb7a02 -> 0xb7800)
 
-Best Regards
-Hyojin
+I've read through that thread and several others which have discouraged 
+use of CONFIG_HOLES_IN_ZONE due to the runtime overhead. The best 
+alternative solution I've come up with is to align the memory removed 
+via memblock_remove to MAX_ORDER_NR_PAGES but this will have a very high 
+memory overhead for certain use cases.
 
+A more fundamental question I have is should the page structures be 
+initialized for the regions removed with memblock_remove? Internally, 
+we've been divided on this issue and reading the source code hasn't 
+given any indication of if this is expected behavior or not.
 
------Original Message-----
-From: Arnd Bergmann [mailto:arnd@arndb.de]
-Sent: Monday, April 02, 2012 11:55 PM
-To: Hugh Dickins
-Cc: linaro-kernel@lists.linaro.org; Rik van Riel; linux-
-mmc@vger.kernel.org; Alex Lemberg; linux-kernel@vger.kernel.org; Luca
-Porzio (lporzio); linux-mm@kvack.org; Hyojin Jeong; kernel-
-team@android.com; Yejin Moon
-Subject: Re: swap on eMMC and other flash
+Any suggestions on what's the cleanest solution?
 
-On Monday 02 April 2012, Hugh Dickins wrote:
-> On Mon, 2 Apr 2012, Arnd Bergmann wrote:
-> > 
-> > Another option would be batched discard as we do it for file systems:
-> > occasionally stop writing to swap space and scanning for areas that 
-> > have become available since the last discard, then send discard 
-> > commands for those.
-> 
-> I'm not sure whether you've missed "swapon --discard", which switches 
-> on discard_swap_cluster() just before we allocate from a new cluster; 
-> or whether you're musing that it's no use to you because you want to 
-> repurpose the swap cluster to match erase block: I'm mentioning it in 
-> case you missed that it's already there (but few use it, since even 
-> done at that scale it's often more trouble than it's worth).
-
-I actually argued that discard_swap_cluster is exactly the right thing to
-do, especially when clusters match erase blocks on the less capable devices
-like SD cards.
-
-Luca was arguing that on some hardware there is no point in ever submitting
-a discard just before we start reusing space, because at that point it the
-hardware already discards the old data by overwriting the logical addresses
-with new blocks, while issuing a discard on all blocks as soon as they
-become available would make a bigger difference. I would be interested in
-hearing from Hyojin Jeong and Alex Lemberg what they think is the best time
-to issue a discard, because they would know about other hardware than Luca.
-
-	Arnd
+Thanks,
+Laura
+-- 
+Sent by an employee of the Qualcomm Innovation Center, Inc.
+The Qualcomm Innovation Center, Inc. is a member of the Code Aurora Forum.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
