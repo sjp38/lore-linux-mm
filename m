@@ -1,21 +1,21 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx195.postini.com [74.125.245.195])
-	by kanga.kvack.org (Postfix) with SMTP id 272596B00E9
+Received: from psmtp.com (na3sys010amx167.postini.com [74.125.245.167])
+	by kanga.kvack.org (Postfix) with SMTP id 4CF906B00EC
 	for <linux-mm@kvack.org>; Fri,  6 Apr 2012 14:51:44 -0400 (EDT)
 Received: from /spool/local
-	by e28smtp07.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e28smtp08.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
 	Sat, 7 Apr 2012 00:21:41 +0530
 Received: from d28av05.in.ibm.com (d28av05.in.ibm.com [9.184.220.67])
-	by d28relay04.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q36IpbqB3629268
-	for <linux-mm@kvack.org>; Sat, 7 Apr 2012 00:21:38 +0530
+	by d28relay01.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q36IpdoI4563124
+	for <linux-mm@kvack.org>; Sat, 7 Apr 2012 00:21:39 +0530
 Received: from d28av05.in.ibm.com (loopback [127.0.0.1])
-	by d28av05.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q370M6Gh007768
-	for <linux-mm@kvack.org>; Sat, 7 Apr 2012 10:22:06 +1000
+	by d28av05.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q370M8IG007851
+	for <linux-mm@kvack.org>; Sat, 7 Apr 2012 10:22:08 +1000
 From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Subject: [PATCH -V5 08/14] hugetlb: add charge/uncharge calls for HugeTLB alloc/free
-Date: Sat,  7 Apr 2012 00:20:54 +0530
-Message-Id: <1333738260-1329-9-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+Subject: [PATCH -V5 09/14] memcg: track resource index in cftype private
+Date: Sat,  7 Apr 2012 00:20:55 +0530
+Message-Id: <1333738260-1329-10-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
 In-Reply-To: <1333738260-1329-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
 References: <1333738260-1329-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
@@ -25,102 +25,81 @@ Cc: linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, "Aneesh Kumar K.V" <a
 
 From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
 
-This adds necessary charge/uncharge calls in the HugeTLB code. We do
-memcg charge in page alloc and uncharge in compound page destructor.
-We also need to ignore HugeTLB pages in __mem_cgroup_uncharge_common
-because that get called from delete_from_page_cache
+This helps in using same memcg callbacks for non reclaim resource
+control files.
 
-Reviewed-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Acked-by: Hillf Danton <dhillf@gmail.com>
+Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
 ---
- mm/hugetlb.c    |   20 +++++++++++++++++++-
- mm/memcontrol.c |    5 +++++
- 2 files changed, 24 insertions(+), 1 deletion(-)
+ mm/memcontrol.c |   27 +++++++++++++++++++++------
+ 1 file changed, 21 insertions(+), 6 deletions(-)
 
-diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-index 8cd89b4..dd00087 100644
---- a/mm/hugetlb.c
-+++ b/mm/hugetlb.c
-@@ -21,6 +21,8 @@
- #include <linux/rmap.h>
- #include <linux/swap.h>
- #include <linux/swapops.h>
-+#include <linux/memcontrol.h>
-+#include <linux/page_cgroup.h>
- 
- #include <asm/page.h>
- #include <asm/pgtable.h>
-@@ -628,6 +630,8 @@ static void free_huge_page(struct page *page)
- 	BUG_ON(page_mapcount(page));
- 	INIT_LIST_HEAD(&page->lru);
- 
-+	mem_cgroup_hugetlb_uncharge_page(hstate_index(h),
-+					 pages_per_huge_page(h), page);
- 	spin_lock(&hugetlb_lock);
- 	if (h->surplus_huge_pages_node[nid] && huge_page_order(h) < MAX_ORDER) {
- 		update_and_free_page(h, page);
-@@ -1113,7 +1117,10 @@ static struct page *alloc_huge_page(struct vm_area_struct *vma,
- 	struct hstate *h = hstate_vma(vma);
- 	struct page *page;
- 	long chg;
-+	int ret, idx;
-+	struct mem_cgroup *memcg;
- 
-+	idx = hstate_index(h);
- 	/*
- 	 * Processes that did not create the mapping will have no
- 	 * reserves and will not have accounted against subpool
-@@ -1129,6 +1136,12 @@ static struct page *alloc_huge_page(struct vm_area_struct *vma,
- 		if (hugepage_subpool_get_pages(spool, chg))
- 			return ERR_PTR(-ENOSPC);
- 
-+	ret = mem_cgroup_hugetlb_charge_page(idx, pages_per_huge_page(h),
-+					     &memcg);
-+	if (ret) {
-+		hugepage_subpool_put_pages(spool, chg);
-+		return ERR_PTR(-ENOSPC);
-+	}
- 	spin_lock(&hugetlb_lock);
- 	page = dequeue_huge_page_vma(h, vma, addr, avoid_reserve);
- 	spin_unlock(&hugetlb_lock);
-@@ -1136,6 +1149,9 @@ static struct page *alloc_huge_page(struct vm_area_struct *vma,
- 	if (!page) {
- 		page = alloc_buddy_huge_page(h, NUMA_NO_NODE);
- 		if (!page) {
-+			mem_cgroup_hugetlb_uncharge_memcg(idx,
-+							  pages_per_huge_page(h),
-+							  memcg);
- 			hugepage_subpool_put_pages(spool, chg);
- 			return ERR_PTR(-ENOSPC);
- 		}
-@@ -1144,7 +1160,9 @@ static struct page *alloc_huge_page(struct vm_area_struct *vma,
- 	set_page_private(page, (unsigned long)spool);
- 
- 	vma_commit_reservation(h, vma, addr);
--
-+	/* update page cgroup details */
-+	mem_cgroup_hugetlb_commit_charge(idx, pages_per_huge_page(h),
-+					 memcg, page);
- 	return page;
- }
- 
 diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 1a2e041..0a1f776 100644
+index 0a1f776..3bb3b42 100644
 --- a/mm/memcontrol.c
 +++ b/mm/memcontrol.c
-@@ -2966,6 +2966,11 @@ __mem_cgroup_uncharge_common(struct page *page, enum charge_type ctype)
+@@ -381,9 +381,14 @@ enum charge_type {
+ #define _MEM			(0)
+ #define _MEMSWAP		(1)
+ #define _OOM_TYPE		(2)
+-#define MEMFILE_PRIVATE(x, val)	(((x) << 16) | (val))
+-#define MEMFILE_TYPE(val)	(((val) >> 16) & 0xffff)
+-#define MEMFILE_ATTR(val)	((val) & 0xffff)
++#define _MEMHUGETLB		(3)
++
++/*  0 ... val ...16.... x...24...idx...32*/
++#define __MEMFILE_PRIVATE(idx, x, val)	(((idx) << 24) | ((x) << 16) | (val))
++#define MEMFILE_PRIVATE(x, val)		__MEMFILE_PRIVATE(0, x, val)
++#define MEMFILE_TYPE(val)		(((val) >> 16) & 0xff)
++#define MEMFILE_IDX(val)		(((val) >> 24) & 0xff)
++#define MEMFILE_ATTR(val)		((val) & 0xffff)
+ /* Used for OOM nofiier */
+ #define OOM_CONTROL		(0)
  
- 	if (PageSwapCache(page))
- 		return NULL;
-+	/*
-+	 * HugeTLB page uncharge happen in the HugeTLB compound page destructor
-+	 */
-+	if (PageHuge(page))
-+		return NULL;
+@@ -4003,7 +4008,7 @@ static ssize_t mem_cgroup_read(struct cgroup *cont, struct cftype *cft,
+ 	struct mem_cgroup *memcg = mem_cgroup_from_cont(cont);
+ 	char str[64];
+ 	u64 val;
+-	int type, name, len;
++	int type, name, len, idx;
  
- 	if (PageTransHuge(page)) {
- 		nr_pages <<= compound_order(page);
+ 	type = MEMFILE_TYPE(cft->private);
+ 	name = MEMFILE_ATTR(cft->private);
+@@ -4024,6 +4029,10 @@ static ssize_t mem_cgroup_read(struct cgroup *cont, struct cftype *cft,
+ 		else
+ 			val = res_counter_read_u64(&memcg->memsw, name);
+ 		break;
++	case _MEMHUGETLB:
++		idx = MEMFILE_IDX(cft->private);
++		val = res_counter_read_u64(&memcg->hugepage[idx], name);
++		break;
+ 	default:
+ 		BUG();
+ 	}
+@@ -4061,7 +4070,10 @@ static int mem_cgroup_write(struct cgroup *cont, struct cftype *cft,
+ 			break;
+ 		if (type == _MEM)
+ 			ret = mem_cgroup_resize_limit(memcg, val);
+-		else
++		else if (type == _MEMHUGETLB) {
++			int idx = MEMFILE_IDX(cft->private);
++			ret = res_counter_set_limit(&memcg->hugepage[idx], val);
++		} else
+ 			ret = mem_cgroup_resize_memsw_limit(memcg, val);
+ 		break;
+ 	case RES_SOFT_LIMIT:
+@@ -4127,7 +4139,10 @@ static int mem_cgroup_reset(struct cgroup *cont, unsigned int event)
+ 	case RES_MAX_USAGE:
+ 		if (type == _MEM)
+ 			res_counter_reset_max(&memcg->res);
+-		else
++		else if (type == _MEMHUGETLB) {
++			int idx = MEMFILE_IDX(event);
++			res_counter_reset_max(&memcg->hugepage[idx]);
++		} else
+ 			res_counter_reset_max(&memcg->memsw);
+ 		break;
+ 	case RES_FAILCNT:
 -- 
 1.7.10.rc3.3.g19a6c
 
