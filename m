@@ -1,94 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx126.postini.com [74.125.245.126])
-	by kanga.kvack.org (Postfix) with SMTP id 85B7B6B004A
+Received: from psmtp.com (na3sys010amx168.postini.com [74.125.245.168])
+	by kanga.kvack.org (Postfix) with SMTP id 8D2FF6B004D
 	for <linux-mm@kvack.org>; Fri,  6 Apr 2012 04:40:08 -0400 (EDT)
-Received: from euspt1 (mailout2.w1.samsung.com [210.118.77.12])
- by mailout2.w1.samsung.com
- (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14 2004))
- with ESMTP id <0M2100E4IUQQRY@mailout2.w1.samsung.com> for linux-mm@kvack.org;
- Fri, 06 Apr 2012 09:40:02 +0100 (BST)
-Received: from linux.samsung.com ([106.116.38.10])
- by spt1.w1.samsung.com (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14
- 2004)) with ESMTPA id <0M2100HH4UQTAY@spt1.w1.samsung.com> for
- linux-mm@kvack.org; Fri, 06 Apr 2012 09:40:06 +0100 (BST)
-Date: Fri, 06 Apr 2012 10:21:39 +0200
-From: Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>
-Subject: Re: [PATCH 1/2] mm: compaction: try harder to isolate free pages
-In-reply-to: 
- <CAEwNFnAtzd5GHKanNOafZhnc5xQJHgVZn6y93_+q4BJwRGqwsg@mail.gmail.com>
-Message-id: <201204061021.39656.b.zolnierkie@samsung.com>
 MIME-version: 1.0
-Content-type: Text/Plain; charset=iso-8859-15
 Content-transfer-encoding: 7BIT
+Content-type: Text/Plain; charset=iso-8859-1
+Received: from euspt2 ([210.118.77.13]) by mailout3.w1.samsung.com
+ (Sun Java(tm) System Messaging Server 6.3-8.04 (built Jul 29 2009; 32bit))
+ with ESMTP id <0M21006GPUQCDX20@mailout3.w1.samsung.com> for
+ linux-mm@kvack.org; Fri, 06 Apr 2012 09:39:48 +0100 (BST)
+Received: from linux.samsung.com ([106.116.38.10])
+ by spt2.w1.samsung.com (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14
+ 2004)) with ESMTPA id <0M210039QUQRAJ@spt2.w1.samsung.com> for
+ linux-mm@kvack.org; Fri, 06 Apr 2012 09:40:04 +0100 (BST)
+Date: Fri, 06 Apr 2012 10:38:00 +0200
+From: Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>
+Subject: Re: [PATCH 2/2] mm: compaction: allow isolation of lower order buddy
+ pages
+In-reply-to: <alpine.DEB.2.00.1204051444080.17852@chino.kir.corp.google.com>
+Message-id: <201204061038.00068.b.zolnierkie@samsung.com>
 References: <1333643534-1591-1-git-send-email-b.zolnierkie@samsung.com>
- <1333643534-1591-2-git-send-email-b.zolnierkie@samsung.com>
- <CAEwNFnAtzd5GHKanNOafZhnc5xQJHgVZn6y93_+q4BJwRGqwsg@mail.gmail.com>
+ <1333643534-1591-3-git-send-email-b.zolnierkie@samsung.com>
+ <alpine.DEB.2.00.1204051444080.17852@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
+To: David Rientjes <rientjes@google.com>
 Cc: linux-mm@kvack.org, mgorman@suse.de, Kyungmin Park <kyungmin.park@samsung.com>
 
-On Friday 06 April 2012 08:40:56 Minchan Kim wrote:
-> On Fri, Apr 6, 2012 at 1:32 AM, Bartlomiej Zolnierkiewicz <
-> b.zolnierkie@samsung.com> wrote:
+On Thursday 05 April 2012 23:46:17 David Rientjes wrote:
+> On Thu, 5 Apr 2012, Bartlomiej Zolnierkiewicz wrote:
 > 
-> > In isolate_freepages() check each page in a pageblock
-> > instead of checking only first pages of pageblock_nr_pages
-> > intervals (suitable_migration_target(page) is called before
-> > isolate_freepages_block() so if page is "unsuitable" whole
-> > pageblock_nr_pages pages will be ommited from the check).
-> > It greatly improves possibility of finding free pages to
-> > isolate during compaction_alloc() phase.
-> >
+> > diff --git a/mm/compaction.c b/mm/compaction.c
+> > index bc77135..642c17a 100644
+> > --- a/mm/compaction.c
+> > +++ b/mm/compaction.c
+> > @@ -115,8 +115,8 @@ static bool suitable_migration_target(struct page *page)
+> >  	if (migratetype == MIGRATE_ISOLATE || migratetype == MIGRATE_RESERVE)
+> >  		return false;
+> >  
+> > -	/* If the page is a large free page, then allow migration */
+> > -	if (PageBuddy(page) && page_order(page) >= pageblock_order)
+> > +	/* If the page is a free page, then allow migration */
+> > +	if (PageBuddy(page))
+> >  		return true;
+> >  
+> >  	/* If the block is MIGRATE_MOVABLE, allow migration */
 > 
-> I doubt how this can help keeping free pages.
-> Now, compaction works by pageblock_nr_pages unit so although you work by
-> per page, all pages in a block would have same block type.
-> It means we can't pass suitable_migration_target. No?
+> So when we try to allocate a 2M hugepage through the buddy allocator where 
+> the pageblock is also 2M, wouldn't this result in a lot of unnecessary 
+> migration of memory that may not end up defragmented enough for the 
+> allocation to succeed?  Sounds like a regression for hugepage allocation.
 
-suitable_migration_target() only checks first page of pageblock_nr_pages
-block (1024 normal 4KiB pages in my test case cause there is no hugepage
-support on ARM) and pages in pageblock_nr_pages block can have different
-types otherwise I would not see improvement from this patch.
+I haven't tested it with hugepage allocation yet (no hugepage support
+on ARM) but the code isolating pages for migration remains unchanged
+so after migration memory we are trying to allocate pages from should
+end up at least as defragmented as before the patch.  Some migrations
+may turn out to be unnecessary but it doesn't seem as it introduces
+additional problems with hugepage allocation.
 
 Best regards,
 --
 Bartlomiej Zolnierkiewicz
 Samsung Poland R&D Center
-
-> > Cc: Mel Gorman <mgorman@suse.de>
-> > Signed-off-by: Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>
-> > Signed-off-by: Kyungmin Park <kyungmin.park@samsung.com>
-> > ---
-> >  mm/compaction.c |    5 ++---
-> >  1 file changed, 2 insertions(+), 3 deletions(-)
-> >
-> > diff --git a/mm/compaction.c b/mm/compaction.c
-> > index d9ebebe..bc77135 100644
-> > --- a/mm/compaction.c
-> > +++ b/mm/compaction.c
-> > @@ -65,7 +65,7 @@ static unsigned long isolate_freepages_block(struct zone
-> > *zone,
-> >
-> >        /* Get the last PFN we should scan for free pages at */
-> >        zone_end_pfn = zone->zone_start_pfn + zone->spanned_pages;
-> > -       end_pfn = min(blockpfn + pageblock_nr_pages, zone_end_pfn);
-> > +       end_pfn = min(blockpfn + 1, zone_end_pfn);
-> >
-> >        /* Find the first usable PFN in the block to initialse page cursor
-> > */
-> >        for (; blockpfn < end_pfn; blockpfn++) {
-> > @@ -160,8 +160,7 @@ static void isolate_freepages(struct zone *zone,
-> >         * pages on cc->migratepages. We stop searching if the migrate
-> >         * and free page scanners meet or enough free pages are isolated.
-> >         */
-> > -       for (; pfn > low_pfn && cc->nr_migratepages > nr_freepages;
-> > -                                       pfn -= pageblock_nr_pages) {
-> > +       for (; pfn > low_pfn && cc->nr_migratepages > nr_freepages; pfn--)
-> > {
-> >                unsigned long isolated;
-> >
-> >                if (!pfn_valid(pfn))
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
