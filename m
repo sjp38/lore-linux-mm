@@ -1,553 +1,191 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx110.postini.com [74.125.245.110])
-	by kanga.kvack.org (Postfix) with SMTP id 90FA56B00EB
-	for <linux-mm@kvack.org>; Thu,  5 Apr 2012 20:12:55 -0400 (EDT)
-Subject: Re: [PATCH 3/3] tracing: Provide traceevents interface for uprobes
-From: Steven Rostedt <rostedt@goodmis.org>
-In-Reply-To: <20120403010502.17852.58528.sendpatchset@srdronam.in.ibm.com>
-References: <20120403010442.17852.9888.sendpatchset@srdronam.in.ibm.com>
-	 <20120403010502.17852.58528.sendpatchset@srdronam.in.ibm.com>
-Content-Type: text/plain; charset="UTF-8"
-Date: Thu, 05 Apr 2012 20:12:44 -0400
-Message-ID: <1333671164.3764.71.camel@pippen.local.home>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx122.postini.com [74.125.245.122])
+	by kanga.kvack.org (Postfix) with SMTP id 0A9D66B007E
+	for <linux-mm@kvack.org>; Thu,  5 Apr 2012 20:37:55 -0400 (EDT)
+Date: Thu, 5 Apr 2012 17:32:54 -0700
+From: Fengguang Wu <fengguang.wu@intel.com>
+Subject: Re: [RFC] writeback and cgroup
+Message-ID: <20120406003254.GA15158@localhost>
+References: <20120403183655.GA23106@dhcp-172-17-108-109.mtv.corp.google.com>
+ <20120404175124.GA8931@localhost>
+ <20120404183528.GJ12676@redhat.com>
+ <20120404214228.GA6471@localhost>
+ <20120405151026.GB23999@redhat.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20120405151026.GB23999@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-Cc: Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, LKML <linux-kernel@vger.kernel.org>, Linux-mm <linux-mm@kvack.org>, Oleg Nesterov <oleg@redhat.com>, Andi Kleen <andi@firstfloor.org>, Christoph Hellwig <hch@infradead.org>, Arnaldo Carvalho de Melo <acme@infradead.org>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Thomas Gleixner <tglx@linutronix.de>, Anton Arapov <anton@redhat.com>
+To: Vivek Goyal <vgoyal@redhat.com>
+Cc: Tejun Heo <tj@kernel.org>, Jan Kara <jack@suse.cz>, Jens Axboe <axboe@kernel.dk>, linux-mm@kvack.org, sjayaraman@suse.com, andrea@betterlinux.com, jmoyer@redhat.com, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, lizefan@huawei.com, containers@lists.linux-foundation.org, cgroups@vger.kernel.org, ctalbott@google.com, rni@google.com, lsf@lists.linux-foundation.org
 
-On Tue, 2012-04-03 at 06:35 +0530, Srikar Dronamraju wrote:
-> From: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-> --- /dev/null
-> +++ b/Documentation/trace/uprobetracer.txt
-> @@ -0,0 +1,93 @@
-> +		Uprobe-tracer: Uprobe-based Event Tracing
-> +		=========================================
-> +                 Documentation written by Srikar Dronamraju
-> +
-> +Overview
-> +--------
-> +Uprobe based trace events are similar to kprobe based trace events.
-> +To enable this feature, build your kernel with CONFIG_UPROBE_EVENTS=y.
-> +
-> +Similar to the kprobe-event tracer, this doesn't need to be activated via
-> +current_tracer. Instead of that, add probe points via
-> +/sys/kernel/debug/tracing/uprobe_events, and enable it via
-> +/sys/kernel/debug/tracing/events/uprobes/<EVENT>/enabled.
-> +
-> +
-> +Synopsis of uprobe_tracer
-> +-------------------------
-> +  p[:[GRP/]EVENT] PATH:SYMBOL[+offs] [FETCHARGS]	: Set a probe
-> +
-> + GRP		: Group name. If omitted, use "uprobes" for it.
-> + EVENT		: Event name. If omitted, the event name is generated
-> +		  based on SYMBOL+offs.
-> + PATH		: path to an executable or a library.
-> + SYMBOL[+offs]	: Symbol+offset where the probe is inserted.
-> +
-> + FETCHARGS	: Arguments. Each probe can have up to 128 args.
-> +  %REG		: Fetch register REG
-> +
-> +Event Profiling
-> +---------------
-> + You can check the total number of probe hits and probe miss-hits via
-> +/sys/kernel/debug/tracing/uprobe_profile.
-> + The first column is event name, the second is the number of probe hits,
-> +the third is the number of probe miss-hits.
-> +
-> +Usage examples
-> +--------------
-> +To add a probe as a new event, write a new definition to uprobe_events
-> +as below.
-> +
-> +  echo 'p: /bin/bash:0x4245c0' > /sys/kernel/debug/tracing/uprobe_events
-> +
-> + This sets a uprobe at an offset of 0x4245c0 in the executable /bin/bash
-> +
-> +
-> +  echo > /sys/kernel/debug/tracing/uprobe_events
-> +
-> + This clears all probe points.
-> +
-> +The following example shows how to dump the instruction pointer and %ax
-> +a register at the probed text address.  Here we are trying to probe
-> +function zfree in /bin/zsh
-> +
-> +    # cd /sys/kernel/debug/tracing/
-> +    # cat /proc/`pgrep  zsh`/maps | grep /bin/zsh | grep r-xp
-> +    00400000-0048a000 r-xp 00000000 08:03 130904 /bin/zsh
-> +    # objdump -T /bin/zsh | grep -w zfree
-> +    0000000000446420 g    DF .text  0000000000000012  Base        zfree
-> +
-> +0x46420 is the offset of zfree in object /bin/zsh that is loaded at
-> +0x00400000. Hence the command to probe would be :
-> +
-> +    # echo 'p /bin/zsh:0x46420 %ip %ax' > uprobe_events
+Vivek,
 
-Nice example, but I would explicitly state that the uprobe event
-interface expects the offset in the object, which needs to be
-calculated. This may be a nit, but as I'm a bit tired (been out late
-last night here at the current conference I'm in ;-), I had to read it
-three times before I figured it out.
+I totally agree that direct IOs can be best handled in block/cfq layers.
 
-> +
-> +We can see the events that are registered by looking at the uprobe_events
-> +file.
-> +
-> +    # cat uprobe_events
-> +    p:uprobes/p_zsh_0x46420 /bin/zsh:0x0000000000046420
-> +
-> +Right after definition, each event is disabled by default. For tracing these
-> +events, you need to enable it by:
-> +
-> +    # echo 1 > events/uprobes/enable
-> +
-> +Lets disable the event after sleeping for some time.
-> +    # sleep 20
-> +    # echo 0 > events/uprobes/enable
-> +
-> +And you can see the traced information via /sys/kernel/debug/tracing/trace.
-> +
-> +    # cat trace
-> +    # tracer: nop
-> +    #
-> +    #           TASK-PID    CPU#    TIMESTAMP  FUNCTION
-> +    #              | |       |          |         |
-> +                 zsh-24842 [006] 258544.995456: p_zsh_0x46420: (0x446420) arg1=446421 arg2=79
-> +                 zsh-24842 [007] 258545.000270: p_zsh_0x46420: (0x446420) arg1=446421 arg2=79
-> +                 zsh-24842 [002] 258545.043929: p_zsh_0x46420: (0x446420) arg1=446421 arg2=79
-> +                 zsh-24842 [004] 258547.046129: p_zsh_0x46420: (0x446420) arg1=446421 arg2=79
-> +
-> +Each line shows us probes were triggered for a pid 24842 with ip being
-> +0x446421 and contents of ax register being 79.
-> diff --git a/kernel/trace/Kconfig b/kernel/trace/Kconfig
-> index ce5a5c5..18f03a6 100644
-> --- a/kernel/trace/Kconfig
-> +++ b/kernel/trace/Kconfig
-> @@ -386,6 +386,22 @@ config KPROBE_EVENT
->  	  This option is also required by perf-probe subcommand of perf tools.
->  	  If you want to use perf tools, this option is strongly recommended.
->  
-> +config UPROBE_EVENT
-> +	bool "Enable uprobes-based dynamic events"
-> +	depends on ARCH_SUPPORTS_UPROBES
-> +	depends on MMU
-> +	select UPROBES
-> +	select PROBE_EVENTS
-> +	select TRACING
-> +	default n
-> +	help
-> +	  This allows the user to add tracing events on top of userspace dynamic
-> +	  events (similar to tracepoints) on the fly via the traceevents interface.
-
-s/traceevents/trace events/
-
-> +	  Those events can be inserted wherever uprobes can probe, and record
-> +	  various registers.
-> +	  This option is required if you plan to use perf-probe subcommand of perf
-> +	  tools on user space applications.
-> +
->  config PROBE_EVENTS
->  	def_bool n
->  
-> diff --git a/kernel/trace/Makefile b/kernel/trace/Makefile
-> index fa10d5c..1734c03 100644
-> --- a/kernel/trace/Makefile
-> +++ b/kernel/trace/Makefile
-> @@ -62,5 +62,6 @@ ifeq ($(CONFIG_TRACING),y)
->  obj-$(CONFIG_KGDB_KDB) += trace_kdb.o
->  endif
->  obj-$(CONFIG_PROBE_EVENTS) += trace_probe.o
-> +obj-$(CONFIG_UPROBE_EVENT) += trace_uprobe.o
->  
->  libftrace-y := ftrace.o
-> diff --git a/kernel/trace/trace.h b/kernel/trace/trace.h
-> index 95059f0..1bcdbec 100644
-> --- a/kernel/trace/trace.h
-> +++ b/kernel/trace/trace.h
-> @@ -103,6 +103,11 @@ struct kretprobe_trace_entry_head {
->  	unsigned long		ret_ip;
->  };
->  
-> +struct uprobe_trace_entry_head {
-> +	struct trace_entry	ent;
-> +	unsigned long		ip;
-> +};
-> +
->  /*
->   * trace_flag_type is an enumeration that holds different
->   * states when a trace occurs. These are:
-> diff --git a/kernel/trace/trace_kprobe.c b/kernel/trace/trace_kprobe.c
-> index f8b7773..eb52983 100644
-> --- a/kernel/trace/trace_kprobe.c
-> +++ b/kernel/trace/trace_kprobe.c
-> @@ -524,8 +524,8 @@ static int create_trace_probe(int argc, char **argv)
->  		}
->  
->  		/* Parse fetch argument */
-> -		ret = traceprobe_parse_probe_arg(arg, &tp->size, &tp->args[i],
-> -								is_return);
-> +		ret = traceprobe_parse_probe_arg(arg, &tp->size,
-> +					&tp->args[i], is_return, true);
->  		if (ret) {
->  			pr_info("Parse error at argument[%d]. (%d)\n", i, ret);
->  			goto error;
-> diff --git a/kernel/trace/trace_probe.c b/kernel/trace/trace_probe.c
-> index deb375a..56d0705 100644
-> --- a/kernel/trace/trace_probe.c
-> +++ b/kernel/trace/trace_probe.c
-> @@ -552,7 +552,7 @@ static int parse_probe_vars(char *arg, const struct fetch_type *t,
->  
->  /* Recursive argument parser */
->  static int parse_probe_arg(char *arg, const struct fetch_type *t,
-> -		     struct fetch_param *f, bool is_return)
-> +		     struct fetch_param *f, bool is_return, bool is_kprobe)
->  {
->  	unsigned long param;
->  	long offset;
-> @@ -560,6 +560,10 @@ static int parse_probe_arg(char *arg, const struct fetch_type *t,
->  	int ret;
->  
->  	ret = 0;
-> +	/* Until uprobe_events supports only reg arguments */
-
-Blank line is needed after the ret = 0;
-
-> +	if (!is_kprobe && arg[0] != '%')
-> +		return -EINVAL;
-> +
->  	switch (arg[0]) {
->  	case '$':
->  		ret = parse_probe_vars(arg + 1, t, f, is_return);
-> @@ -621,7 +625,8 @@ static int parse_probe_arg(char *arg, const struct fetch_type *t,
->  				return -ENOMEM;
->  
->  			dprm->offset = offset;
-> -			ret = parse_probe_arg(arg, t2, &dprm->orig, is_return);
-> +			ret = parse_probe_arg(arg, t2, &dprm->orig, is_return,
-> +							is_kprobe);
->  			if (ret)
->  				kfree(dprm);
->  			else {
-> @@ -679,7 +684,7 @@ static int __parse_bitfield_probe_arg(const char *bf,
->  
->  /* String length checking wrapper */
->  int traceprobe_parse_probe_arg(char *arg, ssize_t *size,
-> -		struct probe_arg *parg, bool is_return)
-> +		struct probe_arg *parg, bool is_return, bool is_kprobe)
->  {
->  	const char *t;
->  	int ret;
-> @@ -705,7 +710,7 @@ int traceprobe_parse_probe_arg(char *arg, ssize_t *size,
->  	}
->  	parg->offset = *size;
->  	*size += parg->type->size;
-> -	ret = parse_probe_arg(arg, parg->type, &parg->fetch, is_return);
-> +	ret = parse_probe_arg(arg, parg->type, &parg->fetch, is_return, is_kprobe);
->  
->  	if (ret >= 0 && t != NULL)
->  		ret = __parse_bitfield_probe_arg(t, parg->type, &parg->fetch);
-> diff --git a/kernel/trace/trace_probe.h b/kernel/trace/trace_probe.h
-> index 2df9a18..9337086 100644
-> --- a/kernel/trace/trace_probe.h
-> +++ b/kernel/trace/trace_probe.h
-> @@ -66,6 +66,7 @@
->  #define TP_FLAG_TRACE		1
->  #define TP_FLAG_PROFILE		2
->  #define TP_FLAG_REGISTERED	4
-> +#define TP_FLAG_UPROBE		8
->  
+On Thu, Apr 05, 2012 at 11:10:26AM -0400, Vivek Goyal wrote:
+> On Wed, Apr 04, 2012 at 02:42:28PM -0700, Fengguang Wu wrote:
+> > On Wed, Apr 04, 2012 at 02:35:29PM -0400, Vivek Goyal wrote:
+> > > On Wed, Apr 04, 2012 at 10:51:24AM -0700, Fengguang Wu wrote:
+> > > 
+> > > [..]
+> > > > The sweet split point would be for balance_dirty_pages() to do cgroup
+> > > > aware buffered write throttling and leave other IOs to the current
+> > > > blkcg. For this to work well as a total solution for end users, I hope
+> > > > we can cooperate and figure out ways for the two throttling entities
+> > > > to work well with each other.
+> > > 
+> > > Throttling read + direct IO, higher up has few issues too. Users will
+> > 
+> > Yeah I have a bit worry about high layer throttling, too.
+> > Anyway here are the ideas.
+> > 
+> > > not like that a task got blocked as it tried to submit a read from a
+> > > throttled group.
+> > 
+> > That's not the same issue I worried about :) Throttling is about
+> > inserting small sleep/waits into selected points. For reads, the ideal
+> > sleep point is immediately after readahead IO is summited, at the end
+> > of __do_page_cache_readahead(). The same should be applicable to
+> > direct IO.
 > 
->  /* data_rloc: data relative location, compatible with u32 */
-> @@ -143,7 +144,7 @@ static inline int is_good_name(const char *name)
->  }
->  
->  extern int traceprobe_parse_probe_arg(char *arg, ssize_t *size,
-> -		   struct probe_arg *parg, bool is_return);
-> +		   struct probe_arg *parg, bool is_return, bool is_kprobe);
->  
->  extern int traceprobe_conflict_field_name(const char *name,
->  			       struct probe_arg *args, int narg);
-> diff --git a/kernel/trace/trace_uprobe.c b/kernel/trace/trace_uprobe.c
-> new file mode 100644
-> index 0000000..d8b11cf
-> --- /dev/null
-> +++ b/kernel/trace/trace_uprobe.c
-> @@ -0,0 +1,787 @@
-> +/*
-> + * uprobes-based tracing events
-> + *
-> + * This program is free software; you can redistribute it and/or modify
-> + * it under the terms of the GNU General Public License version 2 as
-> + * published by the Free Software Foundation.
-> + *
-> + * This program is distributed in the hope that it will be useful,
-> + * but WITHOUT ANY WARRANTY; without even the implied warranty of
-> + * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-> + * GNU General Public License for more details.
-> + *
-> + * You should have received a copy of the GNU General Public License
-> + * along with this program; if not, write to the Free Software
-> + * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
-> + *
-> + * Copyright (C) IBM Corporation, 2010-2012
-> + * Author:	Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-> + */
-> +
-> +#include <linux/module.h>
-> +#include <linux/uaccess.h>
-> +#include <linux/uprobes.h>
-> +#include <linux/namei.h>
-> +
-> +#include "trace_probe.h"
-> +
-> +#define UPROBE_EVENT_SYSTEM	"uprobes"
-> +
-> +/**
-> + * uprobe event core functions
-> + */
-> +struct trace_uprobe;
-> +struct uprobe_trace_consumer {
-> +	struct uprobe_consumer		cons;
-> +	struct trace_uprobe		*tp;
-> +};
-> +
-> +struct trace_uprobe {
-> +	struct list_head		list;
-> +	struct ftrace_event_class	class;
-> +	struct ftrace_event_call	call;
-> +	struct uprobe_trace_consumer	*consumer;
-> +	struct inode			*inode;
-> +	char				*filename;
-> +	unsigned long			offset;
-> +	unsigned long			nhit;
-> +	unsigned int			flags;	/* For TP_FLAG_* */
-> +	ssize_t				size;	/* trace entry size */
-> +	unsigned int			nr_args;
-> +	struct probe_arg		args[];
-> +};
-> +
-> +#define SIZEOF_TRACE_UPROBE(n)			\
-> +	(offsetof(struct trace_uprobe, args) +	\
-> +	(sizeof(struct probe_arg) * (n)))
-> +
-> +static int register_uprobe_event(struct trace_uprobe *tp);
-> +static void unregister_uprobe_event(struct trace_uprobe *tp);
-> +
-> +static DEFINE_MUTEX(uprobe_lock);
-> +static LIST_HEAD(uprobe_list);
-> +
-> +static int uprobe_dispatcher(struct uprobe_consumer *con, struct pt_regs *regs);
-> +
-> +/*
-> + * Allocate new trace_uprobe and initialize it (including uprobes).
-> + */
-> +static struct trace_uprobe *
-> +alloc_trace_uprobe(const char *group, const char *event, int nargs)
-> +{
-> +	struct trace_uprobe *tp;
-> +
-> +	if (!event || !is_good_name(event))
-> +		return ERR_PTR(-EINVAL);
-> +
-> +	if (!group || !is_good_name(group))
-> +		return ERR_PTR(-EINVAL);
-> +
-> +	tp = kzalloc(SIZEOF_TRACE_UPROBE(nargs), GFP_KERNEL);
-> +	if (!tp)
-> +		return ERR_PTR(-ENOMEM);
-> +
-> +	tp->call.class = &tp->class;
-> +	tp->call.name = kstrdup(event, GFP_KERNEL);
-> +	if (!tp->call.name)
-> +		goto error;
-> +
-> +	tp->class.system = kstrdup(group, GFP_KERNEL);
-> +	if (!tp->class.system)
-> +		goto error;
-> +
-> +	INIT_LIST_HEAD(&tp->list);
-> +	return tp;
-> +
-> +error:
-> +	kfree(tp->call.name);
-> +	kfree(tp);
-> +
-> +	return ERR_PTR(-ENOMEM);
-> +}
-> +
-> +static void free_trace_uprobe(struct trace_uprobe *tp)
-> +{
-> +	int i;
-> +
-> +	for (i = 0; i < tp->nr_args; i++)
-> +		traceprobe_free_probe_arg(&tp->args[i]);
-> +
-> +	iput(tp->inode);
-> +	kfree(tp->call.class->system);
-> +	kfree(tp->call.name);
-> +	kfree(tp->filename);
-> +	kfree(tp);
-> +}
-> +
-> +static struct trace_uprobe *find_probe_event(const char *event, const char *group)
-> +{
-> +	struct trace_uprobe *tp;
-> +
-> +	list_for_each_entry(tp, &uprobe_list, list)
-> +		if (strcmp(tp->call.name, event) == 0 &&
-> +		    strcmp(tp->call.class->system, group) == 0)
-> +			return tp;
-> +
-> +	return NULL;
-> +}
-> +
-> +/* Unregister a trace_uprobe and probe_event: call with locking uprobe_lock */
-> +static void unregister_trace_uprobe(struct trace_uprobe *tp)
-> +{
-> +	list_del(&tp->list);
-> +	unregister_uprobe_event(tp);
-> +	free_trace_uprobe(tp);
-> +}
-> +
-> +/* Register a trace_uprobe and probe_event */
-> +static int register_trace_uprobe(struct trace_uprobe *tp)
-> +{
-> +	struct trace_uprobe *old_tp;
-> +	int ret;
-> +
-> +	mutex_lock(&uprobe_lock);
-> +
-> +	/* register as an event */
-> +	old_tp = find_probe_event(tp->call.name, tp->call.class->system);
-> +	if (old_tp)
-> +		/* delete old event */
-> +		unregister_trace_uprobe(old_tp);
-> +
-> +	ret = register_uprobe_event(tp);
-> +	if (ret) {
-> +		pr_warning("Failed to register probe event(%d)\n", ret);
-> +		goto end;
-> +	}
-> +
-> +	list_add_tail(&tp->list, &uprobe_list);
-> +
-> +end:
-> +	mutex_unlock(&uprobe_lock);
-> +
-> +	return ret;
-> +}
-> +
-> +/*
-> + * Argument syntax:
-> + *  - Add uprobe: p[:[GRP/]EVENT] PATH:SYMBOL[+offs] [FETCHARGS]
-> + *
-> + *  - Remove uprobe: -:[GRP/]EVENT
-> + */
-> +static int create_trace_uprobe(int argc, char **argv)
-> +{
-> +	struct trace_uprobe *tp;
-> +	struct inode *inode;
-> +	char *arg, *event, *group, *filename;
-> +	char buf[MAX_EVENT_NAME_LEN];
-> +	struct path path;
-> +	unsigned long offset;
-> +	bool is_delete;
-> +	int i, ret;
-> +
-> +	inode = NULL;
-> +	ret = 0;
-> +	is_delete = false;
-> +	arg = NULL;
-> +	event = NULL;
-> +	group = NULL;
-> +
-> +	/* argc must be >= 1 */
-> +	if (argv[0][0] == '-')
-> +		is_delete = true;
-> +	else if (argv[0][0] != 'p') {
-> +		pr_info("Probe definition must be started with 'p', 'r' or" " '-'.\n");
-> +		return -EINVAL;
-> +	}
-> +
-> +	if (argv[0][1] == ':') {
-> +		event = &argv[0][2];
-> +
-> +		if (strchr(event, '/')) {
+> But after a read the process might want to process the read data and
+> do something else altogether. So throttling the process after completing
+> the read is not the best thing.
 
-What about using a temp variable above so that you do not need to repeat
-the search (strchr) again below?
+__do_page_cache_readahead() returns immediately after queuing the read
+IOs. It may block occasionally on metadata IO but not data IO.
 
--- Steve
-
-> +			group = event;
-> +			event = strchr(group, '/') + 1;
-> +			event[-1] = '\0';
-> +
-> +			if (strlen(group) == 0) {
-> +				pr_info("Group name is not specified\n");
-> +				return -EINVAL;
-> +			}
-> +		}
-> +		if (strlen(event) == 0) {
-> +			pr_info("Event name is not specified\n");
-> +			return -EINVAL;
-> +		}
-> +	}
-> +	if (!group)
-> +		group = UPROBE_EVENT_SYSTEM;
-> +
-> +	if (is_delete) {
-> +		if (!event) {
-> +			pr_info("Delete command needs an event name.\n");
-> +			return -EINVAL;
-> +		}
-> +		mutex_lock(&uprobe_lock);
-> +		tp = find_probe_event(event, group);
-> +
-> +		if (!tp) {
-> +			mutex_unlock(&uprobe_lock);
-> +			pr_info("Event %s/%s doesn't exist.\n", group, event);
-> +			return -ENOENT;
-> +		}
-> +		/* delete an event */
-> +		unregister_trace_uprobe(tp);
-> +		mutex_unlock(&uprobe_lock);
-> +		return 0;
-> +	}
-> +
-> +	if (argc < 2) {
-> +		pr_info("Probe point is not specified.\n");
-> +		return -EINVAL;
-> +	}
-> +	if (isdigit(argv[1][0])) {
-> +		pr_info("probe point must be have a filename.\n");
-> +		return -EINVAL;
-> +	}
-> +	arg = strchr(argv[1], ':');
-> +	if (!arg)
-> +		goto fail_address_parse;
-> +
-> +	*arg++ = '\0';
-> +	filename = argv[1];
-> +	ret = kern_path(filename, LOOKUP_FOLLOW, &path);
-> +	if (ret)
-> +		goto fail_address_parse;
-> +
-> +	ret = strict_strtoul(arg, 0, &offset);
-> +	if (ret)
-> +		goto fail_address_parse;
-> +
-> +	inode = igrab(path.dentry->d_inode);
-> +
-> +	argc -= 2;
-> +	argv += 2;
-> +
-
+> > > Current async behavior works well where we queue up the
+> > > bio from the task in throttled group and let task do other things. Same
+> > > is true for AIO where we would not like to block in bio submission.
+> > 
+> > For AIO, we'll need to delay the IO completion notification or status
+> > update, which may involve computing some delay time and delay the
+> > calls to io_complete() with the help of some delayed work queue. There
+> > may be more issues to deal with as I didn't look into aio.c carefully.
 > 
+> I don't know but delaying compltion notifications sounds odd to me. So
+> you don't throttle while submitting requests. That does not help with
+> pressure on request queue as process can dump whole bunch of IO without
+> waiting for completion?
+> 
+> What I like better that AIO is allowed to submit bunch of IO till it
+> hits the nr_requests limit on request queue and then it is blocked as
+> request queue is too busy and not enough request descriptors are free.
 
+You are right. Throttling direct IO and AIO in high layer has the
+problem of added delays and less queue fullness. I suspect it may also
+lead to extra cfq anticipatory idling and disk idles. And it won't be
+able to deal with ioprio. All in all there are lots of problems actually.
+
+> > The thing worried me is that in the proportional throttling case, the
+> > high level throttling works on the *estimated* task_ratelimit =
+> > disk_bandwidth / N, where N is the number of read IO tasks. When N
+> > suddenly changes from 2 to 1, it may take 1 second for the estimated
+> > task_ratelimit to adapt from disk_bandwidth/2 up to disk_bandwidth,
+> > during which time the disk won't get 100% utilized because of the
+> > temporally over-throttling of the remaining IO task.
+> 
+> I thought we were only considering the case of absolute throttling in
+> higher layers. Proportional IO will continue to be in CFQ. I don't think
+> we need to push proportional IO in higher layers.
+
+Agreed for direct IO.
+
+As for buffered writes, I'm seriously considering the possibility of
+doing proportional IO control in balance_dirty_pages().
+
+I'd take this as the central problem of this thread. If the CFQ
+proportional IO controller can do its work well for direct IOs and
+leave the buffered writes to the balance_dirty_pages() proportional IO
+controller, it would result in a simple and efficient "feedback" system
+(comparing to the "push back" idea).
+
+I don't really know about any real use cases. However it seems to me
+(and perhaps Jan Kara) the most user friendly and manageable IO
+controller interfaces would allow the user to divide disk time (no
+matter it's used for reads or writes, direct or buffered IOs) among
+the cgroups. Then allow each cgroup to further split up disk time (or
+bps/iops) to different types of IO.
+
+For simplicity, let's assume only direct/buffered writes are happening
+and the user configures 3 blkio cgroups A, B, C with equal split of
+disk time and equal direct:buffered splits inside each cgroup.
+
+In the case of
+
+        A:      1 direct write dd + 1 buffered write dd
+        B:      1 direct write dd
+        C:      1 buffered write dd
+
+The dd tasks should ideally be throttled to
+
+        A.direct:       1/6 disk time
+        A.buffered:     1/6 disk time
+        B.direct:       1/3 disk time
+        C.buffered:     1/3 disk time
+
+So is it possible for the proportional block IO controller to throttle
+direct IOs to
+
+        A.direct:       1/6 disk time
+        B.direct:       1/3 disk time
+
+and leave the remaining 1/2 disk time to buffered writes from the
+flusher thread?
+
+Then I promise that balance_dirty_pages() will be able to throttle the
+buffered writes to:
+
+        A.buffered:     1/6 disk time
+        C.buffered:     1/3 disk time
+
+thanks to the fact that the balance_dirty_pages() throttling algorithm
+is pretty adaptive. It will be able to work well with the blkio
+throttling to achieve the throttling goals.
+
+In the above case,
+
+        equal split of disk time == equal split of write bandwidth
+
+since all cgroups run the same type of workload.
+balance_dirty_pages() will be able to work in that
+cooperative way after adding some direct IO rate accounting.
+
+In order to deal with mixed random/sequential workloads,
+balance_dirty_pages() will also need some disk time stats feedback.
+It will then throttle the dirtiers so that the disk time goals are
+matched in long run.
+
+> > This is not a problem when throttling at the block/cfq layer, since it
+> > has the full information of pending requests and should not depend on
+> > such estimations.
+> 
+> CFQ does not even look at pending requests. It just maintains bunch
+> of IO queues and selects one queue to dispatch IO from based on its
+> weight. So proportional IO comes very naturally to CFQ.
+
+Sure. Nice work!
+
+> > 
+> > The workaround I can think of, is to put the throttled task into a wait
+> > queue, and let block layer wake up the waiters when the IO queue runs
+> > empty. This should be able to avoid most disk idle time.
+> 
+> Again, I am not convinced that proportional IO should go in higher layers.
+> 
+> For fast devices we are already suffering from queue locking overhead and
+> Jens seems to have patches for multi queue. Now by trying to implement
+> something at higher layer, that locking overhead will show up there too
+> and we will end up doing something similar to multi queue there and it
+> is not desirable.
+
+Sure, yeah it's a hack. I was not really happy with it.
+
+Thanks,
+Fengguang
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
