@@ -1,55 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx108.postini.com [74.125.245.108])
-	by kanga.kvack.org (Postfix) with SMTP id 300B16B0092
-	for <linux-mm@kvack.org>; Thu,  5 Apr 2012 19:53:38 -0400 (EDT)
-Date: Thu, 5 Apr 2012 16:53:35 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] memcg: Do not open code accesses to res_counter members
-Message-Id: <20120405165335.be409dc6.akpm@linux-foundation.org>
-In-Reply-To: <1332262424-13484-1-git-send-email-glommer@parallels.com>
-References: <1332262424-13484-1-git-send-email-glommer@parallels.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx140.postini.com [74.125.245.140])
+	by kanga.kvack.org (Postfix) with SMTP id E0CFB6B00E9
+	for <linux-mm@kvack.org>; Thu,  5 Apr 2012 19:59:52 -0400 (EDT)
+From: Suresh Siddha <suresh.b.siddha@intel.com>
+Subject: [v3 VM_PAT PATCH 0/3] x86 VM_PAT series
+Date: Thu,  5 Apr 2012 17:01:32 -0700
+Message-Id: <1333670495-7016-1-git-send-email-suresh.b.siddha@intel.com>
+In-Reply-To: <4F7D8860.3040008@openvz.org>
+References: <4F7D8860.3040008@openvz.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Glauber Costa <glommer@parallels.com>
-Cc: cgroups@vger.kernel.org, linux-mm@kvack.org, devel@openvz.org, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: Konstantin Khlebnikov <khlebnikov@openvz.org>, Konstantin Khlebnikov <koct9i@gmail.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org
+Cc: Suresh Siddha <suresh.b.siddha@intel.com>, Andi Kleen <andi@firstfloor.org>, Pallipadi Venkatesh <venki@google.com>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Linus Torvalds <torvalds@linux-foundation.org>, Nick Piggin <npiggin@kernel.dk>
 
-On Tue, 20 Mar 2012 20:53:44 +0400
-Glauber Costa <glommer@parallels.com> wrote:
+On Thu, 2012-04-05 at 15:56 +0400, Konstantin Khlebnikov wrote:
+> With this patches I see new ranges in /sys/kernel/debug/x86/pat_memtype_list
+> This is 4k single-page vma mappged by X11. kernel fills them via vm_insert_pfn().
+> Is this ok?
 
-> We should use the acessor res_counter_read_u64 for that.
-> Although a purely cosmetic change is sometimes better of delayed,
-> to avoid conflicting with other people's work, we are starting to
-> have people touching this code as well, and reproducing the open
-> code behavior because that's the standard =)
-> 
-> ...
->
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -3708,7 +3708,7 @@ move_account:
->  			goto try_to_free;
->  		cond_resched();
->  	/* "ret" should also be checked to ensure all lists are empty. */
-> -	} while (memcg->res.usage > 0 || ret);
-> +	} while (res_counter_read_u64(&memcg->res, RES_USAGE) > 0 || ret);
->  out:
->  	css_put(&memcg->css);
->  	return ret;
-> @@ -3723,7 +3723,7 @@ try_to_free:
->  	lru_add_drain_all();
->  	/* try to free all pages in this cgroup */
->  	shrink = 1;
-> -	while (nr_retries && memcg->res.usage > 0) {
-> +	while (nr_retries && res_counter_read_u64(&memcg->res, RES_USAGE) > 0) {
->  		int progress;
->  
->  		if (signal_pending(current)) {
+This is expected and I saw these new entries too (but not as many as you saw), as the
+patch is tracking single page vma's coming from vm_insert_pfn() interface too.
 
-Actually this fixes bugs on 32-bit machines.  Good luck trying to
-demonstrate them at runtime though ;)
+Thinking a bit more about this in the context of your numbers, those new entries that
+are getting tracked are not adding any new value. As the driver has already reserved the
+whole aperture with write-combining attribute, tracking these single page vma's doesn't
+help anymore.
+
+> Maybe we shouldn't use PAT for small VMA?
+
+For vm_insert_pfn(), expectation is that we just look up the memory attribute.
+And for remap_pfn_range(), if the whole VMA is remapped, we reserve the new
+attribute for the specified pfn-range, as typically drivers
+call remap_pfn_range() for the whole VMA (can be a single page) with the desired
+attribute (with out the prior reservation of the memory attribute for the pfn range).
+So exposing two different API's for this behavior is probably the better way
+to address this in a clean way. Revised patches follows.
+
+Konstantin Khlebnikov (1):
+  mm, x86, PAT: rework linear pfn-mmap tracking
+
+Suresh Siddha (2):
+  x86, pat: remove the dependency on 'vm_pgoff' in track/untrack pfn
+    vma routines
+  x86, pat: separate the pfn attribute tracking for remap_pfn_range and
+    vm_insert_pfn
+
+ arch/x86/mm/pat.c             |   80 ++++++++++++++++++++++++++++------------
+ include/asm-generic/pgtable.h |   57 +++++++++++++++++------------
+ include/linux/mm.h            |   15 +-------
+ mm/huge_memory.c              |    7 ++--
+ mm/memory.c                   |   23 +++++-------
+ 5 files changed, 104 insertions(+), 78 deletions(-)
+
+-- 
+1.7.6.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
