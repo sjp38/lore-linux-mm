@@ -1,21 +1,21 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx145.postini.com [74.125.245.145])
-	by kanga.kvack.org (Postfix) with SMTP id D02096B004D
-	for <linux-mm@kvack.org>; Fri,  6 Apr 2012 14:51:29 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx162.postini.com [74.125.245.162])
+	by kanga.kvack.org (Postfix) with SMTP id 91B836B0083
+	for <linux-mm@kvack.org>; Fri,  6 Apr 2012 14:51:31 -0400 (EDT)
 Received: from /spool/local
-	by e28smtp05.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e28smtp01.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
-	Sat, 7 Apr 2012 00:21:27 +0530
+	Sat, 7 Apr 2012 00:21:29 +0530
 Received: from d28av05.in.ibm.com (d28av05.in.ibm.com [9.184.220.67])
-	by d28relay03.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q36IpOMS4464880
-	for <linux-mm@kvack.org>; Sat, 7 Apr 2012 00:21:24 +0530
+	by d28relay01.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q36IpQ1i4714678
+	for <linux-mm@kvack.org>; Sat, 7 Apr 2012 00:21:27 +0530
 Received: from d28av05.in.ibm.com (loopback [127.0.0.1])
-	by d28av05.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q370LrXp007214
-	for <linux-mm@kvack.org>; Sat, 7 Apr 2012 10:21:53 +1000
+	by d28av05.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q370Lt2W007276
+	for <linux-mm@kvack.org>; Sat, 7 Apr 2012 10:21:55 +1000
 From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Subject: [PATCH -V5 02/14] hugetlbfs: don't use ERR_PTR with VM_FAULT* values
-Date: Sat,  7 Apr 2012 00:20:48 +0530
-Message-Id: <1333738260-1329-3-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+Subject: [PATCH -V5 03/14] hugetlbfs: Add an inline helper for finding hstate index
+Date: Sat,  7 Apr 2012 00:20:49 +0530
+Message-Id: <1333738260-1329-4-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
 In-Reply-To: <1333738260-1329-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
 References: <1333738260-1329-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
@@ -25,74 +25,98 @@ Cc: linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, "Aneesh Kumar K.V" <a
 
 From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
 
-Using VM_FAULT_* codes with ERR_PTR will require us to make sure
-VM_FAULT_* values will not exceed MAX_ERRNO value.
+Add an inline helper and use it in the code.
 
+Acked-by: Michal Hocko <mhocko@suse.cz>
 Reviewed-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
 ---
- mm/hugetlb.c |   18 +++++++++++++-----
- 1 file changed, 13 insertions(+), 5 deletions(-)
+ include/linux/hugetlb.h |    6 ++++++
+ mm/hugetlb.c            |   18 ++++++++++--------
+ 2 files changed, 16 insertions(+), 8 deletions(-)
 
+diff --git a/include/linux/hugetlb.h b/include/linux/hugetlb.h
+index 000837e..876457e 100644
+--- a/include/linux/hugetlb.h
++++ b/include/linux/hugetlb.h
+@@ -294,6 +294,11 @@ static inline unsigned hstate_index_to_shift(unsigned index)
+ 	return hstates[index].order + PAGE_SHIFT;
+ }
+ 
++static inline int hstate_index(struct hstate *h)
++{
++	return h - hstates;
++}
++
+ #else
+ struct hstate {};
+ #define alloc_huge_page_node(h, nid) NULL
+@@ -312,6 +317,7 @@ static inline unsigned int pages_per_huge_page(struct hstate *h)
+ 	return 1;
+ }
+ #define hstate_index_to_shift(index) 0
++#define hstate_index(h) 0
+ #endif
+ 
+ #endif /* _LINUX_HUGETLB_H */
 diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-index 766eb90..5a472a5 100644
+index 5a472a5..d94c987 100644
 --- a/mm/hugetlb.c
 +++ b/mm/hugetlb.c
-@@ -1123,10 +1123,10 @@ static struct page *alloc_huge_page(struct vm_area_struct *vma,
- 	 */
- 	chg = vma_needs_reservation(h, vma, addr);
- 	if (chg < 0)
--		return ERR_PTR(-VM_FAULT_OOM);
-+		return ERR_PTR(-ENOMEM);
- 	if (chg)
- 		if (hugepage_subpool_get_pages(spool, chg))
--			return ERR_PTR(-VM_FAULT_SIGBUS);
-+			return ERR_PTR(-ENOSPC);
+@@ -1646,7 +1646,7 @@ static int hugetlb_sysfs_add_hstate(struct hstate *h, struct kobject *parent,
+ 				    struct attribute_group *hstate_attr_group)
+ {
+ 	int retval;
+-	int hi = h - hstates;
++	int hi = hstate_index(h);
  
- 	spin_lock(&hugetlb_lock);
- 	page = dequeue_huge_page_vma(h, vma, addr, avoid_reserve);
-@@ -1136,7 +1136,7 @@ static struct page *alloc_huge_page(struct vm_area_struct *vma,
- 		page = alloc_buddy_huge_page(h, NUMA_NO_NODE);
- 		if (!page) {
- 			hugepage_subpool_put_pages(spool, chg);
--			return ERR_PTR(-VM_FAULT_SIGBUS);
-+			return ERR_PTR(-ENOSPC);
+ 	hstate_kobjs[hi] = kobject_create_and_add(h->name, parent);
+ 	if (!hstate_kobjs[hi])
+@@ -1741,11 +1741,13 @@ void hugetlb_unregister_node(struct node *node)
+ 	if (!nhs->hugepages_kobj)
+ 		return;		/* no hstate attributes */
+ 
+-	for_each_hstate(h)
+-		if (nhs->hstate_kobjs[h - hstates]) {
+-			kobject_put(nhs->hstate_kobjs[h - hstates]);
+-			nhs->hstate_kobjs[h - hstates] = NULL;
++	for_each_hstate(h) {
++		int idx = hstate_index(h);
++		if (nhs->hstate_kobjs[idx]) {
++			kobject_put(nhs->hstate_kobjs[idx]);
++			nhs->hstate_kobjs[idx] = NULL;
  		}
++	}
+ 
+ 	kobject_put(nhs->hugepages_kobj);
+ 	nhs->hugepages_kobj = NULL;
+@@ -1848,7 +1850,7 @@ static void __exit hugetlb_exit(void)
+ 	hugetlb_unregister_all_nodes();
+ 
+ 	for_each_hstate(h) {
+-		kobject_put(hstate_kobjs[h - hstates]);
++		kobject_put(hstate_kobjs[hstate_index(h)]);
  	}
  
-@@ -2486,6 +2486,7 @@ retry_avoidcopy:
- 	new_page = alloc_huge_page(vma, address, outside_reserve);
- 
- 	if (IS_ERR(new_page)) {
-+		int err = PTR_ERR(new_page);
- 		page_cache_release(old_page);
- 
- 		/*
-@@ -2515,7 +2516,10 @@ retry_avoidcopy:
- 
- 		/* Caller expects lock to be held */
- 		spin_lock(&mm->page_table_lock);
--		return -PTR_ERR(new_page);
-+		if (err == -ENOMEM)
-+			return VM_FAULT_OOM;
-+		else
-+			return VM_FAULT_SIGBUS;
+ 	kobject_put(hugepages_kobj);
+@@ -2678,7 +2680,7 @@ retry:
+ 		 */
+ 		if (unlikely(PageHWPoison(page))) {
+ 			ret = VM_FAULT_HWPOISON |
+-			      VM_FAULT_SET_HINDEX(h - hstates);
++				VM_FAULT_SET_HINDEX(hstate_index(h));
+ 			goto backout_unlocked;
+ 		}
+ 	}
+@@ -2751,7 +2753,7 @@ int hugetlb_fault(struct mm_struct *mm, struct vm_area_struct *vma,
+ 			return 0;
+ 		} else if (unlikely(is_hugetlb_entry_hwpoisoned(entry)))
+ 			return VM_FAULT_HWPOISON_LARGE |
+-			       VM_FAULT_SET_HINDEX(h - hstates);
++				VM_FAULT_SET_HINDEX(hstate_index(h));
  	}
  
- 	/*
-@@ -2633,7 +2637,11 @@ retry:
- 			goto out;
- 		page = alloc_huge_page(vma, address, 0);
- 		if (IS_ERR(page)) {
--			ret = -PTR_ERR(page);
-+			ret = PTR_ERR(page);
-+			if (ret == -ENOMEM)
-+				ret = VM_FAULT_OOM;
-+			else
-+				ret = VM_FAULT_SIGBUS;
- 			goto out;
- 		}
- 		clear_huge_page(page, address, pages_per_huge_page(h));
+ 	ptep = huge_pte_alloc(mm, address, huge_page_size(h));
 -- 
 1.7.10.rc3.3.g19a6c
 
