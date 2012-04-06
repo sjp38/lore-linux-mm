@@ -1,50 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx170.postini.com [74.125.245.170])
-	by kanga.kvack.org (Postfix) with SMTP id 24BEA6B004A
-	for <linux-mm@kvack.org>; Fri,  6 Apr 2012 03:16:43 -0400 (EDT)
-Received: by pbcup15 with SMTP id up15so2781342pbc.14
-        for <linux-mm@kvack.org>; Fri, 06 Apr 2012 00:16:42 -0700 (PDT)
-Message-ID: <4F7E9854.1020904@gmail.com>
-Date: Fri, 06 Apr 2012 15:16:36 +0800
-From: "gnehzuil.lzheng@gmail.com" <gnehzuil.lzheng@gmail.com>
-MIME-Version: 1.0
-Subject: Re: mapped pagecache pages vs unmapped pages
-References: <37371333672160@webcorp7.yandex-team.ru>
-In-Reply-To: <37371333672160@webcorp7.yandex-team.ru>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx126.postini.com [74.125.245.126])
+	by kanga.kvack.org (Postfix) with SMTP id 85B7B6B004A
+	for <linux-mm@kvack.org>; Fri,  6 Apr 2012 04:40:08 -0400 (EDT)
+Received: from euspt1 (mailout2.w1.samsung.com [210.118.77.12])
+ by mailout2.w1.samsung.com
+ (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14 2004))
+ with ESMTP id <0M2100E4IUQQRY@mailout2.w1.samsung.com> for linux-mm@kvack.org;
+ Fri, 06 Apr 2012 09:40:02 +0100 (BST)
+Received: from linux.samsung.com ([106.116.38.10])
+ by spt1.w1.samsung.com (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14
+ 2004)) with ESMTPA id <0M2100HH4UQTAY@spt1.w1.samsung.com> for
+ linux-mm@kvack.org; Fri, 06 Apr 2012 09:40:06 +0100 (BST)
+Date: Fri, 06 Apr 2012 10:21:39 +0200
+From: Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>
+Subject: Re: [PATCH 1/2] mm: compaction: try harder to isolate free pages
+In-reply-to: 
+ <CAEwNFnAtzd5GHKanNOafZhnc5xQJHgVZn6y93_+q4BJwRGqwsg@mail.gmail.com>
+Message-id: <201204061021.39656.b.zolnierkie@samsung.com>
+MIME-version: 1.0
+Content-type: Text/Plain; charset=iso-8859-15
+Content-transfer-encoding: 7BIT
+References: <1333643534-1591-1-git-send-email-b.zolnierkie@samsung.com>
+ <1333643534-1591-2-git-send-email-b.zolnierkie@samsung.com>
+ <CAEwNFnAtzd5GHKanNOafZhnc5xQJHgVZn6y93_+q4BJwRGqwsg@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Alexey Ivanov <rbtz@yandex-team.ru>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Minchan Kim <minchan@kernel.org>
+Cc: linux-mm@kvack.org, mgorman@suse.de, Kyungmin Park <kyungmin.park@samsung.com>
 
-On 04/06/2012 08:29 AM, Alexey Ivanov wrote:
-
-> In progress of migration from FreeBSD to Linux and we found some strange behavior: periodically running tasks (like rsync/p2p deployment) evict mapped pages from memory.
+On Friday 06 April 2012 08:40:56 Minchan Kim wrote:
+> On Fri, Apr 6, 2012 at 1:32 AM, Bartlomiej Zolnierkiewicz <
+> b.zolnierkie@samsung.com> wrote:
 > 
-> From my little research I've found following lkml thread:
-> https://lkml.org/lkml/2008/6/11/278
-> And more precisely this commit: https://git.kernel.org/?p=linux/kernel/git/torvalds/linux-2.6.git;a=commit;h=4f98a2fee8acdb4ac84545df98cccecfd130f8db
-> which along with splitting LRU into "anon" and "file" removed support of reclaim_mapped.
+> > In isolate_freepages() check each page in a pageblock
+> > instead of checking only first pages of pageblock_nr_pages
+> > intervals (suitable_migration_target(page) is called before
+> > isolate_freepages_block() so if page is "unsuitable" whole
+> > pageblock_nr_pages pages will be ommited from the check).
+> > It greatly improves possibility of finding free pages to
+> > isolate during compaction_alloc() phase.
+> >
 > 
-> Is there a knob to prioritize mapped memory over unmapped (without modifying all apps to use O_DIRECT/fadvise/madvise or mlocking our data in memory) or at least some way to change proportion of Active(file)/Inactive(file)?
-> 
+> I doubt how this can help keeping free pages.
+> Now, compaction works by pageblock_nr_pages unit so although you work by
+> per page, all pages in a block would have same block type.
+> It means we can't pass suitable_migration_target. No?
 
+suitable_migration_target() only checks first page of pageblock_nr_pages
+block (1024 normal 4KiB pages in my test case cause there is no hugepage
+support on ARM) and pages in pageblock_nr_pages block can have different
+types otherwise I would not see improvement from this patch.
 
-Hi Alexey,
+Best regards,
+--
+Bartlomiej Zolnierkiewicz
+Samsung Poland R&D Center
 
-Cc to linux-mm mailing list.
-
-I have met the similar problem and I have sent a mail to discuss it.
-Maybe it can help you
-(http://marc.info/?l=linux-mm&m=132947026019538&w=2).
-
-Now Konstantin has sent a patch set to try to expand vm_flags from 32
-bit to 64 bit.  Then we can add the new flag into vm_flags and
-prioritize mmaped pages in madvise(2).
-
-Regards,
-Zheng
+> > Cc: Mel Gorman <mgorman@suse.de>
+> > Signed-off-by: Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>
+> > Signed-off-by: Kyungmin Park <kyungmin.park@samsung.com>
+> > ---
+> >  mm/compaction.c |    5 ++---
+> >  1 file changed, 2 insertions(+), 3 deletions(-)
+> >
+> > diff --git a/mm/compaction.c b/mm/compaction.c
+> > index d9ebebe..bc77135 100644
+> > --- a/mm/compaction.c
+> > +++ b/mm/compaction.c
+> > @@ -65,7 +65,7 @@ static unsigned long isolate_freepages_block(struct zone
+> > *zone,
+> >
+> >        /* Get the last PFN we should scan for free pages at */
+> >        zone_end_pfn = zone->zone_start_pfn + zone->spanned_pages;
+> > -       end_pfn = min(blockpfn + pageblock_nr_pages, zone_end_pfn);
+> > +       end_pfn = min(blockpfn + 1, zone_end_pfn);
+> >
+> >        /* Find the first usable PFN in the block to initialse page cursor
+> > */
+> >        for (; blockpfn < end_pfn; blockpfn++) {
+> > @@ -160,8 +160,7 @@ static void isolate_freepages(struct zone *zone,
+> >         * pages on cc->migratepages. We stop searching if the migrate
+> >         * and free page scanners meet or enough free pages are isolated.
+> >         */
+> > -       for (; pfn > low_pfn && cc->nr_migratepages > nr_freepages;
+> > -                                       pfn -= pageblock_nr_pages) {
+> > +       for (; pfn > low_pfn && cc->nr_migratepages > nr_freepages; pfn--)
+> > {
+> >                unsigned long isolated;
+> >
+> >                if (!pfn_valid(pfn))
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
