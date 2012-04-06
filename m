@@ -1,40 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx179.postini.com [74.125.245.179])
-	by kanga.kvack.org (Postfix) with SMTP id E07D56B004A
-	for <linux-mm@kvack.org>; Fri,  6 Apr 2012 16:31:34 -0400 (EDT)
-Received: by iajr24 with SMTP id r24so4808451iaj.14
-        for <linux-mm@kvack.org>; Fri, 06 Apr 2012 13:31:34 -0700 (PDT)
-Date: Fri, 6 Apr 2012 13:31:14 -0700 (PDT)
-From: Hugh Dickins <hughd@google.com>
-Subject: Re: [RFC PATCH 0/2] Removal of lumpy reclaim
-In-Reply-To: <20120406123439.d2ba8920.akpm@linux-foundation.org>
-Message-ID: <alpine.LSU.2.00.1204061316580.3057@eggly.anvils>
-References: <1332950783-31662-1-git-send-email-mgorman@suse.de> <20120406123439.d2ba8920.akpm@linux-foundation.org>
+Received: from psmtp.com (na3sys010amx160.postini.com [74.125.245.160])
+	by kanga.kvack.org (Postfix) with SMTP id 0E97B6B004A
+	for <linux-mm@kvack.org>; Fri,  6 Apr 2012 17:14:46 -0400 (EDT)
+Message-ID: <4F7F5CC1.3080107@redhat.com>
+Date: Fri, 06 Apr 2012 17:14:41 -0400
+From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [PATCH] mm: fix page-faults detection in swap-token logic
+References: <20110827083201.21854.56111.stgit@zurg> <20110829160637.bfc86e63.akpm@linux-foundation.org>
+In-Reply-To: <20110829160637.bfc86e63.akpm@linux-foundation.org>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Mel Gorman <mgorman@suse.de>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Rik van Riel <riel@redhat.com>, Konstantin Khlebnikov <khlebnikov@openvz.org>, Hugh Dickins <hughd@google.com>
+Cc: Konstantin Khlebnikov <khlebnikov@openvz.org>, Hugh Dickins <hughd@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Fri, 6 Apr 2012, Andrew Morton wrote:
-> On Wed, 28 Mar 2012 17:06:21 +0100
-> Mel Gorman <mgorman@suse.de> wrote:
-> 
-> > (cc'ing active people in the thread "[patch 68/92] mm: forbid lumpy-reclaim
-> > in shrink_active_list()")
-> > 
-> > In the interest of keeping my fingers from the flames at LSF/MM, I'm
-> > releasing an RFC for lumpy reclaim removal.
-> 
-> I grabbed them, thanks.
+On 08/29/2011 07:06 PM, Andrew Morton wrote:
+> On Sat, 27 Aug 2011 12:32:01 +0300
+> Konstantin Khlebnikov<khlebnikov@openvz.org>  wrote:
+>
+>> After commit v2.6.36-5896-gd065bd8 "mm: retry page fault when blocking on disk transfer"
+>> we usually wait in page-faults without mmap_sem held, so all swap-token logic was broken,
+>> because it based on using rwsem_is_locked(&mm->mmap_sem) as sign of in progress page-faults.
+>
+> If I'm interpreting this correctly, the thrash-handling logic has been
+> effectively disabled for a year and nobody noticed.
+>
+>> This patch adds to mm_struct atomic counter of in progress page-faults for mm with swap-token.
+>
+> We desperately need to delete some code from mm/.  This seems like a
+> great candidate.  Someone prove me wrong?
 
-I do have a concern with this: I was expecting lumpy reclaim to be
-replaced by compaction, and indeed it is when CONFIG_COMPACTION=y.
-But when CONFIG_COMPACTION is not set, we're back to 2.6.22 in
-relying upon blind chance to provide order>0 pages.
+You are absolutely right.  The swap token code broke without
+anyone noticing, and there is no good way to integrate it with
+cgroups naturalization...
 
-Hugh
+I'll send a patch to remove the swap token code.
+
+-- 
+All rights reversed
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
