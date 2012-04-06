@@ -1,21 +1,21 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx162.postini.com [74.125.245.162])
-	by kanga.kvack.org (Postfix) with SMTP id 91B836B0083
-	for <linux-mm@kvack.org>; Fri,  6 Apr 2012 14:51:31 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx204.postini.com [74.125.245.204])
+	by kanga.kvack.org (Postfix) with SMTP id EDF086B00E7
+	for <linux-mm@kvack.org>; Fri,  6 Apr 2012 14:51:36 -0400 (EDT)
 Received: from /spool/local
-	by e28smtp01.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e28smtp04.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
-	Sat, 7 Apr 2012 00:21:29 +0530
+	Sat, 7 Apr 2012 00:21:34 +0530
 Received: from d28av05.in.ibm.com (d28av05.in.ibm.com [9.184.220.67])
-	by d28relay01.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q36IpQ1i4714678
-	for <linux-mm@kvack.org>; Sat, 7 Apr 2012 00:21:27 +0530
+	by d28relay05.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q36IpVqM4477022
+	for <linux-mm@kvack.org>; Sat, 7 Apr 2012 00:21:31 +0530
 Received: from d28av05.in.ibm.com (loopback [127.0.0.1])
-	by d28av05.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q370Lt2W007276
-	for <linux-mm@kvack.org>; Sat, 7 Apr 2012 10:21:55 +1000
+	by d28av05.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q370Lx0J007424
+	for <linux-mm@kvack.org>; Sat, 7 Apr 2012 10:21:59 +1000
 From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Subject: [PATCH -V5 03/14] hugetlbfs: Add an inline helper for finding hstate index
-Date: Sat,  7 Apr 2012 00:20:49 +0530
-Message-Id: <1333738260-1329-4-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+Subject: [PATCH -V5 05/14] hugetlb: Avoid taking i_mmap_mutex in unmap_single_vma for hugetlb
+Date: Sat,  7 Apr 2012 00:20:51 +0530
+Message-Id: <1333738260-1329-6-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
 In-Reply-To: <1333738260-1329-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
 References: <1333738260-1329-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
@@ -25,98 +25,44 @@ Cc: linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, "Aneesh Kumar K.V" <a
 
 From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
 
-Add an inline helper and use it in the code.
+i_mmap_mutex lock was added in unmap_single_vma by 502717f4e112b18d9c37753a32f675bec9f2838b
+But we don't use page->lru in unmap_hugepage_range any more. Also the lock was
+taken higher up in the stack in some code path. That would result in deadlock.
 
-Acked-by: Michal Hocko <mhocko@suse.cz>
-Reviewed-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+unmap_mapping_range (i_mmap_mutex)
+ -> unmap_mapping_range_tree
+    -> unmap_mapping_range_vma
+       -> zap_page_range_single
+         -> unmap_single_vma
+	      -> unmap_hugepage_range (i_mmap_mutex)
+
+For shared pagetable support for huge pages, since pagetable pages are
+ref counted we don't need any lock during huge_pmd_unshare. We do take
+i_mmap_mutex in huge_pmd_share while walking the vma_prio_tree in mapping.
+( 39dde65c9940c97fcd178a3d2b1c57ed8b7b68aa )
+
 Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
 ---
- include/linux/hugetlb.h |    6 ++++++
- mm/hugetlb.c            |   18 ++++++++++--------
- 2 files changed, 16 insertions(+), 8 deletions(-)
+ mm/memory.c |    5 +----
+ 1 file changed, 1 insertion(+), 4 deletions(-)
 
-diff --git a/include/linux/hugetlb.h b/include/linux/hugetlb.h
-index 000837e..876457e 100644
---- a/include/linux/hugetlb.h
-+++ b/include/linux/hugetlb.h
-@@ -294,6 +294,11 @@ static inline unsigned hstate_index_to_shift(unsigned index)
- 	return hstates[index].order + PAGE_SHIFT;
- }
- 
-+static inline int hstate_index(struct hstate *h)
-+{
-+	return h - hstates;
-+}
-+
- #else
- struct hstate {};
- #define alloc_huge_page_node(h, nid) NULL
-@@ -312,6 +317,7 @@ static inline unsigned int pages_per_huge_page(struct hstate *h)
- 	return 1;
- }
- #define hstate_index_to_shift(index) 0
-+#define hstate_index(h) 0
- #endif
- 
- #endif /* _LINUX_HUGETLB_H */
-diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-index 5a472a5..d94c987 100644
---- a/mm/hugetlb.c
-+++ b/mm/hugetlb.c
-@@ -1646,7 +1646,7 @@ static int hugetlb_sysfs_add_hstate(struct hstate *h, struct kobject *parent,
- 				    struct attribute_group *hstate_attr_group)
- {
- 	int retval;
--	int hi = h - hstates;
-+	int hi = hstate_index(h);
- 
- 	hstate_kobjs[hi] = kobject_create_and_add(h->name, parent);
- 	if (!hstate_kobjs[hi])
-@@ -1741,11 +1741,13 @@ void hugetlb_unregister_node(struct node *node)
- 	if (!nhs->hugepages_kobj)
- 		return;		/* no hstate attributes */
- 
--	for_each_hstate(h)
--		if (nhs->hstate_kobjs[h - hstates]) {
--			kobject_put(nhs->hstate_kobjs[h - hstates]);
--			nhs->hstate_kobjs[h - hstates] = NULL;
-+	for_each_hstate(h) {
-+		int idx = hstate_index(h);
-+		if (nhs->hstate_kobjs[idx]) {
-+			kobject_put(nhs->hstate_kobjs[idx]);
-+			nhs->hstate_kobjs[idx] = NULL;
- 		}
-+	}
- 
- 	kobject_put(nhs->hugepages_kobj);
- 	nhs->hugepages_kobj = NULL;
-@@ -1848,7 +1850,7 @@ static void __exit hugetlb_exit(void)
- 	hugetlb_unregister_all_nodes();
- 
- 	for_each_hstate(h) {
--		kobject_put(hstate_kobjs[h - hstates]);
-+		kobject_put(hstate_kobjs[hstate_index(h)]);
+diff --git a/mm/memory.c b/mm/memory.c
+index 4b11961..d642b3e 100644
+--- a/mm/memory.c
++++ b/mm/memory.c
+@@ -1326,11 +1326,8 @@ static void unmap_single_vma(struct mmu_gather *tlb,
+ 			 * Since no pte has actually been setup, it is
+ 			 * safe to do nothing in this case.
+ 			 */
+-			if (vma->vm_file) {
+-				mutex_lock(&vma->vm_file->f_mapping->i_mmap_mutex);
++			if (vma->vm_file)
+ 				__unmap_hugepage_range(tlb, vma, start, end, NULL);
+-				mutex_unlock(&vma->vm_file->f_mapping->i_mmap_mutex);
+-			}
+ 		} else
+ 			unmap_page_range(tlb, vma, start, end, details);
  	}
- 
- 	kobject_put(hugepages_kobj);
-@@ -2678,7 +2680,7 @@ retry:
- 		 */
- 		if (unlikely(PageHWPoison(page))) {
- 			ret = VM_FAULT_HWPOISON |
--			      VM_FAULT_SET_HINDEX(h - hstates);
-+				VM_FAULT_SET_HINDEX(hstate_index(h));
- 			goto backout_unlocked;
- 		}
- 	}
-@@ -2751,7 +2753,7 @@ int hugetlb_fault(struct mm_struct *mm, struct vm_area_struct *vma,
- 			return 0;
- 		} else if (unlikely(is_hugetlb_entry_hwpoisoned(entry)))
- 			return VM_FAULT_HWPOISON_LARGE |
--			       VM_FAULT_SET_HINDEX(h - hstates);
-+				VM_FAULT_SET_HINDEX(hstate_index(h));
- 	}
- 
- 	ptep = huge_pte_alloc(mm, address, huge_page_size(h));
 -- 
 1.7.10.rc3.3.g19a6c
 
