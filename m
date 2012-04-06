@@ -1,229 +1,553 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx140.postini.com [74.125.245.140])
-	by kanga.kvack.org (Postfix) with SMTP id 70B456B00EF
-	for <linux-mm@kvack.org>; Thu,  5 Apr 2012 20:00:00 -0400 (EDT)
-From: Suresh Siddha <suresh.b.siddha@intel.com>
-Subject: [v3 VM_PAT PATCH 3/3] mm, x86, PAT: rework linear pfn-mmap tracking
-Date: Thu,  5 Apr 2012 17:01:35 -0700
-Message-Id: <1333670495-7016-4-git-send-email-suresh.b.siddha@intel.com>
-In-Reply-To: <1333670495-7016-1-git-send-email-suresh.b.siddha@intel.com>
-References: <4F7D8860.3040008@openvz.org>
- <1333670495-7016-1-git-send-email-suresh.b.siddha@intel.com>
+Received: from psmtp.com (na3sys010amx110.postini.com [74.125.245.110])
+	by kanga.kvack.org (Postfix) with SMTP id 90FA56B00EB
+	for <linux-mm@kvack.org>; Thu,  5 Apr 2012 20:12:55 -0400 (EDT)
+Subject: Re: [PATCH 3/3] tracing: Provide traceevents interface for uprobes
+From: Steven Rostedt <rostedt@goodmis.org>
+In-Reply-To: <20120403010502.17852.58528.sendpatchset@srdronam.in.ibm.com>
+References: <20120403010442.17852.9888.sendpatchset@srdronam.in.ibm.com>
+	 <20120403010502.17852.58528.sendpatchset@srdronam.in.ibm.com>
+Content-Type: text/plain; charset="UTF-8"
+Date: Thu, 05 Apr 2012 20:12:44 -0400
+Message-ID: <1333671164.3764.71.camel@pippen.local.home>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Konstantin Khlebnikov <khlebnikov@openvz.org>, Konstantin Khlebnikov <koct9i@gmail.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org
-Cc: Andi Kleen <andi@firstfloor.org>, Suresh Siddha <suresh.b.siddha@intel.com>, Pallipadi Venkatesh <venki@google.com>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Linus Torvalds <torvalds@linux-foundation.org>, Nick Piggin <npiggin@kernel.dk>
+To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
+Cc: Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, LKML <linux-kernel@vger.kernel.org>, Linux-mm <linux-mm@kvack.org>, Oleg Nesterov <oleg@redhat.com>, Andi Kleen <andi@firstfloor.org>, Christoph Hellwig <hch@infradead.org>, Arnaldo Carvalho de Melo <acme@infradead.org>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Thomas Gleixner <tglx@linutronix.de>, Anton Arapov <anton@redhat.com>
 
-From: Konstantin Khlebnikov <khlebnikov@openvz.org>
+On Tue, 2012-04-03 at 06:35 +0530, Srikar Dronamraju wrote:
+> From: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
+> --- /dev/null
+> +++ b/Documentation/trace/uprobetracer.txt
+> @@ -0,0 +1,93 @@
+> +		Uprobe-tracer: Uprobe-based Event Tracing
+> +		=========================================
+> +                 Documentation written by Srikar Dronamraju
+> +
+> +Overview
+> +--------
+> +Uprobe based trace events are similar to kprobe based trace events.
+> +To enable this feature, build your kernel with CONFIG_UPROBE_EVENTS=y.
+> +
+> +Similar to the kprobe-event tracer, this doesn't need to be activated via
+> +current_tracer. Instead of that, add probe points via
+> +/sys/kernel/debug/tracing/uprobe_events, and enable it via
+> +/sys/kernel/debug/tracing/events/uprobes/<EVENT>/enabled.
+> +
+> +
+> +Synopsis of uprobe_tracer
+> +-------------------------
+> +  p[:[GRP/]EVENT] PATH:SYMBOL[+offs] [FETCHARGS]	: Set a probe
+> +
+> + GRP		: Group name. If omitted, use "uprobes" for it.
+> + EVENT		: Event name. If omitted, the event name is generated
+> +		  based on SYMBOL+offs.
+> + PATH		: path to an executable or a library.
+> + SYMBOL[+offs]	: Symbol+offset where the probe is inserted.
+> +
+> + FETCHARGS	: Arguments. Each probe can have up to 128 args.
+> +  %REG		: Fetch register REG
+> +
+> +Event Profiling
+> +---------------
+> + You can check the total number of probe hits and probe miss-hits via
+> +/sys/kernel/debug/tracing/uprobe_profile.
+> + The first column is event name, the second is the number of probe hits,
+> +the third is the number of probe miss-hits.
+> +
+> +Usage examples
+> +--------------
+> +To add a probe as a new event, write a new definition to uprobe_events
+> +as below.
+> +
+> +  echo 'p: /bin/bash:0x4245c0' > /sys/kernel/debug/tracing/uprobe_events
+> +
+> + This sets a uprobe at an offset of 0x4245c0 in the executable /bin/bash
+> +
+> +
+> +  echo > /sys/kernel/debug/tracing/uprobe_events
+> +
+> + This clears all probe points.
+> +
+> +The following example shows how to dump the instruction pointer and %ax
+> +a register at the probed text address.  Here we are trying to probe
+> +function zfree in /bin/zsh
+> +
+> +    # cd /sys/kernel/debug/tracing/
+> +    # cat /proc/`pgrep  zsh`/maps | grep /bin/zsh | grep r-xp
+> +    00400000-0048a000 r-xp 00000000 08:03 130904 /bin/zsh
+> +    # objdump -T /bin/zsh | grep -w zfree
+> +    0000000000446420 g    DF .text  0000000000000012  Base        zfree
+> +
+> +0x46420 is the offset of zfree in object /bin/zsh that is loaded at
+> +0x00400000. Hence the command to probe would be :
+> +
+> +    # echo 'p /bin/zsh:0x46420 %ip %ax' > uprobe_events
 
-This patch replaces generic vma-flag VM_PFN_AT_MMAP with x86-only VM_PAT.
+Nice example, but I would explicitly state that the uprobe event
+interface expects the offset in the object, which needs to be
+calculated. This may be a nit, but as I'm a bit tired (been out late
+last night here at the current conference I'm in ;-), I had to read it
+three times before I figured it out.
 
-We can toss mapping address from remap_pfn_range() into track_pfn_vma_new(),
-and collect all PAT-related logic together in arch/x86/.
+> +
+> +We can see the events that are registered by looking at the uprobe_events
+> +file.
+> +
+> +    # cat uprobe_events
+> +    p:uprobes/p_zsh_0x46420 /bin/zsh:0x0000000000046420
+> +
+> +Right after definition, each event is disabled by default. For tracing these
+> +events, you need to enable it by:
+> +
+> +    # echo 1 > events/uprobes/enable
+> +
+> +Lets disable the event after sleeping for some time.
+> +    # sleep 20
+> +    # echo 0 > events/uprobes/enable
+> +
+> +And you can see the traced information via /sys/kernel/debug/tracing/trace.
+> +
+> +    # cat trace
+> +    # tracer: nop
+> +    #
+> +    #           TASK-PID    CPU#    TIMESTAMP  FUNCTION
+> +    #              | |       |          |         |
+> +                 zsh-24842 [006] 258544.995456: p_zsh_0x46420: (0x446420) arg1=446421 arg2=79
+> +                 zsh-24842 [007] 258545.000270: p_zsh_0x46420: (0x446420) arg1=446421 arg2=79
+> +                 zsh-24842 [002] 258545.043929: p_zsh_0x46420: (0x446420) arg1=446421 arg2=79
+> +                 zsh-24842 [004] 258547.046129: p_zsh_0x46420: (0x446420) arg1=446421 arg2=79
+> +
+> +Each line shows us probes were triggered for a pid 24842 with ip being
+> +0x446421 and contents of ax register being 79.
+> diff --git a/kernel/trace/Kconfig b/kernel/trace/Kconfig
+> index ce5a5c5..18f03a6 100644
+> --- a/kernel/trace/Kconfig
+> +++ b/kernel/trace/Kconfig
+> @@ -386,6 +386,22 @@ config KPROBE_EVENT
+>  	  This option is also required by perf-probe subcommand of perf tools.
+>  	  If you want to use perf tools, this option is strongly recommended.
+>  
+> +config UPROBE_EVENT
+> +	bool "Enable uprobes-based dynamic events"
+> +	depends on ARCH_SUPPORTS_UPROBES
+> +	depends on MMU
+> +	select UPROBES
+> +	select PROBE_EVENTS
+> +	select TRACING
+> +	default n
+> +	help
+> +	  This allows the user to add tracing events on top of userspace dynamic
+> +	  events (similar to tracepoints) on the fly via the traceevents interface.
 
-This patch also restores orignal frustration-free is_cow_mapping() check in
-remap_pfn_range(), as it was before commit v2.6.28-rc8-88-g3c8bb73
-("x86: PAT: store vm_pgoff for all linear_over_vma_region mappings - v3")
+s/traceevents/trace events/
 
-is_linear_pfn_mapping() checks can be removed from mm/huge_memory.c,
-because it already handled by VM_PFNMAP in VM_NO_THP bit-mask.
+> +	  Those events can be inserted wherever uprobes can probe, and record
+> +	  various registers.
+> +	  This option is required if you plan to use perf-probe subcommand of perf
+> +	  tools on user space applications.
+> +
+>  config PROBE_EVENTS
+>  	def_bool n
+>  
+> diff --git a/kernel/trace/Makefile b/kernel/trace/Makefile
+> index fa10d5c..1734c03 100644
+> --- a/kernel/trace/Makefile
+> +++ b/kernel/trace/Makefile
+> @@ -62,5 +62,6 @@ ifeq ($(CONFIG_TRACING),y)
+>  obj-$(CONFIG_KGDB_KDB) += trace_kdb.o
+>  endif
+>  obj-$(CONFIG_PROBE_EVENTS) += trace_probe.o
+> +obj-$(CONFIG_UPROBE_EVENT) += trace_uprobe.o
+>  
+>  libftrace-y := ftrace.o
+> diff --git a/kernel/trace/trace.h b/kernel/trace/trace.h
+> index 95059f0..1bcdbec 100644
+> --- a/kernel/trace/trace.h
+> +++ b/kernel/trace/trace.h
+> @@ -103,6 +103,11 @@ struct kretprobe_trace_entry_head {
+>  	unsigned long		ret_ip;
+>  };
+>  
+> +struct uprobe_trace_entry_head {
+> +	struct trace_entry	ent;
+> +	unsigned long		ip;
+> +};
+> +
+>  /*
+>   * trace_flag_type is an enumeration that holds different
+>   * states when a trace occurs. These are:
+> diff --git a/kernel/trace/trace_kprobe.c b/kernel/trace/trace_kprobe.c
+> index f8b7773..eb52983 100644
+> --- a/kernel/trace/trace_kprobe.c
+> +++ b/kernel/trace/trace_kprobe.c
+> @@ -524,8 +524,8 @@ static int create_trace_probe(int argc, char **argv)
+>  		}
+>  
+>  		/* Parse fetch argument */
+> -		ret = traceprobe_parse_probe_arg(arg, &tp->size, &tp->args[i],
+> -								is_return);
+> +		ret = traceprobe_parse_probe_arg(arg, &tp->size,
+> +					&tp->args[i], is_return, true);
+>  		if (ret) {
+>  			pr_info("Parse error at argument[%d]. (%d)\n", i, ret);
+>  			goto error;
+> diff --git a/kernel/trace/trace_probe.c b/kernel/trace/trace_probe.c
+> index deb375a..56d0705 100644
+> --- a/kernel/trace/trace_probe.c
+> +++ b/kernel/trace/trace_probe.c
+> @@ -552,7 +552,7 @@ static int parse_probe_vars(char *arg, const struct fetch_type *t,
+>  
+>  /* Recursive argument parser */
+>  static int parse_probe_arg(char *arg, const struct fetch_type *t,
+> -		     struct fetch_param *f, bool is_return)
+> +		     struct fetch_param *f, bool is_return, bool is_kprobe)
+>  {
+>  	unsigned long param;
+>  	long offset;
+> @@ -560,6 +560,10 @@ static int parse_probe_arg(char *arg, const struct fetch_type *t,
+>  	int ret;
+>  
+>  	ret = 0;
+> +	/* Until uprobe_events supports only reg arguments */
 
--v2: Reset the VM_PAT flag as part of untrack_pfn_vma()
--v3: Adapt to the track_pfn_insert/track_pfn_remap API
+Blank line is needed after the ret = 0;
 
-Signed-off-by: Konstantin Khlebnikov <khlebnikov@openvz.org>
-Signed-off-by: Suresh Siddha <suresh.b.siddha@intel.com>
-Cc: Venkatesh Pallipadi <venki@google.com>
-Cc: H. Peter Anvin <hpa@zytor.com>
-Cc: Nick Piggin <npiggin@kernel.dk>
-Cc: Ingo Molnar <mingo@redhat.com>
----
- arch/x86/mm/pat.c             |   17 ++++++++++++-----
- include/asm-generic/pgtable.h |    6 ++++--
- include/linux/mm.h            |   15 +--------------
- mm/huge_memory.c              |    7 +++----
- mm/memory.c                   |   12 ++++++------
- 5 files changed, 26 insertions(+), 31 deletions(-)
+> +	if (!is_kprobe && arg[0] != '%')
+> +		return -EINVAL;
+> +
+>  	switch (arg[0]) {
+>  	case '$':
+>  		ret = parse_probe_vars(arg + 1, t, f, is_return);
+> @@ -621,7 +625,8 @@ static int parse_probe_arg(char *arg, const struct fetch_type *t,
+>  				return -ENOMEM;
+>  
+>  			dprm->offset = offset;
+> -			ret = parse_probe_arg(arg, t2, &dprm->orig, is_return);
+> +			ret = parse_probe_arg(arg, t2, &dprm->orig, is_return,
+> +							is_kprobe);
+>  			if (ret)
+>  				kfree(dprm);
+>  			else {
+> @@ -679,7 +684,7 @@ static int __parse_bitfield_probe_arg(const char *bf,
+>  
+>  /* String length checking wrapper */
+>  int traceprobe_parse_probe_arg(char *arg, ssize_t *size,
+> -		struct probe_arg *parg, bool is_return)
+> +		struct probe_arg *parg, bool is_return, bool is_kprobe)
+>  {
+>  	const char *t;
+>  	int ret;
+> @@ -705,7 +710,7 @@ int traceprobe_parse_probe_arg(char *arg, ssize_t *size,
+>  	}
+>  	parg->offset = *size;
+>  	*size += parg->type->size;
+> -	ret = parse_probe_arg(arg, parg->type, &parg->fetch, is_return);
+> +	ret = parse_probe_arg(arg, parg->type, &parg->fetch, is_return, is_kprobe);
+>  
+>  	if (ret >= 0 && t != NULL)
+>  		ret = __parse_bitfield_probe_arg(t, parg->type, &parg->fetch);
+> diff --git a/kernel/trace/trace_probe.h b/kernel/trace/trace_probe.h
+> index 2df9a18..9337086 100644
+> --- a/kernel/trace/trace_probe.h
+> +++ b/kernel/trace/trace_probe.h
+> @@ -66,6 +66,7 @@
+>  #define TP_FLAG_TRACE		1
+>  #define TP_FLAG_PROFILE		2
+>  #define TP_FLAG_REGISTERED	4
+> +#define TP_FLAG_UPROBE		8
+>  
+> 
+>  /* data_rloc: data relative location, compatible with u32 */
+> @@ -143,7 +144,7 @@ static inline int is_good_name(const char *name)
+>  }
+>  
+>  extern int traceprobe_parse_probe_arg(char *arg, ssize_t *size,
+> -		   struct probe_arg *parg, bool is_return);
+> +		   struct probe_arg *parg, bool is_return, bool is_kprobe);
+>  
+>  extern int traceprobe_conflict_field_name(const char *name,
+>  			       struct probe_arg *args, int narg);
+> diff --git a/kernel/trace/trace_uprobe.c b/kernel/trace/trace_uprobe.c
+> new file mode 100644
+> index 0000000..d8b11cf
+> --- /dev/null
+> +++ b/kernel/trace/trace_uprobe.c
+> @@ -0,0 +1,787 @@
+> +/*
+> + * uprobes-based tracing events
+> + *
+> + * This program is free software; you can redistribute it and/or modify
+> + * it under the terms of the GNU General Public License version 2 as
+> + * published by the Free Software Foundation.
+> + *
+> + * This program is distributed in the hope that it will be useful,
+> + * but WITHOUT ANY WARRANTY; without even the implied warranty of
+> + * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+> + * GNU General Public License for more details.
+> + *
+> + * You should have received a copy of the GNU General Public License
+> + * along with this program; if not, write to the Free Software
+> + * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+> + *
+> + * Copyright (C) IBM Corporation, 2010-2012
+> + * Author:	Srikar Dronamraju <srikar@linux.vnet.ibm.com>
+> + */
+> +
+> +#include <linux/module.h>
+> +#include <linux/uaccess.h>
+> +#include <linux/uprobes.h>
+> +#include <linux/namei.h>
+> +
+> +#include "trace_probe.h"
+> +
+> +#define UPROBE_EVENT_SYSTEM	"uprobes"
+> +
+> +/**
+> + * uprobe event core functions
+> + */
+> +struct trace_uprobe;
+> +struct uprobe_trace_consumer {
+> +	struct uprobe_consumer		cons;
+> +	struct trace_uprobe		*tp;
+> +};
+> +
+> +struct trace_uprobe {
+> +	struct list_head		list;
+> +	struct ftrace_event_class	class;
+> +	struct ftrace_event_call	call;
+> +	struct uprobe_trace_consumer	*consumer;
+> +	struct inode			*inode;
+> +	char				*filename;
+> +	unsigned long			offset;
+> +	unsigned long			nhit;
+> +	unsigned int			flags;	/* For TP_FLAG_* */
+> +	ssize_t				size;	/* trace entry size */
+> +	unsigned int			nr_args;
+> +	struct probe_arg		args[];
+> +};
+> +
+> +#define SIZEOF_TRACE_UPROBE(n)			\
+> +	(offsetof(struct trace_uprobe, args) +	\
+> +	(sizeof(struct probe_arg) * (n)))
+> +
+> +static int register_uprobe_event(struct trace_uprobe *tp);
+> +static void unregister_uprobe_event(struct trace_uprobe *tp);
+> +
+> +static DEFINE_MUTEX(uprobe_lock);
+> +static LIST_HEAD(uprobe_list);
+> +
+> +static int uprobe_dispatcher(struct uprobe_consumer *con, struct pt_regs *regs);
+> +
+> +/*
+> + * Allocate new trace_uprobe and initialize it (including uprobes).
+> + */
+> +static struct trace_uprobe *
+> +alloc_trace_uprobe(const char *group, const char *event, int nargs)
+> +{
+> +	struct trace_uprobe *tp;
+> +
+> +	if (!event || !is_good_name(event))
+> +		return ERR_PTR(-EINVAL);
+> +
+> +	if (!group || !is_good_name(group))
+> +		return ERR_PTR(-EINVAL);
+> +
+> +	tp = kzalloc(SIZEOF_TRACE_UPROBE(nargs), GFP_KERNEL);
+> +	if (!tp)
+> +		return ERR_PTR(-ENOMEM);
+> +
+> +	tp->call.class = &tp->class;
+> +	tp->call.name = kstrdup(event, GFP_KERNEL);
+> +	if (!tp->call.name)
+> +		goto error;
+> +
+> +	tp->class.system = kstrdup(group, GFP_KERNEL);
+> +	if (!tp->class.system)
+> +		goto error;
+> +
+> +	INIT_LIST_HEAD(&tp->list);
+> +	return tp;
+> +
+> +error:
+> +	kfree(tp->call.name);
+> +	kfree(tp);
+> +
+> +	return ERR_PTR(-ENOMEM);
+> +}
+> +
+> +static void free_trace_uprobe(struct trace_uprobe *tp)
+> +{
+> +	int i;
+> +
+> +	for (i = 0; i < tp->nr_args; i++)
+> +		traceprobe_free_probe_arg(&tp->args[i]);
+> +
+> +	iput(tp->inode);
+> +	kfree(tp->call.class->system);
+> +	kfree(tp->call.name);
+> +	kfree(tp->filename);
+> +	kfree(tp);
+> +}
+> +
+> +static struct trace_uprobe *find_probe_event(const char *event, const char *group)
+> +{
+> +	struct trace_uprobe *tp;
+> +
+> +	list_for_each_entry(tp, &uprobe_list, list)
+> +		if (strcmp(tp->call.name, event) == 0 &&
+> +		    strcmp(tp->call.class->system, group) == 0)
+> +			return tp;
+> +
+> +	return NULL;
+> +}
+> +
+> +/* Unregister a trace_uprobe and probe_event: call with locking uprobe_lock */
+> +static void unregister_trace_uprobe(struct trace_uprobe *tp)
+> +{
+> +	list_del(&tp->list);
+> +	unregister_uprobe_event(tp);
+> +	free_trace_uprobe(tp);
+> +}
+> +
+> +/* Register a trace_uprobe and probe_event */
+> +static int register_trace_uprobe(struct trace_uprobe *tp)
+> +{
+> +	struct trace_uprobe *old_tp;
+> +	int ret;
+> +
+> +	mutex_lock(&uprobe_lock);
+> +
+> +	/* register as an event */
+> +	old_tp = find_probe_event(tp->call.name, tp->call.class->system);
+> +	if (old_tp)
+> +		/* delete old event */
+> +		unregister_trace_uprobe(old_tp);
+> +
+> +	ret = register_uprobe_event(tp);
+> +	if (ret) {
+> +		pr_warning("Failed to register probe event(%d)\n", ret);
+> +		goto end;
+> +	}
+> +
+> +	list_add_tail(&tp->list, &uprobe_list);
+> +
+> +end:
+> +	mutex_unlock(&uprobe_lock);
+> +
+> +	return ret;
+> +}
+> +
+> +/*
+> + * Argument syntax:
+> + *  - Add uprobe: p[:[GRP/]EVENT] PATH:SYMBOL[+offs] [FETCHARGS]
+> + *
+> + *  - Remove uprobe: -:[GRP/]EVENT
+> + */
+> +static int create_trace_uprobe(int argc, char **argv)
+> +{
+> +	struct trace_uprobe *tp;
+> +	struct inode *inode;
+> +	char *arg, *event, *group, *filename;
+> +	char buf[MAX_EVENT_NAME_LEN];
+> +	struct path path;
+> +	unsigned long offset;
+> +	bool is_delete;
+> +	int i, ret;
+> +
+> +	inode = NULL;
+> +	ret = 0;
+> +	is_delete = false;
+> +	arg = NULL;
+> +	event = NULL;
+> +	group = NULL;
+> +
+> +	/* argc must be >= 1 */
+> +	if (argv[0][0] == '-')
+> +		is_delete = true;
+> +	else if (argv[0][0] != 'p') {
+> +		pr_info("Probe definition must be started with 'p', 'r' or" " '-'.\n");
+> +		return -EINVAL;
+> +	}
+> +
+> +	if (argv[0][1] == ':') {
+> +		event = &argv[0][2];
+> +
+> +		if (strchr(event, '/')) {
 
-diff --git a/arch/x86/mm/pat.c b/arch/x86/mm/pat.c
-index d0553bf..bef33df 100644
---- a/arch/x86/mm/pat.c
-+++ b/arch/x86/mm/pat.c
-@@ -665,7 +665,7 @@ int track_pfn_copy(struct vm_area_struct *vma)
- 	unsigned long vma_size = vma->vm_end - vma->vm_start;
- 	pgprot_t pgprot;
- 
--	if (is_linear_pfn_mapping(vma)) {
-+	if (vma->vm_flags & VM_PAT) {
- 		/*
- 		 * reserve the whole chunk covered by vma. We need the
- 		 * starting address and protection from pte.
-@@ -687,14 +687,20 @@ int track_pfn_copy(struct vm_area_struct *vma)
-  * single reserve_pfn_range call.
-  */
- int track_pfn_remap(struct vm_area_struct *vma, pgprot_t *prot,
--		    unsigned long pfn, unsigned long size)
-+		    unsigned long pfn, unsigned long addr, unsigned long size)
- {
- 	unsigned long flags;
- 	int i;
- 
- 	/* reserve the whole chunk starting from pfn */
--	if (is_linear_pfn_mapping(vma))
--		return reserve_pfn_range(pfn << PAGE_SHIFT, size, prot, 0);
-+	if (addr == vma->vm_start && size == (vma->vm_end - vma->vm_start)) {
-+		int ret;
-+
-+		ret = reserve_pfn_range(pfn << PAGE_SHIFT, size, prot, 0);
-+		if (!ret)
-+			vma->vm_flags |= VM_PAT;
-+		return ret;
-+	}
- 
- 	if (!pat_enabled)
- 		return 0;
-@@ -741,7 +747,7 @@ void untrack_pfn(struct vm_area_struct *vma, unsigned long pfn,
- 	resource_size_t paddr;
- 	unsigned long prot;
- 
--	if (!is_linear_pfn_mapping(vma))
-+	if (!(vma->vm_flags & VM_PAT))
- 		return;
- 
- 	/* free the chunk starting from pfn or the whole chunk */
-@@ -755,6 +761,7 @@ void untrack_pfn(struct vm_area_struct *vma, unsigned long pfn,
- 		size = vma->vm_end - vma->vm_start;
- 	}
- 	free_pfn_range(paddr, size);
-+	vma->vm_flags &= ~VM_PAT;
- }
- 
- pgprot_t pgprot_writecombine(pgprot_t prot)
-diff --git a/include/asm-generic/pgtable.h b/include/asm-generic/pgtable.h
-index a877649..ddd613e 100644
---- a/include/asm-generic/pgtable.h
-+++ b/include/asm-generic/pgtable.h
-@@ -392,7 +392,8 @@ static inline void ptep_modify_prot_commit(struct mm_struct *mm,
-  * by remap_pfn_range() for physical range indicated by pfn and size.
-  */
- static inline int track_pfn_remap(struct vm_area_struct *vma, pgprot_t *prot,
--				  unsigned long pfn, unsigned long size)
-+				  unsigned long pfn, unsigned long addr,
-+				  unsigned long size)
- {
- 	return 0;
- }
-@@ -427,7 +428,8 @@ static inline void untrack_pfn(struct vm_area_struct *vma,
- }
- #else
- extern int track_pfn_remap(struct vm_area_struct *vma, pgprot_t *prot,
--			   unsigned long pfn, unsigned long size);
-+			   unsigned long pfn, unsigned long addr,
-+			   unsigned long size);
- extern int track_pfn_insert(struct vm_area_struct *vma, pgprot_t *prot,
- 			    unsigned long pfn);
- extern int track_pfn_copy(struct vm_area_struct *vma);
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index d8738a4..b8e5fe5 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -117,7 +117,7 @@ extern unsigned int kobjsize(const void *objp);
- #define VM_CAN_NONLINEAR 0x08000000	/* Has ->fault & does nonlinear pages */
- #define VM_MIXEDMAP	0x10000000	/* Can contain "struct page" and pure PFN pages */
- #define VM_SAO		0x20000000	/* Strong Access Ordering (powerpc) */
--#define VM_PFN_AT_MMAP	0x40000000	/* PFNMAP vma that is fully mapped at mmap time */
-+#define VM_PAT		0x40000000	/* PAT reserves whole VMA at once (x86) */
- #define VM_MERGEABLE	0x80000000	/* KSM may merge identical pages */
- 
- /* Bits set in the VMA until the stack is in its final location */
-@@ -158,19 +158,6 @@ extern pgprot_t protection_map[16];
- #define FAULT_FLAG_RETRY_NOWAIT	0x10	/* Don't drop mmap_sem and wait when retrying */
- #define FAULT_FLAG_KILLABLE	0x20	/* The fault task is in SIGKILL killable region */
- 
--/*
-- * This interface is used by x86 PAT code to identify a pfn mapping that is
-- * linear over entire vma. This is to optimize PAT code that deals with
-- * marking the physical region with a particular prot. This is not for generic
-- * mm use. Note also that this check will not work if the pfn mapping is
-- * linear for a vma starting at physical address 0. In which case PAT code
-- * falls back to slow path of reserving physical range page by page.
-- */
--static inline int is_linear_pfn_mapping(struct vm_area_struct *vma)
--{
--	return !!(vma->vm_flags & VM_PFN_AT_MMAP);
--}
--
- static inline int is_pfn_mapping(struct vm_area_struct *vma)
- {
- 	return !!(vma->vm_flags & VM_PFNMAP);
-diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index f0e5306..cf827da 100644
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -1650,7 +1650,7 @@ int khugepaged_enter_vma_merge(struct vm_area_struct *vma)
- 	 * If is_pfn_mapping() is true is_learn_pfn_mapping() must be
- 	 * true too, verify it here.
- 	 */
--	VM_BUG_ON(is_linear_pfn_mapping(vma) || vma->vm_flags & VM_NO_THP);
-+	VM_BUG_ON(vma->vm_flags & VM_NO_THP);
- 	hstart = (vma->vm_start + ~HPAGE_PMD_MASK) & HPAGE_PMD_MASK;
- 	hend = vma->vm_end & HPAGE_PMD_MASK;
- 	if (hstart < hend)
-@@ -1908,7 +1908,7 @@ static void collapse_huge_page(struct mm_struct *mm,
- 	 * If is_pfn_mapping() is true is_learn_pfn_mapping() must be
- 	 * true too, verify it here.
- 	 */
--	VM_BUG_ON(is_linear_pfn_mapping(vma) || vma->vm_flags & VM_NO_THP);
-+	VM_BUG_ON(vma->vm_flags & VM_NO_THP);
- 
- 	pgd = pgd_offset(mm, address);
- 	if (!pgd_present(*pgd))
-@@ -2150,8 +2150,7 @@ static unsigned int khugepaged_scan_mm_slot(unsigned int pages,
- 		 * If is_pfn_mapping() is true is_learn_pfn_mapping()
- 		 * must be true too, verify it here.
- 		 */
--		VM_BUG_ON(is_linear_pfn_mapping(vma) ||
--			  vma->vm_flags & VM_NO_THP);
-+		VM_BUG_ON(vma->vm_flags & VM_NO_THP);
- 
- 		hstart = (vma->vm_start + ~HPAGE_PMD_MASK) & HPAGE_PMD_MASK;
- 		hend = vma->vm_end & HPAGE_PMD_MASK;
-diff --git a/mm/memory.c b/mm/memory.c
-index 4cdcf53..2ade15b 100644
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -2282,23 +2282,23 @@ int remap_pfn_range(struct vm_area_struct *vma, unsigned long addr,
- 	 * There's a horrible special case to handle copy-on-write
- 	 * behaviour that some programs depend on. We mark the "original"
- 	 * un-COW'ed pages by matching them up with "vma->vm_pgoff".
-+	 * See vm_normal_page() for details.
- 	 */
--	if (addr == vma->vm_start && end == vma->vm_end) {
-+	if (is_cow_mapping(vma->vm_flags)) {
-+		if (addr != vma->vm_start || end != vma->vm_end)
-+			return -EINVAL;
- 		vma->vm_pgoff = pfn;
--		vma->vm_flags |= VM_PFN_AT_MMAP;
--	} else if (is_cow_mapping(vma->vm_flags))
--		return -EINVAL;
-+	}
- 
- 	vma->vm_flags |= VM_IO | VM_RESERVED | VM_PFNMAP;
- 
--	err = track_pfn_remap(vma, &prot, pfn, PAGE_ALIGN(size));
-+	err = track_pfn_remap(vma, &prot, pfn, addr, PAGE_ALIGN(size));
- 	if (err) {
- 		/*
- 		 * To indicate that track_pfn related cleanup is not
- 		 * needed from higher level routine calling unmap_vmas
- 		 */
- 		vma->vm_flags &= ~(VM_IO | VM_RESERVED | VM_PFNMAP);
--		vma->vm_flags &= ~VM_PFN_AT_MMAP;
- 		return -EINVAL;
- 	}
- 
--- 
-1.7.6.5
+What about using a temp variable above so that you do not need to repeat
+the search (strchr) again below?
+
+-- Steve
+
+> +			group = event;
+> +			event = strchr(group, '/') + 1;
+> +			event[-1] = '\0';
+> +
+> +			if (strlen(group) == 0) {
+> +				pr_info("Group name is not specified\n");
+> +				return -EINVAL;
+> +			}
+> +		}
+> +		if (strlen(event) == 0) {
+> +			pr_info("Event name is not specified\n");
+> +			return -EINVAL;
+> +		}
+> +	}
+> +	if (!group)
+> +		group = UPROBE_EVENT_SYSTEM;
+> +
+> +	if (is_delete) {
+> +		if (!event) {
+> +			pr_info("Delete command needs an event name.\n");
+> +			return -EINVAL;
+> +		}
+> +		mutex_lock(&uprobe_lock);
+> +		tp = find_probe_event(event, group);
+> +
+> +		if (!tp) {
+> +			mutex_unlock(&uprobe_lock);
+> +			pr_info("Event %s/%s doesn't exist.\n", group, event);
+> +			return -ENOENT;
+> +		}
+> +		/* delete an event */
+> +		unregister_trace_uprobe(tp);
+> +		mutex_unlock(&uprobe_lock);
+> +		return 0;
+> +	}
+> +
+> +	if (argc < 2) {
+> +		pr_info("Probe point is not specified.\n");
+> +		return -EINVAL;
+> +	}
+> +	if (isdigit(argv[1][0])) {
+> +		pr_info("probe point must be have a filename.\n");
+> +		return -EINVAL;
+> +	}
+> +	arg = strchr(argv[1], ':');
+> +	if (!arg)
+> +		goto fail_address_parse;
+> +
+> +	*arg++ = '\0';
+> +	filename = argv[1];
+> +	ret = kern_path(filename, LOOKUP_FOLLOW, &path);
+> +	if (ret)
+> +		goto fail_address_parse;
+> +
+> +	ret = strict_strtoul(arg, 0, &offset);
+> +	if (ret)
+> +		goto fail_address_parse;
+> +
+> +	inode = igrab(path.dentry->d_inode);
+> +
+> +	argc -= 2;
+> +	argv += 2;
+> +
+
+> 
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
