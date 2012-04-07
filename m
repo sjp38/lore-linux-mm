@@ -1,50 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx111.postini.com [74.125.245.111])
-	by kanga.kvack.org (Postfix) with SMTP id 11C0B6B004A
-	for <linux-mm@kvack.org>; Fri,  6 Apr 2012 23:00:34 -0400 (EDT)
-Received: by pbcup15 with SMTP id up15so3755748pbc.14
-        for <linux-mm@kvack.org>; Fri, 06 Apr 2012 20:00:33 -0700 (PDT)
-Message-ID: <4F7FADC3.3000209@gmail.com>
-Date: Fri, 06 Apr 2012 20:00:19 -0700
-From: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
+Received: from psmtp.com (na3sys010amx157.postini.com [74.125.245.157])
+	by kanga.kvack.org (Postfix) with SMTP id D09386B004A
+	for <linux-mm@kvack.org>; Sat,  7 Apr 2012 00:21:56 -0400 (EDT)
+Received: by iajr24 with SMTP id r24so5209884iaj.14
+        for <linux-mm@kvack.org>; Fri, 06 Apr 2012 21:21:56 -0700 (PDT)
+Date: Fri, 6 Apr 2012 21:21:38 -0700 (PDT)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: [PATCH RFC] mm: account VMA before forced-COW via
+ /proc/pid/mem
+In-Reply-To: <4F7D5859.5050106@openvz.org>
+Message-ID: <alpine.LSU.2.00.1204062104090.4297@eggly.anvils>
+References: <20120402153631.5101.44091.stgit@zurg> <20120403143752.GA5150@redhat.com> <4F7C1B67.6030300@openvz.org> <20120404154148.GA7105@redhat.com> <4F7D5859.5050106@openvz.org>
 MIME-Version: 1.0
-Subject: Re: [RFC PATCH 0/2] Removal of lumpy reclaim
-References: <1332950783-31662-1-git-send-email-mgorman@suse.de> <20120406123439.d2ba8920.akpm@linux-foundation.org> <alpine.LSU.2.00.1204061316580.3057@eggly.anvils>
-In-Reply-To: <alpine.LSU.2.00.1204061316580.3057@eggly.anvils>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Rik van Riel <riel@redhat.com>, Konstantin Khlebnikov <khlebnikov@openvz.org>, kosaki.motohiro@gmail.com
+To: Konstantin Khlebnikov <khlebnikov@openvz.org>
+Cc: Oleg Nesterov <oleg@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Roland Dreier <roland@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>
 
-(4/6/12 1:31 PM), Hugh Dickins wrote:
-> On Fri, 6 Apr 2012, Andrew Morton wrote:
->> On Wed, 28 Mar 2012 17:06:21 +0100
->> Mel Gorman<mgorman@suse.de>  wrote:
->>
->>> (cc'ing active people in the thread "[patch 68/92] mm: forbid lumpy-reclaim
->>> in shrink_active_list()")
->>>
->>> In the interest of keeping my fingers from the flames at LSF/MM, I'm
->>> releasing an RFC for lumpy reclaim removal.
->>
->> I grabbed them, thanks.
->
-> I do have a concern with this: I was expecting lumpy reclaim to be
-> replaced by compaction, and indeed it is when CONFIG_COMPACTION=y.
-> But when CONFIG_COMPACTION is not set, we're back to 2.6.22 in
-> relying upon blind chance to provide order>0 pages.
+On Thu, 5 Apr 2012, Konstantin Khlebnikov wrote:
+> Oleg Nesterov wrote:
+> > On 04/04, Konstantin Khlebnikov wrote:
+> > > Oleg Nesterov wrote:
+> > > > On 04/02, Konstantin Khlebnikov wrote:
+> > > > > 
+> > > > > Currently kernel does not account read-only private mappings into
+> > > > > memory commitment.
+> > > > > But these mappings can be force-COW-ed in get_user_pages().
+> > > > 
+> > > > Heh. tail -n3 Documentation/vm/overcommit-accounting
+> > > > may be you should update it then.
+> > > 
+> > > I just wonder how fragile this accounting...
+> > 
+> > I meant, this patch could also remove this "TODO" from the docs.
+> 
+> Actually I dug into this code for killing VM_ACCOUNT vma flag.
+> Currently we cannot do this only because asymmetry in mprotect_fixup():
+> it account vma on read-only -> writable conversion, but keep on backward
+> operation.
+> Probably we can kill this asymmetry, and after that we can recognize
+> accountable vma
+> by its others flags state, so we don't need special VM_ACCOUNT for this.
 
-I was putted most big objection to remove lumpy when compaction merging. But
-I think that's ok. Because of, desktop and server people always use COMPACTION=y
-kernel and embedded people don't use swap (then lumpy wouldn't work).
+(I believe the VM_ACCOUNT flag will need to stay.)
 
-My thought was to keep gradual development and avoid aggressive regression. and
-Mel did. compaction is now completely stable and we have no reason to keep lumpy,
-I think.
+But this is just a quick note to say that I'm not ignoring you: I have
+a strong interest in this, but only now found time to look through the
+thread and ponder, and I'm not yet ready to decide.
 
-Thanks.
+I've long detested that behaviour of GUP write,force, and my strong
+preference would be not to layer more strangeness upon strangeness,
+but limit the damage by making GUP write,force fail in that case,
+instead of inserting a PageAnon page into a VM_SHARED mapping.
+
+I think it's unlikely that it will cause a regression in real life
+(it already fails if you did not open the mmap'ed file for writing),
+but it would be a user-visible change in behaviour, and I've research
+to do before arriving at a conclusion.
+
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
