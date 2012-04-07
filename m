@@ -1,20 +1,21 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx169.postini.com [74.125.245.169])
-	by kanga.kvack.org (Postfix) with SMTP id BAF116B00EF
-	for <linux-mm@kvack.org>; Sat,  7 Apr 2012 15:06:04 -0400 (EDT)
-Received: by bkwq16 with SMTP id q16so3471141bkw.14
-        for <linux-mm@kvack.org>; Sat, 07 Apr 2012 12:06:03 -0700 (PDT)
-Subject: [PATCH mm] c/r: prctl: update prctl_set_mm_exe_file() after
+Received: from psmtp.com (na3sys010amx133.postini.com [74.125.245.133])
+	by kanga.kvack.org (Postfix) with SMTP id B65D06B00EF
+	for <linux-mm@kvack.org>; Sat,  7 Apr 2012 15:08:08 -0400 (EDT)
+Received: by bkwq16 with SMTP id q16so3471887bkw.14
+        for <linux-mm@kvack.org>; Sat, 07 Apr 2012 12:08:07 -0700 (PDT)
+Subject: [PATCH mm RESEND] c/r: prctl: update prctl_set_mm_exe_file() after
  mm->num_exe_file_vmas removal
 From: Konstantin Khlebnikov <khlebnikov@openvz.org>
-Date: Sat, 07 Apr 2012 23:05:54 +0400
-Message-ID: <20120407190554.10193.58306.stgit@zurg>
+Date: Sat, 07 Apr 2012 23:08:02 +0400
+Message-ID: <20120407190801.10294.76053.stgit@zurg>
 MIME-Version: 1.0
 Content-Type: text/plain; charset="utf-8"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org
+Cc: Kees Cook <keescook@chromium.org>, Pavel Emelyanov <xemul@parallels.com>, Oleg Nesterov <oleg@redhat.com>, Tejun Heo <tj@kernel.org>, Matt Helsley <matthltc@us.ibm.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Cyrill Gorcunov <gorcunov@openvz.org>
 
 [ fix for "c-r-prctl-add-ability-to-set-new-mm_struct-exe_file-v2" from mm tree ]
 
