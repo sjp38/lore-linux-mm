@@ -1,44 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx197.postini.com [74.125.245.197])
-	by kanga.kvack.org (Postfix) with SMTP id C16BF6B004A
-	for <linux-mm@kvack.org>; Fri,  6 Apr 2012 20:25:56 -0400 (EDT)
-Message-ID: <4F7F8992.4050004@tilera.com>
-Date: Fri, 6 Apr 2012 20:25:54 -0400
-From: Chris Metcalf <cmetcalf@tilera.com>
+Received: from psmtp.com (na3sys010amx111.postini.com [74.125.245.111])
+	by kanga.kvack.org (Postfix) with SMTP id 11C0B6B004A
+	for <linux-mm@kvack.org>; Fri,  6 Apr 2012 23:00:34 -0400 (EDT)
+Received: by pbcup15 with SMTP id up15so3755748pbc.14
+        for <linux-mm@kvack.org>; Fri, 06 Apr 2012 20:00:33 -0700 (PDT)
+Message-ID: <4F7FADC3.3000209@gmail.com>
+Date: Fri, 06 Apr 2012 20:00:19 -0700
+From: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH v2] hugetlb: fix race condition in hugetlb_fault()
-References: <201203302018.q2UKIFH5020745@farm-0012.internal.tilera.com> <CAJd=RBCoLNB+iRX1shKGAwSbE8PsZXyk9e3inPTREcm2kk3nXA@mail.gmail.com> <201203311339.q2VDdJMD006254@farm-0012.internal.tilera.com> <CAJd=RBBWx7uZcw=_oA06RVunPAGeFcJ7LY=RwFCyB_BreJb_kg@mail.gmail.com> <4F7887A5.3060700@tilera.com> <20120406152305.59408e35.akpm@linux-foundation.org> <alpine.LSU.2.00.1204061601370.3637@eggly.anvils> <20120406162618.3307a9bd.akpm@linux-foundation.org> <alpine.LSU.2.00.1204061631160.3820@eggly.anvils>
-In-Reply-To: <alpine.LSU.2.00.1204061631160.3820@eggly.anvils>
-Content-Type: text/plain; charset="ISO-8859-1"
+Subject: Re: [RFC PATCH 0/2] Removal of lumpy reclaim
+References: <1332950783-31662-1-git-send-email-mgorman@suse.de> <20120406123439.d2ba8920.akpm@linux-foundation.org> <alpine.LSU.2.00.1204061316580.3057@eggly.anvils>
+In-Reply-To: <alpine.LSU.2.00.1204061316580.3057@eggly.anvils>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Hugh Dickins <hughd@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Hillf Danton <dhillf@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Michal Hocko <mhocko@suse.cz>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Rik van Riel <riel@redhat.com>, Konstantin Khlebnikov <khlebnikov@openvz.org>, kosaki.motohiro@gmail.com
 
-On 4/6/2012 7:35 PM, Hugh Dickins wrote:
+(4/6/12 1:31 PM), Hugh Dickins wrote:
 > On Fri, 6 Apr 2012, Andrew Morton wrote:
->> On Fri, 6 Apr 2012 16:10:13 -0700 (PDT)
->> Hugh Dickins <hughd@google.com> wrote:
->>> The resulting patch is okay; but let's reassure Chris that his
->>> original patch was better, before he conceded to make the get_page
->>> and put_page unconditional, and added unnecessary detail of the race.
+>> On Wed, 28 Mar 2012 17:06:21 +0100
+>> Mel Gorman<mgorman@suse.de>  wrote:
+>>
+>>> (cc'ing active people in the thread "[patch 68/92] mm: forbid lumpy-reclaim
+>>> in shrink_active_list()")
 >>>
->> Yes, the v1 patch was better.  No reason was given for changing it?
-> I think Chris was aiming to be a model citizen, and followed review
-> suggestions that he would actually have done better to resist.
+>>> In the interest of keeping my fingers from the flames at LSF/MM, I'm
+>>> releasing an RFC for lumpy reclaim removal.
+>>
+>> I grabbed them, thanks.
+>
+> I do have a concern with this: I was expecting lumpy reclaim to be
+> replaced by compaction, and indeed it is when CONFIG_COMPACTION=y.
+> But when CONFIG_COMPACTION is not set, we're back to 2.6.22 in
+> relying upon blind chance to provide order>0 pages.
 
-Yes, exactly.  I figure if I'm submitting patches to mm, I should defer to
-suggestions from someone like Hillf who has committed a lot more of them
-than I have. :-)   Arguably the unconditional version is simpler at the
-source code level in any case, and I figure more is usually better when it
-comes to documenting race conditions, so it didn't seem necessary to push
-back.  Frankly I'm happy to keep my sign-off on either version of the patch
-and defer to Andrew or whomever as to which one gets taken.
+I was putted most big objection to remove lumpy when compaction merging. But
+I think that's ok. Because of, desktop and server people always use COMPACTION=y
+kernel and embedded people don't use swap (then lumpy wouldn't work).
 
--- 
-Chris Metcalf, Tilera Corp.
-http://www.tilera.com
+My thought was to keep gradual development and avoid aggressive regression. and
+Mel did. compaction is now completely stable and we have no reason to keep lumpy,
+I think.
+
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
