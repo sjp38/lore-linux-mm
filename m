@@ -1,58 +1,114 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx153.postini.com [74.125.245.153])
-	by kanga.kvack.org (Postfix) with SMTP id 3E51F6B00EA
-	for <linux-mm@kvack.org>; Sat,  7 Apr 2012 15:01:42 -0400 (EDT)
-Received: by mail-bk0-f41.google.com with SMTP id q16so3469210bkw.14
-        for <linux-mm@kvack.org>; Sat, 07 Apr 2012 12:01:41 -0700 (PDT)
-Subject: [PATCH v2 10/10] mm: move madvise vma flags to the end
+Received: from psmtp.com (na3sys010amx169.postini.com [74.125.245.169])
+	by kanga.kvack.org (Postfix) with SMTP id BAF116B00EF
+	for <linux-mm@kvack.org>; Sat,  7 Apr 2012 15:06:04 -0400 (EDT)
+Received: by bkwq16 with SMTP id q16so3471141bkw.14
+        for <linux-mm@kvack.org>; Sat, 07 Apr 2012 12:06:03 -0700 (PDT)
+Subject: [PATCH mm] c/r: prctl: update prctl_set_mm_exe_file() after
+ mm->num_exe_file_vmas removal
 From: Konstantin Khlebnikov <khlebnikov@openvz.org>
-Date: Sat, 07 Apr 2012 23:01:37 +0400
-Message-ID: <20120407190137.9726.54530.stgit@zurg>
-In-Reply-To: <20120407185546.9726.62260.stgit@zurg>
-References: <20120407185546.9726.62260.stgit@zurg>
+Date: Sat, 07 Apr 2012 23:05:54 +0400
+Message-ID: <20120407190554.10193.58306.stgit@zurg>
 MIME-Version: 1.0
 Content-Type: text/plain; charset="utf-8"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org
-Cc: Linus Torvalds <torvalds@linux-foundation.org>
 
-Let's collect them together.
+[ fix for "c-r-prctl-add-ability-to-set-new-mm_struct-exe_file-v2" from mm tree ]
+
+After removing mm->num_exe_file_vmas kernel keeps mm->exe_file until final mmput(),
+it never becomes NULL while task is alive.
+
+We can check for other mapped files in mm instead of checking mm->num_exe_file_vmas,
+and mark mm with flag MMF_EXE_FILE_CHANGED in order to forbid second changing of mm->exe_file.
 
 Signed-off-by: Konstantin Khlebnikov <khlebnikov@openvz.org>
+Cc: Cyrill Gorcunov <gorcunov@openvz.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: Oleg Nesterov <oleg@redhat.com>
+Cc: Matt Helsley <matthltc@us.ibm.com>
+Cc: Kees Cook <keescook@chromium.org>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: Tejun Heo <tj@kernel.org>
+Cc: Pavel Emelyanov <xemul@parallels.com>
 ---
- include/linux/mm.h |    9 ++++-----
- 1 files changed, 4 insertions(+), 5 deletions(-)
+ include/linux/sched.h |    1 +
+ kernel/sys.c          |   31 +++++++++++++++++++------------
+ 2 files changed, 20 insertions(+), 12 deletions(-)
 
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index 3a4d721..5e89a4f 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -91,10 +91,6 @@ extern unsigned int kobjsize(const void *objp);
- #define VM_LOCKED	0x00002000
- #define VM_IO           0x00004000	/* Memory mapped I/O or similar */
+diff --git a/include/linux/sched.h b/include/linux/sched.h
+index 81a173c..ac61e51 100644
+--- a/include/linux/sched.h
++++ b/include/linux/sched.h
+@@ -437,6 +437,7 @@ extern int get_dumpable(struct mm_struct *mm);
+ 					/* leave room for more dump flags */
+ #define MMF_VM_MERGEABLE	16	/* KSM may merge identical pages */
+ #define MMF_VM_HUGEPAGE		17	/* set when VM_HUGEPAGE is set on vma */
++#define MMF_EXE_FILE_CHANGED	18	/* see prctl_set_mm_exe_file() */
  
--					/* Used by sys_madvise() */
--#define VM_SEQ_READ	0x00008000	/* App will access data sequentially */
--#define VM_RAND_READ	0x00010000	/* App will not benefit from clustered reads */
+ #define MMF_INIT_MASK		(MMF_DUMPABLE_MASK | MMF_DUMP_FILTER_MASK)
+ 
+diff --git a/kernel/sys.c b/kernel/sys.c
+index 089cb11..c6cdef5 100644
+--- a/kernel/sys.c
++++ b/kernel/sys.c
+@@ -1714,17 +1714,11 @@ static bool vma_flags_mismatch(struct vm_area_struct *vma,
+ 
+ static int prctl_set_mm_exe_file(struct mm_struct *mm, unsigned int fd)
+ {
++	struct vm_area_struct *vma;
+ 	struct file *exe_file;
+ 	struct dentry *dentry;
+ 	int err;
+ 
+-	/*
+-	 * Setting new mm::exe_file is only allowed when no VM_EXECUTABLE vma's
+-	 * remain. So perform a quick test first.
+-	 */
+-	if (mm->num_exe_file_vmas)
+-		return -EBUSY;
 -
- #define VM_DONTCOPY	0x00020000      /* Do not copy this vma on fork */
- #define VM_DONTEXPAND	0x00040000	/* Cannot expand with mremap() */
- #define VM_RESERVED	0x00080000	/* Count as reserved_vm like IO */
-@@ -103,8 +99,11 @@ extern unsigned int kobjsize(const void *objp);
- #define VM_HUGETLB	0x00400000	/* Huge TLB Page VM */
- #define VM_NONLINEAR	0x00800000	/* Is non-linear (remap_file_pages) */
- #define VM_ARCH_1	0x01000000	/* Architecture-specific flag */
--#define VM_NODUMP	0x04000000	/* Do not include in the core dump */
+ 	exe_file = fget(fd);
+ 	if (!exe_file)
+ 		return -EBADF;
+@@ -1745,17 +1739,30 @@ static int prctl_set_mm_exe_file(struct mm_struct *mm, unsigned int fd)
+ 	if (err)
+ 		goto exit;
  
-+					/* Used by sys_madvise() */
-+#define VM_NODUMP	0x04000000	/* Do not include in the core dump */
-+#define VM_SEQ_READ	0x08000000	/* App will access data sequentially */
-+#define VM_RAND_READ	0x10000000	/* App will not benefit from clustered reads */
- #define VM_HUGEPAGE	0x20000000	/* MADV_HUGEPAGE marked this vma */
- #define VM_NOHUGEPAGE	0x40000000	/* MADV_NOHUGEPAGE marked this vma */
- #define VM_MERGEABLE	0x80000000	/* KSM may merge identical pages */
++	down_write(&mm->mmap_sem);
++
++	/*
++	 * Forbid mm->exe_file change if there are mapped other files.
++	 */
++	err = -EBUSY;
++	for (vma = mm->mmap; vma; vma = vma->vm_next) {
++		if (vma->vm_file && !path_equal(&vma->vm_file->f_path,
++						&exe_file->f_path))
++			goto exit_unlock;
++	}
++
+ 	/*
+ 	 * The symlink can be changed only once, just to disallow arbitrary
+ 	 * transitions malicious software might bring in. This means one
+ 	 * could make a snapshot over all processes running and monitor
+ 	 * /proc/pid/exe changes to notice unusual activity if needed.
+ 	 */
+-	down_write(&mm->mmap_sem);
+-	if (likely(!mm->exe_file))
+-		set_mm_exe_file(mm, exe_file);
+-	else
+-		err = -EBUSY;
++	err = -EPERM;
++	if (test_and_set_bit(MMF_EXE_FILE_CHANGED, &mm->flags))
++		goto exit_unlock;
++
++	set_mm_exe_file(mm, exe_file);
++exit_unlock:
+ 	up_write(&mm->mmap_sem);
+ 
+ exit:
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
