@@ -1,54 +1,22 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx138.postini.com [74.125.245.138])
-	by kanga.kvack.org (Postfix) with SMTP id 04E6E6B004A
-	for <linux-mm@kvack.org>; Sat,  7 Apr 2012 01:11:42 -0400 (EDT)
-Received: by bkwq16 with SMTP id q16so3142898bkw.14
-        for <linux-mm@kvack.org>; Fri, 06 Apr 2012 22:11:41 -0700 (PDT)
-Message-ID: <4F7FCC8A.6050707@openvz.org>
-Date: Sat, 07 Apr 2012 09:11:38 +0400
-From: Konstantin Khlebnikov <khlebnikov@openvz.org>
-MIME-Version: 1.0
+Received: from psmtp.com (na3sys010amx190.postini.com [74.125.245.190])
+	by kanga.kvack.org (Postfix) with SMTP id 1E05F6B004A
+	for <linux-mm@kvack.org>; Sat,  7 Apr 2012 13:33:41 -0400 (EDT)
+Date: Sat, 7 Apr 2012 19:33:18 +0200
+From: Oleg Nesterov <oleg@redhat.com>
 Subject: Re: [PATCH RFC] mm: account VMA before forced-COW via /proc/pid/mem
+Message-ID: <20120407173318.GA5076@redhat.com>
 References: <20120402153631.5101.44091.stgit@zurg> <20120403143752.GA5150@redhat.com> <4F7C1B67.6030300@openvz.org> <20120404154148.GA7105@redhat.com> <4F7D5859.5050106@openvz.org> <alpine.LSU.2.00.1204062104090.4297@eggly.anvils>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 In-Reply-To: <alpine.LSU.2.00.1204062104090.4297@eggly.anvils>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Hugh Dickins <hughd@google.com>
-Cc: Oleg Nesterov <oleg@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Roland Dreier <roland@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Konstantin Khlebnikov <khlebnikov@openvz.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Roland Dreier <roland@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>
 
-Hugh Dickins wrote:
-> On Thu, 5 Apr 2012, Konstantin Khlebnikov wrote:
->> Oleg Nesterov wrote:
->>> On 04/04, Konstantin Khlebnikov wrote:
->>>> Oleg Nesterov wrote:
->>>>> On 04/02, Konstantin Khlebnikov wrote:
->>>>>>
->>>>>> Currently kernel does not account read-only private mappings into
->>>>>> memory commitment.
->>>>>> But these mappings can be force-COW-ed in get_user_pages().
->>>>>
->>>>> Heh. tail -n3 Documentation/vm/overcommit-accounting
->>>>> may be you should update it then.
->>>>
->>>> I just wonder how fragile this accounting...
->>>
->>> I meant, this patch could also remove this "TODO" from the docs.
->>
->> Actually I dug into this code for killing VM_ACCOUNT vma flag.
->> Currently we cannot do this only because asymmetry in mprotect_fixup():
->> it account vma on read-only ->  writable conversion, but keep on backward
->> operation.
->> Probably we can kill this asymmetry, and after that we can recognize
->> accountable vma
->> by its others flags state, so we don't need special VM_ACCOUNT for this.
->
-> (I believe the VM_ACCOUNT flag will need to stay.)
->
-> But this is just a quick note to say that I'm not ignoring you: I have
-> a strong interest in this, but only now found time to look through the
-> thread and ponder, and I'm not yet ready to decide.
+On 04/06, Hugh Dickins wrote:
 >
 > I've long detested that behaviour of GUP write,force, and my strong
 > preference would be not to layer more strangeness upon strangeness,
@@ -57,15 +25,26 @@ Hugh Dickins wrote:
 >
 > I think it's unlikely that it will cause a regression in real life
 > (it already fails if you did not open the mmap'ed file for writing),
-> but it would be a user-visible change in behaviour, and I've research
-> to do before arriving at a conclusion.
 
-Agree, but this stuff is very weak. Even if sysctl vm.overcommit_memory=2,
-probably we should fixup accounting in /proc/pid/mem only for this case,
-because vm.overcommit_memory=2 supposed to protect against overcommit, but it does not.
+Yes, and this is what looks confusing to me. Assuming I understand
+you (and the code) correctly ;)
 
->
-> Hugh
+If we have a (PROT_READ, MAP_SHARED) file mapping, then FOLL_FORCE
+works depending on "file->f_mode & FMODE_WRITE".
+
+Afaics, because do_mmap_pgoff(MAP_SHARED) clears VM_MAYWRITE if
+!FMODE_WRITE, and gup(FORCE) checks "vma->vm_flags & VM_MAYWRITE"
+before follow_page/etc.
+
+OTOH, if the file was opened without FMODE_WRITE, then I do not
+really understand how (PROT_READ, MAP_SHARED) differs from
+(PROT_READ, MAP_PRIVATE). However, in the latter case FOLL_FORCE
+works, VM_MAYWRITE was not cleared.
+
+Speaking of the difference above, I'd wish I could understand
+what VM_MAYSHARE actually means except "MAP_SHARED was used".
+
+Oleg.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
