@@ -1,95 +1,108 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx118.postini.com [74.125.245.118])
-	by kanga.kvack.org (Postfix) with SMTP id 27CE46B004A
-	for <linux-mm@kvack.org>; Sun,  8 Apr 2012 09:50:27 -0400 (EDT)
-From: Alex Lemberg <Alex.Lemberg@sandisk.com>
-Date: Sun, 8 Apr 2012 06:50:16 -0700
-Subject: RE: swap on eMMC and other flash
-Message-ID: <D70D75BB1A02CA42A3E28AA542D282303A0661B561@MILMBMIPV3.sdcorp.global.sandisk.com>
-References: <201203301744.16762.arnd@arndb.de>
- <201204021145.43222.arnd@arndb.de>
- <alpine.LSU.2.00.1204020734560.1847@eggly.anvils>
- <201204021455.25029.arnd@arndb.de>
-In-Reply-To: <201204021455.25029.arnd@arndb.de>
-Content-Language: en-US
-Content-Type: text/plain; charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
+Received: from psmtp.com (na3sys010amx194.postini.com [74.125.245.194])
+	by kanga.kvack.org (Postfix) with SMTP id 4944B6B0044
+	for <linux-mm@kvack.org>; Sun,  8 Apr 2012 16:30:37 -0400 (EDT)
+Message-ID: <4F81F564.3020904@nod.at>
+Date: Sun, 08 Apr 2012 22:30:28 +0200
+From: Richard Weinberger <richard@nod.at>
 MIME-Version: 1.0
+Subject: swapoff() runs forever
+Content-Type: multipart/signed; micalg=pgp-sha1;
+ protocol="application/pgp-signature";
+ boundary="------------enigC5366DC4EF9D255FD0AF3754"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Arnd Bergmann <arnd@arndb.de>
-Cc: "linaro-kernel@lists.linaro.org" <linaro-kernel@lists.linaro.org>, Rik van Riel <riel@redhat.com>, "linux-mmc@vger.kernel.org" <linux-mmc@vger.kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "Luca Porzio (lporzio)" <lporzio@micron.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Hyojin Jeong <syr.jeong@samsung.com>, "kernel-team@android.com" <kernel-team@android.com>, Yejin Moon <yejin.moon@samsung.com>, Hugh Dickins <hughd@google.com>, Yaniv Iarovici <Yaniv.Iarovici@sandisk.com>
+To: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+Cc: linux-mm@kvack.org, paul.gortmaker@windriver.com, Andrew Morton <akpm@linux-foundation.org>
 
-Hi Arnd,
+This is an OpenPGP/MIME signed message (RFC 2440 and 3156)
+--------------enigC5366DC4EF9D255FD0AF3754
+Content-Type: text/plain; charset=ISO-8859-15
+Content-Transfer-Encoding: quoted-printable
 
-Regarding time to issue discard/TRIM commands:
-It would be advised to issue the discard command immediately after deleting=
-/freeing a SWAP cluster (i.e. as soon as it becomes available).
+Hi!
 
-Regarding SWAP page size:
-Working with as large as SWAP pages as possible would be recommended (prefe=
-rably 64KB). Also, writing in a sequential manner as much as possible while=
- swapping large quantities of data is also advisable.
+I'm observing a strange issue (at least on UML) on recent Linux kernels.
+If swap is being used the swapoff() system call never terminates.
+To be precise "while ((i =3D find_next_to_unuse(si, i)) !=3D 0)" in try_t=
+o_unuse()
+never terminates.
 
-SWAP pages and corresponding transactions should be aligned to the SWAP pag=
-e size (i.e. 64KB above), the alignment should correspond to the physical s=
-torage "LBA 0", i.e. to the first LBA of the storage device (and not to a l=
-ogical/physical partition).
+The affected machine has 256MiB ram and 256MiB swap.
+If an application uses more than 256MiB memory swap is being used.
+But after the application terminates the free command still reports that =
+a few
+MiB are on my swap device and swappoff never terminates.
+
+Here some numbers:
+root@linux:~# free
+             total       used       free     shared    buffers     cached=
+
+Mem:        255472      13520     241952          0        312       7080=
+
+-/+ buffers/cache:       6128     249344
+Swap:       262140      17104     245036
+root@linux:~# cat /proc/meminfo
+MemTotal:         255472 kB
+MemFree:          241952 kB
+Buffers:             312 kB
+Cached:             7080 kB
+SwapCached:            0 kB
+Active:             3596 kB
+Inactive:           6076 kB
+Active(anon):       1512 kB
+Inactive(anon):      848 kB
+Active(file):       2084 kB
+Inactive(file):     5228 kB
+Unevictable:           0 kB
+Mlocked:               0 kB
+SwapTotal:        262140 kB
+SwapFree:         245036 kB
+Dirty:                 0 kB
+Writeback:             0 kB
+AnonPages:          2296 kB
+Mapped:             1824 kB
+Shmem:                80 kB
+Slab:               2452 kB
+SReclaimable:       1116 kB
+SUnreclaim:         1336 kB
+KernelStack:         192 kB
+PageTables:          556 kB
+NFS_Unstable:          0 kB
+Bounce:                0 kB
+WritebackTmp:          0 kB
+CommitLimit:      389876 kB
+Committed_AS:     238412 kB
+VmallocTotal:    3788784 kB
+VmallocUsed:          68 kB
+VmallocChunk:    3788716 kB
+
+What could cause this issue?
+I'm not sure whether this is UML specific or not.
+Maybe only UML is able to trigger the issue...
 
 Thanks,
-Alex
+//richard
 
-> -----Original Message-----
-> From: Arnd Bergmann [mailto:arnd@arndb.de]
-> Sent: Monday, April 02, 2012 5:55 PM
-> To: Hugh Dickins
-> Cc: linaro-kernel@lists.linaro.org; Rik van Riel; linux-
-> mmc@vger.kernel.org; Alex Lemberg; linux-kernel@vger.kernel.org; Luca
-> Porzio (lporzio); linux-mm@kvack.org; Hyojin Jeong; kernel-
-> team@android.com; Yejin Moon
-> Subject: Re: swap on eMMC and other flash
->
-> On Monday 02 April 2012, Hugh Dickins wrote:
-> > On Mon, 2 Apr 2012, Arnd Bergmann wrote:
-> > >
-> > > Another option would be batched discard as we do it for file
-> systems:
-> > > occasionally stop writing to swap space and scanning for areas that
-> > > have become available since the last discard, then send discard
-> > > commands for those.
-> >
-> > I'm not sure whether you've missed "swapon --discard", which switches
-> > on discard_swap_cluster() just before we allocate from a new cluster;
-> > or whether you're musing that it's no use to you because you want to
-> > repurpose the swap cluster to match erase block: I'm mentioning it in
-> > case you missed that it's already there (but few use it, since even
-> > done at that scale it's often more trouble than it's worth).
->
-> I actually argued that discard_swap_cluster is exactly the right thing
-> to do, especially when clusters match erase blocks on the less capable
-> devices like SD cards.
->
-> Luca was arguing that on some hardware there is no point in ever
-> submitting a discard just before we start reusing space, because
-> at that point it the hardware already discards the old data by
-> overwriting the logical addresses with new blocks, while
-> issuing a discard on all blocks as soon as they become available
-> would make a bigger difference. I would be interested in hearing
-> from Hyojin Jeong and Alex Lemberg what they think is the best
-> time to issue a discard, because they would know about other hardware
-> than Luca.
->
->       Arnd
 
-PLEASE NOTE: The information contained in this electronic mail message is i=
-ntended only for the use of the designated recipient(s) named above. If the=
- reader of this message is not the intended recipient, you are hereby notif=
-ied that you have received this message in error and that any review, disse=
-mination, distribution, or copying of this message is strictly prohibited. =
-If you have received this communication in error, please notify the sender =
-by telephone or e-mail (as shown above) immediately and destroy any and all=
- copies of this message in your possession (whether hard copies or electron=
-ically stored copies).
+--------------enigC5366DC4EF9D255FD0AF3754
+Content-Type: application/pgp-signature; name="signature.asc"
+Content-Description: OpenPGP digital signature
+Content-Disposition: attachment; filename="signature.asc"
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v2.0.18 (GNU/Linux)
+
+iQEcBAEBAgAGBQJPgfVlAAoJEN9758yqZn9emQ0H/2ldqm+CUGOd3cNvazaGJhQl
+AchUlj/lsgDcuMrW7RZC+IDTRDjmWoyUgrMr9WXyQ1bMNu1CDiB9vsunGqn3ROyq
+Mp0zQPqg0OCfQWMLmW2Je5/jjxQVk4myYCUZp0KIKUHG9tK/LiyQE7PsOr3Mi6EI
+VtBsdjO8Y0Ka++fZBE0tsv16Ok9QJd5GovxSm9w+djAXV1wxK7Lc71JFMx+w5Fi0
+B5lZHQHUQ/RgKEH8qT4Q7TqX1BIY/xoFS8Wo5bQnML5PzTzLdlaX0x7/ExWrDGj4
+j3OwN3wKqBz2+7wf7+9MQ8jv5jpDCwS+pYr2gBt8u/5pughFh3xsB6sjWEHAbfw=
+=6Wvw
+-----END PGP SIGNATURE-----
+
+--------------enigC5366DC4EF9D255FD0AF3754--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
