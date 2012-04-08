@@ -1,45 +1,39 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx204.postini.com [74.125.245.204])
-	by kanga.kvack.org (Postfix) with SMTP id 30B1C6B004D
-	for <linux-mm@kvack.org>; Sat,  7 Apr 2012 15:21:56 -0400 (EDT)
-Message-ID: <4F8093D0.1050908@tilera.com>
-Date: Sat, 7 Apr 2012 15:21:52 -0400
-From: Chris Metcalf <cmetcalf@tilera.com>
+Received: from psmtp.com (na3sys010amx104.postini.com [74.125.245.104])
+	by kanga.kvack.org (Postfix) with SMTP id BAF3A6B004A
+	for <linux-mm@kvack.org>; Sun,  8 Apr 2012 07:09:51 -0400 (EDT)
+Subject: 'u?aE?AE+-
+From: "AiD! 1/2 a" <xbhhozze@ktlrdyom.com>
+Date: Sun, 8 Apr 2012 19:09:15 +0800
 MIME-Version: 1.0
-Subject: Re: [PATCH v2 07/10] mm: use mm->exe_file instead of first VM_EXECUTABLE
- vma->vm_file
-References: <20120407185546.9726.62260.stgit@zurg> <20120407190125.9726.33538.stgit@zurg>
-In-Reply-To: <20120407190125.9726.33538.stgit@zurg>
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: 7bit
+Content-Type: multipart/alternative;
+	boundary="--NEXT_BM_B1039C964DB44FABAEDAF13D55264421"
+Message-ID: <2896654615721256087417381915597@psmtp.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Konstantin Khlebnikov <khlebnikov@openvz.org>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, Robert Richter <robert.richter@amd.com>, Eric Paris <eparis@redhat.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, linux-security-module@vger.kernel.org, oprofile-list@lists.sf.net, Al Viro <viro@zeniv.linux.org.uk>, James Morris <james.l.morris@oracle.com>, Linus Torvalds <torvalds@linux-foundation.org>, Kentaro Takeda <takedakn@nttdata.co.jp>
+To: "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On 4/7/2012 3:01 PM, Konstantin Khlebnikov wrote:
-> Some security modules and oprofile still uses VM_EXECUTABLE for retrieving
-> task's executable file, after this patch they will use mm->exe_file directly.
-> mm->exe_file protected with mm->mmap_sem, so locking stays the same.
->
-> Signed-off-by: Konstantin Khlebnikov <khlebnikov@openvz.org>
-> Cc: Robert Richter <robert.richter@amd.com>
-> Cc: Chris Metcalf <cmetcalf@tilera.com>
-> Cc: Al Viro <viro@zeniv.linux.org.uk>
-> Cc: Eric Paris <eparis@redhat.com>
-> Cc: Kentaro Takeda <takedakn@nttdata.co.jp>
-> Cc: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-> Cc: James Morris <james.l.morris@oracle.com>
-> Cc: linux-security-module@vger.kernel.org
-> Cc: oprofile-list@lists.sf.net
+This is a multipart message in MIME format.
+----NEXT_BM_B1039C964DB44FABAEDAF13D55264421
+Content-Type: text/plain;
+	charset="gb2312"
+Content-Transfer-Encoding: Quoted-Printable
 
-For arch/tile:
 
-Acked-by: Chris Metcalf <cmetcalf@tilera.com>
+=B1=BE=D3=CA=BC=FE=CE=AAHTML=B8=F1=CA=BD=C4=DA=C8=DD=A3=AC=C4=FA=B5=C4=D3=CA=
+=BC=FE=B7=FE=CE=F1=C6=F7=B2=BB=D6=A7=B3=D6=A3=A1
 
--- 
-Chris Metcalf, Tilera Corp.
-http://www.tilera.com
+----NEXT_BM_B1039C964DB44FABAEDAF13D55264421
+Content-Type: text/html;
+	charset="gb2312"
+Content-Transfer-Encoding: Quoted-Printable
+
+<P=3E=B1=BE=B9=AB=CB=BE=BF=C9=D2=D4=B4=FA=BF=AA=B4=F3=B2=BF=B7=D6=B7=A2=C6=B1=
+=A3=AC=D1=E9=D6=A4=BA=F3=B8=B6=BF=EE=A3=A1=BB=B6=D3=AD=C0=B4=B5=E7=D7=C9=D1=AF=
+=A3=AC=B8=DF=BC=DB=BB=D8=CA=D5=D4=F6=D6=B5=CB=B0=B7=A2=C6=B1=A1=A3</P=3E
+<P=3E=C0=EE=D0=A1=BD=E3=A3=AC=B5=E7=BB=B013554769920</P=3E
+
+----NEXT_BM_B1039C964DB44FABAEDAF13D55264421--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
