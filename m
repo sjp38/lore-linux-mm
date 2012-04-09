@@ -1,66 +1,167 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx172.postini.com [74.125.245.172])
-	by kanga.kvack.org (Postfix) with SMTP id 6A2FA6B0044
-	for <linux-mm@kvack.org>; Mon,  9 Apr 2012 03:55:13 -0400 (EDT)
-Received: from m4.gw.fujitsu.co.jp (unknown [10.0.50.74])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id B75063EE0B6
-	for <linux-mm@kvack.org>; Mon,  9 Apr 2012 16:55:11 +0900 (JST)
-Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 952C045DE50
-	for <linux-mm@kvack.org>; Mon,  9 Apr 2012 16:55:11 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 7D21545DE4E
-	for <linux-mm@kvack.org>; Mon,  9 Apr 2012 16:55:11 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 6F39FE18003
-	for <linux-mm@kvack.org>; Mon,  9 Apr 2012 16:55:11 +0900 (JST)
-Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.240.81.133])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 2A3EE1DB8037
-	for <linux-mm@kvack.org>; Mon,  9 Apr 2012 16:55:11 +0900 (JST)
-Message-ID: <4F829575.4020704@jp.fujitsu.com>
-Date: Mon, 09 Apr 2012 16:53:25 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Received: from psmtp.com (na3sys010amx108.postini.com [74.125.245.108])
+	by kanga.kvack.org (Postfix) with SMTP id 6A6F06B0044
+	for <linux-mm@kvack.org>; Mon,  9 Apr 2012 04:09:19 -0400 (EDT)
+Message-ID: <4F8299B4.5090909@kernel.org>
+Date: Mon, 09 Apr 2012 17:11:32 +0900
+From: Minchan Kim <minchan@kernel.org>
 MIME-Version: 1.0
-Subject: Re: [PATCH 2/2] huge-memory: Use fast mm counters for transparent
- huge pages
-References: <1333202997-19550-1-git-send-email-andi@firstfloor.org> <1333202997-19550-3-git-send-email-andi@firstfloor.org>
-In-Reply-To: <1333202997-19550-3-git-send-email-andi@firstfloor.org>
-Content-Type: text/plain; charset=ISO-2022-JP
-Content-Transfer-Encoding: 7bit
+Subject: Re: swap on eMMC and other flash
+References: <201203301744.16762.arnd@arndb.de> <201204021145.43222.arnd@arndb.de> <alpine.LSU.2.00.1204020734560.1847@eggly.anvils> <201204021455.25029.arnd@arndb.de> <D70D75BB1A02CA42A3E28AA542D282303A0661B561@MILMBMIPV3.sdcorp.global.sandisk.com> <4F8245EA.6000600@kernel.org> <006f01cd1623$ac4a2860$04de7920$%jeong@samsung.com>
+In-Reply-To: <006f01cd1623$ac4a2860$04de7920$%jeong@samsung.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andi Kleen <andi@firstfloor.org>
-Cc: linux-kernel@vger.kernel.org, tim.c.chen@linux.intel.com, linux-mm@kvack.org, Andi Kleen <ak@linux.intel.com>, aarcange@redhat.com
+To: =?UTF-8?B?7KCV7Zqo7KeE?= <syr.jeong@samsung.com>
+Cc: 'Alex Lemberg' <Alex.Lemberg@sandisk.com>, 'Arnd Bergmann' <arnd@arndb.de>, linaro-kernel@lists.linaro.org, 'Rik van Riel' <riel@redhat.com>, linux-mmc@vger.kernel.org, linux-kernel@vger.kernel.org, "'Luca Porzio (lporzio)'" <lporzio@micron.com>, linux-mm@kvack.org, kernel-team@android.com, 'Yejin Moon' <yejin.moon@samsung.com>, 'Hugh Dickins' <hughd@google.com>, 'Yaniv Iarovici' <Yaniv.Iarovici@sandisk.com>, cpgs@samsung.com
 
-(2012/03/31 23:09), Andi Kleen wrote:
+2012-04-09 i??i?? 4:37, i ?i??i?? i?' e,?:
 
-> From: Andi Kleen <ak@linux.intel.com>
+> Hi Minchan
 > 
-> We found that the mm struct anon page counter cache line is much hotter
-> with transparent huge pages compared to small pages.
+> How are you doing?
 > 
-> Small pages use a special fast counter mechanism in task_struct, but huge pages
-> didn't.  The huge pages are larger than the normal 64 entry threshold for the
-> fast counter, so it cannot be directly used. Use a new special counter for huge
-> pages to handle them efficiently.
-> 
-> Any users just calculate the correct total.
-> 
-> The only special case is transferring the large page count to small pages
-> when splitting. I put it somewhat arbitarily into the tricky split
-> sequence. Some review on this part is appreciated.
-> 
-> [An alternative would be to not do that, but that could lead to
-> negative counters. These should still give the correct result]
-> 
-> Contains a fix for a problem found by Andrea in review.
-> 
-> Cc: aarcange@redhat.com
-> Signed-off-by: Andi Kleen <ak@linux.intel.com>
 
 
-Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Pretty good :)
 
+> Regarding time to issue Discard/Trim :
+> eMMC point of view, I believe that the immediate Discard/Trim CMD after deleting/freezing a SWAP cluster is always better for all of general eMMC implementation.
+
+
+The point of question is that discard of page size is good or not?
+Luca and Arnd said some device would have a benefit when we send discard
+command to eMMC as soon as linux free _a swap page_, not batched cluster
+size. But AFAIK, Samsung eMMC isn't useful by per-page discard and most
+of eMMC are not good in case of per page discard, I guess. Becauase FTL
+doesn't support full-page mapping in such small device. So I'm not sure
+we have to implement per-page discard even code is rather complicated
+for few devices.
+
+> 
+> Regarding swap page size:
+> Actually, I can't guarantee the optimal size of different eMMC in the industry, because it depends on NAND page size an firmware implementation inside eMMC. In case of SAMSUNG eMMC, 8KB page size and 512KB block size(erase unit) is current implementation.
+> I think that the multiple of 8KB page size align with 512KB is good for SAMSUNG eMMC.
+> If swap system use 512KB page and issue Discard/Trim align with 512KB, eMMC make best performance as of today. However, large page size in swap partition may not best way in Linux system level.
+> I'm not sure that the best page size between Swap system and eMMC device.
+
+
+The variety is one of challenges for removing GC generally. ;-(.
+I don't like manual setting through /sys/block/xxx because it requires
+that user have to know nand page size and erase block size but it's not
+easy to know to normal user.
+Arnd. What's your plan to support various flash storages effectively?
+
+
+
+> 
+> Best Regards
+> Hyojin
+> -----Original Message-----
+> From: Minchan Kim [mailto:minchan@kernel.org] 
+> Sent: Monday, April 09, 2012 11:14 AM
+> To: Alex Lemberg
+> Cc: Arnd Bergmann; linaro-kernel@lists.linaro.org; Rik van Riel; linux-mmc@vger.kernel.org; linux-kernel@vger.kernel.org; Luca Porzio (lporzio); linux-mm@kvack.org; Hyojin Jeong; kernel-team@android.com; Yejin Moon; Hugh Dickins; Yaniv Iarovici
+> Subject: Re: swap on eMMC and other flash
+> 
+> 2012-04-08 i??i?? 10:50, Alex Lemberg i?' e,?:
+> 
+>> Hi Arnd,
+>>
+>> Regarding time to issue discard/TRIM commands:
+>> It would be advised to issue the discard command immediately after deleting/freeing a SWAP cluster (i.e. as soon as it becomes available).
+> 
+> 
+> Is it still good with page size, not cluster size?
+> 
+>>
+>> Regarding SWAP page size:
+>> Working with as large as SWAP pages as possible would be recommended (preferably 64KB). Also, writing in a sequential manner as much as possible while swapping large quantities of data is also advisable.
+>>
+>> SWAP pages and corresponding transactions should be aligned to the SWAP page size (i.e. 64KB above), the alignment should correspond to the physical storage "LBA 0", i.e. to the first LBA of the storage device (and not to a logical/physical partition).
+>>
+> 
+> 
+> 
+> I have a curiosity on above comment is valid on Samsung and other eMMC.
+> Hyojin, Could you answer?
+> 
+> 
+>> Thanks,
+>> Alex
+>>
+>>> -----Original Message-----
+>>> From: Arnd Bergmann [mailto:arnd@arndb.de]
+>>> Sent: Monday, April 02, 2012 5:55 PM
+>>> To: Hugh Dickins
+>>> Cc: linaro-kernel@lists.linaro.org; Rik van Riel; linux- 
+>>> mmc@vger.kernel.org; Alex Lemberg; linux-kernel@vger.kernel.org; Luca 
+>>> Porzio (lporzio); linux-mm@kvack.org; Hyojin Jeong; kernel- 
+>>> team@android.com; Yejin Moon
+>>> Subject: Re: swap on eMMC and other flash
+>>>
+>>> On Monday 02 April 2012, Hugh Dickins wrote:
+>>>> On Mon, 2 Apr 2012, Arnd Bergmann wrote:
+>>>>>
+>>>>> Another option would be batched discard as we do it for file
+>>> systems:
+>>>>> occasionally stop writing to swap space and scanning for areas that 
+>>>>> have become available since the last discard, then send discard 
+>>>>> commands for those.
+>>>>
+>>>> I'm not sure whether you've missed "swapon --discard", which 
+>>>> switches on discard_swap_cluster() just before we allocate from a 
+>>>> new cluster; or whether you're musing that it's no use to you 
+>>>> because you want to repurpose the swap cluster to match erase block: 
+>>>> I'm mentioning it in case you missed that it's already there (but 
+>>>> few use it, since even done at that scale it's often more trouble than it's worth).
+>>>
+>>> I actually argued that discard_swap_cluster is exactly the right 
+>>> thing to do, especially when clusters match erase blocks on the less 
+>>> capable devices like SD cards.
+>>>
+>>> Luca was arguing that on some hardware there is no point in ever 
+>>> submitting a discard just before we start reusing space, because at 
+>>> that point it the hardware already discards the old data by 
+>>> overwriting the logical addresses with new blocks, while issuing a 
+>>> discard on all blocks as soon as they become available would make a 
+>>> bigger difference. I would be interested in hearing from Hyojin Jeong 
+>>> and Alex Lemberg what they think is the best time to issue a discard, 
+>>> because they would know about other hardware than Luca.
+>>>
+>>>       Arnd
+>>
+>> PLEASE NOTE: The information contained in this electronic mail message is intended only for the use of the designated recipient(s) named above. If the reader of this message is not the intended recipient, you are hereby notified that you have received this message in error and that any review, dissemination, distribution, or copying of this message is strictly prohibited. If you have received this communication in error, please notify the sender by telephone or e-mail (as shown above) immediately and destroy any and all copies of this message in your possession (whether hard copies or electronically stored copies).
+>>
+>> --
+>> To unsubscribe, send a message with 'unsubscribe linux-mm' in the body 
+>> to majordomo@kvack.org.  For more info on Linux MM,
+>> see: http://www.linux-mm.org/ .
+>> Fight unfair telecom internet charges in Canada: sign 
+>> http://stopthemeter.ca/ Don't email: <a href=ilto:"dont@kvack.org"> 
+>> email@kvack.org </a>
+>>
+> 
+> 
+> 
+> --
+> Kind regards,
+> Minchan Kim
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Fight unfair telecom internet charges in Canada: sign http://stopthemeter.ca/
+> Don't email: <a href=ilto:"dont@kvack.org"> email@kvack.org </a>
+> 
+
+
+
+-- 
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
