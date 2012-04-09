@@ -1,164 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx150.postini.com [74.125.245.150])
-	by kanga.kvack.org (Postfix) with SMTP id 866956B0044
-	for <linux-mm@kvack.org>; Mon,  9 Apr 2012 06:00:52 -0400 (EDT)
-Received: from /spool/local
-	by e28smtp08.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
-	Mon, 9 Apr 2012 15:30:49 +0530
-Received: from d28av04.in.ibm.com (d28av04.in.ibm.com [9.184.220.66])
-	by d28relay02.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q39A0iPm3928106
-	for <linux-mm@kvack.org>; Mon, 9 Apr 2012 15:30:44 +0530
-Received: from d28av04.in.ibm.com (loopback [127.0.0.1])
-	by d28av04.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q39FUWGs000979
-	for <linux-mm@kvack.org>; Tue, 10 Apr 2012 01:30:32 +1000
-From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Subject: Re: [PATCH -V5 12/14] memcg: move HugeTLB resource count to parent cgroup on memcg removal
-In-Reply-To: <4F827EAD.9080300@jp.fujitsu.com>
-References: <1333738260-1329-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com> <1333738260-1329-13-git-send-email-aneesh.kumar@linux.vnet.ibm.com> <4F827EAD.9080300@jp.fujitsu.com>User-Agent: Notmuch/0.11.1+346~g13d19c3 (http://notmuchmail.org) Emacs/23.3.1 (x86_64-pc-linux-gnu)
-Date: Mon, 09 Apr 2012 15:30:42 +0530
-Message-ID: <87ty0tcjhx.fsf@skywalker.in.ibm.com>
+Received: from psmtp.com (na3sys010amx189.postini.com [74.125.245.189])
+	by kanga.kvack.org (Postfix) with SMTP id 950556B0044
+	for <linux-mm@kvack.org>; Mon,  9 Apr 2012 06:16:27 -0400 (EDT)
+Message-ID: <4F82B6ED.2010500@nod.at>
+Date: Mon, 09 Apr 2012 12:16:13 +0200
+From: Richard Weinberger <richard@nod.at>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Subject: Re: swapoff() runs forever
+References: <4F81F564.3020904@nod.at> <4F82752A.6020206@openvz.org>
+In-Reply-To: <4F82752A.6020206@openvz.org>
+Content-Type: multipart/signed; micalg=pgp-sha1;
+ protocol="application/pgp-signature";
+ boundary="------------enigBD799693CD890BDBE013638D"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: linux-mm@kvack.org, mgorman@suse.de, dhillf@gmail.com, aarcange@redhat.com, mhocko@suse.cz, akpm@linux-foundation.org, hannes@cmpxchg.org, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org
+To: Konstantin Khlebnikov <khlebnikov@openvz.org>
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "paul.gortmaker@windriver.com" <paul.gortmaker@windriver.com>, Andrew Morton <akpm@linux-foundation.org>
 
-KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> writes:
+This is an OpenPGP/MIME signed message (RFC 2440 and 3156)
+--------------enigBD799693CD890BDBE013638D
+Content-Type: text/plain; charset=ISO-8859-15
+Content-Transfer-Encoding: quoted-printable
 
-> (2012/04/07 3:50), Aneesh Kumar K.V wrote:
->
->> From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
->> 
->> This add support for memcg removal with HugeTLB resource usage.
->> 
->> Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
->
->
-> Hmm 
->
->
+Am 09.04.2012 07:35, schrieb Konstantin Khlebnikov:
+> Richard Weinberger wrote:
+>> Hi!
+>>
+>> I'm observing a strange issue (at least on UML) on recent Linux kernel=
+s.
+>> If swap is being used the swapoff() system call never terminates.
+>> To be precise "while ((i =3D find_next_to_unuse(si, i)) !=3D 0)" in tr=
+y_to_unuse()
+>> never terminates.
+>>
+>> The affected machine has 256MiB ram and 256MiB swap.
+>> If an application uses more than 256MiB memory swap is being used.
+>> But after the application terminates the free command still reports th=
+at a few
+>> MiB are on my swap device and swappoff never terminates.
+>=20
+> After last tmpfs changes swapoff can take minutes.
+> Or this time it really never terminates?
 
-....
-...
+I've never waited forever. ;-)
+Once I've waited for >30 minutes.
 
->> +	csize = PAGE_SIZE << compound_order(page);
->> +	/*
->> +	 * uncharge from child and charge the parent. If we have
->> +	 * use_hierarchy set, we can never fail here. In-order to make
->> +	 * sure we don't get -ENOMEM on parent charge, we first uncharge
->> +	 * the child and then charge the parent.
->> +	 */
->> +	if (parent->use_hierarchy) {
->
->
->> +		res_counter_uncharge(&memcg->hugepage[idx], csize);
->> +		if (!mem_cgroup_is_root(parent))
->> +			ret = res_counter_charge(&parent->hugepage[idx],
->> +						 csize, &fail_res);
->
->
-> Ah, why is !mem_cgroup_is_root() checked ? no res_counter update for
-> root cgroup ?
+I don't think that it's related to tmpfs because it happens
+also while shutting down the system after all filesystems have been unmou=
+nted.
 
-My mistake. Earlier version of the patch series didn't charge/uncharge the root
-cgroup during different operations. Later as per your review I updated
-the charge/uncharge path to charge root cgroup. I missed to update this code.
-
->
-> I think it's better to have res_counter_move_parent()...to do ops in atomic.
-> (I'll post a patch for that for my purpose). OR, just ignore res->usage if
-> parent->use_hierarchy == 1.
->
-> uncharge->charge will have a race.
+Thanks,
+//richard
 
 
 
-How about the below
 
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 7b6e79a..5b4bc98 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -3351,24 +3351,24 @@ int mem_cgroup_move_hugetlb_parent(int idx, struct cgroup *cgroup,
- 
- 	csize = PAGE_SIZE << compound_order(page);
- 	/*
--	 * uncharge from child and charge the parent. If we have
--	 * use_hierarchy set, we can never fail here. In-order to make
--	 * sure we don't get -ENOMEM on parent charge, we first uncharge
--	 * the child and then charge the parent.
-+	 * If we have use_hierarchy set we can never fail here. So instead of
-+	 * using res_counter_uncharge use the open-coded variant which just
-+	 * uncharge the child res_counter. The parent will retain the charge.
- 	 */
- 	if (parent->use_hierarchy) {
--		res_counter_uncharge(&memcg->hugepage[idx], csize);
--		if (!mem_cgroup_is_root(parent))
--			ret = res_counter_charge(&parent->hugepage[idx],
--						 csize, &fail_res);
-+		unsigned long flags;
-+		struct res_counter *counter;
-+
-+		counter = &memcg->hugepage[idx];
-+		spin_lock_irqsave(&counter->lock, flags);
-+		res_counter_uncharge_locked(counter, csize);
-+		spin_unlock_irqrestore(&counter->lock, flags);
- 	} else {
--		if (!mem_cgroup_is_root(parent)) {
--			ret = res_counter_charge(&parent->hugepage[idx],
--						 csize, &fail_res);
--			if (ret) {
--				ret = -EBUSY;
--				goto err_out;
--			}
-+		ret = res_counter_charge(&parent->hugepage[idx],
-+					 csize, &fail_res);
-+		if (ret) {
-+			ret = -EBUSY;
-+			goto err_out;
- 		}
- 		res_counter_uncharge(&memcg->hugepage[idx], csize);
- 	}
+--------------enigBD799693CD890BDBE013638D
+Content-Type: application/pgp-signature; name="signature.asc"
+Content-Description: OpenPGP digital signature
+Content-Disposition: attachment; filename="signature.asc"
 
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v2.0.18 (GNU/Linux)
 
->
->> +	} else {
->> +		if (!mem_cgroup_is_root(parent)) {
->> +			ret = res_counter_charge(&parent->hugepage[idx],
->> +						 csize, &fail_res);
->> +			if (ret) {
->> +				ret = -EBUSY;
->> +				goto err_out;
->> +			}
->> +		}
->> +		res_counter_uncharge(&memcg->hugepage[idx], csize);
->> +	}
->
->
-> Just a notice. Recently, Tejun changed failure of pre_destory() to show WARNING.
-> Then, I'd like to move the usage to the root cgroup if use_hierarchy=0.
-> Will it work for you ?
+iQEcBAEBAgAGBQJPgrbyAAoJEN9758yqZn9eyBMIALDoheg9bfPAurW+ARIpQMtf
+Q72AuH3im8tSn265fHkMGbU+PCgENM0dshhwiVjuORHYNitS/jJbUarlXBvmaT1p
+bnWAjP+NGaziIpXB/eNFv8o7EAzJZ70c0uSuHyKK1pAxCl/ULaa1DjwghlW2sQub
+RRebyrT2LDTG+DlncPgbEkUppjz6A22KAMPjHftRGaLhHT40AAls/zdhHav1bzRe
+Ho65Q0H/Q40Kvop25NcuDZyX4LeybAFdGSV/HfJYWVuUOSW2MB1AzkxLW8M9Amt4
+/L4Prwk4PVIZNcjtkU2IT294dOS0CZ6JsJioMMxQxByqhCkJVz8sV+OcnKBw+kc=
+=3lPR
+-----END PGP SIGNATURE-----
 
-That should work.
-
-
->
->> +	/*
->> +	 * caller should have done css_get
->> +	 */
->
->
-> Could you explain meaning of this comment ?
->
-
-inherited from mem_cgroup_move_account. I guess it means css cannot go
-away at this point. We have done a css_get on the child. For a generic
-move_account function may be the comment is needed. I guess in our case
-the comment is redundant ?
-
--aneesh
+--------------enigBD799693CD890BDBE013638D--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
