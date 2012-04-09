@@ -1,81 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx181.postini.com [74.125.245.181])
-	by kanga.kvack.org (Postfix) with SMTP id 5196A6B004D
-	for <linux-mm@kvack.org>; Mon,  9 Apr 2012 05:01:56 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx165.postini.com [74.125.245.165])
+	by kanga.kvack.org (Postfix) with SMTP id 6A3F96B0044
+	for <linux-mm@kvack.org>; Mon,  9 Apr 2012 05:12:05 -0400 (EDT)
 Received: from m1.gw.fujitsu.co.jp (unknown [10.0.50.71])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 756E43EE0AE
-	for <linux-mm@kvack.org>; Mon,  9 Apr 2012 18:01:54 +0900 (JST)
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 0D8A83EE0C1
+	for <linux-mm@kvack.org>; Mon,  9 Apr 2012 18:12:04 +0900 (JST)
 Received: from smail (m1 [127.0.0.1])
-	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 5D27245DE5D
-	for <linux-mm@kvack.org>; Mon,  9 Apr 2012 18:01:50 +0900 (JST)
+	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id EA7BB45DE58
+	for <linux-mm@kvack.org>; Mon,  9 Apr 2012 18:12:03 +0900 (JST)
 Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
-	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 44D6E45DE5C
-	for <linux-mm@kvack.org>; Mon,  9 Apr 2012 18:01:50 +0900 (JST)
+	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id D1B4E45DE59
+	for <linux-mm@kvack.org>; Mon,  9 Apr 2012 18:12:03 +0900 (JST)
 Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 35C6C1DB8051
-	for <linux-mm@kvack.org>; Mon,  9 Apr 2012 18:01:50 +0900 (JST)
-Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.240.81.133])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id E21E91DB8046
-	for <linux-mm@kvack.org>; Mon,  9 Apr 2012 18:01:49 +0900 (JST)
-Message-ID: <4F82A510.5030004@jp.fujitsu.com>
-Date: Mon, 09 Apr 2012 18:00:00 +0900
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id BCEF81DB8052
+	for <linux-mm@kvack.org>; Mon,  9 Apr 2012 18:12:03 +0900 (JST)
+Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.240.81.147])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 74F2E1DB8047
+	for <linux-mm@kvack.org>; Mon,  9 Apr 2012 18:12:03 +0900 (JST)
+Message-ID: <4F82A77D.4020800@jp.fujitsu.com>
+Date: Mon, 09 Apr 2012 18:10:21 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH -V5 07/14] memcg: Add HugeTLB extension
-References: <1333738260-1329-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com> <1333738260-1329-8-git-send-email-aneesh.kumar@linux.vnet.ibm.com> <4F827BF9.2090205@jp.fujitsu.com>User-Agent: Notmuch/0.11.1+346~g13d19c3 (http://notmuchmail.org) Emacs/23.3.1 (x86_64-pc-linux-gnu) <87zkalcn26.fsf@skywalker.in.ibm.com>
-In-Reply-To: <87zkalcn26.fsf@skywalker.in.ibm.com>
+Subject: Re: [patch] thp, memcg: split hugepage for memcg oom on cow
+References: <alpine.DEB.2.00.1204031854530.30629@chino.kir.corp.google.com>
+In-Reply-To: <alpine.DEB.2.00.1204031854530.30629@chino.kir.corp.google.com>
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Cc: linux-mm@kvack.org, mgorman@suse.de, dhillf@gmail.com, aarcange@redhat.com, mhocko@suse.cz, akpm@linux-foundation.org, hannes@cmpxchg.org, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org
+To: David Rientjes <rientjes@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <jweiner@redhat.com>, linux-mm@kvack.org
 
-(2012/04/09 17:43), Aneesh Kumar K.V wrote:
+(2012/04/04 10:56), David Rientjes wrote:
 
-> KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> writes:
+> On COW, a new hugepage is allocated and charged to the memcg.  If the
+> memcg is oom, however, this charge will fail and will return VM_FAULT_OOM
+> to the page fault handler which results in an oom kill.
 > 
->> (2012/04/07 3:50), Aneesh Kumar K.V wrote:
->>
->>> From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
->>>
->>> This patch implements a memcg extension that allows us to control HugeTLB
->>> allocations via memory controller. The extension allows to limit the
->>> HugeTLB usage per control group and enforces the controller limit during
->>> page fault. Since HugeTLB doesn't support page reclaim, enforcing the limit
->>> at page fault time implies that, the application will get SIGBUS signal if it
->>> tries to access HugeTLB pages beyond its limit. This requires the application
->>> to know beforehand how much HugeTLB pages it would require for its use.
->>>
->>> The charge/uncharge calls will be added to HugeTLB code in later patch.
->>>
->>> Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
->>
->>
->> Hmm, seems ok to me. please explain 'this patch doesn't include updates
->> for memcg destroying, it will be in patch 12/14' or some...
->>
->> Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
->>
->>
->> BTW, you don't put res_counter for hugeltb under CONFIG_MEM_RES_CTLR_HUGETLB...
->> do you think we need the config ?
+> Instead, it's possible to fallback to splitting the hugepage so that the
+> COW results only in an order-0 page being charged to the memcg which has
+> a higher liklihood to succeed.  This is expensive because the hugepage
+> must be split in the page fault handler, but it is much better than
+> unnecessarily oom killing a process.
 > 
+> Signed-off-by: David Rientjes <rientjes@google.com>
+> ---
+>  mm/huge_memory.c |    1 +
+>  mm/memory.c      |   18 +++++++++++++++---
+>  2 files changed, 16 insertions(+), 3 deletions(-)
 > 
-> That results in more #ifdef CONFIG_MEM_RES_CTLR_HUGETLB in the
-> memcg code (mem_cgroup_create/mem_cgroup_read/write etc). I was not
-> sure we want to do that. Let me know if you think we really need to do this.
-> 
+> diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+> --- a/mm/huge_memory.c
+> +++ b/mm/huge_memory.c
+> @@ -959,6 +959,7 @@ int do_huge_pmd_wp_page(struct mm_struct *mm, struct vm_area_struct *vma,
+>  
+>  	if (unlikely(mem_cgroup_newpage_charge(new_page, mm, GFP_KERNEL))) {
+>  		put_page(new_page);
+> +		split_huge_page(page);
+>  		put_page(page);
+>  		ret |= VM_FAULT_OOM;
+>  		goto out;
 
 
-Hm. ok. BTW, how about removing all CONFIG_MEM_RES_CTLR_HUGETLB and makes 
-all codes just depends on CONFIG_CGROUP_MEM_RES_CTLR && CONFIG_HUGETLB ?
 
-How other guys thinks ? (Anyway we can do it later....)
+?? how about
+==
+if (transparent_hugepage_enabled(vma) &&
+            !transparent_hugepage_debug_cow())
+                new_page = alloc_hugepage_vma(transparent_hugepage_defrag(vma),
+                                              vma, haddr, numa_node_id(), 0);
+        else
+                new_page = NULL;
+	
+if (unlikely(mem_cgroup_newpage_charge(new_page, mm, GFP_KERNEL))) {
+                put_page(new_page);
+                new_page = NULL; /* never OOM, just cause fallback */
+}
+
+if (unlikely(!new_page)) {
+                count_vm_event(THP_FAULT_FALLBACK);
+                ret = do_huge_pmd_wp_page_fallback(mm, vma, address,
+                                                   pmd, orig_pmd, page, haddr);
+                put_page(page);
+                goto out;
+}
+==
+?
 
 Thanks,
 -Kame
-
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
