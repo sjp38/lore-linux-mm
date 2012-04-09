@@ -1,38 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx103.postini.com [74.125.245.103])
-	by kanga.kvack.org (Postfix) with SMTP id A77796B007E
-	for <linux-mm@kvack.org>; Mon,  9 Apr 2012 08:54:48 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx194.postini.com [74.125.245.194])
+	by kanga.kvack.org (Postfix) with SMTP id 745FA6B007E
+	for <linux-mm@kvack.org>; Mon,  9 Apr 2012 09:00:44 -0400 (EDT)
 From: Arnd Bergmann <arnd@arndb.de>
 Subject: Re: swap on eMMC and other flash
-Date: Mon, 9 Apr 2012 12:54:39 +0000
-References: <201203301744.16762.arnd@arndb.de> <4F8245EA.6000600@kernel.org> <006f01cd1623$ac4a2860$04de7920$%jeong@samsung.com>
-In-Reply-To: <006f01cd1623$ac4a2860$04de7920$%jeong@samsung.com>
+Date: Mon, 9 Apr 2012 13:00:34 +0000
+References: <201203301744.16762.arnd@arndb.de> <006f01cd1623$ac4a2860$04de7920$%jeong@samsung.com> <4F8299B4.5090909@kernel.org>
+In-Reply-To: <4F8299B4.5090909@kernel.org>
 MIME-Version: 1.0
 Content-Type: Text/Plain;
   charset="utf-8"
-Content-Transfer-Encoding: 8bit
-Message-Id: <201204091254.39380.arnd@arndb.de>
+Content-Transfer-Encoding: 7bit
+Message-Id: <201204091300.34304.arnd@arndb.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: =?utf-8?q?=EC=A0=95=ED=9A=A8=EC=A7=84?= <syr.jeong@samsung.com>
-Cc: 'Minchan Kim' <minchan@kernel.org>, 'Alex Lemberg' <Alex.Lemberg@sandisk.com>, linaro-kernel@lists.linaro.org, 'Rik van Riel' <riel@redhat.com>, linux-mmc@vger.kernel.org, linux-kernel@vger.kernel.org, "'Luca Porzio (lporzio)'" <lporzio@micron.com>, linux-mm@kvack.org, kernel-team@android.com, 'Yejin Moon' <yejin.moon@samsung.com>, 'Hugh Dickins' <hughd@google.com>, 'Yaniv Iarovici' <Yaniv.Iarovici@sandisk.com>, cpgs@samsung.com
+To: Minchan Kim <minchan@kernel.org>
+Cc: =?utf-8?q?=EC=A0=95=ED=9A=A8=EC=A7=84?= <syr.jeong@samsung.com>, 'Alex Lemberg' <Alex.Lemberg@sandisk.com>, linaro-kernel@lists.linaro.org, 'Rik van Riel' <riel@redhat.com>, linux-mmc@vger.kernel.org, linux-kernel@vger.kernel.org, "'Luca Porzio (lporzio)'" <lporzio@micron.com>, linux-mm@kvack.org, kernel-team@android.com, 'Yejin Moon' <yejin.moon@samsung.com>, 'Hugh Dickins' <hughd@google.com>, 'Yaniv Iarovici' <Yaniv.Iarovici@sandisk.com>, cpgs@samsung.com
 
-On Monday 09 April 2012, i ?i??i?? wrote:
-> If swap system use 512KB page and issue Discard/Trim align with 512KB, eMMC make best
-> performance as of today. However, large page size in swap partition may not best way
-> in Linux system level.
-> I'm not sure that the best page size between Swap system and eMMC device.
+On Monday 09 April 2012, Minchan Kim wrote:
+> > 
+> > Regarding swap page size:
+> > Actually, I can't guarantee the optimal size of different eMMC in the industry, because it depends on NAND page size an firmware implementation inside eMMC. In case of SAMSUNG eMMC, 8KB page size and 512KB block size(erase unit) is current implementation.
+> > I think that the multiple of 8KB page size align with 512KB is good for SAMSUNG eMMC.
+> > If swap system use 512KB page and issue Discard/Trim align with 512KB, eMMC make best performance as of today. However, large page size in swap partition may not best way in Linux system level.
+> > I'm not sure that the best page size between Swap system and eMMC device.
+> 
+> 
+> The variety is one of challenges for removing GC generally. ;-(.
+> I don't like manual setting through /sys/block/xxx because it requires
+> that user have to know nand page size and erase block size but it's not
+> easy to know to normal user.
+> Arnd. What's your plan to support various flash storages effectively?
 
-Can you explain the significance of the 512KB size? I've seen devices report 512KB
-erase size, although measurements clearly showed an erase block size of 8MB and I
-do not understand this discprepancy.
+My preference would be to build the logic to detect the sizes into mkfs
+and mkswap and encode them in the superblock in new fields. I don't think
+we can trust any data that a device reports right now because operating
+systems have ignored it in the past and either someone has forgotten to
+update the fields after moving to new technology (eMMC), or the data can
+not be encoded correctly according to the spec (SD, USB).
 
-Right now, we always send discards of 1MB clusters to the device, which does what
-you want, although I'm not sure if those clusters are naturally aligned to the start
-of the partition. Obviously this also requires aligning the start of the partition
-to the erase block size, but most devices should already get that right nowadays.
+System builders for embedded systems can then make sure that they get
+it right for the hardware they use, and we can try our best to help
+that process.
 
-	Arnd
+	Ard
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
