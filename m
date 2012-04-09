@@ -1,129 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx164.postini.com [74.125.245.164])
-	by kanga.kvack.org (Postfix) with SMTP id 04A956B007E
-	for <linux-mm@kvack.org>; Mon,  9 Apr 2012 01:58:10 -0400 (EDT)
-Received: from m2.gw.fujitsu.co.jp (unknown [10.0.50.72])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 279B33EE0B5
-	for <linux-mm@kvack.org>; Mon,  9 Apr 2012 14:58:09 +0900 (JST)
-Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 046DC45DE50
-	for <linux-mm@kvack.org>; Mon,  9 Apr 2012 14:58:09 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id D5E9045DE4E
-	for <linux-mm@kvack.org>; Mon,  9 Apr 2012 14:58:08 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id C5FBA1DB803E
-	for <linux-mm@kvack.org>; Mon,  9 Apr 2012 14:58:08 +0900 (JST)
-Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.240.81.146])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 6AE391DB8038
-	for <linux-mm@kvack.org>; Mon,  9 Apr 2012 14:58:08 +0900 (JST)
-Message-ID: <4F827A01.4000302@jp.fujitsu.com>
-Date: Mon, 09 Apr 2012 14:56:17 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Received: from psmtp.com (na3sys010amx191.postini.com [74.125.245.191])
+	by kanga.kvack.org (Postfix) with SMTP id EEA6C6B0083
+	for <linux-mm@kvack.org>; Mon,  9 Apr 2012 01:58:16 -0400 (EDT)
+Date: Mon, 9 Apr 2012 07:58:14 +0200
+From: Markus Trippelsdorf <markus@trippelsdorf.de>
+Subject: Re: BUG: Bad rss-counter state
+Message-ID: <20120409055814.GA292@x4>
+References: <20120408113925.GA292@x4>
 MIME-Version: 1.0
-Subject: Re: [PATCH -V5 09/14] memcg: track resource index in cftype private
-References: <1333738260-1329-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com> <1333738260-1329-10-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
-In-Reply-To: <1333738260-1329-10-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
-Content-Type: text/plain; charset=ISO-2022-JP
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20120408113925.GA292@x4>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Cc: linux-mm@kvack.org, mgorman@suse.de, dhillf@gmail.com, aarcange@redhat.com, mhocko@suse.cz, akpm@linux-foundation.org, hannes@cmpxchg.org, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org
+To: linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org, Konstantin Khlebnikov <khlebnikov@openvz.org>, Hugh Dickins <hughd@google.com>
 
-(2012/04/07 3:50), Aneesh Kumar K.V wrote:
-
-> From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+On 2012.04.08 at 13:39 +0200, Markus Trippelsdorf wrote:
+> I've hit the following warning after I've tried to link Firofox's libxul
+> with "-flto -lto-partition=none" on my machine with 8GB memory. I've
+> killed the process after it used all the memory and 90% of my swap
+> space. Before the machine was rebooted I saw these messages:
 > 
-> This helps in using same memcg callbacks for non reclaim resource
-> control files.
->
+> Apr  8 13:11:08 x4 kernel: BUG: Bad rss-counter state mm:ffff88020813c380 idx:1 val:-1
+> Apr  8 13:11:08 x4 kernel: BUG: Bad rss-counter state mm:ffff88020813c380 idx:2 val:1
+> Apr  8 13:11:08 x4 kernel: BUG: Bad rss-counter state mm:ffff88021503bb80 idx:1 val:-1
+> Apr  8 13:11:08 x4 kernel: BUG: Bad rss-counter state mm:ffff8801fb643b80 idx:1 val:-1
+> Apr  8 13:11:08 x4 kernel: BUG: Bad rss-counter state mm:ffff8801fb643b80 idx:2 val:1
+> Apr  8 13:11:08 x4 kernel: BUG: Bad rss-counter state mm:ffff88021503bb80 idx:2 val:1
+> Apr  8 13:11:08 x4 kernel: BUG: Bad rss-counter state mm:ffff88020a4ff800 idx:1 val:-1
+> Apr  8 13:11:08 x4 kernel: BUG: Bad rss-counter state mm:ffff88020a4ff800 idx:2 val:1
+> Apr  8 13:11:08 x4 kernel: BUG: Bad rss-counter state mm:ffff88020813ce00 idx:1 val:-1
+> Apr  8 13:11:08 x4 kernel: BUG: Bad rss-counter state mm:ffff88020813ce00 idx:2 val:1
+> Apr  8 13:11:08 x4 kernel: BUG: Bad rss-counter state mm:ffff8801fadda680 idx:1 val:-1
+> Apr  8 13:11:08 x4 kernel: BUG: Bad rss-counter state mm:ffff8801fadda680 idx:2 val:1
+
+BTW, I'm not the only one that sees these messages. Here are two more
+reports from Ubuntu beta testers:
+
+https://bugs.launchpad.net/ubuntu/+source/linux/+bug/963672
+BUG: Bad rss-counter state mm:ffff88022107fb80 idx:1 val:-14
+BUG: Bad rss-counter state mm:ffff88022107fb80 idx:2 val:14
 
 
-please modify the changelog. This doesn't explain any contents in this patch.
+https://bugs.launchpad.net/ubuntu/+source/linux/+bug/965709
+BUG: Bad rss-counter state mm:c8fd9dc0 idx:1 val:-2
+BUG: Bad rss-counter state mm:c8fd9dc0 idx:2 val:2
+usb 5-1: USB disconnect, device number 2
+usb 5-1: new low-speed USB device number 3 using uhci_hcd
+input: Mega World Thrustmaster dual analog 3.2 as
+/devices/pci0000:00/0000:00:1d.0/usb5/5-1/5-1:1.0/input/input13
+generic-usb 0003:044F:B315.0004: input,hidraw1: USB HID v1.10 Gamepad
+[Mega World Thrustmaster dual analog 3.2] on usb-0000:00:1d.0-1/input0
+BUG: Bad rss-counter state mm:c8fd9dc0 idx:1 val:-2
+BUG: Bad rss-counter state mm:c8fd9dc0 idx:2 val:2
+BUG: Bad rss-counter state mm:dea3cc40 idx:1 val:-1
+BUG: Bad rss-counter state mm:dea3cc40 idx:2 val:1
 
- - add 'index' field to memcg files's attribute
- - support hugetlb type.
- - support modification of hugetlb res_counter.
+The pattern seem to be:
+... idx:1 val:-x
+... idx:2 val:x
+for x=1,2,14
 
-Thanks,
--Kame
-
- 
-> Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
-> ---
->  mm/memcontrol.c |   27 +++++++++++++++++++++------
->  1 file changed, 21 insertions(+), 6 deletions(-)
-> 
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index 0a1f776..3bb3b42 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -381,9 +381,14 @@ enum charge_type {
->  #define _MEM			(0)
->  #define _MEMSWAP		(1)
->  #define _OOM_TYPE		(2)
-> -#define MEMFILE_PRIVATE(x, val)	(((x) << 16) | (val))
-> -#define MEMFILE_TYPE(val)	(((val) >> 16) & 0xffff)
-> -#define MEMFILE_ATTR(val)	((val) & 0xffff)
-> +#define _MEMHUGETLB		(3)
-> +
-> +/*  0 ... val ...16.... x...24...idx...32*/
-> +#define __MEMFILE_PRIVATE(idx, x, val)	(((idx) << 24) | ((x) << 16) | (val))
-> +#define MEMFILE_PRIVATE(x, val)		__MEMFILE_PRIVATE(0, x, val)
-> +#define MEMFILE_TYPE(val)		(((val) >> 16) & 0xff)
-> +#define MEMFILE_IDX(val)		(((val) >> 24) & 0xff)
-> +#define MEMFILE_ATTR(val)		((val) & 0xffff)
->  /* Used for OOM nofiier */
->  #define OOM_CONTROL		(0)
->  
-> @@ -4003,7 +4008,7 @@ static ssize_t mem_cgroup_read(struct cgroup *cont, struct cftype *cft,
->  	struct mem_cgroup *memcg = mem_cgroup_from_cont(cont);
->  	char str[64];
->  	u64 val;
-> -	int type, name, len;
-> +	int type, name, len, idx;
->  
->  	type = MEMFILE_TYPE(cft->private);
->  	name = MEMFILE_ATTR(cft->private);
-> @@ -4024,6 +4029,10 @@ static ssize_t mem_cgroup_read(struct cgroup *cont, struct cftype *cft,
->  		else
->  			val = res_counter_read_u64(&memcg->memsw, name);
->  		break;
-> +	case _MEMHUGETLB:
-> +		idx = MEMFILE_IDX(cft->private);
-> +		val = res_counter_read_u64(&memcg->hugepage[idx], name);
-> +		break;
->  	default:
->  		BUG();
->  	}
-> @@ -4061,7 +4070,10 @@ static int mem_cgroup_write(struct cgroup *cont, struct cftype *cft,
->  			break;
->  		if (type == _MEM)
->  			ret = mem_cgroup_resize_limit(memcg, val);
-> -		else
-> +		else if (type == _MEMHUGETLB) {
-> +			int idx = MEMFILE_IDX(cft->private);
-> +			ret = res_counter_set_limit(&memcg->hugepage[idx], val);
-> +		} else
->  			ret = mem_cgroup_resize_memsw_limit(memcg, val);
->  		break;
->  	case RES_SOFT_LIMIT:
-> @@ -4127,7 +4139,10 @@ static int mem_cgroup_reset(struct cgroup *cont, unsigned int event)
->  	case RES_MAX_USAGE:
->  		if (type == _MEM)
->  			res_counter_reset_max(&memcg->res);
-> -		else
-> +		else if (type == _MEMHUGETLB) {
-> +			int idx = MEMFILE_IDX(event);
-> +			res_counter_reset_max(&memcg->hugepage[idx]);
-> +		} else
->  			res_counter_reset_max(&memcg->memsw);
->  		break;
->  	case RES_FAILCNT:
-
-
+-- 
+Markus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
