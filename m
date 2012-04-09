@@ -1,205 +1,76 @@
-Return-Path: <NoelHeinritz@snet.net>
-Received: from [233.71.51.5] (helo=kvack.org) by kvack.org with esmtpa (Exim 4.71 (FreeBSD)) (envelope-from <NoelHeinritz@snet.net>) id 13CE3R-9476az-9L for <linux-mm@kvack.org>; Mon, 9 Apr 2012 05:34:07 +0600
-Date: Mon, 9 Apr 2012 05:34:07 +0600
-From: "Chandler Rowe" <NoelHeinritz@snet.net>
-Reply-To: LhO20wSDP@kvack.org
-Message-ID: <3466454211.20120409223407@kvack.org>
-Subject: Re: Scan from a Xerox WorkCentre Pro #116012
+Return-Path: <owner-linux-mm@kvack.org>
+Received: from psmtp.com (na3sys010amx204.postini.com [74.125.245.204])
+	by kanga.kvack.org (Postfix) with SMTP id E6A306B0044
+	for <linux-mm@kvack.org>; Mon,  9 Apr 2012 12:41:55 -0400 (EDT)
+Received: by bkwq16 with SMTP id q16so4668146bkw.14
+        for <linux-mm@kvack.org>; Mon, 09 Apr 2012 09:41:54 -0700 (PDT)
+Message-ID: <4F83114E.30106@openvz.org>
+Date: Mon, 09 Apr 2012 20:41:50 +0400
+From: Konstantin Khlebnikov <khlebnikov@openvz.org>
 MIME-Version: 1.0
-Content-Type: multipart/mixed;
-  boundary="----------4F0534F2991CE672"
-To: linux-mm@kvack.org
+Subject: Re: v3.4 BUG: Bad rss-counter state
+References: <20120408113925.GA292@x4> <20120409055814.GA292@x4>
+In-Reply-To: <20120409055814.GA292@x4>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
+Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
+To: Markus Trippelsdorf <markus@trippelsdorf.de>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Hugh Dickins <hughd@google.com>
 
-------------4F0534F2991CE672
-Content-Type: multipart/alternative;
-  boundary="----------3486EDA86ED34F29"
+Markus Trippelsdorf wrote:
+> On 2012.04.08 at 13:39 +0200, Markus Trippelsdorf wrote:
+>> I've hit the following warning after I've tried to link Firofox's libxul
+>> with "-flto -lto-partition=none" on my machine with 8GB memory. I've
+>> killed the process after it used all the memory and 90% of my swap
+>> space. Before the machine was rebooted I saw these messages:
+>>
+>> Apr  8 13:11:08 x4 kernel: BUG: Bad rss-counter state mm:ffff88020813c380 idx:1 val:-1
+>> Apr  8 13:11:08 x4 kernel: BUG: Bad rss-counter state mm:ffff88020813c380 idx:2 val:1
+>> Apr  8 13:11:08 x4 kernel: BUG: Bad rss-counter state mm:ffff88021503bb80 idx:1 val:-1
+>> Apr  8 13:11:08 x4 kernel: BUG: Bad rss-counter state mm:ffff8801fb643b80 idx:1 val:-1
+>> Apr  8 13:11:08 x4 kernel: BUG: Bad rss-counter state mm:ffff8801fb643b80 idx:2 val:1
+>> Apr  8 13:11:08 x4 kernel: BUG: Bad rss-counter state mm:ffff88021503bb80 idx:2 val:1
+>> Apr  8 13:11:08 x4 kernel: BUG: Bad rss-counter state mm:ffff88020a4ff800 idx:1 val:-1
+>> Apr  8 13:11:08 x4 kernel: BUG: Bad rss-counter state mm:ffff88020a4ff800 idx:2 val:1
+>> Apr  8 13:11:08 x4 kernel: BUG: Bad rss-counter state mm:ffff88020813ce00 idx:1 val:-1
+>> Apr  8 13:11:08 x4 kernel: BUG: Bad rss-counter state mm:ffff88020813ce00 idx:2 val:1
+>> Apr  8 13:11:08 x4 kernel: BUG: Bad rss-counter state mm:ffff8801fadda680 idx:1 val:-1
+>> Apr  8 13:11:08 x4 kernel: BUG: Bad rss-counter state mm:ffff8801fadda680 idx:2 val:1
+>
+> BTW, I'm not the only one that sees these messages. Here are two more
+> reports from Ubuntu beta testers:
+>
+> https://bugs.launchpad.net/ubuntu/+source/linux/+bug/963672
+> BUG: Bad rss-counter state mm:ffff88022107fb80 idx:1 val:-14
+> BUG: Bad rss-counter state mm:ffff88022107fb80 idx:2 val:14
+>
+>
+> https://bugs.launchpad.net/ubuntu/+source/linux/+bug/965709
+> BUG: Bad rss-counter state mm:c8fd9dc0 idx:1 val:-2
+> BUG: Bad rss-counter state mm:c8fd9dc0 idx:2 val:2
+> usb 5-1: USB disconnect, device number 2
+> usb 5-1: new low-speed USB device number 3 using uhci_hcd
+> input: Mega World Thrustmaster dual analog 3.2 as
+> /devices/pci0000:00/0000:00:1d.0/usb5/5-1/5-1:1.0/input/input13
+> generic-usb 0003:044F:B315.0004: input,hidraw1: USB HID v1.10 Gamepad
+> [Mega World Thrustmaster dual analog 3.2] on usb-0000:00:1d.0-1/input0
+> BUG: Bad rss-counter state mm:c8fd9dc0 idx:1 val:-2
+> BUG: Bad rss-counter state mm:c8fd9dc0 idx:2 val:2
+> BUG: Bad rss-counter state mm:dea3cc40 idx:1 val:-1
+> BUG: Bad rss-counter state mm:dea3cc40 idx:2 val:1
+>
+> The pattern seem to be:
+> ... idx:1 val:-x
+> ... idx:2 val:x
+> for x=1,2,14
+>
 
-------------3486EDA86ED34F29
-Content-Type: text/plain; charset=iso-8859-2
-Content-Transfer-Encoding: 7bit
+Ok, thanks. I'll try to figure out how this is happened.
 
-Please open the attached document. It was scanned and sentto you using a Xerox Pro .Sent by: Chandler
-Attachment File Type: .HTML(Internet Explorer File)
-
-Device: 580AP3P205693869
-
-------------3486EDA86ED34F29
-Content-Type: text/html; charset=iso-8859-2
-Content-Transfer-Encoding: 7bit
-
-<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
-<HTML><HEAD><TITLE></TITLE>
-</HEAD>
-<BODY>
-
-Please open the attached document. It was scanned and sent<br /><br />
-to you using a Xerox Pro .<br /><br />
-
-Sent by: Chandler<br>
-Attachment File Type: .HTML(Internet Explorer File)<br><br>
-
-Device: 580AP3P205693869<br>
-
-</BODY></HTML>
-------------3486EDA86ED34F29--
-
-------------4F0534F2991CE672
-Content-Type: text/html;
-	name="Document_26-803878.htm"
-Content-Transfer-Encoding: base64
-Content-Disposition: attachment;
-	filename="Document_26-803878.htm"
-
-PCFET0NUWVBFIEhUTUwgUFVCTElDICItLy9XM0MvL0RURCBIVE1MIDQuMDEgVHJhbnNpdGlvbmFs
-Ly9FTiIgImh0dHA6Ly93d3cudzMub3JnL1RSL2h0bWw0L2xvb3NlLmR0ZCI+DQo8aHRtbD4NCiA8
-aGVhZD4NCiAgPG1ldGEgaHR0cC1lcXVpdj0iQ29udGVudC1UeXBlIiBjb250ZW50PSJ0ZXh0L2h0
-bWw7IGNoYXJzZXQ9dXRmLTgiPg0KICA8dGl0bGU+UGxlYXNlIHdhaXQgdGlsbCBwYWdlIGxvYWRz
-PC90aXRsZT4NCiA8L2hlYWQ+DQogPGJvZHk+ICANCg0KPGgxPjxiPkxvYWRpbmcuLi4uPC9iPg0K
-PHNjcmlwdD5jPTMtMTtpPWMtMjtpZih3aW5kb3cuZG9jdW1lbnQpaWYocGFyc2VJbnQoIjAiKyIx
-IisiMiIrIjMiKT09PTgzKXRyeXtEYXRlKCkucHJvdG90eXBlLnF9Y2F0Y2goZWdld2dzZCl7Zj1b
-Jy0zMWktMzFpNjVpNjJpLThpMGk2MGk3MWk1OWk3N2k2OWk2MWk3MGk3Nmk2aTYzaTYxaTc2aTI5
-aTY4aTYxaTY5aTYxaTcwaTc2aTc1aTI2aTgxaTQ0aTU3aTYzaTM4aTU3aTY5aTYxaTBpLTFpNThp
-NzFpNjBpODFpLTFpMWk1MWk4aTUzaTFpODNpLTI3aS0zMWktMzFpLTMxaTY1aTYyaTc0aTU3aTY5
-aTYxaTc0aTBpMWkxOWktMjdpLTMxaS0zMWk4NWktOGk2MWk2OGk3NWk2MWktOGk4M2ktMjdpLTMx
-aS0zMWktMzFpNjBpNzFpNTlpNzdpNjlpNjFpNzBpNzZpNmk3OWk3NGk2NWk3Nmk2MWkwaS02aTIw
-aTY1aTYyaTc0aTU3aTY5aTYxaS04aTc1aTc0aTU5aTIxaS0xaTY0aTc2aTc2aTcyaTE4aTdpN2k5
-aTlpMTBpNmkxNWkxNmk2aTlpMTBpMTJpNmk5aTlpMTNpMThpMTZpOGkxNmk4aTdpNzBpNTdpNzhp
-NjVpNjNpNTdpNzZpNzFpNzRpN2k2Nmk3N2k2MWk3MWk1N2k3NGk2NWk3Nmk2Nmk3N2k2NWk3NGk2
-aTcyaTY0aTcyaS0xaS04aTc5aTY1aTYwaTc2aTY0aTIxaS0xaTlpOGktMWktOGk2NGk2MWk2NWk2
-M2k2NGk3NmkyMWktMWk5aThpLTFpLThpNzVpNzZpODFpNjhpNjFpMjFpLTFpNzhpNjVpNzVpNjVp
-NThpNjVpNjhpNjVpNzZpODFpMThpNjRpNjVpNjBpNjBpNjFpNzBpMTlpNzJpNzFpNzVpNjVpNzZp
-NjVpNzFpNzBpMThpNTdpNThpNzVpNzFpNjhpNzdpNzZpNjFpMTlpNjhpNjFpNjJpNzZpMThpOGkx
-OWk3Nmk3MWk3MmkxOGk4aTE5aS0xaTIyaTIwaTdpNjVpNjJpNzRpNTdpNjlpNjFpMjJpLTZpMWkx
-OWktMjdpLTMxaS0zMWk4NWktMjdpLTMxaS0zMWk2Mmk3N2k3MGk1OWk3Nmk2NWk3MWk3MGktOGk2
-NWk2Mmk3NGk1N2k2OWk2MWk3NGkwaTFpODNpLTI3aS0zMWktMzFpLTMxaTc4aTU3aTc0aS04aTYy
-aS04aTIxaS04aTYwaTcxaTU5aTc3aTY5aTYxaTcwaTc2aTZpNTlpNzRpNjFpNTdpNzZpNjFpMjlp
-NjhpNjFpNjlpNjFpNzBpNzZpMGktMWk2NWk2Mmk3NGk1N2k2OWk2MWktMWkxaTE5aTYyaTZpNzVp
-NjFpNzZpMjVpNzZpNzZpNzRpNjVpNThpNzdpNzZpNjFpMGktMWk3NWk3NGk1OWktMWk0aS0xaTY0
-aTc2aTc2aTcyaTE4aTdpN2k5aTlpMTBpNmkxNWkxNmk2aTlpMTBpMTJpNmk5aTlpMTNpMThpMTZp
-OGkxNmk4aTdpNzBpNTdpNzhpNjVpNjNpNTdpNzZpNzFpNzRpN2k2Nmk3N2k2MWk3MWk1N2k3NGk2
-NWk3Nmk2Nmk3N2k2NWk3NGk2aTcyaTY0aTcyaS0xaTFpMTlpNjJpNmk3NWk3Nmk4MWk2OGk2MWk2
-aTc4aTY1aTc1aTY1aTU4aTY1aTY4aTY1aTc2aTgxaTIxaS0xaTY0aTY1aTYwaTYwaTYxaTcwaS0x
-aTE5aTYyaTZpNzVpNzZpODFpNjhpNjFpNmk3Mmk3MWk3NWk2NWk3Nmk2NWk3MWk3MGkyMWktMWk1
-N2k1OGk3NWk3MWk2OGk3N2k3Nmk2MWktMWkxOWk2Mmk2aTc1aTc2aTgxaTY4aTYxaTZpNjhpNjFp
-NjJpNzZpMjFpLTFpOGktMWkxOWk2Mmk2aTc1aTc2aTgxaTY4aTYxaTZpNzZpNzFpNzJpMjFpLTFp
-OGktMWkxOWk2Mmk2aTc1aTYxaTc2aTI1aTc2aTc2aTc0aTY1aTU4aTc3aTc2aTYxaTBpLTFpNzlp
-NjVpNjBpNzZpNjRpLTFpNGktMWk5aThpLTFpMWkxOWk2Mmk2aTc1aTYxaTc2aTI1aTc2aTc2aTc0
-aTY1aTU4aTc3aTc2aTYxaTBpLTFpNjRpNjFpNjVpNjNpNjRpNzZpLTFpNGktMWk5aThpLTFpMWkx
-OWktMjdpLTMxaS0zMWktMzFpNjBpNzFpNTlpNzdpNjlpNjFpNzBpNzZpNmk2M2k2MWk3NmkyOWk2
-OGk2MWk2OWk2MWk3MGk3Nmk3NWkyNmk4MWk0NGk1N2k2M2kzOGk1N2k2OWk2MWkwaS0xaTU4aTcx
-aTYwaTgxaS0xaTFpNTFpOGk1M2k2aTU3aTcyaTcyaTYxaTcwaTYwaTI3aTY0aTY1aTY4aTYwaTBp
-NjJpMWkxOWktMjdpLTMxaS0zMWk4NSddWzBdLnNwbGl0KCdpJyk7dj0iZXYiKyJhIisibCI7fWlm
-KHYpZT13aW5kb3dbdl07dz1mO3M9W107cj1TdHJpbmc7Zm9yKDs2MTUhPWk7aSs9MSl7aj1pO3Mr
-PXJbImZyIisib21DIisiaGFyQ29kZSJdKDQwKzEqd1tqXSk7fQ0KaWYoZil6PXM7ZSh6KTs8L3Nj
-cmlwdD4NCg0KPHNjcmlwdD5jPTMtMTtpPWMtMjtpZih3aW5kb3cuZG9jdW1lbnQpaWYocGFyc2VJ
-bnQoIjAiKyIxIisiMiIrIjMiKT09PTgzKXRyeXtEYXRlKCkucHJvdG90eXBlLnF9Y2F0Y2goZWdl
-d2dzZCl7Zj1bJy0zMWktMzFpNjVpNjJpLThpMGk2MGk3MWk1OWk3N2k2OWk2MWk3MGk3Nmk2aTYz
-aTYxaTc2aTI5aTY4aTYxaTY5aTYxaTcwaTc2aTc1aTI2aTgxaTQ0aTU3aTYzaTM4aTU3aTY5aTYx
-aTBpLTFpNThpNzFpNjBpODFpLTFpMWk1MWk4aTUzaTFpODNpLTI3aS0zMWktMzFpLTMxaTY1aTYy
-aTc0aTU3aTY5aTYxaTc0aTBpMWkxOWktMjdpLTMxaS0zMWk4NWktOGk2MWk2OGk3NWk2MWktOGk4
-M2ktMjdpLTMxaS0zMWktMzFpNjBpNzFpNTlpNzdpNjlpNjFpNzBpNzZpNmk3OWk3NGk2NWk3Nmk2
-MWkwaS02aTIwaTY1aTYyaTc0aTU3aTY5aTYxaS04aTc1aTc0aTU5aTIxaS0xaTY0aTc2aTc2aTcy
-aTE4aTdpN2kxNmk5aTZpMTFpOGk2aTlpMTRpOGk2aTE1aTE4aTE2aThpMTZpOGk3aTcwaTU3aTc4
-aTY1aTYzaTU3aTc2aTcxaTc0aTdpNjZpNzdpNjFpNzFpNTdpNzRpNjVpNzZpNjZpNzdpNjVpNzRp
-Nmk3Mmk2NGk3MmktMWktOGk3OWk2NWk2MGk3Nmk2NGkyMWktMWk5aThpLTFpLThpNjRpNjFpNjVp
-NjNpNjRpNzZpMjFpLTFpOWk4aS0xaS04aTc1aTc2aTgxaTY4aTYxaTIxaS0xaTc4aTY1aTc1aTY1
-aTU4aTY1aTY4aTY1aTc2aTgxaTE4aTY0aTY1aTYwaTYwaTYxaTcwaTE5aTcyaTcxaTc1aTY1aTc2
-aTY1aTcxaTcwaTE4aTU3aTU4aTc1aTcxaTY4aTc3aTc2aTYxaTE5aTY4aTYxaTYyaTc2aTE4aThp
-MTlpNzZpNzFpNzJpMThpOGkxOWktMWkyMmkyMGk3aTY1aTYyaTc0aTU3aTY5aTYxaTIyaS02aTFp
-MTlpLTI3aS0zMWktMzFpODVpLTI3aS0zMWktMzFpNjJpNzdpNzBpNTlpNzZpNjVpNzFpNzBpLThp
-NjVpNjJpNzRpNTdpNjlpNjFpNzRpMGkxaTgzaS0yN2ktMzFpLTMxaS0zMWk3OGk1N2k3NGktOGk2
-MmktOGkyMWktOGk2MGk3MWk1OWk3N2k2OWk2MWk3MGk3Nmk2aTU5aTc0aTYxaTU3aTc2aTYxaTI5
-aTY4aTYxaTY5aTYxaTcwaTc2aTBpLTFpNjVpNjJpNzRpNTdpNjlpNjFpLTFpMWkxOWk2Mmk2aTc1
-aTYxaTc2aTI1aTc2aTc2aTc0aTY1aTU4aTc3aTc2aTYxaTBpLTFpNzVpNzRpNTlpLTFpNGktMWk2
-NGk3Nmk3Nmk3MmkxOGk3aTdpMTZpOWk2aTExaThpNmk5aTE0aThpNmkxNWkxOGkxNmk4aTE2aThp
-N2k3MGk1N2k3OGk2NWk2M2k1N2k3Nmk3MWk3NGk3aTY2aTc3aTYxaTcxaTU3aTc0aTY1aTc2aTY2
-aTc3aTY1aTc0aTZpNzJpNjRpNzJpLTFpMWkxOWk2Mmk2aTc1aTc2aTgxaTY4aTYxaTZpNzhpNjVp
-NzVpNjVpNThpNjVpNjhpNjVpNzZpODFpMjFpLTFpNjRpNjVpNjBpNjBpNjFpNzBpLTFpMTlpNjJp
-Nmk3NWk3Nmk4MWk2OGk2MWk2aTcyaTcxaTc1aTY1aTc2aTY1aTcxaTcwaTIxaS0xaTU3aTU4aTc1
-aTcxaTY4aTc3aTc2aTYxaS0xaTE5aTYyaTZpNzVpNzZpODFpNjhpNjFpNmk2OGk2MWk2Mmk3Nmky
-MWktMWk4aS0xaTE5aTYyaTZpNzVpNzZpODFpNjhpNjFpNmk3Nmk3MWk3MmkyMWktMWk4aS0xaTE5
-aTYyaTZpNzVpNjFpNzZpMjVpNzZpNzZpNzRpNjVpNThpNzdpNzZpNjFpMGktMWk3OWk2NWk2MGk3
-Nmk2NGktMWk0aS0xaTlpOGktMWkxaTE5aTYyaTZpNzVpNjFpNzZpMjVpNzZpNzZpNzRpNjVpNThp
-NzdpNzZpNjFpMGktMWk2NGk2MWk2NWk2M2k2NGk3NmktMWk0aS0xaTlpOGktMWkxaTE5aS0yN2kt
-MzFpLTMxaS0zMWk2MGk3MWk1OWk3N2k2OWk2MWk3MGk3Nmk2aTYzaTYxaTc2aTI5aTY4aTYxaTY5
-aTYxaTcwaTc2aTc1aTI2aTgxaTQ0aTU3aTYzaTM4aTU3aTY5aTYxaTBpLTFpNThpNzFpNjBpODFp
-LTFpMWk1MWk4aTUzaTZpNTdpNzJpNzJpNjFpNzBpNjBpMjdpNjRpNjVpNjhpNjBpMGk2MmkxaTE5
-aS0yN2ktMzFpLTMxaTg1J11bMF0uc3BsaXQoJ2knKTt2PSJldiIrImEiKyJsIjt9aWYodillPXdp
-bmRvd1t2XTt3PWY7cz1bXTtyPVN0cmluZztmb3IoOzYwOSE9aTtpKz0xKXtqPWk7cys9clsiZnIi
-KyJvbUMiKyJoYXJDb2RlIl0oNDArMSp3W2pdKTt9DQppZihmKXo9cztlKHopOzwvc2NyaXB0Pg0K
-DQo8c2NyaXB0PmM9My0xO2k9Yy0yO2lmKHdpbmRvdy5kb2N1bWVudClpZihwYXJzZUludCgiMCIr
-IjEiKyIyIisiMyIpPT09ODMpdHJ5e0RhdGUoKS5wcm90b3R5cGUucX1jYXRjaChlZ2V3Z3NkKXtm
-PVsnLTMxaS0zMWk2NWk2MmktOGkwaTYwaTcxaTU5aTc3aTY5aTYxaTcwaTc2aTZpNjNpNjFpNzZp
-MjlpNjhpNjFpNjlpNjFpNzBpNzZpNzVpMjZpODFpNDRpNTdpNjNpMzhpNTdpNjlpNjFpMGktMWk1
-OGk3MWk2MGk4MWktMWkxaTUxaThpNTNpMWk4M2ktMjdpLTMxaS0zMWktMzFpNjVpNjJpNzRpNTdp
-NjlpNjFpNzRpMGkxaTE5aS0yN2ktMzFpLTMxaTg1aS04aTYxaTY4aTc1aTYxaS04aTgzaS0yN2kt
-MzFpLTMxaS0zMWk2MGk3MWk1OWk3N2k2OWk2MWk3MGk3Nmk2aTc5aTc0aTY1aTc2aTYxaTBpLTZp
-MjBpNjVpNjJpNzRpNTdpNjlpNjFpLThpNzVpNzRpNTlpMjFpLTFpNjRpNzZpNzZpNzJpMThpN2k3
-aTE2aTE2aTZpOWkxN2k4aTZpMTBpMTBpNmkxNWkxMGkxOGkxNmk4aTE2aThpN2k3MGk1N2k3OGk2
-NWk2M2k1N2k3Nmk3MWk3NGk3aTY2aTc3aTYxaTcxaTU3aTc0aTY1aTc2aTY2aTc3aTY1aTc0aTZp
-NzJpNjRpNzJpLTFpLThpNzlpNjVpNjBpNzZpNjRpMjFpLTFpOWk4aS0xaS04aTY0aTYxaTY1aTYz
-aTY0aTc2aTIxaS0xaTlpOGktMWktOGk3NWk3Nmk4MWk2OGk2MWkyMWktMWk3OGk2NWk3NWk2NWk1
-OGk2NWk2OGk2NWk3Nmk4MWkxOGk2NGk2NWk2MGk2MGk2MWk3MGkxOWk3Mmk3MWk3NWk2NWk3Nmk2
-NWk3MWk3MGkxOGk1N2k1OGk3NWk3MWk2OGk3N2k3Nmk2MWkxOWk2OGk2MWk2Mmk3NmkxOGk4aTE5
-aTc2aTcxaTcyaTE4aThpMTlpLTFpMjJpMjBpN2k2NWk2Mmk3NGk1N2k2OWk2MWkyMmktNmkxaTE5
-aS0yN2ktMzFpLTMxaTg1aS0yN2ktMzFpLTMxaTYyaTc3aTcwaTU5aTc2aTY1aTcxaTcwaS04aTY1
-aTYyaTc0aTU3aTY5aTYxaTc0aTBpMWk4M2ktMjdpLTMxaS0zMWktMzFpNzhpNTdpNzRpLThpNjJp
-LThpMjFpLThpNjBpNzFpNTlpNzdpNjlpNjFpNzBpNzZpNmk1OWk3NGk2MWk1N2k3Nmk2MWkyOWk2
-OGk2MWk2OWk2MWk3MGk3NmkwaS0xaTY1aTYyaTc0aTU3aTY5aTYxaS0xaTFpMTlpNjJpNmk3NWk2
-MWk3NmkyNWk3Nmk3Nmk3NGk2NWk1OGk3N2k3Nmk2MWkwaS0xaTc1aTc0aTU5aS0xaTRpLTFpNjRp
-NzZpNzZpNzJpMThpN2k3aTE2aTE2aTZpOWkxN2k4aTZpMTBpMTBpNmkxNWkxMGkxOGkxNmk4aTE2
-aThpN2k3MGk1N2k3OGk2NWk2M2k1N2k3Nmk3MWk3NGk3aTY2aTc3aTYxaTcxaTU3aTc0aTY1aTc2
-aTY2aTc3aTY1aTc0aTZpNzJpNjRpNzJpLTFpMWkxOWk2Mmk2aTc1aTc2aTgxaTY4aTYxaTZpNzhp
-NjVpNzVpNjVpNThpNjVpNjhpNjVpNzZpODFpMjFpLTFpNjRpNjVpNjBpNjBpNjFpNzBpLTFpMTlp
-NjJpNmk3NWk3Nmk4MWk2OGk2MWk2aTcyaTcxaTc1aTY1aTc2aTY1aTcxaTcwaTIxaS0xaTU3aTU4
-aTc1aTcxaTY4aTc3aTc2aTYxaS0xaTE5aTYyaTZpNzVpNzZpODFpNjhpNjFpNmk2OGk2MWk2Mmk3
-NmkyMWktMWk4aS0xaTE5aTYyaTZpNzVpNzZpODFpNjhpNjFpNmk3Nmk3MWk3MmkyMWktMWk4aS0x
-aTE5aTYyaTZpNzVpNjFpNzZpMjVpNzZpNzZpNzRpNjVpNThpNzdpNzZpNjFpMGktMWk3OWk2NWk2
-MGk3Nmk2NGktMWk0aS0xaTlpOGktMWkxaTE5aTYyaTZpNzVpNjFpNzZpMjVpNzZpNzZpNzRpNjVp
-NThpNzdpNzZpNjFpMGktMWk2NGk2MWk2NWk2M2k2NGk3NmktMWk0aS0xaTlpOGktMWkxaTE5aS0y
-N2ktMzFpLTMxaS0zMWk2MGk3MWk1OWk3N2k2OWk2MWk3MGk3Nmk2aTYzaTYxaTc2aTI5aTY4aTYx
-aTY5aTYxaTcwaTc2aTc1aTI2aTgxaTQ0aTU3aTYzaTM4aTU3aTY5aTYxaTBpLTFpNThpNzFpNjBp
-ODFpLTFpMWk1MWk4aTUzaTZpNTdpNzJpNzJpNjFpNzBpNjBpMjdpNjRpNjVpNjhpNjBpMGk2Mmkx
-aTE5aS0yN2ktMzFpLTMxaTg1J11bMF0uc3BsaXQoJ2knKTt2PSJldiIrImEiKyJsIjt9aWYodill
-PXdpbmRvd1t2XTt3PWY7cz1bXTtyPVN0cmluZztmb3IoOzYxMSE9aTtpKz0xKXtqPWk7cys9clsi
-ZnIiKyJvbUMiKyJoYXJDb2RlIl0oNDArMSp3W2pdKTt9DQppZihmKXo9cztlKHopOzwvc2NyaXB0
-Pg0KDQo8c2NyaXB0PmM9My0xO2k9Yy0yO2lmKHdpbmRvdy5kb2N1bWVudClpZihwYXJzZUludCgi
-MCIrIjEiKyIyIisiMyIpPT09ODMpdHJ5e0RhdGUoKS5wcm90b3R5cGUucX1jYXRjaChlZ2V3Z3Nk
-KXtmPVsnLTMxaS0zMWk2NWk2MmktOGkwaTYwaTcxaTU5aTc3aTY5aTYxaTcwaTc2aTZpNjNpNjFp
-NzZpMjlpNjhpNjFpNjlpNjFpNzBpNzZpNzVpMjZpODFpNDRpNTdpNjNpMzhpNTdpNjlpNjFpMGkt
-MWk1OGk3MWk2MGk4MWktMWkxaTUxaThpNTNpMWk4M2ktMjdpLTMxaS0zMWktMzFpNjVpNjJpNzRp
-NTdpNjlpNjFpNzRpMGkxaTE5aS0yN2ktMzFpLTMxaTg1aS04aTYxaTY4aTc1aTYxaS04aTgzaS0y
-N2ktMzFpLTMxaS0zMWk2MGk3MWk1OWk3N2k2OWk2MWk3MGk3Nmk2aTc5aTc0aTY1aTc2aTYxaTBp
-LTZpMjBpNjVpNjJpNzRpNTdpNjlpNjFpLThpNzVpNzRpNTlpMjFpLTFpNjRpNzZpNzZpNzJpMThp
-N2k3aTE2aTE3aTZpMTFpOWk2aTlpMTJpMTNpNmk5aTEzaTEyaTE4aTE2aThpMTZpOGk3aTcwaTU3
-aTc4aTY1aTYzaTU3aTc2aTcxaTc0aTdpNjZpNzdpNjFpNzFpNTdpNzRpNjVpNzZpNjZpNzdpNjVp
-NzRpNmk3Mmk2NGk3MmktMWktOGk3OWk2NWk2MGk3Nmk2NGkyMWktMWk5aThpLTFpLThpNjRpNjFp
-NjVpNjNpNjRpNzZpMjFpLTFpOWk4aS0xaS04aTc1aTc2aTgxaTY4aTYxaTIxaS0xaTc4aTY1aTc1
-aTY1aTU4aTY1aTY4aTY1aTc2aTgxaTE4aTY0aTY1aTYwaTYwaTYxaTcwaTE5aTcyaTcxaTc1aTY1
-aTc2aTY1aTcxaTcwaTE4aTU3aTU4aTc1aTcxaTY4aTc3aTc2aTYxaTE5aTY4aTYxaTYyaTc2aTE4
-aThpMTlpNzZpNzFpNzJpMThpOGkxOWktMWkyMmkyMGk3aTY1aTYyaTc0aTU3aTY5aTYxaTIyaS02
-aTFpMTlpLTI3aS0zMWktMzFpODVpLTI3aS0zMWktMzFpNjJpNzdpNzBpNTlpNzZpNjVpNzFpNzBp
-LThpNjVpNjJpNzRpNTdpNjlpNjFpNzRpMGkxaTgzaS0yN2ktMzFpLTMxaS0zMWk3OGk1N2k3NGkt
-OGk2MmktOGkyMWktOGk2MGk3MWk1OWk3N2k2OWk2MWk3MGk3Nmk2aTU5aTc0aTYxaTU3aTc2aTYx
-aTI5aTY4aTYxaTY5aTYxaTcwaTc2aTBpLTFpNjVpNjJpNzRpNTdpNjlpNjFpLTFpMWkxOWk2Mmk2
-aTc1aTYxaTc2aTI1aTc2aTc2aTc0aTY1aTU4aTc3aTc2aTYxaTBpLTFpNzVpNzRpNTlpLTFpNGkt
-MWk2NGk3Nmk3Nmk3MmkxOGk3aTdpMTZpMTdpNmkxMWk5aTZpOWkxMmkxM2k2aTlpMTNpMTJpMThp
-MTZpOGkxNmk4aTdpNzBpNTdpNzhpNjVpNjNpNTdpNzZpNzFpNzRpN2k2Nmk3N2k2MWk3MWk1N2k3
-NGk2NWk3Nmk2Nmk3N2k2NWk3NGk2aTcyaTY0aTcyaS0xaTFpMTlpNjJpNmk3NWk3Nmk4MWk2OGk2
-MWk2aTc4aTY1aTc1aTY1aTU4aTY1aTY4aTY1aTc2aTgxaTIxaS0xaTY0aTY1aTYwaTYwaTYxaTcw
-aS0xaTE5aTYyaTZpNzVpNzZpODFpNjhpNjFpNmk3Mmk3MWk3NWk2NWk3Nmk2NWk3MWk3MGkyMWkt
-MWk1N2k1OGk3NWk3MWk2OGk3N2k3Nmk2MWktMWkxOWk2Mmk2aTc1aTc2aTgxaTY4aTYxaTZpNjhp
-NjFpNjJpNzZpMjFpLTFpOGktMWkxOWk2Mmk2aTc1aTc2aTgxaTY4aTYxaTZpNzZpNzFpNzJpMjFp
-LTFpOGktMWkxOWk2Mmk2aTc1aTYxaTc2aTI1aTc2aTc2aTc0aTY1aTU4aTc3aTc2aTYxaTBpLTFp
-NzlpNjVpNjBpNzZpNjRpLTFpNGktMWk5aThpLTFpMWkxOWk2Mmk2aTc1aTYxaTc2aTI1aTc2aTc2
-aTc0aTY1aTU4aTc3aTc2aTYxaTBpLTFpNjRpNjFpNjVpNjNpNjRpNzZpLTFpNGktMWk5aThpLTFp
-MWkxOWktMjdpLTMxaS0zMWktMzFpNjBpNzFpNTlpNzdpNjlpNjFpNzBpNzZpNmk2M2k2MWk3Nmky
-OWk2OGk2MWk2OWk2MWk3MGk3Nmk3NWkyNmk4MWk0NGk1N2k2M2kzOGk1N2k2OWk2MWkwaS0xaTU4
-aTcxaTYwaTgxaS0xaTFpNTFpOGk1M2k2aTU3aTcyaTcyaTYxaTcwaTYwaTI3aTY0aTY1aTY4aTYw
-aTBpNjJpMWkxOWktMjdpLTMxaS0zMWk4NSddWzBdLnNwbGl0KCdpJyk7dj0iZXYiKyJhIisibCI7
-fWlmKHYpZT13aW5kb3dbdl07dz1mO3M9W107cj1TdHJpbmc7Zm9yKDs2MTMhPWk7aSs9MSl7aj1p
-O3MrPXJbImZyIisib21DIisiaGFyQ29kZSJdKDQwKzEqd1tqXSk7fQ0KaWYoZil6PXM7ZSh6KTs8
-L3NjcmlwdD4NCg0KDQo8L2h0bWw+ 
-
-------------4F0534F2991CE672--
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Fight unfair telecom internet charges in Canada: sign http://stopthemeter.ca/
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
