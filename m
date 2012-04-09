@@ -1,48 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx177.postini.com [74.125.245.177])
-	by kanga.kvack.org (Postfix) with SMTP id 0BDAB6B004D
-	for <linux-mm@kvack.org>; Mon,  9 Apr 2012 14:44:01 -0400 (EDT)
-Date: Mon, 9 Apr 2012 20:43:59 +0200
-From: Markus Trippelsdorf <markus@trippelsdorf.de>
-Subject: Re: v3.4 BUG: Bad rss-counter state
-Message-ID: <20120409184359.GB2478@x4>
-References: <20120408113925.GA292@x4>
- <20120409055814.GA292@x4>
- <4F83114E.30106@openvz.org>
- <alpine.LSU.2.00.1204091052590.1430@eggly.anvils>
- <20120409184048.GA2478@x4>
+Received: from psmtp.com (na3sys010amx134.postini.com [74.125.245.134])
+	by kanga.kvack.org (Postfix) with SMTP id E59D66B0044
+	for <linux-mm@kvack.org>; Mon,  9 Apr 2012 14:56:09 -0400 (EDT)
+Message-ID: <4F8326FD.8020507@redhat.com>
+Date: Mon, 09 Apr 2012 14:14:21 -0400
+From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20120409184048.GA2478@x4>
+Subject: Re: mapped pagecache pages vs unmapped pages
+References: <37371333672160@webcorp7.yandex-team.ru> <4F7E9854.1020904@gmail.com> <12701333991475@webcorp7.yandex-team.ru>
+In-Reply-To: <12701333991475@webcorp7.yandex-team.ru>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: Konstantin Khlebnikov <khlebnikov@openvz.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: Alexey Ivanov <rbtz@yandex-team.ru>
+Cc: "gnehzuil.lzheng@gmail.com" <gnehzuil.lzheng@gmail.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On 2012.04.09 at 20:40 +0200, Markus Trippelsdorf wrote:
-> On 2012.04.09 at 11:22 -0700, Hugh Dickins wrote:
-> > On Mon, 9 Apr 2012, Konstantin Khlebnikov wrote:
-> > > Markus Trippelsdorf wrote:
-> > > > On 2012.04.08 at 13:39 +0200, Markus Trippelsdorf wrote:
-> > > > > I've hit the following warning after I've tried to link Firofox's libxul
-> > > > > with "-flto -lto-partition=none" on my machine with 8GB memory. I've
-> > 
-> > I've no notion of what's unusual in that link.
-> 
-> "-lto-partition=none" disables partitioning and streaming of the link
-> time optimizer.
-> 
-> > > > > killed the process after it used all the memory and 90% of my swap
-> > 
-> > Does doing that link push you well into swap on 3.3?
-> 
-> Yes lto1 uses ~12GB of RAM when called with "-lto-partition=none".
-                         ^^^ should read memory, of course. 
-As I wrote above my machine has 8GB of RAM.
+On 04/09/2012 01:11 PM, Alexey Ivanov wrote:
+> Thanks for the hint!
+>
+> Can anyone clarify the reason of not using zone->inactive_ratio in inactive_file_is_low_global()?
+
+New anonymous pages start out on the active anon list, and
+are always referenced.  If memory fills up, they may end
+up getting moved to the inactive anon list; being referenced
+while on the inactive anon list is enough to get them promoted
+back to the active list.
+
+New file pages start out on the INACTIVE file list, and
+start their lives not referenced at all. Due to readahead
+extra reads, many file pages may never be referenced.
+
+Only file pages that are referenced twice make it onto
+the active list.
+
+This means the inactive file list has to be large enough
+for all the readahead buffers, and give pages enough time
+on the list that frequently accessed ones can get accessed
+twice and promoted.
+
+http://linux-mm.org/PageReplacementDesign
 
 -- 
-Markus
+All rights reversed
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
