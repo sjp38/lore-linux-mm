@@ -1,71 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx125.postini.com [74.125.245.125])
-	by kanga.kvack.org (Postfix) with SMTP id 64BFA6B0044
-	for <linux-mm@kvack.org>; Mon,  9 Apr 2012 15:44:06 -0400 (EDT)
-Message-ID: <4F833BF5.4040001@nod.at>
-Date: Mon, 09 Apr 2012 21:43:49 +0200
-From: Richard Weinberger <richard@nod.at>
-MIME-Version: 1.0
-Subject: Re: swapoff() runs forever
-References: <4F81F564.3020904@nod.at> <4F82752A.6020206@openvz.org> <4F82B6ED.2010500@nod.at> <alpine.LSU.2.00.1204091123380.1430@eggly.anvils>
-In-Reply-To: <alpine.LSU.2.00.1204091123380.1430@eggly.anvils>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Received: from psmtp.com (na3sys010amx156.postini.com [74.125.245.156])
+	by kanga.kvack.org (Postfix) with SMTP id 88EDC6B0044
+	for <linux-mm@kvack.org>; Mon,  9 Apr 2012 15:50:57 -0400 (EDT)
+Date: Mon, 9 Apr 2012 12:50:55 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] Revert
+ "mm: vmscan: fix misused nr_reclaimed in shrink_mem_cgroup_zone()"
+Message-Id: <20120409125055.c6f6fdf0.akpm@linux-foundation.org>
+In-Reply-To: <1334000524-23972-1-git-send-email-yinghan@google.com>
+References: <1334000524-23972-1-git-send-email-yinghan@google.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: Konstantin Khlebnikov <khlebnikov@openvz.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "paul.gortmaker@windriver.com" <paul.gortmaker@windriver.com>, Andrew Morton <akpm@linux-foundation.org>
+To: Ying Han <yinghan@google.com>
+Cc: Rik van Riel <riel@redhat.com>, Hillf Danton <dhillf@gmail.com>, Hugh Dickins <hughd@google.com>, linux-mm@kvack.org
 
-Am 09.04.2012 20:40, schrieb Hugh Dickins:
-> On Mon, 9 Apr 2012, Richard Weinberger wrote:
->> Am 09.04.2012 07:35, schrieb Konstantin Khlebnikov:
->>> Richard Weinberger wrote:
->>>> Hi!
->>>>
->>>> I'm observing a strange issue (at least on UML) on recent Linux kernels.
->>>> If swap is being used the swapoff() system call never terminates.
->>>> To be precise "while ((i = find_next_to_unuse(si, i)) != 0)" in try_to_unuse()
->>>> never terminates.
->>>>
->>>> The affected machine has 256MiB ram and 256MiB swap.
->>>> If an application uses more than 256MiB memory swap is being used.
->>>> But after the application terminates the free command still reports that a few
->>>> MiB are on my swap device and swappoff never terminates.
->>>
->>> After last tmpfs changes swapoff can take minutes.
->>> Or this time it really never terminates?
->>
->> I've never waited forever. ;-)
->
-> Your lack of dedication is disappointing.
->
->> Once I've waited for>30 minutes.
->>
->> I don't think that it's related to tmpfs because it happens
->> also while shutting down the system after all filesystems have been unmounted.
->
-> Like you I'd assume that it is really was going to be forever,
-> rather than swapoff just being characteristically slow:
-> a few MiB left on swap shouldn't take long to get off.
->
-> I've not seen any such issue in recent months (or years), but
-> I've not been using UML either.  The most likely cause that springs
-> to mind would be corruption of the vmalloc'ed swap map: that would
-> be very likely to cause such a hang.
+On Mon,  9 Apr 2012 12:42:04 -0700
+Ying Han <yinghan@google.com> wrote:
 
-Okay, I'll dig into this.
+> This reverts commit c38446cc65e1f2b3eb8630c53943b94c4f65f670.
+> 
+> Before the commit, the code makes senses to me but not after the commit. The
+> "nr_reclaimed" is the number of pages reclaimed by scanning through the memcg's
+> lru lists. The "nr_to_reclaim" is the target value for the whole function. For
+> example, we like to early break the reclaim if reclaimed 32 pages under direct
+> reclaim (not DEF_PRIORITY).
+> 
+> After the reverted commit, the target "nr_to_reclaim" is decremented each time
+> by "nr_reclaimed" but we still use it to compare the "nr_reclaimed". It just
+> doesn't make sense to me...
+> 
+> Signed-off-by: Ying Han <yinghan@google.com>
+> ---
+>  mm/vmscan.c |    7 +------
+>  1 files changed, 1 insertions(+), 6 deletions(-)
+> 
+> diff --git a/mm/vmscan.c b/mm/vmscan.c
+> index 33c332b..1a51868 100644
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -2107,12 +2107,7 @@ restart:
+>  		 * with multiple processes reclaiming pages, the total
+>  		 * freeing target can get unreasonably large.
+>  		 */
+> -		if (nr_reclaimed >= nr_to_reclaim)
+> -			nr_to_reclaim = 0;
+> -		else
+> -			nr_to_reclaim -= nr_reclaimed;
+> -
+> -		if (!nr_to_reclaim && priority < DEF_PRIORITY)
+> +		if (nr_reclaimed >= nr_to_reclaim && priority < DEF_PRIORITY)
+>  			break;
+>  	}
+>  	blk_finish_plug(&plug);
 
-> You say "recent Linux kernels": I wonder what "recent" means.
-> Is this something you can reproduce quickly and reliably enough
-> to do a bisection upon?
->
+This code is all within a loop: the "goto restart" thing.  We reset
+nr_reclaimed to zero each time around that loop.  nr_to_reclaim is (or
+rather, was) constant throughout the entire function.
 
-It happens quite reliably on 3.2 and 3.3.
-On 3.1 and 3.0 sometimes.
-I've already wasted half a day with bisecting it.
+Comparing nr_reclaimed (whcih is reset each time around the loop) to
+nr_to_reclaim made no sense.
 
-Thanks,
-//richard
+I think the code as it stands is ugly.  It would be better to make
+nr_to_reclaim a const and to add another local total_reclaimed, and
+compare that with nr_to_reclaim.  Or just stop resetting nr_reclaimed
+each time around the loop.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
