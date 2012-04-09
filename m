@@ -1,72 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx204.postini.com [74.125.245.204])
-	by kanga.kvack.org (Postfix) with SMTP id E6A306B0044
-	for <linux-mm@kvack.org>; Mon,  9 Apr 2012 12:41:55 -0400 (EDT)
-Received: by bkwq16 with SMTP id q16so4668146bkw.14
-        for <linux-mm@kvack.org>; Mon, 09 Apr 2012 09:41:54 -0700 (PDT)
-Message-ID: <4F83114E.30106@openvz.org>
-Date: Mon, 09 Apr 2012 20:41:50 +0400
-From: Konstantin Khlebnikov <khlebnikov@openvz.org>
+Received: from psmtp.com (na3sys010amx131.postini.com [74.125.245.131])
+	by kanga.kvack.org (Postfix) with SMTP id 638236B0044
+	for <linux-mm@kvack.org>; Mon,  9 Apr 2012 13:11:17 -0400 (EDT)
+From: Alexey Ivanov <rbtz@yandex-team.ru>
+In-Reply-To: <4F7E9854.1020904@gmail.com>
+References: <37371333672160@webcorp7.yandex-team.ru> <4F7E9854.1020904@gmail.com>
+Subject: Re: mapped pagecache pages vs unmapped pages
 MIME-Version: 1.0
-Subject: Re: v3.4 BUG: Bad rss-counter state
-References: <20120408113925.GA292@x4> <20120409055814.GA292@x4>
-In-Reply-To: <20120409055814.GA292@x4>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Message-Id: <12701333991475@webcorp7.yandex-team.ru>
+Date: Mon, 09 Apr 2012 21:11:14 +0400
+Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=koi8-r
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Markus Trippelsdorf <markus@trippelsdorf.de>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Hugh Dickins <hughd@google.com>
+To: "gnehzuil.lzheng@gmail.com" <gnehzuil.lzheng@gmail.com>
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-Markus Trippelsdorf wrote:
-> On 2012.04.08 at 13:39 +0200, Markus Trippelsdorf wrote:
->> I've hit the following warning after I've tried to link Firofox's libxul
->> with "-flto -lto-partition=none" on my machine with 8GB memory. I've
->> killed the process after it used all the memory and 90% of my swap
->> space. Before the machine was rebooted I saw these messages:
+Thanks for the hint!
+
+Can anyone clarify the reason of not using zone->inactive_ratio in inactive_file_is_low_global()?
+
+06.04.2012, 11:16, "gnehzuil.lzheng@gmail.com" <gnehzuil.lzheng@gmail.com>:
+> On 04/06/2012 08:29 AM, Alexey Ivanov wrote:
+>
+>> ?In progress of migration from FreeBSD to Linux and we found some strange behavior: periodically running tasks (like rsync/p2p deployment) evict mapped pages from memory.
 >>
->> Apr  8 13:11:08 x4 kernel: BUG: Bad rss-counter state mm:ffff88020813c380 idx:1 val:-1
->> Apr  8 13:11:08 x4 kernel: BUG: Bad rss-counter state mm:ffff88020813c380 idx:2 val:1
->> Apr  8 13:11:08 x4 kernel: BUG: Bad rss-counter state mm:ffff88021503bb80 idx:1 val:-1
->> Apr  8 13:11:08 x4 kernel: BUG: Bad rss-counter state mm:ffff8801fb643b80 idx:1 val:-1
->> Apr  8 13:11:08 x4 kernel: BUG: Bad rss-counter state mm:ffff8801fb643b80 idx:2 val:1
->> Apr  8 13:11:08 x4 kernel: BUG: Bad rss-counter state mm:ffff88021503bb80 idx:2 val:1
->> Apr  8 13:11:08 x4 kernel: BUG: Bad rss-counter state mm:ffff88020a4ff800 idx:1 val:-1
->> Apr  8 13:11:08 x4 kernel: BUG: Bad rss-counter state mm:ffff88020a4ff800 idx:2 val:1
->> Apr  8 13:11:08 x4 kernel: BUG: Bad rss-counter state mm:ffff88020813ce00 idx:1 val:-1
->> Apr  8 13:11:08 x4 kernel: BUG: Bad rss-counter state mm:ffff88020813ce00 idx:2 val:1
->> Apr  8 13:11:08 x4 kernel: BUG: Bad rss-counter state mm:ffff8801fadda680 idx:1 val:-1
->> Apr  8 13:11:08 x4 kernel: BUG: Bad rss-counter state mm:ffff8801fadda680 idx:2 val:1
+>> ?From my little research I've found following lkml thread:
+>> ?https://lkml.org/lkml/2008/6/11/278
+>> ?And more precisely this commit: https://git.kernel.org/?p=linux/kernel/git/torvalds/linux-2.6.git;a=commit;h=4f98a2fee8acdb4ac84545df98cccecfd130f8db
+>> ?which along with splitting LRU into "anon" and "file" removed support of reclaim_mapped.
+>>
+>> ?Is there a knob to prioritize mapped memory over unmapped (without modifying all apps to use O_DIRECT/fadvise/madvise or mlocking our data in memory) or at least some way to change proportion of Active(file)/Inactive(file)?
 >
-> BTW, I'm not the only one that sees these messages. Here are two more
-> reports from Ubuntu beta testers:
+> Hi Alexey,
 >
-> https://bugs.launchpad.net/ubuntu/+source/linux/+bug/963672
-> BUG: Bad rss-counter state mm:ffff88022107fb80 idx:1 val:-14
-> BUG: Bad rss-counter state mm:ffff88022107fb80 idx:2 val:14
+> Cc to linux-mm mailing list.
 >
+> I have met the similar problem and I have sent a mail to discuss it.
+> Maybe it can help you
+> (http://marc.info/?l=linux-mm&m=132947026019538&w=2).
 >
-> https://bugs.launchpad.net/ubuntu/+source/linux/+bug/965709
-> BUG: Bad rss-counter state mm:c8fd9dc0 idx:1 val:-2
-> BUG: Bad rss-counter state mm:c8fd9dc0 idx:2 val:2
-> usb 5-1: USB disconnect, device number 2
-> usb 5-1: new low-speed USB device number 3 using uhci_hcd
-> input: Mega World Thrustmaster dual analog 3.2 as
-> /devices/pci0000:00/0000:00:1d.0/usb5/5-1/5-1:1.0/input/input13
-> generic-usb 0003:044F:B315.0004: input,hidraw1: USB HID v1.10 Gamepad
-> [Mega World Thrustmaster dual analog 3.2] on usb-0000:00:1d.0-1/input0
-> BUG: Bad rss-counter state mm:c8fd9dc0 idx:1 val:-2
-> BUG: Bad rss-counter state mm:c8fd9dc0 idx:2 val:2
-> BUG: Bad rss-counter state mm:dea3cc40 idx:1 val:-1
-> BUG: Bad rss-counter state mm:dea3cc40 idx:2 val:1
+> Now Konstantin has sent a patch set to try to expand vm_flags from 32
+> bit to 64 bit. ?Then we can add the new flag into vm_flags and
+> prioritize mmaped pages in madvise(2).
 >
-> The pattern seem to be:
-> ... idx:1 val:-x
-> ... idx:2 val:x
-> for x=1,2,14
->
+> Regards,
+> Zheng
+> --
+> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at ?http://vger.kernel.org/majordomo-info.html
+> Please read the FAQ at ?http://www.tux.org/lkml/
 
-Ok, thanks. I'll try to figure out how this is happened.
+-- 
+Alexey Ivanov
+Yandex Search Admin Team
+*************
+tel.: +7 (985) 120-35-83 (int. 7176)
+http://staff.yandex-team.ru/rbtz
+*************
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
