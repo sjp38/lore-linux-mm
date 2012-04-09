@@ -1,227 +1,174 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx168.postini.com [74.125.245.168])
-	by kanga.kvack.org (Postfix) with SMTP id BD8BE6B0044
-	for <linux-mm@kvack.org>; Mon,  9 Apr 2012 02:18:06 -0400 (EDT)
-Received: from m4.gw.fujitsu.co.jp (unknown [10.0.50.74])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 4E99E3EE0C0
-	for <linux-mm@kvack.org>; Mon,  9 Apr 2012 15:18:05 +0900 (JST)
-Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 32C5745DE58
-	for <linux-mm@kvack.org>; Mon,  9 Apr 2012 15:18:05 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 01ED545DE50
-	for <linux-mm@kvack.org>; Mon,  9 Apr 2012 15:18:05 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id E67F91DB8043
-	for <linux-mm@kvack.org>; Mon,  9 Apr 2012 15:18:04 +0900 (JST)
-Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.240.81.134])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 901E71DB803B
-	for <linux-mm@kvack.org>; Mon,  9 Apr 2012 15:18:04 +0900 (JST)
-Message-ID: <4F827EAD.9080300@jp.fujitsu.com>
-Date: Mon, 09 Apr 2012 15:16:13 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH -V5 12/14] memcg: move HugeTLB resource count to parent
- cgroup on memcg removal
-References: <1333738260-1329-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com> <1333738260-1329-13-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
-In-Reply-To: <1333738260-1329-13-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
-Content-Type: text/plain; charset=ISO-2022-JP
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx138.postini.com [74.125.245.138])
+	by kanga.kvack.org (Postfix) with SMTP id DC7A36B0044
+	for <linux-mm@kvack.org>; Mon,  9 Apr 2012 03:37:55 -0400 (EDT)
+Received: from epcpsbgm1.samsung.com (mailout4.samsung.com [203.254.224.34])
+ by mailout4.samsung.com
+ (Oracle Communications Messaging Exchange Server 7u4-19.01 64bit (built Sep  7
+ 2010)) with ESMTP id <0M2700CCEBU97M00@mailout4.samsung.com> for
+ linux-mm@kvack.org; Mon, 09 Apr 2012 16:37:54 +0900 (KST)
+Received: from NOSYRJEONG01 ([12.52.126.171])
+ by mmp2.samsung.com (Oracle Communications Messaging Exchange Server 7u4-19.01
+ 64bit (built Sep  7 2010)) with ESMTPA id <0M2700MLUBV56E30@mmp2.samsung.com>
+ for linux-mm@kvack.org; Mon, 09 Apr 2012 16:37:53 +0900 (KST)
+From: =?utf-8?B?7KCV7Zqo7KeE?= <syr.jeong@samsung.com>
+References: <201203301744.16762.arnd@arndb.de>
+ <201204021145.43222.arnd@arndb.de>
+ <alpine.LSU.2.00.1204020734560.1847@eggly.anvils>
+ <201204021455.25029.arnd@arndb.de>
+ <D70D75BB1A02CA42A3E28AA542D282303A0661B561@MILMBMIPV3.sdcorp.global.sandisk.com>
+ <4F8245EA.6000600@kernel.org>
+In-reply-to: <4F8245EA.6000600@kernel.org>
+Subject: RE: swap on eMMC and other flash
+Date: Mon, 09 Apr 2012 16:37:53 +0900
+Message-id: <006f01cd1623$ac4a2860$04de7920$%jeong@samsung.com>
+MIME-version: 1.0
+Content-type: text/plain; charset=utf-8
+Content-transfer-encoding: quoted-printable
+Content-language: ko
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Cc: linux-mm@kvack.org, mgorman@suse.de, dhillf@gmail.com, aarcange@redhat.com, mhocko@suse.cz, akpm@linux-foundation.org, hannes@cmpxchg.org, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org
+To: 'Minchan Kim' <minchan@kernel.org>, 'Alex Lemberg' <Alex.Lemberg@sandisk.com>
+Cc: 'Arnd Bergmann' <arnd@arndb.de>, linaro-kernel@lists.linaro.org, 'Rik van Riel' <riel@redhat.com>, linux-mmc@vger.kernel.org, linux-kernel@vger.kernel.org, "'Luca Porzio (lporzio)'" <lporzio@micron.com>, linux-mm@kvack.org, kernel-team@android.com, 'Yejin Moon' <yejin.moon@samsung.com>, 'Hugh Dickins' <hughd@google.com>, 'Yaniv Iarovici' <Yaniv.Iarovici@sandisk.com>, cpgs@samsung.com
 
-(2012/04/07 3:50), Aneesh Kumar K.V wrote:
+Hi Minchan
 
-> From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-> 
-> This add support for memcg removal with HugeTLB resource usage.
-> 
-> Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
+How are you doing?
 
+Regarding time to issue Discard/Trim :
+eMMC point of view, I believe that the immediate Discard/Trim CMD after =
+deleting/freezing a SWAP cluster is always better for all of general =
+eMMC implementation.
 
-Hmm 
+Regarding swap page size:
+Actually, I can't guarantee the optimal size of different eMMC in the =
+industry, because it depends on NAND page size an firmware =
+implementation inside eMMC. In case of SAMSUNG eMMC, 8KB page size and =
+512KB block size(erase unit) is current implementation.
+I think that the multiple of 8KB page size align with 512KB is good for =
+SAMSUNG eMMC.
+If swap system use 512KB page and issue Discard/Trim align with 512KB, =
+eMMC make best performance as of today. However, large page size in swap =
+partition may not best way in Linux system level.
+I'm not sure that the best page size between Swap system and eMMC =
+device.
 
+Best Regards
+Hyojin
+-----Original Message-----
+From: Minchan Kim [mailto:minchan@kernel.org]=20
+Sent: Monday, April 09, 2012 11:14 AM
+To: Alex Lemberg
+Cc: Arnd Bergmann; linaro-kernel@lists.linaro.org; Rik van Riel; =
+linux-mmc@vger.kernel.org; linux-kernel@vger.kernel.org; Luca Porzio =
+(lporzio); linux-mm@kvack.org; Hyojin Jeong; kernel-team@android.com; =
+Yejin Moon; Hugh Dickins; Yaniv Iarovici
+Subject: Re: swap on eMMC and other flash
 
-> +#ifdef CONFIG_MEM_RES_CTLR_HUGETLB
-> +/*
-> + * Force the memcg to empty the hugetlb resources by moving them to
-> + * the parent cgroup. We can fail if the parent cgroup's limit prevented
-> + * the charging. This should only happen if use_hierarchy is not set.
-> + */
-> +int hugetlb_force_memcg_empty(struct cgroup *cgroup)
-> +{
-> +	struct hstate *h;
-> +	struct page *page;
-> +	int ret = 0, idx = 0;
-> +
-> +	do {
-> +		if (cgroup_task_count(cgroup) || !list_empty(&cgroup->children))
-> +			goto out;
-> +		/*
-> +		 * If the task doing the cgroup_rmdir got a signal
-> +		 * we don't really need to loop till the hugetlb resource
-> +		 * usage become zero.
-> +		 */
-> +		if (signal_pending(current)) {
-> +			ret = -EINTR;
-> +			goto out;
-> +		}
-> +		for_each_hstate(h) {
-> +			spin_lock(&hugetlb_lock);
-> +			list_for_each_entry(page, &h->hugepage_activelist, lru) {
-> +				ret = mem_cgroup_move_hugetlb_parent(idx, cgroup, page);
-> +				if (ret) {
-> +					spin_unlock(&hugetlb_lock);
-> +					goto out;
-> +				}
-> +			}
-> +			spin_unlock(&hugetlb_lock);
-> +			idx++;
-> +		}
-> +		cond_resched();
-> +	} while (mem_cgroup_have_hugetlb_usage(cgroup));
-> +out:
-> +	return ret;
-> +}
-> +#endif
-> +
->  /* Should be called on processing a hugepagesz=... option */
->  void __init hugetlb_add_hstate(unsigned order)
->  {
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index 7d3330e..7b6e79a 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -3228,9 +3228,11 @@ static inline int mem_cgroup_move_swap_account(swp_entry_t entry,
->  #endif
->  
->  #ifdef CONFIG_MEM_RES_CTLR_HUGETLB
-> -static bool mem_cgroup_have_hugetlb_usage(struct mem_cgroup *memcg)
-> +bool mem_cgroup_have_hugetlb_usage(struct cgroup *cgroup)
->  {
->  	int idx;
-> +	struct mem_cgroup *memcg = mem_cgroup_from_cont(cgroup);
-> +
->  	for (idx = 0; idx < hugetlb_max_hstate; idx++) {
->  		if ((res_counter_read_u64(&memcg->hugepage[idx], RES_USAGE)) > 0)
->  			return 1;
-> @@ -3328,10 +3330,57 @@ void mem_cgroup_hugetlb_uncharge_memcg(int idx, unsigned long nr_pages,
->  	res_counter_uncharge(&memcg->hugepage[idx], csize);
->  	return;
->  }
-> -#else
-> -static bool mem_cgroup_have_hugetlb_usage(struct mem_cgroup *memcg)
-> +
-> +int mem_cgroup_move_hugetlb_parent(int idx, struct cgroup *cgroup,
-> +				   struct page *page)
->  {
-> -	return 0;
-> +	struct page_cgroup *pc;
-> +	int csize,  ret = 0;
-> +	struct res_counter *fail_res;
-> +	struct cgroup *pcgrp = cgroup->parent;
-> +	struct mem_cgroup *parent = mem_cgroup_from_cont(pcgrp);
-> +	struct mem_cgroup *memcg  = mem_cgroup_from_cont(cgroup);
-> +
-> +	if (!get_page_unless_zero(page))
-> +		goto out;
-> +
-> +	pc = lookup_page_cgroup(page);
-> +	lock_page_cgroup(pc);
-> +	if (!PageCgroupUsed(pc) || pc->mem_cgroup != memcg)
-> +		goto err_out;
-> +
-> +	csize = PAGE_SIZE << compound_order(page);
-> +	/*
-> +	 * uncharge from child and charge the parent. If we have
-> +	 * use_hierarchy set, we can never fail here. In-order to make
-> +	 * sure we don't get -ENOMEM on parent charge, we first uncharge
-> +	 * the child and then charge the parent.
-> +	 */
-> +	if (parent->use_hierarchy) {
+2012-04-08 =EC=98=A4=ED=9B=84 10:50, Alex Lemberg =EC=93=B4 =EA=B8=80:
+
+> Hi Arnd,
+>=20
+> Regarding time to issue discard/TRIM commands:
+> It would be advised to issue the discard command immediately after =
+deleting/freeing a SWAP cluster (i.e. as soon as it becomes available).
 
 
-> +		res_counter_uncharge(&memcg->hugepage[idx], csize);
-> +		if (!mem_cgroup_is_root(parent))
-> +			ret = res_counter_charge(&parent->hugepage[idx],
-> +						 csize, &fail_res);
+Is it still good with page size, not cluster size?
+
+>=20
+> Regarding SWAP page size:
+> Working with as large as SWAP pages as possible would be recommended =
+(preferably 64KB). Also, writing in a sequential manner as much as =
+possible while swapping large quantities of data is also advisable.
+>=20
+> SWAP pages and corresponding transactions should be aligned to the =
+SWAP page size (i.e. 64KB above), the alignment should correspond to the =
+physical storage "LBA 0", i.e. to the first LBA of the storage device =
+(and not to a logical/physical partition).
+>=20
 
 
-Ah, why is !mem_cgroup_is_root() checked ? no res_counter update for
-root cgroup ?
 
-I think it's better to have res_counter_move_parent()...to do ops in atomic.
-(I'll post a patch for that for my purpose). OR, just ignore res->usage if
-parent->use_hierarchy == 1.
-
-uncharge->charge will have a race.
-
-> +	} else {
-> +		if (!mem_cgroup_is_root(parent)) {
-> +			ret = res_counter_charge(&parent->hugepage[idx],
-> +						 csize, &fail_res);
-> +			if (ret) {
-> +				ret = -EBUSY;
-> +				goto err_out;
-> +			}
-> +		}
-> +		res_counter_uncharge(&memcg->hugepage[idx], csize);
-> +	}
+I have a curiosity on above comment is valid on Samsung and other eMMC.
+Hyojin, Could you answer?
 
 
-Just a notice. Recently, Tejun changed failure of pre_destory() to show WARNING.
-Then, I'd like to move the usage to the root cgroup if use_hierarchy=0.
-Will it work for you ?
+> Thanks,
+> Alex
+>=20
+>> -----Original Message-----
+>> From: Arnd Bergmann [mailto:arnd@arndb.de]
+>> Sent: Monday, April 02, 2012 5:55 PM
+>> To: Hugh Dickins
+>> Cc: linaro-kernel@lists.linaro.org; Rik van Riel; linux-=20
+>> mmc@vger.kernel.org; Alex Lemberg; linux-kernel@vger.kernel.org; Luca =
 
-> +	/*
-> +	 * caller should have done css_get
-> +	 */
+>> Porzio (lporzio); linux-mm@kvack.org; Hyojin Jeong; kernel-=20
+>> team@android.com; Yejin Moon
+>> Subject: Re: swap on eMMC and other flash
+>>
+>> On Monday 02 April 2012, Hugh Dickins wrote:
+>>> On Mon, 2 Apr 2012, Arnd Bergmann wrote:
+>>>>
+>>>> Another option would be batched discard as we do it for file
+>> systems:
+>>>> occasionally stop writing to swap space and scanning for areas that =
+
+>>>> have become available since the last discard, then send discard=20
+>>>> commands for those.
+>>>
+>>> I'm not sure whether you've missed "swapon --discard", which=20
+>>> switches on discard_swap_cluster() just before we allocate from a=20
+>>> new cluster; or whether you're musing that it's no use to you=20
+>>> because you want to repurpose the swap cluster to match erase block: =
+
+>>> I'm mentioning it in case you missed that it's already there (but=20
+>>> few use it, since even done at that scale it's often more trouble =
+than it's worth).
+>>
+>> I actually argued that discard_swap_cluster is exactly the right=20
+>> thing to do, especially when clusters match erase blocks on the less=20
+>> capable devices like SD cards.
+>>
+>> Luca was arguing that on some hardware there is no point in ever=20
+>> submitting a discard just before we start reusing space, because at=20
+>> that point it the hardware already discards the old data by=20
+>> overwriting the logical addresses with new blocks, while issuing a=20
+>> discard on all blocks as soon as they become available would make a=20
+>> bigger difference. I would be interested in hearing from Hyojin Jeong =
+
+>> and Alex Lemberg what they think is the best time to issue a discard, =
+
+>> because they would know about other hardware than Luca.
+>>
+>>       Arnd
+>=20
+> PLEASE NOTE: The information contained in this electronic mail message =
+is intended only for the use of the designated recipient(s) named above. =
+If the reader of this message is not the intended recipient, you are =
+hereby notified that you have received this message in error and that =
+any review, dissemination, distribution, or copying of this message is =
+strictly prohibited. If you have received this communication in error, =
+please notify the sender by telephone or e-mail (as shown above) =
+immediately and destroy any and all copies of this message in your =
+possession (whether hard copies or electronically stored copies).
+>=20
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in the body =
+
+> to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Fight unfair telecom internet charges in Canada: sign=20
+> http://stopthemeter.ca/ Don't email: <a href=3Dilto:"dont@kvack.org">=20
+> email@kvack.org </a>
+>=20
 
 
-Could you explain meaning of this comment ?
 
-
-Thanks,
--Kame
-
-> +	pc->mem_cgroup = parent;
-> +err_out:
-> +	unlock_page_cgroup(pc);
-> +	put_page(page);
-> +out:
-> +	return ret;
->  }
->  #endif /* CONFIG_MEM_RES_CTLR_HUGETLB */
->  
-> @@ -3852,6 +3901,11 @@ static int mem_cgroup_force_empty(struct mem_cgroup *memcg, bool free_all)
->  	/* should free all ? */
->  	if (free_all)
->  		goto try_to_free;
-> +
-> +	/* move the hugetlb charges */
-> +	ret = hugetlb_force_memcg_empty(cgrp);
-> +	if (ret)
-> +		goto out;
->  move_account:
->  	do {
->  		ret = -EBUSY;
-> @@ -5172,12 +5226,6 @@ free_out:
->  static int mem_cgroup_pre_destroy(struct cgroup *cont)
->  {
->  	struct mem_cgroup *memcg = mem_cgroup_from_cont(cont);
-> -	/*
-> -	 * Don't allow memcg removal if we have HugeTLB resource
-> -	 * usage.
-> -	 */
-> -	if (mem_cgroup_have_hugetlb_usage(memcg))
-> -		return -EBUSY;
->  
->  	return mem_cgroup_force_empty(memcg, false);
->  }
-
-
+--
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
