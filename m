@@ -1,121 +1,113 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx135.postini.com [74.125.245.135])
-	by kanga.kvack.org (Postfix) with SMTP id 3E84F6B0044
-	for <linux-mm@kvack.org>; Mon,  9 Apr 2012 04:30:48 -0400 (EDT)
-Received: by iajr24 with SMTP id r24so7595080iaj.14
-        for <linux-mm@kvack.org>; Mon, 09 Apr 2012 01:30:47 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx193.postini.com [74.125.245.193])
+	by kanga.kvack.org (Postfix) with SMTP id B61706B0044
+	for <linux-mm@kvack.org>; Mon,  9 Apr 2012 04:36:51 -0400 (EDT)
+Received: from /spool/local
+	by e23smtp02.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
+	Mon, 9 Apr 2012 08:19:16 +1000
+Received: from d23av03.au.ibm.com (d23av03.au.ibm.com [9.190.234.97])
+	by d23relay04.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q398UH523244184
+	for <linux-mm@kvack.org>; Mon, 9 Apr 2012 18:30:17 +1000
+Received: from d23av03.au.ibm.com (loopback [127.0.0.1])
+	by d23av03.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q398adQH024107
+	for <linux-mm@kvack.org>; Mon, 9 Apr 2012 18:36:40 +1000
+From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Subject: Re: [PATCH -V5 06/14] hugetlb: Simplify migrate_huge_page
+In-Reply-To: <4F8277ED.8040904@jp.fujitsu.com>
+References: <1333738260-1329-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com> <1333738260-1329-7-git-send-email-aneesh.kumar@linux.vnet.ibm.com> <4F8277ED.8040904@jp.fujitsu.com>User-Agent: Notmuch/0.11.1+346~g13d19c3 (http://notmuchmail.org) Emacs/23.3.1 (x86_64-pc-linux-gnu)
+Date: Mon, 09 Apr 2012 14:06:33 +0530
+Message-ID: <87398de1yl.fsf@skywalker.in.ibm.com>
 MIME-Version: 1.0
-In-Reply-To: <20120408233835.GC4839@panacea>
-References: <20120408233550.GA3791@panacea>
-	<20120408233835.GC4839@panacea>
-Date: Mon, 9 Apr 2012 11:30:47 +0300
-Message-ID: <CAOJsxLHQv3xaa3JGPxu0vpSxNvD5gxxGVa=87w_6K0UcSpukWQ@mail.gmail.com>
-Subject: Re: [PATCH 3/3] vmevent: Implement cross event type
-From: Pekka Enberg <penberg@kernel.org>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Anton Vorontsov <anton.vorontsov@linaro.org>
-Cc: Leonid Moiseichuk <leonid.moiseichuk@nokia.com>, John Stultz <john.stultz@linaro.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linaro-kernel@lists.linaro.org
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: linux-mm@kvack.org, mgorman@suse.de, dhillf@gmail.com, aarcange@redhat.com, mhocko@suse.cz, akpm@linux-foundation.org, hannes@cmpxchg.org, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org
 
-On Mon, Apr 9, 2012 at 2:38 AM, Anton Vorontsov
-<anton.vorontsov@linaro.org> wrote:
-> This patch implements a new event type, it will trigger whenever a
-> value crosses a user-specified threshold. It works two-way, i.e. when
-> a value crosses the threshold from a lesser values side to a greater
-> values side, and vice versa.
->
-> We use the event type in an userspace low-memory killer: we get a
-> notification when memory becomes low, so we start freeing memory by
-> killing unneeded processes, and we get notification when memory hits
-> the threshold from another side, so we know that we freed enough of
-> memory.
->
-> Signed-off-by: Anton Vorontsov <anton.vorontsov@linaro.org>
-> ---
-> =A0include/linux/vmevent.h =A0 =A0 =A0 =A0 =A0 =A0 =A0| =A0 =A09 ++++++++=
-+
-> =A0mm/vmevent.c =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 | =A0 21 =
-+++++++++++++++++++++
-> =A0tools/testing/vmevent/vmevent-test.c | =A0 15 ++++++++++-----
-> =A03 files changed, 40 insertions(+), 5 deletions(-)
->
-> diff --git a/include/linux/vmevent.h b/include/linux/vmevent.h
-> index 64357e4..00cc04f 100644
-> --- a/include/linux/vmevent.h
-> +++ b/include/linux/vmevent.h
-> @@ -22,6 +22,15 @@ enum {
-> =A0 =A0 =A0 =A0 * Sample value is less than user-specified value
-> =A0 =A0 =A0 =A0 */
-> =A0 =A0 =A0 =A0VMEVENT_ATTR_STATE_VALUE_LT =A0 =A0 =3D (1UL << 0),
-> + =A0 =A0 =A0 /*
-> + =A0 =A0 =A0 =A0* Sample value crossed user-specified value
-> + =A0 =A0 =A0 =A0*/
-> + =A0 =A0 =A0 VMEVENT_ATTR_STATE_VALUE_CROSS =A0=3D (1UL << 2),
-> +
-> + =A0 =A0 =A0 /* Last saved state, used internally by the kernel. */
-> + =A0 =A0 =A0 __VMEVENT_ATTR_STATE_LAST =A0 =A0 =A0 =3D (1UL << 30),
-> + =A0 =A0 =A0 /* Not first sample, used internally by the kernel. */
-> + =A0 =A0 =A0 __VMEVENT_ATTR_STATE_NFIRST =A0 =A0 =3D (1UL << 31),
-> =A0};
->
-> =A0struct vmevent_attr {
-> diff --git a/mm/vmevent.c b/mm/vmevent.c
-> index a56174f..f8fd2d6 100644
-> --- a/mm/vmevent.c
-> +++ b/mm/vmevent.c
-> @@ -1,5 +1,6 @@
-> =A0#include <linux/anon_inodes.h>
-> =A0#include <linux/atomic.h>
-> +#include <linux/compiler.h>
-> =A0#include <linux/vmevent.h>
-> =A0#include <linux/syscalls.h>
-> =A0#include <linux/timer.h>
-> @@ -94,6 +95,26 @@ static bool vmevent_match(struct vmevent_watch *watch)
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0if (attr->state & VMEVENT_ATTR_STATE_VALUE=
-_LT) {
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0if (value < attr->value)
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0return tru=
-e;
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 } else if (attr->state & VMEVENT_ATTR_STATE=
-_VALUE_CROSS) {
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 bool fst =3D !(attr->state =
-& __VMEVENT_ATTR_STATE_NFIRST);
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 bool old =3D attr->state & =
-__VMEVENT_ATTR_STATE_LAST;
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 bool new =3D value < attr->=
-value;
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 bool chg =3D old ^ new;
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 bool ret =3D chg;
-> +
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 /*
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0* This is not 'lt' or 'g=
-t' match, so on the first
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0* sample assume we cross=
-ed the threshold.
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0*/
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (unlikely(fst)) {
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 attr->state=
- |=3D __VMEVENT_ATTR_STATE_NFIRST;
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 ret =3D tru=
-e;
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 }
-> +
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 attr->state &=3D ~__VMEVENT=
-_ATTR_STATE_LAST;
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 attr->state |=3D new ? __VM=
-EVENT_ATTR_STATE_LAST : 0;
-> +
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 return ret;
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0}
-> =A0 =A0 =A0 =A0}
->
+KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> writes:
 
-Can't we implement this by specifying both VMEVENT_ATTR_STATE_VALUE_LT
-and VMEVENT_ATTR_STATE_VALUE_GT in userspace? I assume the problem
-with current approach is that you get more than one notifications,
-right? We can implement a "single-shot" flag to deal with that.
+> (2012/04/07 3:50), Aneesh Kumar K.V wrote:
+>
+>> From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+>> 
+>> Since we migrate only one hugepage don't use linked list for passing
+>> the page around. Directly pass page that need to be migrated as argument.
+>> This also remove the usage page->lru in migrate path.
+>> 
+>> Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
+>
+>
+> seems good to me. I have one question below.
+>
+>
+>> ---
+
+...... snip ......
+
+
+>> -	list_add(&hpage->lru, &pagelist);
+>> -	ret = migrate_huge_pages(&pagelist, new_page, MPOL_MF_MOVE_ALL, 0,
+>> -				true);
+>> +	ret = migrate_huge_page(page, new_page, MPOL_MF_MOVE_ALL, 0, true);
+>> +	put_page(page);
+>>  	if (ret) {
+>> -		struct page *page1, *page2;
+>> -		list_for_each_entry_safe(page1, page2, &pagelist, lru)
+>> -			put_page(page1);
+>> -
+>>  		pr_info("soft offline: %#lx: migration failed %d, type %lx\n",
+>>  			pfn, ret, page->flags);
+>> -		if (ret > 0)
+>> -			ret = -EIO;   <---------------------------- here
+>>  		return ret;
+>>  	}
+>>  done:
+>> diff --git a/mm/migrate.c b/mm/migrate.c
+>> index 51c08a0..d7eb82d 100644
+>> --- a/mm/migrate.c
+>> +++ b/mm/migrate.c
+>> @@ -929,15 +929,8 @@ static int unmap_and_move_huge_page(new_page_t get_new_page,
+>>  	if (anon_vma)
+>>  		put_anon_vma(anon_vma);
+>>  	unlock_page(hpage);
+
+.... snip .....
+
+>> -
+>> -			rc = unmap_and_move_huge_page(get_new_page,
+>> -					private, page, pass > 2, offlining,
+>> -					mode);
+>> -
+>> -			switch(rc) {
+>> -			case -ENOMEM:
+>> -				goto out;
+>> -			case -EAGAIN:
+>> -				retry++;
+>> -				break;
+>> -			case 0:
+>> -				break;
+>> -			default:
+>> -				/* Permanent failure */
+>> -				nr_failed++;
+>> -				break;
+>> -			}
+>> +			break;
+>> +		case 0:
+>> +			goto out;
+>> +		default:
+>> +			rc = -EIO;
+>> +			goto out;
+>
+>
+> why -EIO ? Isn't this BUG() ??
+
+I am not sure doing a BUG() for migrate is a good idea. We may want to
+return error and let the higher layer handle this. Also as you see in
+the two hunks I listed above, default is mapped to -EIO in the current
+code. I didn't want to change that.
+
+-aneesh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
