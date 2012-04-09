@@ -1,96 +1,128 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx156.postini.com [74.125.245.156])
-	by kanga.kvack.org (Postfix) with SMTP id 029EA6B0092
-	for <linux-mm@kvack.org>; Mon,  9 Apr 2012 14:17:37 -0400 (EDT)
-Received: by lagz14 with SMTP id z14so4793531lag.14
-        for <linux-mm@kvack.org>; Mon, 09 Apr 2012 11:17:35 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx123.postini.com [74.125.245.123])
+	by kanga.kvack.org (Postfix) with SMTP id 42BC56B0092
+	for <linux-mm@kvack.org>; Mon,  9 Apr 2012 14:23:13 -0400 (EDT)
+Received: by iajr24 with SMTP id r24so8395348iaj.14
+        for <linux-mm@kvack.org>; Mon, 09 Apr 2012 11:23:12 -0700 (PDT)
+Date: Mon, 9 Apr 2012 11:22:37 -0700 (PDT)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: v3.4 BUG: Bad rss-counter state
+In-Reply-To: <4F83114E.30106@openvz.org>
+Message-ID: <alpine.LSU.2.00.1204091052590.1430@eggly.anvils>
+References: <20120408113925.GA292@x4> <20120409055814.GA292@x4> <4F83114E.30106@openvz.org>
 MIME-Version: 1.0
-In-Reply-To: <12701333991475@webcorp7.yandex-team.ru>
-References: <37371333672160@webcorp7.yandex-team.ru>
-	<4F7E9854.1020904@gmail.com>
-	<12701333991475@webcorp7.yandex-team.ru>
-Date: Mon, 9 Apr 2012 11:17:35 -0700
-Message-ID: <CALWz4ixcXXPU_=vqcsH1uLkG8jsL+4yP0oLhhHvnNdMa6pzZQw@mail.gmail.com>
-Subject: Re: mapped pagecache pages vs unmapped pages
-From: Ying Han <yinghan@google.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Alexey Ivanov <rbtz@yandex-team.ru>
-Cc: "gnehzuil.lzheng@gmail.com" <gnehzuil.lzheng@gmail.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Rik van Riel <riel@redhat.com>
+To: Konstantin Khlebnikov <khlebnikov@openvz.org>
+Cc: Markus Trippelsdorf <markus@trippelsdorf.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 
-On Mon, Apr 9, 2012 at 10:11 AM, Alexey Ivanov <rbtz@yandex-team.ru> wrote:
-> Thanks for the hint!
->
-> Can anyone clarify the reason of not using zone->inactive_ratio in inacti=
-ve_file_is_low_global()?
+On Mon, 9 Apr 2012, Konstantin Khlebnikov wrote:
+> Markus Trippelsdorf wrote:
+> > On 2012.04.08 at 13:39 +0200, Markus Trippelsdorf wrote:
+> > > I've hit the following warning after I've tried to link Firofox's libxul
+> > > with "-flto -lto-partition=none" on my machine with 8GB memory. I've
 
-anonymous pages starts out referenced in active list, and scanning the
-whole active list will only rotate those pages. So we would like to
-limit the size of inactive anon to save scanning.
+I've no notion of what's unusual in that link.
 
---Ying
+> > > killed the process after it used all the memory and 90% of my swap
 
+Does doing that link push you well into swap on 3.3?
 
->
-> 06.04.2012, 11:16, "gnehzuil.lzheng@gmail.com" <gnehzuil.lzheng@gmail.com=
->:
->> On 04/06/2012 08:29 AM, Alexey Ivanov wrote:
->>
->>> =A0In progress of migration from FreeBSD to Linux and we found some str=
-ange behavior: periodically running tasks (like rsync/p2p deployment) evict=
- mapped pages from memory.
->>>
->>> =A0From my little research I've found following lkml thread:
->>> =A0https://lkml.org/lkml/2008/6/11/278
->>> =A0And more precisely this commit: https://git.kernel.org/?p=3Dlinux/ke=
-rnel/git/torvalds/linux-2.6.git;a=3Dcommit;h=3D4f98a2fee8acdb4ac84545df98cc=
-cecfd130f8db
->>> =A0which along with splitting LRU into "anon" and "file" removed suppor=
-t of reclaim_mapped.
->>>
->>> =A0Is there a knob to prioritize mapped memory over unmapped (without m=
-odifying all apps to use O_DIRECT/fadvise/madvise or mlocking our data in m=
-emory) or at least some way to change proportion of Active(file)/Inactive(f=
-ile)?
->>
->> Hi Alexey,
->>
->> Cc to linux-mm mailing list.
->>
->> I have met the similar problem and I have sent a mail to discuss it.
->> Maybe it can help you
->> (http://marc.info/?l=3Dlinux-mm&m=3D132947026019538&w=3D2).
->>
->> Now Konstantin has sent a patch set to try to expand vm_flags from 32
->> bit to 64 bit. =A0Then we can add the new flag into vm_flags and
->> prioritize mmaped pages in madvise(2).
->>
->> Regards,
->> Zheng
->> --
->> To unsubscribe from this list: send the line "unsubscribe linux-kernel" =
-in
->> the body of a message to majordomo@vger.kernel.org
->> More majordomo info at =A0http://vger.kernel.org/majordomo-info.html
->> Please read the FAQ at =A0http://www.tux.org/lkml/
->
-> --
-> Alexey Ivanov
-> Yandex Search Admin Team
-> *************
-> tel.: +7 (985) 120-35-83 (int. 7176)
-> http://staff.yandex-team.ru/rbtz
-> *************
->
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org. =A0For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Fight unfair telecom internet charges in Canada: sign http://stopthemeter=
-.ca/
-> Don't email: <a href=3Dmailto:"dont@kvack.org"> email@kvack.org </a>
+There's a separate mail thread which implicates
+CONFIG_ANDROID_LOW_MEMORY_KILLER (how appropriately named!) in memory
+leaks on 3.4, so please switch that off if you happened to have it on -
+unless you're keen to reproduce these rss-counter messages for us.
+
+> > > space. Before the machine was rebooted I saw these messages:
+> > > 
+> > > Apr  8 13:11:08 x4 kernel: BUG: Bad rss-counter state mm:ffff88020813c380
+> > > idx:1 val:-1
+> > > Apr  8 13:11:08 x4 kernel: BUG: Bad rss-counter state mm:ffff88020813c380
+> > > idx:2 val:1
+> > > Apr  8 13:11:08 x4 kernel: BUG: Bad rss-counter state mm:ffff88021503bb80
+> > > idx:1 val:-1
+> > > Apr  8 13:11:08 x4 kernel: BUG: Bad rss-counter state mm:ffff8801fb643b80
+> > > idx:1 val:-1
+> > > Apr  8 13:11:08 x4 kernel: BUG: Bad rss-counter state mm:ffff8801fb643b80
+> > > idx:2 val:1
+> > > Apr  8 13:11:08 x4 kernel: BUG: Bad rss-counter state mm:ffff88021503bb80
+> > > idx:2 val:1
+> > > Apr  8 13:11:08 x4 kernel: BUG: Bad rss-counter state mm:ffff88020a4ff800
+> > > idx:1 val:-1
+> > > Apr  8 13:11:08 x4 kernel: BUG: Bad rss-counter state mm:ffff88020a4ff800
+> > > idx:2 val:1
+> > > Apr  8 13:11:08 x4 kernel: BUG: Bad rss-counter state mm:ffff88020813ce00
+> > > idx:1 val:-1
+> > > Apr  8 13:11:08 x4 kernel: BUG: Bad rss-counter state mm:ffff88020813ce00
+> > > idx:2 val:1
+> > > Apr  8 13:11:08 x4 kernel: BUG: Bad rss-counter state mm:ffff8801fadda680
+> > > idx:1 val:-1
+> > > Apr  8 13:11:08 x4 kernel: BUG: Bad rss-counter state mm:ffff8801fadda680
+> > > idx:2 val:1
+
+Bringing back some text from Markus's original posting:
+
+> > > These warnings were introduced by c3f0327f8e9d7. Wouldn't it make sense to hide
+> > > them under some debugging option? AFAICS they contain no information that could
+> > > be of any use to a casual user.
+
+Yes, I agree, I would prefer it under CONFIG_DEBUG_VM (as I said at the
+time); and KERN_ALERT is way over the top, KERN_WARNING more appropriate.
+
+However, it is very interesting that they have revealed something,
+which would have been missed if they hadn't annoyed Markus in this way:
+a patch around -rc7 to make it KERN_WARNING under CONFIG_DEBUG_VM would
+be good, but until then let's see what else comes up.
+
+> > 
+> > BTW, I'm not the only one that sees these messages. Here are two more
+> > reports from Ubuntu beta testers:
+> > 
+> > https://bugs.launchpad.net/ubuntu/+source/linux/+bug/963672
+> > BUG: Bad rss-counter state mm:ffff88022107fb80 idx:1 val:-14
+> > BUG: Bad rss-counter state mm:ffff88022107fb80 idx:2 val:14
+> > 
+> > 
+> > https://bugs.launchpad.net/ubuntu/+source/linux/+bug/965709
+> > BUG: Bad rss-counter state mm:c8fd9dc0 idx:1 val:-2
+> > BUG: Bad rss-counter state mm:c8fd9dc0 idx:2 val:2
+> > usb 5-1: USB disconnect, device number 2
+> > usb 5-1: new low-speed USB device number 3 using uhci_hcd
+> > input: Mega World Thrustmaster dual analog 3.2 as
+> > /devices/pci0000:00/0000:00:1d.0/usb5/5-1/5-1:1.0/input/input13
+> > generic-usb 0003:044F:B315.0004: input,hidraw1: USB HID v1.10 Gamepad
+> > [Mega World Thrustmaster dual analog 3.2] on usb-0000:00:1d.0-1/input0
+> > BUG: Bad rss-counter state mm:c8fd9dc0 idx:1 val:-2
+> > BUG: Bad rss-counter state mm:c8fd9dc0 idx:2 val:2
+> > BUG: Bad rss-counter state mm:dea3cc40 idx:1 val:-1
+> > BUG: Bad rss-counter state mm:dea3cc40 idx:2 val:1
+> > 
+> > The pattern seem to be:
+> > ... idx:1 val:-x
+> > ... idx:2 val:x
+> > for x=1,2,14
+> > 
+> 
+> Ok, thanks. I'll try to figure out how this is happened.
+
+Thanks: I looked around but didn't find it.
+
+All the numbers, of course, indicate a ptentry being counted as swap
+when it's inserted, but anon when it's removed.
+
+I was suspicious of the mm_counter args stuff in fs/exec.c at first;
+but I think that that is self-consistent (doesn't matter if entries
+get swapped out), despite being an unusual way of using the counters.
+
+zap_pte()'s else block in mm/fremap.c looks ignorant of migration
+entries and mm_counters, and ought to be updated; but I think it's
+very unlikely to be the cause of the cases seen (sys_remap_file_pages
+is unusual in itself, applying it to an already populated area even
+more unusual, finding anon-or-swap entries in a VM_SHARED area even
+more unusual).
+
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
