@@ -1,80 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx146.postini.com [74.125.245.146])
-	by kanga.kvack.org (Postfix) with SMTP id C9E1D6B0083
-	for <linux-mm@kvack.org>; Tue, 10 Apr 2012 05:29:49 -0400 (EDT)
-Date: Tue, 10 Apr 2012 10:29:44 +0100
+Received: from psmtp.com (na3sys010amx185.postini.com [74.125.245.185])
+	by kanga.kvack.org (Postfix) with SMTP id 4B3DF6B004A
+	for <linux-mm@kvack.org>; Tue, 10 Apr 2012 06:38:38 -0400 (EDT)
+Date: Tue, 10 Apr 2012 11:38:33 +0100
 From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH 1/2] mm: vmscan: Remove lumpy reclaim
-Message-ID: <20120410092944.GC3789@suse.de>
-References: <1332950783-31662-1-git-send-email-mgorman@suse.de>
- <1332950783-31662-2-git-send-email-mgorman@suse.de>
- <CALWz4iymXkJ-88u9Aegc2DjwO2vZp3xVuw_5qTRW2KgPP8ti=g@mail.gmail.com>
- <20120410082454.GA3789@suse.de>
+Subject: Re: [PATCH 1/2] mm: compaction: try harder to isolate free pages
+Message-ID: <20120410103833.GE3789@suse.de>
+References: <1333643534-1591-1-git-send-email-b.zolnierkie@samsung.com>
+ <1333643534-1591-2-git-send-email-b.zolnierkie@samsung.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <20120410082454.GA3789@suse.de>
+In-Reply-To: <1333643534-1591-2-git-send-email-b.zolnierkie@samsung.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ying Han <yinghan@google.com>
-Cc: Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Konstantin Khlebnikov <khlebnikov@openvz.org>, Hugh Dickins <hughd@google.com>
+To: Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>
+Cc: linux-mm@kvack.org, Kyungmin Park <kyungmin.park@samsung.com>
 
-On Tue, Apr 10, 2012 at 09:24:54AM +0100, Mel Gorman wrote:
-> On Fri, Apr 06, 2012 at 04:52:09PM -0700, Ying Han wrote:
-> > On Wed, Mar 28, 2012 at 9:06 AM, Mel Gorman <mgorman@suse.de> wrote:
-> > > Lumpy reclaim had a purpose but in the mind of some, it was to kick
-> > > the system so hard it trashed. For others the purpose was to complicate
-> > > vmscan.c. Over time it was giving softer shoes and a nicer attitude but
-> > > memory compaction needs to step up and replace it so this patch sends
-> > > lumpy reclaim to the farm.
-> > >
-> > > Here are the important notes related to the patch.
-> > >
-> > > 1. The tracepoint format changes for isolating LRU pages.
-> > >
-> > > 2. This patch stops reclaim/compaction entering sync reclaim as this
-> > >   was only intended for lumpy reclaim and an oversight. Page migration
-> > >   has its own logic for stalling on writeback pages if necessary and
-> > >   memory compaction is already using it. This is a behaviour change.
-> > >
-> > > 3. RECLAIM_MODE_SYNC no longer exists. pageout() does not stall
-> > >   on PageWriteback with CONFIG_COMPACTION has been this way for a while.
-> > >   I am calling it out in case this is a surpise to people.
-> > 
-> > Mel,
-> > 
-> > Can you point me the commit making that change? I am looking at
-> > v3.4-rc1 where set_reclaim_mode() still set RECLAIM_MODE_SYNC for
-> > COMPACTION_BUILD.
-> > 
+On Thu, Apr 05, 2012 at 06:32:12PM +0200, Bartlomiej Zolnierkiewicz wrote:
+> In isolate_freepages() check each page in a pageblock
+> instead of checking only first pages of pageblock_nr_pages
+> intervals (suitable_migration_target(page) is called before
+> isolate_freepages_block() so if page is "unsuitable" whole
+> pageblock_nr_pages pages will be ommited from the check).
+> It greatly improves possibility of finding free pages to
+> isolate during compaction_alloc() phase.
 > 
-> You're right.
+> Cc: Mel Gorman <mgorman@suse.de>
+> Signed-off-by: Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>
+> Signed-off-by: Kyungmin Park <kyungmin.park@samsung.com>
+> ---
+>  mm/compaction.c |    5 ++---
+>  1 file changed, 2 insertions(+), 3 deletions(-)
 > 
-> There is only one call site that passes sync==true for set_reclaim_mode() in
-> vmscan.c and that is only if should_reclaim_stall() returns true. It had the
-> comment "Only stall on lumpy reclaim" but the comment is not accurate
-> and that mislead me.
-> 
-> Thanks, I'll revisit the patch.
-> 
+> diff --git a/mm/compaction.c b/mm/compaction.c
+> index d9ebebe..bc77135 100644
+> --- a/mm/compaction.c
+> +++ b/mm/compaction.c
+> @@ -65,7 +65,7 @@ static unsigned long isolate_freepages_block(struct zone *zone,
+>  
+>  	/* Get the last PFN we should scan for free pages at */
+>  	zone_end_pfn = zone->zone_start_pfn + zone->spanned_pages;
+> -	end_pfn = min(blockpfn + pageblock_nr_pages, zone_end_pfn);
+> +	end_pfn = min(blockpfn + 1, zone_end_pfn);
+>  
+>  	/* Find the first usable PFN in the block to initialse page cursor */
+>  	for (; blockpfn < end_pfn; blockpfn++) {
 
-Just to be clear, I think the patch is right in that stalling on page
-writeback was intended just for lumpy reclaim. I've split out the patch
-that stops reclaim/compaction entering sync reclaim but the end result
-of the series is the same. Unfortunately we do not have tracing to record
-how often reclaim waited on writeback during compaction so my historical
-data does not indicate how often it happened. However, it may partially
-explain occasionaly complaints about interactivity during heavy writeback
-when THP is enabled (the bulk of the stalls were due to something else but
-on rare occasions disabling THP was reported to make a small unquantifable
-difference). I'll enable ftrace to record how often mm_vmscan_writepage()
-used RECLAIM_MODE_SYNC during tests for this series and include that
-information in the changelog.
+This changes the meaning of the function significantly. Before your
+patch it isolates all the free pages within a block. After your change
+it is isolating a single page and the function name should be updated to
+reflect that. Of greater concern is that isolate_freepages()
+is now calling suitable_migration_target() for every page scanned
+calling get_pageblock_migratetype() every time which is slow. Worse, you
+are now acquiring the zone lock for every page scanned which is slower
+again.
 
--- 
-Mel Gorman
-SUSE Labs
+I think the bug you are accidentally fixing is related to how high_pfn
+is updated inside that loop. The intent is that when free pages are
+isolated that the next scan started from the same place as page
+migration may have released those pages again. As it gets updated every
+time a page is isolated the scanner is moving faster than it should.
+
+Try this;
+
+diff --git a/mm/compaction.c b/mm/compaction.c
+index 74a8c82..177e161 100644
+--- a/mm/compaction.c
++++ b/mm/compaction.c
+@@ -139,6 +139,7 @@ static void isolate_freepages(struct zone *zone,
+ 	unsigned long flags;
+ 	int nr_freepages = cc->nr_freepages;
+ 	struct list_head *freelist = &cc->freepages;
++	bool first_isolation = true;
+ 
+ 	/*
+ 	 * Initialise the free scanner. The starting point is where we last
+@@ -201,8 +202,10 @@ static void isolate_freepages(struct zone *zone,
+ 		 * looking for free pages, the search will restart here as
+ 		 * page migration may have returned some pages to the allocator
+ 		 */
+-		if (isolated)
++		if (isolated && first_isolation) {
++			first_isolation = false;
+ 			high_pfn = max(high_pfn, pfn);
++		}
+ 	}
+ 
+ 	/* split_free_page does not map the pages */
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
