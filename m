@@ -1,54 +1,105 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx120.postini.com [74.125.245.120])
-	by kanga.kvack.org (Postfix) with SMTP id 30A4C6B00E9
-	for <linux-mm@kvack.org>; Tue, 10 Apr 2012 02:01:19 -0400 (EDT)
-Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 58C3C3EE0BB
-	for <linux-mm@kvack.org>; Tue, 10 Apr 2012 15:01:17 +0900 (JST)
-Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 3F5C145DEA6
-	for <linux-mm@kvack.org>; Tue, 10 Apr 2012 15:01:17 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 2873845DE7E
-	for <linux-mm@kvack.org>; Tue, 10 Apr 2012 15:01:17 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 0EAD11DB803E
-	for <linux-mm@kvack.org>; Tue, 10 Apr 2012 15:01:17 +0900 (JST)
-Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.240.81.147])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id AEB5E1DB8040
-	for <linux-mm@kvack.org>; Tue, 10 Apr 2012 15:01:16 +0900 (JST)
-Message-ID: <4F83CC40.7030406@jp.fujitsu.com>
-Date: Tue, 10 Apr 2012 14:59:28 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Received: from psmtp.com (na3sys010amx206.postini.com [74.125.245.206])
+	by kanga.kvack.org (Postfix) with SMTP id 1F76A6B00E8
+	for <linux-mm@kvack.org>; Tue, 10 Apr 2012 02:34:32 -0400 (EDT)
+Received: by bkwq16 with SMTP id q16so5241095bkw.14
+        for <linux-mm@kvack.org>; Mon, 09 Apr 2012 23:34:30 -0700 (PDT)
+Message-ID: <4F83D470.6010207@openvz.org>
+Date: Tue, 10 Apr 2012 10:34:24 +0400
+From: Konstantin Khlebnikov <khlebnikov@openvz.org>
 MIME-Version: 1.0
-Subject: Re: [patch v2] thp, memcg: split hugepage for memcg oom on cow
-References: <alpine.DEB.2.00.1204031854530.30629@chino.kir.corp.google.com> <4F838385.9070309@jp.fujitsu.com> <alpine.DEB.2.00.1204092241180.27689@chino.kir.corp.google.com> <alpine.DEB.2.00.1204092242050.27689@chino.kir.corp.google.com>
-In-Reply-To: <alpine.DEB.2.00.1204092242050.27689@chino.kir.corp.google.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Subject: Re: [PATCH] mm: sync rss-counters at the end of exit_mm()
+References: <20120409200336.8368.63793.stgit@zurg> <CAHGf_=oWj-hz-E5ht8-hUbQKdsZ1bzP80n987kGYnFm8BpXBVQ@mail.gmail.com> <alpine.LSU.2.00.1204091433380.1859@eggly.anvils>
+In-Reply-To: <alpine.LSU.2.00.1204091433380.1859@eggly.anvils>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <jweiner@redhat.com>, linux-mm@kvack.org
+To: Hugh Dickins <hughd@google.com>
+Cc: KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Markus Trippelsdorf <markus@trippelsdorf.de>
 
-(2012/04/10 14:42), David Rientjes wrote:
+Hugh Dickins wrote:
+> On Mon, 9 Apr 2012, KOSAKI Motohiro wrote:
+>> On Mon, Apr 9, 2012 at 4:03 PM, Konstantin Khlebnikov
+>> <khlebnikov@openvz.org>  wrote:
+>>> On task's exit do_exit() calls sync_mm_rss() but this is not enough,
+>>> there can be page-faults after this point, for example exit_mm() ->
+>>> mm_release() ->  put_user() (for processing tsk->clear_child_tid).
+>>> Thus there may be some rss-counters delta in current->rss_stat.
+>>
+>> Seems reasonable.
+>
+> Yes, I think Konstantin has probably caught it;
+> but I'd like to hear confirmation from Markus.
 
-> On COW, a new hugepage is allocated and charged to the memcg.  If the
-> system is oom or the charge to the memcg fails, however, the fault
-> handler will return VM_FAULT_OOM which results in an oom kill.
-> 
-> Instead, it's possible to fallback to splitting the hugepage so that the
-> COW results only in an order-0 page being allocated and charged to the
-> memcg which has a higher liklihood to succeed.  This is expensive because
-> the hugepage must be split in the page fault handler, but it is much
-> better than unnecessarily oom killing a process.
-> 
-> Signed-off-by: David Rientjes <rientjes@google.com>
+There is another bug in exec_mmap()
 
+--- a/fs/exec.c
++++ b/fs/exec.c
+@@ -823,8 +823,8 @@ static int exec_mmap(struct mm_struct *mm)
+         /* Notify parent that we're no longer interested in the old VM */
+         tsk = current;
+         old_mm = current->mm;
+-       sync_mm_rss(old_mm);
+         mm_release(tsk, old_mm);
++       sync_mm_rss(old_mm);
 
-Seems nice to me. 
-Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+         if (old_mm) {
+                 /*
 
+>
+>> but I have another question. Do we have any reason to
+>> keep sync_mm_rss() in do_exit()? I havn't seen any reason that thread exiting
+>> makes rss consistency.
+>
+> IIRC it's all about the hiwater_rss/maxrss stuff: we want to sync the
+> maximum rss into mm->hiwater_rss before it's transferred to signal->maxrss,
+> and later made visible to the user though getrusage(RUSAGE_CHILDREN,) -
+> does your reading confirm that?
+>
+> Konstantin now finds the child_tid and futex stuff can trigger faults
+> raising rss beyond that point, but usually it won't go higher than when
+> it was captured for maxrss there.
+>
+> The sync_mm_rss() added by this patch (after "tsk->mm = NULL" so
+> *_mm_counter_fast() cannot store any more into the tsk even if there
+> were more faults) is solely to satisfy Konstantin's check_mm(), and
+> it is irritating to have that duplicated on the exit path.
+
+It was quick fix after the midnight. =) Now I think we can move mm_release()
+from exit_mm() to do_exit(), and place it before sync_mm_rss(). Other stuff
+there shouldn't trigger page-faults. Thus here will be only one sync_mm_rss():
+at the end of mm_release()
+
+>
+> I'd be happy to see the new one put under CONFIG_DEBUG_VM along with
+> check_mm(), once it's had a few -rcs of exposure without.
+>
+> Hugh
+>
+>>
+>>
+>>>
+>>> Signed-off-by: Konstantin Khlebnikov<khlebnikov@openvz.org>
+>>> Reported-by: Markus Trippelsdorf<markus@trippelsdorf.de>
+>>> Cc: Hugh Dickins<hughd@google.com>
+>>> Cc: KAMEZAWA Hiroyuki<kamezawa.hiroyu@jp.fujitsu.com>
+>>> ---
+>>>   kernel/exit.c |    1 +
+>>>   1 file changed, 1 insertion(+)
+>>>
+>>> diff --git a/kernel/exit.c b/kernel/exit.c
+>>> index d8bd3b42..8e09dbe 100644
+>>> --- a/kernel/exit.c
+>>> +++ b/kernel/exit.c
+>>> @@ -683,6 +683,7 @@ static void exit_mm(struct task_struct * tsk)
+>>>         enter_lazy_tlb(mm, current);
+>>>         task_unlock(tsk);
+>>>         mm_update_next_owner(mm);
+>>> +       sync_mm_rss(mm);
+>>>         mmput(mm);
+>>>   }
+>> >
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
