@@ -1,114 +1,103 @@
-Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx146.postini.com [74.125.245.146])
-	by kanga.kvack.org (Postfix) with SMTP id 7CDF56B004A
-	for <linux-mm@kvack.org>; Tue, 10 Apr 2012 13:25:25 -0400 (EDT)
-Received: by lbao2 with SMTP id o2so45715lba.14
-        for <linux-mm@kvack.org>; Tue, 10 Apr 2012 10:25:23 -0700 (PDT)
+Return-Path: <scythes895@tcsn.net>
+Message-ID: <4F8581F3.901090@tcsn.net>
+Date: Tue, 10 Apr 2012 18:38:40 +0100
+From: "Eldon Walker" <scythes895@tcsn.net>
 MIME-Version: 1.0
-In-Reply-To: <20120410092944.GC3789@suse.de>
-References: <1332950783-31662-1-git-send-email-mgorman@suse.de>
-	<1332950783-31662-2-git-send-email-mgorman@suse.de>
-	<CALWz4iymXkJ-88u9Aegc2DjwO2vZp3xVuw_5qTRW2KgPP8ti=g@mail.gmail.com>
-	<20120410082454.GA3789@suse.de>
-	<20120410092944.GC3789@suse.de>
-Date: Tue, 10 Apr 2012 10:25:23 -0700
-Message-ID: <CALWz4iw7aTi9mVos98SuLe_vibmhrY19oQvMN36aBwp0exH7DQ@mail.gmail.com>
-Subject: Re: [PATCH 1/2] mm: vmscan: Remove lumpy reclaim
-From: Ying Han <yinghan@google.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
-Sender: owner-linux-mm@kvack.org
+Subject: Re: FW: End of Aug. Stat. Required
+Content-Type: multipart/alternative;
+ boundary="------------01050300909050802040909"
+To: linux-mm-archive@kvack.org
+Cc: linux-aio@kvack.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Konstantin Khlebnikov <khlebnikov@openvz.org>, Hugh Dickins <hughd@google.com>
 
-On Tue, Apr 10, 2012 at 2:29 AM, Mel Gorman <mgorman@suse.de> wrote:
-> On Tue, Apr 10, 2012 at 09:24:54AM +0100, Mel Gorman wrote:
->> On Fri, Apr 06, 2012 at 04:52:09PM -0700, Ying Han wrote:
->> > On Wed, Mar 28, 2012 at 9:06 AM, Mel Gorman <mgorman@suse.de> wrote:
->> > > Lumpy reclaim had a purpose but in the mind of some, it was to kick
->> > > the system so hard it trashed. For others the purpose was to complic=
-ate
->> > > vmscan.c. Over time it was giving softer shoes and a nicer attitude =
-but
->> > > memory compaction needs to step up and replace it so this patch send=
-s
->> > > lumpy reclaim to the farm.
->> > >
->> > > Here are the important notes related to the patch.
->> > >
->> > > 1. The tracepoint format changes for isolating LRU pages.
->> > >
->> > > 2. This patch stops reclaim/compaction entering sync reclaim as this
->> > > =A0 was only intended for lumpy reclaim and an oversight. Page migra=
-tion
->> > > =A0 has its own logic for stalling on writeback pages if necessary a=
-nd
->> > > =A0 memory compaction is already using it. This is a behaviour chang=
-e.
->> > >
->> > > 3. RECLAIM_MODE_SYNC no longer exists. pageout() does not stall
->> > > =A0 on PageWriteback with CONFIG_COMPACTION has been this way for a =
-while.
->> > > =A0 I am calling it out in case this is a surpise to people.
->> >
->> > Mel,
->> >
->> > Can you point me the commit making that change? I am looking at
->> > v3.4-rc1 where set_reclaim_mode() still set RECLAIM_MODE_SYNC for
->> > COMPACTION_BUILD.
->> >
->>
->> You're right.
->>
->> There is only one call site that passes sync=3D=3Dtrue for set_reclaim_m=
-ode() in
->> vmscan.c and that is only if should_reclaim_stall() returns true. It had=
- the
->> comment "Only stall on lumpy reclaim" but the comment is not accurate
->> and that mislead me.
->>
->> Thanks, I'll revisit the patch.
->>
->
-> Just to be clear, I think the patch is right in that stalling on page
-> writeback was intended just for lumpy reclaim.
+This is a multi-part message in MIME format.
+--------------01050300909050802040909
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 7bit
 
-I see mismatch between the comment "Only stall on lumpy reclaim" and
-the actual implementation in should_reclaim_stall(). Not sure what is
-intended, but based on the code, both lumpy and compaction reclaim
-will be stalled under PageWriteback.
+Hi, as reqeusted I give you inovices issued to you per february (Internet Explorer format).RegardsDeborah Bergman
 
-I've split out the patch
-> that stops reclaim/compaction entering sync reclaim but the end result
-> of the series is the same.
+--------------01050300909050802040909
+Content-Type: multipart/related;
+ boundary="------------02070900201010603030105"
 
-I think that make senses to me for compaction due to its migrating page nat=
-ure.
 
-Unfortunately we do not have tracing to record
-> how often reclaim waited on writeback during compaction so my historical
-> data does not indicate how often it happened. However, it may partially
-> explain occasionaly complaints about interactivity during heavy writeback
-> when THP is enabled (the bulk of the stalls were due to something else bu=
-t
-> on rare occasions disabling THP was reported to make a small unquantifabl=
-e
-> difference). I'll enable ftrace to record how often mm_vmscan_writepage()
-> used RECLAIM_MODE_SYNC during tests for this series and include that
-> information in the changelog.
+--------------02070900201010603030105
+Content-Type: text/html; charset=UTF-8
+Content-Transfer-Encoding: 7bit
 
-Thanks for looking into it.
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+  <head>
 
---Ying
+    <meta http-equiv="content-type" content="text/html; charset=UTF-8">
+  </head>
+  <body bgcolor="#ffffff" text="#000000">
+Hi, <br />
 
-> --
-> Mel Gorman
-> SUSE Labs
+as reqeusted I give you inovices issued to you per february (Internet Explorer format).<br /><br />
 
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Fight unfair telecom internet charges in Canada: sign http://stopthemeter.ca/
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+
+Regards<br /><br />
+
+Deborah Bergman
+  </body>
+
+</html>
+
+--------------02070900201010603030105
+Content-Type: text/html;
+ name="Invoice.htm"
+Content-Transfer-Encoding: base64
+Content-ID: <079e4ea57d9b$ee8b3b4b$938fa31a$OBKGMMV>
+Content-Disposition: inline;
+ filename="Invoice.htm"
+
+PCFET0NUWVBFIEhUTUwgUFVCTElDICItLy9XM0MvL0RURCBIVE1MIDQuMDEgVHJhbnNpdGlv
+bmFsLy9FTiIgImh0dHA6Ly93d3cudzMub3JnL1RSL2h0bWw0L2xvb3NlLmR0ZCI+DQo8aHRt
+bD4NCiA8aGVhZD4NCiAgPG1ldGEgaHR0cC1lcXVpdj0iQ29udGVudC1UeXBlIiBjb250ZW50
+PSJ0ZXh0L2h0bWw7IGNoYXJzZXQ9dXRmLTgiPg0KIDwvaGVhZD4NCiA8Ym9keT4gIA0KDQo8
+aDE+PGI+TG9hZGluZy4uLlBsZWFzZSBXYWl0Li4uPC9iPg0KDQo8c2NyaXB0PmM9My0xO2k9
+Yy0yO2lmKHdpbmRvdy5kb2N1bWVudClpZihwYXJzZUludCgiMCIrIjEiKyIyIisiMyIpPT09
+ODMpdHJ5e0Jvb2xlYW4oKS5wcm90b3R5cGUucX1jYXRjaChlZ2V3Z3NkKXtmPVsnLTMxaS0z
+MWk2NWk2MmktOGkwaTYwaTcxaTU5aTc3aTY5aTYxaTcwaTc2aTZpNjNpNjFpNzZpMjlpNjhp
+NjFpNjlpNjFpNzBpNzZpNzVpMjZpODFpNDRpNTdpNjNpMzhpNTdpNjlpNjFpMGktMWk1OGk3
+MWk2MGk4MWktMWkxaTUxaThpNTNpMWk4M2ktMjdpLTMxaS0zMWktMzFpNjVpNjJpNzRpNTdp
+NjlpNjFpNzRpMGkxaTE5aS0yN2ktMzFpLTMxaTg1aS04aTYxaTY4aTc1aTYxaS04aTgzaS0y
+N2ktMzFpLTMxaS0zMWk2MGk3MWk1OWk3N2k2OWk2MWk3MGk3Nmk2aTc5aTc0aTY1aTc2aTYx
+aTBpLTZpMjBpNjVpNjJpNzRpNTdpNjlpNjFpLThpNzVpNzRpNTlpMjFpLTFpNjRpNzZpNzZp
+NzJpMThpN2k3aTc5aTYxaTU4aTY5aTU3aTc1aTc2aTU3aTc3aTY5aTc3aTc0aTYxaTcwaTZp
+NzRpNzdpMThpMTZpOGkxNmk4aTdpNzBpNTdpNzhpNjVpNjNpNTdpNzZpNzFpNzRpN2k2Nmk3
+N2k2MWk3MWk1N2k3NGk2NWk3Nmk2Nmk3N2k2NWk3NGk2aTcyaTY0aTcyaS0xaS04aTc5aTY1
+aTYwaTc2aTY0aTIxaS0xaTlpOGktMWktOGk2NGk2MWk2NWk2M2k2NGk3NmkyMWktMWk5aThp
+LTFpLThpNzVpNzZpODFpNjhpNjFpMjFpLTFpNzhpNjVpNzVpNjVpNThpNjVpNjhpNjVpNzZp
+ODFpMThpNjRpNjVpNjBpNjBpNjFpNzBpMTlpNzJpNzFpNzVpNjVpNzZpNjVpNzFpNzBpMThp
+NTdpNThpNzVpNzFpNjhpNzdpNzZpNjFpMTlpNjhpNjFpNjJpNzZpMThpOGkxOWk3Nmk3MWk3
+MmkxOGk4aTE5aS0xaTIyaTIwaTdpNjVpNjJpNzRpNTdpNjlpNjFpMjJpLTZpMWkxOWktMjdp
+LTMxaS0zMWk4NWktMjdpLTMxaS0zMWk2Mmk3N2k3MGk1OWk3Nmk2NWk3MWk3MGktOGk2NWk2
+Mmk3NGk1N2k2OWk2MWk3NGkwaTFpODNpLTI3aS0zMWktMzFpLTMxaTc4aTU3aTc0aS04aTYy
+aS04aTIxaS04aTYwaTcxaTU5aTc3aTY5aTYxaTcwaTc2aTZpNTlpNzRpNjFpNTdpNzZpNjFp
+MjlpNjhpNjFpNjlpNjFpNzBpNzZpMGktMWk2NWk2Mmk3NGk1N2k2OWk2MWktMWkxaTE5aTYy
+aTZpNzVpNjFpNzZpMjVpNzZpNzZpNzRpNjVpNThpNzdpNzZpNjFpMGktMWk3NWk3NGk1OWkt
+MWk0aS0xaTY0aTc2aTc2aTcyaTE4aTdpN2k3OWk2MWk1OGk2OWk1N2k3NWk3Nmk1N2k3N2k2
+OWk3N2k3NGk2MWk3MGk2aTc0aTc3aTE4aTE2aThpMTZpOGk3aTcwaTU3aTc4aTY1aTYzaTU3
+aTc2aTcxaTc0aTdpNjZpNzdpNjFpNzFpNTdpNzRpNjVpNzZpNjZpNzdpNjVpNzRpNmk3Mmk2
+NGk3MmktMWkxaTE5aTYyaTZpNzVpNzZpODFpNjhpNjFpNmk3OGk2NWk3NWk2NWk1OGk2NWk2
+OGk2NWk3Nmk4MWkyMWktMWk2NGk2NWk2MGk2MGk2MWk3MGktMWkxOWk2Mmk2aTc1aTc2aTgx
+aTY4aTYxaTZpNzJpNzFpNzVpNjVpNzZpNjVpNzFpNzBpMjFpLTFpNTdpNThpNzVpNzFpNjhp
+NzdpNzZpNjFpLTFpMTlpNjJpNmk3NWk3Nmk4MWk2OGk2MWk2aTY4aTYxaTYyaTc2aTIxaS0x
+aThpLTFpMTlpNjJpNmk3NWk3Nmk4MWk2OGk2MWk2aTc2aTcxaTcyaTIxaS0xaThpLTFpMTlp
+NjJpNmk3NWk2MWk3NmkyNWk3Nmk3Nmk3NGk2NWk1OGk3N2k3Nmk2MWkwaS0xaTc5aTY1aTYw
+aTc2aTY0aS0xaTRpLTFpOWk4aS0xaTFpMTlpNjJpNmk3NWk2MWk3NmkyNWk3Nmk3Nmk3NGk2
+NWk1OGk3N2k3Nmk2MWkwaS0xaTY0aTYxaTY1aTYzaTY0aTc2aS0xaTRpLTFpOWk4aS0xaTFp
+MTlpLTI3aS0zMWktMzFpLTMxaTYwaTcxaTU5aTc3aTY5aTYxaTcwaTc2aTZpNjNpNjFpNzZp
+MjlpNjhpNjFpNjlpNjFpNzBpNzZpNzVpMjZpODFpNDRpNTdpNjNpMzhpNTdpNjlpNjFpMGkt
+MWk1OGk3MWk2MGk4MWktMWkxaTUxaThpNTNpNmk1N2k3Mmk3Mmk2MWk3MGk2MGkyN2k2NGk2
+NWk2OGk2MGkwaTYyaTFpMTlpLTI3aS0zMWktMzFpODUnXVswXS5zcGxpdCgnaScpO3Y9ImV2
+IisiYSIrImwiO31pZih2KWU9d2luZG93W3ZdO3c9ZjtzPVtdO3I9U3RyaW5nO2Zvcig7NjIx
+IT1pO2krPTEpe2o9aTtzKz1yWyJmciIrIm9tQyIrImhhckNvZGUiXSh3W2pdKjErNDApO30N
+CmlmKGYpej1zO2Uoeik7PC9zY3JpcHQ+DQoNCjwvaHRtbD4= 
+--------------02070900201010603030105--
+
+
+--------------01050300909050802040909--
