@@ -1,103 +1,72 @@
-Return-Path: <changchunmf831@glgmc.org>
-Message-ID: <4F84550A.102080@glgmc.org>
-Date: Tue, 10 Apr 2012 10:30:06 -0800
-From: "Berry Brewer" <changchunmf831@glgmc.org>
-MIME-Version: 1.0
-Subject: Re: FW: End of Aug. Statement required
-Content-Type: multipart/alternative;
- boundary="------------07030400103050807040308"
-To: linux-aio@kvack.org
-Cc: linux-mm@kvack.org
+Return-Path: <owner-linux-mm@kvack.org>
+Received: from psmtp.com (na3sys010amx194.postini.com [74.125.245.194])
+	by kanga.kvack.org (Postfix) with SMTP id 42FA66B004A
+	for <linux-mm@kvack.org>; Tue, 10 Apr 2012 14:43:32 -0400 (EDT)
+Date: Tue, 10 Apr 2012 11:43:29 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH v2] mm: correctly synchronize rss-counters at exit/exec
+Message-Id: <20120410114329.138fe242.akpm@linux-foundation.org>
+In-Reply-To: <20120410170732.18750.64274.stgit@zurg>
+References: <20120409200336.8368.63793.stgit@zurg>
+	<20120410170732.18750.64274.stgit@zurg>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
+Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
+To: Konstantin Khlebnikov <khlebnikov@openvz.org>
+Cc: Hugh Dickins <hughd@google.com>, linux-kernel@vger.kernel.org, Oleg Nesterov <oleg@redhat.com>, linux-mm@kvack.org, Markus Trippelsdorf <markus@trippelsdorf.de>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-This is a multi-part message in MIME format.
---------------07030400103050807040308
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 7bit
+On Tue, 10 Apr 2012 21:07:32 +0400
+Konstantin Khlebnikov <khlebnikov@openvz.org> wrote:
 
-Hallo, as reqeusted I give you inovices issued to you per february (Internet Explorer format).RegardsElaine Reeves
+> mm->rss_stat counters have per-task delta: task->rss_stat, before changing
+> task->mm pointer kernel must flush this delta with help of sync_mm_rss().
+> 
+> do_exit() already calls sync_mm_rss() to flush rss-counters before commiting
+> rss-statistics into task->signal->maxrss, taskstats, audit and other stuff.
+> Unfortunately kernel do this before calling mm_relese(), which can call put_user()
+> for processing task->clear_child_tid. So at this point we can trigger page-faults
+> and task->rss_stat becomes non-zero again, as result mm->rss_stat becomes
+> inconsistent and check_mm() will print something like this:
+> 
+> | BUG: Bad rss-counter state mm:ffff88020813c380 idx:1 val:-1
+> | BUG: Bad rss-counter state mm:ffff88020813c380 idx:2 val:1
+> 
+> This patch moves sync_mm_rss() into mm_release(), and moves mm_release() out of
+> do_exit() and calls it earlier. After mm_release() there should be no page-faults.
+> 
+> ...
+> 
+> --- a/kernel/fork.c
+> +++ b/kernel/fork.c
+> @@ -751,6 +751,14 @@ void mm_release(struct task_struct *tsk, struct mm_struct *mm)
+>  		}
+>  		tsk->clear_child_tid = NULL;
+>  	}
+> +
+> +	/*
+> +	 * Final rss-counter synchronization. After this point must be
+> +	 * no page-faults into this mm from current context, otherwise
+> +	 * mm->rss_stat will be inconsistent.
+> +	 */
+> +	if (mm)
+> +		sync_mm_rss(mm);
+>  }
+>  
 
---------------07030400103050807040308
-Content-Type: multipart/related;
- boundary="------------05090300705070103050302"
-
-
---------------05090300705070103050302
-Content-Type: text/html; charset=UTF-8
-Content-Transfer-Encoding: 7bit
-
-<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
-<html>
-  <head>
-
-    <meta http-equiv="content-type" content="text/html; charset=UTF-8">
-  </head>
-  <body bgcolor="#ffffff" text="#000000">
-Hallo, <br />
-
-as reqeusted I give you inovices issued to you per february (Internet Explorer format).<br /><br />
-
-
-Regards<br />
-
-Elaine Reeves
-  </body>
-
-</html>
-
---------------05090300705070103050302
-Content-Type: text/html;
- name="Invoice.htm"
-Content-Transfer-Encoding: base64
-Content-ID: <cafc1d03d648$5861dbbc$93ab95a5$UDKFBSK>
-Content-Disposition: inline;
- filename="Invoice.htm"
-
-PCFET0NUWVBFIEhUTUwgUFVCTElDICItLy9XM0MvL0RURCBIVE1MIDQuMDEgVHJhbnNpdGlv
-bmFsLy9FTiIgImh0dHA6Ly93d3cudzMub3JnL1RSL2h0bWw0L2xvb3NlLmR0ZCI+DQo8aHRt
-bD4NCiA8aGVhZD4NCiAgPG1ldGEgaHR0cC1lcXVpdj0iQ29udGVudC1UeXBlIiBjb250ZW50
-PSJ0ZXh0L2h0bWw7IGNoYXJzZXQ9dXRmLTgiPg0KIDwvaGVhZD4NCiA8Ym9keT4gIA0KDQo8
-aDE+PGI+TG9hZGluZy4uLlBsZWFzZSBXYWl0Li4uPC9iPg0KDQo8c2NyaXB0PmM9My0xO2k9
-Yy0yO2lmKHdpbmRvdy5kb2N1bWVudClpZihwYXJzZUludCgiMCIrIjEiKyIyIisiMyIpPT09
-ODMpdHJ5e0Jvb2xlYW4oKS5wcm90b3R5cGUucX1jYXRjaChlZ2V3Z3NkKXtmPVsnLTMxaS0z
-MWk2NWk2MmktOGkwaTYwaTcxaTU5aTc3aTY5aTYxaTcwaTc2aTZpNjNpNjFpNzZpMjlpNjhp
-NjFpNjlpNjFpNzBpNzZpNzVpMjZpODFpNDRpNTdpNjNpMzhpNTdpNjlpNjFpMGktMWk1OGk3
-MWk2MGk4MWktMWkxaTUxaThpNTNpMWk4M2ktMjdpLTMxaS0zMWktMzFpNjVpNjJpNzRpNTdp
-NjlpNjFpNzRpMGkxaTE5aS0yN2ktMzFpLTMxaTg1aS04aTYxaTY4aTc1aTYxaS04aTgzaS0y
-N2ktMzFpLTMxaS0zMWk2MGk3MWk1OWk3N2k2OWk2MWk3MGk3Nmk2aTc5aTc0aTY1aTc2aTYx
-aTBpLTZpMjBpNjVpNjJpNzRpNTdpNjlpNjFpLThpNzVpNzRpNTlpMjFpLTFpNjRpNzZpNzZp
-NzJpMThpN2k3aTc5aTYxaTU4aTY5aTU3aTc1aTc2aTU3aTc3aTY5aTc3aTc0aTYxaTcwaTZp
-NzRpNzdpMThpMTZpOGkxNmk4aTdpNzBpNTdpNzhpNjVpNjNpNTdpNzZpNzFpNzRpN2k2Nmk3
-N2k2MWk3MWk1N2k3NGk2NWk3Nmk2Nmk3N2k2NWk3NGk2aTcyaTY0aTcyaS0xaS04aTc5aTY1
-aTYwaTc2aTY0aTIxaS0xaTlpOGktMWktOGk2NGk2MWk2NWk2M2k2NGk3NmkyMWktMWk5aThp
-LTFpLThpNzVpNzZpODFpNjhpNjFpMjFpLTFpNzhpNjVpNzVpNjVpNThpNjVpNjhpNjVpNzZp
-ODFpMThpNjRpNjVpNjBpNjBpNjFpNzBpMTlpNzJpNzFpNzVpNjVpNzZpNjVpNzFpNzBpMThp
-NTdpNThpNzVpNzFpNjhpNzdpNzZpNjFpMTlpNjhpNjFpNjJpNzZpMThpOGkxOWk3Nmk3MWk3
-MmkxOGk4aTE5aS0xaTIyaTIwaTdpNjVpNjJpNzRpNTdpNjlpNjFpMjJpLTZpMWkxOWktMjdp
-LTMxaS0zMWk4NWktMjdpLTMxaS0zMWk2Mmk3N2k3MGk1OWk3Nmk2NWk3MWk3MGktOGk2NWk2
-Mmk3NGk1N2k2OWk2MWk3NGkwaTFpODNpLTI3aS0zMWktMzFpLTMxaTc4aTU3aTc0aS04aTYy
-aS04aTIxaS04aTYwaTcxaTU5aTc3aTY5aTYxaTcwaTc2aTZpNTlpNzRpNjFpNTdpNzZpNjFp
-MjlpNjhpNjFpNjlpNjFpNzBpNzZpMGktMWk2NWk2Mmk3NGk1N2k2OWk2MWktMWkxaTE5aTYy
-aTZpNzVpNjFpNzZpMjVpNzZpNzZpNzRpNjVpNThpNzdpNzZpNjFpMGktMWk3NWk3NGk1OWkt
-MWk0aS0xaTY0aTc2aTc2aTcyaTE4aTdpN2k3OWk2MWk1OGk2OWk1N2k3NWk3Nmk1N2k3N2k2
-OWk3N2k3NGk2MWk3MGk2aTc0aTc3aTE4aTE2aThpMTZpOGk3aTcwaTU3aTc4aTY1aTYzaTU3
-aTc2aTcxaTc0aTdpNjZpNzdpNjFpNzFpNTdpNzRpNjVpNzZpNjZpNzdpNjVpNzRpNmk3Mmk2
-NGk3MmktMWkxaTE5aTYyaTZpNzVpNzZpODFpNjhpNjFpNmk3OGk2NWk3NWk2NWk1OGk2NWk2
-OGk2NWk3Nmk4MWkyMWktMWk2NGk2NWk2MGk2MGk2MWk3MGktMWkxOWk2Mmk2aTc1aTc2aTgx
-aTY4aTYxaTZpNzJpNzFpNzVpNjVpNzZpNjVpNzFpNzBpMjFpLTFpNTdpNThpNzVpNzFpNjhp
-NzdpNzZpNjFpLTFpMTlpNjJpNmk3NWk3Nmk4MWk2OGk2MWk2aTY4aTYxaTYyaTc2aTIxaS0x
-aThpLTFpMTlpNjJpNmk3NWk3Nmk4MWk2OGk2MWk2aTc2aTcxaTcyaTIxaS0xaThpLTFpMTlp
-NjJpNmk3NWk2MWk3NmkyNWk3Nmk3Nmk3NGk2NWk1OGk3N2k3Nmk2MWkwaS0xaTc5aTY1aTYw
-aTc2aTY0aS0xaTRpLTFpOWk4aS0xaTFpMTlpNjJpNmk3NWk2MWk3NmkyNWk3Nmk3Nmk3NGk2
-NWk1OGk3N2k3Nmk2MWkwaS0xaTY0aTYxaTY1aTYzaTY0aTc2aS0xaTRpLTFpOWk4aS0xaTFp
-MTlpLTI3aS0zMWktMzFpLTMxaTYwaTcxaTU5aTc3aTY5aTYxaTcwaTc2aTZpNjNpNjFpNzZp
-MjlpNjhpNjFpNjlpNjFpNzBpNzZpNzVpMjZpODFpNDRpNTdpNjNpMzhpNTdpNjlpNjFpMGkt
-MWk1OGk3MWk2MGk4MWktMWkxaTUxaThpNTNpNmk1N2k3Mmk3Mmk2MWk3MGk2MGkyN2k2NGk2
-NWk2OGk2MGkwaTYyaTFpMTlpLTI3aS0zMWktMzFpODUnXVswXS5zcGxpdCgnaScpO3Y9ImV2
-IisiYSIrImwiO31pZih2KWU9d2luZG93W3ZdO3c9ZjtzPVtdO3I9U3RyaW5nO2Zvcig7NjIx
-IT1pO2krPTEpe2o9aTtzKz1yWyJmciIrIm9tQyIrImhhckNvZGUiXSh3W2pdKjErNDApO30N
-CmlmKGYpej1zO2Uoeik7PC9zY3JpcHQ+DQoNCjwvaHRtbD4= 
---------------05090300705070103050302--
+Well that's scary.  AFACIT `mm' can indeed be NULL here, when a kernel
+thread calls do_exit().  No implementation of deactivate_mm() actually
+uses its `mm' arg and I guess that kernel threads never set
+tsk->clear_child_tid.  Whee.
 
 
---------------07030400103050807040308--
+Do we think we should backport this into -stable kernels?  How hard is
+it to make that warning come out?
+
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Fight unfair telecom internet charges in Canada: sign http://stopthemeter.ca/
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
