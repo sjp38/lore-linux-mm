@@ -1,57 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx154.postini.com [74.125.245.154])
-	by kanga.kvack.org (Postfix) with SMTP id 4EC7C6B004A
-	for <linux-mm@kvack.org>; Mon,  9 Apr 2012 19:50:56 -0400 (EDT)
-From: Alexey Ivanov <rbtz@yandex-team.ru>
-In-Reply-To: <4F8326FD.8020507@redhat.com>
-References: <37371333672160@webcorp7.yandex-team.ru> <4F7E9854.1020904@gmail.com> <12701333991475@webcorp7.yandex-team.ru> <4F8326FD.8020507@redhat.com>
-Subject: Re: mapped pagecache pages vs unmapped pages
-MIME-Version: 1.0
-Message-Id: <8041334015453@webcorp4.yandex-team.ru>
-Date: Tue, 10 Apr 2012 03:50:53 +0400
-Content-Transfer-Encoding: 8bit
-Content-Type: text/plain; charset=koi8-r
+Received: from psmtp.com (na3sys010amx148.postini.com [74.125.245.148])
+	by kanga.kvack.org (Postfix) with SMTP id B82AB6B004A
+	for <linux-mm@kvack.org>; Mon,  9 Apr 2012 20:04:31 -0400 (EDT)
+Date: Mon, 9 Apr 2012 17:04:29 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] Revert
+ "mm: vmscan: fix misused nr_reclaimed in shrink_mem_cgroup_zone()"
+Message-Id: <20120409170429.ef094a1d.akpm@linux-foundation.org>
+In-Reply-To: <alpine.LSU.2.00.1204091529100.1964@eggly.anvils>
+References: <1334000524-23972-1-git-send-email-yinghan@google.com>
+	<20120409125055.c6f6fdf0.akpm@linux-foundation.org>
+	<alpine.LSU.2.00.1204091529100.1964@eggly.anvils>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rik van Riel <riel@redhat.com>
-Cc: "gnehzuil.lzheng@gmail.com" <gnehzuil.lzheng@gmail.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, yinghan@google.com
+To: Hugh Dickins <hughd@google.com>
+Cc: Ying Han <yinghan@google.com>, Rik van Riel <riel@redhat.com>, Hillf Danton <dhillf@gmail.com>, linux-mm@kvack.org
 
-Did you consider making this ratio tunable, at least manually(i.e. via sysctl)?
-I suppose we are not the only ones with almost-whole-ram-mmaped workload.
+On Mon, 9 Apr 2012 16:24:16 -0700 (PDT)
+Hugh Dickins <hughd@google.com> wrote:
 
-09.04.2012, 22:56, "Rik van Riel" <riel@redhat.com>:
-> On 04/09/2012 01:11 PM, Alexey Ivanov wrote:
->
->> ?Thanks for the hint!
->>
->> ?Can anyone clarify the reason of not using zone->inactive_ratio in inactive_file_is_low_global()?
->
-> New anonymous pages start out on the active anon list, and
-> are always referenced. ?If memory fills up, they may end
-> up getting moved to the inactive anon list; being referenced
-> while on the inactive anon list is enough to get them promoted
-> back to the active list.
->
-> New file pages start out on the INACTIVE file list, and
-> start their lives not referenced at all. Due to readahead
-> extra reads, many file pages may never be referenced.
->
-> Only file pages that are referenced twice make it onto
-> the active list.
->
-> This means the inactive file list has to be large enough
-> for all the readahead buffers, and give pages enough time
-> on the list that frequently accessed ones can get accessed
-> twice and promoted.
->
-> http://linux-mm.org/PageReplacementDesign
->
-> --
-> All rights reversed
+> > > 
+> > > diff --git a/mm/vmscan.c b/mm/vmscan.c
+> > > index 33c332b..1a51868 100644
+> > > --- a/mm/vmscan.c
+> > > +++ b/mm/vmscan.c
+> > > @@ -2107,12 +2107,7 @@ restart:
+> > >  		 * with multiple processes reclaiming pages, the total
+> > >  		 * freeing target can get unreasonably large.
+> > >  		 */
+> > > -		if (nr_reclaimed >= nr_to_reclaim)
+> > > -			nr_to_reclaim = 0;
+> > > -		else
+> > > -			nr_to_reclaim -= nr_reclaimed;
+> > > -
+> > > -		if (!nr_to_reclaim && priority < DEF_PRIORITY)
+> > > +		if (nr_reclaimed >= nr_to_reclaim && priority < DEF_PRIORITY)
+> > >  			break;
+> > >  	}
+> > >  	blk_finish_plug(&plug);
+> > 
+> > This code is all within a loop: the "goto restart" thing.  We reset
+> > nr_reclaimed to zero each time around that loop.  nr_to_reclaim is (or
+> > rather, was) constant throughout the entire function.
+> > 
+> > Comparing nr_reclaimed (whcih is reset each time around the loop) to
+> > nr_to_reclaim made no sense.
+> 
+> The "restart: nr_reclaimed = 0; ... if should_continue_reclaim goto restart;"
+> business is a "late" addition for the exceptional case of compaction.
+> It makes sense to me as "But in the high-order compaction case, we may need
+> to try N times as hard as the caller asked for: go round and do it again".
+> 
+> If you set aside the restart business, and look at the usual "while (nr..."
+> loop, c38446 makes little sense.  Each time around that loop, nr_reclaimed
+> goes up by the amount you'd expect, and nr_to_reclaim goes down by
+> nr_reclaimed i.e. by a larger and larger amount each time around the
+> loop (if we assume at least one page is reclaimed each time around).
 
--- 
-Alexey Ivanov
-Yandex Search Admin Team
+Oh, yes, true - it's the loop-within-the-loop.
+
+> > I think the code as it stands is ugly.  It would be better to make
+> > nr_to_reclaim a const and to add another local total_reclaimed, and
+> > compare that with nr_to_reclaim.  Or just stop resetting nr_reclaimed
+> > each time around the loop.
+> 
+> I bet you're right that it could be improved, in clarity and in function;
+> but I'd rather leave that to someone who knows what they're doing: there's
+> no end to the doubts here (I get hung up on sc->nr_reclaimed, which long
+> long ago was set to nr_reclaimed here, but nowadays is incremented, and
+> I wonder whether it gets reset appropriately).  Get into total_reclaimed
+> and you start down the line of functional change here, without adequate
+> testing.
+> 
+
+So for compaction, we go around and try to reclaim another
+nr_to_reclaim hunk of pages.  The (re)use of nr_to_reclaim seems rather
+arbitrary here.  Particularly as nr_reclaimed and nr_to_reclaim don't
+actually do anything for low-priority scanning.  I guess it doesn't
+matter much, as long as we don't go and scan far too many pages.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
