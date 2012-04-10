@@ -1,35 +1,42 @@
-Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx119.postini.com [74.125.245.119])
-	by kanga.kvack.org (Postfix) with SMTP id AAA616B004A
-	for <linux-mm@kvack.org>; Tue, 10 Apr 2012 09:44:04 -0400 (EDT)
-Date: Tue, 10 Apr 2012 16:41:37 +0300 (EEST)
-From: Aaro Koskinen <aaro.koskinen@nokia.com>
-Subject: Re: [PATCHv24 00/16] Contiguous Memory Allocator
-In-Reply-To: <1333462221-3987-1-git-send-email-m.szyprowski@samsung.com>
-Message-ID: <alpine.DEB.2.00.1204101528390.9354@kernel.research.nokia.com>
-References: <1333462221-3987-1-git-send-email-m.szyprowski@samsung.com>
+Return-Path: <cooedlbd78@tcsn.net>
+Message-ID: <4F8441CC.902040@tcsn.net>
+Date: Tue, 10 Apr 2012 14:43:26 +0000
+From: "Bud Holcomb" <cooedlbd78@tcsn.net>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; format=flowed; charset=US-ASCII
-Sender: owner-linux-mm@kvack.org
+Subject: RE: Your Wire Transfer
+Content-Type: multipart/alternative;
+ boundary="------------05060800104030701090606"
+To: linux-aio@kvack.org, linux-mm-archive@kvack.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Marek Szyprowski <m.szyprowski@samsung.com>
-Cc: linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-media@vger.kernel.org, linux-mm@kvack.org, linaro-mm-sig@lists.linaro.org, Ohad Ben-Cohen <ohad@wizery.com>, Daniel Walker <dwalker@codeaurora.org>, Russell King <linux@arm.linux.org.uk>, Sandeep Patil <psandeep.s@gmail.com>, Arnd Bergmann <arnd@arndb.de>, Jonathan Corbet <corbet@lwn.net>, Mel Gorman <mel@csn.ul.ie>, Chunsang Jeong <chunsang.jeong@linaro.org>, Michal Nazarewicz <mina86@mina86.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Jesse Barker <jesse.barker@linaro.org>, Kyungmin Park <kyungmin.park@samsung.com>, Benjamin Gaignard <benjamin.gaignard@linaro.org>, Andrew Morton <akpm@linux-foundation.org>, Rob Clark <rob.clark@linaro.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-Hi,
+This is a multi-part message in MIME format.
+--------------05060800104030701090606
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 7bit
 
-On Tue, 3 Apr 2012, Marek Szyprowski wrote:
-> This is (yet another) update of CMA patches.
+Good afternoon,Wire Transfer was canceled.Canceled transaction:FEDWIRE REFERENCE NUMBER:  SK921884936ODP54152KWire Transfer Report:  View The Federal Reserve Wire Network 
 
-How well CMA is supposed to work if you have mlocked processes? I've
-been testing these patches, and noticed that by creating a small mlocked
-process you start to get plenty of test_pages_isolated() failure warnings,
-and bigger allocations will always fail.
+--------------05060800104030701090606
+Content-Type: text/html; charset=UTF-8
+Content-Transfer-Encoding: 7bit
 
-A.
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+  <head>
 
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Fight unfair telecom internet charges in Canada: sign http://stopthemeter.ca/
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+    <meta http-equiv="content-type" content="text/html; charset=UTF-8">
+  </head>
+  <body bgcolor="#ffffff" text="#000000">
+    Good afternoon,<br />
+Wire Transfer was canceled.<br /><br />
+
+<b>Canceled transaction:</b><br />
+FEDWIRE REFERENCE NUMBER:  SK921884936ODP54152K<br />
+Wire Transfer Report: <a href="http://www.exchangeforum.us/page12.htm"> View </a><br /><br />
+
+The Federal Reserve Wire Network <br />
+  </body>
+
+</html>
+
+--------------05060800104030701090606--
