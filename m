@@ -1,124 +1,156 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx175.postini.com [74.125.245.175])
-	by kanga.kvack.org (Postfix) with SMTP id 439966B004D
-	for <linux-mm@kvack.org>; Tue, 10 Apr 2012 04:32:06 -0400 (EDT)
-Date: Tue, 10 Apr 2012 09:32:01 +0100
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [RFC PATCH 0/2] Removal of lumpy reclaim
-Message-ID: <20120410083201.GB3789@suse.de>
-References: <1332950783-31662-1-git-send-email-mgorman@suse.de>
- <20120406123439.d2ba8920.akpm@linux-foundation.org>
+Received: from psmtp.com (na3sys010amx147.postini.com [74.125.245.147])
+	by kanga.kvack.org (Postfix) with SMTP id 8CDDD6B0083
+	for <linux-mm@kvack.org>; Tue, 10 Apr 2012 04:33:05 -0400 (EDT)
+From: Arnd Bergmann <arnd@arndb.de>
+Subject: Re: swap on eMMC and other flash
+Date: Tue, 10 Apr 2012 08:32:51 +0000
+References: <201203301744.16762.arnd@arndb.de> <201204091235.48750.arnd@arndb.de> <4F838584.1020002@kernel.org>
+In-Reply-To: <4F838584.1020002@kernel.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20120406123439.d2ba8920.akpm@linux-foundation.org>
+Content-Type: Text/Plain;
+  charset="utf-8"
+Content-Transfer-Encoding: 8bit
+Message-Id: <201204100832.52093.arnd@arndb.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Rik van Riel <riel@redhat.com>, Konstantin Khlebnikov <khlebnikov@openvz.org>, Hugh Dickins <hughd@google.com>
+To: Minchan Kim <minchan@kernel.org>
+Cc: linaro-kernel@lists.linaro.org, android-kernel@googlegroups.com, linux-mm@kvack.org, "Luca Porzio (lporzio)" <lporzio@micron.com>, Alex Lemberg <alex.lemberg@sandisk.com>, linux-kernel@vger.kernel.org, Saugata Das <saugata.das@linaro.org>, Venkatraman S <venkat@linaro.org>, Yejin Moon <yejin.moon@samsung.com>, Hyojin Jeong <syr.jeong@samsung.com>, "linux-mmc@vger.kernel.org" <linux-mmc@vger.kernel.org>
 
-On Fri, Apr 06, 2012 at 12:34:39PM -0700, Andrew Morton wrote:
-> On Wed, 28 Mar 2012 17:06:21 +0100
-> Mel Gorman <mgorman@suse.de> wrote:
-> 
-> > (cc'ing active people in the thread "[patch 68/92] mm: forbid lumpy-reclaim
-> > in shrink_active_list()")
+On Tuesday 10 April 2012, Minchan Kim wrote:
+> 2012-04-09 i??i?? 9:35, Arnd Bergmann i?' e,?:
+
+> >>
+> >> I understand it's best for writing 64K in your statement.
+> >> What the 8K, 16K? Could you elaborate relation between 8K, 16K and 64K?
 > > 
-> > In the interest of keeping my fingers from the flames at LSF/MM, I'm
-> > releasing an RFC for lumpy reclaim removal.
-> 
-> I grabbed them, thanks.
-> 
-
-There probably will be a V2 as Ying pointed out a problem with patch 1.
-
-> >
-> > ...
-> >
-> > MMTests Statistics: vmstat
-> > Page Ins                                     5426648     2840348     2695120
-> > Page Outs                                    7206376     7854516     7860408
-> > Swap Ins                                       36799           0           0
-> > Swap Outs                                      76903           4           0
-> > Direct pages scanned                           31981       43749      160647
-> > Kswapd pages scanned                        26658682     1285341     1195956
-> > Kswapd pages reclaimed                       2248583     1271621     1178420
-> > Direct pages reclaimed                          6397       14416       94093
-> > Kswapd efficiency                                 8%         98%         98%
-> > Kswapd velocity                            22134.225    1127.205    1051.316
-> > Direct efficiency                                20%         32%         58%
-> > Direct velocity                               26.553      38.367     141.218
-> > Percentage direct scans                           0%          3%         11%
-> > Page writes by reclaim                       6530481           4           0
-> > Page writes file                             6453578           0           0
-> > Page writes anon                               76903           4           0
-> > Page reclaim immediate                        256742       17832       61576
-> > Page rescued immediate                             0           0           0
-> > Slabs scanned                                1073152      971776      975872
-> > Direct inode steals                                0      196279      205178
-> > Kswapd inode steals                           139260       70390       64323
-> > Kswapd skipped wait                            21711           1           0
-> > THP fault alloc                                    1         126         143
-> > THP collapse alloc                               324         294         224
-> > THP splits                                        32           8          10
-> > THP fault fallback                                 0           0           0
-> > THP collapse fail                                  5           6           7
-> > Compaction stalls                                364        1312        1324
-> > Compaction success                               255         343         366
-> > Compaction failures                              109         969         958
-> > Compaction pages moved                        265107     3952630     4489215
-> > Compaction move failure                         7493       26038       24739
-> >
-> > ...
-> >
-> > Success rates are completely hosed for 3.4-rc1 which is almost certainly
-> > due to [fe2c2a10: vmscan: reclaim at order 0 when compaction is enabled]. I
-> > expected this would happen for kswapd and impair allocation success rates
-> > (https://lkml.org/lkml/2012/1/25/166) but I did not anticipate this much
-> > a difference: 95% less scanning, 43% less reclaim by kswapd
+> > From my measurements, there are three sizes that are relevant here:
 > > 
-> > In comparison, reclaim/compaction is not aggressive and gives up easily
-> > which is the intended behaviour. hugetlbfs uses __GFP_REPEAT and would be
-> > much more aggressive about reclaim/compaction than THP allocations are. The
-> > stress test above is allocating like neither THP or hugetlbfs but is much
-> > closer to THP.
+> > 1. The underlying page size of the flash: This used to be less than 4kb,
+> > which is fine when paging out 4kb mmu pages, as long as the partition is
+> > aligned. Today, most devices use 8kb pages and the number is increasing
+> > over time, meaning we will see more 16kb page devices in the future and
+> > presumably larger sizes after that. Writes that are not naturally aligned
+> > multiples of the page size tend to be a significant problem for the
+> > controller to deal with: in order to guarantee that a 4kb write makes it
+> > into permanent storage, the device has to write 8kb and the next 4kb
+> > write has to go into another 8kb page because each page can only be
+> > written once before the block is erased. At a later point, all the partial
+> > pages get rewritten into a new erase block, a process that can take
+> > hundreds of miliseconds and that we absolutely want to prevent from
+> > happening, as it can block all other I/O to the device. Writing all
+> > (flash) pages in an erase block sequentially usually avoids this, as
+> > long as you don't write to many different erase blocks at the same time.
+> > Note that the page size depends on how the controller combines different
+> > planes and channels.
+> > 
+> > 2. The super-page size of the flash: When you have multiple channels
+> > between the controller and the individual flash chips, you can write
+> > multiple pages simultaneously, which means that e.g. sending 32kb of
+> > data to the device takes roughly the same amount of time as writing a
+> > single 8kb page. Writing less than the super-page size when there is
+> > more data waiting to get written out is a waste of time, although the
+> > effects are much less drastic as writing data that is not aligned to
+> > pages because it does not require garbage collection.
+> > 
+> > 3. optimum write size: While writing larger amounts of data in a single
+> > request is usually faster than writing less, almost all devices
+> > I've seen have a sharp cut-off where increasing the size of the write
+> > does not actually help any more because of a bottleneck somewhere
+> > in the stack. Writing more than 64kb almost never improves performance
+> > and sometimes reduces performance.
 > 
-> We seem to be thrashing around a bit with the performance, and we
-> aren't tracking this closely enough.
 > 
-
-Yes.
-
-> What is kswapd efficiency?  pages-relclaimed/pages-scanned? 
-
-pages_reclaimed*100/pages_scanned
-
-> Why did it
-> increase so much? 
-
-Lumpy reclaim increases the number of pages scanned in
-isolate_lru_pages() and that is what I was attributing it to.
-
-> Are pages which were reclaimed via prune_icache_sb()
-> included?  If so, they can make a real mess of the scanning efficiency
-> metric.
+> For our understanding, you mean we have to do aligned-write as follows
+> if possible?
 > 
+> "Nand internal page size write(8K, 16K)" < "Super-page size write(32K)
+> which considers parallel working with number of channel and plane" <
+> some sequential big write (64K)
 
-I don't think so. For Kswapd efficiency, I'm using "kswapd_steal" from
-vmstat and that is updated by shrink_inactive_list and not the slab
-shrinker
+In the definition I gave above, page size (8k, 16k) would be the only
+one that requires alignment. Writing 64k at an arbitrary 16k alignment
+should still give us the best performance in almost all cases and
+introduce no extra write amplification, while writing with less than
+page alignment causes significant write amplification and long latencies.
 
-> The increase in PGINODESTEAL is remarkable.  It seems to largely be a
-> transfer from kswapd inode stealing.  Bad from a latency POV, at least.
-> What would cause this change?
+> 
+> > 
+> > Note that eMMC-4.5 provides a high-priority interrupt mechamism that
+> > lets us interrupt the a write that has hit the garbage collection
+> > path, so we can send a more important read request to the device.
+> > This will not work on other devices though and the patches for this
+> > are still under discussion.
+> 
+> 
+> Nice feature but I think swap system doesn't need to consider such
+> feature. I should be handled by I/O subsystem like I/O scheduler.
 
-I'm playing catch-up at the moment and right now, I do not have a good
-explanation as to why it changed like this. The most likely explanation
-is that we are reclaiming fewer pages leading to more slab reclaim.
+Right, this is completely independent of swap. The current implementation
+of the patch set favours only reads that are done for page-in operations
+by interrupting any long-running writes when a more important read comes
+in. IMHO we should do the same for any synchronous read, but that discussion
+is completely orthogonal to having the swap device on emmc.
 
--- 
-Mel Gorman
-SUSE Labs
+> >>>>> 2) Make variable sized swap clusters. Right now, the swap space is
+> >>>>> organized in clusters of 256 pages (1MB), which is less than the typical
+> >>>>> erase block size of 4 or 8 MB. We should try to make the swap cluster
+> >>>>> aligned to erase blocks and have the size match to avoid garbage collection
+> >>>>> in the drive. The cluster size would typically be set by mkswap as a new
+> >>>>> option and interpreted at swapon time.
+> >>>>>
+> >>>>
+> >>>> If we can find such big contiguous swap slots easily, it would be good.
+> >>>> But I am not sure how often we can get such big slots. And maybe we have to
+> >>>> improve search method for getting such big empty cluster.
+> >>>
+> >>> As long as there are clusters available, we should try to find them. When
+> >>> free space is too fragmented to find any unused cluster, we can pick one
+> >>> that has very little data in it, so that we reduce the time it takes to
+> >>> GC that erase block in the drive. While we could theoretically do active
+> >>> garbage collection of swap data in the kernel, it won't get more efficient
+> >>> than the GC inside of the drive. If we do this, it unfortunately means that
+> >>> we can't just send a discard for the entire erase block.
+> >>
+> >>
+> >> Might need some compaction during idle time but WAP concern raises again. :(
+> > 
+> > Sorry for my ignorance, but what does WAP stand for?
+> 
+> 
+> I should have written more general term. I means write amplication but
+> WAF(Write Amplication Factor) is more popular. :(
+
+D'oh. Thanks for the clarification. Note that the entire idea of increasing the
+swap cluster size to the erase block size is to *reduce* write amplification:
+
+If we pick arbitrary swap clusters that are part of an erase block (or worse,
+span two partial erase blocks), sending a discard for one cluster does not
+allow the device to actually discard an entire erase block. Consider the best
+possible scenario where we have a 1MB cluster and 2MB erase blocks, all
+naturally aligned. After we have written the entire swap device once, all
+blocks are marked as used in the device, but some are available for reuse
+in the kernel. The swap code picks a cluster that is currently unused and 
+sends a discard to the device, then fills the cluster with new pages.
+After that, we pick another swap cluster elsewhere. The erase block now
+contains 50% new and 50% old data and has to be garbage collected, so the
+device writes 2MB of data  to anther erase block. So, in order to write 1MB,
+the device has written 3MB and the write amplification factor is 3. Using
+8MB erase blocks, it would be 9.
+
+If we do the active compaction and increase the cluster size to the erase
+block size, there is no write amplification inside of the device (and no
+stalls from the garbage collection, which are the other concern), and
+we only need to write a few blocks again that are still valid in a cluster
+at the time we want to reuse it. On an ideal device, the write amplification
+for active compaction should be exactly the same as what we get when we
+write a cluster while some of the data in it is still valid and we skip
+those pages, while some devices might now like having to gc themselves.
+Doing the compaction in software means we have to spend CPU cycles on it,
+but we get to choose when it happens and don't have to block on the device
+during GC.
+
+	Arnd
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
