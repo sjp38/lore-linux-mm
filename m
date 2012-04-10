@@ -1,49 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx205.postini.com [74.125.245.205])
-	by kanga.kvack.org (Postfix) with SMTP id E400F6B004D
-	for <linux-mm@kvack.org>; Tue, 10 Apr 2012 04:40:16 -0400 (EDT)
-From: Arnd Bergmann <arnd@arndb.de>
-Subject: Re: swap on eMMC and other flash
-Date: Tue, 10 Apr 2012 08:40:11 +0000
-References: <201203301744.16762.arnd@arndb.de> <201204091300.34304.arnd@arndb.de> <4F838870.9030407@kernel.org>
-In-Reply-To: <4F838870.9030407@kernel.org>
+Received: from psmtp.com (na3sys010amx146.postini.com [74.125.245.146])
+	by kanga.kvack.org (Postfix) with SMTP id C9E1D6B0083
+	for <linux-mm@kvack.org>; Tue, 10 Apr 2012 05:29:49 -0400 (EDT)
+Date: Tue, 10 Apr 2012 10:29:44 +0100
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [PATCH 1/2] mm: vmscan: Remove lumpy reclaim
+Message-ID: <20120410092944.GC3789@suse.de>
+References: <1332950783-31662-1-git-send-email-mgorman@suse.de>
+ <1332950783-31662-2-git-send-email-mgorman@suse.de>
+ <CALWz4iymXkJ-88u9Aegc2DjwO2vZp3xVuw_5qTRW2KgPP8ti=g@mail.gmail.com>
+ <20120410082454.GA3789@suse.de>
 MIME-Version: 1.0
-Content-Type: Text/Plain;
-  charset="utf-8"
-Content-Transfer-Encoding: 7bit
-Message-Id: <201204100840.11763.arnd@arndb.de>
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <20120410082454.GA3789@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: =?utf-8?q?=EC=A0=95=ED=9A=A8=EC=A7=84?= <syr.jeong@samsung.com>, 'Alex Lemberg' <Alex.Lemberg@sandisk.com>, linaro-kernel@lists.linaro.org, 'Rik van Riel' <riel@redhat.com>, linux-mmc@vger.kernel.org, linux-kernel@vger.kernel.org, "'Luca Porzio (lporzio)'" <lporzio@micron.com>, linux-mm@kvack.org, kernel-team@android.com, 'Yejin Moon' <yejin.moon@samsung.com>, 'Hugh Dickins' <hughd@google.com>, 'Yaniv Iarovici' <Yaniv.Iarovici@sandisk.com>, cpgs@samsung.com
+To: Ying Han <yinghan@google.com>
+Cc: Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Konstantin Khlebnikov <khlebnikov@openvz.org>, Hugh Dickins <hughd@google.com>
 
-On Tuesday 10 April 2012, Minchan Kim wrote:
-> I think it's not good approach.
-> How long does it take to know such parameters?
-> I guess it's not short so that mkfs/mkswap would be very long
-> dramatically. If needed, let's maintain it as another tool.
+On Tue, Apr 10, 2012 at 09:24:54AM +0100, Mel Gorman wrote:
+> On Fri, Apr 06, 2012 at 04:52:09PM -0700, Ying Han wrote:
+> > On Wed, Mar 28, 2012 at 9:06 AM, Mel Gorman <mgorman@suse.de> wrote:
+> > > Lumpy reclaim had a purpose but in the mind of some, it was to kick
+> > > the system so hard it trashed. For others the purpose was to complicate
+> > > vmscan.c. Over time it was giving softer shoes and a nicer attitude but
+> > > memory compaction needs to step up and replace it so this patch sends
+> > > lumpy reclaim to the farm.
+> > >
+> > > Here are the important notes related to the patch.
+> > >
+> > > 1. The tracepoint format changes for isolating LRU pages.
+> > >
+> > > 2. This patch stops reclaim/compaction entering sync reclaim as this
+> > >   was only intended for lumpy reclaim and an oversight. Page migration
+> > >   has its own logic for stalling on writeback pages if necessary and
+> > >   memory compaction is already using it. This is a behaviour change.
+> > >
+> > > 3. RECLAIM_MODE_SYNC no longer exists. pageout() does not stall
+> > >   on PageWriteback with CONFIG_COMPACTION has been this way for a while.
+> > >   I am calling it out in case this is a surpise to people.
+> > 
+> > Mel,
+> > 
+> > Can you point me the commit making that change? I am looking at
+> > v3.4-rc1 where set_reclaim_mode() still set RECLAIM_MODE_SYNC for
+> > COMPACTION_BUILD.
+> > 
+> 
+> You're right.
+> 
+> There is only one call site that passes sync==true for set_reclaim_mode() in
+> vmscan.c and that is only if should_reclaim_stall() returns true. It had the
+> comment "Only stall on lumpy reclaim" but the comment is not accurate
+> and that mislead me.
+> 
+> Thanks, I'll revisit the patch.
+> 
 
-I haven't come up with a way that is both fast and reliable.
-A very fast method is to time short read requests across potential
-erase block boundaries and see which ones are faster than others,
-this works on about 3 out of 4 devices. 
+Just to be clear, I think the patch is right in that stalling on page
+writeback was intended just for lumpy reclaim. I've split out the patch
+that stops reclaim/compaction entering sync reclaim but the end result
+of the series is the same. Unfortunately we do not have tracing to record
+how often reclaim waited on writeback during compaction so my historical
+data does not indicate how often it happened. However, it may partially
+explain occasionaly complaints about interactivity during heavy writeback
+when THP is enabled (the bulk of the stalls were due to something else but
+on rare occasions disabling THP was reported to make a small unquantifable
+difference). I'll enable ftrace to record how often mm_vmscan_writepage()
+used RECLAIM_MODE_SYNC during tests for this series and include that
+information in the changelog.
 
-For the other devices, I currently use a fairly manual process that
-times a lot of write requests and can take a long time.
-
-> If storage vendors break such fields, it doesn't work well on linux
-> which is very popular on mobile world today and user will not use such
-> vendor devices and company will be gone. Let's give such pressure to
-> them and make vendor keep in promise.
-
-This could work for eMMC, yes.
-
-The SD card standard makes it impossible to write the correct value for
-most devices, it only supports power-of-two values up to 4MB for SDHC,
-and larger values (I believe 8, 12, 16, 24, ... 64) for SDXC, but a lot
-of SDHC cards nowadays use 1.5, 3, 6 or 8 MB erase blocks.
-
-	Arnd
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
