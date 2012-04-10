@@ -1,84 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx109.postini.com [74.125.245.109])
-	by kanga.kvack.org (Postfix) with SMTP id 693F46B004A
-	for <linux-mm@kvack.org>; Mon,  9 Apr 2012 20:34:52 -0400 (EDT)
-Received: by iajr24 with SMTP id r24so8903196iaj.14
-        for <linux-mm@kvack.org>; Mon, 09 Apr 2012 17:34:51 -0700 (PDT)
-Date: Mon, 9 Apr 2012 17:34:29 -0700 (PDT)
-From: Hugh Dickins <hughd@google.com>
-Subject: Re: [PATCH RFC] mm: account VMA before forced-COW via
- /proc/pid/mem
-In-Reply-To: <4F7FCC8A.6050707@openvz.org>
-Message-ID: <alpine.LSU.2.00.1204091648490.2079@eggly.anvils>
-References: <20120402153631.5101.44091.stgit@zurg> <20120403143752.GA5150@redhat.com> <4F7C1B67.6030300@openvz.org> <20120404154148.GA7105@redhat.com> <4F7D5859.5050106@openvz.org> <alpine.LSU.2.00.1204062104090.4297@eggly.anvils>
- <4F7FCC8A.6050707@openvz.org>
+Received: from psmtp.com (na3sys010amx153.postini.com [74.125.245.153])
+	by kanga.kvack.org (Postfix) with SMTP id 3B3866B004A
+	for <linux-mm@kvack.org>; Mon,  9 Apr 2012 20:35:54 -0400 (EDT)
+Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 67B883EE0BD
+	for <linux-mm@kvack.org>; Tue, 10 Apr 2012 09:35:52 +0900 (JST)
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 4FE2045DEA6
+	for <linux-mm@kvack.org>; Tue, 10 Apr 2012 09:35:52 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 3531E45DEB2
+	for <linux-mm@kvack.org>; Tue, 10 Apr 2012 09:35:52 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 297F61DB8038
+	for <linux-mm@kvack.org>; Tue, 10 Apr 2012 09:35:52 +0900 (JST)
+Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.240.81.133])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id D8C2D1DB8040
+	for <linux-mm@kvack.org>; Tue, 10 Apr 2012 09:35:51 +0900 (JST)
+Message-ID: <4F837FE2.7010805@jp.fujitsu.com>
+Date: Tue, 10 Apr 2012 09:33:38 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [PATCH] mm: sync rss-counters at the end of exit_mm()
+References: <20120409200336.8368.63793.stgit@zurg> <CAHGf_=oWj-hz-E5ht8-hUbQKdsZ1bzP80n987kGYnFm8BpXBVQ@mail.gmail.com> <alpine.LSU.2.00.1204091433380.1859@eggly.anvils>
+In-Reply-To: <alpine.LSU.2.00.1204091433380.1859@eggly.anvils>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Konstantin Khlebnikov <khlebnikov@openvz.org>
-Cc: Oleg Nesterov <oleg@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Roland Dreier <roland@kernel.org>, Stephen Wilson <wilsons@start.ca>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>
+To: Hugh Dickins <hughd@google.com>
+Cc: KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Konstantin Khlebnikov <khlebnikov@openvz.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Markus Trippelsdorf <markus@trippelsdorf.de>
 
-On Sat, 7 Apr 2012, Konstantin Khlebnikov wrote:
-> Hugh Dickins wrote:
-> > 
-> > I've long detested that behaviour of GUP write,force, and my strong
-> > preference would be not to layer more strangeness upon strangeness,
-> > but limit the damage by making GUP write,force fail in that case,
-> > instead of inserting a PageAnon page into a VM_SHARED mapping.
-> > 
-> > I think it's unlikely that it will cause a regression in real life
-> > (it already fails if you did not open the mmap'ed file for writing),
-> > but it would be a user-visible change in behaviour, and I've research
-> > to do before arriving at a conclusion.
+(2012/04/10 7:03), Hugh Dickins wrote:
+
+> On Mon, 9 Apr 2012, KOSAKI Motohiro wrote:
+>> On Mon, Apr 9, 2012 at 4:03 PM, Konstantin Khlebnikov
+>> <khlebnikov@openvz.org> wrote:
+>>> On task's exit do_exit() calls sync_mm_rss() but this is not enough,
+>>> there can be page-faults after this point, for example exit_mm() ->
+>>> mm_release() -> put_user() (for processing tsk->clear_child_tid).
+>>> Thus there may be some rss-counters delta in current->rss_stat.
+>>
+>> Seems reasonable.
 > 
-> Agree, but this stuff is very weak. Even if sysctl vm.overcommit_memory=2,
-> probably we should fixup accounting in /proc/pid/mem only for this case,
-> because vm.overcommit_memory=2 supposed to protect against overcommit, but it
-> does not.
+> Yes, I think Konstantin has probably caught it;
+> but I'd like to hear confirmation from Markus.
+> 
+>> but I have another question. Do we have any reason to
+>> keep sync_mm_rss() in do_exit()? I havn't seen any reason that thread exiting
+>> makes rss consistency.
+> 
+> IIRC it's all about the hiwater_rss/maxrss stuff: we want to sync the
+> maximum rss into mm->hiwater_rss before it's transferred to signal->maxrss,
+> and later made visible to the user though getrusage(RUSAGE_CHILDREN,) -
+> does your reading confirm that?
+> 
 
-You are right (and it's not the first time I've had to say so!).
 
-At first I was puzzled by your answer, then went back to your initial
-mail, which clearly says "Currently kernel does not account read-only
-private mappings into memory commitment.  But these mappings can be
-force-COW-ed in get_user_pages()" and realized (a) that I'd forgotten
-about that weakness in the overcommit stuff, and (b) that I'd therefore
-let my obsession with the anon-in-shared issue blind me to what you were
-actually saying.  "private", yes, sorry about that.  Let's set aside the
-shared issue for the moment, then, though I'll need to answer Oleg after
-(and writing to /proc/pid/mem makes that more serious than before too).
+IIRC, sync_mm_rss() in do_exit() is for synchronizing rsscounter for taskacct.
+mm->maxrss is sent to listener by xacct_add_tsk(). It's needed to be
+synchronized before taskstat_exit()..
 
-Yes, GUP force-write into private-readonly can violate no-overcommit.
+Hm, but, exit_mm() is placed after taskstat_exit().
 
-Force-write was originally intended just for setting breakpoints with
-ptrace(2), and we've taken the view that fixing the no-overcommit issue
-is simply more trouble than it's worth.  But I agree with you that once
-writing to /proc/pid/mem was enabled a year ago, it became a more serious
-defect: I don't think /proc/pid/mem makes anything new possible, but it
-does make it easier - I imagine dd(1) could achieve the same as your
-little program.
-
-I was hoping to find that writing to /proc/pid/mem was enabled solely
-because "why not?", and the 198214a7ee commit message does suggest so;
-but I see there was a 0/12 mail which never reached git, which makes
-clear that it was intended for debuggers to use instead of ptrace(2).
-So I think my first reaction, to disallow write-force on readonly via
-/proc/pid/mem, would not be helpful.
-
-I think all solutions to this are unsatifactory, and most ugly.
-I'd better pull up your original mail to review in detail, but I'd
-say yours is no exception: ugly and unsatisfactory, but quite possibly
-less ugly and less unsatisfactory than most.  I was quite happy to be
-doing nothing at all about this, but now that you've raised the matter,
-I can understand that you won't want it to rest there.
-
-Of course, the issue can be dealt with by an additional data structure;
-but extending vm_area_struct or anon_vma (if only by one usually-NULL
-pointer), and adding the code to handle it, would itself be
-unsatisfactory - and I guess you felt the same.
-
-Hugh
+Thanks,
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
