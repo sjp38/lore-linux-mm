@@ -1,97 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx180.postini.com [74.125.245.180])
-	by kanga.kvack.org (Postfix) with SMTP id 580216B004D
-	for <linux-mm@kvack.org>; Tue, 10 Apr 2012 01:42:34 -0400 (EDT)
-Received: by iajr24 with SMTP id r24so9295938iaj.14
-        for <linux-mm@kvack.org>; Mon, 09 Apr 2012 22:42:33 -0700 (PDT)
-Date: Mon, 9 Apr 2012 22:42:31 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: [patch v2] thp, memcg: split hugepage for memcg oom on cow
-In-Reply-To: <alpine.DEB.2.00.1204092241180.27689@chino.kir.corp.google.com>
-Message-ID: <alpine.DEB.2.00.1204092242050.27689@chino.kir.corp.google.com>
-References: <alpine.DEB.2.00.1204031854530.30629@chino.kir.corp.google.com> <4F838385.9070309@jp.fujitsu.com> <alpine.DEB.2.00.1204092241180.27689@chino.kir.corp.google.com>
+Received: from psmtp.com (na3sys010amx131.postini.com [74.125.245.131])
+	by kanga.kvack.org (Postfix) with SMTP id D0DAE6B007E
+	for <linux-mm@kvack.org>; Tue, 10 Apr 2012 01:43:18 -0400 (EDT)
+Received: by bkwq16 with SMTP id q16so5209573bkw.14
+        for <linux-mm@kvack.org>; Mon, 09 Apr 2012 22:43:17 -0700 (PDT)
+Message-ID: <4F83C870.2090100@openvz.org>
+Date: Tue, 10 Apr 2012 09:43:12 +0400
+From: Konstantin Khlebnikov <khlebnikov@openvz.org>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [PATCH] mm: sync rss-counters at the end of exit_mm()
+References: <20120409200336.8368.63793.stgit@zurg> <4F838051.50101@jp.fujitsu.com>
+In-Reply-To: <4F838051.50101@jp.fujitsu.com>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <jweiner@redhat.com>, linux-mm@kvack.org
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Hugh Dickins <hughd@google.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Markus Trippelsdorf <markus@trippelsdorf.de>
 
-On COW, a new hugepage is allocated and charged to the memcg.  If the
-system is oom or the charge to the memcg fails, however, the fault
-handler will return VM_FAULT_OOM which results in an oom kill.
+KAMEZAWA Hiroyuki wrote:
+> (2012/04/10 5:03), Konstantin Khlebnikov wrote:
+>
+>> On task's exit do_exit() calls sync_mm_rss() but this is not enough,
+>> there can be page-faults after this point, for example exit_mm() ->
+>> mm_release() ->  put_user() (for processing tsk->clear_child_tid).
+>> Thus there may be some rss-counters delta in current->rss_stat.
 
-Instead, it's possible to fallback to splitting the hugepage so that the
-COW results only in an order-0 page being allocated and charged to the
-memcg which has a higher liklihood to succeed.  This is expensive because
-the hugepage must be split in the page fault handler, but it is much
-better than unnecessarily oom killing a process.
+I had to mention it in comment:
 
-Signed-off-by: David Rientjes <rientjes@google.com>
----
- mm/huge_memory.c |    3 +++
- mm/memory.c      |   18 +++++++++++++++---
- 2 files changed, 18 insertions(+), 3 deletions(-)
+This should fix warnings:
+BUG: Bad rss-counter state mm:ffff88020813c380 idx:1 val:-1
+BUG: Bad rss-counter state mm:ffff88020813c380 idx:2 val:1
 
-diff --git a/mm/huge_memory.c b/mm/huge_memory.c
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -950,6 +950,8 @@ int do_huge_pmd_wp_page(struct mm_struct *mm, struct vm_area_struct *vma,
- 		count_vm_event(THP_FAULT_FALLBACK);
- 		ret = do_huge_pmd_wp_page_fallback(mm, vma, address,
- 						   pmd, orig_pmd, page, haddr);
-+		if (ret & VM_FAULT_OOM)
-+			split_huge_page(page);
- 		put_page(page);
- 		goto out;
- 	}
-@@ -957,6 +959,7 @@ int do_huge_pmd_wp_page(struct mm_struct *mm, struct vm_area_struct *vma,
- 
- 	if (unlikely(mem_cgroup_newpage_charge(new_page, mm, GFP_KERNEL))) {
- 		put_page(new_page);
-+		split_huge_page(page);
- 		put_page(page);
- 		ret |= VM_FAULT_OOM;
- 		goto out;
-diff --git a/mm/memory.c b/mm/memory.c
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -3489,6 +3489,7 @@ int handle_mm_fault(struct mm_struct *mm, struct vm_area_struct *vma,
- 	if (unlikely(is_vm_hugetlb_page(vma)))
- 		return hugetlb_fault(mm, vma, address, flags);
- 
-+retry:
- 	pgd = pgd_offset(mm, address);
- 	pud = pud_alloc(mm, pgd, address);
- 	if (!pud)
-@@ -3502,13 +3503,24 @@ int handle_mm_fault(struct mm_struct *mm, struct vm_area_struct *vma,
- 							  pmd, flags);
- 	} else {
- 		pmd_t orig_pmd = *pmd;
-+		int ret;
-+
- 		barrier();
- 		if (pmd_trans_huge(orig_pmd)) {
- 			if (flags & FAULT_FLAG_WRITE &&
- 			    !pmd_write(orig_pmd) &&
--			    !pmd_trans_splitting(orig_pmd))
--				return do_huge_pmd_wp_page(mm, vma, address,
--							   pmd, orig_pmd);
-+			    !pmd_trans_splitting(orig_pmd)) {
-+				ret = do_huge_pmd_wp_page(mm, vma, address, pmd,
-+							  orig_pmd);
-+				/*
-+				 * If COW results in an oom, the huge pmd will
-+				 * have been split, so retry the fault on the
-+				 * pte for a smaller charge.
-+				 */
-+				if (unlikely(ret & VM_FAULT_OOM))
-+					goto retry;
-+				return ret;
-+			}
- 			return 0;
- 		}
- 	}
+>>
+>> Signed-off-by: Konstantin Khlebnikov<khlebnikov@openvz.org>
+>> Reported-by: Markus Trippelsdorf<markus@trippelsdorf.de>
+>> Cc: Hugh Dickins<hughd@google.com>
+>> Cc: KAMEZAWA Hiroyuki<kamezawa.hiroyu@jp.fujitsu.com>
+>
+> Reviewed-by: KAMEZAWA Hiroyuki<kamezawa.hiroyu@jp.fujitsu.com>
+>
+> Does this fix recent issue reported ?
+>
+
+I hope so.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
