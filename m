@@ -1,77 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx170.postini.com [74.125.245.170])
-	by kanga.kvack.org (Postfix) with SMTP id 666F66B004A
-	for <linux-mm@kvack.org>; Mon,  9 Apr 2012 20:45:38 -0400 (EDT)
-Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id EF12D3EE0C1
-	for <linux-mm@kvack.org>; Tue, 10 Apr 2012 09:45:36 +0900 (JST)
-Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id B31CF45DEBA
-	for <linux-mm@kvack.org>; Tue, 10 Apr 2012 09:45:36 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 6836645DE9E
-	for <linux-mm@kvack.org>; Tue, 10 Apr 2012 09:45:35 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 5A70E1DB803F
-	for <linux-mm@kvack.org>; Tue, 10 Apr 2012 09:45:35 +0900 (JST)
-Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.240.81.147])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 105B51DB8038
-	for <linux-mm@kvack.org>; Tue, 10 Apr 2012 09:45:35 +0900 (JST)
-Message-ID: <4F838245.4000108@jp.fujitsu.com>
-Date: Tue, 10 Apr 2012 09:43:49 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Received: from psmtp.com (na3sys010amx130.postini.com [74.125.245.130])
+	by kanga.kvack.org (Postfix) with SMTP id 0CF756B004A
+	for <linux-mm@kvack.org>; Mon,  9 Apr 2012 20:49:29 -0400 (EDT)
+Message-ID: <4F838390.1080909@redhat.com>
+Date: Mon, 09 Apr 2012 20:49:20 -0400
+From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Subject: Re: [patch] thp, memcg: split hugepage for memcg oom on cow
-References: <alpine.DEB.2.00.1204031854530.30629@chino.kir.corp.google.com> <4F82A77D.4020800@jp.fujitsu.com> <alpine.DEB.2.00.1204091722110.21813@chino.kir.corp.google.com>
-In-Reply-To: <alpine.DEB.2.00.1204091722110.21813@chino.kir.corp.google.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Subject: Re: mapped pagecache pages vs unmapped pages
+References: <37371333672160@webcorp7.yandex-team.ru> <4F7E9854.1020904@gmail.com> <12701333991475@webcorp7.yandex-team.ru> <4F8326FD.8020507@redhat.com> <8041334015453@webcorp4.yandex-team.ru> <4F837F6E.3010508@kernel.org>
+In-Reply-To: <4F837F6E.3010508@kernel.org>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <jweiner@redhat.com>, linux-mm@kvack.org
+To: Minchan Kim <minchan@kernel.org>
+Cc: Alexey Ivanov <rbtz@yandex-team.ru>, "gnehzuil.lzheng@gmail.com" <gnehzuil.lzheng@gmail.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, yinghan@google.com
 
-(2012/04/10 9:23), David Rientjes wrote:
+On 04/09/2012 08:31 PM, Minchan Kim wrote:
+> 2012-04-10 i??i ? 8:50, Alexey Ivanov i?' e,?:
+>
+>> Did you consider making this ratio tunable, at least manually(i.e. via sysctl)?
+>> I suppose we are not the only ones with almost-whole-ram-mmaped workload.
+>
+> Personally, I think it's not good approach.
+> It depends on kernel's internal implemenatation which would be changed
+> in future as we chagend it at 2.6.28.
 
-> On Mon, 9 Apr 2012, KAMEZAWA Hiroyuki wrote:
-> 
->> if (transparent_hugepage_enabled(vma) &&
->>             !transparent_hugepage_debug_cow())
->>                 new_page = alloc_hugepage_vma(transparent_hugepage_defrag(vma),
->>                                               vma, haddr, numa_node_id(), 0);
->>         else
->>                 new_page = NULL;
->> 	
->> if (unlikely(mem_cgroup_newpage_charge(new_page, mm, GFP_KERNEL))) {
->>                 put_page(new_page);
->>                 new_page = NULL; /* never OOM, just cause fallback */
->> }
->>
->> if (unlikely(!new_page)) {
->>                 count_vm_event(THP_FAULT_FALLBACK);
->>                 ret = do_huge_pmd_wp_page_fallback(mm, vma, address,
->>                                                    pmd, orig_pmd, page, haddr);
->>                 put_page(page);
->>                 goto out;
->> }
-> 
-> This would result in the same error since do_huge_pmd_wp_page_fallback() 
-> would fail to charge the necessary memory to the memcg.
-> 
+I also believe that a tunable for this is not going to be
+a very workable approach, for the simple reason that changing
+the value does not make a predictable change in the effectiveness
+of working set detection or protection.
 
-Ah, I see. this will charge 1024 pages anyway. But ...hm, memcg easily returns
-failure when many pages are requested. AND.... I misunderstood your patch.
-You split hugepage and allocate 1 page at fault. Ok, seems reasonable, I'm sorry.
+> In my opinion, kernel just should do best effort to keep active working
+> set except some critical pages which are code pages.
 
-Thanks,
--Kame
+Johannes has some experimental code to measure refaults, and
+calculate their distance in a multi-zone, multi-cgroup environment.
 
-> Are you still including my change to handle_mm_fault() to retry if this 
-> returns VM_FAULT_OOM?
-> 
-> 
+That would allow us to predictably place things in the working set
+as required.
 
-
+-- 
+All rights reversed
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
