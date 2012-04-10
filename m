@@ -1,47 +1,113 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx130.postini.com [74.125.245.130])
-	by kanga.kvack.org (Postfix) with SMTP id 0CF756B004A
-	for <linux-mm@kvack.org>; Mon,  9 Apr 2012 20:49:29 -0400 (EDT)
-Message-ID: <4F838390.1080909@redhat.com>
-Date: Mon, 09 Apr 2012 20:49:20 -0400
-From: Rik van Riel <riel@redhat.com>
+Received: from psmtp.com (na3sys010amx116.postini.com [74.125.245.116])
+	by kanga.kvack.org (Postfix) with SMTP id D8EC26B004D
+	for <linux-mm@kvack.org>; Mon,  9 Apr 2012 20:50:52 -0400 (EDT)
+Received: from m2.gw.fujitsu.co.jp (unknown [10.0.50.72])
+	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 748043EE0C0
+	for <linux-mm@kvack.org>; Tue, 10 Apr 2012 09:50:51 +0900 (JST)
+Received: from smail (m2 [127.0.0.1])
+	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 5E4D445DD73
+	for <linux-mm@kvack.org>; Tue, 10 Apr 2012 09:50:51 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
+	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 2934C45DE4D
+	for <linux-mm@kvack.org>; Tue, 10 Apr 2012 09:50:51 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 1B8191DB803C
+	for <linux-mm@kvack.org>; Tue, 10 Apr 2012 09:50:51 +0900 (JST)
+Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.240.81.145])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id C545A1DB8038
+	for <linux-mm@kvack.org>; Tue, 10 Apr 2012 09:50:50 +0900 (JST)
+Message-ID: <4F838385.9070309@jp.fujitsu.com>
+Date: Tue, 10 Apr 2012 09:49:09 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
-Subject: Re: mapped pagecache pages vs unmapped pages
-References: <37371333672160@webcorp7.yandex-team.ru> <4F7E9854.1020904@gmail.com> <12701333991475@webcorp7.yandex-team.ru> <4F8326FD.8020507@redhat.com> <8041334015453@webcorp4.yandex-team.ru> <4F837F6E.3010508@kernel.org>
-In-Reply-To: <4F837F6E.3010508@kernel.org>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 8bit
+Subject: Re: [patch] thp, memcg: split hugepage for memcg oom on cow
+References: <alpine.DEB.2.00.1204031854530.30629@chino.kir.corp.google.com>
+In-Reply-To: <alpine.DEB.2.00.1204031854530.30629@chino.kir.corp.google.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Alexey Ivanov <rbtz@yandex-team.ru>, "gnehzuil.lzheng@gmail.com" <gnehzuil.lzheng@gmail.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, yinghan@google.com
+To: David Rientjes <rientjes@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <jweiner@redhat.com>, linux-mm@kvack.org
 
-On 04/09/2012 08:31 PM, Minchan Kim wrote:
-> 2012-04-10 i??i ? 8:50, Alexey Ivanov i?' e,?:
->
->> Did you consider making this ratio tunable, at least manually(i.e. via sysctl)?
->> I suppose we are not the only ones with almost-whole-ram-mmaped workload.
->
-> Personally, I think it's not good approach.
-> It depends on kernel's internal implemenatation which would be changed
-> in future as we chagend it at 2.6.28.
+(2012/04/04 10:56), David Rientjes wrote:
 
-I also believe that a tunable for this is not going to be
-a very workable approach, for the simple reason that changing
-the value does not make a predictable change in the effectiveness
-of working set detection or protection.
+> On COW, a new hugepage is allocated and charged to the memcg.  If the
+> memcg is oom, however, this charge will fail and will return VM_FAULT_OOM
+> to the page fault handler which results in an oom kill.
+> 
+> Instead, it's possible to fallback to splitting the hugepage so that the
+> COW results only in an order-0 page being charged to the memcg which has
+> a higher liklihood to succeed.  This is expensive because the hugepage
+> must be split in the page fault handler, but it is much better than
+> unnecessarily oom killing a process.
+> 
+> Signed-off-by: David Rientjes <rientjes@google.com>
+> ---
+>  mm/huge_memory.c |    1 +
+>  mm/memory.c      |   18 +++++++++++++++---
+>  2 files changed, 16 insertions(+), 3 deletions(-)
+> 
+> diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+> --- a/mm/huge_memory.c
+> +++ b/mm/huge_memory.c
+> @@ -959,6 +959,7 @@ int do_huge_pmd_wp_page(struct mm_struct *mm, struct vm_area_struct *vma,
+>  
+>  	if (unlikely(mem_cgroup_newpage_charge(new_page, mm, GFP_KERNEL))) {
+>  		put_page(new_page);
+> +		split_huge_page(page);
+>  		put_page(page);
+>  		ret |= VM_FAULT_OOM;
+>  		goto out;
+> diff --git a/mm/memory.c b/mm/memory.c
+> --- a/mm/memory.c
+> +++ b/mm/memory.c
+> @@ -3489,6 +3489,7 @@ int handle_mm_fault(struct mm_struct *mm, struct vm_area_struct *vma,
+>  	if (unlikely(is_vm_hugetlb_page(vma)))
+>  		return hugetlb_fault(mm, vma, address, flags);
+>  
+> +retry:
+>  	pgd = pgd_offset(mm, address);
+>  	pud = pud_alloc(mm, pgd, address);
+>  	if (!pud)
+> @@ -3502,13 +3503,24 @@ int handle_mm_fault(struct mm_struct *mm, struct vm_area_struct *vma,
+>  							  pmd, flags);
+>  	} else {
+>  		pmd_t orig_pmd = *pmd;
+> +		int ret;
+> +
+>  		barrier();
+>  		if (pmd_trans_huge(orig_pmd)) {
+>  			if (flags & FAULT_FLAG_WRITE &&
+>  			    !pmd_write(orig_pmd) &&
+> -			    !pmd_trans_splitting(orig_pmd))
+> -				return do_huge_pmd_wp_page(mm, vma, address,
+> -							   pmd, orig_pmd);
+> +			    !pmd_trans_splitting(orig_pmd)) {
+> +				ret = do_huge_pmd_wp_page(mm, vma, address, pmd,
+> +							  orig_pmd);
+> +				/*
+> +				 * If COW results in an oom memcg, the huge pmd
+> +				 * will already have been split, so retry the
+> +				 * fault on the pte for a smaller charge.
+> +				 */
 
-> In my opinion, kernel just should do best effort to keep active working
-> set except some critical pages which are code pages.
 
-Johannes has some experimental code to measure refaults, and
-calculate their distance in a multi-zone, multi-cgroup environment.
+IIUC, do_huge_pmd_wp_page_fallback() can return VM_FAULT_OOM. So, this check
+is not related only to memcg.
 
-That would allow us to predictably place things in the working set
-as required.
+> +				if (unlikely(ret & VM_FAULT_OOM))
+> +					goto retry;
+> +				return ret;
+> +			}
+>  			return 0;
 
--- 
-All rights reversed
+
+Anyway, seems reasonable to me.
+
+Reviewed-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
