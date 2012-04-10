@@ -1,60 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx147.postini.com [74.125.245.147])
-	by kanga.kvack.org (Postfix) with SMTP id C4B8B6B0083
-	for <linux-mm@kvack.org>; Mon,  9 Apr 2012 21:36:12 -0400 (EDT)
-Date: Tue, 10 Apr 2012 03:35:49 +0200
-From: Oleg Nesterov <oleg@redhat.com>
-Subject: Re: [PATCH RFC] mm: account VMA before forced-COW via /proc/pid/mem
-Message-ID: <20120410013549.GA19314@redhat.com>
-References: <20120402153631.5101.44091.stgit@zurg> <20120403143752.GA5150@redhat.com> <4F7C1B67.6030300@openvz.org> <20120404154148.GA7105@redhat.com> <4F7D5859.5050106@openvz.org> <alpine.LSU.2.00.1204062104090.4297@eggly.anvils> <20120407173318.GA5076@redhat.com> <alpine.LSU.2.00.1204091734530.2079@eggly.anvils>
+Received: from psmtp.com (na3sys010amx183.postini.com [74.125.245.183])
+	by kanga.kvack.org (Postfix) with SMTP id 125216B004A
+	for <linux-mm@kvack.org>; Tue, 10 Apr 2012 01:42:01 -0400 (EDT)
+Received: by iajr24 with SMTP id r24so9295235iaj.14
+        for <linux-mm@kvack.org>; Mon, 09 Apr 2012 22:42:00 -0700 (PDT)
+Date: Mon, 9 Apr 2012 22:41:58 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [patch] thp, memcg: split hugepage for memcg oom on cow
+In-Reply-To: <4F838385.9070309@jp.fujitsu.com>
+Message-ID: <alpine.DEB.2.00.1204092241180.27689@chino.kir.corp.google.com>
+References: <alpine.DEB.2.00.1204031854530.30629@chino.kir.corp.google.com> <4F838385.9070309@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.LSU.2.00.1204091734530.2079@eggly.anvils>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: Konstantin Khlebnikov <khlebnikov@openvz.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Roland Dreier <roland@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <jweiner@redhat.com>, linux-mm@kvack.org
 
-On 04/09, Hugh Dickins wrote:
->
-> Let me reiterate here that I was off at a tangent in bringing this up,
-> so sorry for any confusion I spread.
+On Tue, 10 Apr 2012, KAMEZAWA Hiroyuki wrote:
 
-I guess it was me who added the confusion ;)
+> > @@ -3502,13 +3503,24 @@ int handle_mm_fault(struct mm_struct *mm, struct vm_area_struct *vma,
+> >  							  pmd, flags);
+> >  	} else {
+> >  		pmd_t orig_pmd = *pmd;
+> > +		int ret;
+> > +
+> >  		barrier();
+> >  		if (pmd_trans_huge(orig_pmd)) {
+> >  			if (flags & FAULT_FLAG_WRITE &&
+> >  			    !pmd_write(orig_pmd) &&
+> > -			    !pmd_trans_splitting(orig_pmd))
+> > -				return do_huge_pmd_wp_page(mm, vma, address,
+> > -							   pmd, orig_pmd);
+> > +			    !pmd_trans_splitting(orig_pmd)) {
+> > +				ret = do_huge_pmd_wp_page(mm, vma, address, pmd,
+> > +							  orig_pmd);
+> > +				/*
+> > +				 * If COW results in an oom memcg, the huge pmd
+> > +				 * will already have been split, so retry the
+> > +				 * fault on the pte for a smaller charge.
+> > +				 */
+> 
+> 
+> IIUC, do_huge_pmd_wp_page_fallback() can return VM_FAULT_OOM. So, this check
+> is not related only to memcg.
+> 
 
-> > OTOH, if the file was opened without FMODE_WRITE, then I do not
-> > really understand how (PROT_READ, MAP_SHARED) differs from
-> > (PROT_READ, MAP_PRIVATE).
-
-I meant, from gup(FOLL_FORCE|FOLL_WRITE) pov. I didn't mean mprotect/etc.
-
-> The strange weird confusing part is that having checked that you have
-> permission to write to the file, it then avoids doing so (unless the
-> area currently has PROT_WRITE): it COWs pages for you instead,
-> leaving unexpected anon pages in the shared area.
-
-Yes, and we could do the same in (PROT_READ, MAP_SHARED) case.
-
-This is what looks strange to me. We require PROT_WRITE to force-
-cow, although we are not going (and shouldn't) write to the file.
-
-
-But, to avoid even more confusion, I am not arguing with your
-"limit the damage by making GUP write,force fail in that case"
-suggestion. At least I do not think ptrace/gdb can suffer.
-
-> > Speaking of the difference above, I'd wish I could understand
-> > what VM_MAYSHARE actually means except "MAP_SHARED was used".
->
-> That's precisely it: so it's very useful in /proc/pid/maps, for
-> deciding whether to show an 's' or a 'p', but not so often when
-> real decisions are made (where, as you've observed, private readonly
-> and shared readonly are treated very similarly, without VM_SHARED).
-
-Aha, thanks a lot.
-
-Oleg.
+You're right, and if we do that then we infinitely loop trying to handle 
+the pagefault instead of returning.  I'll post a v2 of the patch that 
+fixes this, thanks for catching it.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
