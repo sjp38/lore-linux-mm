@@ -1,73 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx204.postini.com [74.125.245.204])
-	by kanga.kvack.org (Postfix) with SMTP id B57606B004A
-	for <linux-mm@kvack.org>; Mon,  9 Apr 2012 21:07:51 -0400 (EDT)
-Message-ID: <4F838870.9030407@kernel.org>
-Date: Tue, 10 Apr 2012 10:10:08 +0900
+Received: from psmtp.com (na3sys010amx169.postini.com [74.125.245.169])
+	by kanga.kvack.org (Postfix) with SMTP id CD5296B004A
+	for <linux-mm@kvack.org>; Mon,  9 Apr 2012 21:22:47 -0400 (EDT)
+Message-ID: <4F838BF4.7020104@kernel.org>
+Date: Tue, 10 Apr 2012 10:25:08 +0900
 From: Minchan Kim <minchan@kernel.org>
 MIME-Version: 1.0
-Subject: Re: swap on eMMC and other flash
-References: <201203301744.16762.arnd@arndb.de> <006f01cd1623$ac4a2860$04de7920$%jeong@samsung.com> <4F8299B4.5090909@kernel.org> <201204091300.34304.arnd@arndb.de>
-In-Reply-To: <201204091300.34304.arnd@arndb.de>
+Subject: Re: mapped pagecache pages vs unmapped pages
+References: <37371333672160@webcorp7.yandex-team.ru> <4F7E9854.1020904@gmail.com> <12701333991475@webcorp7.yandex-team.ru> <4F8326FD.8020507@redhat.com> <8041334015453@webcorp4.yandex-team.ru> <4F837F6E.3010508@kernel.org> <4F838390.1080909@redhat.com>
+In-Reply-To: <4F838390.1080909@redhat.com>
 Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Arnd Bergmann <arnd@arndb.de>
-Cc: =?UTF-8?B?7KCV7Zqo7KeE?= <syr.jeong@samsung.com>, 'Alex Lemberg' <Alex.Lemberg@sandisk.com>, linaro-kernel@lists.linaro.org, 'Rik van Riel' <riel@redhat.com>, linux-mmc@vger.kernel.org, linux-kernel@vger.kernel.org, "'Luca Porzio (lporzio)'" <lporzio@micron.com>, linux-mm@kvack.org, kernel-team@android.com, 'Yejin Moon' <yejin.moon@samsung.com>, 'Hugh Dickins' <hughd@google.com>, 'Yaniv Iarovici' <Yaniv.Iarovici@sandisk.com>, cpgs@samsung.com
+To: Rik van Riel <riel@redhat.com>, hannes@cmpxchg.org
+Cc: Alexey Ivanov <rbtz@yandex-team.ru>, "gnehzuil.lzheng@gmail.com" <gnehzuil.lzheng@gmail.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, yinghan@google.com
 
-2012-04-09 i??i?? 10:00, Arnd Bergmann i?' e,?:
+2012-04-10 i??i ? 9:49, Rik van Riel i?' e,?:
 
-> On Monday 09 April 2012, Minchan Kim wrote:
->>>
->>> Regarding swap page size:
->>> Actually, I can't guarantee the optimal size of different eMMC in the industry, because it depends on NAND page size an firmware implementation inside eMMC. In case of SAMSUNG eMMC, 8KB page size and 512KB block size(erase unit) is current implementation.
->>> I think that the multiple of 8KB page size align with 512KB is good for SAMSUNG eMMC.
->>> If swap system use 512KB page and issue Discard/Trim align with 512KB, eMMC make best performance as of today. However, large page size in swap partition may not best way in Linux system level.
->>> I'm not sure that the best page size between Swap system and eMMC device.
+> On 04/09/2012 08:31 PM, Minchan Kim wrote:
+>> 2012-04-10 i??i ? 8:50, Alexey Ivanov i?' e,?:
 >>
+>>> Did you consider making this ratio tunable, at least manually(i.e.
+>>> via sysctl)?
+>>> I suppose we are not the only ones with almost-whole-ram-mmaped
+>>> workload.
 >>
->> The variety is one of challenges for removing GC generally. ;-(.
->> I don't like manual setting through /sys/block/xxx because it requires
->> that user have to know nand page size and erase block size but it's not
->> easy to know to normal user.
->> Arnd. What's your plan to support various flash storages effectively?
+>> Personally, I think it's not good approach.
+>> It depends on kernel's internal implemenatation which would be changed
+>> in future as we chagend it at 2.6.28.
 > 
-> My preference would be to build the logic to detect the sizes into mkfs
-> and mkswap and encode them in the superblock in new fields. I don't think
-> we can trust any data that a device reports right now because operating
-> systems have ignored it in the past and either someone has forgotten to
-> update the fields after moving to new technology (eMMC), or the data can
-> not be encoded correctly according to the spec (SD, USB).
-
-
-I think it's not good approach.
-How long does it take to know such parameters?
-I guess it's not short so that mkfs/mkswap would be very long
-dramatically. If needed, let's maintain it as another tool.
-
-If storage vendors break such fields, it doesn't work well on linux
-which is very popular on mobile world today and user will not use such
-vendor devices and company will be gone. Let's give such pressure to
-them and make vendor keep in promise.
-
-
+> I also believe that a tunable for this is not going to be
+> a very workable approach, for the simple reason that changing
+> the value does not make a predictable change in the effectiveness
+> of working set detection or protection.
 > 
-> System builders for embedded systems can then make sure that they get
-> it right for the hardware they use, and we can try our best to help
-> that process.
-
-
-
-
+>> In my opinion, kernel just should do best effort to keep active working
+>> set except some critical pages which are code pages.
 > 
-> 	Ard
-> --
-> To unsubscribe from this list: send the line "unsubscribe linux-mmc" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+> Johannes has some experimental code to measure refaults, and
+> calculate their distance in a multi-zone, multi-cgroup environment.
+> 
+> That would allow us to predictably place things in the working set
+> as required.
 > 
 
+
+Hannes, it can help many people if you post your code. ;)
 
 
 -- 
