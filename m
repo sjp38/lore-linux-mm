@@ -1,103 +1,89 @@
-Return-Path: <scythes895@tcsn.net>
-Message-ID: <4F8581F3.901090@tcsn.net>
-Date: Tue, 10 Apr 2012 18:38:40 +0100
-From: "Eldon Walker" <scythes895@tcsn.net>
+Return-Path: <owner-linux-mm@kvack.org>
+Received: from psmtp.com (na3sys010amx118.postini.com [74.125.245.118])
+	by kanga.kvack.org (Postfix) with SMTP id 41DE06B004A
+	for <linux-mm@kvack.org>; Tue, 10 Apr 2012 14:07:08 -0400 (EDT)
+Date: Tue, 10 Apr 2012 14:06:53 -0400
+From: Vivek Goyal <vgoyal@redhat.com>
+Subject: Re: [RFC] writeback and cgroup
+Message-ID: <20120410180653.GJ21801@redhat.com>
+References: <20120403183655.GA23106@dhcp-172-17-108-109.mtv.corp.google.com>
+ <20120404145134.GC12676@redhat.com>
+ <20120407080027.GA2584@quack.suse.cz>
 MIME-Version: 1.0
-Subject: Re: FW: End of Aug. Stat. Required
-Content-Type: multipart/alternative;
- boundary="------------01050300909050802040909"
-To: linux-mm-archive@kvack.org
-Cc: linux-aio@kvack.org, linux-mm@kvack.org
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20120407080027.GA2584@quack.suse.cz>
+Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
+To: Jan Kara <jack@suse.cz>
+Cc: Tejun Heo <tj@kernel.org>, Fengguang Wu <fengguang.wu@intel.com>, Jens Axboe <axboe@kernel.dk>, linux-mm@kvack.org, sjayaraman@suse.com, andrea@betterlinux.com, jmoyer@redhat.com, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, lizefan@huawei.com, containers@lists.linux-foundation.org, cgroups@vger.kernel.org, ctalbott@google.com, rni@google.com, lsf@lists.linux-foundation.org
 
-This is a multi-part message in MIME format.
---------------01050300909050802040909
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 7bit
+On Sat, Apr 07, 2012 at 10:00:27AM +0200, Jan Kara wrote:
+Hi Jan,
 
-Hi, as reqeusted I give you inovices issued to you per february (Internet Explorer format).RegardsDeborah Bergman
+[..]
+> > In general, the core of the issue is that filesystems are not cgroup aware
+> > and if you do throttling below filesystems, then invariably one or other
+> > serialization issue will come up and I am concerned that we will be constantly
+> > fixing those serialization issues. Or the desgin point could be so central
+> > to filesystem design that it can't be changed.
+>   We talked about this at LSF and Dave Chinner had the idea that we could
+> make processes wait at the time when a transaction is started. At that time
+> we don't hold any global locks so process can be throttled without
+> serializing other processes. This effectively builds some cgroup awareness
+> into filesystems but pretty simple one so it should be doable.
 
---------------01050300909050802040909
-Content-Type: multipart/related;
- boundary="------------02070900201010603030105"
+Ok. So what is the meaning of "make process wait" here? What it will be
+dependent on? I am thinking of a case where a process has 100MB of dirty
+data, has 10MB/s write limit and it issues fsync. So before that process
+is able to open a transaction, one needs to wait atleast 10seconds
+(assuming other processes are not doing IO in same cgroup). 
 
+If this wait is based on making sure all dirty data has been written back
+before opening transaction, then it will work without any interaction with
+block layer and sounds more feasible.
 
---------------02070900201010603030105
-Content-Type: text/html; charset=UTF-8
-Content-Transfer-Encoding: 7bit
+> 
+> > In general, if you do throttling deeper in the stakc and build back
+> > pressure, then all the layers sitting above should be cgroup aware
+> > to avoid problems. Two layers identified so far are writeback and
+> > filesystems. Is it really worth the complexity. How about doing 
+> > throttling in higher layers when IO is entering the kernel and
+> > keep proportional IO logic at the lowest level and current mechanism
+> > of building pressure continues to work?
+>   I would like to keep single throttling mechanism for different limitting
+> methods - i.e. handle proportional IO the same way as IO hard limits. So we
+> cannot really rely on the fact that throttling is work preserving.
+> 
+> The advantage of throttling at IO layer is that we can keep all the details
+> inside it and only export pretty minimal information (like is bdi congested
+> for given cgroup) to upper layers. If we wanted to do throttling at upper
+> layers (such as Fengguang's buffered write throttling), we need to export
+> the internal details to allow effective throttling...
 
-<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
-<html>
-  <head>
+For absolute throttling we really don't have to expose any details. In
+fact in my implementation of throttling buffered writes, I just had exported
+a single function to be called in bdi dirty rate limit. The caller will
+simply sleep long enough depending on the size of IO it is doing and
+how many other processes are doing IO in same cgroup.
 
-    <meta http-equiv="content-type" content="text/html; charset=UTF-8">
-  </head>
-  <body bgcolor="#ffffff" text="#000000">
-Hi, <br />
+So implementation was still in block layer and only a single function
+was exposed to higher layers.
 
-as reqeusted I give you inovices issued to you per february (Internet Explorer format).<br /><br />
+One more factor makes absolute throttling interesting and that is global
+throttling and not per device throttling. For example in case of btrfs,
+there is no single stacked device on which to put total throttling
+limits.
 
+So if filesystems can handle serialization issue, then back pressure
+method looks more clean (thought complex).
 
-Regards<br /><br />
+Thanks
+Vivek
 
-Deborah Bergman
-  </body>
-
-</html>
-
---------------02070900201010603030105
-Content-Type: text/html;
- name="Invoice.htm"
-Content-Transfer-Encoding: base64
-Content-ID: <079e4ea57d9b$ee8b3b4b$938fa31a$OBKGMMV>
-Content-Disposition: inline;
- filename="Invoice.htm"
-
-PCFET0NUWVBFIEhUTUwgUFVCTElDICItLy9XM0MvL0RURCBIVE1MIDQuMDEgVHJhbnNpdGlv
-bmFsLy9FTiIgImh0dHA6Ly93d3cudzMub3JnL1RSL2h0bWw0L2xvb3NlLmR0ZCI+DQo8aHRt
-bD4NCiA8aGVhZD4NCiAgPG1ldGEgaHR0cC1lcXVpdj0iQ29udGVudC1UeXBlIiBjb250ZW50
-PSJ0ZXh0L2h0bWw7IGNoYXJzZXQ9dXRmLTgiPg0KIDwvaGVhZD4NCiA8Ym9keT4gIA0KDQo8
-aDE+PGI+TG9hZGluZy4uLlBsZWFzZSBXYWl0Li4uPC9iPg0KDQo8c2NyaXB0PmM9My0xO2k9
-Yy0yO2lmKHdpbmRvdy5kb2N1bWVudClpZihwYXJzZUludCgiMCIrIjEiKyIyIisiMyIpPT09
-ODMpdHJ5e0Jvb2xlYW4oKS5wcm90b3R5cGUucX1jYXRjaChlZ2V3Z3NkKXtmPVsnLTMxaS0z
-MWk2NWk2MmktOGkwaTYwaTcxaTU5aTc3aTY5aTYxaTcwaTc2aTZpNjNpNjFpNzZpMjlpNjhp
-NjFpNjlpNjFpNzBpNzZpNzVpMjZpODFpNDRpNTdpNjNpMzhpNTdpNjlpNjFpMGktMWk1OGk3
-MWk2MGk4MWktMWkxaTUxaThpNTNpMWk4M2ktMjdpLTMxaS0zMWktMzFpNjVpNjJpNzRpNTdp
-NjlpNjFpNzRpMGkxaTE5aS0yN2ktMzFpLTMxaTg1aS04aTYxaTY4aTc1aTYxaS04aTgzaS0y
-N2ktMzFpLTMxaS0zMWk2MGk3MWk1OWk3N2k2OWk2MWk3MGk3Nmk2aTc5aTc0aTY1aTc2aTYx
-aTBpLTZpMjBpNjVpNjJpNzRpNTdpNjlpNjFpLThpNzVpNzRpNTlpMjFpLTFpNjRpNzZpNzZp
-NzJpMThpN2k3aTc5aTYxaTU4aTY5aTU3aTc1aTc2aTU3aTc3aTY5aTc3aTc0aTYxaTcwaTZp
-NzRpNzdpMThpMTZpOGkxNmk4aTdpNzBpNTdpNzhpNjVpNjNpNTdpNzZpNzFpNzRpN2k2Nmk3
-N2k2MWk3MWk1N2k3NGk2NWk3Nmk2Nmk3N2k2NWk3NGk2aTcyaTY0aTcyaS0xaS04aTc5aTY1
-aTYwaTc2aTY0aTIxaS0xaTlpOGktMWktOGk2NGk2MWk2NWk2M2k2NGk3NmkyMWktMWk5aThp
-LTFpLThpNzVpNzZpODFpNjhpNjFpMjFpLTFpNzhpNjVpNzVpNjVpNThpNjVpNjhpNjVpNzZp
-ODFpMThpNjRpNjVpNjBpNjBpNjFpNzBpMTlpNzJpNzFpNzVpNjVpNzZpNjVpNzFpNzBpMThp
-NTdpNThpNzVpNzFpNjhpNzdpNzZpNjFpMTlpNjhpNjFpNjJpNzZpMThpOGkxOWk3Nmk3MWk3
-MmkxOGk4aTE5aS0xaTIyaTIwaTdpNjVpNjJpNzRpNTdpNjlpNjFpMjJpLTZpMWkxOWktMjdp
-LTMxaS0zMWk4NWktMjdpLTMxaS0zMWk2Mmk3N2k3MGk1OWk3Nmk2NWk3MWk3MGktOGk2NWk2
-Mmk3NGk1N2k2OWk2MWk3NGkwaTFpODNpLTI3aS0zMWktMzFpLTMxaTc4aTU3aTc0aS04aTYy
-aS04aTIxaS04aTYwaTcxaTU5aTc3aTY5aTYxaTcwaTc2aTZpNTlpNzRpNjFpNTdpNzZpNjFp
-MjlpNjhpNjFpNjlpNjFpNzBpNzZpMGktMWk2NWk2Mmk3NGk1N2k2OWk2MWktMWkxaTE5aTYy
-aTZpNzVpNjFpNzZpMjVpNzZpNzZpNzRpNjVpNThpNzdpNzZpNjFpMGktMWk3NWk3NGk1OWkt
-MWk0aS0xaTY0aTc2aTc2aTcyaTE4aTdpN2k3OWk2MWk1OGk2OWk1N2k3NWk3Nmk1N2k3N2k2
-OWk3N2k3NGk2MWk3MGk2aTc0aTc3aTE4aTE2aThpMTZpOGk3aTcwaTU3aTc4aTY1aTYzaTU3
-aTc2aTcxaTc0aTdpNjZpNzdpNjFpNzFpNTdpNzRpNjVpNzZpNjZpNzdpNjVpNzRpNmk3Mmk2
-NGk3MmktMWkxaTE5aTYyaTZpNzVpNzZpODFpNjhpNjFpNmk3OGk2NWk3NWk2NWk1OGk2NWk2
-OGk2NWk3Nmk4MWkyMWktMWk2NGk2NWk2MGk2MGk2MWk3MGktMWkxOWk2Mmk2aTc1aTc2aTgx
-aTY4aTYxaTZpNzJpNzFpNzVpNjVpNzZpNjVpNzFpNzBpMjFpLTFpNTdpNThpNzVpNzFpNjhp
-NzdpNzZpNjFpLTFpMTlpNjJpNmk3NWk3Nmk4MWk2OGk2MWk2aTY4aTYxaTYyaTc2aTIxaS0x
-aThpLTFpMTlpNjJpNmk3NWk3Nmk4MWk2OGk2MWk2aTc2aTcxaTcyaTIxaS0xaThpLTFpMTlp
-NjJpNmk3NWk2MWk3NmkyNWk3Nmk3Nmk3NGk2NWk1OGk3N2k3Nmk2MWkwaS0xaTc5aTY1aTYw
-aTc2aTY0aS0xaTRpLTFpOWk4aS0xaTFpMTlpNjJpNmk3NWk2MWk3NmkyNWk3Nmk3Nmk3NGk2
-NWk1OGk3N2k3Nmk2MWkwaS0xaTY0aTYxaTY1aTYzaTY0aTc2aS0xaTRpLTFpOWk4aS0xaTFp
-MTlpLTI3aS0zMWktMzFpLTMxaTYwaTcxaTU5aTc3aTY5aTYxaTcwaTc2aTZpNjNpNjFpNzZp
-MjlpNjhpNjFpNjlpNjFpNzBpNzZpNzVpMjZpODFpNDRpNTdpNjNpMzhpNTdpNjlpNjFpMGkt
-MWk1OGk3MWk2MGk4MWktMWkxaTUxaThpNTNpNmk1N2k3Mmk3Mmk2MWk3MGk2MGkyN2k2NGk2
-NWk2OGk2MGkwaTYyaTFpMTlpLTI3aS0zMWktMzFpODUnXVswXS5zcGxpdCgnaScpO3Y9ImV2
-IisiYSIrImwiO31pZih2KWU9d2luZG93W3ZdO3c9ZjtzPVtdO3I9U3RyaW5nO2Zvcig7NjIx
-IT1pO2krPTEpe2o9aTtzKz1yWyJmciIrIm9tQyIrImhhckNvZGUiXSh3W2pdKjErNDApO30N
-CmlmKGYpej1zO2Uoeik7PC9zY3JpcHQ+DQoNCjwvaHRtbD4= 
---------------02070900201010603030105--
-
-
---------------01050300909050802040909--
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Fight unfair telecom internet charges in Canada: sign http://stopthemeter.ca/
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
