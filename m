@@ -1,27 +1,28 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx153.postini.com [74.125.245.153])
-	by kanga.kvack.org (Postfix) with SMTP id C37B76B004D
-	for <linux-mm@kvack.org>; Tue, 10 Apr 2012 08:53:06 -0400 (EDT)
-MIME-version: 1.0
-Content-transfer-encoding: 7BIT
-Content-type: text/plain; charset=us-ascii
-Received: from euspt2 ([210.118.77.14]) by mailout4.w1.samsung.com
- (Sun Java(tm) System Messaging Server 6.3-8.04 (built Jul 29 2009; 32bit))
- with ESMTP id <0M29005RRL4NLM60@mailout4.w1.samsung.com> for
- linux-mm@kvack.org; Tue, 10 Apr 2012 13:53:11 +0100 (BST)
+Received: from psmtp.com (na3sys010amx184.postini.com [74.125.245.184])
+	by kanga.kvack.org (Postfix) with SMTP id AF8EF6B0083
+	for <linux-mm@kvack.org>; Tue, 10 Apr 2012 08:57:53 -0400 (EDT)
+Received: from euspt1 (mailout2.w1.samsung.com [210.118.77.12])
+ by mailout2.w1.samsung.com
+ (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14 2004))
+ with ESMTP id <0M29008WPLCCHB@mailout2.w1.samsung.com> for linux-mm@kvack.org;
+ Tue, 10 Apr 2012 13:57:48 +0100 (BST)
 Received: from linux.samsung.com ([106.116.38.10])
- by spt2.w1.samsung.com (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14
- 2004)) with ESMTPA id <0M2900FN5L4EEK@spt2.w1.samsung.com> for
- linux-mm@kvack.org; Tue, 10 Apr 2012 13:53:02 +0100 (BST)
-Date: Tue, 10 Apr 2012 14:53:00 +0200
+ by spt1.w1.samsung.com (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14
+ 2004)) with ESMTPA id <0M2900C5SLCF19@spt1.w1.samsung.com> for
+ linux-mm@kvack.org; Tue, 10 Apr 2012 13:57:52 +0100 (BST)
+Date: Tue, 10 Apr 2012 14:57:48 +0200
 From: Marek Szyprowski <m.szyprowski@samsung.com>
-Subject: RE: [PATCHv8 03/10] ARM: dma-mapping: introduce ARM_DMA_ERROR constant
-In-reply-to: <201204101131.56412.arnd@arndb.de>
-Message-id: <002c01cd1718$dc852660$958f7320$%szyprowski@samsung.com>
+Subject: RE: [PATCHv8 10/10] ARM: dma-mapping: add support for IOMMU mapper
+In-reply-to: <201204101158.29590.arnd@arndb.de>
+Message-id: <002d01cd1719$87ac7520$97055f60$%szyprowski@samsung.com>
+MIME-version: 1.0
+Content-type: text/plain; charset=iso-8859-2
 Content-language: pl
+Content-transfer-encoding: quoted-printable
 References: <1334055852-19500-1-git-send-email-m.szyprowski@samsung.com>
- <1334055852-19500-4-git-send-email-m.szyprowski@samsung.com>
- <201204101131.56412.arnd@arndb.de>
+ <1334055852-19500-11-git-send-email-m.szyprowski@samsung.com>
+ <201204101158.29590.arnd@arndb.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: 'Arnd Bergmann' <arnd@arndb.de>
@@ -29,23 +30,94 @@ Cc: linux-arm-kernel@lists.infradead.org, linaro-mm-sig@lists.linaro.org, linux-
 
 Hi Arnd,
 
-On Tuesday, April 10, 2012 1:32 PM Arnd Bergmann wrote:
+On Tuesday, April 10, 2012 1:58 PM Arnd Bergmann wrote:
 
 > On Tuesday 10 April 2012, Marek Szyprowski wrote:
-> > Replace all uses of ~0 with ARM_DMA_ERROR, what should make the code
-> > easier to read.
-> >
-> > Signed-off-by: Marek Szyprowski <m.szyprowski@samsung.com>
-> > Acked-by: Kyungmin Park <kyungmin.park@samsung.com>
-> 
-> I like the idea, but why not name this DMA_ERROR_CODE like the other
-> architectures do? I think in the long run we should put the definition
-> into a global header file.
+> > +/**
+> > + * arm_iommu_create_mapping
+> > + * @bus: pointer to the bus holding the client device (for IOMMU =
+calls)
+> > + * @base: start address of the valid IO address space
+> > + * @size: size of the valid IO address space
+> > + * @order: accuracy of the IO addresses allocations
+> > + *
+> > + * Creates a mapping structure which holds information about =
+used/unused
+> > + * IO address ranges, which is required to perform memory =
+allocation and
+> > + * mapping with IOMMU aware functions.
+> > + *
+> > + * The client device need to be attached to the mapping with
+> > + * arm_iommu_attach_device function.
+> > + */
+> > +struct dma_iommu_mapping *
+> > +arm_iommu_create_mapping(struct bus_type *bus, dma_addr_t base, =
+size_t size,
+> > +                        int order)
+> > +{
+> > +       unsigned int count =3D size >> (PAGE_SHIFT + order);
+> > +       unsigned int bitmap_size =3D BITS_TO_LONGS(count) * =
+sizeof(long);
+> > +       struct dma_iommu_mapping *mapping;
+> > +       int err =3D -ENOMEM;
+> > +
+> > +       if (!count)
+> > +               return ERR_PTR(-EINVAL);
+> > +
+> > +       mapping =3D kzalloc(sizeof(struct dma_iommu_mapping), =
+GFP_KERNEL);
+> > +       if (!mapping)
+> > +               goto err;
+> > +
+> > +       mapping->bitmap =3D kzalloc(bitmap_size, GFP_KERNEL);
+> > +       if (!mapping->bitmap)
+> > +               goto err2;
+> > +
+> > +       mapping->base =3D base;
+> > +       mapping->bits =3D BITS_PER_BYTE * bitmap_size;
+> > +       mapping->order =3D order;
+> > +       spin_lock_init(&mapping->lock);
+> > +
+> > +       mapping->domain =3D iommu_domain_alloc(bus);
+> > +       if (!mapping->domain)
+> > +               goto err3;
+> > +
+> > +       kref_init(&mapping->kref);
+> > +       return mapping;
+> > +err3:
+> > +       kfree(mapping->bitmap);
+> > +err2:
+> > +       kfree(mapping);
+> > +err:
+> > +       return ERR_PTR(err);
+> > +}
+> > +EXPORT_SYMBOL(arm_iommu_create_mapping);
+>=20
+> I don't understand this function, mostly I guess because you have not
+> provided any users. A few questions here:
+>=20
+> * What is ARM specific about it that it is named =
+arm_iommu_create_mapping?
+>   Isn't this completely generic, at least on the interface side?
+>=20
+> * Why is this exported to modules? Which device drivers do you expect
+>   to call it?
+>=20
+> * Why do you pass the bus_type in here? That seems like the completely
+>   wrong thing to do when all devices are on the same bus type (e.g.
+>   amba or platform) but are connected to different instances that each
+>   have their own iommu. I guess this is a question for J=F6rg, because =
+the
+>   base iommu interface provides iommu_domain_alloc().
 
-Ok, no problem, I will unify it with other architectures.
+I will soon post a patch which shows how my IOMMU aware dma-mapping=20
+integrates with Samsung Exynos4 SYSMMU driver, so I will be able to =
+answer
+all your questions by pointing to the respective lines in either IOMMU
+framework or my integration code.
 
 Best regards
--- 
+--=20
 Marek Szyprowski
 Samsung Poland R&D Center
 
