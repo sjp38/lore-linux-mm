@@ -1,53 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx197.postini.com [74.125.245.197])
-	by kanga.kvack.org (Postfix) with SMTP id 564A06B004A
-	for <linux-mm@kvack.org>; Mon,  9 Apr 2012 20:37:17 -0400 (EDT)
-Received: from m1.gw.fujitsu.co.jp (unknown [10.0.50.71])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 82B1A3EE0B6
-	for <linux-mm@kvack.org>; Tue, 10 Apr 2012 09:37:15 +0900 (JST)
-Received: from smail (m1 [127.0.0.1])
-	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 5E52045DE5E
-	for <linux-mm@kvack.org>; Tue, 10 Apr 2012 09:37:15 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
-	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 45F3E45DE5A
-	for <linux-mm@kvack.org>; Tue, 10 Apr 2012 09:37:15 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 29E1FE38007
-	for <linux-mm@kvack.org>; Tue, 10 Apr 2012 09:37:15 +0900 (JST)
-Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.240.81.133])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id CEC42E38003
-	for <linux-mm@kvack.org>; Tue, 10 Apr 2012 09:37:14 +0900 (JST)
-Message-ID: <4F838051.50101@jp.fujitsu.com>
-Date: Tue, 10 Apr 2012 09:35:29 +0900
+Received: from psmtp.com (na3sys010amx170.postini.com [74.125.245.170])
+	by kanga.kvack.org (Postfix) with SMTP id 666F66B004A
+	for <linux-mm@kvack.org>; Mon,  9 Apr 2012 20:45:38 -0400 (EDT)
+Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id EF12D3EE0C1
+	for <linux-mm@kvack.org>; Tue, 10 Apr 2012 09:45:36 +0900 (JST)
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id B31CF45DEBA
+	for <linux-mm@kvack.org>; Tue, 10 Apr 2012 09:45:36 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 6836645DE9E
+	for <linux-mm@kvack.org>; Tue, 10 Apr 2012 09:45:35 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 5A70E1DB803F
+	for <linux-mm@kvack.org>; Tue, 10 Apr 2012 09:45:35 +0900 (JST)
+Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.240.81.147])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 105B51DB8038
+	for <linux-mm@kvack.org>; Tue, 10 Apr 2012 09:45:35 +0900 (JST)
+Message-ID: <4F838245.4000108@jp.fujitsu.com>
+Date: Tue, 10 Apr 2012 09:43:49 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH] mm: sync rss-counters at the end of exit_mm()
-References: <20120409200336.8368.63793.stgit@zurg>
-In-Reply-To: <20120409200336.8368.63793.stgit@zurg>
-Content-Type: text/plain; charset=UTF-8
+Subject: Re: [patch] thp, memcg: split hugepage for memcg oom on cow
+References: <alpine.DEB.2.00.1204031854530.30629@chino.kir.corp.google.com> <4F82A77D.4020800@jp.fujitsu.com> <alpine.DEB.2.00.1204091722110.21813@chino.kir.corp.google.com>
+In-Reply-To: <alpine.DEB.2.00.1204091722110.21813@chino.kir.corp.google.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Konstantin Khlebnikov <khlebnikov@openvz.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Hugh Dickins <hughd@google.com>, linux-kernel@vger.kernel.org, Markus Trippelsdorf <markus@trippelsdorf.de>
+To: David Rientjes <rientjes@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <jweiner@redhat.com>, linux-mm@kvack.org
 
-(2012/04/10 5:03), Konstantin Khlebnikov wrote:
+(2012/04/10 9:23), David Rientjes wrote:
 
-> On task's exit do_exit() calls sync_mm_rss() but this is not enough,
-> there can be page-faults after this point, for example exit_mm() ->
-> mm_release() -> put_user() (for processing tsk->clear_child_tid).
-> Thus there may be some rss-counters delta in current->rss_stat.
+> On Mon, 9 Apr 2012, KAMEZAWA Hiroyuki wrote:
 > 
-> Signed-off-by: Konstantin Khlebnikov <khlebnikov@openvz.org>
-> Reported-by: Markus Trippelsdorf <markus@trippelsdorf.de>
-> Cc: Hugh Dickins <hughd@google.com>
-> Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+>> if (transparent_hugepage_enabled(vma) &&
+>>             !transparent_hugepage_debug_cow())
+>>                 new_page = alloc_hugepage_vma(transparent_hugepage_defrag(vma),
+>>                                               vma, haddr, numa_node_id(), 0);
+>>         else
+>>                 new_page = NULL;
+>> 	
+>> if (unlikely(mem_cgroup_newpage_charge(new_page, mm, GFP_KERNEL))) {
+>>                 put_page(new_page);
+>>                 new_page = NULL; /* never OOM, just cause fallback */
+>> }
+>>
+>> if (unlikely(!new_page)) {
+>>                 count_vm_event(THP_FAULT_FALLBACK);
+>>                 ret = do_huge_pmd_wp_page_fallback(mm, vma, address,
+>>                                                    pmd, orig_pmd, page, haddr);
+>>                 put_page(page);
+>>                 goto out;
+>> }
+> 
+> This would result in the same error since do_huge_pmd_wp_page_fallback() 
+> would fail to charge the necessary memory to the memcg.
+> 
 
-Reviewed-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Ah, I see. this will charge 1024 pages anyway. But ...hm, memcg easily returns
+failure when many pages are requested. AND.... I misunderstood your patch.
+You split hugepage and allocate 1 page at fault. Ok, seems reasonable, I'm sorry.
 
-Does this fix recent issue reported ?
+Thanks,
+-Kame
 
- 
+> Are you still including my change to handle_mm_fault() to retry if this 
+> returns VM_FAULT_OOM?
+> 
+> 
 
 
 
