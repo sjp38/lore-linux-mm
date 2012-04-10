@@ -1,82 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx118.postini.com [74.125.245.118])
-	by kanga.kvack.org (Postfix) with SMTP id 41DE06B004A
-	for <linux-mm@kvack.org>; Tue, 10 Apr 2012 14:07:08 -0400 (EDT)
-Date: Tue, 10 Apr 2012 14:06:53 -0400
+Received: from psmtp.com (na3sys010amx140.postini.com [74.125.245.140])
+	by kanga.kvack.org (Postfix) with SMTP id 948096B004A
+	for <linux-mm@kvack.org>; Tue, 10 Apr 2012 14:16:38 -0400 (EDT)
+Date: Tue, 10 Apr 2012 14:16:32 -0400
 From: Vivek Goyal <vgoyal@redhat.com>
-Subject: Re: [RFC] writeback and cgroup
-Message-ID: <20120410180653.GJ21801@redhat.com>
+Subject: Re: [Lsf] [RFC] writeback and cgroup
+Message-ID: <20120410181631.GK21801@redhat.com>
 References: <20120403183655.GA23106@dhcp-172-17-108-109.mtv.corp.google.com>
  <20120404145134.GC12676@redhat.com>
  <20120407080027.GA2584@quack.suse.cz>
+ <CAH2r5mvLVnM3Se5vBBsYzwaz5Ckp3i6SVnGp2T0XaGe9_u8YYA@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20120407080027.GA2584@quack.suse.cz>
+In-Reply-To: <CAH2r5mvLVnM3Se5vBBsYzwaz5Ckp3i6SVnGp2T0XaGe9_u8YYA@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jan Kara <jack@suse.cz>
-Cc: Tejun Heo <tj@kernel.org>, Fengguang Wu <fengguang.wu@intel.com>, Jens Axboe <axboe@kernel.dk>, linux-mm@kvack.org, sjayaraman@suse.com, andrea@betterlinux.com, jmoyer@redhat.com, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, lizefan@huawei.com, containers@lists.linux-foundation.org, cgroups@vger.kernel.org, ctalbott@google.com, rni@google.com, lsf@lists.linux-foundation.org
+To: Steve French <smfrench@gmail.com>
+Cc: Jan Kara <jack@suse.cz>, ctalbott@google.com, rni@google.com, andrea@betterlinux.com, containers@lists.linux-foundation.org, linux-kernel@vger.kernel.org, lsf@lists.linux-foundation.org, linux-mm@kvack.org, jmoyer@redhat.com, lizefan@huawei.com, cgroups@vger.kernel.org, linux-fsdevel@vger.kernel.org
 
-On Sat, Apr 07, 2012 at 10:00:27AM +0200, Jan Kara wrote:
-Hi Jan,
+On Tue, Apr 10, 2012 at 11:23:16AM -0500, Steve French wrote:
 
 [..]
-> > In general, the core of the issue is that filesystems are not cgroup aware
-> > and if you do throttling below filesystems, then invariably one or other
-> > serialization issue will come up and I am concerned that we will be constantly
-> > fixing those serialization issues. Or the desgin point could be so central
-> > to filesystem design that it can't be changed.
->   We talked about this at LSF and Dave Chinner had the idea that we could
-> make processes wait at the time when a transaction is started. At that time
-> we don't hold any global locks so process can be throttled without
-> serializing other processes. This effectively builds some cgroup awareness
-> into filesystems but pretty simple one so it should be doable.
+> In the case of block device throttling - other than the file system
+> internally using such APIs who would use block device specific
+> throttling - only the file system knows where it wants to put hot data,
+> and in the case of btrfs, doesn't the file system manage the
+> storage pool.   The block device should be transparent to the
+> user in the long run, and only the volume visible.
 
-Ok. So what is the meaning of "make process wait" here? What it will be
-dependent on? I am thinking of a case where a process has 100MB of dirty
-data, has 10MB/s write limit and it issues fsync. So before that process
-is able to open a transaction, one needs to wait atleast 10seconds
-(assuming other processes are not doing IO in same cgroup). 
+This is a good point. I guess this goes back to Jan's question of what's
+the intended use case of absolute throttling. Having a dependency on 
+per device limits has the drawback of user knowing exactly the details
+of storage stack and it assumes that there is one single aggregation point
+of block devices. (Which is not true in case of btrfs).
 
-If this wait is based on making sure all dirty data has been written back
-before opening transaction, then it will work without any interaction with
-block layer and sounds more feasible.
-
-> 
-> > In general, if you do throttling deeper in the stakc and build back
-> > pressure, then all the layers sitting above should be cgroup aware
-> > to avoid problems. Two layers identified so far are writeback and
-> > filesystems. Is it really worth the complexity. How about doing 
-> > throttling in higher layers when IO is entering the kernel and
-> > keep proportional IO logic at the lowest level and current mechanism
-> > of building pressure continues to work?
->   I would like to keep single throttling mechanism for different limitting
-> methods - i.e. handle proportional IO the same way as IO hard limits. So we
-> cannot really rely on the fact that throttling is work preserving.
-> 
-> The advantage of throttling at IO layer is that we can keep all the details
-> inside it and only export pretty minimal information (like is bdi congested
-> for given cgroup) to upper layers. If we wanted to do throttling at upper
-> layers (such as Fengguang's buffered write throttling), we need to export
-> the internal details to allow effective throttling...
-
-For absolute throttling we really don't have to expose any details. In
-fact in my implementation of throttling buffered writes, I just had exported
-a single function to be called in bdi dirty rate limit. The caller will
-simply sleep long enough depending on the size of IO it is doing and
-how many other processes are doing IO in same cgroup.
-
-So implementation was still in block layer and only a single function
-was exposed to higher layers.
-
-One more factor makes absolute throttling interesting and that is global
-throttling and not per device throttling. For example in case of btrfs,
-there is no single stacked device on which to put total throttling
-limits.
-
-So if filesystems can handle serialization issue, then back pressure
-method looks more clean (thought complex).
+If user is simply looking for something like that I don't want a backup
+process to be writing at more than 50MB/s (so that other processes doing
+IO to same filesystem are effected less), then it is a case of global
+throttling and per device throttling really does not gel well.
 
 Thanks
 Vivek
