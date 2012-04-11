@@ -1,177 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx194.postini.com [74.125.245.194])
-	by kanga.kvack.org (Postfix) with SMTP id 84C226B004A
-	for <linux-mm@kvack.org>; Wed, 11 Apr 2012 05:54:28 -0400 (EDT)
-Received: by dakh32 with SMTP id h32so1035599dak.9
-        for <linux-mm@kvack.org>; Wed, 11 Apr 2012 02:54:27 -0700 (PDT)
-Date: Wed, 11 Apr 2012 18:54:18 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: swap on eMMC and other flash
-Message-ID: <20120411095418.GA2228@barrios>
-References: <201203301744.16762.arnd@arndb.de>
- <201204091235.48750.arnd@arndb.de>
- <4F838584.1020002@kernel.org>
- <201204100832.52093.arnd@arndb.de>
+Received: from psmtp.com (na3sys010amx158.postini.com [74.125.245.158])
+	by kanga.kvack.org (Postfix) with SMTP id 8D8D06B004A
+	for <linux-mm@kvack.org>; Wed, 11 Apr 2012 06:28:27 -0400 (EDT)
+Message-ID: <4F855CD7.1000902@intel.com>
+Date: Wed, 11 Apr 2012 13:28:39 +0300
+From: Adrian Hunter <adrian.hunter@intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <201204100832.52093.arnd@arndb.de>
+Subject: Re: swap on eMMC and other flash
+References: <201203301744.16762.arnd@arndb.de> <201203301850.22784.arnd@arndb.de> <4F7C3CE2.5070803@intel.com> <201204041247.53289.arnd@arndb.de>
+In-Reply-To: <201204041247.53289.arnd@arndb.de>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Arnd Bergmann <arnd@arndb.de>
-Cc: Minchan Kim <minchan@kernel.org>, linaro-kernel@lists.linaro.org, android-kernel@googlegroups.com, linux-mm@kvack.org, "Luca Porzio (lporzio)" <lporzio@micron.com>, Alex Lemberg <alex.lemberg@sandisk.com>, linux-kernel@vger.kernel.org, Saugata Das <saugata.das@linaro.org>, Venkatraman S <venkat@linaro.org>, Yejin Moon <yejin.moon@samsung.com>, Hyojin Jeong <syr.jeong@samsung.com>, "linux-mmc@vger.kernel.org" <linux-mmc@vger.kernel.org>
+Cc: Adrian Hunter <adrian.hunter@intel.com>, linaro-kernel@lists.linaro.org, linux-mm@kvack.org, "Luca Porzio (lporzio)" <lporzio@micron.com>, Alex Lemberg <alex.lemberg@sandisk.com>, linux-kernel@vger.kernel.org, Saugata Das <saugata.das@linaro.org>, Venkatraman S <venkat@linaro.org>, Yejin Moon <yejin.moon@samsung.com>, Hyojin Jeong <syr.jeong@samsung.com>, "linux-mmc@vger.kernel.org" <linux-mmc@vger.kernel.org>, kernel-team@android.com
 
-On Tue, Apr 10, 2012 at 08:32:51AM +0000, Arnd Bergmann wrote:
-> On Tuesday 10 April 2012, Minchan Kim wrote:
-> > 2012-04-09 i??i?? 9:35, Arnd Bergmann i?' e,?:
+On 04/04/12 15:47, Arnd Bergmann wrote:
+> On Wednesday 04 April 2012, Adrian Hunter wrote:
+>> On 30/03/12 21:50, Arnd Bergmann wrote:
+>>> (sorry for the duplicated email, this corrects the address of the android
+>>> kernel team, please reply here)
+>>>
+>>> On Friday 30 March 2012, Arnd Bergmann wrote:
+>>>
+>>>  We've had a discussion in the Linaro storage team (Saugata, Venkat and me,
+>>>  with Luca joining in on the discussion) about swapping to flash based media
+>>>  such as eMMC. This is a summary of what we found and what we think should
+>>>  be done. If people agree that this is a good idea, we can start working
+>>>  on it.
+>>
+>> There is mtdswap.
 > 
-> > >>
-> > >> I understand it's best for writing 64K in your statement.
-> > >> What the 8K, 16K? Could you elaborate relation between 8K, 16K and 64K?
-> > > 
-> > > From my measurements, there are three sizes that are relevant here:
-> > > 
-> > > 1. The underlying page size of the flash: This used to be less than 4kb,
-> > > which is fine when paging out 4kb mmu pages, as long as the partition is
-> > > aligned. Today, most devices use 8kb pages and the number is increasing
-> > > over time, meaning we will see more 16kb page devices in the future and
-> > > presumably larger sizes after that. Writes that are not naturally aligned
-> > > multiples of the page size tend to be a significant problem for the
-> > > controller to deal with: in order to guarantee that a 4kb write makes it
-> > > into permanent storage, the device has to write 8kb and the next 4kb
-> > > write has to go into another 8kb page because each page can only be
-> > > written once before the block is erased. At a later point, all the partial
-> > > pages get rewritten into a new erase block, a process that can take
-> > > hundreds of miliseconds and that we absolutely want to prevent from
-> > > happening, as it can block all other I/O to the device. Writing all
-> > > (flash) pages in an erase block sequentially usually avoids this, as
-> > > long as you don't write to many different erase blocks at the same time.
-> > > Note that the page size depends on how the controller combines different
-> > > planes and channels.
-> > > 
-> > > 2. The super-page size of the flash: When you have multiple channels
-> > > between the controller and the individual flash chips, you can write
-> > > multiple pages simultaneously, which means that e.g. sending 32kb of
-> > > data to the device takes roughly the same amount of time as writing a
-> > > single 8kb page. Writing less than the super-page size when there is
-> > > more data waiting to get written out is a waste of time, although the
-> > > effects are much less drastic as writing data that is not aligned to
-> > > pages because it does not require garbage collection.
-> > > 
-> > > 3. optimum write size: While writing larger amounts of data in a single
-> > > request is usually faster than writing less, almost all devices
-> > > I've seen have a sharp cut-off where increasing the size of the write
-> > > does not actually help any more because of a bottleneck somewhere
-> > > in the stack. Writing more than 64kb almost never improves performance
-> > > and sometimes reduces performance.
-> > 
-> > 
-> > For our understanding, you mean we have to do aligned-write as follows
-> > if possible?
-> > 
-> > "Nand internal page size write(8K, 16K)" < "Super-page size write(32K)
-> > which considers parallel working with number of channel and plane" <
-> > some sequential big write (64K)
+> Ah, very interesting. I wasn't aware of that. Obviously we can't directly
+> use it on block devices that have their own garbage collection and wear
+> leveling built into them, but it's interesting to see how this was solved
+> before.
 > 
-> In the definition I gave above, page size (8k, 16k) would be the only
-> one that requires alignment. Writing 64k at an arbitrary 16k alignment
-> should still give us the best performance in almost all cases and
-> introduce no extra write amplification, while writing with less than
-> page alignment causes significant write amplification and long latencies.
+> While we could build something similar that remaps blocks between an
+> eMMC device and the logical swap space that is used by the mm code,
+> my feeling is that it would be easier to modify the swap code itself
+> to do the right thing.
 > 
-> > 
-> > > 
-> > > Note that eMMC-4.5 provides a high-priority interrupt mechamism that
-> > > lets us interrupt the a write that has hit the garbage collection
-> > > path, so we can send a more important read request to the device.
-> > > This will not work on other devices though and the patches for this
-> > > are still under discussion.
-> > 
-> > 
-> > Nice feature but I think swap system doesn't need to consider such
-> > feature. I should be handled by I/O subsystem like I/O scheduler.
+>> Also the old Nokia N900 had swap to eMMC.
+>>
+>> The last I heard was that swap was considered to be simply too slow on hand
+>> held devices.
 > 
-> Right, this is completely independent of swap. The current implementation
-> of the patch set favours only reads that are done for page-in operations
-> by interrupting any long-running writes when a more important read comes
-> in. IMHO we should do the same for any synchronous read, but that discussion
-> is completely orthogonal to having the swap device on emmc.
+> That's the part that we want to solve here. It has nothing to do with
+> handheld devices, but more with specific incompatibilities of the
+> block allocation in the swap code vs. what an eMMC device expects
+> to see for fast operation. If you write data in the wrong order on
+> flash devices, you get long delays that you don't get when you do
+> it the right way. The same problem exists for file systems, and is
+> being addressed there as well.
 > 
-> > >>>>> 2) Make variable sized swap clusters. Right now, the swap space is
-> > >>>>> organized in clusters of 256 pages (1MB), which is less than the typical
-> > >>>>> erase block size of 4 or 8 MB. We should try to make the swap cluster
-> > >>>>> aligned to erase blocks and have the size match to avoid garbage collection
-> > >>>>> in the drive. The cluster size would typically be set by mkswap as a new
-> > >>>>> option and interpreted at swapon time.
-> > >>>>>
-> > >>>>
-> > >>>> If we can find such big contiguous swap slots easily, it would be good.
-> > >>>> But I am not sure how often we can get such big slots. And maybe we have to
-> > >>>> improve search method for getting such big empty cluster.
-> > >>>
-> > >>> As long as there are clusters available, we should try to find them. When
-> > >>> free space is too fragmented to find any unused cluster, we can pick one
-> > >>> that has very little data in it, so that we reduce the time it takes to
-> > >>> GC that erase block in the drive. While we could theoretically do active
-> > >>> garbage collection of swap data in the kernel, it won't get more efficient
-> > >>> than the GC inside of the drive. If we do this, it unfortunately means that
-> > >>> we can't just send a discard for the entire erase block.
-> > >>
-> > >>
-> > >> Might need some compaction during idle time but WAP concern raises again. :(
-> > > 
-> > > Sorry for my ignorance, but what does WAP stand for?
-> > 
-> > 
-> > I should have written more general term. I means write amplication but
-> > WAF(Write Amplication Factor) is more popular. :(
+>> As systems adopt more RAM, isn't there a decreasing demand for swap?
 > 
-> D'oh. Thanks for the clarification. Note that the entire idea of increasing the
-> swap cluster size to the erase block size is to *reduce* write amplification:
-> 
-> If we pick arbitrary swap clusters that are part of an erase block (or worse,
-> span two partial erase blocks), sending a discard for one cluster does not
-> allow the device to actually discard an entire erase block. Consider the best
-> possible scenario where we have a 1MB cluster and 2MB erase blocks, all
-> naturally aligned. After we have written the entire swap device once, all
-> blocks are marked as used in the device, but some are available for reuse
-> in the kernel. The swap code picks a cluster that is currently unused and 
-> sends a discard to the device, then fills the cluster with new pages.
-> After that, we pick another swap cluster elsewhere. The erase block now
-> contains 50% new and 50% old data and has to be garbage collected, so the
-> device writes 2MB of data  to anther erase block. So, in order to write 1MB,
-> the device has written 3MB and the write amplification factor is 3. Using
-> 8MB erase blocks, it would be 9.
-> 
-> If we do the active compaction and increase the cluster size to the erase
-> block size, there is no write amplification inside of the device (and no
-> stalls from the garbage collection, which are the other concern), and
-> we only need to write a few blocks again that are still valid in a cluster
-> at the time we want to reuse it. On an ideal device, the write amplification
-> for active compaction should be exactly the same as what we get when we
-> write a cluster while some of the data in it is still valid and we skip
-> those pages, while some devices might now like having to gc themselves.
-> Doing the compaction in software means we have to spend CPU cycles on it,
-> but we get to choose when it happens and don't have to block on the device
-> during GC.
+> No. You would never be able to make hibernate work, no matter how much
+> RAM you add ;-)
 
-Thanks for detail explanation.
-At least, we need active compaction to avoid GC completely when we can't find
-empty cluster and there are lots of hole.
-Indirection layer we discussed last LSF/MM could help slot change by
-compaction easily.
-I think way to find empty cluster should be changed because current linear scan
-is not proper for bigger cluster size.
-
-I am looking forward to your works!
-
-P.S) I'm afraid this work might raise endless war, again which host can do well VS
-device can do well. If we can work out, we don't need costly eMMC FTL, just need
-dumb bare nand, controller and simple firmware.
-
-> 
-> 	Arnd
+Have you considered making hibernate work without swap?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
