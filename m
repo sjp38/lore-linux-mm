@@ -1,30 +1,34 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx131.postini.com [74.125.245.131])
-	by kanga.kvack.org (Postfix) with SMTP id 124FE6B0083
-	for <linux-mm@kvack.org>; Wed, 11 Apr 2012 14:56:24 -0400 (EDT)
-Message-ID: <4F85BEE1.1050607@redhat.com>
-Date: Wed, 11 Apr 2012 13:26:57 -0400
-From: Rik van Riel <riel@redhat.com>
+Received: from psmtp.com (na3sys010amx126.postini.com [74.125.245.126])
+	by kanga.kvack.org (Postfix) with SMTP id 4F2CA6B004D
+	for <linux-mm@kvack.org>; Wed, 11 Apr 2012 14:58:18 -0400 (EDT)
+Received: by wibhq7 with SMTP id hq7so3924106wib.8
+        for <linux-mm@kvack.org>; Wed, 11 Apr 2012 11:58:16 -0700 (PDT)
 MIME-Version: 1.0
-Subject: Re: [PATCH 3/3] mm: vmscan: Remove reclaim_mode_t
-References: <1334162298-18942-1-git-send-email-mgorman@suse.de> <1334162298-18942-4-git-send-email-mgorman@suse.de>
-In-Reply-To: <1334162298-18942-4-git-send-email-mgorman@suse.de>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <20120411184845.GA24831@tiehlicka.suse.cz>
+References: <1334167824-19142-1-git-send-email-glommer@parallels.com> <20120411184845.GA24831@tiehlicka.suse.cz>
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Date: Wed, 11 Apr 2012 11:57:56 -0700
+Message-ID: <CA+55aFx1GMWGgh0sTAzvvVSzPQsQ_4NKeaNv1zpKrP4fg1dG+Q@mail.gmail.com>
+Subject: Re: [PATCH] remove BUG() in possible but rare condition
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Konstantin Khlebnikov <khlebnikov@openvz.org>, Hugh Dickins <hughd@google.com>, Ying Han <yinghan@google.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Michal Hocko <mhocko@suse.cz>
+Cc: Glauber Costa <glommer@parallels.com>, linux-kernel@vger.kernel.org, devel@openvz.org, linux-mm@kvack.org, cgroups@vger.kernel.org, Johannes Weiner <hannes@cmpxchg.org>, kamezawa.hiroyu@jp.fujitsu.com, Greg Thelen <gthelen@google.com>, Suleiman Souhlal <suleiman@google.com>, Andrew Morton <akpm@linux-foundation.org>
 
-On 04/11/2012 12:38 PM, Mel Gorman wrote:
-> There is little motiviation for reclaim_mode_t once RECLAIM_MODE_[A]SYNC
-> and lumpy reclaim have been removed. This patch gets rid of reclaim_mode_t
-> as well and improves the documentation about what reclaim/compaction is
-> and when it is triggered.
+On Wed, Apr 11, 2012 at 11:48 AM, Michal Hocko <mhocko@suse.cz> wrote:
 >
-> Signed-off-by: Mel Gorman<mgorman@suse.de>
+> I am not familiar with the code much but a trivial call chain walk up to
+> write_dev_supers (in btrfs) shows that we do not check for the return value
+> from __getblk so we would nullptr and there might be more.
+> I guess these need some treat before the BUG might be removed, right?
 
-Acked-by: Rik van Riel <riel@redhat.com>
+Well, realistically, isn't BUG() as bad as a NULL pointer dereference?
+
+Do you care about the exact message on the screen when your machine dies?
+
+                     Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
