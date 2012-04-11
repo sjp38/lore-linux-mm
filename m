@@ -1,207 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx130.postini.com [74.125.245.130])
-	by kanga.kvack.org (Postfix) with SMTP id A384D6B007E
-	for <linux-mm@kvack.org>; Wed, 11 Apr 2012 12:38:24 -0400 (EDT)
-From: Mel Gorman <mgorman@suse.de>
-Subject: [PATCH 3/3] mm: vmscan: Remove reclaim_mode_t
-Date: Wed, 11 Apr 2012 17:38:18 +0100
-Message-Id: <1334162298-18942-4-git-send-email-mgorman@suse.de>
-In-Reply-To: <1334162298-18942-1-git-send-email-mgorman@suse.de>
-References: <1334162298-18942-1-git-send-email-mgorman@suse.de>
+Received: from psmtp.com (na3sys010amx137.postini.com [74.125.245.137])
+	by kanga.kvack.org (Postfix) with SMTP id 6FEB46B004A
+	for <linux-mm@kvack.org>; Wed, 11 Apr 2012 12:46:17 -0400 (EDT)
+From: Arnd Bergmann <arnd@arndb.de>
+Subject: Re: swap on eMMC and other flash
+Date: Wed, 11 Apr 2012 15:57:13 +0000
+References: <201203301744.16762.arnd@arndb.de> <201204100832.52093.arnd@arndb.de> <20120411095418.GA2228@barrios>
+In-Reply-To: <20120411095418.GA2228@barrios>
+MIME-Version: 1.0
+Content-Type: Text/Plain;
+  charset="utf-8"
+Content-Transfer-Encoding: 7bit
+Message-Id: <201204111557.14153.arnd@arndb.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Rik van Riel <riel@redhat.com>, Konstantin Khlebnikov <khlebnikov@openvz.org>, Hugh Dickins <hughd@google.com>, Ying Han <yinghan@google.com>, Mel Gorman <mgorman@suse.de>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Minchan Kim <minchan@kernel.org>
+Cc: linaro-kernel@lists.linaro.org, android-kernel@googlegroups.com, linux-mm@kvack.org, "Luca Porzio (lporzio)" <lporzio@micron.com>, Alex Lemberg <alex.lemberg@sandisk.com>, linux-kernel@vger.kernel.org, Saugata Das <saugata.das@linaro.org>, Venkatraman S <venkat@linaro.org>, Yejin Moon <yejin.moon@samsung.com>, Hyojin Jeong <syr.jeong@samsung.com>, "linux-mmc@vger.kernel.org" <linux-mmc@vger.kernel.org>
 
-There is little motiviation for reclaim_mode_t once RECLAIM_MODE_[A]SYNC
-and lumpy reclaim have been removed. This patch gets rid of reclaim_mode_t
-as well and improves the documentation about what reclaim/compaction is
-and when it is triggered.
+On Wednesday 11 April 2012, Minchan Kim wrote:
+> On Tue, Apr 10, 2012 at 08:32:51AM +0000, Arnd Bergmann wrote:
+> > > 
+> > > I should have written more general term. I means write amplication but
+> > > WAF(Write Amplication Factor) is more popular. :(
+> > 
+> > D'oh. Thanks for the clarification. Note that the entire idea of increasing the
+> > swap cluster size to the erase block size is to *reduce* write amplification:
+> > 
+> > If we pick arbitrary swap clusters that are part of an erase block (or worse,
+> > span two partial erase blocks), sending a discard for one cluster does not
+> > allow the device to actually discard an entire erase block. Consider the best
+> > possible scenario where we have a 1MB cluster and 2MB erase blocks, all
+> > naturally aligned. After we have written the entire swap device once, all
+> > blocks are marked as used in the device, but some are available for reuse
+> > in the kernel. The swap code picks a cluster that is currently unused and 
+> > sends a discard to the device, then fills the cluster with new pages.
+> > After that, we pick another swap cluster elsewhere. The erase block now
+> > contains 50% new and 50% old data and has to be garbage collected, so the
+> > device writes 2MB of data  to anther erase block. So, in order to write 1MB,
+> > the device has written 3MB and the write amplification factor is 3. Using
+> > 8MB erase blocks, it would be 9.
+> > 
+> > If we do the active compaction and increase the cluster size to the erase
+> > block size, there is no write amplification inside of the device (and no
+> > stalls from the garbage collection, which are the other concern), and
+> > we only need to write a few blocks again that are still valid in a cluster
+> > at the time we want to reuse it. On an ideal device, the write amplification
+> > for active compaction should be exactly the same as what we get when we
+> > write a cluster while some of the data in it is still valid and we skip
+> > those pages, while some devices might now like having to gc themselves.
+> > Doing the compaction in software means we have to spend CPU cycles on it,
+> > but we get to choose when it happens and don't have to block on the device
+> > during GC.
+> 
+> Thanks for detail explanation.
+> At least, we need active compaction to avoid GC completely when we can't find
+> empty cluster and there are lots of hole.
+> Indirection layer we discussed last LSF/MM could help slot change by
+> compaction easily.
+> I think way to find empty cluster should be changed because current linear scan
+> is not proper for bigger cluster size.
+> 
+> I am looking forward to your works!
+> 
+> P.S) I'm afraid this work might raise endless war, again which host can do well VS
+> device can do well. If we can work out, we don't need costly eMMC FTL, just need
+> dumb bare nand, controller and simple firmware.
 
-Signed-off-by: Mel Gorman <mgorman@suse.de>
----
- include/trace/events/vmscan.h |    4 +--
- mm/vmscan.c                   |   72 +++++++++++++----------------------------
- 2 files changed, 24 insertions(+), 52 deletions(-)
+IMHO, we should only distinguish between dumb and smart devices, defined as follows:
 
-diff --git a/include/trace/events/vmscan.h b/include/trace/events/vmscan.h
-index 044e8ba..0794aa2 100644
---- a/include/trace/events/vmscan.h
-+++ b/include/trace/events/vmscan.h
-@@ -25,12 +25,12 @@
- 		{RECLAIM_WB_ASYNC,	"RECLAIM_WB_ASYNC"}	\
- 		) : "RECLAIM_WB_NONE"
- 
--#define trace_reclaim_flags(page, sync) ( \
-+#define trace_reclaim_flags(page) ( \
- 	(page_is_file_cache(page) ? RECLAIM_WB_FILE : RECLAIM_WB_ANON) | \
- 	(RECLAIM_WB_ASYNC) \
- 	)
- 
--#define trace_shrink_flags(file, sync) ( \
-+#define trace_shrink_flags(file) \
- 	( \
- 		(file ? RECLAIM_WB_FILE : RECLAIM_WB_ANON) | \
- 		(RECLAIM_WB_ASYNC) \
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 68319e4..36c6ad2 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -53,16 +53,6 @@
- #define CREATE_TRACE_POINTS
- #include <trace/events/vmscan.h>
- 
--/*
-- * reclaim_mode determines how the inactive list is shrunk
-- * RECLAIM_MODE_SINGLE: Reclaim only order-0 pages
-- * RECLAIM_MODE_COMPACTION: For high-order allocations, reclaim a number of
-- *			order-0 pages and then compact the zone
-- */
--typedef unsigned __bitwise__ reclaim_mode_t;
--#define RECLAIM_MODE_SINGLE		((__force reclaim_mode_t)0x01u)
--#define RECLAIM_MODE_COMPACTION		((__force reclaim_mode_t)0x10u)
--
- struct scan_control {
- 	/* Incremented by the number of inactive pages that were scanned */
- 	unsigned long nr_scanned;
-@@ -89,12 +79,6 @@ struct scan_control {
- 	int order;
- 
- 	/*
--	 * Intend to reclaim enough continuous memory rather than reclaim
--	 * enough amount of memory. i.e, mode for high order allocation.
--	 */
--	reclaim_mode_t reclaim_mode;
--
--	/*
- 	 * The memory cgroup that hit its limit and as a result is the
- 	 * primary target of this reclaim invocation.
- 	 */
-@@ -356,25 +340,6 @@ out:
- 	return ret;
- }
- 
--static void set_reclaim_mode(int priority, struct scan_control *sc)
--{
--	/*
--	 * Restrict reclaim/compaction to costly allocations or when
--	 * under memory pressure
--	 */
--	if (COMPACTION_BUILD && sc->order &&
--			(sc->order > PAGE_ALLOC_COSTLY_ORDER ||
--			 priority < DEF_PRIORITY - 2))
--		sc->reclaim_mode = RECLAIM_MODE_COMPACTION;
--	else
--		sc->reclaim_mode = RECLAIM_MODE_SINGLE;
--}
--
--static void reset_reclaim_mode(struct scan_control *sc)
--{
--	sc->reclaim_mode = RECLAIM_MODE_SINGLE;
--}
--
- static inline int is_page_cache_freeable(struct page *page)
- {
- 	/*
-@@ -497,8 +462,7 @@ static pageout_t pageout(struct page *page, struct address_space *mapping,
- 			/* synchronous write or broken a_ops? */
- 			ClearPageReclaim(page);
- 		}
--		trace_mm_vmscan_writepage(page,
--			trace_reclaim_flags(page, sc->reclaim_mode));
-+		trace_mm_vmscan_writepage(page, trace_reclaim_flags(page));
- 		inc_zone_page_state(page, NR_VMSCAN_WRITE);
- 		return PAGE_SUCCESS;
- 	}
-@@ -953,7 +917,6 @@ cull_mlocked:
- 			try_to_free_swap(page);
- 		unlock_page(page);
- 		putback_lru_page(page);
--		reset_reclaim_mode(sc);
- 		continue;
- 
- activate_locked:
-@@ -1348,8 +1311,6 @@ shrink_inactive_list(unsigned long nr_to_scan, struct mem_cgroup_zone *mz,
- 			return SWAP_CLUSTER_MAX;
- 	}
- 
--	set_reclaim_mode(priority, sc);
--
- 	lru_add_drain();
- 
- 	if (!sc->may_unmap)
-@@ -1428,7 +1389,7 @@ shrink_inactive_list(unsigned long nr_to_scan, struct mem_cgroup_zone *mz,
- 		zone_idx(zone),
- 		nr_scanned, nr_reclaimed,
- 		priority,
--		trace_shrink_flags(file, sc->reclaim_mode));
-+		trace_shrink_flags(file));
- 	return nr_reclaimed;
- }
- 
-@@ -1507,8 +1468,6 @@ static void shrink_active_list(unsigned long nr_to_scan,
- 
- 	lru_add_drain();
- 
--	reset_reclaim_mode(sc);
--
- 	if (!sc->may_unmap)
- 		isolate_mode |= ISOLATE_UNMAPPED;
- 	if (!sc->may_writepage)
-@@ -1821,23 +1780,35 @@ out:
- 	}
- }
- 
-+/* Use reclaim/compaction for costly allocs or under memory pressure */
-+static bool in_reclaim_compaction(int priority, struct scan_control *sc)
-+{
-+	if (COMPACTION_BUILD && sc->order &&
-+			(sc->order > PAGE_ALLOC_COSTLY_ORDER ||
-+			 priority < DEF_PRIORITY - 2))
-+		return true;
-+
-+	return false;
-+}
-+
- /*
-- * Reclaim/compaction depends on a number of pages being freed. To avoid
-- * disruption to the system, a small number of order-0 pages continue to be
-- * rotated and reclaimed in the normal fashion. However, by the time we get
-- * back to the allocator and call try_to_compact_zone(), we ensure that
-- * there are enough free pages for it to be likely successful
-+ * Reclaim/compaction is used for high-order allocation requests. It reclaims
-+ * order-0 pages before compacting the zone. should_continue_reclaim() returns
-+ * true if more pages should be reclaimed such that when the page allocator
-+ * calls try_to_compact_zone() that it will have enough free pages to succeed.
-+ * It will give up earlier than that if there is difficulty reclaiming pages.
-  */
- static inline bool should_continue_reclaim(struct mem_cgroup_zone *mz,
- 					unsigned long nr_reclaimed,
- 					unsigned long nr_scanned,
-+					int priority,
- 					struct scan_control *sc)
- {
- 	unsigned long pages_for_compaction;
- 	unsigned long inactive_lru_pages;
- 
- 	/* If not in reclaim/compaction mode, stop */
--	if (!(sc->reclaim_mode & RECLAIM_MODE_COMPACTION))
-+	if (!in_reclaim_compaction(priority, sc))
- 		return false;
- 
- 	/* Consider stopping depending on scan and reclaim activity */
-@@ -1944,7 +1915,8 @@ restart:
- 
- 	/* reclaim/compaction might need reclaim to continue */
- 	if (should_continue_reclaim(mz, nr_reclaimed,
--					sc->nr_scanned - nr_scanned, sc))
-+					sc->nr_scanned - nr_scanned,
-+					priority, sc))
- 		goto restart;
- 
- 	throttle_vm_writeout(sc->gfp_mask);
--- 
-1.7.9.2
+1. smart devices behave like all but the extremely cheap SSDs. They are optimized
+for 4KB random I/O, and the erase block size is not visible because there is
+a write cache and a flexible controller between the block device abstraction
+and the raw flash.
+
+2. dumb devices have very visible effects that stem from a simplistic remapping
+layer that translates logical erase block numbers into physical erase blocks,
+and only a fixed number of those can be written at the same time before forcing
+GC. Writes smaller than page size are strongly discouraged here. There is no 
+RAM to cache writes in the controller, but we still expect these devices to
+have a reasonable wear levelling policy.  This covers almost all of today's
+eMMC, SD, USB and CF as well as some cheap ATA SSD.
+
+A third category is of course spinning rust, but I think with the distinction
+for solid state media above, we have a pretty good grip on all existing
+media. As eMMC and UFS evolve over time, we might want to stick them into the
+first category, but I don't think we need more categories.
+
+	Arnd
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
