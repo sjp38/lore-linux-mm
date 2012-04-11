@@ -1,38 +1,37 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx128.postini.com [74.125.245.128])
-	by kanga.kvack.org (Postfix) with SMTP id B54CD6B004D
-	for <linux-mm@kvack.org>; Wed, 11 Apr 2012 19:54:39 -0400 (EDT)
-Received: by iajr24 with SMTP id r24so2628941iaj.14
-        for <linux-mm@kvack.org>; Wed, 11 Apr 2012 16:54:39 -0700 (PDT)
-Date: Wed, 11 Apr 2012 16:54:18 -0700 (PDT)
-From: Hugh Dickins <hughd@google.com>
-Subject: Re: [PATCH 0/3] Removal of lumpy reclaim V2
-In-Reply-To: <1334162298-18942-1-git-send-email-mgorman@suse.de>
-Message-ID: <alpine.LSU.2.00.1204111651290.26528@eggly.anvils>
-References: <1334162298-18942-1-git-send-email-mgorman@suse.de>
+Received: from psmtp.com (na3sys010amx165.postini.com [74.125.245.165])
+	by kanga.kvack.org (Postfix) with SMTP id BA96E6B0044
+	for <linux-mm@kvack.org>; Wed, 11 Apr 2012 19:57:22 -0400 (EDT)
+Date: Thu, 12 Apr 2012 01:56:38 +0200
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH V2 5/5] memcg: change the target nr_to_reclaim for each
+ memcg under kswapd
+Message-ID: <20120411235638.GA1787@cmpxchg.org>
+References: <1334181627-26942-1-git-send-email-yinghan@google.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1334181627-26942-1-git-send-email-yinghan@google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Konstantin Khlebnikov <khlebnikov@openvz.org>, Ying Han <yinghan@google.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Ying Han <yinghan@google.com>
+Cc: Michal Hocko <mhocko@suse.cz>, Mel Gorman <mel@csn.ul.ie>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Hillf Danton <dhillf@gmail.com>, Hugh Dickins <hughd@google.com>, Dan Magenheimer <dan.magenheimer@oracle.com>, linux-mm@kvack.org
 
-On Wed, 11 Apr 2012, Mel Gorman wrote:
+On Wed, Apr 11, 2012 at 03:00:27PM -0700, Ying Han wrote:
+> Under global background reclaim, the sc->nr_to_reclaim is set to
+> ULONG_MAX. Now we are iterating all memcgs under the zone and we
+> shouldn't pass the pressure from kswapd for each memcg.
 > 
-> Removing lumpy reclaim saves almost 900K of text where as the full series
-> removes 1200K of text.
+> After all, the balance_pgdat() breaks after reclaiming SWAP_CLUSTER_MAX
+> pages to prevent building up reclaim priorities.
 
-Impressive...
+shrink_mem_cgroup_zone() bails out of a zone, balance_pgdat() bails
+out of a priority loop, there is quite a difference.
 
-> 
->    text	   data	    bss	    dec	    hex	filename
-> 6740375	1927944	2260992	10929311	 a6c49f	vmlinux-3.4.0-rc2-vanilla
-> 6739479	1927944	2260992	10928415	 a6c11f	vmlinux-3.4.0-rc2-lumpyremove-v2
-> 6739159	1927944	2260992	10928095	 a6bfdf	vmlinux-3.4.0-rc2-nosync-v2
-
-... but I fear you meant " bytes" instead of "K" ;)
-
-Hugh
+After this patch, kswapd no longer puts equal pressure on all zones in
+the zonelist, which was a key reason why we could justify bailing
+early out of individual zones in direct reclaim: kswapd will restore
+fairness.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
