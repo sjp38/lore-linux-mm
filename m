@@ -1,62 +1,36 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx116.postini.com [74.125.245.116])
-	by kanga.kvack.org (Postfix) with SMTP id 93C066B004A
-	for <linux-mm@kvack.org>; Wed, 11 Apr 2012 14:11:01 -0400 (EDT)
-From: Glauber Costa <glommer@parallels.com>
-Subject: [PATCH] remove BUG() in possible but rare condition
-Date: Wed, 11 Apr 2012 15:10:24 -0300
-Message-Id: <1334167824-19142-1-git-send-email-glommer@parallels.com>
+Received: from psmtp.com (na3sys010amx195.postini.com [74.125.245.195])
+	by kanga.kvack.org (Postfix) with SMTP id 8B7756B004A
+	for <linux-mm@kvack.org>; Wed, 11 Apr 2012 14:14:52 -0400 (EDT)
+Message-ID: <4F85BEB5.6080702@redhat.com>
+Date: Wed, 11 Apr 2012 13:26:13 -0400
+From: Rik van Riel <riel@redhat.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH 2/3] mm: vmscan: Do not stall on writeback during memory
+ compaction
+References: <1334162298-18942-1-git-send-email-mgorman@suse.de> <1334162298-18942-3-git-send-email-mgorman@suse.de>
+In-Reply-To: <1334162298-18942-3-git-send-email-mgorman@suse.de>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: glommer@parallels.com, devel@openvz.org, linux-mm@kvack.org, cgroups@vger.kernel.org, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, kamezawa.hiroyu@jp.fujitsu.com, Greg Thelen <gthelen@google.com>, Suleiman Souhlal <suleiman@google.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>
+To: Mel Gorman <mgorman@suse.de>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Konstantin Khlebnikov <khlebnikov@openvz.org>, Hugh Dickins <hughd@google.com>, Ying Han <yinghan@google.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-While stressing the kernel with with failing allocations today,
-I hit the following chain of events:
+On 04/11/2012 12:38 PM, Mel Gorman wrote:
+> This patch stops reclaim/compaction entering sync reclaim as this was only
+> intended for lumpy reclaim and an oversight. Page migration has its own
+> logic for stalling on writeback pages if necessary and memory compaction
+> is already using it.
+>
+> Waiting on page writeback is bad for a number of reasons but the primary
+> one is that waiting on writeback to a slow device like USB can take a
+> considerable length of time. Page reclaim instead uses wait_iff_congested()
+> to throttle if too many dirty pages are being scanned.
+>
+> Signed-off-by: Mel Gorman<mgorman@suse.de>
 
-alloc_page_buffers():
-
-	bh = alloc_buffer_head(GFP_NOFS);
-	if (!bh)
-		goto no_grow; <= path taken
-
-grow_dev_page():
-        bh = alloc_page_buffers(page, size, 0);
-        if (!bh)
-                goto failed;  <= taken, consequence of the above
-
-and then the failed path BUG()s the kernel.
-
-The failure is inserted a litte bit artificially, but even then,
-I see no reason why it should be deemed impossible in a real box.
-
-Even though this is not a condition that we expect to see
-around every time, failed allocations are expected to be handled,
-and BUG() sounds just too much. As a matter of fact, grow_dev_page()
-can return NULL just fine in other circumstances, so I propose we just
-remove it, then.
-
-Signed-off-by: Glauber Costa <glommer@parallels.com>
-CC: Linus Torvalds <torvalds@linux-foundation.org>
-CC: Andrew Morton <akpm@linux-foundation.org>
----
- fs/buffer.c |    1 -
- 1 files changed, 0 insertions(+), 1 deletions(-)
-
-diff --git a/fs/buffer.c b/fs/buffer.c
-index 36d6665..351e18e 100644
---- a/fs/buffer.c
-+++ b/fs/buffer.c
-@@ -985,7 +985,6 @@ grow_dev_page(struct block_device *bdev, sector_t block,
- 	return page;
- 
- failed:
--	BUG();
- 	unlock_page(page);
- 	page_cache_release(page);
- 	return NULL;
--- 
-1.7.7.6
+Acked-by: Rik van Riel <riel@redhat.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
