@@ -1,59 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx113.postini.com [74.125.245.113])
-	by kanga.kvack.org (Postfix) with SMTP id B02F36B004A
-	for <linux-mm@kvack.org>; Wed, 11 Apr 2012 14:17:44 -0400 (EDT)
-Date: Wed, 11 Apr 2012 15:17:28 -0300
-From: Arnaldo Carvalho de Melo <acme@infradead.org>
-Subject: Re: [PATCH] perf/probe: Provide perf interface for uprobes
-Message-ID: <20120411181727.GK16257@infradead.org>
-References: <20120411135742.29198.45061.sendpatchset@srdronam.in.ibm.com>
- <20120411144918.GD16257@infradead.org>
- <20120411170343.GB29831@linux.vnet.ibm.com>
+Received: from psmtp.com (na3sys010amx192.postini.com [74.125.245.192])
+	by kanga.kvack.org (Postfix) with SMTP id 4577E6B004A
+	for <linux-mm@kvack.org>; Wed, 11 Apr 2012 14:48:49 -0400 (EDT)
+Date: Wed, 11 Apr 2012 20:48:45 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH] remove BUG() in possible but rare condition
+Message-ID: <20120411184845.GA24831@tiehlicka.suse.cz>
+References: <1334167824-19142-1-git-send-email-glommer@parallels.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20120411170343.GB29831@linux.vnet.ibm.com>
+In-Reply-To: <1334167824-19142-1-git-send-email-glommer@parallels.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-Cc: Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, LKML <linux-kernel@vger.kernel.org>, Linux-mm <linux-mm@kvack.org>, Oleg Nesterov <oleg@redhat.com>, Andi Kleen <andi@firstfloor.org>, Christoph Hellwig <hch@infradead.org>, Steven Rostedt <rostedt@goodmis.org>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Thomas Gleixner <tglx@linutronix.de>, Anton Arapov <anton@redhat.com>
+To: Glauber Costa <glommer@parallels.com>
+Cc: linux-kernel@vger.kernel.org, devel@openvz.org, linux-mm@kvack.org, cgroups@vger.kernel.org, Johannes Weiner <hannes@cmpxchg.org>, kamezawa.hiroyu@jp.fujitsu.com, Greg Thelen <gthelen@google.com>, Suleiman Souhlal <suleiman@google.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>
 
-Em Wed, Apr 11, 2012 at 10:42:25PM +0530, Srikar Dronamraju escreveu:
-> * Arnaldo Carvalho de Melo <acme@infradead.org> [2012-04-11 11:49:18]:
-> > Em Wed, Apr 11, 2012 at 07:27:42PM +0530, Srikar Dronamraju escreveu:
-> > > From: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-> > > 
-> > > - Enhances perf to probe user space executables and libraries.
-> > > - Enhances -F/--funcs option of "perf probe" to list possible probe points in
-> > >   an executable file or library.
-> > > - Documents userspace probing support in perf.
-> > > 
-> > > [ Probing a function in the executable using function name  ]
-> > > perf probe -x /bin/zsh zfree
-> > 
-> > Can we avoid the need for -x? I.e. we could figure out it is userspace
-> > and act accordingly.
+On Wed 11-04-12 15:10:24, Glauber Costa wrote:
+> While stressing the kernel with with failing allocations today,
+> I hit the following chain of events:
 > 
-> To list the functions in the module ipv6, we use "perf probe -F -m ipv6"
-> So I used the same logic to use -x for specifying executables.
+> alloc_page_buffers():
 > 
-> This is in agreement with probepoint addition where without any
-> additional options would mean kernel probepoint; m option would mean
-> module and x option would mean user space executable. 
+> 	bh = alloc_buffer_head(GFP_NOFS);
+> 	if (!bh)
+> 		goto no_grow; <= path taken
 > 
-> However if you still think we should change, do let me know.
+> grow_dev_page():
+>         bh = alloc_page_buffers(page, size, 0);
+>         if (!bh)
+>                 goto failed;  <= taken, consequence of the above
+> 
+> and then the failed path BUG()s the kernel.
+> 
+> The failure is inserted a litte bit artificially, but even then,
+> I see no reason why it should be deemed impossible in a real box.
+> 
+> Even though this is not a condition that we expect to see
+> around every time, failed allocations are expected to be handled,
+> and BUG() sounds just too much. As a matter of fact, grow_dev_page()
+> can return NULL just fine in other circumstances, so I propose we just
+> remove it, then.
 
-Yeah, if one needs to disambiguate, sure, use these keywords, but for
-things like:
+I am not familiar with the code much but a trivial call chain walk up to
+write_dev_supers (in btrfs) shows that we do not check for the return value
+from __getblk so we would nullptr and there might be more. 
+I guess these need some treat before the BUG might be removed, right?
 
-$ perf probe /lib/libc.so.6 malloc
+> 
+> Signed-off-by: Glauber Costa <glommer@parallels.com>
+> CC: Linus Torvalds <torvalds@linux-foundation.org>
+> CC: Andrew Morton <akpm@linux-foundation.org>
+> ---
+>  fs/buffer.c |    1 -
+>  1 files changed, 0 insertions(+), 1 deletions(-)
+> 
+> diff --git a/fs/buffer.c b/fs/buffer.c
+> index 36d6665..351e18e 100644
+> --- a/fs/buffer.c
+> +++ b/fs/buffer.c
+> @@ -985,7 +985,6 @@ grow_dev_page(struct block_device *bdev, sector_t block,
+>  	return page;
+>  
+>  failed:
+> -	BUG();
+>  	unlock_page(page);
+>  	page_cache_release(page);
+>  	return NULL;
+> -- 
+> 1.7.7.6
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Fight unfair telecom internet charges in Canada: sign http://stopthemeter.ca/
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
-I think it is easy to figure out it is userspace. I.e. some regex would
-figure it out.
-
-Anyway this can be done in a follow up patch.
-
-- Arnaldo
+-- 
+Michal Hocko
+SUSE Labs
+SUSE LINUX s.r.o.
+Lihovarska 1060/12
+190 00 Praha 9    
+Czech Republic
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
