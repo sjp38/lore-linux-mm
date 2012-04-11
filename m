@@ -1,54 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx106.postini.com [74.125.245.106])
-	by kanga.kvack.org (Postfix) with SMTP id CB3996B004A
-	for <linux-mm@kvack.org>; Wed, 11 Apr 2012 13:16:40 -0400 (EDT)
-Message-ID: <4F85BC8E.3020400@redhat.com>
-Date: Wed, 11 Apr 2012 13:17:02 -0400
-From: Rik van Riel <riel@redhat.com>
+Received: from psmtp.com (na3sys010amx189.postini.com [74.125.245.189])
+	by kanga.kvack.org (Postfix) with SMTP id 20BA26B004D
+	for <linux-mm@kvack.org>; Wed, 11 Apr 2012 13:26:21 -0400 (EDT)
+Received: from /spool/local
+	by e5.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <srikar@linux.vnet.ibm.com>;
+	Wed, 11 Apr 2012 13:26:19 -0400
+Received: from d01relay05.pok.ibm.com (d01relay05.pok.ibm.com [9.56.227.237])
+	by d01dlp01.pok.ibm.com (Postfix) with ESMTP id 6581E38C8068
+	for <linux-mm@kvack.org>; Wed, 11 Apr 2012 13:20:14 -0400 (EDT)
+Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
+	by d01relay05.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q3BHK9U8249584
+	for <linux-mm@kvack.org>; Wed, 11 Apr 2012 13:20:10 -0400
+Received: from d01av04.pok.ibm.com (loopback [127.0.0.1])
+	by d01av04.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q3BHJlpJ020251
+	for <linux-mm@kvack.org>; Wed, 11 Apr 2012 13:19:48 -0400
+Date: Wed, 11 Apr 2012 22:42:25 +0530
+From: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
+Subject: Re: [PATCH] perf/probe: Provide perf interface for uprobes
+Message-ID: <20120411170343.GB29831@linux.vnet.ibm.com>
+Reply-To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
+References: <20120411135742.29198.45061.sendpatchset@srdronam.in.ibm.com>
+ <20120411144918.GD16257@infradead.org>
 MIME-Version: 1.0
-Subject: Re: [PATCH 0/3] Removal of lumpy reclaim V2
-References: <1334162298-18942-1-git-send-email-mgorman@suse.de>
-In-Reply-To: <1334162298-18942-1-git-send-email-mgorman@suse.de>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+In-Reply-To: <20120411144918.GD16257@infradead.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Konstantin Khlebnikov <khlebnikov@openvz.org>, Hugh Dickins <hughd@google.com>, Ying Han <yinghan@google.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Arnaldo Carvalho de Melo <acme@infradead.org>
+Cc: Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, LKML <linux-kernel@vger.kernel.org>, Linux-mm <linux-mm@kvack.org>, Oleg Nesterov <oleg@redhat.com>, Andi Kleen <andi@firstfloor.org>, Christoph Hellwig <hch@infradead.org>, Steven Rostedt <rostedt@goodmis.org>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Thomas Gleixner <tglx@linutronix.de>, Anton Arapov <anton@redhat.com>
 
-On 04/11/2012 12:38 PM, Mel Gorman wrote:
+* Arnaldo Carvalho de Melo <acme@infradead.org> [2012-04-11 11:49:18]:
 
-> Success rates are completely hosed for 3.4-rc2 which is almost certainly
-> due to [fe2c2a10: vmscan: reclaim at order 0 when compaction is enabled]. I
-> expected this would happen for kswapd and impair allocation success rates
-> (https://lkml.org/lkml/2012/1/25/166) but I did not anticipate this much
-> a difference: 80% less scanning, 37% less reclaim by kswapd
+> Em Wed, Apr 11, 2012 at 07:27:42PM +0530, Srikar Dronamraju escreveu:
+> > From: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
+> > 
+> > - Enhances perf to probe user space executables and libraries.
+> > - Enhances -F/--funcs option of "perf probe" to list possible probe points in
+> >   an executable file or library.
+> > - Documents userspace probing support in perf.
+> > 
+> > [ Probing a function in the executable using function name  ]
+> > perf probe -x /bin/zsh zfree
+> > 
+> > [ Probing a library function using function name ]
+> > perf probe -x /lib64/libc.so.6 malloc
+> > 
+> > [ list probe-able functions in an executable ]
+> > perf probe -F -x /bin/zsh
+> > 
+> > [ list probe-able functions in an library]
+> > perf probe -F -x /lib/libc.so.6
+> 
+> Can we avoid the need for -x? I.e. we could figure out it is userspace
+> and act accordingly.
+> 
 
-Also, no gratuitous pageouts of anonymous memory.
-That was what really made a difference on a somewhat
-heavily loaded desktop + kvm workload.
+To list the functions in the module ipv6, we use "perf probe -F -m ipv6"
+So I used the same logic to use -x for specifying executables.
 
-> In comparison, reclaim/compaction is not aggressive and gives up easily
-> which is the intended behaviour. hugetlbfs uses __GFP_REPEAT and would be
-> much more aggressive about reclaim/compaction than THP allocations are. The
-> stress test above is allocating like neither THP or hugetlbfs but is much
-> closer to THP.
 
-Next step: get rid of __GFP_NO_KSWAPD for THP, first
-in the -mm kernel
+This is in agreement with probepoint addition where without any
+additional options would mean kernel probepoint; m option would mean
+module and x option would mean user space executable. 
 
-> Mainline is now impaired in terms of high order allocation under heavy load
-> although I do not know to what degree as I did not test with __GFP_REPEAT.
-> Keep this in mind for bugs related to hugepage pool resizing, THP allocation
-> and high order atomic allocation failures from network devices.
+However if you still think we should change, do let me know.
 
-This might be due to smaller allocations not bumping
-the compaction deferring code, when we have deferred
-compaction for a higher order allocation.
-
-I wonder if the compaction deferring code is simply
-too defer-happy, now that we ignore compaction at
-lower orders than where compaction failed?
+-- 
+Thanks and Regards
+Srikar
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
