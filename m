@@ -1,47 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx102.postini.com [74.125.245.102])
-	by kanga.kvack.org (Postfix) with SMTP id B13316B004A
-	for <linux-mm@kvack.org>; Wed, 11 Apr 2012 07:55:30 -0400 (EDT)
-Received: by vcbfk14 with SMTP id fk14so762737vcb.14
-        for <linux-mm@kvack.org>; Wed, 11 Apr 2012 04:55:29 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <CALWz4iyZauXcfuepN6SE9bQpPXp5dH0XvXh6zByO_uNdWTt9ow@mail.gmail.com>
-References: <1334000524-23972-1-git-send-email-yinghan@google.com>
-	<CAJd=RBD6Sb4zmUkMTaT12cgwFLAQYmh6HuK1hLMa_Dda6FHBLQ@mail.gmail.com>
-	<CALWz4iyZauXcfuepN6SE9bQpPXp5dH0XvXh6zByO_uNdWTt9ow@mail.gmail.com>
-Date: Wed, 11 Apr 2012 19:55:29 +0800
-Message-ID: <CAJd=RBDk6-FDoaj7Ly4Cw4WoEq3tLCjmZ01vZRQgXGCyFdVDhA@mail.gmail.com>
-Subject: Re: [PATCH] Revert "mm: vmscan: fix misused nr_reclaimed in shrink_mem_cgroup_zone()"
-From: Hillf Danton <dhillf@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+Received: from psmtp.com (na3sys010amx116.postini.com [74.125.245.116])
+	by kanga.kvack.org (Postfix) with SMTP id C43876B004A
+	for <linux-mm@kvack.org>; Wed, 11 Apr 2012 08:06:31 -0400 (EDT)
+MIME-version: 1.0
+Content-transfer-encoding: 7BIT
+Content-type: text/plain; charset=us-ascii
+Received: from euspt2 ([210.118.77.13]) by mailout3.w1.samsung.com
+ (Sun Java(tm) System Messaging Server 6.3-8.04 (built Jul 29 2009; 32bit))
+ with ESMTP id <0M2B001BZDKIOX00@mailout3.w1.samsung.com> for
+ linux-mm@kvack.org; Wed, 11 Apr 2012 13:05:06 +0100 (BST)
+Received: from linux.samsung.com ([106.116.38.10])
+ by spt2.w1.samsung.com (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14
+ 2004)) with ESMTPA id <0M2B00HMPDL0Q9@spt2.w1.samsung.com> for
+ linux-mm@kvack.org; Wed, 11 Apr 2012 13:05:24 +0100 (BST)
+Date: Wed, 11 Apr 2012 14:05:21 +0200
+From: Marek Szyprowski <m.szyprowski@samsung.com>
+Subject: RE: [PATCHv8 04/10] ARM: dma-mapping: remove offset parameter to
+ prepare for generic dma_ops
+In-reply-to: <201204101143.27915.arnd@arndb.de>
+Message-id: <012e01cd17db$5f165c30$1d431490$%szyprowski@samsung.com>
+Content-language: pl
+References: <1334055852-19500-1-git-send-email-m.szyprowski@samsung.com>
+ <1334055852-19500-5-git-send-email-m.szyprowski@samsung.com>
+ <201204101143.27915.arnd@arndb.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ying Han <yinghan@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, linux-mm@kvack.org
+To: 'Arnd Bergmann' <arnd@arndb.de>
+Cc: linux-arm-kernel@lists.infradead.org, linaro-mm-sig@lists.linaro.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, iommu@lists.linux-foundation.org, 'Kyungmin Park' <kyungmin.park@samsung.com>, 'Joerg Roedel' <joro@8bytes.org>, 'Russell King - ARM Linux' <linux@arm.linux.org.uk>, 'Chunsang Jeong' <chunsang.jeong@linaro.org>, 'Krishna Reddy' <vdumpa@nvidia.com>, 'KyongHo Cho' <pullip.cho@samsung.com>, Andrzej Pietrasiewicz <andrzej.p@samsung.com>, 'Benjamin Herrenschmidt' <benh@kernel.crashing.org>, 'Konrad Rzeszutek Wilk' <konrad.wilk@oracle.com>, 'Hiroshi Doyu' <hdoyu@nvidia.com>, 'Subash Patel' <subashrp@gmail.com>
 
-On Wed, Apr 11, 2012 at 12:44 AM, Ying Han <yinghan@google.com> wrote:
->
-> There are two places where we do early break out in direct reclaim path.
->
-> 1. For each priority loop after calling shrink_zones(), we check
-> (sc->nr_reclaimed >= sc->nr_to_reclaim)
->
-> 2. For each memcg reclaim (shrink_mem_cgroup_zone) under
-> shrink_zone(), we check (nr_reclaimed >= nr_to_reclaim)
->
-> The second one says "if 32 (nr_to_reclaim) pages being reclaimed from
-> this memcg under high priority, break". This check is necessary here
-> to prevent over pressure each memcg under shrink_zone().
->
-> Regarding the reverted patch, it tries to convert the "nr_reclaimed"
-> to "total_reclaimed" for outer loop (restart). First of all, it
-> changes the logic by doing less work each time
-> should_continue_reclaim() is true. Second, the fix is simply broken by
-> decrementing nr_to_reclaim each time.
->
-Got, thanks:)
+Hi Arnd,
 
--hd
+On Tuesday, April 10, 2012 1:43 PM Arnd Bergmann wrote:
+
+> On Tuesday 10 April 2012, Marek Szyprowski wrote:
+> > This patch removes the need for offset parameter in dma bounce
+> > functions. This is required to let dma-mapping framework on ARM
+> > architecture use common, generic dma-mapping helpers.
+> >
+> > Signed-off-by: Marek Szyprowski <m.szyprowski@samsung.com>
+> > Acked-by: Kyungmin Park <kyungmin.park@samsung.com>
+> 
+> This one worries me a little. I always thought that the range sync
+> functions were specifically needed for the dmabounce code. At the
+> very least, I would expect the changeset comment to have an explanation
+> of why this was initially done this way and why it's now safe to do
+> do it otherwise.
+
+Well, range sync functions are available from the early days of the dma 
+mapping api (at least that's what I've found reading the change log and
+old patches). They are the correct way of doing a partial syncs on the 
+buffer (usually used by the network device drivers). This patch changes
+only the internal implementation of the dma bounce functions to let 
+them tunnel through dma_map_ops structure. The driver api stays
+unchanged, so driver are obliged to call dma_*_range_* functions to
+keep code clean and easy to understand. 
+
+The only drawback I can see from this patch is reduced detection of
+the dma api abuse. Let us consider the following code:
+
+dma_addr = dma_map_single(dev, ptr, 64, DMA_TO_DEVICE);
+dma_sync_single_range_for_cpu(dev, dma_addr+16, 0, 32, DMA_TO_DEVICE);
+
+Without the patch such code fails, because dma bounce code is unable
+to find the bounce buffer for the given dma_address. After the patch
+the sync call will be equivalent to: 
+
+	dma_sync_single_range_for_cpu(dev, dma_addr, 16, 32, DMA_TO_DEVICE);
+
+which succeeds.
+
+I don't consider this as a real problem. DMA API abuse should be caught
+by debug_dma_* function family, so we can simplify the internal low-level
+implementation without losing anything.
+
+Best regards
+-- 
+Marek Szyprowski
+Samsung Poland R&D Center
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
