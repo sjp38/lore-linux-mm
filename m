@@ -1,36 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx195.postini.com [74.125.245.195])
-	by kanga.kvack.org (Postfix) with SMTP id 8B7756B004A
-	for <linux-mm@kvack.org>; Wed, 11 Apr 2012 14:14:52 -0400 (EDT)
-Message-ID: <4F85BEB5.6080702@redhat.com>
-Date: Wed, 11 Apr 2012 13:26:13 -0400
-From: Rik van Riel <riel@redhat.com>
+Received: from psmtp.com (na3sys010amx113.postini.com [74.125.245.113])
+	by kanga.kvack.org (Postfix) with SMTP id B02F36B004A
+	for <linux-mm@kvack.org>; Wed, 11 Apr 2012 14:17:44 -0400 (EDT)
+Date: Wed, 11 Apr 2012 15:17:28 -0300
+From: Arnaldo Carvalho de Melo <acme@infradead.org>
+Subject: Re: [PATCH] perf/probe: Provide perf interface for uprobes
+Message-ID: <20120411181727.GK16257@infradead.org>
+References: <20120411135742.29198.45061.sendpatchset@srdronam.in.ibm.com>
+ <20120411144918.GD16257@infradead.org>
+ <20120411170343.GB29831@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 2/3] mm: vmscan: Do not stall on writeback during memory
- compaction
-References: <1334162298-18942-1-git-send-email-mgorman@suse.de> <1334162298-18942-3-git-send-email-mgorman@suse.de>
-In-Reply-To: <1334162298-18942-3-git-send-email-mgorman@suse.de>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20120411170343.GB29831@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Konstantin Khlebnikov <khlebnikov@openvz.org>, Hugh Dickins <hughd@google.com>, Ying Han <yinghan@google.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
+Cc: Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, LKML <linux-kernel@vger.kernel.org>, Linux-mm <linux-mm@kvack.org>, Oleg Nesterov <oleg@redhat.com>, Andi Kleen <andi@firstfloor.org>, Christoph Hellwig <hch@infradead.org>, Steven Rostedt <rostedt@goodmis.org>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Thomas Gleixner <tglx@linutronix.de>, Anton Arapov <anton@redhat.com>
 
-On 04/11/2012 12:38 PM, Mel Gorman wrote:
-> This patch stops reclaim/compaction entering sync reclaim as this was only
-> intended for lumpy reclaim and an oversight. Page migration has its own
-> logic for stalling on writeback pages if necessary and memory compaction
-> is already using it.
->
-> Waiting on page writeback is bad for a number of reasons but the primary
-> one is that waiting on writeback to a slow device like USB can take a
-> considerable length of time. Page reclaim instead uses wait_iff_congested()
-> to throttle if too many dirty pages are being scanned.
->
-> Signed-off-by: Mel Gorman<mgorman@suse.de>
+Em Wed, Apr 11, 2012 at 10:42:25PM +0530, Srikar Dronamraju escreveu:
+> * Arnaldo Carvalho de Melo <acme@infradead.org> [2012-04-11 11:49:18]:
+> > Em Wed, Apr 11, 2012 at 07:27:42PM +0530, Srikar Dronamraju escreveu:
+> > > From: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
+> > > 
+> > > - Enhances perf to probe user space executables and libraries.
+> > > - Enhances -F/--funcs option of "perf probe" to list possible probe points in
+> > >   an executable file or library.
+> > > - Documents userspace probing support in perf.
+> > > 
+> > > [ Probing a function in the executable using function name  ]
+> > > perf probe -x /bin/zsh zfree
+> > 
+> > Can we avoid the need for -x? I.e. we could figure out it is userspace
+> > and act accordingly.
+> 
+> To list the functions in the module ipv6, we use "perf probe -F -m ipv6"
+> So I used the same logic to use -x for specifying executables.
+> 
+> This is in agreement with probepoint addition where without any
+> additional options would mean kernel probepoint; m option would mean
+> module and x option would mean user space executable. 
+> 
+> However if you still think we should change, do let me know.
 
-Acked-by: Rik van Riel <riel@redhat.com>
+Yeah, if one needs to disambiguate, sure, use these keywords, but for
+things like:
+
+$ perf probe /lib/libc.so.6 malloc
+
+I think it is easy to figure out it is userspace. I.e. some regex would
+figure it out.
+
+Anyway this can be done in a follow up patch.
+
+- Arnaldo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
