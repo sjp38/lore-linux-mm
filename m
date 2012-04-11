@@ -1,100 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx189.postini.com [74.125.245.189])
-	by kanga.kvack.org (Postfix) with SMTP id E7BDA6B004A
-	for <linux-mm@kvack.org>; Wed, 11 Apr 2012 10:20:28 -0400 (EDT)
-Date: Wed, 11 Apr 2012 16:20:23 +0200
-From: Johannes Weiner <jweiner@redhat.com>
-Subject: Re: [patch v2] thp, memcg: split hugepage for memcg oom on cow
-Message-ID: <20120411142023.GB1789@redhat.com>
-References: <alpine.DEB.2.00.1204031854530.30629@chino.kir.corp.google.com>
- <4F838385.9070309@jp.fujitsu.com>
- <alpine.DEB.2.00.1204092241180.27689@chino.kir.corp.google.com>
- <alpine.DEB.2.00.1204092242050.27689@chino.kir.corp.google.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.00.1204092242050.27689@chino.kir.corp.google.com>
+Received: from psmtp.com (na3sys010amx193.postini.com [74.125.245.193])
+	by kanga.kvack.org (Postfix) with SMTP id 1006D6B004A
+	for <linux-mm@kvack.org>; Wed, 11 Apr 2012 10:36:54 -0400 (EDT)
+Received: from euspt2 (mailout1.w1.samsung.com [210.118.77.11])
+ by mailout1.w1.samsung.com
+ (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14 2004))
+ with ESMTP id <0M2B00H9GKJSKI@mailout1.w1.samsung.com> for linux-mm@kvack.org;
+ Wed, 11 Apr 2012 15:35:52 +0100 (BST)
+Received: from linux.samsung.com ([106.116.38.10])
+ by spt2.w1.samsung.com (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14
+ 2004)) with ESMTPA id <0M2B008I9KLDFD@spt2.w1.samsung.com> for
+ linux-mm@kvack.org; Wed, 11 Apr 2012 15:36:50 +0100 (BST)
+Date: Wed, 11 Apr 2012 16:36:43 +0200
+From: Marek Szyprowski <m.szyprowski@samsung.com>
+Subject: [PATCH/RFC] ARM: Exynos4: Integrate IOMMU aware DMA-mapping
+Message-id: <1334155004-5700-1-git-send-email-m.szyprowski@samsung.com>
+MIME-version: 1.0
+Content-type: TEXT/PLAIN
+Content-transfer-encoding: 7BIT
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrea Arcangeli <aarcange@redhat.com>, linux-mm@kvack.org
+To: linux-arm-kernel@lists.infradead.org, linaro-mm-sig@lists.linaro.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, iommu@lists.linux-foundation.org
+Cc: Marek Szyprowski <m.szyprowski@samsung.com>, Kyungmin Park <kyungmin.park@samsung.com>, Arnd Bergmann <arnd@arndb.de>, Joerg Roedel <joro@8bytes.org>, Russell King - ARM Linux <linux@arm.linux.org.uk>, Chunsang Jeong <chunsang.jeong@linaro.org>, Krishna Reddy <vdumpa@nvidia.com>, KyongHo Cho <pullip.cho@samsung.com>, Andrzej Pietrasiewicz <andrzej.p@samsung.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Hiroshi Doyu <hdoyu@nvidia.com>, Subash Patel <subashrp@gmail.com>
 
-On Mon, Apr 09, 2012 at 10:42:31PM -0700, David Rientjes wrote:
-> On COW, a new hugepage is allocated and charged to the memcg.  If the
-> system is oom or the charge to the memcg fails, however, the fault
-> handler will return VM_FAULT_OOM which results in an oom kill.
-> 
-> Instead, it's possible to fallback to splitting the hugepage so that the
-> COW results only in an order-0 page being allocated and charged to the
-> memcg which has a higher liklihood to succeed.  This is expensive because
-> the hugepage must be split in the page fault handler, but it is much
-> better than unnecessarily oom killing a process.
-> 
-> Signed-off-by: David Rientjes <rientjes@google.com>
-> ---
->  mm/huge_memory.c |    3 +++
->  mm/memory.c      |   18 +++++++++++++++---
->  2 files changed, 18 insertions(+), 3 deletions(-)
-> 
-> diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-> --- a/mm/huge_memory.c
-> +++ b/mm/huge_memory.c
-> @@ -950,6 +950,8 @@ int do_huge_pmd_wp_page(struct mm_struct *mm, struct vm_area_struct *vma,
->  		count_vm_event(THP_FAULT_FALLBACK);
->  		ret = do_huge_pmd_wp_page_fallback(mm, vma, address,
->  						   pmd, orig_pmd, page, haddr);
-> +		if (ret & VM_FAULT_OOM)
-> +			split_huge_page(page);
->  		put_page(page);
->  		goto out;
->  	}
-> @@ -957,6 +959,7 @@ int do_huge_pmd_wp_page(struct mm_struct *mm, struct vm_area_struct *vma,
->  
->  	if (unlikely(mem_cgroup_newpage_charge(new_page, mm, GFP_KERNEL))) {
->  		put_page(new_page);
-> +		split_huge_page(page);
->  		put_page(page);
->  		ret |= VM_FAULT_OOM;
->  		goto out;
-> diff --git a/mm/memory.c b/mm/memory.c
-> --- a/mm/memory.c
-> +++ b/mm/memory.c
-> @@ -3489,6 +3489,7 @@ int handle_mm_fault(struct mm_struct *mm, struct vm_area_struct *vma,
->  	if (unlikely(is_vm_hugetlb_page(vma)))
->  		return hugetlb_fault(mm, vma, address, flags);
->  
-> +retry:
->  	pgd = pgd_offset(mm, address);
->  	pud = pud_alloc(mm, pgd, address);
->  	if (!pud)
-> @@ -3502,13 +3503,24 @@ int handle_mm_fault(struct mm_struct *mm, struct vm_area_struct *vma,
->  							  pmd, flags);
->  	} else {
->  		pmd_t orig_pmd = *pmd;
-> +		int ret;
-> +
->  		barrier();
->  		if (pmd_trans_huge(orig_pmd)) {
->  			if (flags & FAULT_FLAG_WRITE &&
->  			    !pmd_write(orig_pmd) &&
-> -			    !pmd_trans_splitting(orig_pmd))
-> -				return do_huge_pmd_wp_page(mm, vma, address,
-> -							   pmd, orig_pmd);
-> +			    !pmd_trans_splitting(orig_pmd)) {
-> +				ret = do_huge_pmd_wp_page(mm, vma, address, pmd,
-> +							  orig_pmd);
-> +				/*
-> +				 * If COW results in an oom, the huge pmd will
-> +				 * have been split, so retry the fault on the
-> +				 * pte for a smaller charge.
-> +				 */
-> +				if (unlikely(ret & VM_FAULT_OOM))
-> +					goto retry;
+Hi!
 
-Can you instead put a __split_huge_page_pmd(mm, pmd) here?  It has to
-redo the get-page-ref-through-pagetable dance, but it's more robust
-and obvious than splitting the COW page before returning OOM in the
-thp wp handler.
+This is an example of the IOMMU aware DMA-mapping implementation usage
+on a Samsung Exynos4 based NURI board. The ARM DMA-mapping IOMMU aware
+implementation is available in the [1] thread: 
+
+This patch essentially registers DMA-mmaping/IOMMU support for FIMC and
+MFC devices and performs some tweaks in clocks hierarchy to get SYSMMU
+driver working correctly.
+
+The drivers have been tested with mainline V4L2 drivers for FIMC and MFC
+hardware.
+
+For easier testing I've created a separate kernel branch with all
+required prerequisite patches. It is based on lastest kgene/for-next
+branch and is available on my git repository:
+
+git://git.linaro.org/people/mszyprowski/linux-dma-mapping.git 3.4-rc2-arm-dma-v8-samsung
+
+This patch requires the following items:
+1. ARM DMA-mapping patches [1]
+2. Exynos SYSMMU driver v12 [2]
+3. Exynos SYSMMU driver runtime pm fixes
+4. Exynos4 gen_pd power domain driver fixes
+
+Runtime pm and power domain patches are required on Samsung Nuri board,
+but might be optional on boards where bootloader doesn't disable all
+devices on boot.
+
+[1] http://www.spinics.net/lists/linux-arch/msg17331.html
+[2] https://lkml.org/lkml/2012/3/15/51
+
+Best regards
+Marek Szyprowski
+Samsung Poland R&D Center
+
+
+Patch summary:
+
+Marek Szyprowski (1):
+  ARM: Exynos4: integrate SYSMMU driver with DMA-mapping interface
+
+ arch/arm/mach-exynos/Kconfig               |    1 +
+ arch/arm/mach-exynos/clock-exynos4.c       |   64 +++++++++++++++-------------
+ arch/arm/mach-exynos/dev-sysmmu.c          |   44 +++++++++++++++++++
+ arch/arm/mach-exynos/include/mach/sysmmu.h |    3 +
+ drivers/iommu/Kconfig                      |    1 +
+ 5 files changed, 84 insertions(+), 29 deletions(-)
+
+-- 
+1.7.1.569.g6f426
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
