@@ -1,55 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx137.postini.com [74.125.245.137])
-	by kanga.kvack.org (Postfix) with SMTP id A6DE66B004A
-	for <linux-mm@kvack.org>; Wed, 11 Apr 2012 06:45:36 -0400 (EDT)
-Received: from /spool/local
-	by e28smtp04.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <srikar@linux.vnet.ibm.com>;
-	Wed, 11 Apr 2012 16:12:34 +0530
-Received: from d28av01.in.ibm.com (d28av01.in.ibm.com [9.184.220.63])
-	by d28relay04.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q3BAgSYx2187454
-	for <linux-mm@kvack.org>; Wed, 11 Apr 2012 16:12:28 +0530
-Received: from d28av01.in.ibm.com (loopback [127.0.0.1])
-	by d28av01.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q3BGC921027233
-	for <linux-mm@kvack.org>; Wed, 11 Apr 2012 21:42:11 +0530
-From: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-Date: Wed, 11 Apr 2012 16:05:16 +0530
-Message-Id: <20120411103516.23245.2700.sendpatchset@srdronam.in.ibm.com>
-Subject: [PATCH 1/2] uprobes/core: Make background page replacement logic account for rss_stat counters
+Received: from psmtp.com (na3sys010amx102.postini.com [74.125.245.102])
+	by kanga.kvack.org (Postfix) with SMTP id B13316B004A
+	for <linux-mm@kvack.org>; Wed, 11 Apr 2012 07:55:30 -0400 (EDT)
+Received: by vcbfk14 with SMTP id fk14so762737vcb.14
+        for <linux-mm@kvack.org>; Wed, 11 Apr 2012 04:55:29 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <CALWz4iyZauXcfuepN6SE9bQpPXp5dH0XvXh6zByO_uNdWTt9ow@mail.gmail.com>
+References: <1334000524-23972-1-git-send-email-yinghan@google.com>
+	<CAJd=RBD6Sb4zmUkMTaT12cgwFLAQYmh6HuK1hLMa_Dda6FHBLQ@mail.gmail.com>
+	<CALWz4iyZauXcfuepN6SE9bQpPXp5dH0XvXh6zByO_uNdWTt9ow@mail.gmail.com>
+Date: Wed, 11 Apr 2012 19:55:29 +0800
+Message-ID: <CAJd=RBDk6-FDoaj7Ly4Cw4WoEq3tLCjmZ01vZRQgXGCyFdVDhA@mail.gmail.com>
+Subject: Re: [PATCH] Revert "mm: vmscan: fix misused nr_reclaimed in shrink_mem_cgroup_zone()"
+From: Hillf Danton <dhillf@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@elte.hu>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, LKML <linux-kernel@vger.kernel.org>, Linux-mm <linux-mm@kvack.org>, Oleg Nesterov <oleg@redhat.com>, Andi Kleen <andi@firstfloor.org>, Christoph Hellwig <hch@infradead.org>, Steven Rostedt <rostedt@goodmis.org>, Arnaldo Carvalho de Melo <acme@infradead.org>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Thomas Gleixner <tglx@linutronix.de>, Anton Arapov <anton@redhat.com>
+To: Ying Han <yinghan@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, linux-mm@kvack.org
 
-From: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
+On Wed, Apr 11, 2012 at 12:44 AM, Ying Han <yinghan@google.com> wrote:
+>
+> There are two places where we do early break out in direct reclaim path.
+>
+> 1. For each priority loop after calling shrink_zones(), we check
+> (sc->nr_reclaimed >= sc->nr_to_reclaim)
+>
+> 2. For each memcg reclaim (shrink_mem_cgroup_zone) under
+> shrink_zone(), we check (nr_reclaimed >= nr_to_reclaim)
+>
+> The second one says "if 32 (nr_to_reclaim) pages being reclaimed from
+> this memcg under high priority, break". This check is necessary here
+> to prevent over pressure each memcg under shrink_zone().
+>
+> Regarding the reverted patch, it tries to convert the "nr_reclaimed"
+> to "total_reclaimed" for outer loop (restart). First of all, it
+> changes the logic by doing less work each time
+> should_continue_reclaim() is true. Second, the fix is simply broken by
+> decrementing nr_to_reclaim each time.
+>
+Got, thanks:)
 
-Background page replacement logic adds a new anonymous page instead of a
-filebacked(while inserting a breakpoint) / anonymous page(while removing a
-breakpoint). Hence logic should take care to update the rss_stat counters
-accordingly. This bug became apparent courtesy commit c3f0327f8e9d7
-
-Signed-off-by: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
----
- kernel/events/uprobes.c |    5 +++++
- 1 files changed, 5 insertions(+), 0 deletions(-)
-
-diff --git a/kernel/events/uprobes.c b/kernel/events/uprobes.c
-index 29e881b..c5caeec 100644
---- a/kernel/events/uprobes.c
-+++ b/kernel/events/uprobes.c
-@@ -160,6 +160,11 @@ static int __replace_page(struct vm_area_struct *vma, struct page *page, struct 
- 	get_page(kpage);
- 	page_add_new_anon_rmap(kpage, vma, addr);
- 
-+	if (!PageAnon(page)) {
-+		dec_mm_counter(mm, MM_FILEPAGES);
-+		inc_mm_counter(mm, MM_ANONPAGES);
-+	}
-+
- 	flush_cache_page(vma, addr, pte_pfn(*ptep));
- 	ptep_clear_flush(vma, addr, ptep);
- 	set_pte_at_notify(mm, addr, ptep, mk_pte(kpage, vma->vm_page_prot));
-
+-hd
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
