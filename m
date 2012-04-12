@@ -1,97 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx177.postini.com [74.125.245.177])
-	by kanga.kvack.org (Postfix) with SMTP id AB8DF6B0044
-	for <linux-mm@kvack.org>; Thu, 12 Apr 2012 13:44:40 -0400 (EDT)
-Date: Thu, 12 Apr 2012 19:44:20 +0200
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH V2 5/5] memcg: change the target nr_to_reclaim for each
- memcg under kswapd
-Message-ID: <20120412174420.GN1787@cmpxchg.org>
-References: <1334181627-26942-1-git-send-email-yinghan@google.com>
- <20120411235638.GA1787@cmpxchg.org>
- <CALWz4ixnQ=XWUmPEqjEnGYrO6p+pU=VEGjJSEr22gfnmNPjrmg@mail.gmail.com>
- <20120412142435.GJ1787@cmpxchg.org>
- <CALWz4ixVdamJX4DyaM-zWwp7enXfXLbMbAKLLVQ6FpcVPUiLsg@mail.gmail.com>
+Received: from psmtp.com (na3sys010amx199.postini.com [74.125.245.199])
+	by kanga.kvack.org (Postfix) with SMTP id B73FF6B0044
+	for <linux-mm@kvack.org>; Thu, 12 Apr 2012 13:51:31 -0400 (EDT)
+Received: by ggeq1 with SMTP id q1so1668228gge.14
+        for <linux-mm@kvack.org>; Thu, 12 Apr 2012 10:51:30 -0700 (PDT)
+Date: Thu, 12 Apr 2012 10:51:10 -0700 (PDT)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: [PATCH] Revert "proc: clear_refs: do not clear reserved pages"
+In-Reply-To: <1334250034-29866-1-git-send-email-will.deacon@arm.com>
+Message-ID: <alpine.LSU.2.00.1204121049120.2288@eggly.anvils>
+References: <1334250034-29866-1-git-send-email-will.deacon@arm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <CALWz4ixVdamJX4DyaM-zWwp7enXfXLbMbAKLLVQ6FpcVPUiLsg@mail.gmail.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ying Han <yinghan@google.com>
-Cc: Michal Hocko <mhocko@suse.cz>, Mel Gorman <mel@csn.ul.ie>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Hillf Danton <dhillf@gmail.com>, Hugh Dickins <hughd@google.com>, Dan Magenheimer <dan.magenheimer@oracle.com>, linux-mm@kvack.org
+To: Will Deacon <will.deacon@arm.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Nicolas Pitre <nico@linaro.org>
 
-On Thu, Apr 12, 2012 at 09:45:47AM -0700, Ying Han wrote:
-> On Thu, Apr 12, 2012 at 7:24 AM, Johannes Weiner <hannes@cmpxchg.org> wrote:
-> > On Wed, Apr 11, 2012 at 09:06:27PM -0700, Ying Han wrote:
-> >> On Wed, Apr 11, 2012 at 4:56 PM, Johannes Weiner <hannes@cmpxchg.org> wrote:
-> >> > On Wed, Apr 11, 2012 at 03:00:27PM -0700, Ying Han wrote:
-> >> >> Under global background reclaim, the sc->nr_to_reclaim is set to
-> >> >> ULONG_MAX. Now we are iterating all memcgs under the zone and we
-> >> >> shouldn't pass the pressure from kswapd for each memcg.
-> >> >>
-> >> >> After all, the balance_pgdat() breaks after reclaiming SWAP_CLUSTER_MAX
-> >> >> pages to prevent building up reclaim priorities.
-> >> >
-> >> > shrink_mem_cgroup_zone() bails out of a zone, balance_pgdat() bails
-> >> > out of a priority loop, there is quite a difference.
-> >> >
-> >> > After this patch, kswapd no longer puts equal pressure on all zones in
-> >> > the zonelist, which was a key reason why we could justify bailing
-> >> > early out of individual zones in direct reclaim: kswapd will restore
-> >> > fairness.
-> >>
-> >> Guess I see your point here.
-> >>
-> >> My intention is to prevent over-reclaim memcgs per-zone by having
-> >> nr_to_reclaim to ULONG_MAX. Now, we scan each memcg based on
-> >> get_scan_count() without bailout, do you see a problem w/o this patch?
-> >
-> > The fact that we iterate over each memcg does not make a difference,
-> > because the target that get_scan_count() returns for each zone-memcg
-> > is in sum what it would have returned for the whole zone, so the scan
-> > aggressiveness did not increase.  It just distributes the zone's scan
-> > target over the set of memcgs proportional to their share of pages in
-> > that zone.
-> >
-> > So I have trouble deciding what's right.
-> >
-> > On the one hand, I don't see why you bother with this patch, because
-> > you don't increase the risk of overreclaim.  Michal's concern for
-> > overreclaim came from the fact that I had kswapd do soft limit reclaim
-> > at priority 0 without ever bailing from individual zones.  But your
-> > soft limit implementation is purely about selecting memcgs to reclaim,
-> > you never increase the pressure put on a memcg anywhere.
+On Thu, 12 Apr 2012, Will Deacon wrote:
+
+> This reverts commit 85e72aa5384b1a614563ad63257ded0e91d1a620, which was
+> a quick fix suitable for -stable until ARM had been moved over to the
+> gate_vma mechanism:
 > 
-> I agree w/ you here.
+> https://lkml.org/lkml/2012/1/14/55
 > 
-> >
-> > On the other hand, I don't even agree with that aspect of your series;
-> > that you no longer prioritize explicitely soft-limited groups in
-> > excess over unconfigured groups, as I mentioned in the other mail.
-> > But if you did, you would likely need a patch like this, I think.
+> With commit f9d4861f ("ARM: 7294/1: vectors: use gate_vma for vectors user
+> mapping"), ARM does now use the gate_vma, so the PageReserved check can
+> be removed from the proc code.
 > 
-> Prioritize between memcg w/ default softlimit (0) and memcg exceeds
-> non-default softlimit (x) ?
+> Cc: Nicolas Pitre <nico@linaro.org>
+> Signed-off-by: Will Deacon <will.deacon@arm.com>
 
-Yup:
+Oh, great, I'm glad that worked out: thanks a lot for looking after it,
+Will, and now cleaning up afterwards.
 
-	A ( soft = default, usage = 10 )
-	B ( soft =       8, usage = 10 )
+Acked-by: Hugh Dickins <hughd@google.com>
 
-This is the "memory-nice this one workload" I was referring to in the
-other mail.  It would have reclaimed B more aggressively than A in the
-past.  After your patch, they will both be reclaimed equally, because
-you change the default from "below softlimit" to "above soft limit".
-
-> Are you referring to the balance the reclaim between eligible memcgs
-> based on different factors like softlimit_exceed, recent_scanned,
-> recent_reclaimed....? If so, I am planning to make that as second step
-> after this patch series.
-
-Well, humm.  You potentially break existing setups.  It would be good
-not to do that, even just temporarily.
+> ---
+>  fs/proc/task_mmu.c |    3 ---
+>  1 files changed, 0 insertions(+), 3 deletions(-)
+> 
+> diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
+> index 2b9a760..2d60492 100644
+> --- a/fs/proc/task_mmu.c
+> +++ b/fs/proc/task_mmu.c
+> @@ -597,9 +597,6 @@ static int clear_refs_pte_range(pmd_t *pmd, unsigned long addr,
+>  		if (!page)
+>  			continue;
+>  
+> -		if (PageReserved(page))
+> -			continue;
+> -
+>  		/* Clear accessed and referenced bits. */
+>  		ptep_test_and_clear_young(vma, addr, pte);
+>  		ClearPageReferenced(page);
+> -- 
+> 1.7.4.1
+> 
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
