@@ -1,122 +1,112 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx162.postini.com [74.125.245.162])
-	by kanga.kvack.org (Postfix) with SMTP id D33C16B0044
-	for <linux-mm@kvack.org>; Thu, 12 Apr 2012 10:01:46 -0400 (EDT)
-Date: Thu, 12 Apr 2012 16:01:37 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [patch] mm, oom: avoid checking set of allowed nodes twice when
- selecting a victim
-Message-ID: <20120412140137.GA32729@tiehlicka.suse.cz>
-References: <alpine.DEB.2.00.1204031633460.8112@chino.kir.corp.google.com>
+Received: from psmtp.com (na3sys010amx182.postini.com [74.125.245.182])
+	by kanga.kvack.org (Postfix) with SMTP id 135BE6B0044
+	for <linux-mm@kvack.org>; Thu, 12 Apr 2012 10:08:48 -0400 (EDT)
+Date: Thu, 12 Apr 2012 11:07:51 -0300
+From: Arnaldo Carvalho de Melo <acme@infradead.org>
+Subject: Re: Re: [PATCH] perf/probe: Provide perf interface for uprobes
+Message-ID: <20120412140751.GM16257@infradead.org>
+References: <20120411135742.29198.45061.sendpatchset@srdronam.in.ibm.com>
+ <20120411144918.GD16257@infradead.org>
+ <20120411170343.GB29831@linux.vnet.ibm.com>
+ <20120411181727.GK16257@infradead.org>
+ <4F864BB3.3090405@hitachi.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.00.1204031633460.8112@chino.kir.corp.google.com>
+In-Reply-To: <4F864BB3.3090405@hitachi.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org
+To: Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>
+Cc: Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, LKML <linux-kernel@vger.kernel.org>, Linux-mm <linux-mm@kvack.org>, Oleg Nesterov <oleg@redhat.com>, Andi Kleen <andi@firstfloor.org>, Christoph Hellwig <hch@infradead.org>, Steven Rostedt <rostedt@goodmis.org>, Thomas Gleixner <tglx@linutronix.de>, Anton Arapov <anton@redhat.com>
 
-On Tue 03-04-12 16:34:36, David Rientjes wrote:
-> For systems with high CONFIG_NODES_SHIFT, checking nodes_intersect() for
-> each thread's set of allowed nodes is very expensive.  It's unnecessary
-> to do this twice for each thread, once in select_bad_process() and once
-> in oom_badness().  We've already filtered unkillable threads at the point
-> where oom_badness() is called.
+Em Thu, Apr 12, 2012 at 12:27:47PM +0900, Masami Hiramatsu escreveu:
+> > * Arnaldo Carvalho de Melo <acme@infradead.org> [2012-04-11 11:49:18]:
+> > Yeah, if one needs to disambiguate, sure, use these keywords, but for
+> > things like:
+> > 
+> > $ perf probe /lib/libc.so.6 malloc
+> > 
+> > I think it is easy to figure out it is userspace. I.e. some regex would
+> > figure it out.
 > 
-> oom_badness() must still check if a thread is a kthread, however, to
-> ensure /proc/pid/oom_score doesn't report one as killable.
+> That's interessting to me too. Maybe it is also useful syntax for
+> module specifying too.
 > 
-> This significantly speeds up the tasklist iteration when there are a
-> large number of threads on the system and CONFIG_NODES_SHIFT is high.
+> e.g.
+>   perf probe -m kvm kvm_timer_fn
+> 
+> can be
+> 
+>   perf probe kvm.ko kvm_timer_fn
+> 
+> (.ko is required) or if unloaded
+> 
+>   perf probe /lib/modules/XXX/kernel/virt/kvm.ko kvm_timer_fn
 
-Looks correct but I am not sure I like the subtle dependency between
-oom_unkillable_task and oom_badness which is a result of this change.
-We do not need it for proc oom_score because we are feeding it with NULL
-cgroup and nodemask but we really care in other cases.
+	It may not even be required, since we can check in /proc/modules
+if "kvm" is there and as well if it has a function named "kvm_timer_fn".
 
-I do agree that the test duplication is not nice and it can be expensive
-but this subtleness is not nice either.
-Wouldn't it make more sense to extract __oom_badness without the checks
-and make it explicit that the function can be called only for killable
-tasks (namely only select_bad_process would use it)?
+	Also probably there is no library or binary on the current
+directory with such a name :-)
 
-Something like (untested):
----
-diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-index 46bf2ed5..a9df008 100644
---- a/mm/oom_kill.c
-+++ b/mm/oom_kill.c
-@@ -171,23 +171,10 @@ static bool oom_unkillable_task(struct task_struct *p,
- 	return false;
- }
- 
--/**
-- * oom_badness - heuristic function to determine which candidate task to kill
-- * @p: task struct of which task we should calculate
-- * @totalpages: total present RAM allowed for page allocation
-- *
-- * The heuristic for determining which task to kill is made to be as simple and
-- * predictable as possible.  The goal is to return the highest value for the
-- * task consuming the most memory to avoid subsequent oom failures.
-- */
--unsigned int oom_badness(struct task_struct *p, struct mem_cgroup *memcg,
-+/* can be used only for tasks which are killable as per oom_unkillable_task */
-+static unsigned int __oom_badness(struct task_struct *p, struct mem_cgroup *memcg,
- 		      const nodemask_t *nodemask, unsigned long totalpages)
- {
--	long points;
--
--	if (oom_unkillable_task(p, memcg, nodemask))
--		return 0;
--
- 	p = find_lock_task_mm(p);
- 	if (!p)
- 		return 0;
-@@ -239,6 +226,26 @@ unsigned int oom_badness(struct task_struct *p, struct mem_cgroup *memcg,
- 	return (points < 1000) ? points : 1000;
- }
- 
-+/**
-+ * oom_badness - heuristic function to determine which candidate task to kill
-+ * @p: task struct of which task we should calculate
-+ * @totalpages: total present RAM allowed for page allocation
-+ *
-+ * The heuristic for determining which task to kill is made to be as simple and
-+ * predictable as possible.  The goal is to return the highest value for the
-+ * task consuming the most memory to avoid subsequent oom failures.
-+ */
-+unsigned int oom_badness(struct task_struct *p, struct mem_cgroup *memcg,
-+		      const nodemask_t *nodemask, unsigned long totalpages)
-+{
-+	long points;
-+
-+	if (oom_unkillable_task(p, memcg, nodemask))
-+		return 0;
-+
-+	return __oom_badness(p, memcg, nodemask, totalpages);
-+}
-+
- /*
-  * Determine the type of allocation constraint.
-  */
-@@ -366,7 +373,7 @@ static struct task_struct *select_bad_process(unsigned int *ppoints,
- 			}
- 		}
- 
--		points = oom_badness(p, memcg, nodemask, totalpages);
-+		points = __oom_badness(p, memcg, nodemask, totalpages);
- 		if (points > *ppoints) {
- 			chosen = p;
- 			*ppoints = points;
+	Likewise, if we do:
 
--- 
-Michal Hocko
-SUSE Labs
-SUSE LINUX s.r.o.
-Lihovarska 1060/12
-190 00 Praha 9    
-Czech Republic
+ $ perf probe libc-2.12.so malloc
+
+	It should just figure out it is the /lib64/libc-2.12.so
+
+	Heck, even:
+
+ $ perf probe libc malloc
+
+	Makes it even easier to use.
+
+	Its just when one asks for something that has ambiguities that
+the tool should ask the user to be a bit more precise to remove such
+ambiguity.
+
+	After all...
+
+[acme@sandy linux]$ locate libc-2.12.so
+/home/acme/.debug/lib64/libc-2.12.so
+/home/acme/.debug/lib64/libc-2.12.so/293f8b6f5e6cea240d1bb0b47ec269ee91f31673
+/home/acme/.debug/lib64/libc-2.12.so/5a7fad9dfcbb67af098a258bc2a20137cc954424
+/lib64/libc-2.12.so
+/usr/lib/debug/lib64/libc-2.12.so.debug
+[acme@sandy linux]$
+
+	Only /lib64/libc-2.12.so is on the ld library path :-)
+
+	And after people really start depending on this tool for day to
+day use, they may do like me:
+
+[root@sandy ~]# alias probe="perf probe"
+[root@sandy ~]# probe -F | grep skb_queue
+skb_queue_head
+skb_queue_purge
+skb_queue_tail
+[root@sandy ~]#
+
+	Which gets it to the shortest possible form:
+
+	$ probe libc malloc
+
+	:-)
+
+	Git has this nice feature that is on the same line of making
+things easier for the user:
+
+[acme@sandy linux]$ git fack
+git: 'fack' is not a git command. See 'git --help'.
+
+Did you mean this?
+	fsck
+[acme@sandy linux]$
+
+	Hell, yes, fsck is what I meant! :-)
+
+- Arnaldo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
