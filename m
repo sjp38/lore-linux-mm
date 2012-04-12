@@ -1,62 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx178.postini.com [74.125.245.178])
-	by kanga.kvack.org (Postfix) with SMTP id A95BF6B00F7
-	for <linux-mm@kvack.org>; Thu, 12 Apr 2012 07:19:34 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx117.postini.com [74.125.245.117])
+	by kanga.kvack.org (Postfix) with SMTP id D9E4B6B00F9
+	for <linux-mm@kvack.org>; Thu, 12 Apr 2012 07:21:58 -0400 (EDT)
 Received: from m1.gw.fujitsu.co.jp (unknown [10.0.50.71])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id CD8CE3EE0BB
-	for <linux-mm@kvack.org>; Thu, 12 Apr 2012 20:19:32 +0900 (JST)
+	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 7D2973EE0B5
+	for <linux-mm@kvack.org>; Thu, 12 Apr 2012 20:21:57 +0900 (JST)
 Received: from smail (m1 [127.0.0.1])
-	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id AD73245DE5B
-	for <linux-mm@kvack.org>; Thu, 12 Apr 2012 20:19:32 +0900 (JST)
+	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id F387C45DE61
+	for <linux-mm@kvack.org>; Thu, 12 Apr 2012 20:21:53 +0900 (JST)
 Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
-	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 8F7B645DE59
-	for <linux-mm@kvack.org>; Thu, 12 Apr 2012 20:19:32 +0900 (JST)
+	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id DB12045DE5A
+	for <linux-mm@kvack.org>; Thu, 12 Apr 2012 20:21:53 +0900 (JST)
 Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 7E83B1DB8057
-	for <linux-mm@kvack.org>; Thu, 12 Apr 2012 20:19:32 +0900 (JST)
-Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.240.81.134])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 344361DB804B
-	for <linux-mm@kvack.org>; Thu, 12 Apr 2012 20:19:32 +0900 (JST)
-Message-ID: <4F86B9BE.8000105@jp.fujitsu.com>
-Date: Thu, 12 Apr 2012 20:17:18 +0900
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id CBD411DB8051
+	for <linux-mm@kvack.org>; Thu, 12 Apr 2012 20:21:53 +0900 (JST)
+Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.240.81.133])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 7962F1DB804B
+	for <linux-mm@kvack.org>; Thu, 12 Apr 2012 20:21:53 +0900 (JST)
+Message-ID: <4F86BA66.2010503@jp.fujitsu.com>
+Date: Thu, 12 Apr 2012 20:20:06 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
-Subject: [PATCH v1 0/7] memcg remove pre_destroy
+Subject: [PATCH 1/7] res_counter: add a function res_counter_move_parent().
+References: <4F86B9BE.8000105@jp.fujitsu.com>
+In-Reply-To: <4F86B9BE.8000105@jp.fujitsu.com>
 Content-Type: text/plain; charset=ISO-2022-JP
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "linux-mm@kvack.org" <linux-mm@kvack.org>
-Cc: "cgroups@vger.kernel.org" <cgroups@vger.kernel.org>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Tejun Heo <tj@kernel.org>, Glauber Costa <glommer@parallels.com>, Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "cgroups@vger.kernel.org" <cgroups@vger.kernel.org>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Tejun Heo <tj@kernel.org>, Glauber Costa <glommer@parallels.com>, Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>
 
-In recent discussion, Tejun Heo, cgroup maintainer, has a plan to remove
-->pre_destroy(). And now, in cgroup tree, pre_destroy() failure cause WARNING.
 
-By pre_destroy(), rmdir of cgroup can return -EBUSY or some error.
-It makes cgroup complicated and unstable. I said O.K. to remove it and
-this patch is modification for memcg.
+This function is used for moving accounting information to its
+parent in the hierarchy of res_counter.
 
-One of problem in current implementation is that memcg moves all charges to
-parent in pre_destroy(). At doing so, if use_hierarchy=0, pre_destroy() may
-hit parent's limit and may return -EBUSY. To fix this problem, this patch
-changes behavior of rmdir() as
+Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+---
+ include/linux/res_counter.h |    3 +++
+ kernel/res_counter.c        |   13 +++++++++++++
+ 2 files changed, 16 insertions(+), 0 deletions(-)
 
- - if use_hierarchy=0, all remaining charges will go to root cgroup.
- - if use_hierarchy=1, all remaining charges will go to the parent.
-
-By this, rmdir failure will not be caused by parent's limitation. And
-I think this meets meaning of use_hierarchy.
-
-This series does
-  - add above change of behavior
-  - use workqueue to move all pages to parent
-  - remove unnecessary codes.
-
-I'm sorry if my reply is delayed, I'm not sure I can have enough time in
-this weekend. Any comments are welcomed.
-
-Thanks,
--Kame
+diff --git a/include/linux/res_counter.h b/include/linux/res_counter.h
+index da81af0..8919d3c 100644
+--- a/include/linux/res_counter.h
++++ b/include/linux/res_counter.h
+@@ -135,6 +135,9 @@ int __must_check res_counter_charge_nofail(struct res_counter *counter,
+ void res_counter_uncharge_locked(struct res_counter *counter, unsigned long val);
+ void res_counter_uncharge(struct res_counter *counter, unsigned long val);
+ 
++/* move resource to parent counter...i.e. just forget accounting in a child */
++void res_counter_move_parent(struct res_counter *counter, unsigned long val);
++
+ /**
+  * res_counter_margin - calculate chargeable space of a counter
+  * @cnt: the counter
+diff --git a/kernel/res_counter.c b/kernel/res_counter.c
+index d508363..fafebf0 100644
+--- a/kernel/res_counter.c
++++ b/kernel/res_counter.c
+@@ -113,6 +113,19 @@ void res_counter_uncharge(struct res_counter *counter, unsigned long val)
+ 	local_irq_restore(flags);
+ }
+ 
++/*
++ * In hierarchical accounting, child's usage is accounted into ancestors.
++ * To move local usage to its parent, just forget current level usage.
++ */
++void res_counter_move_parent(struct res_counter *counter, unsigned long val)
++{
++	unsigned long flags;
++
++	BUG_ON(!counter->parent);
++	spin_lock_irqsave(&counter->lock, flags);
++	res_counter_uncharge_locked(counter, val);
++	spin_unlock_irqrestore(&counter->lock, flags);
++}
+ 
+ static inline unsigned long long *
+ res_counter_member(struct res_counter *counter, int member)
+-- 
+1.7.4.1
 
 
 --
