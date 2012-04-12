@@ -1,122 +1,194 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx190.postini.com [74.125.245.190])
-	by kanga.kvack.org (Postfix) with SMTP id 1088F6B0109
-	for <linux-mm@kvack.org>; Thu, 12 Apr 2012 08:39:46 -0400 (EDT)
-From: Hiroshi Doyu <hdoyu@nvidia.com>
-Date: Thu, 12 Apr 2012 14:38:40 +0200
-Subject: Re: [PATCH] ARM: Exynos4: integrate SYSMMU driver with DMA-mapping
- interface
-Message-ID: <20120412.153840.505876550992316983.hdoyu@nvidia.com>
-References: <026301cd188d$32613860$9723a920$%szyprowski@samsung.com><201204121109.28753.arnd@arndb.de><028f01cd18a5$b0721770$11564650$%szyprowski@samsung.com>
-In-Reply-To: <028f01cd18a5$b0721770$11564650$%szyprowski@samsung.com>
-Content-Type: text/plain; charset="iso-8859-1"
-Content-Transfer-Encoding: quoted-printable
+Received: from psmtp.com (na3sys010amx145.postini.com [74.125.245.145])
+	by kanga.kvack.org (Postfix) with SMTP id 9B3F06B010A
+	for <linux-mm@kvack.org>; Thu, 12 Apr 2012 08:39:58 -0400 (EDT)
+Received: by dakh32 with SMTP id h32so2649651dak.9
+        for <linux-mm@kvack.org>; Thu, 12 Apr 2012 05:39:57 -0700 (PDT)
+Message-ID: <4F86CD0B.6090605@gmail.com>
+Date: Thu, 12 Apr 2012 20:39:39 +0800
+From: "cary.zou" <cary.zou1988@gmail.com>
 MIME-Version: 1.0
+Subject: Re: [PATCHv24 00/16] Contiguous Memory Allocator
+References: <1333462221-3987-1-git-send-email-m.szyprowski@samsung.com>
+In-Reply-To: <1333462221-3987-1-git-send-email-m.szyprowski@samsung.com>
+Content-Type: text/plain; charset=GB2312
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "arnd@arndb.de" <arnd@arndb.de>, "m.szyprowski@samsung.com" <m.szyprowski@samsung.com>, "linux-tegra@vger.kernel.org" <linux-tegra@vger.kernel.org>
-Cc: "subashrp@gmail.com" <subashrp@gmail.com>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "linaro-mm-sig@lists.linaro.org" <linaro-mm-sig@lists.linaro.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, "iommu@lists.linux-foundation.org" <iommu@lists.linux-foundation.org>, "kyungmin.park@samsung.com" <kyungmin.park@samsung.com>, "joro@8bytes.org" <joro@8bytes.org>, "linux@arm.linux.org.uk" <linux@arm.linux.org.uk>, "chunsang.jeong@linaro.org" <chunsang.jeong@linaro.org>, Krishna Reddy <vdumpa@nvidia.com>, "pullip.cho@samsung.com" <pullip.cho@samsung.com>, "andrzej.p@samsung.com" <andrzej.p@samsung.com>, "benh@kernel.crashing.org" <benh@kernel.crashing.org>, "konrad.wilk@oracle.com" <konrad.wilk@oracle.com>
+To: Marek Szyprowski <m.szyprowski@samsung.com>
+Cc: linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-media@vger.kernel.org, linux-mm@kvack.org, linaro-mm-sig@lists.linaro.org, Michal Nazarewicz <mina86@mina86.com>, Kyungmin Park <kyungmin.park@samsung.com>, Russell King <linux@arm.linux.org.uk>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daniel Walker <dwalker@codeaurora.org>, Mel Gorman <mel@csn.ul.ie>, Arnd Bergmann <arnd@arndb.de>, Jesse Barker <jesse.barker@linaro.org>, Jonathan Corbet <corbet@lwn.net>, Chunsang Jeong <chunsang.jeong@linaro.org>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Gaignard <benjamin.gaignard@linaro.org>, Rob Clark <rob.clark@linaro.org>, Ohad Ben-Cohen <ohad@wizery.com>, Sandeep Patil <psandeep.s@gmail.com>
 
-From: Marek Szyprowski <m.szyprowski@samsung.com>
-Subject: RE: [PATCH] ARM: Exynos4: integrate SYSMMU driver with DMA-mapping=
- interface
-Date: Thu, 12 Apr 2012 14:13:37 +0200
-Message-ID: <028f01cd18a5$b0721770$11564650$%szyprowski@samsung.com>
+Hello all,
+I'm using CMA to malloc contiguous memory, and I have following failure:
 
->
->
->
->
-> > -----Original Message-----
-> > From: Arnd Bergmann [mailto:arnd@arndb.de]
-> > Sent: Thursday, April 12, 2012 1:09 PM
-> > To: Marek Szyprowski
-> > Cc: 'Subash Patel'; linux-arm-kernel@lists.infradead.org; linaro-mm-sig=
-@lists.linaro.org;
-> > linux-mm@kvack.org; linux-arch@vger.kernel.org; iommu@lists.linux-found=
-ation.org; 'Kyungmin
-> > Park'; 'Joerg Roedel'; 'Russell King - ARM Linux'; 'Chunsang Jeong'; 'K=
-rishna Reddy'; 'KyongHo
-> > Cho'; Andrzej Pietrasiewicz; 'Benjamin Herrenschmidt'; 'Konrad Rzeszute=
-k Wilk'; 'Hiroshi Doyu'
-> > Subject: Re: [PATCH] ARM: Exynos4: integrate SYSMMU driver with DMA-map=
-ping interface
-> >
-> > On Thursday 12 April 2012, Marek Szyprowski wrote:
-> > > +
-> > > > > +/*
-> > > > > + * s5p_sysmmu_late_init
-> > > > > + * Create DMA-mapping IOMMU context for specified devices. This =
-function must
-> > > > > + * be called later, once SYSMMU driver gets registered and probe=
-d.
-> > > > > + */
-> > > > > +static int __init s5p_sysmmu_late_init(void)
-> > > > > +{
-> > > > > +   platform_set_sysmmu(&SYSMMU_PLATDEV(fimc0).dev,&s5p_device_fi=
-mc0.dev);
-> > > > > +   platform_set_sysmmu(&SYSMMU_PLATDEV(fimc1).dev,&s5p_device_fi=
-mc1.dev);
-> > > > > +   platform_set_sysmmu(&SYSMMU_PLATDEV(fimc2).dev,&s5p_device_fi=
-mc2.dev);
-> > > > > +   platform_set_sysmmu(&SYSMMU_PLATDEV(fimc3).dev,&s5p_device_fi=
-mc3.dev);
-> > > > > +   platform_set_sysmmu(&SYSMMU_PLATDEV(mfc_l).dev,&s5p_device_mf=
-c_l.dev);
-> > > > > +   platform_set_sysmmu(&SYSMMU_PLATDEV(mfc_r).dev,&s5p_device_mf=
-c_r.dev);
-> > > > > +
-> > > > > +   s5p_create_iommu_mapping(&s5p_device_fimc0.dev, 0x20000000, S=
-Z_128M, 4);
-> > > > > +   s5p_create_iommu_mapping(&s5p_device_fimc1.dev, 0x20000000, S=
-Z_128M, 4);
-> > > > > +   s5p_create_iommu_mapping(&s5p_device_fimc2.dev, 0x20000000, S=
-Z_128M, 4);
-> > > > > +   s5p_create_iommu_mapping(&s5p_device_fimc3.dev, 0x20000000, S=
-Z_128M, 4);
-> > > > > +   s5p_create_iommu_mapping(&s5p_device_mfc_l.dev, 0x20000000, S=
-Z_128M, 4);
-> > > > > +   s5p_create_iommu_mapping(&s5p_device_mfc_r.dev, 0x40000000, S=
-Z_128M, 4);
-> > > > > +
-> > > > > +   return 0;
-> > > > > +}
-> > > > > +device_initcall(s5p_sysmmu_late_init);
-> > > >
-> > > > Shouldn't these things be specific to a SoC? With this RFC, it happ=
-ens
-> > > > that you will predefine the IOMMU attachment and mapping informatio=
-n for
-> > > > devices in common location (dev-sysmmu.c)? This may lead to problem=
-s
-> > > > because there are some IP's with SYSMMU support in exynos5, but not
-> > > > available in exynos4 (eg: GSC, FIMC-LITE, FIMC-ISP) Previously we u=
-sed
-> > > > to do above declaration in individual machine file, which I think w=
-as
-> > > > more meaningful.
-> > >
-> > > Right, I simplified the code too much. Keeping these definitions insi=
-de machine
-> > > files was a better idea. I completely forgot that Exynos sub-platform=
- now covers
-> > > both Exynos4 and Exynos5 SoC families.
-> >
-> > Ideally the information about iommu attachment should come from the
-> > device tree. We have the "dma-ranges" properties that define how a dma
-> > address space is mapped. I am not entirely sure how that works when you
-> > have multiple IOMMUs and if that requires defining addititional propert=
-ies,
-> > but I think we should make it so that we don't have to hardcode specifi=
-c
-> > devices in the source.
->
-> Right, until that time machine/board files are imho ok.
+__alloc_contig_migrate_range: test_pages_isolated(3bc00, 3c000) failed
 
-In Tegra30, there are quite many IOMMU attachable (platform)devices,
-and it's quite nice for us to configure them (un)attached with address
-range and IOMMU device ID(ASID) in DT in advance rather than inserting
-the code to attach those devices here and there.
+I try to dump_page, it shows:
 
-Experimentally I added some hook in platform_device_add() as below,
-but apparently this won't be accepted.
+page:81778620 count:1 mapcount:0 mapping: (null) index:0x88b
+page flags: 0x40000000()
+
+since I am not familiar with mm, can someone give me some hint on this
+failure?
+
+
+
+
+OU 2012Ae04OA03EO 22:10, Marek Szyprowski D'uA:
+> Hi,
+>
+> This is (yet another) update of CMA patches. I've rebased them onto
+> recent v3.4-rc1 kernel tree and integrated some minor bugfixes. The
+> first issue has been pointed by Sandeep Patil - alloc_contig_range
+> reclaimed two times too many pages, second issue (possible mismatch
+> between pageblock size and MAX_ORDER pages) has been recently spotted
+> by Michal Nazarewicz.
+>
+> These patches are also available on my git repository:
+> git://git.linaro.org/people/mszyprowski/linux-dma-mapping.git 3.4-rc1-cma-v24
+>
+> Best regards
+> Marek Szyprowski
+> Samsung Poland R&D Center
+>
+> Links to previous versions of the patchset:
+> v23: <http://www.spinics.net/lists/linux-media/msg44547.html>
+> v22: <http://www.spinics.net/lists/linux-media/msg44370.html>
+> v21: <http://www.spinics.net/lists/linux-media/msg44155.html>
+> v20: <http://www.spinics.net/lists/linux-mm/msg29145.html>
+> v19: <http://www.spinics.net/lists/linux-mm/msg29145.html>
+> v18: <http://www.spinics.net/lists/linux-mm/msg28125.html>
+> v17: <http://www.spinics.net/lists/arm-kernel/msg148499.html>
+> v16: <http://www.spinics.net/lists/linux-mm/msg25066.html>
+> v15: <http://www.spinics.net/lists/linux-mm/msg23365.html>
+> v14: <http://www.spinics.net/lists/linux-media/msg36536.html>
+> v13: (internal, intentionally not released)
+> v12: <http://www.spinics.net/lists/linux-media/msg35674.html>
+> v11: <http://www.spinics.net/lists/linux-mm/msg21868.html>
+> v10: <http://www.spinics.net/lists/linux-mm/msg20761.html>
+>  v9: <http://article.gmane.org/gmane.linux.kernel.mm/60787>
+>  v8: <http://article.gmane.org/gmane.linux.kernel.mm/56855>
+>  v7: <http://article.gmane.org/gmane.linux.kernel.mm/55626>
+>  v6: <http://article.gmane.org/gmane.linux.kernel.mm/55626>
+>  v5: (intentionally left out as CMA v5 was identical to CMA v4)
+>  v4: <http://article.gmane.org/gmane.linux.kernel.mm/52010>
+>  v3: <http://article.gmane.org/gmane.linux.kernel.mm/51573>
+>  v2: <http://article.gmane.org/gmane.linux.kernel.mm/50986>
+>  v1: <http://article.gmane.org/gmane.linux.kernel.mm/50669>
+>
+>
+> Changelog:
+>
+> v24:
+>     1. fixed handling of diffrent sizes of pageblock and MAX_ORDER size
+>        pages
+>
+>     2. fixed number of the reclaimed pages before performing the allocation
+>        (thanks to Sandeep Patil for pointing this issue)
+>
+>     3. rebased onto Linux v3.4-rc1
+>
+> v23:
+>     1. fixed bug spotted by Aaro Koskinen (incorrect check inside VM_BUG_ON)
+>
+>     2. rebased onto next-20120222 tree from
+>        git://git.kernel.org/pub/scm/linux/kernel/git/next/linux-next.git 
+>
+> v22:
+>     1. Fixed compilation break caused by missing fixup patch in v21
+>
+>     2. Fixed typos in the comments
+>
+>     3. Removed superfluous #include entries
+>
+> v21:
+>     1. Fixed incorrect check which broke memory compaction code
+>
+>     2. Fixed hacky and racy min_free_kbytes handling
+>
+>     3. Added serialization patch to watermark calculation
+>
+>     4. Fixed typos here and there in the comments
+>
+> v20 and earlier - see previous patchsets.
+>
+>
+> Patches in this patchset:
+>
+> Marek Szyprowski (6):
+>   mm: extract reclaim code from __alloc_pages_direct_reclaim()
+>   mm: trigger page reclaim in alloc_contig_range() to stabilise
+>     watermarks
+>   drivers: add Contiguous Memory Allocator
+>   X86: integrate CMA with DMA-mapping subsystem
+>   ARM: integrate CMA with DMA-mapping subsystem
+>   ARM: Samsung: use CMA for 2 memory banks for s5p-mfc device
+>
+> Mel Gorman (1):
+>   mm: Serialize access to min_free_kbytes
+>
+> Michal Nazarewicz (9):
+>   mm: page_alloc: remove trailing whitespace
+>   mm: compaction: introduce isolate_migratepages_range()
+>   mm: compaction: introduce map_pages()
+>   mm: compaction: introduce isolate_freepages_range()
+>   mm: compaction: export some of the functions
+>   mm: page_alloc: introduce alloc_contig_range()
+>   mm: page_alloc: change fallbacks array handling
+>   mm: mmzone: MIGRATE_CMA migration type added
+>   mm: page_isolation: MIGRATE_CMA isolation functions added
+>
+>  Documentation/kernel-parameters.txt   |    9 +
+>  arch/Kconfig                          |    3 +
+>  arch/arm/Kconfig                      |    2 +
+>  arch/arm/include/asm/dma-contiguous.h |   15 ++
+>  arch/arm/include/asm/mach/map.h       |    1 +
+>  arch/arm/kernel/setup.c               |    9 +-
+>  arch/arm/mm/dma-mapping.c             |  370 ++++++++++++++++++++++++------
+>  arch/arm/mm/init.c                    |   23 ++-
+>  arch/arm/mm/mm.h                      |    3 +
+>  arch/arm/mm/mmu.c                     |   31 ++-
+>  arch/arm/plat-s5p/dev-mfc.c           |   51 +----
+>  arch/x86/Kconfig                      |    1 +
+>  arch/x86/include/asm/dma-contiguous.h |   13 +
+>  arch/x86/include/asm/dma-mapping.h    |    4 +
+>  arch/x86/kernel/pci-dma.c             |   18 ++-
+>  arch/x86/kernel/pci-nommu.c           |    8 +-
+>  arch/x86/kernel/setup.c               |    2 +
+>  drivers/base/Kconfig                  |   89 +++++++
+>  drivers/base/Makefile                 |    1 +
+>  drivers/base/dma-contiguous.c         |  401 +++++++++++++++++++++++++++++++
+>  include/asm-generic/dma-contiguous.h  |   28 +++
+>  include/linux/device.h                |    4 +
+>  include/linux/dma-contiguous.h        |  110 +++++++++
+>  include/linux/gfp.h                   |   12 +
+>  include/linux/mmzone.h                |   47 +++-
+>  include/linux/page-isolation.h        |   18 +-
+>  mm/Kconfig                            |    2 +-
+>  mm/Makefile                           |    3 +-
+>  mm/compaction.c                       |  418 +++++++++++++++++++++------------
+>  mm/internal.h                         |   33 +++
+>  mm/memory-failure.c                   |    2 +-
+>  mm/memory_hotplug.c                   |    6 +-
+>  mm/page_alloc.c                       |  409 ++++++++++++++++++++++++++++----
+>  mm/page_isolation.c                   |   15 +-
+>  mm/vmstat.c                           |    3 +
+>  35 files changed, 1791 insertions(+), 373 deletions(-)
+>  create mode 100644 arch/arm/include/asm/dma-contiguous.h
+>  create mode 100644 arch/x86/include/asm/dma-contiguous.h
+>  create mode 100644 drivers/base/dma-contiguous.c
+>  create mode 100644 include/asm-generic/dma-contiguous.h
+>  create mode 100644 include/linux/dma-contiguous.h
+>
+
+
+-- 
+B.R
+Cary Zou
+
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Fight unfair telecom internet charges in Canada: sign http://stopthemeter.ca/
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
