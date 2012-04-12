@@ -1,79 +1,111 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx156.postini.com [74.125.245.156])
-	by kanga.kvack.org (Postfix) with SMTP id AEE126B007E
-	for <linux-mm@kvack.org>; Thu, 12 Apr 2012 09:24:39 -0400 (EDT)
-Message-ID: <4F86D733.50809@parallels.com>
-Date: Thu, 12 Apr 2012 10:22:59 -0300
+Received: from psmtp.com (na3sys010amx142.postini.com [74.125.245.142])
+	by kanga.kvack.org (Postfix) with SMTP id 34E406B007E
+	for <linux-mm@kvack.org>; Thu, 12 Apr 2012 09:29:22 -0400 (EDT)
+Message-ID: <4F86D84C.1050508@parallels.com>
+Date: Thu, 12 Apr 2012 10:27:40 -0300
 From: Glauber Costa <glommer@parallels.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 1/7] res_counter: add a function res_counter_move_parent().
-References: <4F86B9BE.8000105@jp.fujitsu.com> <4F86BA66.2010503@jp.fujitsu.com>
-In-Reply-To: <4F86BA66.2010503@jp.fujitsu.com>
+Subject: Re: [PATCH 4/7] memcg: remove 'uncharge' argument from mem_cgroup_move_account()
+References: <4F86B9BE.8000105@jp.fujitsu.com> <4F86BB5E.6080509@jp.fujitsu.com>
+In-Reply-To: <4F86BB5E.6080509@jp.fujitsu.com>
 Content-Type: text/plain; charset="ISO-2022-JP"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "cgroups@vger.kernel.org" <cgroups@vger.kernel.org>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Tejun Heo <tj@kernel.org>, Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, Frederic
- Weisbecker <fweisbec@gmail.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "cgroups@vger.kernel.org" <cgroups@vger.kernel.org>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Tejun Heo <tj@kernel.org>, Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>
 
-On 04/12/2012 08:20 AM, KAMEZAWA Hiroyuki wrote:
+On 04/12/2012 08:24 AM, KAMEZAWA Hiroyuki wrote:
+> Only one call passes 'true'. remove it and handle it in caller.
 > 
-> This function is used for moving accounting information to its
-> parent in the hierarchy of res_counter.
->
 > Signed-off-by: KAMEZAWA Hiroyuki<kamezawa.hiroyu@jp.fujitsu.com>
-
-Frederic has a patch in his fork cgroup series, that allows you to
-uncharge a counter until you reach a specific ancestor.
-You pass the parent as a parameter, and then only you gets uncharged.
-
-I think that is a much better interface than this you are proposing.
-We should probably merge that patch and use it.
+I like the change. I won't ack the patch itself, though, because it has
+a dependency with the "need_cancel" thing you introduced in your last
+patch - that I need to think a bit more.
 
 > ---
->   include/linux/res_counter.h |    3 +++
->   kernel/res_counter.c        |   13 +++++++++++++
->   2 files changed, 16 insertions(+), 0 deletions(-)
+>   mm/memcontrol.c |   29 ++++++++++++-----------------
+>   1 files changed, 12 insertions(+), 17 deletions(-)
 > 
-> diff --git a/include/linux/res_counter.h b/include/linux/res_counter.h
-> index da81af0..8919d3c 100644
-> --- a/include/linux/res_counter.h
-> +++ b/include/linux/res_counter.h
-> @@ -135,6 +135,9 @@ int __must_check res_counter_charge_nofail(struct res_counter *counter,
->   void res_counter_uncharge_locked(struct res_counter *counter, unsigned long val);
->   void res_counter_uncharge(struct res_counter *counter, unsigned long val);
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index 8246418..9ac7984 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -2576,23 +2576,19 @@ void mem_cgroup_split_huge_fixup(struct page *head)
+>    * @pc:	page_cgroup of the page.
+>    * @from: mem_cgroup which the page is moved from.
+>    * @to:	mem_cgroup which the page is moved to. @from != @to.
+> - * @uncharge: whether we should call uncharge and css_put against @from.
+>    *
+>    * The caller must confirm following.
+>    * - page is not on LRU (isolate_page() is useful.)
+>    * - compound_lock is held when nr_pages>  1
+>    *
+> - * This function doesn't do "charge" nor css_get to new cgroup. It should be
+> - * done by a caller(__mem_cgroup_try_charge would be useful). If @uncharge is
+> - * true, this function does "uncharge" from old cgroup, but it doesn't if
+> - * @uncharge is false, so a caller should do "uncharge".
+> + * This function doesn't access res_counter at all. Caller should take
+> + * care of it.
+>    */
+>   static int mem_cgroup_move_account(struct page *page,
+>   				   unsigned int nr_pages,
+>   				   struct page_cgroup *pc,
+>   				   struct mem_cgroup *from,
+> -				   struct mem_cgroup *to,
+> -				   bool uncharge)
+> +				   struct mem_cgroup *to)
+>   {
+>   	unsigned long flags;
+>   	int ret;
+> @@ -2626,9 +2622,6 @@ static int mem_cgroup_move_account(struct page *page,
+>   		preempt_enable();
+>   	}
+>   	mem_cgroup_charge_statistics(from, anon, -nr_pages);
+> -	if (uncharge)
+> -		/* This is not "cancel", but cancel_charge does all we need. */
+> -		__mem_cgroup_cancel_charge(from, nr_pages);
 > 
-> +/* move resource to parent counter...i.e. just forget accounting in a child */
-> +void res_counter_move_parent(struct res_counter *counter, unsigned long val);
-> +
->   /**
->    * res_counter_margin - calculate chargeable space of a counter
->    * @cnt: the counter
-> diff --git a/kernel/res_counter.c b/kernel/res_counter.c
-> index d508363..fafebf0 100644
-> --- a/kernel/res_counter.c
-> +++ b/kernel/res_counter.c
-> @@ -113,6 +113,19 @@ void res_counter_uncharge(struct res_counter *counter, unsigned long val)
->   	local_irq_restore(flags);
->   }
+>   	/* caller should have done css_get */
+>   	pc->mem_cgroup = to;
+> @@ -2688,10 +2681,13 @@ static int mem_cgroup_move_parent(struct page *page,
+>   	if (nr_pages>  1)
+>   		flags = compound_lock_irqsave(page);
 > 
-> +/*
-> + * In hierarchical accounting, child's usage is accounted into ancestors.
-> + * To move local usage to its parent, just forget current level usage.
-> + */
-> +void res_counter_move_parent(struct res_counter *counter, unsigned long val)
-> +{
-> +	unsigned long flags;
-> +
-> +	BUG_ON(!counter->parent);
-> +	spin_lock_irqsave(&counter->lock, flags);
-> +	res_counter_uncharge_locked(counter, val);
-> +	spin_unlock_irqrestore(&counter->lock, flags);
-> +}
+> -	ret = mem_cgroup_move_account(page, nr_pages, pc, child, parent,
+> -					need_cancel);
+> -	if (!need_cancel&&  !ret)
+> -		__mem_cgroup_move_charge_parent(child, nr_pages);
+> +	ret = mem_cgroup_move_account(page, nr_pages, pc, child, parent);
+> +	if (!ret) {
+> +		if (need_cancel)
+> +			__mem_cgroup_cancel_charge(child, nr_pages);
+> +		else
+> +			__mem_cgroup_move_charge_parent(child, nr_pages);
+> +	}
 > 
->   static inline unsigned long long *
->   res_counter_member(struct res_counter *counter, int member)
+>   	if (nr_pages>  1)
+>   		compound_unlock_irqrestore(page, flags);
+> @@ -5451,8 +5447,7 @@ static int mem_cgroup_move_charge_pte_range(pmd_t *pmd,
+>   			if (!isolate_lru_page(page)) {
+>   				pc = lookup_page_cgroup(page);
+>   				if (!mem_cgroup_move_account(page, HPAGE_PMD_NR,
+> -							     pc, mc.from, mc.to,
+> -							     false)) {
+> +							pc, mc.from, mc.to)) {
+>   					mc.precharge -= HPAGE_PMD_NR;
+>   					mc.moved_charge += HPAGE_PMD_NR;
+>   				}
+> @@ -5482,7 +5477,7 @@ retry:
+>   				goto put;
+>   			pc = lookup_page_cgroup(page);
+>   			if (!mem_cgroup_move_account(page, 1, pc,
+> -						     mc.from, mc.to, false)) {
+> +						     mc.from, mc.to)) {
+>   				mc.precharge--;
+>   				/* we uncharge from mc.from later. */
+>   				mc.moved_charge++;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
