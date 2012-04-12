@@ -1,27 +1,27 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx133.postini.com [74.125.245.133])
-	by kanga.kvack.org (Postfix) with SMTP id E4C746B00FD
-	for <linux-mm@kvack.org>; Thu, 12 Apr 2012 07:24:34 -0400 (EDT)
-Received: from m2.gw.fujitsu.co.jp (unknown [10.0.50.72])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 0907A3EE081
-	for <linux-mm@kvack.org>; Thu, 12 Apr 2012 20:24:33 +0900 (JST)
-Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id E0B7E45DE4E
-	for <linux-mm@kvack.org>; Thu, 12 Apr 2012 20:24:32 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id C466345DD74
-	for <linux-mm@kvack.org>; Thu, 12 Apr 2012 20:24:32 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id B6BCB1DB803A
-	for <linux-mm@kvack.org>; Thu, 12 Apr 2012 20:24:32 +0900 (JST)
-Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.240.81.145])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 5FE661DB802C
-	for <linux-mm@kvack.org>; Thu, 12 Apr 2012 20:24:32 +0900 (JST)
-Message-ID: <4F86BB02.2060607@jp.fujitsu.com>
-Date: Thu, 12 Apr 2012 20:22:42 +0900
+Received: from psmtp.com (na3sys010amx106.postini.com [74.125.245.106])
+	by kanga.kvack.org (Postfix) with SMTP id A3D326B00FF
+	for <linux-mm@kvack.org>; Thu, 12 Apr 2012 07:26:03 -0400 (EDT)
+Received: from m4.gw.fujitsu.co.jp (unknown [10.0.50.74])
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 3F5BC3EE0C0
+	for <linux-mm@kvack.org>; Thu, 12 Apr 2012 20:26:02 +0900 (JST)
+Received: from smail (m4 [127.0.0.1])
+	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 227F145DE51
+	for <linux-mm@kvack.org>; Thu, 12 Apr 2012 20:26:02 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
+	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id F209045DE4E
+	for <linux-mm@kvack.org>; Thu, 12 Apr 2012 20:26:01 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id E44831DB8041
+	for <linux-mm@kvack.org>; Thu, 12 Apr 2012 20:26:01 +0900 (JST)
+Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.240.81.133])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 9173C1DB803E
+	for <linux-mm@kvack.org>; Thu, 12 Apr 2012 20:26:01 +0900 (JST)
+Message-ID: <4F86BB5E.6080509@jp.fujitsu.com>
+Date: Thu, 12 Apr 2012 20:24:14 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
-Subject: [PATCH 3/7] memcg: move charges to root at rmdir()
+Subject: [PATCH 4/7] memcg: remove 'uncharge' argument from mem_cgroup_move_account()
 References: <4F86B9BE.8000105@jp.fujitsu.com>
 In-Reply-To: <4F86B9BE.8000105@jp.fujitsu.com>
 Content-Type: text/plain; charset=ISO-2022-JP
@@ -31,127 +31,91 @@ List-ID: <linux-mm.kvack.org>
 To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "cgroups@vger.kernel.org" <cgroups@vger.kernel.org>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Tejun Heo <tj@kernel.org>, Glauber Costa <glommer@parallels.com>, Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>
 
-As recently discussed, Tejun Heo, the cgroup maintainer, tries to
-remove ->pre_destroy() and cgroup will never return -EBUSY at rmdir().
-
-To do that, in memcg, handling case of use_hierarchy==false is a problem.
-
-We move memcg's charges to its parent at rmdir(). If use_hierarchy==true,
-it's already accounted in the parent, no problem. If use_hierarchy==false,
-we cannot guarantee we can move all charges to the parent.
-
-This patch changes the behavior to move all charges to root_mem_cgroup
-if use_hierarchy=false. It seems this matches semantics of use_hierarchy==false,which means parent and child has no hierarchical relationship.
-
-With this, we can remove -ENOMEM error check at pre_destroy(), called at rmdir.
+Only one call passes 'true'. remove it and handle it in caller.
 
 Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 ---
- Documentation/cgroups/memory.txt |    6 ++++--
- mm/memcontrol.c                  |   38 ++++++++++++--------------------------
- 2 files changed, 16 insertions(+), 28 deletions(-)
+ mm/memcontrol.c |   29 ++++++++++++-----------------
+ 1 files changed, 12 insertions(+), 17 deletions(-)
 
-diff --git a/Documentation/cgroups/memory.txt b/Documentation/cgroups/memory.txt
-index 84d4f00..f717f6a 100644
---- a/Documentation/cgroups/memory.txt
-+++ b/Documentation/cgroups/memory.txt
-@@ -377,8 +377,10 @@ cgroup might have some charge associated with it, even though all
- tasks have migrated away from it. (because we charge against pages, not
- against tasks.)
- 
--Such charges are freed or moved to their parent. At moving, both of RSS
--and CACHES are moved to parent.
-+Such charges are freed or moved to their parent if use_hierarchy==true.
-+If use_hierarchy==false, charges are moved to root memory cgroup.
-+
-+At moving, both of RSS and CACHES are moved to parent.
- rmdir() may return -EBUSY if freeing/moving fails. See 5.1 also.
- 
- Charges recorded in swap information is not updated at removal of cgroup.
 diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 3215880..8246418 100644
+index 8246418..9ac7984 100644
 --- a/mm/memcontrol.c
 +++ b/mm/memcontrol.c
-@@ -2662,15 +2662,14 @@ static int mem_cgroup_move_parent(struct page *page,
- 				  struct mem_cgroup *child,
- 				  gfp_t gfp_mask)
+@@ -2576,23 +2576,19 @@ void mem_cgroup_split_huge_fixup(struct page *head)
+  * @pc:	page_cgroup of the page.
+  * @from: mem_cgroup which the page is moved from.
+  * @to:	mem_cgroup which the page is moved to. @from != @to.
+- * @uncharge: whether we should call uncharge and css_put against @from.
+  *
+  * The caller must confirm following.
+  * - page is not on LRU (isolate_page() is useful.)
+  * - compound_lock is held when nr_pages > 1
+  *
+- * This function doesn't do "charge" nor css_get to new cgroup. It should be
+- * done by a caller(__mem_cgroup_try_charge would be useful). If @uncharge is
+- * true, this function does "uncharge" from old cgroup, but it doesn't if
+- * @uncharge is false, so a caller should do "uncharge".
++ * This function doesn't access res_counter at all. Caller should take
++ * care of it.
+  */
+ static int mem_cgroup_move_account(struct page *page,
+ 				   unsigned int nr_pages,
+ 				   struct page_cgroup *pc,
+ 				   struct mem_cgroup *from,
+-				   struct mem_cgroup *to,
+-				   bool uncharge)
++				   struct mem_cgroup *to)
  {
--	struct cgroup *cg = child->css.cgroup;
--	struct cgroup *pcg = cg->parent;
- 	struct mem_cgroup *parent;
- 	unsigned int nr_pages;
- 	unsigned long uninitialized_var(flags);
-+	bool need_cancel = false;
+ 	unsigned long flags;
  	int ret;
- 
- 	/* Is ROOT ? */
--	if (!pcg)
-+	if (mem_cgroup_is_root(child))
- 		return -EINVAL;
- 
- 	ret = -EBUSY;
-@@ -2680,33 +2679,23 @@ static int mem_cgroup_move_parent(struct page *page,
- 		goto put;
- 
- 	nr_pages = hpage_nr_pages(page);
--	parent = mem_cgroup_from_cont(pcg);
--
--	if (!parent->use_hierarchy) {
--		ret = __mem_cgroup_try_charge(NULL, gfp_mask,
--					nr_pages, &parent, false);
--		if (ret)
--			goto put_back;
-+	parent = parent_mem_cgroup(child);
-+	if (!parent) {
-+		parent = root_mem_cgroup;
-+		need_cancel = true;
+@@ -2626,9 +2622,6 @@ static int mem_cgroup_move_account(struct page *page,
+ 		preempt_enable();
  	}
+ 	mem_cgroup_charge_statistics(from, anon, -nr_pages);
+-	if (uncharge)
+-		/* This is not "cancel", but cancel_charge does all we need. */
+-		__mem_cgroup_cancel_charge(from, nr_pages);
  
+ 	/* caller should have done css_get */
+ 	pc->mem_cgroup = to;
+@@ -2688,10 +2681,13 @@ static int mem_cgroup_move_parent(struct page *page,
  	if (nr_pages > 1)
  		flags = compound_lock_irqsave(page);
  
--	if (!parent->use_hierarchy) {
--		ret = mem_cgroup_move_account(page, nr_pages, pc,
--					child, parent, true);
--		if (ret)
--			__mem_cgroup_cancel_charge(parent, nr_pages);
--	} else {
--		ret = mem_cgroup_move_account(page, nr_pages, pc,
--					child, parent, false);
--		if (!ret)
--			__mem_cgroup_move_charge_parent(child, nr_pages);
--	}
-+	ret = mem_cgroup_move_account(page, nr_pages, pc, child, parent,
-+					need_cancel);
-+	if (!need_cancel && !ret)
-+		__mem_cgroup_move_charge_parent(child, nr_pages);
+-	ret = mem_cgroup_move_account(page, nr_pages, pc, child, parent,
+-					need_cancel);
+-	if (!need_cancel && !ret)
+-		__mem_cgroup_move_charge_parent(child, nr_pages);
++	ret = mem_cgroup_move_account(page, nr_pages, pc, child, parent);
++	if (!ret) {
++		if (need_cancel)
++			__mem_cgroup_cancel_charge(child, nr_pages);
++		else
++			__mem_cgroup_move_charge_parent(child, nr_pages);
++	}
  
  	if (nr_pages > 1)
  		compound_unlock_irqrestore(page, flags);
--put_back:
-+
- 	putback_lru_page(page);
- put:
- 	put_page(page);
-@@ -3677,7 +3666,7 @@ static int mem_cgroup_force_empty_list(struct mem_cgroup *memcg,
- 		pc = lookup_page_cgroup(page);
- 
- 		ret = mem_cgroup_move_parent(page, pc, memcg, GFP_KERNEL);
--		if (ret == -ENOMEM || ret == -EINTR)
-+		if (ret == -EINTR)
- 			break;
- 
- 		if (ret == -EBUSY || ret == -EINVAL) {
-@@ -3738,9 +3727,6 @@ move_account:
- 		}
- 		mem_cgroup_end_move(memcg);
- 		memcg_oom_recover(memcg);
--		/* it seems parent cgroup doesn't have enough mem */
--		if (ret == -ENOMEM)
--			goto try_to_free;
- 		cond_resched();
- 	/* "ret" should also be checked to ensure all lists are empty. */
- 	} while (memcg->res.usage > 0 || ret);
+@@ -5451,8 +5447,7 @@ static int mem_cgroup_move_charge_pte_range(pmd_t *pmd,
+ 			if (!isolate_lru_page(page)) {
+ 				pc = lookup_page_cgroup(page);
+ 				if (!mem_cgroup_move_account(page, HPAGE_PMD_NR,
+-							     pc, mc.from, mc.to,
+-							     false)) {
++							pc, mc.from, mc.to)) {
+ 					mc.precharge -= HPAGE_PMD_NR;
+ 					mc.moved_charge += HPAGE_PMD_NR;
+ 				}
+@@ -5482,7 +5477,7 @@ retry:
+ 				goto put;
+ 			pc = lookup_page_cgroup(page);
+ 			if (!mem_cgroup_move_account(page, 1, pc,
+-						     mc.from, mc.to, false)) {
++						     mc.from, mc.to)) {
+ 				mc.precharge--;
+ 				/* we uncharge from mc.from later. */
+ 				mc.moved_charge++;
 -- 
 1.7.4.1
 
