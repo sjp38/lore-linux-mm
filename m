@@ -1,69 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx121.postini.com [74.125.245.121])
-	by kanga.kvack.org (Postfix) with SMTP id 5B4746B00F5
-	for <linux-mm@kvack.org>; Thu, 12 Apr 2012 07:09:32 -0400 (EDT)
-From: Arnd Bergmann <arnd@arndb.de>
-Subject: Re: [PATCH] ARM: Exynos4: integrate SYSMMU driver with DMA-mapping interface
-Date: Thu, 12 Apr 2012 11:09:28 +0000
-References: <1334155004-5700-1-git-send-email-m.szyprowski@samsung.com> <4F869AF4.3080402@gmail.com> <026301cd188d$32613860$9723a920$%szyprowski@samsung.com>
-In-Reply-To: <026301cd188d$32613860$9723a920$%szyprowski@samsung.com>
+Received: from psmtp.com (na3sys010amx178.postini.com [74.125.245.178])
+	by kanga.kvack.org (Postfix) with SMTP id A95BF6B00F7
+	for <linux-mm@kvack.org>; Thu, 12 Apr 2012 07:19:34 -0400 (EDT)
+Received: from m1.gw.fujitsu.co.jp (unknown [10.0.50.71])
+	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id CD8CE3EE0BB
+	for <linux-mm@kvack.org>; Thu, 12 Apr 2012 20:19:32 +0900 (JST)
+Received: from smail (m1 [127.0.0.1])
+	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id AD73245DE5B
+	for <linux-mm@kvack.org>; Thu, 12 Apr 2012 20:19:32 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
+	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 8F7B645DE59
+	for <linux-mm@kvack.org>; Thu, 12 Apr 2012 20:19:32 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 7E83B1DB8057
+	for <linux-mm@kvack.org>; Thu, 12 Apr 2012 20:19:32 +0900 (JST)
+Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.240.81.134])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 344361DB804B
+	for <linux-mm@kvack.org>; Thu, 12 Apr 2012 20:19:32 +0900 (JST)
+Message-ID: <4F86B9BE.8000105@jp.fujitsu.com>
+Date: Thu, 12 Apr 2012 20:17:18 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: Text/Plain;
-  charset="iso-8859-1"
+Subject: [PATCH v1 0/7] memcg remove pre_destroy
+Content-Type: text/plain; charset=ISO-2022-JP
 Content-Transfer-Encoding: 7bit
-Message-Id: <201204121109.28753.arnd@arndb.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Marek Szyprowski <m.szyprowski@samsung.com>
-Cc: 'Subash Patel' <subashrp@gmail.com>, linux-arm-kernel@lists.infradead.org, linaro-mm-sig@lists.linaro.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, iommu@lists.linux-foundation.org, 'Kyungmin Park' <kyungmin.park@samsung.com>, 'Joerg Roedel' <joro@8bytes.org>, 'Russell King - ARM Linux' <linux@arm.linux.org.uk>, 'Chunsang Jeong' <chunsang.jeong@linaro.org>, 'Krishna Reddy' <vdumpa@nvidia.com>, 'KyongHo Cho' <pullip.cho@samsung.com>, Andrzej Pietrasiewicz <andrzej.p@samsung.com>, 'Benjamin Herrenschmidt' <benh@kernel.crashing.org>, 'Konrad Rzeszutek Wilk' <konrad.wilk@oracle.com>, 'Hiroshi Doyu' <hdoyu@nvidia.com>
+To: "linux-mm@kvack.org" <linux-mm@kvack.org>
+Cc: "cgroups@vger.kernel.org" <cgroups@vger.kernel.org>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Tejun Heo <tj@kernel.org>, Glauber Costa <glommer@parallels.com>, Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-On Thursday 12 April 2012, Marek Szyprowski wrote:
-> +
-> > > +/*
-> > > + * s5p_sysmmu_late_init
-> > > + * Create DMA-mapping IOMMU context for specified devices. This function must
-> > > + * be called later, once SYSMMU driver gets registered and probed.
-> > > + */
-> > > +static int __init s5p_sysmmu_late_init(void)
-> > > +{
-> > > +   platform_set_sysmmu(&SYSMMU_PLATDEV(fimc0).dev,&s5p_device_fimc0.dev);
-> > > +   platform_set_sysmmu(&SYSMMU_PLATDEV(fimc1).dev,&s5p_device_fimc1.dev);
-> > > +   platform_set_sysmmu(&SYSMMU_PLATDEV(fimc2).dev,&s5p_device_fimc2.dev);
-> > > +   platform_set_sysmmu(&SYSMMU_PLATDEV(fimc3).dev,&s5p_device_fimc3.dev);
-> > > +   platform_set_sysmmu(&SYSMMU_PLATDEV(mfc_l).dev,&s5p_device_mfc_l.dev);
-> > > +   platform_set_sysmmu(&SYSMMU_PLATDEV(mfc_r).dev,&s5p_device_mfc_r.dev);
-> > > +
-> > > +   s5p_create_iommu_mapping(&s5p_device_fimc0.dev, 0x20000000, SZ_128M, 4);
-> > > +   s5p_create_iommu_mapping(&s5p_device_fimc1.dev, 0x20000000, SZ_128M, 4);
-> > > +   s5p_create_iommu_mapping(&s5p_device_fimc2.dev, 0x20000000, SZ_128M, 4);
-> > > +   s5p_create_iommu_mapping(&s5p_device_fimc3.dev, 0x20000000, SZ_128M, 4);
-> > > +   s5p_create_iommu_mapping(&s5p_device_mfc_l.dev, 0x20000000, SZ_128M, 4);
-> > > +   s5p_create_iommu_mapping(&s5p_device_mfc_r.dev, 0x40000000, SZ_128M, 4);
-> > > +
-> > > +   return 0;
-> > > +}
-> > > +device_initcall(s5p_sysmmu_late_init);
-> > 
-> > Shouldn't these things be specific to a SoC? With this RFC, it happens
-> > that you will predefine the IOMMU attachment and mapping information for
-> > devices in common location (dev-sysmmu.c)? This may lead to problems
-> > because there are some IP's with SYSMMU support in exynos5, but not
-> > available in exynos4 (eg: GSC, FIMC-LITE, FIMC-ISP) Previously we used
-> > to do above declaration in individual machine file, which I think was
-> > more meaningful.
-> 
-> Right, I simplified the code too much. Keeping these definitions inside machine 
-> files was a better idea. I completely forgot that Exynos sub-platform now covers
-> both Exynos4 and Exynos5 SoC families.
+In recent discussion, Tejun Heo, cgroup maintainer, has a plan to remove
+->pre_destroy(). And now, in cgroup tree, pre_destroy() failure cause WARNING.
 
-Ideally the information about iommu attachment should come from the
-device tree. We have the "dma-ranges" properties that define how a dma
-address space is mapped. I am not entirely sure how that works when you
-have multiple IOMMUs and if that requires defining addititional properties,
-but I think we should make it so that we don't have to hardcode specific
-devices in the source.
+By pre_destroy(), rmdir of cgroup can return -EBUSY or some error.
+It makes cgroup complicated and unstable. I said O.K. to remove it and
+this patch is modification for memcg.
 
-	Arnd
+One of problem in current implementation is that memcg moves all charges to
+parent in pre_destroy(). At doing so, if use_hierarchy=0, pre_destroy() may
+hit parent's limit and may return -EBUSY. To fix this problem, this patch
+changes behavior of rmdir() as
+
+ - if use_hierarchy=0, all remaining charges will go to root cgroup.
+ - if use_hierarchy=1, all remaining charges will go to the parent.
+
+By this, rmdir failure will not be caused by parent's limitation. And
+I think this meets meaning of use_hierarchy.
+
+This series does
+  - add above change of behavior
+  - use workqueue to move all pages to parent
+  - remove unnecessary codes.
+
+I'm sorry if my reply is delayed, I'm not sure I can have enough time in
+this weekend. Any comments are welcomed.
+
+Thanks,
+-Kame
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
