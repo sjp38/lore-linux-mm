@@ -1,92 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx139.postini.com [74.125.245.139])
-	by kanga.kvack.org (Postfix) with SMTP id 783756B00E8
-	for <linux-mm@kvack.org>; Thu, 12 Apr 2012 05:24:21 -0400 (EDT)
-Date: Thu, 12 Apr 2012 11:24:15 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH] remove BUG() in possible but rare condition
-Message-ID: <20120412092415.GB32489@tiehlicka.suse.cz>
-References: <1334167824-19142-1-git-send-email-glommer@parallels.com>
+Received: from psmtp.com (na3sys010amx153.postini.com [74.125.245.153])
+	by kanga.kvack.org (Postfix) with SMTP id B4F516B00EA
+	for <linux-mm@kvack.org>; Thu, 12 Apr 2012 05:29:05 -0400 (EDT)
+Received: from /spool/local
+	by e33.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <prashanth@linux.vnet.ibm.com>;
+	Thu, 12 Apr 2012 03:29:04 -0600
+Received: from d03relay03.boulder.ibm.com (d03relay03.boulder.ibm.com [9.17.195.228])
+	by d03dlp01.boulder.ibm.com (Postfix) with ESMTP id DC4EF1FF0049
+	for <linux-mm@kvack.org>; Thu, 12 Apr 2012 03:28:59 -0600 (MDT)
+Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
+	by d03relay03.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q3C9T0E3186620
+	for <linux-mm@kvack.org>; Thu, 12 Apr 2012 03:29:00 -0600
+Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av02.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q3C9Svh2020775
+	for <linux-mm@kvack.org>; Thu, 12 Apr 2012 03:29:00 -0600
+Message-ID: <4F86A03A.1080203@linux.vnet.ibm.com>
+Date: Thu, 12 Apr 2012 14:58:26 +0530
+From: Prashanth Nageshappa <prashanth@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1334167824-19142-1-git-send-email-glommer@parallels.com>
+Subject: [PATCH 0/2] perf/probe: verify instruction/offset in perf before
+ adding a uprobe
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Glauber Costa <glommer@parallels.com>
-Cc: linux-kernel@vger.kernel.org, devel@openvz.org, linux-mm@kvack.org, cgroups@vger.kernel.org, Johannes Weiner <hannes@cmpxchg.org>, kamezawa.hiroyu@jp.fujitsu.com, Greg Thelen <gthelen@google.com>, Suleiman Souhlal <suleiman@google.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>
+To: Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@elte.hu>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, LKML <linux-kernel@vger.kernel.org>, Linux-mm <linux-mm@kvack.org>, Oleg Nesterov <oleg@redhat.com>, Andi Kleen <andi@firstfloor.org>, Christoph Hellwig <hch@infradead.org>, Steven Rostedt <rostedt@goodmis.org>, Arnaldo Carvalho de Melo <acme@infradead.org>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Thomas Gleixner <tglx@linutronix.de>, Anton Arapov <anton@redhat.com>, Srikar Dronamraju <srikar@linux.vnet.ibm.com>
 
-On Wed 11-04-12 15:10:24, Glauber Costa wrote:
-> While stressing the kernel with with failing allocations today,
-> I hit the following chain of events:
-> 
-> alloc_page_buffers():
-> 
-> 	bh = alloc_buffer_head(GFP_NOFS);
-> 	if (!bh)
-> 		goto no_grow; <= path taken
-> 
-> grow_dev_page():
->         bh = alloc_page_buffers(page, size, 0);
->         if (!bh)
->                 goto failed;  <= taken, consequence of the above
-> 
-> and then the failed path BUG()s the kernel.
-> 
-> The failure is inserted a litte bit artificially, but even then,
-> I see no reason why it should be deemed impossible in a real box.
-> 
-> Even though this is not a condition that we expect to see
-> around every time, failed allocations are expected to be handled,
-> and BUG() sounds just too much. As a matter of fact, grow_dev_page()
-> can return NULL just fine in other circumstances, so I propose we just
-> remove it, then.
+This patch series is to augment Srikar's perf support for uprobes patch
+(https://lkml.org/lkml/2012/4/11/191) with the following features:
 
-I had to be blind yesterday. I have double checked the call chain and
-this is safe already because __getblk_slow tries to free some memory and
-then retry the allocation if it gets allocation failure from
-grow_buffers (grow_dev_page).
+a. Instruction verification for user space tracing
+b. Function boundary validation support to uprobes as its kernel
+counterpart (Commit-ID: 1c1bc922).
 
-> 
-> Signed-off-by: Glauber Costa <glommer@parallels.com>
-> CC: Linus Torvalds <torvalds@linux-foundation.org>
-> CC: Andrew Morton <akpm@linux-foundation.org>
+This will help in ensuring uprobe is placed at right location inside
+the intended function.
 
-Reviewed-by: Michal Hocko <mhocko@suse.cz>
 
-> ---
->  fs/buffer.c |    1 -
->  1 files changed, 0 insertions(+), 1 deletions(-)
-> 
-> diff --git a/fs/buffer.c b/fs/buffer.c
-> index 36d6665..351e18e 100644
-> --- a/fs/buffer.c
-> +++ b/fs/buffer.c
-> @@ -985,7 +985,6 @@ grow_dev_page(struct block_device *bdev, sector_t block,
->  	return page;
->  
->  failed:
-> -	BUG();
->  	unlock_page(page);
->  	page_cache_release(page);
->  	return NULL;
-> -- 
-> 1.7.7.6
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Fight unfair telecom internet charges in Canada: sign http://stopthemeter.ca/
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+--
+ Prashanth Nageshappa (1):
+      address build warnings/errors in insn.c
+      changes to perf code to verify instruction/offset before adding uprobe
 
--- 
-Michal Hocko
-SUSE Labs
-SUSE LINUX s.r.o.
-Lihovarska 1060/12
-190 00 Praha 9    
-Czech Republic
+
+ arch/x86/lib/insn.c                    |    8 +++
+ tools/perf/arch/x86/Makefile           |    4 ++
+ tools/perf/arch/x86/util/probe-event.c |   83 ++++++++++++++++++++++++++++++++
+ tools/perf/util/include/linux/string.h |    1 
+ tools/perf/util/probe-event.c          |   22 ++++++++
+ tools/perf/util/probe-event.h          |    2 +
+ tools/perf/util/symbol.c               |    2 +
+ tools/perf/util/symbol.h               |    1 
+ 8 files changed, 122 insertions(+), 1 deletions(-)
+ create mode 100644 tools/perf/arch/x86/util/probe-event.c
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
