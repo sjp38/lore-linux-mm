@@ -1,68 +1,108 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx167.postini.com [74.125.245.167])
-	by kanga.kvack.org (Postfix) with SMTP id 50E516B0044
-	for <linux-mm@kvack.org>; Thu, 12 Apr 2012 10:24:59 -0400 (EDT)
-Date: Thu, 12 Apr 2012 16:24:35 +0200
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH V2 5/5] memcg: change the target nr_to_reclaim for each
- memcg under kswapd
-Message-ID: <20120412142435.GJ1787@cmpxchg.org>
-References: <1334181627-26942-1-git-send-email-yinghan@google.com>
- <20120411235638.GA1787@cmpxchg.org>
- <CALWz4ixnQ=XWUmPEqjEnGYrO6p+pU=VEGjJSEr22gfnmNPjrmg@mail.gmail.com>
+Received: from psmtp.com (na3sys010amx146.postini.com [74.125.245.146])
+	by kanga.kvack.org (Postfix) with SMTP id E8DC56B0044
+	for <linux-mm@kvack.org>; Thu, 12 Apr 2012 10:30:52 -0400 (EDT)
+Received: by lagz14 with SMTP id z14so2140540lag.14
+        for <linux-mm@kvack.org>; Thu, 12 Apr 2012 07:30:50 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CALWz4ixnQ=XWUmPEqjEnGYrO6p+pU=VEGjJSEr22gfnmNPjrmg@mail.gmail.com>
+In-Reply-To: <4F86D733.50809@parallels.com>
+References: <4F86B9BE.8000105@jp.fujitsu.com>
+	<4F86BA66.2010503@jp.fujitsu.com>
+	<4F86D733.50809@parallels.com>
+Date: Thu, 12 Apr 2012 16:30:50 +0200
+Message-ID: <CAFTL4hyKOkoTv=717MkYx4QB0j3B6xA0ZPp1jg6HkrtTkAu7nQ@mail.gmail.com>
+Subject: Re: [PATCH 1/7] res_counter: add a function res_counter_move_parent().
+From: Frederic Weisbecker <fweisbec@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ying Han <yinghan@google.com>
-Cc: Michal Hocko <mhocko@suse.cz>, Mel Gorman <mel@csn.ul.ie>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Hillf Danton <dhillf@gmail.com>, Hugh Dickins <hughd@google.com>, Dan Magenheimer <dan.magenheimer@oracle.com>, linux-mm@kvack.org
+To: Glauber Costa <glommer@parallels.com>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "cgroups@vger.kernel.org" <cgroups@vger.kernel.org>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Tejun Heo <tj@kernel.org>, Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>
 
-On Wed, Apr 11, 2012 at 09:06:27PM -0700, Ying Han wrote:
-> On Wed, Apr 11, 2012 at 4:56 PM, Johannes Weiner <hannes@cmpxchg.org> wrote:
-> > On Wed, Apr 11, 2012 at 03:00:27PM -0700, Ying Han wrote:
-> >> Under global background reclaim, the sc->nr_to_reclaim is set to
-> >> ULONG_MAX. Now we are iterating all memcgs under the zone and we
-> >> shouldn't pass the pressure from kswapd for each memcg.
-> >>
-> >> After all, the balance_pgdat() breaks after reclaiming SWAP_CLUSTER_MAX
-> >> pages to prevent building up reclaim priorities.
-> >
-> > shrink_mem_cgroup_zone() bails out of a zone, balance_pgdat() bails
-> > out of a priority loop, there is quite a difference.
-> >
-> > After this patch, kswapd no longer puts equal pressure on all zones in
-> > the zonelist, which was a key reason why we could justify bailing
-> > early out of individual zones in direct reclaim: kswapd will restore
-> > fairness.
-> 
-> Guess I see your point here.
-> 
-> My intention is to prevent over-reclaim memcgs per-zone by having
-> nr_to_reclaim to ULONG_MAX. Now, we scan each memcg based on
-> get_scan_count() without bailout, do you see a problem w/o this patch?
+2012/4/12 Glauber Costa <glommer@parallels.com>:
+> On 04/12/2012 08:20 AM, KAMEZAWA Hiroyuki wrote:
+>>
+>> This function is used for moving accounting information to its
+>> parent in the hierarchy of res_counter.
+>>
+>> Signed-off-by: KAMEZAWA Hiroyuki<kamezawa.hiroyu@jp.fujitsu.com>
+>
+> Frederic has a patch in his fork cgroup series, that allows you to
+> uncharge a counter until you reach a specific ancestor.
+> You pass the parent as a parameter, and then only you gets uncharged.
 
-The fact that we iterate over each memcg does not make a difference,
-because the target that get_scan_count() returns for each zone-memcg
-is in sum what it would have returned for the whole zone, so the scan
-aggressiveness did not increase.  It just distributes the zone's scan
-target over the set of memcgs proportional to their share of pages in
-that zone.
+I'm missing the referring patchset from Kamezawa. Ok I'm going to
+subscribe to the
+cgroup mailing list. Meanwhile perhaps would it be nice to keep Cc
+LKML for cgroup patches?
 
-So I have trouble deciding what's right.
+Some comments below:
 
-On the one hand, I don't see why you bother with this patch, because
-you don't increase the risk of overreclaim.  Michal's concern for
-overreclaim came from the fact that I had kswapd do soft limit reclaim
-at priority 0 without ever bailing from individual zones.  But your
-soft limit implementation is purely about selecting memcgs to reclaim,
-you never increase the pressure put on a memcg anywhere.
+>
+> I think that is a much better interface than this you are proposing.
+> We should probably merge that patch and use it.
+>
+>> ---
+>> =A0 include/linux/res_counter.h | =A0 =A03 +++
+>> =A0 kernel/res_counter.c =A0 =A0 =A0 =A0| =A0 13 +++++++++++++
+>> =A0 2 files changed, 16 insertions(+), 0 deletions(-)
+>>
+>> diff --git a/include/linux/res_counter.h b/include/linux/res_counter.h
+>> index da81af0..8919d3c 100644
+>> --- a/include/linux/res_counter.h
+>> +++ b/include/linux/res_counter.h
+>> @@ -135,6 +135,9 @@ int __must_check res_counter_charge_nofail(struct re=
+s_counter *counter,
+>> =A0 void res_counter_uncharge_locked(struct res_counter *counter, unsign=
+ed long val);
+>> =A0 void res_counter_uncharge(struct res_counter *counter, unsigned long=
+ val);
+>>
+>> +/* move resource to parent counter...i.e. just forget accounting in a c=
+hild */
+>> +void res_counter_move_parent(struct res_counter *counter, unsigned long=
+ val);
+>> +
+>> =A0 /**
+>> =A0 =A0* res_counter_margin - calculate chargeable space of a counter
+>> =A0 =A0* @cnt: the counter
+>> diff --git a/kernel/res_counter.c b/kernel/res_counter.c
+>> index d508363..fafebf0 100644
+>> --- a/kernel/res_counter.c
+>> +++ b/kernel/res_counter.c
+>> @@ -113,6 +113,19 @@ void res_counter_uncharge(struct res_counter *count=
+er, unsigned long val)
+>> =A0 =A0 =A0 local_irq_restore(flags);
+>> =A0 }
+>>
+>> +/*
+>> + * In hierarchical accounting, child's usage is accounted into ancestor=
+s.
+>> + * To move local usage to its parent, just forget current level usage.
 
-On the other hand, I don't even agree with that aspect of your series;
-that you no longer prioritize explicitely soft-limited groups in
-excess over unconfigured groups, as I mentioned in the other mail.
-But if you did, you would likely need a patch like this, I think.
+The way I understand this comment and the changelog matches the opposite
+of what the below function is doing.
+
+The function charges a child and ignore all its parents. The comments says =
+it
+charges the parents but not the child.
+
+>> + */
+>> +void res_counter_move_parent(struct res_counter *counter, unsigned long=
+ val)
+>> +{
+>> + =A0 =A0 unsigned long flags;
+>> +
+>> + =A0 =A0 BUG_ON(!counter->parent);
+>> + =A0 =A0 spin_lock_irqsave(&counter->lock, flags);
+>> + =A0 =A0 res_counter_uncharge_locked(counter, val);
+>> + =A0 =A0 spin_unlock_irqrestore(&counter->lock, flags);
+>> +}
+>>
+>> =A0 static inline unsigned long long *
+>> =A0 res_counter_member(struct res_counter *counter, int member)
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
