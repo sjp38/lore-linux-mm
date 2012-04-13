@@ -1,62 +1,32 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx129.postini.com [74.125.245.129])
-	by kanga.kvack.org (Postfix) with SMTP id D097A6B00E8
-	for <linux-mm@kvack.org>; Fri, 13 Apr 2012 10:06:06 -0400 (EDT)
-MIME-version: 1.0
-Content-transfer-encoding: 7BIT
-Content-type: TEXT/PLAIN
-Received: from euspt2 ([210.118.77.13]) by mailout3.w1.samsung.com
- (Sun Java(tm) System Messaging Server 6.3-8.04 (built Jul 29 2009; 32bit))
- with ESMTP id <0M2F00JTR8HGTO10@mailout3.w1.samsung.com> for
- linux-mm@kvack.org; Fri, 13 Apr 2012 15:05:40 +0100 (BST)
-Received: from linux.samsung.com ([106.116.38.10])
- by spt2.w1.samsung.com (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14
- 2004)) with ESMTPA id <0M2F00GXB8I0DZ@spt2.w1.samsung.com> for
- linux-mm@kvack.org; Fri, 13 Apr 2012 15:06:00 +0100 (BST)
-Date: Fri, 13 Apr 2012 16:05:46 +0200
-From: Marek Szyprowski <m.szyprowski@samsung.com>
-Subject: [PATCH 0/4] ARM: replace custom consistent dma region with vmalloc
-Message-id: <1334325950-7881-1-git-send-email-m.szyprowski@samsung.com>
+Received: from psmtp.com (na3sys010amx135.postini.com [74.125.245.135])
+	by kanga.kvack.org (Postfix) with SMTP id E5E216B004D
+	for <linux-mm@kvack.org>; Fri, 13 Apr 2012 10:26:57 -0400 (EDT)
+Message-ID: <4F88378F.2040502@redhat.com>
+Date: Fri, 13 Apr 2012 10:26:23 -0400
+From: Rik van Riel <riel@redhat.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH] mm: fix up the vmscan stat in vmstat
+References: <1334253782-22755-1-git-send-email-yinghan@google.com> <20120412153603.fe320f54.akpm@linux-foundation.org>
+In-Reply-To: <20120412153603.fe320f54.akpm@linux-foundation.org>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-arm-kernel@lists.infradead.org, linaro-mm-sig@lists.linaro.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Cc: Marek Szyprowski <m.szyprowski@samsung.com>, Kyungmin Park <kyungmin.park@samsung.com>, Arnd Bergmann <arnd@arndb.de>, Russell King - ARM Linux <linux@arm.linux.org.uk>, Chunsang Jeong <chunsang.jeong@linaro.org>, Krishna Reddy <vdumpa@nvidia.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Hiroshi Doyu <hdoyu@nvidia.com>, Subash Patel <subashrp@gmail.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Ying Han <yinghan@google.com>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mel@csn.ul.ie>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Hillf Danton <dhillf@gmail.com>, Hugh Dickins <hughd@google.com>, Dan Magenheimer <dan.magenheimer@oracle.com>, linux-mm@kvack.org
 
-Hi!
+On 04/12/2012 06:36 PM, Andrew Morton wrote:
 
-Recent changes to ioremap and unification of vmalloc regions on ARM
-significantly reduces the possible size of the consistent dma region and
-limited allowed dma coherent/writecombine allocations.
+> I was going to have a big whine about the failure to update the
+> /proc/vmstat documentation.  But we don't have any /proc/vmstat
+> documentation.  That was a sneaky labor-saving device.
 
-This experimental patch series replaces custom consistent dma regions
-usage in dma-mapping framework in favour of generic vmalloc areas
-created on demand for each coherent and writecombine allocations.
-
-This patch is based on vanilla v3.4-rc2 release.
-
-Best regards
-Marek Szyprowski
-Samsung Poland R&D Center
-
-
-Patch summary:
-
-Marek Szyprowski (4):
-  mm: vmalloc: use const void * for caller argument
-  mm: vmalloc: export find_vm_area() function
-  mm: vmalloc: add VM_DMA flag to indicate areas used by dma-mapping
-    framework
-  ARM: remove consistent dma region and use common vmalloc range for
-    dma allocations
-
- arch/arm/include/asm/dma-mapping.h |    2 +-
- arch/arm/mm/dma-mapping.c          |  220 +++++++-----------------------------
- include/linux/vmalloc.h            |   10 +-
- mm/vmalloc.c                       |   31 ++++--
- 4 files changed, 67 insertions(+), 196 deletions(-)
+I believe that may be a feature, since we use /proc/vmstat
+to look at all kinds of VM internals...
 
 -- 
-1.7.1.569.g6f426
+All rights reversed
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
