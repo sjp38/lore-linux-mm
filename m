@@ -1,72 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx155.postini.com [74.125.245.155])
-	by kanga.kvack.org (Postfix) with SMTP id 396A56B00F7
-	for <linux-mm@kvack.org>; Fri, 13 Apr 2012 04:52:36 -0400 (EDT)
-Date: Fri, 13 Apr 2012 17:53:42 +0900
-From: Akira Takeuchi <takeuchi.akr@jp.panasonic.com>
-Subject: [PATCH RESEND][BUG] sparsemem: Initialize all memmap entries within sections
-Message-Id: <20120413175342.FCE9.38390934@jp.panasonic.com>
+Received: from psmtp.com (na3sys010amx123.postini.com [74.125.245.123])
+	by kanga.kvack.org (Postfix) with SMTP id 751306B00F9
+	for <linux-mm@kvack.org>; Fri, 13 Apr 2012 05:22:43 -0400 (EDT)
+Date: Fri, 13 Apr 2012 10:22:40 +0100
+From: Will Deacon <will.deacon@arm.com>
+Subject: Re: [PATCH] Revert "proc: clear_refs: do not clear reserved pages"
+Message-ID: <20120413092240.GC394@mudshark.cambridge.arm.com>
+References: <1334250034-29866-1-git-send-email-will.deacon@arm.com>
+ <alpine.LSU.2.00.1204121049120.2288@eggly.anvils>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.LSU.2.00.1204121049120.2288@eggly.anvils>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org
+To: Hugh Dickins <hughd@google.com>
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Nicolas Pitre <nico@linaro.org>, akpm@linux-foundation.org
 
-This commit fixes the problem for the kernel
-with CONFIG_SPARSEMEM=y and CONFIG_HAVE_ARCH_PFN_VALID=y.
+On Thu, Apr 12, 2012 at 06:51:10PM +0100, Hugh Dickins wrote:
+> On Thu, 12 Apr 2012, Will Deacon wrote:
+> 
+> > This reverts commit 85e72aa5384b1a614563ad63257ded0e91d1a620, which was
+> > a quick fix suitable for -stable until ARM had been moved over to the
+> > gate_vma mechanism:
+> > 
+> > https://lkml.org/lkml/2012/1/14/55
+> > 
+> > With commit f9d4861f ("ARM: 7294/1: vectors: use gate_vma for vectors user
+> > mapping"), ARM does now use the gate_vma, so the PageReserved check can
+> > be removed from the proc code.
+> > 
+> > Cc: Nicolas Pitre <nico@linaro.org>
+> > Signed-off-by: Will Deacon <will.deacon@arm.com>
+> 
+> Oh, great, I'm glad that worked out: thanks a lot for looking after it,
+> Will, and now cleaning up afterwards.
+> 
+> Acked-by: Hugh Dickins <hughd@google.com>
 
-VM subsystem insists that memmap entries within the align to MAX_ORDER_NR_PAGES
-must exist and be initialized.
+Thanks, Hugh. I guess it's easiest if Andrew picks this one up as he took
+the original patch.
 
-However, in the kernel with CONFIG_SPARSEMEM=y and CONFIG_HAVE_ARCH_PFN_VALID=y,
-the kernel only initializes the entries corresponding to the memory regions
-specified by "mem=" options. This causes "kernel BUG at mm/page_alloc.c:777!"
-This BUG message comes from the following BUG_ON() line in move_freepages().
+Will
 
-    BUG_ON(page_zone(start_page) != page_zone(end_page));
-
-Signed-off-by: Akira Takeuchi <takeuchi.akr@jp.panasonic.com>
-Signed-off-by: Kiyoshi Owada <owada.kiyoshi@jp.panasonic.com>
----
- include/linux/mmzone.h |    8 +++++---
- 1 files changed, 5 insertions(+), 3 deletions(-)
-
-diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-index dff7115..1b7538c 100644
---- a/include/linux/mmzone.h
-+++ b/include/linux/mmzone.h
-@@ -1088,13 +1088,15 @@ static inline struct mem_section *__pfn_to_section(unsigned long pfn)
- 	return __nr_to_section(pfn_to_section_nr(pfn));
- }
- 
--#ifndef CONFIG_HAVE_ARCH_PFN_VALID
--static inline int pfn_valid(unsigned long pfn)
-+static inline int sparsemem_pfn_valid(unsigned long pfn)
- {
- 	if (pfn_to_section_nr(pfn) >= NR_MEM_SECTIONS)
- 		return 0;
- 	return valid_section(__nr_to_section(pfn_to_section_nr(pfn)));
- }
-+
-+#ifndef CONFIG_HAVE_ARCH_PFN_VALID
-+#define pfn_valid(pfn) sparsemem_pfn_valid(pfn)
- #endif
- 
- static inline int pfn_present(unsigned long pfn)
-@@ -1119,7 +1121,7 @@ static inline int pfn_present(unsigned long pfn)
- #define pfn_to_nid(pfn)		(0)
- #endif
- 
--#define early_pfn_valid(pfn)	pfn_valid(pfn)
-+#define early_pfn_valid(pfn)	sparsemem_pfn_valid(pfn)
- void sparse_init(void);
- #else
- #define sparse_init()	do {} while (0)
--- 
-1.7.4.1
-
+> > ---
+> >  fs/proc/task_mmu.c |    3 ---
+> >  1 files changed, 0 insertions(+), 3 deletions(-)
+> > 
+> > diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
+> > index 2b9a760..2d60492 100644
+> > --- a/fs/proc/task_mmu.c
+> > +++ b/fs/proc/task_mmu.c
+> > @@ -597,9 +597,6 @@ static int clear_refs_pte_range(pmd_t *pmd, unsigned long addr,
+> >  		if (!page)
+> >  			continue;
+> >  
+> > -		if (PageReserved(page))
+> > -			continue;
+> > -
+> >  		/* Clear accessed and referenced bits. */
+> >  		ptep_test_and_clear_young(vma, addr, pte);
+> >  		ClearPageReferenced(page);
+> > -- 
+> > 1.7.4.1
+> > 
+> > 
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
