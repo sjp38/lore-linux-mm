@@ -1,54 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx175.postini.com [74.125.245.175])
-	by kanga.kvack.org (Postfix) with SMTP id 1511E6B0083
-	for <linux-mm@kvack.org>; Fri, 13 Apr 2012 02:28:04 -0400 (EDT)
-Message-ID: <4F87C76B.10001@hitachi.com>
-Date: Fri, 13 Apr 2012 15:27:55 +0900
-From: Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>
+Received: from psmtp.com (na3sys010amx164.postini.com [74.125.245.164])
+	by kanga.kvack.org (Postfix) with SMTP id EB2FB6B00F5
+	for <linux-mm@kvack.org>; Fri, 13 Apr 2012 02:43:16 -0400 (EDT)
+Received: by lbao2 with SMTP id o2so2829357lba.14
+        for <linux-mm@kvack.org>; Thu, 12 Apr 2012 23:43:14 -0700 (PDT)
+Message-ID: <4F87CAFF.2010407@openvz.org>
+Date: Fri, 13 Apr 2012 10:43:11 +0400
+From: Konstantin Khlebnikov <khlebnikov@openvz.org>
 MIME-Version: 1.0
-Subject: Re: [PATCH] perf/probe: Provide perf interface for uprobes
-References: <20120411135742.29198.45061.sendpatchset@srdronam.in.ibm.com> <20120411144918.GD16257@infradead.org> <20120411170343.GB29831@linux.vnet.ibm.com> <20120411181727.GK16257@infradead.org> <4F864BB3.3090405@hitachi.com> <20120412140751.GM16257@infradead.org> <20120412151037.GC21587@linux.vnet.ibm.com>
-In-Reply-To: <20120412151037.GC21587@linux.vnet.ibm.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Subject: Re: [PATCH 2/2] mm: call complete_vfork_done() after clearing child_tid
+ and flushing rss-counters
+References: <20120409200336.8368.63793.stgit@zurg> <20120412080952.26401.2025.stgit@zurg> <20120412163953.4cd2314d.akpm@linux-foundation.org>
+In-Reply-To: <20120412163953.4cd2314d.akpm@linux-foundation.org>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-Cc: Arnaldo Carvalho de Melo <acme@infradead.org>, Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, LKML <linux-kernel@vger.kernel.org>, Linux-mm <linux-mm@kvack.org>, Oleg Nesterov <oleg@redhat.com>, Andi Kleen <andi@firstfloor.org>, Christoph Hellwig <hch@infradead.org>, Steven Rostedt <rostedt@goodmis.org>, Thomas Gleixner <tglx@linutronix.de>, Anton Arapov <anton@redhat.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Hugh Dickins <hughd@google.com>, Oleg Nesterov <oleg@redhat.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Markus Trippelsdorf <markus@trippelsdorf.de>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-(2012/04/13 0:10), Srikar Dronamraju wrote:
->>  $ perf probe libc malloc
+Andrew Morton wrote:
+> On Thu, 12 Apr 2012 12:09:53 +0400
+> Konstantin Khlebnikov<khlebnikov@openvz.org>  wrote:
+>
+>> Child should wake ups parent from vfork() only after finishing all operations with
+>> shared mm. There is no sense to use CLONE_CHILD_CLEARTID together with CLONE_VFORK,
+>> but it looks more accurate now.
 >>
->> 	Makes it even easier to use.
+>> ...
 >>
->> 	Its just when one asks for something that has ambiguities that
->> the tool should ask the user to be a bit more precise to remove such
->> ambiguity.
+>> --- a/kernel/fork.c
+>> +++ b/kernel/fork.c
+>> @@ -728,9 +728,6 @@ void mm_release(struct task_struct *tsk, struct mm_struct *mm)
+>>   	/* Get rid of any cached register state */
+>>   	deactivate_mm(tsk, mm);
 >>
->> 	After all...
->>
-> 
-> Another case 
-> perf probe do_fork clone_flags now looks for variable clone_flags in
-> kernel function do_fork.
-> 
-> But if we allow to trace perf probe zsh zfree; then 
-> 'perf probe do_fork clone_flags' should it check for do_fork executable
-> or not? If it does check and finds one, and searches for clone_flags
-> function and doesnt find, then should it continue with searching the
-> kernel?
-> 
+>> -	if (tsk->vfork_done)
+>> -		complete_vfork_done(tsk);
+>> -
+>>   	/*
+>>   	 * If we're exiting normally, clear a user-space tid field if
+>>   	 * requested.  We leave this alone when dying by signal, to leave
+>> @@ -759,6 +756,13 @@ void mm_release(struct task_struct *tsk, struct mm_struct *mm)
+>>   	 */
+>>   	if (mm)
+>>   		sync_mm_rss(mm);
+>> +
+>> +	/*
+>> +	 * All done, finally we can wake up parent and return this mm to him.
+>> +	 * Also kthread_stop() uses this completion for synchronization.
+>> +	 */
+>> +	if (tsk->vfork_done)
+>> +		complete_vfork_done(tsk);
+>>   }
+>
+> That does look a bit racy.
+>
+> But are we really sure that the patch really does fix something?
+> Because it does increase vfork() latency a tiny bit.
+>
+> I'm going to call this a patch against the fork subsystem, not the mm
+> subsystem.
+>
+> I believe that this patch is unrelated to "mm: set task exit code
+> before complete_vfork_done()", yes?
 
-Agree. I'd like to suggest you to start with only full path support,
-and see, how we can handle abbreviations :)
-
-Thank you,
-
--- 
-Masami HIRAMATSU
-Software Platform Research Dept. Linux Technology Center
-Hitachi, Ltd., Yokohama Research Laboratory
-E-mail: masami.hiramatsu.pt@hitachi.com
+Yes, unrelated.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
