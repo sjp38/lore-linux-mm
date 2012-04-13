@@ -1,120 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx123.postini.com [74.125.245.123])
-	by kanga.kvack.org (Postfix) with SMTP id EA9826B00F0
-	for <linux-mm@kvack.org>; Thu, 12 Apr 2012 21:07:31 -0400 (EDT)
-Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 47A583EE0C5
-	for <linux-mm@kvack.org>; Fri, 13 Apr 2012 10:07:30 +0900 (JST)
-Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 2C12445DE9E
-	for <linux-mm@kvack.org>; Fri, 13 Apr 2012 10:07:30 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id F020345DEAD
-	for <linux-mm@kvack.org>; Fri, 13 Apr 2012 10:07:29 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id E2A2D1DB803F
-	for <linux-mm@kvack.org>; Fri, 13 Apr 2012 10:07:29 +0900 (JST)
-Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.240.81.145])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 8A20B1DB8040
-	for <linux-mm@kvack.org>; Fri, 13 Apr 2012 10:07:29 +0900 (JST)
-Message-ID: <4F877BE5.7080208@jp.fujitsu.com>
-Date: Fri, 13 Apr 2012 10:05:41 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Received: from psmtp.com (na3sys010amx139.postini.com [74.125.245.139])
+	by kanga.kvack.org (Postfix) with SMTP id 9E7396B00F3
+	for <linux-mm@kvack.org>; Thu, 12 Apr 2012 22:29:08 -0400 (EDT)
+Message-ID: <4F878F61.4020105@hitachi.com>
+Date: Fri, 13 Apr 2012 11:28:49 +0900
+From: Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 1/7] res_counter: add a function res_counter_move_parent().
-References: <4F86B9BE.8000105@jp.fujitsu.com> <4F86BA66.2010503@jp.fujitsu.com> <4F86D733.50809@parallels.com> <CAFTL4hyKOkoTv=717MkYx4QB0j3B6xA0ZPp1jg6HkrtTkAu7nQ@mail.gmail.com> <4F8779DF.3080307@jp.fujitsu.com> <20120413010443.GD12484@somewhere.redhat.com>
-In-Reply-To: <20120413010443.GD12484@somewhere.redhat.com>
+Subject: Re: Re: [PATCH UPDATED 3/3] tracing: Provide trace events interface
+ for uprobes
+References: <20120409091133.8343.65289.sendpatchset@srdronam.in.ibm.com> <20120409091154.8343.50489.sendpatchset@srdronam.in.ibm.com> <20120411103043.GB29437@linux.vnet.ibm.com> <4F86D264.9020004@hitachi.com> <20120412144927.GB21587@linux.vnet.ibm.com>
+In-Reply-To: <20120412144927.GB21587@linux.vnet.ibm.com>
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Frederic Weisbecker <fweisbec@gmail.com>
-Cc: Glauber Costa <glommer@parallels.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "cgroups@vger.kernel.org" <cgroups@vger.kernel.org>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Tejun Heo <tj@kernel.org>, Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>
+To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
+Cc: Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, LKML <linux-kernel@vger.kernel.org>, Linux-mm <linux-mm@kvack.org>, Oleg Nesterov <oleg@redhat.com>, Andi Kleen <andi@firstfloor.org>, Christoph Hellwig <hch@infradead.org>, Steven Rostedt <rostedt@goodmis.org>, Arnaldo Carvalho de Melo <acme@infradead.org>, Thomas Gleixner <tglx@linutronix.de>, Anton Arapov <anton@redhat.com>
 
-(2012/04/13 10:04), Frederic Weisbecker wrote:
-
-> On Fri, Apr 13, 2012 at 09:57:03AM +0900, KAMEZAWA Hiroyuki wrote:
->> (2012/04/12 23:30), Frederic Weisbecker wrote:
+(2012/04/12 23:49), Srikar Dronamraju wrote:
+>>> +
+>>> +    # echo 'p /bin/zsh:0x46420 %ip %ax' > uprobe_events
+>>> +
+>>> +Please note: User has to explicitly calculate the offset of the probepoint
+>>> +in the object. We can see the events that are registered by looking at the
+>>> +uprobe_events file.
+>>> +
+>>> +    # cat uprobe_events
+>>> +    p:uprobes/p_zsh_0x46420 /bin/zsh:0x0000000000046420
 >>
->>> 2012/4/12 Glauber Costa <glommer@parallels.com>:
->>>> On 04/12/2012 08:20 AM, KAMEZAWA Hiroyuki wrote:
->>>>>
->>>>> This function is used for moving accounting information to its
->>>>> parent in the hierarchy of res_counter.
->>>>>
->>>>> Signed-off-by: KAMEZAWA Hiroyuki<kamezawa.hiroyu@jp.fujitsu.com>
->>>>
->>>> Frederic has a patch in his fork cgroup series, that allows you to
->>>> uncharge a counter until you reach a specific ancestor.
->>>> You pass the parent as a parameter, and then only you gets uncharged.
->>>
->>> I'm missing the referring patchset from Kamezawa. Ok I'm going to
->>> subscribe to the
->>> cgroup mailing list. Meanwhile perhaps would it be nice to keep Cc
->>> LKML for cgroup patches?
->>>
+>> Doesn't uprobe_events show the arguments of existing events?
+>> And also, could you add an event format of above event here?
 >>
->> Ah, sorry. I will do next time.
->>
->>> Some comments below:
->>>
->>>>
->>>> I think that is a much better interface than this you are proposing.
->>>> We should probably merge that patch and use it.
->>>>
->>>>> ---
->>>>>   include/linux/res_counter.h |    3 +++
->>>>>   kernel/res_counter.c        |   13 +++++++++++++
->>>>>   2 files changed, 16 insertions(+), 0 deletions(-)
->>>>>
->>>>> diff --git a/include/linux/res_counter.h b/include/linux/res_counter.h
->>>>> index da81af0..8919d3c 100644
->>>>> --- a/include/linux/res_counter.h
->>>>> +++ b/include/linux/res_counter.h
->>>>> @@ -135,6 +135,9 @@ int __must_check res_counter_charge_nofail(struct res_counter *counter,
->>>>>   void res_counter_uncharge_locked(struct res_counter *counter, unsigned long val);
->>>>>   void res_counter_uncharge(struct res_counter *counter, unsigned long val);
->>>>>
->>>>> +/* move resource to parent counter...i.e. just forget accounting in a child */
->>>>> +void res_counter_move_parent(struct res_counter *counter, unsigned long val);
->>>>> +
->>>>>   /**
->>>>>    * res_counter_margin - calculate chargeable space of a counter
->>>>>    * @cnt: the counter
->>>>> diff --git a/kernel/res_counter.c b/kernel/res_counter.c
->>>>> index d508363..fafebf0 100644
->>>>> --- a/kernel/res_counter.c
->>>>> +++ b/kernel/res_counter.c
->>>>> @@ -113,6 +113,19 @@ void res_counter_uncharge(struct res_counter *counter, unsigned long val)
->>>>>       local_irq_restore(flags);
->>>>>   }
->>>>>
->>>>> +/*
->>>>> + * In hierarchical accounting, child's usage is accounted into ancestors.
->>>>> + * To move local usage to its parent, just forget current level usage.
->>>
->>> The way I understand this comment and the changelog matches the opposite
->>> of what the below function is doing.
->>>
->>> The function charges a child and ignore all its parents. The comments says it
->>> charges the parents but not the child.
->>>
->>
->>
->> Sure, I'll fix...and look into your code first.
->> "uncharge a counter until you reach a specific ancestor"...
->> Is it in linux-next ?
 > 
-> No, it's part of the task counter so it's still out of tree.
-> You were Cc'ed but if you can't find it in your inbox I can
-> resend it:
+> [root@f14kvm tracing]#  cat uprobe_events 
+> [root@f14kvm tracing]# echo 'p /bin/zsh:0x46420 %ip %ax' > uprobe_events 
+> [root@f14kvm tracing]#  cat uprobe_events 
+> p:uprobes/p_zsh_0x46420 /bin/zsh:0x00046420 arg1=%ip arg2=%ax
+> [root@f14kvm tracing]#  cat events/uprobes/p_zsh_0x46420/format 
+> name: p_zsh_0x46420
+> ID: 922
+> format:
+>         field:unsigned short common_type;       offset:0;       size:2; signed:0;
+>         field:unsigned char common_flags;       offset:2;       size:1; signed:0;
+>         field:unsigned char common_preempt_count;       offset:3;       size:1; signed:0;
+>         field:int common_pid;   offset:4;       size:4; signed:1;
+>         field:int common_padding;       offset:8;       size:4; signed:1;
 > 
-> http://thread.gmane.org/gmane.linux.kernel.containers/22378
+>         field:unsigned long __probe_ip; offset:12;      size:4; signed:0;
+>         field:u32 arg1; offset:16;      size:4; signed:0;
+>         field:u32 arg2; offset:20;      size:4; signed:0;
 > 
+> print fmt: "(%lx) arg1=%lx arg2=%lx", REC->__probe_ip, REC->arg1, REC->arg2
+> [root@f14kvm tracing]# 
+> 
+> Will update the Documentation file  with correct output of "cat
+> uprobe_events". Do you want the format file to be added to the
+> Documentation?
+
+Yes, I want, please :)
+
+Thank you!
 
 
-Ah, ok. I found it. Thank you!.
--Kame
+-- 
+Masami HIRAMATSU
+Software Platform Research Dept. Linux Technology Center
+Hitachi, Ltd., Yokohama Research Laboratory
+E-mail: masami.hiramatsu.pt@hitachi.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
