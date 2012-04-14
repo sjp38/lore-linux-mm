@@ -1,49 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx134.postini.com [74.125.245.134])
-	by kanga.kvack.org (Postfix) with SMTP id D05046B0083
-	for <linux-mm@kvack.org>; Sat, 14 Apr 2012 08:19:34 -0400 (EDT)
-Received: by vbbey12 with SMTP id ey12so3698151vbb.14
-        for <linux-mm@kvack.org>; Sat, 14 Apr 2012 05:19:33 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <1334181407-26064-1-git-send-email-yinghan@google.com>
-References: <1334181407-26064-1-git-send-email-yinghan@google.com>
-Date: Sat, 14 Apr 2012 20:19:33 +0800
-Message-ID: <CAJd=RBCpq5cj1_K3Q8z4-G75WiAkZ0P66_ib5TBObopbes789g@mail.gmail.com>
-Subject: Re: [PATCH V2 0/5] memcg softlimit reclaim rework
-From: Hillf Danton <dhillf@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+Received: from psmtp.com (na3sys010amx133.postini.com [74.125.245.133])
+	by kanga.kvack.org (Postfix) with SMTP id 7748D6B00E7
+	for <linux-mm@kvack.org>; Sat, 14 Apr 2012 08:25:24 -0400 (EDT)
+Message-ID: <1334406314.2528.90.camel@twins>
+Subject: Re: [Lsf] [RFC] writeback and cgroup
+From: Peter Zijlstra <peterz@infradead.org>
+Date: Sat, 14 Apr 2012 14:25:14 +0200
+In-Reply-To: <20120411154005.GD16692@redhat.com>
+References: <20120403183655.GA23106@dhcp-172-17-108-109.mtv.corp.google.com>
+	 <20120404145134.GC12676@redhat.com> <20120407080027.GA2584@quack.suse.cz>
+	 <20120410180653.GJ21801@redhat.com> <20120410210505.GE4936@quack.suse.cz>
+	 <20120410212041.GP21801@redhat.com> <20120410222425.GF4936@quack.suse.cz>
+	 <20120411154005.GD16692@redhat.com>
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: quoted-printable
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ying Han <yinghan@google.com>
-Cc: Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mel@csn.ul.ie>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Dan Magenheimer <dan.magenheimer@oracle.com>, linux-mm@kvack.org
+To: Vivek Goyal <vgoyal@redhat.com>
+Cc: Jan Kara <jack@suse.cz>, ctalbott@google.com, rni@google.com, andrea@betterlinux.com, containers@lists.linux-foundation.org, linux-kernel@vger.kernel.org, lsf@lists.linux-foundation.org, linux-mm@kvack.org, jmoyer@redhat.com, lizefan@huawei.com, cgroups@vger.kernel.org, linux-fsdevel@vger.kernel.org
 
-On Thu, Apr 12, 2012 at 5:56 AM, Ying Han <yinghan@google.com> wrote:
-> The "soft_limit" was introduced in memcg to support over-committing the
-> memory resource on the host. Each cgroup configures its "hard_limit" where
-> it will be throttled or OOM killed by going over the limit. However, the
-> cgroup can go above the "soft_limit" as long as there is no system-wide
-> memory contention. So, the "soft_limit" is the kernel mechanism for
-> re-distributng system spare memory among cgroups.
->
-s/re-distributng/re-distributing/
+On Wed, 2012-04-11 at 11:40 -0400, Vivek Goyal wrote:
+>=20
+> Ok, that's good to know. How would we configure this special bdi? I am
+> assuming there is no backing device visible in /sys/block/<device>/queue/=
+?
+> Same is true for network file systems.=20
 
-> This patch reworks the softlimit reclaim by hooking it into the new global
-> reclaim scheme. So the global reclaim path including direct reclaim and
-> background reclaim will respect the memcg softlimit.
->
-> Note:
-> 1. the new implementation of softlimit reclaim is rather simple and first
-> step for further optimizations. there is no memory pressure balancing between
-> memcgs for each zone, and that is something we would like to add as follow-ups.
->
-> 2. this patch is slightly different from the last one posted from Johannes,
->
-For those who want to see posts by Johannes, add links please.
-
-> where his patch is closer to the reverted implementation by doing hierarchical
-> reclaim for each selected memcg. However, that is not expected behavior from
-> user perspective. Considering the following example:
->
+root@twins:/usr/src/linux-2.6# awk '/nfs/ {print $3}' /proc/self/mountinfo =
+| while read bdi ; do ls -la /sys/class/bdi/${bdi}/ ; done
+ls: cannot access /sys/class/bdi/0:20/: No such file or directory
+total 0
+drwxr-xr-x  3 root root    0 2012-03-27 23:18 .
+drwxr-xr-x 35 root root    0 2012-03-27 23:02 ..
+-rw-r--r--  1 root root 4096 2012-04-14 14:22 max_ratio
+-rw-r--r--  1 root root 4096 2012-04-14 14:22 min_ratio
+drwxr-xr-x  2 root root    0 2012-04-14 14:22 power
+-rw-r--r--  1 root root 4096 2012-04-14 14:22 read_ahead_kb
+lrwxrwxrwx  1 root root    0 2012-03-27 23:18 subsystem -> ../../../../clas=
+s/bdi
+-rw-r--r--  1 root root 4096 2012-03-27 23:18 uevent
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
