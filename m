@@ -1,52 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx169.postini.com [74.125.245.169])
-	by kanga.kvack.org (Postfix) with SMTP id 4268D6B0083
-	for <linux-mm@kvack.org>; Sat, 14 Apr 2012 12:02:25 -0400 (EDT)
-Received: by werj55 with SMTP id j55so3548262wer.14
-        for <linux-mm@kvack.org>; Sat, 14 Apr 2012 09:02:23 -0700 (PDT)
-From: Daniel Vetter <daniel.vetter@ffwll.ch>
-Subject: [PATCH] mm: fixup compilation error due to an asm write through a const pointer
-Date: Sat, 14 Apr 2012 18:03:10 +0200
-Message-Id: <1334419390-18961-1-git-send-email-daniel.vetter@ffwll.ch>
-In-Reply-To: <CAMuHMdXBEiDGyJQ+szoBKxo0pS=n3xKfpb=F+rNkMQUv4SdTQA@mail.gmail.com>
-References: <CAMuHMdXBEiDGyJQ+szoBKxo0pS=n3xKfpb=F+rNkMQUv4SdTQA@mail.gmail.com>
+Received: from psmtp.com (na3sys010amx146.postini.com [74.125.245.146])
+	by kanga.kvack.org (Postfix) with SMTP id 82CCA6B0044
+	for <linux-mm@kvack.org>; Sat, 14 Apr 2012 14:25:46 -0400 (EDT)
+Date: Sat, 14 Apr 2012 11:25:12 -0700
+From: tip-bot for Srikar Dronamraju <srikar@linux.vnet.ibm.com>
+Message-ID: <tip-7396fa818d6278694a44840f389ddc40a3269a9a@git.kernel.org>
+Reply-To: mingo@kernel.org, torvalds@linux-foundation.org,
+        peterz@infradead.org, anton@redhat.com, rostedt@goodmis.org,
+        jkenisto@linux.vnet.ibm.com, tglx@linutronix.de, oleg@redhat.com,
+        linux-mm@kvack.org, hpa@zytor.com, linux-kernel@vger.kernel.org,
+        andi@firstfloor.org, hch@infradead.org, ananth@in.ibm.com,
+        masami.hiramatsu.pt@hitachi.com, acme@infradead.org,
+        srikar@linux.vnet.ibm.com
+In-Reply-To: <20120411103516.23245.2700.sendpatchset@srdronam.in.ibm.com>
+References: <20120411103516.23245.2700.sendpatchset@srdronam.in.ibm.com>
+Subject: [tip:perf/uprobes] uprobes/core:
+  Make background page replacement logic account for rss_stat counters
+MIME-Version: 1.0
+Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=UTF-8
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Airlie <airlied@gmail.com>
-Cc: DRI Development <dri-devel@lists.freedesktop.org>, Intel Graphics Development <intel-gfx@lists.freedesktop.org>, LKML <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, Geert Uytterhoeven <geert@linux-m68k.org>, Andrew Morton <akpm@linux-foundation.org>, Daniel Vetter <daniel.vetter@ffwll.ch>
+To: linux-tip-commits@vger.kernel.org
+Cc: mingo@kernel.org, torvalds@linux-foundation.org, peterz@infradead.org, anton@redhat.com, rostedt@goodmis.org, jkenisto@linux.vnet.ibm.com, tglx@linutronix.de, oleg@redhat.com, linux-mm@kvack.org, hpa@zytor.com, linux-kernel@vger.kernel.org, andi@firstfloor.org, hch@infradead.org, ananth@in.ibm.com, masami.hiramatsu.pt@hitachi.com, acme@infradead.org, srikar@linux.vnet.ibm.com
 
-This regression has been introduced in
+Commit-ID:  7396fa818d6278694a44840f389ddc40a3269a9a
+Gitweb:     http://git.kernel.org/tip/7396fa818d6278694a44840f389ddc40a3269a9a
+Author:     Srikar Dronamraju <srikar@linux.vnet.ibm.com>
+AuthorDate: Wed, 11 Apr 2012 16:05:16 +0530
+Committer:  Ingo Molnar <mingo@kernel.org>
+CommitDate: Sat, 14 Apr 2012 13:25:47 +0200
 
-commit f56f821feb7b36223f309e0ec05986bb137ce418
-Author: Daniel Vetter <daniel.vetter@ffwll.ch>
-Date:   Sun Mar 25 19:47:41 2012 +0200
+uprobes/core: Make background page replacement logic account for rss_stat counters
 
-    mm: extend prefault helpers to fault in more than PAGE_SIZE
+Background page replacement logic adds a new anonymous page
+instead of a file backed (while inserting a breakpoint) /
+anonymous page (while removing a breakpoint).
 
-I have failed to notice this because x86 asm seems to happily compile
-things as-is.
+Hence the uprobes logic should take care to update the
+task->ss_stat counters accordingly.
 
-Reported-by: Geert Uytterhoeven <geert@linux-m68k.org
-Signed-Off-by: Daniel Vetter <daniel.vetter@ffwll.ch>
+This bug became apparent courtesy of commit c3f0327f8e9d
+("mm: add rss counters consistency check").
+
+Signed-off-by: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Ananth N Mavinakayanahalli <ananth@in.ibm.com>
+Cc: Jim Keniston <jkenisto@linux.vnet.ibm.com>
+Cc: Linux-mm <linux-mm@kvack.org>
+Cc: Oleg Nesterov <oleg@redhat.com>
+Cc: Andi Kleen <andi@firstfloor.org>
+Cc: Christoph Hellwig <hch@infradead.org>
+Cc: Steven Rostedt <rostedt@goodmis.org>
+Cc: Arnaldo Carvalho de Melo <acme@infradead.org>
+Cc: Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>
+Cc: Anton Arapov <anton@redhat.com>
+Cc: Peter Zijlstra <peterz@infradead.org>
+Link: http://lkml.kernel.org/r/20120411103516.23245.2700.sendpatchset@srdronam.in.ibm.com
+Signed-off-by: Ingo Molnar <mingo@kernel.org>
 ---
- include/linux/pagemap.h |    2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ kernel/events/uprobes.c |    5 +++++
+ 1 files changed, 5 insertions(+), 0 deletions(-)
 
-diff --git a/include/linux/pagemap.h b/include/linux/pagemap.h
-index c93a9a9..efa26b4 100644
---- a/include/linux/pagemap.h
-+++ b/include/linux/pagemap.h
-@@ -461,7 +461,7 @@ static inline int fault_in_pages_readable(const char __user *uaddr, int size)
- static inline int fault_in_multipages_writeable(char __user *uaddr, int size)
- {
- 	int ret;
--	const char __user *end = uaddr + size - 1;
-+	char __user *end = uaddr + size - 1;
+diff --git a/kernel/events/uprobes.c b/kernel/events/uprobes.c
+index 29e881b..c5caeec 100644
+--- a/kernel/events/uprobes.c
++++ b/kernel/events/uprobes.c
+@@ -160,6 +160,11 @@ static int __replace_page(struct vm_area_struct *vma, struct page *page, struct
+ 	get_page(kpage);
+ 	page_add_new_anon_rmap(kpage, vma, addr);
  
- 	if (unlikely(size == 0))
- 		return 0;
--- 
-1.7.10
++	if (!PageAnon(page)) {
++		dec_mm_counter(mm, MM_FILEPAGES);
++		inc_mm_counter(mm, MM_ANONPAGES);
++	}
++
+ 	flush_cache_page(vma, addr, pte_pfn(*ptep));
+ 	ptep_clear_flush(vma, addr, ptep);
+ 	set_pte_at_notify(mm, addr, ptep, mk_pte(kpage, vma->vm_page_prot));
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
