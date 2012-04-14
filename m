@@ -1,59 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx136.postini.com [74.125.245.136])
-	by kanga.kvack.org (Postfix) with SMTP id 17D8E6B0083
-	for <linux-mm@kvack.org>; Sat, 14 Apr 2012 08:41:58 -0400 (EDT)
-Received: by vbbey12 with SMTP id ey12so3706678vbb.14
-        for <linux-mm@kvack.org>; Sat, 14 Apr 2012 05:41:57 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <1334181594-26671-1-git-send-email-yinghan@google.com>
-References: <1334181594-26671-1-git-send-email-yinghan@google.com>
-Date: Sat, 14 Apr 2012 20:41:57 +0800
-Message-ID: <CAJd=RBDDW7DBtpiOERXXPzh40SHkhwQ5K9OnM6HiQXRR2Cm3hA@mail.gmail.com>
-Subject: Re: [PATCH V2 1/5] memcg: revert current soft limit reclaim implementation
-From: Hillf Danton <dhillf@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+Received: from psmtp.com (na3sys010amx168.postini.com [74.125.245.168])
+	by kanga.kvack.org (Postfix) with SMTP id A87186B004A
+	for <linux-mm@kvack.org>; Sat, 14 Apr 2012 09:16:59 -0400 (EDT)
+Message-ID: <1334409396.2528.100.camel@twins>
+Subject: Re: [RFC 0/6] uprobes: kill uprobes_srcu/uprobe_srcu_id
+From: Peter Zijlstra <peterz@infradead.org>
+Date: Sat, 14 Apr 2012 15:16:36 +0200
+In-Reply-To: <20120405222024.GA19154@redhat.com>
+References: <20120405222024.GA19154@redhat.com>
+Content-Type: text/plain; charset="ISO-8859-1"
 Content-Transfer-Encoding: quoted-printable
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ying Han <yinghan@google.com>
-Cc: Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mel@csn.ul.ie>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Dan Magenheimer <dan.magenheimer@oracle.com>, linux-mm@kvack.org
+To: Oleg Nesterov <oleg@redhat.com>
+Cc: Ingo Molnar <mingo@elte.hu>, Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, LKML <linux-kernel@vger.kernel.org>, Linux-mm <linux-mm@kvack.org>, Andi Kleen <andi@firstfloor.org>, Christoph Hellwig <hch@infradead.org>, Steven Rostedt <rostedt@goodmis.org>, Arnaldo Carvalho de Melo <acme@infradead.org>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Thomas Gleixner <tglx@linutronix.de>, Anton Arapov <anton@redhat.com>
 
-On Thu, Apr 12, 2012 at 5:59 AM, Ying Han <yinghan@google.com> wrote:
-> This patch reverts all the existing softlimit reclaim implementations.
->
-> Signed-off-by: Ying Han <yinghan@google.com>
-> ---
-> =C2=A0include/linux/memcontrol.h | =C2=A0 11 --
-> =C2=A0include/linux/swap.h =C2=A0 =C2=A0 =C2=A0 | =C2=A0 =C2=A04 -
-> =C2=A0mm/memcontrol.c =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0| =C2=A038=
-7 --------------------------------------------
-> =C2=A0mm/vmscan.c =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0=
-| =C2=A0 67 --------
-> =C2=A04 files changed, 0 insertions(+), 469 deletions(-)
->
-[...]
+On Fri, 2012-04-06 at 00:20 +0200, Oleg Nesterov wrote:
+> Hello.
+>=20
+> Not for inclusion yet, only for the early review.
+>=20
+> I didn't even try to test these changes, and I am not expert
+> in this area. And even _if_ this code is correct, I need to
+> re-split these changes anyway, update the changelogs, etc.
+>=20
+> Questions:
+>=20
+> 	- does it make sense?
 
-> -unsigned long mem_cgroup_soft_limit_reclaim(struct zone *zone, int order=
-,
-> - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
-=A0 gfp_t gfp_mask,
-> - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
-=A0 unsigned long *total_scanned)
-> -{
-> - =C2=A0 =C2=A0 =C2=A0 unsigned long nr_reclaimed =3D 0;
-> - =C2=A0 =C2=A0 =C2=A0 struct mem_cgroup_per_zone *mz, *next_mz =3D NULL;
-> - =C2=A0 =C2=A0 =C2=A0 unsigned long reclaimed;
-> - =C2=A0 =C2=A0 =C2=A0 int loop =3D 0;
-> - =C2=A0 =C2=A0 =C2=A0 struct mem_cgroup_tree_per_zone *mctz;
-> - =C2=A0 =C2=A0 =C2=A0 unsigned long long excess;
-> - =C2=A0 =C2=A0 =C2=A0 unsigned long nr_scanned;
-> -
-> - =C2=A0 =C2=A0 =C2=A0 if (order > 0)
-> - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 return 0;
-> -
-Not related to this patch, what is the functionality to check order?
+Maybe, upside is reclaiming that int from task_struct, downside is that
+down_write :/ It would be very good not to have to do that. Nor do I
+really see how that works.
+
+> 	- can it work or I missed something "in general" ?
+
+So we insert in the rb-tree before we take mmap_sem, this means we can
+hit a non-uprobe int3 and still find a uprobe there, no?
+
+> Why:
+>=20
+> 	- It would be nice to remove a member from task_struct.
+>=20
+> 	- Afaics, the usage of uprobes_srcu does not look right,
+> 	  at least in theory, see 6/6.
+>=20
+> 	  The comment above delete_uprobe() says:
+>=20
+> 	  	The current unregistering thread waits till all
+> 	  	other threads have hit a breakpoint, to acquire
+> 	  	the uprobes_treelock before the uprobe is removed
+> 	  	from the rbtree.
+>=20
+> 	  but synchronize_srcu() can only help if a thread which
+> 	  have hit the breakpoint has already called srcu_read_lock().
+> 	  It can't synchronize with read_lock "in future", and there
+> 	  is a small window.
+>=20
+> 	  We could probably add another synchronize_sched() before
+> 	  synchronize_srcu(), but this doesn't look very nice and
+
+Right, I think that all was written with the assumption that sync_srcu
+implied a sync_rcu, which of course we've recently wrecked.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
