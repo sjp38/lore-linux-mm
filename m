@@ -1,58 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx171.postini.com [74.125.245.171])
-	by kanga.kvack.org (Postfix) with SMTP id 1925D6B004A
-	for <linux-mm@kvack.org>; Fri, 13 Apr 2012 21:14:07 -0400 (EDT)
-Date: Fri, 13 Apr 2012 22:13:30 -0300
-From: Arnaldo Carvalho de Melo <acme@infradead.org>
-Subject: Re: [PATCH] perf/probe: Provide perf interface for uprobes
-Message-ID: <20120414011330.GC31880@infradead.org>
-References: <20120411135742.29198.45061.sendpatchset@srdronam.in.ibm.com>
- <20120411144918.GD16257@infradead.org>
- <20120411170343.GB29831@linux.vnet.ibm.com>
- <20120411181727.GK16257@infradead.org>
- <4F864BB3.3090405@hitachi.com>
- <20120412140751.GM16257@infradead.org>
- <20120412151037.GC21587@linux.vnet.ibm.com>
- <4F87C76B.10001@hitachi.com>
+Received: from psmtp.com (na3sys010amx194.postini.com [74.125.245.194])
+	by kanga.kvack.org (Postfix) with SMTP id 29AD06B004A
+	for <linux-mm@kvack.org>; Fri, 13 Apr 2012 22:51:56 -0400 (EDT)
+Received: by vcbfk14 with SMTP id fk14so3543167vcb.14
+        for <linux-mm@kvack.org>; Fri, 13 Apr 2012 19:51:55 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <4F87C76B.10001@hitachi.com>
+In-Reply-To: <alpine.DEB.2.00.1204131326170.15905@router.home>
+References: <CAN1soZzEuhQQYf7fNqOeMYT3Z-8VMix+1ihD77Bjtf+Do3x3DA@mail.gmail.com>
+	<alpine.DEB.2.00.1204131326170.15905@router.home>
+Date: Sat, 14 Apr 2012 10:51:54 +0800
+Message-ID: <CAN1soZyQuiYU_1f0G0eDqF-9WwzjgSgmr3QBh8cpkF+r1r7HrA@mail.gmail.com>
+Subject: Re: how to avoid allocating or freeze MOVABLE memory in userspace
+From: Haojian Zhuang <haojian.zhuang@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>
-Cc: Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, LKML <linux-kernel@vger.kernel.org>, Linux-mm <linux-mm@kvack.org>, Oleg Nesterov <oleg@redhat.com>, Andi Kleen <andi@firstfloor.org>, Christoph Hellwig <hch@infradead.org>, Steven Rostedt <rostedt@goodmis.org>, Thomas Gleixner <tglx@linutronix.de>, Anton Arapov <anton@redhat.com>
+To: Christoph Lameter <cl@linux.com>
+Cc: linaro-mm-sig@lists.linaro.org, linux-mm@kvack.org, m.szyprowski@samsung.com
 
-Em Fri, Apr 13, 2012 at 03:27:55PM +0900, Masami Hiramatsu escreveu:
-> (2012/04/13 0:10), Srikar Dronamraju wrote:
-> >>  $ perf probe libc malloc
-> >>
-> >> 	Makes it even easier to use.
-> >>
-> >> 	Its just when one asks for something that has ambiguities that
-> >> the tool should ask the user to be a bit more precise to remove such
-> >> ambiguity.
-> >>
-> >> 	After all...
+On Sat, Apr 14, 2012 at 2:27 AM, Christoph Lameter <cl@linux.com> wrote:
+> On Fri, 13 Apr 2012, Haojian Zhuang wrote:
+>
+>> I have one question on memory migration. As we know, malloc() from
+>> user app will allocate MIGRATE_MOVABLE pages. But if we want to use
+>> this memory as DMA usage, we can't accept MIGRATE_MOVABLE type. Could
+>> we change its behavior before DMA working?
+>
+> MIGRATE_MOVABLE works fine for DMA. If you keep a reference from a device
+> driver to user pages then you will have to increase the page refcount
+> which will in turn pin the page and make it non movable for as long as you
+> keep the refcount.
 
-> > Another case 
-> > perf probe do_fork clone_flags now looks for variable clone_flags in
-> > kernel function do_fork.
+Hi Christoph,
 
-> > But if we allow to trace perf probe zsh zfree; then 
-> > 'perf probe do_fork clone_flags' should it check for do_fork executable
-> > or not? If it does check and finds one, and searches for clone_flags
-> > function and doesnt find, then should it continue with searching the
-> > kernel?
+Thanks for your illustration. But it's a little abstract. Could you
+give me a simple example
+or show me the code?
 
-> Agree. I'd like to suggest you to start with only full path support,
-> and see, how we can handle abbreviations :)
-
-Agreed, I was just making usability suggestions.
-
-Those can be implemented later, if we agree they ease the tool use.
-
-- Arnaldo
+Best Regards
+Haojian
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
