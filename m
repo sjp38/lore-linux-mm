@@ -1,64 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx158.postini.com [74.125.245.158])
-	by kanga.kvack.org (Postfix) with SMTP id F2B146B0083
-	for <linux-mm@kvack.org>; Fri, 13 Apr 2012 18:38:44 -0400 (EDT)
-Received: by faas16 with SMTP id s16so175628faa.2
-        for <linux-mm@kvack.org>; Fri, 13 Apr 2012 15:38:43 -0700 (PDT)
-From: Ying Han <yinghan@google.com>
-Subject: [PATCH] kvm: don't call mmu_shrinker w/o used_mmu_pages
-Date: Fri, 13 Apr 2012 15:38:41 -0700
-Message-Id: <1334356721-9009-1-git-send-email-yinghan@google.com>
+Received: from psmtp.com (na3sys010amx171.postini.com [74.125.245.171])
+	by kanga.kvack.org (Postfix) with SMTP id 1925D6B004A
+	for <linux-mm@kvack.org>; Fri, 13 Apr 2012 21:14:07 -0400 (EDT)
+Date: Fri, 13 Apr 2012 22:13:30 -0300
+From: Arnaldo Carvalho de Melo <acme@infradead.org>
+Subject: Re: [PATCH] perf/probe: Provide perf interface for uprobes
+Message-ID: <20120414011330.GC31880@infradead.org>
+References: <20120411135742.29198.45061.sendpatchset@srdronam.in.ibm.com>
+ <20120411144918.GD16257@infradead.org>
+ <20120411170343.GB29831@linux.vnet.ibm.com>
+ <20120411181727.GK16257@infradead.org>
+ <4F864BB3.3090405@hitachi.com>
+ <20120412140751.GM16257@infradead.org>
+ <20120412151037.GC21587@linux.vnet.ibm.com>
+ <4F87C76B.10001@hitachi.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <4F87C76B.10001@hitachi.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mel@csn.ul.ie>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Hillf Danton <dhillf@gmail.com>, Hugh Dickins <hughd@google.com>, Dan Magenheimer <dan.magenheimer@oracle.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org
+To: Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>
+Cc: Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, LKML <linux-kernel@vger.kernel.org>, Linux-mm <linux-mm@kvack.org>, Oleg Nesterov <oleg@redhat.com>, Andi Kleen <andi@firstfloor.org>, Christoph Hellwig <hch@infradead.org>, Steven Rostedt <rostedt@goodmis.org>, Thomas Gleixner <tglx@linutronix.de>, Anton Arapov <anton@redhat.com>
 
-The mmu_shrink() is heavy by itself by iterating all kvms and holding
-the kvm_lock. spotted the code w/ Rik during LSF, and it turns out we
-don't need to call the shrinker if nothing to shrink.
+Em Fri, Apr 13, 2012 at 03:27:55PM +0900, Masami Hiramatsu escreveu:
+> (2012/04/13 0:10), Srikar Dronamraju wrote:
+> >>  $ perf probe libc malloc
+> >>
+> >> 	Makes it even easier to use.
+> >>
+> >> 	Its just when one asks for something that has ambiguities that
+> >> the tool should ask the user to be a bit more precise to remove such
+> >> ambiguity.
+> >>
+> >> 	After all...
 
-Signed-off-by: Ying Han <yinghan@google.com>
----
- arch/x86/kvm/mmu.c |   10 +++++++++-
- 1 files changed, 9 insertions(+), 1 deletions(-)
+> > Another case 
+> > perf probe do_fork clone_flags now looks for variable clone_flags in
+> > kernel function do_fork.
 
-diff --git a/arch/x86/kvm/mmu.c b/arch/x86/kvm/mmu.c
-index 4cb1642..7025736 100644
---- a/arch/x86/kvm/mmu.c
-+++ b/arch/x86/kvm/mmu.c
-@@ -188,6 +188,11 @@ static u64 __read_mostly shadow_mmio_mask;
- 
- static void mmu_spte_set(u64 *sptep, u64 spte);
- 
-+static inline int get_kvm_total_used_mmu_pages()
-+{
-+	return percpu_counter_read_positive(&kvm_total_used_mmu_pages);
-+}
-+
- void kvm_mmu_set_mmio_spte_mask(u64 mmio_mask)
- {
- 	shadow_mmio_mask = mmio_mask;
-@@ -3900,6 +3905,9 @@ static int mmu_shrink(struct shrinker *shrink, struct shrink_control *sc)
- 	if (nr_to_scan == 0)
- 		goto out;
- 
-+	if (!get_kvm_total_used_mmu_pages())
-+		return 0;
-+
- 	raw_spin_lock(&kvm_lock);
- 
- 	list_for_each_entry(kvm, &vm_list, vm_list) {
-@@ -3926,7 +3934,7 @@ static int mmu_shrink(struct shrinker *shrink, struct shrink_control *sc)
- 	raw_spin_unlock(&kvm_lock);
- 
- out:
--	return percpu_counter_read_positive(&kvm_total_used_mmu_pages);
-+	return get_kvm_total_used_mmu_pages();
- }
- 
- static struct shrinker mmu_shrinker = {
--- 
-1.7.7.3
+> > But if we allow to trace perf probe zsh zfree; then 
+> > 'perf probe do_fork clone_flags' should it check for do_fork executable
+> > or not? If it does check and finds one, and searches for clone_flags
+> > function and doesnt find, then should it continue with searching the
+> > kernel?
+
+> Agree. I'd like to suggest you to start with only full path support,
+> and see, how we can handle abbreviations :)
+
+Agreed, I was just making usability suggestions.
+
+Those can be implemented later, if we agree they ease the tool use.
+
+- Arnaldo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
