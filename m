@@ -1,52 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx138.postini.com [74.125.245.138])
-	by kanga.kvack.org (Postfix) with SMTP id 6C48D6B004A
-	for <linux-mm@kvack.org>; Sat, 14 Apr 2012 08:15:29 -0400 (EDT)
-Message-ID: <1334405716.2528.88.camel@twins>
-Subject: Re: [Lsf] [RFC] writeback and cgroup
-From: Peter Zijlstra <peterz@infradead.org>
-Date: Sat, 14 Apr 2012 14:15:16 +0200
-In-Reply-To: <CAH2r5mvP56D0y4mk5wKrJcj+=OZ0e0Q5No_L+9a8a=GMcEhRew@mail.gmail.com>
-References: <20120403183655.GA23106@dhcp-172-17-108-109.mtv.corp.google.com>
-	 <20120404145134.GC12676@redhat.com>
-	 <20120404184909.GB29686@dhcp-172-17-108-109.mtv.corp.google.com>
-	 <CAH2r5mvP56D0y4mk5wKrJcj+=OZ0e0Q5No_L+9a8a=GMcEhRew@mail.gmail.com>
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: quoted-printable
-Mime-Version: 1.0
+Received: from psmtp.com (na3sys010amx134.postini.com [74.125.245.134])
+	by kanga.kvack.org (Postfix) with SMTP id D05046B0083
+	for <linux-mm@kvack.org>; Sat, 14 Apr 2012 08:19:34 -0400 (EDT)
+Received: by vbbey12 with SMTP id ey12so3698151vbb.14
+        for <linux-mm@kvack.org>; Sat, 14 Apr 2012 05:19:33 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <1334181407-26064-1-git-send-email-yinghan@google.com>
+References: <1334181407-26064-1-git-send-email-yinghan@google.com>
+Date: Sat, 14 Apr 2012 20:19:33 +0800
+Message-ID: <CAJd=RBCpq5cj1_K3Q8z4-G75WiAkZ0P66_ib5TBObopbes789g@mail.gmail.com>
+Subject: Re: [PATCH V2 0/5] memcg softlimit reclaim rework
+From: Hillf Danton <dhillf@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Steve French <smfrench@gmail.com>
-Cc: Tejun Heo <tj@kernel.org>, ctalbott@google.com, rni@google.com, andrea@betterlinux.com, containers@lists.linux-foundation.org, linux-kernel@vger.kernel.org, lsf@lists.linux-foundation.org, linux-mm@kvack.org, jmoyer@redhat.com, lizefan@huawei.com, linux-fsdevel@vger.kernel.org, cgroups@vger.kernel.org
+To: Ying Han <yinghan@google.com>
+Cc: Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mel@csn.ul.ie>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Dan Magenheimer <dan.magenheimer@oracle.com>, linux-mm@kvack.org
 
-On Wed, 2012-04-04 at 14:23 -0500, Steve French wrote:
-> Current use of bdi is a little hard to understand since
-> there are 25+ fields in the structure. =20
+On Thu, Apr 12, 2012 at 5:56 AM, Ying Han <yinghan@google.com> wrote:
+> The "soft_limit" was introduced in memcg to support over-committing the
+> memory resource on the host. Each cgroup configures its "hard_limit" where
+> it will be throttled or OOM killed by going over the limit. However, the
+> cgroup can go above the "soft_limit" as long as there is no system-wide
+> memory contention. So, the "soft_limit" is the kernel mechanism for
+> re-distributng system spare memory among cgroups.
+>
+s/re-distributng/re-distributing/
 
-Filesystems only need a small fraction of those.
+> This patch reworks the softlimit reclaim by hooking it into the new global
+> reclaim scheme. So the global reclaim path including direct reclaim and
+> background reclaim will respect the memcg softlimit.
+>
+> Note:
+> 1. the new implementation of softlimit reclaim is rather simple and first
+> step for further optimizations. there is no memory pressure balancing between
+> memcgs for each zone, and that is something we would like to add as follow-ups.
+>
+> 2. this patch is slightly different from the last one posted from Johannes,
+>
+For those who want to see posts by Johannes, add links please.
 
-In particular,
-
-  backing_dev_info::name	-- string
-  backing_dev_info::ra_pages	-- number of read-ahead-pages
-  backing_dev_info::capability	-- see BDI_CAP_*
- =20
-One should properly initialize/destroy the thing using:
-
-  bdi_init()/bdi_destroy()
-
-
-Furthermore, it has hooks into the regular page-writeback stuff:
-
-  test_{set,clear}_page_writeback()/bdi_writeout_inc()
-  set_page_dirty()/account_page_dirtied()
- =20
-but also allows filesystems to do custom stuff, see FUSE for example.
-
-The only other bit is the pressure valve, aka.
-{set,clear}_bdi_congested(). Which really is rather broken and of
-dubious value.
-
+> where his patch is closer to the reverted implementation by doing hierarchical
+> reclaim for each selected memcg. However, that is not expected behavior from
+> user perspective. Considering the following example:
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
