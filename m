@@ -1,125 +1,117 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx167.postini.com [74.125.245.167])
-	by kanga.kvack.org (Postfix) with SMTP id 1EAFD6B004A
-	for <linux-mm@kvack.org>; Sun, 15 Apr 2012 02:29:28 -0400 (EDT)
-Received: by wibhn6 with SMTP id hn6so3645057wib.8
-        for <linux-mm@kvack.org>; Sat, 14 Apr 2012 23:29:26 -0700 (PDT)
-Date: Sun, 15 Apr 2012 08:29:20 +0200
-From: Ingo Molnar <mingo@kernel.org>
-Subject: Re: [tip:perf/uprobes] uprobes/core: Decrement uprobe count before
- the pages are unmapped
-Message-ID: <20120415062920.GB29563@gmail.com>
-References: <20120411103527.23245.9835.sendpatchset@srdronam.in.ibm.com>
- <tip-cbc91f71b51b8335f1fc7ccfca8011f31a717367@git.kernel.org>
+Received: from psmtp.com (na3sys010amx199.postini.com [74.125.245.199])
+	by kanga.kvack.org (Postfix) with SMTP id 87BDC6B004A
+	for <linux-mm@kvack.org>; Sun, 15 Apr 2012 05:47:07 -0400 (EDT)
+Message-ID: <1334483226.20721.YahooMailNeo@web162003.mail.bf1.yahoo.com>
+Date: Sun, 15 Apr 2012 02:47:06 -0700 (PDT)
+From: PINTU KUMAR <pintu_agarwal@yahoo.com>
+Reply-To: PINTU KUMAR <pintu_agarwal@yahoo.com>
+Subject: [NEW]: Introducing shrink_all_memory from user space
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <tip-cbc91f71b51b8335f1fc7ccfca8011f31a717367@git.kernel.org>
+Content-Type: text/plain; charset=iso-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: torvalds@linux-foundation.org, peterz@infradead.org, anton@redhat.com, rostedt@goodmis.org, jkenisto@linux.vnet.ibm.com, tglx@linutronix.de, oleg@redhat.com, linux-mm@kvack.org, hpa@zytor.com, linux-kernel@vger.kernel.org, andi@firstfloor.org, hch@infradead.org, ananth@in.ibm.com, masami.hiramatsu.pt@hitachi.com, acme@infradead.org, srikar@linux.vnet.ibm.com
-Cc: linux-tip-commits@vger.kernel.org
+To: "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "pintu.k@samsung.com" <pintu.k@samsung.com>
 
-
-* tip-bot for Srikar Dronamraju <srikar@linux.vnet.ibm.com> wrote:
-
-> Commit-ID:  cbc91f71b51b8335f1fc7ccfca8011f31a717367
-> Gitweb:     http://git.kernel.org/tip/cbc91f71b51b8335f1fc7ccfca8011f31a717367
-> Author:     Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-> AuthorDate: Wed, 11 Apr 2012 16:05:27 +0530
-> Committer:  Ingo Molnar <mingo@kernel.org>
-> CommitDate: Sat, 14 Apr 2012 13:25:48 +0200
-> 
-> uprobes/core: Decrement uprobe count before the pages are unmapped
-> 
-> Uprobes has a callback (uprobe_munmap()) in the unmap path to
-> maintain the uprobes count.
-> 
-> In the exit path this callback gets called in unlink_file_vma().
-> However by the time unlink_file_vma() is called, the pages would
-> have been unmapped (in unmap_vmas()) and the task->rss_stat counts
-> accounted (in zap_pte_range()).
-> 
-> If the exiting process has probepoints, uprobe_munmap() checks if
-> the breakpoint instruction was around before decrementing the probe
-> count.
-> 
-> This results in a file backed page being reread by uprobe_munmap()
-> and hence it does not find the breakpoint.
-> 
-> This patch fixes this problem by moving the callback to
-> unmap_single_vma(). Since unmap_single_vma() may not unmap the
-> complete vma, add start and end parameters to uprobe_munmap().
-> 
-> This bug became apparent courtesy of commit c3f0327f8e9d
-> ("mm: add rss counters consistency check").
-
-Srikar, as a side note, please try to write more readable 
-changelogs.
-
-The original version, before I edited it, was:
-
-> Uprobes has a hook(uprobe_munmap) in unmap path to keep the 
-> uprobes count sane. In the exit path this hook gets called in 
-> unlink_file_vma. However by the time unlink_file_vma is 
-> called, the pages would have been unmapped (unmap_vmas) and 
-> the rss_stat counts accounted (zap_pte_range). If the exiting 
-> process has probepoints, uprobe_munmap checks if the 
-> breakpoint instruction was around before decrementing the 
-> probe count.
->
-> This results in a filebacked page being reread by 
-> uprobe_munmap and hence it does not find the breakpoint.
->
-> This patch fixes this problem by moving the hook to 
-> unmap_single_vma. Since unmap_single_vma may not unmap the 
-> complete vma, add start and end parameters to uprobe_munmap. 
-> This bug became apparent courtesy commit c3f0327f8e9d7.
-
-I changed these details:
-
- - We use func() instead of func when talking about functions in 
-   changelogs, to make them stand apart from types, variables, 
-   and regular words better. Especially in your changelog it was 
-   warranted, because you mention more than half a dozen of 
-   function names.
-
- - A similar detail is 'rss_stat' - it's better to refer to
-   'struct task_rss_stat' or task->rss_stat, so that the reader 
-   has some context to place this structure into - and can
-   distinguish data from function names.
-
- - We don't maintain the uprobes count to make it 'sane' - it's
-   either correctly maintained or not. Readers of your changelog 
-   have no idea what 'sane' means in that context.
-
- - We reference upstream commits not via their commit ID alone, 
-   but by mentioning their title: which is in fact the more
-   important piece of information in a *human* readable
-   changelog. I.e. not:
-
-     commit c3f0327f8e9d7
-
-   but:
-
-     commit c3f0327f8e9d ("mm: add rss counters consistency check").
-
- - In all prior uprobes commits I had to correct your
-   usage of 'hooks' to 'callbacks' - which is how we 
-   traditionally refer to callback functions in the mm/.
-
- - Small details like there's no such thing as 'filebacked' -
-   it's "file backed". The phrase "became apparent courtesy 
-   commit" has a serious shortage of prepositions, etc.
-
-Fixing it all adds up for the maintainer. You should generally 
-strive for making your changelog readable to any kernel hacker - 
-not just to those intimately familiar with the code you are 
-working on.
-
-Thanks,
-
-	Ingo
+Dear All,=0A=0AThis is regarding a small proposal for shrink_all_memory( ) =
+function which is found in mm/vmscan.c.=0AFor those who are not aware, this=
+ function helps in reclaiming specified amount of physical memory and retur=
+ns number of freed pages.=0A=0ACurrently this function is under CONFIG_HIBE=
+RNATION flag, so cannot be used by others without enabling hibernation.=0AM=
+oreover this function is not exported to the outside world, so no driver ca=
+n use it directly without including EXPORT_SYMBOL(shrink_all_memory) and re=
+compiling the kernel.=0AThe purpose of using it under hibernation(kernel/po=
+wer/snapshot.c) is to regain enough physical pages to create hibernation im=
+age.=0A=0AThe same can be useful for some drivers who wants to allocate lar=
+ge contiguous memory (in MBs) but his/her system is in very bad state and c=
+ould not do so without rebooting.=0ADue to this bad state of the system the=
+ user space application will be badly hurt on performance, and there could =
+be a need to quickly reclaim all physical memory from user space.=0AThis co=
+uld be very helpful for small embedded products and smart phones where rebo=
+oting is never a preferred choice.=0A=0AWith this support in kernel, a smal=
+l utility can be developed in user space which user can run and reclaim as =
+many physical pages and noticed that his system performance is increased wi=
+thout rebooting.=0A=0ATo make this work, I have performed a sample experime=
+nt on my ubuntu(10.x) machine running with kernel-3.3.0. =0A=0AAlso I perfo=
+rmed the similar experiment of one of our Samsung smart phones as well.=0A=
+=0AFollowing are the results from Ubuntu:=0A=0A1) I downloaded kernel3.3.0 =
+and made the respective changes in mm/vmscan.c. That is added EXPORT_SYMBOL=
+(shrink_all_memory) under the function shrink_all_memory( ).=0A=A0=A0=A0 (N=
+ote: CONFIG_HIBERNATION was already enabled for my system.)=0A=0A2) Then I =
+build the kernel and installed it on my Ubuntu PC.=0A=0A3) After that I hav=
+e developed a small kernel module (miscdevice: /dev/shrinkmem) to call shri=
+nk_all_memory( ) under my driver write( ) function.=0A=0A4) Then from user =
+space I just need to do this: =0A=0A=A0=A0=A0 # echo 100 > /dev/shrinkmem=
+=A0=A0 (To reclaim 100MB of physical memory without reboot)=0A=0A=0AThe res=
+ults that were obtained with this experiment is as follows:=0A=0A1) At some=
+ point of time, the buddyinfo and free pages on my Ubuntu were as follows:=
+=0Aroot@pintu-ubuntu:~/PintuHomeTest/KERNEL_ORG# cat /proc/buddyinfo ; free=
+ -tmNode 0, zone=A0=A0=A0=A0=A0 DMA=A0=A0=A0 468=A0=A0=A0=A0 23=A0=A0=A0=A0=
+=A0 0=A0=A0=A0=A0=A0 0=A0=A0=A0=A0=A0 0=A0=A0=A0=A0=A0 0=A0=A0=A0=A0=A0 0=
+=A0=A0=A0=A0=A0 0=A0=A0=A0=A0=A0 0=A0=A0=A0=A0=A0 0=A0=A0=A0=A0=A0 0=0ANode=
+ 0, zone=A0=A0 Normal=A0=A0=A0 898=A0=A0=A0 161=A0=A0=A0=A0 38=A0=A0=A0=A0=
+=A0 8=A0=A0=A0=A0=A0 0=A0=A0=A0=A0=A0 0=A0=A0=A0=A0=A0 0=A0=A0=A0=A0=A0 0=
+=A0=A0=A0=A0=A0 0=A0=A0=A0=A0=A0 0=A0=A0=A0=A0=A0 0=0A=A0=A0=A0=A0=A0=A0=A0=
+=A0=A0=A0=A0=A0 =A0=A0=A0 total=A0=A0=A0=A0=A0=A0 used=A0=A0=A0=A0=A0=A0 fr=
+ee=A0=A0=A0=A0 shared=A0=A0=A0 buffers=A0=A0=A0=A0 cached=0AMem:=A0=A0=A0=
+=A0=A0=A0=A0=A0=A0=A0 497=A0=A0=A0=A0=A0=A0=A0 489=A0=A0=A0=A0=A0=A0=A0=A0=
+=A0 7=A0=A0=A0=A0=A0=A0=A0=A0=A0 0=A0=A0=A0=A0=A0=A0=A0=A0 37=A0=A0=A0=A0=
+=A0=A0=A0 405=0A-/+ buffers/cache:=A0=A0=A0=A0=A0=A0=A0=A0 47=A0=A0=A0=A0=
+=A0=A0=A0 449=0ASwap:=A0=A0=A0=A0=A0=A0=A0=A0 1458=A0=A0=A0=A0=A0=A0=A0 158=
+=A0=A0=A0=A0=A0=A0 1300=0ATotal:=A0=A0=A0=A0=A0=A0=A0 1956=A0=A0=A0=A0=A0=
+=A0=A0 648=A0=A0=A0=A0=A0=A0 1308=0A=0A=0A2) After doing "echo 100 > /dev/s=
+hrinkmem" :=0A[19653.833916] [SHRINKMEM]: memsize(in MB) =3D 100=0A[19653.8=
+63618] <SHRINKMEM>: Number of Pages Freed: 26756=0A[19653.863664] [SHRINKME=
+M] : Device is Closed....=0A=0ANode 0, zone=A0=A0=A0=A0=A0 DMA=A0=A0=A0 411=
+=A0=A0=A0 166=A0=A0=A0=A0 51=A0=A0=A0=A0=A0 5=A0=A0=A0=A0=A0 0=A0=A0=A0=A0=
+=A0 0=A0=A0=A0=A0=A0 0=A0=A0=A0=A0=A0 0=A0=A0=A0=A0=A0 0=A0=A0=A0=A0=A0 0=
+=A0=A0=A0=A0=A0 0=0ANode 0, zone=A0=A0 Normal=A0=A0 2915=A0=A0 3792=A0=A0 2=
+475=A0=A0 1335=A0=A0=A0 730=A0=A0=A0=A0 23=A0=A0=A0=A0=A0 0=A0=A0=A0=A0=A0 =
+0=A0=A0=A0=A0=A0 0=A0=A0=A0=A0=A0 0=A0=A0=A0=A0=A0 0=0A=A0=A0=A0=A0=A0=A0=
+=A0=A0=A0=A0=A0=A0 =A0=A0=A0 total=A0=A0=A0=A0=A0=A0 used=A0=A0=A0=A0=A0=A0=
+ free=A0=A0=A0=A0 shared=A0=A0=A0 buffers=A0=A0=A0=A0 cached=0AMem:=A0=A0=
+=A0=A0=A0=A0=A0=A0=A0=A0 497=A0=A0=A0=A0=A0=A0=A0 323=A0=A0=A0=A0=A0=A0=A0 =
+173=A0=A0=A0=A0=A0=A0=A0=A0=A0 0=A0=A0=A0=A0=A0=A0=A0=A0 37=A0=A0=A0=A0=A0=
+=A0=A0 238=0A-/+ buffers/cache:=A0=A0=A0=A0=A0=A0=A0=A0 47=A0=A0=A0=A0=A0=
+=A0=A0 449=0ASwap:=A0=A0=A0=A0=A0=A0=A0=A0 1458=A0=A0=A0=A0=A0=A0=A0 158=A0=
+=A0=A0=A0=A0=A0 1300=0ATotal:=A0=A0=A0=A0=A0=A0=A0 1956=A0=A0=A0=A0=A0=A0=
+=A0 481=A0=A0=A0=A0=A0=A0 1474=0A=0A=0A3) After running again with : echo 5=
+12 > /dev/shrinkmem=0A[21961.064534] [SHRINKMEM]: memsize(in MB) =3D 512=0A=
+[21961.109497] <SHRINKMEM>: Number of Pages Freed: 61078=0A[21961.109562] [=
+SHRINKMEM] : Device is Closed....=0ANode 0, zone=A0=A0=A0=A0=A0 DMA=A0=A0=
+=A0 116=A0=A0=A0=A0 99=A0=A0=A0=A0 87=A0=A0=A0=A0 58=A0=A0=A0=A0 16=A0=A0=
+=A0=A0=A0 6=A0=A0=A0=A0=A0 1=A0=A0=A0=A0=A0 0=A0=A0=A0=A0=A0 0=A0=A0=A0=A0=
+=A0 0=A0=A0=A0=A0=A0 0=0ANode 0, zone=A0=A0 Normal=A0=A0 6697=A0=A0 6939=A0=
+=A0 5529=A0=A0 3756=A0=A0 1442=A0=A0=A0 203=A0=A0=A0=A0 17=A0=A0=A0=A0=A0 0=
+=A0=A0=A0=A0=A0 0=A0=A0=A0=A0=A0 0=A0=A0=A0=A0=A0 0=0A=A0=A0=A0=A0=A0=A0=A0=
+=A0=A0=A0=A0=A0 =A0=A0=A0 total=A0=A0=A0=A0=A0=A0 used=A0=A0=A0=A0=A0=A0 fr=
+ee=A0=A0=A0=A0 shared=A0=A0=A0 buffers=A0=A0=A0=A0 cached=0AMem:=A0=A0=A0=
+=A0=A0=A0=A0=A0=A0=A0 497=A0=A0=A0=A0=A0=A0=A0=A0 87=A0=A0=A0=A0=A0=A0=A0 4=
+10=A0=A0=A0=A0=A0=A0=A0=A0=A0 0=A0=A0=A0=A0=A0=A0=A0=A0 37=A0=A0=A0=A0=A0=
+=A0=A0=A0=A0 9=0A-/+ buffers/cache:=A0=A0=A0=A0=A0=A0=A0=A0 40=A0=A0=A0=A0=
+=A0=A0=A0 456=0ASwap:=A0=A0=A0=A0=A0=A0=A0=A0 1458=A0=A0=A0=A0=A0=A0=A0 158=
+=A0=A0=A0=A0=A0=A0 1300=0ATotal:=A0=A0=A0=A0=A0=A0=A0 1956=A0=A0=A0=A0=A0=
+=A0=A0 245=A0=A0=A0=A0=A0=A0 1711=0A=0A=0A4) Thus in both the cases huge nu=
+mber of free pages were reclaimed. =0A=0A5) After running this on my system=
+, the performance was improved quickly.=0A=0A6) I performed the same experi=
+ment on our Samsung Smart phones as well. And I have seen a drastic improve=
+ in performance after running this for 3/4 times.=0A=A0=A0=A0 In case of ph=
+ones it is more helpful as there is no swap space.=0A=0A7) Your feedback an=
+d suggestion is important. Based on the feedback, I can plan to submit the =
+patches officially after performing basic cleanups.=0A=0A=0AFuture Work=0A=
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=0AOur final goal is to use it during lowmem =
+notifier where shrink_all_memory will be called automatically in background=
+ if the memory pressure falls below certain limit defined by the system.=0A=
+For example we can measure the percentage memory fragmentation level of the=
+ system across each zone and if the fragmentation percentage goes above say=
+ 80-85% during lowmem notifier, we can invoke shrink_all_memory() in backgr=
+ound.=0A=0AThis can be used by some application which requires large mmap o=
+r shared memory mapping.=0A=0AThis can be even using inside the multimedia =
+drivers that requires large contiguous memory to check if that many memory =
+pages can be reclaimed or not.=0A=0A=0APlease provide your valuable feedbac=
+k and suggestion.=0A=0A=0AThank you very much !=0A=0A=0AWith Regards,=0APin=
+tu Kumar
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
