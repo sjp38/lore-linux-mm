@@ -1,58 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx162.postini.com [74.125.245.162])
-	by kanga.kvack.org (Postfix) with SMTP id 8BEEF6B004A
-	for <linux-mm@kvack.org>; Sat, 14 Apr 2012 16:52:54 -0400 (EDT)
-Date: Sat, 14 Apr 2012 22:52:00 +0200
-From: Oleg Nesterov <oleg@redhat.com>
-Subject: Re: [RFC 0/6] uprobes: kill uprobes_srcu/uprobe_srcu_id
-Message-ID: <20120414205200.GA9083@redhat.com>
-References: <20120405222024.GA19154@redhat.com> <1334409396.2528.100.camel@twins>
+Received: from psmtp.com (na3sys010amx171.postini.com [74.125.245.171])
+	by kanga.kvack.org (Postfix) with SMTP id F30206B004A
+	for <linux-mm@kvack.org>; Sat, 14 Apr 2012 21:57:38 -0400 (EDT)
+Received: by vcbfk14 with SMTP id fk14so3993444vcb.14
+        for <linux-mm@kvack.org>; Sat, 14 Apr 2012 18:57:38 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1334409396.2528.100.camel@twins>
+In-Reply-To: <1334181627-26942-1-git-send-email-yinghan@google.com>
+References: <1334181627-26942-1-git-send-email-yinghan@google.com>
+Date: Sun, 15 Apr 2012 09:57:37 +0800
+Message-ID: <CAJd=RBAr4tiCb2i94XNz9YkuzVZPCj8B=1LQTOmBF3tKkRtSJQ@mail.gmail.com>
+Subject: Re: [PATCH V2 5/5] memcg: change the target nr_to_reclaim for each
+ memcg under kswapd
+From: Hillf Danton <dhillf@gmail.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: Ingo Molnar <mingo@elte.hu>, Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, LKML <linux-kernel@vger.kernel.org>, Linux-mm <linux-mm@kvack.org>, Andi Kleen <andi@firstfloor.org>, Christoph Hellwig <hch@infradead.org>, Steven Rostedt <rostedt@goodmis.org>, Arnaldo Carvalho de Melo <acme@infradead.org>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Thomas Gleixner <tglx@linutronix.de>, Anton Arapov <anton@redhat.com>
+To: Ying Han <yinghan@google.com>
+Cc: Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mel@csn.ul.ie>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Dan Magenheimer <dan.magenheimer@oracle.com>, linux-mm@kvack.org
 
-On 04/14, Peter Zijlstra wrote:
+On Thu, Apr 12, 2012 at 6:00 AM, Ying Han <yinghan@google.com> wrote:
+> Under global background reclaim, the sc->nr_to_reclaim is set to
+> ULONG_MAX. Now we are iterating all memcgs under the zone and we
+> shouldn't pass the pressure from kswapd for each memcg.
 >
-> On Fri, 2012-04-06 at 00:20 +0200, Oleg Nesterov wrote:
-> > Hello.
-> >
-> > Not for inclusion yet, only for the early review.
-> >
-> > I didn't even try to test these changes, and I am not expert
-> > in this area. And even _if_ this code is correct, I need to
-> > re-split these changes anyway, update the changelogs, etc.
-> >
-> > Questions:
-> >
-> > 	- does it make sense?
+> After all, the balance_pgdat() breaks after reclaiming SWAP_CLUSTER_MAX
+> pages to prevent building up reclaim priorities.
 >
-> Maybe, upside is reclaiming that int from task_struct, downside is that
-> down_write :/ It would be very good not to have to do that.
-
-Yes, down_write() is pessimization, I agree.
-
-> Nor do I
-> really see how that works.
+> Signed-off-by: Ying Han <yinghan@google.com>
+> ---
+> =C2=A0mm/vmscan.c | =C2=A0 12 ++++++++++--
+> =C2=A01 files changed, 10 insertions(+), 2 deletions(-)
 >
-> > 	- can it work or I missed something "in general" ?
+> diff --git a/mm/vmscan.c b/mm/vmscan.c
+> index d65eae4..ca70ec6 100644
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -2083,9 +2083,18 @@ static void shrink_mem_cgroup_zone(int priority, s=
+truct mem_cgroup_zone *mz,
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0unsigned long nr_to_scan;
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0enum lru_list lru;
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0unsigned long nr_reclaimed, nr_scanned;
+> - =C2=A0 =C2=A0 =C2=A0 unsigned long nr_to_reclaim =3D sc->nr_to_reclaim;
+> + =C2=A0 =C2=A0 =C2=A0 unsigned long nr_to_reclaim;
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0struct blk_plug plug;
 >
-> So we insert in the rb-tree before we take mmap_sem, this means we can
-> hit a non-uprobe int3 and still find a uprobe there, no?
+> + =C2=A0 =C2=A0 =C2=A0 /*
+> + =C2=A0 =C2=A0 =C2=A0 =C2=A0* Under global background reclaim, the sc->n=
+r_to_reclaim is set to
+> + =C2=A0 =C2=A0 =C2=A0 =C2=A0* ULONG_MAX. Now we are iterating all memcgs=
+ under the zone and we
+> + =C2=A0 =C2=A0 =C2=A0 =C2=A0* shouldn't pass the pressure from kswapd fo=
+r each memcg. After all,
+> + =C2=A0 =C2=A0 =C2=A0 =C2=A0* the balance_pgdat() breaks after reclaimin=
+g SWAP_CLUSTER_MAX pages
+> + =C2=A0 =C2=A0 =C2=A0 =C2=A0* to prevent building up reclaim priorities.
+> + =C2=A0 =C2=A0 =C2=A0 =C2=A0*/
+> + =C2=A0 =C2=A0 =C2=A0 nr_to_reclaim =3D min_t(unsigned long,
+> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
+=C2=A0 =C2=A0 =C2=A0 =C2=A0 sc->nr_to_reclaim, SWAP_CLUSTER_MAX);
+> =C2=A0restart:
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0nr_reclaimed =3D 0;
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0nr_scanned =3D sc->nr_scanned;
+>
+Since priority is one of the factors used in computing scan count, we could
+change how to select a memcg for reclaim,
 
-Yes, but unless I miss something this is "off-topic", this
-can happen with or without these changes. If find_uprobe()
-succeeds we assume that this bp was inserted by uprobe.
+	return target_mem_cgroup ||
+		mem_cgroup_soft_limit_exceeded(memcg) ||
+		priority !=3D DEF_PRIORITY;
 
-Perhaps uprobe_register() should not "ignore" -EXIST from
-install_breakpoint()->is_swbp_insn(), or perhaps we can
-add UPROBE_SHARED_BP.
+where detection of all mem groups under softlimit happens at DEF_PRIORITY-1=
+.
 
-Oleg.
+Then selected mem groups are reclaimed in the current manner without change
+in nr_to_reclaim, and sc->nr_reclaimed is distributed evenly among mem grou=
+ps,
+no matter softlimt is exceeded or not.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
