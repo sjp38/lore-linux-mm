@@ -1,82 +1,125 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx171.postini.com [74.125.245.171])
-	by kanga.kvack.org (Postfix) with SMTP id F30206B004A
-	for <linux-mm@kvack.org>; Sat, 14 Apr 2012 21:57:38 -0400 (EDT)
-Received: by vcbfk14 with SMTP id fk14so3993444vcb.14
-        for <linux-mm@kvack.org>; Sat, 14 Apr 2012 18:57:38 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx167.postini.com [74.125.245.167])
+	by kanga.kvack.org (Postfix) with SMTP id 1EAFD6B004A
+	for <linux-mm@kvack.org>; Sun, 15 Apr 2012 02:29:28 -0400 (EDT)
+Received: by wibhn6 with SMTP id hn6so3645057wib.8
+        for <linux-mm@kvack.org>; Sat, 14 Apr 2012 23:29:26 -0700 (PDT)
+Date: Sun, 15 Apr 2012 08:29:20 +0200
+From: Ingo Molnar <mingo@kernel.org>
+Subject: Re: [tip:perf/uprobes] uprobes/core: Decrement uprobe count before
+ the pages are unmapped
+Message-ID: <20120415062920.GB29563@gmail.com>
+References: <20120411103527.23245.9835.sendpatchset@srdronam.in.ibm.com>
+ <tip-cbc91f71b51b8335f1fc7ccfca8011f31a717367@git.kernel.org>
 MIME-Version: 1.0
-In-Reply-To: <1334181627-26942-1-git-send-email-yinghan@google.com>
-References: <1334181627-26942-1-git-send-email-yinghan@google.com>
-Date: Sun, 15 Apr 2012 09:57:37 +0800
-Message-ID: <CAJd=RBAr4tiCb2i94XNz9YkuzVZPCj8B=1LQTOmBF3tKkRtSJQ@mail.gmail.com>
-Subject: Re: [PATCH V2 5/5] memcg: change the target nr_to_reclaim for each
- memcg under kswapd
-From: Hillf Danton <dhillf@gmail.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <tip-cbc91f71b51b8335f1fc7ccfca8011f31a717367@git.kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ying Han <yinghan@google.com>
-Cc: Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mel@csn.ul.ie>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Dan Magenheimer <dan.magenheimer@oracle.com>, linux-mm@kvack.org
+To: torvalds@linux-foundation.org, peterz@infradead.org, anton@redhat.com, rostedt@goodmis.org, jkenisto@linux.vnet.ibm.com, tglx@linutronix.de, oleg@redhat.com, linux-mm@kvack.org, hpa@zytor.com, linux-kernel@vger.kernel.org, andi@firstfloor.org, hch@infradead.org, ananth@in.ibm.com, masami.hiramatsu.pt@hitachi.com, acme@infradead.org, srikar@linux.vnet.ibm.com
+Cc: linux-tip-commits@vger.kernel.org
 
-On Thu, Apr 12, 2012 at 6:00 AM, Ying Han <yinghan@google.com> wrote:
-> Under global background reclaim, the sc->nr_to_reclaim is set to
-> ULONG_MAX. Now we are iterating all memcgs under the zone and we
-> shouldn't pass the pressure from kswapd for each memcg.
->
-> After all, the balance_pgdat() breaks after reclaiming SWAP_CLUSTER_MAX
-> pages to prevent building up reclaim priorities.
->
-> Signed-off-by: Ying Han <yinghan@google.com>
-> ---
-> =C2=A0mm/vmscan.c | =C2=A0 12 ++++++++++--
-> =C2=A01 files changed, 10 insertions(+), 2 deletions(-)
->
-> diff --git a/mm/vmscan.c b/mm/vmscan.c
-> index d65eae4..ca70ec6 100644
-> --- a/mm/vmscan.c
-> +++ b/mm/vmscan.c
-> @@ -2083,9 +2083,18 @@ static void shrink_mem_cgroup_zone(int priority, s=
-truct mem_cgroup_zone *mz,
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0unsigned long nr_to_scan;
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0enum lru_list lru;
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0unsigned long nr_reclaimed, nr_scanned;
-> - =C2=A0 =C2=A0 =C2=A0 unsigned long nr_to_reclaim =3D sc->nr_to_reclaim;
-> + =C2=A0 =C2=A0 =C2=A0 unsigned long nr_to_reclaim;
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0struct blk_plug plug;
->
-> + =C2=A0 =C2=A0 =C2=A0 /*
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0* Under global background reclaim, the sc->n=
-r_to_reclaim is set to
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0* ULONG_MAX. Now we are iterating all memcgs=
- under the zone and we
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0* shouldn't pass the pressure from kswapd fo=
-r each memcg. After all,
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0* the balance_pgdat() breaks after reclaimin=
-g SWAP_CLUSTER_MAX pages
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0* to prevent building up reclaim priorities.
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0*/
-> + =C2=A0 =C2=A0 =C2=A0 nr_to_reclaim =3D min_t(unsigned long,
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-=C2=A0 =C2=A0 =C2=A0 =C2=A0 sc->nr_to_reclaim, SWAP_CLUSTER_MAX);
-> =C2=A0restart:
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0nr_reclaimed =3D 0;
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0nr_scanned =3D sc->nr_scanned;
->
-Since priority is one of the factors used in computing scan count, we could
-change how to select a memcg for reclaim,
 
-	return target_mem_cgroup ||
-		mem_cgroup_soft_limit_exceeded(memcg) ||
-		priority !=3D DEF_PRIORITY;
+* tip-bot for Srikar Dronamraju <srikar@linux.vnet.ibm.com> wrote:
 
-where detection of all mem groups under softlimit happens at DEF_PRIORITY-1=
-.
+> Commit-ID:  cbc91f71b51b8335f1fc7ccfca8011f31a717367
+> Gitweb:     http://git.kernel.org/tip/cbc91f71b51b8335f1fc7ccfca8011f31a717367
+> Author:     Srikar Dronamraju <srikar@linux.vnet.ibm.com>
+> AuthorDate: Wed, 11 Apr 2012 16:05:27 +0530
+> Committer:  Ingo Molnar <mingo@kernel.org>
+> CommitDate: Sat, 14 Apr 2012 13:25:48 +0200
+> 
+> uprobes/core: Decrement uprobe count before the pages are unmapped
+> 
+> Uprobes has a callback (uprobe_munmap()) in the unmap path to
+> maintain the uprobes count.
+> 
+> In the exit path this callback gets called in unlink_file_vma().
+> However by the time unlink_file_vma() is called, the pages would
+> have been unmapped (in unmap_vmas()) and the task->rss_stat counts
+> accounted (in zap_pte_range()).
+> 
+> If the exiting process has probepoints, uprobe_munmap() checks if
+> the breakpoint instruction was around before decrementing the probe
+> count.
+> 
+> This results in a file backed page being reread by uprobe_munmap()
+> and hence it does not find the breakpoint.
+> 
+> This patch fixes this problem by moving the callback to
+> unmap_single_vma(). Since unmap_single_vma() may not unmap the
+> complete vma, add start and end parameters to uprobe_munmap().
+> 
+> This bug became apparent courtesy of commit c3f0327f8e9d
+> ("mm: add rss counters consistency check").
 
-Then selected mem groups are reclaimed in the current manner without change
-in nr_to_reclaim, and sc->nr_reclaimed is distributed evenly among mem grou=
-ps,
-no matter softlimt is exceeded or not.
+Srikar, as a side note, please try to write more readable 
+changelogs.
+
+The original version, before I edited it, was:
+
+> Uprobes has a hook(uprobe_munmap) in unmap path to keep the 
+> uprobes count sane. In the exit path this hook gets called in 
+> unlink_file_vma. However by the time unlink_file_vma is 
+> called, the pages would have been unmapped (unmap_vmas) and 
+> the rss_stat counts accounted (zap_pte_range). If the exiting 
+> process has probepoints, uprobe_munmap checks if the 
+> breakpoint instruction was around before decrementing the 
+> probe count.
+>
+> This results in a filebacked page being reread by 
+> uprobe_munmap and hence it does not find the breakpoint.
+>
+> This patch fixes this problem by moving the hook to 
+> unmap_single_vma. Since unmap_single_vma may not unmap the 
+> complete vma, add start and end parameters to uprobe_munmap. 
+> This bug became apparent courtesy commit c3f0327f8e9d7.
+
+I changed these details:
+
+ - We use func() instead of func when talking about functions in 
+   changelogs, to make them stand apart from types, variables, 
+   and regular words better. Especially in your changelog it was 
+   warranted, because you mention more than half a dozen of 
+   function names.
+
+ - A similar detail is 'rss_stat' - it's better to refer to
+   'struct task_rss_stat' or task->rss_stat, so that the reader 
+   has some context to place this structure into - and can
+   distinguish data from function names.
+
+ - We don't maintain the uprobes count to make it 'sane' - it's
+   either correctly maintained or not. Readers of your changelog 
+   have no idea what 'sane' means in that context.
+
+ - We reference upstream commits not via their commit ID alone, 
+   but by mentioning their title: which is in fact the more
+   important piece of information in a *human* readable
+   changelog. I.e. not:
+
+     commit c3f0327f8e9d7
+
+   but:
+
+     commit c3f0327f8e9d ("mm: add rss counters consistency check").
+
+ - In all prior uprobes commits I had to correct your
+   usage of 'hooks' to 'callbacks' - which is how we 
+   traditionally refer to callback functions in the mm/.
+
+ - Small details like there's no such thing as 'filebacked' -
+   it's "file backed". The phrase "became apparent courtesy 
+   commit" has a serious shortage of prepositions, etc.
+
+Fixing it all adds up for the maintainer. You should generally 
+strive for making your changelog readable to any kernel hacker - 
+not just to those intimately familiar with the code you are 
+working on.
+
+Thanks,
+
+	Ingo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
