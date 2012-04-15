@@ -1,38 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx154.postini.com [74.125.245.154])
-	by kanga.kvack.org (Postfix) with SMTP id 4FAF56B004A
-	for <linux-mm@kvack.org>; Sun, 15 Apr 2012 07:47:10 -0400 (EDT)
-References: <1334483226.20721.YahooMailNeo@web162003.mail.bf1.yahoo.com> <CAFLxGvwJCMoiXFn3OgwiX+B50FTzGZmo6eG3xQ1KaPsEVZVA1g@mail.gmail.com>
-Message-ID: <1334490429.67558.YahooMailNeo@web162006.mail.bf1.yahoo.com>
-Date: Sun, 15 Apr 2012 04:47:09 -0700 (PDT)
-From: PINTU KUMAR <pintu_agarwal@yahoo.com>
-Reply-To: PINTU KUMAR <pintu_agarwal@yahoo.com>
-Subject: Re: [NEW]: Introducing shrink_all_memory from user space
-In-Reply-To: <CAFLxGvwJCMoiXFn3OgwiX+B50FTzGZmo6eG3xQ1KaPsEVZVA1g@mail.gmail.com>
+Received: from psmtp.com (na3sys010amx135.postini.com [74.125.245.135])
+	by kanga.kvack.org (Postfix) with SMTP id AE1EF6B004A
+	for <linux-mm@kvack.org>; Sun, 15 Apr 2012 08:10:02 -0400 (EDT)
+Received: by lbbgp10 with SMTP id gp10so1034952lbb.14
+        for <linux-mm@kvack.org>; Sun, 15 Apr 2012 05:10:00 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: quoted-printable
+In-Reply-To: <1334490429.67558.YahooMailNeo@web162006.mail.bf1.yahoo.com>
+References: <1334483226.20721.YahooMailNeo@web162003.mail.bf1.yahoo.com>
+	<CAFLxGvwJCMoiXFn3OgwiX+B50FTzGZmo6eG3xQ1KaPsEVZVA1g@mail.gmail.com>
+	<1334490429.67558.YahooMailNeo@web162006.mail.bf1.yahoo.com>
+Date: Sun, 15 Apr 2012 14:10:00 +0200
+Message-ID: <CAFLxGvz5tmEi-39CZbJN+0zNd3ZpHXzZcNSFUpUWS_aMDJ4t6Q@mail.gmail.com>
+Subject: Re: [NEW]: Introducing shrink_all_memory from user space
+From: richard -rw- weinberger <richard.weinberger@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: richard -rw- weinberger <richard.weinberger@gmail.com>
+To: PINTU KUMAR <pintu_agarwal@yahoo.com>
 Cc: "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "pintu.k@samsung.com" <pintu.k@samsung.com>
 
-=0A=0A> =0A> This is fundamentally flawed.=0A> You're assuming that only on=
-e program will use this interface.=0A> Linux is a multi/user-tasking system=
-=0A=0ADear Richard, Thank you for your comments.=0AI am sorry but this is m=
-eant only for *root* user.=0AThat is only root user can do this: "echo 512 =
-> /dev/shrinkmem"=0AIf other user try to write in it: it says permission de=
-nied as follows:=0Apintu@pintu-ubuntu:~$ echo 512 > /dev/shrinkmem=0A-bash:=
- /dev/shrinkmem: Permission denied=0A=0AMoreover, this is mainly meant for =
-mobile phones where there is only *one* user.=0A=0A> =0A> If we expose it t=
-o user space *every* program/user will try too free=0A> memory such that it=
-=0A> can use more.=0A> Can you see the problem?=0A> =0AAs indicated above, =
-every program/user cannot use it, as it requires root privileges.=0AOk, you=
- mean to say, every driver can call "shrink_all_memory" simultaneously??=0A=
-Well, we can implement locking for that.=0AAnyways, I wrote a simple script=
- to do this (echo 512 > /dev/shrinkmem) in a loop for 20 times from 2 diffe=
-rent terminal (as root) and it works.=0AI cannot see any problem.=0ACan you=
- elaborate more please?=0A=0A=0AThanks,=0APintu
+On Sun, Apr 15, 2012 at 1:47 PM, PINTU KUMAR <pintu_agarwal@yahoo.com> wrote:
+> Moreover, this is mainly meant for mobile phones where there is only *one* user.
+
+I see. Jet another awful hack.
+Mobile phones are nothing special. They are computers.
+
+>>
+>> If we expose it to user space *every* program/user will try too free
+>> memory such that it
+>> can use more.
+>> Can you see the problem?
+>>
+> As indicated above, every program/user cannot use it, as it requires root privileges.
+> Ok, you mean to say, every driver can call "shrink_all_memory" simultaneously??
+> Well, we can implement locking for that.
+> Anyways, I wrote a simple script to do this (echo 512 > /dev/shrinkmem) in a loop for 20 times from 2 different terminal (as root) and it works.
+> I cannot see any problem.
+
+Every program which is allowed to use this interface will (ab)use it.
+Anyway, by exposing this interface to user space (or kernel modules)
+you'll confuse the VM system.
+
+-- 
+Thanks,
+//richard
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
