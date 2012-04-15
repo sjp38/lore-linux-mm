@@ -1,61 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx182.postini.com [74.125.245.182])
-	by kanga.kvack.org (Postfix) with SMTP id CD53C6B004D
-	for <linux-mm@kvack.org>; Sun, 15 Apr 2012 15:54:43 -0400 (EDT)
-Date: Sun, 15 Apr 2012 21:53:51 +0200
-From: Oleg Nesterov <oleg@redhat.com>
-Subject: Re: [RFC 0/6] uprobes: kill uprobes_srcu/uprobe_srcu_id
-Message-ID: <20120415195351.GA22095@redhat.com>
-References: <20120405222024.GA19154@redhat.com> <1334409396.2528.100.camel@twins> <20120414205200.GA9083@redhat.com> <1334487062.2528.113.camel@twins>
+Received: from psmtp.com (na3sys010amx153.postini.com [74.125.245.153])
+	by kanga.kvack.org (Postfix) with SMTP id D9F636B004D
+	for <linux-mm@kvack.org>; Sun, 15 Apr 2012 17:12:23 -0400 (EDT)
 MIME-Version: 1.0
+Message-ID: <681c22d4-96fb-4e15-9029-cd90956399de@default>
+Date: Sun, 15 Apr 2012 14:12:10 -0700 (PDT)
+From: Dan Magenheimer <dan.magenheimer@oracle.com>
+Subject: mm code for allowing reclaim of page previously swapped but now
+ clean-in-memory?
 Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1334487062.2528.113.camel@twins>
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: Ingo Molnar <mingo@elte.hu>, Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, LKML <linux-kernel@vger.kernel.org>, Linux-mm <linux-mm@kvack.org>, Andi Kleen <andi@firstfloor.org>, Christoph Hellwig <hch@infradead.org>, Steven Rostedt <rostedt@goodmis.org>, Arnaldo Carvalho de Melo <acme@infradead.org>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Thomas Gleixner <tglx@linutronix.de>, Anton Arapov <anton@redhat.com>
+To: linux-mm <linux-mm@kvack.org>
+Cc: Andrea Arcangeli <aarcange@redhat.com>, Konrad Wilk <konrad.wilk@oracle.com>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Nitin Gupta <ngupta@vflare.org>, riel@redhat.com
 
-On 04/15, Peter Zijlstra wrote:
->
-> On Sat, 2012-04-14 at 22:52 +0200, Oleg Nesterov wrote:
-> > > >     - can it work or I missed something "in general" ?
-> > >
-> > > So we insert in the rb-tree before we take mmap_sem, this means we can
-> > > hit a non-uprobe int3 and still find a uprobe there, no?
-> >
-> > Yes, but unless I miss something this is "off-topic", this
-> > can happen with or without these changes. If find_uprobe()
-> > succeeds we assume that this bp was inserted by uprobe.
->
-> OK, but then I completely missed what the point of that
-> down_write() stuff is..
+I'm looking for mm code/heuristics/flags where the following occurs:
 
-To ensure handle_swbp() can't race with unregister + register
-and send the wrong SIGTRAP.
+This (anonymous) page was:
+- previously swapped to a swap device
+- then later read back in from the swap device
 
-handle_swbp() roughly does under down_read(mmap_sem)
+Now memory pressure has resulted in a need to reclaim memory so:
+- this page is discovered to still be clean, i.e. it
+   matches the page still on the swap device, so
+- the pageframe is thus an obvious candidate for reclaim
 
+I'd be grateful for any pointers/education...  For example,
+is such a page always in the swapcache?  Is it also in the
+page cache?  Is it always INactive since it was read but never
+written?  What flags are set/unset?  What function or code
+snippet identifies such a page and does this code need
+to be protected by the swaplock or pagelock or ???
+(Sorry if any of these are stupid questions...)
 
-	if (find_uprobe(vaddr))
-		process_uprobe();
-	else
-	if (is_swbp_at_addr_fast(vaddr))	// non-uprobe int3
-		send_sig(SIGTRAP);
-	else
-		restart_insn(vaddr);		// raced with unregister
+Purpose: I'm looking into zcache (and future KVM/memcg tmem backend)
+changes to exploit a "writethrough" and/or "lazy writeback" cacheing
+model for pages put into zcache via frontswap, as discussed with Andrea
+and one or two others at LSF12/MM.  Either model provides more
+flexibility for zcache to more effectively manage persistent pages.
 
-
-note that is_swbp_at_addr_fast() is used (currently) to detect
-the race with upbrobe_unregister() and that is why we can remove
-uprobes_srcu.
-
-But if find_uprobe() fails, there is a window before
-is_swbp_at_addr_fast() reads the memory. Suppose that the next
-uprobe_register() inserts the new uprobe at the same address.
-In this case the task will be wrongly killed.
-
-Oleg.
+Thanks!
+Dan
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
