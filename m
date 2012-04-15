@@ -1,49 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx135.postini.com [74.125.245.135])
-	by kanga.kvack.org (Postfix) with SMTP id AE1EF6B004A
-	for <linux-mm@kvack.org>; Sun, 15 Apr 2012 08:10:02 -0400 (EDT)
-Received: by lbbgp10 with SMTP id gp10so1034952lbb.14
-        for <linux-mm@kvack.org>; Sun, 15 Apr 2012 05:10:00 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx182.postini.com [74.125.245.182])
+	by kanga.kvack.org (Postfix) with SMTP id CD53C6B004D
+	for <linux-mm@kvack.org>; Sun, 15 Apr 2012 15:54:43 -0400 (EDT)
+Date: Sun, 15 Apr 2012 21:53:51 +0200
+From: Oleg Nesterov <oleg@redhat.com>
+Subject: Re: [RFC 0/6] uprobes: kill uprobes_srcu/uprobe_srcu_id
+Message-ID: <20120415195351.GA22095@redhat.com>
+References: <20120405222024.GA19154@redhat.com> <1334409396.2528.100.camel@twins> <20120414205200.GA9083@redhat.com> <1334487062.2528.113.camel@twins>
 MIME-Version: 1.0
-In-Reply-To: <1334490429.67558.YahooMailNeo@web162006.mail.bf1.yahoo.com>
-References: <1334483226.20721.YahooMailNeo@web162003.mail.bf1.yahoo.com>
-	<CAFLxGvwJCMoiXFn3OgwiX+B50FTzGZmo6eG3xQ1KaPsEVZVA1g@mail.gmail.com>
-	<1334490429.67558.YahooMailNeo@web162006.mail.bf1.yahoo.com>
-Date: Sun, 15 Apr 2012 14:10:00 +0200
-Message-ID: <CAFLxGvz5tmEi-39CZbJN+0zNd3ZpHXzZcNSFUpUWS_aMDJ4t6Q@mail.gmail.com>
-Subject: Re: [NEW]: Introducing shrink_all_memory from user space
-From: richard -rw- weinberger <richard.weinberger@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1334487062.2528.113.camel@twins>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: PINTU KUMAR <pintu_agarwal@yahoo.com>
-Cc: "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "pintu.k@samsung.com" <pintu.k@samsung.com>
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: Ingo Molnar <mingo@elte.hu>, Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, LKML <linux-kernel@vger.kernel.org>, Linux-mm <linux-mm@kvack.org>, Andi Kleen <andi@firstfloor.org>, Christoph Hellwig <hch@infradead.org>, Steven Rostedt <rostedt@goodmis.org>, Arnaldo Carvalho de Melo <acme@infradead.org>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Thomas Gleixner <tglx@linutronix.de>, Anton Arapov <anton@redhat.com>
 
-On Sun, Apr 15, 2012 at 1:47 PM, PINTU KUMAR <pintu_agarwal@yahoo.com> wrote:
-> Moreover, this is mainly meant for mobile phones where there is only *one* user.
+On 04/15, Peter Zijlstra wrote:
+>
+> On Sat, 2012-04-14 at 22:52 +0200, Oleg Nesterov wrote:
+> > > >     - can it work or I missed something "in general" ?
+> > >
+> > > So we insert in the rb-tree before we take mmap_sem, this means we can
+> > > hit a non-uprobe int3 and still find a uprobe there, no?
+> >
+> > Yes, but unless I miss something this is "off-topic", this
+> > can happen with or without these changes. If find_uprobe()
+> > succeeds we assume that this bp was inserted by uprobe.
+>
+> OK, but then I completely missed what the point of that
+> down_write() stuff is..
 
-I see. Jet another awful hack.
-Mobile phones are nothing special. They are computers.
+To ensure handle_swbp() can't race with unregister + register
+and send the wrong SIGTRAP.
 
->>
->> If we expose it to user space *every* program/user will try too free
->> memory such that it
->> can use more.
->> Can you see the problem?
->>
-> As indicated above, every program/user cannot use it, as it requires root privileges.
-> Ok, you mean to say, every driver can call "shrink_all_memory" simultaneously??
-> Well, we can implement locking for that.
-> Anyways, I wrote a simple script to do this (echo 512 > /dev/shrinkmem) in a loop for 20 times from 2 different terminal (as root) and it works.
-> I cannot see any problem.
+handle_swbp() roughly does under down_read(mmap_sem)
 
-Every program which is allowed to use this interface will (ab)use it.
-Anyway, by exposing this interface to user space (or kernel modules)
-you'll confuse the VM system.
 
--- 
-Thanks,
-//richard
+	if (find_uprobe(vaddr))
+		process_uprobe();
+	else
+	if (is_swbp_at_addr_fast(vaddr))	// non-uprobe int3
+		send_sig(SIGTRAP);
+	else
+		restart_insn(vaddr);		// raced with unregister
+
+
+note that is_swbp_at_addr_fast() is used (currently) to detect
+the race with upbrobe_unregister() and that is why we can remove
+uprobes_srcu.
+
+But if find_uprobe() fails, there is a window before
+is_swbp_at_addr_fast() reads the memory. Suppose that the next
+uprobe_register() inserts the new uprobe at the same address.
+In this case the task will be wrongly killed.
+
+Oleg.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
