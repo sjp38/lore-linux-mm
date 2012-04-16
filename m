@@ -1,62 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx170.postini.com [74.125.245.170])
-	by kanga.kvack.org (Postfix) with SMTP id EB1B46B00FD
-	for <linux-mm@kvack.org>; Mon, 16 Apr 2012 09:12:38 -0400 (EDT)
-Date: Mon, 16 Apr 2012 21:07:07 +0800
-From: Fengguang Wu <fengguang.wu@intel.com>
-Subject: Re: [Lsf] [RFC] writeback and cgroup
-Message-ID: <20120416130707.GA10532@localhost>
-References: <20120403183655.GA23106@dhcp-172-17-108-109.mtv.corp.google.com>
- <20120404145134.GC12676@redhat.com>
- <20120407080027.GA2584@quack.suse.cz>
- <20120410180653.GJ21801@redhat.com>
- <20120410210505.GE4936@quack.suse.cz>
- <20120410212041.GP21801@redhat.com>
- <20120410222425.GF4936@quack.suse.cz>
- <20120411154005.GD16692@redhat.com>
- <1334406314.2528.90.camel@twins>
- <20120416125432.GB12776@redhat.com>
+Received: from psmtp.com (na3sys010amx161.postini.com [74.125.245.161])
+	by kanga.kvack.org (Postfix) with SMTP id 104616B00EC
+	for <linux-mm@kvack.org>; Mon, 16 Apr 2012 09:44:30 -0400 (EDT)
+Date: Mon, 16 Apr 2012 14:44:22 +0100
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [PATCH 08/11] nfs: disable data cache revalidation for swapfiles
+Message-ID: <20120416134422.GC2359@suse.de>
+References: <1334578675-23445-1-git-send-email-mgorman@suse.de>
+ <1334578675-23445-9-git-send-email-mgorman@suse.de>
+ <CADnza444dTr=JEtqpL5wxHRNkEc7vBz1qq9TL7Z+5h749vNawg@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <20120416125432.GB12776@redhat.com>
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <CADnza444dTr=JEtqpL5wxHRNkEc7vBz1qq9TL7Z+5h749vNawg@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vivek Goyal <vgoyal@redhat.com>
-Cc: Peter Zijlstra <peterz@infradead.org>, ctalbott@google.com, rni@google.com, andrea@betterlinux.com, containers@lists.linux-foundation.org, linux-kernel@vger.kernel.org, lsf@lists.linux-foundation.org, linux-mm@kvack.org, jmoyer@redhat.com, lizefan@huawei.com, linux-fsdevel@vger.kernel.org, cgroups@vger.kernel.org
+To: Fred Isaman <iisaman@netapp.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, Linux-Netdev <netdev@vger.kernel.org>, Linux-NFS <linux-nfs@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, David Miller <davem@davemloft.net>, Trond Myklebust <Trond.Myklebust@netapp.com>, Neil Brown <neilb@suse.de>, Christoph Hellwig <hch@infradead.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Mike Christie <michaelc@cs.wisc.edu>, Eric B Munson <emunson@mgebm.net>
 
-On Mon, Apr 16, 2012 at 08:54:32AM -0400, Vivek Goyal wrote:
-> On Sat, Apr 14, 2012 at 02:25:14PM +0200, Peter Zijlstra wrote:
-> > On Wed, 2012-04-11 at 11:40 -0400, Vivek Goyal wrote:
-> > > 
-> > > Ok, that's good to know. How would we configure this special bdi? I am
-> > > assuming there is no backing device visible in /sys/block/<device>/queue/?
-> > > Same is true for network file systems. 
-> > 
-> > root@twins:/usr/src/linux-2.6# awk '/nfs/ {print $3}' /proc/self/mountinfo | while read bdi ; do ls -la /sys/class/bdi/${bdi}/ ; done
-> > ls: cannot access /sys/class/bdi/0:20/: No such file or directory
-> > total 0
-> > drwxr-xr-x  3 root root    0 2012-03-27 23:18 .
-> > drwxr-xr-x 35 root root    0 2012-03-27 23:02 ..
-> > -rw-r--r--  1 root root 4096 2012-04-14 14:22 max_ratio
-> > -rw-r--r--  1 root root 4096 2012-04-14 14:22 min_ratio
-> > drwxr-xr-x  2 root root    0 2012-04-14 14:22 power
-> > -rw-r--r--  1 root root 4096 2012-04-14 14:22 read_ahead_kb
-> > lrwxrwxrwx  1 root root    0 2012-03-27 23:18 subsystem -> ../../../../class/bdi
-> > -rw-r--r--  1 root root 4096 2012-03-27 23:18 uevent
+On Mon, Apr 16, 2012 at 09:10:04AM -0400, Fred Isaman wrote:
+> > <SNIP>
+> > -static struct nfs_page *nfs_page_find_request_locked(struct page *page)
+> > +static struct nfs_page *
+> > +nfs_page_find_request_locked(struct nfs_inode *nfsi, struct page *page)
+> >  {
+> >        struct nfs_page *req = NULL;
+> >
+> > -       if (PagePrivate(page)) {
+> > +       if (PagePrivate(page))
+> >                req = (struct nfs_page *)page_private(page);
+> > -               if (req != NULL)
+> > -                       kref_get(&req->wb_kref);
+> > +       else if (unlikely(PageSwapCache(page))) {
+> > +               struct nfs_page *freq, *t;
+> > +
+> > +               /* Linearly search the commit list for the correct req */
+> > +               list_for_each_entry_safe(freq, t, &nfsi->commit_list, wb_list) {
+> > +                       if (freq->wb_page == page) {
+> > +                               req = freq;
+> > +                               break;
+> > +                       }
+> > +               }
+> > +
+> > +               BUG_ON(req == NULL);
 > 
-> Ok, got it. So /proc/self/mountinfo has the information about st_dev and
-> one can use that to reach to associated bdi. Thanks Peter.
+> I suspect I am missing something, but why is it guaranteed that the
+> req is on the commit list?
+> 
 
-Vivek, I noticed these lines in cfq code
+It's a fair question and a statement about what I expected to happen.
+The commit list replaces the nfs_page_tree radix tree that used to exist
+and my understanding was that the req would exist in the radix tree until
+the swap IO was completed. I expected it to be the same for the commit
+list and the BUG_ON was based on that expectation. Are there cases where
+the req would not be found?
 
-                sscanf(dev_name(bdi->dev), "%u:%u", &major, &minor);
+Thanks.
 
-Why not use bdi->dev->devt?  The problem is that dev_name() will
-return "btrfs-X" for btrfs rather than "major:minor".
-
-Thanks,
-Fengguang
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
