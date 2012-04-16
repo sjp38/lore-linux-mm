@@ -1,21 +1,21 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx144.postini.com [74.125.245.144])
-	by kanga.kvack.org (Postfix) with SMTP id 50FE86B0044
+Received: from psmtp.com (na3sys010amx176.postini.com [74.125.245.176])
+	by kanga.kvack.org (Postfix) with SMTP id 081C06B0083
 	for <linux-mm@kvack.org>; Mon, 16 Apr 2012 06:45:11 -0400 (EDT)
 Received: from /spool/local
-	by e28smtp02.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e28smtp03.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
-	Mon, 16 Apr 2012 16:15:04 +0530
+	Mon, 16 Apr 2012 16:15:05 +0530
 Received: from d28av02.in.ibm.com (d28av02.in.ibm.com [9.184.220.64])
-	by d28relay03.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q3GAj6DH4415714
-	for <linux-mm@kvack.org>; Mon, 16 Apr 2012 16:15:06 +0530
+	by d28relay05.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q3GAj5Mo4386988
+	for <linux-mm@kvack.org>; Mon, 16 Apr 2012 16:15:05 +0530
 Received: from d28av02.in.ibm.com (loopback [127.0.0.1])
-	by d28av02.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q3GGFfFb001071
-	for <linux-mm@kvack.org>; Tue, 17 Apr 2012 02:15:43 +1000
+	by d28av02.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q3GGFeOD001050
+	for <linux-mm@kvack.org>; Tue, 17 Apr 2012 02:15:41 +1000
 From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Subject: [PATCH -V6 04/14] hugetlb: Use mmu_gather instead of a temporary linked list for accumulating pages
-Date: Mon, 16 Apr 2012 16:14:41 +0530
-Message-Id: <1334573091-18602-5-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+Subject: [PATCH -V6 03/14] hugetlbfs: Add an inline helper for finding hstate index
+Date: Mon, 16 Apr 2012 16:14:40 +0530
+Message-Id: <1334573091-18602-4-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
 In-Reply-To: <1334573091-18602-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
 References: <1334573091-18602-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
@@ -25,189 +25,98 @@ Cc: linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, "Aneesh Kumar K.V" <a
 
 From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
 
-Use mmu_gather instead of temporary linked list for accumulating pages when
-we unmap a hugepage range. This also allows us to get rid of i_mmap_mutex
-unmap_hugepage_range in the following patch.
+Add an inline helper and use it in the code.
 
+Acked-by: Michal Hocko <mhocko@suse.cz>
 Reviewed-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
 ---
- fs/hugetlbfs/inode.c    |    4 ++--
- include/linux/hugetlb.h |    6 ++---
- mm/hugetlb.c            |   59 ++++++++++++++++++++++++++++-------------------
- mm/memory.c             |    7 ++++--
- 4 files changed, 45 insertions(+), 31 deletions(-)
+ include/linux/hugetlb.h |    6 ++++++
+ mm/hugetlb.c            |   18 ++++++++++--------
+ 2 files changed, 16 insertions(+), 8 deletions(-)
 
-diff --git a/fs/hugetlbfs/inode.c b/fs/hugetlbfs/inode.c
-index ea25174..92f75aa 100644
---- a/fs/hugetlbfs/inode.c
-+++ b/fs/hugetlbfs/inode.c
-@@ -416,8 +416,8 @@ hugetlb_vmtruncate_list(struct prio_tree_root *root, pgoff_t pgoff)
- 		else
- 			v_offset = 0;
- 
--		__unmap_hugepage_range(vma,
--				vma->vm_start + v_offset, vma->vm_end, NULL);
-+		unmap_hugepage_range(vma, vma->vm_start + v_offset,
-+				     vma->vm_end, NULL);
- 	}
- }
- 
 diff --git a/include/linux/hugetlb.h b/include/linux/hugetlb.h
-index 876457e..46c6cbd 100644
+index 000837e..876457e 100644
 --- a/include/linux/hugetlb.h
 +++ b/include/linux/hugetlb.h
-@@ -40,9 +40,9 @@ int follow_hugetlb_page(struct mm_struct *, struct vm_area_struct *,
- 			struct page **, struct vm_area_struct **,
- 			unsigned long *, int *, int, unsigned int flags);
- void unmap_hugepage_range(struct vm_area_struct *,
--			unsigned long, unsigned long, struct page *);
--void __unmap_hugepage_range(struct vm_area_struct *,
--			unsigned long, unsigned long, struct page *);
-+			  unsigned long, unsigned long, struct page *);
-+void __unmap_hugepage_range(struct mmu_gather *tlb, struct vm_area_struct *,
-+			    unsigned long, unsigned long, struct page *);
- int hugetlb_prefault(struct address_space *, struct vm_area_struct *);
- void hugetlb_report_meminfo(struct seq_file *);
- int hugetlb_report_node_meminfo(int, char *);
+@@ -294,6 +294,11 @@ static inline unsigned hstate_index_to_shift(unsigned index)
+ 	return hstates[index].order + PAGE_SHIFT;
+ }
+ 
++static inline int hstate_index(struct hstate *h)
++{
++	return h - hstates;
++}
++
+ #else
+ struct hstate {};
+ #define alloc_huge_page_node(h, nid) NULL
+@@ -312,6 +317,7 @@ static inline unsigned int pages_per_huge_page(struct hstate *h)
+ 	return 1;
+ }
+ #define hstate_index_to_shift(index) 0
++#define hstate_index(h) 0
+ #endif
+ 
+ #endif /* _LINUX_HUGETLB_H */
 diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-index d94c987..a3ac624 100644
+index 5a472a5..d94c987 100644
 --- a/mm/hugetlb.c
 +++ b/mm/hugetlb.c
-@@ -24,8 +24,9 @@
- 
- #include <asm/page.h>
- #include <asm/pgtable.h>
--#include <linux/io.h>
-+#include <asm/tlb.h>
- 
-+#include <linux/io.h>
- #include <linux/hugetlb.h>
- #include <linux/node.h>
- #include "internal.h"
-@@ -2300,30 +2301,26 @@ static int is_hugetlb_entry_hwpoisoned(pte_t pte)
- 		return 0;
- }
- 
--void __unmap_hugepage_range(struct vm_area_struct *vma, unsigned long start,
--			    unsigned long end, struct page *ref_page)
-+void __unmap_hugepage_range(struct mmu_gather *tlb, struct vm_area_struct *vma,
-+			    unsigned long start, unsigned long end,
-+			    struct page *ref_page)
+@@ -1646,7 +1646,7 @@ static int hugetlb_sysfs_add_hstate(struct hstate *h, struct kobject *parent,
+ 				    struct attribute_group *hstate_attr_group)
  {
-+	int force_flush = 0;
- 	struct mm_struct *mm = vma->vm_mm;
- 	unsigned long address;
- 	pte_t *ptep;
- 	pte_t pte;
- 	struct page *page;
--	struct page *tmp;
- 	struct hstate *h = hstate_vma(vma);
- 	unsigned long sz = huge_page_size(h);
+ 	int retval;
+-	int hi = h - hstates;
++	int hi = hstate_index(h);
  
--	/*
--	 * A page gathering list, protected by per file i_mmap_mutex. The
--	 * lock is used to avoid list corruption from multiple unmapping
--	 * of the same page since we are using page->lru.
--	 */
--	LIST_HEAD(page_list);
--
- 	WARN_ON(!is_vm_hugetlb_page(vma));
- 	BUG_ON(start & ~huge_page_mask(h));
- 	BUG_ON(end & ~huge_page_mask(h));
+ 	hstate_kobjs[hi] = kobject_create_and_add(h->name, parent);
+ 	if (!hstate_kobjs[hi])
+@@ -1741,11 +1741,13 @@ void hugetlb_unregister_node(struct node *node)
+ 	if (!nhs->hugepages_kobj)
+ 		return;		/* no hstate attributes */
  
-+	tlb_start_vma(tlb, vma);
- 	mmu_notifier_invalidate_range_start(mm, start, end);
-+again:
- 	spin_lock(&mm->page_table_lock);
- 	for (address = start; address < end; address += sz) {
- 		ptep = huge_pte_offset(mm, address);
-@@ -2362,30 +2359,45 @@ void __unmap_hugepage_range(struct vm_area_struct *vma, unsigned long start,
+-	for_each_hstate(h)
+-		if (nhs->hstate_kobjs[h - hstates]) {
+-			kobject_put(nhs->hstate_kobjs[h - hstates]);
+-			nhs->hstate_kobjs[h - hstates] = NULL;
++	for_each_hstate(h) {
++		int idx = hstate_index(h);
++		if (nhs->hstate_kobjs[idx]) {
++			kobject_put(nhs->hstate_kobjs[idx]);
++			nhs->hstate_kobjs[idx] = NULL;
  		}
++	}
  
- 		pte = huge_ptep_get_and_clear(mm, address, ptep);
-+		tlb_remove_tlb_entry(tlb, ptep, address);
- 		if (pte_dirty(pte))
- 			set_page_dirty(page);
--		list_add(&page->lru, &page_list);
+ 	kobject_put(nhs->hugepages_kobj);
+ 	nhs->hugepages_kobj = NULL;
+@@ -1848,7 +1850,7 @@ static void __exit hugetlb_exit(void)
+ 	hugetlb_unregister_all_nodes();
  
-+		page_remove_rmap(page);
-+		force_flush = !__tlb_remove_page(tlb, page);
-+		if (force_flush)
-+			break;
- 		/* Bail out after unmapping reference page if supplied */
- 		if (ref_page)
- 			break;
+ 	for_each_hstate(h) {
+-		kobject_put(hstate_kobjs[h - hstates]);
++		kobject_put(hstate_kobjs[hstate_index(h)]);
  	}
--	flush_tlb_range(vma, start, end);
- 	spin_unlock(&mm->page_table_lock);
--	mmu_notifier_invalidate_range_end(mm, start, end);
--	list_for_each_entry_safe(page, tmp, &page_list, lru) {
--		page_remove_rmap(page);
--		list_del(&page->lru);
--		put_page(page);
-+	/*
-+	 * mmu_gather ran out of room to batch pages, we break out of
-+	 * the PTE lock to avoid doing the potential expensive TLB invalidate
-+	 * and page-free while holding it.
-+	 */
-+	if (force_flush) {
-+		force_flush = 0;
-+		tlb_flush_mmu(tlb);
-+		if (address < end && !ref_page)
-+			goto again;
- 	}
-+	mmu_notifier_invalidate_range_end(mm, start, end);
-+	tlb_end_vma(tlb, vma);
- }
  
- void unmap_hugepage_range(struct vm_area_struct *vma, unsigned long start,
- 			  unsigned long end, struct page *ref_page)
- {
--	mutex_lock(&vma->vm_file->f_mapping->i_mmap_mutex);
--	__unmap_hugepage_range(vma, start, end, ref_page);
--	mutex_unlock(&vma->vm_file->f_mapping->i_mmap_mutex);
-+	struct mm_struct *mm;
-+	struct mmu_gather tlb;
-+
-+	mm = vma->vm_mm;
-+
-+	tlb_gather_mmu(&tlb, mm, 0);
-+	__unmap_hugepage_range(&tlb, vma, start, end, ref_page);
-+	tlb_finish_mmu(&tlb, start, end);
- }
- 
- /*
-@@ -2430,9 +2442,8 @@ static int unmap_ref_private(struct mm_struct *mm, struct vm_area_struct *vma,
- 		 * from the time of fork. This would look like data corruption
+ 	kobject_put(hugepages_kobj);
+@@ -2678,7 +2680,7 @@ retry:
  		 */
- 		if (!is_vma_resv_set(iter_vma, HPAGE_RESV_OWNER))
--			__unmap_hugepage_range(iter_vma,
--				address, address + huge_page_size(h),
--				page);
-+			unmap_hugepage_range(iter_vma, address,
-+					     address + huge_page_size(h), page);
+ 		if (unlikely(PageHWPoison(page))) {
+ 			ret = VM_FAULT_HWPOISON |
+-			      VM_FAULT_SET_HINDEX(h - hstates);
++				VM_FAULT_SET_HINDEX(hstate_index(h));
+ 			goto backout_unlocked;
+ 		}
  	}
- 	mutex_unlock(&mapping->i_mmap_mutex);
+@@ -2751,7 +2753,7 @@ int hugetlb_fault(struct mm_struct *mm, struct vm_area_struct *vma,
+ 			return 0;
+ 		} else if (unlikely(is_hugetlb_entry_hwpoisoned(entry)))
+ 			return VM_FAULT_HWPOISON_LARGE |
+-			       VM_FAULT_SET_HINDEX(h - hstates);
++				VM_FAULT_SET_HINDEX(hstate_index(h));
+ 	}
  
-diff --git a/mm/memory.c b/mm/memory.c
-index 6105f47..4b11961 100644
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -1326,8 +1326,11 @@ static void unmap_single_vma(struct mmu_gather *tlb,
- 			 * Since no pte has actually been setup, it is
- 			 * safe to do nothing in this case.
- 			 */
--			if (vma->vm_file)
--				unmap_hugepage_range(vma, start, end, NULL);
-+			if (vma->vm_file) {
-+				mutex_lock(&vma->vm_file->f_mapping->i_mmap_mutex);
-+				__unmap_hugepage_range(tlb, vma, start, end, NULL);
-+				mutex_unlock(&vma->vm_file->f_mapping->i_mmap_mutex);
-+			}
- 		} else
- 			unmap_page_range(tlb, vma, start, end, details);
- 	}
+ 	ptep = huge_pte_alloc(mm, address, huge_page_size(h));
 -- 
 1.7.10
 
