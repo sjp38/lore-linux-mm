@@ -1,66 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx161.postini.com [74.125.245.161])
-	by kanga.kvack.org (Postfix) with SMTP id 104616B00EC
-	for <linux-mm@kvack.org>; Mon, 16 Apr 2012 09:44:30 -0400 (EDT)
-Date: Mon, 16 Apr 2012 14:44:22 +0100
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH 08/11] nfs: disable data cache revalidation for swapfiles
-Message-ID: <20120416134422.GC2359@suse.de>
-References: <1334578675-23445-1-git-send-email-mgorman@suse.de>
- <1334578675-23445-9-git-send-email-mgorman@suse.de>
- <CADnza444dTr=JEtqpL5wxHRNkEc7vBz1qq9TL7Z+5h749vNawg@mail.gmail.com>
+Received: from psmtp.com (na3sys010amx147.postini.com [74.125.245.147])
+	by kanga.kvack.org (Postfix) with SMTP id 4FA306B00EC
+	for <linux-mm@kvack.org>; Mon, 16 Apr 2012 09:56:00 -0400 (EDT)
+Date: Mon, 16 Apr 2012 08:55:57 -0500 (CDT)
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: how to avoid allocating or freeze MOVABLE memory in userspace
+In-Reply-To: <CAN1soZyQuiYU_1f0G0eDqF-9WwzjgSgmr3QBh8cpkF+r1r7HrA@mail.gmail.com>
+Message-ID: <alpine.DEB.2.00.1204160853530.7726@router.home>
+References: <CAN1soZzEuhQQYf7fNqOeMYT3Z-8VMix+1ihD77Bjtf+Do3x3DA@mail.gmail.com> <alpine.DEB.2.00.1204131326170.15905@router.home> <CAN1soZyQuiYU_1f0G0eDqF-9WwzjgSgmr3QBh8cpkF+r1r7HrA@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <CADnza444dTr=JEtqpL5wxHRNkEc7vBz1qq9TL7Z+5h749vNawg@mail.gmail.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Fred Isaman <iisaman@netapp.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, Linux-Netdev <netdev@vger.kernel.org>, Linux-NFS <linux-nfs@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, David Miller <davem@davemloft.net>, Trond Myklebust <Trond.Myklebust@netapp.com>, Neil Brown <neilb@suse.de>, Christoph Hellwig <hch@infradead.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Mike Christie <michaelc@cs.wisc.edu>, Eric B Munson <emunson@mgebm.net>
+To: Haojian Zhuang <haojian.zhuang@gmail.com>
+Cc: linaro-mm-sig@lists.linaro.org, linux-mm@kvack.org, m.szyprowski@samsung.com
 
-On Mon, Apr 16, 2012 at 09:10:04AM -0400, Fred Isaman wrote:
-> > <SNIP>
-> > -static struct nfs_page *nfs_page_find_request_locked(struct page *page)
-> > +static struct nfs_page *
-> > +nfs_page_find_request_locked(struct nfs_inode *nfsi, struct page *page)
-> >  {
-> >        struct nfs_page *req = NULL;
+On Sat, 14 Apr 2012, Haojian Zhuang wrote:
+
+> On Sat, Apr 14, 2012 at 2:27 AM, Christoph Lameter <cl@linux.com> wrote:
+> > On Fri, 13 Apr 2012, Haojian Zhuang wrote:
 > >
-> > -       if (PagePrivate(page)) {
-> > +       if (PagePrivate(page))
-> >                req = (struct nfs_page *)page_private(page);
-> > -               if (req != NULL)
-> > -                       kref_get(&req->wb_kref);
-> > +       else if (unlikely(PageSwapCache(page))) {
-> > +               struct nfs_page *freq, *t;
-> > +
-> > +               /* Linearly search the commit list for the correct req */
-> > +               list_for_each_entry_safe(freq, t, &nfsi->commit_list, wb_list) {
-> > +                       if (freq->wb_page == page) {
-> > +                               req = freq;
-> > +                               break;
-> > +                       }
-> > +               }
-> > +
-> > +               BUG_ON(req == NULL);
-> 
-> I suspect I am missing something, but why is it guaranteed that the
-> req is on the commit list?
-> 
+> >> I have one question on memory migration. As we know, malloc() from
+> >> user app will allocate MIGRATE_MOVABLE pages. But if we want to use
+> >> this memory as DMA usage, we can't accept MIGRATE_MOVABLE type. Could
+> >> we change its behavior before DMA working?
+> >
+> > MIGRATE_MOVABLE works fine for DMA. If you keep a reference from a device
+> > driver to user pages then you will have to increase the page refcount
+> > which will in turn pin the page and make it non movable for as long as you
+> > keep the refcount.
+>
+> Hi Christoph,
+>
+> Thanks for your illustration. But it's a little abstract. Could you
+> give me a simple example
+> or show me the code?
 
-It's a fair question and a statement about what I expected to happen.
-The commit list replaces the nfs_page_tree radix tree that used to exist
-and my understanding was that the req would exist in the radix tree until
-the swap IO was completed. I expected it to be the same for the commit
-list and the BUG_ON was based on that expectation. Are there cases where
-the req would not be found?
+Run get_user_pages() on the memory you are interest in pinning. See how
+other drivers do that by looking up other use cases. F.e. ib_umem_get()
+does a similar thing.
 
-Thanks.
 
--- 
-Mel Gorman
-SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
