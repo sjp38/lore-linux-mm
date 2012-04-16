@@ -1,53 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx109.postini.com [74.125.245.109])
-	by kanga.kvack.org (Postfix) with SMTP id 13B806B00FA
-	for <linux-mm@kvack.org>; Mon, 16 Apr 2012 12:11:26 -0400 (EDT)
-Date: Mon, 16 Apr 2012 11:52:07 -0400
-From: Vivek Goyal <vgoyal@redhat.com>
-Subject: Re: [Lsf] [RFC] writeback and cgroup
-Message-ID: <20120416155207.GB15437@redhat.com>
-References: <20120404145134.GC12676@redhat.com>
- <20120407080027.GA2584@quack.suse.cz>
- <20120410180653.GJ21801@redhat.com>
- <20120410210505.GE4936@quack.suse.cz>
- <20120410212041.GP21801@redhat.com>
- <20120410222425.GF4936@quack.suse.cz>
- <20120411154005.GD16692@redhat.com>
- <1334406314.2528.90.camel@twins>
- <20120416125432.GB12776@redhat.com>
- <20120416130707.GA10532@localhost>
+Received: from psmtp.com (na3sys010amx110.postini.com [74.125.245.110])
+	by kanga.kvack.org (Postfix) with SMTP id CA8316B00EF
+	for <linux-mm@kvack.org>; Mon, 16 Apr 2012 12:32:25 -0400 (EDT)
+Received: by lagz14 with SMTP id z14so5311616lag.14
+        for <linux-mm@kvack.org>; Mon, 16 Apr 2012 09:32:23 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20120416130707.GA10532@localhost>
+In-Reply-To: <CAJd=RBCpq5cj1_K3Q8z4-G75WiAkZ0P66_ib5TBObopbes789g@mail.gmail.com>
+References: <1334181407-26064-1-git-send-email-yinghan@google.com>
+	<CAJd=RBCpq5cj1_K3Q8z4-G75WiAkZ0P66_ib5TBObopbes789g@mail.gmail.com>
+Date: Mon, 16 Apr 2012 09:32:23 -0700
+Message-ID: <CALWz4izKYOfeYqnQqCqOcybFMtC904FiJuw_3SfRFOPAr==qgw@mail.gmail.com>
+Subject: Re: [PATCH V2 0/5] memcg softlimit reclaim rework
+From: Ying Han <yinghan@google.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Fengguang Wu <fengguang.wu@intel.com>
-Cc: Peter Zijlstra <peterz@infradead.org>, ctalbott@google.com, rni@google.com, andrea@betterlinux.com, containers@lists.linux-foundation.org, linux-kernel@vger.kernel.org, lsf@lists.linux-foundation.org, linux-mm@kvack.org, jmoyer@redhat.com, lizefan@huawei.com, linux-fsdevel@vger.kernel.org, cgroups@vger.kernel.org
+To: Hillf Danton <dhillf@gmail.com>
+Cc: Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mel@csn.ul.ie>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Dan Magenheimer <dan.magenheimer@oracle.com>, linux-mm@kvack.org
 
-On Mon, Apr 16, 2012 at 09:07:07PM +0800, Fengguang Wu wrote:
+On Sat, Apr 14, 2012 at 5:19 AM, Hillf Danton <dhillf@gmail.com> wrote:
+> On Thu, Apr 12, 2012 at 5:56 AM, Ying Han <yinghan@google.com> wrote:
+>> The "soft_limit" was introduced in memcg to support over-committing the
+>> memory resource on the host. Each cgroup configures its "hard_limit" where
+>> it will be throttled or OOM killed by going over the limit. However, the
+>> cgroup can go above the "soft_limit" as long as there is no system-wide
+>> memory contention. So, the "soft_limit" is the kernel mechanism for
+>> re-distributng system spare memory among cgroups.
+>>
+> s/re-distributng/re-distributing/
+>
+>> This patch reworks the softlimit reclaim by hooking it into the new global
+>> reclaim scheme. So the global reclaim path including direct reclaim and
+>> background reclaim will respect the memcg softlimit.
+>>
+>> Note:
+>> 1. the new implementation of softlimit reclaim is rather simple and first
+>> step for further optimizations. there is no memory pressure balancing between
+>> memcgs for each zone, and that is something we would like to add as follow-ups.
+>>
+>> 2. this patch is slightly different from the last one posted from Johannes,
+>>
+> For those who want to see posts by Johannes, add links please.
 
-[..]
-> Vivek, I noticed these lines in cfq code
-> 
->                 sscanf(dev_name(bdi->dev), "%u:%u", &major, &minor);
-> 
-> Why not use bdi->dev->devt?  The problem is that dev_name() will
-> return "btrfs-X" for btrfs rather than "major:minor".
+http://comments.gmane.org/gmane.linux.kernel.mm/72382
 
-Isn't bdi->dev->devt 0?  I see following code.
+If that is helpful, i will include it into the next post.
 
-add_disk()
-   bdi_register_dev()
-      bdi_register()
-         device_create_vargs(MKDEV(0,0))
-	      dev->devt = devt = MKDEV(0,0);
+--Ying
 
-So for normal block devices, I think bdi->dev->devt will be zero, that's
-why probably we don't use it.
-
-Thanks
-Vivek
+>
+>> where his patch is closer to the reverted implementation by doing hierarchical
+>> reclaim for each selected memcg. However, that is not expected behavior from
+>> user perspective. Considering the following example:
+>>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
