@@ -1,130 +1,194 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx113.postini.com [74.125.245.113])
-	by kanga.kvack.org (Postfix) with SMTP id 8F70E6B0083
-	for <linux-mm@kvack.org>; Mon, 16 Apr 2012 16:29:12 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx141.postini.com [74.125.245.141])
+	by kanga.kvack.org (Postfix) with SMTP id 968F66B004D
+	for <linux-mm@kvack.org>; Mon, 16 Apr 2012 16:52:46 -0400 (EDT)
 Received: from /spool/local
-	by e23smtp05.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
-	Mon, 16 Apr 2012 20:24:29 +1000
-Received: from d23av02.au.ibm.com (d23av02.au.ibm.com [9.190.235.138])
-	by d23relay05.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q3GKMMp0913414
-	for <linux-mm@kvack.org>; Tue, 17 Apr 2012 06:22:22 +1000
-Received: from d23av02.au.ibm.com (loopback [127.0.0.1])
-	by d23av02.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q3GKSus5027475
-	for <linux-mm@kvack.org>; Tue, 17 Apr 2012 06:28:56 +1000
-From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Subject: [PATCH] hugetlbfs: lockdep annotate root inode properly
-Date: Tue, 17 Apr 2012 01:58:46 +0530
-Message-Id: <1334608126-17295-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+	by e34.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <paulmck@linux.vnet.ibm.com>;
+	Mon, 16 Apr 2012 14:50:54 -0600
+Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
+	by d03dlp01.boulder.ibm.com (Postfix) with ESMTP id 65AB41FF0074
+	for <linux-mm@kvack.org>; Mon, 16 Apr 2012 14:50:29 -0600 (MDT)
+Received: from d03av01.boulder.ibm.com (d03av01.boulder.ibm.com [9.17.195.167])
+	by d03relay04.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q3GKnspP110010
+	for <linux-mm@kvack.org>; Mon, 16 Apr 2012 14:49:56 -0600
+Received: from d03av01.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av01.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q3GKmVPC007884
+	for <linux-mm@kvack.org>; Mon, 16 Apr 2012 14:48:32 -0600
+Date: Mon, 16 Apr 2012 13:35:11 -0700
+From: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
+Subject: Re: kmemleak: illegal RCU use assertion error
+Message-ID: <20120416203510.GA27359@linux.vnet.ibm.com>
+Reply-To: paulmck@linux.vnet.ibm.com
+References: <20120402070911.GB3464@swordfish>
+ <20120402130936.GF2450@linux.vnet.ibm.com>
+ <20120402231042.GB4353@swordfish>
+ <20120403145839.GB2302@linux.vnet.ibm.com>
+ <20120405213006.GA3614@swordfish>
+ <20120405214749.GI27672@linux.vnet.ibm.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20120405214749.GI27672@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org, linux-mm@kvack.org, davej@redhat.com, linux-kernel@vger.kernel.or, viro@ZenIV.linux.org.uk, jwboyer@redhat.com
-Cc: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+To: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+Cc: Catalin Marinas <catalin.marinas@arm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+On Thu, Apr 05, 2012 at 02:47:49PM -0700, Paul E. McKenney wrote:
+> On Fri, Apr 06, 2012 at 12:30:06AM +0300, Sergey Senozhatsky wrote:
+> > On (04/03/12 07:58), Paul E. McKenney wrote:
+> > > On Tue, Apr 03, 2012 at 02:10:43AM +0300, Sergey Senozhatsky wrote:
+> > > > On (04/02/12 06:09), Paul E. McKenney wrote:
+> > > > > On Mon, Apr 02, 2012 at 10:09:11AM +0300, Sergey Senozhatsky wrote:
+> > > > > > Hello,
+> > > > > > 
+> > > > > > commit e5601400081651060a59bd1f45f2821bb8e97f95
+> > > > > > Author: Paul E. McKenney <paul.mckenney@linaro.org>
+> > > > > > Date:   Sat Jan 7 11:03:57 2012 -0800
+> > > > > > 
+> > > > > >     rcu: Simplify offline processing
+> > > > > >     
+> > > > > >     Move ->qsmaskinit and blkd_tasks[] manipulation to the CPU_DYING
+> > > > > >     notifier.  This simplifies the code by eliminating a potential
+> > > > > >     deadlock and by reducing the responsibilities of force_quiescent_state().
+> > > > > >     Also rename functions to make their connection to the CPU-hotplug
+> > > > > >     stages explicit.
+> > > > > >     
+> > > > > >     Signed-off-by: Paul E. McKenney <paul.mckenney@linaro.org>
+> > > > > >     Signed-off-by: Paul E. McKenney <paulmck@linux.vnet.ibm.com>
+> > > > > > 
+> > > > > > 
+> > > > > > introduced WARN_ON_ONCE(cpu_is_offline(smp_processor_id())); to __call_rcu()
+> > > > > > function, Paul also added cpu_offline checks to other routines (e.g. callbacks)
+> > > > > > in later commits. It happens that kmemleak() triggers one of them.
+> > > > > > 
+> > > > > > During cpu core offline, kfree()->kmemleak_free()->put_object()-->__call_rcu() chain
+> > > > > > for struct intel_shared_regs * is executed when no struct users left on this core -- 
+> > > > > > all CPUs are dead or dying.
+> > > > > > 
+> > > > > > 
+> > > > > > [ 4703.342462] CPU 3 is now offline
+> > > > > > [ 4705.588116] ------------[ cut here ]------------
+> > > > > > [ 4705.588129] WARNING: at kernel/rcutree.c:1823 __call_rcu+0x9d/0x1d2()
+> > > > > > [..]
+> > > > > > [ 4705.588196] Call Trace:
+> > > > > > [ 4705.588207]  [<ffffffff81059a00>] ? synchronize_srcu+0x6/0x17
+> > > > > > [ 4705.588215]  [<ffffffff8103364e>] warn_slowpath_common+0x83/0x9c
+> > > > > > [ 4705.588223]  [<ffffffff8111e627>] ? get_object+0x31/0x31
+> > > > > > [ 4705.588229]  [<ffffffff81033681>] warn_slowpath_null+0x1a/0x1c
+> > > > > > [ 4705.588235]  [<ffffffff810af770>] __call_rcu+0x9d/0x1d2
+> > > > > > [ 4705.588243]  [<ffffffff81013f52>] ? intel_pmu_cpu_dying+0x3b/0x5d
+> > > > > > [ 4705.588249]  [<ffffffff810af8f1>] call_rcu_sched+0x17/0x19
+> > > > > > [ 4705.588255]  [<ffffffff8111eb7e>] put_object+0x47/0x4b
+> > > > > > [ 4705.588261]  [<ffffffff8111ed8b>] delete_object_full+0x2a/0x2e
+> > > > > > [ 4705.588269]  [<ffffffff81491dc8>] kmemleak_free+0x26/0x45
+> > > > > > [ 4705.588274]  [<ffffffff8111691f>] kfree+0x130/0x221
+> > > > > > [ 4705.588280]  [<ffffffff81013f52>] intel_pmu_cpu_dying+0x3b/0x5d
+> > > > > > [ 4705.588287]  [<ffffffff8149cb83>] x86_pmu_notifier+0xaf/0xb9
+> > > > > > [ 4705.588296]  [<ffffffff814b0e9d>] notifier_call_chain+0xac/0xd9
+> > > > > > [ 4705.588303]  [<ffffffff81059c9e>] __raw_notifier_call_chain+0xe/0x10
+> > > > > > [ 4705.588309]  [<ffffffff810354ec>] __cpu_notify+0x20/0x37
+> > > > > > [ 4705.588314]  [<ffffffff81035516>] cpu_notify+0x13/0x15
+> > > > > > [ 4705.588320]  [<ffffffff81490fab>] take_cpu_down+0x28/0x2e
+> > > > > > [ 4705.588326]  [<ffffffff8109ef7f>] stop_machine_cpu_stop+0x96/0xf1
+> > > > > > [ 4705.588332]  [<ffffffff8109ece3>] cpu_stopper_thread+0xe3/0x183
+> > > > > > [ 4705.588338]  [<ffffffff8109eee9>] ? queue_stop_cpus_work+0xd0/0xd0
+> > > > > > [ 4705.588344]  [<ffffffff814ad382>] ? _raw_spin_unlock_irqrestore+0x47/0x65
+> > > > > > [ 4705.588353]  [<ffffffff81087d0d>] ? trace_hardirqs_on_caller+0x119/0x175
+> > > > > > [ 4705.588358]  [<ffffffff81087d76>] ? trace_hardirqs_on+0xd/0xf
+> > > > > > [ 4705.588364]  [<ffffffff8109ec00>] ? cpu_stop_signal_done+0x2c/0x2c
+> > > > > > [ 4705.588370]  [<ffffffff810544a9>] kthread+0x8b/0x93
+> > > > > > [ 4705.588378]  [<ffffffff814b5f34>] kernel_thread_helper+0x4/0x10
+> > > > > > [ 4705.588385]  [<ffffffff814ad7f0>] ? retint_restore_args+0x13/0x13
+> > > > > > [ 4705.588391]  [<ffffffff8105441e>] ? __init_kthread_worker+0x5a/0x5a
+> > > > > > [ 4705.588397]  [<ffffffff814b5f30>] ? gs_change+0x13/0x13
+> > > > > > [ 4705.588400] ---[ end trace 720328982e35a713 ]---
+> > > > > > [ 4705.588507] CPU 2 is now offline
+> > > > > > 
+> > > > > > 
+> > > > > > My first solution was to return from delete_object() if object deallocation
+> > > > > > performed on cpu_is_offline(smp_processor_id()), marking object with special
+> > > > > > flag, say OBJECT_ORPHAN. And issue real object_delete() during scan (for example)
+> > > > > > when we see OBJECT_ORPHAN object.  
+> > > > > > That, however, requires to handle special case when cpu core offlined
+> > > > > > for small period of time, leading to object insertion error in
+> > > > > > create_object(), which either may be handled in 2 possible ways (assuming
+> > > > > > that lookup_object() returned OBJECT_ORPHAN):
+> > > > > > #1 delete orphaned object and retry with insertion (*)
+> > > > > > #2 re-set existing orphan object
+> > > > > > 
+> > > > > > 
+> > > > > > (*) performing delete_object() from within create_object() requires releasing
+> > > > > > of held kmemleak and object locks, which is racy with other create_object() and
+> > > > > > any possible scan() activities.
+> > > > > > 
+> > > > > > Yet I'm not exactly sure that option #2 is the correct one.
+> > > > > > (I've kind of a patch [not properly tested, etc.] for #2 option).
+> > > > > 
+> > > > > Alternatively, I can make RCU tolerate __call_rcu() from late in the
+> > > > > CPU_DYING notifiers without too much trouble.
+> > > > > 
+> > > > 
+> > > > Well, if that will `do the trick', then I'm ready to test it.
+> > > 
+> > > If you are feeling lucky, please try out the attached untested patch.
+> > > I will repost in the rather likely event that my testing finds bugs.
+> > > 
+> > > 							Thanx, Paul
+> > >
+> > 
+> > Hello Paul,
+> > I'm running the kernel with your patch for a couple of days already and 
+> > so far, so good.
+> 
+> No problems here as well.  Thank you for testing this -- I will add
+> your Tested-by.
 
-This fix the below reported false lockdep warning. e096d0c7e2e4e5893792db865dd065ac73cf1f00
-did a similar annotation for every other inode in hugetlbfs but missed the root
-inode because it was allocated by a separate function.
+OK...  To qualify for 3.4, this needs to be a pure regression fix.  The
+WARN_ON() is a regression, but leaving callbacks posted by CPU_DYING
+callbacks has been around for some time.  So I need to post only the
+removal of the WARN_ON(), please see below.
 
-For HugeTLB fs we allow taking i_mutex in mmap. HugeTLB fs doesn't support file
-write and its file read callback is modified in a05b0855fd15504972dba2358e5faa172a1e50ba
-to not take i_mutex. Hence for HugeTLB fs with regular files we really don't take
-i_mutex with mmap_sem held.
+							Thanx, Paul
 
- ======================================================
- [ INFO: possible circular locking dependency detected ]
- 3.4.0-rc1+ #322 Not tainted
- -------------------------------------------------------
- bash/1572 is trying to acquire lock:
-  (&mm->mmap_sem){++++++}, at: [<ffffffff810f1618>] might_fault+0x40/0x90
+------------------------------------------------------------------------
 
- but task is already holding lock:
-  (&sb->s_type->i_mutex_key#12){+.+.+.}, at: [<ffffffff81125f88>] vfs_readdir+0x56/0xa8
+rcu: Permit call_rcu() from CPU_DYING notifiers
 
- which lock already depends on the new lock.
+As of commit 29494be7, RCU adopts callbacks from the dying CPU in its
+CPU_DYING notifier, which means that any callbacks posted by later
+CPU_DYING notifiers are ignored until the CPU comes back online.
+A WARN_ON_ONCE() was added to __call_rcu() by commit e5601400 to check
+for this condition.  Although this condition did not trigger (at least as
+far I as know) during -next testing, it did recently trigger in mainline
+(https://lkml.org/lkml/2012/4/2/34).
 
+What is needed longer term is for RCU's CPU_DEAD notifier to adopt any
+callbacks that were posted by CPU_DYING notifiers, however, the Linux
+kernel has been running with this sort of thing happening for quite
+some time.  So the only thing that qualifies as a regression is the
+WARN_ON_ONCE(), which this commit removes.
 
- the existing dependency chain (in reverse order) is:
+Making RCU's CPU_DEAD notifier adopt callbacks posted by CPU_DYING
+notifiers is a topic for the 3.5 release of the Linux kernel.
 
- -> #1 (&sb->s_type->i_mutex_key#12){+.+.+.}:
-        [<ffffffff810a09e5>] lock_acquire+0xd5/0xfa
-        [<ffffffff816a2f5e>] __mutex_lock_common+0x48/0x350
-        [<ffffffff816a3325>] mutex_lock_nested+0x2a/0x31
-        [<ffffffff811fb8e1>] hugetlbfs_file_mmap+0x7d/0x104
-        [<ffffffff810f859a>] mmap_region+0x272/0x47d
-        [<ffffffff810f8a39>] do_mmap_pgoff+0x294/0x2ee
-        [<ffffffff810f8b65>] sys_mmap_pgoff+0xd2/0x10e
-        [<ffffffff8103d19e>] sys_mmap+0x1d/0x1f
-        [<ffffffff816a5922>] system_call_fastpath+0x16/0x1b
+Reported-by: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+Signed-off-by: Paul E. McKenney <paul.mckenney@linaro.org>
+Signed-off-by: Paul E. McKenney <paulmck@linux.vnet.ibm.com>
 
- -> #0 (&mm->mmap_sem){++++++}:
-        [<ffffffff810a0256>] __lock_acquire+0xa81/0xd75
-        [<ffffffff810a09e5>] lock_acquire+0xd5/0xfa
-        [<ffffffff810f1645>] might_fault+0x6d/0x90
-        [<ffffffff81125d62>] filldir+0x6a/0xc2
-        [<ffffffff81133a83>] dcache_readdir+0x5c/0x222
-        [<ffffffff81125fa8>] vfs_readdir+0x76/0xa8
-        [<ffffffff811260b6>] sys_getdents+0x79/0xc9
-        [<ffffffff816a5922>] system_call_fastpath+0x16/0x1b
-
- other info that might help us debug this:
-
-  Possible unsafe locking scenario:
-
-        CPU0                    CPU1
-        ----                    ----
-   lock(&sb->s_type->i_mutex_key#12);
-                                lock(&mm->mmap_sem);
-                                lock(&sb->s_type->i_mutex_key#12);
-   lock(&mm->mmap_sem);
-
-  *** DEADLOCK ***
-
- 1 lock held by bash/1572:
-  #0:  (&sb->s_type->i_mutex_key#12){+.+.+.}, at: [<ffffffff81125f88>] vfs_readdir+0x56/0xa8
-
- stack backtrace:
- Pid: 1572, comm: bash Not tainted 3.4.0-rc1+ #322
- Call Trace:
-  [<ffffffff81699a3c>] print_circular_bug+0x1f8/0x209
-  [<ffffffff810a0256>] __lock_acquire+0xa81/0xd75
-  [<ffffffff810f38aa>] ? handle_pte_fault+0x5ff/0x614
-  [<ffffffff8109e622>] ? mark_lock+0x2d/0x258
-  [<ffffffff810f1618>] ? might_fault+0x40/0x90
-  [<ffffffff810a09e5>] lock_acquire+0xd5/0xfa
-  [<ffffffff810f1618>] ? might_fault+0x40/0x90
-  [<ffffffff816a3249>] ? __mutex_lock_common+0x333/0x350
-  [<ffffffff810f1645>] might_fault+0x6d/0x90
-  [<ffffffff810f1618>] ? might_fault+0x40/0x90
-  [<ffffffff81125d62>] filldir+0x6a/0xc2
-  [<ffffffff81133a83>] dcache_readdir+0x5c/0x222
-  [<ffffffff81125cf8>] ? sys_ioctl+0x74/0x74
-  [<ffffffff81125cf8>] ? sys_ioctl+0x74/0x74
-  [<ffffffff81125cf8>] ? sys_ioctl+0x74/0x74
-  [<ffffffff81125fa8>] vfs_readdir+0x76/0xa8
-  [<ffffffff811260b6>] sys_getdents+0x79/0xc9
-  [<ffffffff816a5922>] system_call_fastpath+0x16/0x1b
-
-Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
----
- fs/hugetlbfs/inode.c |    1 +
- 1 file changed, 1 insertion(+)
-
-diff --git a/fs/hugetlbfs/inode.c b/fs/hugetlbfs/inode.c
-index 92f75aa..d8899e1 100644
---- a/fs/hugetlbfs/inode.c
-+++ b/fs/hugetlbfs/inode.c
-@@ -485,6 +485,7 @@ static struct inode *hugetlbfs_get_root(struct super_block *sb,
- 		inode->i_fop = &simple_dir_operations;
- 		/* directory inodes start off with i_nlink == 2 (for "." entry) */
- 		inc_nlink(inode);
-+		lockdep_annotate_inode_mutex_key(inode);
- 	}
- 	return inode;
- }
--- 
-1.7.10
+diff --git a/kernel/rcutree.c b/kernel/rcutree.c
+index 1050d6d..d0c5baf 100644
+--- a/kernel/rcutree.c
++++ b/kernel/rcutree.c
+@@ -1820,7 +1820,6 @@ __call_rcu(struct rcu_head *head, void (*func)(struct rcu_head *rcu),
+ 	 * a quiescent state betweentimes.
+ 	 */
+ 	local_irq_save(flags);
+-	WARN_ON_ONCE(cpu_is_offline(smp_processor_id()));
+ 	rdp = this_cpu_ptr(rsp->rda);
+ 
+ 	/* Add the callback to our list. */
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
