@@ -1,51 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx103.postini.com [74.125.245.103])
-	by kanga.kvack.org (Postfix) with SMTP id EBFE16B0044
-	for <linux-mm@kvack.org>; Mon, 16 Apr 2012 18:21:24 -0400 (EDT)
-Received: by pbcup15 with SMTP id up15so8629208pbc.14
-        for <linux-mm@kvack.org>; Mon, 16 Apr 2012 15:21:24 -0700 (PDT)
-Date: Mon, 16 Apr 2012 15:21:19 -0700
+Received: from psmtp.com (na3sys010amx128.postini.com [74.125.245.128])
+	by kanga.kvack.org (Postfix) with SMTP id 9BA206B0044
+	for <linux-mm@kvack.org>; Mon, 16 Apr 2012 18:30:17 -0400 (EDT)
+Received: by dakh32 with SMTP id h32so8031412dak.9
+        for <linux-mm@kvack.org>; Mon, 16 Apr 2012 15:30:16 -0700 (PDT)
+Date: Mon, 16 Apr 2012 15:30:12 -0700
 From: Tejun Heo <tj@kernel.org>
-Subject: Re: [PATCH 2/7] memcg: move charge to parent only when necessary.
-Message-ID: <20120416222119.GC12421@google.com>
+Subject: Re: [PATCH 3/7] memcg: move charges to root at rmdir()
+Message-ID: <20120416223012.GD12421@google.com>
 References: <4F86B9BE.8000105@jp.fujitsu.com>
- <4F86BAB0.5030809@jp.fujitsu.com>
+ <4F86BB02.2060607@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <4F86BAB0.5030809@jp.fujitsu.com>
+In-Reply-To: <4F86BB02.2060607@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "cgroups@vger.kernel.org" <cgroups@vger.kernel.org>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Glauber Costa <glommer@parallels.com>, Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>
 
-On Thu, Apr 12, 2012 at 08:21:20PM +0900, KAMEZAWA Hiroyuki wrote:
-> 
-> When memcg->use_hierarchy==true, the parent res_counter includes
-> the usage in child's usage. So, it's not necessary to call try_charge()
-> in the parent.
-> 
-> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> ---
->  mm/memcontrol.c |   39 ++++++++++++++++++++++++++++++++-------
->  1 files changed, 32 insertions(+), 7 deletions(-)
-> 
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index fa01106..3215880 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -2409,6 +2409,20 @@ static void __mem_cgroup_cancel_charge(struct mem_cgroup *memcg,
->  			res_counter_uncharge(&memcg->memsw, bytes);
->  	}
->  }
+Hello,
 
-New line missing here.
+On Thu, Apr 12, 2012 at 08:22:42PM +0900, KAMEZAWA Hiroyuki wrote:
+> As recently discussed, Tejun Heo, the cgroup maintainer, tries to
+> remove ->pre_destroy() and cgroup will never return -EBUSY at rmdir().
 
-> +/*
-> + * Moving usage between a child to its parent if use_hierarchy==true.
-> + */
+I'm not trying to remove ->pre_destory() per-se.  I want to remove css
+ref draining and ->pre_destroy() vetoing cgroup removal.  Probably
+better wording would be "tries to simplify removal path such that
+removal always succeeds".
 
-Prolly "from a child to its parent"?
+> To do that, in memcg, handling case of use_hierarchy==false is a problem.
+> 
+> We move memcg's charges to its parent at rmdir(). If use_hierarchy==true,
+> it's already accounted in the parent, no problem. If use_hierarchy==false,
+> we cannot guarantee we can move all charges to the parent.
+> 
+> This patch changes the behavior to move all charges to root_mem_cgroup
+> if use_hierarchy=false. It seems this matches semantics of use_hierarchy==false,which means parent and child has no hierarchical relationship.
+
+Maybe better to break the above line?
 
 Thanks.
 
