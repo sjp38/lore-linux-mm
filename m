@@ -1,72 +1,139 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx145.postini.com [74.125.245.145])
-	by kanga.kvack.org (Postfix) with SMTP id DCDB26B00F5
-	for <linux-mm@kvack.org>; Mon, 16 Apr 2012 08:17:23 -0400 (EDT)
-From: Mel Gorman <mgorman@suse.de>
-Subject: [PATCH 16/16] mm: Account for the number of times direct reclaimers get throttled
-Date: Mon, 16 Apr 2012 13:17:03 +0100
-Message-Id: <1334578624-23257-17-git-send-email-mgorman@suse.de>
-In-Reply-To: <1334578624-23257-1-git-send-email-mgorman@suse.de>
-References: <1334578624-23257-1-git-send-email-mgorman@suse.de>
+Received: from psmtp.com (na3sys010amx176.postini.com [74.125.245.176])
+	by kanga.kvack.org (Postfix) with SMTP id A91276B00F8
+	for <linux-mm@kvack.org>; Mon, 16 Apr 2012 08:17:24 -0400 (EDT)
+Received: from /spool/local
+	by e28smtp03.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <srikar@linux.vnet.ibm.com>;
+	Mon, 16 Apr 2012 17:47:19 +0530
+Received: from d28av01.in.ibm.com (d28av01.in.ibm.com [9.184.220.63])
+	by d28relay01.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q3GCHKSd4800616
+	for <linux-mm@kvack.org>; Mon, 16 Apr 2012 17:47:20 +0530
+Received: from d28av01.in.ibm.com (loopback [127.0.0.1])
+	by d28av01.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q3GHl1FC020603
+	for <linux-mm@kvack.org>; Mon, 16 Apr 2012 23:17:02 +0530
+From: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
+Date: Mon, 16 Apr 2012 17:39:25 +0530
+Message-Id: <20120416120925.30661.40409.sendpatchset@srdronam.in.ibm.com>
+In-Reply-To: <20120416120909.30661.99781.sendpatchset@srdronam.in.ibm.com>
+References: <20120416120909.30661.99781.sendpatchset@srdronam.in.ibm.com>
+Subject: [RFC] [PATCH 2/2] perf/probe: Detect probe target when m/x options are absent
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Linux-MM <linux-mm@kvack.org>, Linux-Netdev <netdev@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, David Miller <davem@davemloft.net>, Neil Brown <neilb@suse.de>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Mike Christie <michaelc@cs.wisc.edu>, Eric B Munson <emunson@mgebm.net>, Mel Gorman <mgorman@suse.de>
+To: Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@elte.hu>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, LKML <linux-kernel@vger.kernel.org>, Linux-mm <linux-mm@kvack.org>, Oleg Nesterov <oleg@redhat.com>, Andi Kleen <andi@firstfloor.org>, Christoph Hellwig <hch@infradead.org>, Steven Rostedt <rostedt@goodmis.org>, Arnaldo Carvalho de Melo <acme@infradead.org>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Thomas Gleixner <tglx@linutronix.de>, Anton Arapov <anton@redhat.com>
 
-Under significant pressure when writing back to network-backed storage,
-direct reclaimers may get throttled. This is expected to be a
-short-lived event and the processes get woken up again but processes do
-get stalled. This patch counts how many times such stalling occurs. It's
-up to the administrator whether to reduce these stalls by increasing
-min_free_kbytes.
+From: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
 
-Signed-off-by: Mel Gorman <mgorman@suse.de>
+Options -m and -x explicitly allow tracing of modules / user space
+binaries. In absense of these options, check if the first argument
+can be used as a target.
+
+perf probe /bin/zsh zfree is equivalent to perf probe -x /bin/zsh
+zfree.
+
+Signed-off-by: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
 ---
- include/linux/vm_event_item.h |    1 +
- mm/vmscan.c                   |    3 +++
- mm/vmstat.c                   |    1 +
- 3 files changed, 5 insertions(+)
+ tools/perf/Documentation/perf-probe.txt |    8 ++++--
+ tools/perf/builtin-probe.c              |   43 +++++++++++++++++++++++++++++--
+ 2 files changed, 46 insertions(+), 5 deletions(-)
 
-diff --git a/include/linux/vm_event_item.h b/include/linux/vm_event_item.h
-index 03b90cdc..652e5f3 100644
---- a/include/linux/vm_event_item.h
-+++ b/include/linux/vm_event_item.h
-@@ -29,6 +29,7 @@ enum vm_event_item { PGPGIN, PGPGOUT, PSWPIN, PSWPOUT,
- 		FOR_ALL_ZONES(PGSTEAL),
- 		FOR_ALL_ZONES(PGSCAN_KSWAPD),
- 		FOR_ALL_ZONES(PGSCAN_DIRECT),
-+		PGSCAN_DIRECT_THROTTLE,
- #ifdef CONFIG_NUMA
- 		PGSCAN_ZONE_RECLAIM_FAILED,
- #endif
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index fdb63db..ff2322e 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -2480,6 +2480,9 @@ static void throttle_direct_reclaim(gfp_t gfp_mask, struct zonelist *zonelist,
- 	if (pfmemalloc_watermark_ok(pgdat))
- 		return;
+diff --git a/tools/perf/Documentation/perf-probe.txt b/tools/perf/Documentation/perf-probe.txt
+index fb673be..51205f0 100644
+--- a/tools/perf/Documentation/perf-probe.txt
++++ b/tools/perf/Documentation/perf-probe.txt
+@@ -104,6 +104,10 @@ OPTIONS
+ 	Specify path to the executable or shared library file for user
+ 	space tracing. Can also be used with --funcs option.
  
-+	/* Account for the throttling */
-+	count_vm_event(PGSCAN_DIRECT_THROTTLE);
++In absence of -m/-x options, perf probe checks if the first argument after
++the options is an absolute path name. If its an absolute path, perf probe
++uses it as a target module/target user space binary to probe.
 +
- 	/*
- 	 * If the caller cannot enter the filesystem, it's possible that it
- 	 * is processing a journal transaction. In this case, it is not safe
-diff --git a/mm/vmstat.c b/mm/vmstat.c
-index f600557..0fff13d 100644
---- a/mm/vmstat.c
-+++ b/mm/vmstat.c
-@@ -741,6 +741,7 @@ const char * const vmstat_text[] = {
- 	TEXTS_FOR_ZONES("pgsteal")
- 	TEXTS_FOR_ZONES("pgscan_kswapd")
- 	TEXTS_FOR_ZONES("pgscan_direct")
-+	"pgscan_direct_throttle",
+ PROBE SYNTAX
+ ------------
+ Probe points are defined by following syntax.
+@@ -190,11 +194,11 @@ Delete all probes on schedule().
  
- #ifdef CONFIG_NUMA
- 	"zone_reclaim_failed",
--- 
-1.7.9.2
+ Add probes at zfree() function on /bin/zsh
+ 
+- ./perf probe -x /bin/zsh zfree
++ ./perf probe -x /bin/zsh zfree or ./perf probe /bin/zsh zfree
+ 
+ Add probes at malloc() function on libc
+ 
+- ./perf probe -x /lib/libc.so.6 malloc
++ ./perf probe -x /lib/libc.so.6 malloc or ./perf probe /lib/libc.so.6 malloc
+ 
+ SEE ALSO
+ --------
+diff --git a/tools/perf/builtin-probe.c b/tools/perf/builtin-probe.c
+index ee3d84a..e215ae6 100644
+--- a/tools/perf/builtin-probe.c
++++ b/tools/perf/builtin-probe.c
+@@ -85,21 +85,58 @@ static int parse_probe_event(const char *str)
+ 	return ret;
+ }
+ 
++static int set_target(const char *ptr)
++{
++	int found = 0;
++	const char *buf;
++
++	/*
++	 * The first argument after options can be an absolute path
++	 * to an executable / library or kernel module.
++	 *
++	 * TODO: Support relative path, and $PATH, $LD_LIBRARY_PATH,
++	 * short module name.
++	 */
++	if (!params.target && ptr && *ptr == '/') {
++		params.target = ptr;
++		found = 1;
++		buf = ptr + (strlen(ptr) - 3);
++
++		if (strcmp(buf, ".ko"))
++			params.uprobes = true;
++
++	}
++
++	return found;
++}
++
+ static int parse_probe_event_argv(int argc, const char **argv)
+ {
+-	int i, len, ret;
++	int i, len, ret, found_target;
+ 	char *buf;
+ 
++	found_target = set_target(argv[0]);
++	if (found_target && argc == 1)
++		return 0;
++
+ 	/* Bind up rest arguments */
+ 	len = 0;
+-	for (i = 0; i < argc; i++)
++	for (i = 0; i < argc; i++) {
++		if (i == 0 && found_target)
++			continue;
++
+ 		len += strlen(argv[i]) + 1;
++	}
+ 	buf = zalloc(len + 1);
+ 	if (buf == NULL)
+ 		return -ENOMEM;
+ 	len = 0;
+-	for (i = 0; i < argc; i++)
++	for (i = 0; i < argc; i++) {
++		if (i == 0 && found_target)
++			continue;
++
+ 		len += sprintf(&buf[len], "%s ", argv[i]);
++	}
+ 	params.mod_events = true;
+ 	ret = parse_probe_event(buf);
+ 	free(buf);
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
