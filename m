@@ -1,79 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx139.postini.com [74.125.245.139])
-	by kanga.kvack.org (Postfix) with SMTP id D79C16B0105
-	for <linux-mm@kvack.org>; Mon, 16 Apr 2012 14:22:12 -0400 (EDT)
-Received: by lagz14 with SMTP id z14so5428464lag.14
-        for <linux-mm@kvack.org>; Mon, 16 Apr 2012 11:22:10 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx107.postini.com [74.125.245.107])
+	by kanga.kvack.org (Postfix) with SMTP id 632256B0108
+	for <linux-mm@kvack.org>; Mon, 16 Apr 2012 14:34:24 -0400 (EDT)
 MIME-Version: 1.0
-In-Reply-To: <201204111557.14153.arnd@arndb.de>
-References: <201203301744.16762.arnd@arndb.de>
-	<201204100832.52093.arnd@arndb.de>
-	<20120411095418.GA2228@barrios>
-	<201204111557.14153.arnd@arndb.de>
-Date: Mon, 16 Apr 2012 12:22:10 -0600
-Message-ID: <CAKL-ytsXbe4=u94PjqvhZo=ZLiChQ0FmZC84GNrFHa0N1mDjFw@mail.gmail.com>
-Subject: Re: swap on eMMC and other flash
-From: Stephan Uphoff <ups@google.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Message-ID: <7297ae3b-f3e1-480b-838f-69b0e09a733d@default>
+Date: Mon, 16 Apr 2012 11:34:12 -0700 (PDT)
+From: Dan Magenheimer <dan.magenheimer@oracle.com>
+Subject: Followup: [PATCH -mm] make swapin readahead skip over holes
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Arnd Bergmann <arnd@arndb.de>
-Cc: Minchan Kim <minchan@kernel.org>, linaro-kernel@lists.linaro.org, android-kernel@googlegroups.com, linux-mm@kvack.org, "Luca Porzio (lporzio)" <lporzio@micron.com>, Alex Lemberg <alex.lemberg@sandisk.com>, linux-kernel@vger.kernel.org, Saugata Das <saugata.das@linaro.org>, Venkatraman S <venkat@linaro.org>, Yejin Moon <yejin.moon@samsung.com>, Hyojin Jeong <syr.jeong@samsung.com>, "linux-mmc@vger.kernel.org" <linux-mmc@vger.kernel.org>
+To: riel@redhat.com
+Cc: linux-kernel@vger.kernel.org, linux-mm <linux-mm@kvack.org>
 
-I really like where this is going and would like to use the
-opportunity to plant a few ideas.
+Hi Rik --
 
-In contrast to rotational disks read/write operation overhead and
-costs are not symmetric.
-While random reads are much faster on flash - the number of write
-operations is limited by wearout and garbage collection overhead.
-To further improve swapping on eMMC or similar flash media I believe
-that the following issues need to be addressed:
+I saw this patch in 3.4-rc1 (because it caused a minor merge
+conflict with frontswap) and wondered about its impact.
+Since I had a server still set up from running benchmarks
+before LSFMM, I ran my kernel compile -jN workload (with
+N varying from 4 to 40) on 1GB of RAM, on 3.4-rc2 both with
+and without this patch.
 
-1) Limit average write bandwidth to eMMC to a configurable level to
-guarantee a minimum device lifetime
-2) Aim for a low write amplification factor to maximize useable write bandwidth
-3) Strongly favor read over write operations
+For values of N=3D24 and N=3D28, your patch made the workload
+run 4-9% percent faster.  For N=3D16 and N=3D20, it was 5-10%
+slower.  And for N=3D36 and N=3D40, it was 30%-40% slower!
 
-Lowering write amplification (2) has been discussed in this email
-thread - and the only observation I would like to add is that
-over-provisioning the internal swap space compared to the exported
-swap space significantly can guarantee a lower write amplification
-factor with the indirection and GC techniques discussed.
+Is this expected?  Since the swap "disk" is a partition
+on the one active drive, maybe the advantage is lost due
+to contention?
 
-I believe the swap functionality is currently optimized for storage
-media where read and write costs are nearly identical.
-As this is not the case on flash I propose splitting the anonymous
-inactive queue (at least conceptually) - keeping clean anonymous pages
-with swap slots on a separate queue as the cost of swapping them
-out/in is only an inexpensive read operation. A variable similar to
-swapiness (or a more dynamic algorithmn) could determine the
-preference for swapping out clean pages or dirty pages. ( A similar
-argument could be made for splitting up the file inactive queue )
+Thanks,
+Dan
 
-The problem of limiting the average write bandwidth reminds me of
-enforcing cpu utilization limits on interactive workloads.
-Just as with cpu workloads - using the resources to the limit produces
-poor interactivity.
-When interactivity suffers too much I believe the only sane response
-for an interactive device is to limit usage of the swap device and
-transition into a low memory situation - and if needed - either
-allowing userspace to reduce memory usage or invoking the OOM killer.
-As a result low memory situations could not only be encountered on new
-memory allocations but also on workload changes that increase the
-number of dirty pages.
+commit removed 67f96aa252e606cdf6c3cf1032952ec207ec0cf0
 
-A wild idea to avoid some writes altogether is to see if
-de-duplication techniques can be used to (partially?) match pages
-previously written so swap.
-In case of unencrypted swap  (or encrypted swap with a static key)
-swap pages on eMMC could even be re-used across multiple reboots.
-A simple version would just compare dirty pages with data in their
-swap slots as I suspect (but really don't know) that some user space
-algorithms (garbage collection?) dirty a page just temporarily -
-eventually reverting it to the previous content.
+Workload:
+=09kernel compile "make -jN" with varying N
+=09measurements in elapsed seconds
+=09boot kernel: 3.4-rc2
+=09Oracle Linux 6 distro with ext4
+=09fresh reboot for each test run
+=09all tests run as root in multi-user mode
 
-Stephan
+Hardware:
+=09Dell Optiplex 790 =3D ~$500
+=09Intel Core i5-2400 @ 3.10 GHz, 4coreX2thread, 6M cache
+=091GB RAM DDR3 1333Mhz (to force swapping)
+=09One 7200rpm SATA 6.0Gb/s drive with 8MB cache
+=0910GB swap partition
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
