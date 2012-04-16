@@ -1,39 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx146.postini.com [74.125.245.146])
-	by kanga.kvack.org (Postfix) with SMTP id EE4F86B0044
-	for <linux-mm@kvack.org>; Mon, 16 Apr 2012 18:41:23 -0400 (EDT)
-Received: by dakh32 with SMTP id h32so8041262dak.9
-        for <linux-mm@kvack.org>; Mon, 16 Apr 2012 15:41:23 -0700 (PDT)
-Date: Mon, 16 Apr 2012 15:41:18 -0700
-From: Tejun Heo <tj@kernel.org>
-Subject: Re: [PATCH v1 0/7] memcg remove pre_destroy
-Message-ID: <20120416224118.GG12421@google.com>
-References: <4F86B9BE.8000105@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <4F86B9BE.8000105@jp.fujitsu.com>
+Received: from psmtp.com (na3sys010amx119.postini.com [74.125.245.119])
+	by kanga.kvack.org (Postfix) with SMTP id 582B96B0044
+	for <linux-mm@kvack.org>; Mon, 16 Apr 2012 19:13:56 -0400 (EDT)
+Date: Mon, 16 Apr 2012 16:13:54 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH -V6 10/14] hugetlbfs: Add memcg control files for
+ hugetlbfs
+Message-Id: <20120416161354.b967790c.akpm@linux-foundation.org>
+In-Reply-To: <1334573091-18602-11-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+References: <1334573091-18602-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+	<1334573091-18602-11-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "cgroups@vger.kernel.org" <cgroups@vger.kernel.org>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Glauber Costa <glommer@parallels.com>, Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>
+To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Cc: linux-mm@kvack.org, mgorman@suse.de, kamezawa.hiroyu@jp.fujitsu.com, dhillf@gmail.com, aarcange@redhat.com, mhocko@suse.cz, hannes@cmpxchg.org, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org
 
-Hello, KAMEZAWA.
+On Mon, 16 Apr 2012 16:14:47 +0530
+"Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com> wrote:
 
-On Thu, Apr 12, 2012 at 08:17:18PM +0900, KAMEZAWA Hiroyuki wrote:
-> In recent discussion, Tejun Heo, cgroup maintainer, has a plan to remove
-> ->pre_destroy(). And now, in cgroup tree, pre_destroy() failure cause WARNING.
+> +#ifdef CONFIG_MEM_RES_CTLR_HUGETLB
+> +static char *mem_fmt(char *buf, unsigned long n)
+> +{
+> +	if (n >= (1UL << 30))
+> +		sprintf(buf, "%luGB", n >> 30);
+> +	else if (n >= (1UL << 20))
+> +		sprintf(buf, "%luMB", n >> 20);
+> +	else
+> +		sprintf(buf, "%luKB", n >> 10);
+> +	return buf;
+> +}
+> +
+> +int __init mem_cgroup_hugetlb_file_init(int idx)
+> +{
+> +	char buf[32];
+> +	struct cftype *cft;
+> +	struct hstate *h = &hstates[idx];
+> +
+> +	/* format the size */
+> +	mem_fmt(buf, huge_page_size(h));
 
-I did a pretty shallow review of the patchset and other than the
-unnecessary async destruction, my complaints are mostly trivial.  Ooh,
-and the patchset doesn't apply cleanly on top of cgroup/for-3.5.
+The sprintf() into a fixed-sized buffer is a bit ugly.  I didn't check
+it for possible overflows because 32 looks like "enough".  Actually too
+much.
 
-  git://git.kernel.org/pub/scm/linux/kernel/git/tj/cgroup.git for-3.5
-
-Thank you!
-
--- 
-tejun
+Oh well, it's hard to avoid.  But using scnprintf() would prevent nasty
+accidents.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
