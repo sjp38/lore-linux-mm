@@ -1,105 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx179.postini.com [74.125.245.179])
-	by kanga.kvack.org (Postfix) with SMTP id 78D516B00F4
-	for <linux-mm@kvack.org>; Mon, 16 Apr 2012 06:45:16 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx124.postini.com [74.125.245.124])
+	by kanga.kvack.org (Postfix) with SMTP id 0F5D06B00F1
+	for <linux-mm@kvack.org>; Mon, 16 Apr 2012 06:45:22 -0400 (EDT)
 Received: from /spool/local
-	by e28smtp06.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e28smtp08.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
-	Mon, 16 Apr 2012 16:15:10 +0530
+	Mon, 16 Apr 2012 16:15:15 +0530
 Received: from d28av02.in.ibm.com (d28av02.in.ibm.com [9.184.220.64])
-	by d28relay04.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q3GAj9tD3739848
-	for <linux-mm@kvack.org>; Mon, 16 Apr 2012 16:15:09 +0530
+	by d28relay01.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q3GAj3PF2801908
+	for <linux-mm@kvack.org>; Mon, 16 Apr 2012 16:15:04 +0530
 Received: from d28av02.in.ibm.com (loopback [127.0.0.1])
-	by d28av02.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q3GGFhtD001345
-	for <linux-mm@kvack.org>; Tue, 17 Apr 2012 02:15:46 +1000
+	by d28av02.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q3GGFehH000994
+	for <linux-mm@kvack.org>; Tue, 17 Apr 2012 02:15:40 +1000
 From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Subject: [PATCH -V6 14/14] memcg: Add memory controller documentation for hugetlb management
-Date: Mon, 16 Apr 2012 16:14:51 +0530
-Message-Id: <1334573091-18602-15-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
-In-Reply-To: <1334573091-18602-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
-References: <1334573091-18602-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+Subject: [PATCH -V6 00/14] memcg: Add memcg extension to control HugeTLB allocation
+Date: Mon, 16 Apr 2012 16:14:37 +0530
+Message-Id: <1334573091-18602-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org, mgorman@suse.de, kamezawa.hiroyu@jp.fujitsu.com, dhillf@gmail.com, aarcange@redhat.com, mhocko@suse.cz, akpm@linux-foundation.org, hannes@cmpxchg.org
-Cc: linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Cc: linux-kernel@vger.kernel.org, cgroups@vger.kernel.org
 
-From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Hi,
 
-Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
----
- Documentation/cgroups/memory.txt |   29 +++++++++++++++++++++++++++++
- 1 file changed, 29 insertions(+)
+This patchset implements a memory controller extension to control
+HugeTLB allocations. The extension allows to limit the HugeTLB
+usage per control group and enforces the controller limit during
+page fault. Since HugeTLB doesn't support page reclaim, enforcing
+the limit at page fault time implies that, the application will get
+SIGBUS signal if it tries to access HugeTLB pages beyond its limit.
+This requires the application to know beforehand how much HugeTLB
+pages it would require for its use.
 
-diff --git a/Documentation/cgroups/memory.txt b/Documentation/cgroups/memory.txt
-index 4c95c00..d99c41b 100644
---- a/Documentation/cgroups/memory.txt
-+++ b/Documentation/cgroups/memory.txt
-@@ -43,6 +43,7 @@ Features:
-  - usage threshold notifier
-  - oom-killer disable knob and oom-notifier
-  - Root cgroup has no limit controls.
-+ - resource accounting for HugeTLB pages
- 
-  Kernel memory support is work in progress, and the current version provides
-  basically functionality. (See Section 2.7)
-@@ -75,6 +76,12 @@ Brief summary of control files.
-  memory.kmem.tcp.limit_in_bytes  # set/show hard limit for tcp buf memory
-  memory.kmem.tcp.usage_in_bytes  # show current tcp buf memory allocation
- 
-+
-+ memory.hugetlb.<hugepagesize>.limit_in_bytes     # set/show limit of "hugepagesize" hugetlb usage
-+ memory.hugetlb.<hugepagesize>.max_usage_in_bytes # show max "hugepagesize" hugetlb  usage recorded
-+ memory.hugetlb.<hugepagesize>.usage_in_bytes     # show current res_counter usage for "hugepagesize" hugetlb
-+						  # see 5.7 for details
-+
- 1. History
- 
- The memory controller has a long history. A request for comments for the memory
-@@ -279,6 +286,15 @@ per cgroup, instead of globally.
- 
- * tcp memory pressure: sockets memory pressure for the tcp protocol.
- 
-+2.8 HugeTLB extension
-+
-+This extension allows to limit the HugeTLB usage per control group and
-+enforces the controller limit during page fault. Since HugeTLB doesn't
-+support page reclaim, enforcing the limit at page fault time implies that,
-+the application will get SIGBUS signal if it tries to access HugeTLB pages
-+beyond its limit. This requires the application to know beforehand how much
-+HugeTLB pages it would require for its use.
-+
- 3. User Interface
- 
- 0. Configuration
-@@ -287,6 +303,7 @@ a. Enable CONFIG_CGROUPS
- b. Enable CONFIG_RESOURCE_COUNTERS
- c. Enable CONFIG_CGROUP_MEM_RES_CTLR
- d. Enable CONFIG_CGROUP_MEM_RES_CTLR_SWAP (to use swap extension)
-+f. Enable CONFIG_MEM_RES_CTLR_HUGETLB (to use HugeTLB extension)
- 
- 1. Prepare the cgroups (see cgroups.txt, Why are cgroups needed?)
- # mount -t tmpfs none /sys/fs/cgroup
-@@ -510,6 +527,18 @@ unevictable=<total anon pages> N0=<node 0 pages> N1=<node 1 pages> ...
- 
- And we have total = file + anon + unevictable.
- 
-+5.7 HugeTLB resource control files
-+For a system supporting two hugepage size (16M and 16G) the control
-+files include:
-+
-+ memory.hugetlb.16GB.limit_in_bytes
-+ memory.hugetlb.16GB.max_usage_in_bytes
-+ memory.hugetlb.16GB.usage_in_bytes
-+ memory.hugetlb.16MB.limit_in_bytes
-+ memory.hugetlb.16MB.max_usage_in_bytes
-+ memory.hugetlb.16MB.usage_in_bytes
-+
-+
- 6. Hierarchy support
- 
- The memory controller supports a deep hierarchy and hierarchical accounting.
--- 
-1.7.10
+The goal is to control how many HugeTLB pages a group of task can
+allocate. It can be looked at as an extension of the existing quota
+interface which limits the number of HugeTLB pages per hugetlbfs
+superblock. HPC job scheduler requires jobs to specify their resource
+requirements in the job file. Once their requirements can be met,
+job schedulers like (SLURM) will schedule the job. We need to make sure
+that the jobs won't consume more resources than requested. If they do
+we should either error out or kill the application.
+
+Patches are on top of
+
+git://git.kernel.org/pub/scm/linux/kernel/git/tj/cgroup.git for-3.5
+
+Changes from V5:
+ * Address review feedback.
+
+Changes from V4:
+ * Add support for charge/uncharge during page migration
+ * Drop the usage of page->lru in unmap_hugepage_range.
+
+Changes from v3:
+ * Address review feedback.
+ * Fix a bug in cgroup removal related parent charging with use_hierarchy set
+
+Changes from V2:
+* Changed the implementation to limit the HugeTLB usage during page
+  fault time. This simplifies the extension and keep it closer to
+  memcg design. This also allows to support cgroup removal with less
+  complexity. Only caveat is the application should ensure its HugeTLB
+  usage doesn't cross the cgroup limit.
+
+Changes from V1:
+* Changed the implementation as a memcg extension. We still use
+  the same logic to track the cgroup and range.
+
+Changes from RFC post:
+* Added support for HugeTLB cgroup hierarchy
+* Added support for task migration
+* Added documentation patch
+* Other bug fixes
+
+-aneesh
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
