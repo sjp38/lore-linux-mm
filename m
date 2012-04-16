@@ -1,46 +1,33 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx147.postini.com [74.125.245.147])
-	by kanga.kvack.org (Postfix) with SMTP id 4FA306B00EC
-	for <linux-mm@kvack.org>; Mon, 16 Apr 2012 09:56:00 -0400 (EDT)
-Date: Mon, 16 Apr 2012 08:55:57 -0500 (CDT)
+Received: from psmtp.com (na3sys010amx137.postini.com [74.125.245.137])
+	by kanga.kvack.org (Postfix) with SMTP id C052C6B00EF
+	for <linux-mm@kvack.org>; Mon, 16 Apr 2012 10:02:10 -0400 (EDT)
+Date: Mon, 16 Apr 2012 09:02:07 -0500 (CDT)
 From: Christoph Lameter <cl@linux.com>
-Subject: Re: how to avoid allocating or freeze MOVABLE memory in userspace
-In-Reply-To: <CAN1soZyQuiYU_1f0G0eDqF-9WwzjgSgmr3QBh8cpkF+r1r7HrA@mail.gmail.com>
-Message-ID: <alpine.DEB.2.00.1204160853530.7726@router.home>
-References: <CAN1soZzEuhQQYf7fNqOeMYT3Z-8VMix+1ihD77Bjtf+Do3x3DA@mail.gmail.com> <alpine.DEB.2.00.1204131326170.15905@router.home> <CAN1soZyQuiYU_1f0G0eDqF-9WwzjgSgmr3QBh8cpkF+r1r7HrA@mail.gmail.com>
+Subject: Re: [PATCH] slub: don't create a copy of the name string in
+ kmem_cache_create
+In-Reply-To: <1334351170-26672-1-git-send-email-glommer@parallels.com>
+Message-ID: <alpine.DEB.2.00.1204160900270.7795@router.home>
+References: <1334351170-26672-1-git-send-email-glommer@parallels.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Haojian Zhuang <haojian.zhuang@gmail.com>
-Cc: linaro-mm-sig@lists.linaro.org, linux-mm@kvack.org, m.szyprowski@samsung.com
+To: Glauber Costa <glommer@parallels.com>
+Cc: linux-mm@kvack.org, Suleiman Souhlal <suleiman@google.com>, devel@openvz.org, linux-kernel@vger.kernel.org, Pekka Enberg <penberg@cs.helsinki.fi>
 
-On Sat, 14 Apr 2012, Haojian Zhuang wrote:
+On Fri, 13 Apr 2012, Glauber Costa wrote:
 
-> On Sat, Apr 14, 2012 at 2:27 AM, Christoph Lameter <cl@linux.com> wrote:
-> > On Fri, 13 Apr 2012, Haojian Zhuang wrote:
-> >
-> >> I have one question on memory migration. As we know, malloc() from
-> >> user app will allocate MIGRATE_MOVABLE pages. But if we want to use
-> >> this memory as DMA usage, we can't accept MIGRATE_MOVABLE type. Could
-> >> we change its behavior before DMA working?
-> >
-> > MIGRATE_MOVABLE works fine for DMA. If you keep a reference from a device
-> > driver to user pages then you will have to increase the page refcount
-> > which will in turn pin the page and make it non movable for as long as you
-> > keep the refcount.
+> When creating a cache, slub keeps a copy of the cache name through
+> strdup. The slab however, doesn't do that. This means that everyone
+> registering caches have to keep a copy themselves anyway, since code
+> needs to work on all allocators.
 >
-> Hi Christoph,
->
-> Thanks for your illustration. But it's a little abstract. Could you
-> give me a simple example
-> or show me the code?
+> Having slab create a copy of it as well may very well be the right
+> thing to do: but at this point, the callers are already there
 
-Run get_user_pages() on the memory you are interest in pinning. See how
-other drivers do that by looking up other use cases. F.e. ib_umem_get()
-does a similar thing.
-
-
+What would break if we would add that to slab? I think this is more robust
+because right now slab relies on the caller not freeing the string.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
