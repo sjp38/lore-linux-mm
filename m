@@ -1,60 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx159.postini.com [74.125.245.159])
-	by kanga.kvack.org (Postfix) with SMTP id 99E716B0044
-	for <linux-mm@kvack.org>; Mon, 16 Apr 2012 05:30:36 -0400 (EDT)
-Received: from /spool/local
-	by e37.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <srikar@linux.vnet.ibm.com>;
-	Mon, 16 Apr 2012 03:30:35 -0600
-Received: from d03relay05.boulder.ibm.com (d03relay05.boulder.ibm.com [9.17.195.107])
-	by d03dlp03.boulder.ibm.com (Postfix) with ESMTP id 3519119D804E
-	for <linux-mm@kvack.org>; Mon, 16 Apr 2012 03:30:24 -0600 (MDT)
-Received: from d03av04.boulder.ibm.com (d03av04.boulder.ibm.com [9.17.195.170])
-	by d03relay05.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q3G9USe6190976
-	for <linux-mm@kvack.org>; Mon, 16 Apr 2012 03:30:30 -0600
-Received: from d03av04.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av04.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q3G9UQsZ001868
-	for <linux-mm@kvack.org>; Mon, 16 Apr 2012 03:30:27 -0600
-Date: Mon, 16 Apr 2012 14:52:27 +0530
-From: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-Subject: Re: [PATCH UPDATED 3/3] tracing: Provide trace events interface
- for uprobes
-Message-ID: <20120416092227.GD13363@linux.vnet.ibm.com>
-Reply-To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-References: <20120409091133.8343.65289.sendpatchset@srdronam.in.ibm.com>
- <20120409091154.8343.50489.sendpatchset@srdronam.in.ibm.com>
- <20120411103043.GB29437@linux.vnet.ibm.com>
- <1334236456.23924.333.camel@gandalf.stny.rr.com>
- <20120414111206.GA24688@gmail.com>
+Received: from psmtp.com (na3sys010amx163.postini.com [74.125.245.163])
+	by kanga.kvack.org (Postfix) with SMTP id 495946B0044
+	for <linux-mm@kvack.org>; Mon, 16 Apr 2012 05:44:07 -0400 (EDT)
+Message-ID: <4F8BE9D8.5060803@hitachi.com>
+Date: Mon, 16 Apr 2012 18:43:52 +0900
+From: Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-In-Reply-To: <20120414111206.GA24688@gmail.com>
+Subject: Re: [PATCH 3/3] tracing: Provide trace events interface for uprobes
+References: <20120416091936.19174.2641.sendpatchset@srdronam.in.ibm.com> <20120416091957.19174.22913.sendpatchset@srdronam.in.ibm.com>
+In-Reply-To: <20120416091957.19174.22913.sendpatchset@srdronam.in.ibm.com>
+Content-Type: text/plain; charset=ISO-2022-JP
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ingo Molnar <mingo@kernel.org>
-Cc: Steven Rostedt <rostedt@goodmis.org>, Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, LKML <linux-kernel@vger.kernel.org>, Linux-mm <linux-mm@kvack.org>, Oleg Nesterov <oleg@redhat.com>, Andi Kleen <andi@firstfloor.org>, Christoph Hellwig <hch@infradead.org>, Arnaldo Carvalho de Melo <acme@infradead.org>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Thomas Gleixner <tglx@linutronix.de>, Anton Arapov <anton@redhat.com>
+To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
+Cc: Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, LKML <linux-kernel@vger.kernel.org>, Linux-mm <linux-mm@kvack.org>, Oleg Nesterov <oleg@redhat.com>, Andi Kleen <andi@firstfloor.org>, Christoph Hellwig <hch@infradead.org>, Steven Rostedt <rostedt@goodmis.org>, Arnaldo Carvalho de Melo <acme@infradead.org>, Thomas Gleixner <tglx@linutronix.de>, Anton Arapov <anton@redhat.com>
 
-* Ingo Molnar <mingo@kernel.org> [2012-04-14 13:12:06]:
+(2012/04/16 18:19), Srikar Dronamraju wrote:
+> From: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
+> 
+> Implements trace_event support for uprobes. In its current form it can
+> be used to put probes at a specified offset in a file and dump the
+> required registers when the code flow passes through the probed address.
+> 
+> The following example shows how to dump the instruction pointer and %ax
+> a register at the probed text address.  Here we are trying to probe
+> zfree in /bin/zsh
+> 
+> # cd /sys/kernel/debug/tracing/
+> # cat /proc/`pgrep  zsh`/maps | grep /bin/zsh | grep r-xp
+> 00400000-0048a000 r-xp 00000000 08:03 130904 /bin/zsh
+> # objdump -T /bin/zsh | grep -w zfree
+> 0000000000446420 g    DF .text  0000000000000012  Base        zfree
+> # echo 'p /bin/zsh:0x46420 %ip %ax' > uprobe_events
+> # cat uprobe_events
+> p:uprobes/p_zsh_0x46420 /bin/zsh:0x0000000000046420
+> # echo 1 > events/uprobes/enable
+> # sleep 20
+> # echo 0 > events/uprobes/enable
+> # cat trace
+> # tracer: nop
+> #
+> #           TASK-PID    CPU#    TIMESTAMP  FUNCTION
+> #              | |       |          |         |
+>              zsh-24842 [006] 258544.995456: p_zsh_0x46420: (0x446420) arg1=446421 arg2=79
+>              zsh-24842 [007] 258545.000270: p_zsh_0x46420: (0x446420) arg1=446421 arg2=79
+>              zsh-24842 [002] 258545.043929: p_zsh_0x46420: (0x446420) arg1=446421 arg2=79
+>              zsh-24842 [004] 258547.046129: p_zsh_0x46420: (0x446420) arg1=446421 arg2=79
+> 
+> Acked-by: Steven Rostedt <rostedt@goodmis.org>
+> Signed-off-by: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
 
-> 
-> * Steven Rostedt <rostedt@goodmis.org> wrote:
-> 
-> > I'm fine with what I see here (still need to fix what Masami 
-> > suggested).
-> > 
-> > Acked-by: Steven Rostedt <rostedt@goodmis.org>
-> 
-> Ok - Srikar, mind sending the latest (3-patch?) series again, 
-> with all suggestions and acks incorporated?
-> 
+Looks good for me :)
 
-Just sent out the 3 patches incorporation all suggestions including the
-last one from Stephen Boyd.
+Acked-by: Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>
+
+
+Thanks!
+
 
 -- 
-Thanks and Regards
-Srikar
+Masami HIRAMATSU
+Software Platform Research Dept. Linux Technology Center
+Hitachi, Ltd., Yokohama Research Laboratory
+E-mail: masami.hiramatsu.pt@hitachi.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
