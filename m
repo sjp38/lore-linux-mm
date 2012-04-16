@@ -1,48 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx167.postini.com [74.125.245.167])
-	by kanga.kvack.org (Postfix) with SMTP id 84C9E6B00E7
-	for <linux-mm@kvack.org>; Mon, 16 Apr 2012 10:43:01 -0400 (EDT)
-Message-ID: <4F8C2F8F.1040009@parallels.com>
-Date: Mon, 16 Apr 2012 11:41:19 -0300
-From: Glauber Costa <glommer@parallels.com>
+Received: from psmtp.com (na3sys010amx178.postini.com [74.125.245.178])
+	by kanga.kvack.org (Postfix) with SMTP id 83C2C6B00EA
+	for <linux-mm@kvack.org>; Mon, 16 Apr 2012 10:45:56 -0400 (EDT)
+Date: Mon, 16 Apr 2012 16:44:57 +0200
+From: Oleg Nesterov <oleg@redhat.com>
+Subject: Re: [PATCH 2/6] uprobes: introduce is_swbp_at_addr_fast()
+Message-ID: <20120416144457.GA7018@redhat.com>
+References: <20120405222024.GA19154@redhat.com> <20120405222106.GB19166@redhat.com> <1334570935.28150.25.camel@twins>
 MIME-Version: 1.0
-Subject: Re: [PATCH] slub: don't create a copy of the name string in kmem_cache_create
-References: <1334351170-26672-1-git-send-email-glommer@parallels.com> <alpine.DEB.2.00.1204160900270.7795@router.home>
-In-Reply-To: <alpine.DEB.2.00.1204160900270.7795@router.home>
-Content-Type: text/plain; charset="ISO-8859-1"; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1334570935.28150.25.camel@twins>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: linux-mm@kvack.org, Suleiman Souhlal <suleiman@google.com>, devel@openvz.org, linux-kernel@vger.kernel.org, Pekka Enberg <penberg@cs.helsinki.fi>
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: Ingo Molnar <mingo@elte.hu>, Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, LKML <linux-kernel@vger.kernel.org>, Linux-mm <linux-mm@kvack.org>, Andi Kleen <andi@firstfloor.org>, Christoph Hellwig <hch@infradead.org>, Steven Rostedt <rostedt@goodmis.org>, Arnaldo Carvalho de Melo <acme@infradead.org>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Thomas Gleixner <tglx@linutronix.de>, Anton Arapov <anton@redhat.com>
 
-On 04/16/2012 11:02 AM, Christoph Lameter wrote:
-> On Fri, 13 Apr 2012, Glauber Costa wrote:
+On 04/16, Peter Zijlstra wrote:
 >
->> When creating a cache, slub keeps a copy of the cache name through
->> strdup. The slab however, doesn't do that. This means that everyone
->> registering caches have to keep a copy themselves anyway, since code
->> needs to work on all allocators.
->>
->> Having slab create a copy of it as well may very well be the right
->> thing to do: but at this point, the callers are already there
+> On Fri, 2012-04-06 at 00:21 +0200, Oleg Nesterov wrote:
+> > +int __weak is_swbp_at_addr_fast(unsigned long vaddr)
+> > +{
+> > +       uprobe_opcode_t opcode;
+> > +       int fault;
+> > +
+> > +       pagefault_disable();
+> > +       fault = __copy_from_user_inatomic(&opcode, (void __user*)vaddr,
+> > +                                                       sizeof(opcode));
+> > +       pagefault_enable();
+> > +
+> > +       if (unlikely(fault)) {
+> > +               /*
+> > +                * XXX: read_opcode() lacks FOLL_FORCE, it can fail if
+> > +                * we race with another thread which does mprotect(NONE)
+> > +                * after we hit bp.
+> > +                */
+> > +               if (read_opcode(current->mm, vaddr, &opcode))
+> > +                       return -EFAULT;
+> > +       }
+> > +
+> > +       return is_swbp_insn(&opcode);
+> > +}
 >
-> What would break if we would add that to slab? I think this is more robust
-> because right now slab relies on the caller not freeing the string.
+> Why bother with the pagefault_disable() and unlikely fault case and not
+> simply do copy_from_user() and have it deal with the fault if its needed
+> anyway?
 
-Hard to think of anything, since we call kmem_cache_create() outside of
-interrupt context anyway.
+But we can't do this under down_read(mmap_sem) ?
 
-We have one more point in which we can fail - specially now that we are 
-constraining memory usage, but one can argue that if we are short on 
-memory, better not create another cache anyway.
+If another thread waits for down_write() then do_page_fault() can't take
+this lock, right?
 
-My main reason for taking this out of slub, instead of adding to the 
-slab, is that I don't remember any single bug report about that - and 
-there are certainly people around using slab, and the interface has been 
-around for so long, that pretty much everyone will assume this anyway.
-
-I am happy, however, to patch it either way.
+Oleg.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
