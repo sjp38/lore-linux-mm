@@ -1,42 +1,99 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx154.postini.com [74.125.245.154])
-	by kanga.kvack.org (Postfix) with SMTP id 481E96B0044
-	for <linux-mm@kvack.org>; Mon, 16 Apr 2012 06:17:18 -0400 (EDT)
-Message-ID: <1334571419.28150.30.camel@twins>
-Subject: Re: [RFC 0/6] uprobes: kill uprobes_srcu/uprobe_srcu_id
-From: Peter Zijlstra <peterz@infradead.org>
-Date: Mon, 16 Apr 2012 12:16:59 +0200
-In-Reply-To: <20120415234401.GA32662@redhat.com>
-References: <20120405222024.GA19154@redhat.com>
-	 <1334409396.2528.100.camel@twins> <20120414205200.GA9083@redhat.com>
-	 <1334487062.2528.113.camel@twins> <20120415195351.GA22095@redhat.com>
-	 <1334526513.28150.23.camel@twins> <20120415234401.GA32662@redhat.com>
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: quoted-printable
-Mime-Version: 1.0
+Received: from psmtp.com (na3sys010amx129.postini.com [74.125.245.129])
+	by kanga.kvack.org (Postfix) with SMTP id 54AED6B004D
+	for <linux-mm@kvack.org>; Mon, 16 Apr 2012 06:45:11 -0400 (EDT)
+Received: from /spool/local
+	by e28smtp02.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
+	Mon, 16 Apr 2012 16:15:04 +0530
+Received: from d28av02.in.ibm.com (d28av02.in.ibm.com [9.184.220.64])
+	by d28relay05.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q3GAj4xE3723404
+	for <linux-mm@kvack.org>; Mon, 16 Apr 2012 16:15:05 +0530
+Received: from d28av02.in.ibm.com (loopback [127.0.0.1])
+	by d28av02.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q3GGFeL1001017
+	for <linux-mm@kvack.org>; Tue, 17 Apr 2012 02:15:41 +1000
+From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Subject: [PATCH -V6 01/14] hugetlb: rename max_hstate to hugetlb_max_hstate
+Date: Mon, 16 Apr 2012 16:14:38 +0530
+Message-Id: <1334573091-18602-2-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+In-Reply-To: <1334573091-18602-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+References: <1334573091-18602-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Oleg Nesterov <oleg@redhat.com>
-Cc: Ingo Molnar <mingo@elte.hu>, Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, LKML <linux-kernel@vger.kernel.org>, Linux-mm <linux-mm@kvack.org>, Andi Kleen <andi@firstfloor.org>, Christoph Hellwig <hch@infradead.org>, Steven Rostedt <rostedt@goodmis.org>, Arnaldo Carvalho de Melo <acme@infradead.org>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Thomas Gleixner <tglx@linutronix.de>, Anton Arapov <anton@redhat.com>
+To: linux-mm@kvack.org, mgorman@suse.de, kamezawa.hiroyu@jp.fujitsu.com, dhillf@gmail.com, aarcange@redhat.com, mhocko@suse.cz, akpm@linux-foundation.org, hannes@cmpxchg.org
+Cc: linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
 
-On Mon, 2012-04-16 at 01:44 +0200, Oleg Nesterov wrote:
+From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
 
-> No. Please note that if is_swbp_at_addr_fast() sets is_swbp =3D=3D 0 we
-> restart this insn.
+We will be using this from other subsystems like memcg
+in later patches.
 
-Ah, see I was missing something..  Hmm ok, let me think about this a
-little more though.. but at least I think I'm now (finally!) seeing what
-you propose.
+Acked-by: Michal Hocko <mhocko@suse.cz>
+Reviewed-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Acked-by: Hillf Danton <dhillf@gmail.com>
+Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
+---
+ mm/hugetlb.c |   14 +++++++-------
+ 1 file changed, 7 insertions(+), 7 deletions(-)
 
-> And. I have another reason for down_write() in register/unregister.
-> I am still not sure this is possible (I had no time to try to
-> implement), but it seems to me we can kill the uprobe counter in
-> mm_struct.
-
-You mean by making register/unregister down_write, you're exclusive with
-munmap() and thus we can rely on is_swbp_at_addr_fast() to inspect the
-address to see if there's a breakpoint or not and avoid the rest of the
-work that way?
+diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+index b8ce6f4..766eb90 100644
+--- a/mm/hugetlb.c
++++ b/mm/hugetlb.c
+@@ -34,7 +34,7 @@ const unsigned long hugetlb_zero = 0, hugetlb_infinity = ~0UL;
+ static gfp_t htlb_alloc_mask = GFP_HIGHUSER;
+ unsigned long hugepages_treat_as_movable;
+ 
+-static int max_hstate;
++static int hugetlb_max_hstate;
+ unsigned int default_hstate_idx;
+ struct hstate hstates[HUGE_MAX_HSTATE];
+ 
+@@ -46,7 +46,7 @@ static unsigned long __initdata default_hstate_max_huge_pages;
+ static unsigned long __initdata default_hstate_size;
+ 
+ #define for_each_hstate(h) \
+-	for ((h) = hstates; (h) < &hstates[max_hstate]; (h)++)
++	for ((h) = hstates; (h) < &hstates[hugetlb_max_hstate]; (h)++)
+ 
+ /*
+  * Protects updates to hugepage_freelists, nr_huge_pages, and free_huge_pages
+@@ -1897,9 +1897,9 @@ void __init hugetlb_add_hstate(unsigned order)
+ 		printk(KERN_WARNING "hugepagesz= specified twice, ignoring\n");
+ 		return;
+ 	}
+-	BUG_ON(max_hstate >= HUGE_MAX_HSTATE);
++	BUG_ON(hugetlb_max_hstate >= HUGE_MAX_HSTATE);
+ 	BUG_ON(order == 0);
+-	h = &hstates[max_hstate++];
++	h = &hstates[hugetlb_max_hstate++];
+ 	h->order = order;
+ 	h->mask = ~((1ULL << (order + PAGE_SHIFT)) - 1);
+ 	h->nr_huge_pages = 0;
+@@ -1920,10 +1920,10 @@ static int __init hugetlb_nrpages_setup(char *s)
+ 	static unsigned long *last_mhp;
+ 
+ 	/*
+-	 * !max_hstate means we haven't parsed a hugepagesz= parameter yet,
++	 * !hugetlb_max_hstate means we haven't parsed a hugepagesz= parameter yet,
+ 	 * so this hugepages= parameter goes to the "default hstate".
+ 	 */
+-	if (!max_hstate)
++	if (!hugetlb_max_hstate)
+ 		mhp = &default_hstate_max_huge_pages;
+ 	else
+ 		mhp = &parsed_hstate->max_huge_pages;
+@@ -1942,7 +1942,7 @@ static int __init hugetlb_nrpages_setup(char *s)
+ 	 * But we need to allocate >= MAX_ORDER hstates here early to still
+ 	 * use the bootmem allocator.
+ 	 */
+-	if (max_hstate && parsed_hstate->order >= MAX_ORDER)
++	if (hugetlb_max_hstate && parsed_hstate->order >= MAX_ORDER)
+ 		hugetlb_hstate_alloc_pages(parsed_hstate);
+ 
+ 	last_mhp = mhp;
+-- 
+1.7.10
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
