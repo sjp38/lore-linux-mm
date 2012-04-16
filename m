@@ -1,57 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx178.postini.com [74.125.245.178])
-	by kanga.kvack.org (Postfix) with SMTP id 83C2C6B00EA
-	for <linux-mm@kvack.org>; Mon, 16 Apr 2012 10:45:56 -0400 (EDT)
-Date: Mon, 16 Apr 2012 16:44:57 +0200
-From: Oleg Nesterov <oleg@redhat.com>
-Subject: Re: [PATCH 2/6] uprobes: introduce is_swbp_at_addr_fast()
-Message-ID: <20120416144457.GA7018@redhat.com>
-References: <20120405222024.GA19154@redhat.com> <20120405222106.GB19166@redhat.com> <1334570935.28150.25.camel@twins>
+Received: from psmtp.com (na3sys010amx156.postini.com [74.125.245.156])
+	by kanga.kvack.org (Postfix) with SMTP id 1AE576B00EC
+	for <linux-mm@kvack.org>; Mon, 16 Apr 2012 10:53:15 -0400 (EDT)
+Message-ID: <4F8C3253.9030208@redhat.com>
+Date: Mon, 16 Apr 2012 10:53:07 -0400
+From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1334570935.28150.25.camel@twins>
+Subject: Re: [RFC PATCH] s390: mm: rmap: Transfer storage key to struct page
+ under the page lock
+References: <20120416141423.GD2359@suse.de>
+In-Reply-To: <20120416141423.GD2359@suse.de>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: Ingo Molnar <mingo@elte.hu>, Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, LKML <linux-kernel@vger.kernel.org>, Linux-mm <linux-mm@kvack.org>, Andi Kleen <andi@firstfloor.org>, Christoph Hellwig <hch@infradead.org>, Steven Rostedt <rostedt@goodmis.org>, Arnaldo Carvalho de Melo <acme@infradead.org>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Thomas Gleixner <tglx@linutronix.de>, Anton Arapov <anton@redhat.com>
+To: Mel Gorman <mgorman@suse.de>
+Cc: Martin Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, Hugh Dickins <hughd@google.com>, Linux-MM <linux-mm@kvack.org>, Linux-S390 <linux-s390@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>
 
-On 04/16, Peter Zijlstra wrote:
->
-> On Fri, 2012-04-06 at 00:21 +0200, Oleg Nesterov wrote:
-> > +int __weak is_swbp_at_addr_fast(unsigned long vaddr)
-> > +{
-> > +       uprobe_opcode_t opcode;
-> > +       int fault;
-> > +
-> > +       pagefault_disable();
-> > +       fault = __copy_from_user_inatomic(&opcode, (void __user*)vaddr,
-> > +                                                       sizeof(opcode));
-> > +       pagefault_enable();
-> > +
-> > +       if (unlikely(fault)) {
-> > +               /*
-> > +                * XXX: read_opcode() lacks FOLL_FORCE, it can fail if
-> > +                * we race with another thread which does mprotect(NONE)
-> > +                * after we hit bp.
-> > +                */
-> > +               if (read_opcode(current->mm, vaddr, &opcode))
-> > +                       return -EFAULT;
-> > +       }
-> > +
-> > +       return is_swbp_insn(&opcode);
-> > +}
->
-> Why bother with the pagefault_disable() and unlikely fault case and not
-> simply do copy_from_user() and have it deal with the fault if its needed
-> anyway?
+On 04/16/2012 10:14 AM, Mel Gorman wrote:
+> This patch is horribly ugly and there has to be a better way of doing
+> it. I'm looking for suggestions on what s390 can do here that is not
+> painful or broken.
 
-But we can't do this under down_read(mmap_sem) ?
+I'm hoping the S390 arch maintainers have an idea.
 
-If another thread waits for down_write() then do_page_fault() can't take
-this lock, right?
+Ugly or not, we'll need something to fix the bug.
 
-Oleg.
+> + * When the late PTE has gone, s390 must transfer the dirty flag from the
+> + * storage key to struct page. We can usually skip this if the page is anon,
+> + * so about to be freed; but perhaps not if it's in swapcache - there might
+> + * be another pte slot containing the swap entry, but page not yet written to
+> + * swap.
+>    *
+> - * The caller needs to hold the pte lock.
+> + * set_page_dirty() is called while the page_mapcount is still postive and
+> + * under the page lock to avoid races with the mapping being invalidated.
+>    */
+> -void page_remove_rmap(struct page *page)
+> +static void propogate_storage_key(struct page *page, bool lock_required)
+
+Do you mean "propAgate" ?
+
+-- 
+All rights reversed
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
