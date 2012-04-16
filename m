@@ -1,86 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx149.postini.com [74.125.245.149])
-	by kanga.kvack.org (Postfix) with SMTP id 930296B00F4
-	for <linux-mm@kvack.org>; Mon, 16 Apr 2012 11:03:36 -0400 (EDT)
-Received: by vbbey12 with SMTP id ey12so4934761vbb.14
-        for <linux-mm@kvack.org>; Mon, 16 Apr 2012 08:03:35 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx185.postini.com [74.125.245.185])
+	by kanga.kvack.org (Postfix) with SMTP id E29026B00F6
+	for <linux-mm@kvack.org>; Mon, 16 Apr 2012 11:15:10 -0400 (EDT)
+Date: Mon, 16 Apr 2012 17:15:08 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH V2 3/5] memcg: set soft_limit_in_bytes to 0 by default
+Message-ID: <20120416151507.GC2014@tiehlicka.suse.cz>
+References: <1334181614-26836-1-git-send-email-yinghan@google.com>
+ <4F8625AD.6000707@redhat.com>
+ <20120412022233.GF1787@cmpxchg.org>
 MIME-Version: 1.0
-In-Reply-To: <20120416134422.GC2359@suse.de>
-References: <1334578675-23445-1-git-send-email-mgorman@suse.de>
-	<1334578675-23445-9-git-send-email-mgorman@suse.de>
-	<CADnza444dTr=JEtqpL5wxHRNkEc7vBz1qq9TL7Z+5h749vNawg@mail.gmail.com>
-	<20120416134422.GC2359@suse.de>
-Date: Mon, 16 Apr 2012 11:03:35 -0400
-Message-ID: <CADnza440ERBNTyQuXaG-MJGGw2u-ADmFdn+w+nvJ1F7cNyreGA@mail.gmail.com>
-Subject: Re: [PATCH 08/11] nfs: disable data cache revalidation for swapfiles
-From: Fred Isaman <iisaman@netapp.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20120412022233.GF1787@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, Linux-Netdev <netdev@vger.kernel.org>, Linux-NFS <linux-nfs@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, David Miller <davem@davemloft.net>, Trond Myklebust <Trond.Myklebust@netapp.com>, Neil Brown <neilb@suse.de>, Christoph Hellwig <hch@infradead.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Mike Christie <michaelc@cs.wisc.edu>, Eric B Munson <emunson@mgebm.net>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Rik van Riel <riel@redhat.com>, Ying Han <yinghan@google.com>, Mel Gorman <mel@csn.ul.ie>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Hillf Danton <dhillf@gmail.com>, Hugh Dickins <hughd@google.com>, Dan Magenheimer <dan.magenheimer@oracle.com>, linux-mm@kvack.org
 
-On Mon, Apr 16, 2012 at 9:44 AM, Mel Gorman <mgorman@suse.de> wrote:
-> On Mon, Apr 16, 2012 at 09:10:04AM -0400, Fred Isaman wrote:
->> > <SNIP>
->> > -static struct nfs_page *nfs_page_find_request_locked(struct page *pag=
-e)
->> > +static struct nfs_page *
->> > +nfs_page_find_request_locked(struct nfs_inode *nfsi, struct page *pag=
-e)
->> > =A0{
->> > =A0 =A0 =A0 =A0struct nfs_page *req =3D NULL;
->> >
->> > - =A0 =A0 =A0 if (PagePrivate(page)) {
->> > + =A0 =A0 =A0 if (PagePrivate(page))
->> > =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0req =3D (struct nfs_page *)page_private=
-(page);
->> > - =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (req !=3D NULL)
->> > - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 kref_get(&req->wb_kref);
->> > + =A0 =A0 =A0 else if (unlikely(PageSwapCache(page))) {
->> > + =A0 =A0 =A0 =A0 =A0 =A0 =A0 struct nfs_page *freq, *t;
->> > +
->> > + =A0 =A0 =A0 =A0 =A0 =A0 =A0 /* Linearly search the commit list for t=
-he correct req */
->> > + =A0 =A0 =A0 =A0 =A0 =A0 =A0 list_for_each_entry_safe(freq, t, &nfsi-=
->commit_list, wb_list) {
->> > + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (freq->wb_page =3D=3D=
- page) {
->> > + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 req =3D =
-freq;
->> > + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 break;
->> > + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 }
->> > + =A0 =A0 =A0 =A0 =A0 =A0 =A0 }
->> > +
->> > + =A0 =A0 =A0 =A0 =A0 =A0 =A0 BUG_ON(req =3D=3D NULL);
->>
->> I suspect I am missing something, but why is it guaranteed that the
->> req is on the commit list?
->>
->
-> It's a fair question and a statement about what I expected to happen.
-> The commit list replaces the nfs_page_tree radix tree that used to exist
-> and my understanding was that the req would exist in the radix tree until
-> the swap IO was completed. I expected it to be the same for the commit
-> list and the BUG_ON was based on that expectation. Are there cases where
-> the req would not be found?
->
-> Thanks.
->
-> --
-> Mel Gorman
-> SUSE Labs
-> --
+On Thu 12-04-12 04:22:33, Johannes Weiner wrote:
+> On Wed, Apr 11, 2012 at 08:45:33PM -0400, Rik van Riel wrote:
+> > On 04/11/2012 06:00 PM, Ying Han wrote:
+> > >1. If soft_limit are all set to MAX, it wastes first three periority iterations
+> > >without scanning anything.
+> > >
+> > >2. By default every memcg is eligibal for softlimit reclaim, and we can also
+> > >set the value to MAX for special memcg which is immune to soft limit reclaim.
+> > >
+> > >This idea is based on discussion with Michal and Johannes from LSF.
+> > 
+> > Combined with patch 2/5, would this not result in always
+> > returning "reclaim from this memcg" for groups without a
+> > configured softlimit, while groups with a configured
+> > softlimit only get reclaimed from when they are over
+> > their limit?
+> > 
+> > Is that the desired behaviour when a system has some
+> > cgroups with a configured softlimit, and some without?
+> 
+> Yes, in general I think this new behaviour is welcome.
+> 
+> In the past, soft limits were only used to give excess memory a lower
+> priority and there was no particular meaning associated with "being
+> below your soft limit".  This change makes it so that soft limits are
+> actually a minimum guarantee, too, so you wouldn't get reclaimed if
+> you behaved (if possible):
+> 
+> 		A-unconfigured		B-below-softlimit
+> old:		reclaim			reclaim
+> new:		reclaim			no reclaim (if possible)
+> 
+> The much less obvious change here, however, is that we no longer put
+> extra pressure on groups above their limit compared to unconfigured
+> groups:
+> 
+> 		A-unconfigured		B-above-softlimit
+> old:		reclaim			reclaim twice
+> new:		reclaim			reclaim
 
-A req is on the commit list only if it actually needs to be scheduled
-for COMMIT.  In other words, only after it has been sent via WRITE and
-the server did not return NFS_FILE_SYNC.
+Agreed and I guess that the above should be a part of the changelog.
+This is changing previous behavior and we should rather be explicit
+about that.
 
-Thus dirtying a page, then trying to touch it again before the WRITE
-is sent will not find the corresponding req on the commit_list.
+> I still think that it's a reasonable use case to put a soft limit on a
+> workload to "nice" it memory-wise, without looking at the machine as a
+> whole and configuring EVERY cgroup based on global knowledge and
+> static partitioning of the machine.
 
-Fred
+-- 
+Michal Hocko
+SUSE Labs
+SUSE LINUX s.r.o.
+Lihovarska 1060/12
+190 00 Praha 9    
+Czech Republic
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
