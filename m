@@ -1,64 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx101.postini.com [74.125.245.101])
-	by kanga.kvack.org (Postfix) with SMTP id C8E4A6B0112
-	for <linux-mm@kvack.org>; Mon, 16 Apr 2012 08:18:11 -0400 (EDT)
-From: Mel Gorman <mgorman@suse.de>
-Subject: [PATCH 11/11] Avoid dereferencing bd_disk during swap_entry_free for network storage
-Date: Mon, 16 Apr 2012 13:17:55 +0100
-Message-Id: <1334578675-23445-12-git-send-email-mgorman@suse.de>
-In-Reply-To: <1334578675-23445-1-git-send-email-mgorman@suse.de>
-References: <1334578675-23445-1-git-send-email-mgorman@suse.de>
+Received: from psmtp.com (na3sys010amx120.postini.com [74.125.245.120])
+	by kanga.kvack.org (Postfix) with SMTP id 0A0B86B0113
+	for <linux-mm@kvack.org>; Mon, 16 Apr 2012 08:36:39 -0400 (EDT)
+Received: from /spool/local
+	by e31.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <srikar@linux.vnet.ibm.com>;
+	Mon, 16 Apr 2012 06:36:38 -0600
+Received: from d03relay03.boulder.ibm.com (d03relay03.boulder.ibm.com [9.17.195.228])
+	by d03dlp02.boulder.ibm.com (Postfix) with ESMTP id CE1303E40058
+	for <linux-mm@kvack.org>; Mon, 16 Apr 2012 06:35:47 -0600 (MDT)
+Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
+	by d03relay03.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q3GCZbMt122706
+	for <linux-mm@kvack.org>; Mon, 16 Apr 2012 06:35:41 -0600
+Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av02.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q3GCZan0010370
+	for <linux-mm@kvack.org>; Mon, 16 Apr 2012 06:35:37 -0600
+Date: Mon, 16 Apr 2012 17:57:37 +0530
+From: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
+Subject: Re: [PATCH] perf/probe: Provide perf interface for uprobes
+Message-ID: <20120416122737.GB25464@linux.vnet.ibm.com>
+Reply-To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
+References: <20120411135742.29198.45061.sendpatchset@srdronam.in.ibm.com>
+ <20120411144918.GD16257@infradead.org>
+ <20120411170343.GB29831@linux.vnet.ibm.com>
+ <20120411181727.GK16257@infradead.org>
+ <4F864BB3.3090405@hitachi.com>
+ <20120412140751.GM16257@infradead.org>
+ <20120412151037.GC21587@linux.vnet.ibm.com>
+ <4F87C76B.10001@hitachi.com>
+ <20120414011330.GC31880@infradead.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+In-Reply-To: <20120414011330.GC31880@infradead.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Linux-MM <linux-mm@kvack.org>, Linux-Netdev <netdev@vger.kernel.org>, Linux-NFS <linux-nfs@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, David Miller <davem@davemloft.net>, Trond Myklebust <Trond.Myklebust@netapp.com>, Neil Brown <neilb@suse.de>, Christoph Hellwig <hch@infradead.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Mike Christie <michaelc@cs.wisc.edu>, Eric B Munson <emunson@mgebm.net>, Mel Gorman <mgorman@suse.de>
+To: Arnaldo Carvalho de Melo <acme@infradead.org>
+Cc: Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, LKML <linux-kernel@vger.kernel.org>, Linux-mm <linux-mm@kvack.org>, Oleg Nesterov <oleg@redhat.com>, Andi Kleen <andi@firstfloor.org>, Christoph Hellwig <hch@infradead.org>, Steven Rostedt <rostedt@goodmis.org>, Thomas Gleixner <tglx@linutronix.de>, Anton Arapov <anton@redhat.com>
 
-Commit [b3a27d: swap: Add swap slot free callback to
-block_device_operations] dereferences p->bdev->bd_disk but this is a
-NULL dereference if using swap-over-NFS. This patch checks SWP_BLKDEV
-on the swap_info_struct before dereferencing.
+> 
+> > > Another case 
+> > > perf probe do_fork clone_flags now looks for variable clone_flags in
+> > > kernel function do_fork.
+> 
+> > > But if we allow to trace perf probe zsh zfree; then 
+> > > 'perf probe do_fork clone_flags' should it check for do_fork executable
+> > > or not? If it does check and finds one, and searches for clone_flags
+> > > function and doesnt find, then should it continue with searching the
+> > > kernel?
+> 
+> > Agree. I'd like to suggest you to start with only full path support,
+> > and see, how we can handle abbreviations :)
+> 
+> Agreed, I was just making usability suggestions.
+> 
+> Those can be implemented later, if we agree they ease the tool use.
+> 
 
-With reference to this callback, Christoph Hellwig stated "Please
-just remove the callback entirely.  It has no user outside the staging
-tree and was added clearly against the rules for that staging tree".
-This would also be my preference but there was not an obvious way of
-keeping zram in staging/ happy.
+I have just made a prototype for guessing the target when -m and -x
+options arent passed. That still uses the absolute path for now.
 
-Signed-off-by: Xiaotian Feng <dfeng@redhat.com>
-Signed-off-by: Mel Gorman <mgorman@suse.de>
----
- mm/swapfile.c |    9 +++++----
- 1 file changed, 5 insertions(+), 4 deletions(-)
+I was trying to see if we can identify the module by the short name by
+using kernel_get_module_path(). However kernel_get_module_path() needs
+init_vmlinux() to be called before. Since init_vmlinux() cant be called
+more than once and init_vmlinux gets called later, I thought calling it
+here wasnt good option. Wanted to see if we could open /proc/modules
+and then match the module name.  But again, I wasnt sure how to handle
+offline modules.  
 
-diff --git a/mm/swapfile.c b/mm/swapfile.c
-index 80b3415..d85d842 100644
---- a/mm/swapfile.c
-+++ b/mm/swapfile.c
-@@ -547,7 +547,6 @@ static unsigned char swap_entry_free(struct swap_info_struct *p,
- 
- 	/* free if no reference */
- 	if (!usage) {
--		struct gendisk *disk = p->bdev->bd_disk;
- 		if (offset < p->lowest_bit)
- 			p->lowest_bit = offset;
- 		if (offset > p->highest_bit)
-@@ -557,9 +556,11 @@ static unsigned char swap_entry_free(struct swap_info_struct *p,
- 			swap_list.next = p->type;
- 		nr_swap_pages++;
- 		p->inuse_pages--;
--		if ((p->flags & SWP_BLKDEV) &&
--				disk->fops->swap_slot_free_notify)
--			disk->fops->swap_slot_free_notify(p->bdev, offset);
-+		if (p->flags & SWP_BLKDEV) {
-+			struct gendisk *disk = p->bdev->bd_disk;
-+			if (disk->fops->swap_slot_free_notify)
-+				disk->fops->swap_slot_free_notify(p->bdev, offset);
-+		}
- 	}
- 
- 	return usage;
 -- 
-1.7.9.2
+Thanks and Regards
+Srikar
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
