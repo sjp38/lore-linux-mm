@@ -1,201 +1,107 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx194.postini.com [74.125.245.194])
-	by kanga.kvack.org (Postfix) with SMTP id 52B306B0106
-	for <linux-mm@kvack.org>; Mon, 16 Apr 2012 14:50:34 -0400 (EDT)
-Received: by lbbgp10 with SMTP id gp10so2145985lbb.14
-        for <linux-mm@kvack.org>; Mon, 16 Apr 2012 11:50:32 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx164.postini.com [74.125.245.164])
+	by kanga.kvack.org (Postfix) with SMTP id 80DD46B010B
+	for <linux-mm@kvack.org>; Mon, 16 Apr 2012 14:59:44 -0400 (EDT)
+From: Arnd Bergmann <arnd@arndb.de>
+Subject: Re: swap on eMMC and other flash
+Date: Mon, 16 Apr 2012 18:59:32 +0000
+References: <201203301744.16762.arnd@arndb.de> <201204111557.14153.arnd@arndb.de> <CAKL-ytsXbe4=u94PjqvhZo=ZLiChQ0FmZC84GNrFHa0N1mDjFw@mail.gmail.com>
+In-Reply-To: <CAKL-ytsXbe4=u94PjqvhZo=ZLiChQ0FmZC84GNrFHa0N1mDjFw@mail.gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <1334483226.20721.YahooMailNeo@web162003.mail.bf1.yahoo.com>
-References: <1334483226.20721.YahooMailNeo@web162003.mail.bf1.yahoo.com>
-Date: Mon, 16 Apr 2012 11:50:31 -0700
-Message-ID: <CALWz4izONZq7gOz-h0MWqEgyuOF8PQEmP3FAMp_rKLcKx3X01Q@mail.gmail.com>
-Subject: Re: [NEW]: Introducing shrink_all_memory from user space
-From: Ying Han <yinghan@google.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Content-Type: Text/Plain;
+  charset="iso-8859-1"
+Content-Transfer-Encoding: 7bit
+Message-Id: <201204161859.32436.arnd@arndb.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: PINTU KUMAR <pintu_agarwal@yahoo.com>
-Cc: "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "pintu.k@samsung.com" <pintu.k@samsung.com>
+To: Stephan Uphoff <ups@google.com>
+Cc: Minchan Kim <minchan@kernel.org>, linaro-kernel@lists.linaro.org, android-kernel@googlegroups.com, linux-mm@kvack.org, "Luca Porzio (lporzio)" <lporzio@micron.com>, Alex Lemberg <alex.lemberg@sandisk.com>, linux-kernel@vger.kernel.org, Saugata Das <saugata.das@linaro.org>, Venkatraman S <venkat@linaro.org>, Yejin Moon <yejin.moon@samsung.com>, Hyojin Jeong <syr.jeong@samsung.com>, "linux-mmc@vger.kernel.org" <linux-mmc@vger.kernel.org>
 
-On Sun, Apr 15, 2012 at 2:47 AM, PINTU KUMAR <pintu_agarwal@yahoo.com> wrot=
-e:
-> Dear All,
->
-> This is regarding a small proposal for shrink_all_memory( ) function whic=
-h is found in mm/vmscan.c.
-> For those who are not aware, this function helps in reclaiming specified =
-amount of physical memory and returns number of freed pages.
->
-> Currently this function is under CONFIG_HIBERNATION flag, so cannot be us=
-ed by others without enabling hibernation.
-> Moreover this function is not exported to the outside world, so no driver=
- can use it directly without including EXPORT_SYMBOL(shrink_all_memory) and=
- recompiling the kernel.
-> The purpose of using it under hibernation(kernel/power/snapshot.c) is to =
-regain enough physical pages to create hibernation image.
->
-> The same can be useful for some drivers who wants to allocate large conti=
-guous memory (in MBs) but his/her system is in very bad state and could not=
- do so without rebooting.
-> Due to this bad state of the system the user space application will be ba=
-dly hurt on performance, and there could be a need to quickly reclaim all p=
-hysical memory from user space.
-> This could be very helpful for small embedded products and smart phones w=
-here rebooting is never a preferred choice.
->
-> With this support in kernel, a small utility can be developed in user spa=
-ce which user can run and reclaim as many physical pages and noticed that h=
-is system performance is increased without rebooting.
->
-> To make this work, I have performed a sample experiment on my ubuntu(10.x=
-) machine running with kernel-3.3.0.
->
-> Also I performed the similar experiment of one of our Samsung smart phone=
-s as well.
->
-> Following are the results from Ubuntu:
->
-> 1) I downloaded kernel3.3.0 and made the respective changes in mm/vmscan.=
-c. That is added EXPORT_SYMBOL(shrink_all_memory) under the function shrink=
-_all_memory( ).
-> =A0=A0=A0 (Note: CONFIG_HIBERNATION was already enabled for my system.)
->
-> 2) Then I build the kernel and installed it on my Ubuntu PC.
->
-> 3) After that I have developed a small kernel module (miscdevice: /dev/sh=
-rinkmem) to call shrink_all_memory( ) under my driver write( ) function.
->
-> 4) Then from user space I just need to do this:
->
-> =A0=A0=A0 # echo 100 > /dev/shrinkmem=A0=A0 (To reclaim 100MB of physical=
- memory without reboot)
->
->
-> The results that were obtained with this experiment is as follows:
->
-> 1) At some point of time, the buddyinfo and free pages on my Ubuntu were =
-as follows:
-> root@pintu-ubuntu:~/PintuHomeTest/KERNEL_ORG# cat /proc/buddyinfo ; free =
--tmNode 0, zone=A0=A0=A0=A0=A0 DMA=A0=A0=A0 468=A0=A0=A0=A0 23=A0=A0=A0=A0=
-=A0 0=A0=A0=A0=A0=A0 0=A0=A0=A0=A0=A0 0=A0=A0=A0=A0=A0 0=A0=A0=A0=A0=A0 0=
-=A0=A0=A0=A0=A0 0=A0=A0=A0=A0=A0 0=A0=A0=A0=A0=A0 0=A0=A0=A0=A0=A0 0
-> Node 0, zone=A0=A0 Normal=A0=A0=A0 898=A0=A0=A0 161=A0=A0=A0=A0 38=A0=A0=
-=A0=A0=A0 8=A0=A0=A0=A0=A0 0=A0=A0=A0=A0=A0 0=A0=A0=A0=A0=A0 0=A0=A0=A0=A0=
-=A0 0=A0=A0=A0=A0=A0 0=A0=A0=A0=A0=A0 0=A0=A0=A0=A0=A0 0
-> =A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0 =A0=A0=A0 total=A0=A0=A0=A0=A0=A0 us=
-ed=A0=A0=A0=A0=A0=A0 free=A0=A0=A0=A0 shared=A0=A0=A0 buffers=A0=A0=A0=A0 c=
-ached
-> Mem:=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0 497=A0=A0=A0=A0=A0=A0=A0 489=A0=A0=A0=
-=A0=A0=A0=A0=A0=A0 7=A0=A0=A0=A0=A0=A0=A0=A0=A0 0=A0=A0=A0=A0=A0=A0=A0=A0 3=
-7=A0=A0=A0=A0=A0=A0=A0 405
-> -/+ buffers/cache:=A0=A0=A0=A0=A0=A0=A0=A0 47=A0=A0=A0=A0=A0=A0=A0 449
-> Swap:=A0=A0=A0=A0=A0=A0=A0=A0 1458=A0=A0=A0=A0=A0=A0=A0 158=A0=A0=A0=A0=
-=A0=A0 1300
-> Total:=A0=A0=A0=A0=A0=A0=A0 1956=A0=A0=A0=A0=A0=A0=A0 648=A0=A0=A0=A0=A0=
-=A0 1308
->
->
-> 2) After doing "echo 100 > /dev/shrinkmem" :
-> [19653.833916] [SHRINKMEM]: memsize(in MB) =3D 100
-> [19653.863618] <SHRINKMEM>: Number of Pages Freed: 26756
-> [19653.863664] [SHRINKMEM] : Device is Closed....
->
-> Node 0, zone=A0=A0=A0=A0=A0 DMA=A0=A0=A0 411=A0=A0=A0 166=A0=A0=A0=A0 51=
-=A0=A0=A0=A0=A0 5=A0=A0=A0=A0=A0 0=A0=A0=A0=A0=A0 0=A0=A0=A0=A0=A0 0=A0=A0=
-=A0=A0=A0 0=A0=A0=A0=A0=A0 0=A0=A0=A0=A0=A0 0=A0=A0=A0=A0=A0 0
-> Node 0, zone=A0=A0 Normal=A0=A0 2915=A0=A0 3792=A0=A0 2475=A0=A0 1335=A0=
-=A0=A0 730=A0=A0=A0=A0 23=A0=A0=A0=A0=A0 0=A0=A0=A0=A0=A0 0=A0=A0=A0=A0=A0 =
-0=A0=A0=A0=A0=A0 0=A0=A0=A0=A0=A0 0
-> =A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0 =A0=A0=A0 total=A0=A0=A0=A0=A0=A0 us=
-ed=A0=A0=A0=A0=A0=A0 free=A0=A0=A0=A0 shared=A0=A0=A0 buffers=A0=A0=A0=A0 c=
-ached
-> Mem:=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0 497=A0=A0=A0=A0=A0=A0=A0 323=A0=A0=A0=
-=A0=A0=A0=A0 173=A0=A0=A0=A0=A0=A0=A0=A0=A0 0=A0=A0=A0=A0=A0=A0=A0=A0 37=A0=
-=A0=A0=A0=A0=A0=A0 238
-> -/+ buffers/cache:=A0=A0=A0=A0=A0=A0=A0=A0 47=A0=A0=A0=A0=A0=A0=A0 449
-> Swap:=A0=A0=A0=A0=A0=A0=A0=A0 1458=A0=A0=A0=A0=A0=A0=A0 158=A0=A0=A0=A0=
-=A0=A0 1300
-> Total:=A0=A0=A0=A0=A0=A0=A0 1956=A0=A0=A0=A0=A0=A0=A0 481=A0=A0=A0=A0=A0=
-=A0 1474
->
->
-> 3) After running again with : echo 512 > /dev/shrinkmem
-> [21961.064534] [SHRINKMEM]: memsize(in MB) =3D 512
-> [21961.109497] <SHRINKMEM>: Number of Pages Freed: 61078
-> [21961.109562] [SHRINKMEM] : Device is Closed....
-> Node 0, zone=A0=A0=A0=A0=A0 DMA=A0=A0=A0 116=A0=A0=A0=A0 99=A0=A0=A0=A0 8=
-7=A0=A0=A0=A0 58=A0=A0=A0=A0 16=A0=A0=A0=A0=A0 6=A0=A0=A0=A0=A0 1=A0=A0=A0=
-=A0=A0 0=A0=A0=A0=A0=A0 0=A0=A0=A0=A0=A0 0=A0=A0=A0=A0=A0 0
-> Node 0, zone=A0=A0 Normal=A0=A0 6697=A0=A0 6939=A0=A0 5529=A0=A0 3756=A0=
-=A0 1442=A0=A0=A0 203=A0=A0=A0=A0 17=A0=A0=A0=A0=A0 0=A0=A0=A0=A0=A0 0=A0=
-=A0=A0=A0=A0 0=A0=A0=A0=A0=A0 0
-> =A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0 =A0=A0=A0 total=A0=A0=A0=A0=A0=A0 us=
-ed=A0=A0=A0=A0=A0=A0 free=A0=A0=A0=A0 shared=A0=A0=A0 buffers=A0=A0=A0=A0 c=
-ached
-> Mem:=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0 497=A0=A0=A0=A0=A0=A0=A0=A0 87=A0=A0=
-=A0=A0=A0=A0=A0 410=A0=A0=A0=A0=A0=A0=A0=A0=A0 0=A0=A0=A0=A0=A0=A0=A0=A0 37=
-=A0=A0=A0=A0=A0=A0=A0=A0=A0 9
-> -/+ buffers/cache:=A0=A0=A0=A0=A0=A0=A0=A0 40=A0=A0=A0=A0=A0=A0=A0 456
-> Swap:=A0=A0=A0=A0=A0=A0=A0=A0 1458=A0=A0=A0=A0=A0=A0=A0 158=A0=A0=A0=A0=
-=A0=A0 1300
-> Total:=A0=A0=A0=A0=A0=A0=A0 1956=A0=A0=A0=A0=A0=A0=A0 245=A0=A0=A0=A0=A0=
-=A0 1711
->
->
-> 4) Thus in both the cases huge number of free pages were reclaimed.
->
-> 5) After running this on my system, the performance was improved quickly.
->
-> 6) I performed the same experiment on our Samsung Smart phones as well. A=
-nd I have seen a drastic improve in performance after running this for 3/4 =
-times.
-> =A0=A0=A0 In case of phones it is more helpful as there is no swap space.
->
-> 7) Your feedback and suggestion is important. Based on the feedback, I ca=
-n plan to submit the patches officially after performing basic cleanups.
->
->
-> Future Work
-> =3D=3D=3D=3D=3D=3D=3D=3D=3D=3D
-> Our final goal is to use it during lowmem notifier where shrink_all_memor=
-y will be called automatically in background if the memory pressure falls b=
-elow certain limit defined by the system.
-> For example we can measure the percentage memory fragmentation level of t=
-he system across each zone and if the fragmentation percentage goes above s=
-ay 80-85% during lowmem notifier, we can invoke shrink_all_memory() in back=
-ground.
+On Monday 16 April 2012, Stephan Uphoff wrote:
+> opportunity to plant a few ideas.
+> 
+> In contrast to rotational disks read/write operation overhead and
+> costs are not symmetric.
+> While random reads are much faster on flash - the number of write
+> operations is limited by wearout and garbage collection overhead.
+> To further improve swapping on eMMC or similar flash media I believe
+> that the following issues need to be addressed:
+> 
+> 1) Limit average write bandwidth to eMMC to a configurable level to
+> guarantee a minimum device lifetime
+> 2) Aim for a low write amplification factor to maximize useable write bandwidth
+> 3) Strongly favor read over write operations
+> 
+> Lowering write amplification (2) has been discussed in this email
+> thread - and the only observation I would like to add is that
+> over-provisioning the internal swap space compared to the exported
+> swap space significantly can guarantee a lower write amplification
+> factor with the indirection and GC techniques discussed.
 
-Does it make sense to let kswapd reclaim pages at background w/ user
-configured watermark?
+Yes, good point.
 
---Ying
+> I believe the swap functionality is currently optimized for storage
+> media where read and write costs are nearly identical.
+> As this is not the case on flash I propose splitting the anonymous
+> inactive queue (at least conceptually) - keeping clean anonymous pages
+> with swap slots on a separate queue as the cost of swapping them
+> out/in is only an inexpensive read operation. A variable similar to
+> swapiness (or a more dynamic algorithmn) could determine the
+> preference for swapping out clean pages or dirty pages. ( A similar
+> argument could be made for splitting up the file inactive queue )
 
->
-> This can be used by some application which requires large mmap or shared =
-memory mapping.
->
-> This can be even using inside the multimedia drivers that requires large =
-contiguous memory to check if that many memory pages can be reclaimed or no=
-t.
->
->
-> Please provide your valuable feedback and suggestion.
->
->
-> Thank you very much !
->
->
-> With Regards,
-> Pintu Kumar
->
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org. =A0For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Fight unfair telecom internet charges in Canada: sign http://stopthemeter=
-.ca/
-> Don't email: <a hrefmailto:"dont@kvack.org"> email@kvack.org </a>
+I'm not sure I understand yet how this would be different from swappiness.
+
+> The problem of limiting the average write bandwidth reminds me of
+> enforcing cpu utilization limits on interactive workloads.
+> Just as with cpu workloads - using the resources to the limit produces
+> poor interactivity.
+> When interactivity suffers too much I believe the only sane response
+> for an interactive device is to limit usage of the swap device and
+> transition into a low memory situation - and if needed - either
+> allowing userspace to reduce memory usage or invoking the OOM killer.
+> As a result low memory situations could not only be encountered on new
+> memory allocations but also on workload changes that increase the
+> number of dirty pages.
+
+While swap is just a special case for anonymous memory in writeback
+rather than file backed pages, I think what you want here is a tuning
+knob that decides whether we should discard a clean page or write back
+a dirty page under memory pressure. I have to say that I don't know
+whether we already have such a knob or whether we already treat them
+differently, but it is certainly a valid observation that on hard
+drives, discarding a clean page that is likely going to be needed
+again has about the same overhead as writing back a dirty page
+(i.e. one seek operation), while on flash the former would be much
+cheaper than the latter.
+
+> A wild idea to avoid some writes altogether is to see if
+> de-duplication techniques can be used to (partially?) match pages
+> previously written so swap.
+
+Interesting! We already have KSM (kernel samepage merging) to do
+the same thing in memory, but I don't know how that works
+during swapout. It might already be there, waiting to get switched
+on, or might not be possible until we implemnt an extra remapping
+layer in swap as has been proposed. It's certainly worth remembering
+this as we work on the design for that remapping layer.
+
+> In case of unencrypted swap  (or encrypted swap with a static key)
+> swap pages on eMMC could even be re-used across multiple reboots.
+> A simple version would just compare dirty pages with data in their
+> swap slots as I suspect (but really don't know) that some user space
+> algorithms (garbage collection?) dirty a page just temporarily -
+> eventually reverting it to the previous content.
+
+I think that would incur overhead for indexing the pages in swap space
+in a persistent way, something that by itself would contribute to
+write amplification because for every swapout, we would have to write
+both the page and the index (eventually), and that index would likely
+be a random write.
+
+Thanks for your thoughts!
+
+	Arnd
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
