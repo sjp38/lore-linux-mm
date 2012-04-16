@@ -1,139 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx176.postini.com [74.125.245.176])
-	by kanga.kvack.org (Postfix) with SMTP id A91276B00F8
-	for <linux-mm@kvack.org>; Mon, 16 Apr 2012 08:17:24 -0400 (EDT)
-Received: from /spool/local
-	by e28smtp03.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <srikar@linux.vnet.ibm.com>;
-	Mon, 16 Apr 2012 17:47:19 +0530
-Received: from d28av01.in.ibm.com (d28av01.in.ibm.com [9.184.220.63])
-	by d28relay01.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q3GCHKSd4800616
-	for <linux-mm@kvack.org>; Mon, 16 Apr 2012 17:47:20 +0530
-Received: from d28av01.in.ibm.com (loopback [127.0.0.1])
-	by d28av01.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q3GHl1FC020603
-	for <linux-mm@kvack.org>; Mon, 16 Apr 2012 23:17:02 +0530
-From: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-Date: Mon, 16 Apr 2012 17:39:25 +0530
-Message-Id: <20120416120925.30661.40409.sendpatchset@srdronam.in.ibm.com>
-In-Reply-To: <20120416120909.30661.99781.sendpatchset@srdronam.in.ibm.com>
-References: <20120416120909.30661.99781.sendpatchset@srdronam.in.ibm.com>
-Subject: [RFC] [PATCH 2/2] perf/probe: Detect probe target when m/x options are absent
+Received: from psmtp.com (na3sys010amx204.postini.com [74.125.245.204])
+	by kanga.kvack.org (Postfix) with SMTP id 1F1AE6B00FA
+	for <linux-mm@kvack.org>; Mon, 16 Apr 2012 08:18:01 -0400 (EDT)
+From: Mel Gorman <mgorman@suse.de>
+Subject: [PATCH 02/11] selinux: tag avc cache alloc as non-critical
+Date: Mon, 16 Apr 2012 13:17:46 +0100
+Message-Id: <1334578675-23445-3-git-send-email-mgorman@suse.de>
+In-Reply-To: <1334578675-23445-1-git-send-email-mgorman@suse.de>
+References: <1334578675-23445-1-git-send-email-mgorman@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@elte.hu>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, LKML <linux-kernel@vger.kernel.org>, Linux-mm <linux-mm@kvack.org>, Oleg Nesterov <oleg@redhat.com>, Andi Kleen <andi@firstfloor.org>, Christoph Hellwig <hch@infradead.org>, Steven Rostedt <rostedt@goodmis.org>, Arnaldo Carvalho de Melo <acme@infradead.org>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Thomas Gleixner <tglx@linutronix.de>, Anton Arapov <anton@redhat.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Linux-MM <linux-mm@kvack.org>, Linux-Netdev <netdev@vger.kernel.org>, Linux-NFS <linux-nfs@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, David Miller <davem@davemloft.net>, Trond Myklebust <Trond.Myklebust@netapp.com>, Neil Brown <neilb@suse.de>, Christoph Hellwig <hch@infradead.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Mike Christie <michaelc@cs.wisc.edu>, Eric B Munson <emunson@mgebm.net>, Mel Gorman <mgorman@suse.de>
 
-From: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
+Failing to allocate a cache entry will only harm performance not
+correctness.  Do not consume valuable reserve pages for something
+like that.
 
-Options -m and -x explicitly allow tracing of modules / user space
-binaries. In absense of these options, check if the first argument
-can be used as a target.
-
-perf probe /bin/zsh zfree is equivalent to perf probe -x /bin/zsh
-zfree.
-
-Signed-off-by: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
+Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Signed-off-by: Mel Gorman <mgorman@suse.de>
 ---
- tools/perf/Documentation/perf-probe.txt |    8 ++++--
- tools/perf/builtin-probe.c              |   43 +++++++++++++++++++++++++++++--
- 2 files changed, 46 insertions(+), 5 deletions(-)
+ security/selinux/avc.c |    2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
-diff --git a/tools/perf/Documentation/perf-probe.txt b/tools/perf/Documentation/perf-probe.txt
-index fb673be..51205f0 100644
---- a/tools/perf/Documentation/perf-probe.txt
-+++ b/tools/perf/Documentation/perf-probe.txt
-@@ -104,6 +104,10 @@ OPTIONS
- 	Specify path to the executable or shared library file for user
- 	space tracing. Can also be used with --funcs option.
- 
-+In absence of -m/-x options, perf probe checks if the first argument after
-+the options is an absolute path name. If its an absolute path, perf probe
-+uses it as a target module/target user space binary to probe.
-+
- PROBE SYNTAX
- ------------
- Probe points are defined by following syntax.
-@@ -190,11 +194,11 @@ Delete all probes on schedule().
- 
- Add probes at zfree() function on /bin/zsh
- 
-- ./perf probe -x /bin/zsh zfree
-+ ./perf probe -x /bin/zsh zfree or ./perf probe /bin/zsh zfree
- 
- Add probes at malloc() function on libc
- 
-- ./perf probe -x /lib/libc.so.6 malloc
-+ ./perf probe -x /lib/libc.so.6 malloc or ./perf probe /lib/libc.so.6 malloc
- 
- SEE ALSO
- --------
-diff --git a/tools/perf/builtin-probe.c b/tools/perf/builtin-probe.c
-index ee3d84a..e215ae6 100644
---- a/tools/perf/builtin-probe.c
-+++ b/tools/perf/builtin-probe.c
-@@ -85,21 +85,58 @@ static int parse_probe_event(const char *str)
- 	return ret;
- }
- 
-+static int set_target(const char *ptr)
-+{
-+	int found = 0;
-+	const char *buf;
-+
-+	/*
-+	 * The first argument after options can be an absolute path
-+	 * to an executable / library or kernel module.
-+	 *
-+	 * TODO: Support relative path, and $PATH, $LD_LIBRARY_PATH,
-+	 * short module name.
-+	 */
-+	if (!params.target && ptr && *ptr == '/') {
-+		params.target = ptr;
-+		found = 1;
-+		buf = ptr + (strlen(ptr) - 3);
-+
-+		if (strcmp(buf, ".ko"))
-+			params.uprobes = true;
-+
-+	}
-+
-+	return found;
-+}
-+
- static int parse_probe_event_argv(int argc, const char **argv)
+diff --git a/security/selinux/avc.c b/security/selinux/avc.c
+index 8ee42b2..75c2977 100644
+--- a/security/selinux/avc.c
++++ b/security/selinux/avc.c
+@@ -280,7 +280,7 @@ static struct avc_node *avc_alloc_node(void)
  {
--	int i, len, ret;
-+	int i, len, ret, found_target;
- 	char *buf;
+ 	struct avc_node *node;
  
-+	found_target = set_target(argv[0]);
-+	if (found_target && argc == 1)
-+		return 0;
-+
- 	/* Bind up rest arguments */
- 	len = 0;
--	for (i = 0; i < argc; i++)
-+	for (i = 0; i < argc; i++) {
-+		if (i == 0 && found_target)
-+			continue;
-+
- 		len += strlen(argv[i]) + 1;
-+	}
- 	buf = zalloc(len + 1);
- 	if (buf == NULL)
- 		return -ENOMEM;
- 	len = 0;
--	for (i = 0; i < argc; i++)
-+	for (i = 0; i < argc; i++) {
-+		if (i == 0 && found_target)
-+			continue;
-+
- 		len += sprintf(&buf[len], "%s ", argv[i]);
-+	}
- 	params.mod_events = true;
- 	ret = parse_probe_event(buf);
- 	free(buf);
-
+-	node = kmem_cache_zalloc(avc_node_cachep, GFP_ATOMIC);
++	node = kmem_cache_zalloc(avc_node_cachep, GFP_ATOMIC|__GFP_NOMEMALLOC);
+ 	if (!node)
+ 		goto out;
+ 
+-- 
+1.7.9.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
