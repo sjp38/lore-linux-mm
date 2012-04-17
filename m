@@ -1,51 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx101.postini.com [74.125.245.101])
-	by kanga.kvack.org (Postfix) with SMTP id C047A6B004A
-	for <linux-mm@kvack.org>; Tue, 17 Apr 2012 11:55:04 -0400 (EDT)
-Date: Tue, 17 Apr 2012 17:55:02 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Weirdness in __alloc_bootmem_node_high
-Message-ID: <20120417155502.GE22687@tiehlicka.suse.cz>
+Received: from psmtp.com (na3sys010amx204.postini.com [74.125.245.204])
+	by kanga.kvack.org (Postfix) with SMTP id 233A76B004A
+	for <linux-mm@kvack.org>; Tue, 17 Apr 2012 12:01:40 -0400 (EDT)
+Date: Tue, 17 Apr 2012 11:01:37 -0500 (CDT)
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: slab corruption
+In-Reply-To: <CEBEEFE88D91064B9C04DD88A9AA701501D97F9451@sjcexbe02.DataDomain.com>
+Message-ID: <alpine.DEB.2.00.1204171059450.15487@router.home>
+References: <CEBEEFE88D91064B9C04DD88A9AA701501D97F9451@sjcexbe02.DataDomain.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+Content-Type: MULTIPART/MIXED; BOUNDARY="-1463811839-683108511-1334678498=:15487"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: yinghai@kernel.org
-Cc: linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+To: Sagar Borikar <Sagar.Borikar@emc.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-Hi,
-I just come across the following condition in __alloc_bootmem_node_high
-which I have hard times to understand. I guess it is a bug and we need
-something like the following. But, to be honest, I have no idea why we
-care about those 128MB above MAX_DMA32_PFN.
----
- mm/bootmem.c |    2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+  This message is in MIME format.  The first part should be readable text,
+  while the remaining parts are likely unreadable without MIME-aware tools.
 
-diff --git a/mm/bootmem.c b/mm/bootmem.c
-index 0131170..5adb072 100644
---- a/mm/bootmem.c
-+++ b/mm/bootmem.c
-@@ -737,7 +737,7 @@ void * __init __alloc_bootmem_node_high(pg_data_t *pgdat, unsigned long size,
- 	/* update goal according ...MAX_DMA32_PFN */
- 	end_pfn = pgdat->node_start_pfn + pgdat->node_spanned_pages;
- 
--	if (end_pfn > MAX_DMA32_PFN + (128 >> (20 - PAGE_SHIFT)) &&
-+	if (end_pfn > MAX_DMA32_PFN + (128 << (20 - PAGE_SHIFT)) &&
- 	    (goal >> PAGE_SHIFT) < MAX_DMA32_PFN) {
- 		void *ptr;
- 		unsigned long new_goal;
--- 
-1.7.9.5
+---1463811839-683108511-1334678498=:15487
+Content-Type: TEXT/PLAIN; charset=utf-8
+Content-Transfer-Encoding: QUOTED-PRINTABLE
 
--- 
-Michal Hocko
-SUSE Labs
-SUSE LINUX s.r.o.
-Lihovarska 1060/12
-190 00 Praha 9    
-Czech Republic
+On Mon, 16 Apr 2012, Sagar Borikar wrote:
+
+> We are facing a slab corruption issue while using e1000 net driver in
+> certain situations. Its very hard to reproduce the problem as well as
+> though we know that what is corrupted, we can=E2=80=99t figure out why it=
+s
+> corrupted.
+
+Could you rerun your test with CONFIG_DEBUG_SLAB and CONFIG_DEBUG_VM on?
+With those you will get more integrity checks and slab diagnostics will
+check for memory corruption.
+
+---1463811839-683108511-1334678498=:15487--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
