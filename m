@@ -1,109 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx133.postini.com [74.125.245.133])
-	by kanga.kvack.org (Postfix) with SMTP id 435DE6B004D
-	for <linux-mm@kvack.org>; Mon, 16 Apr 2012 20:42:45 -0400 (EDT)
-Received: by iajr24 with SMTP id r24so11210485iaj.14
-        for <linux-mm@kvack.org>; Mon, 16 Apr 2012 17:42:44 -0700 (PDT)
-Date: Mon, 16 Apr 2012 17:42:26 -0700 (PDT)
-From: Hugh Dickins <hughd@google.com>
-Subject: Re: mm code for allowing reclaim of page previously swapped but now
- clean-in-memory?
-In-Reply-To: <681c22d4-96fb-4e15-9029-cd90956399de@default>
-Message-ID: <alpine.LSU.2.00.1204161647530.1852@eggly.anvils>
-References: <681c22d4-96fb-4e15-9029-cd90956399de@default>
+Received: from psmtp.com (na3sys010amx176.postini.com [74.125.245.176])
+	by kanga.kvack.org (Postfix) with SMTP id 24FF66B004D
+	for <linux-mm@kvack.org>; Mon, 16 Apr 2012 22:05:05 -0400 (EDT)
+Message-ID: <4F8CCFD2.70300@kernel.org>
+Date: Tue, 17 Apr 2012 11:05:06 +0900
+From: Minchan Kim <minchan@kernel.org>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: swap on eMMC and other flash
+References: <201203301744.16762.arnd@arndb.de> <201204111557.14153.arnd@arndb.de> <CAKL-ytsXbe4=u94PjqvhZo=ZLiChQ0FmZC84GNrFHa0N1mDjFw@mail.gmail.com> <201204161859.32436.arnd@arndb.de>
+In-Reply-To: <201204161859.32436.arnd@arndb.de>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Magenheimer <dan.magenheimer@oracle.com>
-Cc: linux-mm <linux-mm@kvack.org>, Andrea Arcangeli <aarcange@redhat.com>, Konrad Wilk <konrad.wilk@oracle.com>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Nitin Gupta <ngupta@vflare.org>, riel@redhat.com
+To: Arnd Bergmann <arnd@arndb.de>
+Cc: Stephan Uphoff <ups@google.com>, linaro-kernel@lists.linaro.org, android-kernel@googlegroups.com, linux-mm@kvack.org, "Luca Porzio (lporzio)" <lporzio@micron.com>, Alex Lemberg <alex.lemberg@sandisk.com>, linux-kernel@vger.kernel.org, Saugata Das <saugata.das@linaro.org>, Venkatraman S <venkat@linaro.org>, Yejin Moon <yejin.moon@samsung.com>, Hyojin Jeong <syr.jeong@samsung.com>, "linux-mmc@vger.kernel.org" <linux-mmc@vger.kernel.org>
 
-On Sun, 15 Apr 2012, Dan Magenheimer wrote:
+Hi Arnd,
 
-> I'm looking for mm code/heuristics/flags where the following occurs:
-> 
-> This (anonymous) page was:
-> - previously swapped to a swap device
-> - then later read back in from the swap device
-> 
-> Now memory pressure has resulted in a need to reclaim memory so:
-> - this page is discovered to still be clean, i.e. it
->    matches the page still on the swap device, so
-> - the pageframe is thus an obvious candidate for reclaim
+On 04/17/2012 03:59 AM, Arnd Bergmann wrote:
+> On Monday 16 April 2012, Stephan Uphoff wrote:
+>> opportunity to plant a few ideas.
+>>
+>> In contrast to rotational disks read/write operation overhead and
+>> costs are not symmetric.
+>> While random reads are much faster on flash - the number of write
+>> operations is limited by wearout and garbage collection overhead.
+>> To further improve swapping on eMMC or similar flash media I believe
+>> that the following issues need to be addressed:
+>>
+>> 1) Limit average write bandwidth to eMMC to a configurable level to
+>> guarantee a minimum device lifetime
+>> 2) Aim for a low write amplification factor to maximize useable write bandwidth
+>> 3) Strongly favor read over write operations
+>>
+>> Lowering write amplification (2) has been discussed in this email
+>> thread - and the only observation I would like to add is that
+>> over-provisioning the internal swap space compared to the exported
+>> swap space significantly can guarantee a lower write amplification
+>> factor with the indirection and GC techniques discussed.
+>
+> Yes, good point.
+>
+>> I believe the swap functionality is currently optimized for storage
+>> media where read and write costs are nearly identical.
+>> As this is not the case on flash I propose splitting the anonymous
+>> inactive queue (at least conceptually) - keeping clean anonymous pages
+>> with swap slots on a separate queue as the cost of swapping them
+>> out/in is only an inexpensive read operation. A variable similar to
+>> swapiness (or a more dynamic algorithmn) could determine the
+>> preference for swapping out clean pages or dirty pages. ( A similar
+>> argument could be made for splitting up the file inactive queue )
+>
+> I'm not sure I understand yet how this would be different from swappiness.
+>
+>> The problem of limiting the average write bandwidth reminds me of
+>> enforcing cpu utilization limits on interactive workloads.
+>> Just as with cpu workloads - using the resources to the limit produces
+>> poor interactivity.
+>> When interactivity suffers too much I believe the only sane response
+>> for an interactive device is to limit usage of the swap device and
+>> transition into a low memory situation - and if needed - either
+>> allowing userspace to reduce memory usage or invoking the OOM killer.
+>> As a result low memory situations could not only be encountered on new
+>> memory allocations but also on workload changes that increase the
+>> number of dirty pages.
+>
+> While swap is just a special case for anonymous memory in writeback
+> rather than file backed pages, I think what you want here is a tuning
+> knob that decides whether we should discard a clean page or write back
+> a dirty page under memory pressure. I have to say that I don't know
+> whether we already have such a knob or whether we already treat them
+> differently, but it is certainly a valid observation that on hard
+> drives, discarding a clean page that is likely going to be needed
+> again has about the same overhead as writing back a dirty page
+> (i.e. one seek operation), while on flash the former would be much
+> cheaper than the latter.
 
-Only a good candidate for reclaim when the page has not been accessed
-recently, but was read in some while ago - not much point in doing
-swapin readahead if we throw all the pages away immediately.
+It seems to make sense with considering asymmetric of flash and there is 
+a CFLRU(Clean First LRU)[1] paper about it. You might already know it. 
+Anyway if you don't aware of it, I hope it helps you.
 
-> 
-> I'd be grateful for any pointers/education...
-> For example, is such a page always in the swapcache?
+[1] 
+http://www.google.com/url?sa=t&rct=j&q=&esrc=s&source=web&cd=1&ved=0CCkQFjAA&url=http%3A%2F%2Fstaff.ustc.edu.cn%2F~jpq%2Fpaper%2Fflash%2F2006-CASES-CFLRU-%2520A%2520Replacement%2520Algorithm%2520for%2520Flash%2520Memory.pdf&ei=G8-MT5jGIqnj0gGMzJyCCg&usg=AFQjCNHybc5rUvuAlMylOUNwsHoFmWegzw&sig2=Uu5LDD3suso0QHsfD7yZ9Q
 
-Yes, until either page or swap is about to be freed.
 
-> Is it also in the page cache?
-
-I don't know what you mean by that question: if you consider the
-swapcache a part of the pagecache, then yes it is also in the pagecache;
-if you don't, then no it is not.  I consider swapcache a part of pagecache,
-but you may not.
-
-> Is it always INactive since it was read but never written?
-
-No, it may be inactive or it may be active, that depends on activity ;)
-
-> What flags are set/unset?
-
-PageSwapCache PageUptodate !PageDirty: I think that's right but check.
-PageAnon PageSwapBacked too, but probably irrelevant to your interest.
-wait_on_page_writeback() to not interfere with PageWriteback pages.
-
-Perhaps one of its mappings has pte_dirty not yet transferred to PageDirty,
-and the page no longer represents what's on swap: nowadays we tend to free
-the swap and remove page from swapcache before getting to that case,
-but I expect there may be some ways.
-
-> What function or code snippet identifies such a page
-
-Perhaps you want shrink_page_list() in mm/vmscan.c: that's dealing with
-many other cases too, but it is where __remove_mapping() gets applied
-to the PageSwapCache !PageDirty page.
-
-(I expect you know it well, but don't forget how page_mapping(page)
-artificially points to swapper_space when PageSwapCache bit is set.)
-
-And one of the places where we do the opposite: notice vm_swap_full()
-(actually half full) and try_to_free_swap() rather than freeing page.
-
-I think that opposite behaviour will become even more popular: keeping
-stray isolated little blocks of swap allocated is bad for disk seeking
-and bad for flash efficiency.
-
-> and does this code need to be protected by the swaplock or pagelock or ???
-
-You always (I dread saying "always", perhaps you'll find some exception)
-need pagelock to add or delete a page from swapcache.  You also need
-swapper_space.tree_lock to do the actual deed.  swap_lock for altering
-the swap_map: changing the count or cached bit.
-
-pagelock is the lock that gets relied upon all over, to protect a page
-you're working on from disappearing unexpectedly from swapcache.
-Even when you lookup_swap_cache(), it can be gone from swapcache
-before you lock_page(), either by swapoff or by reuse_swap_page
-or by some other route.
-
-Hugh
-
-> (Sorry if any of these are stupid questions...)
-> 
-> Purpose: I'm looking into zcache (and future KVM/memcg tmem backend)
-> changes to exploit a "writethrough" and/or "lazy writeback" cacheing
-> model for pages put into zcache via frontswap, as discussed with Andrea
-> and one or two others at LSF12/MM.  Either model provides more
-> flexibility for zcache to more effectively manage persistent pages.
-> 
-> Thanks!
-> Dan
+-- 
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
