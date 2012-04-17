@@ -1,87 +1,34 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx180.postini.com [74.125.245.180])
-	by kanga.kvack.org (Postfix) with SMTP id 7C6DC6B004A
-	for <linux-mm@kvack.org>; Tue, 17 Apr 2012 15:26:24 -0400 (EDT)
-Message-ID: <4F8DC3DC.7040408@redhat.com>
-Date: Tue, 17 Apr 2012 15:26:20 -0400
-From: Rik van Riel <riel@redhat.com>
-MIME-Version: 1.0
-Subject: Re: Followup: [PATCH -mm] make swapin readahead skip over holes
-References: <7297ae3b-f3e1-480b-838f-69b0e09a733d@default> <4F8C7D59.1000402@redhat.com> <f81dcf86-fb34-4e39-923b-3fd1862e60c6@default>
-In-Reply-To: <f81dcf86-fb34-4e39-923b-3fd1862e60c6@default>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx201.postini.com [74.125.245.201])
+	by kanga.kvack.org (Postfix) with SMTP id 3DF516B004A
+	for <linux-mm@kvack.org>; Tue, 17 Apr 2012 15:54:03 -0400 (EDT)
+Message-ID: <1334692418.28150.88.camel@twins>
+Subject: Re: [PATCH 2/6] uprobes: introduce is_swbp_at_addr_fast()
+From: Peter Zijlstra <peterz@infradead.org>
+Date: Tue, 17 Apr 2012 21:53:38 +0200
+In-Reply-To: <20120417170958.GA16511@redhat.com>
+References: <20120405222024.GA19154@redhat.com>
+	 <20120405222106.GB19166@redhat.com> <1334570935.28150.25.camel@twins>
+	 <20120416144457.GA7018@redhat.com> <1334588109.28150.59.camel@twins>
+	 <20120416153408.GA8852@redhat.com> <1334657287.28150.77.camel@twins>
+	 <20120417170958.GA16511@redhat.com>
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: quoted-printable
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Magenheimer <dan.magenheimer@oracle.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm <linux-mm@kvack.org>
+To: Oleg Nesterov <oleg@redhat.com>
+Cc: Ingo Molnar <mingo@elte.hu>, Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, LKML <linux-kernel@vger.kernel.org>, Linux-mm <linux-mm@kvack.org>, Andi Kleen <andi@firstfloor.org>, Christoph Hellwig <hch@infradead.org>, Steven Rostedt <rostedt@goodmis.org>, Arnaldo Carvalho de Melo <acme@infradead.org>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Thomas Gleixner <tglx@linutronix.de>, Anton Arapov <anton@redhat.com>
 
-On 04/17/2012 11:20 AM, Dan Magenheimer wrote:
+On Tue, 2012-04-17 at 19:09 +0200, Oleg Nesterov wrote:
+>=20
+> This reminds me. Why read_opcode() does lock_page? I was going
+> to send the cleanup which removes it, but I need to recheck.
+>=20
+> Perhaps you can explain the reason?=20
 
-> In other words, you are both presuming a "swap workload"
-> that is more sequential than random for which this patch
-> improves performance, and assuming a "swap device"
-> for which the cost of a seek is high enough to overcome
-> the costs of filling the swap cache with pages that won't
-> be used.
-
-Indeed, on spinning media the cost of seeking to
-a cluster and reading one page is essentially the
-same as the cost of seeking to a cluster and
-reading the whole thing.
-
-
-> While it is easy to write a simple test/benchmark that
-> swaps a lot (and we probably all have similar test code
-> that writes data into a huge bigger-than-RAM array and then
-> reads it back), such a test/benchmark is usually sequential,
-> so one would assume most swap testing is done with a
-> sequential-favoring workload.
-
-Lots of programs allocate fairly large memory
-objects, and access them again in the same
-large chunks.
-
-Take a look at a desktop application like a
-web browser, for example.
-
-> The kernbench workload
-> apparently exercises swap quite a bit more randomly and
-> your patch makes it run slower for low and high levels
-> of swapping, while faster for moderate swapping.
-
-The kernbench workload consists of a large number
-of fairly small, short lived processes. I suspect
-this is a very non-typical workload to run into
-swap, on today's systems.
-
-A more typical workload consists of multiple large
-processes, with the working set moving from one
-part of memory (now inactive) to somewhere else.
-
-We need to maximize swap IO throughput in order to
-allow the system to quickly move to the new working
-set.
-
-> I also suspect (without proof) that the patch will
-> result in lower performance on non-rotating devices, such
-> as SSDs.
->
-> (Sure one can change the swap cluster size to 1, but how
-> many users or even sysadmins know such a thing even
-> exists... so the default is important.)
-
-If the default should be changed for some systems,
-that is worth doing.
-
-How does your test run with smaller swap cluster
-sizes?
-
-Would a swap cluster of 4 or 5 be closer to optimal
-for a 1GB system?
-
--- 
-All rights reversed
+I can't seem to recall, I suspect its to serialize against
+__replace_page(). I can't say if that's strictly needed though.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
