@@ -1,53 +1,36 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx111.postini.com [74.125.245.111])
-	by kanga.kvack.org (Postfix) with SMTP id E9AA06B0083
-	for <linux-mm@kvack.org>; Tue, 17 Apr 2012 14:18:10 -0400 (EDT)
-Received: by qcsd16 with SMTP id d16so4960634qcs.14
-        for <linux-mm@kvack.org>; Tue, 17 Apr 2012 11:18:10 -0700 (PDT)
-Message-ID: <4F8DB3DC.7000602@gmail.com>
-Date: Tue, 17 Apr 2012 14:18:04 -0400
+Received: from psmtp.com (na3sys010amx146.postini.com [74.125.245.146])
+	by kanga.kvack.org (Postfix) with SMTP id 993B36B0083
+	for <linux-mm@kvack.org>; Tue, 17 Apr 2012 14:24:39 -0400 (EDT)
+Received: by qcsd16 with SMTP id d16so4966069qcs.14
+        for <linux-mm@kvack.org>; Tue, 17 Apr 2012 11:24:38 -0700 (PDT)
+Message-ID: <4F8DB564.2060205@gmail.com>
+Date: Tue, 17 Apr 2012 14:24:36 -0400
 From: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 4/4] ARM: remove consistent dma region and use common
- vmalloc range for dma allocations
-References: <1334325950-7881-1-git-send-email-m.szyprowski@samsung.com> <1334325950-7881-5-git-send-email-m.szyprowski@samsung.com> <20120413183813.GO24211@n2100.arm.linux.org.uk> <4F8B76B9.1060505@kernel.org>
-In-Reply-To: <4F8B76B9.1060505@kernel.org>
+Subject: Re: [NEW]: Introducing shrink_all_memory from user space
+References: <1334483226.20721.YahooMailNeo@web162003.mail.bf1.yahoo.com>
+In-Reply-To: <1334483226.20721.YahooMailNeo@web162003.mail.bf1.yahoo.com>
 Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Russell King - ARM Linux <linux@arm.linux.org.uk>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Marek Szyprowski <m.szyprowski@samsung.com>, linux-arm-kernel@lists.infradead.org, linaro-mm-sig@lists.linaro.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Kyungmin Park <kyungmin.park@samsung.com>, Arnd Bergmann <arnd@arndb.de>, Chunsang Jeong <chunsang.jeong@linaro.org>, Krishna Reddy <vdumpa@nvidia.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Hiroshi Doyu <hdoyu@nvidia.com>, Subash Patel <subashrp@gmail.com>, kosaki.motohiro@gmail.com
+To: PINTU KUMAR <pintu_agarwal@yahoo.com>
+Cc: "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "pintu.k@samsung.com" <pintu.k@samsung.com>, kosaki.motohiro@gmail.com
 
-(4/15/12 9:32 PM), Minchan Kim wrote:
-> On 04/14/2012 03:38 AM, Russell King - ARM Linux wrote:
->> On Fri, Apr 13, 2012 at 04:05:50PM +0200, Marek Szyprowski wrote:
->>> This patch changes dma-mapping subsystem to use generic vmalloc areas
->>> for all consistent dma allocations. This increases the total size limit
->>> of the consistent allocations and removes platform hacks and a lot of
->>> duplicated code.
->>
->> NAK. I don't think you appreciate the contexts from which the dma coherent
->> code can be called from, and the reason why we pre-allocate the page
->> tables (so that IRQ-based allocations work.)
->>
->> The vmalloc region doesn't allow that because page tables are allocated
->> using GFP_KERNEL not GFP_ATOMIC.
->>
->> Sorry.
->>
+(4/15/12 5:47 AM), PINTU KUMAR wrote:
+> Dear All,
 >
-> Off-topic.
+> This is regarding a small proposal for shrink_all_memory( ) function which is found in mm/vmscan.c.
+> For those who are not aware, this function helps in reclaiming specified amount of physical memory and returns number of freed pages.
 >
-> I don't know why vmalloc functions have gfp_t argument.
-> As Russel pointed out, we allocates page tables with GFP_KERNEL regardless of gfp_t passed.
-> It means gfp_t passed is useless.
-> I see there are many cases calling __vmalloc with GFP_NOFS, even GFP_ATOMIC. Then, it could end up deadlocking in reclaim context or schedule bug.
-> I'm not sure why we can't see such bugs until now.
-> If I didn't miss something, Shouldn't we fix it?
+> Currently this function is under CONFIG_HIBERNATION flag, so cannot be used by others without enabling hibernation.
+> Moreover this function is not exported to the outside world, so no driver can use it directly without including EXPORT_SYMBOL(shrink_all_memory) and recompiling the kernel.
+> The purpose of using it under hibernation(kernel/power/snapshot.c) is to regain enough physical pages to create hibernation image.
 
-I believe it should be fixed. of course. :)
-
+This is intended. current shrink_all_memory() is not designed for generic purpose. It doesn't care numa affinity etc..
+In future, we may remove this function completely because actually hibernation don't depend on it. it only help to
+improvement hibernation speed-up a bit.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
