@@ -1,64 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx141.postini.com [74.125.245.141])
-	by kanga.kvack.org (Postfix) with SMTP id 6F23A6B00E7
-	for <linux-mm@kvack.org>; Tue, 17 Apr 2012 08:29:29 -0400 (EDT)
-Date: Tue, 17 Apr 2012 13:29:25 +0100
+Received: from psmtp.com (na3sys010amx186.postini.com [74.125.245.186])
+	by kanga.kvack.org (Postfix) with SMTP id 7A5586B00EA
+	for <linux-mm@kvack.org>; Tue, 17 Apr 2012 08:41:04 -0400 (EDT)
+Date: Tue, 17 Apr 2012 13:40:56 +0100
 From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [RFC PATCH] s390: mm: rmap: Transfer storage key to struct page
- under the page lock
-Message-ID: <20120417122925.GG2359@suse.de>
-References: <20120416141423.GD2359@suse.de>
- <20120416175040.0e33b37f@de.ibm.com>
+Subject: Re: [PATCH 08/11] nfs: disable data cache revalidation for swapfiles
+Message-ID: <20120417124056.GI2359@suse.de>
+References: <1334578675-23445-1-git-send-email-mgorman@suse.de>
+ <1334578675-23445-9-git-send-email-mgorman@suse.de>
+ <CADnza444dTr=JEtqpL5wxHRNkEc7vBz1qq9TL7Z+5h749vNawg@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <20120416175040.0e33b37f@de.ibm.com>
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <CADnza444dTr=JEtqpL5wxHRNkEc7vBz1qq9TL7Z+5h749vNawg@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Martin Schwidefsky <schwidefsky@de.ibm.com>
-Cc: Heiko Carstens <heiko.carstens@de.ibm.com>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, Linux-MM <linux-mm@kvack.org>, Linux-S390 <linux-s390@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>
+To: Fred Isaman <iisaman@netapp.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, Linux-Netdev <netdev@vger.kernel.org>, Linux-NFS <linux-nfs@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, David Miller <davem@davemloft.net>, Trond Myklebust <Trond.Myklebust@netapp.com>, Neil Brown <neilb@suse.de>, Christoph Hellwig <hch@infradead.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Mike Christie <michaelc@cs.wisc.edu>, Eric B Munson <emunson@mgebm.net>
 
-On Mon, Apr 16, 2012 at 05:50:40PM +0200, Martin Schwidefsky wrote:
-> On Mon, 16 Apr 2012 15:14:23 +0100
-> Mel Gorman <mgorman@suse.de> wrote:
+> On Mon, Apr 16, 2012 at 9:44 AM, Mel Gorman <mgorman@suse.de> wrote:
+> > On Mon, Apr 16, 2012 at 09:10:04AM -0400, Fred Isaman wrote:
+> >> > <SNIP>
+> >> > -static struct nfs_page *nfs_page_find_request_locked(struct page *page)
+> >> > +static struct nfs_page *
+> >> > +nfs_page_find_request_locked(struct nfs_inode *nfsi, struct page *page)
+> >> >  {
+> >> >        struct nfs_page *req = NULL;
+> >> >
+> >> > -       if (PagePrivate(page)) {
+> >> > +       if (PagePrivate(page))
+> >> >                req = (struct nfs_page *)page_private(page);
+> >> > -               if (req != NULL)
+> >> > -                       kref_get(&req->wb_kref);
+> >> > +       else if (unlikely(PageSwapCache(page))) {
+> >> > +               struct nfs_page *freq, *t;
+> >> > +
+> >> > +               /* Linearly search the commit list for the correct req */
+> >> > +               list_for_each_entry_safe(freq, t, &nfsi->commit_list, wb_list) {
+> >> > +                       if (freq->wb_page == page) {
+> >> > +                               req = freq;
+> >> > +                               break;
+> >> > +                       }
+> >> > +               }
+> >> > +
+> >> > +               BUG_ON(req == NULL);
+> >>
+> >> I suspect I am missing something, but why is it guaranteed that the
+> >> req is on the commit list?
+> >>
+> >
+> > It's a fair question and a statement about what I expected to happen.
+> > The commit list replaces the nfs_page_tree radix tree that used to exist
+> > and my understanding was that the req would exist in the radix tree until
+> > the swap IO was completed. I expected it to be the same for the commit
+> > list and the BUG_ON was based on that expectation. Are there cases where
+> > the req would not be found?
+> >
 > 
-> > This patch is horribly ugly and there has to be a better way of doing
-> > it. I'm looking for suggestions on what s390 can do here that is not
-> > painful or broken. 
-> > 
-> > However, s390 needs a better way of guarding against
-> > PageSwapCache pages being removed from the radix tree while set_page_dirty()
-> > is being called. The patch would be marginally better if in the PageSwapCache
-> > case we simply tried to lock once and in the contended case just fail to
-> > propogate the storage key. I lack familiarity with the s390 architecture
-> > to be certain if this is safe or not. Suggestions on a better fix?
+> A req is on the commit list only if it actually needs to be scheduled
+> for COMMIT. In other words, only after it has been sent via WRITE and
+> the server did not return NFS_FILE_SYNC.
 > 
-> One though that crossed my mind is that maybe a better approach would be
-> to move the page_test_and_clear_dirty check out of page_remove_rmap.
-> What we need to look out for are code sequences of the form:
-> 
-> 	if (pte_dirty(pte))
-> 		set_page_dirty(page);
-> 	...
-> 	page_remove_rmap(page);
-> 
-> There are four of those as far as I can see: in try_to_unmap_one,
-> try_to_unmap_cluster, zap_pte, and zap_pte_range.
-> 
-> A valid implementation for s390 would be to test and clear the changed
-> bit in the storage key for every of those pte_dirty() calls.
-> 
-> 	if (pte_dirty(pte) || page_test_and_clear_dirty(page))
-> 		set_page_dirty(page);
-> 	...
-> 	page_remove_rmap(page); /* w/o page_test_clear_dirty */
-> 
+> Thus dirtying a page, then trying to touch it again before the WRITE
+> is sent will not find the corresponding req on the commit_list.
 
-In the zap_pte_range() case at least, pte_dirty() is only being checked
-for !PageAnon pages so if we took this approach we would miss
-PageSwapCache pages. If we added the check then the same problem is hit
-and we'd need additional logic there for s390 to drop the PTL, take the
-page lock and retry the operation. It'd still be ugly :(
+Thanks for the explanation. I'll remove the BUG_ON
 
 -- 
 Mel Gorman
