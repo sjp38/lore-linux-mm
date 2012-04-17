@@ -1,66 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx171.postini.com [74.125.245.171])
-	by kanga.kvack.org (Postfix) with SMTP id CB68C6B007E
-	for <linux-mm@kvack.org>; Tue, 17 Apr 2012 12:38:11 -0400 (EDT)
-Received: by eeit10 with SMTP id t10so332407eei.2
-        for <linux-mm@kvack.org>; Tue, 17 Apr 2012 09:38:10 -0700 (PDT)
-From: Ying Han <yinghan@google.com>
-Subject: [PATCH V3 2/2] memcg: set soft_limit_in_bytes to 0 by default
-Date: Tue, 17 Apr 2012 09:38:09 -0700
-Message-Id: <1334680689-12506-1-git-send-email-yinghan@google.com>
+Received: from psmtp.com (na3sys010amx149.postini.com [74.125.245.149])
+	by kanga.kvack.org (Postfix) with SMTP id 8E1296B004A
+	for <linux-mm@kvack.org>; Tue, 17 Apr 2012 13:11:04 -0400 (EDT)
+Date: Tue, 17 Apr 2012 19:09:58 +0200
+From: Oleg Nesterov <oleg@redhat.com>
+Subject: Re: [PATCH 2/6] uprobes: introduce is_swbp_at_addr_fast()
+Message-ID: <20120417170958.GA16511@redhat.com>
+References: <20120405222024.GA19154@redhat.com> <20120405222106.GB19166@redhat.com> <1334570935.28150.25.camel@twins> <20120416144457.GA7018@redhat.com> <1334588109.28150.59.camel@twins> <20120416153408.GA8852@redhat.com> <1334657287.28150.77.camel@twins>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1334657287.28150.77.camel@twins>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mel@csn.ul.ie>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Hillf Danton <dhillf@gmail.com>, Hugh Dickins <hughd@google.com>, Dan Magenheimer <dan.magenheimer@oracle.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: Ingo Molnar <mingo@elte.hu>, Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, LKML <linux-kernel@vger.kernel.org>, Linux-mm <linux-mm@kvack.org>, Andi Kleen <andi@firstfloor.org>, Christoph Hellwig <hch@infradead.org>, Steven Rostedt <rostedt@goodmis.org>, Arnaldo Carvalho de Melo <acme@infradead.org>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Thomas Gleixner <tglx@linutronix.de>, Anton Arapov <anton@redhat.com>
 
-This idea is based on discussion with Michal and Johannes from LSF.
+On 04/17, Peter Zijlstra wrote:
+>
+> On Mon, 2012-04-16 at 17:34 +0200, Oleg Nesterov wrote:
+> > On 04/16, Peter Zijlstra wrote:
+> > >
+> > > Can't we 'optimize' read_opcode() by doing the pagefault_disable() +
+> > > __copy_from_user_inatomic() optimistically before going down the whole
+> > > gup()+lock+kmap path?
+> >
+> > Unlikely, the task is not current.
+>
+> Easy enough to test that though.. and that should make the regular path
+> fast enough, no?
+>
+>
+> ---
+>  kernel/events/uprobes.c |    9 +++++++++
+>  1 files changed, 9 insertions(+), 0 deletions(-)
+>
+> diff --git a/kernel/events/uprobes.c b/kernel/events/uprobes.c
+> index 985be4d..7f5d8c5 100644
+> --- a/kernel/events/uprobes.c
+> +++ b/kernel/events/uprobes.c
+> @@ -312,6 +312,15 @@ static int read_opcode(struct mm_struct *mm, unsigned long vaddr, uprobe_opcode_
+>  	void *vaddr_new;
+>  	int ret;
+>
+> +	if (mm == current->mm) {
+> +		pagefault_disable();
+> +		ret = __copy_from_user_inatomic(opcode, (void __user *)vaddr,
+> +						sizeof(*opcode));
+> +		pagefault_enable();
+> +		if (!ret)
+> +			return 0;
+> +	}
 
-1. If soft_limit are all set to MAX, it wastes first three priority iterations
-without scanning anything.
+Indeed. And then we do not need is_swbp_at_addr_fast().
 
-2. By default every memcg is eligible for softlimit reclaim, and we can also
-set the value to MAX for special memcg which is immune to soft limit reclaim.
+This reminds me. Why read_opcode() does lock_page? I was going
+to send the cleanup which removes it, but I need to recheck.
 
-Note, there are behavior changes after this patch and here I steal example from
-Johannes's comment:
+Perhaps you can explain the reason?
 
-               A-unconfigured          B-below-softlimit
-old:            reclaim(MAX)           reclaim
-new:            reclaim(0)             no reclaim (if possible)
-
-a) both A and B are under their softlimit in the old case, and it will be
-detected after first round of iteration. Then both A and B will be targeted
-to recalim.
-b) only A is targeted to reclaim since it is above its softlimit, and we
-won't reclaim from B before DEF_PRIORITY - 3.
-
-               A-unconfigured          B-above-softlimit
-old:            reclaim                 reclaim twice
-new:            reclaim                 reclaim
-
-a) If we can not get enough pages on B before DEF_PRIORITY - 3, we will reclaim
-from both A and B afterwards.
-b) Both A and B will be reclaimed from DEF_PRIORITY.
-
-Signed-off-by: Ying Han <yinghan@google.com>
----
- kernel/res_counter.c |    1 -
- 1 files changed, 0 insertions(+), 1 deletions(-)
-
-diff --git a/kernel/res_counter.c b/kernel/res_counter.c
-index d508363..8017d01 100644
---- a/kernel/res_counter.c
-+++ b/kernel/res_counter.c
-@@ -18,7 +18,6 @@ void res_counter_init(struct res_counter *counter, struct res_counter *parent)
- {
- 	spin_lock_init(&counter->lock);
- 	counter->limit = RESOURCE_MAX;
--	counter->soft_limit = RESOURCE_MAX;
- 	counter->parent = parent;
- }
- 
--- 
-1.7.7.3
+Oleg.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
