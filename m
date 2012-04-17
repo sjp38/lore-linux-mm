@@ -1,71 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx189.postini.com [74.125.245.189])
-	by kanga.kvack.org (Postfix) with SMTP id BC53F6B004D
-	for <linux-mm@kvack.org>; Tue, 17 Apr 2012 05:22:41 -0400 (EDT)
-Received: by dakh32 with SMTP id h32so8652694dak.9
-        for <linux-mm@kvack.org>; Tue, 17 Apr 2012 02:22:41 -0700 (PDT)
-Content-Type: text/plain; charset=gbk; format=flowed; delsp=yes
-Subject: bug for stack ?
-Date: Tue, 17 Apr 2012 17:20:20 +0800
-MIME-Version: 1.0
-Content-Transfer-Encoding: Quoted-Printable
-From: gaoqiang <gaoqiangscut@gmail.com>
-Message-ID: <op.wcwj76p5n27o5l@gaoqiang-d1.corp.qihoo.net>
+Received: from psmtp.com (na3sys010amx144.postini.com [74.125.245.144])
+	by kanga.kvack.org (Postfix) with SMTP id CF90C6B004D
+	for <linux-mm@kvack.org>; Tue, 17 Apr 2012 06:08:43 -0400 (EDT)
+Message-ID: <1334657287.28150.77.camel@twins>
+Subject: Re: [PATCH 2/6] uprobes: introduce is_swbp_at_addr_fast()
+From: Peter Zijlstra <peterz@infradead.org>
+Date: Tue, 17 Apr 2012 12:08:07 +0200
+In-Reply-To: <20120416153408.GA8852@redhat.com>
+References: <20120405222024.GA19154@redhat.com>
+	 <20120405222106.GB19166@redhat.com> <1334570935.28150.25.camel@twins>
+	 <20120416144457.GA7018@redhat.com> <1334588109.28150.59.camel@twins>
+	 <20120416153408.GA8852@redhat.com>
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: quoted-printable
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Oleg Nesterov <oleg@redhat.com>
+Cc: Ingo Molnar <mingo@elte.hu>, Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, LKML <linux-kernel@vger.kernel.org>, Linux-mm <linux-mm@kvack.org>, Andi Kleen <andi@firstfloor.org>, Christoph Hellwig <hch@infradead.org>, Steven Rostedt <rostedt@goodmis.org>, Arnaldo Carvalho de Melo <acme@infradead.org>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Thomas Gleixner <tglx@linutronix.de>, Anton Arapov <anton@redhat.com>
+
+On Mon, 2012-04-16 at 17:34 +0200, Oleg Nesterov wrote:
+> On 04/16, Peter Zijlstra wrote:
+> >
+> > Can't we 'optimize' read_opcode() by doing the pagefault_disable() +
+> > __copy_from_user_inatomic() optimistically before going down the whole
+> > gup()+lock+kmap path?
+>=20
+> Unlikely, the task is not current.
+
+Easy enough to test that though.. and that should make the regular path
+fast enough, no?
 
 
-memory allocated for process stack seems never to be freed by the kernel=
-..
+---
+ kernel/events/uprobes.c |    9 +++++++++
+ 1 files changed, 9 insertions(+), 0 deletions(-)
 
-
-on a vmware machine with about 768m memory, run the following program.wh=
-en
-printing "run over", run another case of the following program. oom-kill=
-er
-trigered, which is not so reasonable.
-
-
-#include <stdio.h>
-#include <sys/time.h>
-#include <sys/resource.h>
-#include <alloca.h>
-void*stack=3DNULL;
-const long water_mark=3D512*1024*1024;
-void func()
-{
-	int p=3D0;
-	if((long)stack-(long)&p> water_mark)
-	{
-		printf("hit\n");
-	}
-	else
-	{
-		func();
-	}
-	return;
-}
-int main()
-{
-	struct rlimit limit;
-	limit.rlim_cur=3D1024*1024*1024*1.5;
-	limit.rlim_max=3D1024*1024*1024*1.5;
-	setrlimit(RLIMIT_STACK,&limit);
-	int a=3D0;
-	stack=3D&a;
-	printf("run\n");
-	//getchar();
-	func();
-	printf("run over\n");
-	getchar();
-	return 0;
-}
-
--- =
-
-=CA=B9=D3=C3 Opera =B8=EF=C3=FC=D0=D4=B5=C4=B5=E7=D7=D3=D3=CA=BC=FE=BF=CD=
-=BB=A7=B3=CC=D0=F2: http://www.opera.com/mail/
+diff --git a/kernel/events/uprobes.c b/kernel/events/uprobes.c
+index 985be4d..7f5d8c5 100644
+--- a/kernel/events/uprobes.c
++++ b/kernel/events/uprobes.c
+@@ -312,6 +312,15 @@ static int read_opcode(struct mm_struct *mm, unsigned =
+long vaddr, uprobe_opcode_
+ 	void *vaddr_new;
+ 	int ret;
+=20
++	if (mm =3D=3D current->mm) {
++		pagefault_disable();
++		ret =3D __copy_from_user_inatomic(opcode, (void __user *)vaddr,=20
++						sizeof(*opcode));
++		pagefault_enable();
++		if (!ret)
++			return 0;
++	}
++
+ 	ret =3D get_user_pages(NULL, mm, vaddr, 1, 0, 0, &page, NULL);
+ 	if (ret <=3D 0)
+ 		return ret;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
