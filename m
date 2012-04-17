@@ -1,91 +1,366 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx120.postini.com [74.125.245.120])
-	by kanga.kvack.org (Postfix) with SMTP id 72FA86B004D
-	for <linux-mm@kvack.org>; Mon, 16 Apr 2012 23:25:31 -0400 (EDT)
-Received: by dakh32 with SMTP id h32so8292806dak.9
-        for <linux-mm@kvack.org>; Mon, 16 Apr 2012 20:25:30 -0700 (PDT)
-Message-ID: <4F8CE2A6.7070004@gmail.com>
-Date: Tue, 17 Apr 2012 11:25:26 +0800
-From: Sha Zhengju <handai.szj@gmail.com>
-MIME-Version: 1.0
+Received: from psmtp.com (na3sys010amx194.postini.com [74.125.245.194])
+	by kanga.kvack.org (Postfix) with SMTP id A48D06B004D
+	for <linux-mm@kvack.org>; Tue, 17 Apr 2012 04:20:20 -0400 (EDT)
+Received: by dakh32 with SMTP id h32so8580372dak.9
+        for <linux-mm@kvack.org>; Tue, 17 Apr 2012 01:20:19 -0700 (PDT)
+Content-Type: multipart/mixed; boundary=----------mVKqrd4lhbv3gzreeHTwOV
 Subject: Re: question about memsw of memory cgroup-subsystem
-References: <op.wco7ekvhn27o5l@gaoqiang-d1.corp.qihoo.net> <20120413144954.GA9227@tiehlicka.suse.cz> <op.wct9zibjn27o5l@gaoqiang-d1.corp.qihoo.net>
-In-Reply-To: <op.wct9zibjn27o5l@gaoqiang-d1.corp.qihoo.net>
-Content-Type: text/plain; charset=x-gbk; format=flowed
-Content-Transfer-Encoding: 8bit
+References: <op.wco7ekvhn27o5l@gaoqiang-d1.corp.qihoo.net>
+ <20120413144954.GA9227@tiehlicka.suse.cz>
+ <op.wct9zibjn27o5l@gaoqiang-d1.corp.qihoo.net> <4F8CE2A6.7070004@gmail.com>
+Date: Tue, 17 Apr 2012 16:18:17 +0800
+MIME-Version: 1.0
+From: gaoqiang <gaoqiangscut@gmail.com>
+Message-ID: <op.wcwhcri3n27o5l@gaoqiang-d1.corp.qihoo.net>
+In-Reply-To: <4F8CE2A6.7070004@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: gaoqiang <gaoqiangscut@gmail.com>
+To: Sha Zhengju <handai.szj@gmail.com>
 Cc: Michal Hocko <mhocko@suse.cz>, cgroups@vger.kernel.org, linux-mm@kvack.org
 
-On 04/16/2012 11:43 AM, gaoqiang wrote:
-> OU Fri, 13 Apr 2012 22:49:54 +0800GBP!Michal Hocko <mhocko@suse.cz> D'uA:
->
->> [CC linux-mm]
->>
->> Hi,
->>
->> On Fri 13-04-12 18:00:10, gaoqiang wrote:
->>>
->>>
->>> I put a single process into a cgroup and set memory.limit_in_bytes
->>> to 100M,and memory.memsw.limit_in_bytes to 1G.
->>>
->>> howevery,the process was oom-killed before mem+swap hit 1G. I tried
->>> many times,and it was killed randomly when memory+swap
->>>
->>> exceed 100M but less than 1G. what is the matter ?
->>
->> could you be more specific about your kernel version, workload and could
->> you provide us with GROUP/memory.stat snapshots taken during your test?
->>
->> One reason for oom might be that you are hitting the hard limit (you
->> cannot get over even if memsw limit says more) and you cannot swap out
->> any pages (e.g. they are mlocked or under writeback).
->>
->
-> many thanks.
->
->
-> The system is a vmware virtual machine,running centos6.2 with kernel 
-> 2.6.32-220.7.1.el6.x86_64.
->
-> the attachments are memory.stat, the test program and the 
-> /var/log/message of the oom.
->
-> the workload is nearly 0,with searal sshd and bash program running.
->
-> I just did the following command when testing:
->
-> ./t
-> # this program will pause at the "getchar()" line and in another 
-> terminal,run :
->
-> cgclear
-> service cgconfig restart
-> mkdir /cgroup/memory/test
-> cd /cgroup/memory/test
-> echo 100m > memory.limit_in_bytes
-> echo 1G > memory.memsw.limit_in_bytes
-> echo 'pid' > tasks
->
-> # then continue the t command
->
->
-Hi,
+------------mVKqrd4lhbv3gzreeHTwOV
+Content-Type: text/plain; charset=gbk; format=flowed; delsp=yes
+Content-Transfer-Encoding: Quoted-Printable
 
-I run your test under RHEL6.1 with 2.6.32-220.7.1.el6.x86_64 (an 
-internal version but
-no changes in mm/memcg) in a real server and the process is killed with 
-memsw reaching
-1G. Does your vmware virtual machine have enough swap space?.. I've no 
-idea whether
-the different behavior come from the physical/virtual environment.
+=D4=DA Tue, 17 Apr 2012 11:25:26 +0800=A3=ACSha Zhengju <handai.szj@gmai=
+l.com>  =
+
+=D0=B4=B5=C0:
+
+the vmware machine has about 2G swap space,which should be quite enough.=
+.
+
+Days ago I can produce it on a physical machine,  not any more now.
+the /var/log/message- was still there (the attchment),so I think
+it was not a mistake.
+
+I tried on my laptop,with the same system, easy to reproduce..
 
 
-Thanks,
-Sha
+> On 04/16/2012 11:43 AM, gaoqiang wrote:
+>> =D4=DA Fri, 13 Apr 2012 22:49:54 +0800=A3=ACMichal Hocko <mhocko@suse=
+.cz> =D0=B4=B5=C0:
+>>
+>>> [CC linux-mm]
+>>>
+>>> Hi,
+>>>
+>>> On Fri 13-04-12 18:00:10, gaoqiang wrote:
+>>>>
+>>>>
+>>>> I put a single process into a cgroup and set memory.limit_in_bytes
+>>>> to 100M,and memory.memsw.limit_in_bytes to 1G.
+>>>>
+>>>> howevery,the process was oom-killed before mem+swap hit 1G. I tried=
 
+>>>> many times,and it was killed randomly when memory+swap
+>>>>
+>>>> exceed 100M but less than 1G. what is the matter ?
+>>>
+>>> could you be more specific about your kernel version, workload and  =
+
+>>> could
+>>> you provide us with GROUP/memory.stat snapshots taken during your te=
+st?
+>>>
+>>> One reason for oom might be that you are hitting the hard limit (you=
+
+>>> cannot get over even if memsw limit says more) and you cannot swap o=
+ut
+>>> any pages (e.g. they are mlocked or under writeback).
+>>>
+>>
+>> many thanks.
+>>
+>>
+>> The system is a vmware virtual machine,running centos6.2 with kernel =
+ =
+
+>> 2.6.32-220.7.1.el6.x86_64.
+>>
+>> the attachments are memory.stat, the test program and the  =
+
+>> /var/log/message of the oom.
+>>
+>> the workload is nearly 0,with searal sshd and bash program running.
+>>
+>> I just did the following command when testing:
+>>
+>> ./t
+>> # this program will pause at the "getchar()" line and in another  =
+
+>> terminal,run :
+>>
+>> cgclear
+>> service cgconfig restart
+>> mkdir /cgroup/memory/test
+>> cd /cgroup/memory/test
+>> echo 100m > memory.limit_in_bytes
+>> echo 1G > memory.memsw.limit_in_bytes
+>> echo 'pid' > tasks
+>>
+>> # then continue the t command
+>>
+>>
+> Hi,
+>
+> I run your test under RHEL6.1 with 2.6.32-220.7.1.el6.x86_64 (an  =
+
+> internal version but
+> no changes in mm/memcg) in a real server and the process is killed wit=
+h  =
+
+> memsw reaching
+> 1G. Does your vmware virtual machine have enough swap space?.. I've no=
+  =
+
+> idea whether
+> the different behavior come from the physical/virtual environment.
+>
+>
+> Thanks,
+> Sha
+>
+>
+
+
+-- =
+
+=CA=B9=D3=C3 Opera =B8=EF=C3=FC=D0=D4=B5=C4=B5=E7=D7=D3=D3=CA=BC=FE=BF=CD=
+=BB=A7=B3=CC=D0=F2: http://www.opera.com/mail/
+------------mVKqrd4lhbv3gzreeHTwOV
+Content-Disposition: attachment; filename=messages
+Content-Type: application/octet-stream; name="messages"
+Content-Transfer-Encoding: Base64
+
+QXByIDEyIDE5OjQzOjI1IGMyIGtlcm5lbDogdGVzdCBpbnZva2VkIG9vbS1raWxs
+ZXI6IGdmcF9tYXNrPTB4ZDAsIG9yZGVyPTAsIG9vbV9hZGo9MCwgb29tX3Njb3Jl
+X2Fkaj0wCkFwciAxMiAxOTo0MzoyNSBjMiBrZXJuZWw6IHRlc3QgY3B1c2V0PS8g
+bWVtc19hbGxvd2VkPTAtMQpBcHIgMTIgMTk6NDM6MjUgYzIga2VybmVsOiBQaWQ6
+IDk4NjcsIGNvbW06IHRlc3QgTm90IHRhaW50ZWQgMi42LjMyLTIyMC43LjEuZWw2
+Lng4Nl82NCAjMQpBcHIgMTIgMTk6NDM6MjUgYzIga2VybmVsOiBDYWxsIFRyYWNl
+OgpBcHIgMTIgMTk6NDM6MjUgYzIga2VybmVsOiBbPGZmZmZmZmZmODEwYzJjNjE+
+XSA/IGNwdXNldF9wcmludF90YXNrX21lbXNfYWxsb3dlZCsweDkxLzB4YjAKQXBy
+IDEyIDE5OjQzOjI1IGMyIGtlcm5lbDogWzxmZmZmZmZmZjgxMTEzOWUwPl0gPyBk
+dW1wX2hlYWRlcisweDkwLzB4MWIwCkFwciAxMiAxOTo0MzoyNSBjMiBrZXJuZWw6
+IFs8ZmZmZmZmZmY4MTIwZDdhYz5dID8gc2VjdXJpdHlfcmVhbF9jYXBhYmxlX25v
+YXVkaXQrMHgzYy8weDcwCkFwciAxMiAxOTo0MzoyNSBjMiBrZXJuZWw6IFs8ZmZm
+ZmZmZmY4MTExM2U2YT5dID8gb29tX2tpbGxfcHJvY2VzcysweDhhLzB4MmMwCkFw
+ciAxMiAxOTo0MzoyNSBjMiBrZXJuZWw6IFs8ZmZmZmZmZmY4MTExM2RhMT5dID8g
+c2VsZWN0X2JhZF9wcm9jZXNzKzB4ZTEvMHgxMjAKQXByIDEyIDE5OjQzOjI1IGMy
+IGtlcm5lbDogWzxmZmZmZmZmZjgxMTE0NjAyPl0gPyBtZW1fY2dyb3VwX291dF9v
+Zl9tZW1vcnkrMHg5Mi8weGIwCkFwciAxMiAxOTo0MzoyNSBjMiBrZXJuZWw6IFs8
+ZmZmZmZmZmY4MTE2OTM1Nz5dID8gbWVtX2Nncm91cF9oYW5kbGVfb29tKzB4MTQ3
+LzB4MTcwCkFwciAxMiAxOTo0MzoyNSBjMiBrZXJuZWw6IFs8ZmZmZmZmZmY4MTA5
+MGE5MD5dID8gYXV0b3JlbW92ZV93YWtlX2Z1bmN0aW9uKzB4MC8weDQwCkFwciAx
+MiAxOTo0MzoyNSBjMiBrZXJuZWw6IFs8ZmZmZmZmZmY4MTE2YTYxYj5dID8gX19t
+ZW1fY2dyb3VwX3RyeV9jaGFyZ2UrMHgzYmIvMHg0MjAKQXByIDEyIDE5OjQzOjI1
+IGMyIGtlcm5lbDogWzxmZmZmZmZmZjgxMTIzODUxPl0gPyBfX2FsbG9jX3BhZ2Vz
+X25vZGVtYXNrKzB4MTExLzB4OTQwCkFwciAxMiAxOTo0MzoyNSBjMiBrZXJuZWw6
+IFs8ZmZmZmZmZmY4MTE2YjkxNz5dID8gbWVtX2Nncm91cF9jaGFyZ2VfY29tbW9u
+KzB4ODcvMHhkMApBcHIgMTIgMTk6NDM6MjUgYzIga2VybmVsOiBbPGZmZmZmZmZm
+ODExNmJhZTg+XSA/IG1lbV9jZ3JvdXBfbmV3cGFnZV9jaGFyZ2UrMHg0OC8weDUw
+CkFwciAxMiAxOTo0MzoyNSBjMiBrZXJuZWw6IFs8ZmZmZmZmZmY4MTEzYmVjYT5d
+ID8gaGFuZGxlX3B0ZV9mYXVsdCsweDc5YS8weGI1MApBcHIgMTIgMTk6NDM6MjUg
+YzIga2VybmVsOiBbPGZmZmZmZmZmODEwNDcxYzc+XSA/IHB0ZV9hbGxvY19vbmUr
+MHgzNy8weDUwCkFwciAxMiAxOTo0MzoyNSBjMiBrZXJuZWw6IFs8ZmZmZmZmZmY4
+MTE3MWFkOT5dID8gZG9faHVnZV9wbWRfYW5vbnltb3VzX3BhZ2UrMHhiOS8weDM3
+MApBcHIgMTIgMTk6NDM6MjUgYzIga2VybmVsOiBbPGZmZmZmZmZmODExM2M0NjQ+
+XSA/IGhhbmRsZV9tbV9mYXVsdCsweDFlNC8weDJiMApBcHIgMTIgMTk6NDM6MjUg
+YzIga2VybmVsOiBbPGZmZmZmZmZmODEwNDJiNzk+XSA/IF9fZG9fcGFnZV9mYXVs
+dCsweDEzOS8weDQ4MApBcHIgMTIgMTk6NDM6MjUgYzIga2VybmVsOiBbPGZmZmZm
+ZmZmODEwMDk4OGU+XSA/IF9fc3dpdGNoX3RvKzB4MjZlLzB4MzIwCkFwciAxMiAx
+OTo0MzoyNSBjMiBrZXJuZWw6IFs8ZmZmZmZmZmY4MTRlY2IwZT5dID8gdGhyZWFk
+X3JldHVybisweDRlLzB4NzYwCkFwciAxMiAxOTo0MzoyNSBjMiBrZXJuZWw6IFs8
+ZmZmZmZmZmY4MTRmMjUzZT5dID8gZG9fcGFnZV9mYXVsdCsweDNlLzB4YTAKQXBy
+IDEyIDE5OjQzOjI1IGMyIGtlcm5lbDogWzxmZmZmZmZmZjgxNGVmOGY1Pl0gPyBw
+YWdlX2ZhdWx0KzB4MjUvMHgzMApBcHIgMTIgMTk6NDM6MjUgYzIga2VybmVsOiBU
+YXNrIGluIC85ODY2IGtpbGxlZCBhcyBhIHJlc3VsdCBvZiBsaW1pdCBvZiAvOTg2
+NgpBcHIgMTIgMTk6NDM6MjUgYzIga2VybmVsOiBtZW1vcnk6IHVzYWdlIDEwMjQw
+MGtCLCBsaW1pdCAxMDI0MDBrQiwgZmFpbGNudCA3NTYKQXByIDEyIDE5OjQzOjI1
+IGMyIGtlcm5lbDogbWVtb3J5K3N3YXA6IHVzYWdlIDE5OTY1NmtCLCBsaW1pdCAx
+MDI0MDAwa0IsIGZhaWxjbnQgMApBcHIgMTIgMTk6NDM6MjUgYzIga2VybmVsOiBN
+ZW0tSW5mbzoKQXByIDEyIDE5OjQzOjI1IGMyIGtlcm5lbDogTm9kZSAwIERNQSBw
+ZXItY3B1OgpBcHIgMTIgMTk6NDM6MjUgYzIga2VybmVsOiBDUFUgICAgMDogaGk6
+ICAgIDAsIGJ0Y2g6ICAgMSB1c2Q6ICAgMApBcHIgMTIgMTk6NDM6MjUgYzIga2Vy
+bmVsOiBDUFUgICAgMTogaGk6ICAgIDAsIGJ0Y2g6ICAgMSB1c2Q6ICAgMApBcHIg
+MTIgMTk6NDM6MjUgYzIga2VybmVsOiBDUFUgICAgMjogaGk6ICAgIDAsIGJ0Y2g6
+ICAgMSB1c2Q6ICAgMApBcHIgMTIgMTk6NDM6MjUgYzIga2VybmVsOiBDUFUgICAg
+MzogaGk6ICAgIDAsIGJ0Y2g6ICAgMSB1c2Q6ICAgMApBcHIgMTIgMTk6NDM6MjUg
+YzIga2VybmVsOiBDUFUgICAgNDogaGk6ICAgIDAsIGJ0Y2g6ICAgMSB1c2Q6ICAg
+MApBcHIgMTIgMTk6NDM6MjUgYzIga2VybmVsOiBDUFUgICAgNTogaGk6ICAgIDAs
+IGJ0Y2g6ICAgMSB1c2Q6ICAgMApBcHIgMTIgMTk6NDM6MjUgYzIga2VybmVsOiBD
+UFUgICAgNjogaGk6ICAgIDAsIGJ0Y2g6ICAgMSB1c2Q6ICAgMApBcHIgMTIgMTk6
+NDM6MjUgYzIga2VybmVsOiBDUFUgICAgNzogaGk6ICAgIDAsIGJ0Y2g6ICAgMSB1
+c2Q6ICAgMApBcHIgMTIgMTk6NDM6MjUgYzIga2VybmVsOiBDUFUgICAgODogaGk6
+ICAgIDAsIGJ0Y2g6ICAgMSB1c2Q6ICAgMApBcHIgMTIgMTk6NDM6MjUgYzIga2Vy
+bmVsOiBDUFUgICAgOTogaGk6ICAgIDAsIGJ0Y2g6ICAgMSB1c2Q6ICAgMApBcHIg
+MTIgMTk6NDM6MjUgYzIga2VybmVsOiBDUFUgICAxMDogaGk6ICAgIDAsIGJ0Y2g6
+ICAgMSB1c2Q6ICAgMApBcHIgMTIgMTk6NDM6MjUgYzIga2VybmVsOiBDUFUgICAx
+MTogaGk6ICAgIDAsIGJ0Y2g6ICAgMSB1c2Q6ICAgMApBcHIgMTIgMTk6NDM6MjUg
+YzIga2VybmVsOiBDUFUgICAxMjogaGk6ICAgIDAsIGJ0Y2g6ICAgMSB1c2Q6ICAg
+MApBcHIgMTIgMTk6NDM6MjUgYzIga2VybmVsOiBDUFUgICAxMzogaGk6ICAgIDAs
+IGJ0Y2g6ICAgMSB1c2Q6ICAgMApBcHIgMTIgMTk6NDM6MjUgYzIga2VybmVsOiBD
+UFUgICAxNDogaGk6ICAgIDAsIGJ0Y2g6ICAgMSB1c2Q6ICAgMApBcHIgMTIgMTk6
+NDM6MjUgYzIga2VybmVsOiBDUFUgICAxNTogaGk6ICAgIDAsIGJ0Y2g6ICAgMSB1
+c2Q6ICAgMApBcHIgMTIgMTk6NDM6MjUgYzIga2VybmVsOiBOb2RlIDAgRE1BMzIg
+cGVyLWNwdToKQXByIDEyIDE5OjQzOjI1IGMyIGtlcm5lbDogQ1BVICAgIDA6IGhp
+OiAgMTg2LCBidGNoOiAgMzEgdXNkOiAgNzQKQXByIDEyIDE5OjQzOjI1IGMyIGtl
+cm5lbDogQ1BVICAgIDE6IGhpOiAgMTg2LCBidGNoOiAgMzEgdXNkOiAgMzQKQXBy
+IDEyIDE5OjQzOjI1IGMyIGtlcm5lbDogQ1BVICAgIDI6IGhpOiAgMTg2LCBidGNo
+OiAgMzEgdXNkOiAxNzcKQXByIDEyIDE5OjQzOjI1IGMyIGtlcm5lbDogQ1BVICAg
+IDM6IGhpOiAgMTg2LCBidGNoOiAgMzEgdXNkOiAxNjQKQXByIDEyIDE5OjQzOjI1
+IGMyIGtlcm5lbDogQ1BVICAgIDQ6IGhpOiAgMTg2LCBidGNoOiAgMzEgdXNkOiAg
+IDAKQXByIDEyIDE5OjQzOjI1IGMyIGtlcm5lbDogQ1BVICAgIDU6IGhpOiAgMTg2
+LCBidGNoOiAgMzEgdXNkOiAgIDAKQXByIDEyIDE5OjQzOjI1IGMyIGtlcm5lbDog
+Q1BVICAgIDY6IGhpOiAgMTg2LCBidGNoOiAgMzEgdXNkOiAgIDAKQXByIDEyIDE5
+OjQzOjI1IGMyIGtlcm5lbDogQ1BVICAgIDc6IGhpOiAgMTg2LCBidGNoOiAgMzEg
+dXNkOiAgIDAKQXByIDEyIDE5OjQzOjI1IGMyIGtlcm5lbDogQ1BVICAgIDg6IGhp
+OiAgMTg2LCBidGNoOiAgMzEgdXNkOiAgMTgKQXByIDEyIDE5OjQzOjI1IGMyIGtl
+cm5lbDogQ1BVICAgIDk6IGhpOiAgMTg2LCBidGNoOiAgMzEgdXNkOiAgMzMKQXBy
+IDEyIDE5OjQzOjI1IGMyIGtlcm5lbDogQ1BVICAgMTA6IGhpOiAgMTg2LCBidGNo
+OiAgMzEgdXNkOiAgMzIKQXByIDEyIDE5OjQzOjI1IGMyIGtlcm5lbDogQ1BVICAg
+MTE6IGhpOiAgMTg2LCBidGNoOiAgMzEgdXNkOiAxNjcKQXByIDEyIDE5OjQzOjI1
+IGMyIGtlcm5lbDogQ1BVICAgMTI6IGhpOiAgMTg2LCBidGNoOiAgMzEgdXNkOiAg
+IDAKQXByIDEyIDE5OjQzOjI1IGMyIGtlcm5lbDogQ1BVICAgMTM6IGhpOiAgMTg2
+LCBidGNoOiAgMzEgdXNkOiAgIDAKQXByIDEyIDE5OjQzOjI1IGMyIGtlcm5lbDog
+Q1BVICAgMTQ6IGhpOiAgMTg2LCBidGNoOiAgMzEgdXNkOiAgIDAKQXByIDEyIDE5
+OjQzOjI1IGMyIGtlcm5lbDogQ1BVICAgMTU6IGhpOiAgMTg2LCBidGNoOiAgMzEg
+dXNkOiAgIDAKQXByIDEyIDE5OjQzOjI1IGMyIGtlcm5lbDogTm9kZSAwIE5vcm1h
+bCBwZXItY3B1OgpBcHIgMTIgMTk6NDM6MjUgYzIga2VybmVsOiBDUFUgICAgMDog
+aGk6ICAxODYsIGJ0Y2g6ICAzMSB1c2Q6IDE1MQpBcHIgMTIgMTk6NDM6MjUgYzIg
+a2VybmVsOiBDUFUgICAgMTogaGk6ICAxODYsIGJ0Y2g6ICAzMSB1c2Q6IDE2MwpB
+cHIgMTIgMTk6NDM6MjUgYzIga2VybmVsOiBDUFUgICAgMjogaGk6ICAxODYsIGJ0
+Y2g6ICAzMSB1c2Q6IDE4MQpBcHIgMTIgMTk6NDM6MjUgYzIga2VybmVsOiBDUFUg
+ICAgMzogaGk6ICAxODYsIGJ0Y2g6ICAzMSB1c2Q6IDE4MApBcHIgMTIgMTk6NDM6
+MjUgYzIga2VybmVsOiBDUFUgICAgNDogaGk6ICAxODYsIGJ0Y2g6ICAzMSB1c2Q6
+ICAgMApBcHIgMTIgMTk6NDM6MjUgYzIga2VybmVsOiBDUFUgICAgNTogaGk6ICAx
+ODYsIGJ0Y2g6ICAzMSB1c2Q6ICAgMApBcHIgMTIgMTk6NDM6MjUgYzIga2VybmVs
+OiBDUFUgICAgNjogaGk6ICAxODYsIGJ0Y2g6ICAzMSB1c2Q6ICAgMApBcHIgMTIg
+MTk6NDM6MjUgYzIga2VybmVsOiBDUFUgICAgNzogaGk6ICAxODYsIGJ0Y2g6ICAz
+MSB1c2Q6ICAgMApBcHIgMTIgMTk6NDM6MjUgYzIga2VybmVsOiBDUFUgICAgODog
+aGk6ICAxODYsIGJ0Y2g6ICAzMSB1c2Q6IDE1NgpBcHIgMTIgMTk6NDM6MjUgYzIg
+a2VybmVsOiBDUFUgICAgOTogaGk6ICAxODYsIGJ0Y2g6ICAzMSB1c2Q6IDExNApB
+cHIgMTIgMTk6NDM6MjUgYzIga2VybmVsOiBDUFUgICAxMDogaGk6ICAxODYsIGJ0
+Y2g6ICAzMSB1c2Q6IDE3MQpBcHIgMTIgMTk6NDM6MjUgYzIga2VybmVsOiBDUFUg
+ICAxMTogaGk6ICAxODYsIGJ0Y2g6ICAzMSB1c2Q6IDE2MApBcHIgMTIgMTk6NDM6
+MjUgYzIga2VybmVsOiBDUFUgICAxMjogaGk6ICAxODYsIGJ0Y2g6ICAzMSB1c2Q6
+ICAgMApBcHIgMTIgMTk6NDM6MjUgYzIga2VybmVsOiBDUFUgICAxMzogaGk6ICAx
+ODYsIGJ0Y2g6ICAzMSB1c2Q6ICAgMApBcHIgMTIgMTk6NDM6MjUgYzIga2VybmVs
+OiBDUFUgICAxNDogaGk6ICAxODYsIGJ0Y2g6ICAzMSB1c2Q6ICAgMApBcHIgMTIg
+MTk6NDM6MjUgYzIga2VybmVsOiBDUFUgICAxNTogaGk6ICAxODYsIGJ0Y2g6ICAz
+MSB1c2Q6ICAgMApBcHIgMTIgMTk6NDM6MjUgYzIga2VybmVsOiBOb2RlIDEgTm9y
+bWFsIHBlci1jcHU6CkFwciAxMiAxOTo0MzoyNSBjMiBrZXJuZWw6IENQVSAgICAw
+OiBoaTogIDE4NiwgYnRjaDogIDMxIHVzZDogICAwCkFwciAxMiAxOTo0MzoyNSBj
+MiBrZXJuZWw6IENQVSAgICAxOiBoaTogIDE4NiwgYnRjaDogIDMxIHVzZDogIDEx
+CkFwciAxMiAxOTo0MzoyNSBjMiBrZXJuZWw6IENQVSAgICAyOiBoaTogIDE4Niwg
+YnRjaDogIDMxIHVzZDogICAwCkFwciAxMiAxOTo0MzoyNSBjMiBrZXJuZWw6IENQ
+VSAgICAzOiBoaTogIDE4NiwgYnRjaDogIDMxIHVzZDogICAwCkFwciAxMiAxOTo0
+MzoyNSBjMiBrZXJuZWw6IENQVSAgICA0OiBoaTogIDE4NiwgYnRjaDogIDMxIHVz
+ZDogIDUzCkFwciAxMiAxOTo0MzoyNSBjMiBrZXJuZWw6IENQVSAgICA1OiBoaTog
+IDE4NiwgYnRjaDogIDMxIHVzZDogMTUzCkFwciAxMiAxOTo0MzoyNSBjMiBrZXJu
+ZWw6IENQVSAgICA2OiBoaTogIDE4NiwgYnRjaDogIDMxIHVzZDogIDQwCkFwciAx
+MiAxOTo0MzoyNSBjMiBrZXJuZWw6IENQVSAgICA3OiBoaTogIDE4NiwgYnRjaDog
+IDMxIHVzZDogMTI4CkFwciAxMiAxOTo0MzoyNSBjMiBrZXJuZWw6IENQVSAgICA4
+OiBoaTogIDE4NiwgYnRjaDogIDMxIHVzZDogMTM0CkFwciAxMiAxOTo0MzoyNSBj
+MiBrZXJuZWw6IENQVSAgICA5OiBoaTogIDE4NiwgYnRjaDogIDMxIHVzZDogIDQw
+CkFwciAxMiAxOTo0MzoyNSBjMiBrZXJuZWw6IENQVSAgIDEwOiBoaTogIDE4Niwg
+YnRjaDogIDMxIHVzZDogICA1CkFwciAxMiAxOTo0MzoyNSBjMiBrZXJuZWw6IENQ
+VSAgIDExOiBoaTogIDE4NiwgYnRjaDogIDMxIHVzZDogICAwCkFwciAxMiAxOTo0
+MzoyNSBjMiBrZXJuZWw6IENQVSAgIDEyOiBoaTogIDE4NiwgYnRjaDogIDMxIHVz
+ZDogMTYyCkFwciAxMiAxOTo0MzoyNSBjMiBrZXJuZWw6IENQVSAgIDEzOiBoaTog
+IDE4NiwgYnRjaDogIDMxIHVzZDogIDI2CkFwciAxMiAxOTo0MzoyNSBjMiBrZXJu
+ZWw6IENQVSAgIDE0OiBoaTogIDE4NiwgYnRjaDogIDMxIHVzZDogIDYwCkFwciAx
+MiAxOTo0MzoyNSBjMiBrZXJuZWw6IENQVSAgIDE1OiBoaTogIDE4NiwgYnRjaDog
+IDMxIHVzZDogMTY1CkFwciAxMiAxOTo0MzoyNSBjMiBrZXJuZWw6IGFjdGl2ZV9h
+bm9uOjIzOTMzIGluYWN0aXZlX2Fub246MTI3NzIgaXNvbGF0ZWRfYW5vbjowCkFw
+ciAxMiAxOTo0MzoyNSBjMiBrZXJuZWw6IGFjdGl2ZV9maWxlOjI3MzU2ODEgaW5h
+Y3RpdmVfZmlsZToyOTEyNDk5IGlzb2xhdGVkX2ZpbGU6MApBcHIgMTIgMTk6NDM6
+MjUgYzIga2VybmVsOiB1bmV2aWN0YWJsZTowIGRpcnR5OjUgd3JpdGViYWNrOjEy
+ODI2IHVuc3RhYmxlOjAKQXByIDEyIDE5OjQzOjI1IGMyIGtlcm5lbDogZnJlZTox
+ODUwNDIzIHNsYWJfcmVjbGFpbWFibGU6NTYzNDU1IHNsYWJfdW5yZWNsYWltYWJs
+ZToyMjMwMgpBcHIgMTIgMTk6NDM6MjUgYzIga2VybmVsOiBtYXBwZWQ6MzE1NiBz
+aG1lbTo1OCBwYWdldGFibGVzOjI1MzIgYm91bmNlOjAKQXByIDEyIDE5OjQzOjI1
+IGMyIGtlcm5lbDogTm9kZSAwIERNQSBmcmVlOjE1NjYwa0IgbWluOjQwa0IgbG93
+OjQ4a0IgaGlnaDo2MGtCIGFjdGl2ZV9hbm9uOjBrQiBpbmFjdGl2ZV9hbm9uOjBr
+QiBhY3RpdmVfZmlsZTowa0IgaW5hY3RpdmVfZmlsZTowa0IgdW5ldmljdGFibGU6
+MGtCIGlzb2xhdGVkKGFub24pOjBrQiBpc29sYXRlZChmaWxlKTowa0IgcHJlc2Vu
+dDoxNTI0OGtCIG1sb2NrZWQ6MGtCIGRpcnR5OjBrQiB3cml0ZWJhY2s6MGtCIG1h
+cHBlZDowa0Igc2htZW06MGtCIHNsYWJfcmVjbGFpbWFibGU6MGtCIHNsYWJfdW5y
+ZWNsYWltYWJsZTowa0Iga2VybmVsX3N0YWNrOjBrQiBwYWdldGFibGVzOjBrQiB1
+bnN0YWJsZTowa0IgYm91bmNlOjBrQiB3cml0ZWJhY2tfdG1wOjBrQiBwYWdlc19z
+Y2FubmVkOjAgYWxsX3VucmVjbGFpbWFibGU/IG5vCkFwciAxMiAxOTo0MzoyNSBj
+MiBrZXJuZWw6IGxvd21lbV9yZXNlcnZlW106IDAgMjk5MSAxNjEyMSAxNjEyMQpB
+cHIgMTIgMTk6NDM6MjUgYzIga2VybmVsOiBOb2RlIDAgRE1BMzIgZnJlZToxODE5
+ODcya0IgbWluOjgzNDRrQiBsb3c6MTA0MjhrQiBoaWdoOjEyNTE2a0IgYWN0aXZl
+X2Fub246MGtCIGluYWN0aXZlX2Fub246MGtCIGFjdGl2ZV9maWxlOjBrQiBpbmFj
+dGl2ZV9maWxlOjBrQiB1bmV2aWN0YWJsZTowa0IgaXNvbGF0ZWQoYW5vbik6MGtC
+IGlzb2xhdGVkKGZpbGUpOjBrQiBwcmVzZW50OjMwNjMzOTJrQiBtbG9ja2VkOjBr
+QiBkaXJ0eTowa0Igd3JpdGViYWNrOjBrQiBtYXBwZWQ6MGtCIHNobWVtOjBrQiBz
+bGFiX3JlY2xhaW1hYmxlOjg0MTg2MGtCIHNsYWJfdW5yZWNsYWltYWJsZToxMTEy
+NGtCIGtlcm5lbF9zdGFjazowa0IgcGFnZXRhYmxlczowa0IgdW5zdGFibGU6MGtC
+IGJvdW5jZTowa0Igd3JpdGViYWNrX3RtcDowa0IgcGFnZXNfc2Nhbm5lZDowIGFs
+bF91bnJlY2xhaW1hYmxlPyBubwpBcHIgMTIgMTk6NDM6MjUgYzIga2VybmVsOiBs
+b3dtZW1fcmVzZXJ2ZVtdOiAwIDAgMTMxMzAgMTMxMzAKQXByIDEyIDE5OjQzOjI1
+IGMyIGtlcm5lbDogTm9kZSAwIE5vcm1hbCBmcmVlOjQ1NjMya0IgbWluOjM2NjMy
+a0IgbG93OjQ1Nzg4a0IgaGlnaDo1NDk0OGtCIGFjdGl2ZV9hbm9uOjE5MTI4a0Ig
+aW5hY3RpdmVfYW5vbjoyOGtCIGFjdGl2ZV9maWxlOjYyODcyMjhrQiBpbmFjdGl2
+ZV9maWxlOjU5NzgyMTJrQiB1bmV2aWN0YWJsZTowa0IgaXNvbGF0ZWQoYW5vbik6
+MGtCIGlzb2xhdGVkKGZpbGUpOjBrQiBwcmVzZW50OjEzNDQ1MTIwa0IgbWxvY2tl
+ZDowa0IgZGlydHk6MGtCIHdyaXRlYmFjazowa0IgbWFwcGVkOjkyNTJrQiBzaG1l
+bToxMDhrQiBzbGFiX3JlY2xhaW1hYmxlOjEwNjUzODBrQiBzbGFiX3VucmVjbGFp
+bWFibGU6MzE0MDRrQiBrZXJuZWxfc3RhY2s6MzUwNGtCIHBhZ2V0YWJsZXM6Mzg2
+MGtCIHVuc3RhYmxlOjBrQiBib3VuY2U6MGtCIHdyaXRlYmFja190bXA6MGtCIHBh
+Z2VzX3NjYW5uZWQ6MCBhbGxfdW5yZWNsYWltYWJsZT8gbm8KQXByIDEyIDE5OjQz
+OjI1IGMyIGtlcm5lbDogbG93bWVtX3Jlc2VydmVbXTogMCAwIDAgMApBcHIgMTIg
+MTk6NDM6MjUgYzIga2VybmVsOiBOb2RlIDEgTm9ybWFsIGZyZWU6NTUyMDUyOGtC
+IG1pbjo0NTA4OGtCIGxvdzo1NjM2MGtCIGhpZ2g6Njc2MzJrQiBhY3RpdmVfYW5v
+bjo3NjYwNGtCIGluYWN0aXZlX2Fub246NTEwNjBrQiBhY3RpdmVfZmlsZTo0NjU1
+NDk2a0IgaW5hY3RpdmVfZmlsZTo1NjcxNzg0a0IgdW5ldmljdGFibGU6MGtCIGlz
+b2xhdGVkKGFub24pOjBrQiBpc29sYXRlZChmaWxlKTowa0IgcHJlc2VudDoxNjU0
+Nzg0MGtCIG1sb2NrZWQ6MGtCIGRpcnR5OjIwa0Igd3JpdGViYWNrOjUxMzA0a0Ig
+bWFwcGVkOjMzNzJrQiBzaG1lbToxMjRrQiBzbGFiX3JlY2xhaW1hYmxlOjM0NjU4
+MGtCIHNsYWJfdW5yZWNsYWltYWJsZTo0NjY4MGtCIGtlcm5lbF9zdGFjazo0NDhr
+QiBwYWdldGFibGVzOjYyNjhrQiB1bnN0YWJsZTowa0IgYm91bmNlOjBrQiB3cml0
+ZWJhY2tfdG1wOjBrQiBwYWdlc19zY2FubmVkOjAgYWxsX3VucmVjbGFpbWFibGU/
+IG5vCkFwciAxMiAxOTo0MzoyNSBjMiBrZXJuZWw6IGxvd21lbV9yZXNlcnZlW106
+IDAgMCAwIDAKQXByIDEyIDE5OjQzOjI1IGMyIGtlcm5lbDogTm9kZSAwIERNQTog
+Myo0a0IgMCo4a0IgMCoxNmtCIDEqMzJrQiAyKjY0a0IgMSoxMjhrQiAwKjI1NmtC
+IDAqNTEya0IgMSoxMDI0a0IgMSoyMDQ4a0IgMyo0MDk2a0IgPSAxNTY2MGtCCkFw
+ciAxMiAxOTo0MzoyNSBjMiBrZXJuZWw6IE5vZGUgMCBETUEzMjogNjYqNGtCIDEw
+OSo4a0IgNDcqMTZrQiAyNCozMmtCIDI4KjY0a0IgMTcqMTI4a0IgNyoyNTZrQiA4
+KjUxMmtCIDkqMTAyNGtCIDQqMjA0OGtCIDQzNyo0MDk2a0IgPSAxODE5ODcya0IK
+QXByIDEyIDE5OjQzOjI1IGMyIGtlcm5lbDogTm9kZSAwIE5vcm1hbDogMTM0KjRr
+QiAyMjEqOGtCIDQ4KjE2a0IgMjgqMzJrQiAxMSo2NGtCIDQqMTI4a0IgMioyNTZr
+QiAxMCo1MTJrQiAxMCoxMDI0a0IgMioyMDQ4a0IgNSo0MDk2a0IgPSA0NTYzMmtC
+CkFwciAxMiAxOTo0MzoyNSBjMiBrZXJuZWw6IE5vZGUgMSBOb3JtYWw6IDEwKjRr
+QiA2KjhrQiA3KjE2a0IgNCozMmtCIDcxKjY0a0IgMTcxKjEyOGtCIDEyNyoyNTZr
+QiA2Nyo1MTJrQiA1MioxMDI0a0IgMioyMDQ4a0IgMTMxMSo0MDk2a0IgPSA1NTIw
+Nzc2a0IKQXByIDEyIDE5OjQzOjI1IGMyIGtlcm5lbDogNTY2MTA2MiB0b3RhbCBw
+YWdlY2FjaGUgcGFnZXMKQXByIDEyIDE5OjQzOjI1IGMyIGtlcm5lbDogMTI4MjMg
+cGFnZXMgaW4gc3dhcCBjYWNoZQpBcHIgMTIgMTk6NDM6MjUgYzIga2VybmVsOiBT
+d2FwIGNhY2hlIHN0YXRzOiBhZGQgMzcyNDMsIGRlbGV0ZSAyNDQyMCwgZmluZCA1
+Ny82NgpBcHIgMTIgMTk6NDM6MjUgYzIga2VybmVsOiBGcmVlIHN3YXAgID0gMzQ5
+NDYwMjhrQgpBcHIgMTIgMTk6NDM6MjUgYzIga2VybmVsOiBUb3RhbCBzd2FwID0g
+MzUwOTQ1MjBrQgpBcHIgMTIgMTk6NDM6MjUgYzIga2VybmVsOiA4Mzg4NjA3IHBh
+Z2VzIFJBTQpBcHIgMTIgMTk6NDM6MjUgYzIga2VybmVsOiAxNzEwOTIgcGFnZXMg
+cmVzZXJ2ZWQKQXByIDEyIDE5OjQzOjI1IGMyIGtlcm5lbDogNTM0MzU5OCBwYWdl
+cyBzaGFyZWQKQXByIDEyIDE5OjQzOjI1IGMyIGtlcm5lbDogMTAzOTQ0OCBwYWdl
+cyBub24tc2hhcmVkCkFwciAxMiAxOTo0MzoyNSBjMiBrZXJuZWw6IFsgcGlkIF0g
+ICB1aWQgIHRnaWQgdG90YWxfdm0gICAgICByc3MgY3B1IG9vbV9hZGogb29tX3Nj
+b3JlX2FkaiBuYW1lCkFwciAxMiAxOTo0MzoyNSBjMiBrZXJuZWw6IFsgOTg2Nl0g
+ICAgIDAgIDk4NjYgICAgMjE2NTAgICAgICA0NTUgIDEzICAgICAgIDAgICAgICAg
+ICAgICAgMCBjZ2xpbWl0CkFwciAxMiAxOTo0MzoyNSBjMiBrZXJuZWw6IFsgOTg2
+N10gICAgIDAgIDk4NjcgICAgNTgzNDUgICAgMTI4NDYgICA0ICAgICAgIDAgICAg
+ICAgICAgICAgMCB0ZXN0CkFwciAxMiAxOTo0MzoyNSBjMiBrZXJuZWw6IE1lbW9y
+eSBjZ3JvdXAgb3V0IG9mIG1lbW9yeTogS2lsbCBwcm9jZXNzIDk4NjcgKHRlc3Qp
+IHNjb3JlIDEwMDAgb3Igc2FjcmlmaWNlIGNoaWxkCkFwciAxMiAxOTo0MzoyNSBj
+MiBrZXJuZWw6IEtpbGxlZCBwcm9jZXNzIDk4NjcsIFVJRCAwLCAodGVzdCkgdG90
+YWwtdm06MjMzMzgwa0IsIGFub24tcnNzOjUxMDA0a0IsIGZpbGUtcnNzOjM4MGtC
+Cg==
+
+------------mVKqrd4lhbv3gzreeHTwOV--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
