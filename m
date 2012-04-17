@@ -1,63 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx105.postini.com [74.125.245.105])
-	by kanga.kvack.org (Postfix) with SMTP id ECF0D6B007E
-	for <linux-mm@kvack.org>; Mon, 16 Apr 2012 22:19:38 -0400 (EDT)
-Date: Tue, 17 Apr 2012 10:14:24 +0800
-From: Fengguang Wu <fengguang.wu@intel.com>
-Subject: Re: [Lsf] [RFC] writeback and cgroup
-Message-ID: <20120417021424.GA9418@localhost>
-References: <20120407080027.GA2584@quack.suse.cz>
- <20120410180653.GJ21801@redhat.com>
- <20120410210505.GE4936@quack.suse.cz>
- <20120410212041.GP21801@redhat.com>
- <20120410222425.GF4936@quack.suse.cz>
- <20120411154005.GD16692@redhat.com>
- <1334406314.2528.90.camel@twins>
- <20120416125432.GB12776@redhat.com>
- <20120416130707.GA10532@localhost>
- <20120416155207.GB15437@redhat.com>
+Received: from psmtp.com (na3sys010amx120.postini.com [74.125.245.120])
+	by kanga.kvack.org (Postfix) with SMTP id 72FA86B004D
+	for <linux-mm@kvack.org>; Mon, 16 Apr 2012 23:25:31 -0400 (EDT)
+Received: by dakh32 with SMTP id h32so8292806dak.9
+        for <linux-mm@kvack.org>; Mon, 16 Apr 2012 20:25:30 -0700 (PDT)
+Message-ID: <4F8CE2A6.7070004@gmail.com>
+Date: Tue, 17 Apr 2012 11:25:26 +0800
+From: Sha Zhengju <handai.szj@gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20120416155207.GB15437@redhat.com>
+Subject: Re: question about memsw of memory cgroup-subsystem
+References: <op.wco7ekvhn27o5l@gaoqiang-d1.corp.qihoo.net> <20120413144954.GA9227@tiehlicka.suse.cz> <op.wct9zibjn27o5l@gaoqiang-d1.corp.qihoo.net>
+In-Reply-To: <op.wct9zibjn27o5l@gaoqiang-d1.corp.qihoo.net>
+Content-Type: text/plain; charset=x-gbk; format=flowed
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vivek Goyal <vgoyal@redhat.com>
-Cc: Peter Zijlstra <peterz@infradead.org>, ctalbott@google.com, rni@google.com, andrea@betterlinux.com, containers@lists.linux-foundation.org, linux-kernel@vger.kernel.org, lsf@lists.linux-foundation.org, linux-mm@kvack.org, jmoyer@redhat.com, lizefan@huawei.com, linux-fsdevel@vger.kernel.org, cgroups@vger.kernel.org
+To: gaoqiang <gaoqiangscut@gmail.com>
+Cc: Michal Hocko <mhocko@suse.cz>, cgroups@vger.kernel.org, linux-mm@kvack.org
 
-On Mon, Apr 16, 2012 at 11:52:07AM -0400, Vivek Goyal wrote:
-> On Mon, Apr 16, 2012 at 09:07:07PM +0800, Fengguang Wu wrote:
-> 
-> [..]
-> > Vivek, I noticed these lines in cfq code
-> > 
-> >                 sscanf(dev_name(bdi->dev), "%u:%u", &major, &minor);
-> > 
-> > Why not use bdi->dev->devt?  The problem is that dev_name() will
-> > return "btrfs-X" for btrfs rather than "major:minor".
-> 
-> Isn't bdi->dev->devt 0?  I see following code.
-> 
-> add_disk()
->    bdi_register_dev()
->       bdi_register()
->          device_create_vargs(MKDEV(0,0))
-> 	      dev->devt = devt = MKDEV(0,0);
-> 
-> So for normal block devices, I think bdi->dev->devt will be zero, that's
-> why probably we don't use it.
+On 04/16/2012 11:43 AM, gaoqiang wrote:
+> OU Fri, 13 Apr 2012 22:49:54 +0800GBP!Michal Hocko <mhocko@suse.cz> D'uA:
+>
+>> [CC linux-mm]
+>>
+>> Hi,
+>>
+>> On Fri 13-04-12 18:00:10, gaoqiang wrote:
+>>>
+>>>
+>>> I put a single process into a cgroup and set memory.limit_in_bytes
+>>> to 100M,and memory.memsw.limit_in_bytes to 1G.
+>>>
+>>> howevery,the process was oom-killed before mem+swap hit 1G. I tried
+>>> many times,and it was killed randomly when memory+swap
+>>>
+>>> exceed 100M but less than 1G. what is the matter ?
+>>
+>> could you be more specific about your kernel version, workload and could
+>> you provide us with GROUP/memory.stat snapshots taken during your test?
+>>
+>> One reason for oom might be that you are hitting the hard limit (you
+>> cannot get over even if memsw limit says more) and you cannot swap out
+>> any pages (e.g. they are mlocked or under writeback).
+>>
+>
+> many thanks.
+>
+>
+> The system is a vmware virtual machine,running centos6.2 with kernel 
+> 2.6.32-220.7.1.el6.x86_64.
+>
+> the attachments are memory.stat, the test program and the 
+> /var/log/message of the oom.
+>
+> the workload is nearly 0,with searal sshd and bash program running.
+>
+> I just did the following command when testing:
+>
+> ./t
+> # this program will pause at the "getchar()" line and in another 
+> terminal,run :
+>
+> cgclear
+> service cgconfig restart
+> mkdir /cgroup/memory/test
+> cd /cgroup/memory/test
+> echo 100m > memory.limit_in_bytes
+> echo 1G > memory.memsw.limit_in_bytes
+> echo 'pid' > tasks
+>
+> # then continue the t command
+>
+>
+Hi,
 
-Yes indeed. I can confirm this with tracing. There are two main cases
+I run your test under RHEL6.1 with 2.6.32-220.7.1.el6.x86_64 (an 
+internal version but
+no changes in mm/memcg) in a real server and the process is killed with 
+memsw reaching
+1G. Does your vmware virtual machine have enough swap space?.. I've no 
+idea whether
+the different behavior come from the physical/virtual environment.
 
-- some filesystems do not have a real device for the bdi.
-
-- add_disk() calls bdi_register_dev() with the devt, however this
-  information is not passed down for some reason.
-  device_create_vargs() will try to create a sysfs dev file if the
-  devt is not MKDEV(0,0).
 
 Thanks,
-Fengguang
+Sha
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
