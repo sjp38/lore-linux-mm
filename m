@@ -1,65 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx149.postini.com [74.125.245.149])
-	by kanga.kvack.org (Postfix) with SMTP id 8E1296B004A
-	for <linux-mm@kvack.org>; Tue, 17 Apr 2012 13:11:04 -0400 (EDT)
-Date: Tue, 17 Apr 2012 19:09:58 +0200
-From: Oleg Nesterov <oleg@redhat.com>
-Subject: Re: [PATCH 2/6] uprobes: introduce is_swbp_at_addr_fast()
-Message-ID: <20120417170958.GA16511@redhat.com>
-References: <20120405222024.GA19154@redhat.com> <20120405222106.GB19166@redhat.com> <1334570935.28150.25.camel@twins> <20120416144457.GA7018@redhat.com> <1334588109.28150.59.camel@twins> <20120416153408.GA8852@redhat.com> <1334657287.28150.77.camel@twins>
+Received: from psmtp.com (na3sys010amx207.postini.com [74.125.245.207])
+	by kanga.kvack.org (Postfix) with SMTP id 996F86B0044
+	for <linux-mm@kvack.org>; Tue, 17 Apr 2012 13:12:31 -0400 (EDT)
+Received: by dakh32 with SMTP id h32so9245928dak.9
+        for <linux-mm@kvack.org>; Tue, 17 Apr 2012 10:12:30 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1334657287.28150.77.camel@twins>
+In-Reply-To: <20120417155502.GE22687@tiehlicka.suse.cz>
+References: <20120417155502.GE22687@tiehlicka.suse.cz>
+Date: Tue, 17 Apr 2012 10:12:30 -0700
+Message-ID: <CAE9FiQXWKzv7Wo4iWGrKapmxQYtAGezghwup1UKoW2ghqUSr+A@mail.gmail.com>
+Subject: Re: Weirdness in __alloc_bootmem_node_high
+From: Yinghai Lu <yinghai@kernel.org>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: Ingo Molnar <mingo@elte.hu>, Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, LKML <linux-kernel@vger.kernel.org>, Linux-mm <linux-mm@kvack.org>, Andi Kleen <andi@firstfloor.org>, Christoph Hellwig <hch@infradead.org>, Steven Rostedt <rostedt@goodmis.org>, Arnaldo Carvalho de Melo <acme@infradead.org>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Thomas Gleixner <tglx@linutronix.de>, Anton Arapov <anton@redhat.com>
+To: Michal Hocko <mhocko@suse.cz>
+Cc: linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-On 04/17, Peter Zijlstra wrote:
->
-> On Mon, 2012-04-16 at 17:34 +0200, Oleg Nesterov wrote:
-> > On 04/16, Peter Zijlstra wrote:
-> > >
-> > > Can't we 'optimize' read_opcode() by doing the pagefault_disable() +
-> > > __copy_from_user_inatomic() optimistically before going down the whole
-> > > gup()+lock+kmap path?
-> >
-> > Unlikely, the task is not current.
->
-> Easy enough to test that though.. and that should make the regular path
-> fast enough, no?
->
->
+On Tue, Apr 17, 2012 at 8:55 AM, Michal Hocko <mhocko@suse.cz> wrote:
+> Hi,
+> I just come across the following condition in __alloc_bootmem_node_high
+> which I have hard times to understand. I guess it is a bug and we need
+> something like the following. But, to be honest, I have no idea why we
+> care about those 128MB above MAX_DMA32_PFN.
 > ---
->  kernel/events/uprobes.c |    9 +++++++++
->  1 files changed, 9 insertions(+), 0 deletions(-)
+> =A0mm/bootmem.c | =A0 =A02 +-
+> =A01 file changed, 1 insertion(+), 1 deletion(-)
 >
-> diff --git a/kernel/events/uprobes.c b/kernel/events/uprobes.c
-> index 985be4d..7f5d8c5 100644
-> --- a/kernel/events/uprobes.c
-> +++ b/kernel/events/uprobes.c
-> @@ -312,6 +312,15 @@ static int read_opcode(struct mm_struct *mm, unsigned long vaddr, uprobe_opcode_
->  	void *vaddr_new;
->  	int ret;
+> diff --git a/mm/bootmem.c b/mm/bootmem.c
+> index 0131170..5adb072 100644
+> --- a/mm/bootmem.c
+> +++ b/mm/bootmem.c
+> @@ -737,7 +737,7 @@ void * __init __alloc_bootmem_node_high(pg_data_t *pg=
+dat, unsigned long size,
+> =A0 =A0 =A0 =A0/* update goal according ...MAX_DMA32_PFN */
+> =A0 =A0 =A0 =A0end_pfn =3D pgdat->node_start_pfn + pgdat->node_spanned_pa=
+ges;
 >
-> +	if (mm == current->mm) {
-> +		pagefault_disable();
-> +		ret = __copy_from_user_inatomic(opcode, (void __user *)vaddr,
-> +						sizeof(*opcode));
-> +		pagefault_enable();
-> +		if (!ret)
-> +			return 0;
-> +	}
+> - =A0 =A0 =A0 if (end_pfn > MAX_DMA32_PFN + (128 >> (20 - PAGE_SHIFT)) &&
+> + =A0 =A0 =A0 if (end_pfn > MAX_DMA32_PFN + (128 << (20 - PAGE_SHIFT)) &&
+> =A0 =A0 =A0 =A0 =A0 =A0(goal >> PAGE_SHIFT) < MAX_DMA32_PFN) {
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0void *ptr;
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0unsigned long new_goal;
+> --
 
-Indeed. And then we do not need is_swbp_at_addr_fast().
+We are not using bootmem with x86 now, so could remove those workaround now=
+.
 
-This reminds me. Why read_opcode() does lock_page? I was going
-to send the cleanup which removes it, but I need to recheck.
+Thanks
 
-Perhaps you can explain the reason?
-
-Oleg.
+Yinghai
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
