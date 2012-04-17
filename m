@@ -1,43 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx149.postini.com [74.125.245.149])
-	by kanga.kvack.org (Postfix) with SMTP id A79646B0083
-	for <linux-mm@kvack.org>; Tue, 17 Apr 2012 14:30:45 -0400 (EDT)
-Date: Tue, 17 Apr 2012 20:30:42 +0200
-From: Sam Ravnborg <sam@ravnborg.org>
-Subject: Re: Weirdness in __alloc_bootmem_node_high
-Message-ID: <20120417183042.GA21051@merkur.ravnborg.org>
-References: <20120417155502.GE22687@tiehlicka.suse.cz> <CAE9FiQXWKzv7Wo4iWGrKapmxQYtAGezghwup1UKoW2ghqUSr+A@mail.gmail.com> <20120417173203.GA32482@tiehlicka.suse.cz> <CAE9FiQXvZ4eSCwMSG2H7CC6suQe37TmQpmOEKW_082W3zz-6Fw@mail.gmail.com>
+Received: from psmtp.com (na3sys010amx180.postini.com [74.125.245.180])
+	by kanga.kvack.org (Postfix) with SMTP id 7C6DC6B004A
+	for <linux-mm@kvack.org>; Tue, 17 Apr 2012 15:26:24 -0400 (EDT)
+Message-ID: <4F8DC3DC.7040408@redhat.com>
+Date: Tue, 17 Apr 2012 15:26:20 -0400
+From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CAE9FiQXvZ4eSCwMSG2H7CC6suQe37TmQpmOEKW_082W3zz-6Fw@mail.gmail.com>
+Subject: Re: Followup: [PATCH -mm] make swapin readahead skip over holes
+References: <7297ae3b-f3e1-480b-838f-69b0e09a733d@default> <4F8C7D59.1000402@redhat.com> <f81dcf86-fb34-4e39-923b-3fd1862e60c6@default>
+In-Reply-To: <f81dcf86-fb34-4e39-923b-3fd1862e60c6@default>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Yinghai Lu <yinghai@kernel.org>, Tejun Heo <tj@kernel.org>
-Cc: Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+To: Dan Magenheimer <dan.magenheimer@oracle.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm <linux-mm@kvack.org>
 
-On Tue, Apr 17, 2012 at 11:07:10AM -0700, Yinghai Lu wrote:
-> On Tue, Apr 17, 2012 at 10:32 AM, Michal Hocko <mhocko@suse.cz> wrote:
-> > On Tue 17-04-12 10:12:30, Yinghai Lu wrote:
-> >>
-> >> We are not using bootmem with x86 now, so could remove those workaround now.
-> >
-> > Could you be more specific about what the workaround is used for?
-> 
-> Don't bootmem allocating too low to use up all low memory. like for
-> system with lots of memory for sparse vmemmap.
-> 
-> when nobootmem.c is used, __alloc_bootmem_node_high is the same as
-> __alloc_bootmem_node.
+On 04/17/2012 11:20 AM, Dan Magenheimer wrote:
 
-It would be nice if someone familiar with the memblock/bootmem
-internals could cleans up the leftovers from the migration
-of x86 to memblock / nobootmem.
+> In other words, you are both presuming a "swap workload"
+> that is more sequential than random for which this patch
+> improves performance, and assuming a "swap device"
+> for which the cost of a seek is high enough to overcome
+> the costs of filling the swap cache with pages that won't
+> be used.
 
-This would be less to be confused about when other migrate to
-use memblock.
+Indeed, on spinning media the cost of seeking to
+a cluster and reading one page is essentially the
+same as the cost of seeking to a cluster and
+reading the whole thing.
 
-	Sam
+
+> While it is easy to write a simple test/benchmark that
+> swaps a lot (and we probably all have similar test code
+> that writes data into a huge bigger-than-RAM array and then
+> reads it back), such a test/benchmark is usually sequential,
+> so one would assume most swap testing is done with a
+> sequential-favoring workload.
+
+Lots of programs allocate fairly large memory
+objects, and access them again in the same
+large chunks.
+
+Take a look at a desktop application like a
+web browser, for example.
+
+> The kernbench workload
+> apparently exercises swap quite a bit more randomly and
+> your patch makes it run slower for low and high levels
+> of swapping, while faster for moderate swapping.
+
+The kernbench workload consists of a large number
+of fairly small, short lived processes. I suspect
+this is a very non-typical workload to run into
+swap, on today's systems.
+
+A more typical workload consists of multiple large
+processes, with the working set moving from one
+part of memory (now inactive) to somewhere else.
+
+We need to maximize swap IO throughput in order to
+allow the system to quickly move to the new working
+set.
+
+> I also suspect (without proof) that the patch will
+> result in lower performance on non-rotating devices, such
+> as SSDs.
+>
+> (Sure one can change the swap cluster size to 1, but how
+> many users or even sysadmins know such a thing even
+> exists... so the default is important.)
+
+If the default should be changed for some systems,
+that is worth doing.
+
+How does your test run with smaller swap cluster
+sizes?
+
+Would a swap cluster of 4 or 5 be closer to optimal
+for a 1GB system?
+
+-- 
+All rights reversed
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
