@@ -1,45 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx172.postini.com [74.125.245.172])
-	by kanga.kvack.org (Postfix) with SMTP id E2EFB6B004A
-	for <linux-mm@kvack.org>; Wed, 18 Apr 2012 00:00:36 -0400 (EDT)
-Received: by iajr24 with SMTP id r24so13583223iaj.14
-        for <linux-mm@kvack.org>; Tue, 17 Apr 2012 21:00:36 -0700 (PDT)
-Date: Tue, 17 Apr 2012 21:00:23 -0700 (PDT)
-From: Hugh Dickins <hughd@google.com>
-Subject: Re: [RFC PATCH] s390: mm: rmap: Transfer storage key to struct page
- under the page lock
-In-Reply-To: <20120417150237.0abb8ec5@de.ibm.com>
-Message-ID: <alpine.LSU.2.00.1204172052360.1609@eggly.anvils>
-References: <20120416141423.GD2359@suse.de> <20120416175040.0e33b37f@de.ibm.com> <20120417122925.GG2359@suse.de> <20120417150237.0abb8ec5@de.ibm.com>
+Received: from psmtp.com (na3sys010amx167.postini.com [74.125.245.167])
+	by kanga.kvack.org (Postfix) with SMTP id 9277B6B004A
+	for <linux-mm@kvack.org>; Wed, 18 Apr 2012 01:58:36 -0400 (EDT)
+Received: by lbbgp10 with SMTP id gp10so3765648lbb.14
+        for <linux-mm@kvack.org>; Tue, 17 Apr 2012 22:58:34 -0700 (PDT)
+Message-ID: <4F8E5807.6080909@openvz.org>
+Date: Wed, 18 Apr 2012 09:58:31 +0400
+From: Konstantin Khlebnikov <khlebnikov@openvz.org>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [PATCH linux-next] mm/hugetlb: fix warning in alloc_huge_page/dequeue_huge_page_vma
+References: <20120417122819.7438.26117.stgit@zurg> <20120417135726.05de2546.akpm@linux-foundation.org>
+In-Reply-To: <20120417135726.05de2546.akpm@linux-foundation.org>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Martin Schwidefsky <schwidefsky@de.ibm.com>
-Cc: Mel Gorman <mgorman@suse.de>, Heiko Carstens <heiko.carstens@de.ibm.com>, Rik van Riel <riel@redhat.com>, Linux-MM <linux-mm@kvack.org>, Linux-S390 <linux-s390@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Mel Gorman <mgorman@suse.de>
 
-On Tue, 17 Apr 2012, Martin Schwidefsky wrote:
-> On Tue, 17 Apr 2012 13:29:25 +0100
-> Mel Gorman <mgorman@suse.de> wrote:
-> > 
-> > In the zap_pte_range() case at least, pte_dirty() is only being checked
-> > for !PageAnon pages so if we took this approach we would miss
-> > PageSwapCache pages. If we added the check then the same problem is hit
-> > and we'd need additional logic there for s390 to drop the PTL, take the
-> > page lock and retry the operation. It'd still be ugly :(
-> 
-> Well if x86 can get away with ignoring PageSwapCache pages in zap_pte_range()
-> pages then s390 should be able to get away with it as well, no ?
+Andrew Morton wrote:
+> On Tue, 17 Apr 2012 16:28:19 +0400
+> Konstantin Khlebnikov<khlebnikov@openvz.org>  wrote:
+>
+>> This patch fixes gcc warning (and bug?) introduced in linux-next commit cc9a6c877
+>> ("cpuset: mm: reduce large amounts of memory barrier related damage v3")
+>>
+>> Local variable "page" can be uninitialized if nodemask from vma policy does not
+>> intersects with nodemask from cpuset. Even if it wouldn't happens it's better to
+>> initialize this variable explicitly than to introduce kernel oops on weird corner case.
+>>
+>> mm/hugetlb.c: In function ___alloc_huge_page___:
+>> mm/hugetlb.c:1135:5: warning: ___page___ may be used uninitialized in this function
+>>
+>> ...
+>>
+>> --- a/mm/hugetlb.c
+>> +++ b/mm/hugetlb.c
+>> @@ -532,7 +532,7 @@ static struct page *dequeue_huge_page_vma(struct hstate *h,
+>>   				struct vm_area_struct *vma,
+>>   				unsigned long address, int avoid_reserve)
+>>   {
+>> -	struct page *page;
+>> +	struct page *page = NULL;
+>>   	struct mempolicy *mpol;
+>>   	nodemask_t *nodemask;
+>>   	struct zonelist *zonelist;
+>
+> hm, that's a pretty blatant use-uninitialised bug.  I wonder why so few
+> gcc versions report it.  Mine doesn't.
 
-When it's zap_pte_range() calling page_remove_rmap(), yes; but that's not
-the only caller of page_remove_rmap(), and I believe there's at least one
-caller which absolutely needs it to do that s390 set_page_dirty() on swap.
+I'm using latest gcc-4.7
 
-But I don't see any need to be discussing ugly patches for this any more:
-there's a very simple patch which improves the swap path anyway, and if
-deemed advisable, we can also rearrange __add_to_swap_cache() a little.
-
-Hugh
+>
+> --
+> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+> Please read the FAQ at  http://www.tux.org/lkml/
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
