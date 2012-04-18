@@ -1,64 +1,122 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx109.postini.com [74.125.245.109])
-	by kanga.kvack.org (Postfix) with SMTP id 8000A6B00E8
-	for <linux-mm@kvack.org>; Wed, 18 Apr 2012 03:17:02 -0400 (EDT)
-Received: from m1.gw.fujitsu.co.jp (unknown [10.0.50.71])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 207703EE0BC
-	for <linux-mm@kvack.org>; Wed, 18 Apr 2012 16:17:01 +0900 (JST)
-Received: from smail (m1 [127.0.0.1])
-	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id ED32145DE5B
-	for <linux-mm@kvack.org>; Wed, 18 Apr 2012 16:17:00 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
-	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id D3D4145DE54
-	for <linux-mm@kvack.org>; Wed, 18 Apr 2012 16:17:00 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id C1D671DB8040
-	for <linux-mm@kvack.org>; Wed, 18 Apr 2012 16:17:00 +0900 (JST)
-Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.240.81.147])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 7C8DE1DB804C
-	for <linux-mm@kvack.org>; Wed, 18 Apr 2012 16:17:00 +0900 (JST)
-Message-ID: <4F8E6A00.50707@jp.fujitsu.com>
-Date: Wed, 18 Apr 2012 16:15:12 +0900
+Received: from psmtp.com (na3sys010amx146.postini.com [74.125.245.146])
+	by kanga.kvack.org (Postfix) with SMTP id 4F2C06B004A
+	for <linux-mm@kvack.org>; Wed, 18 Apr 2012 03:25:06 -0400 (EDT)
+Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
+	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id DBDE93EE0BB
+	for <linux-mm@kvack.org>; Wed, 18 Apr 2012 16:25:04 +0900 (JST)
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id BF76945DEB6
+	for <linux-mm@kvack.org>; Wed, 18 Apr 2012 16:25:04 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 9859F45DE9E
+	for <linux-mm@kvack.org>; Wed, 18 Apr 2012 16:25:04 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 7EC591DB8047
+	for <linux-mm@kvack.org>; Wed, 18 Apr 2012 16:25:04 +0900 (JST)
+Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.240.81.146])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id C7F921DB8038
+	for <linux-mm@kvack.org>; Wed, 18 Apr 2012 16:25:03 +0900 (JST)
+Message-ID: <4F8E6BDC.6050703@jp.fujitsu.com>
+Date: Wed, 18 Apr 2012 16:23:08 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH v1 0/7] memcg remove pre_destroy
-References: <4F86B9BE.8000105@jp.fujitsu.com> <CALWz4izGo4aCyC7xbWyL+yfNiaUmZXPwD8bLgJVpqtcAGfyJ9w@mail.gmail.com>
-In-Reply-To: <CALWz4izGo4aCyC7xbWyL+yfNiaUmZXPwD8bLgJVpqtcAGfyJ9w@mail.gmail.com>
+Subject: Re: [RFC][PATCH 2/6] memcg: add pc_set_mem_cgroup_and_flags()
+References: <4F72EB84.7080000@jp.fujitsu.com> <4F72ED25.60307@jp.fujitsu.com> <CALWz4izNDGdGYmkJzHCRFspCk9QwoZtvRWpKmn=0YZRaVrcVAA@mail.gmail.com>
+In-Reply-To: <CALWz4izNDGdGYmkJzHCRFspCk9QwoZtvRWpKmn=0YZRaVrcVAA@mail.gmail.com>
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Ying Han <yinghan@google.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "cgroups@vger.kernel.org" <cgroups@vger.kernel.org>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Tejun Heo <tj@kernel.org>, Glauber Costa <glommer@parallels.com>, Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, Linux Kernel <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, Glauber Costa <glommer@parallels.com>, Konstantin Khlebnikov <khlebnikov@openvz.org>, Suleiman Souhlal <suleiman@google.com>
 
-(2012/04/18 2:35), Ying Han wrote:
+(2012/04/18 6:17), Ying Han wrote:
 
-> On Thu, Apr 12, 2012 at 4:17 AM, KAMEZAWA Hiroyuki
+> On Wed, Mar 28, 2012 at 3:51 AM, KAMEZAWA Hiroyuki
 > <kamezawa.hiroyu@jp.fujitsu.com> wrote:
->> In recent discussion, Tejun Heo, cgroup maintainer, has a plan to remove
->> ->pre_destroy(). And now, in cgroup tree, pre_destroy() failure cause WARNING.
+>> Consolidate a code for setting pc->mem_cgroup and USED bit which requires smp_wmb().
+>> And remove a macro PCGF_NOCOPY_AT_SPLIT which isn't helpful to read code, now.
 >>
->> By pre_destroy(), rmdir of cgroup can return -EBUSY or some error.
->> It makes cgroup complicated and unstable. I said O.K. to remove it and
->> this patch is modification for memcg.
+>> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+>> ---
+>>  include/linux/page_cgroup.h |   18 ++++++++++++++++++
+>>  mm/memcontrol.c             |   18 ++++--------------
+>>  2 files changed, 22 insertions(+), 14 deletions(-)
 >>
->> One of problem in current implementation is that memcg moves all charges to
->> parent in pre_destroy(). At doing so, if use_hierarchy=0, pre_destroy() may
->> hit parent's limit and may return -EBUSY. To fix this problem, this patch
->> changes behavior of rmdir() as
+>> diff --git a/include/linux/page_cgroup.h b/include/linux/page_cgroup.h
+>> index 92768cb..2707809 100644
+>> --- a/include/linux/page_cgroup.h
+>> +++ b/include/linux/page_cgroup.h
+>> @@ -1,6 +1,8 @@
+>>  #ifndef __LINUX_PAGE_CGROUP_H
+>>  #define __LINUX_PAGE_CGROUP_H
 >>
->>  - if use_hierarchy=0, all remaining charges will go to root cgroup.
->>  - if use_hierarchy=1, all remaining charges will go to the parent.
+>> +#include <linux/smp.h>
+>> +
+>>  enum {
+>>        /* flags for mem_cgroup */
+>>        PCG_LOCK,  /* Lock for pc->mem_cgroup and following bits. */
+>> @@ -94,6 +96,22 @@ pc_set_mem_cgroup(struct page_cgroup *pc, struct mem_cgroup *memcg)
+>>        pc->mem_cgroup = memcg;
+>>  }
+>>
+>> +static inline void
+>> +pc_set_mem_cgroup_and_flags(struct page_cgroup *pc, struct mem_cgroup *memcg,
+>> +                       unsigned long flags)
+>> +{
+>> +       pc->mem_cgroup = memcg;
+>> +       /*
+>> +        * We access a page_cgroup asynchronously without lock_page_cgroup().
+>> +        * Especially when a page_cgroup is taken from a page, pc's mem_cgroup
+>> +        * is accessed after testing USED bit. To make pc's mem_cgroup visible
+>> +        * before USED bit, we need memory barrier here.
+>> +        * See mem_cgroup_add_lru_list(), etc.
+>> +        */
+>> +       smp_wmb();
+>> +       pc->flags = flags;
+>> +}
+>> +
+>>  #else /* CONFIG_CGROUP_MEM_RES_CTLR */
+>>  struct page_cgroup;
+>>
+>> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+>> index 8077460..d366b60 100644
+>> --- a/mm/memcontrol.c
+>> +++ b/mm/memcontrol.c
+>> @@ -2511,16 +2511,7 @@ static void __mem_cgroup_commit_charge(struct mem_cgroup *memcg,
+>>                }
+>>        }
+>>
+>> -       pc_set_mem_cgroup(pc, memcg);
+>> -       /*
+>> -        * We access a page_cgroup asynchronously without lock_page_cgroup().
+>> -        * Especially when a page_cgroup is taken from a page, pc's mem_cgroup
+>> -        * is accessed after testing USED bit. To make pc's mem_cgroup visible
+>> -        * before USED bit, we need memory barrier here.
+>> -        * See mem_cgroup_add_lru_list(), etc.
+>> -        */
+>> -       smp_wmb();
+>> -       SetPageCgroupUsed(pc);
 > 
+> I might be confused. We removed this SetPageCgroupUsed() but not
+> adding it back elsewhere ?
 > 
-> We need to update the "4.3 Removing a cgroup" session in Documentation.
+> --Ying
 > 
+>> +       pc_set_mem_cgroup_and_flags(pc, memcg, BIT(PCG_USED) | BIT(PCG_LOCK));
 
 
-Sure, will do.
+Added here. This sets  
+
+  | memcg pointer | Used | Locked |
+
 
 Thanks,
 -Kame
+
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
