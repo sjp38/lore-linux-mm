@@ -1,30 +1,29 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx158.postini.com [74.125.245.158])
-	by kanga.kvack.org (Postfix) with SMTP id 5CCC36B00E8
-	for <linux-mm@kvack.org>; Wed, 18 Apr 2012 03:16:23 -0400 (EDT)
-Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 01BDF3EE0BD
-	for <linux-mm@kvack.org>; Wed, 18 Apr 2012 16:16:22 +0900 (JST)
-Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id D6FB245DEAD
-	for <linux-mm@kvack.org>; Wed, 18 Apr 2012 16:16:21 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id A94E645DEB3
-	for <linux-mm@kvack.org>; Wed, 18 Apr 2012 16:16:21 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 3094E1DB8040
-	for <linux-mm@kvack.org>; Wed, 18 Apr 2012 16:16:21 +0900 (JST)
-Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.240.81.146])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id DE98A1DB803B
-	for <linux-mm@kvack.org>; Wed, 18 Apr 2012 16:16:20 +0900 (JST)
-Message-ID: <4F8E69D8.4070102@jp.fujitsu.com>
-Date: Wed, 18 Apr 2012 16:14:32 +0900
+Received: from psmtp.com (na3sys010amx109.postini.com [74.125.245.109])
+	by kanga.kvack.org (Postfix) with SMTP id 8000A6B00E8
+	for <linux-mm@kvack.org>; Wed, 18 Apr 2012 03:17:02 -0400 (EDT)
+Received: from m1.gw.fujitsu.co.jp (unknown [10.0.50.71])
+	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 207703EE0BC
+	for <linux-mm@kvack.org>; Wed, 18 Apr 2012 16:17:01 +0900 (JST)
+Received: from smail (m1 [127.0.0.1])
+	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id ED32145DE5B
+	for <linux-mm@kvack.org>; Wed, 18 Apr 2012 16:17:00 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
+	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id D3D4145DE54
+	for <linux-mm@kvack.org>; Wed, 18 Apr 2012 16:17:00 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id C1D671DB8040
+	for <linux-mm@kvack.org>; Wed, 18 Apr 2012 16:17:00 +0900 (JST)
+Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.240.81.147])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 7C8DE1DB804C
+	for <linux-mm@kvack.org>; Wed, 18 Apr 2012 16:17:00 +0900 (JST)
+Message-ID: <4F8E6A00.50707@jp.fujitsu.com>
+Date: Wed, 18 Apr 2012 16:15:12 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 5/7] memcg: divide force_empty into 2 functions, avoid
- memory reclaim at rmdir
-References: <4F86B9BE.8000105@jp.fujitsu.com> <4F86BC71.9070403@jp.fujitsu.com> <CALWz4iwYX4r5dJmcKFuc+zj_rjMB76dtpbvArdzySF+dyxMohg@mail.gmail.com>
-In-Reply-To: <CALWz4iwYX4r5dJmcKFuc+zj_rjMB76dtpbvArdzySF+dyxMohg@mail.gmail.com>
+Subject: Re: [PATCH v1 0/7] memcg remove pre_destroy
+References: <4F86B9BE.8000105@jp.fujitsu.com> <CALWz4izGo4aCyC7xbWyL+yfNiaUmZXPwD8bLgJVpqtcAGfyJ9w@mail.gmail.com>
+In-Reply-To: <CALWz4izGo4aCyC7xbWyL+yfNiaUmZXPwD8bLgJVpqtcAGfyJ9w@mail.gmail.com>
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -32,52 +31,34 @@ List-ID: <linux-mm.kvack.org>
 To: Ying Han <yinghan@google.com>
 Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "cgroups@vger.kernel.org" <cgroups@vger.kernel.org>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Tejun Heo <tj@kernel.org>, Glauber Costa <glommer@parallels.com>, Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>
 
-(2012/04/18 2:29), Ying Han wrote:
+(2012/04/18 2:35), Ying Han wrote:
 
-> On Thu, Apr 12, 2012 at 4:28 AM, KAMEZAWA Hiroyuki
+> On Thu, Apr 12, 2012 at 4:17 AM, KAMEZAWA Hiroyuki
 > <kamezawa.hiroyu@jp.fujitsu.com> wrote:
->> Now, at rmdir, memory cgroup's charge will be moved to
->>  - parent if use_hierarchy=1
->>  - root   if use_hierarchy=0
+>> In recent discussion, Tejun Heo, cgroup maintainer, has a plan to remove
+>> ->pre_destroy(). And now, in cgroup tree, pre_destroy() failure cause WARNING.
 >>
->> Then, we don't have to have memory reclaim code at destroying memcg.
+>> By pre_destroy(), rmdir of cgroup can return -EBUSY or some error.
+>> It makes cgroup complicated and unstable. I said O.K. to remove it and
+>> this patch is modification for memcg.
 >>
->> This patch divides force_empty to 2 functions as
+>> One of problem in current implementation is that memcg moves all charges to
+>> parent in pre_destroy(). At doing so, if use_hierarchy=0, pre_destroy() may
+>> hit parent's limit and may return -EBUSY. To fix this problem, this patch
+>> changes behavior of rmdir() as
 >>
->>  - memory_cgroup_recharge() ... try to move all charges to ancestors.
->>  - memory_cgroup_force_empty().. try to reclaim all memory.
->>
->> After this patch, memory.force_empty will _not_ move charges to ancestors
->> but just reclaim all pages. (This meets documenation.)
+>>  - if use_hierarchy=0, all remaining charges will go to root cgroup.
+>>  - if use_hierarchy=1, all remaining charges will go to the parent.
 > 
-> Not sure why it matches the documentation:
-> "
-> memory.force_empty>---->------- # trigger forced move charge to parent
-> "
-
-I missed this...
-
 > 
-> and
-> "
->   # echo 0 > memory.force_empty
-> 
->   Almost all pages tracked by this memory cgroup will be unmapped and freed.
->   Some pages cannot be freed because they are locked or in-use. Such pages are
->   moved to parent and this cgroup will be empty. This may return -EBUSY if
->   VM is too busy to free/move all pages immediately.
-> "
+> We need to update the "4.3 Removing a cgroup" session in Documentation.
 > 
 
 
-The 1st feature is "will be unmapped and freed".
+Sure, will do.
 
-I'll update Documentation. Thank you.
-
+Thanks,
 -Kame
-
-
-
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
