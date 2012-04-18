@@ -1,183 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx128.postini.com [74.125.245.128])
-	by kanga.kvack.org (Postfix) with SMTP id 6D75E6B004A
-	for <linux-mm@kvack.org>; Wed, 18 Apr 2012 04:36:38 -0400 (EDT)
-Received: by obbeh20 with SMTP id eh20so5543795obb.14
-        for <linux-mm@kvack.org>; Wed, 18 Apr 2012 01:36:37 -0700 (PDT)
-Date: Wed, 18 Apr 2012 01:35:23 -0700
-From: Anton Vorontsov <anton.vorontsov@linaro.org>
-Subject: [PATCH 2/2] vmevent: Implement greater-than attribute and one-shot
- mode
-Message-ID: <20120418083523.GB31556@lizard>
-References: <20120418083208.GA24904@lizard>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-In-Reply-To: <20120418083208.GA24904@lizard>
+Received: from psmtp.com (na3sys010amx108.postini.com [74.125.245.108])
+	by kanga.kvack.org (Postfix) with SMTP id 9C8E56B007E
+	for <linux-mm@kvack.org>; Wed, 18 Apr 2012 05:27:28 -0400 (EDT)
+Received: from /spool/local
+	by e28smtp09.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <zhong@linux.vnet.ibm.com>;
+	Wed, 18 Apr 2012 14:57:25 +0530
+Received: from d28av01.in.ibm.com (d28av01.in.ibm.com [9.184.220.63])
+	by d28relay03.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q3I9RL3x4251666
+	for <linux-mm@kvack.org>; Wed, 18 Apr 2012 14:57:21 +0530
+Received: from d28av01.in.ibm.com (loopback [127.0.0.1])
+	by d28av01.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q3IEv3xg017490
+	for <linux-mm@kvack.org>; Wed, 18 Apr 2012 20:27:03 +0530
+Message-ID: <1334741239.30072.7.camel@ThinkPad-T420>
+Subject: [PATCH mm] limit the mm->map_count not greater than
+ sysctl_max_map_count
+From: Li Zhong <zhong@linux.vnet.ibm.com>
+Date: Wed, 18 Apr 2012 05:27:19 -0400
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: 7bit
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pekka Enberg <penberg@kernel.org>
-Cc: Leonid Moiseichuk <leonid.moiseichuk@nokia.com>, John Stultz <john.stultz@linaro.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linaro-kernel@lists.linaro.org, patches@linaro.org
+To: linux-kernel@vger.kernel.org
+Cc: linux-mm@kvack.org, akpm@linux-foundation.org
 
-This patch implements a new event type, it will trigger whenever a
-value becomes greater than user-specified threshold, it complements
-the 'less-then' trigger type.
+When reading the mmap codes, I found the checking of mm->map_count
+against sysctl_max_map_count is not consistent. At some places, ">" is
+used; at some other places, ">=" is used.
 
-Also, let's implement the one-shot mode for the events, when set,
-userspace will only receive one notification per crossing the
-boundaries.
+This patch changes ">" to ">=", so they are consistent, and makes sure
+the value is not greater (one more) than sysctl_max_map_count.
 
-Now when both LT and GT are set on the same level, the event type
-works as a cross event type: it triggers whenever a value crosses
-the threshold from a lesser values side to a greater values side,
-and vice versa.
-
-We use the event types in an userspace low-memory killer: we get a
-notification when memory becomes low, so we start freeing memory by
-killing unneeded processes, and we get notification when memory hits
-the threshold from another side, so we know that we freed enough of
-memory.
-
-Signed-off-by: Anton Vorontsov <anton.vorontsov@linaro.org>
+Signed-off-by: Li Zhong <zhong@linux.vnet.ibm.com>
 ---
- include/linux/vmevent.h              |   13 ++++++++++
- mm/vmevent.c                         |   44 +++++++++++++++++++++++++++++-----
- tools/testing/vmevent/vmevent-test.c |   22 +++++++++++++----
- 3 files changed, 68 insertions(+), 11 deletions(-)
+ mm/mmap.c |    4 ++--
+ 1 files changed, 2 insertions(+), 2 deletions(-)
 
-diff --git a/include/linux/vmevent.h b/include/linux/vmevent.h
-index 64357e4..ca97cf0 100644
---- a/include/linux/vmevent.h
-+++ b/include/linux/vmevent.h
-@@ -22,6 +22,19 @@ enum {
- 	 * Sample value is less than user-specified value
- 	 */
- 	VMEVENT_ATTR_STATE_VALUE_LT	= (1UL << 0),
-+	/*
-+	 * Sample value is greater than user-specified value
-+	 */
-+	VMEVENT_ATTR_STATE_VALUE_GT	= (1UL << 1),
-+	/*
-+	 * One-shot mode.
-+	 */
-+	VMEVENT_ATTR_STATE_ONE_SHOT	= (1UL << 2),
-+
-+	/* Saved state, used internally by the kernel for one-shot mode. */
-+	__VMEVENT_ATTR_STATE_VALUE_WAS_LT	= (1UL << 30),
-+	/* Saved state, used internally by the kernel for one-shot mode. */
-+	__VMEVENT_ATTR_STATE_VALUE_WAS_GT	= (1UL << 31),
- };
+diff --git a/mm/mmap.c b/mm/mmap.c
+index a7bf6a3..85f4816 100644
+--- a/mm/mmap.c
++++ b/mm/mmap.c
+@@ -987,7 +987,7 @@ unsigned long do_mmap_pgoff(struct file *file,
+unsigned long addr,
+                return -EOVERFLOW;
  
- struct vmevent_attr {
-diff --git a/mm/vmevent.c b/mm/vmevent.c
-index 9ed6aca..3cce215 100644
---- a/mm/vmevent.c
-+++ b/mm/vmevent.c
-@@ -1,5 +1,6 @@
- #include <linux/anon_inodes.h>
- #include <linux/atomic.h>
-+#include <linux/compiler.h>
- #include <linux/vmevent.h>
- #include <linux/syscalls.h>
- #include <linux/timer.h>
-@@ -83,16 +84,47 @@ static bool vmevent_match(struct vmevent_watch *watch)
+ 	/* Too many mappings? */
+-	if (mm->map_count > sysctl_max_map_count)
++	if (mm->map_count >= sysctl_max_map_count)
+ 		return -ENOMEM;
  
- 	for (i = 0; i < config->counter; i++) {
- 		struct vmevent_attr *attr = &config->attrs[i];
--		u64 value;
-+		u32 state = attr->state;
-+		bool attr_lt = state & VMEVENT_ATTR_STATE_VALUE_LT;
-+		bool attr_gt = state & VMEVENT_ATTR_STATE_VALUE_GT;
+ 	/* Obtain the address to map to. we verify (or select) it and ensure
+@@ -2193,7 +2193,7 @@ unsigned long do_brk(unsigned long addr, unsigned
+long len)
+ 	if (!may_expand_vm(mm, len >> PAGE_SHIFT))
+ 		return -ENOMEM;
  
--		if (!attr->state)
-+		if (!state)
- 			continue;
+-	if (mm->map_count > sysctl_max_map_count)
++	if (mm->map_count >= sysctl_max_map_count)
+ 		return -ENOMEM;
  
--		value = vmevent_sample_attr(watch, attr);
--
--		if (attr->state & VMEVENT_ATTR_STATE_VALUE_LT) {
--			if (value < attr->value)
-+		if (attr_lt || attr_gt) {
-+			bool one_shot = state & VMEVENT_ATTR_STATE_ONE_SHOT;
-+			u32 was_lt_mask = __VMEVENT_ATTR_STATE_VALUE_WAS_LT;
-+			u32 was_gt_mask = __VMEVENT_ATTR_STATE_VALUE_WAS_GT;
-+			u64 value = vmevent_sample_attr(watch, attr);
-+			bool lt = value < attr->value;
-+			bool gt = value > attr->value;
-+			bool was_lt = state & was_lt_mask;
-+			bool was_gt = state & was_gt_mask;
-+			bool ret = false;
-+
-+			if ((lt || gt) && !one_shot)
- 				return true;
-+
-+			if (attr_lt && lt && was_lt) {
-+				return false;
-+			} else if (attr_gt && gt && was_gt) {
-+				return false;
-+			} else if (lt) {
-+				state |= was_lt_mask;
-+				state &= ~was_gt_mask;
-+				if (attr_lt)
-+					ret = true;
-+			} else if (gt) {
-+				state |= was_gt_mask;
-+				state &= ~was_lt_mask;
-+				if (attr_gt)
-+					ret = true;
-+			} else {
-+				state &= ~was_lt_mask;
-+				state &= ~was_gt_mask;
-+			}
-+			attr->state = state;
-+			return ret;
- 		}
- 	}
- 
-diff --git a/tools/testing/vmevent/vmevent-test.c b/tools/testing/vmevent/vmevent-test.c
-index 534f827..fec7b57 100644
---- a/tools/testing/vmevent/vmevent-test.c
-+++ b/tools/testing/vmevent/vmevent-test.c
-@@ -33,20 +33,32 @@ int main(int argc, char *argv[])
- 
- 	config = (struct vmevent_config) {
- 		.sample_period_ns	= 1000000000L,
--		.counter		= 4,
-+		.counter		= 6,
- 		.attrs			= {
--			[0]			= {
-+			{
- 				.type	= VMEVENT_ATTR_NR_FREE_PAGES,
- 				.state	= VMEVENT_ATTR_STATE_VALUE_LT,
- 				.value	= phys_pages,
- 			},
--			[1]			= {
-+			{
-+				.type	= VMEVENT_ATTR_NR_FREE_PAGES,
-+				.state	= VMEVENT_ATTR_STATE_VALUE_GT,
-+				.value	= phys_pages,
-+			},
-+			{
-+				.type	= VMEVENT_ATTR_NR_FREE_PAGES,
-+				.state	= VMEVENT_ATTR_STATE_VALUE_LT |
-+					  VMEVENT_ATTR_STATE_VALUE_GT |
-+					  VMEVENT_ATTR_STATE_ONE_SHOT,
-+				.value	= phys_pages / 2,
-+			},
-+			{
- 				.type	= VMEVENT_ATTR_NR_AVAIL_PAGES,
- 			},
--			[2]			= {
-+			{
- 				.type	= VMEVENT_ATTR_NR_SWAP_PAGES,
- 			},
--			[3]			= {
-+			{
- 				.type	= 0xffff, /* invalid */
- 			},
- 		},
+ 	if (security_vm_enough_memory_mm(mm, len >> PAGE_SHIFT))
 -- 
-1.7.9.2
+1.7.6.5
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
