@@ -1,51 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx123.postini.com [74.125.245.123])
-	by kanga.kvack.org (Postfix) with SMTP id 24FC86B00F4
-	for <linux-mm@kvack.org>; Wed, 18 Apr 2012 16:04:47 -0400 (EDT)
-Date: Wed, 18 Apr 2012 21:07:27 +0100
+Received: from psmtp.com (na3sys010amx176.postini.com [74.125.245.176])
+	by kanga.kvack.org (Postfix) with SMTP id 306F06B00EA
+	for <linux-mm@kvack.org>; Wed, 18 Apr 2012 16:07:52 -0400 (EDT)
+Date: Wed, 18 Apr 2012 21:10:32 +0100
 From: Alan Cox <alan@lxorguk.ukuu.org.uk>
 Subject: Re: [NEW]: Introducing shrink_all_memory from user space
-Message-ID: <20120418210727.0d113647@pyramind.ukuu.org.uk>
-In-Reply-To: <1334483226.20721.YahooMailNeo@web162003.mail.bf1.yahoo.com>
+Message-ID: <20120418211032.47b243da@pyramind.ukuu.org.uk>
+In-Reply-To: <CAFLxGvz5tmEi-39CZbJN+0zNd3ZpHXzZcNSFUpUWS_aMDJ4t6Q@mail.gmail.com>
 References: <1334483226.20721.YahooMailNeo@web162003.mail.bf1.yahoo.com>
+	<CAFLxGvwJCMoiXFn3OgwiX+B50FTzGZmo6eG3xQ1KaPsEVZVA1g@mail.gmail.com>
+	<1334490429.67558.YahooMailNeo@web162006.mail.bf1.yahoo.com>
+	<CAFLxGvz5tmEi-39CZbJN+0zNd3ZpHXzZcNSFUpUWS_aMDJ4t6Q@mail.gmail.com>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: PINTU KUMAR <pintu_agarwal@yahoo.com>
-Cc: "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "pintu.k@samsung.com" <pintu.k@samsung.com>
+To: richard -rw- weinberger <richard.weinberger@gmail.com>
+Cc: PINTU KUMAR <pintu_agarwal@yahoo.com>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "pintu.k@samsung.com" <pintu.k@samsung.com>
 
-> 5) After running this on my system, the performance was improved quickly.
->=20
-> 6) I performed the same experiment on our Samsung Smart phones as well. A=
-nd I have seen a drastic improve in performance after running this for 3/4 =
-times.
-> =A0=A0=A0 In case of phones it is more helpful as there is no swap space.
->=20
-> 7) Your feedback and suggestion is important. Based on the feedback, I ca=
-n plan to submit the patches officially after performing basic cleanups.
+On Sun, 15 Apr 2012 14:10:00 +0200
+richard -rw- weinberger <richard.weinberger@gmail.com> wrote:
 
-So really I think this tells you two things
+> On Sun, Apr 15, 2012 at 1:47 PM, PINTU KUMAR <pintu_agarwal@yahoo.com> wrote:
+> > Moreover, this is mainly meant for mobile phones where there is only *one* user.
+> 
+> I see. Jet another awful hack.
+> Mobile phones are nothing special. They are computers
 
-1. There are cases where the kernel paging subsystem is perhaps making
-poor choices and should have forced out more read only pages.
+Correct - so if it is showing up useful situations then they are also
+useful beyond mobile phone.
 
-2. For certain DMA allocation cases it might be a good idea to move the
-interface out of the HIBERNATION config option and call it automatically
-with the relevant memory allocator when requests for large linear
-allocations would otherwise fail.
+> Every program which is allowed to use this interface will (ab)use it.
 
-> This can be even using inside the multimedia drivers that requires large =
-contiguous memory to check if that many memory pages can be reclaimed or no=
-t.
+If you expose it to userspace then you would want it very tightly
+controlled and very much special case. Within the kernel using it
+internally within things like CMA allocators seems to make more sense.
 
-Yes - I agree. However the way that the memory is obtained and the use of
-shrink_all_memory() should not be exposed as it breaks the abstraction.
-
-If you can use it *within* the contiguous memory allocator so that the
-driver does not know about shrink_all_memory, then this would be
-interesting and potentially useful.
+I think you overestimate the abuse. It's an interface which pushes clean
+pages that can be cheaply recovered out of memory. It doesn't guarantee
+the caller reaps the benefit of that, and the vm will continue to try and
+share out any new resource fairly.
 
 Alan
 
