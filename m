@@ -1,179 +1,113 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx113.postini.com [74.125.245.113])
-	by kanga.kvack.org (Postfix) with SMTP id 5E4D86B004A
-	for <linux-mm@kvack.org>; Tue, 17 Apr 2012 18:38:59 -0400 (EDT)
-Received: by pbcup15 with SMTP id up15so10302561pbc.14
-        for <linux-mm@kvack.org>; Tue, 17 Apr 2012 15:38:58 -0700 (PDT)
-Date: Tue, 17 Apr 2012 15:38:54 -0700
-From: Tejun Heo <tj@kernel.org>
-Subject: Re: [RFC] writeback and cgroup
-Message-ID: <20120417223854.GG19975@google.com>
-References: <20120403183655.GA23106@dhcp-172-17-108-109.mtv.corp.google.com>
- <20120404175124.GA8931@localhost>
- <20120404193355.GD29686@dhcp-172-17-108-109.mtv.corp.google.com>
- <20120406095934.GA10465@localhost>
+Received: from psmtp.com (na3sys010amx130.postini.com [74.125.245.130])
+	by kanga.kvack.org (Postfix) with SMTP id 14AC06B004A
+	for <linux-mm@kvack.org>; Tue, 17 Apr 2012 23:52:41 -0400 (EDT)
+Received: by iajr24 with SMTP id r24so13572625iaj.14
+        for <linux-mm@kvack.org>; Tue, 17 Apr 2012 20:52:40 -0700 (PDT)
+Date: Tue, 17 Apr 2012 20:52:21 -0700 (PDT)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: [RFC PATCH] s390: mm: rmap: Transfer storage key to struct page
+ under the page lock
+In-Reply-To: <20120417122202.GF2359@suse.de>
+Message-ID: <alpine.LSU.2.00.1204172023390.1609@eggly.anvils>
+References: <20120416141423.GD2359@suse.de> <alpine.LSU.2.00.1204161332120.1675@eggly.anvils> <20120417122202.GF2359@suse.de>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20120406095934.GA10465@localhost>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Fengguang Wu <fengguang.wu@intel.com>
-Cc: Jan Kara <jack@suse.cz>, vgoyal@redhat.com, Jens Axboe <axboe@kernel.dk>, linux-mm@kvack.org, sjayaraman@suse.com, andrea@betterlinux.com, jmoyer@redhat.com, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, lizefan@huawei.com, containers@lists.linux-foundation.org, cgroups@vger.kernel.org, ctalbott@google.com, rni@google.com, lsf@lists.linux-foundation.org
+To: Mel Gorman <mgorman@suse.de>
+Cc: Martin Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, Rik van Riel <riel@redhat.com>, Ken Chen <kenchen@google.com>, Linux-MM <linux-mm@kvack.org>, Linux-S390 <linux-s390@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>
 
-Hello, Fengguang.
-
-On Fri, Apr 06, 2012 at 02:59:34AM -0700, Fengguang Wu wrote:
-> Fortunately, the above gap can be easily filled judging from the
-> block/cfq IO controller code. By adding some direct IO accounting
-> and changing several lines of my patches to make use of the collected
-> stats, the semantics of the blkio.throttle.write_bps interfaces can be
-> changed from "limit for direct IO" to "limit for direct+buffered IOs".
-> Ditto for blkio.weight and blkio.write_iops, as long as some
-> iops/device time stats are made available to balance_dirty_pages().
+On Tue, 17 Apr 2012, Mel Gorman wrote:
+> On Mon, Apr 16, 2012 at 02:14:09PM -0700, Hugh Dickins wrote:
+> > On Mon, 16 Apr 2012, Mel Gorman wrote:
+> > 
+> > > This patch is horribly ugly and there has to be a better way of doing
+> > > it. I'm looking for suggestions on what s390 can do here that is not
+> > > painful or broken. 
+> > > 
+> > > The following bug was reported on s390
+> > > 
+> > > kernel BUG at
+> > > /usr/src/packages/BUILD/kernel-default-3.0.13/linux-3.0/lib/radix-tree.c:477!
+>... 
+> > I'm confused as to whether you see this problem with file pages,
+> > or with anon-swap-cache pages, or with both, or not yet determined.
 > 
-> It would be a fairly *easy* change. :-) It's merely adding some
-> accounting code and there is no need to change the block IO
-> controlling algorithm at all. I'll do the work of accounting (which
-> is basically independent of the IO controlling) and use the new stats
-> in balance_dirty_pages().
+> PageSwapCache pages only.
 
-I don't really understand how this can work.  For hard limits, maybe,
-but for proportional IO, you have to know which cgroups have IOs
-before assigning the proportions, so blkcg assigning IO bandwidth
-without knowing async writes simply can't work.
+Oh good, thanks, that narrowed the search space a lot.
 
-For example, let's say cgroups A and B have 2:8 split.  If A has IOs
-on queue and B doesn't, blkcg will assign all IO bandwidth to A.  I
-can't wrap my head around how writeback is gonna make use of the
-resulting stats but let's say it decides it needs to put out some IOs
-out for both cgroups.  What happens then?  Do all the async writes go
-through the root cgroup controlled by and affecting the ratio between
-rootcg and cgroup A and B?  Or do they have to be accounted as part of
-cgroups A and B?  If so, what if the added bandwidth goes over the
-limit?  Let's say if we implement overcharge; then, I suppose we'll
-have to communicate that upwards too, right?
-
-This is still easy.  What about hierarchical propio?  What happens
-then?  You can't do hierarchical proportional allocation without
-knowing how much IOs are pending for which group.  How is that
-information gonna be communicated between blkcg and writeback?  Are we
-gonna have two separate hierarchical proportional IO allocators?  How
-is that gonna work at all?  If we're gonna have single allocator in
-block layer, writeback would have to feed the amount of IOs it may
-generate into the allocator, get the resulting allocation and then
-issue IO and then block layer again will have to account these to the
-originating cgroups.  It's just crazy.
-
-> The only problem I can see now, is that balance_dirty_pages() works
-> per-bdi and blkcg works per-device. So the two ends may not match
-> nicely if the user configures lv0 on sda+sdb and lv1 on sdb+sdc where
-> sdb is shared by lv0 and lv1. However it should be rare situations and
-> be much more acceptable than the problems arise from the "push back"
-> approach which impacts everyone.
-
-I don't know.  What problems?  AFAICS, the biggest issue is writeback
-of different inodes getting mixed resulting in poor performance, but
-if you think about it, that's about the frequency of switching cgroups
-and a problem which can and should be dealt with from block layer
-(e.g. use larger time slice if all the pending IOs are async).
-
-Writeback's duty is generating stream of async writes which can be
-served efficiently for the *cgroup* and keeping the buffer filled as
-necessary and chaining the backpressure from there to the actual
-dirtier.  That's what writeback does without cgroup.  Nothing
-fundamental changes with cgroup.  It's just finer grained.
-
-> > No, no, it's not about standing in my way.  As Vivek said in the other
-> > reply, it's that the "gap" that you filled was created *because*
-> > writeback wasn't cgroup aware and now you're in turn filling that gap
-> > by making writeback work around that "gap".  I mean, my mind boggles.
-> > Doesn't yours?  I strongly believe everyone's should.
+> > (You do remind me that I meant years ago to switch swapper_space over
+> > to the much simpler __set_page_dirty_no_writeback(), which shmem has
+> > used for ages; but as far as this problem goes, that would probably
+> > be at best a workaround, rather than the proper fix.)
 > 
-> Heh. It's a hard problem indeed. I felt great pains in the IO-less
-> dirty throttling work. I did a lot reasoning about it, and have in
-> fact kept cgroup IO controller in mind since its early days. Now I'd
-> say it's hands down for it to adapt to the gap between the total IO
-> limit and what's carried out by the block IO controller.
+> It would be a workaround. If in the future we wanted to treat swapper
+> space more like a normal file inode and writeback dirty pages from
+> the flusher thread then this bug would just pop its head back up.
 
-You're not providing any valid counter arguments about the issues
-being raised about the messed up design.  How is anything "hands down"
-here?
+It's a no-brainer workaround: patch and more explanation below.  I
+can double-fix it if you prefer, but the one-liner appeals more to me.
 
-> > There's where I'm confused.  How is the said split supposed to work?
-> > They aren't independent.  I mean, who gets to decide what and where
-> > are those decisions enforced?
+> > Hmm, mm/migrate.c.
 > 
-> Yeah it's not independent. It's about
-> 
-> - keep block IO cgroup untouched (in its current algorithm, for
->   throttling direct IO)
-> 
-> - let balance_dirty_pages() adapt to the throttling target
->   
->         buffered_write_limit = total_limit - direct_IOs
+> Migration moves the page mapping under the tree lock so
+> __set_page_dirty_nobuffers() I don't think that is it.
 
-Think about proportional allocation.  You don't have a number until
-you know who have pending IOs and how much.
+Yes, I was worried by the places that set page->mapping = NULL in
+migrate.c (later, not under the tree_lock), but those would not be able
+to generate this issue at all (ptes already replaced by migration entries).
 
-> To me, balance_dirty_pages() is *the* proper layer for buffered writes.
-> It's always there doing 1:1 proportional throttling. Then you try to
-> kick in to add *double* throttling in block/cfq layer. Now the low
-> layer may enforce 10:1 throttling and push balance_dirty_pages() away
-> from its balanced state, leading to large fluctuations and program
-> stalls.
+> I think the race is against something like reuse_swap_page() which locks
+> the page and removes it from swap cache while page_remove_rmap() looks
+> up the same page.
 
-Just do the same 1:1 inside each cgroup.
+No, __delete_from_swap_cache() is always doing ClearPageSwapCache under
+tree_lock (which __set_page_dirty_no_buffers acquires before proceeding).
 
->  This can be avoided by telling balance_dirty_pages(): "your
-> balance goal is no longer 1:1, but 10:1". With this information
-> balance_dirty_pages() will behave right. Then there is the question:
-> if balance_dirty_pages() will work just well provided the information,
-> why bother doing the throttling at low layer and "push back" the
-> pressure all the way up?
 
-Because splitting a resource into two pieces arbitrarily with
-different amount of consumptions on each side and then applying the
-same proportion on both doesn't mean anything?
+[PATCH] mm: fix s390 BUG by using __set_page_dirty_no_writeback on swap
 
-> The balance_dirty_pages() is already deeply involved in dirty throttling.
-> As you can see from this patchset, the same algorithms can be extended
-> trivially to work with cgroup IO limits.
-> 
-> buffered write IO controller in balance_dirty_pages()
-> https://lkml.org/lkml/2012/3/28/275
+Mel reports a BUG_ON(slot == NULL) in radix_tree_tag_set() on s390 3.0.13:
+called from __set_page_dirty_nobuffers() when page_remove_rmap() tries to
+transfer dirty flag from s390 storage key to struct page and radix_tree.
 
-It is half broken thing with fundamental design flaws which can't be
-corrected without complete reimplementation.  I don't know what to
-say.
+That would be because of reclaim's shrink_page_list() calling add_to_swap()
+on this page at the same time: first PageSwapCache is set (causing
+page_mapping(page) to appear as &swapper_space), then page->private set,
+then tree_lock taken, then page inserted into radix_tree - so there's
+an interval before taking the lock when the radix_tree slot is empty.
 
-> In the "back pressure" scheme, memcg is a must because only it has all
-> the infrastructure to track dirty pages upon which you can apply some
-> dirty_limits. Don't tell me you want to account dirty pages in blkcg...
+We could fix this by moving __add_to_swap_cache()'s spin_lock_irq up
+before SetPageSwapCache, with error case ClearPageSwapCache moved up
+under tree_lock too.
 
-For now, per-inode tracking seems good enough.
+But a better fix is just to do what's five years overdue.  Ken Chen
+added __set_page_dirty_no_writeback() (if !PageDirty TestSetPageDirty)
+for tmpfs to skip all that radix_tree overhead, and swap is just the same:
+it ignores the radix_tree tag, and does not participate in dirty page
+accounting, so should be using __set_page_dirty_no_writeback() too.
 
-> What I can see is, it looks pretty simple and nature to let
-> balance_dirty_pages() fill the gap towards a total solution :-)
-> 
-> - add direct IO accounting in some convenient point of the IO path
->   IO submission or completion point, either is fine.
-> 
-> - change several lines of the buffered write IO controller to
->   integrate the direct IO rate into the formula to fit the "total
->   IO" limit
-> 
-> - in future, add more accounting as well as feedback control to make
->   balance_dirty_pages() work with IOPS and disk time
+Reported-by: Mel Gorman <mgorman@suse.de>
+Signed-off-by: Hugh Dickins <hughd@google.com>
+Cc: stable@kernel.org
+---
 
-To me, you seem to be not addressing the issues I've been raising at
-all and just repeating the same points again and again.  If I'm
-misunderstanding something, please point out.
+ mm/swap_state.c |    2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
-Thanks.
-
--- 
-tejun
+--- 3.4-rc2/mm/swap_state.c	2012-03-31 17:42:26.949729938 -0700
++++ linux/mm/swap_state.c	2012-04-17 15:34:05.732086663 -0700
+@@ -26,7 +26,7 @@
+  */
+ static const struct address_space_operations swap_aops = {
+ 	.writepage	= swap_writepage,
+-	.set_page_dirty	= __set_page_dirty_nobuffers,
++	.set_page_dirty	= __set_page_dirty_no_writeback,
+ 	.migratepage	= migrate_page,
+ };
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
