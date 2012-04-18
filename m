@@ -1,48 +1,136 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx176.postini.com [74.125.245.176])
-	by kanga.kvack.org (Postfix) with SMTP id 306F06B00EA
-	for <linux-mm@kvack.org>; Wed, 18 Apr 2012 16:07:52 -0400 (EDT)
-Date: Wed, 18 Apr 2012 21:10:32 +0100
-From: Alan Cox <alan@lxorguk.ukuu.org.uk>
-Subject: Re: [NEW]: Introducing shrink_all_memory from user space
-Message-ID: <20120418211032.47b243da@pyramind.ukuu.org.uk>
-In-Reply-To: <CAFLxGvz5tmEi-39CZbJN+0zNd3ZpHXzZcNSFUpUWS_aMDJ4t6Q@mail.gmail.com>
-References: <1334483226.20721.YahooMailNeo@web162003.mail.bf1.yahoo.com>
-	<CAFLxGvwJCMoiXFn3OgwiX+B50FTzGZmo6eG3xQ1KaPsEVZVA1g@mail.gmail.com>
-	<1334490429.67558.YahooMailNeo@web162006.mail.bf1.yahoo.com>
-	<CAFLxGvz5tmEi-39CZbJN+0zNd3ZpHXzZcNSFUpUWS_aMDJ4t6Q@mail.gmail.com>
+Received: from psmtp.com (na3sys010amx165.postini.com [74.125.245.165])
+	by kanga.kvack.org (Postfix) with SMTP id 45DD86B00FD
+	for <linux-mm@kvack.org>; Wed, 18 Apr 2012 18:36:26 -0400 (EDT)
+Date: Wed, 18 Apr 2012 15:36:23 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] memcg: Use scnprintf instead of sprintf
+Message-Id: <20120418153623.9582dffa.akpm@linux-foundation.org>
+In-Reply-To: <1334729756-10212-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+References: <20120416161354.b967790c.akpm@linux-foundation.org>
+	<1334729756-10212-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: richard -rw- weinberger <richard.weinberger@gmail.com>
-Cc: PINTU KUMAR <pintu_agarwal@yahoo.com>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "pintu.k@samsung.com" <pintu.k@samsung.com>
+To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Cc: linux-mm@kvack.org, mgorman@suse.de, kamezawa.hiroyu@jp.fujitsu.com, dhillf@gmail.com, aarcange@redhat.com, mhocko@suse.cz, hannes@cmpxchg.org, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, James Bottomley <James.Bottomley@HansenPartnership.com>
 
-On Sun, 15 Apr 2012 14:10:00 +0200
-richard -rw- weinberger <richard.weinberger@gmail.com> wrote:
+On Wed, 18 Apr 2012 11:45:56 +0530
+"Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com> wrote:
 
-> On Sun, Apr 15, 2012 at 1:47 PM, PINTU KUMAR <pintu_agarwal@yahoo.com> wrote:
-> > Moreover, this is mainly meant for mobile phones where there is only *one* user.
+> From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
 > 
-> I see. Jet another awful hack.
-> Mobile phones are nothing special. They are computers
+> This make sure we don't overflow.
+> 
+> Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
+> ---
+>  mm/memcontrol.c |   14 +++++++-------
+>  1 file changed, 7 insertions(+), 7 deletions(-)
+> 
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index 519d370..0ccf934 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -5269,14 +5269,14 @@ static void mem_cgroup_destroy(struct cgroup *cont)
+>  }
+>  
+>  #ifdef CONFIG_MEM_RES_CTLR_HUGETLB
+> -static char *mem_fmt(char *buf, unsigned long n)
+> +static char *mem_fmt(char *buf, int size, unsigned long hsize)
+>  {
+> -	if (n >= (1UL << 30))
+> -		sprintf(buf, "%luGB", n >> 30);
+> -	else if (n >= (1UL << 20))
+> -		sprintf(buf, "%luMB", n >> 20);
+> +	if (hsize >= (1UL << 30))
+> +		scnprintf(buf, size, "%luGB", hsize >> 30);
+> +	else if (hsize >= (1UL << 20))
+> +		scnprintf(buf, size, "%luMB", hsize >> 20);
+>  	else
+> -		sprintf(buf, "%luKB", n >> 10);
+> +		scnprintf(buf, size, "%luKB", hsize >> 10);
+>  	return buf;
+>  }
 
-Correct - so if it is showing up useful situations then they are also
-useful beyond mobile phone.
+We could use snprintf() here too but it doesn't seem to matter either
+way.  I guess we _should_ use snprintf as it causes less surprise.
 
-> Every program which is allowed to use this interface will (ab)use it.
+--- a/mm/memcontrol.c~hugetlbfs-add-memcg-control-files-for-hugetlbfs-use-scnprintf-instead-of-sprintf-fix
++++ a/mm/memcontrol.c
+@@ -4037,7 +4037,7 @@ static ssize_t mem_cgroup_read(struct cg
+ 		BUG();
+ 	}
+ 
+-	len = scnprintf(str, sizeof(str), "%llu\n", (unsigned long long)val);
++	len = snprintf(str, sizeof(str), "%llu\n", (unsigned long long)val);
+ 	return simple_read_from_buffer(buf, nbytes, ppos, str, len);
+ }
+ /*
+@@ -5199,11 +5199,11 @@ static void mem_cgroup_destroy(struct cg
+ static char *mem_fmt(char *buf, int size, unsigned long hsize)
+ {
+ 	if (hsize >= (1UL << 30))
+-		scnprintf(buf, size, "%luGB", hsize >> 30);
++		snprintf(buf, size, "%luGB", hsize >> 30);
+ 	else if (hsize >= (1UL << 20))
+-		scnprintf(buf, size, "%luMB", hsize >> 20);
++		snprintf(buf, size, "%luMB", hsize >> 20);
+ 	else
+-		scnprintf(buf, size, "%luKB", hsize >> 10);
++		snprintf(buf, size, "%luKB", hsize >> 10);
+ 	return buf;
+ }
+ 
 
-If you expose it to userspace then you would want it very tightly
-controlled and very much special case. Within the kernel using it
-internally within things like CMA allocators seems to make more sense.
+It is regrettable that your mem_fmt() exists, especially within
+memcontrol.c - it is quite a generic thing.  Can't we use
+lib/string_helpers.c:string_get_size()?  Or if not, modify
+string_get_size() so it is usable here?
 
-I think you overestimate the abuse. It's an interface which pushes clean
-pages that can be cheaply recovered out of memory. It doesn't guarantee
-the caller reaps the benefit of that, and the vm will continue to try and
-share out any new resource fairly.
+Speaking of which,
 
-Alan
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: lib/string_helpers.c: make arrays static
+
+Moving these arrays into static storage shrinks the kernel a bit:
+
+   text    data     bss     dec     hex filename
+    723     112      64     899     383 lib/string_helpers.o
+    516     272      64     852     354 lib/string_helpers.o
+
+Cc: James Bottomley <James.Bottomley@HansenPartnership.com>
+Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+---
+
+ lib/string_helpers.c |    8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)
+
+diff -puN lib/string_helpers.c~lib-string_helpersc-make-arrays-static lib/string_helpers.c
+--- a/lib/string_helpers.c~lib-string_helpersc-make-arrays-static
++++ a/lib/string_helpers.c
+@@ -23,15 +23,15 @@
+ int string_get_size(u64 size, const enum string_size_units units,
+ 		    char *buf, int len)
+ {
+-	const char *units_10[] = { "B", "kB", "MB", "GB", "TB", "PB",
++	static const char *units_10[] = { "B", "kB", "MB", "GB", "TB", "PB",
+ 				   "EB", "ZB", "YB", NULL};
+-	const char *units_2[] = {"B", "KiB", "MiB", "GiB", "TiB", "PiB",
++	static const char *units_2[] = {"B", "KiB", "MiB", "GiB", "TiB", "PiB",
+ 				 "EiB", "ZiB", "YiB", NULL };
+-	const char **units_str[] = {
++	static const char **units_str[] = {
+ 		[STRING_UNITS_10] =  units_10,
+ 		[STRING_UNITS_2] = units_2,
+ 	};
+-	const unsigned int divisor[] = {
++	static const unsigned int divisor[] = {
+ 		[STRING_UNITS_10] = 1000,
+ 		[STRING_UNITS_2] = 1024,
+ 	};
+_
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
