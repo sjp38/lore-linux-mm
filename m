@@ -1,62 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx167.postini.com [74.125.245.167])
-	by kanga.kvack.org (Postfix) with SMTP id 9277B6B004A
-	for <linux-mm@kvack.org>; Wed, 18 Apr 2012 01:58:36 -0400 (EDT)
-Received: by lbbgp10 with SMTP id gp10so3765648lbb.14
-        for <linux-mm@kvack.org>; Tue, 17 Apr 2012 22:58:34 -0700 (PDT)
-Message-ID: <4F8E5807.6080909@openvz.org>
-Date: Wed, 18 Apr 2012 09:58:31 +0400
-From: Konstantin Khlebnikov <khlebnikov@openvz.org>
-MIME-Version: 1.0
-Subject: Re: [PATCH linux-next] mm/hugetlb: fix warning in alloc_huge_page/dequeue_huge_page_vma
-References: <20120417122819.7438.26117.stgit@zurg> <20120417135726.05de2546.akpm@linux-foundation.org>
-In-Reply-To: <20120417135726.05de2546.akpm@linux-foundation.org>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx111.postini.com [74.125.245.111])
+	by kanga.kvack.org (Postfix) with SMTP id C82E86B0083
+	for <linux-mm@kvack.org>; Wed, 18 Apr 2012 02:16:53 -0400 (EDT)
+Received: from /spool/local
+	by e28smtp05.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
+	Wed, 18 Apr 2012 11:46:49 +0530
+Received: from d28av02.in.ibm.com (d28av02.in.ibm.com [9.184.220.64])
+	by d28relay05.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q3I6GiUA3919914
+	for <linux-mm@kvack.org>; Wed, 18 Apr 2012 11:46:45 +0530
+Received: from d28av02.in.ibm.com (loopback [127.0.0.1])
+	by d28av02.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q3IBlFsh030379
+	for <linux-mm@kvack.org>; Wed, 18 Apr 2012 21:47:21 +1000
+From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Subject: [PATCH] memcg: Use scnprintf instead of sprintf
+Date: Wed, 18 Apr 2012 11:45:56 +0530
+Message-Id: <1334729756-10212-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+In-Reply-To: <20120416161354.b967790c.akpm@linux-foundation.org>
+References: <20120416161354.b967790c.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Mel Gorman <mgorman@suse.de>
+To: linux-mm@kvack.org, mgorman@suse.de, kamezawa.hiroyu@jp.fujitsu.com, dhillf@gmail.com, aarcange@redhat.com, mhocko@suse.cz, akpm@linux-foundation.org, hannes@cmpxchg.org
+Cc: linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
 
-Andrew Morton wrote:
-> On Tue, 17 Apr 2012 16:28:19 +0400
-> Konstantin Khlebnikov<khlebnikov@openvz.org>  wrote:
->
->> This patch fixes gcc warning (and bug?) introduced in linux-next commit cc9a6c877
->> ("cpuset: mm: reduce large amounts of memory barrier related damage v3")
->>
->> Local variable "page" can be uninitialized if nodemask from vma policy does not
->> intersects with nodemask from cpuset. Even if it wouldn't happens it's better to
->> initialize this variable explicitly than to introduce kernel oops on weird corner case.
->>
->> mm/hugetlb.c: In function ___alloc_huge_page___:
->> mm/hugetlb.c:1135:5: warning: ___page___ may be used uninitialized in this function
->>
->> ...
->>
->> --- a/mm/hugetlb.c
->> +++ b/mm/hugetlb.c
->> @@ -532,7 +532,7 @@ static struct page *dequeue_huge_page_vma(struct hstate *h,
->>   				struct vm_area_struct *vma,
->>   				unsigned long address, int avoid_reserve)
->>   {
->> -	struct page *page;
->> +	struct page *page = NULL;
->>   	struct mempolicy *mpol;
->>   	nodemask_t *nodemask;
->>   	struct zonelist *zonelist;
->
-> hm, that's a pretty blatant use-uninitialised bug.  I wonder why so few
-> gcc versions report it.  Mine doesn't.
+From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
 
-I'm using latest gcc-4.7
+This make sure we don't overflow.
 
->
-> --
-> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
-> Please read the FAQ at  http://www.tux.org/lkml/
+Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
+---
+ mm/memcontrol.c |   14 +++++++-------
+ 1 file changed, 7 insertions(+), 7 deletions(-)
+
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index 519d370..0ccf934 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -5269,14 +5269,14 @@ static void mem_cgroup_destroy(struct cgroup *cont)
+ }
+ 
+ #ifdef CONFIG_MEM_RES_CTLR_HUGETLB
+-static char *mem_fmt(char *buf, unsigned long n)
++static char *mem_fmt(char *buf, int size, unsigned long hsize)
+ {
+-	if (n >= (1UL << 30))
+-		sprintf(buf, "%luGB", n >> 30);
+-	else if (n >= (1UL << 20))
+-		sprintf(buf, "%luMB", n >> 20);
++	if (hsize >= (1UL << 30))
++		scnprintf(buf, size, "%luGB", hsize >> 30);
++	else if (hsize >= (1UL << 20))
++		scnprintf(buf, size, "%luMB", hsize >> 20);
+ 	else
+-		sprintf(buf, "%luKB", n >> 10);
++		scnprintf(buf, size, "%luKB", hsize >> 10);
+ 	return buf;
+ }
+ 
+@@ -5287,7 +5287,7 @@ int __init mem_cgroup_hugetlb_file_init(int idx)
+ 	struct hstate *h = &hstates[idx];
+ 
+ 	/* format the size */
+-	mem_fmt(buf, huge_page_size(h));
++	mem_fmt(buf, 32, huge_page_size(h));
+ 
+ 	/* Add the limit file */
+ 	cft = &h->mem_cgroup_files[0];
+-- 
+1.7.10
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
