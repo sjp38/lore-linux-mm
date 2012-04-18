@@ -1,109 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx169.postini.com [74.125.245.169])
-	by kanga.kvack.org (Postfix) with SMTP id C5B946B00E8
-	for <linux-mm@kvack.org>; Wed, 18 Apr 2012 03:14:50 -0400 (EDT)
-Received: by pbcup15 with SMTP id up15so10799721pbc.14
-        for <linux-mm@kvack.org>; Wed, 18 Apr 2012 00:14:50 -0700 (PDT)
-Message-ID: <4F8E69DF.9030003@gmail.com>
-Date: Wed, 18 Apr 2012 12:44:39 +0530
-From: Subash Patel <subashrp@gmail.com>
+Received: from psmtp.com (na3sys010amx158.postini.com [74.125.245.158])
+	by kanga.kvack.org (Postfix) with SMTP id 5CCC36B00E8
+	for <linux-mm@kvack.org>; Wed, 18 Apr 2012 03:16:23 -0400 (EDT)
+Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 01BDF3EE0BD
+	for <linux-mm@kvack.org>; Wed, 18 Apr 2012 16:16:22 +0900 (JST)
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id D6FB245DEAD
+	for <linux-mm@kvack.org>; Wed, 18 Apr 2012 16:16:21 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id A94E645DEB3
+	for <linux-mm@kvack.org>; Wed, 18 Apr 2012 16:16:21 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 3094E1DB8040
+	for <linux-mm@kvack.org>; Wed, 18 Apr 2012 16:16:21 +0900 (JST)
+Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.240.81.146])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id DE98A1DB803B
+	for <linux-mm@kvack.org>; Wed, 18 Apr 2012 16:16:20 +0900 (JST)
+Message-ID: <4F8E69D8.4070102@jp.fujitsu.com>
+Date: Wed, 18 Apr 2012 16:14:32 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
-Subject: Re: [PATCHv8 00/10] ARM: DMA-mapping framework redesign
-References: <1334055852-19500-1-git-send-email-m.szyprowski@samsung.com>
-In-Reply-To: <1334055852-19500-1-git-send-email-m.szyprowski@samsung.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Subject: Re: [PATCH 5/7] memcg: divide force_empty into 2 functions, avoid
+ memory reclaim at rmdir
+References: <4F86B9BE.8000105@jp.fujitsu.com> <4F86BC71.9070403@jp.fujitsu.com> <CALWz4iwYX4r5dJmcKFuc+zj_rjMB76dtpbvArdzySF+dyxMohg@mail.gmail.com>
+In-Reply-To: <CALWz4iwYX4r5dJmcKFuc+zj_rjMB76dtpbvArdzySF+dyxMohg@mail.gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Marek Szyprowski <m.szyprowski@samsung.com>
-Cc: linux-arm-kernel@lists.infradead.org, linaro-mm-sig@lists.linaro.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, iommu@lists.linux-foundation.org, Kyungmin Park <kyungmin.park@samsung.com>, Arnd Bergmann <arnd@arndb.de>, Joerg Roedel <joro@8bytes.org>, Russell King - ARM Linux <linux@arm.linux.org.uk>, Chunsang Jeong <chunsang.jeong@linaro.org>, Krishna Reddy <vdumpa@nvidia.com>, KyongHo Cho <pullip.cho@samsung.com>, Andrzej Pietrasiewicz <andrzej.p@samsung.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Hiroshi Doyu <hdoyu@nvidia.com>
+To: Ying Han <yinghan@google.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "cgroups@vger.kernel.org" <cgroups@vger.kernel.org>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Tejun Heo <tj@kernel.org>, Glauber Costa <glommer@parallels.com>, Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>
 
-Hello Marek,
+(2012/04/18 2:29), Ying Han wrote:
 
-I have tested below patch series for vanilla 3.4-rc2 (without videobuf2 
-support for dmabuf patches) with and without IOMMU support on origen 
-board. These patches are good now. You can add:
+> On Thu, Apr 12, 2012 at 4:28 AM, KAMEZAWA Hiroyuki
+> <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+>> Now, at rmdir, memory cgroup's charge will be moved to
+>>  - parent if use_hierarchy=1
+>>  - root   if use_hierarchy=0
+>>
+>> Then, we don't have to have memory reclaim code at destroying memcg.
+>>
+>> This patch divides force_empty to 2 functions as
+>>
+>>  - memory_cgroup_recharge() ... try to move all charges to ancestors.
+>>  - memory_cgroup_force_empty().. try to reclaim all memory.
+>>
+>> After this patch, memory.force_empty will _not_ move charges to ancestors
+>> but just reclaim all pages. (This meets documenation.)
+> 
+> Not sure why it matches the documentation:
+> "
+> memory.force_empty>---->------- # trigger forced move charge to parent
+> "
 
-Tested-By: Subash Patel <subash.ramaswamy@linaro.org> for whole series.
+I missed this...
 
-Regards,
-Subash
+> 
+> and
+> "
+>   # echo 0 > memory.force_empty
+> 
+>   Almost all pages tracked by this memory cgroup will be unmapped and freed.
+>   Some pages cannot be freed because they are locked or in-use. Such pages are
+>   moved to parent and this cgroup will be empty. This may return -EBUSY if
+>   VM is too busy to free/move all pages immediately.
+> "
+> 
 
-On 04/10/2012 04:34 PM, Marek Szyprowski wrote:
-> Hello,
->
-> Linux v3.4-rc2, which include dma-mapping preparation patches, has been
-> released two days ago, now it's time for the next spin of ARM
-> dma-mapping redesign patches. This version includes various fixes posted
-> separately to v7, mainly related to incorrect io address space bitmap
-> setup and a major issue with broken mmap for memory which comes from
-> dma_declare_coherent(). The patches have been also rebased onto Linux
-> v3.4-rc2 which comes with dma_map_ops related changes.
->
-> The code has been tested on Samsung Exynos4 'UniversalC210' and NURI
-> boards with IOMMU driver posted by KyongHo Cho, I will put separate
-> branch which shows how to integrate this driver with this patchset.
->
-> The patches are also available on my git repository at:
-> git://git.linaro.org/people/mszyprowski/linux-dma-mapping.git 3.4-rc2-arm-dma-v8
->
->
-> History of the development:
->
-> v1: (initial version of the DMA-mapping redesign patches):
-> http://www.spinics.net/lists/linux-mm/msg21241.html
->
-> v2:
-> http://lists.linaro.org/pipermail/linaro-mm-sig/2011-September/000571.html
-> http://lists.linaro.org/pipermail/linaro-mm-sig/2011-September/000577.html
->
-> v3:
-> http://www.spinics.net/lists/linux-mm/msg25490.html
->
-> v4 and v5:
-> http://www.spinics.net/lists/arm-kernel/msg151147.html
-> http://www.spinics.net/lists/arm-kernel/msg154889.html
->
-> v6:
-> http://www.spinics.net/lists/linux-mm/msg29903.html
->
-> v7:
-> http://www.spinics.net/lists/arm-kernel/msg162149.html
->
-> Best regards
-> Marek Szyprowski
-> Samsung Poland R&D Center
->
->
-> Patch summary:
->
-> Marek Szyprowski (10):
->    common: add dma_mmap_from_coherent() function
->    ARM: dma-mapping: use pr_* instread of printk
->    ARM: dma-mapping: introduce ARM_DMA_ERROR constant
->    ARM: dma-mapping: remove offset parameter to prepare for generic
->      dma_ops
->    ARM: dma-mapping: use asm-generic/dma-mapping-common.h
->    ARM: dma-mapping: implement dma sg methods on top of any generic dma
->      ops
->    ARM: dma-mapping: move all dma bounce code to separate dma ops
->      structure
->    ARM: dma-mapping: remove redundant code and cleanup
->    ARM: dma-mapping: use alloc, mmap, free from dma_ops
->    ARM: dma-mapping: add support for IOMMU mapper
->
->   arch/arm/Kconfig                   |    9 +
->   arch/arm/common/dmabounce.c        |   84 +++-
->   arch/arm/include/asm/device.h      |    4 +
->   arch/arm/include/asm/dma-iommu.h   |   34 ++
->   arch/arm/include/asm/dma-mapping.h |  407 ++++-----------
->   arch/arm/mm/dma-mapping.c          | 1019 ++++++++++++++++++++++++++++++------
->   arch/arm/mm/vmregion.h             |    2 +-
->   drivers/base/dma-coherent.c        |   42 ++
->   include/asm-generic/dma-coherent.h |    4 +-
->   9 files changed, 1138 insertions(+), 467 deletions(-)
->   create mode 100644 arch/arm/include/asm/dma-iommu.h
->
+
+The 1st feature is "will be unmapped and freed".
+
+I'll update Documentation. Thank you.
+
+-Kame
+
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
