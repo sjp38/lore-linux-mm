@@ -1,60 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx138.postini.com [74.125.245.138])
-	by kanga.kvack.org (Postfix) with SMTP id 73D5A6B0092
-	for <linux-mm@kvack.org>; Wed, 18 Apr 2012 13:03:43 -0400 (EDT)
-Received: by dakh32 with SMTP id h32so10839624dak.9
-        for <linux-mm@kvack.org>; Wed, 18 Apr 2012 10:03:42 -0700 (PDT)
-Date: Wed, 18 Apr 2012 10:03:37 -0700
-From: Tejun Heo <tj@kernel.org>
-Subject: Re: [PATCH 1/7] res_counter: add a function
- res_counter_move_parent().
-Message-ID: <20120418170337.GH19975@google.com>
-References: <4F86B9BE.8000105@jp.fujitsu.com>
- <4F86BA66.2010503@jp.fujitsu.com>
- <20120416223157.GE12421@google.com>
- <4F8E678A.8000805@jp.fujitsu.com>
+Received: from psmtp.com (na3sys010amx114.postini.com [74.125.245.114])
+	by kanga.kvack.org (Postfix) with SMTP id 77CA66B00E8
+	for <linux-mm@kvack.org>; Wed, 18 Apr 2012 13:09:47 -0400 (EDT)
+Received: by iajr24 with SMTP id r24so14799773iaj.14
+        for <linux-mm@kvack.org>; Wed, 18 Apr 2012 10:09:46 -0700 (PDT)
+Date: Wed, 18 Apr 2012 10:09:24 -0700 (PDT)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: [RFC PATCH] s390: mm: rmap: Transfer storage key to struct page
+ under the page lock
+In-Reply-To: <20120418152831.GK2359@suse.de>
+Message-ID: <alpine.LSU.2.00.1204181005500.1811@eggly.anvils>
+References: <20120416141423.GD2359@suse.de> <alpine.LSU.2.00.1204161332120.1675@eggly.anvils> <20120417122202.GF2359@suse.de> <alpine.LSU.2.00.1204172023390.1609@eggly.anvils> <20120418152831.GK2359@suse.de>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <4F8E678A.8000805@jp.fujitsu.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "cgroups@vger.kernel.org" <cgroups@vger.kernel.org>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Glauber Costa <glommer@parallels.com>, Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>
+To: Mel Gorman <mgorman@suse.de>
+Cc: Martin Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, Rik van Riel <riel@redhat.com>, Ken Chen <kenchen@google.com>, Linux-MM <linux-mm@kvack.org>, Linux-S390 <linux-s390@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Wed, Apr 18, 2012 at 04:04:42PM +0900, KAMEZAWA Hiroyuki wrote:
-> (2012/04/17 7:31), Tejun Heo wrote:
-> 
-> > On Thu, Apr 12, 2012 at 08:20:06PM +0900, KAMEZAWA Hiroyuki wrote:
-> >> +/*
-> >> + * In hierarchical accounting, child's usage is accounted into ancestors.
-> >> + * To move local usage to its parent, just forget current level usage.
-> >> + */
-> >> +void res_counter_move_parent(struct res_counter *counter, unsigned long val)
-> >> +{
-> >> +	unsigned long flags;
-> >> +
-> >> +	BUG_ON(!counter->parent);
-> >> +	spin_lock_irqsave(&counter->lock, flags);
-> >> +	res_counter_uncharge_locked(counter, val);
-> >> +	spin_unlock_irqrestore(&counter->lock, flags);
-> >> +}
+On Wed, 18 Apr 2012, Mel Gorman wrote:
+> On Tue, Apr 17, 2012 at 08:52:21PM -0700, Hugh Dickins wrote:
 > > 
-> > On the second thought, do we need this at all?  It's as good as doing
-> > nothing after all, no?
-> > 
+> > It's a no-brainer workaround: patch and more explanation below.  I
+> > can double-fix it if you prefer, but the one-liner appeals more to me.
+
+(I became much happier about fixing it from this end, once I understood
+how the situation came about.  What I had disliked with yours, was an
+admitted ugly patch, when we didn't even understand the root cause.)
+
 > 
+> Ok, fair enough. While I think swapper space will eventually use the dirty
+> tag information that day is not today.
+
+Yes, it's never been self-evident to me, why swap should not participate
+in any of the dirty writeback stuff.  But we've got along for years that
+way, and as you say, won't be changing it right now.
+
+> Acked-by: Mel Gorman <mgorman@suse.de>
 > 
-> I considered that, but I think it may make it hard to debug memcg leakage.
-> I'd like to confirm res->usage == 0 at removal of memcg.
+> I've sent a kernel based on this patch to the s390 folk that originally
+> reported the bug. Hopefully they'll test and get back to me in a few
+> days.
 
-Hmmm... then let's name it res_counter_reset() or something.  I feel
-very confused about the function name.
+Thanks - I'll leave it at that for the moment, expecting to hear back.
 
-Thanks.
-
--- 
-tejun
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
