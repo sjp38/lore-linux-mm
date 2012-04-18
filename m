@@ -1,44 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx130.postini.com [74.125.245.130])
-	by kanga.kvack.org (Postfix) with SMTP id BE5296B00E8
-	for <linux-mm@kvack.org>; Wed, 18 Apr 2012 11:30:05 -0400 (EDT)
-Received: by werj55 with SMTP id j55so6809853wer.14
-        for <linux-mm@kvack.org>; Wed, 18 Apr 2012 08:30:04 -0700 (PDT)
-Date: Wed, 18 Apr 2012 18:29:48 +0300
+Received: from psmtp.com (na3sys010amx131.postini.com [74.125.245.131])
+	by kanga.kvack.org (Postfix) with SMTP id 8DD6C6B00EA
+	for <linux-mm@kvack.org>; Wed, 18 Apr 2012 11:45:05 -0400 (EDT)
+Received: by wgbdt14 with SMTP id dt14so6436715wgb.26
+        for <linux-mm@kvack.org>; Wed, 18 Apr 2012 08:45:03 -0700 (PDT)
+Date: Wed, 18 Apr 2012 18:44:48 +0300
 From: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
-Subject: Re: [PATCH] kmemleak: do not leak object after tree insertion error
- (v2, fixed)
-Message-ID: <20120418152947.GA8794@swordfish.minsk.epam.com>
-References: <20120402230656.GA4353@swordfish>
- <20120418144043.GH1505@arm.com>
+Subject: [PATCH] kmemleak: do not leak object after tree insertion error (v3)
+Message-ID: <20120418154448.GA3617@swordfish.minsk.epam.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20120418144043.GH1505@arm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Catalin Marinas <catalin.marinas@arm.com>
 Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 
-On (04/18/12 15:40), Catalin Marinas wrote:
-> On Tue, Apr 03, 2012 at 12:06:56AM +0100, Sergey Senozhatsky wrote:
-> > [PATCH] kmemleak: do not leak object after tree insertion error
-> > 
-> > In case when tree insertion fails due to already existing object
-> > error, pointer to allocated object gets lost due to lookup_object()
-> > overwrite. Free allocated object and return the existing one, 
-> > obtained from lookup_object().
-> 
-> We really need to return NULL if the tree insertion fails as kmemleak is
-> disabled in this case (fatal condition for kmemleak). So we could just
-> call kmem_cache_free(object_cache, object) in the 'if' block.
-> 
+ [PATCH] kmemleak: do not leak object after tree insertion error
 
-Good point. Thanks a lot for your review!
-I was chasing two bugs and sort of messed things up. I'll send v3 shortly.
+ In case when tree insertion fails due to already existing object
+ error, pointer to allocated object gets lost because of overwrite
+ with lookup_object() return. Free allocated object before object
+ lookup. 
 
+ Signed-off-by: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
 
-	Sergey
+---
+
+ mm/kmemleak.c |    1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/mm/kmemleak.c b/mm/kmemleak.c
+index 45eb621..5f05993 100644
+--- a/mm/kmemleak.c
++++ b/mm/kmemleak.c
+@@ -578,6 +578,7 @@ static struct kmemleak_object *create_object(unsigned long ptr, size_t size,
+ 	if (node != &object->tree_node) {
+ 		kmemleak_stop("Cannot insert 0x%lx into the object search tree "
+ 			      "(already existing)\n", ptr);
++		kmem_cache_free(object_cache, object);
+ 		object = lookup_object(ptr, 1);
+ 		spin_lock(&object->lock);
+ 		dump_object_info(object);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
