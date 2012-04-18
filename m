@@ -1,13 +1,14 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx147.postini.com [74.125.245.147])
-	by kanga.kvack.org (Postfix) with SMTP id 451ED6B004A
-	for <linux-mm@kvack.org>; Wed, 18 Apr 2012 04:35:11 -0400 (EDT)
-Received: by obbeh20 with SMTP id eh20so5541793obb.14
-        for <linux-mm@kvack.org>; Wed, 18 Apr 2012 01:35:10 -0700 (PDT)
-Date: Wed, 18 Apr 2012 01:33:56 -0700
+Received: from psmtp.com (na3sys010amx128.postini.com [74.125.245.128])
+	by kanga.kvack.org (Postfix) with SMTP id 6D75E6B004A
+	for <linux-mm@kvack.org>; Wed, 18 Apr 2012 04:36:38 -0400 (EDT)
+Received: by obbeh20 with SMTP id eh20so5543795obb.14
+        for <linux-mm@kvack.org>; Wed, 18 Apr 2012 01:36:37 -0700 (PDT)
+Date: Wed, 18 Apr 2012 01:35:23 -0700
 From: Anton Vorontsov <anton.vorontsov@linaro.org>
-Subject: [PATCH 1/2] vmevent: Should not grab mutex in the atomic context
-Message-ID: <20120418083356.GA31556@lizard>
+Subject: [PATCH 2/2] vmevent: Implement greater-than attribute and one-shot
+ mode
+Message-ID: <20120418083523.GB31556@lizard>
 References: <20120418083208.GA24904@lizard>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=utf-8
@@ -18,171 +19,163 @@ List-ID: <linux-mm.kvack.org>
 To: Pekka Enberg <penberg@kernel.org>
 Cc: Leonid Moiseichuk <leonid.moiseichuk@nokia.com>, John Stultz <john.stultz@linaro.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linaro-kernel@lists.linaro.org, patches@linaro.org
 
-vmevent grabs a mutex in the atomic context, and so this pops up:
+This patch implements a new event type, it will trigger whenever a
+value becomes greater than user-specified threshold, it complements
+the 'less-then' trigger type.
 
-BUG: sleeping function called from invalid context at kernel/mutex.c:271
-in_atomic(): 1, irqs_disabled(): 0, pid: 0, name: swapper/0
-1 lock held by swapper/0/0:
- #0:  (&watch->timer){+.-...}, at: [<ffffffff8103eb80>] call_timer_fn+0x0/0xf0
-Pid: 0, comm: swapper/0 Not tainted 3.2.0+ #6
-Call Trace:
- <IRQ>  [<ffffffff8102f5da>] __might_sleep+0x12a/0x1e0
- [<ffffffff810bd990>] ? vmevent_match+0xe0/0xe0
- [<ffffffff81321f2c>] mutex_lock_nested+0x3c/0x340
- [<ffffffff81064b33>] ? lock_acquire+0xa3/0xc0
- [<ffffffff8103eb80>] ? internal_add_timer+0x110/0x110
- [<ffffffff810bd990>] ? vmevent_match+0xe0/0xe0
- [<ffffffff810bda21>] vmevent_timer_fn+0x91/0xf0
- [<ffffffff810bd990>] ? vmevent_match+0xe0/0xe0
- [<ffffffff8103ebf5>] call_timer_fn+0x75/0xf0
- [<ffffffff8103eb80>] ? internal_add_timer+0x110/0x110
- [<ffffffff81062fdd>] ? trace_hardirqs_on_caller+0x7d/0x120
- [<ffffffff8103ee9f>] run_timer_softirq+0x10f/0x1e0
- [<ffffffff810bd990>] ? vmevent_match+0xe0/0xe0
- [<ffffffff81038d90>] __do_softirq+0xb0/0x160
- [<ffffffff8105eb0f>] ? tick_program_event+0x1f/0x30
- [<ffffffff8132642c>] call_softirq+0x1c/0x26
- [<ffffffff810036d5>] do_softirq+0x85/0xc0
+Also, let's implement the one-shot mode for the events, when set,
+userspace will only receive one notification per crossing the
+boundaries.
 
-This patch fixes the issue by removing the mutex and making the logic
-lock-free.
+Now when both LT and GT are set on the same level, the event type
+works as a cross event type: it triggers whenever a value crosses
+the threshold from a lesser values side to a greater values side,
+and vice versa.
+
+We use the event types in an userspace low-memory killer: we get a
+notification when memory becomes low, so we start freeing memory by
+killing unneeded processes, and we get notification when memory hits
+the threshold from another side, so we know that we freed enough of
+memory.
 
 Signed-off-by: Anton Vorontsov <anton.vorontsov@linaro.org>
 ---
- mm/vmevent.c |   52 ++++++++++++++++++++++++++--------------------------
- 1 file changed, 26 insertions(+), 26 deletions(-)
+ include/linux/vmevent.h              |   13 ++++++++++
+ mm/vmevent.c                         |   44 +++++++++++++++++++++++++++++-----
+ tools/testing/vmevent/vmevent-test.c |   22 +++++++++++++----
+ 3 files changed, 68 insertions(+), 11 deletions(-)
 
+diff --git a/include/linux/vmevent.h b/include/linux/vmevent.h
+index 64357e4..ca97cf0 100644
+--- a/include/linux/vmevent.h
++++ b/include/linux/vmevent.h
+@@ -22,6 +22,19 @@ enum {
+ 	 * Sample value is less than user-specified value
+ 	 */
+ 	VMEVENT_ATTR_STATE_VALUE_LT	= (1UL << 0),
++	/*
++	 * Sample value is greater than user-specified value
++	 */
++	VMEVENT_ATTR_STATE_VALUE_GT	= (1UL << 1),
++	/*
++	 * One-shot mode.
++	 */
++	VMEVENT_ATTR_STATE_ONE_SHOT	= (1UL << 2),
++
++	/* Saved state, used internally by the kernel for one-shot mode. */
++	__VMEVENT_ATTR_STATE_VALUE_WAS_LT	= (1UL << 30),
++	/* Saved state, used internally by the kernel for one-shot mode. */
++	__VMEVENT_ATTR_STATE_VALUE_WAS_GT	= (1UL << 31),
+ };
+ 
+ struct vmevent_attr {
 diff --git a/mm/vmevent.c b/mm/vmevent.c
-index 1847b56..9ed6aca 100644
+index 9ed6aca..3cce215 100644
 --- a/mm/vmevent.c
 +++ b/mm/vmevent.c
-@@ -1,4 +1,5 @@
+@@ -1,5 +1,6 @@
  #include <linux/anon_inodes.h>
-+#include <linux/atomic.h>
+ #include <linux/atomic.h>
++#include <linux/compiler.h>
  #include <linux/vmevent.h>
  #include <linux/syscalls.h>
  #include <linux/timer.h>
-@@ -22,8 +23,7 @@ struct vmevent_watch_event {
- struct vmevent_watch {
- 	struct vmevent_config		config;
+@@ -83,16 +84,47 @@ static bool vmevent_match(struct vmevent_watch *watch)
  
--	struct mutex			mutex;
--	bool				pending;
-+	atomic_t			pending;
+ 	for (i = 0; i < config->counter; i++) {
+ 		struct vmevent_attr *attr = &config->attrs[i];
+-		u64 value;
++		u32 state = attr->state;
++		bool attr_lt = state & VMEVENT_ATTR_STATE_VALUE_LT;
++		bool attr_gt = state & VMEVENT_ATTR_STATE_VALUE_GT;
  
- 	/*
- 	 * Attributes that are exported as part of delivered VM events.
-@@ -99,24 +99,36 @@ static bool vmevent_match(struct vmevent_watch *watch)
- 	return false;
- }
+-		if (!attr->state)
++		if (!state)
+ 			continue;
  
-+/*
-+ * This function is called from the timer context, which has the same
-+ * guaranties as an interrupt handler: it can have only one execution
-+ * thread (unlike bare softirq handler), so we don't need to worry
-+ * about racing w/ ourselves.
-+ *
-+ * We also don't need to worry about several instances of timers
-+ * accessing the same vmevent_watch, as we allocate vmevent_watch
-+ * together w/ the timer instance in vmevent_fd(), so there is always
-+ * one timer per vmevent_watch.
-+ *
-+ * All the above makes it possible to implement the lock-free logic,
-+ * using just the atomic watch->pending variable.
-+ */
- static void vmevent_sample(struct vmevent_watch *watch)
- {
- 	int i;
- 
-+	if (atomic_read(&watch->pending))
-+		return;
- 	if (!vmevent_match(watch))
- 		return;
- 
--	mutex_lock(&watch->mutex);
+-		value = vmevent_sample_attr(watch, attr);
 -
--	watch->pending = true;
--
- 	for (i = 0; i < watch->nr_attrs; i++) {
- 		struct vmevent_attr *attr = &watch->sample_attrs[i];
- 
- 		attr->value = vmevent_sample_attr(watch, attr);
+-		if (attr->state & VMEVENT_ATTR_STATE_VALUE_LT) {
+-			if (value < attr->value)
++		if (attr_lt || attr_gt) {
++			bool one_shot = state & VMEVENT_ATTR_STATE_ONE_SHOT;
++			u32 was_lt_mask = __VMEVENT_ATTR_STATE_VALUE_WAS_LT;
++			u32 was_gt_mask = __VMEVENT_ATTR_STATE_VALUE_WAS_GT;
++			u64 value = vmevent_sample_attr(watch, attr);
++			bool lt = value < attr->value;
++			bool gt = value > attr->value;
++			bool was_lt = state & was_lt_mask;
++			bool was_gt = state & was_gt_mask;
++			bool ret = false;
++
++			if ((lt || gt) && !one_shot)
+ 				return true;
++
++			if (attr_lt && lt && was_lt) {
++				return false;
++			} else if (attr_gt && gt && was_gt) {
++				return false;
++			} else if (lt) {
++				state |= was_lt_mask;
++				state &= ~was_gt_mask;
++				if (attr_lt)
++					ret = true;
++			} else if (gt) {
++				state |= was_gt_mask;
++				state &= ~was_lt_mask;
++				if (attr_gt)
++					ret = true;
++			} else {
++				state &= ~was_lt_mask;
++				state &= ~was_gt_mask;
++			}
++			attr->state = state;
++			return ret;
+ 		}
  	}
  
--	mutex_unlock(&watch->mutex);
-+	atomic_set(&watch->pending, 1);
- }
+diff --git a/tools/testing/vmevent/vmevent-test.c b/tools/testing/vmevent/vmevent-test.c
+index 534f827..fec7b57 100644
+--- a/tools/testing/vmevent/vmevent-test.c
++++ b/tools/testing/vmevent/vmevent-test.c
+@@ -33,20 +33,32 @@ int main(int argc, char *argv[])
  
- static void vmevent_timer_fn(unsigned long data)
-@@ -125,7 +137,7 @@ static void vmevent_timer_fn(unsigned long data)
- 
- 	vmevent_sample(watch);
- 
--	if (watch->pending)
-+	if (atomic_read(&watch->pending))
- 		wake_up(&watch->waitq);
- 	mod_timer(&watch->timer, jiffies +
- 			nsecs_to_jiffies64(watch->config.sample_period_ns));
-@@ -148,13 +160,9 @@ static unsigned int vmevent_poll(struct file *file, poll_table *wait)
- 
- 	poll_wait(file, &watch->waitq, wait);
- 
--	mutex_lock(&watch->mutex);
--
--	if (watch->pending)
-+	if (atomic_read(&watch->pending))
- 		events |= POLLIN;
- 
--	mutex_unlock(&watch->mutex);
--
- 	return events;
- }
- 
-@@ -171,15 +179,13 @@ static ssize_t vmevent_read(struct file *file, char __user *buf, size_t count, l
- 	if (count < size)
- 		return -EINVAL;
- 
--	mutex_lock(&watch->mutex);
--
--	if (!watch->pending)
--		goto out_unlock;
-+	if (!atomic_read(&watch->pending))
-+		goto out;
- 
- 	event = kmalloc(size, GFP_KERNEL);
- 	if (!event) {
- 		ret = -ENOMEM;
--		goto out_unlock;
-+		goto out;
- 	}
- 
- 	for (i = 0; i < watch->nr_attrs; i++) {
-@@ -195,14 +201,10 @@ static ssize_t vmevent_read(struct file *file, char __user *buf, size_t count, l
- 
- 	ret = count;
- 
--	watch->pending = false;
--
-+	atomic_set(&watch->pending, 0);
- out_free:
- 	kfree(event);
--
--out_unlock:
--	mutex_unlock(&watch->mutex);
--
-+out:
- 	return ret;
- }
- 
-@@ -231,8 +233,6 @@ static struct vmevent_watch *vmevent_watch_alloc(void)
- 	if (!watch)
- 		return NULL;
- 
--	mutex_init(&watch->mutex);
--
- 	init_waitqueue_head(&watch->waitq);
- 
- 	return watch;
+ 	config = (struct vmevent_config) {
+ 		.sample_period_ns	= 1000000000L,
+-		.counter		= 4,
++		.counter		= 6,
+ 		.attrs			= {
+-			[0]			= {
++			{
+ 				.type	= VMEVENT_ATTR_NR_FREE_PAGES,
+ 				.state	= VMEVENT_ATTR_STATE_VALUE_LT,
+ 				.value	= phys_pages,
+ 			},
+-			[1]			= {
++			{
++				.type	= VMEVENT_ATTR_NR_FREE_PAGES,
++				.state	= VMEVENT_ATTR_STATE_VALUE_GT,
++				.value	= phys_pages,
++			},
++			{
++				.type	= VMEVENT_ATTR_NR_FREE_PAGES,
++				.state	= VMEVENT_ATTR_STATE_VALUE_LT |
++					  VMEVENT_ATTR_STATE_VALUE_GT |
++					  VMEVENT_ATTR_STATE_ONE_SHOT,
++				.value	= phys_pages / 2,
++			},
++			{
+ 				.type	= VMEVENT_ATTR_NR_AVAIL_PAGES,
+ 			},
+-			[2]			= {
++			{
+ 				.type	= VMEVENT_ATTR_NR_SWAP_PAGES,
+ 			},
+-			[3]			= {
++			{
+ 				.type	= 0xffff, /* invalid */
+ 			},
+ 		},
 -- 
 1.7.9.2
 
