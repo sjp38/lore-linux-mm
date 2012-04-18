@@ -1,67 +1,115 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx117.postini.com [74.125.245.117])
-	by kanga.kvack.org (Postfix) with SMTP id 3D2FD6B00FF
-	for <linux-mm@kvack.org>; Wed, 18 Apr 2012 18:47:48 -0400 (EDT)
-Received: by obbeh20 with SMTP id eh20so6742449obb.14
-        for <linux-mm@kvack.org>; Wed, 18 Apr 2012 15:47:47 -0700 (PDT)
-Date: Wed, 18 Apr 2012 15:46:32 -0700
-From: Anton Vorontsov <anton.vorontsov@linaro.org>
-Subject: Re: [PATCH 2/2] vmevent: Implement greater-than attribute and
- one-shot mode
-Message-ID: <20120418224629.GA22150@lizard>
-References: <20120418083208.GA24904@lizard>
- <20120418083523.GB31556@lizard>
- <alpine.LFD.2.02.1204182259580.11868@tux.localdomain>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-In-Reply-To: <alpine.LFD.2.02.1204182259580.11868@tux.localdomain>
+Received: from psmtp.com (na3sys010amx110.postini.com [74.125.245.110])
+	by kanga.kvack.org (Postfix) with SMTP id C4D466B0101
+	for <linux-mm@kvack.org>; Wed, 18 Apr 2012 19:33:32 -0400 (EDT)
+Date: Wed, 18 Apr 2012 16:33:30 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH V2] memcg: add mlock statistic in memory.stat
+Message-Id: <20120418163330.ca1518c7.akpm@linux-foundation.org>
+In-Reply-To: <1334773315-32215-1-git-send-email-yinghan@google.com>
+References: <1334773315-32215-1-git-send-email-yinghan@google.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pekka Enberg <penberg@kernel.org>
-Cc: Leonid Moiseichuk <leonid.moiseichuk@nokia.com>, John Stultz <john.stultz@linaro.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linaro-kernel@lists.linaro.org, patches@linaro.org
+To: Ying Han <yinghan@google.com>
+Cc: Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mel@csn.ul.ie>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Hillf Danton <dhillf@gmail.com>, Hugh Dickins <hughd@google.com>, Dan Magenheimer <dan.magenheimer@oracle.com>, linux-mm@kvack.org
 
-On Wed, Apr 18, 2012 at 11:01:02PM +0300, Pekka Enberg wrote:
-> On Wed, 18 Apr 2012, Anton Vorontsov wrote:
-> > This patch implements a new event type, it will trigger whenever a
-> > value becomes greater than user-specified threshold, it complements
-> > the 'less-then' trigger type.
-> > 
-> > Also, let's implement the one-shot mode for the events, when set,
-> > userspace will only receive one notification per crossing the
-> > boundaries.
-> > 
-> > Now when both LT and GT are set on the same level, the event type
-> > works as a cross event type: it triggers whenever a value crosses
-> > the threshold from a lesser values side to a greater values side,
-> > and vice versa.
-> > 
-> > We use the event types in an userspace low-memory killer: we get a
-> > notification when memory becomes low, so we start freeing memory by
-> > killing unneeded processes, and we get notification when memory hits
-> > the threshold from another side, so we know that we freed enough of
-> > memory.
-> > 
-> > Signed-off-by: Anton Vorontsov <anton.vorontsov@linaro.org>
+On Wed, 18 Apr 2012 11:21:55 -0700
+Ying Han <yinghan@google.com> wrote:
+
+> We have the nr_mlock stat both in meminfo as well as vmstat system wide, this
+> patch adds the mlock field into per-memcg memory stat. The stat itself enhances
+> the metrics exported by memcg since the unevictable lru includes more than
+> mlock()'d page like SHM_LOCK'd.
 > 
-> Did you try vmevent-test with this patch? I'm seeing this:
+> Why we need to count mlock'd pages while they are unevictable and we can not
+> do much on them anyway?
+> 
+> This is true. The mlock stat I am proposing is more helpful for system admin
+> and kernel developer to understand the system workload. The same information
+> should be helpful to add into OOM log as well. Many times in the past that we
+> need to read the mlock stat from the per-container meminfo for different
+> reason. Afterall, we do have the ability to read the mlock from meminfo and
+> this patch fills the info in memcg.
+> 
+>
+> ...
+>
+>  static inline int is_mlocked_vma(struct vm_area_struct *vma, struct page *page)
+>  {
+> +	bool locked;
+> +	unsigned long flags;
+> +
+>  	VM_BUG_ON(PageLRU(page));
+>  
+>  	if (likely((vma->vm_flags & (VM_LOCKED | VM_SPECIAL)) != VM_LOCKED))
+>  		return 0;
+>  
+> +	mem_cgroup_begin_update_page_stat(page, &locked, &flags);
+>  	if (!TestSetPageMlocked(page)) {
+>  		inc_zone_page_state(page, NR_MLOCK);
+> +		mem_cgroup_inc_page_stat(page, MEMCG_NR_MLOCK);
+>  		count_vm_event(UNEVICTABLE_PGMLOCKED);
+>  	}
+> +	mem_cgroup_end_update_page_stat(page, &locked, &flags);
+> +
+>  	return 1;
+>  }
 
-Yep, with CONFIG_SWAP=n, and I had to a modify the test
-since I saw the same thing, I believe. I'll try w/ the swap enabled,
-and see how it goes. I think the vmevent-test.c needs some improvemnts
-in general, but meanwhile...
+Unrelated to this patch: is_mlocked_vma() is misnamed.  A function with
+that name should be a bool-returning test which has no side-effects.
 
-> Physical pages: 109858
-> read failed: Invalid argument
+>
+> ...
+>
+>  static void __free_pages_ok(struct page *page, unsigned int order)
+>  {
+>  	unsigned long flags;
+> -	int wasMlocked = __TestClearPageMlocked(page);
+> +	bool locked;
+>  
+>  	if (!free_pages_prepare(page, order))
+>  		return;
+>  
+>  	local_irq_save(flags);
+> -	if (unlikely(wasMlocked))
+> +	mem_cgroup_begin_update_page_stat(page, &locked, &flags);
 
-Can you send me the .config file that you used? Might be that
-you have CONFIG_SWAP=n too?
+hm, what's going on here.  The page now has a zero refcount and is to
+be returned to the buddy.  But mem_cgroup_begin_update_page_stat()
+assumes that the page still belongs to a memcg.  I'd have thought that
+any page_cgroup backreferences would have been torn down by now?
 
-Thanks!
+> +	if (unlikely(__TestClearPageMlocked(page)))
+>  		free_page_mlock(page);
 
--- 
-Anton Vorontsov
-Email: cbouatmailru@gmail.com
+And if the page _is_ still accessible via cgroup lookup, the use of the
+nonatomic RMW is dangerous.
+
+>  	__count_vm_events(PGFREE, 1 << order);
+>  	free_one_page(page_zone(page), page, order,
+>  					get_pageblock_migratetype(page));
+> +	mem_cgroup_end_update_page_stat(page, &locked, &flags);
+>  	local_irq_restore(flags);
+>  }
+>  
+> @@ -1250,7 +1256,7 @@ void free_hot_cold_page(struct page *page, int cold)
+
+The same comments apply in free_hot_cold_page().
+
+>  	struct per_cpu_pages *pcp;
+>  	unsigned long flags;
+>  	int migratetype;
+> -	int wasMlocked = __TestClearPageMlocked(page);
+> +	bool locked;
+>  
+>  	if (!free_pages_prepare(page, 0))
+>  		return;
+>
+> ...
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
