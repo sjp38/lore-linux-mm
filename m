@@ -1,158 +1,124 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx111.postini.com [74.125.245.111])
-	by kanga.kvack.org (Postfix) with SMTP id E2A5E6B0092
-	for <linux-mm@kvack.org>; Thu, 19 Apr 2012 13:47:29 -0400 (EDT)
-Received: by lagz14 with SMTP id z14so8883226lag.14
-        for <linux-mm@kvack.org>; Thu, 19 Apr 2012 10:47:28 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx158.postini.com [74.125.245.158])
+	by kanga.kvack.org (Postfix) with SMTP id E4CD96B004D
+	for <linux-mm@kvack.org>; Thu, 19 Apr 2012 14:31:33 -0400 (EDT)
+Date: Thu, 19 Apr 2012 14:31:18 -0400
+From: Vivek Goyal <vgoyal@redhat.com>
+Subject: Re: [RFC] writeback and cgroup
+Message-ID: <20120419183118.GM10216@redhat.com>
+References: <20120403183655.GA23106@dhcp-172-17-108-109.mtv.corp.google.com>
+ <20120404175124.GA8931@localhost>
+ <20120404193355.GD29686@dhcp-172-17-108-109.mtv.corp.google.com>
+ <20120406095934.GA10465@localhost>
+ <20120417223854.GG19975@google.com>
+ <20120419142343.GA12684@localhost>
 MIME-Version: 1.0
-In-Reply-To: <20120419170434.GE15634@tiehlicka.suse.cz>
-References: <1334680666-12361-1-git-send-email-yinghan@google.com>
-	<20120418122448.GB1771@cmpxchg.org>
-	<CALWz4iz_17fQa=EfT2KqvJUGyHQFc5v9r+7b947yMbocC9rrjA@mail.gmail.com>
-	<20120419170434.GE15634@tiehlicka.suse.cz>
-Date: Thu, 19 Apr 2012 10:47:27 -0700
-Message-ID: <CALWz4iw156qErZn0gGUUatUTisy_6uF_5mrY0kXt1W89hvVjRw@mail.gmail.com>
-Subject: Re: [PATCH V3 0/2] memcg softlimit reclaim rework
-From: Ying Han <yinghan@google.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20120419142343.GA12684@localhost>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mel@csn.ul.ie>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Hillf Danton <dhillf@gmail.com>, Hugh Dickins <hughd@google.com>, Dan Magenheimer <dan.magenheimer@oracle.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
+To: Fengguang Wu <fengguang.wu@intel.com>
+Cc: Tejun Heo <tj@kernel.org>, Jan Kara <jack@suse.cz>, Jens Axboe <axboe@kernel.dk>, linux-mm@kvack.org, sjayaraman@suse.com, andrea@betterlinux.com, jmoyer@redhat.com, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, lizefan@huawei.com, containers@lists.linux-foundation.org, cgroups@vger.kernel.org, ctalbott@google.com, rni@google.com, lsf@lists.linux-foundation.org
 
-On Thu, Apr 19, 2012 at 10:04 AM, Michal Hocko <mhocko@suse.cz> wrote:
-> On Wed 18-04-12 11:00:40, Ying Han wrote:
->> On Wed, Apr 18, 2012 at 5:24 AM, Johannes Weiner <hannes@cmpxchg.org> wr=
-ote:
->> > On Tue, Apr 17, 2012 at 09:37:46AM -0700, Ying Han wrote:
->> >> The "soft_limit" was introduced in memcg to support over-committing t=
-he
->> >> memory resource on the host. Each cgroup configures its "hard_limit" =
-where
->> >> it will be throttled or OOM killed by going over the limit. However, =
-the
->> >> cgroup can go above the "soft_limit" as long as there is no system-wi=
-de
->> >> memory contention. So, the "soft_limit" is the kernel mechanism for
->> >> re-distributing system spare memory among cgroups.
->> >>
->> >> This patch reworks the softlimit reclaim by hooking it into the new g=
-lobal
->> >> reclaim scheme. So the global reclaim path including direct reclaim a=
-nd
->> >> background reclaim will respect the memcg softlimit.
->> >>
->> >> v3..v2:
->> >> 1. rebase the patch on 3.4-rc3
->> >> 2. squash the commits of replacing the old implementation with new
->> >> implementation into one commit. This is to make sure to leave the tre=
-e
->> >> in stable state between each commit.
->> >> 3. removed the commit which changes the nr_to_reclaim for global recl=
-aim
->> >> case. The need of that patch is not obvious now.
->> >>
->> >> Note:
->> >> 1. the new implementation of softlimit reclaim is rather simple and f=
-irst
->> >> step for further optimizations. there is no memory pressure balancing=
- between
->> >> memcgs for each zone, and that is something we would like to add as f=
-ollow-ups.
->> >>
->> >> 2. this patch is slightly different from the last one posted from Joh=
-annes
->> >> http://comments.gmane.org/gmane.linux.kernel.mm/72382
->> >> where his patch is closer to the reverted implementation by doing hie=
-rarchical
->> >> reclaim for each selected memcg. However, that is not expected behavi=
-or from
->> >> user perspective. Considering the following example:
->> >>
->> >> root (32G capacity)
->> >> --> A (hard limit 20G, soft limit 15G, usage 16G)
->> >> =A0 =A0--> A1 (soft limit 5G, usage 4G)
->> >> =A0 =A0--> A2 (soft limit 10G, usage 12G)
->> >> --> B (hard limit 20G, soft limit 10G, usage 16G)
->> >>
->> >> Under global reclaim, we shouldn't add pressure on A1 although its pa=
-rent(A)
->> >> exceeds softlimit. This is what admin expects by setting softlimit to=
- the
->> >> actual working set size and only reclaim pages under softlimit if sys=
-tem has
->> >> trouble to reclaim.
->> >
->> > Actually, this is exactly what the admin expects when creating a
->> > hierarchy, because she defines that A1 is a child of A and is
->> > responsible for the memory situation in its parent.
->
-> Hmm, I guess that both approaches have cons and pros.
-> * Hierarchical soft limit reclaim - reclaim the whole subtree of the over
-> =A0soft limit memcg
-> =A0+ it is consistent with the hard limit reclaim
-Not sure why we want them to be consistent. Soft_limit is serving
-different purpose and the one of the main purpose is to preserve the
-working set of the cgroup.
+On Thu, Apr 19, 2012 at 10:23:43PM +0800, Fengguang Wu wrote:
 
-> =A0+ easier for top to bottom configuration - especially when you allow
-> =A0 =A0subgroups to create deeper hierarchies. Does anybody do that?
+Hi Fengguang,
 
-As far as I heard, most (if not all) are using flat configuration
-where everything is running under root.
+[..]
+> > I don't know.  What problems?  AFAICS, the biggest issue is writeback
+> > of different inodes getting mixed resulting in poor performance, but
+> > if you think about it, that's about the frequency of switching cgroups
+> > and a problem which can and should be dealt with from block layer
+> > (e.g. use larger time slice if all the pending IOs are async).
+> 
+> Yeah increasing time slice would help that case. In general it's not
+> merely the frequency of switching cgroup if take hard disk' writeback
+> cache into account.  Think about some inodes with async IO: A1, A2,
+> A3, .., and inodes with sync IO: D1, D2, D3, ..., all from different
+> cgroups. So when the root cgroup holds all async inodes, the cfq may
+> schedule IO interleavely like this
+> 
+>         A1,    A1,    A1,    A2,    A1,    A2,    ...
+>            D1,    D2,    D3,    D4,    D5,    D6, ...
+> 
+> Now it becomes
+> 
+>         A1,    A2,    A3,    A4,    A5,    A6,    ...
+>            D1,    D2,    D3,    D4,    D5,    D6, ...
+> 
+> The difference is that it's now switching the async inodes each time.
+> At cfq level, the seek costs look the same, however the disk's
+> writeback cache may help merge the data chunks from the same inode A1.
+> Well, it may cost some latency for spin disks. But how about SSD? It
+> can run deeper queue and benefit from large writes.
 
-> =A0- harder to set up if soft limit should act as a guarantee - might lea=
-d
-> =A0 =A0to an unexpected reclaim.
->
-> * Targeted soft limit reclaim - only reclaim LRUs of over limit memcgs
-> =A0+ easier to set up for the working set guarantee because admin can foc=
-us
-> =A0 =A0on the working set of a single group and not the whole hierarchy
-This is true.
+Not sure what's the point here. Many things seem to be mixed up.
 
-> =A0- easier to construct soft unreclaimable hierarchies - whole subtree
-> =A0 =A0contributes but nobody wants to take the responsibility when we re=
-ach
-> =A0 =A0the limit.
->
-> Both approaches don't play very well with the default 0 limit because we
-> either reclaim unless we set up the whole hierarchy properly or we just
-> burn cycles by trying to reclaim groups wit no or only few pages.
+If we start putting async queues in separate groups (in an attempt to
+provide fairness/service differentiation), then how much IO we dispatch
+from one async inode will directly depend on slice time of that
+cgroup/queue. So if you want longer dispatch from same async inode
+increasing slice time will help.
 
-Setting the default to 0 is a good optimization which makes everybody
-to be eligible for reclaim if admin doesn't do anything.
+Also elevator merge logic anyway increses the size of async IO requests
+and big requests are submitted to device.
 
-In reality, if admin want to preserve working set of cgroups and
-he/she has to set the softlimit. By doing that, it is easier to only
-focus on the cgroup itself without looking up its ancestors.
+If you are looking that in every dispatch cycle we continue to dispatch
+request from same inode, yes that's not possible. Too huge a slice length
+in presence of sync IO is also not good. So if you are looking for
+high throughput and sacrificing fairness then you can switch to mode
+where all async queues are put in single root group. (Note: you will have
+to do reasonably fast switch between cgroups so that all the cgroups are
+able to do some writeout in a time window).
 
-> The second approach leads to more expected results though because we do
-> not touch "leaf" groups unless they are over limit.
-> I have to think about that some more but it seems that the second approac=
-h
-> is much easier to implement and matches the "guarantee" expectations
-> more.
+Writeback logic also submits a certain amount of writes from one inode
+and then switches to next inode in an attempt to provide fairness. Same
+thing should be directly controllable by CFQ's notion of time slice. That
+is continue to dispatch async IO from a cgroup/inode for extended durtaion
+before switching. So what's the difference. One can achieve equivalent
+behavior at any layer (writeback/CFQ).
 
-Agree.
+> 
+> > Writeback's duty is generating stream of async writes which can be
+> > served efficiently for the *cgroup* and keeping the buffer filled as
+> > necessary and chaining the backpressure from there to the actual
+> > dirtier.  That's what writeback does without cgroup.  Nothing
+> > fundamental changes with cgroup.  It's just finer grained.
+> 
+> Believe me, physically partitioning the dirty pages and async IO
+> streams comes at big costs. It won't scale well in many ways.
+> 
+> For one instance, splitting the request queues will give rise to
+> PG_writeback pages.  Those pages have been the biggest source of
+> latency issues in the various parts of the system.
 
-> I guess we could converge both approaches if we could reclaim from the
-> leaf groups upwards to the root but I didn't think about this very much.
+So PG_writeback pages are one which have been submitted for IO? So even
+now we generate PG_writeback pages across multiple inodes as we submit
+those pages for IO. By keeping the number of request descriptor per
+group low, we can build back pressure early and hence per inode/group
+we will not have too many PG_Writeback pages. IOW, number of PG_Writeback
+pages will be controllable by number of request descriptros. So how
+does situation becomes worse in case of CFQ putting them in separate
+cgroups?
 
-That is what the current patch does, which only consider softlimit
-under global pressure :)
+> It's worth to note that running multiple flusher threads per bdi means
+> not only disk seeks for spin disks, smaller IO size for SSD, but also
+> lock contentions and cache bouncing for metadata heavy workloads and
+> fast storage.
 
---Ying
->
-> [...]
-> --
-> Michal Hocko
-> SUSE Labs
-> SUSE LINUX s.r.o.
-> Lihovarska 1060/12
-> 190 00 Praha 9
-> Czech Republic
+But we could still have single flusher per bdi and just check the
+write congestion state of each group and back off if it is congested.
+
+So single thread will still be doing IO submission. Just that it will
+submit IO from multiple inodes/cgroup which can cause additional seeks.
+And that's the tradeoff of fairness. What I am not able to understand
+is that how are you avoiding this tradeoff by implementing things in
+writeback layer. To achieve more fairness among groups, even a flusher
+thread will have to switch faster among cgroups/inodes.
+
+Thanks
+Vivek
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
