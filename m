@@ -1,53 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx199.postini.com [74.125.245.199])
-	by kanga.kvack.org (Postfix) with SMTP id 0EACC6B004D
-	for <linux-mm@kvack.org>; Thu, 19 Apr 2012 06:20:38 -0400 (EDT)
-Date: Thu, 19 Apr 2012 12:20:32 +0200
+Received: from psmtp.com (na3sys010amx153.postini.com [74.125.245.153])
+	by kanga.kvack.org (Postfix) with SMTP id DAD6C6B004D
+	for <linux-mm@kvack.org>; Thu, 19 Apr 2012 08:50:35 -0400 (EDT)
+Date: Thu, 19 Apr 2012 14:50:33 +0200
 From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH] memcg: fix Bad page state after replace_page_cache
-Message-ID: <20120419102031.GA15634@tiehlicka.suse.cz>
-References: <alpine.LSU.2.00.1204182325350.3700@eggly.anvils>
+Subject: Re: Weirdness in __alloc_bootmem_node_high
+Message-ID: <20120419125032.GB15634@tiehlicka.suse.cz>
+References: <20120417155502.GE22687@tiehlicka.suse.cz>
+ <CAE9FiQXWKzv7Wo4iWGrKapmxQYtAGezghwup1UKoW2ghqUSr+A@mail.gmail.com>
+ <20120417173203.GA32482@tiehlicka.suse.cz>
+ <CAE9FiQXvZ4eSCwMSG2H7CC6suQe37TmQpmOEKW_082W3zz-6Fw@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <alpine.LSU.2.00.1204182325350.3700@eggly.anvils>
+In-Reply-To: <CAE9FiQXvZ4eSCwMSG2H7CC6suQe37TmQpmOEKW_082W3zz-6Fw@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Miklos Szeredi <mszeredi@suse.cz>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Yinghai Lu <yinghai@kernel.org>
+Cc: linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-On Wed 18-04-12 23:34:46, Hugh Dickins wrote:
-> My 9ce70c0240d0 "memcg: fix deadlock by inverting lrucare nesting" put a
-> nasty little bug into v3.3's version of mem_cgroup_replace_page_cache(),
-> sometimes used for FUSE.  Replacing __mem_cgroup_commit_charge_lrucare()
-> by __mem_cgroup_commit_charge(), I used the "pc" pointer set up earlier:
-> but it's for oldpage, and needs now to be for newpage.  Once oldpage was
-> freed, its PageCgroupUsed bit (cleared above but set again here) caused
-> "Bad page state" messages - and perhaps worse, being missed from newpage.
-> (I didn't find this by using FUSE, but in reusing the function for tmpfs.)
+On Tue 17-04-12 11:07:10, Yinghai Lu wrote:
+> On Tue, Apr 17, 2012 at 10:32 AM, Michal Hocko <mhocko@suse.cz> wrote:
+> > On Tue 17-04-12 10:12:30, Yinghai Lu wrote:
+> >>
+> >> We are not using bootmem with x86 now, so could remove those workaround now.
+> >
+> > Could you be more specific about what the workaround is used for?
 > 
-> Signed-off-by: Hugh Dickins <hughd@google.com>
+> Don't bootmem allocating too low to use up all low memory. like for
+> system with lots of memory for sparse vmemmap.
 
-Acked-by: Michal Hocko <mhocko@suse.cz>
+OK I see. Thanks for clarification.
+I guess it doesn't make much sense to fix this particular thing now and
+rather let it to a bigger clean up. If people think otherwise I can send
+a patch though.
 
-Thanks
 
-> Cc: stable@vger.kernel.org [v3.3 only]
-> ---
 > 
->  mm/memcontrol.c |    1 +
->  1 file changed, 1 insertion(+)
+> when nobootmem.c is used, __alloc_bootmem_node_high is the same as
+> __alloc_bootmem_node.
 > 
-> --- 3.4-rc3/mm/memcontrol.c	2012-04-15 20:47:37.151777506 -0700
-> +++ linux/mm/memcontrol.c	2012-04-18 22:29:18.490639511 -0700
-> @@ -3392,6 +3392,7 @@ void mem_cgroup_replace_page_cache(struc
->  	 * the newpage may be on LRU(or pagevec for LRU) already. We lock
->  	 * LRU while we overwrite pc->mem_cgroup.
->  	 */
-> +	pc = lookup_page_cgroup(newpage);
->  	__mem_cgroup_commit_charge(memcg, newpage, 1, pc, type, true);
->  }
->  
+> Thanks
+> 
+> Yinghai
 > 
 > --
 > To unsubscribe, send a message with 'unsubscribe linux-mm' in
