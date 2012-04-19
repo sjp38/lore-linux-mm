@@ -1,57 +1,37 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx175.postini.com [74.125.245.175])
-	by kanga.kvack.org (Postfix) with SMTP id CD88F6B004D
-	for <linux-mm@kvack.org>; Thu, 19 Apr 2012 04:55:20 -0400 (EDT)
-Received: by pbcup15 with SMTP id up15so12595120pbc.14
-        for <linux-mm@kvack.org>; Thu, 19 Apr 2012 01:55:20 -0700 (PDT)
-From: Sha Zhengju <handai.szj@gmail.com>
-Subject: [PATCH RESEND] memcg: Free spare array to avoid memory leak
-Date: Thu, 19 Apr 2012 16:54:50 +0800
-Message-Id: <1334825690-9065-1-git-send-email-handai.szj@taobao.com>
+Received: from psmtp.com (na3sys010amx188.postini.com [74.125.245.188])
+	by kanga.kvack.org (Postfix) with SMTP id 7D4F66B004D
+	for <linux-mm@kvack.org>; Thu, 19 Apr 2012 05:19:27 -0400 (EDT)
+Date: Thu, 19 Apr 2012 10:19:17 +0100
+From: Catalin Marinas <catalin.marinas@arm.com>
+Subject: Re: [PATCH] kmemleak: do not leak object after tree insertion
+ error (v3)
+Message-ID: <20120419091917.GA23597@arm.com>
+References: <20120418154448.GA3617@swordfish.minsk.epam.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20120418154448.GA3617@swordfish.minsk.epam.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org, linux-kernel@vger.kernel.org
-Cc: linux-mm@kvack.org, cgroups@vger.kernel.org, Sha Zhengju <handai.szj@taobao.com>
+To: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 
-From: Sha Zhengju <handai.szj@taobao.com>
+On Wed, Apr 18, 2012 at 04:44:48PM +0100, Sergey Senozhatsky wrote:
+>  [PATCH] kmemleak: do not leak object after tree insertion error
+> 
+>  In case when tree insertion fails due to already existing object
+>  error, pointer to allocated object gets lost because of overwrite
+>  with lookup_object() return. Free allocated object before object
+>  lookup. 
+> 
+>  Signed-off-by: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
 
-When the last event is unregistered, there is no need to keep the spare
-array anymore. So free it to avoid memory leak.
+Thanks. I applied it to my kmemleak branch and I'll send it to Linus at
+some point (during the next merging window).
 
-Signed-off-by: Sha Zhengju <handai.szj@taobao.com>
-Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Reviewed-by: Kirill A. Shutemov <kirill@shutemov.name>
-
----
-Hi, Andrew
-
-This patch has been reviewed days ago. Do you have any comments about it?
-
-Thanks,
-Sha
- 
- mm/memcontrol.c |    6 ++++++
- 1 files changed, 6 insertions(+), 0 deletions(-)
-
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 22d94f5..3c09a84 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -4412,6 +4412,12 @@ static void mem_cgroup_usage_unregister_event(struct cgroup *cgrp,
- swap_buffers:
- 	/* Swap primary and spare array */
- 	thresholds->spare = thresholds->primary;
-+	/* If all events are unregistered, free the spare array */
-+	if (!new) {
-+		kfree(thresholds->spare);
-+		thresholds->spare = NULL;
-+	}
-+
- 	rcu_assign_pointer(thresholds->primary, new);
- 
- 	/* To be sure that nobody uses thresholds */
 -- 
-1.7.4.1
+Catalin
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
