@@ -1,37 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx188.postini.com [74.125.245.188])
-	by kanga.kvack.org (Postfix) with SMTP id 7D4F66B004D
-	for <linux-mm@kvack.org>; Thu, 19 Apr 2012 05:19:27 -0400 (EDT)
-Date: Thu, 19 Apr 2012 10:19:17 +0100
-From: Catalin Marinas <catalin.marinas@arm.com>
-Subject: Re: [PATCH] kmemleak: do not leak object after tree insertion
- error (v3)
-Message-ID: <20120419091917.GA23597@arm.com>
-References: <20120418154448.GA3617@swordfish.minsk.epam.com>
+Received: from psmtp.com (na3sys010amx199.postini.com [74.125.245.199])
+	by kanga.kvack.org (Postfix) with SMTP id 0EACC6B004D
+	for <linux-mm@kvack.org>; Thu, 19 Apr 2012 06:20:38 -0400 (EDT)
+Date: Thu, 19 Apr 2012 12:20:32 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH] memcg: fix Bad page state after replace_page_cache
+Message-ID: <20120419102031.GA15634@tiehlicka.suse.cz>
+References: <alpine.LSU.2.00.1204182325350.3700@eggly.anvils>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20120418154448.GA3617@swordfish.minsk.epam.com>
+In-Reply-To: <alpine.LSU.2.00.1204182325350.3700@eggly.anvils>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: Hugh Dickins <hughd@google.com>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Miklos Szeredi <mszeredi@suse.cz>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Wed, Apr 18, 2012 at 04:44:48PM +0100, Sergey Senozhatsky wrote:
->  [PATCH] kmemleak: do not leak object after tree insertion error
+On Wed 18-04-12 23:34:46, Hugh Dickins wrote:
+> My 9ce70c0240d0 "memcg: fix deadlock by inverting lrucare nesting" put a
+> nasty little bug into v3.3's version of mem_cgroup_replace_page_cache(),
+> sometimes used for FUSE.  Replacing __mem_cgroup_commit_charge_lrucare()
+> by __mem_cgroup_commit_charge(), I used the "pc" pointer set up earlier:
+> but it's for oldpage, and needs now to be for newpage.  Once oldpage was
+> freed, its PageCgroupUsed bit (cleared above but set again here) caused
+> "Bad page state" messages - and perhaps worse, being missed from newpage.
+> (I didn't find this by using FUSE, but in reusing the function for tmpfs.)
 > 
->  In case when tree insertion fails due to already existing object
->  error, pointer to allocated object gets lost because of overwrite
->  with lookup_object() return. Free allocated object before object
->  lookup. 
-> 
->  Signed-off-by: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+> Signed-off-by: Hugh Dickins <hughd@google.com>
 
-Thanks. I applied it to my kmemleak branch and I'll send it to Linus at
-some point (during the next merging window).
+Acked-by: Michal Hocko <mhocko@suse.cz>
+
+Thanks
+
+> Cc: stable@vger.kernel.org [v3.3 only]
+> ---
+> 
+>  mm/memcontrol.c |    1 +
+>  1 file changed, 1 insertion(+)
+> 
+> --- 3.4-rc3/mm/memcontrol.c	2012-04-15 20:47:37.151777506 -0700
+> +++ linux/mm/memcontrol.c	2012-04-18 22:29:18.490639511 -0700
+> @@ -3392,6 +3392,7 @@ void mem_cgroup_replace_page_cache(struc
+>  	 * the newpage may be on LRU(or pagevec for LRU) already. We lock
+>  	 * LRU while we overwrite pc->mem_cgroup.
+>  	 */
+> +	pc = lookup_page_cgroup(newpage);
+>  	__mem_cgroup_commit_charge(memcg, newpage, 1, pc, type, true);
+>  }
+>  
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Fight unfair telecom internet charges in Canada: sign http://stopthemeter.ca/
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 -- 
-Catalin
+Michal Hocko
+SUSE Labs
+SUSE LINUX s.r.o.
+Lihovarska 1060/12
+190 00 Praha 9    
+Czech Republic
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
