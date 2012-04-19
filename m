@@ -1,63 +1,114 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx153.postini.com [74.125.245.153])
-	by kanga.kvack.org (Postfix) with SMTP id DAD6C6B004D
-	for <linux-mm@kvack.org>; Thu, 19 Apr 2012 08:50:35 -0400 (EDT)
-Date: Thu, 19 Apr 2012 14:50:33 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: Weirdness in __alloc_bootmem_node_high
-Message-ID: <20120419125032.GB15634@tiehlicka.suse.cz>
-References: <20120417155502.GE22687@tiehlicka.suse.cz>
- <CAE9FiQXWKzv7Wo4iWGrKapmxQYtAGezghwup1UKoW2ghqUSr+A@mail.gmail.com>
- <20120417173203.GA32482@tiehlicka.suse.cz>
- <CAE9FiQXvZ4eSCwMSG2H7CC6suQe37TmQpmOEKW_082W3zz-6Fw@mail.gmail.com>
+Received: from psmtp.com (na3sys010amx194.postini.com [74.125.245.194])
+	by kanga.kvack.org (Postfix) with SMTP id 496396B004D
+	for <linux-mm@kvack.org>; Thu, 19 Apr 2012 09:12:57 -0400 (EDT)
+Date: Thu, 19 Apr 2012 15:12:11 +0200
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH V2] memcg: add mlock statistic in memory.stat
+Message-ID: <20120419131211.GA1759@cmpxchg.org>
+References: <1334773315-32215-1-git-send-email-yinghan@google.com>
+ <20120418163330.ca1518c7.akpm@linux-foundation.org>
+ <4F8F6368.2090005@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CAE9FiQXvZ4eSCwMSG2H7CC6suQe37TmQpmOEKW_082W3zz-6Fw@mail.gmail.com>
+In-Reply-To: <4F8F6368.2090005@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Yinghai Lu <yinghai@kernel.org>
-Cc: linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Ying Han <yinghan@google.com>, Michal Hocko <mhocko@suse.cz>, Mel Gorman <mel@csn.ul.ie>, Rik van Riel <riel@redhat.com>, Hillf Danton <dhillf@gmail.com>, Hugh Dickins <hughd@google.com>, Dan Magenheimer <dan.magenheimer@oracle.com>, linux-mm@kvack.org
 
-On Tue 17-04-12 11:07:10, Yinghai Lu wrote:
-> On Tue, Apr 17, 2012 at 10:32 AM, Michal Hocko <mhocko@suse.cz> wrote:
-> > On Tue 17-04-12 10:12:30, Yinghai Lu wrote:
-> >>
-> >> We are not using bootmem with x86 now, so could remove those workaround now.
-> >
-> > Could you be more specific about what the workaround is used for?
+On Thu, Apr 19, 2012 at 09:59:20AM +0900, KAMEZAWA Hiroyuki wrote:
+> (2012/04/19 8:33), Andrew Morton wrote:
 > 
-> Don't bootmem allocating too low to use up all low memory. like for
-> system with lots of memory for sparse vmemmap.
+> > On Wed, 18 Apr 2012 11:21:55 -0700
+> > Ying Han <yinghan@google.com> wrote:
+> >>  static void __free_pages_ok(struct page *page, unsigned int order)
+> >>  {
+> >>  	unsigned long flags;
+> >> -	int wasMlocked = __TestClearPageMlocked(page);
+> >> +	bool locked;
+> >>  
+> >>  	if (!free_pages_prepare(page, order))
+> >>  		return;
+> >>  
+> >>  	local_irq_save(flags);
+> >> -	if (unlikely(wasMlocked))
+> >> +	mem_cgroup_begin_update_page_stat(page, &locked, &flags);
+> > 
+> > hm, what's going on here.  The page now has a zero refcount and is to
+> > be returned to the buddy.  But mem_cgroup_begin_update_page_stat()
+> > assumes that the page still belongs to a memcg.  I'd have thought that
+> > any page_cgroup backreferences would have been torn down by now?
+> > 
+> >> +	if (unlikely(__TestClearPageMlocked(page)))
+> >>  		free_page_mlock(page);
+> > 
+> 
+> 
+> Ah, this is problem. Now, we have following code.
+> ==
+> 
+> > struct lruvec *mem_cgroup_lru_add_list(struct zone *zone, struct page *page,
+> >                                        enum lru_list lru)
+> > {
+> >         struct mem_cgroup_per_zone *mz;
+> >         struct mem_cgroup *memcg;
+> >         struct page_cgroup *pc;
+> > 
+> >         if (mem_cgroup_disabled())
+> >                 return &zone->lruvec;
+> > 
+> >         pc = lookup_page_cgroup(page);
+> >         memcg = pc->mem_cgroup;
+> > 
+> >         /*
+> >          * Surreptitiously switch any uncharged page to root:
+> >          * an uncharged page off lru does nothing to secure
+> >          * its former mem_cgroup from sudden removal.
+> >          *
+> >          * Our caller holds lru_lock, and PageCgroupUsed is updated
+> >          * under page_cgroup lock: between them, they make all uses
+> >          * of pc->mem_cgroup safe.
+> >          */
+> >         if (!PageCgroupUsed(pc) && memcg != root_mem_cgroup)
+> >                 pc->mem_cgroup = memcg = root_mem_cgroup;
+> 
+> ==
+> 
+> Then, accessing pc->mem_cgroup without checking PCG_USED bit is dangerous.
+> It may trigger #GP because of suddern removal of memcg or because of above
+> code, mis-accounting will happen... pc->mem_cgroup may be overwritten already.
+>
+> Proposal from me is calling TestClearPageMlocked(page) via mem_cgroup_uncharge().
+> 
+> Like this.
+> ==
+>         mem_cgroup_charge_statistics(memcg, anon, -nr_pages);
+> 
+> 	/*
+>          * Pages reach here when it's fully unmapped or dropped from file cache.
+> 	 * we are under lock_page_cgroup() and have no race with memcg activities.
+>          */
+> 	if (unlikely(PageMlocked(page))) {
+> 		if (TestClearPageMlocked())
+> 			decrement counter.
+> 	}
+> 
+>         ClearPageCgroupUsed(pc);
+> ==
+> But please check performance impact...
 
-OK I see. Thanks for clarification.
-I guess it doesn't make much sense to fix this particular thing now and
-rather let it to a bigger clean up. If people think otherwise I can send
-a patch though.
+This makes the lifetime rules of mlocked anon really weird.
 
+Plus this code runs for ALL uncharges, the unlikely() and preliminary
+flag testing don't make it okay.  It's bad that we have this in the
+allocator, but at least it would be good to hook into that branch and
+not add another one.
 
-> 
-> when nobootmem.c is used, __alloc_bootmem_node_high is the same as
-> __alloc_bootmem_node.
-> 
-> Thanks
-> 
-> Yinghai
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Fight unfair telecom internet charges in Canada: sign http://stopthemeter.ca/
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-
--- 
-Michal Hocko
-SUSE Labs
-SUSE LINUX s.r.o.
-Lihovarska 1060/12
-190 00 Praha 9    
-Czech Republic
+pc->mem_cgroup stays intact after the uncharge.  Could we make the
+memcg removal path wait on the mlock counter to drop to zero instead
+and otherwise keep Ying's version?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
