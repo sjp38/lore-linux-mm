@@ -1,46 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx139.postini.com [74.125.245.139])
-	by kanga.kvack.org (Postfix) with SMTP id EB88A6B004D
-	for <linux-mm@kvack.org>; Fri, 20 Apr 2012 16:37:04 -0400 (EDT)
-Message-ID: <4F91C8EA.9060708@parallels.com>
-Date: Sat, 21 Apr 2012 00:36:58 +0400
-From: Pavel Emelyanov <xemul@parallels.com>
+Received: from psmtp.com (na3sys010amx104.postini.com [74.125.245.104])
+	by kanga.kvack.org (Postfix) with SMTP id 337316B004D
+	for <linux-mm@kvack.org>; Fri, 20 Apr 2012 16:42:09 -0400 (EDT)
+Date: Fri, 20 Apr 2012 22:41:29 +0200
+From: Oleg Nesterov <oleg@redhat.com>
+Subject: Re: [PATCH 1/2] mm: set task exit code before complete_vfork_done()
+Message-ID: <20120420204129.GA8034@redhat.com>
+References: <20120409200336.8368.63793.stgit@zurg> <20120412080948.26401.23572.stgit@zurg> <20120412235446.GA4815@redhat.com> <20120420175934.GA31905@redhat.com> <4F91B7AF.8040203@openvz.org>
 MIME-Version: 1.0
-Subject: Re: [PATCH] proc: Report PageAnon in last left bit of /proc/pid/pagemap
-References: <4F91BC8A.9020503@parallels.com> <4F91C7E7.8060300@redhat.com>
-In-Reply-To: <4F91C7E7.8060300@redhat.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <4F91B7AF.8040203@openvz.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rik van Riel <riel@redhat.com>
-Cc: Linux MM <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>
+To: Konstantin Khlebnikov <khlebnikov@openvz.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Markus Trippelsdorf <markus@trippelsdorf.de>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-On 04/21/2012 12:32 AM, Rik van Riel wrote:
-> On 04/20/2012 03:44 PM, Pavel Emelyanov wrote:
-> 
->> Andrew noticed, that the proc pagemap file solved 2 of 3 above issues -- it
->> reports whether a page is present or swapped and it doesn't report not
->> mapped page cache pages. But, it doesn't distinguish cow-ed file pages from
->> not cow-ed.
+On 04/20, Konstantin Khlebnikov wrote:
+>
+> Oleg Nesterov wrote:
 >>
->> I would like to make the last unused bit in this file to report whether the
->> page mapped into respective pte is PageAnon or not.
+>> 	/* sync mm's RSS info before statistics gathering */
+>> 	if (tsk->mm)
+>> 		sync_mm_rss(tsk->mm);
 >>
->> Signed-off-by: Pavel Emelyanov<xemul@openvz.org>
-> 
-> Looks reasonable to me. I see you also report "special" pages
-> as file pages, but since those cannot be migrated anyway that
-> should be ok.
+>> Which "statistics gathering" ? Probably I missed something, but
+>> after the quick grep it seems to me that this is only needed for
+>> taskstats_exit()->xacct_add_tsk().
+>>
+>> So why we can't simply add sync_mm_rss() into xacct_add_tsk() ?
+>
+>> Yes, this way we do not "account" put_user(clear_child_tid) but
+>> I think we do not care.
+>
+> Why we don't care? Each thread can corrupt these counters by one.
+> I do not think that we are satisfied with nearly accurate rss accounting.
+> +/- one page for each clone()-exit().
 
-Yes, and all the anon-shared pages happen to be PM_FILE too :) But they can be
-filtered with vma flags/prot, so I hoped it's OK to do it that way for simplicity.
+Not actually "for each" in practice. Each exit does sync_ (with
+this patch from xacct_add_tsk), the net effect should be small.
 
-> Acked-by: Rik van Riel <riel@redhat.com>
-> 
+And. This is what we do now, nobody ever complained.
 
-Thanks,
-Pavel
+>> IOW, what do you think about the trivial patch below? Uncompiled,
+>> untested, probably incomplete. acct_update_integrals() looks
+>> suspicious too.
+>
+> what a mess! =)
+
+Thanks ;)
+
+But it is much, much simpler than your patches, don't you agree?
+
+Oleg.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
