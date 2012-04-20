@@ -1,78 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx128.postini.com [74.125.245.128])
-	by kanga.kvack.org (Postfix) with SMTP id 3084D6B00EA
-	for <linux-mm@kvack.org>; Fri, 20 Apr 2012 17:50:16 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx118.postini.com [74.125.245.118])
+	by kanga.kvack.org (Postfix) with SMTP id D32E16B00EB
+	for <linux-mm@kvack.org>; Fri, 20 Apr 2012 17:50:29 -0400 (EDT)
 From: Glauber Costa <glommer@parallels.com>
-Subject: [PATCH 03/23] slab: rename gfpflags to allocflags
-Date: Fri, 20 Apr 2012 18:49:00 -0300
-Message-Id: <1334958560-18076-4-git-send-email-glommer@parallels.com>
+Subject: [PATCH 04/23] memcg: Make it possible to use the stock for more than one page.
+Date: Fri, 20 Apr 2012 18:49:01 -0300
+Message-Id: <1334958560-18076-5-git-send-email-glommer@parallels.com>
 In-Reply-To: <1334958560-18076-1-git-send-email-glommer@parallels.com>
 References: <1334958560-18076-1-git-send-email-glommer@parallels.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: cgroups@vger.kernel.org
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, devel@openvz.org, kamezawa.hiroyu@jp.fujitsu.com, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Frederic Weisbecker <fweisbec@gmail.com>, Greg Thelen <gthelen@google.com>, Suleiman Souhlal <suleiman@google.com>, Glauber Costa <glommer@parallels.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, devel@openvz.org, kamezawa.hiroyu@jp.fujitsu.com, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Frederic Weisbecker <fweisbec@gmail.com>, Greg Thelen <gthelen@google.com>, Suleiman Souhlal <suleiman@google.com>, Suleiman Souhlal <ssouhlal@FreeBSD.org>
 
-A consistent name with slub saves us an acessor function.
-In both caches, this field represents the same thing. We would
-like to use it from the mem_cgroup code.
+From: Suleiman Souhlal <ssouhlal@FreeBSD.org>
 
-Signed-off-by: Glauber Costa <glommer@parallels.com>
+Signed-off-by: Suleiman Souhlal <suleiman@google.com>
 ---
- include/linux/slab_def.h |    2 +-
- mm/slab.c                |   10 +++++-----
- 2 files changed, 6 insertions(+), 6 deletions(-)
+ mm/memcontrol.c |   18 +++++++++---------
+ 1 files changed, 9 insertions(+), 9 deletions(-)
 
-diff --git a/include/linux/slab_def.h b/include/linux/slab_def.h
-index fbd1117..d41effe 100644
---- a/include/linux/slab_def.h
-+++ b/include/linux/slab_def.h
-@@ -39,7 +39,7 @@ struct kmem_cache {
- 	unsigned int gfporder;
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index 932a734..4b94b2d 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -1998,19 +1998,19 @@ static DEFINE_PER_CPU(struct memcg_stock_pcp, memcg_stock);
+ static DEFINE_MUTEX(percpu_charge_mutex);
  
- 	/* force GFP flags, e.g. GFP_DMA */
--	gfp_t gfpflags;
-+	gfp_t allocflags;
- 
- 	size_t colour;			/* cache colouring range */
- 	unsigned int colour_off;	/* colour offset */
-diff --git a/mm/slab.c b/mm/slab.c
-index e901a36..c6e5ab8 100644
---- a/mm/slab.c
-+++ b/mm/slab.c
-@@ -1798,7 +1798,7 @@ static void *kmem_getpages(struct kmem_cache *cachep, gfp_t flags, int nodeid)
- 	flags |= __GFP_COMP;
- #endif
- 
--	flags |= cachep->gfpflags;
-+	flags |= cachep->allocflags;
- 	if (cachep->flags & SLAB_RECLAIM_ACCOUNT)
- 		flags |= __GFP_RECLAIMABLE;
- 
-@@ -2508,9 +2508,9 @@ kmem_cache_create (const char *name, size_t size, size_t align,
- 	cachep->colour = left_over / cachep->colour_off;
- 	cachep->slab_size = slab_size;
- 	cachep->flags = flags;
--	cachep->gfpflags = 0;
-+	cachep->allocflags = 0;
- 	if (CONFIG_ZONE_DMA_FLAG && (flags & SLAB_CACHE_DMA))
--		cachep->gfpflags |= GFP_DMA;
-+		cachep->allocflags |= GFP_DMA;
- 	cachep->buffer_size = size;
- 	cachep->reciprocal_buffer_size = reciprocal_value(size);
- 
-@@ -2857,9 +2857,9 @@ static void kmem_flagcheck(struct kmem_cache *cachep, gfp_t flags)
+ /*
+- * Try to consume stocked charge on this cpu. If success, one page is consumed
+- * from local stock and true is returned. If the stock is 0 or charges from a
+- * cgroup which is not current target, returns false. This stock will be
+- * refilled.
++ * Try to consume stocked charge on this cpu. If success, nr_pages pages are
++ * consumed from local stock and true is returned. If the stock is 0 or
++ * charges from a cgroup which is not current target, returns false.
++ * This stock will be refilled.
+  */
+-static bool consume_stock(struct mem_cgroup *memcg)
++static bool consume_stock(struct mem_cgroup *memcg, int nr_pages)
  {
- 	if (CONFIG_ZONE_DMA_FLAG) {
- 		if (flags & GFP_DMA)
--			BUG_ON(!(cachep->gfpflags & GFP_DMA));
-+			BUG_ON(!(cachep->allocflags & GFP_DMA));
- 		else
--			BUG_ON(cachep->gfpflags & GFP_DMA);
-+			BUG_ON(cachep->allocflags & GFP_DMA);
- 	}
- }
+ 	struct memcg_stock_pcp *stock;
+ 	bool ret = true;
  
+ 	stock = &get_cpu_var(memcg_stock);
+-	if (memcg == stock->cached && stock->nr_pages)
+-		stock->nr_pages--;
++	if (memcg == stock->cached && stock->nr_pages >= nr_pages)
++		stock->nr_pages -= nr_pages;
+ 	else /* need to call res_counter_charge */
+ 		ret = false;
+ 	put_cpu_var(memcg_stock);
+@@ -2309,7 +2309,7 @@ again:
+ 		VM_BUG_ON(css_is_removed(&memcg->css));
+ 		if (mem_cgroup_is_root(memcg))
+ 			goto done;
+-		if (nr_pages == 1 && consume_stock(memcg))
++		if (consume_stock(memcg, nr_pages))
+ 			goto done;
+ 		css_get(&memcg->css);
+ 	} else {
+@@ -2334,7 +2334,7 @@ again:
+ 			rcu_read_unlock();
+ 			goto done;
+ 		}
+-		if (nr_pages == 1 && consume_stock(memcg)) {
++		if (consume_stock(memcg, nr_pages)) {
+ 			/*
+ 			 * It seems dagerous to access memcg without css_get().
+ 			 * But considering how consume_stok works, it's not
 -- 
 1.7.7.6
 
