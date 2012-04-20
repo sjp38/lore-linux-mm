@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx126.postini.com [74.125.245.126])
-	by kanga.kvack.org (Postfix) with SMTP id E82716B0102
-	for <linux-mm@kvack.org>; Fri, 20 Apr 2012 17:58:45 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx199.postini.com [74.125.245.199])
+	by kanga.kvack.org (Postfix) with SMTP id B27D36B0104
+	for <linux-mm@kvack.org>; Fri, 20 Apr 2012 17:58:52 -0400 (EDT)
 From: Glauber Costa <glommer@parallels.com>
-Subject: [PATCH 07/23] change defines to an enum
-Date: Fri, 20 Apr 2012 18:57:15 -0300
-Message-Id: <1334959051-18203-8-git-send-email-glommer@parallels.com>
+Subject: [PATCH 08/23] don't force return value checking in res_counter_charge_nofail
+Date: Fri, 20 Apr 2012 18:57:16 -0300
+Message-Id: <1334959051-18203-9-git-send-email-glommer@parallels.com>
 In-Reply-To: <1334959051-18203-1-git-send-email-glommer@parallels.com>
 References: <1334959051-18203-1-git-send-email-glommer@parallels.com>
 Sender: owner-linux-mm@kvack.org
@@ -13,38 +13,31 @@ List-ID: <linux-mm.kvack.org>
 To: cgroups@vger.kernel.org
 Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, devel@openvz.org, kamezawa.hiroyu@jp.fujitsu.com, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Frederic Weisbecker <fweisbec@gmail.com>, Greg Thelen <gthelen@google.com>, Suleiman Souhlal <suleiman@google.com>, Glauber Costa <glommer@parallels.com>
 
-This is just a cleanup patch for clarity of expression.
-In earlier submissions, people asked it to be in a separate
-patch, so here it is.
+Since we will succeed with the allocation no matter what, there
+isn't the need to use __must_check with it. It can very well
+be optional.
 
 Signed-off-by: Glauber Costa <glommer@parallels.com>
-CC: Michal Hocko <mhocko@suse.cz>
 CC: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 CC: Johannes Weiner <hannes@cmpxchg.org>
+CC: Michal Hocko <mhocko@suse.cz>
 ---
- mm/memcontrol.c |    9 ++++++---
- 1 files changed, 6 insertions(+), 3 deletions(-)
+ include/linux/res_counter.h |    2 +-
+ 1 files changed, 1 insertions(+), 1 deletions(-)
 
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index cbffc4c..2810228 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -374,9 +374,12 @@ enum charge_type {
- };
+diff --git a/include/linux/res_counter.h b/include/linux/res_counter.h
+index da81af0..f7621cf 100644
+--- a/include/linux/res_counter.h
++++ b/include/linux/res_counter.h
+@@ -119,7 +119,7 @@ int __must_check res_counter_charge_locked(struct res_counter *counter,
+ 		unsigned long val);
+ int __must_check res_counter_charge(struct res_counter *counter,
+ 		unsigned long val, struct res_counter **limit_fail_at);
+-int __must_check res_counter_charge_nofail(struct res_counter *counter,
++int res_counter_charge_nofail(struct res_counter *counter,
+ 		unsigned long val, struct res_counter **limit_fail_at);
  
- /* for encoding cft->private value on file */
--#define _MEM			(0)
--#define _MEMSWAP		(1)
--#define _OOM_TYPE		(2)
-+enum res_type {
-+	_MEM,
-+	_MEMSWAP,
-+	_OOM_TYPE,
-+};
-+
- #define MEMFILE_PRIVATE(x, val)	(((x) << 16) | (val))
- #define MEMFILE_TYPE(val)	(((val) >> 16) & 0xffff)
- #define MEMFILE_ATTR(val)	((val) & 0xffff)
+ /*
 -- 
 1.7.7.6
 
