@@ -1,128 +1,97 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx159.postini.com [74.125.245.159])
-	by kanga.kvack.org (Postfix) with SMTP id 0F3426B00F7
-	for <linux-mm@kvack.org>; Fri, 20 Apr 2012 17:51:38 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx173.postini.com [74.125.245.173])
+	by kanga.kvack.org (Postfix) with SMTP id BA7326B00F8
+	for <linux-mm@kvack.org>; Fri, 20 Apr 2012 17:57:57 -0400 (EDT)
 From: Glauber Costa <glommer@parallels.com>
-Subject: [PATCH 06/23] slab: use obj_size field of struct kmem_cache when not debugging
-Date: Fri, 20 Apr 2012 18:49:03 -0300
-Message-Id: <1334958560-18076-7-git-send-email-glommer@parallels.com>
-In-Reply-To: <1334958560-18076-1-git-send-email-glommer@parallels.com>
-References: <1334958560-18076-1-git-send-email-glommer@parallels.com>
+Subject: [PATCH 00/23] slab+slub accounting for memcg
+Date: Fri, 20 Apr 2012 18:57:08 -0300
+Message-Id: <1334959051-18203-1-git-send-email-glommer@parallels.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: cgroups@vger.kernel.org
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, devel@openvz.org, kamezawa.hiroyu@jp.fujitsu.com, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Frederic Weisbecker <fweisbec@gmail.com>, Greg Thelen <gthelen@google.com>, Suleiman Souhlal <suleiman@google.com>, Glauber Costa <glommer@parallels.com>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@cs.helsinki.fi>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, devel@openvz.org, kamezawa.hiroyu@jp.fujitsu.com, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Frederic Weisbecker <fweisbec@gmail.com>, Greg Thelen <gthelen@google.com>, Suleiman Souhlal <suleiman@google.com>, Glauber Costa <glommer@parallels.com>
 
-The kmem controller needs to keep track of the object size of
-a cache so it can later on create a per-memcg duplicate. Logic
-to keep track of that already exists, but it is only enable while
-debugging.
+Hi,
 
-This patch makes it also available when the kmem controller code
-is compiled in.
+This is my current attempt at getting the kmem controller
+into a mergeable state. IMHO, all the important bits are there, and it should't
+change *that* much from now on. I am, however, expecting at least a couple more
+interactions before we sort all the edges out.
 
-Signed-off-by: Glauber Costa <glommer@parallels.com>
-CC: Christoph Lameter <cl@linux.com>
-CC: Pekka Enberg <penberg@cs.helsinki.fi>
----
- include/linux/slab_def.h |    4 +++-
- mm/slab.c                |   37 ++++++++++++++++++++++++++-----------
- 2 files changed, 29 insertions(+), 12 deletions(-)
+This series works for both the slub and the slab. One of my main goals was to
+make sure that the interfaces we are creating actually makes sense for both
+allocators.
 
-diff --git a/include/linux/slab_def.h b/include/linux/slab_def.h
-index d41effe..cba3139 100644
---- a/include/linux/slab_def.h
-+++ b/include/linux/slab_def.h
-@@ -78,8 +78,10 @@ struct kmem_cache {
- 	 * variables contain the offset to the user object and its size.
- 	 */
- 	int obj_offset;
--	int obj_size;
- #endif /* CONFIG_DEBUG_SLAB */
-+#if defined(CONFIG_DEBUG_SLAB) || defined(CONFIG_CGROUP_MEM_RES_CTLR_KMEM)
-+	int obj_size;
-+#endif
- 
- /* 6) per-cpu/per-node data, touched during every alloc/free */
- 	/*
-diff --git a/mm/slab.c b/mm/slab.c
-index c6e5ab8..a0d51dd 100644
---- a/mm/slab.c
-+++ b/mm/slab.c
-@@ -413,8 +413,28 @@ static void kmem_list3_init(struct kmem_list3 *parent)
- #define STATS_INC_FREEMISS(x)	do { } while (0)
- #endif
- 
--#if DEBUG
-+#if defined(CONFIG_DEBUG_SLAB) || defined(CONFIG_CGROUP_MEM_RES_CTLR_KMEM)
-+static int obj_size(struct kmem_cache *cachep)
-+{
-+	return cachep->obj_size;
-+}
-+static void set_obj_size(struct kmem_cache *cachep, int size)
-+{
-+	cachep->obj_size = size;
-+}
-+
-+#else
-+static int obj_size(struct kmem_cache *cachep)
-+{
-+	return cachep->buffer_size;
-+}
-+
-+static void set_obj_size(struct kmem_cache *cachep, int size)
-+{
-+}
-+#endif
- 
-+#if DEBUG
- /*
-  * memory layout of objects:
-  * 0		: objp
-@@ -433,11 +453,6 @@ static int obj_offset(struct kmem_cache *cachep)
- 	return cachep->obj_offset;
- }
- 
--static int obj_size(struct kmem_cache *cachep)
--{
--	return cachep->obj_size;
--}
--
- static unsigned long long *dbg_redzone1(struct kmem_cache *cachep, void *objp)
- {
- 	BUG_ON(!(cachep->flags & SLAB_RED_ZONE));
-@@ -465,7 +480,6 @@ static void **dbg_userword(struct kmem_cache *cachep, void *objp)
- #else
- 
- #define obj_offset(x)			0
--#define obj_size(cachep)		(cachep->buffer_size)
- #define dbg_redzone1(cachep, objp)	({BUG(); (unsigned long long *)NULL;})
- #define dbg_redzone2(cachep, objp)	({BUG(); (unsigned long long *)NULL;})
- #define dbg_userword(cachep, objp)	({BUG(); (void **)NULL;})
-@@ -1555,9 +1569,9 @@ void __init kmem_cache_init(void)
- 	 */
- 	cache_cache.buffer_size = offsetof(struct kmem_cache, array[nr_cpu_ids]) +
- 				  nr_node_ids * sizeof(struct kmem_list3 *);
--#if DEBUG
--	cache_cache.obj_size = cache_cache.buffer_size;
--#endif
-+
-+	set_obj_size(&cache_cache, cache_cache.buffer_size);
-+
- 	cache_cache.buffer_size = ALIGN(cache_cache.buffer_size,
- 					cache_line_size());
- 	cache_cache.reciprocal_buffer_size =
-@@ -2418,8 +2432,9 @@ kmem_cache_create (const char *name, size_t size, size_t align,
- 		goto oops;
- 
- 	cachep->nodelists = (struct kmem_list3 **)&cachep->array[nr_cpu_ids];
-+
-+	set_obj_size(cachep, size);
- #if DEBUG
--	cachep->obj_size = size;
- 
- 	/*
- 	 * Both debugging options require word-alignment which is calculated
+I did some adaptations to the slab-specific patches, but the bulk of it
+comes from Suleiman's patches. I did the best to use his patches
+as-is where possible so to keep authorship information. When not possible,
+I tried to be fair and quote it in the commit message.
+
+In this series, all existing caches are created per-memcg after its first hit.
+The main reason is, during discussions in the memory summit we came into
+agreement that the fragmentation problems that could arise from creating all
+of them are mitigated by the typically small quantity of caches in the system
+(order of a few megabytes total for sparsely used caches).
+The lazy creation from Suleiman is kept, although a bit modified. For instance,
+I now use a locked scheme instead of cmpxcgh to make sure cache creation won't
+fail due to duplicates, which simplifies things by quite a bit.
+
+The slub is a bit more complex than what I came up with in my slub-only
+series. The reason is we did not need to use the cache-selection logic
+in the allocator itself - it was done by the cache users. But since now
+we are lazy creating all caches, this is simply no longer doable.
+
+I am leaving destruction of caches out of the series, although most
+of the infrastructure for that is here, since we did it in earlier
+series. This is basically because right now Kame is reworking it for
+user memcg, and I like the new proposed behavior a lot more. We all seemed
+to have agreed that reclaim is an interesting problem by itself, and
+is not included in this already too complicated series. Please note
+that this is still marked as experimental, so we have so room. A proper
+shrinker implementation is a hard requirement to take the kmem controller
+out of the experimental state.
+
+I am also not including documentation, but it should only be a matter
+of merging what we already wrote in earlier series plus some additions.
+
+Glauber Costa (19):
+  slub: don't create a copy of the name string in kmem_cache_create
+  slub: always get the cache from its page in kfree
+  slab: rename gfpflags to allocflags
+  slab: use obj_size field of struct kmem_cache when not debugging
+  change defines to an enum
+  don't force return value checking in res_counter_charge_nofail
+  kmem slab accounting basic infrastructure
+  slab/slub: struct memcg_params
+  slub: consider a memcg parameter in kmem_create_cache
+  slab: pass memcg parameter to kmem_cache_create
+  slub: create duplicate cache
+  slub: provide kmalloc_no_account
+  slab: create duplicate cache
+  slab: provide kmalloc_no_account
+  kmem controller charge/uncharge infrastructure
+  slub: charge allocation to a memcg
+  slab: per-memcg accounting of slab caches
+  memcg: disable kmem code when not in use.
+  slub: create slabinfo file for memcg
+
+Suleiman Souhlal (4):
+  memcg: Make it possible to use the stock for more than one page.
+  memcg: Reclaim when more than one page needed.
+  memcg: Track all the memcg children of a kmem_cache.
+  memcg: Per-memcg memory.kmem.slabinfo file.
+
+ include/linux/memcontrol.h  |   87 ++++++
+ include/linux/res_counter.h |    2 +-
+ include/linux/slab.h        |   26 ++
+ include/linux/slab_def.h    |   77 ++++++-
+ include/linux/slub_def.h    |   36 +++-
+ init/Kconfig                |    2 +-
+ mm/memcontrol.c             |  607 +++++++++++++++++++++++++++++++++++++++++--
+ mm/slab.c                   |  390 +++++++++++++++++++++++-----
+ mm/slub.c                   |  255 ++++++++++++++++--
+ 9 files changed, 1364 insertions(+), 118 deletions(-)
+
 -- 
 1.7.7.6
 
