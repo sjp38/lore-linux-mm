@@ -1,74 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx116.postini.com [74.125.245.116])
-	by kanga.kvack.org (Postfix) with SMTP id 3DD726B004D
-	for <linux-mm@kvack.org>; Fri, 20 Apr 2012 15:29:41 -0400 (EDT)
-Date: Fri, 20 Apr 2012 21:29:37 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: Weirdness in __alloc_bootmem_node_high
-Message-ID: <20120420192937.GE15021@tiehlicka.suse.cz>
-References: <20120417155502.GE22687@tiehlicka.suse.cz>
- <20120420182907.GG32324@google.com>
- <20120420191418.GA3569@merkur.ravnborg.org>
+Received: from psmtp.com (na3sys010amx185.postini.com [74.125.245.185])
+	by kanga.kvack.org (Postfix) with SMTP id 88F696B00E7
+	for <linux-mm@kvack.org>; Fri, 20 Apr 2012 15:29:47 -0400 (EDT)
+Date: Fri, 20 Apr 2012 15:29:30 -0400
+From: Vivek Goyal <vgoyal@redhat.com>
+Subject: Re: [RFC] writeback and cgroup
+Message-ID: <20120420192930.GR22419@redhat.com>
+References: <20120403183655.GA23106@dhcp-172-17-108-109.mtv.corp.google.com>
+ <20120404175124.GA8931@localhost>
+ <20120404193355.GD29686@dhcp-172-17-108-109.mtv.corp.google.com>
+ <20120406095934.GA10465@localhost>
+ <20120417223854.GG19975@google.com>
+ <20120419142343.GA12684@localhost>
+ <20120419183118.GM10216@redhat.com>
+ <20120420124518.GA7133@localhost>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20120420191418.GA3569@merkur.ravnborg.org>
+In-Reply-To: <20120420124518.GA7133@localhost>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sam Ravnborg <sam@ravnborg.org>
-Cc: Tejun Heo <tj@kernel.org>, yinghai@kernel.org, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+To: Fengguang Wu <fengguang.wu@intel.com>
+Cc: Tejun Heo <tj@kernel.org>, Jan Kara <jack@suse.cz>, Jens Axboe <axboe@kernel.dk>, linux-mm@kvack.org, sjayaraman@suse.com, andrea@betterlinux.com, jmoyer@redhat.com, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, lizefan@huawei.com, containers@lists.linux-foundation.org, cgroups@vger.kernel.org, ctalbott@google.com, rni@google.com, lsf@lists.linux-foundation.org
 
-On Fri 20-04-12 21:14:18, Sam Ravnborg wrote:
-> On Fri, Apr 20, 2012 at 11:29:07AM -0700, Tejun Heo wrote:
-> > On Tue, Apr 17, 2012 at 05:55:02PM +0200, Michal Hocko wrote:
-> > > Hi,
-> > > I just come across the following condition in __alloc_bootmem_node_high
-> > > which I have hard times to understand. I guess it is a bug and we need
-> > > something like the following. But, to be honest, I have no idea why we
-> > > care about those 128MB above MAX_DMA32_PFN.
-> > > ---
-> > >  mm/bootmem.c |    2 +-
-> > >  1 file changed, 1 insertion(+), 1 deletion(-)
-> > > 
-> > > diff --git a/mm/bootmem.c b/mm/bootmem.c
-> > > index 0131170..5adb072 100644
-> > > --- a/mm/bootmem.c
-> > > +++ b/mm/bootmem.c
-> > > @@ -737,7 +737,7 @@ void * __init __alloc_bootmem_node_high(pg_data_t *pgdat, unsigned long size,
-> > >  	/* update goal according ...MAX_DMA32_PFN */
-> > >  	end_pfn = pgdat->node_start_pfn + pgdat->node_spanned_pages;
-> > >  
-> > > -	if (end_pfn > MAX_DMA32_PFN + (128 >> (20 - PAGE_SHIFT)) &&
-> > > +	if (end_pfn > MAX_DMA32_PFN + (128 << (20 - PAGE_SHIFT)) &&
-> > >  	    (goal >> PAGE_SHIFT) < MAX_DMA32_PFN) {
-> > >  		void *ptr;
-> > >  		unsigned long new_goal;
-> > 
-> > Regardless of x86 not using it, this is a bug fix and this code path
-> > seems to be used by mips at least.
-> 
-> I took a quick look at this.
-> __alloc_bootmem_node_high() is used in mm/sparse.c - but only
-> if SPARSEMEM_VMEMMAP is enabled.
+On Fri, Apr 20, 2012 at 08:45:18PM +0800, Fengguang Wu wrote:
 
-This is what I can see in the current (Linus) git:
-./arch/sparc/Kconfig:   select SPARSEMEM_VMEMMAP_ENABLE
-./arch/powerpc/Kconfig: select SPARSEMEM_VMEMMAP_ENABLE
-./arch/ia64/Kconfig:    select SPARSEMEM_VMEMMAP_ENABLE
-./arch/s390/Kconfig:    select SPARSEMEM_VMEMMAP_ENABLE
-./arch/s390/Kconfig:    select SPARSEMEM_VMEMMAP
-./arch/x86/Kconfig:     select SPARSEMEM_VMEMMAP_ENABLE if X86_64
+[..]
+> If still keep the global async queue, it can run small 40ms slices
+> without defeating the flusher's 500ms granularity. After each slice
+> it can freely switch to other cgroups with sync IOs, so is free from
+> latency issues. After return, it will continue to serve the same
+> inode. It will basically be working on behalf of one cgroup for 500ms
+> data, working for another cgroup for 500ms data and so on. That
+> behavior does not impact fairness, because it's still using small
+> slices and its weight is computed system wide thus exhibits some kind
+> of smooth/amortize effects over long period of time. It can naturally 
+> serve the same inode after return.
 
-So there are more arches which enable SPARSEMEM_VMEMMAP so the function
-is used. Or am I missing something?
+Ok, So tejun did say that we will have a switch where we will allow
+retaining the old behavior of keeping all async writes in root group
+and not in individual group. So throughput sensitive users can make
+use of that and there is no need to push proportional IO logic to
+writeback layer for buffered writes?
 
--- 
-Michal Hocko
-SUSE Labs
-SUSE LINUX s.r.o.
-Lihovarska 1060/12
-190 00 Praha 9    
-Czech Republic
+I am personally is not too excited about the case of putting async IO
+in separate groups due to the reason that async IO of one group will
+start impacting latencies of sync IO of another group and in practice
+it might not be desirable. But there are others who have use cases for
+separate async IO queue. So as long as switch is there to change the
+behavior, I am not too worried.
+
+Thanks
+Vivek
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
