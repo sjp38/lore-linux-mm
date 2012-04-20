@@ -1,119 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx110.postini.com [74.125.245.110])
-	by kanga.kvack.org (Postfix) with SMTP id 38F966B004D
-	for <linux-mm@kvack.org>; Fri, 20 Apr 2012 15:23:36 -0400 (EDT)
-Received: by lagz14 with SMTP id z14so10068955lag.14
-        for <linux-mm@kvack.org>; Fri, 20 Apr 2012 12:23:34 -0700 (PDT)
-Message-ID: <4F91B7AF.8040203@openvz.org>
-Date: Fri, 20 Apr 2012 23:23:27 +0400
-From: Konstantin Khlebnikov <khlebnikov@openvz.org>
+Received: from psmtp.com (na3sys010amx116.postini.com [74.125.245.116])
+	by kanga.kvack.org (Postfix) with SMTP id 3DD726B004D
+	for <linux-mm@kvack.org>; Fri, 20 Apr 2012 15:29:41 -0400 (EDT)
+Date: Fri, 20 Apr 2012 21:29:37 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: Weirdness in __alloc_bootmem_node_high
+Message-ID: <20120420192937.GE15021@tiehlicka.suse.cz>
+References: <20120417155502.GE22687@tiehlicka.suse.cz>
+ <20120420182907.GG32324@google.com>
+ <20120420191418.GA3569@merkur.ravnborg.org>
 MIME-Version: 1.0
-Subject: Re: [PATCH 1/2] mm: set task exit code before complete_vfork_done()
-References: <20120409200336.8368.63793.stgit@zurg> <20120412080948.26401.23572.stgit@zurg> <20120412235446.GA4815@redhat.com> <20120420175934.GA31905@redhat.com>
-In-Reply-To: <20120420175934.GA31905@redhat.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20120420191418.GA3569@merkur.ravnborg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Oleg Nesterov <oleg@redhat.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Markus Trippelsdorf <markus@trippelsdorf.de>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: Sam Ravnborg <sam@ravnborg.org>
+Cc: Tejun Heo <tj@kernel.org>, yinghai@kernel.org, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-Oleg Nesterov wrote:
-> On 04/13, Oleg Nesterov wrote:
->>
->> Damn, Konstantin I have to admit, I'll try to find another technical
->> reason against mm-correctly-synchronize-rss-counters-at-exit-exec.patch
->> even with this fix ;)
->>
->> Most probably I am wrong, but it looks overcomplicated. Somehow I
->> dislike irrationally the fact you moved mm_release() from exit_mm().
->
-> And perhaps you can help me to discredit your patch?
->
-> It turns out, I do not really understand this code in do_exit:
->
-> 	/* sync mm's RSS info before statistics gathering */
-> 	if (tsk->mm)
-> 		sync_mm_rss(tsk->mm);
->
-> Which "statistics gathering" ? Probably I missed something, but
-> after the quick grep it seems to me that this is only needed for
-> taskstats_exit()->xacct_add_tsk().
->
-> So why we can't simply add sync_mm_rss() into xacct_add_tsk() ?
+On Fri 20-04-12 21:14:18, Sam Ravnborg wrote:
+> On Fri, Apr 20, 2012 at 11:29:07AM -0700, Tejun Heo wrote:
+> > On Tue, Apr 17, 2012 at 05:55:02PM +0200, Michal Hocko wrote:
+> > > Hi,
+> > > I just come across the following condition in __alloc_bootmem_node_high
+> > > which I have hard times to understand. I guess it is a bug and we need
+> > > something like the following. But, to be honest, I have no idea why we
+> > > care about those 128MB above MAX_DMA32_PFN.
+> > > ---
+> > >  mm/bootmem.c |    2 +-
+> > >  1 file changed, 1 insertion(+), 1 deletion(-)
+> > > 
+> > > diff --git a/mm/bootmem.c b/mm/bootmem.c
+> > > index 0131170..5adb072 100644
+> > > --- a/mm/bootmem.c
+> > > +++ b/mm/bootmem.c
+> > > @@ -737,7 +737,7 @@ void * __init __alloc_bootmem_node_high(pg_data_t *pgdat, unsigned long size,
+> > >  	/* update goal according ...MAX_DMA32_PFN */
+> > >  	end_pfn = pgdat->node_start_pfn + pgdat->node_spanned_pages;
+> > >  
+> > > -	if (end_pfn > MAX_DMA32_PFN + (128 >> (20 - PAGE_SHIFT)) &&
+> > > +	if (end_pfn > MAX_DMA32_PFN + (128 << (20 - PAGE_SHIFT)) &&
+> > >  	    (goal >> PAGE_SHIFT) < MAX_DMA32_PFN) {
+> > >  		void *ptr;
+> > >  		unsigned long new_goal;
+> > 
+> > Regardless of x86 not using it, this is a bug fix and this code path
+> > seems to be used by mips at least.
+> 
+> I took a quick look at this.
+> __alloc_bootmem_node_high() is used in mm/sparse.c - but only
+> if SPARSEMEM_VMEMMAP is enabled.
 
-> Yes, this way we do not "account" put_user(clear_child_tid) but
-> I think we do not care.
+This is what I can see in the current (Linus) git:
+./arch/sparc/Kconfig:   select SPARSEMEM_VMEMMAP_ENABLE
+./arch/powerpc/Kconfig: select SPARSEMEM_VMEMMAP_ENABLE
+./arch/ia64/Kconfig:    select SPARSEMEM_VMEMMAP_ENABLE
+./arch/s390/Kconfig:    select SPARSEMEM_VMEMMAP_ENABLE
+./arch/s390/Kconfig:    select SPARSEMEM_VMEMMAP
+./arch/x86/Kconfig:     select SPARSEMEM_VMEMMAP_ENABLE if X86_64
 
-Why we don't care? Each thread can corrupt these counters by one.
-I do not think that we are satisfied with nearly accurate rss accounting.
-+/- one page for each clone()-exit().
+So there are more arches which enable SPARSEMEM_VMEMMAP so the function
+is used. Or am I missing something?
 
-Actually I don't really like this per-task rss-delta.
-Probably it would be better to use per-cpu counters.
-
->
-> IOW, what do you think about the trivial patch below? Uncompiled,
-> untested, probably incomplete. acct_update_integrals() looks
-> suspicious too.
-
-what a mess! =)
-
->
-> Oleg.
->
-> --- a/kernel/tsacct.c
-> +++ b/kernel/tsacct.c
-> @@ -91,6 +91,7 @@ void xacct_add_tsk(struct taskstats *sta
->   	stats->virtmem = p->acct_vm_mem1 * PAGE_SIZE / MB;
->   	mm = get_task_mm(p);
->   	if (mm) {
-> +		sync_mm_rss(mm);
->   		/* adjust to KB unit */
->   		stats->hiwater_rss   = get_mm_hiwater_rss(mm) * PAGE_SIZE / KB;
->   		stats->hiwater_vm    = get_mm_hiwater_vm(mm)  * PAGE_SIZE / KB;
-> --- a/kernel/exit.c
-> +++ b/kernel/exit.c
-> @@ -643,6 +643,8 @@ static void exit_mm(struct task_struct *
->   	mm_release(tsk, mm);
->   	if (!mm)
->   		return;
-> +
-> +	sync_mm_rss(mm);
->   	/*
->   	 * Serialize with any possible pending coredump.
->   	 * We must hold mmap_sem around checking core_state
-> @@ -960,9 +962,6 @@ void do_exit(long code)
->   				preempt_count());
->
->   	acct_update_integrals(tsk);
-> -	/* sync mm's RSS info before statistics gathering */
-> -	if (tsk->mm)
-> -		sync_mm_rss(tsk->mm);
->   	group_dead = atomic_dec_and_test(&tsk->signal->live);
->   	if (group_dead) {
->   		hrtimer_cancel(&tsk->signal->real_timer);
-> --- a/fs/exec.c
-> +++ b/fs/exec.c
-> @@ -823,10 +823,10 @@ static int exec_mmap(struct mm_struct *m
->   	/* Notify parent that we're no longer interested in the old VM */
->   	tsk = current;
->   	old_mm = current->mm;
-> -	sync_mm_rss(old_mm);
->   	mm_release(tsk, old_mm);
->
->   	if (old_mm) {
-> +		sync_mm_rss(old_mm);
->   		/*
->   		 * Make sure that if there is a core dump in progress
->   		 * for the old mm, we get out and die instead of going
->
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Fight unfair telecom internet charges in Canada: sign http://stopthemeter.ca/
-> Don't email:<a href=mailto:"dont@kvack.org">  email@kvack.org</a>
+-- 
+Michal Hocko
+SUSE Labs
+SUSE LINUX s.r.o.
+Lihovarska 1060/12
+190 00 Praha 9    
+Czech Republic
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
