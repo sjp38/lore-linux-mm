@@ -1,71 +1,109 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx154.postini.com [74.125.245.154])
-	by kanga.kvack.org (Postfix) with SMTP id 36F726B00E7
-	for <linux-mm@kvack.org>; Fri, 20 Apr 2012 15:43:11 -0400 (EDT)
-Date: Fri, 20 Apr 2012 21:43:09 +0200
-From: Sam Ravnborg <sam@ravnborg.org>
-Subject: Re: Weirdness in __alloc_bootmem_node_high
-Message-ID: <20120420194309.GA3689@merkur.ravnborg.org>
-References: <20120417155502.GE22687@tiehlicka.suse.cz> <20120420182907.GG32324@google.com> <20120420191418.GA3569@merkur.ravnborg.org> <CAE9FiQU-M0yW_rwysq56zrZzift=PxgwioMmx8bMcJ5o20m2TQ@mail.gmail.com>
+Received: from psmtp.com (na3sys010amx123.postini.com [74.125.245.123])
+	by kanga.kvack.org (Postfix) with SMTP id 9D4836B00E7
+	for <linux-mm@kvack.org>; Fri, 20 Apr 2012 15:44:16 -0400 (EDT)
+Message-ID: <4F91BC8A.9020503@parallels.com>
+Date: Fri, 20 Apr 2012 23:44:10 +0400
+From: Pavel Emelyanov <xemul@parallels.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <CAE9FiQU-M0yW_rwysq56zrZzift=PxgwioMmx8bMcJ5o20m2TQ@mail.gmail.com>
+Subject: [PATCH] proc: Report PageAnon in last left bit of /proc/pid/pagemap
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Yinghai Lu <yinghai@kernel.org>
-Cc: Tejun Heo <tj@kernel.org>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+To: Linux MM <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>
 
-On Fri, Apr 20, 2012 at 12:30:54PM -0700, Yinghai Lu wrote:
-> On Fri, Apr 20, 2012 at 12:14 PM, Sam Ravnborg <sam@ravnborg.org> wrote:
-> >
-> > I took a quick look at this.
-> > __alloc_bootmem_node_high() is used in mm/sparse.c - but only
-> > if SPARSEMEM_VMEMMAP is enabled.
-> >
-> > mips has this:
-> >
-> > config ARCH_SPARSEMEM_ENABLE
-> >        bool
-> >        select SPARSEMEM_STATIC
-> >
-> > So SPARSEMEM_VMEMMAP is not enabled.
-> >
-> > __alloc_bootmem_node_high() is used in mm/sparse-vmemmap.c which
-> > also depends on CONFIG_SPARSEMEM_VMEMMAP.
-> >
-> >
-> > So I really do not see the logic in __alloc_bootmem_node_high()
-> > being used anymore and it can be replaced by __alloc_bootmem_node()
-> 
-> Yes, you are right. __alloc_bootmem_node_high could be removed.
-> 
-> BTW, x86 is still the only one that use NO_BOOTMEM.
-> 
-> Are you working on making sparc to use NO_BOOTMEM?
+Hi!
 
-For now I am trying to convert sparc32 to
-use memblock and NO_BOOTMEM in one step.
+This is an implementation of Andrew's proposal to extend the pagemap file
+bits to report what is missing about tasks' working set.
 
-I have it almost finished - except that it does not work :-(
-We have limitations in what area we can allocate very early,
-and here I had to use the alloc_bootmem_low() variant.
-I had preferred a variant that allowed me to allocate
-bottom-up in this case.
+The problem with the working set detection is multilateral. In the criu
+(checkpoint/restore) project we dump the tasks' memory into image files
+and to do it properly we need to detect which pages inside mappings are
+really in use. The mincore syscall I though could help with this did not.
+First, it doesn't report swapped pages, thus we cannot find out which
+parts of anonymous mappings to dump. Next, it does report pages from page
+cache as present even if they are not mapped, and it doesn't make 
+difference between private pages that has been cow-ed and private pages
+that has not been cow-ed.
 
-For now I assume something is fishy in my code where I
-hand over memory to the buddyallocator.
-But before posting anything I need time to go through
-my code and divide it up in smaller patches.
+Note, that issue with swap pages is critical -- we must dump swap pages to
+image file. But the issues with file pages are optimization -- we can take
+all file pages to image, this would be correct, but if we know that a page
+is not mapped or not cow-ed, we can remove them from dump file. The dump 
+would still be self-consistent, though significantly smaller in size (up 
+to 10 times smaller on real apps).
 
-There is so far no changes to nobootmem / memblock code.
+Andrew noticed, that the proc pagemap file solved 2 of 3 above issues -- it
+reports whether a page is present or swapped and it doesn't report not
+mapped page cache pages. But, it doesn't distinguish cow-ed file pages from
+not cow-ed.
 
-I will most likely convert sparc64 to NO_BOOTMEM next,
-if it looks reasonable simple that is.
-But first step is to get sparc32 working.
+I would like to make the last unused bit in this file to report whether the
+page mapped into respective pte is PageAnon or not.
 
-	Sam
+Signed-off-by: Pavel Emelyanov <xemul@openvz.org>
+
+---
+
+diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
+index 7dcd2a2..23dde5d 100644
+--- a/fs/proc/task_mmu.c
++++ b/fs/proc/task_mmu.c
+@@ -617,6 +617,7 @@ struct pagemapread {
+ 
+ #define PM_PRESENT          PM_STATUS(4LL)
+ #define PM_SWAP             PM_STATUS(2LL)
++#define PM_FILE             PM_STATUS(1LL)
+ #define PM_NOT_PRESENT      PM_PSHIFT(PAGE_SHIFT)
+ #define PM_END_OF_BUFFER    1
+ 
+@@ -649,15 +650,23 @@ static u64 swap_pte_to_pagemap_entry(pte_t pte)
+ 	return swp_type(e) | (swp_offset(e) << MAX_SWAPFILES_SHIFT);
+ }
+ 
+-static u64 pte_to_pagemap_entry(pte_t pte)
++static u64 pte_to_pagemap_entry(struct vm_area_struct *vma, unsigned long addr, pte_t pte)
+ {
+ 	u64 pme = 0;
+ 	if (is_swap_pte(pte))
+ 		pme = PM_PFRAME(swap_pte_to_pagemap_entry(pte))
+ 			| PM_PSHIFT(PAGE_SHIFT) | PM_SWAP;
+-	else if (pte_present(pte))
++	else if (pte_present(pte)) {
++		u64 page_flags = 0;
++		struct page *pg;
++
++		pg = vm_normal_page(vma, addr, pte);
++		if (pg && !PageAnon(pg))
++			page_flags = PM_FILE;
++
+ 		pme = PM_PFRAME(pte_pfn(pte))
+-			| PM_PSHIFT(PAGE_SHIFT) | PM_PRESENT;
++			| PM_PSHIFT(PAGE_SHIFT) | PM_PRESENT | page_flags;
++	}
+ 	return pme;
+ }
+ 
+@@ -686,7 +695,7 @@ static int pagemap_pte_range(pmd_t *pmd, unsigned long addr, unsigned long end,
+ 		if (vma && (vma->vm_start <= addr) &&
+ 		    !is_vm_hugetlb_page(vma)) {
+ 			pte = pte_offset_map(pmd, addr);
+-			pfn = pte_to_pagemap_entry(*pte);
++			pfn = pte_to_pagemap_entry(vma, addr, *pte);
+ 			/* unmap before userspace copy */
+ 			pte_unmap(pte);
+ 		}
+@@ -743,7 +752,7 @@ static int pagemap_hugetlb_range(pte_t *pte, unsigned long hmask,
+  * Bits 0-4   swap type if swapped
+  * Bits 5-55  swap offset if swapped
+  * Bits 55-60 page shift (page size = 1<<page shift)
+- * Bit  61    reserved for future use
++ * Bit  61    page is filepage
+  * Bit  62    page swapped
+  * Bit  63    page present
+  *
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
