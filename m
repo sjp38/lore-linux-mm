@@ -1,216 +1,97 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx137.postini.com [74.125.245.137])
-	by kanga.kvack.org (Postfix) with SMTP id AC7756B004D
-	for <linux-mm@kvack.org>; Fri, 20 Apr 2012 13:44:16 -0400 (EDT)
-Received: by lagz14 with SMTP id z14so9984818lag.14
-        for <linux-mm@kvack.org>; Fri, 20 Apr 2012 10:44:14 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx108.postini.com [74.125.245.108])
+	by kanga.kvack.org (Postfix) with SMTP id 7EBC06B004D
+	for <linux-mm@kvack.org>; Fri, 20 Apr 2012 14:00:14 -0400 (EDT)
+Date: Fri, 20 Apr 2012 19:59:34 +0200
+From: Oleg Nesterov <oleg@redhat.com>
+Subject: Re: [PATCH 1/2] mm: set task exit code before complete_vfork_done()
+Message-ID: <20120420175934.GA31905@redhat.com>
+References: <20120409200336.8368.63793.stgit@zurg> <20120412080948.26401.23572.stgit@zurg> <20120412235446.GA4815@redhat.com>
 MIME-Version: 1.0
-In-Reply-To: <20120420131722.GD2536@cmpxchg.org>
-References: <1334680666-12361-1-git-send-email-yinghan@google.com>
-	<20120418122448.GB1771@cmpxchg.org>
-	<CALWz4iz_17fQa=EfT2KqvJUGyHQFc5v9r+7b947yMbocC9rrjA@mail.gmail.com>
-	<20120419170434.GE15634@tiehlicka.suse.cz>
-	<CALWz4iw156qErZn0gGUUatUTisy_6uF_5mrY0kXt1W89hvVjRw@mail.gmail.com>
-	<20120419223318.GA2536@cmpxchg.org>
-	<CALWz4iy2==jYkYx98EGbqbM2Y7q4atJpv9sH_B7Fjr8aqq++JQ@mail.gmail.com>
-	<20120420131722.GD2536@cmpxchg.org>
-Date: Fri, 20 Apr 2012 10:44:14 -0700
-Message-ID: <CALWz4iz2GZU_aa=28zQfK-a65QuC5v7zKN4Sg7SciPLXN-9dVQ@mail.gmail.com>
-Subject: Re: [PATCH V3 0/2] memcg softlimit reclaim rework
-From: Ying Han <yinghan@google.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20120412235446.GA4815@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Michal Hocko <mhocko@suse.cz>, Mel Gorman <mel@csn.ul.ie>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Hillf Danton <dhillf@gmail.com>, Hugh Dickins <hughd@google.com>, Dan Magenheimer <dan.magenheimer@oracle.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
+To: Konstantin Khlebnikov <khlebnikov@openvz.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Markus Trippelsdorf <markus@trippelsdorf.de>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-On Fri, Apr 20, 2012 at 6:17 AM, Johannes Weiner <hannes@cmpxchg.org> wrote=
-:
-> On Fri, Apr 20, 2012 at 12:37:41AM -0700, Ying Han wrote:
->> On Thu, Apr 19, 2012 at 3:33 PM, Johannes Weiner <hannes@cmpxchg.org> wr=
-ote:
->> > On Thu, Apr 19, 2012 at 10:47:27AM -0700, Ying Han wrote:
->> >> On Thu, Apr 19, 2012 at 10:04 AM, Michal Hocko <mhocko@suse.cz> wrote=
-:
->> >> > On Wed 18-04-12 11:00:40, Ying Han wrote:
->> >> >> On Wed, Apr 18, 2012 at 5:24 AM, Johannes Weiner <hannes@cmpxchg.o=
-rg> wrote:
->> >> >> > On Tue, Apr 17, 2012 at 09:37:46AM -0700, Ying Han wrote:
->> >> >> >> 2. this patch is slightly different from the last one posted fr=
-om Johannes
->> >> >> >> http://comments.gmane.org/gmane.linux.kernel.mm/72382
->> >> >> >> where his patch is closer to the reverted implementation by doi=
-ng hierarchical
->> >> >> >> reclaim for each selected memcg. However, that is not expected =
-behavior from
->> >> >> >> user perspective. Considering the following example:
->> >> >> >>
->> >> >> >> root (32G capacity)
->> >> >> >> --> A (hard limit 20G, soft limit 15G, usage 16G)
->> >> >> >> =A0 =A0--> A1 (soft limit 5G, usage 4G)
->> >> >> >> =A0 =A0--> A2 (soft limit 10G, usage 12G)
->> >> >> >> --> B (hard limit 20G, soft limit 10G, usage 16G)
->> >> >> >>
->> >> >> >> Under global reclaim, we shouldn't add pressure on A1 although =
-its parent(A)
->> >> >> >> exceeds softlimit. This is what admin expects by setting softli=
-mit to the
->> >> >> >> actual working set size and only reclaim pages under softlimit =
-if system has
->> >> >> >> trouble to reclaim.
->> >> >> >
->> >> >> > Actually, this is exactly what the admin expects when creating a
->> >> >> > hierarchy, because she defines that A1 is a child of A and is
->> >> >> > responsible for the memory situation in its parent.
->> >> >
->> >> > Hmm, I guess that both approaches have cons and pros.
->> >> > * Hierarchical soft limit reclaim - reclaim the whole subtree of th=
-e over
->> >> > =A0soft limit memcg
->> >> > =A0+ it is consistent with the hard limit reclaim
->> >> Not sure why we want them to be consistent. Soft_limit is serving
->> >> different purpose and the one of the main purpose is to preserve the
->> >> working set of the cgroup.
->> >
->> > I'd argue, given the history of cgroups, one of the main purposes is
->> > having a machine of containers where you overcommit their hard limit
->> > and set the soft limit accordingly to provide fairness.
->> >
->> > Yes, we don't want to reclaim hierarchies that are below their soft
->> > limit as long as there are some in excess, of course. =A0This is a fla=
-w
->> > and needs fixing. =A0But it's something completely different than
->> > changing how the soft limit is defined and suddenly allow child
->> > groups, which you may not trust, to override rules defined by parental
->> > groups.
->> >
->> > It bothers me that we should add something that will almost certainly
->> > bite us in the future while we are discussing on the cgroups list what
->> > would stand in the way of getting sane hierarchy semantics across
->> > controllers to provide consistency, nesting, etc.
->>
->> I understand the concern here and I don't want the soft_limit reclaim
->> to be far away from the other part of the cgroup design down to the
->> road. On the other hand, I don't think the current implementation is
->> against the hierarchy semantics totally. See the comment below :)
->>
->> > To support a single use case, which I feel we still have not discussed
->> > nearly enough to justify this change.
->> >
->> > For example, I get that you want 'meta-groups' that group together
->> > subgroups for common accounting and hard limiting. =A0But I don't see
->> > why such meta-groups have their own processes. =A0Conceptually, I mean=
-,
->> > how does a process fit into A? =A0Is it superior to the tasks in A1 an=
-d
->> > A2? =A0Why can't it live in A3?
->>
->> For user processes, I can see that is totally feasible to live in A3.
->> The case I was thinking is kernel threads, which 1) we don't want to
->> limit their memory usage 2) they =A0serve for the whole group unlike
->> individual jobs. Of course, we could say that putting those kernel
->> thread in A3 and leave the cgroup to unlimited, but not sure if we
->> should constrain ourselves not having any processes running under A.
+On 04/13, Oleg Nesterov wrote:
 >
-> That's just handwaving.
+> Damn, Konstantin I have to admit, I'll try to find another technical
+> reason against mm-correctly-synchronize-rss-counters-at-exit-exec.patch
+> even with this fix ;)
 >
->> > So here is a proposal:
->> >
->> > Would it make sense to try to keep those meta groups always free of
->> > their own memory so that they don't /need/ soft limits with weird
->> > semantics? =A0E.g. immediately free the unused memory on rmdir, OR add
->> > mechanisms to migrate the memory to a dedicated group:
->> >
->> > =A0 =A0 A
->> > =A0 =A0 =A0 A1 (soft-limited)
->> > =A0 =A0 =A0 A2 (soft-limited)
->> > =A0 =A0 B
->> > =A0 =A0 unused (soft-limited)
->> >
->> > Move all leftover memory from finished jobs to this 'unused' group.
->> > You could set its soft limit to 0 so that it sticks around only until
->> > you actually need the memory for something else.
->> >
->> > Then you would get the benefits of accounting and limiting A1 and A2
->> > under a single umbrella without the need for a soft limit in A. =A0We
->> > could keep the consistent semantics for soft limits, because you would
->> > only have to set it on leaf nodes.
->> >
->> > Wouldn't this work for you?
->>
->> To be frankly, this sounds a lot of extra work for admin to manage the
->> system and we still can not prevent page being landed on A totally.
->
-> Why not?
->
-> And what extra work are we talking here? =A0As I wrote in the followup
-> mail: just keep the finished job groups around, set their soft limit
-> to 0. =A0Surely you have a userspace job scheduler that sets up these
-> groups in the first place and could be trivially extended to set soft
-> limits and watch for notifications.
->
-> Let me repeat the pros here: no breaking of existing semantics. =A0No
-> introduction of unprecedented semantics into the cgroup mess. =A0No
-> changing of kernel code necessary (except what we want to tune
-> anyway). =A0No computational overhead for you or anyone else.
+> Most probably I am wrong, but it looks overcomplicated. Somehow I
+> dislike irrationally the fact you moved mm_release() from exit_mm().
 
->
-> If your only counter argument to this is that you can't be bothered to
-> slightly adjust your setup, I'm no longer interested in this
-> discussion.
+And perhaps you can help me to discredit your patch?
 
-Before going further, I wanna make sure there is no mis-communication
-here. As I replied to Michal, I feel that we are mixing up global
-reclaim and target reclaim policy here.
+It turns out, I do not really understand this code in do_exit:
 
-The way global reclaim works today is to scan all the mem cgroups to
-fulfill the overall scan target per zone, and there is no bottom up
-look up. My patch currently adds the softlimit reclaim under global
-reclaim, and the difference is the filtering.
+	/* sync mm's RSS info before statistics gathering */
+	if (tsk->mm)
+		sync_mm_rss(tsk->mm);
 
-The soft_limit hierarchical reclaim we are discussing here is for
-target reclaim?
+Which "statistics gathering" ? Probably I missed something, but
+after the quick grep it seems to me that this is only needed for
+taskstats_exit()->xacct_add_tsk().
 
---Ying
+So why we can't simply add sync_mm_rss() into xacct_add_tsk() ?
+Yes, this way we do not "account" put_user(clear_child_tid) but
+I think we do not care.
 
->
->> Back to the current proposal, there are two concerns that I can tell by =
-far:
->>
->> 1. skipping "not trust" cgroup in case it sets its soft_limit very high:
->> Here, we don't skip the "not trust" cgroup always. We do reclaim from
->> them if not enough progress made from other cgroups above the
->> softlimit. So, I don't see a problem here.
->
-> When you decide to reclaim from groups below their soft limit.
->
-> Which means that an untrusted group can force global reclaim to go for
-> the workingset in other groups.
->
->> 2. not reclaiming based on hierarchy:
->> Here I am not checking the ancestor's soft_limit in
->> should_reclaim_mem_cgroup(). And it will only make difference if A is
->> under soft_limit and A1 is above soft_limit. Now you do agree that we
->> shouldn't reclaim from those under softlimit groups if there are
->> cgroup exeed their softlimit. Then it leads me to think something like
->> the following:
->>
->> 1. for priority > DEF_PRIORITY - 3, only reclaim memcg above their softl=
-imit
->> 2. for priority <=3D DEF_PRIORITY - 3, besides 1), also look at memcg's
->> ancestor. reclaim memcgs whose ancestor above soft_limit
->> 3. for priority =3D=3D 0, reclaim everything.
->>
->> Then it has the guarantee of the softlimit at certain level while also
->> considers the hierarchy reclaim if the first few rounds doesn't
->> fulfill the request.
->
-> You expect sane setups to pay the cost of uselessly consulting the res
-> counters of every existing memcg, twice, on every single reclaim cycle.
->
-> Everyone has their agenda and their primary usecase, but this takes
-> the cake.
+IOW, what do you think about the trivial patch below? Uncompiled,
+untested, probably incomplete. acct_update_integrals() looks
+suspicious too.
+
+Oleg.
+
+--- a/kernel/tsacct.c
++++ b/kernel/tsacct.c
+@@ -91,6 +91,7 @@ void xacct_add_tsk(struct taskstats *sta
+ 	stats->virtmem = p->acct_vm_mem1 * PAGE_SIZE / MB;
+ 	mm = get_task_mm(p);
+ 	if (mm) {
++		sync_mm_rss(mm);
+ 		/* adjust to KB unit */
+ 		stats->hiwater_rss   = get_mm_hiwater_rss(mm) * PAGE_SIZE / KB;
+ 		stats->hiwater_vm    = get_mm_hiwater_vm(mm)  * PAGE_SIZE / KB;
+--- a/kernel/exit.c
++++ b/kernel/exit.c
+@@ -643,6 +643,8 @@ static void exit_mm(struct task_struct *
+ 	mm_release(tsk, mm);
+ 	if (!mm)
+ 		return;
++
++	sync_mm_rss(mm);
+ 	/*
+ 	 * Serialize with any possible pending coredump.
+ 	 * We must hold mmap_sem around checking core_state
+@@ -960,9 +962,6 @@ void do_exit(long code)
+ 				preempt_count());
+ 
+ 	acct_update_integrals(tsk);
+-	/* sync mm's RSS info before statistics gathering */
+-	if (tsk->mm)
+-		sync_mm_rss(tsk->mm);
+ 	group_dead = atomic_dec_and_test(&tsk->signal->live);
+ 	if (group_dead) {
+ 		hrtimer_cancel(&tsk->signal->real_timer);
+--- a/fs/exec.c
++++ b/fs/exec.c
+@@ -823,10 +823,10 @@ static int exec_mmap(struct mm_struct *m
+ 	/* Notify parent that we're no longer interested in the old VM */
+ 	tsk = current;
+ 	old_mm = current->mm;
+-	sync_mm_rss(old_mm);
+ 	mm_release(tsk, old_mm);
+ 
+ 	if (old_mm) {
++		sync_mm_rss(old_mm);
+ 		/*
+ 		 * Make sure that if there is a core dump in progress
+ 		 * for the old mm, we get out and die instead of going
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
