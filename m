@@ -1,110 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx155.postini.com [74.125.245.155])
-	by kanga.kvack.org (Postfix) with SMTP id 330DA6B00ED
-	for <linux-mm@kvack.org>; Fri, 20 Apr 2012 19:27:50 -0400 (EDT)
-Received: by lagz14 with SMTP id z14so10222889lag.14
-        for <linux-mm@kvack.org>; Fri, 20 Apr 2012 16:27:48 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx107.postini.com [74.125.245.107])
+	by kanga.kvack.org (Postfix) with SMTP id 881406B00ED
+	for <linux-mm@kvack.org>; Fri, 20 Apr 2012 19:29:29 -0400 (EDT)
+Date: Sat, 21 Apr 2012 01:29:09 +0200
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH V3 0/2] memcg softlimit reclaim rework
+Message-ID: <20120420232909.GF2536@cmpxchg.org>
+References: <1334680666-12361-1-git-send-email-yinghan@google.com>
+ <20120418122448.GB1771@cmpxchg.org>
+ <CALWz4iz_17fQa=EfT2KqvJUGyHQFc5v9r+7b947yMbocC9rrjA@mail.gmail.com>
+ <20120419170434.GE15634@tiehlicka.suse.cz>
+ <CALWz4iw156qErZn0gGUUatUTisy_6uF_5mrY0kXt1W89hvVjRw@mail.gmail.com>
+ <20120419223318.GA2536@cmpxchg.org>
+ <CALWz4iy2==jYkYx98EGbqbM2Y7q4atJpv9sH_B7Fjr8aqq++JQ@mail.gmail.com>
+ <20120420131722.GD2536@cmpxchg.org>
+ <CALWz4iz2GZU_aa=28zQfK-a65QuC5v7zKN4Sg7SciPLXN-9dVQ@mail.gmail.com>
+ <20120420185846.GD15021@tiehlicka.suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <20120420231501.GE2536@cmpxchg.org>
-References: <1334680682-12430-1-git-send-email-yinghan@google.com>
-	<20120420091731.GE4191@tiehlicka.suse.cz>
-	<CALWz4iyTH8a77w2bOkSXiODiNEn+L7SFv8Njp1_fRwi8aFVZHw@mail.gmail.com>
-	<20120420231501.GE2536@cmpxchg.org>
-Date: Fri, 20 Apr 2012 16:27:47 -0700
-Message-ID: <CALWz4izU+=LtLQwd0daeJvBy0HVRdwDLjncFCmA2TnTny+cRXA@mail.gmail.com>
-Subject: Re: [PATCH V3 1/2] memcg: softlimit reclaim rework
-From: Ying Han <yinghan@google.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <20120420185846.GD15021@tiehlicka.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Michal Hocko <mhocko@suse.cz>, Mel Gorman <mel@csn.ul.ie>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Hillf Danton <dhillf@gmail.com>, Hugh Dickins <hughd@google.com>, Dan Magenheimer <dan.magenheimer@oracle.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
+To: Michal Hocko <mhocko@suse.cz>
+Cc: Ying Han <yinghan@google.com>, Mel Gorman <mel@csn.ul.ie>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Hillf Danton <dhillf@gmail.com>, Hugh Dickins <hughd@google.com>, Dan Magenheimer <dan.magenheimer@oracle.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
 
-On Fri, Apr 20, 2012 at 4:15 PM, Johannes Weiner <hannes@cmpxchg.org> wrote=
-:
-> On Fri, Apr 20, 2012 at 11:22:14AM -0700, Ying Han wrote:
->> On Fri, Apr 20, 2012 at 2:17 AM, Michal Hocko <mhocko@suse.cz> wrote:
->> > On Tue 17-04-12 09:38:02, Ying Han wrote:
->> >> This patch reverts all the existing softlimit reclaim implementations=
- and
->> >> instead integrates the softlimit reclaim into existing global reclaim=
- logic.
->> >>
->> >> The new softlimit reclaim includes the following changes:
->> >>
->> >> 1. add function should_reclaim_mem_cgroup()
->> >>
->> >> Add the filter function should_reclaim_mem_cgroup() under the common =
-function
->> >> shrink_zone(). The later one is being called both from per-memcg recl=
-aim as
->> >> well as global reclaim.
->> >>
->> >> Today the softlimit takes effect only under global memory pressure. T=
-he memcgs
->> >> get free run above their softlimit until there is a global memory con=
-tention.
->> >> This patch doesn't change the semantics.
->> >
->> > I am not sure I understand but I think it does change the semantics.
->> > Previously we looked at a group with the biggest excess and reclaim th=
-at
->> > group _hierarchically_.
->>
->> yes, we don't do _hierarchically_ reclaim reclaim in this patch. Hmm,
->> that might be what Johannes insists to preserve on the other
->> thread.... ?
->
-> Yes, that is exactly what I was talking about all along :-)
->
-> To reiterate, in the case of
->
-> A (soft =3D 10G)
-> =A0A1
-> =A0A2
-> =A0A3
-> =A0...
->
-> global reclaim should go for A, A1, A2, A3, ... when their sum usage
-> goes above 10G. =A0Regardless of any setting in those subgroups, for
-> reasons I outlined in the other subthread (basically, allowing
-> children to override parental settings assumes you trust all children
-> and their settings to be 'cooperative', which is unprecedented cgroup
-> semantics, afaics, and we can already see this will make problems in
-> the future)
+On Fri, Apr 20, 2012 at 08:58:47PM +0200, Michal Hocko wrote:
+> On Fri 20-04-12 10:44:14, Ying Han wrote:
+> > On Fri, Apr 20, 2012 at 6:17 AM, Johannes Weiner <hannes@cmpxchg.org> wrote:
+> > > Let me repeat the pros here: no breaking of existing semantics.  No
+> > > introduction of unprecedented semantics into the cgroup mess.  No
+> > > changing of kernel code necessary (except what we want to tune
+> > > anyway).  No computational overhead for you or anyone else.
+> > 
+> > >
+> > > If your only counter argument to this is that you can't be bothered to
+> > > slightly adjust your setup, I'm no longer interested in this
+> > > discussion.
+> > 
+> > Before going further, I wanna make sure there is no mis-communication
+> > here. As I replied to Michal, I feel that we are mixing up global
+> > reclaim and target reclaim policy here.
+> 
+> I was referring to the global reclaim and my understanding is that
+> Johannes did the same when talking about soft reclaim (even though it
+> makes some sense to apply the same rules to the hard limit reclaim as
+> well - but later to that one...)
+> 
+> The primary question is whether soft reclaim should be hierarchical or
+> not. That is what I've tried to express in other email earlier in this
+> thread where I've tried (very briefly) to compare those approaches.
+> It currently _is_ hierarchical and your patch changes that so we have to
+> be sure that this change in semantic is reasonable. The only workload
+> that you seem to consider is when you have a full control over the
+> machine while Johannes is considered about containers which might misuse
+> your approach to push out working sets of concurrency...
+> My concern with hierarchical approach is that it doesn't play well with
+> 0 default (which is needed if we want to make soft limit a guarantee,
+> right?). I do agree with Johannes about the potential misuse though.  So
+> it seems that both approaches have serious issues with configurability.
+> Does this summary clarify the issue a bit? Or I am confused as well ;)
 
-I understand your concern here. Having children to override the
-parental setting is not what we want, but I think this is a
-mis-configuration. If admin chose to use soft_limit, we need to lay
-out the ground rule.
+Thanks for the nice summary!
 
-I gave some details on the other thread, maybe we can move the
-conversation there :)
+A note on the default hierarchical soft limit:
 
->
-> Meanwhile, if you don't want a hierarchical limit, don't set a
-> hierarchical limit. =A0It's possible to organize the tree such that you
-> don't need to, and it should not be an unreasonable amount of work to
-> do so).
+Consider not making the default to be 0, but a special value.  We want
+it to mean 'no guarantee' and 'every byte is in excess of the soft
+limit', to keep the existing behaviour.  But at the same time, we
+wouldn't have to make it inheritable:
 
-Not setting it won't work either way.
+    A (soft = default)
+      A1 (soft = 10G)
+      A2 (soft = 12G)
 
-1. unlimited: it will never get the pages under A being reclaimed
-2. 0: it will get everything being reclaimed under A based on your logic.
+so in case of global reclaim, A itself would be eligible, but it would
+not apply hierarchically to A1 and A2.  They would still only get
+reclaimed if their usage would be above their respective soft limits.
+Only if you set A's soft limit to 0 or higher it will apply
+hierarchically, so that if a parent declares 'no guarantee', no child
+is able to override it.
 
-Have a nice weekend !
-
---Ying
-
->
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org. =A0For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Fight unfair telecom internet charges in Canada: sign http://stopthemeter=
-.ca/
-> Don't email: <a href=3Dmailto:"dont@kvack.org"> email@kvack.org </a>
+Maybe we can keep -1/~0UL and just treat it a bit differently.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
