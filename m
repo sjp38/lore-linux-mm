@@ -1,97 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from psmtp.com (na3sys010amx167.postini.com [74.125.245.167])
-	by kanga.kvack.org (Postfix) with SMTP id 551346B004D
-	for <linux-mm@kvack.org>; Fri, 20 Apr 2012 20:19:42 -0400 (EDT)
-Date: Sat, 21 Apr 2012 02:19:14 +0200
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH V3 0/2] memcg softlimit reclaim rework
-Message-ID: <20120421001914.GG2536@cmpxchg.org>
-References: <20120418122448.GB1771@cmpxchg.org>
- <CALWz4iz_17fQa=EfT2KqvJUGyHQFc5v9r+7b947yMbocC9rrjA@mail.gmail.com>
- <20120419170434.GE15634@tiehlicka.suse.cz>
- <CALWz4iw156qErZn0gGUUatUTisy_6uF_5mrY0kXt1W89hvVjRw@mail.gmail.com>
- <20120419223318.GA2536@cmpxchg.org>
- <CALWz4iy2==jYkYx98EGbqbM2Y7q4atJpv9sH_B7Fjr8aqq++JQ@mail.gmail.com>
- <20120420131722.GD2536@cmpxchg.org>
- <CALWz4iz2GZU_aa=28zQfK-a65QuC5v7zKN4Sg7SciPLXN-9dVQ@mail.gmail.com>
- <20120420185846.GD15021@tiehlicka.suse.cz>
- <CALWz4izyaywap8Qo=EO=uYqODZ4Diaio8Y41X0xjmE_UTsdSzA@mail.gmail.com>
+	by kanga.kvack.org (Postfix) with SMTP id 25C996B004D
+	for <linux-mm@kvack.org>; Fri, 20 Apr 2012 20:21:40 -0400 (EDT)
+From: Satoru Moriya <satoru.moriya@hds.com>
+Date: Fri, 20 Apr 2012 20:21:28 -0400
+Subject: RE: [RFC][PATCH] avoid swapping out with swappiness==0
+Message-ID: <65795E11DBF1E645A09CEC7EAEE94B9C014575D8CF@USINDEVS02.corp.hds.com>
+References: <65795E11DBF1E645A09CEC7EAEE94B9CB9455FE2@USINDEVS02.corp.hds.com>
+ <20120305215602.GA1693@redhat.com> <4F5798B1.5070005@jp.fujitsu.com>
+ <65795E11DBF1E645A09CEC7EAEE94B9CB951A45F@USINDEVS02.corp.hds.com>
+ <65795E11DBF1E645A09CEC7EAEE94B9C01454D13A6@USINDEVS02.corp.hds.com>
+ <CAHGf_=p9OgVC9J-Nh78CTbuMbc9CVt-+-G+CNbYUsgz70Uc8Qg@mail.gmail.com>
+ <4F7ADE1A.2050004@redhat.com> <4F7C870B.6020807@gmail.com>
+In-Reply-To: <4F7C870B.6020807@gmail.com>
+Content-Language: en-US
+Content-Type: text/plain; charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <CALWz4izyaywap8Qo=EO=uYqODZ4Diaio8Y41X0xjmE_UTsdSzA@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ying Han <yinghan@google.com>
-Cc: Michal Hocko <mhocko@suse.cz>, Mel Gorman <mel@csn.ul.ie>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Hillf Danton <dhillf@gmail.com>, Hugh Dickins <hughd@google.com>, Dan Magenheimer <dan.magenheimer@oracle.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
+To: KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Jerome Marchand <jmarchan@redhat.com>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, "jweiner@redhat.com" <jweiner@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "riel@redhat.com" <riel@redhat.com>, "lwoodman@redhat.com" <lwoodman@redhat.com>, "shaohua.li@intel.com" <shaohua.li@intel.com>, "dle-develop@lists.sourceforge.net" <dle-develop@lists.sourceforge.net>, Seiji Aguchi <seiji.aguchi@hds.com>
 
-On Fri, Apr 20, 2012 at 03:50:28PM -0700, Ying Han wrote:
-> On Fri, Apr 20, 2012 at 11:58 AM, Michal Hocko <mhocko@suse.cz> wrote:
-> > On Fri 20-04-12 10:44:14, Ying Han wrote:
-> >> On Fri, Apr 20, 2012 at 6:17 AM, Johannes Weiner <hannes@cmpxchg.org> wrote:
-> >> > Let me repeat the pros here: no breaking of existing semantics.  No
-> >> > introduction of unprecedented semantics into the cgroup mess.  No
-> >> > changing of kernel code necessary (except what we want to tune
-> >> > anyway).  No computational overhead for you or anyone else.
-> >>
-> >> >
-> >> > If your only counter argument to this is that you can't be bothered to
-> >> > slightly adjust your setup, I'm no longer interested in this
-> >> > discussion.
-> >>
-> >> Before going further, I wanna make sure there is no mis-communication
-> >> here. As I replied to Michal, I feel that we are mixing up global
-> >> reclaim and target reclaim policy here.
-> >
-> > I was referring to the global reclaim and my understanding is that
-> > Johannes did the same when talking about soft reclaim (even though it
-> > makes some sense to apply the same rules to the hard limit reclaim as
-> > well - but later to that one...)
-> >
-> > The primary question is whether soft reclaim should be hierarchical or
-> > not. That is what I've tried to express in other email earlier in this
-> > thread where I've tried (very briefly) to compare those approaches.
-> > It currently _is_ hierarchical and your patch changes that so we have to
-> > be sure that this change in semantic is reasonable.
-> 
-> Yes, after reading the other thread and I suddenly realized what you
-> guys are talking about.
-> 
-> The only workload
-> > that you seem to consider is when you have a full control over the
-> > machine while Johannes is considered about containers which might misuse
-> > your approach to push out working sets of concurrency...
-> > My concern with hierarchical approach is that it doesn't play well with
-> > 0 default (which is needed if we want to make soft limit a guarantee,
-> > right?). I do agree with Johannes about the potential misuse though.  So
-> > it seems that both approaches have serious issues with configurability.
-> > Does this summary clarify the issue a bit? Or I am confused as well ;)
-> 
-> Thank you for the good summary and now we are on the same page :)
-> 
-> Regarding the misuse case, here I am gonna layout the ground rule for
-> setting up soft_limit:
-> 
-> "
-> Never over-commit the system by softlimit.
-> "
+Hi,
 
-Which proves that we are not on the same page at all :-(
+Sorry for my late reply.
 
-It's not about dealing with rare, non-sensical setups, it's about
-suddenly trusting children to do the right thing.
+On 04/04/2012 01:38 PM, KOSAKI Motohiro wrote:
+> (4/3/12 4:25 AM), Jerome Marchand wrote:
+>> On 04/02/2012 07:10 PM, KOSAKI Motohiro wrote:
+>>> 2012/3/30 Satoru Moriya<satoru.moriya@hds.com>:
+>>>> So the kernel reclaims pages like following.
+>>>>
+>>>> nr_free + nr_filebacked>=3D watermark_high: reclaim only filebacked pa=
+ges
+>>>> nr_free + nr_filebacked<   watermark_high: reclaim only anonymous page=
+s
+>>>
+>>> How?
+>>
+>> get_scan_count() checks that case explicitly:
+>>
+>>     if (global_reclaim(sc)) {
+>>         free  =3D zone_page_state(mz->zone, NR_FREE_PAGES);
+>>         /* If we have very few page cache pages,
+>>            force-scan anon pages. */
+>>         if (unlikely(file + free<=3D high_wmark_pages(mz->zone))) {
+>>             fraction[0] =3D 1;
+>>             fraction[1] =3D 0;
+>>             denominator =3D 1;
+>>             goto out;
+>>         }
+>>     }
+>=20
+> Eek. This is silly. Nowaday many people enabled THP and it increase zone =
+watermark.
+> so, high watermask is not good threshold anymore.
 
-And it's about suddenly REQUIRING all children to cooperate even for
-the reasonable configuration case, instead of just having soft limits
-apply hierarchically.
+Ah yes, it is not so small now.
+On 4GB server, without THP min_free_kbytes is 8113 but
+with THP it is 67584.
 
-Meanwhile, you STILL haven't provided an argument why you couldn't
-just fix your cgroup tree organization to make sense for the semantics
-you require instead of pushing for such a bogus change.
+How about using low watermark or min watermark?
+Are they still big?
 
-It's like you're trying to redefine multiplication because you
-accidentally used * instead of + in your equation.
+...or should we use other value?=20
+
+Regards,
+Satoru
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
