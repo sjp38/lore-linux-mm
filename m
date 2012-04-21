@@ -1,71 +1,108 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx153.postini.com [74.125.245.153])
-	by kanga.kvack.org (Postfix) with SMTP id 239626B004D
-	for <linux-mm@kvack.org>; Fri, 20 Apr 2012 22:49:11 -0400 (EDT)
-Received: by obbeh20 with SMTP id eh20so10802931obb.14
-        for <linux-mm@kvack.org>; Fri, 20 Apr 2012 19:49:09 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <20120421112932.3e4bd031d1defc8fe7915ade@gmail.com>
-References: <1334356721-9009-1-git-send-email-yinghan@google.com>
- <20120420151143.433c514e.akpm@linux-foundation.org> <4F91E8CC.5080409@redhat.com>
- <CALWz4iwVhg23X06T6HP49PKa8z2_-KRx6f64vYrvsT+KoaKp8A@mail.gmail.com>
- <20120421105615.6b0b03640f7553060628d840@gmail.com> <CAGTjWtB_n+40MEHaQNxZuNhQpXJNGsfeV=Rbz3C12Ar9iPkW8Q@mail.gmail.com>
- <20120421112932.3e4bd031d1defc8fe7915ade@gmail.com>
-From: Mike Waychison <mikew@google.com>
-Date: Fri, 20 Apr 2012 19:48:49 -0700
-Message-ID: <CAGTjWtBXp60hfeFjFHvpj045cRG4nowanS7+U8NcAbE3sdCiaA@mail.gmail.com>
-Subject: Re: [PATCH] kvm: don't call mmu_shrinker w/o used_mmu_pages
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Received: from psmtp.com (na3sys010amx168.postini.com [74.125.245.168])
+	by kanga.kvack.org (Postfix) with SMTP id 3C3B16B004D
+	for <linux-mm@kvack.org>; Sat, 21 Apr 2012 09:43:20 -0400 (EDT)
+Received: by pbcup15 with SMTP id up15so2606099pbc.14
+        for <linux-mm@kvack.org>; Sat, 21 Apr 2012 06:43:19 -0700 (PDT)
+From: Rajman Mekaco <rajman.mekaco@gmail.com>
+Subject: [PATCH 1/1] mmap.c: find_vma: remove unnecessary if(mm) check
+Date: Sat, 21 Apr 2012 19:12:35 +0530
+Message-Id: <1335015755-2881-1-git-send-email-rajman.mekaco@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Takuya Yoshikawa <takuya.yoshikawa@gmail.com>
-Cc: Ying Han <yinghan@google.com>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mel@csn.ul.ie>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Hillf Danton <dhillf@gmail.com>, Hugh Dickins <hughd@google.com>, Dan Magenheimer <dan.magenheimer@oracle.com>, linux-mm@kvack.org, kvm@vger.kernel.org, Avi Kivity <avi@redhat.com>, Marcelo Tosatti <mtosatti@redhat.com>, Eric Northup <digitaleric@google.com>
+To: Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Al Viro <viro@zeniv.linux.org.uk>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Rajman Mekaco <rajman.mekaco@gmail.com>, Kautuk Consul <consul.kautuk@gmail.com>
 
-On Fri, Apr 20, 2012 at 7:29 PM, Takuya Yoshikawa
-<takuya.yoshikawa@gmail.com> wrote:
-> On Fri, 20 Apr 2012 19:15:24 -0700
-> Mike Waychison <mikew@google.com> wrote:
->
->> In our situation, we simple disable the shrinker altogether. =A0My
->> understanding is that we EPT or NPT, the amount of memory used by
->> these tables is bounded by the size of guest physical memory, whereas
->> with software shadowed tables, it is bounded by the addresses spaces
->> in the guest. =A0This bound makes it reasonable to not do any reclaim
->> and charge it as a "system overhead tax".
->
-> IIRC, KVM's mmu_shrink is mainly for protecting the host from pathologica=
-l
-> guest without EPT or NPT.
->
-> You can see Avi's summary: -- http://www.spinics.net/lists/kvm/msg65671.h=
-tml
-> =3D=3D=3D
-> We should aim for the following:
-> - normal operation causes very little shrinks (some are okay)
-> - high pressure mostly due to kvm results in kvm being shrunk (this is a
-> pathological case caused by a starting a guest with a huge amount of
-> memory, and mapping it all to /dev/zero (or ksm), and getting the guest
-> the create shadow mappings for all of it)
-> - general high pressure is shared among other caches like dcache and icac=
-he
->
-> The cost of reestablishing an mmu page can be as high as half a
-> millisecond of cpu time, which is the reason I want to be conservative.
+The if(mm) check is not required in find_vma, as the kernel
+code calls find_vma only when it is absolutely sure that the
+mm_struct arg to it is non-NULL.
 
-To add to that, on these systems (32-way), the fault itself isn't as
-heavy-handed as a global lock in everyone's reclaim path :)
+Removing the if(mm) check and adding the a WARN_ONCE(!mm)
+for now.
+This will serve the purpose of mandating that the execution
+context(user-mode/kernel-mode) be known before find_vma is called.
+Also fixed 2 checkpatch.pl errors in the declaration
+of the rb_node and vma_tmp local variables.
 
-I'd be very happy if this stuff was memcg aware, but until that
-happens, this code is disabled in our production builds.  30% of CPU
-time lost to a spinlock when mixing VMs with IO is worth paying the <
-1% of system ram these pages cost if it means
-tighter/more-deterministic service latencies.
+I was browsing through the internet and read a discussion
+at https://lkml.org/lkml/2012/3/27/342 which discusses removal
+of the validation check within find_vma.
+Since no-one responded, I decided to send this patch with Andrew's
+suggestions.
 
-> =3D=3D=3D
->
-> Thanks,
-> =A0 =A0 =A0 =A0Takuya
+Signed-off-by: Rajman Mekaco <rajman.mekaco@gmail.com>
+Cc: Kautuk Consul <consul.kautuk@gmail.com>
+---
+ mm/mmap.c |   53 +++++++++++++++++++++++++++--------------------------
+ 1 files changed, 27 insertions(+), 26 deletions(-)
+
+diff --git a/mm/mmap.c b/mm/mmap.c
+index b38b47e..1c3ef5d 100644
+--- a/mm/mmap.c
++++ b/mm/mmap.c
+@@ -1616,33 +1616,34 @@ struct vm_area_struct *find_vma(struct mm_struct *mm, unsigned long addr)
+ {
+ 	struct vm_area_struct *vma = NULL;
+ 
+-	if (mm) {
+-		/* Check the cache first. */
+-		/* (Cache hit rate is typically around 35%.) */
+-		vma = mm->mmap_cache;
+-		if (!(vma && vma->vm_end > addr && vma->vm_start <= addr)) {
+-			struct rb_node * rb_node;
+-
+-			rb_node = mm->mm_rb.rb_node;
+-			vma = NULL;
+-
+-			while (rb_node) {
+-				struct vm_area_struct * vma_tmp;
+-
+-				vma_tmp = rb_entry(rb_node,
+-						struct vm_area_struct, vm_rb);
+-
+-				if (vma_tmp->vm_end > addr) {
+-					vma = vma_tmp;
+-					if (vma_tmp->vm_start <= addr)
+-						break;
+-					rb_node = rb_node->rb_left;
+-				} else
+-					rb_node = rb_node->rb_right;
+-			}
+-			if (vma)
+-				mm->mmap_cache = vma;
++	if (WARN_ON_ONCE(!mm))
++		return NULL;
++
++	/* Check the cache first. */
++	/* (Cache hit rate is typically around 35%.) */
++	vma = mm->mmap_cache;
++	if (!(vma && vma->vm_end > addr && vma->vm_start <= addr)) {
++		struct rb_node *rb_node;
++
++		rb_node = mm->mm_rb.rb_node;
++		vma = NULL;
++
++		while (rb_node) {
++			struct vm_area_struct *vma_tmp;
++
++			vma_tmp = rb_entry(rb_node,
++					   struct vm_area_struct, vm_rb);
++
++			if (vma_tmp->vm_end > addr) {
++				vma = vma_tmp;
++				if (vma_tmp->vm_start <= addr)
++					break;
++				rb_node = rb_node->rb_left;
++			} else
++				rb_node = rb_node->rb_right;
+ 		}
++		if (vma)
++			mm->mmap_cache = vma;
+ 	}
+ 	return vma;
+ }
+-- 
+1.7.5.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
