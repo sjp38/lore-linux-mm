@@ -1,59 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx139.postini.com [74.125.245.139])
-	by kanga.kvack.org (Postfix) with SMTP id 954D56B004D
-	for <linux-mm@kvack.org>; Fri, 20 Apr 2012 20:49:17 -0400 (EDT)
-Date: Sat, 21 Apr 2012 02:48:59 +0200
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH V3 0/2] memcg softlimit reclaim rework
-Message-ID: <20120421004858.GH2536@cmpxchg.org>
-References: <CALWz4iz_17fQa=EfT2KqvJUGyHQFc5v9r+7b947yMbocC9rrjA@mail.gmail.com>
- <20120419170434.GE15634@tiehlicka.suse.cz>
- <CALWz4iw156qErZn0gGUUatUTisy_6uF_5mrY0kXt1W89hvVjRw@mail.gmail.com>
- <20120419223318.GA2536@cmpxchg.org>
- <CALWz4iy2==jYkYx98EGbqbM2Y7q4atJpv9sH_B7Fjr8aqq++JQ@mail.gmail.com>
- <20120420131722.GD2536@cmpxchg.org>
- <CALWz4iz2GZU_aa=28zQfK-a65QuC5v7zKN4Sg7SciPLXN-9dVQ@mail.gmail.com>
- <20120420185846.GD15021@tiehlicka.suse.cz>
- <CALWz4izyaywap8Qo=EO=uYqODZ4Diaio8Y41X0xjmE_UTsdSzA@mail.gmail.com>
- <20120421001914.GG2536@cmpxchg.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20120421001914.GG2536@cmpxchg.org>
+Received: from psmtp.com (na3sys010amx107.postini.com [74.125.245.107])
+	by kanga.kvack.org (Postfix) with SMTP id 35EEA6B004D
+	for <linux-mm@kvack.org>; Fri, 20 Apr 2012 21:56:22 -0400 (EDT)
+Received: by pbcup15 with SMTP id up15so2072832pbc.14
+        for <linux-mm@kvack.org>; Fri, 20 Apr 2012 18:56:21 -0700 (PDT)
+Date: Sat, 21 Apr 2012 10:56:15 +0900
+From: Takuya Yoshikawa <takuya.yoshikawa@gmail.com>
+Subject: Re: [PATCH] kvm: don't call mmu_shrinker w/o used_mmu_pages
+Message-Id: <20120421105615.6b0b03640f7553060628d840@gmail.com>
+In-Reply-To: <CALWz4iwVhg23X06T6HP49PKa8z2_-KRx6f64vYrvsT+KoaKp8A@mail.gmail.com>
+References: <1334356721-9009-1-git-send-email-yinghan@google.com>
+	<20120420151143.433c514e.akpm@linux-foundation.org>
+	<4F91E8CC.5080409@redhat.com>
+	<CALWz4iwVhg23X06T6HP49PKa8z2_-KRx6f64vYrvsT+KoaKp8A@mail.gmail.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Ying Han <yinghan@google.com>
-Cc: Michal Hocko <mhocko@suse.cz>, Mel Gorman <mel@csn.ul.ie>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Hillf Danton <dhillf@gmail.com>, Hugh Dickins <hughd@google.com>, Dan Magenheimer <dan.magenheimer@oracle.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
+Cc: Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mel@csn.ul.ie>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Hillf Danton <dhillf@gmail.com>, Hugh Dickins <hughd@google.com>, Dan Magenheimer <dan.magenheimer@oracle.com>, linux-mm@kvack.org, kvm@vger.kernel.org, Avi Kivity <avi@redhat.com>, Marcelo Tosatti <mtosatti@redhat.com>, Mike Waychison <mikew@google.com>
 
-On Sat, Apr 21, 2012 at 02:19:14AM +0200, Johannes Weiner wrote:
-> It's like you're trying to redefine multiplication because you
-> accidentally used * instead of + in your equation.
+On Fri, 20 Apr 2012 16:07:41 -0700
+Ying Han <yinghan@google.com> wrote:
 
-You could for example do this:
+> My understanding of the real pain is the poor implementation of the
+> mmu_shrinker. It iterates all the registered mmu_shrink callbacks for
+> each kvm and only does little work at a time while holding two big
+> locks. I learned from mikew@ (also ++cc-ed) that is causing latency
+> spikes and unfairness among kvm instance in some of the experiment
+> we've seen.
 
--> A (hard limit = 16G)
-   -> A1 (hard limit = 10G)
-   -> A2 (hard limit =  6G)
+Last year, I discussed the mmu_shrink issues on kvm ML:
 
-and say the same: you want to account A, A1, and A2 under the same
-umbrella, so you want the same hierarchy.  And you want to limit the
-memory in A (from finished jobs and tasks running directly in A), but
-this limit should NOT apply to A1 and A2 when they have not reached
-THEIR respective limits.
+	[PATCH 0/4] KVM: Make mmu_shrink() scan nr_to_scan shadow pages
+	http://www.spinics.net/lists/kvm/msg65231.html
 
-You can apply all your current arguments to this same case.  And yet,
-you say hierarchical hard limits make sense while hierarchical soft
-limits don't.  I hope this example makes it clear why this is not true
-at all.
+Sadly, we could not find any good way at that time.
 
-We have cases where we want the hierarchical limits.  Both hard limits
-and soft limits.  You can easily fix your setup without taking away
-this power from everyone else or introducing inconsistency.  Your
-whole problem stems from a simple misconfiguration.
-
-The solution to both cases is this: don't stick memory in these meta
-groups and complain that their hierarchical limits apply to their
-children.
+Thanks,
+	Takuya
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
