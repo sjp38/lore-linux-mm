@@ -1,73 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx167.postini.com [74.125.245.167])
-	by kanga.kvack.org (Postfix) with SMTP id 25C996B004D
-	for <linux-mm@kvack.org>; Fri, 20 Apr 2012 20:21:40 -0400 (EDT)
-From: Satoru Moriya <satoru.moriya@hds.com>
-Date: Fri, 20 Apr 2012 20:21:28 -0400
-Subject: RE: [RFC][PATCH] avoid swapping out with swappiness==0
-Message-ID: <65795E11DBF1E645A09CEC7EAEE94B9C014575D8CF@USINDEVS02.corp.hds.com>
-References: <65795E11DBF1E645A09CEC7EAEE94B9CB9455FE2@USINDEVS02.corp.hds.com>
- <20120305215602.GA1693@redhat.com> <4F5798B1.5070005@jp.fujitsu.com>
- <65795E11DBF1E645A09CEC7EAEE94B9CB951A45F@USINDEVS02.corp.hds.com>
- <65795E11DBF1E645A09CEC7EAEE94B9C01454D13A6@USINDEVS02.corp.hds.com>
- <CAHGf_=p9OgVC9J-Nh78CTbuMbc9CVt-+-G+CNbYUsgz70Uc8Qg@mail.gmail.com>
- <4F7ADE1A.2050004@redhat.com> <4F7C870B.6020807@gmail.com>
-In-Reply-To: <4F7C870B.6020807@gmail.com>
-Content-Language: en-US
-Content-Type: text/plain; charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
+Received: from psmtp.com (na3sys010amx139.postini.com [74.125.245.139])
+	by kanga.kvack.org (Postfix) with SMTP id 954D56B004D
+	for <linux-mm@kvack.org>; Fri, 20 Apr 2012 20:49:17 -0400 (EDT)
+Date: Sat, 21 Apr 2012 02:48:59 +0200
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH V3 0/2] memcg softlimit reclaim rework
+Message-ID: <20120421004858.GH2536@cmpxchg.org>
+References: <CALWz4iz_17fQa=EfT2KqvJUGyHQFc5v9r+7b947yMbocC9rrjA@mail.gmail.com>
+ <20120419170434.GE15634@tiehlicka.suse.cz>
+ <CALWz4iw156qErZn0gGUUatUTisy_6uF_5mrY0kXt1W89hvVjRw@mail.gmail.com>
+ <20120419223318.GA2536@cmpxchg.org>
+ <CALWz4iy2==jYkYx98EGbqbM2Y7q4atJpv9sH_B7Fjr8aqq++JQ@mail.gmail.com>
+ <20120420131722.GD2536@cmpxchg.org>
+ <CALWz4iz2GZU_aa=28zQfK-a65QuC5v7zKN4Sg7SciPLXN-9dVQ@mail.gmail.com>
+ <20120420185846.GD15021@tiehlicka.suse.cz>
+ <CALWz4izyaywap8Qo=EO=uYqODZ4Diaio8Y41X0xjmE_UTsdSzA@mail.gmail.com>
+ <20120421001914.GG2536@cmpxchg.org>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20120421001914.GG2536@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Jerome Marchand <jmarchan@redhat.com>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, "jweiner@redhat.com" <jweiner@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "riel@redhat.com" <riel@redhat.com>, "lwoodman@redhat.com" <lwoodman@redhat.com>, "shaohua.li@intel.com" <shaohua.li@intel.com>, "dle-develop@lists.sourceforge.net" <dle-develop@lists.sourceforge.net>, Seiji Aguchi <seiji.aguchi@hds.com>
+To: Ying Han <yinghan@google.com>
+Cc: Michal Hocko <mhocko@suse.cz>, Mel Gorman <mel@csn.ul.ie>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Hillf Danton <dhillf@gmail.com>, Hugh Dickins <hughd@google.com>, Dan Magenheimer <dan.magenheimer@oracle.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
 
-Hi,
+On Sat, Apr 21, 2012 at 02:19:14AM +0200, Johannes Weiner wrote:
+> It's like you're trying to redefine multiplication because you
+> accidentally used * instead of + in your equation.
 
-Sorry for my late reply.
+You could for example do this:
 
-On 04/04/2012 01:38 PM, KOSAKI Motohiro wrote:
-> (4/3/12 4:25 AM), Jerome Marchand wrote:
->> On 04/02/2012 07:10 PM, KOSAKI Motohiro wrote:
->>> 2012/3/30 Satoru Moriya<satoru.moriya@hds.com>:
->>>> So the kernel reclaims pages like following.
->>>>
->>>> nr_free + nr_filebacked>=3D watermark_high: reclaim only filebacked pa=
-ges
->>>> nr_free + nr_filebacked<   watermark_high: reclaim only anonymous page=
-s
->>>
->>> How?
->>
->> get_scan_count() checks that case explicitly:
->>
->>     if (global_reclaim(sc)) {
->>         free  =3D zone_page_state(mz->zone, NR_FREE_PAGES);
->>         /* If we have very few page cache pages,
->>            force-scan anon pages. */
->>         if (unlikely(file + free<=3D high_wmark_pages(mz->zone))) {
->>             fraction[0] =3D 1;
->>             fraction[1] =3D 0;
->>             denominator =3D 1;
->>             goto out;
->>         }
->>     }
->=20
-> Eek. This is silly. Nowaday many people enabled THP and it increase zone =
-watermark.
-> so, high watermask is not good threshold anymore.
+-> A (hard limit = 16G)
+   -> A1 (hard limit = 10G)
+   -> A2 (hard limit =  6G)
 
-Ah yes, it is not so small now.
-On 4GB server, without THP min_free_kbytes is 8113 but
-with THP it is 67584.
+and say the same: you want to account A, A1, and A2 under the same
+umbrella, so you want the same hierarchy.  And you want to limit the
+memory in A (from finished jobs and tasks running directly in A), but
+this limit should NOT apply to A1 and A2 when they have not reached
+THEIR respective limits.
 
-How about using low watermark or min watermark?
-Are they still big?
+You can apply all your current arguments to this same case.  And yet,
+you say hierarchical hard limits make sense while hierarchical soft
+limits don't.  I hope this example makes it clear why this is not true
+at all.
 
-...or should we use other value?=20
+We have cases where we want the hierarchical limits.  Both hard limits
+and soft limits.  You can easily fix your setup without taking away
+this power from everyone else or introducing inconsistency.  Your
+whole problem stems from a simple misconfiguration.
 
-Regards,
-Satoru
+The solution to both cases is this: don't stick memory in these meta
+groups and complain that their hierarchical limits apply to their
+children.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
