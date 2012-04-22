@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx101.postini.com [74.125.245.101])
-	by kanga.kvack.org (Postfix) with SMTP id 7C0856B004D
-	for <linux-mm@kvack.org>; Sun, 22 Apr 2012 19:56:46 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx146.postini.com [74.125.245.146])
+	by kanga.kvack.org (Postfix) with SMTP id 35D4B6B00E7
+	for <linux-mm@kvack.org>; Sun, 22 Apr 2012 19:56:52 -0400 (EDT)
 From: Glauber Costa <glommer@parallels.com>
-Subject: [PATCH 12/23] slab: pass memcg parameter to kmem_cache_create
-Date: Sun, 22 Apr 2012 20:53:29 -0300
-Message-Id: <1335138820-26590-1-git-send-email-glommer@parallels.com>
+Subject: [PATCH 13/23] slub: create duplicate cache
+Date: Sun, 22 Apr 2012 20:53:30 -0300
+Message-Id: <1335138820-26590-2-git-send-email-glommer@parallels.com>
 In-Reply-To: <1334959051-18203-1-git-send-email-glommer@parallels.com>
 References: <1334959051-18203-1-git-send-email-glommer@parallels.com>
 Sender: owner-linux-mm@kvack.org
@@ -13,14 +13,14 @@ List-ID: <linux-mm.kvack.org>
 To: cgroups@vger.kernel.org
 Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, devel@openvz.org, kamezawa.hiroyu@jp.fujitsu.com, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, fweisbec@gmail.com, Greg Thelen <gthelen@google.com>, Suleiman Souhlal <suleiman@google.com>, Glauber Costa <glommer@parallels.com>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@cs.helsinki.fi>
 
-Allow a memcg parameter to be passed during cache creation.
+This patch provides kmem_cache_dup(), that duplicates
+a cache for a memcg, preserving its creation properties.
+Object size, alignment and flags are all respected.
 
-Default function is created as a wrapper, passing NULL
-to the memcg version. We only merge caches that belong
-to the same memcg.
-
-This code was mostly written by Suleiman Souhlal and
-only adapted to my patchset, plus a couple of simplifications
+When a duplicate cache is created, the parent cache cannot
+be destructed during the child lifetime. To assure this,
+its reference count is increased if the cache creation
+succeeds.
 
 Signed-off-by: Glauber Costa <glommer@parallels.com>
 CC: Christoph Lameter <cl@linux.com>
@@ -30,102 +30,143 @@ CC: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 CC: Johannes Weiner <hannes@cmpxchg.org>
 CC: Suleiman Souhlal <suleiman@google.com>
 ---
- mm/slab.c |   38 +++++++++++++++++++++++++++++---------
- 1 files changed, 29 insertions(+), 9 deletions(-)
+ include/linux/memcontrol.h |    3 +++
+ include/linux/slab.h       |    3 +++
+ mm/memcontrol.c            |   44 ++++++++++++++++++++++++++++++++++++++++++++
+ mm/slub.c                  |   37 +++++++++++++++++++++++++++++++++++++
+ 4 files changed, 87 insertions(+), 0 deletions(-)
 
-diff --git a/mm/slab.c b/mm/slab.c
-index a0d51dd..362bb6e 100644
---- a/mm/slab.c
-+++ b/mm/slab.c
-@@ -2287,14 +2287,15 @@ static int __init_refok setup_cpu_cache(struct kmem_cache *cachep, gfp_t gfp)
-  * cacheline.  This can be beneficial if you're counting cycles as closely
-  * as davem.
-  */
--struct kmem_cache *
--kmem_cache_create (const char *name, size_t size, size_t align,
--	unsigned long flags, void (*ctor)(void *))
-+static struct kmem_cache *
-+__kmem_cache_create(struct mem_cgroup *memcg, const char *name, size_t size,
-+		    size_t align, unsigned long flags, void (*ctor)(void *))
- {
--	size_t left_over, slab_size, ralign;
-+	size_t left_over, orig_align, ralign, slab_size;
- 	struct kmem_cache *cachep = NULL, *pc;
- 	gfp_t gfp;
- 
-+	orig_align = align;
- 	/*
- 	 * Sanity checks... these are all serious usage bugs.
- 	 */
-@@ -2311,7 +2312,6 @@ kmem_cache_create (const char *name, size_t size, size_t align,
- 	 */
- 	if (slab_is_available()) {
- 		get_online_cpus();
--		mutex_lock(&cache_chain_mutex);
- 	}
- 
- 	list_for_each_entry(pc, &cache_chain, next) {
-@@ -2331,9 +2331,9 @@ kmem_cache_create (const char *name, size_t size, size_t align,
- 			continue;
- 		}
- 
--		if (!strcmp(pc->name, name)) {
-+		if (!strcmp(pc->name, name) && !memcg) {
- 			printk(KERN_ERR
--			       "kmem_cache_create: duplicate cache %s\n", name);
-+			"kmem_cache_create: duplicate cache %s\n", name);
- 			dump_stack();
- 			goto oops;
- 		}
-@@ -2434,6 +2434,9 @@ kmem_cache_create (const char *name, size_t size, size_t align,
- 	cachep->nodelists = (struct kmem_list3 **)&cachep->array[nr_cpu_ids];
- 
- 	set_obj_size(cachep, size);
-+#ifdef CONFIG_CGROUP_MEM_RES_CTLR_KMEM
-+	cachep->memcg_params.orig_align = orig_align;
-+#endif
- #if DEBUG
- 
- 	/*
-@@ -2541,7 +2544,12 @@ kmem_cache_create (const char *name, size_t size, size_t align,
- 		BUG_ON(ZERO_OR_NULL_PTR(cachep->slabp_cache));
- 	}
- 	cachep->ctor = ctor;
--	cachep->name = name;
-+	cachep->name = (char *)name;
+diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
+index 99e14b9..493ecdd 100644
+--- a/include/linux/memcontrol.h
++++ b/include/linux/memcontrol.h
+@@ -445,6 +445,9 @@ int memcg_css_id(struct mem_cgroup *memcg);
+ void mem_cgroup_register_cache(struct mem_cgroup *memcg,
+ 				      struct kmem_cache *s);
+ void mem_cgroup_release_cache(struct kmem_cache *cachep);
++extern char *mem_cgroup_cache_name(struct mem_cgroup *memcg,
++				   struct kmem_cache *cachep);
 +
-+#ifdef CONFIG_CGROUP_MEM_RES_CTLR_KMEM
-+	mem_cgroup_register_cache(memcg, cachep);
-+	atomic_set(&cachep->memcg_params.refcnt, 1);
-+#endif
+ #else
+ static inline void mem_cgroup_register_cache(struct mem_cgroup *memcg,
+ 					     struct kmem_cache *s)
+diff --git a/include/linux/slab.h b/include/linux/slab.h
+index c7a7e05..909b508 100644
+--- a/include/linux/slab.h
++++ b/include/linux/slab.h
+@@ -323,6 +323,9 @@ extern void *__kmalloc_track_caller(size_t, gfp_t, unsigned long);
  
- 	if (setup_cpu_cache(cachep, gfp)) {
- 		__kmem_cache_destroy(cachep);
-@@ -2566,11 +2574,23 @@ oops:
- 		panic("kmem_cache_create(): failed to create slab `%s'\n",
- 		      name);
- 	if (slab_is_available()) {
--		mutex_unlock(&cache_chain_mutex);
- 		put_online_cpus();
- 	}
- 	return cachep;
- }
-+
-+struct kmem_cache *
-+kmem_cache_create(const char *name, size_t size, size_t align,
-+		  unsigned long flags, void (*ctor)(void *))
+ #ifdef CONFIG_CGROUP_MEM_RES_CTLR_KMEM
+ #define MAX_KMEM_CACHE_TYPES 400
++extern struct kmem_cache *kmem_cache_dup(struct mem_cgroup *memcg,
++					 struct kmem_cache *cachep);
++void kmem_cache_drop_ref(struct kmem_cache *cachep);
+ #else
+ #define MAX_KMEM_CACHE_TYPES 0
+ #endif /* CONFIG_CGROUP_MEM_RES_CTLR_KMEM */
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index 0015ed0..e881d83 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -467,6 +467,50 @@ struct cg_proto *tcp_proto_cgroup(struct mem_cgroup *memcg)
+ EXPORT_SYMBOL(tcp_proto_cgroup);
+ #endif /* CONFIG_INET */
+ 
++/*
++ * This is to prevent races againt the kmalloc cache creations.
++ * Should never be used outside the core memcg code. Therefore,
++ * copy it here, instead of letting it in lib/
++ */
++static char *kasprintf_no_account(gfp_t gfp, const char *fmt, ...)
 +{
-+	struct kmem_cache *cachep;
++	unsigned int len;
++	char *p = NULL;
++	va_list ap, aq;
 +
-+	mutex_lock(&cache_chain_mutex);
-+	cachep = __kmem_cache_create(NULL, name, size, align, flags, ctor);
-+	mutex_unlock(&cache_chain_mutex);
++	va_start(ap, fmt);
++	va_copy(aq, ap);
++	len = vsnprintf(NULL, 0, fmt, aq);
++	va_end(aq);
 +
-+	return cachep;
++	p = kmalloc_no_account(len+1, gfp);
++	if (!p)
++		goto out;
++
++	vsnprintf(p, len+1, fmt, ap);
++
++out:
++	va_end(ap);
++	return p;
 +}
++
++char *mem_cgroup_cache_name(struct mem_cgroup *memcg, struct kmem_cache *cachep)
++{
++	char *name;
++	struct dentry *dentry = memcg->css.cgroup->dentry;
++
++	BUG_ON(dentry == NULL);
++
++	/* Preallocate the space for "dead" at the end */
++	name = kasprintf_no_account(GFP_KERNEL, "%s(%d:%s)dead",
++	    cachep->name, css_id(&memcg->css), dentry->d_name.name);
++
++	if (name)
++		/* Remove "dead" */
++		name[strlen(name) - 4] = '\0';
++	return name;
++}
++
+ /* Bitmap used for allocating the cache id numbers. */
+ static DECLARE_BITMAP(cache_types, MAX_KMEM_CACHE_TYPES);
+ 
+diff --git a/mm/slub.c b/mm/slub.c
+index 86e40cc..2285a96 100644
+--- a/mm/slub.c
++++ b/mm/slub.c
+@@ -3993,6 +3993,43 @@ struct kmem_cache *kmem_cache_create(const char *name, size_t size,
+ }
  EXPORT_SYMBOL(kmem_cache_create);
  
- #if DEBUG
++#ifdef CONFIG_CGROUP_MEM_RES_CTLR_KMEM
++struct kmem_cache *kmem_cache_dup(struct mem_cgroup *memcg,
++				  struct kmem_cache *s)
++{
++	char *name;
++	struct kmem_cache *new;
++
++	name = mem_cgroup_cache_name(memcg, s);
++	if (!name)
++		return NULL;
++
++	new = kmem_cache_create_memcg(memcg, name, s->objsize, s->align,
++				      s->allocflags, s->ctor);
++
++	/*
++	 * We increase the reference counter in the parent cache, to
++	 * prevent it from being deleted. If kmem_cache_destroy() is
++	 * called for the root cache before we call it for a child cache,
++	 * it will be queued for destruction when we finally drop the
++	 * reference on the child cache.
++	 */
++	if (new) {
++		down_write(&slub_lock);
++		s->refcount++;
++		up_write(&slub_lock);
++	}
++
++	return new;
++}
++
++void kmem_cache_drop_ref(struct kmem_cache *s)
++{
++	BUG_ON(s->memcg_params.id != -1);
++	kmem_cache_destroy(s);
++}
++#endif
++
+ #ifdef CONFIG_SMP
+ /*
+  * Use the cpu notifier to insure that the cpu slabs are flushed when
 -- 
 1.7.7.6
 
