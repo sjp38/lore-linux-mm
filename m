@@ -1,81 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx134.postini.com [74.125.245.134])
-	by kanga.kvack.org (Postfix) with SMTP id 6E5AF6B0044
-	for <linux-mm@kvack.org>; Mon, 23 Apr 2012 18:45:40 -0400 (EDT)
-Date: Mon, 23 Apr 2012 15:45:37 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH -V6 12/14] memcg: move HugeTLB resource count to parent
- cgroup on memcg removal
-Message-Id: <20120423154537.675d490c.akpm@linux-foundation.org>
-In-Reply-To: <1334573091-18602-13-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
-References: <1334573091-18602-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
-	<1334573091-18602-13-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx128.postini.com [74.125.245.128])
+	by kanga.kvack.org (Postfix) with SMTP id 516A96B0044
+	for <linux-mm@kvack.org>; Mon, 23 Apr 2012 19:15:09 -0400 (EDT)
+Received: by iajr24 with SMTP id r24so143463iaj.14
+        for <linux-mm@kvack.org>; Mon, 23 Apr 2012 16:15:08 -0700 (PDT)
+Date: Mon, 23 Apr 2012 16:15:06 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [patch v2] thp, memcg: split hugepage for memcg oom on cow
+In-Reply-To: <20120411142023.GB1789@redhat.com>
+Message-ID: <alpine.DEB.2.00.1204231612060.17030@chino.kir.corp.google.com>
+References: <alpine.DEB.2.00.1204031854530.30629@chino.kir.corp.google.com> <4F838385.9070309@jp.fujitsu.com> <alpine.DEB.2.00.1204092241180.27689@chino.kir.corp.google.com> <alpine.DEB.2.00.1204092242050.27689@chino.kir.corp.google.com>
+ <20120411142023.GB1789@redhat.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Cc: linux-mm@kvack.org, mgorman@suse.de, kamezawa.hiroyu@jp.fujitsu.com, dhillf@gmail.com, aarcange@redhat.com, mhocko@suse.cz, hannes@cmpxchg.org, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org
+To: Johannes Weiner <jweiner@redhat.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrea Arcangeli <aarcange@redhat.com>, linux-mm@kvack.org
 
-On Mon, 16 Apr 2012 16:14:49 +0530
-"Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com> wrote:
+On Wed, 11 Apr 2012, Johannes Weiner wrote:
 
-> This add support for memcg removal with HugeTLB resource usage.
+> > diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+> > --- a/mm/huge_memory.c
+> > +++ b/mm/huge_memory.c
+> > @@ -950,6 +950,8 @@ int do_huge_pmd_wp_page(struct mm_struct *mm, struct vm_area_struct *vma,
+> >  		count_vm_event(THP_FAULT_FALLBACK);
+> >  		ret = do_huge_pmd_wp_page_fallback(mm, vma, address,
+> >  						   pmd, orig_pmd, page, haddr);
+> > +		if (ret & VM_FAULT_OOM)
+> > +			split_huge_page(page);
+> >  		put_page(page);
+> >  		goto out;
+> >  	}
+> > @@ -957,6 +959,7 @@ int do_huge_pmd_wp_page(struct mm_struct *mm, struct vm_area_struct *vma,
+> >  
+> >  	if (unlikely(mem_cgroup_newpage_charge(new_page, mm, GFP_KERNEL))) {
+> >  		put_page(new_page);
+> > +		split_huge_page(page);
+> >  		put_page(page);
+> >  		ret |= VM_FAULT_OOM;
+> >  		goto out;
+> > diff --git a/mm/memory.c b/mm/memory.c
+> > --- a/mm/memory.c
+> > +++ b/mm/memory.c
+> > @@ -3489,6 +3489,7 @@ int handle_mm_fault(struct mm_struct *mm, struct vm_area_struct *vma,
+> >  	if (unlikely(is_vm_hugetlb_page(vma)))
+> >  		return hugetlb_fault(mm, vma, address, flags);
+> >  
+> > +retry:
+> >  	pgd = pgd_offset(mm, address);
+> >  	pud = pud_alloc(mm, pgd, address);
+> >  	if (!pud)
+> > @@ -3502,13 +3503,24 @@ int handle_mm_fault(struct mm_struct *mm, struct vm_area_struct *vma,
+> >  							  pmd, flags);
+> >  	} else {
+> >  		pmd_t orig_pmd = *pmd;
+> > +		int ret;
+> > +
+> >  		barrier();
+> >  		if (pmd_trans_huge(orig_pmd)) {
+> >  			if (flags & FAULT_FLAG_WRITE &&
+> >  			    !pmd_write(orig_pmd) &&
+> > -			    !pmd_trans_splitting(orig_pmd))
+> > -				return do_huge_pmd_wp_page(mm, vma, address,
+> > -							   pmd, orig_pmd);
+> > +			    !pmd_trans_splitting(orig_pmd)) {
+> > +				ret = do_huge_pmd_wp_page(mm, vma, address, pmd,
+> > +							  orig_pmd);
+> > +				/*
+> > +				 * If COW results in an oom, the huge pmd will
+> > +				 * have been split, so retry the fault on the
+> > +				 * pte for a smaller charge.
+> > +				 */
+> > +				if (unlikely(ret & VM_FAULT_OOM))
+> > +					goto retry;
+> 
+> Can you instead put a __split_huge_page_pmd(mm, pmd) here?  It has to
+> redo the get-page-ref-through-pagetable dance, but it's more robust
+> and obvious than splitting the COW page before returning OOM in the
+> thp wp handler.
+> 
 
-include/linux/memcontrol.h:504: warning: 'struct cgroup' declared inside parameter list
-include/linux/memcontrol.h:504: warning: its scope is only this definition or declaration, which is probably not what you want
-include/linux/memcontrol.h:509: warning: 'struct cgroup' declared inside parameter list
-
-Documentation/SubmitChecklist, section 2.  Please do these things -
-what you have done here is to send untested code, for some
-configuration options.
-
-
-I'll try this:
-
- include/linux/hugetlb.h    |    6 +-----
- include/linux/memcontrol.h |   11 -----------
- 2 files changed, 1 insertion(+), 16 deletions(-)
-
---- a/include/linux/memcontrol.h~memcg-move-hugetlb-resource-count-to-parent-cgroup-on-memcg-removal-fix
-+++ a/include/linux/memcontrol.h
-@@ -499,17 +499,6 @@ static inline int mem_cgroup_hugetlb_fil
- 	return 0;
- }
- 
--static inline int
--mem_cgroup_move_hugetlb_parent(int idx, struct cgroup *cgroup,
--			       struct page *page)
--{
--	return 0;
--}
--
--static inline bool mem_cgroup_have_hugetlb_usage(struct cgroup *cgroup)
--{
--	return 0;
--}
- #endif  /* CONFIG_MEM_RES_CTLR_HUGETLB */
- #endif /* _LINUX_MEMCONTROL_H */
- 
---- a/include/linux/hugetlb.h~memcg-move-hugetlb-resource-count-to-parent-cgroup-on-memcg-removal-fix
-+++ a/include/linux/hugetlb.h
-@@ -337,10 +337,6 @@ static inline unsigned int pages_per_hug
- 
- #ifdef CONFIG_MEM_RES_CTLR_HUGETLB
- extern int hugetlb_force_memcg_empty(struct cgroup *cgroup);
--#else
--static inline int hugetlb_force_memcg_empty(struct cgroup *cgroup)
--{
--	return 0;
--}
- #endif
-+
- #endif /* _LINUX_HUGETLB_H */
-_
- 
-
-We shouldn't be calling these functions if CONFIG_MEM_RES_CTLR_HUGETLB=n?
+I agree it's more robust if do_huge_pmd_wp_page() were modified later and 
+mistakenly returned VM_FAULT_OOM without the page being split, but 
+__split_huge_page_pmd() has the drawback of also requiring to retake 
+mm->page_table_lock to test whether orig_pmd is still legitimate so it 
+will be slower.  Do you feel strongly about the way it's currently written 
+which will be faster at runtime?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
