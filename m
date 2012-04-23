@@ -1,116 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx152.postini.com [74.125.245.152])
-	by kanga.kvack.org (Postfix) with SMTP id A3FF66B0044
-	for <linux-mm@kvack.org>; Mon, 23 Apr 2012 18:26:02 -0400 (EDT)
-Received: by iajr24 with SMTP id r24so73511iaj.14
-        for <linux-mm@kvack.org>; Mon, 23 Apr 2012 15:26:02 -0700 (PDT)
-Date: Mon, 23 Apr 2012 15:25:59 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH 17/23] kmem controller charge/uncharge infrastructure
-In-Reply-To: <1335138820-26590-6-git-send-email-glommer@parallels.com>
-Message-ID: <alpine.DEB.2.00.1204231522320.13535@chino.kir.corp.google.com>
-References: <1334959051-18203-1-git-send-email-glommer@parallels.com> <1335138820-26590-6-git-send-email-glommer@parallels.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from psmtp.com (na3sys010amx134.postini.com [74.125.245.134])
+	by kanga.kvack.org (Postfix) with SMTP id 6E5AF6B0044
+	for <linux-mm@kvack.org>; Mon, 23 Apr 2012 18:45:40 -0400 (EDT)
+Date: Mon, 23 Apr 2012 15:45:37 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH -V6 12/14] memcg: move HugeTLB resource count to parent
+ cgroup on memcg removal
+Message-Id: <20120423154537.675d490c.akpm@linux-foundation.org>
+In-Reply-To: <1334573091-18602-13-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+References: <1334573091-18602-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+	<1334573091-18602-13-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Glauber Costa <glommer@parallels.com>
-Cc: cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, devel@openvz.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, fweisbec@gmail.com, Greg Thelen <gthelen@google.com>, Suleiman Souhlal <suleiman@google.com>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@cs.helsinki.fi>
+To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Cc: linux-mm@kvack.org, mgorman@suse.de, kamezawa.hiroyu@jp.fujitsu.com, dhillf@gmail.com, aarcange@redhat.com, mhocko@suse.cz, hannes@cmpxchg.org, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org
 
-On Sun, 22 Apr 2012, Glauber Costa wrote:
+On Mon, 16 Apr 2012 16:14:49 +0530
+"Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com> wrote:
 
-> +/*
-> + * Return the kmem_cache we're supposed to use for a slab allocation.
-> + * If we are in interrupt context or otherwise have an allocation that
-> + * can't fail, we return the original cache.
-> + * Otherwise, we will try to use the current memcg's version of the cache.
-> + *
-> + * If the cache does not exist yet, if we are the first user of it,
-> + * we either create it immediately, if possible, or create it asynchronously
-> + * in a workqueue.
-> + * In the latter case, we will let the current allocation go through with
-> + * the original cache.
-> + *
-> + * This function returns with rcu_read_lock() held.
-> + */
-> +struct kmem_cache *__mem_cgroup_get_kmem_cache(struct kmem_cache *cachep,
-> +					     gfp_t gfp)
-> +{
-> +	struct mem_cgroup *memcg;
-> +	int idx;
-> +
-> +	gfp |=  cachep->allocflags;
-> +
-> +	if ((current->mm == NULL))
-> +		return cachep;
-> +
-> +	if (cachep->memcg_params.memcg)
-> +		return cachep;
-> +
-> +	idx = cachep->memcg_params.id;
-> +	VM_BUG_ON(idx == -1);
-> +
-> +	memcg = mem_cgroup_from_task(current);
-> +	if (!mem_cgroup_kmem_enabled(memcg))
-> +		return cachep;
-> +
-> +	if (rcu_access_pointer(memcg->slabs[idx]) == NULL) {
-> +		memcg_create_cache_enqueue(memcg, cachep);
-> +		return cachep;
-> +	}
-> +
-> +	return rcu_dereference(memcg->slabs[idx]);
-> +}
-> +EXPORT_SYMBOL(__mem_cgroup_get_kmem_cache);
-> +
-> +void mem_cgroup_remove_child_kmem_cache(struct kmem_cache *cachep, int id)
-> +{
-> +	rcu_assign_pointer(cachep->memcg_params.memcg->slabs[id], NULL);
-> +}
-> +
-> +bool __mem_cgroup_charge_kmem(gfp_t gfp, size_t size)
-> +{
-> +	struct mem_cgroup *memcg;
-> +	bool ret = true;
-> +
-> +	rcu_read_lock();
-> +	memcg = mem_cgroup_from_task(current);
+> This add support for memcg removal with HugeTLB resource usage.
 
-This seems horribly inconsistent with memcg charging of user memory since 
-it charges to p->mm->owner and you're charging to p.  So a thread attached 
-to a memcg can charge user memory to one memcg while charging slab to 
-another memcg?
+include/linux/memcontrol.h:504: warning: 'struct cgroup' declared inside parameter list
+include/linux/memcontrol.h:504: warning: its scope is only this definition or declaration, which is probably not what you want
+include/linux/memcontrol.h:509: warning: 'struct cgroup' declared inside parameter list
 
-> +
-> +	if (!mem_cgroup_kmem_enabled(memcg))
-> +		goto out;
-> +
-> +	mem_cgroup_get(memcg);
-> +	ret = memcg_charge_kmem(memcg, gfp, size) == 0;
-> +	if (ret)
-> +		mem_cgroup_put(memcg);
-> +out:
-> +	rcu_read_unlock();
-> +	return ret;
-> +}
-> +EXPORT_SYMBOL(__mem_cgroup_charge_kmem);
-> +
-> +void __mem_cgroup_uncharge_kmem(size_t size)
-> +{
-> +	struct mem_cgroup *memcg;
-> +
-> +	rcu_read_lock();
-> +	memcg = mem_cgroup_from_task(current);
-> +
-> +	if (!mem_cgroup_kmem_enabled(memcg))
-> +		goto out;
-> +
-> +	mem_cgroup_put(memcg);
-> +	memcg_uncharge_kmem(memcg, size);
-> +out:
-> +	rcu_read_unlock();
-> +}
-> +EXPORT_SYMBOL(__mem_cgroup_uncharge_kmem);
+Documentation/SubmitChecklist, section 2.  Please do these things -
+what you have done here is to send untested code, for some
+configuration options.
+
+
+I'll try this:
+
+ include/linux/hugetlb.h    |    6 +-----
+ include/linux/memcontrol.h |   11 -----------
+ 2 files changed, 1 insertion(+), 16 deletions(-)
+
+--- a/include/linux/memcontrol.h~memcg-move-hugetlb-resource-count-to-parent-cgroup-on-memcg-removal-fix
++++ a/include/linux/memcontrol.h
+@@ -499,17 +499,6 @@ static inline int mem_cgroup_hugetlb_fil
+ 	return 0;
+ }
+ 
+-static inline int
+-mem_cgroup_move_hugetlb_parent(int idx, struct cgroup *cgroup,
+-			       struct page *page)
+-{
+-	return 0;
+-}
+-
+-static inline bool mem_cgroup_have_hugetlb_usage(struct cgroup *cgroup)
+-{
+-	return 0;
+-}
+ #endif  /* CONFIG_MEM_RES_CTLR_HUGETLB */
+ #endif /* _LINUX_MEMCONTROL_H */
+ 
+--- a/include/linux/hugetlb.h~memcg-move-hugetlb-resource-count-to-parent-cgroup-on-memcg-removal-fix
++++ a/include/linux/hugetlb.h
+@@ -337,10 +337,6 @@ static inline unsigned int pages_per_hug
+ 
+ #ifdef CONFIG_MEM_RES_CTLR_HUGETLB
+ extern int hugetlb_force_memcg_empty(struct cgroup *cgroup);
+-#else
+-static inline int hugetlb_force_memcg_empty(struct cgroup *cgroup)
+-{
+-	return 0;
+-}
+ #endif
++
+ #endif /* _LINUX_HUGETLB_H */
+_
+ 
+
+We shouldn't be calling these functions if CONFIG_MEM_RES_CTLR_HUGETLB=n?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
