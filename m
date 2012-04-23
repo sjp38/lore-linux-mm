@@ -1,135 +1,106 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx159.postini.com [74.125.245.159])
-	by kanga.kvack.org (Postfix) with SMTP id 1F9216B004A
-	for <linux-mm@kvack.org>; Mon, 23 Apr 2012 08:42:44 -0400 (EDT)
-Date: Mon, 23 Apr 2012 14:42:40 +0200
-From: Jan Kara <jack@suse.cz>
-Subject: Re: [RFC] writeback and cgroup
-Message-ID: <20120423124240.GE6512@quack.suse.cz>
-References: <20120403183655.GA23106@dhcp-172-17-108-109.mtv.corp.google.com>
- <20120404175124.GA8931@localhost>
- <20120404193355.GD29686@dhcp-172-17-108-109.mtv.corp.google.com>
- <20120406095934.GA10465@localhost>
- <20120417223854.GG19975@google.com>
- <20120419142343.GA12684@localhost>
- <20120419202635.GA4795@quack.suse.cz>
- <20120420133441.GA7035@localhost>
- <20120423091432.GC6512@quack.suse.cz>
- <20120423102420.GA13262@localhost>
+Received: from psmtp.com (na3sys010amx105.postini.com [74.125.245.105])
+	by kanga.kvack.org (Postfix) with SMTP id 1EA1B6B004A
+	for <linux-mm@kvack.org>; Mon, 23 Apr 2012 09:59:19 -0400 (EDT)
+Date: Mon, 23 Apr 2012 15:59:15 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH V3 0/2] memcg softlimit reclaim rework
+Message-ID: <20120423135915.GA13645@tiehlicka.suse.cz>
+References: <20120418122448.GB1771@cmpxchg.org>
+ <CALWz4iz_17fQa=EfT2KqvJUGyHQFc5v9r+7b947yMbocC9rrjA@mail.gmail.com>
+ <20120419170434.GE15634@tiehlicka.suse.cz>
+ <CALWz4iw156qErZn0gGUUatUTisy_6uF_5mrY0kXt1W89hvVjRw@mail.gmail.com>
+ <20120419223318.GA2536@cmpxchg.org>
+ <CALWz4iy2==jYkYx98EGbqbM2Y7q4atJpv9sH_B7Fjr8aqq++JQ@mail.gmail.com>
+ <20120420131722.GD2536@cmpxchg.org>
+ <CALWz4iz2GZU_aa=28zQfK-a65QuC5v7zKN4Sg7SciPLXN-9dVQ@mail.gmail.com>
+ <20120420185846.GD15021@tiehlicka.suse.cz>
+ <20120420232909.GF2536@cmpxchg.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
-In-Reply-To: <20120423102420.GA13262@localhost>
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <20120420232909.GF2536@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Fengguang Wu <fengguang.wu@intel.com>
-Cc: Jan Kara <jack@suse.cz>, Tejun Heo <tj@kernel.org>, vgoyal@redhat.com, Jens Axboe <axboe@kernel.dk>, linux-mm@kvack.org, sjayaraman@suse.com, andrea@betterlinux.com, jmoyer@redhat.com, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, lizefan@huawei.com, containers@lists.linux-foundation.org, cgroups@vger.kernel.org, ctalbott@google.com, rni@google.com, lsf@lists.linux-foundation.org, Mel Gorman <mgorman@suse.de>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Ying Han <yinghan@google.com>, Mel Gorman <mel@csn.ul.ie>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Hillf Danton <dhillf@gmail.com>, Hugh Dickins <hughd@google.com>, Dan Magenheimer <dan.magenheimer@oracle.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
 
-On Mon 23-04-12 18:24:20, Wu Fengguang wrote:
-> On Mon, Apr 23, 2012 at 11:14:32AM +0200, Jan Kara wrote:
-> > On Fri 20-04-12 21:34:41, Wu Fengguang wrote:
-> > > > ...
-> > > > > > > To me, balance_dirty_pages() is *the* proper layer for buffered writes.
-> > > > > > > It's always there doing 1:1 proportional throttling. Then you try to
-> > > > > > > kick in to add *double* throttling in block/cfq layer. Now the low
-> > > > > > > layer may enforce 10:1 throttling and push balance_dirty_pages() away
-> > > > > > > from its balanced state, leading to large fluctuations and program
-> > > > > > > stalls.
-> > > > > > 
-> > > > > > Just do the same 1:1 inside each cgroup.
-> > > > > 
-> > > > > Sure. But the ratio mismatch I'm talking about is inter-cgroup.
-> > > > > For example there are only 2 dd tasks doing buffered writes in the
-> > > > > system. Now consider the mismatch that cfq is dispatching their IO
-> > > > > requests at 10:1 weights, while balance_dirty_pages() is throttling
-> > > > > the dd tasks at 1:1 equal split because it's not aware of the cgroup
-> > > > > weights.
-> > > > > 
-> > > > > What will happen in the end? The 1:1 ratio imposed by
-> > > > > balance_dirty_pages() will take effect and the dd tasks will progress
-> > > > > at the same pace. The cfq weights will be defeated because the async
-> > > > > queue for the second dd (and cgroup) constantly runs empty.
-> > > >   Yup. This just shows that you have to have per-cgroup dirty limits. Once
-> > > > you have those, things start working again.
+On Sat 21-04-12 01:29:09, Johannes Weiner wrote:
+> On Fri, Apr 20, 2012 at 08:58:47PM +0200, Michal Hocko wrote:
+> > On Fri 20-04-12 10:44:14, Ying Han wrote:
+> > > On Fri, Apr 20, 2012 at 6:17 AM, Johannes Weiner <hannes@cmpxchg.org> wrote:
+> > > > Let me repeat the pros here: no breaking of existing semantics.  No
+> > > > introduction of unprecedented semantics into the cgroup mess.  No
+> > > > changing of kernel code necessary (except what we want to tune
+> > > > anyway).  No computational overhead for you or anyone else.
 > > > 
-> > > Right. I think Tejun was more of less aware of this.
+> > > >
+> > > > If your only counter argument to this is that you can't be bothered to
+> > > > slightly adjust your setup, I'm no longer interested in this
+> > > > discussion.
 > > > 
-> > > I was rather upset by this per-memcg dirty_limit idea indeed. I never
-> > > expect it to work well when used extensively. My plan was to set the
-> > > default memcg dirty_limit high enough, so that it's not hit in normal.
-> > > Then Tejun came and proposed to (mis-)use dirty_limit as the way to
-> > > convert the dirty pages' backpressure into real dirty throttling rate.
-> > > No, that's just crazy idea!
-> > > 
-> > > Come on, let's not over-use memcg's dirty_limit. It's there as the
-> > > *last resort* to keep dirty pages under control so as to maintain
-> > > interactive performance inside the cgroup. However if used extensively
-> > > in the system (like dozens of memcgs all hit their dirty limits), the
-> > > limit itself may stall random dirtiers and create interactive
-> > > performance issues!
-> > > 
-> > > In the recent days I've come up with the idea of memcg.dirty_setpoint
-> > > for the blkcg backpressure stuff. We can use that instead.
-> > > 
-> > > memcg.dirty_setpoint will scale proportionally with blkcg.writeout_rate.
-> > > Imagine bdi_setpoint. It's all the same concepts. Why we need this?
-> > > Because if blkcg A and B does 10:1 weights and are both doing buffered
-> > > writes, their dirty pages should better be maintained around 10:1
-> > > ratio to avoid underrun and hopefully achieve better IO size.
-> > > memcg.dirty_limit cannot guarantee that goal.
-> >   I agree that to avoid stalls of throttled processes we shouldn't be
-> > hitting memcg.dirty_limit on a regular basis. When I wrote we need "per
-> > cgroup dirty limits" I actually imagined something like you write above -
-> > do complete throttling computations within each memcg - estimate throughput
-> > available for it, compute appropriate dirty rates for it's processes and
-> > from its dirty limit estimate appropriate setpoint to balance around.
+> > > Before going further, I wanna make sure there is no mis-communication
+> > > here. As I replied to Michal, I feel that we are mixing up global
+> > > reclaim and target reclaim policy here.
 > > 
+> > I was referring to the global reclaim and my understanding is that
+> > Johannes did the same when talking about soft reclaim (even though it
+> > makes some sense to apply the same rules to the hard limit reclaim as
+> > well - but later to that one...)
+> > 
+> > The primary question is whether soft reclaim should be hierarchical or
+> > not. That is what I've tried to express in other email earlier in this
+> > thread where I've tried (very briefly) to compare those approaches.
+> > It currently _is_ hierarchical and your patch changes that so we have to
+> > be sure that this change in semantic is reasonable. The only workload
+> > that you seem to consider is when you have a full control over the
+> > machine while Johannes is considered about containers which might misuse
+> > your approach to push out working sets of concurrency...
+> > My concern with hierarchical approach is that it doesn't play well with
+> > 0 default (which is needed if we want to make soft limit a guarantee,
+> > right?). I do agree with Johannes about the potential misuse though.  So
+> > it seems that both approaches have serious issues with configurability.
+> > Does this summary clarify the issue a bit? Or I am confused as well ;)
 > 
-> Yes. balance_dirty_pages() will need both dirty pages and dirty page
-> writeout rate for the cgroup to do proper dirty throttling for it.
+> Thanks for the nice summary!
 > 
-> > > But be warned! Partitioning the dirty pages always means more
-> > > fluctuations of dirty rates (and even stalls) that's perceivable by
-> > > the user. Which means another limiting factor for the backpressure
-> > > based IO controller to scale well.
-> >   Sure, the smaller the memcg gets, the more noticeable these fluctuations
-> > would be. I would not expect memcg with 200 MB of memory to behave better
-> > (and also not much worse) than if I have a machine with that much memory...
+> A note on the default hierarchical soft limit:
 > 
-> It would be much worse if it's one single flusher thread round robin
-> over the cgroups...
+> Consider not making the default to be 0, but a special value.  We want
+> it to mean 'no guarantee' and 'every byte is in excess of the soft
+> limit', to keep the existing behaviour.  But at the same time, we
+> wouldn't have to make it inheritable:
 > 
-> For a small machine with 200MB memory, its IO completion events can
-> arrive continuously over time. However if its a 2000MB box divided
-> into 10 cgroups and the flusher is writing out dirty pages, spending
-> 0.5s on each cgroup and then go on to the next, then for any single
-> cgroup, its IO completion events go quiet for every 9.5s and goes up
-> on the other 0.5s. It becomes really hard to control the number of
-> dirty pages.
-  Umm, but flusher does not spend 0.5s on each cgroup. It submits 0.5s
-worth of IO for each cgroup. Since the throughput computed for each cgroup
-will be scaled down accordingly (and thus write_chunk will be scaled down
-as well), it should end up submitting 0.5s worth of IO for the whole system
-after it traverses all the cgroups, shouldn't it? Effectively we will work
-with smaller write_chunk which will lead to lower total throughput - that's
-the price of partitioning and higher fairness requirements (previously the
-requirement was to switch to a new inode every 0.5s, now the requirement is
-to switch to a new inode in each cgroup every 0.5s). In the end, we may end
-up increasing the write_chunk by some factor like \sqrt(number of memcgs)
-to get some middle ground between the guaranteed small latency and
-reasonable total throughput but before I'd go for such hacks, I'd wait to
-see real numbers - e.g. paying 10% of total throughput for partitioning the
-machine into 10 IO intensive cgroups (as in your tests with dd's) would be
-a reasonable cost in my opinion.
+>     A (soft = default)
+>       A1 (soft = 10G)
+>       A2 (soft = 12G)
+> 
+> so in case of global reclaim, A itself would be eligible, but it would
+> not apply hierarchically to A1 and A2.  They would still only get
+> reclaimed if their usage would be above their respective soft limits.
+> Only if you set A's soft limit to 0 or higher it will apply
+> hierarchically, so that if a parent declares 'no guarantee', no child
+> is able to override it.
 
-Also the granularity of IO completions should depend more on the
-granularity of IO scheduler (CFQ) rather than the granularity of flusher
-thread as such so I wouldn't think that would be a problem.
+I was thinking about a special value for the local reclaim as well but I
+didn't like it much because then it wouldn't be only a value for limit
+but also an API to switch between hierarchical vs. non-hierarchical
+reclaim so it is an API of some sort. So I am really not so sure about
+it and would rather go a different way - if there is any...
 
-								Honza
+> Maybe we can keep -1/~0UL and just treat it a bit differently.
+
+I would rather see 0 as a special value, if this is the only way to go,
+it would make the life easier and also it makes more sense to me.
+
 -- 
-Jan Kara <jack@suse.cz>
-SUSE Labs, CR
+Michal Hocko
+SUSE Labs
+SUSE LINUX s.r.o.
+Lihovarska 1060/12
+190 00 Praha 9    
+Czech Republic
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
