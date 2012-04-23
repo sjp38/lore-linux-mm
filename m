@@ -1,68 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx171.postini.com [74.125.245.171])
-	by kanga.kvack.org (Postfix) with SMTP id E60D96B0044
-	for <linux-mm@kvack.org>; Mon, 23 Apr 2012 14:15:03 -0400 (EDT)
-Received: by iajr24 with SMTP id r24so23849270iaj.14
-        for <linux-mm@kvack.org>; Mon, 23 Apr 2012 11:15:02 -0700 (PDT)
-Date: Mon, 23 Apr 2012 11:14:50 -0700 (PDT)
-From: Hugh Dickins <hughd@google.com>
-Subject: [PATCH] mm: fix s390 BUG by __set_page_dirty_no_writeback on swap
-In-Reply-To: <alpine.LSU.2.00.1204231106450.23248@eggly.anvils>
-Message-ID: <alpine.LSU.2.00.1204231110090.23248@eggly.anvils>
-References: <20120416141423.GD2359@suse.de> <alpine.LSU.2.00.1204161332120.1675@eggly.anvils> <20120417122202.GF2359@suse.de> <alpine.LSU.2.00.1204172023390.1609@eggly.anvils> <20120418152831.GK2359@suse.de> <alpine.LSU.2.00.1204181005500.1811@eggly.anvils>
- <20120423124124.GB3255@suse.de> <alpine.LSU.2.00.1204231106450.23248@eggly.anvils>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from psmtp.com (na3sys010amx141.postini.com [74.125.245.141])
+	by kanga.kvack.org (Postfix) with SMTP id BCEE36B0044
+	for <linux-mm@kvack.org>; Mon, 23 Apr 2012 14:50:27 -0400 (EDT)
+Received: by dadq36 with SMTP id q36so17954073dad.8
+        for <linux-mm@kvack.org>; Mon, 23 Apr 2012 11:50:27 -0700 (PDT)
+From: Sasikanth V <sasikanth.v19@gmail.com>
+Subject: [PATCH] mm:vmstat - Removed debug fs entries on failure of file creation and made extfrag_debug_root dentry local
+Date: Tue, 24 Apr 2012 00:20:12 +0530
+Message-Id: <1335207012-25133-1-git-send-email-sasikanth.v19@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, Rik van Riel <riel@redhat.com>, Ken Chen <kenchen@google.com>, linux-mm@kvack.org, linux-s390@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Christoph Lameter <cl@linux.com>, David Rientjes <rientjes@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Sasikanth V <sasikanth.v19@gmail.com>
 
-Mel reports a BUG_ON(slot == NULL) in radix_tree_tag_set() on s390 3.0.13:
-called from __set_page_dirty_nobuffers() when page_remove_rmap() tries to
-transfer dirty flag from s390 storage key to struct page and radix_tree.
+Removed debug fs files and directory on failure. Since no one using "extfrag_debug_root" dentry outside of function
+extfrag_debug_init made it local to the function.
 
-That would be because of reclaim's shrink_page_list() calling add_to_swap()
-on this page at the same time: first PageSwapCache is set (causing
-page_mapping(page) to appear as &swapper_space), then page->private set,
-then tree_lock taken, then page inserted into radix_tree - so there's
-an interval before taking the lock when the radix_tree slot is empty.
-
-We could fix this by moving __add_to_swap_cache()'s spin_lock_irq up
-before the SetPageSwapCache.  But a better fix is simply to do what's
-five years overdue: Ken Chen introduced __set_page_dirty_no_writeback()
-(if !PageDirty TestSetPageDirty) for tmpfs to skip all the radix_tree
-overhead, and swap is just the same - it ignores the radix_tree tag,
-and does not participate in dirty page accounting, so should be using
-__set_page_dirty_no_writeback() too.
-
-s390 testing now confirms that this does indeed fix the problem.
-
-Reported-by: Mel Gorman <mgorman@suse.de>
-Signed-off-by: Hugh Dickins <hughd@google.com>
-Acked-by: Mel Gorman <mgorman@suse.de>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Martin Schwidefsky <schwidefsky@de.ibm.com>
-Cc: Heiko Carstens <heiko.carstens@de.ibm.com>
-Cc: Rik van Riel <riel@redhat.com>
-Cc: Ken Chen <kenchen@google.com>
-Cc: stable@vger.kernel.org
+Signed-off-by: Sasikanth V <sasikanth.v19@gmail.com>
 ---
+ mm/vmstat.c |   11 ++++++++---
+ 1 files changed, 8 insertions(+), 3 deletions(-)
 
- mm/swap_state.c |    2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
-
---- 3.4-git/mm/swap_state.c	2012-03-31 17:42:26.949729938 -0700
-+++ linux/mm/swap_state.c	2012-04-17 15:34:05.732086663 -0700
-@@ -26,7 +26,7 @@
-  */
- static const struct address_space_operations swap_aops = {
- 	.writepage	= swap_writepage,
--	.set_page_dirty	= __set_page_dirty_nobuffers,
-+	.set_page_dirty	= __set_page_dirty_no_writeback,
- 	.migratepage	= migrate_page,
- };
+diff --git a/mm/vmstat.c b/mm/vmstat.c
+index f600557..ddae476 100644
+--- a/mm/vmstat.c
++++ b/mm/vmstat.c
+@@ -1220,7 +1220,6 @@ module_init(setup_vmstat)
+ #if defined(CONFIG_DEBUG_FS) && defined(CONFIG_COMPACTION)
+ #include <linux/debugfs.h>
  
+-static struct dentry *extfrag_debug_root;
+ 
+ /*
+  * Return an index indicating how much of the available free memory is
+@@ -1358,17 +1357,23 @@ static const struct file_operations extfrag_file_ops = {
+ 
+ static int __init extfrag_debug_init(void)
+ {
++	struct dentry *extfrag_debug_root;
++
+ 	extfrag_debug_root = debugfs_create_dir("extfrag", NULL);
+ 	if (!extfrag_debug_root)
+ 		return -ENOMEM;
+ 
+ 	if (!debugfs_create_file("unusable_index", 0444,
+-			extfrag_debug_root, NULL, &unusable_file_ops))
++			extfrag_debug_root, NULL, &unusable_file_ops)) {
++		debugfs_remove (extfrag_debug_root);
+ 		return -ENOMEM;
++	}
+ 
+ 	if (!debugfs_create_file("extfrag_index", 0444,
+-			extfrag_debug_root, NULL, &extfrag_file_ops))
++			extfrag_debug_root, NULL, &extfrag_file_ops)) {
++		debugfs_remove_recursive (extfrag_debug_root);
+ 		return -ENOMEM;
++	}
+ 
+ 	return 0;
+ }
+-- 
+1.7.3.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
