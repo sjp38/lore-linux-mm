@@ -1,92 +1,140 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx128.postini.com [74.125.245.128])
-	by kanga.kvack.org (Postfix) with SMTP id 516A96B0044
-	for <linux-mm@kvack.org>; Mon, 23 Apr 2012 19:15:09 -0400 (EDT)
-Received: by iajr24 with SMTP id r24so143463iaj.14
-        for <linux-mm@kvack.org>; Mon, 23 Apr 2012 16:15:08 -0700 (PDT)
-Date: Mon, 23 Apr 2012 16:15:06 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [patch v2] thp, memcg: split hugepage for memcg oom on cow
-In-Reply-To: <20120411142023.GB1789@redhat.com>
-Message-ID: <alpine.DEB.2.00.1204231612060.17030@chino.kir.corp.google.com>
-References: <alpine.DEB.2.00.1204031854530.30629@chino.kir.corp.google.com> <4F838385.9070309@jp.fujitsu.com> <alpine.DEB.2.00.1204092241180.27689@chino.kir.corp.google.com> <alpine.DEB.2.00.1204092242050.27689@chino.kir.corp.google.com>
- <20120411142023.GB1789@redhat.com>
+Received: from psmtp.com (na3sys010amx141.postini.com [74.125.245.141])
+	by kanga.kvack.org (Postfix) with SMTP id CA3606B0044
+	for <linux-mm@kvack.org>; Mon, 23 Apr 2012 19:18:03 -0400 (EDT)
+Received: by lagz14 with SMTP id z14so72753lag.14
+        for <linux-mm@kvack.org>; Mon, 23 Apr 2012 16:18:01 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+In-Reply-To: <CAHGf_=pGhtieRpUqbF4GmAKt5XXhf_2y8c+EzGNx-cgqPNvfJw@mail.gmail.com>
+References: <1335214564-17619-1-git-send-email-yinghan@google.com>
+	<CAHGf_=pGhtieRpUqbF4GmAKt5XXhf_2y8c+EzGNx-cgqPNvfJw@mail.gmail.com>
+Date: Mon, 23 Apr 2012 16:18:01 -0700
+Message-ID: <CALWz4ix+MC_NuNdvQU3T8BhP+BULPLktLyNQ8osnrMOa2nfhdw@mail.gmail.com>
+Subject: Re: [RFC PATCH] do_try_to_free_pages() might enter infinite loop
+From: Ying Han <yinghan@google.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <jweiner@redhat.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrea Arcangeli <aarcange@redhat.com>, linux-mm@kvack.org
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mel@csn.ul.ie>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, Hugh Dickins <hughd@google.com>, Nick Piggin <npiggin@suse.de>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
 
-On Wed, 11 Apr 2012, Johannes Weiner wrote:
+On Mon, Apr 23, 2012 at 3:20 PM, KOSAKI Motohiro
+<kosaki.motohiro@jp.fujitsu.com> wrote:
+> On Mon, Apr 23, 2012 at 4:56 PM, Ying Han <yinghan@google.com> wrote:
+>> This is not a patch targeted to be merged at all, but trying to understa=
+nd
+>> a logic in global direct reclaim.
+>>
+>> There is a logic in global direct reclaim where reclaim fails on priorit=
+y 0
+>> and zone->all_unreclaimable is not set, it will cause the direct to star=
+t over
+>> from DEF_PRIORITY. In some extreme cases, we've seen the system hang whi=
+ch is
+>> very likely caused by direct reclaim enters infinite loop.
+>>
+>> There have been serious patches trying to fix similar issue and the late=
+st
+>> patch has good summary of all the efforts:
+>>
+>> commit 929bea7c714220fc76ce3f75bef9056477c28e74
+>> Author: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+>> Date: =A0 Thu Apr 14 15:22:12 2011 -0700
+>>
+>> =A0 =A0vmscan: all_unreclaimable() use zone->all_unreclaimable as a name
+>>
+>> Kosaki explained the problem triggered by async zone->all_unreclaimable =
+and
+>> zone->pages_scanned where the later one was being checked by direct recl=
+aim.
+>> However, after the patch, the problem remains where the setting of
+>> zone->all_unreclaimable is asynchronous with zone is actually reclaimabl=
+e or not.
+>>
+>> The zone->all_unreclaimable flag is set by kswapd by checking zone->page=
+s_scanned in
+>> zone_reclaimable(). Is that possible to have zone->all_unreclaimable =3D=
+=3D false while
+>> the zone is actually unreclaimable?
+>>
+>> 1. while kswapd in reclaim priority loop, someone frees a page on the zo=
+ne. It
+>> will end up resetting the pages_scanned.
+>>
+>> 2. kswapd is frozen for whatever reason. I noticed Kosaki's covered the
+>> hibernation case by checking oom_killer_disabled, but not sure if that i=
+s
+>> everything we need to worry about. The key point here is that direct rec=
+laim
+>> relies on a flag which is set by kswapd asynchronously, that doesn't sou=
+nd safe.
+>
+> If kswapd was frozen except hibernation, why don't you add frozen
+> check instead of
+> hibernation check? And when and why is that happen?
 
-> > diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-> > --- a/mm/huge_memory.c
-> > +++ b/mm/huge_memory.c
-> > @@ -950,6 +950,8 @@ int do_huge_pmd_wp_page(struct mm_struct *mm, struct vm_area_struct *vma,
-> >  		count_vm_event(THP_FAULT_FALLBACK);
-> >  		ret = do_huge_pmd_wp_page_fallback(mm, vma, address,
-> >  						   pmd, orig_pmd, page, haddr);
-> > +		if (ret & VM_FAULT_OOM)
-> > +			split_huge_page(page);
-> >  		put_page(page);
-> >  		goto out;
-> >  	}
-> > @@ -957,6 +959,7 @@ int do_huge_pmd_wp_page(struct mm_struct *mm, struct vm_area_struct *vma,
-> >  
-> >  	if (unlikely(mem_cgroup_newpage_charge(new_page, mm, GFP_KERNEL))) {
-> >  		put_page(new_page);
-> > +		split_huge_page(page);
-> >  		put_page(page);
-> >  		ret |= VM_FAULT_OOM;
-> >  		goto out;
-> > diff --git a/mm/memory.c b/mm/memory.c
-> > --- a/mm/memory.c
-> > +++ b/mm/memory.c
-> > @@ -3489,6 +3489,7 @@ int handle_mm_fault(struct mm_struct *mm, struct vm_area_struct *vma,
-> >  	if (unlikely(is_vm_hugetlb_page(vma)))
-> >  		return hugetlb_fault(mm, vma, address, flags);
-> >  
-> > +retry:
-> >  	pgd = pgd_offset(mm, address);
-> >  	pud = pud_alloc(mm, pgd, address);
-> >  	if (!pud)
-> > @@ -3502,13 +3503,24 @@ int handle_mm_fault(struct mm_struct *mm, struct vm_area_struct *vma,
-> >  							  pmd, flags);
-> >  	} else {
-> >  		pmd_t orig_pmd = *pmd;
-> > +		int ret;
-> > +
-> >  		barrier();
-> >  		if (pmd_trans_huge(orig_pmd)) {
-> >  			if (flags & FAULT_FLAG_WRITE &&
-> >  			    !pmd_write(orig_pmd) &&
-> > -			    !pmd_trans_splitting(orig_pmd))
-> > -				return do_huge_pmd_wp_page(mm, vma, address,
-> > -							   pmd, orig_pmd);
-> > +			    !pmd_trans_splitting(orig_pmd)) {
-> > +				ret = do_huge_pmd_wp_page(mm, vma, address, pmd,
-> > +							  orig_pmd);
-> > +				/*
-> > +				 * If COW results in an oom, the huge pmd will
-> > +				 * have been split, so retry the fault on the
-> > +				 * pte for a smaller charge.
-> > +				 */
-> > +				if (unlikely(ret & VM_FAULT_OOM))
-> > +					goto retry;
-> 
-> Can you instead put a __split_huge_page_pmd(mm, pmd) here?  It has to
-> redo the get-page-ref-through-pagetable dance, but it's more robust
-> and obvious than splitting the COW page before returning OOM in the
-> thp wp handler.
-> 
+I haven't tried to reproduce the issue, so everything is based on
+eye-balling the code. The problem is that we have the potential
+infinite loop in direct reclaim where it keeps trying as long as
+!zone->all_unreclaimable.
 
-I agree it's more robust if do_huge_pmd_wp_page() were modified later and 
-mistakenly returned VM_FAULT_OOM without the page being split, but 
-__split_huge_page_pmd() has the drawback of also requiring to retake 
-mm->page_table_lock to test whether orig_pmd is still legitimate so it 
-will be slower.  Do you feel strongly about the way it's currently written 
-which will be faster at runtime?
+The flag is only set by kswapd and it will skip setting the flag if
+the following condition is true:
+
+zone->pages_scanned < zone_reclaimable_pages(zone) * 6;
+
+In a few-pages-on-lru condition, the zone->pages_scanned is easily
+remains 0 and also it is reset to 0 everytime a page being freed.
+Then, i will cause global direct reclaim entering infinite loop.
+
+
+>
+>
+>>
+>> Instead of keep fixing the problem, I am wondering why we have the logic
+>> "not oom but keep trying reclaim w/ priority 0 reclaim failure" at the f=
+irst place:
+>>
+>> Here is the patch introduced the logic initially:
+>>
+>> commit 408d85441cd5a9bd6bc851d677a10c605ed8db5f
+>> Author: Nick Piggin <npiggin@suse.de>
+>> Date: =A0 Mon Sep 25 23:31:27 2006 -0700
+>>
+>> =A0 =A0[PATCH] oom: use unreclaimable info
+>>
+>> However, I didn't find detailed description of what problem the commit t=
+rying
+>> to fix and wondering if the problem still exist after 5 years. I would b=
+e happy
+>> to see the later case where we can consider to revert the initial patch.
+>
+> This patch fixed one of false oom issue. Think,
+>
+> 1. thread-a reach priority-0.
+> 2. thread-b was exited and free a lot of pages.
+> 3. thread-a call out_of_memory().
+>
+> This is not very good because we now have enough memory....
+
+Isn't that being covered by the following in __alloc_pages_may_oom() ?
+
+>-------/*
+>------- * Go through the zonelist yet one more time, keep very high waterm=
+ark
+>------- * here, this is only to catch a parallel oom killing, we must fail=
+ if
+>------- * we're still under heavy pressure.
+>------- */
+>-------page =3D get_page_from_freelist(gfp_mask|__GFP_HARDWALL, nodemask,
+>------->-------order, zonelist, high_zoneidx,
+>------->-------ALLOC_WMARK_HIGH|ALLOC_CPUSET,
+>------->-------preferred_zone, migratetype);
+
+Thanks
+
+--Ying
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
