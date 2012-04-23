@@ -1,99 +1,111 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx146.postini.com [74.125.245.146])
-	by kanga.kvack.org (Postfix) with SMTP id 0A0CB6B004D
-	for <linux-mm@kvack.org>; Mon, 23 Apr 2012 04:23:11 -0400 (EDT)
-Message-ID: <1335169383.4191.9.camel@dabdike.lan>
-Subject: Re: [PATCH, RFC 0/3] Introduce new O_HOT and O_COLD flags
-From: James Bottomley <James.Bottomley@HansenPartnership.com>
-Date: Mon, 23 Apr 2012 09:23:03 +0100
-In-Reply-To: <CAPa8GCDkP_53VGAeQPeYgf3GW3KZ09BvnqduArQE7svf2mMj4A@mail.gmail.com>
-References: <1334863211-19504-1-git-send-email-tytso@mit.edu>
-	 <4F912880.70708@panasas.com>
-	 <alpine.LFD.2.00.1204201120060.27750@dhcp-27-109.brq.redhat.com>
-	 <1334919662.5879.23.camel@dabdike>
-	 <alpine.LFD.2.00.1204201313231.27750@dhcp-27-109.brq.redhat.com>
-	 <1334932928.13001.11.camel@dabdike> <20120420145856.GC24486@thunk.org>
-	 <CAHGf_=oWtpgRfqaZ1YDXgZoQHcFY0=DYVcwXYbFtZt2v+K532w@mail.gmail.com>
-	 <CAPa8GCDkP_53VGAeQPeYgf3GW3KZ09BvnqduArQE7svf2mMj4A@mail.gmail.com>
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: 7bit
-Mime-Version: 1.0
+Received: from psmtp.com (na3sys010amx170.postini.com [74.125.245.170])
+	by kanga.kvack.org (Postfix) with SMTP id 7D7D46B004D
+	for <linux-mm@kvack.org>; Mon, 23 Apr 2012 04:29:53 -0400 (EDT)
+Received: by obbeh20 with SMTP id eh20so13397473obb.14
+        for <linux-mm@kvack.org>; Mon, 23 Apr 2012 01:29:52 -0700 (PDT)
+Date: Mon, 23 Apr 2012 01:28:35 -0700
+From: Anton Vorontsov <anton.vorontsov@linaro.org>
+Subject: [PATCH RFC] memcg: MEMCG_NR_FILE_MAPPED should update _STAT_CACHE as
+ well
+Message-ID: <20120423082835.GA32359@lizard>
+References: <20120302162753.GA11748@oksana.dev.rtsoft.ru>
+ <20120305091934.588c160b.kamezawa.hiroyu@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+In-Reply-To: <20120305091934.588c160b.kamezawa.hiroyu@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Nick Piggin <npiggin@gmail.com>
-Cc: KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Ted Ts'o <tytso@mit.edu>, Lukas Czerner <lczerner@redhat.com>, Boaz Harrosh <bharrosh@panasas.com>, linux-fsdevel@vger.kernel.org, Ext4 Developers List <linux-ext4@vger.kernel.org>, linux-mm@kvack.org
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: cgroups@vger.kernel.org, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Balbir Singh <bsingharora@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, John Stultz <john.stultz@linaro.org>, linaro-kernel@lists.linaro.org, patches@linaro.org
 
-On Sun, 2012-04-22 at 16:30 +1000, Nick Piggin wrote:
-> On 22 April 2012 09:56, KOSAKI Motohiro <kosaki.motohiro@gmail.com> wrote:
-> > On Fri, Apr 20, 2012 at 10:58 AM, Ted Ts'o <tytso@mit.edu> wrote:
-> >> On Fri, Apr 20, 2012 at 06:42:08PM +0400, James Bottomley wrote:
-> >>>
-> >>> I'm not at all wedded to O_HOT and O_COLD; I think if we establish a
-> >>> hint hierarchy file->page cache->device then we should, of course,
-> >>> choose the best API and naming scheme for file->page cache.  The only
-> >>> real point I was making is that we should tie in the page cache, and
-> >>> currently it only knows about "hot" and "cold" pages.
-> >>
-> >> The problem is that "hot" and "cold" will have different meanings from
-> >> the perspective of the file system versus the page cache.  The file
-> >> system may consider a file "hot" if it is accessed frequently ---
-> >> compared to the other 2 TB of data on that HDD.  The memory subsystem
-> >> will consider a page "hot" compared to what has been recently accessed
-> >> in the 8GB of memory that you might have your system.  Now consider
-> >> that you might have a dozen or so 2TB disks that each have their "hot"
-> >> areas, and it's not at all obvious that just because a file, or even
-> >> part of a file is marked "hot", that it deserves to be in memory at
-> >> any particular point in time.
-> >
-> > So, this have intentionally different meanings I have no seen a reason why
-> > fs uses hot/cold words. It seems to bring a confusion.
+...otherwise the we're getting the wrong numbers in usage_in_bytes.
+
+On Mon, Mar 05, 2012 at 09:19:34AM +0900, KAMEZAWA Hiroyuki wrote:
+[...]
+> > diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> > index 228d646..c8abdc5 100644
+> > --- a/mm/memcontrol.c
+> > +++ b/mm/memcontrol.c
+> > @@ -3812,6 +3812,9 @@ static inline u64 mem_cgroup_usage(struct mem_cgroup *memcg, bool swap)
+> >  
+> >         val = mem_cgroup_recursive_stat(memcg, MEM_CGROUP_STAT_CACHE);
+> >         val += mem_cgroup_recursive_stat(memcg, MEM_CGROUP_STAT_RSS);
+> > +       val += mem_cgroup_recursive_stat(memcg, MEM_CGROUP_STAT_FILE_MAPPED);
+> > 
+> > 1. Is there any particular reason we don't currently account file mapped
+> >    memory in usage_in_bytes?
+> > 
+> >    To me, MEM_CGROUP_STAT_FILE_MAPPED hunk seems logical even if we
+> >    don't use it for lowmemory notifications.
+> > 
+> >    Plus, it seems that FILE_MAPPED _is_ accounted for the non-root
+> >    cgroups, so I guess it's clearly a bug for the root memcg?
 > 
-> Right. It has nothing to do with hot/cold usage in the page allocator,
-> which is about how many lines of that page are in CPU cache.
+> CACHE includes all file caches. Why do you think FILE_MAPPED is not included in CACHE ?
 
-Well, no it's a similar concept:  we have no idea whether the page is
-cached or not.  What we do is estimate that by elapsed time since we
-last touched the page.  In some sense, this is similar to the fs
-definition: a hot page hint would mean we expect to touch the page
-frequently and a cold page means we wouldn't.  i.e. for a hot page, the
-elapsed time between touches would be short and for a cold page it would
-be long.  Now I still think there's a mismatch in the time scales: a
-long elapsed time for mm making the page cold isn't necessarily the same
-long elapsed time for the file, because the mm idea is conditioned by
-local events (like memory pressure).
+There were tons of changes in the memcg lately, but I believe the issue
+is still there.
 
-> However it could be propagated up to page reclaim level, at least.
-> Perhaps readahead/writeback too. But IMO it would be better to nail down
-> the semantics for block and filesystem before getting worried about that.
+For example, looking into this code flow:
 
-Sure ... I just forwarded the email in case mm people had an interest.
-If you want FS and storage to develop the hints first and then figure
-out if we can involve the page cache, that's more or less what was
-happening anyway.
+-> page_add_file_rmap() (mm/rmap.c)
+ -> mem_cgroup_inc_page_stat(page, MEMCG_NR_FILE_MAPPED) (include/linux/memcontrol.h)
+  -> void mem_cgroup_update_page_stat(page, MEMCG_NR_FILE_MAPPED, 1) (mm/memcontrol.c)
 
-> > But I don't know full story of this feature and I might be overlooking
-> > something.
-> 
-> Also, "hot" and "cold" (as others have noted) is a big hammer that perhaps
-> catches a tiny subset of useful work (probably more likely: benchmarks).
-> 
-> Is it read often? Written often? Both? Are reads and writes random or linear?
-> Is it latency bound, or throughput bound? (i.e., are queue depths high or
-> low?)
-> 
-> A filesystem and storage device might care about all of these things.
-> Particularly if you have something more advanced than a single disk.
-> Caches, tiers of storage, etc.
+And then:
 
-Experience has taught me to be wary of fine grained hints: they tend to
-be more trouble than they're worth (the definitions are either
-inaccurate or so tediously precise that no-one can be bothered to read
-them).  A small set of broad hints is usually more useable than a huge
-set of fine grained ones, so from that point of view, I like the
-O_HOT/O_COLD ones.
+void mem_cgroup_update_page_stat(struct page *page,
+                                 enum mem_cgroup_page_stat_item idx, int val)
+{
+        ...
+        switch (idx) {
+        case MEMCG_NR_FILE_MAPPED:
+                idx = MEM_CGROUP_STAT_FILE_MAPPED;
+                break;
+        default:
+                BUG();
+        }
 
-James
+        this_cpu_add(memcg->stat->count[idx], val);
+        ...
+}
 
+So, clearly, this function only bothers updating _FILE_MAPPED only,
+leaving _CACHE alone.
+
+If you're saying that _CACHE meant to include _FILE_MAPPED, then
+I guess the patch down below would be a proper fix then... Otherwise
+we need to be consistent on stats reporting, and either fall-back
+to my original fix (in mem_cgroup_usage()), or think about doing it
+some other way...
+
+Signed-off-by: Anton Vorontsov <anton.vorontsov@linaro.org>
+---
+
+The patch is against current -next.
+
+Thanks,
+
+ mm/memcontrol.c |    2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index 884e936..760ecf5 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -1958,6 +1958,8 @@ void mem_cgroup_update_page_stat(struct page *page,
+ 
+ 	switch (idx) {
+ 	case MEMCG_NR_FILE_MAPPED:
++		idx = MEM_CGROUP_STAT_CACHE;
++		this_cpu_add(memcg->stat->count[idx], val);
+ 		idx = MEM_CGROUP_STAT_FILE_MAPPED;
+ 		break;
+ 	default:
+-- 
+1.7.9.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
