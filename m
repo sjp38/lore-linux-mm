@@ -1,71 +1,33 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx126.postini.com [74.125.245.126])
-	by kanga.kvack.org (Postfix) with SMTP id 9E1056B00EA
-	for <linux-mm@kvack.org>; Mon, 23 Apr 2012 03:11:00 -0400 (EDT)
-Received: by mail-ob0-f169.google.com with SMTP id eh20so13289908obb.14
-        for <linux-mm@kvack.org>; Mon, 23 Apr 2012 00:11:00 -0700 (PDT)
-Date: Mon, 23 Apr 2012 00:09:43 -0700
-From: Anton Vorontsov <anton.vorontsov@linaro.org>
-Subject: [PATCH 9/9] um: Properly check all process' threads for a live mm
-Message-ID: <20120423070943.GI30752@lizard>
-References: <20120423070641.GA27702@lizard>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-In-Reply-To: <20120423070641.GA27702@lizard>
+Received: from psmtp.com (na3sys010amx138.postini.com [74.125.245.138])
+	by kanga.kvack.org (Postfix) with SMTP id B9BCD6B00E7
+	for <linux-mm@kvack.org>; Mon, 23 Apr 2012 03:14:34 -0400 (EDT)
+Message-ID: <1335165240.28150.89.camel@twins>
+Subject: Re: [RFC 0/6] uprobes: kill uprobes_srcu/uprobe_srcu_id
+From: Peter Zijlstra <peterz@infradead.org>
+Date: Mon, 23 Apr 2012 09:14:00 +0200
+In-Reply-To: <20120420183718.GA2236@redhat.com>
+References: <20120405222024.GA19154@redhat.com>
+	 <1334409396.2528.100.camel@twins> <20120414205200.GA9083@redhat.com>
+	 <1334487062.2528.113.camel@twins> <20120415195351.GA22095@redhat.com>
+	 <1334526513.28150.23.camel@twins> <20120415234401.GA32662@redhat.com>
+	 <1334571419.28150.30.camel@twins> <20120416214707.GA27639@redhat.com>
+	 <1334916861.2463.50.camel@laptop> <20120420183718.GA2236@redhat.com>
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: quoted-printable
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Oleg Nesterov <oleg@redhat.com>
-Cc: Russell King <linux@arm.linux.org.uk>, Mike Frysinger <vapier@gentoo.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Richard Weinberger <richard@nod.at>, Paul Mundt <lethal@linux-sh.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, John Stultz <john.stultz@linaro.org>, linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org, uclinux-dist-devel@blackfin.uclinux.org, linuxppc-dev@lists.ozlabs.org, linux-sh@vger.kernel.org, user-mode-linux-devel@lists.sourceforge.net, linaro-kernel@lists.linaro.org, patches@linaro.org, linux-mm@kvack.org
+To: Oleg Nesterov <oleg@redhat.com>
+Cc: Ingo Molnar <mingo@elte.hu>, Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, LKML <linux-kernel@vger.kernel.org>, Linux-mm <linux-mm@kvack.org>, Andi Kleen <andi@firstfloor.org>, Christoph Hellwig <hch@infradead.org>, Steven Rostedt <rostedt@goodmis.org>, Arnaldo Carvalho de Melo <acme@infradead.org>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Thomas Gleixner <tglx@linutronix.de>, Anton Arapov <anton@redhat.com>
 
-kill_off_processes() might miss a valid process, this is because
-checking for process->mm is not enough. Process' main thread may
-exit or detach its mm via use_mm(), but other threads may still
-have a valid mm.
+On Fri, 2012-04-20 at 20:37 +0200, Oleg Nesterov wrote:
+> Say, a user wants to probe /sbin/init only. What if init forks?
+> We should remove breakpoints from child->mm somehow.=20
 
-To catch this we use find_lock_task_mm(), which walks up all
-threads and returns an appropriate task (with task lock held).
-
-Suggested-by: Oleg Nesterov <oleg@redhat.com>
-Signed-off-by: Anton Vorontsov <anton.vorontsov@linaro.org>
----
- arch/um/kernel/reboot.c |   13 +++++++------
- 1 file changed, 7 insertions(+), 6 deletions(-)
-
-diff --git a/arch/um/kernel/reboot.c b/arch/um/kernel/reboot.c
-index 1411f4e..3d15243 100644
---- a/arch/um/kernel/reboot.c
-+++ b/arch/um/kernel/reboot.c
-@@ -6,6 +6,7 @@
- #include "linux/sched.h"
- #include "linux/spinlock.h"
- #include "linux/slab.h"
-+#include "linux/oom.h"
- #include "kern_util.h"
- #include "os.h"
- #include "skas.h"
-@@ -25,13 +26,13 @@ static void kill_off_processes(void)
- 
- 		read_lock(&tasklist_lock);
- 		for_each_process(p) {
--			task_lock(p);
--			if (!p->mm) {
--				task_unlock(p);
-+			struct task_struct *t;
-+
-+			t = find_lock_task_mm(p);
-+			if (!t)
- 				continue;
--			}
--			pid = p->mm->context.id.u.pid;
--			task_unlock(p);
-+			pid = t->mm->context.id.u.pid;
-+			task_unlock(t);
- 			os_kill_ptraced_process(pid, 1);
- 		}
- 		read_unlock(&tasklist_lock);
--- 
-1.7.9.2
+How is that hard? dup_mmap() only copies the VMAs, this doesn't actually
+copy the breakpoint. So the child doesn't have a breakpoint to be
+removed.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
