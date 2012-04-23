@@ -1,107 +1,95 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx102.postini.com [74.125.245.102])
-	by kanga.kvack.org (Postfix) with SMTP id 92B946B00F1
-	for <linux-mm@kvack.org>; Sun, 22 Apr 2012 20:01:20 -0400 (EDT)
-Message-ID: <4F949B53.5030705@parallels.com>
-Date: Sun, 22 Apr 2012 20:59:15 -0300
-From: Glauber Costa <glommer@parallels.com>
+Received: from psmtp.com (na3sys010amx162.postini.com [74.125.245.162])
+	by kanga.kvack.org (Postfix) with SMTP id C29696B004D
+	for <linux-mm@kvack.org>; Sun, 22 Apr 2012 20:33:44 -0400 (EDT)
+Received: from m2.gw.fujitsu.co.jp (unknown [10.0.50.72])
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id C828D3EE0C1
+	for <linux-mm@kvack.org>; Mon, 23 Apr 2012 09:33:42 +0900 (JST)
+Received: from smail (m2 [127.0.0.1])
+	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id AD7FA45DE55
+	for <linux-mm@kvack.org>; Mon, 23 Apr 2012 09:33:42 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
+	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 9190345DE52
+	for <linux-mm@kvack.org>; Mon, 23 Apr 2012 09:33:42 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 827DE1DB8044
+	for <linux-mm@kvack.org>; Mon, 23 Apr 2012 09:33:42 +0900 (JST)
+Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.240.81.145])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 2FD801DB8042
+	for <linux-mm@kvack.org>; Mon, 23 Apr 2012 09:33:42 +0900 (JST)
+Message-ID: <4F94A2F7.7090803@jp.fujitsu.com>
+Date: Mon, 23 Apr 2012 09:31:51 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 00/23] slab+slub accounting for memcg
-References: <1334959051-18203-1-git-send-email-glommer@parallels.com>
-In-Reply-To: <1334959051-18203-1-git-send-email-glommer@parallels.com>
-Content-Type: text/plain; charset="ISO-8859-1"; format=flowed
+Subject: Re: [PATCH V3 1/2] memcg: softlimit reclaim rework
+References: <1334680682-12430-1-git-send-email-yinghan@google.com> <20120420091731.GE4191@tiehlicka.suse.cz> <CALWz4iyTH8a77w2bOkSXiODiNEn+L7SFv8Njp1_fRwi8aFVZHw@mail.gmail.com> <20120420231501.GE2536@cmpxchg.org>
+In-Reply-To: <20120420231501.GE2536@cmpxchg.org>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Glauber Costa <glommer@parallels.com>
-Cc: cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, devel@openvz.org, kamezawa.hiroyu@jp.fujitsu.com, Michal Hocko <mhocko@suse.cz>, Johannes
- Weiner <hannes@cmpxchg.org>, Frederic Weisbecker <fweisbec@gmail.com>, Greg Thelen <gthelen@google.com>, Suleiman Souhlal <suleiman@google.com>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Ying Han <yinghan@google.com>, Michal Hocko <mhocko@suse.cz>, Mel Gorman <mel@csn.ul.ie>, Rik van Riel <riel@redhat.com>, Hillf Danton <dhillf@gmail.com>, Hugh Dickins <hughd@google.com>, Dan Magenheimer <dan.magenheimer@oracle.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
 
-On 04/20/2012 06:57 PM, Glauber Costa wrote:
-> Hi,
->
-> This is my current attempt at getting the kmem controller
-> into a mergeable state. IMHO, all the important bits are there, and it should't
-> change *that* much from now on. I am, however, expecting at least a couple more
-> interactions before we sort all the edges out.
->
-> This series works for both the slub and the slab. One of my main goals was to
-> make sure that the interfaces we are creating actually makes sense for both
-> allocators.
->
-> I did some adaptations to the slab-specific patches, but the bulk of it
-> comes from Suleiman's patches. I did the best to use his patches
-> as-is where possible so to keep authorship information. When not possible,
-> I tried to be fair and quote it in the commit message.
->
-> In this series, all existing caches are created per-memcg after its first hit.
-> The main reason is, during discussions in the memory summit we came into
-> agreement that the fragmentation problems that could arise from creating all
-> of them are mitigated by the typically small quantity of caches in the system
-> (order of a few megabytes total for sparsely used caches).
-> The lazy creation from Suleiman is kept, although a bit modified. For instance,
-> I now use a locked scheme instead of cmpxcgh to make sure cache creation won't
-> fail due to duplicates, which simplifies things by quite a bit.
->
-> The slub is a bit more complex than what I came up with in my slub-only
-> series. The reason is we did not need to use the cache-selection logic
-> in the allocator itself - it was done by the cache users. But since now
-> we are lazy creating all caches, this is simply no longer doable.
->
-> I am leaving destruction of caches out of the series, although most
-> of the infrastructure for that is here, since we did it in earlier
-> series. This is basically because right now Kame is reworking it for
-> user memcg, and I like the new proposed behavior a lot more. We all seemed
-> to have agreed that reclaim is an interesting problem by itself, and
-> is not included in this already too complicated series. Please note
-> that this is still marked as experimental, so we have so room. A proper
-> shrinker implementation is a hard requirement to take the kmem controller
-> out of the experimental state.
->
-> I am also not including documentation, but it should only be a matter
-> of merging what we already wrote in earlier series plus some additions.
->
-> Glauber Costa (19):
->    slub: don't create a copy of the name string in kmem_cache_create
->    slub: always get the cache from its page in kfree
->    slab: rename gfpflags to allocflags
->    slab: use obj_size field of struct kmem_cache when not debugging
->    change defines to an enum
->    don't force return value checking in res_counter_charge_nofail
->    kmem slab accounting basic infrastructure
->    slab/slub: struct memcg_params
->    slub: consider a memcg parameter in kmem_create_cache
->    slab: pass memcg parameter to kmem_cache_create
->    slub: create duplicate cache
->    slub: provide kmalloc_no_account
->    slab: create duplicate cache
->    slab: provide kmalloc_no_account
->    kmem controller charge/uncharge infrastructure
->    slub: charge allocation to a memcg
->    slab: per-memcg accounting of slab caches
->    memcg: disable kmem code when not in use.
->    slub: create slabinfo file for memcg
->
-> Suleiman Souhlal (4):
->    memcg: Make it possible to use the stock for more than one page.
->    memcg: Reclaim when more than one page needed.
->    memcg: Track all the memcg children of a kmem_cache.
->    memcg: Per-memcg memory.kmem.slabinfo file.
->
->   include/linux/memcontrol.h  |   87 ++++++
->   include/linux/res_counter.h |    2 +-
->   include/linux/slab.h        |   26 ++
->   include/linux/slab_def.h    |   77 ++++++-
->   include/linux/slub_def.h    |   36 +++-
->   init/Kconfig                |    2 +-
->   mm/memcontrol.c             |  607 +++++++++++++++++++++++++++++++++++++++++--
->   mm/slab.c                   |  390 +++++++++++++++++++++++-----
->   mm/slub.c                   |  255 ++++++++++++++++--
->   9 files changed, 1364 insertions(+), 118 deletions(-)
->
-All patches should be there now.
+(2012/04/21 8:15), Johannes Weiner wrote:
 
-Sorry for the trouble.
+> On Fri, Apr 20, 2012 at 11:22:14AM -0700, Ying Han wrote:
+>> On Fri, Apr 20, 2012 at 2:17 AM, Michal Hocko <mhocko@suse.cz> wrote:
+>>> On Tue 17-04-12 09:38:02, Ying Han wrote:
+>>>> This patch reverts all the existing softlimit reclaim implementations and
+>>>> instead integrates the softlimit reclaim into existing global reclaim logic.
+>>>>
+>>>> The new softlimit reclaim includes the following changes:
+>>>>
+>>>> 1. add function should_reclaim_mem_cgroup()
+>>>>
+>>>> Add the filter function should_reclaim_mem_cgroup() under the common function
+>>>> shrink_zone(). The later one is being called both from per-memcg reclaim as
+>>>> well as global reclaim.
+>>>>
+>>>> Today the softlimit takes effect only under global memory pressure. The memcgs
+>>>> get free run above their softlimit until there is a global memory contention.
+>>>> This patch doesn't change the semantics.
+>>>
+>>> I am not sure I understand but I think it does change the semantics.
+>>> Previously we looked at a group with the biggest excess and reclaim that
+>>> group _hierarchically_.
+>>
+>> yes, we don't do _hierarchically_ reclaim reclaim in this patch. Hmm,
+>> that might be what Johannes insists to preserve on the other
+>> thread.... ?
+> 
+> Yes, that is exactly what I was talking about all along :-)
+> 
+> To reiterate, in the case of
+> 
+> A (soft = 10G)
+>   A1
+>   A2
+>   A3
+>   ...
+> 
+> global reclaim should go for A, A1, A2, A3, ... when their sum usage
+> goes above 10G.  Regardless of any setting in those subgroups, for
+> reasons I outlined in the other subthread (basically, allowing
+> children to override parental settings assumes you trust all children
+> and their settings to be 'cooperative', which is unprecedented cgroup
+> semantics, afaics, and we can already see this will make problems in
+> the future)
+> 
+> Meanwhile, if you don't want a hierarchical limit, don't set a
+> hierarchical limit.  It's possible to organize the tree such that you
+> don't need to, and it should not be an unreasonable amount of work to
+> do so).
+> 
+
+
+I agree.
+
+
+Thanks,
+-Kame
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
