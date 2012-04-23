@@ -1,171 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx120.postini.com [74.125.245.120])
-	by kanga.kvack.org (Postfix) with SMTP id 8E5F16B0044
-	for <linux-mm@kvack.org>; Mon, 23 Apr 2012 17:15:55 -0400 (EDT)
-Received: by dadq36 with SMTP id q36so18138760dad.8
-        for <linux-mm@kvack.org>; Mon, 23 Apr 2012 14:15:54 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx205.postini.com [74.125.245.205])
+	by kanga.kvack.org (Postfix) with SMTP id 282B46B0044
+	for <linux-mm@kvack.org>; Mon, 23 Apr 2012 17:26:38 -0400 (EDT)
+Date: Mon, 23 Apr 2012 23:25:36 +0200
+From: Oleg Nesterov <oleg@redhat.com>
+Subject: Re: [RFC 0/6] uprobes: kill uprobes_srcu/uprobe_srcu_id
+Message-ID: <20120423212536.GA8700@redhat.com>
+References: <1334571419.28150.30.camel@twins> <20120416214707.GA27639@redhat.com> <1334916861.2463.50.camel@laptop> <20120420183718.GA2236@redhat.com> <1335165240.28150.89.camel@twins> <20120423072445.GC8357@linux.vnet.ibm.com> <1335166842.28150.92.camel@twins> <20120423172957.GA29708@redhat.com> <1335208690.2463.84.camel@laptop> <20120423205049.GA7831@redhat.com>
 MIME-Version: 1.0
-In-Reply-To: <alpine.DEB.2.00.1204231334200.11602@chino.kir.corp.google.com>
-References: <1335208126-25919-1-git-send-email-sasikanth.v19@gmail.com>
-	<alpine.DEB.2.00.1204231334200.11602@chino.kir.corp.google.com>
-Date: Tue, 24 Apr 2012 02:45:54 +0530
-Message-ID: <CAOJFanXaX__QZmbs15e04g6D-0478cAjm70WZK-BWebJCuQCQw@mail.gmail.com>
-Subject: Re: [PATCH] mm:vmstat - Removed debug fs entries on failure of file
- creation and made extfrag_debug_root dentry local
-From: Sasikanth babu <sasikanth.v19@gmail.com>
-Content-Type: multipart/alternative; boundary=047d7b15fafdc0f36804be5f2412
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20120423205049.GA7831@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Christoph Lameter <cl@linux.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, LKML <linux-kernel@vger.kernel.org>, Linux-mm <linux-mm@kvack.org>, Andi Kleen <andi@firstfloor.org>, Christoph Hellwig <hch@infradead.org>, Steven Rostedt <rostedt@goodmis.org>, Arnaldo Carvalho de Melo <acme@infradead.org>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Thomas Gleixner <tglx@linutronix.de>, Anton Arapov <anton@redhat.com>
 
---047d7b15fafdc0f36804be5f2412
-Content-Type: text/plain; charset=ISO-8859-1
+forgot to mention,
 
-On Tue, Apr 24, 2012 at 2:05 AM, David Rientjes <rientjes@google.com> wrote:
-
-> On Tue, 24 Apr 2012, Sasikantha babu wrote:
+On 04/23, Oleg Nesterov wrote:
 >
-> > diff --git a/mm/vmstat.c b/mm/vmstat.c
-> > index f600557..ddae476 100644
-> > --- a/mm/vmstat.c
-> > +++ b/mm/vmstat.c
-> > @@ -1220,7 +1220,6 @@ module_init(setup_vmstat)
-> >  #if defined(CONFIG_DEBUG_FS) && defined(CONFIG_COMPACTION)
-> >  #include <linux/debugfs.h>
-> >
-> > -static struct dentry *extfrag_debug_root;
-> >
-> >  /*
-> >   * Return an index indicating how much of the available free memory is
-> > @@ -1358,17 +1357,23 @@ static const struct file_operations
-> extfrag_file_ops = {
-> >
-> >  static int __init extfrag_debug_init(void)
-> >  {
-> > +     struct dentry *extfrag_debug_root;
-> > +
-> >       extfrag_debug_root = debugfs_create_dir("extfrag", NULL);
-> >       if (!extfrag_debug_root)
-> >               return -ENOMEM;
-> >
-> >       if (!debugfs_create_file("unusable_index", 0444,
-> > -                     extfrag_debug_root, NULL, &unusable_file_ops))
-> > +                     extfrag_debug_root, NULL, &unusable_file_ops)) {
-> > +             debugfs_remove (extfrag_debug_root);
-> >               return -ENOMEM;
-> > +     }
-> >
-> >       if (!debugfs_create_file("extfrag_index", 0444,
-> > -                     extfrag_debug_root, NULL, &extfrag_file_ops))
-> > +                     extfrag_debug_root, NULL, &extfrag_file_ops)) {
-> > +             debugfs_remove_recursive (extfrag_debug_root);
-> >               return -ENOMEM;
-> > +     }
-> >
-> >       return 0;
-> >  }
->
-> Probably easier to do something like "goto fail" and then have a
->
->                return 0;
->
->        fail:
->                debugfs_remove_recursive(extfrag_debug_root);
->                return -ENOMEM;
->
->     Thanks, i will do the modification and resend the patch
+> Just it seems to me there are to many "details"
+> we should discuss to make the filtering reasonable.
 
-> at the end of the function.
->
-> Please run scripts/checkpatch.pl on your patch before proposing it.
->
+And so far we assumed that consumer->filter() is "stable" and never
+changes its mind.
 
-  Didnt notice extra space after fucntion. From now onwards will run
-checkpatch Thanks
+Perhaps this is fine, but I am not sure. May we need need some
+interface to add/del the task. Probably not, but unregister + register
+doesn't look very convenient and can miss a hit.
 
---047d7b15fafdc0f36804be5f2412
-Content-Type: text/html; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+> Yes, and probably this makes sense for handler_chain(). Although otoh
+> I do not really understand what this filter buys us at this point.
 
-<div dir=3D"ltr"><div class=3D"gmail_extra"><br><br><div class=3D"gmail_quo=
-te">On Tue, Apr 24, 2012 at 2:05 AM, David Rientjes <span dir=3D"ltr">&lt;<=
-a href=3D"mailto:rientjes@google.com" target=3D"_blank">rientjes@google.com=
-</a>&gt;</span> wrote:<br>
-<blockquote class=3D"gmail_quote" style=3D"margin:0 0 0 .8ex;border-left:1p=
-x #ccc solid;padding-left:1ex"><div class=3D"HOEnZb"><div class=3D"h5">On T=
-ue, 24 Apr 2012, Sasikantha babu wrote:<br>
-<br>
-&gt; diff --git a/mm/vmstat.c b/mm/vmstat.c<br>
-&gt; index f600557..ddae476 100644<br>
-&gt; --- a/mm/vmstat.c<br>
-&gt; +++ b/mm/vmstat.c<br>
-&gt; @@ -1220,7 +1220,6 @@ module_init(setup_vmstat)<br>
-&gt; =A0#if defined(CONFIG_DEBUG_FS) &amp;&amp; defined(CONFIG_COMPACTION)<=
-br>
-&gt; =A0#include &lt;linux/debugfs.h&gt;<br>
-&gt;<br>
-&gt; -static struct dentry *extfrag_debug_root;<br>
-&gt;<br>
-&gt; =A0/*<br>
-&gt; =A0 * Return an index indicating how much of the available free memory=
- is<br>
-&gt; @@ -1358,17 +1357,23 @@ static const struct file_operations extfrag_fi=
-le_ops =3D {<br>
-&gt;<br>
-&gt; =A0static int __init extfrag_debug_init(void)<br>
-&gt; =A0{<br>
-&gt; + =A0 =A0 struct dentry *extfrag_debug_root;<br>
-&gt; +<br>
-&gt; =A0 =A0 =A0 extfrag_debug_root =3D debugfs_create_dir(&quot;extfrag&qu=
-ot;, NULL);<br>
-&gt; =A0 =A0 =A0 if (!extfrag_debug_root)<br>
-&gt; =A0 =A0 =A0 =A0 =A0 =A0 =A0 return -ENOMEM;<br>
-&gt;<br>
-&gt; =A0 =A0 =A0 if (!debugfs_create_file(&quot;unusable_index&quot;, 0444,=
-<br>
-&gt; - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 extfrag_debug_root, NULL, &a=
-mp;unusable_file_ops))<br>
-&gt; + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 extfrag_debug_root, NULL, &a=
-mp;unusable_file_ops)) {<br>
-&gt; + =A0 =A0 =A0 =A0 =A0 =A0 debugfs_remove (extfrag_debug_root);<br>
-&gt; =A0 =A0 =A0 =A0 =A0 =A0 =A0 return -ENOMEM;<br>
-&gt; + =A0 =A0 }<br>
-&gt;<br>
-&gt; =A0 =A0 =A0 if (!debugfs_create_file(&quot;extfrag_index&quot;, 0444,<=
-br>
-&gt; - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 extfrag_debug_root, NULL, &a=
-mp;extfrag_file_ops))<br>
-&gt; + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 extfrag_debug_root, NULL, &a=
-mp;extfrag_file_ops)) {<br>
-&gt; + =A0 =A0 =A0 =A0 =A0 =A0 debugfs_remove_recursive (extfrag_debug_root=
-);<br>
-&gt; =A0 =A0 =A0 =A0 =A0 =A0 =A0 return -ENOMEM;<br>
-&gt; + =A0 =A0 }<br>
-&gt;<br>
-&gt; =A0 =A0 =A0 return 0;<br>
-&gt; =A0}<br>
-<br>
-</div></div>Probably easier to do something like &quot;goto fail&quot; and =
-then have a<br>
-<br>
- =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0return 0;<br>
-<br>
- =A0 =A0 =A0 =A0fail:<br>
- =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0debugfs_remove_recursive(extfrag_debug_root=
-);<br>
- =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0return -ENOMEM;<br>
-<br></blockquote><div>=A0 =A0 Thanks, i will do the modification and resend=
- the patch<br></div><blockquote class=3D"gmail_quote" style=3D"margin:0pt 0=
-pt 0pt 0.8ex;border-left:1px solid rgb(204,204,204);padding-left:1ex">
-at the end of the function.<br>
-<br>
-Please run scripts/<a href=3D"http://checkpatch.pl" target=3D"_blank">check=
-patch.pl</a> on your patch before proposing it.<br>
-</blockquote></div>=A0=A0 <br>=A0 Didnt notice extra space after fucntion. =
->From now onwards will run checkpatch Thanks<br></div></div>
+But if we change the rules so that ->filter() or ->handler() itself can
+return the "please remove this bp from ->mm" then perhaps it makes more
+sense for the filtering. Again, not sure.
 
---047d7b15fafdc0f36804be5f2412--
+Oleg.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
