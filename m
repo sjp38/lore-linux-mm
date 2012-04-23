@@ -1,94 +1,171 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx193.postini.com [74.125.245.193])
-	by kanga.kvack.org (Postfix) with SMTP id B38216B0044
-	for <linux-mm@kvack.org>; Mon, 23 Apr 2012 16:57:03 -0400 (EDT)
-Received: by wgbdt14 with SMTP id dt14so10404552wgb.26
-        for <linux-mm@kvack.org>; Mon, 23 Apr 2012 13:57:02 -0700 (PDT)
-Date: Mon, 23 Apr 2012 22:58:01 +0200
-From: Daniel Vetter <daniel@ffwll.ch>
-Subject: Re: [Linaro-mm-sig] [PATCH 0/4] ARM: replace custom consistent dma
- region with vmalloc
-Message-ID: <20120423205801.GO4935@phenom.ffwll.local>
-References: <1334325950-7881-1-git-send-email-m.szyprowski@samsung.com>
- <CALYq+qSMPoVC5OF+oBbt_i7O+_fmogLCtpqTAqHbsv1TcKrPdA@mail.gmail.com>
+Received: from psmtp.com (na3sys010amx120.postini.com [74.125.245.120])
+	by kanga.kvack.org (Postfix) with SMTP id 8E5F16B0044
+	for <linux-mm@kvack.org>; Mon, 23 Apr 2012 17:15:55 -0400 (EDT)
+Received: by dadq36 with SMTP id q36so18138760dad.8
+        for <linux-mm@kvack.org>; Mon, 23 Apr 2012 14:15:54 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CALYq+qSMPoVC5OF+oBbt_i7O+_fmogLCtpqTAqHbsv1TcKrPdA@mail.gmail.com>
+In-Reply-To: <alpine.DEB.2.00.1204231334200.11602@chino.kir.corp.google.com>
+References: <1335208126-25919-1-git-send-email-sasikanth.v19@gmail.com>
+	<alpine.DEB.2.00.1204231334200.11602@chino.kir.corp.google.com>
+Date: Tue, 24 Apr 2012 02:45:54 +0530
+Message-ID: <CAOJFanXaX__QZmbs15e04g6D-0478cAjm70WZK-BWebJCuQCQw@mail.gmail.com>
+Subject: Re: [PATCH] mm:vmstat - Removed debug fs entries on failure of file
+ creation and made extfrag_debug_root dentry local
+From: Sasikanth babu <sasikanth.v19@gmail.com>
+Content-Type: multipart/alternative; boundary=047d7b15fafdc0f36804be5f2412
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Abhinav Kochhar <kochhar.abhinav@gmail.com>
-Cc: Marek Szyprowski <m.szyprowski@samsung.com>, Russell King - ARM Linux <linux@arm.linux.org.uk>, Arnd Bergmann <arnd@arndb.de>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, linux-kernel@vger.kernel.org, linaro-mm-sig@lists.linaro.org, linux-mm@kvack.org, Kyungmin Park <kyungmin.park@samsung.com>, linux-arm-kernel@lists.infradead.org
+To: David Rientjes <rientjes@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Christoph Lameter <cl@linux.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Mon, Apr 23, 2012 at 09:02:25PM +0900, Abhinav Kochhar wrote:
-> Hi,
-> 
-> I see a bottle-neck with the current dma-mapping framework.
-> Issue seems to be with the Virtual memory allocation for access in kernel
-> address space.
-> 
-> 1. In "arch/arm/mm/dma-mapping.c" there is a initialization call to
-> "consistent_init". It reserves size 32MB of Kernel Address space.
-> 2. "consistent_init" allocates memory for kernel page directory and page
-> tables.
-> 
-> 3. "__iommu_alloc_remap" function allocates virtual memory region in kernel
-> address space reserved in step 1.
-> 
-> 4. "__iommu_alloc_remap" function then maps the allocated pages to the
-> address space reserved in step 3.
-> 
-> Since the virtual memory area allocated for mapping these pages in kernel
-> address space is only 32MB,
-> 
-> eventually the calls for allocation and mapping new pages into kernel
-> address space are going to fail once 32 MB is exhausted.
-> 
-> e.g., For Exynos 5 platform Each framebuffer for 1280x800 resolution
-> consumes around 4MB.
-> 
-> We have a scenario where X11 DRI driver would allocate Non-contig pages for
-> all "Pixmaps" through arm_iommu_alloc_attrs" function which will follow the
-> path given above in steps 1 - 4.
-> 
-> Now the problem is the size limitation of 32MB. We may want to allocate
-> more than 8 such buffers when X11 DRI driver is integrated.
-> Possible solutions:
-> 
-> 1. Why do we need to create a kernel virtual address space? Are we going to
-> access these pages in kernel using this address?
-> 
-> If we are not going to access anything in kernel then why do we need to map
-> these pages in kernel address space?. If we can avoid this then the problem
-> can be solved.
-> 
-> OR
-> 
-> 2 Is it used for only book-keeping to retrieve "struct pages" later on for
-> passing/mapping to different devices?
-> 
-> If yes, then we have to find another way.
-> 
-> For "dmabuf" framework one solution could be to add a new member variable
-> "pages" in the exporting driver's local object and use that for
-> passing/mapping to different devices.
-> 
-> Moreover, even if we increase to say 64 MB that would not be enough for our
-> use, we never know how many graphic applications would be spawned by the
-> user.
-> Let me know your opinion on this.
+--047d7b15fafdc0f36804be5f2412
+Content-Type: text/plain; charset=ISO-8859-1
 
-This is more or less the reason I'm so massively opposed to adding vmap to
-dma-buf - you _really_ burn through the vmap space ridiculously quickly on
-32bit platforms with too much memory (i.e. everything with more than 1 G).
+On Tue, Apr 24, 2012 at 2:05 AM, David Rientjes <rientjes@google.com> wrote:
 
-You need to map/unmap everything page-by-page with all the usual kmap apis
-the kernel provides.
--Daniel
--- 
-Daniel Vetter
-Mail: daniel@ffwll.ch
-Mobile: +41 (0)79 365 57 48
+> On Tue, 24 Apr 2012, Sasikantha babu wrote:
+>
+> > diff --git a/mm/vmstat.c b/mm/vmstat.c
+> > index f600557..ddae476 100644
+> > --- a/mm/vmstat.c
+> > +++ b/mm/vmstat.c
+> > @@ -1220,7 +1220,6 @@ module_init(setup_vmstat)
+> >  #if defined(CONFIG_DEBUG_FS) && defined(CONFIG_COMPACTION)
+> >  #include <linux/debugfs.h>
+> >
+> > -static struct dentry *extfrag_debug_root;
+> >
+> >  /*
+> >   * Return an index indicating how much of the available free memory is
+> > @@ -1358,17 +1357,23 @@ static const struct file_operations
+> extfrag_file_ops = {
+> >
+> >  static int __init extfrag_debug_init(void)
+> >  {
+> > +     struct dentry *extfrag_debug_root;
+> > +
+> >       extfrag_debug_root = debugfs_create_dir("extfrag", NULL);
+> >       if (!extfrag_debug_root)
+> >               return -ENOMEM;
+> >
+> >       if (!debugfs_create_file("unusable_index", 0444,
+> > -                     extfrag_debug_root, NULL, &unusable_file_ops))
+> > +                     extfrag_debug_root, NULL, &unusable_file_ops)) {
+> > +             debugfs_remove (extfrag_debug_root);
+> >               return -ENOMEM;
+> > +     }
+> >
+> >       if (!debugfs_create_file("extfrag_index", 0444,
+> > -                     extfrag_debug_root, NULL, &extfrag_file_ops))
+> > +                     extfrag_debug_root, NULL, &extfrag_file_ops)) {
+> > +             debugfs_remove_recursive (extfrag_debug_root);
+> >               return -ENOMEM;
+> > +     }
+> >
+> >       return 0;
+> >  }
+>
+> Probably easier to do something like "goto fail" and then have a
+>
+>                return 0;
+>
+>        fail:
+>                debugfs_remove_recursive(extfrag_debug_root);
+>                return -ENOMEM;
+>
+>     Thanks, i will do the modification and resend the patch
+
+> at the end of the function.
+>
+> Please run scripts/checkpatch.pl on your patch before proposing it.
+>
+
+  Didnt notice extra space after fucntion. From now onwards will run
+checkpatch Thanks
+
+--047d7b15fafdc0f36804be5f2412
+Content-Type: text/html; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
+
+<div dir=3D"ltr"><div class=3D"gmail_extra"><br><br><div class=3D"gmail_quo=
+te">On Tue, Apr 24, 2012 at 2:05 AM, David Rientjes <span dir=3D"ltr">&lt;<=
+a href=3D"mailto:rientjes@google.com" target=3D"_blank">rientjes@google.com=
+</a>&gt;</span> wrote:<br>
+<blockquote class=3D"gmail_quote" style=3D"margin:0 0 0 .8ex;border-left:1p=
+x #ccc solid;padding-left:1ex"><div class=3D"HOEnZb"><div class=3D"h5">On T=
+ue, 24 Apr 2012, Sasikantha babu wrote:<br>
+<br>
+&gt; diff --git a/mm/vmstat.c b/mm/vmstat.c<br>
+&gt; index f600557..ddae476 100644<br>
+&gt; --- a/mm/vmstat.c<br>
+&gt; +++ b/mm/vmstat.c<br>
+&gt; @@ -1220,7 +1220,6 @@ module_init(setup_vmstat)<br>
+&gt; =A0#if defined(CONFIG_DEBUG_FS) &amp;&amp; defined(CONFIG_COMPACTION)<=
+br>
+&gt; =A0#include &lt;linux/debugfs.h&gt;<br>
+&gt;<br>
+&gt; -static struct dentry *extfrag_debug_root;<br>
+&gt;<br>
+&gt; =A0/*<br>
+&gt; =A0 * Return an index indicating how much of the available free memory=
+ is<br>
+&gt; @@ -1358,17 +1357,23 @@ static const struct file_operations extfrag_fi=
+le_ops =3D {<br>
+&gt;<br>
+&gt; =A0static int __init extfrag_debug_init(void)<br>
+&gt; =A0{<br>
+&gt; + =A0 =A0 struct dentry *extfrag_debug_root;<br>
+&gt; +<br>
+&gt; =A0 =A0 =A0 extfrag_debug_root =3D debugfs_create_dir(&quot;extfrag&qu=
+ot;, NULL);<br>
+&gt; =A0 =A0 =A0 if (!extfrag_debug_root)<br>
+&gt; =A0 =A0 =A0 =A0 =A0 =A0 =A0 return -ENOMEM;<br>
+&gt;<br>
+&gt; =A0 =A0 =A0 if (!debugfs_create_file(&quot;unusable_index&quot;, 0444,=
+<br>
+&gt; - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 extfrag_debug_root, NULL, &a=
+mp;unusable_file_ops))<br>
+&gt; + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 extfrag_debug_root, NULL, &a=
+mp;unusable_file_ops)) {<br>
+&gt; + =A0 =A0 =A0 =A0 =A0 =A0 debugfs_remove (extfrag_debug_root);<br>
+&gt; =A0 =A0 =A0 =A0 =A0 =A0 =A0 return -ENOMEM;<br>
+&gt; + =A0 =A0 }<br>
+&gt;<br>
+&gt; =A0 =A0 =A0 if (!debugfs_create_file(&quot;extfrag_index&quot;, 0444,<=
+br>
+&gt; - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 extfrag_debug_root, NULL, &a=
+mp;extfrag_file_ops))<br>
+&gt; + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 extfrag_debug_root, NULL, &a=
+mp;extfrag_file_ops)) {<br>
+&gt; + =A0 =A0 =A0 =A0 =A0 =A0 debugfs_remove_recursive (extfrag_debug_root=
+);<br>
+&gt; =A0 =A0 =A0 =A0 =A0 =A0 =A0 return -ENOMEM;<br>
+&gt; + =A0 =A0 }<br>
+&gt;<br>
+&gt; =A0 =A0 =A0 return 0;<br>
+&gt; =A0}<br>
+<br>
+</div></div>Probably easier to do something like &quot;goto fail&quot; and =
+then have a<br>
+<br>
+ =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0return 0;<br>
+<br>
+ =A0 =A0 =A0 =A0fail:<br>
+ =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0debugfs_remove_recursive(extfrag_debug_root=
+);<br>
+ =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0return -ENOMEM;<br>
+<br></blockquote><div>=A0 =A0 Thanks, i will do the modification and resend=
+ the patch<br></div><blockquote class=3D"gmail_quote" style=3D"margin:0pt 0=
+pt 0pt 0.8ex;border-left:1px solid rgb(204,204,204);padding-left:1ex">
+at the end of the function.<br>
+<br>
+Please run scripts/<a href=3D"http://checkpatch.pl" target=3D"_blank">check=
+patch.pl</a> on your patch before proposing it.<br>
+</blockquote></div>=A0=A0 <br>=A0 Didnt notice extra space after fucntion. =
+>From now onwards will run checkpatch Thanks<br></div></div>
+
+--047d7b15fafdc0f36804be5f2412--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
