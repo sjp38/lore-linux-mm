@@ -1,102 +1,116 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx186.postini.com [74.125.245.186])
-	by kanga.kvack.org (Postfix) with SMTP id CBE966B0044
-	for <linux-mm@kvack.org>; Mon, 23 Apr 2012 18:20:58 -0400 (EDT)
-Received: by dadq36 with SMTP id q36so53842dad.8
-        for <linux-mm@kvack.org>; Mon, 23 Apr 2012 15:20:58 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx152.postini.com [74.125.245.152])
+	by kanga.kvack.org (Postfix) with SMTP id A3FF66B0044
+	for <linux-mm@kvack.org>; Mon, 23 Apr 2012 18:26:02 -0400 (EDT)
+Received: by iajr24 with SMTP id r24so73511iaj.14
+        for <linux-mm@kvack.org>; Mon, 23 Apr 2012 15:26:02 -0700 (PDT)
+Date: Mon, 23 Apr 2012 15:25:59 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH 17/23] kmem controller charge/uncharge infrastructure
+In-Reply-To: <1335138820-26590-6-git-send-email-glommer@parallels.com>
+Message-ID: <alpine.DEB.2.00.1204231522320.13535@chino.kir.corp.google.com>
+References: <1334959051-18203-1-git-send-email-glommer@parallels.com> <1335138820-26590-6-git-send-email-glommer@parallels.com>
 MIME-Version: 1.0
-In-Reply-To: <1335214564-17619-1-git-send-email-yinghan@google.com>
-References: <1335214564-17619-1-git-send-email-yinghan@google.com>
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Date: Mon, 23 Apr 2012 18:20:37 -0400
-Message-ID: <CAHGf_=pGhtieRpUqbF4GmAKt5XXhf_2y8c+EzGNx-cgqPNvfJw@mail.gmail.com>
-Subject: Re: [RFC PATCH] do_try_to_free_pages() might enter infinite loop
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ying Han <yinghan@google.com>
-Cc: Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mel@csn.ul.ie>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, Hugh Dickins <hughd@google.com>, Nick Piggin <npiggin@suse.de>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
+To: Glauber Costa <glommer@parallels.com>
+Cc: cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, devel@openvz.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, fweisbec@gmail.com, Greg Thelen <gthelen@google.com>, Suleiman Souhlal <suleiman@google.com>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@cs.helsinki.fi>
 
-On Mon, Apr 23, 2012 at 4:56 PM, Ying Han <yinghan@google.com> wrote:
-> This is not a patch targeted to be merged at all, but trying to understan=
-d
-> a logic in global direct reclaim.
->
-> There is a logic in global direct reclaim where reclaim fails on priority=
- 0
-> and zone->all_unreclaimable is not set, it will cause the direct to start=
- over
-> from DEF_PRIORITY. In some extreme cases, we've seen the system hang whic=
-h is
-> very likely caused by direct reclaim enters infinite loop.
->
-> There have been serious patches trying to fix similar issue and the lates=
-t
-> patch has good summary of all the efforts:
->
-> commit 929bea7c714220fc76ce3f75bef9056477c28e74
-> Author: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-> Date: =A0 Thu Apr 14 15:22:12 2011 -0700
->
-> =A0 =A0vmscan: all_unreclaimable() use zone->all_unreclaimable as a name
->
-> Kosaki explained the problem triggered by async zone->all_unreclaimable a=
-nd
-> zone->pages_scanned where the later one was being checked by direct recla=
-im.
-> However, after the patch, the problem remains where the setting of
-> zone->all_unreclaimable is asynchronous with zone is actually reclaimable=
- or not.
->
-> The zone->all_unreclaimable flag is set by kswapd by checking zone->pages=
-_scanned in
-> zone_reclaimable(). Is that possible to have zone->all_unreclaimable =3D=
-=3D false while
-> the zone is actually unreclaimable?
->
-> 1. while kswapd in reclaim priority loop, someone frees a page on the zon=
-e. It
-> will end up resetting the pages_scanned.
->
-> 2. kswapd is frozen for whatever reason. I noticed Kosaki's covered the
-> hibernation case by checking oom_killer_disabled, but not sure if that is
-> everything we need to worry about. The key point here is that direct recl=
-aim
-> relies on a flag which is set by kswapd asynchronously, that doesn't soun=
-d safe.
+On Sun, 22 Apr 2012, Glauber Costa wrote:
 
-If kswapd was frozen except hibernation, why don't you add frozen
-check instead of
-hibernation check? And when and why is that happen?
+> +/*
+> + * Return the kmem_cache we're supposed to use for a slab allocation.
+> + * If we are in interrupt context or otherwise have an allocation that
+> + * can't fail, we return the original cache.
+> + * Otherwise, we will try to use the current memcg's version of the cache.
+> + *
+> + * If the cache does not exist yet, if we are the first user of it,
+> + * we either create it immediately, if possible, or create it asynchronously
+> + * in a workqueue.
+> + * In the latter case, we will let the current allocation go through with
+> + * the original cache.
+> + *
+> + * This function returns with rcu_read_lock() held.
+> + */
+> +struct kmem_cache *__mem_cgroup_get_kmem_cache(struct kmem_cache *cachep,
+> +					     gfp_t gfp)
+> +{
+> +	struct mem_cgroup *memcg;
+> +	int idx;
+> +
+> +	gfp |=  cachep->allocflags;
+> +
+> +	if ((current->mm == NULL))
+> +		return cachep;
+> +
+> +	if (cachep->memcg_params.memcg)
+> +		return cachep;
+> +
+> +	idx = cachep->memcg_params.id;
+> +	VM_BUG_ON(idx == -1);
+> +
+> +	memcg = mem_cgroup_from_task(current);
+> +	if (!mem_cgroup_kmem_enabled(memcg))
+> +		return cachep;
+> +
+> +	if (rcu_access_pointer(memcg->slabs[idx]) == NULL) {
+> +		memcg_create_cache_enqueue(memcg, cachep);
+> +		return cachep;
+> +	}
+> +
+> +	return rcu_dereference(memcg->slabs[idx]);
+> +}
+> +EXPORT_SYMBOL(__mem_cgroup_get_kmem_cache);
+> +
+> +void mem_cgroup_remove_child_kmem_cache(struct kmem_cache *cachep, int id)
+> +{
+> +	rcu_assign_pointer(cachep->memcg_params.memcg->slabs[id], NULL);
+> +}
+> +
+> +bool __mem_cgroup_charge_kmem(gfp_t gfp, size_t size)
+> +{
+> +	struct mem_cgroup *memcg;
+> +	bool ret = true;
+> +
+> +	rcu_read_lock();
+> +	memcg = mem_cgroup_from_task(current);
 
+This seems horribly inconsistent with memcg charging of user memory since 
+it charges to p->mm->owner and you're charging to p.  So a thread attached 
+to a memcg can charge user memory to one memcg while charging slab to 
+another memcg?
 
->
-> Instead of keep fixing the problem, I am wondering why we have the logic
-> "not oom but keep trying reclaim w/ priority 0 reclaim failure" at the fi=
-rst place:
->
-> Here is the patch introduced the logic initially:
->
-> commit 408d85441cd5a9bd6bc851d677a10c605ed8db5f
-> Author: Nick Piggin <npiggin@suse.de>
-> Date: =A0 Mon Sep 25 23:31:27 2006 -0700
->
-> =A0 =A0[PATCH] oom: use unreclaimable info
->
-> However, I didn't find detailed description of what problem the commit tr=
-ying
-> to fix and wondering if the problem still exist after 5 years. I would be=
- happy
-> to see the later case where we can consider to revert the initial patch.
-
-This patch fixed one of false oom issue. Think,
-
-1. thread-a reach priority-0.
-2. thread-b was exited and free a lot of pages.
-3. thread-a call out_of_memory().
-
-This is not very good because we now have enough memory....
+> +
+> +	if (!mem_cgroup_kmem_enabled(memcg))
+> +		goto out;
+> +
+> +	mem_cgroup_get(memcg);
+> +	ret = memcg_charge_kmem(memcg, gfp, size) == 0;
+> +	if (ret)
+> +		mem_cgroup_put(memcg);
+> +out:
+> +	rcu_read_unlock();
+> +	return ret;
+> +}
+> +EXPORT_SYMBOL(__mem_cgroup_charge_kmem);
+> +
+> +void __mem_cgroup_uncharge_kmem(size_t size)
+> +{
+> +	struct mem_cgroup *memcg;
+> +
+> +	rcu_read_lock();
+> +	memcg = mem_cgroup_from_task(current);
+> +
+> +	if (!mem_cgroup_kmem_enabled(memcg))
+> +		goto out;
+> +
+> +	mem_cgroup_put(memcg);
+> +	memcg_uncharge_kmem(memcg, size);
+> +out:
+> +	rcu_read_unlock();
+> +}
+> +EXPORT_SYMBOL(__mem_cgroup_uncharge_kmem);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
