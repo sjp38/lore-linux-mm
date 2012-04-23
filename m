@@ -1,50 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx202.postini.com [74.125.245.202])
-	by kanga.kvack.org (Postfix) with SMTP id 80CDB6B0044
-	for <linux-mm@kvack.org>; Mon, 23 Apr 2012 13:19:29 -0400 (EDT)
-Received: from /spool/local
-	by e35.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <dave@linux.vnet.ibm.com>;
-	Mon, 23 Apr 2012 11:19:28 -0600
-Received: from d03relay01.boulder.ibm.com (d03relay01.boulder.ibm.com [9.17.195.226])
-	by d03dlp02.boulder.ibm.com (Postfix) with ESMTP id 697863E4004E
-	for <linux-mm@kvack.org>; Mon, 23 Apr 2012 11:19:25 -0600 (MDT)
-Received: from d03av03.boulder.ibm.com (d03av03.boulder.ibm.com [9.17.195.169])
-	by d03relay01.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q3NHJNcj207652
-	for <linux-mm@kvack.org>; Mon, 23 Apr 2012 11:19:23 -0600
-Received: from d03av03.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av03.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q3NHJMr7015295
-	for <linux-mm@kvack.org>; Mon, 23 Apr 2012 11:19:22 -0600
-Message-ID: <4F958F13.1000005@linux.vnet.ibm.com>
-Date: Mon, 23 Apr 2012 10:19:15 -0700
-From: Dave Hansen <dave@linux.vnet.ibm.com>
+Received: from psmtp.com (na3sys010amx158.postini.com [74.125.245.158])
+	by kanga.kvack.org (Postfix) with SMTP id 8B5FE6B004D
+	for <linux-mm@kvack.org>; Mon, 23 Apr 2012 13:31:03 -0400 (EDT)
+Date: Mon, 23 Apr 2012 19:29:57 +0200
+From: Oleg Nesterov <oleg@redhat.com>
+Subject: Re: [RFC 0/6] uprobes: kill uprobes_srcu/uprobe_srcu_id
+Message-ID: <20120423172957.GA29708@redhat.com>
+References: <20120415195351.GA22095@redhat.com> <1334526513.28150.23.camel@twins> <20120415234401.GA32662@redhat.com> <1334571419.28150.30.camel@twins> <20120416214707.GA27639@redhat.com> <1334916861.2463.50.camel@laptop> <20120420183718.GA2236@redhat.com> <1335165240.28150.89.camel@twins> <20120423072445.GC8357@linux.vnet.ibm.com> <1335166842.28150.92.camel@twins>
 MIME-Version: 1.0
-Subject: Re: Over-eager swapping
-References: <20120423092730.GB20543@alpha.arachsys.com>
-In-Reply-To: <20120423092730.GB20543@alpha.arachsys.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1335166842.28150.92.camel@twins>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Richard Davies <richard@arachsys.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Minchan Kim <minchan.kim@gmail.com>, Wu Fengguang <fengguang.wu@intel.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Christoph Lameter <cl@linux-foundation.org>, Lee Schermerhorn <lee.schermerhorn@hp.com>, Chris Webb <chris@arachsys.com>, Badari <pbadari@us.ibm.com>
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, LKML <linux-kernel@vger.kernel.org>, Linux-mm <linux-mm@kvack.org>, Andi Kleen <andi@firstfloor.org>, Christoph Hellwig <hch@infradead.org>, Steven Rostedt <rostedt@goodmis.org>, Arnaldo Carvalho de Melo <acme@infradead.org>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Thomas Gleixner <tglx@linutronix.de>, Anton Arapov <anton@redhat.com>
 
-On 04/23/2012 02:27 AM, Richard Davies wrote:
-> # cat /proc/meminfo
-> MemTotal:       65915384 kB
-> MemFree:          271104 kB
-> Buffers:        36274368 kB
+On 04/23, Peter Zijlstra wrote:
+>
+> On Mon, 2012-04-23 at 12:54 +0530, Srikar Dronamraju wrote:
+> > * Peter Zijlstra <peterz@infradead.org> [2012-04-23 09:14:00]:
+> >
+> > > On Fri, 2012-04-20 at 20:37 +0200, Oleg Nesterov wrote:
+> > > > Say, a user wants to probe /sbin/init only. What if init forks?
+> > > > We should remove breakpoints from child->mm somehow.
+> > >
+> > > How is that hard? dup_mmap() only copies the VMAs, this doesn't actually
+> > > copy the breakpoint. So the child doesn't have a breakpoint to be
+> > > removed.
+> > >
+> >
+> > Because the pages are COWED, the breakpoint gets copied over to the
+> > child. If we dont want the breakpoints to be not visible to the child,
+> > then we would have to remove them explicitly based on the filter (i.e if
+> > and if we had inserted breakpoints conditionally based on filter).
+>
+> I thought we didn't COW shared maps since the fault handler will fill in
+> the pages right and only anon stuff gets copied.
 
-Your "Buffers" are the only thing that really stands out here.  We used
-to see this kind of thing on ext3 a lot, but it's gotten much better
-lately.  From slabinfo, you can see all the buffer_heads:
+Confused...
 
-buffer_head       8175114 8360937    104   39    1 : tunables    0    0
-   0 : slabdata 214383 214383      0
+Do you mean the "Don't copy ptes where a page fault will fill them correctly"
+check in copy_page_range() ? Yes, but this vma should have ->anon_vma != NULL
+if it has the breakpoint installed by uprobes.
 
-I _think_ this was a filesystems issue where the FS for some reason kept
-the buffers locked down.  The swapping just comes later as so much of
-RAM is eaten up by buffers.
+Yes, we do not COW this page during dup_mmap(), but the new child's pte
+should point to the same page with bp.
+
+OK, I guess I misunderstood.
+
+> > Once we add the conditional breakpoint insertion (which is tricky),
+>
+> How so?
+
+I agree with Srikar this doesn't look simple to me. First of all,
+currently it is not easy to find the tasks which use this ->mm.
+OK, we can simply do for_each_process() under tasklist, but this is
+not very nice.
+
+But again, to me this is not the main problem.
+
+> > Conditional removal
+> > of breakpoints in fork path would just be an extension of the
+> > conditional breakpoint insertion.
+>
+> Right, I don't think that removal is particularly hard if needed.
+
+I agree that remove_breakpoint() itself is not that hard, probably.
+
+But the whole idea of filtering is not clear to me. I mean, when/how
+we should call the filter, and what should be the argument.
+task_struct? Probably, but I am not sure.
+
+And btw fork()->dup_mmap() should call the filter too. Suppose that
+uprobe_consumer wants to trace the task T and its children, this looks
+very natural.
+
+And we need to rework uprobe_register(). It can't simply return if
+this (inode, offset) already has the consumer.
+
+So far I think this needs more thinking. And imho we should merge the
+working code Srikar already has, then try to add this (agreed, very
+important) optimization.
+
+Oleg.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
