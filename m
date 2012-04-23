@@ -1,59 +1,99 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx162.postini.com [74.125.245.162])
-	by kanga.kvack.org (Postfix) with SMTP id ED3686B004D
-	for <linux-mm@kvack.org>; Mon, 23 Apr 2012 03:41:00 -0400 (EDT)
-Message-ID: <1335166842.28150.92.camel@twins>
-Subject: Re: [RFC 0/6] uprobes: kill uprobes_srcu/uprobe_srcu_id
-From: Peter Zijlstra <peterz@infradead.org>
-Date: Mon, 23 Apr 2012 09:40:42 +0200
-In-Reply-To: <20120423072445.GC8357@linux.vnet.ibm.com>
-References: <20120414205200.GA9083@redhat.com>
-	 <1334487062.2528.113.camel@twins> <20120415195351.GA22095@redhat.com>
-	 <1334526513.28150.23.camel@twins> <20120415234401.GA32662@redhat.com>
-	 <1334571419.28150.30.camel@twins> <20120416214707.GA27639@redhat.com>
-	 <1334916861.2463.50.camel@laptop> <20120420183718.GA2236@redhat.com>
-	 <1335165240.28150.89.camel@twins>
-	 <20120423072445.GC8357@linux.vnet.ibm.com>
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: quoted-printable
+Received: from psmtp.com (na3sys010amx146.postini.com [74.125.245.146])
+	by kanga.kvack.org (Postfix) with SMTP id 0A0CB6B004D
+	for <linux-mm@kvack.org>; Mon, 23 Apr 2012 04:23:11 -0400 (EDT)
+Message-ID: <1335169383.4191.9.camel@dabdike.lan>
+Subject: Re: [PATCH, RFC 0/3] Introduce new O_HOT and O_COLD flags
+From: James Bottomley <James.Bottomley@HansenPartnership.com>
+Date: Mon, 23 Apr 2012 09:23:03 +0100
+In-Reply-To: <CAPa8GCDkP_53VGAeQPeYgf3GW3KZ09BvnqduArQE7svf2mMj4A@mail.gmail.com>
+References: <1334863211-19504-1-git-send-email-tytso@mit.edu>
+	 <4F912880.70708@panasas.com>
+	 <alpine.LFD.2.00.1204201120060.27750@dhcp-27-109.brq.redhat.com>
+	 <1334919662.5879.23.camel@dabdike>
+	 <alpine.LFD.2.00.1204201313231.27750@dhcp-27-109.brq.redhat.com>
+	 <1334932928.13001.11.camel@dabdike> <20120420145856.GC24486@thunk.org>
+	 <CAHGf_=oWtpgRfqaZ1YDXgZoQHcFY0=DYVcwXYbFtZt2v+K532w@mail.gmail.com>
+	 <CAPa8GCDkP_53VGAeQPeYgf3GW3KZ09BvnqduArQE7svf2mMj4A@mail.gmail.com>
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: 7bit
 Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-Cc: Oleg Nesterov <oleg@redhat.com>, Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, LKML <linux-kernel@vger.kernel.org>, Linux-mm <linux-mm@kvack.org>, Andi Kleen <andi@firstfloor.org>, Christoph Hellwig <hch@infradead.org>, Steven Rostedt <rostedt@goodmis.org>, Arnaldo Carvalho de Melo <acme@infradead.org>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Thomas Gleixner <tglx@linutronix.de>, Anton Arapov <anton@redhat.com>
+To: Nick Piggin <npiggin@gmail.com>
+Cc: KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Ted Ts'o <tytso@mit.edu>, Lukas Czerner <lczerner@redhat.com>, Boaz Harrosh <bharrosh@panasas.com>, linux-fsdevel@vger.kernel.org, Ext4 Developers List <linux-ext4@vger.kernel.org>, linux-mm@kvack.org
 
-On Mon, 2012-04-23 at 12:54 +0530, Srikar Dronamraju wrote:
-> * Peter Zijlstra <peterz@infradead.org> [2012-04-23 09:14:00]:
->=20
-> > On Fri, 2012-04-20 at 20:37 +0200, Oleg Nesterov wrote:
-> > > Say, a user wants to probe /sbin/init only. What if init forks?
-> > > We should remove breakpoints from child->mm somehow.=20
-> >=20
-> > How is that hard? dup_mmap() only copies the VMAs, this doesn't actuall=
-y
-> > copy the breakpoint. So the child doesn't have a breakpoint to be
-> > removed.
-> >=20
->=20
-> Because the pages are COWED, the breakpoint gets copied over to the
-> child. If we dont want the breakpoints to be not visible to the child,
-> then we would have to remove them explicitly based on the filter (i.e if
-> and if we had inserted breakpoints conditionally based on filter).=20
+On Sun, 2012-04-22 at 16:30 +1000, Nick Piggin wrote:
+> On 22 April 2012 09:56, KOSAKI Motohiro <kosaki.motohiro@gmail.com> wrote:
+> > On Fri, Apr 20, 2012 at 10:58 AM, Ted Ts'o <tytso@mit.edu> wrote:
+> >> On Fri, Apr 20, 2012 at 06:42:08PM +0400, James Bottomley wrote:
+> >>>
+> >>> I'm not at all wedded to O_HOT and O_COLD; I think if we establish a
+> >>> hint hierarchy file->page cache->device then we should, of course,
+> >>> choose the best API and naming scheme for file->page cache.  The only
+> >>> real point I was making is that we should tie in the page cache, and
+> >>> currently it only knows about "hot" and "cold" pages.
+> >>
+> >> The problem is that "hot" and "cold" will have different meanings from
+> >> the perspective of the file system versus the page cache.  The file
+> >> system may consider a file "hot" if it is accessed frequently ---
+> >> compared to the other 2 TB of data on that HDD.  The memory subsystem
+> >> will consider a page "hot" compared to what has been recently accessed
+> >> in the 8GB of memory that you might have your system.  Now consider
+> >> that you might have a dozen or so 2TB disks that each have their "hot"
+> >> areas, and it's not at all obvious that just because a file, or even
+> >> part of a file is marked "hot", that it deserves to be in memory at
+> >> any particular point in time.
+> >
+> > So, this have intentionally different meanings I have no seen a reason why
+> > fs uses hot/cold words. It seems to bring a confusion.
+> 
+> Right. It has nothing to do with hot/cold usage in the page allocator,
+> which is about how many lines of that page are in CPU cache.
 
-I thought we didn't COW shared maps since the fault handler will fill in
-the pages right and only anon stuff gets copied.
+Well, no it's a similar concept:  we have no idea whether the page is
+cached or not.  What we do is estimate that by elapsed time since we
+last touched the page.  In some sense, this is similar to the fs
+definition: a hot page hint would mean we expect to touch the page
+frequently and a cold page means we wouldn't.  i.e. for a hot page, the
+elapsed time between touches would be short and for a cold page it would
+be long.  Now I still think there's a mismatch in the time scales: a
+long elapsed time for mm making the page cold isn't necessarily the same
+long elapsed time for the file, because the mm idea is conditioned by
+local events (like memory pressure).
 
-> Once we add the conditional breakpoint insertion (which is tricky),
+> However it could be propagated up to page reclaim level, at least.
+> Perhaps readahead/writeback too. But IMO it would be better to nail down
+> the semantics for block and filesystem before getting worried about that.
 
-How so?
+Sure ... I just forwarded the email in case mm people had an interest.
+If you want FS and storage to develop the hints first and then figure
+out if we can involve the page cache, that's more or less what was
+happening anyway.
 
->  we have
-> to support conditional breakpoint removal in the dup_mmap() thro the
-> uprobe_mmap hook (which I think is not that hard).  Conditional removal
-> of breakpoints in fork path would just be an extension of the
-> conditional breakpoint insertion.
+> > But I don't know full story of this feature and I might be overlooking
+> > something.
+> 
+> Also, "hot" and "cold" (as others have noted) is a big hammer that perhaps
+> catches a tiny subset of useful work (probably more likely: benchmarks).
+> 
+> Is it read often? Written often? Both? Are reads and writes random or linear?
+> Is it latency bound, or throughput bound? (i.e., are queue depths high or
+> low?)
+> 
+> A filesystem and storage device might care about all of these things.
+> Particularly if you have something more advanced than a single disk.
+> Caches, tiers of storage, etc.
 
-Right, I don't think that removal is particularly hard if needed.
+Experience has taught me to be wary of fine grained hints: they tend to
+be more trouble than they're worth (the definitions are either
+inaccurate or so tediously precise that no-one can be bothered to read
+them).  A small set of broad hints is usually more useable than a huge
+set of fine grained ones, so from that point of view, I like the
+O_HOT/O_COLD ones.
+
+James
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
