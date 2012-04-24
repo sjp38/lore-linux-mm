@@ -1,139 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx119.postini.com [74.125.245.119])
-	by kanga.kvack.org (Postfix) with SMTP id B08EE6B0044
-	for <linux-mm@kvack.org>; Tue, 24 Apr 2012 04:05:15 -0400 (EDT)
-Received: by obbeh20 with SMTP id eh20so807196obb.14
-        for <linux-mm@kvack.org>; Tue, 24 Apr 2012 01:05:14 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx201.postini.com [74.125.245.201])
+	by kanga.kvack.org (Postfix) with SMTP id 469806B0044
+	for <linux-mm@kvack.org>; Tue, 24 Apr 2012 04:20:30 -0400 (EDT)
+Date: Tue, 24 Apr 2012 09:20:19 +0100
+From: Richard Davies <richard@arachsys.com>
+Subject: Re: [RFC][PATCH] avoid swapping out with swappiness==0
+Message-ID: <20120424082019.GA18395@alpha.arachsys.com>
 MIME-Version: 1.0
-In-Reply-To: <4F965DCC.2000501@kernel.org>
-References: <1335171318-4838-1-git-send-email-minchan@kernel.org>
-	<4F963742.2030607@jp.fujitsu.com>
-	<4F963B8E.9030105@kernel.org>
-	<CAPa8GCA8q=S9sYx-0rDmecPxYkFs=gATGL-Dz0OYXDkwEECJkg@mail.gmail.com>
-	<4F965413.9010305@kernel.org>
-	<CAPa8GCCwfCFO6yxwUP5Qp9O1HGUqEU2BZrrf50w8TL9FH9vbrA@mail.gmail.com>
-	<4F965DCC.2000501@kernel.org>
-Date: Tue, 24 Apr 2012 18:05:14 +1000
-Message-ID: <CAPa8GCC+BOLdMFzoYAVBUBxXm0yKgr4D1A81XBRk08y7DGWTsA@mail.gmail.com>
-Subject: Re: [RFC] propagate gfp_t to page table alloc functions
-From: Nick Piggin <npiggin@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <65795E11DBF1E645A09CEC7EAEE94B9CB951A45F@USINDEVS02.corp.hds.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@redhat.com>, x86@kernel.org, Hugh Dickins <hughd@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, kosaki.motohiro@jp.fujitsu.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Satoru Moriya <satoru.moriya@hds.com>
+Cc: KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Jerome Marchand <jmarchan@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, "jweiner@redhat.com" <jweiner@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "riel@redhat.com" <riel@redhat.com>, "lwoodman@redhat.com" <lwoodman@redhat.com>, "shaohua.li@intel.com" <shaohua.li@intel.com>, "dle-develop@lists.sourceforge.net" <dle-develop@lists.sourceforge.net>, Seiji Aguchi <seiji.aguchi@hds.com>, Minchan Kim <minchan.kim@gmail.com>
 
-On 24 April 2012 18:01, Minchan Kim <minchan@kernel.org> wrote:
-> On 04/24/2012 04:48 PM, Nick Piggin wrote:
->
->> On 24 April 2012 17:19, Minchan Kim <minchan@kernel.org> wrote:
->>> On 04/24/2012 03:13 PM, Nick Piggin wrote:
->>>
->>>> 2012/4/24 Minchan Kim <minchan@kernel.org>:
->>>>> On 04/24/2012 02:16 PM, KAMEZAWA Hiroyuki wrote:
->>>>>
->>>>>> (2012/04/23 17:55), Minchan Kim wrote:
->>>>>>
->>>>>>> As I test some code, I found a problem about deadlock by lockdep.
->>>>>>> The reason I saw the message is __vmalloc calls map_vm_area which calls
->>>>>>> pud/pmd_alloc without gfp_t. so although we call __vmalloc with
->>>>>>> GFP_ATOMIC or GFP_NOIO, it ends up allocating pages with GFP_KERNEL.
->>>>>>> The should be a BUG. This patch fixes it by passing gfp_to to low page
->>>>>>> table allocate functions.
->>>>>>>
->>>>>>> Signed-off-by: Minchan Kim <minchan@kernel.org>
->>>>>>
->>>>>>
->>>>>> Hmm ? vmalloc should support GFP_ATOMIC ?
->>>>>
->>>>>
->>>>> I'm not sure but alloc_large_system_hash already has used.
->>>>> And it's not specific on GFP_ATOMIC.
->>>>> We have to care of GFP_NOFS and GFP_NOIO to prevent deadlock on reclaim
->>>>> context.
->>>>> There are some places to use GFP_NOFS and we don't emit any warning
->>>>> message in case of that.
+On 03/07/2012 18:18 PM, Satoru Moriya wrote:
+> On 03/07/2012 12:19 PM, KOSAKI Motohiro wrote:
+>> On 3/5/2012 4:56 PM, Johannes Weiner wrote:
+>>> On Fri, Mar 02, 2012 at 12:36:40PM -0500, Satoru Moriya wrote:
 >>>>
->>>> What's the lockdep warning?
->>>
->>>
->>> It's just some private-test code, not-mainlined and lockdep warning is like this.
->>>
->>> [ INFO: inconsistent lock state ]
->>> 3.4.0-rc3-next-20120417+ #80 Not tainted
->>> ---------------------------------
->>> inconsistent {RECLAIM_FS-ON-W} -> {IN-RECLAIM_FS-R} usage.
->>>
->>> It seems test code calls vmalloc inside reclaim context so that it enters
->>> reclaim context, again by map_vm_area which allocates pages with GFP_KERNEL.
->>>
->>> Of course, I can avoid this problem by fixing the caller but during I look into
->>> this problem, found other places to use gfp_t with "context restriction".
->>>
->>>
+>>>> This patch changes the behavior with swappiness==0. If we set 
+>>>> swappiness==0, the kernel does not swap out completely (for global 
+>>>> reclaim until the amount of free pages and filebacked pages in a 
+>>>> zone has been reduced to something very very small (nr_free + 
+>>>> nr_filebacked < high watermark)).
 >>>>
+>>>> Any comments are welcome.
 >>>
->>>> vmalloc was never supposed to use gfp flags for allocation "context"
->>>> restriction. I.e., it
->>>> was always supposed to have blocking, fs, and io capable allocation
->>>> context. The flags
->>>> were supposed to be a memory type modifier.
+>>> Last time I tried that (getting rid of sc->may_swap, using 
+>>> !swappiness), it was rejected it as there were users who relied on 
+>>> swapping very slowly with this setting.
 >>>
+>>> KOSAKI-san, do I remember correctly?  Do you still think it's an 
+>>> issue?
 >>>
->>> You mean "zone modifiers"?
->>
->> Yeah, things like that.
->>
->>>> These different classes of flags is a bit of a problem and source of
->>>> confusion we have.
->>>> We should be doing more checks for them, of course.
->>>
->>>
->>> It might need some warning in __vmalloc and family which use gfp_t
->>> if the caller use context flags.
->>
->> I think that would be a good idea.
->>
->>
->>>> I suspect you need to fix the caller?
->>>
->>>
->>> Hmm, there are several places to use GFP_NOIO and GFP_NOFS even, GFP_ATOMIC.
->>> I believe it's not trivial now.
->>
->> They're all buggy then. Unfortunately not through any real fault of their own.
+>>> Personally, I still think it's illogical that !swappiness allows 
+>>> swapping and would love to see this patch go in.
+>> 
+>> Thank you. I brought back to memory it. Unfortunately DB folks are 
+>> still mainly using RHEL5 generation distros. At that time, swapiness=0 
+>> doesn't mean disabling swap.
+>> 
+>> They want, "don't swap as far as kernel has any file cache page". but 
+>> linux don't have such feature. then they used swappiness for emulate 
+>> it. So, I think this patch clearly make userland harm. Because of, we 
+>> don't have an alternative way.
 >
+> If they expect the behavior that "don't swap as far as kernel
+> has any file cache page", this patch definitely helps them
+> because if we set swappiness==0, kernel does not swap out
+> *until* nr_free + nr_filebacked < high watermark in the zone.
+> It means kernel begins to swap out when nr_free + nr_filebacked
+> becomes less than high watermark.
 >
-> That's why I send it with RFC before I have to make all architecture change.
-> Nick, Thanks!
+> But, yes, this patch actually changes the behavior with
+> swappiness==0 and so it may make userland harm. 
 >
->>
->> I would say add a bit of warnings and documentation, and see what can be done
->> about callers.
->
->>
->
->> We should not take lightly the decision to make the API more permissive, because
->> as you can see it's more work for implementation. Making it ATOMIC safe is even
->
->
-> Agree. Will add waring and Cced all maintainers.
+> How about introducing new value e.g -1 to avoid swap and
+> maintain compatibility?
 
-Thanks very much!
+I have run into problems with heavy swapping with swappiness==0 and was
+pointed to this thread ( http://marc.info/?l=linux-mm&m=133522782307215 )
 
->
->> harder, requiring irqsafe locks and such, and it might be tricky for some
->
->
-> irqsafe? Why should we consider it?
-> Just out of curiosity.
+I strongly believe that Linux should have a way to turn off swapping unless
+absolutely necessary. This means that users like us can run with swap
+present for emergency use, rather than having to disable it because of the
+side effects.
 
-I don't think we should just yet. It is an example of something that callers
-have wanted in the past, but have solved in other ways when we have
-objected.
+Personally, I feel that swappiness==0 should have this (intuitive) meaning,
+and that people running RHEL5 are extremely unlikely to run 3.5 kernels(!)
 
-Thanks,
-Nick
+However, swappiness==-1 or some other hack is definitely better than no
+patch.
+
+Richard.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
