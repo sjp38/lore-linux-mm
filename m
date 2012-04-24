@@ -1,56 +1,100 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx121.postini.com [74.125.245.121])
-	by kanga.kvack.org (Postfix) with SMTP id 7A4896B0044
-	for <linux-mm@kvack.org>; Tue, 24 Apr 2012 15:34:08 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx142.postini.com [74.125.245.142])
+	by kanga.kvack.org (Postfix) with SMTP id 830566B0044
+	for <linux-mm@kvack.org>; Tue, 24 Apr 2012 15:35:56 -0400 (EDT)
 From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: [patch] Documentation: memcg: future proof hierarchical statistics documentation
-Date: Tue, 24 Apr 2012 21:33:58 +0200
-Message-Id: <1335296038-29297-1-git-send-email-hannes@cmpxchg.org>
+Subject: [patch 1/2] kernel: cgroup: push rcu read locking from css_is_ancestor() to callsite
+Date: Tue, 24 Apr 2012 21:35:43 +0200
+Message-Id: <1335296144-29381-1-git-send-email-hannes@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Michal Hocko <mhocko@suse.cz>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Ying Han <yinghan@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
+Cc: Konstantin Khlebnikov <khlebnikov@openvz.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, Li Zefan <lizf@cn.fujitsu.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
 
-The hierarchical versions of per-memcg counters in memory.stat are all
-calculated the same way and are all named total_<counter>.
+Library functions should not grab locks when the callsites can do it,
+even if the lock nests like the rcu read-side lock does.
 
-Documenting the pattern is easier for maintenance than listing each
-counter twice.
+Push the rcu_read_lock() from css_is_ancestor() to its single user,
+mem_cgroup_same_or_subtree(), in preparation for another user that
+already holds the rcu read-side lock.
 
 Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Konstantin Khlebnikov <khlebnikov@openvz.org>
+Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 Acked-by: Michal Hocko <mhocko@suse.cz>
-Acked-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Acked-by: Ying Han <yinghan@google.com>
+Acked-by: Li Zefan <lizf@cn.fujitsu.com>
 ---
- Documentation/cgroups/memory.txt |   15 ++++-----------
- 1 files changed, 4 insertions(+), 11 deletions(-)
+ kernel/cgroup.c |   20 ++++++++++----------
+ mm/memcontrol.c |   14 +++++++++-----
+ 2 files changed, 19 insertions(+), 15 deletions(-)
 
-diff --git a/Documentation/cgroups/memory.txt b/Documentation/cgroups/memory.txt
-index ab34ae5..6a066a2 100644
---- a/Documentation/cgroups/memory.txt
-+++ b/Documentation/cgroups/memory.txt
-@@ -432,17 +432,10 @@ hierarchical_memory_limit - # of bytes of memory limit with regard to hierarchy
- hierarchical_memsw_limit - # of bytes of memory+swap limit with regard to
- 			hierarchy under which memory cgroup is.
+diff --git a/kernel/cgroup.c b/kernel/cgroup.c
+index ad8eae5..240b02f 100644
+--- a/kernel/cgroup.c
++++ b/kernel/cgroup.c
+@@ -5132,7 +5132,7 @@ EXPORT_SYMBOL_GPL(css_depth);
+  * @root: the css supporsed to be an ancestor of the child.
+  *
+  * Returns true if "root" is an ancestor of "child" in its hierarchy. Because
+- * this function reads css->id, this use rcu_dereference() and rcu_read_lock().
++ * this function reads css->id, the caller must hold rcu_read_lock().
+  * But, considering usual usage, the csses should be valid objects after test.
+  * Assuming that the caller will do some action to the child if this returns
+  * returns true, the caller must take "child";s reference count.
+@@ -5144,18 +5144,18 @@ bool css_is_ancestor(struct cgroup_subsys_state *child,
+ {
+ 	struct css_id *child_id;
+ 	struct css_id *root_id;
+-	bool ret = true;
  
--total_cache		- sum of all children's "cache"
--total_rss		- sum of all children's "rss"
--total_mapped_file	- sum of all children's "cache"
--total_pgpgin		- sum of all children's "pgpgin"
--total_pgpgout		- sum of all children's "pgpgout"
--total_swap		- sum of all children's "swap"
--total_inactive_anon	- sum of all children's "inactive_anon"
--total_active_anon	- sum of all children's "active_anon"
--total_inactive_file	- sum of all children's "inactive_file"
--total_active_file	- sum of all children's "active_file"
--total_unevictable	- sum of all children's "unevictable"
-+total_<counter>		- # hierarchical version of <counter>, which in
-+			addition to the cgroup's own value includes the
-+			sum of all hierarchical children's values of
-+			<counter>, i.e. total_cache
+-	rcu_read_lock();
+ 	child_id  = rcu_dereference(child->id);
++	if (!child_id)
++		return false;
+ 	root_id = rcu_dereference(root->id);
+-	if (!child_id
+-	    || !root_id
+-	    || (child_id->depth < root_id->depth)
+-	    || (child_id->stack[root_id->depth] != root_id->id))
+-		ret = false;
+-	rcu_read_unlock();
+-	return ret;
++	if (!root_id)
++		return false;
++	if (child_id->depth < root_id->depth)
++		return false;
++	if (child_id->stack[root_id->depth] != root_id->id)
++		return false;
++	return true;
+ }
  
- # The following additional stats are dependent on CONFIG_DEBUG_VM.
+ void free_css_id(struct cgroup_subsys *ss, struct cgroup_subsys_state *css)
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index 1a28dd8..a1fea51 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -1146,12 +1146,16 @@ struct lruvec *mem_cgroup_lru_move_lists(struct zone *zone,
+ static bool mem_cgroup_same_or_subtree(const struct mem_cgroup *root_memcg,
+ 		struct mem_cgroup *memcg)
+ {
+-	if (root_memcg != memcg) {
+-		return (root_memcg->use_hierarchy &&
+-			css_is_ancestor(&memcg->css, &root_memcg->css));
+-	}
++	bool ret;
  
+-	return true;
++	if (root_memcg == memcg)
++		return true;
++	if (!root_memcg->use_hierarchy)
++		return false;
++	rcu_read_lock();
++	ret = css_is_ancestor(&memcg->css, &root_memcg->css);
++	rcu_read_unlock();
++	return ret;
+ }
+ 
+ int task_in_mem_cgroup(struct task_struct *task, const struct mem_cgroup *memcg)
 -- 
 1.7.7.6
 
