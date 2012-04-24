@@ -1,142 +1,130 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx193.postini.com [74.125.245.193])
-	by kanga.kvack.org (Postfix) with SMTP id 9F0B06B0044
-	for <linux-mm@kvack.org>; Tue, 24 Apr 2012 15:35:57 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx132.postini.com [74.125.245.132])
+	by kanga.kvack.org (Postfix) with SMTP id 660EB6B004D
+	for <linux-mm@kvack.org>; Tue, 24 Apr 2012 15:38:55 -0400 (EDT)
+Date: Tue, 24 Apr 2012 21:38:46 +0200
 From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: [patch 2/2] mm: memcg: count pte references from every member of the reclaimed hierarchy
-Date: Tue, 24 Apr 2012 21:35:44 +0200
-Message-Id: <1335296144-29381-2-git-send-email-hannes@cmpxchg.org>
-In-Reply-To: <1335296144-29381-1-git-send-email-hannes@cmpxchg.org>
-References: <1335296144-29381-1-git-send-email-hannes@cmpxchg.org>
+Subject: Re: [patch] mm: memcg: move pc lookup point to commit_charge()
+Message-ID: <20120424193846.GA28862@cmpxchg.org>
+References: <1335295860-28919-1-git-send-email-hannes@cmpxchg.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1335295860-28919-1-git-send-email-hannes@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Konstantin Khlebnikov <khlebnikov@openvz.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, Li Zefan <lizf@cn.fujitsu.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
+Cc: Hugh Dickins <hughd@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
 
-The rmap walker checking page table references has historically
-ignored references from VMAs that were not part of the memcg that was
-being reclaimed during memcg hard limit reclaim.
+Sorry, git-send-email didn't pick up the CCs, full quote here:
 
-When transitioning global reclaim to memcg hierarchy reclaim, I missed
-that bit and now references from outside a memcg are ignored even
-during global reclaim.
-
-Reverting back to traditional behaviour - count all references during
-global reclaim and only mind references of the memcg being reclaimed
-during limit reclaim would be one option.
-
-However, the more generic idea is to ignore references exactly then
-when they are outside the hierarchy that is currently under reclaim;
-because only then will their reclamation be of any use to help the
-pressure situation.  It makes no sense to ignore references from a
-sibling memcg and then evict a page that will be immediately refaulted
-by that sibling which contributes to the same usage of the common
-ancestor under reclaim.
-
-The solution: make the rmap walker ignore references from VMAs that
-are not part of the hierarchy that is being reclaimed.
-
-Flat limit reclaim will stay the same, hierarchical limit reclaim will
-mind the references only to pages that the hierarchy owns.  Global
-reclaim, since it reclaims from all memcgs, will be fixed to regard
-all references.
-
-Reported-by: Konstantin Khlebnikov <khlebnikov@openvz.org>
-Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
-Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Acked-by: Michal Hocko <mhocko@suse.cz>
----
- include/linux/memcontrol.h |    6 +++++-
- mm/memcontrol.c            |   16 +++++++++++-----
- mm/vmscan.c                |    6 ++++--
- 3 files changed, 20 insertions(+), 8 deletions(-)
-
-diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
-index 58d820c..76f9d9b 100644
---- a/include/linux/memcontrol.h
-+++ b/include/linux/memcontrol.h
-@@ -78,6 +78,7 @@ extern void mem_cgroup_uncharge_cache_page(struct page *page);
- 
- extern void mem_cgroup_out_of_memory(struct mem_cgroup *memcg, gfp_t gfp_mask,
- 				     int order);
-+bool __mem_cgroup_same_or_subtree(const struct mem_cgroup *, struct mem_cgroup *);
- int task_in_mem_cgroup(struct task_struct *task, const struct mem_cgroup *memcg);
- 
- extern struct mem_cgroup *try_get_mem_cgroup_from_page(struct page *page);
-@@ -91,10 +92,13 @@ static inline
- int mm_match_cgroup(const struct mm_struct *mm, const struct mem_cgroup *cgroup)
- {
- 	struct mem_cgroup *memcg;
-+	int match;
-+
- 	rcu_read_lock();
- 	memcg = mem_cgroup_from_task(rcu_dereference((mm)->owner));
-+	match = memcg && __mem_cgroup_same_or_subtree(cgroup, memcg);
- 	rcu_read_unlock();
--	return cgroup == memcg;
-+	return match;
- }
- 
- extern struct cgroup_subsys_state *mem_cgroup_css(struct mem_cgroup *memcg);
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index a1fea51..b365ae3 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -1143,17 +1143,23 @@ struct lruvec *mem_cgroup_lru_move_lists(struct zone *zone,
-  * Checks whether given mem is same or in the root_mem_cgroup's
-  * hierarchy subtree
-  */
--static bool mem_cgroup_same_or_subtree(const struct mem_cgroup *root_memcg,
--		struct mem_cgroup *memcg)
-+bool __mem_cgroup_same_or_subtree(const struct mem_cgroup *root_memcg,
-+				  struct mem_cgroup *memcg)
- {
--	bool ret;
--
- 	if (root_memcg == memcg)
- 		return true;
- 	if (!root_memcg->use_hierarchy)
- 		return false;
-+	return css_is_ancestor(&memcg->css, &root_memcg->css);
-+}
-+
-+static bool mem_cgroup_same_or_subtree(const struct mem_cgroup *root_memcg,
-+				       struct mem_cgroup *memcg)
-+{
-+	bool ret;
-+
- 	rcu_read_lock();
--	ret = css_is_ancestor(&memcg->css, &root_memcg->css);
-+	ret = __mem_cgroup_same_or_subtree(root_memcg, memcg);
- 	rcu_read_unlock();
- 	return ret;
- }
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index d6122e7..7bc7b8b 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -632,7 +632,8 @@ static enum page_references page_check_references(struct page *page,
- 	int referenced_ptes, referenced_page;
- 	unsigned long vm_flags;
- 
--	referenced_ptes = page_referenced(page, 1, mz->mem_cgroup, &vm_flags);
-+	referenced_ptes = page_referenced(page, 1, sc->target_mem_cgroup,
-+					  &vm_flags);
- 	referenced_page = TestClearPageReferenced(page);
- 
- 	/*
-@@ -1474,7 +1475,8 @@ static void shrink_active_list(unsigned long nr_to_scan,
- 			}
- 		}
- 
--		if (page_referenced(page, 0, mz->mem_cgroup, &vm_flags)) {
-+		if (page_referenced(page, 0, sc->target_mem_cgroup,
-+				    &vm_flags)) {
- 			nr_rotated += hpage_nr_pages(page);
- 			/*
- 			 * Identify referenced, file-backed active pages and
--- 
-1.7.7.6
+On Tue, Apr 24, 2012 at 09:31:00PM +0200, Johannes Weiner wrote:
+> None of the callsites actually need the page_cgroup descriptor
+> themselves, so just pass the page and do the look up in there.
+> 
+> We already had two bugs (6568d4a 'mm: memcg: update the correct soft
+> limit tree during migration' and 'memcg: fix Bad page state after
+> replace_page_cache') where the passed page and pc were not referring
+> to the same page frame.
+> 
+> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+> Acked-by: Hugh Dickins <hughd@google.com>
+> Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> Cc: Michal Hocko <mhocko@suse.cz>
+> ---
+>  mm/memcontrol.c |   17 +++++------------
+>  1 files changed, 5 insertions(+), 12 deletions(-)
+> 
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index 884e936..1a28dd8 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -2461,10 +2461,10 @@ struct mem_cgroup *try_get_mem_cgroup_from_page(struct page *page)
+>  static void __mem_cgroup_commit_charge(struct mem_cgroup *memcg,
+>  				       struct page *page,
+>  				       unsigned int nr_pages,
+> -				       struct page_cgroup *pc,
+>  				       enum charge_type ctype,
+>  				       bool lrucare)
+>  {
+> +	struct page_cgroup *pc = lookup_page_cgroup(page);
+>  	struct zone *uninitialized_var(zone);
+>  	bool was_on_lru = false;
+>  	bool anon;
+> @@ -2701,7 +2701,6 @@ static int mem_cgroup_charge_common(struct page *page, struct mm_struct *mm,
+>  {
+>  	struct mem_cgroup *memcg = NULL;
+>  	unsigned int nr_pages = 1;
+> -	struct page_cgroup *pc;
+>  	bool oom = true;
+>  	int ret;
+>  
+> @@ -2715,11 +2714,10 @@ static int mem_cgroup_charge_common(struct page *page, struct mm_struct *mm,
+>  		oom = false;
+>  	}
+>  
+> -	pc = lookup_page_cgroup(page);
+>  	ret = __mem_cgroup_try_charge(mm, gfp_mask, nr_pages, &memcg, oom);
+>  	if (ret == -ENOMEM)
+>  		return ret;
+> -	__mem_cgroup_commit_charge(memcg, page, nr_pages, pc, ctype, false);
+> +	__mem_cgroup_commit_charge(memcg, page, nr_pages, ctype, false);
+>  	return 0;
+>  }
+>  
+> @@ -2816,16 +2814,13 @@ static void
+>  __mem_cgroup_commit_charge_swapin(struct page *page, struct mem_cgroup *memcg,
+>  					enum charge_type ctype)
+>  {
+> -	struct page_cgroup *pc;
+> -
+>  	if (mem_cgroup_disabled())
+>  		return;
+>  	if (!memcg)
+>  		return;
+>  	cgroup_exclude_rmdir(&memcg->css);
+>  
+> -	pc = lookup_page_cgroup(page);
+> -	__mem_cgroup_commit_charge(memcg, page, 1, pc, ctype, true);
+> +	__mem_cgroup_commit_charge(memcg, page, 1, ctype, true);
+>  	/*
+>  	 * Now swap is on-memory. This means this page may be
+>  	 * counted both as mem and swap....double count.
+> @@ -3254,14 +3249,13 @@ int mem_cgroup_prepare_migration(struct page *page,
+>  	 * page. In the case new page is migrated but not remapped, new page's
+>  	 * mapcount will be finally 0 and we call uncharge in end_migration().
+>  	 */
+> -	pc = lookup_page_cgroup(newpage);
+>  	if (PageAnon(page))
+>  		ctype = MEM_CGROUP_CHARGE_TYPE_MAPPED;
+>  	else if (page_is_file_cache(page))
+>  		ctype = MEM_CGROUP_CHARGE_TYPE_CACHE;
+>  	else
+>  		ctype = MEM_CGROUP_CHARGE_TYPE_SHMEM;
+> -	__mem_cgroup_commit_charge(memcg, newpage, 1, pc, ctype, false);
+> +	__mem_cgroup_commit_charge(memcg, newpage, 1, ctype, false);
+>  	return ret;
+>  }
+>  
+> @@ -3348,8 +3342,7 @@ void mem_cgroup_replace_page_cache(struct page *oldpage,
+>  	 * the newpage may be on LRU(or pagevec for LRU) already. We lock
+>  	 * LRU while we overwrite pc->mem_cgroup.
+>  	 */
+> -	pc = lookup_page_cgroup(newpage);
+> -	__mem_cgroup_commit_charge(memcg, newpage, 1, pc, type, true);
+> +	__mem_cgroup_commit_charge(memcg, newpage, 1, type, true);
+>  }
+>  
+>  #ifdef CONFIG_DEBUG_VM
+> -- 
+> 1.7.7.6
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Fight unfair telecom internet charges in Canada: sign http://stopthemeter.ca/
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
