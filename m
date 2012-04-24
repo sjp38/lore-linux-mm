@@ -1,109 +1,131 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx118.postini.com [74.125.245.118])
-	by kanga.kvack.org (Postfix) with SMTP id 0ED956B0044
-	for <linux-mm@kvack.org>; Tue, 24 Apr 2012 10:42:58 -0400 (EDT)
-Message-ID: <4F96BB62.1030900@parallels.com>
-Date: Tue, 24 Apr 2012 11:40:34 -0300
-From: Glauber Costa <glommer@parallels.com>
+Received: from psmtp.com (na3sys010amx165.postini.com [74.125.245.165])
+	by kanga.kvack.org (Postfix) with SMTP id 49C716B0044
+	for <linux-mm@kvack.org>; Tue, 24 Apr 2012 10:57:05 -0400 (EDT)
+Date: Tue, 24 Apr 2012 16:56:55 +0200
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [RFC] writeback and cgroup
+Message-ID: <20120424145655.GA1474@quack.suse.cz>
+References: <20120410210505.GE4936@quack.suse.cz>
+ <20120410212041.GP21801@redhat.com>
+ <20120410222425.GF4936@quack.suse.cz>
+ <20120411154005.GD16692@redhat.com>
+ <20120411192231.GF16008@quack.suse.cz>
+ <20120412203719.GL2207@redhat.com>
+ <20120412205148.GA24056@google.com>
+ <20120414143639.GA31241@localhost>
+ <20120416145744.GA15437@redhat.com>
+ <20120424113340.GA12509@localhost>
 MIME-Version: 1.0
-Subject: Re: [PATCH 17/23] kmem controller charge/uncharge infrastructure
-References: <1334959051-18203-1-git-send-email-glommer@parallels.com> <1335138820-26590-6-git-send-email-glommer@parallels.com> <alpine.DEB.2.00.1204231522320.13535@chino.kir.corp.google.com> <20120424142232.GC8626@somewhere>
-In-Reply-To: <20120424142232.GC8626@somewhere>
-Content-Type: text/plain; charset="ISO-8859-1"; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20120424113340.GA12509@localhost>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Frederic Weisbecker <fweisbec@gmail.com>
-Cc: David Rientjes <rientjes@google.com>, cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, devel@openvz.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Greg Thelen <gthelen@google.com>, Suleiman Souhlal <suleiman@google.com>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@cs.helsinki.fi>
+To: Fengguang Wu <fengguang.wu@intel.com>
+Cc: Vivek Goyal <vgoyal@redhat.com>, Tejun Heo <tj@kernel.org>, Jan Kara <jack@suse.cz>, Jens Axboe <axboe@kernel.dk>, linux-mm@kvack.org, sjayaraman@suse.com, andrea@betterlinux.com, jmoyer@redhat.com, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, lizefan@huawei.com, containers@lists.linux-foundation.org, cgroups@vger.kernel.org, ctalbott@google.com, rni@google.com, lsf@lists.linux-foundation.org
 
-On 04/24/2012 11:22 AM, Frederic Weisbecker wrote:
-> On Mon, Apr 23, 2012 at 03:25:59PM -0700, David Rientjes wrote:
->> On Sun, 22 Apr 2012, Glauber Costa wrote:
->>
->>> +/*
->>> + * Return the kmem_cache we're supposed to use for a slab allocation.
->>> + * If we are in interrupt context or otherwise have an allocation that
->>> + * can't fail, we return the original cache.
->>> + * Otherwise, we will try to use the current memcg's version of the cache.
->>> + *
->>> + * If the cache does not exist yet, if we are the first user of it,
->>> + * we either create it immediately, if possible, or create it asynchronously
->>> + * in a workqueue.
->>> + * In the latter case, we will let the current allocation go through with
->>> + * the original cache.
->>> + *
->>> + * This function returns with rcu_read_lock() held.
->>> + */
->>> +struct kmem_cache *__mem_cgroup_get_kmem_cache(struct kmem_cache *cachep,
->>> +					     gfp_t gfp)
->>> +{
->>> +	struct mem_cgroup *memcg;
->>> +	int idx;
->>> +
->>> +	gfp |=  cachep->allocflags;
->>> +
->>> +	if ((current->mm == NULL))
->>> +		return cachep;
->>> +
->>> +	if (cachep->memcg_params.memcg)
->>> +		return cachep;
->>> +
->>> +	idx = cachep->memcg_params.id;
->>> +	VM_BUG_ON(idx == -1);
->>> +
->>> +	memcg = mem_cgroup_from_task(current);
->>> +	if (!mem_cgroup_kmem_enabled(memcg))
->>> +		return cachep;
->>> +
->>> +	if (rcu_access_pointer(memcg->slabs[idx]) == NULL) {
->>> +		memcg_create_cache_enqueue(memcg, cachep);
->>> +		return cachep;
->>> +	}
->>> +
->>> +	return rcu_dereference(memcg->slabs[idx]);
->>> +}
->>> +EXPORT_SYMBOL(__mem_cgroup_get_kmem_cache);
->>> +
->>> +void mem_cgroup_remove_child_kmem_cache(struct kmem_cache *cachep, int id)
->>> +{
->>> +	rcu_assign_pointer(cachep->memcg_params.memcg->slabs[id], NULL);
->>> +}
->>> +
->>> +bool __mem_cgroup_charge_kmem(gfp_t gfp, size_t size)
->>> +{
->>> +	struct mem_cgroup *memcg;
->>> +	bool ret = true;
->>> +
->>> +	rcu_read_lock();
->>> +	memcg = mem_cgroup_from_task(current);
->>
->> This seems horribly inconsistent with memcg charging of user memory since
->> it charges to p->mm->owner and you're charging to p.  So a thread attached
->> to a memcg can charge user memory to one memcg while charging slab to
->> another memcg?
->
-> Charging to the thread rather than the process seem to me the right behaviour:
-> you can have two threads of a same process attached to different cgroups.
->
-> Perhaps it is the user memory memcg that needs to be fixed?
->
+On Tue 24-04-12 19:33:40, Wu Fengguang wrote:
+> On Mon, Apr 16, 2012 at 10:57:45AM -0400, Vivek Goyal wrote:
+> > On Sat, Apr 14, 2012 at 10:36:39PM +0800, Fengguang Wu wrote:
+> > 
+> > [..]
+> > > Yeah the backpressure idea would work nicely with all possible
+> > > intermediate stacking between the bdi and leaf devices. In my attempt
+> > > to do combined IO bandwidth control for
+> > > 
+> > > - buffered writes, in balance_dirty_pages()
+> > > - direct IO, in the cfq IO scheduler
+> > > 
+> > > I have to look into the cfq code in the past days to get an idea how
+> > > the two throttling layers can cooperate (and suffer from the pains
+> > > arise from the violations of layers). It's also rather tricky to get
+> > > two previously independent throttling mechanisms to work seamlessly
+> > > with each other for providing the desired _unified_ user interface. It
+> > > took a lot of reasoning and experiments to work the basic scheme out...
+> > > 
+> > > But here is the first result. The attached graph shows progress of 4
+> > > tasks:
+> > > - cgroup A: 1 direct dd + 1 buffered dd
+> > > - cgroup B: 1 direct dd + 1 buffered dd
+> > > 
+> > > The 4 tasks are mostly progressing at the same pace. The top 2
+> > > smoother lines are for the buffered dirtiers. The bottom 2 lines are
+> > > for the direct writers. As you may notice, the two direct writers are
+> > > somehow stalled for 1-2 times, which increases the gaps between the
+> > > lines. Otherwise, the algorithm is working as expected to distribute
+> > > the bandwidth to each task.
+> > > 
+> > > The current code's target is to satisfy the more realistic user demand
+> > > of distributing bandwidth equally to each cgroup, and inside each
+> > > cgroup, distribute bandwidth equally to buffered/direct writes. On top
+> > > of which, weights can be specified to change the default distribution.
+> > > 
+> > > The implementation involves adding "weight for direct IO" to the cfq
+> > > groups and "weight for buffered writes" to the root cgroup. Note that
+> > > current cfq proportional IO conroller does not offer explicit control
+> > > over the direct:buffered ratio.
+> > > 
+> > > When there are both direct/buffered writers in the cgroup,
+> > > balance_dirty_pages() will kick in and adjust the weights for cfq to
+> > > execute. Note that cfq will continue to send all flusher IOs to the
+> > > root cgroup.  balance_dirty_pages() will compute the overall async
+> > > weight for it so that in the above test case, the computed weights
+> > > will be
+> > 
+> > I think having separate weigths for sync IO groups and async IO is not
+> > very appealing. There should be one notion of group weight and bandwidth
+> > distrubuted among groups according to their weight.
+> 
+> There have to be some scheme, either explicitly or implicitly. Maybe
+> you are baring in mind some "equal split among queues" policy? For
+> example, if the cgroup has 9 active sync queues and 1 async queue,
+> split the weight equally to the 10 queues?  So the sync IOs get 90%
+> share, and the async writes get 10% share.
+  Maybe I misunderstand but there doesn't have to be (and in fact isn't)
+any split among sync / async IO in CFQ. At each moment, we choose a queue
+with the highest score and dispatch a couple of requests from it. Then we
+go and choose again. The score of the queue depends on several factors
+(like age of requests, whether the queue is sync or async, IO priority,
+etc.).
 
-Hi David,
+Practically, over a longer period system will stabilize on some ratio
+but that's dependent on the load so your system should not impose some
+artificial direct/buffered split but rather somehow deal with the reality
+how IO scheduler decides to dispatch requests...
 
-I just saw all the answers, so I will bundle here since Frederic also 
-chimed in...
+> For dirty throttling w/o cgroup awareness, balance_dirty_pages()
+> splits the writeout bandwidth equally among all dirtier tasks. Since
+> cfq works with queues, it seems most natural for it to do equal split
+> among all queues (inside the cgroup).
+  Well, but we also have IO priorities which change which queue should get
+preference.
 
-I think memcg is not necessarily wrong. That is because threads in a 
-process share an address space, and you will eventually need to map a 
-page to deliver it to userspace. The mm struct points you to the owner 
-of that.
+> I'm not sure when there are N dd tasks doing direct IO, cfq will
+> continuously run N sync queues for them (without many dynamic queue
+> deletion and recreations). If that is the case, it should be trivial
+> to support the queue based fair split in the global async queue
+> scheme. Otherwise I'll have some trouble detecting the N value when
+> trying to do the N:1 sync:async weight split.
+  And also sync queues for several processes can get merged when CFQ
+observes these processes cooperate together on one area of disk and get
+split again when processes stop cooperating. I don't think you really want
+to second-guess what CFQ does inside...
 
-But that is not necessarily true for things that live in the kernel 
-address space.
+> Look at this graph, the 4 dd tasks are granted the same weight (2 of
+> them are buffered writes). I guess the 2 buffered dd tasks managed to
+> progress much faster than the 2 direct dd tasks just because the async
+> IOs are much more efficient than the bs=64k direct IOs.
+  Likely because 64k is too low to get good bandwidth with direct IO. If
+it was 4M, I believe you would get similar throughput for buffered and
+direct IO. So essentially you are right, small IO benefits from caching
+effects since they allow you to submit larger requests to the device which
+is more efficient.
 
-Do you view this differently ?
-
-
+								Honza
+-- 
+Jan Kara <jack@suse.cz>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
