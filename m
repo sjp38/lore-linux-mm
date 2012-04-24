@@ -1,39 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx107.postini.com [74.125.245.107])
-	by kanga.kvack.org (Postfix) with SMTP id BDF126B004A
-	for <linux-mm@kvack.org>; Tue, 24 Apr 2012 16:11:09 -0400 (EDT)
-Message-ID: <4F9708D9.5060500@redhat.com>
-Date: Tue, 24 Apr 2012 16:11:05 -0400
-From: Rik van Riel <riel@redhat.com>
+Received: from psmtp.com (na3sys010amx197.postini.com [74.125.245.197])
+	by kanga.kvack.org (Postfix) with SMTP id B51FC6B0044
+	for <linux-mm@kvack.org>; Tue, 24 Apr 2012 16:21:47 -0400 (EDT)
+Received: by yhr47 with SMTP id 47so1016353yhr.14
+        for <linux-mm@kvack.org>; Tue, 24 Apr 2012 13:21:46 -0700 (PDT)
+Date: Tue, 24 Apr 2012 13:21:43 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH 17/23] kmem controller charge/uncharge infrastructure
+In-Reply-To: <20120424142232.GC8626@somewhere>
+Message-ID: <alpine.DEB.2.00.1204241319360.753@chino.kir.corp.google.com>
+References: <1334959051-18203-1-git-send-email-glommer@parallels.com> <1335138820-26590-6-git-send-email-glommer@parallels.com> <alpine.DEB.2.00.1204231522320.13535@chino.kir.corp.google.com> <20120424142232.GC8626@somewhere>
 MIME-Version: 1.0
-Subject: Re: [PATCH -mm V2] do_migrate_pages() calls migrate_to_node() even
- if task is already on a correct node
-References: <4F96CDE1.5000909@redhat.com> <4F96D27A.2050005@gmail.com> <4F96DFE0.6040306@redhat.com> <alpine.DEB.2.00.1204241317170.26005@router.home> <4F97082B.9040903@redhat.com>
-In-Reply-To: <4F97082B.9040903@redhat.com>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: lwoodman@redhat.com
-Cc: Christoph Lameter <cl@linux.com>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, linux-mm@kvack.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Motohiro Kosaki <mkosaki@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
+To: Frederic Weisbecker <fweisbec@gmail.com>
+Cc: Glauber Costa <glommer@parallels.com>, cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, devel@openvz.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Greg Thelen <gthelen@google.com>, Suleiman Souhlal <suleiman@google.com>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@cs.helsinki.fi>
 
-On 04/24/2012 04:08 PM, Larry Woodman wrote:
-> On 04/24/2012 02:17 PM, Christoph Lameter wrote:
->> On Tue, 24 Apr 2012, Larry Woodman wrote:
->>
->>> How does this look:
->>
->> Could you please send the patches inline? Its difficult to quote the
->> attachment.
->>
->
-> Sorry all of these email clients are different.
+On Tue, 24 Apr 2012, Frederic Weisbecker wrote:
 
-Neither the comment or the changelog explains why you want
-to make this change.
+> > This seems horribly inconsistent with memcg charging of user memory since 
+> > it charges to p->mm->owner and you're charging to p.  So a thread attached 
+> > to a memcg can charge user memory to one memcg while charging slab to 
+> > another memcg?
+> 
+> Charging to the thread rather than the process seem to me the right behaviour:
+> you can have two threads of a same process attached to different cgroups.
+> 
+> Perhaps it is the user memory memcg that needs to be fixed?
+> 
 
--- 
-All rights reversed
+No, because memory is represented by mm_struct, not task_struct, so you 
+must charge to p->mm->owner to allow for moving threads amongst memcgs 
+later for memory.move_charge_at_immigrate.  You shouldn't be able to 
+charge two different memcgs for memory represented by a single mm.
+
+> > > +
+> > > +	if (!mem_cgroup_kmem_enabled(memcg))
+> > > +		goto out;
+> > > +
+> > > +	mem_cgroup_get(memcg);
+> > > +	ret = memcg_charge_kmem(memcg, gfp, size) == 0;
+> > > +	if (ret)
+> > > +		mem_cgroup_put(memcg);
+> > > +out:
+> > > +	rcu_read_unlock();
+> > > +	return ret;
+> > > +}
+> > > +EXPORT_SYMBOL(__mem_cgroup_charge_kmem);
+> > > +
+> > > +void __mem_cgroup_uncharge_kmem(size_t size)
+> > > +{
+> > > +	struct mem_cgroup *memcg;
+> > > +
+> > > +	rcu_read_lock();
+> > > +	memcg = mem_cgroup_from_task(current);
+> > > +
+> > > +	if (!mem_cgroup_kmem_enabled(memcg))
+> > > +		goto out;
+> > > +
+> > > +	mem_cgroup_put(memcg);
+> > > +	memcg_uncharge_kmem(memcg, size);
+> > > +out:
+> > > +	rcu_read_unlock();
+> > > +}
+> > > +EXPORT_SYMBOL(__mem_cgroup_uncharge_kmem);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
