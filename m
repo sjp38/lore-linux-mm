@@ -1,230 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx193.postini.com [74.125.245.193])
-	by kanga.kvack.org (Postfix) with SMTP id 5CA2A6B0044
-	for <linux-mm@kvack.org>; Tue, 24 Apr 2012 11:59:32 -0400 (EDT)
-Message-ID: <4F96CDE1.5000909@redhat.com>
-Date: Tue, 24 Apr 2012 11:59:29 -0400
-From: Larry Woodman <lwoodman@redhat.com>
-Reply-To: lwoodman@redhat.com
+Received: from psmtp.com (na3sys010amx134.postini.com [74.125.245.134])
+	by kanga.kvack.org (Postfix) with SMTP id EB9E96B0044
+	for <linux-mm@kvack.org>; Tue, 24 Apr 2012 12:07:34 -0400 (EDT)
+Date: Tue, 24 Apr 2012 11:58:43 -0400
+From: Vivek Goyal <vgoyal@redhat.com>
+Subject: Re: [RFC] writeback and cgroup
+Message-ID: <20120424155843.GG26708@redhat.com>
+References: <20120410212041.GP21801@redhat.com>
+ <20120410222425.GF4936@quack.suse.cz>
+ <20120411154005.GD16692@redhat.com>
+ <20120411192231.GF16008@quack.suse.cz>
+ <20120412203719.GL2207@redhat.com>
+ <20120412205148.GA24056@google.com>
+ <20120414143639.GA31241@localhost>
+ <20120416145744.GA15437@redhat.com>
+ <20120424113340.GA12509@localhost>
+ <20120424145655.GA1474@quack.suse.cz>
 MIME-Version: 1.0
-Subject: [PATCH -mm V2] do_migrate_pages() calls migrate_to_node() even if
- task is already on a correct node
-Content-Type: multipart/mixed;
- boundary="------------030403060505070205030302"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20120424145655.GA1474@quack.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Christoph Lameter <cl@linux.com>, Motohiro Kosaki <mkosaki@redhat.com>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
+To: Jan Kara <jack@suse.cz>
+Cc: Fengguang Wu <fengguang.wu@intel.com>, Tejun Heo <tj@kernel.org>, Jens Axboe <axboe@kernel.dk>, linux-mm@kvack.org, sjayaraman@suse.com, andrea@betterlinux.com, jmoyer@redhat.com, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, lizefan@huawei.com, containers@lists.linux-foundation.org, cgroups@vger.kernel.org, ctalbott@google.com, rni@google.com, lsf@lists.linux-foundation.org
 
-This is a multi-part message in MIME format.
---------------030403060505070205030302
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+On Tue, Apr 24, 2012 at 04:56:55PM +0200, Jan Kara wrote:
 
-While moving tasks between cpusets we noticed some strange behavior.  
-Specifically if the nodes of the destination
-cpuset are a subset of the nodes of the source cpuset do_migrate_pages() 
-will move pages that are already on a node
-in the destination cpuset.  The reason for this is do_migrate_pages() 
-does not check whether each node in the source
-nodemask is in the destination nodemask before calling 
-migrate_to_node().  If we simply do this check and skip them
-when the source is in the destination moving we wont move nodes that 
-dont need to be moved.
+[..]
+> > > I think having separate weigths for sync IO groups and async IO is not
+> > > very appealing. There should be one notion of group weight and bandwidth
+> > > distrubuted among groups according to their weight.
+> > 
+> > There have to be some scheme, either explicitly or implicitly. Maybe
+> > you are baring in mind some "equal split among queues" policy? For
+> > example, if the cgroup has 9 active sync queues and 1 async queue,
+> > split the weight equally to the 10 queues?  So the sync IOs get 90%
+> > share, and the async writes get 10% share.
+>   Maybe I misunderstand but there doesn't have to be (and in fact isn't)
+> any split among sync / async IO in CFQ. At each moment, we choose a queue
+> with the highest score and dispatch a couple of requests from it. Then we
+> go and choose again. The score of the queue depends on several factors
+> (like age of requests, whether the queue is sync or async, IO priority,
+> etc.).
+> 
+> Practically, over a longer period system will stabilize on some ratio
+> but that's dependent on the load so your system should not impose some
+> artificial direct/buffered split but rather somehow deal with the reality
+> how IO scheduler decides to dispatch requests...
 
-Adding a little debug printk to migrate_to_node():
+Yes. CFQ does not have the notion of giving a fixed share to async
+requests. In fact right now it is so biased in favor of sync reqeusts,
+that in some cases it can starve async writes or introduce long delays
+resulting in "task hung for 120 second" warnings.
 
-Without this change migrating tasks from a cpuset containing nodes 0-7 
-to a cpuset containing nodes 3-4, we migrate
-from ALL the nodes even if they are in the both the source and 
-destination nodesets:
+So if there are issues w.r.t how disk is shared between sync/async IO
+with in a cgroup, that should be handled at IO scheduler level. Writeback
+code trying to dictate that ratio, sounds odd.
 
-   Migrating 7 to 4
-   Migrating 6 to 3
-   Migrating 5 to 4
-   Migrating 4 to 3
-   Migrating 1 to 4
-   Migrating 3 to 4
-   Migrating 0 to 3
-   Migrating 2 to 3
+> 
+> > For dirty throttling w/o cgroup awareness, balance_dirty_pages()
+> > splits the writeout bandwidth equally among all dirtier tasks. Since
+> > cfq works with queues, it seems most natural for it to do equal split
+> > among all queues (inside the cgroup).
+>   Well, but we also have IO priorities which change which queue should get
+> preference.
+> 
+> > I'm not sure when there are N dd tasks doing direct IO, cfq will
+> > continuously run N sync queues for them (without many dynamic queue
+> > deletion and recreations). If that is the case, it should be trivial
+> > to support the queue based fair split in the global async queue
+> > scheme. Otherwise I'll have some trouble detecting the N value when
+> > trying to do the N:1 sync:async weight split.
+>   And also sync queues for several processes can get merged when CFQ
+> observes these processes cooperate together on one area of disk and get
+> split again when processes stop cooperating. I don't think you really want
+> to second-guess what CFQ does inside...
 
+Agreed. Trying to predict what CFQ will do and then trying to influence
+sync/async ration based on root cgroup weight does not seem to be the
+right way. Especially that will also mean either assuming that everything
+in root group is sync or we shall have to split sync/async weight notion.
 
-With this change we only migrate from nodes that are not in the 
-destination nodesets:
+sync/async ratio is a IO scheduler thing and is not fixed. So writeback
+layer making assumptions and changing weigths sounds very awkward to me.
 
-   Migrating 7 to 4
-   Migrating 6 to 3
-   Migrating 5 to 4
-   Migrating 2 to 3
-   Migrating 1 to 4
-   Migrating 0 to 3
-
-This version of the patch will only skips migrating from nodes that are 
-not in the destination
-nodesets if the number of nodes in the source and destination nodesets 
-are not equal.  This
-preserves the intended behavior that Christoph pointed out yet aviods 
-the costly overhead
-of migrating them when its not necessary.
-
-
-Here is timings of migrating from nodes 0-7 to 1 & 3 with and without 
-the patch:
-
-BEFORE PATCH -- Move times: 59, 140, 651 seconds
-============
-
-Moving 14 tasks from nodes (0-7) to nodes (1,3)
-numad(8780) do_migrate_pages (mm=0xffff88081d414400 
-from_nodes=0xffff880818c81d28 to_nodes=0xffff880818c81ce8 flags=0x4)
-numad(8780) migrate_to_node (mm=0xffff88081d414400 source=0x7 dest=0x3 
-flags=0x4)
-numad(8780) migrate_to_node (mm=0xffff88081d414400 source=0x6 dest=0x1 
-flags=0x4)
-numad(8780) migrate_to_node (mm=0xffff88081d414400 source=0x5 dest=0x3 
-flags=0x4)
-numad(8780) migrate_to_node (mm=0xffff88081d414400 source=0x4 dest=0x1 
-flags=0x4)
-numad(8780) migrate_to_node (mm=0xffff88081d414400 source=0x2 dest=0x1 
-flags=0x4)
-numad(8780) migrate_to_node (mm=0xffff88081d414400 source=0x1 dest=0x3 
-flags=0x4)
-numad(8780) migrate_to_node (mm=0xffff88081d414400 source=0x0 dest=0x1 
-flags=0x4)
-(Above moves repeated for each of the 14 tasks...)
-PID 8890 moved to node(s) 1,3 in 59.2 seconds
-
-
-Moving 20 tasks from nodes (0-7) to nodes (1,4-5)
-numad(8780) do_migrate_pages (mm=0xffff88081d88c700 
-from_nodes=0xffff880818c81d28 to_nodes=0xffff880818c81ce8 flags=0x4)
-numad(8780) migrate_to_node (mm=0xffff88081d88c700 source=0x7 dest=0x4 
-flags=0x4)
-numad(8780) migrate_to_node (mm=0xffff88081d88c700 source=0x6 dest=0x1 
-flags=0x4)
-numad(8780) migrate_to_node (mm=0xffff88081d88c700 source=0x3 dest=0x1 
-flags=0x4)
-numad(8780) migrate_to_node (mm=0xffff88081d88c700 source=0x2 dest=0x5 
-flags=0x4)
-numad(8780) migrate_to_node (mm=0xffff88081d88c700 source=0x1 dest=0x4 
-flags=0x4)
-numad(8780) migrate_to_node (mm=0xffff88081d88c700 source=0x0 dest=0x1 
-flags=0x4)
-(Above moves repeated for each of the 20 tasks...)
-PID 8962 moved to node(s) 1,4-5 in 139.88 seconds
-
-
-Moving 26 tasks from nodes (0-7) to nodes (1-3,5)
-numad(8780) do_migrate_pages (mm=0xffff88081d5bc740 
-from_nodes=0xffff880818c81d28 to_nodes=0xffff880818c81ce8 flags=0x4)
-numad(8780) migrate_to_node (mm=0xffff88081d5bc740 source=0x7 dest=0x5 
-flags=0x4)
-numad(8780) migrate_to_node (mm=0xffff88081d5bc740 source=0x6 dest=0x3 
-flags=0x4)
-numad(8780) migrate_to_node (mm=0xffff88081d5bc740 source=0x5 dest=0x2 
-flags=0x4)
-numad(8780) migrate_to_node (mm=0xffff88081d5bc740 source=0x3 dest=0x5 
-flags=0x4)
-numad(8780) migrate_to_node (mm=0xffff88081d5bc740 source=0x2 dest=0x3 
-flags=0x4)
-numad(8780) migrate_to_node (mm=0xffff88081d5bc740 source=0x1 dest=0x2 
-flags=0x4)
-numad(8780) migrate_to_node (mm=0xffff88081d5bc740 source=0x0 dest=0x1 
-flags=0x4)
-numad(8780) migrate_to_node (mm=0xffff88081d5bc740 source=0x4 dest=0x1 
-flags=0x4)
-(Above moves repeated for each of the 26 tasks...)
-PID 9058 moved to node(s) 1-3,5 in 651.45 seconds
-
-
-
-AFTER PATCH -- Move times: 42, 56, 93 seconds
-===========
-
-Moving 14 tasks from nodes (0-7) to nodes (5,7)
-numad(33209) do_migrate_pages (mm=0xffff88101d5ff140 
-from_nodes=0xffff88101e7b5d28 to_nodes=0xffff88101e7b5ce8 flags=0x4)
-numad(33209) migrate_to_node (mm=0xffff88101d5ff140 source=0x6 dest=0x5 
-flags=0x4)
-numad(33209) migrate_to_node (mm=0xffff88101d5ff140 source=0x4 dest=0x5 
-flags=0x4)
-numad(33209) migrate_to_node (mm=0xffff88101d5ff140 source=0x3 dest=0x7 
-flags=0x4)
-numad(33209) migrate_to_node (mm=0xffff88101d5ff140 source=0x2 dest=0x5 
-flags=0x4)
-numad(33209) migrate_to_node (mm=0xffff88101d5ff140 source=0x1 dest=0x7 
-flags=0x4)
-numad(33209) migrate_to_node (mm=0xffff88101d5ff140 source=0x0 dest=0x5 
-flags=0x4)
-(Above moves repeated for each of the 14 tasks...)
-PID 33221 moved to node(s) 5,7 in 41.67 seconds
-
-
-Moving 20 tasks from nodes (0-7) to nodes (1,3,5)
-numad(33209) do_migrate_pages (mm=0xffff88101d6c37c0 
-from_nodes=0xffff88101e7b5d28 to_nodes=0xffff88101e7b5ce8 flags=0x4)
-numad(33209) migrate_to_node (mm=0xffff88101d6c37c0 source=0x7 dest=0x3 
-flags=0x4)
-numad(33209) migrate_to_node (mm=0xffff88101d6c37c0 source=0x6 dest=0x1 
-flags=0x4)
-numad(33209) migrate_to_node (mm=0xffff88101d6c37c0 source=0x4 dest=0x3 
-flags=0x4)
-numad(33209) migrate_to_node (mm=0xffff88101d6c37c0 source=0x2 dest=0x5 
-flags=0x4)
-numad(33209) migrate_to_node (mm=0xffff88101d6c37c0 source=0x0 dest=0x1 
-flags=0x4)
-(Above moves repeated for each of the 20 tasks...)
-PID 33289 moved to node(s) 1,3,5 in 56.3 seconds
-
-
-Moving 26 tasks from nodes (0-7) to nodes (1,3,5,7)
-numad(33209) do_migrate_pages (mm=0xffff88101d924400 
-from_nodes=0xffff88101e7b5d28 to_nodes=0xffff88101e7b5ce8 flags=0x4)
-numad(33209) migrate_to_node (mm=0xffff88101d924400 source=0x6 dest=0x5 
-flags=0x4)
-numad(33209) migrate_to_node (mm=0xffff88101d924400 source=0x4 dest=0x1 
-flags=0x4)
-numad(33209) migrate_to_node (mm=0xffff88101d924400 source=0x2 dest=0x5 
-flags=0x4)
-numad(33209) migrate_to_node (mm=0xffff88101d924400 source=0x0 dest=0x1 
-flags=0x4)
-(Above moves repeated for each of the 26 tasks...)
-PID 33372 moved to node(s) 1,3,5,7 in 92.67 seconds
-
-
-Signed-off-by: Larry Woodman<lwoodman@redhat.com>
-
-
-
---------------030403060505070205030302
-Content-Type: text/plain;
- name="upstream-do_migrate_pages.patch"
-Content-Transfer-Encoding: 7bit
-Content-Disposition: attachment;
- filename="upstream-do_migrate_pages.patch"
-
-diff --git a/mm/mempolicy.c b/mm/mempolicy.c
-index 47296fe..6c189fa 100644
---- a/mm/mempolicy.c
-+++ b/mm/mempolicy.c
-@@ -1012,6 +1012,16 @@ int do_migrate_pages(struct mm_struct *mm,
- 		int dest = 0;
- 
- 		for_each_node_mask(s, tmp) {
-+
-+			/* IFF there is an equal number of source and
-+			 * destination nodes, maintain relative node distance
-+			 * even when source and destination nodes overlap.
-+			 * However, when the node weight is unequal, never move
-+			 * memory out of any destination nodes */
-+			if ((nodes_weight(*from_nodes) != nodes_weight(*to_nodes)) && 
-+						(node_isset(s, *to_nodes)))
-+				continue;
-+
- 			d = node_remap(s, *from_nodes, *to_nodes);
- 			if (s == d)
- 				continue;
-
---------------030403060505070205030302--
+Thanks
+Vivek
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
