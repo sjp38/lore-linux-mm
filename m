@@ -1,100 +1,124 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx201.postini.com [74.125.245.201])
-	by kanga.kvack.org (Postfix) with SMTP id 1F51B6B0044
-	for <linux-mm@kvack.org>; Tue, 24 Apr 2012 15:02:11 -0400 (EDT)
-Received: by iajr24 with SMTP id r24so1943847iaj.14
-        for <linux-mm@kvack.org>; Tue, 24 Apr 2012 12:02:10 -0700 (PDT)
-Date: Tue, 24 Apr 2012 12:01:52 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx169.postini.com [74.125.245.169])
+	by kanga.kvack.org (Postfix) with SMTP id 38FD06B0044
+	for <linux-mm@kvack.org>; Tue, 24 Apr 2012 15:13:45 -0400 (EDT)
+Received: by iajr24 with SMTP id r24so1961309iaj.14
+        for <linux-mm@kvack.org>; Tue, 24 Apr 2012 12:13:44 -0700 (PDT)
+Date: Tue, 24 Apr 2012 12:13:26 -0700 (PDT)
 From: Hugh Dickins <hughd@google.com>
-Subject: Re: [PATCH] Fix overflow in vma length when copying mmap on clone
-In-Reply-To: <1335289853-2923-1-git-send-email-siddhesh.poyarekar@gmail.com>
-Message-ID: <alpine.LSU.2.00.1204241148390.18455@eggly.anvils>
-References: <1335289853-2923-1-git-send-email-siddhesh.poyarekar@gmail.com>
+Subject: Re: [PATCH] memcg: fix Bad page state after replace_page_cache
+In-Reply-To: <20120424182233.GA22625@cmpxchg.org>
+Message-ID: <alpine.LSU.2.00.1204241211050.18485@eggly.anvils>
+References: <alpine.LSU.2.00.1204182325350.3700@eggly.anvils> <20120424182233.GA22625@cmpxchg.org>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Siddhesh Poyarekar <siddhesh.poyarekar@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, Oleg Nesterov <oleg@redhat.com>, Jens Axboe <axboe@kernel.dk>, Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Miklos Szeredi <mszeredi@suse.cz>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Tue, 24 Apr 2012, Siddhesh Poyarekar wrote:
-> The vma length in dup_mmap is calculated and stored in a unsigned int,
-> which is insufficient and hence overflows for very large maps (beyond
-> 16TB). The following program demonstrates this:
+On Tue, 24 Apr 2012, Johannes Weiner wrote:
+> From: Johannes Weiner <hannes@cmpxchg.org>
+> Subject: [patch] mm: memcg: move pc lookup point to commit_charge()
 > 
-> \#include <stdio.h>
-> \#include <unistd.h>
-> \#include <sys/mman.h>
+> None of the callsites actually need the page_cgroup descriptor
+> themselves, so just pass the page and do the look up in there.
 > 
-> \#define GIG 1024 * 1024 * 1024L
-> \#define EXTENT 16393
+> We already had two bugs (6568d4a 'mm: memcg: update the correct soft
+> limit tree during migration' and 'memcg: fix Bad page state after
+> replace_page_cache') where the passed page and pc were not referring
+> to the same page frame.
 > 
-> int main(void)
-> {
->         int i, r;
->         void *m;
->         char buf[1024];
-> 
->         for (i = 0; i < EXTENT; i++) {
->                 m = mmap(NULL, (size_t) 1 * 1024 * 1024 * 1024L,
->                          PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, 0, 0);
-> 
->                 if (m == (void *)-1)
->                         printf("MMAP Failed: %d\n", m);
->                 else
->                         printf("%d : MMAP returned %p\n", i, m);
-> 
->                 r = fork();
-> 
->                 if (r == 0) {
->                         printf("%d: successed\n", i);
->                         return 0;
->                 } else if (r < 0)
->                         printf("FORK Failed: %d\n", r);
->                 else if (r > 0)
->                         wait(NULL);
->         }
->         return 0;
-> }
-> 
-> This trivial patch increases the storage size of the result to
-> unsigned long, which should be sufficient for storing the difference
-> between addresses.
-> 
-> Signed-off-by: Siddhesh Poyarekar <siddhesh.poyarekar@gmail.com>
+> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
 
-Good catch, thank you, remarkable that's survived for so long.
-For the patch,
-
+Excellent, thank you:
 Acked-by: Hugh Dickins <hughd@google.com>
-Cc: stable@vger.kernel.org
-
-But I didn't (try very hard to) work out what your demo program shows
-- though I am amused by your sense of humour in using %d for a pointer
-there!  I wonder what setting of /proc/sys/vm/overcommit_memory is
-needed for it to behave as you intend?
-
-Personally, I wouldn't bother with the demo and describing it more fully,
-I'd just be glad to get that fix in at last.
 
 > ---
->  kernel/fork.c |    3 ++-
->  1 files changed, 2 insertions(+), 1 deletions(-)
+>  mm/memcontrol.c |   17 +++++------------
+>  1 files changed, 5 insertions(+), 12 deletions(-)
 > 
-> diff --git a/kernel/fork.c b/kernel/fork.c
-> index b9372a0..7acaee1 100644
-> --- a/kernel/fork.c
-> +++ b/kernel/fork.c
-> @@ -355,7 +355,8 @@ static int dup_mmap(struct mm_struct *mm, struct mm_struct *oldmm)
->  		}
->  		charge = 0;
->  		if (mpnt->vm_flags & VM_ACCOUNT) {
-> -			unsigned int len = (mpnt->vm_end - mpnt->vm_start) >> PAGE_SHIFT;
-> +			unsigned long len;
-> +			len = (mpnt->vm_end - mpnt->vm_start) >> PAGE_SHIFT;
->  			if (security_vm_enough_memory_mm(oldmm, len)) /* sic */
->  				goto fail_nomem;
->  			charge = len;
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index 884e936..1a28dd8 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -2461,10 +2461,10 @@ struct mem_cgroup *try_get_mem_cgroup_from_page(struct page *page)
+>  static void __mem_cgroup_commit_charge(struct mem_cgroup *memcg,
+>  				       struct page *page,
+>  				       unsigned int nr_pages,
+> -				       struct page_cgroup *pc,
+>  				       enum charge_type ctype,
+>  				       bool lrucare)
+>  {
+> +	struct page_cgroup *pc = lookup_page_cgroup(page);
+>  	struct zone *uninitialized_var(zone);
+>  	bool was_on_lru = false;
+>  	bool anon;
+> @@ -2701,7 +2701,6 @@ static int mem_cgroup_charge_common(struct page *page, struct mm_struct *mm,
+>  {
+>  	struct mem_cgroup *memcg = NULL;
+>  	unsigned int nr_pages = 1;
+> -	struct page_cgroup *pc;
+>  	bool oom = true;
+>  	int ret;
+>  
+> @@ -2715,11 +2714,10 @@ static int mem_cgroup_charge_common(struct page *page, struct mm_struct *mm,
+>  		oom = false;
+>  	}
+>  
+> -	pc = lookup_page_cgroup(page);
+>  	ret = __mem_cgroup_try_charge(mm, gfp_mask, nr_pages, &memcg, oom);
+>  	if (ret == -ENOMEM)
+>  		return ret;
+> -	__mem_cgroup_commit_charge(memcg, page, nr_pages, pc, ctype, false);
+> +	__mem_cgroup_commit_charge(memcg, page, nr_pages, ctype, false);
+>  	return 0;
+>  }
+>  
+> @@ -2816,16 +2814,13 @@ static void
+>  __mem_cgroup_commit_charge_swapin(struct page *page, struct mem_cgroup *memcg,
+>  					enum charge_type ctype)
+>  {
+> -	struct page_cgroup *pc;
+> -
+>  	if (mem_cgroup_disabled())
+>  		return;
+>  	if (!memcg)
+>  		return;
+>  	cgroup_exclude_rmdir(&memcg->css);
+>  
+> -	pc = lookup_page_cgroup(page);
+> -	__mem_cgroup_commit_charge(memcg, page, 1, pc, ctype, true);
+> +	__mem_cgroup_commit_charge(memcg, page, 1, ctype, true);
+>  	/*
+>  	 * Now swap is on-memory. This means this page may be
+>  	 * counted both as mem and swap....double count.
+> @@ -3254,14 +3249,13 @@ int mem_cgroup_prepare_migration(struct page *page,
+>  	 * page. In the case new page is migrated but not remapped, new page's
+>  	 * mapcount will be finally 0 and we call uncharge in end_migration().
+>  	 */
+> -	pc = lookup_page_cgroup(newpage);
+>  	if (PageAnon(page))
+>  		ctype = MEM_CGROUP_CHARGE_TYPE_MAPPED;
+>  	else if (page_is_file_cache(page))
+>  		ctype = MEM_CGROUP_CHARGE_TYPE_CACHE;
+>  	else
+>  		ctype = MEM_CGROUP_CHARGE_TYPE_SHMEM;
+> -	__mem_cgroup_commit_charge(memcg, newpage, 1, pc, ctype, false);
+> +	__mem_cgroup_commit_charge(memcg, newpage, 1, ctype, false);
+>  	return ret;
+>  }
+>  
+> @@ -3348,8 +3342,7 @@ void mem_cgroup_replace_page_cache(struct page *oldpage,
+>  	 * the newpage may be on LRU(or pagevec for LRU) already. We lock
+>  	 * LRU while we overwrite pc->mem_cgroup.
+>  	 */
+> -	pc = lookup_page_cgroup(newpage);
+> -	__mem_cgroup_commit_charge(memcg, newpage, 1, pc, type, true);
+> +	__mem_cgroup_commit_charge(memcg, newpage, 1, type, true);
+>  }
+>  
+>  #ifdef CONFIG_DEBUG_VM
 > -- 
 > 1.7.7.6
 
