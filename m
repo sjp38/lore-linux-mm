@@ -1,51 +1,99 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx201.postini.com [74.125.245.201])
-	by kanga.kvack.org (Postfix) with SMTP id BFB596B0044
-	for <linux-mm@kvack.org>; Tue, 24 Apr 2012 09:30:54 -0400 (EDT)
-Received: from /spool/local
-	by e7.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <sjenning@linux.vnet.ibm.com>;
-	Tue, 24 Apr 2012 09:30:53 -0400
-Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
-	by d01dlp02.pok.ibm.com (Postfix) with ESMTP id AE4346E804C
-	for <linux-mm@kvack.org>; Tue, 24 Apr 2012 09:30:38 -0400 (EDT)
-Received: from d03av03.boulder.ibm.com (d03av03.boulder.ibm.com [9.17.195.169])
-	by d01relay04.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q3ODUYeN062936
-	for <linux-mm@kvack.org>; Tue, 24 Apr 2012 09:30:34 -0400
-Received: from d03av03.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av03.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q3ODUWWb007055
-	for <linux-mm@kvack.org>; Tue, 24 Apr 2012 07:30:32 -0600
-Message-ID: <4F96AAF4.2000402@linux.vnet.ibm.com>
-Date: Tue, 24 Apr 2012 08:30:28 -0500
-From: Seth Jennings <sjenning@linux.vnet.ibm.com>
+Received: from psmtp.com (na3sys010amx147.postini.com [74.125.245.147])
+	by kanga.kvack.org (Postfix) with SMTP id 2DC4D6B0044
+	for <linux-mm@kvack.org>; Tue, 24 Apr 2012 10:03:38 -0400 (EDT)
+Received: by qam2 with SMTP id 2so101775qam.14
+        for <linux-mm@kvack.org>; Tue, 24 Apr 2012 07:03:37 -0700 (PDT)
+Date: Tue, 24 Apr 2012 16:03:31 +0200
+From: Frederic Weisbecker <fweisbec@gmail.com>
+Subject: Re: [PATCH 11/23] slub: consider a memcg parameter in
+ kmem_create_cache
+Message-ID: <20120424140326.GA8626@somewhere>
+References: <1334959051-18203-1-git-send-email-glommer@parallels.com>
+ <1334959051-18203-12-git-send-email-glommer@parallels.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH] drivers: staging: zcache: fix Kconfig crypto dependency
-References: <1335231230-29344-1-git-send-email-sjenning@linux.vnet.ibm.com> <20120424022702.GA6573@kroah.com>
-In-Reply-To: <20120424022702.GA6573@kroah.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1334959051-18203-12-git-send-email-glommer@parallels.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-Cc: Dan Magenheimer <dan.magenheimer@oracle.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Nitin Gupta <ngupta@vflare.org>, Robert Jennings <rcj@linux.vnet.ibm.com>, devel@driverdev.osuosl.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Autif Khan <autif.mlist@gmail.com>
+To: Glauber Costa <glommer@parallels.com>
+Cc: cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, devel@openvz.org, kamezawa.hiroyu@jp.fujitsu.com, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Greg Thelen <gthelen@google.com>, Suleiman Souhlal <suleiman@google.com>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@cs.helsinki.fi>
 
-On 04/23/2012 09:27 PM, Greg Kroah-Hartman wrote:
-> Ok, this fixes one of the build problems reported, what about the other
-> one?
+On Fri, Apr 20, 2012 at 06:57:19PM -0300, Glauber Costa wrote:
+> diff --git a/mm/slub.c b/mm/slub.c
+> index 2652e7c..86e40cc 100644
+> --- a/mm/slub.c
+> +++ b/mm/slub.c
+> @@ -32,6 +32,7 @@
+>  #include <linux/prefetch.h>
+>  
+>  #include <trace/events/kmem.h>
+> +#include <linux/memcontrol.h>
+>  
+>  /*
+>   * Lock order:
+> @@ -3880,7 +3881,7 @@ static int slab_unmergeable(struct kmem_cache *s)
+>  	return 0;
+>  }
+>  
+> -static struct kmem_cache *find_mergeable(size_t size,
+> +static struct kmem_cache *find_mergeable(struct mem_cgroup *memcg, size_t size,
+>  		size_t align, unsigned long flags, const char *name,
+>  		void (*ctor)(void *))
+>  {
+> @@ -3916,21 +3917,29 @@ static struct kmem_cache *find_mergeable(size_t size,
+>  		if (s->size - size >= sizeof(void *))
+>  			continue;
+>  
+> +		if (memcg && s->memcg_params.memcg != memcg)
+> +			continue;
+> +
 
-Both problems that I heard about were caused by same issue;
-the issue fixed in this patch.
+This probably won't build without CONFIG_CGROUP_MEM_RES_CTLR_KMEM ?
 
-ZSMALLOC=m was only allowed because CRYPTO=m was allowed.
-This patch requires CRYPTO=y, which also requires ZSMALLOC=y
-when ZCACHE=y.
+>  		return s;
+>  	}
+>  	return NULL;
+>  }
+>  
+> -struct kmem_cache *kmem_cache_create(const char *name, size_t size,
+> -		size_t align, unsigned long flags, void (*ctor)(void *))
+> +struct kmem_cache *
+> +kmem_cache_create_memcg(struct mem_cgroup *memcg, const char *name, size_t size,
 
-https://lkml.org/lkml/2012/4/19/588
+Does that build without CONFIG_CGROUP_MEM_RES_CTLR ?
 
-https://lkml.org/lkml/2012/4/23/481
+> +			size_t align, unsigned long flags, void (*ctor)(void *))
+>  {
+>  	struct kmem_cache *s;
+>  
+>  	if (WARN_ON(!name))
+>  		return NULL;
+>  
+> +#ifndef CONFIG_CGROUP_MEM_RES_CTLR_KMEM
+> +	WARN_ON(memcg != NULL);
+> +#endif
+> +
+>  	down_write(&slub_lock);
+> -	s = find_mergeable(size, align, flags, name, ctor);
+> +	s = find_mergeable(memcg, size, align, flags, name, ctor);
+>  	if (s) {
+>  		s->refcount++;
+>  		/*
+> @@ -3954,12 +3963,15 @@ struct kmem_cache *kmem_cache_create(const char *name, size_t size,
+>  				size, align, flags, ctor)) {
+>  			list_add(&s->list, &slab_caches);
+>  			up_write(&slub_lock);
+> +			mem_cgroup_register_cache(memcg, s);
 
-Thanks,
-Seth
+How do you handle when the memcg cgroup gets destroyed? Also that means only one
+memcg cgroup can be accounted for a given slab cache? What if that memcg cgroup has
+children? Hmm, perhaps this is handled in a further patch in the series, I saw a
+patch title with "children" inside :)
+
+Also my knowledge on memory allocators is near zero, so I may well be asking weird
+questions...
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
