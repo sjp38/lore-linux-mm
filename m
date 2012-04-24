@@ -1,54 +1,97 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx200.postini.com [74.125.245.200])
-	by kanga.kvack.org (Postfix) with SMTP id 5218D6B004D
-	for <linux-mm@kvack.org>; Tue, 24 Apr 2012 18:54:24 -0400 (EDT)
-Received: by iajr24 with SMTP id r24so2287173iaj.14
-        for <linux-mm@kvack.org>; Tue, 24 Apr 2012 15:54:23 -0700 (PDT)
-Date: Tue, 24 Apr 2012 15:54:20 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx124.postini.com [74.125.245.124])
+	by kanga.kvack.org (Postfix) with SMTP id AE32E6B0092
+	for <linux-mm@kvack.org>; Tue, 24 Apr 2012 19:09:16 -0400 (EDT)
+Received: by iajr24 with SMTP id r24so2309352iaj.14
+        for <linux-mm@kvack.org>; Tue, 24 Apr 2012 16:09:16 -0700 (PDT)
+Date: Tue, 24 Apr 2012 16:09:14 -0700 (PDT)
 From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH 17/23] kmem controller charge/uncharge infrastructure
-In-Reply-To: <4F971CC2.3090109@parallels.com>
-Message-ID: <alpine.DEB.2.00.1204241550110.2537@chino.kir.corp.google.com>
-References: <1334959051-18203-1-git-send-email-glommer@parallels.com> <1335138820-26590-6-git-send-email-glommer@parallels.com> <alpine.DEB.2.00.1204231522320.13535@chino.kir.corp.google.com> <20120424142232.GC8626@somewhere> <4F96BB62.1030900@parallels.com>
- <alpine.DEB.2.00.1204241322390.753@chino.kir.corp.google.com> <4F971CC2.3090109@parallels.com>
+Subject: Re: [patch] mm, oom: avoid checking set of allowed nodes twice when
+ selecting a victim
+In-Reply-To: <20120412140137.GA32729@tiehlicka.suse.cz>
+Message-ID: <alpine.DEB.2.00.1204241605570.17792@chino.kir.corp.google.com>
+References: <alpine.DEB.2.00.1204031633460.8112@chino.kir.corp.google.com> <20120412140137.GA32729@tiehlicka.suse.cz>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Glauber Costa <glommer@parallels.com>
-Cc: Frederic Weisbecker <fweisbec@gmail.com>, cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, devel@openvz.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Greg Thelen <gthelen@google.com>, Suleiman Souhlal <suleiman@google.com>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@cs.helsinki.fi>
+To: Michal Hocko <mhocko@suse.cz>
+Cc: Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org
 
-On Tue, 24 Apr 2012, Glauber Costa wrote:
+On Thu, 12 Apr 2012, Michal Hocko wrote:
 
-> > Yes, for user memory, I see charging to p->mm->owner as allowing that
-> > process to eventually move and be charged to a different memcg and there's
-> > no way to do proper accounting if the charge is split amongst different
-> > memcgs because of thread membership to a set of memcgs.  This is
-> > consistent with charges for shared memory being moved when a thread
-> > mapping it moves to a new memcg, as well.
-> 
-> But that's the problem.
-> 
-> When we are dealing with kernel memory, we are allocating a whole slab page.
-> It is essentially impossible to track, given a page, which task allocated
-> which object.
-> 
+> diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+> index 46bf2ed5..a9df008 100644
+> --- a/mm/oom_kill.c
+> +++ b/mm/oom_kill.c
+> @@ -171,23 +171,10 @@ static bool oom_unkillable_task(struct task_struct *p,
+>  	return false;
+>  }
+>  
+> -/**
+> - * oom_badness - heuristic function to determine which candidate task to kill
+> - * @p: task struct of which task we should calculate
+> - * @totalpages: total present RAM allowed for page allocation
+> - *
+> - * The heuristic for determining which task to kill is made to be as simple and
+> - * predictable as possible.  The goal is to return the highest value for the
+> - * task consuming the most memory to avoid subsequent oom failures.
+> - */
+> -unsigned int oom_badness(struct task_struct *p, struct mem_cgroup *memcg,
+> +/* can be used only for tasks which are killable as per oom_unkillable_task */
+> +static unsigned int __oom_badness(struct task_struct *p, struct mem_cgroup *memcg,
+>  		      const nodemask_t *nodemask, unsigned long totalpages)
+>  {
+> -	long points;
+> -
+> -	if (oom_unkillable_task(p, memcg, nodemask))
+> -		return 0;
+> -
+>  	p = find_lock_task_mm(p);
+>  	if (!p)
+>  		return 0;
+> @@ -239,6 +226,26 @@ unsigned int oom_badness(struct task_struct *p, struct mem_cgroup *memcg,
+>  	return (points < 1000) ? points : 1000;
+>  }
+>  
+> +/**
+> + * oom_badness - heuristic function to determine which candidate task to kill
+> + * @p: task struct of which task we should calculate
+> + * @totalpages: total present RAM allowed for page allocation
+> + *
+> + * The heuristic for determining which task to kill is made to be as simple and
+> + * predictable as possible.  The goal is to return the highest value for the
+> + * task consuming the most memory to avoid subsequent oom failures.
+> + */
+> +unsigned int oom_badness(struct task_struct *p, struct mem_cgroup *memcg,
+> +		      const nodemask_t *nodemask, unsigned long totalpages)
+> +{
+> +	long points;
+> +
+> +	if (oom_unkillable_task(p, memcg, nodemask))
+> +		return 0;
+> +
+> +	return __oom_badness(p, memcg, nodemask, totalpages);
+> +}
+> +
+>  /*
+>   * Determine the type of allocation constraint.
+>   */
+> @@ -366,7 +373,7 @@ static struct task_struct *select_bad_process(unsigned int *ppoints,
+>  			}
+>  		}
+>  
+> -		points = oom_badness(p, memcg, nodemask, totalpages);
+> +		points = __oom_badness(p, memcg, nodemask, totalpages);
+>  		if (points > *ppoints) {
+>  			chosen = p;
+>  			*ppoints = points;
 
-Right, so you have to make the distinction that slab charges cannot be 
-migrated by memory.move_charge_at_immigrate (and it's not even specified 
-to do anything beyond user pages in Documentation/cgroups/memory.txt), but 
-it would be consistent to charge the same memcg for a process's slab 
-allocations as the process's user allocations.
-
-My response was why we shouldn't be charging user pages to 
-mem_cgroup_from_task(current) rather than 
-mem_cgroup_from_task(current->mm->owner) which is what is currently 
-implemented.
-
-If that can't be changed so that we can still migrate user memory amongst 
-memcgs for memory.move_charge_at_immigrate, then it seems consistent to 
-have all allocations done by a task to be charged to the same memcg.  
-Hence, I suggested current->mm->owner for slab charging as well.
+No, the way I had it written is correct: the above unnecessarily checks 
+for membership in a memcg or intersection with a set of allowable nodes 
+for child threads in oom_kill_process().  With a lot of children and with 
+a CONFIG_NODES_SHIFT significantly large (the prerequisite for this patch 
+to make any difference), that's too costly to do.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
