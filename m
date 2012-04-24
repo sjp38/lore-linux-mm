@@ -1,47 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx202.postini.com [74.125.245.202])
-	by kanga.kvack.org (Postfix) with SMTP id 057206B0044
-	for <linux-mm@kvack.org>; Tue, 24 Apr 2012 17:38:25 -0400 (EDT)
-Message-ID: <4F971CC2.3090109@parallels.com>
-Date: Tue, 24 Apr 2012 18:36:02 -0300
-From: Glauber Costa <glommer@parallels.com>
+Received: from psmtp.com (na3sys010amx206.postini.com [74.125.245.206])
+	by kanga.kvack.org (Postfix) with SMTP id 2A0946B0044
+	for <linux-mm@kvack.org>; Tue, 24 Apr 2012 18:14:59 -0400 (EDT)
+From: Satoru Moriya <satoru.moriya@hds.com>
+Date: Tue, 24 Apr 2012 18:14:37 -0400
+Subject: RE: [RFC][PATCH] avoid swapping out with swappiness==0
+Message-ID: <65795E11DBF1E645A09CEC7EAEE94B9C014649EC4D@USINDEVS02.corp.hds.com>
+References: <65795E11DBF1E645A09CEC7EAEE94B9CB951A45F@USINDEVS02.corp.hds.com>
+ <20120424082019.GA18395@alpha.arachsys.com>
+In-Reply-To: <20120424082019.GA18395@alpha.arachsys.com>
+Content-Language: en-US
+Content-Type: text/plain; charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-Subject: Re: [PATCH 17/23] kmem controller charge/uncharge infrastructure
-References: <1334959051-18203-1-git-send-email-glommer@parallels.com> <1335138820-26590-6-git-send-email-glommer@parallels.com> <alpine.DEB.2.00.1204231522320.13535@chino.kir.corp.google.com> <20120424142232.GC8626@somewhere> <4F96BB62.1030900@parallels.com> <alpine.DEB.2.00.1204241322390.753@chino.kir.corp.google.com>
-In-Reply-To: <alpine.DEB.2.00.1204241322390.753@chino.kir.corp.google.com>
-Content-Type: text/plain; charset="ISO-8859-1"; format=flowed
-Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Frederic Weisbecker <fweisbec@gmail.com>, cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, devel@openvz.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Greg Thelen <gthelen@google.com>, Suleiman Souhlal <suleiman@google.com>, Christoph
- Lameter <cl@linux.com>, Pekka Enberg <penberg@cs.helsinki.fi>
+To: Richard Davies <richard@arachsys.com>
+Cc: KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Jerome Marchand <jmarchan@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, "jweiner@redhat.com" <jweiner@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "riel@redhat.com" <riel@redhat.com>, "lwoodman@redhat.com" <lwoodman@redhat.com>, "shaohua.li@intel.com" <shaohua.li@intel.com>, "dle-develop@lists.sourceforge.net" <dle-develop@lists.sourceforge.net>, Seiji Aguchi <seiji.aguchi@hds.com>, Minchan Kim <minchan.kim@gmail.com>
 
-On 04/24/2012 05:25 PM, David Rientjes wrote:
-> On Tue, 24 Apr 2012, Glauber Costa wrote:
->
->> I think memcg is not necessarily wrong. That is because threads in a process
->> share an address space, and you will eventually need to map a page to deliver
->> it to userspace. The mm struct points you to the owner of that.
->>
->> But that is not necessarily true for things that live in the kernel address
->> space.
->>
->> Do you view this differently ?
->>
->
-> Yes, for user memory, I see charging to p->mm->owner as allowing that
-> process to eventually move and be charged to a different memcg and there's
-> no way to do proper accounting if the charge is split amongst different
-> memcgs because of thread membership to a set of memcgs.  This is
-> consistent with charges for shared memory being moved when a thread
-> mapping it moves to a new memcg, as well.
+On 04/24/2012 04:20 AM, Richard Davies wrote:
+>=20
+> I have run into problems with heavy swapping with swappiness=3D=3D0 and=20
+> was pointed to this thread (=20
+> http://marc.info/?l=3Dlinux-mm&m=3D133522782307215 )
 
-But that's the problem.
+Did you test this patch with your workload?
+If yes, how did it come out?
 
-When we are dealing with kernel memory, we are allocating a whole slab 
-page. It is essentially impossible to track, given a page, which task 
-allocated which object.
+> I strongly believe that Linux should have a way to turn off swapping=20
+> unless absolutely necessary. This means that users like us can run=20
+> with swap present for emergency use, rather than having to disable it=20
+> because of the side effects.
+
+Agreed. That is why I proposed the patch.
+
+> Personally, I feel that swappiness=3D=3D0 should have this (intuitive)=20
+> meaning, and that people running RHEL5 are extremely unlikely to run=20
+> 3.5 kernels(!)
+>=20
+> However, swappiness=3D=3D-1 or some other hack is definitely better than=
+=20
+> no patch.
+
+
+Regards,
+Satoru
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
