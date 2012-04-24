@@ -1,356 +1,194 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx102.postini.com [74.125.245.102])
-	by kanga.kvack.org (Postfix) with SMTP id 6275E6B0044
-	for <linux-mm@kvack.org>; Tue, 24 Apr 2012 12:31:25 -0400 (EDT)
-From: Jan Kara <jack@suse.cz>
-Subject: [PATCH RFC v2] lib: Proportions with flexible period
-Date: Tue, 24 Apr 2012 18:30:33 +0200
-Message-Id: <1335285033-7347-2-git-send-email-jack@suse.cz>
-In-Reply-To: <1335285033-7347-1-git-send-email-jack@suse.cz>
-References: <1335285033-7347-1-git-send-email-jack@suse.cz>
+Received: from psmtp.com (na3sys010amx200.postini.com [74.125.245.200])
+	by kanga.kvack.org (Postfix) with SMTP id A503F6B0044
+	for <linux-mm@kvack.org>; Tue, 24 Apr 2012 12:36:48 -0400 (EDT)
+Received: by lbbgg6 with SMTP id gg6so905306lbb.14
+        for <linux-mm@kvack.org>; Tue, 24 Apr 2012 09:36:46 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <4F960257.9090509@kernel.org>
+References: <1335214564-17619-1-git-send-email-yinghan@google.com>
+	<CAHGf_=pGhtieRpUqbF4GmAKt5XXhf_2y8c+EzGNx-cgqPNvfJw@mail.gmail.com>
+	<CALWz4ix+MC_NuNdvQU3T8BhP+BULPLktLyNQ8osnrMOa2nfhdw@mail.gmail.com>
+	<4F960257.9090509@kernel.org>
+Date: Tue, 24 Apr 2012 09:36:46 -0700
+Message-ID: <CALWz4izoOYtNfRN3VBLSF7pyYyvjBPyiy865Xf+wvsCFwM6A7A@mail.gmail.com>
+Subject: Re: [RFC PATCH] do_try_to_free_pages() might enter infinite loop
+From: Ying Han <yinghan@google.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: LKML <linux-kernel@vger.kernel.org>
-Cc: linux-mm@kvack.org, Peter Zijlstra <peterz@infradead.org>, Wu Fengguang <fengguang.wu@intel.com>, Jan Kara <jack@suse.cz>
+To: Minchan Kim <minchan@kernel.org>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mel@csn.ul.ie>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, Hugh Dickins <hughd@google.com>, Nick Piggin <npiggin@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
 
-Implement code computing proportions of events of different type (like code in
-lib/proportions.c) but allowing periods to have different lengths. This allows
-us to have aging periods of fixed wallclock time which gives better proportion
-estimates given the hugely varying throughput of different devices - previous
-measuring of aging period by number of events has the problem that a reasonable
-period length for a system with low-end USB stick is not a reasonable period
-length for a system with high-end storage array resulting either in too slow
-proportion updates or too fluctuating proportion updates.
+Sorry about the word-wrap last email, here i resend it w/ hopefully
+better looking:
 
-Signed-off-by: Jan Kara <jack@suse.cz>
----
- include/linux/flex_proportions.h |   89 ++++++++++++++++
- lib/flex_proportions.c           |  218 ++++++++++++++++++++++++++++++++++++++
- 2 files changed, 307 insertions(+), 0 deletions(-)
- create mode 100644 include/linux/flex_proportions.h
- create mode 100644 lib/flex_proportions.c
+ On Mon, Apr 23, 2012 at 6:31 PM, Minchan Kim <minchan@kernel.org> wrote:
+> Hi Ying,
+>
+> On 04/24/2012 08:18 AM, Ying Han wrote:
+>
+>> On Mon, Apr 23, 2012 at 3:20 PM, KOSAKI Motohiro
+>> <kosaki.motohiro@jp.fujitsu.com> wrote:
+>>> On Mon, Apr 23, 2012 at 4:56 PM, Ying Han <yinghan@google.com> wrote:
+>>>> This is not a patch targeted to be merged at all, but trying to unders=
+tand
+>>>> a logic in global direct reclaim.
+>>>>
+>>>> There is a logic in global direct reclaim where reclaim fails on prior=
+ity 0
+>>>> and zone->all_unreclaimable is not set, it will cause the direct to st=
+art over
+>>>> from DEF_PRIORITY. In some extreme cases, we've seen the system hang w=
+hich is
+>>>> very likely caused by direct reclaim enters infinite loop.
+>>>>
+>>>> There have been serious patches trying to fix similar issue and the la=
+test
+>>>> patch has good summary of all the efforts:
+>>>>
+>>>> commit 929bea7c714220fc76ce3f75bef9056477c28e74
+>>>> Author: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+>>>> Date: =A0 Thu Apr 14 15:22:12 2011 -0700
+>>>>
+>>>> =A0 =A0vmscan: all_unreclaimable() use zone->all_unreclaimable as a na=
+me
+>>>>
+>>>> Kosaki explained the problem triggered by async zone->all_unreclaimabl=
+e and
+>>>> zone->pages_scanned where the later one was being checked by direct re=
+claim.
+>>>> However, after the patch, the problem remains where the setting of
+>>>> zone->all_unreclaimable is asynchronous with zone is actually reclaima=
+ble or not.
+>>>>
+>>>> The zone->all_unreclaimable flag is set by kswapd by checking zone->pa=
+ges_scanned in
+>>>> zone_reclaimable(). Is that possible to have zone->all_unreclaimable =
+=3D=3D false while
+>>>> the zone is actually unreclaimable?
+>>>>
+>>>> 1. while kswapd in reclaim priority loop, someone frees a page on the =
+zone. It
+>>>> will end up resetting the pages_scanned.
+>>>>
+>>>> 2. kswapd is frozen for whatever reason. I noticed Kosaki's covered th=
+e
+>>>> hibernation case by checking oom_killer_disabled, but not sure if that=
+ is
+>>>> everything we need to worry about. The key point here is that direct r=
+eclaim
+>>>> relies on a flag which is set by kswapd asynchronously, that doesn't s=
+ound safe.
+>>>
+>>> If kswapd was frozen except hibernation, why don't you add frozen
+>>> check instead of
+>>> hibernation check? And when and why is that happen?
+>>
+>> I haven't tried to reproduce the issue, so everything is based on
+>> eye-balling the code. The problem is that we have the potential
+>> infinite loop in direct reclaim where it keeps trying as long as
+>> !zone->all_unreclaimable.
+>>
+>> The flag is only set by kswapd and it will skip setting the flag if
+>> the following condition is true:
+>>
+>> zone->pages_scanned < zone_reclaimable_pages(zone) * 6;
+>>
+>> In a few-pages-on-lru condition, the zone->pages_scanned is easily
+>> remains 0 and also it is reset to 0 everytime a page being freed.
+>> Then, i will cause global direct reclaim entering infinite loop.
+>>
+>
+>
+> how does zone->pages_scanned become 0 easily in global reclaim?
+> Once VM has pages in LRU, it wouldn't be a zero. Look at isolate_lru_page=
+s.
+> The problem is get_scan_count which could prevent scanning of LRU list bu=
+t
+> it works well now. If the priority isn't zero and there are few pages in =
+LRU,
+> it could be a zero scan but when the priority drop at zero, it could let =
+VM scan
+> less pages under SWAP_CLUSTER_MAX. So pages_scanned would be increased.
 
-diff --git a/include/linux/flex_proportions.h b/include/linux/flex_proportions.h
-new file mode 100644
-index 0000000..ba92c9b
---- /dev/null
-+++ b/include/linux/flex_proportions.h
-@@ -0,0 +1,89 @@
-+/*
-+ * Floating proportions with flexible aging period
-+ *
-+ *  Copyright (C) 2011, SUSE, Jan Kara <jack@suse.cz>
-+ */
-+
-+#ifndef _LINUX_FLEX_PROPORTIONS_H
-+#define _LINUX_FLEX_PROPORTIONS_H
-+
-+#include <linux/percpu_counter.h>
-+#include <linux/spinlock.h>
-+#include <linux/seqlock.h>
-+
-+/*
-+ * ---- Global proportion definitions ----
-+ */
-+struct fprop_global {
-+	/* Number of events in the current period */
-+	struct percpu_counter events;
-+	/* Current period */
-+	unsigned int period;
-+	/* Synchronization with period transitions */
-+	seqcount_t sequence;
-+};
-+
-+int fprop_global_init(struct fprop_global *p);
-+void fprop_global_destroy(struct fprop_global *p);
-+void fprop_new_period(struct fprop_global *p);
-+
-+/*
-+ *  ---- SINGLE ----
-+ */
-+struct fprop_local_single {
-+	/* the local events counter */
-+	unsigned long events;
-+	/* Period in which we last updated events */
-+	unsigned int period;
-+	raw_spinlock_t lock;	/* Protect period and numerator */
-+};
-+
-+#define INIT_FPROP_LOCAL_SINGLE(name)			\
-+{	.lock = __RAW_SPIN_LOCK_UNLOCKED(name.lock),	\
-+}
-+
-+int fprop_local_init_single(struct fprop_local_single *pl);
-+void __fprop_inc_single(struct fprop_global *p, struct fprop_local_single *pl);
-+void fprop_fraction_single(struct fprop_global *p,
-+	struct fprop_local_single *pl, unsigned long *numerator,
-+	unsigned long *denominator);
-+
-+static inline
-+void fprop_inc_single(struct fprop_global *p, struct fprop_local_single *pl)
-+{
-+	unsigned long flags;
-+
-+	local_irq_save(flags);
-+	__fprop_inc_single(p, pl);
-+	local_irq_restore(flags);
-+}
-+
-+/*
-+ * ---- PERCPU ----
-+ */
-+struct fprop_local_percpu {
-+	/* the local events counter */
-+	struct percpu_counter events;
-+	/* Period in which we last updated events */
-+	unsigned int period;
-+	raw_spinlock_t lock;	/* Protect period and numerator */
-+};
-+
-+int fprop_local_init_percpu(struct fprop_local_percpu *pl);
-+void fprop_local_destroy_percpu(struct fprop_local_percpu *pl);
-+void __fprop_inc_percpu(struct fprop_global *p, struct fprop_local_percpu *pl);
-+void fprop_fraction_percpu(struct fprop_global *p,
-+	struct fprop_local_percpu *pl, unsigned long *numerator,
-+	unsigned long *denominator);
-+
-+static inline
-+void fprop_inc_percpu(struct fprop_global *p, struct fprop_local_percpu *pl)
-+{
-+	unsigned long flags;
-+
-+	local_irq_save(flags);
-+	__fprop_inc_percpu(p, pl);
-+	local_irq_restore(flags);
-+}
-+
-+#endif
-diff --git a/lib/flex_proportions.c b/lib/flex_proportions.c
-new file mode 100644
-index 0000000..fffb01b
---- /dev/null
-+++ b/lib/flex_proportions.c
-@@ -0,0 +1,218 @@
-+/*
-+ *  Floating proportions with flexible aging period
-+ *
-+ *   Copyright (C) 2011, SUSE, Jan Kara <jack@suse.cz>
-+ *
-+ * The goal of this code is: Given different types of event, measure proportion
-+ * of each type of event over time. The proportions are measured with
-+ * exponentially decaying history to give smooth transitions. A formula
-+ * expressing proportion of event of type 'j' is:
-+ *
-+ *   p_{j} = (\Sum_{i>=0} x_{i,j}/2^{i+1})/(\Sum_{i>=0} x_i/2^{i+1})
-+ *
-+ * Where x_{i,j} is j's number of events in i-th last time period and x_i is
-+ * total number of events in i-th last time period.
-+ *
-+ * Note that p_{j}'s are normalised, i.e.
-+ *
-+ *   \Sum_{j} p_{j} = 1,
-+ *
-+ * This formula can be straightforwardly computed by maintaing denominator
-+ * (let's call it 'd') and for each event type its numerator (let's call it
-+ * 'n_j'). When an event of type 'j' happens, we simply need to do:
-+ *   n_j++; d++;
-+ *
-+ * When a new period is declared, we could do:
-+ *   d /= 2
-+ *   for each j
-+ *     n_j /= 2
-+ *
-+ * To avoid iteration over all event types, we instead shift numerator of event
-+ * j lazily when someone asks for a proportion of event j or when event j
-+ * occurs. This can bit trivially implemented by remembering last period in
-+ * which something happened with proportion of type j.
-+ */
-+#include <linux/flex_proportions.h>
-+
-+int fprop_global_init(struct fprop_global *p)
-+{
-+	int err;
-+
-+	p->period = 0;
-+	/* Use 1 to avoid dealing with periods with 0 events... */
-+	err = percpu_counter_init(&p->events, 1);
-+	if (err)
-+		return err;
-+	seqcount_init(&p->sequence);
-+	return 0;
-+}
-+
-+void fprop_global_destroy(struct fprop_global *p)
-+{
-+	percpu_counter_destroy(&p->events);
-+}
-+
-+/*
-+ * Declare new period. It is upto the caller to make sure two period
-+ * transitions cannot happen in parallel.
-+ */
-+void fprop_new_period(struct fprop_global *p)
-+{
-+	u64 events = percpu_counter_sum(&p->events);
-+
-+	/*
-+	 * Don't do anything if there are no events.
-+	 */
-+	if (events <= 1)
-+		return;
-+	write_seqcount_begin(&p->sequence);
-+	 /* We use addition to avoid losing events happening between sum and set. */
-+	percpu_counter_add(&p->events, -(events >> 1));
-+	p->period++;
-+	write_seqcount_end(&p->sequence);
-+}
-+
-+/*
-+ * ---- SINGLE ----
-+ */
-+
-+int fprop_local_init_single(struct fprop_local_single *pl)
-+{
-+	pl->events = 0;
-+	pl->period = 0;
-+	raw_spin_lock_init(&pl->lock);
-+	return 0;
-+}
-+
-+void fprop_local_destroy_single(struct fprop_local_single *pl)
-+{
-+}
-+
-+static void fprop_reflect_period_single(struct fprop_global *p,
-+					struct fprop_local_single *pl)
-+{
-+	unsigned int period = p->period;
-+	unsigned long flags;
-+
-+	/* Fast path - period didn't change */
-+	if (pl->period == period)
-+		return;
-+	raw_spin_lock_irqsave(&pl->lock, flags);
-+	/* Someone updated pl->period while we were spinning? */
-+	if (pl->period >= period) {
-+		raw_spin_unlock_irqrestore(&pl->lock, flags);
-+		return;
-+	}
-+	/* Aging zeroed our fraction? */
-+	if (period - pl->period < BITS_PER_LONG)
-+		pl->events >>= period - pl->period;
-+	else
-+		pl->events = 0;
-+	pl->period = period;
-+	raw_spin_unlock_irqrestore(&pl->lock, flags);
-+}
-+
-+/* Event of type pl happened */
-+void __fprop_inc_single(struct fprop_global *p, struct fprop_local_single *pl)
-+{
-+	fprop_reflect_period_single(p, pl);
-+	pl->events++;
-+	percpu_counter_add(&p->events, 1);
-+}
-+
-+/* Return fraction of events of type pl */
-+void fprop_fraction_single(struct fprop_global *p,
-+			   struct fprop_local_single *pl,
-+			   unsigned long *numerator, unsigned long *denominator)
-+{
-+	unsigned int seq;
-+	s64 den;
-+
-+	do {
-+		seq = read_seqcount_begin(&p->sequence);
-+		fprop_reflect_period_single(p, pl);
-+		*numerator = pl->events;
-+		den = percpu_counter_read(&p->events);
-+		if (den <= 0)
-+			den = percpu_counter_sum(&p->events);
-+		*denominator = den;
-+	} while (read_seqcount_retry(&p->sequence, seq));
-+}
-+
-+/*
-+ * ---- PERCPU ----
-+ */
-+#define PROP_BATCH (8*(1+ilog2(nr_cpu_ids)))
-+
-+int fprop_local_init_percpu(struct fprop_local_percpu *pl)
-+{
-+	int err;
-+
-+	err = percpu_counter_init(&pl->events, 0);
-+	if (err)
-+		return err;
-+	pl->period = 0;
-+	raw_spin_lock_init(&pl->lock);
-+	return 0;
-+}
-+
-+void fprop_local_destroy_percpu(struct fprop_local_percpu *pl)
-+{
-+	percpu_counter_destroy(&pl->events);
-+}
-+
-+static void fprop_reflect_period_percpu(struct fprop_global *p,
-+					struct fprop_local_percpu *pl)
-+{
-+	unsigned int period = p->period;
-+	unsigned long flags;
-+
-+	/* Fast path - period didn't change */
-+	if (pl->period == period)
-+		return;
-+	raw_spin_lock_irqsave(&pl->lock, flags);
-+	/* Someone updated pl->period while we were spinning? */
-+	if (pl->period >= period) {
-+		raw_spin_unlock_irqrestore(&pl->lock, flags);
-+		return;
-+	}
-+	/* Aging zeroed our fraction? */
-+	if (period - pl->period < BITS_PER_LONG) {
-+		s64 val = percpu_counter_read(&pl->events);
-+
-+		if (val < (nr_cpu_ids * PROP_BATCH))
-+			val = percpu_counter_sum(&pl->events);
-+
-+		__percpu_counter_add(&pl->events,
-+			-val + (val >> (period-pl->period)), PROP_BATCH);
-+	} else
-+		percpu_counter_set(&pl->events, 0);
-+	pl->period = period;
-+	raw_spin_unlock_irqrestore(&pl->lock, flags);
-+}
-+
-+/* Event of type pl happened */
-+void __fprop_inc_percpu(struct fprop_global *p, struct fprop_local_percpu *pl)
-+{
-+	fprop_reflect_period_percpu(p, pl);
-+	__percpu_counter_add(&pl->events, 1, PROP_BATCH);
-+	percpu_counter_add(&p->events, 1);
-+}
-+
-+void fprop_fraction_percpu(struct fprop_global *p,
-+			   struct fprop_local_percpu *pl,
-+			   unsigned long *numerator, unsigned long *denominator)
-+{
-+	unsigned int seq;
-+	s64 den;
-+
-+	do {
-+		seq = read_seqcount_begin(&p->sequence);
-+		fprop_reflect_period_percpu(p, pl);
-+		*numerator = percpu_counter_read_positive(&pl->events);
-+		den = percpu_counter_read(&p->events);
-+		if (den <= 0)
-+			den = percpu_counter_sum(&p->events);
-+		*denominator = den;
-+	} while (read_seqcount_retry(&p->sequence, seq));
-+}
--- 
-1.7.1
+Yes, that is true. But the pages_scanned will be reset on freeing a
+page and that could happen asynchronously. For example I have only 2
+pages on file_lru (w/o swap), and here is what is supposed to happen:
+
+A                                    kswapd                                =
+   B
+
+direct reclaim
+
+                                     priority DEP_PRIORITY to 0
+
+                                     zone->pages_scanned =3D 3
+
+                                     zone_reclaimable() =3D=3D true
+
+                                     zone->all_unreclaimable =3D=3D 0
+
+nr_reclaimed =3D=3D 0 & !zone->all_unreclaimable
+retry
+
+
+                                     priority DEP_PRIORITY to 0
+
+                                     zone->pages_scanned =3D 6
+
+                                     zone_reclaimable() =3D=3D true
+
+                                     zone->all_unreclaimable =3D=3D 0
+
+nr_reclaimed =3D=3D 0 & !zone->all_unreclaimable
+retry
+
+                                    repeat the above which eventually
+
+                                    zone->pages_scanned will grow
+
+                                    zone->pages_scanned to 12
+
+                                    zone_reclaimable() =3D=3D false
+
+                                    zone->all_unreclaimable =3D=3D 1
+nr_reclaimed =3D=3D 0 & zone->all_unreclaimable
+oom
+
+However, what if B frees a pages everytime before pages_scanned
+reaches the point, then we won't set zone->all_unreclaimable at all.
+If so, we reaches a livelock here...
+
+--Ying
+
+>
+> I think the problem is live-lock as follows,
+>
+>
+> =A0 =A0A =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 kswapd =A0 =A0 =A0 =A0 =A0 =
+=A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0B
+>
+> direct reclaim
+> reclaim a page
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0pages_scanned check <- ski=
+p
+>
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =
+=A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0steal a page reclaimed by A
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =
+=A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0use the page for user memory.
+> alloc failed
+> retry
+>
+> In this scenario, process A would be a live-locked.
+> Does it make sense for infinite loop case you mentioned?
+>
+>
+> --
+> Kind regards,
+> Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
