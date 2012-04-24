@@ -1,147 +1,102 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx150.postini.com [74.125.245.150])
-	by kanga.kvack.org (Postfix) with SMTP id 4071B6B0044
-	for <linux-mm@kvack.org>; Tue, 24 Apr 2012 14:37:55 -0400 (EDT)
-Received: by lbbgg6 with SMTP id gg6so1029392lbb.14
-        for <linux-mm@kvack.org>; Tue, 24 Apr 2012 11:37:53 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx201.postini.com [74.125.245.201])
+	by kanga.kvack.org (Postfix) with SMTP id 1F51B6B0044
+	for <linux-mm@kvack.org>; Tue, 24 Apr 2012 15:02:11 -0400 (EDT)
+Received: by iajr24 with SMTP id r24so1943847iaj.14
+        for <linux-mm@kvack.org>; Tue, 24 Apr 2012 12:02:10 -0700 (PDT)
+Date: Tue, 24 Apr 2012 12:01:52 -0700 (PDT)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: [PATCH] Fix overflow in vma length when copying mmap on clone
+In-Reply-To: <1335289853-2923-1-git-send-email-siddhesh.poyarekar@gmail.com>
+Message-ID: <alpine.LSU.2.00.1204241148390.18455@eggly.anvils>
+References: <1335289853-2923-1-git-send-email-siddhesh.poyarekar@gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <CAPa8GCATMxi2ON22T_daE9EMFg8BWgK4vRTDadDFR66aj_uGTg@mail.gmail.com>
-References: <1335214564-17619-1-git-send-email-yinghan@google.com>
-	<CAPa8GCATMxi2ON22T_daE9EMFg8BWgK4vRTDadDFR66aj_uGTg@mail.gmail.com>
-Date: Tue, 24 Apr 2012 11:37:52 -0700
-Message-ID: <CALWz4ixeBq7cMoopukaRZxUmH1i0+L4xZ_49B0YpZ4iZuRC+Uw@mail.gmail.com>
-Subject: Re: [RFC PATCH] do_try_to_free_pages() might enter infinite loop
-From: Ying Han <yinghan@google.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Nick Piggin <npiggin@gmail.com>
-Cc: Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mel@csn.ul.ie>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, Hugh Dickins <hughd@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Nick Piggin <npiggin@suse.de>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
+To: Siddhesh Poyarekar <siddhesh.poyarekar@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, Oleg Nesterov <oleg@redhat.com>, Jens Axboe <axboe@kernel.dk>, Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Mon, Apr 23, 2012 at 10:36 PM, Nick Piggin <npiggin@gmail.com> wrote:
-> On 24 April 2012 06:56, Ying Han <yinghan@google.com> wrote:
->> This is not a patch targeted to be merged at all, but trying to understa=
-nd
->> a logic in global direct reclaim.
->>
->> There is a logic in global direct reclaim where reclaim fails on priorit=
-y 0
->> and zone->all_unreclaimable is not set, it will cause the direct to star=
-t over
->> from DEF_PRIORITY. In some extreme cases, we've seen the system hang whi=
-ch is
->> very likely caused by direct reclaim enters infinite loop.
->
-> Very likely, or definitely? Can you reproduce it? What workload?
+On Tue, 24 Apr 2012, Siddhesh Poyarekar wrote:
+> The vma length in dup_mmap is calculated and stored in a unsigned int,
+> which is insufficient and hence overflows for very large maps (beyond
+> 16TB). The following program demonstrates this:
+> 
+> \#include <stdio.h>
+> \#include <unistd.h>
+> \#include <sys/mman.h>
+> 
+> \#define GIG 1024 * 1024 * 1024L
+> \#define EXTENT 16393
+> 
+> int main(void)
+> {
+>         int i, r;
+>         void *m;
+>         char buf[1024];
+> 
+>         for (i = 0; i < EXTENT; i++) {
+>                 m = mmap(NULL, (size_t) 1 * 1024 * 1024 * 1024L,
+>                          PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, 0, 0);
+> 
+>                 if (m == (void *)-1)
+>                         printf("MMAP Failed: %d\n", m);
+>                 else
+>                         printf("%d : MMAP returned %p\n", i, m);
+> 
+>                 r = fork();
+> 
+>                 if (r == 0) {
+>                         printf("%d: successed\n", i);
+>                         return 0;
+>                 } else if (r < 0)
+>                         printf("FORK Failed: %d\n", r);
+>                 else if (r > 0)
+>                         wait(NULL);
+>         }
+>         return 0;
+> }
+> 
+> This trivial patch increases the storage size of the result to
+> unsigned long, which should be sufficient for storing the difference
+> between addresses.
+> 
+> Signed-off-by: Siddhesh Poyarekar <siddhesh.poyarekar@gmail.com>
 
-No, we don't have reproduce workload for that yet. Everything is based
-on the watchdog dump file :(
+Good catch, thank you, remarkable that's survived for so long.
+For the patch,
 
->
->>
->> There have been serious patches trying to fix similar issue and the late=
-st
->> patch has good summary of all the efforts:
->>
->> commit 929bea7c714220fc76ce3f75bef9056477c28e74
->> Author: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
->> Date: =A0 Thu Apr 14 15:22:12 2011 -0700
->>
->> =A0 =A0vmscan: all_unreclaimable() use zone->all_unreclaimable as a name
->>
->> Kosaki explained the problem triggered by async zone->all_unreclaimable =
-and
->> zone->pages_scanned where the later one was being checked by direct recl=
-aim.
->> However, after the patch, the problem remains where the setting of
->> zone->all_unreclaimable is asynchronous with zone is actually reclaimabl=
-e or not.
->>
->> The zone->all_unreclaimable flag is set by kswapd by checking zone->page=
-s_scanned in
->> zone_reclaimable(). Is that possible to have zone->all_unreclaimable =3D=
-=3D false while
->> the zone is actually unreclaimable?
->>
->> 1. while kswapd in reclaim priority loop, someone frees a page on the zo=
-ne. It
->> will end up resetting the pages_scanned.
->>
->> 2. kswapd is frozen for whatever reason. I noticed Kosaki's covered the
->> hibernation case by checking oom_killer_disabled, but not sure if that i=
-s
->> everything we need to worry about. The key point here is that direct rec=
-laim
->> relies on a flag which is set by kswapd asynchronously, that doesn't sou=
-nd safe.
->>
->> Instead of keep fixing the problem, I am wondering why we have the logic
->> "not oom but keep trying reclaim w/ priority 0 reclaim failure" at the f=
-irst place:
->>
->> Here is the patch introduced the logic initially:
->>
->> commit 408d85441cd5a9bd6bc851d677a10c605ed8db5f
->> Author: Nick Piggin <npiggin@suse.de>
->> Date: =A0 Mon Sep 25 23:31:27 2006 -0700
->>
->> =A0 =A0[PATCH] oom: use unreclaimable info
->>
->> However, I didn't find detailed description of what problem the commit t=
-rying
->> to fix and wondering if the problem still exist after 5 years. I would b=
-e happy
->> to see the later case where we can consider to revert the initial patch.
->
-> The problem we were having is that processes would be killed at seemingly
-> random points of time, under heavy swapping, but long before all swap was
-> used.
->
-> The particular problem IIRC was related to testing a lot of guests on an =
-s390
-> machine. I'm ashamed to have not included more information in the
-> changelog -- I suspect it was probably in a small batch of patches with a
-> description in the introductory mail and not properly placed into patches=
- :(
->
-> There are certainly a lot of changes in the area since then, so I couldn'=
-t be
-> sure of what will happen by taking this out.
->
-> I don't think the page allocator "try harder" logic was enough to solve t=
-he
-> problem, and I think it was around in some form even back then.
->
-> The biggest problem is that it's not an exact science. It will never do t=
-he
-> right thing for everybody, sadly. Even if it is able to allocate pages at=
- a
-> very slow rate, this is effectively as good as a hang for some users. For
-> others, they want to be able to manually intervene before anything is kil=
-led.
->
-> Sorry if this isn't too helpful! Any ideas would be good. Possibly need t=
-o have
-> a way to describe these behaviours in an abstract way (i.e., not just mag=
-ic
-> numbers), and allow user to tune it.
+Acked-by: Hugh Dickins <hughd@google.com>
+Cc: stable@vger.kernel.org
 
-Thank you Nick and this is helpful. I looked up on the patches you
-mentioned, and I can see what problem they were trying to solve by
-that time. However things have been changed a lot, and it is hard to
-tell if the problem still remains on the current kernel or not. By
-spotting each by each, I see either the patch has been replaced by
-different logic or the same logic has been implemented differently.
+But I didn't (try very hard to) work out what your demo program shows
+- though I am amused by your sense of humour in using %d for a pointer
+there!  I wonder what setting of /proc/sys/vm/overcommit_memory is
+needed for it to behave as you intend?
 
-For this particular one patch, we now have code which does page alloc
-retry before entering OOM. So I am wondering if that will help the OOM
-situation by that time.
+Personally, I wouldn't bother with the demo and describing it more fully,
+I'd just be glad to get that fix in at last.
 
---Ying
-
-> Thanks,
-> Nick
+> ---
+>  kernel/fork.c |    3 ++-
+>  1 files changed, 2 insertions(+), 1 deletions(-)
+> 
+> diff --git a/kernel/fork.c b/kernel/fork.c
+> index b9372a0..7acaee1 100644
+> --- a/kernel/fork.c
+> +++ b/kernel/fork.c
+> @@ -355,7 +355,8 @@ static int dup_mmap(struct mm_struct *mm, struct mm_struct *oldmm)
+>  		}
+>  		charge = 0;
+>  		if (mpnt->vm_flags & VM_ACCOUNT) {
+> -			unsigned int len = (mpnt->vm_end - mpnt->vm_start) >> PAGE_SHIFT;
+> +			unsigned long len;
+> +			len = (mpnt->vm_end - mpnt->vm_start) >> PAGE_SHIFT;
+>  			if (security_vm_enough_memory_mm(oldmm, len)) /* sic */
+>  				goto fail_nomem;
+>  			charge = len;
+> -- 
+> 1.7.7.6
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
