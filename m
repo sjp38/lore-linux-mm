@@ -1,131 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx165.postini.com [74.125.245.165])
-	by kanga.kvack.org (Postfix) with SMTP id 49C716B0044
-	for <linux-mm@kvack.org>; Tue, 24 Apr 2012 10:57:05 -0400 (EDT)
-Date: Tue, 24 Apr 2012 16:56:55 +0200
-From: Jan Kara <jack@suse.cz>
-Subject: Re: [RFC] writeback and cgroup
-Message-ID: <20120424145655.GA1474@quack.suse.cz>
-References: <20120410210505.GE4936@quack.suse.cz>
- <20120410212041.GP21801@redhat.com>
- <20120410222425.GF4936@quack.suse.cz>
- <20120411154005.GD16692@redhat.com>
- <20120411192231.GF16008@quack.suse.cz>
- <20120412203719.GL2207@redhat.com>
- <20120412205148.GA24056@google.com>
- <20120414143639.GA31241@localhost>
- <20120416145744.GA15437@redhat.com>
- <20120424113340.GA12509@localhost>
+Received: from psmtp.com (na3sys010amx105.postini.com [74.125.245.105])
+	by kanga.kvack.org (Postfix) with SMTP id 634DA6B0044
+	for <linux-mm@kvack.org>; Tue, 24 Apr 2012 11:00:11 -0400 (EDT)
+Received: by dadq36 with SMTP id q36so1136289dad.8
+        for <linux-mm@kvack.org>; Tue, 24 Apr 2012 08:00:10 -0700 (PDT)
+Message-ID: <4F96BFFD.8090801@gmail.com>
+Date: Tue, 24 Apr 2012 11:00:13 -0400
+From: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20120424113340.GA12509@localhost>
+Subject: Re: [PATCH, RFC 0/3] Introduce new O_HOT and O_COLD flags
+References: <1334863211-19504-1-git-send-email-tytso@mit.edu> <4F912880.70708@panasas.com> <alpine.LFD.2.00.1204201120060.27750@dhcp-27-109.brq.redhat.com> <1334919662.5879.23.camel@dabdike> <alpine.LFD.2.00.1204201313231.27750@dhcp-27-109.brq.redhat.com> <1334932928.13001.11.camel@dabdike> <20120420145856.GC24486@thunk.org> <CAHGf_=oWtpgRfqaZ1YDXgZoQHcFY0=DYVcwXYbFtZt2v+K532w@mail.gmail.com> <CAPa8GCDkP_53VGAeQPeYgf3GW3KZ09BvnqduArQE7svf2mMj4A@mail.gmail.com> <1335169383.4191.9.camel@dabdike.lan> <CAPa8GCCE7x=ox0K=QoFR8+bTNrUqfFO+ooRKDLNROnd7xsF4Pw@mail.gmail.com> <CAPa8GCAv-E2iAfvwizMsbhEj11Ak6p2MKRyUVSm01LMkrTNZFQ@mail.gmail.com>
+In-Reply-To: <CAPa8GCAv-E2iAfvwizMsbhEj11Ak6p2MKRyUVSm01LMkrTNZFQ@mail.gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Fengguang Wu <fengguang.wu@intel.com>
-Cc: Vivek Goyal <vgoyal@redhat.com>, Tejun Heo <tj@kernel.org>, Jan Kara <jack@suse.cz>, Jens Axboe <axboe@kernel.dk>, linux-mm@kvack.org, sjayaraman@suse.com, andrea@betterlinux.com, jmoyer@redhat.com, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, lizefan@huawei.com, containers@lists.linux-foundation.org, cgroups@vger.kernel.org, ctalbott@google.com, rni@google.com, lsf@lists.linux-foundation.org
+To: Nick Piggin <npiggin@gmail.com>
+Cc: James Bottomley <James.Bottomley@hansenpartnership.com>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Ted Ts'o <tytso@mit.edu>, Lukas Czerner <lczerner@redhat.com>, Boaz Harrosh <bharrosh@panasas.com>, linux-fsdevel@vger.kernel.org, Ext4 Developers List <linux-ext4@vger.kernel.org>, linux-mm@kvack.org
 
-On Tue 24-04-12 19:33:40, Wu Fengguang wrote:
-> On Mon, Apr 16, 2012 at 10:57:45AM -0400, Vivek Goyal wrote:
-> > On Sat, Apr 14, 2012 at 10:36:39PM +0800, Fengguang Wu wrote:
-> > 
-> > [..]
-> > > Yeah the backpressure idea would work nicely with all possible
-> > > intermediate stacking between the bdi and leaf devices. In my attempt
-> > > to do combined IO bandwidth control for
-> > > 
-> > > - buffered writes, in balance_dirty_pages()
-> > > - direct IO, in the cfq IO scheduler
-> > > 
-> > > I have to look into the cfq code in the past days to get an idea how
-> > > the two throttling layers can cooperate (and suffer from the pains
-> > > arise from the violations of layers). It's also rather tricky to get
-> > > two previously independent throttling mechanisms to work seamlessly
-> > > with each other for providing the desired _unified_ user interface. It
-> > > took a lot of reasoning and experiments to work the basic scheme out...
-> > > 
-> > > But here is the first result. The attached graph shows progress of 4
-> > > tasks:
-> > > - cgroup A: 1 direct dd + 1 buffered dd
-> > > - cgroup B: 1 direct dd + 1 buffered dd
-> > > 
-> > > The 4 tasks are mostly progressing at the same pace. The top 2
-> > > smoother lines are for the buffered dirtiers. The bottom 2 lines are
-> > > for the direct writers. As you may notice, the two direct writers are
-> > > somehow stalled for 1-2 times, which increases the gaps between the
-> > > lines. Otherwise, the algorithm is working as expected to distribute
-> > > the bandwidth to each task.
-> > > 
-> > > The current code's target is to satisfy the more realistic user demand
-> > > of distributing bandwidth equally to each cgroup, and inside each
-> > > cgroup, distribute bandwidth equally to buffered/direct writes. On top
-> > > of which, weights can be specified to change the default distribution.
-> > > 
-> > > The implementation involves adding "weight for direct IO" to the cfq
-> > > groups and "weight for buffered writes" to the root cgroup. Note that
-> > > current cfq proportional IO conroller does not offer explicit control
-> > > over the direct:buffered ratio.
-> > > 
-> > > When there are both direct/buffered writers in the cgroup,
-> > > balance_dirty_pages() will kick in and adjust the weights for cfq to
-> > > execute. Note that cfq will continue to send all flusher IOs to the
-> > > root cgroup.  balance_dirty_pages() will compute the overall async
-> > > weight for it so that in the above test case, the computed weights
-> > > will be
-> > 
-> > I think having separate weigths for sync IO groups and async IO is not
-> > very appealing. There should be one notion of group weight and bandwidth
-> > distrubuted among groups according to their weight.
-> 
-> There have to be some scheme, either explicitly or implicitly. Maybe
-> you are baring in mind some "equal split among queues" policy? For
-> example, if the cgroup has 9 active sync queues and 1 async queue,
-> split the weight equally to the 10 queues?  So the sync IOs get 90%
-> share, and the async writes get 10% share.
-  Maybe I misunderstand but there doesn't have to be (and in fact isn't)
-any split among sync / async IO in CFQ. At each moment, we choose a queue
-with the highest score and dispatch a couple of requests from it. Then we
-go and choose again. The score of the queue depends on several factors
-(like age of requests, whether the queue is sync or async, IO priority,
-etc.).
+(4/24/12 2:18 AM), Nick Piggin wrote:
+> On 23 April 2012 21:47, Nick Piggin<npiggin@gmail.com>  wrote:
+>> On 23 April 2012 18:23, James Bottomley
+>
+>>> Experience has taught me to be wary of fine grained hints: they tend to
+>>> be more trouble than they're worth (the definitions are either
+>>> inaccurate or so tediously precise that no-one can be bothered to read
+>>> them).  A small set of broad hints is usually more useable than a huge
+>>> set of fine grained ones, so from that point of view, I like the
+>>> O_HOT/O_COLD ones.
+>>
+>> So long as the implementations can be sufficiently general that large majority
+>> of "reasonable" application of the flags does not result in a slowdown, perhaps.
+>>
+>> But while defining the API, you have to think about these things and not
+>> just dismiss them completely.
+>>
+>> Read vs write can be very important for caches and tiers, same for
+>> random/linear,
+>> latency constraints, etc. These things aren't exactly a huge unwieldy matrix. We
+>> already have similar concepts in fadvise and such.
+>
+> I'm not saying it's necessarily a bad idea as such. But experience
+> has taught me that if you define an API before having much
+> experience of the implementation and its users, and without
+> being able to write meaningful documentation for it, then it's
+> going to be a bad API.
+>
+> So rather than pushing through these flags first, I think it would
+> be better to actually do implementation work, and get some
+> benchmarks (if not real apps) and have something working
+> like that before turning anything into an API.
 
-Practically, over a longer period system will stabilize on some ratio
-but that's dependent on the load so your system should not impose some
-artificial direct/buffered split but rather somehow deal with the reality
-how IO scheduler decides to dispatch requests...
+Fully agreed.
 
-> For dirty throttling w/o cgroup awareness, balance_dirty_pages()
-> splits the writeout bandwidth equally among all dirtier tasks. Since
-> cfq works with queues, it seems most natural for it to do equal split
-> among all queues (inside the cgroup).
-  Well, but we also have IO priorities which change which queue should get
-preference.
+I _guess_ O_COLD has an enough real world usefullness because a backup operation
+makes a lot of "write once read never" inodes. Moreover it doesn't have a system wide
+side effect.
 
-> I'm not sure when there are N dd tasks doing direct IO, cfq will
-> continuously run N sync queues for them (without many dynamic queue
-> deletion and recreations). If that is the case, it should be trivial
-> to support the queue based fair split in the global async queue
-> scheme. Otherwise I'll have some trouble detecting the N value when
-> trying to do the N:1 sync:async weight split.
-  And also sync queues for several processes can get merged when CFQ
-observes these processes cooperate together on one area of disk and get
-split again when processes stop cooperating. I don't think you really want
-to second-guess what CFQ does inside...
+In the other hands, I don't imagine how O_HOT works yet. Beccause of, many apps want
+to run faster than other apps and it definitely don't work _if_ all applications turn on
+O_HOT for every open operations. So, I'm not sure why apps don't do such intentional
+abuse yet.
 
-> Look at this graph, the 4 dd tasks are granted the same weight (2 of
-> them are buffered writes). I guess the 2 buffered dd tasks managed to
-> progress much faster than the 2 direct dd tasks just because the async
-> IOs are much more efficient than the bs=64k direct IOs.
-  Likely because 64k is too low to get good bandwidth with direct IO. If
-it was 4M, I believe you would get similar throughput for buffered and
-direct IO. So essentially you are right, small IO benefits from caching
-effects since they allow you to submit larger requests to the device which
-is more efficient.
-
-								Honza
--- 
-Jan Kara <jack@suse.cz>
-SUSE Labs, CR
+So, we might need some API design discussions.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
