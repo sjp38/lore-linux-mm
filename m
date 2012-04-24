@@ -1,126 +1,133 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx124.postini.com [74.125.245.124])
-	by kanga.kvack.org (Postfix) with SMTP id 5B2526B0044
-	for <linux-mm@kvack.org>; Tue, 24 Apr 2012 10:22:41 -0400 (EDT)
-Received: by qam2 with SMTP id 2so123478qam.14
-        for <linux-mm@kvack.org>; Tue, 24 Apr 2012 07:22:40 -0700 (PDT)
-Date: Tue, 24 Apr 2012 16:22:34 +0200
-From: Frederic Weisbecker <fweisbec@gmail.com>
-Subject: Re: [PATCH 17/23] kmem controller charge/uncharge infrastructure
-Message-ID: <20120424142232.GC8626@somewhere>
-References: <1334959051-18203-1-git-send-email-glommer@parallels.com>
- <1335138820-26590-6-git-send-email-glommer@parallels.com>
- <alpine.DEB.2.00.1204231522320.13535@chino.kir.corp.google.com>
+Received: from psmtp.com (na3sys010amx204.postini.com [74.125.245.204])
+	by kanga.kvack.org (Postfix) with SMTP id 503746B0044
+	for <linux-mm@kvack.org>; Tue, 24 Apr 2012 10:30:01 -0400 (EDT)
+Message-ID: <4F96B866.3090506@parallels.com>
+Date: Tue, 24 Apr 2012 11:27:50 -0300
+From: Glauber Costa <glommer@parallels.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.00.1204231522320.13535@chino.kir.corp.google.com>
+Subject: Re: [PATCH 11/23] slub: consider a memcg parameter in kmem_create_cache
+References: <1334959051-18203-1-git-send-email-glommer@parallels.com> <1334959051-18203-12-git-send-email-glommer@parallels.com> <20120424140326.GA8626@somewhere>
+In-Reply-To: <20120424140326.GA8626@somewhere>
+Content-Type: text/plain; charset="ISO-8859-1"; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Glauber Costa <glommer@parallels.com>, cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, devel@openvz.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Greg Thelen <gthelen@google.com>, Suleiman Souhlal <suleiman@google.com>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@cs.helsinki.fi>
+To: Frederic Weisbecker <fweisbec@gmail.com>
+Cc: cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, devel@openvz.org, kamezawa.hiroyu@jp.fujitsu.com, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Greg Thelen <gthelen@google.com>, Suleiman Souhlal <suleiman@google.com>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@cs.helsinki.fi>
 
-On Mon, Apr 23, 2012 at 03:25:59PM -0700, David Rientjes wrote:
-> On Sun, 22 Apr 2012, Glauber Costa wrote:
-> 
-> > +/*
-> > + * Return the kmem_cache we're supposed to use for a slab allocation.
-> > + * If we are in interrupt context or otherwise have an allocation that
-> > + * can't fail, we return the original cache.
-> > + * Otherwise, we will try to use the current memcg's version of the cache.
-> > + *
-> > + * If the cache does not exist yet, if we are the first user of it,
-> > + * we either create it immediately, if possible, or create it asynchronously
-> > + * in a workqueue.
-> > + * In the latter case, we will let the current allocation go through with
-> > + * the original cache.
-> > + *
-> > + * This function returns with rcu_read_lock() held.
-> > + */
-> > +struct kmem_cache *__mem_cgroup_get_kmem_cache(struct kmem_cache *cachep,
-> > +					     gfp_t gfp)
-> > +{
-> > +	struct mem_cgroup *memcg;
-> > +	int idx;
-> > +
-> > +	gfp |=  cachep->allocflags;
-> > +
-> > +	if ((current->mm == NULL))
-> > +		return cachep;
-> > +
-> > +	if (cachep->memcg_params.memcg)
-> > +		return cachep;
-> > +
-> > +	idx = cachep->memcg_params.id;
-> > +	VM_BUG_ON(idx == -1);
-> > +
-> > +	memcg = mem_cgroup_from_task(current);
-> > +	if (!mem_cgroup_kmem_enabled(memcg))
-> > +		return cachep;
-> > +
-> > +	if (rcu_access_pointer(memcg->slabs[idx]) == NULL) {
-> > +		memcg_create_cache_enqueue(memcg, cachep);
-> > +		return cachep;
-> > +	}
-> > +
-> > +	return rcu_dereference(memcg->slabs[idx]);
-> > +}
-> > +EXPORT_SYMBOL(__mem_cgroup_get_kmem_cache);
-> > +
-> > +void mem_cgroup_remove_child_kmem_cache(struct kmem_cache *cachep, int id)
-> > +{
-> > +	rcu_assign_pointer(cachep->memcg_params.memcg->slabs[id], NULL);
-> > +}
-> > +
-> > +bool __mem_cgroup_charge_kmem(gfp_t gfp, size_t size)
-> > +{
-> > +	struct mem_cgroup *memcg;
-> > +	bool ret = true;
-> > +
-> > +	rcu_read_lock();
-> > +	memcg = mem_cgroup_from_task(current);
-> 
-> This seems horribly inconsistent with memcg charging of user memory since 
-> it charges to p->mm->owner and you're charging to p.  So a thread attached 
-> to a memcg can charge user memory to one memcg while charging slab to 
-> another memcg?
+On 04/24/2012 11:03 AM, Frederic Weisbecker wrote:
+> On Fri, Apr 20, 2012 at 06:57:19PM -0300, Glauber Costa wrote:
+>> diff --git a/mm/slub.c b/mm/slub.c
+>> index 2652e7c..86e40cc 100644
+>> --- a/mm/slub.c
+>> +++ b/mm/slub.c
+>> @@ -32,6 +32,7 @@
+>>   #include<linux/prefetch.h>
+>>
+>>   #include<trace/events/kmem.h>
+>> +#include<linux/memcontrol.h>
+>>
+>>   /*
+>>    * Lock order:
+>> @@ -3880,7 +3881,7 @@ static int slab_unmergeable(struct kmem_cache *s)
+>>   	return 0;
+>>   }
+>>
+>> -static struct kmem_cache *find_mergeable(size_t size,
+>> +static struct kmem_cache *find_mergeable(struct mem_cgroup *memcg, size_t size,
+>>   		size_t align, unsigned long flags, const char *name,
+>>   		void (*ctor)(void *))
+>>   {
+>> @@ -3916,21 +3917,29 @@ static struct kmem_cache *find_mergeable(size_t size,
+>>   		if (s->size - size>= sizeof(void *))
+>>   			continue;
+>>
+>> +		if (memcg&&  s->memcg_params.memcg != memcg)
+>> +			continue;
+>> +
+>
+> This probably won't build without CONFIG_CGROUP_MEM_RES_CTLR_KMEM ?
 
-Charging to the thread rather than the process seem to me the right behaviour:
-you can have two threads of a same process attached to different cgroups.
+Probably not, thanks.
 
-Perhaps it is the user memory memcg that needs to be fixed?
+>
+>>   		return s;
+>>   	}
+>>   	return NULL;
+>>   }
+>>
+>> -struct kmem_cache *kmem_cache_create(const char *name, size_t size,
+>> -		size_t align, unsigned long flags, void (*ctor)(void *))
+>> +struct kmem_cache *
+>> +kmem_cache_create_memcg(struct mem_cgroup *memcg, const char *name, size_t size,
+>
+> Does that build without CONFIG_CGROUP_MEM_RES_CTLR ?
+Yes, because MEM_RES_CTLR_KMEM is dependent on RES_CTLR.
 
-> 
-> > +
-> > +	if (!mem_cgroup_kmem_enabled(memcg))
-> > +		goto out;
-> > +
-> > +	mem_cgroup_get(memcg);
-> > +	ret = memcg_charge_kmem(memcg, gfp, size) == 0;
-> > +	if (ret)
-> > +		mem_cgroup_put(memcg);
-> > +out:
-> > +	rcu_read_unlock();
-> > +	return ret;
-> > +}
-> > +EXPORT_SYMBOL(__mem_cgroup_charge_kmem);
-> > +
-> > +void __mem_cgroup_uncharge_kmem(size_t size)
-> > +{
-> > +	struct mem_cgroup *memcg;
-> > +
-> > +	rcu_read_lock();
-> > +	memcg = mem_cgroup_from_task(current);
-> > +
-> > +	if (!mem_cgroup_kmem_enabled(memcg))
-> > +		goto out;
-> > +
-> > +	mem_cgroup_put(memcg);
-> > +	memcg_uncharge_kmem(memcg, size);
-> > +out:
-> > +	rcu_read_unlock();
-> > +}
-> > +EXPORT_SYMBOL(__mem_cgroup_uncharge_kmem);
+>
+>> +			size_t align, unsigned long flags, void (*ctor)(void *))
+>>   {
+>>   	struct kmem_cache *s;
+>>
+>>   	if (WARN_ON(!name))
+>>   		return NULL;
+>>
+>> +#ifndef CONFIG_CGROUP_MEM_RES_CTLR_KMEM
+>> +	WARN_ON(memcg != NULL);
+>> +#endif
+>> +
+>>   	down_write(&slub_lock);
+>> -	s = find_mergeable(size, align, flags, name, ctor);
+>> +	s = find_mergeable(memcg, size, align, flags, name, ctor);
+>>   	if (s) {
+>>   		s->refcount++;
+>>   		/*
+>> @@ -3954,12 +3963,15 @@ struct kmem_cache *kmem_cache_create(const char *name, size_t size,
+>>   				size, align, flags, ctor)) {
+>>   			list_add(&s->list,&slab_caches);
+>>   			up_write(&slub_lock);
+>> +			mem_cgroup_register_cache(memcg, s);
+>
+> How do you handle when the memcg cgroup gets destroyed?
+
+I don't (yet), because - as mentioned in patch 0 - I decided to hold 
+those patches until I had a better idea about how would Kame's 
+pre_destroy() patches look like. I plan, however, to include it in the 
+next version.
+
+The idea is basically to mark the caches as dead (answers another 
+question of yours), and wait until it runs out of objects. Talking 
+specifically about the slub, that happens when free_page() frees the 
+last page of the cache *and* its reference count goes down to zero 
+(kmem_cache_destroy() drops the refcnt, so it will mean that cgroup 
+destruction already called it)
+
+When we have a shrinker - I don't plan to include a per-memcg shrinker 
+in the first merge, because let's face it, it is a hard problem in 
+itself that would be better thought separately - we can call the 
+shrinkers to force the objects to die earlier.
+
+> Also that means only one
+> memcg cgroup can be accounted for a given slab cache?
+
+Not sure if I understand your question in an ambiguity-free way.
+If you mean the situation in which two tasks touch the same object, then 
+yes, only one of them is accounted.
+
+If you mean about types of cache, then no, each memcg can have it's own 
+version of the whole cache array.
+
+
+> What if that memcg cgroup has
+> children? Hmm, perhaps this is handled in a further patch in the series, I saw a
+> patch title with "children" inside :)
+
+then the children creates caches as well, as much as the parents.
+
+Note that because of the delayed allocation mechanism, if the parent 
+serves only as a placeholder, and has no tasks inside it, then it will 
+never touch - and therefore never create - any cache.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
