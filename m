@@ -1,53 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx200.postini.com [74.125.245.200])
-	by kanga.kvack.org (Postfix) with SMTP id CA6036B0044
-	for <linux-mm@kvack.org>; Mon, 23 Apr 2012 22:27:07 -0400 (EDT)
-Received: by dadq36 with SMTP id q36so279622dad.8
-        for <linux-mm@kvack.org>; Mon, 23 Apr 2012 19:27:07 -0700 (PDT)
-Date: Mon, 23 Apr 2012 19:27:02 -0700
-From: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-Subject: Re: [PATCH] drivers: staging: zcache: fix Kconfig crypto dependency
-Message-ID: <20120424022702.GA6573@kroah.com>
-References: <1335231230-29344-1-git-send-email-sjenning@linux.vnet.ibm.com>
+Received: from psmtp.com (na3sys010amx143.postini.com [74.125.245.143])
+	by kanga.kvack.org (Postfix) with SMTP id 4401F6B0044
+	for <linux-mm@kvack.org>; Tue, 24 Apr 2012 01:18:57 -0400 (EDT)
+Received: from m4.gw.fujitsu.co.jp (unknown [10.0.50.74])
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 5BB803EE0BC
+	for <linux-mm@kvack.org>; Tue, 24 Apr 2012 14:18:55 +0900 (JST)
+Received: from smail (m4 [127.0.0.1])
+	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 412D345DE4D
+	for <linux-mm@kvack.org>; Tue, 24 Apr 2012 14:18:55 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
+	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 2925645DE4F
+	for <linux-mm@kvack.org>; Tue, 24 Apr 2012 14:18:55 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 1AD8D1DB8042
+	for <linux-mm@kvack.org>; Tue, 24 Apr 2012 14:18:55 +0900 (JST)
+Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.240.81.133])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id CAE101DB803F
+	for <linux-mm@kvack.org>; Tue, 24 Apr 2012 14:18:54 +0900 (JST)
+Message-ID: <4F963742.2030607@jp.fujitsu.com>
+Date: Tue, 24 Apr 2012 14:16:50 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1335231230-29344-1-git-send-email-sjenning@linux.vnet.ibm.com>
+Subject: Re: [RFC] propagate gfp_t to page table alloc functions
+References: <1335171318-4838-1-git-send-email-minchan@kernel.org>
+In-Reply-To: <1335171318-4838-1-git-send-email-minchan@kernel.org>
+Content-Type: text/plain; charset=ISO-2022-JP
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Seth Jennings <sjenning@linux.vnet.ibm.com>
-Cc: Dan Magenheimer <dan.magenheimer@oracle.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Nitin Gupta <ngupta@vflare.org>, Robert Jennings <rcj@linux.vnet.ibm.com>, devel@driverdev.osuosl.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Autif Khan <autif.mlist@gmail.com>
+To: Minchan Kim <minchan@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@redhat.com>, x86@kernel.org, Hugh Dickins <hughd@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, kosaki.motohiro@jp.fujitsu.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Mon, Apr 23, 2012 at 08:33:50PM -0500, Seth Jennings wrote:
-> ZCACHE is a boolean in the Kconfig.  When selected, it
-> should require that CRYPTO be builtin (=y).
-> 
-> Currently, ZCACHE=y and CRYPTO=m is a valid configuration
-> when it should not be.
-> 
-> This patch changes the zcache Kconfig to enforce this
-> dependency.
-> 
-> Signed-off-by: Seth Jennings <sjenning@linux.vnet.ibm.com>
-> ---
->  drivers/staging/zcache/Kconfig |    2 +-
->  1 files changed, 1 insertions(+), 1 deletions(-)
-> 
-> diff --git a/drivers/staging/zcache/Kconfig b/drivers/staging/zcache/Kconfig
-> index 3ed2c8f..7048e01 100644
-> --- a/drivers/staging/zcache/Kconfig
-> +++ b/drivers/staging/zcache/Kconfig
-> @@ -2,7 +2,7 @@ config ZCACHE
->  	bool "Dynamic compression of swap pages and clean pagecache pages"
->  	# X86 dependency is because zsmalloc uses non-portable pte/tlb
->  	# functions
-> -	depends on (CLEANCACHE || FRONTSWAP) && CRYPTO && X86
-> +	depends on (CLEANCACHE || FRONTSWAP) && CRYPTO=y && X86
+(2012/04/23 17:55), Minchan Kim wrote:
 
-Ok, this fixes one of the build problems reported, what about the other
-one?
+> As I test some code, I found a problem about deadlock by lockdep.
+> The reason I saw the message is __vmalloc calls map_vm_area which calls
+> pud/pmd_alloc without gfp_t. so although we call __vmalloc with
+> GFP_ATOMIC or GFP_NOIO, it ends up allocating pages with GFP_KERNEL.
+> The should be a BUG. This patch fixes it by passing gfp_to to low page
+> table allocate functions.
+> 
+> Signed-off-by: Minchan Kim <minchan@kernel.org>
 
-greg k-h
+
+Hmm ? vmalloc should support GFP_ATOMIC ?
+
+And, do we need to change all pud_,pgd_,pmd_,pte_alloc() for users pgtables ?
+
+Thanks,
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
