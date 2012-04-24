@@ -1,65 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx142.postini.com [74.125.245.142])
-	by kanga.kvack.org (Postfix) with SMTP id 205446B0044
-	for <linux-mm@kvack.org>; Tue, 24 Apr 2012 02:13:06 -0400 (EDT)
-Received: by obbeh20 with SMTP id eh20so658429obb.14
-        for <linux-mm@kvack.org>; Mon, 23 Apr 2012 23:13:05 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx197.postini.com [74.125.245.197])
+	by kanga.kvack.org (Postfix) with SMTP id D791C6B0044
+	for <linux-mm@kvack.org>; Tue, 24 Apr 2012 02:18:44 -0400 (EDT)
+Received: by obbeh20 with SMTP id eh20so665085obb.14
+        for <linux-mm@kvack.org>; Mon, 23 Apr 2012 23:18:44 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <4F963B8E.9030105@kernel.org>
-References: <1335171318-4838-1-git-send-email-minchan@kernel.org>
-	<4F963742.2030607@jp.fujitsu.com>
-	<4F963B8E.9030105@kernel.org>
-Date: Tue, 24 Apr 2012 16:13:05 +1000
-Message-ID: <CAPa8GCA8q=S9sYx-0rDmecPxYkFs=gATGL-Dz0OYXDkwEECJkg@mail.gmail.com>
-Subject: Re: [RFC] propagate gfp_t to page table alloc functions
+In-Reply-To: <CAPa8GCCE7x=ox0K=QoFR8+bTNrUqfFO+ooRKDLNROnd7xsF4Pw@mail.gmail.com>
+References: <1334863211-19504-1-git-send-email-tytso@mit.edu>
+	<4F912880.70708@panasas.com>
+	<alpine.LFD.2.00.1204201120060.27750@dhcp-27-109.brq.redhat.com>
+	<1334919662.5879.23.camel@dabdike>
+	<alpine.LFD.2.00.1204201313231.27750@dhcp-27-109.brq.redhat.com>
+	<1334932928.13001.11.camel@dabdike>
+	<20120420145856.GC24486@thunk.org>
+	<CAHGf_=oWtpgRfqaZ1YDXgZoQHcFY0=DYVcwXYbFtZt2v+K532w@mail.gmail.com>
+	<CAPa8GCDkP_53VGAeQPeYgf3GW3KZ09BvnqduArQE7svf2mMj4A@mail.gmail.com>
+	<1335169383.4191.9.camel@dabdike.lan>
+	<CAPa8GCCE7x=ox0K=QoFR8+bTNrUqfFO+ooRKDLNROnd7xsF4Pw@mail.gmail.com>
+Date: Tue, 24 Apr 2012 16:18:43 +1000
+Message-ID: <CAPa8GCAv-E2iAfvwizMsbhEj11Ak6p2MKRyUVSm01LMkrTNZFQ@mail.gmail.com>
+Subject: Re: [PATCH, RFC 0/3] Introduce new O_HOT and O_COLD flags
 From: Nick Piggin <npiggin@gmail.com>
 Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@redhat.com>, x86@kernel.org, Hugh Dickins <hughd@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, kosaki.motohiro@jp.fujitsu.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: James Bottomley <James.Bottomley@hansenpartnership.com>
+Cc: KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Ted Ts'o <tytso@mit.edu>, Lukas Czerner <lczerner@redhat.com>, Boaz Harrosh <bharrosh@panasas.com>, linux-fsdevel@vger.kernel.org, Ext4 Developers List <linux-ext4@vger.kernel.org>, linux-mm@kvack.org
 
-2012/4/24 Minchan Kim <minchan@kernel.org>:
-> On 04/24/2012 02:16 PM, KAMEZAWA Hiroyuki wrote:
+On 23 April 2012 21:47, Nick Piggin <npiggin@gmail.com> wrote:
+> On 23 April 2012 18:23, James Bottomley
+
+>> Experience has taught me to be wary of fine grained hints: they tend to
+>> be more trouble than they're worth (the definitions are either
+>> inaccurate or so tediously precise that no-one can be bothered to read
+>> them). =A0A small set of broad hints is usually more useable than a huge
+>> set of fine grained ones, so from that point of view, I like the
+>> O_HOT/O_COLD ones.
 >
->> (2012/04/23 17:55), Minchan Kim wrote:
->>
->>> As I test some code, I found a problem about deadlock by lockdep.
->>> The reason I saw the message is __vmalloc calls map_vm_area which calls
->>> pud/pmd_alloc without gfp_t. so although we call __vmalloc with
->>> GFP_ATOMIC or GFP_NOIO, it ends up allocating pages with GFP_KERNEL.
->>> The should be a BUG. This patch fixes it by passing gfp_to to low page
->>> table allocate functions.
->>>
->>> Signed-off-by: Minchan Kim <minchan@kernel.org>
->>
->>
->> Hmm ? vmalloc should support GFP_ATOMIC ?
+> So long as the implementations can be sufficiently general that large maj=
+ority
+> of "reasonable" application of the flags does not result in a slowdown, p=
+erhaps.
 >
+> But while defining the API, you have to think about these things and not
+> just dismiss them completely.
 >
-> I'm not sure but alloc_large_system_hash already has used.
-> And it's not specific on GFP_ATOMIC.
-> We have to care of GFP_NOFS and GFP_NOIO to prevent deadlock on reclaim
-> context.
-> There are some places to use GFP_NOFS and we don't emit any warning
-> message in case of that.
+> Read vs write can be very important for caches and tiers, same for
+> random/linear,
+> latency constraints, etc. These things aren't exactly a huge unwieldy mat=
+rix. We
+> already have similar concepts in fadvise and such.
 
-What's the lockdep warning?
+I'm not saying it's necessarily a bad idea as such. But experience
+has taught me that if you define an API before having much
+experience of the implementation and its users, and without
+being able to write meaningful documentation for it, then it's
+going to be a bad API.
 
-vmalloc was never supposed to use gfp flags for allocation "context"
-restriction. I.e., it
-was always supposed to have blocking, fs, and io capable allocation
-context. The flags
-were supposed to be a memory type modifier.
-
-These different classes of flags is a bit of a problem and source of
-confusion we have.
-We should be doing more checks for them, of course.
-
-I suspect you need to fix the caller?
-
-Thanks,
-Nick
+So rather than pushing through these flags first, I think it would
+be better to actually do implementation work, and get some
+benchmarks (if not real apps) and have something working
+like that before turning anything into an API.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
