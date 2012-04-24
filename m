@@ -1,70 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx110.postini.com [74.125.245.110])
-	by kanga.kvack.org (Postfix) with SMTP id 1BA046B0044
-	for <linux-mm@kvack.org>; Tue, 24 Apr 2012 12:40:54 -0400 (EDT)
-From: Jan Kara <jack@suse.cz>
-Subject: [PATCH RFC v2 0/1] Flexible proportions
-Date: Tue, 24 Apr 2012 18:30:32 +0200
-Message-Id: <1335285033-7347-1-git-send-email-jack@suse.cz>
+Received: from psmtp.com (na3sys010amx141.postini.com [74.125.245.141])
+	by kanga.kvack.org (Postfix) with SMTP id 7750E6B0044
+	for <linux-mm@kvack.org>; Tue, 24 Apr 2012 12:45:49 -0400 (EDT)
+Received: by dadq36 with SMTP id q36so1292614dad.8
+        for <linux-mm@kvack.org>; Tue, 24 Apr 2012 09:45:48 -0700 (PDT)
+Message-ID: <4F96D8C1.2060705@gmail.com>
+Date: Tue, 24 Apr 2012 12:45:53 -0400
+From: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
+MIME-Version: 1.0
+Subject: Re: [RFC PATCH] do_try_to_free_pages() might enter infinite loop
+References: <1335214564-17619-1-git-send-email-yinghan@google.com> <CAHGf_=pGhtieRpUqbF4GmAKt5XXhf_2y8c+EzGNx-cgqPNvfJw@mail.gmail.com> <CALWz4ix+MC_NuNdvQU3T8BhP+BULPLktLyNQ8osnrMOa2nfhdw@mail.gmail.com> <4F960257.9090509@kernel.org> <CALWz4izoOYtNfRN3VBLSF7pyYyvjBPyiy865Xf+wvsCFwM6A7A@mail.gmail.com> <4F96D6EE.6000809@redhat.com>
+In-Reply-To: <4F96D6EE.6000809@redhat.com>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: LKML <linux-kernel@vger.kernel.org>
-Cc: linux-mm@kvack.org, Peter Zijlstra <peterz@infradead.org>, Wu Fengguang <fengguang.wu@intel.com>
+To: Rik van Riel <riel@redhat.com>
+Cc: Ying Han <yinghan@google.com>, Minchan Kim <minchan@kernel.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mel@csn.ul.ie>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>, Hugh Dickins <hughd@google.com>, Nick Piggin <npiggin@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, kosaki.motohiro@gmail.com
 
+(4/24/12 12:38 PM), Rik van Riel wrote:
+> On 04/24/2012 12:36 PM, Ying Han wrote:
+>
+>> However, what if B frees a pages everytime before pages_scanned
+>> reaches the point, then we won't set zone->all_unreclaimable at all.
+>> If so, we reaches a livelock here...
+>
+> If B keeps freeing pages, surely A will get a successful
+> allocation and there will not be a livelock?
 
-  Hello,
+And, I hope we distinguish true livelock and pseudo livelock at first.
+Nick's patch definitely makes kernel slowdown when OOM situation. It is
+intentional. We thought slowdown is better than false positive OOM even
+though the slowdown is extream slow and similar to livelock.
 
-  so I got back to my idea of providing code for computing event proportions
-where aging period is not dependent on the number of events happening (so
-that aging works well both with fast storage and slow USB sticks in the same
-system).
-
-  The basic idea is that we compute proportions as:
-p_j = (\Sum_{i>=0} x_{i,j}/2^{i+1}) / (\Sum_{i>=0} x_i/2^{i+1})
-
-  Where x_{i,j} is j's number of events in i-th last time period and x_i is
-total number of events in i-th last time period.
-
-  Note that when x_i's are all the same (as is the case with current
-proportion code), this expression simplifies to the expression defining
-current proportions which is:
-p_j =  \Sum_{i>=0} x_{i,j}/2^{i+1} / t
-
-  where t is the lenght of the aging period.
-
-  In fact, if we are in the middle of the period, the proportion computed by
-the current code is:
-p_j = (x_0 + \Sum_{i>=1} x_{i,j}/2^{i+1}) / (t' + t)
-
-  where t' is total number of events in the running period and t is the lenght
-of the aging period. So there is event more similarity.
-
-  Similarly as with current proportion code, it is simple to compute update
-proportion after several periods have elapsed. For each proportion we store
-the numerator of our fraction and the number of period when the proportion
-was last updated. In global proportion structure we compute the denominator
-of the fraction which is the same for all event types. So catch up with missed
-periods boils down to shifting the numerator by the number of missed periods
-and that's it. For more details, please see the code.
-
-  I've also run a few tests (I've created a userspace wrapper to allow me to
-run proportion code in userpace and arbitrarily generate events for it) to
-compare the behavior of old and new code. You can see them at
-http://beta.suse.com/private/jack/flex_proportions/ In all the tests new code
-showed faster convergence to current event proportions (I tried to
-realistically set period_shift for fixed proportions).  Also in the last test
-we see that if period_shift is decreased, then current proportions become more
-sensitive to short term fluctuations in event rate so just decreasing
-period_shift isn't a good solution to slower convergence. If anyone has other
-idea what to try, I can do that - it should be simple enough to implement in
-my testing tool.
-
-  So my plan, if people are happy with the new proportion code, would be to
-switch at least bdi writeout proportion to the new code. I can also check
-other users to see whether it would make sense for them to switch. So what
-do people think?
-
-								Honza
+Ying, Which problem do you want to discuss? a) current kernrel has true
+live lock b) current oom detection is too slow and livelock like and it
+is not acceptable to you.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
