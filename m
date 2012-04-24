@@ -1,50 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx206.postini.com [74.125.245.206])
-	by kanga.kvack.org (Postfix) with SMTP id 2A0946B0044
-	for <linux-mm@kvack.org>; Tue, 24 Apr 2012 18:14:59 -0400 (EDT)
-From: Satoru Moriya <satoru.moriya@hds.com>
-Date: Tue, 24 Apr 2012 18:14:37 -0400
-Subject: RE: [RFC][PATCH] avoid swapping out with swappiness==0
-Message-ID: <65795E11DBF1E645A09CEC7EAEE94B9C014649EC4D@USINDEVS02.corp.hds.com>
-References: <65795E11DBF1E645A09CEC7EAEE94B9CB951A45F@USINDEVS02.corp.hds.com>
- <20120424082019.GA18395@alpha.arachsys.com>
-In-Reply-To: <20120424082019.GA18395@alpha.arachsys.com>
-Content-Language: en-US
-Content-Type: text/plain; charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
+Received: from psmtp.com (na3sys010amx200.postini.com [74.125.245.200])
+	by kanga.kvack.org (Postfix) with SMTP id 5218D6B004D
+	for <linux-mm@kvack.org>; Tue, 24 Apr 2012 18:54:24 -0400 (EDT)
+Received: by iajr24 with SMTP id r24so2287173iaj.14
+        for <linux-mm@kvack.org>; Tue, 24 Apr 2012 15:54:23 -0700 (PDT)
+Date: Tue, 24 Apr 2012 15:54:20 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH 17/23] kmem controller charge/uncharge infrastructure
+In-Reply-To: <4F971CC2.3090109@parallels.com>
+Message-ID: <alpine.DEB.2.00.1204241550110.2537@chino.kir.corp.google.com>
+References: <1334959051-18203-1-git-send-email-glommer@parallels.com> <1335138820-26590-6-git-send-email-glommer@parallels.com> <alpine.DEB.2.00.1204231522320.13535@chino.kir.corp.google.com> <20120424142232.GC8626@somewhere> <4F96BB62.1030900@parallels.com>
+ <alpine.DEB.2.00.1204241322390.753@chino.kir.corp.google.com> <4F971CC2.3090109@parallels.com>
 MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Richard Davies <richard@arachsys.com>
-Cc: KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Jerome Marchand <jmarchan@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, "jweiner@redhat.com" <jweiner@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "riel@redhat.com" <riel@redhat.com>, "lwoodman@redhat.com" <lwoodman@redhat.com>, "shaohua.li@intel.com" <shaohua.li@intel.com>, "dle-develop@lists.sourceforge.net" <dle-develop@lists.sourceforge.net>, Seiji Aguchi <seiji.aguchi@hds.com>, Minchan Kim <minchan.kim@gmail.com>
+To: Glauber Costa <glommer@parallels.com>
+Cc: Frederic Weisbecker <fweisbec@gmail.com>, cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, devel@openvz.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Greg Thelen <gthelen@google.com>, Suleiman Souhlal <suleiman@google.com>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@cs.helsinki.fi>
 
-On 04/24/2012 04:20 AM, Richard Davies wrote:
->=20
-> I have run into problems with heavy swapping with swappiness=3D=3D0 and=20
-> was pointed to this thread (=20
-> http://marc.info/?l=3Dlinux-mm&m=3D133522782307215 )
+On Tue, 24 Apr 2012, Glauber Costa wrote:
 
-Did you test this patch with your workload?
-If yes, how did it come out?
+> > Yes, for user memory, I see charging to p->mm->owner as allowing that
+> > process to eventually move and be charged to a different memcg and there's
+> > no way to do proper accounting if the charge is split amongst different
+> > memcgs because of thread membership to a set of memcgs.  This is
+> > consistent with charges for shared memory being moved when a thread
+> > mapping it moves to a new memcg, as well.
+> 
+> But that's the problem.
+> 
+> When we are dealing with kernel memory, we are allocating a whole slab page.
+> It is essentially impossible to track, given a page, which task allocated
+> which object.
+> 
 
-> I strongly believe that Linux should have a way to turn off swapping=20
-> unless absolutely necessary. This means that users like us can run=20
-> with swap present for emergency use, rather than having to disable it=20
-> because of the side effects.
+Right, so you have to make the distinction that slab charges cannot be 
+migrated by memory.move_charge_at_immigrate (and it's not even specified 
+to do anything beyond user pages in Documentation/cgroups/memory.txt), but 
+it would be consistent to charge the same memcg for a process's slab 
+allocations as the process's user allocations.
 
-Agreed. That is why I proposed the patch.
+My response was why we shouldn't be charging user pages to 
+mem_cgroup_from_task(current) rather than 
+mem_cgroup_from_task(current->mm->owner) which is what is currently 
+implemented.
 
-> Personally, I feel that swappiness=3D=3D0 should have this (intuitive)=20
-> meaning, and that people running RHEL5 are extremely unlikely to run=20
-> 3.5 kernels(!)
->=20
-> However, swappiness=3D=3D-1 or some other hack is definitely better than=
-=20
-> no patch.
-
-
-Regards,
-Satoru
+If that can't be changed so that we can still migrate user memory amongst 
+memcgs for memory.move_charge_at_immigrate, then it seems consistent to 
+have all allocations done by a task to be charged to the same memcg.  
+Hence, I suggested current->mm->owner for slab charging as well.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
