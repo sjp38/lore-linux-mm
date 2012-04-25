@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx164.postini.com [74.125.245.164])
-	by kanga.kvack.org (Postfix) with SMTP id BE5A06B004D
-	for <linux-mm@kvack.org>; Wed, 25 Apr 2012 02:22:44 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx134.postini.com [74.125.245.134])
+	by kanga.kvack.org (Postfix) with SMTP id 344AE6B0092
+	for <linux-mm@kvack.org>; Wed, 25 Apr 2012 02:22:46 -0400 (EDT)
 From: Minchan Kim <minchan@kernel.org>
-Subject: [PATCH 2/6] zsmalloc: remove unnecessary alignment
-Date: Wed, 25 Apr 2012 15:23:10 +0900
-Message-Id: <1335334994-22138-3-git-send-email-minchan@kernel.org>
+Subject: [PATCH 4/6] zsmalloc: add/fix function comment
+Date: Wed, 25 Apr 2012 15:23:12 +0900
+Message-Id: <1335334994-22138-5-git-send-email-minchan@kernel.org>
 In-Reply-To: <1335334994-22138-1-git-send-email-minchan@kernel.org>
 References: <1335334994-22138-1-git-send-email-minchan@kernel.org>
 Sender: owner-linux-mm@kvack.org
@@ -13,35 +13,48 @@ List-ID: <linux-mm.kvack.org>
 To: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Nitin Gupta <ngupta@vflare.org>, Dan Magenheimer <dan.magenheimer@oracle.com>, Andrew Morton <akpm@linux-foundation.org>
 Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Minchan Kim <minchan@kernel.org>
 
-It isn't necessary to align pool size with PAGE_SIZE.
-If I missed something, please let me know it.
+Add/fix the comment.
 
 Signed-off-by: Minchan Kim <minchan@kernel.org>
 ---
- drivers/staging/zsmalloc/zsmalloc-main.c |    5 ++---
- 1 file changed, 2 insertions(+), 3 deletions(-)
+ drivers/staging/zsmalloc/zsmalloc-main.c |   15 +++++++++++----
+ 1 file changed, 11 insertions(+), 4 deletions(-)
 
 diff --git a/drivers/staging/zsmalloc/zsmalloc-main.c b/drivers/staging/zsmalloc/zsmalloc-main.c
-index 504b6c2..b99ad9e 100644
+index 0fe4cbb..b7d31cc 100644
 --- a/drivers/staging/zsmalloc/zsmalloc-main.c
 +++ b/drivers/staging/zsmalloc/zsmalloc-main.c
-@@ -489,14 +489,13 @@ fail:
+@@ -565,12 +565,9 @@ EXPORT_SYMBOL_GPL(zs_destroy_pool);
+  * zs_malloc - Allocate block of given size from pool.
+  * @pool: pool to allocate from
+  * @size: size of block to allocate
+- * @page: page no. that holds the object
+- * @offset: location of object within page
+  *
+  * On success, <page, offset> identifies block allocated
+- * and 0 is returned. On failure, <page, offset> is set to
+- * 0 and -ENOMEM is returned.
++ * and <page, offset> is returned. On failure, NULL is returned.
+  *
+  * Allocation requests with size > ZS_MAX_ALLOC_SIZE will fail.
+  */
+@@ -666,6 +663,16 @@ void zs_free(struct zs_pool *pool, void *obj)
+ }
+ EXPORT_SYMBOL_GPL(zs_free);
  
- struct zs_pool *zs_create_pool(const char *name, gfp_t flags)
++/**
++ * zs_map_object - get address of allocated object from handle.
++ * @pool: object allocated pool
++ * @handle: handle returned from zs_malloc
++ *
++ * Before using object allocated from zs_malloc, object
++ * should be mapped to page table by this function.
++ * After using object,  call zs_unmap_object to unmap page
++ * table.
++ */
+ void *zs_map_object(struct zs_pool *pool, void *handle)
  {
--	int i, error, ovhd_size;
-+	int i, error;
- 	struct zs_pool *pool;
- 
- 	if (!name)
- 		return NULL;
- 
--	ovhd_size = roundup(sizeof(*pool), PAGE_SIZE);
--	pool = kzalloc(ovhd_size, GFP_KERNEL);
-+	pool = kzalloc(sizeof(*pool), GFP_KERNEL);
- 	if (!pool)
- 		return NULL;
- 
+ 	struct page *page;
 -- 
 1.7.9.5
 
