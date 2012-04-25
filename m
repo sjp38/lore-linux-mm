@@ -1,111 +1,128 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx162.postini.com [74.125.245.162])
-	by kanga.kvack.org (Postfix) with SMTP id 4577D6B0044
-	for <linux-mm@kvack.org>; Wed, 25 Apr 2012 04:06:15 -0400 (EDT)
-Date: Wed, 25 Apr 2012 10:06:11 +0200
+Received: from psmtp.com (na3sys010amx154.postini.com [74.125.245.154])
+	by kanga.kvack.org (Postfix) with SMTP id 7B11D6B004A
+	for <linux-mm@kvack.org>; Wed, 25 Apr 2012 04:21:28 -0400 (EDT)
+Date: Wed, 25 Apr 2012 10:21:26 +0200
 From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [patch] mm, oom: avoid checking set of allowed nodes twice when
- selecting a victim
-Message-ID: <20120425080611.GA11068@tiehlicka.suse.cz>
-References: <alpine.DEB.2.00.1204031633460.8112@chino.kir.corp.google.com>
- <20120412140137.GA32729@tiehlicka.suse.cz>
- <alpine.DEB.2.00.1204241605570.17792@chino.kir.corp.google.com>
+Subject: Re: [patch] mm: memcg: move pc lookup point to commit_charge()
+Message-ID: <20120425082125.GA11364@tiehlicka.suse.cz>
+References: <1335295860-28919-1-git-send-email-hannes@cmpxchg.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.00.1204241605570.17792@chino.kir.corp.google.com>
+In-Reply-To: <1335295860-28919-1-git-send-email-hannes@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Tue 24-04-12 16:09:14, David Rientjes wrote:
-> On Thu, 12 Apr 2012, Michal Hocko wrote:
+On Tue 24-04-12 21:31:00, Johannes Weiner wrote:
+> None of the callsites actually need the page_cgroup descriptor
+> themselves, so just pass the page and do the look up in there.
 > 
-> > diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-> > index 46bf2ed5..a9df008 100644
-> > --- a/mm/oom_kill.c
-> > +++ b/mm/oom_kill.c
-> > @@ -171,23 +171,10 @@ static bool oom_unkillable_task(struct task_struct *p,
-> >  	return false;
-> >  }
-> >  
-> > -/**
-> > - * oom_badness - heuristic function to determine which candidate task to kill
-> > - * @p: task struct of which task we should calculate
-> > - * @totalpages: total present RAM allowed for page allocation
-> > - *
-> > - * The heuristic for determining which task to kill is made to be as simple and
-> > - * predictable as possible.  The goal is to return the highest value for the
-> > - * task consuming the most memory to avoid subsequent oom failures.
-> > - */
-> > -unsigned int oom_badness(struct task_struct *p, struct mem_cgroup *memcg,
-> > +/* can be used only for tasks which are killable as per oom_unkillable_task */
-> > +static unsigned int __oom_badness(struct task_struct *p, struct mem_cgroup *memcg,
-> >  		      const nodemask_t *nodemask, unsigned long totalpages)
-> >  {
-> > -	long points;
-> > -
-> > -	if (oom_unkillable_task(p, memcg, nodemask))
-> > -		return 0;
-> > -
-> >  	p = find_lock_task_mm(p);
-> >  	if (!p)
-> >  		return 0;
-> > @@ -239,6 +226,26 @@ unsigned int oom_badness(struct task_struct *p, struct mem_cgroup *memcg,
-> >  	return (points < 1000) ? points : 1000;
-> >  }
-> >  
-> > +/**
-> > + * oom_badness - heuristic function to determine which candidate task to kill
-> > + * @p: task struct of which task we should calculate
-> > + * @totalpages: total present RAM allowed for page allocation
-> > + *
-> > + * The heuristic for determining which task to kill is made to be as simple and
-> > + * predictable as possible.  The goal is to return the highest value for the
-> > + * task consuming the most memory to avoid subsequent oom failures.
-> > + */
-> > +unsigned int oom_badness(struct task_struct *p, struct mem_cgroup *memcg,
-> > +		      const nodemask_t *nodemask, unsigned long totalpages)
-> > +{
-> > +	long points;
-> > +
-> > +	if (oom_unkillable_task(p, memcg, nodemask))
-> > +		return 0;
-> > +
-> > +	return __oom_badness(p, memcg, nodemask, totalpages);
-> > +}
-> > +
-> >  /*
-> >   * Determine the type of allocation constraint.
-> >   */
-> > @@ -366,7 +373,7 @@ static struct task_struct *select_bad_process(unsigned int *ppoints,
-> >  			}
-> >  		}
-> >  
-> > -		points = oom_badness(p, memcg, nodemask, totalpages);
-> > +		points = __oom_badness(p, memcg, nodemask, totalpages);
-> >  		if (points > *ppoints) {
-> >  			chosen = p;
-> >  			*ppoints = points;
+> We already had two bugs (6568d4a 'mm: memcg: update the correct soft
+> limit tree during migration' and 'memcg: fix Bad page state after
+> replace_page_cache') where the passed page and pc were not referring
+> to the same page frame.
+
+Yes let's get rid of these relics once and for all.
+
+> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+> Acked-by: Hugh Dickins <hughd@google.com>
+> Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> Cc: Michal Hocko <mhocko@suse.cz>
+
+Acked-by: Michal Hocko <mhocko@suse.cz>
+
+Thanks!
+
+> ---
+>  mm/memcontrol.c |   17 +++++------------
+>  1 files changed, 5 insertions(+), 12 deletions(-)
 > 
-> No, the way I had it written is correct: the above unnecessarily checks 
-> for membership in a memcg or intersection with a set of allowable nodes 
-> for child threads in oom_kill_process().  
-
-your patch does 
-	if (oom_unkillable_task(child, memcg, nodemask))
-		continue;
-	oom_badness((child, memcg, nodemask,
-				   totalpages);
-
-in oom_kill_process so the check is very same. Or am I missing
-something?
-
-
-> With a lot of children and with 
-> a CONFIG_NODES_SHIFT significantly large (the prerequisite for this patch 
-> to make any difference), that's too costly to do.
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index 884e936..1a28dd8 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -2461,10 +2461,10 @@ struct mem_cgroup *try_get_mem_cgroup_from_page(struct page *page)
+>  static void __mem_cgroup_commit_charge(struct mem_cgroup *memcg,
+>  				       struct page *page,
+>  				       unsigned int nr_pages,
+> -				       struct page_cgroup *pc,
+>  				       enum charge_type ctype,
+>  				       bool lrucare)
+>  {
+> +	struct page_cgroup *pc = lookup_page_cgroup(page);
+>  	struct zone *uninitialized_var(zone);
+>  	bool was_on_lru = false;
+>  	bool anon;
+> @@ -2701,7 +2701,6 @@ static int mem_cgroup_charge_common(struct page *page, struct mm_struct *mm,
+>  {
+>  	struct mem_cgroup *memcg = NULL;
+>  	unsigned int nr_pages = 1;
+> -	struct page_cgroup *pc;
+>  	bool oom = true;
+>  	int ret;
+>  
+> @@ -2715,11 +2714,10 @@ static int mem_cgroup_charge_common(struct page *page, struct mm_struct *mm,
+>  		oom = false;
+>  	}
+>  
+> -	pc = lookup_page_cgroup(page);
+>  	ret = __mem_cgroup_try_charge(mm, gfp_mask, nr_pages, &memcg, oom);
+>  	if (ret == -ENOMEM)
+>  		return ret;
+> -	__mem_cgroup_commit_charge(memcg, page, nr_pages, pc, ctype, false);
+> +	__mem_cgroup_commit_charge(memcg, page, nr_pages, ctype, false);
+>  	return 0;
+>  }
+>  
+> @@ -2816,16 +2814,13 @@ static void
+>  __mem_cgroup_commit_charge_swapin(struct page *page, struct mem_cgroup *memcg,
+>  					enum charge_type ctype)
+>  {
+> -	struct page_cgroup *pc;
+> -
+>  	if (mem_cgroup_disabled())
+>  		return;
+>  	if (!memcg)
+>  		return;
+>  	cgroup_exclude_rmdir(&memcg->css);
+>  
+> -	pc = lookup_page_cgroup(page);
+> -	__mem_cgroup_commit_charge(memcg, page, 1, pc, ctype, true);
+> +	__mem_cgroup_commit_charge(memcg, page, 1, ctype, true);
+>  	/*
+>  	 * Now swap is on-memory. This means this page may be
+>  	 * counted both as mem and swap....double count.
+> @@ -3254,14 +3249,13 @@ int mem_cgroup_prepare_migration(struct page *page,
+>  	 * page. In the case new page is migrated but not remapped, new page's
+>  	 * mapcount will be finally 0 and we call uncharge in end_migration().
+>  	 */
+> -	pc = lookup_page_cgroup(newpage);
+>  	if (PageAnon(page))
+>  		ctype = MEM_CGROUP_CHARGE_TYPE_MAPPED;
+>  	else if (page_is_file_cache(page))
+>  		ctype = MEM_CGROUP_CHARGE_TYPE_CACHE;
+>  	else
+>  		ctype = MEM_CGROUP_CHARGE_TYPE_SHMEM;
+> -	__mem_cgroup_commit_charge(memcg, newpage, 1, pc, ctype, false);
+> +	__mem_cgroup_commit_charge(memcg, newpage, 1, ctype, false);
+>  	return ret;
+>  }
+>  
+> @@ -3348,8 +3342,7 @@ void mem_cgroup_replace_page_cache(struct page *oldpage,
+>  	 * the newpage may be on LRU(or pagevec for LRU) already. We lock
+>  	 * LRU while we overwrite pc->mem_cgroup.
+>  	 */
+> -	pc = lookup_page_cgroup(newpage);
+> -	__mem_cgroup_commit_charge(memcg, newpage, 1, pc, type, true);
+> +	__mem_cgroup_commit_charge(memcg, newpage, 1, type, true);
+>  }
+>  
+>  #ifdef CONFIG_DEBUG_VM
+> -- 
+> 1.7.7.6
 > 
 > --
 > To unsubscribe, send a message with 'unsubscribe linux-mm' in
