@@ -1,288 +1,297 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx183.postini.com [74.125.245.183])
-	by kanga.kvack.org (Postfix) with SMTP id 2ADDF6B0044
-	for <linux-mm@kvack.org>; Wed, 25 Apr 2012 01:54:56 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx125.postini.com [74.125.245.125])
+	by kanga.kvack.org (Postfix) with SMTP id D7DC66B0044
+	for <linux-mm@kvack.org>; Wed, 25 Apr 2012 02:11:41 -0400 (EDT)
 Received: from /spool/local
-	by e2.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e39.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <prashanth@linux.vnet.ibm.com>;
-	Wed, 25 Apr 2012 01:54:54 -0400
-Received: from d01relay06.pok.ibm.com (d01relay06.pok.ibm.com [9.56.227.116])
-	by d01dlp01.pok.ibm.com (Postfix) with ESMTP id ECC5238C805A
-	for <linux-mm@kvack.org>; Wed, 25 Apr 2012 01:54:52 -0400 (EDT)
-Received: from d01av01.pok.ibm.com (d01av01.pok.ibm.com [9.56.224.215])
-	by d01relay06.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q3P5sqdd25886794
-	for <linux-mm@kvack.org>; Wed, 25 Apr 2012 01:54:52 -0400
-Received: from d01av01.pok.ibm.com (loopback [127.0.0.1])
-	by d01av01.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q3PBPhTq012665
-	for <linux-mm@kvack.org>; Wed, 25 Apr 2012 07:25:45 -0400
-Message-ID: <4F9791A8.4010505@linux.vnet.ibm.com>
-Date: Wed, 25 Apr 2012 11:24:48 +0530
+	Wed, 25 Apr 2012 00:11:40 -0600
+Received: from d03relay05.boulder.ibm.com (d03relay05.boulder.ibm.com [9.17.195.107])
+	by d03dlp01.boulder.ibm.com (Postfix) with ESMTP id 6D31FC40005
+	for <linux-mm@kvack.org>; Wed, 25 Apr 2012 00:11:36 -0600 (MDT)
+Received: from d03av04.boulder.ibm.com (d03av04.boulder.ibm.com [9.17.195.170])
+	by d03relay05.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q3P6Baxk142838
+	for <linux-mm@kvack.org>; Wed, 25 Apr 2012 00:11:37 -0600
+Received: from d03av04.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av04.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q3P6BYhv024618
+	for <linux-mm@kvack.org>; Wed, 25 Apr 2012 00:11:36 -0600
+Message-ID: <4F979592.7080809@linux.vnet.ibm.com>
+Date: Wed, 25 Apr 2012 11:41:30 +0530
 From: Prashanth Nageshappa <prashanth@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Subject: [PATCH-V3] perf/probe: verify instruction/offset in perf before adding
- a uprobe
+Subject: [PATCH] perf symbols: fix symbol offset breakage with separated debug
+ info
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: peterz@infradead.org, Ingo Molnar <mingo@elte.hu>
-Cc: akpm@linux-foundation.org, torvalds@linux-foundation.org, ananth@in.ibm.com, jkenisto@linux.vnet.ibm.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, oleg@redhat.com, andi@firstfloor.org, hch@infradead.org, rostedt@goodmis.org, acme@infradead.org, masami.hiramatsu.pt@hitachi.com, tglx@linutronix.de, anton@redhat.com, srikar@linux.vnet.ibm.com
+To: peterz@infradead.org, mingo@elte.hu
+Cc: akpm@linux-foundation.org, torvalds@linux-foundation.org, ananth@in.ibm.com, jkenisto@linux.vnet.ibm.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, oleg@redhat.com, andi@firstfloor.org, hch@infradead.org, rostedt@goodmis.org, acme@infradead.org, masami.hiramatsu.pt@hitachi.com, tglx@linutronix.de, anton@redhat.com, srikar@linux.vnet.ibm.com, dave.martin@linaro.org
 
-This patch is to augment Srikar's perf support for uprobes patch
-(https://lkml.org/lkml/2012/4/11/191) with the following features:
+perf resolves symbols to wrong offsets when debug info is separated
+from the lib/executable.
 
-a. Instruction verification for user space tracing
-b. Function boundary validation support to uprobes as its kernel
-counterpart (Commit-ID: 1c1bc922).
+This patch is based on Dave Martin's initial work first published at
+http://lists.linaro.org/pipermail/linaro-dev/2010-August/000421.html
 
-This will help in ensuring uprobe is placed at right location inside
-the intended function.
+This patch loads the ELF section headers from a separate file if
+necessary, to avoid getting confused by the different section file
+offsets seen in debug images.  Invalid section headers are detected by
+checking for the presence of non-writable SHT_NOBITS sections, which
+don't make sense under normal circumstances.
 
-To verify instructions in perf before adding a uprobe, we need to use
-arch/x86/lib/insn.c. Since perf Makefile enables -Wswitch-default flag
-it causes build warnings/failures. Masami's patch
-https://lkml.org/lkml/2012/4/12/598 addresses those warnings and it is
-a pre-req for this patch.
+In particular, this allows symbols in ET_EXEC images to get fixed up
+correctly in the presence of separated debug images.
 
-v3 addresses Arnaldo's review comments.
-
-v2 addresses Masami's review comments: Rebuild insn.c and inat.c while
-building perf and a few other minor ones.
 
 Signed-off-by: Prashanth Nageshappa <prashanth@linux.vnet.ibm.com>
+Cc: Dave Martin <dave.martin@linaro.org>
 ---
 
- tools/perf/Makefile                    |    1 
- tools/perf/arch/x86/Makefile           |   20 ++++++++
- tools/perf/arch/x86/util/probe-event.c |   81 ++++++++++++++++++++++++++++++++
- tools/perf/util/include/linux/string.h |    1 
- tools/perf/util/probe-event.c          |   23 +++++++++
- tools/perf/util/probe-event.h          |    2 +
- tools/perf/util/symbol.c               |    2 +
- tools/perf/util/symbol.h               |    1 
- 8 files changed, 130 insertions(+), 1 deletions(-)
- create mode 100644 tools/perf/arch/x86/util/probe-event.c
 
-diff --git a/tools/perf/Makefile b/tools/perf/Makefile
-index 820371f..94879b9 100644
---- a/tools/perf/Makefile
-+++ b/tools/perf/Makefile
-@@ -61,6 +61,7 @@ ARCH ?= $(shell echo $(uname_M) | sed -e s/i.86/i386/ -e s/sun4u/sparc64/ \
- 
- CC = $(CROSS_COMPILE)gcc
- AR = $(CROSS_COMPILE)ar
-+AWK = awk
- 
- # Additional ARCH settings for x86
- ifeq ($(ARCH),i386)
-diff --git a/tools/perf/arch/x86/Makefile b/tools/perf/arch/x86/Makefile
-index 744e629..1a7215b 100644
---- a/tools/perf/arch/x86/Makefile
-+++ b/tools/perf/arch/x86/Makefile
-@@ -1,5 +1,25 @@
-+inat_tables_script = ../../arch/$(ARCH)/tools/gen-insn-attr-x86.awk
-+inat_tables_maps = ../../arch/$(ARCH)/lib/x86-opcode-map.txt
-+cmd_inat_tables = $(AWK) -f $(inat_tables_script) $(inat_tables_maps) > $@ || rm -f $@
-+
-+BASIC_CFLAGS += -I. -I../../arch/$(ARCH)/include
-+
- ifndef NO_DWARF
- PERF_HAVE_DWARF_REGS := 1
- LIB_OBJS += $(OUTPUT)arch/$(ARCH)/util/dwarf-regs.o
- endif
- LIB_OBJS += $(OUTPUT)arch/$(ARCH)/util/header.o
-+LIB_OBJS += $(OUTPUT)arch/$(ARCH)/util/probe-event.o
-+LIB_OBJS += $(OUTPUT)arch/$(ARCH)/inat.o
-+LIB_OBJS += $(OUTPUT)arch/$(ARCH)/insn.o
-+
-+$(OUTPUT)arch/$(ARCH)/inat.o:../../arch/$(ARCH)/lib/inat-tables.c
-+
-+../../arch/$(ARCH)/lib/inat-tables.c: $(inat_tables_script) $(inat_tables_maps)
-+	$(cmd_inat_tables)
-+
-+$(OUTPUT)arch/$(ARCH)/inat.o:../../arch/$(ARCH)/lib/inat.c $(OUTPUT)PERF-CFLAGS
-+	$(QUIET_CC)$(CC) -o $@ -c $(ALL_CFLAGS) $<
-+
-+$(OUTPUT)arch/$(ARCH)/insn.o:../../arch/$(ARCH)/lib/insn.c $(OUTPUT)PERF-CFLAGS
-+	$(QUIET_CC)$(CC) -o $@ -c $(ALL_CFLAGS) $<
-diff --git a/tools/perf/arch/x86/util/probe-event.c b/tools/perf/arch/x86/util/probe-event.c
-new file mode 100644
-index 0000000..f1ebf90
---- /dev/null
-+++ b/tools/perf/arch/x86/util/probe-event.c
-@@ -0,0 +1,81 @@
-+/*
-+ * probe-event.c : x86 specific perf-probe definition
-+ *
-+ * This program is free software; you can redistribute it and/or modify
-+ * it under the terms of the GNU General Public License as published by
-+ * the Free Software Foundation; either version 2 of the License, or
-+ * (at your option) any later version.
-+ *
-+ * This program is distributed in the hope that it will be useful,
-+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
-+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-+ * GNU General Public License for more details.
-+ *
-+ * You should have received a copy of the GNU General Public License
-+ * along with this program; if not, write to the Free Software
-+ * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
-+ *
-+ * Copyright (C) IBM Corporation, 2011-2012
-+ * Authors:
-+ *	Prashanth Nageshappa
-+ */
-+
-+#include <util/types.h>
-+#include <util/probe-event.h>
-+#include <sys/types.h>
-+#include <sys/stat.h>
-+#include <unistd.h>
-+#include <fcntl.h>
-+#include <string.h>
-+#include <errno.h>
-+#include <asm/insn.h>
-+#include <elf.h>
-+
-+/*
-+ * Check if a given offset from start of a function is valid or not
-+ */
-+bool can_probe(char *name, u64 vaddr, unsigned long offset,
-+		u8 class)
-+{
-+	u64 eaddr, saddr;
-+	unsigned long fileoffset, readbytes;
-+	int fd = 0;
-+	bool ret = false;
-+	char *buf = NULL;
-+	struct insn insn;
-+
-+	fd = open(name, O_RDONLY);
-+	if (fd == -1) {
-+		pr_warning("Failed to open %s: %s\n", name, strerror(errno));
-+		return ret;
-+	}
-+	buf = malloc(offset + MAX_INSN_SIZE);
-+	if (buf == NULL) {
-+		pr_warning("Failed to allocate memory");
-+		goto out_close;
-+	}
-+	fileoffset = lseek(fd, vaddr, SEEK_SET);
-+	if (fileoffset != vaddr) {
-+		pr_warning("Failed to lseek %s: %s\n", name, strerror(errno));
-+		goto out_free;
-+	}
-+	saddr = (u64)buf;
-+	eaddr = (u64)buf + offset;
-+	readbytes = read(fd, buf, offset + MAX_INSN_SIZE);
-+	if (readbytes != offset + MAX_INSN_SIZE) {
-+		pr_warning("Failed to read %s: %s\n", name, strerror(errno));
-+		goto out_free;
-+	}
-+	while (saddr < eaddr) {
-+		insn_init(&insn, (void *)saddr, class == ELFCLASS64);
-+		insn_get_length(&insn);
-+		saddr += insn.length;
-+	}
-+	ret = (saddr == eaddr);
-+
-+out_free:
-+	free(buf);
-+out_close:
-+	close(fd);
-+	return ret;
-+}
-diff --git a/tools/perf/util/include/linux/string.h b/tools/perf/util/include/linux/string.h
-index 3b2f590..9d5eb21 100644
---- a/tools/perf/util/include/linux/string.h
-+++ b/tools/perf/util/include/linux/string.h
-@@ -1 +1,2 @@
- #include <string.h>
-+#include <perf.h>
-diff --git a/tools/perf/util/probe-event.c b/tools/perf/util/probe-event.c
-index b7dec82..57f9eae 100644
---- a/tools/perf/util/probe-event.c
-+++ b/tools/perf/util/probe-event.c
-@@ -2254,6 +2254,17 @@ int show_available_funcs(const char *target, struct strfilter *_filter,
- }
- 
- /*
-+ * Check if a given offset from start of a function is valid or not
-+ */
-+bool __attribute__((weak)) can_probe(char *name __used,
-+					u64 vaddr __used,
-+					unsigned long offset __used,
-+					u8 class __used)
-+{
-+	return true;
-+}
-+
-+/*
-  * uprobe_events only accepts address:
-  * Convert function and any offset to address
-  */
-@@ -2307,7 +2318,17 @@ static int convert_name_to_addr(struct perf_probe_event *pev, const char *exec)
- 
- 	if (map->start > sym->start)
- 		vaddr = map->start;
--	vaddr += sym->start + pp->offset + map->pgoff;
-+
-+	vaddr += sym->start + map->pgoff;
-+	if (pp->offset) {
-+		if ((vaddr + pp->offset > sym->end) ||
-+			!can_probe(name, vaddr, pp->offset,
-+					map->dso->class)) {
-+			pr_err("Failed to insert probe, ensure offset is within function and on insn boundary.\n");
-+			return -EINVAL;
-+		}
-+	}
-+	vaddr += pp->offset;
- 	pp->offset = 0;
- 
- 	if (!pev->event) {
-diff --git a/tools/perf/util/probe-event.h b/tools/perf/util/probe-event.h
-index f9f3de8..9ec2f8c 100644
---- a/tools/perf/util/probe-event.h
-+++ b/tools/perf/util/probe-event.h
-@@ -137,4 +137,6 @@ extern int show_available_funcs(const char *module, struct strfilter *filter,
- /* Maximum index number of event-name postfix */
- #define MAX_EVENT_INDEX	1024
- 
-+extern bool can_probe(char *name, u64 vaddr, unsigned long offset,
-+			u8 class);
- #endif /*_PROBE_EVENT_H */
+ tools/perf/util/symbol.c |  163 +++++++++++++++++++++++++++++++++++++++++++++-
+ 1 files changed, 159 insertions(+), 4 deletions(-)
+
 diff --git a/tools/perf/util/symbol.c b/tools/perf/util/symbol.c
-index caaf75a..be58b06 100644
+index caaf75a..d32db9a 100644
 --- a/tools/perf/util/symbol.c
 +++ b/tools/perf/util/symbol.c
-@@ -1184,6 +1184,7 @@ static int dso__load_sym(struct dso *dso, struct map *map, const char *name,
- 		goto out_close;
+@@ -1,3 +1,4 @@
++#include <assert.h>
+ #include <dirent.h>
+ #include <errno.h>
+ #include <stdlib.h>
+@@ -1158,8 +1159,107 @@ static size_t elf_addr_to_index(Elf *elf, GElf_Addr addr)
+ 	return -1;
+ }
+ 
++/**
++ * Read all section headers, copying them into a separate array so they survive
++ * elf_end.
++ *
++ * @elf: the libelf instance to operate on.
++ * @ehdr: the elf header: this must already have been read with gelf_getehdr().
++ * @count: the number of headers read is assigned to *count on successful
++ *	return.  count must not be NULL.
++ *
++ * Returns a pointer to the allocated headers, which should be deallocated with
++ * free() when no longer needed.
++ */
++static GElf_Shdr *elf_get_all_shdrs(Elf *elf, GElf_Ehdr const *ehdr,
++				    unsigned *count)
++{
++	GElf_Shdr *shdrs;
++	Elf_Scn *scn;
++	unsigned max_index = 0;
++	unsigned i;
++
++	shdrs = malloc(ehdr->e_shnum * sizeof *shdrs);
++	if (!shdrs)
++		return NULL;
++
++	for (i = 0; i < ehdr->e_shnum; i++)
++		shdrs[i].sh_type = SHT_NULL;
++
++	for (scn = NULL; (scn = elf_nextscn(elf, scn)); ) {
++		size_t j;
++
++		/*
++		 * Just assuming we get section 0, 1, ... in sequence may lead
++		 * to wrong section indices.  Check the index explicitly:
++		 */
++		j = elf_ndxscn(scn);
++		assert(j < ehdr->e_shnum);
++
++		if (j > max_index)
++			max_index = j;
++
++		if (!gelf_getshdr(scn, &shdrs[j]))
++			goto error;
++	}
++
++	*count = max_index + 1;
++	return shdrs;
++
++error:
++	free(shdrs);
++	return NULL;
++}
++
++/**
++ * Check that the section headers @shdrs reflect accurately the file data
++ * layout of the image that was loaded during perf record.  This is generally
++ * not true for separated debug images generated with e.g.,
++ * objcopy --only-keep-debug.
++ *
++ * We identify invalid files by checking for non-empty sections which are
++ * declared as having no file data (SHT_NOBITS) but are not writable.
++ *
++ * @shdrs: the full set of section headers, as loaded by elf_get_all_shdrs().
++ * @count: the number of headers present in @shdrs.
++ *
++ * Returns 1 for valid headers, 0 otherwise.
++ */
++static int elf_check_shdrs_valid(GElf_Shdr const *shdrs, unsigned count)
++{
++	unsigned i;
++
++	for (i = 0; i < count; i++) {
++		if (shdrs[i].sh_type == SHT_NOBITS &&
++		    !(shdrs[i].sh_flags & SHF_WRITE) &&
++		    shdrs[i].sh_size != 0)
++			return 0;
++	}
++
++	return 1;
++}
++
++/*
++ * Notes:
++ *
++ * If saved_shdrs is non-NULL, the section headers will be read if found, and
++ * will be used for address fixups.  saved_shdrs_count must also be non-NULL in
++ * this case.  This may be needed for separated debug images, since the section
++ * headers and symbols may need to come from separate images in that case.
++ *
++ * Note: irrespective of whether this function returns successfully,
++ * *saved_shdrs may get initialised if saved_shdrs is non-NULL.  It is the
++ * caller's responsibility to free() it when non longer needed.
++ *
++ * If want_symtab == 1, this function will only load symbols from .symtab
++ * sections.  Otherwise (want_symtab == 0), .dynsym or .symtab symbols are
++ * loaded.  This feature is used by dso__load() to search for the best image
++ * to load.
++ */
++
+ static int dso__load_sym(struct dso *dso, struct map *map, const char *name,
+ 			 int fd, symbol_filter_t filter, int kmodule,
++			 GElf_Shdr **saved_shdrs, unsigned *saved_shdrs_count,
+ 			 int want_symtab)
+ {
+ 	struct kmap *kmap = dso->kernel ? map__kmap(map) : NULL;
+@@ -1178,6 +1278,9 @@ static int dso__load_sym(struct dso *dso, struct map *map, const char *name,
+ 	int nr = 0;
+ 	size_t opdidx = 0;
+ 
++	if (saved_shdrs != NULL)
++		assert(saved_shdrs_count != NULL);
++
+ 	elf = elf_begin(fd, PERF_ELF_C_READ_MMAP, NULL);
+ 	if (elf == NULL) {
+ 		pr_debug("%s: cannot read %s ELF file.\n", __func__, name);
+@@ -1200,6 +1303,36 @@ static int dso__load_sym(struct dso *dso, struct map *map, const char *name,
+ 			goto out_elf_end;
  	}
  
-+	dso->class = gelf_getclass(elf);
- 	if (gelf_getehdr(elf, &ehdr) == NULL) {
- 		pr_debug("%s: cannot get elf header.\n", __func__);
- 		goto out_elf_end;
-@@ -1326,6 +1327,7 @@ static int dso__load_sym(struct dso *dso, struct map *map, const char *name,
- 				curr_dso->kernel = dso->kernel;
- 				curr_dso->long_name = dso->long_name;
- 				curr_dso->long_name_len = dso->long_name_len;
-+				curr_dso->class = dso->class;
- 				curr_map = map__new2(start, curr_dso,
- 						     map->type);
- 				if (curr_map == NULL) {
-diff --git a/tools/perf/util/symbol.h b/tools/perf/util/symbol.h
-index 9e7742c..1d0cc28 100644
---- a/tools/perf/util/symbol.h
-+++ b/tools/perf/util/symbol.h
-@@ -174,6 +174,7 @@ struct dso {
- 	char	 	 *long_name;
- 	u16		 long_name_len;
- 	u16		 short_name_len;
-+	u8		 class;
- 	char		 name[0];
- };
++	/*
++	 * Copy all section headers from the image if requested and if not
++	 * already loaded.
++	 */
++	if (saved_shdrs != NULL && *saved_shdrs == NULL) {
++		GElf_Shdr *shdrs;
++		unsigned count;
++
++		shdrs = elf_get_all_shdrs(elf, &ehdr, &count);
++		if (shdrs == NULL)
++			goto out_elf_end;
++
++		/*
++		 * Only keep the headers if they reflect the actual run-time
++		 * image's file layout:
++		 */
++		if (elf_check_shdrs_valid(shdrs, count)) {
++			*saved_shdrs = shdrs;
++			*saved_shdrs_count = count;
++		} else
++			free(shdrs);
++	}
++
++	/*
++	 * If no genuine ELF headers are available yet, give up: we can't
++	 * adjust symbols correctly in that case:
++	 */
++	if (saved_shdrs != NULL && *saved_shdrs == NULL)
++		goto out_elf_end;
++
+ 	sec = elf_section_by_name(elf, &ehdr, &shdr, ".symtab", NULL);
+ 	if (sec == NULL) {
+ 		if (want_symtab)
+@@ -1344,12 +1477,25 @@ static int dso__load_sym(struct dso *dso, struct map *map, const char *name,
+ 			goto new_symbol;
+ 		}
  
++		/*
++		 * Currently, symbols for shared objects and PIE executables
++		 * (i.e., ET_DYN) do not seem to get adjusted.  This might need
++		 * to change if file offset == virtual address is not actually
++		 * guaranteed for these images.  ELF doesn't provide this
++		 * guarantee natively.
++		 */
+ 		if (curr_dso->adjust_symbols) {
+ 			pr_debug4("%s: adjusting symbol: st_value: %#" PRIx64 " "
+ 				  "sh_addr: %#" PRIx64 " sh_offset: %#" PRIx64 "\n", __func__,
+ 				  (u64)sym.st_value, (u64)shdr.sh_addr,
+ 				  (u64)shdr.sh_offset);
+-			sym.st_value -= shdr.sh_addr - shdr.sh_offset;
++			if (saved_shdrs && *saved_shdrs &&
++			    sym.st_shndx < *saved_shdrs_count)
++				sym.st_value -=
++					(*saved_shdrs)[sym.st_shndx].sh_addr -
++					(*saved_shdrs)[sym.st_shndx].sh_offset;
++			else
++				sym.st_value -= shdr.sh_addr - shdr.sh_offset;
+ 		}
+ 		/*
+ 		 * We need to figure out if the object was created from C++ sources
+@@ -1590,6 +1736,8 @@ int dso__load(struct dso *dso, struct map *map, symbol_filter_t filter)
+ 	struct machine *machine;
+ 	const char *root_dir;
+ 	int want_symtab;
++	GElf_Shdr *saved_shdrs = NULL;
++	unsigned saved_shdrs_count;
+ 
+ 	dso__set_loaded(dso, map->type);
+ 
+@@ -1692,6 +1840,7 @@ restart:
+ 			continue;
+ 
+ 		ret = dso__load_sym(dso, map, name, fd, filter, 0,
++				    &saved_shdrs, &saved_shdrs_count,
+ 				    want_symtab);
+ 		close(fd);
+ 
+@@ -1713,14 +1862,19 @@ restart:
+ 
+ 	/*
+ 	 * If we wanted a full symtab but no image had one,
+-	 * relax our requirements and repeat the search.
++	 * relax our requirements and repeat the search,
++	 * provided we saw some valid section headers:
+ 	 */
+-	if (ret <= 0 && want_symtab) {
++	if (ret <= 0 && want_symtab && saved_shdrs != NULL) {
+ 		want_symtab = 0;
+ 		goto restart;
+ 	}
+ 
+ 	free(name);
++
++	if (saved_shdrs)
++		free(saved_shdrs);
++
+ 	if (ret < 0 && strstr(dso->name, " (deleted)") != NULL)
+ 		return 0;
+ 	return ret;
+@@ -1989,7 +2143,8 @@ int dso__load_vmlinux(struct dso *dso, struct map *map,
+ 
+ 	dso__set_long_name(dso, (char *)vmlinux);
+ 	dso__set_loaded(dso, map->type);
+-	err = dso__load_sym(dso, map, symfs_vmlinux, fd, filter, 0, 0);
++	err = dso__load_sym(dso, map, symfs_vmlinux, fd, filter, 0,
++			    NULL, NULL, 0);
+ 	close(fd);
+ 
+ 	if (err > 0)
 
 
 --
