@@ -1,43 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx159.postini.com [74.125.245.159])
-	by kanga.kvack.org (Postfix) with SMTP id A69536B0044
-	for <linux-mm@kvack.org>; Wed, 25 Apr 2012 17:01:33 -0400 (EDT)
-Received: by iajr24 with SMTP id r24so844523iaj.14
-        for <linux-mm@kvack.org>; Wed, 25 Apr 2012 14:01:33 -0700 (PDT)
-Date: Wed, 25 Apr 2012 14:01:29 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [patch v2] thp, memcg: split hugepage for memcg oom on cow
-In-Reply-To: <alpine.DEB.2.00.1204231612060.17030@chino.kir.corp.google.com>
-Message-ID: <alpine.DEB.2.00.1204251359440.29822@chino.kir.corp.google.com>
-References: <alpine.DEB.2.00.1204031854530.30629@chino.kir.corp.google.com> <4F838385.9070309@jp.fujitsu.com> <alpine.DEB.2.00.1204092241180.27689@chino.kir.corp.google.com> <alpine.DEB.2.00.1204092242050.27689@chino.kir.corp.google.com> <20120411142023.GB1789@redhat.com>
- <alpine.DEB.2.00.1204231612060.17030@chino.kir.corp.google.com>
+Received: from psmtp.com (na3sys010amx174.postini.com [74.125.245.174])
+	by kanga.kvack.org (Postfix) with SMTP id 1012C6B0044
+	for <linux-mm@kvack.org>; Wed, 25 Apr 2012 18:28:25 -0400 (EDT)
+Received: by pbcup15 with SMTP id up15so2474459pbc.14
+        for <linux-mm@kvack.org>; Wed, 25 Apr 2012 15:28:24 -0700 (PDT)
+Date: Wed, 25 Apr 2012 15:28:19 -0700
+From: Tejun Heo <tj@kernel.org>
+Subject: Re: [BUG]memblock: fix overflow of array index
+Message-ID: <20120425222819.GF8989@google.com>
+References: <CAHnt0GXW-pyOUuBLB1n6qBP4WNGpET9er_HbJ29s5j5DE1xAdA@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CAHnt0GXW-pyOUuBLB1n6qBP4WNGpET9er_HbJ29s5j5DE1xAdA@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <jweiner@redhat.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrea Arcangeli <aarcange@redhat.com>, linux-mm@kvack.org
+To: Peter Teoh <htmldeveloper@gmail.com>
+Cc: linux-kernel@vger.kernel.org, "H. Peter Anvin" <hpa@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@elte.hu>, linux-mm@kvack.org
 
-On Mon, 23 Apr 2012, David Rientjes wrote:
-
-> > Can you instead put a __split_huge_page_pmd(mm, pmd) here?  It has to
-> > redo the get-page-ref-through-pagetable dance, but it's more robust
-> > and obvious than splitting the COW page before returning OOM in the
-> > thp wp handler.
-> > 
+On Wed, Apr 25, 2012 at 04:30:19PM +0800, Peter Teoh wrote:
+> Fixing the mismatch in signed and unsigned type assignment, which
+> potentially can lead to integer overflow bug.
 > 
-> I agree it's more robust if do_huge_pmd_wp_page() were modified later and 
-> mistakenly returned VM_FAULT_OOM without the page being split, but 
-> __split_huge_page_pmd() has the drawback of also requiring to retake 
-> mm->page_table_lock to test whether orig_pmd is still legitimate so it 
-> will be slower.  Do you feel strongly about the way it's currently written 
-> which will be faster at runtime?
+> Thanks.
 > 
+> Reviewed-by: Minchan Kim <minchan@kernel.org>
+> Signed-off-by: Peter Teoh <htmldeveloper@gmail.com>
 
-Andrew, please merge this patch.  I'd rather not unnecessarily take 
-another reference on the cow page and unnecessarily take 
-mm->page_table_lock in the page fault handler so the code is cleaner.  
-It's faster this way.
+All indexes in memblock are integers.  Changing that particular one to
+unsigned int doesn't fix anything.  I think it just makes things more
+confusing.  If there ever are cases w/ more then 2G memblocks, we're
+going for 64bit not unsigned.
+
+Thanks.
+
+-- 
+tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
