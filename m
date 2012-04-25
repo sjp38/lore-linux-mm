@@ -1,68 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx193.postini.com [74.125.245.193])
-	by kanga.kvack.org (Postfix) with SMTP id 0A8846B004D
-	for <linux-mm@kvack.org>; Wed, 25 Apr 2012 13:45:56 -0400 (EDT)
-Received: by ghbg15 with SMTP id g15so44408ghb.2
-        for <linux-mm@kvack.org>; Wed, 25 Apr 2012 10:45:56 -0700 (PDT)
-From: Ying Han <yinghan@google.com>
-Subject: [PATCH] rename is_mlocked_vma() to mlocked_vma_newpage()
-Date: Wed, 25 Apr 2012 10:45:55 -0700
-Message-Id: <1335375955-32037-1-git-send-email-yinghan@google.com>
+Received: from psmtp.com (na3sys010amx197.postini.com [74.125.245.197])
+	by kanga.kvack.org (Postfix) with SMTP id A48CC6B0092
+	for <linux-mm@kvack.org>; Wed, 25 Apr 2012 13:56:45 -0400 (EDT)
+Received: by pbcup15 with SMTP id up15so2174439pbc.14
+        for <linux-mm@kvack.org>; Wed, 25 Apr 2012 10:56:45 -0700 (PDT)
+Date: Wed, 25 Apr 2012 10:56:39 -0700
+From: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+Subject: Re: [PATCH 5/6] zsmalloc: remove unnecessary type casting
+Message-ID: <20120425175639.GA14974@kroah.com>
+References: <1335334994-22138-1-git-send-email-minchan@kernel.org>
+ <1335334994-22138-6-git-send-email-minchan@kernel.org>
+ <4F97FD9D.9090105@vflare.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <4F97FD9D.9090105@vflare.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org
+To: Nitin Gupta <ngupta@vflare.org>
+Cc: Minchan Kim <minchan@kernel.org>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Dan Magenheimer <dan.magenheimer@oracle.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-Andrew pointed out that the is_mlocked_vma() is misnamed. A function
-with name like that would expect bool return and no side-effects.
+On Wed, Apr 25, 2012 at 09:35:25AM -0400, Nitin Gupta wrote:
+> On 04/25/2012 02:23 AM, Minchan Kim wrote:
+> 
+> > Let's remove unnecessary type casting of (void *).
+> > 
+> > Signed-off-by: Minchan Kim <minchan@kernel.org>
+> > ---
+> >  drivers/staging/zsmalloc/zsmalloc-main.c |    3 +--
+> >  1 file changed, 1 insertion(+), 2 deletions(-)
+> > 
+> > diff --git a/drivers/staging/zsmalloc/zsmalloc-main.c b/drivers/staging/zsmalloc/zsmalloc-main.c
+> > index b7d31cc..ff089f8 100644
+> > --- a/drivers/staging/zsmalloc/zsmalloc-main.c
+> > +++ b/drivers/staging/zsmalloc/zsmalloc-main.c
+> > @@ -644,8 +644,7 @@ void zs_free(struct zs_pool *pool, void *obj)
+> >  	spin_lock(&class->lock);
+> >  
+> >  	/* Insert this object in containing zspage's freelist */
+> > -	link = (struct link_free *)((unsigned char *)kmap_atomic(f_page)
+> > -							+ f_offset);
+> > +	link = (struct link_free *)(kmap_atomic(f_page)	+ f_offset);
+> >  	link->next = first_page->freelist;
+> >  	kunmap_atomic(link);
+> >  	first_page->freelist = obj;
+> 
+> 
+> 
+> Incrementing a void pointer looks weired and should not be allowed by C
+> compilers though gcc and clang seem to allow this without any warnings.
+> (fortunately C++ forbids incrementing void pointers)
 
-Since it is called on the fault path for new page, rename it in this
-patch.
+Huh?  A void pointer can safely be incremented by C I thought, do you
+have a pointer to where in the reference it says it is "unspecified"?
 
-Signed-off-by: Ying Han <yinghan@google.com>
----
- mm/internal.h |    5 +++--
- mm/vmscan.c   |    2 +-
- 2 files changed, 4 insertions(+), 3 deletions(-)
+> So, we should keep this cast to unsigned char pointer to avoid relying
+> on a non-standard, compiler specific behavior.
 
-diff --git a/mm/internal.h b/mm/internal.h
-index 2189af4..a935af3 100644
---- a/mm/internal.h
-+++ b/mm/internal.h
-@@ -131,7 +131,8 @@ static inline void munlock_vma_pages_all(struct vm_area_struct *vma)
-  * to determine if it's being mapped into a LOCKED vma.
-  * If so, mark page as mlocked.
-  */
--static inline int is_mlocked_vma(struct vm_area_struct *vma, struct page *page)
-+static inline int mlock_vma_newpage(struct vm_area_struct *vma,
-+				    struct page *page)
- {
- 	VM_BUG_ON(PageLRU(page));
- 
-@@ -189,7 +190,7 @@ extern unsigned long vma_address(struct page *page,
- 				 struct vm_area_struct *vma);
- #endif
- #else /* !CONFIG_MMU */
--static inline int is_mlocked_vma(struct vm_area_struct *v, struct page *p)
-+static inline int mlock_vma_newpage(struct vm_area_struct *v, struct page *p)
- {
- 	return 0;
- }
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 1a51868..686c63e 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -3531,7 +3531,7 @@ int page_evictable(struct page *page, struct vm_area_struct *vma)
- 	if (mapping_unevictable(page_mapping(page)))
- 		return 0;
- 
--	if (PageMlocked(page) || (vma && is_mlocked_vma(vma, page)))
-+	if (PageMlocked(page) || (vma && mlock_vma_newpage(vma, page)))
- 		return 0;
- 
- 	return 1;
--- 
-1.7.7.3
+I do agree about this, more people are starting to build the kernel with
+other compilers than gcc, so it would be nice to ensure that we get
+stuff like this right.
+
+thanks,
+
+greg k-h
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
