@@ -1,37 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx180.postini.com [74.125.245.180])
-	by kanga.kvack.org (Postfix) with SMTP id BBF126B0044
-	for <linux-mm@kvack.org>; Wed, 25 Apr 2012 10:23:59 -0400 (EDT)
-Date: Wed, 25 Apr 2012 16:22:41 +0200
-From: Oleg Nesterov <oleg@redhat.com>
-Subject: Re: [RFC 0/6] uprobes: kill uprobes_srcu/uprobe_srcu_id
-Message-ID: <20120425142241.GA18319@redhat.com>
-References: <20120405222024.GA19154@redhat.com> <20120414111637.GB24688@gmail.com> <20120416113124.GA25464@linux.vnet.ibm.com> <20120416144116.GA6745@redhat.com> <20120425125239.GA2889@linux.vnet.ibm.com>
+Received: from psmtp.com (na3sys010amx184.postini.com [74.125.245.184])
+	by kanga.kvack.org (Postfix) with SMTP id 1A9666B0044
+	for <linux-mm@kvack.org>; Wed, 25 Apr 2012 10:31:15 -0400 (EDT)
+Message-ID: <4F980A42.6040308@parallels.com>
+Date: Wed, 25 Apr 2012 11:29:22 -0300
+From: Glauber Costa <glommer@parallels.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20120425125239.GA2889@linux.vnet.ibm.com>
+Subject: Re: [PATCH 16/23] slab: provide kmalloc_no_account
+References: <1334959051-18203-1-git-send-email-glommer@parallels.com> <1335138820-26590-5-git-send-email-glommer@parallels.com> <4F975703.3080005@jp.fujitsu.com>
+In-Reply-To: <4F975703.3080005@jp.fujitsu.com>
+Content-Type: text/plain; charset="ISO-2022-JP"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-Cc: Ingo Molnar <mingo@kernel.org>, Ingo Molnar <mingo@elte.hu>, Peter Zijlstra <peterz@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, LKML <linux-kernel@vger.kernel.org>, Linux-mm <linux-mm@kvack.org>, Andi Kleen <andi@firstfloor.org>, Christoph Hellwig <hch@infradead.org>, Steven Rostedt <rostedt@goodmis.org>, Arnaldo Carvalho de Melo <acme@infradead.org>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Thomas Gleixner <tglx@linutronix.de>, Anton Arapov <anton@redhat.com>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, devel@openvz.org, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, fweisbec@gmail.com, Greg Thelen <gthelen@google.com>, Suleiman Souhlal <suleiman@google.com>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@cs.helsinki.fi>
 
-On 04/25, Srikar Dronamraju wrote:
->
-> I applied the patches and ran all my tests.
-> Everything works as expected.
+On 04/24/2012 10:44 PM, KAMEZAWA Hiroyuki wrote:
+> (2012/04/23 8:53), Glauber Costa wrote:
+> 
+>> Some allocations need to be accounted to the root memcg regardless
+>> of their context. One trivial example, is the allocations we do
+>> during the memcg slab cache creation themselves. Strictly speaking,
+>> they could go to the parent, but it is way easier to bill them to
+>> the root cgroup.
+>>
+>> Only generic kmalloc allocations are allowed to be bypassed.
+>>
+>> The function is not exported, because drivers code should always
+>> be accounted.
+>>
+>> This code is mosly written by Suleiman Souhlal.
+>>
+>> Signed-off-by: Glauber Costa<glommer@parallels.com>
+>> CC: Christoph Lameter<cl@linux.com>
+>> CC: Pekka Enberg<penberg@cs.helsinki.fi>
+>> CC: Michal Hocko<mhocko@suse.cz>
+>> CC: Kamezawa Hiroyuki<kamezawa.hiroyu@jp.fujitsu.com>
+>> CC: Johannes Weiner<hannes@cmpxchg.org>
+>> CC: Suleiman Souhlal<suleiman@google.com>
+> 
+> 
+> Seems reasonable.
+> Reviewed-by: KAMEZAWA Hiroyuki<kamezawa.hiroyu@jp.fujitsu.com>
+> 
+> Hmm...but can't we find the 'context' in automatic way ?
+> 
 
-Thanks a lot Srikar.
+Not that I can think of. Well, actually, not without adding some tests
+to the allocation path I'd rather not (like testing for the return
+address and then doing a table lookup, etc)
 
-I'll resend this series with some cleanups. Probably we do not need
-is_swbp_at_addr_fast, we can check mm == current->mm in read_opcode()
-as Peter suggests. Plus I'll try to make the MMF_UPROBE changes we
-discussed. And a couple of really minor and off-topic cleanups.
+An option would be to store it in the task_struct. So we would allocate
+as following:
 
-But I'll wait until we have all pending patches in -tip to avoid
-the unnecessary noise at this stage.
+memcg_skip_account_start(p);
+do_a_bunch_of_allocations();
+memcg_skip_account_stop(p);
 
-Oleg.
+The problem with that, is that it is quite easy to abuse.
+but if we don't export that to modules, it would be acceptable.
+
+Question is, given the fact that the number of kmalloc_no_account() is
+expected to be really small, is it worth it?
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
