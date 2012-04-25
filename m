@@ -1,143 +1,223 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx175.postini.com [74.125.245.175])
-	by kanga.kvack.org (Postfix) with SMTP id 8E9686B0044
-	for <linux-mm@kvack.org>; Wed, 25 Apr 2012 10:32:36 -0400 (EDT)
-Received: by qcsd16 with SMTP id d16so124653qcs.14
-        for <linux-mm@kvack.org>; Wed, 25 Apr 2012 07:32:35 -0700 (PDT)
-Message-ID: <4F980AFE.60901@vflare.org>
-Date: Wed, 25 Apr 2012 10:32:30 -0400
-From: Nitin Gupta <ngupta@vflare.org>
+Received: from psmtp.com (na3sys010amx202.postini.com [74.125.245.202])
+	by kanga.kvack.org (Postfix) with SMTP id 418B36B0044
+	for <linux-mm@kvack.org>; Wed, 25 Apr 2012 10:39:11 -0400 (EDT)
+Message-ID: <4F980C22.70302@parallels.com>
+Date: Wed, 25 Apr 2012 11:37:22 -0300
+From: Glauber Costa <glommer@parallels.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 6/6] zsmalloc: make zsmalloc portable
-References: <1335334994-22138-1-git-send-email-minchan@kernel.org> <1335334994-22138-7-git-send-email-minchan@kernel.org>
-In-Reply-To: <1335334994-22138-7-git-send-email-minchan@kernel.org>
-Content-Type: text/plain; charset=ISO-8859-1
+Subject: Re: [PATCH 11/23] slub: consider a memcg parameter in kmem_create_cache
+References: <1334959051-18203-1-git-send-email-glommer@parallels.com> <1334959051-18203-12-git-send-email-glommer@parallels.com> <4F9755B3.7010606@jp.fujitsu.com>
+In-Reply-To: <4F9755B3.7010606@jp.fujitsu.com>
+Content-Type: text/plain; charset="ISO-2022-JP"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Dan Magenheimer <dan.magenheimer@oracle.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, devel@openvz.org, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Frederic Weisbecker <fweisbec@gmail.com>, Greg Thelen <gthelen@google.com>, Suleiman Souhlal <suleiman@google.com>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@cs.helsinki.fi>
 
-On 04/25/2012 02:23 AM, Minchan Kim wrote:
-
-> The zsmalloc uses __flush_tlb_one and set_pte.
-> It's very lower functions so that it makes arhcitecture dependency
-> so currently zsmalloc is used by only x86.
-> This patch changes them with map_vm_area and unmap_kernel_range so
-> it should work all architecture.
+On 04/24/2012 10:38 PM, KAMEZAWA Hiroyuki wrote:
+> (2012/04/21 6:57), Glauber Costa wrote:
 > 
-> Signed-off-by: Minchan Kim <minchan@kernel.org>
-> ---
->  drivers/staging/zsmalloc/Kconfig         |    4 ----
->  drivers/staging/zsmalloc/zsmalloc-main.c |   27 +++++++++++++++++----------
->  drivers/staging/zsmalloc/zsmalloc_int.h  |    1 -
->  3 files changed, 17 insertions(+), 15 deletions(-)
+>> Allow a memcg parameter to be passed during cache creation.
+>> The slub allocator will only merge caches that belong to
+>> the same memcg.
+>>
+>> Default function is created as a wrapper, passing NULL
+>> to the memcg version. We only merge caches that belong
+>> to the same memcg.
+>>
+>> > From the memcontrol.c side, 3 helper functions are created:
+>>
+>>   1) memcg_css_id: because slub needs a unique cache name
+>>      for sysfs. Since this is visible, but not the canonical
+>>      location for slab data, the cache name is not used, the
+>>      css_id should suffice.
+>>
+>>   2) mem_cgroup_register_cache: is responsible for assigning
+>>      a unique index to each cache, and other general purpose
+>>      setup. The index is only assigned for the root caches. All
+>>      others are assigned index == -1.
+>>
+>>   3) mem_cgroup_release_cache: can be called from the root cache
+>>      destruction, and will release the index for other caches.
+>>
+>> This index mechanism was developed by Suleiman Souhlal.
+>>
+>> Signed-off-by: Glauber Costa<glommer@parallels.com>
+>> CC: Christoph Lameter<cl@linux.com>
+>> CC: Pekka Enberg<penberg@cs.helsinki.fi>
+>> CC: Michal Hocko<mhocko@suse.cz>
+>> CC: Kamezawa Hiroyuki<kamezawa.hiroyu@jp.fujitsu.com>
+>> CC: Johannes Weiner<hannes@cmpxchg.org>
+>> CC: Suleiman Souhlal<suleiman@google.com>
+>> ---
+>>   include/linux/memcontrol.h |   14 ++++++++++++++
+>>   include/linux/slab.h       |    6 ++++++
+>>   mm/memcontrol.c            |   29 +++++++++++++++++++++++++++++
+>>   mm/slub.c                  |   31 +++++++++++++++++++++++++++----
+>>   4 files changed, 76 insertions(+), 4 deletions(-)
+>>
+>> diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
+>> index f94efd2..99e14b9 100644
+>> --- a/include/linux/memcontrol.h
+>> +++ b/include/linux/memcontrol.h
+>> @@ -26,6 +26,7 @@ struct mem_cgroup;
+>>   struct page_cgroup;
+>>   struct page;
+>>   struct mm_struct;
+>> +struct kmem_cache;
+>>
+>>   /* Stats that can be updated by kernel. */
+>>   enum mem_cgroup_page_stat_item {
+>> @@ -440,7 +441,20 @@ struct sock;
+>>   #ifdef CONFIG_CGROUP_MEM_RES_CTLR_KMEM
+>>   void sock_update_memcg(struct sock *sk);
+>>   void sock_release_memcg(struct sock *sk);
+>> +int memcg_css_id(struct mem_cgroup *memcg);
+>> +void mem_cgroup_register_cache(struct mem_cgroup *memcg,
+>> +				      struct kmem_cache *s);
+>> +void mem_cgroup_release_cache(struct kmem_cache *cachep);
+>>   #else
+>> +static inline void mem_cgroup_register_cache(struct mem_cgroup *memcg,
+>> +					     struct kmem_cache *s)
+>> +{
+>> +}
+>> +
+>> +static inline void mem_cgroup_release_cache(struct kmem_cache *cachep)
+>> +{
+>> +}
+>> +
+>>   static inline void sock_update_memcg(struct sock *sk)
+>>   {
+>>   }
+>> diff --git a/include/linux/slab.h b/include/linux/slab.h
+>> index a5127e1..c7a7e05 100644
+>> --- a/include/linux/slab.h
+>> +++ b/include/linux/slab.h
+>> @@ -321,6 +321,12 @@ extern void *__kmalloc_track_caller(size_t, gfp_t, unsigned long);
+>>   	__kmalloc(size, flags)
+>>   #endif /* DEBUG_SLAB */
+>>
+>> +#ifdef CONFIG_CGROUP_MEM_RES_CTLR_KMEM
+>> +#define MAX_KMEM_CACHE_TYPES 400
+>> +#else
+>> +#define MAX_KMEM_CACHE_TYPES 0
+>> +#endif /* CONFIG_CGROUP_MEM_RES_CTLR_KMEM */
+>> +
 > 
-> diff --git a/drivers/staging/zsmalloc/Kconfig b/drivers/staging/zsmalloc/Kconfig
-> index a5ab720..9084565 100644
-> --- a/drivers/staging/zsmalloc/Kconfig
-> +++ b/drivers/staging/zsmalloc/Kconfig
-> @@ -1,9 +1,5 @@
->  config ZSMALLOC
->  	tristate "Memory allocator for compressed pages"
-> -	# X86 dependency is because of the use of __flush_tlb_one and set_pte
-> -	# in zsmalloc-main.c.
-> -	# TODO: convert these to portable functions
-> -	depends on X86
->  	default n
->  	help
->  	  zsmalloc is a slab-based memory allocator designed to store
-> diff --git a/drivers/staging/zsmalloc/zsmalloc-main.c b/drivers/staging/zsmalloc/zsmalloc-main.c
-> index ff089f8..cc017b1 100644
-> --- a/drivers/staging/zsmalloc/zsmalloc-main.c
-> +++ b/drivers/staging/zsmalloc/zsmalloc-main.c
-> @@ -442,7 +442,7 @@ static int zs_cpu_notifier(struct notifier_block *nb, unsigned long action,
->  		area = &per_cpu(zs_map_area, cpu);
->  		if (area->vm)
->  			break;
-> -		area->vm = alloc_vm_area(2 * PAGE_SIZE, area->vm_ptes);
-> +		area->vm = alloc_vm_area(2 * PAGE_SIZE, NULL);
->  		if (!area->vm)
->  			return notifier_from_errno(-ENOMEM);
->  		break;
-> @@ -696,13 +696,22 @@ void *zs_map_object(struct zs_pool *pool, void *handle)
->  	} else {
->  		/* this object spans two pages */
->  		struct page *nextp;
-> +		struct page *pages[2];
-> +		struct page **page_array = &pages[0];
-> +		int err;
->  
->  		nextp = get_next_page(page);
->  		BUG_ON(!nextp);
->  
-> +		page_array[0] = page;
-> +		page_array[1] = nextp;
->  
-> -		set_pte(area->vm_ptes[0], mk_pte(page, PAGE_KERNEL));
-> -		set_pte(area->vm_ptes[1], mk_pte(nextp, PAGE_KERNEL));
-> +		/*
-> +		 * map_vm_area never fail because we already allocated
-> +		 * pages for page table in alloc_vm_area.
-> +		 */
-> +		err = map_vm_area(area->vm, PAGE_KERNEL, &page_array);
-> +		BUG_ON(err);
->  
->  		/* We pre-allocated VM area so mapping can never fail */
->  		area->vm_addr = area->vm->addr;
-> @@ -730,14 +739,12 @@ void zs_unmap_object(struct zs_pool *pool, void *handle)
->  	off = obj_idx_to_offset(page, obj_idx, class->size);
->  
->  	area = &__get_cpu_var(zs_map_area);
-> -	if (off + class->size <= PAGE_SIZE) {
-> +	if (off + class->size <= PAGE_SIZE)
->  		kunmap_atomic(area->vm_addr);
-> -	} else {
-> -		set_pte(area->vm_ptes[0], __pte(0));
-> -		set_pte(area->vm_ptes[1], __pte(0));
-> -		__flush_tlb_one((unsigned long)area->vm_addr);
-> -		__flush_tlb_one((unsigned long)area->vm_addr + PAGE_SIZE);
-> -	}
-> +	else
-> +		unmap_kernel_range((unsigned long)area->vm->addr,
-> +					PAGE_SIZE * 2);
-> +
+> 
+> why 400 ?
 
+Quite arbitrary. Just large enough to hold all caches there are
+currently in a system + modules. (Right now I have around 140
+in a normal fedora installation)
 
+>> +/* Bitmap used for allocating the cache id numbers. */
+>> +static DECLARE_BITMAP(cache_types, MAX_KMEM_CACHE_TYPES);
+>> +
+>> +void mem_cgroup_register_cache(struct mem_cgroup *memcg,
+>> +			       struct kmem_cache *cachep)
+>> +{
+>> +	int id = -1;
+>> +
+>> +	cachep->memcg_params.memcg = memcg;
+>> +
+>> +	if (!memcg) {
+>> +		id = find_first_zero_bit(cache_types, MAX_KMEM_CACHE_TYPES);
+>> +		BUG_ON(id<  0 || id>= MAX_KMEM_CACHE_TYPES);
+>> +		__set_bit(id, cache_types);
+> 
+> 
+> No lock here ? you need find_first_zero_bit_and_set_atomic() or some.
+> Rather than that, I think you can use lib/idr.c::ida_simple_get().
 
-This would certainly work but would incur unncessary cost. All we need
-to do is to flush the local TLB entry correpsonding to these two pages.
-However, unmap_kernel_range --> flush_tlb_kernel_range woule cause TLB
-flush on all CPUs. Additionally, implementation of this function
-(flush_tlb_kernel_range) on architecutures like x86 seems naive since it
-flushes the entire TLB on all the CPUs.
+This function is called from within kmem_cache_create(), that usually
+already do locking. The slub, for instance, uses the slub_lock() for all
+cache creation, and the slab do something quite similar. (All right, I
+should have mentioned that in comments)
 
-Even with all this penalty, I'm inclined on keeping this change to
-remove x86 only dependency, keeping improvements as future work.
+But as for idr, I don't think it is a bad idea. I will take a look.
 
-I think Seth was working on this improvement but not sure about the
-current status. Seth?
+>> @@ -3880,7 +3881,7 @@ static int slab_unmergeable(struct kmem_cache *s)
+>>   	return 0;
+>>   }
+>>
+>> -static struct kmem_cache *find_mergeable(size_t size,
+>> +static struct kmem_cache *find_mergeable(struct mem_cgroup *memcg, size_t size,
+>>   		size_t align, unsigned long flags, const char *name,
+>>   		void (*ctor)(void *))
+>>   {
+>> @@ -3916,21 +3917,29 @@ static struct kmem_cache *find_mergeable(size_t size,
+>>   		if (s->size - size>= sizeof(void *))
+>>   			continue;
+>>
+>> +		if (memcg&&  s->memcg_params.memcg != memcg)
+>> +			continue;
+>> +
+>>   		return s;
+>>   	}
+>>   	return NULL;
+>>   }
+>>
+>> -struct kmem_cache *kmem_cache_create(const char *name, size_t size,
+>> -		size_t align, unsigned long flags, void (*ctor)(void *))
+>> +struct kmem_cache *
+>> +kmem_cache_create_memcg(struct mem_cgroup *memcg, const char *name, size_t size,
+>> +			size_t align, unsigned long flags, void (*ctor)(void *))
+>>   {
+>>   	struct kmem_cache *s;
+>>
+>>   	if (WARN_ON(!name))
+>>   		return NULL;
+>>
+>> +#ifndef CONFIG_CGROUP_MEM_RES_CTLR_KMEM
+>> +	WARN_ON(memcg != NULL);
+>> +#endif
+> 
+> 
+> I'm sorry what's is this warning for ?
+this is inside ifndef (not defined), so this means anyone trying to pass
+a memcg in that situation, is doing something really wrong.
 
+I was actually  going for BUG() on this one, but changed my mind
 
->  	put_cpu_var(zs_map_area);
->  }
->  EXPORT_SYMBOL_GPL(zs_unmap_object);
-> diff --git a/drivers/staging/zsmalloc/zsmalloc_int.h b/drivers/staging/zsmalloc/zsmalloc_int.h
-> index 8f9ce0c..4c11c89 100644
-> --- a/drivers/staging/zsmalloc/zsmalloc_int.h
-> +++ b/drivers/staging/zsmalloc/zsmalloc_int.h
-> @@ -111,7 +111,6 @@ static const int fullness_threshold_frac = 4;
->  
->  struct mapping_area {
->  	struct vm_struct *vm;
-> -	pte_t *vm_ptes[2];
->  	char *vm_addr;
->  };
->  
+Thinking again, I could probably do this:
 
+if (WARN_ON(memcg != NULL))
+   memcg = NULL;
 
-Thanks,
-Nitin
+this way we can keep going without killing the kernel as well as
+protecting the function.
+
+> 
+>> @@ -5265,6 +5283,11 @@ static char *create_unique_id(struct kmem_cache *s)
+>>   	if (p != name + 1)
+>>   		*p++ = '-';
+>>   	p += sprintf(p, "%07d", s->size);
+>> +
+>> +#ifdef CONFIG_CGROUP_MEM_RES_CTLR_KMEM
+>> +	if (s->memcg_params.memcg)
+>> +		p += sprintf(p, "-%08d", memcg_css_id(s->memcg_params.memcg));
+>> +#endif
+>>   	BUG_ON(p>  name + ID_STR_LENGTH - 1);
+>>   	return name;
+>>   }
+> 
+> 
+> So, you use 'id' in user interface. Should we provide 'id' as memory.id file ?
+
+We could.
+But that is not the cache name, this is for alias files.
+
+The cache name has css_id:dcache_name, so we'll see something like
+2:container1
+
+The css_id plays the role of avoiding name duplicates, since all we use
+is the last dentry to derive the name.
+
+So I guess if need arises to go search in sysfs for the slub stuff, it
+gets easy enough to correlate so we don't need to export the id.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
