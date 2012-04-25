@@ -1,52 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx148.postini.com [74.125.245.148])
-	by kanga.kvack.org (Postfix) with SMTP id A32646B0044
-	for <linux-mm@kvack.org>; Wed, 25 Apr 2012 12:38:19 -0400 (EDT)
-Received: from /spool/local
-	by e3.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <sjenning@linux.vnet.ibm.com>;
-	Wed, 25 Apr 2012 12:38:16 -0400
-Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
-	by d01dlp01.pok.ibm.com (Postfix) with ESMTP id 3F2F438C803A
-	for <linux-mm@kvack.org>; Wed, 25 Apr 2012 12:38:01 -0400 (EDT)
-Received: from d03av03.boulder.ibm.com (d03av03.boulder.ibm.com [9.17.195.169])
-	by d01relay04.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q3PGbxa6046258
-	for <linux-mm@kvack.org>; Wed, 25 Apr 2012 12:37:59 -0400
-Received: from d03av03.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av03.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q3PGbwXO028036
-	for <linux-mm@kvack.org>; Wed, 25 Apr 2012 10:37:59 -0600
-Message-ID: <4F982862.4050302@linux.vnet.ibm.com>
-Date: Wed, 25 Apr 2012 11:37:54 -0500
-From: Seth Jennings <sjenning@linux.vnet.ibm.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH 6/6] zsmalloc: make zsmalloc portable
-References: <1335334994-22138-1-git-send-email-minchan@kernel.org> <1335334994-22138-7-git-send-email-minchan@kernel.org> <4F980AFE.60901@vflare.org>
-In-Reply-To: <4F980AFE.60901@vflare.org>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx193.postini.com [74.125.245.193])
+	by kanga.kvack.org (Postfix) with SMTP id 0A8846B004D
+	for <linux-mm@kvack.org>; Wed, 25 Apr 2012 13:45:56 -0400 (EDT)
+Received: by ghbg15 with SMTP id g15so44408ghb.2
+        for <linux-mm@kvack.org>; Wed, 25 Apr 2012 10:45:56 -0700 (PDT)
+From: Ying Han <yinghan@google.com>
+Subject: [PATCH] rename is_mlocked_vma() to mlocked_vma_newpage()
+Date: Wed, 25 Apr 2012 10:45:55 -0700
+Message-Id: <1335375955-32037-1-git-send-email-yinghan@google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Nitin Gupta <ngupta@vflare.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Dan Magenheimer <dan.magenheimer@oracle.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org
 
-Hey Minchan,
+Andrew pointed out that the is_mlocked_vma() is misnamed. A function
+with name like that would expect bool return and no side-effects.
 
-Thanks for the patches!
+Since it is called on the fault path for new page, rename it in this
+patch.
 
-On 04/25/2012 09:32 AM, Nitin Gupta wrote:
-> I think Seth was working on this improvement but not sure about the
-> current status. Seth?
+Signed-off-by: Ying Han <yinghan@google.com>
+---
+ mm/internal.h |    5 +++--
+ mm/vmscan.c   |    2 +-
+ 2 files changed, 4 insertions(+), 3 deletions(-)
 
-Yes, I looked at this option, and it is very clean and portable.
-
-Unfortunately, IIRC, with our rate of mapping/unmapping,
-flush_tlb_kernel_range() causes an IPI storm that effective
-stalls the machine.
-
-I'll apply your patch and try it out.
-
-Thanks,
-Seth
+diff --git a/mm/internal.h b/mm/internal.h
+index 2189af4..a935af3 100644
+--- a/mm/internal.h
++++ b/mm/internal.h
+@@ -131,7 +131,8 @@ static inline void munlock_vma_pages_all(struct vm_area_struct *vma)
+  * to determine if it's being mapped into a LOCKED vma.
+  * If so, mark page as mlocked.
+  */
+-static inline int is_mlocked_vma(struct vm_area_struct *vma, struct page *page)
++static inline int mlock_vma_newpage(struct vm_area_struct *vma,
++				    struct page *page)
+ {
+ 	VM_BUG_ON(PageLRU(page));
+ 
+@@ -189,7 +190,7 @@ extern unsigned long vma_address(struct page *page,
+ 				 struct vm_area_struct *vma);
+ #endif
+ #else /* !CONFIG_MMU */
+-static inline int is_mlocked_vma(struct vm_area_struct *v, struct page *p)
++static inline int mlock_vma_newpage(struct vm_area_struct *v, struct page *p)
+ {
+ 	return 0;
+ }
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index 1a51868..686c63e 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -3531,7 +3531,7 @@ int page_evictable(struct page *page, struct vm_area_struct *vma)
+ 	if (mapping_unevictable(page_mapping(page)))
+ 		return 0;
+ 
+-	if (PageMlocked(page) || (vma && is_mlocked_vma(vma, page)))
++	if (PageMlocked(page) || (vma && mlock_vma_newpage(vma, page)))
+ 		return 0;
+ 
+ 	return 1;
+-- 
+1.7.7.3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
