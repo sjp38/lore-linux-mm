@@ -1,120 +1,131 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx126.postini.com [74.125.245.126])
-	by kanga.kvack.org (Postfix) with SMTP id 9C5D26B0044
-	for <linux-mm@kvack.org>; Tue, 24 Apr 2012 21:46:29 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx183.postini.com [74.125.245.183])
+	by kanga.kvack.org (Postfix) with SMTP id 509206B0044
+	for <linux-mm@kvack.org>; Tue, 24 Apr 2012 21:58:12 -0400 (EDT)
 Received: from m4.gw.fujitsu.co.jp (unknown [10.0.50.74])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 199993EE0BD
-	for <linux-mm@kvack.org>; Wed, 25 Apr 2012 10:46:28 +0900 (JST)
+	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id DD19D3EE0B5
+	for <linux-mm@kvack.org>; Wed, 25 Apr 2012 10:58:10 +0900 (JST)
 Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id EB64E45DE51
-	for <linux-mm@kvack.org>; Wed, 25 Apr 2012 10:46:27 +0900 (JST)
+	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id BFC7A45DE52
+	for <linux-mm@kvack.org>; Wed, 25 Apr 2012 10:58:10 +0900 (JST)
 Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id C9E4A45DE4E
-	for <linux-mm@kvack.org>; Wed, 25 Apr 2012 10:46:27 +0900 (JST)
+	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 415CB45DE54
+	for <linux-mm@kvack.org>; Wed, 25 Apr 2012 10:58:10 +0900 (JST)
 Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id BCCC11DB803E
-	for <linux-mm@kvack.org>; Wed, 25 Apr 2012 10:46:27 +0900 (JST)
-Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.240.81.147])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 6D2ED1DB8041
-	for <linux-mm@kvack.org>; Wed, 25 Apr 2012 10:46:27 +0900 (JST)
-Message-ID: <4F975703.3080005@jp.fujitsu.com>
-Date: Wed, 25 Apr 2012 10:44:35 +0900
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 309461DB803B
+	for <linux-mm@kvack.org>; Wed, 25 Apr 2012 10:58:10 +0900 (JST)
+Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.240.81.145])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id D016AE18003
+	for <linux-mm@kvack.org>; Wed, 25 Apr 2012 10:58:09 +0900 (JST)
+Message-ID: <4F9759C0.1070805@jp.fujitsu.com>
+Date: Wed, 25 Apr 2012 10:56:16 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 16/23] slab: provide kmalloc_no_account
-References: <1334959051-18203-1-git-send-email-glommer@parallels.com> <1335138820-26590-5-git-send-email-glommer@parallels.com>
-In-Reply-To: <1335138820-26590-5-git-send-email-glommer@parallels.com>
-Content-Type: text/plain; charset=ISO-2022-JP
+Subject: Re: [PATCH 17/23] kmem controller charge/uncharge infrastructure
+References: <1334959051-18203-1-git-send-email-glommer@parallels.com> <1335138820-26590-6-git-send-email-glommer@parallels.com> <alpine.DEB.2.00.1204231522320.13535@chino.kir.corp.google.com> <20120424142232.GC8626@somewhere>
+In-Reply-To: <20120424142232.GC8626@somewhere>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Glauber Costa <glommer@parallels.com>
-Cc: cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, devel@openvz.org, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, fweisbec@gmail.com, Greg Thelen <gthelen@google.com>, Suleiman Souhlal <suleiman@google.com>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@cs.helsinki.fi>
+To: Frederic Weisbecker <fweisbec@gmail.com>
+Cc: David Rientjes <rientjes@google.com>, Glauber Costa <glommer@parallels.com>, cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, devel@openvz.org, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Greg Thelen <gthelen@google.com>, Suleiman Souhlal <suleiman@google.com>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@cs.helsinki.fi>
 
-(2012/04/23 8:53), Glauber Costa wrote:
+(2012/04/24 23:22), Frederic Weisbecker wrote:
 
-> Some allocations need to be accounted to the root memcg regardless
-> of their context. One trivial example, is the allocations we do
-> during the memcg slab cache creation themselves. Strictly speaking,
-> they could go to the parent, but it is way easier to bill them to
-> the root cgroup.
+> On Mon, Apr 23, 2012 at 03:25:59PM -0700, David Rientjes wrote:
+>> On Sun, 22 Apr 2012, Glauber Costa wrote:
+>>
+>>> +/*
+>>> + * Return the kmem_cache we're supposed to use for a slab allocation.
+>>> + * If we are in interrupt context or otherwise have an allocation that
+>>> + * can't fail, we return the original cache.
+>>> + * Otherwise, we will try to use the current memcg's version of the cache.
+>>> + *
+>>> + * If the cache does not exist yet, if we are the first user of it,
+>>> + * we either create it immediately, if possible, or create it asynchronously
+>>> + * in a workqueue.
+>>> + * In the latter case, we will let the current allocation go through with
+>>> + * the original cache.
+>>> + *
+>>> + * This function returns with rcu_read_lock() held.
+>>> + */
+>>> +struct kmem_cache *__mem_cgroup_get_kmem_cache(struct kmem_cache *cachep,
+>>> +					     gfp_t gfp)
+>>> +{
+>>> +	struct mem_cgroup *memcg;
+>>> +	int idx;
+>>> +
+>>> +	gfp |=  cachep->allocflags;
+>>> +
+>>> +	if ((current->mm == NULL))
+>>> +		return cachep;
+>>> +
+>>> +	if (cachep->memcg_params.memcg)
+>>> +		return cachep;
+>>> +
+>>> +	idx = cachep->memcg_params.id;
+>>> +	VM_BUG_ON(idx == -1);
+>>> +
+>>> +	memcg = mem_cgroup_from_task(current);
+>>> +	if (!mem_cgroup_kmem_enabled(memcg))
+>>> +		return cachep;
+>>> +
+>>> +	if (rcu_access_pointer(memcg->slabs[idx]) == NULL) {
+>>> +		memcg_create_cache_enqueue(memcg, cachep);
+>>> +		return cachep;
+>>> +	}
+>>> +
+>>> +	return rcu_dereference(memcg->slabs[idx]);
+>>> +}
+>>> +EXPORT_SYMBOL(__mem_cgroup_get_kmem_cache);
+>>> +
+>>> +void mem_cgroup_remove_child_kmem_cache(struct kmem_cache *cachep, int id)
+>>> +{
+>>> +	rcu_assign_pointer(cachep->memcg_params.memcg->slabs[id], NULL);
+>>> +}
+>>> +
+>>> +bool __mem_cgroup_charge_kmem(gfp_t gfp, size_t size)
+>>> +{
+>>> +	struct mem_cgroup *memcg;
+>>> +	bool ret = true;
+>>> +
+>>> +	rcu_read_lock();
+>>> +	memcg = mem_cgroup_from_task(current);
+>>
+>> This seems horribly inconsistent with memcg charging of user memory since 
+>> it charges to p->mm->owner and you're charging to p.  So a thread attached 
+>> to a memcg can charge user memory to one memcg while charging slab to 
+>> another memcg?
 > 
-> Only generic kmalloc allocations are allowed to be bypassed.
+> Charging to the thread rather than the process seem to me the right behaviour:
+> you can have two threads of a same process attached to different cgroups.
 > 
-> The function is not exported, because drivers code should always
-> be accounted.
+> Perhaps it is the user memory memcg that needs to be fixed?
 > 
-> This code is mosly written by Suleiman Souhlal.
-> 
-> Signed-off-by: Glauber Costa <glommer@parallels.com>
-> CC: Christoph Lameter <cl@linux.com>
-> CC: Pekka Enberg <penberg@cs.helsinki.fi>
-> CC: Michal Hocko <mhocko@suse.cz>
-> CC: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> CC: Johannes Weiner <hannes@cmpxchg.org>
-> CC: Suleiman Souhlal <suleiman@google.com>
 
+There is a problem of OOM-Kill.
+To free memory by killing process, 'mm' should be released by kill.
+So, oom-killer just finds a leader of process.
 
-Seems reasonable.
-Reviewed-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Assume A process X consists of thread A, B and A is thread-group-leader.
 
-Hmm...but can't we find the 'context' in automatic way ?
+Put thread A into cgroup/Gold
+    thread B into cgroup/Silver.
 
+If we do accounting based on threads, we can't do anything at OOM in cgroup/Silver.
+An idea 'Killing thread-A to kill thread-B'..... breaks isolation.
+ 
+As far as resources used by process, I think accounting should be done per process.
+It's not tied to thread.
+
+About kmem, if we count task_struct, page tables, etc...which can be freed by
+OOM-Killer i.e. it's allocated for 'process', should be aware of OOM problem.
+Using mm->owner makes sense to me until someone finds a great idea to handle
+OOM situation rather than task killing.
+
+Thanks,
 -Kame
-
-> ---
->  include/linux/slab_def.h |    1 +
->  mm/slab.c                |   23 +++++++++++++++++++++++
->  2 files changed, 24 insertions(+), 0 deletions(-)
-> 
-> diff --git a/include/linux/slab_def.h b/include/linux/slab_def.h
-> index 06e4a3e..54d25d7 100644
-> --- a/include/linux/slab_def.h
-> +++ b/include/linux/slab_def.h
-> @@ -114,6 +114,7 @@ extern struct cache_sizes malloc_sizes[];
->  
->  void *kmem_cache_alloc(struct kmem_cache *, gfp_t);
->  void *__kmalloc(size_t size, gfp_t flags);
-> +void *kmalloc_no_account(size_t size, gfp_t flags);
->  
->  #ifdef CONFIG_TRACING
->  extern void *kmem_cache_alloc_trace(size_t size,
-> diff --git a/mm/slab.c b/mm/slab.c
-> index c4ef684..13948c3 100644
-> --- a/mm/slab.c
-> +++ b/mm/slab.c
-> @@ -3960,6 +3960,29 @@ void *__kmalloc(size_t size, gfp_t flags)
->  }
->  EXPORT_SYMBOL(__kmalloc);
->  
-> +static __always_inline void *__do_kmalloc_no_account(size_t size, gfp_t flags,
-> +						     void *caller)
-> +{
-> +	struct kmem_cache *cachep;
-> +	void *ret;
-> +
-> +	cachep = __find_general_cachep(size, flags);
-> +	if (unlikely(ZERO_OR_NULL_PTR(cachep)))
-> +		return cachep;
-> +
-> +	ret = __cache_alloc(cachep, flags, caller);
-> +	trace_kmalloc((unsigned long)caller, ret, size,
-> +		      cachep->buffer_size, flags);
-> +
-> +	return ret;
-> +}
-> +
-> +void *kmalloc_no_account(size_t size, gfp_t flags)
-> +{
-> +	return __do_kmalloc_no_account(size, flags,
-> +				       __builtin_return_address(0));
-> +}
-> +
->  void *__kmalloc_track_caller(size_t size, gfp_t flags, unsigned long caller)
->  {
->  	return __do_kmalloc(size, flags, (void *)caller);
-
-
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
