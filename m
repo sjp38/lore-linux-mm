@@ -1,137 +1,128 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx199.postini.com [74.125.245.199])
-	by kanga.kvack.org (Postfix) with SMTP id 8E3356B0044
-	for <linux-mm@kvack.org>; Wed, 25 Apr 2012 11:40:17 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx165.postini.com [74.125.245.165])
+	by kanga.kvack.org (Postfix) with SMTP id B1E606B0044
+	for <linux-mm@kvack.org>; Wed, 25 Apr 2012 11:47:14 -0400 (EDT)
+Received: by dadq36 with SMTP id q36so332080dad.8
+        for <linux-mm@kvack.org>; Wed, 25 Apr 2012 08:47:14 -0700 (PDT)
+Date: Wed, 25 Apr 2012 08:47:06 -0700
+From: Tejun Heo <tj@kernel.org>
+Subject: Re: [RFC] writeback and cgroup
+Message-ID: <20120425154706.GA6370@google.com>
+References: <20120404193355.GD29686@dhcp-172-17-108-109.mtv.corp.google.com>
+ <20120406095934.GA10465@localhost>
+ <20120417223854.GG19975@google.com>
+ <20120419142343.GA12684@localhost>
+ <20120419202635.GA4795@quack.suse.cz>
+ <20120420133441.GA7035@localhost>
+ <20120420190844.GH32324@google.com>
+ <20120422144649.GA7066@localhost>
+ <20120423165626.GB5406@google.com>
+ <20120424075853.GA8391@localhost>
 MIME-Version: 1.0
-Message-ID: <fcde09be-ae34-4f09-a324-825fb2d4fac2@default>
-Date: Wed, 25 Apr 2012 08:40:02 -0700 (PDT)
-From: Dan Magenheimer <dan.magenheimer@oracle.com>
-Subject: RE: [PATCH 6/6] zsmalloc: make zsmalloc portable
-References: <1335334994-22138-1-git-send-email-minchan@kernel.org>
- <1335334994-22138-7-git-send-email-minchan@kernel.org>
- <4F980AFE.60901@vflare.org>
-In-Reply-To: <4F980AFE.60901@vflare.org>
 Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: quoted-printable
+Content-Disposition: inline
+In-Reply-To: <20120424075853.GA8391@localhost>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Nitin Gupta <ngupta@vflare.org>, Minchan Kim <minchan@kernel.org>
-Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Fengguang Wu <fengguang.wu@intel.com>
+Cc: Jan Kara <jack@suse.cz>, vgoyal@redhat.com, Jens Axboe <axboe@kernel.dk>, linux-mm@kvack.org, sjayaraman@suse.com, andrea@betterlinux.com, jmoyer@redhat.com, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, lizefan@huawei.com, containers@lists.linux-foundation.org, cgroups@vger.kernel.org, ctalbott@google.com, rni@google.com, lsf@lists.linux-foundation.org, Mel Gorman <mgorman@suse.de>
 
-> From: Nitin Gupta [mailto:ngupta@vflare.org]
-> Subject: Re: [PATCH 6/6] zsmalloc: make zsmalloc portable
->=20
-> On 04/25/2012 02:23 AM, Minchan Kim wrote:
->=20
-> > The zsmalloc uses __flush_tlb_one and set_pte.
-> > It's very lower functions so that it makes arhcitecture dependency
-> > so currently zsmalloc is used by only x86.
-> > This patch changes them with map_vm_area and unmap_kernel_range so
-> > it should work all architecture.
-> >
-> > Signed-off-by: Minchan Kim <minchan@kernel.org>
-> > ---
-> >  drivers/staging/zsmalloc/Kconfig         |    4 ----
-> >  drivers/staging/zsmalloc/zsmalloc-main.c |   27 +++++++++++++++++-----=
------
-> >  drivers/staging/zsmalloc/zsmalloc_int.h  |    1 -
-> >  3 files changed, 17 insertions(+), 15 deletions(-)
-> >
-> > diff --git a/drivers/staging/zsmalloc/Kconfig b/drivers/staging/zsmallo=
-c/Kconfig
-> > index a5ab720..9084565 100644
-> > --- a/drivers/staging/zsmalloc/Kconfig
-> > +++ b/drivers/staging/zsmalloc/Kconfig
-> > @@ -1,9 +1,5 @@
-> >  config ZSMALLOC
-> >  =09tristate "Memory allocator for compressed pages"
-> > -=09# X86 dependency is because of the use of __flush_tlb_one and set_p=
-te
-> > -=09# in zsmalloc-main.c.
-> > -=09# TODO: convert these to portable functions
-> > -=09depends on X86
-> >  =09default n
-> >  =09help
-> >  =09  zsmalloc is a slab-based memory allocator designed to store
-> > diff --git a/drivers/staging/zsmalloc/zsmalloc-main.c b/drivers/staging=
-/zsmalloc/zsmalloc-main.c
-> > index ff089f8..cc017b1 100644
-> > --- a/drivers/staging/zsmalloc/zsmalloc-main.c
-> > +++ b/drivers/staging/zsmalloc/zsmalloc-main.c
-> > @@ -442,7 +442,7 @@ static int zs_cpu_notifier(struct notifier_block *n=
-b, unsigned long action,
-> >  =09=09area =3D &per_cpu(zs_map_area, cpu);
-> >  =09=09if (area->vm)
-> >  =09=09=09break;
-> > -=09=09area->vm =3D alloc_vm_area(2 * PAGE_SIZE, area->vm_ptes);
-> > +=09=09area->vm =3D alloc_vm_area(2 * PAGE_SIZE, NULL);
-> >  =09=09if (!area->vm)
-> >  =09=09=09return notifier_from_errno(-ENOMEM);
-> >  =09=09break;
-> > @@ -696,13 +696,22 @@ void *zs_map_object(struct zs_pool *pool, void *h=
-andle)
-> >  =09} else {
-> >  =09=09/* this object spans two pages */
-> >  =09=09struct page *nextp;
-> > +=09=09struct page *pages[2];
-> > +=09=09struct page **page_array =3D &pages[0];
-> > +=09=09int err;
-> >
-> >  =09=09nextp =3D get_next_page(page);
-> >  =09=09BUG_ON(!nextp);
-> >
-> > +=09=09page_array[0] =3D page;
-> > +=09=09page_array[1] =3D nextp;
-> >
-> > -=09=09set_pte(area->vm_ptes[0], mk_pte(page, PAGE_KERNEL));
-> > -=09=09set_pte(area->vm_ptes[1], mk_pte(nextp, PAGE_KERNEL));
-> > +=09=09/*
-> > +=09=09 * map_vm_area never fail because we already allocated
-> > +=09=09 * pages for page table in alloc_vm_area.
-> > +=09=09 */
-> > +=09=09err =3D map_vm_area(area->vm, PAGE_KERNEL, &page_array);
-> > +=09=09BUG_ON(err);
-> >
-> >  =09=09/* We pre-allocated VM area so mapping can never fail */
-> >  =09=09area->vm_addr =3D area->vm->addr;
-> > @@ -730,14 +739,12 @@ void zs_unmap_object(struct zs_pool *pool, void *=
-handle)
-> >  =09off =3D obj_idx_to_offset(page, obj_idx, class->size);
-> >
-> >  =09area =3D &__get_cpu_var(zs_map_area);
-> > -=09if (off + class->size <=3D PAGE_SIZE) {
-> > +=09if (off + class->size <=3D PAGE_SIZE)
-> >  =09=09kunmap_atomic(area->vm_addr);
-> > -=09} else {
-> > -=09=09set_pte(area->vm_ptes[0], __pte(0));
-> > -=09=09set_pte(area->vm_ptes[1], __pte(0));
-> > -=09=09__flush_tlb_one((unsigned long)area->vm_addr);
-> > -=09=09__flush_tlb_one((unsigned long)area->vm_addr + PAGE_SIZE);
-> > -=09}
-> > +=09else
-> > +=09=09unmap_kernel_range((unsigned long)area->vm->addr,
-> > +=09=09=09=09=09PAGE_SIZE * 2);
-> > +
->=20
->=20
->=20
-> This would certainly work but would incur unncessary cost. All we need
-> to do is to flush the local TLB entry correpsonding to these two pages.
-> However, unmap_kernel_range --> flush_tlb_kernel_range woule cause TLB
-> flush on all CPUs. Additionally, implementation of this function
-> (flush_tlb_kernel_range) on architecutures like x86 seems naive since it
-> flushes the entire TLB on all the CPUs.
->=20
-> Even with all this penalty, I'm inclined on keeping this change to
-> remove x86 only dependency, keeping improvements as future work.
->=20
-> I think Seth was working on this improvement but not sure about the
-> current status. Seth?
+Hey, Fengguang.
 
-I wouldn't normally advocate an architecture-specific ifdef, but the
-penalty for portability here seems high enough that it could make
-sense here, perhaps hidden away in zsmalloc.h?  Perhaps eventually
-in a mm header file as "unmap_kernel_page_pair_local()"?
+On Tue, Apr 24, 2012 at 03:58:53PM +0800, Fengguang Wu wrote:
+> > I have two questions.  Why do we need memcg for this?  Writeback
+> > currently works without memcg, right?  Why does that change with blkcg
+> > aware bdi?
+> 
+> Yeah currently writeback does not depend on memcg. As for blkcg, it's
+> necessary to keep a number of dirty pages for each blkcg, so that the
+> cfq groups' async IO queue does not go empty and lose its turn to do
+> IO. memcg provides the proper infrastructure to account dirty pages.
+> 
+> In a previous email, we have an example of two 10:1 weight cgroups,
+> each running one dd. They will make two IO pipes, each holding a number
+> of dirty pages. Since cfq honors dd-1 much more IO bandwidth, dd-1's
+> dirty pages are consumed quickly. However balance_dirty_pages(),
+> without knowing about cfq's bandwidth divisions, is throttling the
+> two dd tasks equally. So dd-1 will be producing dirty pages much
+> slower than cfq is consuming them. The flusher thus won't send enough
+> dirty pages down to fill the corresponding async IO queue for dd-1.
+> cfq cannot really give dd-1 more bandwidth share due to lack of data
+> feed. The end result will be: the two cgroups get 1:1 bandwidth share
+> honored by balance_dirty_pages() even though cfq honors 10:1 weights
+> to them.
+
+My question is why can't cgroup-bdi pair be handled the same or
+similar way each bdi is handled now?  I haven't looked through the
+code yet but something is determining, even inadvertently, the dirty
+memory usage among different bdi's, right?  What I'm curious about is
+why cgroupfying bdi makes any different to that.  If it's
+indeterministic w/o memcg, let it be that way with blkcg too.  Just
+treat cgroup-bdi as separate bdis.  So, what changes?
+
+> However if it's a large memory machine whose dirty pages get
+> partitioned to 100 cgroups, the flusher will be serving them
+> in round robin fashion.
+
+Just treat cgroup-bdi as a separate bdi.  Run an independent flusher
+on it.  They're separate channels.
+
+> blkio.weight will be the "number" shared and interpreted by all IO
+> controller entities, whether it be cfq, NFS or balance_dirty_pages().
+
+It already isn't.  blk-throttle is an IO controller entity but doesn't
+make use of weight.
+
+> > However, this doesn't necessarily translate easily into the actual
+> > underlying IO resource.  For devices with spindle, seek time dominates
+> > and the same amount of IO may consume vastly different amount of IO
+> > and the disk time becomes the primary resource, not the iops or
+> > bandwidth.  Naturally, people want to allocate and limit the primary
+> > resource, so cfq distributes disk time across different cgroups as
+> > configured.
+> 
+> Right. balance_dirty_pages() is always doing dirty throttling wrt.
+> bandwidth, even in your back pressure scheme, isn't it? In this regard,
+> there are nothing fundamentally different between our proposals. They
+
+If balance_dirty_pages() fails to keep the IO buffer full, it's
+balance_dirty_pages()'s failure (and doing so from time to time could
+be fine given enough benefits), but no matter what writeback does,
+blkcg *should* enforce the configured limits, so they're quite
+different in terms of encapsulation and functionality.
+
+> > Your suggested solution is applying the same a number - the weight -
+> > to one portion of a mostly arbitrarily split resource using a
+> > different unit.  I don't even understand what that achieves.
+> 
+> You seem to miss my stated plan: next step, balance_dirty_pages() will
+> get some feedback information from cfq to adjust its bandwidth targets
+> accordingly. That information will be
+> 
+>         io_cost = charge/sectors
+> 
+> The charge value is exactly the value computed in cfq_group_served(),
+> which is the slice time or IOs dispatched depending the mode cfq is
+> operating in. By dividing ratelimit by the normalized io_cost,
+> balance_dirty_pages() will automatically get the same weight
+> interpretation as cfq. For example, on spin disks, it will be able to
+> allocate lower bandwidth to seeky cgroups due to the larger io_cost
+> reported by cfq.
+
+So, cfq is basing its cost calculation on disk time spent by sync IOs
+which gets fluctuated by uncategorized async IOs and you're gonna
+apply that number to async IOs in some magical way?  What the hell
+does that achieve?
+
+Please take a step back and look at the whole stack and think about
+what each part is supposed to do and how they are supposed to
+interact.  If you still can't see the mess you're trying to make,
+ummm... I don't know.
+
+Thanks.
+
+-- 
+tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
