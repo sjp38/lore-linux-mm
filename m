@@ -1,211 +1,137 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx128.postini.com [74.125.245.128])
-	by kanga.kvack.org (Postfix) with SMTP id A6B776B0044
-	for <linux-mm@kvack.org>; Wed, 25 Apr 2012 11:06:02 -0400 (EDT)
-Date: Wed, 25 Apr 2012 16:05:56 +0100
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH 02/16] mm: sl[au]b: Add knowledge of PFMEMALLOC reserve
- pages
-Message-ID: <20120425150556.GC15299@suse.de>
-References: <1334578624-23257-1-git-send-email-mgorman@suse.de>
- <1334578624-23257-3-git-send-email-mgorman@suse.de>
- <alpine.DEB.2.00.1204231637390.17030@chino.kir.corp.google.com>
+Received: from psmtp.com (na3sys010amx199.postini.com [74.125.245.199])
+	by kanga.kvack.org (Postfix) with SMTP id 8E3356B0044
+	for <linux-mm@kvack.org>; Wed, 25 Apr 2012 11:40:17 -0400 (EDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.00.1204231637390.17030@chino.kir.corp.google.com>
+Message-ID: <fcde09be-ae34-4f09-a324-825fb2d4fac2@default>
+Date: Wed, 25 Apr 2012 08:40:02 -0700 (PDT)
+From: Dan Magenheimer <dan.magenheimer@oracle.com>
+Subject: RE: [PATCH 6/6] zsmalloc: make zsmalloc portable
+References: <1335334994-22138-1-git-send-email-minchan@kernel.org>
+ <1335334994-22138-7-git-send-email-minchan@kernel.org>
+ <4F980AFE.60901@vflare.org>
+In-Reply-To: <4F980AFE.60901@vflare.org>
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, Linux-Netdev <netdev@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, David Miller <davem@davemloft.net>, Neil Brown <neilb@suse.de>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Mike Christie <michaelc@cs.wisc.edu>, Eric B Munson <emunson@mgebm.net>
+To: Nitin Gupta <ngupta@vflare.org>, Minchan Kim <minchan@kernel.org>
+Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Mon, Apr 23, 2012 at 04:51:02PM -0700, David Rientjes wrote:
-> On Mon, 16 Apr 2012, Mel Gorman wrote:
-> 
-> > diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> > index 280eabe..0fa2c72 100644
-> > --- a/mm/page_alloc.c
-> > +++ b/mm/page_alloc.c
-> > @@ -1463,6 +1463,7 @@ failed:
-> >  #define ALLOC_HARDER		0x10 /* try to alloc harder */
-> >  #define ALLOC_HIGH		0x20 /* __GFP_HIGH set */
-> >  #define ALLOC_CPUSET		0x40 /* check for correct cpuset */
-> > +#define ALLOC_PFMEMALLOC	0x80 /* Caller has PF_MEMALLOC set */
-> >  
-> >  #ifdef CONFIG_FAIL_PAGE_ALLOC
-> >  
-> > @@ -2208,16 +2209,22 @@ gfp_to_alloc_flags(gfp_t gfp_mask)
-> >  	} else if (unlikely(rt_task(current)) && !in_interrupt())
-> >  		alloc_flags |= ALLOC_HARDER;
-> >  
-> > -	if (likely(!(gfp_mask & __GFP_NOMEMALLOC))) {
-> > -		if (!in_interrupt() &&
-> > -		    ((current->flags & PF_MEMALLOC) ||
-> > -		     unlikely(test_thread_flag(TIF_MEMDIE))))
-> > +	if ((current->flags & PF_MEMALLOC) ||
-> > +			unlikely(test_thread_flag(TIF_MEMDIE))) {
-> > +		alloc_flags |= ALLOC_PFMEMALLOC;
+> From: Nitin Gupta [mailto:ngupta@vflare.org]
+> Subject: Re: [PATCH 6/6] zsmalloc: make zsmalloc portable
+>=20
+> On 04/25/2012 02:23 AM, Minchan Kim wrote:
+>=20
+> > The zsmalloc uses __flush_tlb_one and set_pte.
+> > It's very lower functions so that it makes arhcitecture dependency
+> > so currently zsmalloc is used by only x86.
+> > This patch changes them with map_vm_area and unmap_kernel_range so
+> > it should work all architecture.
+> >
+> > Signed-off-by: Minchan Kim <minchan@kernel.org>
+> > ---
+> >  drivers/staging/zsmalloc/Kconfig         |    4 ----
+> >  drivers/staging/zsmalloc/zsmalloc-main.c |   27 +++++++++++++++++-----=
+-----
+> >  drivers/staging/zsmalloc/zsmalloc_int.h  |    1 -
+> >  3 files changed, 17 insertions(+), 15 deletions(-)
+> >
+> > diff --git a/drivers/staging/zsmalloc/Kconfig b/drivers/staging/zsmallo=
+c/Kconfig
+> > index a5ab720..9084565 100644
+> > --- a/drivers/staging/zsmalloc/Kconfig
+> > +++ b/drivers/staging/zsmalloc/Kconfig
+> > @@ -1,9 +1,5 @@
+> >  config ZSMALLOC
+> >  =09tristate "Memory allocator for compressed pages"
+> > -=09# X86 dependency is because of the use of __flush_tlb_one and set_p=
+te
+> > -=09# in zsmalloc-main.c.
+> > -=09# TODO: convert these to portable functions
+> > -=09depends on X86
+> >  =09default n
+> >  =09help
+> >  =09  zsmalloc is a slab-based memory allocator designed to store
+> > diff --git a/drivers/staging/zsmalloc/zsmalloc-main.c b/drivers/staging=
+/zsmalloc/zsmalloc-main.c
+> > index ff089f8..cc017b1 100644
+> > --- a/drivers/staging/zsmalloc/zsmalloc-main.c
+> > +++ b/drivers/staging/zsmalloc/zsmalloc-main.c
+> > @@ -442,7 +442,7 @@ static int zs_cpu_notifier(struct notifier_block *n=
+b, unsigned long action,
+> >  =09=09area =3D &per_cpu(zs_map_area, cpu);
+> >  =09=09if (area->vm)
+> >  =09=09=09break;
+> > -=09=09area->vm =3D alloc_vm_area(2 * PAGE_SIZE, area->vm_ptes);
+> > +=09=09area->vm =3D alloc_vm_area(2 * PAGE_SIZE, NULL);
+> >  =09=09if (!area->vm)
+> >  =09=09=09return notifier_from_errno(-ENOMEM);
+> >  =09=09break;
+> > @@ -696,13 +696,22 @@ void *zs_map_object(struct zs_pool *pool, void *h=
+andle)
+> >  =09} else {
+> >  =09=09/* this object spans two pages */
+> >  =09=09struct page *nextp;
+> > +=09=09struct page *pages[2];
+> > +=09=09struct page **page_array =3D &pages[0];
+> > +=09=09int err;
+> >
+> >  =09=09nextp =3D get_next_page(page);
+> >  =09=09BUG_ON(!nextp);
+> >
+> > +=09=09page_array[0] =3D page;
+> > +=09=09page_array[1] =3D nextp;
+> >
+> > -=09=09set_pte(area->vm_ptes[0], mk_pte(page, PAGE_KERNEL));
+> > -=09=09set_pte(area->vm_ptes[1], mk_pte(nextp, PAGE_KERNEL));
+> > +=09=09/*
+> > +=09=09 * map_vm_area never fail because we already allocated
+> > +=09=09 * pages for page table in alloc_vm_area.
+> > +=09=09 */
+> > +=09=09err =3D map_vm_area(area->vm, PAGE_KERNEL, &page_array);
+> > +=09=09BUG_ON(err);
+> >
+> >  =09=09/* We pre-allocated VM area so mapping can never fail */
+> >  =09=09area->vm_addr =3D area->vm->addr;
+> > @@ -730,14 +739,12 @@ void zs_unmap_object(struct zs_pool *pool, void *=
+handle)
+> >  =09off =3D obj_idx_to_offset(page, obj_idx, class->size);
+> >
+> >  =09area =3D &__get_cpu_var(zs_map_area);
+> > -=09if (off + class->size <=3D PAGE_SIZE) {
+> > +=09if (off + class->size <=3D PAGE_SIZE)
+> >  =09=09kunmap_atomic(area->vm_addr);
+> > -=09} else {
+> > -=09=09set_pte(area->vm_ptes[0], __pte(0));
+> > -=09=09set_pte(area->vm_ptes[1], __pte(0));
+> > -=09=09__flush_tlb_one((unsigned long)area->vm_addr);
+> > -=09=09__flush_tlb_one((unsigned long)area->vm_addr + PAGE_SIZE);
+> > -=09}
+> > +=09else
+> > +=09=09unmap_kernel_range((unsigned long)area->vm->addr,
+> > +=09=09=09=09=09PAGE_SIZE * 2);
 > > +
-> > +		if (likely(!(gfp_mask & __GFP_NOMEMALLOC)) && !in_interrupt())
-> >  			alloc_flags |= ALLOC_NO_WATERMARKS;
-> >  	}
-> >  
-> >  	return alloc_flags;
-> >  }
-> >  
-> > +bool gfp_pfmemalloc_allowed(gfp_t gfp_mask)
-> > +{
-> > +	return !!(gfp_to_alloc_flags(gfp_mask) & ALLOC_PFMEMALLOC);
-> > +}
-> > +
-> >  static inline struct page *
-> >  __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
-> >  	struct zonelist *zonelist, enum zone_type high_zoneidx,
-> > @@ -2407,8 +2414,16 @@ nopage:
-> >  got_pg:
-> >  	if (kmemcheck_enabled)
-> >  		kmemcheck_pagealloc_alloc(page, order, gfp_mask);
-> > -	return page;
-> >  
-> > +	/*
-> > +	 * page->pfmemalloc is set when the caller had PFMEMALLOC set or is
-> > +	 * been OOM killed. The expectation is that the caller is taking
-> > +	 * steps that will free more memory. The caller should avoid the
-> > +	 * page being used for !PFMEMALLOC purposes.
-> > +	 */
-> > +	page->pfmemalloc = !!(alloc_flags & ALLOC_PFMEMALLOC);
-> > +
-> > +	return page;
-> >  }
-> >  
-> >  /*
-> 
-> I think this is slightly inconsistent if the page allocation succeeded 
-> without needing ALLOC_NO_WATERMARKS, meaning that page was allocated above 
-> the min watermark.  That's possible if the slowpath's first call to 
-> get_page_from_freelist() succeeds without needing  __alloc_pages_high_priority(). 
-> So perhaps we need to do something like
-> 
-> 	got_pg_memalloc:
-> 		...
-> 		page->pfmemalloc = !!(alloc_flags & ALLOC_PFMEMALLOC);
-> 	got_pg:
-> 		if (kmemcheck_enabled)
-> 			kmemcheck_pagealloc_alloc(page, order, gfp_mask);
-> 		return page;
-> 
-> and use got_pg_memalloc everywhere we currently use got_pg other than the 
-> when it succeeds with ALLOC_NO_WATERMARKS.
-> 
+>=20
+>=20
+>=20
+> This would certainly work but would incur unncessary cost. All we need
+> to do is to flush the local TLB entry correpsonding to these two pages.
+> However, unmap_kernel_range --> flush_tlb_kernel_range woule cause TLB
+> flush on all CPUs. Additionally, implementation of this function
+> (flush_tlb_kernel_range) on architecutures like x86 seems naive since it
+> flushes the entire TLB on all the CPUs.
+>=20
+> Even with all this penalty, I'm inclined on keeping this change to
+> remove x86 only dependency, keeping improvements as future work.
+>=20
+> I think Seth was working on this improvement but not sure about the
+> current status. Seth?
 
-In this path, we are under memory pressure and at least below the low
-watermark. kswapd is woken up and should start reclaiming pages. The
-calling process may enter direct reclaim. As we are paging out and some
-of that could be over the network, the pages are preserved until the
-paging is complete. The problem is that in the context of this patch,
-ALLOC_NO_WATERMARK is not being set for the cases we need so what it
-does at this point makes sense.
-
-That said, I see your point. The changelog is inconsistent with what
-the code is doing. I updated the desription to read "When this patch is
-applied, pages allocated from below the low watermark are returned with
-page->pfmemalloc set and it is up to the caller to determine how the page
-should be protected."
-
-You are also right in that the series as a whole is actually protecting pages
-below the low watermark and not below the min watermark as stated. I'll add a
-new patch that will be patch 6 in the series that only sets page->pfmemalloc
-when ALLOC_NO_WATERMARKS is used and test that.
-
-One could argue that the patch "mm: Introduce __GFP_MEMALLOC to allow access
-to emergency reserves" should be updated but I think a separate patch will
-be easier to review and also easier to revert if regressions are reported.
-
-Well spotted and thanks for reviewing.
-
-This is not tested but is this what you had in mind? It only sets
-page->pfmemalloc if ALLOC_NO_WATERMARKS was necessary to satisfy the
-allocation. To do that, ALLOC_NO_WATERMARKS has to be stripped from
-__alloc_pages_direct_reclaim and friends but it should goto rebalanace later.
-
----8<---
-mm: Only set page->pfmemalloc when ALLOC_NO_WATERMARKS was used
-
-__alloc_pages_slowpath() is called when the number of free pages is below
-the low watermark. If the caller is entitled to use ALLOC_NO_WATERMARKS
-then the page will be marked page->pfmemalloc.  This protects more pages
-than are strictly necessary as we only need to protect pages allocated
-below the min watermark (the pfmemalloc reserves).
-
-This patch only sets page->pfmemalloc when ALLOC_NO_WATERMARKS was
-required to allocate the page.
-
-[rientjes@google.com: David noticed the problem during review]
-Signed-off-by: Mel Gorman <mgorman@suse.de>
----
- mm/page_alloc.c |   27 ++++++++++++++-------------
- 1 file changed, 14 insertions(+), 13 deletions(-)
-
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 3738596..363ca90 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -2043,8 +2043,8 @@ __alloc_pages_direct_compact(gfp_t gfp_mask, unsigned int order,
- 
- 		page = get_page_from_freelist(gfp_mask, nodemask,
- 				order, zonelist, high_zoneidx,
--				alloc_flags, preferred_zone,
--				migratetype);
-+				alloc_flags & ~ALLOC_NO_WATERMARKS,
-+				preferred_zone, migratetype);
- 		if (page) {
- 			preferred_zone->compact_considered = 0;
- 			preferred_zone->compact_defer_shift = 0;
-@@ -2124,8 +2124,8 @@ __alloc_pages_direct_reclaim(gfp_t gfp_mask, unsigned int order,
- retry:
- 	page = get_page_from_freelist(gfp_mask, nodemask, order,
- 					zonelist, high_zoneidx,
--					alloc_flags, preferred_zone,
--					migratetype);
-+					alloc_flags & ~ALLOC_NO_WATERMARKS,
-+					preferred_zone, migratetype);
- 
- 	/*
- 	 * If an allocation failed after direct reclaim, it could be because
-@@ -2296,8 +2296,17 @@ rebalance:
- 		page = __alloc_pages_high_priority(gfp_mask, order,
- 				zonelist, high_zoneidx, nodemask,
- 				preferred_zone, migratetype);
--		if (page)
-+		if (page) {
-+			/*
-+			 * page->pfmemalloc is set when ALLOC_NO_WATERMARKS was
-+			 * necessary to allocate the page. The expectation is
-+			 * that the caller is taking steps that will free more
-+			 * memory. The caller should avoid the page being used
-+			 * for !PFMEMALLOC purposes.
-+			 */
-+			page->pfmemalloc = true;
- 			goto got_pg;
-+		}
- 	}
- 
- 	/* Atomic allocations - we can't balance anything */
-@@ -2414,14 +2423,6 @@ nopage:
- 	warn_alloc_failed(gfp_mask, order, NULL);
- 	return page;
- got_pg:
--	/*
--	 * page->pfmemalloc is set when the caller had PFMEMALLOC set, is
--	 * been OOM killed or specified __GFP_MEMALLOC. The expectation is
--	 * that the caller is taking steps that will free more memory. The
--	 * caller should avoid the page being used for !PFMEMALLOC purposes.
--	 */
--	page->pfmemalloc = !!(alloc_flags & ALLOC_NO_WATERMARKS);
--
- 	if (kmemcheck_enabled)
- 		kmemcheck_pagealloc_alloc(page, order, gfp_mask);
- 
+I wouldn't normally advocate an architecture-specific ifdef, but the
+penalty for portability here seems high enough that it could make
+sense here, perhaps hidden away in zsmalloc.h?  Perhaps eventually
+in a mm header file as "unmap_kernel_page_pair_local()"?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
