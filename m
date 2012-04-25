@@ -1,58 +1,37 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx117.postini.com [74.125.245.117])
-	by kanga.kvack.org (Postfix) with SMTP id 411616B0044
-	for <linux-mm@kvack.org>; Wed, 25 Apr 2012 09:35:31 -0400 (EDT)
-Received: by qcsd16 with SMTP id d16so70988qcs.14
-        for <linux-mm@kvack.org>; Wed, 25 Apr 2012 06:35:30 -0700 (PDT)
-Message-ID: <4F97FD9D.9090105@vflare.org>
-Date: Wed, 25 Apr 2012 09:35:25 -0400
-From: Nitin Gupta <ngupta@vflare.org>
+Received: from psmtp.com (na3sys010amx180.postini.com [74.125.245.180])
+	by kanga.kvack.org (Postfix) with SMTP id BBF126B0044
+	for <linux-mm@kvack.org>; Wed, 25 Apr 2012 10:23:59 -0400 (EDT)
+Date: Wed, 25 Apr 2012 16:22:41 +0200
+From: Oleg Nesterov <oleg@redhat.com>
+Subject: Re: [RFC 0/6] uprobes: kill uprobes_srcu/uprobe_srcu_id
+Message-ID: <20120425142241.GA18319@redhat.com>
+References: <20120405222024.GA19154@redhat.com> <20120414111637.GB24688@gmail.com> <20120416113124.GA25464@linux.vnet.ibm.com> <20120416144116.GA6745@redhat.com> <20120425125239.GA2889@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 5/6] zsmalloc: remove unnecessary type casting
-References: <1335334994-22138-1-git-send-email-minchan@kernel.org> <1335334994-22138-6-git-send-email-minchan@kernel.org>
-In-Reply-To: <1335334994-22138-6-git-send-email-minchan@kernel.org>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20120425125239.GA2889@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Dan Magenheimer <dan.magenheimer@oracle.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
+Cc: Ingo Molnar <mingo@kernel.org>, Ingo Molnar <mingo@elte.hu>, Peter Zijlstra <peterz@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, LKML <linux-kernel@vger.kernel.org>, Linux-mm <linux-mm@kvack.org>, Andi Kleen <andi@firstfloor.org>, Christoph Hellwig <hch@infradead.org>, Steven Rostedt <rostedt@goodmis.org>, Arnaldo Carvalho de Melo <acme@infradead.org>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Thomas Gleixner <tglx@linutronix.de>, Anton Arapov <anton@redhat.com>
 
-On 04/25/2012 02:23 AM, Minchan Kim wrote:
+On 04/25, Srikar Dronamraju wrote:
+>
+> I applied the patches and ran all my tests.
+> Everything works as expected.
 
-> Let's remove unnecessary type casting of (void *).
-> 
-> Signed-off-by: Minchan Kim <minchan@kernel.org>
-> ---
->  drivers/staging/zsmalloc/zsmalloc-main.c |    3 +--
->  1 file changed, 1 insertion(+), 2 deletions(-)
-> 
-> diff --git a/drivers/staging/zsmalloc/zsmalloc-main.c b/drivers/staging/zsmalloc/zsmalloc-main.c
-> index b7d31cc..ff089f8 100644
-> --- a/drivers/staging/zsmalloc/zsmalloc-main.c
-> +++ b/drivers/staging/zsmalloc/zsmalloc-main.c
-> @@ -644,8 +644,7 @@ void zs_free(struct zs_pool *pool, void *obj)
->  	spin_lock(&class->lock);
->  
->  	/* Insert this object in containing zspage's freelist */
-> -	link = (struct link_free *)((unsigned char *)kmap_atomic(f_page)
-> -							+ f_offset);
-> +	link = (struct link_free *)(kmap_atomic(f_page)	+ f_offset);
->  	link->next = first_page->freelist;
->  	kunmap_atomic(link);
->  	first_page->freelist = obj;
+Thanks a lot Srikar.
 
+I'll resend this series with some cleanups. Probably we do not need
+is_swbp_at_addr_fast, we can check mm == current->mm in read_opcode()
+as Peter suggests. Plus I'll try to make the MMF_UPROBE changes we
+discussed. And a couple of really minor and off-topic cleanups.
 
+But I'll wait until we have all pending patches in -tip to avoid
+the unnecessary noise at this stage.
 
-Incrementing a void pointer looks weired and should not be allowed by C
-compilers though gcc and clang seem to allow this without any warnings.
-(fortunately C++ forbids incrementing void pointers)
-
-So, we should keep this cast to unsigned char pointer to avoid relying
-on a non-standard, compiler specific behavior.
-
-Thanks,
-Nitin
+Oleg.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
