@@ -1,117 +1,126 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx134.postini.com [74.125.245.134])
-	by kanga.kvack.org (Postfix) with SMTP id 90C4B6B00E8
-	for <linux-mm@kvack.org>; Wed, 25 Apr 2012 02:22:47 -0400 (EDT)
-From: Minchan Kim <minchan@kernel.org>
-Subject: [PATCH 6/6] zsmalloc: make zsmalloc portable
-Date: Wed, 25 Apr 2012 15:23:14 +0900
-Message-Id: <1335334994-22138-7-git-send-email-minchan@kernel.org>
-In-Reply-To: <1335334994-22138-1-git-send-email-minchan@kernel.org>
-References: <1335334994-22138-1-git-send-email-minchan@kernel.org>
+Received: from psmtp.com (na3sys010amx162.postini.com [74.125.245.162])
+	by kanga.kvack.org (Postfix) with SMTP id 4577D6B0044
+	for <linux-mm@kvack.org>; Wed, 25 Apr 2012 04:06:15 -0400 (EDT)
+Date: Wed, 25 Apr 2012 10:06:11 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [patch] mm, oom: avoid checking set of allowed nodes twice when
+ selecting a victim
+Message-ID: <20120425080611.GA11068@tiehlicka.suse.cz>
+References: <alpine.DEB.2.00.1204031633460.8112@chino.kir.corp.google.com>
+ <20120412140137.GA32729@tiehlicka.suse.cz>
+ <alpine.DEB.2.00.1204241605570.17792@chino.kir.corp.google.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.00.1204241605570.17792@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Nitin Gupta <ngupta@vflare.org>, Dan Magenheimer <dan.magenheimer@oracle.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Minchan Kim <minchan@kernel.org>
+To: David Rientjes <rientjes@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org
 
-The zsmalloc uses __flush_tlb_one and set_pte.
-It's very lower functions so that it makes arhcitecture dependency
-so currently zsmalloc is used by only x86.
-This patch changes them with map_vm_area and unmap_kernel_range so
-it should work all architecture.
+On Tue 24-04-12 16:09:14, David Rientjes wrote:
+> On Thu, 12 Apr 2012, Michal Hocko wrote:
+> 
+> > diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+> > index 46bf2ed5..a9df008 100644
+> > --- a/mm/oom_kill.c
+> > +++ b/mm/oom_kill.c
+> > @@ -171,23 +171,10 @@ static bool oom_unkillable_task(struct task_struct *p,
+> >  	return false;
+> >  }
+> >  
+> > -/**
+> > - * oom_badness - heuristic function to determine which candidate task to kill
+> > - * @p: task struct of which task we should calculate
+> > - * @totalpages: total present RAM allowed for page allocation
+> > - *
+> > - * The heuristic for determining which task to kill is made to be as simple and
+> > - * predictable as possible.  The goal is to return the highest value for the
+> > - * task consuming the most memory to avoid subsequent oom failures.
+> > - */
+> > -unsigned int oom_badness(struct task_struct *p, struct mem_cgroup *memcg,
+> > +/* can be used only for tasks which are killable as per oom_unkillable_task */
+> > +static unsigned int __oom_badness(struct task_struct *p, struct mem_cgroup *memcg,
+> >  		      const nodemask_t *nodemask, unsigned long totalpages)
+> >  {
+> > -	long points;
+> > -
+> > -	if (oom_unkillable_task(p, memcg, nodemask))
+> > -		return 0;
+> > -
+> >  	p = find_lock_task_mm(p);
+> >  	if (!p)
+> >  		return 0;
+> > @@ -239,6 +226,26 @@ unsigned int oom_badness(struct task_struct *p, struct mem_cgroup *memcg,
+> >  	return (points < 1000) ? points : 1000;
+> >  }
+> >  
+> > +/**
+> > + * oom_badness - heuristic function to determine which candidate task to kill
+> > + * @p: task struct of which task we should calculate
+> > + * @totalpages: total present RAM allowed for page allocation
+> > + *
+> > + * The heuristic for determining which task to kill is made to be as simple and
+> > + * predictable as possible.  The goal is to return the highest value for the
+> > + * task consuming the most memory to avoid subsequent oom failures.
+> > + */
+> > +unsigned int oom_badness(struct task_struct *p, struct mem_cgroup *memcg,
+> > +		      const nodemask_t *nodemask, unsigned long totalpages)
+> > +{
+> > +	long points;
+> > +
+> > +	if (oom_unkillable_task(p, memcg, nodemask))
+> > +		return 0;
+> > +
+> > +	return __oom_badness(p, memcg, nodemask, totalpages);
+> > +}
+> > +
+> >  /*
+> >   * Determine the type of allocation constraint.
+> >   */
+> > @@ -366,7 +373,7 @@ static struct task_struct *select_bad_process(unsigned int *ppoints,
+> >  			}
+> >  		}
+> >  
+> > -		points = oom_badness(p, memcg, nodemask, totalpages);
+> > +		points = __oom_badness(p, memcg, nodemask, totalpages);
+> >  		if (points > *ppoints) {
+> >  			chosen = p;
+> >  			*ppoints = points;
+> 
+> No, the way I had it written is correct: the above unnecessarily checks 
+> for membership in a memcg or intersection with a set of allowable nodes 
+> for child threads in oom_kill_process().  
 
-Signed-off-by: Minchan Kim <minchan@kernel.org>
----
- drivers/staging/zsmalloc/Kconfig         |    4 ----
- drivers/staging/zsmalloc/zsmalloc-main.c |   27 +++++++++++++++++----------
- drivers/staging/zsmalloc/zsmalloc_int.h  |    1 -
- 3 files changed, 17 insertions(+), 15 deletions(-)
+your patch does 
+	if (oom_unkillable_task(child, memcg, nodemask))
+		continue;
+	oom_badness((child, memcg, nodemask,
+				   totalpages);
 
-diff --git a/drivers/staging/zsmalloc/Kconfig b/drivers/staging/zsmalloc/Kconfig
-index a5ab720..9084565 100644
---- a/drivers/staging/zsmalloc/Kconfig
-+++ b/drivers/staging/zsmalloc/Kconfig
-@@ -1,9 +1,5 @@
- config ZSMALLOC
- 	tristate "Memory allocator for compressed pages"
--	# X86 dependency is because of the use of __flush_tlb_one and set_pte
--	# in zsmalloc-main.c.
--	# TODO: convert these to portable functions
--	depends on X86
- 	default n
- 	help
- 	  zsmalloc is a slab-based memory allocator designed to store
-diff --git a/drivers/staging/zsmalloc/zsmalloc-main.c b/drivers/staging/zsmalloc/zsmalloc-main.c
-index ff089f8..cc017b1 100644
---- a/drivers/staging/zsmalloc/zsmalloc-main.c
-+++ b/drivers/staging/zsmalloc/zsmalloc-main.c
-@@ -442,7 +442,7 @@ static int zs_cpu_notifier(struct notifier_block *nb, unsigned long action,
- 		area = &per_cpu(zs_map_area, cpu);
- 		if (area->vm)
- 			break;
--		area->vm = alloc_vm_area(2 * PAGE_SIZE, area->vm_ptes);
-+		area->vm = alloc_vm_area(2 * PAGE_SIZE, NULL);
- 		if (!area->vm)
- 			return notifier_from_errno(-ENOMEM);
- 		break;
-@@ -696,13 +696,22 @@ void *zs_map_object(struct zs_pool *pool, void *handle)
- 	} else {
- 		/* this object spans two pages */
- 		struct page *nextp;
-+		struct page *pages[2];
-+		struct page **page_array = &pages[0];
-+		int err;
- 
- 		nextp = get_next_page(page);
- 		BUG_ON(!nextp);
- 
-+		page_array[0] = page;
-+		page_array[1] = nextp;
- 
--		set_pte(area->vm_ptes[0], mk_pte(page, PAGE_KERNEL));
--		set_pte(area->vm_ptes[1], mk_pte(nextp, PAGE_KERNEL));
-+		/*
-+		 * map_vm_area never fail because we already allocated
-+		 * pages for page table in alloc_vm_area.
-+		 */
-+		err = map_vm_area(area->vm, PAGE_KERNEL, &page_array);
-+		BUG_ON(err);
- 
- 		/* We pre-allocated VM area so mapping can never fail */
- 		area->vm_addr = area->vm->addr;
-@@ -730,14 +739,12 @@ void zs_unmap_object(struct zs_pool *pool, void *handle)
- 	off = obj_idx_to_offset(page, obj_idx, class->size);
- 
- 	area = &__get_cpu_var(zs_map_area);
--	if (off + class->size <= PAGE_SIZE) {
-+	if (off + class->size <= PAGE_SIZE)
- 		kunmap_atomic(area->vm_addr);
--	} else {
--		set_pte(area->vm_ptes[0], __pte(0));
--		set_pte(area->vm_ptes[1], __pte(0));
--		__flush_tlb_one((unsigned long)area->vm_addr);
--		__flush_tlb_one((unsigned long)area->vm_addr + PAGE_SIZE);
--	}
-+	else
-+		unmap_kernel_range((unsigned long)area->vm->addr,
-+					PAGE_SIZE * 2);
-+
- 	put_cpu_var(zs_map_area);
- }
- EXPORT_SYMBOL_GPL(zs_unmap_object);
-diff --git a/drivers/staging/zsmalloc/zsmalloc_int.h b/drivers/staging/zsmalloc/zsmalloc_int.h
-index 8f9ce0c..4c11c89 100644
---- a/drivers/staging/zsmalloc/zsmalloc_int.h
-+++ b/drivers/staging/zsmalloc/zsmalloc_int.h
-@@ -111,7 +111,6 @@ static const int fullness_threshold_frac = 4;
- 
- struct mapping_area {
- 	struct vm_struct *vm;
--	pte_t *vm_ptes[2];
- 	char *vm_addr;
- };
- 
+in oom_kill_process so the check is very same. Or am I missing
+something?
+
+
+> With a lot of children and with 
+> a CONFIG_NODES_SHIFT significantly large (the prerequisite for this patch 
+> to make any difference), that's too costly to do.
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Fight unfair telecom internet charges in Canada: sign http://stopthemeter.ca/
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+
 -- 
-1.7.9.5
+Michal Hocko
+SUSE Labs
+SUSE LINUX s.r.o.
+Lihovarska 1060/12
+190 00 Praha 9    
+Czech Republic
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
