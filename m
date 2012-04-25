@@ -1,41 +1,33 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx174.postini.com [74.125.245.174])
-	by kanga.kvack.org (Postfix) with SMTP id 1012C6B0044
-	for <linux-mm@kvack.org>; Wed, 25 Apr 2012 18:28:25 -0400 (EDT)
-Received: by pbcup15 with SMTP id up15so2474459pbc.14
-        for <linux-mm@kvack.org>; Wed, 25 Apr 2012 15:28:24 -0700 (PDT)
-Date: Wed, 25 Apr 2012 15:28:19 -0700
-From: Tejun Heo <tj@kernel.org>
-Subject: Re: [BUG]memblock: fix overflow of array index
-Message-ID: <20120425222819.GF8989@google.com>
-References: <CAHnt0GXW-pyOUuBLB1n6qBP4WNGpET9er_HbJ29s5j5DE1xAdA@mail.gmail.com>
+Received: from psmtp.com (na3sys010amx154.postini.com [74.125.245.154])
+	by kanga.kvack.org (Postfix) with SMTP id 4C39F6B0044
+	for <linux-mm@kvack.org>; Wed, 25 Apr 2012 18:29:32 -0400 (EDT)
+Message-ID: <4F987ACB.8050604@linux.intel.com>
+Date: Wed, 25 Apr 2012 15:29:31 -0700
+From: "H. Peter Anvin" <hpa@linux.intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CAHnt0GXW-pyOUuBLB1n6qBP4WNGpET9er_HbJ29s5j5DE1xAdA@mail.gmail.com>
+Subject: Re: [BUG]memblock: fix overflow of array index
+References: <CAHnt0GXW-pyOUuBLB1n6qBP4WNGpET9er_HbJ29s5j5DE1xAdA@mail.gmail.com> <20120425222819.GF8989@google.com>
+In-Reply-To: <20120425222819.GF8989@google.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Teoh <htmldeveloper@gmail.com>
-Cc: linux-kernel@vger.kernel.org, "H. Peter Anvin" <hpa@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@elte.hu>, linux-mm@kvack.org
+To: Tejun Heo <tj@kernel.org>
+Cc: Peter Teoh <htmldeveloper@gmail.com>, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@elte.hu>, linux-mm@kvack.org
 
-On Wed, Apr 25, 2012 at 04:30:19PM +0800, Peter Teoh wrote:
-> Fixing the mismatch in signed and unsigned type assignment, which
-> potentially can lead to integer overflow bug.
+On 04/25/2012 03:28 PM, Tejun Heo wrote:
 > 
-> Thanks.
+> All indexes in memblock are integers.  Changing that particular one to
+> unsigned int doesn't fix anything.  I think it just makes things more
+> confusing.  If there ever are cases w/ more then 2G memblocks, we're
+> going for 64bit not unsigned.
 > 
-> Reviewed-by: Minchan Kim <minchan@kernel.org>
-> Signed-off-by: Peter Teoh <htmldeveloper@gmail.com>
 
-All indexes in memblock are integers.  Changing that particular one to
-unsigned int doesn't fix anything.  I think it just makes things more
-confusing.  If there ever are cases w/ more then 2G memblocks, we're
-going for 64bit not unsigned.
+I would expect there to be plenty of memblocks larger than 2G?
 
-Thanks.
+	-hpa
 
--- 
-tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
