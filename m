@@ -1,102 +1,99 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx151.postini.com [74.125.245.151])
-	by kanga.kvack.org (Postfix) with SMTP id 35CC46B007E
-	for <linux-mm@kvack.org>; Thu, 26 Apr 2012 17:26:46 -0400 (EDT)
-From: Glauber Costa <glommer@parallels.com>
-Subject: [PATCH v3 1/2] Always free struct memcg through schedule_work()
-Date: Thu, 26 Apr 2012 18:24:22 -0300
-Message-Id: <1335475463-25167-2-git-send-email-glommer@parallels.com>
-In-Reply-To: <1335475463-25167-1-git-send-email-glommer@parallels.com>
-References: <1335475463-25167-1-git-send-email-glommer@parallels.com>
+Received: from psmtp.com (na3sys010amx157.postini.com [74.125.245.157])
+	by kanga.kvack.org (Postfix) with SMTP id 7C3066B004A
+	for <linux-mm@kvack.org>; Thu, 26 Apr 2012 17:37:33 -0400 (EDT)
+Date: Thu, 26 Apr 2012 14:37:29 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [patch 2/2] mm: memcg: count pte references from every member
+ of the reclaimed hierarchy
+Message-Id: <20120426143729.10f672ae.akpm@linux-foundation.org>
+In-Reply-To: <1335296144-29381-2-git-send-email-hannes@cmpxchg.org>
+References: <1335296144-29381-1-git-send-email-hannes@cmpxchg.org>
+	<1335296144-29381-2-git-send-email-hannes@cmpxchg.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: cgroups@vger.kernel.org
-Cc: netdev@vger.kernel.org, Li Zefan <lizefan@huawei.com>, Tejun Heo <tj@kernel.org>, kamezawa.hiroyu@jp.fujitsu.com, linux-mm@kvack.org, devel@openvz.org, Glauber Costa <glommer@parallels.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Konstantin Khlebnikov <khlebnikov@openvz.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, Li Zefan <lizf@cn.fujitsu.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
 
-Right now we free struct memcg with kfree right after a
-rcu grace period, but defer it if we need to use vfree() to get
-rid of that memory area. We do that by need, because we need vfree
-to be called in a process context.
+On Tue, 24 Apr 2012 21:35:44 +0200
+Johannes Weiner <hannes@cmpxchg.org> wrote:
 
-This patch unifies this behavior, by ensuring that even kfree will
-happen in a separate thread. The goal is to have a stable place to
-call the upcoming jump label destruction function outside the realm
-of the complicated and quite far-reaching cgroup lock (that can't be
-held when calling neither the cpu_hotplug.lock nor the jump_label_mutex)
+> The rmap walker checking page table references has historically
+> ignored references from VMAs that were not part of the memcg that was
+> being reclaimed during memcg hard limit reclaim.
+> 
+> When transitioning global reclaim to memcg hierarchy reclaim, I missed
+> that bit and now references from outside a memcg are ignored even
+> during global reclaim.
+> 
+> Reverting back to traditional behaviour - count all references during
+> global reclaim and only mind references of the memcg being reclaimed
+> during limit reclaim would be one option.
+> 
+> However, the more generic idea is to ignore references exactly then
+> when they are outside the hierarchy that is currently under reclaim;
+> because only then will their reclamation be of any use to help the
+> pressure situation.  It makes no sense to ignore references from a
+> sibling memcg and then evict a page that will be immediately refaulted
+> by that sibling which contributes to the same usage of the common
+> ancestor under reclaim.
+> 
+> The solution: make the rmap walker ignore references from VMAs that
+> are not part of the hierarchy that is being reclaimed.
+> 
+> Flat limit reclaim will stay the same, hierarchical limit reclaim will
+> mind the references only to pages that the hierarchy owns.  Global
+> reclaim, since it reclaims from all memcgs, will be fixed to regard
+> all references.
+> 
+> ...
+>
+> --- a/include/linux/memcontrol.h
+> +++ b/include/linux/memcontrol.h
+> @@ -78,6 +78,7 @@ extern void mem_cgroup_uncharge_cache_page(struct page *page);
+>  
+>  extern void mem_cgroup_out_of_memory(struct mem_cgroup *memcg, gfp_t gfp_mask,
+>  				     int order);
+> +bool __mem_cgroup_same_or_subtree(const struct mem_cgroup *, struct mem_cgroup *);
 
-Signed-off-by: Glauber Costa <glommer@parallels.com>
-CC: Tejun Heo <tj@kernel.org>
-CC: Li Zefan <lizefan@huawei.com>
-CC: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-CC: Johannes Weiner <hannes@cmpxchg.org>
-CC: Michal Hocko <mhocko@suse.cz>
----
- mm/memcontrol.c |   24 +++++++++++++-----------
- 1 files changed, 13 insertions(+), 11 deletions(-)
+I dunno about you guys, but this practice of omitting the names of the
+arguments in the declaration drives me bats.  It really does throw away
+a *lot* of information.  It looks OK when one is initially reading the
+code, but when I actually go in there and do some work on the code, it
+makes things significantly harder.
 
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 7832b4d..b0076cc 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -245,8 +245,8 @@ struct mem_cgroup {
- 		 */
- 		struct rcu_head rcu_freeing;
- 		/*
--		 * But when using vfree(), that cannot be done at
--		 * interrupt time, so we must then queue the work.
-+		 * We also need some space for a worker in deferred freeing.
-+		 * By the time we call it, rcu_freeing is not longer in use.
- 		 */
- 		struct work_struct work_freeing;
- 	};
-@@ -4826,23 +4826,28 @@ out_free:
- }
- 
- /*
-- * Helpers for freeing a vzalloc()ed mem_cgroup by RCU,
-+ * Helpers for freeing a kmalloc()ed/vzalloc()ed mem_cgroup by RCU,
-  * but in process context.  The work_freeing structure is overlaid
-  * on the rcu_freeing structure, which itself is overlaid on memsw.
-  */
--static void vfree_work(struct work_struct *work)
-+static void free_work(struct work_struct *work)
- {
- 	struct mem_cgroup *memcg;
-+	int size = sizeof(struct mem_cgroup);
- 
- 	memcg = container_of(work, struct mem_cgroup, work_freeing);
--	vfree(memcg);
-+	if (size < PAGE_SIZE)
-+		kfree(memcg);
-+	else
-+		vfree(memcg);
- }
--static void vfree_rcu(struct rcu_head *rcu_head)
-+
-+static void free_rcu(struct rcu_head *rcu_head)
- {
- 	struct mem_cgroup *memcg;
- 
- 	memcg = container_of(rcu_head, struct mem_cgroup, rcu_freeing);
--	INIT_WORK(&memcg->work_freeing, vfree_work);
-+	INIT_WORK(&memcg->work_freeing, free_work);
- 	schedule_work(&memcg->work_freeing);
- }
- 
-@@ -4868,10 +4873,7 @@ static void __mem_cgroup_free(struct mem_cgroup *memcg)
- 		free_mem_cgroup_per_zone_info(memcg, node);
- 
- 	free_percpu(memcg->stat);
--	if (sizeof(struct mem_cgroup) < PAGE_SIZE)
--		kfree_rcu(memcg, rcu_freeing);
--	else
--		call_rcu(&memcg->rcu_freeing, vfree_rcu);
-+	call_rcu(&memcg->rcu_freeing, free_rcu);
- }
- 
- static void mem_cgroup_get(struct mem_cgroup *memcg)
--- 
-1.7.7.6
+>  int task_in_mem_cgroup(struct task_struct *task, const struct mem_cgroup *memcg);
+>  
+>  extern struct mem_cgroup *try_get_mem_cgroup_from_page(struct page *page);
+> @@ -91,10 +92,13 @@ static inline
+>  int mm_match_cgroup(const struct mm_struct *mm, const struct mem_cgroup *cgroup)
+>  {
+>  	struct mem_cgroup *memcg;
+> +	int match;
+> +
+>  	rcu_read_lock();
+>  	memcg = mem_cgroup_from_task(rcu_dereference((mm)->owner));
+> +	match = memcg && __mem_cgroup_same_or_subtree(cgroup, memcg);
+>  	rcu_read_unlock();
+> -	return cgroup == memcg;
+> +	return match;
+>  }
+
+mm_match_cgroup() really wants to return a bool type, no?
+
+> +bool __mem_cgroup_same_or_subtree(const struct mem_cgroup *root_memcg,
+> +				  struct mem_cgroup *memcg)
+
+Like him.
+
+> +static bool mem_cgroup_same_or_subtree(const struct mem_cgroup *root_memcg,
+> +				       struct mem_cgroup *memcg)
+
+And him.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
