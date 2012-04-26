@@ -1,29 +1,38 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx158.postini.com [74.125.245.158])
-	by kanga.kvack.org (Postfix) with SMTP id 195556B004A
-	for <linux-mm@kvack.org>; Thu, 26 Apr 2012 10:50:24 -0400 (EDT)
-Date: Thu, 26 Apr 2012 09:50:19 -0500 (CDT)
+Received: from psmtp.com (na3sys010amx174.postini.com [74.125.245.174])
+	by kanga.kvack.org (Postfix) with SMTP id E9D046B004A
+	for <linux-mm@kvack.org>; Thu, 26 Apr 2012 10:58:28 -0400 (EDT)
+Date: Thu, 26 Apr 2012 09:58:26 -0500 (CDT)
 From: Christoph Lameter <cl@linux.com>
-Subject: Re: [RFC][PATCH] avoid swapping out with swappiness==0
-In-Reply-To: <20120424082019.GA18395@alpha.arachsys.com>
-Message-ID: <alpine.DEB.2.00.1204260948520.16059@router.home>
-References: <20120424082019.GA18395@alpha.arachsys.com>
+Subject: Re: [patch] mm, mempolicy: make mempolicies robust against errors
+In-Reply-To: <alpine.DEB.2.00.1203062151530.6424@chino.kir.corp.google.com>
+Message-ID: <alpine.DEB.2.00.1204260956010.16059@router.home>
+References: <alpine.DEB.2.00.1203041341340.9534@chino.kir.corp.google.com> <20120306160833.0e9bf50a.akpm@linux-foundation.org> <alpine.DEB.2.00.1203061950050.24600@chino.kir.corp.google.com> <alpine.DEB.2.00.1203062025490.24600@chino.kir.corp.google.com>
+ <CAHGf_=qG1Lah00fGTNENvtgacsUt1=FcMKyt+kmPG1=UD6ecNw@mail.gmail.com> <alpine.DEB.2.00.1203062151530.6424@chino.kir.corp.google.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: TEXT/PLAIN; CHARSET=US-ASCII
+Content-ID: <alpine.DEB.2.00.1204260956012.16059@router.home>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Richard Davies <richard@arachsys.com>
-Cc: Satoru Moriya <satoru.moriya@hds.com>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Jerome Marchand <jmarchan@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, "jweiner@redhat.com" <jweiner@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "riel@redhat.com" <riel@redhat.com>, "lwoodman@redhat.com" <lwoodman@redhat.com>, "shaohua.li@intel.com" <shaohua.li@intel.com>, "dle-develop@lists.sourceforge.net" <dle-develop@lists.sourceforge.net>, Seiji Aguchi <seiji.aguchi@hds.com>, Minchan Kim <minchan.kim@gmail.com>
+To: David Rientjes <rientjes@google.com>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org
 
-On Tue, 24 Apr 2012, Richard Davies wrote:
+On Tue, 6 Mar 2012, David Rientjes wrote:
 
-> I strongly believe that Linux should have a way to turn off swapping unless
-> absolutely necessary. This means that users like us can run with swap
-> present for emergency use, rather than having to disable it because of the
-> side effects.
+> That's not compiled for CONFIG_BUG=n; such a config fallsback to
+> include/asm-generic/bug.h which just does
+>
+> 	#define BUG()	do {} while (0)
+>
+> because CONFIG_BUG specifically _wants_ to bypass BUG()s and is reasonably
+> protected by CONFIG_EXPERT.
 
-Agree. And this ooperation mode should be the default behavior given that
-swapping is a very slow and tedious process these days.
+Why would anyone do this? IMHO if you disable CONFIG_BUG and things
+explode then its your fault.
+
+If we must have the ability then make BUG() fallback to something that
+quiets down the compiler (and set some kind of an "idiot" flag in the
+tainted flags please so that we can ignore bug reports like that).
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
