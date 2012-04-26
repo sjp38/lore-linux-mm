@@ -1,113 +1,144 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx171.postini.com [74.125.245.171])
-	by kanga.kvack.org (Postfix) with SMTP id 895F46B007E
-	for <linux-mm@kvack.org>; Thu, 26 Apr 2012 05:06:48 -0400 (EDT)
-Date: Thu, 26 Apr 2012 10:06:43 +0100
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH][RFC] mm: compaction: handle incorrect Unmovable type
- pageblocks
-Message-ID: <20120426090643.GE15299@suse.de>
-References: <201204231202.55739.b.zolnierkie@samsung.com>
- <20120423145631.GD3255@suse.de>
- <201204241403.29860.b.zolnierkie@samsung.com>
+Received: from psmtp.com (na3sys010amx190.postini.com [74.125.245.190])
+	by kanga.kvack.org (Postfix) with SMTP id 4A7CB6B00E7
+	for <linux-mm@kvack.org>; Thu, 26 Apr 2012 05:06:50 -0400 (EDT)
+Date: Thu, 26 Apr 2012 11:06:42 +0200
+From: Johannes Weiner <jweiner@redhat.com>
+Subject: Re: [patch v2] thp, memcg: split hugepage for memcg oom on cow
+Message-ID: <20120426090642.GC1791@redhat.com>
+References: <alpine.DEB.2.00.1204031854530.30629@chino.kir.corp.google.com>
+ <4F838385.9070309@jp.fujitsu.com>
+ <alpine.DEB.2.00.1204092241180.27689@chino.kir.corp.google.com>
+ <alpine.DEB.2.00.1204092242050.27689@chino.kir.corp.google.com>
+ <20120411142023.GB1789@redhat.com>
+ <alpine.DEB.2.00.1204231612060.17030@chino.kir.corp.google.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <201204241403.29860.b.zolnierkie@samsung.com>
+In-Reply-To: <alpine.DEB.2.00.1204231612060.17030@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>
-Cc: linux-mm@kvack.org, Kyungmin Park <kyungmin.park@samsung.com>, Marek Szyprowski <m.szyprowski@samsung.com>
+To: David Rientjes <rientjes@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrea Arcangeli <aarcange@redhat.com>, linux-mm@kvack.org
 
-On Tue, Apr 24, 2012 at 02:03:29PM +0200, Bartlomiej Zolnierkiewicz wrote:
-> > >  include/linux/mmzone.h |   10 ++
-> > >  mm/compaction.c        |    3 
-> > >  mm/internal.h          |    1 
-> > >  mm/page_alloc.c        |  128 +++++++++++++++++++++++++++++
-> > >  mm/sparse.c            |  216 +++++++++++++++++++++++++++++++++++++++++++++++--
-> > >  5 files changed, 353 insertions(+), 5 deletions(-)
-> > > 
-> > > Index: b/include/linux/mmzone.h
-> > > ===================================================================
-> > > --- a/include/linux/mmzone.h	2012-04-20 16:35:16.894872193 +0200
-> > > +++ b/include/linux/mmzone.h	2012-04-23 09:55:01.845549009 +0200
-> > > @@ -379,6 +379,10 @@
-> > >  	 * In SPARSEMEM, this map is stored in struct mem_section
-> > >  	 */
-> > >  	unsigned long		*pageblock_flags;
-> > > +
-> > > +#ifdef CONFIG_COMPACTION
-> > > +	unsigned long		*unmovable_map;
-> > > +#endif
-> > >  #endif /* CONFIG_SPARSEMEM */
+[ Sorry, my responsiveness is horrible these days... ]
+
+On Mon, Apr 23, 2012 at 04:15:06PM -0700, David Rientjes wrote:
+> On Wed, 11 Apr 2012, Johannes Weiner wrote:
+> 
+> > > diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+> > > --- a/mm/huge_memory.c
+> > > +++ b/mm/huge_memory.c
+> > > @@ -950,6 +950,8 @@ int do_huge_pmd_wp_page(struct mm_struct *mm, struct vm_area_struct *vma,
+> > >  		count_vm_event(THP_FAULT_FALLBACK);
+> > >  		ret = do_huge_pmd_wp_page_fallback(mm, vma, address,
+> > >  						   pmd, orig_pmd, page, haddr);
+> > > +		if (ret & VM_FAULT_OOM)
+> > > +			split_huge_page(page);
+> > >  		put_page(page);
+> > >  		goto out;
+> > >  	}
+> > > @@ -957,6 +959,7 @@ int do_huge_pmd_wp_page(struct mm_struct *mm, struct vm_area_struct *vma,
 > > >  
-> > >  #ifdef CONFIG_COMPACTION
-> > > @@ -1033,6 +1037,12 @@
+> > >  	if (unlikely(mem_cgroup_newpage_charge(new_page, mm, GFP_KERNEL))) {
+> > >  		put_page(new_page);
+> > > +		split_huge_page(page);
+> > >  		put_page(page);
+> > >  		ret |= VM_FAULT_OOM;
+> > >  		goto out;
+> > > diff --git a/mm/memory.c b/mm/memory.c
+> > > --- a/mm/memory.c
+> > > +++ b/mm/memory.c
+> > > @@ -3489,6 +3489,7 @@ int handle_mm_fault(struct mm_struct *mm, struct vm_area_struct *vma,
+> > >  	if (unlikely(is_vm_hugetlb_page(vma)))
+> > >  		return hugetlb_fault(mm, vma, address, flags);
 > > >  
-> > >  	/* See declaration of similar field in struct zone */
-> > >  	unsigned long *pageblock_flags;
+> > > +retry:
+> > >  	pgd = pgd_offset(mm, address);
+> > >  	pud = pud_alloc(mm, pgd, address);
+> > >  	if (!pud)
+> > > @@ -3502,13 +3503,24 @@ int handle_mm_fault(struct mm_struct *mm, struct vm_area_struct *vma,
+> > >  							  pmd, flags);
+> > >  	} else {
+> > >  		pmd_t orig_pmd = *pmd;
+> > > +		int ret;
 > > > +
-> > > +#ifdef CONFIG_COMPACTION
-> > > +	unsigned long *unmovable_map;
-> > > +	unsigned long pad0; /* Why this is needed? */
-> > > +#endif
-> > > +
+> > >  		barrier();
+> > >  		if (pmd_trans_huge(orig_pmd)) {
+> > >  			if (flags & FAULT_FLAG_WRITE &&
+> > >  			    !pmd_write(orig_pmd) &&
+> > > -			    !pmd_trans_splitting(orig_pmd))
+> > > -				return do_huge_pmd_wp_page(mm, vma, address,
+> > > -							   pmd, orig_pmd);
+> > > +			    !pmd_trans_splitting(orig_pmd)) {
+> > > +				ret = do_huge_pmd_wp_page(mm, vma, address, pmd,
+> > > +							  orig_pmd);
+> > > +				/*
+> > > +				 * If COW results in an oom, the huge pmd will
+> > > +				 * have been split, so retry the fault on the
+> > > +				 * pte for a smaller charge.
+> > > +				 */
+> > > +				if (unlikely(ret & VM_FAULT_OOM))
+> > > +					goto retry;
 > > 
-> > You tell us, you added the padding :)
+> > Can you instead put a __split_huge_page_pmd(mm, pmd) here?  It has to
+> > redo the get-page-ref-through-pagetable dance, but it's more robust
+> > and obvious than splitting the COW page before returning OOM in the
+> > thp wp handler.
 > 
-> I wish I could.. :)
-> 
-> > If I had to guess you are trying to avoid sharing a cache line between
-> > unmovable_map and adjacent fields but I doubt it is necessary.
-> 
-> Unfortunately the pad is needed or the kernel just freezes somewhere
-> early during memory zone initialization.  I don't remember details but
-> it was somewhere on the access to page->flags of the first page..
-> 
+> I agree it's more robust if do_huge_pmd_wp_page() were modified later and 
+> mistakenly returned VM_FAULT_OOM without the page being split, but 
+> __split_huge_page_pmd() has the drawback of also requiring to retake 
+> mm->page_table_lock to test whether orig_pmd is still legitimate so it 
+> will be slower.  Do you feel strongly about the way it's currently written 
+> which will be faster at runtime?
 
-Sounds like it was a bug in how the bitmask was managed. It's not worth
-losing sleep over as I expect the bitmap is removed by now.
+If you can't accomodate for a hugepage, this code runs 511 times in
+the worst case before you also can't fit a regular page anymore.  And
+compare it to the cost of the splitting itself and the subsequent 4k
+COW break faults...
 
-> > >  #ifdef CONFIG_CGROUP_MEM_RES_CTLR
-> > >  	/*
-> > >  	 * If !SPARSEMEM, pgdat doesn't have page_cgroup pointer. We use
-> > > Index: b/mm/compaction.c
-> > > ===================================================================
-> > > --- a/mm/compaction.c	2012-04-20 16:35:16.910872188 +0200
-> > > +++ b/mm/compaction.c	2012-04-23 09:33:54.525527592 +0200
-> > > @@ -376,6 +376,9 @@
-> > >  	if (migrate_async_suitable(migratetype))
-> > >  		return true;
-> > >  
-> > > +	if (migratetype == MIGRATE_UNMOVABLE && set_unmovable_movable(page))
-> > > +		return true;
-> > > +
-> > 
-> > Ok, I have a two suggested changes to this
-> > 
-> > 1. compaction currently has sync and async compaction. I suggest you
-> >    make it a three states called async_partial, async_full and sync.
-> >    async_partial would be the current behaviour. async_full and sync
-> >    would both scan within MIGRATE_UNMOVABLE blocks to see if they
-> >    needed to be changed. This will add a new slower path but the
-> >    common path will be as it is today.
-> > 
-> > 2. You maintain a bitmap of unmovable pages. Get rid of it. Instead have
-> >    set_unmovable_movable scan the pageblock and build a free count based
-> >    on finding PageBuddy pages, page_count(page) == 0 or PageLRU pages.
-> >    If all pages within the block are in one of those three sets, call
-> >    set_pageblock_migratetype(MIGRATE_MOVABLE) and call move_freepages_block()
-> >    I also suggest finding a better name than set_unmovable_movable
-> >    although  I do not have a better suggestion myself right now.
-> 
-> Ok, I'll post the updated patch shortly.
-> 
+I don't think it's a path worth optimizing for at all, especially if
+it includes sprinkling undocumented split_huge_pages around, and the
+fix could be as self-contained as something like this...
 
-I'll review this ASAP.
-
--- 
-Mel Gorman
-SUSE Labs
+diff --git a/mm/memory.c b/mm/memory.c
+index 706a274..dae0afc 100644
+--- a/mm/memory.c
++++ b/mm/memory.c
+@@ -3505,14 +3505,29 @@ int handle_mm_fault(struct mm_struct *mm, struct vm_area_struct *vma,
+ 							  pmd, flags);
+ 	} else {
+ 		pmd_t orig_pmd = *pmd;
++		int ret;
++
+ 		barrier();
+ 		if (pmd_trans_huge(orig_pmd)) {
+ 			if (flags & FAULT_FLAG_WRITE &&
+ 			    !pmd_write(orig_pmd) &&
+-			    !pmd_trans_splitting(orig_pmd))
+-				return do_huge_pmd_wp_page(mm, vma, address,
++			    !pmd_trans_splitting(orig_pmd)) {
++				ret = do_huge_pmd_wp_page(mm, vma, address,
+ 							   pmd, orig_pmd);
+-			return 0;
++				if (unlikely(ret & VM_FAULT_OOM)) {
++					/*
++					 * It's not worth going OOM
++					 * over not being able to
++					 * allocate or charge a full
++					 * copy of the huge page.
++					 * Split it up and handle as
++					 * single page COW break below.
++					 */
++					__split_huge_page_pmd(mm, pmd);
++				} else
++					return ret;
++			} else
++				return 0;
+ 		}
+ 	}
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
