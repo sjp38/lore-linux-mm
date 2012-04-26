@@ -1,49 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx164.postini.com [74.125.245.164])
-	by kanga.kvack.org (Postfix) with SMTP id 80ABE6B0044
-	for <linux-mm@kvack.org>; Thu, 26 Apr 2012 14:20:14 -0400 (EDT)
-Date: Thu, 26 Apr 2012 13:20:09 -0500 (CDT)
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: [RFC][PATCH] avoid swapping out with swappiness==0
-In-Reply-To: <4F996BA6.9010900@gmail.com>
-Message-ID: <alpine.DEB.2.00.1204261318330.16059@router.home>
-References: <20120424082019.GA18395@alpha.arachsys.com> <alpine.DEB.2.00.1204260948520.16059@router.home> <4F996BA6.9010900@gmail.com>
+Received: from psmtp.com (na3sys010amx120.postini.com [74.125.245.120])
+	by kanga.kvack.org (Postfix) with SMTP id AE03E6B0044
+	for <linux-mm@kvack.org>; Thu, 26 Apr 2012 14:52:53 -0400 (EDT)
+Message-ID: <4F999988.802@redhat.com>
+Date: Thu, 26 Apr 2012 14:52:56 -0400
+From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [PATCH v3] mm: compaction: handle incorrect Unmovable type pageblocks
+References: <201204261015.54449.b.zolnierkie@samsung.com> <20120426143620.GF15299@suse.de> <4F996F8B.1020207@redhat.com> <20120426164713.GG15299@suse.de>
+In-Reply-To: <20120426164713.GG15299@suse.de>
+Content-Type: text/plain; charset=ISO-8859-15; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
-Cc: Richard Davies <richard@arachsys.com>, Satoru Moriya <satoru.moriya@hds.com>, Jerome Marchand <jmarchan@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, "jweiner@redhat.com" <jweiner@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "riel@redhat.com" <riel@redhat.com>, "lwoodman@redhat.com" <lwoodman@redhat.com>, "shaohua.li@intel.com" <shaohua.li@intel.com>, "dle-develop@lists.sourceforge.net" <dle-develop@lists.sourceforge.net>, Seiji Aguchi <seiji.aguchi@hds.com>, Minchan Kim <minchan.kim@gmail.com>
+To: Mel Gorman <mgorman@suse.de>
+Cc: Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, linux-mm@kvack.org, Minchan Kim <minchan@kernel.org>, Marek Szyprowski <m.szyprowski@samsung.com>, Kyungmin Park <kyungmin.park@samsung.com>
 
-On Thu, 26 Apr 2012, KOSAKI Motohiro wrote:
+On 04/26/2012 12:47 PM, Mel Gorman wrote:
 
-> (4/26/12 10:50 AM), Christoph Lameter wrote:
-> > On Tue, 24 Apr 2012, Richard Davies wrote:
-> >
-> > > I strongly believe that Linux should have a way to turn off swapping
-> > > unless
-> > > absolutely necessary. This means that users like us can run with swap
-> > > present for emergency use, rather than having to disable it because of the
-> > > side effects.
-> >
-> > Agree. And this ooperation mode should be the default behavior given that
-> > swapping is a very slow and tedious process these days.
+> Instead of COMPACT_ASYNC_PARTIAL and COMPACT_ASYNC_FULL should we have
+> COMPACT_ASYNC_MOVABLE and COMPACT_ASYNC_UNMOVABLE? The first pass from
+> the page allocator (COMPACT_ASYNC_MOVABLE) would only consider MOVABLE
+> blocks as migration targets. The second pass (COMPACT_ASYNC_UNMOVABLE)
+> would examine UNMOVABLE blocks, rescue them and use what blocks it
+> rescues as migration targets. The third pass (COMPACT_SYNC) would work
+> as it does currently. kswapd would only ever use COMPACT_ASYNC_MOVABLE.
 >
-> Even though current patch is not optimal, I don't disagree this opinion. Can
-> you please explain your use case? Why don't you use swapoff?
+> That would avoid rescanning the movable blocks uselessly on the second
+> pass but should still work for Bartlomiej's workload.
+>
+> What do you think?
 
-Because I do not want to have systems go OOM. In an emergency lets use
-swap (and maybe generate some sort of alert if that happens).
+This makes sense.
 
-> Off topic: I hope linux is going to aim good swap clustered io in future.
-> Especially
-> when using THP, 4k size io is not really good.
+>> In other words, could it be better to always try to
+>> rescue the unmovable blocks?
+>
+> I do not think we should always scan within unmovable blocks on the
+> first pass. I strongly suspect it would lead to excessive amounts of CPU
+> time spent in mm/compaction.c.
 
-Swap to regular disks is going to be an ever greater problem since
-the access speed of rotational media has not changed much whereas the
-processing performance of the cpu has increased significantly. There is an
-ever increasing gap in speed.
-
+Maybe my systems are not typical.  I have not seen
+more than about 10% of the memory blocks marked as
+unmovable in my system.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
