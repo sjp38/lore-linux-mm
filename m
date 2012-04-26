@@ -1,102 +1,113 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx146.postini.com [74.125.245.146])
-	by kanga.kvack.org (Postfix) with SMTP id 072A36B0092
-	for <linux-mm@kvack.org>; Thu, 26 Apr 2012 04:45:12 -0400 (EDT)
-Date: Thu, 26 Apr 2012 10:45:10 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [patch] mm, oom: avoid checking set of allowed nodes twice when
- selecting a victim
-Message-ID: <20120426084510.GA10383@tiehlicka.suse.cz>
-References: <alpine.DEB.2.00.1204031633460.8112@chino.kir.corp.google.com>
+Received: from psmtp.com (na3sys010amx171.postini.com [74.125.245.171])
+	by kanga.kvack.org (Postfix) with SMTP id 895F46B007E
+	for <linux-mm@kvack.org>; Thu, 26 Apr 2012 05:06:48 -0400 (EDT)
+Date: Thu, 26 Apr 2012 10:06:43 +0100
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [PATCH][RFC] mm: compaction: handle incorrect Unmovable type
+ pageblocks
+Message-ID: <20120426090643.GE15299@suse.de>
+References: <201204231202.55739.b.zolnierkie@samsung.com>
+ <20120423145631.GD3255@suse.de>
+ <201204241403.29860.b.zolnierkie@samsung.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.00.1204031633460.8112@chino.kir.corp.google.com>
+In-Reply-To: <201204241403.29860.b.zolnierkie@samsung.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org
+To: Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>
+Cc: linux-mm@kvack.org, Kyungmin Park <kyungmin.park@samsung.com>, Marek Szyprowski <m.szyprowski@samsung.com>
 
-On Tue 03-04-12 16:34:36, David Rientjes wrote:
-> For systems with high CONFIG_NODES_SHIFT, checking nodes_intersect() for
-> each thread's set of allowed nodes is very expensive.  It's unnecessary
-> to do this twice for each thread, once in select_bad_process() and once
-> in oom_badness().  We've already filtered unkillable threads at the point
-> where oom_badness() is called.
+On Tue, Apr 24, 2012 at 02:03:29PM +0200, Bartlomiej Zolnierkiewicz wrote:
+> > >  include/linux/mmzone.h |   10 ++
+> > >  mm/compaction.c        |    3 
+> > >  mm/internal.h          |    1 
+> > >  mm/page_alloc.c        |  128 +++++++++++++++++++++++++++++
+> > >  mm/sparse.c            |  216 +++++++++++++++++++++++++++++++++++++++++++++++--
+> > >  5 files changed, 353 insertions(+), 5 deletions(-)
+> > > 
+> > > Index: b/include/linux/mmzone.h
+> > > ===================================================================
+> > > --- a/include/linux/mmzone.h	2012-04-20 16:35:16.894872193 +0200
+> > > +++ b/include/linux/mmzone.h	2012-04-23 09:55:01.845549009 +0200
+> > > @@ -379,6 +379,10 @@
+> > >  	 * In SPARSEMEM, this map is stored in struct mem_section
+> > >  	 */
+> > >  	unsigned long		*pageblock_flags;
+> > > +
+> > > +#ifdef CONFIG_COMPACTION
+> > > +	unsigned long		*unmovable_map;
+> > > +#endif
+> > >  #endif /* CONFIG_SPARSEMEM */
+> > >  
+> > >  #ifdef CONFIG_COMPACTION
+> > > @@ -1033,6 +1037,12 @@
+> > >  
+> > >  	/* See declaration of similar field in struct zone */
+> > >  	unsigned long *pageblock_flags;
+> > > +
+> > > +#ifdef CONFIG_COMPACTION
+> > > +	unsigned long *unmovable_map;
+> > > +	unsigned long pad0; /* Why this is needed? */
+> > > +#endif
+> > > +
+> > 
+> > You tell us, you added the padding :)
 > 
-> oom_badness() must still check if a thread is a kthread, however, to
-> ensure /proc/pid/oom_score doesn't report one as killable.
+> I wish I could.. :)
 > 
-> This significantly speeds up the tasklist iteration when there are a
-> large number of threads on the system and CONFIG_NODES_SHIFT is high.
+> > If I had to guess you are trying to avoid sharing a cache line between
+> > unmovable_map and adjacent fields but I doubt it is necessary.
 > 
-> Signed-off-by: David Rientjes <rientjes@google.com>
+> Unfortunately the pad is needed or the kernel just freezes somewhere
+> early during memory zone initialization.  I don't remember details but
+> it was somewhere on the access to page->flags of the first page..
+> 
 
-Reviewed-by: Michal Hocko <mhocko@suse.cz>
+Sounds like it was a bug in how the bitmask was managed. It's not worth
+losing sleep over as I expect the bitmap is removed by now.
 
-> ---
->  mm/oom_kill.c |   16 +++++++++-------
->  1 file changed, 9 insertions(+), 7 deletions(-)
+> > >  #ifdef CONFIG_CGROUP_MEM_RES_CTLR
+> > >  	/*
+> > >  	 * If !SPARSEMEM, pgdat doesn't have page_cgroup pointer. We use
+> > > Index: b/mm/compaction.c
+> > > ===================================================================
+> > > --- a/mm/compaction.c	2012-04-20 16:35:16.910872188 +0200
+> > > +++ b/mm/compaction.c	2012-04-23 09:33:54.525527592 +0200
+> > > @@ -376,6 +376,9 @@
+> > >  	if (migrate_async_suitable(migratetype))
+> > >  		return true;
+> > >  
+> > > +	if (migratetype == MIGRATE_UNMOVABLE && set_unmovable_movable(page))
+> > > +		return true;
+> > > +
+> > 
+> > Ok, I have a two suggested changes to this
+> > 
+> > 1. compaction currently has sync and async compaction. I suggest you
+> >    make it a three states called async_partial, async_full and sync.
+> >    async_partial would be the current behaviour. async_full and sync
+> >    would both scan within MIGRATE_UNMOVABLE blocks to see if they
+> >    needed to be changed. This will add a new slower path but the
+> >    common path will be as it is today.
+> > 
+> > 2. You maintain a bitmap of unmovable pages. Get rid of it. Instead have
+> >    set_unmovable_movable scan the pageblock and build a free count based
+> >    on finding PageBuddy pages, page_count(page) == 0 or PageLRU pages.
+> >    If all pages within the block are in one of those three sets, call
+> >    set_pageblock_migratetype(MIGRATE_MOVABLE) and call move_freepages_block()
+> >    I also suggest finding a better name than set_unmovable_movable
+> >    although  I do not have a better suggestion myself right now.
 > 
-> diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-> --- a/mm/oom_kill.c
-> +++ b/mm/oom_kill.c
-> @@ -151,13 +151,16 @@ struct task_struct *find_lock_task_mm(struct task_struct *p)
->  	return NULL;
->  }
->  
-> +static bool is_unkillable_kthread(struct task_struct *p)
-> +{
-> +	return is_global_init(p) || (p->flags & PF_KTHREAD);
-> +}
-> +
->  /* return true if the task is not adequate as candidate victim task. */
->  static bool oom_unkillable_task(struct task_struct *p,
->  		const struct mem_cgroup *memcg, const nodemask_t *nodemask)
->  {
-> -	if (is_global_init(p))
-> -		return true;
-> -	if (p->flags & PF_KTHREAD)
-> +	if (is_unkillable_kthread(p))
->  		return true;
->  
->  	/* When mem_cgroup_out_of_memory() and p is not member of the group */
-> @@ -185,7 +188,7 @@ unsigned int oom_badness(struct task_struct *p, struct mem_cgroup *memcg,
->  {
->  	long points;
->  
-> -	if (oom_unkillable_task(p, memcg, nodemask))
-> +	if (is_unkillable_kthread(p))
->  		return 0;
->  
->  	p = find_lock_task_mm(p);
-> @@ -478,9 +481,8 @@ static void oom_kill_process(struct task_struct *p, gfp_t gfp_mask, int order,
->  
->  			if (child->mm == p->mm)
->  				continue;
-> -			/*
-> -			 * oom_badness() returns 0 if the thread is unkillable
-> -			 */
-> +			if (oom_unkillable_task(child, memcg, nodemask))
-> +				continue;
->  			child_points = oom_badness(child, memcg, nodemask,
->  								totalpages);
->  			if (child_points > victim_points) {
+> Ok, I'll post the updated patch shortly.
 > 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Fight unfair telecom internet charges in Canada: sign http://stopthemeter.ca/
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+
+I'll review this ASAP.
 
 -- 
-Michal Hocko
+Mel Gorman
 SUSE Labs
-SUSE LINUX s.r.o.
-Lihovarska 1060/12
-190 00 Praha 9    
-Czech Republic
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
