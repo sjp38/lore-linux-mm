@@ -1,66 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx171.postini.com [74.125.245.171])
-	by kanga.kvack.org (Postfix) with SMTP id 8988C6B0044
-	for <linux-mm@kvack.org>; Wed, 25 Apr 2012 20:20:36 -0400 (EDT)
-Received: by iajr24 with SMTP id r24so1138464iaj.14
-        for <linux-mm@kvack.org>; Wed, 25 Apr 2012 17:20:35 -0700 (PDT)
-Date: Wed, 25 Apr 2012 17:20:32 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [RFC] propagate gfp_t to page table alloc functions
-In-Reply-To: <4F98914C.2060505@jp.fujitsu.com>
-Message-ID: <alpine.DEB.2.00.1204251715420.19452@chino.kir.corp.google.com>
-References: <1335171318-4838-1-git-send-email-minchan@kernel.org> <4F963742.2030607@jp.fujitsu.com> <4F963B8E.9030105@kernel.org> <CAPa8GCA8q=S9sYx-0rDmecPxYkFs=gATGL-Dz0OYXDkwEECJkg@mail.gmail.com> <4F965413.9010305@kernel.org>
- <CAPa8GCCwfCFO6yxwUP5Qp9O1HGUqEU2BZrrf50w8TL9FH9vbrA@mail.gmail.com> <20120424143015.99fd8d4a.akpm@linux-foundation.org> <4F973BF2.4080406@jp.fujitsu.com> <CAHGf_=r09BCxXeuE8dSti4_SrT5yahrQCwJh=NrrA3rsUhhu_w@mail.gmail.com> <4F973FB8.6050103@jp.fujitsu.com>
- <20120424172554.c9c330dd.akpm@linux-foundation.org> <4F98914C.2060505@jp.fujitsu.com>
+Received: from psmtp.com (na3sys010amx137.postini.com [74.125.245.137])
+	by kanga.kvack.org (Postfix) with SMTP id E62926B0044
+	for <linux-mm@kvack.org>; Wed, 25 Apr 2012 20:50:59 -0400 (EDT)
+Received: by yhr47 with SMTP id 47so848869yhr.14
+        for <linux-mm@kvack.org>; Wed, 25 Apr 2012 17:50:59 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+In-Reply-To: <20120425222819.GF8989@google.com>
+References: <CAHnt0GXW-pyOUuBLB1n6qBP4WNGpET9er_HbJ29s5j5DE1xAdA@mail.gmail.com>
+	<20120425222819.GF8989@google.com>
+Date: Thu, 26 Apr 2012 08:50:58 +0800
+Message-ID: <CAHnt0GWABX8qOVTinmSETUHxq1Y3NhqPOKxnUgcDtyf8wjtg_g@mail.gmail.com>
+Subject: Re: [BUG]memblock: fix overflow of array index
+From: Peter Teoh <htmldeveloper@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Nick Piggin <npiggin@gmail.com>, Minchan Kim <minchan@kernel.org>, Ingo Molnar <mingo@redhat.com>, x86@kernel.org, Hugh Dickins <hughd@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Tejun Heo <tj@kernel.org>
+Cc: linux-kernel@vger.kernel.org, "H. Peter Anvin" <hpa@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@elte.hu>, linux-mm@kvack.org
 
-On Thu, 26 Apr 2012, KAMEZAWA Hiroyuki wrote:
+Thanks for the reply.   Just an educational question:  is it possible
+to set one-byte per memblock?    And what is the minimum memblock
+size?
 
-> > Or do we instead do this:
-> > 
-> > -	some_function(foo, bar, GFP_NOIO);
-> > +	old_gfp = set_current_gfp(GFP_NOIO);
-> > +	some_function(foo, bar);
-> > +	set_current_gfp(old_gfp);
-> > 
-> > So the rule is "if the code was using an explicit GFP_foo then convert
-> > it to use set_current_gfp().  If the code was receiving a gfp_t
-> > variable from the caller then delete that arg".
-> > 
-> > Or something like that.  It's all too hopelessly impractical to bother
-> > discussing - 20 years too late!
-> > 
-> > 
-> > otoh, maybe a constrained version of this could be used to address the
-> > vmalloc() problem alone.
-> > 
-> 
-> Yes, I think it will be good start.
-> 
+Even if 2G memblock is a huge number, it still seemed like a bug to me
+that there is no check on the maximum number (which is 2G) of this
+variable (assuming signed int).   Software can always purposely push
+that number up and the system can panic?
 
-Maybe a per-thread_info variant of gfp_allowed_mask?  So Andrew's 
-set_current_gfp() becomes set_current_gfp_allowed() that does
+On Thu, Apr 26, 2012 at 6:28 AM, Tejun Heo <tj@kernel.org> wrote:
+> On Wed, Apr 25, 2012 at 04:30:19PM +0800, Peter Teoh wrote:
+>> Fixing the mismatch in signed and unsigned type assignment, which
+>> potentially can lead to integer overflow bug.
+>>
+>> Thanks.
+>>
+>> Reviewed-by: Minchan Kim <minchan@kernel.org>
+>> Signed-off-by: Peter Teoh <htmldeveloper@gmail.com>
+>
+> All indexes in memblock are integers. =A0Changing that particular one to
+> unsigned int doesn't fix anything. =A0I think it just makes things more
+> confusing. =A0If there ever are cases w/ more then 2G memblocks, we're
+> going for 64bit not unsigned.
+>
+> Thanks.
+>
+> --
+> tejun
 
-	void set_current_gfp_allowed(gfp_t gfp_mask)
-	{
-		current->gfp_allowed = gfp_mask & gfp_allowed_mask;
-	}
 
-and then the page allocator does
 
-	gfp_mask &= current->gfp_allowed;
-
-rather than how it currently does
-
-	gfp_mask &= gfp_allowed_mask;
-
-and then the caller of set_current_gfp_allowed() cleans up with 
-set_current_gfp_allowed(__GFP_BITS_MASK).
+--=20
+Regards,
+Peter Teoh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
