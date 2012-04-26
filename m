@@ -1,53 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx136.postini.com [74.125.245.136])
-	by kanga.kvack.org (Postfix) with SMTP id DA1D36B0044
-	for <linux-mm@kvack.org>; Wed, 25 Apr 2012 22:03:50 -0400 (EDT)
-Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 34AF53EE0C5
-	for <linux-mm@kvack.org>; Thu, 26 Apr 2012 11:03:49 +0900 (JST)
-Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 0EEDD45DEBA
-	for <linux-mm@kvack.org>; Thu, 26 Apr 2012 11:03:49 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 3A3EB45DEB8
-	for <linux-mm@kvack.org>; Thu, 26 Apr 2012 11:03:48 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 2A3391DB8045
-	for <linux-mm@kvack.org>; Thu, 26 Apr 2012 11:03:48 +0900 (JST)
-Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.240.81.145])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id D39EC1DB8041
-	for <linux-mm@kvack.org>; Thu, 26 Apr 2012 11:03:47 +0900 (JST)
-Message-ID: <4F98AC9A.2080001@jp.fujitsu.com>
-Date: Thu, 26 Apr 2012 11:02:02 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Received: from psmtp.com (na3sys010amx205.postini.com [74.125.245.205])
+	by kanga.kvack.org (Postfix) with SMTP id 3E5C66B007E
+	for <linux-mm@kvack.org>; Wed, 25 Apr 2012 22:03:57 -0400 (EDT)
+Message-ID: <4F98AD2D.3070900@kernel.org>
+Date: Thu, 26 Apr 2012 11:04:29 +0900
+From: Minchan Kim <minchan@kernel.org>
 MIME-Version: 1.0
-Subject: Re: [patch] mm: memcg: move pc lookup point to commit_charge()
-References: <1335295860-28919-1-git-send-email-hannes@cmpxchg.org>
-In-Reply-To: <1335295860-28919-1-git-send-email-hannes@cmpxchg.org>
-Content-Type: text/plain; charset=ISO-2022-JP
+Subject: Re: [PATCH 6/6] zsmalloc: make zsmalloc portable
+References: <1335334994-22138-1-git-send-email-minchan@kernel.org> <1335334994-22138-7-git-send-email-minchan@kernel.org> <4F980AFE.60901@vflare.org> <4F982862.4050302@linux.vnet.ibm.com>
+In-Reply-To: <4F982862.4050302@linux.vnet.ibm.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Seth Jennings <sjenning@linux.vnet.ibm.com>
+Cc: Nitin Gupta <ngupta@vflare.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Dan Magenheimer <dan.magenheimer@oracle.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-(2012/04/25 4:31), Johannes Weiner wrote:
+On 04/26/2012 01:37 AM, Seth Jennings wrote:
 
-> None of the callsites actually need the page_cgroup descriptor
-> themselves, so just pass the page and do the look up in there.
+> Hey Minchan,
 > 
-> We already had two bugs (6568d4a 'mm: memcg: update the correct soft
-> limit tree during migration' and 'memcg: fix Bad page state after
-> replace_page_cache') where the passed page and pc were not referring
-> to the same page frame.
+> Thanks for the patches!
 > 
-> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
-> Acked-by: Hugh Dickins <hughd@google.com>
-> Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> Cc: Michal Hocko <mhocko@suse.cz>
+> On 04/25/2012 09:32 AM, Nitin Gupta wrote:
+>> I think Seth was working on this improvement but not sure about the
+>> current status. Seth?
+> 
+> Yes, I looked at this option, and it is very clean and portable.
+> 
+> Unfortunately, IIRC, with our rate of mapping/unmapping,
+> flush_tlb_kernel_range() causes an IPI storm that effective
+> stalls the machine.
+> 
+> I'll apply your patch and try it out.
 
 
-Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Seth, Thanks!
+
+-- 
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
