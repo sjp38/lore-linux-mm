@@ -1,177 +1,135 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx199.postini.com [74.125.245.199])
-	by kanga.kvack.org (Postfix) with SMTP id 365196B0044
-	for <linux-mm@kvack.org>; Thu, 26 Apr 2012 09:11:04 -0400 (EDT)
-Received: by qcsd16 with SMTP id d16so859209qcs.14
-        for <linux-mm@kvack.org>; Thu, 26 Apr 2012 06:11:03 -0700 (PDT)
-Date: Thu, 26 Apr 2012 15:10:55 +0200
-From: Frederic Weisbecker <fweisbec@gmail.com>
-Subject: Re: [PATCH 13/23] slub: create duplicate cache
-Message-ID: <20120426131052.GA19069@somewhere>
-References: <1334959051-18203-1-git-send-email-glommer@parallels.com>
- <1335138820-26590-2-git-send-email-glommer@parallels.com>
- <20120424141845.GB8626@somewhere>
- <4F96BAC7.4000709@parallels.com>
+Received: from psmtp.com (na3sys010amx101.postini.com [74.125.245.101])
+	by kanga.kvack.org (Postfix) with SMTP id A88926B007E
+	for <linux-mm@kvack.org>; Thu, 26 Apr 2012 09:17:47 -0400 (EDT)
+Received: by lagz14 with SMTP id z14so1285604lag.14
+        for <linux-mm@kvack.org>; Thu, 26 Apr 2012 06:17:45 -0700 (PDT)
+Subject: [PATCH v2 05/12] mm/vmscan: remove update_isolated_counts()
+From: Konstantin Khlebnikov <khlebnikov@openvz.org>
+Date: Thu, 26 Apr 2012 17:17:43 +0400
+Message-ID: <20120426131743.9008.52231.stgit@zurg>
+In-Reply-To: <20120426075408.18961.80580.stgit@zurg>
+References: <20120426075408.18961.80580.stgit@zurg>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <4F96BAC7.4000709@parallels.com>
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Glauber Costa <glommer@parallels.com>
-Cc: cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, devel@openvz.org, kamezawa.hiroyu@jp.fujitsu.com, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Greg Thelen <gthelen@google.com>, Suleiman Souhlal <suleiman@google.com>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@cs.helsinki.fi>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Mel Gorman <mgorman@suse.de>
 
-On Tue, Apr 24, 2012 at 11:37:59AM -0300, Glauber Costa wrote:
-> On 04/24/2012 11:18 AM, Frederic Weisbecker wrote:
-> >On Sun, Apr 22, 2012 at 08:53:30PM -0300, Glauber Costa wrote:
-> >>This patch provides kmem_cache_dup(), that duplicates
-> >>a cache for a memcg, preserving its creation properties.
-> >>Object size, alignment and flags are all respected.
-> >>
-> >>When a duplicate cache is created, the parent cache cannot
-> >>be destructed during the child lifetime. To assure this,
-> >>its reference count is increased if the cache creation
-> >>succeeds.
-> >>
-> >>Signed-off-by: Glauber Costa<glommer@parallels.com>
-> >>CC: Christoph Lameter<cl@linux.com>
-> >>CC: Pekka Enberg<penberg@cs.helsinki.fi>
-> >>CC: Michal Hocko<mhocko@suse.cz>
-> >>CC: Kamezawa Hiroyuki<kamezawa.hiroyu@jp.fujitsu.com>
-> >>CC: Johannes Weiner<hannes@cmpxchg.org>
-> >>CC: Suleiman Souhlal<suleiman@google.com>
-> >>---
-> >>  include/linux/memcontrol.h |    3 +++
-> >>  include/linux/slab.h       |    3 +++
-> >>  mm/memcontrol.c            |   44 ++++++++++++++++++++++++++++++++++++++++++++
-> >>  mm/slub.c                  |   37 +++++++++++++++++++++++++++++++++++++
-> >>  4 files changed, 87 insertions(+), 0 deletions(-)
-> >>
-> >>diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
-> >>index 99e14b9..493ecdd 100644
-> >>--- a/include/linux/memcontrol.h
-> >>+++ b/include/linux/memcontrol.h
-> >>@@ -445,6 +445,9 @@ int memcg_css_id(struct mem_cgroup *memcg);
-> >>  void mem_cgroup_register_cache(struct mem_cgroup *memcg,
-> >>  				      struct kmem_cache *s);
-> >>  void mem_cgroup_release_cache(struct kmem_cache *cachep);
-> >>+extern char *mem_cgroup_cache_name(struct mem_cgroup *memcg,
-> >>+				   struct kmem_cache *cachep);
-> >>+
-> >>  #else
-> >>  static inline void mem_cgroup_register_cache(struct mem_cgroup *memcg,
-> >>  					     struct kmem_cache *s)
-> >>diff --git a/include/linux/slab.h b/include/linux/slab.h
-> >>index c7a7e05..909b508 100644
-> >>--- a/include/linux/slab.h
-> >>+++ b/include/linux/slab.h
-> >>@@ -323,6 +323,9 @@ extern void *__kmalloc_track_caller(size_t, gfp_t, unsigned long);
-> >>
-> >>  #ifdef CONFIG_CGROUP_MEM_RES_CTLR_KMEM
-> >>  #define MAX_KMEM_CACHE_TYPES 400
-> >>+extern struct kmem_cache *kmem_cache_dup(struct mem_cgroup *memcg,
-> >>+					 struct kmem_cache *cachep);
-> >>+void kmem_cache_drop_ref(struct kmem_cache *cachep);
-> >>  #else
-> >>  #define MAX_KMEM_CACHE_TYPES 0
-> >>  #endif /* CONFIG_CGROUP_MEM_RES_CTLR_KMEM */
-> >>diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> >>index 0015ed0..e881d83 100644
-> >>--- a/mm/memcontrol.c
-> >>+++ b/mm/memcontrol.c
-> >>@@ -467,6 +467,50 @@ struct cg_proto *tcp_proto_cgroup(struct mem_cgroup *memcg)
-> >>  EXPORT_SYMBOL(tcp_proto_cgroup);
-> >>  #endif /* CONFIG_INET */
-> >>
-> >>+/*
-> >>+ * This is to prevent races againt the kmalloc cache creations.
-> >>+ * Should never be used outside the core memcg code. Therefore,
-> >>+ * copy it here, instead of letting it in lib/
-> >>+ */
-> >>+static char *kasprintf_no_account(gfp_t gfp, const char *fmt, ...)
-> >>+{
-> >>+	unsigned int len;
-> >>+	char *p = NULL;
-> >>+	va_list ap, aq;
-> >>+
-> >>+	va_start(ap, fmt);
-> >>+	va_copy(aq, ap);
-> >>+	len = vsnprintf(NULL, 0, fmt, aq);
-> >>+	va_end(aq);
-> >>+
-> >>+	p = kmalloc_no_account(len+1, gfp);
-> >
-> >I can't seem to find kmalloc_no_account() in this patch or may be
-> >I missed it in a previous one?
-> 
-> It is in a previous one (actually two, one for the slab, one for the
-> slub). They are bundled in the cache creation, but I could separate
-> it
-> for clarity, if you prefer.
+update_isolated_counts() no longer required, because lumpy-reclaim was removed.
+Insanity is over, now here only one kind of inactive pages.
 
-They seem to be the 14th and 16th patches. They should probably
-be before the current one for review clarity, so we define that function
-before it gets used. This is also good to not break bisection.
+Signed-off-by: Konstantin Khlebnikov <khlebnikov@openvz.org>
+---
+ mm/vmscan.c |   60 ++++++-----------------------------------------------------
+ 1 file changed, 6 insertions(+), 54 deletions(-)
 
-> 
-> 
-> >>+	if (!p)
-> >>+		goto out;
-> >>+
-> >>+	vsnprintf(p, len+1, fmt, ap);
-> >>+
-> >>+out:
-> >>+	va_end(ap);
-> >>+	return p;
-> >>+}
-> >>+
-> >>+char *mem_cgroup_cache_name(struct mem_cgroup *memcg, struct kmem_cache *cachep)
-> >>+{
-> >>+	char *name;
-> >>+	struct dentry *dentry = memcg->css.cgroup->dentry;
-> >>+
-> >>+	BUG_ON(dentry == NULL);
-> >>+
-> >>+	/* Preallocate the space for "dead" at the end */
-> >>+	name = kasprintf_no_account(GFP_KERNEL, "%s(%d:%s)dead",
-> >>+	    cachep->name, css_id(&memcg->css), dentry->d_name.name);
-> >>+
-> >>+	if (name)
-> >>+		/* Remove "dead" */
-> >>+		name[strlen(name) - 4] = '\0';
-> >
-> >Why this space for "dead" ?
-> 
-> Ok, sorry. Since I didn't include the destruction part, it got too
-> easy for whoever wasn't following the last discussion on this to get
-> lost - My bad. So here it is:
-> 
-> When we destroy the memcg, some objects may still hold the cache in
-> memory. It is like a reference count, in a sense, which each object
-> being a reference.
-> 
-> In typical cases, like non-shrinkable caches that has create -
-> destroy patterns, the caches will go away as soon as the tasks using
-> them.
-> 
-> But in cache-like structure like the dentry cache, the objects may
-> hang around until a shrinker pass takes them out. And even then,
-> some of them will live on.
-> 
-> In this case, we will display them with "dead" in the name.
-
-Ok.
-
-> 
-> We could hide them, but then it gets weirder because it would be
-> hard to understand where is your used memory when you need to
-> inspect your system.
-> 
-> Creating another file, slabinfo_deadcaches, and keeping the names,
-> is also a possibility, if people think that the string append is way
-> too ugly.
-
-Ok, thanks for the explanation.
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index 44d5821..6f617c4 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -1205,52 +1205,6 @@ putback_inactive_pages(struct mem_cgroup_zone *mz,
+ 	list_splice(&pages_to_free, page_list);
+ }
+ 
+-static noinline_for_stack void
+-update_isolated_counts(struct mem_cgroup_zone *mz,
+-		       struct list_head *page_list,
+-		       unsigned long *nr_anon,
+-		       unsigned long *nr_file)
+-{
+-	struct zone *zone = mz->zone;
+-	unsigned int count[NR_LRU_LISTS] = { 0, };
+-	unsigned long nr_active = 0;
+-	struct page *page;
+-	int lru;
+-
+-	/*
+-	 * Count pages and clear active flags
+-	 */
+-	list_for_each_entry(page, page_list, lru) {
+-		int numpages = hpage_nr_pages(page);
+-		lru = page_lru_base_type(page);
+-		if (PageActive(page)) {
+-			lru += LRU_ACTIVE;
+-			ClearPageActive(page);
+-			nr_active += numpages;
+-		}
+-		count[lru] += numpages;
+-	}
+-
+-	preempt_disable();
+-	__count_vm_events(PGDEACTIVATE, nr_active);
+-
+-	__mod_zone_page_state(zone, NR_ACTIVE_FILE,
+-			      -count[LRU_ACTIVE_FILE]);
+-	__mod_zone_page_state(zone, NR_INACTIVE_FILE,
+-			      -count[LRU_INACTIVE_FILE]);
+-	__mod_zone_page_state(zone, NR_ACTIVE_ANON,
+-			      -count[LRU_ACTIVE_ANON]);
+-	__mod_zone_page_state(zone, NR_INACTIVE_ANON,
+-			      -count[LRU_INACTIVE_ANON]);
+-
+-	*nr_anon = count[LRU_ACTIVE_ANON] + count[LRU_INACTIVE_ANON];
+-	*nr_file = count[LRU_ACTIVE_FILE] + count[LRU_INACTIVE_FILE];
+-
+-	__mod_zone_page_state(zone, NR_ISOLATED_ANON, *nr_anon);
+-	__mod_zone_page_state(zone, NR_ISOLATED_FILE, *nr_file);
+-	preempt_enable();
+-}
+-
+ /*
+  * shrink_inactive_list() is a helper for shrink_zone().  It returns the number
+  * of reclaimed pages
+@@ -1263,8 +1217,6 @@ shrink_inactive_list(unsigned long nr_to_scan, struct mem_cgroup_zone *mz,
+ 	unsigned long nr_scanned;
+ 	unsigned long nr_reclaimed = 0;
+ 	unsigned long nr_taken;
+-	unsigned long nr_anon;
+-	unsigned long nr_file;
+ 	unsigned long nr_dirty = 0;
+ 	unsigned long nr_writeback = 0;
+ 	isolate_mode_t isolate_mode = 0;
+@@ -1292,6 +1244,10 @@ shrink_inactive_list(unsigned long nr_to_scan, struct mem_cgroup_zone *mz,
+ 
+ 	nr_taken = isolate_lru_pages(nr_to_scan, lruvec, &page_list,
+ 				     &nr_scanned, sc, isolate_mode, lru);
++
++	__mod_zone_page_state(zone, NR_LRU_BASE + lru, -nr_taken);
++	__mod_zone_page_state(zone, NR_ISOLATED_ANON + file, nr_taken);
++
+ 	if (global_reclaim(sc)) {
+ 		zone->pages_scanned += nr_scanned;
+ 		if (current_is_kswapd())
+@@ -1306,15 +1262,12 @@ shrink_inactive_list(unsigned long nr_to_scan, struct mem_cgroup_zone *mz,
+ 	if (nr_taken == 0)
+ 		return 0;
+ 
+-	update_isolated_counts(mz, &page_list, &nr_anon, &nr_file);
+-
+ 	nr_reclaimed = shrink_page_list(&page_list, zone, sc,
+ 						&nr_dirty, &nr_writeback);
+ 
+ 	spin_lock_irq(&zone->lru_lock);
+ 
+-	reclaim_stat->recent_scanned[0] += nr_anon;
+-	reclaim_stat->recent_scanned[1] += nr_file;
++	reclaim_stat->recent_scanned[file] += nr_taken;
+ 
+ 	if (current_is_kswapd())
+ 		__count_vm_events(KSWAPD_STEAL, nr_reclaimed);
+@@ -1322,8 +1275,7 @@ shrink_inactive_list(unsigned long nr_to_scan, struct mem_cgroup_zone *mz,
+ 
+ 	putback_inactive_pages(mz, &page_list);
+ 
+-	__mod_zone_page_state(zone, NR_ISOLATED_ANON, -nr_anon);
+-	__mod_zone_page_state(zone, NR_ISOLATED_FILE, -nr_file);
++	__mod_zone_page_state(zone, NR_ISOLATED_ANON + file, -nr_taken);
+ 
+ 	spin_unlock_irq(&zone->lru_lock);
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
