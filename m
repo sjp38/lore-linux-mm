@@ -1,41 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx189.postini.com [74.125.245.189])
-	by kanga.kvack.org (Postfix) with SMTP id 75CE46B0044
-	for <linux-mm@kvack.org>; Wed, 25 Apr 2012 18:42:47 -0400 (EDT)
-Message-ID: <4F987DE5.5030000@linux.intel.com>
-Date: Wed, 25 Apr 2012 15:42:45 -0700
-From: "H. Peter Anvin" <hpa@linux.intel.com>
+Received: from psmtp.com (na3sys010amx176.postini.com [74.125.245.176])
+	by kanga.kvack.org (Postfix) with SMTP id 32A3F6B0044
+	for <linux-mm@kvack.org>; Wed, 25 Apr 2012 20:05:26 -0400 (EDT)
+Received: from m4.gw.fujitsu.co.jp (unknown [10.0.50.74])
+	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 4C33E3EE0B6
+	for <linux-mm@kvack.org>; Thu, 26 Apr 2012 09:05:24 +0900 (JST)
+Received: from smail (m4 [127.0.0.1])
+	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 3230C45DE52
+	for <linux-mm@kvack.org>; Thu, 26 Apr 2012 09:05:24 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
+	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 173F245DE4E
+	for <linux-mm@kvack.org>; Thu, 26 Apr 2012 09:05:24 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 000C51DB8042
+	for <linux-mm@kvack.org>; Thu, 26 Apr 2012 09:05:23 +0900 (JST)
+Received: from m1000.s.css.fujitsu.com (m1000.s.css.fujitsu.com [10.240.81.136])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id ACD5F1DB803E
+	for <linux-mm@kvack.org>; Thu, 26 Apr 2012 09:05:23 +0900 (JST)
+Message-ID: <4F9890DB.6080206@jp.fujitsu.com>
+Date: Thu, 26 Apr 2012 09:03:39 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
-Subject: Re: [BUG]memblock: fix overflow of array index
-References: <CAHnt0GXW-pyOUuBLB1n6qBP4WNGpET9er_HbJ29s5j5DE1xAdA@mail.gmail.com> <20120425222819.GF8989@google.com> <4F987ACB.8050604@linux.intel.com> <20120425.183121.1283820821646106475.davem@davemloft.net>
-In-Reply-To: <20120425.183121.1283820821646106475.davem@davemloft.net>
-Content-Type: text/plain; charset=ISO-8859-1
+Subject: Re: [PATCH] rename is_mlocked_vma() to mlocked_vma_newpage()
+References: <1335375955-32037-1-git-send-email-yinghan@google.com>
+In-Reply-To: <1335375955-32037-1-git-send-email-yinghan@google.com>
+Content-Type: text/plain; charset=ISO-2022-JP
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Miller <davem@davemloft.net>
-Cc: tj@kernel.org, htmldeveloper@gmail.com, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, mingo@elte.hu, linux-mm@kvack.org
+To: Ying Han <yinghan@google.com>
+Cc: Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
 
-On 04/25/2012 03:31 PM, David Miller wrote:
-> From: "H. Peter Anvin" <hpa@linux.intel.com>
-> Date: Wed, 25 Apr 2012 15:29:31 -0700
+(2012/04/26 2:45), Ying Han wrote:
+
+> Andrew pointed out that the is_mlocked_vma() is misnamed. A function
+> with name like that would expect bool return and no side-effects.
 > 
->> On 04/25/2012 03:28 PM, Tejun Heo wrote:
->>>
->>> All indexes in memblock are integers.  Changing that particular one to
->>> unsigned int doesn't fix anything.  I think it just makes things more
->>> confusing.  If there ever are cases w/ more then 2G memblocks, we're
->>> going for 64bit not unsigned.
->>>
->>
->> I would expect there to be plenty of memblocks larger than 2G?
+> Since it is called on the fault path for new page, rename it in this
+> patch.
 > 
-> Yes, but not the array indexes into those memblock entries, which is
-> what this patch is about.
+> Signed-off-by: Ying Han <yinghan@google.com>
 
-OIC... more than 2^31 memblocks.
 
-	-hpa
+Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujtisu.com>
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
