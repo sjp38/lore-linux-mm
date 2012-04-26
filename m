@@ -1,50 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx117.postini.com [74.125.245.117])
-	by kanga.kvack.org (Postfix) with SMTP id EDFB26B004A
-	for <linux-mm@kvack.org>; Thu, 26 Apr 2012 17:05:14 -0400 (EDT)
-Received: by ghrr18 with SMTP id r18so55504ghr.14
-        for <linux-mm@kvack.org>; Thu, 26 Apr 2012 14:05:13 -0700 (PDT)
-Date: Thu, 26 Apr 2012 14:05:11 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [patch v2] thp, memcg: split hugepage for memcg oom on cow
-In-Reply-To: <20120426090642.GC1791@redhat.com>
-Message-ID: <alpine.DEB.2.00.1204261402020.28376@chino.kir.corp.google.com>
-References: <alpine.DEB.2.00.1204031854530.30629@chino.kir.corp.google.com> <4F838385.9070309@jp.fujitsu.com> <alpine.DEB.2.00.1204092241180.27689@chino.kir.corp.google.com> <alpine.DEB.2.00.1204092242050.27689@chino.kir.corp.google.com> <20120411142023.GB1789@redhat.com>
- <alpine.DEB.2.00.1204231612060.17030@chino.kir.corp.google.com> <20120426090642.GC1791@redhat.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from psmtp.com (na3sys010amx123.postini.com [74.125.245.123])
+	by kanga.kvack.org (Postfix) with SMTP id 681D66B004A
+	for <linux-mm@kvack.org>; Thu, 26 Apr 2012 17:26:16 -0400 (EDT)
+From: Glauber Costa <glommer@parallels.com>
+Subject: [PATCH v3 0/2] fix problem with static_branch() for sock memcg
+Date: Thu, 26 Apr 2012 18:24:21 -0300
+Message-Id: <1335475463-25167-1-git-send-email-glommer@parallels.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <jweiner@redhat.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrea Arcangeli <aarcange@redhat.com>, linux-mm@kvack.org
+To: cgroups@vger.kernel.org
+Cc: netdev@vger.kernel.org, Li Zefan <lizefan@huawei.com>, Tejun Heo <tj@kernel.org>, kamezawa.hiroyu@jp.fujitsu.com, linux-mm@kvack.org, devel@openvz.org
 
-On Thu, 26 Apr 2012, Johannes Weiner wrote:
+Hi,
 
-> > I agree it's more robust if do_huge_pmd_wp_page() were modified later and 
-> > mistakenly returned VM_FAULT_OOM without the page being split, but 
-> > __split_huge_page_pmd() has the drawback of also requiring to retake 
-> > mm->page_table_lock to test whether orig_pmd is still legitimate so it 
-> > will be slower.  Do you feel strongly about the way it's currently written 
-> > which will be faster at runtime?
-> 
-> If you can't accomodate for a hugepage, this code runs 511 times in
-> the worst case before you also can't fit a regular page anymore.  And
-> compare it to the cost of the splitting itself and the subsequent 4k
-> COW break faults...
-> 
-> I don't think it's a path worth optimizing for at all, especially if
-> it includes sprinkling undocumented split_huge_pages around, and the
-> fix could be as self-contained as something like this...
-> 
+While trying to fulfill's Christoph's request for using static_branches
+to do part of the role of number_of_cpusets in the cpuset cgroup, I took
+a much more extensive look at the cpuset code (Thanks Christoph).
 
-I disagree that we should be unnecessarily taking mm->page_table_lock 
-which is already strongly contended if all cpus are pagefaulting on the 
-same process (and I'll be posting a patch to address specifically those 
-slowdowns since thp is _much_ slower on page fault tests) when we can 
-already do it in do_huge_pmd_wp_page().  If you'd like to add a comment 
-for the split_huge_page() in that function if it's not clear enough from 
-my VM_FAULT_OOM comment in handle_mm_fault(), then feel free to add it but 
-I thought it was rather trivial to understand.
+I started to feel that removing the cgroup_lock() from cpuset's
+destroy is not as safe as I first imagined. At the very best, is not safe
+enough to be bundled in a bugfix and deserves its own analysis.
+
+I started then to consider another approach. While I voiced many times
+that I would not like to do deferred updates for the static_branches, doing
+that during destroy time would be perfectly acceptable IMHO (creation is
+another story). In a summary, we are effectively calling the static_branch
+updates only when the last reference to the memcg is gone. And that is
+already asynchronous by nature, and we cope well with that.
+
+In memcg, it turns out that we already do deferred freeing of the memcg
+structure depending on the size of struct mem_cgroup.
+
+My proposal is to always do that, and then we get a worker more or less
+for free. Patch 2 is basically the same I had posted before, with minor
+adaptations, plus the addition of a commentary explaining a race as
+requested by Kame.
+
+Let me know if this is acceptable.
+
+Thanks
+
+Glauber Costa (2):
+  Always free struct memcg through schedule_work()
+  decrement static keys on real destroy time
+
+ include/net/sock.h        |    9 ++++++
+ mm/memcontrol.c           |   54 ++++++++++++++++++++++++++--------
+ net/ipv4/tcp_memcontrol.c |   70 ++++++++++++++++++++++++++++++++++++++++----
+ 3 files changed, 113 insertions(+), 20 deletions(-)
+
+-- 
+1.7.7.6
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
