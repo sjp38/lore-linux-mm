@@ -1,90 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx177.postini.com [74.125.245.177])
-	by kanga.kvack.org (Postfix) with SMTP id E19516B004D
-	for <linux-mm@kvack.org>; Thu, 26 Apr 2012 01:16:49 -0400 (EDT)
-Message-ID: <4F98DA64.6030101@kernel.org>
-Date: Thu, 26 Apr 2012 14:17:24 +0900
-From: Minchan Kim <minchan@kernel.org>
+Received: from psmtp.com (na3sys010amx161.postini.com [74.125.245.161])
+	by kanga.kvack.org (Postfix) with SMTP id 89D576B0044
+	for <linux-mm@kvack.org>; Thu, 26 Apr 2012 03:53:52 -0400 (EDT)
+Received: by lbbgg6 with SMTP id gg6so999112lbb.14
+        for <linux-mm@kvack.org>; Thu, 26 Apr 2012 00:53:50 -0700 (PDT)
+Subject: [PATCH next 00/12] mm: replace struct mem_cgroup_zone with struct
+ lruvec
+From: Konstantin Khlebnikov <khlebnikov@openvz.org>
+Date: Thu, 26 Apr 2012 11:53:44 +0400
+Message-ID: <20120426074632.18961.17803.stgit@zurg>
 MIME-Version: 1.0
-Subject: Re: [PATCH] rename is_mlocked_vma() to mlocked_vma_newpage()
-References: <1335375955-32037-1-git-send-email-yinghan@google.com>
-In-Reply-To: <1335375955-32037-1-git-send-email-yinghan@google.com>
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset="utf-8"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ying Han <yinghan@google.com>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On 04/26/2012 02:45 AM, Ying Han wrote:
+This patchset depends on Johannes Weiner's patch
+"mm: memcg: count pte references from every member of the reclaimed hierarchy".
 
-> Andrew pointed out that the is_mlocked_vma() is misnamed. A function
-> with name like that would expect bool return and no side-effects.
-> 
-> Since it is called on the fault path for new page, rename it in this
-> patch.
-> 
-> Signed-off-by: Ying Han <yinghan@google.com>
+bloat-o-meter delta for patches 2..12
 
+add/remove: 6/6 grow/shrink: 6/14 up/down: 4414/-4625 (-211)
+function                                     old     new   delta
+shrink_page_list                               -    2270   +2270
+shrink_lruvec                                  -    1386   +1386
+update_isolated_counts                         -     376    +376
+lruvec_init                                    -     195    +195
+get_lruvec_size                                -      61     +61
+balance_pgdat                               1856    1904     +48
+mem_cgroup_shrink_node_zone                  283     302     +19
+shrink_inactive_list                         985    1003     +18
+mem_cgroup_get_lruvec_size                     -      18     +18
+mem_cgroup_create                           1453    1468     +15
+shrink_active_list                           824     830      +6
+shrink_zone                                  147     149      +2
+mem_control_stat_show                        750     745      -5
+mem_cgroup_zone_lruvec                        72      67      -5
+mem_cgroup_get_reclaim_stat_from_page        108     103      -5
+mem_cgroup_nr_lru_pages                      185     179      -6
+inactive_anon_is_low                         110     103      -7
+test_mem_cgroup_node_reclaimable             200     192      -8
+__mem_cgroup_free                            389     381      -8
+putback_inactive_pages                       634     620     -14
+mem_control_numa_stat_show                  1015    1001     -14
+static.isolate_lru_pages                     419     403     -16
+mem_cgroup_force_empty                      1694    1678     -16
+get_reclaim_stat                              30       -     -30
+mem_cgroup_zone_nr_lru_pages                  64       -     -64
+free_area_init_node                          849     784     -65
+mem_cgroup_inactive_anon_is_low              177      84     -93
+mem_cgroup_inactive_file_is_low              140      31    -109
+zone_nr_lru_pages                            110       -    -110
+static.update_isolated_counts                376       -    -376
+shrink_mem_cgroup_zone                      1381       -   -1381
+static.shrink_page_list                     2293       -   -2293
 
+---
 
-Reviewed-by: Minchan Kim <minchan@kernel.org>
-
-Nitpick:
-
-mlocked_vma_newpage is better?
-It seems I am a paranoic about naming. :-)
-Feel free to ignore if you don't want.
-
-
-
-> ---
->  mm/internal.h |    5 +++--
->  mm/vmscan.c   |    2 +-
->  2 files changed, 4 insertions(+), 3 deletions(-)
-> 
-> diff --git a/mm/internal.h b/mm/internal.h
-> index 2189af4..a935af3 100644
-> --- a/mm/internal.h
-> +++ b/mm/internal.h
-> @@ -131,7 +131,8 @@ static inline void munlock_vma_pages_all(struct vm_area_struct *vma)
->   * to determine if it's being mapped into a LOCKED vma.
->   * If so, mark page as mlocked.
->   */
-> -static inline int is_mlocked_vma(struct vm_area_struct *vma, struct page *page)
-> +static inline int mlock_vma_newpage(struct vm_area_struct *vma,
-> +				    struct page *page)
->  {
->  	VM_BUG_ON(PageLRU(page));
->  
-> @@ -189,7 +190,7 @@ extern unsigned long vma_address(struct page *page,
->  				 struct vm_area_struct *vma);
->  #endif
->  #else /* !CONFIG_MMU */
-> -static inline int is_mlocked_vma(struct vm_area_struct *v, struct page *p)
-> +static inline int mlock_vma_newpage(struct vm_area_struct *v, struct page *p)
->  {
->  	return 0;
->  }
-> diff --git a/mm/vmscan.c b/mm/vmscan.c
-> index 1a51868..686c63e 100644
-> --- a/mm/vmscan.c
-> +++ b/mm/vmscan.c
-> @@ -3531,7 +3531,7 @@ int page_evictable(struct page *page, struct vm_area_struct *vma)
->  	if (mapping_unevictable(page_mapping(page)))
->  		return 0;
->  
-> -	if (PageMlocked(page) || (vma && is_mlocked_vma(vma, page)))
-> +	if (PageMlocked(page) || (vma && mlock_vma_newpage(vma, page)))
->  		return 0;
->  
->  	return 1;
+Konstantin Khlebnikov (12):
+      mm/vmscan: store "priority" in struct scan_control
+      mm: add link from struct lruvec to struct zone
+      mm/vmscan: push lruvec pointer into isolate_lru_pages()
+      mm/vmscan: push zone pointer into shrink_page_list()
+      mm/vmscan: push zone pointer into update_isolated_counts()
+      mm/vmscan: push lruvec pointer into putback_inactive_pages()
+      mm/vmscan: replace zone_nr_lru_pages() with get_lruvec_size()
+      mm/vmscan: push lruvec pointer into inactive_list_is_low()
+      mm/vmscan: push lruvec pointer into shrink_list()
+      mm/vmscan: push lruvec pointer into get_scan_count()
+      mm/vmscan: push lruvec pointer into should_continue_reclaim()
+      mm/vmscan: kill struct mem_cgroup_zone
 
 
+ include/linux/memcontrol.h |   16 +--
+ include/linux/mmzone.h     |   14 ++
+ mm/memcontrol.c            |   33 +++--
+ mm/mmzone.c                |   14 ++
+ mm/page_alloc.c            |    8 -
+ mm/vmscan.c                |  277 ++++++++++++++++++++------------------------
+ 6 files changed, 177 insertions(+), 185 deletions(-)
 
 -- 
-Kind regards,
-Minchan Kim
+Signature
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
