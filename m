@@ -1,120 +1,109 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx156.postini.com [74.125.245.156])
-	by kanga.kvack.org (Postfix) with SMTP id 494326B004A
-	for <linux-mm@kvack.org>; Thu, 26 Apr 2012 12:47:19 -0400 (EDT)
-Date: Thu, 26 Apr 2012 17:47:13 +0100
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH v3] mm: compaction: handle incorrect Unmovable type
- pageblocks
-Message-ID: <20120426164713.GG15299@suse.de>
-References: <201204261015.54449.b.zolnierkie@samsung.com>
- <20120426143620.GF15299@suse.de>
- <4F996F8B.1020207@redhat.com>
+Received: from psmtp.com (na3sys010amx166.postini.com [74.125.245.166])
+	by kanga.kvack.org (Postfix) with SMTP id 6834A6B0044
+	for <linux-mm@kvack.org>; Thu, 26 Apr 2012 13:50:56 -0400 (EDT)
+Received: by lbbgg6 with SMTP id gg6so1613550lbb.14
+        for <linux-mm@kvack.org>; Thu, 26 Apr 2012 10:50:54 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <4F996F8B.1020207@redhat.com>
+In-Reply-To: <4F98DA64.6030101@kernel.org>
+References: <1335375955-32037-1-git-send-email-yinghan@google.com>
+	<4F98DA64.6030101@kernel.org>
+Date: Thu, 26 Apr 2012 10:50:53 -0700
+Message-ID: <CALWz4iwTO6yqLU3i67KRqht7NR6=VMH_Q8j+GcnO9tSn6Nj9Bg@mail.gmail.com>
+Subject: Re: [PATCH] rename is_mlocked_vma() to mlocked_vma_newpage()
+From: Ying Han <yinghan@google.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rik van Riel <riel@redhat.com>
-Cc: Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, linux-mm@kvack.org, Minchan Kim <minchan@kernel.org>, Marek Szyprowski <m.szyprowski@samsung.com>, Kyungmin Park <kyungmin.park@samsung.com>
+To: Minchan Kim <minchan@kernel.org>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
 
-On Thu, Apr 26, 2012 at 11:53:47AM -0400, Rik van Riel wrote:
-> On 04/26/2012 10:36 AM, Mel Gorman wrote:
-> 
-> >Hmm, at what point does COMPACT_ASYNC_FULL get used? I see it gets
-> >used for the proc interface but it's not used via the page allocator at
-> >all.
-> 
-> He is using COMPACT_SYNC for the proc interface, and
-> COMPACT_ASYNC_FULL from kswapd.
-> 
+On Wed, Apr 25, 2012 at 10:17 PM, Minchan Kim <minchan@kernel.org> wrote:
+> On 04/26/2012 02:45 AM, Ying Han wrote:
+>
+>> Andrew pointed out that the is_mlocked_vma() is misnamed. A function
+>> with name like that would expect bool return and no side-effects.
+>>
+>> Since it is called on the fault path for new page, rename it in this
+>> patch.
+>>
+>> Signed-off-by: Ying Han <yinghan@google.com>
+>
+>
+>
+> Reviewed-by: Minchan Kim <minchan@kernel.org>
+>
+> Nitpick:
+>
+> mlocked_vma_newpage is better?
+> It seems I am a paranoic about naming. :-)
+> Feel free to ignore if you don't want.
 
-Ah, yes, of course. My bad.
+Thanks, at least I see it is inconsistant to the title.
 
-Even that is not particularly satisfactory though as it's depending on
-kswapd to do the work so it's a bit of a race to see if kswapd completes
-the job before the page allocator needs it.
+I will post another one
 
-> >Minimally I was expecting to see if being used from the page allocator.
-> 
-> Makes sense, especially if we get the CPU overhead
-> saving stuff that we talked about at LSF to work :)
-> 
+--Ying
 
-True.
-
-> >A better option might be to track the number of MIGRATE_UNMOVABLE blocks that
-> >were skipped over during COMPACT_ASYNC_PARTIAL and if it was a high
-> >percentage and it looked like compaction failed then to retry with
-> >COMPACT_ASYNC_FULL. If you took this option, try_to_compact_pages()
-> >would still only take sync as a parameter and keep the decision within
-> >compaction.c
-> 
-> This I don't get.
-> 
-> If we have a small number of MIGRATE_UNMOVABLE blocks,
-> is it worth skipping over them?
-> 
-
-We do not know in advance how many MIGRATE_UNMOVABLE blocks are going to
-be encountered. Even if we kept track of the number of MIGRATE_UNMOVABLE
-pageblocks in the zone, it would not tell us how many pageblocks the
-scanner will see.
-
-> If we have really large number of MIGRATE_UNMOVABLE blocks,
-> did we let things get out of hand?  By giving the page
-> allocator this many unmovable blocks to choose from, we
-> could have ended up with actually non-compactable memory.
-> 
-
-If there are a large number of MIGRATE_UNMOVABLE blocks, each with a single
-unmovable page at the end of the block then the worst case situation
-is that the second pass (COMPACT_ASYNC_PARTIAL being the first pass)
-is useless and slow due to the scanning within MIGRATE_UNMOVABLE blocks.
-
-When this situation occurs, I would also expect that the third pass
-(COMPACT_SYNC) will also fail and then compaction will get deferred to
-limit further damage.
-
-In the average case, I would expect the large number of
-MIGRATE_UNMOVABLE blocks to also be partially populated which means that
-scans of these blocks will also be partial limiting the amount of
-scanning we do. How much this is limited is impossible to estimate as
-it's dependant on the workload.
-
-> If we have a medium number of MIGRATE_UNMOVABLE blocks,
-> is it worth doing a restart and scanning all the movable
-> blocks again?
-> 
-
-This goes back to the same problem of we do not know how many
-MIGRATE_UNMOVABLE pageblocks are going to be encountered in advance However,
-I see your point.
-
-Instead of COMPACT_ASYNC_PARTIAL and COMPACT_ASYNC_FULL should we have
-COMPACT_ASYNC_MOVABLE and COMPACT_ASYNC_UNMOVABLE? The first pass from
-the page allocator (COMPACT_ASYNC_MOVABLE) would only consider MOVABLE
-blocks as migration targets. The second pass (COMPACT_ASYNC_UNMOVABLE)
-would examine UNMOVABLE blocks, rescue them and use what blocks it
-rescues as migration targets. The third pass (COMPACT_SYNC) would work
-as it does currently. kswapd would only ever use COMPACT_ASYNC_MOVABLE.
-
-That would avoid rescanning the movable blocks uselessly on the second
-pass but should still work for Bartlomiej's workload.
-
-What do you think?
-
-> In other words, could it be better to always try to
-> rescue the unmovable blocks?
-
-I do not think we should always scan within unmovable blocks on the
-first pass. I strongly suspect it would lead to excessive amounts of CPU
-time spent in mm/compaction.c.
-
--- 
-Mel Gorman
-SUSE Labs
+>
+>
+>
+>> ---
+>> =A0mm/internal.h | =A0 =A05 +++--
+>> =A0mm/vmscan.c =A0 | =A0 =A02 +-
+>> =A02 files changed, 4 insertions(+), 3 deletions(-)
+>>
+>> diff --git a/mm/internal.h b/mm/internal.h
+>> index 2189af4..a935af3 100644
+>> --- a/mm/internal.h
+>> +++ b/mm/internal.h
+>> @@ -131,7 +131,8 @@ static inline void munlock_vma_pages_all(struct vm_a=
+rea_struct *vma)
+>> =A0 * to determine if it's being mapped into a LOCKED vma.
+>> =A0 * If so, mark page as mlocked.
+>> =A0 */
+>> -static inline int is_mlocked_vma(struct vm_area_struct *vma, struct pag=
+e *page)
+>> +static inline int mlock_vma_newpage(struct vm_area_struct *vma,
+>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 struct=
+ page *page)
+>> =A0{
+>> =A0 =A0 =A0 VM_BUG_ON(PageLRU(page));
+>>
+>> @@ -189,7 +190,7 @@ extern unsigned long vma_address(struct page *page,
+>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0struct vm=
+_area_struct *vma);
+>> =A0#endif
+>> =A0#else /* !CONFIG_MMU */
+>> -static inline int is_mlocked_vma(struct vm_area_struct *v, struct page =
+*p)
+>> +static inline int mlock_vma_newpage(struct vm_area_struct *v, struct pa=
+ge *p)
+>> =A0{
+>> =A0 =A0 =A0 return 0;
+>> =A0}
+>> diff --git a/mm/vmscan.c b/mm/vmscan.c
+>> index 1a51868..686c63e 100644
+>> --- a/mm/vmscan.c
+>> +++ b/mm/vmscan.c
+>> @@ -3531,7 +3531,7 @@ int page_evictable(struct page *page, struct vm_ar=
+ea_struct *vma)
+>> =A0 =A0 =A0 if (mapping_unevictable(page_mapping(page)))
+>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 return 0;
+>>
+>> - =A0 =A0 if (PageMlocked(page) || (vma && is_mlocked_vma(vma, page)))
+>> + =A0 =A0 if (PageMlocked(page) || (vma && mlock_vma_newpage(vma, page))=
+)
+>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 return 0;
+>>
+>> =A0 =A0 =A0 return 1;
+>
+>
+>
+> --
+> Kind regards,
+> Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
