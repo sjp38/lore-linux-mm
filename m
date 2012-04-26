@@ -1,38 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx174.postini.com [74.125.245.174])
-	by kanga.kvack.org (Postfix) with SMTP id E9D046B004A
-	for <linux-mm@kvack.org>; Thu, 26 Apr 2012 10:58:28 -0400 (EDT)
-Date: Thu, 26 Apr 2012 09:58:26 -0500 (CDT)
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: [patch] mm, mempolicy: make mempolicies robust against errors
-In-Reply-To: <alpine.DEB.2.00.1203062151530.6424@chino.kir.corp.google.com>
-Message-ID: <alpine.DEB.2.00.1204260956010.16059@router.home>
-References: <alpine.DEB.2.00.1203041341340.9534@chino.kir.corp.google.com> <20120306160833.0e9bf50a.akpm@linux-foundation.org> <alpine.DEB.2.00.1203061950050.24600@chino.kir.corp.google.com> <alpine.DEB.2.00.1203062025490.24600@chino.kir.corp.google.com>
- <CAHGf_=qG1Lah00fGTNENvtgacsUt1=FcMKyt+kmPG1=UD6ecNw@mail.gmail.com> <alpine.DEB.2.00.1203062151530.6424@chino.kir.corp.google.com>
+Received: from psmtp.com (na3sys010amx171.postini.com [74.125.245.171])
+	by kanga.kvack.org (Postfix) with SMTP id 4766F6B004A
+	for <linux-mm@kvack.org>; Thu, 26 Apr 2012 11:02:08 -0400 (EDT)
+Received: by dadq36 with SMTP id q36so1892898dad.8
+        for <linux-mm@kvack.org>; Thu, 26 Apr 2012 08:02:07 -0700 (PDT)
+Date: Thu, 26 Apr 2012 08:01:59 -0700
+From: Tejun Heo <tj@kernel.org>
+Subject: Re: [BUG]memblock: fix overflow of array index
+Message-ID: <20120426150159.GA27486@google.com>
+References: <CAHnt0GXW-pyOUuBLB1n6qBP4WNGpET9er_HbJ29s5j5DE1xAdA@mail.gmail.com>
+ <20120425222819.GF8989@google.com>
+ <CAHnt0GWABX8qOVTinmSETUHxq1Y3NhqPOKxnUgcDtyf8wjtg_g@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; CHARSET=US-ASCII
-Content-ID: <alpine.DEB.2.00.1204260956012.16059@router.home>
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CAHnt0GWABX8qOVTinmSETUHxq1Y3NhqPOKxnUgcDtyf8wjtg_g@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org
+To: Peter Teoh <htmldeveloper@gmail.com>
+Cc: linux-kernel@vger.kernel.org, "H. Peter Anvin" <hpa@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@elte.hu>, linux-mm@kvack.org
 
-On Tue, 6 Mar 2012, David Rientjes wrote:
+Hello,
 
-> That's not compiled for CONFIG_BUG=n; such a config fallsback to
-> include/asm-generic/bug.h which just does
->
-> 	#define BUG()	do {} while (0)
->
-> because CONFIG_BUG specifically _wants_ to bypass BUG()s and is reasonably
-> protected by CONFIG_EXPERT.
+On Thu, Apr 26, 2012 at 08:50:58AM +0800, Peter Teoh wrote:
+> Thanks for the reply.   Just an educational question:  is it possible
+> to set one-byte per memblock?    And what is the minimum memblock
+> size?
 
-Why would anyone do this? IMHO if you disable CONFIG_BUG and things
-explode then its your fault.
+1 byte.
 
-If we must have the ability then make BUG() fallback to something that
-quiets down the compiler (and set some kind of an "idiot" flag in the
-tainted flags please so that we can ignore bug reports like that).
+> Even if 2G memblock is a huge number, it still seemed like a bug to me
+> that there is no check on the maximum number (which is 2G) of this
+> variable (assuming signed int).   Software can always purposely push
+> that number up and the system can panic?
+
+Yeah, if somebody messes the BIOS / firmware to oblivion.  I don't
+really care at that point tho.  memblock is a boot time memory
+allocator and it assumes BIOS / firmware isn't completely crazy.  It
+uses contiguous tables to describe all the blocks, walks them
+one-by-one for allocation and even compacts them.
+
+Well before memblock fails from any of the above, the machine would be
+failing miserably in firmware / BIOS.
+
+Thanks.
+
+-- 
+tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
