@@ -1,13 +1,14 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from psmtp.com (na3sys010amx161.postini.com [74.125.245.161])
-	by kanga.kvack.org (Postfix) with SMTP id 5C2946B00EB
-	for <linux-mm@kvack.org>; Thu, 26 Apr 2012 03:54:30 -0400 (EDT)
+	by kanga.kvack.org (Postfix) with SMTP id C66CB6B004D
+	for <linux-mm@kvack.org>; Thu, 26 Apr 2012 03:54:33 -0400 (EDT)
 Received: by mail-lb0-f169.google.com with SMTP id gg6so999112lbb.14
-        for <linux-mm@kvack.org>; Thu, 26 Apr 2012 00:54:29 -0700 (PDT)
-Subject: [PATCH 10/12] mm/vmscan: push lruvec pointer into get_scan_count()
+        for <linux-mm@kvack.org>; Thu, 26 Apr 2012 00:54:33 -0700 (PDT)
+Subject: [PATCH 11/12] mm/vmscan: push lruvec pointer into
+ should_continue_reclaim()
 From: Konstantin Khlebnikov <khlebnikov@openvz.org>
-Date: Thu, 26 Apr 2012 11:54:26 +0400
-Message-ID: <20120426075426.18961.28425.stgit@zurg>
+Date: Thu, 26 Apr 2012 11:54:30 +0400
+Message-ID: <20120426075430.18961.71526.stgit@zurg>
 In-Reply-To: <20120426074632.18961.17803.stgit@zurg>
 References: <20120426074632.18961.17803.stgit@zurg>
 MIME-Version: 1.0
@@ -20,98 +21,55 @@ Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
 Signed-off-by: Konstantin Khlebnikov <khlebnikov@openvz.org>
 ---
- mm/vmscan.c |   25 +++++++++----------------
- 1 file changed, 9 insertions(+), 16 deletions(-)
+ mm/vmscan.c |    8 +++-----
+ 1 file changed, 3 insertions(+), 5 deletions(-)
 
 diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 258e002..1724ec6 100644
+index 1724ec6..a9114739 100644
 --- a/mm/vmscan.c
 +++ b/mm/vmscan.c
-@@ -150,11 +150,6 @@ static bool global_reclaim(struct scan_control *sc)
- }
- #endif
- 
--static struct zone_reclaim_stat *get_reclaim_stat(struct mem_cgroup_zone *mz)
--{
--	return &mem_cgroup_zone_lruvec(mz->zone, mz->mem_cgroup)->reclaim_stat;
--}
--
- static unsigned long get_lruvec_size(struct lruvec *lruvec, enum lru_list lru)
- {
- 	if (!mem_cgroup_disabled())
-@@ -1623,20 +1618,18 @@ static int vmscan_swappiness(struct scan_control *sc)
-  *
-  * nr[0] = anon pages to scan; nr[1] = file pages to scan
+@@ -1750,14 +1750,13 @@ static bool in_reclaim_compaction(struct scan_control *sc)
+  * calls try_to_compact_zone() that it will have enough free pages to succeed.
+  * It will give up earlier than that if there is difficulty reclaiming pages.
   */
--static void get_scan_count(struct mem_cgroup_zone *mz, struct scan_control *sc,
-+static void get_scan_count(struct lruvec *lruvec, struct scan_control *sc,
- 			   unsigned long *nr)
+-static inline bool should_continue_reclaim(struct mem_cgroup_zone *mz,
++static inline bool should_continue_reclaim(struct lruvec *lruvec,
+ 					unsigned long nr_reclaimed,
+ 					unsigned long nr_scanned,
+ 					struct scan_control *sc)
  {
- 	unsigned long anon, file, free;
- 	unsigned long anon_prio, file_prio;
- 	unsigned long ap, fp;
--	struct zone_reclaim_stat *reclaim_stat = get_reclaim_stat(mz);
-+	struct zone_reclaim_stat *reclaim_stat = &lruvec->reclaim_stat;
- 	u64 fraction[2], denominator;
- 	enum lru_list lru;
- 	int noswap = 0;
- 	bool force_scan = false;
+ 	unsigned long pages_for_compaction;
+ 	unsigned long inactive_lru_pages;
 -	struct lruvec *lruvec;
--
+ 
+ 	/* If not in reclaim/compaction mode, stop */
+ 	if (!in_reclaim_compaction(sc))
+@@ -1790,7 +1789,6 @@ static inline bool should_continue_reclaim(struct mem_cgroup_zone *mz,
+ 	 * If we have not reclaimed enough pages for compaction and the
+ 	 * inactive lists are large enough, continue reclaiming
+ 	 */
 -	lruvec = mem_cgroup_zone_lruvec(mz->zone, mz->mem_cgroup);
-+	struct zone *zone = lruvec_zone(lruvec);
+ 	pages_for_compaction = (2UL << sc->order);
+ 	inactive_lru_pages = get_lruvec_size(lruvec, LRU_INACTIVE_FILE);
+ 	if (nr_swap_pages > 0)
+@@ -1801,7 +1799,7 @@ static inline bool should_continue_reclaim(struct mem_cgroup_zone *mz,
+ 		return true;
  
- 	/*
- 	 * If the zone or memcg is small, nr[l] can be 0.  This
-@@ -1648,7 +1641,7 @@ static void get_scan_count(struct mem_cgroup_zone *mz, struct scan_control *sc,
- 	 * latencies, so it's better to scan a minimum amount there as
- 	 * well.
- 	 */
--	if (current_is_kswapd() && mz->zone->all_unreclaimable)
-+	if (current_is_kswapd() && zone->all_unreclaimable)
- 		force_scan = true;
- 	if (!global_reclaim(sc))
- 		force_scan = true;
-@@ -1668,10 +1661,10 @@ static void get_scan_count(struct mem_cgroup_zone *mz, struct scan_control *sc,
- 		get_lruvec_size(lruvec, LRU_INACTIVE_FILE);
+ 	/* If compaction would go ahead or the allocation would succeed, stop */
+-	switch (compaction_suitable(mz->zone, sc->order)) {
++	switch (compaction_suitable(lruvec_zone(lruvec), sc->order)) {
+ 	case COMPACT_PARTIAL:
+ 	case COMPACT_CONTINUE:
+ 		return false;
+@@ -1868,7 +1866,7 @@ restart:
+ 				   sc, LRU_ACTIVE_ANON);
  
- 	if (global_reclaim(sc)) {
--		free  = zone_page_state(mz->zone, NR_FREE_PAGES);
-+		free  = zone_page_state(zone, NR_FREE_PAGES);
- 		/* If we have very few page cache pages,
- 		   force-scan anon pages. */
--		if (unlikely(file + free <= high_wmark_pages(mz->zone))) {
-+		if (unlikely(file + free <= high_wmark_pages(zone))) {
- 			fraction[0] = 1;
- 			fraction[1] = 0;
- 			denominator = 1;
-@@ -1697,7 +1690,7 @@ static void get_scan_count(struct mem_cgroup_zone *mz, struct scan_control *sc,
- 	 *
- 	 * anon in [0], file in [1]
- 	 */
--	spin_lock_irq(&mz->zone->lru_lock);
-+	spin_lock_irq(&zone->lru_lock);
- 	if (unlikely(reclaim_stat->recent_scanned[0] > anon / 4)) {
- 		reclaim_stat->recent_scanned[0] /= 2;
- 		reclaim_stat->recent_rotated[0] /= 2;
-@@ -1718,7 +1711,7 @@ static void get_scan_count(struct mem_cgroup_zone *mz, struct scan_control *sc,
+ 	/* reclaim/compaction might need reclaim to continue */
+-	if (should_continue_reclaim(mz, nr_reclaimed,
++	if (should_continue_reclaim(lruvec, nr_reclaimed,
+ 				    sc->nr_scanned - nr_scanned, sc))
+ 		goto restart;
  
- 	fp = (file_prio + 1) * (reclaim_stat->recent_scanned[1] + 1);
- 	fp /= reclaim_stat->recent_rotated[1] + 1;
--	spin_unlock_irq(&mz->zone->lru_lock);
-+	spin_unlock_irq(&zone->lru_lock);
- 
- 	fraction[0] = ap;
- 	fraction[1] = fp;
-@@ -1836,7 +1829,7 @@ static void shrink_mem_cgroup_zone(struct mem_cgroup_zone *mz,
- restart:
- 	nr_reclaimed = 0;
- 	nr_scanned = sc->nr_scanned;
--	get_scan_count(mz, sc, nr);
-+	get_scan_count(lruvec, sc, nr);
- 
- 	blk_start_plug(&plug);
- 	while (nr[LRU_INACTIVE_ANON] || nr[LRU_ACTIVE_FILE] ||
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
