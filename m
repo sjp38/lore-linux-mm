@@ -1,53 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx106.postini.com [74.125.245.106])
-	by kanga.kvack.org (Postfix) with SMTP id 2D3836B007E
-	for <linux-mm@kvack.org>; Thu, 26 Apr 2012 11:42:17 -0400 (EDT)
-Received: by yhr47 with SMTP id 47so1444196yhr.14
-        for <linux-mm@kvack.org>; Thu, 26 Apr 2012 08:42:16 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx107.postini.com [74.125.245.107])
+	by kanga.kvack.org (Postfix) with SMTP id 903046B004A
+	for <linux-mm@kvack.org>; Thu, 26 Apr 2012 11:53:43 -0400 (EDT)
+Message-ID: <4F996F8B.1020207@redhat.com>
+Date: Thu, 26 Apr 2012 11:53:47 -0400
+From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-In-Reply-To: <20120426142643.GA18863@alpha.arachsys.com>
-References: <65795E11DBF1E645A09CEC7EAEE94B9CB951A45F@USINDEVS02.corp.hds.com>
- <20120424082019.GA18395@alpha.arachsys.com> <65795E11DBF1E645A09CEC7EAEE94B9C014649EC4D@USINDEVS02.corp.hds.com>
- <20120426142643.GA18863@alpha.arachsys.com>
-From: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
-Date: Thu, 26 Apr 2012 11:41:25 -0400
-Message-ID: <CAHGf_=pcmFrWjfW3eQi_AiemQEm_e=gBZ24s+Hiythmd=J9EUQ@mail.gmail.com>
-Subject: Re: [RFC][PATCH] avoid swapping out with swappiness==0
-Content-Type: text/plain; charset=ISO-8859-1
+Subject: Re: [PATCH v3] mm: compaction: handle incorrect Unmovable type pageblocks
+References: <201204261015.54449.b.zolnierkie@samsung.com> <20120426143620.GF15299@suse.de>
+In-Reply-To: <20120426143620.GF15299@suse.de>
+Content-Type: text/plain; charset=ISO-8859-15; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Richard Davies <richard.davies@elastichosts.com>
-Cc: Satoru Moriya <satoru.moriya@hds.com>, Jerome Marchand <jmarchan@redhat.com>, "jweiner@redhat.com" <jweiner@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "riel@redhat.com" <riel@redhat.com>, "lwoodman@redhat.com" <lwoodman@redhat.com>, "shaohua.li@intel.com" <shaohua.li@intel.com>, "dle-develop@lists.sourceforge.net" <dle-develop@lists.sourceforge.net>, Seiji Aguchi <seiji.aguchi@hds.com>, Minchan Kim <minchan.kim@gmail.com>
+To: Mel Gorman <mgorman@suse.de>
+Cc: Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, linux-mm@kvack.org, Minchan Kim <minchan@kernel.org>, Marek Szyprowski <m.szyprowski@samsung.com>, Kyungmin Park <kyungmin.park@samsung.com>
 
-On Thu, Apr 26, 2012 at 10:26 AM, Richard Davies
-<richard.davies@elastichosts.com> wrote:
-> Satoru Moriya wrote:
->> > I have run into problems with heavy swapping with swappiness==0 and
->> > was pointed to this thread (
->> > http://marc.info/?l=linux-mm&m=133522782307215 )
->>
->> Did you test this patch with your workload?
->
-> I haven't yet tested this patch. It takes a long time since these are
-> production machines, and the bug itself takes several weeks of production
-> use to really show up.
->
-> Rik van Riel has pointed out a lot of VM tweaks that he put into 3.4:
-> http://marc.info/?l=linux-mm&m=133536506926326
->
-> My intention is to reboot half of our machines into plain 3.4 once it is
-> out, and half onto 3.4 + your patch.
->
-> Then we can compare behaviour.
->
-> Will your patch apply cleanly on 3.4?
+On 04/26/2012 10:36 AM, Mel Gorman wrote:
 
-Note. This patch doesn't solve your issue. This patch mean,
-when occuring very few swap io, it change to 0. But you said
-you are seeing eager swap io. As Dave already pointed out, your
-machine have buffer head issue.
+> Hmm, at what point does COMPACT_ASYNC_FULL get used? I see it gets
+> used for the proc interface but it's not used via the page allocator at
+> all.
 
-So, this thread is pointless.
+He is using COMPACT_SYNC for the proc interface, and
+COMPACT_ASYNC_FULL from kswapd.
+
+> Minimally I was expecting to see if being used from the page allocator.
+
+Makes sense, especially if we get the CPU overhead
+saving stuff that we talked about at LSF to work :)
+
+> A better option might be to track the number of MIGRATE_UNMOVABLE blocks that
+> were skipped over during COMPACT_ASYNC_PARTIAL and if it was a high
+> percentage and it looked like compaction failed then to retry with
+> COMPACT_ASYNC_FULL. If you took this option, try_to_compact_pages()
+> would still only take sync as a parameter and keep the decision within
+> compaction.c
+
+This I don't get.
+
+If we have a small number of MIGRATE_UNMOVABLE blocks,
+is it worth skipping over them?
+
+If we have really large number of MIGRATE_UNMOVABLE blocks,
+did we let things get out of hand?    By giving the page
+allocator this many unmovable blocks to choose from, we
+could have ended up with actually non-compactable memory.
+
+If we have a medium number of MIGRATE_UNMOVABLE blocks,
+is it worth doing a restart and scanning all the movable
+blocks again?
+
+In other words, could it be better to always try to
+rescue the unmovable blocks?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
