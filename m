@@ -1,144 +1,177 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx190.postini.com [74.125.245.190])
-	by kanga.kvack.org (Postfix) with SMTP id 4A7CB6B00E7
-	for <linux-mm@kvack.org>; Thu, 26 Apr 2012 05:06:50 -0400 (EDT)
-Date: Thu, 26 Apr 2012 11:06:42 +0200
-From: Johannes Weiner <jweiner@redhat.com>
-Subject: Re: [patch v2] thp, memcg: split hugepage for memcg oom on cow
-Message-ID: <20120426090642.GC1791@redhat.com>
-References: <alpine.DEB.2.00.1204031854530.30629@chino.kir.corp.google.com>
- <4F838385.9070309@jp.fujitsu.com>
- <alpine.DEB.2.00.1204092241180.27689@chino.kir.corp.google.com>
- <alpine.DEB.2.00.1204092242050.27689@chino.kir.corp.google.com>
- <20120411142023.GB1789@redhat.com>
- <alpine.DEB.2.00.1204231612060.17030@chino.kir.corp.google.com>
+Received: from psmtp.com (na3sys010amx199.postini.com [74.125.245.199])
+	by kanga.kvack.org (Postfix) with SMTP id 365196B0044
+	for <linux-mm@kvack.org>; Thu, 26 Apr 2012 09:11:04 -0400 (EDT)
+Received: by qcsd16 with SMTP id d16so859209qcs.14
+        for <linux-mm@kvack.org>; Thu, 26 Apr 2012 06:11:03 -0700 (PDT)
+Date: Thu, 26 Apr 2012 15:10:55 +0200
+From: Frederic Weisbecker <fweisbec@gmail.com>
+Subject: Re: [PATCH 13/23] slub: create duplicate cache
+Message-ID: <20120426131052.GA19069@somewhere>
+References: <1334959051-18203-1-git-send-email-glommer@parallels.com>
+ <1335138820-26590-2-git-send-email-glommer@parallels.com>
+ <20120424141845.GB8626@somewhere>
+ <4F96BAC7.4000709@parallels.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.00.1204231612060.17030@chino.kir.corp.google.com>
+In-Reply-To: <4F96BAC7.4000709@parallels.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrea Arcangeli <aarcange@redhat.com>, linux-mm@kvack.org
+To: Glauber Costa <glommer@parallels.com>
+Cc: cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, devel@openvz.org, kamezawa.hiroyu@jp.fujitsu.com, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Greg Thelen <gthelen@google.com>, Suleiman Souhlal <suleiman@google.com>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@cs.helsinki.fi>
 
-[ Sorry, my responsiveness is horrible these days... ]
-
-On Mon, Apr 23, 2012 at 04:15:06PM -0700, David Rientjes wrote:
-> On Wed, 11 Apr 2012, Johannes Weiner wrote:
+On Tue, Apr 24, 2012 at 11:37:59AM -0300, Glauber Costa wrote:
+> On 04/24/2012 11:18 AM, Frederic Weisbecker wrote:
+> >On Sun, Apr 22, 2012 at 08:53:30PM -0300, Glauber Costa wrote:
+> >>This patch provides kmem_cache_dup(), that duplicates
+> >>a cache for a memcg, preserving its creation properties.
+> >>Object size, alignment and flags are all respected.
+> >>
+> >>When a duplicate cache is created, the parent cache cannot
+> >>be destructed during the child lifetime. To assure this,
+> >>its reference count is increased if the cache creation
+> >>succeeds.
+> >>
+> >>Signed-off-by: Glauber Costa<glommer@parallels.com>
+> >>CC: Christoph Lameter<cl@linux.com>
+> >>CC: Pekka Enberg<penberg@cs.helsinki.fi>
+> >>CC: Michal Hocko<mhocko@suse.cz>
+> >>CC: Kamezawa Hiroyuki<kamezawa.hiroyu@jp.fujitsu.com>
+> >>CC: Johannes Weiner<hannes@cmpxchg.org>
+> >>CC: Suleiman Souhlal<suleiman@google.com>
+> >>---
+> >>  include/linux/memcontrol.h |    3 +++
+> >>  include/linux/slab.h       |    3 +++
+> >>  mm/memcontrol.c            |   44 ++++++++++++++++++++++++++++++++++++++++++++
+> >>  mm/slub.c                  |   37 +++++++++++++++++++++++++++++++++++++
+> >>  4 files changed, 87 insertions(+), 0 deletions(-)
+> >>
+> >>diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
+> >>index 99e14b9..493ecdd 100644
+> >>--- a/include/linux/memcontrol.h
+> >>+++ b/include/linux/memcontrol.h
+> >>@@ -445,6 +445,9 @@ int memcg_css_id(struct mem_cgroup *memcg);
+> >>  void mem_cgroup_register_cache(struct mem_cgroup *memcg,
+> >>  				      struct kmem_cache *s);
+> >>  void mem_cgroup_release_cache(struct kmem_cache *cachep);
+> >>+extern char *mem_cgroup_cache_name(struct mem_cgroup *memcg,
+> >>+				   struct kmem_cache *cachep);
+> >>+
+> >>  #else
+> >>  static inline void mem_cgroup_register_cache(struct mem_cgroup *memcg,
+> >>  					     struct kmem_cache *s)
+> >>diff --git a/include/linux/slab.h b/include/linux/slab.h
+> >>index c7a7e05..909b508 100644
+> >>--- a/include/linux/slab.h
+> >>+++ b/include/linux/slab.h
+> >>@@ -323,6 +323,9 @@ extern void *__kmalloc_track_caller(size_t, gfp_t, unsigned long);
+> >>
+> >>  #ifdef CONFIG_CGROUP_MEM_RES_CTLR_KMEM
+> >>  #define MAX_KMEM_CACHE_TYPES 400
+> >>+extern struct kmem_cache *kmem_cache_dup(struct mem_cgroup *memcg,
+> >>+					 struct kmem_cache *cachep);
+> >>+void kmem_cache_drop_ref(struct kmem_cache *cachep);
+> >>  #else
+> >>  #define MAX_KMEM_CACHE_TYPES 0
+> >>  #endif /* CONFIG_CGROUP_MEM_RES_CTLR_KMEM */
+> >>diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> >>index 0015ed0..e881d83 100644
+> >>--- a/mm/memcontrol.c
+> >>+++ b/mm/memcontrol.c
+> >>@@ -467,6 +467,50 @@ struct cg_proto *tcp_proto_cgroup(struct mem_cgroup *memcg)
+> >>  EXPORT_SYMBOL(tcp_proto_cgroup);
+> >>  #endif /* CONFIG_INET */
+> >>
+> >>+/*
+> >>+ * This is to prevent races againt the kmalloc cache creations.
+> >>+ * Should never be used outside the core memcg code. Therefore,
+> >>+ * copy it here, instead of letting it in lib/
+> >>+ */
+> >>+static char *kasprintf_no_account(gfp_t gfp, const char *fmt, ...)
+> >>+{
+> >>+	unsigned int len;
+> >>+	char *p = NULL;
+> >>+	va_list ap, aq;
+> >>+
+> >>+	va_start(ap, fmt);
+> >>+	va_copy(aq, ap);
+> >>+	len = vsnprintf(NULL, 0, fmt, aq);
+> >>+	va_end(aq);
+> >>+
+> >>+	p = kmalloc_no_account(len+1, gfp);
+> >
+> >I can't seem to find kmalloc_no_account() in this patch or may be
+> >I missed it in a previous one?
 > 
-> > > diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-> > > --- a/mm/huge_memory.c
-> > > +++ b/mm/huge_memory.c
-> > > @@ -950,6 +950,8 @@ int do_huge_pmd_wp_page(struct mm_struct *mm, struct vm_area_struct *vma,
-> > >  		count_vm_event(THP_FAULT_FALLBACK);
-> > >  		ret = do_huge_pmd_wp_page_fallback(mm, vma, address,
-> > >  						   pmd, orig_pmd, page, haddr);
-> > > +		if (ret & VM_FAULT_OOM)
-> > > +			split_huge_page(page);
-> > >  		put_page(page);
-> > >  		goto out;
-> > >  	}
-> > > @@ -957,6 +959,7 @@ int do_huge_pmd_wp_page(struct mm_struct *mm, struct vm_area_struct *vma,
-> > >  
-> > >  	if (unlikely(mem_cgroup_newpage_charge(new_page, mm, GFP_KERNEL))) {
-> > >  		put_page(new_page);
-> > > +		split_huge_page(page);
-> > >  		put_page(page);
-> > >  		ret |= VM_FAULT_OOM;
-> > >  		goto out;
-> > > diff --git a/mm/memory.c b/mm/memory.c
-> > > --- a/mm/memory.c
-> > > +++ b/mm/memory.c
-> > > @@ -3489,6 +3489,7 @@ int handle_mm_fault(struct mm_struct *mm, struct vm_area_struct *vma,
-> > >  	if (unlikely(is_vm_hugetlb_page(vma)))
-> > >  		return hugetlb_fault(mm, vma, address, flags);
-> > >  
-> > > +retry:
-> > >  	pgd = pgd_offset(mm, address);
-> > >  	pud = pud_alloc(mm, pgd, address);
-> > >  	if (!pud)
-> > > @@ -3502,13 +3503,24 @@ int handle_mm_fault(struct mm_struct *mm, struct vm_area_struct *vma,
-> > >  							  pmd, flags);
-> > >  	} else {
-> > >  		pmd_t orig_pmd = *pmd;
-> > > +		int ret;
-> > > +
-> > >  		barrier();
-> > >  		if (pmd_trans_huge(orig_pmd)) {
-> > >  			if (flags & FAULT_FLAG_WRITE &&
-> > >  			    !pmd_write(orig_pmd) &&
-> > > -			    !pmd_trans_splitting(orig_pmd))
-> > > -				return do_huge_pmd_wp_page(mm, vma, address,
-> > > -							   pmd, orig_pmd);
-> > > +			    !pmd_trans_splitting(orig_pmd)) {
-> > > +				ret = do_huge_pmd_wp_page(mm, vma, address, pmd,
-> > > +							  orig_pmd);
-> > > +				/*
-> > > +				 * If COW results in an oom, the huge pmd will
-> > > +				 * have been split, so retry the fault on the
-> > > +				 * pte for a smaller charge.
-> > > +				 */
-> > > +				if (unlikely(ret & VM_FAULT_OOM))
-> > > +					goto retry;
-> > 
-> > Can you instead put a __split_huge_page_pmd(mm, pmd) here?  It has to
-> > redo the get-page-ref-through-pagetable dance, but it's more robust
-> > and obvious than splitting the COW page before returning OOM in the
-> > thp wp handler.
+> It is in a previous one (actually two, one for the slab, one for the
+> slub). They are bundled in the cache creation, but I could separate
+> it
+> for clarity, if you prefer.
+
+They seem to be the 14th and 16th patches. They should probably
+be before the current one for review clarity, so we define that function
+before it gets used. This is also good to not break bisection.
+
 > 
-> I agree it's more robust if do_huge_pmd_wp_page() were modified later and 
-> mistakenly returned VM_FAULT_OOM without the page being split, but 
-> __split_huge_page_pmd() has the drawback of also requiring to retake 
-> mm->page_table_lock to test whether orig_pmd is still legitimate so it 
-> will be slower.  Do you feel strongly about the way it's currently written 
-> which will be faster at runtime?
+> 
+> >>+	if (!p)
+> >>+		goto out;
+> >>+
+> >>+	vsnprintf(p, len+1, fmt, ap);
+> >>+
+> >>+out:
+> >>+	va_end(ap);
+> >>+	return p;
+> >>+}
+> >>+
+> >>+char *mem_cgroup_cache_name(struct mem_cgroup *memcg, struct kmem_cache *cachep)
+> >>+{
+> >>+	char *name;
+> >>+	struct dentry *dentry = memcg->css.cgroup->dentry;
+> >>+
+> >>+	BUG_ON(dentry == NULL);
+> >>+
+> >>+	/* Preallocate the space for "dead" at the end */
+> >>+	name = kasprintf_no_account(GFP_KERNEL, "%s(%d:%s)dead",
+> >>+	    cachep->name, css_id(&memcg->css), dentry->d_name.name);
+> >>+
+> >>+	if (name)
+> >>+		/* Remove "dead" */
+> >>+		name[strlen(name) - 4] = '\0';
+> >
+> >Why this space for "dead" ?
+> 
+> Ok, sorry. Since I didn't include the destruction part, it got too
+> easy for whoever wasn't following the last discussion on this to get
+> lost - My bad. So here it is:
+> 
+> When we destroy the memcg, some objects may still hold the cache in
+> memory. It is like a reference count, in a sense, which each object
+> being a reference.
+> 
+> In typical cases, like non-shrinkable caches that has create -
+> destroy patterns, the caches will go away as soon as the tasks using
+> them.
+> 
+> But in cache-like structure like the dentry cache, the objects may
+> hang around until a shrinker pass takes them out. And even then,
+> some of them will live on.
+> 
+> In this case, we will display them with "dead" in the name.
 
-If you can't accomodate for a hugepage, this code runs 511 times in
-the worst case before you also can't fit a regular page anymore.  And
-compare it to the cost of the splitting itself and the subsequent 4k
-COW break faults...
+Ok.
 
-I don't think it's a path worth optimizing for at all, especially if
-it includes sprinkling undocumented split_huge_pages around, and the
-fix could be as self-contained as something like this...
+> 
+> We could hide them, but then it gets weirder because it would be
+> hard to understand where is your used memory when you need to
+> inspect your system.
+> 
+> Creating another file, slabinfo_deadcaches, and keeping the names,
+> is also a possibility, if people think that the string append is way
+> too ugly.
 
-diff --git a/mm/memory.c b/mm/memory.c
-index 706a274..dae0afc 100644
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -3505,14 +3505,29 @@ int handle_mm_fault(struct mm_struct *mm, struct vm_area_struct *vma,
- 							  pmd, flags);
- 	} else {
- 		pmd_t orig_pmd = *pmd;
-+		int ret;
-+
- 		barrier();
- 		if (pmd_trans_huge(orig_pmd)) {
- 			if (flags & FAULT_FLAG_WRITE &&
- 			    !pmd_write(orig_pmd) &&
--			    !pmd_trans_splitting(orig_pmd))
--				return do_huge_pmd_wp_page(mm, vma, address,
-+			    !pmd_trans_splitting(orig_pmd)) {
-+				ret = do_huge_pmd_wp_page(mm, vma, address,
- 							   pmd, orig_pmd);
--			return 0;
-+				if (unlikely(ret & VM_FAULT_OOM)) {
-+					/*
-+					 * It's not worth going OOM
-+					 * over not being able to
-+					 * allocate or charge a full
-+					 * copy of the huge page.
-+					 * Split it up and handle as
-+					 * single page COW break below.
-+					 */
-+					__split_huge_page_pmd(mm, pmd);
-+				} else
-+					return ret;
-+			} else
-+				return 0;
- 		}
- 	}
- 
+Ok, thanks for the explanation.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
