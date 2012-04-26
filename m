@@ -1,54 +1,117 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx160.postini.com [74.125.245.160])
-	by kanga.kvack.org (Postfix) with SMTP id BAE336B007E
-	for <linux-mm@kvack.org>; Thu, 26 Apr 2012 19:44:19 -0400 (EDT)
-Received: by iajr24 with SMTP id r24so309472iaj.14
-        for <linux-mm@kvack.org>; Thu, 26 Apr 2012 16:44:19 -0700 (PDT)
-Date: Thu, 26 Apr 2012 16:44:16 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [patch] mm, thp: drop page_table_lock to uncharge memcg pages
-In-Reply-To: <20120426163922.4879dcb1.akpm@linux-foundation.org>
-Message-ID: <alpine.DEB.2.00.1204261642190.15785@chino.kir.corp.google.com>
-References: <alpine.DEB.2.00.1204261556100.15785@chino.kir.corp.google.com> <20120426163922.4879dcb1.akpm@linux-foundation.org>
+Received: from psmtp.com (na3sys010amx146.postini.com [74.125.245.146])
+	by kanga.kvack.org (Postfix) with SMTP id 5E4446B007E
+	for <linux-mm@kvack.org>; Thu, 26 Apr 2012 19:48:38 -0400 (EDT)
+Date: Fri, 27 Apr 2012 01:48:19 +0200
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [patch 2/2] mm: memcg: count pte references from every member of
+ the reclaimed hierarchy
+Message-ID: <20120426234819.GB1788@cmpxchg.org>
+References: <1335296144-29381-1-git-send-email-hannes@cmpxchg.org>
+ <1335296144-29381-2-git-send-email-hannes@cmpxchg.org>
+ <20120426143729.10f672ae.akpm@linux-foundation.org>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20120426143729.10f672ae.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org
+Cc: Konstantin Khlebnikov <khlebnikov@openvz.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, Li Zefan <lizf@cn.fujitsu.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Thu, 26 Apr 2012, Andrew Morton wrote:
-
-> > mm->page_table_lock is hotly contested for page fault tests and isn't
-> > necessary to do mem_cgroup_uncharge_page() in do_huge_pmd_wp_page().
-> > 
-> > ...
-> >
-> > --- a/mm/huge_memory.c
-> > +++ b/mm/huge_memory.c
-> > @@ -968,8 +968,10 @@ int do_huge_pmd_wp_page(struct mm_struct *mm, struct vm_area_struct *vma,
-> >  	spin_lock(&mm->page_table_lock);
-> >  	put_page(page);
-> >  	if (unlikely(!pmd_same(*pmd, orig_pmd))) {
-> > +		spin_unlock(&mm->page_table_lock);
-> >  		mem_cgroup_uncharge_page(new_page);
-> >  		put_page(new_page);
-> > +		goto out;
-> >  	} else {
-> >  		pmd_t entry;
-> >  		VM_BUG_ON(!PageHead(page));
+On Thu, Apr 26, 2012 at 02:37:29PM -0700, Andrew Morton wrote:
+> On Tue, 24 Apr 2012 21:35:44 +0200
+> Johannes Weiner <hannes@cmpxchg.org> wrote:
+> > --- a/include/linux/memcontrol.h
+> > +++ b/include/linux/memcontrol.h
+> > @@ -78,6 +78,7 @@ extern void mem_cgroup_uncharge_cache_page(struct page *page);
+> >  
+> >  extern void mem_cgroup_out_of_memory(struct mem_cgroup *memcg, gfp_t gfp_mask,
+> >  				     int order);
+> > +bool __mem_cgroup_same_or_subtree(const struct mem_cgroup *, struct mem_cgroup *);
 > 
-> But this is on the basically-never-happens race path and will surely have no
-> measurable benefit?
-> 
+> I dunno about you guys, but this practice of omitting the names of the
+> arguments in the declaration drives me bats.  It really does throw away
+> a *lot* of information.  It looks OK when one is initially reading the
+> code, but when I actually go in there and do some work on the code, it
+> makes things significantly harder.
 
-It happens more often than you may think on page fault tests; how 
-representative pft has ever been of actual workloads, especially with thp 
-where the benfits of allocating the hugepage usually result in better 
-performance in the long-term even for a short-term performance loss, is 
-debatable.  However, all other thp code has always dropped 
-mm->page_table_lock before calling mem_cgroup_uncharge_page() and this one 
-seems to have been missed.  Worth correcting, in my opinion.
+Humm, I only look at headers to roughly gauge an API, and jump to the
+definitions anyway when figuring out how to actually use them (because
+of the documentation, and because function names can be deceiving).
+
+But I don't mind adding the names, so I'll try to remember it.
+
+> >  int task_in_mem_cgroup(struct task_struct *task, const struct mem_cgroup *memcg);
+> >  
+> >  extern struct mem_cgroup *try_get_mem_cgroup_from_page(struct page *page);
+> > @@ -91,10 +92,13 @@ static inline
+> >  int mm_match_cgroup(const struct mm_struct *mm, const struct mem_cgroup *cgroup)
+> >  {
+> >  	struct mem_cgroup *memcg;
+> > +	int match;
+> > +
+> >  	rcu_read_lock();
+> >  	memcg = mem_cgroup_from_task(rcu_dereference((mm)->owner));
+> > +	match = memcg && __mem_cgroup_same_or_subtree(cgroup, memcg);
+> >  	rcu_read_unlock();
+> > -	return cgroup == memcg;
+> > +	return match;
+> >  }
+> 
+> mm_match_cgroup() really wants to return a bool type, no?
+
+---
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: [patch] mm: memcg: clean up mm_match_cgroup() signature
+
+It really should return a boolean for match/no match.  And since it
+takes a memcg, not a cgroup, fix that parameter name as well.
+
+Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+---
+ include/linux/memcontrol.h |   14 +++++++-------
+ 1 files changed, 7 insertions(+), 7 deletions(-)
+
+diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
+index 76f9d9b..d3038a9 100644
+--- a/include/linux/memcontrol.h
++++ b/include/linux/memcontrol.h
+@@ -89,14 +89,14 @@ extern struct mem_cgroup *parent_mem_cgroup(struct mem_cgroup *memcg);
+ extern struct mem_cgroup *mem_cgroup_from_cont(struct cgroup *cont);
+ 
+ static inline
+-int mm_match_cgroup(const struct mm_struct *mm, const struct mem_cgroup *cgroup)
++bool mm_match_cgroup(const struct mm_struct *mm, const struct mem_cgroup *memcg)
+ {
+-	struct mem_cgroup *memcg;
+-	int match;
++	struct mem_cgroup *task_memcg;
++	bool match;
+ 
+ 	rcu_read_lock();
+-	memcg = mem_cgroup_from_task(rcu_dereference((mm)->owner));
+-	match = memcg && __mem_cgroup_same_or_subtree(cgroup, memcg);
++	task_memcg = mem_cgroup_from_task(rcu_dereference((mm)->owner));
++	match = task_memcg && __mem_cgroup_same_or_subtree(memcg, task_memcg);
+ 	rcu_read_unlock();
+ 	return match;
+ }
+@@ -281,10 +281,10 @@ static inline struct mem_cgroup *try_get_mem_cgroup_from_mm(struct mm_struct *mm
+ 	return NULL;
+ }
+ 
+-static inline int mm_match_cgroup(struct mm_struct *mm,
++static inline bool mm_match_cgroup(struct mm_struct *mm,
+ 		struct mem_cgroup *memcg)
+ {
+-	return 1;
++	return true;
+ }
+ 
+ static inline int task_in_mem_cgroup(struct task_struct *task,
+-- 
+1.7.7.6
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
