@@ -1,58 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx107.postini.com [74.125.245.107])
-	by kanga.kvack.org (Postfix) with SMTP id 903046B004A
-	for <linux-mm@kvack.org>; Thu, 26 Apr 2012 11:53:43 -0400 (EDT)
-Message-ID: <4F996F8B.1020207@redhat.com>
-Date: Thu, 26 Apr 2012 11:53:47 -0400
-From: Rik van Riel <riel@redhat.com>
+Received: from psmtp.com (na3sys010amx160.postini.com [74.125.245.160])
+	by kanga.kvack.org (Postfix) with SMTP id DB68D6B004A
+	for <linux-mm@kvack.org>; Thu, 26 Apr 2012 12:09:07 -0400 (EDT)
+Date: Thu, 26 Apr 2012 17:08:52 +0100
+From: Richard Davies <richard.davies@elastichosts.com>
+Subject: Re: [RFC][PATCH] avoid swapping out with swappiness==0
+Message-ID: <20120426160852.GA12568@alpha.arachsys.com>
+References: <20120424082019.GA18395@alpha.arachsys.com>
+ <alpine.DEB.2.00.1204260948520.16059@router.home>
+ <4F996BA6.9010900@gmail.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH v3] mm: compaction: handle incorrect Unmovable type pageblocks
-References: <201204261015.54449.b.zolnierkie@samsung.com> <20120426143620.GF15299@suse.de>
-In-Reply-To: <20120426143620.GF15299@suse.de>
-Content-Type: text/plain; charset=ISO-8859-15; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <4F996BA6.9010900@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, linux-mm@kvack.org, Minchan Kim <minchan@kernel.org>, Marek Szyprowski <m.szyprowski@samsung.com>, Kyungmin Park <kyungmin.park@samsung.com>
+To: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
+Cc: Christoph Lameter <cl@linux.com>, Satoru Moriya <satoru.moriya@hds.com>, Jerome Marchand <jmarchan@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, "jweiner@redhat.com" <jweiner@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "riel@redhat.com" <riel@redhat.com>, "lwoodman@redhat.com" <lwoodman@redhat.com>, "shaohua.li@intel.com" <shaohua.li@intel.com>, "dle-develop@lists.sourceforge.net" <dle-develop@lists.sourceforge.net>, Seiji Aguchi <seiji.aguchi@hds.com>, Minchan Kim <minchan.kim@gmail.com>
 
-On 04/26/2012 10:36 AM, Mel Gorman wrote:
+KOSAKI Motohiro wrote:
+> Christoph Lameter wrote:
+> > Richard Davies wrote:
+> >
+> > > I strongly believe that Linux should have a way to turn off swapping unless
+> > > absolutely necessary. This means that users like us can run with swap
+> > > present for emergency use, rather than having to disable it because of the
+> > > side effects.
+> >
+> > Agree. And this ooperation mode should be the default behavior given that
+> > swapping is a very slow and tedious process these days.
+> 
+> Even though current patch is not optimal, I don't disagree this opinion. Can
+> you please explain your use case? Why don't you use swapoff?
 
-> Hmm, at what point does COMPACT_ASYNC_FULL get used? I see it gets
-> used for the proc interface but it's not used via the page allocator at
-> all.
+My use case is that I have large (64 or 128GB RAM) qemu-kvm virtualization
+hosts, running many (20-50) VMs.
 
-He is using COMPACT_SYNC for the proc interface, and
-COMPACT_ASYNC_FULL from kswapd.
+Typically the total memory in use is less than physical memory. In these
+cases I would like the virtualization host to run without any swapping. I
+have set swappiness==0, but in practise I get big load spikes from swapping.
+See http://marc.info/?l=linux-mm&m=133517452117581
 
-> Minimally I was expecting to see if being used from the page allocator.
+I don't want to run swapoff, because sometimes I will need to provision
+slightly more VMs than physical memory, and in these cases I would rather
+that the system runs with a little swap in use rather than the OOM killer
+occurring.
 
-Makes sense, especially if we get the CPU overhead
-saving stuff that we talked about at LSF to work :)
-
-> A better option might be to track the number of MIGRATE_UNMOVABLE blocks that
-> were skipped over during COMPACT_ASYNC_PARTIAL and if it was a high
-> percentage and it looked like compaction failed then to retry with
-> COMPACT_ASYNC_FULL. If you took this option, try_to_compact_pages()
-> would still only take sync as a parameter and keep the decision within
-> compaction.c
-
-This I don't get.
-
-If we have a small number of MIGRATE_UNMOVABLE blocks,
-is it worth skipping over them?
-
-If we have really large number of MIGRATE_UNMOVABLE blocks,
-did we let things get out of hand?    By giving the page
-allocator this many unmovable blocks to choose from, we
-could have ended up with actually non-compactable memory.
-
-If we have a medium number of MIGRATE_UNMOVABLE blocks,
-is it worth doing a restart and scanning all the movable
-blocks again?
-
-In other words, could it be better to always try to
-rescue the unmovable blocks?
+Richard.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
