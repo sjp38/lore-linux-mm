@@ -1,99 +1,109 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx157.postini.com [74.125.245.157])
-	by kanga.kvack.org (Postfix) with SMTP id 7C3066B004A
-	for <linux-mm@kvack.org>; Thu, 26 Apr 2012 17:37:33 -0400 (EDT)
-Date: Thu, 26 Apr 2012 14:37:29 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [patch 2/2] mm: memcg: count pte references from every member
- of the reclaimed hierarchy
-Message-Id: <20120426143729.10f672ae.akpm@linux-foundation.org>
-In-Reply-To: <1335296144-29381-2-git-send-email-hannes@cmpxchg.org>
-References: <1335296144-29381-1-git-send-email-hannes@cmpxchg.org>
-	<1335296144-29381-2-git-send-email-hannes@cmpxchg.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx131.postini.com [74.125.245.131])
+	by kanga.kvack.org (Postfix) with SMTP id E3CC86B004A
+	for <linux-mm@kvack.org>; Thu, 26 Apr 2012 17:39:21 -0400 (EDT)
+Received: by dadq36 with SMTP id q36so108405dad.8
+        for <linux-mm@kvack.org>; Thu, 26 Apr 2012 14:39:21 -0700 (PDT)
+Date: Thu, 26 Apr 2012 14:39:16 -0700
+From: Tejun Heo <tj@kernel.org>
+Subject: Re: [PATCH v3 2/2] decrement static keys on real destroy time
+Message-ID: <20120426213916.GD27486@google.com>
+References: <1335475463-25167-1-git-send-email-glommer@parallels.com>
+ <1335475463-25167-3-git-send-email-glommer@parallels.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1335475463-25167-3-git-send-email-glommer@parallels.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Konstantin Khlebnikov <khlebnikov@openvz.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, Li Zefan <lizf@cn.fujitsu.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Glauber Costa <glommer@parallels.com>
+Cc: cgroups@vger.kernel.org, netdev@vger.kernel.org, Li Zefan <lizefan@huawei.com>, kamezawa.hiroyu@jp.fujitsu.com, linux-mm@kvack.org, devel@openvz.org
 
-On Tue, 24 Apr 2012 21:35:44 +0200
-Johannes Weiner <hannes@cmpxchg.org> wrote:
+Hello, Glauber.
 
-> The rmap walker checking page table references has historically
-> ignored references from VMAs that were not part of the memcg that was
-> being reclaimed during memcg hard limit reclaim.
-> 
-> When transitioning global reclaim to memcg hierarchy reclaim, I missed
-> that bit and now references from outside a memcg are ignored even
-> during global reclaim.
-> 
-> Reverting back to traditional behaviour - count all references during
-> global reclaim and only mind references of the memcg being reclaimed
-> during limit reclaim would be one option.
-> 
-> However, the more generic idea is to ignore references exactly then
-> when they are outside the hierarchy that is currently under reclaim;
-> because only then will their reclamation be of any use to help the
-> pressure situation.  It makes no sense to ignore references from a
-> sibling memcg and then evict a page that will be immediately refaulted
-> by that sibling which contributes to the same usage of the common
-> ancestor under reclaim.
-> 
-> The solution: make the rmap walker ignore references from VMAs that
-> are not part of the hierarchy that is being reclaimed.
-> 
-> Flat limit reclaim will stay the same, hierarchical limit reclaim will
-> mind the references only to pages that the hierarchy owns.  Global
-> reclaim, since it reclaims from all memcgs, will be fixed to regard
-> all references.
-> 
-> ...
->
-> --- a/include/linux/memcontrol.h
-> +++ b/include/linux/memcontrol.h
-> @@ -78,6 +78,7 @@ extern void mem_cgroup_uncharge_cache_page(struct page *page);
+Overall, I like this approach much better.  Just some nits below.
+
+On Thu, Apr 26, 2012 at 06:24:23PM -0300, Glauber Costa wrote:
+> @@ -4836,6 +4851,18 @@ static void free_work(struct work_struct *work)
+>  	int size = sizeof(struct mem_cgroup);
 >  
->  extern void mem_cgroup_out_of_memory(struct mem_cgroup *memcg, gfp_t gfp_mask,
->  				     int order);
-> +bool __mem_cgroup_same_or_subtree(const struct mem_cgroup *, struct mem_cgroup *);
+>  	memcg = container_of(work, struct mem_cgroup, work_freeing);
+> +	/*
+> +	 * We need to make sure that (at least for now), the jump label
+> +	 * destruction code runs outside of the cgroup lock. It is in theory
+> +	 * possible to call the cgroup destruction function outside of that
+> +	 * lock, but it is not yet done. rate limiting plus the deferred
+> +	 * interface for static_branch destruction guarantees that it will
+> +	 * run through schedule_work(), therefore, not holding any cgroup
+> +	 * related lock (this is, of course, until someone decides to write
+> +	 * a schedule_work cgroup :p )
+> +	 */
 
-I dunno about you guys, but this practice of omitting the names of the
-arguments in the declaration drives me bats.  It really does throw away
-a *lot* of information.  It looks OK when one is initially reading the
-code, but when I actually go in there and do some work on the code, it
-makes things significantly harder.
+Isn't the above a bit too verbose?  Wouldn't just stating the locking
+dependency be enough?
 
->  int task_in_mem_cgroup(struct task_struct *task, const struct mem_cgroup *memcg);
->  
->  extern struct mem_cgroup *try_get_mem_cgroup_from_page(struct page *page);
-> @@ -91,10 +92,13 @@ static inline
->  int mm_match_cgroup(const struct mm_struct *mm, const struct mem_cgroup *cgroup)
->  {
->  	struct mem_cgroup *memcg;
-> +	int match;
-> +
->  	rcu_read_lock();
->  	memcg = mem_cgroup_from_task(rcu_dereference((mm)->owner));
-> +	match = memcg && __mem_cgroup_same_or_subtree(cgroup, memcg);
->  	rcu_read_unlock();
-> -	return cgroup == memcg;
-> +	return match;
->  }
+> +	disarm_static_keys(memcg);
+>  	if (size < PAGE_SIZE)
+>  		kfree(memcg);
+>  	else
+> diff --git a/net/ipv4/tcp_memcontrol.c b/net/ipv4/tcp_memcontrol.c
+> index 1517037..7790008 100644
+> --- a/net/ipv4/tcp_memcontrol.c
+> +++ b/net/ipv4/tcp_memcontrol.c
+> @@ -54,6 +54,8 @@ int tcp_init_cgroup(struct mem_cgroup *memcg, struct cgroup_subsys *ss)
+>  	cg_proto->sysctl_mem = tcp->tcp_prot_mem;
+>  	cg_proto->memory_allocated = &tcp->tcp_memory_allocated;
+>  	cg_proto->sockets_allocated = &tcp->tcp_sockets_allocated;
+> +	cg_proto->active = false;
+> +	cg_proto->activated = false;
 
-mm_match_cgroup() really wants to return a bool type, no?
+Isn't the memory zallocd?  I find 0 / NULL / false inits unnecessary
+and even misleading (can the memory be non-zero here?).  Another side
+effect is that it tends to get out of sync as more fields are added.
 
-> +bool __mem_cgroup_same_or_subtree(const struct mem_cgroup *root_memcg,
-> +				  struct mem_cgroup *memcg)
+> +/*
+> + * This is to prevent two writes arriving at the same time
+> + * at kmem.tcp.limit_in_bytes.
+> + *
+> + * There is a race at the first time we write to this file:
+> + *
+> + * - cg_proto->activated == false for all writers.
+> + * - They all do a static_key_slow_inc().
+> + * - When we are finally read to decrement the static_keys,
+                            ^
+                            ready
 
-Like him.
+> + *   we'll do it only once per activated cgroup. So we won't
+> + *   be able to disable it.
+> + *
+> + *   Also, after the first caller increments the static_branch
+> + *   counter, all others will return right away. That does not mean,
+> + *   however, that the update is finished.
+> + *
+> + *   Without this mutex, it would then be possible for a second writer
+> + *   to get to the update site, return 
 
-> +static bool mem_cgroup_same_or_subtree(const struct mem_cgroup *root_memcg,
-> +				       struct mem_cgroup *memcg)
+I kinda don't follow the above sentence.
 
-And him.
+> + *   When a user updates limit of 2 cgroups at once, following happens.
+> + *
+> + *   	CPU A				CPU B
+> + *
+> + *	if (cg_proto->activated)	if (cg->proto_activated)
+> + *		static_key_inc()		static_key_inc()
+> + * 		=> set counter 0->1		=> set counter 1->2,
+> + * 						return immediately.
+> + * 		=> hold mutex			=> cg_proto->activated = true. 
+> + * 		=> overwrite jmps.
 
+Isn't this something which should be solved from static_keys API?  Why
+is this being worked around from memcg?  Also, I again hope that the
+explanation is slightly more concise.
+
+Thanks.
+
+-- 
+tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
