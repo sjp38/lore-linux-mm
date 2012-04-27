@@ -1,45 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx133.postini.com [74.125.245.133])
-	by kanga.kvack.org (Postfix) with SMTP id 471AB6B004A
-	for <linux-mm@kvack.org>; Thu, 26 Apr 2012 23:06:58 -0400 (EDT)
-Date: Thu, 26 Apr 2012 20:08:45 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [RFC] propagate gfp_t to page table alloc functions
-Message-Id: <20120426200845.69915594.akpm@linux-foundation.org>
-In-Reply-To: <4F9A0360.3030900@kernel.org>
-References: <1335171318-4838-1-git-send-email-minchan@kernel.org>
-	<4F963742.2030607@jp.fujitsu.com>
-	<4F963B8E.9030105@kernel.org>
-	<CAPa8GCA8q=S9sYx-0rDmecPxYkFs=gATGL-Dz0OYXDkwEECJkg@mail.gmail.com>
-	<4F965413.9010305@kernel.org>
-	<CAPa8GCCwfCFO6yxwUP5Qp9O1HGUqEU2BZrrf50w8TL9FH9vbrA@mail.gmail.com>
-	<20120424143015.99fd8d4a.akpm@linux-foundation.org>
-	<4F973BF2.4080406@jp.fujitsu.com>
-	<CAHGf_=r09BCxXeuE8dSti4_SrT5yahrQCwJh=NrrA3rsUhhu_w@mail.gmail.com>
-	<4F973FB8.6050103@jp.fujitsu.com>
-	<20120424172554.c9c330dd.akpm@linux-foundation.org>
-	<4F98914C.2060505@jp.fujitsu.com>
-	<alpine.DEB.2.00.1204251715420.19452@chino.kir.corp.google.com>
-	<4F9A0360.3030900@kernel.org>
+Received: from psmtp.com (na3sys010amx171.postini.com [74.125.245.171])
+	by kanga.kvack.org (Postfix) with SMTP id E04576B004A
+	for <linux-mm@kvack.org>; Thu, 26 Apr 2012 23:32:21 -0400 (EDT)
+Date: Thu, 26 Apr 2012 23:32:13 -0400 (EDT)
+Message-Id: <20120426.233213.2080676231209264997.davem@davemloft.net>
+Subject: Re: Weirdness in __alloc_bootmem_node_high
+From: David Miller <davem@davemloft.net>
+In-Reply-To: <20120424.030050.767238391336824492.davem@davemloft.net>
+References: <20120422.220054.1961736352806510855.davem@davemloft.net>
+	<20120424063236.GA23963@merkur.ravnborg.org>
+	<20120424.030050.767238391336824492.davem@davemloft.net>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Content-Type: Text/Plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: David Rientjes <rientjes@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Nick Piggin <npiggin@gmail.com>, Ingo Molnar <mingo@redhat.com>, x86@kernel.org, Hugh Dickins <hughd@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: sam@ravnborg.org
+Cc: yinghai@kernel.org, tj@kernel.org, mhocko@suse.cz, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Fri, 27 Apr 2012 11:24:32 +0900 Minchan Kim <minchan@kernel.org> wrote:
+From: David Miller <davem@davemloft.net>
+Date: Tue, 24 Apr 2012 03:00:50 -0400 (EDT)
 
-> I was about to add warning in __vmalloc internal if caller uses GFP_NOIO, GFP_NOFS, GFP_ATOMIC
-> with Nick's comment and let them make to fix it. But it seems Andrew doesn't agree.
+> From: Sam Ravnborg <sam@ravnborg.org>
+> Date: Tue, 24 Apr 2012 08:32:36 +0200
+> 
+>> On Sun, Apr 22, 2012 at 10:00:54PM -0400, David Miller wrote:
+>>> diff --git a/arch/sparc/Kconfig b/arch/sparc/Kconfig
+>>> index db4e821..3763302 100644
+>>> --- a/arch/sparc/Kconfig
+>>> +++ b/arch/sparc/Kconfig
+>>> @@ -109,6 +109,9 @@ config NEED_PER_CPU_EMBED_FIRST_CHUNK
+>>>  config NEED_PER_CPU_PAGE_FIRST_CHUNK
+>>>  	def_bool y if SPARC64
+>>>  
+>>> +config NO_BOOTMEM
+>>> +	def_bool y if SPARC64
+>> 
+>> mm/Kconfig define NO_BOOTMEM so you can just add a "select NO_BOOTMEM"
+>> to SPARC64.
+> 
+> I was merely following the lead on x86 :-) but yes it should
+> probably be a select.
 
-I do, actually.
+So I merged mainline into sparc-next to get the mm/nobootmem.c fix,
+and then added in the sparc64 NO_BOOTMEM conversion.
 
-> Andrew, please tell me your opinion for fixing this problem.
-
-Only call vmalloc() from GFP_KERNEL contexts.  Go ahead, add the
-WARN_ONCE() and let's see what happens.
+Just FYI.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
