@@ -1,199 +1,350 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx105.postini.com [74.125.245.105])
-	by kanga.kvack.org (Postfix) with SMTP id ACCFE6B00FA
-	for <linux-mm@kvack.org>; Fri, 27 Apr 2012 15:12:54 -0400 (EDT)
-Received: by lbjn8 with SMTP id n8so471160lbj.14
-        for <linux-mm@kvack.org>; Fri, 27 Apr 2012 12:12:52 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <4F9A359C.10107@jp.fujitsu.com>
-References: <4F9A327A.6050409@jp.fujitsu.com>
-	<4F9A359C.10107@jp.fujitsu.com>
-Date: Fri, 27 Apr 2012 12:12:52 -0700
-Message-ID: <CALWz4ixHGCqfWh1U+JyiJWTkGmCDtXQy1vbHRjrHaU_pOgGuBw@mail.gmail.com>
-Subject: Re: [RFC][PATCH 5/9 v2] move charges to root at rmdir if
- use_hierarchy is unset
+Received: from psmtp.com (na3sys010amx205.postini.com [74.125.245.205])
+	by kanga.kvack.org (Postfix) with SMTP id 7A3086B00FE
+	for <linux-mm@kvack.org>; Fri, 27 Apr 2012 15:14:49 -0400 (EDT)
+Received: by qcse1 with SMTP id e1so120401qcs.2
+        for <linux-mm@kvack.org>; Fri, 27 Apr 2012 12:14:48 -0700 (PDT)
 From: Ying Han <yinghan@google.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Subject: [PATCH 2/2] memcg: add mlock statistic in memory.stat
+Date: Fri, 27 Apr 2012 12:14:46 -0700
+Message-Id: <1335554086-4294-1-git-send-email-yinghan@google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Linux Kernel <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "cgroups@vger.kernel.org" <cgroups@vger.kernel.org>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Frederic Weisbecker <fweisbec@gmail.com>, Glauber Costa <glommer@parallels.com>, Tejun Heo <tj@kernel.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, kamezawa.hiroyuki@gmail.com
+To: Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mel@csn.ul.ie>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, Hugh Dickins <hughd@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Nick Piggin <npiggin@suse.de>, Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org
 
-On Thu, Apr 26, 2012 at 10:58 PM, KAMEZAWA Hiroyuki
-<kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> Now, at removal of cgroup, ->pre_destroy() is called and move charges
-> to the parent cgroup. A major reason of -EBUSY returned by ->pre_destroy(=
-)
-> is that the 'moving' hits parent's resource limitation. It happens only
-> when use_hierarchy=3D0. This was a mistake of original design.(it's me...=
-)
+We have the nr_mlock stat both in meminfo as well as vmstat system wide, this
+patch adds the mlock field into per-memcg memory stat. The stat itself enhances
+the metrics exported by memcg since the unevictable lru includes more than
+mlock()'d page like SHM_LOCK'd.
 
-Nice patch, i can see how broken it is now with use_hierarchy=3D0...
+Why we need to count mlock'd pages while they are unevictable and we can not
+do much on them anyway?
 
-nitpick on the documentation below:
+This is true. The mlock stat I am proposing is more helpful for system admin
+and kernel developer to understand the system workload. The same information
+should be helpful to add into OOM log as well. Many times in the past that we
+need to read the mlock stat from the per-container meminfo for different
+reason. Afterall, we do have the ability to read the mlock from meminfo and
+this patch fills the info in memcg.
 
->
-> Considering use_hierarchy=3D0, all cgroups are treated as flat. So, no on=
-e
-> cannot justify moving charges to parent...parent and children are in
-> flat configuration, not hierarchical.
->
-> This patch modifes to move charges to root cgroup at rmdir/force_empty
-> if use_hierarchy=3D=3D0. This will much simplify rmdir() and reduce error
-> in ->pre_destroy.
->
-> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> ---
-> =A0Documentation/cgroups/memory.txt | =A0 12 ++++++----
-> =A0mm/memcontrol.c =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0| =A0 39 ++++++++++=
-+++------------------------
-> =A02 files changed, 21 insertions(+), 30 deletions(-)
->
-> diff --git a/Documentation/cgroups/memory.txt b/Documentation/cgroups/mem=
-ory.txt
-> index 54c338d..82ce1ef 100644
-> --- a/Documentation/cgroups/memory.txt
-> +++ b/Documentation/cgroups/memory.txt
-> @@ -393,14 +393,14 @@ cgroup might have some charge associated with it, e=
-ven though all
-> =A0tasks have migrated away from it. (because we charge against pages, no=
-t
-> =A0against tasks.)
->
-> -Such charges are freed or moved to their parent. At moving, both of RSS
-> -and CACHES are moved to parent.
-> -rmdir() may return -EBUSY if freeing/moving fails. See 5.1 also.
-> +Such charges are freed or moved to their parent if use_hierarchy=3D1.
-> +if use_hierarchy=3D0, the charges will be moved to root cgroup.
+Note:
+Here are the places where I didn't add the hook:
+1. in the mlock_migrate_page() since the owner of oldpage and newpage is the same.
+2. in the freeing path since page shouldn't get to there at the first place.
 
-It is more clear that we move the stats to root (if use_hierarchy=3D=3D0)
-or parent (if use_hierarchy=3D=3D1), and no change on the charge except
-uncharging from the child.
+v3..v2:
+1. removes the mlock stat update on the freeing path since memcg could be
+destroyed by that time. added comment indicating why it might still be safe
+not updating the stat there at all.
+2. ran page fault test and included the performance number.
 
---Ying
+v2..v1:
+1. rebase on top of 3.4-rc2 and the code is based on the following commit
+went into 3.4-rc1:
 
->
-> =A0Charges recorded in swap information is not updated at removal of cgro=
-up.
-> =A0Recorded information is discarded and a cgroup which uses swap (swapca=
-che)
-> =A0will be charged as a new owner of it.
->
-> +About use_hierarchy, see Section 6.
->
-> =A05. Misc. interfaces.
->
-> @@ -413,13 +413,15 @@ will be charged as a new owner of it.
->
-> =A0 Almost all pages tracked by this memory cgroup will be unmapped and f=
-reed.
-> =A0 Some pages cannot be freed because they are locked or in-use. Such pa=
-ges are
-> - =A0moved to parent and this cgroup will be empty. This may return -EBUS=
-Y if
-> - =A0VM is too busy to free/move all pages immediately.
-> + =A0moved to parent(if use_hierarchy=3D=3D1) or root (if use_hierarchy=
-=3D=3D0) and this
-> + =A0cgroup will be empty.
->
-> =A0 Typical use case of this interface is that calling this before rmdir(=
-).
-> =A0 Because rmdir() moves all pages to parent, some out-of-use page cache=
-s can be
-> =A0 moved to the parent. If you want to avoid that, force_empty will be u=
-seful.
->
-> + =A0About use_hierarchy, see Section 6.
-> +
-> =A05.2 stat file
->
-> =A0memory.stat file includes following statistics
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index ed53d64..62200f1 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -2695,32 +2695,23 @@ static int mem_cgroup_move_parent(struct page *pa=
-ge,
-> =A0 =A0 =A0 =A0nr_pages =3D hpage_nr_pages(page);
->
-> =A0 =A0 =A0 =A0parent =3D mem_cgroup_from_cont(pcg);
-> - =A0 =A0 =A0 if (!parent->use_hierarchy) {
-> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 ret =3D __mem_cgroup_try_charge(NULL,
-> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0=
- =A0 gfp_mask, nr_pages, &parent, false);
-> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (ret)
-> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 goto put_back;
-> - =A0 =A0 =A0 }
-> + =A0 =A0 =A0 /*
-> + =A0 =A0 =A0 =A0* if use_hierarchy=3D=3D0, move charges to root cgroup.
-> + =A0 =A0 =A0 =A0* in root cgroup, we don't touch res_counter
-> + =A0 =A0 =A0 =A0*/
-> + =A0 =A0 =A0 if (!parent->use_hierarchy)
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 parent =3D root_mem_cgroup;
->
-> =A0 =A0 =A0 =A0if (nr_pages > 1)
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0flags =3D compound_lock_irqsave(page);
->
-> - =A0 =A0 =A0 if (parent->use_hierarchy) {
-> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 ret =3D mem_cgroup_move_account(page, nr_pa=
-ges,
-> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0=
- =A0 pc, child, parent, false);
-> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (!ret)
-> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 __mem_cgroup_cancel_local_c=
-harge(child, nr_pages);
-> - =A0 =A0 =A0 } else {
-> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 ret =3D mem_cgroup_move_account(page, nr_pa=
-ges,
-> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0=
- =A0 pc, child, parent, true);
-> -
-> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (ret)
-> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 __mem_cgroup_cancel_charge(=
-parent, nr_pages);
-> - =A0 =A0 =A0 }
-> + =A0 =A0 =A0 ret =3D mem_cgroup_move_account(page, nr_pages,
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 pc, child, =
-parent, false);
-> + =A0 =A0 =A0 if (!ret)
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 __mem_cgroup_cancel_local_charge(child, nr_=
-pages);
->
-> =A0 =A0 =A0 =A0if (nr_pages > 1)
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0compound_unlock_irqrestore(page, flags);
-> -put_back:
-> =A0 =A0 =A0 =A0putback_lru_page(page);
-> =A0put:
-> =A0 =A0 =A0 =A0put_page(page);
-> @@ -3338,12 +3329,10 @@ int mem_cgroup_move_hugetlb_parent(int idx, struc=
-t cgroup *cgroup,
-> =A0 =A0 =A0 =A0csize =3D PAGE_SIZE << compound_order(page);
-> =A0 =A0 =A0 =A0/* If parent->use_hierarchy =3D=3D 0, we need to charge pa=
-rent */
-> =A0 =A0 =A0 =A0if (!parent->use_hierarchy) {
-> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 ret =3D res_counter_charge(&parent->hugepag=
-e[idx],
-> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0=
- =A0 =A0csize, &fail_res);
-> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (ret) {
-> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 ret =3D -EBUSY;
-> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 goto err_out;
-> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 }
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 parent =3D root_mem_cgroup;
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 /* root has no limit */
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 res_counter_charge_nofail(&parent->hugepage=
-[idx],
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0csize, &=
-fail_res);
-> =A0 =A0 =A0 =A0}
-> =A0 =A0 =A0 =A0counter =3D &memcg->hugepage[idx];
-> =A0 =A0 =A0 =A0res_counter_uncharge_until(counter, counter->parent, csize=
-);
-> --
-> 1.7.4.1
->
->
+Tested:
+1 )
+$ cat /dev/cgroup/memory/memory.use_hierarchy
+1
+
+$ mkdir /dev/cgroup/memory/A
+$ mkdir /dev/cgroup/memory/A/B
+$ echo 1g >/dev/cgroup/memory/A/memory.limit_in_bytes
+$ echo 1g >/dev/cgroup/memory/B/memory.limit_in_bytes
+
+1. Run memtoy in B and mlock 512m file pages:
+memtoy>file /export/hda3/file_512m private
+memtoy>map file_512m 0 512m
+memtoy>lock file_512m
+memtoy:  mlock of file_512m [131072 pages] took  5.296secs.
+
+$ cat /dev/cgroup/memory/A/B/memory.stat
+mlock 536870912
+unevictable 536870912
+..
+total_mlock 536870912
+total_unevictable 536870912
+
+$ cat /dev/cgroup/memory/A/memory.stat
+mlock 0
+unevictable 0
+..
+total_mlock 536870912
+total_unevictable 536870912
+
+2)Create 20g memcg and run single thread page fault test (pft) w/ 10g mlock memory,
+here it measures faults/cpu/second:
+
+x before.txt
++ after.txt
++--------------------------------------------------------------------------+
+    N           Min           Max        Median           Avg        Stddev
+x  10     346345.92     349113.01     347470.52     347651.93     819.71411
++  10     345934.67     348973.58      347677.9     347495.33     833.58657
+No difference proven at 95.0% confidence
+
+Signed-off-by: Ying Han <yinghan@google.com>
+---
+ Documentation/cgroups/memory.txt |    2 ++
+ include/linux/memcontrol.h       |    1 +
+ mm/internal.h                    |   18 ++++++++++++++++++
+ mm/memcontrol.c                  |   16 ++++++++++++++++
+ mm/mlock.c                       |   15 +++++++++++++++
+ mm/page_alloc.c                  |   10 ++++++++++
+ 6 files changed, 62 insertions(+), 0 deletions(-)
+
+diff --git a/Documentation/cgroups/memory.txt b/Documentation/cgroups/memory.txt
+index 9b1067a..2f53399 100644
+--- a/Documentation/cgroups/memory.txt
++++ b/Documentation/cgroups/memory.txt
+@@ -409,6 +409,7 @@ memory.stat file includes following statistics
+ cache		- # of bytes of page cache memory.
+ rss		- # of bytes of anonymous and swap cache memory.
+ mapped_file	- # of bytes of mapped file (includes tmpfs/shmem)
++mlock		- # of bytes of mlocked memory.
+ pgpgin		- # of charging events to the memory cgroup. The charging
+ 		event happens each time a page is accounted as either mapped
+ 		anon page(RSS) or cache page(Page Cache) to the cgroup.
+@@ -433,6 +434,7 @@ hierarchical_memsw_limit - # of bytes of memory+swap limit with regard to
+ total_cache		- sum of all children's "cache"
+ total_rss		- sum of all children's "rss"
+ total_mapped_file	- sum of all children's "cache"
++total_mlock		- sum of all children's "mlock"
+ total_pgpgin		- sum of all children's "pgpgin"
+ total_pgpgout		- sum of all children's "pgpgout"
+ total_swap		- sum of all children's "swap"
+diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
+index f94efd2..112b573 100644
+--- a/include/linux/memcontrol.h
++++ b/include/linux/memcontrol.h
+@@ -30,6 +30,7 @@ struct mm_struct;
+ /* Stats that can be updated by kernel. */
+ enum mem_cgroup_page_stat_item {
+ 	MEMCG_NR_FILE_MAPPED, /* # of pages charged as file rss */
++	MEMCG_NR_MLOCK, /* # of pages charged as mlock */
+ };
+ 
+ struct mem_cgroup_reclaim_cookie {
+diff --git a/mm/internal.h b/mm/internal.h
+index 2189af4..96684b5 100644
+--- a/mm/internal.h
++++ b/mm/internal.h
+@@ -12,6 +12,7 @@
+ #define __MM_INTERNAL_H
+ 
+ #include <linux/mm.h>
++#include <linux/memcontrol.h>
+ 
+ void free_pgtables(struct mmu_gather *tlb, struct vm_area_struct *start_vma,
+ 		unsigned long floor, unsigned long ceiling);
+@@ -133,15 +134,22 @@ static inline void munlock_vma_pages_all(struct vm_area_struct *vma)
+  */
+ static inline int is_mlocked_vma(struct vm_area_struct *vma, struct page *page)
+ {
++	bool locked;
++	unsigned long flags;
++
+ 	VM_BUG_ON(PageLRU(page));
+ 
+ 	if (likely((vma->vm_flags & (VM_LOCKED | VM_SPECIAL)) != VM_LOCKED))
+ 		return 0;
+ 
++	mem_cgroup_begin_update_page_stat(page, &locked, &flags);
+ 	if (!TestSetPageMlocked(page)) {
+ 		inc_zone_page_state(page, NR_MLOCK);
++		mem_cgroup_inc_page_stat(page, MEMCG_NR_MLOCK);
+ 		count_vm_event(UNEVICTABLE_PGMLOCKED);
+ 	}
++	mem_cgroup_end_update_page_stat(page, &locked, &flags);
++
+ 	return 1;
+ }
+ 
+@@ -163,8 +171,13 @@ extern void munlock_vma_page(struct page *page);
+ extern void __clear_page_mlock(struct page *page);
+ static inline void clear_page_mlock(struct page *page)
+ {
++	bool locked;
++	unsigned long flags;
++
++	mem_cgroup_begin_update_page_stat(page, &locked, &flags);
+ 	if (unlikely(TestClearPageMlocked(page)))
+ 		__clear_page_mlock(page);
++	mem_cgroup_end_update_page_stat(page, &locked, &flags);
+ }
+ 
+ /*
+@@ -173,6 +186,11 @@ static inline void clear_page_mlock(struct page *page)
+  */
+ static inline void mlock_migrate_page(struct page *newpage, struct page *page)
+ {
++	/*
++	 * Here we are supposed to update the page memcg's mlock stat and the
++	 * newpage memcgs' mlock. Since the page and newpage are always being
++	 * charged to the same memcg, so no need.
++	 */
+ 	if (TestClearPageMlocked(page)) {
+ 		unsigned long flags;
+ 
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index b868def..5810241 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -87,6 +87,7 @@ enum mem_cgroup_stat_index {
+ 	MEM_CGROUP_STAT_CACHE, 	   /* # of pages charged as cache */
+ 	MEM_CGROUP_STAT_RSS,	   /* # of pages charged as anon rss */
+ 	MEM_CGROUP_STAT_FILE_MAPPED,  /* # of pages charged as file rss */
++	MEM_CGROUP_STAT_MLOCK, /* # of pages charged as mlock()ed */
+ 	MEM_CGROUP_STAT_SWAPOUT, /* # of pages, swapped out */
+ 	MEM_CGROUP_STAT_DATA, /* end of data requires synchronization */
+ 	MEM_CGROUP_STAT_NSTATS,
+@@ -1975,6 +1976,9 @@ void mem_cgroup_update_page_stat(struct page *page,
+ 	case MEMCG_NR_FILE_MAPPED:
+ 		idx = MEM_CGROUP_STAT_FILE_MAPPED;
+ 		break;
++	case MEMCG_NR_MLOCK:
++		idx = MEM_CGROUP_STAT_MLOCK;
++		break;
+ 	default:
+ 		BUG();
+ 	}
+@@ -2627,6 +2631,14 @@ static int mem_cgroup_move_account(struct page *page,
+ 		__this_cpu_inc(to->stat->count[MEM_CGROUP_STAT_FILE_MAPPED]);
+ 		preempt_enable();
+ 	}
++
++	if (PageMlocked(page)) {
++		/* Update mlocked data for mem_cgroup */
++		preempt_disable();
++		__this_cpu_dec(from->stat->count[MEM_CGROUP_STAT_MLOCK]);
++		__this_cpu_inc(to->stat->count[MEM_CGROUP_STAT_MLOCK]);
++		preempt_enable();
++	}
+ 	mem_cgroup_charge_statistics(from, anon, -nr_pages);
+ 	if (uncharge)
+ 		/* This is not "cancel", but cancel_charge does all we need. */
+@@ -4048,6 +4060,7 @@ enum {
+ 	MCS_CACHE,
+ 	MCS_RSS,
+ 	MCS_FILE_MAPPED,
++	MCS_MLOCK,
+ 	MCS_PGPGIN,
+ 	MCS_PGPGOUT,
+ 	MCS_SWAP,
+@@ -4072,6 +4085,7 @@ struct {
+ 	{"cache", "total_cache"},
+ 	{"rss", "total_rss"},
+ 	{"mapped_file", "total_mapped_file"},
++	{"mlock", "total_mlock"},
+ 	{"pgpgin", "total_pgpgin"},
+ 	{"pgpgout", "total_pgpgout"},
+ 	{"swap", "total_swap"},
+@@ -4097,6 +4111,8 @@ mem_cgroup_get_local_stat(struct mem_cgroup *memcg, struct mcs_total_stat *s)
+ 	s->stat[MCS_RSS] += val * PAGE_SIZE;
+ 	val = mem_cgroup_read_stat(memcg, MEM_CGROUP_STAT_FILE_MAPPED);
+ 	s->stat[MCS_FILE_MAPPED] += val * PAGE_SIZE;
++	val = mem_cgroup_read_stat(memcg, MEM_CGROUP_STAT_MLOCK);
++	s->stat[MCS_MLOCK] += val * PAGE_SIZE;
+ 	val = mem_cgroup_read_events(memcg, MEM_CGROUP_EVENTS_PGPGIN);
+ 	s->stat[MCS_PGPGIN] += val;
+ 	val = mem_cgroup_read_events(memcg, MEM_CGROUP_EVENTS_PGPGOUT);
+diff --git a/mm/mlock.c b/mm/mlock.c
+index ef726e8..cef0201 100644
+--- a/mm/mlock.c
++++ b/mm/mlock.c
+@@ -50,6 +50,8 @@ EXPORT_SYMBOL(can_do_mlock);
+ 
+ /*
+  *  LRU accounting for clear_page_mlock()
++ *  Make sure the caller calls mem_cgroup_begin[end]_update_page_stat,
++ *  otherwise it will be race between "move" and "page stat accounting".
+  */
+ void __clear_page_mlock(struct page *page)
+ {
+@@ -60,6 +62,7 @@ void __clear_page_mlock(struct page *page)
+ 	}
+ 
+ 	dec_zone_page_state(page, NR_MLOCK);
++	mem_cgroup_dec_page_stat(page, MEMCG_NR_MLOCK);
+ 	count_vm_event(UNEVICTABLE_PGCLEARED);
+ 	if (!isolate_lru_page(page)) {
+ 		putback_lru_page(page);
+@@ -78,14 +81,20 @@ void __clear_page_mlock(struct page *page)
+  */
+ void mlock_vma_page(struct page *page)
+ {
++	bool locked;
++	unsigned long flags;
++
+ 	BUG_ON(!PageLocked(page));
+ 
++	mem_cgroup_begin_update_page_stat(page, &locked, &flags);
+ 	if (!TestSetPageMlocked(page)) {
+ 		inc_zone_page_state(page, NR_MLOCK);
++		mem_cgroup_inc_page_stat(page, MEMCG_NR_MLOCK);
+ 		count_vm_event(UNEVICTABLE_PGMLOCKED);
+ 		if (!isolate_lru_page(page))
+ 			putback_lru_page(page);
+ 	}
++	mem_cgroup_end_update_page_stat(page, &locked, &flags);
+ }
+ 
+ /**
+@@ -105,10 +114,15 @@ void mlock_vma_page(struct page *page)
+  */
+ void munlock_vma_page(struct page *page)
+ {
++	bool locked;
++	unsigned long flags;
++
+ 	BUG_ON(!PageLocked(page));
+ 
++	mem_cgroup_begin_update_page_stat(page, &locked, &flags);
+ 	if (TestClearPageMlocked(page)) {
+ 		dec_zone_page_state(page, NR_MLOCK);
++		mem_cgroup_dec_page_stat(page, MEMCG_NR_MLOCK);
+ 		if (!isolate_lru_page(page)) {
+ 			int ret = SWAP_AGAIN;
+ 
+@@ -141,6 +155,7 @@ void munlock_vma_page(struct page *page)
+ 				count_vm_event(UNEVICTABLE_PGMUNLOCKED);
+ 		}
+ 	}
++	mem_cgroup_end_update_page_stat(page, &locked, &flags);
+ }
+ 
+ /**
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 4f905af..ffe5849 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -727,6 +727,11 @@ static void __free_pages_ok(struct page *page, unsigned int order)
+ 		return;
+ 
+ 	local_irq_save(flags);
++	/*
++	 * Note: we didn't update the page memcg's mlock stat since we believe
++	 * the mlocked page shouldn't get to here. However, we could be wrong
++	 * and a warn_once would tell us.
++	 */
+ 	if (unlikely(wasMlocked))
+ 		free_page_mlock(page);
+ 	__count_vm_events(PGFREE, 1 << order);
+@@ -1263,6 +1268,11 @@ void free_hot_cold_page(struct page *page, int cold)
+ 	migratetype = get_pageblock_migratetype(page);
+ 	set_page_private(page, migratetype);
+ 	local_irq_save(flags);
++	/*
++	 * Note: we didn't update the page memcg's mlock stat since we believe
++	 * the mlocked page shouldn't get to here. However, we could be wrong
++	 * and a warn_once would tell us.
++	 */
+ 	if (unlikely(wasMlocked))
+ 		free_page_mlock(page);
+ 	__count_vm_event(PGFREE);
+-- 
+1.7.7.3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
