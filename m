@@ -1,151 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx186.postini.com [74.125.245.186])
-	by kanga.kvack.org (Postfix) with SMTP id C097C6B004A
-	for <linux-mm@kvack.org>; Thu, 26 Apr 2012 20:57:31 -0400 (EDT)
-Message-ID: <4F99EF22.8070600@kernel.org>
-Date: Fri, 27 Apr 2012 09:58:10 +0900
-From: Minchan Kim <minchan@kernel.org>
+Received: from psmtp.com (na3sys010amx188.postini.com [74.125.245.188])
+	by kanga.kvack.org (Postfix) with SMTP id 981416B004A
+	for <linux-mm@kvack.org>; Thu, 26 Apr 2012 21:07:24 -0400 (EDT)
+Received: from m2.gw.fujitsu.co.jp (unknown [10.0.50.72])
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id AA9803EE0AE
+	for <linux-mm@kvack.org>; Fri, 27 Apr 2012 10:07:22 +0900 (JST)
+Received: from smail (m2 [127.0.0.1])
+	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 8C8F445DE52
+	for <linux-mm@kvack.org>; Fri, 27 Apr 2012 10:07:22 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
+	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 72D1D45DE4E
+	for <linux-mm@kvack.org>; Fri, 27 Apr 2012 10:07:22 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 62DD7E38002
+	for <linux-mm@kvack.org>; Fri, 27 Apr 2012 10:07:22 +0900 (JST)
+Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.240.81.133])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 0C66A1DB803A
+	for <linux-mm@kvack.org>; Fri, 27 Apr 2012 10:07:22 +0900 (JST)
+Message-ID: <4F99F0BE.2060402@jp.fujitsu.com>
+Date: Fri, 27 Apr 2012 10:05:02 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH v3] mm: compaction: handle incorrect Unmovable type pageblocks
-References: <201204261015.54449.b.zolnierkie@samsung.com> <20120426143620.GF15299@suse.de> <4F996F8B.1020207@redhat.com> <20120426164713.GG15299@suse.de>
-In-Reply-To: <20120426164713.GG15299@suse.de>
-Content-Type: text/plain; charset=ISO-8859-15
+Subject: Re: [PATCH v4 1/3] make jump_labels wait while updates are in place
+References: <1335480667-8301-1-git-send-email-glommer@parallels.com> <1335480667-8301-2-git-send-email-glommer@parallels.com> <20120427004305.GC23877@home.goodmis.org>
+In-Reply-To: <20120427004305.GC23877@home.goodmis.org>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Rik van Riel <riel@redhat.com>, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, linux-mm@kvack.org, Marek Szyprowski <m.szyprowski@samsung.com>, Kyungmin Park <kyungmin.park@samsung.com>
+To: Steven Rostedt <rostedt@goodmis.org>
+Cc: Glauber Costa <glommer@parallels.com>, cgroups@vger.kernel.org, netdev@vger.kernel.org, linux-kernel@vger.kernel.org, Li Zefan <lizefan@huawei.com>, Tejun Heo <tj@kernel.org>, linux-mm@kvack.org, devel@openvz.org, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Ingo Molnar <mingo@elte.hu>, Jason Baron <jbaron@redhat.com>
 
-On 04/27/2012 01:47 AM, Mel Gorman wrote:
+(2012/04/27 9:43), Steven Rostedt wrote:
 
-> On Thu, Apr 26, 2012 at 11:53:47AM -0400, Rik van Riel wrote:
->> On 04/26/2012 10:36 AM, Mel Gorman wrote:
+> On Thu, Apr 26, 2012 at 07:51:05PM -0300, Glauber Costa wrote:
+>> In mem cgroup, we need to guarantee that two concurrent updates
+>> of the jump_label interface wait for each other. IOW, we can't have
+>> other updates returning while the first one is still patching the
+>> kernel around, otherwise we'll race.
+> 
+> But it shouldn't. The code as is should prevent that.
+> 
 >>
->>> Hmm, at what point does COMPACT_ASYNC_FULL get used? I see it gets
->>> used for the proc interface but it's not used via the page allocator at
->>> all.
+>> I believe this is something that can fit well in the static branch
+>> API, without noticeable disadvantages:
 >>
->> He is using COMPACT_SYNC for the proc interface, and
->> COMPACT_ASYNC_FULL from kswapd.
+>> * in the common case, it will be a quite simple lock/unlock operation
+>> * Every context that calls static_branch_slow* already expects to be
+>>   in sleeping context because it will mutex_lock the unlikely case.
+>> * static_key_slow_inc is not expected to be called in any fast path,
+>>   otherwise it would be expected to have quite a different name. Therefore
+>>   the mutex + atomic combination instead of just an atomic should not kill
+>>   us.
 >>
-> 
-> Ah, yes, of course. My bad.
-> 
-> Even that is not particularly satisfactory though as it's depending on
-> kswapd to do the work so it's a bit of a race to see if kswapd completes
-> the job before the page allocator needs it.
-
-
-It was a direction by my review.
-In my point, I don't want to add more latency in direct reclaim async path if we can
-although reclaim is already slow path.
-
-If async direct reclaim fails to compact memory with COMPACT_ASYNC_PARTIAL,
-it ends up trying to compact memory with COMPACT_SYNC, again so it would
-be no problem to allocate big order page and it's as-it-is approach by
-async and sync mode.
-
-While latency is important in direct reclaim, kswapd isn't.
-So I think using COMPACT_ASYNC_FULL in kswapd makes sense.
-
-> 
->>> Minimally I was expecting to see if being used from the page allocator.
+>> Signed-off-by: Glauber Costa <glommer@parallels.com>
+>> CC: Tejun Heo <tj@kernel.org>
+>> CC: Li Zefan <lizefan@huawei.com>
+>> CC: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+>> CC: Johannes Weiner <hannes@cmpxchg.org>
+>> CC: Michal Hocko <mhocko@suse.cz>
+>> CC: Ingo Molnar <mingo@elte.hu>
+>> CC: Jason Baron <jbaron@redhat.com>
+>> ---
+>>  kernel/jump_label.c |   21 +++++++++++----------
+>>  1 files changed, 11 insertions(+), 10 deletions(-)
 >>
->> Makes sense, especially if we get the CPU overhead
->> saving stuff that we talked about at LSF to work :)
->>
+>> diff --git a/kernel/jump_label.c b/kernel/jump_label.c
+>> index 4304919..5d09cb4 100644
+>> --- a/kernel/jump_label.c
+>> +++ b/kernel/jump_label.c
+>> @@ -57,17 +57,16 @@ static void jump_label_update(struct static_key *key, int enable);
+>>  
+>>  void static_key_slow_inc(struct static_key *key)
+>>  {
+>> +	jump_label_lock();
+>>  	if (atomic_inc_not_zero(&key->enabled))
+>> -		return;
 > 
-> True.
-> 
->>> A better option might be to track the number of MIGRATE_UNMOVABLE blocks that
->>> were skipped over during COMPACT_ASYNC_PARTIAL and if it was a high
->>> percentage and it looked like compaction failed then to retry with
->>> COMPACT_ASYNC_FULL. If you took this option, try_to_compact_pages()
->>> would still only take sync as a parameter and keep the decision within
->>> compaction.c
->>
->> This I don't get.
->>
->> If we have a small number of MIGRATE_UNMOVABLE blocks,
->> is it worth skipping over them?
->>
-> 
-> We do not know in advance how many MIGRATE_UNMOVABLE blocks are going to
-> be encountered. Even if we kept track of the number of MIGRATE_UNMOVABLE
-> pageblocks in the zone, it would not tell us how many pageblocks the
-> scanner will see.
-> 
->> If we have really large number of MIGRATE_UNMOVABLE blocks,
->> did we let things get out of hand?  By giving the page
->> allocator this many unmovable blocks to choose from, we
->> could have ended up with actually non-compactable memory.
->>
-> 
-> If there are a large number of MIGRATE_UNMOVABLE blocks, each with a single
-> unmovable page at the end of the block then the worst case situation
-> is that the second pass (COMPACT_ASYNC_PARTIAL being the first pass)
-> is useless and slow due to the scanning within MIGRATE_UNMOVABLE blocks.
-> 
-> When this situation occurs, I would also expect that the third pass
-> (COMPACT_SYNC) will also fail and then compaction will get deferred to
-> limit further damage.
-> 
-> In the average case, I would expect the large number of
-> MIGRATE_UNMOVABLE blocks to also be partially populated which means that
-> scans of these blocks will also be partial limiting the amount of
-> scanning we do. How much this is limited is impossible to estimate as
-> it's dependant on the workload.
-> 
->> If we have a medium number of MIGRATE_UNMOVABLE blocks,
->> is it worth doing a restart and scanning all the movable
->> blocks again?
->>
-> 
-> This goes back to the same problem of we do not know how many
-> MIGRATE_UNMOVABLE pageblocks are going to be encountered in advance However,
-> I see your point.
-> 
-> Instead of COMPACT_ASYNC_PARTIAL and COMPACT_ASYNC_FULL should we have
-> COMPACT_ASYNC_MOVABLE and COMPACT_ASYNC_UNMOVABLE? The first pass from
-> the page allocator (COMPACT_ASYNC_MOVABLE) would only consider MOVABLE
-> blocks as migration targets. The second pass (COMPACT_ASYNC_UNMOVABLE)
-> would examine UNMOVABLE blocks, rescue them and use what blocks it
-> rescues as migration targets. The third pass (COMPACT_SYNC) would work
-
-
-It does make sense.
-
-> as it does currently. kswapd would only ever use COMPACT_ASYNC_MOVABLE.
-
-
-I don't get it. Why do kswapd use only COMPACT_ASYNC_MOVALBE?
-As I mentioned, latency isn't important in kswapd so I think kswapd always
-rescur unmovable block would help direct reclaim's first path(COMPACT_ASYNC
-_MOVABLE)'s success rate.
-
-> 
-> That would avoid rescanning the movable blocks uselessly on the second
-> pass but should still work for Bartlomiej's workload.
-> 
-> What do you think?
-> 
->> In other words, could it be better to always try to
->> rescue the unmovable blocks?
-> 
-> I do not think we should always scan within unmovable blocks on the
-> first pass. I strongly suspect it would lead to excessive amounts of CPU
-> time spent in mm/compaction.c.
-
-
-Agree.
-
+> If key->enabled is not zero, there's nothing to be done. As the jump
+> label has already been enabled. Note, the key->enabled doesn't get set
+> until after the jump label is updated. Thus, if two tasks were to come
+> in, they both would be locked on the jump_label_lock().
 > 
 
+Ah, sorry, I misunderstood somthing. I'm sorry, Glauber.
 
-
--- 
-Kind regards,
-Minchan Kim
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
