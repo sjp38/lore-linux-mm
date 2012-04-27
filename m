@@ -1,40 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx147.postini.com [74.125.245.147])
-	by kanga.kvack.org (Postfix) with SMTP id F0FB96B004A
-	for <linux-mm@kvack.org>; Thu, 26 Apr 2012 23:01:55 -0400 (EDT)
-Date: Thu, 26 Apr 2012 22:02:24 -0400
-From: Dave Jones <davej@redhat.com>
-Subject: Re: 3.4-rc4 oom killer out of control.
-Message-ID: <20120427020224.GA22927@redhat.com>
-References: <20120426193551.GA24968@redhat.com>
- <alpine.DEB.2.00.1204261437470.28376@chino.kir.corp.google.com>
- <20120426215257.GA12908@redhat.com>
- <alpine.DEB.2.00.1204261517100.28376@chino.kir.corp.google.com>
- <20120426224419.GA13598@redhat.com>
- <20120427005448.GD23877@home.goodmis.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20120427005448.GD23877@home.goodmis.org>
+Received: from psmtp.com (na3sys010amx133.postini.com [74.125.245.133])
+	by kanga.kvack.org (Postfix) with SMTP id 471AB6B004A
+	for <linux-mm@kvack.org>; Thu, 26 Apr 2012 23:06:58 -0400 (EDT)
+Date: Thu, 26 Apr 2012 20:08:45 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [RFC] propagate gfp_t to page table alloc functions
+Message-Id: <20120426200845.69915594.akpm@linux-foundation.org>
+In-Reply-To: <4F9A0360.3030900@kernel.org>
+References: <1335171318-4838-1-git-send-email-minchan@kernel.org>
+	<4F963742.2030607@jp.fujitsu.com>
+	<4F963B8E.9030105@kernel.org>
+	<CAPa8GCA8q=S9sYx-0rDmecPxYkFs=gATGL-Dz0OYXDkwEECJkg@mail.gmail.com>
+	<4F965413.9010305@kernel.org>
+	<CAPa8GCCwfCFO6yxwUP5Qp9O1HGUqEU2BZrrf50w8TL9FH9vbrA@mail.gmail.com>
+	<20120424143015.99fd8d4a.akpm@linux-foundation.org>
+	<4F973BF2.4080406@jp.fujitsu.com>
+	<CAHGf_=r09BCxXeuE8dSti4_SrT5yahrQCwJh=NrrA3rsUhhu_w@mail.gmail.com>
+	<4F973FB8.6050103@jp.fujitsu.com>
+	<20120424172554.c9c330dd.akpm@linux-foundation.org>
+	<4F98914C.2060505@jp.fujitsu.com>
+	<alpine.DEB.2.00.1204251715420.19452@chino.kir.corp.google.com>
+	<4F9A0360.3030900@kernel.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Steven Rostedt <rostedt@goodmis.org>
-Cc: David Rientjes <rientjes@google.com>, linux-mm@kvack.org, Linux Kernel <linux-kernel@vger.kernel.org>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
+To: Minchan Kim <minchan@kernel.org>
+Cc: David Rientjes <rientjes@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Nick Piggin <npiggin@gmail.com>, Ingo Molnar <mingo@redhat.com>, x86@kernel.org, Hugh Dickins <hughd@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Thu, Apr 26, 2012 at 08:54:48PM -0400, Steven Rostedt wrote:
- 
- > >  > full_scans is just a counter of how many times it has scanned mergable 
- > >  > memory so it should be increasing constantly.  Whether pages_to_scan == 
- > >  > 1250 and sleep_millisecs == 20 is good for your system is unknown.  You 
- > >  > may want to try disabling ksm entirely (echo 0 > /sys/kernel/mm/ksm/run) 
- > >  > to see if it significantly increases responsiveness for your workload.
- > > 
- > 
- > You didn't happen to see any RCU CPU stalls, did you?
+On Fri, 27 Apr 2012 11:24:32 +0900 Minchan Kim <minchan@kernel.org> wrote:
 
-nothing got reported in dmesg..
+> I was about to add warning in __vmalloc internal if caller uses GFP_NOIO, GFP_NOFS, GFP_ATOMIC
+> with Nick's comment and let them make to fix it. But it seems Andrew doesn't agree.
 
-	Dave
+I do, actually.
+
+> Andrew, please tell me your opinion for fixing this problem.
+
+Only call vmalloc() from GFP_KERNEL contexts.  Go ahead, add the
+WARN_ONCE() and let's see what happens.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
