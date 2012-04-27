@@ -1,127 +1,151 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx192.postini.com [74.125.245.192])
-	by kanga.kvack.org (Postfix) with SMTP id 875146B004A
-	for <linux-mm@kvack.org>; Thu, 26 Apr 2012 20:54:50 -0400 (EDT)
-Date: Thu, 26 Apr 2012 20:54:48 -0400
-From: Steven Rostedt <rostedt@goodmis.org>
-Subject: Re: 3.4-rc4 oom killer out of control.
-Message-ID: <20120427005448.GD23877@home.goodmis.org>
-References: <20120426193551.GA24968@redhat.com>
- <alpine.DEB.2.00.1204261437470.28376@chino.kir.corp.google.com>
- <20120426215257.GA12908@redhat.com>
- <alpine.DEB.2.00.1204261517100.28376@chino.kir.corp.google.com>
- <20120426224419.GA13598@redhat.com>
+Received: from psmtp.com (na3sys010amx186.postini.com [74.125.245.186])
+	by kanga.kvack.org (Postfix) with SMTP id C097C6B004A
+	for <linux-mm@kvack.org>; Thu, 26 Apr 2012 20:57:31 -0400 (EDT)
+Message-ID: <4F99EF22.8070600@kernel.org>
+Date: Fri, 27 Apr 2012 09:58:10 +0900
+From: Minchan Kim <minchan@kernel.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20120426224419.GA13598@redhat.com>
+Subject: Re: [PATCH v3] mm: compaction: handle incorrect Unmovable type pageblocks
+References: <201204261015.54449.b.zolnierkie@samsung.com> <20120426143620.GF15299@suse.de> <4F996F8B.1020207@redhat.com> <20120426164713.GG15299@suse.de>
+In-Reply-To: <20120426164713.GG15299@suse.de>
+Content-Type: text/plain; charset=ISO-8859-15
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Jones <davej@redhat.com>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, Linux Kernel <linux-kernel@vger.kernel.org>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
+To: Mel Gorman <mgorman@suse.de>
+Cc: Rik van Riel <riel@redhat.com>, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, linux-mm@kvack.org, Marek Szyprowski <m.szyprowski@samsung.com>, Kyungmin Park <kyungmin.park@samsung.com>
 
-On Thu, Apr 26, 2012 at 06:44:19PM -0400, Dave Jones wrote:
-> On Thu, Apr 26, 2012 at 03:20:34PM -0700, David Rientjes wrote:
->  > On Thu, 26 Apr 2012, Dave Jones wrote:
->  > 
->  > > /sys/kernel/mm/ksm/full_scans is increasing constantly
->  > > 
->  > > full_scans: 146370
->  > > pages_shared: 1
->  > > pages_sharing: 4
->  > > pages_to_scan: 1250
->  > > pages_unshared: 867
->  > > pages_volatile: 1
->  > > run: 1
->  > > sleep_millisecs: 20
->  > > 
->  > 
->  > full_scans is just a counter of how many times it has scanned mergable 
->  > memory so it should be increasing constantly.  Whether pages_to_scan == 
->  > 1250 and sleep_millisecs == 20 is good for your system is unknown.  You 
->  > may want to try disabling ksm entirely (echo 0 > /sys/kernel/mm/ksm/run) 
->  > to see if it significantly increases responsiveness for your workload.
+On 04/27/2012 01:47 AM, Mel Gorman wrote:
+
+> On Thu, Apr 26, 2012 at 11:53:47AM -0400, Rik van Riel wrote:
+>> On 04/26/2012 10:36 AM, Mel Gorman wrote:
+>>
+>>> Hmm, at what point does COMPACT_ASYNC_FULL get used? I see it gets
+>>> used for the proc interface but it's not used via the page allocator at
+>>> all.
+>>
+>> He is using COMPACT_SYNC for the proc interface, and
+>> COMPACT_ASYNC_FULL from kswapd.
+>>
+> 
+> Ah, yes, of course. My bad.
+> 
+> Even that is not particularly satisfactory though as it's depending on
+> kswapd to do the work so it's a bit of a race to see if kswapd completes
+> the job before the page allocator needs it.
+
+
+It was a direction by my review.
+In my point, I don't want to add more latency in direct reclaim async path if we can
+although reclaim is already slow path.
+
+If async direct reclaim fails to compact memory with COMPACT_ASYNC_PARTIAL,
+it ends up trying to compact memory with COMPACT_SYNC, again so it would
+be no problem to allocate big order page and it's as-it-is approach by
+async and sync mode.
+
+While latency is important in direct reclaim, kswapd isn't.
+So I think using COMPACT_ASYNC_FULL in kswapd makes sense.
+
+> 
+>>> Minimally I was expecting to see if being used from the page allocator.
+>>
+>> Makes sense, especially if we get the CPU overhead
+>> saving stuff that we talked about at LSF to work :)
+>>
+> 
+> True.
+> 
+>>> A better option might be to track the number of MIGRATE_UNMOVABLE blocks that
+>>> were skipped over during COMPACT_ASYNC_PARTIAL and if it was a high
+>>> percentage and it looked like compaction failed then to retry with
+>>> COMPACT_ASYNC_FULL. If you took this option, try_to_compact_pages()
+>>> would still only take sync as a parameter and keep the decision within
+>>> compaction.c
+>>
+>> This I don't get.
+>>
+>> If we have a small number of MIGRATE_UNMOVABLE blocks,
+>> is it worth skipping over them?
+>>
+> 
+> We do not know in advance how many MIGRATE_UNMOVABLE blocks are going to
+> be encountered. Even if we kept track of the number of MIGRATE_UNMOVABLE
+> pageblocks in the zone, it would not tell us how many pageblocks the
+> scanner will see.
+> 
+>> If we have really large number of MIGRATE_UNMOVABLE blocks,
+>> did we let things get out of hand?  By giving the page
+>> allocator this many unmovable blocks to choose from, we
+>> could have ended up with actually non-compactable memory.
+>>
+> 
+> If there are a large number of MIGRATE_UNMOVABLE blocks, each with a single
+> unmovable page at the end of the block then the worst case situation
+> is that the second pass (COMPACT_ASYNC_PARTIAL being the first pass)
+> is useless and slow due to the scanning within MIGRATE_UNMOVABLE blocks.
+> 
+> When this situation occurs, I would also expect that the third pass
+> (COMPACT_SYNC) will also fail and then compaction will get deferred to
+> limit further damage.
+> 
+> In the average case, I would expect the large number of
+> MIGRATE_UNMOVABLE blocks to also be partially populated which means that
+> scans of these blocks will also be partial limiting the amount of
+> scanning we do. How much this is limited is impossible to estimate as
+> it's dependant on the workload.
+> 
+>> If we have a medium number of MIGRATE_UNMOVABLE blocks,
+>> is it worth doing a restart and scanning all the movable
+>> blocks again?
+>>
+> 
+> This goes back to the same problem of we do not know how many
+> MIGRATE_UNMOVABLE pageblocks are going to be encountered in advance However,
+> I see your point.
+> 
+> Instead of COMPACT_ASYNC_PARTIAL and COMPACT_ASYNC_FULL should we have
+> COMPACT_ASYNC_MOVABLE and COMPACT_ASYNC_UNMOVABLE? The first pass from
+> the page allocator (COMPACT_ASYNC_MOVABLE) would only consider MOVABLE
+> blocks as migration targets. The second pass (COMPACT_ASYNC_UNMOVABLE)
+> would examine UNMOVABLE blocks, rescue them and use what blocks it
+> rescues as migration targets. The third pass (COMPACT_SYNC) would work
+
+
+It does make sense.
+
+> as it does currently. kswapd would only ever use COMPACT_ASYNC_MOVABLE.
+
+
+I don't get it. Why do kswapd use only COMPACT_ASYNC_MOVALBE?
+As I mentioned, latency isn't important in kswapd so I think kswapd always
+rescur unmovable block would help direct reclaim's first path(COMPACT_ASYNC
+_MOVABLE)'s success rate.
+
+> 
+> That would avoid rescanning the movable blocks uselessly on the second
+> pass but should still work for Bartlomiej's workload.
+> 
+> What do you think?
+> 
+>> In other words, could it be better to always try to
+>> rescue the unmovable blocks?
+> 
+> I do not think we should always scan within unmovable blocks on the
+> first pass. I strongly suspect it would lead to excessive amounts of CPU
+> time spent in mm/compaction.c.
+
+
+Agree.
+
 > 
 
-You didn't happen to see any RCU CPU stalls, did you?
 
--- Steve
 
-> Disabling it stops it hogging the cpu obviously, but there's still 8G of RAM
-> and 1G of used swap sitting around doing something.
-> 
-> # free
->              total       used       free     shared    buffers     cached
-> Mem:       8149440    8025716     123724          0        148       7764
-> -/+ buffers/cache:    8017804     131636
-> Swap:      1423736    1066112     357624
-> 
-> SysRq : Show Memory
-> Mem-Info:
-> Node 0 DMA per-cpu:
-> CPU    0: hi:    0, btch:   1 usd:   0
-> CPU    1: hi:    0, btch:   1 usd:   0
-> CPU    2: hi:    0, btch:   1 usd:   0
-> CPU    3: hi:    0, btch:   1 usd:   0
-> Node 0 DMA32 per-cpu:
-> CPU    0: hi:  186, btch:  31 usd:  19
-> CPU    1: hi:  186, btch:  31 usd: 175
-> CPU    2: hi:  186, btch:  31 usd: 140
-> CPU    3: hi:  186, btch:  31 usd: 182
-> Node 0 Normal per-cpu:
-> CPU    0: hi:  186, btch:  31 usd: 167
-> CPU    1: hi:  186, btch:  31 usd: 176
-> CPU    2: hi:  186, btch:  31 usd: 102
-> CPU    3: hi:  186, btch:  31 usd:  94
-> active_anon:1529737 inactive_anon:306307 isolated_anon:0
->  active_file:1124 inactive_file:2170 isolated_file:0
->  unevictable:1414 dirty:1 writeback:0 unstable:0
->  free:35645 slab_reclaimable:10150 slab_unreclaimable:56678
->  mapped:404 shmem:48 pagetables:45796 bounce:0
-> Node 0 DMA free:15876kB min:128kB low:160kB high:192kB active_anon:0kB inactive_anon:0kB active_file:0kB inactive_file:0kB unevictable:0kB isolated(anon):0kB isolated(file):0kB present:15652kB mlocked:0kB dirty:0kB writeback:0kB mapped:0kB shmem:0kB slab_reclaimable:0kB slab_unreclaimable:32kB kernel_stack:0kB pagetables:0kB unstable:0kB bounce:0kB writeback_tmp:0kB pages_scanned:0 all_unreclaimable? yes
-> lowmem_reserve[]: 0 3246 8034 8034
-> Node 0 DMA32 free:62632kB min:27252kB low:34064kB high:40876kB active_anon:2637356kB inactive_anon:527504kB active_file:72kB inactive_file:84kB unevictable:788kB isolated(anon):0kB isolated(file):0kB present:3324200kB mlocked:788kB dirty:0kB writeback:0kB mapped:212kB shmem:72kB slab_reclaimable:944kB slab_unreclaimable:24736kB kernel_stack:336kB pagetables:30028kB unstable:0kB bounce:0kB writeback_tmp:0kB pages_scanned:116 all_unreclaimable? no
-> lowmem_reserve[]: 0 0 4788 4788
-> Node 0 Normal free:64072kB min:40196kB low:50244kB high:60292kB active_anon:3481592kB inactive_anon:697724kB active_file:4424kB inactive_file:8596kB unevictable:4868kB isolated(anon):0kB isolated(file):0kB present:4902912kB mlocked:4868kB dirty:4kB writeback:0kB mapped:1404kB shmem:120kB slab_reclaimable:39656kB slab_unreclaimable:201944kB kernel_stack:2968kB pagetables:153156kB unstable:0kB bounce:0kB writeback_tmp:0kB pages_scanned:0 all_unreclaimable? no
-> lowmem_reserve[]: 0 0 0 0
-> Node 0 DMA: 1*4kB 0*8kB 0*16kB 0*32kB 2*64kB 1*128kB 1*256kB 0*512kB 1*1024kB 1*2048kB 3*4096kB = 15876kB
-> Node 0 DMA32: 214*4kB 124*8kB 65*16kB 55*32kB 32*64kB 15*128kB 9*256kB 7*512kB 7*1024kB 4*2048kB 8*4096kB = 62632kB
-> Node 0 Normal: 670*4kB 573*8kB 402*16kB 468*32kB 171*64kB 73*128kB 31*256kB 12*512kB 1*1024kB 0*2048kB 0*4096kB = 64064kB
-> 5683 total pagecache pages
-> 2341 pages in swap cache
-> Swap cache stats: add 2029253, delete 2026912, find 483987/484568
-> Free swap  = 343568kB
-> Total swap = 1423736kB
-> 2097136 pages RAM
-> 59776 pages reserved
-> 891838 pages shared
-> 1996710 pages non-shared
-> 
-> 
-> All that anon memory seems to be unaccounted for.
-> 
-> [ pid ]   uid  tgid total_vm      rss cpu oom_adj oom_score_adj name
-> [  351]     0   351     4372        2   3     -17         -1000 udevd
-> [  818]     0   818    18861       26   0     -17         -1000 sshd
-> [ 1199]     0  1199     4372        2   3     -17         -1000 udevd
-> [ 1214]     0  1214     4371        2   1     -17         -1000 udevd
-> [28963]     0 28963    30988      271   2       0             0 sshd
-> [28987]    81 28987     5439      150   3     -13          -900 dbus-daemon
-> [28990]     0 28990     7085      136   0       0             0 systemd-logind
-> [28995]  1000 28995    31023      373   1       0             0 sshd
-> [29008]  1000 29008    29864      875   2       0             0 bash
-> [29132]  1000 29132    44732      155   3       0             0 sudo
-> [29135]     0 29135    29870     1094   3       0             0 bash
-> [29521]     0 29521     4877      196   0       0             0 systemd-kmsg-sy
-> [29541]     0 29541    27232      211   3       0             0 agetty
-> [29553]     0 29553    29870      875   2       0             0 bash
-> 
-> 	Dave
-> 
-> --
-> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
-> Please read the FAQ at  http://www.tux.org/lkml/
+-- 
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
