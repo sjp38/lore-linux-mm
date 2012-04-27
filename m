@@ -1,148 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx177.postini.com [74.125.245.177])
-	by kanga.kvack.org (Postfix) with SMTP id F16576B00F5
-	for <linux-mm@kvack.org>; Fri, 27 Apr 2012 14:26:21 -0400 (EDT)
-Received: by lagz14 with SMTP id z14so1014171lag.14
-        for <linux-mm@kvack.org>; Fri, 27 Apr 2012 11:26:20 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx115.postini.com [74.125.245.115])
+	by kanga.kvack.org (Postfix) with SMTP id BB5796B00F8
+	for <linux-mm@kvack.org>; Fri, 27 Apr 2012 15:00:48 -0400 (EDT)
+Date: Fri, 27 Apr 2012 21:00:40 +0200
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [patch] mm, thp: drop page_table_lock to uncharge memcg pages
+Message-ID: <20120427190040.GL23980@redhat.com>
+References: <alpine.DEB.2.00.1204261556100.15785@chino.kir.corp.google.com>
+ <20120426163922.4879dcb1.akpm@linux-foundation.org>
+ <alpine.DEB.2.00.1204261642190.15785@chino.kir.corp.google.com>
 MIME-Version: 1.0
-In-Reply-To: <4F9AD455.9030306@parallels.com>
-References: <4F9A327A.6050409@jp.fujitsu.com>
-	<4F9A34B2.8080103@jp.fujitsu.com>
-	<4F9AD455.9030306@parallels.com>
-Date: Fri, 27 Apr 2012 11:26:19 -0700
-Message-ID: <CALWz4izAxDacXrHMbQh=q_WAcs6QeSuaRuma_dymuTvyk+VDSg@mail.gmail.com>
-Subject: Re: [RFC][PATCH 4/7 v2] memcg: use res_counter_uncharge_until in move_parent
-From: Ying Han <yinghan@google.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.00.1204261642190.15785@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Glauber Costa <glommer@parallels.com>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Linux Kernel <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "cgroups@vger.kernel.org" <cgroups@vger.kernel.org>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Frederic Weisbecker <fweisbec@gmail.com>, Tejun Heo <tj@kernel.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, kamezawa.hiroyuki@gmail.com
+To: David Rientjes <rientjes@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org
 
-On Fri, Apr 27, 2012 at 10:16 AM, Glauber Costa <glommer@parallels.com> wro=
-te:
-> On 04/27/2012 02:54 AM, KAMEZAWA Hiroyuki wrote:
->> By using res_counter_uncharge_until(), we can avoid
->> unnecessary charging.
->>
->> Signed-off-by: KAMEZAWA Hiroyuki<kamezawa.hiroyu@jp.fujitsu.com>
->> ---
->> =A0 mm/memcontrol.c | =A0 63 ++++++++++++++++++++++++++++++++++++-------=
------------
->> =A0 1 files changed, 42 insertions(+), 21 deletions(-)
->>
->> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
->> index 613bb15..ed53d64 100644
->> --- a/mm/memcontrol.c
->> +++ b/mm/memcontrol.c
->> @@ -2420,6 +2420,24 @@ static void __mem_cgroup_cancel_charge(struct mem=
-_cgroup *memcg,
->> =A0 }
->>
->> =A0 /*
->> + * Cancel chages in this cgroup....doesn't propagates to parent cgroup.
->> + * This is useful when moving usage to parent cgroup.
->> + */
->> +static void __mem_cgroup_cancel_local_charge(struct mem_cgroup *memcg,
->> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =
-=A0 unsigned int nr_pages)
->> +{
->> + =A0 =A0 if (!mem_cgroup_is_root(memcg)) {
->> + =A0 =A0 =A0 =A0 =A0 =A0 unsigned long bytes =3D nr_pages * PAGE_SIZE;
->> +
->> + =A0 =A0 =A0 =A0 =A0 =A0 res_counter_uncharge_until(&memcg->res,
->> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =
-=A0 memcg->res.parent, bytes);
->> + =A0 =A0 =A0 =A0 =A0 =A0 if (do_swap_account)
->> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 res_counter_uncharge_until(&me=
-mcg->memsw,
->> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =
-=A0 =A0 =A0 =A0 =A0 memcg->memsw.parent, bytes);
->> + =A0 =A0 }
->> +}
->
-> Kame, this is a nitpick, but I usually prefer to write this like:
->
-> if (mem_cgroup_is_root(memcg))
-> =A0 return;
->
-> res_counter...
->
-> Specially with memcg, where function names are bigger than average, in
-> comparison.
->
-> the code itself seems fine.
->
->> +/*
->> =A0 =A0* A helper function to get mem_cgroup from ID. must be called und=
-er
->> =A0 =A0* rcu_read_lock(). The caller must check css_is_removed() or some=
- if
->> =A0 =A0* it's concern. (dropping refcnt from swap can be called against =
-removed
->> @@ -2677,16 +2695,28 @@ static int mem_cgroup_move_parent(struct page *p=
-age,
->> =A0 =A0 =A0 nr_pages =3D hpage_nr_pages(page);
->>
->> =A0 =A0 =A0 parent =3D mem_cgroup_from_cont(pcg);
->> - =A0 =A0 ret =3D __mem_cgroup_try_charge(NULL, gfp_mask, nr_pages,&pare=
-nt, false);
->> - =A0 =A0 if (ret)
->> - =A0 =A0 =A0 =A0 =A0 =A0 goto put_back;
->> + =A0 =A0 if (!parent->use_hierarchy) {
-> Can we avoid testing for use hierarchy ?
-> Specially given this might go away.
->
-> parent_mem_cgroup() already bundles this information. So maybe we can
-> test for parent_mem_cgroup(parent) =3D=3D NULL. It is the same thing afte=
-r all.
->> + =A0 =A0 =A0 =A0 =A0 =A0 ret =3D __mem_cgroup_try_charge(NULL,
->> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =
-=A0 gfp_mask, nr_pages,&parent, false);
->> + =A0 =A0 =A0 =A0 =A0 =A0 if (ret)
->> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 goto put_back;
->> + =A0 =A0 }
->
-> Why? If we are not hierarchical, we should not charge the parent, right?
+On Thu, Apr 26, 2012 at 04:44:16PM -0700, David Rientjes wrote:
+> On Thu, 26 Apr 2012, Andrew Morton wrote:
+> 
+> > > mm->page_table_lock is hotly contested for page fault tests and isn't
+> > > necessary to do mem_cgroup_uncharge_page() in do_huge_pmd_wp_page().
+> > > 
+> > > ...
+> > >
+> > > --- a/mm/huge_memory.c
+> > > +++ b/mm/huge_memory.c
+> > > @@ -968,8 +968,10 @@ int do_huge_pmd_wp_page(struct mm_struct *mm, struct vm_area_struct *vma,
+> > >  	spin_lock(&mm->page_table_lock);
+> > >  	put_page(page);
+> > >  	if (unlikely(!pmd_same(*pmd, orig_pmd))) {
+> > > +		spin_unlock(&mm->page_table_lock);
+> > >  		mem_cgroup_uncharge_page(new_page);
+> > >  		put_page(new_page);
+> > > +		goto out;
+> > >  	} else {
+> > >  		pmd_t entry;
+> > >  		VM_BUG_ON(!PageHead(page));
+> > 
+> > But this is on the basically-never-happens race path and will surely have no
+> > measurable benefit?
+> > 
 
-This is how it is implemented today and I think he changed that to
-move to root on the next patch.
+Even if it has no measurable benefit, it's still an ok
+microoptimization as it can't slow down anything, it introduces a
+slight different jump for the slow path but it shouldn't matter. So it
+looks ok to me.
 
->
->> =A0 =A0 =A0 if (nr_pages> =A01)
->> =A0 =A0 =A0 =A0 =A0 =A0 =A0 flags =3D compound_lock_irqsave(page);
->>
->> - =A0 =A0 ret =3D mem_cgroup_move_account(page, nr_pages, pc, child, par=
-ent, true);
->> - =A0 =A0 if (ret)
->> - =A0 =A0 =A0 =A0 =A0 =A0 __mem_cgroup_cancel_charge(parent, nr_pages);
->> + =A0 =A0 if (parent->use_hierarchy) {
->> + =A0 =A0 =A0 =A0 =A0 =A0 ret =3D mem_cgroup_move_account(page, nr_pages=
-,
->> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =
-=A0 pc, child, parent, false);
->> + =A0 =A0 =A0 =A0 =A0 =A0 if (!ret)
->> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 __mem_cgroup_cancel_local_char=
-ge(child, nr_pages);
->> + =A0 =A0 } else {
->> + =A0 =A0 =A0 =A0 =A0 =A0 ret =3D mem_cgroup_move_account(page, nr_pages=
-,
->> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =
-=A0 pc, child, parent, true);
->> +
->> + =A0 =A0 =A0 =A0 =A0 =A0 if (ret)
->> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 __mem_cgroup_cancel_charge(par=
-ent, nr_pages);
->> + =A0 =A0 }
->
-> Calling move account also seems not necessary to me. If we are not
-> uncharging + charging, we won't even touch the parent.
+Reviewed-by: Andrea Arcangeli <aarcange@redhat.com>
 
-Today for user_hierarchy =3D 0, the charge is moved to parent as well as
-the stats. But that is changed on the following patches.
+> It happens more often than you may think on page fault tests; how 
+> representative pft has ever been of actual workloads, especially with thp 
+> where the benfits of allocating the hugepage usually result in better 
+> performance in the long-term even for a short-term performance loss, is 
+> debatable.  However, all other thp code has always dropped 
+> mm->page_table_lock before calling mem_cgroup_uncharge_page() and this one 
+> seems to have been missed.  Worth correcting, in my opinion.
 
---Ying
+If we take single threaded programs into account too, THP gives a
+major boosts to the page faults too, a memset on a uninitialized area
+with THP enabled on some CPUs it can run more than twice as fast
+depending on the CPU cache sizes. If the access is random and not
+sequential cache effects can make it slightly slower though.
+
+I certainly agree the main focus here is not the page fault, but it's
+still worth to optimize the page fault of course.
+
+With concurrent threads and THP faults, the increased contention on
+the page_table_lock on large-CPU systems could be mitigated with a
+per-pmd lock but it would still be as coarse as 1G and it would
+complicate the code a bit. If each thread address space is very big
+and the threads aren't sharing much memory, it would make their page
+faults SMP scale nicely though. Just an idea.
+
+Thanks,
+Andrea
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
