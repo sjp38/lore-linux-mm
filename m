@@ -1,72 +1,95 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx119.postini.com [74.125.245.119])
-	by kanga.kvack.org (Postfix) with SMTP id 534D06B004A
-	for <linux-mm@kvack.org>; Fri, 27 Apr 2012 03:45:24 -0400 (EDT)
-Received: by lagz14 with SMTP id z14so425737lag.14
-        for <linux-mm@kvack.org>; Fri, 27 Apr 2012 00:45:22 -0700 (PDT)
-Message-ID: <4F9A4E8E.4040700@openvz.org>
-Date: Fri, 27 Apr 2012 11:45:18 +0400
-From: Konstantin Khlebnikov <khlebnikov@openvz.org>
+Received: from psmtp.com (na3sys010amx124.postini.com [74.125.245.124])
+	by kanga.kvack.org (Postfix) with SMTP id ABF326B004A
+	for <linux-mm@kvack.org>; Fri, 27 Apr 2012 04:10:25 -0400 (EDT)
+Date: Fri, 27 Apr 2012 10:10:21 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [patch 2/2] mm: memcg: count pte references from every member of
+ the reclaimed hierarchy
+Message-ID: <20120427081021.GA6969@tiehlicka.suse.cz>
+References: <1335296144-29381-1-git-send-email-hannes@cmpxchg.org>
+ <1335296144-29381-2-git-send-email-hannes@cmpxchg.org>
+ <20120426143729.10f672ae.akpm@linux-foundation.org>
+ <20120426234819.GB1788@cmpxchg.org>
 MIME-Version: 1.0
-Subject: Re: [PATCH next 00/12] mm: replace struct mem_cgroup_zone with struct
- lruvec
-References: <20120426074632.18961.17803.stgit@zurg> <20120426162546.90991b7c.akpm@linux-foundation.org>
-In-Reply-To: <20120426162546.90991b7c.akpm@linux-foundation.org>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20120426234819.GB1788@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Hugh Dickins <hughd@google.com>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Konstantin Khlebnikov <khlebnikov@openvz.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Li Zefan <lizf@cn.fujitsu.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
 
-Andrew Morton wrote:
-> On Thu, 26 Apr 2012 11:53:44 +0400
-> Konstantin Khlebnikov<khlebnikov@openvz.org>  wrote:
->
->> This patchset depends on Johannes Weiner's patch
->> "mm: memcg: count pte references from every member of the reclaimed hierarchy".
->>
->> bloat-o-meter delta for patches 2..12
->>
->> add/remove: 6/6 grow/shrink: 6/14 up/down: 4414/-4625 (-211)
->
-> That's the sole effect and intent of the patchset?  To save 211 bytes?
+On Fri 27-04-12 01:48:19, Johannes Weiner wrote:
+[...]
+> From: Johannes Weiner <hannes@cmpxchg.org>
+> Subject: [patch] mm: memcg: clean up mm_match_cgroup() signature
+> 
+> It really should return a boolean for match/no match.  And since it
+> takes a memcg, not a cgroup, fix that parameter name as well.
+> 
+> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
 
-This is almost last bunch of cleanups for lru_lock splitting,
-code reducing is only nice side-effect.
-Also this patchset removes many redundant lruvec relookups.
+Acked-by: Michal Hocko <mhocko@suse.cz>
 
-Now mostly all page-to-lruvec translations are located at the same level
-as zone->lru_lock locking. So lru-lock splitting patchset can something like this:
-
--zone = page_zone(page)
--spin_lock_irq(&zone->lru_lock)
--lruvec = mem_cgroup_page_lruvec(page)
-+lruvec = lock_page_lruvec_irq(page)
-
->
->> ...
->>
->>   include/linux/memcontrol.h |   16 +--
->>   include/linux/mmzone.h     |   14 ++
->>   mm/memcontrol.c            |   33 +++--
->>   mm/mmzone.c                |   14 ++
->>   mm/page_alloc.c            |    8 -
->>   mm/vmscan.c                |  277 ++++++++++++++++++++------------------------
->>   6 files changed, 177 insertions(+), 185 deletions(-)
->
-> If so, I'm not sure that it is worth the risk and effort?
-
-After lumpy-reclaim removal there a lot of dead or redundant code, maybe someone else
-wants to cleanup this code, I specifically sent this set early to avoid conflicts.
-
->
+> ---
+>  include/linux/memcontrol.h |   14 +++++++-------
+>  1 files changed, 7 insertions(+), 7 deletions(-)
+> 
+> diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
+> index 76f9d9b..d3038a9 100644
+> --- a/include/linux/memcontrol.h
+> +++ b/include/linux/memcontrol.h
+> @@ -89,14 +89,14 @@ extern struct mem_cgroup *parent_mem_cgroup(struct mem_cgroup *memcg);
+>  extern struct mem_cgroup *mem_cgroup_from_cont(struct cgroup *cont);
+>  
+>  static inline
+> -int mm_match_cgroup(const struct mm_struct *mm, const struct mem_cgroup *cgroup)
+> +bool mm_match_cgroup(const struct mm_struct *mm, const struct mem_cgroup *memcg)
+>  {
+> -	struct mem_cgroup *memcg;
+> -	int match;
+> +	struct mem_cgroup *task_memcg;
+> +	bool match;
+>  
+>  	rcu_read_lock();
+> -	memcg = mem_cgroup_from_task(rcu_dereference((mm)->owner));
+> -	match = memcg && __mem_cgroup_same_or_subtree(cgroup, memcg);
+> +	task_memcg = mem_cgroup_from_task(rcu_dereference((mm)->owner));
+> +	match = task_memcg && __mem_cgroup_same_or_subtree(memcg, task_memcg);
+>  	rcu_read_unlock();
+>  	return match;
+>  }
+> @@ -281,10 +281,10 @@ static inline struct mem_cgroup *try_get_mem_cgroup_from_mm(struct mm_struct *mm
+>  	return NULL;
+>  }
+>  
+> -static inline int mm_match_cgroup(struct mm_struct *mm,
+> +static inline bool mm_match_cgroup(struct mm_struct *mm,
+>  		struct mem_cgroup *memcg)
+>  {
+> -	return 1;
+> +	return true;
+>  }
+>  
+>  static inline int task_in_mem_cgroup(struct task_struct *task,
+> -- 
+> 1.7.7.6
+> 
 > --
 > To unsubscribe, send a message with 'unsubscribe linux-mm' in
 > the body to majordomo@kvack.org.  For more info on Linux MM,
 > see: http://www.linux-mm.org/ .
 > Fight unfair telecom internet charges in Canada: sign http://stopthemeter.ca/
-> Don't email:<a href=mailto:"dont@kvack.org">  email@kvack.org</a>
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+
+-- 
+Michal Hocko
+SUSE Labs
+SUSE LINUX s.r.o.
+Lihovarska 1060/12
+190 00 Praha 9    
+Czech Republic
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
