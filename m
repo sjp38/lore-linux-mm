@@ -1,54 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx203.postini.com [74.125.245.203])
-	by kanga.kvack.org (Postfix) with SMTP id 2D00C6B0102
-	for <linux-mm@kvack.org>; Fri, 27 Apr 2012 16:13:10 -0400 (EDT)
-Message-ID: <4F9AFD60.4050103@parallels.com>
-Date: Fri, 27 Apr 2012 17:11:12 -0300
-From: Glauber Costa <glommer@parallels.com>
+Received: from psmtp.com (na3sys010amx180.postini.com [74.125.245.180])
+	by kanga.kvack.org (Postfix) with SMTP id C3B1D6B00FB
+	for <linux-mm@kvack.org>; Fri, 27 Apr 2012 16:27:22 -0400 (EDT)
+Received: from acsinet21.oracle.com (acsinet21.oracle.com [141.146.126.237])
+	by acsinet15.oracle.com (Sentrion-MTA-4.2.2/Sentrion-MTA-4.2.2) with ESMTP id q3RKRKqb030643
+	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-SHA bits=256 verify=OK)
+	for <linux-mm@kvack.org>; Fri, 27 Apr 2012 20:27:20 GMT
+Received: from acsmt357.oracle.com (acsmt357.oracle.com [141.146.40.157])
+	by acsinet21.oracle.com (8.14.4+Sun/8.14.4) with ESMTP id q3RKRJe6011875
+	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-SHA bits=256 verify=NO)
+	for <linux-mm@kvack.org>; Fri, 27 Apr 2012 20:27:20 GMT
+Received: from abhmt103.oracle.com (abhmt103.oracle.com [141.146.116.55])
+	by acsmt357.oracle.com (8.12.11.20060308/8.12.11) with ESMTP id q3RKRJsm016303
+	for <linux-mm@kvack.org>; Fri, 27 Apr 2012 15:27:19 -0500
 MIME-Version: 1.0
-Subject: Re: [RFC][PATCH 4/7 v2] memcg: use res_counter_uncharge_until in
- move_parent
-References: <4F9A327A.6050409@jp.fujitsu.com> <4F9A34B2.8080103@jp.fujitsu.com> <4F9AD455.9030306@parallels.com> <CALWz4izAxDacXrHMbQh=q_WAcs6QeSuaRuma_dymuTvyk+VDSg@mail.gmail.com>
-In-Reply-To: <CALWz4izAxDacXrHMbQh=q_WAcs6QeSuaRuma_dymuTvyk+VDSg@mail.gmail.com>
-Content-Type: text/plain; charset="ISO-8859-1"; format=flowed
-Content-Transfer-Encoding: 7bit
+Message-ID: <f0b2f4a3-f6d4-41e9-943b-d083eec9e106@default>
+Date: Fri, 27 Apr 2012 13:27:10 -0700 (PDT)
+From: Dan Magenheimer <dan.magenheimer@oracle.com>
+Subject: swapcache size oddness
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ying Han <yinghan@google.com>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Linux Kernel <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "cgroups@vger.kernel.org" <cgroups@vger.kernel.org>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Frederic Weisbecker <fweisbec@gmail.com>, Tejun Heo <tj@kernel.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, kamezawa.hiroyuki@gmail.com
+To: linux-mm@kvack.org
 
+In continuing digging through the swap code (with the
+overall objective of improving zcache policy), I was
+looking at the size of the swapcache.
 
->>
->>> +/*
->>>     * A helper function to get mem_cgroup from ID. must be called under
->>>     * rcu_read_lock(). The caller must check css_is_removed() or some if
->>>     * it's concern. (dropping refcnt from swap can be called against removed
->>> @@ -2677,16 +2695,28 @@ static int mem_cgroup_move_parent(struct page *page,
->>>        nr_pages = hpage_nr_pages(page);
->>>
->>>        parent = mem_cgroup_from_cont(pcg);
->>> -     ret = __mem_cgroup_try_charge(NULL, gfp_mask, nr_pages,&parent, false);
->>> -     if (ret)
->>> -             goto put_back;
->>> +     if (!parent->use_hierarchy) {
->> Can we avoid testing for use hierarchy ?
->> Specially given this might go away.
->>
->> parent_mem_cgroup() already bundles this information. So maybe we can
->> test for parent_mem_cgroup(parent) == NULL. It is the same thing after all.
->>> +             ret = __mem_cgroup_try_charge(NULL,
->>> +                                     gfp_mask, nr_pages,&parent, false);
->>> +             if (ret)
->>> +                     goto put_back;
->>> +     }
->>
->> Why? If we are not hierarchical, we should not charge the parent, right?
->
-> This is how it is implemented today and I think he changed that to
-> move to root on the next patch.
+My understanding was that the swapcache is simply a
+buffer cache for pages that are actively in the process
+of being swapped in or swapped out.  And keeping pages
+around in the swapcache is inefficient because every
+process access to a page in the swapcache causes a
+minor page fault.
 
-Yeah, I was under the impression that that was the idea, but I might 
-have missed one of the patches
+So I was surprised to see that, under a memory intensive
+workload, the swapcache can grow quite large.  I have
+seen it grow to almost half of the size of RAM.
+
+Digging into this oddity, I re-discovered the definition
+for "vm_swap_full()" which, in scan_swap_map() is a
+pre-condition for calling __try_to_reclaim_swap().
+But vm_swap_full() compares how much free swap space
+there is "on disk", with the total swap space available
+"on disk" with no regard to how much RAM there is.
+So on my system, which is running with 1GB RAM and
+10GB swap, I think this is the reason that swapcache
+is growing so large.
+
+Am I misunderstanding something?  Or is this code
+making some (possibly false) assumptions about how
+swap is/should be sized relative to RAM?  Or maybe the
+size of swapcache is harmless as long as it doesn't
+approach total "on disk" size?
+
+(Sorry if this is a silly question again...)
+
+Thanks,
+Dan
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
