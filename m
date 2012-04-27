@@ -1,51 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx171.postini.com [74.125.245.171])
-	by kanga.kvack.org (Postfix) with SMTP id E04576B004A
-	for <linux-mm@kvack.org>; Thu, 26 Apr 2012 23:32:21 -0400 (EDT)
-Date: Thu, 26 Apr 2012 23:32:13 -0400 (EDT)
-Message-Id: <20120426.233213.2080676231209264997.davem@davemloft.net>
-Subject: Re: Weirdness in __alloc_bootmem_node_high
-From: David Miller <davem@davemloft.net>
-In-Reply-To: <20120424.030050.767238391336824492.davem@davemloft.net>
-References: <20120422.220054.1961736352806510855.davem@davemloft.net>
-	<20120424063236.GA23963@merkur.ravnborg.org>
-	<20120424.030050.767238391336824492.davem@davemloft.net>
-Mime-Version: 1.0
-Content-Type: Text/Plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx156.postini.com [74.125.245.156])
+	by kanga.kvack.org (Postfix) with SMTP id D365C6B004A
+	for <linux-mm@kvack.org>; Thu, 26 Apr 2012 23:41:50 -0400 (EDT)
+Received: from /spool/local
+	by e23smtp04.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <shangw@linux.vnet.ibm.com>;
+	Fri, 27 Apr 2012 03:23:09 +1000
+Received: from d23av02.au.ibm.com (d23av02.au.ibm.com [9.190.235.138])
+	by d23relay04.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q3R3Z2q91622174
+	for <linux-mm@kvack.org>; Fri, 27 Apr 2012 13:35:02 +1000
+Received: from d23av02.au.ibm.com (loopback [127.0.0.1])
+	by d23av02.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q3R3fkUf010695
+	for <linux-mm@kvack.org>; Fri, 27 Apr 2012 13:41:46 +1000
+From: Gavin Shan <shangw@linux.vnet.ibm.com>
+Subject: [PATCH 1/2] MM: fixup on addition to bootmem data list
+Date: Fri, 27 Apr 2012 11:41:43 +0800
+Message-Id: <1335498104-31900-1-git-send-email-shangw@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: sam@ravnborg.org
-Cc: yinghai@kernel.org, tj@kernel.org, mhocko@suse.cz, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: linux-mm@kvack.org
+Cc: shangw@linux.vnet.ibm.com
 
-From: David Miller <davem@davemloft.net>
-Date: Tue, 24 Apr 2012 03:00:50 -0400 (EDT)
+The objects of "struct bootmem_data_t" are being linked together
+to form double-linked list sequentially based on its minimal page
+frame number. Current implementation implicitly supports the
+following cases, which means the inserting point for current bootmem
+data depends on how "list_for_each" works. That makes the code a
+little hard to read. Besides, "list_for_each" and "list_entry" can
+be replaced with "list_for_each_entry".
 
-> From: Sam Ravnborg <sam@ravnborg.org>
-> Date: Tue, 24 Apr 2012 08:32:36 +0200
-> 
->> On Sun, Apr 22, 2012 at 10:00:54PM -0400, David Miller wrote:
->>> diff --git a/arch/sparc/Kconfig b/arch/sparc/Kconfig
->>> index db4e821..3763302 100644
->>> --- a/arch/sparc/Kconfig
->>> +++ b/arch/sparc/Kconfig
->>> @@ -109,6 +109,9 @@ config NEED_PER_CPU_EMBED_FIRST_CHUNK
->>>  config NEED_PER_CPU_PAGE_FIRST_CHUNK
->>>  	def_bool y if SPARC64
->>>  
->>> +config NO_BOOTMEM
->>> +	def_bool y if SPARC64
->> 
->> mm/Kconfig define NO_BOOTMEM so you can just add a "select NO_BOOTMEM"
->> to SPARC64.
-> 
-> I was merely following the lead on x86 :-) but yes it should
-> probably be a select.
+	- The linked list is empty.
+	- There has no entry in the linked list, whose minimal page
+	  frame number is bigger than current one.
 
-So I merged mainline into sparc-next to get the mm/nobootmem.c fix,
-and then added in the sparc64 NO_BOOTMEM conversion.
+Signed-off-by: Gavin Shan <shangw@linux.vnet.ibm.com>
+---
+ mm/bootmem.c |   16 ++++++++--------
+ 1 files changed, 8 insertions(+), 8 deletions(-)
 
-Just FYI.
+diff --git a/mm/bootmem.c b/mm/bootmem.c
+index 0131170..5a04536 100644
+--- a/mm/bootmem.c
++++ b/mm/bootmem.c
+@@ -77,16 +77,16 @@ unsigned long __init bootmem_bootmap_pages(unsigned long pages)
+  */
+ static void __init link_bootmem(bootmem_data_t *bdata)
+ {
+-	struct list_head *iter;
++	bootmem_data_t *ent;
+ 
+-	list_for_each(iter, &bdata_list) {
+-		bootmem_data_t *ent;
+-
+-		ent = list_entry(iter, bootmem_data_t, list);
+-		if (bdata->node_min_pfn < ent->node_min_pfn)
+-			break;
++	list_for_each_entry(ent, &bdata_list, list) {
++		if (bdata->node_min_pfn < ent->node_min_pfn) {
++			list_add_tail(&bdata->list, &ent->list);
++			return;
++		}
+ 	}
+-	list_add_tail(&bdata->list, iter);
++
++	list_add_tail(&bdata->list, &bdata_list);
+ }
+ 
+ /*
+-- 
+1.7.5.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
