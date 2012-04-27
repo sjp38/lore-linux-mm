@@ -1,43 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx187.postini.com [74.125.245.187])
-	by kanga.kvack.org (Postfix) with SMTP id BDBFC6B00ED
-	for <linux-mm@kvack.org>; Fri, 27 Apr 2012 14:13:34 -0400 (EDT)
-Received: by iajr24 with SMTP id r24so1950812iaj.14
-        for <linux-mm@kvack.org>; Fri, 27 Apr 2012 11:13:34 -0700 (PDT)
-Date: Fri, 27 Apr 2012 11:13:31 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH 17/23] kmem controller charge/uncharge infrastructure
-In-Reply-To: <20120427113841.GB3514@somewhere.redhat.com>
-Message-ID: <alpine.DEB.2.00.1204271110370.28516@chino.kir.corp.google.com>
-References: <1334959051-18203-1-git-send-email-glommer@parallels.com> <1335138820-26590-6-git-send-email-glommer@parallels.com> <alpine.DEB.2.00.1204231522320.13535@chino.kir.corp.google.com> <20120424142232.GC8626@somewhere>
- <alpine.DEB.2.00.1204241319360.753@chino.kir.corp.google.com> <20120427113841.GB3514@somewhere.redhat.com>
+Received: from psmtp.com (na3sys010amx153.postini.com [74.125.245.153])
+	by kanga.kvack.org (Postfix) with SMTP id A8D316B00F0
+	for <linux-mm@kvack.org>; Fri, 27 Apr 2012 14:16:47 -0400 (EDT)
+Received: by pbcup15 with SMTP id up15so1545260pbc.14
+        for <linux-mm@kvack.org>; Fri, 27 Apr 2012 11:16:47 -0700 (PDT)
+Date: Fri, 27 Apr 2012 11:16:42 -0700
+From: Tejun Heo <tj@kernel.org>
+Subject: Re: [RFC][PATCH 0/7 v2] memcg: prevent failure in pre_destroy()
+Message-ID: <20120427181642.GG26595@google.com>
+References: <4F9A327A.6050409@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <4F9A327A.6050409@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Frederic Weisbecker <fweisbec@gmail.com>
-Cc: Glauber Costa <glommer@parallels.com>, cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, devel@openvz.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Greg Thelen <gthelen@google.com>, Suleiman Souhlal <suleiman@google.com>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@cs.helsinki.fi>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Linux Kernel <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "cgroups@vger.kernel.org" <cgroups@vger.kernel.org>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Frederic Weisbecker <fweisbec@gmail.com>, Glauber Costa <glommer@parallels.com>, Han Ying <yinghan@google.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, kamezawa.hiroyuki@gmail.com
 
-On Fri, 27 Apr 2012, Frederic Weisbecker wrote:
+Hello,
 
-> > No, because memory is represented by mm_struct, not task_struct, so you 
-> > must charge to p->mm->owner to allow for moving threads amongst memcgs 
-> > later for memory.move_charge_at_immigrate.  You shouldn't be able to 
-> > charge two different memcgs for memory represented by a single mm.
+On Fri, Apr 27, 2012 at 02:45:30PM +0900, KAMEZAWA Hiroyuki wrote:
+> This is a v2 patch for preventing failure in memcg->pre_destroy().
+> With this patch, ->pre_destroy() will never return error code and
+> users will not see warning at rmdir(). And this work will simplify
+> memcg->pre_destroy(), largely.
 > 
-> The idea I had was more that only the memcg of the thread that does the allocation
-> is charged. But the problem is that this allocation can be later deallocated
-> from another thread. So probably charging the owner is indeed the only sane
-> way to go with user memory.
-> 
+> This patch is based on linux-next + hugetlb memory control patches.
 
-It's all really the same concept: if we want to move memory of a process, 
-willingly free memory in the process itself, or free memory of a process 
-by way of the oom killer, we need a way to do that for the entire process 
-so the accounting makes sense afterwards.  And since we have that 
-requirement for user memory, it makes sense that its consistent with slab 
-as well.  I don't think a thread of a process should be able to charge 
-slab to one memcg while its user memory is charged to another memcg.
+Ergh... can you please set up a git branch somewhere for review
+purposes?
+
+Thanks.
+
+-- 
+tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
