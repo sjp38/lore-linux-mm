@@ -1,93 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx161.postini.com [74.125.245.161])
-	by kanga.kvack.org (Postfix) with SMTP id 0C4F96B004A
-	for <linux-mm@kvack.org>; Fri, 27 Apr 2012 05:16:39 -0400 (EDT)
-Subject: Re: [RFC] vmalloc: add warning in __vmalloc
-From: Steven Whitehouse <swhiteho@redhat.com>
-In-Reply-To: <1335516144-3486-1-git-send-email-minchan@kernel.org>
-References: <1335516144-3486-1-git-send-email-minchan@kernel.org>
-Content-Type: text/plain; charset="UTF-8"
-Date: Fri, 27 Apr 2012 10:16:00 +0100
-Message-ID: <1335518161.2686.2.camel@menhir>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx136.postini.com [74.125.245.136])
+	by kanga.kvack.org (Postfix) with SMTP id 51F696B004A
+	for <linux-mm@kvack.org>; Fri, 27 Apr 2012 05:45:53 -0400 (EDT)
+Date: Fri, 27 Apr 2012 10:45:48 +0100
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [PATCH v3] mm: compaction: handle incorrect Unmovable type
+ pageblocks
+Message-ID: <20120427094548.GH15299@suse.de>
+References: <201204261015.54449.b.zolnierkie@samsung.com>
+ <20120426143620.GF15299@suse.de>
+ <4F996F8B.1020207@redhat.com>
+ <20120426164713.GG15299@suse.de>
+ <4F999988.802@redhat.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <4F999988.802@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, npiggin@gmail.com, kamezawa.hiroyu@jp.fujitsu.com, kosaki.motohiro@gmail.com, rientjes@google.com, Neil Brown <neilb@suse.de>, Artem Bityutskiy <dedekind1@gmail.com>, David Woodhouse <dwmw2@infradead.org>, Theodore Ts'o <tytso@mit.edu>, Adrian Hunter <adrian.hunter@intel.com>, "David S.
- Miller" <davem@davemloft.net>, James Morris <jmorris@namei.org>, Alexander Viro <viro@zeniv.linux.org.uk>, Sage Weil <sage@newdream.net>
+To: Rik van Riel <riel@redhat.com>
+Cc: Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, linux-mm@kvack.org, Minchan Kim <minchan@kernel.org>, Marek Szyprowski <m.szyprowski@samsung.com>, Kyungmin Park <kyungmin.park@samsung.com>
 
-Hi,
+On Thu, Apr 26, 2012 at 02:52:56PM -0400, Rik van Riel wrote:
+> >Instead of COMPACT_ASYNC_PARTIAL and COMPACT_ASYNC_FULL should we have
+> >COMPACT_ASYNC_MOVABLE and COMPACT_ASYNC_UNMOVABLE? The first pass from
+> >the page allocator (COMPACT_ASYNC_MOVABLE) would only consider MOVABLE
+> >blocks as migration targets. The second pass (COMPACT_ASYNC_UNMOVABLE)
+> >would examine UNMOVABLE blocks, rescue them and use what blocks it
+> >rescues as migration targets. The third pass (COMPACT_SYNC) would work
+> >as it does currently. kswapd would only ever use COMPACT_ASYNC_MOVABLE.
+> >
+> >That would avoid rescanning the movable blocks uselessly on the second
+> >pass but should still work for Bartlomiej's workload.
+> >
+> >What do you think?
+> 
+> This makes sense.
+> 
+> >>In other words, could it be better to always try to
+> >>rescue the unmovable blocks?
+> >
+> >I do not think we should always scan within unmovable blocks on the
+> >first pass. I strongly suspect it would lead to excessive amounts of CPU
+> >time spent in mm/compaction.c.
+> 
+> Maybe my systems are not typical.  I have not seen
+> more than about 10% of the memory blocks marked as
+> unmovable in my system.
 
-On Fri, 2012-04-27 at 17:42 +0900, Minchan Kim wrote:
-> Now there are several places to use __vmalloc with GFP_ATOMIC,
-> GFP_NOIO, GFP_NOFS but unfortunately __vmalloc calls map_vm_area
-> which calls alloc_pages with GFP_KERNEL to allocate page tables.
-> It means it's possible to happen deadlock.
-> I don't know why it doesn't have reported until now.
-> 
-> Firstly, I tried passing gfp_t to lower functions to support __vmalloc
-> with such flags but other mm guys don't want and decided that
-> all of caller should be fixed.
-> 
-> http://marc.info/?l=linux-kernel&m=133517143616544&w=2
-> 
-> To begin with, let's listen other's opinion whether they can fix it
-> by other approach without calling __vmalloc with such flags.
-> 
-> So this patch adds warning to detect and to be fixed hopely.
-> I Cced related maintainers.
-> If I miss someone, please Cced them.
-> 
-That seems ok to me. GFS2 only uses it as a back up in case the kmalloc
-call fails, and I suspect that we could easily eliminate it entirely
-since I doubt that it does actually ever fail in reality. If it were to
-fail then that is handled correctly anyway,
+I see even less than 10% on my systems but I do not consider them to be
+typical and there will be systems where there are more unmovable pageblocks
+for whatever reason (lots of page table pages, anon_vmas and vmas for
+example). Hence I'd rather not assume that the number is typically low.
 
-Steve.
-
-> side-note:
->   I added WARN_ON instead of WARN_ONCE to detect all of callers
->   and each WARN_ON for each flag to detect to use any flag easily.
->   After we fix all of caller or reduce such caller, we can merge
->   a warning with WARN_ONCE.
-> 
-> Cc: Neil Brown <neilb@suse.de>
-> Cc: Artem Bityutskiy <dedekind1@gmail.com>
-> Cc: David Woodhouse <dwmw2@infradead.org>
-> Cc: "Theodore Ts'o" <tytso@mit.edu>
-> Cc: Adrian Hunter <adrian.hunter@intel.com>
-> Cc: Steven Whitehouse <swhiteho@redhat.com>
-> Cc: "David S. Miller" <davem@davemloft.net>
-> Cc: James Morris <jmorris@namei.org>
-> Cc: Alexander Viro <viro@zeniv.linux.org.uk>
-> Cc: Sage Weil <sage@newdream.net>
-> Signed-off-by: Minchan Kim <minchan@kernel.org>
-> ---
->  mm/vmalloc.c |    9 +++++++++
->  1 file changed, 9 insertions(+)
-> 
-> diff --git a/mm/vmalloc.c b/mm/vmalloc.c
-> index 94dff88..36beccb 100644
-> --- a/mm/vmalloc.c
-> +++ b/mm/vmalloc.c
-> @@ -1700,6 +1700,15 @@ static void *__vmalloc_node(unsigned long size, unsigned long align,
->  			    gfp_t gfp_mask, pgprot_t prot,
->  			    int node, void *caller)
->  {
-> +	/*
-> +	 * This function calls map_vm_area so that it allocates
-> +	 * page table with GFP_KERNEL so caller should avoid using
-> +	 * GFP_NOIO, GFP_NOFS and !__GFP_WAIT.
-> +	 */
-> +	WARN_ON(!(gfp_mask & __GFP_WAIT));
-> +	WARN_ON(!(gfp_mask & __GFP_IO));
-> +	WARN_ON(!(gfp_mask & __GFP_FS));
-> +
->  	return __vmalloc_node_range(size, align, VMALLOC_START, VMALLOC_END,
->  				gfp_mask, prot, node, caller);
->  }
-
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
