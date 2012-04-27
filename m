@@ -1,76 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx161.postini.com [74.125.245.161])
-	by kanga.kvack.org (Postfix) with SMTP id 238466B00EB
-	for <linux-mm@kvack.org>; Fri, 27 Apr 2012 13:42:30 -0400 (EDT)
-Received: by laah2 with SMTP id h2so51228laa.2
-        for <linux-mm@kvack.org>; Fri, 27 Apr 2012 10:42:28 -0700 (PDT)
-From: Ying Han <yinghan@google.com>
-Subject: [PATCH 1/2] mm: Warn once when a page is freed with PG_mlocked
-Date: Fri, 27 Apr 2012 10:42:26 -0700
-Message-Id: <1335548546-25040-1-git-send-email-yinghan@google.com>
+Received: from psmtp.com (na3sys010amx187.postini.com [74.125.245.187])
+	by kanga.kvack.org (Postfix) with SMTP id BDBFC6B00ED
+	for <linux-mm@kvack.org>; Fri, 27 Apr 2012 14:13:34 -0400 (EDT)
+Received: by iajr24 with SMTP id r24so1950812iaj.14
+        for <linux-mm@kvack.org>; Fri, 27 Apr 2012 11:13:34 -0700 (PDT)
+Date: Fri, 27 Apr 2012 11:13:31 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH 17/23] kmem controller charge/uncharge infrastructure
+In-Reply-To: <20120427113841.GB3514@somewhere.redhat.com>
+Message-ID: <alpine.DEB.2.00.1204271110370.28516@chino.kir.corp.google.com>
+References: <1334959051-18203-1-git-send-email-glommer@parallels.com> <1335138820-26590-6-git-send-email-glommer@parallels.com> <alpine.DEB.2.00.1204231522320.13535@chino.kir.corp.google.com> <20120424142232.GC8626@somewhere>
+ <alpine.DEB.2.00.1204241319360.753@chino.kir.corp.google.com> <20120427113841.GB3514@somewhere.redhat.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mel@csn.ul.ie>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, Hugh Dickins <hughd@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Nick Piggin <npiggin@suse.de>, Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, Mel Gorman <mgorman@suse.de>
+To: Frederic Weisbecker <fweisbec@gmail.com>
+Cc: Glauber Costa <glommer@parallels.com>, cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, devel@openvz.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Greg Thelen <gthelen@google.com>, Suleiman Souhlal <suleiman@google.com>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@cs.helsinki.fi>
 
-I am resending this patch orginally from Mel, and the reason we spotted this
-is due to the next patch where I am adding the mlock stat into per-memcg
-meminfo. We found out that it is impossible to update the counter if the page
-is in the freeing patch w/ mlocked bit set.
+On Fri, 27 Apr 2012, Frederic Weisbecker wrote:
 
-Then we started wondering if it is possible at all. It shouldn't happen that
-freeing a mlocked page without going through munlock_vma_pages_all(). Looks
-like it did happen few years ago, and here is the patch introduced it
+> > No, because memory is represented by mm_struct, not task_struct, so you 
+> > must charge to p->mm->owner to allow for moving threads amongst memcgs 
+> > later for memory.move_charge_at_immigrate.  You shouldn't be able to 
+> > charge two different memcgs for memory represented by a single mm.
+> 
+> The idea I had was more that only the memcg of the thread that does the allocation
+> is charged. But the problem is that this allocation can be later deallocated
+> from another thread. So probably charging the owner is indeed the only sane
+> way to go with user memory.
+> 
 
-commit 985737cf2ea096ea946aed82c7484d40defc71a8
-Author: Lee Schermerhorn <lee.schermerhorn@hp.com>
-Date:   Sat Oct 18 20:26:53 2008 -0700
-
-    mlock: count attempts to free mlocked page
-
-There are two ways to persue and I would like to ask people's opinion:
-
-1. revert the patch totally and the page will get into bad_page(). Then we
-get the report as well.
-
-2. fix up the page like the patch does but put on warn_once() to report the
-problem.
-
-People might feel more confident by doing step by step which adding the
-warn_on() first and then revert it later. So I resend the patch from Mel and
-here is the patch:
-
-When a page is freed with the PG_mlocked set, it is considered an unexpected
-but recoverable situation. A counter records how often this event happens
-but it is easy to miss that this event has occured at all. This patch warns
-once when PG_mlocked is set to prompt debuggers to check the counter to
-see how often it is happening.
-
-Signed-off-by: Ying Han <yinghan@google.com>
-Signed-off-by: Mel Gorman <mgorman@suse.de>
-Acked-by: Johannes Weiner <hannes@cmpxchg.org>
----
- mm/page_alloc.c |    5 +++++
- 1 files changed, 5 insertions(+), 0 deletions(-)
-
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index a712fb9..4f905af 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -599,6 +599,11 @@ out:
-  */
- static inline void free_page_mlock(struct page *page)
- {
-+	WARN_ONCE(1, KERN_WARNING
-+		"Page flag mlocked set for process %s at pfn:%05lx\n"
-+		"page:%p flags:%#lx\n",
-+		current->comm, page_to_pfn(page),
-+		page, page->flags|__PG_MLOCKED);
- 	__dec_zone_page_state(page, NR_MLOCK);
- 	__count_vm_event(UNEVICTABLE_MLOCKFREED);
- }
--- 
-1.7.7.3
+It's all really the same concept: if we want to move memory of a process, 
+willingly free memory in the process itself, or free memory of a process 
+by way of the oom killer, we need a way to do that for the entire process 
+so the accounting makes sense afterwards.  And since we have that 
+requirement for user memory, it makes sense that its consistent with slab 
+as well.  I don't think a thread of a process should be able to charge 
+slab to one memcg while its user memory is charged to another memcg.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
