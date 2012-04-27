@@ -1,64 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx180.postini.com [74.125.245.180])
-	by kanga.kvack.org (Postfix) with SMTP id C3B1D6B00FB
-	for <linux-mm@kvack.org>; Fri, 27 Apr 2012 16:27:22 -0400 (EDT)
-Received: from acsinet21.oracle.com (acsinet21.oracle.com [141.146.126.237])
-	by acsinet15.oracle.com (Sentrion-MTA-4.2.2/Sentrion-MTA-4.2.2) with ESMTP id q3RKRKqb030643
-	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-SHA bits=256 verify=OK)
-	for <linux-mm@kvack.org>; Fri, 27 Apr 2012 20:27:20 GMT
-Received: from acsmt357.oracle.com (acsmt357.oracle.com [141.146.40.157])
-	by acsinet21.oracle.com (8.14.4+Sun/8.14.4) with ESMTP id q3RKRJe6011875
-	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-SHA bits=256 verify=NO)
-	for <linux-mm@kvack.org>; Fri, 27 Apr 2012 20:27:20 GMT
-Received: from abhmt103.oracle.com (abhmt103.oracle.com [141.146.116.55])
-	by acsmt357.oracle.com (8.12.11.20060308/8.12.11) with ESMTP id q3RKRJsm016303
-	for <linux-mm@kvack.org>; Fri, 27 Apr 2012 15:27:19 -0500
+Received: from psmtp.com (na3sys010amx136.postini.com [74.125.245.136])
+	by kanga.kvack.org (Postfix) with SMTP id 05A7A6B0105
+	for <linux-mm@kvack.org>; Fri, 27 Apr 2012 16:32:04 -0400 (EDT)
+Received: by dadq36 with SMTP id q36so1549469dad.8
+        for <linux-mm@kvack.org>; Fri, 27 Apr 2012 13:32:04 -0700 (PDT)
+Date: Fri, 27 Apr 2012 13:31:59 -0700
+From: Tejun Heo <tj@kernel.org>
+Subject: Re: [RFC][PATCH 7/9 v2] cgroup: avoid attaching task to a cgroup
+ under rmdir()
+Message-ID: <20120427203159.GL26595@google.com>
+References: <4F9A327A.6050409@jp.fujitsu.com>
+ <4F9A366E.9020307@jp.fujitsu.com>
 MIME-Version: 1.0
-Message-ID: <f0b2f4a3-f6d4-41e9-943b-d083eec9e106@default>
-Date: Fri, 27 Apr 2012 13:27:10 -0700 (PDT)
-From: Dan Magenheimer <dan.magenheimer@oracle.com>
-Subject: swapcache size oddness
 Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: quoted-printable
+Content-Disposition: inline
+In-Reply-To: <4F9A366E.9020307@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Linux Kernel <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "cgroups@vger.kernel.org" <cgroups@vger.kernel.org>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Frederic Weisbecker <fweisbec@gmail.com>, Glauber Costa <glommer@parallels.com>, Han Ying <yinghan@google.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, kamezawa.hiroyuki@gmail.com
 
-In continuing digging through the swap code (with the
-overall objective of improving zcache policy), I was
-looking at the size of the swapcache.
+On Fri, Apr 27, 2012 at 03:02:22PM +0900, KAMEZAWA Hiroyuki wrote:
+> attach_task() is done under cgroup_mutex() but ->pre_destroy() callback
+> in rmdir() isn't called under cgroup_mutex().
+> 
+> It's better to avoid attaching a task to a cgroup which
+> is under pre_destroy(). Considering memcg, the attached task may
+> increase resource usage after memcg's pre_destroy() confirms that
+> memcg is empty. This is not good.
+> 
+> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-My understanding was that the swapcache is simply a
-buffer cache for pages that are actively in the process
-of being swapped in or swapped out.  And keeping pages
-around in the swapcache is inefficient because every
-process access to a page in the swapcache causes a
-minor page fault.
+Hmm... once memcg's pre_destroy() can't fail, I think what we should
+do is marking a cgroup DEAD before calling pre_destroy() and the
+existing cgroup_is_removed() check should be enough.  Patches upto
+this point already make ->pre_destroy() not fail, right?
 
-So I was surprised to see that, under a memory intensive
-workload, the swapcache can grow quite large.  I have
-seen it grow to almost half of the size of RAM.
+Thanks.
 
-Digging into this oddity, I re-discovered the definition
-for "vm_swap_full()" which, in scan_swap_map() is a
-pre-condition for calling __try_to_reclaim_swap().
-But vm_swap_full() compares how much free swap space
-there is "on disk", with the total swap space available
-"on disk" with no regard to how much RAM there is.
-So on my system, which is running with 1GB RAM and
-10GB swap, I think this is the reason that swapcache
-is growing so large.
-
-Am I misunderstanding something?  Or is this code
-making some (possibly false) assumptions about how
-swap is/should be sized relative to RAM?  Or maybe the
-size of swapcache is harmless as long as it doesn't
-approach total "on disk" size?
-
-(Sorry if this is a silly question again...)
-
-Thanks,
-Dan
+-- 
+tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
