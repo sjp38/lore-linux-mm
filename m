@@ -1,128 +1,139 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx152.postini.com [74.125.245.152])
-	by kanga.kvack.org (Postfix) with SMTP id 62A226B007E
-	for <linux-mm@kvack.org>; Fri, 27 Apr 2012 02:08:26 -0400 (EDT)
-Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id E5AA73EE0C0
-	for <linux-mm@kvack.org>; Fri, 27 Apr 2012 15:08:24 +0900 (JST)
-Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id C02AE45DEBE
-	for <linux-mm@kvack.org>; Fri, 27 Apr 2012 15:08:24 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 954EC45DEBC
-	for <linux-mm@kvack.org>; Fri, 27 Apr 2012 15:08:24 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 854F41DB8043
-	for <linux-mm@kvack.org>; Fri, 27 Apr 2012 15:08:24 +0900 (JST)
-Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.240.81.147])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 32D061DB8041
-	for <linux-mm@kvack.org>; Fri, 27 Apr 2012 15:08:24 +0900 (JST)
-Message-ID: <4F9A375D.7@jp.fujitsu.com>
-Date: Fri, 27 Apr 2012 15:06:21 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Received: from psmtp.com (na3sys010amx123.postini.com [74.125.245.123])
+	by kanga.kvack.org (Postfix) with SMTP id CD00F6B004A
+	for <linux-mm@kvack.org>; Fri, 27 Apr 2012 03:34:21 -0400 (EDT)
+From: "Luca Porzio (lporzio)" <lporzio@micron.com>
+Subject: RE: swap on eMMC and other flash
+Date: Fri, 27 Apr 2012 07:34:09 +0000
+Message-ID: <26E7A31274623843B0E8CF86148BFE326FB66E94@NTXAVZMBX04.azit.micron.com>
+References: <201203301744.16762.arnd@arndb.de>
+	<201204100832.52093.arnd@arndb.de>	<20120411095418.GA2228@barrios>
+	<201204111557.14153.arnd@arndb.de>
+ <CAKL-ytsXbe4=u94PjqvhZo=ZLiChQ0FmZC84GNrFHa0N1mDjFw@mail.gmail.com>
+In-Reply-To: <CAKL-ytsXbe4=u94PjqvhZo=ZLiChQ0FmZC84GNrFHa0N1mDjFw@mail.gmail.com>
+Content-Language: en-US
+Content-Type: text/plain; charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-Subject: [RFC][PATCH 9/9 v2] memcg: never return error at pre_destroy()
-References: <4F9A327A.6050409@jp.fujitsu.com>
-In-Reply-To: <4F9A327A.6050409@jp.fujitsu.com>
-Content-Type: text/plain; charset=ISO-2022-JP
-Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linux Kernel <linux-kernel@vger.kernel.org>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "cgroups@vger.kernel.org" <cgroups@vger.kernel.org>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Frederic Weisbecker <fweisbec@gmail.com>, Glauber Costa <glommer@parallels.com>, Tejun Heo <tj@kernel.org>, Han Ying <yinghan@google.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, kamezawa.hiroyuki@gmail.com
+To: Stephan Uphoff <ups@google.com>, Arnd Bergmann <arnd@arndb.de>
+Cc: Minchan Kim <minchan@kernel.org>, "linaro-kernel@lists.linaro.org" <linaro-kernel@lists.linaro.org>, "android-kernel@googlegroups.com" <android-kernel@googlegroups.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Alex Lemberg <alex.lemberg@sandisk.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Saugata Das <saugata.das@linaro.org>, Venkatraman S <venkat@linaro.org>, Yejin Moon <yejin.moon@samsung.com>, Hyojin Jeong <syr.jeong@samsung.com>, "linux-mmc@vger.kernel.org" <linux-mmc@vger.kernel.org>
 
-When force_empty() called by ->pre_destroy(), no memory reclaim happens
-and it doesn't take very long time which requires signal_pending() check.
-And if we return -EINTR from pre_destroy(), cgroup.c show warning.
+Stephan,
 
-This patch removes signal check in force_empty(). By this, ->pre_destroy()
-returns success always.
+Good ideas. Some comments of mine below.
 
-Note: check for 'cgroup is empty' remains for force_empty interface.
+> -----Original Message-----
+> From: linux-mmc-owner@vger.kernel.org [mailto:linux-mmc-owner@vger.kernel=
+.org]
+> On Behalf Of Stephan Uphoff
+> Sent: Tuesday, April 17, 2012 3:22 AM
+> To: Arnd Bergmann
+> Cc: Minchan Kim; linaro-kernel@lists.linaro.org; android-
+> kernel@googlegroups.com; linux-mm@kvack.org; Luca Porzio (lporzio); Alex
+> Lemberg; linux-kernel@vger.kernel.org; Saugata Das; Venkatraman S; Yejin =
+Moon;
+> Hyojin Jeong; linux-mmc@vger.kernel.org
+> Subject: Re: swap on eMMC and other flash
+>=20
+> I really like where this is going and would like to use the
+> opportunity to plant a few ideas.
+>=20
+> In contrast to rotational disks read/write operation overhead and
+> costs are not symmetric.
+> While random reads are much faster on flash - the number of write
+> operations is limited by wearout and garbage collection overhead.
+> To further improve swapping on eMMC or similar flash media I believe
+> that the following issues need to be addressed:
+>=20
+> 1) Limit average write bandwidth to eMMC to a configurable level to
+> guarantee a minimum device lifetime
+> 2) Aim for a low write amplification factor to maximize useable write
+> bandwidth
+> 3) Strongly favor read over write operations
+>=20
+> Lowering write amplification (2) has been discussed in this email
+> thread - and the only observation I would like to add is that
+> over-provisioning the internal swap space compared to the exported
+> swap space significantly can guarantee a lower write amplification
+> factor with the indirection and GC techniques discussed.
+>=20
+> I believe the swap functionality is currently optimized for storage
+> media where read and write costs are nearly identical.
+> As this is not the case on flash I propose splitting the anonymous
+> inactive queue (at least conceptually) - keeping clean anonymous pages
+> with swap slots on a separate queue as the cost of swapping them
+> out/in is only an inexpensive read operation. A variable similar to
+> swapiness (or a more dynamic algorithmn) could determine the
+> preference for swapping out clean pages or dirty pages. ( A similar
+> argument could be made for splitting up the file inactive queue )
+>=20
 
-Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
----
- mm/hugetlb.c    |   10 +---------
- mm/memcontrol.c |   14 +++++---------
- 2 files changed, 6 insertions(+), 18 deletions(-)
+I totally agree. Read are inexpensive on flash based devices and as such a =
+good swap algorithm (as well as a flash oriented FS) should take this into =
+account.
 
-diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-index 4dd6b39..770f1642 100644
---- a/mm/hugetlb.c
-+++ b/mm/hugetlb.c
-@@ -1922,20 +1922,12 @@ int hugetlb_force_memcg_empty(struct cgroup *cgroup)
- 	int ret = 0, idx = 0;
- 
- 	do {
-+		/* see memcontrol.c::mem_cgroup_force_empty() */
- 		if (cgroup_task_count(cgroup)
- 			|| !list_empty(&cgroup->children)) {
- 			ret = -EBUSY;
- 			goto out;
- 		}
--		/*
--		 * If the task doing the cgroup_rmdir got a signal
--		 * we don't really need to loop till the hugetlb resource
--		 * usage become zero.
--		 */
--		if (signal_pending(current)) {
--			ret = -EINTR;
--			goto out;
--		}
- 		for_each_hstate(h) {
- 			spin_lock(&hugetlb_lock);
- 			list_for_each_entry(page, &h->hugepage_activelist, lru) {
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 2715223..ee350c5 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -3852,8 +3852,6 @@ static int mem_cgroup_force_empty_list(struct mem_cgroup *memcg,
- 		pc = lookup_page_cgroup(page);
- 
- 		ret = mem_cgroup_move_parent(page, pc, memcg, GFP_KERNEL);
--		if (ret == -ENOMEM || ret == -EINTR)
--			break;
- 
- 		if (ret == -EBUSY || ret == -EINVAL) {
- 			/* found lock contention or "pc" is obsolete. */
-@@ -3863,7 +3861,7 @@ static int mem_cgroup_force_empty_list(struct mem_cgroup *memcg,
- 			busy = NULL;
- 	}
- 
--	if (!ret && !list_empty(list))
-+	if (!loop)
- 		return -EBUSY;
- 	return ret;
- }
-@@ -3893,11 +3891,12 @@ static int mem_cgroup_force_empty(struct mem_cgroup *memcg, bool free_all)
- move_account:
- 	do {
- 		ret = -EBUSY;
-+		/*
-+		 * This never happens when this is called by ->pre_destroy().
-+		 * But we need to take care of force_empty interface.
-+		 */
- 		if (cgroup_task_count(cgrp) || !list_empty(&cgrp->children))
- 			goto out;
--		ret = -EINTR;
--		if (signal_pending(current))
--			goto out;
- 		/* This is for making all *used* pages to be on LRU. */
- 		lru_add_drain_all();
- 		drain_all_stock_sync(memcg);
-@@ -3918,9 +3917,6 @@ move_account:
- 		}
- 		mem_cgroup_end_move(memcg);
- 		memcg_oom_recover(memcg);
--		/* it seems parent cgroup doesn't have enough mem */
--		if (ret == -ENOMEM)
--			goto try_to_free;
- 		cond_resched();
- 	/* "ret" should also be checked to ensure all lists are empty. */
- 	} while (res_counter_read_u64(&memcg->res, RES_USAGE) > 0 || ret);
--- 
-1.7.4.1
+> The problem of limiting the average write bandwidth reminds me of
+> enforcing cpu utilization limits on interactive workloads.
+> Just as with cpu workloads - using the resources to the limit produces
+> poor interactivity.
 
+I don't quite get your definition of interactive workload and I am not sure=
+ here which is the technique for limiting resource utilization you have in =
+mind.
+CGroups, for example, have proven not to be much reliable through time.=20
+Also in my experience it has always been very difficult to correlate resour=
+ces utilization stats with user interactivity.
+The only technique which has been proven reliable through time is to do som=
+ething while the system is idle, which is what, to my understanding, is alr=
+eady done.
+
+> When interactivity suffers too much I believe the only sane response
+> for an interactive device is to limit usage of the swap device and
+> transition into a low memory situation - and if needed - either
+> allowing userspace to reduce memory usage or invoking the OOM killer.
+> As a result low memory situations could not only be encountered on new
+> memory allocations but also on workload changes that increase the
+> number of dirty pages.
+>=20
+
+I agree with your comments about the OOM killer (what is the point of swapp=
+ing out a page if that process is going to be killed soon? That is only inc=
+reasing the WAF factor on MMCs). In fact one proposal here could be to some=
+what mix OOM index with page age.
+I would suggest to first optimize swap traffic for an MMC device and then s=
+tart thinking about this.
+
+> A wild idea to avoid some writes altogether is to see if
+> de-duplication techniques can be used to (partially?) match pages
+> previously written so swap.
+
+If you have such a situation, I think this is where KSM may help. It is my =
+personal belief that with a bit of work, the KSM algorithm can be extended =
+to swapped out pages too with little effort (at the expense of few increase=
+ of read traffic, which is ok for flash based storage devices).=20
+
+> In case of unencrypted swap  (or encrypted swap with a static key)
+> swap pages on eMMC could even be re-used across multiple reboots.
+> A simple version would just compare dirty pages with data in their
+> swap slots as I suspect (but really don't know) that some user space
+> algorithms (garbage collection?) dirty a page just temporarily -
+> eventually reverting it to the previous content.
+>=20
+
+This goes in contrast with discarding or trimming a page and as such the ad=
+vantages of this technique needs to be proven vs the performance gain of us=
+ing the discard command.
+
+> Stephan
+> --
+> To unsubscribe from this list: send the line "unsubscribe linux-mmc" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+
+Cheers,
+    Luca
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
