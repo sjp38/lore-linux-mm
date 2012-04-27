@@ -1,81 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx123.postini.com [74.125.245.123])
-	by kanga.kvack.org (Postfix) with SMTP id 743856B004D
-	for <linux-mm@kvack.org>; Fri, 27 Apr 2012 19:27:55 -0400 (EDT)
-Date: Sat, 28 Apr 2012 01:27:50 +0200
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH 2/2] MM: check limit while deallocating bootmem node
-Message-ID: <20120427232750.GA2415@cmpxchg.org>
-References: <1335498104-31900-1-git-send-email-shangw@linux.vnet.ibm.com>
- <1335498104-31900-2-git-send-email-shangw@linux.vnet.ibm.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1335498104-31900-2-git-send-email-shangw@linux.vnet.ibm.com>
+Received: from psmtp.com (na3sys010amx108.postini.com [74.125.245.108])
+	by kanga.kvack.org (Postfix) with SMTP id CE91B6B0044
+	for <linux-mm@kvack.org>; Fri, 27 Apr 2012 19:40:46 -0400 (EDT)
+Date: Fri, 27 Apr 2012 16:40:44 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH 1/2] proc: report file/anon bit in /proc/pid/pagemap
+Message-Id: <20120427164044.c883d390.akpm@linux-foundation.org>
+In-Reply-To: <4F9AA11E.3040800@parallels.com>
+References: <4F91BC8A.9020503@parallels.com>
+	<20120427123901.2132.47969.stgit@zurg>
+	<4F9AA11E.3040800@parallels.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Gavin Shan <shangw@linux.vnet.ibm.com>
-Cc: linux-mm@kvack.org
+To: Pavel Emelyanov <xemul@parallels.com>
+Cc: Konstantin Khlebnikov <khlebnikov@openvz.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, Matt Mackall <mpm@selenic.com>
 
-On Fri, Apr 27, 2012 at 11:41:44AM +0800, Gavin Shan wrote:
-> For the particular bootmem node, the minimal and maximal PFN (
-> Page Frame Number) have been traced in the instance of "struct
-> bootmem_data_t". On current implementation, the maximal PFN isn't
-> checked while deallocating a bunch (BITS_PER_LONG) of page frames.
-> So the current implementation won't work if the maximal PFN isn't
-> aligned with BITS_PER_LONG.
->
-> The patch will check the maximal PFN of the given bootmem node.
-> Also, we needn't check all the bits map when the starting PFN isn't
-> BITS_PER_LONG aligned. Actually, we should start from the offset
-> of the bits map, which indicated by the starting PFN.
+On Fri, 27 Apr 2012 17:37:34 +0400
+Pavel Emelyanov <xemul@parallels.com> wrote:
+
+> > Signed-off-by: Konstantin Khlebnikov <khlebnikov@openvz.org>
+> > Cc: Pavel Emelyanov <xemul@parallels.com>
+> > Cc: Andrew Morton <akpm@linux-foundation.org>
+> > Cc: Hugh Dickins <hughd@google.com>
+> > Cc: Rik van Riel <riel@redhat.com>
 > 
-> Signed-off-by: Gavin Shan <shangw@linux.vnet.ibm.com>
-> ---
->  mm/bootmem.c |   11 ++++++++---
->  1 files changed, 8 insertions(+), 3 deletions(-)
-> 
-> diff --git a/mm/bootmem.c b/mm/bootmem.c
-> index 5a04536..ebac3ba 100644
-> --- a/mm/bootmem.c
-> +++ b/mm/bootmem.c
-> @@ -194,16 +194,20 @@ static unsigned long __init free_all_bootmem_core(bootmem_data_t *bdata)
->  		 * BITS_PER_LONG block of pages in front of us, free
->  		 * it in one go.
->  		 */
-> -		if (IS_ALIGNED(start, BITS_PER_LONG) && vec == ~0UL) {
-> +		if (end - start >= BITS_PER_LONG &&
-> +		    IS_ALIGNED(start, BITS_PER_LONG) &&
-> +		    vec == ~0UL) {
+> Acked-by: Pavel Emelyanov <xemul@parallels.com>
 
-Did you have any actual problems with the code or was this just by
-review?
+hm, I'd have thought this should be From:Pavel and certainly
+Signed-off-by:Pavel, but I'll let you guys decide.
 
-vec has bits set for unreserved pages and the bitmap is aligned and
-reserved per default.  So if the chunk is smaller than (end - start),
-then vec is already != ~0UL.  The check you add should be redundant.
+Rik acked the earlier version and that isn't reflected here.  I never
+know what to do about this.  I usually play it safe and assume that a
+change in the patch erases the ack.
 
->  			int order = ilog2(BITS_PER_LONG);
->  
->  			__free_pages_bootmem(pfn_to_page(start), order);
->  			count += BITS_PER_LONG;
->  			start += BITS_PER_LONG;
->  		} else {
-> -			unsigned long off = 0;
-> +			unsigned long cursor = start;
-> +			unsigned long off = cursor & (BITS_PER_LONG - 1);
->  
-> -			while (vec && off < BITS_PER_LONG) {
-> +			vec >>= off;
-> +			while (vec && off < BITS_PER_LONG && cursor < end) {
+Please cc the original pagemap author (Matt Mackall <mpm@selenic.com>)
+on these patches.  He's sometimes useful ;)
 
-Optimization looks ok, although I doubt it makes a notable difference,
-this case should be pretty rare.
-
-Also, if you reach end, vec has no more bits set, so the cursor < end
-check should again be redundant.  I think we can also remove the
-off < BITS_PER_LONG, there can hardly be more than BITS_PER_LONG
-set bits in vec.
+The patches looked nice to me, but as it appears that Pavel is unhappy
+with [2/2] I shall tip this patchset into my bitbucket and shall await
+the next rev, thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
