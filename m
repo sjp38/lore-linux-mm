@@ -1,78 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx200.postini.com [74.125.245.200])
-	by kanga.kvack.org (Postfix) with SMTP id 398BA6B004A
-	for <linux-mm@kvack.org>; Fri, 27 Apr 2012 06:37:01 -0400 (EDT)
-Received: by yenm8 with SMTP id m8so349300yen.14
-        for <linux-mm@kvack.org>; Fri, 27 Apr 2012 03:37:00 -0700 (PDT)
-Date: Fri, 27 Apr 2012 03:36:57 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [RFC] vmalloc: add warning in __vmalloc
-In-Reply-To: <1335516144-3486-1-git-send-email-minchan@kernel.org>
-Message-ID: <alpine.DEB.2.00.1204270323000.11866@chino.kir.corp.google.com>
-References: <1335516144-3486-1-git-send-email-minchan@kernel.org>
+Received: from psmtp.com (na3sys010amx169.postini.com [74.125.245.169])
+	by kanga.kvack.org (Postfix) with SMTP id C8F696B004A
+	for <linux-mm@kvack.org>; Fri, 27 Apr 2012 06:39:37 -0400 (EDT)
+Received: by qabg27 with SMTP id g27so281788qab.14
+        for <linux-mm@kvack.org>; Fri, 27 Apr 2012 03:39:36 -0700 (PDT)
+Date: Fri, 27 Apr 2012 12:39:29 +0200
+From: Frederic Weisbecker <fweisbec@gmail.com>
+Subject: Re: [RFC][PATCH 7/9 v2] cgroup: avoid attaching task to a cgroup
+ under rmdir()
+Message-ID: <20120427103927.GA3514@somewhere.redhat.com>
+References: <4F9A327A.6050409@jp.fujitsu.com>
+ <4F9A366E.9020307@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <4F9A366E.9020307@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, npiggin@gmail.com, kamezawa.hiroyu@jp.fujitsu.com, kosaki.motohiro@gmail.com, Neil Brown <neilb@suse.de>, Artem Bityutskiy <dedekind1@gmail.com>, David Woodhouse <dwmw2@infradead.org>, Theodore Ts'o <tytso@mit.edu>, Adrian Hunter <adrian.hunter@intel.com>, Steven Whitehouse <swhiteho@redhat.com>, "David S. Miller" <davem@davemloft.net>, James Morris <jmorris@namei.org>, Alexander Viro <viro@zeniv.linux.org.uk>, Sage Weil <sage@newdream.net>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Linux Kernel <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "cgroups@vger.kernel.org" <cgroups@vger.kernel.org>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Glauber Costa <glommer@parallels.com>, Tejun Heo <tj@kernel.org>, Han Ying <yinghan@google.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, kamezawa.hiroyuki@gmail.com
 
-On Fri, 27 Apr 2012, Minchan Kim wrote:
-
-> Now there are several places to use __vmalloc with GFP_ATOMIC,
-> GFP_NOIO, GFP_NOFS but unfortunately __vmalloc calls map_vm_area
-> which calls alloc_pages with GFP_KERNEL to allocate page tables.
-> It means it's possible to happen deadlock.
-> I don't know why it doesn't have reported until now.
+On Fri, Apr 27, 2012 at 03:02:22PM +0900, KAMEZAWA Hiroyuki wrote:
+> attach_task() is done under cgroup_mutex() but ->pre_destroy() callback
+> in rmdir() isn't called under cgroup_mutex().
 > 
-> Firstly, I tried passing gfp_t to lower functions to support __vmalloc
-> with such flags but other mm guys don't want and decided that
-> all of caller should be fixed.
+> It's better to avoid attaching a task to a cgroup which
+> is under pre_destroy(). Considering memcg, the attached task may
+> increase resource usage after memcg's pre_destroy() confirms that
+> memcg is empty. This is not good.
 > 
-> http://marc.info/?l=linux-kernel&m=133517143616544&w=2
+> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> ---
+>  kernel/cgroup.c |    5 ++++-
+>  1 files changed, 4 insertions(+), 1 deletions(-)
 > 
-> To begin with, let's listen other's opinion whether they can fix it
-> by other approach without calling __vmalloc with such flags.
+> diff --git a/kernel/cgroup.c b/kernel/cgroup.c
+> index ad8eae5..7a3076b 100644
+> --- a/kernel/cgroup.c
+> +++ b/kernel/cgroup.c
+> @@ -1953,6 +1953,9 @@ int cgroup_attach_task(struct cgroup *cgrp, struct task_struct *tsk)
+>  	if (cgrp == oldcgrp)
+>  		return 0;
+>  
+> +	if (test_bit(CGRP_WAIT_ON_RMDIR, &cgrp->flags))
+> +		return -EBUSY;
+> +
+
+You probably need to update cgroup_attach_proc() as well?
+
+>  	tset.single.task = tsk;
+>  	tset.single.cgrp = oldcgrp;
+>  
+> @@ -4181,7 +4184,6 @@ again:
+>  		mutex_unlock(&cgroup_mutex);
+>  		return -EBUSY;
+>  	}
+> -	mutex_unlock(&cgroup_mutex);
+>  
+>  	/*
+>  	 * In general, subsystem has no css->refcnt after pre_destroy(). But
+> @@ -4193,6 +4195,7 @@ again:
+>  	 * and css_tryget() and cgroup_wakeup_rmdir_waiter() implementation.
+>  	 */
+>  	set_bit(CGRP_WAIT_ON_RMDIR, &cgrp->flags);
+> +	mutex_unlock(&cgroup_mutex);
+>  
+>  	/*
+>  	 * Call pre_destroy handlers of subsys. Notify subsystems
+> -- 
+> 1.7.4.1
 > 
-> So this patch adds warning to detect and to be fixed hopely.
-> I Cced related maintainers.
-> If I miss someone, please Cced them.
 > 
-> side-note:
->   I added WARN_ON instead of WARN_ONCE to detect all of callers
->   and each WARN_ON for each flag to detect to use any flag easily.
->   After we fix all of caller or reduce such caller, we can merge
->   a warning with WARN_ONCE.
-> 
-
-I disagree with this approach since it's going to violently spam an 
-innocent kernel user's log with no ratelimiting and for a situation that 
-actually may not be problematic.
-
-Passing any of these bits (the difference between GFP_KERNEL and 
-GFP_ATOMIC) only means anything when we're going to do reclaim.  And I'm 
-suspecting we would have seen problems with this already since 
-pte_alloc_kernel() does __GFP_REPEAT on most architectures meaning that it 
-will loop infinitely in the page allocator until at least one page is 
-freed (since its an order-0 allocation) which would hardly ever happen if 
-__GFP_FS or __GFP_IO actually meant something in this context.
-
-In other words, we would already have seen these deadlocks and it would 
-have been diagnosed as a vmalloc(GFP_ATOMIC) problem.  Where are those bug 
-reports?
-
-At best, you'd need _some_ sort of ratelimiting like a static variable and 
-only allowing 100 WARN_ON()s which could output dozens of lines for each 
-call to vmalloc().
-
-But the page allocator already has a might_sleep_if(gfp_mask & GFP_WAIT) 
-which will dump the stack for CONFIG_DEBUG_ATOMIC_SLEEP.  So for this 
-effect, just enable that config option and check your kernel log.
-
-So I'm afraid this is complete overkill for something that we can't prove 
-is a problem in the first place and will potentially fill the kernel logs 
-for warnings where the allocation succeeds immediately.  If you want the 
-bug reports, ask people to enable CONFIG_DEBUG_ATOMIC_SLEEP.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
