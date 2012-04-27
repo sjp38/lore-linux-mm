@@ -1,136 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx167.postini.com [74.125.245.167])
-	by kanga.kvack.org (Postfix) with SMTP id 5D09A6B004D
-	for <linux-mm@kvack.org>; Thu, 26 Apr 2012 19:59:15 -0400 (EDT)
-Date: Thu, 26 Apr 2012 16:59:11 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 1/9] cpu: Introduce clear_tasks_mm_cpumask() helper
-Message-Id: <20120426165911.00cebd31.akpm@linux-foundation.org>
-In-Reply-To: <20120423070736.GA30752@lizard>
-References: <20120423070641.GA27702@lizard>
-	<20120423070736.GA30752@lizard>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx169.postini.com [74.125.245.169])
+	by kanga.kvack.org (Postfix) with SMTP id 8A45D6B004A
+	for <linux-mm@kvack.org>; Thu, 26 Apr 2012 20:15:40 -0400 (EDT)
+Date: Fri, 27 Apr 2012 02:15:33 +0200
+From: Johannes Weiner <jweiner@redhat.com>
+Subject: Re: [patch v2] thp, memcg: split hugepage for memcg oom on cow
+Message-ID: <20120427001533.GD1791@redhat.com>
+References: <alpine.DEB.2.00.1204031854530.30629@chino.kir.corp.google.com>
+ <4F838385.9070309@jp.fujitsu.com>
+ <alpine.DEB.2.00.1204092241180.27689@chino.kir.corp.google.com>
+ <alpine.DEB.2.00.1204092242050.27689@chino.kir.corp.google.com>
+ <20120411142023.GB1789@redhat.com>
+ <alpine.DEB.2.00.1204231612060.17030@chino.kir.corp.google.com>
+ <20120426090642.GC1791@redhat.com>
+ <alpine.DEB.2.00.1204261402020.28376@chino.kir.corp.google.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.00.1204261402020.28376@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Anton Vorontsov <anton.vorontsov@linaro.org>
-Cc: Oleg Nesterov <oleg@redhat.com>, Russell King <linux@arm.linux.org.uk>, Mike Frysinger <vapier@gentoo.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Richard Weinberger <richard@nod.at>, Paul Mundt <lethal@linux-sh.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, John Stultz <john.stultz@linaro.org>, linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org, uclinux-dist-devel@blackfin.uclinux.org, linuxppc-dev@lists.ozlabs.org, linux-sh@vger.kernel.org, user-mode-linux-devel@lists.sourceforge.net, linaro-kernel@lists.linaro.org, patches@linaro.org, linux-mm@kvack.org
+To: David Rientjes <rientjes@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrea Arcangeli <aarcange@redhat.com>, linux-mm@kvack.org
 
-On Mon, 23 Apr 2012 00:07:36 -0700
-Anton Vorontsov <anton.vorontsov@linaro.org> wrote:
-
-> Many architectures clear tasks' mm_cpumask like this:
+On Thu, Apr 26, 2012 at 02:05:11PM -0700, David Rientjes wrote:
+> On Thu, 26 Apr 2012, Johannes Weiner wrote:
 > 
-> 	read_lock(&tasklist_lock);
-> 	for_each_process(p) {
-> 		if (p->mm)
-> 			cpumask_clear_cpu(cpu, mm_cpumask(p->mm));
-> 	}
-> 	read_unlock(&tasklist_lock);
+> > > I agree it's more robust if do_huge_pmd_wp_page() were modified later and 
+> > > mistakenly returned VM_FAULT_OOM without the page being split, but 
+> > > __split_huge_page_pmd() has the drawback of also requiring to retake 
+> > > mm->page_table_lock to test whether orig_pmd is still legitimate so it 
+> > > will be slower.  Do you feel strongly about the way it's currently written 
+> > > which will be faster at runtime?
+> > 
+> > If you can't accomodate for a hugepage, this code runs 511 times in
+> > the worst case before you also can't fit a regular page anymore.  And
+> > compare it to the cost of the splitting itself and the subsequent 4k
+> > COW break faults...
+> > 
+> > I don't think it's a path worth optimizing for at all, especially if
+> > it includes sprinkling undocumented split_huge_pages around, and the
+> > fix could be as self-contained as something like this...
+> > 
 > 
-> Depending on the context, the code above may have several problems,
-> such as:
-> 
-> 1. Working with task->mm w/o getting mm or grabing the task lock is
->    dangerous as ->mm might disappear (exit_mm() assigns NULL under
->    task_lock(), so tasklist lock is not enough).
-> 
-> 2. Checking for process->mm is not enough because process' main
->    thread may exit or detach its mm via use_mm(), but other threads
->    may still have a valid mm.
-> 
-> This patch implements a small helper function that does things
-> correctly, i.e.:
-> 
-> 1. We take the task's lock while whe handle its mm (we can't use
->    get_task_mm()/mmput() pair as mmput() might sleep);
-> 
-> 2. To catch exited main thread case, we use find_lock_task_mm(),
->    which walks up all threads and returns an appropriate task
->    (with task lock held).
-> 
-> Also, Per Peter Zijlstra's idea, now we don't grab tasklist_lock in
-> the new helper, instead we take the rcu read lock. We can do this
-> because the function is called after the cpu is taken down and marked
-> offline, so no new tasks will get this cpu set in their mm mask.
-> 
+> I disagree that we should be unnecessarily taking mm->page_table_lock 
+> which is already strongly contended if all cpus are pagefaulting on the 
+> same process (and I'll be posting a patch to address specifically those 
+> slowdowns since thp is _much_ slower on page fault tests) when we can 
+> already do it in do_huge_pmd_wp_page().  If you'd like to add a comment 
+> for the split_huge_page() in that function if it's not clear enough from 
+> my VM_FAULT_OOM comment in handle_mm_fault(), then feel free to add it but 
+> I thought it was rather trivial to understand.
 
-Seems reasonable.
+Come on, it's not "trivial to understand" why the page in the parent
+is split because the child failed to allocate a replacement, shortly
+before returning "out of memory".  You have to look at a different
+file to make sense of it.  Such cross-dependencies between functions
+simply suck and made problems in the past.  The least you could do is
+properly document them in _both_ places if you insist on adding them
+in the first place.
 
-> --- a/include/linux/cpu.h
-> +++ b/include/linux/cpu.h
-> @@ -179,6 +179,7 @@ extern void put_online_cpus(void);
->  #define hotcpu_notifier(fn, pri)	cpu_notifier(fn, pri)
->  #define register_hotcpu_notifier(nb)	register_cpu_notifier(nb)
->  #define unregister_hotcpu_notifier(nb)	unregister_cpu_notifier(nb)
-> +void clear_tasks_mm_cpumask(int cpu);
->  int cpu_down(unsigned int cpu);
->  
->  #ifdef CONFIG_ARCH_CPU_PROBE_RELEASE
-> diff --git a/kernel/cpu.c b/kernel/cpu.c
-> index 2060c6e..ecdf499 100644
-> --- a/kernel/cpu.c
-> +++ b/kernel/cpu.c
-> @@ -10,6 +10,8 @@
->  #include <linux/sched.h>
->  #include <linux/unistd.h>
->  #include <linux/cpu.h>
-> +#include <linux/oom.h>
-> +#include <linux/rcupdate.h>
->  #include <linux/export.h>
->  #include <linux/kthread.h>
->  #include <linux/stop_machine.h>
-> @@ -171,6 +173,30 @@ void __ref unregister_cpu_notifier(struct notifier_block *nb)
->  }
->  EXPORT_SYMBOL(unregister_cpu_notifier);
->  
-> +void clear_tasks_mm_cpumask(int cpu)
-
-The operation of this function was presumably obvious to you at the
-time you wrote it, but that isn't true of other people at later times.
-
-Please document it?
-
-
-> +{
-> +	struct task_struct *p;
-> +
-> +	/*
-> +	 * This function is called after the cpu is taken down and marked
-> +	 * offline,
-
-hm, well.  Who said that this function will only ever be called
-after that CPU was taken down?  There is nothing in the function name
-nor in the (absent) documentation which enforces this precondition.
-
-If someone tries to use this function for a different purpose, or
-copies-and-modifies it for a different purpose, we just shot them in
-the foot.
-
-They'd be pretty dumb to do that without reading the local comment,
-but still...
-
-> 	 so its not like new tasks will ever get this cpu set in
-> +	 * their mm mask. -- Peter Zijlstra
-> +	 * Thus, we may use rcu_read_lock() here, instead of grabbing
-> +	 * full-fledged tasklist_lock.
-> +	 */
-> +	rcu_read_lock();
-> +	for_each_process(p) {
-> +		struct task_struct *t;
-> +
-> +		t = find_lock_task_mm(p);
-> +		if (!t)
-> +			continue;
-> +		cpumask_clear_cpu(cpu, mm_cpumask(t->mm));
-> +		task_unlock(t);
-> +	}
-> +	rcu_read_unlock();
-> +}
-
-It is good that this code exists under CONFIG_HOTPLUG_CPU.  Did you
-check that everything works correctly with CONFIG_HOTPLUG_CPU=n?
+Btw, is restarting the full page table walk even necessary?  You
+already have the pmd, know/hope it's been split, and hold the mmap_sem
+for reading, so it can't go back to being huge or none.  You should be
+able to fall through to the pte lookup and handle_pte_fault(), no?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
