@@ -1,28 +1,28 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx137.postini.com [74.125.245.137])
-	by kanga.kvack.org (Postfix) with SMTP id 55ED66B007E
-	for <linux-mm@kvack.org>; Fri, 27 Apr 2012 02:04:24 -0400 (EDT)
-Received: from m1.gw.fujitsu.co.jp (unknown [10.0.50.71])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id E80303EE0C7
-	for <linux-mm@kvack.org>; Fri, 27 Apr 2012 15:04:22 +0900 (JST)
-Received: from smail (m1 [127.0.0.1])
-	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id CE18C45DE56
-	for <linux-mm@kvack.org>; Fri, 27 Apr 2012 15:04:22 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
-	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id B133C45DE54
-	for <linux-mm@kvack.org>; Fri, 27 Apr 2012 15:04:22 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 8FEFB1DB804E
-	for <linux-mm@kvack.org>; Fri, 27 Apr 2012 15:04:22 +0900 (JST)
-Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.240.81.146])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 371F51DB804F
-	for <linux-mm@kvack.org>; Fri, 27 Apr 2012 15:04:22 +0900 (JST)
-Message-ID: <4F9A366E.9020307@jp.fujitsu.com>
-Date: Fri, 27 Apr 2012 15:02:22 +0900
+Received: from psmtp.com (na3sys010amx166.postini.com [74.125.245.166])
+	by kanga.kvack.org (Postfix) with SMTP id EC8576B007E
+	for <linux-mm@kvack.org>; Fri, 27 Apr 2012 02:06:17 -0400 (EDT)
+Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
+	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 8264C3EE0C0
+	for <linux-mm@kvack.org>; Fri, 27 Apr 2012 15:06:16 +0900 (JST)
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 5C68745DEC2
+	for <linux-mm@kvack.org>; Fri, 27 Apr 2012 15:06:16 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 42F1B45DEA6
+	for <linux-mm@kvack.org>; Fri, 27 Apr 2012 15:06:16 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 2B834E08002
+	for <linux-mm@kvack.org>; Fri, 27 Apr 2012 15:06:16 +0900 (JST)
+Received: from m1000.s.css.fujitsu.com (m1000.s.css.fujitsu.com [10.240.81.136])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id D2357E08006
+	for <linux-mm@kvack.org>; Fri, 27 Apr 2012 15:06:15 +0900 (JST)
+Message-ID: <4F9A36DE.30301@jp.fujitsu.com>
+Date: Fri, 27 Apr 2012 15:04:14 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
-Subject: [RFC][PATCH 7/9 v2] cgroup: avoid attaching task to a cgroup under
- rmdir()
+Subject: [RFC][PATCH 8/9 v2] cgroup: avoid creating new cgroup under a cgroup
+ being destroyed
 References: <4F9A327A.6050409@jp.fujitsu.com>
 In-Reply-To: <4F9A327A.6050409@jp.fujitsu.com>
 Content-Type: text/plain; charset=ISO-2022-JP
@@ -32,49 +32,36 @@ List-ID: <linux-mm.kvack.org>
 To: Linux Kernel <linux-kernel@vger.kernel.org>
 Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "cgroups@vger.kernel.org" <cgroups@vger.kernel.org>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Frederic Weisbecker <fweisbec@gmail.com>, Glauber Costa <glommer@parallels.com>, Tejun Heo <tj@kernel.org>, Han Ying <yinghan@google.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, kamezawa.hiroyuki@gmail.com
 
-attach_task() is done under cgroup_mutex() but ->pre_destroy() callback
-in rmdir() isn't called under cgroup_mutex().
-
-It's better to avoid attaching a task to a cgroup which
-is under pre_destroy(). Considering memcg, the attached task may
-increase resource usage after memcg's pre_destroy() confirms that
-memcg is empty. This is not good.
+When ->pre_destroy() is called, it should be guaranteed that
+new child cgroup is not created under a cgroup, where pre_destroy()
+is running. If not, ->pre_destroy() must check children and
+return -EBUSY, which causes warning.
 
 Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 ---
- kernel/cgroup.c |    5 ++++-
- 1 files changed, 4 insertions(+), 1 deletions(-)
+ kernel/cgroup.c |    9 +++++++++
+ 1 files changed, 9 insertions(+), 0 deletions(-)
 
 diff --git a/kernel/cgroup.c b/kernel/cgroup.c
-index ad8eae5..7a3076b 100644
+index 7a3076b..003ceed 100644
 --- a/kernel/cgroup.c
 +++ b/kernel/cgroup.c
-@@ -1953,6 +1953,9 @@ int cgroup_attach_task(struct cgroup *cgrp, struct task_struct *tsk)
- 	if (cgrp == oldcgrp)
- 		return 0;
+@@ -3970,6 +3970,15 @@ static long cgroup_create(struct cgroup *parent, struct dentry *dentry,
  
-+	if (test_bit(CGRP_WAIT_ON_RMDIR, &cgrp->flags))
+ 	mutex_lock(&cgroup_mutex);
+ 
++	/*
++	 * prevent making child cgroup when ->pre_destroy() is running.
++	 */
++	if (test_bit(CGRP_WAIT_ON_RMDIR, &parent->flags)) {
++		mutex_unlock(&cgroup_mutex);
++		atomic_dec(&sb->s_active);
 +		return -EBUSY;
++	}
 +
- 	tset.single.task = tsk;
- 	tset.single.cgrp = oldcgrp;
+ 	init_cgroup_housekeeping(cgrp);
  
-@@ -4181,7 +4184,6 @@ again:
- 		mutex_unlock(&cgroup_mutex);
- 		return -EBUSY;
- 	}
--	mutex_unlock(&cgroup_mutex);
- 
- 	/*
- 	 * In general, subsystem has no css->refcnt after pre_destroy(). But
-@@ -4193,6 +4195,7 @@ again:
- 	 * and css_tryget() and cgroup_wakeup_rmdir_waiter() implementation.
- 	 */
- 	set_bit(CGRP_WAIT_ON_RMDIR, &cgrp->flags);
-+	mutex_unlock(&cgroup_mutex);
- 
- 	/*
- 	 * Call pre_destroy handlers of subsys. Notify subsystems
+ 	cgrp->parent = parent;
 -- 
 1.7.4.1
 
