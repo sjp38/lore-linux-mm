@@ -1,79 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx124.postini.com [74.125.245.124])
-	by kanga.kvack.org (Postfix) with SMTP id EA2DA6B010F
-	for <linux-mm@kvack.org>; Fri, 27 Apr 2012 17:32:05 -0400 (EDT)
-Date: Fri, 27 Apr 2012 14:32:03 -0700
+Received: from psmtp.com (na3sys010amx155.postini.com [74.125.245.155])
+	by kanga.kvack.org (Postfix) with SMTP id D81166B010D
+	for <linux-mm@kvack.org>; Fri, 27 Apr 2012 18:00:33 -0400 (EDT)
+Date: Fri, 27 Apr 2012 15:00:30 -0700
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 1/2] mm: Warn once when a page is freed with PG_mlocked
-Message-Id: <20120427143203.06b901b5.akpm@linux-foundation.org>
-In-Reply-To: <1335548546-25040-1-git-send-email-yinghan@google.com>
-References: <1335548546-25040-1-git-send-email-yinghan@google.com>
+Subject: Re: [RFC] vmalloc: add warning in __vmalloc
+Message-Id: <20120427150030.6183a286.akpm@linux-foundation.org>
+In-Reply-To: <1335516144-3486-1-git-send-email-minchan@kernel.org>
+References: <1335516144-3486-1-git-send-email-minchan@kernel.org>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ying Han <yinghan@google.com>
-Cc: Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mel@csn.ul.ie>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, Hugh Dickins <hughd@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Nick Piggin <npiggin@suse.de>, linux-mm@kvack.org, Mel Gorman <mgorman@suse.de>
+To: Minchan Kim <minchan@kernel.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, npiggin@gmail.com, kamezawa.hiroyu@jp.fujitsu.com, kosaki.motohiro@gmail.com, rientjes@google.com, Neil Brown <neilb@suse.de>, Artem Bityutskiy <dedekind1@gmail.com>, David Woodhouse <dwmw2@infradead.org>, Theodore Ts'o <tytso@mit.edu>, Adrian Hunter <adrian.hunter@intel.com>, Steven Whitehouse <swhiteho@redhat.com>, "David S. Miller" <davem@davemloft.net>, James Morris <jmorris@namei.org>, Alexander Viro <viro@zeniv.linux.org.uk>, Sage Weil <sage@newdream.net>
 
-On Fri, 27 Apr 2012 10:42:26 -0700
-Ying Han <yinghan@google.com> wrote:
+On Fri, 27 Apr 2012 17:42:24 +0900
+Minchan Kim <minchan@kernel.org> wrote:
 
-> I am resending this patch orginally from Mel, and the reason we spotted this
-> is due to the next patch where I am adding the mlock stat into per-memcg
-> meminfo. We found out that it is impossible to update the counter if the page
-> is in the freeing patch w/ mlocked bit set.
+> Now there are several places to use __vmalloc with GFP_ATOMIC,
+> GFP_NOIO, GFP_NOFS but unfortunately __vmalloc calls map_vm_area
+> which calls alloc_pages with GFP_KERNEL to allocate page tables.
+> It means it's possible to happen deadlock.
+> I don't know why it doesn't have reported until now.
 > 
-> Then we started wondering if it is possible at all. It shouldn't happen that
-> freeing a mlocked page without going through munlock_vma_pages_all(). Looks
-> like it did happen few years ago, and here is the patch introduced it
+> Firstly, I tried passing gfp_t to lower functions to support __vmalloc
+> with such flags but other mm guys don't want and decided that
+> all of caller should be fixed.
 > 
-> commit 985737cf2ea096ea946aed82c7484d40defc71a8
-> Author: Lee Schermerhorn <lee.schermerhorn@hp.com>
-> Date:   Sat Oct 18 20:26:53 2008 -0700
+> http://marc.info/?l=linux-kernel&m=133517143616544&w=2
 > 
->     mlock: count attempts to free mlocked page
+> To begin with, let's listen other's opinion whether they can fix it
+> by other approach without calling __vmalloc with such flags.
 > 
-> There are two ways to persue and I would like to ask people's opinion:
+> So this patch adds warning to detect and to be fixed hopely.
+> I Cced related maintainers.
+> If I miss someone, please Cced them.
 > 
-> 1. revert the patch totally and the page will get into bad_page(). Then we
-> get the report as well.
-> 
-> 2. fix up the page like the patch does but put on warn_once() to report the
-> problem.
-> 
-> People might feel more confident by doing step by step which adding the
-> warn_on() first and then revert it later. So I resend the patch from Mel and
-> here is the patch:
-> 
-> When a page is freed with the PG_mlocked set, it is considered an unexpected
-> but recoverable situation. A counter records how often this event happens
-> but it is easy to miss that this event has occured at all. This patch warns
-> once when PG_mlocked is set to prompt debuggers to check the counter to
-> see how often it is happening.
+> side-note:
+>   I added WARN_ON instead of WARN_ONCE to detect all of callers
+>   and each WARN_ON for each flag to detect to use any flag easily.
+>   After we fix all of caller or reduce such caller, we can merge
+>   a warning with WARN_ONCE.
 
-The changelog is kinda confusing and tl;dr, but the idea seems good ;)
+Just WARN_ONCE, please.  If that exposes some sort of calamity then we
+can reconsider.
 
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -599,6 +599,11 @@ out:
->   */
->  static inline void free_page_mlock(struct page *page)
+> 
+> ...
+>
+> --- a/mm/vmalloc.c
+> +++ b/mm/vmalloc.c
+> @@ -1700,6 +1700,15 @@ static void *__vmalloc_node(unsigned long size, unsigned long align,
+>  			    gfp_t gfp_mask, pgprot_t prot,
+>  			    int node, void *caller)
 >  {
-> +	WARN_ONCE(1, KERN_WARNING
-> +		"Page flag mlocked set for process %s at pfn:%05lx\n"
-> +		"page:%p flags:%#lx\n",
-> +		current->comm, page_to_pfn(page),
-> +		page, page->flags|__PG_MLOCKED);
->  	__dec_zone_page_state(page, NR_MLOCK);
->  	__count_vm_event(UNEVICTABLE_MLOCKFREED);
+> +	/*
+> +	 * This function calls map_vm_area so that it allocates
+> +	 * page table with GFP_KERNEL so caller should avoid using
+> +	 * GFP_NOIO, GFP_NOFS and !__GFP_WAIT.
+> +	 */
+> +	WARN_ON(!(gfp_mask & __GFP_WAIT));
+> +	WARN_ON(!(gfp_mask & __GFP_IO));
+> +	WARN_ON(!(gfp_mask & __GFP_FS));
+> +
+>  	return __vmalloc_node_range(size, align, VMALLOC_START, VMALLOC_END,
+>  				gfp_mask, prot, node, caller);
 >  }
 
-KERN_WARNING seems wimpy: we want to shout about this, so KERN_ERR.  Or
-just leave it empty.
+This seems strange.  There are many entry points to this code and the
+patch appears to go into a randomly-chosen middle point in the various
+call chains and sticks a check in there.  Why was __vmalloc_node()
+chosen?  Does this provide full coverage or all entry points?
 
-Also, the patch duplicates bad_page()/dump_page().  Can we use them?
-They use KERN_ALERT, btw.
+
+
+Also, the patch won't warn in the most problematic cases such as
+vmalloc() being called from a __GFP_NOFS context.  Presumably there are
+might_sleep() warnings somewhere on the allocation path which will
+catch vmalloc() being called from atomic contexts.
+
+I'm not sure what to do about that - we don't have machinery in place
+to be able to detect when a GFP_KERNEL allocation is deadlockable. 
+Perhaps a lot of hacking on lockdep might get us this - we'd need to
+teach lockdep about which locks prohibit FS entry, which locks prevent
+IO entry, etc.  And there are secret locks such as ext3/4
+journal_start(), and bitlocks and lock_page().  eek.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
