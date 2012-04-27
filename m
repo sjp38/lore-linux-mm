@@ -1,82 +1,122 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx115.postini.com [74.125.245.115])
-	by kanga.kvack.org (Postfix) with SMTP id BB5796B00F8
-	for <linux-mm@kvack.org>; Fri, 27 Apr 2012 15:00:48 -0400 (EDT)
-Date: Fri, 27 Apr 2012 21:00:40 +0200
+Received: from psmtp.com (na3sys010amx187.postini.com [74.125.245.187])
+	by kanga.kvack.org (Postfix) with SMTP id 316446B00F9
+	for <linux-mm@kvack.org>; Fri, 27 Apr 2012 15:12:34 -0400 (EDT)
 From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [patch] mm, thp: drop page_table_lock to uncharge memcg pages
-Message-ID: <20120427190040.GL23980@redhat.com>
-References: <alpine.DEB.2.00.1204261556100.15785@chino.kir.corp.google.com>
- <20120426163922.4879dcb1.akpm@linux-foundation.org>
- <alpine.DEB.2.00.1204261642190.15785@chino.kir.corp.google.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.00.1204261642190.15785@chino.kir.corp.google.com>
+Subject: [PATCH] mm: Document the meminfo and vmstat fields of relevance to transparent hugepages
+Date: Fri, 27 Apr 2012 21:12:31 +0200
+Message-Id: <1335553951-30087-1-git-send-email-aarcange@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org
+To: linux-mm@kvack.org
+Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>
 
-On Thu, Apr 26, 2012 at 04:44:16PM -0700, David Rientjes wrote:
-> On Thu, 26 Apr 2012, Andrew Morton wrote:
-> 
-> > > mm->page_table_lock is hotly contested for page fault tests and isn't
-> > > necessary to do mem_cgroup_uncharge_page() in do_huge_pmd_wp_page().
-> > > 
-> > > ...
-> > >
-> > > --- a/mm/huge_memory.c
-> > > +++ b/mm/huge_memory.c
-> > > @@ -968,8 +968,10 @@ int do_huge_pmd_wp_page(struct mm_struct *mm, struct vm_area_struct *vma,
-> > >  	spin_lock(&mm->page_table_lock);
-> > >  	put_page(page);
-> > >  	if (unlikely(!pmd_same(*pmd, orig_pmd))) {
-> > > +		spin_unlock(&mm->page_table_lock);
-> > >  		mem_cgroup_uncharge_page(new_page);
-> > >  		put_page(new_page);
-> > > +		goto out;
-> > >  	} else {
-> > >  		pmd_t entry;
-> > >  		VM_BUG_ON(!PageHead(page));
-> > 
-> > But this is on the basically-never-happens race path and will surely have no
-> > measurable benefit?
-> > 
+From: Mel Gorman <mgorman@suse.de>
 
-Even if it has no measurable benefit, it's still an ok
-microoptimization as it can't slow down anything, it introduces a
-slight different jump for the slow path but it shouldn't matter. So it
-looks ok to me.
+This patch updates Documentation/vm/transhuge.txt and
+Documentation/filesystems/proc.txt with some information on monitoring
+transparent huge page usage and the associated overhead.
 
-Reviewed-by: Andrea Arcangeli <aarcange@redhat.com>
+Signed-off-by: Mel Gorman <mgorman@suse.de>
+Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
+---
+ Documentation/filesystems/proc.txt |    2 +
+ Documentation/vm/transhuge.txt     |   62 ++++++++++++++++++++++++++++++++++++
+ 2 files changed, 64 insertions(+), 0 deletions(-)
 
-> It happens more often than you may think on page fault tests; how 
-> representative pft has ever been of actual workloads, especially with thp 
-> where the benfits of allocating the hugepage usually result in better 
-> performance in the long-term even for a short-term performance loss, is 
-> debatable.  However, all other thp code has always dropped 
-> mm->page_table_lock before calling mem_cgroup_uncharge_page() and this one 
-> seems to have been missed.  Worth correcting, in my opinion.
-
-If we take single threaded programs into account too, THP gives a
-major boosts to the page faults too, a memset on a uninitialized area
-with THP enabled on some CPUs it can run more than twice as fast
-depending on the CPU cache sizes. If the access is random and not
-sequential cache effects can make it slightly slower though.
-
-I certainly agree the main focus here is not the page fault, but it's
-still worth to optimize the page fault of course.
-
-With concurrent threads and THP faults, the increased contention on
-the page_table_lock on large-CPU systems could be mitigated with a
-per-pmd lock but it would still be as coarse as 1G and it would
-complicate the code a bit. If each thread address space is very big
-and the threads aren't sharing much memory, it would make their page
-faults SMP scale nicely though. Just an idea.
-
-Thanks,
-Andrea
+diff --git a/Documentation/filesystems/proc.txt b/Documentation/filesystems/proc.txt
+index b7413cb..51a9c42 100644
+--- a/Documentation/filesystems/proc.txt
++++ b/Documentation/filesystems/proc.txt
+@@ -743,6 +743,7 @@ Committed_AS:   100056 kB
+ VmallocTotal:   112216 kB
+ VmallocUsed:       428 kB
+ VmallocChunk:   111088 kB
++AnonHugePages:   49152 kB
+ 
+     MemTotal: Total usable ram (i.e. physical ram minus a few reserved
+               bits and the kernel binary code)
+@@ -776,6 +777,7 @@ VmallocChunk:   111088 kB
+        Dirty: Memory which is waiting to get written back to the disk
+    Writeback: Memory which is actively being written back to the disk
+    AnonPages: Non-file backed pages mapped into userspace page tables
++AnonHugePages: Non-file backed huge pages mapped into userspace page tables
+       Mapped: files which have been mmaped, such as libraries
+         Slab: in-kernel data structures cache
+ SReclaimable: Part of Slab, that might be reclaimed, such as caches
+diff --git a/Documentation/vm/transhuge.txt b/Documentation/vm/transhuge.txt
+index 29bdf62..f734bb2 100644
+--- a/Documentation/vm/transhuge.txt
++++ b/Documentation/vm/transhuge.txt
+@@ -166,6 +166,68 @@ behavior. So to make them effective you need to restart any
+ application that could have been using hugepages. This also applies to
+ the regions registered in khugepaged.
+ 
++== Monitoring usage ==
++
++The number of transparent huge pages currently used by the system is
++available by reading the AnonHugePages field in /proc/meminfo. To
++identify what applications are using transparent huge pages, it is
++necessary to read /proc/PID/smaps and count the AnonHugePages fields
++for each mapping. Note that reading the smaps file is expensive and
++reading it frequently will incur overhead.
++
++There are a number of counters in /proc/vmstat that may be used to
++monitor how successfully the system is providing huge pages for use.
++
++thp_fault_alloc is incremented every time a huge page is successfully
++	allocated to handle a page fault. This applies to both the
++	first time a page is faulted and for COW faults.
++
++thp_collapse_alloc is incremented by khugepaged when it has found
++	a range of pages to collapse into one huge page and has
++	successfully allocated a new huge page to store the data.
++
++thp_fault_fallback is incremented if a page fault fails to allocate
++	a huge page and instead falls back to using small pages.
++
++thp_collapse_alloc_failed is incremented if khugepaged found a range
++	of pages that should be collapsed into one huge page but failed
++	the allocation.
++
++thp_split is incremented every time a huge page is split into base
++	pages. This can happen for a variety of reasons but a common
++	reason is that a huge page is old and is being reclaimed.
++
++As the system ages, allocating huge pages may be expensive as the
++system uses memory compaction to copy data around memory to free a
++huge page for use. There are some counters in /proc/vmstat to help
++monitor this overhead.
++
++compact_stall is incremented every time a process stalls to run
++	memory compaction so that a huge page is free for use.
++
++compact_success is incremented if the system compacted memory and
++	freed a huge page for use.
++
++compact_fail is incremented if the system tries to compact memory
++	but failed.
++
++compact_pages_moved is incremented each time a page is moved. If
++	this value is increasing rapidly, it implies that the system
++	is copying a lot of data to satisfy the huge page allocation.
++	It is possible that the cost of copying exceeds any savings
++	from reduced TLB misses.
++
++compact_pagemigrate_failed is incremented when the underlying mechanism
++	for moving a page failed.
++
++compact_blocks_moved is incremented each time memory compaction examines
++	a huge page aligned range of pages.
++
++It is possible to establish how long the stalls were using the function
++tracer to record how long was spent in __alloc_pages_nodemask and
++using the mm_page_alloc tracepoint to identify which allocations were
++for huge pages.
++
+ == get_user_pages and follow_page ==
+ 
+ get_user_pages and follow_page if run on a hugepage, will return the
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
