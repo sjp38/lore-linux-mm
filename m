@@ -1,27 +1,27 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx147.postini.com [74.125.245.147])
-	by kanga.kvack.org (Postfix) with SMTP id 1EFA36B004A
-	for <linux-mm@kvack.org>; Fri, 27 Apr 2012 01:54:59 -0400 (EDT)
-Received: from m1.gw.fujitsu.co.jp (unknown [10.0.50.71])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id B45923EE0C0
-	for <linux-mm@kvack.org>; Fri, 27 Apr 2012 14:54:57 +0900 (JST)
-Received: from smail (m1 [127.0.0.1])
-	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 970D345DE59
-	for <linux-mm@kvack.org>; Fri, 27 Apr 2012 14:54:57 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
-	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 7357D45DE54
-	for <linux-mm@kvack.org>; Fri, 27 Apr 2012 14:54:57 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 640321DB8052
-	for <linux-mm@kvack.org>; Fri, 27 Apr 2012 14:54:57 +0900 (JST)
-Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.240.81.147])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id C32851DB804C
-	for <linux-mm@kvack.org>; Fri, 27 Apr 2012 14:54:56 +0900 (JST)
-Message-ID: <4F9A343F.7020409@jp.fujitsu.com>
-Date: Fri, 27 Apr 2012 14:53:03 +0900
+Received: from psmtp.com (na3sys010amx160.postini.com [74.125.245.160])
+	by kanga.kvack.org (Postfix) with SMTP id C33276B007E
+	for <linux-mm@kvack.org>; Fri, 27 Apr 2012 01:56:54 -0400 (EDT)
+Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
+	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 630CB3EE0BC
+	for <linux-mm@kvack.org>; Fri, 27 Apr 2012 14:56:53 +0900 (JST)
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 426B145DEB2
+	for <linux-mm@kvack.org>; Fri, 27 Apr 2012 14:56:53 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 2A18345DEAD
+	for <linux-mm@kvack.org>; Fri, 27 Apr 2012 14:56:53 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 1A8361DB8044
+	for <linux-mm@kvack.org>; Fri, 27 Apr 2012 14:56:53 +0900 (JST)
+Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.240.81.133])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id A55BD1DB803E
+	for <linux-mm@kvack.org>; Fri, 27 Apr 2012 14:56:52 +0900 (JST)
+Message-ID: <4F9A34B2.8080103@jp.fujitsu.com>
+Date: Fri, 27 Apr 2012 14:54:58 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
-Subject: [RFC][PATCH 3/7 v2] res_counter: add res_counter_uncharge_until()
+Subject: [RFC][PATCH 4/7 v2] memcg: use res_counter_uncharge_until in move_parent
 References: <4F9A327A.6050409@jp.fujitsu.com>
 In-Reply-To: <4F9A327A.6050409@jp.fujitsu.com>
 Content-Type: text/plain; charset=ISO-2022-JP
@@ -31,3 +31,127 @@ List-ID: <linux-mm.kvack.org>
 To: Linux Kernel <linux-kernel@vger.kernel.org>
 Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "cgroups@vger.kernel.org" <cgroups@vger.kernel.org>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Frederic Weisbecker <fweisbec@gmail.com>, Glauber Costa <glommer@parallels.com>, Tejun Heo <tj@kernel.org>, Han Ying <yinghan@google.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, kamezawa.hiroyuki@gmail.com
 
+By using res_counter_uncharge_until(), we can avoid 
+unnecessary charging.
+
+Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+---
+ mm/memcontrol.c |   63 ++++++++++++++++++++++++++++++++++++------------------
+ 1 files changed, 42 insertions(+), 21 deletions(-)
+
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index 613bb15..ed53d64 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -2420,6 +2420,24 @@ static void __mem_cgroup_cancel_charge(struct mem_cgroup *memcg,
+ }
+ 
+ /*
++ * Cancel chages in this cgroup....doesn't propagates to parent cgroup.
++ * This is useful when moving usage to parent cgroup.
++ */
++static void __mem_cgroup_cancel_local_charge(struct mem_cgroup *memcg,
++					unsigned int nr_pages)
++{
++	if (!mem_cgroup_is_root(memcg)) {
++		unsigned long bytes = nr_pages * PAGE_SIZE;
++
++		res_counter_uncharge_until(&memcg->res,
++					memcg->res.parent, bytes);
++		if (do_swap_account)
++			res_counter_uncharge_until(&memcg->memsw,
++						memcg->memsw.parent, bytes);
++	}
++}
++
++/*
+  * A helper function to get mem_cgroup from ID. must be called under
+  * rcu_read_lock(). The caller must check css_is_removed() or some if
+  * it's concern. (dropping refcnt from swap can be called against removed
+@@ -2677,16 +2695,28 @@ static int mem_cgroup_move_parent(struct page *page,
+ 	nr_pages = hpage_nr_pages(page);
+ 
+ 	parent = mem_cgroup_from_cont(pcg);
+-	ret = __mem_cgroup_try_charge(NULL, gfp_mask, nr_pages, &parent, false);
+-	if (ret)
+-		goto put_back;
++	if (!parent->use_hierarchy) {
++		ret = __mem_cgroup_try_charge(NULL,
++					gfp_mask, nr_pages, &parent, false);
++		if (ret)
++			goto put_back;
++	}
+ 
+ 	if (nr_pages > 1)
+ 		flags = compound_lock_irqsave(page);
+ 
+-	ret = mem_cgroup_move_account(page, nr_pages, pc, child, parent, true);
+-	if (ret)
+-		__mem_cgroup_cancel_charge(parent, nr_pages);
++	if (parent->use_hierarchy) {
++		ret = mem_cgroup_move_account(page, nr_pages,
++					pc, child, parent, false);
++		if (!ret)
++			__mem_cgroup_cancel_local_charge(child, nr_pages);
++	} else {
++		ret = mem_cgroup_move_account(page, nr_pages,
++					pc, child, parent, true);
++
++		if (ret)
++			__mem_cgroup_cancel_charge(parent, nr_pages);
++	}
+ 
+ 	if (nr_pages > 1)
+ 		compound_unlock_irqrestore(page, flags);
+@@ -3295,6 +3325,7 @@ int mem_cgroup_move_hugetlb_parent(int idx, struct cgroup *cgroup,
+ 	struct cgroup *pcgrp = cgroup->parent;
+ 	struct mem_cgroup *parent = mem_cgroup_from_cont(pcgrp);
+ 	struct mem_cgroup *memcg  = mem_cgroup_from_cont(cgroup);
++	struct res_counter *counter;
+ 
+ 	if (!get_page_unless_zero(page))
+ 		goto out;
+@@ -3305,28 +3336,18 @@ int mem_cgroup_move_hugetlb_parent(int idx, struct cgroup *cgroup,
+ 		goto err_out;
+ 
+ 	csize = PAGE_SIZE << compound_order(page);
+-	/*
+-	 * If we have use_hierarchy set we can never fail here. So instead of
+-	 * using res_counter_uncharge use the open-coded variant which just
+-	 * uncharge the child res_counter. The parent will retain the charge.
+-	 */
+-	if (parent->use_hierarchy) {
+-		unsigned long flags;
+-		struct res_counter *counter;
+-
+-		counter = &memcg->hugepage[idx];
+-		spin_lock_irqsave(&counter->lock, flags);
+-		res_counter_uncharge_locked(counter, csize);
+-		spin_unlock_irqrestore(&counter->lock, flags);
+-	} else {
++	/* If parent->use_hierarchy == 0, we need to charge parent */
++	if (!parent->use_hierarchy) {
+ 		ret = res_counter_charge(&parent->hugepage[idx],
+ 					 csize, &fail_res);
+ 		if (ret) {
+ 			ret = -EBUSY;
+ 			goto err_out;
+ 		}
+-		res_counter_uncharge(&memcg->hugepage[idx], csize);
+ 	}
++	counter = &memcg->hugepage[idx];
++	res_counter_uncharge_until(counter, counter->parent, csize);
++
+ 	pc->mem_cgroup = parent;
+ err_out:
+ 	unlock_page_cgroup(pc);
+-- 
+1.7.4.1
+
+
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Fight unfair telecom internet charges in Canada: sign http://stopthemeter.ca/
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
