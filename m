@@ -1,50 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx207.postini.com [74.125.245.207])
-	by kanga.kvack.org (Postfix) with SMTP id 55A766B004A
-	for <linux-mm@kvack.org>; Thu, 26 Apr 2012 21:14:38 -0400 (EDT)
-Received: by yhr47 with SMTP id 47so182675yhr.14
-        for <linux-mm@kvack.org>; Thu, 26 Apr 2012 18:14:37 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx144.postini.com [74.125.245.144])
+	by kanga.kvack.org (Postfix) with SMTP id 93C4E6B004A
+	for <linux-mm@kvack.org>; Thu, 26 Apr 2012 22:23:53 -0400 (EDT)
+Message-ID: <4F9A0360.3030900@kernel.org>
+Date: Fri, 27 Apr 2012 11:24:32 +0900
+From: Minchan Kim <minchan@kernel.org>
 MIME-Version: 1.0
-In-Reply-To: <4F998FDE.5020104@redhat.com>
-References: <4F998FDE.5020104@redhat.com>
-From: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
-Date: Thu, 26 Apr 2012 21:14:16 -0400
-Message-ID: <CAHGf_=qLX7gofwHoSKpHLp7nvD6qJtHbmYzAR0UQ42JbfnYerw@mail.gmail.com>
-Subject: Re: [PATCH -mm V3] do_migrate_pages() calls migrate_to_node() even if
- task is already on a correct node
+Subject: Re: [RFC] propagate gfp_t to page table alloc functions
+References: <1335171318-4838-1-git-send-email-minchan@kernel.org> <4F963742.2030607@jp.fujitsu.com> <4F963B8E.9030105@kernel.org> <CAPa8GCA8q=S9sYx-0rDmecPxYkFs=gATGL-Dz0OYXDkwEECJkg@mail.gmail.com> <4F965413.9010305@kernel.org> <CAPa8GCCwfCFO6yxwUP5Qp9O1HGUqEU2BZrrf50w8TL9FH9vbrA@mail.gmail.com> <20120424143015.99fd8d4a.akpm@linux-foundation.org> <4F973BF2.4080406@jp.fujitsu.com> <CAHGf_=r09BCxXeuE8dSti4_SrT5yahrQCwJh=NrrA3rsUhhu_w@mail.gmail.com> <4F973FB8.6050103@jp.fujitsu.com> <20120424172554.c9c330dd.akpm@linux-foundation.org> <4F98914C.2060505@jp.fujitsu.com> <alpine.DEB.2.00.1204251715420.19452@chino.kir.corp.google.com>
+In-Reply-To: <alpine.DEB.2.00.1204251715420.19452@chino.kir.corp.google.com>
 Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: base64
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: lwoodman@redhat.com
-Cc: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Rik van Riel <riel@redhat.com>, Christoph Lameter <cl@linux.com>, Motohiro Kosaki <mkosaki@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
+To: David Rientjes <rientjes@google.com>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Nick Piggin <npiggin@gmail.com>, Ingo Molnar <mingo@redhat.com>, x86@kernel.org, Hugh Dickins <hughd@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-PiBAQCAtMTAxMiw2ICsxMDEyLDI2IEBAIGludCBkb19taWdyYXRlX3BhZ2VzKHN0cnVjdCBtbV9z
-dHJ1Y3QgKm1tLAo+IKAgoCCgIKAgoCCgIKAgoGludCBkZXN0ID0gMDsKPgo+IKAgoCCgIKAgoCCg
-IKAgoGZvcl9lYWNoX25vZGVfbWFzayhzLCB0bXApIHsKPiArCj4gKyCgIKAgoCCgIKAgoCCgIKAg
-oCCgIKAgLyoKPiArIKAgoCCgIKAgoCCgIKAgoCCgIKAgoCCgKiBkb19taWdyYXRlX3BhZ2VzKCkg
-dHJpZXMgdG8gbWFpbnRhaW4gdGhlCj4gKyCgIKAgoCCgIKAgoCCgIKAgoCCgIKAgoCogcmVsYXRp
-dmUgbm9kZSByZWxhdGlvbnNoaXAgb2YgdGhlIHBhZ2VzCj4gKyCgIKAgoCCgIKAgoCCgIKAgoCCg
-IKAgoCogZXN0YWJsaXNoZWQgYmV0d2VlbiB0aHJlYWRzIGFuZCBtZW1vcnkgYXJlYXMuCj4gKyCg
-IKAgoCCgIKAgoCCgIKAgoCCgIKAgoCoKPiArIKAgoCCgIKAgoCCgIKAgoCCgIKAgoCCgKiBIb3dl
-dmVyIGlmIHRoZSBudW1iZXIgb2Ygc291cmNlIG5vZGVzIGlzIG5vdAo+ICsgoCCgIKAgoCCgIKAg
-oCCgIKAgoCCgIKAqIGVxdWFsIHRvIHRoZSBudW1iZXIgb2YgZGVzdGluYXRpb24gbm9kZXMgd2UK
-PiArIKAgoCCgIKAgoCCgIKAgoCCgIKAgoCCgKiBjYW4gbm90IHByZXNlcnZlIHRoaXMgbm9kZSBy
-ZWxhdGl2ZSByZWxhdGlvbnNoaXAuCj4gKyCgIKAgoCCgIKAgoCCgIKAgoCCgIKAgoCogSW4gdGhh
-dCBjYXNlLCBza2lwIGNvcHlpbmcgbWVtb3J5IGZyb20gYSBub2RlCj4gdGhhdAo+ICsgoCCgIKAg
-oCCgIKAgoCCgIKAgoCCgIKAqIGlzIGluIHRoZSBkZXN0aW5hdGlvbiBtYXNrLgo+ICsgoCCgIKAg
-oCCgIKAgoCCgIKAgoCCgIKAqCj4gKyCgIKAgoCCgIKAgoCCgIKAgoCCgIKAgoCogRXhhbXBsZTog
-WzIsMyw0XSAtPiBbMyw0LDVdIG1vdmVzIGV2ZXJ5dGhpbmcuCj4gKyCgIKAgoCCgIKAgoCCgIKAg
-oCCgIKAgoCogoCCgIKAgoCCgIKAgoCCgIFswLTddIC0gPiBbMyw0LDVdIG1vdmVzIG9ubHkKPiAw
-LDEsMiw2LDcuCj4gKyCgIKAgoCCgIKAgoCCgIKAgoCCgIKAgoCovCj4gKwo+ICsgoCCgIKAgoCCg
-IKAgoCCgIKAgoCCgIGlmICgobm9kZXNfd2VpZ2h0KCpmcm9tX25vZGVzKSAhPQo+IG5vZGVzX3dl
-aWdodCgqdG9fbm9kZXMpKSAmJgo+ICsgoCCgIKAgoCCgIKAgoCCgIKAgoCCgIKAgoCCgIKAgoCCg
-IKAgoCCgIKAgoCCgIChub2RlX2lzc2V0KHMsICp0b19ub2RlcykpKQo+ICsgoCCgIKAgoCCgIKAg
-oCCgIKAgoCCgIKAgoCCgIKAgY29udGludWU7Cj4gKwo+IKAgoCCgIKAgoCCgIKAgoCCgIKAgoCCg
-ZCA9IG5vZGVfcmVtYXAocywgKmZyb21fbm9kZXMsICp0b19ub2Rlcyk7Cj4goCCgIKAgoCCgIKAg
-oCCgIKAgoCCgIKBpZiAocyA9PSBkKQo+IKAgoCCgIKAgoCCgIKAgoCCgIKAgoCCgIKAgoCCgIKBj
-b250aW51ZTsKCkFja2VkLWJ5OiBLT1NBS0kgTW90b2hpcm8gPGtvc2FraS5tb3RvaGlyb0BqcC5m
-dWppdHN1LmNvbT4K
+On 04/26/2012 09:20 AM, David Rientjes wrote:
+
+> On Thu, 26 Apr 2012, KAMEZAWA Hiroyuki wrote:
+> 
+>>> Or do we instead do this:
+>>>
+>>> -	some_function(foo, bar, GFP_NOIO);
+>>> +	old_gfp = set_current_gfp(GFP_NOIO);
+>>> +	some_function(foo, bar);
+>>> +	set_current_gfp(old_gfp);
+>>>
+>>> So the rule is "if the code was using an explicit GFP_foo then convert
+>>> it to use set_current_gfp().  If the code was receiving a gfp_t
+>>> variable from the caller then delete that arg".
+>>>
+>>> Or something like that.  It's all too hopelessly impractical to bother
+>>> discussing - 20 years too late!
+>>>
+>>>
+>>> otoh, maybe a constrained version of this could be used to address the
+>>> vmalloc() problem alone.
+>>>
+>>
+>> Yes, I think it will be good start.
+>>
+> 
+> Maybe a per-thread_info variant of gfp_allowed_mask?  So Andrew's 
+> set_current_gfp() becomes set_current_gfp_allowed() that does
+> 
+> 	void set_current_gfp_allowed(gfp_t gfp_mask)
+> 	{
+> 		current->gfp_allowed = gfp_mask & gfp_allowed_mask;
+> 	}
+> 
+> and then the page allocator does
+> 
+> 	gfp_mask &= current->gfp_allowed;
+> 
+> rather than how it currently does
+> 
+> 	gfp_mask &= gfp_allowed_mask;
+> 
+> and then the caller of set_current_gfp_allowed() cleans up with 
+> set_current_gfp_allowed(__GFP_BITS_MASK).
+
+
+Caller should restore old gfp_mask instead of __GFP_BITS_MASK in case of
+nesting.And how do we care of atomic context?
+
+I was about to add warning in __vmalloc internal if caller uses GFP_NOIO, GFP_NOFS, GFP_ATOMIC
+with Nick's comment and let them make to fix it. But it seems Andrew doesn't agree.
+
+Andrew, please tell me your opinion for fixing this problem.
+
+-- 
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
