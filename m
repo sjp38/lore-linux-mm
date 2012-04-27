@@ -1,27 +1,28 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx160.postini.com [74.125.245.160])
-	by kanga.kvack.org (Postfix) with SMTP id C33276B007E
-	for <linux-mm@kvack.org>; Fri, 27 Apr 2012 01:56:54 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx130.postini.com [74.125.245.130])
+	by kanga.kvack.org (Postfix) with SMTP id AE4EA6B007E
+	for <linux-mm@kvack.org>; Fri, 27 Apr 2012 02:00:52 -0400 (EDT)
 Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 630CB3EE0BC
-	for <linux-mm@kvack.org>; Fri, 27 Apr 2012 14:56:53 +0900 (JST)
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 4CEB83EE0C1
+	for <linux-mm@kvack.org>; Fri, 27 Apr 2012 15:00:51 +0900 (JST)
 Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 426B145DEB2
-	for <linux-mm@kvack.org>; Fri, 27 Apr 2012 14:56:53 +0900 (JST)
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 3219A45DEB7
+	for <linux-mm@kvack.org>; Fri, 27 Apr 2012 15:00:48 +0900 (JST)
 Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 2A18345DEAD
-	for <linux-mm@kvack.org>; Fri, 27 Apr 2012 14:56:53 +0900 (JST)
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 189D845DEB3
+	for <linux-mm@kvack.org>; Fri, 27 Apr 2012 15:00:48 +0900 (JST)
 Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 1A8361DB8044
-	for <linux-mm@kvack.org>; Fri, 27 Apr 2012 14:56:53 +0900 (JST)
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id ECCBE1DB803E
+	for <linux-mm@kvack.org>; Fri, 27 Apr 2012 15:00:47 +0900 (JST)
 Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.240.81.133])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id A55BD1DB803E
-	for <linux-mm@kvack.org>; Fri, 27 Apr 2012 14:56:52 +0900 (JST)
-Message-ID: <4F9A34B2.8080103@jp.fujitsu.com>
-Date: Fri, 27 Apr 2012 14:54:58 +0900
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 971E51DB803F
+	for <linux-mm@kvack.org>; Fri, 27 Apr 2012 15:00:47 +0900 (JST)
+Message-ID: <4F9A359C.10107@jp.fujitsu.com>
+Date: Fri, 27 Apr 2012 14:58:52 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
-Subject: [RFC][PATCH 4/7 v2] memcg: use res_counter_uncharge_until in move_parent
+Subject: [RFC][PATCH 5/9 v2] move charges to root at rmdir if use_hierarchy
+ is unset
 References: <4F9A327A.6050409@jp.fujitsu.com>
 In-Reply-To: <4F9A327A.6050409@jp.fujitsu.com>
 Content-Type: text/plain; charset=ISO-2022-JP
@@ -31,120 +32,129 @@ List-ID: <linux-mm.kvack.org>
 To: Linux Kernel <linux-kernel@vger.kernel.org>
 Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "cgroups@vger.kernel.org" <cgroups@vger.kernel.org>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Frederic Weisbecker <fweisbec@gmail.com>, Glauber Costa <glommer@parallels.com>, Tejun Heo <tj@kernel.org>, Han Ying <yinghan@google.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, kamezawa.hiroyuki@gmail.com
 
-By using res_counter_uncharge_until(), we can avoid 
-unnecessary charging.
+Now, at removal of cgroup, ->pre_destroy() is called and move charges
+to the parent cgroup. A major reason of -EBUSY returned by ->pre_destroy()
+is that the 'moving' hits parent's resource limitation. It happens only
+when use_hierarchy=0. This was a mistake of original design.(it's me...)
+
+Considering use_hierarchy=0, all cgroups are treated as flat. So, no one
+cannot justify moving charges to parent...parent and children are in
+flat configuration, not hierarchical.
+
+This patch modifes to move charges to root cgroup at rmdir/force_empty
+if use_hierarchy==0. This will much simplify rmdir() and reduce error
+in ->pre_destroy.
 
 Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 ---
- mm/memcontrol.c |   63 ++++++++++++++++++++++++++++++++++++------------------
- 1 files changed, 42 insertions(+), 21 deletions(-)
+ Documentation/cgroups/memory.txt |   12 ++++++----
+ mm/memcontrol.c                  |   39 +++++++++++++------------------------
+ 2 files changed, 21 insertions(+), 30 deletions(-)
 
+diff --git a/Documentation/cgroups/memory.txt b/Documentation/cgroups/memory.txt
+index 54c338d..82ce1ef 100644
+--- a/Documentation/cgroups/memory.txt
++++ b/Documentation/cgroups/memory.txt
+@@ -393,14 +393,14 @@ cgroup might have some charge associated with it, even though all
+ tasks have migrated away from it. (because we charge against pages, not
+ against tasks.)
+ 
+-Such charges are freed or moved to their parent. At moving, both of RSS
+-and CACHES are moved to parent.
+-rmdir() may return -EBUSY if freeing/moving fails. See 5.1 also.
++Such charges are freed or moved to their parent if use_hierarchy=1.
++if use_hierarchy=0, the charges will be moved to root cgroup.
+ 
+ Charges recorded in swap information is not updated at removal of cgroup.
+ Recorded information is discarded and a cgroup which uses swap (swapcache)
+ will be charged as a new owner of it.
+ 
++About use_hierarchy, see Section 6.
+ 
+ 5. Misc. interfaces.
+ 
+@@ -413,13 +413,15 @@ will be charged as a new owner of it.
+ 
+   Almost all pages tracked by this memory cgroup will be unmapped and freed.
+   Some pages cannot be freed because they are locked or in-use. Such pages are
+-  moved to parent and this cgroup will be empty. This may return -EBUSY if
+-  VM is too busy to free/move all pages immediately.
++  moved to parent(if use_hierarchy==1) or root (if use_hierarchy==0) and this
++  cgroup will be empty.
+ 
+   Typical use case of this interface is that calling this before rmdir().
+   Because rmdir() moves all pages to parent, some out-of-use page caches can be
+   moved to the parent. If you want to avoid that, force_empty will be useful.
+ 
++  About use_hierarchy, see Section 6.
++
+ 5.2 stat file
+ 
+ memory.stat file includes following statistics
 diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 613bb15..ed53d64 100644
+index ed53d64..62200f1 100644
 --- a/mm/memcontrol.c
 +++ b/mm/memcontrol.c
-@@ -2420,6 +2420,24 @@ static void __mem_cgroup_cancel_charge(struct mem_cgroup *memcg,
- }
- 
- /*
-+ * Cancel chages in this cgroup....doesn't propagates to parent cgroup.
-+ * This is useful when moving usage to parent cgroup.
-+ */
-+static void __mem_cgroup_cancel_local_charge(struct mem_cgroup *memcg,
-+					unsigned int nr_pages)
-+{
-+	if (!mem_cgroup_is_root(memcg)) {
-+		unsigned long bytes = nr_pages * PAGE_SIZE;
-+
-+		res_counter_uncharge_until(&memcg->res,
-+					memcg->res.parent, bytes);
-+		if (do_swap_account)
-+			res_counter_uncharge_until(&memcg->memsw,
-+						memcg->memsw.parent, bytes);
-+	}
-+}
-+
-+/*
-  * A helper function to get mem_cgroup from ID. must be called under
-  * rcu_read_lock(). The caller must check css_is_removed() or some if
-  * it's concern. (dropping refcnt from swap can be called against removed
-@@ -2677,16 +2695,28 @@ static int mem_cgroup_move_parent(struct page *page,
+@@ -2695,32 +2695,23 @@ static int mem_cgroup_move_parent(struct page *page,
  	nr_pages = hpage_nr_pages(page);
  
  	parent = mem_cgroup_from_cont(pcg);
--	ret = __mem_cgroup_try_charge(NULL, gfp_mask, nr_pages, &parent, false);
--	if (ret)
--		goto put_back;
-+	if (!parent->use_hierarchy) {
-+		ret = __mem_cgroup_try_charge(NULL,
-+					gfp_mask, nr_pages, &parent, false);
-+		if (ret)
-+			goto put_back;
-+	}
+-	if (!parent->use_hierarchy) {
+-		ret = __mem_cgroup_try_charge(NULL,
+-					gfp_mask, nr_pages, &parent, false);
+-		if (ret)
+-			goto put_back;
+-	}
++	/*
++	 * if use_hierarchy==0, move charges to root cgroup.
++	 * in root cgroup, we don't touch res_counter
++	 */
++	if (!parent->use_hierarchy)
++		parent = root_mem_cgroup;
  
  	if (nr_pages > 1)
  		flags = compound_lock_irqsave(page);
  
--	ret = mem_cgroup_move_account(page, nr_pages, pc, child, parent, true);
--	if (ret)
--		__mem_cgroup_cancel_charge(parent, nr_pages);
-+	if (parent->use_hierarchy) {
-+		ret = mem_cgroup_move_account(page, nr_pages,
-+					pc, child, parent, false);
-+		if (!ret)
-+			__mem_cgroup_cancel_local_charge(child, nr_pages);
-+	} else {
-+		ret = mem_cgroup_move_account(page, nr_pages,
-+					pc, child, parent, true);
-+
-+		if (ret)
-+			__mem_cgroup_cancel_charge(parent, nr_pages);
-+	}
+-	if (parent->use_hierarchy) {
+-		ret = mem_cgroup_move_account(page, nr_pages,
+-					pc, child, parent, false);
+-		if (!ret)
+-			__mem_cgroup_cancel_local_charge(child, nr_pages);
+-	} else {
+-		ret = mem_cgroup_move_account(page, nr_pages,
+-					pc, child, parent, true);
+-
+-		if (ret)
+-			__mem_cgroup_cancel_charge(parent, nr_pages);
+-	}
++	ret = mem_cgroup_move_account(page, nr_pages,
++				pc, child, parent, false);
++	if (!ret)
++		__mem_cgroup_cancel_local_charge(child, nr_pages);
  
  	if (nr_pages > 1)
  		compound_unlock_irqrestore(page, flags);
-@@ -3295,6 +3325,7 @@ int mem_cgroup_move_hugetlb_parent(int idx, struct cgroup *cgroup,
- 	struct cgroup *pcgrp = cgroup->parent;
- 	struct mem_cgroup *parent = mem_cgroup_from_cont(pcgrp);
- 	struct mem_cgroup *memcg  = mem_cgroup_from_cont(cgroup);
-+	struct res_counter *counter;
- 
- 	if (!get_page_unless_zero(page))
- 		goto out;
-@@ -3305,28 +3336,18 @@ int mem_cgroup_move_hugetlb_parent(int idx, struct cgroup *cgroup,
- 		goto err_out;
- 
+-put_back:
+ 	putback_lru_page(page);
+ put:
+ 	put_page(page);
+@@ -3338,12 +3329,10 @@ int mem_cgroup_move_hugetlb_parent(int idx, struct cgroup *cgroup,
  	csize = PAGE_SIZE << compound_order(page);
--	/*
--	 * If we have use_hierarchy set we can never fail here. So instead of
--	 * using res_counter_uncharge use the open-coded variant which just
--	 * uncharge the child res_counter. The parent will retain the charge.
--	 */
--	if (parent->use_hierarchy) {
--		unsigned long flags;
--		struct res_counter *counter;
--
--		counter = &memcg->hugepage[idx];
--		spin_lock_irqsave(&counter->lock, flags);
--		res_counter_uncharge_locked(counter, csize);
--		spin_unlock_irqrestore(&counter->lock, flags);
--	} else {
-+	/* If parent->use_hierarchy == 0, we need to charge parent */
-+	if (!parent->use_hierarchy) {
- 		ret = res_counter_charge(&parent->hugepage[idx],
- 					 csize, &fail_res);
- 		if (ret) {
- 			ret = -EBUSY;
- 			goto err_out;
- 		}
--		res_counter_uncharge(&memcg->hugepage[idx], csize);
+ 	/* If parent->use_hierarchy == 0, we need to charge parent */
+ 	if (!parent->use_hierarchy) {
+-		ret = res_counter_charge(&parent->hugepage[idx],
+-					 csize, &fail_res);
+-		if (ret) {
+-			ret = -EBUSY;
+-			goto err_out;
+-		}
++		parent = root_mem_cgroup;
++		/* root has no limit */
++		res_counter_charge_nofail(&parent->hugepage[idx],
++				 csize, &fail_res);
  	}
-+	counter = &memcg->hugepage[idx];
-+	res_counter_uncharge_until(counter, counter->parent, csize);
-+
- 	pc->mem_cgroup = parent;
- err_out:
- 	unlock_page_cgroup(pc);
+ 	counter = &memcg->hugepage[idx];
+ 	res_counter_uncharge_until(counter, counter->parent, csize);
 -- 
 1.7.4.1
 
