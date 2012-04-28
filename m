@@ -1,113 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx198.postini.com [74.125.245.198])
-	by kanga.kvack.org (Postfix) with SMTP id 5B4B26B00F1
-	for <linux-mm@kvack.org>; Fri, 27 Apr 2012 22:00:20 -0400 (EDT)
-Received: from /spool/local
-	by e38.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <shangw@linux.vnet.ibm.com>;
-	Fri, 27 Apr 2012 20:00:19 -0600
-Received: from d01relay03.pok.ibm.com (d01relay03.pok.ibm.com [9.56.227.235])
-	by d01dlp03.pok.ibm.com (Postfix) with ESMTP id C6326C90050
-	for <linux-mm@kvack.org>; Fri, 27 Apr 2012 22:00:10 -0400 (EDT)
-Received: from d01av01.pok.ibm.com (d01av01.pok.ibm.com [9.56.224.215])
-	by d01relay03.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q3S20Cch069050
-	for <linux-mm@kvack.org>; Fri, 27 Apr 2012 22:00:12 -0400
-Received: from d01av01.pok.ibm.com (loopback [127.0.0.1])
-	by d01av01.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q3S7V40q006335
-	for <linux-mm@kvack.org>; Sat, 28 Apr 2012 03:31:04 -0400
-Date: Sat, 28 Apr 2012 10:00:11 +0800
-From: Gavin Shan <shangw@linux.vnet.ibm.com>
-Subject: Re: [PATCH 2/2] MM: check limit while deallocating bootmem node
-Message-ID: <20120428020011.GC8061@shangw>
-Reply-To: Gavin Shan <shangw@linux.vnet.ibm.com>
-References: <1335498104-31900-1-git-send-email-shangw@linux.vnet.ibm.com>
- <1335498104-31900-2-git-send-email-shangw@linux.vnet.ibm.com>
- <20120428013802.GA8061@shangw>
+Received: from psmtp.com (na3sys010amx106.postini.com [74.125.245.106])
+	by kanga.kvack.org (Postfix) with SMTP id 405D66B0044
+	for <linux-mm@kvack.org>; Fri, 27 Apr 2012 23:59:06 -0400 (EDT)
+Received: by iajr24 with SMTP id r24so2720022iaj.14
+        for <linux-mm@kvack.org>; Fri, 27 Apr 2012 20:59:05 -0700 (PDT)
+Date: Fri, 27 Apr 2012 20:58:55 -0700 (PDT)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: swapcache size oddness
+In-Reply-To: <f0b2f4a3-f6d4-41e9-943b-d083eec9e106@default>
+Message-ID: <alpine.LSU.2.00.1204272021030.28310@eggly.anvils>
+References: <f0b2f4a3-f6d4-41e9-943b-d083eec9e106@default>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20120428013802.GA8061@shangw>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: hannes@cmpxchg.org
+To: Dan Magenheimer <dan.magenheimer@oracle.com>
 Cc: linux-mm@kvack.org
 
->Hi Johannes,
->
->Could you take a look on this while you have available time?
->
+On Fri, 27 Apr 2012, Dan Magenheimer wrote:
 
-It's my bad. It should be this one:
+> In continuing digging through the swap code (with the
+> overall objective of improving zcache policy), I was
+> looking at the size of the swapcache.
+> 
+> My understanding was that the swapcache is simply a
+> buffer cache for pages that are actively in the process
+> of being swapped in or swapped out.
 
-[PATCH 1/2] MM: fixup on addition to bootmem data list
+It's that part of the pagecache for pages on swap.
 
->Thanks,
->Gavin
->
->>For the particular bootmem node, the minimal and maximal PFN (
->>Page Frame Number) have been traced in the instance of "struct
->>bootmem_data_t". On current implementation, the maximal PFN isn't
->>checked while deallocating a bunch (BITS_PER_LONG) of page frames.
->>So the current implementation won't work if the maximal PFN isn't
->>aligned with BITS_PER_LONG.
->>
->>The patch will check the maximal PFN of the given bootmem node.
->>Also, we needn't check all the bits map when the starting PFN isn't
->>BITS_PER_LONG aligned. Actually, we should start from the offset
->>of the bits map, which indicated by the starting PFN.
->>
->>Signed-off-by: Gavin Shan <shangw@linux.vnet.ibm.com>
->>---
->> mm/bootmem.c |   11 ++++++++---
->> 1 files changed, 8 insertions(+), 3 deletions(-)
->>
->>diff --git a/mm/bootmem.c b/mm/bootmem.c
->>index 5a04536..ebac3ba 100644
->>--- a/mm/bootmem.c
->>+++ b/mm/bootmem.c
->>@@ -194,16 +194,20 @@ static unsigned long __init free_all_bootmem_core(bootmem_data_t *bdata)
->> 		 * BITS_PER_LONG block of pages in front of us, free
->> 		 * it in one go.
->> 		 */
->>-		if (IS_ALIGNED(start, BITS_PER_LONG) && vec == ~0UL) {
->>+		if (end - start >= BITS_PER_LONG &&
->>+		    IS_ALIGNED(start, BITS_PER_LONG) &&
->>+		    vec == ~0UL) {
->> 			int order = ilog2(BITS_PER_LONG);
->>
->> 			__free_pages_bootmem(pfn_to_page(start), order);
->> 			count += BITS_PER_LONG;
->> 			start += BITS_PER_LONG;
->> 		} else {
->>-			unsigned long off = 0;
->>+			unsigned long cursor = start;
->>+			unsigned long off = cursor & (BITS_PER_LONG - 1);
->>
->>-			while (vec && off < BITS_PER_LONG) {
->>+			vec >>= off;
->>+			while (vec && off < BITS_PER_LONG && cursor < end) {
->> 				if (vec & 1) {
->> 					page = pfn_to_page(start + off);
->> 					__free_pages_bootmem(page, 0);
->>@@ -211,6 +215,7 @@ static unsigned long __init free_all_bootmem_core(bootmem_data_t *bdata)
->> 				}
->> 				vec >>= 1;
->> 				off++;
->>+				cursor++;
->> 			}
->> 			start = ALIGN(start + 1, BITS_PER_LONG);
->> 		}
->>-- 
->>1.7.5.4
->>
->
->--
->To unsubscribe, send a message with 'unsubscribe linux-mm' in
->the body to majordomo@kvack.org.  For more info on Linux MM,
->see: http://www.linux-mm.org/ .
->Fight unfair telecom internet charges in Canada: sign http://stopthemeter.ca/
->Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
->
+Once written out, as with other pagecache pages written out under
+reclaim, we do expect to reclaim them fairly soon (they're moved to
+the bottom of the inactive list).  But when read back in, we read a
+cluster at a time, hoping to pick up some more useful pages while the
+disk head is there (though of course it may be a headless disk).  We
+don't disassociate those from swap until they're dirtied (or swap
+looks fullish), why should we?
+
+> And keeping pages
+> around in the swapcache is inefficient because every
+> process access to a page in the swapcache causes a
+> minor page fault.
+
+What's inefficient about that?  A minor fault is much less
+costly than the major fault of reading them back from disk.
+
+> 
+> So I was surprised to see that, under a memory intensive
+> workload, the swapcache can grow quite large.  I have
+> seen it grow to almost half of the size of RAM.
+
+Nothing wrong with that, so long as they can be freed and
+used for better purpose when needed.
+
+> 
+> Digging into this oddity, I re-discovered the definition
+> for "vm_swap_full()" which, in scan_swap_map() is a
+> pre-condition for calling __try_to_reclaim_swap().
+> But vm_swap_full() compares how much free swap space
+> there is "on disk", with the total swap space available
+> "on disk" with no regard to how much RAM there is.
+> So on my system, which is running with 1GB RAM and
+> 10GB swap, I think this is the reason that swapcache
+> is growing so large.
+> 
+> Am I misunderstanding something?  Or is this code
+> making some (possibly false) assumptions about how
+> swap is/should be sized relative to RAM?  Or maybe the
+> size of swapcache is harmless as long as it doesn't
+> approach total "on disk" size?
+
+The size of swapcache is harmless: we break those pages' association
+with swap once a better use for the page comes up.  But the size of
+swapcache does (of course) represent a duplication of what's on swap.
+
+As swap becomes full, that duplication becomes wasteful: we may need
+some of the swap already in memory for saving other pages; so break
+the association, freeing the swap for reuse but keeping the page
+(but now it's no longer swapcache).
+
+That's what the vm_swap_full() tests are about: choosing to free swap
+when it's duplicated in memory, once it's becoming a scarce resource.
+
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
