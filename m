@@ -1,116 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx171.postini.com [74.125.245.171])
-	by kanga.kvack.org (Postfix) with SMTP id 9B6856B00E8
-	for <linux-mm@kvack.org>; Fri, 27 Apr 2012 20:25:01 -0400 (EDT)
-Received: by vbbey12 with SMTP id ey12so1289522vbb.14
-        for <linux-mm@kvack.org>; Fri, 27 Apr 2012 17:25:00 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx102.postini.com [74.125.245.102])
+	by kanga.kvack.org (Postfix) with SMTP id 961F96B00E7
+	for <linux-mm@kvack.org>; Fri, 27 Apr 2012 20:37:38 -0400 (EDT)
+Message-ID: <4F9B3BEB.1040805@xenotime.net>
+Date: Fri, 27 Apr 2012 17:38:03 -0700
+From: Randy Dunlap <rdunlap@xenotime.net>
 MIME-Version: 1.0
-In-Reply-To: <CALWz4iyiM-CFgVaHiE1Lgd1ZwJzHwY3tx9XX6HeDPUV_wVPAtQ@mail.gmail.com>
-References: <4F9A327A.6050409@jp.fujitsu.com>
-	<4F9A375D.7@jp.fujitsu.com>
-	<CALWz4iyiM-CFgVaHiE1Lgd1ZwJzHwY3tx9XX6HeDPUV_wVPAtQ@mail.gmail.com>
-Date: Sat, 28 Apr 2012 09:25:00 +0900
-Message-ID: <CABEgKgrXqbF8XBc6vHa2b5KQe9E7_+WODvq3hE0vaT0Eyxo5=w@mail.gmail.com>
-Subject: Re: [RFC][PATCH 9/9 v2] memcg: never return error at pre_destroy()
-From: Hiroyuki Kamezawa <kamezawa.hiroyuki@gmail.com>
+Subject: Re: [PATCH] drivers: staging: zcache: fix Kconfig crypto dependency
+References: <1335231230-29344-1-git-send-email-sjenning@linux.vnet.ibm.com>
+In-Reply-To: <1335231230-29344-1-git-send-email-sjenning@linux.vnet.ibm.com>
 Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ying Han <yinghan@google.com>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Linux Kernel <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "cgroups@vger.kernel.org" <cgroups@vger.kernel.org>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Frederic Weisbecker <fweisbec@gmail.com>, Glauber Costa <glommer@parallels.com>, Tejun Heo <tj@kernel.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>
+To: Seth Jennings <sjenning@linux.vnet.ibm.com>
+Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, devel@driverdev.osuosl.org, Dan Magenheimer <dan.magenheimer@oracle.com>, Autif Khan <autif.mlist@gmail.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Robert Jennings <rcj@linux.vnet.ibm.com>, Nitin Gupta <ngupta@vflare.org>
 
-On Sat, Apr 28, 2012 at 6:28 AM, Ying Han <yinghan@google.com> wrote:
-> On Thu, Apr 26, 2012 at 11:06 PM, KAMEZAWA Hiroyuki
-> <kamezawa.hiroyu@jp.fujitsu.com> wrote:
->> When force_empty() called by ->pre_destroy(), no memory reclaim happens
->> and it doesn't take very long time which requires signal_pending() check=
-.
->> And if we return -EINTR from pre_destroy(), cgroup.c show warning.
->>
->> This patch removes signal check in force_empty(). By this, ->pre_destroy=
-()
->> returns success always.
->>
->> Note: check for 'cgroup is empty' remains for force_empty interface.
->>
->> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
->> ---
->> =A0mm/hugetlb.c =A0 =A0| =A0 10 +---------
->> =A0mm/memcontrol.c | =A0 14 +++++---------
->> =A02 files changed, 6 insertions(+), 18 deletions(-)
->>
->> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
->> index 4dd6b39..770f1642 100644
->> --- a/mm/hugetlb.c
->> +++ b/mm/hugetlb.c
->> @@ -1922,20 +1922,12 @@ int hugetlb_force_memcg_empty(struct cgroup *cgr=
-oup)
->> =A0 =A0 =A0 =A0int ret =3D 0, idx =3D 0;
->>
->> =A0 =A0 =A0 =A0do {
->> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 /* see memcontrol.c::mem_cgroup_force_empt=
-y() */
->> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0if (cgroup_task_count(cgroup)
->> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0|| !list_empty(&cgroup->c=
-hildren)) {
->> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0ret =3D -EBUSY;
->> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0goto out;
->> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0}
->> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 /*
->> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0* If the task doing the cgroup_rmdir go=
-t a signal
->> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0* we don't really need to loop till the=
- hugetlb resource
->> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0* usage become zero.
->> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0*/
->> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (signal_pending(current)) {
->> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 ret =3D -EINTR;
->> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 goto out;
->> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 }
->> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0for_each_hstate(h) {
->> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0spin_lock(&hugetlb_lock);
->> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0list_for_each_entry(page,=
- &h->hugepage_activelist, lru) {
->> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
->> index 2715223..ee350c5 100644
->> --- a/mm/memcontrol.c
->> +++ b/mm/memcontrol.c
->> @@ -3852,8 +3852,6 @@ static int mem_cgroup_force_empty_list(struct mem_=
-cgroup *memcg,
->> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0pc =3D lookup_page_cgroup(page);
->>
->> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0ret =3D mem_cgroup_move_parent(page, pc, =
-memcg, GFP_KERNEL);
->> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (ret =3D=3D -ENOMEM || ret =3D=3D -EINT=
-R)
->> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 break;
->>
->> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0if (ret =3D=3D -EBUSY || ret =3D=3D -EINV=
-AL) {
->> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0/* found lock contention =
-or "pc" is obsolete. */
->> @@ -3863,7 +3861,7 @@ static int mem_cgroup_force_empty_list(struct mem_=
-cgroup *memcg,
->> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0busy =3D NULL;
->> =A0 =A0 =A0 =A0}
->>
->> - =A0 =A0 =A0 if (!ret && !list_empty(list))
->> + =A0 =A0 =A0 if (!loop)
->
-> This looks a bit strange to me... why we make the change ?
->
-Ah, I should this move to an independet patch.
-Because we don't have -ENOMEM path to exit loop, the return value of
-this function
-is
-  0 (if loop !=3D0 this means lru is empty under the lru lock )
-  -EBUSY (if loop=3D=3D 0)
+On 04/23/2012 06:33 PM, Seth Jennings wrote:
 
-I'll move this part out as an independent clean up patch
+> ZCACHE is a boolean in the Kconfig.  When selected, it
+> should require that CRYPTO be builtin (=y).
+> 
+> Currently, ZCACHE=y and CRYPTO=m is a valid configuration
+> when it should not be.
+> 
+> This patch changes the zcache Kconfig to enforce this
+> dependency.
+> 
+> Signed-off-by: Seth Jennings <sjenning@linux.vnet.ibm.com>
 
-thanks,
--kame
+
+Acked-by: Randy Dunlap <rdunlap@xenotime.net>
+
+Thanks.
+
+> ---
+>  drivers/staging/zcache/Kconfig |    2 +-
+>  1 files changed, 1 insertions(+), 1 deletions(-)
+> 
+> diff --git a/drivers/staging/zcache/Kconfig b/drivers/staging/zcache/Kconfig
+> index 3ed2c8f..7048e01 100644
+> --- a/drivers/staging/zcache/Kconfig
+> +++ b/drivers/staging/zcache/Kconfig
+> @@ -2,7 +2,7 @@ config ZCACHE
+>  	bool "Dynamic compression of swap pages and clean pagecache pages"
+>  	# X86 dependency is because zsmalloc uses non-portable pte/tlb
+>  	# functions
+> -	depends on (CLEANCACHE || FRONTSWAP) && CRYPTO && X86
+> +	depends on (CLEANCACHE || FRONTSWAP) && CRYPTO=y && X86
+>  	select ZSMALLOC
+>  	select CRYPTO_LZO
+>  	default n
+
+
+
+-- 
+~Randy
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
