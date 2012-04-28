@@ -1,26 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx166.postini.com [74.125.245.166])
-	by kanga.kvack.org (Postfix) with SMTP id CD62D6B0044
-	for <linux-mm@kvack.org>; Sat, 28 Apr 2012 09:45:04 -0400 (EDT)
-Received: by iajr24 with SMTP id r24so3317992iaj.14
-        for <linux-mm@kvack.org>; Sat, 28 Apr 2012 06:45:04 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <CA+1xoqf1mxbShV2OnLZCjacuyLAUvXwi_70ErOXb=hRTbx9Xcg@mail.gmail.com>
-References: <1334903774.5922.35.camel@lappy> <CA+1xoqf1mxbShV2OnLZCjacuyLAUvXwi_70ErOXb=hRTbx9Xcg@mail.gmail.com>
+Received: from psmtp.com (na3sys010amx138.postini.com [74.125.245.138])
+	by kanga.kvack.org (Postfix) with SMTP id D7A066B0044
+	for <linux-mm@kvack.org>; Sat, 28 Apr 2012 10:24:43 -0400 (EDT)
+Received: by dadq36 with SMTP id q36so2312080dad.8
+        for <linux-mm@kvack.org>; Sat, 28 Apr 2012 07:24:43 -0700 (PDT)
 From: Sasha Levin <levinsasha928@gmail.com>
-Date: Sat, 28 Apr 2012 15:44:44 +0200
-Message-ID: <CA+1xoqeFY0oaj2uj3AkTLUwDbbcKjxPAVZR4gQBUKEVArQeLXg@mail.gmail.com>
-Subject: Re: mm: divide by zero in percpu_pagelist_fraction_sysctl_handler()
-Content-Type: text/plain; charset=ISO-8859-1
+Subject: [PATCH] mm: fix devision by 0 in percpu_pagelist_fraction
+Date: Sat, 28 Apr 2012 16:25:31 +0200
+Message-Id: <1335623131-15728-1-git-send-email-levinsasha928@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, mel@csn.ul.ie, cl@linux-foundation.org
-Cc: linux-mm <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: akpm@linux-foundation.org, rohit.seth@intel.com
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Sasha Levin <levinsasha928@gmail.com>
 
-Oh, nevermind, I see the problem. I'll send a patch.
+percpu_pagelist_fraction_sysctl_handler() has only considered -EINVAL as a possible error
+from proc_dointvec_minmax(). If any other error is returned, it would proceed to divide by
+zero since percpu_pagelist_fraction wasn't getting initialized at any point. For example,
+writing 0 bytes into the proc file would trigger the issue.
 
-On Sat, Apr 28, 2012 at 3:21 PM, Sasha Levin <levinsasha928@gmail.com> wrote:
-> Ping? Still see it happening.
+Signed-off-by: Sasha Levin <levinsasha928@gmail.com>
+---
+ mm/page_alloc.c |    4 ++--
+ 1 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 1b951de..1e00729 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -106,7 +106,7 @@ unsigned long totalreserve_pages __read_mostly;
+  */
+ unsigned long dirty_balance_reserve __read_mostly;
+ 
+-int percpu_pagelist_fraction;
++int percpu_pagelist_fraction = 8;
+ gfp_t gfp_allowed_mask __read_mostly = GFP_BOOT_MASK;
+ 
+ #ifdef CONFIG_PM_SLEEP
+@@ -5271,7 +5271,7 @@ int percpu_pagelist_fraction_sysctl_handler(ctl_table *table, int write,
+ 	int ret;
+ 
+ 	ret = proc_dointvec_minmax(table, write, buffer, length, ppos);
+-	if (!write || (ret == -EINVAL))
++	if (!write || (ret < 0))
+ 		return ret;
+ 	for_each_populated_zone(zone) {
+ 		for_each_possible_cpu(cpu) {
+-- 
+1.7.8.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
