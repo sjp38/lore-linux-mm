@@ -1,52 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx137.postini.com [74.125.245.137])
-	by kanga.kvack.org (Postfix) with SMTP id 578046B0044
-	for <linux-mm@kvack.org>; Fri, 27 Apr 2012 19:59:09 -0400 (EDT)
-Received: by vcbfy7 with SMTP id fy7so1284360vcb.14
-        for <linux-mm@kvack.org>; Fri, 27 Apr 2012 16:59:08 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx162.postini.com [74.125.245.162])
+	by kanga.kvack.org (Postfix) with SMTP id C3DA26B0081
+	for <linux-mm@kvack.org>; Fri, 27 Apr 2012 20:01:24 -0400 (EDT)
+Received: by vbbey12 with SMTP id ey12so1278320vbb.14
+        for <linux-mm@kvack.org>; Fri, 27 Apr 2012 17:01:23 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <20120427182018.GI26595@google.com>
+In-Reply-To: <CALWz4ixHGCqfWh1U+JyiJWTkGmCDtXQy1vbHRjrHaU_pOgGuBw@mail.gmail.com>
 References: <4F9A327A.6050409@jp.fujitsu.com>
-	<4F9A34B2.8080103@jp.fujitsu.com>
-	<20120427182018.GI26595@google.com>
-Date: Sat, 28 Apr 2012 08:59:08 +0900
-Message-ID: <CABEgKgooq6EUFRC2-19QxACpGN5+EHn=OwPzk+tMBLy-pYM9XQ@mail.gmail.com>
-Subject: Re: [RFC][PATCH 4/7 v2] memcg: use res_counter_uncharge_until in move_parent
+	<4F9A359C.10107@jp.fujitsu.com>
+	<CALWz4ixHGCqfWh1U+JyiJWTkGmCDtXQy1vbHRjrHaU_pOgGuBw@mail.gmail.com>
+Date: Sat, 28 Apr 2012 09:01:23 +0900
+Message-ID: <CABEgKgpCyWhe1KMgcF7ob0myzcCypNbw5SebhVpSX_Xaz7yOBw@mail.gmail.com>
+Subject: Re: [RFC][PATCH 5/9 v2] move charges to root at rmdir if
+ use_hierarchy is unset
 From: Hiroyuki Kamezawa <kamezawa.hiroyuki@gmail.com>
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Linux Kernel <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "cgroups@vger.kernel.org" <cgroups@vger.kernel.org>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Frederic Weisbecker <fweisbec@gmail.com>, Glauber Costa <glommer@parallels.com>, Han Ying <yinghan@google.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>
+To: Ying Han <yinghan@google.com>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Linux Kernel <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "cgroups@vger.kernel.org" <cgroups@vger.kernel.org>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Frederic Weisbecker <fweisbec@gmail.com>, Glauber Costa <glommer@parallels.com>, Tejun Heo <tj@kernel.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>
 
-On Sat, Apr 28, 2012 at 3:20 AM, Tejun Heo <tj@kernel.org> wrote:
-> On Fri, Apr 27, 2012 at 02:54:58PM +0900, KAMEZAWA Hiroyuki wrote:
->> By using res_counter_uncharge_until(), we can avoid
->> unnecessary charging.
+On Sat, Apr 28, 2012 at 4:12 AM, Ying Han <yinghan@google.com> wrote:
+> On Thu, Apr 26, 2012 at 10:58 PM, KAMEZAWA Hiroyuki
+> <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+>> Now, at removal of cgroup, ->pre_destroy() is called and move charges
+>> to the parent cgroup. A major reason of -EBUSY returned by ->pre_destroy=
+()
+>> is that the 'moving' hits parent's resource limitation. It happens only
+>> when use_hierarchy=3D0. This was a mistake of original design.(it's me..=
+.)
+>
+> Nice patch, i can see how broken it is now with use_hierarchy=3D0...
+>
+> nitpick on the documentation below:
+>
+>>
+>> Considering use_hierarchy=3D0, all cgroups are treated as flat. So, no o=
+ne
+>> cannot justify moving charges to parent...parent and children are in
+>> flat configuration, not hierarchical.
+>>
+>> This patch modifes to move charges to root cgroup at rmdir/force_empty
+>> if use_hierarchy=3D=3D0. This will much simplify rmdir() and reduce erro=
+r
+>> in ->pre_destroy.
 >>
 >> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 >> ---
->> =A0mm/memcontrol.c | =A0 63 ++++++++++++++++++++++++++++++++++++--------=
-----------
->> =A01 files changed, 42 insertions(+), 21 deletions(-)
+>> =A0Documentation/cgroups/memory.txt | =A0 12 ++++++----
+>> =A0mm/memcontrol.c =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0| =A0 39 +++++++++=
+++++------------------------
+>> =A02 files changed, 21 insertions(+), 30 deletions(-)
 >>
->> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
->> index 613bb15..ed53d64 100644
->> --- a/mm/memcontrol.c
->> +++ b/mm/memcontrol.c
->> @@ -2420,6 +2420,24 @@ static void __mem_cgroup_cancel_charge(struct mem=
-_cgroup *memcg,
->> =A0}
+>> diff --git a/Documentation/cgroups/memory.txt b/Documentation/cgroups/me=
+mory.txt
+>> index 54c338d..82ce1ef 100644
+>> --- a/Documentation/cgroups/memory.txt
+>> +++ b/Documentation/cgroups/memory.txt
+>> @@ -393,14 +393,14 @@ cgroup might have some charge associated with it, =
+even though all
+>> =A0tasks have migrated away from it. (because we charge against pages, n=
+ot
+>> =A0against tasks.)
 >>
->> =A0/*
->> + * Cancel chages in this cgroup....doesn't propagates to parent cgroup.
+>> -Such charges are freed or moved to their parent. At moving, both of RSS
+>> -and CACHES are moved to parent.
+>> -rmdir() may return -EBUSY if freeing/moving fails. See 5.1 also.
+>> +Such charges are freed or moved to their parent if use_hierarchy=3D1.
+>> +if use_hierarchy=3D0, the charges will be moved to root cgroup.
 >
-> =A0 =A0 =A0 =A0 =A0 =A0 ^typo =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0=
- =A0 =A0 =A0 =A0 =A0 =A0 =A0 ^ unnecessary s
+> It is more clear that we move the stats to root (if use_hierarchy=3D=3D0)
+> or parent (if use_hierarchy=3D=3D1), and no change on the charge except
+> uncharging from the child.
+>
 
-Ya, thanks. I'll fix it.
+Seems nicer. I'll use your text in next ver.
 
+Thanks,
 -Kame
 
 --
