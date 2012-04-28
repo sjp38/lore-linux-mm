@@ -1,62 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx204.postini.com [74.125.245.204])
-	by kanga.kvack.org (Postfix) with SMTP id 48F156B0044
-	for <linux-mm@kvack.org>; Sat, 28 Apr 2012 12:14:05 -0400 (EDT)
-Date: Sat, 28 Apr 2012 18:13:58 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [RFC][PATCH 0/7 v2] memcg: prevent failure in pre_destroy()
-Message-ID: <20120428161358.GA13010@tiehlicka.suse.cz>
-References: <4F9A327A.6050409@jp.fujitsu.com>
- <20120427181642.GG26595@google.com>
- <CABEgKgrir3PBGqm_9FmYsZTiFqsZ=Cdt5iZDu5WcOHPtZuEbFg@mail.gmail.com>
+Received: from psmtp.com (na3sys010amx160.postini.com [74.125.245.160])
+	by kanga.kvack.org (Postfix) with SMTP id 9D9456B0044
+	for <linux-mm@kvack.org>; Sat, 28 Apr 2012 12:22:35 -0400 (EDT)
+Received: by lagz14 with SMTP id z14so1618657lag.14
+        for <linux-mm@kvack.org>; Sat, 28 Apr 2012 09:22:33 -0700 (PDT)
+Subject: [PATCH bugfix] proc/pagemap: correctly report non-present ptes and
+ holes between vmas
+From: Konstantin Khlebnikov <khlebnikov@openvz.org>
+Date: Sat, 28 Apr 2012 20:22:30 +0400
+Message-ID: <20120428162229.15658.56316.stgit@zurg>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CABEgKgrir3PBGqm_9FmYsZTiFqsZ=Cdt5iZDu5WcOHPtZuEbFg@mail.gmail.com>
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hiroyuki Kamezawa <kamezawa.hiroyuki@gmail.com>
-Cc: Tejun Heo <tj@kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Linux Kernel <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "cgroups@vger.kernel.org" <cgroups@vger.kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Frederic Weisbecker <fweisbec@gmail.com>, Glauber Costa <glommer@parallels.com>, Han Ying <yinghan@google.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Andi Kleen <ak@linux.intel.com>, Pavel Emelyanov <xemul@parallels.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-On Sat 28-04-12 08:48:18, Hiroyuki Kamezawa wrote:
-> On Sat, Apr 28, 2012 at 3:16 AM, Tejun Heo <tj@kernel.org> wrote:
-> > Hello,
-> >
-> > On Fri, Apr 27, 2012 at 02:45:30PM +0900, KAMEZAWA Hiroyuki wrote:
-> >> This is a v2 patch for preventing failure in memcg->pre_destroy().
-> >> With this patch, ->pre_destroy() will never return error code and
-> >> users will not see warning at rmdir(). And this work will simplify
-> >> memcg->pre_destroy(), largely.
-> >>
-> >> This patch is based on linux-next + hugetlb memory control patches.
-> >
-> > Ergh... can you please set up a git branch somewhere for review
-> > purposes?
-> >
-> I'm sorry...I can't. (To do that, I need to pass many my company's check.)
-> I'll repost all a week later, hugetlb tree will be seen in memcg-devel or
-> linux-next.
+This patch resets current pagemap-entry if current pte isn't present,
+or if current vma is over. Otherwise pagemap reports last entry again and again.
 
-I can push it to memcg-devel tree if you want.
+non-present pte reporting was broken in commit v3.3-3738-g092b50b
+("pagemap: introduce data structure for pagemap entry")
 
-> 
-> Thanks,
-> -Kame
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Fight unfair telecom internet charges in Canada: sign http://stopthemeter.ca/
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+reporting for holes was broken in commit v3.3-3734-g5aaabe8
+("pagemap: avoid splitting thp when reading /proc/pid/pagemap")
 
--- 
-Michal Hocko
-SUSE Labs
-SUSE LINUX s.r.o.
-Lihovarska 1060/12
-190 00 Praha 9    
-Czech Republic
+Signed-off-by: Konstantin Khlebnikov <khlebnikov@openvz.org>
+Reported-by: Pavel Emelyanov <xemul@parallels.com>
+Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Andi Kleen <ak@linux.intel.com>
+---
+ fs/proc/task_mmu.c |   12 ++++++++++--
+ 1 file changed, 10 insertions(+), 2 deletions(-)
+
+diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
+index a580c69..9f9c033 100644
+--- a/fs/proc/task_mmu.c
++++ b/fs/proc/task_mmu.c
+@@ -747,6 +747,8 @@ static void pte_to_pagemap_entry(pagemap_entry_t *pme, pte_t pte)
+ 	else if (pte_present(pte))
+ 		*pme = make_pme(PM_PFRAME(pte_pfn(pte))
+ 				| PM_PSHIFT(PAGE_SHIFT) | PM_PRESENT);
++	else
++		*pme = make_pme(PM_NOT_PRESENT);
+ }
+ 
+ #ifdef CONFIG_TRANSPARENT_HUGEPAGE
+@@ -761,6 +763,8 @@ static void thp_pmd_to_pagemap_entry(pagemap_entry_t *pme,
+ 	if (pmd_present(pmd))
+ 		*pme = make_pme(PM_PFRAME(pmd_pfn(pmd) + offset)
+ 				| PM_PSHIFT(PAGE_SHIFT) | PM_PRESENT);
++	else
++		*pme = make_pme(PM_NOT_PRESENT);
+ }
+ #else
+ static inline void thp_pmd_to_pagemap_entry(pagemap_entry_t *pme,
+@@ -801,8 +805,10 @@ static int pagemap_pte_range(pmd_t *pmd, unsigned long addr, unsigned long end,
+ 
+ 		/* check to see if we've left 'vma' behind
+ 		 * and need a new, higher one */
+-		if (vma && (addr >= vma->vm_end))
++		if (vma && (addr >= vma->vm_end)) {
+ 			vma = find_vma(walk->mm, addr);
++			pme = make_pme(PM_NOT_PRESENT);
++		}
+ 
+ 		/* check that 'vma' actually covers this address,
+ 		 * and that it isn't a huge page vma */
+@@ -830,6 +836,8 @@ static void huge_pte_to_pagemap_entry(pagemap_entry_t *pme,
+ 	if (pte_present(pte))
+ 		*pme = make_pme(PM_PFRAME(pte_pfn(pte) + offset)
+ 				| PM_PSHIFT(PAGE_SHIFT) | PM_PRESENT);
++	else
++		*pme = make_pme(PM_NOT_PRESENT);
+ }
+ 
+ /* This function walks within one hugetlb entry in the single call */
+@@ -839,7 +847,7 @@ static int pagemap_hugetlb_range(pte_t *pte, unsigned long hmask,
+ {
+ 	struct pagemapread *pm = walk->private;
+ 	int err = 0;
+-	pagemap_entry_t pme = make_pme(PM_NOT_PRESENT);
++	pagemap_entry_t pme;
+ 
+ 	for (; addr != end; addr += PAGE_SIZE) {
+ 		int offset = (addr & ~hmask) >> PAGE_SHIFT;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
