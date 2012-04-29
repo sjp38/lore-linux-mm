@@ -1,55 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx137.postini.com [74.125.245.137])
-	by kanga.kvack.org (Postfix) with SMTP id 5DBBE6B0044
-	for <linux-mm@kvack.org>; Sun, 29 Apr 2012 02:03:13 -0400 (EDT)
-Date: Sun, 29 Apr 2012 08:03:06 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [RFC][PATCH 0/7 v2] memcg: prevent failure in pre_destroy()
-Message-ID: <20120429060306.GA22553@tiehlicka.suse.cz>
-References: <4F9A327A.6050409@jp.fujitsu.com>
- <20120427181642.GG26595@google.com>
- <CABEgKgrir3PBGqm_9FmYsZTiFqsZ=Cdt5iZDu5WcOHPtZuEbFg@mail.gmail.com>
- <20120428161358.GA13010@tiehlicka.suse.cz>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20120428161358.GA13010@tiehlicka.suse.cz>
+Received: from psmtp.com (na3sys010amx160.postini.com [74.125.245.160])
+	by kanga.kvack.org (Postfix) with SMTP id 30EC26B0044
+	for <linux-mm@kvack.org>; Sun, 29 Apr 2012 02:44:52 -0400 (EDT)
+Received: by pbcup15 with SMTP id up15so3116335pbc.14
+        for <linux-mm@kvack.org>; Sat, 28 Apr 2012 23:44:51 -0700 (PDT)
+From: Sasha Levin <levinsasha928@gmail.com>
+Subject: [PATCH 01/14] sysctl: provide callback for write into ctl_table entry
+Date: Sun, 29 Apr 2012 08:45:24 +0200
+Message-Id: <1335681937-3715-1-git-send-email-levinsasha928@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hiroyuki Kamezawa <kamezawa.hiroyuki@gmail.com>
-Cc: Tejun Heo <tj@kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Linux Kernel <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "cgroups@vger.kernel.org" <cgroups@vger.kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Frederic Weisbecker <fweisbec@gmail.com>, Glauber Costa <glommer@parallels.com>, Han Ying <yinghan@google.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>
+To: viro@zeniv.linux.org.uk, rostedt@goodmis.org, fweisbec@gmail.com, mingo@redhat.com, a.p.zijlstra@chello.nl, paulus@samba.org, acme@ghostprotocols.net, james.l.morris@oracle.com, ebiederm@xmission.com, akpm@linux-foundation.org, tglx@linutronix.de
+Cc: linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-security-module@vger.kernel.org, Sasha Levin <levinsasha928@gmail.com>
 
-On Sat 28-04-12 18:13:58, Michal Hocko wrote:
-> On Sat 28-04-12 08:48:18, Hiroyuki Kamezawa wrote:
-> > On Sat, Apr 28, 2012 at 3:16 AM, Tejun Heo <tj@kernel.org> wrote:
-> > > Hello,
-> > >
-> > > On Fri, Apr 27, 2012 at 02:45:30PM +0900, KAMEZAWA Hiroyuki wrote:
-> > >> This is a v2 patch for preventing failure in memcg->pre_destroy().
-> > >> With this patch, ->pre_destroy() will never return error code and
-> > >> users will not see warning at rmdir(). And this work will simplify
-> > >> memcg->pre_destroy(), largely.
-> > >>
-> > >> This patch is based on linux-next + hugetlb memory control patches.
-> > >
-> > > Ergh... can you please set up a git branch somewhere for review
-> > > purposes?
-> > >
-> > I'm sorry...I can't. (To do that, I need to pass many my company's check.)
-> > I'll repost all a week later, hugetlb tree will be seen in memcg-devel or
-> > linux-next.
-> 
-> I can push it to memcg-devel tree if you want.
+Provide a callback that will be called when writing to a ctl_table
+entry after the user input has been validated.
 
-As a separate branch of course...
+This will simplify user input checks since now it will be possible to
+remove them out of the proc_handler.
 
+Signed-off-by: Sasha Levin <levinsasha928@gmail.com>
+---
+ fs/proc/proc_sysctl.c  |    4 ++++
+ include/linux/sysctl.h |    1 +
+ 2 files changed, 5 insertions(+), 0 deletions(-)
+
+diff --git a/fs/proc/proc_sysctl.c b/fs/proc/proc_sysctl.c
+index 21d836f..190db28 100644
+--- a/fs/proc/proc_sysctl.c
++++ b/fs/proc/proc_sysctl.c
+@@ -507,6 +507,10 @@ static ssize_t proc_sys_call_handler(struct file *filp, void __user *buf,
+ 	error = table->proc_handler(table, write, buf, &res, ppos);
+ 	if (!error)
+ 		error = res;
++
++	if (!error && write && table->callback)
++		error = table->callback();
++
+ out:
+ 	sysctl_head_finish(head);
+ 
+diff --git a/include/linux/sysctl.h b/include/linux/sysctl.h
+index c34b4c8..27c14cf 100644
+--- a/include/linux/sysctl.h
++++ b/include/linux/sysctl.h
+@@ -1022,6 +1022,7 @@ struct ctl_table
+ 	struct ctl_table_poll *poll;
+ 	void *extra1;
+ 	void *extra2;
++	int (*callback)(void);		/* Called when entry is written to */
+ };
+ 
+ struct ctl_node {
 -- 
-Michal Hocko
-SUSE Labs
-SUSE LINUX s.r.o.
-Lihovarska 1060/12
-190 00 Praha 9    
-Czech Republic
+1.7.8.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
