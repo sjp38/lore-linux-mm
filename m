@@ -1,42 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx139.postini.com [74.125.245.139])
-	by kanga.kvack.org (Postfix) with SMTP id 6D1126B0044
-	for <linux-mm@kvack.org>; Sun, 29 Apr 2012 10:14:37 -0400 (EDT)
-Received: by iajr24 with SMTP id r24so4599431iaj.14
-        for <linux-mm@kvack.org>; Sun, 29 Apr 2012 07:14:36 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx187.postini.com [74.125.245.187])
+	by kanga.kvack.org (Postfix) with SMTP id 85D366B0044
+	for <linux-mm@kvack.org>; Sun, 29 Apr 2012 15:36:06 -0400 (EDT)
+Message-ID: <201204291936.q3TJa4Mv008924@farm-0027.internal.tilera.com>
+From: Chris Metcalf <cmetcalf@tilera.com>
+Date: Sun, 29 Apr 2012 15:04:51 -0400
+Subject: [PATCH] hugetlb: avoid gratuitous BUG_ON in hugetlb_fault() -> hugetlb_cow()
 MIME-Version: 1.0
-In-Reply-To: <1335708011.28106.245.camel@gandalf.stny.rr.com>
-References: <1335681937-3715-1-git-send-email-levinsasha928@gmail.com>
- <m1haw33q35.fsf@fess.ebiederm.org> <CA+1xoqfX3hc7FP+8_9sn_mt4_WHkVfqTiPnE79Brs_kAfAFPCQ@mail.gmail.com>
- <1335708011.28106.245.camel@gandalf.stny.rr.com>
-From: Sasha Levin <levinsasha928@gmail.com>
-Date: Sun, 29 Apr 2012 16:14:16 +0200
-Message-ID: <CA+1xoqfQczszejX8_9hj1ntFS0SpNhErgYSVPL-DxH2WG67JTw@mail.gmail.com>
-Subject: Re: [PATCH 01/14] sysctl: provide callback for write into ctl_table entry
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Steven Rostedt <rostedt@goodmis.org>
-Cc: "Eric W. Biederman" <ebiederm@xmission.com>, viro@zeniv.linux.org.uk, fweisbec@gmail.com, mingo@redhat.com, a.p.zijlstra@chello.nl, paulus@samba.org, acme@ghostprotocols.net, james.l.morris@oracle.com, akpm@linux-foundation.org, tglx@linutronix.de, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-security-module@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>, Hillf Danton <dhillf@gmail.com>, Michal Hocko <mhocko@suse.cz>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Hugh Dickins <hughd@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Sun, Apr 29, 2012 at 4:00 PM, Steven Rostedt <rostedt@goodmis.org> wrote:
-> On Sun, 2012-04-29 at 14:07 +0200, Sasha Levin wrote:
->> On Sun, Apr 29, 2012 at 10:22 AM, Eric W. Biederman
->
->> Exactly twp of the patches (out of 14) are taking updates out of
->> locks. I'm quite sure that doing that in the ftrace case is perfectly
->> fine, and I'll take a second look at the sched-rt one since there
->> indeed might be a race caused due to the patch that I've missed.
->
-> The update of ftrace_enable must be done under the ftrace_lock mutex.
-> With the exception of ftrace_kill() which is a one shot deal that kills
-> ftrace updates until a reboot.
+Commit 66aebce747eaf added code to avoid a race condition by
+elevating the page refcount in hugetlb_fault() while calling
+hugetlb_cow().  However, one code path in hugetlb_cow() includes
+an assertion that the page count is 1, whereas it may now also
+have the value 2 in this path.
 
-Understood.
+Signed-off-by: Chris Metcalf <cmetcalf@tilera.com>
+---
+We discovered this while testing the original path; one particular
+application triggered this due to the specific number of huge pages
+it started with.
 
-A fix for that could be having the sysctl modifying a different var,
-and having ftrace_enabled from that under a lock, but I'm not sure if
-it's worth the work for the cleanup.
+ mm/hugetlb.c |    9 ++++++++-
+ 1 files changed, 8 insertions(+), 1 deletions(-)
+
+diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+index cd65cb1..d5b0254 100644
+--- a/mm/hugetlb.c
++++ b/mm/hugetlb.c
+@@ -2498,7 +2498,14 @@ retry_avoidcopy:
+ 		if (outside_reserve) {
+ 			BUG_ON(huge_pte_none(pte));
+ 			if (unmap_ref_private(mm, vma, old_page, address)) {
+-				BUG_ON(page_count(old_page) != 1);
++				/*
++				 * Page refcount may be 1 in the common case,
++				 * but since we may do an extra get_page()
++				 * when called from hugetlb_fault(), we allow
++				 * a page refcount of 2 as well.
++				 */
++				BUG_ON(page_count(old_page) != 1 &&
++				       page_count(old_page) != 2);
+ 				BUG_ON(huge_pte_none(pte));
+ 				spin_lock(&mm->page_table_lock);
+ 				ptep = huge_pte_offset(mm, address & huge_page_mask(h));
+-- 
+1.6.5.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
