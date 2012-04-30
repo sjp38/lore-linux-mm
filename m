@@ -1,143 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx151.postini.com [74.125.245.151])
-	by kanga.kvack.org (Postfix) with SMTP id A51DF6B004D
-	for <linux-mm@kvack.org>; Mon, 30 Apr 2012 04:31:57 -0400 (EDT)
-Date: Mon, 30 Apr 2012 09:31:52 +0100
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH v3] mm: compaction: handle incorrect Unmovable type
- pageblocks
-Message-ID: <20120430083152.GK9226@suse.de>
-References: <201204261015.54449.b.zolnierkie@samsung.com>
- <20120426143620.GF15299@suse.de>
- <4F996F8B.1020207@redhat.com>
- <20120426164713.GG15299@suse.de>
- <4F99EF22.8070600@kernel.org>
- <20120427095608.GI15299@suse.de>
- <4F9DFC9F.8090304@kernel.org>
+Received: from psmtp.com (na3sys010amx162.postini.com [74.125.245.162])
+	by kanga.kvack.org (Postfix) with SMTP id 434046B0044
+	for <linux-mm@kvack.org>; Mon, 30 Apr 2012 04:36:29 -0400 (EDT)
+Message-ID: <4F9E4F0A.8030900@kernel.org>
+Date: Mon, 30 Apr 2012 17:36:26 +0900
+From: Minchan Kim <minchan@kernel.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <4F9DFC9F.8090304@kernel.org>
+Subject: Re: vmevent: question?
+References: <4F9E39F1.5030600@kernel.org> <CAOJsxLE3A3b5HSrRm0NVCBmzv7AAs-RWEiZC1BL=se309+=WTA@mail.gmail.com> <4F9E44AD.8020701@kernel.org> <CAOJsxLGd_-ZSxpY2sL8XqyiYxpnmYDJJ+Hfx-zi1Ty=-1igcLA@mail.gmail.com>
+In-Reply-To: <CAOJsxLGd_-ZSxpY2sL8XqyiYxpnmYDJJ+Hfx-zi1Ty=-1igcLA@mail.gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Rik van Riel <riel@redhat.com>, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, linux-mm@kvack.org, Marek Szyprowski <m.szyprowski@samsung.com>, Kyungmin Park <kyungmin.park@samsung.com>
+To: Pekka Enberg <penberg@kernel.org>
+Cc: linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Ingo Molnar <mingo@elte.hu>, Anton Vorontsov <anton.vorontsov@linaro.org>, Leonid Moiseichuk <leonid.moiseichuk@nokia.com>
 
-On Mon, Apr 30, 2012 at 11:44:47AM +0900, Minchan Kim wrote:
-> > Your statement was
-> > 
-> >    Direct reclaim latency is critical on latency sensitive applications(of
-> >    course, you can argue it's already very slow once we reach this path,
-> >    but at least, let's not increase more overhead if we can) so I think
-> >    it would be better to use ASYNC_PARTIAL.  If we fail to allocate in
-> >    this phase, we set it with COMPACTION_SYNC in next phase, below code.
-> > 
-> > If a path is latency sensitive they have already lost if they are in this
-> > path. They have entered compaction and may enter direct reclaim shortly
-> > so latency is bad at this point. If the application is latency sensitive
-> > they probably should disable THP to avoid any spikes due to THP allocation.
-> 
-> 
-> Only THP isn't latency factor.
-> In case of ARM, we allocates 4-pages(ie, order=2) for pgd.
-> It means it can affect fork latency.
-> 
+On 04/30/2012 05:01 PM, Pekka Enberg wrote:
 
-order-2 is below PAGE_ALLOC_COSTLY_ORDER where the expectation is that
-reclaim on its own should be able to free the necessary pages. That aside,
-part of what you are proposing is that the page allocator not use ASYNC_FULL
-and instead depend on kswapd to compact memory out of line.  That means
-the caller of fork() either gets to do reclaim pages or loop until kswapd
-does the compaction. That does not make sense from a latency perspective.
+> Hi Minchan,
+> 
+> On Mon, Apr 30, 2012 at 10:52 AM, Minchan Kim <minchan@kernel.org> wrote:
+>>> It makes the userspace side simpler for "lowmem notification" use
+>>> case. I'm open to changing the ABI if it doesn't make the userspace
+>>> side too complex.
+>>
+>> Yes. I understand your point but if we still consider all of values,
+>> we don't have any way to capture exact values except triggered event value.
+>> I mean there is no lock to keep consistency.
+>> If stale data is okay, no problem but IMHO, it could make user very confusing.
+>> So let's return value for first matched event if various event match.
+>> Of course, let's write down it in ABI.
+>> If there is other idea for reporting all of item with consistent, I'm okay.
+> 
+> What kind of consistency guarantees do you mean? The data sent to
+> userspace is always a snapshot of the state and therefore can be stale
+> by the time it reaches userspace.
 
-> > So I still maintain that the page allocator should not be depending on
-> > kswapd to do the work for it. If the caller wants high-order pages, it
-> > must be prepared to pay the cost of allocation.
-> 
-> 
-> I think it would be better if kswapd helps us.
-> 
 
-Help maybe, but you are proposing the caller of fork() does not do the work
-necessary to allocate the order-2 page (using ASYNC_PARTIAL, ASYNC_FULL
-and SYNC) and instead depends on kswapd to do it.
+Consistency between component of snapshot.
+let's assume following as
 
-> >> If async direct reclaim fails to compact memory with COMPACT_ASYNC_PARTIAL,
-> >> it ends up trying to compact memory with COMPACT_SYNC, again so it would
-> >> be no problem to allocate big order page and it's as-it-is approach by
-> >> async and sync mode.
-> >>
-> > 
-> > Is a compromise whereby a second pass consider only MIGRATE_UNMOVABLE
-> > pageblocks for rescus and migration targets acceptable? It would be nicer
-> > again if try_to_compact_pages() still accepted a "sync" parameter and would
-> > decide itself if a COMPACT_ASYNC_FULL pass was necessary when sync==false.
+1. User expect some events's value would be minus when event he expect happen.
+   A : -3, B : -4, C : -5, D : -6
+2. Logically, it's not possible to mix plus and minus values for the events.
+   A : -3, B : -4, C : -5, D : -6 ( O )
+   A : -3, B : -4, C : 1, D : 2   ( X )
+   
+But in current implementation, some of those could be minus and some of those could be plus.
+Which event could user believe?
+At least, we need a _captured_ value when event triggered so that user can ignore other values.
+
 > 
+> If your code needs stricter consistency guarantees, you probably want
+> to do it in the kernel.
 > 
-> Looks good to me. 
+>                                 Pekka
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Fight unfair telecom internet charges in Canada: sign http://stopthemeter.ca/
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 > 
 
-Ok.
 
-> > 
-> >> While latency is important in direct reclaim, kswapd isn't.
-> > 
-> > That does not mean we should tie up kswapd in compaction.c for longer
-> > than is necessary. It should be getting out of compaction ASAP in case
-> > reclaim is necessary.
-> 
-> Why do you think compaction and reclaim by separate?
-> If kswapd starts compaction, it means someone in direct reclaim path request
-> to kswapd to get a big order page.
-
-It's not all about high order pages. If kswapd is running compaction and a
-caller needs an order-0 page it may enter direct reclaim instead which is
-worse from a latency perspective. The possibility for this situation should
-be limited as much as possible without a very strong compelling reason.I
-do not think there is a compelling reason right now to take the risk.
-
-> So I think compaction is a part of reclaim.
-> In this case, compaction should be necessary.
-> 
-> > 
-> >> So I think using COMPACT_ASYNC_FULL in kswapd makes sense.
-> >>
-> > 
-> > I'm not convinced but am not willing to push on it either. I do think
-> > that the caller of the page allocator does have to use
-> > COMPACT_ASYNC_FULL though and cannot be depending on kswapd to do the
-> > work.
-> 
-> I agree your second stage reclaiming in direct reclaim.
-> 1. ASYNC-MOVABLE only
-> 2. ASYNC-UNMOVABLE only
-> 3. SYNC
-> 
-
-Ok, then can we at least start with that? Specifically that the
-page allocator continue to pass in sync to try_to_compact_pages() and
-try_to_compact_pages() doing compaction first as ASYNC_PARTIAL and then
-deciding whether it should do a second pass as ASYNC_FULL?
-
-> Another reason we should check unmovable page block in kswapd is that we should consider
-> atomic allocation where is only place kswapd helps us.
-> I hope that reason would convince you.
-> 
-
-It doesn't really. High-order atomic allocations are something that should
-be avoided as much as possible and the longer kswapd runs compaction the
-greater the risk that processes stall in direct reclaim unnecessarily.
-I know the current logic of kswapd using compaction.c is meant to help high
-order atomics but that does not mean I think kswapd should spend even more
-time in compaction.c without a compelling use case.
-
-At the very least, make kswapd using ASYNC_FULL a separate patch. I will
-not ACK it without compelling data backing it up but patch 1 would be
-there to handle Bartlomiej's adverse workload.
 
 -- 
-Mel Gorman
-SUSE Labs
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
