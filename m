@@ -1,59 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx116.postini.com [74.125.245.116])
-	by kanga.kvack.org (Postfix) with SMTP id 42AFD6B0044
-	for <linux-mm@kvack.org>; Sun, 29 Apr 2012 22:48:36 -0400 (EDT)
-From: ebiederm@xmission.com (Eric W. Biederman)
-References: <1335681937-3715-1-git-send-email-levinsasha928@gmail.com>
-	<m1haw33q35.fsf@fess.ebiederm.org>
-	<CA+1xoqfX3hc7FP+8_9sn_mt4_WHkVfqTiPnE79Brs_kAfAFPCQ@mail.gmail.com>
-	<1335708011.28106.245.camel@gandalf.stny.rr.com>
-	<CA+1xoqfQczszejX8_9hj1ntFS0SpNhErgYSVPL-DxH2WG67JTw@mail.gmail.com>
-	<1335729458.28106.247.camel@gandalf.stny.rr.com>
-Date: Sun, 29 Apr 2012 19:52:37 -0700
-In-Reply-To: <1335729458.28106.247.camel@gandalf.stny.rr.com> (Steven
-	Rostedt's message of "Sun, 29 Apr 2012 15:57:38 -0400")
-Message-ID: <m1r4v6ylqi.fsf@fess.ebiederm.org>
+Received: from psmtp.com (na3sys010amx188.postini.com [74.125.245.188])
+	by kanga.kvack.org (Postfix) with SMTP id 9714C6B0044
+	for <linux-mm@kvack.org>; Sun, 29 Apr 2012 23:38:30 -0400 (EDT)
+Received: by yenm8 with SMTP id m8so1611066yen.14
+        for <linux-mm@kvack.org>; Sun, 29 Apr 2012 20:38:29 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Subject: Re: [PATCH 01/14] sysctl: provide callback for write into ctl_table entry
+In-Reply-To: <1333462221-3987-1-git-send-email-m.szyprowski@samsung.com>
+References: <1333462221-3987-1-git-send-email-m.szyprowski@samsung.com>
+From: Barry Song <21cnbao@gmail.com>
+Date: Mon, 30 Apr 2012 11:38:09 +0800
+Message-ID: <CAGsJ_4yAwh32u3tdWFA3BC76NpMws5RT_JnxnzNdHx6eoHHxMw@mail.gmail.com>
+Subject: Re: [Linaro-mm-sig] [PATCHv24 00/16] Contiguous Memory Allocator
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Steven Rostedt <rostedt@goodmis.org>
-Cc: Sasha Levin <levinsasha928@gmail.com>, viro@zeniv.linux.org.uk, fweisbec@gmail.com, mingo@redhat.com, a.p.zijlstra@chello.nl, paulus@samba.org, acme@ghostprotocols.net, james.l.morris@oracle.com, akpm@linux-foundation.org, tglx@linutronix.de, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-security-module@vger.kernel.org, Eric Paris <eparis@parisplace.org>
+To: Marek Szyprowski <m.szyprowski@samsung.com>
+Cc: linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-media@vger.kernel.org, linux-mm@kvack.org, linaro-mm-sig@lists.linaro.org, Ohad Ben-Cohen <ohad@wizery.com>, Daniel Walker <dwalker@codeaurora.org>, Russell King <linux@arm.linux.org.uk>, Arnd Bergmann <arnd@arndb.de>, Jonathan Corbet <corbet@lwn.net>, Mel Gorman <mel@csn.ul.ie>, Michal Nazarewicz <mina86@mina86.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Jesse Barker <jesse.barker@linaro.org>, Kyungmin Park <kyungmin.park@samsung.com>, Andrew Morton <akpm@linux-foundation.org>, Rob Clark <rob.clark@linaro.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-Steven Rostedt <rostedt@goodmis.org> writes:
-
-> On Sun, 2012-04-29 at 16:14 +0200, Sasha Levin wrote:
+2012/4/3 Marek Szyprowski <m.szyprowski@samsung.com>:
+> Hi,
 >
->> A fix for that could be having the sysctl modifying a different var,
->> and having ftrace_enabled from that under a lock, but I'm not sure if
->> it's worth the work for the cleanup.
+> This is (yet another) update of CMA patches. I've rebased them onto
+> recent v3.4-rc1 kernel tree and integrated some minor bugfixes. The
+> first issue has been pointed by Sandeep Patil - alloc_contig_range
+> reclaimed two times too many pages, second issue (possible mismatch
+> between pageblock size and MAX_ORDER pages) has been recently spotted
+> by Michal Nazarewicz.
 >
-> That was my original plan, but it seemed too much of a hassle than it
-> was worth, as I needed to make sure the mirrored variable was in sync
-> with ftrace_enabled, otherwise it could be confusing when ftrace was not
-> working but sysctl showed ftrace set to 1.
+> These patches are also available on my git repository:
+> git://git.linaro.org/people/mszyprowski/linux-dma-mapping.git 3.4-rc1-cma-v24
+>
+> Best regards
+> Marek Szyprowski
+> Samsung Poland R&D Center
+>
+>
+>
+> Patches in this patchset:
 
-I don't see the problem you are trying to solve with your patches.
+Marek,
 
-What I do see is you have ignored one of the biggest problem with the
-current sysctl interface in that it is not easy to plug in your own code
-in the cases you need to before an update is made. (Locks permission
-checks, etc).
+how about the patch "mm: cma: add a simple kernel module as the helper
+to test CMA", did you forget merging this?
+http://lists.infradead.org/pipermail/linux-arm-kernel/2012-March/088412.html
 
-You have also bloated struct ctl_table for no apparent reason.
+>
+> Marek Szyprowski (6):
+>  mm: extract reclaim code from __alloc_pages_direct_reclaim()
+>  mm: trigger page reclaim in alloc_contig_range() to stabilise
+>    watermarks
+>  drivers: add Contiguous Memory Allocator
+>  X86: integrate CMA with DMA-mapping subsystem
+>  ARM: integrate CMA with DMA-mapping subsystem
+>  ARM: Samsung: use CMA for 2 memory banks for s5p-mfc device
+>
+> Mel Gorman (1):
+>  mm: Serialize access to min_free_kbytes
+>
+> Michal Nazarewicz (9):
+>  mm: page_alloc: remove trailing whitespace
+>  mm: compaction: introduce isolate_migratepages_range()
+>  mm: compaction: introduce map_pages()
+>  mm: compaction: introduce isolate_freepages_range()
+>  mm: compaction: export some of the functions
+>  mm: page_alloc: introduce alloc_contig_range()
+>  mm: page_alloc: change fallbacks array handling
+>  mm: mmzone: MIGRATE_CMA migration type added
+>  mm: page_isolation: MIGRATE_CMA isolation functions added
+>
 
-This current crop of patches was just sloppy.  You showed a poor
-choice of function names and did not preserve necessary invariants
-when changing the code.  It looks like you exchanged something that
-was a bit ugly for something that straight out encourages broken
-behavior. 
-
-So I respectfully suggest you go back to the drawing board and figure
-out a solution that makes this class of function much easier to write
-in a bug free manner.
-
-Eric
+-barry
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
