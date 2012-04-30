@@ -1,125 +1,100 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx139.postini.com [74.125.245.139])
-	by kanga.kvack.org (Postfix) with SMTP id 055586B0044
-	for <linux-mm@kvack.org>; Mon, 30 Apr 2012 13:02:56 -0400 (EDT)
-Received: by lbjn8 with SMTP id n8so2251743lbj.14
-        for <linux-mm@kvack.org>; Mon, 30 Apr 2012 10:02:54 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx185.postini.com [74.125.245.185])
+	by kanga.kvack.org (Postfix) with SMTP id 55FCF6B0044
+	for <linux-mm@kvack.org>; Mon, 30 Apr 2012 15:19:41 -0400 (EDT)
+Received: by lagz14 with SMTP id z14so2956400lag.14
+        for <linux-mm@kvack.org>; Mon, 30 Apr 2012 12:19:39 -0700 (PDT)
+Message-ID: <4F9EE5BF.9070005@openvz.org>
+Date: Mon, 30 Apr 2012 23:19:27 +0400
+From: Konstantin Khlebnikov <khlebnikov@openvz.org>
 MIME-Version: 1.0
-In-Reply-To: <CABEgKgrXqbF8XBc6vHa2b5KQe9E7_+WODvq3hE0vaT0Eyxo5=w@mail.gmail.com>
-References: <4F9A327A.6050409@jp.fujitsu.com>
-	<4F9A375D.7@jp.fujitsu.com>
-	<CALWz4iyiM-CFgVaHiE1Lgd1ZwJzHwY3tx9XX6HeDPUV_wVPAtQ@mail.gmail.com>
-	<CABEgKgrXqbF8XBc6vHa2b5KQe9E7_+WODvq3hE0vaT0Eyxo5=w@mail.gmail.com>
-Date: Mon, 30 Apr 2012 10:02:54 -0700
-Message-ID: <CALWz4ix_rVpgzDme06f2U44EaqWcZKCEb0ueByh1-dSmbaO1jA@mail.gmail.com>
-Subject: Re: [RFC][PATCH 9/9 v2] memcg: never return error at pre_destroy()
-From: Ying Han <yinghan@google.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Subject: Re: [PATCH bugfix] proc/pagemap: correctly report non-present ptes
+ and holes between vmas
+References: <1335799542-8159-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+In-Reply-To: <1335799542-8159-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hiroyuki Kamezawa <kamezawa.hiroyuki@gmail.com>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Linux Kernel <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "cgroups@vger.kernel.org" <cgroups@vger.kernel.org>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Frederic Weisbecker <fweisbec@gmail.com>, Glauber Costa <glommer@parallels.com>, Tejun Heo <tj@kernel.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>
+To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, "ak@linux.intel.com" <ak@linux.intel.com>, Pavel Emelianov <xemul@parallels.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-On Fri, Apr 27, 2012 at 5:25 PM, Hiroyuki Kamezawa
-<kamezawa.hiroyuki@gmail.com> wrote:
-> On Sat, Apr 28, 2012 at 6:28 AM, Ying Han <yinghan@google.com> wrote:
->> On Thu, Apr 26, 2012 at 11:06 PM, KAMEZAWA Hiroyuki
->> <kamezawa.hiroyu@jp.fujitsu.com> wrote:
->>> When force_empty() called by ->pre_destroy(), no memory reclaim happens
->>> and it doesn't take very long time which requires signal_pending() chec=
-k.
->>> And if we return -EINTR from pre_destroy(), cgroup.c show warning.
->>>
->>> This patch removes signal check in force_empty(). By this, ->pre_destro=
-y()
->>> returns success always.
->>>
->>> Note: check for 'cgroup is empty' remains for force_empty interface.
->>>
->>> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
->>> ---
->>> =A0mm/hugetlb.c =A0 =A0| =A0 10 +---------
->>> =A0mm/memcontrol.c | =A0 14 +++++---------
->>> =A02 files changed, 6 insertions(+), 18 deletions(-)
->>>
->>> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
->>> index 4dd6b39..770f1642 100644
->>> --- a/mm/hugetlb.c
->>> +++ b/mm/hugetlb.c
->>> @@ -1922,20 +1922,12 @@ int hugetlb_force_memcg_empty(struct cgroup *cg=
-roup)
->>> =A0 =A0 =A0 =A0int ret =3D 0, idx =3D 0;
->>>
->>> =A0 =A0 =A0 =A0do {
->>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 /* see memcontrol.c::mem_cgroup_force_emp=
-ty() */
->>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0if (cgroup_task_count(cgroup)
->>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0|| !list_empty(&cgroup->=
-children)) {
->>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0ret =3D -EBUSY;
->>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0goto out;
->>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0}
->>> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 /*
->>> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0* If the task doing the cgroup_rmdir g=
-ot a signal
->>> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0* we don't really need to loop till th=
-e hugetlb resource
->>> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0* usage become zero.
->>> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0*/
->>> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (signal_pending(current)) {
->>> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 ret =3D -EINTR;
->>> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 goto out;
->>> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 }
->>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0for_each_hstate(h) {
->>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0spin_lock(&hugetlb_lock)=
-;
->>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0list_for_each_entry(page=
-, &h->hugepage_activelist, lru) {
->>> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
->>> index 2715223..ee350c5 100644
->>> --- a/mm/memcontrol.c
->>> +++ b/mm/memcontrol.c
->>> @@ -3852,8 +3852,6 @@ static int mem_cgroup_force_empty_list(struct mem=
-_cgroup *memcg,
->>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0pc =3D lookup_page_cgroup(page);
->>>
->>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0ret =3D mem_cgroup_move_parent(page, pc,=
- memcg, GFP_KERNEL);
->>> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (ret =3D=3D -ENOMEM || ret =3D=3D -EIN=
-TR)
->>> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 break;
->>>
->>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0if (ret =3D=3D -EBUSY || ret =3D=3D -EIN=
-VAL) {
->>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0/* found lock contention=
- or "pc" is obsolete. */
->>> @@ -3863,7 +3861,7 @@ static int mem_cgroup_force_empty_list(struct mem=
-_cgroup *memcg,
->>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0busy =3D NULL;
->>> =A0 =A0 =A0 =A0}
->>>
->>> - =A0 =A0 =A0 if (!ret && !list_empty(list))
->>> + =A0 =A0 =A0 if (!loop)
->>
->> This looks a bit strange to me... why we make the change ?
->>
-> Ah, I should this move to an independet patch.
-> Because we don't have -ENOMEM path to exit loop, the return value of
-> this function
-> is
-> =A00 (if loop !=3D0 this means lru is empty under the lru lock )
-> =A0-EBUSY (if loop=3D=3D 0)
-
+Naoya Horiguchi wrote:
+> Hi,
 >
-> I'll move this part out as an independent clean up patch
+> On Sat, Apr 28, 2012 at 08:22:30PM +0400, Konstantin Khlebnikov wrote:
+>> This patch resets current pagemap-entry if current pte isn't present,
+>> or if current vma is over. Otherwise pagemap reports last entry again and again.
+>>
+>> non-present pte reporting was broken in commit v3.3-3738-g092b50b
+>> ("pagemap: introduce data structure for pagemap entry")
+>>
+>> reporting for holes was broken in commit v3.3-3734-g5aaabe8
+>> ("pagemap: avoid splitting thp when reading /proc/pid/pagemap")
+>>
+>> Signed-off-by: Konstantin Khlebnikov<khlebnikov@openvz.org>
+>> Reported-by: Pavel Emelyanov<xemul@parallels.com>
+>> Cc: Naoya Horiguchi<n-horiguchi@ah.jp.nec.com>
+>> Cc: KAMEZAWA Hiroyuki<kamezawa.hiroyu@jp.fujitsu.com>
+>> Cc: Andi Kleen<ak@linux.intel.com>
+>
+> Thanks for your efforts.
+> I confirmed that this patch fixes the problem on v3.4-rc4.
+> But originally (before the commits you pointed to above) initializing
+> pagemap entries (originally labelled with confusing 'pfn') were done
+> in for-loop in pagemap_pte_range(), so I think it's better to get it
+> back to things like that.
+>
+> How about the following?
 
-Thanks ~
+I don't like this. Functions which returns void should always initialize its "output"
+argument, it much more clear than relying on preinitialized value.
 
---Ying
-
-> thanks,
-> -kame
+> ---
+> diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
+> index 2b9a760..538f8d8 100644
+> --- a/fs/proc/task_mmu.c
+> +++ b/fs/proc/task_mmu.c
+> @@ -779,13 +779,14 @@ static int pagemap_pte_range(pmd_t *pmd, unsigned long addr, unsigned long end,
+>   	struct pagemapread *pm = walk->private;
+>   	pte_t *pte;
+>   	int err = 0;
+> -	pagemap_entry_t pme = make_pme(PM_NOT_PRESENT);
+> +	pagemap_entry_t pme;
+>
+>   	/* find the first VMA at or above 'addr' */
+>   	vma = find_vma(walk->mm, addr);
+>   	if (pmd_trans_huge_lock(pmd, vma) == 1) {
+>   		for (; addr != end; addr += PAGE_SIZE) {
+>   			unsigned long offset;
+> +			pme = make_pme(PM_NOT_PRESENT);
+>
+>   			offset = (addr&  ~PAGEMAP_WALK_MASK)>>
+>   					PAGE_SHIFT;
+> @@ -801,6 +802,7 @@ static int pagemap_pte_range(pmd_t *pmd, unsigned long addr, unsigned long end,
+>   	if (pmd_trans_unstable(pmd))
+>   		return 0;
+>   	for (; addr != end; addr += PAGE_SIZE) {
+> +		pme = make_pme(PM_NOT_PRESENT);
+>
+>   		/* check to see if we've left 'vma' behind
+>   		 * and need a new, higher one */
+> @@ -842,10 +844,10 @@ static int pagemap_hugetlb_range(pte_t *pte, unsigned long hmask,
+>   {
+>   	struct pagemapread *pm = walk->private;
+>   	int err = 0;
+> -	pagemap_entry_t pme = make_pme(PM_NOT_PRESENT);
+>
+>   	for (; addr != end; addr += PAGE_SIZE) {
+>   		int offset = (addr&  ~hmask)>>  PAGE_SHIFT;
+> +		pagemap_entry_t pme = make_pme(PM_NOT_PRESENT);
+>   		huge_pte_to_pagemap_entry(&pme, *pte, offset);
+>   		err = add_to_pagemap(addr,&pme, pm);
+>   		if (err)
+>
+> ---
+> Thanks,
+> Naoya
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
