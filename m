@@ -1,76 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx106.postini.com [74.125.245.106])
-	by kanga.kvack.org (Postfix) with SMTP id D76886B0044
-	for <linux-mm@kvack.org>; Mon, 30 Apr 2012 16:19:45 -0400 (EDT)
-Received: by iajr24 with SMTP id r24so6763301iaj.14
-        for <linux-mm@kvack.org>; Mon, 30 Apr 2012 13:19:45 -0700 (PDT)
-Date: Mon, 30 Apr 2012 13:19:27 -0700 (PDT)
-From: Hugh Dickins <hughd@google.com>
-Subject: Re: [PATCH] hugetlb: avoid gratuitous BUG_ON in hugetlb_fault() ->
- hugetlb_cow()
-In-Reply-To: <201204291936.q3TJa4Mv008924@farm-0027.internal.tilera.com>
-Message-ID: <alpine.LSU.2.00.1204301308090.2829@eggly.anvils>
-References: <201204291936.q3TJa4Mv008924@farm-0027.internal.tilera.com>
+Received: from psmtp.com (na3sys010amx168.postini.com [74.125.245.168])
+	by kanga.kvack.org (Postfix) with SMTP id 914BA6B0044
+	for <linux-mm@kvack.org>; Mon, 30 Apr 2012 16:33:01 -0400 (EDT)
+Received: by yenm8 with SMTP id m8so2242913yen.14
+        for <linux-mm@kvack.org>; Mon, 30 Apr 2012 13:33:00 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+In-Reply-To: <20120430104850.11118.58938.stgit@zurg>
+References: <4F91BC8A.9020503@parallels.com> <20120430104850.11118.58938.stgit@zurg>
+From: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
+Date: Mon, 30 Apr 2012 16:32:40 -0400
+Message-ID: <CAHGf_=qouwZZa-6szhFxe0-yQZO54SaJC_bqh6iNj8zwnrpcyg@mail.gmail.com>
+Subject: Re: [PATCH v3] proc: report file/anon bit in /proc/pid/pagemap
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Chris Metcalf <cmetcalf@tilera.com>, Mel Gorman <mel@csn.ul.ie>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Hillf Danton <dhillf@gmail.com>, Michal Hocko <mhocko@suse.cz>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Konstantin Khlebnikov <khlebnikov@openvz.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Rik van Riel <riel@redhat.com>, Pavel Emelyanov <xemul@parallels.com>, Hugh Dickins <hughd@google.com>, Matt Mackall <mpm@selenic.com>, Andrew Morton <akpm@linux-foundation.org>
 
-On Sun, 29 Apr 2012, Chris Metcalf wrote:
+On Mon, Apr 30, 2012 at 6:48 AM, Konstantin Khlebnikov
+<khlebnikov@openvz.org> wrote:
+> This is an implementation of Andrew's proposal to extend the pagemap file
+> bits to report what is missing about tasks' working set.
+>
+> The problem with the working set detection is multilateral. In the criu
+> (checkpoint/restore) project we dump the tasks' memory into image files
+> and to do it properly we need to detect which pages inside mappings are
+> really in use. The mincore syscall I though could help with this did not.
+> First, it doesn't report swapped pages, thus we cannot find out which
+> parts of anonymous mappings to dump. Next, it does report pages from page
+> cache as present even if they are not mapped, and it doesn't make
+> difference between private pages that has been cow-ed and private pages
+> that has not been cow-ed.
+>
+> Note, that issue with swap pages is critical -- we must dump swap pages t=
+o
+> image file. But the issues with file pages are optimization -- we can tak=
+e
+> all file pages to image, this would be correct, but if we know that a pag=
+e
+> is not mapped or not cow-ed, we can remove them from dump file. The dump
+> would still be self-consistent, though significantly smaller in size (up
+> to 10 times smaller on real apps).
+>
+> Andrew noticed, that the proc pagemap file solved 2 of 3 above issues -- =
+it
+> reports whether a page is present or swapped and it doesn't report not
+> mapped page cache pages. But, it doesn't distinguish cow-ed file pages fr=
+om
+> not cow-ed.
+>
+> I would like to make the last unused bit in this file to report whether t=
+he
+> page mapped into respective pte is PageAnon or not.
+>
+> [comment stolen from Pavel Emelyanov's v1 patch]
+>
+> v2:
+> * Rebase to uptodate kernel
+> * Fix file/anon bit reporting for migration entries
+> * Fix frame bits interval comment, it uses 55 lower bits (64 - 3 - 6)
+>
+> v3:
+> * fix stupid misprint s/if/else if/
+> * rebase on top of "[PATCH bugfix] proc/pagemap: correctly report non-pre=
+sent
+> =A0ptes and holes between vmas"
+> * second patch (with indexes for nonlinear mappings) was droppped.
+>
+> Signed-off-by: Konstantin Khlebnikov <khlebnikov@openvz.org>
+> Cc: Pavel Emelyanov <xemul@parallels.com>
+> Cc: Andrew Morton <akpm@linux-foundation.org>
+> Cc: Matt Mackall <mpm@selenic.com>
+> Cc: Hugh Dickins <hughd@google.com>
+> Cc: Rik van Riel <riel@redhat.com>
+> Cc: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
 
-> Commit 66aebce747eaf added code to avoid a race condition by
-> elevating the page refcount in hugetlb_fault() while calling
-> hugetlb_cow().  However, one code path in hugetlb_cow() includes
-> an assertion that the page count is 1, whereas it may now also
-> have the value 2 in this path.
-> 
-> Signed-off-by: Chris Metcalf <cmetcalf@tilera.com>
-> ---
-> We discovered this while testing the original path; one particular
-> application triggered this due to the specific number of huge pages
-> it started with.
-
-Well done finding that.  But I think it would be better to remove the
-BUG_ON() than complicate it, and then no need to add a comment there.
-
-IIRC it's unsafe to make any assertions about what a page_count() may
-be, beyond whether it's 0 or non-0: because of speculative accesses to
-the page from elsewhere (perhaps it used to be visible in a radix_tree,
-perhaps __isolate_lru_pages is having a go at it).
-
-I'd say that BUG_ON() has outlived its usefulness, and should just be
-eliminated now: but git "blames" Mel for it, so let's see if he agrees.
-
-Hugh
-
-> 
->  mm/hugetlb.c |    9 ++++++++-
->  1 files changed, 8 insertions(+), 1 deletions(-)
-> 
-> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-> index cd65cb1..d5b0254 100644
-> --- a/mm/hugetlb.c
-> +++ b/mm/hugetlb.c
-> @@ -2498,7 +2498,14 @@ retry_avoidcopy:
->  		if (outside_reserve) {
->  			BUG_ON(huge_pte_none(pte));
->  			if (unmap_ref_private(mm, vma, old_page, address)) {
-> -				BUG_ON(page_count(old_page) != 1);
-> +				/*
-> +				 * Page refcount may be 1 in the common case,
-> +				 * but since we may do an extra get_page()
-> +				 * when called from hugetlb_fault(), we allow
-> +				 * a page refcount of 2 as well.
-> +				 */
-> +				BUG_ON(page_count(old_page) != 1 &&
-> +				       page_count(old_page) != 2);
->  				BUG_ON(huge_pte_none(pte));
->  				spin_lock(&mm->page_table_lock);
->  				ptep = huge_pte_offset(mm, address & huge_page_mask(h));
-> -- 
-> 1.6.5.2
+I don't like an exporting naive kernel internal. But unfortunately I
+have no alternative idea..
+ Acked-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
