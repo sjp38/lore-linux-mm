@@ -1,133 +1,120 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx174.postini.com [74.125.245.174])
-	by kanga.kvack.org (Postfix) with SMTP id 91FF36B0044
-	for <linux-mm@kvack.org>; Sun, 29 Apr 2012 21:52:34 -0400 (EDT)
-Message-ID: <4F9DF05E.7080707@kernel.org>
-Date: Mon, 30 Apr 2012 10:52:30 +0900
-From: Minchan Kim <minchan@kernel.org>
+Received: from psmtp.com (na3sys010amx200.postini.com [74.125.245.200])
+	by kanga.kvack.org (Postfix) with SMTP id BFFA26B0044
+	for <linux-mm@kvack.org>; Sun, 29 Apr 2012 22:28:43 -0400 (EDT)
+Received: by wgbdt14 with SMTP id dt14so2076928wgb.26
+        for <linux-mm@kvack.org>; Sun, 29 Apr 2012 19:28:42 -0700 (PDT)
 MIME-Version: 1.0
-Subject: Re: [RFC] vmalloc: add warning in __vmalloc
-References: <1335516144-3486-1-git-send-email-minchan@kernel.org> <20120427150030.6183a286.akpm@linux-foundation.org>
-In-Reply-To: <20120427150030.6183a286.akpm@linux-foundation.org>
+In-Reply-To: <1335681937-3715-13-git-send-email-levinsasha928@gmail.com>
+References: <1335681937-3715-1-git-send-email-levinsasha928@gmail.com>
+	<1335681937-3715-13-git-send-email-levinsasha928@gmail.com>
+Date: Sun, 29 Apr 2012 22:28:41 -0400
+Message-ID: <CACLa4ps4Cw82abKS+-qUruMwPa-s_yGkBbAh42uT2GiWmjXV-w@mail.gmail.com>
+Subject: Re: [PATCH 13/14] security,sysctl: remove proc input checks out of
+ sysctl handlers
+From: Eric Paris <eparis@parisplace.org>
 Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, npiggin@gmail.com, kamezawa.hiroyu@jp.fujitsu.com, kosaki.motohiro@gmail.com, rientjes@google.com, Neil Brown <neilb@suse.de>, Artem Bityutskiy <dedekind1@gmail.com>, David Woodhouse <dwmw2@infradead.org>, Theodore Ts'o <tytso@mit.edu>, Adrian Hunter <adrian.hunter@intel.com>, Steven Whitehouse <swhiteho@redhat.com>, "David S. Miller" <davem@davemloft.net>, James Morris <jmorris@namei.org>, Alexander Viro <viro@zeniv.linux.org.uk>, Sage Weil <sage@newdream.net>
+To: Sasha Levin <levinsasha928@gmail.com>
+Cc: viro@zeniv.linux.org.uk, rostedt@goodmis.org, fweisbec@gmail.com, mingo@redhat.com, a.p.zijlstra@chello.nl, paulus@samba.org, acme@ghostprotocols.net, james.l.morris@oracle.com, ebiederm@xmission.com, akpm@linux-foundation.org, tglx@linutronix.de, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-security-module@vger.kernel.org
 
-On 04/28/2012 07:00 AM, Andrew Morton wrote:
+NAK - You moved the check to see if someone has permission to make a
+change AFTER the change was made.  The original semantics were
+correct.  You must do the capable check, then update the value, then
+do the other calculations with the new value.  You can't do the
+permission check after you already made the changes.
 
-> On Fri, 27 Apr 2012 17:42:24 +0900
-> Minchan Kim <minchan@kernel.org> wrote:
-> 
->> Now there are several places to use __vmalloc with GFP_ATOMIC,
->> GFP_NOIO, GFP_NOFS but unfortunately __vmalloc calls map_vm_area
->> which calls alloc_pages with GFP_KERNEL to allocate page tables.
->> It means it's possible to happen deadlock.
->> I don't know why it doesn't have reported until now.
->>
->> Firstly, I tried passing gfp_t to lower functions to support __vmalloc
->> with such flags but other mm guys don't want and decided that
->> all of caller should be fixed.
->>
->> http://marc.info/?l=linux-kernel&m=133517143616544&w=2
->>
->> To begin with, let's listen other's opinion whether they can fix it
->> by other approach without calling __vmalloc with such flags.
->>
->> So this patch adds warning to detect and to be fixed hopely.
->> I Cced related maintainers.
->> If I miss someone, please Cced them.
->>
->> side-note:
->>   I added WARN_ON instead of WARN_ONCE to detect all of callers
->>   and each WARN_ON for each flag to detect to use any flag easily.
->>   After we fix all of caller or reduce such caller, we can merge
->>   a warning with WARN_ONCE.
-> 
-> Just WARN_ONCE, please.  If that exposes some sort of calamity then we
-> can reconsider.
+-Eric
 
-
-NP.
-
-> 
->>
->> ...
->>
->> --- a/mm/vmalloc.c
->> +++ b/mm/vmalloc.c
->> @@ -1700,6 +1700,15 @@ static void *__vmalloc_node(unsigned long size, unsigned long align,
->>  			    gfp_t gfp_mask, pgprot_t prot,
->>  			    int node, void *caller)
->>  {
->> +	/*
->> +	 * This function calls map_vm_area so that it allocates
->> +	 * page table with GFP_KERNEL so caller should avoid using
->> +	 * GFP_NOIO, GFP_NOFS and !__GFP_WAIT.
->> +	 */
->> +	WARN_ON(!(gfp_mask & __GFP_WAIT));
->> +	WARN_ON(!(gfp_mask & __GFP_IO));
->> +	WARN_ON(!(gfp_mask & __GFP_FS));
->> +
->>  	return __vmalloc_node_range(size, align, VMALLOC_START, VMALLOC_END,
->>  				gfp_mask, prot, node, caller);
->>  }
-> 
-> This seems strange.  There are many entry points to this code and the
-> patch appears to go into a randomly-chosen middle point in the various
-> call chains and sticks a check in there.  Why was __vmalloc_node()
-> chosen?  Does this provide full coverage or all entry points?
-
-
-I think it covers all of caller with calls __vmalloc with gfp_flags.
-Only exception is __vmalloc_node_range which is called by module_alloc
-but it surely calls __vmalloc_node_range with GFP_KERNEL so it's no problem now.
-If you want to catch potential use of __vmalloc_node_range in future, I can move it
-to it. 
-
-> 
-> 
-> 
-> Also, the patch won't warn in the most problematic cases such as
-> vmalloc() being called from a __GFP_NOFS context.  Presumably there are
-
-
-I agree but this patch's goal is just to prevent calling __vmalloc with GFP_ATOMIC, GFP_NOFS and
-GFP_NOIO. We should consider vmalloc on __GFP_NOFS context as another problem and maybe
-reclaimfs lockdep would be a good start point.
-
-> might_sleep() warnings somewhere on the allocation path which will
-
-> catch vmalloc() being called from atomic contexts.
-
-
-Yes.
-
-> 
-> I'm not sure what to do about that - we don't have machinery in place
-> to be able to detect when a GFP_KERNEL allocation is deadlockable. 
-> Perhaps a lot of hacking on lockdep might get us this - we'd need to
-> teach lockdep about which locks prohibit FS entry, which locks prevent
-> IO entry, etc.  And there are secret locks such as ext3/4
-> journal_start(), and bitlocks and lock_page().  eek.
-
-> 
-
+On Sun, Apr 29, 2012 at 2:45 AM, Sasha Levin <levinsasha928@gmail.com> wrot=
+e:
+> Simplify sysctl handler by removing user input checks and using the callb=
+ack
+> provided by the sysctl table.
+>
+> Signed-off-by: Sasha Levin <levinsasha928@gmail.com>
+> ---
+> =A0include/linux/security.h | =A0 =A03 +--
+> =A0kernel/sysctl.c =A0 =A0 =A0 =A0 =A0| =A0 =A03 ++-
+> =A0security/min_addr.c =A0 =A0 =A0| =A0 11 +++--------
+> =A03 files changed, 6 insertions(+), 11 deletions(-)
+>
+> diff --git a/include/linux/security.h b/include/linux/security.h
+> index ab0e091..3d3445c 100644
+> --- a/include/linux/security.h
+> +++ b/include/linux/security.h
+> @@ -147,8 +147,7 @@ struct request_sock;
+> =A0#define LSM_UNSAFE_NO_NEW_PRIVS =A0 =A0 =A0 =A08
+>
+> =A0#ifdef CONFIG_MMU
+> -extern int mmap_min_addr_handler(struct ctl_table *table, int write,
+> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0void __u=
+ser *buffer, size_t *lenp, loff_t *ppos);
+> +extern int mmap_min_addr_handler(void);
+> =A0#endif
+>
+> =A0/* security_inode_init_security callback function to write xattrs */
+> diff --git a/kernel/sysctl.c b/kernel/sysctl.c
+> index f9ce79b..2104452 100644
+> --- a/kernel/sysctl.c
+> +++ b/kernel/sysctl.c
+> @@ -1317,7 +1317,8 @@ static struct ctl_table vm_table[] =3D {
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0.data =A0 =A0 =A0 =A0 =A0 =3D &dac_mmap_mi=
+n_addr,
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0.maxlen =A0 =A0 =A0 =A0 =3D sizeof(unsigne=
+d long),
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0.mode =A0 =A0 =A0 =A0 =A0 =3D 0644,
+> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 .proc_handler =A0 =3D mmap_min_addr_handler=
+,
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 .proc_handler =A0 =3D proc_doulongvec_minma=
+x,
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 .callback =A0 =A0 =A0 =3D mmap_min_addr_han=
+dler,
+> =A0 =A0 =A0 =A0},
+> =A0#endif
+> =A0#ifdef CONFIG_NUMA
+> diff --git a/security/min_addr.c b/security/min_addr.c
+> index f728728..3e5a41c 100644
+> --- a/security/min_addr.c
+> +++ b/security/min_addr.c
+> @@ -28,19 +28,14 @@ static void update_mmap_min_addr(void)
+> =A0* sysctl handler which just sets dac_mmap_min_addr =3D the new value a=
+nd then
+> =A0* calls update_mmap_min_addr() so non MAP_FIXED hints get rounded prop=
+erly
+> =A0*/
+> -int mmap_min_addr_handler(struct ctl_table *table, int write,
+> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 void __user *buffer, si=
+ze_t *lenp, loff_t *ppos)
+> +int mmap_min_addr_handler(void)
+> =A0{
+> - =A0 =A0 =A0 int ret;
+> -
+> - =A0 =A0 =A0 if (write && !capable(CAP_SYS_RAWIO))
+> + =A0 =A0 =A0 if (!capable(CAP_SYS_RAWIO))
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0return -EPERM;
+>
+> - =A0 =A0 =A0 ret =3D proc_doulongvec_minmax(table, write, buffer, lenp, =
+ppos);
+> -
+> =A0 =A0 =A0 =A0update_mmap_min_addr();
+>
+> - =A0 =A0 =A0 return ret;
+> + =A0 =A0 =A0 return 0;
+> =A0}
+>
+> =A0static int __init init_mmap_min_addr(void)
 > --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Fight unfair telecom internet charges in Canada: sign http://stopthemeter.ca/
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-> 
-
-
-
--- 
-Kind regards,
-Minchan Kim
+> 1.7.8.5
+>
+> --
+> To unsubscribe from this list: send the line "unsubscribe linux-kernel" i=
+n
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at =A0http://vger.kernel.org/majordomo-info.html
+> Please read the FAQ at =A0http://www.tux.org/lkml/
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
