@@ -1,13 +1,13 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx145.postini.com [74.125.245.145])
-	by kanga.kvack.org (Postfix) with SMTP id 2E2176B0044
-	for <linux-mm@kvack.org>; Mon, 30 Apr 2012 06:02:45 -0400 (EDT)
-Received: by dadq36 with SMTP id q36so3886363dad.8
-        for <linux-mm@kvack.org>; Mon, 30 Apr 2012 03:02:44 -0700 (PDT)
-Date: Mon, 30 Apr 2012 03:01:21 -0700
+Received: from psmtp.com (na3sys010amx135.postini.com [74.125.245.135])
+	by kanga.kvack.org (Postfix) with SMTP id 5A0B06B004D
+	for <linux-mm@kvack.org>; Mon, 30 Apr 2012 06:03:01 -0400 (EDT)
+Received: by pbbrp2 with SMTP id rp2so1145436pbb.14
+        for <linux-mm@kvack.org>; Mon, 30 Apr 2012 03:03:00 -0700 (PDT)
+Date: Mon, 30 Apr 2012 03:01:39 -0700
 From: Anton Vorontsov <anton.vorontsov@linaro.org>
-Subject: [PATCH 1/3] slab: Proper off-slabs handling when duplicating caches
-Message-ID: <20120430100121.GA28569@lizard>
+Subject: [PATCH 2/3] slab: Fix imbalanced rcu locking
+Message-ID: <20120430100138.GB28569@lizard>
 References: <20120430095918.GA13824@lizard>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=utf-8
@@ -18,73 +18,67 @@ List-ID: <linux-mm.kvack.org>
 To: Glauber Costa <glommer@parallels.com>
 Cc: cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, devel@openvz.org, kamezawa.hiroyu@jp.fujitsu.com, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Frederic Weisbecker <fweisbec@gmail.com>, Greg Thelen <gthelen@google.com>, Suleiman Souhlal <suleiman@google.com>, John Stultz <john.stultz@linaro.org>, linaro-kernel@lists.linaro.org, patches@linaro.org
 
-OFF_SLAB is not CREATE_MASK bit, so we should clear it before
-calling __kmem_cache_create(), otherwise kernel gets very upset,
-see below.
+Not sure why the code tries to unlock the rcu. The
+only case where slab grabs the lock is around
+mem_cgroup_get_kmem_cache() call, which won't result
+into calling cache_grow() (that tries to unlock the rcu).
 
-As a side effect, now we let slab to reevaluate off-slab
-decision, but the decision will be the same, because whether
-we do off-slabs only depend on the size and create_mask
-bits.
+=====================================
+[ BUG: bad unlock balance detected! ]
+3.4.0-rc4+ #33 Not tainted
+-------------------------------------
+swapper/0/0 is trying to release lock (rcu_read_lock) at:
+[<ffffffff8134f0b4>] cache_grow.constprop.63+0xe8/0x371
+but there are no more locks to release!
 
-------------[ cut here ]------------
-kernel BUG at mm/slab.c:2376!
-invalid opcode: 0000 [#1] SMP
-CPU 0
-Pid: 14, comm: kworker/0:1 Not tainted 3.4.0-rc4+ #32 Bochs Bochs
-RIP: 0010:[<ffffffff810c1839>]  [<ffffffff810c1839>] __kmem_cache_create+0x609/0x650
-RSP: 0018:ffff8800072c9c90  EFLAGS: 00010286
-RAX: 0000000000000800 RBX: ffffffff81f26bf8 RCX: 000000000000000b
-RDX: 000000000000000c RSI: 000000000000000b RDI: ffff8800065c66f8
-RBP: ffff8800072c9d40 R08: ffffffff80002800 R09: 0000000000000000
-R10: 0000000000000000 R11: 0000000000000001 R12: ffff8800072c8000
-R13: ffff8800072c9fd8 R14: ffffffffffffffff R15: ffff8800072c9d0c
-FS:  00007f45eb0f2700(0000) GS:ffff880007c00000(0000) knlGS:0000000000000000
-CS:  0010 DS: 0000 ES: 0000 CR0: 000000008005003b
-CR2: ffffffffff600400 CR3: 000000000650e000 CR4: 00000000000006b0
-DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
-DR3: 0000000000000000 DR6: 00000000ffff0ff0 DR7: 0000000000000400
-Process kworker/0:1 (pid: 14, threadinfo ffff8800072c8000, task ffff88000725d100)
-Stack:
- ffff8800072c9cb0 0000000000000000 ffffc9000000c000 ffffffff81621e80
- ffff8800072c9cc0 ffffffff81621e80 ffff8800072c9d40 ffffffff81355cbf
- ffffffff810c1944 0000000000000000 ffffffff81621ec0 ffffffff80002800
+other info that might help us debug this:
+no locks held by swapper/0/0.
+
+stack backtrace:
+Pid: 0, comm: swapper/0 Not tainted 3.4.0-rc4+ #33
 Call Trace:
- [<ffffffff81355cbf>] ? mutex_lock_nested+0x26f/0x340
- [<ffffffff810c1944>] ? kmem_cache_dup+0x44/0x110
- [<ffffffff810c2aa0>] ? memcg_create_kmem_cache+0xd0/0xd0
- [<ffffffff810c196b>] kmem_cache_dup+0x6b/0x110
- [<ffffffff810c2a73>] memcg_create_kmem_cache+0xa3/0xd0
- [<ffffffff810c2b1a>] memcg_create_cache_work_func+0x7a/0xe0
- [<ffffffff810405d4>] process_one_work+0x174/0x450
- [<ffffffff81040576>] ? process_one_work+0x116/0x450
- [<ffffffff81040e53>] worker_thread+0x123/0x2d0
- [<ffffffff81040d30>] ? manage_workers.isra.27+0x120/0x120
- [<ffffffff8104639e>] kthread+0x8e/0xa0
+ [<ffffffff8134f0b4>] ? cache_grow.constprop.63+0xe8/0x371
+ [<ffffffff8134cf09>] print_unlock_inbalance_bug.part.26+0xd1/0xd9
+ [<ffffffff8134f0b4>] ? cache_grow.constprop.63+0xe8/0x371
+ [<ffffffff8106865e>] print_unlock_inbalance_bug+0x4e/0x50
+ [<ffffffff8134f0b4>] ? cache_grow.constprop.63+0xe8/0x371
+ [<ffffffff8106cb26>] __lock_release+0xd6/0xe0
+ [<ffffffff8106cb8c>] lock_release+0x5c/0x80
+ [<ffffffff8134f0cc>] cache_grow.constprop.63+0x100/0x371
+ [<ffffffff8134f5c6>] cache_alloc_refill+0x289/0x2dc
+ [<ffffffff810bf682>] ? kmem_cache_alloc+0x92/0x260
+ [<ffffffff81676a0f>] ? pidmap_init+0x79/0xb2
+ [<ffffffff810bf842>] kmem_cache_alloc+0x252/0x260
+ [<ffffffff810bf5f0>] ? kmem_freepages+0x180/0x180
+ [<ffffffff81676a0f>] pidmap_init+0x79/0xb2
+ [<ffffffff81667aa3>] start_kernel+0x297/0x2f8
+ [<ffffffff8166769e>] ? repair_env_string+0x5a/0x5a
+ [<ffffffff816672fd>] x86_64_start_reservations+0x101/0x105
+ [<ffffffff816673f1>] x86_64_start_kernel+0xf0/0xf7
 
 Signed-off-by: Anton Vorontsov <anton.vorontsov@linaro.org>
 ---
- mm/slab.c |    7 +++++++
- 1 file changed, 7 insertions(+)
+ include/linux/slab_def.h |    2 --
+ 1 file changed, 2 deletions(-)
 
-diff --git a/mm/slab.c b/mm/slab.c
-index eed72ac..dff87ef 100644
---- a/mm/slab.c
-+++ b/mm/slab.c
-@@ -2619,6 +2619,13 @@ kmem_cache_dup(struct mem_cgroup *memcg, struct kmem_cache *cachep)
- 		return NULL;
+diff --git a/include/linux/slab_def.h b/include/linux/slab_def.h
+index c4f7e45..2d371ae 100644
+--- a/include/linux/slab_def.h
++++ b/include/linux/slab_def.h
+@@ -245,13 +245,11 @@ mem_cgroup_kmem_cache_prepare_sleep(struct kmem_cache *cachep)
+ 	 * enabled.
+ 	 */
+ 	kmem_cache_get_ref(cachep);
+-	rcu_read_unlock();
+ }
  
- 	flags = cachep->flags & ~SLAB_PANIC;
-+	/*
-+	 * OFF_SLAB is not CREATE_MASK bit, so we should clear it before
-+	 * calling __kmem_cache_create(). As a side effect, we let slab
-+	 * to reevaluate off-slab decision; but that is OK, as the bit
-+	 * is automatically set depending on the size and other flags.
-+	 */
-+	flags &= ~CFLGS_OFF_SLAB;
- 	mutex_lock(&cache_chain_mutex);
- 	new = __kmem_cache_create(memcg, name, obj_size(cachep),
- 	    cachep->memcg_params.orig_align, flags, cachep->ctor);
+ static inline void
+ mem_cgroup_kmem_cache_finish_sleep(struct kmem_cache *cachep)
+ {
+-	rcu_read_lock();
+ 	kmem_cache_drop_ref(cachep);
+ }
+ 
 -- 
 1.7.9.2
 
