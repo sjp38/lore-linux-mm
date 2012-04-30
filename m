@@ -1,173 +1,161 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx129.postini.com [74.125.245.129])
-	by kanga.kvack.org (Postfix) with SMTP id 143CC6B0044
-	for <linux-mm@kvack.org>; Mon, 30 Apr 2012 06:48:58 -0400 (EDT)
-Received: by lagz14 with SMTP id z14so2498811lag.14
-        for <linux-mm@kvack.org>; Mon, 30 Apr 2012 03:48:56 -0700 (PDT)
-Subject: [PATCH v3] proc: report file/anon bit in /proc/pid/pagemap
-From: Konstantin Khlebnikov <khlebnikov@openvz.org>
-Date: Mon, 30 Apr 2012 14:48:50 +0400
-Message-ID: <20120430104850.11118.58938.stgit@zurg>
-In-Reply-To: <4F91BC8A.9020503@parallels.com>
-References: <4F91BC8A.9020503@parallels.com>
+Received: from psmtp.com (na3sys010amx166.postini.com [74.125.245.166])
+	by kanga.kvack.org (Postfix) with SMTP id A14286B0044
+	for <linux-mm@kvack.org>; Mon, 30 Apr 2012 07:01:02 -0400 (EDT)
+Date: Mon, 30 Apr 2012 12:00:57 +0100
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [PATCH v4] mm: compaction: handle incorrect Unmovable type
+ pageblocks
+Message-ID: <20120430110057.GN9226@suse.de>
+References: <201204271257.11501.b.zolnierkie@samsung.com>
+ <20120430090239.GL9226@suse.de>
+ <201204301208.47866.b.zolnierkie@samsung.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <201204301208.47866.b.zolnierkie@samsung.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Cc: Rik van Riel <riel@redhat.com>, Pavel Emelyanov <xemul@parallels.com>, Hugh Dickins <hughd@google.com>, Matt Mackall <mpm@selenic.com>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Andrew Morton <akpm@linux-foundation.org>
+To: Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>
+Cc: linux-mm@kvack.org, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@redhat.com>, Marek Szyprowski <m.szyprowski@samsung.com>, Kyungmin Park <kyungmin.park@samsung.com>
 
-This is an implementation of Andrew's proposal to extend the pagemap file
-bits to report what is missing about tasks' working set.
+On Mon, Apr 30, 2012 at 12:08:47PM +0200, Bartlomiej Zolnierkiewicz wrote:
+> > <SNIP>
+> > 
+> > This is looking much better to me. However, I would really like to see
+> > COMPACT_ASYNC_UNMOVABLE being used by the page allocator instead of depending
+> > on kswapd to do the work. Right now as it uses COMPACT_ASYNC_MOVABLE only,
+> > I think it uses COMPACT_SYNC too easily (making latency worse).
+> 
+> Is the following v4 code in __alloc_pages_direct_compact() not enough?
+> 
+> @@ -2122,7 +2122,7 @@
+>  __alloc_pages_direct_compact(gfp_t gfp_mask, unsigned int order,
+>  	struct zonelist *zonelist, enum zone_type high_zoneidx,
+>  	nodemask_t *nodemask, int alloc_flags, struct zone *preferred_zone,
+> -	int migratetype, bool sync_migration,
+> +	int migratetype, enum compact_mode migration_mode,
+>  	bool *deferred_compaction,
+>  	unsigned long *did_some_progress)
+>  {
+> @@ -2285,7 +2285,7 @@
+>  	int alloc_flags;
+>  	unsigned long pages_reclaimed = 0;
+>  	unsigned long did_some_progress;
+> -	bool sync_migration = false;
+> +	enum compact_mode migration_mode = COMPACT_ASYNC_MOVABLE;
+>  	bool deferred_compaction = false;
+>  
+>  	/*
+> @@ -2360,19 +2360,31 @@
+>  		goto nopage;
+>  
+>  	/*
+> -	 * Try direct compaction. The first pass is asynchronous. Subsequent
+> -	 * attempts after direct reclaim are synchronous
+> +	 * Try direct compaction. The first and second pass are asynchronous.
+> +	 * Subsequent attempts after direct reclaim are synchronous.
+>  	 */
+>  	page = __alloc_pages_direct_compact(gfp_mask, order,
+>  					zonelist, high_zoneidx,
+>  					nodemask,
+>  					alloc_flags, preferred_zone,
+> -					migratetype, sync_migration,
+> +					migratetype, migration_mode,
+>  					&deferred_compaction,
+>  					&did_some_progress);
+>  	if (page)
+>  		goto got_pg;
+> -	sync_migration = true;
+> +
+> +	migration_mode = COMPACT_ASYNC_UNMOVABLE;
+> +	page = __alloc_pages_direct_compact(gfp_mask, order,
+> +					zonelist, high_zoneidx,
+> +					nodemask,
+> +					alloc_flags, preferred_zone,
+> +					migratetype, migration_mode,
+> +					&deferred_compaction,
+> +					&did_some_progress);
+> +	if (page)
+> +		goto got_pg;
+> +
+> +	migration_mode = COMPACT_SYNC;
+>  
+>  	/*
+>  	 * If compaction is deferred for high-order allocations, it is because
+> 
 
-The problem with the working set detection is multilateral. In the criu
-(checkpoint/restore) project we dump the tasks' memory into image files
-and to do it properly we need to detect which pages inside mappings are
-really in use. The mincore syscall I though could help with this did not.
-First, it doesn't report swapped pages, thus we cannot find out which
-parts of anonymous mappings to dump. Next, it does report pages from page
-cache as present even if they are not mapped, and it doesn't make
-difference between private pages that has been cow-ed and private pages
-that has not been cow-ed.
+Two problems with it.
 
-Note, that issue with swap pages is critical -- we must dump swap pages to
-image file. But the issues with file pages are optimization -- we can take
-all file pages to image, this would be correct, but if we know that a page
-is not mapped or not cow-ed, we can remove them from dump file. The dump
-would still be self-consistent, though significantly smaller in size (up
-to 10 times smaller on real apps).
+It moves more knowledge of compaction into page_alloc.c than is
+necessary. Second, it does not take into account whether enough
+MIGRATE_UNMOVABLE pageblocks were encountered to justify a second
+pass and only compaction.c knows that. This is why I suggested that
+try_to_compact_pages() continue to take a "sync" parameter and have it
+decide whether the second pass with COMPACT_ASYNC_UNMOVABLE is suitable.
 
-Andrew noticed, that the proc pagemap file solved 2 of 3 above issues -- it
-reports whether a page is present or swapped and it doesn't report not
-mapped page cache pages. But, it doesn't distinguish cow-ed file pages from
-not cow-ed.
+> > Specifically
+> > 
+> > 1. Leave try_to_compact_pages() taking a sync parameter. It is up to
+> >    compaction how to treat sync==false
+> > 2. When sync==false, start with ASYNC_MOVABLE. Track how many pageblocks
+> >    were scanned during compaction and how many of them were
+> >    MIGRATE_UNMOVABLE. If compaction ran fully (COMPACT_COMPLETE) it implies
+> >    that there is not a suitable page for allocation. In this case then
+> >    check how if there were enough MIGRATE_UNMOVABLE pageblocks to try a
+> >    second pass in ASYNC_FULL. By keeping all the logic in compaction.c
+> >    it prevents too much knowledge of compaction sneaking into
+> >    page_alloc.c
+> 
+> Do you mean that try_to_compact_pages() should handle COMPACT_ASYNC_MOVABLE
+> and COMPACT_ASYNC_UNMOVABLE internally while __alloc_pages_direct_compact()
+> (and its users) should only pass bool sync to it?
+> 
 
-I would like to make the last unused bit in this file to report whether the
-page mapped into respective pte is PageAnon or not.
+Yes.
 
-[comment stolen from Pavel Emelyanov's v1 patch]
+> > 3. When scanning ASYNC_FULL, *only* scan the MIGRATE_UNMOVABLE blocks as
+> >    migration targets because the first pass would have scanned within
+> >    MIGRATE_MOVABLE. This will reduce the cost of the second pass.
+> 
+> That is what the current v4 code should already be doing with:
+> 
+> [...]
+>  /* Returns true if the page is within a block suitable for migration to */
+> -static bool suitable_migration_target(struct page *page)
+> +static bool suitable_migration_target(struct page *page,
+> +				      enum compact_mode mode)
+>  {
+>  
+>  	int migratetype = get_pageblock_migratetype(page);
+> @@ -373,7 +413,13 @@
+>  		return true;
+>  
+>  	/* If the block is MIGRATE_MOVABLE or MIGRATE_CMA, allow migration */
+> -	if (migrate_async_suitable(migratetype))
+> +	if (mode != COMPACT_ASYNC_UNMOVABLE &&
+> +	    migrate_async_suitable(migratetype))
+> +		return true;
+> +
+> +	if (mode != COMPACT_ASYNC_MOVABLE &&
+> +	    migratetype == MIGRATE_UNMOVABLE &&
+> +	    rescue_unmovable_pageblock(page))
+>  		return true;
+>  
+>  	/* Otherwise skip the block */
+> 
+> ?
+> 
 
-v2:
-* Rebase to uptodate kernel
-* Fix file/anon bit reporting for migration entries
-* Fix frame bits interval comment, it uses 55 lower bits (64 - 3 - 6)
+Yes, you're right. When I complained I was thinking that it was still
+possible to use pageblocks with large number of free pages in the second pass
+which is not exactly the same thing but it is still perfectly reasonable.
 
-v3:
-* fix stupid misprint s/if/else if/
-* rebase on top of "[PATCH bugfix] proc/pagemap: correctly report non-present
-  ptes and holes between vmas"
-* second patch (with indexes for nonlinear mappings) was droppped.
+Sorry for the noise.
 
-Signed-off-by: Konstantin Khlebnikov <khlebnikov@openvz.org>
-Cc: Pavel Emelyanov <xemul@parallels.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Matt Mackall <mpm@selenic.com>
-Cc: Hugh Dickins <hughd@google.com>
-Cc: Rik van Riel <riel@redhat.com>
-Cc: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
----
- Documentation/vm/pagemap.txt |    2 +-
- fs/proc/task_mmu.c           |   48 ++++++++++++++++++++++++++----------------
- 2 files changed, 31 insertions(+), 19 deletions(-)
-
-diff --git a/Documentation/vm/pagemap.txt b/Documentation/vm/pagemap.txt
-index 4600cbe..7587493 100644
---- a/Documentation/vm/pagemap.txt
-+++ b/Documentation/vm/pagemap.txt
-@@ -16,7 +16,7 @@ There are three components to pagemap:
-     * Bits 0-4   swap type if swapped
-     * Bits 5-54  swap offset if swapped
-     * Bits 55-60 page shift (page size = 1<<page shift)
--    * Bit  61    reserved for future use
-+    * Bit  61    page is file-page or shared-anon
-     * Bit  62    page swapped
-     * Bit  63    page present
- 
-diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
-index 9f9c033..b073971 100644
---- a/fs/proc/task_mmu.c
-+++ b/fs/proc/task_mmu.c
-@@ -700,6 +700,7 @@ struct pagemapread {
- 
- #define PM_PRESENT          PM_STATUS(4LL)
- #define PM_SWAP             PM_STATUS(2LL)
-+#define PM_FILE             PM_STATUS(1LL)
- #define PM_NOT_PRESENT      PM_PSHIFT(PAGE_SHIFT)
- #define PM_END_OF_BUFFER    1
- 
-@@ -733,22 +734,33 @@ static int pagemap_pte_hole(unsigned long start, unsigned long end,
- 	return err;
- }
- 
--static u64 swap_pte_to_pagemap_entry(pte_t pte)
-+static void pte_to_pagemap_entry(pagemap_entry_t *pme,
-+		struct vm_area_struct *vma, unsigned long addr, pte_t pte)
- {
--	swp_entry_t e = pte_to_swp_entry(pte);
--	return swp_type(e) | (swp_offset(e) << MAX_SWAPFILES_SHIFT);
--}
--
--static void pte_to_pagemap_entry(pagemap_entry_t *pme, pte_t pte)
--{
--	if (is_swap_pte(pte))
--		*pme = make_pme(PM_PFRAME(swap_pte_to_pagemap_entry(pte))
--				| PM_PSHIFT(PAGE_SHIFT) | PM_SWAP);
--	else if (pte_present(pte))
--		*pme = make_pme(PM_PFRAME(pte_pfn(pte))
--				| PM_PSHIFT(PAGE_SHIFT) | PM_PRESENT);
--	else
-+	u64 frame, flags;
-+	struct page *page = NULL;
-+
-+	if (pte_present(pte)) {
-+		frame = pte_pfn(pte);
-+		flags = PM_PRESENT;
-+		page = vm_normal_page(vma, addr, pte);
-+	} else if (is_swap_pte(pte)) {
-+		swp_entry_t entry = pte_to_swp_entry(pte);
-+
-+		frame = swp_type(entry) |
-+			(swp_offset(entry) << MAX_SWAPFILES_SHIFT);
-+		flags = PM_SWAP;
-+		if (is_migration_entry(entry))
-+			page = migration_entry_to_page(entry);
-+	} else {
- 		*pme = make_pme(PM_NOT_PRESENT);
-+		return;
-+	}
-+
-+	if (page && !PageAnon(page))
-+		flags |= PM_FILE;
-+
-+	*pme = make_pme(PM_PFRAME(frame) | PM_PSHIFT(PAGE_SHIFT) | flags);
- }
- 
- #ifdef CONFIG_TRANSPARENT_HUGEPAGE
-@@ -815,7 +827,7 @@ static int pagemap_pte_range(pmd_t *pmd, unsigned long addr, unsigned long end,
- 		if (vma && (vma->vm_start <= addr) &&
- 		    !is_vm_hugetlb_page(vma)) {
- 			pte = pte_offset_map(pmd, addr);
--			pte_to_pagemap_entry(&pme, *pte);
-+			pte_to_pagemap_entry(&pme, vma, addr, *pte);
- 			/* unmap before userspace copy */
- 			pte_unmap(pte);
- 		}
-@@ -869,11 +881,11 @@ static int pagemap_hugetlb_range(pte_t *pte, unsigned long hmask,
-  * For each page in the address space, this file contains one 64-bit entry
-  * consisting of the following:
-  *
-- * Bits 0-55  page frame number (PFN) if present
-+ * Bits 0-54  page frame number (PFN) if present
-  * Bits 0-4   swap type if swapped
-- * Bits 5-55  swap offset if swapped
-+ * Bits 5-54  swap offset if swapped
-  * Bits 55-60 page shift (page size = 1<<page shift)
-- * Bit  61    reserved for future use
-+ * Bit  61    page is file-page or shared-anon
-  * Bit  62    page swapped
-  * Bit  63    page present
-  *
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
