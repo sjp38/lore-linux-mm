@@ -1,75 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx138.postini.com [74.125.245.138])
-	by kanga.kvack.org (Postfix) with SMTP id 3D5DF6B0081
-	for <linux-mm@kvack.org>; Mon, 30 Apr 2012 07:29:18 -0400 (EDT)
-Received: by lagz14 with SMTP id z14so2525225lag.14
-        for <linux-mm@kvack.org>; Mon, 30 Apr 2012 04:29:16 -0700 (PDT)
-Subject: [PATCH RFC 3/3] proc/smaps: show amount of hwpoison pages
-From: Konstantin Khlebnikov <khlebnikov@openvz.org>
-Date: Mon, 30 Apr 2012 15:29:11 +0400
-Message-ID: <20120430112910.14137.28935.stgit@zurg>
-In-Reply-To: <20120430112903.14137.81692.stgit@zurg>
-References: <20120430112903.14137.81692.stgit@zurg>
+Received: from psmtp.com (na3sys010amx137.postini.com [74.125.245.137])
+	by kanga.kvack.org (Postfix) with SMTP id C162C6B0044
+	for <linux-mm@kvack.org>; Mon, 30 Apr 2012 09:41:53 -0400 (EDT)
+From: Jeff Moyer <jmoyer@redhat.com>
+Subject: Re: [PATCH] Describe race of direct read and fork for unaligned buffers
+References: <1335778207-6511-1-git-send-email-jack@suse.cz>
+Date: Mon, 30 Apr 2012 09:41:50 -0400
+In-Reply-To: <1335778207-6511-1-git-send-email-jack@suse.cz> (Jan Kara's
+	message of "Mon, 30 Apr 2012 11:30:07 +0200")
+Message-ID: <x49haw1jq01.fsf@segfault.boston.devel.redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Cc: Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <andi@firstfloor.org>
+To: Jan Kara <jack@suse.cz>
+Cc: Michael Kerrisk <mtk.manpages@gmail.com>, LKML <linux-kernel@vger.kernel.org>, linux-man@vger.kernel.org, linux-mm@kvack.org, mgorman@suse.de
 
-This patch adds line "HWPoinson: <size> kB" into /proc/pid/smaps if
-CONFIG_MEMORY_FAILURE=y and some HWPoison pages were found.
-This may be useful for searching applications which use a broken memory.
+Jan Kara <jack@suse.cz> writes:
 
-Signed-off-by: Konstantin Khlebnikov <khlebnikov@openvz.org>
-Cc: Andi Kleen <andi@firstfloor.org>
----
- fs/proc/task_mmu.c |   10 ++++++++++
- 1 file changed, 10 insertions(+)
+> This is a long standing problem (or a surprising feature) in our implementation
+> of get_user_pages() (used by direct IO). Since several attempts to fix it
+> failed (e.g.
+> http://linux.derkeiler.com/Mailing-Lists/Kernel/2009-04/msg06542.html, or
+> http://lkml.indiana.edu/hypermail/linux/kernel/0903.1/01498.html refused in
+> http://comments.gmane.org/gmane.linux.kernel.mm/31569) and it's not completely
+> clear whether we really want to fix it given the costs, let's at least document
+> it.
+>
+> CC: mgorman@suse.de
+> CC: Jeff Moyer <jmoyer@redhat.com>
+> Signed-off-by: Jan Kara <jack@suse.cz>
+> ---
+>
+> --- a/man2/open.2	2012-04-27 00:07:51.736883092 +0200
+> +++ b/man2/open.2	2012-04-27 00:29:59.489892980 +0200
+> @@ -769,7 +769,12 @@
+>  and the file offset must all be multiples of the logical block size
+>  of the file system.
+>  Under Linux 2.6, alignment to 512-byte boundaries
+> -suffices.
+> +suffices. However, if the user buffer is not page aligned and direct read
+> +runs in parallel with a
+> +.BR fork (2)
+> +of the reader process, it may happen that the read data is split between
+> +pages owned by the original process and its child. Thus effectively read
+> +data is corrupted.
+>  .LP
+>  The
+>  .B O_DIRECT
 
-diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
-index b1d9729..3e564f0 100644
---- a/fs/proc/task_mmu.c
-+++ b/fs/proc/task_mmu.c
-@@ -394,6 +394,7 @@ struct mem_size_stats {
- 	unsigned long anonymous_thp;
- 	unsigned long swap;
- 	unsigned long nonlinear;
-+	unsigned long hwpoison;
- 	u64 pss;
- };
- 
-@@ -416,6 +417,8 @@ static void smaps_pte_entry(pte_t ptent, unsigned long addr,
- 			mss->swap += ptent_size;
- 		else if (is_migration_entry(swpent))
- 			page = migration_entry_to_page(swpent);
-+		else if (is_hwpoison_entry(swpent))
-+			mss->hwpoison += ptent_size;
- 	} else if (pte_file(ptent)) {
- 		if (pte_to_pgoff(ptent) != pgoff)
- 			mss->nonlinear += ptent_size;
-@@ -430,6 +433,9 @@ static void smaps_pte_entry(pte_t ptent, unsigned long addr,
- 	if (page->index != pgoff)
- 		mss->nonlinear += ptent_size;
- 
-+	if (PageHWPoison(page))
-+		mss->hwpoison += ptent_size;
-+
- 	mss->resident += ptent_size;
- 	/* Accumulate the size in pages that have been accessed. */
- 	if (pte_young(ptent) || PageReferenced(page))
-@@ -535,6 +541,10 @@ static int show_smap(struct seq_file *m, void *v, int is_pid)
- 		seq_printf(m, "Nonlinear:      %8lu kB\n",
- 				mss.nonlinear >> 10);
- 
-+	if (IS_ENABLED(CONFIG_MEMORY_FAILURE) && mss.hwpoison)
-+		seq_printf(m, "HWPoison:       %8lu kB\n",
-+				mss.hwpoison >> 10);
-+
- 	if (m->count < m->size)  /* vma is copied successfully */
- 		m->version = (vma != get_gate_vma(task->mm))
- 			? vma->vm_start : 0;
+I think this sufficiently distills the problem.  Thanks, Jan.
+
+Acked-by: Jeff Moyer <jmoyer@redhat.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
