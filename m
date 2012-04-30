@@ -1,60 +1,129 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx156.postini.com [74.125.245.156])
-	by kanga.kvack.org (Postfix) with SMTP id 8066B6B0044
-	for <linux-mm@kvack.org>; Sun, 29 Apr 2012 21:25:38 -0400 (EDT)
-Message-ID: <4F9DEA0C.8040203@kernel.org>
-Date: Mon, 30 Apr 2012 10:25:32 +0900
+Received: from psmtp.com (na3sys010amx174.postini.com [74.125.245.174])
+	by kanga.kvack.org (Postfix) with SMTP id 91FF36B0044
+	for <linux-mm@kvack.org>; Sun, 29 Apr 2012 21:52:34 -0400 (EDT)
+Message-ID: <4F9DF05E.7080707@kernel.org>
+Date: Mon, 30 Apr 2012 10:52:30 +0900
 From: Minchan Kim <minchan@kernel.org>
 MIME-Version: 1.0
-Subject: Re: [RFC] propagate gfp_t to page table alloc functions
-References: <1335171318-4838-1-git-send-email-minchan@kernel.org> <4F963742.2030607@jp.fujitsu.com> <4F963B8E.9030105@kernel.org> <CAPa8GCA8q=S9sYx-0rDmecPxYkFs=gATGL-Dz0OYXDkwEECJkg@mail.gmail.com> <4F965413.9010305@kernel.org> <CAPa8GCCwfCFO6yxwUP5Qp9O1HGUqEU2BZrrf50w8TL9FH9vbrA@mail.gmail.com> <20120424143015.99fd8d4a.akpm@linux-foundation.org> <4F973BF2.4080406@jp.fujitsu.com> <CAHGf_=r09BCxXeuE8dSti4_SrT5yahrQCwJh=NrrA3rsUhhu_w@mail.gmail.com> <4F973FB8.6050103@jp.fujitsu.com> <20120424172554.c9c330dd.akpm@linux-foundation.org> <4F98914C.2060505@jp.fujitsu.com> <alpine.DEB.2.00.1204251715420.19452@chino.kir.corp.google.com> <4F9A0360.3030900@kernel.org> <alpine.DEB.2.00.1204270340450.11866@chino.kir.corp.google.com>
-In-Reply-To: <alpine.DEB.2.00.1204270340450.11866@chino.kir.corp.google.com>
+Subject: Re: [RFC] vmalloc: add warning in __vmalloc
+References: <1335516144-3486-1-git-send-email-minchan@kernel.org> <20120427150030.6183a286.akpm@linux-foundation.org>
+In-Reply-To: <20120427150030.6183a286.akpm@linux-foundation.org>
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Nick Piggin <npiggin@gmail.com>, Ingo Molnar <mingo@redhat.com>, x86@kernel.org, Hugh Dickins <hughd@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, npiggin@gmail.com, kamezawa.hiroyu@jp.fujitsu.com, kosaki.motohiro@gmail.com, rientjes@google.com, Neil Brown <neilb@suse.de>, Artem Bityutskiy <dedekind1@gmail.com>, David Woodhouse <dwmw2@infradead.org>, Theodore Ts'o <tytso@mit.edu>, Adrian Hunter <adrian.hunter@intel.com>, Steven Whitehouse <swhiteho@redhat.com>, "David S. Miller" <davem@davemloft.net>, James Morris <jmorris@namei.org>, Alexander Viro <viro@zeniv.linux.org.uk>, Sage Weil <sage@newdream.net>
 
-On 04/27/2012 07:43 PM, David Rientjes wrote:
+On 04/28/2012 07:00 AM, Andrew Morton wrote:
 
-> On Fri, 27 Apr 2012, Minchan Kim wrote:
+> On Fri, 27 Apr 2012 17:42:24 +0900
+> Minchan Kim <minchan@kernel.org> wrote:
 > 
->>> Maybe a per-thread_info variant of gfp_allowed_mask?  So Andrew's 
->>> set_current_gfp() becomes set_current_gfp_allowed() that does
->>>
->>> 	void set_current_gfp_allowed(gfp_t gfp_mask)
->>> 	{
->>> 		current->gfp_allowed = gfp_mask & gfp_allowed_mask;
->>> 	}
->>>
->>> and then the page allocator does
->>>
->>> 	gfp_mask &= current->gfp_allowed;
->>>
->>> rather than how it currently does
->>>
->>> 	gfp_mask &= gfp_allowed_mask;
->>>
->>> and then the caller of set_current_gfp_allowed() cleans up with 
->>> set_current_gfp_allowed(__GFP_BITS_MASK).
+>> Now there are several places to use __vmalloc with GFP_ATOMIC,
+>> GFP_NOIO, GFP_NOFS but unfortunately __vmalloc calls map_vm_area
+>> which calls alloc_pages with GFP_KERNEL to allocate page tables.
+>> It means it's possible to happen deadlock.
+>> I don't know why it doesn't have reported until now.
 >>
-> 
-> [trimmed the newsgroups from the reply, not sure what the point is?]
-> 
->> Caller should restore old gfp_mask instead of __GFP_BITS_MASK in case of
->> nesting.And how do we care of atomic context?
+>> Firstly, I tried passing gfp_t to lower functions to support __vmalloc
+>> with such flags but other mm guys don't want and decided that
+>> all of caller should be fixed.
 >>
+>> http://marc.info/?l=linux-kernel&m=133517143616544&w=2
+>>
+>> To begin with, let's listen other's opinion whether they can fix it
+>> by other approach without calling __vmalloc with such flags.
+>>
+>> So this patch adds warning to detect and to be fixed hopely.
+>> I Cced related maintainers.
+>> If I miss someone, please Cced them.
+>>
+>> side-note:
+>>   I added WARN_ON instead of WARN_ONCE to detect all of callers
+>>   and each WARN_ON for each flag to detect to use any flag easily.
+>>   After we fix all of caller or reduce such caller, we can merge
+>>   a warning with WARN_ONCE.
 > 
-> Eek, I'm hoping these aren't going to be nested but sure that seems 
-> appropraite if they are.  (I'm also hoping these will only be either 
-> __GFP_HIGH or __GFP_BITS_MASK and no other combinations.)
-> 
-> Forcing atomic context would just be set_current_gfp_allowed(__GFP_HIGH).
+> Just WARN_ONCE, please.  If that exposes some sort of calamity then we
+> can reconsider.
 
 
-I mean it's not legal to access _current_ in atomic context so that
-(gfp_mask &= current->gfp_allowed in page allocator) shouldn't.
+NP.
+
+> 
+>>
+>> ...
+>>
+>> --- a/mm/vmalloc.c
+>> +++ b/mm/vmalloc.c
+>> @@ -1700,6 +1700,15 @@ static void *__vmalloc_node(unsigned long size, unsigned long align,
+>>  			    gfp_t gfp_mask, pgprot_t prot,
+>>  			    int node, void *caller)
+>>  {
+>> +	/*
+>> +	 * This function calls map_vm_area so that it allocates
+>> +	 * page table with GFP_KERNEL so caller should avoid using
+>> +	 * GFP_NOIO, GFP_NOFS and !__GFP_WAIT.
+>> +	 */
+>> +	WARN_ON(!(gfp_mask & __GFP_WAIT));
+>> +	WARN_ON(!(gfp_mask & __GFP_IO));
+>> +	WARN_ON(!(gfp_mask & __GFP_FS));
+>> +
+>>  	return __vmalloc_node_range(size, align, VMALLOC_START, VMALLOC_END,
+>>  				gfp_mask, prot, node, caller);
+>>  }
+> 
+> This seems strange.  There are many entry points to this code and the
+> patch appears to go into a randomly-chosen middle point in the various
+> call chains and sticks a check in there.  Why was __vmalloc_node()
+> chosen?  Does this provide full coverage or all entry points?
+
+
+I think it covers all of caller with calls __vmalloc with gfp_flags.
+Only exception is __vmalloc_node_range which is called by module_alloc
+but it surely calls __vmalloc_node_range with GFP_KERNEL so it's no problem now.
+If you want to catch potential use of __vmalloc_node_range in future, I can move it
+to it. 
+
+> 
+> 
+> 
+> Also, the patch won't warn in the most problematic cases such as
+> vmalloc() being called from a __GFP_NOFS context.  Presumably there are
+
+
+I agree but this patch's goal is just to prevent calling __vmalloc with GFP_ATOMIC, GFP_NOFS and
+GFP_NOIO. We should consider vmalloc on __GFP_NOFS context as another problem and maybe
+reclaimfs lockdep would be a good start point.
+
+> might_sleep() warnings somewhere on the allocation path which will
+
+> catch vmalloc() being called from atomic contexts.
+
+
+Yes.
+
+> 
+> I'm not sure what to do about that - we don't have machinery in place
+> to be able to detect when a GFP_KERNEL allocation is deadlockable. 
+> Perhaps a lot of hacking on lockdep might get us this - we'd need to
+> teach lockdep about which locks prohibit FS entry, which locks prevent
+> IO entry, etc.  And there are secret locks such as ext3/4
+> journal_start(), and bitlocks and lock_page().  eek.
+
+> 
+
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Fight unfair telecom internet charges in Canada: sign http://stopthemeter.ca/
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> 
+
+
 
 -- 
 Kind regards,
