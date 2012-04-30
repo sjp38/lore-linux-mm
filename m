@@ -1,67 +1,125 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx201.postini.com [74.125.245.201])
-	by kanga.kvack.org (Postfix) with SMTP id CB26C6B0044
-	for <linux-mm@kvack.org>; Mon, 30 Apr 2012 12:24:56 -0400 (EDT)
-Received: from /spool/local
-	by e37.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <sjenning@linux.vnet.ibm.com>;
-	Mon, 30 Apr 2012 10:24:56 -0600
-Received: from d03relay02.boulder.ibm.com (d03relay02.boulder.ibm.com [9.17.195.227])
-	by d03dlp01.boulder.ibm.com (Postfix) with ESMTP id 5F1E21FF0068
-	for <linux-mm@kvack.org>; Mon, 30 Apr 2012 10:24:48 -0600 (MDT)
-Received: from d03av03.boulder.ibm.com (d03av03.boulder.ibm.com [9.17.195.169])
-	by d03relay02.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q3UGOe8o062560
-	for <linux-mm@kvack.org>; Mon, 30 Apr 2012 10:24:45 -0600
-Received: from d03av03.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av03.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q3UGObpx021459
-	for <linux-mm@kvack.org>; Mon, 30 Apr 2012 10:24:40 -0600
-Message-ID: <4F9EBCC3.9040509@linux.vnet.ibm.com>
-Date: Mon, 30 Apr 2012 11:24:35 -0500
-From: Seth Jennings <sjenning@linux.vnet.ibm.com>
+Received: from psmtp.com (na3sys010amx139.postini.com [74.125.245.139])
+	by kanga.kvack.org (Postfix) with SMTP id 055586B0044
+	for <linux-mm@kvack.org>; Mon, 30 Apr 2012 13:02:56 -0400 (EDT)
+Received: by lbjn8 with SMTP id n8so2251743lbj.14
+        for <linux-mm@kvack.org>; Mon, 30 Apr 2012 10:02:54 -0700 (PDT)
 MIME-Version: 1.0
-Subject: Re: [PATCH 6/6] zsmalloc: make zsmalloc portable
-References: <1335334994-22138-1-git-send-email-minchan@kernel.org> <1335334994-22138-7-git-send-email-minchan@kernel.org> <4F980AFE.60901@vflare.org> <fcde09be-ae34-4f09-a324-825fb2d4fac2@default> <4F98ACF3.7060908@kernel.org> <4F98D814.9060808@kernel.org>
-In-Reply-To: <4F98D814.9060808@kernel.org>
+In-Reply-To: <CABEgKgrXqbF8XBc6vHa2b5KQe9E7_+WODvq3hE0vaT0Eyxo5=w@mail.gmail.com>
+References: <4F9A327A.6050409@jp.fujitsu.com>
+	<4F9A375D.7@jp.fujitsu.com>
+	<CALWz4iyiM-CFgVaHiE1Lgd1ZwJzHwY3tx9XX6HeDPUV_wVPAtQ@mail.gmail.com>
+	<CABEgKgrXqbF8XBc6vHa2b5KQe9E7_+WODvq3hE0vaT0Eyxo5=w@mail.gmail.com>
+Date: Mon, 30 Apr 2012 10:02:54 -0700
+Message-ID: <CALWz4ix_rVpgzDme06f2U44EaqWcZKCEb0ueByh1-dSmbaO1jA@mail.gmail.com>
+Subject: Re: [RFC][PATCH 9/9 v2] memcg: never return error at pre_destroy()
+From: Ying Han <yinghan@google.com>
 Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Dan Magenheimer <dan.magenheimer@oracle.com>, Nitin Gupta <ngupta@vflare.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Hiroyuki Kamezawa <kamezawa.hiroyuki@gmail.com>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Linux Kernel <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "cgroups@vger.kernel.org" <cgroups@vger.kernel.org>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Frederic Weisbecker <fweisbec@gmail.com>, Glauber Costa <glommer@parallels.com>, Tejun Heo <tj@kernel.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>
 
-On 04/26/2012 12:07 AM, Minchan Kim wrote:
+On Fri, Apr 27, 2012 at 5:25 PM, Hiroyuki Kamezawa
+<kamezawa.hiroyuki@gmail.com> wrote:
+> On Sat, Apr 28, 2012 at 6:28 AM, Ying Han <yinghan@google.com> wrote:
+>> On Thu, Apr 26, 2012 at 11:06 PM, KAMEZAWA Hiroyuki
+>> <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+>>> When force_empty() called by ->pre_destroy(), no memory reclaim happens
+>>> and it doesn't take very long time which requires signal_pending() chec=
+k.
+>>> And if we return -EINTR from pre_destroy(), cgroup.c show warning.
+>>>
+>>> This patch removes signal check in force_empty(). By this, ->pre_destro=
+y()
+>>> returns success always.
+>>>
+>>> Note: check for 'cgroup is empty' remains for force_empty interface.
+>>>
+>>> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+>>> ---
+>>> =A0mm/hugetlb.c =A0 =A0| =A0 10 +---------
+>>> =A0mm/memcontrol.c | =A0 14 +++++---------
+>>> =A02 files changed, 6 insertions(+), 18 deletions(-)
+>>>
+>>> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+>>> index 4dd6b39..770f1642 100644
+>>> --- a/mm/hugetlb.c
+>>> +++ b/mm/hugetlb.c
+>>> @@ -1922,20 +1922,12 @@ int hugetlb_force_memcg_empty(struct cgroup *cg=
+roup)
+>>> =A0 =A0 =A0 =A0int ret =3D 0, idx =3D 0;
+>>>
+>>> =A0 =A0 =A0 =A0do {
+>>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 /* see memcontrol.c::mem_cgroup_force_emp=
+ty() */
+>>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0if (cgroup_task_count(cgroup)
+>>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0|| !list_empty(&cgroup->=
+children)) {
+>>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0ret =3D -EBUSY;
+>>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0goto out;
+>>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0}
+>>> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 /*
+>>> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0* If the task doing the cgroup_rmdir g=
+ot a signal
+>>> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0* we don't really need to loop till th=
+e hugetlb resource
+>>> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0* usage become zero.
+>>> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0*/
+>>> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (signal_pending(current)) {
+>>> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 ret =3D -EINTR;
+>>> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 goto out;
+>>> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 }
+>>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0for_each_hstate(h) {
+>>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0spin_lock(&hugetlb_lock)=
+;
+>>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0list_for_each_entry(page=
+, &h->hugepage_activelist, lru) {
+>>> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+>>> index 2715223..ee350c5 100644
+>>> --- a/mm/memcontrol.c
+>>> +++ b/mm/memcontrol.c
+>>> @@ -3852,8 +3852,6 @@ static int mem_cgroup_force_empty_list(struct mem=
+_cgroup *memcg,
+>>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0pc =3D lookup_page_cgroup(page);
+>>>
+>>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0ret =3D mem_cgroup_move_parent(page, pc,=
+ memcg, GFP_KERNEL);
+>>> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (ret =3D=3D -ENOMEM || ret =3D=3D -EIN=
+TR)
+>>> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 break;
+>>>
+>>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0if (ret =3D=3D -EBUSY || ret =3D=3D -EIN=
+VAL) {
+>>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0/* found lock contention=
+ or "pc" is obsolete. */
+>>> @@ -3863,7 +3861,7 @@ static int mem_cgroup_force_empty_list(struct mem=
+_cgroup *memcg,
+>>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0busy =3D NULL;
+>>> =A0 =A0 =A0 =A0}
+>>>
+>>> - =A0 =A0 =A0 if (!ret && !list_empty(list))
+>>> + =A0 =A0 =A0 if (!loop)
+>>
+>> This looks a bit strange to me... why we make the change ?
+>>
+> Ah, I should this move to an independet patch.
+> Because we don't have -ENOMEM path to exit loop, the return value of
+> this function
+> is
+> =A00 (if loop !=3D0 this means lru is empty under the lru lock )
+> =A0-EBUSY (if loop=3D=3D 0)
 
-> 
-> Quick patch - totally untested.
-> 
-> We can implement new TLB flush function 
-> "local_flush_tlb_kernel_range" If architecture is very smart, it 
-> could flush only tlb entries related to vaddr. If architecture is 
-> smart, it could flush only tlb entries related to a CPU. If 
-> architecture is _NOT_ smart, it could flush all entries of all CPUs.
-> 
-> Now there are few architectures have "local_flush_tlb_kernel_range". 
-> MIPS, sh, unicore32, arm, score and x86 by this patch. So I think 
-> it's good candidate other arch should implement. Until that, we can 
-> add stub for other architectures which calls only [global/local] TLB
->  flush. We can expect maintainer could respond then they can 
-> implement best efficient method. If the maintainer doesn't have any 
-> interest, zsmalloc could be very slow in that arch and users will 
-> blame that architecture.
-> 
-> Any thoughts?
+>
+> I'll move this part out as an independent clean up patch
 
+Thanks ~
 
-I had this same idea a while back.
+--Ying
 
-It is encouraging to know that someone else independently thought of
-this solution too :)  Makes me think it is a good solution.
-
-Let me build and test on x86, make sure there are no unforseen consequences.
-
-Thanks again for your work here!
-
-Seth
+> thanks,
+> -kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
