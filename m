@@ -1,63 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx119.postini.com [74.125.245.119])
-	by kanga.kvack.org (Postfix) with SMTP id E68006B0044
-	for <linux-mm@kvack.org>; Mon, 30 Apr 2012 03:55:38 -0400 (EDT)
-Received: by pbbrp2 with SMTP id rp2so1012621pbb.14
-        for <linux-mm@kvack.org>; Mon, 30 Apr 2012 00:55:38 -0700 (PDT)
-Date: Mon, 30 Apr 2012 00:54:18 -0700
-From: Anton Vorontsov <cbouatmailru@gmail.com>
-Subject: Re: vmevent: question?
-Message-ID: <20120430075417.GA8438@lizard>
-References: <4F9E39F1.5030600@kernel.org>
- <CAOJsxLE3A3b5HSrRm0NVCBmzv7AAs-RWEiZC1BL=se309+=WTA@mail.gmail.com>
+Received: from psmtp.com (na3sys010amx107.postini.com [74.125.245.107])
+	by kanga.kvack.org (Postfix) with SMTP id 023F16B0044
+	for <linux-mm@kvack.org>; Mon, 30 Apr 2012 04:01:40 -0400 (EDT)
+Received: by iajr24 with SMTP id r24so5683038iaj.14
+        for <linux-mm@kvack.org>; Mon, 30 Apr 2012 01:01:40 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <CAOJsxLE3A3b5HSrRm0NVCBmzv7AAs-RWEiZC1BL=se309+=WTA@mail.gmail.com>
+In-Reply-To: <4F9E44AD.8020701@kernel.org>
+References: <4F9E39F1.5030600@kernel.org>
+	<CAOJsxLE3A3b5HSrRm0NVCBmzv7AAs-RWEiZC1BL=se309+=WTA@mail.gmail.com>
+	<4F9E44AD.8020701@kernel.org>
+Date: Mon, 30 Apr 2012 11:01:40 +0300
+Message-ID: <CAOJsxLGd_-ZSxpY2sL8XqyiYxpnmYDJJ+Hfx-zi1Ty=-1igcLA@mail.gmail.com>
+Subject: Re: vmevent: question?
+From: Pekka Enberg <penberg@kernel.org>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pekka Enberg <penberg@kernel.org>
-Cc: Minchan Kim <minchan@kernel.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Ingo Molnar <mingo@elte.hu>, Leonid Moiseichuk <leonid.moiseichuk@nokia.com>
+To: Minchan Kim <minchan@kernel.org>
+Cc: linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Ingo Molnar <mingo@elte.hu>, Anton Vorontsov <anton.vorontsov@linaro.org>, Leonid Moiseichuk <leonid.moiseichuk@nokia.com>
 
-Hello Pekka,
+Hi Minchan,
 
-On Mon, Apr 30, 2012 at 10:35:02AM +0300, Pekka Enberg wrote:
-> > vmevent_smaple gathers all registered values to report to user if vmevent match.
-> > But the time gap between vmevent match check and vmevent_sample_attr could make error
-> > so user could confuse.
-> >
-> > Q 1. Why do we report _all_ registered vmstat value?
-> > A  A  In my opinion, it's okay just to report _a_ value vmevent_match happens.
-> 
-> It makes the userspace side simpler for "lowmem notification" use
-> case. I'm open to changing the ABI if it doesn't make the userspace
-> side too complex.
+On Mon, Apr 30, 2012 at 10:52 AM, Minchan Kim <minchan@kernel.org> wrote:
+>> It makes the userspace side simpler for "lowmem notification" use
+>> case. I'm open to changing the ABI if it doesn't make the userspace
+>> side too complex.
+>
+> Yes. I understand your point but if we still consider all of values,
+> we don't have any way to capture exact values except triggered event value.
+> I mean there is no lock to keep consistency.
+> If stale data is okay, no problem but IMHO, it could make user very confusing.
+> So let's return value for first matched event if various event match.
+> Of course, let's write down it in ABI.
+> If there is other idea for reporting all of item with consistent, I'm okay.
 
-Yep. Actually, I'd like to add something like 'file_pages - shmem'
-attribute, and reporting both (i.e. this new attr and free_pages)
-values at the same time (even if just one crossed the threshold).
+What kind of consistency guarantees do you mean? The data sent to
+userspace is always a snapshot of the state and therefore can be stale
+by the time it reaches userspace.
 
-Reporting all the values would help userspace logic (so it won't
-need to read /proc again).
+If your code needs stricter consistency guarantees, you probably want
+to do it in the kernel.
 
-> > Q 4. Do you have any plan for this patchset to merge into mainline?
-> 
-> Yes, I'm interested in pushing it forward if we can show that the ABI
-> makes sense, is stable and generic enough, and fixes real world
-> problems.
-
-It seems to be a pretty nice driver. Speaking of ABI, the only thing
-I personally dislike is VMEVENT_CONFIG_MAX_ATTRS (i.e. fixed-size
-array in vmevent_config)... but I guess it's pretty easy to make
-it variable-sized array... was there any particular reason to make
-the _MAX thing?
-
-Thanks!
-
--- 
-Anton Vorontsov
-Email: cbouatmailru@gmail.com
+                                Pekka
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
