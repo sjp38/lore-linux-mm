@@ -1,162 +1,129 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx178.postini.com [74.125.245.178])
-	by kanga.kvack.org (Postfix) with SMTP id 785136B0044
-	for <linux-mm@kvack.org>; Mon, 30 Apr 2012 05:07:28 -0400 (EDT)
-Received: from /spool/local
-	by e28smtp08.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
-	Mon, 30 Apr 2012 14:37:25 +0530
-Received: from d28av03.in.ibm.com (d28av03.in.ibm.com [9.184.220.65])
-	by d28relay02.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q3U97KP221823736
-	for <linux-mm@kvack.org>; Mon, 30 Apr 2012 14:37:21 +0530
-Received: from d28av03.in.ibm.com (loopback [127.0.0.1])
-	by d28av03.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q3UEaYsq023201
-	for <linux-mm@kvack.org>; Tue, 1 May 2012 00:36:35 +1000
-From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Subject: Re: [RFC][PATCH 5/9 v2] move charges to root at rmdir if use_hierarchy is unset
-In-Reply-To: <4F9A359C.10107@jp.fujitsu.com>
-References: <4F9A327A.6050409@jp.fujitsu.com> <4F9A359C.10107@jp.fujitsu.com>User-Agent: Notmuch/0.11.1+346~g13d19c3 (http://notmuchmail.org) Emacs/23.3.1 (x86_64-pc-linux-gnu)
-Date: Mon, 30 Apr 2012 14:37:13 +0530
-Message-ID: <87sjfl8u66.fsf@skywalker.in.ibm.com>
+Received: from psmtp.com (na3sys010amx105.postini.com [74.125.245.105])
+	by kanga.kvack.org (Postfix) with SMTP id 3F2546B0044
+	for <linux-mm@kvack.org>; Mon, 30 Apr 2012 05:16:22 -0400 (EDT)
+Date: Mon, 30 Apr 2012 10:16:17 +0100
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [PATCH v3] mm: compaction: handle incorrect Unmovable type
+ pageblocks
+Message-ID: <20120430091617.GM9226@suse.de>
+References: <201204261015.54449.b.zolnierkie@samsung.com>
+ <20120426143620.GF15299@suse.de>
+ <4F996F8B.1020207@redhat.com>
+ <20120426164713.GG15299@suse.de>
+ <4F99EF22.8070600@kernel.org>
+ <20120427095608.GI15299@suse.de>
+ <4F9DFC9F.8090304@kernel.org>
+ <20120430083152.GK9226@suse.de>
+ <4F9E536D.8070508@kernel.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <4F9E536D.8070508@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Linux Kernel <linux-kernel@vger.kernel.org>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "cgroups@vger.kernel.org" <cgroups@vger.kernel.org>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Frederic Weisbecker <fweisbec@gmail.com>, Glauber Costa <glommer@parallels.com>, Tejun Heo <tj@kernel.org>, Han Ying <yinghan@google.com>, Andrew Morton <akpm@linux-foundation.org>, kamezawa.hiroyuki@gmail.com
+To: Minchan Kim <minchan@kernel.org>
+Cc: Rik van Riel <riel@redhat.com>, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, linux-mm@kvack.org, Marek Szyprowski <m.szyprowski@samsung.com>, Kyungmin Park <kyungmin.park@samsung.com>
 
-KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> writes:
+On Mon, Apr 30, 2012 at 05:55:09PM +0900, Minchan Kim wrote:
+> > <SNIP>
+> > 
+> > Help maybe, but you are proposing the caller of fork() does not do the work
+> > necessary to allocate the order-2 page (using ASYNC_PARTIAL, ASYNC_FULL
+> > and SYNC) and instead depends on kswapd to do it.
+> 
+> 
+> Hmm, there was misunderstanding.
+> I agreed your page allocator suggestion after you suggest AYNC_PARTIAL, ASYNC_FULL and sync.
+> The concern was only kswapd. :)
+> 
 
-> Now, at removal of cgroup, ->pre_destroy() is called and move charges
-> to the parent cgroup. A major reason of -EBUSY returned by ->pre_destroy()
-> is that the 'moving' hits parent's resource limitation. It happens only
-> when use_hierarchy=0. This was a mistake of original design.(it's me...)
->
-> Considering use_hierarchy=0, all cgroups are treated as flat. So, no one
-> cannot justify moving charges to parent...parent and children are in
-> flat configuration, not hierarchical.
->
-> This patch modifes to move charges to root cgroup at rmdir/force_empty
-> if use_hierarchy==0. This will much simplify rmdir() and reduce error
-> in ->pre_destroy.
->
-> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Understood :)
 
-Reviewed-by: Anees Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
+> >> <SNIP>
+> >> Why do you think compaction and reclaim by separate?
+> >> If kswapd starts compaction, it means someone in direct reclaim path request
+> >> to kswapd to get a big order page.
+> > 
+> > It's not all about high order pages. If kswapd is running compaction and a
+> > caller needs an order-0 page it may enter direct reclaim instead which is
+> > worse from a latency perspective. The possibility for this situation should
+> > be limited as much as possible without a very strong compelling reason.I
+> > do not think there is a compelling reason right now to take the risk.
+> 
+> Hmm, I understand your point.
+> Suggestion:
+> Couldn't we can coded to give up kswapd's compaction 
+> immediately if another task requests order-0 in direct reclaim path?
+> 
 
+That would be desirable and it's possible you can do it by altering
+slightly how pgdat->classzone_idx so that it's default value is MAX_ZONE
+or something similar. If that value changes from its default and kswapd
+is in compaction, it can decide whether to stop compaction or not. It
+might decide to continue compaction if it has been woken for a
+high-order allocation for example.
 
-> ---
->  Documentation/cgroups/memory.txt |   12 ++++++----
->  mm/memcontrol.c                  |   39 +++++++++++++------------------------
->  2 files changed, 21 insertions(+), 30 deletions(-)
->
-> diff --git a/Documentation/cgroups/memory.txt b/Documentation/cgroups/memory.txt
-> index 54c338d..82ce1ef 100644
-> --- a/Documentation/cgroups/memory.txt
-> +++ b/Documentation/cgroups/memory.txt
-> @@ -393,14 +393,14 @@ cgroup might have some charge associated with it, even though all
->  tasks have migrated away from it. (because we charge against pages, not
->  against tasks.)
->
-> -Such charges are freed or moved to their parent. At moving, both of RSS
-> -and CACHES are moved to parent.
-> -rmdir() may return -EBUSY if freeing/moving fails. See 5.1 also.
-> +Such charges are freed or moved to their parent if use_hierarchy=1.
-> +if use_hierarchy=0, the charges will be moved to root cgroup.
->
->  Charges recorded in swap information is not updated at removal of cgroup.
->  Recorded information is discarded and a cgroup which uses swap (swapcache)
->  will be charged as a new owner of it.
->
-> +About use_hierarchy, see Section 6.
->
->  5. Misc. interfaces.
->
-> @@ -413,13 +413,15 @@ will be charged as a new owner of it.
->
->    Almost all pages tracked by this memory cgroup will be unmapped and freed.
->    Some pages cannot be freed because they are locked or in-use. Such pages are
-> -  moved to parent and this cgroup will be empty. This may return -EBUSY if
-> -  VM is too busy to free/move all pages immediately.
-> +  moved to parent(if use_hierarchy==1) or root (if use_hierarchy==0) and this
-> +  cgroup will be empty.
->
->    Typical use case of this interface is that calling this before rmdir().
->    Because rmdir() moves all pages to parent, some out-of-use page caches can be
->    moved to the parent. If you want to avoid that, force_empty will be useful.
->
-> +  About use_hierarchy, see Section 6.
-> +
->  5.2 stat file
->
->  memory.stat file includes following statistics
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index ed53d64..62200f1 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -2695,32 +2695,23 @@ static int mem_cgroup_move_parent(struct page *page,
->  	nr_pages = hpage_nr_pages(page);
->
->  	parent = mem_cgroup_from_cont(pcg);
-> -	if (!parent->use_hierarchy) {
-> -		ret = __mem_cgroup_try_charge(NULL,
-> -					gfp_mask, nr_pages, &parent, false);
-> -		if (ret)
-> -			goto put_back;
-> -	}
-> +	/*
-> +	 * if use_hierarchy==0, move charges to root cgroup.
-> +	 * in root cgroup, we don't touch res_counter
-> +	 */
-> +	if (!parent->use_hierarchy)
-> +		parent = root_mem_cgroup;
->
->  	if (nr_pages > 1)
->  		flags = compound_lock_irqsave(page);
->
-> -	if (parent->use_hierarchy) {
-> -		ret = mem_cgroup_move_account(page, nr_pages,
-> -					pc, child, parent, false);
-> -		if (!ret)
-> -			__mem_cgroup_cancel_local_charge(child, nr_pages);
-> -	} else {
-> -		ret = mem_cgroup_move_account(page, nr_pages,
-> -					pc, child, parent, true);
-> -
-> -		if (ret)
-> -			__mem_cgroup_cancel_charge(parent, nr_pages);
-> -	}
-> +	ret = mem_cgroup_move_account(page, nr_pages,
-> +				pc, child, parent, false);
-> +	if (!ret)
-> +		__mem_cgroup_cancel_local_charge(child, nr_pages);
->
->  	if (nr_pages > 1)
->  		compound_unlock_irqrestore(page, flags);
-> -put_back:
->  	putback_lru_page(page);
->  put:
->  	put_page(page);
-> @@ -3338,12 +3329,10 @@ int mem_cgroup_move_hugetlb_parent(int idx, struct cgroup *cgroup,
->  	csize = PAGE_SIZE << compound_order(page);
->  	/* If parent->use_hierarchy == 0, we need to charge parent */
->  	if (!parent->use_hierarchy) {
-> -		ret = res_counter_charge(&parent->hugepage[idx],
-> -					 csize, &fail_res);
-> -		if (ret) {
-> -			ret = -EBUSY;
-> -			goto err_out;
-> -		}
-> +		parent = root_mem_cgroup;
-> +		/* root has no limit */
-> +		res_counter_charge_nofail(&parent->hugepage[idx],
-> +				 csize, &fail_res);
->  	}
->  	counter = &memcg->hugepage[idx];
->  	res_counter_uncharge_until(counter, counter->parent, csize);
-> -- 
+> >> So I think compaction is a part of reclaim.
+> >> In this case, compaction should be necessary.
+> >>
+> >>>
+> >>>> So I think using COMPACT_ASYNC_FULL in kswapd makes sense.
+> >>>>
+> >>>
+> >>> I'm not convinced but am not willing to push on it either. I do think
+> >>> that the caller of the page allocator does have to use
+> >>> COMPACT_ASYNC_FULL though and cannot be depending on kswapd to do the
+> >>> work.
+> >>
+> >> I agree your second stage reclaiming in direct reclaim.
+> >> 1. ASYNC-MOVABLE only
+> >> 2. ASYNC-UNMOVABLE only
+> >> 3. SYNC
+> >>
+> > 
+> > Ok, then can we at least start with that? Specifically that the
+> > page allocator continue to pass in sync to try_to_compact_pages() and
+> > try_to_compact_pages() doing compaction first as ASYNC_PARTIAL and then
+> > deciding whether it should do a second pass as ASYNC_FULL?
+> 
+> Yeb. We can proceed second pass once we found many unmovalbe page blocks
+> during first ASYNC_PARTIAL compaction.
+> 
 
--aneesh
+Exactly.
+
+> >> Another reason we should check unmovable page block in kswapd is that we should consider
+> >> atomic allocation where is only place kswapd helps us.
+> >> I hope that reason would convince you.
+> >>
+> > 
+> > It doesn't really. High-order atomic allocations are something that should
+> > be avoided as much as possible and the longer kswapd runs compaction the
+> > greater the risk that processes stall in direct reclaim unnecessarily.
+> > I know the current logic of kswapd using compaction.c is meant to help high
+> > order atomics but that does not mean I think kswapd should spend even more
+> > time in compaction.c without a compelling use case.
+> > 
+> 
+> My suggestion may mitigate the problem.
+> 
+
+Yes, it may.
+
+> > At the very least, make kswapd using ASYNC_FULL a separate patch. I will
+> > not ACK it without compelling data backing it up but patch 1 would be
+> > there to handle Bartlomiej's adverse workload.
+> 
+> If I have a time, I will try it but now I don't have a time to make such data.
+> So let's keep remember this discussion for trial later if we look the problem.
+> 
+
+Will do. Minimally add a link to this thread to the changelog.
+
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
