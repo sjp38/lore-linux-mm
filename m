@@ -1,155 +1,167 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx191.postini.com [74.125.245.191])
-	by kanga.kvack.org (Postfix) with SMTP id 8CEFA6B0044
-	for <linux-mm@kvack.org>; Sun, 29 Apr 2012 22:32:45 -0400 (EDT)
-Received: by wgbds1 with SMTP id ds1so2173694wgb.2
-        for <linux-mm@kvack.org>; Sun, 29 Apr 2012 19:32:43 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx126.postini.com [74.125.245.126])
+	by kanga.kvack.org (Postfix) with SMTP id CC43C6B0044
+	for <linux-mm@kvack.org>; Sun, 29 Apr 2012 22:44:50 -0400 (EDT)
+Message-ID: <4F9DFC9F.8090304@kernel.org>
+Date: Mon, 30 Apr 2012 11:44:47 +0900
+From: Minchan Kim <minchan@kernel.org>
 MIME-Version: 1.0
-In-Reply-To: <1335681937-3715-3-git-send-email-levinsasha928@gmail.com>
-References: <1335681937-3715-1-git-send-email-levinsasha928@gmail.com>
-	<1335681937-3715-3-git-send-email-levinsasha928@gmail.com>
-Date: Sun, 29 Apr 2012 22:32:43 -0400
-Message-ID: <CACLa4ptMy0GkS=XSGVOPx4Ba2HN+N2EyK50BARr2xaOXfvDqcg@mail.gmail.com>
-Subject: Re: [PATCH 03/14] sched rt,sysctl: remove proc input checks out of
- sysctl handlers
-From: Eric Paris <eparis@parisplace.org>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Subject: Re: [PATCH v3] mm: compaction: handle incorrect Unmovable type pageblocks
+References: <201204261015.54449.b.zolnierkie@samsung.com> <20120426143620.GF15299@suse.de> <4F996F8B.1020207@redhat.com> <20120426164713.GG15299@suse.de> <4F99EF22.8070600@kernel.org> <20120427095608.GI15299@suse.de>
+In-Reply-To: <20120427095608.GI15299@suse.de>
+Content-Type: text/plain; charset=ISO-8859-15
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sasha Levin <levinsasha928@gmail.com>
-Cc: viro@zeniv.linux.org.uk, rostedt@goodmis.org, fweisbec@gmail.com, mingo@redhat.com, a.p.zijlstra@chello.nl, paulus@samba.org, acme@ghostprotocols.net, james.l.morris@oracle.com, ebiederm@xmission.com, akpm@linux-foundation.org, tglx@linutronix.de, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-security-module@vger.kernel.org
+To: Mel Gorman <mgorman@suse.de>
+Cc: Rik van Riel <riel@redhat.com>, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, linux-mm@kvack.org, Marek Szyprowski <m.szyprowski@samsung.com>, Kyungmin Park <kyungmin.park@samsung.com>
 
-NAK
+On 04/27/2012 06:56 PM, Mel Gorman wrote:
 
-old_period =3D sysctl_sched_rt_period;
+> On Fri, Apr 27, 2012 at 09:58:10AM +0900, Minchan Kim wrote:
+>> On 04/27/2012 01:47 AM, Mel Gorman wrote:
+>>
+>>> On Thu, Apr 26, 2012 at 11:53:47AM -0400, Rik van Riel wrote:
+>>>> On 04/26/2012 10:36 AM, Mel Gorman wrote:
+>>>>
+>>>>> Hmm, at what point does COMPACT_ASYNC_FULL get used? I see it gets
+>>>>> used for the proc interface but it's not used via the page allocator at
+>>>>> all.
+>>>>
+>>>> He is using COMPACT_SYNC for the proc interface, and
+>>>> COMPACT_ASYNC_FULL from kswapd.
+>>>>
+>>>
+>>> Ah, yes, of course. My bad.
+>>>
+>>> Even that is not particularly satisfactory though as it's depending on
+>>> kswapd to do the work so it's a bit of a race to see if kswapd completes
+>>> the job before the page allocator needs it.
+>>
+>>
+>> It was a direction by my review.
+> 
+> Ah.
+> 
+>> In my point, I don't want to add more latency in direct reclaim async path if we can
+>> although reclaim is already slow path.
+>>
+> 
+> Your statement was
+> 
+>    Direct reclaim latency is critical on latency sensitive applications(of
+>    course, you can argue it's already very slow once we reach this path,
+>    but at least, let's not increase more overhead if we can) so I think
+>    it would be better to use ASYNC_PARTIAL.  If we fail to allocate in
+>    this phase, we set it with COMPACTION_SYNC in next phase, below code.
+> 
+> If a path is latency sensitive they have already lost if they are in this
+> path. They have entered compaction and may enter direct reclaim shortly
+> so latency is bad at this point. If the application is latency sensitive
+> they probably should disable THP to avoid any spikes due to THP allocation.
 
-Doesn't make any sense in the callback, since you already updated
-sysctl_sched_rt_period.
 
-I'll leave the remainder of the series as an exercise for the reader.
-But I get the feeling this isn't the only place where you are doing
-things after the proc_dointvec() which must be done before.
+Only THP isn't latency factor.
+In case of ARM, we allocates 4-pages(ie, order=2) for pgd.
+It means it can affect fork latency.
 
--Eric
+> 
+> So I still maintain that the page allocator should not be depending on
+> kswapd to do the work for it. If the caller wants high-order pages, it
+> must be prepared to pay the cost of allocation.
 
-On Sun, Apr 29, 2012 at 2:45 AM, Sasha Levin <levinsasha928@gmail.com> wrot=
-e:
-> Simplify sysctl handler by removing user input checks and using the callb=
-ack
-> provided by the sysctl table.
->
-> Signed-off-by: Sasha Levin <levinsasha928@gmail.com>
-> ---
-> =A0include/linux/sched.h | =A0 =A04 +---
-> =A0kernel/sched/core.c =A0 | =A0 25 ++++++++++---------------
-> =A0kernel/sysctl.c =A0 =A0 =A0 | =A0 =A06 ++++--
-> =A03 files changed, 15 insertions(+), 20 deletions(-)
->
-> diff --git a/include/linux/sched.h b/include/linux/sched.h
-> index 722da9a..9509d80 100644
-> --- a/include/linux/sched.h
-> +++ b/include/linux/sched.h
-> @@ -2152,9 +2152,7 @@ static inline unsigned int get_sysctl_timer_migrati=
-on(void)
-> =A0extern unsigned int sysctl_sched_rt_period;
-> =A0extern int sysctl_sched_rt_runtime;
->
-> -int sched_rt_handler(struct ctl_table *table, int write,
-> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 void __user *buffer, size_t *lenp,
-> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 loff_t *ppos);
-> +int sched_rt_handler(void);
->
-> =A0#ifdef CONFIG_SCHED_AUTOGROUP
-> =A0extern unsigned int sysctl_sched_autogroup_enabled;
-> diff --git a/kernel/sched/core.c b/kernel/sched/core.c
-> index 477b998..ca4a806 100644
-> --- a/kernel/sched/core.c
-> +++ b/kernel/sched/core.c
-> @@ -7573,9 +7573,7 @@ static int sched_rt_global_constraints(void)
-> =A0}
-> =A0#endif /* CONFIG_RT_GROUP_SCHED */
->
-> -int sched_rt_handler(struct ctl_table *table, int write,
-> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 void __user *buffer, size_t *lenp,
-> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 loff_t *ppos)
-> +int sched_rt_handler(void)
-> =A0{
-> =A0 =A0 =A0 =A0int ret;
-> =A0 =A0 =A0 =A0int old_period, old_runtime;
-> @@ -7585,19 +7583,16 @@ int sched_rt_handler(struct ctl_table *table, int=
- write,
-> =A0 =A0 =A0 =A0old_period =3D sysctl_sched_rt_period;
-> =A0 =A0 =A0 =A0old_runtime =3D sysctl_sched_rt_runtime;
->
-> - =A0 =A0 =A0 ret =3D proc_dointvec(table, write, buffer, lenp, ppos);
-> -
-> - =A0 =A0 =A0 if (!ret && write) {
-> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 ret =3D sched_rt_global_constraints();
-> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (ret) {
-> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 sysctl_sched_rt_period =3D =
-old_period;
-> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 sysctl_sched_rt_runtime =3D=
- old_runtime;
-> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 } else {
-> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 def_rt_bandwidth.rt_runtime=
- =3D global_rt_runtime();
-> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 def_rt_bandwidth.rt_period =
-=3D
-> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 ns_to_ktime=
-(global_rt_period());
-> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 }
-> + =A0 =A0 =A0 ret =3D sched_rt_global_constraints();
-> + =A0 =A0 =A0 if (ret) {
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 sysctl_sched_rt_period =3D old_period;
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 sysctl_sched_rt_runtime =3D old_runtime;
-> + =A0 =A0 =A0 } else {
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 def_rt_bandwidth.rt_runtime =3D global_rt_r=
-untime();
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 def_rt_bandwidth.rt_period =3D
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 ns_to_ktime(global_rt_perio=
-d());
-> =A0 =A0 =A0 =A0}
-> +
-> =A0 =A0 =A0 =A0mutex_unlock(&mutex);
->
-> =A0 =A0 =A0 =A0return ret;
-> diff --git a/kernel/sysctl.c b/kernel/sysctl.c
-> index 23f1ac6..fad9ff6 100644
-> --- a/kernel/sysctl.c
-> +++ b/kernel/sysctl.c
-> @@ -347,14 +347,16 @@ static struct ctl_table kern_table[] =3D {
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0.data =A0 =A0 =A0 =A0 =A0 =3D &sysctl_sche=
-d_rt_period,
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0.maxlen =A0 =A0 =A0 =A0 =3D sizeof(unsigne=
-d int),
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0.mode =A0 =A0 =A0 =A0 =A0 =3D 0644,
-> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 .proc_handler =A0 =3D sched_rt_handler,
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 .proc_handler =A0 =3D proc_dointvec,
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 .callback =A0 =A0 =A0 =3D sched_rt_handler,
-> =A0 =A0 =A0 =A0},
-> =A0 =A0 =A0 =A0{
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0.procname =A0 =A0 =A0 =3D "sched_rt_runtim=
-e_us",
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0.data =A0 =A0 =A0 =A0 =A0 =3D &sysctl_sche=
-d_rt_runtime,
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0.maxlen =A0 =A0 =A0 =A0 =3D sizeof(int),
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0.mode =A0 =A0 =A0 =A0 =A0 =3D 0644,
-> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 .proc_handler =A0 =3D sched_rt_handler,
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 .proc_handler =A0 =3D proc_dointvec,
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 .callback =A0 =A0 =A0 =3D sched_rt_handler,
-> =A0 =A0 =A0 =A0},
-> =A0#ifdef CONFIG_SCHED_AUTOGROUP
-> =A0 =A0 =A0 =A0{
-> --
-> 1.7.8.5
->
-> --
-> To unsubscribe from this list: send the line "unsubscribe linux-kernel" i=
-n
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at =A0http://vger.kernel.org/majordomo-info.html
-> Please read the FAQ at =A0http://www.tux.org/lkml/
+
+I think it would be better if kswapd helps us.
+
+> 
+>> If async direct reclaim fails to compact memory with COMPACT_ASYNC_PARTIAL,
+>> it ends up trying to compact memory with COMPACT_SYNC, again so it would
+>> be no problem to allocate big order page and it's as-it-is approach by
+>> async and sync mode.
+>>
+> 
+> Is a compromise whereby a second pass consider only MIGRATE_UNMOVABLE
+> pageblocks for rescus and migration targets acceptable? It would be nicer
+> again if try_to_compact_pages() still accepted a "sync" parameter and would
+> decide itself if a COMPACT_ASYNC_FULL pass was necessary when sync==false.
+
+
+Looks good to me. 
+
+> 
+>> While latency is important in direct reclaim, kswapd isn't.
+> 
+> That does not mean we should tie up kswapd in compaction.c for longer
+> than is necessary. It should be getting out of compaction ASAP in case
+> reclaim is necessary.
+
+
+Why do you think compaction and reclaim by separate?
+If kswapd starts compaction, it means someone in direct reclaim path request
+to kswapd to get a big order page. So I think compaction is a part of reclaim.
+In this case, compaction should be necessary.
+
+> 
+>> So I think using COMPACT_ASYNC_FULL in kswapd makes sense.
+>>
+> 
+> I'm not convinced but am not willing to push on it either. I do think
+> that the caller of the page allocator does have to use
+> COMPACT_ASYNC_FULL though and cannot be depending on kswapd to do the
+> work.
+
+
+I agree your second stage reclaiming in direct reclaim.
+1. ASYNC-MOVABLE only
+2. ASYNC-UNMOVABLE only
+3. SYNC
+
+Another reason we should check unmovable page block in kswapd is that we should consider
+atomic allocation where is only place kswapd helps us.
+I hope that reason would convince you.
+
+> 
+>>> <SNIP>
+>>>
+>>> This goes back to the same problem of we do not know how many
+>>> MIGRATE_UNMOVABLE pageblocks are going to be encountered in advance However,
+>>> I see your point.
+>>>
+>>> Instead of COMPACT_ASYNC_PARTIAL and COMPACT_ASYNC_FULL should we have
+>>> COMPACT_ASYNC_MOVABLE and COMPACT_ASYNC_UNMOVABLE? The first pass from
+>>> the page allocator (COMPACT_ASYNC_MOVABLE) would only consider MOVABLE
+>>> blocks as migration targets. The second pass (COMPACT_ASYNC_UNMOVABLE)
+>>> would examine UNMOVABLE blocks, rescue them and use what blocks it
+>>> rescues as migration targets. The third pass (COMPACT_SYNC) would work
+>>
+>>
+>> It does make sense.
+>>
+>>> as it does currently. kswapd would only ever use COMPACT_ASYNC_MOVABLE.
+>>
+>> I don't get it. Why do kswapd use only COMPACT_ASYNC_MOVALBE?
+> 
+> Because kswapds primary responsibility is reclaim, not compaction.
+
+
+Again, I think compaction is a part of reclaim.
+
+> 
+>> As I mentioned, latency isn't important in kswapd so I think kswapd always
+>> rescur unmovable block would help direct reclaim's first path(COMPACT_ASYNC
+>> _MOVABLE)'s success rate.
+>>
+> 
+> Latency for kswapd can be important if processes are entering direct
+> reclaim because kswapd was running compaction instead of reclaim. The
+> cost is indirect and difficult to detect which is why I would prefer
+> kswapds use of compaction was as fast as possible.
+> 
+
+
+-- 
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
