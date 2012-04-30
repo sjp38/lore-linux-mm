@@ -1,132 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx127.postini.com [74.125.245.127])
-	by kanga.kvack.org (Postfix) with SMTP id 22B926B0044
-	for <linux-mm@kvack.org>; Mon, 30 Apr 2012 16:15:25 -0400 (EDT)
-Received: by qcsd16 with SMTP id d16so2063214qcs.14
-        for <linux-mm@kvack.org>; Mon, 30 Apr 2012 13:15:24 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx106.postini.com [74.125.245.106])
+	by kanga.kvack.org (Postfix) with SMTP id D76886B0044
+	for <linux-mm@kvack.org>; Mon, 30 Apr 2012 16:19:45 -0400 (EDT)
+Received: by iajr24 with SMTP id r24so6763301iaj.14
+        for <linux-mm@kvack.org>; Mon, 30 Apr 2012 13:19:45 -0700 (PDT)
+Date: Mon, 30 Apr 2012 13:19:27 -0700 (PDT)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: [PATCH] hugetlb: avoid gratuitous BUG_ON in hugetlb_fault() ->
+ hugetlb_cow()
+In-Reply-To: <201204291936.q3TJa4Mv008924@farm-0027.internal.tilera.com>
+Message-ID: <alpine.LSU.2.00.1204301308090.2829@eggly.anvils>
+References: <201204291936.q3TJa4Mv008924@farm-0027.internal.tilera.com>
 MIME-Version: 1.0
-In-Reply-To: <1335138820-26590-2-git-send-email-glommer@parallels.com>
-References: <1334959051-18203-1-git-send-email-glommer@parallels.com>
-	<1335138820-26590-2-git-send-email-glommer@parallels.com>
-Date: Mon, 30 Apr 2012 13:15:23 -0700
-Message-ID: <CABCjUKDOjaZNM+7aNBpLS9YPumCa9r1XJ-kkbW_9qWBNxVE+=w@mail.gmail.com>
-Subject: Re: [PATCH 13/23] slub: create duplicate cache
-From: Suleiman Souhlal <suleiman@google.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Glauber Costa <glommer@parallels.com>
-Cc: cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, devel@openvz.org, kamezawa.hiroyu@jp.fujitsu.com, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, fweisbec@gmail.com, Greg Thelen <gthelen@google.com>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@cs.helsinki.fi>
+To: Chris Metcalf <cmetcalf@tilera.com>, Mel Gorman <mel@csn.ul.ie>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Hillf Danton <dhillf@gmail.com>, Michal Hocko <mhocko@suse.cz>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Sun, Apr 22, 2012 at 4:53 PM, Glauber Costa <glommer@parallels.com> wrot=
-e:
-> This patch provides kmem_cache_dup(), that duplicates
-> a cache for a memcg, preserving its creation properties.
-> Object size, alignment and flags are all respected.
->
-> When a duplicate cache is created, the parent cache cannot
-> be destructed during the child lifetime. To assure this,
-> its reference count is increased if the cache creation
-> succeeds.
->
-> Signed-off-by: Glauber Costa <glommer@parallels.com>
-> CC: Christoph Lameter <cl@linux.com>
-> CC: Pekka Enberg <penberg@cs.helsinki.fi>
-> CC: Michal Hocko <mhocko@suse.cz>
-> CC: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> CC: Johannes Weiner <hannes@cmpxchg.org>
-> CC: Suleiman Souhlal <suleiman@google.com>
+On Sun, 29 Apr 2012, Chris Metcalf wrote:
+
+> Commit 66aebce747eaf added code to avoid a race condition by
+> elevating the page refcount in hugetlb_fault() while calling
+> hugetlb_cow().  However, one code path in hugetlb_cow() includes
+> an assertion that the page count is 1, whereas it may now also
+> have the value 2 in this path.
+> 
+> Signed-off-by: Chris Metcalf <cmetcalf@tilera.com>
 > ---
-> =A0include/linux/memcontrol.h | =A0 =A03 +++
-> =A0include/linux/slab.h =A0 =A0 =A0 | =A0 =A03 +++
-> =A0mm/memcontrol.c =A0 =A0 =A0 =A0 =A0 =A0| =A0 44 ++++++++++++++++++++++=
-++++++++++++++++++++++
-> =A0mm/slub.c =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0| =A0 37 ++++++++++++++++=
-+++++++++++++++++++++
-> =A04 files changed, 87 insertions(+), 0 deletions(-)
->
-> diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
-> index 99e14b9..493ecdd 100644
-> --- a/include/linux/memcontrol.h
-> +++ b/include/linux/memcontrol.h
-> @@ -445,6 +445,9 @@ int memcg_css_id(struct mem_cgroup *memcg);
-> =A0void mem_cgroup_register_cache(struct mem_cgroup *memcg,
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =
-=A0struct kmem_cache *s);
-> =A0void mem_cgroup_release_cache(struct kmem_cache *cachep);
-> +extern char *mem_cgroup_cache_name(struct mem_cgroup *memcg,
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0stru=
-ct kmem_cache *cachep);
-> +
-> =A0#else
-> =A0static inline void mem_cgroup_register_cache(struct mem_cgroup *memcg,
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =
-=A0 =A0 =A0 =A0 struct kmem_cache *s)
-> diff --git a/include/linux/slab.h b/include/linux/slab.h
-> index c7a7e05..909b508 100644
-> --- a/include/linux/slab.h
-> +++ b/include/linux/slab.h
-> @@ -323,6 +323,9 @@ extern void *__kmalloc_track_caller(size_t, gfp_t, un=
-signed long);
->
-> =A0#ifdef CONFIG_CGROUP_MEM_RES_CTLR_KMEM
-> =A0#define MAX_KMEM_CACHE_TYPES 400
-> +extern struct kmem_cache *kmem_cache_dup(struct mem_cgroup *memcg,
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0=
- =A0 =A0struct kmem_cache *cachep);
-> +void kmem_cache_drop_ref(struct kmem_cache *cachep);
-> =A0#else
-> =A0#define MAX_KMEM_CACHE_TYPES 0
-> =A0#endif /* CONFIG_CGROUP_MEM_RES_CTLR_KMEM */
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index 0015ed0..e881d83 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -467,6 +467,50 @@ struct cg_proto *tcp_proto_cgroup(struct mem_cgroup =
-*memcg)
-> =A0EXPORT_SYMBOL(tcp_proto_cgroup);
-> =A0#endif /* CONFIG_INET */
->
-> +/*
-> + * This is to prevent races againt the kmalloc cache creations.
-> + * Should never be used outside the core memcg code. Therefore,
-> + * copy it here, instead of letting it in lib/
-> + */
-> +static char *kasprintf_no_account(gfp_t gfp, const char *fmt, ...)
-> +{
-> + =A0 =A0 =A0 unsigned int len;
-> + =A0 =A0 =A0 char *p =3D NULL;
-> + =A0 =A0 =A0 va_list ap, aq;
-> +
-> + =A0 =A0 =A0 va_start(ap, fmt);
-> + =A0 =A0 =A0 va_copy(aq, ap);
-> + =A0 =A0 =A0 len =3D vsnprintf(NULL, 0, fmt, aq);
-> + =A0 =A0 =A0 va_end(aq);
-> +
-> + =A0 =A0 =A0 p =3D kmalloc_no_account(len+1, gfp);
-> + =A0 =A0 =A0 if (!p)
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 goto out;
-> +
-> + =A0 =A0 =A0 vsnprintf(p, len+1, fmt, ap);
-> +
-> +out:
-> + =A0 =A0 =A0 va_end(ap);
-> + =A0 =A0 =A0 return p;
-> +}
-> +
-> +char *mem_cgroup_cache_name(struct mem_cgroup *memcg, struct kmem_cache =
-*cachep)
-> +{
-> + =A0 =A0 =A0 char *name;
-> + =A0 =A0 =A0 struct dentry *dentry =3D memcg->css.cgroup->dentry;
+> We discovered this while testing the original path; one particular
+> application triggered this due to the specific number of huge pages
+> it started with.
 
-Do we need rcu_dereference() here (and make sure we have rcu_read_lock())?
+Well done finding that.  But I think it would be better to remove the
+BUG_ON() than complicate it, and then no need to add a comment there.
 
-This might need to be done in all the other places in the patchset
-that get the memcg's dentry.
+IIRC it's unsafe to make any assertions about what a page_count() may
+be, beyond whether it's 0 or non-0: because of speculative accesses to
+the page from elsewhere (perhaps it used to be visible in a radix_tree,
+perhaps __isolate_lru_pages is having a go at it).
 
--- Suleiman
+I'd say that BUG_ON() has outlived its usefulness, and should just be
+eliminated now: but git "blames" Mel for it, so let's see if he agrees.
+
+Hugh
+
+> 
+>  mm/hugetlb.c |    9 ++++++++-
+>  1 files changed, 8 insertions(+), 1 deletions(-)
+> 
+> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+> index cd65cb1..d5b0254 100644
+> --- a/mm/hugetlb.c
+> +++ b/mm/hugetlb.c
+> @@ -2498,7 +2498,14 @@ retry_avoidcopy:
+>  		if (outside_reserve) {
+>  			BUG_ON(huge_pte_none(pte));
+>  			if (unmap_ref_private(mm, vma, old_page, address)) {
+> -				BUG_ON(page_count(old_page) != 1);
+> +				/*
+> +				 * Page refcount may be 1 in the common case,
+> +				 * but since we may do an extra get_page()
+> +				 * when called from hugetlb_fault(), we allow
+> +				 * a page refcount of 2 as well.
+> +				 */
+> +				BUG_ON(page_count(old_page) != 1 &&
+> +				       page_count(old_page) != 2);
+>  				BUG_ON(huge_pte_none(pte));
+>  				spin_lock(&mm->page_table_lock);
+>  				ptep = huge_pte_offset(mm, address & huge_page_mask(h));
+> -- 
+> 1.6.5.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
