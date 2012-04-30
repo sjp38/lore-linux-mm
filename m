@@ -1,75 +1,38 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx162.postini.com [74.125.245.162])
-	by kanga.kvack.org (Postfix) with SMTP id 434046B0044
-	for <linux-mm@kvack.org>; Mon, 30 Apr 2012 04:36:29 -0400 (EDT)
-Message-ID: <4F9E4F0A.8030900@kernel.org>
-Date: Mon, 30 Apr 2012 17:36:26 +0900
-From: Minchan Kim <minchan@kernel.org>
+Received: from psmtp.com (na3sys010amx114.postini.com [74.125.245.114])
+	by kanga.kvack.org (Postfix) with SMTP id 1B4676B0044
+	for <linux-mm@kvack.org>; Mon, 30 Apr 2012 04:47:41 -0400 (EDT)
+Received: from /spool/local
+	by e23smtp01.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
+	Mon, 30 Apr 2012 08:39:30 +1000
+Received: from d23av04.au.ibm.com (d23av04.au.ibm.com [9.190.235.139])
+	by d23relay05.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q3U8eZgG585942
+	for <linux-mm@kvack.org>; Mon, 30 Apr 2012 18:40:35 +1000
+Received: from d23av04.au.ibm.com (loopback [127.0.0.1])
+	by d23av04.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q3U8lPCE012545
+	for <linux-mm@kvack.org>; Mon, 30 Apr 2012 18:47:26 +1000
+From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Subject: Re: [RFC][PATCH 1/7 v2] temporal compile-fix in linux-next
+In-Reply-To: <4F9A3364.4090009@jp.fujitsu.com>
+References: <4F9A327A.6050409@jp.fujitsu.com> <4F9A3364.4090009@jp.fujitsu.com>User-Agent: Notmuch/0.11.1+346~g13d19c3 (http://notmuchmail.org) Emacs/23.3.1 (x86_64-pc-linux-gnu)
+Date: Mon, 30 Apr 2012 14:17:15 +0530
+Message-ID: <871un5a9nw.fsf@skywalker.in.ibm.com>
 MIME-Version: 1.0
-Subject: Re: vmevent: question?
-References: <4F9E39F1.5030600@kernel.org> <CAOJsxLE3A3b5HSrRm0NVCBmzv7AAs-RWEiZC1BL=se309+=WTA@mail.gmail.com> <4F9E44AD.8020701@kernel.org> <CAOJsxLGd_-ZSxpY2sL8XqyiYxpnmYDJJ+Hfx-zi1Ty=-1igcLA@mail.gmail.com>
-In-Reply-To: <CAOJsxLGd_-ZSxpY2sL8XqyiYxpnmYDJJ+Hfx-zi1Ty=-1igcLA@mail.gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pekka Enberg <penberg@kernel.org>
-Cc: linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Ingo Molnar <mingo@elte.hu>, Anton Vorontsov <anton.vorontsov@linaro.org>, Leonid Moiseichuk <leonid.moiseichuk@nokia.com>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Linux Kernel <linux-kernel@vger.kernel.org>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "cgroups@vger.kernel.org" <cgroups@vger.kernel.org>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Frederic Weisbecker <fweisbec@gmail.com>, Glauber Costa <glommer@parallels.com>, Tejun Heo <tj@kernel.org>, Han Ying <yinghan@google.com>, Andrew Morton <akpm@linux-foundation.org>, kamezawa.hiroyuki@gmail.com
 
-On 04/30/2012 05:01 PM, Pekka Enberg wrote:
+KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> writes:
 
-> Hi Minchan,
-> 
-> On Mon, Apr 30, 2012 at 10:52 AM, Minchan Kim <minchan@kernel.org> wrote:
->>> It makes the userspace side simpler for "lowmem notification" use
->>> case. I'm open to changing the ABI if it doesn't make the userspace
->>> side too complex.
->>
->> Yes. I understand your point but if we still consider all of values,
->> we don't have any way to capture exact values except triggered event value.
->> I mean there is no lock to keep consistency.
->> If stale data is okay, no problem but IMHO, it could make user very confusing.
->> So let's return value for first matched event if various event match.
->> Of course, let's write down it in ABI.
->> If there is other idea for reporting all of item with consistent, I'm okay.
-> 
-> What kind of consistency guarantees do you mean? The data sent to
-> userspace is always a snapshot of the state and therefore can be stale
-> by the time it reaches userspace.
+> Maybe Aneesh will post his own version. This is just for my work.
+>
 
+-next should have fixes for these errors now.
 
-Consistency between component of snapshot.
-let's assume following as
-
-1. User expect some events's value would be minus when event he expect happen.
-   A : -3, B : -4, C : -5, D : -6
-2. Logically, it's not possible to mix plus and minus values for the events.
-   A : -3, B : -4, C : -5, D : -6 ( O )
-   A : -3, B : -4, C : 1, D : 2   ( X )
-   
-But in current implementation, some of those could be minus and some of those could be plus.
-Which event could user believe?
-At least, we need a _captured_ value when event triggered so that user can ignore other values.
-
-> 
-> If your code needs stricter consistency guarantees, you probably want
-> to do it in the kernel.
-> 
->                                 Pekka
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Fight unfair telecom internet charges in Canada: sign http://stopthemeter.ca/
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-> 
-
-
-
--- 
-Kind regards,
-Minchan Kim
+-aneesh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
