@@ -1,14 +1,14 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx176.postini.com [74.125.245.176])
-	by kanga.kvack.org (Postfix) with SMTP id F28636B004D
-	for <linux-mm@kvack.org>; Tue,  1 May 2012 17:15:09 -0400 (EDT)
-Message-ID: <4FA05251.5060105@redhat.com>
-Date: Tue, 01 May 2012 17:14:57 -0400
+Received: from psmtp.com (na3sys010amx132.postini.com [74.125.245.132])
+	by kanga.kvack.org (Postfix) with SMTP id 598EA6B004D
+	for <linux-mm@kvack.org>; Tue,  1 May 2012 17:19:29 -0400 (EDT)
+Message-ID: <4FA05354.8000304@redhat.com>
+Date: Tue, 01 May 2012 17:19:16 -0400
 From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Subject: Re: [patch 2/5] mm + fs: prepare for non-page entries in page cache
-References: <1335861713-4573-1-git-send-email-hannes@cmpxchg.org> <1335861713-4573-3-git-send-email-hannes@cmpxchg.org> <20120501120246.83d2ce28.akpm@linux-foundation.org> <20120501201504.GB2112@cmpxchg.org> <20120501132449.30485966.akpm@linux-foundation.org>
-In-Reply-To: <20120501132449.30485966.akpm@linux-foundation.org>
+Subject: Re: [patch 0/5] refault distance-based file cache sizing
+References: <1335861713-4573-1-git-send-email-hannes@cmpxchg.org> <20120501120819.0af1e54b.akpm@linux-foundation.org>
+In-Reply-To: <20120501120819.0af1e54b.akpm@linux-foundation.org>
 Content-Type: text/plain; charset=UTF-8; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -16,22 +16,31 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org, Andrea Arcangeli <aarcange@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan.kim@gmail.com>, Hugh Dickins <hughd@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On 05/01/2012 04:24 PM, Andrew Morton wrote:
+On 05/01/2012 03:08 PM, Andrew Morton wrote:
+> On Tue,  1 May 2012 10:41:48 +0200
+> Johannes Weiner<hannes@cmpxchg.org>  wrote:
+>
+>> This series stores file cache eviction information in the vacated page
+>> cache radix tree slots and uses it on refault to see if the pages
+>> currently on the active list need to have their status challenged.
+>
+> So we no longer free the radix-tree node when everything under it has
+> been reclaimed?  One could create workloads which would result in a
+> tremendous amount of memory used by radix_tree_node_cachep objects.
+>
+> So I assume these things get thrown away at some point.  Some
+> discussion about the life-cycle here would be useful.
 
-> That's a pretty significant alteration in the meaning of ->nrpages.
-> Did this not have any other effects?
+I assume that in the current codebase Johannes has, we would
+have to rely on the inode cache shrinker to reclaim the inode
+and throw out the radix tree nodes.
 
- From what I see (though it's been a long day), ->nrpages
-stays the same it is now.
+Having a better way to deal with radix tree nodes that contain
+stale entries (where the evicted pages would no longer receive
+special treatment on re-fault, because it has been so long) get
+reclaimed would be nice for a future version.
 
-The non-page entries are simply not counted in ->nrpages.
-
-> What does truncate do?  I assume it invalidates shadow page entries in
-> the radix tree?  And frees the radix-tree nodes?
-
-Indeed, truncate will get rid of the non-page entries
-in the radix tree.  That is why it needs to be called
-even if ->nrpages==0.
+Probably not too urgent, though...
 
 -- 
 All rights reversed
