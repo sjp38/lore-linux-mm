@@ -1,41 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx184.postini.com [74.125.245.184])
-	by kanga.kvack.org (Postfix) with SMTP id D69CF6B004D
-	for <linux-mm@kvack.org>; Tue,  1 May 2012 16:23:46 -0400 (EDT)
-Date: Tue, 1 May 2012 15:23:43 -0500 (CDT)
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: [PATCH] slub: prevent validate_slab() error due to race
- condition
-In-Reply-To: <CAOJsxLGXZsq22LuNa5ef5iv7Jy0A0w_S2MbDQeBW=dFvUwFRjA@mail.gmail.com>
-Message-ID: <alpine.DEB.2.00.1205011522340.2091@router.home>
-References: <1335466658-29063-1-git-send-email-Waiman.Long@hp.com> <alpine.DEB.2.00.1204270911080.29198@router.home> <4F9AFD28.2030801@hp.com> <CAOJsxLGXZsq22LuNa5ef5iv7Jy0A0w_S2MbDQeBW=dFvUwFRjA@mail.gmail.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from psmtp.com (na3sys010amx129.postini.com [74.125.245.129])
+	by kanga.kvack.org (Postfix) with SMTP id 0FCD26B004D
+	for <linux-mm@kvack.org>; Tue,  1 May 2012 16:24:53 -0400 (EDT)
+Date: Tue, 1 May 2012 13:24:49 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [patch 2/5] mm + fs: prepare for non-page entries in page cache
+Message-Id: <20120501132449.30485966.akpm@linux-foundation.org>
+In-Reply-To: <20120501201504.GB2112@cmpxchg.org>
+References: <1335861713-4573-1-git-send-email-hannes@cmpxchg.org>
+	<1335861713-4573-3-git-send-email-hannes@cmpxchg.org>
+	<20120501120246.83d2ce28.akpm@linux-foundation.org>
+	<20120501201504.GB2112@cmpxchg.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pekka Enberg <penberg@kernel.org>
-Cc: Waiman Long <waiman.long@hp.com>, "mpm@selenic.com" <mpm@selenic.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "Morris, Donald George (HP-UX Cupertino)" <don.morris@hp.com>, David Rientjes <rientjes@google.com>, Eric Dumazet <eric.dumazet@gmail.com>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: linux-mm@kvack.org, Rik van Riel <riel@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan.kim@gmail.com>, Hugh Dickins <hughd@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Mon, 30 Apr 2012, Pekka Enberg wrote:
+On Tue, 1 May 2012 22:15:04 +0200
+Johannes Weiner <hannes@cmpxchg.org> wrote:
 
-> On Fri, Apr 27, 2012 at 11:10 PM, Waiman Long <waiman.long@hp.com> wrote:
-> > Thank for the quick response. I have no problem for moving the node-lock
-> > taking into free_debug_processing. Of the 2 problems that are reported, this
-> > is a more serious one and so need to be fixed sooner rather than later. For
-> > the other one, we can take more time to find a better solution.
-> >
-> > So are you going to integrate your change to the mainline?
->
-> Christoph, can you send the patch with an improved changelog that also
-> explains what the problem is?
+> On Tue, May 01, 2012 at 12:02:46PM -0700, Andrew Morton wrote:
+> > On Tue,  1 May 2012 10:41:50 +0200
+> > Johannes Weiner <hannes@cmpxchg.org> wrote:
+> > 
+> > > --- a/fs/inode.c
+> > > +++ b/fs/inode.c
+> > > @@ -544,8 +544,7 @@ static void evict(struct inode *inode)
+> > >  	if (op->evict_inode) {
+> > >  		op->evict_inode(inode);
+> > >  	} else {
+> > > -		if (inode->i_data.nrpages)
+> > > -			truncate_inode_pages(&inode->i_data, 0);
+> > > +		truncate_inode_pages(&inode->i_data, 0);
+> > 
+> > Why did we lose this optimisation?
+> 
+> For inodes with only shadow pages remaining in the tree, because there
+> is no separate counter for them.  Otherwise, we'd leak the tree nodes.
+> 
+> I had mapping->nrshadows at first to keep truncation conditional, but
+> thought that using an extra word per cached inode would be worse than
+> removing this optimization.  There is not too much being done when the
+> tree is empty.
+> 
+> Another solution would be to include the shadows count in ->nrpages,
+> but filesystems use this counter for various other purposes.
+> 
+> Do you think it's worth reconsidering?
 
+It doesn't sound like it's worth adding ->nrshadows for only that
+reason.
 
-Will do so once I get back from the conference I am at.
+That's a pretty significant alteration in the meaning of ->nrpages. 
+Did this not have any other effects?
 
-> How far back in the stable series do we want to backport this?
+What does truncate do?  I assume it invalidates shadow page entries in
+the radix tree?  And frees the radix-tree nodes?
 
-This only affects slab validation when running with deubgging so I would
-suggest to merge in the next cycle.
+The patchset will make lookups slower in some (probably obscure)
+circumstances, due to the additional radix-tree nodes.
+
+I assume that if a pagecache lookup encounters a radix-tree node which
+contains no real pages, the search will terminate at that point?  We
+don't pointlessly go all the way down to the leaf nodes?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
