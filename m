@@ -1,79 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx123.postini.com [74.125.245.123])
-	by kanga.kvack.org (Postfix) with SMTP id DAB6E6B0044
-	for <linux-mm@kvack.org>; Tue,  1 May 2012 10:13:41 -0400 (EDT)
-Received: by pbbrp2 with SMTP id rp2so2917122pbb.14
-        for <linux-mm@kvack.org>; Tue, 01 May 2012 07:13:41 -0700 (PDT)
-Date: Tue, 1 May 2012 23:13:30 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [patch 5/5] mm: refault distance-based file cache sizing
-Message-ID: <20120501141330.GA2207@barrios>
-References: <1335861713-4573-1-git-send-email-hannes@cmpxchg.org>
- <1335861713-4573-6-git-send-email-hannes@cmpxchg.org>
+Received: from psmtp.com (na3sys010amx134.postini.com [74.125.245.134])
+	by kanga.kvack.org (Postfix) with SMTP id 5796E6B0044
+	for <linux-mm@kvack.org>; Tue,  1 May 2012 10:32:05 -0400 (EDT)
+Received: by ghrr18 with SMTP id r18so2637084ghr.14
+        for <linux-mm@kvack.org>; Tue, 01 May 2012 07:32:04 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1335861713-4573-6-git-send-email-hannes@cmpxchg.org>
+In-Reply-To: <1335778207-6511-1-git-send-email-jack@suse.cz>
+References: <1335778207-6511-1-git-send-email-jack@suse.cz>
+From: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
+Date: Tue, 1 May 2012 10:31:44 -0400
+Message-ID: <CAHGf_=qdE3yNw=htuRssfav2pECO1Q0+gWMRTuNROd_3tVrd6Q@mail.gmail.com>
+Subject: Re: [PATCH] Describe race of direct read and fork for unaligned buffers
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: linux-mm@kvack.org, Rik van Riel <riel@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Minchan Kim <minchan.kim@gmail.com>, Hugh Dickins <hughd@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Jan Kara <jack@suse.cz>
+Cc: Michael Kerrisk <mtk.manpages@gmail.com>, LKML <linux-kernel@vger.kernel.org>, linux-man@vger.kernel.org, linux-mm@kvack.org, mgorman@suse.de, Jeff Moyer <jmoyer@redhat.com>, npiggin@gmail.com
 
-Hi Hannes,
+On Mon, Apr 30, 2012 at 5:30 AM, Jan Kara <jack@suse.cz> wrote:
+> This is a long standing problem (or a surprising feature) in our implemen=
+tation
+> of get_user_pages() (used by direct IO). Since several attempts to fix it
+> failed (e.g.
+> http://linux.derkeiler.com/Mailing-Lists/Kernel/2009-04/msg06542.html, or
+> http://lkml.indiana.edu/hypermail/linux/kernel/0903.1/01498.html refused =
+in
+> http://comments.gmane.org/gmane.linux.kernel.mm/31569) and it's not compl=
+etely
+> clear whether we really want to fix it given the costs, let's at least do=
+cument
+> it.
+>
+> CC: mgorman@suse.de
+> CC: Jeff Moyer <jmoyer@redhat.com>
+> Signed-off-by: Jan Kara <jack@suse.cz>
+> ---
+>
+> --- a/man2/open.2 =A0 =A0 =A0 2012-04-27 00:07:51.736883092 +0200
+> +++ b/man2/open.2 =A0 =A0 =A0 2012-04-27 00:29:59.489892980 +0200
+> @@ -769,7 +769,12 @@
+> =A0and the file offset must all be multiples of the logical block size
+> =A0of the file system.
+> =A0Under Linux 2.6, alignment to 512-byte boundaries
+> -suffices.
+> +suffices. However, if the user buffer is not page aligned and direct rea=
+d
+> +runs in parallel with a
+> +.BR fork (2)
+> +of the reader process, it may happen that the read data is split between
+> +pages owned by the original process and its child. Thus effectively read
+> +data is corrupted.
+> =A0.LP
+> =A0The
+> =A0.B O_DIRECT
 
-On Tue, May 01, 2012 at 10:41:53AM +0200, Johannes Weiner wrote:
-> To protect frequently used page cache (workingset) from bursts of less
-> frequently used or one-shot cache, page cache pages are managed on two
-> linked lists.  The inactive list is where all cache starts out on
-> fault and ends on reclaim.  Pages that get accessed another time while
-> on the inactive list get promoted to the active list to protect them
-> from reclaim.
-> 
-> Right now we have two main problems.
-> 
-> One stems from numa allocation decisions and how the page allocator
-> and kswapd interact.  The both of them can enter into a perfect loop
-> where kswapd reclaims from the preferred zone of a task, allowing the
-> task to continuously allocate from that zone.  Or, the node distance
-> can lead to the allocator to do direct zone reclaim to stay in the
-> preferred zone.  This may be good for locality, but the task has only
+Hello,
 
-Understood.
-
-> the inactive space of that one zone to get its memory activated.
-> Forcing the allocator to spread out to lower zones in the right
-> situation makes the difference between continuous IO to serve the
-> workingset, or taking the numa cost but serving fully from memory.
-
-It's hard to parse your word due to my dumb brain.
-Could you elaborate on it?
-It would be a good if you say with example.
-
-> 
-> The other issue is that with the two lists alone, we can never detect
-> when a new set of data with equal access frequency should be cached if
-> the size of it is bigger than total/allowed memory minus the active
-> set.  Currently we have the perfect compromise given those
-> constraints: the active list is not allowed to grow bigger than the
-> inactive list.  This means that we can protect cache from reclaim only
-
-Okay.
-
-> up to half of memory, and don't recognize workingset changes that are
-> bigger than half of memory.
-
-Workingset change?
-You mean if new workingset is bigger than half of memory and it's like
-stream before retouch, we could cache only part of working set because 
-head pages on working set would be discared by tail pages of working set
-in inactive list?
-
-I'm sure I totally coudln't parse your point.
-Could you explain in detail? Before reading your approach and diving into code,
-I would like to see the problem clearly.
-
-Thanks.
- 
+Thank you revisit this. But as far as my remember is correct, this issue is=
+ NOT
+unaligned access issue. It's just get_user_pages(_fast) vs fork race issue.=
+ i.e.
+DIRECT_IO w/ multi thread process should not use fork().
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
