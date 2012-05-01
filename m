@@ -1,80 +1,164 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx167.postini.com [74.125.245.167])
-	by kanga.kvack.org (Postfix) with SMTP id 117456B0044
-	for <linux-mm@kvack.org>; Mon, 30 Apr 2012 23:13:46 -0400 (EDT)
-Received: by obbwd18 with SMTP id wd18so2762563obb.14
-        for <linux-mm@kvack.org>; Mon, 30 Apr 2012 20:13:45 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx186.postini.com [74.125.245.186])
+	by kanga.kvack.org (Postfix) with SMTP id 976816B0044
+	for <linux-mm@kvack.org>; Mon, 30 Apr 2012 23:34:31 -0400 (EDT)
+Received: by obbwd18 with SMTP id wd18so2784695obb.14
+        for <linux-mm@kvack.org>; Mon, 30 Apr 2012 20:34:30 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <alpine.DEB.2.00.1204270323000.11866@chino.kir.corp.google.com>
-References: <1335516144-3486-1-git-send-email-minchan@kernel.org>
-	<alpine.DEB.2.00.1204270323000.11866@chino.kir.corp.google.com>
-Date: Tue, 1 May 2012 13:13:44 +1000
-Message-ID: <CAPa8GCBN6U_GRaG=GYFByNB4REcVA-yy+kKMMbrGaDKULUXW9w@mail.gmail.com>
-Subject: Re: [RFC] vmalloc: add warning in __vmalloc
+In-Reply-To: <CALWz4ixeBq7cMoopukaRZxUmH1i0+L4xZ_49B0YpZ4iZuRC+Uw@mail.gmail.com>
+References: <1335214564-17619-1-git-send-email-yinghan@google.com>
+	<CAPa8GCATMxi2ON22T_daE9EMFg8BWgK4vRTDadDFR66aj_uGTg@mail.gmail.com>
+	<CALWz4ixeBq7cMoopukaRZxUmH1i0+L4xZ_49B0YpZ4iZuRC+Uw@mail.gmail.com>
+Date: Tue, 1 May 2012 13:34:30 +1000
+Message-ID: <CAPa8GCC1opy9u6NHy9m=1xU4EfRsHu8VN2kU-bXtRz=z_Mq0PA@mail.gmail.com>
+Subject: Re: [RFC PATCH] do_try_to_free_pages() might enter infinite loop
 From: Nick Piggin <npiggin@gmail.com>
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Minchan Kim <minchan@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, kosaki.motohiro@gmail.com, Neil Brown <neilb@suse.de>, Artem Bityutskiy <dedekind1@gmail.com>, David Woodhouse <dwmw2@infradead.org>, Theodore Ts'o <tytso@mit.edu>, Adrian Hunter <adrian.hunter@intel.com>, Steven Whitehouse <swhiteho@redhat.com>, "David S. Miller" <davem@davemloft.net>, James Morris <jmorris@namei.org>, Alexander Viro <viro@zeniv.linux.org.uk>, Sage Weil <sage@newdream.net>
+To: Ying Han <yinghan@google.com>
+Cc: Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mel@csn.ul.ie>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, Hugh Dickins <hughd@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Nick Piggin <npiggin@suse.de>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
 
-On 27 April 2012 20:36, David Rientjes <rientjes@google.com> wrote:
-> On Fri, 27 Apr 2012, Minchan Kim wrote:
+On 25 April 2012 04:37, Ying Han <yinghan@google.com> wrote:
+> On Mon, Apr 23, 2012 at 10:36 PM, Nick Piggin <npiggin@gmail.com> wrote:
+>> On 24 April 2012 06:56, Ying Han <yinghan@google.com> wrote:
+>>> This is not a patch targeted to be merged at all, but trying to underst=
+and
+>>> a logic in global direct reclaim.
+>>>
+>>> There is a logic in global direct reclaim where reclaim fails on priori=
+ty 0
+>>> and zone->all_unreclaimable is not set, it will cause the direct to sta=
+rt over
+>>> from DEF_PRIORITY. In some extreme cases, we've seen the system hang wh=
+ich is
+>>> very likely caused by direct reclaim enters infinite loop.
+>>
+>> Very likely, or definitely? Can you reproduce it? What workload?
 >
->> Now there are several places to use __vmalloc with GFP_ATOMIC,
->> GFP_NOIO, GFP_NOFS but unfortunately __vmalloc calls map_vm_area
->> which calls alloc_pages with GFP_KERNEL to allocate page tables.
->> It means it's possible to happen deadlock.
->> I don't know why it doesn't have reported until now.
->>
->> Firstly, I tried passing gfp_t to lower functions to support __vmalloc
->> with such flags but other mm guys don't want and decided that
->> all of caller should be fixed.
->>
->> http://marc.info/?l=3Dlinux-kernel&m=3D133517143616544&w=3D2
->>
->> To begin with, let's listen other's opinion whether they can fix it
->> by other approach without calling __vmalloc with such flags.
->>
->> So this patch adds warning to detect and to be fixed hopely.
->> I Cced related maintainers.
->> If I miss someone, please Cced them.
->>
->> side-note:
->> =A0 I added WARN_ON instead of WARN_ONCE to detect all of callers
->> =A0 and each WARN_ON for each flag to detect to use any flag easily.
->> =A0 After we fix all of caller or reduce such caller, we can merge
->> =A0 a warning with WARN_ONCE.
->>
+> No, we don't have reproduce workload for that yet. Everything is based
+> on the watchdog dump file :(
 >
-> I disagree with this approach since it's going to violently spam an
-> innocent kernel user's log with no ratelimiting and for a situation that
-> actually may not be problematic.
-
-With WARN_ON_ONCE, it should be good.
-
+>>
+>>>
+>>> There have been serious patches trying to fix similar issue and the lat=
+est
+>>> patch has good summary of all the efforts:
+>>>
+>>> commit 929bea7c714220fc76ce3f75bef9056477c28e74
+>>> Author: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+>>> Date: =A0 Thu Apr 14 15:22:12 2011 -0700
+>>>
+>>> =A0 =A0vmscan: all_unreclaimable() use zone->all_unreclaimable as a nam=
+e
+>>>
+>>> Kosaki explained the problem triggered by async zone->all_unreclaimable=
+ and
+>>> zone->pages_scanned where the later one was being checked by direct rec=
+laim.
+>>> However, after the patch, the problem remains where the setting of
+>>> zone->all_unreclaimable is asynchronous with zone is actually reclaimab=
+le or not.
+>>>
+>>> The zone->all_unreclaimable flag is set by kswapd by checking zone->pag=
+es_scanned in
+>>> zone_reclaimable(). Is that possible to have zone->all_unreclaimable =
+=3D=3D false while
+>>> the zone is actually unreclaimable?
+>>>
+>>> 1. while kswapd in reclaim priority loop, someone frees a page on the z=
+one. It
+>>> will end up resetting the pages_scanned.
+>>>
+>>> 2. kswapd is frozen for whatever reason. I noticed Kosaki's covered the
+>>> hibernation case by checking oom_killer_disabled, but not sure if that =
+is
+>>> everything we need to worry about. The key point here is that direct re=
+claim
+>>> relies on a flag which is set by kswapd asynchronously, that doesn't so=
+und safe.
+>>>
+>>> Instead of keep fixing the problem, I am wondering why we have the logi=
+c
+>>> "not oom but keep trying reclaim w/ priority 0 reclaim failure" at the =
+first place:
+>>>
+>>> Here is the patch introduced the logic initially:
+>>>
+>>> commit 408d85441cd5a9bd6bc851d677a10c605ed8db5f
+>>> Author: Nick Piggin <npiggin@suse.de>
+>>> Date: =A0 Mon Sep 25 23:31:27 2006 -0700
+>>>
+>>> =A0 =A0[PATCH] oom: use unreclaimable info
+>>>
+>>> However, I didn't find detailed description of what problem the commit =
+trying
+>>> to fix and wondering if the problem still exist after 5 years. I would =
+be happy
+>>> to see the later case where we can consider to revert the initial patch=
+.
+>>
+>> The problem we were having is that processes would be killed at seemingl=
+y
+>> random points of time, under heavy swapping, but long before all swap wa=
+s
+>> used.
+>>
+>> The particular problem IIRC was related to testing a lot of guests on an=
+ s390
+>> machine. I'm ashamed to have not included more information in the
+>> changelog -- I suspect it was probably in a small batch of patches with =
+a
+>> description in the introductory mail and not properly placed into patche=
+s :(
+>>
+>> There are certainly a lot of changes in the area since then, so I couldn=
+'t be
+>> sure of what will happen by taking this out.
+>>
+>> I don't think the page allocator "try harder" logic was enough to solve =
+the
+>> problem, and I think it was around in some form even back then.
+>>
+>> The biggest problem is that it's not an exact science. It will never do =
+the
+>> right thing for everybody, sadly. Even if it is able to allocate pages a=
+t a
+>> very slow rate, this is effectively as good as a hang for some users. Fo=
+r
+>> others, they want to be able to manually intervene before anything is ki=
+lled.
+>>
+>> Sorry if this isn't too helpful! Any ideas would be good. Possibly need =
+to have
+>> a way to describe these behaviours in an abstract way (i.e., not just ma=
+gic
+>> numbers), and allow user to tune it.
 >
-> Passing any of these bits (the difference between GFP_KERNEL and
-> GFP_ATOMIC) only means anything when we're going to do reclaim. =A0And I'=
-m
-> suspecting we would have seen problems with this already since
-> pte_alloc_kernel() does __GFP_REPEAT on most architectures meaning that i=
-t
-> will loop infinitely in the page allocator until at least one page is
-> freed (since its an order-0 allocation) which would hardly ever happen if
-> __GFP_FS or __GFP_IO actually meant something in this context.
+> Thank you Nick and this is helpful. I looked up on the patches you
+> mentioned, and I can see what problem they were trying to solve by
+> that time. However things have been changed a lot, and it is hard to
+> tell if the problem still remains on the current kernel or not. By
+> spotting each by each, I see either the patch has been replaced by
+> different logic or the same logic has been implemented differently.
 >
-> In other words, we would already have seen these deadlocks and it would
-> have been diagnosed as a vmalloc(GFP_ATOMIC) problem. =A0Where are those =
-bug
-> reports?
+> For this particular one patch, we now have code which does page alloc
+> retry before entering OOM. So I am wondering if that will help the OOM
+> situation by that time.
 
-That's not sound logic to disprove a bug.
+Well it's not doing exactly the same thing, actually. And note that the
+problem was not about parallel OOM-killing. The fact that the page
+reclaim has not made any progress when we last called in does not
+actually mean that it cannot make _any_ progress.
 
-I think simply most callers are permissive and don't mask out flags.
-But for example a filesystem holding an fs lock and then doing
-vmalloc(GFP_NOFS) can certainly deadlock.
+My patch is more about detecting the latter case. I don't see there
+is equivalent logic in page allocator to replace it.
+
+But again: this is not a question of correct or incorrect as far as I
+can see, simply a matter of where you define "hopeless"! I could
+easily see the need for way to bias that (kill quickly, medium, try to
+never kill).
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
