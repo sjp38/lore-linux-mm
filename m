@@ -1,60 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx116.postini.com [74.125.245.116])
-	by kanga.kvack.org (Postfix) with SMTP id 424BB6B0081
-	for <linux-mm@kvack.org>; Tue,  1 May 2012 11:34:25 -0400 (EDT)
-Received: by ghrr18 with SMTP id r18so2717723ghr.14
-        for <linux-mm@kvack.org>; Tue, 01 May 2012 08:34:24 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx153.postini.com [74.125.245.153])
+	by kanga.kvack.org (Postfix) with SMTP id 1BF2E6B0081
+	for <linux-mm@kvack.org>; Tue,  1 May 2012 11:38:36 -0400 (EDT)
+Date: Tue, 1 May 2012 17:38:25 +0200
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [patch 5/5] mm: refault distance-based file cache sizing
+Message-ID: <20120501153825.GA4837@cmpxchg.org>
+References: <1335861713-4573-1-git-send-email-hannes@cmpxchg.org>
+ <1335861713-4573-6-git-send-email-hannes@cmpxchg.org>
+ <20120501141330.GA2207@barrios>
 MIME-Version: 1.0
-In-Reply-To: <x49ehr4lyw1.fsf@segfault.boston.devel.redhat.com>
-References: <1335778207-6511-1-git-send-email-jack@suse.cz>
- <CAHGf_=qdE3yNw=htuRssfav2pECO1Q0+gWMRTuNROd_3tVrd6Q@mail.gmail.com>
- <CAHGf_=ojhwPUWJR0r+jVgjNd5h_sRrppzJntSpHzxyv+OuBueg@mail.gmail.com> <x49ehr4lyw1.fsf@segfault.boston.devel.redhat.com>
-From: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
-Date: Tue, 1 May 2012 11:34:04 -0400
-Message-ID: <CAHGf_=rzcfo3OnwT-YsW2iZLchHs3eBKncobvbhTm7B5PE=L-w@mail.gmail.com>
-Subject: Re: [PATCH] Describe race of direct read and fork for unaligned buffers
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20120501141330.GA2207@barrios>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jeff Moyer <jmoyer@redhat.com>
-Cc: Jan Kara <jack@suse.cz>, Michael Kerrisk <mtk.manpages@gmail.com>, LKML <linux-kernel@vger.kernel.org>, linux-man@vger.kernel.org, linux-mm@kvack.org, mgorman@suse.de, npiggin@gmail.com
+To: Minchan Kim <minchan@kernel.org>
+Cc: linux-mm@kvack.org, Rik van Riel <riel@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Minchan Kim <minchan.kim@gmail.com>, Hugh Dickins <hughd@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Tue, May 1, 2012 at 11:11 AM, Jeff Moyer <jmoyer@redhat.com> wrote:
-> KOSAKI Motohiro <kosaki.motohiro@gmail.com> writes:
->
->>> Hello,
->>>
->>> Thank you revisit this. But as far as my remember is correct, this issu=
-e is NOT
->>> unaligned access issue. It's just get_user_pages(_fast) vs fork race is=
-sue. i.e.
->>> DIRECT_IO w/ multi thread process should not use fork().
->>
->> The problem is, fork (and its COW logic) assume new access makes cow bre=
-ak,
->> But page table protection can't detect a DMA write. Therefore DIO may ov=
-erride
->> shared page data.
->
-> Hm, I've only seen this with misaligned or multiple sub-page-sized reads
-> in the same page. =A0AFAIR, aligned, page-sized I/O does not get split.
-> But, I could be wrong...
+On Tue, May 01, 2012 at 11:13:30PM +0900, Minchan Kim wrote:
+> Hi Hannes,
+> 
+> On Tue, May 01, 2012 at 10:41:53AM +0200, Johannes Weiner wrote:
+> > To protect frequently used page cache (workingset) from bursts of less
+> > frequently used or one-shot cache, page cache pages are managed on two
+> > linked lists.  The inactive list is where all cache starts out on
+> > fault and ends on reclaim.  Pages that get accessed another time while
+> > on the inactive list get promoted to the active list to protect them
+> > from reclaim.
+> > 
+> > Right now we have two main problems.
+> > 
+> > One stems from numa allocation decisions and how the page allocator
+> > and kswapd interact.  The both of them can enter into a perfect loop
+> > where kswapd reclaims from the preferred zone of a task, allowing the
+> > task to continuously allocate from that zone.  Or, the node distance
+> > can lead to the allocator to do direct zone reclaim to stay in the
+> > preferred zone.  This may be good for locality, but the task has only
+> 
+> Understood.
+> 
+> > the inactive space of that one zone to get its memory activated.
+> > Forcing the allocator to spread out to lower zones in the right
+> > situation makes the difference between continuous IO to serve the
+> > workingset, or taking the numa cost but serving fully from memory.
+> 
+> It's hard to parse your word due to my dumb brain.
+> Could you elaborate on it?
+> It would be a good if you say with example.
 
-If my remember is correct, the reproducer of past thread is misleading.
+Say your Normal zone is 4G (DMA32 also 4G) and you have 2G of active
+file pages in Normal and DMA32 is full of other stuff.  Now you access
+a new 6G file repeatedly.  First it allocates from Normal (preferred),
+then tries DMA32 (full), wakes up kswapd and retries all zones.  If
+kswapd then frees pages at roughly the same pace as the allocator
+allocates from Normal, kswapd never goes to sleep and evicts pages
+from the 6G file before they can get accessed a second time.  Even
+though the 6G file could fit in memory (4G Normal + 4G DMA32), the
+allocator only uses the 4G Normal zone.
 
-dma_thread.c in
-http://lkml.indiana.edu/hypermail/linux/kernel/0903.1/01498.html has
-align parameter. But it doesn't only change align. Because of, every
-worker thread read 4K (pagesize), then
- - when offset is page aligned
-    -> every page is accessed from only one worker
- - when offset is not page aligned
-    -> every page is accessed from two workers
+Same applies if you have a load that would fit in the memory of two
+nodes but the node distance leads the allocator to do zone_reclaim()
+and forcing the pages to stay in one node, again preventing the load
+from being fully cached in memory, which is much more expensive than
+the foreign node cost.
 
-But I don't remember why two threads are important things. hmm.. I'm
-looking into the code a while.
-Please don't 100% trust me.
+> > up to half of memory, and don't recognize workingset changes that are
+> > bigger than half of memory.
+> 
+> Workingset change?
+> You mean if new workingset is bigger than half of memory and it's like
+> stream before retouch, we could cache only part of working set because 
+> head pages on working set would be discared by tail pages of working set
+> in inactive list?
+
+Spot-on.  I called that 'tail-chasing' in my notes :-) When you are in
+a perpetual loop of evicting pages you will need in a couple hundred
+page faults.  Those couple hundred page faults are the refault
+distance and my code is able to detect these loops and increases the
+space available to the inactive list to end them, if possible.
+
+This is the whole principle of the series.
+
+If such a loop is recognized in a single zone, the allocator goes for
+lower zones to increase the inactive space.  If such a loop is
+recognized over all allowed zones in the zonelist, the active lists
+are shrunk to increase the inactive space.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
