@@ -1,59 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx147.postini.com [74.125.245.147])
-	by kanga.kvack.org (Postfix) with SMTP id 3202B6B004D
-	for <linux-mm@kvack.org>; Tue,  1 May 2012 18:58:06 -0400 (EDT)
-Date: Tue, 1 May 2012 15:57:47 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 05/11] mm: swap: Implement generic handler for
- swap_activate
-Message-Id: <20120501155747.368a1d36.akpm@linux-foundation.org>
-In-Reply-To: <1334578675-23445-6-git-send-email-mgorman@suse.de>
-References: <1334578675-23445-1-git-send-email-mgorman@suse.de>
-	<1334578675-23445-6-git-send-email-mgorman@suse.de>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx149.postini.com [74.125.245.149])
+	by kanga.kvack.org (Postfix) with SMTP id 243286B004D
+	for <linux-mm@kvack.org>; Tue,  1 May 2012 19:18:59 -0400 (EDT)
+Received: by obbwd18 with SMTP id wd18so105927obb.14
+        for <linux-mm@kvack.org>; Tue, 01 May 2012 16:18:58 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <alpine.DEB.2.00.1205011310180.7742@chino.kir.corp.google.com>
+References: <1335516144-3486-1-git-send-email-minchan@kernel.org>
+	<alpine.DEB.2.00.1204270323000.11866@chino.kir.corp.google.com>
+	<CAPa8GCBN6U_GRaG=GYFByNB4REcVA-yy+kKMMbrGaDKULUXW9w@mail.gmail.com>
+	<alpine.DEB.2.00.1205011310180.7742@chino.kir.corp.google.com>
+Date: Wed, 2 May 2012 09:18:58 +1000
+Message-ID: <CAPa8GCD2m9R8YWY2FhO=LOMvCHhC6T=iFdn2YmpLxjO96_B4Ew@mail.gmail.com>
+Subject: Re: [RFC] vmalloc: add warning in __vmalloc
+From: Nick Piggin <npiggin@gmail.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Linux-MM <linux-mm@kvack.org>, Linux-Netdev <netdev@vger.kernel.org>, Linux-NFS <linux-nfs@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, David Miller <davem@davemloft.net>, Trond Myklebust <Trond.Myklebust@netapp.com>, Neil Brown <neilb@suse.de>, Christoph Hellwig <hch@infradead.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Mike Christie <michaelc@cs.wisc.edu>, Eric B Munson <emunson@mgebm.net>
+To: David Rientjes <rientjes@google.com>
+Cc: Minchan Kim <minchan@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, kosaki.motohiro@gmail.com, Neil Brown <neilb@suse.de>, Artem Bityutskiy <dedekind1@gmail.com>, David Woodhouse <dwmw2@infradead.org>, Theodore Ts'o <tytso@mit.edu>, Adrian Hunter <adrian.hunter@intel.com>, Steven Whitehouse <swhiteho@redhat.com>, "David S. Miller" <davem@davemloft.net>, James Morris <jmorris@namei.org>, Alexander Viro <viro@zeniv.linux.org.uk>, Sage Weil <sage@newdream.net>
 
-On Mon, 16 Apr 2012 13:17:49 +0100
-Mel Gorman <mgorman@suse.de> wrote:
-
-> The version of swap_activate introduced is sufficient for swap-over-NFS
-> but would not provide enough information to implement a generic handler.
-> This patch shuffles things slightly to ensure the same information is
-> available for aops->swap_activate() as is available to the core.
-> 
-> No functionality change.
-> 
-> ...
+On 2 May 2012 06:22, David Rientjes <rientjes@google.com> wrote:
+> On Tue, 1 May 2012, Nick Piggin wrote:
 >
-> --- a/include/linux/fs.h
-> +++ b/include/linux/fs.h
-> @@ -587,6 +587,8 @@ typedef struct {
->  typedef int (*read_actor_t)(read_descriptor_t *, struct page *,
->  		unsigned long, unsigned long);
->  
-> +struct swap_info_struct;
-
-Please put forward declarations at top-of-file.  To prevent accidental
-duplication later on.
-
->  struct address_space_operations {
->  	int (*writepage)(struct page *page, struct writeback_control *wbc);
->  	int (*readpage)(struct file *, struct page *);
+>> > I disagree with this approach since it's going to violently spam an
+>> > innocent kernel user's log with no ratelimiting and for a situation th=
+at
+>> > actually may not be problematic.
+>>
+>> With WARN_ON_ONCE, it should be good.
+>>
 >
-> ...
->
-> --- a/mm/page_io.c
-> +++ b/mm/page_io.c
+> To catch a single instance of this per-boot, sure. =C2=A0I've never seen =
+us add
+> WARN_ON_ONCE()'s where we have concrete examples of kernel code that will
+> trigger it, though. =C2=A0Not sure why spamming the kernel log and gettin=
+g
+> users to think something is wrong and report the bug when it's possible t=
+o
+> audit the code and make a report to the subsystem maintainer.
 
-Have you tested all this code with CONFIG_SWAP=n?
+Because it needs to be an ongoing thing, which is caught as soon as the
+developer writes some code, rather than continually audited for and fixed
+up after the fact. There is not a good way to enforce this at compile time.
 
-Have you sought to minimise additional new code when CONFIG_SWAP=n?
-
+The existing callers do need to be fixed too, of course.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
