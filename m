@@ -1,62 +1,202 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx170.postini.com [74.125.245.170])
-	by kanga.kvack.org (Postfix) with SMTP id 4F9846B0044
-	for <linux-mm@kvack.org>; Tue,  1 May 2012 03:20:53 -0400 (EDT)
-Received: by obbwd18 with SMTP id wd18so3005948obb.14
-        for <linux-mm@kvack.org>; Tue, 01 May 2012 00:20:52 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <20120424143015.99fd8d4a.akpm@linux-foundation.org>
-References: <1335171318-4838-1-git-send-email-minchan@kernel.org>
-	<4F963742.2030607@jp.fujitsu.com>
-	<4F963B8E.9030105@kernel.org>
-	<CAPa8GCA8q=S9sYx-0rDmecPxYkFs=gATGL-Dz0OYXDkwEECJkg@mail.gmail.com>
-	<4F965413.9010305@kernel.org>
-	<CAPa8GCCwfCFO6yxwUP5Qp9O1HGUqEU2BZrrf50w8TL9FH9vbrA@mail.gmail.com>
-	<20120424143015.99fd8d4a.akpm@linux-foundation.org>
-Date: Tue, 1 May 2012 17:20:52 +1000
-Message-ID: <CAPa8GCC53668tkOisHL--DBvu7+_SDe2m_doxT=4O28c9RHXXg@mail.gmail.com>
-Subject: Re: [RFC] propagate gfp_t to page table alloc functions
-From: Nick Piggin <npiggin@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Received: from psmtp.com (na3sys010amx132.postini.com [74.125.245.132])
+	by kanga.kvack.org (Postfix) with SMTP id A947E6B004D
+	for <linux-mm@kvack.org>; Tue,  1 May 2012 04:43:15 -0400 (EDT)
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: [patch 1/5] mm: readahead: move radix tree hole searching here
+Date: Tue,  1 May 2012 10:41:49 +0200
+Message-Id: <1335861713-4573-2-git-send-email-hannes@cmpxchg.org>
+In-Reply-To: <1335861713-4573-1-git-send-email-hannes@cmpxchg.org>
+References: <1335861713-4573-1-git-send-email-hannes@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Minchan Kim <minchan@kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Ingo Molnar <mingo@redhat.com>, x86@kernel.org, Hugh Dickins <hughd@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, kosaki.motohiro@jp.fujitsu.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: linux-mm@kvack.org
+Cc: Rik van Riel <riel@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Minchan Kim <minchan.kim@gmail.com>, Hugh Dickins <hughd@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On 25 April 2012 07:30, Andrew Morton <akpm@linux-foundation.org> wrote:
-> On Tue, 24 Apr 2012 17:48:29 +1000
-> Nick Piggin <npiggin@gmail.com> wrote:
->
->> > Hmm, there are several places to use GFP_NOIO and GFP_NOFS even, GFP_A=
-TOMIC.
->> > I believe it's not trivial now.
->>
->> They're all buggy then. Unfortunately not through any real fault of thei=
-r own.
->
-> There are gruesome problems in block/blk-throttle.c (thread "mempool,
-> percpu, blkcg: fix percpu stat allocation and remove stats_lock"). =A0It
-> wants to do an alloc_percpu()->vmalloc() from the IO submission path,
-> under GFP_NOIO.
+The readahead code searches the page cache for non-present pages, or
+holes, to get a picture of the area surrounding a fault e.g.
 
-Yeah, that sucks. CFQ has something similar.
+For this it sufficed to rely on the radix tree definition of holes,
+which is "empty tree slot".  This is about to change, though, because
+shadow page descriptors will be stored in the page cache when the real
+pages get evicted from memory.
 
-Should just allocate it up front when creating a throttled group.
-Allocate and init when it first gets used schemes are usually pretty
-problematic. Is it *really* warranted to do it lazily like this?
+Fortunately, nobody outside the readahead code uses these functions
+and they have no internal knowledge of the radix tree structures, so
+just move them over to mm/readahead.c where they can later be adapted
+to handle the new definition of "page cache hole".
 
-> Changing vmalloc() to take a gfp_t does make lots of sense, although I
-> worry a bit about making vmalloc() easier to use!
->
-> I do wonder whether the whole scheme of explicitly passing a gfp_t was
-> a mistake and that the allocation context should be part of the task
-> context. =A0ie: pass the allocation mode via *current. =A0As a handy
-> side-effect that would probably save quite some code where functions
-> are receiving a gfp_t arg then simply passing it on to the next
-> callee.
+Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+---
+ include/linux/radix-tree.h |    4 --
+ lib/radix-tree.c           |   75 --------------------------------------------
+ mm/readahead.c             |   36 ++++++++++++++++++++-
+ 3 files changed, 34 insertions(+), 81 deletions(-)
 
-Both paragraphs make a lot of sense. Conceptually. :)
+diff --git a/include/linux/radix-tree.h b/include/linux/radix-tree.h
+index 07e360b..73e49c4 100644
+--- a/include/linux/radix-tree.h
++++ b/include/linux/radix-tree.h
+@@ -224,10 +224,6 @@ radix_tree_gang_lookup(struct radix_tree_root *root, void **results,
+ unsigned int radix_tree_gang_lookup_slot(struct radix_tree_root *root,
+ 			void ***results, unsigned long *indices,
+ 			unsigned long first_index, unsigned int max_items);
+-unsigned long radix_tree_next_hole(struct radix_tree_root *root,
+-				unsigned long index, unsigned long max_scan);
+-unsigned long radix_tree_prev_hole(struct radix_tree_root *root,
+-				unsigned long index, unsigned long max_scan);
+ int radix_tree_preload(gfp_t gfp_mask);
+ void radix_tree_init(void);
+ void *radix_tree_tag_set(struct radix_tree_root *root,
+diff --git a/lib/radix-tree.c b/lib/radix-tree.c
+index dc63d08..89b5f6a 100644
+--- a/lib/radix-tree.c
++++ b/lib/radix-tree.c
+@@ -742,81 +742,6 @@ next:
+ }
+ EXPORT_SYMBOL(radix_tree_range_tag_if_tagged);
+ 
+-
+-/**
+- *	radix_tree_next_hole    -    find the next hole (not-present entry)
+- *	@root:		tree root
+- *	@index:		index key
+- *	@max_scan:	maximum range to search
+- *
+- *	Search the set [index, min(index+max_scan-1, MAX_INDEX)] for the lowest
+- *	indexed hole.
+- *
+- *	Returns: the index of the hole if found, otherwise returns an index
+- *	outside of the set specified (in which case 'return - index >= max_scan'
+- *	will be true). In rare cases of index wrap-around, 0 will be returned.
+- *
+- *	radix_tree_next_hole may be called under rcu_read_lock. However, like
+- *	radix_tree_gang_lookup, this will not atomically search a snapshot of
+- *	the tree at a single point in time. For example, if a hole is created
+- *	at index 5, then subsequently a hole is created at index 10,
+- *	radix_tree_next_hole covering both indexes may return 10 if called
+- *	under rcu_read_lock.
+- */
+-unsigned long radix_tree_next_hole(struct radix_tree_root *root,
+-				unsigned long index, unsigned long max_scan)
+-{
+-	unsigned long i;
+-
+-	for (i = 0; i < max_scan; i++) {
+-		if (!radix_tree_lookup(root, index))
+-			break;
+-		index++;
+-		if (index == 0)
+-			break;
+-	}
+-
+-	return index;
+-}
+-EXPORT_SYMBOL(radix_tree_next_hole);
+-
+-/**
+- *	radix_tree_prev_hole    -    find the prev hole (not-present entry)
+- *	@root:		tree root
+- *	@index:		index key
+- *	@max_scan:	maximum range to search
+- *
+- *	Search backwards in the range [max(index-max_scan+1, 0), index]
+- *	for the first hole.
+- *
+- *	Returns: the index of the hole if found, otherwise returns an index
+- *	outside of the set specified (in which case 'index - return >= max_scan'
+- *	will be true). In rare cases of wrap-around, ULONG_MAX will be returned.
+- *
+- *	radix_tree_next_hole may be called under rcu_read_lock. However, like
+- *	radix_tree_gang_lookup, this will not atomically search a snapshot of
+- *	the tree at a single point in time. For example, if a hole is created
+- *	at index 10, then subsequently a hole is created at index 5,
+- *	radix_tree_prev_hole covering both indexes may return 5 if called under
+- *	rcu_read_lock.
+- */
+-unsigned long radix_tree_prev_hole(struct radix_tree_root *root,
+-				   unsigned long index, unsigned long max_scan)
+-{
+-	unsigned long i;
+-
+-	for (i = 0; i < max_scan; i++) {
+-		if (!radix_tree_lookup(root, index))
+-			break;
+-		index--;
+-		if (index == ULONG_MAX)
+-			break;
+-	}
+-
+-	return index;
+-}
+-EXPORT_SYMBOL(radix_tree_prev_hole);
+-
+ static unsigned int
+ __lookup(struct radix_tree_node *slot, void ***results, unsigned long *indices,
+ 	unsigned long index, unsigned int max_items, unsigned long *next_index)
+diff --git a/mm/readahead.c b/mm/readahead.c
+index cbcbb02..0d1f1aa 100644
+--- a/mm/readahead.c
++++ b/mm/readahead.c
+@@ -336,6 +336,38 @@ static unsigned long get_next_ra_size(struct file_ra_state *ra,
+  * it approaches max_readhead.
+  */
+ 
++static unsigned long page_cache_next_hole(struct address_space *mapping,
++					  pgoff_t index, unsigned long max_scan)
++{
++	unsigned long i;
++
++	for (i = 0; i < max_scan; i++) {
++		if (!radix_tree_lookup(&mapping->page_tree, index))
++			break;
++		index++;
++		if (index == 0)
++			break;
++	}
++
++	return index;
++}
++
++static unsigned long page_cache_prev_hole(struct address_space *mapping,
++					  pgoff_t index, unsigned long max_scan)
++{
++	unsigned long i;
++
++	for (i = 0; i < max_scan; i++) {
++		if (!radix_tree_lookup(&mapping->page_tree, index))
++			break;
++		index--;
++		if (index == ULONG_MAX)
++			break;
++	}
++
++	return index;
++}
++
+ /*
+  * Count contiguously cached pages from @offset-1 to @offset-@max,
+  * this count is a conservative estimation of
+@@ -349,7 +381,7 @@ static pgoff_t count_history_pages(struct address_space *mapping,
+ 	pgoff_t head;
+ 
+ 	rcu_read_lock();
+-	head = radix_tree_prev_hole(&mapping->page_tree, offset - 1, max);
++	head = page_cache_prev_hole(mapping, offset - 1, max);
+ 	rcu_read_unlock();
+ 
+ 	return offset - 1 - head;
+@@ -428,7 +460,7 @@ ondemand_readahead(struct address_space *mapping,
+ 		pgoff_t start;
+ 
+ 		rcu_read_lock();
+-		start = radix_tree_next_hole(&mapping->page_tree, offset+1,max);
++		start = page_cache_next_hole(mapping, offset + 1, max);
+ 		rcu_read_unlock();
+ 
+ 		if (!start || start - offset > max)
+-- 
+1.7.7.6
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
