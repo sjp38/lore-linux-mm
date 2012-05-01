@@ -1,33 +1,36 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx125.postini.com [74.125.245.125])
-	by kanga.kvack.org (Postfix) with SMTP id 77E096B0081
-	for <linux-mm@kvack.org>; Tue,  1 May 2012 14:29:34 -0400 (EDT)
-Date: Tue, 1 May 2012 20:29:32 +0200
-From: Andi Kleen <andi@firstfloor.org>
-Subject: Re: [PATCH RFC 3/3] proc/smaps: show amount of hwpoison pages
-Message-ID: <20120501182932.GR27374@one.firstfloor.org>
-References: <20120430112903.14137.81692.stgit@zurg> <20120430112910.14137.28935.stgit@zurg>
+Received: from psmtp.com (na3sys010amx121.postini.com [74.125.245.121])
+	by kanga.kvack.org (Postfix) with SMTP id 8204A6B0044
+	for <linux-mm@kvack.org>; Tue,  1 May 2012 15:02:49 -0400 (EDT)
+Date: Tue, 1 May 2012 12:02:46 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [patch 2/5] mm + fs: prepare for non-page entries in page cache
+Message-Id: <20120501120246.83d2ce28.akpm@linux-foundation.org>
+In-Reply-To: <1335861713-4573-3-git-send-email-hannes@cmpxchg.org>
+References: <1335861713-4573-1-git-send-email-hannes@cmpxchg.org>
+	<1335861713-4573-3-git-send-email-hannes@cmpxchg.org>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20120430112910.14137.28935.stgit@zurg>
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Konstantin Khlebnikov <khlebnikov@openvz.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <andi@firstfloor.org>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: linux-mm@kvack.org, Rik van Riel <riel@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan.kim@gmail.com>, Hugh Dickins <hughd@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Mon, Apr 30, 2012 at 03:29:11PM +0400, Konstantin Khlebnikov wrote:
-> This patch adds line "HWPoinson: <size> kB" into /proc/pid/smaps if
-> CONFIG_MEMORY_FAILURE=y and some HWPoison pages were found.
-> This may be useful for searching applications which use a broken memory.
+On Tue,  1 May 2012 10:41:50 +0200
+Johannes Weiner <hannes@cmpxchg.org> wrote:
 
-Makes sense. The kernel will log the process names, but it can be useful to
-look for it after the fact to get a more complete picture of the state
-of the machine.
+> --- a/fs/inode.c
+> +++ b/fs/inode.c
+> @@ -544,8 +544,7 @@ static void evict(struct inode *inode)
+>  	if (op->evict_inode) {
+>  		op->evict_inode(inode);
+>  	} else {
+> -		if (inode->i_data.nrpages)
+> -			truncate_inode_pages(&inode->i_data, 0);
+> +		truncate_inode_pages(&inode->i_data, 0);
 
-Acked-by: Andi Kleen <ak@linux.intel.com>
-
--Andi
+Why did we lose this optimisation?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
