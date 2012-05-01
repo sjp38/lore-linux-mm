@@ -1,63 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx183.postini.com [74.125.245.183])
-	by kanga.kvack.org (Postfix) with SMTP id A50D46B0081
-	for <linux-mm@kvack.org>; Tue,  1 May 2012 11:43:25 -0400 (EDT)
-Received: by pbbrp2 with SMTP id rp2so3043205pbb.14
-        for <linux-mm@kvack.org>; Tue, 01 May 2012 08:43:25 -0700 (PDT)
-Date: Tue, 1 May 2012 08:43:03 -0700 (PDT)
-From: Hugh Dickins <hughd@google.com>
-Subject: Re: [PATCH] hugetlb: avoid gratuitous BUG_ON in hugetlb_fault() ->
- hugetlb_cow()
-In-Reply-To: <201205011333.q41DXsK7026759@farm-0013.internal.tilera.com>
-Message-ID: <alpine.LSU.2.00.1205010834310.27480@eggly.anvils>
-References: <201204291936.q3TJa4Mv008924@farm-0027.internal.tilera.com> <alpine.LSU.2.00.1204301308090.2829@eggly.anvils> <20120501131413.GA11435@suse.de> <201205011333.q41DXsK7026759@farm-0013.internal.tilera.com>
+Received: from psmtp.com (na3sys010amx188.postini.com [74.125.245.188])
+	by kanga.kvack.org (Postfix) with SMTP id 41C5F6B0044
+	for <linux-mm@kvack.org>; Tue,  1 May 2012 11:50:47 -0400 (EDT)
+Received: by obbwd18 with SMTP id wd18so3633683obb.14
+        for <linux-mm@kvack.org>; Tue, 01 May 2012 08:50:46 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+In-Reply-To: <x491un3nc7a.fsf@segfault.boston.devel.redhat.com>
+References: <1335778207-6511-1-git-send-email-jack@suse.cz>
+	<CAHGf_=qdE3yNw=htuRssfav2pECO1Q0+gWMRTuNROd_3tVrd6Q@mail.gmail.com>
+	<CAHGf_=ojhwPUWJR0r+jVgjNd5h_sRrppzJntSpHzxyv+OuBueg@mail.gmail.com>
+	<x49ehr4lyw1.fsf@segfault.boston.devel.redhat.com>
+	<CAHGf_=rzcfo3OnwT-YsW2iZLchHs3eBKncobvbhTm7B5PE=L-w@mail.gmail.com>
+	<x491un3nc7a.fsf@segfault.boston.devel.redhat.com>
+Date: Wed, 2 May 2012 01:50:46 +1000
+Message-ID: <CAPa8GCCgLUt1EDAy7-O-mo0qir6Bf5Pi3Va1EsQ3ZW5UU=+37g@mail.gmail.com>
+Subject: Re: [PATCH] Describe race of direct read and fork for unaligned buffers
+From: Nick Piggin <npiggin@gmail.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Chris Metcalf <cmetcalf@tilera.com>
-Cc: Mel Gorman <mel@csn.ul.ie>, Andrew Morton <akpm@linux-foundation.org>, Hillf Danton <dhillf@gmail.com>, Michal Hocko <mhocko@suse.cz>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Jeff Moyer <jmoyer@redhat.com>
+Cc: KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Jan Kara <jack@suse.cz>, Michael Kerrisk <mtk.manpages@gmail.com>, LKML <linux-kernel@vger.kernel.org>, linux-man@vger.kernel.org, linux-mm@kvack.org, mgorman@suse.de, Andrea Arcangeli <aarcange@redhat.com>, Woodman <lwoodman@redhat.com>
 
-On Sun, 29 Apr 2012, Chris Metcalf wrote:
+On 2 May 2012 01:38, Jeff Moyer <jmoyer@redhat.com> wrote:
+> KOSAKI Motohiro <kosaki.motohiro@gmail.com> writes:
+>
+>> On Tue, May 1, 2012 at 11:11 AM, Jeff Moyer <jmoyer@redhat.com> wrote:
+>>> KOSAKI Motohiro <kosaki.motohiro@gmail.com> writes:
+>>>
+>>>>> Hello,
+>>>>>
+>>>>> Thank you revisit this. But as far as my remember is correct, this is=
+sue is NOT
+>>>>> unaligned access issue. It's just get_user_pages(_fast) vs fork race =
+issue. i.e.
+>>>>> DIRECT_IO w/ multi thread process should not use fork().
+>>>>
+>>>> The problem is, fork (and its COW logic) assume new access makes cow b=
+reak,
+>>>> But page table protection can't detect a DMA write. Therefore DIO may =
+override
+>>>> shared page data.
+>>>
+>>> Hm, I've only seen this with misaligned or multiple sub-page-sized read=
+s
+>>> in the same page. =C2=A0AFAIR, aligned, page-sized I/O does not get spl=
+it.
+>>> But, I could be wrong...
+>>
+>> If my remember is correct, the reproducer of past thread is misleading.
+>>
+>> dma_thread.c in
+>> http://lkml.indiana.edu/hypermail/linux/kernel/0903.1/01498.html has
+>> align parameter. But it doesn't only change align. Because of, every
+>> worker thread read 4K (pagesize), then
+>> =C2=A0- when offset is page aligned
+>> =C2=A0 =C2=A0 -> every page is accessed from only one worker
+>> =C2=A0- when offset is not page aligned
+>> =C2=A0 =C2=A0 -> every page is accessed from two workers
+>>
+>> But I don't remember why two threads are important things. hmm.. I'm
+>> looking into the code a while.
+>> Please don't 100% trust me.
+>
+> I bet Andrea or Larry would remember the details.
 
-No, Chris wrote this version on Mon, 30 Apr 2012, but gmail,
-or its intereaction with imap, is too confused to grasp that.
+KOSAKI-san is correct, I think.
 
-> Commit 66aebce747eaf added code to avoid a race condition by
-> elevating the page refcount in hugetlb_fault() while calling
-> hugetlb_cow().  However, one code path in hugetlb_cow() includes
-> an assertion that the page count is 1, whereas it may now also
-> have the value 2 in this path.  Consensus is that this BUG_ON
-> has served its purpose, so rather than extending it to cover both
-> cases, we just remove it.
-> 
-> Signed-off-by: Chris Metcalf <cmetcalf@tilera.com>
+The race is something like this:
 
-Acked-by: Hugh Dickins <hughd@google.com>
-Cc: stable@vger.kernel.org
+DIO-read
+    page =3D get_user_pages()
+                                                        fork()
+                                                            COW(page)
+                                                         touch(page)
+    DMA(page)
+    page_cache_release(page);
 
-It is rather important that we Cc stable on this, since the
-earlier fix triggering this BUG went out in 3.0.29, 3.2.16 and 3.3.3
-stable.  Sadly, 3.2.16 was the end of the 3.2 line...
+So whether parent or child touches the page, determines who gets the
+actual DMA target, and who gets the copy.
 
-> ---
->  mm/hugetlb.c |    1 -
->  1 files changed, 0 insertions(+), 1 deletions(-)
-> 
-> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-> index cd65cb1..baaad5d 100644
-> --- a/mm/hugetlb.c
-> +++ b/mm/hugetlb.c
-> @@ -2498,7 +2498,6 @@ retry_avoidcopy:
->  		if (outside_reserve) {
->  			BUG_ON(huge_pte_none(pte));
->  			if (unmap_ref_private(mm, vma, old_page, address)) {
-> -				BUG_ON(page_count(old_page) != 1);
->  				BUG_ON(huge_pte_none(pte));
->  				spin_lock(&mm->page_table_lock);
->  				ptep = huge_pte_offset(mm, address & huge_page_mask(h));
-> -- 
-> 1.6.5.2
+2 threads are not required, but it makes the race easier to code and a
+larger window, I suspect.
+
+It can also be hit with a single thread, using AIO.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
