@@ -1,71 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx129.postini.com [74.125.245.129])
-	by kanga.kvack.org (Postfix) with SMTP id 0FCD26B004D
-	for <linux-mm@kvack.org>; Tue,  1 May 2012 16:24:53 -0400 (EDT)
-Date: Tue, 1 May 2012 13:24:49 -0700
+Received: from psmtp.com (na3sys010amx127.postini.com [74.125.245.127])
+	by kanga.kvack.org (Postfix) with SMTP id 9C09B6B004D
+	for <linux-mm@kvack.org>; Tue,  1 May 2012 17:03:17 -0400 (EDT)
+Date: Tue, 1 May 2012 14:03:14 -0700
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [patch 2/5] mm + fs: prepare for non-page entries in page cache
-Message-Id: <20120501132449.30485966.akpm@linux-foundation.org>
-In-Reply-To: <20120501201504.GB2112@cmpxchg.org>
-References: <1335861713-4573-1-git-send-email-hannes@cmpxchg.org>
-	<1335861713-4573-3-git-send-email-hannes@cmpxchg.org>
-	<20120501120246.83d2ce28.akpm@linux-foundation.org>
-	<20120501201504.GB2112@cmpxchg.org>
+Subject: Re: [PATCH RESEND] memcg: Free spare array to avoid memory leak
+Message-Id: <20120501140314.1d7312fb.akpm@linux-foundation.org>
+In-Reply-To: <1334825690-9065-1-git-send-email-handai.szj@taobao.com>
+References: <1334825690-9065-1-git-send-email-handai.szj@taobao.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: linux-mm@kvack.org, Rik van Riel <riel@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan.kim@gmail.com>, Hugh Dickins <hughd@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Sha Zhengju <handai.szj@gmail.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, Sha Zhengju <handai.szj@taobao.com>
 
-On Tue, 1 May 2012 22:15:04 +0200
-Johannes Weiner <hannes@cmpxchg.org> wrote:
+On Thu, 19 Apr 2012 16:54:50 +0800
+Sha Zhengju <handai.szj@gmail.com> wrote:
 
-> On Tue, May 01, 2012 at 12:02:46PM -0700, Andrew Morton wrote:
-> > On Tue,  1 May 2012 10:41:50 +0200
-> > Johannes Weiner <hannes@cmpxchg.org> wrote:
-> > 
-> > > --- a/fs/inode.c
-> > > +++ b/fs/inode.c
-> > > @@ -544,8 +544,7 @@ static void evict(struct inode *inode)
-> > >  	if (op->evict_inode) {
-> > >  		op->evict_inode(inode);
-> > >  	} else {
-> > > -		if (inode->i_data.nrpages)
-> > > -			truncate_inode_pages(&inode->i_data, 0);
-> > > +		truncate_inode_pages(&inode->i_data, 0);
-> > 
-> > Why did we lose this optimisation?
+> From: Sha Zhengju <handai.szj@taobao.com>
 > 
-> For inodes with only shadow pages remaining in the tree, because there
-> is no separate counter for them.  Otherwise, we'd leak the tree nodes.
-> 
-> I had mapping->nrshadows at first to keep truncation conditional, but
-> thought that using an extra word per cached inode would be worse than
-> removing this optimization.  There is not too much being done when the
-> tree is empty.
-> 
-> Another solution would be to include the shadows count in ->nrpages,
-> but filesystems use this counter for various other purposes.
-> 
-> Do you think it's worth reconsidering?
+> When the last event is unregistered, there is no need to keep the spare
+> array anymore. So free it to avoid memory leak.
 
-It doesn't sound like it's worth adding ->nrshadows for only that
-reason.
+How serious is this leak?  Is there any way in which it can be used to
+consume unbounded amounts of memory?
 
-That's a pretty significant alteration in the meaning of ->nrpages. 
-Did this not have any other effects?
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -4412,6 +4412,12 @@ static void mem_cgroup_usage_unregister_event(struct cgroup *cgrp,
+>  swap_buffers:
+>  	/* Swap primary and spare array */
+>  	thresholds->spare = thresholds->primary;
+> +	/* If all events are unregistered, free the spare array */
+> +	if (!new) {
+> +		kfree(thresholds->spare);
+> +		thresholds->spare = NULL;
+> +	}
+> +
+>  	rcu_assign_pointer(thresholds->primary, new);
+>  
 
-What does truncate do?  I assume it invalidates shadow page entries in
-the radix tree?  And frees the radix-tree nodes?
+The resulting code is really quite convoluted.  Try to read through it
+and follow the handling of ->primary and ->spare.  Head spins.
 
-The patchset will make lookups slower in some (probably obscure)
-circumstances, due to the additional radix-tree nodes.
+What is the protocol here?  If ->primary is NULL then ->spare must also
+be NULL?
 
-I assume that if a pagecache lookup encounters a radix-tree node which
-contains no real pages, the search will terminate at that point?  We
-don't pointlessly go all the way down to the leaf nodes?
+
+I'll apply the patch, although I don't (yet) have sufficient info to
+know which kernels it should be applied to.  Perhaps someone could
+revisit this code and see if it can be made more straightforward.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
