@@ -1,34 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx138.postini.com [74.125.245.138])
-	by kanga.kvack.org (Postfix) with SMTP id A94B96B0044
-	for <linux-mm@kvack.org>; Tue,  1 May 2012 02:49:56 -0400 (EDT)
-Received: by obbwd18 with SMTP id wd18so2977660obb.14
-        for <linux-mm@kvack.org>; Mon, 30 Apr 2012 23:49:55 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx170.postini.com [74.125.245.170])
+	by kanga.kvack.org (Postfix) with SMTP id 4F9846B0044
+	for <linux-mm@kvack.org>; Tue,  1 May 2012 03:20:53 -0400 (EDT)
+Received: by obbwd18 with SMTP id wd18so3005948obb.14
+        for <linux-mm@kvack.org>; Tue, 01 May 2012 00:20:52 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <1335778207-6511-1-git-send-email-jack@suse.cz>
-References: <1335778207-6511-1-git-send-email-jack@suse.cz>
-Date: Tue, 1 May 2012 16:49:55 +1000
-Message-ID: <CAPa8GCC_w3h8KS5rmQDt=rx1bw10rHVD5Pz_eqLhG3xw5uPUwg@mail.gmail.com>
-Subject: Re: [PATCH] Describe race of direct read and fork for unaligned buffers
+In-Reply-To: <20120424143015.99fd8d4a.akpm@linux-foundation.org>
+References: <1335171318-4838-1-git-send-email-minchan@kernel.org>
+	<4F963742.2030607@jp.fujitsu.com>
+	<4F963B8E.9030105@kernel.org>
+	<CAPa8GCA8q=S9sYx-0rDmecPxYkFs=gATGL-Dz0OYXDkwEECJkg@mail.gmail.com>
+	<4F965413.9010305@kernel.org>
+	<CAPa8GCCwfCFO6yxwUP5Qp9O1HGUqEU2BZrrf50w8TL9FH9vbrA@mail.gmail.com>
+	<20120424143015.99fd8d4a.akpm@linux-foundation.org>
+Date: Tue, 1 May 2012 17:20:52 +1000
+Message-ID: <CAPa8GCC53668tkOisHL--DBvu7+_SDe2m_doxT=4O28c9RHXXg@mail.gmail.com>
+Subject: Re: [RFC] propagate gfp_t to page table alloc functions
 From: Nick Piggin <npiggin@gmail.com>
 Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jan Kara <jack@suse.cz>
-Cc: Michael Kerrisk <mtk.manpages@gmail.com>, LKML <linux-kernel@vger.kernel.org>, linux-man@vger.kernel.org, linux-mm@kvack.org, mgorman@suse.de, Jeff Moyer <jmoyer@redhat.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Minchan Kim <minchan@kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Ingo Molnar <mingo@redhat.com>, x86@kernel.org, Hugh Dickins <hughd@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, kosaki.motohiro@jp.fujitsu.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On 30 April 2012 19:30, Jan Kara <jack@suse.cz> wrote:
-> This is a long standing problem (or a surprising feature) in our implementation
-> of get_user_pages() (used by direct IO). Since several attempts to fix it
-> failed (e.g.
-> http://linux.derkeiler.com/Mailing-Lists/Kernel/2009-04/msg06542.html, or
-> http://lkml.indiana.edu/hypermail/linux/kernel/0903.1/01498.html refused in
-> http://comments.gmane.org/gmane.linux.kernel.mm/31569) and it's not completely
-> clear whether we really want to fix it given the costs, let's at least document
-> it.
+On 25 April 2012 07:30, Andrew Morton <akpm@linux-foundation.org> wrote:
+> On Tue, 24 Apr 2012 17:48:29 +1000
+> Nick Piggin <npiggin@gmail.com> wrote:
+>
+>> > Hmm, there are several places to use GFP_NOIO and GFP_NOFS even, GFP_A=
+TOMIC.
+>> > I believe it's not trivial now.
+>>
+>> They're all buggy then. Unfortunately not through any real fault of thei=
+r own.
+>
+> There are gruesome problems in block/blk-throttle.c (thread "mempool,
+> percpu, blkcg: fix percpu stat allocation and remove stats_lock"). =A0It
+> wants to do an alloc_percpu()->vmalloc() from the IO submission path,
+> under GFP_NOIO.
 
-In any case, it should be documented even if it is ever fixed in newer
-kernels. Thanks!
+Yeah, that sucks. CFQ has something similar.
+
+Should just allocate it up front when creating a throttled group.
+Allocate and init when it first gets used schemes are usually pretty
+problematic. Is it *really* warranted to do it lazily like this?
+
+> Changing vmalloc() to take a gfp_t does make lots of sense, although I
+> worry a bit about making vmalloc() easier to use!
+>
+> I do wonder whether the whole scheme of explicitly passing a gfp_t was
+> a mistake and that the allocation context should be part of the task
+> context. =A0ie: pass the allocation mode via *current. =A0As a handy
+> side-effect that would probably save quite some code where functions
+> are receiving a gfp_t arg then simply passing it on to the next
+> callee.
+
+Both paragraphs make a lot of sense. Conceptually. :)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
