@@ -1,101 +1,100 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx154.postini.com [74.125.245.154])
-	by kanga.kvack.org (Postfix) with SMTP id 9D10D6B004D
-	for <linux-mm@kvack.org>; Tue,  1 May 2012 17:30:09 -0400 (EDT)
-Date: Tue, 1 May 2012 23:29:58 +0200
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [patch 2/5] mm + fs: prepare for non-page entries in page cache
-Message-ID: <20120501212958.GC2112@cmpxchg.org>
-References: <1335861713-4573-1-git-send-email-hannes@cmpxchg.org>
- <1335861713-4573-3-git-send-email-hannes@cmpxchg.org>
- <20120501120246.83d2ce28.akpm@linux-foundation.org>
- <20120501201504.GB2112@cmpxchg.org>
- <20120501132449.30485966.akpm@linux-foundation.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20120501132449.30485966.akpm@linux-foundation.org>
+Received: from psmtp.com (na3sys010amx141.postini.com [74.125.245.141])
+	by kanga.kvack.org (Postfix) with SMTP id 48C936B004D
+	for <linux-mm@kvack.org>; Tue,  1 May 2012 18:08:19 -0400 (EDT)
+Date: Tue, 1 May 2012 15:08:13 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH 05/16] mm: allow PF_MEMALLOC from softirq context
+Message-Id: <20120501150813.657cd5c0.akpm@linux-foundation.org>
+In-Reply-To: <1334578624-23257-6-git-send-email-mgorman@suse.de>
+References: <1334578624-23257-1-git-send-email-mgorman@suse.de>
+	<1334578624-23257-6-git-send-email-mgorman@suse.de>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, Rik van Riel <riel@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan.kim@gmail.com>, Hugh Dickins <hughd@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Mel Gorman <mgorman@suse.de>
+Cc: Linux-MM <linux-mm@kvack.org>, Linux-Netdev <netdev@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, David Miller <davem@davemloft.net>, Neil Brown <neilb@suse.de>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Mike Christie <michaelc@cs.wisc.edu>, Eric B Munson <emunson@mgebm.net>
 
-On Tue, May 01, 2012 at 01:24:49PM -0700, Andrew Morton wrote:
-> On Tue, 1 May 2012 22:15:04 +0200
-> Johannes Weiner <hannes@cmpxchg.org> wrote:
+On Mon, 16 Apr 2012 13:16:52 +0100
+Mel Gorman <mgorman@suse.de> wrote:
+
+> This is needed to allow network softirq packet processing to make
+> use of PF_MEMALLOC.
+
+hm, why?  You just added __GFP_MEMALLOC so we don't need to futz with
+PF_MEMALLOC?
+
+> Currently softirq context cannot use PF_MEMALLOC due to it not being
+> associated with a task, and therefore not having task flags to fiddle
+> with - thus the gfp to alloc flag mapping ignores the task flags when
+> in interrupts (hard or soft) context.
 > 
-> > On Tue, May 01, 2012 at 12:02:46PM -0700, Andrew Morton wrote:
-> > > On Tue,  1 May 2012 10:41:50 +0200
-> > > Johannes Weiner <hannes@cmpxchg.org> wrote:
-> > > 
-> > > > --- a/fs/inode.c
-> > > > +++ b/fs/inode.c
-> > > > @@ -544,8 +544,7 @@ static void evict(struct inode *inode)
-> > > >  	if (op->evict_inode) {
-> > > >  		op->evict_inode(inode);
-> > > >  	} else {
-> > > > -		if (inode->i_data.nrpages)
-> > > > -			truncate_inode_pages(&inode->i_data, 0);
-> > > > +		truncate_inode_pages(&inode->i_data, 0);
-> > > 
-> > > Why did we lose this optimisation?
-> > 
-> > For inodes with only shadow pages remaining in the tree, because there
-> > is no separate counter for them.  Otherwise, we'd leak the tree nodes.
-> > 
-> > I had mapping->nrshadows at first to keep truncation conditional, but
-> > thought that using an extra word per cached inode would be worse than
-> > removing this optimization.  There is not too much being done when the
-> > tree is empty.
-> > 
-> > Another solution would be to include the shadows count in ->nrpages,
-> > but filesystems use this counter for various other purposes.
-> > 
-> > Do you think it's worth reconsidering?
+> Allowing softirqs to make use of PF_MEMALLOC therefore requires some
+> trickery.  We basically borrow the task flags from whatever process
+> happens to be preempted by the softirq.
 > 
-> It doesn't sound like it's worth adding ->nrshadows for only that
-> reason.
+> So we modify the gfp to alloc flags mapping to not exclude task flags
+> in softirq context, and modify the softirq code to save, clear and
+> restore the PF_MEMALLOC flag.
 > 
-> That's a pretty significant alteration in the meaning of ->nrpages. 
-> Did this not have any other effects?
-
-It still means "number of page entries in radix tree", just that the
-radix tree can be non-empty when this count drops to zero.  AFAICS,
-it's used when writing/syncing the inode or when gathering statistics,
-like nr_blockdev_pages().  They only care about actual pages.  It's
-just the final truncate that has to make sure to remove the non-pages
-as well.
-
-> What does truncate do?  I assume it invalidates shadow page entries in
-> the radix tree?  And frees the radix-tree nodes?
-
-Yes, it just does a radix_tree_delete() on these shadow page entries,
-see clear_exceptional_entry() in mm/truncate.c.  This garbage-collects
-empty nodes.
-
-> The patchset will make lookups slower in some (probably obscure)
-> circumstances, due to the additional radix-tree nodes.
+> The save and clear, ensures the preempted task's PF_MEMALLOC flag
+> doesn't leak into the softirq. The restore ensures a softirq's
+> PF_MEMALLOC flag cannot leak back into the preempted process.
 > 
-> I assume that if a pagecache lookup encounters a radix-tree node which
-> contains no real pages, the search will terminate at that point?  We
-> don't pointlessly go all the way down to the leaf nodes?
+> ...
+>
+> --- a/include/linux/sched.h
+> +++ b/include/linux/sched.h
+> @@ -1913,6 +1913,13 @@ static inline void rcu_copy_process(struct task_struct *p)
+>  
+>  #endif
+>  
+> +static inline void tsk_restore_flags(struct task_struct *p,
+> +				     unsigned long pflags, unsigned long mask)
 
-When reading/instantiating it's not pointless.  Empty slots or shadow
-slots are faults and we have to retrieve the shadow entries to
-calculate the refault distance.
+The naming is poor.
 
-When writing: dirtied pages are tagged, and tags are propagated
-upwards in the tree, so we don't check any more nodes than before.
-For leaf nodes (64 slots) where shadow entries and dirty pages mix,
-the cost of skipping shadow entries is a bit bigger than that of empty
-slots (see the radix_tree_exception branch in find_get_pages(), which
-Hugh added to handle shmem's swap entries).
+p -> "tsk" or "task"
+pflags -> "old_flags"
+mask -> "flags"
 
-Then there are filesystems that do page cache lookups for population
-analysis/heuristics, they could indeed pointlessly descend to leaf
-nodes that only contain non-page entries.  I haven't investigated yet
-how hot these paths actuallly are.  If this turns out to be a problem,
-we could add another tag and trade tree size for performance.
+> +{
+> +	p->flags &= ~mask;
+> +	p->flags |= pflags & mask;
+> +}
+> +
+>  #ifdef CONFIG_SMP
+>  extern void do_set_cpus_allowed(struct task_struct *p,
+>  			       const struct cpumask *new_mask);
+> diff --git a/kernel/softirq.c b/kernel/softirq.c
+> index 671f959..d349caa 100644
+> --- a/kernel/softirq.c
+> +++ b/kernel/softirq.c
+> @@ -210,6 +210,8 @@ asmlinkage void __do_softirq(void)
+>  	__u32 pending;
+>  	int max_restart = MAX_SOFTIRQ_RESTART;
+>  	int cpu;
+> +	unsigned long pflags = current->flags;
+
+"old_flags"
+
+> +	current->flags &= ~PF_MEMALLOC;
+
+The line before this one would be a suitable place for a comment!
+
+>  	pending = local_softirq_pending();
+>  	account_system_vtime(current);
+> @@ -265,6 +267,7 @@ restart:
+>  
+>  	account_system_vtime(current);
+>  	__local_bh_enable(SOFTIRQ_OFFSET);
+> +	tsk_restore_flags(current, pflags, PF_MEMALLOC);
+>  }
+>  
+> ...
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
