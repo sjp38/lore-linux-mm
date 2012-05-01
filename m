@@ -1,127 +1,187 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx181.postini.com [74.125.245.181])
-	by kanga.kvack.org (Postfix) with SMTP id 9EABD6B0092
-	for <linux-mm@kvack.org>; Tue,  1 May 2012 18:28:48 -0400 (EDT)
-Received: by qafl39 with SMTP id l39so33332qaf.9
-        for <linux-mm@kvack.org>; Tue, 01 May 2012 15:28:47 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <4F9A375D.7@jp.fujitsu.com>
-References: <4F9A327A.6050409@jp.fujitsu.com>
-	<4F9A375D.7@jp.fujitsu.com>
-Date: Tue, 1 May 2012 15:28:47 -0700
-Message-ID: <CABCjUKBhNkGf2QHzONMod3HmHgS-HxB5hUxpfJFHUG-eBkYBRw@mail.gmail.com>
-Subject: Re: [RFC][PATCH 9/9 v2] memcg: never return error at pre_destroy()
-From: Suleiman Souhlal <suleiman@google.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Received: from psmtp.com (na3sys010amx196.postini.com [74.125.245.196])
+	by kanga.kvack.org (Postfix) with SMTP id 0CFBC6B004D
+	for <linux-mm@kvack.org>; Tue,  1 May 2012 18:53:31 -0400 (EDT)
+Date: Tue, 1 May 2012 15:53:08 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH 04/11] mm: Add support for a filesystem to activate swap
+ files and use direct_IO for writing swap pages
+Message-Id: <20120501155308.5679a09b.akpm@linux-foundation.org>
+In-Reply-To: <1334578675-23445-5-git-send-email-mgorman@suse.de>
+References: <1334578675-23445-1-git-send-email-mgorman@suse.de>
+	<1334578675-23445-5-git-send-email-mgorman@suse.de>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Linux Kernel <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "cgroups@vger.kernel.org" <cgroups@vger.kernel.org>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Frederic Weisbecker <fweisbec@gmail.com>, Glauber Costa <glommer@parallels.com>, Tejun Heo <tj@kernel.org>, Han Ying <yinghan@google.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, kamezawa.hiroyuki@gmail.com
+To: Mel Gorman <mgorman@suse.de>
+Cc: Linux-MM <linux-mm@kvack.org>, Linux-Netdev <netdev@vger.kernel.org>, Linux-NFS <linux-nfs@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, David Miller <davem@davemloft.net>, Trond Myklebust <Trond.Myklebust@netapp.com>, Neil Brown <neilb@suse.de>, Christoph Hellwig <hch@infradead.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Mike Christie <michaelc@cs.wisc.edu>, Eric B Munson <emunson@mgebm.net>
 
-2012/4/26 KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>:
-> When force_empty() called by ->pre_destroy(), no memory reclaim happens
-> and it doesn't take very long time which requires signal_pending() check.
-> And if we return -EINTR from pre_destroy(), cgroup.c show warning.
->
-> This patch removes signal check in force_empty(). By this, ->pre_destroy(=
-)
-> returns success always.
->
-> Note: check for 'cgroup is empty' remains for force_empty interface.
->
-> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> ---
-> =A0mm/hugetlb.c =A0 =A0| =A0 10 +---------
-> =A0mm/memcontrol.c | =A0 14 +++++---------
-> =A02 files changed, 6 insertions(+), 18 deletions(-)
->
-> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-> index 4dd6b39..770f1642 100644
-> --- a/mm/hugetlb.c
-> +++ b/mm/hugetlb.c
-> @@ -1922,20 +1922,12 @@ int hugetlb_force_memcg_empty(struct cgroup *cgro=
-up)
-> =A0 =A0 =A0 =A0int ret =3D 0, idx =3D 0;
->
-> =A0 =A0 =A0 =A0do {
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 /* see memcontrol.c::mem_cgroup_force_empty=
-() */
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0if (cgroup_task_count(cgroup)
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0|| !list_empty(&cgroup->ch=
-ildren)) {
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0ret =3D -EBUSY;
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0goto out;
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0}
-> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 /*
-> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0* If the task doing the cgroup_rmdir got=
- a signal
-> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0* we don't really need to loop till the =
-hugetlb resource
-> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0* usage become zero.
-> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0*/
-> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (signal_pending(current)) {
-> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 ret =3D -EINTR;
-> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 goto out;
-> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 }
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0for_each_hstate(h) {
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0spin_lock(&hugetlb_lock);
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0list_for_each_entry(page, =
-&h->hugepage_activelist, lru) {
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index 2715223..ee350c5 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -3852,8 +3852,6 @@ static int mem_cgroup_force_empty_list(struct mem_c=
-group *memcg,
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0pc =3D lookup_page_cgroup(page);
->
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0ret =3D mem_cgroup_move_parent(page, pc, m=
-emcg, GFP_KERNEL);
-> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (ret =3D=3D -ENOMEM || ret =3D=3D -EINTR=
-)
-> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 break;
->
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0if (ret =3D=3D -EBUSY || ret =3D=3D -EINVA=
-L) {
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0/* found lock contention o=
-r "pc" is obsolete. */
-> @@ -3863,7 +3861,7 @@ static int mem_cgroup_force_empty_list(struct mem_c=
-group *memcg,
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0busy =3D NULL;
-> =A0 =A0 =A0 =A0}
->
-> - =A0 =A0 =A0 if (!ret && !list_empty(list))
-> + =A0 =A0 =A0 if (!loop)
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0return -EBUSY;
-> =A0 =A0 =A0 =A0return ret;
-> =A0}
-> @@ -3893,11 +3891,12 @@ static int mem_cgroup_force_empty(struct mem_cgro=
-up *memcg, bool free_all)
-> =A0move_account:
-> =A0 =A0 =A0 =A0do {
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0ret =3D -EBUSY;
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 /*
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0* This never happens when this is called=
- by ->pre_destroy().
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0* But we need to take care of force_empt=
-y interface.
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0*/
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0if (cgroup_task_count(cgrp) || !list_empty=
-(&cgrp->children))
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0goto out;
+On Mon, 16 Apr 2012 13:17:48 +0100
+Mel Gorman <mgorman@suse.de> wrote:
 
-Are you sure this never happens when called by ->pre_destroy()?
-Can't a task still get attached to the cgroup while ->pre_destroy() is runn=
-ing?
+> Currently swapfiles are managed entirely by the core VM by using ->bmap
+> to allocate space and write to the blocks directly. This effectively
+> ensures that the underlying blocks are allocated and avoids the need
+> for the swap subsystem to locate what physical blocks store offsets
+> within a file.
+> 
+> If the swap subsystem is to use the filesystem information to locate
+> the blocks, it is critical that information such as block groups,
+> block bitmaps and the block descriptor table that map the swap file
+> were resident in memory. This patch adds address_space_operations that
+> the VM can call when activating or deactivating swap backed by a file.
+> 
+>   int swap_activate(struct file *);
+>   int swap_deactivate(struct file *);
+> 
+> The ->swap_activate() method is used to communicate to the
+> file that the VM relies on it, and the address_space should take
+> adequate measures such as reserving space in the underlying device,
+> reserving memory for mempools and pinning information such as the
+> block descriptor table in memory. The ->swap_deactivate() method is
+> called on sys_swapoff() if ->swap_activate() returned success.
+> 
+> After a successful swapfile ->swap_activate, the swapfile
+> is marked SWP_FILE and swapper_space.a_ops will proxy to
+> sis->swap_file->f_mappings->a_ops using ->direct_io to write swapcache
+> pages and ->readpage to read.
+> 
+> It is perfectly possible that direct_IO be used to read the swap
+> pages but it is an unnecessary complication. Similarly, it is possible
+> that ->writepage be used instead of direct_io to write the pages but
+> filesystem developers have stated that calling writepage from the VM
+> is undesirable for a variety of reasons and using direct_IO opens up
+> the possibility of writing back batches of swap pages in the future.
 
-At least, I don't see anything in the cgroup code that prevents
-someone from newly attaching a task at that point.
-In fact, there is code that seems to handle the case when someone
-attached to the cgroup after pre_destroy() has run: See the
-cgroup_wakeup_rmdir_waiter() call in cgroup_attach_task().
+This all seems a bit odd.  And abusive.
 
--- Suleiman
+Yes, it would be more pleasing if direct-io was used for reading as
+well.  How much more complication would it add?
+
+If I understand correctly, on the read path we're taking a fresh page
+which is destined for swapcache and then pretending that it is a
+pagecache page for the purpose of the I/O?  If there already existed a
+pagecache page for that file offset then we let it just sit there and
+bypass it?
+
+I'm surprised that this works at all - I guess nothing under
+->readpage() goes poking around in the address_space.  For NFS, at
+least!
+
+>
+> ...
+>
+> @@ -93,11 +94,38 @@ int swap_writepage(struct page *page, struct writeback_control *wbc)
+>  {
+>  	struct bio *bio;
+>  	int ret = 0, rw = WRITE;
+> +	struct swap_info_struct *sis = page_swap_info(page);
+>  
+>  	if (try_to_free_swap(page)) {
+>  		unlock_page(page);
+>  		goto out;
+>  	}
+> +
+> +	if (sis->flags & SWP_FILE) {
+> +		struct kiocb kiocb;
+> +		struct file *swap_file = sis->swap_file;
+> +		struct address_space *mapping = swap_file->f_mapping;
+> +		struct iovec iov = {
+> +			.iov_base = page_address(page),
+
+Didn't we need to kmap the page?
+
+> +			.iov_len  = PAGE_SIZE,
+> +		};
+> +
+> +		init_sync_kiocb(&kiocb, swap_file);
+> +		kiocb.ki_pos = page_file_offset(page);
+> +		kiocb.ki_left = PAGE_SIZE;
+> +		kiocb.ki_nbytes = PAGE_SIZE;
+> +
+> +		unlock_page(page);
+> +		ret = mapping->a_ops->direct_IO(KERNEL_WRITE,
+> +						&kiocb, &iov,
+> +						kiocb.ki_pos, 1);
+
+I wonder if there's any point in setting PG_writeback around the IO.  I
+can't think of a reason.
+
+> +		if (ret == PAGE_SIZE) {
+> +			count_vm_event(PSWPOUT);
+> +			ret = 0;
+> +		}
+> +		return ret;
+> +	}
+> +
+>  	bio = get_swap_bio(GFP_NOIO, page, end_swap_bio_write);
+>  	if (bio == NULL) {
+>  		set_page_dirty(page);
+> @@ -119,9 +147,21 @@ int swap_readpage(struct page *page)
+>  {
+>  	struct bio *bio;
+>  	int ret = 0;
+> +	struct swap_info_struct *sis = page_swap_info(page);
+>  
+>  	VM_BUG_ON(!PageLocked(page));
+>  	VM_BUG_ON(PageUptodate(page));
+> +
+> +	if (sis->flags & SWP_FILE) {
+> +		struct file *swap_file = sis->swap_file;
+> +		struct address_space *mapping = swap_file->f_mapping;
+> +
+> +		ret = mapping->a_ops->readpage(swap_file, page);
+> +		if (!ret)
+> +			count_vm_event(PSWPIN);
+> +		return ret;
+> +	}
+
+Confused.  Where did we set up page->index with the file offset?
+
+>  	bio = get_swap_bio(GFP_KERNEL, page, end_swap_bio_read);
+>  	if (bio == NULL) {
+>  		unlock_page(page);
+> @@ -133,3 +173,15 @@ int swap_readpage(struct page *page)
+>  out:
+>  	return ret;
+>  }
+> +
+> +int swap_set_page_dirty(struct page *page)
+> +{
+> +	struct swap_info_struct *sis = page_swap_info(page);
+> +
+> +	if (sis->flags & SWP_FILE) {
+> +		struct address_space *mapping = sis->swap_file->f_mapping;
+> +		return mapping->a_ops->set_page_dirty(page);
+> +	} else {
+> +		return __set_page_dirty_nobuffers(page);
+> +	}
+> +}
+
+More confused.  This is a swapcache page, not a pagecache page?  Why
+are we running set_page_dirty() against it?
+
+And what are we doing on the !SWP_FILE path?  Newly setting PG_dirty
+against block-device-backed swapcache pages?  Why?  Where does it get
+cleared again?
+
+> diff --git a/mm/swap_state.c b/mm/swap_state.c
+> index 9d3dd37..c25b9cf 100644
+> --- a/mm/swap_state.c
+> +++ b/mm/swap_state.c
+> @@ -26,7 +26,7 @@
+>   */
+>  static const struct address_space_operations swap_aops = {
+>  	.writepage	= swap_writepage,
+> -	.set_page_dirty	= __set_page_dirty_nobuffers,
+> +	.set_page_dirty	= swap_set_page_dirty,
+>  	.migratepage	= migrate_page,
+>  };
+>
+> ...
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
