@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx207.postini.com [74.125.245.207])
-	by kanga.kvack.org (Postfix) with SMTP id 4E1776B0044
-	for <linux-mm@kvack.org>; Tue,  1 May 2012 04:43:18 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx140.postini.com [74.125.245.140])
+	by kanga.kvack.org (Postfix) with SMTP id 7543D6B00E8
+	for <linux-mm@kvack.org>; Tue,  1 May 2012 04:43:21 -0400 (EDT)
 From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: [patch 2/5] mm + fs: prepare for non-page entries in page cache
-Date: Tue,  1 May 2012 10:41:50 +0200
-Message-Id: <1335861713-4573-3-git-send-email-hannes@cmpxchg.org>
+Subject: [patch 4/5] mm + fs: provide refault distance to page cache instantiations
+Date: Tue,  1 May 2012 10:41:52 +0200
+Message-Id: <1335861713-4573-5-git-send-email-hannes@cmpxchg.org>
 In-Reply-To: <1335861713-4573-1-git-send-email-hannes@cmpxchg.org>
 References: <1335861713-4573-1-git-send-email-hannes@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
@@ -13,832 +13,611 @@ List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
 Cc: Rik van Riel <riel@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Minchan Kim <minchan.kim@gmail.com>, Hugh Dickins <hughd@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
 
-shmem mappings already contain exceptional entries where swap slot
-information is remembered.
+The page allocator needs to be given the non-residency information
+stored in the page cache at the time the page is faulted back in.
 
-To be able to store eviction information for regular page cache,
-prepare every site dealing with the radix trees directly to handle
-non-page entries.
+Every site that does a find_or_create()-style allocation is converted
+to pass this refault information to the page_cache_alloc() family of
+functions, which in turn passes it down to the page allocator via
+current->refault_distance.
 
-The common lookup functions will filter out non-page entries and
-return NULL for page cache holes, just as before.  But provide a raw
-version of the API which returns non-page entries as well, and switch
-shmem over to use it.
+XXX: Pages are charged to memory cgroups only when being added to the
+page cache, and, in case of multi-page reads, allocation and addition
+happen in separate batches.  To communicate the individual refault
+distance to the memory controller, the refault distance is stored in
+page->private between allocation and add_to_page_cache().  memcg does
+not do anything with it yet, though, but it will use it when charging
+requires reclaiming (hard limit reclaim).
 
 Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
 ---
- fs/btrfs/compression.c   |    2 +-
- fs/btrfs/extent_io.c     |    3 +-
- fs/inode.c               |    3 +-
- fs/nilfs2/inode.c        |    6 +--
- include/linux/mm.h       |    8 +++
- include/linux/pagemap.h  |   13 +++--
- include/linux/pagevec.h  |    3 +
- include/linux/shmem_fs.h |    1 +
- mm/filemap.c             |  124 +++++++++++++++++++++++++++++++++++++++-------
- mm/mincore.c             |   20 +++++--
- mm/readahead.c           |   12 +++-
- mm/shmem.c               |   89 +++++----------------------------
- mm/swap.c                |   21 ++++++++
- mm/truncate.c            |   71 +++++++++++++++++++++------
- 14 files changed, 244 insertions(+), 132 deletions(-)
+ fs/btrfs/compression.c  |    8 +++--
+ fs/cachefiles/rdwr.c    |   26 +++++++++-----
+ fs/ceph/xattr.c         |    2 +-
+ fs/logfs/readwrite.c    |    9 +++--
+ fs/ntfs/file.c          |   11 ++++--
+ fs/splice.c             |   10 +++--
+ include/linux/pagemap.h |   28 ++++++++++-----
+ include/linux/sched.h   |    1 +
+ include/linux/swap.h    |    6 +++
+ mm/filemap.c            |   84 ++++++++++++++++++++++++++++++++---------------
+ mm/readahead.c          |    7 +++-
+ net/ceph/messenger.c    |    2 +-
+ net/ceph/pagelist.c     |    4 +-
+ net/ceph/pagevec.c      |    2 +-
+ 14 files changed, 134 insertions(+), 66 deletions(-)
 
 diff --git a/fs/btrfs/compression.c b/fs/btrfs/compression.c
-index d02c27c..a0594c9 100644
+index a0594c9..dc57e09 100644
 --- a/fs/btrfs/compression.c
 +++ b/fs/btrfs/compression.c
-@@ -472,7 +472,7 @@ static noinline int add_ra_bio_pages(struct inode *inode,
- 		rcu_read_lock();
- 		page = radix_tree_lookup(&mapping->page_tree, pg_index);
- 		rcu_read_unlock();
--		if (page) {
-+		if (page && !radix_tree_exceptional_entry(page)) {
- 			misses++;
- 			if (misses > 4)
+@@ -464,6 +464,8 @@ static noinline int add_ra_bio_pages(struct inode *inode,
+ 	end_index = (i_size_read(inode) - 1) >> PAGE_CACHE_SHIFT;
+ 
+ 	while (last_offset < compressed_end) {
++		unsigned long distance;
++
+ 		pg_index = last_offset >> PAGE_CACHE_SHIFT;
+ 
+ 		if (pg_index > end_index)
+@@ -478,12 +480,12 @@ static noinline int add_ra_bio_pages(struct inode *inode,
  				break;
-diff --git a/fs/btrfs/extent_io.c b/fs/btrfs/extent_io.c
-index a55fbe6..f78352d 100644
---- a/fs/btrfs/extent_io.c
-+++ b/fs/btrfs/extent_io.c
-@@ -3566,7 +3566,8 @@ inline struct page *extent_buffer_page(struct extent_buffer *eb,
- 	rcu_read_lock();
- 	p = radix_tree_lookup(&mapping->page_tree, i);
- 	rcu_read_unlock();
--
-+	if (radix_tree_exceptional_entry(p))
-+		p = NULL;
- 	return p;
- }
- 
-diff --git a/fs/inode.c b/fs/inode.c
-index 83ab215..645731f 100644
---- a/fs/inode.c
-+++ b/fs/inode.c
-@@ -544,8 +544,7 @@ static void evict(struct inode *inode)
- 	if (op->evict_inode) {
- 		op->evict_inode(inode);
- 	} else {
--		if (inode->i_data.nrpages)
--			truncate_inode_pages(&inode->i_data, 0);
-+		truncate_inode_pages(&inode->i_data, 0);
- 		end_writeback(inode);
- 	}
- 	if (S_ISBLK(inode->i_mode) && inode->i_bdev)
-diff --git a/fs/nilfs2/inode.c b/fs/nilfs2/inode.c
-index 8f7b95a..35b7e18 100644
---- a/fs/nilfs2/inode.c
-+++ b/fs/nilfs2/inode.c
-@@ -732,16 +732,14 @@ void nilfs_evict_inode(struct inode *inode)
- 	int ret;
- 
- 	if (inode->i_nlink || !ii->i_root || unlikely(is_bad_inode(inode))) {
--		if (inode->i_data.nrpages)
--			truncate_inode_pages(&inode->i_data, 0);
-+		truncate_inode_pages(&inode->i_data, 0);
- 		end_writeback(inode);
- 		nilfs_clear_inode(inode);
- 		return;
- 	}
- 	nilfs_transaction_begin(sb, &ti, 0); /* never fails */
- 
--	if (inode->i_data.nrpages)
--		truncate_inode_pages(&inode->i_data, 0);
-+	truncate_inode_pages(&inode->i_data, 0);
- 
- 	/* TODO: some of the following operations may fail.  */
- 	nilfs_truncate_bmap(ii, 0);
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index 17b27cd..0d5948b 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -873,6 +873,14 @@ extern bool skip_free_areas_node(unsigned int flags, int nid);
- int shmem_lock(struct file *file, int lock, struct user_struct *user);
- struct file *shmem_file_setup(const char *name, loff_t size, unsigned long flags);
- int shmem_zero_setup(struct vm_area_struct *);
-+#ifdef CONFIG_SHMEM
-+bool shmem_mapping(struct address_space *);
-+#else
-+static inline bool shmem_mapping(struct address_space *mapping)
-+{
-+	return false;
-+}
-+#endif
- 
- extern int can_do_mlock(void);
- extern int user_shm_lock(size_t, struct user_struct *);
-diff --git a/include/linux/pagemap.h b/include/linux/pagemap.h
-index cfaaa69..aba5b91 100644
---- a/include/linux/pagemap.h
-+++ b/include/linux/pagemap.h
-@@ -227,12 +227,13 @@ static inline struct page *page_cache_alloc_readahead(struct address_space *x)
- 
- typedef int filler_t(void *, struct page *);
- 
--extern struct page * find_get_page(struct address_space *mapping,
--				pgoff_t index);
--extern struct page * find_lock_page(struct address_space *mapping,
--				pgoff_t index);
--extern struct page * find_or_create_page(struct address_space *mapping,
--				pgoff_t index, gfp_t gfp_mask);
-+struct page *__find_get_page(struct address_space *, pgoff_t);
-+struct page *find_get_page(struct address_space *, pgoff_t);
-+struct page *__find_lock_page(struct address_space *, pgoff_t);
-+struct page *find_lock_page(struct address_space *, pgoff_t);
-+struct page *find_or_create_page(struct address_space *, pgoff_t, gfp_t);
-+unsigned __find_get_pages(struct address_space *, pgoff_t,  unsigned int,
-+			  struct page **, pgoff_t *);
- unsigned find_get_pages(struct address_space *mapping, pgoff_t start,
- 			unsigned int nr_pages, struct page **pages);
- unsigned find_get_pages_contig(struct address_space *mapping, pgoff_t start,
-diff --git a/include/linux/pagevec.h b/include/linux/pagevec.h
-index 2aa12b8..7520532 100644
---- a/include/linux/pagevec.h
-+++ b/include/linux/pagevec.h
-@@ -22,6 +22,9 @@ struct pagevec {
- 
- void __pagevec_release(struct pagevec *pvec);
- void __pagevec_lru_add(struct pagevec *pvec, enum lru_list lru);
-+unsigned __pagevec_lookup(struct pagevec *, struct address_space *,
-+			  pgoff_t, unsigned, pgoff_t *);
-+void pagevec_remove_exceptionals(struct pagevec *pvec);
- unsigned pagevec_lookup(struct pagevec *pvec, struct address_space *mapping,
- 		pgoff_t start, unsigned nr_pages);
- unsigned pagevec_lookup_tag(struct pagevec *pvec,
-diff --git a/include/linux/shmem_fs.h b/include/linux/shmem_fs.h
-index 79ab255..69444f1 100644
---- a/include/linux/shmem_fs.h
-+++ b/include/linux/shmem_fs.h
-@@ -48,6 +48,7 @@ extern struct file *shmem_file_setup(const char *name,
- 					loff_t size, unsigned long flags);
- extern int shmem_zero_setup(struct vm_area_struct *);
- extern int shmem_lock(struct file *file, int lock, struct user_struct *user);
-+extern bool shmem_mapping(struct address_space *);
- extern void shmem_unlock_mapping(struct address_space *mapping);
- extern struct page *shmem_read_mapping_page_gfp(struct address_space *mapping,
- 					pgoff_t index, gfp_t gfp_mask);
-diff --git a/mm/filemap.c b/mm/filemap.c
-index b662757..b8af34a 100644
---- a/mm/filemap.c
-+++ b/mm/filemap.c
-@@ -431,6 +431,24 @@ int replace_page_cache_page(struct page *old, struct page *new, gfp_t gfp_mask)
- }
- EXPORT_SYMBOL_GPL(replace_page_cache_page);
- 
-+static int page_cache_insert(struct address_space *mapping, pgoff_t offset,
-+			     struct page *page)
-+{
-+	void **slot;
-+
-+	slot = radix_tree_lookup_slot(&mapping->page_tree, offset);
-+	if (slot) {
-+		void *p;
-+
-+		p = radix_tree_deref_slot_protected(slot, &mapping->tree_lock);
-+		if (!radix_tree_exceptional_entry(p))
-+			return -EEXIST;
-+		radix_tree_replace_slot(slot, page);
-+		return 0;
-+	}
-+	return radix_tree_insert(&mapping->page_tree, offset, page);
-+}
-+
- /**
-  * add_to_page_cache_locked - add a locked page to the pagecache
-  * @page:	page to add
-@@ -461,7 +479,7 @@ int add_to_page_cache_locked(struct page *page, struct address_space *mapping,
- 		page->index = offset;
- 
- 		spin_lock_irq(&mapping->tree_lock);
--		error = radix_tree_insert(&mapping->page_tree, offset, page);
-+		error = page_cache_insert(mapping, offset, page);
- 		if (likely(!error)) {
- 			mapping->nrpages++;
- 			__inc_zone_page_state(page, NR_FILE_PAGES);
-@@ -664,15 +682,7 @@ int __lock_page_or_retry(struct page *page, struct mm_struct *mm,
- 	}
- }
- 
--/**
-- * find_get_page - find and get a page reference
-- * @mapping: the address_space to search
-- * @offset: the page index
-- *
-- * Is there a pagecache struct page at the given (mapping, offset) tuple?
-- * If yes, increment its refcount and return it; if no, return NULL.
-- */
--struct page *find_get_page(struct address_space *mapping, pgoff_t offset)
-+struct page *__find_get_page(struct address_space *mapping, pgoff_t offset)
- {
- 	void **pagep;
- 	struct page *page;
-@@ -713,22 +723,29 @@ out:
- 
- 	return page;
- }
--EXPORT_SYMBOL(find_get_page);
-+EXPORT_SYMBOL(__find_get_page);
- 
- /**
-- * find_lock_page - locate, pin and lock a pagecache page
-+ * find_get_page - find and get a page reference
-  * @mapping: the address_space to search
-  * @offset: the page index
-  *
-- * Locates the desired pagecache page, locks it, increments its reference
-- * count and returns its address.
-- *
-- * Returns zero if the page was not present. find_lock_page() may sleep.
-+ * Is there a pagecache struct page at the given (mapping, offset) tuple?
-+ * If yes, increment its refcount and return it; if no, return NULL.
-  */
--struct page *find_lock_page(struct address_space *mapping, pgoff_t offset)
-+struct page *find_get_page(struct address_space *mapping, pgoff_t offset)
- {
--	struct page *page;
-+	struct page *page = __find_get_page(mapping, offset);
-+
-+	if (radix_tree_exceptional_entry(page))
-+		page = NULL;
-+	return page;
-+}
-+EXPORT_SYMBOL(find_get_page);
- 
-+struct page *__find_lock_page(struct address_space *mapping, pgoff_t offset)
-+{
-+	struct page *page;
- repeat:
- 	page = find_get_page(mapping, offset);
- 	if (page && !radix_tree_exception(page)) {
-@@ -743,6 +760,25 @@ repeat:
- 	}
- 	return page;
- }
-+
-+/**
-+ * find_lock_page - locate, pin and lock a pagecache page
-+ * @mapping: the address_space to search
-+ * @offset: the page index
-+ *
-+ * Locates the desired pagecache page, locks it, increments its reference
-+ * count and returns its address.
-+ *
-+ * Returns zero if the page was not present. find_lock_page() may sleep.
-+ */
-+struct page *find_lock_page(struct address_space *mapping, pgoff_t offset)
-+{
-+	struct page *page = __find_lock_page(mapping, offset);
-+
-+	if (radix_tree_exceptional_entry(page))
-+		page = NULL;
-+	return page;
-+}
- EXPORT_SYMBOL(find_lock_page);
- 
- /**
-@@ -792,6 +828,54 @@ repeat:
- }
- EXPORT_SYMBOL(find_or_create_page);
- 
-+unsigned __find_get_pages(struct address_space *mapping,
-+			  pgoff_t start, unsigned int nr_pages,
-+			  struct page **pages, pgoff_t *indices)
-+{
-+	unsigned int i;
-+	unsigned int ret;
-+	unsigned int nr_found;
-+
-+	rcu_read_lock();
-+restart:
-+	nr_found = radix_tree_gang_lookup_slot(&mapping->page_tree,
-+				(void ***)pages, indices, start, nr_pages);
-+	ret = 0;
-+	for (i = 0; i < nr_found; i++) {
-+		struct page *page;
-+repeat:
-+		page = radix_tree_deref_slot((void **)pages[i]);
-+		if (unlikely(!page))
-+			continue;
-+		if (radix_tree_exception(page)) {
-+			if (radix_tree_deref_retry(page))
-+				goto restart;
-+			/*
-+			 * Otherwise, we must be storing a swap entry
-+			 * here as an exceptional entry: so return it
-+			 * without attempting to raise page count.
-+			 */
-+			goto export;
-+		}
-+		if (!page_cache_get_speculative(page))
-+			goto repeat;
-+
-+		/* Has the page moved? */
-+		if (unlikely(page != *((void **)pages[i]))) {
-+			page_cache_release(page);
-+			goto repeat;
-+		}
-+export:
-+		indices[ret] = indices[i];
-+		pages[ret] = page;
-+		ret++;
-+	}
-+	if (unlikely(!ret && nr_found))
-+		goto restart;
-+	rcu_read_unlock();
-+	return ret;
-+}
-+
- /**
-  * find_get_pages - gang pagecache lookup
-  * @mapping:	The address_space to search
-@@ -864,8 +948,10 @@ repeat:
- 	 * If all entries were removed before we could secure them,
- 	 * try again, because callers stop trying once 0 is returned.
- 	 */
--	if (unlikely(!ret && nr_found > nr_skip))
-+	if (unlikely(!ret && nr_found)) {
-+		start += nr_skip;
- 		goto restart;
-+	}
- 	rcu_read_unlock();
- 	return ret;
- }
-diff --git a/mm/mincore.c b/mm/mincore.c
-index 636a868..0c7f093 100644
---- a/mm/mincore.c
-+++ b/mm/mincore.c
-@@ -70,13 +70,21 @@ static unsigned char mincore_page(struct address_space *mapping, pgoff_t pgoff)
- 	 * any other file mapping (ie. marked !present and faulted in with
- 	 * tmpfs's .fault). So swapped out tmpfs mappings are tested here.
- 	 */
--	page = find_get_page(mapping, pgoff);
- #ifdef CONFIG_SWAP
--	/* shmem/tmpfs may return swap: account for swapcache page too. */
--	if (radix_tree_exceptional_entry(page)) {
--		swp_entry_t swap = radix_to_swp_entry(page);
--		page = find_get_page(&swapper_space, swap.val);
--	}
-+	if (shmem_mapping(mapping)) {
-+		page = __find_get_page(mapping, pgoff);
-+		/*
-+		 * shmem/tmpfs may return swap: account for swapcache
-+		 * page too.
-+		 */
-+		if (radix_tree_exceptional_entry(page)) {
-+			swp_entry_t swap = radix_to_swp_entry(page);
-+			page = find_get_page(&swapper_space, swap.val);
-+		}
-+	} else
-+		page = find_get_page(mapping, pgoff);
-+#else
-+	page = find_get_page(mapping, pgoff);
- #endif
- 	if (page) {
- 		present = PageUptodate(page);
-diff --git a/mm/readahead.c b/mm/readahead.c
-index 0d1f1aa..43f9dd2 100644
---- a/mm/readahead.c
-+++ b/mm/readahead.c
-@@ -177,7 +177,7 @@ __do_page_cache_readahead(struct address_space *mapping, struct file *filp,
- 		rcu_read_lock();
- 		page = radix_tree_lookup(&mapping->page_tree, page_offset);
- 		rcu_read_unlock();
--		if (page)
-+		if (page && !radix_tree_exceptional_entry(page))
- 			continue;
- 
- 		page = page_cache_alloc_readahead(mapping);
-@@ -342,7 +342,10 @@ static unsigned long page_cache_next_hole(struct address_space *mapping,
- 	unsigned long i;
- 
- 	for (i = 0; i < max_scan; i++) {
--		if (!radix_tree_lookup(&mapping->page_tree, index))
-+		struct page *page;
-+
-+		page = radix_tree_lookup(&mapping->page_tree, index);
-+		if (!page || radix_tree_exceptional_entry(page))
- 			break;
- 		index++;
- 		if (index == 0)
-@@ -358,7 +361,10 @@ static unsigned long page_cache_prev_hole(struct address_space *mapping,
- 	unsigned long i;
- 
- 	for (i = 0; i < max_scan; i++) {
--		if (!radix_tree_lookup(&mapping->page_tree, index))
-+		struct page *page;
-+
-+		page = radix_tree_lookup(&mapping->page_tree, index);
-+		if (!page || radix_tree_exceptional_entry(page))
- 			break;
- 		index--;
- 		if (index == ULONG_MAX)
-diff --git a/mm/shmem.c b/mm/shmem.c
-index 269d049..6d063eb 100644
---- a/mm/shmem.c
-+++ b/mm/shmem.c
-@@ -310,57 +310,6 @@ static void shmem_delete_from_page_cache(struct page *page, void *radswap)
- }
- 
- /*
-- * Like find_get_pages, but collecting swap entries as well as pages.
-- */
--static unsigned shmem_find_get_pages_and_swap(struct address_space *mapping,
--					pgoff_t start, unsigned int nr_pages,
--					struct page **pages, pgoff_t *indices)
--{
--	unsigned int i;
--	unsigned int ret;
--	unsigned int nr_found;
--
--	rcu_read_lock();
--restart:
--	nr_found = radix_tree_gang_lookup_slot(&mapping->page_tree,
--				(void ***)pages, indices, start, nr_pages);
--	ret = 0;
--	for (i = 0; i < nr_found; i++) {
--		struct page *page;
--repeat:
--		page = radix_tree_deref_slot((void **)pages[i]);
--		if (unlikely(!page))
--			continue;
--		if (radix_tree_exception(page)) {
--			if (radix_tree_deref_retry(page))
--				goto restart;
--			/*
--			 * Otherwise, we must be storing a swap entry
--			 * here as an exceptional entry: so return it
--			 * without attempting to raise page count.
--			 */
--			goto export;
--		}
--		if (!page_cache_get_speculative(page))
--			goto repeat;
--
--		/* Has the page moved? */
--		if (unlikely(page != *((void **)pages[i]))) {
--			page_cache_release(page);
--			goto repeat;
--		}
--export:
--		indices[ret] = indices[i];
--		pages[ret] = page;
--		ret++;
--	}
--	if (unlikely(!ret && nr_found))
--		goto restart;
--	rcu_read_unlock();
--	return ret;
--}
--
--/*
-  * Remove swap entry from radix tree, free the swap and its page cache.
-  */
- static int shmem_free_swap(struct address_space *mapping,
-@@ -377,21 +326,6 @@ static int shmem_free_swap(struct address_space *mapping,
- }
- 
- /*
-- * Pagevec may contain swap entries, so shuffle up pages before releasing.
-- */
--static void shmem_deswap_pagevec(struct pagevec *pvec)
--{
--	int i, j;
--
--	for (i = 0, j = 0; i < pagevec_count(pvec); i++) {
--		struct page *page = pvec->pages[i];
--		if (!radix_tree_exceptional_entry(page))
--			pvec->pages[j++] = page;
--	}
--	pvec->nr = j;
--}
--
--/*
-  * SysV IPC SHM_UNLOCK restore Unevictable pages to their evictable lists.
-  */
- void shmem_unlock_mapping(struct address_space *mapping)
-@@ -409,12 +343,12 @@ void shmem_unlock_mapping(struct address_space *mapping)
- 		 * Avoid pagevec_lookup(): find_get_pages() returns 0 as if it
- 		 * has finished, if it hits a row of PAGEVEC_SIZE swap entries.
- 		 */
--		pvec.nr = shmem_find_get_pages_and_swap(mapping, index,
-+		pvec.nr = __find_get_pages(mapping, index,
- 					PAGEVEC_SIZE, pvec.pages, indices);
- 		if (!pvec.nr)
- 			break;
- 		index = indices[pvec.nr - 1] + 1;
--		shmem_deswap_pagevec(&pvec);
-+		pagevec_remove_exceptionals(&pvec);
- 		check_move_unevictable_pages(pvec.pages, pvec.nr);
- 		pagevec_release(&pvec);
- 		cond_resched();
-@@ -442,7 +376,7 @@ void shmem_truncate_range(struct inode *inode, loff_t lstart, loff_t lend)
- 	pagevec_init(&pvec, 0);
- 	index = start;
- 	while (index <= end) {
--		pvec.nr = shmem_find_get_pages_and_swap(mapping, index,
-+		pvec.nr = __find_get_pages(mapping, index,
- 			min(end - index, (pgoff_t)PAGEVEC_SIZE - 1) + 1,
- 							pvec.pages, indices);
- 		if (!pvec.nr)
-@@ -469,7 +403,7 @@ void shmem_truncate_range(struct inode *inode, loff_t lstart, loff_t lend)
- 			}
- 			unlock_page(page);
+ 			goto next;
  		}
--		shmem_deswap_pagevec(&pvec);
-+		pagevec_remove_exceptionals(&pvec);
- 		pagevec_release(&pvec);
- 		mem_cgroup_uncharge_end();
- 		cond_resched();
-@@ -490,7 +424,7 @@ void shmem_truncate_range(struct inode *inode, loff_t lstart, loff_t lend)
- 	index = start;
- 	for ( ; ; ) {
- 		cond_resched();
--		pvec.nr = shmem_find_get_pages_and_swap(mapping, index,
-+		pvec.nr = __find_get_pages(mapping, index,
- 			min(end - index, (pgoff_t)PAGEVEC_SIZE - 1) + 1,
- 							pvec.pages, indices);
- 		if (!pvec.nr) {
-@@ -500,7 +434,7 @@ void shmem_truncate_range(struct inode *inode, loff_t lstart, loff_t lend)
- 			continue;
- 		}
- 		if (index == start && indices[0] > end) {
--			shmem_deswap_pagevec(&pvec);
-+			pagevec_remove_exceptionals(&pvec);
- 			pagevec_release(&pvec);
+-
++		distance = workingset_refault_distance(page);
+ 		page = __page_cache_alloc(mapping_gfp_mask(mapping) &
+-								~__GFP_FS);
++					  ~__GFP_FS, distance);
+ 		if (!page)
  			break;
- 		}
-@@ -525,7 +459,7 @@ void shmem_truncate_range(struct inode *inode, loff_t lstart, loff_t lend)
- 			}
- 			unlock_page(page);
- 		}
--		shmem_deswap_pagevec(&pvec);
-+		pagevec_remove_exceptionals(&pvec);
- 		pagevec_release(&pvec);
- 		mem_cgroup_uncharge_end();
- 		index++;
-@@ -877,7 +811,7 @@ static int shmem_getpage_gfp(struct inode *inode, pgoff_t index,
- 		return -EFBIG;
- repeat:
- 	swap.val = 0;
--	page = find_lock_page(mapping, index);
-+	page = __find_lock_page(mapping, index);
- 	if (radix_tree_exceptional_entry(page)) {
- 		swap = radix_to_swp_entry(page);
- 		page = NULL;
-@@ -1025,7 +959,7 @@ unacct:
- 	shmem_unacct_blocks(info->flags, 1);
- failed:
- 	if (swap.val && error != -EINVAL) {
--		struct page *test = find_get_page(mapping, index);
-+		struct page *test = __find_get_page(mapping, index);
- 		if (test && !radix_tree_exceptional_entry(test))
- 			page_cache_release(test);
- 		/* Have another try if the entry has changed */
-@@ -1174,6 +1108,11 @@ static struct inode *shmem_get_inode(struct super_block *sb, const struct inode
- 	return inode;
- }
- 
-+bool shmem_mapping(struct address_space *mapping)
-+{
-+	return mapping->backing_dev_info == &shmem_backing_dev_info;
-+}
-+
- #ifdef CONFIG_TMPFS
- static const struct inode_operations shmem_symlink_inode_operations;
- static const struct inode_operations shmem_short_symlink_operations;
-diff --git a/mm/swap.c b/mm/swap.c
-index 14380e9..cc5ce81 100644
---- a/mm/swap.c
-+++ b/mm/swap.c
-@@ -728,6 +728,27 @@ void __pagevec_lru_add(struct pagevec *pvec, enum lru_list lru)
- }
- EXPORT_SYMBOL(__pagevec_lru_add);
- 
-+unsigned __pagevec_lookup(struct pagevec *pvec, struct address_space *mapping,
-+			  pgoff_t start, unsigned int nr_pages,
-+			  pgoff_t *indices)
-+{
-+	pvec->nr = __find_get_pages(mapping, start, nr_pages,
-+				    pvec->pages, indices);
-+	return pagevec_count(pvec);
-+}
-+
-+void pagevec_remove_exceptionals(struct pagevec *pvec)
-+{
-+	int i, j;
-+
-+	for (i = 0, j = 0; i < pagevec_count(pvec); i++) {
-+		struct page *page = pvec->pages[i];
-+		if (!radix_tree_exceptional_entry(page))
-+			pvec->pages[j++] = page;
-+	}
-+	pvec->nr = j;
-+}
-+
- /**
-  * pagevec_lookup - gang pagecache lookup
-  * @pvec:	Where the resulting pages are placed
-diff --git a/mm/truncate.c b/mm/truncate.c
-index 632b15e..d8c8964 100644
---- a/mm/truncate.c
-+++ b/mm/truncate.c
-@@ -22,6 +22,18 @@
- #include <linux/cleancache.h>
+-
++		set_page_private(page, distance);
+ 		if (add_to_page_cache_lru(page, mapping, pg_index,
+ 								GFP_NOFS)) {
+ 			page_cache_release(page);
+diff --git a/fs/cachefiles/rdwr.c b/fs/cachefiles/rdwr.c
+index 0e3c092..359be1f 100644
+--- a/fs/cachefiles/rdwr.c
++++ b/fs/cachefiles/rdwr.c
+@@ -12,6 +12,7 @@
+ #include <linux/mount.h>
+ #include <linux/slab.h>
+ #include <linux/file.h>
++#include <linux/swap.h>
  #include "internal.h"
  
-+static void clear_exceptional_entry(struct address_space *mapping,
-+				    pgoff_t index, struct page *page)
+ /*
+@@ -253,16 +254,18 @@ static int cachefiles_read_backing_file_one(struct cachefiles_object *object,
+ 	newpage = NULL;
+ 
+ 	for (;;) {
+-		backpage = find_get_page(bmapping, netpage->index);
+-		if (backpage)
+-			goto backing_page_already_present;
++		unsigned long distance;
+ 
++		backpage = __find_get_page(bmapping, netpage->index);
++		if (backpage && !radix_tree_exceptional_entry(backpage))
++			goto backing_page_already_present;
++		distance = workingset_refault_distance(backpage);
+ 		if (!newpage) {
+-			newpage = page_cache_alloc_cold(bmapping);
++			newpage = page_cache_alloc_cold(bmapping, distance);
+ 			if (!newpage)
+ 				goto nomem_monitor;
+ 		}
+-
++		set_page_private(newpage, distance);
+ 		ret = add_to_page_cache(newpage, bmapping,
+ 					netpage->index, GFP_KERNEL);
+ 		if (ret == 0)
+@@ -495,16 +498,19 @@ static int cachefiles_read_backing_file(struct cachefiles_object *object,
+ 		}
+ 
+ 		for (;;) {
+-			backpage = find_get_page(bmapping, netpage->index);
+-			if (backpage)
+-				goto backing_page_already_present;
++			unsigned long distance;
+ 
++			backpage = __find_get_page(bmapping, netpage->index);
++			if (backpage && !radix_tree_exceptional_entry(backpage))
++				goto backing_page_already_present;
++			distance = workingset_refault_distance(backpage);
+ 			if (!newpage) {
+-				newpage = page_cache_alloc_cold(bmapping);
++				newpage = page_cache_alloc_cold(bmapping,
++								distance);
+ 				if (!newpage)
+ 					goto nomem;
+ 			}
+-
++			set_page_private(newpage, distance);
+ 			ret = add_to_page_cache(newpage, bmapping,
+ 						netpage->index, GFP_KERNEL);
+ 			if (ret == 0)
+diff --git a/fs/ceph/xattr.c b/fs/ceph/xattr.c
+index a76f697..26e85d1 100644
+--- a/fs/ceph/xattr.c
++++ b/fs/ceph/xattr.c
+@@ -647,7 +647,7 @@ static int ceph_sync_setxattr(struct dentry *dentry, const char *name,
+ 			return -ENOMEM;
+ 		err = -ENOMEM;
+ 		for (i = 0; i < nr_pages; i++) {
+-			pages[i] = __page_cache_alloc(GFP_NOFS);
++			pages[i] = __page_cache_alloc(GFP_NOFS, 0);
+ 			if (!pages[i]) {
+ 				nr_pages = i;
+ 				goto out;
+diff --git a/fs/logfs/readwrite.c b/fs/logfs/readwrite.c
+index 4153e65..b70fcfe 100644
+--- a/fs/logfs/readwrite.c
++++ b/fs/logfs/readwrite.c
+@@ -316,11 +316,14 @@ static struct page *logfs_get_write_page(struct inode *inode, u64 bix,
+ 	int err;
+ 
+ repeat:
+-	page = find_get_page(mapping, index);
+-	if (!page) {
+-		page = __page_cache_alloc(GFP_NOFS);
++	page = __find_get_page(mapping, index);
++	if (!page || radix_tree_exceptional_entry(page)) {
++		unsigned long distance = workingset_refault_distance(page);
++
++		page = __page_cache_alloc(GFP_NOFS, distance);
+ 		if (!page)
+ 			return NULL;
++		set_page_private(page, distance);
+ 		err = add_to_page_cache_lru(page, mapping, index, GFP_NOFS);
+ 		if (unlikely(err)) {
+ 			page_cache_release(page);
+diff --git a/fs/ntfs/file.c b/fs/ntfs/file.c
+index c587e2d..ccca902 100644
+--- a/fs/ntfs/file.c
++++ b/fs/ntfs/file.c
+@@ -412,15 +412,20 @@ static inline int __ntfs_grab_cache_pages(struct address_space *mapping,
+ 	BUG_ON(!nr_pages);
+ 	err = nr = 0;
+ 	do {
+-		pages[nr] = find_lock_page(mapping, index);
+-		if (!pages[nr]) {
++		pages[nr] = __find_lock_page(mapping, index);
++		if (!pages[nr] || radix_tree_exceptional_entry(pages[nr])) {
++			unsigned long distance;
++
++			distance = workingset_refault_distance(pages[nr]);
+ 			if (!*cached_page) {
+-				*cached_page = page_cache_alloc(mapping);
++				*cached_page = page_cache_alloc(mapping,
++								distance);
+ 				if (unlikely(!*cached_page)) {
+ 					err = -ENOMEM;
+ 					goto err_out;
+ 				}
+ 			}
++			set_page_private(*cached_page, distance);
+ 			err = add_to_page_cache_lru(*cached_page, mapping, index,
+ 					GFP_KERNEL);
+ 			if (unlikely(err)) {
+diff --git a/fs/splice.c b/fs/splice.c
+index 1ec0493..96cbad0 100644
+--- a/fs/splice.c
++++ b/fs/splice.c
+@@ -347,15 +347,17 @@ __generic_file_splice_read(struct file *in, loff_t *ppos,
+ 		 * Page could be there, find_get_pages_contig() breaks on
+ 		 * the first hole.
+ 		 */
+-		page = find_get_page(mapping, index);
+-		if (!page) {
++		page = __find_get_page(mapping, index);
++		if (!page || radix_tree_exceptional_entry(page)) {
++			unsigned long distance;
+ 			/*
+ 			 * page didn't exist, allocate one.
+ 			 */
+-			page = page_cache_alloc_cold(mapping);
++			distance = workingset_refault_distance(page);
++			page = page_cache_alloc_cold(mapping, distance);
+ 			if (!page)
+ 				break;
+-
++			set_page_private(page, distance);
+ 			error = add_to_page_cache_lru(page, mapping, index,
+ 						GFP_KERNEL);
+ 			if (unlikely(error)) {
+diff --git a/include/linux/pagemap.h b/include/linux/pagemap.h
+index c1abb88..7ddfc69 100644
+--- a/include/linux/pagemap.h
++++ b/include/linux/pagemap.h
+@@ -212,28 +212,38 @@ static inline void page_unfreeze_refs(struct page *page, int count)
+ }
+ 
+ #ifdef CONFIG_NUMA
+-extern struct page *__page_cache_alloc(gfp_t gfp);
++extern struct page *__page_cache_alloc(gfp_t, unsigned long);
+ #else
+-static inline struct page *__page_cache_alloc(gfp_t gfp)
++static inline struct page *__page_cache_alloc(gfp_t gfp,
++					      unsigned long refault_distance)
+ {
+-	return alloc_pages(gfp, 0);
++	struct page *page;
++
++	current->refault_distance = refault_distance;
++	page = alloc_pages(gfp, 0);
++	current->refault_distance = 0;
+ }
+ #endif
+ 
+-static inline struct page *page_cache_alloc(struct address_space *x)
++static inline struct page *page_cache_alloc(struct address_space *x,
++					    unsigned long refault_distance)
+ {
+-	return __page_cache_alloc(mapping_gfp_mask(x));
++	return __page_cache_alloc(mapping_gfp_mask(x), refault_distance);
+ }
+ 
+-static inline struct page *page_cache_alloc_cold(struct address_space *x)
++static inline struct page *page_cache_alloc_cold(struct address_space *x,
++						 unsigned long refault_distance)
+ {
+-	return __page_cache_alloc(mapping_gfp_mask(x)|__GFP_COLD);
++	return __page_cache_alloc(mapping_gfp_mask(x)|__GFP_COLD,
++				  refault_distance);
+ }
+ 
+-static inline struct page *page_cache_alloc_readahead(struct address_space *x)
++static inline struct page *page_cache_alloc_readahead(struct address_space *x,
++						      unsigned long refault_distance)
+ {
+ 	return __page_cache_alloc(mapping_gfp_mask(x) |
+-				  __GFP_COLD | __GFP_NORETRY | __GFP_NOWARN);
++				  __GFP_COLD | __GFP_NORETRY | __GFP_NOWARN,
++				  refault_distance);
+ }
+ 
+ typedef int filler_t(void *, struct page *);
+diff --git a/include/linux/sched.h b/include/linux/sched.h
+index 0657368..f1a984b 100644
+--- a/include/linux/sched.h
++++ b/include/linux/sched.h
+@@ -1296,6 +1296,7 @@ struct task_struct {
+ #endif
+ 
+ 	struct mm_struct *mm, *active_mm;
++	unsigned long refault_distance;
+ #ifdef CONFIG_COMPAT_BRK
+ 	unsigned brk_randomized:1;
+ #endif
+diff --git a/include/linux/swap.h b/include/linux/swap.h
+index 3e60228..03d327f 100644
+--- a/include/linux/swap.h
++++ b/include/linux/swap.h
+@@ -204,6 +204,12 @@ struct swap_list_t {
+ /* Swap 50% full? Release swapcache more aggressively.. */
+ #define vm_swap_full() (nr_swap_pages*2 < total_swap_pages)
+ 
++/* linux/mm/workingset.c */
++static inline unsigned long workingset_refault_distance(struct page *page)
 +{
-+	/* Handled by shmem itself */
-+	if (shmem_mapping(mapping))
-+		return;
-+
-+	spin_lock_irq(&mapping->tree_lock);
-+	if (radix_tree_lookup(&mapping->page_tree, index) == page)
-+		radix_tree_delete(&mapping->page_tree, index);
-+	spin_unlock_irq(&mapping->tree_lock);
++	return 0;
 +}
- 
- /**
-  * do_invalidatepage - invalidate part or all of a page
-@@ -208,31 +220,36 @@ void truncate_inode_pages_range(struct address_space *mapping,
- {
- 	const pgoff_t start = (lstart + PAGE_CACHE_SIZE-1) >> PAGE_CACHE_SHIFT;
- 	const unsigned partial = lstart & (PAGE_CACHE_SIZE - 1);
-+	pgoff_t indices[PAGEVEC_SIZE];
- 	struct pagevec pvec;
- 	pgoff_t index;
- 	pgoff_t end;
- 	int i;
- 
- 	cleancache_flush_inode(mapping);
--	if (mapping->nrpages == 0)
--		return;
- 
- 	BUG_ON((lend & (PAGE_CACHE_SIZE - 1)) != (PAGE_CACHE_SIZE - 1));
- 	end = (lend >> PAGE_CACHE_SHIFT);
- 
- 	pagevec_init(&pvec, 0);
- 	index = start;
--	while (index <= end && pagevec_lookup(&pvec, mapping, index,
--			min(end - index, (pgoff_t)PAGEVEC_SIZE - 1) + 1)) {
-+	while (index <= end && __pagevec_lookup(&pvec, mapping, index,
-+			min(end - index, (pgoff_t)PAGEVEC_SIZE - 1) + 1,
-+			indices)) {
- 		mem_cgroup_uncharge_start();
- 		for (i = 0; i < pagevec_count(&pvec); i++) {
- 			struct page *page = pvec.pages[i];
- 
- 			/* We rely upon deletion not changing page->index */
--			index = page->index;
-+			index = indices[i];
- 			if (index > end)
- 				break;
- 
-+			if (radix_tree_exceptional_entry(page)) {
-+				clear_exceptional_entry(mapping, index, page);
-+				continue;
-+			}
 +
- 			if (!trylock_page(page))
- 				continue;
- 			WARN_ON(page->index != index);
-@@ -243,6 +260,7 @@ void truncate_inode_pages_range(struct address_space *mapping,
- 			truncate_inode_page(mapping, page);
- 			unlock_page(page);
- 		}
-+		pagevec_remove_exceptionals(&pvec);
- 		pagevec_release(&pvec);
- 		mem_cgroup_uncharge_end();
- 		cond_resched();
-@@ -262,14 +280,15 @@ void truncate_inode_pages_range(struct address_space *mapping,
- 	index = start;
- 	for ( ; ; ) {
- 		cond_resched();
--		if (!pagevec_lookup(&pvec, mapping, index,
--			min(end - index, (pgoff_t)PAGEVEC_SIZE - 1) + 1)) {
-+		if (!__pagevec_lookup(&pvec, mapping, index,
-+			min(end - index, (pgoff_t)PAGEVEC_SIZE - 1) + 1,
-+			indices)) {
- 			if (index == start)
- 				break;
- 			index = start;
- 			continue;
- 		}
--		if (index == start && pvec.pages[0]->index > end) {
-+		if (index == start && indices[0] > end) {
- 			pagevec_release(&pvec);
- 			break;
- 		}
-@@ -278,16 +297,22 @@ void truncate_inode_pages_range(struct address_space *mapping,
- 			struct page *page = pvec.pages[i];
- 
- 			/* We rely upon deletion not changing page->index */
--			index = page->index;
-+			index = indices[i];
- 			if (index > end)
- 				break;
- 
-+			if (radix_tree_exceptional_entry(page)) {
-+				clear_exceptional_entry(mapping, index, page);
-+				continue;
-+			}
-+
- 			lock_page(page);
- 			WARN_ON(page->index != index);
- 			wait_on_page_writeback(page);
- 			truncate_inode_page(mapping, page);
- 			unlock_page(page);
- 		}
-+		pagevec_remove_exceptionals(&pvec);
- 		pagevec_release(&pvec);
- 		mem_cgroup_uncharge_end();
- 		index++;
-@@ -330,6 +355,7 @@ EXPORT_SYMBOL(truncate_inode_pages);
- unsigned long invalidate_mapping_pages(struct address_space *mapping,
- 		pgoff_t start, pgoff_t end)
+ /* linux/mm/page_alloc.c */
+ extern unsigned long totalram_pages;
+ extern unsigned long totalreserve_pages;
+diff --git a/mm/filemap.c b/mm/filemap.c
+index 4ca12a3..288346a 100644
+--- a/mm/filemap.c
++++ b/mm/filemap.c
+@@ -468,13 +468,19 @@ static int page_cache_insert(struct address_space *mapping, pgoff_t offset,
+ int add_to_page_cache_locked(struct page *page, struct address_space *mapping,
+ 		pgoff_t offset, gfp_t gfp_mask)
  {
-+	pgoff_t indices[PAGEVEC_SIZE];
- 	struct pagevec pvec;
- 	pgoff_t index = start;
- 	unsigned long ret;
-@@ -345,17 +371,23 @@ unsigned long invalidate_mapping_pages(struct address_space *mapping,
++	unsigned long distance;
+ 	int error;
+ 
+ 	VM_BUG_ON(!PageLocked(page));
+ 	VM_BUG_ON(PageSwapBacked(page));
+ 
++	distance = page_private(page);
++	set_page_private(page, 0);
++
++	current->refault_distance = distance;
+ 	error = mem_cgroup_cache_charge(page, current->mm,
+ 					gfp_mask & GFP_RECLAIM_MASK);
++	current->refault_distance = 0;
+ 	if (error)
+ 		goto out;
+ 
+@@ -518,19 +524,21 @@ int add_to_page_cache_lru(struct page *page, struct address_space *mapping,
+ EXPORT_SYMBOL_GPL(add_to_page_cache_lru);
+ 
+ #ifdef CONFIG_NUMA
+-struct page *__page_cache_alloc(gfp_t gfp)
++struct page *__page_cache_alloc(gfp_t gfp, unsigned long refault_distance)
+ {
+ 	int n;
+ 	struct page *page;
+ 
++	current->refault_distance = refault_distance;
+ 	if (cpuset_do_page_mem_spread()) {
+ 		get_mems_allowed();
+ 		n = cpuset_mem_spread_node();
+ 		page = alloc_pages_exact_node(n, gfp, 0);
+ 		put_mems_allowed();
+-		return page;
+-	}
+-	return alloc_pages(gfp, 0);
++	} else
++		page = alloc_pages(gfp, 0);
++	current->refault_distance = 0;
++	return page;
+ }
+ EXPORT_SYMBOL(__page_cache_alloc);
+ #endif
+@@ -810,11 +818,14 @@ struct page *find_or_create_page(struct address_space *mapping,
+ 	struct page *page;
+ 	int err;
+ repeat:
+-	page = find_lock_page(mapping, index);
+-	if (!page) {
+-		page = __page_cache_alloc(gfp_mask);
++	page = __find_lock_page(mapping, index);
++	if (!page || radix_tree_exceptional_entry(page)) {
++		unsigned long distance = workingset_refault_distance(page);
++
++		page = __page_cache_alloc(gfp_mask, distance);
+ 		if (!page)
+ 			return NULL;
++		set_page_private(page, distance);
+ 		/*
+ 		 * We want a regular kernel memory (not highmem or DMA etc)
+ 		 * allocation for the radix tree nodes, but we need to honour
+@@ -1128,16 +1139,22 @@ EXPORT_SYMBOL(find_get_pages_tag);
+ struct page *
+ grab_cache_page_nowait(struct address_space *mapping, pgoff_t index)
+ {
+-	struct page *page = find_get_page(mapping, index);
++	struct page *page = __find_get_page(mapping, index);
++	unsigned long distance;
+ 
+-	if (page) {
++	if (page && !radix_tree_exceptional_entry(page)) {
+ 		if (trylock_page(page))
+ 			return page;
+ 		page_cache_release(page);
+ 		return NULL;
+ 	}
+-	page = __page_cache_alloc(mapping_gfp_mask(mapping) & ~__GFP_FS);
+-	if (page && add_to_page_cache_lru(page, mapping, index, GFP_NOFS)) {
++	distance = workingset_refault_distance(page);
++	page = __page_cache_alloc(mapping_gfp_mask(mapping) & ~__GFP_FS,
++				  distance);
++	if (!page)
++		return NULL;
++	set_page_private(page, distance);
++	if (add_to_page_cache_lru(page, mapping, index, GFP_NOFS)) {
+ 		page_cache_release(page);
+ 		page = NULL;
+ 	}
+@@ -1199,6 +1216,7 @@ static void do_generic_file_read(struct file *filp, loff_t *ppos,
+ 	offset = *ppos & ~PAGE_CACHE_MASK;
+ 
+ 	for (;;) {
++		unsigned long distance;
+ 		struct page *page;
+ 		pgoff_t end_index;
+ 		loff_t isize;
+@@ -1211,8 +1229,9 @@ find_page:
+ 			page_cache_sync_readahead(mapping,
+ 					ra, filp,
+ 					index, last_index - index);
+-			page = find_get_page(mapping, index);
+-			if (unlikely(page == NULL))
++			page = __find_get_page(mapping, index);
++			if (unlikely(!page ||
++				     radix_tree_exceptional_entry(page)))
+ 				goto no_cached_page;
+ 		}
+ 		if (PageReadahead(page)) {
+@@ -1370,11 +1389,13 @@ no_cached_page:
+ 		 * Ok, it wasn't cached, so we need to create a new
+ 		 * page..
+ 		 */
+-		page = page_cache_alloc_cold(mapping);
++		distance = workingset_refault_distance(page);
++		page = page_cache_alloc_cold(mapping, distance);
+ 		if (!page) {
+ 			desc->error = -ENOMEM;
+ 			goto out;
+ 		}
++		set_page_private(page, distance);
+ 		error = add_to_page_cache_lru(page, mapping,
+ 						index, GFP_KERNEL);
+ 		if (error) {
+@@ -1621,21 +1642,23 @@ SYSCALL_ALIAS(sys_readahead, SyS_readahead);
+  * page_cache_read - adds requested page to the page cache if not already there
+  * @file:	file to read
+  * @offset:	page index
++ * @distance:	refault distance
+  *
+  * This adds the requested page to the page cache if it isn't already there,
+  * and schedules an I/O to read in its contents from disk.
+  */
+-static int page_cache_read(struct file *file, pgoff_t offset)
++static int page_cache_read(struct file *file, pgoff_t offset,
++			   unsigned long distance)
+ {
+ 	struct address_space *mapping = file->f_mapping;
+ 	struct page *page; 
+ 	int ret;
+ 
+ 	do {
+-		page = page_cache_alloc_cold(mapping);
++		page = page_cache_alloc_cold(mapping, distance);
+ 		if (!page)
+ 			return -ENOMEM;
+-
++		set_page_private(page, distance);
+ 		ret = add_to_page_cache_lru(page, mapping, offset, GFP_KERNEL);
+ 		if (ret == 0)
+ 			ret = mapping->a_ops->readpage(file, page);
+@@ -1738,6 +1761,7 @@ int filemap_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
+ 	struct file_ra_state *ra = &file->f_ra;
+ 	struct inode *inode = mapping->host;
+ 	pgoff_t offset = vmf->pgoff;
++	unsigned long distance;
+ 	struct page *page;
+ 	pgoff_t size;
+ 	int ret = 0;
+@@ -1763,8 +1787,8 @@ int filemap_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
+ 		mem_cgroup_count_vm_event(vma->vm_mm, PGMAJFAULT);
+ 		ret = VM_FAULT_MAJOR;
+ retry_find:
+-		page = find_get_page(mapping, offset);
+-		if (!page)
++		page = __find_get_page(mapping, offset);
++		if (!page || radix_tree_exceptional_entry(page))
+ 			goto no_cached_page;
+ 	}
+ 
+@@ -1807,7 +1831,8 @@ no_cached_page:
+ 	 * We're only likely to ever get here if MADV_RANDOM is in
+ 	 * effect.
  	 */
+-	error = page_cache_read(file, offset);
++	distance = workingset_refault_distance(page);
++	error = page_cache_read(file, offset, distance);
  
- 	pagevec_init(&pvec, 0);
--	while (index <= end && pagevec_lookup(&pvec, mapping, index,
--			min(end - index, (pgoff_t)PAGEVEC_SIZE - 1) + 1)) {
-+	while (index <= end && __pagevec_lookup(&pvec, mapping, index,
-+			min(end - index, (pgoff_t)PAGEVEC_SIZE - 1) + 1,
-+			indices)) {
- 		mem_cgroup_uncharge_start();
- 		for (i = 0; i < pagevec_count(&pvec); i++) {
- 			struct page *page = pvec.pages[i];
- 
- 			/* We rely upon deletion not changing page->index */
--			index = page->index;
-+			index = indices[i];
- 			if (index > end)
- 				break;
- 
-+			if (radix_tree_exceptional_entry(page)) {
-+				clear_exceptional_entry(mapping, index, page);
-+				continue;
-+			}
+ 	/*
+ 	 * The page we want has now been added to the page cache.
+@@ -1901,11 +1926,14 @@ static struct page *__read_cache_page(struct address_space *mapping,
+ 	struct page *page;
+ 	int err;
+ repeat:
+-	page = find_get_page(mapping, index);
+-	if (!page) {
+-		page = __page_cache_alloc(gfp | __GFP_COLD);
++	page = __find_get_page(mapping, index);
++	if (!page || radix_tree_exceptional_entry(page)) {
++		unsigned long distance = workingset_refault_distance(page);
 +
- 			if (!trylock_page(page))
- 				continue;
- 			WARN_ON(page->index != index);
-@@ -369,6 +401,7 @@ unsigned long invalidate_mapping_pages(struct address_space *mapping,
- 				deactivate_page(page);
- 			count += ret;
- 		}
-+		pagevec_remove_exceptionals(&pvec);
- 		pagevec_release(&pvec);
- 		mem_cgroup_uncharge_end();
- 		cond_resched();
-@@ -437,6 +470,7 @@ static int do_launder_page(struct address_space *mapping, struct page *page)
- int invalidate_inode_pages2_range(struct address_space *mapping,
- 				  pgoff_t start, pgoff_t end)
- {
-+	pgoff_t indices[PAGEVEC_SIZE];
- 	struct pagevec pvec;
- 	pgoff_t index;
- 	int i;
-@@ -447,17 +481,23 @@ int invalidate_inode_pages2_range(struct address_space *mapping,
- 	cleancache_flush_inode(mapping);
- 	pagevec_init(&pvec, 0);
- 	index = start;
--	while (index <= end && pagevec_lookup(&pvec, mapping, index,
--			min(end - index, (pgoff_t)PAGEVEC_SIZE - 1) + 1)) {
-+	while (index <= end && __pagevec_lookup(&pvec, mapping, index,
-+			min(end - index, (pgoff_t)PAGEVEC_SIZE - 1) + 1,
-+			indices)) {
- 		mem_cgroup_uncharge_start();
- 		for (i = 0; i < pagevec_count(&pvec); i++) {
- 			struct page *page = pvec.pages[i];
++		page = __page_cache_alloc(gfp | __GFP_COLD, distance);
+ 		if (!page)
+ 			return ERR_PTR(-ENOMEM);
++		set_page_private(page, distance);
+ 		err = add_to_page_cache_lru(page, mapping, index, gfp);
+ 		if (unlikely(err)) {
+ 			page_cache_release(page);
+@@ -2432,18 +2460,20 @@ struct page *grab_cache_page_write_begin(struct address_space *mapping,
+ 	gfp_t gfp_mask;
+ 	struct page *page;
+ 	gfp_t gfp_notmask = 0;
++	unsigned long distance;
  
- 			/* We rely upon deletion not changing page->index */
--			index = page->index;
-+			index = indices[i];
- 			if (index > end)
- 				break;
+ 	gfp_mask = mapping_gfp_mask(mapping) | __GFP_WRITE;
+ 	if (flags & AOP_FLAG_NOFS)
+ 		gfp_notmask = __GFP_FS;
+ repeat:
+-	page = find_lock_page(mapping, index);
+-	if (page)
++	page = __find_lock_page(mapping, index);
++	if (page && !radix_tree_exceptional_entry(page))
+ 		goto found;
+-
+-	page = __page_cache_alloc(gfp_mask & ~gfp_notmask);
++	distance = workingset_refault_distance(page);
++	page = __page_cache_alloc(gfp_mask & ~gfp_notmask, distance);
+ 	if (!page)
+ 		return NULL;
++	set_page_private(page, distance);
+ 	status = add_to_page_cache_lru(page, mapping, index,
+ 						GFP_KERNEL & ~gfp_notmask);
+ 	if (unlikely(status)) {
+diff --git a/mm/readahead.c b/mm/readahead.c
+index 43f9dd2..dc071cc 100644
+--- a/mm/readahead.c
++++ b/mm/readahead.c
+@@ -11,6 +11,7 @@
+ #include <linux/fs.h>
+ #include <linux/gfp.h>
+ #include <linux/mm.h>
++#include <linux/swap.h>
+ #include <linux/export.h>
+ #include <linux/blkdev.h>
+ #include <linux/backing-dev.h>
+@@ -170,6 +171,7 @@ __do_page_cache_readahead(struct address_space *mapping, struct file *filp,
+ 	 */
+ 	for (page_idx = 0; page_idx < nr_to_read; page_idx++) {
+ 		pgoff_t page_offset = offset + page_idx;
++		unsigned long distance;
  
-+			if (radix_tree_exceptional_entry(page)) {
-+				clear_exceptional_entry(mapping, index, page);
-+				continue;
-+			}
-+
- 			lock_page(page);
- 			WARN_ON(page->index != index);
- 			if (page->mapping != mapping) {
-@@ -495,6 +535,7 @@ int invalidate_inode_pages2_range(struct address_space *mapping,
- 				ret = ret2;
- 			unlock_page(page);
- 		}
-+		pagevec_remove_exceptionals(&pvec);
- 		pagevec_release(&pvec);
- 		mem_cgroup_uncharge_end();
- 		cond_resched();
+ 		if (page_offset > end_index)
+ 			break;
+@@ -179,10 +181,11 @@ __do_page_cache_readahead(struct address_space *mapping, struct file *filp,
+ 		rcu_read_unlock();
+ 		if (page && !radix_tree_exceptional_entry(page))
+ 			continue;
+-
+-		page = page_cache_alloc_readahead(mapping);
++		distance = workingset_refault_distance(page);
++		page = page_cache_alloc_readahead(mapping, distance);
+ 		if (!page)
+ 			break;
++		set_page_private(page, distance);
+ 		page->index = page_offset;
+ 		list_add(&page->lru, &page_pool);
+ 		if (page_idx == nr_to_read - lookahead_size)
+diff --git a/net/ceph/messenger.c b/net/ceph/messenger.c
+index ad5b708..b57933a 100644
+--- a/net/ceph/messenger.c
++++ b/net/ceph/messenger.c
+@@ -2218,7 +2218,7 @@ struct ceph_messenger *ceph_messenger_create(struct ceph_entity_addr *myaddr,
+ 
+ 	/* the zero page is needed if a request is "canceled" while the message
+ 	 * is being written over the socket */
+-	msgr->zero_page = __page_cache_alloc(GFP_KERNEL | __GFP_ZERO);
++	msgr->zero_page = __page_cache_alloc(GFP_KERNEL | __GFP_ZERO, 0);
+ 	if (!msgr->zero_page) {
+ 		kfree(msgr);
+ 		return ERR_PTR(-ENOMEM);
+diff --git a/net/ceph/pagelist.c b/net/ceph/pagelist.c
+index 13cb409..ffc6289 100644
+--- a/net/ceph/pagelist.c
++++ b/net/ceph/pagelist.c
+@@ -33,7 +33,7 @@ static int ceph_pagelist_addpage(struct ceph_pagelist *pl)
+ 	struct page *page;
+ 
+ 	if (!pl->num_pages_free) {
+-		page = __page_cache_alloc(GFP_NOFS);
++		page = __page_cache_alloc(GFP_NOFS, 0);
+ 	} else {
+ 		page = list_first_entry(&pl->free_list, struct page, lru);
+ 		list_del(&page->lru);
+@@ -85,7 +85,7 @@ int ceph_pagelist_reserve(struct ceph_pagelist *pl, size_t space)
+ 	space = (space + PAGE_SIZE - 1) >> PAGE_SHIFT;   /* conv to num pages */
+ 
+ 	while (space > pl->num_pages_free) {
+-		struct page *page = __page_cache_alloc(GFP_NOFS);
++		struct page *page = __page_cache_alloc(GFP_NOFS, 0);
+ 		if (!page)
+ 			return -ENOMEM;
+ 		list_add_tail(&page->lru, &pl->free_list);
+diff --git a/net/ceph/pagevec.c b/net/ceph/pagevec.c
+index cd9c21d..4bc4ffd 100644
+--- a/net/ceph/pagevec.c
++++ b/net/ceph/pagevec.c
+@@ -79,7 +79,7 @@ struct page **ceph_alloc_page_vector(int num_pages, gfp_t flags)
+ 	if (!pages)
+ 		return ERR_PTR(-ENOMEM);
+ 	for (i = 0; i < num_pages; i++) {
+-		pages[i] = __page_cache_alloc(flags);
++		pages[i] = __page_cache_alloc(flags, 0);
+ 		if (pages[i] == NULL) {
+ 			ceph_release_page_vector(pages, i);
+ 			return ERR_PTR(-ENOMEM);
 -- 
 1.7.7.6
 
