@@ -1,72 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx162.postini.com [74.125.245.162])
-	by kanga.kvack.org (Postfix) with SMTP id 687986B0044
-	for <linux-mm@kvack.org>; Tue,  1 May 2012 13:56:58 -0400 (EDT)
-Received: by lbjn8 with SMTP id n8so3174657lbj.14
-        for <linux-mm@kvack.org>; Tue, 01 May 2012 10:56:56 -0700 (PDT)
-Message-ID: <4FA023E4.7000602@openvz.org>
-Date: Tue, 01 May 2012 21:56:52 +0400
-From: Konstantin Khlebnikov <khlebnikov@openvz.org>
+Received: from psmtp.com (na3sys010amx169.postini.com [74.125.245.169])
+	by kanga.kvack.org (Postfix) with SMTP id 012336B0081
+	for <linux-mm@kvack.org>; Tue,  1 May 2012 13:57:11 -0400 (EDT)
+Received: by ghrr18 with SMTP id r18so2922742ghr.14
+        for <linux-mm@kvack.org>; Tue, 01 May 2012 10:57:11 -0700 (PDT)
 MIME-Version: 1.0
-Subject: Re: [PATCH RFC 2/3] proc/smaps: show amount of nonlinear ptes in
- vma
-References: <20120430112903.14137.81692.stgit@zurg> <20120430112907.14137.18910.stgit@zurg> <CAHGf_=pfiFJ4N3bN_c29UpffqkzDY_priBYBuEOCyPJ13JVecw@mail.gmail.com>
-In-Reply-To: <CAHGf_=pfiFJ4N3bN_c29UpffqkzDY_priBYBuEOCyPJ13JVecw@mail.gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Reply-To: mtk.manpages@gmail.com
+In-Reply-To: <CAHGf_=qqiast+6XzGnq+LRdFXoWG9h2MkofmjS1h5OeNPRyWfw@mail.gmail.com>
+References: <1335778207-6511-1-git-send-email-jack@suse.cz> <CAHGf_=qqiast+6XzGnq+LRdFXoWG9h2MkofmjS1h5OeNPRyWfw@mail.gmail.com>
+From: "Michael Kerrisk (man-pages)" <mtk.manpages@gmail.com>
+Date: Wed, 2 May 2012 05:56:50 +1200
+Message-ID: <CAKgNAkjAOGM+mZLkXGiDFYsnMCpJsxx=Nd5pZfx-_f4B1jvh+A@mail.gmail.com>
+Subject: Re: [PATCH] Describe race of direct read and fork for unaligned buffers
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>
+Cc: Jan Kara <jack@suse.cz>, LKML <linux-kernel@vger.kernel.org>, linux-man@vger.kernel.org, linux-mm@kvack.org, mgorman@suse.de, Jeff Moyer <jmoyer@redhat.com>
 
-KOSAKI Motohiro wrote:
-> On Mon, Apr 30, 2012 at 7:29 AM, Konstantin Khlebnikov
-> <khlebnikov@openvz.org>  wrote:
->> Currently, nonlinear mappings can not be distinguished from ordinary mappings.
->> This patch adds into /proc/pid/smaps line "Nonlinear:<size>  kB", where size is
->> amount of nonlinear ptes in vma, this line appears only if VM_NONLINEAR is set.
->> This information may be useful not only for checkpoint/restore project.
->>
->> Signed-off-by: Konstantin Khlebnikov<khlebnikov@openvz.org>
->> Requested-by: Pavel Emelyanov<xemul@parallels.com>
->> ---
->>   fs/proc/task_mmu.c |   12 ++++++++++++
->>   1 file changed, 12 insertions(+)
->>
->> diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
->> index acee5fd..b1d9729 100644
->> --- a/fs/proc/task_mmu.c
->> +++ b/fs/proc/task_mmu.c
->> @@ -393,6 +393,7 @@ struct mem_size_stats {
->>         unsigned long anonymous;
->>         unsigned long anonymous_thp;
->>         unsigned long swap;
->> +       unsigned long nonlinear;
->>         u64 pss;
->>   };
->>
->> @@ -402,6 +403,7 @@ static void smaps_pte_entry(pte_t ptent, unsigned long addr,
->>   {
->>         struct mem_size_stats *mss = walk->private;
->>         struct vm_area_struct *vma = mss->vma;
->> +       pgoff_t pgoff = linear_page_index(vma, addr);
->>         struct page *page = NULL;
->>         int mapcount;
->>
->> @@ -414,6 +416,9 @@ static void smaps_pte_entry(pte_t ptent, unsigned long addr,
->>                         mss->swap += ptent_size;
->>                 else if (is_migration_entry(swpent))
->>                         page = migration_entry_to_page(swpent);
->> +       } else if (pte_file(ptent)) {
->> +               if (pte_to_pgoff(ptent) != pgoff)
->> +                       mss->nonlinear += ptent_size;
+On Wed, May 2, 2012 at 4:15 AM, KOSAKI Motohiro
+<kosaki.motohiro@gmail.com> wrote:
+>> +suffices. However, if the user buffer is not page aligned and direct re=
+ad
 >
-> I think this is not equal to our non linear mapping definition. Even if
-> pgoff is equal to linear mapping case, it is non linear. I.e. nonlinear is
-> vma attribute. Why do you want to introduce different definition?
+> One more thing. direct write also makes data corruption. Think
+> following scenario,
 
-VMA attribute can be determined via presence of this field,
-without VM_NONLINEAR it does not appears.
+In the light of all of the comments, can someone revise the man-pages
+patch that Jan sent?
+
+Thanks,
+
+Michael
+
+
+> 1) P1-T1 uses DIO write (and starting dma)
+> 2) P1-T2 call fork() and makes P2
+> 3) P1-T3 write to the dio target page. and then, cow break occur and
+> original dio target
+> =A0 =A0pages is now owned by P2.
+> 4) P2 write the dio target page. It now does NOT make cow break. and
+> now we break
+> =A0 =A0dio target page data.
+> 5) DMA transfer write invalid data to disk.
+>
+> The detail is described in your refer URLs.
+>
+>
+>> +runs in parallel with a
+>> +.BR fork (2)
+>> +of the reader process, it may happen that the read data is split betwee=
+n
+>> +pages owned by the original process and its child. Thus effectively rea=
+d
+>> +data is corrupted.
+>> =A0.LP
+>> =A0The
+>> =A0.B O_DIRECT
+
+
+
+--=20
+Michael Kerrisk
+Linux man-pages maintainer; http://www.kernel.org/doc/man-pages/
+Author of "The Linux Programming Interface"; http://man7.org/tlpi/
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
