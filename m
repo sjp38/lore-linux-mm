@@ -1,202 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx132.postini.com [74.125.245.132])
-	by kanga.kvack.org (Postfix) with SMTP id A947E6B004D
-	for <linux-mm@kvack.org>; Tue,  1 May 2012 04:43:15 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx194.postini.com [74.125.245.194])
+	by kanga.kvack.org (Postfix) with SMTP id 4C9556B0081
+	for <linux-mm@kvack.org>; Tue,  1 May 2012 04:43:16 -0400 (EDT)
 From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: [patch 1/5] mm: readahead: move radix tree hole searching here
-Date: Tue,  1 May 2012 10:41:49 +0200
-Message-Id: <1335861713-4573-2-git-send-email-hannes@cmpxchg.org>
-In-Reply-To: <1335861713-4573-1-git-send-email-hannes@cmpxchg.org>
-References: <1335861713-4573-1-git-send-email-hannes@cmpxchg.org>
+Subject: [patch 0/5] refault distance-based file cache sizing
+Date: Tue,  1 May 2012 10:41:48 +0200
+Message-Id: <1335861713-4573-1-git-send-email-hannes@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
 Cc: Rik van Riel <riel@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Minchan Kim <minchan.kim@gmail.com>, Hugh Dickins <hughd@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
 
-The readahead code searches the page cache for non-present pages, or
-holes, to get a picture of the area surrounding a fault e.g.
+Hi,
 
-For this it sufficed to rely on the radix tree definition of holes,
-which is "empty tree slot".  This is about to change, though, because
-shadow page descriptors will be stored in the page cache when the real
-pages get evicted from memory.
+our file data caching implementation is done by having an inactive
+list of pages that have yet to prove worth keeping around and an
+active list of pages that already did.  The question is how to balance
+those two lists against each other.
 
-Fortunately, nobody outside the readahead code uses these functions
-and they have no internal knowledge of the radix tree structures, so
-just move them over to mm/readahead.c where they can later be adapted
-to handle the new definition of "page cache hole".
+On one hand, the space for inactive pages needs to be big enough so
+that they have the necessary time in memory to gather the references
+required for an activation.  On the other hand, we want an active list
+big enough to hold all data that is frequently used, if possible, to
+protect it from streams of less frequently used/once used pages.
 
-Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
----
- include/linux/radix-tree.h |    4 --
- lib/radix-tree.c           |   75 --------------------------------------------
- mm/readahead.c             |   36 ++++++++++++++++++++-
- 3 files changed, 34 insertions(+), 81 deletions(-)
+Our current balancing ("active can't grow larger than inactive") does
+not really work too well.  We have people complaining that the working
+set is not well protected from used-once file cache, and other people
+complaining that we don't adapt to changes in the workingset and
+protect stale pages in other cases.
 
-diff --git a/include/linux/radix-tree.h b/include/linux/radix-tree.h
-index 07e360b..73e49c4 100644
---- a/include/linux/radix-tree.h
-+++ b/include/linux/radix-tree.h
-@@ -224,10 +224,6 @@ radix_tree_gang_lookup(struct radix_tree_root *root, void **results,
- unsigned int radix_tree_gang_lookup_slot(struct radix_tree_root *root,
- 			void ***results, unsigned long *indices,
- 			unsigned long first_index, unsigned int max_items);
--unsigned long radix_tree_next_hole(struct radix_tree_root *root,
--				unsigned long index, unsigned long max_scan);
--unsigned long radix_tree_prev_hole(struct radix_tree_root *root,
--				unsigned long index, unsigned long max_scan);
- int radix_tree_preload(gfp_t gfp_mask);
- void radix_tree_init(void);
- void *radix_tree_tag_set(struct radix_tree_root *root,
-diff --git a/lib/radix-tree.c b/lib/radix-tree.c
-index dc63d08..89b5f6a 100644
---- a/lib/radix-tree.c
-+++ b/lib/radix-tree.c
-@@ -742,81 +742,6 @@ next:
- }
- EXPORT_SYMBOL(radix_tree_range_tag_if_tagged);
- 
--
--/**
-- *	radix_tree_next_hole    -    find the next hole (not-present entry)
-- *	@root:		tree root
-- *	@index:		index key
-- *	@max_scan:	maximum range to search
-- *
-- *	Search the set [index, min(index+max_scan-1, MAX_INDEX)] for the lowest
-- *	indexed hole.
-- *
-- *	Returns: the index of the hole if found, otherwise returns an index
-- *	outside of the set specified (in which case 'return - index >= max_scan'
-- *	will be true). In rare cases of index wrap-around, 0 will be returned.
-- *
-- *	radix_tree_next_hole may be called under rcu_read_lock. However, like
-- *	radix_tree_gang_lookup, this will not atomically search a snapshot of
-- *	the tree at a single point in time. For example, if a hole is created
-- *	at index 5, then subsequently a hole is created at index 10,
-- *	radix_tree_next_hole covering both indexes may return 10 if called
-- *	under rcu_read_lock.
-- */
--unsigned long radix_tree_next_hole(struct radix_tree_root *root,
--				unsigned long index, unsigned long max_scan)
--{
--	unsigned long i;
--
--	for (i = 0; i < max_scan; i++) {
--		if (!radix_tree_lookup(root, index))
--			break;
--		index++;
--		if (index == 0)
--			break;
--	}
--
--	return index;
--}
--EXPORT_SYMBOL(radix_tree_next_hole);
--
--/**
-- *	radix_tree_prev_hole    -    find the prev hole (not-present entry)
-- *	@root:		tree root
-- *	@index:		index key
-- *	@max_scan:	maximum range to search
-- *
-- *	Search backwards in the range [max(index-max_scan+1, 0), index]
-- *	for the first hole.
-- *
-- *	Returns: the index of the hole if found, otherwise returns an index
-- *	outside of the set specified (in which case 'index - return >= max_scan'
-- *	will be true). In rare cases of wrap-around, ULONG_MAX will be returned.
-- *
-- *	radix_tree_next_hole may be called under rcu_read_lock. However, like
-- *	radix_tree_gang_lookup, this will not atomically search a snapshot of
-- *	the tree at a single point in time. For example, if a hole is created
-- *	at index 10, then subsequently a hole is created at index 5,
-- *	radix_tree_prev_hole covering both indexes may return 5 if called under
-- *	rcu_read_lock.
-- */
--unsigned long radix_tree_prev_hole(struct radix_tree_root *root,
--				   unsigned long index, unsigned long max_scan)
--{
--	unsigned long i;
--
--	for (i = 0; i < max_scan; i++) {
--		if (!radix_tree_lookup(root, index))
--			break;
--		index--;
--		if (index == ULONG_MAX)
--			break;
--	}
--
--	return index;
--}
--EXPORT_SYMBOL(radix_tree_prev_hole);
--
- static unsigned int
- __lookup(struct radix_tree_node *slot, void ***results, unsigned long *indices,
- 	unsigned long index, unsigned int max_items, unsigned long *next_index)
-diff --git a/mm/readahead.c b/mm/readahead.c
-index cbcbb02..0d1f1aa 100644
---- a/mm/readahead.c
-+++ b/mm/readahead.c
-@@ -336,6 +336,38 @@ static unsigned long get_next_ra_size(struct file_ra_state *ra,
-  * it approaches max_readhead.
-  */
- 
-+static unsigned long page_cache_next_hole(struct address_space *mapping,
-+					  pgoff_t index, unsigned long max_scan)
-+{
-+	unsigned long i;
-+
-+	for (i = 0; i < max_scan; i++) {
-+		if (!radix_tree_lookup(&mapping->page_tree, index))
-+			break;
-+		index++;
-+		if (index == 0)
-+			break;
-+	}
-+
-+	return index;
-+}
-+
-+static unsigned long page_cache_prev_hole(struct address_space *mapping,
-+					  pgoff_t index, unsigned long max_scan)
-+{
-+	unsigned long i;
-+
-+	for (i = 0; i < max_scan; i++) {
-+		if (!radix_tree_lookup(&mapping->page_tree, index))
-+			break;
-+		index--;
-+		if (index == ULONG_MAX)
-+			break;
-+	}
-+
-+	return index;
-+}
-+
- /*
-  * Count contiguously cached pages from @offset-1 to @offset-@max,
-  * this count is a conservative estimation of
-@@ -349,7 +381,7 @@ static pgoff_t count_history_pages(struct address_space *mapping,
- 	pgoff_t head;
- 
- 	rcu_read_lock();
--	head = radix_tree_prev_hole(&mapping->page_tree, offset - 1, max);
-+	head = page_cache_prev_hole(mapping, offset - 1, max);
- 	rcu_read_unlock();
- 
- 	return offset - 1 - head;
-@@ -428,7 +460,7 @@ ondemand_readahead(struct address_space *mapping,
- 		pgoff_t start;
- 
- 		rcu_read_lock();
--		start = radix_tree_next_hole(&mapping->page_tree, offset+1,max);
-+		start = page_cache_next_hole(mapping, offset + 1, max);
- 		rcu_read_unlock();
- 
- 		if (!start || start - offset > max)
--- 
-1.7.7.6
+This series stores file cache eviction information in the vacated page
+cache radix tree slots and uses it on refault to see if the pages
+currently on the active list need to have their status challenged.
+
+A fully activated file set that occupies 85% of memory is successfully
+detected as stale when another file set of equal size is accessed for
+a few times (4-5).  The old kernel would never adapt to the second
+one.  If the new set is bigger than memory, the old set is left
+untouched, where the old kernel would shrink the old set to half of
+memory and leave it at that.  Tested on a multi-zone single-node
+machine.
+
+More testing is obviously required, but I first wanted some opinions
+at this point.  Is there fundamental disagreement with the concept?
+With the implementation?
+
+Memcg hard limit reclaim is not converted (anymore, ripped it out to
+focus on the global case first) and it still does the 50/50 balancing
+between lists, but this will be re-added in the next version.
+
+Patches are based on 3.3.
+
+ fs/btrfs/compression.c     |   10 +-
+ fs/btrfs/extent_io.c       |    3 +-
+ fs/cachefiles/rdwr.c       |   26 +++--
+ fs/ceph/xattr.c            |    2 +-
+ fs/inode.c                 |    7 +-
+ fs/logfs/readwrite.c       |    9 +-
+ fs/nilfs2/inode.c          |    6 +-
+ fs/ntfs/file.c             |   11 ++-
+ fs/splice.c                |   10 +-
+ include/linux/mm.h         |    8 ++
+ include/linux/mmzone.h     |    7 ++
+ include/linux/pagemap.h    |   54 ++++++++---
+ include/linux/pagevec.h    |    3 +
+ include/linux/radix-tree.h |    4 -
+ include/linux/sched.h      |    1 +
+ include/linux/shmem_fs.h   |    1 +
+ include/linux/swap.h       |    7 ++
+ lib/radix-tree.c           |   75 ---------------
+ mm/Makefile                |    1 +
+ mm/filemap.c               |  222 ++++++++++++++++++++++++++++++++++----------
+ mm/memcontrol.c            |    3 +
+ mm/mincore.c               |   20 +++-
+ mm/page_alloc.c            |    7 ++
+ mm/readahead.c             |   51 +++++++++-
+ mm/shmem.c                 |   89 +++---------------
+ mm/swap.c                  |   23 +++++
+ mm/truncate.c              |   73 +++++++++++---
+ mm/vmscan.c                |   80 +++++++++-------
+ mm/vmstat.c                |    4 +
+ mm/workingset.c            |  174 ++++++++++++++++++++++++++++++++++
+ net/ceph/messenger.c       |    2 +-
+ net/ceph/pagelist.c        |    4 +-
+ net/ceph/pagevec.c         |    2 +-
+ 33 files changed, 682 insertions(+), 317 deletions(-)
+
+Thanks,
+Johannes
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
