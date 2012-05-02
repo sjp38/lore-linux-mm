@@ -1,72 +1,107 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx164.postini.com [74.125.245.164])
-	by kanga.kvack.org (Postfix) with SMTP id A734D6B004D
-	for <linux-mm@kvack.org>; Wed,  2 May 2012 01:04:01 -0400 (EDT)
-Message-ID: <4FA0C042.9010907@kernel.org>
-Date: Wed, 02 May 2012 14:04:02 +0900
+Received: from psmtp.com (na3sys010amx138.postini.com [74.125.245.138])
+	by kanga.kvack.org (Postfix) with SMTP id 778F66B004D
+	for <linux-mm@kvack.org>; Wed,  2 May 2012 01:21:57 -0400 (EDT)
+Message-ID: <4FA0C473.1000505@kernel.org>
+Date: Wed, 02 May 2012 14:21:55 +0900
 From: Minchan Kim <minchan@kernel.org>
 MIME-Version: 1.0
-Subject: Re: [PATCH v4] vmevent: Implement greater-than attribute state and
- one-shot mode
-References: <20120418083208.GA24904@lizard> <20120418083523.GB31556@lizard> <alpine.LFD.2.02.1204182259580.11868@tux.localdomain> <20120418224629.GA22150@lizard> <alpine.LFD.2.02.1204190841290.1704@tux.localdomain> <20120419162923.GA26630@lizard> <20120501131806.GA22249@lizard> <4FA04FD5.6010900@redhat.com> <20120502002026.GA3334@lizard> <4FA08BDB.1070009@gmail.com> <20120502033136.GA14740@lizard>
-In-Reply-To: <20120502033136.GA14740@lizard>
-Content-Type: text/plain; charset=UTF-8
+Subject: Re: [patch 5/5] mm: refault distance-based file cache sizing
+References: <1335861713-4573-1-git-send-email-hannes@cmpxchg.org> <1335861713-4573-6-git-send-email-hannes@cmpxchg.org> <20120501141330.GA2207@barrios> <20120501153825.GA4837@cmpxchg.org>
+In-Reply-To: <20120501153825.GA4837@cmpxchg.org>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Anton Vorontsov <anton.vorontsov@linaro.org>
-Cc: KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Rik van Riel <riel@redhat.com>, Pekka Enberg <penberg@kernel.org>, Leonid Moiseichuk <leonid.moiseichuk@nokia.com>, John Stultz <john.stultz@linaro.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linaro-kernel@lists.linaro.org, patches@linaro.org, kernel-team@android.com, Glauber Costa <glommer@parallels.com>, kamezawa.hiroyu@jp.fujitsu.com, Suleiman Souhlal <suleiman@google.com>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: linux-mm@kvack.org, Rik van Riel <riel@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Minchan Kim <minchan.kim@gmail.com>, Hugh Dickins <hughd@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On 05/02/2012 12:31 PM, Anton Vorontsov wrote:
+On 05/02/2012 12:38 AM, Johannes Weiner wrote:
 
-> Hello KOSAKI,
-> 
-> On Tue, May 01, 2012 at 09:20:27PM -0400, KOSAKI Motohiro wrote:
-> [...]
->>> It would be great indeed, but so far I don't see much that
->>> vmevent could share. Plus, sharing the code at this point is not
->>> that interesting; it's mere 500 lines of code (comparing to
->>> more than 10K lines for cgroups, and it's not including memcg_
->>> hooks and logic that is spread all over mm/).
->>>
->>> Today vmevent code is mostly an ABI implementation, there is
->>> very little memory management logic (in contrast to the memcg).
+> On Tue, May 01, 2012 at 11:13:30PM +0900, Minchan Kim wrote:
+>> Hi Hannes,
 >>
->> But, if it doesn't work desktop/server area, it shouldn't be merged.
+>> On Tue, May 01, 2012 at 10:41:53AM +0200, Johannes Weiner wrote:
+>>> To protect frequently used page cache (workingset) from bursts of less
+>>> frequently used or one-shot cache, page cache pages are managed on two
+>>> linked lists.  The inactive list is where all cache starts out on
+>>> fault and ends on reclaim.  Pages that get accessed another time while
+>>> on the inactive list get promoted to the active list to protect them
+>>> from reclaim.
+>>>
+>>> Right now we have two main problems.
+>>>
+>>> One stems from numa allocation decisions and how the page allocator
+>>> and kswapd interact.  The both of them can enter into a perfect loop
+>>> where kswapd reclaims from the preferred zone of a task, allowing the
+>>> task to continuously allocate from that zone.  Or, the node distance
+>>> can lead to the allocator to do direct zone reclaim to stay in the
+>>> preferred zone.  This may be good for locality, but the task has only
+>>
+>> Understood.
+>>
+>>> the inactive space of that one zone to get its memory activated.
+>>> Forcing the allocator to spread out to lower zones in the right
+>>> situation makes the difference between continuous IO to serve the
+>>> workingset, or taking the numa cost but serving fully from memory.
+>>
+>> It's hard to parse your word due to my dumb brain.
+>> Could you elaborate on it?
+>> It would be a good if you say with example.
 > 
-> What makes you think that vmevent won't work for desktop or servers?
-> :-)
+> Say your Normal zone is 4G (DMA32 also 4G) and you have 2G of active
+> file pages in Normal and DMA32 is full of other stuff.  Now you access
+> a new 6G file repeatedly.  First it allocates from Normal (preferred),
+> then tries DMA32 (full), wakes up kswapd and retries all zones.  If
+> kswapd then frees pages at roughly the same pace as the allocator
+> allocates from Normal, kswapd never goes to sleep and evicts pages
+> from the 6G file before they can get accessed a second time.  Even
+> though the 6G file could fit in memory (4G Normal + 4G DMA32), the
+> allocator only uses the 4G Normal zone.
 > 
-> E.g. for some servers you don't always want memcg, really. Suppose,
-> a kvm farm or a database server. Sometimes there's really no need for
-> the memcg, but there's still a demand for low memory notifications.
+> Same applies if you have a load that would fit in the memory of two
+> nodes but the node distance leads the allocator to do zone_reclaim()
+> and forcing the pages to stay in one node, again preventing the load
+> from being fully cached in memory, which is much more expensive than
+> the foreign node cost.
 > 
-> Current Linux desktops don't use any notifications at all, I think.
-> So nothing to say about, neither on cgroup's nor on vmevent's behalf.
-> I hardly imagine why desktop would use the whole memcg thing, but
-> still have a use case for memory notifications.
+>>> up to half of memory, and don't recognize workingset changes that are
+>>> bigger than half of memory.
+>>
+>> Workingset change?
+>> You mean if new workingset is bigger than half of memory and it's like
+>> stream before retouch, we could cache only part of working set because 
+>> head pages on working set would be discared by tail pages of working set
+>> in inactive list?
 > 
->> We have to consider the best design before kernel inclusion. They cann't
->> be separeted to discuss.
+> Spot-on.  I called that 'tail-chasing' in my notes :-) When you are in
+> a perpetual loop of evicting pages you will need in a couple hundred
+> page faults.  Those couple hundred page faults are the refault
+> distance and my code is able to detect these loops and increases the
+> space available to the inactive list to end them, if possible.
 > 
-> Of course, no objections here. But I somewhat disagree with the
-> "best design" term. Which design is better, reading a file via
-> read() or mmap()? It depends. Same here.
 
 
-I think hardest problem in low mem notification is how to define _lowmem situation_.
-We all guys (server, desktop and embedded) should reach a conclusion on define lowmem situation
-before progressing further implementation because each part can require different limits.
-Hopefully, I want it.
+Thanks! It would be better to add above explanation in cover-letter.
 
-What is the best situation we can call it as "low memory"?
 
-As a matter of fact, if we can define it well, I think even we don't need vmevent ABI.
-In my opinion, it's not easy to generalize each use-cases so we can pass it to user space and
-just export low attributes of vmstat in kernel by vmevent.
-Userspace program can determine low mem situation well on his environment with other vmstats
-when notification happens. Of course, it has a drawback that userspace couples kernel's vmstat
-but at least I think that's why we need vmevent for triggering event when we start watching carefully.
+> This is the whole principle of the series.
+> 
+> If such a loop is recognized in a single zone, the allocator goes for
+> lower zones to increase the inactive space.  If such a loop is
+> recognized over all allowed zones in the zonelist, the active lists
+> are shrunk to increase the inactive space.
+
+>
+
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Fight unfair telecom internet charges in Canada: sign http://stopthemeter.ca/
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> 
+
 
 
 -- 
