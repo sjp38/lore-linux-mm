@@ -1,136 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx124.postini.com [74.125.245.124])
-	by kanga.kvack.org (Postfix) with SMTP id 9527A6B004D
-	for <linux-mm@kvack.org>; Wed,  2 May 2012 11:11:57 -0400 (EDT)
-Date: Wed, 2 May 2012 17:11:42 +0200
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [patch 5/5] mm: refault distance-based file cache sizing
-Message-ID: <20120502151142.GA2410@redhat.com>
-References: <1335861713-4573-1-git-send-email-hannes@cmpxchg.org>
- <1335861713-4573-6-git-send-email-hannes@cmpxchg.org>
- <20120502015741.GE22923@redhat.com>
- <20120502062308.GN2536@cmpxchg.org>
+Received: from psmtp.com (na3sys010amx202.postini.com [74.125.245.202])
+	by kanga.kvack.org (Postfix) with SMTP id DA1656B004D
+	for <linux-mm@kvack.org>; Wed,  2 May 2012 11:16:36 -0400 (EDT)
+Message-ID: <4FA14F5D.4040504@parallels.com>
+Date: Wed, 2 May 2012 12:14:37 -0300
+From: Glauber Costa <glommer@parallels.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20120502062308.GN2536@cmpxchg.org>
+Subject: Re: [PATCH 00/23] slab+slub accounting for memcg
+References: <1334958560-18076-1-git-send-email-glommer@parallels.com> <CABCjUKDGw20nojLqvZZbn0orO1aR9dhTZ65X_7ZSZto0eMk1GQ@mail.gmail.com>
+In-Reply-To: <CABCjUKDGw20nojLqvZZbn0orO1aR9dhTZ65X_7ZSZto0eMk1GQ@mail.gmail.com>
+Content-Type: text/plain; charset="ISO-8859-1"; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: linux-mm@kvack.org, Rik van Riel <riel@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Minchan Kim <minchan.kim@gmail.com>, Hugh Dickins <hughd@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Suleiman Souhlal <suleiman@google.com>
+Cc: cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, devel@openvz.org, kamezawa.hiroyu@jp.fujitsu.com, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Frederic Weisbecker <fweisbec@gmail.com>, Greg Thelen <gthelen@google.com>
 
-On Wed, May 02, 2012 at 08:23:09AM +0200, Johannes Weiner wrote:
-> On Wed, May 02, 2012 at 03:57:41AM +0200, Andrea Arcangeli wrote:
-> > On Tue, May 01, 2012 at 10:41:53AM +0200, Johannes Weiner wrote:
-> > > frequently used active page.  Instead, for each refault with a
-> > > distance smaller than the size of the active list, we deactivate an
-> > 
-> > Shouldn't this be the size of active list + size of inactive list?
-> > 
-> > If the active list is 500M, inactive 500M and the new working set is
-> > 600M, the refault distance will be 600M, it won't be smaller than the
-> > size of the active list, and it won't deactivate the active list as it
-> > should and it won't be detected as working set.
-> > 
-> > Only the refault distance bigger than inactive+active should not
-> > deactivate the active list if I understand how this works correctly.
-> 
-> The refault distance is what's missing, not the full reuse frequency.
-> You ignore the 500M worth of inactive LRU time the page had in memory.
-> The distance in that scenario would be 100M, the time between eviction
-> and refault:
-> 
->         +-----------------------------++-----------------------------+
->         |                             ||                             |
->         | inactive                    || active                      |
->         +-----------------------------++-----------------------------+
-> +~~~~~~~------------------------------+
-> |                                     |
-> | new set                             |
-> +~~~~~~~------------------------------+
-> ^       ^
-> |       |
-> |       eviction
-> refault
-> 
-> The ~~~'d part could fit into memory if the active list was 100M
-> smaller.
+On 04/30/2012 06:43 PM, Suleiman Souhlal wrote:
+>> I am leaving destruction of caches out of the series, although most
+>> >  of the infrastructure for that is here, since we did it in earlier
+>> >  series. This is basically because right now Kame is reworking it for
+>> >  user memcg, and I like the new proposed behavior a lot more. We all seemed
+>> >  to have agreed that reclaim is an interesting problem by itself, and
+>> >  is not included in this already too complicated series. Please note
+>> >  that this is still marked as experimental, so we have so room. A proper
+>> >  shrinker implementation is a hard requirement to take the kmem controller
+>> >  out of the experimental state.
+> We will have to be careful for cache destruction.
+> I found several races between allocation and destruction, in my patchset.
+>
+> I think we should consider doing the uncharging of kmem when
+> destroying a memcg in mem_cgroup_destroy() instead of in
+> pre_destroy(), because it's still possible that there are threads in
+> the cgroup while pre_destroy() is being called (or for threads to be
+> moved into the cgroup).
 
-Never mind, I see that the refault distance is only going to measure
-the amount of the new working set that spilled over the inactive list
-so it would only be set to 100M in the example.
+I found some problems here as well.
+I am trying to work ontop of what Kamezawa posted for pre_destroy() 
+rework. I have one or two incorrect uncharging issues to solve, that's 
+actually what is holding me for posting a new version.
 
-> > > @@ -1726,6 +1728,11 @@ zonelist_scan:
-> > >  		if ((alloc_flags & ALLOC_CPUSET) &&
-> > >  			!cpuset_zone_allowed_softwall(zone, gfp_mask))
-> > >  				continue;
-> > > +		if ((alloc_flags & ALLOC_WMARK_LOW) &&
-> > > +		    current->refault_distance &&
-> > > +		    !workingset_zone_alloc(zone, current->refault_distance,
-> > > +					   &distance, &active))
-> > > +			continue;
-> > >  		/*
-> > >  		 * When allocating a page cache page for writing, we
-> > >  		 * want to get it from a zone that is within its dirty
-> > 
-> > It's a bit hard to see how this may not run oom prematurely if the
-> > distance is always bigger, this is just an implementation question and
-> > maybe I'm missing a fallback somewhere where we actually allocate
-> > memory from whatever place in case no place is ideal.
-> 
-> Sorry, this should be documented better.
-> 
-> The ALLOC_WMARK_LOW check makes sure this only applies in the
-> fastpath.  It will prepare reclaim with lruvec->shrink_active, then
-> wake up kswapd and retry the zonelist without this constraint.
-
-My point is this is going to change the semantics of ALLOC_WMARK_LOW
-to "return OOM randomly even if there's plenty of free memory" instead
-of "use only up to the low wmark". I see you want to wake kswapd and
-retry with the min wmark after that, but maybe it would be cleaner to
-have a new ALLOC_REFAULT_DISTANCE to avoid altering the meaning of
-ALLOC_WMARK_LOW. Then add a "|ALLOC_REFAULT_DISTANCE" to the
-parameter. It sounds simpler to keep controlling the wmark level
-checked with ALLOC_WMARK_LOW|MIN|HIGH without introducing a new special
-meanings to the LOW bitflag.
-
-This is only a cleanup though, I believe it works good at runtime.
-
-> > > +	/*
-> > > +	 * Lower zones may not even be full, and free pages are
-> > > +	 * potential inactive space, too.  But the dirty reserve is
-> > > +	 * not available to page cache due to lowmem reserves and the
-> > > +	 * kswapd watermark.  Don't include it.
-> > > +	 */
-> > > +	zone_free = zone_page_state(zone, NR_FREE_PAGES);
-> > > +	if (zone_free > zone->dirty_balance_reserve)
-> > > +		zone_free -= zone->dirty_balance_reserve;
-> > > +	else
-> > > +		zone_free = 0;
-> > 
-> > Maybe also remove the high wmark from the sum? It can be some hundred
-> > meg so it's better to take it into account, to have a more accurate
-> > math and locate the best zone that surely fits.
-> > 
-> > For the same reason it looks like the lowmem reserve should also be
-> > taken into account, on the full sum.
-> 
-> dirty_balance_reserve IS the sum of the high watermark and the biggest
-> lowmem reserve for a particular zone, see how it's calculated in
-> mm/page_alloc.c::calculate_totalreserve_pages().
-> 
-> nr_free - dirty_balance_reserve is the number of pages available to
-> page cache allocations without keeping kswapd alive or having to dip
-> into lowmem reserves.
-> 
-> Or did I misunderstand you?
-
-No, that's all right then! I didn't realize dirty_balance_reserve
-accounts exactly for what I wrote above (high wmark and lowmem
-reserve). I've seen it used by page-writeback and I naively assumed it
-had to do with dirty pages levels, while it has absolutely nothing to
-do with writeback or any dirty memory level! Despite its quite
-misleading _dirty prefix :)
+expected soon
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
