@@ -1,230 +1,224 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx129.postini.com [74.125.245.129])
-	by kanga.kvack.org (Postfix) with SMTP id 496D96B004D
-	for <linux-mm@kvack.org>; Wed,  2 May 2012 11:20:10 -0400 (EDT)
-Message-ID: <4FA1502C.3040604@parallels.com>
-Date: Wed, 2 May 2012 12:18:04 -0300
+Received: from psmtp.com (na3sys010amx163.postini.com [74.125.245.163])
+	by kanga.kvack.org (Postfix) with SMTP id 228936B004D
+	for <linux-mm@kvack.org>; Wed,  2 May 2012 11:38:20 -0400 (EDT)
+Message-ID: <4FA15414.3050901@parallels.com>
+Date: Wed, 2 May 2012 12:34:44 -0300
 From: Glauber Costa <glommer@parallels.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 11/23] slub: consider a memcg parameter in kmem_create_cache
-References: <1334959051-18203-1-git-send-email-glommer@parallels.com> <1334959051-18203-12-git-send-email-glommer@parallels.com> <CABCjUKCW+SS8R1pUarkE4D3fvy8AchOBtkDnqLzrkqervWe-Kg@mail.gmail.com>
-In-Reply-To: <CABCjUKCW+SS8R1pUarkE4D3fvy8AchOBtkDnqLzrkqervWe-Kg@mail.gmail.com>
+Subject: Re: [PATCH 17/23] kmem controller charge/uncharge infrastructure
+References: <1334959051-18203-1-git-send-email-glommer@parallels.com> <1335138820-26590-6-git-send-email-glommer@parallels.com> <CABCjUKBk=RTCoH34XOQHxRsSp0G5iwtgeBKtdNEUeTE5kx07Vg@mail.gmail.com>
+In-Reply-To: <CABCjUKBk=RTCoH34XOQHxRsSp0G5iwtgeBKtdNEUeTE5kx07Vg@mail.gmail.com>
 Content-Type: text/plain; charset="ISO-8859-1"; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Suleiman Souhlal <suleiman@google.com>
 Cc: cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, devel@openvz.org, kamezawa.hiroyu@jp.fujitsu.com, Michal Hocko <mhocko@suse.cz>, Johannes
- Weiner <hannes@cmpxchg.org>, Frederic Weisbecker <fweisbec@gmail.com>, Greg Thelen <gthelen@google.com>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@cs.helsinki.fi>
+ Weiner <hannes@cmpxchg.org>, fweisbec@gmail.com, Greg Thelen <gthelen@google.com>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@cs.helsinki.fi>
 
-On 04/30/2012 04:51 PM, Suleiman Souhlal wrote:
-> On Fri, Apr 20, 2012 at 2:57 PM, Glauber Costa<glommer@parallels.com>  wrote:
->> Allow a memcg parameter to be passed during cache creation.
->> The slub allocator will only merge caches that belong to
->> the same memcg.
->>
->> Default function is created as a wrapper, passing NULL
->> to the memcg version. We only merge caches that belong
->> to the same memcg.
->>
->>  From the memcontrol.c side, 3 helper functions are created:
->>
->>   1) memcg_css_id: because slub needs a unique cache name
->>     for sysfs. Since this is visible, but not the canonical
->>     location for slab data, the cache name is not used, the
->>     css_id should suffice.
->>
->>   2) mem_cgroup_register_cache: is responsible for assigning
->>     a unique index to each cache, and other general purpose
->>     setup. The index is only assigned for the root caches. All
->>     others are assigned index == -1.
->>
->>   3) mem_cgroup_release_cache: can be called from the root cache
->>     destruction, and will release the index for other caches.
->>
->> This index mechanism was developed by Suleiman Souhlal.
->>
->> Signed-off-by: Glauber Costa<glommer@parallels.com>
->> CC: Christoph Lameter<cl@linux.com>
->> CC: Pekka Enberg<penberg@cs.helsinki.fi>
->> CC: Michal Hocko<mhocko@suse.cz>
->> CC: Kamezawa Hiroyuki<kamezawa.hiroyu@jp.fujitsu.com>
->> CC: Johannes Weiner<hannes@cmpxchg.org>
->> CC: Suleiman Souhlal<suleiman@google.com>
->> ---
->>   include/linux/memcontrol.h |   14 ++++++++++++++
->>   include/linux/slab.h       |    6 ++++++
->>   mm/memcontrol.c            |   29 +++++++++++++++++++++++++++++
->>   mm/slub.c                  |   31 +++++++++++++++++++++++++++----
->>   4 files changed, 76 insertions(+), 4 deletions(-)
->>
->> diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
->> index f94efd2..99e14b9 100644
->> --- a/include/linux/memcontrol.h
->> +++ b/include/linux/memcontrol.h
->> @@ -26,6 +26,7 @@ struct mem_cgroup;
->>   struct page_cgroup;
->>   struct page;
->>   struct mm_struct;
->> +struct kmem_cache;
->>
->>   /* Stats that can be updated by kernel. */
->>   enum mem_cgroup_page_stat_item {
->> @@ -440,7 +441,20 @@ struct sock;
->>   #ifdef CONFIG_CGROUP_MEM_RES_CTLR_KMEM
->>   void sock_update_memcg(struct sock *sk);
->>   void sock_release_memcg(struct sock *sk);
->> +int memcg_css_id(struct mem_cgroup *memcg);
->> +void mem_cgroup_register_cache(struct mem_cgroup *memcg,
->> +                                     struct kmem_cache *s);
->> +void mem_cgroup_release_cache(struct kmem_cache *cachep);
->>   #else
->> +static inline void mem_cgroup_register_cache(struct mem_cgroup *memcg,
->> +                                            struct kmem_cache *s)
+On 04/30/2012 05:56 PM, Suleiman Souhlal wrote:
+>> +
+>> +static void kmem_cache_destroy_work_func(struct work_struct *w)
 >> +{
->> +}
+>> +       struct kmem_cache *cachep;
+>> +       char *name;
 >> +
->> +static inline void mem_cgroup_release_cache(struct kmem_cache *cachep)
->> +{
->> +}
->> +
->>   static inline void sock_update_memcg(struct sock *sk)
->>   {
->>   }
->> diff --git a/include/linux/slab.h b/include/linux/slab.h
->> index a5127e1..c7a7e05 100644
->> --- a/include/linux/slab.h
->> +++ b/include/linux/slab.h
->> @@ -321,6 +321,12 @@ extern void *__kmalloc_track_caller(size_t, gfp_t, unsigned long);
->>         __kmalloc(size, flags)
->>   #endif /* DEBUG_SLAB */
->>
->> +#ifdef CONFIG_CGROUP_MEM_RES_CTLR_KMEM
->> +#define MAX_KMEM_CACHE_TYPES 400
->> +#else
->> +#define MAX_KMEM_CACHE_TYPES 0
->> +#endif /* CONFIG_CGROUP_MEM_RES_CTLR_KMEM */
->> +
->>   #ifdef CONFIG_NUMA
->>   /*
->>   * kmalloc_node_track_caller is a special version of kmalloc_node that
->> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
->> index 36f1e6b..0015ed0 100644
->> --- a/mm/memcontrol.c
->> +++ b/mm/memcontrol.c
->> @@ -323,6 +323,11 @@ struct mem_cgroup {
->>   #endif
->>   };
->>
->> +int memcg_css_id(struct mem_cgroup *memcg)
->> +{
->> +       return css_id(&memcg->css);
->> +}
->> +
->>   /* Stuffs for move charges at task migration. */
->>   /*
->>   * Types of charges to be moved. "move_charge_at_immitgrate" is treated as a
->> @@ -461,6 +466,30 @@ struct cg_proto *tcp_proto_cgroup(struct mem_cgroup *memcg)
->>   }
->>   EXPORT_SYMBOL(tcp_proto_cgroup);
->>   #endif /* CONFIG_INET */
->> +
->> +/* Bitmap used for allocating the cache id numbers. */
->> +static DECLARE_BITMAP(cache_types, MAX_KMEM_CACHE_TYPES);
->> +
->> +void mem_cgroup_register_cache(struct mem_cgroup *memcg,
->> +                              struct kmem_cache *cachep)
->> +{
->> +       int id = -1;
->> +
->> +       cachep->memcg_params.memcg = memcg;
->> +
->> +       if (!memcg) {
->> +               id = find_first_zero_bit(cache_types, MAX_KMEM_CACHE_TYPES);
->> +               BUG_ON(id<  0 || id>= MAX_KMEM_CACHE_TYPES);
->> +               __set_bit(id, cache_types);
->> +       } else
->> +               INIT_LIST_HEAD(&cachep->memcg_params.destroyed_list);
->> +       cachep->memcg_params.id = id;
->> +}
->> +
->> +void mem_cgroup_release_cache(struct kmem_cache *cachep)
->> +{
->> +       __clear_bit(cachep->memcg_params.id, cache_types);
->> +}
->>   #endif /* CONFIG_CGROUP_MEM_RES_CTLR_KMEM */
->>
->>   static void drain_all_stock_async(struct mem_cgroup *memcg);
->> diff --git a/mm/slub.c b/mm/slub.c
->> index 2652e7c..86e40cc 100644
->> --- a/mm/slub.c
->> +++ b/mm/slub.c
->> @@ -32,6 +32,7 @@
->>   #include<linux/prefetch.h>
->>
->>   #include<trace/events/kmem.h>
->> +#include<linux/memcontrol.h>
->>
->>   /*
->>   * Lock order:
->> @@ -3880,7 +3881,7 @@ static int slab_unmergeable(struct kmem_cache *s)
->>         return 0;
->>   }
->>
->> -static struct kmem_cache *find_mergeable(size_t size,
->> +static struct kmem_cache *find_mergeable(struct mem_cgroup *memcg, size_t size,
->>                 size_t align, unsigned long flags, const char *name,
->>                 void (*ctor)(void *))
->>   {
->> @@ -3916,21 +3917,29 @@ static struct kmem_cache *find_mergeable(size_t size,
->>                 if (s->size - size>= sizeof(void *))
->>                         continue;
->>
->> +               if (memcg&&  s->memcg_params.memcg != memcg)
->> +                       continue;
->> +
->>                 return s;
->>         }
->>         return NULL;
->>   }
->>
->> -struct kmem_cache *kmem_cache_create(const char *name, size_t size,
->> -               size_t align, unsigned long flags, void (*ctor)(void *))
->> +struct kmem_cache *
->> +kmem_cache_create_memcg(struct mem_cgroup *memcg, const char *name, size_t size,
->> +                       size_t align, unsigned long flags, void (*ctor)(void *))
->>   {
->>         struct kmem_cache *s;
->>
->>         if (WARN_ON(!name))
->>                 return NULL;
->>
->> +#ifndef CONFIG_CGROUP_MEM_RES_CTLR_KMEM
->> +       WARN_ON(memcg != NULL);
->> +#endif
->> +
->>         down_write(&slub_lock);
->> -       s = find_mergeable(size, align, flags, name, ctor);
->> +       s = find_mergeable(memcg, size, align, flags, name, ctor);
->>         if (s) {
->>                 s->refcount++;
->>                 /*
->> @@ -3954,12 +3963,15 @@ struct kmem_cache *kmem_cache_create(const char *name, size_t size,
->>                                 size, align, flags, ctor)) {
->>                         list_add(&s->list,&slab_caches);
->>                         up_write(&slub_lock);
->> +                       mem_cgroup_register_cache(memcg, s);
+>> +       spin_lock_irq(&cache_queue_lock);
+>> +       while (!list_empty(&destroyed_caches)) {
+>> +               cachep = container_of(list_first_entry(&destroyed_caches,
+>> +                   struct mem_cgroup_cache_params, destroyed_list), struct
+>> +                   kmem_cache, memcg_params);
+>> +               name = (char *)cachep->name;
+>> +               list_del(&cachep->memcg_params.destroyed_list);
+>> +               spin_unlock_irq(&cache_queue_lock);
+>> +               synchronize_rcu();
 >
-> Do the kmalloc caches get their id registered correctly?
+> Is this synchronize_rcu() still needed, now that we don't use RCU to
+> protect memcgs from disappearing during allocation anymore?
 >
+> Also, should we drop the memcg reference we got in
+> memcg_create_kmem_cache() here?
 
-For the slub, it seems to work okay. But I had to use the trick that for 
-the memcg-specific kmalloc caches, they come from the normal caches 
-rather than the special kmalloc pool. Since we are already paying the 
-penalty of dealing with the memcg finding, I hope this is okay.
+I have a reworked code I like better for this part.
 
-For the slab, my investigation wasn't that deep. But basic functionality 
-works okay.
+It reads as follows:
+
+static void kmem_cache_destroy_work_func(struct work_struct *w)
+{
+         struct kmem_cache *cachep;
+         const char *name;
+         struct mem_cgroup_cache_params *params, *tmp;
+         unsigned long flags;
+         LIST_HEAD(delete_unlocked);
+
+         synchronize_rcu();
+
+         spin_lock_irqsave(&cache_queue_lock, flags);
+         list_for_each_entry_safe(params, tmp, &destroyed_caches, 
+destroyed_list) {
+                 cachep = container_of(params, struct kmem_cache, 
+memcg_params);
+                 list_move(&cachep->memcg_params.destroyed_list, 
+&delete_unlocked);
+         }
+         spin_unlock_irqrestore(&cache_queue_lock, flags);
+
+         list_for_each_entry_safe(params, tmp, &delete_unlocked, 
+destroyed_list) {
+                 cachep = container_of(params, struct kmem_cache, 
+memcg_params);
+                 list_del(&cachep->memcg_params.destroyed_list);
+                 name = cachep->name;
+                 mem_cgroup_put(cachep->memcg_params.memcg);
+                 kmem_cache_destroy(cachep);
+                 kfree(name);
+         }
+}
+
+I think having a list in stack is better because we don't need to hold & 
+drop the spinlock, and can achieve more parallelism if multiple cpus are 
+scheduling the destroy worker.
+
+As you see, this version does a put() - so the answer to your question 
+is yes.
+
+synchronize_rcu() also gets a new meaning, in the sense that it only 
+waits until everybody that is destroying a cache can have the chance to 
+get their stuff into the list.
+
+But to be honest, one of the things we need to do for the next version, 
+is audit all the locking rules and write them down...
+
+>> +static void memcg_create_cache_work_func(struct work_struct *w)
+>> +{
+>> +       struct kmem_cache *cachep;
+>> +       struct create_work *cw;
+>> +
+>> +       spin_lock_irq(&cache_queue_lock);
+>> +       while (!list_empty(&create_queue)) {
+>> +               cw = list_first_entry(&create_queue, struct create_work, list);
+>> +               list_del(&cw->list);
+>> +               spin_unlock_irq(&cache_queue_lock);
+>> +               cachep = memcg_create_kmem_cache(cw->memcg, cw->cachep);
+>> +               if (cachep == NULL)
+>> +                       printk(KERN_ALERT
+>> +                       "%s: Couldn't create memcg-cache for %s memcg %s\n",
+>> +                       __func__, cw->cachep->name,
+>> +                       cw->memcg->css.cgroup->dentry->d_name.name);
+>
+> We might need rcu_dereference() here (and hold rcu_read_lock()).
+> Or we could just remove this message.
+
+Don't understand this "or". Again, cache creation can still fail. This 
+is specially true in constrained memory situations.
+
+>> +/*
+>> + * Return the kmem_cache we're supposed to use for a slab allocation.
+>> + * If we are in interrupt context or otherwise have an allocation that
+>> + * can't fail, we return the original cache.
+>> + * Otherwise, we will try to use the current memcg's version of the cache.
+>> + *
+>> + * If the cache does not exist yet, if we are the first user of it,
+>> + * we either create it immediately, if possible, or create it asynchronously
+>> + * in a workqueue.
+>> + * In the latter case, we will let the current allocation go through with
+>> + * the original cache.
+>> + *
+>> + * This function returns with rcu_read_lock() held.
+>> + */
+>> +struct kmem_cache *__mem_cgroup_get_kmem_cache(struct kmem_cache *cachep,
+>> +                                            gfp_t gfp)
+>> +{
+>> +       struct mem_cgroup *memcg;
+>> +       int idx;
+>> +
+>> +       gfp |=  cachep->allocflags;
+>> +
+>> +       if ((current->mm == NULL))
+>> +               return cachep;
+>> +
+>> +       if (cachep->memcg_params.memcg)
+>> +               return cachep;
+>> +
+>> +       idx = cachep->memcg_params.id;
+>> +       VM_BUG_ON(idx == -1);
+>> +
+>> +       memcg = mem_cgroup_from_task(current);
+>> +       if (!mem_cgroup_kmem_enabled(memcg))
+>> +               return cachep;
+>> +
+>> +       if (rcu_access_pointer(memcg->slabs[idx]) == NULL) {
+>> +               memcg_create_cache_enqueue(memcg, cachep);
+>> +               return cachep;
+>> +       }
+>> +
+>> +       return rcu_dereference(memcg->slabs[idx]);
+>
+> Is it ok to call rcu_access_pointer() and rcu_dereference() without
+> holding rcu_read_lock()?
+
+No, but mem_cgroup_from_task should be called with rcu_read_lock() held 
+as well.
+
+I forgot to change it in the comments, but this function should be 
+called with the rcu_read_lock() held. I was careful enough to check the 
+callers, and they do. But being only human, some of them might have 
+escaped...
+
+>> +
+>> +bool __mem_cgroup_charge_kmem(gfp_t gfp, size_t size)
+>> +{
+>> +       struct mem_cgroup *memcg;
+>> +       bool ret = true;
+>> +
+>> +       rcu_read_lock();
+>> +       memcg = mem_cgroup_from_task(current);
+>> +
+>> +       if (!mem_cgroup_kmem_enabled(memcg))
+>> +               goto out;
+>> +
+>> +       mem_cgroup_get(memcg);
+>
+> Why do we need to get a reference to the memcg for every charge?
+> How will this work when deleting a memcg?
+
+There are two charging functions here:
+
+mem_cgroup_charge_slab() and mem_cgroup_charge_kmem() (the later had its 
+name changed in my private branch, for the next submission)
+
+The slub allocator will draw large kmalloc allocations directly from the 
+page allocator, which is the case this function is designed to handle.
+
+Since we have no cache to bill this against, we need to hold the 
+reference here.
+
+>> +       _memcg = memcg;
+>> +       ret = __mem_cgroup_try_charge(NULL, gfp, delta / PAGE_SIZE,
+>> +&_memcg, may_oom);
+>> +       if (ret == -ENOMEM)
+>> +               return ret;
+>> +       else if ((ret == -EINTR) || (ret&&  (gfp&  __GFP_NOFAIL)))  {
+>> +               nofail = true;
+>> +               /*
+>> +                * __mem_cgroup_try_charge() chose to bypass to root due
+>> +                * to OOM kill or fatal signal.
+>> +                * Since our only options are to either fail the
+>> +                * allocation or charge it to this cgroup, force the
+>> +                * change, going above the limit if needed.
+>> +                */
+>> +               res_counter_charge_nofail(&memcg->res, delta,&fail_res);
+>
+> We might need to charge memsw here too.
+
+hummm, isn't there a more automated way to do that ?
+
+I'll take a look.
+
+> Might need to uncharge memsw.
+
+Here too.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
