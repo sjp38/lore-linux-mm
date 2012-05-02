@@ -1,57 +1,136 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx145.postini.com [74.125.245.145])
-	by kanga.kvack.org (Postfix) with SMTP id C4BBB6B004D
-	for <linux-mm@kvack.org>; Wed,  2 May 2012 05:20:36 -0400 (EDT)
-Date: Wed, 2 May 2012 11:20:29 +0200
-From: Jan Kara <jack@suse.cz>
-Subject: Re: [PATCH] Describe race of direct read and fork for unaligned
- buffers
-Message-ID: <20120502092029.GD16976@quack.suse.cz>
-References: <1335778207-6511-1-git-send-email-jack@suse.cz>
- <CAHGf_=qqiast+6XzGnq+LRdFXoWG9h2MkofmjS1h5OeNPRyWfw@mail.gmail.com>
- <CAKgNAkjAOGM+mZLkXGiDFYsnMCpJsxx=Nd5pZfx-_f4B1jvh+A@mail.gmail.com>
- <CAPa8GCC7tHm_8Ks_=tM4x544+SEtkVk6TMAF3KPsVqzNOi-naA@mail.gmail.com>
- <alpine.LSU.2.00.1205011952040.1293@eggly.anvils>
+Received: from psmtp.com (na3sys010amx124.postini.com [74.125.245.124])
+	by kanga.kvack.org (Postfix) with SMTP id 9527A6B004D
+	for <linux-mm@kvack.org>; Wed,  2 May 2012 11:11:57 -0400 (EDT)
+Date: Wed, 2 May 2012 17:11:42 +0200
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [patch 5/5] mm: refault distance-based file cache sizing
+Message-ID: <20120502151142.GA2410@redhat.com>
+References: <1335861713-4573-1-git-send-email-hannes@cmpxchg.org>
+ <1335861713-4573-6-git-send-email-hannes@cmpxchg.org>
+ <20120502015741.GE22923@redhat.com>
+ <20120502062308.GN2536@cmpxchg.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <alpine.LSU.2.00.1205011952040.1293@eggly.anvils>
+In-Reply-To: <20120502062308.GN2536@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: Nick Piggin <npiggin@gmail.com>, mtk.manpages@gmail.com, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Jan Kara <jack@suse.cz>, LKML <linux-kernel@vger.kernel.org>, linux-man@vger.kernel.org, linux-mm@kvack.org, mgorman@suse.de, Jeff Moyer <jmoyer@redhat.com>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: linux-mm@kvack.org, Rik van Riel <riel@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Minchan Kim <minchan.kim@gmail.com>, Hugh Dickins <hughd@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Tue 01-05-12 20:04:15, Hugh Dickins wrote:
-> On Wed, 2 May 2012, Nick Piggin wrote:
-> > On 2 May 2012 03:56, Michael Kerrisk (man-pages) <mtk.manpages@gmail.com> wrote:
-> > >
-> > > In the light of all of the comments, can someone revise the man-pages
-> > > patch that Jan sent?
+On Wed, May 02, 2012 at 08:23:09AM +0200, Johannes Weiner wrote:
+> On Wed, May 02, 2012 at 03:57:41AM +0200, Andrea Arcangeli wrote:
+> > On Tue, May 01, 2012 at 10:41:53AM +0200, Johannes Weiner wrote:
+> > > frequently used active page.  Instead, for each refault with a
+> > > distance smaller than the size of the active list, we deactivate an
 > > 
-> > This does not quite describe the entire situation, but something understandable
-> > to developers:
+> > Shouldn't this be the size of active list + size of inactive list?
 > > 
-> > O_DIRECT IOs should never be run concurrently with fork(2) system call,
-> > when the memory buffer is anonymous memory, or comes from mmap(2)
-> > with MAP_PRIVATE.
+> > If the active list is 500M, inactive 500M and the new working set is
+> > 600M, the refault distance will be 600M, it won't be smaller than the
+> > size of the active list, and it won't deactivate the active list as it
+> > should and it won't be detected as working set.
 > > 
-> > Any such IOs, whether submitted with asynchronous IO interface or from
-> > another thread in the process, should be quiesced before fork(2) is called.
-> > Failure to do so can result in data corruption and undefined behavior in
-> > parent and child processes.
-> > 
-> > This restriction does not apply when the memory buffer for the O_DIRECT
-> > IOs comes from mmap(2) with MAP_SHARED or from shmat(2).
+> > Only the refault distance bigger than inactive+active should not
+> > deactivate the active list if I understand how this works correctly.
 > 
-> Nor does this restriction apply when the memory buffer has been advised
-> as MADV_DONTFORK with madvise(2), ensuring that it will not be available
-> to the child after fork(2).
-  Yes, I think with this addition the text is fine.
+> The refault distance is what's missing, not the full reuse frequency.
+> You ignore the 500M worth of inactive LRU time the page had in memory.
+> The distance in that scenario would be 100M, the time between eviction
+> and refault:
+> 
+>         +-----------------------------++-----------------------------+
+>         |                             ||                             |
+>         | inactive                    || active                      |
+>         +-----------------------------++-----------------------------+
+> +~~~~~~~------------------------------+
+> |                                     |
+> | new set                             |
+> +~~~~~~~------------------------------+
+> ^       ^
+> |       |
+> |       eviction
+> refault
+> 
+> The ~~~'d part could fit into memory if the active list was 100M
+> smaller.
 
-								Honza
--- 
-Jan Kara <jack@suse.cz>
-SUSE Labs, CR
+Never mind, I see that the refault distance is only going to measure
+the amount of the new working set that spilled over the inactive list
+so it would only be set to 100M in the example.
+
+> > > @@ -1726,6 +1728,11 @@ zonelist_scan:
+> > >  		if ((alloc_flags & ALLOC_CPUSET) &&
+> > >  			!cpuset_zone_allowed_softwall(zone, gfp_mask))
+> > >  				continue;
+> > > +		if ((alloc_flags & ALLOC_WMARK_LOW) &&
+> > > +		    current->refault_distance &&
+> > > +		    !workingset_zone_alloc(zone, current->refault_distance,
+> > > +					   &distance, &active))
+> > > +			continue;
+> > >  		/*
+> > >  		 * When allocating a page cache page for writing, we
+> > >  		 * want to get it from a zone that is within its dirty
+> > 
+> > It's a bit hard to see how this may not run oom prematurely if the
+> > distance is always bigger, this is just an implementation question and
+> > maybe I'm missing a fallback somewhere where we actually allocate
+> > memory from whatever place in case no place is ideal.
+> 
+> Sorry, this should be documented better.
+> 
+> The ALLOC_WMARK_LOW check makes sure this only applies in the
+> fastpath.  It will prepare reclaim with lruvec->shrink_active, then
+> wake up kswapd and retry the zonelist without this constraint.
+
+My point is this is going to change the semantics of ALLOC_WMARK_LOW
+to "return OOM randomly even if there's plenty of free memory" instead
+of "use only up to the low wmark". I see you want to wake kswapd and
+retry with the min wmark after that, but maybe it would be cleaner to
+have a new ALLOC_REFAULT_DISTANCE to avoid altering the meaning of
+ALLOC_WMARK_LOW. Then add a "|ALLOC_REFAULT_DISTANCE" to the
+parameter. It sounds simpler to keep controlling the wmark level
+checked with ALLOC_WMARK_LOW|MIN|HIGH without introducing a new special
+meanings to the LOW bitflag.
+
+This is only a cleanup though, I believe it works good at runtime.
+
+> > > +	/*
+> > > +	 * Lower zones may not even be full, and free pages are
+> > > +	 * potential inactive space, too.  But the dirty reserve is
+> > > +	 * not available to page cache due to lowmem reserves and the
+> > > +	 * kswapd watermark.  Don't include it.
+> > > +	 */
+> > > +	zone_free = zone_page_state(zone, NR_FREE_PAGES);
+> > > +	if (zone_free > zone->dirty_balance_reserve)
+> > > +		zone_free -= zone->dirty_balance_reserve;
+> > > +	else
+> > > +		zone_free = 0;
+> > 
+> > Maybe also remove the high wmark from the sum? It can be some hundred
+> > meg so it's better to take it into account, to have a more accurate
+> > math and locate the best zone that surely fits.
+> > 
+> > For the same reason it looks like the lowmem reserve should also be
+> > taken into account, on the full sum.
+> 
+> dirty_balance_reserve IS the sum of the high watermark and the biggest
+> lowmem reserve for a particular zone, see how it's calculated in
+> mm/page_alloc.c::calculate_totalreserve_pages().
+> 
+> nr_free - dirty_balance_reserve is the number of pages available to
+> page cache allocations without keeping kswapd alive or having to dip
+> into lowmem reserves.
+> 
+> Or did I misunderstand you?
+
+No, that's all right then! I didn't realize dirty_balance_reserve
+accounts exactly for what I wrote above (high wmark and lowmem
+reserve). I've seen it used by page-writeback and I naively assumed it
+had to do with dirty pages levels, while it has absolutely nothing to
+do with writeback or any dirty memory level! Despite its quite
+misleading _dirty prefix :)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
