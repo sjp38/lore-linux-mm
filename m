@@ -1,34 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx158.postini.com [74.125.245.158])
-	by kanga.kvack.org (Postfix) with SMTP id 3A1696B004D
-	for <linux-mm@kvack.org>; Tue,  1 May 2012 21:01:51 -0400 (EDT)
-Received: by ghrr18 with SMTP id r18so145754ghr.14
-        for <linux-mm@kvack.org>; Tue, 01 May 2012 18:01:50 -0700 (PDT)
-Date: Tue, 1 May 2012 18:01:47 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [RFC] vmalloc: add warning in __vmalloc
-In-Reply-To: <CAPa8GCD2m9R8YWY2FhO=LOMvCHhC6T=iFdn2YmpLxjO96_B4Ew@mail.gmail.com>
-Message-ID: <alpine.DEB.2.00.1205011800220.13575@chino.kir.corp.google.com>
-References: <1335516144-3486-1-git-send-email-minchan@kernel.org> <alpine.DEB.2.00.1204270323000.11866@chino.kir.corp.google.com> <CAPa8GCBN6U_GRaG=GYFByNB4REcVA-yy+kKMMbrGaDKULUXW9w@mail.gmail.com> <alpine.DEB.2.00.1205011310180.7742@chino.kir.corp.google.com>
- <CAPa8GCD2m9R8YWY2FhO=LOMvCHhC6T=iFdn2YmpLxjO96_B4Ew@mail.gmail.com>
+Received: from psmtp.com (na3sys010amx195.postini.com [74.125.245.195])
+	by kanga.kvack.org (Postfix) with SMTP id 636646B004D
+	for <linux-mm@kvack.org>; Tue,  1 May 2012 21:10:46 -0400 (EDT)
+Date: Wed, 2 May 2012 03:10:31 +0200
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [patch 0/5] refault distance-based file cache sizing
+Message-ID: <20120502011031.GD22923@redhat.com>
+References: <1335861713-4573-1-git-send-email-hannes@cmpxchg.org>
+ <20120501120819.0af1e54b.akpm@linux-foundation.org>
+ <4FA05354.8000304@redhat.com>
+ <20120501142656.c9160d96.akpm@linux-foundation.org>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20120501142656.c9160d96.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Nick Piggin <npiggin@gmail.com>
-Cc: Minchan Kim <minchan@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, kosaki.motohiro@gmail.com, Neil Brown <neilb@suse.de>, Artem Bityutskiy <dedekind1@gmail.com>, David Woodhouse <dwmw2@infradead.org>, Theodore Ts'o <tytso@mit.edu>, Adrian Hunter <adrian.hunter@intel.com>, Steven Whitehouse <swhiteho@redhat.com>, "David S. Miller" <davem@davemloft.net>, James Morris <jmorris@namei.org>, Alexander Viro <viro@zeniv.linux.org.uk>, Sage Weil <sage@newdream.net>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org, Peter Zijlstra <peterz@infradead.org>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan.kim@gmail.com>, Hugh Dickins <hughd@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Wed, 2 May 2012, Nick Piggin wrote:
+Hi,
 
-> Because it needs to be an ongoing thing, which is caught as soon as the
-> developer writes some code, rather than continually audited for and fixed
-> up after the fact. There is not a good way to enforce this at compile time.
-> 
-> The existing callers do need to be fixed too, of course.
-> 
+On Tue, May 01, 2012 at 02:26:56PM -0700, Andrew Morton wrote:
+> Well, think of a stupid workload which creates a large number of very
+> large but sparse files (populated with one page in each 64, for
+> example).  Get them all in cache, then sit there touching the inodes to
+> keep then fresh.  What's the worst case here?
 
-I'm asking that existing callers be fixed up before such a warning is 
-introduced.
+I suspect in that scenario we may drop more inodes than before and so
+a ton of their cache with it and actually worsen the LRU effect
+instead of improving them.
+
+I don't think it's a reliablity issue, or we would probably be bitten
+by it already, especially with a ton of inodes with just one page at a
+very large file offset accessed in a loop. This only makes more sticky
+a badness we already have. Testing it for sure, wouldn't be a bad idea
+though.
+
+At first glance it sounds like a good tradeoff, as normally the
+"worsening" effect of when we have too many and large radix trees that
+would lead to more inodes to be dropped than before, shouldn't
+materialize and we'd just make better use of the memory we already
+allocated to make more accurate decisions on the active/inactive
+LRU balancing.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
