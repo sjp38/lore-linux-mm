@@ -1,76 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx161.postini.com [74.125.245.161])
-	by kanga.kvack.org (Postfix) with SMTP id 271506B0081
-	for <linux-mm@kvack.org>; Wed,  2 May 2012 15:46:13 -0400 (EDT)
-Date: Wed, 2 May 2012 12:46:10 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] vmalloc: add warning in __vmalloc
-Message-Id: <20120502124610.175e099c.akpm@linux-foundation.org>
-In-Reply-To: <1335932890-25294-1-git-send-email-minchan@kernel.org>
-References: <1335932890-25294-1-git-send-email-minchan@kernel.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx146.postini.com [74.125.245.146])
+	by kanga.kvack.org (Postfix) with SMTP id 826286B004D
+	for <linux-mm@kvack.org>; Wed,  2 May 2012 15:26:20 -0400 (EDT)
+Received: by ghrr18 with SMTP id r18so1498192ghr.14
+        for <linux-mm@kvack.org>; Wed, 02 May 2012 12:26:19 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <20120502192325.GA18339@quack.suse.cz>
+References: <CAHGf_=qdE3yNw=htuRssfav2pECO1Q0+gWMRTuNROd_3tVrd6Q@mail.gmail.com>
+ <CAHGf_=ojhwPUWJR0r+jVgjNd5h_sRrppzJntSpHzxyv+OuBueg@mail.gmail.com>
+ <x49ehr4lyw1.fsf@segfault.boston.devel.redhat.com> <CAHGf_=rzcfo3OnwT-YsW2iZLchHs3eBKncobvbhTm7B5PE=L-w@mail.gmail.com>
+ <x491un3nc7a.fsf@segfault.boston.devel.redhat.com> <CAPa8GCCgLUt1EDAy7-O-mo0qir6Bf5Pi3Va1EsQ3ZW5UU=+37g@mail.gmail.com>
+ <20120502081705.GB16976@quack.suse.cz> <CAPa8GCCnvvaj0Do7sdrdfsvbcAf0zBe3ssXn45gMfDKCcvJWxA@mail.gmail.com>
+ <20120502091837.GC16976@quack.suse.cz> <CAHGf_=qfuRZzb91ELEcArNaNHsfO4BBMPO8a-QRBzFNaT2ev_w@mail.gmail.com>
+ <20120502192325.GA18339@quack.suse.cz>
+From: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
+Date: Wed, 2 May 2012 15:25:58 -0400
+Message-ID: <CAHGf_=oOx1qPFEboQeuaeMKtveM2==BSDG=xdfRHz+gFx1GAfw@mail.gmail.com>
+Subject: Re: [PATCH] Describe race of direct read and fork for unaligned buffers
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, kosaki.motohiro@gmail.com, rientjes@google.com, Neil Brown <neilb@suse.de>, Artem Bityutskiy <dedekind1@gmail.com>, David Woodhouse <dwmw2@infradead.org>, Theodore Ts'o <tytso@mit.edu>, Adrian Hunter <adrian.hunter@intel.com>, Steven Whitehouse <swhiteho@redhat.com>, "David S. Miller" <davem@davemloft.net>, James Morris <jmorris@namei.org>, Alexander Viro <viro@zeniv.linux.org.uk>, Sage Weil <sage@newdream.net>
+To: Jan Kara <jack@suse.cz>
+Cc: Nick Piggin <npiggin@gmail.com>, Jeff Moyer <jmoyer@redhat.com>, Michael Kerrisk <mtk.manpages@gmail.com>, LKML <linux-kernel@vger.kernel.org>, linux-man@vger.kernel.org, linux-mm@kvack.org, mgorman@suse.de, Andrea Arcangeli <aarcange@redhat.com>, Woodman <lwoodman@redhat.com>
 
-On Wed,  2 May 2012 13:28:09 +0900
-Minchan Kim <minchan@kernel.org> wrote:
-
-> Now there are several places to use __vmalloc with GFP_ATOMIC,
-> GFP_NOIO, GFP_NOFS but unfortunately __vmalloc calls map_vm_area
-> which calls alloc_pages with GFP_KERNEL to allocate page tables.
-> It means it's possible to happen deadlock.
-> I don't know why it doesn't have reported until now.
-> 
-> Firstly, I tried passing gfp_t to lower functions to support __vmalloc
-> with such flags but other mm guys don't want and decided that
-> all of caller should be fixed.
-> 
-> http://marc.info/?l=linux-kernel&m=133517143616544&w=2
-> 
-> To begin with, let's listen other's opinion whether they can fix it
-> by other approach without calling __vmalloc with such flags.
-> 
-> So this patch adds warning in __vmalloc_node_range to detect it and
-> to be fixed hopely. __vmalloc_node_range isn't random chocie because
-> all caller which has gfp_mask of map_vm_area use it through __vmalloc_area_node.
-> And __vmalloc_area_node is current static function and is called by only
-> __vmalloc_node_range. So warning in __vmalloc_node_range would cover all
-> vmalloc functions which have gfp_t argument.
+On Wed, May 2, 2012 at 3:23 PM, Jan Kara <jack@suse.cz> wrote:
+> On Wed 02-05-12 15:14:33, KOSAKI Motohiro wrote:
+>> Hello,
+>>
+>> >> I see what you mean.
+>> >>
+>> >> I'm not sure, though. For most apps it's bad practice I think. If you=
+ get into
+>> >> realm of sophisticated, performance critical IO/storage managers, it =
+would
+>> >> not surprise me if such concurrent buffer modifications could be allo=
+wed.
+>> >> We allow exactly such a thing in our pagecache layer. Although probab=
+ly
+>> >> those would be using shared mmaps for their buffer cache.
+>> >>
+>> >> I think it is safest to make a default policy of asking for IOs again=
+st private
+>> >> cow-able mappings to be quiesced before fork, so there are no surpris=
+es
+>> >> or reliance on COW details in the mm. Do you think?
+>> > =A0 =A0Yes, I agree that (and MADV_DONTFORK) is probably the best thin=
+g to have
+>> > in documentation. Otherwise it's a bit too hairy...
+>>
+>> I neglected this issue for years because Linus asked who need this and
+>> I couldn't
+>> find real world usecase.
+>>
+>> Ah, no, not exactly correct. Fujitsu proprietary database had such
+>> usecase. But they quickly fixed it. Then I couldn't find alternative use=
+case.
+> =A0One of our customers hit this bug recently which is why I started to l=
+ook
+> at this. But they also modified their application not to hit the problem.
 >
-> I Cced related maintainers.
-> If I miss someone, please Cced them.
-> 
-> --- a/mm/vmalloc.c
-> +++ b/mm/vmalloc.c
-> @@ -1648,6 +1648,10 @@ void *__vmalloc_node_range(unsigned long size, unsigned long align,
->  	void *addr;
->  	unsigned long real_size = size;
->  
-> +	WARN_ON_ONCE(!(gfp_mask & __GFP_WAIT) ||
-> +			!(gfp_mask & __GFP_IO) ||
-> +			!(gfp_mask & __GFP_FS));
-> +
->  	size = PAGE_ALIGN(size);
->  	if (!size || (size >> PAGE_SHIFT) > totalram_pages)
->  		goto fail;
+>> I'm not sure why you say "hairy". Do you mean you have any use case of t=
+his?
+> =A0I meant that if we should describe conditions like "if you have page
+> aligned buffer and you don't write to it while the IO is running, the
+> problem also won't occur", then it's already too detailed and might
+> easily change in future kernels...
 
-Well.  What are we actually doing here?  Causing the kernel to spew a
-warning due to known-buggy callsites, so that users will report the
-warnings, eventually goading maintainers into fixing their stuff.
-
-This isn't very efficient :(
-
-It would be better to fix that stuff first, then add the warning to
-prevent reoccurrences.  Yes, maintainers are very naughty and probably
-do need cattle prods^W^W warnings to motivate them to fix stuff, but we
-should first make an effort to get these things fixed without
-irritating and alarming our users.  
-
-Where are these offending callsites?
+ok, thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
