@@ -1,111 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx197.postini.com [74.125.245.197])
-	by kanga.kvack.org (Postfix) with SMTP id D4E066B004D
-	for <linux-mm@kvack.org>; Wed,  2 May 2012 02:23:18 -0400 (EDT)
-Date: Wed, 2 May 2012 08:23:09 +0200
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [patch 5/5] mm: refault distance-based file cache sizing
-Message-ID: <20120502062308.GN2536@cmpxchg.org>
-References: <1335861713-4573-1-git-send-email-hannes@cmpxchg.org>
- <1335861713-4573-6-git-send-email-hannes@cmpxchg.org>
- <20120502015741.GE22923@redhat.com>
+Received: from psmtp.com (na3sys010amx118.postini.com [74.125.245.118])
+	by kanga.kvack.org (Postfix) with SMTP id 3C3396B004D
+	for <linux-mm@kvack.org>; Wed,  2 May 2012 02:49:10 -0400 (EDT)
+From: <leonid.moiseichuk@nokia.com>
+Subject: RE: [PATCH v4] vmevent: Implement greater-than attribute state and
+ one-shot mode
+Date: Wed, 2 May 2012 06:46:15 +0000
+Message-ID: <84FF21A720B0874AA94B46D76DB98269045D2AC9@008-AM1MPN1-003.mgdnok.nokia.com>
+References: <20120418083208.GA24904@lizard> <20120418083523.GB31556@lizard>
+ <alpine.LFD.2.02.1204182259580.11868@tux.localdomain>
+ <20120418224629.GA22150@lizard>
+ <alpine.LFD.2.02.1204190841290.1704@tux.localdomain>
+ <20120419162923.GA26630@lizard> <20120501131806.GA22249@lizard>
+ <4FA04FD5.6010900@redhat.com> <20120502002026.GA3334@lizard>
+ <4FA08BDB.1070009@gmail.com> <20120502033136.GA14740@lizard>
+ <4FA0C042.9010907@kernel.org>
+In-Reply-To: <4FA0C042.9010907@kernel.org>
+Content-Language: en-US
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: base64
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20120502015741.GE22923@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: linux-mm@kvack.org, Rik van Riel <riel@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Minchan Kim <minchan.kim@gmail.com>, Hugh Dickins <hughd@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
+To: minchan@kernel.org, anton.vorontsov@linaro.org
+Cc: kosaki.motohiro@gmail.com, riel@redhat.com, penberg@kernel.org, john.stultz@linaro.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linaro-kernel@lists.linaro.org, patches@linaro.org, kernel-team@android.com, glommer@parallels.com, kamezawa.hiroyu@jp.fujitsu.com, suleiman@google.com
 
-On Wed, May 02, 2012 at 03:57:41AM +0200, Andrea Arcangeli wrote:
-> On Tue, May 01, 2012 at 10:41:53AM +0200, Johannes Weiner wrote:
-> > frequently used active page.  Instead, for each refault with a
-> > distance smaller than the size of the active list, we deactivate an
-> 
-> Shouldn't this be the size of active list + size of inactive list?
-> 
-> If the active list is 500M, inactive 500M and the new working set is
-> 600M, the refault distance will be 600M, it won't be smaller than the
-> size of the active list, and it won't deactivate the active list as it
-> should and it won't be detected as working set.
-> 
-> Only the refault distance bigger than inactive+active should not
-> deactivate the active list if I understand how this works correctly.
-
-The refault distance is what's missing, not the full reuse frequency.
-You ignore the 500M worth of inactive LRU time the page had in memory.
-The distance in that scenario would be 100M, the time between eviction
-and refault:
-
-        +-----------------------------++-----------------------------+
-        |                             ||                             |
-        | inactive                    || active                      |
-        +-----------------------------++-----------------------------+
-+~~~~~~~------------------------------+
-|                                     |
-| new set                             |
-+~~~~~~~------------------------------+
-^       ^
-|       |
-|       eviction
-refault
-
-The ~~~'d part could fit into memory if the active list was 100M
-smaller.
-
-> > @@ -1726,6 +1728,11 @@ zonelist_scan:
-> >  		if ((alloc_flags & ALLOC_CPUSET) &&
-> >  			!cpuset_zone_allowed_softwall(zone, gfp_mask))
-> >  				continue;
-> > +		if ((alloc_flags & ALLOC_WMARK_LOW) &&
-> > +		    current->refault_distance &&
-> > +		    !workingset_zone_alloc(zone, current->refault_distance,
-> > +					   &distance, &active))
-> > +			continue;
-> >  		/*
-> >  		 * When allocating a page cache page for writing, we
-> >  		 * want to get it from a zone that is within its dirty
-> 
-> It's a bit hard to see how this may not run oom prematurely if the
-> distance is always bigger, this is just an implementation question and
-> maybe I'm missing a fallback somewhere where we actually allocate
-> memory from whatever place in case no place is ideal.
-
-Sorry, this should be documented better.
-
-The ALLOC_WMARK_LOW check makes sure this only applies in the
-fastpath.  It will prepare reclaim with lruvec->shrink_active, then
-wake up kswapd and retry the zonelist without this constraint.
-
-> > +	/*
-> > +	 * Lower zones may not even be full, and free pages are
-> > +	 * potential inactive space, too.  But the dirty reserve is
-> > +	 * not available to page cache due to lowmem reserves and the
-> > +	 * kswapd watermark.  Don't include it.
-> > +	 */
-> > +	zone_free = zone_page_state(zone, NR_FREE_PAGES);
-> > +	if (zone_free > zone->dirty_balance_reserve)
-> > +		zone_free -= zone->dirty_balance_reserve;
-> > +	else
-> > +		zone_free = 0;
-> 
-> Maybe also remove the high wmark from the sum? It can be some hundred
-> meg so it's better to take it into account, to have a more accurate
-> math and locate the best zone that surely fits.
-> 
-> For the same reason it looks like the lowmem reserve should also be
-> taken into account, on the full sum.
-
-dirty_balance_reserve IS the sum of the high watermark and the biggest
-lowmem reserve for a particular zone, see how it's calculated in
-mm/page_alloc.c::calculate_totalreserve_pages().
-
-nr_free - dirty_balance_reserve is the number of pages available to
-page cache allocations without keeping kswapd alive or having to dip
-into lowmem reserves.
-
-Or did I misunderstand you?
+PiAtLS0tLU9yaWdpbmFsIE1lc3NhZ2UtLS0tLQ0KPiBGcm9tOiBleHQgTWluY2hhbiBLaW0gW21h
+aWx0bzptaW5jaGFuQGtlcm5lbC5vcmddDQo+IFNlbnQ6IDAyIE1heSwgMjAxMiAwODowNA0KPiBU
+bzogQW50b24gVm9yb250c292DQo+IENjOiBLT1NBS0kgTW90b2hpcm87IFJpayB2YW4gUmllbDsg
+UGVra2EgRW5iZXJnOyBNb2lzZWljaHVrIExlb25pZCAoTm9raWEtDQouLi4NCj4gSSB0aGluayBo
+YXJkZXN0IHByb2JsZW0gaW4gbG93IG1lbSBub3RpZmljYXRpb24gaXMgaG93IHRvIGRlZmluZSBf
+bG93bWVtDQo+IHNpdHVhdGlvbl8uDQo+IFdlIGFsbCBndXlzIChzZXJ2ZXIsIGRlc2t0b3AgYW5k
+IGVtYmVkZGVkKSBzaG91bGQgcmVhY2ggYSBjb25jbHVzaW9uIG9uDQo+IGRlZmluZSBsb3dtZW0g
+c2l0dWF0aW9uIGJlZm9yZSBwcm9ncmVzc2luZyBmdXJ0aGVyIGltcGxlbWVudGF0aW9uDQo+IGJl
+Y2F1c2UgZWFjaCBwYXJ0IGNhbiByZXF1aXJlIGRpZmZlcmVudCBsaW1pdHMuDQo+IEhvcGVmdWxs
+eSwgSSB3YW50IGl0Lg0KPiANCj4gV2hhdCBpcyB0aGUgYmVzdCBzaXR1YXRpb24gd2UgY2FuIGNh
+bGwgaXQgYXMgImxvdyBtZW1vcnkiPw0KDQpUaGF0IGRlcGVuZHMgb24gd2hhdCB1c2VyLXNwYWNl
+IGNhbiBkby4gSW4gbjkgY2FzZSBbMV0gd2UgY2FuIGhhbmRsZSBzb21lIE9PTS9zbG93bmVzcy1w
+cmV2ZW50aW9uIGFuZCBhY3Rpb25zIGUuZy4gY2xvc2UgYmFja2dyb3VuZCBhcHBsaWNhdGlvbnMs
+IHN0b3AgcHJlc3RhcnRlZCBhcHBzLCANCmZsdXNoIGJyb3dzZXIvZ3JhcGhpY3MgY2FjaGVzIGlu
+IGFwcGxpY2F0aW9ucyBhbmQgZG8gYWxsIHRoZSB0aGluZ3Mga2VybmVsIGV2ZW4gZG9uJ3Qga25v
+dyBhYm91dC4gVGhpcyBzZXQgb2YgYWN0aXZpdGllcyB1c3VhbGx5IGNvbWVzIGFzIG1lbW9yeSBt
+YW5hZ2VtZW50IGRlc2lnbi4NCg0KRnJvbSBhbm90aGVyIHNpZGUsIHBvbGxpbmcgYnkgcmUtc2Nh
+biB2bXN0YXQgZGF0YSB1c2luZyBwcm9jZnMgbWlnaHQgYmUgcGVyZm9ybWFuY2UgaGVhdnkgYW5k
+IGZvciBzdXJlIC0gdXNlLXRpbWUgZGlzYXN0ZXIuDQoNCkxlb25pZA0KWzFdIGh0dHA6Ly9tYWVt
+by5naXRvcmlvdXMub3JnL21hZW1vLXRvb2xzL2xpYm1lbW5vdGlmeSAtIHllcywgbm90IGlkZWFs
+IGJ1dCBpdCB3b3JrcyBhbmQgcXVpdGUgd2VsbCBpc29sYXRlZCBjb2RlLg0K
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
