@@ -1,77 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx118.postini.com [74.125.245.118])
-	by kanga.kvack.org (Postfix) with SMTP id 808E36B004D
-	for <linux-mm@kvack.org>; Tue,  1 May 2012 21:57:53 -0400 (EDT)
-Date: Wed, 2 May 2012 03:57:41 +0200
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [patch 5/5] mm: refault distance-based file cache sizing
-Message-ID: <20120502015741.GE22923@redhat.com>
-References: <1335861713-4573-1-git-send-email-hannes@cmpxchg.org>
- <1335861713-4573-6-git-send-email-hannes@cmpxchg.org>
+Received: from psmtp.com (na3sys010amx110.postini.com [74.125.245.110])
+	by kanga.kvack.org (Postfix) with SMTP id 25F926B004D
+	for <linux-mm@kvack.org>; Tue,  1 May 2012 23:04:35 -0400 (EDT)
+Received: by yenm8 with SMTP id m8so244123yen.14
+        for <linux-mm@kvack.org>; Tue, 01 May 2012 20:04:34 -0700 (PDT)
+Date: Tue, 1 May 2012 20:04:15 -0700 (PDT)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: [PATCH] Describe race of direct read and fork for unaligned
+ buffers
+In-Reply-To: <CAPa8GCC7tHm_8Ks_=tM4x544+SEtkVk6TMAF3KPsVqzNOi-naA@mail.gmail.com>
+Message-ID: <alpine.LSU.2.00.1205011952040.1293@eggly.anvils>
+References: <1335778207-6511-1-git-send-email-jack@suse.cz> <CAHGf_=qqiast+6XzGnq+LRdFXoWG9h2MkofmjS1h5OeNPRyWfw@mail.gmail.com> <CAKgNAkjAOGM+mZLkXGiDFYsnMCpJsxx=Nd5pZfx-_f4B1jvh+A@mail.gmail.com>
+ <CAPa8GCC7tHm_8Ks_=tM4x544+SEtkVk6TMAF3KPsVqzNOi-naA@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1335861713-4573-6-git-send-email-hannes@cmpxchg.org>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: linux-mm@kvack.org, Rik van Riel <riel@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Minchan Kim <minchan.kim@gmail.com>, Hugh Dickins <hughd@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Nick Piggin <npiggin@gmail.com>
+Cc: mtk.manpages@gmail.com, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Jan Kara <jack@suse.cz>, LKML <linux-kernel@vger.kernel.org>, linux-man@vger.kernel.org, linux-mm@kvack.org, mgorman@suse.de, Jeff Moyer <jmoyer@redhat.com>
 
-On Tue, May 01, 2012 at 10:41:53AM +0200, Johannes Weiner wrote:
-> frequently used active page.  Instead, for each refault with a
-> distance smaller than the size of the active list, we deactivate an
+On Wed, 2 May 2012, Nick Piggin wrote:
+> On 2 May 2012 03:56, Michael Kerrisk (man-pages) <mtk.manpages@gmail.com> wrote:
+> >
+> > In the light of all of the comments, can someone revise the man-pages
+> > patch that Jan sent?
+> 
+> This does not quite describe the entire situation, but something understandable
+> to developers:
+> 
+> O_DIRECT IOs should never be run concurrently with fork(2) system call,
+> when the memory buffer is anonymous memory, or comes from mmap(2)
+> with MAP_PRIVATE.
+> 
+> Any such IOs, whether submitted with asynchronous IO interface or from
+> another thread in the process, should be quiesced before fork(2) is called.
+> Failure to do so can result in data corruption and undefined behavior in
+> parent and child processes.
+> 
+> This restriction does not apply when the memory buffer for the O_DIRECT
+> IOs comes from mmap(2) with MAP_SHARED or from shmat(2).
 
-Shouldn't this be the size of active list + size of inactive list?
+Nor does this restriction apply when the memory buffer has been advised
+as MADV_DONTFORK with madvise(2), ensuring that it will not be available
+to the child after fork(2).
 
-If the active list is 500M, inactive 500M and the new working set is
-600M, the refault distance will be 600M, it won't be smaller than the
-size of the active list, and it won't deactivate the active list as it
-should and it won't be detected as working set.
+> 
+> 
+> 
+> Is that on the right track? I feel it might be necessary to describe this
+> allowance for MAP_SHARED, because some databases may be doing
+> such things, and anyway it gives apps a potential way to make this work
+> if concurrent fork + DIO is very important.
 
-Only the refault distance bigger than inactive+active should not
-deactivate the active list if I understand how this works correctly.
+Looks good, but we do need a reference to MADV_DONTFORK, perhaps as above.
 
-> @@ -1726,6 +1728,11 @@ zonelist_scan:
->  		if ((alloc_flags & ALLOC_CPUSET) &&
->  			!cpuset_zone_allowed_softwall(zone, gfp_mask))
->  				continue;
-> +		if ((alloc_flags & ALLOC_WMARK_LOW) &&
-> +		    current->refault_distance &&
-> +		    !workingset_zone_alloc(zone, current->refault_distance,
-> +					   &distance, &active))
-> +			continue;
->  		/*
->  		 * When allocating a page cache page for writing, we
->  		 * want to get it from a zone that is within its dirty
-
-It's a bit hard to see how this may not run oom prematurely if the
-distance is always bigger, this is just an implementation question and
-maybe I'm missing a fallback somewhere where we actually allocate
-memory from whatever place in case no place is ideal.
-
-> +	/*
-> +	 * Lower zones may not even be full, and free pages are
-> +	 * potential inactive space, too.  But the dirty reserve is
-> +	 * not available to page cache due to lowmem reserves and the
-> +	 * kswapd watermark.  Don't include it.
-> +	 */
-> +	zone_free = zone_page_state(zone, NR_FREE_PAGES);
-> +	if (zone_free > zone->dirty_balance_reserve)
-> +		zone_free -= zone->dirty_balance_reserve;
-> +	else
-> +		zone_free = 0;
-
-Maybe also remove the high wmark from the sum? It can be some hundred
-meg so it's better to take it into account, to have a more accurate
-math and locate the best zone that surely fits.
-
-For the same reason it looks like the lowmem reserve should also be
-taken into account, on the full sum.
-
-> +	if (missing >= zone_active + zone_free) {
-
-This seems a place where to add the zone_inactive too according to my
-comment on top.
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
