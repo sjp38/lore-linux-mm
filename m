@@ -1,112 +1,142 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx138.postini.com [74.125.245.138])
-	by kanga.kvack.org (Postfix) with SMTP id 778F66B004D
-	for <linux-mm@kvack.org>; Wed,  2 May 2012 01:21:57 -0400 (EDT)
-Message-ID: <4FA0C473.1000505@kernel.org>
-Date: Wed, 02 May 2012 14:21:55 +0900
-From: Minchan Kim <minchan@kernel.org>
+Received: from psmtp.com (na3sys010amx127.postini.com [74.125.245.127])
+	by kanga.kvack.org (Postfix) with SMTP id 7F5BF6B004D
+	for <linux-mm@kvack.org>; Wed,  2 May 2012 01:52:49 -0400 (EDT)
+Received: by lagz14 with SMTP id z14so243004lag.14
+        for <linux-mm@kvack.org>; Tue, 01 May 2012 22:52:47 -0700 (PDT)
+Subject: [PATCH v2 02/12] mm: add link from struct lruvec to struct zone
+From: Konstantin Khlebnikov <khlebnikov@openvz.org>
+Date: Wed, 02 May 2012 09:52:35 +0400
+Message-ID: <20120502055235.28244.86363.stgit@zurg>
+In-Reply-To: <20120426075356.18961.40318.stgit@zurg>
+References: <20120426075356.18961.40318.stgit@zurg>
 MIME-Version: 1.0
-Subject: Re: [patch 5/5] mm: refault distance-based file cache sizing
-References: <1335861713-4573-1-git-send-email-hannes@cmpxchg.org> <1335861713-4573-6-git-send-email-hannes@cmpxchg.org> <20120501141330.GA2207@barrios> <20120501153825.GA4837@cmpxchg.org>
-In-Reply-To: <20120501153825.GA4837@cmpxchg.org>
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: text/plain; charset="utf-8"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: linux-mm@kvack.org, Rik van Riel <riel@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Minchan Kim <minchan.kim@gmail.com>, Hugh Dickins <hughd@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, Hugh Dickins <hughd@google.com>, linux-kernel@vger.kernel.org
 
-On 05/02/2012 12:38 AM, Johannes Weiner wrote:
+This is first stage of struct mem_cgroup_zone removal, further patches replaces
+struct mem_cgroup_zone with pointer to struct lruvec.
 
-> On Tue, May 01, 2012 at 11:13:30PM +0900, Minchan Kim wrote:
->> Hi Hannes,
->>
->> On Tue, May 01, 2012 at 10:41:53AM +0200, Johannes Weiner wrote:
->>> To protect frequently used page cache (workingset) from bursts of less
->>> frequently used or one-shot cache, page cache pages are managed on two
->>> linked lists.  The inactive list is where all cache starts out on
->>> fault and ends on reclaim.  Pages that get accessed another time while
->>> on the inactive list get promoted to the active list to protect them
->>> from reclaim.
->>>
->>> Right now we have two main problems.
->>>
->>> One stems from numa allocation decisions and how the page allocator
->>> and kswapd interact.  The both of them can enter into a perfect loop
->>> where kswapd reclaims from the preferred zone of a task, allowing the
->>> task to continuously allocate from that zone.  Or, the node distance
->>> can lead to the allocator to do direct zone reclaim to stay in the
->>> preferred zone.  This may be good for locality, but the task has only
->>
->> Understood.
->>
->>> the inactive space of that one zone to get its memory activated.
->>> Forcing the allocator to spread out to lower zones in the right
->>> situation makes the difference between continuous IO to serve the
->>> workingset, or taking the numa cost but serving fully from memory.
->>
->> It's hard to parse your word due to my dumb brain.
->> Could you elaborate on it?
->> It would be a good if you say with example.
-> 
-> Say your Normal zone is 4G (DMA32 also 4G) and you have 2G of active
-> file pages in Normal and DMA32 is full of other stuff.  Now you access
-> a new 6G file repeatedly.  First it allocates from Normal (preferred),
-> then tries DMA32 (full), wakes up kswapd and retries all zones.  If
-> kswapd then frees pages at roughly the same pace as the allocator
-> allocates from Normal, kswapd never goes to sleep and evicts pages
-> from the 6G file before they can get accessed a second time.  Even
-> though the 6G file could fit in memory (4G Normal + 4G DMA32), the
-> allocator only uses the 4G Normal zone.
-> 
-> Same applies if you have a load that would fit in the memory of two
-> nodes but the node distance leads the allocator to do zone_reclaim()
-> and forcing the pages to stay in one node, again preventing the load
-> from being fully cached in memory, which is much more expensive than
-> the foreign node cost.
-> 
->>> up to half of memory, and don't recognize workingset changes that are
->>> bigger than half of memory.
->>
->> Workingset change?
->> You mean if new workingset is bigger than half of memory and it's like
->> stream before retouch, we could cache only part of working set because 
->> head pages on working set would be discared by tail pages of working set
->> in inactive list?
-> 
-> Spot-on.  I called that 'tail-chasing' in my notes :-) When you are in
-> a perpetual loop of evicting pages you will need in a couple hundred
-> page faults.  Those couple hundred page faults are the refault
-> distance and my code is able to detect these loops and increases the
-> space available to the inactive list to end them, if possible.
-> 
+If CONFIG_CGROUP_MEM_RES_CTLR=n lruvec_zone() is just container_of().
 
+Signed-off-by: Konstantin Khlebnikov <khlebnikov@openvz.org>
 
-Thanks! It would be better to add above explanation in cover-letter.
+---
 
+v2: fix comment
+---
+ include/linux/mmzone.h |   14 ++++++++++++++
+ mm/memcontrol.c        |    4 +---
+ mm/mmzone.c            |   14 ++++++++++++++
+ mm/page_alloc.c        |    8 +-------
+ 4 files changed, 30 insertions(+), 10 deletions(-)
 
-> This is the whole principle of the series.
-> 
-> If such a loop is recognized in a single zone, the allocator goes for
-> lower zones to increase the inactive space.  If such a loop is
-> recognized over all allowed zones in the zonelist, the active lists
-> are shrunk to increase the inactive space.
-
->
-
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Fight unfair telecom internet charges in Canada: sign http://stopthemeter.ca/
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-> 
-
-
-
--- 
-Kind regards,
-Minchan Kim
+diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
+index 5c4880b..2427706 100644
+--- a/include/linux/mmzone.h
++++ b/include/linux/mmzone.h
+@@ -201,6 +201,9 @@ struct zone_reclaim_stat {
+ struct lruvec {
+ 	struct list_head lists[NR_LRU_LISTS];
+ 	struct zone_reclaim_stat reclaim_stat;
++#ifdef CONFIG_CGROUP_MEM_RES_CTLR
++	struct zone *zone;
++#endif
+ };
+ 
+ /* Mask used at gathering information at once (see memcontrol.c) */
+@@ -729,6 +732,17 @@ extern int init_currently_empty_zone(struct zone *zone, unsigned long start_pfn,
+ 				     unsigned long size,
+ 				     enum memmap_context context);
+ 
++extern void lruvec_init(struct lruvec *lruvec, struct zone *zone);
++
++static inline struct zone *lruvec_zone(struct lruvec *lruvec)
++{
++#ifdef CONFIG_CGROUP_MEM_RES_CTLR
++	return lruvec->zone;
++#else
++	return container_of(lruvec, struct zone, lruvec);
++#endif
++}
++
+ #ifdef CONFIG_HAVE_MEMORY_PRESENT
+ void memory_present(int nid, unsigned long start, unsigned long end);
+ #else
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index a2184a2..3e7b91c 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -4934,7 +4934,6 @@ static int alloc_mem_cgroup_per_zone_info(struct mem_cgroup *memcg, int node)
+ {
+ 	struct mem_cgroup_per_node *pn;
+ 	struct mem_cgroup_per_zone *mz;
+-	enum lru_list lru;
+ 	int zone, tmp = node;
+ 	/*
+ 	 * This routine is called against possible nodes.
+@@ -4952,8 +4951,7 @@ static int alloc_mem_cgroup_per_zone_info(struct mem_cgroup *memcg, int node)
+ 
+ 	for (zone = 0; zone < MAX_NR_ZONES; zone++) {
+ 		mz = &pn->zoneinfo[zone];
+-		for_each_lru(lru)
+-			INIT_LIST_HEAD(&mz->lruvec.lists[lru]);
++		lruvec_init(&mz->lruvec, &NODE_DATA(node)->node_zones[zone]);
+ 		mz->usage_in_excess = 0;
+ 		mz->on_tree = false;
+ 		mz->memcg = memcg;
+diff --git a/mm/mmzone.c b/mm/mmzone.c
+index 7cf7b7d..6830eab 100644
+--- a/mm/mmzone.c
++++ b/mm/mmzone.c
+@@ -86,3 +86,17 @@ int memmap_valid_within(unsigned long pfn,
+ 	return 1;
+ }
+ #endif /* CONFIG_ARCH_HAS_HOLES_MEMORYMODEL */
++
++void lruvec_init(struct lruvec *lruvec, struct zone *zone)
++{
++	enum lru_list lru;
++
++	memset(lruvec, 0, sizeof(struct lruvec));
++
++	for_each_lru(lru)
++		INIT_LIST_HEAD(&lruvec->lists[lru]);
++
++#ifdef CONFIG_CGROUP_MEM_RES_CTLR
++	lruvec->zone = zone;
++#endif
++}
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 1b951de..35478bd 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -4361,7 +4361,6 @@ static void __paginginit free_area_init_core(struct pglist_data *pgdat,
+ 	for (j = 0; j < MAX_NR_ZONES; j++) {
+ 		struct zone *zone = pgdat->node_zones + j;
+ 		unsigned long size, realsize, memmap_pages;
+-		enum lru_list lru;
+ 
+ 		size = zone_spanned_pages_in_node(nid, j, zones_size);
+ 		realsize = size - zone_absent_pages_in_node(nid, j,
+@@ -4411,12 +4410,7 @@ static void __paginginit free_area_init_core(struct pglist_data *pgdat,
+ 		zone->zone_pgdat = pgdat;
+ 
+ 		zone_pcp_init(zone);
+-		for_each_lru(lru)
+-			INIT_LIST_HEAD(&zone->lruvec.lists[lru]);
+-		zone->lruvec.reclaim_stat.recent_rotated[0] = 0;
+-		zone->lruvec.reclaim_stat.recent_rotated[1] = 0;
+-		zone->lruvec.reclaim_stat.recent_scanned[0] = 0;
+-		zone->lruvec.reclaim_stat.recent_scanned[1] = 0;
++		lruvec_init(&zone->lruvec, zone);
+ 		zap_zone_vm_stats(zone);
+ 		zone->flags = 0;
+ 		if (!size)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
