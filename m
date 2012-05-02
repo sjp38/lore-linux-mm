@@ -1,66 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx174.postini.com [74.125.245.174])
-	by kanga.kvack.org (Postfix) with SMTP id 658A26B0081
-	for <linux-mm@kvack.org>; Tue,  1 May 2012 23:10:05 -0400 (EDT)
-Received: by obbwd18 with SMTP id wd18so409951obb.14
-        for <linux-mm@kvack.org>; Tue, 01 May 2012 20:10:04 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx128.postini.com [74.125.245.128])
+	by kanga.kvack.org (Postfix) with SMTP id 077596B004D
+	for <linux-mm@kvack.org>; Tue,  1 May 2012 23:25:26 -0400 (EDT)
+Received: by obbwd18 with SMTP id wd18so429704obb.14
+        for <linux-mm@kvack.org>; Tue, 01 May 2012 20:25:25 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <alpine.LSU.2.00.1205011952040.1293@eggly.anvils>
-References: <1335778207-6511-1-git-send-email-jack@suse.cz>
-	<CAHGf_=qqiast+6XzGnq+LRdFXoWG9h2MkofmjS1h5OeNPRyWfw@mail.gmail.com>
-	<CAKgNAkjAOGM+mZLkXGiDFYsnMCpJsxx=Nd5pZfx-_f4B1jvh+A@mail.gmail.com>
-	<CAPa8GCC7tHm_8Ks_=tM4x544+SEtkVk6TMAF3KPsVqzNOi-naA@mail.gmail.com>
-	<alpine.LSU.2.00.1205011952040.1293@eggly.anvils>
-Date: Wed, 2 May 2012 13:10:04 +1000
-Message-ID: <CAPa8GCB7UGe0xr_pagbAJQAXn1t03m_8sraYxpkdbY1F3o7GRw@mail.gmail.com>
-Subject: Re: [PATCH] Describe race of direct read and fork for unaligned buffers
+In-Reply-To: <4FA017FA.2000707@redhat.com>
+References: <1335214564-17619-1-git-send-email-yinghan@google.com>
+	<CAPa8GCATMxi2ON22T_daE9EMFg8BWgK4vRTDadDFR66aj_uGTg@mail.gmail.com>
+	<CALWz4ixeBq7cMoopukaRZxUmH1i0+L4xZ_49B0YpZ4iZuRC+Uw@mail.gmail.com>
+	<CAPa8GCC1opy9u6NHy9m=1xU4EfRsHu8VN2kU-bXtRz=z_Mq0PA@mail.gmail.com>
+	<CALWz4iyv1wSkdS0e9iezbpAg_adBhKvxRVqmXX1i4mk3x_V34g@mail.gmail.com>
+	<4FA017FA.2000707@redhat.com>
+Date: Wed, 2 May 2012 13:25:25 +1000
+Message-ID: <CAPa8GCC8YxQ9Z9y3QJprn_MeAUs4XqKi3DLZHpbUVGJbGp2Rpw@mail.gmail.com>
+Subject: Re: [RFC PATCH] do_try_to_free_pages() might enter infinite loop
 From: Nick Piggin <npiggin@gmail.com>
 Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: mtk.manpages@gmail.com, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Jan Kara <jack@suse.cz>, LKML <linux-kernel@vger.kernel.org>, linux-man@vger.kernel.org, linux-mm@kvack.org, mgorman@suse.de, Jeff Moyer <jmoyer@redhat.com>
+To: Rik van Riel <riel@redhat.com>
+Cc: Ying Han <yinghan@google.com>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mel@csn.ul.ie>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>, Hugh Dickins <hughd@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
 
-On 2 May 2012 13:04, Hugh Dickins <hughd@google.com> wrote:
-> On Wed, 2 May 2012, Nick Piggin wrote:
->> On 2 May 2012 03:56, Michael Kerrisk (man-pages) <mtk.manpages@gmail.com> wrote:
->> >
->> > In the light of all of the comments, can someone revise the man-pages
->> > patch that Jan sent?
->>
->> This does not quite describe the entire situation, but something understandable
->> to developers:
->>
->> O_DIRECT IOs should never be run concurrently with fork(2) system call,
->> when the memory buffer is anonymous memory, or comes from mmap(2)
->> with MAP_PRIVATE.
->>
->> Any such IOs, whether submitted with asynchronous IO interface or from
->> another thread in the process, should be quiesced before fork(2) is called.
->> Failure to do so can result in data corruption and undefined behavior in
->> parent and child processes.
->>
->> This restriction does not apply when the memory buffer for the O_DIRECT
->> IOs comes from mmap(2) with MAP_SHARED or from shmat(2).
+On 2 May 2012 03:06, Rik van Riel <riel@redhat.com> wrote:
+> On 05/01/2012 12:18 PM, Ying Han wrote:
 >
-> Nor does this restriction apply when the memory buffer has been advised
-> as MADV_DONTFORK with madvise(2), ensuring that it will not be available
-> to the child after fork(2).
-
-Yes of course, I forgot that was exported too.
-
+>> The current logic seems perfer to reclaim more than going oom kill,
+>> and that might not fit all user's expectation. However, I guess it is
+>> hard to convince for any changes since different users has different
+>> bias as you said....
 >
->>
->>
->>
->> Is that on the right track? I feel it might be necessary to describe this
->> allowance for MAP_SHARED, because some databases may be doing
->> such things, and anyway it gives apps a potential way to make this work
->> if concurrent fork + DIO is very important.
 >
-> Looks good, but we do need a reference to MADV_DONTFORK, perhaps as above.
+> However, it is a sure thing that desktop users and smartphone
+> users do want an earlier OOM kill.
+>
+> I wonder if doing an OOM kill when the number of free pages
+> plus the number of file lru pages in every zone is below
+> pages_high and there is no more swap available might work?
 
-Yep, thanks Hugh.
+This patch in the first place was required to even reach the
+condition that "no more swap is available" on this virtual
+machine server workload I was vaguely remembering.
+
+Without this logic, it would be OOM killed before such condition
+is hit, because we can require to go around the LRU a few times
+to free enough pages. You can imagine with concurrent threads
+touching ptes and possibly allocating memory themselves.
+
+
+> On the other hand, that still leaves us cgroups. What could
+> be appropriate there?
+
+We always seem to end up with a tangle of mysterious dials
+and knobs deep in the heart of the the implementation :(
+
+I wonder if there is some other way to approach it, like a
+QoS from point of view of caller? That seems to be not so
+far removed from the "end result requirements".
+
+e.g., if short term average page allocation latency for a task
+exceeds {10us, 100us, 1ms, 10ms}, then start shooting.
+
+This does not catch the theoretical corner case where memory
+is reclaimed very quickly, but just reused for the same thing
+because a task is thrashing. But in practice, I think thrashing
+workloads quickly lead to a lot of write IOs and major allocation
+slowdowns anyway, so in practice I think it could work.
+
+And it could be adjusted per task, per cgroup, etc. and would
+not depend on reclaim/allocator implementation details.
+
+I'm sure someone will tell me how horribly flawed the idea is
+though :(
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
