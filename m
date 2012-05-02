@@ -1,76 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx158.postini.com [74.125.245.158])
-	by kanga.kvack.org (Postfix) with SMTP id DC4A66B004D
-	for <linux-mm@kvack.org>; Wed,  2 May 2012 00:28:36 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx164.postini.com [74.125.245.164])
+	by kanga.kvack.org (Postfix) with SMTP id A734D6B004D
+	for <linux-mm@kvack.org>; Wed,  2 May 2012 01:04:01 -0400 (EDT)
+Message-ID: <4FA0C042.9010907@kernel.org>
+Date: Wed, 02 May 2012 14:04:02 +0900
 From: Minchan Kim <minchan@kernel.org>
-Subject: [PATCH] vmalloc: add warning in __vmalloc
-Date: Wed,  2 May 2012 13:28:09 +0900
-Message-Id: <1335932890-25294-1-git-send-email-minchan@kernel.org>
+MIME-Version: 1.0
+Subject: Re: [PATCH v4] vmevent: Implement greater-than attribute state and
+ one-shot mode
+References: <20120418083208.GA24904@lizard> <20120418083523.GB31556@lizard> <alpine.LFD.2.02.1204182259580.11868@tux.localdomain> <20120418224629.GA22150@lizard> <alpine.LFD.2.02.1204190841290.1704@tux.localdomain> <20120419162923.GA26630@lizard> <20120501131806.GA22249@lizard> <4FA04FD5.6010900@redhat.com> <20120502002026.GA3334@lizard> <4FA08BDB.1070009@gmail.com> <20120502033136.GA14740@lizard>
+In-Reply-To: <20120502033136.GA14740@lizard>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, kosaki.motohiro@gmail.com, rientjes@google.com, Minchan Kim <minchan@kernel.org>, Neil Brown <neilb@suse.de>, Artem Bityutskiy <dedekind1@gmail.com>, David Woodhouse <dwmw2@infradead.org>, Theodore Ts'o <tytso@mit.edu>, Adrian Hunter <adrian.hunter@intel.com>, Steven Whitehouse <swhiteho@redhat.com>, "David S. Miller" <davem@davemloft.net>, James Morris <jmorris@namei.org>, Alexander Viro <viro@zeniv.linux.org.uk>, Sage Weil <sage@newdream.net>
+To: Anton Vorontsov <anton.vorontsov@linaro.org>
+Cc: KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Rik van Riel <riel@redhat.com>, Pekka Enberg <penberg@kernel.org>, Leonid Moiseichuk <leonid.moiseichuk@nokia.com>, John Stultz <john.stultz@linaro.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linaro-kernel@lists.linaro.org, patches@linaro.org, kernel-team@android.com, Glauber Costa <glommer@parallels.com>, kamezawa.hiroyu@jp.fujitsu.com, Suleiman Souhlal <suleiman@google.com>
 
-Now there are several places to use __vmalloc with GFP_ATOMIC,
-GFP_NOIO, GFP_NOFS but unfortunately __vmalloc calls map_vm_area
-which calls alloc_pages with GFP_KERNEL to allocate page tables.
-It means it's possible to happen deadlock.
-I don't know why it doesn't have reported until now.
+On 05/02/2012 12:31 PM, Anton Vorontsov wrote:
 
-Firstly, I tried passing gfp_t to lower functions to support __vmalloc
-with such flags but other mm guys don't want and decided that
-all of caller should be fixed.
+> Hello KOSAKI,
+> 
+> On Tue, May 01, 2012 at 09:20:27PM -0400, KOSAKI Motohiro wrote:
+> [...]
+>>> It would be great indeed, but so far I don't see much that
+>>> vmevent could share. Plus, sharing the code at this point is not
+>>> that interesting; it's mere 500 lines of code (comparing to
+>>> more than 10K lines for cgroups, and it's not including memcg_
+>>> hooks and logic that is spread all over mm/).
+>>>
+>>> Today vmevent code is mostly an ABI implementation, there is
+>>> very little memory management logic (in contrast to the memcg).
+>>
+>> But, if it doesn't work desktop/server area, it shouldn't be merged.
+> 
+> What makes you think that vmevent won't work for desktop or servers?
+> :-)
+> 
+> E.g. for some servers you don't always want memcg, really. Suppose,
+> a kvm farm or a database server. Sometimes there's really no need for
+> the memcg, but there's still a demand for low memory notifications.
+> 
+> Current Linux desktops don't use any notifications at all, I think.
+> So nothing to say about, neither on cgroup's nor on vmevent's behalf.
+> I hardly imagine why desktop would use the whole memcg thing, but
+> still have a use case for memory notifications.
+> 
+>> We have to consider the best design before kernel inclusion. They cann't
+>> be separeted to discuss.
+> 
+> Of course, no objections here. But I somewhat disagree with the
+> "best design" term. Which design is better, reading a file via
+> read() or mmap()? It depends. Same here.
 
-http://marc.info/?l=linux-kernel&m=133517143616544&w=2
 
-To begin with, let's listen other's opinion whether they can fix it
-by other approach without calling __vmalloc with such flags.
+I think hardest problem in low mem notification is how to define _lowmem situation_.
+We all guys (server, desktop and embedded) should reach a conclusion on define lowmem situation
+before progressing further implementation because each part can require different limits.
+Hopefully, I want it.
 
-So this patch adds warning in __vmalloc_node_range to detect it and
-to be fixed hopely. __vmalloc_node_range isn't random chocie because
-all caller which has gfp_mask of map_vm_area use it through __vmalloc_area_node.
-And __vmalloc_area_node is current static function and is called by only
-__vmalloc_node_range. So warning in __vmalloc_node_range would cover all
-vmalloc functions which have gfp_t argument.
+What is the best situation we can call it as "low memory"?
 
-I Cced related maintainers.
-If I miss someone, please Cced them.
+As a matter of fact, if we can define it well, I think even we don't need vmevent ABI.
+In my opinion, it's not easy to generalize each use-cases so we can pass it to user space and
+just export low attributes of vmstat in kernel by vmevent.
+Userspace program can determine low mem situation well on his environment with other vmstats
+when notification happens. Of course, it has a drawback that userspace couples kernel's vmstat
+but at least I think that's why we need vmevent for triggering event when we start watching carefully.
 
-* Changelog
-  * Replace WARN_ON with WARN_ON_ONCE - by Andrew Morton, Nick Piggin.
 
-Cc: Neil Brown <neilb@suse.de>
-Cc: Artem Bityutskiy <dedekind1@gmail.com>
-Cc: David Woodhouse <dwmw2@infradead.org>
-Cc: "Theodore Ts'o" <tytso@mit.edu>
-Cc: Adrian Hunter <adrian.hunter@intel.com>
-Cc: Steven Whitehouse <swhiteho@redhat.com>
-Cc: "David S. Miller" <davem@davemloft.net>
-Cc: James Morris <jmorris@namei.org>
-Cc: Alexander Viro <viro@zeniv.linux.org.uk>
-Cc: Sage Weil <sage@newdream.net>
-Signed-off-by: Minchan Kim <minchan@kernel.org>
----
- mm/vmalloc.c |    4 ++++
- 1 file changed, 4 insertions(+)
-
-diff --git a/mm/vmalloc.c b/mm/vmalloc.c
-index c28b0b9..def5943 100644
---- a/mm/vmalloc.c
-+++ b/mm/vmalloc.c
-@@ -1648,6 +1648,10 @@ void *__vmalloc_node_range(unsigned long size, unsigned long align,
- 	void *addr;
- 	unsigned long real_size = size;
- 
-+	WARN_ON_ONCE(!(gfp_mask & __GFP_WAIT) ||
-+			!(gfp_mask & __GFP_IO) ||
-+			!(gfp_mask & __GFP_FS));
-+
- 	size = PAGE_ALIGN(size);
- 	if (!size || (size >> PAGE_SHIFT) > totalram_pages)
- 		goto fail;
 -- 
-1.7.9.5
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
