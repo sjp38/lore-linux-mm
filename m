@@ -1,121 +1,111 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx190.postini.com [74.125.245.190])
-	by kanga.kvack.org (Postfix) with SMTP id DC6746B004D
-	for <linux-mm@kvack.org>; Wed,  2 May 2012 02:13:47 -0400 (EDT)
-Received: by lagz14 with SMTP id z14so255334lag.14
-        for <linux-mm@kvack.org>; Tue, 01 May 2012 23:13:45 -0700 (PDT)
-Message-ID: <4FA0D095.1030200@openvz.org>
-Date: Wed, 02 May 2012 10:13:41 +0400
-From: Konstantin Khlebnikov <khlebnikov@openvz.org>
+Received: from psmtp.com (na3sys010amx197.postini.com [74.125.245.197])
+	by kanga.kvack.org (Postfix) with SMTP id D4E066B004D
+	for <linux-mm@kvack.org>; Wed,  2 May 2012 02:23:18 -0400 (EDT)
+Date: Wed, 2 May 2012 08:23:09 +0200
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [patch 5/5] mm: refault distance-based file cache sizing
+Message-ID: <20120502062308.GN2536@cmpxchg.org>
+References: <1335861713-4573-1-git-send-email-hannes@cmpxchg.org>
+ <1335861713-4573-6-git-send-email-hannes@cmpxchg.org>
+ <20120502015741.GE22923@redhat.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH next 00/12] mm: replace struct mem_cgroup_zone with struct
- lruvec
-References: <20120426074632.18961.17803.stgit@zurg> <20120426162546.90991b7c.akpm@linux-foundation.org> <4F9A4E8E.4040700@openvz.org> <alpine.LSU.2.00.1205012005390.1293@eggly.anvils>
-In-Reply-To: <alpine.LSU.2.00.1205012005390.1293@eggly.anvils>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20120502015741.GE22923@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: linux-mm@kvack.org, Rik van Riel <riel@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Minchan Kim <minchan.kim@gmail.com>, Hugh Dickins <hughd@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
 
-Hugh Dickins wrote:
-> On Fri, 27 Apr 2012, Konstantin Khlebnikov wrote:
->> Andrew Morton wrote:
->>> On Thu, 26 Apr 2012 11:53:44 +0400
->>> Konstantin Khlebnikov<khlebnikov@openvz.org>   wrote:
->>>
->>>> This patchset depends on Johannes Weiner's patch
->>>> "mm: memcg: count pte references from every member of the reclaimed
->>>> hierarchy".
->>>>
->>>> bloat-o-meter delta for patches 2..12
->>>>
->>>> add/remove: 6/6 grow/shrink: 6/14 up/down: 4414/-4625 (-211)
->>>
->>> That's the sole effect and intent of the patchset?  To save 211 bytes?
->
-> I am surprised it's not more: it feels like more.
->
->>
->> This is almost last bunch of cleanups for lru_lock splitting,
->> code reducing is only nice side-effect.
->> Also this patchset removes many redundant lruvec relookups.
->>
->> Now mostly all page-to-lruvec translations are located at the same level
->> as zone->lru_lock locking. So lru-lock splitting patchset can something like
->> this:
->>
->> -zone = page_zone(page)
->> -spin_lock_irq(&zone->lru_lock)
->> -lruvec = mem_cgroup_page_lruvec(page)
->> +lruvec = lock_page_lruvec_irq(page)
->>
->>>
->>>> ...
->>>>
->>>>    include/linux/memcontrol.h |   16 +--
->>>>    include/linux/mmzone.h     |   14 ++
->>>>    mm/memcontrol.c            |   33 +++--
->>>>    mm/mmzone.c                |   14 ++
->>>>    mm/page_alloc.c            |    8 -
->>>>    mm/vmscan.c                |  277
->>>> ++++++++++++++++++++------------------------
->>>>    6 files changed, 177 insertions(+), 185 deletions(-)
->>>
->>> If so, I'm not sure that it is worth the risk and effort?
->
-> I'm pretty sure that it is worth the effort, and see very little risk.
->
-> It's close to my "[PATCH 3/10] mm/memcg: add zone pointer into lruvec"
-> posted 20 Feb (after Konstantin posted his set a few days earlier),
-> which Kamezawa-san Acked with "I like this cleanup".  But this goes
-> a little further (e.g. 01/12 saving an arg by moving priority into sc,
-> that's nice; and v2 05/12 removing update_isolated_counts(), great).
->
-> Konstantin and I came independently to this simplification, or
-> generalization, from zone to lruvec: we're confident that it is the
-> right direction, that it's a good basis for further work.  Certainly
-> neither of us have yet posted numbers to justify per-memcg per-zone
-> locking (and I expect split zone locking to need more justification
-> than it's had); but we both think these patches are a worthwhile
-> cleanup on their own.
->
-> I don't think it was particularly useful to split this into all of
-> 12 pieces!  But never mind, that's a trivial detail, not worth undoing.
-> There's a few by-the-by bits and pieces I liked in my version that are
-> not here, but nothing important: if I care enough, I can always send a
-> little cleanup afterwards.
->
-> The only change I'd ask for is in the commit comment on 02/12: it
-> puzzlingly says "page_zone()" where it means to say "lruvec_zone()".
-> I think if I'd been doing 04/12, I'd have resented passing "zone" to
-> shrink_page_list(), would have deleted its VM_BUG_ON, and used a
-> page_zone() for ZONE_CONGESTED: but that's just me being mean.
+On Wed, May 02, 2012 at 03:57:41AM +0200, Andrea Arcangeli wrote:
+> On Tue, May 01, 2012 at 10:41:53AM +0200, Johannes Weiner wrote:
+> > frequently used active page.  Instead, for each refault with a
+> > distance smaller than the size of the active list, we deactivate an
+> 
+> Shouldn't this be the size of active list + size of inactive list?
+> 
+> If the active list is 500M, inactive 500M and the new working set is
+> 600M, the refault distance will be 600M, it won't be smaller than the
+> size of the active list, and it won't deactivate the active list as it
+> should and it won't be detected as working set.
+> 
+> Only the refault distance bigger than inactive+active should not
+> deactivate the active list if I understand how this works correctly.
 
-We already know which zone we scan, why you prefer to re-lookup it via
-page's reference? And which page you will choose for that? There are many of them. =)
+The refault distance is what's missing, not the full reuse frequency.
+You ignore the 500M worth of inactive LRU time the page had in memory.
+The distance in that scenario would be 100M, the time between eviction
+and refault:
 
->
-> I've gone through and compared the result of these 12 against my own
-> tree updated to next-20120427.  We come out much the same: the only
-> divergence which worried me was that my mem_cgroup_zone_lruvec() says
-> 	IF (!memcg || mem_cgroup_disabled())
-> 		return&zone->lruvec;
-> and although I'm sure I had a reason for adding that "!memcg || ",
-> I cannot now see why.  Maybe it was for some intermediate use that went
-> away (but I mention it in the hope that Konstantin will double check).
+        +-----------------------------++-----------------------------+
+        |                             ||                             |
+        | inactive                    || active                      |
+        +-----------------------------++-----------------------------+
++~~~~~~~------------------------------+
+|                                     |
+| new set                             |
++~~~~~~~------------------------------+
+^       ^
+|       |
+|       eviction
+refault
 
-memcg can be null here if and only if mem_cgroup_disabled()
+The ~~~'d part could fit into memory if the active list was 100M
+smaller.
 
-After this patchset mem_cgroup_zone_lruvec() is used only in few places,
-usually right after mem_cgroup_iter(), so proof is trivial.
+> > @@ -1726,6 +1728,11 @@ zonelist_scan:
+> >  		if ((alloc_flags & ALLOC_CPUSET) &&
+> >  			!cpuset_zone_allowed_softwall(zone, gfp_mask))
+> >  				continue;
+> > +		if ((alloc_flags & ALLOC_WMARK_LOW) &&
+> > +		    current->refault_distance &&
+> > +		    !workingset_zone_alloc(zone, current->refault_distance,
+> > +					   &distance, &active))
+> > +			continue;
+> >  		/*
+> >  		 * When allocating a page cache page for writing, we
+> >  		 * want to get it from a zone that is within its dirty
+> 
+> It's a bit hard to see how this may not run oom prematurely if the
+> distance is always bigger, this is just an implementation question and
+> maybe I'm missing a fallback somewhere where we actually allocate
+> memory from whatever place in case no place is ideal.
 
->
-> To each one of the 12 (with lruvec_zone in 02/12, and v2 of 05/12):
-> Acked-by: Hugh Dickins<hughd@google.com>
+Sorry, this should be documented better.
 
-Thanks =)
+The ALLOC_WMARK_LOW check makes sure this only applies in the
+fastpath.  It will prepare reclaim with lruvec->shrink_active, then
+wake up kswapd and retry the zonelist without this constraint.
+
+> > +	/*
+> > +	 * Lower zones may not even be full, and free pages are
+> > +	 * potential inactive space, too.  But the dirty reserve is
+> > +	 * not available to page cache due to lowmem reserves and the
+> > +	 * kswapd watermark.  Don't include it.
+> > +	 */
+> > +	zone_free = zone_page_state(zone, NR_FREE_PAGES);
+> > +	if (zone_free > zone->dirty_balance_reserve)
+> > +		zone_free -= zone->dirty_balance_reserve;
+> > +	else
+> > +		zone_free = 0;
+> 
+> Maybe also remove the high wmark from the sum? It can be some hundred
+> meg so it's better to take it into account, to have a more accurate
+> math and locate the best zone that surely fits.
+> 
+> For the same reason it looks like the lowmem reserve should also be
+> taken into account, on the full sum.
+
+dirty_balance_reserve IS the sum of the high watermark and the biggest
+lowmem reserve for a particular zone, see how it's calculated in
+mm/page_alloc.c::calculate_totalreserve_pages().
+
+nr_free - dirty_balance_reserve is the number of pages available to
+page cache allocations without keeping kswapd alive or having to dip
+into lowmem reserves.
+
+Or did I misunderstand you?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
