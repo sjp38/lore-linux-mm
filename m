@@ -1,120 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx174.postini.com [74.125.245.174])
-	by kanga.kvack.org (Postfix) with SMTP id 2A6556B004D
-	for <linux-mm@kvack.org>; Tue,  1 May 2012 20:21:52 -0400 (EDT)
-Received: by pbbrp2 with SMTP id rp2so232340pbb.14
-        for <linux-mm@kvack.org>; Tue, 01 May 2012 17:21:51 -0700 (PDT)
-Date: Tue, 1 May 2012 17:20:27 -0700
-From: Anton Vorontsov <anton.vorontsov@linaro.org>
-Subject: Re: [PATCH v4] vmevent: Implement greater-than attribute state and
- one-shot mode
-Message-ID: <20120502002026.GA3334@lizard>
-References: <20120418083208.GA24904@lizard>
- <20120418083523.GB31556@lizard>
- <alpine.LFD.2.02.1204182259580.11868@tux.localdomain>
- <20120418224629.GA22150@lizard>
- <alpine.LFD.2.02.1204190841290.1704@tux.localdomain>
- <20120419162923.GA26630@lizard>
- <20120501131806.GA22249@lizard>
- <4FA04FD5.6010900@redhat.com>
+Received: from psmtp.com (na3sys010amx104.postini.com [74.125.245.104])
+	by kanga.kvack.org (Postfix) with SMTP id E473C6B004D
+	for <linux-mm@kvack.org>; Tue,  1 May 2012 20:34:42 -0400 (EDT)
+Received: by obbwd18 with SMTP id wd18so203381obb.14
+        for <linux-mm@kvack.org>; Tue, 01 May 2012 17:34:42 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-In-Reply-To: <4FA04FD5.6010900@redhat.com>
+In-Reply-To: <CAKgNAkjAOGM+mZLkXGiDFYsnMCpJsxx=Nd5pZfx-_f4B1jvh+A@mail.gmail.com>
+References: <1335778207-6511-1-git-send-email-jack@suse.cz>
+	<CAHGf_=qqiast+6XzGnq+LRdFXoWG9h2MkofmjS1h5OeNPRyWfw@mail.gmail.com>
+	<CAKgNAkjAOGM+mZLkXGiDFYsnMCpJsxx=Nd5pZfx-_f4B1jvh+A@mail.gmail.com>
+Date: Wed, 2 May 2012 10:34:42 +1000
+Message-ID: <CAPa8GCC7tHm_8Ks_=tM4x544+SEtkVk6TMAF3KPsVqzNOi-naA@mail.gmail.com>
+Subject: Re: [PATCH] Describe race of direct read and fork for unaligned buffers
+From: Nick Piggin <npiggin@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rik van Riel <riel@redhat.com>
-Cc: Pekka Enberg <penberg@kernel.org>, Leonid Moiseichuk <leonid.moiseichuk@nokia.com>, John Stultz <john.stultz@linaro.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linaro-kernel@lists.linaro.org, patches@linaro.org, kernel-team@android.com, Glauber Costa <glommer@parallels.com>, kamezawa.hiroyu@jp.fujitsu.com, Suleiman Souhlal <suleiman@google.com>
+To: mtk.manpages@gmail.com
+Cc: KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Jan Kara <jack@suse.cz>, LKML <linux-kernel@vger.kernel.org>, linux-man@vger.kernel.org, linux-mm@kvack.org, mgorman@suse.de, Jeff Moyer <jmoyer@redhat.com>
 
-Hello Rik,
+On 2 May 2012 03:56, Michael Kerrisk (man-pages) <mtk.manpages@gmail.com> wrote:
+> On Wed, May 2, 2012 at 4:15 AM, KOSAKI Motohiro
+> <kosaki.motohiro@gmail.com> wrote:
+>>> +suffices. However, if the user buffer is not page aligned and direct read
+>>
+>> One more thing. direct write also makes data corruption. Think
+>> following scenario,
+>
+> In the light of all of the comments, can someone revise the man-pages
+> patch that Jan sent?
 
-Thanks for looking into this!
+This does not quite describe the entire situation, but something understandable
+to developers:
 
-On Tue, May 01, 2012 at 05:04:21PM -0400, Rik van Riel wrote:
-> On 05/01/2012 09:18 AM, Anton Vorontsov wrote:
-> >This patch implements a new event type, it will trigger whenever a
-> >value becomes greater than user-specified threshold, it complements
-> >the 'less-then' trigger type.
-> >
-> >Also, let's implement the one-shot mode for the events, when set,
-> >userspace will only receive one notification per crossing the
-> >boundaries.
-> >
-> >Now when both LT and GT are set on the same level, the event type
-> >works as a cross event type: it triggers whenever a value crosses
-> >the threshold from a lesser values side to a greater values side,
-> >and vice versa.
-> >
-> >We use the event types in an userspace low-memory killer: we get a
-> >notification when memory becomes low, so we start freeing memory by
-> >killing unneeded processes, and we get notification when memory hits
-> >the threshold from another side, so we know that we freed enough of
-> >memory.
-> 
-> How are these vmevents supposed to work with cgroups?
+O_DIRECT IOs should never be run concurrently with fork(2) system call,
+when the memory buffer is anonymous memory, or comes from mmap(2)
+with MAP_PRIVATE.
 
-Currently these are independent subsystems, if you have memcg enabled,
-you can do almost anything* with the memory, as memg has all the needed
-hooks in the mm/ subsystem (it is more like "memory management tracer"
-nowadays :-).
+Any such IOs, whether submitted with asynchronous IO interface or from
+another thread in the process, should be quiesced before fork(2) is called.
+Failure to do so can result in data corruption and undefined behavior in
+parent and child processes.
 
-But cgroups have its cost, both performance penalty and memory wastage.
-For example, in the best case, memcg constantly consumes 0.5% of RAM to
-track memory usage, this is 5 MB on a 1 GB "embedded" machine.  To some
-people it feels just wrong to waste that memory for mere notifications.
-
-Of course, this alone can be considered as a lame argument for making
-another subsystem (instead of "fixing" the current one). But see below,
-vmevent is just a convenient ABI.
-
-> What do we do when a cgroup nears its limit, and there
-> is no more swap space available?
-> 
-> What do we do when a cgroup nears its limit, and there
-> is swap space available?
-
-As of now, this is all orthogonal to vmevent. Vmevent doesn't know
-about cgroups. If kernel has the memcg enabled, one should probably*
-go with it (or better, with its ABI). At least for now.
-
-> It would be nice to be able to share the same code for
-> embedded, desktop and server workloads...
-
-It would be great indeed, but so far I don't see much that
-vmevent could share. Plus, sharing the code at this point is not
-that interesting; it's mere 500 lines of code (comparing to
-more than 10K lines for cgroups, and it's not including memcg_
-hooks and logic that is spread all over mm/).
-
-Today vmevent code is mostly an ABI implementation, there is
-very little memory management logic (in contrast to the memcg).
-
-Personally, I would rather consider sharing ABI at some point:
-i.e. making a memcg backend for the vmevent. That would be pretty
-cool. And once done, vmevent would be cgroups-aware (if memcg
-enabled, of course; and if not, vmevent would still work, with
-no memcg-related expenses).
-
-* For low memory notifications, there are still some unresolved
-  issues with memcg. Mainly, slab accounting for the root cgroup:
-  currently developed slab accounting doesn't account kernel's
-  internal memory consumption, plus it doesn't account slab memory
-  for the root cgroup at all.
-
-  A few days ago I asked[1] why memcg doesn't do all this, and
-  whether it is a design decision or just an implementation detail
-  (so that we have a chance to fix it).
-
-  But so far there were no feedback. We'll see how things turn out.
-
-  [1] http://lkml.org/lkml/2012/4/30/115
+This restriction does not apply when the memory buffer for the O_DIRECT
+IOs comes from mmap(2) with MAP_SHARED or from shmat(2).
 
 
-Thanks!
 
--- 
-Anton Vorontsov
-Email: cbouatmailru@gmail.com
+Is that on the right track? I feel it might be necessary to describe this
+allowance for MAP_SHARED, because some databases may be doing
+such things, and anyway it gives apps a potential way to make this work
+if concurrent fork + DIO is very important.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
