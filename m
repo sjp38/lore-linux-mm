@@ -1,84 +1,104 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx206.postini.com [74.125.245.206])
-	by kanga.kvack.org (Postfix) with SMTP id BD5466B004D
-	for <linux-mm@kvack.org>; Thu,  3 May 2012 01:16:12 -0400 (EDT)
-Received: by qcsd16 with SMTP id d16so1164836qcs.14
-        for <linux-mm@kvack.org>; Wed, 02 May 2012 22:16:11 -0700 (PDT)
-Message-ID: <4FA2149A.9030803@vflare.org>
-Date: Thu, 03 May 2012 01:16:10 -0400
-From: Nitin Gupta <ngupta@vflare.org>
+Received: from psmtp.com (na3sys010amx175.postini.com [74.125.245.175])
+	by kanga.kvack.org (Postfix) with SMTP id CC6086B004D
+	for <linux-mm@kvack.org>; Thu,  3 May 2012 01:46:14 -0400 (EDT)
+Date: Wed, 2 May 2012 22:46:12 -0700 (PDT)
+From: Sage Weil <sage@newdream.net>
+Subject: Re: [PATCH] vmalloc: add warning in __vmalloc
+In-Reply-To: <4FA1D93C.9000306@kernel.org>
+Message-ID: <Pine.LNX.4.64.1205022241560.18540@cobra.newdream.net>
+References: <1335932890-25294-1-git-send-email-minchan@kernel.org>
+ <20120502124610.175e099c.akpm@linux-foundation.org> <4FA1D93C.9000306@kernel.org>
 MIME-Version: 1.0
-Subject: Re: [PATCH 2/6] zsmalloc: remove unnecessary alignment
-References: <1335334994-22138-1-git-send-email-minchan@kernel.org> <1335334994-22138-3-git-send-email-minchan@kernel.org> <4F97F3D6.8000404@vflare.org> <4F98A818.1080106@kernel.org>
-In-Reply-To: <4F98A818.1080106@kernel.org>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Minchan Kim <minchan@kernel.org>
-Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Dan Magenheimer <dan.magenheimer@oracle.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kosaki.motohiro@gmail.com, rientjes@google.com, Neil Brown <neilb@suse.de>, Artem Bityutskiy <dedekind1@gmail.com>, David Woodhouse <dwmw2@infradead.org>, Theodore Ts'o <tytso@mit.edu>, Adrian Hunter <adrian.hunter@intel.com>, Steven Whitehouse <swhiteho@redhat.com>, "David S. Miller" <davem@davemloft.net>, James Morris <jmorris@namei.org>, Alexander Viro <viro@zeniv.linux.org.uk>
 
-Hi Minchan,
+On Thu, 3 May 2012, Minchan Kim wrote:
+> On 05/03/2012 04:46 AM, Andrew Morton wrote:
+> > Well.  What are we actually doing here?  Causing the kernel to spew a
+> > warning due to known-buggy callsites, so that users will report the
+> > warnings, eventually goading maintainers into fixing their stuff.
+> > 
+> > This isn't very efficient :(
+> 
+> 
+> Yes. I hope maintainers fix it before merging this.
+> 
+> > 
+> > It would be better to fix that stuff first, then add the warning to
+> > prevent reoccurrences.  Yes, maintainers are very naughty and probably
+> > do need cattle prods^W^W warnings to motivate them to fix stuff, but we
+> > should first make an effort to get these things fixed without
+> > irritating and alarming our users.  
+> > 
+> > Where are these offending callsites?
 
-Sorry for late reply.
+Okay, maybe this is a stupid question, but: if an fs can't call vmalloc 
+with GFP_NOFS without risking deadlock, calling with GFP_KERNEL instead 
+doesn't fix anything (besides being more honest).  This really means that 
+vmalloc is effectively off-limits for file systems in any 
+writeback-related path, right?
 
-On 4/25/12 9:42 PM, Minchan Kim wrote:
-> On 04/25/2012 09:53 PM, Nitin Gupta wrote:
->
->> On 04/25/2012 02:23 AM, Minchan Kim wrote:
->>
->>> It isn't necessary to align pool size with PAGE_SIZE.
->>> If I missed something, please let me know it.
->>>
->>> Signed-off-by: Minchan Kim<minchan@kernel.org>
->>> ---
->>>   drivers/staging/zsmalloc/zsmalloc-main.c |    5 ++---
->>>   1 file changed, 2 insertions(+), 3 deletions(-)
->>>
->>> diff --git a/drivers/staging/zsmalloc/zsmalloc-main.c b/drivers/staging/zsmalloc/zsmalloc-main.c
->>> index 504b6c2..b99ad9e 100644
->>> --- a/drivers/staging/zsmalloc/zsmalloc-main.c
->>> +++ b/drivers/staging/zsmalloc/zsmalloc-main.c
->>> @@ -489,14 +489,13 @@ fail:
->>>
->>>   struct zs_pool *zs_create_pool(const char *name, gfp_t flags)
->>>   {
->>> -	int i, error, ovhd_size;
->>> +	int i, error;
->>>   	struct zs_pool *pool;
->>>
->>>   	if (!name)
->>>   		return NULL;
->>>
->>> -	ovhd_size = roundup(sizeof(*pool), PAGE_SIZE);
->>> -	pool = kzalloc(ovhd_size, GFP_KERNEL);
->>> +	pool = kzalloc(sizeof(*pool), GFP_KERNEL);
->>>   	if (!pool)
->>>   		return NULL;
->>>
->>
->>
->> pool metadata is rounded-up to avoid potential false-sharing problem
->> (though we could just roundup to cache_line_size()).
->
->
-> Do you really have any hurt by false-sharing problem?
-> If so, we can change it with
->
-
-I've never been hit by this false-sharing in any testing but this is 
-really just a random chance. Apart from aligning to cache-line size, 
-there is no way to ensure some unfortunate read-mostly object never 
-falls in the same line.
-
-> kzalloc(ALIGN(sizeof(*pool), cache_line_size()), GFP_KERNEL);
->
-
-Yes, looks better than aligning to PAGE_SIZE.
+sage
 
 
-Thanks,
-Nitin
+> 
+> 
+> dm:
+> __alloc_buffer_wait_no_callback
+> 
+> ubi:
+> ubi_dbg_check_write
+> ubi_dbg_check_all_ff
+> 
+> ext4 :
+> ext4_kvmalloc
+> 
+> gfs2 :
+> gfs2_alloc_sort_buffer
+> 
+> ntfs :
+> __ntfs_malloc
+> 
+> ubifs :
+> dbg_dump_leb
+> scan_check_cb
+> dump_lpt_leb
+> dbg_check_ltab_lnum
+> dbg_scan_orphans
+> 
+> mm :
+> alloc_large_system_hash
+> 
+> ceph :
+> fill_inode
+> ceph_setxattr
+> ceph_removexattr
+> ceph_x_build_authorizer
+> ceph_decode_buffer
+> ceph_alloc_middle
+> 
+> 
+> 
+> > 
+> > --
+> > To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> > the body to majordomo@kvack.org.  For more info on Linux MM,
+> > see: http://www.linux-mm.org/ .
+> > Fight unfair telecom internet charges in Canada: sign http://stopthemeter.ca/
+> > Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> > 
+> 
+> 
+> 
+> -- 
+> Kind regards,
+> Minchan Kim
+> 
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
