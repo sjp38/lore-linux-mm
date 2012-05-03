@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx190.postini.com [74.125.245.190])
-	by kanga.kvack.org (Postfix) with SMTP id 39F906B00EA
-	for <linux-mm@kvack.org>; Thu,  3 May 2012 10:23:58 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx166.postini.com [74.125.245.166])
+	by kanga.kvack.org (Postfix) with SMTP id 0C79C6B00EB
+	for <linux-mm@kvack.org>; Thu,  3 May 2012 10:24:01 -0400 (EDT)
 From: Venkatraman S <svenkatr@ti.com>
-Subject: [PATCH v2 03/16] block: add queue attributes to manage dpmg and swapin requests
-Date: Thu, 3 May 2012 19:53:02 +0530
-Message-ID: <1336054995-22988-4-git-send-email-svenkatr@ti.com>
+Subject: [PATCH v2 04/16] block: add sysfs attributes for runtime control of dpmg and swapin
+Date: Thu, 3 May 2012 19:53:03 +0530
+Message-ID: <1336054995-22988-5-git-send-email-svenkatr@ti.com>
 In-Reply-To: <1336054995-22988-1-git-send-email-svenkatr@ti.com>
 References: <1336054995-22988-1-git-send-email-svenkatr@ti.com>
 MIME-Version: 1.0
@@ -15,42 +15,55 @@ List-ID: <linux-mm.kvack.org>
 To: linux-mmc@vger.kernel.org, cjb@laptop.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-omap@vger.kernel.org
 Cc: linux-kernel@vger.kernel.org, arnd.bergmann@linaro.org, alex.lemberg@sandisk.com, ilan.smith@sandisk.com, lporzio@micron.com, rmk+kernel@arm.linux.org.uk, Venkatraman S <svenkatr@ti.com>
 
-Add block queue properties to identify and manage demand paging
-and swapin requests differently.
+sysfs entries for DPMG and SWAPIN requests so that they can
+be set/reset from userspace.
 
-Signed-off-by: Ilan Smith <ilan.smith@sandisk.com>
-Signed-off-by: Alex Lemberg <alex.lemberg@sandisk.com>
 Signed-off-by: Venkatraman S <svenkatr@ti.com>
 ---
- include/linux/blkdev.h |    8 ++++++++
- 1 file changed, 8 insertions(+)
+ block/blk-sysfs.c |   16 ++++++++++++++++
+ 1 file changed, 16 insertions(+)
 
-diff --git a/include/linux/blkdev.h b/include/linux/blkdev.h
-index 2aa2466..e9187d4 100644
---- a/include/linux/blkdev.h
-+++ b/include/linux/blkdev.h
-@@ -420,6 +420,8 @@ struct request_queue {
- #define QUEUE_FLAG_ADD_RANDOM  16	/* Contributes to random pool */
- #define QUEUE_FLAG_SECDISCARD  17	/* supports SECDISCARD */
- #define QUEUE_FLAG_SAME_FORCE  18	/* force complete on same CPU */
-+#define QUEUE_FLAG_EXP_DMPG    19	/* Expedite Demand paging requests */
-+#define QUEUE_FLAG_EXP_SWAPIN  20	/* Expedit page swapping */
+diff --git a/block/blk-sysfs.c b/block/blk-sysfs.c
+index cf15001..764de9f 100644
+--- a/block/blk-sysfs.c
++++ b/block/blk-sysfs.c
+@@ -213,6 +213,8 @@ queue_store_##name(struct request_queue *q, const char *page, size_t count) \
+ }
  
- #define QUEUE_FLAG_DEFAULT	((1 << QUEUE_FLAG_IO_STAT) |		\
- 				 (1 << QUEUE_FLAG_STACKABLE)	|	\
-@@ -502,6 +504,12 @@ static inline void queue_flag_clear(unsigned int flag, struct request_queue *q)
- #define blk_queue_secdiscard(q)	(blk_queue_discard(q) && \
- 	test_bit(QUEUE_FLAG_SECDISCARD, &(q)->queue_flags))
+ QUEUE_SYSFS_BIT_FNS(nonrot, NONROT, 1);
++QUEUE_SYSFS_BIT_FNS(expedite_dmpg, EXP_DMPG, 0);
++QUEUE_SYSFS_BIT_FNS(expedite_swapin, EXP_SWAPIN, 0);
+ QUEUE_SYSFS_BIT_FNS(random, ADD_RANDOM, 0);
+ QUEUE_SYSFS_BIT_FNS(iostats, IO_STAT, 0);
+ #undef QUEUE_SYSFS_BIT_FNS
+@@ -387,6 +389,18 @@ static struct queue_sysfs_entry queue_random_entry = {
+ 	.store = queue_store_random,
+ };
  
-+#define blk_queue_exp_dmpg(q) \
-+	test_bit(QUEUE_FLAG_EXP_DMPG, &(q)->queue_flags)
++static struct queue_sysfs_entry queue_dmpg_entry = {
++	.attr = {.name = "expedite_demandpaging", .mode = S_IRUGO | S_IWUSR },
++	.show = queue_show_expedite_dmpg,
++	.store = queue_store_expedite_dmpg,
++};
 +
-+#define blk_queue_exp_swapin(q) \
-+	test_bit(QUEUE_FLAG_EXP_SWAPIN, &(q)->queue_flags)
++static struct queue_sysfs_entry queue_swapin_entry = {
++	.attr = {.name = "expedite_swapping", .mode = S_IRUGO | S_IWUSR },
++	.show = queue_show_expedite_swapin,
++	.store = queue_store_expedite_swapin,
++};
 +
- #define blk_noretry_request(rq) \
- 	((rq)->cmd_flags & (REQ_FAILFAST_DEV|REQ_FAILFAST_TRANSPORT| \
- 			     REQ_FAILFAST_DRIVER))
+ static struct attribute *default_attrs[] = {
+ 	&queue_requests_entry.attr,
+ 	&queue_ra_entry.attr,
+@@ -409,6 +423,8 @@ static struct attribute *default_attrs[] = {
+ 	&queue_rq_affinity_entry.attr,
+ 	&queue_iostats_entry.attr,
+ 	&queue_random_entry.attr,
++	&queue_dmpg_entry.attr,
++	&queue_swapin_entry.attr,
+ 	NULL,
+ };
+ 
 -- 
 1.7.10.rc2
 
