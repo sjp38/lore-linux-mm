@@ -1,75 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx207.postini.com [74.125.245.207])
-	by kanga.kvack.org (Postfix) with SMTP id 0A8E96B00F5
-	for <linux-mm@kvack.org>; Thu,  3 May 2012 10:57:19 -0400 (EDT)
-Date: Thu, 3 May 2012 15:57:14 +0100
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH 05/11] mm: swap: Implement generic handler for
- swap_activate
-Message-ID: <20120503145714.GH11435@suse.de>
-References: <1334578675-23445-1-git-send-email-mgorman@suse.de>
- <1334578675-23445-6-git-send-email-mgorman@suse.de>
- <20120501155747.368a1d36.akpm@linux-foundation.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20120501155747.368a1d36.akpm@linux-foundation.org>
+Received: from psmtp.com (na3sys010amx116.postini.com [74.125.245.116])
+	by kanga.kvack.org (Postfix) with SMTP id 21DA36B00F6
+	for <linux-mm@kvack.org>; Thu,  3 May 2012 10:57:23 -0400 (EDT)
+Received: by wgbdt14 with SMTP id dt14so1608175wgb.26
+        for <linux-mm@kvack.org>; Thu, 03 May 2012 07:57:21 -0700 (PDT)
+From: Gilad Ben-Yossef <gilad@benyossef.com>
+Subject: [PATCH v1 4/6] mm: make lru_drain selective where it schedules work
+Date: Thu,  3 May 2012 17:56:00 +0300
+Message-Id: <1336056962-10465-5-git-send-email-gilad@benyossef.com>
+In-Reply-To: <1336056962-10465-1-git-send-email-gilad@benyossef.com>
+References: <1336056962-10465-1-git-send-email-gilad@benyossef.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Linux-MM <linux-mm@kvack.org>, Linux-Netdev <netdev@vger.kernel.org>, Linux-NFS <linux-nfs@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, David Miller <davem@davemloft.net>, Trond Myklebust <Trond.Myklebust@netapp.com>, Neil Brown <neilb@suse.de>, Christoph Hellwig <hch@infradead.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Mike Christie <michaelc@cs.wisc.edu>, Eric B Munson <emunson@mgebm.net>
+To: linux-kernel@vger.kernel.org
+Cc: Gilad Ben-Yossef <gilad@benyossef.com>, Thomas Gleixner <tglx@linutronix.de>, Tejun Heo <tj@kernel.org>, John Stultz <johnstul@us.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, Mike Frysinger <vapier@gentoo.org>, David Rientjes <rientjes@google.com>, Hugh Dickins <hughd@google.com>, Minchan Kim <minchan.kim@gmail.com>, Konstantin Khlebnikov <khlebnikov@openvz.org>, Christoph Lameter <cl@linux.com>, Chris Metcalf <cmetcalf@tilera.com>, Hakan Akkan <hakanakkan@gmail.com>, Max Krasnyansky <maxk@qualcomm.com>, Frederic Weisbecker <fweisbec@gmail.com>, linux-mm@kvack.org
 
-On Tue, May 01, 2012 at 03:57:47PM -0700, Andrew Morton wrote:
-> On Mon, 16 Apr 2012 13:17:49 +0100
-> Mel Gorman <mgorman@suse.de> wrote:
-> 
-> > The version of swap_activate introduced is sufficient for swap-over-NFS
-> > but would not provide enough information to implement a generic handler.
-> > This patch shuffles things slightly to ensure the same information is
-> > available for aops->swap_activate() as is available to the core.
-> > 
-> > No functionality change.
-> > 
-> > ...
-> >
-> > --- a/include/linux/fs.h
-> > +++ b/include/linux/fs.h
-> > @@ -587,6 +587,8 @@ typedef struct {
-> >  typedef int (*read_actor_t)(read_descriptor_t *, struct page *,
-> >  		unsigned long, unsigned long);
-> >  
-> > +struct swap_info_struct;
-> 
-> Please put forward declarations at top-of-file.  To prevent accidental
-> duplication later on.
-> 
+lru drain work is being done by scheduling a work queue on each
+CPU, whether it has LRU pages to drain or not, thus creating
+interference on isolated CPUs.
 
-Done.
+This patch uses schedule_on_each_cpu_cond() to schedule the work
+only on CPUs where it seems that there are LRUs to drain.
 
-> >  struct address_space_operations {
-> >  	int (*writepage)(struct page *page, struct writeback_control *wbc);
-> >  	int (*readpage)(struct file *, struct page *);
-> >
-> > ...
-> >
-> > --- a/mm/page_io.c
-> > +++ b/mm/page_io.c
-> 
-> Have you tested all this code with CONFIG_SWAP=n?
-> 
+Signed-off-by: Gilad Ben-Yossef <gilad@benyossef.com>
+CC: Thomas Gleixner <tglx@linutronix.de>
+CC: Tejun Heo <tj@kernel.org>
+CC: John Stultz <johnstul@us.ibm.com>
+CC: Andrew Morton <akpm@linux-foundation.org>
+CC: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+CC: Mel Gorman <mel@csn.ul.ie>
+CC: Mike Frysinger <vapier@gentoo.org>
+CC: David Rientjes <rientjes@google.com>
+CC: Hugh Dickins <hughd@google.com>
+CC: Minchan Kim <minchan.kim@gmail.com>
+CC: Konstantin Khlebnikov <khlebnikov@openvz.org>
+CC: Christoph Lameter <cl@linux.com>
+CC: Chris Metcalf <cmetcalf@tilera.com>
+CC: Hakan Akkan <hakanakkan@gmail.com>
+CC: Max Krasnyansky <maxk@qualcomm.com>
+CC: Frederic Weisbecker <fweisbec@gmail.com>
+CC: linux-kernel@vger.kernel.org
+CC: linux-mm@kvack.org
+---
+ mm/swap.c |   25 ++++++++++++++++++++++++-
+ 1 files changed, 24 insertions(+), 1 deletions(-)
 
-Emm, it builds. That counts, right?
-
-> Have you sought to minimise additional new code when CONFIG_SWAP=n?
-> 
-
-Not specifically, but generic_swapfile_activate() is defined in page_io.c
-and that is built only if CONFIG_SWAP=y. Similarly swapon is in
-swapfile.c which is only build when swap is enabled.
-
+diff --git a/mm/swap.c b/mm/swap.c
+index 5c13f13..ab07b62 100644
+--- a/mm/swap.c
++++ b/mm/swap.c
+@@ -562,12 +562,35 @@ static void lru_add_drain_per_cpu(struct work_struct *dummy)
+ 	lru_add_drain();
+ }
+ 
++static bool lru_drain_cpu(int cpu)
++{
++	struct pagevec *pvecs = per_cpu(lru_add_pvecs, cpu);
++	struct pagevec *pvec;
++	int lru;
++
++	for_each_lru(lru) {
++		pvec = &pvecs[lru - LRU_BASE];
++		if (pagevec_count(pvec))
++			return true;
++	}
++
++	pvec = &per_cpu(lru_rotate_pvecs, cpu);
++	if (pagevec_count(pvec))
++		return true;
++
++	pvec = &per_cpu(lru_deactivate_pvecs, cpu);
++	if (pagevec_count(pvec))
++		return true;
++
++	return false;
++}
++
+ /*
+  * Returns 0 for success
+  */
+ int lru_add_drain_all(void)
+ {
+-	return schedule_on_each_cpu(lru_add_drain_per_cpu);
++	return schedule_on_each_cpu_cond(lru_add_drain_per_cpu, lru_drain_cpu);
+ }
+ 
+ /*
 -- 
-Mel Gorman
-SUSE Labs
+1.7.0.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
