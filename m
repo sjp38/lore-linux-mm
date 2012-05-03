@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx169.postini.com [74.125.245.169])
-	by kanga.kvack.org (Postfix) with SMTP id 403C66B00E9
-	for <linux-mm@kvack.org>; Thu,  3 May 2012 10:23:52 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx190.postini.com [74.125.245.190])
+	by kanga.kvack.org (Postfix) with SMTP id 39F906B00EA
+	for <linux-mm@kvack.org>; Thu,  3 May 2012 10:23:58 -0400 (EDT)
 From: Venkatraman S <svenkatr@ti.com>
-Subject: [PATCH v2 02/16] MM: Added page swapping markers to memory management
-Date: Thu, 3 May 2012 19:53:01 +0530
-Message-ID: <1336054995-22988-3-git-send-email-svenkatr@ti.com>
+Subject: [PATCH v2 03/16] block: add queue attributes to manage dpmg and swapin requests
+Date: Thu, 3 May 2012 19:53:02 +0530
+Message-ID: <1336054995-22988-4-git-send-email-svenkatr@ti.com>
 In-Reply-To: <1336054995-22988-1-git-send-email-svenkatr@ti.com>
 References: <1336054995-22988-1-git-send-email-svenkatr@ti.com>
 MIME-Version: 1.0
@@ -15,66 +15,42 @@ List-ID: <linux-mm.kvack.org>
 To: linux-mmc@vger.kernel.org, cjb@laptop.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-omap@vger.kernel.org
 Cc: linux-kernel@vger.kernel.org, arnd.bergmann@linaro.org, alex.lemberg@sandisk.com, ilan.smith@sandisk.com, lporzio@micron.com, rmk+kernel@arm.linux.org.uk, Venkatraman S <svenkatr@ti.com>
 
-From: Ilan Smith <ilan.smith@sandisk.com>
-
-Add attribute to identify swapin requests
-Mark memory management requests with swapin requests
+Add block queue properties to identify and manage demand paging
+and swapin requests differently.
 
 Signed-off-by: Ilan Smith <ilan.smith@sandisk.com>
 Signed-off-by: Alex Lemberg <alex.lemberg@sandisk.com>
 Signed-off-by: Venkatraman S <svenkatr@ti.com>
 ---
- include/linux/bio.h       |    1 +
- include/linux/blk_types.h |    2 ++
- mm/page_io.c              |    3 ++-
- 3 files changed, 5 insertions(+), 1 deletion(-)
+ include/linux/blkdev.h |    8 ++++++++
+ 1 file changed, 8 insertions(+)
 
-diff --git a/include/linux/bio.h b/include/linux/bio.h
-index 264e0ef..8494b2f 100644
---- a/include/linux/bio.h
-+++ b/include/linux/bio.h
-@@ -63,6 +63,7 @@ static inline bool bio_rw_flagged(struct bio *bio, unsigned long flag)
- }
+diff --git a/include/linux/blkdev.h b/include/linux/blkdev.h
+index 2aa2466..e9187d4 100644
+--- a/include/linux/blkdev.h
++++ b/include/linux/blkdev.h
+@@ -420,6 +420,8 @@ struct request_queue {
+ #define QUEUE_FLAG_ADD_RANDOM  16	/* Contributes to random pool */
+ #define QUEUE_FLAG_SECDISCARD  17	/* supports SECDISCARD */
+ #define QUEUE_FLAG_SAME_FORCE  18	/* force complete on same CPU */
++#define QUEUE_FLAG_EXP_DMPG    19	/* Expedite Demand paging requests */
++#define QUEUE_FLAG_EXP_SWAPIN  20	/* Expedit page swapping */
  
- #define bio_dmpg(bio)	bio_rw_flagged(bio, REQ_RW_DMPG)
-+#define bio_swapin(bio)	bio_rw_flagged(bio, REQ_RW_SWAPIN)
+ #define QUEUE_FLAG_DEFAULT	((1 << QUEUE_FLAG_IO_STAT) |		\
+ 				 (1 << QUEUE_FLAG_STACKABLE)	|	\
+@@ -502,6 +504,12 @@ static inline void queue_flag_clear(unsigned int flag, struct request_queue *q)
+ #define blk_queue_secdiscard(q)	(blk_queue_discard(q) && \
+ 	test_bit(QUEUE_FLAG_SECDISCARD, &(q)->queue_flags))
  
- /*
-  * various member access, note that bio_data should of course not be used
-diff --git a/include/linux/blk_types.h b/include/linux/blk_types.h
-index 87feb80..df2b9ea 100644
---- a/include/linux/blk_types.h
-+++ b/include/linux/blk_types.h
-@@ -151,6 +151,7 @@ enum rq_flag_bits {
- 	__REQ_IO_STAT,		/* account I/O stat */
- 	__REQ_MIXED_MERGE,	/* merge of different types, fail separately */
- 	__REQ_RW_DMPG,
-+	__REQ_RW_SWAPIN,
- 	__REQ_NR_BITS,		/* stops here */
- };
- 
-@@ -193,5 +194,6 @@ enum rq_flag_bits {
- #define REQ_MIXED_MERGE		(1 << __REQ_MIXED_MERGE)
- #define REQ_SECURE		(1 << __REQ_SECURE)
- #define REQ_RW_DMPG		(1 << __REQ_RW_DMPG)
-+#define REQ_RW_SWAPIN		(1 << __REQ_RW_SWAPIN)
- 
- #endif /* __LINUX_BLK_TYPES_H */
-diff --git a/mm/page_io.c b/mm/page_io.c
-index dc76b4d..a148bea 100644
---- a/mm/page_io.c
-+++ b/mm/page_io.c
-@@ -128,8 +128,9 @@ int swap_readpage(struct page *page)
- 		ret = -ENOMEM;
- 		goto out;
- 	}
-+	bio->bi_rw |= REQ_RW_SWAPIN;
- 	count_vm_event(PSWPIN);
--	submit_bio(READ, bio);
-+	submit_bio(READ | REQ_RW_SWAPIN, bio);
- out:
- 	return ret;
- }
++#define blk_queue_exp_dmpg(q) \
++	test_bit(QUEUE_FLAG_EXP_DMPG, &(q)->queue_flags)
++
++#define blk_queue_exp_swapin(q) \
++	test_bit(QUEUE_FLAG_EXP_SWAPIN, &(q)->queue_flags)
++
+ #define blk_noretry_request(rq) \
+ 	((rq)->cmd_flags & (REQ_FAILFAST_DEV|REQ_FAILFAST_TRANSPORT| \
+ 			     REQ_FAILFAST_DRIVER))
 -- 
 1.7.10.rc2
 
