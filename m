@@ -1,66 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx121.postini.com [74.125.245.121])
-	by kanga.kvack.org (Postfix) with SMTP id 74CAB6B004D
-	for <linux-mm@kvack.org>; Thu,  3 May 2012 00:38:32 -0400 (EDT)
-Received: from /spool/local
-	by e28smtp05.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
-	Thu, 3 May 2012 10:08:29 +0530
-Received: from d28av02.in.ibm.com (d28av02.in.ibm.com [9.184.220.64])
-	by d28relay02.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q434cOmI38993936
-	for <linux-mm@kvack.org>; Thu, 3 May 2012 10:08:24 +0530
-Received: from d28av02.in.ibm.com (loopback [127.0.0.1])
-	by d28av02.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q43A90V7017680
-	for <linux-mm@kvack.org>; Thu, 3 May 2012 20:09:01 +1000
-From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Subject: Re: [PATCH -V6 07/14] memcg: Add HugeTLB extension
-In-Reply-To: <CAP=VYLqgaCabQGDVgUXnCwKCZHtz0nWxpm_a6Cgz_ciMzGe9gQ@mail.gmail.com>
-References: <1334573091-18602-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com> <1334573091-18602-8-git-send-email-aneesh.kumar@linux.vnet.ibm.com> <CAP=VYLqgaCabQGDVgUXnCwKCZHtz0nWxpm_a6Cgz_ciMzGe9gQ@mail.gmail.com>User-Agent: Notmuch/0.11.1+346~g13d19c3 (http://notmuchmail.org) Emacs/23.3.1 (x86_64-pc-linux-gnu)
-Date: Thu, 03 May 2012 10:07:59 +0530
-Message-ID: <87pqalhobc.fsf@skywalker.in.ibm.com>
+Received: from psmtp.com (na3sys010amx206.postini.com [74.125.245.206])
+	by kanga.kvack.org (Postfix) with SMTP id BD5466B004D
+	for <linux-mm@kvack.org>; Thu,  3 May 2012 01:16:12 -0400 (EDT)
+Received: by qcsd16 with SMTP id d16so1164836qcs.14
+        for <linux-mm@kvack.org>; Wed, 02 May 2012 22:16:11 -0700 (PDT)
+Message-ID: <4FA2149A.9030803@vflare.org>
+Date: Thu, 03 May 2012 01:16:10 -0400
+From: Nitin Gupta <ngupta@vflare.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Subject: Re: [PATCH 2/6] zsmalloc: remove unnecessary alignment
+References: <1335334994-22138-1-git-send-email-minchan@kernel.org> <1335334994-22138-3-git-send-email-minchan@kernel.org> <4F97F3D6.8000404@vflare.org> <4F98A818.1080106@kernel.org>
+In-Reply-To: <4F98A818.1080106@kernel.org>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Paul Gortmaker <paul.gortmaker@windriver.com>
-Cc: linux-mm@kvack.org, mgorman@suse.de, kamezawa.hiroyu@jp.fujitsu.com, dhillf@gmail.com, aarcange@redhat.com, mhocko@suse.cz, akpm@linux-foundation.org, hannes@cmpxchg.org, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, linux-next@vger.kernel.org
+To: Minchan Kim <minchan@kernel.org>
+Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Dan Magenheimer <dan.magenheimer@oracle.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-Paul Gortmaker <paul.gortmaker@windriver.com> writes:
+Hi Minchan,
 
-> On Mon, Apr 16, 2012 at 6:44 AM, Aneesh Kumar K.V
-> <aneesh.kumar@linux.vnet.ibm.com> wrote:
->> From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Sorry for late reply.
+
+On 4/25/12 9:42 PM, Minchan Kim wrote:
+> On 04/25/2012 09:53 PM, Nitin Gupta wrote:
+>
+>> On 04/25/2012 02:23 AM, Minchan Kim wrote:
 >>
->> This patch implements a memcg extension that allows us to control HugeTLB
->> allocations via memory controller. The extension allows to limit the
+>>> It isn't necessary to align pool size with PAGE_SIZE.
+>>> If I missed something, please let me know it.
+>>>
+>>> Signed-off-by: Minchan Kim<minchan@kernel.org>
+>>> ---
+>>>   drivers/staging/zsmalloc/zsmalloc-main.c |    5 ++---
+>>>   1 file changed, 2 insertions(+), 3 deletions(-)
+>>>
+>>> diff --git a/drivers/staging/zsmalloc/zsmalloc-main.c b/drivers/staging/zsmalloc/zsmalloc-main.c
+>>> index 504b6c2..b99ad9e 100644
+>>> --- a/drivers/staging/zsmalloc/zsmalloc-main.c
+>>> +++ b/drivers/staging/zsmalloc/zsmalloc-main.c
+>>> @@ -489,14 +489,13 @@ fail:
+>>>
+>>>   struct zs_pool *zs_create_pool(const char *name, gfp_t flags)
+>>>   {
+>>> -	int i, error, ovhd_size;
+>>> +	int i, error;
+>>>   	struct zs_pool *pool;
+>>>
+>>>   	if (!name)
+>>>   		return NULL;
+>>>
+>>> -	ovhd_size = roundup(sizeof(*pool), PAGE_SIZE);
+>>> -	pool = kzalloc(ovhd_size, GFP_KERNEL);
+>>> +	pool = kzalloc(sizeof(*pool), GFP_KERNEL);
+>>>   	if (!pool)
+>>>   		return NULL;
+>>>
+>>
+>>
+>> pool metadata is rounded-up to avoid potential false-sharing problem
+>> (though we could just roundup to cache_line_size()).
 >
-> Hi Aneesh,
 >
-> This breaks linux-next on some arch because they don't have any
-> HUGE_MAX_HSTATE in scope with the current #ifdef layout.
->
-> The breakage is in sh4, m68k, s390, and possibly others.
->
-> http://kisskb.ellerman.id.au/kisskb/buildresult/6228689/
-> http://kisskb.ellerman.id.au/kisskb/buildresult/6228670/
-> http://kisskb.ellerman.id.au/kisskb/buildresult/6228484/
->
-> This is a commit in akpm's mmotm queue, which used to be here:
->
-> http://userweb.kernel.org/~akpm/mmotm
->
-> Of course the above is invalid since userweb.kernel.org is dead.
-> I don't have a post-kernel.org break-in link handy and a quick
-> search didn't give me one, but I'm sure you'll recognize the change.
+> Do you really have any hurt by false-sharing problem?
+> If so, we can change it with
 >
 
-Andrew have the below patch 
+I've never been hit by this false-sharing in any testing but this is 
+really just a random chance. Apart from aligning to cache-line size, 
+there is no way to ensure some unfortunate read-mostly object never 
+falls in the same line.
 
-http://article.gmane.org/gmane.linux.kernel.commits.mm/71649
+> kzalloc(ALIGN(sizeof(*pool), cache_line_size()), GFP_KERNEL);
+>
 
-Does that fix the error ?
+Yes, looks better than aligning to PAGE_SIZE.
 
--aneesh
+
+Thanks,
+Nitin
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
