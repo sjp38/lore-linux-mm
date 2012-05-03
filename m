@@ -1,128 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx155.postini.com [74.125.245.155])
-	by kanga.kvack.org (Postfix) with SMTP id 577306B00E7
-	for <linux-mm@kvack.org>; Thu,  3 May 2012 07:08:52 -0400 (EDT)
-Message-ID: <1336043475.13013.47.camel@sauron.fi.intel.com>
-Subject: Re: [PATCH] vmalloc: add warning in __vmalloc
-From: Artem Bityutskiy <dedekind1@gmail.com>
-Reply-To: dedekind1@gmail.com
-Date: Thu, 03 May 2012 14:11:15 +0300
-In-Reply-To: <20120502124610.175e099c.akpm@linux-foundation.org>
-References: <1335932890-25294-1-git-send-email-minchan@kernel.org>
-	 <20120502124610.175e099c.akpm@linux-foundation.org>
-Content-Type: multipart/signed; micalg="pgp-sha1"; protocol="application/pgp-signature";
-	boundary="=-57Lh1wuEjZihfs+vd2pa"
-Mime-Version: 1.0
+Received: from psmtp.com (na3sys010amx181.postini.com [74.125.245.181])
+	by kanga.kvack.org (Postfix) with SMTP id E15116B004D
+	for <linux-mm@kvack.org>; Thu,  3 May 2012 09:15:43 -0400 (EDT)
+Date: Thu, 3 May 2012 15:15:31 +0200
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [patch 0/5] refault distance-based file cache sizing
+Message-ID: <20120503131531.GC31780@cmpxchg.org>
+References: <1335861713-4573-1-git-send-email-hannes@cmpxchg.org>
+ <20120501120819.0af1e54b.akpm@linux-foundation.org>
+ <4FA05354.8000304@redhat.com>
+ <20120501142656.c9160d96.akpm@linux-foundation.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20120501142656.c9160d96.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Minchan Kim <minchan@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kosaki.motohiro@gmail.com, rientjes@google.com, Neil Brown <neilb@suse.de>, David Woodhouse <dwmw2@infradead.org>, Theodore Ts'o <tytso@mit.edu>, Adrian Hunter <adrian.hunter@intel.com>, Steven Whitehouse <swhiteho@redhat.com>, "David
- S. Miller" <davem@davemloft.net>, James Morris <jmorris@namei.org>, Alexander Viro <viro@zeniv.linux.org.uk>, Sage Weil <sage@newdream.net>
+Cc: Rik van Riel <riel@redhat.com>, linux-mm@kvack.org, Andrea Arcangeli <aarcange@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan.kim@gmail.com>, Hugh Dickins <hughd@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
 
+On Tue, May 01, 2012 at 02:26:56PM -0700, Andrew Morton wrote:
+> On Tue, 01 May 2012 17:19:16 -0400
+> Rik van Riel <riel@redhat.com> wrote:
+> 
+> > On 05/01/2012 03:08 PM, Andrew Morton wrote:
+> > > On Tue,  1 May 2012 10:41:48 +0200
+> > > Johannes Weiner<hannes@cmpxchg.org>  wrote:
+> > >
+> > >> This series stores file cache eviction information in the vacated page
+> > >> cache radix tree slots and uses it on refault to see if the pages
+> > >> currently on the active list need to have their status challenged.
+> > >
+> > > So we no longer free the radix-tree node when everything under it has
+> > > been reclaimed?  One could create workloads which would result in a
+> > > tremendous amount of memory used by radix_tree_node_cachep objects.
+> > >
+> > > So I assume these things get thrown away at some point.  Some
+> > > discussion about the life-cycle here would be useful.
+> > 
+> > I assume that in the current codebase Johannes has, we would
+> > have to rely on the inode cache shrinker to reclaim the inode
+> > and throw out the radix tree nodes.
+> > 
+> > Having a better way to deal with radix tree nodes that contain
+> > stale entries (where the evicted pages would no longer receive
+> > special treatment on re-fault, because it has been so long) get
+> > reclaimed would be nice for a future version.
+> > 
+> 
+> Well, think of a stupid workload which creates a large number of very
+> large but sparse files (populated with one page in each 64, for
+> example).  Get them all in cache, then sit there touching the inodes to
+> keep then fresh.  What's the worst case here?
 
---=-57Lh1wuEjZihfs+vd2pa
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
+With 8G of RAM, it takes a minimally populated file (one page per leaf
+node) of 3.5TB to consume all memory for radix tree nodes.
 
-On Wed, 2012-05-02 at 12:46 -0700, Andrew Morton wrote:
-> On Wed,  2 May 2012 13:28:09 +0900
-> Minchan Kim <minchan@kernel.org> wrote:
->=20
-> > Now there are several places to use __vmalloc with GFP_ATOMIC,
-> > GFP_NOIO, GFP_NOFS but unfortunately __vmalloc calls map_vm_area
-> > which calls alloc_pages with GFP_KERNEL to allocate page tables.
-> > It means it's possible to happen deadlock.
-> > I don't know why it doesn't have reported until now.
-> >=20
-> > Firstly, I tried passing gfp_t to lower functions to support __vmalloc
-> > with such flags but other mm guys don't want and decided that
-> > all of caller should be fixed.
-> >=20
-> > http://marc.info/?l=3Dlinux-kernel&m=3D133517143616544&w=3D2
-> >=20
-> > To begin with, let's listen other's opinion whether they can fix it
-> > by other approach without calling __vmalloc with such flags.
-> >=20
-> > So this patch adds warning in __vmalloc_node_range to detect it and
-> > to be fixed hopely. __vmalloc_node_range isn't random chocie because
-> > all caller which has gfp_mask of map_vm_area use it through __vmalloc_a=
-rea_node.
-> > And __vmalloc_area_node is current static function and is called by onl=
-y
-> > __vmalloc_node_range. So warning in __vmalloc_node_range would cover al=
-l
-> > vmalloc functions which have gfp_t argument.
-> >
-> > I Cced related maintainers.
-> > If I miss someone, please Cced them.
-> >=20
-> > --- a/mm/vmalloc.c
-> > +++ b/mm/vmalloc.c
-> > @@ -1648,6 +1648,10 @@ void *__vmalloc_node_range(unsigned long size, u=
-nsigned long align,
-> >  	void *addr;
-> >  	unsigned long real_size =3D size;
-> > =20
-> > +	WARN_ON_ONCE(!(gfp_mask & __GFP_WAIT) ||
-> > +			!(gfp_mask & __GFP_IO) ||
-> > +			!(gfp_mask & __GFP_FS));
-> > +
-> >  	size =3D PAGE_ALIGN(size);
-> >  	if (!size || (size >> PAGE_SHIFT) > totalram_pages)
-> >  		goto fail;
->=20
-> Well.  What are we actually doing here?  Causing the kernel to spew a
-> warning due to known-buggy callsites, so that users will report the
-> warnings, eventually goading maintainers into fixing their stuff.
->=20
-> This isn't very efficient :(
->=20
-> It would be better to fix that stuff first, then add the warning to
-> prevent reoccurrences.  Yes, maintainers are very naughty and probably
-> do need cattle prods^W^W warnings to motivate them to fix stuff, but we
-> should first make an effort to get these things fixed without
-> irritating and alarming our users. =20
->=20
-> Where are these offending callsites?
+The worst case is going OOM without someone to blame as the objects
+are owned by the kernel.
 
-OK, I checked my part - both UBI and UBIFS call __vmalloc() with
-GFP_NOFS in several places of the _debugging_ code, and this is why we
-do not see any issues - the debugging code is used very rarely for
-validating purposes. All the places look fixable, I'll fix them a bit
-later.
+Is this a use case we should worry about?  A realistic one, I mean, it
+wouldn't be the first one to take down a machine maliciously and could
+be prevented by rlimiting the maximum file size.
 
-WARN_ON_ONCE() looks like a good first step. An I think it is better if
-maintainers fix their areas rather than if someone who does not know how
-the subsystem works starts trying to do that.
+That aside, entries that are past the point where they would mean
+anything, as Rik described above, are a waste of memory, the severity
+of which depends on how much of its previously faulted data an inode
+has evicted while still being in active use.
 
---=20
-Best Regards,
-Artem Bityutskiy
-
---=-57Lh1wuEjZihfs+vd2pa
-Content-Type: application/pgp-signature; name="signature.asc"
-Content-Description: This is a digitally signed message part
-Content-Transfer-Encoding: 7bit
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1.4.12 (GNU/Linux)
-
-iQIcBAABAgAGBQJPomfTAAoJECmIfjd9wqK0Le0P/jVKUGL5CYTbVVuaczEr0YHG
-3u1H1H5PdbSh+nZh1k+B4954w5tS96bPRrJi2HsFGTSdAvWudF0w5jOaXZqxE9y9
-JRIqsYO1n4yJcYM6vNFOTOxk0gUCap4hR+AvqBGEB8C/fiC3f5E/FxISwSrzLBFx
-xMaScsYuaJJv0IzOD+MuPEDW2YuX3dyiKssqh8yWIcPNtS/o8LQ/im06HZugYvXo
-cuslXW3/vtcV7npEvyXNxRioKlsouWfuEh2ukrIvHRN7hGgAkUeW87ht2Z10065U
-oK+kWKd8PjrT7j0tzjnbGWZNkgUnIzo+4p91RzszfdVo/pZRQRogNAT4U6zRwbMZ
-MoW9prWmwT57iI4MIu9eCvqMug+nQesCvMlok7Bh8bvESxl6+CzTGGu0VwjKkUty
-xgPH3XRDGjrPPGwOUDL4Rv9ugCh8IVQE4punSIjGxwVrjtEDpLGObF7bj2Zzl46Q
-7ye17JDT3p4HwtNgcDvNCUlyZ7xT2hReSQ8+GOMGuH94Wz9okMAg/eF2UHGsT1+d
-pbcy2a2YbikOooG1hVMcKf3YjJHeMwVNH/Eag8zpcKg5+Hl7Gf/BxrbzetubAow2
-/i01lJ7nYieCXTp+AzJiRsaBIiQ7YXhcY6pK4NCu5EeQJfl9ugxyoUBGr7h/6YlG
-h5DV5VzMJrgsGpxoKonm
-=U6kO
------END PGP SIGNATURE-----
-
---=-57Lh1wuEjZihfs+vd2pa--
+For me it's not a question of whether we want a mechanism to reclaim
+old shadow pages of inodes that are still in use, but how critical
+this is, and then how accurate it needs to be etc.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
