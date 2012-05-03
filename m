@@ -1,76 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx129.postini.com [74.125.245.129])
-	by kanga.kvack.org (Postfix) with SMTP id 1D0BB6B004D
-	for <linux-mm@kvack.org>; Wed,  2 May 2012 21:31:25 -0400 (EDT)
-Received: from /spool/local
-	by e5.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <shangw@linux.vnet.ibm.com>;
-	Wed, 2 May 2012 21:31:23 -0400
-Received: from d01relay07.pok.ibm.com (d01relay07.pok.ibm.com [9.56.227.147])
-	by d01dlp02.pok.ibm.com (Postfix) with ESMTP id 5EDA36E804D
-	for <linux-mm@kvack.org>; Wed,  2 May 2012 21:31:20 -0400 (EDT)
-Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
-	by d01relay07.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q431VJQL21889092
-	for <linux-mm@kvack.org>; Wed, 2 May 2012 21:31:19 -0400
-Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
-	by d01av02.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q431VJER005310
-	for <linux-mm@kvack.org>; Wed, 2 May 2012 22:31:19 -0300
-From: Gavin Shan <shangw@linux.vnet.ibm.com>
-Subject: [PATCH v2] MM: check limit while deallocating bootmem node
-Date: Thu,  3 May 2012 09:31:14 +0800
-Message-Id: <1336008674-10858-1-git-send-email-shangw@linux.vnet.ibm.com>
+Received: from psmtp.com (na3sys010amx158.postini.com [74.125.245.158])
+	by kanga.kvack.org (Postfix) with SMTP id 9874D6B004D
+	for <linux-mm@kvack.org>; Wed,  2 May 2012 23:09:54 -0400 (EDT)
+Received: by pbbrp2 with SMTP id rp2so2325626pbb.14
+        for <linux-mm@kvack.org>; Wed, 02 May 2012 20:09:53 -0700 (PDT)
+Message-ID: <4FA1F6FD.7060100@gmail.com>
+Date: Thu, 03 May 2012 11:09:49 +0800
+From: Sha Zhengju <handai.szj@gmail.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH RESEND] memcg: Free spare array to avoid memory leak
+References: <1334825690-9065-1-git-send-email-handai.szj@taobao.com> <20120501140314.1d7312fb.akpm@linux-foundation.org>
+In-Reply-To: <20120501140314.1d7312fb.akpm@linux-foundation.org>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: hannes@cmpxchg.org, Gavin Shan <shangw@linux.vnet.ibm.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Sha Zhengju <handai.szj@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org
 
-For the particular bootmem node, the minimal and maximal PFN (
-Page Frame Number) have been traced in the instance of "struct
-bootmem_data_t". On current implementation, the maximal PFN isn't
-checked while deallocating a bunch (BITS_PER_LONG) of page frames.
-So the current implementation won't work if the maximal PFN isn't
-aligned with BITS_PER_LONG.
+On 05/02/2012 05:03 AM, Andrew Morton wrote:
+> On Thu, 19 Apr 2012 16:54:50 +0800
+> Sha Zhengju<handai.szj@gmail.com>  wrote:
+>
+>> From: Sha Zhengju<handai.szj@taobao.com>
+>>
+>> When the last event is unregistered, there is no need to keep the spare
+>> array anymore. So free it to avoid memory leak.
+> How serious is this leak?  Is there any way in which it can be used to
+> consume unbounded amounts of memory?
 
-The patch will check the maximal PFN of the given bootmem node.
-Also, we needn't check all the bits map when the starting PFN isn't
-BITS_PER_LONG aligned. Actually, we should start from the offset
-of the bits map, which indicated by the starting PFN. By the way,
-V2 patch removed the duplicate check according to comments from
-Johannes Weiner.
+While registering events, the ->primary will apply for a larger array to 
+store
+the new threshold info and the ->spare holds the old primary space.
+But once unregistering event, the ->primary and ->spare pointer will be 
+swapped
+after updating thresholds info. So if we have an eventfd with many(>1) 
+thresholds
+attached to it, mem_cgroup_usage_unregister_event() will finally leave 
+->spare
+holding a large array and have no chance to be freed.
 
-Signed-off-by: Gavin Shan <shangw@linux.vnet.ibm.com>
----
- mm/bootmem.c |    7 +++++--
- 1 files changed, 5 insertions(+), 2 deletions(-)
+I hope it is clear.
 
-diff --git a/mm/bootmem.c b/mm/bootmem.c
-index 5a04536..b4f3ba5 100644
---- a/mm/bootmem.c
-+++ b/mm/bootmem.c
-@@ -201,9 +201,11 @@ static unsigned long __init free_all_bootmem_core(bootmem_data_t *bdata)
- 			count += BITS_PER_LONG;
- 			start += BITS_PER_LONG;
- 		} else {
--			unsigned long off = 0;
-+			unsigned long cursor = start;
-+			unsigned long off = cursor & (BITS_PER_LONG - 1);
- 
--			while (vec && off < BITS_PER_LONG) {
-+			vec >>= off;
-+			while (vec) {
- 				if (vec & 1) {
- 					page = pfn_to_page(start + off);
- 					__free_pages_bootmem(page, 0);
-@@ -211,6 +213,7 @@ static unsigned long __init free_all_bootmem_core(bootmem_data_t *bdata)
- 				}
- 				vec >>= 1;
- 				off++;
-+				cursor++;
- 			}
- 			start = ALIGN(start + 1, BITS_PER_LONG);
- 		}
--- 
-1.7.5.4
+>> --- a/mm/memcontrol.c
+>> +++ b/mm/memcontrol.c
+>> @@ -4412,6 +4412,12 @@ static void mem_cgroup_usage_unregister_event(struct cgroup *cgrp,
+>>   swap_buffers:
+>>   	/* Swap primary and spare array */
+>>   	thresholds->spare = thresholds->primary;
+>> +	/* If all events are unregistered, free the spare array */
+>> +	if (!new) {
+>> +		kfree(thresholds->spare);
+>> +		thresholds->spare = NULL;
+>> +	}
+>> +
+>>   	rcu_assign_pointer(thresholds->primary, new);
+>>
+> The resulting code is really quite convoluted.  Try to read through it
+> and follow the handling of ->primary and ->spare.  Head spins.
+>
+> What is the protocol here?  If ->primary is NULL then ->spare must also
+> be NULL?
+>
+
+To be simple:  if new(->primary) is NULL, it means we are unregistering
+the last threshold and there is no need to keep ->spare any more.
+So give the ->spare array a chance to be freed.
+
+Thanks,
+Sha
+
+> I'll apply the patch, although I don't (yet) have sufficient info to
+> know which kernels it should be applied to.  Perhaps someone could
+> revisit this code and see if it can be made more straightforward.
+>
+> .
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
