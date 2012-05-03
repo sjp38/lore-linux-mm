@@ -1,85 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx173.postini.com [74.125.245.173])
-	by kanga.kvack.org (Postfix) with SMTP id C08456B004D
-	for <linux-mm@kvack.org>; Thu,  3 May 2012 09:50:22 -0400 (EDT)
-Subject: Re: [PATCH] vmalloc: add warning in __vmalloc
-From: Steven Whitehouse <swhiteho@redhat.com>
-In-Reply-To: <CAPa8GCCzyB7iSX+wTzsqfe7GHvfWT2wT4aQgK30ycRnkc_BNAQ@mail.gmail.com>
-References: <1335932890-25294-1-git-send-email-minchan@kernel.org>
-	 <20120502124610.175e099c.akpm@linux-foundation.org>
-	 <4FA1D93C.9000306@kernel.org>
-	 <Pine.LNX.4.64.1205022241560.18540@cobra.newdream.net>
-	 <CAPa8GCCzyB7iSX+wTzsqfe7GHvfWT2wT4aQgK30ycRnkc_BNAQ@mail.gmail.com>
-Content-Type: text/plain; charset="UTF-8"
-Date: Thu, 03 May 2012 14:48:36 +0100
-Message-ID: <1336052916.7030.7.camel@menhir>
-Mime-Version: 1.0
+Received: from psmtp.com (na3sys010amx108.postini.com [74.125.245.108])
+	by kanga.kvack.org (Postfix) with SMTP id 31D556B0083
+	for <linux-mm@kvack.org>; Thu,  3 May 2012 09:58:22 -0400 (EDT)
+Received: by qafl39 with SMTP id l39so305217qaf.9
+        for <linux-mm@kvack.org>; Thu, 03 May 2012 06:58:21 -0700 (PDT)
+Message-ID: <4FA28EFD.5070002@vflare.org>
+Date: Thu, 03 May 2012 09:58:21 -0400
+From: Nitin Gupta <ngupta@vflare.org>
+MIME-Version: 1.0
+Subject: Re: [PATCH 4/4] zsmalloc: zsmalloc: align cache line size
+References: <1336027242-372-1-git-send-email-minchan@kernel.org> <1336027242-372-4-git-send-email-minchan@kernel.org>
+In-Reply-To: <1336027242-372-4-git-send-email-minchan@kernel.org>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Nick Piggin <npiggin@gmail.com>
-Cc: Sage Weil <sage@newdream.net>, Minchan Kim <minchan@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kosaki.motohiro@gmail.com, rientjes@google.com, Neil Brown <neilb@suse.de>, Artem Bityutskiy <dedekind1@gmail.com>, David Woodhouse <dwmw2@infradead.org>, Theodore Ts'o <tytso@mit.edu>, Adrian Hunter <adrian.hunter@intel.com>, "David S.
- Miller" <davem@davemloft.net>, James Morris <jmorris@namei.org>, Alexander Viro <viro@zeniv.linux.org.uk>, linux-fsdevel <linux-fsdevel@vger.kernel.org>
+To: Minchan Kim <minchan@kernel.org>
+Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Dan Magenheimer <dan.magenheimer@oracle.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-Hi,
+On 5/3/12 2:40 AM, Minchan Kim wrote:
+> It's a overkill to align pool size with PAGE_SIZE to avoid
+> false-sharing. This patch aligns it with just cache line size.
+>
+> Signed-off-by: Minchan Kim<minchan@kernel.org>
+> ---
+>   drivers/staging/zsmalloc/zsmalloc-main.c |    6 +++---
+>   1 file changed, 3 insertions(+), 3 deletions(-)
+>
+> diff --git a/drivers/staging/zsmalloc/zsmalloc-main.c b/drivers/staging/zsmalloc/zsmalloc-main.c
+> index 51074fa..3991b03 100644
+> --- a/drivers/staging/zsmalloc/zsmalloc-main.c
+> +++ b/drivers/staging/zsmalloc/zsmalloc-main.c
+> @@ -489,14 +489,14 @@ fail:
+>
+>   struct zs_pool *zs_create_pool(const char *name, gfp_t flags)
+>   {
+> -	int i, error, ovhd_size;
+> +	int i, error;
+>   	struct zs_pool *pool;
+>
+>   	if (!name)
+>   		return NULL;
+>
+> -	ovhd_size = roundup(sizeof(*pool), PAGE_SIZE);
+> -	pool = kzalloc(ovhd_size, GFP_KERNEL);
+> +	pool = kzalloc(ALIGN(sizeof(*pool), cache_line_size()),
+> +				GFP_KERNEL);
 
-On Thu, 2012-05-03 at 16:30 +1000, Nick Piggin wrote:
-> On 3 May 2012 15:46, Sage Weil <sage@newdream.net> wrote:
-> > On Thu, 3 May 2012, Minchan Kim wrote:
-> >> On 05/03/2012 04:46 AM, Andrew Morton wrote:
-> >> > Well.  What are we actually doing here?  Causing the kernel to spew a
-> >> > warning due to known-buggy callsites, so that users will report the
-> >> > warnings, eventually goading maintainers into fixing their stuff.
-> >> >
-> >> > This isn't very efficient :(
-> >>
-> >>
-> >> Yes. I hope maintainers fix it before merging this.
-> >>
-> >> >
-> >> > It would be better to fix that stuff first, then add the warning to
-> >> > prevent reoccurrences.  Yes, maintainers are very naughty and probably
-> >> > do need cattle prods^W^W warnings to motivate them to fix stuff, but we
-> >> > should first make an effort to get these things fixed without
-> >> > irritating and alarming our users.
-> >> >
-> >> > Where are these offending callsites?
-> >
-> > Okay, maybe this is a stupid question, but: if an fs can't call vmalloc
-> > with GFP_NOFS without risking deadlock, calling with GFP_KERNEL instead
-> > doesn't fix anything (besides being more honest).  This really means that
-> > vmalloc is effectively off-limits for file systems in any
-> > writeback-related path, right?
-> 
-> Anywhere it cannot reenter the filesystem, yes. GFP_NOFS is effectively
-> GFP_KERNEL when calling vmalloc.
-> 
-> Note that in writeback paths, a "good citizen" filesystem should not require
-> any allocations, or at least it should be able to tolerate allocation failures.
-> So fixing that would be a good idea anyway.
+a basic question:
+  Is rounding off allocation size to cache_line_size enough to ensure 
+that the object is cache-line-aligned? Isn't it possible that even 
+though the object size is multiple of cache-line, it may still not be 
+properly aligned and end up sharing cache line with some other 
+read-mostly object?
 
-For cluster filesystems, there is an additional issue. When we allocate
-memory with GFP_KERNEL we might land up pushing inodes out of cache,
-which can also mean deallocating them. That process involves taking
-cluster locks, and so it is not valid to do this while holding another
-cluster lock (since the locks may be taken in random order).
+Thanks,
+Nitin
 
-In the GFS2 use case for vmalloc, this is being done if kmalloc fails
-and also if the memory required is too large for kmalloc (very unlikely,
-but possible with very large directories). Also, it is being done under
-a cluster lock (shared mode).
 
-I recently looked back at the thread which resulted in that particular
-vmalloc call being left there:
-http://www.redhat.com/archives/cluster-devel/2010-July/msg00021.html
-http://www.redhat.com/archives/cluster-devel/2010-July/msg00022.html
-http://www.redhat.com/archives/cluster-devel/2010-July/msg00023.html
-
-which reminded me of the problem. So this might not be so easy to
-resolve...
-
-Steve.
-
+>   	if (!pool)
+>   		return NULL;
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
