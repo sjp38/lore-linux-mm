@@ -1,11 +1,13 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx172.postini.com [74.125.245.172])
-	by kanga.kvack.org (Postfix) with SMTP id 34A926B00E7
-	for <linux-mm@kvack.org>; Thu,  3 May 2012 10:23:43 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx141.postini.com [74.125.245.141])
+	by kanga.kvack.org (Postfix) with SMTP id DA67B6B00E8
+	for <linux-mm@kvack.org>; Thu,  3 May 2012 10:23:48 -0400 (EDT)
 From: Venkatraman S <svenkatr@ti.com>
-Subject: [PATCHv2 00/16] [FS, MM, block, MMC]: eMMC High Priority Interrupt Feature
-Date: Thu, 3 May 2012 19:52:59 +0530
-Message-ID: <1336054995-22988-1-git-send-email-svenkatr@ti.com>
+Subject: [PATCH v2 01/16] FS: Added demand paging markers to filesystem
+Date: Thu, 3 May 2012 19:53:00 +0530
+Message-ID: <1336054995-22988-2-git-send-email-svenkatr@ti.com>
+In-Reply-To: <1336054995-22988-1-git-send-email-svenkatr@ti.com>
+References: <1336054995-22988-1-git-send-email-svenkatr@ti.com>
 MIME-Version: 1.0
 Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
@@ -13,109 +15,70 @@ List-ID: <linux-mm.kvack.org>
 To: linux-mmc@vger.kernel.org, cjb@laptop.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-omap@vger.kernel.org
 Cc: linux-kernel@vger.kernel.org, arnd.bergmann@linaro.org, alex.lemberg@sandisk.com, ilan.smith@sandisk.com, lporzio@micron.com, rmk+kernel@arm.linux.org.uk, Venkatraman S <svenkatr@ti.com>
 
-Standard eMMC (Embedded MultiMedia Card) specification expects to execute
-one request at a time. If some requests are more important than others, they
-can't be aborted while the flash procedure is in progress.
+From: Ilan Smith <ilan.smith@sandisk.com>
 
-New versions of the eMMC standard (4.41 and above) specfies a feature 
-called High Priority Interrupt (HPI). This enables an ongoing transaction
-to be aborted using a special command (HPI command) so that the card is ready
-to receive new commands immediately. Then the new request can be submitted
-to the card, and optionally the interrupted command can be resumed again.
+Add attribute to identify demand paging requests.
+Mark readpages with demand paging attribute.
 
-Some restrictions exist on when and how the command can be used. For example,
-only write and write-like commands (ERASE) can be preempted, and the urgent
-request must be a read.
+Signed-off-by: Ilan Smith <ilan.smith@sandisk.com>
+Signed-off-by: Alex Lemberg <alex.lemberg@sandisk.com>
+Signed-off-by: Venkatraman S <svenkatr@ti.com>
+---
+ fs/mpage.c                |    2 ++
+ include/linux/bio.h       |    7 +++++++
+ include/linux/blk_types.h |    2 ++
+ 3 files changed, 11 insertions(+)
 
-In order to support this in software,
-a) At the top level, some policy decisions have to be made on what is
-worth preempting for.
-	This implementation uses the demand paging requests and swap
-read requests as potential reads worth preempting an ongoing long write.
-	This is expected to provide improved responsiveness for smarphones
-with multitasking capabilities - example would be launch a email application
-while a video capture session (which causes long writes) is ongoing.
-b) At the block handler, the higher priority request should be queued
-  ahead of the pending requests in the elevator
-c) At the MMC block and core level, transactions have to executed to 
-enforce the rules of the MMC spec and make a reasonable tradeoff if the
-ongoing command is really worth preempting. (For example, is it too close
-to completing already ?).
-	The current implementation uses a fixed time logic. If 10ms has
-already elapsed since the first request was submitted, then a new high
-priority request would not cause a HPI, as it is expected that the first
-request would finish soon. Further work is needed to dynamically tune
-this value (maybe through sysfs) or automatically determine based on
-average write times of previous requests.
-d) At the lowest level (MMC host controllers), support interface to 
-provide a transition path for ongoing transactions to be aborted and the
-controller to be ready to receive next command.
-
-	More information about this feature can be found at
-Jedec Specification:-
-	http://www.jedec.org/standards-documents/docs/jesd84-a441
-Presentation on eMMC4.41 features:-
-	http://www.jedec.org/sites/default/files/Victor_Tsai.pdf
-
-Acknowledgements:-	
-	In no particular order, thanks to Arnd Bergmann and  Saugata Das
-from Linaro, Ilan Smith and Alex Lemberg from Sandisk, Luca Porzio from Micron
-Technologies, Yejin Moon, Jae Hoon Chung from Samsung and others.
-
-----
-v1 -> v2:-
-	* Convert threshold for hpi usage to a tuning parameter (sysfs)
-	* Add Documentation/ABI for all sysfs entries
-	* Add implementation of abort for OMAP controller
-	* Rebased to 3.4-rc4 + mmc-next
-
-	This patch series depends on a few other related cleanups
-in MMC driver. All the patches and the dependent series can be
-pulled from 
-	git://github.com/svenkatr/linux.git my/mmc/3.4/foreground-hpiv2
-
-----------------------------------------------------------------
-Ilan Smith (3):
-      FS: Added demand paging markers to filesystem
-      MM: Added page swapping markers to memory management
-      block: treat DMPG and SWAPIN requests as special
-
-Venkatraman S (13):
-      block: add queue attributes to manage dpmg and swapin requests
-      block: add sysfs attributes for runtime control of dpmg and swapin
-      block: Documentation: add sysfs ABI for expedite_dmpg and expedite_swapin
-      mmc: core: helper function for finding preemptible command
-      mmc: core: add preemptibility tracking fields to mmc command
-      mmc: core: Add MMC abort interface
-      mmc: block: Detect HPI support in card and host controller
-      mmc: core: Implement foreground request preemption procedure
-      mmc: sysfs: Add sysfs entry for tuning preempt_time_threshold
-      mmc: Documentation: Add sysfs ABI for hpi_time_threshold
-      mmc: block: Implement HPI invocation and handling logic.
-      mmc: Update preempted request with CORRECTLY_PRG_SECTORS_NUM info
-      mmc: omap_hsmmc: Implement abort_req host_ops
-
- Documentation/ABI/testing/sysfs-block       |   12 ++
- Documentation/ABI/testing/sysfs-devices-mmc |   12 ++
- block/blk-core.c                            |   18 +++
- block/blk-sysfs.c                           |   16 +++
- block/elevator.c                            |   14 ++-
- drivers/mmc/card/block.c                    |  143 ++++++++++++++++++++--
- drivers/mmc/card/queue.h                    |    1 +
- drivers/mmc/core/core.c                     |   67 ++++++++++
- drivers/mmc/core/mmc.c                      |   25 ++++
- drivers/mmc/host/omap_hsmmc.c               |   55 ++++++++-
- fs/mpage.c                                  |    2 +
- include/linux/bio.h                         |    8 ++
- include/linux/blk_types.h                   |    4 +
- include/linux/blkdev.h                      |    8 ++
- include/linux/mmc/card.h                    |    1 +
- include/linux/mmc/core.h                    |   19 +++
- include/linux/mmc/host.h                    |    1 +
- include/linux/mmc/mmc.h                     |    4 +
- mm/page_io.c                                |    3 +-
- 19 files changed, 395 insertions(+), 18 deletions(-)
-
+diff --git a/fs/mpage.c b/fs/mpage.c
+index 0face1c..8b144f5 100644
+--- a/fs/mpage.c
++++ b/fs/mpage.c
+@@ -386,6 +386,8 @@ mpage_readpages(struct address_space *mapping, struct list_head *pages,
+ 					&last_block_in_bio, &map_bh,
+ 					&first_logical_block,
+ 					get_block);
++			if (bio)
++				bio->bi_rw |= REQ_RW_DMPG;
+ 		}
+ 		page_cache_release(page);
+ 	}
+diff --git a/include/linux/bio.h b/include/linux/bio.h
+index 4d94eb8..264e0ef 100644
+--- a/include/linux/bio.h
++++ b/include/linux/bio.h
+@@ -57,6 +57,13 @@
+ 	(bio)->bi_rw |= ((unsigned long) (prio) << BIO_PRIO_SHIFT);	\
+ } while (0)
+ 
++static inline bool bio_rw_flagged(struct bio *bio, unsigned long flag)
++{
++	return ((bio->bi_rw & flag)  != 0);
++}
++
++#define bio_dmpg(bio)	bio_rw_flagged(bio, REQ_RW_DMPG)
++
+ /*
+  * various member access, note that bio_data should of course not be used
+  * on highmem page vectors
+diff --git a/include/linux/blk_types.h b/include/linux/blk_types.h
+index 4053cbd..87feb80 100644
+--- a/include/linux/blk_types.h
++++ b/include/linux/blk_types.h
+@@ -150,6 +150,7 @@ enum rq_flag_bits {
+ 	__REQ_FLUSH_SEQ,	/* request for flush sequence */
+ 	__REQ_IO_STAT,		/* account I/O stat */
+ 	__REQ_MIXED_MERGE,	/* merge of different types, fail separately */
++	__REQ_RW_DMPG,
+ 	__REQ_NR_BITS,		/* stops here */
+ };
+ 
+@@ -191,5 +192,6 @@ enum rq_flag_bits {
+ #define REQ_IO_STAT		(1 << __REQ_IO_STAT)
+ #define REQ_MIXED_MERGE		(1 << __REQ_MIXED_MERGE)
+ #define REQ_SECURE		(1 << __REQ_SECURE)
++#define REQ_RW_DMPG		(1 << __REQ_RW_DMPG)
+ 
+ #endif /* __LINUX_BLK_TYPES_H */
 -- 
 1.7.10.rc2
 
