@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx186.postini.com [74.125.245.186])
-	by kanga.kvack.org (Postfix) with SMTP id 170F56B00EA
-	for <linux-mm@kvack.org>; Thu,  3 May 2012 10:24:40 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx192.postini.com [74.125.245.192])
+	by kanga.kvack.org (Postfix) with SMTP id 1CE8A6B00F3
+	for <linux-mm@kvack.org>; Thu,  3 May 2012 10:24:45 -0400 (EDT)
 From: Venkatraman S <svenkatr@ti.com>
-Subject: [PATCH v2 12/16] mmc: sysfs: Add sysfs entry for tuning preempt_time_threshold
-Date: Thu, 3 May 2012 19:53:11 +0530
-Message-ID: <1336054995-22988-13-git-send-email-svenkatr@ti.com>
+Subject: [PATCH v2 13/16] mmc: Documentation: Add sysfs ABI for hpi_time_threshold
+Date: Thu, 3 May 2012 19:53:12 +0530
+Message-ID: <1336054995-22988-14-git-send-email-svenkatr@ti.com>
 In-Reply-To: <1336054995-22988-1-git-send-email-svenkatr@ti.com>
 References: <1336054995-22988-1-git-send-email-svenkatr@ti.com>
 MIME-Version: 1.0
@@ -15,75 +15,35 @@ List-ID: <linux-mm.kvack.org>
 To: linux-mmc@vger.kernel.org, cjb@laptop.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-omap@vger.kernel.org
 Cc: linux-kernel@vger.kernel.org, arnd.bergmann@linaro.org, alex.lemberg@sandisk.com, ilan.smith@sandisk.com, lporzio@micron.com, rmk+kernel@arm.linux.org.uk, Venkatraman S <svenkatr@ti.com>
 
-When High Priority Interrupt (HPI) is enabled, ongoing requests
-might be preempted. It is worthwhile to not preempt some requests
-which have progressed in the underlying driver for some time.
-
-The threshold of elapsed time after which HPI is not useful can
-be tuned on a per-device basis, using the hpi_time_threshold
-sysfs entry.
+hpi_time_threshold can be set to configure elapsed time in ms,
+after which an ongoing request will not be preempted.
+Explain the hpi_time_threhold parameter for MMC devices.
 
 Signed-off-by: Venkatraman S <svenkatr@ti.com>
 ---
- drivers/mmc/core/mmc.c   |   25 +++++++++++++++++++++++++
- include/linux/mmc/card.h |    1 +
- 2 files changed, 26 insertions(+)
+ Documentation/ABI/testing/sysfs-devices-mmc |   12 ++++++++++++
+ 1 file changed, 12 insertions(+)
 
-diff --git a/drivers/mmc/core/mmc.c b/drivers/mmc/core/mmc.c
-index 54df5ad..b7dbea1 100644
---- a/drivers/mmc/core/mmc.c
-+++ b/drivers/mmc/core/mmc.c
-@@ -624,6 +624,30 @@ MMC_DEV_ATTR(enhanced_area_offset, "%llu\n",
- 		card->ext_csd.enhanced_area_offset);
- MMC_DEV_ATTR(enhanced_area_size, "%u\n", card->ext_csd.enhanced_area_size);
- 
-+static ssize_t mmc_hpi_threhold_show(struct device *dev,
-+	struct device_attribute *attr, char *buf)
-+{
-+	struct mmc_card *card = mmc_dev_to_card(dev);
-+	return sprintf(buf, "%d\n", card->preempt_time_threshold);
-+}
+diff --git a/Documentation/ABI/testing/sysfs-devices-mmc b/Documentation/ABI/testing/sysfs-devices-mmc
+index 5a50ab6..133dba5 100644
+--- a/Documentation/ABI/testing/sysfs-devices-mmc
++++ b/Documentation/ABI/testing/sysfs-devices-mmc
+@@ -19,3 +19,15 @@ Description:
+ 		is enabled, this attribute will indicate the size of enhanced
+ 		data area. If not, this attribute will be -EINVAL.
+ 		Unit KByte. Format decimal.
 +
-+static ssize_t mmc_hpi_threshold_store(struct device *dev,
-+	struct device_attribute *attr,
-+	const char *buf, size_t count)
-+{
-+	unsigned long threshold;
-+	struct mmc_card *card = mmc_dev_to_card(dev);
-+
-+	if (kstrtoul(buf, 0, &threshold))
-+		return -EINVAL;
-+	if (threshold)
-+		card->preempt_time_threshold = threshold;
-+	return count;
-+}
-+
-+DEVICE_ATTR(hpi_time_threshold, S_IRWXU, mmc_hpi_threhold_show,
-+	mmc_hpi_threshold_store);
-+
- static struct attribute *mmc_std_attrs[] = {
- 	&dev_attr_cid.attr,
- 	&dev_attr_csd.attr,
-@@ -638,6 +662,7 @@ static struct attribute *mmc_std_attrs[] = {
- 	&dev_attr_serial.attr,
- 	&dev_attr_enhanced_area_offset.attr,
- 	&dev_attr_enhanced_area_size.attr,
-+	&dev_attr_hpi_time_threshold.attr,
- 	NULL,
- };
- 
-diff --git a/include/linux/mmc/card.h b/include/linux/mmc/card.h
-index 629b823..2a0da29 100644
---- a/include/linux/mmc/card.h
-+++ b/include/linux/mmc/card.h
-@@ -245,6 +245,7 @@ struct mmc_card {
-  	unsigned int		erase_shift;	/* if erase unit is power 2 */
-  	unsigned int		pref_erase;	/* in sectors */
-  	u8			erased_byte;	/* value of erased bytes */
-+	unsigned int preempt_time_threshold;    /* ms for checking hpi usage */
- 
- 	u32			raw_cid[4];	/* raw card CID */
- 	u32			raw_csd[4];	/* raw card CSD */
++What:		/sys/devices/.../mmc_host/mmcX/mmcX:XXXX/hpi_time_threshold
++Date:		April 2012
++Contact:	Venkatraman S <svenkatr@ti.com>
++Description:
++		High Priority Interrupt is a new feature defined in eMMC4.4
++		standard. If this feature is enabled, stack needs to decide
++		till what time since the last issued request is considered
++		preemptible. This attribute value (in milliseconds) is
++		used for arriving at the most optimal value for a specific
++		card. Default is zero, which also disables the feature, as
++		the request becomes non-preemptible immediately.
 -- 
 1.7.10.rc2
 
