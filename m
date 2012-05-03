@@ -1,40 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx141.postini.com [74.125.245.141])
-	by kanga.kvack.org (Postfix) with SMTP id E6A796B00F1
-	for <linux-mm@kvack.org>; Thu,  3 May 2012 11:00:52 -0400 (EDT)
-Date: Thu, 3 May 2012 16:00:48 +0100
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH 00/16] Swap-over-NBD without deadlocking V9
-Message-ID: <20120503150048.GI11435@suse.de>
-References: <1334578624-23257-1-git-send-email-mgorman@suse.de>
- <20120501152826.b970a098.akpm@linux-foundation.org>
+Received: from psmtp.com (na3sys010amx187.postini.com [74.125.245.187])
+	by kanga.kvack.org (Postfix) with SMTP id E88396B00F1
+	for <linux-mm@kvack.org>; Thu,  3 May 2012 11:03:37 -0400 (EDT)
+Message-ID: <4FA29E49.8050801@ubuntu.com>
+Date: Thu, 03 May 2012 11:03:37 -0400
+From: Phillip Susi <psusi@ubuntu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20120501152826.b970a098.akpm@linux-foundation.org>
+Subject: Accounting for missing ( bootmem? ) memory
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Linux-MM <linux-mm@kvack.org>, Linux-Netdev <netdev@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, David Miller <davem@davemloft.net>, Neil Brown <neilb@suse.de>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Mike Christie <michaelc@cs.wisc.edu>, Eric B Munson <emunson@mgebm.net>
+To: linux-mm@kvack.org
 
-On Tue, May 01, 2012 at 03:28:26PM -0700, Andrew Morton wrote:
-> 
-> This patchset is far less ghastly than I feared/remembered/dreamed ;)
-> 
+I've been trying to track down why free always seems to report a little 
+less total ram than it should, compared to the total usable areas in the 
+e820 memory map.  I have been reading mm/bootmem.c and it seems that the 
+low memory zone is managed by this allocator prior to mm_init(), and 
+then free_all_bootmem() is called, which releases all free bootmem pages 
+to mm to handle, and adds that space to totalram_pages.  That means that 
+any bootmem that is still allocated is lost from the totalram_pages count.
 
-That might be the best comment the series ever received :)
+I'm trying to figure out what is consuming this bootmem.  Based on 
+comments in bootmem.c, the memory is initially marked as allocated, and 
+setup_arch() has to explicitly free any that isn't reserved, presumably 
+for things like the kernel itself, and the initrd, and any reserved 
+areas in the e820 map, but I can not find where this is done.
 
-> The mm parts, anyway.  Are the net guys on board with it all?
+So my questions are:
 
-They are cc'd but have not given any feedback in a while. That could be
-because they are happy with it or because if they felt the MM parts were
-blocking the series then it was unnecessary to review the network parts.
+1)  Where is the bootmem initially freed ( so I can see what sections 
+are *not* initially freed )
 
-Any of the networking people care to comment?
+2)  Why is all of the bootmem not reserved in the e820 map not 
+eventually freed and turned over to mm to manage?
 
--- 
-Mel Gorman
-SUSE Labs
+3)  How can I see what is allocating and never freeing bootmem?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
