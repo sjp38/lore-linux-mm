@@ -1,44 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx197.postini.com [74.125.245.197])
-	by kanga.kvack.org (Postfix) with SMTP id 45B7D6B0044
-	for <linux-mm@kvack.org>; Thu,  3 May 2012 16:27:02 -0400 (EDT)
-Message-ID: <4FA2EA08.9030109@redhat.com>
-Date: Thu, 03 May 2012 16:26:48 -0400
-From: Rik van Riel <riel@redhat.com>
+Received: from psmtp.com (na3sys010amx116.postini.com [74.125.245.116])
+	by kanga.kvack.org (Postfix) with SMTP id F05706B0044
+	for <linux-mm@kvack.org>; Thu,  3 May 2012 17:12:06 -0400 (EDT)
 MIME-Version: 1.0
-Subject: Re: [PATCH 1/1] mlock: split the shmlock_user_lock spinlock into
- per user_struct spinlock
-References: <1336066477-3964-1-git-send-email-rajman.mekaco@gmail.com> <1336073474.6509.2.camel@twins>
-In-Reply-To: <1336073474.6509.2.camel@twins>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Message-ID: <6436426b-5c46-4457-9d78-6b0af5ce4a3b@default>
+Date: Thu, 3 May 2012 14:11:47 -0700 (PDT)
+From: Dan Magenheimer <dan.magenheimer@oracle.com>
+Subject: RE: [PATCH] drivers: staging: zcache: fix Kconfig crypto dependency
+References: <1335231230-29344-1-git-send-email-sjenning@linux.vnet.ibm.com>
+ <4F9B3BEB.1040805@xenotime.net>
+In-Reply-To: <4F9B3BEB.1040805@xenotime.net>
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: rajman mekaco <rajman.mekaco@gmail.com>, Ingo Molnar <mingo@redhat.com>, Paul Gortmaker <paul.gortmaker@windriver.com>, Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>, Christoph Lameter <cl@gentwo.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+Cc: devel@driverdev.osuosl.org, Autif Khan <autif.mlist@gmail.com>, Konrad Wilk <konrad.wilk@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Robert Jennings <rcj@linux.vnet.ibm.com>, Nitin Gupta <ngupta@vflare.org>, Randy Dunlap <rdunlap@xenotime.net>, Seth Jennings <sjenning@linux.vnet.ibm.com>
 
-On 05/03/2012 03:31 PM, Peter Zijlstra wrote:
-> On Thu, 2012-05-03 at 23:04 +0530, rajman mekaco wrote:
->> The user_shm_lock and user_shm_unlock functions use a single global
->> spinlock for protecting the user->locked_shm.
->
-> Are you very sure its only protecting user state? This changelog doesn't
-> convince me you've gone through everything and found it good.
->
->> This is an overhead for multiple CPUs calling this code even if they
->> are having different user_struct.
->>
->> Remove the global shmlock_user_lock and introduce and use a new
->> spinlock inside of the user_struct structure.
->
-> While I don't immediately see anything wrong with it, I doubt its
-> useful. What workload run with enough users that this makes a difference
-> one way or another?
+> From: Randy Dunlap [mailto:rdunlap@xenotime.net]
+> Sent: Friday, April 27, 2012 6:38 PM
+> To: Seth Jennings
+> Cc: Greg Kroah-Hartman; devel@driverdev.osuosl.org; Dan Magenheimer; Auti=
+f Khan; Konrad Rzeszutek
+> Wilk; linux-kernel@vger.kernel.org; linux-mm@kvack.org; Robert Jennings; =
+Nitin Gupta
+> Subject: Re: [PATCH] drivers: staging: zcache: fix Kconfig crypto depende=
+ncy
+>=20
+> On 04/23/2012 06:33 PM, Seth Jennings wrote:
+>=20
+> > ZCACHE is a boolean in the Kconfig.  When selected, it
+> > should require that CRYPTO be builtin (=3Dy).
+> >
+> > Currently, ZCACHE=3Dy and CRYPTO=3Dm is a valid configuration
+> > when it should not be.
+> >
+> > This patch changes the zcache Kconfig to enforce this
+> > dependency.
+> >
+> > Signed-off-by: Seth Jennings <sjenning@linux.vnet.ibm.com>
+>=20
+>=20
+> Acked-by: Randy Dunlap <rdunlap@xenotime.net>
 
-When running with containers and/or LXC, I believe that
-each UID in each container gets its own user_struct, but
-you do raise a good question - what user programs call
-mlock anyway, and how often?
+Not sure if you need my approval, but I just in case you are waiting
+for it:
+
+Acked-by: Dan Magenheimer <dan.magenheimer@oracle.com>
+
+> > ---
+> >  drivers/staging/zcache/Kconfig |    2 +-
+> >  1 files changed, 1 insertions(+), 1 deletions(-)
+> >
+> > diff --git a/drivers/staging/zcache/Kconfig b/drivers/staging/zcache/Kc=
+onfig
+> > index 3ed2c8f..7048e01 100644
+> > --- a/drivers/staging/zcache/Kconfig
+> > +++ b/drivers/staging/zcache/Kconfig
+> > @@ -2,7 +2,7 @@ config ZCACHE
+> >  =09bool "Dynamic compression of swap pages and clean pagecache pages"
+> >  =09# X86 dependency is because zsmalloc uses non-portable pte/tlb
+> >  =09# functions
+> > -=09depends on (CLEANCACHE || FRONTSWAP) && CRYPTO && X86
+> > +=09depends on (CLEANCACHE || FRONTSWAP) && CRYPTO=3Dy && X86
+> >  =09select ZSMALLOC
+> >  =09select CRYPTO_LZO
+> >  =09default n
+>=20
+>=20
+>=20
+> --
+> ~Randy
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
