@@ -1,41 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx187.postini.com [74.125.245.187])
-	by kanga.kvack.org (Postfix) with SMTP id E88396B00F1
-	for <linux-mm@kvack.org>; Thu,  3 May 2012 11:03:37 -0400 (EDT)
-Message-ID: <4FA29E49.8050801@ubuntu.com>
-Date: Thu, 03 May 2012 11:03:37 -0400
-From: Phillip Susi <psusi@ubuntu.com>
+Received: from psmtp.com (na3sys010amx197.postini.com [74.125.245.197])
+	by kanga.kvack.org (Postfix) with SMTP id F20456B004D
+	for <linux-mm@kvack.org>; Thu,  3 May 2012 11:27:01 -0400 (EDT)
+Received: from /spool/local
+	by e39.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <sjenning@linux.vnet.ibm.com>;
+	Thu, 3 May 2012 09:27:01 -0600
+Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
+	by d03dlp03.boulder.ibm.com (Postfix) with ESMTP id 013DF19D80AA
+	for <linux-mm@kvack.org>; Thu,  3 May 2012 09:25:29 -0600 (MDT)
+Received: from d03av04.boulder.ibm.com (d03av04.boulder.ibm.com [9.17.195.170])
+	by d03relay04.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q43FOs87179314
+	for <linux-mm@kvack.org>; Thu, 3 May 2012 09:25:11 -0600
+Received: from d03av04.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av04.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q43FO2bP009376
+	for <linux-mm@kvack.org>; Thu, 3 May 2012 09:24:07 -0600
+Message-ID: <4FA2A2F0.3030509@linux.vnet.ibm.com>
+Date: Thu, 03 May 2012 10:23:28 -0500
+From: Seth Jennings <sjenning@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Subject: Accounting for missing ( bootmem? ) memory
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Subject: Re: [PATCH 3/4] zsmalloc use zs_handle instead of void *
+References: <1336027242-372-1-git-send-email-minchan@kernel.org> <1336027242-372-3-git-send-email-minchan@kernel.org> <4FA28907.9020300@vflare.org>
+In-Reply-To: <4FA28907.9020300@vflare.org>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
+To: Nitin Gupta <ngupta@vflare.org>
+Cc: Minchan Kim <minchan@kernel.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Dan Magenheimer <dan.magenheimer@oracle.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
 
-I've been trying to track down why free always seems to report a little 
-less total ram than it should, compared to the total usable areas in the 
-e820 memory map.  I have been reading mm/bootmem.c and it seems that the 
-low memory zone is managed by this allocator prior to mm_init(), and 
-then free_all_bootmem() is called, which releases all free bootmem pages 
-to mm to handle, and adds that space to totalram_pages.  That means that 
-any bootmem that is still allocated is lost from the totalram_pages count.
+On 05/03/2012 08:32 AM, Nitin Gupta wrote:
 
-I'm trying to figure out what is consuming this bootmem.  Based on 
-comments in bootmem.c, the memory is initially marked as allocated, and 
-setup_arch() has to explicitly free any that isn't reserved, presumably 
-for things like the kernel itself, and the initrd, and any reserved 
-areas in the e820 map, but I can not find where this is done.
+> On 5/3/12 2:40 AM, Minchan Kim wrote:
+>> We should use zs_handle instead of void * to avoid any
+>> confusion. Without this, users may just treat zs_malloc return value as
+>> a pointer and try to deference it.
+>>
+>> Cc: Dan Magenheimer<dan.magenheimer@oracle.com>
+>> Cc: Konrad Rzeszutek Wilk<konrad.wilk@oracle.com>
+>> Signed-off-by: Minchan Kim<minchan@kernel.org>
+>> ---
+>>   drivers/staging/zcache/zcache-main.c     |    8 ++++----
+>>   drivers/staging/zram/zram_drv.c          |    8 ++++----
+>>   drivers/staging/zram/zram_drv.h          |    2 +-
+>>   drivers/staging/zsmalloc/zsmalloc-main.c |   28
+>> ++++++++++++++--------------
+>>   drivers/staging/zsmalloc/zsmalloc.h      |   15 +++++++++++----
+>>   5 files changed, 34 insertions(+), 27 deletions(-)
+> 
+> This was a long pending change. Thanks!
 
-So my questions are:
 
-1)  Where is the bootmem initially freed ( so I can see what sections 
-are *not* initially freed )
+The reason I hadn't done it before is that it introduces a checkpatch
+warning:
 
-2)  Why is all of the bootmem not reserved in the e820 map not 
-eventually freed and turned over to mm to manage?
+WARNING: do not add new typedefs
+#303: FILE: drivers/staging/zsmalloc/zsmalloc.h:19:
++typedef void * zs_handle;
 
-3)  How can I see what is allocating and never freeing bootmem?
+In addition this particular patch has a checkpatch error:
+
+ERROR: "foo * bar" should be "foo *bar"
+#303: FILE: drivers/staging/zsmalloc/zsmalloc.h:19:
++typedef void * zs_handle;
+
+--
+Seth
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
