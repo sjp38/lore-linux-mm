@@ -1,105 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx139.postini.com [74.125.245.139])
-	by kanga.kvack.org (Postfix) with SMTP id C0DD56B00E9
-	for <linux-mm@kvack.org>; Thu,  3 May 2012 04:50:24 -0400 (EDT)
-Date: Thu, 3 May 2012 10:50:19 +0200
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH v2] MM: check limit while deallocating bootmem node
-Message-ID: <20120503085019.GB31780@cmpxchg.org>
-References: <1336008674-10858-1-git-send-email-shangw@linux.vnet.ibm.com>
- <20120503074708.GA31780@cmpxchg.org>
- <20120503083506.GA19924@shangw>
+Received: from psmtp.com (na3sys010amx201.postini.com [74.125.245.201])
+	by kanga.kvack.org (Postfix) with SMTP id 0E7AB6B00EB
+	for <linux-mm@kvack.org>; Thu,  3 May 2012 05:46:02 -0400 (EDT)
+Received: by pbbrp2 with SMTP id rp2so2847265pbb.14
+        for <linux-mm@kvack.org>; Thu, 03 May 2012 02:46:01 -0700 (PDT)
+Date: Thu, 3 May 2012 02:44:38 -0700
+From: Anton Vorontsov <anton.vorontsov@linaro.org>
+Subject: Re: [PATCH 0/3] vmevent: Implement 'low memory' attribute
+Message-ID: <20120503094438.GA17744@lizard>
+References: <20120501132409.GA22894@lizard>
+ <CAOJsxLGxKdDnw6RU=1C3VVrwZJ53k_r6gOddYkjxQxjc1-kRXg@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=utf-8
 Content-Disposition: inline
-In-Reply-To: <20120503083506.GA19924@shangw>
+In-Reply-To: <CAOJsxLGxKdDnw6RU=1C3VVrwZJ53k_r6gOddYkjxQxjc1-kRXg@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Gavin Shan <shangw@linux.vnet.ibm.com>
-Cc: linux-mm@kvack.org
+To: Pekka Enberg <penberg@kernel.org>
+Cc: Leonid Moiseichuk <leonid.moiseichuk@nokia.com>, John Stultz <john.stultz@linaro.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linaro-kernel@lists.linaro.org, patches@linaro.org, kernel-team@android.com
 
-On Thu, May 03, 2012 at 04:35:06PM +0800, Gavin Shan wrote:
-> >From: Gavin Shan <shangw@linux.vnet.ibm.com>
-> >Subject: [patch 1/2] mm: bootmem: fix checking the bitmap when finally
-> > freeing bootmem
-> >
-> >When bootmem releases an unaligned chunk of memory at the beginning of
-> >a node to the page allocator, it iterates from that unaligned PFN but
-> >checks an aligned word of the page bitmap.  The checked bits do not
-> >correspond to the PFNs and, as a result, reserved pages can be freed.
-> >
-> >Properly shift the bitmap word so that the lowest bit corresponds to
-> >the starting PFN before entering the freeing loop.
-> >
+On Thu, May 03, 2012 at 11:10:12AM +0300, Pekka Enberg wrote:
+> On Tue, May 1, 2012 at 4:24 PM, Anton Vorontsov
+> <anton.vorontsov@linaro.org> wrote:
+> > Accounting only free pages is very inaccurate for low memory handling,
+> > so we have to be smarter here.
 > 
-> Thanks for changing it correctly, Johannes ;-)
-> 
-> >Signed-off-by: Gavin Shan <shangw@linux.vnet.ibm.com>
-> >Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
-> >---
-> > mm/bootmem.c |    1 +
-> > 1 file changed, 1 insertion(+)
-> >
-> >diff --git a/mm/bootmem.c b/mm/bootmem.c
-> >index 0131170..67872fc 100644
-> >--- a/mm/bootmem.c
-> >+++ b/mm/bootmem.c
-> >@@ -203,6 +203,7 @@ static unsigned long __init free_all_bootmem_core(bootmem_data_t *bdata)
-> > 		} else {
-> > 			unsigned long off = 0;
-> >
-> >+			vec >>= start & (BITS_PER_LONG - 1);
-> > 			while (vec && off < BITS_PER_LONG) {
-> 
-> I think it can be changed to "while (vec) {" since it's duplicate
-> check. "vec" has no chance to have more bits than BITS_PER_LONG here.
+> Can you elaborate on what kind of problems there are with tracking free pages?
 
-Yes, I think it should be removed too, but as a separate patch.  It's
-an unrelated cleanup, better to keep it out of the bugfix change.
+Well, there's no problem with tracking itself, the word 'inaccurate'
+was probably misleading. Tracking just free pages is inaccurate for
+our "low memory" notification needs, but NR_FREE_PAGES tracking
+itself is fine.
 
-> Others look good. Need I change it accordingly and send it out
-> again?
+The thing is that NR_FREE_PAGES accounts only completely unused
+(wasted) pages. Most of the time we have very low NR_FREE_PAGES,
+and lots of page cache and block buffers (i.e. NR_FILE_PAGES).
 
-It doesn't really matter who sends the patches, your original
-authorship is preserved (see the From: in the patch header).  If you
-don't have any objections, I'll send both patches to Andrew later.
+The file pages are easily reclaimable (except shmem/tmpfs and
+locked pages), so file pages may be considered as "somewhat
+free" pages.
 
-Here is 2/2, btw:
+The cache might contain very stale data (or not), so we have to
+maneuver between the two strategies: sacrifice caches, or start
+freeing memory (which prevents caches draining).
 
----
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: [patch 2/2] mm: bootmem: remove redundant offset check when finally
- freeing bootmem
+The strategy is described in the third patch in the series.
+It might be not ideal, but the logic itself is not part of
+the ABI (this is very similar "not ABI" rules as we have for
+OOM scoring logic), and is subject for changes.
 
-When bootmem releases an unaligned BITS_PER_LONG pages chunk of memory
-to the page allocator, it checks the bitmap if there are still
-unreserved pages in the chunk (set bits), but also if the offset in
-the chunk indicates BITS_PER_LONG loop iterations already.
+Thanks,
 
-But since the consulted bitmap is only a one-word-excerpt of the full
-per-node bitmap, there can not be more than BITS_PER_LONG bits set in
-it.  The additional offset check is unnecessary.
-
-Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
----
- mm/bootmem.c |    2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
-
-diff --git a/mm/bootmem.c b/mm/bootmem.c
-index 67872fc..053ac3f 100644
---- a/mm/bootmem.c
-+++ b/mm/bootmem.c
-@@ -204,7 +204,7 @@ static unsigned long __init free_all_bootmem_core(bootmem_data_t *bdata)
- 			unsigned long off = 0;
- 
- 			vec >>= start & (BITS_PER_LONG - 1);
--			while (vec && off < BITS_PER_LONG) {
-+			while (vec) {
- 				if (vec & 1) {
- 					page = pfn_to_page(start + off);
- 					__free_pages_bootmem(page, 0);
 -- 
-1.7.10
+Anton Vorontsov
+Email: cbouatmailru@gmail.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
