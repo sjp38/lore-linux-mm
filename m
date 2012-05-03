@@ -1,116 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx147.postini.com [74.125.245.147])
-	by kanga.kvack.org (Postfix) with SMTP id 326816B00F3
-	for <linux-mm@kvack.org>; Thu,  3 May 2012 10:57:18 -0400 (EDT)
-Received: by wibhr7 with SMTP id hr7so111711wib.8
-        for <linux-mm@kvack.org>; Thu, 03 May 2012 07:57:16 -0700 (PDT)
-From: Gilad Ben-Yossef <gilad@benyossef.com>
-Subject: [PATCH v1 3/6] workqueue: introduce schedule_on_each_cpu_cond
-Date: Thu,  3 May 2012 17:55:59 +0300
-Message-Id: <1336056962-10465-4-git-send-email-gilad@benyossef.com>
-In-Reply-To: <1336056962-10465-1-git-send-email-gilad@benyossef.com>
-References: <1336056962-10465-1-git-send-email-gilad@benyossef.com>
+Received: from psmtp.com (na3sys010amx207.postini.com [74.125.245.207])
+	by kanga.kvack.org (Postfix) with SMTP id 0A8E96B00F5
+	for <linux-mm@kvack.org>; Thu,  3 May 2012 10:57:19 -0400 (EDT)
+Date: Thu, 3 May 2012 15:57:14 +0100
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [PATCH 05/11] mm: swap: Implement generic handler for
+ swap_activate
+Message-ID: <20120503145714.GH11435@suse.de>
+References: <1334578675-23445-1-git-send-email-mgorman@suse.de>
+ <1334578675-23445-6-git-send-email-mgorman@suse.de>
+ <20120501155747.368a1d36.akpm@linux-foundation.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20120501155747.368a1d36.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: Gilad Ben-Yossef <gilad@benyossef.com>, Thomas Gleixner <tglx@linutronix.de>, Tejun Heo <tj@kernel.org>, John Stultz <johnstul@us.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, Mike Frysinger <vapier@gentoo.org>, David Rientjes <rientjes@google.com>, Hugh Dickins <hughd@google.com>, Minchan Kim <minchan.kim@gmail.com>, Konstantin Khlebnikov <khlebnikov@openvz.org>, Christoph Lameter <cl@linux.com>, Chris Metcalf <cmetcalf@tilera.com>, Hakan Akkan <hakanakkan@gmail.com>, Max Krasnyansky <maxk@qualcomm.com>, Frederic Weisbecker <fweisbec@gmail.com>, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Linux-MM <linux-mm@kvack.org>, Linux-Netdev <netdev@vger.kernel.org>, Linux-NFS <linux-nfs@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, David Miller <davem@davemloft.net>, Trond Myklebust <Trond.Myklebust@netapp.com>, Neil Brown <neilb@suse.de>, Christoph Hellwig <hch@infradead.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Mike Christie <michaelc@cs.wisc.edu>, Eric B Munson <emunson@mgebm.net>
 
-Introduce the schedule_on_each_cpu_cond() function that schedules
-a work item on each online CPU for which the supplied condition
-function returns true.
+On Tue, May 01, 2012 at 03:57:47PM -0700, Andrew Morton wrote:
+> On Mon, 16 Apr 2012 13:17:49 +0100
+> Mel Gorman <mgorman@suse.de> wrote:
+> 
+> > The version of swap_activate introduced is sufficient for swap-over-NFS
+> > but would not provide enough information to implement a generic handler.
+> > This patch shuffles things slightly to ensure the same information is
+> > available for aops->swap_activate() as is available to the core.
+> > 
+> > No functionality change.
+> > 
+> > ...
+> >
+> > --- a/include/linux/fs.h
+> > +++ b/include/linux/fs.h
+> > @@ -587,6 +587,8 @@ typedef struct {
+> >  typedef int (*read_actor_t)(read_descriptor_t *, struct page *,
+> >  		unsigned long, unsigned long);
+> >  
+> > +struct swap_info_struct;
+> 
+> Please put forward declarations at top-of-file.  To prevent accidental
+> duplication later on.
+> 
 
-This function should be used instead of schedule_on_each_cpu()
-when only some of the CPUs have actual work to do and a predicate
-function can tell if a certain CPU does or does not have work to do,
-thus saving unneeded wakeups and schedules.
+Done.
 
-Signed-off-by: Gilad Ben-Yossef <gilad@benyossef.com>
-CC: Thomas Gleixner <tglx@linutronix.de>
-CC: Tejun Heo <tj@kernel.org>
-CC: John Stultz <johnstul@us.ibm.com>
-CC: Andrew Morton <akpm@linux-foundation.org>
-CC: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-CC: Mel Gorman <mel@csn.ul.ie>
-CC: Mike Frysinger <vapier@gentoo.org>
-CC: David Rientjes <rientjes@google.com>
-CC: Hugh Dickins <hughd@google.com>
-CC: Minchan Kim <minchan.kim@gmail.com>
-CC: Konstantin Khlebnikov <khlebnikov@openvz.org>
-CC: Christoph Lameter <cl@linux.com>
-CC: Chris Metcalf <cmetcalf@tilera.com>
-CC: Hakan Akkan <hakanakkan@gmail.com>
-CC: Max Krasnyansky <maxk@qualcomm.com>
-CC: Frederic Weisbecker <fweisbec@gmail.com>
-CC: linux-kernel@vger.kernel.org
-CC: linux-mm@kvack.org
----
- include/linux/workqueue.h |    2 ++
- kernel/workqueue.c        |   37 +++++++++++++++++++++++++++++++++++++
- 2 files changed, 39 insertions(+), 0 deletions(-)
+> >  struct address_space_operations {
+> >  	int (*writepage)(struct page *page, struct writeback_control *wbc);
+> >  	int (*readpage)(struct file *, struct page *);
+> >
+> > ...
+> >
+> > --- a/mm/page_io.c
+> > +++ b/mm/page_io.c
+> 
+> Have you tested all this code with CONFIG_SWAP=n?
+> 
 
-diff --git a/include/linux/workqueue.h b/include/linux/workqueue.h
-index 20da95a..d7bb104 100644
---- a/include/linux/workqueue.h
-+++ b/include/linux/workqueue.h
-@@ -385,6 +385,8 @@ extern int schedule_delayed_work_on(int cpu, struct delayed_work *work,
- extern int schedule_on_each_cpu(work_func_t func);
- extern int schedule_on_each_cpu_mask(work_func_t func,
- 					const struct cpumask *mask);
-+extern int schedule_on_each_cpu_cond(work_func_t func,
-+					bool (*cond_func)(int cpu));
- extern int keventd_up(void);
- 
- int execute_in_process_context(work_func_t fn, struct execute_work *);
-diff --git a/kernel/workqueue.c b/kernel/workqueue.c
-index 1c9782b..3322d30 100644
---- a/kernel/workqueue.c
-+++ b/kernel/workqueue.c
-@@ -2828,6 +2828,43 @@ int schedule_on_each_cpu_mask(work_func_t func, const struct cpumask *mask)
- }
- 
- /**
-+ * schedule_on_each_cpu_cond - execute a function synchronously on each
-+ * online CPU for which the supplied condition function returns true
-+ * @func: the function to run on the selected CPUs
-+ * @cond_func: the function to call to select the CPUs
-+ *
-+ * schedule_on_each_cpu_cond() executes @func on each online CPU for
-+ * @cond_func returns true using the system workqueue and blocks until
-+ * all CPUs have completed.
-+ * schedule_on_each_cpu_cond() is very slow.
-+ *
-+ * RETURNS:
-+ * 0 on success, -errno on failure.
-+ */
-+int schedule_on_each_cpu_cond(work_func_t func, bool (*cond_func)(int cpu))
-+{
-+	int cpu, ret;
-+	cpumask_var_t mask;
-+
-+	if (unlikely(!zalloc_cpumask_var(&mask, GFP_KERNEL)))
-+		return -ENOMEM;
-+
-+	get_online_cpus();
-+
-+	for_each_online_cpu(cpu)
-+		if (cond_func(cpu))
-+			cpumask_set_cpu(cpu, mask);
-+
-+	ret = schedule_on_each_cpu_mask(func, mask);
-+
-+	put_online_cpus();
-+
-+	free_cpumask_var(mask);
-+
-+	return ret;
-+}
-+
-+/**
-  * schedule_on_each_cpu - execute a function synchronously on each online CPU
-  * @func: the function to call
-  *
+Emm, it builds. That counts, right?
+
+> Have you sought to minimise additional new code when CONFIG_SWAP=n?
+> 
+
+Not specifically, but generic_swapfile_activate() is defined in page_io.c
+and that is built only if CONFIG_SWAP=y. Similarly swapon is in
+swapfile.c which is only build when swap is enabled.
+
 -- 
-1.7.0.4
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
