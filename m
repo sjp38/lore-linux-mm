@@ -1,36 +1,245 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx121.postini.com [74.125.245.121])
-	by kanga.kvack.org (Postfix) with SMTP id 9D0FA6B0044
-	for <linux-mm@kvack.org>; Thu,  3 May 2012 18:29:55 -0400 (EDT)
-Date: Thu, 3 May 2012 18:29:49 -0400
-From: Dave Jones <davej@redhat.com>
-Subject: Re: 3.4-rc4 oom killer out of control.
-Message-ID: <20120503222949.GA13762@redhat.com>
-References: <20120426193551.GA24968@redhat.com>
- <alpine.DEB.2.00.1204261437470.28376@chino.kir.corp.google.com>
- <alpine.DEB.2.00.1205031513400.1631@chino.kir.corp.google.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.00.1205031513400.1631@chino.kir.corp.google.com>
+Received: from psmtp.com (na3sys010amx124.postini.com [74.125.245.124])
+	by kanga.kvack.org (Postfix) with SMTP id EF74F6B0081
+	for <linux-mm@kvack.org>; Thu,  3 May 2012 18:39:30 -0400 (EDT)
+From: Jan Kara <jack@suse.cz>
+Subject: [PATCH 2/2] block: Convert BDI proportion calculations to flexible proportions
+Date: Fri,  4 May 2012 00:39:20 +0200
+Message-Id: <1336084760-19534-3-git-send-email-jack@suse.cz>
+In-Reply-To: <1336084760-19534-1-git-send-email-jack@suse.cz>
+References: <1336084760-19534-1-git-send-email-jack@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: linux-mm@kvack.org, Linux Kernel <linux-kernel@vger.kernel.org>
+To: linux-mm@kvack.org
+Cc: Wu Fengguang <fengguang.wu@intel.com>, peterz@infradead.org, Jan Kara <jack@suse.cz>
 
-On Thu, May 03, 2012 at 03:14:09PM -0700, David Rientjes wrote:
+Convert calculations of proportion of writeback each bdi does to new flexible
+proportion code. That allows us to use aging period of fixed wallclock time
+which gives better proportion estimates given the hugely varying throughput of
+different devices.
 
- > Dave, did you get a chance to test this out?  It's something we'll want in 
- > the oom killer so if I can add your Tested-by it would be great.  Thanks!
+Signed-off-by: Jan Kara <jack@suse.cz>
+---
+ include/linux/backing-dev.h |    6 ++--
+ mm/backing-dev.c            |    5 +--
+ mm/page-writeback.c         |   80 ++++++++++++++++++++----------------------
+ 3 files changed, 43 insertions(+), 48 deletions(-)
 
-Yes, this seems to be an improvement in my case (the fuzzer got killed every time
-rather than arbitary system processes).
-
-Feel free to add my Tested-by:
-
-thanks,
-
-	Dave
+diff --git a/include/linux/backing-dev.h b/include/linux/backing-dev.h
+index b1038bd..64a3617 100644
+--- a/include/linux/backing-dev.h
++++ b/include/linux/backing-dev.h
+@@ -10,7 +10,7 @@
+ 
+ #include <linux/percpu_counter.h>
+ #include <linux/log2.h>
+-#include <linux/proportions.h>
++#include <linux/flex_proportions.h>
+ #include <linux/kernel.h>
+ #include <linux/fs.h>
+ #include <linux/sched.h>
+@@ -89,11 +89,11 @@ struct backing_dev_info {
+ 	unsigned long dirty_ratelimit;
+ 	unsigned long balanced_dirty_ratelimit;
+ 
+-	struct prop_local_percpu completions;
++	struct fprop_local_percpu completions;
+ 	int dirty_exceeded;
+ 
+ 	unsigned int min_ratio;
+-	unsigned int max_ratio, max_prop_frac;
++	unsigned int max_ratio;
+ 
+ 	struct bdi_writeback wb;  /* default writeback info for this bdi */
+ 	spinlock_t wb_lock;	  /* protects work_list */
+diff --git a/mm/backing-dev.c b/mm/backing-dev.c
+index dd8e2aa..f3a2608 100644
+--- a/mm/backing-dev.c
++++ b/mm/backing-dev.c
+@@ -677,7 +677,6 @@ int bdi_init(struct backing_dev_info *bdi)
+ 
+ 	bdi->min_ratio = 0;
+ 	bdi->max_ratio = 100;
+-	bdi->max_prop_frac = PROP_FRAC_BASE;
+ 	spin_lock_init(&bdi->wb_lock);
+ 	INIT_LIST_HEAD(&bdi->bdi_list);
+ 	INIT_LIST_HEAD(&bdi->work_list);
+@@ -700,7 +699,7 @@ int bdi_init(struct backing_dev_info *bdi)
+ 	bdi->write_bandwidth = INIT_BW;
+ 	bdi->avg_write_bandwidth = INIT_BW;
+ 
+-	err = prop_local_init_percpu(&bdi->completions);
++	err = fprop_local_init_percpu(&bdi->completions);
+ 
+ 	if (err) {
+ err:
+@@ -744,7 +743,7 @@ void bdi_destroy(struct backing_dev_info *bdi)
+ 	for (i = 0; i < NR_BDI_STAT_ITEMS; i++)
+ 		percpu_counter_destroy(&bdi->bdi_stat[i]);
+ 
+-	prop_local_destroy_percpu(&bdi->completions);
++	fprop_local_destroy_percpu(&bdi->completions);
+ }
+ EXPORT_SYMBOL(bdi_destroy);
+ 
+diff --git a/mm/page-writeback.c b/mm/page-writeback.c
+index 26adea8..c8e59da 100644
+--- a/mm/page-writeback.c
++++ b/mm/page-writeback.c
+@@ -34,6 +34,7 @@
+ #include <linux/syscalls.h>
+ #include <linux/buffer_head.h> /* __set_page_dirty_buffers */
+ #include <linux/pagevec.h>
++#include <linux/workqueue.h>
+ #include <trace/events/writeback.h>
+ 
+ /*
+@@ -135,7 +136,18 @@ unsigned long global_dirty_limit;
+  * measured in page writeback completions.
+  *
+  */
+-static struct prop_descriptor vm_completions;
++static struct fprop_global vm_completions;
++
++static void vm_completions_period(struct work_struct *work);
++/* Work for aging of vm_completions */
++static DECLARE_DEFERRED_WORK(vm_completions_period_work, vm_completions_period);
++
++/*
++ * Length of period for aging writeout fractions of bdis. This is an
++ * arbitrarily chosen number. The longer the period, the slower fractions will
++ * reflect changes in current writeout rate.
++ */
++#define VM_COMPLETIONS_PERIOD_LEN (HZ/2)
+ 
+ /*
+  * Work out the current dirty-memory clamping and background writeout
+@@ -322,34 +334,6 @@ bool zone_dirty_ok(struct zone *zone)
+ 	       zone_page_state(zone, NR_WRITEBACK) <= limit;
+ }
+ 
+-/*
+- * couple the period to the dirty_ratio:
+- *
+- *   period/2 ~ roundup_pow_of_two(dirty limit)
+- */
+-static int calc_period_shift(void)
+-{
+-	unsigned long dirty_total;
+-
+-	if (vm_dirty_bytes)
+-		dirty_total = vm_dirty_bytes / PAGE_SIZE;
+-	else
+-		dirty_total = (vm_dirty_ratio * global_dirtyable_memory()) /
+-				100;
+-	return 2 + ilog2(dirty_total - 1);
+-}
+-
+-/*
+- * update the period when the dirty threshold changes.
+- */
+-static void update_completion_period(void)
+-{
+-	int shift = calc_period_shift();
+-	prop_change_shift(&vm_completions, shift);
+-
+-	writeback_set_ratelimit();
+-}
+-
+ int dirty_background_ratio_handler(struct ctl_table *table, int write,
+ 		void __user *buffer, size_t *lenp,
+ 		loff_t *ppos)
+@@ -383,7 +367,7 @@ int dirty_ratio_handler(struct ctl_table *table, int write,
+ 
+ 	ret = proc_dointvec_minmax(table, write, buffer, lenp, ppos);
+ 	if (ret == 0 && write && vm_dirty_ratio != old_ratio) {
+-		update_completion_period();
++		writeback_set_ratelimit();
+ 		vm_dirty_bytes = 0;
+ 	}
+ 	return ret;
+@@ -398,7 +382,7 @@ int dirty_bytes_handler(struct ctl_table *table, int write,
+ 
+ 	ret = proc_doulongvec_minmax(table, write, buffer, lenp, ppos);
+ 	if (ret == 0 && write && vm_dirty_bytes != old_bytes) {
+-		update_completion_period();
++		writeback_set_ratelimit();
+ 		vm_dirty_ratio = 0;
+ 	}
+ 	return ret;
+@@ -411,8 +395,8 @@ int dirty_bytes_handler(struct ctl_table *table, int write,
+ static inline void __bdi_writeout_inc(struct backing_dev_info *bdi)
+ {
+ 	__inc_bdi_stat(bdi, BDI_WRITTEN);
+-	__prop_inc_percpu_max(&vm_completions, &bdi->completions,
+-			      bdi->max_prop_frac);
++	__fprop_inc_percpu_max(&vm_completions, &bdi->completions,
++			       bdi->max_ratio);
+ }
+ 
+ void bdi_writeout_inc(struct backing_dev_info *bdi)
+@@ -431,10 +415,18 @@ EXPORT_SYMBOL_GPL(bdi_writeout_inc);
+ static void bdi_writeout_fraction(struct backing_dev_info *bdi,
+ 		long *numerator, long *denominator)
+ {
+-	prop_fraction_percpu(&vm_completions, &bdi->completions,
++	fprop_fraction_percpu(&vm_completions, &bdi->completions,
+ 				numerator, denominator);
+ }
+ 
++
++static void vm_completions_period(struct work_struct *work)
++{
++	fprop_new_period(&vm_completions);
++	schedule_delayed_work(&vm_completions_period_work,
++			      VM_COMPLETIONS_PERIOD_LEN);
++}
++
+ /*
+  * bdi_min_ratio keeps the sum of the minimum dirty shares of all
+  * registered backing devices, which, for obvious reasons, can not
+@@ -471,12 +463,10 @@ int bdi_set_max_ratio(struct backing_dev_info *bdi, unsigned max_ratio)
+ 		return -EINVAL;
+ 
+ 	spin_lock_bh(&bdi_lock);
+-	if (bdi->min_ratio > max_ratio) {
++	if (bdi->min_ratio > max_ratio)
+ 		ret = -EINVAL;
+-	} else {
++	else
+ 		bdi->max_ratio = max_ratio;
+-		bdi->max_prop_frac = (PROP_FRAC_BASE * max_ratio) / 100;
+-	}
+ 	spin_unlock_bh(&bdi_lock);
+ 
+ 	return ret;
+@@ -1605,14 +1595,20 @@ static struct notifier_block __cpuinitdata ratelimit_nb = {
+  */
+ void __init page_writeback_init(void)
+ {
+-	int shift;
+-
+ 	writeback_set_ratelimit();
+ 	register_cpu_notifier(&ratelimit_nb);
+ 
+-	shift = calc_period_shift();
+-	prop_descriptor_init(&vm_completions, shift);
++	fprop_global_init(&vm_completions);
++}
++
++/* This must be called only after workqueues are initialized */
++static int __init completions_period_init(void)
++{
++	schedule_delayed_work(&vm_completions_period_work,
++			      VM_COMPLETIONS_PERIOD_LEN);
++	return 0;
+ }
++postcore_initcall(completions_period_init);
+ 
+ /**
+  * tag_pages_for_writeback - tag pages to be written by write_cache_pages
+-- 
+1.7.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
