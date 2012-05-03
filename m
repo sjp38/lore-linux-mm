@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx166.postini.com [74.125.245.166])
-	by kanga.kvack.org (Postfix) with SMTP id 0C79C6B00EB
-	for <linux-mm@kvack.org>; Thu,  3 May 2012 10:24:01 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx164.postini.com [74.125.245.164])
+	by kanga.kvack.org (Postfix) with SMTP id CB2EA6B00ED
+	for <linux-mm@kvack.org>; Thu,  3 May 2012 10:24:07 -0400 (EDT)
 From: Venkatraman S <svenkatr@ti.com>
-Subject: [PATCH v2 04/16] block: add sysfs attributes for runtime control of dpmg and swapin
-Date: Thu, 3 May 2012 19:53:03 +0530
-Message-ID: <1336054995-22988-5-git-send-email-svenkatr@ti.com>
+Subject: [PATCH v2 05/16] block: Documentation: add sysfs ABI for expedite_dmpg and expedite_swapin
+Date: Thu, 3 May 2012 19:53:04 +0530
+Message-ID: <1336054995-22988-6-git-send-email-svenkatr@ti.com>
 In-Reply-To: <1336054995-22988-1-git-send-email-svenkatr@ti.com>
 References: <1336054995-22988-1-git-send-email-svenkatr@ti.com>
 MIME-Version: 1.0
@@ -15,55 +15,34 @@ List-ID: <linux-mm.kvack.org>
 To: linux-mmc@vger.kernel.org, cjb@laptop.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-omap@vger.kernel.org
 Cc: linux-kernel@vger.kernel.org, arnd.bergmann@linaro.org, alex.lemberg@sandisk.com, ilan.smith@sandisk.com, lporzio@micron.com, rmk+kernel@arm.linux.org.uk, Venkatraman S <svenkatr@ti.com>
 
-sysfs entries for DPMG and SWAPIN requests so that they can
-be set/reset from userspace.
+Add description on the usage of expedite_dmpg and
+expedite_swapin.
 
 Signed-off-by: Venkatraman S <svenkatr@ti.com>
 ---
- block/blk-sysfs.c |   16 ++++++++++++++++
- 1 file changed, 16 insertions(+)
+ Documentation/ABI/testing/sysfs-block |   12 ++++++++++++
+ 1 file changed, 12 insertions(+)
 
-diff --git a/block/blk-sysfs.c b/block/blk-sysfs.c
-index cf15001..764de9f 100644
---- a/block/blk-sysfs.c
-+++ b/block/blk-sysfs.c
-@@ -213,6 +213,8 @@ queue_store_##name(struct request_queue *q, const char *page, size_t count) \
- }
- 
- QUEUE_SYSFS_BIT_FNS(nonrot, NONROT, 1);
-+QUEUE_SYSFS_BIT_FNS(expedite_dmpg, EXP_DMPG, 0);
-+QUEUE_SYSFS_BIT_FNS(expedite_swapin, EXP_SWAPIN, 0);
- QUEUE_SYSFS_BIT_FNS(random, ADD_RANDOM, 0);
- QUEUE_SYSFS_BIT_FNS(iostats, IO_STAT, 0);
- #undef QUEUE_SYSFS_BIT_FNS
-@@ -387,6 +389,18 @@ static struct queue_sysfs_entry queue_random_entry = {
- 	.store = queue_store_random,
- };
- 
-+static struct queue_sysfs_entry queue_dmpg_entry = {
-+	.attr = {.name = "expedite_demandpaging", .mode = S_IRUGO | S_IWUSR },
-+	.show = queue_show_expedite_dmpg,
-+	.store = queue_store_expedite_dmpg,
-+};
+diff --git a/Documentation/ABI/testing/sysfs-block b/Documentation/ABI/testing/sysfs-block
+index c1eb41c..0fb9fef 100644
+--- a/Documentation/ABI/testing/sysfs-block
++++ b/Documentation/ABI/testing/sysfs-block
+@@ -206,3 +206,15 @@ Description:
+ 		when a discarded area is read the discard_zeroes_data
+ 		parameter will be set to one. Otherwise it will be 0 and
+ 		the result of reading a discarded area is undefined.
 +
-+static struct queue_sysfs_entry queue_swapin_entry = {
-+	.attr = {.name = "expedite_swapping", .mode = S_IRUGO | S_IWUSR },
-+	.show = queue_show_expedite_swapin,
-+	.store = queue_store_expedite_swapin,
-+};
-+
- static struct attribute *default_attrs[] = {
- 	&queue_requests_entry.attr,
- 	&queue_ra_entry.attr,
-@@ -409,6 +423,8 @@ static struct attribute *default_attrs[] = {
- 	&queue_rq_affinity_entry.attr,
- 	&queue_iostats_entry.attr,
- 	&queue_random_entry.attr,
-+	&queue_dmpg_entry.attr,
-+	&queue_swapin_entry.attr,
- 	NULL,
- };
- 
++What:		/sys/block/<disk>/queue/expedite_demandpaging
++What:		/sys/block/<disk>/queue/expedite_swapin
++Date:		April 2012
++Contact:	Venkatraman S <svenkatr@ti.com>
++Description:
++		For latency improvements, some storage devices could
++		provide a mechanism for servicing demand paging and
++		swapin requests in a high priority manner. Setting
++		these flags to 1 would get the requests marked with
++		REQ_RW_DMPG or REQ_RW_SWAPIN to be moved to the front
++		of elevator queue.
 -- 
 1.7.10.rc2
 
