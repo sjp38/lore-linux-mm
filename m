@@ -1,65 +1,111 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx118.postini.com [74.125.245.118])
-	by kanga.kvack.org (Postfix) with SMTP id 7ED846B004D
-	for <linux-mm@kvack.org>; Thu,  3 May 2012 02:30:57 -0400 (EDT)
-Received: by obbwd18 with SMTP id wd18so2721882obb.14
-        for <linux-mm@kvack.org>; Wed, 02 May 2012 23:30:56 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <Pine.LNX.4.64.1205022241560.18540@cobra.newdream.net>
-References: <1335932890-25294-1-git-send-email-minchan@kernel.org>
-	<20120502124610.175e099c.akpm@linux-foundation.org>
-	<4FA1D93C.9000306@kernel.org>
-	<Pine.LNX.4.64.1205022241560.18540@cobra.newdream.net>
-Date: Thu, 3 May 2012 16:30:56 +1000
-Message-ID: <CAPa8GCCzyB7iSX+wTzsqfe7GHvfWT2wT4aQgK30ycRnkc_BNAQ@mail.gmail.com>
-Subject: Re: [PATCH] vmalloc: add warning in __vmalloc
-From: Nick Piggin <npiggin@gmail.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+Received: from psmtp.com (na3sys010amx158.postini.com [74.125.245.158])
+	by kanga.kvack.org (Postfix) with SMTP id 2D81E6B004D
+	for <linux-mm@kvack.org>; Thu,  3 May 2012 02:40:55 -0400 (EDT)
+From: Minchan Kim <minchan@kernel.org>
+Subject: [PATCH 1/4] zsmalloc: rename zspage_order with zspage_pages
+Date: Thu,  3 May 2012 15:40:39 +0900
+Message-Id: <1336027242-372-1-git-send-email-minchan@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sage Weil <sage@newdream.net>
-Cc: Minchan Kim <minchan@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kosaki.motohiro@gmail.com, rientjes@google.com, Neil Brown <neilb@suse.de>, Artem Bityutskiy <dedekind1@gmail.com>, David Woodhouse <dwmw2@infradead.org>, Theodore Ts'o <tytso@mit.edu>, Adrian Hunter <adrian.hunter@intel.com>, Steven Whitehouse <swhiteho@redhat.com>, "David S. Miller" <davem@davemloft.net>, James Morris <jmorris@namei.org>, Alexander Viro <viro@zeniv.linux.org.uk>, linux-fsdevel <linux-fsdevel@vger.kernel.org>
+To: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Nitin Gupta <ngupta@vflare.org>, Dan Magenheimer <dan.magenheimer@oracle.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Minchan Kim <minchan@kernel.org>
 
-On 3 May 2012 15:46, Sage Weil <sage@newdream.net> wrote:
-> On Thu, 3 May 2012, Minchan Kim wrote:
->> On 05/03/2012 04:46 AM, Andrew Morton wrote:
->> > Well. =C2=A0What are we actually doing here? =C2=A0Causing the kernel =
-to spew a
->> > warning due to known-buggy callsites, so that users will report the
->> > warnings, eventually goading maintainers into fixing their stuff.
->> >
->> > This isn't very efficient :(
->>
->>
->> Yes. I hope maintainers fix it before merging this.
->>
->> >
->> > It would be better to fix that stuff first, then add the warning to
->> > prevent reoccurrences. =C2=A0Yes, maintainers are very naughty and pro=
-bably
->> > do need cattle prods^W^W warnings to motivate them to fix stuff, but w=
-e
->> > should first make an effort to get these things fixed without
->> > irritating and alarming our users.
->> >
->> > Where are these offending callsites?
->
-> Okay, maybe this is a stupid question, but: if an fs can't call vmalloc
-> with GFP_NOFS without risking deadlock, calling with GFP_KERNEL instead
-> doesn't fix anything (besides being more honest). =C2=A0This really means=
- that
-> vmalloc is effectively off-limits for file systems in any
-> writeback-related path, right?
+zspage_order defines how many pages are needed to make a zspage.
+So _order_ is rather awkward naming. It already deceive Jonathan
+- http://lwn.net/Articles/477067/
+" For each size, the code calculates an optimum number of pages (up to 16)"
 
-Anywhere it cannot reenter the filesystem, yes. GFP_NOFS is effectively
-GFP_KERNEL when calling vmalloc.
+Let's change from _order_ to _pages_ and some function names.
 
-Note that in writeback paths, a "good citizen" filesystem should not requir=
-e
-any allocations, or at least it should be able to tolerate allocation failu=
-res.
-So fixing that would be a good idea anyway.
+Signed-off-by: Minchan Kim <minchan@kernel.org>
+---
+ drivers/staging/zsmalloc/zsmalloc-main.c |   14 +++++++-------
+ drivers/staging/zsmalloc/zsmalloc_int.h  |    2 +-
+ 2 files changed, 8 insertions(+), 8 deletions(-)
+
+diff --git a/drivers/staging/zsmalloc/zsmalloc-main.c b/drivers/staging/zsmalloc/zsmalloc-main.c
+index 504b6c2..8642800 100644
+--- a/drivers/staging/zsmalloc/zsmalloc-main.c
++++ b/drivers/staging/zsmalloc/zsmalloc-main.c
+@@ -180,7 +180,7 @@ out:
+  * link together 3 PAGE_SIZE sized pages to form a zspage
+  * since then we can perfectly fit in 8 such objects.
+  */
+-static int get_zspage_order(int class_size)
++static int get_pages_per_zspage(int class_size)
+ {
+ 	int i, max_usedpc = 0;
+ 	/* zspage order which gives maximum used size per KB */
+@@ -368,7 +368,7 @@ static struct page *alloc_zspage(struct size_class *class, gfp_t flags)
+ 	 * identify the last page.
+ 	 */
+ 	error = -ENOMEM;
+-	for (i = 0; i < class->zspage_order; i++) {
++	for (i = 0; i < class->pages_per_zspage; i++) {
+ 		struct page *page, *prev_page;
+ 
+ 		page = alloc_page(flags);
+@@ -388,7 +388,7 @@ static struct page *alloc_zspage(struct size_class *class, gfp_t flags)
+ 			page->first_page = first_page;
+ 		if (i >= 2)
+ 			list_add(&page->lru, &prev_page->lru);
+-		if (i == class->zspage_order - 1)	/* last page */
++		if (i == class->pages_per_zspage - 1)	/* last page */
+ 			SetPagePrivate2(page);
+ 		prev_page = page;
+ 	}
+@@ -397,7 +397,7 @@ static struct page *alloc_zspage(struct size_class *class, gfp_t flags)
+ 
+ 	first_page->freelist = obj_location_to_handle(first_page, 0);
+ 	/* Maximum number of objects we can store in this zspage */
+-	first_page->objects = class->zspage_order * PAGE_SIZE / class->size;
++	first_page->objects = class->pages_per_zspage * PAGE_SIZE / class->size;
+ 
+ 	error = 0; /* Success */
+ 
+@@ -512,7 +512,7 @@ struct zs_pool *zs_create_pool(const char *name, gfp_t flags)
+ 		class->size = size;
+ 		class->index = i;
+ 		spin_lock_init(&class->lock);
+-		class->zspage_order = get_zspage_order(size);
++		class->pages_per_zspage = get_pages_per_zspage(size);
+ 
+ 	}
+ 
+@@ -603,7 +603,7 @@ void *zs_malloc(struct zs_pool *pool, size_t size)
+ 
+ 		set_zspage_mapping(first_page, class->index, ZS_EMPTY);
+ 		spin_lock(&class->lock);
+-		class->pages_allocated += class->zspage_order;
++		class->pages_allocated += class->pages_per_zspage;
+ 	}
+ 
+ 	obj = first_page->freelist;
+@@ -658,7 +658,7 @@ void zs_free(struct zs_pool *pool, void *obj)
+ 	fullness = fix_fullness_group(pool, first_page);
+ 
+ 	if (fullness == ZS_EMPTY)
+-		class->pages_allocated -= class->zspage_order;
++		class->pages_allocated -= class->pages_per_zspage;
+ 
+ 	spin_unlock(&class->lock);
+ 
+diff --git a/drivers/staging/zsmalloc/zsmalloc_int.h b/drivers/staging/zsmalloc/zsmalloc_int.h
+index 92eefc6..6fd32a9 100644
+--- a/drivers/staging/zsmalloc/zsmalloc_int.h
++++ b/drivers/staging/zsmalloc/zsmalloc_int.h
+@@ -124,7 +124,7 @@ struct size_class {
+ 	unsigned int index;
+ 
+ 	/* Number of PAGE_SIZE sized pages to combine to form a 'zspage' */
+-	int zspage_order;
++	int pages_per_zspage;
+ 
+ 	spinlock_t lock;
+ 
+-- 
+1.7.9.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
