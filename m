@@ -1,71 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx197.postini.com [74.125.245.197])
-	by kanga.kvack.org (Postfix) with SMTP id F20456B004D
-	for <linux-mm@kvack.org>; Thu,  3 May 2012 11:27:01 -0400 (EDT)
-Received: from /spool/local
-	by e39.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <sjenning@linux.vnet.ibm.com>;
-	Thu, 3 May 2012 09:27:01 -0600
-Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
-	by d03dlp03.boulder.ibm.com (Postfix) with ESMTP id 013DF19D80AA
-	for <linux-mm@kvack.org>; Thu,  3 May 2012 09:25:29 -0600 (MDT)
-Received: from d03av04.boulder.ibm.com (d03av04.boulder.ibm.com [9.17.195.170])
-	by d03relay04.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q43FOs87179314
-	for <linux-mm@kvack.org>; Thu, 3 May 2012 09:25:11 -0600
-Received: from d03av04.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av04.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q43FO2bP009376
-	for <linux-mm@kvack.org>; Thu, 3 May 2012 09:24:07 -0600
-Message-ID: <4FA2A2F0.3030509@linux.vnet.ibm.com>
-Date: Thu, 03 May 2012 10:23:28 -0500
-From: Seth Jennings <sjenning@linux.vnet.ibm.com>
+Received: from psmtp.com (na3sys010amx117.postini.com [74.125.245.117])
+	by kanga.kvack.org (Postfix) with SMTP id C95446B0083
+	for <linux-mm@kvack.org>; Thu,  3 May 2012 11:39:47 -0400 (EDT)
+Received: by pbbrp2 with SMTP id rp2so3326833pbb.14
+        for <linux-mm@kvack.org>; Thu, 03 May 2012 08:39:46 -0700 (PDT)
+Date: Thu, 3 May 2012 08:39:41 -0700
+From: Tejun Heo <tj@kernel.org>
+Subject: Re: [PATCH v1 3/6] workqueue: introduce schedule_on_each_cpu_cond
+Message-ID: <20120503153941.GA5528@google.com>
+References: <1336056962-10465-1-git-send-email-gilad@benyossef.com>
+ <1336056962-10465-4-git-send-email-gilad@benyossef.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 3/4] zsmalloc use zs_handle instead of void *
-References: <1336027242-372-1-git-send-email-minchan@kernel.org> <1336027242-372-3-git-send-email-minchan@kernel.org> <4FA28907.9020300@vflare.org>
-In-Reply-To: <4FA28907.9020300@vflare.org>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1336056962-10465-4-git-send-email-gilad@benyossef.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Nitin Gupta <ngupta@vflare.org>
-Cc: Minchan Kim <minchan@kernel.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Dan Magenheimer <dan.magenheimer@oracle.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
+To: Gilad Ben-Yossef <gilad@benyossef.com>
+Cc: linux-kernel@vger.kernel.org, Thomas Gleixner <tglx@linutronix.de>, John Stultz <johnstul@us.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, Mike Frysinger <vapier@gentoo.org>, David Rientjes <rientjes@google.com>, Hugh Dickins <hughd@google.com>, Minchan Kim <minchan.kim@gmail.com>, Konstantin Khlebnikov <khlebnikov@openvz.org>, Christoph Lameter <cl@linux.com>, Chris Metcalf <cmetcalf@tilera.com>, Hakan Akkan <hakanakkan@gmail.com>, Max Krasnyansky <maxk@qualcomm.com>, Frederic Weisbecker <fweisbec@gmail.com>, linux-mm@kvack.org
 
-On 05/03/2012 08:32 AM, Nitin Gupta wrote:
+Hello,
 
-> On 5/3/12 2:40 AM, Minchan Kim wrote:
->> We should use zs_handle instead of void * to avoid any
->> confusion. Without this, users may just treat zs_malloc return value as
->> a pointer and try to deference it.
->>
->> Cc: Dan Magenheimer<dan.magenheimer@oracle.com>
->> Cc: Konrad Rzeszutek Wilk<konrad.wilk@oracle.com>
->> Signed-off-by: Minchan Kim<minchan@kernel.org>
->> ---
->>   drivers/staging/zcache/zcache-main.c     |    8 ++++----
->>   drivers/staging/zram/zram_drv.c          |    8 ++++----
->>   drivers/staging/zram/zram_drv.h          |    2 +-
->>   drivers/staging/zsmalloc/zsmalloc-main.c |   28
->> ++++++++++++++--------------
->>   drivers/staging/zsmalloc/zsmalloc.h      |   15 +++++++++++----
->>   5 files changed, 34 insertions(+), 27 deletions(-)
+On Thu, May 03, 2012 at 05:55:59PM +0300, Gilad Ben-Yossef wrote:
+> Introduce the schedule_on_each_cpu_cond() function that schedules
+> a work item on each online CPU for which the supplied condition
+> function returns true.
 > 
-> This was a long pending change. Thanks!
+> This function should be used instead of schedule_on_each_cpu()
+> when only some of the CPUs have actual work to do and a predicate
+> function can tell if a certain CPU does or does not have work to do,
+> thus saving unneeded wakeups and schedules.
+>
+>  /**
+> + * schedule_on_each_cpu_cond - execute a function synchronously on each
+> + * online CPU for which the supplied condition function returns true
+> + * @func: the function to run on the selected CPUs
+> + * @cond_func: the function to call to select the CPUs
+> + *
+> + * schedule_on_each_cpu_cond() executes @func on each online CPU for
+> + * @cond_func returns true using the system workqueue and blocks until
+> + * all CPUs have completed.
+> + * schedule_on_each_cpu_cond() is very slow.
+> + *
+> + * RETURNS:
+> + * 0 on success, -errno on failure.
+> + */
+> +int schedule_on_each_cpu_cond(work_func_t func, bool (*cond_func)(int cpu))
+> +{
+> +	int cpu, ret;
+> +	cpumask_var_t mask;
+> +
+> +	if (unlikely(!zalloc_cpumask_var(&mask, GFP_KERNEL)))
+> +		return -ENOMEM;
+> +
+> +	get_online_cpus();
+> +
+> +	for_each_online_cpu(cpu)
+> +		if (cond_func(cpu))
+> +			cpumask_set_cpu(cpu, mask);
+> +
+> +	ret = schedule_on_each_cpu_mask(func, mask);
+> +
+> +	put_online_cpus();
+> +
+> +	free_cpumask_var(mask);
+> +
+> +	return ret;
+> +}
 
+I'm usually not a big fan of callback based interface.  They tend to
+be quite clunky to use.  e.g. in this case, wouldn't it be better to
+have helper functions which allocate cpumask and disables cpu hotplug
+and undo that afterwards?  That is, if such convenience helpers are
+necessary at all.  Also, callback which doesn't have a private data
+argument tends to be PITA.
 
-The reason I hadn't done it before is that it introduces a checkpatch
-warning:
+Thanks.
 
-WARNING: do not add new typedefs
-#303: FILE: drivers/staging/zsmalloc/zsmalloc.h:19:
-+typedef void * zs_handle;
-
-In addition this particular patch has a checkpatch error:
-
-ERROR: "foo * bar" should be "foo *bar"
-#303: FILE: drivers/staging/zsmalloc/zsmalloc.h:19:
-+typedef void * zs_handle;
-
---
-Seth
+-- 
+tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
