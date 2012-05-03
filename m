@@ -1,233 +1,123 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx161.postini.com [74.125.245.161])
-	by kanga.kvack.org (Postfix) with SMTP id EC49C6B004D
-	for <linux-mm@kvack.org>; Thu,  3 May 2012 10:14:21 -0400 (EDT)
-Date: Thu, 3 May 2012 15:14:15 +0100
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH 04/11] mm: Add support for a filesystem to activate swap
- files and use direct_IO for writing swap pages
-Message-ID: <20120503141415.GG11435@suse.de>
-References: <1334578675-23445-1-git-send-email-mgorman@suse.de>
- <1334578675-23445-5-git-send-email-mgorman@suse.de>
- <20120501155308.5679a09b.akpm@linux-foundation.org>
+Received: from psmtp.com (na3sys010amx172.postini.com [74.125.245.172])
+	by kanga.kvack.org (Postfix) with SMTP id 34A926B00E7
+	for <linux-mm@kvack.org>; Thu,  3 May 2012 10:23:43 -0400 (EDT)
+From: Venkatraman S <svenkatr@ti.com>
+Subject: [PATCHv2 00/16] [FS, MM, block, MMC]: eMMC High Priority Interrupt Feature
+Date: Thu, 3 May 2012 19:52:59 +0530
+Message-ID: <1336054995-22988-1-git-send-email-svenkatr@ti.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20120501155308.5679a09b.akpm@linux-foundation.org>
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Linux-MM <linux-mm@kvack.org>, Linux-Netdev <netdev@vger.kernel.org>, Linux-NFS <linux-nfs@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, David Miller <davem@davemloft.net>, Trond Myklebust <Trond.Myklebust@netapp.com>, Neil Brown <neilb@suse.de>, Christoph Hellwig <hch@infradead.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Mike Christie <michaelc@cs.wisc.edu>, Eric B Munson <emunson@mgebm.net>
+To: linux-mmc@vger.kernel.org, cjb@laptop.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-omap@vger.kernel.org
+Cc: linux-kernel@vger.kernel.org, arnd.bergmann@linaro.org, alex.lemberg@sandisk.com, ilan.smith@sandisk.com, lporzio@micron.com, rmk+kernel@arm.linux.org.uk, Venkatraman S <svenkatr@ti.com>
 
-On Tue, May 01, 2012 at 03:53:08PM -0700, Andrew Morton wrote:
-> > It is perfectly possible that direct_IO be used to read the swap
-> > pages but it is an unnecessary complication. Similarly, it is possible
-> > that ->writepage be used instead of direct_io to write the pages but
-> > filesystem developers have stated that calling writepage from the VM
-> > is undesirable for a variety of reasons and using direct_IO opens up
-> > the possibility of writing back batches of swap pages in the future.
-> 
-> This all seems a bit odd.  And abusive.
-> 
-> Yes, it would be more pleasing if direct-io was used for reading as
-> well.  How much more complication would it add?
-> 
+Standard eMMC (Embedded MultiMedia Card) specification expects to execute
+one request at a time. If some requests are more important than others, they
+can't be aborted while the flash procedure is in progress.
 
-Quite a bit.
+New versions of the eMMC standard (4.41 and above) specfies a feature 
+called High Priority Interrupt (HPI). This enables an ongoing transaction
+to be aborted using a special command (HPI command) so that the card is ready
+to receive new commands immediately. Then the new request can be submitted
+to the card, and optionally the interrupted command can be resumed again.
 
-Superficially it's easy because swap_readpage() just sets up a kiocb,
-fills in the necessary details and call ->direct_IO. The complexity is
-around page locking and writing back pending writes in NFS.
+Some restrictions exist on when and how the command can be used. For example,
+only write and write-like commands (ERASE) can be preempted, and the urgent
+request must be a read.
 
-read_swap_cache_async() calls swap_readpage with the page locked and
-is expected to return with the page unlocked on successful completion of
-the IO.
+In order to support this in software,
+a) At the top level, some policy decisions have to be made on what is
+worth preempting for.
+	This implementation uses the demand paging requests and swap
+read requests as potential reads worth preempting an ongoing long write.
+	This is expected to provide improved responsiveness for smarphones
+with multitasking capabilities - example would be launch a email application
+while a video capture session (which causes long writes) is ongoing.
+b) At the block handler, the higher priority request should be queued
+  ahead of the pending requests in the elevator
+c) At the MMC block and core level, transactions have to executed to 
+enforce the rules of the MMC spec and make a reasonable tradeoff if the
+ongoing command is really worth preempting. (For example, is it too close
+to completing already ?).
+	The current implementation uses a fixed time logic. If 10ms has
+already elapsed since the first request was submitted, then a new high
+priority request would not cause a HPI, as it is expected that the first
+request would finish soon. Further work is needed to dynamically tune
+this value (maybe through sysfs) or automatically determine based on
+average write times of previous requests.
+d) At the lowest level (MMC host controllers), support interface to 
+provide a transition path for ongoing transactions to be aborted and the
+controller to be ready to receive next command.
 
-For swap-over-nfs, the readpage handler behaves exactly as
-read_swap_cache_async() expects. For everything else, submit_bio() is used
-with end_swap_bio_read() unlocking the page. Both of these handlers behave
-the same with respect to locking. The direct_IO handler does not expect the
-page to be locked and does not unlock it itself. Even if it works for NFS,
-there might be other complications in the future around page locking in
-direct_IO handlers.
+	More information about this feature can be found at
+Jedec Specification:-
+	http://www.jedec.org/standards-documents/docs/jesd84-a441
+Presentation on eMMC4.41 features:-
+	http://www.jedec.org/sites/default/files/Victor_Tsai.pdf
 
-The second complexity may be specific to NFS. The NFS readpage handler
-flushes any pending writes with nfs_wb_page() before doing the read which it
-can do because it holds the page lock. It was completely unclear how the same
-could be achieved from swap_readpage() in a filesystem-independent manner.
+Acknowledgements:-	
+	In no particular order, thanks to Arnd Bergmann and  Saugata Das
+from Linaro, Ilan Smith and Alex Lemberg from Sandisk, Luca Porzio from Micron
+Technologies, Yejin Moon, Jae Hoon Chung from Samsung and others.
 
-As ->readpage() already knew how to do the right thing in all cases, I
-used it.
+----
+v1 -> v2:-
+	* Convert threshold for hpi usage to a tuning parameter (sysfs)
+	* Add Documentation/ABI for all sysfs entries
+	* Add implementation of abort for OMAP controller
+	* Rebased to 3.4-rc4 + mmc-next
 
-> If I understand correctly, on the read path we're taking a fresh page
-> which is destined for swapcache and then pretending that it is a
-> pagecache page for the purpose of the I/O? 
->
-> If there already existed a
-> pagecache page for that file offset then we let it just sit there and
-> bypass it?
-> 
+	This patch series depends on a few other related cleanups
+in MMC driver. All the patches and the dependent series can be
+pulled from 
+	git://github.com/svenkatr/linux.git my/mmc/3.4/foreground-hpiv2
 
-On the read path read_swap_cache_async() checks if a page is already in
-swapcache and if not not, allocates a new page, adds it to the swapcache
-and calls swap_readpage. Hence I do not think we are tripping the
-problem you are thinking of.
+----------------------------------------------------------------
+Ilan Smith (3):
+      FS: Added demand paging markers to filesystem
+      MM: Added page swapping markers to memory management
+      block: treat DMPG and SWAPIN requests as special
 
-> I'm surprised that this works at all - I guess nothing under
-> ->readpage() goes poking around in the address_space.  For NFS, at
-> least!
-> 
-> >
-> > ...
-> >
-> > @@ -93,11 +94,38 @@ int swap_writepage(struct page *page, struct writeback_control *wbc)
-> >  {
-> >  	struct bio *bio;
-> >  	int ret = 0, rw = WRITE;
-> > +	struct swap_info_struct *sis = page_swap_info(page);
-> >  
-> >  	if (try_to_free_swap(page)) {
-> >  		unlock_page(page);
-> >  		goto out;
-> >  	}
-> > +
-> > +	if (sis->flags & SWP_FILE) {
-> > +		struct kiocb kiocb;
-> > +		struct file *swap_file = sis->swap_file;
-> > +		struct address_space *mapping = swap_file->f_mapping;
-> > +		struct iovec iov = {
-> > +			.iov_base = page_address(page),
-> 
-> Didn't we need to kmap the page?
-> 
+Venkatraman S (13):
+      block: add queue attributes to manage dpmg and swapin requests
+      block: add sysfs attributes for runtime control of dpmg and swapin
+      block: Documentation: add sysfs ABI for expedite_dmpg and expedite_swapin
+      mmc: core: helper function for finding preemptible command
+      mmc: core: add preemptibility tracking fields to mmc command
+      mmc: core: Add MMC abort interface
+      mmc: block: Detect HPI support in card and host controller
+      mmc: core: Implement foreground request preemption procedure
+      mmc: sysfs: Add sysfs entry for tuning preempt_time_threshold
+      mmc: Documentation: Add sysfs ABI for hpi_time_threshold
+      mmc: block: Implement HPI invocation and handling logic.
+      mmc: Update preempted request with CORRECTLY_PRG_SECTORS_NUM info
+      mmc: omap_hsmmc: Implement abort_req host_ops
 
-.... Yep, that would be important all right. I'll look at this closely
-and do a round of testing on x86-32.
-
-> > +			.iov_len  = PAGE_SIZE,
-> > +		};
-> > +
-> > +		init_sync_kiocb(&kiocb, swap_file);
-> > +		kiocb.ki_pos = page_file_offset(page);
-> > +		kiocb.ki_left = PAGE_SIZE;
-> > +		kiocb.ki_nbytes = PAGE_SIZE;
-> > +
-> > +		unlock_page(page);
-> > +		ret = mapping->a_ops->direct_IO(KERNEL_WRITE,
-> > +						&kiocb, &iov,
-> > +						kiocb.ki_pos, 1);
-> 
-> I wonder if there's any point in setting PG_writeback around the IO.  I
-> can't think of a reason.
-> 
-
-One does not spring to mind.
-
-> > +		if (ret == PAGE_SIZE) {
-> > +			count_vm_event(PSWPOUT);
-> > +			ret = 0;
-> > +		}
-> > +		return ret;
-> > +	}
-> > +
-> >  	bio = get_swap_bio(GFP_NOIO, page, end_swap_bio_write);
-> >  	if (bio == NULL) {
-> >  		set_page_dirty(page);
-> > @@ -119,9 +147,21 @@ int swap_readpage(struct page *page)
-> >  {
-> >  	struct bio *bio;
-> >  	int ret = 0;
-> > +	struct swap_info_struct *sis = page_swap_info(page);
-> >  
-> >  	VM_BUG_ON(!PageLocked(page));
-> >  	VM_BUG_ON(PageUptodate(page));
-> > +
-> > +	if (sis->flags & SWP_FILE) {
-> > +		struct file *swap_file = sis->swap_file;
-> > +		struct address_space *mapping = swap_file->f_mapping;
-> > +
-> > +		ret = mapping->a_ops->readpage(swap_file, page);
-> > +		if (!ret)
-> > +			count_vm_event(PSWPIN);
-> > +		return ret;
-> > +	}
-> 
-> Confused.  Where did we set up page->index with the file offset?
-> 
-
-We don't use page->index in this case.
-
-__add_to_swap_cache() records the swap entry in page->private.
-nfs_readpage() looks up the page index with page_index() which for
-SwapCache pages calls __page_file_index(). It in turn gets the swap
-entry and looks up the index with swp_offset().
-
-> >  	bio = get_swap_bio(GFP_KERNEL, page, end_swap_bio_read);
-> >  	if (bio == NULL) {
-> >  		unlock_page(page);
-> > @@ -133,3 +173,15 @@ int swap_readpage(struct page *page)
-> >  out:
-> >  	return ret;
-> >  }
-> > +
-> > +int swap_set_page_dirty(struct page *page)
-> > +{
-> > +	struct swap_info_struct *sis = page_swap_info(page);
-> > +
-> > +	if (sis->flags & SWP_FILE) {
-> > +		struct address_space *mapping = sis->swap_file->f_mapping;
-> > +		return mapping->a_ops->set_page_dirty(page);
-> > +	} else {
-> > +		return __set_page_dirty_nobuffers(page);
-> > +	}
-> > +}
-> 
-> More confused.  This is a swapcache page, not a pagecache page?  Why
-> are we running set_page_dirty() against it?
-> 
-
-I don't really get the question. swap-over-NFS is not doing anything
-different here than what we do today. PageSwapCache pages still have to
-be marked dirty so they get written to disk before being discarded.
-
-> And what are we doing on the !SWP_FILE path? 
-
-Maintaining existing behaviour. This is what the swap ops looks like
-without the patchset
-
-static const struct address_space_operations swap_aops = {
-        .writepage      = swap_writepage,
-        .set_page_dirty = __set_page_dirty_nobuffers,
-        .migratepage    = migrate_page,
-};
-
-> Newly setting PG_dirty
-> against block-device-backed swapcache pages?  Why?  Where does it get
-> cleared again?
-> 
-
-clear_page_dirty_for_io() in vmscan.c#pageout() ? I might be missing
-something in your question again :(
-
-> > diff --git a/mm/swap_state.c b/mm/swap_state.c
-> > index 9d3dd37..c25b9cf 100644
-> > --- a/mm/swap_state.c
-> > +++ b/mm/swap_state.c
-> > @@ -26,7 +26,7 @@
-> >   */
-> >  static const struct address_space_operations swap_aops = {
-> >  	.writepage	= swap_writepage,
-> > -	.set_page_dirty	= __set_page_dirty_nobuffers,
-> > +	.set_page_dirty	= swap_set_page_dirty,
-> >  	.migratepage	= migrate_page,
-> >  };
-> >
-> > ...
-> >
+ Documentation/ABI/testing/sysfs-block       |   12 ++
+ Documentation/ABI/testing/sysfs-devices-mmc |   12 ++
+ block/blk-core.c                            |   18 +++
+ block/blk-sysfs.c                           |   16 +++
+ block/elevator.c                            |   14 ++-
+ drivers/mmc/card/block.c                    |  143 ++++++++++++++++++++--
+ drivers/mmc/card/queue.h                    |    1 +
+ drivers/mmc/core/core.c                     |   67 ++++++++++
+ drivers/mmc/core/mmc.c                      |   25 ++++
+ drivers/mmc/host/omap_hsmmc.c               |   55 ++++++++-
+ fs/mpage.c                                  |    2 +
+ include/linux/bio.h                         |    8 ++
+ include/linux/blk_types.h                   |    4 +
+ include/linux/blkdev.h                      |    8 ++
+ include/linux/mmc/card.h                    |    1 +
+ include/linux/mmc/core.h                    |   19 +++
+ include/linux/mmc/host.h                    |    1 +
+ include/linux/mmc/mmc.h                     |    4 +
+ mm/page_io.c                                |    3 +-
+ 19 files changed, 395 insertions(+), 18 deletions(-)
 
 -- 
-Mel Gorman
-SUSE Labs
+1.7.10.rc2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
