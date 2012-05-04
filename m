@@ -1,57 +1,183 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx156.postini.com [74.125.245.156])
-	by kanga.kvack.org (Postfix) with SMTP id 0D3316B0081
-	for <linux-mm@kvack.org>; Fri,  4 May 2012 08:20:16 -0400 (EDT)
-Received: by pbbrp2 with SMTP id rp2so4775119pbb.14
-        for <linux-mm@kvack.org>; Fri, 04 May 2012 05:20:16 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <20120504120455.GB4413@somewhere.redhat.com>
-References: <1336056962-10465-1-git-send-email-gilad@benyossef.com>
-	<1336056962-10465-2-git-send-email-gilad@benyossef.com>
-	<20120504120455.GB4413@somewhere.redhat.com>
-Date: Fri, 4 May 2012 14:20:16 +0200
-Message-ID: <CAFTL4hzSPbtTbL8gHy2SEnBv3rqWdk2UQL0uBUedqm2mmpHKiQ@mail.gmail.com>
-Subject: Re: [PATCH v1 1/6] timer: make __next_timer_interrupt explicit about
- no future event
-From: Frederic Weisbecker <fweisbec@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Received: from psmtp.com (na3sys010amx162.postini.com [74.125.245.162])
+	by kanga.kvack.org (Postfix) with SMTP id 447E66B0092
+	for <linux-mm@kvack.org>; Fri,  4 May 2012 08:41:08 -0400 (EDT)
+Received: from euspt2 (mailout2.w1.samsung.com [210.118.77.12])
+ by mailout2.w1.samsung.com
+ (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14 2004))
+ with ESMTP id <0M3I006WE0KCSJ@mailout2.w1.samsung.com> for linux-mm@kvack.org;
+ Fri, 04 May 2012 13:41:00 +0100 (BST)
+Received: from linux.samsung.com ([106.116.38.10])
+ by spt2.w1.samsung.com (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14
+ 2004)) with ESMTPA id <0M3I00G3A0KG0D@spt2.w1.samsung.com> for
+ linux-mm@kvack.org; Fri, 04 May 2012 13:41:04 +0100 (BST)
+Date: Fri, 04 May 2012 14:40:41 +0200
+From: Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>
+Subject: Re: [PATCH v5] mm: compaction: handle incorrect MIGRATE_UNMOVABLE type
+ pageblocks
+In-reply-to: <20120504110302.GL11435@suse.de>
+Message-id: <201205041440.41290.b.zolnierkie@samsung.com>
+MIME-version: 1.0
+Content-type: Text/Plain; charset=utf-8
+Content-transfer-encoding: quoted-printable
+References: <201205021047.45188.b.zolnierkie@samsung.com>
+ <20120504110302.GL11435@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Gilad Ben-Yossef <gilad@benyossef.com>, Thomas Gleixner <tglx@linutronix.de>
-Cc: linux-kernel@vger.kernel.org, Tejun Heo <tj@kernel.org>, John Stultz <johnstul@us.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, Mike Frysinger <vapier@gentoo.org>, David Rientjes <rientjes@google.com>, Hugh Dickins <hughd@google.com>, Minchan Kim <minchan.kim@gmail.com>, Konstantin Khlebnikov <khlebnikov@openvz.org>, Christoph Lameter <cl@linux.com>, Chris Metcalf <cmetcalf@tilera.com>, Hakan Akkan <hakanakkan@gmail.com>, Max Krasnyansky <maxk@qualcomm.com>, linux-mm@kvack.org
+To: Mel Gorman <mgorman@suse.de>
+Cc: linux-mm@kvack.org, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@redhat.com>, Marek Szyprowski <m.szyprowski@samsung.com>, Kyungmin Park <kyungmin.park@samsung.com>
 
-2012/5/4 Frederic Weisbecker <fweisbec@gmail.com>:
-> On Thu, May 03, 2012 at 05:55:57PM +0300, Gilad Ben-Yossef wrote:
->> @@ -1317,9 +1322,15 @@ unsigned long get_next_timer_interrupt(unsigned l=
-ong now)
->> =A0 =A0 =A0 if (cpu_is_offline(smp_processor_id()))
->> =A0 =A0 =A0 =A0 =A0 =A0 =A0 return now + NEXT_TIMER_MAX_DELTA;
->> =A0 =A0 =A0 spin_lock(&base->lock);
->> - =A0 =A0 if (time_before_eq(base->next_timer, base->timer_jiffies))
->> - =A0 =A0 =A0 =A0 =A0 =A0 base->next_timer =3D __next_timer_interrupt(ba=
-se);
->> - =A0 =A0 expires =3D base->next_timer;
->> + =A0 =A0 if (time_before_eq(base->next_timer, base->timer_jiffies)) {
->> +
->> + =A0 =A0 =A0 =A0 =A0 =A0 if (__next_timer_interrupt(base, &expires))
->> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 base->next_timer =3D expires;
->> + =A0 =A0 =A0 =A0 =A0 =A0 else
->> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 expires =3D now + NEXT_TIMER_M=
-AX_DELTA;
->
-> I believe you can update base->next_timer to now + NEXT_TIMER_MAX_DELTA,
-> so on any further idle interrupt exit that call tick_nohz_stop_sched_tick=
-(),
-> we won't get again the overhead of __next_timer_interrupt().
+On Friday 04 May 2012 13:03:02 Mel Gorman wrote:
+> On Wed, May 02, 2012 at 10:47:44AM +0200, Bartlomiej Zolnierkiewicz wrote:
+> > From: Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>
+> > Subject: [PATCH v5] mm: compaction: handle incorrect MIGRATE_UNMOVABLE =
+type pageblocks
+> >=20
+> > When MIGRATE_UNMOVABLE pages are freed from MIGRATE_UNMOVABLE
+> > type pageblock (and some MIGRATE_MOVABLE pages are left in it)
+> > waiting until an allocation takes ownership of the block may
+> > take too long.  The type of the pageblock remains unchanged
+> > so the pageblock cannot be used as a migration target during
+> > compaction.
+> >=20
+> > Fix it by:
+> >=20
+> > * Adding enum compact_mode (COMPACT_ASYNC_[MOVABLE,UNMOVABLE],
+> >   and COMPACT_SYNC) and then converting sync field in struct
+> >   compact_control to use it.
+> >=20
+> > * Adding nr_[pageblocks,skipped] fields to struct compact_control
+> >   and tracking how many destination pageblocks were scanned during
+> >   compaction and how many of them were of MIGRATE_UNMOVABLE type.
+> >   If COMPACT_ASYNC_MOVABLE mode compaction ran fully in
+> >   try_to_compact_pages() (COMPACT_COMPLETE) it implies that
+> >   there is not a suitable page for allocation.  In this case then
+> >   check how if there were enough MIGRATE_UNMOVABLE pageblocks to
+> >   try a second pass in COMPACT_ASYNC_UNMOVABLE mode.
+> >=20
+> > * Scanning the MIGRATE_UNMOVABLE pageblocks (during COMPACT_SYNC
+> >   and COMPACT_ASYNC_UNMOVABLE compaction modes) and building
+> >   a count based on finding PageBuddy pages, page_count(page) =3D=3D 0
+> >   or PageLRU pages.  If all pages within the MIGRATE_UNMOVABLE
+> >   pageblock are in one of those three sets change the whole
+> >   pageblock type to MIGRATE_MOVABLE.
+> >=20
+> >=20
+> > My particular test case (on a ARM EXYNOS4 device with 512 MiB,
+> > which means 131072 standard 4KiB pages in 'Normal' zone) is to:
+> > - allocate 120000 pages for kernel's usage
+> > - free every second page (60000 pages) of memory just allocated
+> > - allocate and use 60000 pages from user space
+> > - free remaining 60000 pages of kernel memory
+> > (now we have fragmented memory occupied mostly by user space pages)
+> > - try to allocate 100 order-9 (2048 KiB) pages for kernel's usage
+> >=20
+> > The results:
+> > - with compaction disabled I get 11 successful allocations
+> > - with compaction enabled - 14 successful allocations
+> > - with this patch I'm able to get all 100 successful allocations
+> >=20
+> > Cc: Mel Gorman <mgorman@suse.de>
+> > Cc: Minchan Kim <minchan@kernel.org>
+> > Cc: Rik van Riel <riel@redhat.com>
+> > Cc: Marek Szyprowski <m.szyprowski@samsung.com>
+> > Signed-off-by: Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>
+> > Signed-off-by: Kyungmin Park <kyungmin.park@samsung.com>
+>=20
+> Minor comments only at this point.
+>=20
+> > ---
+> > v2:
+> > - redo the patch basing on review from Mel Gorman
+> >   (http://marc.info/?l=3Dlinux-mm&m=3D133519311025444&w=3D2)
+> > v3:
+> > - apply review comments from Minchan Kim
+> >   (http://marc.info/?l=3Dlinux-mm&m=3D133531540308862&w=3D2)
+> > v4:
+> > - more review comments from Mel
+> >   (http://marc.info/?l=3Dlinux-mm&m=3D133545110625042&w=3D2)
+> > v5:
+> > - even more comments from Mel
+> >   (http://marc.info/?l=3Dlinux-mm&m=3D133577669023492&w=3D2)
+> > - fix patch description
+> >=20
+> >  include/linux/compaction.h |   19 +++++++
+> >  mm/compaction.c            |  109 ++++++++++++++++++++++++++++++++++++=
++--------
+> >  mm/internal.h              |   10 +++-
+> >  mm/page_alloc.c            |    8 +--
+> >  4 files changed, 124 insertions(+), 22 deletions(-)
+> >=20
+> > Index: b/include/linux/compaction.h
+> > =3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D
+> > --- a/include/linux/compaction.h	2012-05-02 10:39:17.000000000 +0200
+> > +++ b/include/linux/compaction.h	2012-05-02 10:40:03.708727714 +0200
+> > @@ -1,6 +1,8 @@
+> >  #ifndef _LINUX_COMPACTION_H
+> >  #define _LINUX_COMPACTION_H
+> > =20
+> > +#include <linux/node.h>
+> > +
+>=20
+> Why is it necessary to include linux/node.h?
 
-Ah forget that, I was confused. If we do that we actually get the useless t=
-imer
-at now + NEXT_TIMER_MAX_DELTA.
+Without it I'm getting:
 
-So I think the patch is fine.
+In file included from mm/internal.h:108,
+                 from mm/util.c:10:
+include/linux/compaction.h:106: warning: =E2=80=98struct node=E2=80=99 decl=
+ared inside parameter list
+include/linux/compaction.h:106: warning: its scope is only this definition =
+or declaration, which is probably not what you want
+include/linux/compaction.h:111: warning: =E2=80=98struct node=E2=80=99 decl=
+ared inside parameter list
+In file included from mm/internal.h:108,
+                 from mm/page_isolation.c:9:
+include/linux/compaction.h:106: warning: =E2=80=98struct node=E2=80=99 decl=
+ared inside parameter list
+include/linux/compaction.h:106: warning: its scope is only this definition =
+or declaration, which is probably not what you want
+include/linux/compaction.h:111: warning: =E2=80=98struct node=E2=80=99 decl=
+ared inside parameter list
+In file included from mm/internal.h:108,
+                 from mm/mm_init.c:13:
+include/linux/compaction.h:106: warning: =E2=80=98struct node=E2=80=99 decl=
+ared inside parameter list
+include/linux/compaction.h:106: warning: its scope is only this definition =
+or declaration, which is probably not what you want
+include/linux/compaction.h:111: warning: =E2=80=98struct node=E2=80=99 decl=
+ared inside parameter list
+In file included from mm/internal.h:108,
+                 from mm/bootmem.c:25:
+include/linux/compaction.h:106: warning: =E2=80=98struct node=E2=80=99 decl=
+ared inside parameter list
+include/linux/compaction.h:106: warning: its scope is only this definition =
+or declaration, which is probably not what you want
+include/linux/compaction.h:111: warning: =E2=80=98struct node=E2=80=99 decl=
+ared inside parameter list
+In file included from mm/internal.h:108,
+                 from mm/sparse.c:13:
+include/linux/compaction.h:106: warning: =E2=80=98struct node=E2=80=99 decl=
+ared inside parameter list
+include/linux/compaction.h:106: warning: its scope is only this definition =
+or declaration, which is probably not what you want
+include/linux/compaction.h:111: warning: =E2=80=98struct node=E2=80=99 decl=
+ared inside parameter list
 
-Acked-by: Frederic Weisbecker <fweisbec@gmail.com>
+
+include/linux/compaction.h:106 is:
+static inline int compaction_register_node(struct node *node)
+
+include/linux/compaction.h:111 is:
+static inline void compaction_unregister_node(struct node *node)
+
+
+Best regards,
+=2D-
+Bartlomiej Zolnierkiewicz
+Samsung Poland R&D Center
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
