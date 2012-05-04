@@ -1,95 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx204.postini.com [74.125.245.204])
-	by kanga.kvack.org (Postfix) with SMTP id 4E7506B0044
-	for <linux-mm@kvack.org>; Fri,  4 May 2012 00:52:57 -0400 (EDT)
-Received: from /spool/local
-	by e23smtp02.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <srivatsa.bhat@linux.vnet.ibm.com>;
-	Fri, 4 May 2012 04:33:48 +1000
-Received: from d23av01.au.ibm.com (d23av01.au.ibm.com [9.190.234.96])
-	by d23relay04.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q444itlI12910618
-	for <linux-mm@kvack.org>; Fri, 4 May 2012 14:44:55 +1000
-Received: from d23av01.au.ibm.com (loopback [127.0.0.1])
-	by d23av01.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q444plpc006771
-	for <linux-mm@kvack.org>; Fri, 4 May 2012 14:51:48 +1000
-Message-ID: <4FA36045.9080504@linux.vnet.ibm.com>
-Date: Fri, 04 May 2012 10:21:17 +0530
-From: "Srivatsa S. Bhat" <srivatsa.bhat@linux.vnet.ibm.com>
+Received: from psmtp.com (na3sys010amx146.postini.com [74.125.245.146])
+	by kanga.kvack.org (Postfix) with SMTP id 299936B0044
+	for <linux-mm@kvack.org>; Fri,  4 May 2012 03:39:39 -0400 (EDT)
+Received: by pbbrp2 with SMTP id rp2so4423959pbb.14
+        for <linux-mm@kvack.org>; Fri, 04 May 2012 00:39:38 -0700 (PDT)
+Date: Fri, 4 May 2012 00:38:10 -0700
+From: Anton Vorontsov <anton.vorontsov@linaro.org>
+Subject: Re: [PATCH 3/3] vmevent: Implement special low-memory attribute
+Message-ID: <20120504073810.GA25175@lizard>
+References: <20120501132409.GA22894@lizard>
+ <20120501132620.GC24226@lizard>
+ <4FA35A85.4070804@kernel.org>
 MIME-Version: 1.0
-Subject: Re: [PATCH v1 3/6] workqueue: introduce schedule_on_each_cpu_cond
-References: <1336056962-10465-1-git-send-email-gilad@benyossef.com> <1336056962-10465-4-git-send-email-gilad@benyossef.com>
-In-Reply-To: <1336056962-10465-4-git-send-email-gilad@benyossef.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+In-Reply-To: <4FA35A85.4070804@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Gilad Ben-Yossef <gilad@benyossef.com>
-Cc: linux-kernel@vger.kernel.org, Thomas Gleixner <tglx@linutronix.de>, Tejun Heo <tj@kernel.org>, John Stultz <johnstul@us.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, Mike Frysinger <vapier@gentoo.org>, David Rientjes <rientjes@google.com>, Hugh Dickins <hughd@google.com>, Minchan Kim <minchan.kim@gmail.com>, Konstantin Khlebnikov <khlebnikov@openvz.org>, Christoph Lameter <cl@linux.com>, Chris Metcalf <cmetcalf@tilera.com>, Hakan Akkan <hakanakkan@gmail.com>, Max Krasnyansky <maxk@qualcomm.com>, Frederic Weisbecker <fweisbec@gmail.com>, linux-mm@kvack.org
+To: Minchan Kim <minchan@kernel.org>
+Cc: Pekka Enberg <penberg@kernel.org>, Leonid Moiseichuk <leonid.moiseichuk@nokia.com>, John Stultz <john.stultz@linaro.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linaro-kernel@lists.linaro.org, patches@linaro.org, kernel-team@android.com
 
-On 05/03/2012 08:25 PM, Gilad Ben-Yossef wrote:
-
-> Introduce the schedule_on_each_cpu_cond() function that schedules
-> a work item on each online CPU for which the supplied condition
-> function returns true.
+On Fri, May 04, 2012 at 01:26:45PM +0900, Minchan Kim wrote:
+[...]
+> > be useful for different use cases.
 > 
-> This function should be used instead of schedule_on_each_cpu()
-> when only some of the CPUs have actual work to do and a predicate
-> function can tell if a certain CPU does or does not have work to do,
-> thus saving unneeded wakeups and schedules.
-> 
-> Signed-off-by: Gilad Ben-Yossef <gilad@benyossef.com>
-> ---
+> Why should we do it in kernel side?
 
+Because currently you can't do this in userland, see below. Today
+this would be effectively the same as constantly reading /proc/vmstat,
+which is surely not friendly performance/context switches/battery
+wise.
 
-> diff --git a/kernel/workqueue.c b/kernel/workqueue.c
-> index 1c9782b..3322d30 100644
-> --- a/kernel/workqueue.c
-> +++ b/kernel/workqueue.c
-> @@ -2828,6 +2828,43 @@ int schedule_on_each_cpu_mask(work_func_t func, const struct cpumask *mask)
->  }
-> 
->  /**
-> + * schedule_on_each_cpu_cond - execute a function synchronously on each
-> + * online CPU for which the supplied condition function returns true
-> + * @func: the function to run on the selected CPUs
-> + * @cond_func: the function to call to select the CPUs
-> + *
-> + * schedule_on_each_cpu_cond() executes @func on each online CPU for
-> + * @cond_func returns true using the system workqueue and blocks until
+> If vmevent will have VMEVENT_ATTR_[FILE|MOCK|DIRTY|WRITEBACK|SHMEM|ANON|SWAP]_PAGES
+> and so on which is needed by calculation, we can calculate it in userspace without
+> forking /proc/vmstat to see it. So I think there is no problem to do it in userspace.
 
-    ^^^
-(for) which
+There are two problems.
 
-Regards,
-Srivatsa S. Bhat
+1. Originally, the idea behind vmevent was that we should not expose all
+   these mm details in vmevent, because it ties ABI with Linux internal
+   memory representation;
 
-> + * all CPUs have completed.
-> + * schedule_on_each_cpu_cond() is very slow.
-> + *
-> + * RETURNS:
-> + * 0 on success, -errno on failure.
-> + */
-> +int schedule_on_each_cpu_cond(work_func_t func, bool (*cond_func)(int cpu))
-> +{
-> +	int cpu, ret;
-> +	cpumask_var_t mask;
-> +
-> +	if (unlikely(!zalloc_cpumask_var(&mask, GFP_KERNEL)))
-> +		return -ENOMEM;
-> +
-> +	get_online_cpus();
-> +
-> +	for_each_online_cpu(cpu)
-> +		if (cond_func(cpu))
-> +			cpumask_set_cpu(cpu, mask);
-> +
-> +	ret = schedule_on_each_cpu_mask(func, mask);
-> +
-> +	put_online_cpus();
-> +
-> +	free_cpumask_var(mask);
-> +
-> +	return ret;
+2. If you have say a boolean '(A + B + C + ...) > X' attribute (which is
+   exactly what blended attributes are), you can't just set up independent
+   thresholds on A, B, C, ... and have the same effect.
+
+   (What we can do, though, is... introduce arithmetic operators in
+   vmevent. :-D But then, at the end, we'll probably implement in-kernel
+   forth-like stack machine, with vmevent_config array serving as a
+   sequence of op-codes. ;-)
+
+If we'll give up on "1." (Pekka, ping), then we need to solve "2."
+in a sane way: we'll have to add a 'NR_FILE_PAGES - NR_SHMEM -
+<todo-locked-file-pages>' attribute, and give it a name.
+
+RECLAIMABLE_CACHE_PAGES maybe?
+
+Thanks!
+
+-- 
+Anton Vorontsov
+Email: cbouatmailru@gmail.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
