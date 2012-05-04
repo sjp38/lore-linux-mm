@@ -1,82 +1,216 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx192.postini.com [74.125.245.192])
-	by kanga.kvack.org (Postfix) with SMTP id B7F876B0044
-	for <linux-mm@kvack.org>; Thu,  3 May 2012 22:27:23 -0400 (EDT)
-Message-ID: <4FA33E89.6080206@kernel.org>
-Date: Fri, 04 May 2012 11:27:21 +0900
+Received: from psmtp.com (na3sys010amx129.postini.com [74.125.245.129])
+	by kanga.kvack.org (Postfix) with SMTP id 482FA6B0044
+	for <linux-mm@kvack.org>; Fri,  4 May 2012 00:26:51 -0400 (EDT)
+Message-ID: <4FA35A85.4070804@kernel.org>
+Date: Fri, 04 May 2012 13:26:45 +0900
 From: Minchan Kim <minchan@kernel.org>
 MIME-Version: 1.0
-Subject: Re: [PATCH 4/4] zsmalloc: zsmalloc: align cache line size
-References: <1336027242-372-1-git-send-email-minchan@kernel.org> <1336027242-372-4-git-send-email-minchan@kernel.org> <4FA28EFD.5070002@vflare.org>
-In-Reply-To: <4FA28EFD.5070002@vflare.org>
-Content-Type: text/plain; charset=ISO-8859-1
+Subject: Re: [PATCH 3/3] vmevent: Implement special low-memory attribute
+References: <20120501132409.GA22894@lizard> <20120501132620.GC24226@lizard>
+In-Reply-To: <20120501132620.GC24226@lizard>
+Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Nitin Gupta <ngupta@vflare.org>
-Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Dan Magenheimer <dan.magenheimer@oracle.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Pekka Enberg <penberg@kernel.org>
+To: Anton Vorontsov <anton.vorontsov@linaro.org>
+Cc: Pekka Enberg <penberg@kernel.org>, Leonid Moiseichuk <leonid.moiseichuk@nokia.com>, John Stultz <john.stultz@linaro.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linaro-kernel@lists.linaro.org, patches@linaro.org, kernel-team@android.com
 
-On 05/03/2012 10:58 PM, Nitin Gupta wrote:
+On 05/01/2012 10:26 PM, Anton Vorontsov wrote:
 
-> On 5/3/12 2:40 AM, Minchan Kim wrote:
->> It's a overkill to align pool size with PAGE_SIZE to avoid
->> false-sharing. This patch aligns it with just cache line size.
->>
->> Signed-off-by: Minchan Kim<minchan@kernel.org>
->> ---
->>   drivers/staging/zsmalloc/zsmalloc-main.c |    6 +++---
->>   1 file changed, 3 insertions(+), 3 deletions(-)
->>
->> diff --git a/drivers/staging/zsmalloc/zsmalloc-main.c
->> b/drivers/staging/zsmalloc/zsmalloc-main.c
->> index 51074fa..3991b03 100644
->> --- a/drivers/staging/zsmalloc/zsmalloc-main.c
->> +++ b/drivers/staging/zsmalloc/zsmalloc-main.c
->> @@ -489,14 +489,14 @@ fail:
->>
->>   struct zs_pool *zs_create_pool(const char *name, gfp_t flags)
->>   {
->> -    int i, error, ovhd_size;
->> +    int i, error;
->>       struct zs_pool *pool;
->>
->>       if (!name)
->>           return NULL;
->>
->> -    ovhd_size = roundup(sizeof(*pool), PAGE_SIZE);
->> -    pool = kzalloc(ovhd_size, GFP_KERNEL);
->> +    pool = kzalloc(ALIGN(sizeof(*pool), cache_line_size()),
->> +                GFP_KERNEL);
+> This is specially "blended" attribute, the event triggers when kernel
+> decides that we're close to the low memory threshold. Userspace should
+> not expect very precise meaning of low memory situation, mostly, it's
+> just a guess on the kernel's side.
 > 
-> a basic question:
->  Is rounding off allocation size to cache_line_size enough to ensure
-> that the object is cache-line-aligned? Isn't it possible that even
-> though the object size is multiple of cache-line, it may still not be
-> properly aligned and end up sharing cache line with some other
-> read-mostly object?
+> Well, this is the same as userland should not know or care how exactly
+> kernel manages the memory, or assume that memory management behaviour
+> is a part of the "ABI". So, all the 'low memory' is just guessing, but
+> we're trying to do our best. It might be that we will end up with two
+> or three variations of 'low memory' thresholds, and all of them would
 
 
-AFAIK, SLAB allocates object aligned cache-size so I think that problem cannot happen.
-But needs double check.
-Cced Pekka.
+First of all, your calculation for available pages is very simple and 
+it's very specific of recent mobile phone.
+But recent systems have various devices.
+For example,
+
+SSD : very fast server SSD which has lots of internal ram so that write is very fast.
+thumb usb : very slow whihc has small ram 
+
+1) We can consider anon pages and dirty pages as available pages.
+
+       	SSD 	thumb usb	
+rootfs 	 0
+swap	 0
+
+2) We can consider anon pages as available pages but dirty page doesn't
+
+       	SSD 	thumb usb	
+rootfs		   O 	 
+swap	 0
+
+3) We can consider dirty pages as available pages but anon doesn't
+
+       	SSD 	thumb usb	
+rootfs 	 O
+swap	 	   O
+
+4) We can't consider dirty pages and anon pages as available pages
+
+       	SSD 	thumb usb	
+rootfs 	 	   0
+swap	 	   0
+
+5) If we use zram as swap?
+6) Another idea. If we use both zram and swap device(eMMC), then when zram is full,
+   we writes zram pages into swap device with align cluster size?
+
+I mean we can select various option to define low memory state.
+
+> be useful for different use cases.
+
+
+Why should we do it in kernel side?
+If vmevent will have VMEVENT_ATTR_[FILE|MOCK|DIRTY|WRITEBACK|SHMEM|ANON|SWAP]_PAGES
+and so on which is needed by calculation, we can calculate it in userspace without
+forking /proc/vmstat to see it. So I think there is no problem to do it in userspace.
+
+And even though we can solve above problem, it is possible to show up another new "blended" attribute
+in future and it will suffer same problem, again. So IMHO, let's leave vmevent as it is which is 
+very raw attribute and let's do blended attribute in user space.
 
 > 
-> Thanks,
-> Nitin
+> For this implementation, we assume that there's a low memory situation
+> for the N pages threshold when we have neither N pages of completely
+> free pages, nor we have N reclaimable pages in the cache. This
+> effectively means, that if userland expects to allocate N pages, it
+> would consume all the free pages, and any further allocations (above
+> N) would start draining caches.
 > 
+> In the worst case, prior to hitting the threshold, we might have only
+> N pages in cache, and nearly no memory as free pages.
 > 
->>       if (!pool)
->>           return NULL;
->>
+> The same 'low memory' meaning is used in the current Android Low
+> Memory Killer driver.
 > 
-> -- 
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Fight unfair telecom internet charges in Canada: sign
-> http://stopthemeter.ca/
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> Signed-off-by: Anton Vorontsov <anton.vorontsov@linaro.org>
+> ---
+>  include/linux/vmevent.h              |    7 ++++++
+>  mm/vmevent.c                         |   40 ++++++++++++++++++++++++++++++++++
+>  tools/testing/vmevent/vmevent-test.c |   12 +++++++++-
+>  3 files changed, 58 insertions(+), 1 deletion(-)
 > 
+> diff --git a/include/linux/vmevent.h b/include/linux/vmevent.h
+> index aae0d24..9bfa244 100644
+> --- a/include/linux/vmevent.h
+> +++ b/include/linux/vmevent.h
+> @@ -10,6 +10,13 @@ enum {
+>  	VMEVENT_ATTR_NR_AVAIL_PAGES	= 1UL,
+>  	VMEVENT_ATTR_NR_FREE_PAGES	= 2UL,
+>  	VMEVENT_ATTR_NR_SWAP_PAGES	= 3UL,
+> +	/*
+> +	 * This is specially blended attribute, the event triggers
+> +	 * when kernel decides that we're close to the low memory threshold.
+> +	 * Don't expect very precise meaning of low memory situation, mostly,
+> +	 * it's just a guess on the kernel's side.
+> +	 */
+> +	VMEVENT_ATTR_LOWMEM_PAGES	= 4UL,
+>  
+>  	VMEVENT_ATTR_MAX		/* non-ABI */
+>  };
+> diff --git a/mm/vmevent.c b/mm/vmevent.c
+> index b312236..d278a25 100644
+> --- a/mm/vmevent.c
+> +++ b/mm/vmevent.c
+> @@ -68,10 +68,50 @@ static u64 vmevent_attr_avail_pages(struct vmevent_watch *watch,
+>  	return totalram_pages;
+>  }
+>  
+> +/*
+> + * Here's some implementation details for the "low memory" meaning.
+> + *
+> + * (The explanation is not in the header file as userland should not
+> + * know these details, nor it should assume that the meaning will
+> + * always be the same. As well as it should not know how exactly kernel
+> + * manages the memory, or assume that memory management behaviour is a
+> + * part of the "ABI". So, all the 'low memory' is just guessing, but
+> + * we're trying to do our best.)
+> + *
+> + * For this implementation, we assume that there's a low memory situation
+> + * for the N pages threshold when we have neither N pages of completely
+> + * free pages, nor we have N reclaimable pages in the cache. This
+> + * effectively means, that if userland expects to allocate N pages, it
+> + * would consume all the free pages, and any further allocations (above
+> + * N) would start draining caches.
+> + *
+> + * In the worst case, prior hitting the threshold, we might have only
+> + * N pages in cache, and nearly no memory as free pages.
+> + */
+> +static u64 vmevent_attr_lowmem_pages(struct vmevent_watch *watch,
+> +				     struct vmevent_attr *attr)
+> +{
+> +	int free = global_page_state(NR_FREE_PAGES);
+> +	int file = global_page_state(NR_FILE_PAGES) -
+> +		   global_page_state(NR_SHMEM); /* TODO: account locked pages */
+> +	int val = attr->value;
+> +
+> +	/*
+> +	 * For convenience we return 0 or attr value (instead of 0/1), it
+> +	 * makes it easier for vmevent_match() to cope with blended
+> +	 * attributes, plus userland might use the value to find out which
+> +	 * threshold triggered.
+> +	 */
+> +	if (free < val && file < val)
+> +		return val;
+> +	return 0;
+> +}
+> +
+>  static vmevent_attr_sample_fn attr_samplers[] = {
+>  	[VMEVENT_ATTR_NR_AVAIL_PAGES]   = vmevent_attr_avail_pages,
+>  	[VMEVENT_ATTR_NR_FREE_PAGES]    = vmevent_attr_free_pages,
+>  	[VMEVENT_ATTR_NR_SWAP_PAGES]    = vmevent_attr_swap_pages,
+> +	[VMEVENT_ATTR_LOWMEM_PAGES]     = vmevent_attr_lowmem_pages,
+>  };
+>  
+>  static u64 vmevent_sample_attr(struct vmevent_watch *watch, struct vmevent_attr *attr)
+> diff --git a/tools/testing/vmevent/vmevent-test.c b/tools/testing/vmevent/vmevent-test.c
+> index fd9a174..c61aed7 100644
+> --- a/tools/testing/vmevent/vmevent-test.c
+> +++ b/tools/testing/vmevent/vmevent-test.c
+> @@ -33,7 +33,7 @@ int main(int argc, char *argv[])
+>  
+>  	config = (struct vmevent_config) {
+>  		.sample_period_ns	= 1000000000L,
+> -		.counter		= 6,
+> +		.counter		= 7,
+>  		.attrs			= {
+>  			{
+>  				.type	= VMEVENT_ATTR_NR_FREE_PAGES,
+> @@ -59,6 +59,13 @@ int main(int argc, char *argv[])
+>  				.type	= VMEVENT_ATTR_NR_SWAP_PAGES,
+>  			},
+>  			{
+> +				.type	= VMEVENT_ATTR_LOWMEM_PAGES,
+> +				.state	= VMEVENT_ATTR_STATE_VALUE_LT |
+> +					  VMEVENT_ATTR_STATE_VALUE_EQ |
+> +					  VMEVENT_ATTR_STATE_ONE_SHOT,
+> +				.value	= phys_pages / 2,
+> +			},
+> +			{
+>  				.type	= 0xffff, /* invalid */
+>  			},
+>  		},
+> @@ -108,6 +115,9 @@ int main(int argc, char *argv[])
+>  			case VMEVENT_ATTR_NR_SWAP_PAGES:
+>  				printf("  VMEVENT_ATTR_NR_SWAP_PAGES: %Lu\n", attr->value);
+>  				break;
+> +			case VMEVENT_ATTR_LOWMEM_PAGES:
+> +				printf("  VMEVENT_ATTR_LOWMEM_PAGES: %Lu\n", attr->value);
+> +				break;
+>  			default:
+>  				printf("  Unknown attribute: %Lu\n", attr->value);
+>  			}
 
 
 
