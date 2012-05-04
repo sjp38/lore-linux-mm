@@ -1,51 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx116.postini.com [74.125.245.116])
-	by kanga.kvack.org (Postfix) with SMTP id CA19B6B0081
-	for <linux-mm@kvack.org>; Thu,  3 May 2012 21:12:42 -0400 (EDT)
-Received: by obbwd18 with SMTP id wd18so4299826obb.14
-        for <linux-mm@kvack.org>; Thu, 03 May 2012 18:12:41 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx110.postini.com [74.125.245.110])
+	by kanga.kvack.org (Postfix) with SMTP id 90EB46B0044
+	for <linux-mm@kvack.org>; Thu,  3 May 2012 22:24:58 -0400 (EDT)
+Message-ID: <4FA33DF6.8060107@kernel.org>
+Date: Fri, 04 May 2012 11:24:54 +0900
+From: Minchan Kim <minchan@kernel.org>
 MIME-Version: 1.0
-In-Reply-To: <4FA2EA4A.6040703@redhat.com>
-References: <1336066477-3964-1-git-send-email-rajman.mekaco@gmail.com>
-	<4FA2C946.60006@redhat.com>
-	<4FA2EA4A.6040703@redhat.com>
-Date: Fri, 4 May 2012 06:42:41 +0530
-Message-ID: <CAMYGaxosaVXmpQQqpq+bGV9F7-i8APTpDq=ErWdhw2EHGEzmKg@mail.gmail.com>
-Subject: Re: [PATCH 1/1] mlock: split the shmlock_user_lock spinlock into per
- user_struct spinlock
-From: rajman mekaco <rajman.mekaco@gmail.com>
+Subject: Re: [PATCH 3/4] zsmalloc use zs_handle instead of void *
+References: <1336027242-372-1-git-send-email-minchan@kernel.org> <1336027242-372-3-git-send-email-minchan@kernel.org> <4FA28907.9020300@vflare.org> <4FA2A2F0.3030509@linux.vnet.ibm.com>
+In-Reply-To: <4FA2A2F0.3030509@linux.vnet.ibm.com>
 Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rik van Riel <riel@redhat.com>
-Cc: Ingo Molnar <mingo@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Paul Gortmaker <paul.gortmaker@windriver.com>, Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>, Christoph Lameter <cl@gentwo.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Seth Jennings <sjenning@linux.vnet.ibm.com>
+Cc: Nitin Gupta <ngupta@vflare.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Dan Magenheimer <dan.magenheimer@oracle.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
 
-Thank you all for replying back.
+On 05/04/2012 12:23 AM, Seth Jennings wrote:
 
->
-> Hold this ... while the patch is correct, Peter raised
-> a valid concern about its usefulness, which should be
-> sorted out first.
->
+> On 05/03/2012 08:32 AM, Nitin Gupta wrote:
+> 
+>> On 5/3/12 2:40 AM, Minchan Kim wrote:
+>>> We should use zs_handle instead of void * to avoid any
+>>> confusion. Without this, users may just treat zs_malloc return value as
+>>> a pointer and try to deference it.
+>>>
+>>> Cc: Dan Magenheimer<dan.magenheimer@oracle.com>
+>>> Cc: Konrad Rzeszutek Wilk<konrad.wilk@oracle.com>
+>>> Signed-off-by: Minchan Kim<minchan@kernel.org>
+>>> ---
+>>>   drivers/staging/zcache/zcache-main.c     |    8 ++++----
+>>>   drivers/staging/zram/zram_drv.c          |    8 ++++----
+>>>   drivers/staging/zram/zram_drv.h          |    2 +-
+>>>   drivers/staging/zsmalloc/zsmalloc-main.c |   28
+>>> ++++++++++++++--------------
+>>>   drivers/staging/zsmalloc/zsmalloc.h      |   15 +++++++++++----
+>>>   5 files changed, 34 insertions(+), 27 deletions(-)
+>>
+>> This was a long pending change. Thanks!
+> 
+> 
+> The reason I hadn't done it before is that it introduces a checkpatch
+> warning:
+> 
+> WARNING: do not add new typedefs
+> #303: FILE: drivers/staging/zsmalloc/zsmalloc.h:19:
+> +typedef void * zs_handle;
+> 
 
-Can't the shmctl(SHM_LOCK) system call be called for a huge number of
-usermode processes ?
 
-Other place from where usr_shm_lock() is called is for hugetlb from
-shmget(SHM_HUGETLB)
-system call via ipc_get().
+Yes. I did it but I think we are (a) of chapter 5: Typedefs in Documentation/CodingStyle.
 
-As far as users are concerned, I think that if even 2 user_structs
-encounter this on 2 different CPUs,
-why should the processors waste any time at all at looping even once
-if they belong to different
-user_structs ?
+ (a) totally opaque objects (where the typedef is actively used to _hide_
+     what the object is).
 
-I totally agree with you that maybe if we look at the entire workloads
-it probably wouldn't matter much
-because of low number of users, but why should the CPUs compete and
-spin for different users at all
-when nothing global is affected ?
+No?
+
+> In addition this particular patch has a checkpatch error:
+> 
+> ERROR: "foo * bar" should be "foo *bar"
+> #303: FILE: drivers/staging/zsmalloc/zsmalloc.h:19:
+> +typedef void * zs_handle;
+
+
+It was my mistake. Will fix.
+Thanks!
+
+-- 
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
