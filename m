@@ -1,14 +1,14 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx140.postini.com [74.125.245.140])
-	by kanga.kvack.org (Postfix) with SMTP id 4CBF06B00FC
-	for <linux-mm@kvack.org>; Fri,  4 May 2012 20:07:59 -0400 (EDT)
-Received: by pbbrp2 with SMTP id rp2so5573005pbb.14
-        for <linux-mm@kvack.org>; Fri, 04 May 2012 17:07:58 -0700 (PDT)
-Date: Sat, 5 May 2012 09:07:51 +0900
+Received: from psmtp.com (na3sys010amx132.postini.com [74.125.245.132])
+	by kanga.kvack.org (Postfix) with SMTP id 0059A6B00FD
+	for <linux-mm@kvack.org>; Fri,  4 May 2012 20:08:53 -0400 (EDT)
+Received: by pbbrp2 with SMTP id rp2so5573687pbb.14
+        for <linux-mm@kvack.org>; Fri, 04 May 2012 17:08:53 -0700 (PDT)
+Date: Sat, 5 May 2012 09:08:46 +0900
 From: Minchan Kim <minchan@kernel.org>
 Subject: Re: [PATCH v6] mm: compaction: handle incorrect MIGRATE_UNMOVABLE
  type pageblocks
-Message-ID: <20120505000751.GB2088@barrios>
+Message-ID: <20120505000846.GC2088@barrios>
 References: <201205041603.25237.b.zolnierkie@samsung.com>
  <20120505000710.GA2088@barrios>
 MIME-Version: 1.0
