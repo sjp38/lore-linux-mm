@@ -1,52 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx166.postini.com [74.125.245.166])
-	by kanga.kvack.org (Postfix) with SMTP id 725556B004D
-	for <linux-mm@kvack.org>; Mon,  7 May 2012 18:01:57 -0400 (EDT)
-Date: Tue, 8 May 2012 00:01:42 +0200
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [patch 00/10] (no)bootmem bits for 3.5
-Message-ID: <20120507220142.GA1202@cmpxchg.org>
-References: <1336390672-14421-1-git-send-email-hannes@cmpxchg.org>
- <20120507204113.GD10521@merkur.ravnborg.org>
+Received: from psmtp.com (na3sys010amx120.postini.com [74.125.245.120])
+	by kanga.kvack.org (Postfix) with SMTP id 8A2446B004D
+	for <linux-mm@kvack.org>; Mon,  7 May 2012 18:04:40 -0400 (EDT)
+Received: by qcsd16 with SMTP id d16so4591487qcs.14
+        for <linux-mm@kvack.org>; Mon, 07 May 2012 15:04:39 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20120507204113.GD10521@merkur.ravnborg.org>
+In-Reply-To: <1336070841-1071-1-git-send-email-glommer@parallels.com>
+References: <1336070841-1071-1-git-send-email-glommer@parallels.com>
+Date: Mon, 7 May 2012 15:04:39 -0700
+Message-ID: <CABCjUKDuiN6bq6rbPjE7futyUwTPKsSFWHXCJ-OFf30tgq5WZg@mail.gmail.com>
+Subject: Re: [RFC] slub: show dead memcg caches in a separate file
+From: Suleiman Souhlal <suleiman@google.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sam Ravnborg <sam@ravnborg.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Gavin Shan <shangw@linux.vnet.ibm.com>, David Miller <davem@davemloft.net>, Yinghai Lu <yinghai@kernel.org>, Tejun Heo <tj@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Glauber Costa <glommer@parallels.com>
+Cc: cgroups@vger.kernel.org, linux-mm@kvack.org, devel@openvz.org, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Michal Hocko <mhocko@suse.cz>, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, Frederic Weisbecker <fweisbec@gmail.com>
 
-On Mon, May 07, 2012 at 10:41:13PM +0200, Sam Ravnborg wrote:
-> Hi Johannes.
-> 
-> > here are some (no)bootmem fixes and cleanups for 3.5.  Most of it is
-> > unifying allocation behaviour across bootmem and nobootmem when it
-> > comes to respecting the specified allocation address goal and numa.
-> > 
-> > But also refactoring the codebases of the two bootmem APIs so that we
-> > can think about sharing code between them again.
-> 
-> Could you check up on CONFIG_HAVE_ARCH_BOOTMEM use in bootmem.c too?
-> x86 no longer uses bootmem.c
-> avr define it - but to n.
-> 
-> So no-one is actually using this anymore.
-> I have sent patches to remove it from Kconfig for both x86 and avr.
-> 
-> I looked briefly at cleaning up bootmem.c myslef - but I felt not
-> familiar enough with the code to do the cleanup.
-> 
-> I did not check your patchset - but based on the shortlog you
-> did not kill HAVE_ARCH_BOOTMEM.
+On Thu, May 3, 2012 at 11:47 AM, Glauber Costa <glommer@parallels.com> wrote:
+> One of the very few things that still unsettles me in the kmem
+> controller for memcg, is how badly we mess up with the
+> /proc/slabinfo file.
+>
+> It is alright to have the cgroup caches listed in slabinfo, but once
+> they die, I think they should be removed right away. A box full
+> of containers that come and go will rapidly turn that file into
+> a supreme mess. However, we currently leave them there so we can
+> determine where our used memory currently is.
+>
+> This patch attempts to clean this up by creating a separate proc file
+> only to handle the dead slabs. Among other advantages, we need a lot
+> less information in a dead cache: only its current size in memory
+> matters to us.
+>
+> So besides avoiding polution of the slabinfo files, we can access
+> dead cache information itself in a cleaner way.
+>
+> I implemented this as a proof of concept while finishing up
+> my last round for submission. But I am sending this separately
+> to collect opinions from all of you. I can either implement
+> a version of this for the slab, or follow any other route.
 
-It was used on x86-32 numa to try all bootmem allocations from node 0
-first (see only remaining definition of bootmem_arch_preferred_node),
-which AFAICS nobootmem no longer respects.
+I don't really understand why the "dead" slabs are considered as
+polluting slabinfo.
 
-Shouldn't this be fixed instead?
+They still have objects in them, and I think that hiding them would
+not be the right thing to do (even if they are available in a separate
+file): They will incorrectly not be seen by programs like slabtop.
 
-But yeah, we can remove the bootmem.c parts, I think.
+-- Suleiman
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
