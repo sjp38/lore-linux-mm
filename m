@@ -1,116 +1,229 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx193.postini.com [74.125.245.193])
-	by kanga.kvack.org (Postfix) with SMTP id 1758D6B0044
-	for <linux-mm@kvack.org>; Mon,  7 May 2012 15:19:54 -0400 (EDT)
-Received: by yenm8 with SMTP id m8so6356972yen.14
-        for <linux-mm@kvack.org>; Mon, 07 May 2012 12:19:53 -0700 (PDT)
-Message-ID: <4FA82056.2070706@gmail.com>
-Date: Mon, 07 May 2012 15:19:50 -0400
-From: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
+Received: from psmtp.com (na3sys010amx192.postini.com [74.125.245.192])
+	by kanga.kvack.org (Postfix) with SMTP id 10B226B0044
+	for <linux-mm@kvack.org>; Mon,  7 May 2012 15:23:15 -0400 (EDT)
+Received: by dadm1 with SMTP id m1so3203309dad.8
+        for <linux-mm@kvack.org>; Mon, 07 May 2012 12:23:14 -0700 (PDT)
 MIME-Version: 1.0
-Subject: Re: [PATCH 3/3] vmevent: Implement special low-memory attribute
-References: <20120501132409.GA22894@lizard> <20120501132620.GC24226@lizard> <4FA35A85.4070804@kernel.org> <20120504073810.GA25175@lizard> <CAOJsxLH_7mMMe+2DvUxBW1i5nbUfkbfRE3iEhLQV9F_MM7=eiw@mail.gmail.com> <CAHGf_=qcGfuG1g15SdE0SDxiuhCyVN025pQB+sQNuNba4Q4jcA@mail.gmail.com> <20120507121527.GA19526@lizard>
-In-Reply-To: <20120507121527.GA19526@lizard>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <1336390672-14421-9-git-send-email-hannes@cmpxchg.org>
+References: <1336390672-14421-1-git-send-email-hannes@cmpxchg.org>
+	<1336390672-14421-9-git-send-email-hannes@cmpxchg.org>
+Date: Mon, 7 May 2012 12:23:13 -0700
+Message-ID: <CAE9FiQU2pJfCTmZjMG7SggjBZUfsnBArhGCxhaKQSZCojwfZPQ@mail.gmail.com>
+Subject: Re: [patch 08/10] mm: nobootmem: unify allocation policy of
+ (non-)panicking node allocations
+From: Yinghai Lu <yinghai@kernel.org>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Anton Vorontsov <anton.vorontsov@linaro.org>
-Cc: KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Pekka Enberg <penberg@kernel.org>, Minchan Kim <minchan@kernel.org>, Leonid Moiseichuk <leonid.moiseichuk@nokia.com>, John Stultz <john.stultz@linaro.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linaro-kernel@lists.linaro.org, patches@linaro.org, kernel-team@android.com
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Gavin Shan <shangw@linux.vnet.ibm.com>, David Miller <davem@davemloft.net>, Tejun Heo <tj@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-(5/7/12 8:15 AM), Anton Vorontsov wrote:
-> On Mon, May 07, 2012 at 04:26:00AM -0400, KOSAKI Motohiro wrote:
->>>> If we'll give up on "1." (Pekka, ping), then we need to solve "2."
->>>> in a sane way: we'll have to add a 'NR_FILE_PAGES - NR_SHMEM -
->>>> <todo-locked-file-pages>' attribute, and give it a name.
->>>
->>> Well, no, we can't give up on (1) completely. That'd mean that
->>> eventually we'd need to change the ABI and break userspace. The
->>> difference between exposing internal details and reasonable
->>> abstractions is by no means black and white.
->>>
->>> AFAICT, RECLAIMABLE_CACHE_PAGES is a reasonable thing to support. Can
->>> anyone come up with a reason why we couldn't do that in the future?
->>
->> It can. but the problem is, that is completely useless.
+On Mon, May 7, 2012 at 4:37 AM, Johannes Weiner <hannes@cmpxchg.org> wrote:
+> While the panicking node-specific allocation function tries to satisfy
+> node+goal, goal, node, anywhere, the non-panicking function still does
+> node+goal, goal, anywhere.
 >
-> Surely it is useful. Could be not ideal, but you can't say that
-> it is completely useless.
-
-Why? It doesn't work.
-
-
-
->> Because of, 1) dirty pages writing-out is sometimes very slow and
+> Make it simpler: define the panicking version in terms of the
+> non-panicking one, like the node-agnostic interface, so they always
+> behave the same way apart from how to deal with allocation failure.
 >
-> I don't see it as a unresolvable problem: we can exclude dirty pages,
-> that's a nice idea actually.
+> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+> ---
+> =A0mm/nobootmem.c | =A0106 +++++++++++++++++++++++++++++-----------------=
+----------
+> =A01 file changed, 54 insertions(+), 52 deletions(-)
 >
-> Easily reclaimable cache pages = file_pages - shmem - locked pages
-> - dirty pages.
+> diff --git a/mm/nobootmem.c b/mm/nobootmem.c
+> index b078ff8..77069bb 100644
+> --- a/mm/nobootmem.c
+> +++ b/mm/nobootmem.c
+> @@ -275,6 +275,57 @@ void * __init __alloc_bootmem(unsigned long size, un=
+signed long align,
+> =A0 =A0 =A0 =A0return ___alloc_bootmem(size, align, goal, limit);
+> =A0}
 >
-> The amount of dirty pages is configurable, which is also great.
-
-You don't understand the issue. The point is NOT a formula. The problem
-is, dirty and non-dirty pages aren't isolated in our kernel. Then, kernel
-start to get stuck  far before non-dirty pages become empty. Lie notification
-always useless.
-
-
-> Even more, we may introduce two attributes:
+> +static void * __init ___alloc_bootmem_node_nopanic(pg_data_t *pgdat,
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0=
+ =A0 =A0 =A0 =A0 =A0 =A0 =A0unsigned long size,
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0=
+ =A0 =A0 =A0 =A0 =A0 =A0 =A0unsigned long align,
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0=
+ =A0 =A0 =A0 =A0 =A0 =A0 =A0unsigned long goal,
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0=
+ =A0 =A0 =A0 =A0 =A0 =A0 =A0unsigned long limit)
+> +{
+> + =A0 =A0 =A0 void *ptr;
+> +
+> +again:
+> + =A0 =A0 =A0 ptr =3D __alloc_memory_core_early(pgdat->node_id, size, ali=
+gn,
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0=
+ =A0 goal, limit);
+> + =A0 =A0 =A0 if (ptr)
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 return ptr;
+> +
+> + =A0 =A0 =A0 ptr =3D __alloc_memory_core_early(MAX_NUMNODES, size, align=
+,
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0=
+ =A0 goal, limit);
+> + =A0 =A0 =A0 if (ptr)
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 return ptr;
+> +
+> + =A0 =A0 =A0 if (goal) {
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 goal =3D 0;
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 goto again;
+> + =A0 =A0 =A0 }
+> +
+> + =A0 =A0 =A0 return NULL;
+> +}
+> +
+> +void * __init __alloc_bootmem_node_nopanic(pg_data_t *pgdat, unsigned lo=
+ng size,
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0unsi=
+gned long align, unsigned long goal)
+> +{
+> + =A0 =A0 =A0 if (WARN_ON_ONCE(slab_is_available()))
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 return kzalloc_node(size, GFP_NOWAIT, pgdat=
+->node_id);
+> +
+> + =A0 =A0 =A0 return ___alloc_bootmem_node_nopanic(pgdat, size, align, go=
+al, 0);
+> +}
+> +
+> +void * __init ___alloc_bootmem_node(pg_data_t *pgdat, unsigned long size=
+,
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 uns=
+igned long align, unsigned long goal,
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 uns=
+igned long limit)
+> +{
+> + =A0 =A0 =A0 void *ptr;
+> +
+> + =A0 =A0 =A0 ptr =3D ___alloc_bootmem_node_nopanic(pgdat, size, align, g=
+oal, limit);
+> + =A0 =A0 =A0 if (ptr)
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 return ptr;
+> +
+> + =A0 =A0 =A0 printk(KERN_ALERT "bootmem alloc of %lu bytes failed!\n", s=
+ize);
+> + =A0 =A0 =A0 panic("Out of memory");
+> + =A0 =A0 =A0 return NULL;
+> +}
+> +
+> =A0/**
+> =A0* __alloc_bootmem_node - allocate boot memory from a specific node
+> =A0* @pgdat: node to allocate from
+> @@ -293,30 +344,10 @@ void * __init __alloc_bootmem(unsigned long size, u=
+nsigned long align,
+> =A0void * __init __alloc_bootmem_node(pg_data_t *pgdat, unsigned long siz=
+e,
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 unsig=
+ned long align, unsigned long goal)
+> =A0{
+> - =A0 =A0 =A0 void *ptr;
+> -
+> =A0 =A0 =A0 =A0if (WARN_ON_ONCE(slab_is_available()))
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0return kzalloc_node(size, GFP_NOWAIT, pgda=
+t->node_id);
 >
-> RECLAIMABLE_CACHE_PAGES and
-> RECLAIMABLE_CACHE_PAGES_NOIO (which excludes dirty pages).
+> -again:
+> - =A0 =A0 =A0 ptr =3D __alloc_memory_core_early(pgdat->node_id, size, ali=
+gn,
+> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0=
+ =A0 =A0goal, -1ULL);
+> - =A0 =A0 =A0 if (ptr)
+> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 return ptr;
+> -
+> - =A0 =A0 =A0 ptr =3D __alloc_memory_core_early(MAX_NUMNODES, size, align=
+,
+> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0=
+ =A0 goal, -1ULL);
+> - =A0 =A0 =A0 if (ptr)
+> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 return ptr;
+> -
+> - =A0 =A0 =A0 if (goal) {
+> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 goal =3D 0;
+> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 goto again;
+> - =A0 =A0 =A0 }
+> -
+> - =A0 =A0 =A0 printk(KERN_ALERT "bootmem alloc of %lu bytes failed!\n", s=
+ize);
+> - =A0 =A0 =A0 panic("Out of memory");
+> - =A0 =A0 =A0 return NULL;
+> + =A0 =A0 =A0 return ___alloc_bootmem_node(pgdat, size, align, goal, 0);
+> =A0}
 >
-> This makes ABI detached from the mm internals and still keeps a
-> defined meaning of the attributes.
-
-Collection of craps are also crap. If you want to improve userland
-notification, you should join VM improvement activity. You shouldn't
-think nobody except you haven't think userland notification feature.
-
-The problem is, Any current kernel vm statistics were not created for
-such purpose and don't fit.
-
-Even though, some inaccurate and incorrect statistics fit _your_ usecase,
-they definitely don't fit other. And their people think it is bug.
-
-
->> 2) libc and some important library's pages are critical important
->> for running a system even though it is clean and reclaimable. In other
->> word, kernel don't have an info then can't expose it.
+> =A0void * __init __alloc_bootmem_node_high(pg_data_t *pgdat, unsigned lon=
+g size,
+> @@ -347,22 +378,6 @@ void * __init alloc_bootmem_section(unsigned long si=
+ze,
+> =A0}
+> =A0#endif
 >
-> First off, I guess LRU would try to keep important/most used pages in
-> the cache, as we try to never fully drain page cache to the zero mark.
+> -void * __init __alloc_bootmem_node_nopanic(pg_data_t *pgdat, unsigned lo=
+ng size,
+> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0unsi=
+gned long align, unsigned long goal)
+> -{
+> - =A0 =A0 =A0 void *ptr;
+> -
+> - =A0 =A0 =A0 if (WARN_ON_ONCE(slab_is_available()))
+> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 return kzalloc_node(size, GFP_NOWAIT, pgdat=
+->node_id);
+> -
+> - =A0 =A0 =A0 ptr =3D =A0__alloc_memory_core_early(pgdat->node_id, size, =
+align,
+> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0=
+ =A0 =A0 =A0 =A0 =A0 =A0goal, -1ULL);
+> - =A0 =A0 =A0 if (ptr)
+> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 return ptr;
+> -
+> - =A0 =A0 =A0 return __alloc_bootmem_nopanic(size, align, goal);
+> -}
+> -
+> =A0#ifndef ARCH_LOW_ADDRESS_LIMIT
+> =A0#define ARCH_LOW_ADDRESS_LIMIT 0xffffffffUL
+> =A0#endif
+> @@ -404,22 +419,9 @@ void * __init __alloc_bootmem_low(unsigned long size=
+, unsigned long align,
+> =A0void * __init __alloc_bootmem_low_node(pg_data_t *pgdat, unsigned long=
+ size,
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =
+=A0 unsigned long align, unsigned long goal)
+> =A0{
+> - =A0 =A0 =A0 void *ptr;
+> -
+> =A0 =A0 =A0 =A0if (WARN_ON_ONCE(slab_is_available()))
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0return kzalloc_node(size, GFP_NOWAIT, pgda=
+t->node_id);
+>
+> - =A0 =A0 =A0 ptr =3D __alloc_memory_core_early(pgdat->node_id, size, ali=
+gn,
+> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 goal, ARCH_=
+LOW_ADDRESS_LIMIT);
+> - =A0 =A0 =A0 if (ptr)
+> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 return ptr;
+> -
+> - =A0 =A0 =A0 ptr =3D __alloc_memory_core_early(MAX_NUMNODES, size, align=
+,
+> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0=
+ =A0 goal, ARCH_LOW_ADDRESS_LIMIT);
+> - =A0 =A0 =A0 if (ptr)
+> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 return ptr;
+> -
+> - =A0 =A0 =A0 printk(KERN_ALERT "bootmem alloc of %lu bytes failed!\n", s=
+ize);
+> - =A0 =A0 =A0 panic("Out of memory");
+> - =A0 =A0 =A0 return NULL;
+> + =A0 =A0 =A0 return ___alloc_bootmem_node(pgdat, size, align, goal,
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0=
+ARCH_LOW_ADDRESS_LIMIT);
+> =A0}
+> --
 
-Yes, what do you want say?
-
-
-> Secondly, if we're really low on memory (which low memory notifications
-> help to prevent) and kernel decided to throw libc's pages out of the
-> cache, you'll get cache miss and kernel will have to read it back. Well,
-> sometimes cache misses do happen, that's life. And if somebody really
-> don't want this for the essential parts of the system, one have to
-> mlock it (which eliminates your "kernel don't have an info" argument).
-
-First off, "low memory" is very poor definition and we must not use it.
-It is multiple meanings. 1) System free memory is low. Some embedded have userland
-oom killer and they want to know _system_ status. 2) available memory is low.
-This is different from (1) when using NUMA, memcg or cpusets. And in nowadays,
-almost all x86 box have numa. This is userful for swap avoidance activity if
-we can implement correctly.
-
-Secondly, we can't assume someone mlock to libc. Because of, Linux is generic
-purpose kernel. As far as you continue to talk about only user usecase, we can't
-agree you. "Users may have a workaround" don't make excuse to accept broken patch.
-
-
-
-
-> Btw, if you have any better strategy on helping userspace to define
-> 'low memory' conditions, I'll readily try to implement it.
-
-
+Acked-by: Yinghai Lu <yinghai@kernel.org>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
