@@ -1,54 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx122.postini.com [74.125.245.122])
-	by kanga.kvack.org (Postfix) with SMTP id 65B896B0083
-	for <linux-mm@kvack.org>; Mon,  7 May 2012 15:32:06 -0400 (EDT)
-Date: Mon, 7 May 2012 14:32:03 -0500
-From: Russ Anderson <rja@sgi.com>
-Subject: [patch] mm: nobootmem: fix sign extend problem in __free_pages_memory()
-Message-ID: <20120507193202.GA11518@sgi.com>
-Reply-To: Russ Anderson <rja@sgi.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+Received: from psmtp.com (na3sys010amx101.postini.com [74.125.245.101])
+	by kanga.kvack.org (Postfix) with SMTP id F20846B0044
+	for <linux-mm@kvack.org>; Mon,  7 May 2012 15:34:02 -0400 (EDT)
+Received: by yenm8 with SMTP id m8so6377987yen.14
+        for <linux-mm@kvack.org>; Mon, 07 May 2012 12:34:02 -0700 (PDT)
+Message-ID: <4FA823A7.9000801@gmail.com>
+Date: Mon, 07 May 2012 15:33:59 -0400
+From: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH v1 5/6] mm: make vmstat_update periodic run conditional
+References: <1336056962-10465-1-git-send-email-gilad@benyossef.com> <1336056962-10465-6-git-send-email-gilad@benyossef.com> <alpine.DEB.2.00.1205071024550.1060@router.home>
+In-Reply-To: <alpine.DEB.2.00.1205071024550.1060@router.home>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Yinghai Lu <yinghai@kernel.org>, David Miller <davem@davemloft.net>
-Cc: Russ Anderson <rja@sgi.com>
+To: Christoph Lameter <cl@linux.com>
+Cc: Gilad Ben-Yossef <gilad@benyossef.com>, linux-kernel@vger.kernel.org, Thomas Gleixner <tglx@linutronix.de>, Tejun Heo <tj@kernel.org>, John Stultz <johnstul@us.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, Mike Frysinger <vapier@gentoo.org>, David Rientjes <rientjes@google.com>, Hugh Dickins <hughd@google.com>, Minchan Kim <minchan.kim@gmail.com>, Konstantin Khlebnikov <khlebnikov@openvz.org>, Chris Metcalf <cmetcalf@tilera.com>, Hakan Akkan <hakanakkan@gmail.com>, Max Krasnyansky <maxk@qualcomm.com>, Frederic Weisbecker <fweisbec@gmail.com>, linux-mm@kvack.org, kosaki.motohiro@gmail.com
 
-Systems with 8 TBytes of memory or greater can hit a problem 
-where only the the first 8 TB of memory shows up.  This is
-due to "int i" being smaller than "unsigned long start_aligned",
-causing the high bits to be dropped.
+>> @@ -1204,8 +1265,14 @@ static int __init setup_vmstat(void)
+>>
+>>   	register_cpu_notifier(&vmstat_notifier);
+>>
+>> +	INIT_DELAYED_WORK_DEFERRABLE(&vmstat_monitor_work,
+>> +				vmstat_update_monitor);
+>> +	queue_delayed_work(system_unbound_wq,
+>> +				&vmstat_monitor_work,
+>> +				round_jiffies_relative(HZ));
+>> +
+>>   	for_each_online_cpu(cpu)
+>> -		start_cpu_timer(cpu);
+>> +		setup_cpu_timer(cpu);
+>>   #endif
+>>   #ifdef CONFIG_PROC_FS
+>>   	proc_create("buddyinfo", S_IRUGO, NULL,&fragmentation_file_operations);
+>
+> So the monitoring thread just bounces around the system? Hope that the
+> scheduler does the right thing to keep it on processors that do some other
+> work.
 
-The fix is to change i to unsigned long to match start_aligned
-and end_aligned.
-
-Thanks to Jack Steiner (steiner@sgi.com) for assistance tracking
-this down.
-
-Signed-off-by: Russ Anderson <rja@sgi.com>
-
----
- mm/nobootmem.c |    3 +--
- 1 file changed, 1 insertion(+), 2 deletions(-)
-
-Index: linux/mm/nobootmem.c
-===================================================================
---- linux.orig/mm/nobootmem.c	2012-05-05 08:39:39.470845187 -0500
-+++ linux/mm/nobootmem.c	2012-05-05 08:39:42.714784530 -0500
-@@ -82,8 +82,7 @@ void __init free_bootmem_late(unsigned l
- 
- static void __init __free_pages_memory(unsigned long start, unsigned long end)
- {
--	int i;
--	unsigned long start_aligned, end_aligned;
-+	unsigned long i, start_aligned, end_aligned;
- 	int order = ilog2(BITS_PER_LONG);
- 
- 	start_aligned = (start + (BITS_PER_LONG - 1)) & ~(BITS_PER_LONG - 1);
--- 
-Russ Anderson, OS RAS/Partitioning Project Lead  
-SGI - Silicon Graphics Inc          rja@sgi.com
+Good point. Usually, all cpus have update items and monitor worker only makes
+new noise. I think this feature is only useful some hpc case.  So I wonder if
+this vmstat improvemnt can integrate Frederic's Nohz cpusets activity. I.e.
+vmstat-update integrate timer house keeping and automatically stop when stopping
+hz house keeping.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
