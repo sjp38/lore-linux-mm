@@ -1,49 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx167.postini.com [74.125.245.167])
-	by kanga.kvack.org (Postfix) with SMTP id CF0336B0044
-	for <linux-mm@kvack.org>; Mon,  7 May 2012 11:15:45 -0400 (EDT)
-Received: from /spool/local
-	by e32.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <sjenning@linux.vnet.ibm.com>;
-	Mon, 7 May 2012 09:15:41 -0600
-Received: from d03relay02.boulder.ibm.com (d03relay02.boulder.ibm.com [9.17.195.227])
-	by d03dlp03.boulder.ibm.com (Postfix) with ESMTP id 9356419D8062
-	for <linux-mm@kvack.org>; Mon,  7 May 2012 09:14:41 -0600 (MDT)
-Received: from d03av01.boulder.ibm.com (d03av01.boulder.ibm.com [9.17.195.167])
-	by d03relay02.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q47FEdO6156470
-	for <linux-mm@kvack.org>; Mon, 7 May 2012 09:14:41 -0600
-Received: from d03av01.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av01.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q47FEc0j018681
-	for <linux-mm@kvack.org>; Mon, 7 May 2012 09:14:39 -0600
-Message-ID: <4FA7E6DD.6010607@linux.vnet.ibm.com>
-Date: Mon, 07 May 2012 10:14:37 -0500
-From: Seth Jennings <sjenning@linux.vnet.ibm.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH 6/6] zsmalloc: make zsmalloc portable
-References: <1335334994-22138-1-git-send-email-minchan@kernel.org> <1335334994-22138-7-git-send-email-minchan@kernel.org> <4F980AFE.60901@vflare.org> <4F982862.4050302@linux.vnet.ibm.com>
-In-Reply-To: <4F982862.4050302@linux.vnet.ibm.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Received: from psmtp.com (na3sys010amx149.postini.com [74.125.245.149])
+	by kanga.kvack.org (Postfix) with SMTP id 6D3A46B0044
+	for <linux-mm@kvack.org>; Mon,  7 May 2012 11:21:27 -0400 (EDT)
+Received: from canuck.infradead.org ([2001:4978:20e::1])
+	by merlin.infradead.org with esmtps (Exim 4.76 #1 (Red Hat Linux))
+	id 1SRPkc-0003o7-8W
+	for linux-mm@kvack.org; Mon, 07 May 2012 15:21:26 +0000
+Received: from dhcp-089-099-019-018.chello.nl ([89.99.19.18] helo=dyad.programming.kicks-ass.net)
+	by canuck.infradead.org with esmtpsa (Exim 4.76 #1 (Red Hat Linux))
+	id 1SRPkb-0001XS-RN
+	for linux-mm@kvack.org; Mon, 07 May 2012 15:21:26 +0000
+Subject: Re: [PATCH 2/2] block: Convert BDI proportion calculations to
+ flexible proportions
+From: Peter Zijlstra <peterz@infradead.org>
+In-Reply-To: <20120507144715.GB13983@localhost>
+References: <1336084760-19534-1-git-send-email-jack@suse.cz>
+	 <1336084760-19534-3-git-send-email-jack@suse.cz>
+	 <20120507144715.GB13983@localhost>
+Content-Type: text/plain; charset="UTF-8"
+Date: Mon, 07 May 2012 17:21:07 +0200
+Message-ID: <1336404067.27020.67.camel@laptop>
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Nitin Gupta <ngupta@vflare.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Dan Magenheimer <dan.magenheimer@oracle.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Fengguang Wu <fengguang.wu@intel.com>
+Cc: Jan Kara <jack@suse.cz>, linux-mm@kvack.org
 
-On 04/25/2012 11:37 AM, Seth Jennings wrote:
+On Mon, 2012-05-07 at 22:47 +0800, Fengguang Wu wrote:
+> On Fri, May 04, 2012 at 12:39:20AM +0200, Jan Kara wrote:
+> > Convert calculations of proportion of writeback each bdi does to new flexible
+> > proportion code. That allows us to use aging period of fixed wallclock time
+> > which gives better proportion estimates given the hugely varying throughput of
+> > different devices.
+> > 
+> > Signed-off-by: Jan Kara <jack@suse.cz>
+> > ---
+> >  include/linux/backing-dev.h |    6 ++--
+> >  mm/backing-dev.c            |    5 +--
+> >  mm/page-writeback.c         |   80 ++++++++++++++++++++----------------------
+> >  3 files changed, 43 insertions(+), 48 deletions(-)
+> 
+> > +static void vm_completions_period(struct work_struct *work);
+> > +/* Work for aging of vm_completions */
+> > +static DECLARE_DEFERRED_WORK(vm_completions_period_work, vm_completions_period);
+> 
+> > +
+> > +static void vm_completions_period(struct work_struct *work)
+> > +{
+> > +	fprop_new_period(&vm_completions);
+> > +	schedule_delayed_work(&vm_completions_period_work,
+> > +			      VM_COMPLETIONS_PERIOD_LEN);
+> > +}
+> > +
+> 
+> Is it possible to optimize away the periodic work when there are no
+> disk writes?
 
-> I'll apply your patch and try it out.
+That should really be a timer, nothing in there requires scheduling so
+the entire addition of the workqueue muck is pure overhead.
 
-Sorry for taking so long.
+You could keep a second period counter that tracks the last observed
+period and whenever the period and last_observed_period are further
+apart than BITS_PER_LONG you can stop the timer.
 
-I finally got around to testing this on an x86_64 VM and it works with
-the same performance as before and is much cleaner.  I like it.  Just
-need to expand the patch to all the arches.
+You'll have to restart it when updating last_observed_period.
 
-I'm also interested to see if this works for ppc64.  I'm hoping to try
-it out today or tomorrow.
 
---
-Seth
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
