@@ -1,54 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx150.postini.com [74.125.245.150])
-	by kanga.kvack.org (Postfix) with SMTP id 4C6306B0044
-	for <linux-mm@kvack.org>; Mon,  7 May 2012 10:47:27 -0400 (EDT)
-Date: Mon, 7 May 2012 22:47:15 +0800
-From: Fengguang Wu <fengguang.wu@intel.com>
-Subject: Re: [PATCH 2/2] block: Convert BDI proportion calculations to
- flexible proportions
-Message-ID: <20120507144715.GB13983@localhost>
-References: <1336084760-19534-1-git-send-email-jack@suse.cz>
- <1336084760-19534-3-git-send-email-jack@suse.cz>
+Received: from psmtp.com (na3sys010amx103.postini.com [74.125.245.103])
+	by kanga.kvack.org (Postfix) with SMTP id C3AC66B0081
+	for <linux-mm@kvack.org>; Mon,  7 May 2012 11:03:47 -0400 (EDT)
+Received: from /spool/local
+	by e8.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <sjenning@linux.vnet.ibm.com>;
+	Mon, 7 May 2012 11:03:46 -0400
+Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
+	by d01dlp01.pok.ibm.com (Postfix) with ESMTP id DF4DC38C80B0
+	for <linux-mm@kvack.org>; Mon,  7 May 2012 11:02:43 -0400 (EDT)
+Received: from d03av04.boulder.ibm.com (d03av04.boulder.ibm.com [9.17.195.170])
+	by d01relay02.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q47F2fkA094538
+	for <linux-mm@kvack.org>; Mon, 7 May 2012 11:02:42 -0400
+Received: from d03av04.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av04.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q47F22Ft030162
+	for <linux-mm@kvack.org>; Mon, 7 May 2012 09:02:02 -0600
+Message-ID: <4FA7E3D0.2040906@linux.vnet.ibm.com>
+Date: Mon, 07 May 2012 10:01:36 -0500
+From: Seth Jennings <sjenning@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1336084760-19534-3-git-send-email-jack@suse.cz>
+Subject: Re: [PATCH 3/4] zsmalloc use zs_handle instead of void *
+References: <1336027242-372-1-git-send-email-minchan@kernel.org> <1336027242-372-3-git-send-email-minchan@kernel.org> <4FA28907.9020300@vflare.org> <4FA2A2F0.3030509@linux.vnet.ibm.com> <4FA33DF6.8060107@kernel.org>
+In-Reply-To: <4FA33DF6.8060107@kernel.org>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jan Kara <jack@suse.cz>
-Cc: linux-mm@kvack.org, peterz@infradead.org
+To: Minchan Kim <minchan@kernel.org>
+Cc: Nitin Gupta <ngupta@vflare.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Dan Magenheimer <dan.magenheimer@oracle.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
 
-On Fri, May 04, 2012 at 12:39:20AM +0200, Jan Kara wrote:
-> Convert calculations of proportion of writeback each bdi does to new flexible
-> proportion code. That allows us to use aging period of fixed wallclock time
-> which gives better proportion estimates given the hugely varying throughput of
-> different devices.
+On 05/03/2012 09:24 PM, Minchan Kim wrote:
+
+> On 05/04/2012 12:23 AM, Seth Jennings wrote:
+>> The reason I hadn't done it before is that it introduces a checkpatch
+>> warning:
+>>
+>> WARNING: do not add new typedefs
+>> #303: FILE: drivers/staging/zsmalloc/zsmalloc.h:19:
+>> +typedef void * zs_handle;
+>>
 > 
-> Signed-off-by: Jan Kara <jack@suse.cz>
-> ---
->  include/linux/backing-dev.h |    6 ++--
->  mm/backing-dev.c            |    5 +--
->  mm/page-writeback.c         |   80 ++++++++++++++++++++----------------------
->  3 files changed, 43 insertions(+), 48 deletions(-)
+> 
+> Yes. I did it but I think we are (a) of chapter 5: Typedefs in Documentation/CodingStyle.
+> 
+>  (a) totally opaque objects (where the typedef is actively used to _hide_
+>      what the object is).
+> 
+> No?
 
-> +static void vm_completions_period(struct work_struct *work);
-> +/* Work for aging of vm_completions */
-> +static DECLARE_DEFERRED_WORK(vm_completions_period_work, vm_completions_period);
 
-> +
-> +static void vm_completions_period(struct work_struct *work)
-> +{
-> +	fprop_new_period(&vm_completions);
-> +	schedule_delayed_work(&vm_completions_period_work,
-> +			      VM_COMPLETIONS_PERIOD_LEN);
-> +}
-> +
+Interesting, seems like checkpatch and CodingStyle aren't completely in
+sync here.  Maybe the warning should say "do not add new typedefs unless
+allowed by CodingStyle 5(a)" or something.
 
-Is it possible to optimize away the periodic work when there are no
-disk writes?
+Works for me though.
 
-Thanks,
-Fengguang
+Thanks again Minchan!
+
+--
+Seth
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
