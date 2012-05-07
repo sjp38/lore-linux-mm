@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx166.postini.com [74.125.245.166])
-	by kanga.kvack.org (Postfix) with SMTP id 5DF2C6B00EA
+Received: from psmtp.com (na3sys010amx203.postini.com [74.125.245.203])
+	by kanga.kvack.org (Postfix) with SMTP id 633C46B00EF
 	for <linux-mm@kvack.org>; Mon,  7 May 2012 07:38:15 -0400 (EDT)
 From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: [patch 07/10] mm: nobootmem: panic on node-specific allocation failure
-Date: Mon,  7 May 2012 13:37:49 +0200
-Message-Id: <1336390672-14421-8-git-send-email-hannes@cmpxchg.org>
+Subject: [patch 05/10] mm: bootmem: allocate in order node+goal, goal, node, anywhere
+Date: Mon,  7 May 2012 13:37:47 +0200
+Message-Id: <1336390672-14421-6-git-send-email-hannes@cmpxchg.org>
 In-Reply-To: <1336390672-14421-1-git-send-email-hannes@cmpxchg.org>
 References: <1336390672-14421-1-git-send-email-hannes@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
@@ -13,53 +13,47 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Gavin Shan <shangw@linux.vnet.ibm.com>, David Miller <davem@davemloft.net>, Yinghai Lu <yinghai@kernel.org>, Tejun Heo <tj@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-__alloc_bootmem_node and __alloc_bootmem_low_node documentation claims
-the functions panic on allocation failure.  Do it.
+Match the nobootmem version of __alloc_bootmem_node.  Try to satisfy
+both the node and the goal, then just the goal, then just the node,
+then allocate anywhere before panicking.
 
 Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
 ---
- mm/nobootmem.c |   20 ++++++++++++++++----
- 1 file changed, 16 insertions(+), 4 deletions(-)
+ mm/bootmem.c |   14 +++++++++++++-
+ 1 file changed, 13 insertions(+), 1 deletion(-)
 
-diff --git a/mm/nobootmem.c b/mm/nobootmem.c
-index e53bb8a..b078ff8 100644
---- a/mm/nobootmem.c
-+++ b/mm/nobootmem.c
-@@ -306,11 +306,17 @@ again:
+diff --git a/mm/bootmem.c b/mm/bootmem.c
+index bafeb2c..b5babdf 100644
+--- a/mm/bootmem.c
++++ b/mm/bootmem.c
+@@ -704,6 +704,7 @@ static void * __init ___alloc_bootmem_node(bootmem_data_t *bdata,
+ {
+ 	void *ptr;
  
- 	ptr = __alloc_memory_core_early(MAX_NUMNODES, size, align,
- 					goal, -1ULL);
--	if (!ptr && goal) {
++again:
+ 	ptr = alloc_arch_preferred_bootmem(bdata, size, align, goal, limit);
+ 	if (ptr)
+ 		return ptr;
+@@ -712,7 +713,18 @@ static void * __init ___alloc_bootmem_node(bootmem_data_t *bdata,
+ 	if (ptr)
+ 		return ptr;
+ 
+-	return ___alloc_bootmem(size, align, goal, limit);
++	ptr = alloc_bootmem_core(size, align, goal, limit);
 +	if (ptr)
 +		return ptr;
 +
 +	if (goal) {
- 		goal = 0;
- 		goto again;
- 	}
--	return ptr;
++		goal = 0;
++		goto again;
++	}
 +
 +	printk(KERN_ALERT "bootmem alloc of %lu bytes failed!\n", size);
 +	panic("Out of memory");
 +	return NULL;
  }
  
- void * __init __alloc_bootmem_node_high(pg_data_t *pgdat, unsigned long size,
-@@ -408,6 +414,12 @@ void * __init __alloc_bootmem_low_node(pg_data_t *pgdat, unsigned long size,
- 	if (ptr)
- 		return ptr;
- 
--	return  __alloc_memory_core_early(MAX_NUMNODES, size, align,
--				goal, ARCH_LOW_ADDRESS_LIMIT);
-+	ptr = __alloc_memory_core_early(MAX_NUMNODES, size, align,
-+					goal, ARCH_LOW_ADDRESS_LIMIT);
-+	if (ptr)
-+		return ptr;
-+
-+	printk(KERN_ALERT "bootmem alloc of %lu bytes failed!\n", size);
-+	panic("Out of memory");
-+	return NULL;
- }
+ /**
 -- 
 1.7.10
 
