@@ -1,67 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx197.postini.com [74.125.245.197])
-	by kanga.kvack.org (Postfix) with SMTP id CDD7B6B004D
-	for <linux-mm@kvack.org>; Mon,  7 May 2012 17:41:52 -0400 (EDT)
-Received: by pbbrp2 with SMTP id rp2so9144082pbb.14
-        for <linux-mm@kvack.org>; Mon, 07 May 2012 14:41:52 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx166.postini.com [74.125.245.166])
+	by kanga.kvack.org (Postfix) with SMTP id 725556B004D
+	for <linux-mm@kvack.org>; Mon,  7 May 2012 18:01:57 -0400 (EDT)
+Date: Tue, 8 May 2012 00:01:42 +0200
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [patch 00/10] (no)bootmem bits for 3.5
+Message-ID: <20120507220142.GA1202@cmpxchg.org>
+References: <1336390672-14421-1-git-send-email-hannes@cmpxchg.org>
+ <20120507204113.GD10521@merkur.ravnborg.org>
 MIME-Version: 1.0
-In-Reply-To: <alpine.DEB.2.00.1205071514040.6029@router.home>
-References: <CAP145pjtv-S2oHhn8_QfLKF8APtut4B9qPXK5QM8nQbxzPd2gw@mail.gmail.com>
-	<alpine.DEB.2.00.1205071514040.6029@router.home>
-Date: Mon, 7 May 2012 23:41:51 +0200
-Message-ID: <CAP145piK2kW4F94pNdKpo_sGg8OD914exOtwCx2o+83jx5Toog@mail.gmail.com>
-Subject: Re: mmap/clone returns ENOMEM with lots of free memory
-From: =?UTF-8?B?Um9iZXJ0IMWad2nEmWNraQ==?= <robert@swiecki.net>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20120507204113.GD10521@merkur.ravnborg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Sam Ravnborg <sam@ravnborg.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Gavin Shan <shangw@linux.vnet.ibm.com>, David Miller <davem@davemloft.net>, Yinghai Lu <yinghai@kernel.org>, Tejun Heo <tj@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Mon, May 7, 2012 at 10:15 PM, Christoph Lameter <cl@linux.com> wrote:
-> On Mon, 7 May 2012, Robert =C5=9Awi=C4=99cki wrote:
->
->> root@ise-test:~/kern-fuz# ./cont.sh
->> su: Cannot fork user shell
->> su: Cannot fork user shell
->> su: Cannot fork user shell
->>
->> root@ise-test:~/kern-fuz# strace -e mmap,clone su test -c 'kill -CONT
->> -1' 2>&1 | grep "=3D \-1"
->> clone(child_stack=3D0,
->> flags=3DCLONE_CHILD_CLEARTID|CLONE_CHILD_SETTID|SIGCHLD,
->> child_tidptr=3D0x7fadf334f9f0) =3D -1 ENOMEM (Cannot allocate memory)
->> mmap(NULL, 4096, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1,
->> 0) =3D -1 ENOMEM (Cannot allocate memory)
->
-> Hmmm... That looks like some maximum virtual memory limit was violated.
->
-> Check ulimit and the overcommit settings (see /proc/meminfo's commitlimit
-> etc)
+On Mon, May 07, 2012 at 10:41:13PM +0200, Sam Ravnborg wrote:
+> Hi Johannes.
+> 
+> > here are some (no)bootmem fixes and cleanups for 3.5.  Most of it is
+> > unifying allocation behaviour across bootmem and nobootmem when it
+> > comes to respecting the specified allocation address goal and numa.
+> > 
+> > But also refactoring the codebases of the two bootmem APIs so that we
+> > can think about sharing code between them again.
+> 
+> Could you check up on CONFIG_HAVE_ARCH_BOOTMEM use in bootmem.c too?
+> x86 no longer uses bootmem.c
+> avr define it - but to n.
+> 
+> So no-one is actually using this anymore.
+> I have sent patches to remove it from Kconfig for both x86 and avr.
+> 
+> I looked briefly at cleaning up bootmem.c myslef - but I felt not
+> familiar enough with the code to do the cleanup.
+> 
+> I did not check your patchset - but based on the shortlog you
+> did not kill HAVE_ARCH_BOOTMEM.
 
-Yup (btw: I attached dump of some proc files and some debug commands
-in the original e-mail - can be found here
-http://marc.info/?l=3Dlinux-kernel&m=3D133640623421007&w=3D2 in case some
-MTA removed them)
+It was used on x86-32 numa to try all bootmem allocations from node 0
+first (see only remaining definition of bootmem_arch_preferred_node),
+which AFAICS nobootmem no longer respects.
 
-CommitLimit:     1981528 kB
-Committed_AS:    1916788 kB
+Shouldn't this be fixed instead?
 
-just not sure if Committed_AS should present this kind of value. Did I
-just hit a legitimate condition, or may it suggest a bug? I'm a bit
-puzzled cause
-
-root@ise-test:/proc# grep Mem /proc/meminfo
-MemTotal:        3963060 kB
-MemFree:         3098324 kB
-
-Also, some sysctl values:
-vm.overcommit_memory =3D 2
-vm.overcommit_ratio =3D 50
-
---=20
-Robert =C5=9Awi=C4=99cki
+But yeah, we can remove the bootmem.c parts, I think.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
