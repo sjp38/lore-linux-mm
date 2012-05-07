@@ -1,44 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx166.postini.com [74.125.245.166])
-	by kanga.kvack.org (Postfix) with SMTP id 240A66B0083
-	for <linux-mm@kvack.org>; Mon,  7 May 2012 16:41:15 -0400 (EDT)
-Date: Mon, 7 May 2012 22:41:13 +0200
-From: Sam Ravnborg <sam@ravnborg.org>
-Subject: Re: [patch 00/10] (no)bootmem bits for 3.5
-Message-ID: <20120507204113.GD10521@merkur.ravnborg.org>
-References: <1336390672-14421-1-git-send-email-hannes@cmpxchg.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1336390672-14421-1-git-send-email-hannes@cmpxchg.org>
+Received: from psmtp.com (na3sys010amx170.postini.com [74.125.245.170])
+	by kanga.kvack.org (Postfix) with SMTP id E22DE6B004D
+	for <linux-mm@kvack.org>; Mon,  7 May 2012 17:32:20 -0400 (EDT)
+Date: Mon, 7 May 2012 14:32:18 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [patch] mm: nobootmem: fix sign extend problem in
+ __free_pages_memory()
+Message-Id: <20120507143218.e8cc5584.akpm@linux-foundation.org>
+In-Reply-To: <20120507193202.GA11518@sgi.com>
+References: <20120507193202.GA11518@sgi.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Gavin Shan <shangw@linux.vnet.ibm.com>, David Miller <davem@davemloft.net>, Yinghai Lu <yinghai@kernel.org>, Tejun Heo <tj@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Russ Anderson <rja@sgi.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Yinghai Lu <yinghai@kernel.org>, David Miller <davem@davemloft.net>
 
-Hi Johannes.
+On Mon, 7 May 2012 14:32:03 -0500
+Russ Anderson <rja@sgi.com> wrote:
 
-> here are some (no)bootmem fixes and cleanups for 3.5.  Most of it is
-> unifying allocation behaviour across bootmem and nobootmem when it
-> comes to respecting the specified allocation address goal and numa.
+> Systems with 8 TBytes of memory or greater can hit a problem 
+> where only the the first 8 TB of memory shows up.
+
+erk.
+
+>  This is
+> due to "int i" being smaller than "unsigned long start_aligned",
+> causing the high bits to be dropped.
 > 
-> But also refactoring the codebases of the two bootmem APIs so that we
-> can think about sharing code between them again.
+> The fix is to change i to unsigned long to match start_aligned
+> and end_aligned.
+> 
+> Thanks to Jack Steiner (steiner@sgi.com) for assistance tracking
+> this down.
+> 
 
-Could you check up on CONFIG_HAVE_ARCH_BOOTMEM use in bootmem.c too?
-x86 no longer uses bootmem.c
-avr define it - but to n.
-
-So no-one is actually using this anymore.
-I have sent patches to remove it from Kconfig for both x86 and avr.
-
-I looked briefly at cleaning up bootmem.c myslef - but I felt not
-familiar enough with the code to do the cleanup.
-
-I did not check your patchset - but based on the shortlog you
-did not kill HAVE_ARCH_BOOTMEM.
-
-	Sam
+I added the Cc: <stable@vger.kernel.org> to this.  The fix is small and
+safe and someone might want to run older kernels on such a machine.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
