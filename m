@@ -1,46 +1,26 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx116.postini.com [74.125.245.116])
-	by kanga.kvack.org (Postfix) with SMTP id 44EB06B004D
-	for <linux-mm@kvack.org>; Mon,  7 May 2012 16:11:31 -0400 (EDT)
-Message-ID: <4FA82C6B.4010801@redhat.com>
-Date: Mon, 07 May 2012 16:11:23 -0400
-From: Rik van Riel <riel@redhat.com>
+Received: from psmtp.com (na3sys010amx125.postini.com [74.125.245.125])
+	by kanga.kvack.org (Postfix) with SMTP id 159B86B004D
+	for <linux-mm@kvack.org>; Mon,  7 May 2012 16:17:57 -0400 (EDT)
+Date: Mon, 7 May 2012 15:17:54 -0500 (CDT)
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: [PATCH] Documentations: Fix slabinfo.c directory in
+ vm/slub.txt
+In-Reply-To: <201205031634316254497@gmail.com>
+Message-ID: <alpine.DEB.2.00.1205071517350.6029@router.home>
+References: <201205031634316254497@gmail.com>
 MIME-Version: 1.0
-Subject: Re: [RFC][PATCH] avoid swapping out with swappiness==0
-References: <65795E11DBF1E645A09CEC7EAEE94B9CB9455FE2@USINDEVS02.corp.hds.com>
-In-Reply-To: <65795E11DBF1E645A09CEC7EAEE94B9CB9455FE2@USINDEVS02.corp.hds.com>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Satoru Moriya <satoru.moriya@hds.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "lwoodman@redhat.com" <lwoodman@redhat.com>, "jweiner@redhat.com" <jweiner@redhat.com>, "shaohua.li@intel.com" <shaohua.li@intel.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, "dle-develop@lists.sourceforge.net" <dle-develop@lists.sourceforge.net>, Seiji Aguchi <seiji.aguchi@hds.com>
+To: majianpeng <majianpeng@gmail.com>
+Cc: linux-mm <linux-mm@kvack.org>, Pekka Enberg <penberg@cs.helsinki.fi>
 
-On 03/02/2012 12:36 PM, Satoru Moriya wrote:
-> Sometimes we'd like to avoid swapping out anonymous memory
-> in particular, avoid swapping out pages of important process or
-> process groups while there is a reasonable amount of pagecache
-> on RAM so that we can satisfy our customers' requirements.
->
-> OTOH, we can control how aggressive the kernel will swap memory pages
-> with /proc/sys/vm/swappiness for global and
-> /sys/fs/cgroup/memory/memory.swappiness for each memcg.
->
-> But with current reclaim implementation, the kernel may swap out
-> even if we set swappiness==0 and there is pagecache on RAM.
->
-> This patch changes the behavior with swappiness==0. If we set
-> swappiness==0, the kernel does not swap out completely
-> (for global reclaim until the amount of free pages and filebacked
-> pages in a zone has been reduced to something very very small
-> (nr_free + nr_filebacked<  high watermark)).
+On Thu, 3 May 2012, majianpeng wrote:
 
-> Signed-off-by: Satoru Moriya<satoru.moriya@hds.com>
+> Because the place of slabinfo.c changed.So update in slub.txt.
 
-Acked-by: Rik van Riel <riel@redhat.com>
-
--- 
-All rights reversed
+Acked-by: Christoph Lameter <cl@linux.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
