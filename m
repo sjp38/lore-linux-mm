@@ -1,60 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx171.postini.com [74.125.245.171])
-	by kanga.kvack.org (Postfix) with SMTP id 3AEF26B0044
-	for <linux-mm@kvack.org>; Mon,  7 May 2012 15:40:17 -0400 (EDT)
-Date: Mon, 7 May 2012 14:40:11 -0500 (CDT)
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: [PATCH v1 5/6] mm: make vmstat_update periodic run conditional
-In-Reply-To: <4FA823A7.9000801@gmail.com>
-Message-ID: <alpine.DEB.2.00.1205071438240.2215@router.home>
-References: <1336056962-10465-1-git-send-email-gilad@benyossef.com> <1336056962-10465-6-git-send-email-gilad@benyossef.com> <alpine.DEB.2.00.1205071024550.1060@router.home> <4FA823A7.9000801@gmail.com>
+Received: from psmtp.com (na3sys010amx102.postini.com [74.125.245.102])
+	by kanga.kvack.org (Postfix) with SMTP id BDF696B004D
+	for <linux-mm@kvack.org>; Mon,  7 May 2012 16:10:05 -0400 (EDT)
+Message-ID: <4FA82C11.2030805@redhat.com>
+Date: Mon, 07 May 2012 16:09:53 -0400
+From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [RFC][PATCH] avoid swapping out with swappiness==0
+References: <65795E11DBF1E645A09CEC7EAEE94B9CB951A45F@USINDEVS02.corp.hds.com> <20120424082019.GA18395@alpha.arachsys.com> <65795E11DBF1E645A09CEC7EAEE94B9C014649EC4D@USINDEVS02.corp.hds.com> <20120426142643.GA18863@alpha.arachsys.com> <CAHGf_=pcmFrWjfW3eQi_AiemQEm_e=gBZ24s+Hiythmd=J9EUQ@mail.gmail.com>
+In-Reply-To: <CAHGf_=pcmFrWjfW3eQi_AiemQEm_e=gBZ24s+Hiythmd=J9EUQ@mail.gmail.com>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
-Cc: Gilad Ben-Yossef <gilad@benyossef.com>, linux-kernel@vger.kernel.org, Thomas Gleixner <tglx@linutronix.de>, Tejun Heo <tj@kernel.org>, John Stultz <johnstul@us.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, Mike Frysinger <vapier@gentoo.org>, David Rientjes <rientjes@google.com>, Hugh Dickins <hughd@google.com>, Minchan Kim <minchan.kim@gmail.com>, Konstantin Khlebnikov <khlebnikov@openvz.org>, Chris Metcalf <cmetcalf@tilera.com>, Hakan Akkan <hakanakkan@gmail.com>, Max Krasnyansky <maxk@qualcomm.com>, Frederic Weisbecker <fweisbec@gmail.com>, linux-mm@kvack.org
+Cc: Richard Davies <richard.davies@elastichosts.com>, Satoru Moriya <satoru.moriya@hds.com>, Jerome Marchand <jmarchan@redhat.com>, "jweiner@redhat.com" <jweiner@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "lwoodman@redhat.com" <lwoodman@redhat.com>, "shaohua.li@intel.com" <shaohua.li@intel.com>, "dle-develop@lists.sourceforge.net" <dle-develop@lists.sourceforge.net>, Seiji Aguchi <seiji.aguchi@hds.com>, Minchan Kim <minchan.kim@gmail.com>
 
-On Mon, 7 May 2012, KOSAKI Motohiro wrote:
-
-> > > @@ -1204,8 +1265,14 @@ static int __init setup_vmstat(void)
-> > >
-> > >   	register_cpu_notifier(&vmstat_notifier);
-> > >
-> > > +	INIT_DELAYED_WORK_DEFERRABLE(&vmstat_monitor_work,
-> > > +				vmstat_update_monitor);
-> > > +	queue_delayed_work(system_unbound_wq,
-> > > +				&vmstat_monitor_work,
-> > > +				round_jiffies_relative(HZ));
-> > > +
-> > >   	for_each_online_cpu(cpu)
-> > > -		start_cpu_timer(cpu);
-> > > +		setup_cpu_timer(cpu);
-> > >   #endif
-> > >   #ifdef CONFIG_PROC_FS
-> > >   	proc_create("buddyinfo", S_IRUGO,
-> > > NULL,&fragmentation_file_operations);
-> >
-> > So the monitoring thread just bounces around the system? Hope that the
-> > scheduler does the right thing to keep it on processors that do some other
-> > work.
+On 04/26/2012 11:41 AM, KOSAKI Motohiro wrote:
+> On Thu, Apr 26, 2012 at 10:26 AM, Richard Davies
+> <richard.davies@elastichosts.com>  wrote:
+>> Satoru Moriya wrote:
+>>>> I have run into problems with heavy swapping with swappiness==0 and
+>>>> was pointed to this thread (
+>>>> http://marc.info/?l=linux-mm&m=133522782307215 )
+>>>
+>>> Did you test this patch with your workload?
+>>
+>> I haven't yet tested this patch. It takes a long time since these are
+>> production machines, and the bug itself takes several weeks of production
+>> use to really show up.
+>>
+>> Rik van Riel has pointed out a lot of VM tweaks that he put into 3.4:
+>> http://marc.info/?l=linux-mm&m=133536506926326
+>>
+>> My intention is to reboot half of our machines into plain 3.4 once it is
+>> out, and half onto 3.4 + your patch.
+>>
+>> Then we can compare behaviour.
+>>
+>> Will your patch apply cleanly on 3.4?
 >
-> Good point. Usually, all cpus have update items and monitor worker only makes
-> new noise. I think this feature is only useful some hpc case.  So I wonder if
-> this vmstat improvemnt can integrate Frederic's Nohz cpusets activity. I.e.
-> vmstat-update integrate timer house keeping and automatically stop when
-> stopping
-> hz house keeping.
+> Note. This patch doesn't solve your issue. This patch mean,
+> when occuring very few swap io, it change to 0. But you said
+> you are seeing eager swap io. As Dave already pointed out, your
+> machine have buffer head issue.
+>
+> So, this thread is pointless.
 
-Right. We could do the same processing in vmstat update and the
-thread could check if it is the last vmstat update thread. If so simply
-continue and do not terminate.
+Running KVM guests directly off block devices results in a lot
+of buffer cache.
 
-But this would still mean that the vmstat update thread would run on an
-arbitrary cpu. If I have a sacrificial lamb processor for OS processing
-then I would expect the vmstat update thread to stick to that processor
-and avoid to run on the other processor that I would like to be as free
-from OS noise as possible.
+I suspect that this patch will in fact fix Richard's issue.
+
+The patch is small, fairly simple and looks like it will fix
+people's problems.  It also makes swappiness=0 behave the way
+most people seem to imagine it would work.
+
+If it works for a few people (test results), I believe we
+might as well merge it.
+
+Yes, for cgroups we may need additional logic, but we can
+sort that out as we go along.
+
+-- 
+All rights reversed
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
