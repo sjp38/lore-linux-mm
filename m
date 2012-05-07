@@ -1,87 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx203.postini.com [74.125.245.203])
-	by kanga.kvack.org (Postfix) with SMTP id 638B06B00FC
-	for <linux-mm@kvack.org>; Mon,  7 May 2012 08:16:53 -0400 (EDT)
-Received: by pbbrp2 with SMTP id rp2so8348567pbb.14
-        for <linux-mm@kvack.org>; Mon, 07 May 2012 05:16:52 -0700 (PDT)
-Date: Mon, 7 May 2012 05:15:27 -0700
-From: Anton Vorontsov <anton.vorontsov@linaro.org>
-Subject: Re: [PATCH 3/3] vmevent: Implement special low-memory attribute
-Message-ID: <20120507121527.GA19526@lizard>
-References: <20120501132409.GA22894@lizard>
- <20120501132620.GC24226@lizard>
- <4FA35A85.4070804@kernel.org>
- <20120504073810.GA25175@lizard>
- <CAOJsxLH_7mMMe+2DvUxBW1i5nbUfkbfRE3iEhLQV9F_MM7=eiw@mail.gmail.com>
- <CAHGf_=qcGfuG1g15SdE0SDxiuhCyVN025pQB+sQNuNba4Q4jcA@mail.gmail.com>
+Received: from psmtp.com (na3sys010amx164.postini.com [74.125.245.164])
+	by kanga.kvack.org (Postfix) with SMTP id 0796B6B00FD
+	for <linux-mm@kvack.org>; Mon,  7 May 2012 08:40:29 -0400 (EDT)
+Received: by qabg27 with SMTP id g27so2739254qab.14
+        for <linux-mm@kvack.org>; Mon, 07 May 2012 05:40:29 -0700 (PDT)
+Message-ID: <4FA7C2BC.2090400@vflare.org>
+Date: Mon, 07 May 2012 08:40:28 -0400
+From: Nitin Gupta <ngupta@vflare.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-In-Reply-To: <CAHGf_=qcGfuG1g15SdE0SDxiuhCyVN025pQB+sQNuNba4Q4jcA@mail.gmail.com>
+Subject: Re: [PATCH 4/4] zsmalloc: zsmalloc: align cache line size
+References: <1336027242-372-1-git-send-email-minchan@kernel.org> <1336027242-372-4-git-send-email-minchan@kernel.org> <4FA28EFD.5070002@vflare.org> <4FA33E89.6080206@kernel.org> <alpine.LFD.2.02.1205071038090.2851@tux.localdomain>
+In-Reply-To: <alpine.LFD.2.02.1205071038090.2851@tux.localdomain>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
-Cc: Pekka Enberg <penberg@kernel.org>, Minchan Kim <minchan@kernel.org>, Leonid Moiseichuk <leonid.moiseichuk@nokia.com>, John Stultz <john.stultz@linaro.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linaro-kernel@lists.linaro.org, patches@linaro.org, kernel-team@android.com
+To: Pekka Enberg <penberg@kernel.org>
+Cc: Minchan Kim <minchan@kernel.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Dan Magenheimer <dan.magenheimer@oracle.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, cl@linux-foundation.org
 
-On Mon, May 07, 2012 at 04:26:00AM -0400, KOSAKI Motohiro wrote:
-> >> If we'll give up on "1." (Pekka, ping), then we need to solve "2."
-> >> in a sane way: we'll have to add a 'NR_FILE_PAGES - NR_SHMEM -
-> >> <todo-locked-file-pages>' attribute, and give it a name.
-> >
-> > Well, no, we can't give up on (1) completely. That'd mean that
-> > eventually we'd need to change the ABI and break userspace. The
-> > difference between exposing internal details and reasonable
-> > abstractions is by no means black and white.
-> >
-> > AFAICT, RECLAIMABLE_CACHE_PAGES is a reasonable thing to support. Can
-> > anyone come up with a reason why we couldn't do that in the future?
-> 
-> It can. but the problem is, that is completely useless.
+On 5/7/12 3:41 AM, Pekka Enberg wrote:
+> On Fri, 4 May 2012, Minchan Kim wrote:
+>>>> It's a overkill to align pool size with PAGE_SIZE to avoid
+>>>> false-sharing. This patch aligns it with just cache line size.
+>>>>
+>>>> Signed-off-by: Minchan Kim<minchan@kernel.org>
+>>>> ---
+>>>>    drivers/staging/zsmalloc/zsmalloc-main.c |    6 +++---
+>>>>    1 file changed, 3 insertions(+), 3 deletions(-)
+>>>>
+>>>> diff --git a/drivers/staging/zsmalloc/zsmalloc-main.c
+>>>> b/drivers/staging/zsmalloc/zsmalloc-main.c
+>>>> index 51074fa..3991b03 100644
+>>>> --- a/drivers/staging/zsmalloc/zsmalloc-main.c
+>>>> +++ b/drivers/staging/zsmalloc/zsmalloc-main.c
+>>>> @@ -489,14 +489,14 @@ fail:
+>>>>
+>>>>    struct zs_pool *zs_create_pool(const char *name, gfp_t flags)
+>>>>    {
+>>>> -    int i, error, ovhd_size;
+>>>> +    int i, error;
+>>>>        struct zs_pool *pool;
+>>>>
+>>>>        if (!name)
+>>>>            return NULL;
+>>>>
+>>>> -    ovhd_size = roundup(sizeof(*pool), PAGE_SIZE);
+>>>> -    pool = kzalloc(ovhd_size, GFP_KERNEL);
+>>>> +    pool = kzalloc(ALIGN(sizeof(*pool), cache_line_size()),
+>>>> +                GFP_KERNEL);
+>>>
+>>> a basic question:
+>>>   Is rounding off allocation size to cache_line_size enough to ensure
+>>> that the object is cache-line-aligned? Isn't it possible that even
+>>> though the object size is multiple of cache-line, it may still not be
+>>> properly aligned and end up sharing cache line with some other
+>>> read-mostly object?
+>>
+>> AFAIK, SLAB allocates object aligned cache-size so I think that problem cannot happen.
+>> But needs double check.
+>> Cced Pekka.
+>
+> The kmalloc(size) function only gives you the following guarantees:
+>
+>    (1) The allocated object is _at least_ 'size' bytes.
+>
+>    (2) The returned pointer is aligned to ARCH_KMALLOC_MINALIGN.
+>
+> Anything beyond that is implementation detail and probably will break if
+> you switch between SLAB/SLUB/SLOB.
+>
+> 			Pekka
 
-Surely it is useful. Could be not ideal, but you can't say that
-it is completely useless.
+So, we can probably leave it as is (PAGE_SIZE aligned) or use 
+kmem_cache_create(...,SLAB_HWCACHE_ALIGN,...) for allocating 'struct 
+zs_pool's.
 
-> Because of, 1) dirty pages writing-out is sometimes very slow and
+zcache can potentially create a lot of pools, so the latter will save 
+some memory.
 
-I don't see it as a unresolvable problem: we can exclude dirty pages,
-that's a nice idea actually.
-
-Easily reclaimable cache pages = file_pages - shmem - locked pages
-- dirty pages.
-
-The amount of dirty pages is configurable, which is also great.
-
-Even more, we may introduce two attributes:
-
-RECLAIMABLE_CACHE_PAGES and
-RECLAIMABLE_CACHE_PAGES_NOIO (which excludes dirty pages).
-
-This makes ABI detached from the mm internals and still keeps a
-defined meaning of the attributes.
-
-> 2) libc and some important library's pages are critical important
-> for running a system even though it is clean and reclaimable. In other
-> word, kernel don't have an info then can't expose it.
-
-First off, I guess LRU would try to keep important/most used pages in
-the cache, as we try to never fully drain page cache to the zero mark.
-
-Secondly, if we're really low on memory (which low memory notifications
-help to prevent) and kernel decided to throw libc's pages out of the
-cache, you'll get cache miss and kernel will have to read it back. Well,
-sometimes cache misses do happen, that's life. And if somebody really
-don't want this for the essential parts of the system, one have to
-mlock it (which eliminates your "kernel don't have an info" argument).
-
-
-Btw, if you have any better strategy on helping userspace to define
-'low memory' conditions, I'll readily try to implement it.
-
-Thanks!
-
--- 
-Anton Vorontsov
-Email: cbouatmailru@gmail.com
+Thanks,
+Nitin
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
