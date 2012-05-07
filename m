@@ -1,71 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx104.postini.com [74.125.245.104])
-	by kanga.kvack.org (Postfix) with SMTP id 2EC3B6B004D
-	for <linux-mm@kvack.org>; Mon,  7 May 2012 16:24:09 -0400 (EDT)
-Date: Mon, 7 May 2012 15:24:06 -0500 (CDT)
+Received: from psmtp.com (na3sys010amx157.postini.com [74.125.245.157])
+	by kanga.kvack.org (Postfix) with SMTP id AC6666B004D
+	for <linux-mm@kvack.org>; Mon,  7 May 2012 16:36:20 -0400 (EDT)
+Date: Mon, 7 May 2012 15:15:46 -0500 (CDT)
 From: Christoph Lameter <cl@linux.com>
-Subject: Re: [PATCH] slab/mempolicy: always use local policy from interrupt
- context v2
-In-Reply-To: <CAOJsxLE36GNJBmdrJqFfoyEve8swVsaBSq_oVgkgXSMEC3oBfA@mail.gmail.com>
-Message-ID: <alpine.DEB.2.00.1205071522450.6029@router.home>
-References: <1334499755-4399-1-git-send-email-andi@firstfloor.org> <CAOJsxLE36GNJBmdrJqFfoyEve8swVsaBSq_oVgkgXSMEC3oBfA@mail.gmail.com>
+Subject: Re: mmap/clone returns ENOMEM with lots of free memory
+In-Reply-To: <CAP145pjtv-S2oHhn8_QfLKF8APtut4B9qPXK5QM8nQbxzPd2gw@mail.gmail.com>
+Message-ID: <alpine.DEB.2.00.1205071514040.6029@router.home>
+References: <CAP145pjtv-S2oHhn8_QfLKF8APtut4B9qPXK5QM8nQbxzPd2gw@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: MULTIPART/MIXED; BOUNDARY="-1463811839-638261144-1336422247=:6029"
+Content-Type: MULTIPART/Mixed; BOUNDARY=047d7b10c86d14f88404bf744902
+Content-ID: <alpine.DEB.2.00.1205071514041.6029@router.home>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pekka Enberg <penberg@kernel.org>
-Cc: Andi Kleen <andi@firstfloor.org>, linux-kernel@vger.kernel.org, Andi Kleen <ak@linux.intel.com>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org
+To: =?ISO-8859-2?Q?Robert_=A6wi=EAcki?= <robert@swiecki.net>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
   This message is in MIME format.  The first part should be readable text,
   while the remaining parts are likely unreadable without MIME-aware tools.
 
----1463811839-638261144-1336422247=:6029
-Content-Type: TEXT/PLAIN; charset=ISO-8859-1
+--047d7b10c86d14f88404bf744902
+Content-Type: TEXT/PLAIN; CHARSET=UTF-8
 Content-Transfer-Encoding: QUOTED-PRINTABLE
+Content-ID: <alpine.DEB.2.00.1205071514042.6029@router.home>
 
-On Thu, 3 May 2012, Pekka Enberg wrote:
+On Mon, 7 May 2012, Robert =C5=9Awi=C4=99cki wrote:
 
-> (Adding some CC's.)
+> root@ise-test:~/kern-fuz# ./cont.sh
+> su: Cannot fork user shell
+> su: Cannot fork user shell
+> su: Cannot fork user shell
+>
+> root@ise-test:~/kern-fuz# strace -e mmap,clone su test -c 'kill -CONT
+> -1' 2>&1 | grep "=3D \-1"
+> clone(child_stack=3D0,
+> flags=3DCLONE_CHILD_CLEARTID|CLONE_CHILD_SETTID|SIGCHLD,
+> child_tidptr=3D0x7fadf334f9f0) =3D -1 ENOMEM (Cannot allocate memory)
+> mmap(NULL, 4096, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1,
+> 0) =3D -1 ENOMEM (Cannot allocate memory)
 
-Uggg... Strange whitespace coming from Pekka again.
+Hmmm... That looks like some maximum virtual memory limit was violated.
 
-> On Sun, Apr 15, 2012 at 5:22 PM, Andi Kleen <andi@firstfloor.org> wrote:
-> > From: Andi Kleen <ak@linux.intel.com>
-> >
-> > slab_node() could access current->mempolicy from interrupt context.
-> > However there's a race condition during exit where the mempolicy
-> > is first freed and then the pointer zeroed.
-> >
-> > Using this from interrupts seems bogus anyways. The interrupt
-> > will interrupt a random process and therefore get a random
-> > mempolicy. Many times, this will be idle's, which noone can change.
-> >
-> > Just disable this here and always use local for slab
-> > from interrupts. I also cleaned up the callers of slab_node a bit
-> > which always passed the same argument.
+Check ulimit and the overcommit settings (see /proc/meminfo's commitlimit
+etc)
 
-Good idea.
-
-> > diff --git a/mm/mempolicy.c b/mm/mempolicy.c
-> > index cfb6c86..da79bbf 100644
-> > --- a/mm/mempolicy.c
-> > +++ b/mm/mempolicy.c
-> > @@ -1586,8 +1586,9 @@ static unsigned interleave_nodes(struct mempolicy=
- *policy)
-> > =A0* task can change it's policy. =A0The system default policy requires=
- no
-> > =A0* such protection.
-> > =A0*/
-> > -unsigned slab_node(struct mempolicy *policy)
-> > +unsigned slab_node(void)
-> > =A0{
-> > + =A0 =A0 =A0 struct mempolicy *policy =3D !in_interrupt() ? current->p=
-olicy : NULL;
-> > =A0 =A0 =A0 =A0if (!policy || policy->flags & MPOL_F_LOCAL)
-
-Simplify this to if (in_interrupt() || !policy || .... ?
-
----1463811839-638261144-1336422247=:6029--
+--047d7b10c86d14f88404bf744902--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
