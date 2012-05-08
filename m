@@ -1,122 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx146.postini.com [74.125.245.146])
-	by kanga.kvack.org (Postfix) with SMTP id AC9A76B004D
-	for <linux-mm@kvack.org>; Mon,  7 May 2012 21:34:53 -0400 (EDT)
-Message-ID: <4FA87837.3050208@kernel.org>
-Date: Tue, 08 May 2012 10:34:47 +0900
-From: Minchan Kim <minchan@kernel.org>
+Received: from psmtp.com (na3sys010amx175.postini.com [74.125.245.175])
+	by kanga.kvack.org (Postfix) with SMTP id B42866B004D
+	for <linux-mm@kvack.org>; Mon,  7 May 2012 23:33:04 -0400 (EDT)
+Message-ID: <4FA89348.6070000@parallels.com>
+Date: Tue, 8 May 2012 00:30:16 -0300
+From: Glauber Costa <glommer@parallels.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 4/4] zsmalloc: zsmalloc: align cache line size
-References: <1336027242-372-1-git-send-email-minchan@kernel.org> <1336027242-372-4-git-send-email-minchan@kernel.org> <4FA28EFD.5070002@vflare.org> <4FA33E89.6080206@kernel.org> <alpine.LFD.2.02.1205071038090.2851@tux.localdomain> <4FA7C2BC.2090400@vflare.org>
-In-Reply-To: <4FA7C2BC.2090400@vflare.org>
-Content-Type: text/plain; charset=ISO-8859-1
+Subject: Re: [RFC] slub: show dead memcg caches in a separate file
+References: <1336070841-1071-1-git-send-email-glommer@parallels.com> <CABCjUKDuiN6bq6rbPjE7futyUwTPKsSFWHXCJ-OFf30tgq5WZg@mail.gmail.com>
+In-Reply-To: <CABCjUKDuiN6bq6rbPjE7futyUwTPKsSFWHXCJ-OFf30tgq5WZg@mail.gmail.com>
+Content-Type: text/plain; charset="ISO-8859-1"; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Nitin Gupta <ngupta@vflare.org>
-Cc: Pekka Enberg <penberg@kernel.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Dan Magenheimer <dan.magenheimer@oracle.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, cl@linux-foundation.org
+To: Suleiman Souhlal <suleiman@google.com>
+Cc: cgroups@vger.kernel.org, linux-mm@kvack.org, devel@openvz.org, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Michal Hocko <mhocko@suse.cz>, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, Frederic Weisbecker <fweisbec@gmail.com>
 
-On 05/07/2012 09:40 PM, Nitin Gupta wrote:
-
-> On 5/7/12 3:41 AM, Pekka Enberg wrote:
->> On Fri, 4 May 2012, Minchan Kim wrote:
->>>>> It's a overkill to align pool size with PAGE_SIZE to avoid
->>>>> false-sharing. This patch aligns it with just cache line size.
->>>>>
->>>>> Signed-off-by: Minchan Kim<minchan@kernel.org>
->>>>> ---
->>>>>    drivers/staging/zsmalloc/zsmalloc-main.c |    6 +++---
->>>>>    1 file changed, 3 insertions(+), 3 deletions(-)
->>>>>
->>>>> diff --git a/drivers/staging/zsmalloc/zsmalloc-main.c
->>>>> b/drivers/staging/zsmalloc/zsmalloc-main.c
->>>>> index 51074fa..3991b03 100644
->>>>> --- a/drivers/staging/zsmalloc/zsmalloc-main.c
->>>>> +++ b/drivers/staging/zsmalloc/zsmalloc-main.c
->>>>> @@ -489,14 +489,14 @@ fail:
->>>>>
->>>>>    struct zs_pool *zs_create_pool(const char *name, gfp_t flags)
->>>>>    {
->>>>> -    int i, error, ovhd_size;
->>>>> +    int i, error;
->>>>>        struct zs_pool *pool;
->>>>>
->>>>>        if (!name)
->>>>>            return NULL;
->>>>>
->>>>> -    ovhd_size = roundup(sizeof(*pool), PAGE_SIZE);
->>>>> -    pool = kzalloc(ovhd_size, GFP_KERNEL);
->>>>> +    pool = kzalloc(ALIGN(sizeof(*pool), cache_line_size()),
->>>>> +                GFP_KERNEL);
->>>>
->>>> a basic question:
->>>>   Is rounding off allocation size to cache_line_size enough to ensure
->>>> that the object is cache-line-aligned? Isn't it possible that even
->>>> though the object size is multiple of cache-line, it may still not be
->>>> properly aligned and end up sharing cache line with some other
->>>> read-mostly object?
->>>
->>> AFAIK, SLAB allocates object aligned cache-size so I think that
->>> problem cannot happen.
->>> But needs double check.
->>> Cced Pekka.
+On 05/07/2012 07:04 PM, Suleiman Souhlal wrote:
+> On Thu, May 3, 2012 at 11:47 AM, Glauber Costa<glommer@parallels.com>  wrote:
+>> One of the very few things that still unsettles me in the kmem
+>> controller for memcg, is how badly we mess up with the
+>> /proc/slabinfo file.
 >>
->> The kmalloc(size) function only gives you the following guarantees:
+>> It is alright to have the cgroup caches listed in slabinfo, but once
+>> they die, I think they should be removed right away. A box full
+>> of containers that come and go will rapidly turn that file into
+>> a supreme mess. However, we currently leave them there so we can
+>> determine where our used memory currently is.
 >>
->>    (1) The allocated object is _at least_ 'size' bytes.
+>> This patch attempts to clean this up by creating a separate proc file
+>> only to handle the dead slabs. Among other advantages, we need a lot
+>> less information in a dead cache: only its current size in memory
+>> matters to us.
 >>
->>    (2) The returned pointer is aligned to ARCH_KMALLOC_MINALIGN.
+>> So besides avoiding polution of the slabinfo files, we can access
+>> dead cache information itself in a cleaner way.
 >>
->> Anything beyond that is implementation detail and probably will break if
->> you switch between SLAB/SLUB/SLOB.
->>
->>             Pekka
+>> I implemented this as a proof of concept while finishing up
+>> my last round for submission. But I am sending this separately
+>> to collect opinions from all of you. I can either implement
+>> a version of this for the slab, or follow any other route.
+>
+> I don't really understand why the "dead" slabs are considered as
+> polluting slabinfo.
+>
+> They still have objects in them, and I think that hiding them would
+> not be the right thing to do (even if they are available in a separate
+> file): They will incorrectly not be seen by programs like slabtop.
+>
 
+Well, technically speaking, they aren't consider. I consider. The 
+difference is subtle, but boils down to if no one else consider this a 
+problem... there is no problem.
 
-Pekka, Thanks.
+Now let me expand on the subject of why I do consider this unneeded 
+information (needed, just not here)
 
-> 
-> So, we can probably leave it as is (PAGE_SIZE aligned) or use
-> kmem_cache_create(...,SLAB_HWCACHE_ALIGN,...) for allocating 'struct
-> zs_pool's.
+Consider a hosting box with ~100 caches. Let us say that a container 
+touches 50 of them, we still have 50 caches per container. Objects in 
+those caches, may take a long time to go away. Let's say, in 40 of those 
+caches.
 
+The number of entries in /proc/slabinfo is not proportional to the 
+number of active containers: It becomes proportional to the number of 
+containers that *ever* existed on the machine - even if those numbers 
+drop with time, they still can drop slowly.
 
-3) remove aligning code totally because there isn't any report about degradation by false-sharing. 
-4)
-origin = pool = kzalloc(sizeof(*pool) + cache_line_size, GFP_KERNEL);
-pool = round_up(pool, cache_line_size);
+In use cases where containers come and go frequently, before a shrinker 
+can be called to wipe some of them out, we are easily in the 1000s of 
+lines in /proc/slabinfo. It becomes too much information, and it usually 
+makes it hard to find the one you are looking for.
 
-Which preference?
-I choose 3.
+But there is another aspect: those dead caches have one thing in common, 
+which is the fact that no new objects will ever be allocated on them. 
+You can't tune them, or do anything with them. I believe it is 
+misleading to include them in slabinfo.
 
+The fact that the caches change names - to append "dead" may also break 
+tools, if that is what you are concerned about.
 
-> 
-> zcache can potentially create a lot of pools, so the latter will save
-> some memory.
-
-
-Dumb question.
-Why should we create pool per user? 
-What's the problem if there is only one pool in system?
-
-> 
-> Thanks,
-> Nitin
-> 
-> -- 
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Fight unfair telecom internet charges in Canada: sign
-> http://stopthemeter.ca/
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-> 
-
-
-
--- 
-Kind regards,
-Minchan Kim
+For all the above, I think a better semantics for slabinfo is to include 
+the active caches, and leave the dead ones somewhere else.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
