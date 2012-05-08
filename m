@@ -1,136 +1,146 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx162.postini.com [74.125.245.162])
-	by kanga.kvack.org (Postfix) with SMTP id C0E8B6B0109
-	for <linux-mm@kvack.org>; Tue,  8 May 2012 04:32:36 -0400 (EDT)
-Message-ID: <4FA8DA23.3030609@kernel.org>
-Date: Tue, 08 May 2012 17:32:35 +0900
-From: Minchan Kim <minchan@kernel.org>
-MIME-Version: 1.0
-Subject: Re: [PATCH 3/3] vmevent: Implement special low-memory attribute
-References: <20120501132409.GA22894@lizard> <20120501132620.GC24226@lizard> <4FA35A85.4070804@kernel.org> <20120504073810.GA25175@lizard> <CAOJsxLH_7mMMe+2DvUxBW1i5nbUfkbfRE3iEhLQV9F_MM7=eiw@mail.gmail.com> <CAHGf_=qcGfuG1g15SdE0SDxiuhCyVN025pQB+sQNuNba4Q4jcA@mail.gmail.com> <20120507121527.GA19526@lizard> <4FA82056.2070706@gmail.com> <CAOJsxLHQcDZSHJZg+zbptqmT9YY0VTkPd+gG_zgMzs+HaV_cyA@mail.gmail.com> <CAHGf_=q1nbu=3cnfJ4qXwmngMPB-539kg-DFN2FJGig8+dRaNw@mail.gmail.com> <CAOJsxLFAavdDbiLnYRwe+QiuEHSD62+Sz6LJTk+c3J9gnLVQ_w@mail.gmail.com> <CAHGf_=pSLfAue6AR5gi5RQ7xvgTxpZckA=Ja1fO1AkoO1o_DeA@mail.gmail.com>
-In-Reply-To: <CAHGf_=pSLfAue6AR5gi5RQ7xvgTxpZckA=Ja1fO1AkoO1o_DeA@mail.gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx114.postini.com [74.125.245.114])
+	by kanga.kvack.org (Postfix) with SMTP id DA51C6B010C
+	for <linux-mm@kvack.org>; Tue,  8 May 2012 04:39:33 -0400 (EDT)
+Received: by dakp5 with SMTP id p5so10009168dak.14
+        for <linux-mm@kvack.org>; Tue, 08 May 2012 01:39:33 -0700 (PDT)
+Date: Tue, 8 May 2012 16:40:12 +0800
+From: "=?utf-8?B?bWFqaWFucGVuZw==?=" <majianpeng@gmail.com>
+References: <201205080931539844949@gmail.com>
+Subject: =?utf-8?B?UmU6IFJlOiBbUEFUQ0hdIHNsdWI6IFVzaW5nIGp1ZGdlbWVudCAhIWMgdG8ganVkZ2UgcGVyIGNwdSBoYXMgb2JqIGluZnVjbnRpb24gaGFzX2NwdV9zbGFiKCku?=
+Message-ID: <201205081640084681980@gmail.com>
+Mime-Version: 1.0
+Content-Type: text/plain;
+	charset="utf-8"
+Content-Transfer-Encoding: base64
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
-Cc: Pekka Enberg <penberg@kernel.org>, Anton Vorontsov <anton.vorontsov@linaro.org>, Leonid Moiseichuk <leonid.moiseichuk@nokia.com>, John Stultz <john.stultz@linaro.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linaro-kernel@lists.linaro.org, patches@linaro.org, kernel-team@android.com
+To: =?utf-8?B?R2lsYWQgQmVuLVlvc3NlZg==?= <gilad@benyossef.com>
+Cc: =?utf-8?B?bGludXgtbW0=?= <linux-mm@kvack.org>, =?utf-8?B?QW5kcmV3IE1vcnRvbg==?= <akpm@linux-foundation.org>, =?utf-8?B?UGVra2EgRW5iZXJn?= <penberg@kernel.org>, =?utf-8?B?Q2hyaXN0b3BoIExhbWV0ZXI=?= <cl@linux.com>
 
-On 05/08/2012 04:11 PM, KOSAKI Motohiro wrote:
-
-> On Tue, May 8, 2012 at 1:53 AM, Pekka Enberg <penberg@kernel.org> wrote:
->> On Tue, May 8, 2012 at 8:42 AM, KOSAKI Motohiro
->> <kosaki.motohiro@gmail.com> wrote:
->>>> That said, I think you are being unfair to Anton who's one of the few
->>>> that's actually taking the time to implement this properly instead of
->>>> settling for an out-of-tree hack.
->>>
->>> Unfair? But only I can talk about technical comment. To be honest, I
->>> really dislike
->>> I need say the same explanation again and again. A lot of people don't read
->>> past discussion. And as far as the patches take the same mistake, I must say
->>> the same thing. It is just PITA.
->>
->> Unfair because you are trying to make it look as if Anton is only
->> concerned with his specific use case. That's simply not true.
-> 
-> However current proposal certainly don't refer past discuss and don't work
-> many environment.
-> 
-> 
->> On Tue, May 8, 2012 at 8:42 AM, KOSAKI Motohiro
->> <kosaki.motohiro@gmail.com> wrote:
->>> I don't disagree vmevent notification itself, but I must disagree lie
->>> notification.
->>> And also, To make just idea statistics doesn't make sense at all. How do an
->>> application choose the right events? If that depend on hardware configuration,
->>> userland developers can't write proper applications.
->>
->> That's exactly the problem we're trying to tackle here! We _want_ the
->> ABI to provide sane, well-defined events that solve real world
->> problems.
-> 
-> Ok, sane. Then I take my time a little and review current vmevent code briefly.
-> (I read vmevent/core branch in pekka's tree. please let me know if
-> there is newer
-> repositry)
-> 
-> I think following thing should be fixed.
-> 
-> 1) sample_period is brain damaged idea. If people ONLY need to
-> sampling stastics, they
->   only need to read /proc/vmstat periodically. just remove it and
-> implement push notification.
->   _IF_ someone need unfrequent level trigger, just use
-> "usleep(timeout); read(vmevent_fd)"
->  on userland code.
-> 2) VMEVENT_ATTR_STATE_ONE_SHOT is misleading name. That is effect as
-> edge trigger
->   shot. not only once.
-> 3) vmevent_fd() seems sane interface. but it has name space unaware.
-> maybe we discuss how
->   to harmonize name space feature.  No hurry. but we have to think
-> that issue since at beginning.
-> 4) Currently, vmstat have per-cpu batch and vmstat updating makes 3
-> second delay at maximum.
->   This is fine for usual case because almost userland watcher only
-> read /proc/vmstat per second.
->   But, for vmevent_fd() case, 3 seconds may be unacceptable delay. At
-> worst, 128 batch x 4096
->   x 4k pagesize = 2G bytes inaccurate is there.
-> 5) __VMEVENT_ATTR_STATE_VALUE_WAS_LT should be removed from userland
-> exporting files.
->   When exporing kenrel internal, always silly gus used them and made unhappy.
-> 6) Also vmevent_event must hide from userland.
-> 7) vmevent_config::size must be removed. In 20th century, M$ API
-> prefer to use this technique. But
->   They dropped the way because a lot of application don't initialize
-> size member and they can't use
->    it for keeping upper compitibility.
-> 8) memcg unaware
-> 9) numa unaware
-> 10) zone unaware
-
-
-I would like to add a concern.
-
-11) understand storage speed.
-
-As I mentioned, system can have various storage type(SSD, disk, eMMC, ramfs)
-In some system, user can tolerate ramfs and SSD write or swapout.
-We should consdier that to make it really useful.
-
-The problem is user can't know it in advance so it should be detected by kernel.
-Unfortunately, it's not easy now.
-
-The idea is that we can make some levels in advane and explain it to user
-
-Level 1: It a immediate response to user when kernel decide there are not fast-reclaimable pages any more.
-Level 2: It's rather slower response than level 1 but kernel will consider it as reclaimable target
-Level 3: It's slowest response because kernel will consider page needed long time to reclaim as reclaimable target.
-
-It doesn't expose any internal of kernel and can implment it in internal.
-For simple example,
-
-Level 1: non-mapped clean page
-Level 2: Level 1 + mapped clean-page
-Level 3: Level 2 + dirty pages
- 
-So users of vmevent_fd can select his level.
-Of course, latency sensitive application with slow stoarge would select Level 1.
-Some application might use Level 4(Level 3 + half of swap) because it has very fast storage.
-
-And application receives event can make strategy folloing as.
-
-When it receives level 1 notification, it could request to others if it can release their own buffers.
-When it receives level 2 notification, it could request to suicide if it's not critical application.
-When it receives level 3 notification, it could kill others. 
-
-It's a just example and my point is we should storage speed to make it general.
-
--- 
-Kind regards,
-Minchan Kim
+SSB0ZXN0ZWQgeW91ciBwYXRjaCxidXQgdGhlIGJ1ZyBpcyBzdGlsbC4NCg0KSSB0aGluayB0aGUg
+Y29kZSBtYXkgYmUgaXM6DQoNCmRpZmYgLS1naXQgYS9tbS9zbHViLmMgYi9tbS9zbHViLmMNCmlu
+ZGV4IGZmZTEzZmQuLmQ2NmFmYzQgMTAwNjQ0DQotLS0gYS9tbS9zbHViLmMNCisrKyBiL21tL3Ns
+dWIuYw0KQEAgLTIwNDAsNyArMjA0MCw3IEBAIHN0YXRpYyBib29sIGhhc19jcHVfc2xhYihpbnQg
+Y3B1LCB2b2lkICppbmZvKQ0KIAlzdHJ1Y3Qga21lbV9jYWNoZSAqcyA9IGluZm87DQogCXN0cnVj
+dCBrbWVtX2NhY2hlX2NwdSAqYyA9IHBlcl9jcHVfcHRyKHMtPmNwdV9zbGFiLCBjcHUpOw0KDQot
+CXJldHVybiAhIShjLT5wYWdlKTsNCisJcmV0dXJuICEhKGMtPnBhZ2UgfHwgYy0+cGFydGlhbCk7
+DQogfQ0KDQogc3RhdGljIHZvaWQgZmx1c2hfYWxsKHN0cnVjdCBrbWVtX2NhY2hlICpzKQ0KDQoN
+CkJlY2F1c2UgdGhlIGZ1bmN0aW9uOg0KIF9fZmx1c2hfY3B1X3NsYWIoc3RydWN0IGttZW1fY2Fj
+aGUgKnMsIGludCBjcHUpDQp7DQoJc3RydWN0IGttZW1fY2FjaGVfY3B1ICpjID0gcGVyX2NwdV9w
+dHIocy0+Y3B1X3NsYWIsIGNwdSk7DQoNCglpZiAobGlrZWx5KGMpKSB7DQoJCWlmIChjLT5wYWdl
+KQ0KCQkJZmx1c2hfc2xhYihzLCBjKTsNCg0KCQl1bmZyZWV6ZV9wYXJ0aWFscyhzKTsNCgl9DQp9
+DQpJdCBmbHVzaF9zbGFiIGFuZCB1bmZyZWV6ZV9wYXJ0aWFsLHNvIGlmIGMtPnBhZ2Ugb3IgYy0+
+cGFyaXRhbCBpcyBvaywgc2hvdWxkIGRvIF9fZmx1c2hfY3B1X3NsYWIuDQoNCg0KLS0tLS0tLS0t
+LS0tLS0tLS0tCQkJCSANCm1hamlhbnBlbmcNCjIwMTItMDUtMDgNCg0KLS0tLS0tLS0tLS0tLS0t
+LS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLQ0K5Y+R5Lu25Lq6
+77yaR2lsYWQgQmVuLVlvc3NlZg0K5Y+R6YCB5pel5pyf77yaMjAxMi0wNS0wOCAxNToyOTozMQ0K
+5pS25Lu25Lq677yabWFqaWFucGVuZw0K5oqE6YCB77yabGludXgtbW07IEFuZHJldyBNb3J0b247
+IFBla2thIEVuYmVyZzsgQ2hyaXN0b3BoIExhbWV0ZXINCuS4u+mimO+8mlJlOiBbUEFUQ0hdIHNs
+dWI6IFVzaW5nIGp1ZGdlbWVudCAhIWMgdG8ganVkZ2UgcGVyIGNwdSBoYXMgb2JqIGluZnVjbnRp
+b24gaGFzX2NwdV9zbGFiKCkuDQoNCkhpIE1hamlhbnBlbmcsDQoNCk9uIFR1ZSwgTWF5IDgsIDIw
+MTIgYXQgNDozMSBBTSwgbWFqaWFucGVuZyA8bWFqaWFucGVuZ0BnbWFpbC5jb20+IHdyb3RlOg0K
+PiBBdCBwcmVzZW50LCBJIGZvdW5kIHNvbWUga2VybmVsIG1lc3NhZ2UgbGlrZToNCj4gTFVCIHJh
+aWQ1LW1kMTI3OiBrbWVtX2NhY2hlX2Rlc3Ryb3kgY2FsbGVkIGZvciBjYWNoZSB0aGF0IHN0aWxs
+IGhhcyBvYmplY3RzLg0KPiBQaWQ6IDYxNDMsIGNvbW06IG1kYWRtIFRhaW50ZWQ6IEcgwqAgwqAg
+wqAgwqAgwqAgTyAzLjQuMC1yYzYrIMKgIMKgIMKgIMKgIzc1DQo+IENhbGwgVHJhY2U6DQo+IFs8
+ZmZmZmZmZmY4MTEyMjdmOD5dIGttZW1fY2FjaGVfZGVzdHJveSsweDMyOC8weDQwMA0KPiBbPGZm
+ZmZmZmZmYTAwNWZmMWQ+XSBmcmVlX2NvbmYrMHgyZC8weGYwIFtyYWlkNDU2XQ0KPiBbPGZmZmZm
+ZmZmYTAwNjA3OTE+XSBzdG9wKzB4NDEvMHg2MCBbcmFpZDQ1Nl0NCj4gWzxmZmZmZmZmZmEwMDAy
+NzZhPl0gbWRfc3RvcCsweDFhLzB4NjAgW21kX21vZF0NCj4gWzxmZmZmZmZmZmEwMDBjOTc0Pl0g
+ZG9fbWRfc3RvcCsweDc0LzB4NDcwIFttZF9tb2RdDQo+IFs8ZmZmZmZmZmZhMDAwZDBmZj5dIG1k
+X2lvY3RsKzB4ZmYvMHgxMWYwIFttZF9tb2RdDQo+IFs8ZmZmZmZmZmY4MTI3Yzk1OD5dIGJsa2Rl
+dl9pb2N0bCsweGQ4LzB4N2EwDQo+IFs8ZmZmZmZmZmY4MTE1ZWY2Yj5dIGJsb2NrX2lvY3RsKzB4
+M2IvMHg0MA0KPiBbPGZmZmZmZmZmODExM2I5YzY+XSBkb192ZnNfaW9jdGwrMHg5Ni8weDU2MA0K
+PiBbPGZmZmZmZmZmODExM2JmMjE+XSBzeXNfaW9jdGwrMHg5MS8weGEwDQo+IFs8ZmZmZmZmZmY4
+MTZlOWQyMj5dIHN5c3RlbV9jYWxsX2Zhc3RwYXRoKzB4MTYvMHgxYg0KPg0KPiBUaGVuIHVzaW5n
+IGttZW1sZWFrIGNhbiBmb3VuZCB0aG9zZSBtZXNzYWdlczoNCj4gdW5yZWZlcmVuY2VkIG9iamVj
+dCAweGZmZmY4ODAwYjZkYjczODAgKHNpemUgMTEyKToNCj4gwqBjb21tICJtZGFkbSIsIHBpZCA1
+NzgzLCBqaWZmaWVzIDQyOTQ4MTA3NDkgKGFnZSA5MC41ODlzKQ0KPiDCoGhleCBkdW1wIChmaXJz
+dCAzMiBieXRlcyk6DQo+IMKgIMKgMDEgMDEgZGIgYjYgYWQgNGUgYWQgZGUgZmYgZmYgZmYgZmYg
+ZmYgZmYgZmYgZmYgwqAuLi4uLk4uLi4uLi4uLi4uDQo+IMKgIMKgZmYgZmYgZmYgZmYgZmYgZmYg
+ZmYgZmYgOTggNDAgNGEgODIgZmYgZmYgZmYgZmYgwqAuLi4uLi4uLi5ASi4uLi4uDQo+IMKgYmFj
+a3RyYWNlOg0KPiDCoCDCoFs8ZmZmZmZmZmY4MTZiNTJjMT5dIGttZW1sZWFrX2FsbG9jKzB4MjEv
+MHg1MA0KPiDCoCDCoFs8ZmZmZmZmZmY4MTExYTExYj5dIGttZW1fY2FjaGVfYWxsb2MrMHhlYi8w
+eDFiMA0KPiDCoCDCoFs8ZmZmZmZmZmY4MTExYzQzMT5dIGttZW1fY2FjaGVfb3BlbisweDJmMS8w
+eDQzMA0KPiDCoCDCoFs8ZmZmZmZmZmY4MTExYzZjOD5dIGttZW1fY2FjaGVfY3JlYXRlKzB4MTU4
+LzB4MzIwDQo+IMKgIMKgWzxmZmZmZmZmZmEwMDhmOTc5Pl0gc2V0dXBfY29uZisweDY0OS8weDc3
+MCBbcmFpZDQ1Nl0NCj4gwqAgwqBbPGZmZmZmZmZmYTAwOTA0NGI+XSBydW4rMHg2OGIvMHg4NDAg
+W3JhaWQ0NTZdDQo+IMKgIMKgWzxmZmZmZmZmZmEwMDBiZGU5Pl0gbWRfcnVuKzB4NTI5LzB4OTQw
+IFttZF9tb2RdDQo+IMKgIMKgWzxmZmZmZmZmZmEwMDBjMjE4Pl0gZG9fbWRfcnVuKzB4MTgvMHhj
+MCBbbWRfbW9kXQ0KPiDCoCDCoFs8ZmZmZmZmZmZhMDAwZGJhOD5dIG1kX2lvY3RsKzB4YmE4LzB4
+MTFmMCBbbWRfbW9kXQ0KPiDCoCDCoFs8ZmZmZmZmZmY4MTI3MmIyOD5dIGJsa2Rldl9pb2N0bCsw
+eGQ4LzB4N2EwDQo+IMKgIMKgWzxmZmZmZmZmZjgxMTU1YmZiPl0gYmxvY2tfaW9jdGwrMHgzYi8w
+eDQwDQo+IMKgIMKgWzxmZmZmZmZmZjgxMTMyNmQ2Pl0gZG9fdmZzX2lvY3RsKzB4OTYvMHg1NjAN
+Cj4gwqAgwqBbPGZmZmZmZmZmODExMzJjMzE+XSBzeXNfaW9jdGwrMHg5MS8weGEwDQo+IMKgIMKg
+WzxmZmZmZmZmZjgxNmRkM2EyPl0gc3lzdGVtX2NhbGxfZmFzdHBhdGgrMHgxNi8weDFiDQo+IMKg
+IMKgWzxmZmZmZmZmZmZmZmZmZmZmPl0gMHhmZmZmZmZmZmZmZmZmZmZmDQo+DQo+IEJlY2F1c2Ug
+a21lbWxlYWsgZG9uJ3QgZGV0ZWN0IHBhZ2UgbGVhaywgc28gdGhlIHBhZ2VzIG9mIHNsYWJzIGRp
+ZCBub3QgcHJpbnQuDQo+DQo+IENvbW1pdCBhODM2NGQ1NTU1YjIwMzBkMDkzY2RlMGYwNzk1IG1v
+ZGlmeSB0aGUgY29kZSBvZiBmbHVzaF9hbGwuDQo+DQoNCk1hbnkgdGhhbmtzIGZvciB5b3VyIHJl
+cG9ydC4NCg0KSWYgSSB1bmRlcnN0YW5kIGNvcnJlY3RseSwgeW91IGFyZSBzZWVpbmcgdGhlIGFi
+b3ZlIGVycm9yIG1lc3NhZ2VzIGluDQozLjQtcmNYIGJ1dCBub3QgaW4gMy4zLCByaWdodD8NCg0K
+PiBTaWduZWQtb2ZmLWJ5OiBtYWppYW5wZW5nIDxtYWppYW5wZW5nQGdtYWlsLmNvbT4NCj4gLS0t
+DQo+IMKgbW0vc2x1Yi5jIHwgwqAgwqAyICstDQo+IMKgMSBmaWxlcyBjaGFuZ2VkLCAxIGluc2Vy
+dGlvbnMoKyksIDEgZGVsZXRpb25zKC0pDQo+DQo+IGRpZmYgLS1naXQgYS9tbS9zbHViLmMgYi9t
+bS9zbHViLmMNCj4gaW5kZXggZmZlMTNmZC4uNmZjZTA4ZiAxMDA2NDQNCj4gLS0tIGEvbW0vc2x1
+Yi5jDQo+ICsrKyBiL21tL3NsdWIuYw0KPiBAQCAtMjA0MCw3ICsyMDQwLDcgQEAgc3RhdGljIGJv
+b2wgaGFzX2NwdV9zbGFiKGludCBjcHUsIHZvaWQgKmluZm8pDQo+IMKgIMKgIMKgIMKgc3RydWN0
+IGttZW1fY2FjaGUgKnMgPSBpbmZvOw0KPiDCoCDCoCDCoCDCoHN0cnVjdCBrbWVtX2NhY2hlX2Nw
+dSAqYyA9IHBlcl9jcHVfcHRyKHMtPmNwdV9zbGFiLCBjcHUpOw0KPg0KPiAtIMKgIMKgIMKgIHJl
+dHVybiAhIShjLT5wYWdlKTsNCj4gKyDCoCDCoCDCoCByZXR1cm4gISFjOw0KPiDCoH0NCj4NCj4g
+wqBzdGF0aWMgdm9pZCBmbHVzaF9hbGwoc3RydWN0IGttZW1fY2FjaGUgKnMpDQo+IC0tDQo+IDEu
+Ny41LjQNCg0KSSBhbHNvIHVuZGVyc3RhbmQgdGhhdCB0aGUgYWJvdmUgcGF0Y2ggbWFrZXMgdGhl
+IGVycm9ycyBkaXNhcHBlYXIsIGNvcnJlY3Q/DQoNCklmIHNvLCB0aGVuIHZlcnkgZ29vZCBjYXRj
+aCwgYnV0IEkgYmVsaWV2ZSB0aGUgcGF0Y2ggY2FuIGJlIHJlZmluZWQuDQpUaGlzIGlzIGJlY2F1
+c2UNCiEhYyBoZXJlIHdpbGwgYWx3YXlzIGJlIHRydWUgYW5kIGluIGVmZmVjdCwgeW91IGFyZSBy
+ZXR1cm5pbmcgdGhlDQpzaXR1YXRpb24gdG8gdGhhdA0Kb2YgdGhlIHN0YXRlIG9mIExpbnV4IDMu
+Mywgd2hlcmUgYW4gSVBJIHdhcyBzZW50IHRvIGZsdXNoIHRvIGFsbCBDUFVzLA0Kd2hldGhlciB0
+aGV5DQpoYXZlIHNvbWV0aGluZyB0byBmbHVzaCBvciBub3QuDQoNCkhhdmluZyBzYWlkIHRoYXQs
+IHlvdXIgcGF0Y2ggc2hvd3MgdGhhdCB3ZSBhcmUgdG9vIGFnZ3Jlc3NpdmUgaW4gbm90DQpzZW5k
+aW5nIHRoZSBJUEksDQpzb21ldGltZSBmYWlsaW5nIHRvIHNlbmQgaXQgd2hlbiB3ZSBzaG91bGQu
+IEkgdGhpbmsgdGhlIGZvbGxvd2luZw0KcGF0Y2ggZml4ZXMgdGhlIGlzc3VlLg0KSSBib290IHRl
+c3RlZCBvbiA4IHdheSB4ODYgVk0gYW5kIGZvcmNpbmcgYSBmbHVzaCB1c2luZw0KL3N5cy9rZXJu
+ZWwvc2xhYi9YWFgvdmFsaWRhdGUNCmFuZCBub3RoaW5nIGV4cGxvZGVkLiBDYW4geW91IHBsZWFz
+ZSB0ZXN0IGl0IGFuZCB2YWxpZGF0ZSB0aGF0IGl0DQppbmRlZWQgc29sdmVzIHRoZSBpc3N1ZT8N
+Cg0KRnJvbTogR2lsYWQgQmVuLVlvc3NlZiA8Z2lsYWRAYmVueW9zc2VmLmNvbT4NClN1YmplY3Q6
+IHNsdWI6IG1pc3NpbmcgdGVzdCBmb3IgcGFydGlhbCBwYWdlcyBmbHVzaCB3b3JrIGluIGZsdXNo
+X2FsbA0KDQpDb21taXQgYTgzNjRkNTU1NWIyMDMwZDA5M2NkZTBmMDc5NSBtb2RpZmllZCBmbHVz
+aF9hbGwgdG8gb25seQ0Kc2VuZCBJUEkgdG8gZmx1c2ggcGVyLWNwdSBjYWNoZSBwYWdlcyB0byBD
+UFVzIHRoYXQgc2VlbXMgdG8gaGF2ZSBkb25lLg0KDQpIb3dldmVyLCB0aGUgdGVzdCBmb3IgZmx1
+c2ggd29yayB0byBiZSBkb25lIG9uIENQVSB3YXMgdG9vIHJlbGF4ZWQsIGNhdXNpbmcNCmFuIElQ
+SSBub3QgdG8gYmUgc2VudCBmb3IgQ1BVcyB3aXRoIHBhcnRpYWwgcGFnZXMgd2l0aCB0aGUgcmVz
+dWx0IG9mIGxvZyBzaG93aW5nDQplcnJvcnMgc3VjaCBhcyB0aGUgZm9sbG93aW5nOg0KDQpMVUIg
+cmFpZDUtbWQxMjc6IGttZW1fY2FjaGVfZGVzdHJveSBjYWxsZWQgZm9yIGNhY2hlIHRoYXQgc3Rp
+bGwgaGFzIG9iamVjdHMuDQpQaWQ6IDYxNDMsIGNvbW06IG1kYWRtIFRhaW50ZWQ6IEcgICAgICAg
+ICAgIE8gMy40LjAtcmM2KyAgICAgICAgIzc1DQpDYWxsIFRyYWNlOg0KWzxmZmZmZmZmZjgxMTIy
+N2Y4Pl0ga21lbV9jYWNoZV9kZXN0cm95KzB4MzI4LzB4NDAwDQpbPGZmZmZmZmZmYTAwNWZmMWQ+
+XSBmcmVlX2NvbmYrMHgyZC8weGYwIFtyYWlkNDU2XQ0KWzxmZmZmZmZmZmEwMDYwNzkxPl0gc3Rv
+cCsweDQxLzB4NjAgW3JhaWQ0NTZdDQpbPGZmZmZmZmZmYTAwMDI3NmE+XSBtZF9zdG9wKzB4MWEv
+MHg2MCBbbWRfbW9kXQ0KWzxmZmZmZmZmZmEwMDBjOTc0Pl0gZG9fbWRfc3RvcCsweDc0LzB4NDcw
+IFttZF9tb2RdDQpbPGZmZmZmZmZmYTAwMGQwZmY+XSBtZF9pb2N0bCsweGZmLzB4MTFmMCBbbWRf
+bW9kXQ0KWzxmZmZmZmZmZjgxMjdjOTU4Pl0gYmxrZGV2X2lvY3RsKzB4ZDgvMHg3YTANCls8ZmZm
+ZmZmZmY4MTE1ZWY2Yj5dIGJsb2NrX2lvY3RsKzB4M2IvMHg0MA0KWzxmZmZmZmZmZjgxMTNiOWM2
+Pl0gZG9fdmZzX2lvY3RsKzB4OTYvMHg1NjANCls8ZmZmZmZmZmY4MTEzYmYyMT5dIHN5c19pb2N0
+bCsweDkxLzB4YTANCls8ZmZmZmZmZmY4MTZlOWQyMj5dIHN5c3RlbV9jYWxsX2Zhc3RwYXRoKzB4
+MTYvMHgxYg0KDQpGaXggdGhpcyBieSB0ZXN0aW5nIGZvciBwYXJ0aWFsIHBhZ2VzIHByZXNlbmNl
+IGFzIHdlbGwuDQoNClNpZ25lZC1vZmYtYnk6IEdpbGFkIEJlbi1Zb3NzZWYgPGdpbGFkQGJlbnlv
+c3NlZi5jb20+DQpSZXBvcnRlZC1ieTogbWFqaWFucGVuZyA8bWFqaWFucGVuZ0BnbWFpbC5jb20+
+DQpDQzogIkFuZHJldyBNb3J0b24iIDxha3BtQGxpbnV4LWZvdW5kYXRpb24ub3JnPg0KQ0M6ICJD
+aHJpc3RvcGggTGFtZXRlciIgPGNsQGxpbnV4LmNvbT4NCkNDOiAiUGVra2EgRW5iZXJnIiA8cGVu
+YmVyZ0BrZXJuZWwub3JnPg0KLS0tDQpkaWZmIC0tZ2l0IGEvbW0vc2x1Yi5jIGIvbW0vc2x1Yi5j
+DQppbmRleCBmZmUxM2ZkLi5kNjZhZmM0IDEwMDY0NA0KLS0tIGEvbW0vc2x1Yi5jDQorKysgYi9t
+bS9zbHViLmMNCkBAIC0yMDQwLDcgKzIwNDAsNyBAQCBzdGF0aWMgYm9vbCBoYXNfY3B1X3NsYWIo
+aW50IGNwdSwgdm9pZCAqaW5mbykNCiAJc3RydWN0IGttZW1fY2FjaGUgKnMgPSBpbmZvOw0KIAlz
+dHJ1Y3Qga21lbV9jYWNoZV9jcHUgKmMgPSBwZXJfY3B1X3B0cihzLT5jcHVfc2xhYiwgY3B1KTsN
+Cg0KLQlyZXR1cm4gISEoYy0+cGFnZSk7DQorCXJldHVybiAhIShjLT5wYWdlICYmIGMtPnBhcnRp
+YWwpOw0KIH0NCg0KIHN0YXRpYyB2b2lkIGZsdXNoX2FsbChzdHJ1Y3Qga21lbV9jYWNoZSAqcykN
+Cg0KDQoNCk1hbnkgdGhhbmtzIQ0KR2lsYWQNCg0KDQotLSANCkdpbGFkIEJlbi1Zb3NzZWYNCkNo
+aWVmIENvZmZlZSBEcmlua2VyDQpnaWxhZEBiZW55b3NzZWYuY29tDQpJc3JhZWwgQ2VsbDogKzk3
+Mi01Mi04MjYwMzg4DQpVUyBDZWxsOiArMS05NzMtODI2MDM4OA0KaHR0cDovL2Jlbnlvc3NlZi5j
+b20NCg0KIklmIHlvdSB0YWtlIGEgY2xhc3MgaW4gbGFyZ2Utc2NhbGUgcm9ib3RpY3MsIGNhbiB5
+b3UgZW5kIHVwIGluIGENCnNpdHVhdGlvbiB3aGVyZSB0aGUgaG9tZXdvcmsgZWF0cyB5b3VyIGRv
+Zz8iDQrCoC0tIEplYW4tQmFwdGlzdGUgUXVlcnUNCi4NCg==
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
