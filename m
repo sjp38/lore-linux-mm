@@ -1,58 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx164.postini.com [74.125.245.164])
-	by kanga.kvack.org (Postfix) with SMTP id 9692D6B004D
-	for <linux-mm@kvack.org>; Tue,  8 May 2012 05:20:49 -0400 (EDT)
-Received: by wgbdt14 with SMTP id dt14so4974981wgb.26
-        for <linux-mm@kvack.org>; Tue, 08 May 2012 02:20:47 -0700 (PDT)
-Date: Tue, 8 May 2012 11:20:41 +0200
-From: Ingo Molnar <mingo@kernel.org>
-Subject: Re: [PATCH UPDATED 3/3] tracing: Provide trace events interface for
- uprobes
-Message-ID: <20120508092041.GE27323@gmail.com>
-References: <20120409091133.8343.65289.sendpatchset@srdronam.in.ibm.com>
- <20120409091154.8343.50489.sendpatchset@srdronam.in.ibm.com>
- <20120411103043.GB29437@linux.vnet.ibm.com>
- <20120508041229.GD30652@gmail.com>
- <1336465808.16236.13.camel@twins>
- <20120508085002.GA13272@linux.vnet.ibm.com>
+Received: from psmtp.com (na3sys010amx105.postini.com [74.125.245.105])
+	by kanga.kvack.org (Postfix) with SMTP id D10EA6B004D
+	for <linux-mm@kvack.org>; Tue,  8 May 2012 05:27:41 -0400 (EDT)
+Received: by yenm8 with SMTP id m8so7294780yen.14
+        for <linux-mm@kvack.org>; Tue, 08 May 2012 02:27:40 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20120508085002.GA13272@linux.vnet.ibm.com>
+In-Reply-To: <4FA8DA23.3030609@kernel.org>
+References: <20120501132409.GA22894@lizard>
+	<20120501132620.GC24226@lizard>
+	<4FA35A85.4070804@kernel.org>
+	<20120504073810.GA25175@lizard>
+	<CAOJsxLH_7mMMe+2DvUxBW1i5nbUfkbfRE3iEhLQV9F_MM7=eiw@mail.gmail.com>
+	<CAHGf_=qcGfuG1g15SdE0SDxiuhCyVN025pQB+sQNuNba4Q4jcA@mail.gmail.com>
+	<20120507121527.GA19526@lizard>
+	<4FA82056.2070706@gmail.com>
+	<CAOJsxLHQcDZSHJZg+zbptqmT9YY0VTkPd+gG_zgMzs+HaV_cyA@mail.gmail.com>
+	<CAHGf_=q1nbu=3cnfJ4qXwmngMPB-539kg-DFN2FJGig8+dRaNw@mail.gmail.com>
+	<CAOJsxLFAavdDbiLnYRwe+QiuEHSD62+Sz6LJTk+c3J9gnLVQ_w@mail.gmail.com>
+	<CAHGf_=pSLfAue6AR5gi5RQ7xvgTxpZckA=Ja1fO1AkoO1o_DeA@mail.gmail.com>
+	<4FA8DA23.3030609@kernel.org>
+Date: Tue, 8 May 2012 12:27:40 +0300
+Message-ID: <CAOJsxLGGCq7czaBBO0POeWoh77ne5EXGs1+dxuSp1rj3Leydiw@mail.gmail.com>
+Subject: Re: [PATCH 3/3] vmevent: Implement special low-memory attribute
+From: Pekka Enberg <penberg@kernel.org>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-Cc: Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, LKML <linux-kernel@vger.kernel.org>, Linux-mm <linux-mm@kvack.org>, Oleg Nesterov <oleg@redhat.com>, Andi Kleen <andi@firstfloor.org>, Christoph Hellwig <hch@infradead.org>, Steven Rostedt <rostedt@goodmis.org>, Arnaldo Carvalho de Melo <acme@infradead.org>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Thomas Gleixner <tglx@linutronix.de>, Anton Arapov <anton@redhat.com>
+To: Minchan Kim <minchan@kernel.org>
+Cc: KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Anton Vorontsov <anton.vorontsov@linaro.org>, Leonid Moiseichuk <leonid.moiseichuk@nokia.com>, John Stultz <john.stultz@linaro.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linaro-kernel@lists.linaro.org, patches@linaro.org, kernel-team@android.com
 
+On Tue, May 8, 2012 at 11:32 AM, Minchan Kim <minchan@kernel.org> wrote:
+> The idea is that we can make some levels in advane and explain it to user
+>
+> Level 1: It a immediate response to user when kernel decide there are not fast-reclaimable pages any more.
+> Level 2: It's rather slower response than level 1 but kernel will consider it as reclaimable target
+> Level 3: It's slowest response because kernel will consider page needed long time to reclaim as reclaimable target.
+>
+> It doesn't expose any internal of kernel and can implment it in internal.
+> For simple example,
+>
+> Level 1: non-mapped clean page
+> Level 2: Level 1 + mapped clean-page
+> Level 3: Level 2 + dirty pages
+>
+> So users of vmevent_fd can select his level.
 
-* Srikar Dronamraju <srikar@linux.vnet.ibm.com> wrote:
-
-> * Peter Zijlstra <peterz@infradead.org> [2012-05-08 10:30:08]:
-> 
-> > On Tue, 2012-05-08 at 06:12 +0200, Ingo Molnar wrote:
-> > > FYI, this warning started to trigger in -tip, with the latest 
-> > > uprobes patches:
-> > > 
-> > > warning: (UPROBE_EVENT) selects UPROBES which has unmet direct dependencies (UPROBE_EVENTS && PERF_EVENTS)
-> > 
-> > this looks to be the only UPROBE_EVENTS instance, is that a typo?
-> 
-> 
-> I think I corrected this in the latest posting I sent on April 16th.
-> 
-> Ingo,
-> 
-> 	Since you had asked me to send the patch series again 
-> after handling comments and acks, I had sent the set. [...]
-
-Mind sending a delta patch instead? The patches are now 
-reasonably well tested and don't seem to break in any functional 
-way, so unless the delta patch is really ugly we should try that 
-instead of rebasing the branch.
-
-Thanks,
-
-	Ingo
+I'm totally OK with pursuing something like this if people like Leonid
+and Anton think it's useful for their use-cases.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
