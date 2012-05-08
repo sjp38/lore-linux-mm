@@ -1,119 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx147.postini.com [74.125.245.147])
-	by kanga.kvack.org (Postfix) with SMTP id 4CC016B0044
-	for <linux-mm@kvack.org>; Tue,  8 May 2012 16:50:42 -0400 (EDT)
-Message-ID: <4FA98688.1070908@parallels.com>
-Date: Tue, 8 May 2012 17:48:08 -0300
-From: Glauber Costa <glommer@parallels.com>
+Received: from psmtp.com (na3sys010amx182.postini.com [74.125.245.182])
+	by kanga.kvack.org (Postfix) with SMTP id 0D1CA6B0044
+	for <linux-mm@kvack.org>; Tue,  8 May 2012 19:10:15 -0400 (EDT)
+Received: by obbwd18 with SMTP id wd18so14324946obb.14
+        for <linux-mm@kvack.org>; Tue, 08 May 2012 16:10:15 -0700 (PDT)
 MIME-Version: 1.0
-Subject: Re: [RFC] alternative mechanism to skip memcg kmem allocations
-References: <1336448238-3728-1-git-send-email-glommer@parallels.com> <CABCjUKAo=guO5GBEiLSyOKbp3tRTpmwWWF0H+FoVqWF=S-JyZQ@mail.gmail.com>
-In-Reply-To: <CABCjUKAo=guO5GBEiLSyOKbp3tRTpmwWWF0H+FoVqWF=S-JyZQ@mail.gmail.com>
-Content-Type: text/plain; charset="ISO-8859-1"; format=flowed
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <CAHGf_=p4py5m1Pe1xon=9FcEEyf6AxW+Pc9Yy9gCvNtbXM_40A@mail.gmail.com>
+References: <CAHGf_=qdE3yNw=htuRssfav2pECO1Q0+gWMRTuNROd_3tVrd6Q@mail.gmail.com>
+	<CAHGf_=ojhwPUWJR0r+jVgjNd5h_sRrppzJntSpHzxyv+OuBueg@mail.gmail.com>
+	<x49ehr4lyw1.fsf@segfault.boston.devel.redhat.com>
+	<CAHGf_=rzcfo3OnwT-YsW2iZLchHs3eBKncobvbhTm7B5PE=L-w@mail.gmail.com>
+	<x491un3nc7a.fsf@segfault.boston.devel.redhat.com>
+	<CAPa8GCCgLUt1EDAy7-O-mo0qir6Bf5Pi3Va1EsQ3ZW5UU=+37g@mail.gmail.com>
+	<20120502081705.GB16976@quack.suse.cz>
+	<CAPa8GCCnvvaj0Do7sdrdfsvbcAf0zBe3ssXn45gMfDKCcvJWxA@mail.gmail.com>
+	<20120502091837.GC16976@quack.suse.cz>
+	<CAHGf_=qfuRZzb91ELEcArNaNHsfO4BBMPO8a-QRBzFNaT2ev_w@mail.gmail.com>
+	<20120502192325.GA18339@quack.suse.cz>
+	<CAHGf_=oOx1qPFEboQeuaeMKtveM2==BSDG=xdfRHz+gFx1GAfw@mail.gmail.com>
+	<CAKgNAkjybL_hmVfONUHtCbBe_VxQHNHOrmWQErGWDUqHiczkFg@mail.gmail.com>
+	<CAHGf_=p4py5m1Pe1xon=9FcEEyf6AxW+Pc9Yy9gCvNtbXM_40A@mail.gmail.com>
+Date: Wed, 9 May 2012 09:10:15 +1000
+Message-ID: <CAPa8GCCh-RrjsQKzh9+Sxx-joRZw4qkpxR9n4svo+QopxAj_XQ@mail.gmail.com>
+Subject: Re: [PATCH] Describe race of direct read and fork for unaligned buffers
+From: Nick Piggin <npiggin@gmail.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Suleiman Souhlal <suleiman@google.com>
-Cc: linux-mm@kvack.org, cgroups@vger.kernel.org, devel@openvz.org, kamezawa.hiroyu@jp.fujitsu.com, Christoph Lameter <cl@linux.com>, Pekka
- Enberg <penberg@cs.helsinki.fi>, Michal Hocko <mhocko@suse.cz>, Johannes
- Weiner <hannes@cmpxchg.org>
+To: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
+Cc: mtk.manpages@gmail.com, Jan Kara <jack@suse.cz>, Jeff Moyer <jmoyer@redhat.com>, LKML <linux-kernel@vger.kernel.org>, linux-man@vger.kernel.org, linux-mm@kvack.org, mgorman@suse.de, Andrea Arcangeli <aarcange@redhat.com>, Woodman <lwoodman@redhat.com>
 
-On 05/08/2012 05:47 PM, Suleiman Souhlal wrote:
-> On Mon, May 7, 2012 at 8:37 PM, Glauber Costa<glommer@parallels.com>  wrote:
->> Since Kame expressed the wish to see a context-based method to skip
->> accounting for caches, I came up with the following proposal for
->> your appreciation.
+On 6 May 2012 01:29, KOSAKI Motohiro <kosaki.motohiro@gmail.com> wrote:
+>> So, am I correct to assume that right text to add to the page is as belo=
+w?
 >>
->> It basically works in the same way as preempt_disable()/preempt_enable():
->> By marking a region under which all allocations will be accounted
->> to the root memcg.
->>
->> I basically see two main advantages of it:
->>
->>   * No need to clutter the code with *_noaccount functions; they could
->>    become specially widespread if we needed to skip accounting for
->>    kmalloc variants like track, zalloc, etc.
->>   * Works with other caches, not only kmalloc; specially interesting
->>    since during cache creation we touch things like cache_cache,
->>    that could very well we wrapped inside a noaccount region.
->>
->> However:
->>
->>   * It touches task_struct
->>   * It is harder to keep drivers away from using it. With
->>    kmalloc_no_account we could simply not export it. Here, one can
->>    always set this in the task_struct...
->>
->> Let me know what you think of it.
+>> Nick, can you clarify what you mean by "quiesced"?
 >
-> I like this idea a lot.
+> finished?
+
+Yes exactly. That might be a simpler word. Thanks!
+
 >
 >>
->> Signed-off-by: Glauber Costa<glommer@parallels.com>
->> CC: Christoph Lameter<cl@linux.com>
->> CC: Pekka Enberg<penberg@cs.helsinki.fi>
->> CC: Michal Hocko<mhocko@suse.cz>
->> CC: Kamezawa Hiroyuki<kamezawa.hiroyu@jp.fujitsu.com>
->> CC: Johannes Weiner<hannes@cmpxchg.org>
->> CC: Suleiman Souhlal<suleiman@google.com>
->> ---
->>   include/linux/sched.h |    1 +
->>   mm/memcontrol.c       |   34 ++++++++++++++++++++++++++++++++++
->>   2 files changed, 35 insertions(+), 0 deletions(-)
+>> [[
+>> O_DIRECT IOs should never be run concurrently with fork(2) system call,
+>> when the memory buffer is anonymous memory, or comes from mmap(2)
+>> with MAP_PRIVATE.
 >>
->> diff --git a/include/linux/sched.h b/include/linux/sched.h
->> index 81a173c..516a9fe 100644
->> --- a/include/linux/sched.h
->> +++ b/include/linux/sched.h
->> @@ -1613,6 +1613,7 @@ struct task_struct {
->>                 unsigned long nr_pages; /* uncharged usage */
->>                 unsigned long memsw_nr_pages; /* uncharged mem+swap usage */
->>         } memcg_batch;
->> +       int memcg_kmem_skip_account;
->>   #endif
->>   #ifdef CONFIG_HAVE_HW_BREAKPOINT
->>         atomic_t ptrace_bp_refcnt;
->> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
->> index 8c7c404..833f4cd 100644
->> --- a/mm/memcontrol.c
->> +++ b/mm/memcontrol.c
->> @@ -479,6 +479,33 @@ struct cg_proto *tcp_proto_cgroup(struct mem_cgroup *memcg)
->>   EXPORT_SYMBOL(tcp_proto_cgroup);
->>   #endif /* CONFIG_INET */
+>> Any such IOs, whether submitted with asynchronous IO interface or from
+>> another thread in the process, should be quiesced before fork(2) is call=
+ed.
+>> Failure to do so can result in data corruption and undefined behavior in
+>> parent and child processes.
 >>
->> +static void memcg_stop_kmem_account(void)
->> +{
->> +       struct task_struct *p;
->> +
->> +       if (!current->mm)
->> +               return;
->> +
->> +       p = rcu_dereference(current->mm->owner);
->> +       if (p) {
->> +               task_lock(p);
->> +               p->memcg_kmem_skip_account = true;
->> +       }
+>> This restriction does not apply when the memory buffer for the O_DIRECT
+>> IOs comes from mmap(2) with MAP_SHARED or from shmat(2).
+>> Nor does this restriction apply when the memory buffer has been advised
+>> as MADV_DONTFORK with madvise(2), ensuring that it will not be available
+>> to the child after fork(2).
+>> ]]
 >
-> This doesn't seem right. The flag has to be set on current, not on
-> another task, or weird things will happen (like the flag getting
-> lost).
-
-Won't get lost if changed to a counter, as you suggested.
-
-As for another task, in follow up patches I will make cache selection 
-based on charges based on mm->owner, instead of current. That's why I 
-did it based on mm->owner.
-
-But thinking again, here, it is somewhat different, who are we charging 
-too doesn't matter that much: what really matters is in which piece of 
-code we're in, so current makes more sense...
-
-will update it.
-
+> I don't have good English and I can't make editorial check. But at least,
+> I don't find any technical incorrect explanation here.
 >
-> Also, we might want to make it a count instead of a boolean, so that
-> it's possible to nest it.
-but do we want to nest it?
+> =C2=A0Acked-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
