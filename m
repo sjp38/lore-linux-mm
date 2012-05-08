@@ -1,58 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx199.postini.com [74.125.245.199])
-	by kanga.kvack.org (Postfix) with SMTP id 3D6CD6B0083
-	for <linux-mm@kvack.org>; Mon,  7 May 2012 20:46:59 -0400 (EDT)
-Message-ID: <4FA86CFE.5080603@kernel.org>
-Date: Tue, 08 May 2012 09:46:54 +0900
-From: Minchan Kim <minchan@kernel.org>
-MIME-Version: 1.0
-Subject: Re: [PATCH 6/6] zsmalloc: make zsmalloc portable
-References: <1335334994-22138-1-git-send-email-minchan@kernel.org> <1335334994-22138-7-git-send-email-minchan@kernel.org> <4F980AFE.60901@vflare.org> <4F982862.4050302@linux.vnet.ibm.com> <4FA7E6DD.6010607@linux.vnet.ibm.com>
-In-Reply-To: <4FA7E6DD.6010607@linux.vnet.ibm.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Received: from psmtp.com (na3sys010amx170.postini.com [74.125.245.170])
+	by kanga.kvack.org (Postfix) with SMTP id DF0986B004D
+	for <linux-mm@kvack.org>; Mon,  7 May 2012 21:31:13 -0400 (EDT)
+Received: by pbbrp2 with SMTP id rp2so9387823pbb.14
+        for <linux-mm@kvack.org>; Mon, 07 May 2012 18:31:13 -0700 (PDT)
+Date: Tue, 8 May 2012 09:31:57 +0800
+From: "majianpeng" <majianpeng@gmail.com>
+Subject: [PATCH] slub: Using judgement !!c  to judge per cpu has obj in fucntion has_cpu_slab().
+Message-ID: <201205080931539844949@gmail.com>
+Mime-Version: 1.0
+Content-Type: text/plain;
+	charset="us-ascii"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Seth Jennings <sjenning@linux.vnet.ibm.com>
-Cc: Nitin Gupta <ngupta@vflare.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Dan Magenheimer <dan.magenheimer@oracle.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: cl <cl@linux.com>, gilad <gilad@benyossef.com>
+Cc: linux-mm <linux-mm@kvack.org>
 
-On 05/08/2012 12:14 AM, Seth Jennings wrote:
+At present, I found some kernel message like:
+LUB raid5-md127: kmem_cache_destroy called for cache that still has objects.
+Pid: 6143, comm: mdadm Tainted: G           O 3.4.0-rc6+        #75
+Call Trace:
+[<ffffffff811227f8>] kmem_cache_destroy+0x328/0x400
+[<ffffffffa005ff1d>] free_conf+0x2d/0xf0 [raid456]
+[<ffffffffa0060791>] stop+0x41/0x60 [raid456]
+[<ffffffffa000276a>] md_stop+0x1a/0x60 [md_mod]
+[<ffffffffa000c974>] do_md_stop+0x74/0x470 [md_mod]
+[<ffffffffa000d0ff>] md_ioctl+0xff/0x11f0 [md_mod]
+[<ffffffff8127c958>] blkdev_ioctl+0xd8/0x7a0
+[<ffffffff8115ef6b>] block_ioctl+0x3b/0x40
+[<ffffffff8113b9c6>] do_vfs_ioctl+0x96/0x560
+[<ffffffff8113bf21>] sys_ioctl+0x91/0xa0
+[<ffffffff816e9d22>] system_call_fastpath+0x16/0x1b
 
-> On 04/25/2012 11:37 AM, Seth Jennings wrote:
-> 
->> I'll apply your patch and try it out.
-> 
-> Sorry for taking so long.
-> 
-> I finally got around to testing this on an x86_64 VM and it works with
-> the same performance as before and is much cleaner.  I like it.  Just
+Then using kmemleak can found those messages:
+unreferenced object 0xffff8800b6db7380 (size 112):
+  comm "mdadm", pid 5783, jiffies 4294810749 (age 90.589s)
+  hex dump (first 32 bytes):
+    01 01 db b6 ad 4e ad de ff ff ff ff ff ff ff ff  .....N..........
+    ff ff ff ff ff ff ff ff 98 40 4a 82 ff ff ff ff  .........@J.....
+  backtrace:
+    [<ffffffff816b52c1>] kmemleak_alloc+0x21/0x50
+    [<ffffffff8111a11b>] kmem_cache_alloc+0xeb/0x1b0
+    [<ffffffff8111c431>] kmem_cache_open+0x2f1/0x430
+    [<ffffffff8111c6c8>] kmem_cache_create+0x158/0x320
+    [<ffffffffa008f979>] setup_conf+0x649/0x770 [raid456]
+    [<ffffffffa009044b>] run+0x68b/0x840 [raid456]
+    [<ffffffffa000bde9>] md_run+0x529/0x940 [md_mod]
+    [<ffffffffa000c218>] do_md_run+0x18/0xc0 [md_mod]
+    [<ffffffffa000dba8>] md_ioctl+0xba8/0x11f0 [md_mod]
+    [<ffffffff81272b28>] blkdev_ioctl+0xd8/0x7a0
+    [<ffffffff81155bfb>] block_ioctl+0x3b/0x40
+    [<ffffffff811326d6>] do_vfs_ioctl+0x96/0x560
+    [<ffffffff81132c31>] sys_ioctl+0x91/0xa0
+    [<ffffffff816dd3a2>] system_call_fastpath+0x16/0x1b
+    [<ffffffffffffffff>] 0xffffffffffffffff
 
-> need to expand the patch to all the arches.
+Because kmemleak don't detect page leak, so the pages of slabs did not print.
 
-> 
-> I'm also interested to see if this works for ppc64.  I'm hoping to try
-> it out today or tomorrow.
+Commit a8364d5555b2030d093cde0f0795 modify the code of flush_all.
 
+Signed-off-by: majianpeng <majianpeng@gmail.com>
+---
+ mm/slub.c |    2 +-
+ 1 files changed, 1 insertions(+), 1 deletions(-)
 
-I will have a time to make a patch in a weekend if other urgent doesn't
-catch me. :)
-
-Seth, Thanks for the testing!
-
-> 
-> --
-> Seth
-> 
-
-
-
+diff --git a/mm/slub.c b/mm/slub.c
+index ffe13fd..6fce08f 100644
+--- a/mm/slub.c
++++ b/mm/slub.c
+@@ -2040,7 +2040,7 @@ static bool has_cpu_slab(int cpu, void *info)
+ 	struct kmem_cache *s = info;
+ 	struct kmem_cache_cpu *c = per_cpu_ptr(s->cpu_slab, cpu);
+ 
+-	return !!(c->page);
++	return !!c;
+ }
+ 
+ static void flush_all(struct kmem_cache *s)
 -- 
-Kind regards,
-Minchan Kim
+1.7.5.4
 
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Fight unfair telecom internet charges in Canada: sign http://stopthemeter.ca/
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+root@majianpeng:/mnt/kernel/linux# vim mm/slub.c 
+root@majianpeng:/mnt/kernel/linux# cat 0001-slub-Using-judgement-c-to-judge-per-cpu-has-obj-in-f.patch 
