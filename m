@@ -1,49 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx197.postini.com [74.125.245.197])
-	by kanga.kvack.org (Postfix) with SMTP id EE6516B00ED
-	for <linux-mm@kvack.org>; Tue,  8 May 2012 10:13:11 -0400 (EDT)
-Date: Tue, 8 May 2012 09:13:09 -0500 (CDT)
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: [PATCH] slub: fix incorrect return type of get_any_partial()
-In-Reply-To: <alpine.LFD.2.02.1205080831580.4372@tux.localdomain>
-Message-ID: <alpine.DEB.2.00.1205080912590.25669@router.home>
-References: <1327651943-28225-1-git-send-email-js1304@gmail.com> <alpine.LFD.2.02.1205080831580.4372@tux.localdomain>
+Received: from psmtp.com (na3sys010amx126.postini.com [74.125.245.126])
+	by kanga.kvack.org (Postfix) with SMTP id 4B6DB6B00EF
+	for <linux-mm@kvack.org>; Tue,  8 May 2012 10:47:38 -0400 (EDT)
+Received: by pbbrp2 with SMTP id rp2so10467663pbb.14
+        for <linux-mm@kvack.org>; Tue, 08 May 2012 07:47:37 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+In-Reply-To: <alpine.DEB.2.00.1205080859570.25669@router.home>
+References: <CAP145pjtv-S2oHhn8_QfLKF8APtut4B9qPXK5QM8nQbxzPd2gw@mail.gmail.com>
+	<alpine.DEB.2.00.1205071514040.6029@router.home>
+	<CAP145piK2kW4F94pNdKpo_sGg8OD914exOtwCx2o+83jx5Toog@mail.gmail.com>
+	<alpine.DEB.2.00.1205080859570.25669@router.home>
+Date: Tue, 8 May 2012 16:47:37 +0200
+Message-ID: <CAP145phLFDzoop_kUq-qN8a132Dj4oXsxJGcR_rv+LbZV-NObA@mail.gmail.com>
+Subject: Re: mmap/clone returns ENOMEM with lots of free memory
+From: =?UTF-8?B?Um9iZXJ0IMWad2nEmWNraQ==?= <robert@swiecki.net>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pekka Enberg <penberg@kernel.org>
-Cc: Joonsoo Kim <js1304@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Christoph Lameter <cl@linux.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Tue, 8 May 2012, Pekka Enberg wrote:
-
-> On Fri, 27 Jan 2012, Joonsoo Kim wrote:
+On Tue, May 8, 2012 at 4:02 PM, Christoph Lameter <cl@linux.com> wrote:
+> On Mon, 7 May 2012, Robert =C5=9Awi=C4=99cki wrote:
 >
-> > Commit 497b66f2ecc97844493e6a147fd5a7e73f73f408 ('slub: return object pointer
-> > from get_partial() / new_slab().') changed return type of some functions.
-> > This updates missing part.
-> >
-> > Signed-off-by: Joonsoo Kim <js1304@gmail.com>
-> >
-> > diff --git a/mm/slub.c b/mm/slub.c
-> > index ffe13fd..18bf13e 100644
-> > --- a/mm/slub.c
-> > +++ b/mm/slub.c
-> > @@ -1579,7 +1579,7 @@ static void *get_partial_node(struct kmem_cache *s,
-> >  /*
-> >   * Get a page from somewhere. Search in increasing NUMA distances.
-> >   */
-> > -static struct page *get_any_partial(struct kmem_cache *s, gfp_t flags,
-> > +static void *get_any_partial(struct kmem_cache *s, gfp_t flags,
-> >  		struct kmem_cache_cpu *c)
-> >  {
-> >  #ifdef CONFIG_NUMA
-> > --
-> > 1.7.0.4
+>> Yup (btw: I attached dump of some proc files and some debug commands
+>> in the original e-mail - can be found here
+>> http://marc.info/?l=3Dlinux-kernel&m=3D133640623421007&w=3D2 in case som=
+e
+>> MTA removed them)
+>>
+>> CommitLimit: =C2=A0 =C2=A0 1981528 kB
+>> Committed_AS: =C2=A0 =C2=A01916788 kB
+>>
+>> just not sure if Committed_AS should present this kind of value. Did I
+>> just hit a legitimate condition, or may it suggest a bug? I'm a bit
+>> puzzled cause
 >
-> Applied, thanks!
+> This is a legitimate condition. No bug.
+>>
+>> root@ise-test:/proc# grep Mem /proc/meminfo
+>> MemTotal: =C2=A0 =C2=A0 =C2=A0 =C2=A03963060 kB
+>> MemFree: =C2=A0 =C2=A0 =C2=A0 =C2=A0 3098324 kB
+>
+> Physical memory is free in quantity but virtual memory is exhausted.
+>
+>> Also, some sysctl values:
+>> vm.overcommit_memory =3D 2
+>> vm.overcommit_ratio =3D 50
+>
+> Setting overcommit memory to 2 means that the app is strictly policed
+> for staying within bounds on virtual memory. Dont do that.
+>
+> See linux source linux/Documentation/vm/overcommit-accounting for more
+> details.
 
-Could we also fix the comment at the same time?
+Thanks Christoph.
+
+--=20
+Robert =C5=9Awi=C4=99cki
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
