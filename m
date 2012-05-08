@@ -1,71 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx149.postini.com [74.125.245.149])
-	by kanga.kvack.org (Postfix) with SMTP id 994886B010F
-	for <linux-mm@kvack.org>; Tue,  8 May 2012 05:01:20 -0400 (EDT)
-Received: from /spool/local
-	by e38.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <srikar@linux.vnet.ibm.com>;
-	Tue, 8 May 2012 03:01:19 -0600
-Received: from d03relay01.boulder.ibm.com (d03relay01.boulder.ibm.com [9.17.195.226])
-	by d03dlp01.boulder.ibm.com (Postfix) with ESMTP id 5898E1FF001F
-	for <linux-mm@kvack.org>; Tue,  8 May 2012 03:01:15 -0600 (MDT)
-Received: from d03av04.boulder.ibm.com (d03av04.boulder.ibm.com [9.17.195.170])
-	by d03relay01.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q4891E1l188040
-	for <linux-mm@kvack.org>; Tue, 8 May 2012 03:01:14 -0600
-Received: from d03av04.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av04.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q4891BSC025414
-	for <linux-mm@kvack.org>; Tue, 8 May 2012 03:01:13 -0600
-Date: Tue, 8 May 2012 14:20:02 +0530
-From: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-Subject: Re: [PATCH UPDATED 3/3] tracing: Provide trace events interface
- for uprobes
-Message-ID: <20120508085002.GA13272@linux.vnet.ibm.com>
-Reply-To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-References: <20120409091133.8343.65289.sendpatchset@srdronam.in.ibm.com>
- <20120409091154.8343.50489.sendpatchset@srdronam.in.ibm.com>
- <20120411103043.GB29437@linux.vnet.ibm.com>
- <20120508041229.GD30652@gmail.com>
- <1336465808.16236.13.camel@twins>
+Received: from psmtp.com (na3sys010amx177.postini.com [74.125.245.177])
+	by kanga.kvack.org (Postfix) with SMTP id 0C6706B004D
+	for <linux-mm@kvack.org>; Tue,  8 May 2012 05:16:01 -0400 (EDT)
+From: <leonid.moiseichuk@nokia.com>
+Subject: RE: [PATCH 3/3] vmevent: Implement special low-memory attribute
+Date: Tue, 8 May 2012 09:15:46 +0000
+Message-ID: <84FF21A720B0874AA94B46D76DB98269045D63B3@008-AM1MPN1-003.mgdnok.nokia.com>
+References: <20120501132409.GA22894@lizard>	<20120501132620.GC24226@lizard>
+	<4FA35A85.4070804@kernel.org>	<20120504073810.GA25175@lizard>
+	<CAOJsxLH_7mMMe+2DvUxBW1i5nbUfkbfRE3iEhLQV9F_MM7=eiw@mail.gmail.com>
+	<CAHGf_=qcGfuG1g15SdE0SDxiuhCyVN025pQB+sQNuNba4Q4jcA@mail.gmail.com>
+	<20120507121527.GA19526@lizard>	<4FA82056.2070706@gmail.com>
+	<CAOJsxLHQcDZSHJZg+zbptqmT9YY0VTkPd+gG_zgMzs+HaV_cyA@mail.gmail.com>
+	<CAHGf_=q1nbu=3cnfJ4qXwmngMPB-539kg-DFN2FJGig8+dRaNw@mail.gmail.com>
+	<CAOJsxLFAavdDbiLnYRwe+QiuEHSD62+Sz6LJTk+c3J9gnLVQ_w@mail.gmail.com>
+	<CAHGf_=pSLfAue6AR5gi5RQ7xvgTxpZckA=Ja1fO1AkoO1o_DeA@mail.gmail.com>
+	<CAOJsxLG1+zhOKgi2Rg1eSoXSCU8QGvHVED_EefOOLP-6JbMDkg@mail.gmail.com>
+	<4FA8D046.7000808@gmail.com>
+ <CAOJsxLGWtJy7q6ij_-tN8nVTr-OXpgdWVkXsOda8S9mJzo7n2w@mail.gmail.com>
+In-Reply-To: <CAOJsxLGWtJy7q6ij_-tN8nVTr-OXpgdWVkXsOda8S9mJzo7n2w@mail.gmail.com>
+Content-Language: en-US
+Content-Type: text/plain; charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-In-Reply-To: <1336465808.16236.13.camel@twins>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@kernel.org>, Ingo Molnar <mingo@elte.hu>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, LKML <linux-kernel@vger.kernel.org>, Linux-mm <linux-mm@kvack.org>, Oleg Nesterov <oleg@redhat.com>, Andi Kleen <andi@firstfloor.org>, Christoph Hellwig <hch@infradead.org>, Steven Rostedt <rostedt@goodmis.org>, Arnaldo Carvalho de Melo <acme@infradead.org>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Thomas Gleixner <tglx@linutronix.de>, Anton Arapov <anton@redhat.com>
+To: penberg@kernel.org, kosaki.motohiro@gmail.com
+Cc: anton.vorontsov@linaro.org, minchan@kernel.org, john.stultz@linaro.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linaro-kernel@lists.linaro.org, patches@linaro.org, kernel-team@android.com
 
-* Peter Zijlstra <peterz@infradead.org> [2012-05-08 10:30:08]:
+> -----Original Message-----
+> From: penberg@gmail.com [mailto:penberg@gmail.com] On Behalf Of ext
+> Pekka Enberg
+> Sent: 08 May, 2012 11:03
+> To: KOSAKI Motohiro
+> Cc: Anton Vorontsov; Minchan Kim; Moiseichuk Leonid (Nokia-MP/Espoo); Joh=
+n
+...
+> >> That comes from a real-world requirement. See Leonid's email on the to=
+pic:
+> >>
+> >> https://lkml.org/lkml/2012/5/2/42
+> >
+> > I know, many embedded guys prefer such timer interval. I also have an
+> > experience similar logic when I was TV box developer. but I must
+> > disagree. Someone hope timer housekeeping complexity into kernel. but
+> > I haven't seen any justification.
+>=20
+> Leonid?
 
-> On Tue, 2012-05-08 at 06:12 +0200, Ingo Molnar wrote:
-> > FYI, this warning started to trigger in -tip, with the latest 
-> > uprobes patches:
-> > 
-> > warning: (UPROBE_EVENT) selects UPROBES which has unmet direct dependencies (UPROBE_EVENTS && PERF_EVENTS)
-> 
-> this looks to be the only UPROBE_EVENTS instance, is that a typo?
+The "usleep(timeout); read(vmevent_fd)" will eliminate opportunity to use v=
+mevent API for mobile devices. =20
+Developers already have to use heartbeat primitives to align/sync timers an=
+d update code which is not always simple to do.
+But the idea is to have user-space wakeup only if we have something change =
+in memory numbers, thus aligned timers will not help much in vmevent case d=
+ue to memory situation may change a lot in short time.
+Short depends from software stack but usually it below 1s.  To have use-tim=
+e and wakeups on good level (below 50Hz by e.g. powertop) and allow cpu swi=
+tch off timers of such short period like 1s are not allowed.
 
-
-I think I corrected this in the latest posting I sent on April 16th.
-
-Ingo,
-
-	Since you had asked me to send the patch series again after
-handling comments and acks, I had sent the set. At that time, I had
-handled this change as part of a comment from Stephen Boyd.  I had
-mentioned this in the changelog.
-
-	Would it be possible for you to accept the patches from 
-https://lkml.org/lkml/2012/4/16/109
-with message id: 
-Message-Id: <20120416091936.19174.2641.sendpatchset@srdronam.in.ibm.com> 
-
-Currently you seem to have picked from 
-https://lkml.org/lkml/2012/4/11/117
-
---
-Thanks and Regards
-Srikar
+Leonid
+PS: Sorry, meetings prevent to do interesting things :(  I am tracking conv=
+ersation with quite low understanding how it will be useful for practical n=
+eeds because user-space developers in 80% cases needs to track simply dirty=
+ memory changes i.e. modified pages which cannot be dropped.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
