@@ -1,53 +1,136 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx132.postini.com [74.125.245.132])
-	by kanga.kvack.org (Postfix) with SMTP id 993B16B004D
-	for <linux-mm@kvack.org>; Tue,  8 May 2012 13:57:50 -0400 (EDT)
-Date: Tue, 8 May 2012 19:57:48 +0200
-From: Sam Ravnborg <sam@ravnborg.org>
-Subject: Re: [patch 00/10] (no)bootmem bits for 3.5
-Message-ID: <20120508175748.GA11906@merkur.ravnborg.org>
-References: <1336390672-14421-1-git-send-email-hannes@cmpxchg.org> <20120507204113.GD10521@merkur.ravnborg.org> <20120507220142.GA1202@cmpxchg.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20120507220142.GA1202@cmpxchg.org>
+Received: from psmtp.com (na3sys010amx111.postini.com [74.125.245.111])
+	by kanga.kvack.org (Postfix) with SMTP id B76E26B0044
+	for <linux-mm@kvack.org>; Tue,  8 May 2012 14:55:47 -0400 (EDT)
+Received: by qcmt36 with SMTP id t36so4224140qcm.15
+        for <linux-mm@kvack.org>; Tue, 08 May 2012 11:55:41 -0700 (PDT)
+From: Pravin B Shelar <pshelar@nicira.com>
+Subject: [PATCH] mm: sl[auo]b: Use atomic bit operations to update page-flags.
+Date: Tue,  8 May 2012 11:55:39 -0700
+Message-Id: <1336503339-18722-1-git-send-email-pshelar@nicira.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Gavin Shan <shangw@linux.vnet.ibm.com>, David Miller <davem@davemloft.net>, Yinghai Lu <yinghai@kernel.org>, Tejun Heo <tj@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: cl@linux.com, penberg@kernel.org, mpm@selenic.com
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, jesse@nicira.com, abhide@nicira.com, Pravin B Shelar <pshelar@nicira.com>
 
-On Tue, May 08, 2012 at 12:01:42AM +0200, Johannes Weiner wrote:
-> On Mon, May 07, 2012 at 10:41:13PM +0200, Sam Ravnborg wrote:
-> > Hi Johannes.
-> > 
-> > > here are some (no)bootmem fixes and cleanups for 3.5.  Most of it is
-> > > unifying allocation behaviour across bootmem and nobootmem when it
-> > > comes to respecting the specified allocation address goal and numa.
-> > > 
-> > > But also refactoring the codebases of the two bootmem APIs so that we
-> > > can think about sharing code between them again.
-> > 
-> > Could you check up on CONFIG_HAVE_ARCH_BOOTMEM use in bootmem.c too?
-> > x86 no longer uses bootmem.c
-> > avr define it - but to n.
-> > 
-> > So no-one is actually using this anymore.
-> > I have sent patches to remove it from Kconfig for both x86 and avr.
-> > 
-> > I looked briefly at cleaning up bootmem.c myslef - but I felt not
-> > familiar enough with the code to do the cleanup.
-> > 
-> > I did not check your patchset - but based on the shortlog you
-> > did not kill HAVE_ARCH_BOOTMEM.
-> 
-> It was used on x86-32 numa to try all bootmem allocations from node 0
-> first (see only remaining definition of bootmem_arch_preferred_node),
-> which AFAICS nobootmem no longer respects.
-> 
-> Shouldn't this be fixed instead?
-I do not know. Tejun / Yinghai?
+Transparent huge pages can change page->flags (PG_compound_lock)
+without taking Slab lock. So sl[auo]b need to use atomic bit
+operation while changing page->flags.
+Specificly this patch fixes race between compound_unlock and slab
+functions which does page-flags update. This can occur when
+get_page/put_page is called on page from slab object.
 
-	Sam
+Reported-by: Amey Bhide <abhide@nicira.com>
+Signed-off-by: Pravin B Shelar <pshelar@nicira.com>
+---
+ include/linux/page-flags.h |    4 ++--
+ mm/slab.c                  |    4 ++--
+ mm/slob.c                  |    8 ++++----
+ mm/slub.c                  |    4 ++--
+ 4 files changed, 10 insertions(+), 10 deletions(-)
+
+diff --git a/include/linux/page-flags.h b/include/linux/page-flags.h
+index c88d2a9..ba5b275 100644
+--- a/include/linux/page-flags.h
++++ b/include/linux/page-flags.h
+@@ -201,14 +201,14 @@ PAGEFLAG(Dirty, dirty) TESTSCFLAG(Dirty, dirty) __CLEARPAGEFLAG(Dirty, dirty)
+ PAGEFLAG(LRU, lru) __CLEARPAGEFLAG(LRU, lru)
+ PAGEFLAG(Active, active) __CLEARPAGEFLAG(Active, active)
+ 	TESTCLEARFLAG(Active, active)
+-__PAGEFLAG(Slab, slab)
++PAGEFLAG(Slab, slab)
+ PAGEFLAG(Checked, checked)		/* Used by some filesystems */
+ PAGEFLAG(Pinned, pinned) TESTSCFLAG(Pinned, pinned)	/* Xen */
+ PAGEFLAG(SavePinned, savepinned);			/* Xen */
+ PAGEFLAG(Reserved, reserved) __CLEARPAGEFLAG(Reserved, reserved)
+ PAGEFLAG(SwapBacked, swapbacked) __CLEARPAGEFLAG(SwapBacked, swapbacked)
+ 
+-__PAGEFLAG(SlobFree, slob_free)
++PAGEFLAG(SlobFree, slob_free)
+ 
+ /*
+  * Private page markings that may be used by the filesystem that owns the page
+diff --git a/mm/slab.c b/mm/slab.c
+index e901a36..55e8c61 100644
+--- a/mm/slab.c
++++ b/mm/slab.c
+@@ -1817,7 +1817,7 @@ static void *kmem_getpages(struct kmem_cache *cachep, gfp_t flags, int nodeid)
+ 		add_zone_page_state(page_zone(page),
+ 			NR_SLAB_UNRECLAIMABLE, nr_pages);
+ 	for (i = 0; i < nr_pages; i++)
+-		__SetPageSlab(page + i);
++		SetPageSlab(page + i);
+ 
+ 	if (kmemcheck_enabled && !(cachep->flags & SLAB_NOTRACK)) {
+ 		kmemcheck_alloc_shadow(page, cachep->gfporder, flags, nodeid);
+@@ -1850,7 +1850,7 @@ static void kmem_freepages(struct kmem_cache *cachep, void *addr)
+ 				NR_SLAB_UNRECLAIMABLE, nr_freed);
+ 	while (i--) {
+ 		BUG_ON(!PageSlab(page));
+-		__ClearPageSlab(page);
++		ClearPageSlab(page);
+ 		page++;
+ 	}
+ 	if (current->reclaim_state)
+diff --git a/mm/slob.c b/mm/slob.c
+index 8105be4..7256a1a 100644
+--- a/mm/slob.c
++++ b/mm/slob.c
+@@ -140,12 +140,12 @@ static inline int is_slob_page(struct slob_page *sp)
+ 
+ static inline void set_slob_page(struct slob_page *sp)
+ {
+-	__SetPageSlab((struct page *)sp);
++	SetPageSlab((struct page *)sp);
+ }
+ 
+ static inline void clear_slob_page(struct slob_page *sp)
+ {
+-	__ClearPageSlab((struct page *)sp);
++	ClearPageSlab((struct page *)sp);
+ }
+ 
+ static inline struct slob_page *slob_page(const void *addr)
+@@ -164,13 +164,13 @@ static inline int slob_page_free(struct slob_page *sp)
+ static void set_slob_page_free(struct slob_page *sp, struct list_head *list)
+ {
+ 	list_add(&sp->list, list);
+-	__SetPageSlobFree((struct page *)sp);
++	SetPageSlobFree((struct page *)sp);
+ }
+ 
+ static inline void clear_slob_page_free(struct slob_page *sp)
+ {
+ 	list_del(&sp->list);
+-	__ClearPageSlobFree((struct page *)sp);
++	ClearPageSlobFree((struct page *)sp);
+ }
+ 
+ #define SLOB_UNIT sizeof(slob_t)
+diff --git a/mm/slub.c b/mm/slub.c
+index 548bd12..0b53cb5 100644
+--- a/mm/slub.c
++++ b/mm/slub.c
+@@ -362,7 +362,7 @@ static __always_inline void slab_lock(struct page *page)
+ 
+ static __always_inline void slab_unlock(struct page *page)
+ {
+-	__bit_spin_unlock(PG_locked, &page->flags);
++	bit_spin_unlock(PG_locked, &page->flags);
+ }
+ 
+ /* Interrupts must be disabled (for the fallback code to work right) */
+@@ -1413,7 +1413,7 @@ static void __free_slab(struct kmem_cache *s, struct page *page)
+ 		NR_SLAB_RECLAIMABLE : NR_SLAB_UNRECLAIMABLE,
+ 		-pages);
+ 
+-	__ClearPageSlab(page);
++	ClearPageSlab(page);
+ 	reset_page_mapcount(page);
+ 	if (current->reclaim_state)
+ 		current->reclaim_state->reclaimed_slab += pages;
+-- 
+1.7.10
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
