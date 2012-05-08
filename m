@@ -1,25 +1,25 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx137.postini.com [74.125.245.137])
-	by kanga.kvack.org (Postfix) with SMTP id 6D2DD6B00E9
-	for <linux-mm@kvack.org>; Tue,  8 May 2012 10:08:57 -0400 (EDT)
-Date: Tue, 8 May 2012 09:08:55 -0500 (CDT)
+Received: from psmtp.com (na3sys010amx179.postini.com [74.125.245.179])
+	by kanga.kvack.org (Postfix) with SMTP id ABCFA6B00EB
+	for <linux-mm@kvack.org>; Tue,  8 May 2012 10:11:09 -0400 (EDT)
+Date: Tue, 8 May 2012 09:11:07 -0500 (CDT)
 From: Christoph Lameter <cl@linux.com>
-Subject: Re: [PATCH] slub: Using judgement !!c  to judge per cpu has obj in
+Subject: Re: [PATCH] slub: Using judgement !!c to judge per cpu has obj in
  fucntion has_cpu_slab().
-In-Reply-To: <201205080931539844949@gmail.com>
-Message-ID: <alpine.DEB.2.00.1205080905040.25669@router.home>
-References: <201205080931539844949@gmail.com>
+In-Reply-To: <CAOtvUMctgcCrB_kCoKZki45_2i9XKzp-XLyfmNTxYwdFWSKYNQ@mail.gmail.com>
+Message-ID: <alpine.DEB.2.00.1205080909490.25669@router.home>
+References: <201205080931539844949@gmail.com> <CAOtvUMctgcCrB_kCoKZki45_2i9XKzp-XLyfmNTxYwdFWSKYNQ@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: majianpeng <majianpeng@gmail.com>
-Cc: gilad <gilad@benyossef.com>, Pekka Enberg <penberg@cs.helsinki.fi>, linux-mm <linux-mm@kvack.org>
+To: Gilad Ben-Yossef <gilad@benyossef.com>
+Cc: majianpeng <majianpeng@gmail.com>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Pekka Enberg <penberg@kernel.org>
 
-On Tue, 8 May 2012, majianpeng wrote:
+On Tue, 8 May 2012, Gilad Ben-Yossef wrote:
 
 > diff --git a/mm/slub.c b/mm/slub.c
-> index ffe13fd..6fce08f 100644
+> index ffe13fd..d66afc4 100644
 > --- a/mm/slub.c
 > +++ b/mm/slub.c
 > @@ -2040,7 +2040,7 @@ static bool has_cpu_slab(int cpu, void *info)
@@ -27,19 +27,11 @@ On Tue, 8 May 2012, majianpeng wrote:
 >  	struct kmem_cache_cpu *c = per_cpu_ptr(s->cpu_slab, cpu);
 >
 > -	return !!(c->page);
-> +	return !!c;
->  }
+> +	return !!(c->page && c->partial);
 
-Dont do that. This will always return true since c will never be NULL. The
-check is pointless then and you have essentially reverted the patch to
-slub that avoids the IPI. Reverting
-commit a8364d5555b2030d093cde0f07951628e55454e1 should have the same
-effect.
+&&? Should this not be || ? W#e can also drop the !! now I think.
 
-This issue suggests some sort of race condition that results in not
-releasing the per cpu slab or the population of the per cpu slab after
-the check was done.
-
+	return c->page || c->partial
 
 
 --
