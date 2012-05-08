@@ -1,41 +1,33 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx115.postini.com [74.125.245.115])
-	by kanga.kvack.org (Postfix) with SMTP id 3F2316B00F2
-	for <linux-mm@kvack.org>; Tue,  8 May 2012 11:34:32 -0400 (EDT)
-Date: Tue, 8 May 2012 10:34:25 -0500 (CDT)
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: [PATCH v1 5/6] mm: make vmstat_update periodic run conditional
-In-Reply-To: <CAOtvUMf95gmZ4ZTSpTb+5NZdEiDTg_CPtp3L2_notdz+dZWG6A@mail.gmail.com>
-Message-ID: <alpine.DEB.2.00.1205081033450.27713@router.home>
-References: <1336056962-10465-1-git-send-email-gilad@benyossef.com> <1336056962-10465-6-git-send-email-gilad@benyossef.com> <alpine.DEB.2.00.1205071024550.1060@router.home> <4FA823A7.9000801@gmail.com> <alpine.DEB.2.00.1205071438240.2215@router.home>
- <CAOtvUMf95gmZ4ZTSpTb+5NZdEiDTg_CPtp3L2_notdz+dZWG6A@mail.gmail.com>
+Received: from psmtp.com (na3sys010amx198.postini.com [74.125.245.198])
+	by kanga.kvack.org (Postfix) with SMTP id 7432F6B0083
+	for <linux-mm@kvack.org>; Tue,  8 May 2012 11:47:48 -0400 (EDT)
+Received: by yhr47 with SMTP id 47so7885432yhr.14
+        for <linux-mm@kvack.org>; Tue, 08 May 2012 08:47:47 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+In-Reply-To: <CANudz+uVSGiYUQcaCj95qxc9_shv4YKWmN=X+U3ca+a0CWRiEA@mail.gmail.com>
+References: <CANudz+uVSGiYUQcaCj95qxc9_shv4YKWmN=X+U3ca+a0CWRiEA@mail.gmail.com>
+Date: Tue, 8 May 2012 23:47:47 +0800
+Message-ID: <CANudz+uh701RL4-k_chOgjN8Nr4EaZJH4nfQ=+HC4NkYFW16fA@mail.gmail.com>
+Subject: Some questions about boot memory
+From: loody <miloody@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Gilad Ben-Yossef <gilad@benyossef.com>
-Cc: KOSAKI Motohiro <kosaki.motohiro@gmail.com>, linux-kernel@vger.kernel.org, Thomas Gleixner <tglx@linutronix.de>, Tejun Heo <tj@kernel.org>, John Stultz <johnstul@us.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, Mike Frysinger <vapier@gentoo.org>, David Rientjes <rientjes@google.com>, Hugh Dickins <hughd@google.com>, Minchan Kim <minchan.kim@gmail.com>, Konstantin Khlebnikov <khlebnikov@openvz.org>, Chris Metcalf <cmetcalf@tilera.com>, Hakan Akkan <hakanakkan@gmail.com>, Max Krasnyansky <maxk@qualcomm.com>, Frederic Weisbecker <fweisbec@gmail.com>, linux-mm@kvack.org
+To: linux-mm <linux-mm@kvack.org>
 
-On Tue, 8 May 2012, Gilad Ben-Yossef wrote:
+hi all:
 
-> > But this would still mean that the vmstat update thread would run on an
-> > arbitrary cpu. If I have a sacrificial lamb processor for OS processing
-> > then I would expect the vmstat update thread to stick to that processor
-> > and avoid to run on the other processor that I would like to be as free
-> > from OS noise as possible.
-> >
->
-> OK, what about -
->
-> - We pick a scapegoat cpu (the first to come up gets the job).
-> - We add a knob to let user designate another cpu for the job.
-> - If scapegoat cpus goes offline, the cpu processing the off lining is
-> the new scapegoat.
->
-> Does this makes better sense?
+=A0I have some question about the relationship between page table
+=A0creation and bootmemery allocation.
+=A0bootmemory allocation use 1-bit to declare this page is used or not.
+=A0Does that mean when a new page table is creating, it will reference
+=A0the bits of bootmap and add dirty flag on the page of the page table cre=
+ated?
 
-Sounds good. The first that comes up. If the cpu is isolated then the
-first non isolated cpu is picked.
+=A0--
+=A0Thanks a lot
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
