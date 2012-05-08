@@ -1,64 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx126.postini.com [74.125.245.126])
-	by kanga.kvack.org (Postfix) with SMTP id 4B6DB6B00EF
-	for <linux-mm@kvack.org>; Tue,  8 May 2012 10:47:38 -0400 (EDT)
-Received: by pbbrp2 with SMTP id rp2so10467663pbb.14
-        for <linux-mm@kvack.org>; Tue, 08 May 2012 07:47:37 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx165.postini.com [74.125.245.165])
+	by kanga.kvack.org (Postfix) with SMTP id 2E2936B00EF
+	for <linux-mm@kvack.org>; Tue,  8 May 2012 11:02:12 -0400 (EDT)
+Received: by faap21 with SMTP id p21so1728faa.14
+        for <linux-mm@kvack.org>; Tue, 08 May 2012 08:02:10 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <alpine.DEB.2.00.1205080859570.25669@router.home>
-References: <CAP145pjtv-S2oHhn8_QfLKF8APtut4B9qPXK5QM8nQbxzPd2gw@mail.gmail.com>
-	<alpine.DEB.2.00.1205071514040.6029@router.home>
-	<CAP145piK2kW4F94pNdKpo_sGg8OD914exOtwCx2o+83jx5Toog@mail.gmail.com>
-	<alpine.DEB.2.00.1205080859570.25669@router.home>
-Date: Tue, 8 May 2012 16:47:37 +0200
-Message-ID: <CAP145phLFDzoop_kUq-qN8a132Dj4oXsxJGcR_rv+LbZV-NObA@mail.gmail.com>
-Subject: Re: mmap/clone returns ENOMEM with lots of free memory
-From: =?UTF-8?B?Um9iZXJ0IMWad2nEmWNraQ==?= <robert@swiecki.net>
-Content-Type: text/plain; charset=UTF-8
+In-Reply-To: <alpine.DEB.2.00.1205080909490.25669@router.home>
+References: <201205080931539844949@gmail.com>
+	<CAOtvUMctgcCrB_kCoKZki45_2i9XKzp-XLyfmNTxYwdFWSKYNQ@mail.gmail.com>
+	<alpine.DEB.2.00.1205080909490.25669@router.home>
+Date: Tue, 8 May 2012 18:02:09 +0300
+Message-ID: <CAOtvUMd6vJoZrtNTy8-cfOha0dqg1auUuhOkMWMG9umcwrNEzA@mail.gmail.com>
+Subject: Re: [PATCH] slub: Using judgement !!c to judge per cpu has obj in
+ fucntion has_cpu_slab().
+From: Gilad Ben-Yossef <gilad@benyossef.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Christoph Lameter <cl@linux.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: majianpeng <majianpeng@gmail.com>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Pekka Enberg <penberg@kernel.org>
 
-On Tue, May 8, 2012 at 4:02 PM, Christoph Lameter <cl@linux.com> wrote:
-> On Mon, 7 May 2012, Robert =C5=9Awi=C4=99cki wrote:
+On Tue, May 8, 2012 at 5:11 PM, Christoph Lameter <cl@linux.com> wrote:
+> On Tue, 8 May 2012, Gilad Ben-Yossef wrote:
 >
->> Yup (btw: I attached dump of some proc files and some debug commands
->> in the original e-mail - can be found here
->> http://marc.info/?l=3Dlinux-kernel&m=3D133640623421007&w=3D2 in case som=
-e
->> MTA removed them)
+>> diff --git a/mm/slub.c b/mm/slub.c
+>> index ffe13fd..d66afc4 100644
+>> --- a/mm/slub.c
+>> +++ b/mm/slub.c
+>> @@ -2040,7 +2040,7 @@ static bool has_cpu_slab(int cpu, void *info)
+>> =A0 =A0 =A0 struct kmem_cache *s =3D info;
+>> =A0 =A0 =A0 struct kmem_cache_cpu *c =3D per_cpu_ptr(s->cpu_slab, cpu);
 >>
->> CommitLimit: =C2=A0 =C2=A0 1981528 kB
->> Committed_AS: =C2=A0 =C2=A01916788 kB
->>
->> just not sure if Committed_AS should present this kind of value. Did I
->> just hit a legitimate condition, or may it suggest a bug? I'm a bit
->> puzzled cause
+>> - =A0 =A0 return !!(c->page);
+>> + =A0 =A0 return !!(c->page && c->partial);
 >
-> This is a legitimate condition. No bug.
->>
->> root@ise-test:/proc# grep Mem /proc/meminfo
->> MemTotal: =C2=A0 =C2=A0 =C2=A0 =C2=A03963060 kB
->> MemFree: =C2=A0 =C2=A0 =C2=A0 =C2=A0 3098324 kB
+> &&? Should this not be || ? W#e can also drop the !! now I think.
 >
-> Physical memory is free in quantity but virtual memory is exhausted.
+> =A0 =A0 =A0 =A0return c->page || c->partial
 >
->> Also, some sysctl values:
->> vm.overcommit_memory =3D 2
->> vm.overcommit_ratio =3D 50
 >
-> Setting overcommit memory to 2 means that the app is strictly policed
-> for staying within bounds on virtual memory. Dont do that.
->
-> See linux source linux/Documentation/vm/overcommit-accounting for more
-> details.
 
-Thanks Christoph.
+Yes, it should. My mind  is mush in the mornings...
+
+I'm waiting for Majianpeng to confirm this indeed works.
+
+Thanks,
+Gilad
 
 --=20
-Robert =C5=9Awi=C4=99cki
+Gilad Ben-Yossef
+Chief Coffee Drinker
+gilad@benyossef.com
+Israel Cell: +972-52-8260388
+US Cell: +1-973-8260388
+http://benyossef.com
+
+"If you take a class in large-scale robotics, can you end up in a
+situation where the homework eats your dog?"
+=A0-- Jean-Baptiste Queru
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
