@@ -1,58 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx202.postini.com [74.125.245.202])
-	by kanga.kvack.org (Postfix) with SMTP id 47A2B6B0104
-	for <linux-mm@kvack.org>; Tue,  8 May 2012 04:23:13 -0400 (EDT)
-Received: by dakp5 with SMTP id p5so9987134dak.14
-        for <linux-mm@kvack.org>; Tue, 08 May 2012 01:23:12 -0700 (PDT)
-Date: Tue, 8 May 2012 01:21:47 -0700
-From: Anton Vorontsov <anton.vorontsov@linaro.org>
-Subject: Re: [PATCH 3/3] vmevent: Implement special low-memory attribute
-Message-ID: <20120508082147.GA22425@lizard>
-References: <20120504073810.GA25175@lizard>
- <CAOJsxLH_7mMMe+2DvUxBW1i5nbUfkbfRE3iEhLQV9F_MM7=eiw@mail.gmail.com>
- <CAHGf_=qcGfuG1g15SdE0SDxiuhCyVN025pQB+sQNuNba4Q4jcA@mail.gmail.com>
- <20120507121527.GA19526@lizard>
- <4FA82056.2070706@gmail.com>
- <CAOJsxLHQcDZSHJZg+zbptqmT9YY0VTkPd+gG_zgMzs+HaV_cyA@mail.gmail.com>
- <CAHGf_=q1nbu=3cnfJ4qXwmngMPB-539kg-DFN2FJGig8+dRaNw@mail.gmail.com>
- <20120508065829.GA13357@lizard>
- <4FA8C86B.8010205@gmail.com>
- <20120508081305.GA20574@lizard>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-In-Reply-To: <20120508081305.GA20574@lizard>
+Received: from psmtp.com (na3sys010amx121.postini.com [74.125.245.121])
+	by kanga.kvack.org (Postfix) with SMTP id 64AEE6B0106
+	for <linux-mm@kvack.org>; Tue,  8 May 2012 04:30:41 -0400 (EDT)
+Message-ID: <1336465808.16236.13.camel@twins>
+Subject: Re: [PATCH UPDATED 3/3] tracing: Provide trace events interface for
+ uprobes
+From: Peter Zijlstra <peterz@infradead.org>
+Date: Tue, 08 May 2012 10:30:08 +0200
+In-Reply-To: <20120508041229.GD30652@gmail.com>
+References: <20120409091133.8343.65289.sendpatchset@srdronam.in.ibm.com>
+	 <20120409091154.8343.50489.sendpatchset@srdronam.in.ibm.com>
+	 <20120411103043.GB29437@linux.vnet.ibm.com>
+	 <20120508041229.GD30652@gmail.com>
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: quoted-printable
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
-Cc: Pekka Enberg <penberg@kernel.org>, Minchan Kim <minchan@kernel.org>, Leonid Moiseichuk <leonid.moiseichuk@nokia.com>, John Stultz <john.stultz@linaro.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linaro-kernel@lists.linaro.org, patches@linaro.org, kernel-team@android.com
+To: Ingo Molnar <mingo@kernel.org>
+Cc: Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, LKML <linux-kernel@vger.kernel.org>, Linux-mm <linux-mm@kvack.org>, Oleg Nesterov <oleg@redhat.com>, Andi Kleen <andi@firstfloor.org>, Christoph Hellwig <hch@infradead.org>, Steven Rostedt <rostedt@goodmis.org>, Arnaldo Carvalho de Melo <acme@infradead.org>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Thomas Gleixner <tglx@linutronix.de>, Anton Arapov <anton@redhat.com>
 
-On Tue, May 08, 2012 at 01:13:05AM -0700, Anton Vorontsov wrote:
-> On Tue, May 08, 2012 at 03:16:59AM -0400, KOSAKI Motohiro wrote:
-> [...]
-> > >So, feel free to call me an idiot, but please expand your points a
-> > >little bit or give a link to the discussion you're referring to?
-> > 
-> > I don't think you are idiot. But I hope you test your patch before submitting.
-> > That just don't work especially on x86. Because of, all x86 box have multiple zone
-> > and summarized statistics (i.e. global_page_state() thing) don't work and can't
-> > prevent oom nor swapping.
-> 
-> Now I think I understand you: we don't take into account that e.g. DMA
-> zone is not usable by the normal allocations, and so if we're basing our
-> calculations on summarized stats, it is indeed possible to get an OOM
-> in such a case.
+On Tue, 2012-05-08 at 06:12 +0200, Ingo Molnar wrote:
+> FYI, this warning started to trigger in -tip, with the latest=20
+> uprobes patches:
+>=20
+> warning: (UPROBE_EVENT) selects UPROBES which has unmet direct dependenci=
+es (UPROBE_EVENTS && PERF_EVENTS)
 
-Oops. Looking into it more, I think I was wrong here: kernel will surely
-use pages from the DMA zone when we have no pages in normal zones.
+this looks to be the only UPROBE_EVENTS instance, is that a typo?
 
-So, I don't see how we can get OOM in that case.
+---
+ arch/Kconfig |    2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
-Hm.
-
--- 
-Anton Vorontsov
-Email: cbouatmailru@gmail.com
+diff --git a/arch/Kconfig b/arch/Kconfig
+index 9e2fbb5..c160d92 100644
+--- a/arch/Kconfig
++++ b/arch/Kconfig
+@@ -78,7 +78,7 @@ config OPTPROBES
+=20
+ config UPROBES
+ 	bool "Transparent user-space probes (EXPERIMENTAL)"
+-	depends on UPROBE_EVENTS && PERF_EVENTS
++	depends on UPROBE_EVENT && PERF_EVENTS
+ 	default n
+ 	help
+ 	  Uprobes is the user-space counterpart to kprobes: they
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
