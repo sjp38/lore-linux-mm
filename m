@@ -1,76 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx149.postini.com [74.125.245.149])
-	by kanga.kvack.org (Postfix) with SMTP id 9FF4B6B004D
-	for <linux-mm@kvack.org>; Tue,  8 May 2012 05:31:22 -0400 (EDT)
-Received: from /spool/local
-	by e35.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <srikar@linux.vnet.ibm.com>;
-	Tue, 8 May 2012 03:31:19 -0600
-Received: from d03relay05.boulder.ibm.com (d03relay05.boulder.ibm.com [9.17.195.107])
-	by d03dlp02.boulder.ibm.com (Postfix) with ESMTP id 4752B3E4004C
-	for <linux-mm@kvack.org>; Tue,  8 May 2012 03:31:02 -0600 (MDT)
-Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
-	by d03relay05.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q489Uo1M129672
-	for <linux-mm@kvack.org>; Tue, 8 May 2012 03:30:58 -0600
-Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av02.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q489UlXK005195
-	for <linux-mm@kvack.org>; Tue, 8 May 2012 03:30:49 -0600
-Date: Tue, 8 May 2012 14:49:42 +0530
-From: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-Subject: Re: [PATCH UPDATED 3/3] tracing: Provide trace events interface
- for uprobes
-Message-ID: <20120508091942.GB13272@linux.vnet.ibm.com>
-Reply-To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-References: <20120409091133.8343.65289.sendpatchset@srdronam.in.ibm.com>
- <20120409091154.8343.50489.sendpatchset@srdronam.in.ibm.com>
- <20120411103043.GB29437@linux.vnet.ibm.com>
- <20120508041229.GD30652@gmail.com>
- <1336465808.16236.13.camel@twins>
- <20120508085002.GA13272@linux.vnet.ibm.com>
- <20120508092041.GE27323@gmail.com>
+Received: from psmtp.com (na3sys010amx115.postini.com [74.125.245.115])
+	by kanga.kvack.org (Postfix) with SMTP id AF6CE6B004D
+	for <linux-mm@kvack.org>; Tue,  8 May 2012 06:41:27 -0400 (EDT)
+From: <leonid.moiseichuk@nokia.com>
+Subject: RE: [PATCH 3/3] vmevent: Implement special low-memory attribute
+Date: Tue, 8 May 2012 10:38:41 +0000
+Message-ID: <84FF21A720B0874AA94B46D76DB98269045D6465@008-AM1MPN1-003.mgdnok.nokia.com>
+References: <20120501132409.GA22894@lizard>	<20120501132620.GC24226@lizard>
+	<4FA35A85.4070804@kernel.org>	<20120504073810.GA25175@lizard>
+	<CAOJsxLH_7mMMe+2DvUxBW1i5nbUfkbfRE3iEhLQV9F_MM7=eiw@mail.gmail.com>
+	<CAHGf_=qcGfuG1g15SdE0SDxiuhCyVN025pQB+sQNuNba4Q4jcA@mail.gmail.com>
+	<20120507121527.GA19526@lizard>	<4FA82056.2070706@gmail.com>
+	<CAOJsxLHQcDZSHJZg+zbptqmT9YY0VTkPd+gG_zgMzs+HaV_cyA@mail.gmail.com>
+	<CAHGf_=q1nbu=3cnfJ4qXwmngMPB-539kg-DFN2FJGig8+dRaNw@mail.gmail.com>
+	<CAOJsxLFAavdDbiLnYRwe+QiuEHSD62+Sz6LJTk+c3J9gnLVQ_w@mail.gmail.com>
+	<CAHGf_=pSLfAue6AR5gi5RQ7xvgTxpZckA=Ja1fO1AkoO1o_DeA@mail.gmail.com>
+	<CAOJsxLG1+zhOKgi2Rg1eSoXSCU8QGvHVED_EefOOLP-6JbMDkg@mail.gmail.com>
+	<4FA8D046.7000808@gmail.com>
+	<CAOJsxLGWtJy7q6ij_-tN8nVTr-OXpgdWVkXsOda8S9mJzo7n2w@mail.gmail.com>
+	<84FF21A720B0874AA94B46D76DB98269045D63B3@008-AM1MPN1-003.mgdnok.nokia.com>
+ <CAOJsxLEm2LfBB031-pU5Srhr+=DVDCmexZm_UczCzqQ2JmgoRw@mail.gmail.com>
+In-Reply-To: <CAOJsxLEm2LfBB031-pU5Srhr+=DVDCmexZm_UczCzqQ2JmgoRw@mail.gmail.com>
+Content-Language: en-US
+Content-Type: text/plain; charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-In-Reply-To: <20120508092041.GE27323@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ingo Molnar <mingo@kernel.org>
-Cc: Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, LKML <linux-kernel@vger.kernel.org>, Linux-mm <linux-mm@kvack.org>, Oleg Nesterov <oleg@redhat.com>, Andi Kleen <andi@firstfloor.org>, Christoph Hellwig <hch@infradead.org>, Steven Rostedt <rostedt@goodmis.org>, Arnaldo Carvalho de Melo <acme@infradead.org>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Thomas Gleixner <tglx@linutronix.de>, Anton Arapov <anton@redhat.com>
+To: penberg@kernel.org
+Cc: kosaki.motohiro@gmail.com, anton.vorontsov@linaro.org, minchan@kernel.org, john.stultz@linaro.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linaro-kernel@lists.linaro.org, patches@linaro.org, kernel-team@android.com
 
-* Ingo Molnar <mingo@kernel.org> [2012-05-08 11:20:41]:
+> -----Original Message-----
+> From: penberg@gmail.com [mailto:penberg@gmail.com] On Behalf Of ext
+> Pekka Enberg
+> Sent: 08 May, 2012 12:20
+...
+> On Tue, May 8, 2012 at 12:15 PM,  <leonid.moiseichuk@nokia.com> wrote:
+> > I am tracking conversation with quite low understanding how it will be
+> > useful for practical needs because user-space developers in 80% cases
+> > needs to track simply dirty memory changes i.e. modified pages which ca=
+nnot
+> be dropped.
+>=20
+> The point is to support those cases in such a way that works sanely acros=
+s
+> different architectures and configurations.
 
-> 
-> * Srikar Dronamraju <srikar@linux.vnet.ibm.com> wrote:
-> 
-> > * Peter Zijlstra <peterz@infradead.org> [2012-05-08 10:30:08]:
-> > 
-> > > On Tue, 2012-05-08 at 06:12 +0200, Ingo Molnar wrote:
-> > > > FYI, this warning started to trigger in -tip, with the latest 
-> > > > uprobes patches:
-> > > > 
-> > > > warning: (UPROBE_EVENT) selects UPROBES which has unmet direct dependencies (UPROBE_EVENTS && PERF_EVENTS)
-> > > 
-> > > this looks to be the only UPROBE_EVENTS instance, is that a typo?
-> > 
-> > 
-> > I think I corrected this in the latest posting I sent on April 16th.
-> > 
-> > Ingo,
-> > 
-> > 	Since you had asked me to send the patch series again 
-> > after handling comments and acks, I had sent the set. [...]
-> 
-> Mind sending a delta patch instead? The patches are now 
-> reasonably well tested and don't seem to break in any functional 
-> way, so unless the delta patch is really ugly we should try that 
-> instead of rebasing the branch.
-> 
+Which usually means you need to increase level of abstraction from hugepage=
+s, swapped, kernel reclaimable, slab allocated, active memory to used, cach=
+e and must-have memory which are common for all platforms. Do you have visi=
+bility what do you need to show and how do you will calculate it? Does it p=
+ossible to do for system, group of processes or particular process?
 
-Okay .. will send the delta patch now
-
--- 
-Thanks and Regards
-Srikar
+I implemented system-wide variant because that was a simplest one and most =
+urgent I need. But e.g. to say how much memory consumed particular process =
+in Linux you need to use smaps. Probably vmevent need to have some scratche=
+s (aka roadmap) into this direction as well.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
