@@ -1,33 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx198.postini.com [74.125.245.198])
-	by kanga.kvack.org (Postfix) with SMTP id 7432F6B0083
-	for <linux-mm@kvack.org>; Tue,  8 May 2012 11:47:48 -0400 (EDT)
-Received: by yhr47 with SMTP id 47so7885432yhr.14
-        for <linux-mm@kvack.org>; Tue, 08 May 2012 08:47:47 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx119.postini.com [74.125.245.119])
+	by kanga.kvack.org (Postfix) with SMTP id 44D276B00E7
+	for <linux-mm@kvack.org>; Tue,  8 May 2012 12:31:30 -0400 (EDT)
+Received: by bkcji2 with SMTP id ji2so7422406bkc.33
+        for <linux-mm@kvack.org>; Tue, 08 May 2012 09:31:28 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <CANudz+uVSGiYUQcaCj95qxc9_shv4YKWmN=X+U3ca+a0CWRiEA@mail.gmail.com>
-References: <CANudz+uVSGiYUQcaCj95qxc9_shv4YKWmN=X+U3ca+a0CWRiEA@mail.gmail.com>
-Date: Tue, 8 May 2012 23:47:47 +0800
-Message-ID: <CANudz+uh701RL4-k_chOgjN8Nr4EaZJH4nfQ=+HC4NkYFW16fA@mail.gmail.com>
-Subject: Some questions about boot memory
-From: loody <miloody@gmail.com>
+In-Reply-To: <4FA8CF5E.1070202@kernel.org>
+References: <1336054995-22988-1-git-send-email-svenkatr@ti.com> <4FA8CF5E.1070202@kernel.org>
+From: "S, Venkatraman" <svenkatr@ti.com>
+Date: Tue, 8 May 2012 22:01:06 +0530
+Message-ID: <CANfBPZ-d-0FqY8Gruv+KDNoL3+FoQ68JEnxya5PydhY80x8yhA@mail.gmail.com>
+Subject: Re: [PATCHv2 00/16] [FS, MM, block, MMC]: eMMC High Priority
+ Interrupt Feature
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm <linux-mm@kvack.org>
+To: Minchan Kim <minchan@kernel.org>
+Cc: linux-mmc@vger.kernel.org, cjb@laptop.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-omap@vger.kernel.org, linux-kernel@vger.kernel.org, arnd.bergmann@linaro.org, alex.lemberg@sandisk.com, ilan.smith@sandisk.com, lporzio@micron.com, rmk+kernel@arm.linux.org.uk
 
-hi all:
+On Tue, May 8, 2012 at 1:16 PM, Minchan Kim <minchan@kernel.org> wrote:
+> On 05/03/2012 11:22 PM, Venkatraman S wrote:
+>
+>> Standard eMMC (Embedded MultiMedia Card) specification expects to execut=
+e
+>> one request at a time. If some requests are more important than others, =
+they
+>> can't be aborted while the flash procedure is in progress.
+>>
+>> New versions of the eMMC standard (4.41 and above) specfies a feature
+>> called High Priority Interrupt (HPI). This enables an ongoing transactio=
+n
+>> to be aborted using a special command (HPI command) so that the card is =
+ready
+>> to receive new commands immediately. Then the new request can be submitt=
+ed
+>> to the card, and optionally the interrupted command can be resumed again=
+.
+>>
+>> Some restrictions exist on when and how the command can be used. For exa=
+mple,
+>> only write and write-like commands (ERASE) can be preempted, and the urg=
+ent
+>> request must be a read.
+>>
+>> In order to support this in software,
+>> a) At the top level, some policy decisions have to be made on what is
+>> worth preempting for.
+>> =A0 =A0 =A0 This implementation uses the demand paging requests and swap
+>> read requests as potential reads worth preempting an ongoing long write.
+>> =A0 =A0 =A0 This is expected to provide improved responsiveness for smar=
+phones
+>> with multitasking capabilities - example would be launch a email applica=
+tion
+>> while a video capture session (which causes long writes) is ongoing.
+>
+>
+> Do you have a number to prove it's really big effective?
 
-=A0I have some question about the relationship between page table
-=A0creation and bootmemery allocation.
-=A0bootmemory allocation use 1-bit to declare this page is used or not.
-=A0Does that mean when a new page table is creating, it will reference
-=A0the bits of bootmap and add dirty flag on the page of the page table cre=
-ated?
+What type of benchmarks would be appropriate to post ?
+As you know, the response time of a card would vary depending on
+whether the flash device
+has enough empty blocks to write into and doesn't have to resort to GC duri=
+ng
+write requests.
+Macro benchmarks like iozone etc would be inappropriate here, as they won't=
+ show
+the latency effects of individual write requests hung up doing page
+reclaim, which happens
+once in a while.
 
-=A0--
-=A0Thanks a lot
+>
+> What I have a concern is when we got low memory situation.
+> Then, writing speed for page reclaim is important for response.
+> If we allow read preempt write and write is delay, it means read path tak=
+es longer time to
+> get a empty buffer pages in reclaim. In such case, it couldn't be good.
+>
+
+I agree. But when writes are delayed anyway as it exceeds
+hpi_time_threshold (the window
+available for invoking HPI), it means that the device is in GC mode
+and either read or write
+could be equally delayed.  Note that even in case of interrupting a
+write, a single block write
+(which usually is too short to be interrupted, as designed) is
+sufficient for doing a page reclaim,
+and further write requests (including multiblock) would not be subject
+to HPI, as they will
+complete within the average time.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
