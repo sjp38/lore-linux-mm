@@ -1,161 +1,335 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx148.postini.com [74.125.245.148])
-	by kanga.kvack.org (Postfix) with SMTP id A305C6B004D
-	for <linux-mm@kvack.org>; Mon,  7 May 2012 20:33:17 -0400 (EDT)
-Received: by dakp5 with SMTP id p5so9409013dak.14
-        for <linux-mm@kvack.org>; Mon, 07 May 2012 17:33:16 -0700 (PDT)
-Date: Mon, 7 May 2012 17:31:51 -0700
-From: Anton Vorontsov <anton.vorontsov@linaro.org>
-Subject: Re: [PATCH 3/3] vmevent: Implement special low-memory attribute
-Message-ID: <20120508003150.GA15921@lizard>
-References: <20120501132409.GA22894@lizard>
- <20120501132620.GC24226@lizard>
- <4FA35A85.4070804@kernel.org>
- <20120504073810.GA25175@lizard>
- <CAOJsxLH_7mMMe+2DvUxBW1i5nbUfkbfRE3iEhLQV9F_MM7=eiw@mail.gmail.com>
- <CAHGf_=qcGfuG1g15SdE0SDxiuhCyVN025pQB+sQNuNba4Q4jcA@mail.gmail.com>
- <20120507121527.GA19526@lizard>
- <4FA82056.2070706@gmail.com>
+Received: from psmtp.com (na3sys010amx138.postini.com [74.125.245.138])
+	by kanga.kvack.org (Postfix) with SMTP id AE7416B004D
+	for <linux-mm@kvack.org>; Mon,  7 May 2012 20:39:07 -0400 (EDT)
+Message-ID: <4FA86B26.7070505@kernel.org>
+Date: Tue, 08 May 2012 09:39:02 +0900
+From: Minchan Kim <minchan@kernel.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-In-Reply-To: <4FA82056.2070706@gmail.com>
+Subject: Re: [PATCH v7] mm: compaction: handle incorrect MIGRATE_UNMOVABLE
+ type pageblocks
+References: <201205071146.22736.b.zolnierkie@samsung.com>
+In-Reply-To: <201205071146.22736.b.zolnierkie@samsung.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
-Cc: Pekka Enberg <penberg@kernel.org>, Minchan Kim <minchan@kernel.org>, Leonid Moiseichuk <leonid.moiseichuk@nokia.com>, John Stultz <john.stultz@linaro.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linaro-kernel@lists.linaro.org, patches@linaro.org, kernel-team@android.com
+To: Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Marek Szyprowski <m.szyprowski@samsung.com>, Kyungmin Park <kyungmin.park@samsung.com>
 
-On Mon, May 07, 2012 at 03:19:50PM -0400, KOSAKI Motohiro wrote:
-[...]
-> You don't understand the issue.
+Hi Bartlomiej,
 
-Apparently.
+Thanks for endless your effort although my bothering.
+Andrew seems to have more suggestion so I expect you resend next spin
+so let's fix a bug. See below.
 
-> The point is NOT a formula. The problem
-> is, dirty and non-dirty pages aren't isolated in our kernel. Then, kernel
-> start to get stuck  far before non-dirty pages become empty. Lie notification
-> always useless.
+On 05/07/2012 06:46 PM, Bartlomiej Zolnierkiewicz wrote:
 
-Ugh. I don't get it (yeah, see above :-), in what sense they're not
-isolated? In sense of isolate_lru_page and friends? Yes, they're not
-isolated, but how that makes the notifications untrustworthy?
-
-I'm confused. Can you elaborate a bit?
-
-> >Even more, we may introduce two attributes:
-> >
-> >RECLAIMABLE_CACHE_PAGES and
-> >RECLAIMABLE_CACHE_PAGES_NOIO (which excludes dirty pages).
-> >
-> >This makes ABI detached from the mm internals and still keeps a
-> >defined meaning of the attributes.
+> From: Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>
+> Subject: [PATCH v7] mm: compaction: handle incorrect MIGRATE_UNMOVABLE type pageblocks
 > 
-> Collection of craps are also crap. If you want to improve userland
-> notification, you should join VM improvement activity.
-
-I'm all for improving VM, but please, be specific. I'm assuming
-there is currently some efforts on VM improvements, which I'm
-not aware of. Or there are some plans or thoughts on improvements --
-please tell what are they.
-
-> You shouldn't
-> think nobody except you haven't think userland notification feature.
-
-That was never my assumption; surely many people have worked on userland
-notifications, and still, today we have none that would fully suite
-Android's or Nokia's (or "embedded people's") needs, right? ;-)
-
-So, let's try solve things.
-
-Memcg is currently not usable for us, and I explained why (the slab
-accounting for root cgroup thing: http://lkml.org/lkml/2012/4/30/115 ),
-any comments?
-
-> The problem is, Any current kernel vm statistics were not created for
-> such purpose and don't fit.
-
-OK, presuming current statistics don't fit, which ones should we
-implement? How do you see it?
-
-> Even though, some inaccurate and incorrect statistics fit _your_ usecase,
-> they definitely don't fit other. And their people think it is bug.
-
-I'm all for making a single solution for your and ours use cases, but
-you don't say anything specific.
-
-(Btw, what are your use cases?)
-
-> >>2) libc and some important library's pages are critical important
-> >>for running a system even though it is clean and reclaimable. In other
-> >>word, kernel don't have an info then can't expose it.
-> >
-> >First off, I guess LRU would try to keep important/most used pages in
-> >the cache, as we try to never fully drain page cache to the zero mark.
-
-*1
-
-> Yes, what do you want say?
-
-> >Secondly, if we're really low on memory (which low memory notifications
-> >help to prevent) and kernel decided to throw libc's pages out of the
-> >cache, you'll get cache miss and kernel will have to read it back. Well,
-> >sometimes cache misses do happen, that's life. And if somebody really
-> >don't want this for the essential parts of the system, one have to
-> >mlock it (which eliminates your "kernel don't have an info" argument).
+> When MIGRATE_UNMOVABLE pages are freed from MIGRATE_UNMOVABLE
+> type pageblock (and some MIGRATE_MOVABLE pages are left in it)
+> waiting until an allocation takes ownership of the block may
+> take too long.  The type of the pageblock remains unchanged
+> so the pageblock cannot be used as a migration target during
+> compaction.
 > 
-> First off, "low memory" is very poor definition and we must not use it.
+> Fix it by:
+> 
+> * Adding enum compact_mode (COMPACT_ASYNC_[MOVABLE,UNMOVABLE],
+>   and COMPACT_SYNC) and then converting sync field in struct
+>   compact_control to use it.
+> 
+> * Adding nr_pageblocks_skipped field to struct compact_control
+>   and tracking how many destination pageblocks were of
+>   MIGRATE_UNMOVABLE type.  If COMPACT_ASYNC_MOVABLE mode compaction
+>   ran fully in try_to_compact_pages() (COMPACT_COMPLETE) it implies
+>   that there is not a suitable page for allocation.  In this case
+>   then check how if there were enough MIGRATE_UNMOVABLE pageblocks
+>   to try a second pass in COMPACT_ASYNC_UNMOVABLE mode.
+> 
+> * Scanning the MIGRATE_UNMOVABLE pageblocks (during COMPACT_SYNC
+>   and COMPACT_ASYNC_UNMOVABLE compaction modes) and building
+>   a count based on finding PageBuddy pages, page_count(page) == 0
+>   or PageLRU pages.  If all pages within the MIGRATE_UNMOVABLE
+>   pageblock are in one of those three sets change the whole
+>   pageblock type to MIGRATE_MOVABLE.
+> 
+> 
+> My particular test case (on a ARM EXYNOS4 device with 512 MiB,
+> which means 131072 standard 4KiB pages in 'Normal' zone) is to:
+> - allocate 120000 pages for kernel's usage
+> - free every second page (60000 pages) of memory just allocated
+> - allocate and use 60000 pages from user space
+> - free remaining 60000 pages of kernel memory
+> (now we have fragmented memory occupied mostly by user space pages)
+> - try to allocate 100 order-9 (2048 KiB) pages for kernel's usage
+> 
+> The results:
+> - with compaction disabled I get 11 successful allocations
+> - with compaction enabled - 14 successful allocations
+> - with this patch I'm able to get all 100 successful allocations
+> 
+> 
+> NOTE: If we can make kswapd aware of order-0 request during
+> compaction, we can enhance kswapd with changing mode to
+> COMPACT_ASYNC_FULL (COMPACT_ASYNC_MOVABLE + COMPACT_ASYNC_UNMOVABLE).
+> Please see the following thread:
+> 
+> 	http://marc.info/?l=linux-mm&m=133552069417068&w=2
+> 
+> 
+> Minor cleanups from Minchan Kim.
+> 
+> Cc: Mel Gorman <mgorman@suse.de>
+> Cc: Minchan Kim <minchan@kernel.org>
+> Cc: Rik van Riel <riel@redhat.com>
+> Cc: Marek Szyprowski <m.szyprowski@samsung.com>
+> Signed-off-by: Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>
+> Signed-off-by: Kyungmin Park <kyungmin.park@samsung.com>
+> ---
+> v2:
+> - redo the patch basing on review from Mel Gorman
+>   (http://marc.info/?l=linux-mm&m=133519311025444&w=2)
+> v3:
+> - apply review comments from Minchan Kim
+>   (http://marc.info/?l=linux-mm&m=133531540308862&w=2)
+> v4:
+> - more review comments from Mel
+>   (http://marc.info/?l=linux-mm&m=133545110625042&w=2)
+> v5:
+> - even more comments from Mel
+>   (http://marc.info/?l=linux-mm&m=133577669023492&w=2)
+> - fix patch description
+> v6: (based on comments from Minchan Kim and Mel Gorman)
+> - add note about kswapd
+> - rename nr_pageblocks to nr_pageblocks_scanned_scanned and nr_skipped
+>   to nr_pageblocks_scanned_skipped
+> - fix pageblocks counting in suitable_migration_target()
+> - fix try_to_compact_pages() to do COMPACT_ASYNC_UNMOVABLE per zone 
+> v7:
+> - minor cleanups from Minchan Kim
+> - cleanup try_to_compact_pages()
+> 
+>  include/linux/compaction.h |   19 ++++++
+>  mm/compaction.c            |  124 +++++++++++++++++++++++++++++++++++++--------
+>  mm/internal.h              |    9 ++-
+>  mm/page_alloc.c            |    8 +-
+>  4 files changed, 134 insertions(+), 26 deletions(-)
+> 
+> Index: b/include/linux/compaction.h
+> ===================================================================
+> --- a/include/linux/compaction.h	2012-05-07 11:34:50.000000000 +0200
+> +++ b/include/linux/compaction.h	2012-05-07 11:35:29.032707770 +0200
+> @@ -1,6 +1,8 @@
+>  #ifndef _LINUX_COMPACTION_H
+>  #define _LINUX_COMPACTION_H
+>  
+> +#include <linux/node.h>
+> +
+>  /* Return values for compact_zone() and try_to_compact_pages() */
+>  /* compaction didn't start as it was not possible or direct reclaim was more suitable */
+>  #define COMPACT_SKIPPED		0
+> @@ -11,6 +13,23 @@
+>  /* The full zone was compacted */
+>  #define COMPACT_COMPLETE	3
+>  
+> +/*
+> + * compaction supports three modes
+> + *
+> + * COMPACT_ASYNC_MOVABLE uses asynchronous migration and only scans
+> + *    MIGRATE_MOVABLE pageblocks as migration sources and targets.
+> + * COMPACT_ASYNC_UNMOVABLE uses asynchronous migration and only scans
+> + *    MIGRATE_MOVABLE pageblocks as migration sources.
+> + *    MIGRATE_UNMOVABLE pageblocks are scanned as potential migration
+> + *    targets and convers them to MIGRATE_MOVABLE if possible
+> + * COMPACT_SYNC uses synchronous migration and scans all pageblocks
+> + */
+> +enum compact_mode {
+> +	COMPACT_ASYNC_MOVABLE,
+> +	COMPACT_ASYNC_UNMOVABLE,
+> +	COMPACT_SYNC,
+> +};
+> +
+>  #ifdef CONFIG_COMPACTION
+>  extern int sysctl_compact_memory;
+>  extern int sysctl_compaction_handler(struct ctl_table *table, int write,
+> Index: b/mm/compaction.c
+> ===================================================================
+> --- a/mm/compaction.c	2012-05-07 11:34:53.000000000 +0200
+> +++ b/mm/compaction.c	2012-05-07 11:39:06.668707335 +0200
+> @@ -235,7 +235,7 @@
+>  	 */
+>  	while (unlikely(too_many_isolated(zone))) {
+>  		/* async migration should just abort */
+> -		if (!cc->sync)
+> +		if (cc->mode != COMPACT_SYNC)
+>  			return 0;
+>  
+>  		congestion_wait(BLK_RW_ASYNC, HZ/10);
+> @@ -303,7 +303,8 @@
+>  		 * satisfies the allocation
+>  		 */
+>  		pageblock_nr = low_pfn >> pageblock_order;
+> -		if (!cc->sync && last_pageblock_nr != pageblock_nr &&
+> +		if (cc->mode != COMPACT_SYNC &&
+> +		    last_pageblock_nr != pageblock_nr &&
+>  		    !migrate_async_suitable(get_pageblock_migratetype(page))) {
+>  			low_pfn += pageblock_nr_pages;
+>  			low_pfn = ALIGN(low_pfn, pageblock_nr_pages) - 1;
+> @@ -324,7 +325,7 @@
+>  			continue;
+>  		}
+>  
+> -		if (!cc->sync)
+> +		if (cc->mode != COMPACT_SYNC)
+>  			mode |= ISOLATE_ASYNC_MIGRATE;
+>  
+>  		/* Try isolate the page */
+> @@ -357,27 +358,82 @@
+>  
+>  #endif /* CONFIG_COMPACTION || CONFIG_CMA */
+>  #ifdef CONFIG_COMPACTION
+> +static bool rescue_unmovable_pageblock(struct page *page)
+> +{
+> +	unsigned long pfn, start_pfn, end_pfn;
+> +	struct page *start_page, *end_page;
+> +
+> +	pfn = page_to_pfn(page);
+> +	start_pfn = pfn & ~(pageblock_nr_pages - 1);
+> +	end_pfn = start_pfn + pageblock_nr_pages;
+> +
+> +	start_page = pfn_to_page(start_pfn);
+> +	end_page = pfn_to_page(end_pfn);
+> +
+> +	/* Do not deal with pageblocks that overlap zones */
+> +	if (page_zone(start_page) != page_zone(end_page))
+> +		return false;
+> +
+> +	for (page = start_page, pfn = start_pfn; page < end_page; pfn++,
+> +								  page++) {
+> +		if (!pfn_valid_within(pfn))
+> +			continue;
+> +
+> +		if (PageBuddy(page)) {
+> +			int order = page_order(page);
+> +
+> +			pfn += (1 << order) - 1;
+> +			page += (1 << order) - 1;
+> +
+> +			continue;
+> +		} else if (page_count(page) == 0 || PageLRU(page))
+> +			continue;
+> +
+> +		return false;
+> +	}
+> +
+> +	set_pageblock_migratetype(page, MIGRATE_MOVABLE);
+> +	move_freepages_block(page_zone(page), page, MIGRATE_MOVABLE);
+> +	return true;
+> +}
+> +
+> +enum result_smt {
+> +	GOOD_AS_MIGRATION_TARGET,
+> +	FAIL_UNMOVABLE,
+> +	FAIL_ETC_REASON,
+> +};
 
-OK.
 
-> It is multiple meanings.
-> 1) System free memory is low. Some embedded have userland
+It was totally my brain-dead idea and expected you will get a better name, Please :)
 
-The 'free' has multiple meanings as well. For us, it is
-'not-used-at-all-pages + the-pages-that-we-can-get-in-a-
-jiffy-and-not-disturb-things-much'.
+>  
+>  /* Returns true if the page is within a block suitable for migration to */
+> -static bool suitable_migration_target(struct page *page)
+> +static enum result_smt suitable_migration_target(struct page *page,
+> +				      struct compact_control *cc)
+>  {
+>  
+>  	int migratetype = get_pageblock_migratetype(page);
+>  
+>  	/* Don't interfere with memory hot-remove or the min_free_kbytes blocks */
+>  	if (migratetype == MIGRATE_ISOLATE || migratetype == MIGRATE_RESERVE)
+> -		return false;
+> +		return FAIL_ETC_REASON;
+>  
+>  	/* If the page is a large free page, then allow migration */
+>  	if (PageBuddy(page) && page_order(page) >= pageblock_order)
+> -		return true;
+> +		return GOOD_AS_MIGRATION_TARGET;
+>  
+>  	/* If the block is MIGRATE_MOVABLE or MIGRATE_CMA, allow migration */
+> -	if (migrate_async_suitable(migratetype))
+> -		return true;
+> +	if (cc->mode != COMPACT_ASYNC_UNMOVABLE &&
+> +	    migrate_async_suitable(migratetype))
+> +		return GOOD_AS_MIGRATION_TARGET;
+> +
+> +	if (cc->mode == COMPACT_ASYNC_MOVABLE &&
+> +	    migratetype == MIGRATE_UNMOVABLE)
+> +		return FAIL_UNMOVABLE;
+> +
+> +	if (cc->mode != COMPACT_ASYNC_MOVABLE &&
+> +	    migratetype == MIGRATE_UNMOVABLE &&
+> +	    rescue_unmovable_pageblock(page))
+> +		return GOOD_AS_MIGRATION_TARGET;
+>  
+>  	/* Otherwise skip the block */
+> -	return false;
+> +	return FAIL_ETC_REASON;
+>  }
+>  
+>  /*
+> @@ -410,6 +466,8 @@
+>  
+>  	zone_end_pfn = zone->zone_start_pfn + zone->spanned_pages;
+>  
+> +	cc->nr_pageblocks_skipped = 0;
+> +
+>  	/*
+>  	 * Isolate free pages until enough are available to migrate the
+>  	 * pages on cc->migratepages. We stop searching if the migrate
+> @@ -418,6 +476,7 @@
+>  	for (; pfn > low_pfn && cc->nr_migratepages > nr_freepages;
+>  					pfn -= pageblock_nr_pages) {
+>  		unsigned long isolated;
+> +		enum result_smt ret;
+>  
+>  		if (!pfn_valid(pfn))
+>  			continue;
+> @@ -434,9 +493,12 @@
+>  			continue;
+>  
+>  		/* Check the block is suitable for migration */
+> -		if (!suitable_migration_target(page))
+> +		ret = suitable_migration_target(page, cc);
+> +		if (ret != GOOD_AS_MIGRATION_TARGET) {
+> +			if (ret == FAIL_UNMOVABLE)
+> +				cc->nr_pageblocks_skipped++;
+>  			continue;
+> -
+> +		}
+>  		/*
+>  		 * Found a block suitable for isolating free pages from. Now
+>  		 * we disabled interrupts, double check things are ok and
+> @@ -445,7 +507,8 @@
+>  		 */
+>  		isolated = 0;
+>  		spin_lock_irqsave(&zone->lock, flags);
+> -		if (suitable_migration_target(page)) {
+> +		ret = suitable_migration_target(page, cc);
+> +		if (ret == GOOD_AS_MIGRATION_TARGET) {
 
-The 'not-disturb-things-much' has a moot meaning as well, so all this
-should probably be tunable. Cool, so let's give the userspace all the
-needed statistics to decide on these meanings.
 
-> oom killer and they want to know _system_ status. 2) available memory is low.
-> This is different from (1) when using NUMA, memcg or cpusets. And in nowadays,
-> almost all x86 box have numa. This is userful for swap avoidance activity if
-> we can implement correctly.
-
-I don't get it: you don't see '1)' as a use case? You're saying
-that the meanings are different when using NUMA/memcg. If we don't
-use memcg, what statistics should we use?
-
-OK, if you are hinting that memcg should be mandatory for proper
-statistics accounting, then please comment on the current memcg
-issues, which don't let us do '1)' via '2)'.
-
-> Secondly, we can't assume someone mlock to libc. Because of, Linux is generic
-> purpose kernel.
-
-You said that libc pages are important, implying that ideally they should
-never leave the page cache (i.e. we should not count the pages as 'easily
-reclaimable').
-
-I answered that if are OK with "not guaranteed, but we'll do our best"
-strategy, then just don't let fully drain the caches, and then LRU will
-try keep "most important" pages (apparently libc) in the cache. *1  It
-is surely userland's task to maintain the needed amount of memory, and
-to do this efficiently we need..... notifications, that's right.
-
-But if you want a guarantee, I guess mlock() is the only option -- it is
-the only way to tell the kernel that the pages are really not to be
-reclaimed.
-
-So, in the light of 'easily reclaimable pages' statistics, what for was
-your libc point again? How would you solve "the libc problem"?
+I should have handled this suitable_migration_target's fail, too.
+If it ends up not GOOD_AS_MIGRATION_TARGET, we have to check ret again if it's FAIL_UNMOVABLE, then
+we should increase nr_pageblocks_skipped.
+Please handle this case in next spin.
 
 Thanks!
-
 -- 
-Anton Vorontsov
-Email: cbouatmailru@gmail.com
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
