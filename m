@@ -1,188 +1,124 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx119.postini.com [74.125.245.119])
-	by kanga.kvack.org (Postfix) with SMTP id 53E3C6B00F6
-	for <linux-mm@kvack.org>; Tue,  8 May 2012 03:29:31 -0400 (EDT)
-Received: by yhr47 with SMTP id 47so7187514yhr.14
-        for <linux-mm@kvack.org>; Tue, 08 May 2012 00:29:30 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx185.postini.com [74.125.245.185])
+	by kanga.kvack.org (Postfix) with SMTP id 72CCF6B00F8
+	for <linux-mm@kvack.org>; Tue,  8 May 2012 03:36:32 -0400 (EDT)
+Received: by yenm8 with SMTP id m8so7163479yen.14
+        for <linux-mm@kvack.org>; Tue, 08 May 2012 00:36:31 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <201205080931539844949@gmail.com>
-References: <201205080931539844949@gmail.com>
-Date: Tue, 8 May 2012 10:29:29 +0300
-Message-ID: <CAOtvUMctgcCrB_kCoKZki45_2i9XKzp-XLyfmNTxYwdFWSKYNQ@mail.gmail.com>
-Subject: Re: [PATCH] slub: Using judgement !!c to judge per cpu has obj in
- fucntion has_cpu_slab().
-From: Gilad Ben-Yossef <gilad@benyossef.com>
+In-Reply-To: <CAHGf_=pSLfAue6AR5gi5RQ7xvgTxpZckA=Ja1fO1AkoO1o_DeA@mail.gmail.com>
+References: <20120501132409.GA22894@lizard>
+	<20120501132620.GC24226@lizard>
+	<4FA35A85.4070804@kernel.org>
+	<20120504073810.GA25175@lizard>
+	<CAOJsxLH_7mMMe+2DvUxBW1i5nbUfkbfRE3iEhLQV9F_MM7=eiw@mail.gmail.com>
+	<CAHGf_=qcGfuG1g15SdE0SDxiuhCyVN025pQB+sQNuNba4Q4jcA@mail.gmail.com>
+	<20120507121527.GA19526@lizard>
+	<4FA82056.2070706@gmail.com>
+	<CAOJsxLHQcDZSHJZg+zbptqmT9YY0VTkPd+gG_zgMzs+HaV_cyA@mail.gmail.com>
+	<CAHGf_=q1nbu=3cnfJ4qXwmngMPB-539kg-DFN2FJGig8+dRaNw@mail.gmail.com>
+	<CAOJsxLFAavdDbiLnYRwe+QiuEHSD62+Sz6LJTk+c3J9gnLVQ_w@mail.gmail.com>
+	<CAHGf_=pSLfAue6AR5gi5RQ7xvgTxpZckA=Ja1fO1AkoO1o_DeA@mail.gmail.com>
+Date: Tue, 8 May 2012 10:36:31 +0300
+Message-ID: <CAOJsxLG1+zhOKgi2Rg1eSoXSCU8QGvHVED_EefOOLP-6JbMDkg@mail.gmail.com>
+Subject: Re: [PATCH 3/3] vmevent: Implement special low-memory attribute
+From: Pekka Enberg <penberg@kernel.org>
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: majianpeng <majianpeng@gmail.com>
-Cc: linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Pekka Enberg <penberg@kernel.org>, Christoph Lameter <cl@linux.com>
+To: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
+Cc: Anton Vorontsov <anton.vorontsov@linaro.org>, Minchan Kim <minchan@kernel.org>, Leonid Moiseichuk <leonid.moiseichuk@nokia.com>, John Stultz <john.stultz@linaro.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linaro-kernel@lists.linaro.org, patches@linaro.org, kernel-team@android.com
 
-Hi Majianpeng,
+On Tue, May 8, 2012 at 10:11 AM, KOSAKI Motohiro
+<kosaki.motohiro@gmail.com> wrote:
+> Ok, sane. Then I take my time a little and review current vmevent code br=
+iefly.
+> (I read vmevent/core branch in pekka's tree. please let me know if
+> there is newer repositry)
 
-On Tue, May 8, 2012 at 4:31 AM, majianpeng <majianpeng@gmail.com> wrote:
-> At present, I found some kernel message like:
-> LUB raid5-md127: kmem_cache_destroy called for cache that still has objec=
-ts.
-> Pid: 6143, comm: mdadm Tainted: G =A0 =A0 =A0 =A0 =A0 O 3.4.0-rc6+ =A0 =
-=A0 =A0 =A0#75
-> Call Trace:
-> [<ffffffff811227f8>] kmem_cache_destroy+0x328/0x400
-> [<ffffffffa005ff1d>] free_conf+0x2d/0xf0 [raid456]
-> [<ffffffffa0060791>] stop+0x41/0x60 [raid456]
-> [<ffffffffa000276a>] md_stop+0x1a/0x60 [md_mod]
-> [<ffffffffa000c974>] do_md_stop+0x74/0x470 [md_mod]
-> [<ffffffffa000d0ff>] md_ioctl+0xff/0x11f0 [md_mod]
-> [<ffffffff8127c958>] blkdev_ioctl+0xd8/0x7a0
-> [<ffffffff8115ef6b>] block_ioctl+0x3b/0x40
-> [<ffffffff8113b9c6>] do_vfs_ioctl+0x96/0x560
-> [<ffffffff8113bf21>] sys_ioctl+0x91/0xa0
-> [<ffffffff816e9d22>] system_call_fastpath+0x16/0x1b
->
-> Then using kmemleak can found those messages:
-> unreferenced object 0xffff8800b6db7380 (size 112):
-> =A0comm "mdadm", pid 5783, jiffies 4294810749 (age 90.589s)
-> =A0hex dump (first 32 bytes):
-> =A0 =A001 01 db b6 ad 4e ad de ff ff ff ff ff ff ff ff =A0.....N.........=
-.
-> =A0 =A0ff ff ff ff ff ff ff ff 98 40 4a 82 ff ff ff ff =A0.........@J....=
-.
-> =A0backtrace:
-> =A0 =A0[<ffffffff816b52c1>] kmemleak_alloc+0x21/0x50
-> =A0 =A0[<ffffffff8111a11b>] kmem_cache_alloc+0xeb/0x1b0
-> =A0 =A0[<ffffffff8111c431>] kmem_cache_open+0x2f1/0x430
-> =A0 =A0[<ffffffff8111c6c8>] kmem_cache_create+0x158/0x320
-> =A0 =A0[<ffffffffa008f979>] setup_conf+0x649/0x770 [raid456]
-> =A0 =A0[<ffffffffa009044b>] run+0x68b/0x840 [raid456]
-> =A0 =A0[<ffffffffa000bde9>] md_run+0x529/0x940 [md_mod]
-> =A0 =A0[<ffffffffa000c218>] do_md_run+0x18/0xc0 [md_mod]
-> =A0 =A0[<ffffffffa000dba8>] md_ioctl+0xba8/0x11f0 [md_mod]
-> =A0 =A0[<ffffffff81272b28>] blkdev_ioctl+0xd8/0x7a0
-> =A0 =A0[<ffffffff81155bfb>] block_ioctl+0x3b/0x40
-> =A0 =A0[<ffffffff811326d6>] do_vfs_ioctl+0x96/0x560
-> =A0 =A0[<ffffffff81132c31>] sys_ioctl+0x91/0xa0
-> =A0 =A0[<ffffffff816dd3a2>] system_call_fastpath+0x16/0x1b
-> =A0 =A0[<ffffffffffffffff>] 0xffffffffffffffff
->
-> Because kmemleak don't detect page leak, so the pages of slabs did not pr=
-int.
->
-> Commit a8364d5555b2030d093cde0f0795 modify the code of flush_all.
->
+It's the latest one.
 
-Many thanks for your report.
+On Tue, May 8, 2012 at 10:11 AM, KOSAKI Motohiro
+<kosaki.motohiro@gmail.com> wrote:
+> 1) sample_period is brain damaged idea. If people ONLY need to
+> sampling stastics, they
+> =A0only need to read /proc/vmstat periodically. just remove it and
+> implement push notification.
+> =A0_IF_ someone need unfrequent level trigger, just use
+> "usleep(timeout); read(vmevent_fd)"
+> =A0on userland code.
 
-If I understand correctly, you are seeing the above error messages in
-3.4-rcX but not in 3.3, right?
+That comes from a real-world requirement. See Leonid's email on the topic:
 
-> Signed-off-by: majianpeng <majianpeng@gmail.com>
-> ---
-> =A0mm/slub.c | =A0 =A02 +-
-> =A01 files changed, 1 insertions(+), 1 deletions(-)
->
-> diff --git a/mm/slub.c b/mm/slub.c
-> index ffe13fd..6fce08f 100644
-> --- a/mm/slub.c
-> +++ b/mm/slub.c
-> @@ -2040,7 +2040,7 @@ static bool has_cpu_slab(int cpu, void *info)
-> =A0 =A0 =A0 =A0struct kmem_cache *s =3D info;
-> =A0 =A0 =A0 =A0struct kmem_cache_cpu *c =3D per_cpu_ptr(s->cpu_slab, cpu)=
-;
->
-> - =A0 =A0 =A0 return !!(c->page);
-> + =A0 =A0 =A0 return !!c;
-> =A0}
->
-> =A0static void flush_all(struct kmem_cache *s)
-> --
-> 1.7.5.4
+https://lkml.org/lkml/2012/5/2/42
 
-I also understand that the above patch makes the errors disappear, correct?
+> 2) VMEVENT_ATTR_STATE_ONE_SHOT is misleading name. That is effect as
+> edge trigger shot. not only once.
 
-If so, then very good catch, but I believe the patch can be refined.
-This is because
-!!c here will always be true and in effect, you are returning the
-situation to that
-of the state of Linux 3.3, where an IPI was sent to flush to all CPUs,
-whether they
-have something to flush or not.
+Would VMEVENT_ATTR_STATE_EDGE_TRIGGER be a better name?
 
-Having said that, your patch shows that we are too aggressive in not
-sending the IPI,
-sometime failing to send it when we should. I think the following
-patch fixes the issue.
-I boot tested on 8 way x86 VM and forcing a flush using
-/sys/kernel/slab/XXX/validate
-and nothing exploded. Can you please test it and validate that it
-indeed solves the issue?
+> 3) vmevent_fd() seems sane interface. but it has name space unaware.
+> maybe we discuss how to harmonize name space feature. =A0No hurry. but we=
+ have
+> to think that issue since at beginning.
 
-From: Gilad Ben-Yossef <gilad@benyossef.com>
-Subject: slub: missing test for partial pages flush work in flush_all
+You mean VFS namespaces? Yeah, we need to take care of that.
 
-Commit a8364d5555b2030d093cde0f0795 modified flush_all to only
-send IPI to flush per-cpu cache pages to CPUs that seems to have done.
+> 4) Currently, vmstat have per-cpu batch and vmstat updating makes 3
+> second delay at maximum.
+> =A0This is fine for usual case because almost userland watcher only
+> read /proc/vmstat per second.
+> =A0But, for vmevent_fd() case, 3 seconds may be unacceptable delay. At
+> worst, 128 batch x 4096
+> =A0x 4k pagesize =3D 2G bytes inaccurate is there.
 
-However, the test for flush work to be done on CPU was too relaxed, causing
-an IPI not to be sent for CPUs with partial pages with the result of log sh=
-owing
-errors such as the following:
+That's pretty awful. Anton, Leonid, comments?
 
-LUB raid5-md127: kmem_cache_destroy called for cache that still has objects=
-.
-Pid: 6143, comm: mdadm Tainted: G           O 3.4.0-rc6+        #75
-Call Trace:
-[<ffffffff811227f8>] kmem_cache_destroy+0x328/0x400
-[<ffffffffa005ff1d>] free_conf+0x2d/0xf0 [raid456]
-[<ffffffffa0060791>] stop+0x41/0x60 [raid456]
-[<ffffffffa000276a>] md_stop+0x1a/0x60 [md_mod]
-[<ffffffffa000c974>] do_md_stop+0x74/0x470 [md_mod]
-[<ffffffffa000d0ff>] md_ioctl+0xff/0x11f0 [md_mod]
-[<ffffffff8127c958>] blkdev_ioctl+0xd8/0x7a0
-[<ffffffff8115ef6b>] block_ioctl+0x3b/0x40
-[<ffffffff8113b9c6>] do_vfs_ioctl+0x96/0x560
-[<ffffffff8113bf21>] sys_ioctl+0x91/0xa0
-[<ffffffff816e9d22>] system_call_fastpath+0x16/0x1b
+> 5) __VMEVENT_ATTR_STATE_VALUE_WAS_LT should be removed from userland
+> exporting files.
+> =A0When exporing kenrel internal, always silly gus used them and made unh=
+appy.
 
-Fix this by testing for partial pages presence as well.
+Agreed. Anton, care to cook up a patch to do that?
 
-Signed-off-by: Gilad Ben-Yossef <gilad@benyossef.com>
-Reported-by: majianpeng <majianpeng@gmail.com>
-CC: "Andrew Morton" <akpm@linux-foundation.org>
-CC: "Christoph Lameter" <cl@linux.com>
-CC: "Pekka Enberg" <penberg@kernel.org>
----
-diff --git a/mm/slub.c b/mm/slub.c
-index ffe13fd..d66afc4 100644
---- a/mm/slub.c
-+++ b/mm/slub.c
-@@ -2040,7 +2040,7 @@ static bool has_cpu_slab(int cpu, void *info)
- 	struct kmem_cache *s =3D info;
- 	struct kmem_cache_cpu *c =3D per_cpu_ptr(s->cpu_slab, cpu);
+> 6) Also vmevent_event must hide from userland.
 
--	return !!(c->page);
-+	return !!(c->page && c->partial);
- }
+Why? That's part of the ABI.
 
- static void flush_all(struct kmem_cache *s)
+> 7) vmevent_config::size must be removed. In 20th century, M$ API
+> prefer to use this technique. But
+> =A0They dropped the way because a lot of application don't initialize
+> size member and they can't use it for keeping upper compitibility.
 
+It's there to support forward/backward ABI compatibility like perf
+does. I'm going to keep it for now but I'm open to dropping it when
+the ABI is more mature.
 
+> 8) memcg unaware
+> 9) numa unaware
+> 10) zone unaware
 
-Many thanks!
-Gilad
+Yup.
 
+> And, we may need vm internal change if we really need lowmem
+> notification. current kernel don't have such info. _And_ there is one mor=
+e
+> big problem. Currently the kernel maintain memory per
+> zone. But almost all userland application aren't aware zone nor node.
+> Thus raw notification aren't useful for userland. In the other hands, tot=
+al
+> memory and total free memory is useful? Definitely No!
+> Even though total free memory are lots, system may start swap out and
+> oom invokation. If we can't oom invocation, this feature has serious rais=
+on
+> d'etre issue. (i.e. (4), (8), (9) and (19) are not ignorable issue. I thi=
+nk)
 
---=20
-Gilad Ben-Yossef
-Chief Coffee Drinker
-gilad@benyossef.com
-Israel Cell: +972-52-8260388
-US Cell: +1-973-8260388
-http://benyossef.com
+I'm guessing most of the existing solutions get away with
+approximations and soft limits because they're mostly used on UMA
+embedded machines.
 
-"If you take a class in large-scale robotics, can you end up in a
-situation where the homework eats your dog?"
-=A0-- Jean-Baptiste Queru
+But yes, we need to do better here.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
