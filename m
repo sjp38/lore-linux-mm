@@ -1,48 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx110.postini.com [74.125.245.110])
-	by kanga.kvack.org (Postfix) with SMTP id 65ADC6B0083
-	for <linux-mm@kvack.org>; Wed,  9 May 2012 12:41:06 -0400 (EDT)
-Received: by mail-vb0-f45.google.com with SMTP id fn1so735317vbb.18
-        for <linux-mm@kvack.org>; Wed, 09 May 2012 09:41:05 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx134.postini.com [74.125.245.134])
+	by kanga.kvack.org (Postfix) with SMTP id DC84A6B0044
+	for <linux-mm@kvack.org>; Wed,  9 May 2012 12:54:39 -0400 (EDT)
+From: Arnd Bergmann <arnd.bergmann@linaro.org>
+Subject: Re: [PATCH v2 01/16] FS: Added demand paging markers to filesystem
+Date: Wed, 9 May 2012 16:54:30 +0000
+References: <1336054995-22988-1-git-send-email-svenkatr@ti.com> <201205091359.40554.arnd.bergmann@linaro.org> <20120509150343.GB14916@infradead.org>
+In-Reply-To: <20120509150343.GB14916@infradead.org>
 MIME-Version: 1.0
-In-Reply-To: <alpine.DEB.2.00.1205081417120.27713@router.home>
-References: <1336503339-18722-1-git-send-email-pshelar@nicira.com>
-	<1336504276.3752.2600.camel@edumazet-glaptop>
-	<alpine.DEB.2.00.1205081417120.27713@router.home>
-Date: Wed, 9 May 2012 09:41:05 -0700
-Message-ID: <CALnjE+pExzAS4bk89RD4XJtHtSyB2g0qMsqdrGWPuD27axiNBw@mail.gmail.com>
-Subject: Re: [PATCH] mm: sl[auo]b: Use atomic bit operations to update page-flags.
-From: Pravin Shelar <pshelar@nicira.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: Text/Plain;
+  charset="iso-8859-1"
+Content-Transfer-Encoding: 7bit
+Message-Id: <201205091654.30277.arnd.bergmann@linaro.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: Eric Dumazet <eric.dumazet@gmail.com>, penberg@kernel.org, mpm@selenic.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, jesse@nicira.com, abhide@nicira.com
+To: Christoph Hellwig <hch@infradead.org>
+Cc: Dave Chinner <david@fromorbit.com>, "S, Venkatraman" <svenkatr@ti.com>, linux-mmc@vger.kernel.org, cjb@laptop.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-omap@vger.kernel.org, linux-kernel@vger.kernel.org, alex.lemberg@sandisk.com, ilan.smith@sandisk.com, lporzio@micron.com, rmk+kernel@arm.linux.org.uk
 
-On Tue, May 8, 2012 at 12:22 PM, Christoph Lameter <cl@linux.com> wrote:
-> On Tue, 8 May 2012, Eric Dumazet wrote:
->
->> On Tue, 2012-05-08 at 11:55 -0700, Pravin B Shelar wrote:
->> > Transparent huge pages can change page->flags (PG_compound_lock)
->> > without taking Slab lock. So sl[auo]b need to use atomic bit
->> > operation while changing page->flags.
->> > Specificly this patch fixes race between compound_unlock and slab
->> > functions which does page-flags update. This can occur when
->> > get_page/put_page is called on page from slab object.
->>
->>
->> But should get_page()/put_page() be called on a page own by slub ?
->
-> Can occur in slab allocators if the slab memory is used for DMA. I dont
-> like the performance impact of the atomics. In particular slab_unlock() in
-> slub is or used to be a hot path item. It is still hot on arches that do
-> not support this_cpu_cmpxchg_double. With the cmpxchg_double only the
-> debug mode is affected.
->
+On Wednesday 09 May 2012, Christoph Hellwig wrote:
+> On Wed, May 09, 2012 at 01:59:40PM +0000, Arnd Bergmann wrote:
+> > My feeling is that we should just treat every (REQ_SYNC | REQ_READ)
+> > request the same and let them interrupt long-running writes,
+> > independent of whether it's REQ_META or demand paging.
+> 
+> It's funny that the CFQ scheduler used to boost metadata reads that
+> have REQ_META set - in fact it still does for those filesystems using
+> the now split out REQ_PRIO.
 
-I agree this would impact performance. I am not sure how else we can
-fix this issue. As far as slab_unlock in hot path case is concerned,
-it is more likely to corrupt page->flags in that case.
+That certainly sounds more sensible than the opposite.
+
+Of course, this is somewhat unrelated to the question of prioritizing
+reads over any writes that are already started. IMHO It would be
+pointless to only stop the write in order to do a REQ_PRIO read but
+not any other read.
+
+	Arnd
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
