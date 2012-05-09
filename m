@@ -1,135 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx192.postini.com [74.125.245.192])
-	by kanga.kvack.org (Postfix) with SMTP id C56886B011B
-	for <linux-mm@kvack.org>; Wed,  9 May 2012 11:10:11 -0400 (EDT)
-Message-Id: <20120509151010.152317402@linux.com>
-Date: Wed, 09 May 2012 10:09:56 -0500
+Received: from psmtp.com (na3sys010amx149.postini.com [74.125.245.149])
+	by kanga.kvack.org (Postfix) with SMTP id 6E0986B0125
+	for <linux-mm@kvack.org>; Wed,  9 May 2012 11:10:13 -0400 (EDT)
+Message-Id: <20120509151011.835746458@linux.com>
+Date: Wed, 09 May 2012 10:09:59 -0500
 From: cl@linux.com
 From: Christoph Lameter <cl@linux.com>
-Subject: [Slub cleanup 6/9] slub: Get rid of the node field
+Subject: [Slub cleanup 9/9] slub: pass page to node_match() instead of kmem_cache_cpu structure
 References: <20120509150950.243797150@linux.com>
-Content-Disposition: inline; filename=get_rid_of_cnode
+Content-Disposition: inline; filename=page_parameter_to_node_match
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Pekka Enberg <penberg@kernel.org>
 Cc: linux-mm@kvack.org, David Rientjes <rientjes@google.com>
 
-The node field is always page_to_nid(c->page). So its rather easy to
-replace. Note that there maybe slightly more overhead in various hot paths
-due to the need to shift the bits from page->flags. However, that is mostly
-compensated for by a smaller footprint of the kmem_cache_cpu structure (this
-patch reduces that to 3 words per cache) which allows better caching.
+Avoid passing the kmem_cache_cpu pointer to node_match. This makes the
+node_match function more generic and easier to understand.
 
+Acked-by: David Rientjes <rientjes@google.com>
 Signed-off-by: Christoph Lameter <cl@linux.com>
 
 ---
- include/linux/slub_def.h |    1 -
- mm/slub.c                |   35 ++++++++++++++++-------------------
- 2 files changed, 16 insertions(+), 20 deletions(-)
+ mm/slub.c |   10 ++++++----
+ 1 file changed, 6 insertions(+), 4 deletions(-)
 
 Index: linux-2.6/mm/slub.c
 ===================================================================
---- linux-2.6.orig/mm/slub.c	2012-04-10 10:33:09.866750743 -0500
-+++ linux-2.6/mm/slub.c	2012-04-10 10:33:13.906750659 -0500
-@@ -1561,7 +1561,6 @@ static void *get_partial_node(struct kme
- 
- 		if (!object) {
- 			c->page = page;
--			c->node = page_to_nid(page);
- 			stat(s, ALLOC_FROM_PARTIAL);
- 			object = t;
- 			available =  page->objects - page->inuse;
-@@ -2057,7 +2056,7 @@ static void flush_all(struct kmem_cache
- static inline int node_match(struct kmem_cache_cpu *c, int node)
+--- linux-2.6.orig/mm/slub.c	2012-04-10 10:33:26.850750391 -0500
++++ linux-2.6/mm/slub.c	2012-04-10 10:33:32.078750283 -0500
+@@ -2050,10 +2050,10 @@ static void flush_all(struct kmem_cache
+  * Check if the objects in a per cpu structure fit numa
+  * locality expectations.
+  */
+-static inline int node_match(struct kmem_cache_cpu *c, int node)
++static inline int node_match(struct page *page, int node)
  {
  #ifdef CONFIG_NUMA
--	if (node != NUMA_NO_NODE && c->node != node)
-+	if (node != NUMA_NO_NODE && page_to_nid(c->page) != node)
+-	if (node != NUMA_NO_NODE && page_to_nid(c->page) != node)
++	if (node != NUMA_NO_NODE && page_to_nid(page) != node)
  		return 0;
  #endif
  	return 1;
-@@ -2152,7 +2151,6 @@ static inline void *new_slab_objects(str
- 		page->freelist = NULL;
+@@ -2226,7 +2226,7 @@ static void *__slab_alloc(struct kmem_ca
+ 		goto new_slab;
+ redo:
  
- 		stat(s, ALLOC_SLAB);
--		c->node = page_to_nid(page);
- 		c->page = page;
- 		*pc = c;
- 	} else
-@@ -2269,7 +2267,6 @@ new_slab:
- 	if (c->partial) {
- 		c->page = c->partial;
- 		c->partial = c->page->next;
--		c->node = page_to_nid(c->page);
- 		stat(s, CPU_PARTIAL_ALLOC);
- 		c->freelist = NULL;
- 		goto redo;
-@@ -2294,7 +2291,6 @@ new_slab:
+-	if (unlikely(!node_match(c, node))) {
++	if (unlikely(!node_match(page, node))) {
+ 		stat(s, ALLOC_NODE_MISMATCH);
+ 		deactivate_slab(s, page, c->freelist);
+ 		c->page = NULL;
+@@ -2313,6 +2313,7 @@ static __always_inline void *slab_alloc(
+ {
+ 	void **object;
+ 	struct kmem_cache_cpu *c;
++	struct page *page;
+ 	unsigned long tid;
  
- 	c->freelist = get_freepointer(s, freelist);
- 	deactivate_slab(s, c);
--	c->node = NUMA_NO_NODE;
- 	local_irq_restore(flags);
- 	return freelist;
- }
-@@ -4507,30 +4503,31 @@ static ssize_t show_slab_objects(struct
+ 	if (slab_pre_alloc_hook(s, gfpflags))
+@@ -2338,7 +2339,8 @@ redo:
+ 	barrier();
  
- 		for_each_possible_cpu(cpu) {
- 			struct kmem_cache_cpu *c = per_cpu_ptr(s->cpu_slab, cpu);
--			int node = ACCESS_ONCE(c->node);
-+			int node;
- 			struct page *page;
+ 	object = c->freelist;
+-	if (unlikely(!object || !node_match(c, node)))
++	page = c->page;
++	if (unlikely(!object || !node_match(page, node)))
  
--			if (node < 0)
--				continue;
- 			page = ACCESS_ONCE(c->page);
--			if (page) {
--				if (flags & SO_TOTAL)
--					x = page->objects;
--				else if (flags & SO_OBJECTS)
--					x = page->inuse;
--				else
--					x = 1;
-+			if (!page)
-+				continue;
+ 		object = __slab_alloc(s, gfpflags, node, addr, c);
  
--				total += x;
--				nodes[node] += x;
--			}
--			page = c->partial;
-+			node = page_to_nid(page);
-+			if (flags & SO_TOTAL)
-+				x = page->objects;
-+			else if (flags & SO_OBJECTS)
-+				x = page->inuse;
-+			else
-+				x = 1;
- 
-+			total += x;
-+			nodes[node] += x;
-+
-+			page = ACCESS_ONCE(c->partial);
- 			if (page) {
- 				x = page->pobjects;
- 				total += x;
- 				nodes[node] += x;
- 			}
-+
- 			per_cpu[node]++;
- 		}
- 	}
-Index: linux-2.6/include/linux/slub_def.h
-===================================================================
---- linux-2.6.orig/include/linux/slub_def.h	2012-04-10 10:31:48.062752438 -0500
-+++ linux-2.6/include/linux/slub_def.h	2012-04-10 10:33:13.906750659 -0500
-@@ -48,7 +48,6 @@ struct kmem_cache_cpu {
- 	unsigned long tid;	/* Globally unique transaction id */
- 	struct page *page;	/* The slab from which we are allocating */
- 	struct page *partial;	/* Partially allocated frozen slabs */
--	int node;		/* The node of the page (or -1 for debug) */
- #ifdef CONFIG_SLUB_STATS
- 	unsigned stat[NR_SLUB_STAT_ITEMS];
- #endif
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
