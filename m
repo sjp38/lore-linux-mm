@@ -1,149 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx175.postini.com [74.125.245.175])
-	by kanga.kvack.org (Postfix) with SMTP id 66AC96B0083
-	for <linux-mm@kvack.org>; Wed,  9 May 2012 08:51:25 -0400 (EDT)
-Message-ID: <4FAA67FF.6090808@cn.fujitsu.com>
-Date: Wed, 09 May 2012 20:50:07 +0800
-From: Wanlong Gao <gaowanlong@cn.fujitsu.com>
-Reply-To: gaowanlong@cn.fujitsu.com
+Received: from psmtp.com (na3sys010amx133.postini.com [74.125.245.133])
+	by kanga.kvack.org (Postfix) with SMTP id 9A4436B00E7
+	for <linux-mm@kvack.org>; Wed,  9 May 2012 08:53:22 -0400 (EDT)
+Date: Wed, 9 May 2012 13:37:20 +0200
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [PATCH 0/2 v2] Flexible proportions for BDIs
+Message-ID: <20120509113720.GC5092@quack.suse.cz>
+References: <1336084760-19534-1-git-send-email-jack@suse.cz>
+ <20120507144344.GA13983@localhost>
 MIME-Version: 1.0
-Subject: Re: mm: move_pages syscall can't return ENOENT when pages are not
- present
-References: <50e8b720-2459-4cf4-bfbd-fcc4cd408249@zmail13.collab.prod.int.phx2.redhat.com> <85e08d38-234a-4bc6-8c4f-6c92b50dc9b1@zmail13.collab.prod.int.phx2.redhat.com> <CAJn8CcGGyPNOZH2g+2FaFCtg70P4QOVvzhWYDcGoJta3-ikr8Q@mail.gmail.com>
-In-Reply-To: <CAJn8CcGGyPNOZH2g+2FaFCtg70P4QOVvzhWYDcGoJta3-ikr8Q@mail.gmail.com>
-Content-Transfer-Encoding: 7bit
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20120507144344.GA13983@localhost>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Xiaotian Feng <xtfeng@gmail.com>
-Cc: Zhouping Liu <zliu@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, LTP List <ltp-list@lists.sourceforge.net>
+To: Fengguang Wu <fengguang.wu@intel.com>
+Cc: Jan Kara <jack@suse.cz>, linux-mm@kvack.org, peterz@infradead.org
 
-On 05/09/2012 05:28 PM, Xiaotian Feng wrote:
+  Hello,
 
-> On Wed, May 9, 2012 at 4:58 PM, Zhouping Liu <zliu@redhat.com> wrote:
->> hi, all
->>
->> Recently, I found an error in move_pages syscall:
->>
->> depending on move_pages(2), when page is not present,
->> it should fail with ENOENT, in fact, it's ok without
->> any errno.
->>
->> the following reproducer can easily reproduce
->> the issue, suggest you get more details by strace.
->> inside reproducer, I try to move a non-exist page from
->> node 1 to node 0.
->>
->> I have tested it on the latest kernel 3.4-rc5 with 2 and 4 numa nodes.
->> [zliu@ZhoupingLiu ~]$ gcc -o reproducer reproducer.c -lnuma
->> [zliu@ZhoupingLiu ~]$ ./reproducer
->> from_node is 1, to_node is 0
->> ERROR: move_pages expected FAIL.
->>
+On Mon 07-05-12 22:43:44, Wu Fengguang wrote:
+> On Fri, May 04, 2012 at 12:39:18AM +0200, Jan Kara wrote:
+> >   this is the second iteration of my patches for flexible proportions. Since
+> > previous submission, I've converted BDI proportion calculations to use flexible
+> > proportions so now we can test proportions in kernel. Fengguang, can you give
+> > them a run in your JBOD setup? You might try to tweak VM_COMPLETIONS_PERIOD_LEN
+> > if things are fluctuating too much... I'm not yet completely decided how to set
+> > that constant. Thanks!
 > 
-> " If nodes is not NULL, move_pages returns the number of valid
-> migration requests which could not currently be performed.  Otherwise
-> it returns 0."
+> Kara, I've got some results and it's working great. Overall performance
+> remains good. The default VM_COMPLETIONS_PERIOD_LEN = 0.5s is obviously
+> too small, so I tried increasing it to 3s and then 8s. Results for xfs
+> (which has most fluctuating IO completions and ditto for bdi_setpoint)
+> are attached. The XFS result of vanilla 3.3 is also attached. The
+> graphs are all for case bay/JBOD-2HDD-thresh=1000M/xfs-10dd.
+  Thanks for testing! I agree that 0.5s period is probably on the low end.
+OTOH 8s seems a bit too much. Consider two bdi's with vastly different
+speeds - say their throughput ratio is 1:32 (e.g. an USB stick and a raid
+backed storage). When you write to the fast storage, then stop and start
+writing to the USB stick, then it will take 5 periods for bdi writeout
+ratio to become 1:1 and another 4-5 periods to be close to real current
+situation which is no IO to storage 100% io to USB stick. So with 8s period
+this will give you total transition time ~80s with seems like too much to
+me.
+ 
+> Look at the gray "bdi setpoint" lines. The
+> VM_COMPLETIONS_PERIOD_LEN=8s kernel is able to achieve roughly the
+> same stable bdi_setpoint as the vanilla kernel, while being able to
+> adapt to the balanced bdi_setpoint much more fast (actually now the
+> bdi_setpoint is immediately close to the balanced value when
+> balance_dirty_pages() starts throttling, while the vanilla kernel
+> takes about 20 seconds for bdi_setpoint to grow up).
+  Which graph is from which kernel? All four graphs have the same name so
+I'm not sure...
 
+  The faster (almost immediate) initial adaptation to bdi's writeout fraction
+is mostly an effect of better normalization with my patches. Although it is
+pleasant, it happens just at the moment when there is a small number of
+periods with non-zero number of events. So more important for practice is
+in my opininion to compare transition of computed fractions when workload
+changes (i.e. we start writing to one bdi while writing to another bdi or
+so).
 
-FYI, actually, 
-commit e78bbfa8262424417a29349a8064a535053912b9
-Author: Brice Goglin <Brice.Goglin@inria.fr>
-Date:   Sat Oct 18 20:27:15 2008 -0700
-
-    mm: stop returning -ENOENT from sys_move_pages() if nothing got migrated
-
-this commit changed the behaviour.
-
-And the LTP has fixed to be consistent with this,
-https://github.com/linux-test-project/ltp/commit/338299da1ff27c7815183c1b07eb91e705f117ce
-
-
-Thanks,
-Wanlong Gao
-
-> 
->> I'm not in mail list, please CC me.
->>
->> /*
->>  * Copyright (C) 2012  Red Hat, Inc.
->>  *
->>  * This work is licensed under the terms of the GNU GPL, version 2. See
->>  * the COPYING file in the top-level directory.
->>  *
->>  * Compiled: gcc -o reproducer reproducer.c -lnuma
->>  * Description:
->>  * it's designed to check move_pages syscall, when
->>  * page is not present, it should fail with ENOENT.
->>  */
->>
->> #include <sys/mman.h>
->> #include <sys/types.h>
->> #include <sys/wait.h>
->> #include <stdio.h>
->> #include <unistd.h>
->> #include <errno.h>
->> #include <numa.h>
->> #include <numaif.h>
->>
->> #define TEST_PAGES 4
->>
->> int main(int argc, char **argv)
->> {
->>        void *pages[TEST_PAGES];
->>        int onepage;
->>        int nodes[TEST_PAGES];
->>        int status, ret;
->>        int i, from_node = 1, to_node = 0;
->>
->>        onepage = getpagesize();
->>
->>        for (i = 0; i < TEST_PAGES - 1; i++) {
->>                pages[i] = numa_alloc_onnode(onepage, from_node);
->>                nodes[i] = to_node;
->>        }
->>
->>        nodes[TEST_PAGES - 1] = to_node;
->>
->>        /*
->>         * the follow page is not available, also not aligned,
->>         * depend on move_pages(2), it can't be moved, and should
->>         * return ENOENT errno.
->>         */
->>        pages[TEST_PAGES - 1] = pages[TEST_PAGES - 2] - onepage * 4 + 1;
->>
->>        printf("from_node is %u, to_node is %u\n", from_node, to_node);
->>        ret = move_pages(0, TEST_PAGES, pages, nodes, &status, MPOL_MF_MOVE);
->>        if (ret == -1) {
->>                if (errno != ENOENT)
->>                        perror("move_pages expected ENOENT errno, but it's");
->>                else
->>                        printf("Succeed\n");
->>        } else {
->>                printf("ERROR: move_pages expected FAIL.\n");
->>        }
->>
->>        for (i = 0; i < TEST_PAGES; i++)
->>                numa_free(pages[i], onepage);
->>
->>        return 0;
->> }
->>
->> --
->> Thanks,
->> Zhouping
->> --
->> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
->> the body of a message to majordomo@vger.kernel.org
->> More majordomo info at  http://vger.kernel.org/majordomo-info.html
->> Please read the FAQ at  http://www.tux.org/lkml/
-> --
-> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
-> Please read the FAQ at  http://www.tux.org/lkml/
-> 
-
+								Honza
+-- 
+Jan Kara <jack@suse.cz>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
