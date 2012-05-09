@@ -1,108 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx118.postini.com [74.125.245.118])
-	by kanga.kvack.org (Postfix) with SMTP id 31DC26B004D
-	for <linux-mm@kvack.org>; Wed,  9 May 2012 14:32:57 -0400 (EDT)
-Received: by yenm7 with SMTP id m7so861137yen.14
-        for <linux-mm@kvack.org>; Wed, 09 May 2012 11:32:56 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx185.postini.com [74.125.245.185])
+	by kanga.kvack.org (Postfix) with SMTP id 771316B0083
+	for <linux-mm@kvack.org>; Wed,  9 May 2012 14:34:18 -0400 (EDT)
+Received: by vbzb23 with SMTP id b23so813453vbz.11
+        for <linux-mm@kvack.org>; Wed, 09 May 2012 11:34:17 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <CAH3drwZBb=XBYpx=Fv=Xv0hajic51V9RwzY_-CpjKDuxgAj9Qg@mail.gmail.com>
-References: <1335188594-17454-4-git-send-email-inki.dae@samsung.com>
-	<1336544259-17222-1-git-send-email-inki.dae@samsung.com>
-	<1336544259-17222-3-git-send-email-inki.dae@samsung.com>
-	<CAH3drwZBb=XBYpx=Fv=Xv0hajic51V9RwzY_-CpjKDuxgAj9Qg@mail.gmail.com>
-Date: Wed, 9 May 2012 14:32:55 -0400
-Message-ID: <CAH3drwapwva24oHQOz+3qbNt2CouoVYmUXeFBs4RkL31bvbY3Q@mail.gmail.com>
-Subject: Re: [PATCH 2/2 v3] drm/exynos: added userptr feature.
-From: Jerome Glisse <j.glisse@gmail.com>
+In-Reply-To: <alpine.DEB.2.00.1205091224460.11225@router.home>
+References: <1336503339-18722-1-git-send-email-pshelar@nicira.com>
+	<1336504276.3752.2600.camel@edumazet-glaptop>
+	<alpine.DEB.2.00.1205081417120.27713@router.home>
+	<CALnjE+pExzAS4bk89RD4XJtHtSyB2g0qMsqdrGWPuD27axiNBw@mail.gmail.com>
+	<alpine.DEB.2.00.1205091224460.11225@router.home>
+Date: Wed, 9 May 2012 11:34:17 -0700
+Message-ID: <CALnjE+qWHv4Egqm=+UoP6t-Bm6B=ZSjv82cmfxYdbZiFC65f3Q@mail.gmail.com>
+Subject: Re: [PATCH] mm: sl[auo]b: Use atomic bit operations to update page-flags.
+From: Pravin Shelar <pshelar@nicira.com>
 Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Inki Dae <inki.dae@samsung.com>
-Cc: airlied@linux.ie, dri-devel@lists.freedesktop.org, kyungmin.park@samsung.com, sw0312.kim@samsung.com, linux-mm@kvack.org
+To: Christoph Lameter <cl@linux.com>
+Cc: Eric Dumazet <eric.dumazet@gmail.com>, penberg@kernel.org, mpm@selenic.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, jesse@nicira.com, abhide@nicira.com
 
-On Wed, May 9, 2012 at 10:45 AM, Jerome Glisse <j.glisse@gmail.com> wrote:
-> On Wed, May 9, 2012 at 2:17 AM, Inki Dae <inki.dae@samsung.com> wrote:
->> this feature is used to import user space region allocated by malloc() or
->> mmaped into a gem. and to guarantee the pages to user space not to be
->> swapped out, the VMAs within the user space would be locked and then unlocked
->> when the pages are released.
+On Wed, May 9, 2012 at 10:25 AM, Christoph Lameter <cl@linux.com> wrote:
+> On Wed, 9 May 2012, Pravin Shelar wrote:
+>
+>> On Tue, May 8, 2012 at 12:22 PM, Christoph Lameter <cl@linux.com> wrote:
+>> > On Tue, 8 May 2012, Eric Dumazet wrote:
+>> >
+>> >> On Tue, 2012-05-08 at 11:55 -0700, Pravin B Shelar wrote:
+>> >> > Transparent huge pages can change page->flags (PG_compound_lock)
+>> >> > without taking Slab lock. So sl[auo]b need to use atomic bit
+>> >> > operation while changing page->flags.
+>> >> > Specificly this patch fixes race between compound_unlock and slab
+>> >> > functions which does page-flags update. This can occur when
+>> >> > get_page/put_page is called on page from slab object.
+>> >>
+>> >>
+>> >> But should get_page()/put_page() be called on a page own by slub ?
+>> >
+>> > Can occur in slab allocators if the slab memory is used for DMA. I dont
+>> > like the performance impact of the atomics. In particular slab_unlock() in
+>> > slub is or used to be a hot path item. It is still hot on arches that do
+>> > not support this_cpu_cmpxchg_double. With the cmpxchg_double only the
+>> > debug mode is affected.
+>> >
 >>
->> but this lock might result in significant degradation of system performance
->> because the pages couldn't be swapped out so we limit user-desired userptr
->> size to pre-defined.
->>
->> Signed-off-by: Inki Dae <inki.dae@samsung.com>
->> Signed-off-by: Kyungmin Park <kyungmin.park@samsung.com>
+>> I agree this would impact performance. I am not sure how else we can
+>> fix this issue. As far as slab_unlock in hot path case is concerned,
+>> it is more likely to corrupt page->flags in that case.
+>
+> Dont modify any page flags from THP logic if its a slab page? THP cannot
+> break up or merge slab pages anyways.
+
+Good idea, I will post patch soon.
 >
 >
-> Again i would like feedback from mm people (adding cc). I am not sure
-> locking the vma is the right anwser as i said in my previous mail,
-> userspace can munlock it in your back, maybe VM_RESERVED is better.
-> Anyway even not considering that you don't check at all that process
-> don't go over the limit of locked page see mm/mlock.c RLIMIT_MEMLOCK
-> for how it's done. Also you mlock complete vma but the userptr you get
-> might be inside say 16M vma and you only care about 1M of userptr, if
-> you mark the whole vma as locked than anytime a new page is fault in
-> the vma else where than in the buffer you are interested then it got
-> allocated for ever until the gem buffer is destroy, i am not sure of
-> what happen to the vma on next malloc if it grows or not (i would
-> think it won't grow at it would have different flags than new
-> anonymous memory).
->
-> The whole business of directly using malloced memory for gpu is fishy
-> and i would really like to get it right rather than relying on never
-> hitting strange things like page migration, vma merging, or worse
-> things like over locking pages and stealing memory.
->
-> Cheers,
-> Jerome
-
-I had a lengthy discussion with mm people (thx a lot for that). I
-think we should split 2 different use case. The zero-copy upload case
-ie :
-app:
-    ptr = malloc()
-    ...
-    glTex/VBO/UBO/...(ptr)
-    free(ptr) or reuse it for other things
-For which i guess you want to avoid having to do a memcpy inside the
-gl library (could be anything else than gl that have same useage
-pattern).
-
-ie after the upload happen you don't care about those page they can
-removed from the vma or marked as cow so that anything messing with
-those page after the upload won't change what you uploaded. Of course
-this is assuming that the tlb cost of doing such thing is smaller than
-the cost of memcpy the data.
-
-Two way to do that, either you assume app can't not read back data
-after gl can and you do an unmap_mapping_range (make sure you only
-unmap fully covered page and that you copy non fully covered page) or
-you want to allow userspace to still read data or possibly overwrite
-them
-
-Second use case is something more like for the opencl case of
-CL_MEM_USE_HOST_PTR, in which you want to use the same page in the gpu
-and keep the userspace vma pointing to those page. I think the
-agreement on this case is that there is no way right now to do it
-sanely inside linux kernel. mlocking will need proper accounting
-against rtlimit but this limit might be low. Also the fork case might
-be problematic.
-
-For the fork case the memory is anonymous so it should be COWed in the
-fork child but relative to cl context that means the child could not
-use the cl context with that memory or at least if the child write to
-this memory the cl will not see those change. I guess the answer to
-that one is that you really need to use the cl api to read the object
-or get proper ptr to read it.
-
-Anyway in all case, implementing this userptr thing need a lot more
-code. You have to check to that the vma you are trying to use is
-anonymous and only handle this case and fallback to alloc new page and
-copy otherwise..
-
-Cheers,
-Jerome
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
