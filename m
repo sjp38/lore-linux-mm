@@ -1,31 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx104.postini.com [74.125.245.104])
-	by kanga.kvack.org (Postfix) with SMTP id 84F026B00F4
-	for <linux-mm@kvack.org>; Wed,  9 May 2012 09:47:15 -0400 (EDT)
-Date: Wed, 9 May 2012 08:47:12 -0500 (CDT)
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: Re: [PATCH] slub: Using judgement !!c to judge per cpu has obj
- infucntion has_cpu_slab().
-In-Reply-To: <201205090918044843997@gmail.com>
-Message-ID: <alpine.DEB.2.00.1205090846100.7720@router.home>
-References: <201205080931539844949@gmail.com>, <CAOtvUMctgcCrB_kCoKZki45_2i9XKzp-XLyfmNTxYwdFWSKYNQ@mail.gmail.com>, <alpine.DEB.2.00.1205080909490.25669@router.home> <201205090918044843997@gmail.com>
+Received: from psmtp.com (na3sys010amx128.postini.com [74.125.245.128])
+	by kanga.kvack.org (Postfix) with SMTP id D52FF6B00F7
+	for <linux-mm@kvack.org>; Wed,  9 May 2012 10:00:08 -0400 (EDT)
+From: Arnd Bergmann <arnd.bergmann@linaro.org>
+Subject: Re: [PATCH v2 01/16] FS: Added demand paging markers to filesystem
+Date: Wed, 9 May 2012 13:59:40 +0000
+References: <1336054995-22988-1-git-send-email-svenkatr@ti.com> <CANfBPZ_2JeWUu7ti97CVc=ODeEi65ke9EKV6Uje0JHcCM8gYqQ@mail.gmail.com> <20120509003348.GM5091@dastard>
+In-Reply-To: <20120509003348.GM5091@dastard>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: Text/Plain;
+  charset="iso-8859-1"
+Content-Transfer-Encoding: 7bit
+Message-Id: <201205091359.40554.arnd.bergmann@linaro.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: majianpeng <majianpeng@gmail.com>
-Cc: Gilad Ben-Yossef <gilad@benyossef.com>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Pekka Enberg <penberg@kernel.org>
+To: Dave Chinner <david@fromorbit.com>
+Cc: "S, Venkatraman" <svenkatr@ti.com>, linux-mmc@vger.kernel.org, cjb@laptop.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-omap@vger.kernel.org, linux-kernel@vger.kernel.org, alex.lemberg@sandisk.com, ilan.smith@sandisk.com, lporzio@micron.com, rmk+kernel@arm.linux.org.uk
 
-On Wed, 9 May 2012, majianpeng wrote:
+On Wednesday 09 May 2012, Dave Chinner wrote:
+> > In low end flash devices, some requests might take too long than normal
+> > due to background device maintenance (i.e flash erase / reclaim procedure)
+> > kicking in in the context of an ongoing write, stalling them by several
+> > orders of magnitude.
+> 
+> And thereby stalling what might be writes critical to operation.
+> Indeed, how does this affect the system when it starts swapping
+> heavily? If you keep stalling writes, the system won't be able to
+> swap and free memory...
 
-> Commit a8364d5555b2030d093cde0f0795 modified flush_all to only
-> send IPI to flush per-cpu cache pages to CPUs that seems to have done.
+The point here is that reads have a consistent latency, e.g. 500
+microseconds for a small access, while writes have a latency
+that can easily become 1000x the read latency (e.g. 500 ms of
+blocking the device) depending on the state of the device. Most
+of the time, writes are fast as well, but sometimes (when garbage
+collection happens in the device), they are extremely slow and
+block everything else.
+This is the only time we ever want to interrupt a write: keeping
+the system running interactively while eventually getting to do
+the writeback. There is a small penalty for interrupting the garbage
+collection, but the device should be able to pick up its work
+at the point where we interrupt it, so we can still make forward
+progress.
 
-Add some information as to why this happened to the changelog please. The
-commit did not include checks for per cpu partial pages being present on a
-cpu.
+> > > This really seems like functionality that belongs in an IO
+> > > scheduler so that write starvation can be avoided, not in high-level
+> > > data read paths where we have no clue about anything else going on
+> > > in the IO subsystem....
+> > 
+> > Indeed, the feature is built mostly in the low level device driver and
+> > minor changes in the elevator. Changes above the block layer are only
+> > about setting
+> > attributes and transparent to their operation.
+> 
+> The problem is that the attribute you are setting covers every
+> single data read that is done by all users. If that's what you want
+> to have happen, then why do you even need a new flag at this layer?
+> Just treat every non-REQ_META read request as a demand paged IO and
+> you've got exactly the same behaviour without needing to tag at the
+> higher layer....
 
-Acked-by: Christoph Lameter <cl@linux.com>
+My feeling is that we should just treat every (REQ_SYNC | REQ_READ)
+request the same and let them interrupt long-running writes,
+independent of whether it's REQ_META or demand paging.
+
+	Arnd
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
