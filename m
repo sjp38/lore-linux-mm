@@ -1,51 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx169.postini.com [74.125.245.169])
-	by kanga.kvack.org (Postfix) with SMTP id 297F06B0044
-	for <linux-mm@kvack.org>; Wed,  9 May 2012 16:56:41 -0400 (EDT)
-Received: by yhr47 with SMTP id 47so1075747yhr.14
-        for <linux-mm@kvack.org>; Wed, 09 May 2012 13:56:40 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx125.postini.com [74.125.245.125])
+	by kanga.kvack.org (Postfix) with SMTP id D77236B0044
+	for <linux-mm@kvack.org>; Wed,  9 May 2012 17:25:53 -0400 (EDT)
+Date: Wed, 9 May 2012 23:25:44 +0200
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH 1/2] MM: fixup on addition to bootmem data list
+Message-ID: <20120509212544.GA20147@cmpxchg.org>
+References: <1335498104-31900-1-git-send-email-shangw@linux.vnet.ibm.com>
 MIME-Version: 1.0
-In-Reply-To: <20120509130758.GD6773@thunk.org>
-References: <201205031634316254497@gmail.com> <201205091439545464323@gmail.com>
- <CAHGf_=rU1UUvtcEoyabos08vE0o8diwXoRmekCfH=vi_r0inpA@mail.gmail.com> <20120509130758.GD6773@thunk.org>
-From: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
-Date: Wed, 9 May 2012 16:56:16 -0400
-Message-ID: <CAHGf_=pj42=uwQbvF8Yvnf3iiUdyP+x0JJHfZGDDHUO-RyJ3dw@mail.gmail.com>
-Subject: Re: [PATCH] Documentations: Fix slabinfo.c directory in vm/slub.txt
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1335498104-31900-1-git-send-email-shangw@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ted Ts'o <tytso@mit.edu>
-Cc: majianpeng <majianpeng@gmail.com>, Pekka Enberg <penberg@kernel.org>, linux-mm <linux-mm@kvack.org>, Christoph Lameter <cl@linux.com>
+To: Gavin Shan <shangw@linux.vnet.ibm.com>
+Cc: linux-mm@kvack.org
 
-On Wed, May 9, 2012 at 9:07 AM, Ted Ts'o <tytso@mit.edu> wrote:
-> On Wed, May 09, 2012 at 04:13:02AM -0400, KOSAKI Motohiro wrote:
->>
->> I guess because almost lkml chinese guys use different custom. e.g.
->> Wu Fengguang. =A0I mean, space for separate family and given name and
->> capitalize both. =A0But I'm not familiar pinyin rule. I don't intend
->> to say your naming looks strange.
->
-> There is no standardized way for how Asian names (certainly not in the
-> Japanese and Chinese names which I have observed) are rendered into
-> English. =A0Sometimes the family name is given first (which is the order
-> used in Chinese names); sometimes it is given last (to confirm with
-> Western expectations). =A0Sometimes they are capitalized and with
-> spaces; sometimes not. =A0Given that the very *concept* of
-> capitalization doesn't exist at all in Chinese, this should not be
-> surprising.
->
-> Names are very personal things, and in my opinion it's better if we
-> not try to impose expectations of how names should be rendered of
-> expect people who wish to interact with the Linux kernel community.
+On Fri, Apr 27, 2012 at 11:41:43AM +0800, Gavin Shan wrote:
+> The objects of "struct bootmem_data_t" are being linked together
+> to form double-linked list sequentially based on its minimal page
+> frame number. Current implementation implicitly supports the
+> following cases, which means the inserting point for current bootmem
+> data depends on how "list_for_each" works. That makes the code a
+> little hard to read. Besides, "list_for_each" and "list_entry" can
+> be replaced with "list_for_each_entry".
+> 
+> 	- The linked list is empty.
+> 	- There has no entry in the linked list, whose minimal page
+> 	  frame number is bigger than current one.
+> 
+> Signed-off-by: Gavin Shan <shangw@linux.vnet.ibm.com>
+> ---
+>  mm/bootmem.c |   16 ++++++++--------
+>  1 files changed, 8 insertions(+), 8 deletions(-)
+> 
+> diff --git a/mm/bootmem.c b/mm/bootmem.c
+> index 0131170..5a04536 100644
+> --- a/mm/bootmem.c
+> +++ b/mm/bootmem.c
+> @@ -77,16 +77,16 @@ unsigned long __init bootmem_bootmap_pages(unsigned long pages)
+>   */
+>  static void __init link_bootmem(bootmem_data_t *bdata)
+>  {
+> -	struct list_head *iter;
+> +	bootmem_data_t *ent;
+>  
+> -	list_for_each(iter, &bdata_list) {
+> -		bootmem_data_t *ent;
+> -
+> -		ent = list_entry(iter, bootmem_data_t, list);
+> -		if (bdata->node_min_pfn < ent->node_min_pfn)
+> -			break;
+> +	list_for_each_entry(ent, &bdata_list, list) {
+> +		if (bdata->node_min_pfn < ent->node_min_pfn) {
+> +			list_add_tail(&bdata->list, &ent->list);
+> +			return;
+> +		}
+>  	}
+> -	list_add_tail(&bdata->list, iter);
+> +
+> +	list_add_tail(&bdata->list, &bdata_list);
 
-Ahhh, may be, my previous mail was wrong explanation. I didn't want
-to try enforce any naming style him. I merely want to explain I believe
-Pekka didn't try to blame him. I'm really satisfied he is using his real
-name.
+Yes, this is better, thanks.
 
-Thanks.
+Would you care to fix up the patch subject (it's a cleanup, not a fix)
+and send it on to Andrew Morton?  You can include
+
+Acked-by: Johannes Weiner <hannes@cmpxchg.org>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
