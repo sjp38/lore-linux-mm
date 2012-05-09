@@ -1,47 +1,108 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx118.postini.com [74.125.245.118])
-	by kanga.kvack.org (Postfix) with SMTP id 442536B0105
-	for <linux-mm@kvack.org>; Wed,  9 May 2012 04:35:01 -0400 (EDT)
-Message-ID: <3f7a217a08fd2c508576cbac8d26b017.squirrel@www.codeaurora.org>
-In-Reply-To: <1336054995-22988-15-git-send-email-svenkatr@ti.com>
-References: <1336054995-22988-1-git-send-email-svenkatr@ti.com>
-    <1336054995-22988-15-git-send-email-svenkatr@ti.com>
-Date: Wed, 9 May 2012 01:35:00 -0700 (PDT)
-Subject: Re: [PATCH v2 14/16] mmc: block: Implement HPI invocation and
-     handling logic.
-From: kdorfman@codeaurora.org
+Received: from psmtp.com (na3sys010amx138.postini.com [74.125.245.138])
+	by kanga.kvack.org (Postfix) with SMTP id 4E88A6B0108
+	for <linux-mm@kvack.org>; Wed,  9 May 2012 04:58:35 -0400 (EDT)
+Date: Wed, 09 May 2012 04:58:34 -0400 (EDT)
+From: Zhouping Liu <zliu@redhat.com>
+Subject: mm: move_pages syscall can't return ENOENT when pages are not present
+Message-ID: <85e08d38-234a-4bc6-8c4f-6c92b50dc9b1@zmail13.collab.prod.int.phx2.redhat.com>
+In-Reply-To: <50e8b720-2459-4cf4-bfbd-fcc4cd408249@zmail13.collab.prod.int.phx2.redhat.com>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 7bit
 MIME-Version: 1.0
-Content-Type: text/plain;charset=iso-8859-1
-Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Venkatraman S <svenkatr@ti.com>
-Cc: linux-mmc@vger.kernel.org, cjb@laptop.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-omap@vger.kernel.org, linux-kernel@vger.kernel.org, arnd.bergmann@linaro.org, alex.lemberg@sandisk.com, ilan.smith@sandisk.com, lporzio@micron.com, rmk+kernel@arm.linux.org.uk
+To: linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org
 
+hi, all
 
-> +static bool mmc_can_do_foreground_hpi(struct mmc_queue *mq,
-> +			struct request *req, unsigned int thpi)
-> +{
-> +
-> +	/*
-> +	 * If some time has elapsed since the issuing of previous write
-> +	 * command, or if the size of the request was too small, there's
-> +	 * no point in preempting it. Check if it's worthwhile to preempt
-> +	 */
-> +	int time_elapsed = jiffies_to_msecs(jiffies -
-> +			mq->mqrq_cur->mmc_active.mrq->cmd->started_time);
-> +
-> +	if (time_elapsed <= thpi)
-> +			return true;
-Some host controllers (or DMA) has possibility to get the byte count of
-current transaction. It may be implemented as host api (similar to abort
-ops). Then you have more accurate estimation of worthiness.
+Recently, I found an error in move_pages syscall:
 
-> +
-> +	return false;
-> +}
+depending on move_pages(2), when page is not present,
+it should fail with ENOENT, in fact, it's ok without
+any errno.
 
-Thanks, Kostya
+the following reproducer can easily reproduce
+the issue, suggest you get more details by strace.
+inside reproducer, I try to move a non-exist page from
+node 1 to node 0.
+
+I have tested it on the latest kernel 3.4-rc5 with 2 and 4 numa nodes.
+[zliu@ZhoupingLiu ~]$ gcc -o reproducer reproducer.c -lnuma
+[zliu@ZhoupingLiu ~]$ ./reproducer 
+from_node is 1, to_node is 0
+ERROR: move_pages expected FAIL.
+
+I'm not in mail list, please CC me.
+
+/*
+ * Copyright (C) 2012  Red Hat, Inc.
+ *
+ * This work is licensed under the terms of the GNU GPL, version 2. See
+ * the COPYING file in the top-level directory.
+ *
+ * Compiled: gcc -o reproducer reproducer.c -lnuma
+ * Description:
+ * it's designed to check move_pages syscall, when
+ * page is not present, it should fail with ENOENT.
+ */
+
+#include <sys/mman.h>
+#include <sys/types.h>
+#include <sys/wait.h>
+#include <stdio.h>
+#include <unistd.h>
+#include <errno.h>
+#include <numa.h>
+#include <numaif.h>
+
+#define TEST_PAGES 4
+
+int main(int argc, char **argv)
+{
+	void *pages[TEST_PAGES];
+	int onepage;
+	int nodes[TEST_PAGES];
+	int status, ret;
+	int i, from_node = 1, to_node = 0;
+
+	onepage = getpagesize();
+
+	for (i = 0; i < TEST_PAGES - 1; i++) {
+		pages[i] = numa_alloc_onnode(onepage, from_node);
+		nodes[i] = to_node;
+	}
+
+	nodes[TEST_PAGES - 1] = to_node;
+
+	/*
+	 * the follow page is not available, also not aligned,
+	 * depend on move_pages(2), it can't be moved, and should
+	 * return ENOENT errno.
+	 */
+	pages[TEST_PAGES - 1] = pages[TEST_PAGES - 2] - onepage * 4 + 1;
+
+	printf("from_node is %u, to_node is %u\n", from_node, to_node);
+	ret = move_pages(0, TEST_PAGES, pages, nodes, &status, MPOL_MF_MOVE);
+	if (ret == -1) {
+		if (errno != ENOENT)
+			perror("move_pages expected ENOENT errno, but it's");
+		else
+			printf("Succeed\n");
+	} else {
+		printf("ERROR: move_pages expected FAIL.\n");
+	}
+
+	for (i = 0; i < TEST_PAGES; i++)
+		numa_free(pages[i], onepage);
+
+	return 0;
+}
+
+-- 
+Thanks,
+Zhouping
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
