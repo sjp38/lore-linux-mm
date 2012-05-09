@@ -1,66 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx183.postini.com [74.125.245.183])
-	by kanga.kvack.org (Postfix) with SMTP id 9AEDC6B00F0
-	for <linux-mm@kvack.org>; Wed,  9 May 2012 09:08:07 -0400 (EDT)
-Date: Wed, 9 May 2012 09:07:58 -0400
-From: Ted Ts'o <tytso@mit.edu>
-Subject: Re: [PATCH] Documentations: Fix slabinfo.c directory in vm/slub.txt
-Message-ID: <20120509130758.GD6773@thunk.org>
-References: <201205031634316254497@gmail.com>
- <201205091439545464323@gmail.com>
- <CAHGf_=rU1UUvtcEoyabos08vE0o8diwXoRmekCfH=vi_r0inpA@mail.gmail.com>
+Received: from psmtp.com (na3sys010amx111.postini.com [74.125.245.111])
+	by kanga.kvack.org (Postfix) with SMTP id 3CB136B0109
+	for <linux-mm@kvack.org>; Wed,  9 May 2012 10:26:11 -0400 (EDT)
+Received: by qafl39 with SMTP id l39so426558qaf.9
+        for <linux-mm@kvack.org>; Wed, 09 May 2012 07:26:10 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CAHGf_=rU1UUvtcEoyabos08vE0o8diwXoRmekCfH=vi_r0inpA@mail.gmail.com>
+In-Reply-To: <alpine.DEB.2.00.1205081033450.27713@router.home>
+References: <1336056962-10465-1-git-send-email-gilad@benyossef.com>
+	<1336056962-10465-6-git-send-email-gilad@benyossef.com>
+	<alpine.DEB.2.00.1205071024550.1060@router.home>
+	<4FA823A7.9000801@gmail.com>
+	<alpine.DEB.2.00.1205071438240.2215@router.home>
+	<CAOtvUMf95gmZ4ZTSpTb+5NZdEiDTg_CPtp3L2_notdz+dZWG6A@mail.gmail.com>
+	<alpine.DEB.2.00.1205081033450.27713@router.home>
+Date: Wed, 9 May 2012 17:26:08 +0300
+Message-ID: <CAOtvUMfGkjTwPX7fk_uBvFyd2EpcoksLJoNET-6Ox6y=JN+LeA@mail.gmail.com>
+Subject: Re: [PATCH v1 5/6] mm: make vmstat_update periodic run conditional
+From: Gilad Ben-Yossef <gilad@benyossef.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
-Cc: majianpeng <majianpeng@gmail.com>, Pekka Enberg <penberg@kernel.org>, linux-mm <linux-mm@kvack.org>, Christoph Lameter <cl@linux.com>
+To: Christoph Lameter <cl@linux.com>
+Cc: KOSAKI Motohiro <kosaki.motohiro@gmail.com>, linux-kernel@vger.kernel.org, Thomas Gleixner <tglx@linutronix.de>, Tejun Heo <tj@kernel.org>, John Stultz <johnstul@us.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, Mike Frysinger <vapier@gentoo.org>, David Rientjes <rientjes@google.com>, Hugh Dickins <hughd@google.com>, Minchan Kim <minchan.kim@gmail.com>, Konstantin Khlebnikov <khlebnikov@openvz.org>, Chris Metcalf <cmetcalf@tilera.com>, Hakan Akkan <hakanakkan@gmail.com>, Max Krasnyansky <maxk@qualcomm.com>, Frederic Weisbecker <fweisbec@gmail.com>, linux-mm@kvack.org
 
-On Wed, May 09, 2012 at 04:13:02AM -0400, KOSAKI Motohiro wrote:
-> 
-> I guess because almost lkml chinese guys use different custom. e.g.
-> Wu Fengguang.  I mean, space for separate family and given name and
-> capitalize both.  But I'm not familiar pinyin rule. I don't intend
-> to say your naming looks strange.
+On Tue, May 8, 2012 at 6:34 PM, Christoph Lameter <cl@linux.com> wrote:
+> On Tue, 8 May 2012, Gilad Ben-Yossef wrote:
+>
+>> > But this would still mean that the vmstat update thread would run on a=
+n
+>> > arbitrary cpu. If I have a sacrificial lamb processor for OS processin=
+g
+>> > then I would expect the vmstat update thread to stick to that processo=
+r
+>> > and avoid to run on the other processor that I would like to be as fre=
+e
+>> > from OS noise as possible.
+>> >
+>>
+>> OK, what about -
+>>
+>> - We pick a scapegoat cpu (the first to come up gets the job).
+>> - We add a knob to let user designate another cpu for the job.
+>> - If scapegoat cpus goes offline, the cpu processing the off lining is
+>> the new scapegoat.
+>>
+>> Does this makes better sense?
+>
+> Sounds good. The first that comes up. If the cpu is isolated then the
+> first non isolated cpu is picked.
+>
 
-There is no standardized way for how Asian names (certainly not in the
-Japanese and Chinese names which I have observed) are rendered into
-English.  Sometimes the family name is given first (which is the order
-used in Chinese names); sometimes it is given last (to confirm with
-Western expectations).  Sometimes they are capitalized and with
-spaces; sometimes not.  Given that the very *concept* of
-capitalization doesn't exist at all in Chinese, this should not be
-surprising.
+OK, will do.
 
-Names are very personal things, and in my opinion it's better if we
-not try to impose expectations of how names should be rendered of
-expect people who wish to interact with the Linux kernel community.
+Thanks,
+Gilad
 
-Regards,
 
-						- Ted
+--=20
+Gilad Ben-Yossef
+Chief Coffee Drinker
+gilad@benyossef.com
+Israel Cell: +972-52-8260388
+US Cell: +1-973-8260388
+http://benyossef.com
 
-P.S.  My family name is rendered Ts'o because that's how my great
-grandfather decided to render it in Hong Kong; there is some dispute
-whether he used the Wade-Giles or International Phonetic Alphabet
-system.  But in Mandarin using Pinyin it would be rendered as Cao,
-which by coincidence is the same last name as another ext4 developer
-(Mingming Cao).  And in Yale system in Cantonese, it would be rendered
-chou.
-
-The convention used by my family is to capitalize each word separately
-and to use the 2nd and 3rd characters of my Chinese name as a middle
-name.  i.e., "Yue Tak", as opposed to "Yuetak".  (Further, "Yue" is a
-generational marker; all of my paternal cousins have chinese names
-that begin "Ts'o Yue", while my father and his brothers have chinese
-names that begin "Ts'o On".  This tradition is *not* universal, BTW.)
-
-So between assumptions made that Western computer systems that most
-people only have one middle name, and that apostrophe's never show up
-in last names, it's always been amusing to see how badly "Theodore Yue
-Tak Ts'o" gets mangled even in official documents.  :-)
+"If you take a class in large-scale robotics, can you end up in a
+situation where the homework eats your dog?"
+=A0-- Jean-Baptiste Queru
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
