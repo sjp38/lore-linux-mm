@@ -1,99 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx132.postini.com [74.125.245.132])
-	by kanga.kvack.org (Postfix) with SMTP id 5791A6B00ED
-	for <linux-mm@kvack.org>; Tue,  8 May 2012 21:17:49 -0400 (EDT)
-Received: by dakp5 with SMTP id p5so11420790dak.14
-        for <linux-mm@kvack.org>; Tue, 08 May 2012 18:17:48 -0700 (PDT)
-Date: Wed, 9 May 2012 09:18:08 +0800
-From: "majianpeng" <majianpeng@gmail.com>
-References: <201205080931539844949@gmail.com>,
- <CAOtvUMctgcCrB_kCoKZki45_2i9XKzp-XLyfmNTxYwdFWSKYNQ@mail.gmail.com>,
- <alpine.DEB.2.00.1205080909490.25669@router.home>
-Subject: Re: Re: [PATCH] slub: Using judgement !!c to judge per cpu has obj infucntion has_cpu_slab().
-Message-ID: <201205090918044843997@gmail.com>
-Mime-Version: 1.0
-Content-Type: text/plain;
-	charset="iso-8859-1"
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx101.postini.com [74.125.245.101])
+	by kanga.kvack.org (Postfix) with SMTP id 82D4D6B00F0
+	for <linux-mm@kvack.org>; Tue,  8 May 2012 23:08:51 -0400 (EDT)
+MIME-Version: 1.0
+Message-ID: <8a42cbff-f7f2-400a-a9c1-c3b3d73ab979@default>
+Date: Tue, 8 May 2012 20:08:29 -0700 (PDT)
+From: Dan Magenheimer <dan.magenheimer@oracle.com>
+Subject: RE: [PATCH 4/4] zsmalloc: zsmalloc: align cache line size
+References: <1336027242-372-1-git-send-email-minchan@kernel.org>
+ <1336027242-372-4-git-send-email-minchan@kernel.org>
+ <4FA28EFD.5070002@vflare.org> <4FA33E89.6080206@kernel.org>
+ <alpine.LFD.2.02.1205071038090.2851@tux.localdomain>
+ <4FA7C2BC.2090400@vflare.org> <4FA87837.3050208@kernel.org>
+ <731b6638-8c8c-4381-a00f-4ecd5a0e91ae@default> <4FA9C127.5020908@kernel.org>
+In-Reply-To: <4FA9C127.5020908@kernel.org>
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Gilad Ben-Yossef <gilad@benyossef.com>, Christoph Lameter <cl@linux.com>
-Cc: linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Pekka Enberg <penberg@kernel.org>
+To: Minchan Kim <minchan@kernel.org>
+Cc: Nitin Gupta <ngupta@vflare.org>, Pekka Enberg <penberg@kernel.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, cl@linux-foundation.org
 
+> From: Minchan Kim [mailto:minchan@kernel.org]
+> Subject: Re: [PATCH 4/4] zsmalloc: zsmalloc: align cache line size
+>=20
+> On 05/08/2012 11:00 PM, Dan Magenheimer wrote:
+>=20
+> >> From: Minchan Kim [mailto:minchan@kernel.org]
+> >>> zcache can potentially create a lot of pools, so the latter will save
+> >>> some memory.
+> >>
+> >>
+> >> Dumb question.
+> >> Why should we create pool per user?
+> >> What's the problem if there is only one pool in system?
+> >
+> > zcache doesn't use zsmalloc for cleancache pages today, but
+> > that's Seth's plan for the future.  Then if there is a
+> > separate pool for each cleancache pool, when a filesystem
+> > is umount'ed, it isn't necessary to walk through and delete
+> > all pages one-by-one, which could take quite awhile.
+>=20
+> > ramster needs one pool for each client (i.e. machine in the
+> > cluster) for frontswap pages for the same reason, and
+> > later, for cleancache pages, one per mounted filesystem
+> > per client
+>=20
+> Fair enough.
+>=20
+> Then, how about this interfaces like slab?
+>=20
+> 1. zs_handle zs_malloc(size_t size, gfp_t flags) - share a pool by many s=
+ubsystem(like kmalloc)
+> 2. zs_handle zs_malloc_pool(struct zs_pool *pool, size_t size) - use own =
+pool(like kmem_cache_alloc)
+>=20
+> Any thoughts?
 
-Subject: [PATCH] slub: missing test for partial pages flush work in flush_all
+Seems fine to me.
 
-At present, I found some kernel message like:
-SLUB raid5-md127: kmem_cache_destroy called for cache that still has objects.
-Pid: 6143, comm: mdadm Tainted: G           O 3.4.0-rc6+        #75
-Call Trace:
-[<ffffffff811227f8>] kmem_cache_destroy+0x328/0x400
-[<ffffffffa005ff1d>] free_conf+0x2d/0xf0 [raid456]
-[<ffffffffa0060791>] stop+0x41/0x60 [raid456]
-[<ffffffffa000276a>] md_stop+0x1a/0x60 [md_mod]
-[<ffffffffa000c974>] do_md_stop+0x74/0x470 [md_mod]
-[<ffffffffa000d0ff>] md_ioctl+0xff/0x11f0 [md_mod]
-[<ffffffff8127c958>] blkdev_ioctl+0xd8/0x7a0
-[<ffffffff8115ef6b>] block_ioctl+0x3b/0x40
-[<ffffffff8113b9c6>] do_vfs_ioctl+0x96/0x560
-[<ffffffff8113bf21>] sys_ioctl+0x91/0xa0
-[<ffffffff816e9d22>] system_call_fastpath+0x16/0x1b
+> But some subsystems can't want a own pool for not waste unnecessary memor=
+y.
 
-Then using kmemleak can found those messages:
-unreferenced object 0xffff8800b6db7380 (size 112):
-  comm "mdadm", pid 5783, jiffies 4294810749 (age 90.589s)
-  hex dump (first 32 bytes):
-    01 01 db b6 ad 4e ad de ff ff ff ff ff ff ff ff  .....N..........
-    ff ff ff ff ff ff ff ff 98 40 4a 82 ff ff ff ff  .........@J.....
-  backtrace:
-    [<ffffffff816b52c1>] kmemleak_alloc+0x21/0x50
-    [<ffffffff8111a11b>] kmem_cache_alloc+0xeb/0x1b0
-    [<ffffffff8111c431>] kmem_cache_open+0x2f1/0x430
-    [<ffffffff8111c6c8>] kmem_cache_create+0x158/0x320
-    [<ffffffffa008f979>] setup_conf+0x649/0x770 [raid456]
-    [<ffffffffa009044b>] run+0x68b/0x840 [raid456]
-    [<ffffffffa000bde9>] md_run+0x529/0x940 [md_mod]
-    [<ffffffffa000c218>] do_md_run+0x18/0xc0 [md_mod]
-    [<ffffffffa000dba8>] md_ioctl+0xba8/0x11f0 [md_mod]
-    [<ffffffff81272b28>] blkdev_ioctl+0xd8/0x7a0
-    [<ffffffff81155bfb>] block_ioctl+0x3b/0x40
-    [<ffffffff811326d6>] do_vfs_ioctl+0x96/0x560
-    [<ffffffff81132c31>] sys_ioctl+0x91/0xa0
-    [<ffffffff816dd3a2>] system_call_fastpath+0x16/0x1b
-    [<ffffffffffffffff>] 0xffffffffffffffff
+Are you using zsmalloc for something else in the kernel?  I'm
+wondering what other subsystem would have random size allocations
+always less than a page.
 
-Because kmemleak don't detect page leak, so the pages of slabs did not print.
-
-Commit a8364d5555b2030d093cde0f0795 modified flush_all to only
-send IPI to flush per-cpu cache pages to CPUs that seems to have done.
-
-Signed-off-by: majianpeng <majianpeng@gmail.com>
----
- mm/slub.c |    2 +-
- 1 files changed, 1 insertions(+), 1 deletions(-)
-
-diff --git a/mm/slub.c b/mm/slub.c
-index ffe13fd..6fce08f 100644
---- a/mm/slub.c
-+++ b/mm/slub.c
-@@ -2040,7 +2040,7 @@ static bool has_cpu_slab(int cpu, void *info)
- 	struct kmem_cache *s = info;
- 	struct kmem_cache_cpu *c = per_cpu_ptr(s->cpu_slab, cpu);
- 
--	return !!(c->page);
-+	return c->page || c->partial;
- }
- 
- static void flush_all(struct kmem_cache *s)
--- 
-1.7.5.4
-
-
-
-Thanks all. 
-majianpeng
-2012-05-09
-
+Thanks,
+Dan
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
