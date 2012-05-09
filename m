@@ -1,51 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx102.postini.com [74.125.245.102])
-	by kanga.kvack.org (Postfix) with SMTP id E95B76B004D
-	for <linux-mm@kvack.org>; Wed,  9 May 2012 13:25:27 -0400 (EDT)
-Date: Wed, 9 May 2012 12:25:24 -0500 (CDT)
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: [PATCH] mm: sl[auo]b: Use atomic bit operations to update
- page-flags.
-In-Reply-To: <CALnjE+pExzAS4bk89RD4XJtHtSyB2g0qMsqdrGWPuD27axiNBw@mail.gmail.com>
-Message-ID: <alpine.DEB.2.00.1205091224460.11225@router.home>
-References: <1336503339-18722-1-git-send-email-pshelar@nicira.com> <1336504276.3752.2600.camel@edumazet-glaptop> <alpine.DEB.2.00.1205081417120.27713@router.home> <CALnjE+pExzAS4bk89RD4XJtHtSyB2g0qMsqdrGWPuD27axiNBw@mail.gmail.com>
+Received: from psmtp.com (na3sys010amx179.postini.com [74.125.245.179])
+	by kanga.kvack.org (Postfix) with SMTP id C47C06B0083
+	for <linux-mm@kvack.org>; Wed,  9 May 2012 13:35:33 -0400 (EDT)
+Received: by pbbrp2 with SMTP id rp2so1052552pbb.14
+        for <linux-mm@kvack.org>; Wed, 09 May 2012 10:35:33 -0700 (PDT)
+Date: Wed, 9 May 2012 10:35:28 -0700
+From: Tejun Heo <tj@kernel.org>
+Subject: Re: [patch 00/10] (no)bootmem bits for 3.5
+Message-ID: <20120509173528.GD24636@google.com>
+References: <1336390672-14421-1-git-send-email-hannes@cmpxchg.org>
+ <20120507204113.GD10521@merkur.ravnborg.org>
+ <20120507220142.GA1202@cmpxchg.org>
+ <20120508175748.GA11906@merkur.ravnborg.org>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20120508175748.GA11906@merkur.ravnborg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pravin Shelar <pshelar@nicira.com>
-Cc: Eric Dumazet <eric.dumazet@gmail.com>, penberg@kernel.org, mpm@selenic.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, jesse@nicira.com, abhide@nicira.com
+To: Sam Ravnborg <sam@ravnborg.org>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, Gavin Shan <shangw@linux.vnet.ibm.com>, David Miller <davem@davemloft.net>, Yinghai Lu <yinghai@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>
 
-On Wed, 9 May 2012, Pravin Shelar wrote:
+Hello,
 
-> On Tue, May 8, 2012 at 12:22 PM, Christoph Lameter <cl@linux.com> wrote:
-> > On Tue, 8 May 2012, Eric Dumazet wrote:
-> >
-> >> On Tue, 2012-05-08 at 11:55 -0700, Pravin B Shelar wrote:
-> >> > Transparent huge pages can change page->flags (PG_compound_lock)
-> >> > without taking Slab lock. So sl[auo]b need to use atomic bit
-> >> > operation while changing page->flags.
-> >> > Specificly this patch fixes race between compound_unlock and slab
-> >> > functions which does page-flags update. This can occur when
-> >> > get_page/put_page is called on page from slab object.
-> >>
-> >>
-> >> But should get_page()/put_page() be called on a page own by slub ?
-> >
-> > Can occur in slab allocators if the slab memory is used for DMA. I dont
-> > like the performance impact of the atomics. In particular slab_unlock() in
-> > slub is or used to be a hot path item. It is still hot on arches that do
-> > not support this_cpu_cmpxchg_double. With the cmpxchg_double only the
-> > debug mode is affected.
-> >
->
-> I agree this would impact performance. I am not sure how else we can
-> fix this issue. As far as slab_unlock in hot path case is concerned,
-> it is more likely to corrupt page->flags in that case.
+On Tue, May 08, 2012 at 07:57:48PM +0200, Sam Ravnborg wrote:
+> > It was used on x86-32 numa to try all bootmem allocations from node 0
+> > first (see only remaining definition of bootmem_arch_preferred_node),
+> > which AFAICS nobootmem no longer respects.
+> > 
+> > Shouldn't this be fixed instead?
+> I do not know. Tejun / Yinghai?
 
-Dont modify any page flags from THP logic if its a slab page? THP cannot
-break up or merge slab pages anyways.
+Indeed, preferring node 0 for bootmem allocation on x86_32 got lost
+across the nobootmem changes.  I followed the git history and
+preferring NODE_DATA(0) goes back to the initial git branch creation
+time (2.6.12) and I couldn't find any explanation, and nobody
+complained about the changed behavior.  hpa, do you know why the code
+to prefer node 0 for bootmem allocations was added in the first place?
+Maybe we can just remove it?
 
+Thanks.
+
+-- 
+tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
