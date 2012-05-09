@@ -1,70 +1,119 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx182.postini.com [74.125.245.182])
-	by kanga.kvack.org (Postfix) with SMTP id 0D1CA6B0044
-	for <linux-mm@kvack.org>; Tue,  8 May 2012 19:10:15 -0400 (EDT)
-Received: by obbwd18 with SMTP id wd18so14324946obb.14
-        for <linux-mm@kvack.org>; Tue, 08 May 2012 16:10:15 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx184.postini.com [74.125.245.184])
+	by kanga.kvack.org (Postfix) with SMTP id 84F336B0083
+	for <linux-mm@kvack.org>; Tue,  8 May 2012 20:33:53 -0400 (EDT)
+Date: Wed, 9 May 2012 10:33:48 +1000
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: [PATCH v2 01/16] FS: Added demand paging markers to filesystem
+Message-ID: <20120509003348.GM5091@dastard>
+References: <1336054995-22988-1-git-send-email-svenkatr@ti.com>
+ <1336054995-22988-2-git-send-email-svenkatr@ti.com>
+ <20120506233117.GU5091@dastard>
+ <CANfBPZ_2JeWUu7ti97CVc=ODeEi65ke9EKV6Uje0JHcCM8gYqQ@mail.gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <CAHGf_=p4py5m1Pe1xon=9FcEEyf6AxW+Pc9Yy9gCvNtbXM_40A@mail.gmail.com>
-References: <CAHGf_=qdE3yNw=htuRssfav2pECO1Q0+gWMRTuNROd_3tVrd6Q@mail.gmail.com>
-	<CAHGf_=ojhwPUWJR0r+jVgjNd5h_sRrppzJntSpHzxyv+OuBueg@mail.gmail.com>
-	<x49ehr4lyw1.fsf@segfault.boston.devel.redhat.com>
-	<CAHGf_=rzcfo3OnwT-YsW2iZLchHs3eBKncobvbhTm7B5PE=L-w@mail.gmail.com>
-	<x491un3nc7a.fsf@segfault.boston.devel.redhat.com>
-	<CAPa8GCCgLUt1EDAy7-O-mo0qir6Bf5Pi3Va1EsQ3ZW5UU=+37g@mail.gmail.com>
-	<20120502081705.GB16976@quack.suse.cz>
-	<CAPa8GCCnvvaj0Do7sdrdfsvbcAf0zBe3ssXn45gMfDKCcvJWxA@mail.gmail.com>
-	<20120502091837.GC16976@quack.suse.cz>
-	<CAHGf_=qfuRZzb91ELEcArNaNHsfO4BBMPO8a-QRBzFNaT2ev_w@mail.gmail.com>
-	<20120502192325.GA18339@quack.suse.cz>
-	<CAHGf_=oOx1qPFEboQeuaeMKtveM2==BSDG=xdfRHz+gFx1GAfw@mail.gmail.com>
-	<CAKgNAkjybL_hmVfONUHtCbBe_VxQHNHOrmWQErGWDUqHiczkFg@mail.gmail.com>
-	<CAHGf_=p4py5m1Pe1xon=9FcEEyf6AxW+Pc9Yy9gCvNtbXM_40A@mail.gmail.com>
-Date: Wed, 9 May 2012 09:10:15 +1000
-Message-ID: <CAPa8GCCh-RrjsQKzh9+Sxx-joRZw4qkpxR9n4svo+QopxAj_XQ@mail.gmail.com>
-Subject: Re: [PATCH] Describe race of direct read and fork for unaligned buffers
-From: Nick Piggin <npiggin@gmail.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <CANfBPZ_2JeWUu7ti97CVc=ODeEi65ke9EKV6Uje0JHcCM8gYqQ@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
-Cc: mtk.manpages@gmail.com, Jan Kara <jack@suse.cz>, Jeff Moyer <jmoyer@redhat.com>, LKML <linux-kernel@vger.kernel.org>, linux-man@vger.kernel.org, linux-mm@kvack.org, mgorman@suse.de, Andrea Arcangeli <aarcange@redhat.com>, Woodman <lwoodman@redhat.com>
+To: "S, Venkatraman" <svenkatr@ti.com>
+Cc: linux-mmc@vger.kernel.org, cjb@laptop.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-omap@vger.kernel.org, linux-kernel@vger.kernel.org, arnd.bergmann@linaro.org, alex.lemberg@sandisk.com, ilan.smith@sandisk.com, lporzio@micron.com, rmk+kernel@arm.linux.org.uk
 
-On 6 May 2012 01:29, KOSAKI Motohiro <kosaki.motohiro@gmail.com> wrote:
->> So, am I correct to assume that right text to add to the page is as belo=
-w?
->>
->> Nick, can you clarify what you mean by "quiesced"?
->
-> finished?
+On Mon, May 07, 2012 at 10:16:30PM +0530, S, Venkatraman wrote:
+> Mon, May 7, 2012 at 5:01 AM, Dave Chinner <david@fromorbit.com> wrote:
+> > On Thu, May 03, 2012 at 07:53:00PM +0530, Venkatraman S wrote:
+> >> From: Ilan Smith <ilan.smith@sandisk.com>
+> >>
+> >> Add attribute to identify demand paging requests.
+> >> Mark readpages with demand paging attribute.
+> >>
+> >> Signed-off-by: Ilan Smith <ilan.smith@sandisk.com>
+> >> Signed-off-by: Alex Lemberg <alex.lemberg@sandisk.com>
+> >> Signed-off-by: Venkatraman S <svenkatr@ti.com>
+> >> ---
+> >>  fs/mpage.c                |    2 ++
+> >>  include/linux/bio.h       |    7 +++++++
+> >>  include/linux/blk_types.h |    2 ++
+> >>  3 files changed, 11 insertions(+)
+> >>
+> >> diff --git a/fs/mpage.c b/fs/mpage.c
+> >> index 0face1c..8b144f5 100644
+> >> --- a/fs/mpage.c
+> >> +++ b/fs/mpage.c
+> >> @@ -386,6 +386,8 @@ mpage_readpages(struct address_space *mapping, struct list_head *pages,
+> >>                                       &last_block_in_bio, &map_bh,
+> >>                                       &first_logical_block,
+> >>                                       get_block);
+> >> +                     if (bio)
+> >> +                             bio->bi_rw |= REQ_RW_DMPG;
+> >
+> > Have you thought about the potential for DOSing a machine
+> > with this? That is, user data reads can now preempt writes of any
+> > kind, effectively stalling writeback and memory reclaim which will
+> > lead to OOM situations. Or, alternatively, journal flushing will get
+> > stalled and no new modifications can take place until the read
+> > stream stops.
+> 
+> This feature doesn't fiddle with the I/O scheduler's ability to balance
+> read vs write requests or handling requests from various process queues (CFQ).
 
-Yes exactly. That might be a simpler word. Thanks!
+And for schedulers like no-op that don't do any read/write balancing?
+Also, I thought the code was queuing such demand paged requests at
+the front of the queues, too, so bypassing most of the read/write
+balancing logic of the elevators...
 
->
->>
->> [[
->> O_DIRECT IOs should never be run concurrently with fork(2) system call,
->> when the memory buffer is anonymous memory, or comes from mmap(2)
->> with MAP_PRIVATE.
->>
->> Any such IOs, whether submitted with asynchronous IO interface or from
->> another thread in the process, should be quiesced before fork(2) is call=
-ed.
->> Failure to do so can result in data corruption and undefined behavior in
->> parent and child processes.
->>
->> This restriction does not apply when the memory buffer for the O_DIRECT
->> IOs comes from mmap(2) with MAP_SHARED or from shmat(2).
->> Nor does this restriction apply when the memory buffer has been advised
->> as MADV_DONTFORK with madvise(2), ensuring that it will not be available
->> to the child after fork(2).
->> ]]
->
-> I don't have good English and I can't make editorial check. But at least,
-> I don't find any technical incorrect explanation here.
->
-> =C2=A0Acked-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+> Also, for block devices which don't implement the ability to preempt (and even
+> for older versions of MMC devices which don't implement this feature),
+> the behaviour
+> falls back to waiting for write requests to complete before issuing the read.
+
+Sure, but my point is that you are adding a flag that will be set
+for all user data read IO, and then making it priviledged in the
+lower layers.
+
+> In low end flash devices, some requests might take too long than normal
+> due to background device maintenance (i.e flash erase / reclaim procedure)
+> kicking in in the context of an ongoing write, stalling them by several
+> orders of magnitude.
+
+And thereby stalling what might be writes critical to operation.
+Indeed, how does this affect the system when it starts swapping
+heavily? If you keep stalling writes, the system won't be able to
+swap and free memory...
+
+> This implementation (See 14/16) does have several checks and
+> timers to see that it's not triggered very often.  In my tests,
+> where I usually have a generous preemption time window, the abort
+> happens < 0.1% of the time.
+
+Yes, but seeing as the user has direct control of the pre-emption
+vector, it's not hard to imagine someone using it for a timing
+attack...
+
+> > This really seems like functionality that belongs in an IO
+> > scheduler so that write starvation can be avoided, not in high-level
+> > data read paths where we have no clue about anything else going on
+> > in the IO subsystem....
+> 
+> Indeed, the feature is built mostly in the low level device driver and
+> minor changes in the elevator. Changes above the block layer are only
+> about setting
+> attributes and transparent to their operation.
+
+The problem is that the attribute you are setting covers every
+single data read that is done by all users. If that's what you want
+to have happen, then why do you even need a new flag at this layer?
+Just treat every non-REQ_META read request as a demand paged IO and
+you've got exactly the same behaviour without needing to tag at the
+higher layer....
+
+Cheers,
+
+Dave.
+-- 
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
