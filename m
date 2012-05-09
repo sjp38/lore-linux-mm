@@ -1,106 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx144.postini.com [74.125.245.144])
-	by kanga.kvack.org (Postfix) with SMTP id 8FFD06B00E7
-	for <linux-mm@kvack.org>; Tue,  8 May 2012 20:45:05 -0400 (EDT)
-Message-ID: <4FA9BE10.1030007@kernel.org>
-Date: Wed, 09 May 2012 09:45:04 +0900
+Received: from psmtp.com (na3sys010amx175.postini.com [74.125.245.175])
+	by kanga.kvack.org (Postfix) with SMTP id 71FF56B00E9
+	for <linux-mm@kvack.org>; Tue,  8 May 2012 20:58:15 -0400 (EDT)
+Message-ID: <4FA9C127.5020908@kernel.org>
+Date: Wed, 09 May 2012 09:58:15 +0900
 From: Minchan Kim <minchan@kernel.org>
 MIME-Version: 1.0
-Subject: Re: [PATCHv2 00/16] [FS, MM, block, MMC]: eMMC High Priority Interrupt
- Feature
-References: <1336054995-22988-1-git-send-email-svenkatr@ti.com> <4FA8CF5E.1070202@kernel.org> <CANfBPZ-d-0FqY8Gruv+KDNoL3+FoQ68JEnxya5PydhY80x8yhA@mail.gmail.com>
-In-Reply-To: <CANfBPZ-d-0FqY8Gruv+KDNoL3+FoQ68JEnxya5PydhY80x8yhA@mail.gmail.com>
+Subject: Re: [PATCH 4/4] zsmalloc: zsmalloc: align cache line size
+References: <1336027242-372-1-git-send-email-minchan@kernel.org> <1336027242-372-4-git-send-email-minchan@kernel.org> <4FA28EFD.5070002@vflare.org> <4FA33E89.6080206@kernel.org> <alpine.LFD.2.02.1205071038090.2851@tux.localdomain> <4FA7C2BC.2090400@vflare.org> <4FA87837.3050208@kernel.org> <731b6638-8c8c-4381-a00f-4ecd5a0e91ae@default>
+In-Reply-To: <731b6638-8c8c-4381-a00f-4ecd5a0e91ae@default>
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "S, Venkatraman" <svenkatr@ti.com>
-Cc: linux-mmc@vger.kernel.org, cjb@laptop.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-omap@vger.kernel.org, linux-kernel@vger.kernel.org, arnd.bergmann@linaro.org, alex.lemberg@sandisk.com, ilan.smith@sandisk.com, lporzio@micron.com, rmk+kernel@arm.linux.org.uk
+To: Dan Magenheimer <dan.magenheimer@oracle.com>
+Cc: Nitin Gupta <ngupta@vflare.org>, Pekka Enberg <penberg@kernel.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, cl@linux-foundation.org
 
-On 05/09/2012 01:31 AM, S, Venkatraman wrote:
+On 05/08/2012 11:00 PM, Dan Magenheimer wrote:
 
-> On Tue, May 8, 2012 at 1:16 PM, Minchan Kim <minchan@kernel.org> wrote:
->> On 05/03/2012 11:22 PM, Venkatraman S wrote:
->>
->>> Standard eMMC (Embedded MultiMedia Card) specification expects to execute
->>> one request at a time. If some requests are more important than others, they
->>> can't be aborted while the flash procedure is in progress.
->>>
->>> New versions of the eMMC standard (4.41 and above) specfies a feature
->>> called High Priority Interrupt (HPI). This enables an ongoing transaction
->>> to be aborted using a special command (HPI command) so that the card is ready
->>> to receive new commands immediately. Then the new request can be submitted
->>> to the card, and optionally the interrupted command can be resumed again.
->>>
->>> Some restrictions exist on when and how the command can be used. For example,
->>> only write and write-like commands (ERASE) can be preempted, and the urgent
->>> request must be a read.
->>>
->>> In order to support this in software,
->>> a) At the top level, some policy decisions have to be made on what is
->>> worth preempting for.
->>>       This implementation uses the demand paging requests and swap
->>> read requests as potential reads worth preempting an ongoing long write.
->>>       This is expected to provide improved responsiveness for smarphones
->>> with multitasking capabilities - example would be launch a email application
->>> while a video capture session (which causes long writes) is ongoing.
+>> From: Minchan Kim [mailto:minchan@kernel.org]
+>>> zcache can potentially create a lot of pools, so the latter will save
+>>> some memory.
 >>
 >>
->> Do you have a number to prove it's really big effective?
+>> Dumb question.
+>> Why should we create pool per user?
+>> What's the problem if there is only one pool in system?
 > 
-> What type of benchmarks would be appropriate to post ?
-> As you know, the response time of a card would vary depending on
-> whether the flash device
-> has enough empty blocks to write into and doesn't have to resort to GC during
-> write requests.
-> Macro benchmarks like iozone etc would be inappropriate here, as they won't show
-> the latency effects of individual write requests hung up doing page
-> reclaim, which happens
-> once in a while.
+> zcache doesn't use zsmalloc for cleancache pages today, but
+> that's Seth's plan for the future.  Then if there is a
+> separate pool for each cleancache pool, when a filesystem
+> is umount'ed, it isn't necessary to walk through and delete
+> all pages one-by-one, which could take quite awhile.
 
-
-We don't have such special benchmark so you need time to think how to prove it.
-IMHO, you can use run-many-x-apps.sh which checks elapsed time to activate programs
-by posting by Wu long time ago. 
-
-http://www.spinics.net/lists/linux-mm/msg09653.html
-
-Of course, your eMMC is used above 80~90% for triggering GC stress and
-your memory should be used up by dirty pages to happen reclaim.
- 
-
->>
->> What I have a concern is when we got low memory situation.
->> Then, writing speed for page reclaim is important for response.
->> If we allow read preempt write and write is delay, it means read path takes longer time to
->> get a empty buffer pages in reclaim. In such case, it couldn't be good.
->>
 > 
-> I agree. But when writes are delayed anyway as it exceeds
-> hpi_time_threshold (the window
-> available for invoking HPI), it means that the device is in GC mode
-> and either read or write
-> could be equally delayed.  Note that even in case of interrupting a
-> write, a single block write
-> (which usually is too short to be interrupted, as designed) is
-> sufficient for doing a page reclaim,
-> and further write requests (including multiblock) would not be subject
-> to HPI, as they will
-> complete within the average time.
+
+> ramster needs one pool for each client (i.e. machine in the
+> cluster) for frontswap pages for the same reason, and
+> later, for cleancache pages, one per mounted filesystem
+> per client
 
 
-My point is that it would be better for read to not preempt write-for-page_reclaim.
-And we can identify it by PG_reclaim. You can get the idea.
+Fair enough.
+But some subsystems can't want a own pool for not waste unnecessary memory.
 
-Anyway, HPI is only feature of a device of many storages and you are requiring modification
-of generic layers although it's not big. So for getting justification and attracting many
-core guys(MM,FS,BLOCK), you should provide data at least. 
+Then, how about this interfaces like slab?
 
+1. zs_handle zs_malloc(size_t size, gfp_t flags) - share a pool by many subsystem(like kmalloc)
+2. zs_handle zs_malloc_pool(struct zs_pool *pool, size_t size) - use own pool(like kmem_cache_alloc)
 
+Any thoughts?
+
+> 
 > --
-> To unsubscribe from this list: send the line "unsubscribe linux-mmc" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Fight unfair telecom internet charges in Canada: sign http://stopthemeter.ca/
+> Don't email: <a href=ilto:"dont@kvack.org"> email@kvack.org </a>
 > 
 
 
