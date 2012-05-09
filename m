@@ -1,65 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx110.postini.com [74.125.245.110])
-	by kanga.kvack.org (Postfix) with SMTP id 21A6C6B00FA
-	for <linux-mm@kvack.org>; Wed,  9 May 2012 02:30:43 -0400 (EDT)
-Received: by vbbey12 with SMTP id ey12so84586vbb.14
-        for <linux-mm@kvack.org>; Tue, 08 May 2012 23:30:42 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <201205031634316254497@gmail.com>
+Received: from psmtp.com (na3sys010amx136.postini.com [74.125.245.136])
+	by kanga.kvack.org (Postfix) with SMTP id 223EE6B00FB
+	for <linux-mm@kvack.org>; Wed,  9 May 2012 02:39:17 -0400 (EDT)
+Received: by dakp5 with SMTP id p5so11806117dak.14
+        for <linux-mm@kvack.org>; Tue, 08 May 2012 23:39:16 -0700 (PDT)
+Date: Wed, 9 May 2012 14:39:59 +0800
+From: "=?utf-8?B?bWFqaWFucGVuZw==?=" <majianpeng@gmail.com>
 References: <201205031634316254497@gmail.com>
-Date: Wed, 9 May 2012 09:30:42 +0300
-Message-ID: <CAOJsxLHDA+_AYBCUu2ZqTt6A6G1a5qxc3KwBi2pXMNK_N4AKLw@mail.gmail.com>
-Subject: Re: [PATCH] Documentations: Fix slabinfo.c directory in vm/slub.txt
-From: Pekka Enberg <penberg@kernel.org>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Subject: =?utf-8?B?UmU6IFJlOiBbUEFUQ0hdIERvY3VtZW50YXRpb25zOiBGaXggc2xhYmluZm8uYyBkaXJlY3RvcnkgaW4gdm0vc2x1Yi50eHQ=?=
+Message-ID: <201205091439545464323@gmail.com>
+Mime-Version: 1.0
+Content-Type: text/plain;
+	charset="utf-8"
+Content-Transfer-Encoding: base64
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: majianpeng <majianpeng@gmail.com>
-Cc: linux-mm <linux-mm@kvack.org>, Christoph Lameter <cl@linux.com>
+To: =?utf-8?B?UGVra2EgRW5iZXJn?= <penberg@kernel.org>
+Cc: =?utf-8?B?bGludXgtbW0=?= <linux-mm@kvack.org>, =?utf-8?B?Q2hyaXN0b3BoIExhbWV0ZXI=?= <cl@linux.com>
 
-On Thu, May 3, 2012 at 11:34 AM, majianpeng <majianpeng@gmail.com> wrote:
-> Because the place of slabinfo.c changed.So update in slub.txt.
->
-> Signed-off-by: majianpeng <majianpeng@gmail.com>
-
-Is that really your legal name? You cannot sign-off patches with
-pseudonyms for the Linux kernel.
-
-Can you please fix the signoff and resend with Christoph's ACK? Thanks!
-
-> ---
-> =A0Documentation/vm/slub.txt | =A0 =A02 +-
-> =A01 files changed, 1 insertions(+), 1 deletions(-)
->
-> diff --git a/Documentation/vm/slub.txt b/Documentation/vm/slub.txt
-> index 6752870..b0c6d1b 100644
-> --- a/Documentation/vm/slub.txt
-> +++ b/Documentation/vm/slub.txt
-> @@ -17,7 +17,7 @@ data and perform operation on the slabs. By default sla=
-binfo only lists
-> =A0slabs that have data in them. See "slabinfo -h" for more options when
-> =A0running the command. slabinfo can be compiled with
->
-> -gcc -o slabinfo tools/slub/slabinfo.c
-> +gcc -o slabinfo tools/vm/slabinfo.c
->
-> =A0Some of the modes of operation of slabinfo require that slub debugging
-> =A0be enabled on the command line. F.e. no tracking information will be
-> --
-> 1.7.5.4
->
-> --------------
-> majianpeng
-> 2012-05-03
->
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org. =A0For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Fight unfair telecom internet charges in Canada: sign http://stopthemeter=
-.ca/
-> Don't email: <a href=3Dmailto:"dont@kvack.org"> email@kvack.org </a>
+WWVzLCBJIGFtIGEgY2hpbmVzZS4gDQpZZXN0ZXJkYXksIEkgc2VudCBhIHBhdGNoIGFib3V0IHNs
+dWIuIEFuZCAgQ2hyaXN0b3BoIExhbWV0ZXIgIGNvcnJlZHRlZCB0aGUgcGF0Y2guDQoNCldoeSBh
+cmUgeW91IHRoaW5rIG1hamlhbnBlbmcgaXMgbm90IGEgbGVnYWwgbmFtZT8NCg0KDQotLS0tLS0t
+LS0tLS0tLS0tLS0JCQkJIA0KbWFqaWFucGVuZw0KMjAxMi0wNS0wOQ0KDQotLS0tLS0tLS0tLS0t
+LS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tDQrlj5Hku7bk
+urrvvJpQZWtrYSBFbmJlcmcNCuWPkemAgeaXpeacn++8mjIwMTItMDUtMDkgMTQ6MzA6NDINCuaU
+tuS7tuS6uu+8mm1hamlhbnBlbmcNCuaKhOmAge+8mmxpbnV4LW1tOyBDaHJpc3RvcGggTGFtZXRl
+cg0K5Li76aKY77yaUmU6IFtQQVRDSF0gRG9jdW1lbnRhdGlvbnM6IEZpeCBzbGFiaW5mby5jIGRp
+cmVjdG9yeSBpbiB2bS9zbHViLnR4dA0KDQpPbiBUaHUsIE1heSAzLCAyMDEyIGF0IDExOjM0IEFN
+LCBtYWppYW5wZW5nIDxtYWppYW5wZW5nQGdtYWlsLmNvbT4gd3JvdGU6DQo+IEJlY2F1c2UgdGhl
+IHBsYWNlIG9mIHNsYWJpbmZvLmMgY2hhbmdlZC5TbyB1cGRhdGUgaW4gc2x1Yi50eHQuDQo+DQo+
+IFNpZ25lZC1vZmYtYnk6IG1hamlhbnBlbmcgPG1hamlhbnBlbmdAZ21haWwuY29tPg0KDQpJcyB0
+aGF0IHJlYWxseSB5b3VyIGxlZ2FsIG5hbWU/IFlvdSBjYW5ub3Qgc2lnbi1vZmYgcGF0Y2hlcyB3
+aXRoDQpwc2V1ZG9ueW1zIGZvciB0aGUgTGludXgga2VybmVsLg0KDQpDYW4geW91IHBsZWFzZSBm
+aXggdGhlIHNpZ25vZmYgYW5kIHJlc2VuZCB3aXRoIENocmlzdG9waCdzIEFDSz8gVGhhbmtzIQ0K
+DQo+IC0tLQ0KPiDCoERvY3VtZW50YXRpb24vdm0vc2x1Yi50eHQgfCDCoCDCoDIgKy0NCj4gwqAx
+IGZpbGVzIGNoYW5nZWQsIDEgaW5zZXJ0aW9ucygrKSwgMSBkZWxldGlvbnMoLSkNCj4NCj4gZGlm
+ZiAtLWdpdCBhL0RvY3VtZW50YXRpb24vdm0vc2x1Yi50eHQgYi9Eb2N1bWVudGF0aW9uL3ZtL3Ns
+dWIudHh0DQo+IGluZGV4IDY3NTI4NzAuLmIwYzZkMWIgMTAwNjQ0DQo+IC0tLSBhL0RvY3VtZW50
+YXRpb24vdm0vc2x1Yi50eHQNCj4gKysrIGIvRG9jdW1lbnRhdGlvbi92bS9zbHViLnR4dA0KPiBA
+QCAtMTcsNyArMTcsNyBAQCBkYXRhIGFuZCBwZXJmb3JtIG9wZXJhdGlvbiBvbiB0aGUgc2xhYnMu
+IEJ5IGRlZmF1bHQgc2xhYmluZm8gb25seSBsaXN0cw0KPiDCoHNsYWJzIHRoYXQgaGF2ZSBkYXRh
+IGluIHRoZW0uIFNlZSAic2xhYmluZm8gLWgiIGZvciBtb3JlIG9wdGlvbnMgd2hlbg0KPiDCoHJ1
+bm5pbmcgdGhlIGNvbW1hbmQuIHNsYWJpbmZvIGNhbiBiZSBjb21waWxlZCB3aXRoDQo+DQo+IC1n
+Y2MgLW8gc2xhYmluZm8gdG9vbHMvc2x1Yi9zbGFiaW5mby5jDQo+ICtnY2MgLW8gc2xhYmluZm8g
+dG9vbHMvdm0vc2xhYmluZm8uYw0KPg0KPiDCoFNvbWUgb2YgdGhlIG1vZGVzIG9mIG9wZXJhdGlv
+biBvZiBzbGFiaW5mbyByZXF1aXJlIHRoYXQgc2x1YiBkZWJ1Z2dpbmcNCj4gwqBiZSBlbmFibGVk
+IG9uIHRoZSBjb21tYW5kIGxpbmUuIEYuZS4gbm8gdHJhY2tpbmcgaW5mb3JtYXRpb24gd2lsbCBi
+ZQ0KPiAtLQ0KPiAxLjcuNS40DQo+DQo+IC0tLS0tLS0tLS0tLS0tDQo+IG1hamlhbnBlbmcNCj4g
+MjAxMi0wNS0wMw0KPg0KPiAtLQ0KPiBUbyB1bnN1YnNjcmliZSwgc2VuZCBhIG1lc3NhZ2Ugd2l0
+aCAndW5zdWJzY3JpYmUgbGludXgtbW0nIGluDQo+IHRoZSBib2R5IHRvIG1ham9yZG9tb0BrdmFj
+ay5vcmcuIMKgRm9yIG1vcmUgaW5mbyBvbiBMaW51eCBNTSwNCj4gc2VlOiBodHRwOi8vd3d3Lmxp
+bnV4LW1tLm9yZy8gLg0KPiBGaWdodCB1bmZhaXIgdGVsZWNvbSBpbnRlcm5ldCBjaGFyZ2VzIGlu
+IENhbmFkYTogc2lnbiBodHRwOi8vc3RvcHRoZW1ldGVyLmNhLw0KPiBEb24ndCBlbWFpbDogPGEg
+aHJlZj1tYWlsdG86ImRvbnRAa3ZhY2sub3JnIj4gZW1haWxAa3ZhY2sub3JnIDwvYT4NCg==
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
