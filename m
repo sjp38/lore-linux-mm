@@ -1,36 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx200.postini.com [74.125.245.200])
-	by kanga.kvack.org (Postfix) with SMTP id C4C056B010D
-	for <linux-mm@kvack.org>; Wed,  9 May 2012 11:28:10 -0400 (EDT)
-Date: Wed, 9 May 2012 11:27:58 -0400
-From: Vivek Goyal <vgoyal@redhat.com>
-Subject: Re: [PATCH v2 01/16] FS: Added demand paging markers to filesystem
-Message-ID: <20120509152758.GB16341@redhat.com>
-References: <1336054995-22988-1-git-send-email-svenkatr@ti.com>
- <1336054995-22988-2-git-send-email-svenkatr@ti.com>
- <20120506233117.GU5091@dastard>
- <CANfBPZ_2JeWUu7ti97CVc=ODeEi65ke9EKV6Uje0JHcCM8gYqQ@mail.gmail.com>
+Received: from psmtp.com (na3sys010amx110.postini.com [74.125.245.110])
+	by kanga.kvack.org (Postfix) with SMTP id 65ADC6B0083
+	for <linux-mm@kvack.org>; Wed,  9 May 2012 12:41:06 -0400 (EDT)
+Received: by mail-vb0-f45.google.com with SMTP id fn1so735317vbb.18
+        for <linux-mm@kvack.org>; Wed, 09 May 2012 09:41:05 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CANfBPZ_2JeWUu7ti97CVc=ODeEi65ke9EKV6Uje0JHcCM8gYqQ@mail.gmail.com>
+In-Reply-To: <alpine.DEB.2.00.1205081417120.27713@router.home>
+References: <1336503339-18722-1-git-send-email-pshelar@nicira.com>
+	<1336504276.3752.2600.camel@edumazet-glaptop>
+	<alpine.DEB.2.00.1205081417120.27713@router.home>
+Date: Wed, 9 May 2012 09:41:05 -0700
+Message-ID: <CALnjE+pExzAS4bk89RD4XJtHtSyB2g0qMsqdrGWPuD27axiNBw@mail.gmail.com>
+Subject: Re: [PATCH] mm: sl[auo]b: Use atomic bit operations to update page-flags.
+From: Pravin Shelar <pshelar@nicira.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "S, Venkatraman" <svenkatr@ti.com>
-Cc: Dave Chinner <david@fromorbit.com>, linux-mmc@vger.kernel.org, cjb@laptop.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-omap@vger.kernel.org, linux-kernel@vger.kernel.org, arnd.bergmann@linaro.org, alex.lemberg@sandisk.com, ilan.smith@sandisk.com, lporzio@micron.com, rmk+kernel@arm.linux.org.uk
+To: Christoph Lameter <cl@linux.com>
+Cc: Eric Dumazet <eric.dumazet@gmail.com>, penberg@kernel.org, mpm@selenic.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, jesse@nicira.com, abhide@nicira.com
 
-On Mon, May 07, 2012 at 10:16:30PM +0530, S, Venkatraman wrote:
+On Tue, May 8, 2012 at 12:22 PM, Christoph Lameter <cl@linux.com> wrote:
+> On Tue, 8 May 2012, Eric Dumazet wrote:
+>
+>> On Tue, 2012-05-08 at 11:55 -0700, Pravin B Shelar wrote:
+>> > Transparent huge pages can change page->flags (PG_compound_lock)
+>> > without taking Slab lock. So sl[auo]b need to use atomic bit
+>> > operation while changing page->flags.
+>> > Specificly this patch fixes race between compound_unlock and slab
+>> > functions which does page-flags update. This can occur when
+>> > get_page/put_page is called on page from slab object.
+>>
+>>
+>> But should get_page()/put_page() be called on a page own by slub ?
+>
+> Can occur in slab allocators if the slab memory is used for DMA. I dont
+> like the performance impact of the atomics. In particular slab_unlock() in
+> slub is or used to be a hot path item. It is still hot on arches that do
+> not support this_cpu_cmpxchg_double. With the cmpxchg_double only the
+> debug mode is affected.
+>
 
-[..]
-> This feature doesn't fiddle with the I/O scheduler's ability to balance
-> read vs write requests or handling requests from various process queues (CFQ).
-> 
-
-Does this feature work with CFQ? As CFQ does not submit sync IO (for
-idling queues) while async IO is pending and vice a versa (cfq_may_dispatch()).
-
-Thanks
-Vivek
+I agree this would impact performance. I am not sure how else we can
+fix this issue. As far as slab_unlock in hot path case is concerned,
+it is more likely to corrupt page->flags in that case.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
