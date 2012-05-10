@@ -1,122 +1,103 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx142.postini.com [74.125.245.142])
-	by kanga.kvack.org (Postfix) with SMTP id 2D4576B00F3
-	for <linux-mm@kvack.org>; Thu, 10 May 2012 11:00:53 -0400 (EDT)
-Received: by pbbrp2 with SMTP id rp2so2743318pbb.14
-        for <linux-mm@kvack.org>; Thu, 10 May 2012 08:00:52 -0700 (PDT)
-Date: Fri, 11 May 2012 00:00:42 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH 3/4] zsmalloc use zs_handle instead of void *
-Message-ID: <20120510150042.GA2394@barrios>
-References: <1336027242-372-1-git-send-email-minchan@kernel.org>
- <1336027242-372-3-git-send-email-minchan@kernel.org>
- <4FA28907.9020300@vflare.org>
- <4FA2A2F0.3030509@linux.vnet.ibm.com>
- <4FA33DF6.8060107@kernel.org>
- <20120509201918.GA7288@kroah.com>
- <4FAB21E7.7020703@kernel.org>
- <20120510140215.GC26152@phenom.dumpdata.com>
- <4FABD503.4030808@vflare.org>
+Received: from psmtp.com (na3sys010amx176.postini.com [74.125.245.176])
+	by kanga.kvack.org (Postfix) with SMTP id 5955A6B00F3
+	for <linux-mm@kvack.org>; Thu, 10 May 2012 11:01:16 -0400 (EDT)
+Date: Thu, 10 May 2012 17:00:58 +0200
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [PATCH] Describe race of direct read and fork for unaligned
+ buffers
+Message-ID: <20120510150058.GC8588@quack.suse.cz>
+References: <20120502091837.GC16976@quack.suse.cz>
+ <CAHGf_=qfuRZzb91ELEcArNaNHsfO4BBMPO8a-QRBzFNaT2ev_w@mail.gmail.com>
+ <20120502192325.GA18339@quack.suse.cz>
+ <CAHGf_=oOx1qPFEboQeuaeMKtveM2==BSDG=xdfRHz+gFx1GAfw@mail.gmail.com>
+ <CAKgNAkjybL_hmVfONUHtCbBe_VxQHNHOrmWQErGWDUqHiczkFg@mail.gmail.com>
+ <CAHGf_=p4py5m1Pe1xon=9FcEEyf6AxW+Pc9Yy9gCvNtbXM_40A@mail.gmail.com>
+ <CAPa8GCCh-RrjsQKzh9+Sxx-joRZw4qkpxR9n4svo+QopxAj_XQ@mail.gmail.com>
+ <CAKgNAkh5TkwSzFVKVo5JUvkDWkzY8EaQNxJSQnv3fTHTdj0+FQ@mail.gmail.com>
+ <CAPa8GCCaGQdOZoWCCLBLNtOV5_VS+sNvdC_PzrWauF0gSyizYg@mail.gmail.com>
+ <CAKgNAkjLGqMyaeZsDpLUW+re2ViYcpVKOoh33vEJn5keBNLVXA@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=utf-8
 Content-Disposition: inline
-In-Reply-To: <4FABD503.4030808@vflare.org>
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <CAKgNAkjLGqMyaeZsDpLUW+re2ViYcpVKOoh33vEJn5keBNLVXA@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Nitin Gupta <ngupta@vflare.org>
-Cc: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Minchan Kim <minchan@kernel.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Dan Magenheimer <dan.magenheimer@oracle.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: "Michael Kerrisk (man-pages)" <mtk.manpages@gmail.com>
+Cc: Nick Piggin <npiggin@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Jan Kara <jack@suse.cz>, Jeff Moyer <jmoyer@redhat.com>, LKML <linux-kernel@vger.kernel.org>, linux-man@vger.kernel.org, linux-mm@kvack.org, mgorman@suse.de, Andrea Arcangeli <aarcange@redhat.com>, Woodman <lwoodman@redhat.com>
 
-On Thu, May 10, 2012 at 10:47:31AM -0400, Nitin Gupta wrote:
-> On 5/10/12 10:02 AM, Konrad Rzeszutek Wilk wrote:
-> >On Thu, May 10, 2012 at 11:03:19AM +0900, Minchan Kim wrote:
-> >>On 05/10/2012 05:19 AM, Greg Kroah-Hartman wrote:
-> >>
-> >>>On Fri, May 04, 2012 at 11:24:54AM +0900, Minchan Kim wrote:
-> >>>>On 05/04/2012 12:23 AM, Seth Jennings wrote:
-> >>>>
-> >>>>>On 05/03/2012 08:32 AM, Nitin Gupta wrote:
+On Wed 09-05-12 19:18:16, Michael Kerrisk (man-pages) wrote:
+> On Wed, May 9, 2012 at 7:01 PM, Nick Piggin <npiggin@gmail.com> wrote:
+> > On 9 May 2012 15:35, Michael Kerrisk (man-pages) <mtk.manpages@gmail.com> wrote:
+> >> On Wed, May 9, 2012 at 11:10 AM, Nick Piggin <npiggin@gmail.com> wrote:
+> >>> On 6 May 2012 01:29, KOSAKI Motohiro <kosaki.motohiro@gmail.com> wrote:
+> >>>>> So, am I correct to assume that right text to add to the page is as below?
 > >>>>>
-> >>>>>>On 5/3/12 2:40 AM, Minchan Kim wrote:
-> >>>>>>>We should use zs_handle instead of void * to avoid any
-> >>>>>>>confusion. Without this, users may just treat zs_malloc return value as
-> >>>>>>>a pointer and try to deference it.
-> >>>>>>>
-> >>>>>>>Cc: Dan Magenheimer<dan.magenheimer@oracle.com>
-> >>>>>>>Cc: Konrad Rzeszutek Wilk<konrad.wilk@oracle.com>
-> >>>>>>>Signed-off-by: Minchan Kim<minchan@kernel.org>
-> >>>>>>>---
-> >>>>>>>   drivers/staging/zcache/zcache-main.c     |    8 ++++----
-> >>>>>>>   drivers/staging/zram/zram_drv.c          |    8 ++++----
-> >>>>>>>   drivers/staging/zram/zram_drv.h          |    2 +-
-> >>>>>>>   drivers/staging/zsmalloc/zsmalloc-main.c |   28
-> >>>>>>>++++++++++++++--------------
-> >>>>>>>   drivers/staging/zsmalloc/zsmalloc.h      |   15 +++++++++++----
-> >>>>>>>   5 files changed, 34 insertions(+), 27 deletions(-)
-> >>>>>>
-> >>>>>>This was a long pending change. Thanks!
-> >>>>>
-> >>>>>
-> >>>>>The reason I hadn't done it before is that it introduces a checkpatch
-> >>>>>warning:
-> >>>>>
-> >>>>>WARNING: do not add new typedefs
-> >>>>>#303: FILE: drivers/staging/zsmalloc/zsmalloc.h:19:
-> >>>>>+typedef void * zs_handle;
-> >>>>>
+> >>>>> Nick, can you clarify what you mean by "quiesced"?
 > >>>>
-> >>>>
-> >>>>Yes. I did it but I think we are (a) of chapter 5: Typedefs in Documentation/CodingStyle.
-> >>>>
-> >>>>  (a) totally opaque objects (where the typedef is actively used to _hide_
-> >>>>      what the object is).
-> >>>>
-> >>>>No?
+> >>>> finished?
 > >>>
-> >>>No.
-> >>>
-> >>>Don't add new typedefs to the kernel.  Just use a structure if you need
-> >>>to.
+> >>> Yes exactly. That might be a simpler word. Thanks!
 > >>
+> >> Thanks.
 > >>
-> >>I tried it but failed because there were already tightly coupling between [zcache|zram]
-> >>and zsmalloc.
-> >>They already knows handle's internal well so they used it as pointer, even zcache keeps
-> >>handle's value as some key in tmem_put and tmem_get
-> >>AFAIK, ramster also will use zsmalloc sooner or later and add more coupling codes. Sigh.
-> >>Please fix it as soon as possible.
+> >> But see below. I realize the text is still ambiguous.
 > >>
-> >>Dan, Seth
-> >>Any ideas?
+> >>>>> [[
+> >>>>> O_DIRECT IOs should never be run concurrently with fork(2) system call,
+> >>>>> when the memory buffer is anonymous memory, or comes from mmap(2)
+> >>>>> with MAP_PRIVATE.
+> >>>>>
+> >>>>> Any such IOs, whether submitted with asynchronous IO interface or from
+> >>>>> another thread in the process, should be quiesced before fork(2) is called.
+> >>>>> Failure to do so can result in data corruption and undefined behavior in
+> >>>>> parent and child processes.
+> >>>>>
+> >>>>> This restriction does not apply when the memory buffer for the O_DIRECT
+> >>>>> IOs comes from mmap(2) with MAP_SHARED or from shmat(2).
+> >>>>> Nor does this restriction apply when the memory buffer has been advised
+> >>>>> as MADV_DONTFORK with madvise(2), ensuring that it will not be available
+> >>>>> to the child after fork(2).
+> >>>>> ]]
+> >>
+> >> In the above, the status of a MAP_SHARED MAP_ANONYMOUS buffer is
+> >> unclear. The first paragraph implies that such a buffer is unsafe,
+> >> while the third paragraph implies that it *is* safe, thus
+> >> contradicting the first paragraph. Which is correct?
 > >
-> >struct zs {
-
-I like struct zs_handle.
-
-> >	void *ptr;
-> >};
+> > Yes I see. It's because MAP_SHARED | MAP_ANONYMOUS isn't *really*
+> > anonymous from the virtual memory subsystem's point of view. But that
+> > just serves to confuse userspace I guess.
 > >
-> >And pass that structure around?
+> > Anything with MAP_SHARED, shmat, or MADV_DONTFORK is OK.
 > >
+> > Anything else (MAP_PRIVATE, brk, without MADV_DONTFORK) is
+> > dangerous. These type are used by standard heap allocators malloc,
+> > new, etc.
 > 
-> A minor problem is that we store this handle value in a radix tree
-> node. If we wrap it as a struct, then we will not be able to store
-> it directly in the node -- the node will have to point to a 'struct
-
-That was my point and I think it's not minor problem.
-
-> zs'. This will unnecessarily waste sizeof(void *) for every object
-> stored.
+> So, would the following text be okay:
 > 
-> We could 'memcpy' struct zs to a void * and then store that directly
+>        O_DIRECT I/Os should never be run concurrently with the fork(2)
+>        system call, if the memory buffer is a private  mapping  (i.e.,
+>        any  mapping  created  with  the mmap(2) MAP_PRIVATE flag; this
+>        includes memory allocated on the heap and statically  allocated
+>        buffers).  Any such I/Os, whether submitted via an asynchronous
+>        I/O interface or from another thread in the process, should  be
+>        completed  before  fork(2)  is  called.   Failure  to do so can
+>        result in data corruption and undefined behavior in parent  and
+>        child processes.  This restriction does not apply when the mema??
+>        ory buffer for the O_DIRECT I/Os was created using shmat(2)  or
+>        mmap(2)  with  the  MAP_SHARED flag.  Nor does this restriction
+>        apply when the memory buffer has been advised as  MADV_DONTFORK
+>        with  madvise(2), ensuring that it will not be available to the
+>        child after fork(2).
+  This text looks OK, to me. Thanks for putting it together.
 
-I don't like it because it still coupled with zsmalloc which means
-zcache already know zs's internal so we should avoid it.
-
-> in the radix node but not sure if that would be less ugly than just
-> returning the handle as a void * as is done currently.
-> 
-> Thanks,
-> Nitin
+								Honza
+-- 
+Jan Kara <jack@suse.cz>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
