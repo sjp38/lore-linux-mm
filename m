@@ -1,91 +1,131 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx153.postini.com [74.125.245.153])
-	by kanga.kvack.org (Postfix) with SMTP id 9A7A76B0044
-	for <linux-mm@kvack.org>; Thu, 10 May 2012 03:31:25 -0400 (EDT)
-Date: Thu, 10 May 2012 15:31:23 +0800
-From: Fengguang Wu <fengguang.wu@intel.com>
-Subject: Re: [PATCH 0/2 v2] Flexible proportions for BDIs
-Message-ID: <20120510073123.GA7523@localhost>
-References: <1336084760-19534-1-git-send-email-jack@suse.cz>
- <20120507144344.GA13983@localhost>
- <20120509113720.GC5092@quack.suse.cz>
+Received: from psmtp.com (na3sys010amx165.postini.com [74.125.245.165])
+	by kanga.kvack.org (Postfix) with SMTP id 6D07D6B0083
+	for <linux-mm@kvack.org>; Thu, 10 May 2012 03:31:39 -0400 (EDT)
+Received: by yenm7 with SMTP id m7so1686442yen.14
+        for <linux-mm@kvack.org>; Thu, 10 May 2012 00:31:38 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20120509113720.GC5092@quack.suse.cz>
+In-Reply-To: <4FAB6DDB.7020504@kernel.org>
+References: <1335188594-17454-4-git-send-email-inki.dae@samsung.com>
+	<1336544259-17222-1-git-send-email-inki.dae@samsung.com>
+	<1336544259-17222-3-git-send-email-inki.dae@samsung.com>
+	<CAH3drwZBb=XBYpx=Fv=Xv0hajic51V9RwzY_-CpjKDuxgAj9Qg@mail.gmail.com>
+	<001501cd2e4d$c7dbc240$579346c0$%dae@samsung.com>
+	<4FAB4AD8.2010200@kernel.org>
+	<4FAB65D7.6080003@gmail.com>
+	<4FAB6DDB.7020504@kernel.org>
+Date: Thu, 10 May 2012 16:31:38 +0900
+Message-ID: <CAH9JG2UY_xPznFU7qQcR4aPXaN+AkJKv__hW7soXjchxM95XFA@mail.gmail.com>
+Subject: Re: [PATCH 2/2 v3] drm/exynos: added userptr feature.
+From: Kyungmin Park <kyungmin.park@samsung.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jan Kara <jack@suse.cz>
-Cc: linux-mm@kvack.org, peterz@infradead.org
+To: Minchan Kim <minchan@kernel.org>
+Cc: KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Inki Dae <inki.dae@samsung.com>, Jerome Glisse <j.glisse@gmail.com>, airlied@linux.ie, dri-devel@lists.freedesktop.org, sw0312.kim@samsung.com, linux-mm@kvack.org
 
-On Wed, May 09, 2012 at 01:37:20PM +0200, Jan Kara wrote:
->   Hello,
-> 
-> On Mon 07-05-12 22:43:44, Wu Fengguang wrote:
-> > On Fri, May 04, 2012 at 12:39:18AM +0200, Jan Kara wrote:
-> > >   this is the second iteration of my patches for flexible proportions. Since
-> > > previous submission, I've converted BDI proportion calculations to use flexible
-> > > proportions so now we can test proportions in kernel. Fengguang, can you give
-> > > them a run in your JBOD setup? You might try to tweak VM_COMPLETIONS_PERIOD_LEN
-> > > if things are fluctuating too much... I'm not yet completely decided how to set
-> > > that constant. Thanks!
-> > 
-> > Kara, I've got some results and it's working great. Overall performance
-> > remains good. The default VM_COMPLETIONS_PERIOD_LEN = 0.5s is obviously
-> > too small, so I tried increasing it to 3s and then 8s. Results for xfs
-> > (which has most fluctuating IO completions and ditto for bdi_setpoint)
-> > are attached. The XFS result of vanilla 3.3 is also attached. The
-> > graphs are all for case bay/JBOD-2HDD-thresh=1000M/xfs-10dd.
->   Thanks for testing! I agree that 0.5s period is probably on the low end.
-> OTOH 8s seems a bit too much. Consider two bdi's with vastly different
-> speeds - say their throughput ratio is 1:32 (e.g. an USB stick and a raid
-> backed storage). When you write to the fast storage, then stop and start
-> writing to the USB stick, then it will take 5 periods for bdi writeout
-> ratio to become 1:1 and another 4-5 periods to be close to real current
-> situation which is no IO to storage 100% io to USB stick. So with 8s period
-> this will give you total transition time ~80s with seems like too much to
-> me.
+On 5/10/12, Minchan Kim <minchan@kernel.org> wrote:
+> On 05/10/2012 03:53 PM, KOSAKI Motohiro wrote:
+>
+>> (5/10/12 12:58 AM), Minchan Kim wrote:
+>>> On 05/10/2012 10:39 AM, Inki Dae wrote:
+>>>
+>>>> Hi Jerome,
+>>>>
+>>>>> -----Original Message-----
+>>>>> From: Jerome Glisse [mailto:j.glisse@gmail.com]
+>>>>> Sent: Wednesday, May 09, 2012 11:46 PM
+>>>>> To: Inki Dae
+>>>>> Cc: airlied@linux.ie; dri-devel@lists.freedesktop.org;
+>>>>> kyungmin.park@samsung.com; sw0312.kim@samsung.com; linux-mm@kvack.org
+>>>>> Subject: Re: [PATCH 2/2 v3] drm/exynos: added userptr feature.
+>>>>>
+>>>>> On Wed, May 9, 2012 at 2:17 AM, Inki Dae<inki.dae@samsung.com>  wrote:
+>>>>>> this feature is used to import user space region allocated by
+>>>>>> malloc()
+>>>>> or
+>>>>>> mmaped into a gem. and to guarantee the pages to user space not to be
+>>>>>> swapped out, the VMAs within the user space would be locked and then
+>>>>> unlocked
+>>>>>> when the pages are released.
+>>>>>>
+>>>>>> but this lock might result in significant degradation of system
+>>>>> performance
+>>>>>> because the pages couldn't be swapped out so we limit user-desired
+>>>>> userptr
+>>>>>> size to pre-defined.
+>>>>>>
+>>>>>> Signed-off-by: Inki Dae<inki.dae@samsung.com>
+>>>>>> Signed-off-by: Kyungmin Park<kyungmin.park@samsung.com>
+>>>>>
+>>>>>
+>>>>> Again i would like feedback from mm people (adding cc). I am not sure
+>>>>
+>>>> Thank you, I missed adding mm as cc.
+>>>>
+>>>>> locking the vma is the right anwser as i said in my previous mail,
+>>>>> userspace can munlock it in your back, maybe VM_RESERVED is better.
+>>>>
+>>>> I know that with VM_RESERVED flag, also we can avoid the pages from
+>>>> being
+>>>> swapped out. but these pages should be unlocked anytime we want
+>>>> because we
+>>>> could allocate all pages on system and lock them, which in turn, it may
+>>>> result in significant deterioration of system performance.(maybe other
+>>>> processes requesting free memory would be blocked) so I used
+>>>> VM_LOCKED flags
+>>>> instead. but I'm not sure this way is best also.
+>>>>
+>>>>> Anyway even not considering that you don't check at all that process
+>>>>> don't go over the limit of locked page see mm/mlock.c RLIMIT_MEMLOCK
+>>>>
+>>>> Thank you for your advices.
+>>>>
+>>>>> for how it's done. Also you mlock complete vma but the userptr you get
+>>>>> might be inside say 16M vma and you only care about 1M of userptr, if
+>>>>> you mark the whole vma as locked than anytime a new page is fault in
+>>>>> the vma else where than in the buffer you are interested then it got
+>>>>> allocated for ever until the gem buffer is destroy, i am not sure of
+>>>>> what happen to the vma on next malloc if it grows or not (i would
+>>>>> think it won't grow at it would have different flags than new
+>>>>> anonymous memory).
+>>>
+>>>
+>>> I don't know history in detail because you didn't have sent full
+>>> patches to linux-mm and
+>>> I didn't read the below code, either.
+>>> Just read your description and reply of Jerome. Apparently, there is
+>>> something I missed.
+>>>
+>>> Your goal is to avoid swap out some user pages which is used in kernel
+>>> at the same time. Right?
+>>> Let's use get_user_pages. Is there any issue you can't use it?
+>>
+>> Maybe because get_user_pages() is fork unsafe? dunno.
+>
+>
+> If there is such problem, I think user program should handle it by
+> MADV_DONTFORK
+> and make to allow write by only parent process.
+Please read the original patches and discuss the root cause. Does it
+harm to pass user space memory to kernel space and how to make is
+possible at DRM?
 
-OK, got it.
-
-> > Look at the gray "bdi setpoint" lines. The
-> > VM_COMPLETIONS_PERIOD_LEN=8s kernel is able to achieve roughly the
-> > same stable bdi_setpoint as the vanilla kernel, while being able to
-> > adapt to the balanced bdi_setpoint much more fast (actually now the
-> > bdi_setpoint is immediately close to the balanced value when
-> > balance_dirty_pages() starts throttling, while the vanilla kernel
-> > takes about 20 seconds for bdi_setpoint to grow up).
->   Which graph is from which kernel? All four graphs have the same name so
-> I'm not sure...
-
-They are for test cases:
-
-0.5s period
-        bay/JBOD-2HDD-thresh=1000M/xfs-1dd-1-3.4.0-rc2-prop+/balance_dirty_pages-pages+.png
-3s period
-        bay/JBOD-2HDD-thresh=1000M/xfs-1dd-1-3.4.0-rc2-prop3+/balance_dirty_pages-pages+.png
-8s period
-        bay/JBOD-2HDD-thresh=1000M/xfs-1dd-1-3.4.0-rc2-prop8+/balance_dirty_pages-pages+.png
-vanilla
-        bay/JBOD-2HDD-thresh=1000M/xfs-1dd-1-3.3.0/balance_dirty_pages-pages+.png
-
->   The faster (almost immediate) initial adaptation to bdi's writeout fraction
-> is mostly an effect of better normalization with my patches. Although it is
-> pleasant, it happens just at the moment when there is a small number of
-> periods with non-zero number of events. So more important for practice is
-> in my opininion to compare transition of computed fractions when workload
-> changes (i.e. we start writing to one bdi while writing to another bdi or
-> so).
-
-OK. I'll test this scheme and report back.
-
-        loop {
-                dd to disk 1 for 30s
-                dd to disk 2 for 30s
-        }
-
-Thanks,
-Fengguang
+Thank you,
+Kyungmin Park
+>
+> --
+> Kind regards,
+> Minchan Kim
+>
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Fight unfair telecom internet charges in Canada: sign
+> http://stopthemeter.ca/
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
