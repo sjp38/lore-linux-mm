@@ -1,13 +1,13 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx156.postini.com [74.125.245.156])
-	by kanga.kvack.org (Postfix) with SMTP id C15706B004D
-	for <linux-mm@kvack.org>; Thu, 10 May 2012 11:19:45 -0400 (EDT)
-Received: by pbbrp2 with SMTP id rp2so2773958pbb.14
-        for <linux-mm@kvack.org>; Thu, 10 May 2012 08:19:45 -0700 (PDT)
-Date: Thu, 10 May 2012 08:19:41 -0700
-From: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+Received: from psmtp.com (na3sys010amx109.postini.com [74.125.245.109])
+	by kanga.kvack.org (Postfix) with SMTP id BA6D96B00F3
+	for <linux-mm@kvack.org>; Thu, 10 May 2012 11:19:48 -0400 (EDT)
+Received: by dakp5 with SMTP id p5so2543231dak.14
+        for <linux-mm@kvack.org>; Thu, 10 May 2012 08:19:47 -0700 (PDT)
+Date: Fri, 11 May 2012 00:19:37 +0900
+From: Minchan Kim <minchan@kernel.org>
 Subject: Re: [PATCH 3/4] zsmalloc use zs_handle instead of void *
-Message-ID: <20120510151941.GA18302@kroah.com>
+Message-ID: <20120510151937.GC2394@barrios>
 References: <1336027242-372-1-git-send-email-minchan@kernel.org>
  <1336027242-372-3-git-send-email-minchan@kernel.org>
  <4FA28907.9020300@vflare.org>
@@ -25,7 +25,7 @@ In-Reply-To: <4FABDA9F.1000105@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Seth Jennings <sjenning@linux.vnet.ibm.com>
-Cc: Nitin Gupta <ngupta@vflare.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Minchan Kim <minchan@kernel.org>, Dan Magenheimer <dan.magenheimer@oracle.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: Nitin Gupta <ngupta@vflare.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Minchan Kim <minchan@kernel.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Dan Magenheimer <dan.magenheimer@oracle.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
 On Thu, May 10, 2012 at 10:11:27AM -0500, Seth Jennings wrote:
 > On 05/10/2012 09:47 AM, Nitin Gupta wrote:
@@ -51,12 +51,18 @@ On Thu, May 10, 2012 at 10:11:27AM -0500, Seth Jennings wrote:
 > 
 > void * zs_to_void(struct zs *p) { return p->ptr; }
 > struct zs * void_to_zs(void *p) { return (struct zs *)p; }
+> 
+> Right?
 
-Do like what the rest of the kernel does and pass around *ptr and use
-container_of to get 'struct zs'.  Yes, they resolve to the same pointer
-right now, but you shouldn't "expect" to to be the same.
+I though this, too but didn't tried it.
+We DO REALLY want it?
+Why should zsmalloc support like such strange interface?
+I want to solve the problem in zcache, not with zsmalloc.
 
-greg k-h
+> 
+> --
+> Seth
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
