@@ -1,95 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx109.postini.com [74.125.245.109])
-	by kanga.kvack.org (Postfix) with SMTP id 340796B0044
-	for <linux-mm@kvack.org>; Thu, 10 May 2012 13:39:32 -0400 (EDT)
-Date: Thu, 10 May 2012 13:33:22 -0400
-From: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
-Subject: Re: [PATCH 3/4] zsmalloc use zs_handle instead of void *
-Message-ID: <20120510173322.GA30481@phenom.dumpdata.com>
-References: <4FA33DF6.8060107@kernel.org>
- <20120509201918.GA7288@kroah.com>
- <4FAB21E7.7020703@kernel.org>
- <20120510140215.GC26152@phenom.dumpdata.com>
- <4FABD503.4030808@vflare.org>
- <4FABDA9F.1000105@linux.vnet.ibm.com>
- <20120510151941.GA18302@kroah.com>
- <4FABECF5.8040602@vflare.org>
- <20120510164418.GC13964@kroah.com>
- <4FABF9D4.8080303@vflare.org>
+Received: from psmtp.com (na3sys010amx151.postini.com [74.125.245.151])
+	by kanga.kvack.org (Postfix) with SMTP id A22F46B0044
+	for <linux-mm@kvack.org>; Thu, 10 May 2012 13:53:26 -0400 (EDT)
+Received: by qafl39 with SMTP id l39so817539qaf.9
+        for <linux-mm@kvack.org>; Thu, 10 May 2012 10:53:25 -0700 (PDT)
+Message-ID: <4FAC0091.7070606@gmail.com>
+Date: Thu, 10 May 2012 13:53:21 -0400
+From: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <4FABF9D4.8080303@vflare.org>
+Subject: Re: [PATCH 2/2 v3] drm/exynos: added userptr feature.
+References: <1335188594-17454-4-git-send-email-inki.dae@samsung.com> <1336544259-17222-1-git-send-email-inki.dae@samsung.com> <1336544259-17222-3-git-send-email-inki.dae@samsung.com> <CAH3drwZBb=XBYpx=Fv=Xv0hajic51V9RwzY_-CpjKDuxgAj9Qg@mail.gmail.com> <001501cd2e4d$c7dbc240$579346c0$%dae@samsung.com> <4FAB4AD8.2010200@kernel.org> <002401cd2e7a$1e8b0ed0$5ba12c70$%dae@samsung.com> <4FAB68CF.8000404@kernel.org> <CAAQKjZM0a-Lg8KYwWi+LwAXJPFYLKqWaKbuc4iUGVKyoStXu_w@mail.gmail.com> <4FAB782C.306@kernel.org> <003301cd2e89$13f78c00$3be6a400$%dae@samsung.com>
+In-Reply-To: <003301cd2e89$13f78c00$3be6a400$%dae@samsung.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Nitin Gupta <ngupta@vflare.org>
-Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Minchan Kim <minchan@kernel.org>, Dan Magenheimer <dan.magenheimer@oracle.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Inki Dae <inki.dae@samsung.com>
+Cc: 'Minchan Kim' <minchan@kernel.org>, 'InKi Dae' <daeinki@gmail.com>, 'Jerome Glisse' <j.glisse@gmail.com>, airlied@linux.ie, dri-devel@lists.freedesktop.org, kyungmin.park@samsung.com, sw0312.kim@samsung.com, linux-mm@kvack.org, kosaki.motohiro@gmail.com
 
-On Thu, May 10, 2012 at 01:24:36PM -0400, Nitin Gupta wrote:
-> On 5/10/12 12:44 PM, Greg Kroah-Hartman wrote:
-> >On Thu, May 10, 2012 at 12:29:41PM -0400, Nitin Gupta wrote:
-> >>On 5/10/12 11:19 AM, Greg Kroah-Hartman wrote:
-> >>>On Thu, May 10, 2012 at 10:11:27AM -0500, Seth Jennings wrote:
-> >>>>On 05/10/2012 09:47 AM, Nitin Gupta wrote:
-> >>>>
-> >>>>>On 5/10/12 10:02 AM, Konrad Rzeszutek Wilk wrote:
-> >>>>>>struct zs {
-> >>>>>>     void *ptr;
-> >>>>>>};
-> >>>>>>
-> >>>>>>And pass that structure around?
-> >>>>>>
-> >>>>>
-> >>>>>A minor problem is that we store this handle value in a radix tree node.
-> >>>>>If we wrap it as a struct, then we will not be able to store it directly
-> >>>>>in the node -- the node will have to point to a 'struct zs'. This will
-> >>>>>unnecessarily waste sizeof(void *) for every object stored.
-> >>>>
-> >>>>
-> >>>>I don't think so. You can use the fact that for a struct zs var,&var
-> >>>>and&var->ptr are the same.
-> >>>>
-> >>>>For the structure above:
-> >>>>
-> >>>>void * zs_to_void(struct zs *p) { return p->ptr; }
-> >>>>struct zs * void_to_zs(void *p) { return (struct zs *)p; }
-> >>>
-> >>>Do like what the rest of the kernel does and pass around *ptr and use
-> >>>container_of to get 'struct zs'.  Yes, they resolve to the same pointer
-> >>>right now, but you shouldn't "expect" to to be the same.
-> >>>
-> >>>
-> >>
-> >>I think we can just use unsigned long as zs handle type since all we
-> >>have to do is tell the user that the returned value is not a
-> >>pointer. This will be less pretty than a typedef but still better
-> >>than a single entry struct + container_of stuff.
-> >
-> >But then you are casting the thing all around just as much as you were
-> >with the void *, right?
-> >
-> >Making this a "real" structure ensures type safety and lets the compiler
-> >find the problems you accidentally create at times :)
-> >
-> 
-> If we return a 'struct zs' from zs_malloc then I cannot see how we
-> are solving the original problem of storing the handle directly in a
-> radix node. If we pass a struct zs we will require pointing radix
-> node to this struct, wasting sizeof(void *) for every object.   If
-> we pass unsigned long, then this problem is solved and it also makes
-> it clear that the passed value is not a pointer.
+>>> let's assume that one application want to allocate user space memory
+>>> region using malloc() and then write something on the region. as you
+>>> may know, user space buffer doen't have real physical pages once
+>>> malloc() call so if user tries to access the region then page fault
+>>> handler would be triggered
+>>
+>>
+>> Understood.
+>>
+>>> and then in turn next process like swap in to fill physical frame number
+>> into entry of the page faulted.
+>>
+>>
+>> Sorry, I can't understand your point due to my poor English.
+>> Could you rewrite it easiliy? :)
+>>
+>
+> Simply saying, handle_mm_fault would be called to update pte after finding
+> vma and checking access right. and as you know, there are many cases to
+> process page fault such as COW or demand paging.
 
-It is the same size: sizeof(struct zs) == sizeof(void *).
-When you return the 'struct zs' it will be as if you are returning 
-a void * pointer.
+Hmm. If I understand correctly, you guys misunderstand mlock. it doesn't page pinning
+nor prevent pfn change. It only guarantee to don't make swap out. e.g. memory campaction
+feature may automatically change page physical address.
 
-> 
-> Its true that making it a real struct would prevent accidental casts
-> to void * but due to the above problem, I think we have to stick
-> with unsigned long.
-> 
-> Thanks,
-> Nitin
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
