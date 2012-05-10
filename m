@@ -1,39 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx142.postini.com [74.125.245.142])
-	by kanga.kvack.org (Postfix) with SMTP id B807D6B00E8
-	for <linux-mm@kvack.org>; Thu, 10 May 2012 10:21:17 -0400 (EDT)
-Date: Thu, 10 May 2012 09:21:14 -0500 (CDT)
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: BUG at mm/slub.c:374
-In-Reply-To: <CAFLxGvymF0yo3k_j6EON-nk9=mQDaL72mnBxxJOv2awiWgjeYQ@mail.gmail.com>
-Message-ID: <alpine.DEB.2.00.1205100920250.18664@router.home>
-References: <CAFLxGvy0PHZHVL9rZx_0oFGobKftPBc0EN3VEyzNqvg13FUEfw@mail.gmail.com> <alpine.DEB.2.00.1205090907070.8171@router.home> <CAFLxGvymF0yo3k_j6EON-nk9=mQDaL72mnBxxJOv2awiWgjeYQ@mail.gmail.com>
+Received: from psmtp.com (na3sys010amx101.postini.com [74.125.245.101])
+	by kanga.kvack.org (Postfix) with SMTP id 9C2B56B00F8
+	for <linux-mm@kvack.org>; Thu, 10 May 2012 10:25:52 -0400 (EDT)
+Received: by qcsd16 with SMTP id d16so1518710qcs.14
+        for <linux-mm@kvack.org>; Thu, 10 May 2012 07:25:51 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+In-Reply-To: <1336658065-24851-3-git-send-email-mgorman@suse.de>
+References: <1336658065-24851-1-git-send-email-mgorman@suse.de>
+	<1336658065-24851-3-git-send-email-mgorman@suse.de>
+Date: Thu, 10 May 2012 10:25:51 -0400
+Message-ID: <CACLa4punzEWjxQ79GF2o5h-up5A43oBuP-LEXGiA-kKQxcG1iQ@mail.gmail.com>
+Subject: Re: [PATCH 02/12] selinux: tag avc cache alloc as non-critical
+From: Eric Paris <eparis@parisplace.org>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: richard -rw- weinberger <richard.weinberger@gmail.com>
-Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Pekka Enberg <penberg@cs.helsinki.fi>
+To: Mel Gorman <mgorman@suse.de>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, Linux-Netdev <netdev@vger.kernel.org>, Linux-NFS <linux-nfs@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, David Miller <davem@davemloft.net>, Trond Myklebust <Trond.Myklebust@netapp.com>, Neil Brown <neilb@suse.de>, Christoph Hellwig <hch@infradead.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Mike Christie <michaelc@cs.wisc.edu>, Eric B Munson <emunson@mgebm.net>
 
-On Thu, 10 May 2012, richard -rw- weinberger wrote:
-
-> On Wed, May 9, 2012 at 4:14 PM, Christoph Lameter <cl@linux.com> wrote:
-> > On Wed, 9 May 2012, richard -rw- weinberger wrote:
-> >
-> >> A few minutes ago I saw this BUG within one of my KVM machines.
-> >> Config is attached.
-> >
-> > Interrupts on in __cmpxchg_double_slab called from __slab_alloc? Does KVM
-> > do some tricks with interrupt flags? I do not see how that can be
-> > otherwise since __slab_alloc disables interrupts on entry and reenables on
-> > exit.
+On Thu, May 10, 2012 at 9:54 AM, Mel Gorman <mgorman@suse.de> wrote:
+> Failing to allocate a cache entry will only harm performance not
+> correctness. =A0Do not consume valuable reserve pages for something
+> like that.
 >
-> Dunno.
-> So far I've seen this BUG only once. :-\
+> Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
+> Signed-off-by: Mel Gorman <mgorman@suse.de>
 
-Hmmm... allocate_slab() does some dangerous games with the "flag" variable
-which determines if interrupts are to be reenabled and disabled but I
-cannot see how it could have the effect that you are seeing.
+Acked-by: Eric Paris <eparis@redhat.com>
+
+> ---
+> =A0security/selinux/avc.c | =A0 =A02 +-
+> =A01 file changed, 1 insertion(+), 1 deletion(-)
+>
+> diff --git a/security/selinux/avc.c b/security/selinux/avc.c
+> index 8ee42b2..75c2977 100644
+> --- a/security/selinux/avc.c
+> +++ b/security/selinux/avc.c
+> @@ -280,7 +280,7 @@ static struct avc_node *avc_alloc_node(void)
+> =A0{
+> =A0 =A0 =A0 =A0struct avc_node *node;
+>
+> - =A0 =A0 =A0 node =3D kmem_cache_zalloc(avc_node_cachep, GFP_ATOMIC);
+> + =A0 =A0 =A0 node =3D kmem_cache_zalloc(avc_node_cachep, GFP_ATOMIC|__GF=
+P_NOMEMALLOC);
+> =A0 =A0 =A0 =A0if (!node)
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0goto out;
+>
+> --
+> 1.7.9.2
+>
+> --
+> To unsubscribe from this list: send the line "unsubscribe linux-kernel" i=
+n
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at =A0http://vger.kernel.org/majordomo-info.html
+> Please read the FAQ at =A0http://www.tux.org/lkml/
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
