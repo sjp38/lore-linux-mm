@@ -1,68 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx109.postini.com [74.125.245.109])
-	by kanga.kvack.org (Postfix) with SMTP id BA6D96B00F3
-	for <linux-mm@kvack.org>; Thu, 10 May 2012 11:19:48 -0400 (EDT)
-Received: by dakp5 with SMTP id p5so2543231dak.14
-        for <linux-mm@kvack.org>; Thu, 10 May 2012 08:19:47 -0700 (PDT)
-Date: Fri, 11 May 2012 00:19:37 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH 3/4] zsmalloc use zs_handle instead of void *
-Message-ID: <20120510151937.GC2394@barrios>
-References: <1336027242-372-1-git-send-email-minchan@kernel.org>
- <1336027242-372-3-git-send-email-minchan@kernel.org>
- <4FA28907.9020300@vflare.org>
- <4FA2A2F0.3030509@linux.vnet.ibm.com>
- <4FA33DF6.8060107@kernel.org>
- <20120509201918.GA7288@kroah.com>
- <4FAB21E7.7020703@kernel.org>
- <20120510140215.GC26152@phenom.dumpdata.com>
- <4FABD503.4030808@vflare.org>
- <4FABDA9F.1000105@linux.vnet.ibm.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <4FABDA9F.1000105@linux.vnet.ibm.com>
+Received: from psmtp.com (na3sys010amx192.postini.com [74.125.245.192])
+	by kanga.kvack.org (Postfix) with SMTP id EFC176B004D
+	for <linux-mm@kvack.org>; Thu, 10 May 2012 11:25:19 -0400 (EDT)
+Received: by pbbrp2 with SMTP id rp2so2783287pbb.14
+        for <linux-mm@kvack.org>; Thu, 10 May 2012 08:25:19 -0700 (PDT)
+From: Joonsoo Kim <js1304@gmail.com>
+Subject: [PATCH] slub: fix incorrect return type of get_any_partial()
+Date: Fri, 11 May 2012 00:23:56 +0900
+Message-Id: <1336663436-2169-1-git-send-email-js1304@gmail.com>
+In-Reply-To: <alpine.DEB.2.00.1205080912590.25669@router.home>
+References: <alpine.DEB.2.00.1205080912590.25669@router.home>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Seth Jennings <sjenning@linux.vnet.ibm.com>
-Cc: Nitin Gupta <ngupta@vflare.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Minchan Kim <minchan@kernel.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Dan Magenheimer <dan.magenheimer@oracle.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Pekka Enberg <penberg@kernel.org>
+Cc: Christoph Lameter <cl@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Joonsoo Kim <js1304@gmail.com>
 
-On Thu, May 10, 2012 at 10:11:27AM -0500, Seth Jennings wrote:
-> On 05/10/2012 09:47 AM, Nitin Gupta wrote:
-> 
-> > On 5/10/12 10:02 AM, Konrad Rzeszutek Wilk wrote:
-> >> struct zs {
-> >>     void *ptr;
-> >> };
-> >>
-> >> And pass that structure around?
-> >>
-> > 
-> > A minor problem is that we store this handle value in a radix tree node.
-> > If we wrap it as a struct, then we will not be able to store it directly
-> > in the node -- the node will have to point to a 'struct zs'. This will
-> > unnecessarily waste sizeof(void *) for every object stored.
-> 
-> 
-> I don't think so. You can use the fact that for a struct zs var, &var
-> and &var->ptr are the same.
-> 
-> For the structure above:
-> 
-> void * zs_to_void(struct zs *p) { return p->ptr; }
-> struct zs * void_to_zs(void *p) { return (struct zs *)p; }
-> 
-> Right?
+Commit 497b66f2ecc97844493e6a147fd5a7e73f73f408 ('slub: return object pointer
+from get_partial() / new_slab().') changed return type of some functions.
+This updates missing part.
 
-I though this, too but didn't tried it.
-We DO REALLY want it?
-Why should zsmalloc support like such strange interface?
-I want to solve the problem in zcache, not with zsmalloc.
+In addition, fix some comments
 
-> 
-> --
-> Seth
-> 
+Signed-off-by: Joonsoo Kim <js1304@gmail.com>
+
+diff --git a/mm/slub.c b/mm/slub.c
+index ffe13fd..23d66aa 100644
+--- a/mm/slub.c
++++ b/mm/slub.c
+@@ -1577,9 +1577,9 @@ static void *get_partial_node(struct kmem_cache *s,
+ }
+ 
+ /*
+- * Get a page from somewhere. Search in increasing NUMA distances.
++ * Get a partial slab from somewhere. Search in increasing NUMA distances.
+  */
+-static struct page *get_any_partial(struct kmem_cache *s, gfp_t flags,
++static void *get_any_partial(struct kmem_cache *s, gfp_t flags,
+ 		struct kmem_cache_cpu *c)
+ {
+ #ifdef CONFIG_NUMA
+@@ -1643,7 +1643,7 @@ static struct page *get_any_partial(struct kmem_cache *s, gfp_t flags,
+ }
+ 
+ /*
+- * Get a partial page, lock it and return it.
++ * Get a partial slab, lock it and return it.
+  */
+ static void *get_partial(struct kmem_cache *s, gfp_t flags, int node,
+ 		struct kmem_cache_cpu *c)
+-- 
+1.7.9.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
