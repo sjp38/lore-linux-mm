@@ -1,202 +1,34 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx167.postini.com [74.125.245.167])
-	by kanga.kvack.org (Postfix) with SMTP id C8D396B0083
-	for <linux-mm@kvack.org>; Thu, 10 May 2012 04:11:19 -0400 (EDT)
-Message-ID: <4FAB782C.306@kernel.org>
-Date: Thu, 10 May 2012 17:11:24 +0900
-From: Minchan Kim <minchan@kernel.org>
+Received: from psmtp.com (na3sys010amx102.postini.com [74.125.245.102])
+	by kanga.kvack.org (Postfix) with SMTP id 3556A6B0044
+	for <linux-mm@kvack.org>; Thu, 10 May 2012 04:43:22 -0400 (EDT)
+Received: by lahi5 with SMTP id i5so1341545lah.14
+        for <linux-mm@kvack.org>; Thu, 10 May 2012 01:43:20 -0700 (PDT)
+Date: Thu, 10 May 2012 11:43:09 +0300 (EEST)
+From: Pekka Enberg <penberg@kernel.org>
+Subject: Re: [PATCH] Documentations: Fix slabinfo.c directory in
+ vm/slub.txt
+In-Reply-To: <20120509130758.GD6773@thunk.org>
+Message-ID: <alpine.LFD.2.02.1205101141480.18184@tux.localdomain>
+References: <201205031634316254497@gmail.com> <201205091439545464323@gmail.com> <CAHGf_=rU1UUvtcEoyabos08vE0o8diwXoRmekCfH=vi_r0inpA@mail.gmail.com> <20120509130758.GD6773@thunk.org>
 MIME-Version: 1.0
-Subject: Re: [PATCH 2/2 v3] drm/exynos: added userptr feature.
-References: <1335188594-17454-4-git-send-email-inki.dae@samsung.com> <1336544259-17222-1-git-send-email-inki.dae@samsung.com> <1336544259-17222-3-git-send-email-inki.dae@samsung.com> <CAH3drwZBb=XBYpx=Fv=Xv0hajic51V9RwzY_-CpjKDuxgAj9Qg@mail.gmail.com> <001501cd2e4d$c7dbc240$579346c0$%dae@samsung.com> <4FAB4AD8.2010200@kernel.org> <002401cd2e7a$1e8b0ed0$5ba12c70$%dae@samsung.com> <4FAB68CF.8000404@kernel.org> <CAAQKjZM0a-Lg8KYwWi+LwAXJPFYLKqWaKbuc4iUGVKyoStXu_w@mail.gmail.com>
-In-Reply-To: <CAAQKjZM0a-Lg8KYwWi+LwAXJPFYLKqWaKbuc4iUGVKyoStXu_w@mail.gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: InKi Dae <daeinki@gmail.com>
-Cc: Inki Dae <inki.dae@samsung.com>, Jerome Glisse <j.glisse@gmail.com>, airlied@linux.ie, dri-devel@lists.freedesktop.org, kyungmin.park@samsung.com, sw0312.kim@samsung.com, linux-mm@kvack.org
+To: Ted Ts'o <tytso@mit.edu>
+Cc: KOSAKI Motohiro <kosaki.motohiro@gmail.com>, majianpeng <majianpeng@gmail.com>, linux-mm <linux-mm@kvack.org>, Christoph Lameter <cl@linux.com>
 
-On 05/10/2012 04:59 PM, InKi Dae wrote:
+On Wed, 9 May 2012, Ted Ts'o wrote:
+> Names are very personal things, and in my opinion it's better if we
+> not try to impose expectations of how names should be rendered of
+> expect people who wish to interact with the Linux kernel community.
 
-> 2012/5/10, Minchan Kim <minchan@kernel.org>:
->> On 05/10/2012 03:57 PM, Inki Dae wrote:
->>
->>>
->>>
->>>> -----Original Message-----
->>>> From: Minchan Kim [mailto:minchan@kernel.org]
->>>> Sent: Thursday, May 10, 2012 1:58 PM
->>>> To: Inki Dae
->>>> Cc: 'Jerome Glisse'; airlied@linux.ie; dri-devel@lists.freedesktop.org;
->>>> kyungmin.park@samsung.com; sw0312.kim@samsung.com; linux-mm@kvack.org
->>>> Subject: Re: [PATCH 2/2 v3] drm/exynos: added userptr feature.
->>>>
->>>> On 05/10/2012 10:39 AM, Inki Dae wrote:
->>>>
->>>>> Hi Jerome,
->>>>>
->>>>>> -----Original Message-----
->>>>>> From: Jerome Glisse [mailto:j.glisse@gmail.com]
->>>>>> Sent: Wednesday, May 09, 2012 11:46 PM
->>>>>> To: Inki Dae
->>>>>> Cc: airlied@linux.ie; dri-devel@lists.freedesktop.org;
->>>>>> kyungmin.park@samsung.com; sw0312.kim@samsung.com; linux-mm@kvack.org
->>>>>> Subject: Re: [PATCH 2/2 v3] drm/exynos: added userptr feature.
->>>>>>
->>>>>> On Wed, May 9, 2012 at 2:17 AM, Inki Dae <inki.dae@samsung.com> wrote:
->>>>>>> this feature is used to import user space region allocated by
->>>>>>> malloc()
->>>>>> or
->>>>>>> mmaped into a gem. and to guarantee the pages to user space not to be
->>>>>>> swapped out, the VMAs within the user space would be locked and then
->>>>>> unlocked
->>>>>>> when the pages are released.
->>>>>>>
->>>>>>> but this lock might result in significant degradation of system
->>>>>> performance
->>>>>>> because the pages couldn't be swapped out so we limit user-desired
->>>>>> userptr
->>>>>>> size to pre-defined.
->>>>>>>
->>>>>>> Signed-off-by: Inki Dae <inki.dae@samsung.com>
->>>>>>> Signed-off-by: Kyungmin Park <kyungmin.park@samsung.com>
->>>>>>
->>>>>>
->>>>>> Again i would like feedback from mm people (adding cc). I am not sure
->>>>>
->>>>> Thank you, I missed adding mm as cc.
->>>>>
->>>>>> locking the vma is the right anwser as i said in my previous mail,
->>>>>> userspace can munlock it in your back, maybe VM_RESERVED is better.
->>>>>
->>>>> I know that with VM_RESERVED flag, also we can avoid the pages from
->>>> being
->>>>> swapped out. but these pages should be unlocked anytime we want because
->>>> we
->>>>> could allocate all pages on system and lock them, which in turn, it may
->>>>> result in significant deterioration of system performance.(maybe other
->>>>> processes requesting free memory would be blocked) so I used VM_LOCKED
->>>> flags
->>>>> instead. but I'm not sure this way is best also.
->>>>>
->>>>>> Anyway even not considering that you don't check at all that process
->>>>>> don't go over the limit of locked page see mm/mlock.c RLIMIT_MEMLOCK
->>>>>
->>>>> Thank you for your advices.
->>>>>
->>>>>> for how it's done. Also you mlock complete vma but the userptr you get
->>>>>> might be inside say 16M vma and you only care about 1M of userptr, if
->>>>>> you mark the whole vma as locked than anytime a new page is fault in
->>>>>> the vma else where than in the buffer you are interested then it got
->>>>>> allocated for ever until the gem buffer is destroy, i am not sure of
->>>>>> what happen to the vma on next malloc if it grows or not (i would
->>>>>> think it won't grow at it would have different flags than new
->>>>>> anonymous memory).
->>>>
->>>>
->>>> I don't know history in detail because you didn't have sent full patches
->>>> to linux-mm and
->>>> I didn't read the below code, either.
->>>> Just read your description and reply of Jerome. Apparently, there is
->>>> something I missed.
->>>>
->>>> Your goal is to avoid swap out some user pages which is used in kernel
->>>> at
->>>> the same time. Right?
->>>> Let's use get_user_pages. Is there any issue you can't use it?
->>>> It increases page count so reclaimer can't swap out page.
->>>> Isn't it enough?
->>>> Marking whole VMA into MLCOKED is overkill.
->>>>
->>>
->>> As I mentioned, we are already using get_user_pages. as you said, this
->>> function increases page count but just only things to the user address
->>> space
->>> cpu already accessed. other would be allocated by page fault hander once
->>> get_user_pages call. if so... ok, after that refcount(page->_count) of
->>> the
->>
->>
->> Not true. Look __get_user_pages.
->> It handles case you mentioned by handle_mm_fault.
->> Do I miss something?
->>
-> 
-> let's assume that one application want to allocate user space memory
-> region using malloc() and then write something on the region. as you
-> may know, user space buffer doen't have real physical pages once
-> malloc() call so if user tries to access the region then page fault
-> handler would be triggered
+Sure.
 
+I simply wanted to double-check because it looked like a local username 
+that "git send-email" uses by default if "user.name" not set.
 
-Understood.
-
-> and then in turn next process like swap in to fill physical frame number into entry of the page faulted.
-
-
-Sorry, I can't understand your point due to my poor English.
-Could you rewrite it easiliy? :)
-
-Thanks.
-
-> of course,if user never access the buffer and requested userptr then
-
-> handle_mm_fault would be called by __get_user_pages. please give me
-> any comments if there is my missing point.
-> 
-> Thanks,
-> Inki Dae
-> 
-> 
->>> pages user already accessed would have 2 and just 1 for other all pages.
->>> so
->>> we may have to consider only pages never accessed by cpu to be locked to
->>> avoid from swapped out.
->>>
->>> Thanks,
->>> Inki Dae
->>>
->>>> --
->>>> Kind regards,
->>>> Minchan Kim
->>>
->>> --
->>> To unsubscribe, send a message with 'unsubscribe linux-mm' in
->>> the body to majordomo@kvack.org.  For more info on Linux MM,
->>> see: http://www.linux-mm.org/ .
->>> Fight unfair telecom internet charges in Canada: sign
->>> http://stopthemeter.ca/
->>> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
->>>
->>
->>
->>
->> --
->> Kind regards,
->> Minchan Kim
->>
->> --
->> To unsubscribe, send a message with 'unsubscribe linux-mm' in
->> the body to majordomo@kvack.org.  For more info on Linux MM,
->> see: http://www.linux-mm.org/ .
->> Fight unfair telecom internet charges in Canada: sign
->> http://stopthemeter.ca/
->> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
->>
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Fight unfair telecom internet charges in Canada: sign http://stopthemeter.ca/
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-> 
-
-
-
--- 
-Kind regards,
-Minchan Kim
+			Pekka
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
