@@ -1,61 +1,102 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx101.postini.com [74.125.245.101])
-	by kanga.kvack.org (Postfix) with SMTP id 9C2B56B00F8
-	for <linux-mm@kvack.org>; Thu, 10 May 2012 10:25:52 -0400 (EDT)
-Received: by qcsd16 with SMTP id d16so1518710qcs.14
-        for <linux-mm@kvack.org>; Thu, 10 May 2012 07:25:51 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx125.postini.com [74.125.245.125])
+	by kanga.kvack.org (Postfix) with SMTP id 3B9206B004D
+	for <linux-mm@kvack.org>; Thu, 10 May 2012 10:47:35 -0400 (EDT)
+Received: by yhr47 with SMTP id 47so2259785yhr.14
+        for <linux-mm@kvack.org>; Thu, 10 May 2012 07:47:34 -0700 (PDT)
+Message-ID: <4FABD503.4030808@vflare.org>
+Date: Thu, 10 May 2012 10:47:31 -0400
+From: Nitin Gupta <ngupta@vflare.org>
 MIME-Version: 1.0
-In-Reply-To: <1336658065-24851-3-git-send-email-mgorman@suse.de>
-References: <1336658065-24851-1-git-send-email-mgorman@suse.de>
-	<1336658065-24851-3-git-send-email-mgorman@suse.de>
-Date: Thu, 10 May 2012 10:25:51 -0400
-Message-ID: <CACLa4punzEWjxQ79GF2o5h-up5A43oBuP-LEXGiA-kKQxcG1iQ@mail.gmail.com>
-Subject: Re: [PATCH 02/12] selinux: tag avc cache alloc as non-critical
-From: Eric Paris <eparis@parisplace.org>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Subject: Re: [PATCH 3/4] zsmalloc use zs_handle instead of void *
+References: <1336027242-372-1-git-send-email-minchan@kernel.org> <1336027242-372-3-git-send-email-minchan@kernel.org> <4FA28907.9020300@vflare.org> <4FA2A2F0.3030509@linux.vnet.ibm.com> <4FA33DF6.8060107@kernel.org> <20120509201918.GA7288@kroah.com> <4FAB21E7.7020703@kernel.org> <20120510140215.GC26152@phenom.dumpdata.com>
+In-Reply-To: <20120510140215.GC26152@phenom.dumpdata.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, Linux-Netdev <netdev@vger.kernel.org>, Linux-NFS <linux-nfs@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, David Miller <davem@davemloft.net>, Trond Myklebust <Trond.Myklebust@netapp.com>, Neil Brown <neilb@suse.de>, Christoph Hellwig <hch@infradead.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Mike Christie <michaelc@cs.wisc.edu>, Eric B Munson <emunson@mgebm.net>
+To: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
+Cc: Minchan Kim <minchan@kernel.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Dan Magenheimer <dan.magenheimer@oracle.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Thu, May 10, 2012 at 9:54 AM, Mel Gorman <mgorman@suse.de> wrote:
-> Failing to allocate a cache entry will only harm performance not
-> correctness. =A0Do not consume valuable reserve pages for something
-> like that.
+On 5/10/12 10:02 AM, Konrad Rzeszutek Wilk wrote:
+> On Thu, May 10, 2012 at 11:03:19AM +0900, Minchan Kim wrote:
+>> On 05/10/2012 05:19 AM, Greg Kroah-Hartman wrote:
+>>
+>>> On Fri, May 04, 2012 at 11:24:54AM +0900, Minchan Kim wrote:
+>>>> On 05/04/2012 12:23 AM, Seth Jennings wrote:
+>>>>
+>>>>> On 05/03/2012 08:32 AM, Nitin Gupta wrote:
+>>>>>
+>>>>>> On 5/3/12 2:40 AM, Minchan Kim wrote:
+>>>>>>> We should use zs_handle instead of void * to avoid any
+>>>>>>> confusion. Without this, users may just treat zs_malloc return value as
+>>>>>>> a pointer and try to deference it.
+>>>>>>>
+>>>>>>> Cc: Dan Magenheimer<dan.magenheimer@oracle.com>
+>>>>>>> Cc: Konrad Rzeszutek Wilk<konrad.wilk@oracle.com>
+>>>>>>> Signed-off-by: Minchan Kim<minchan@kernel.org>
+>>>>>>> ---
+>>>>>>>    drivers/staging/zcache/zcache-main.c     |    8 ++++----
+>>>>>>>    drivers/staging/zram/zram_drv.c          |    8 ++++----
+>>>>>>>    drivers/staging/zram/zram_drv.h          |    2 +-
+>>>>>>>    drivers/staging/zsmalloc/zsmalloc-main.c |   28
+>>>>>>> ++++++++++++++--------------
+>>>>>>>    drivers/staging/zsmalloc/zsmalloc.h      |   15 +++++++++++----
+>>>>>>>    5 files changed, 34 insertions(+), 27 deletions(-)
+>>>>>>
+>>>>>> This was a long pending change. Thanks!
+>>>>>
+>>>>>
+>>>>> The reason I hadn't done it before is that it introduces a checkpatch
+>>>>> warning:
+>>>>>
+>>>>> WARNING: do not add new typedefs
+>>>>> #303: FILE: drivers/staging/zsmalloc/zsmalloc.h:19:
+>>>>> +typedef void * zs_handle;
+>>>>>
+>>>>
+>>>>
+>>>> Yes. I did it but I think we are (a) of chapter 5: Typedefs in Documentation/CodingStyle.
+>>>>
+>>>>   (a) totally opaque objects (where the typedef is actively used to _hide_
+>>>>       what the object is).
+>>>>
+>>>> No?
+>>>
+>>> No.
+>>>
+>>> Don't add new typedefs to the kernel.  Just use a structure if you need
+>>> to.
+>>
+>>
+>> I tried it but failed because there were already tightly coupling between [zcache|zram]
+>> and zsmalloc.
+>> They already knows handle's internal well so they used it as pointer, even zcache keeps
+>> handle's value as some key in tmem_put and tmem_get
+>> AFAIK, ramster also will use zsmalloc sooner or later and add more coupling codes. Sigh.
+>> Please fix it as soon as possible.
+>>
+>> Dan, Seth
+>> Any ideas?
 >
-> Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
-> Signed-off-by: Mel Gorman <mgorman@suse.de>
+> struct zs {
+> 	void *ptr;
+> };
+>
+> And pass that structure around?
+>
 
-Acked-by: Eric Paris <eparis@redhat.com>
+A minor problem is that we store this handle value in a radix tree node. 
+If we wrap it as a struct, then we will not be able to store it directly 
+in the node -- the node will have to point to a 'struct zs'. This will 
+unnecessarily waste sizeof(void *) for every object stored.
 
-> ---
-> =A0security/selinux/avc.c | =A0 =A02 +-
-> =A01 file changed, 1 insertion(+), 1 deletion(-)
->
-> diff --git a/security/selinux/avc.c b/security/selinux/avc.c
-> index 8ee42b2..75c2977 100644
-> --- a/security/selinux/avc.c
-> +++ b/security/selinux/avc.c
-> @@ -280,7 +280,7 @@ static struct avc_node *avc_alloc_node(void)
-> =A0{
-> =A0 =A0 =A0 =A0struct avc_node *node;
->
-> - =A0 =A0 =A0 node =3D kmem_cache_zalloc(avc_node_cachep, GFP_ATOMIC);
-> + =A0 =A0 =A0 node =3D kmem_cache_zalloc(avc_node_cachep, GFP_ATOMIC|__GF=
-P_NOMEMALLOC);
-> =A0 =A0 =A0 =A0if (!node)
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0goto out;
->
-> --
-> 1.7.9.2
->
-> --
-> To unsubscribe from this list: send the line "unsubscribe linux-kernel" i=
-n
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at =A0http://vger.kernel.org/majordomo-info.html
-> Please read the FAQ at =A0http://www.tux.org/lkml/
+We could 'memcpy' struct zs to a void * and then store that directly in 
+the radix node but not sure if that would be less ugly than just 
+returning the handle as a void * as is done currently.
+
+Thanks,
+Nitin
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
