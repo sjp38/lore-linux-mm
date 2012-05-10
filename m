@@ -1,33 +1,24 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx205.postini.com [74.125.245.205])
-	by kanga.kvack.org (Postfix) with SMTP id 144B66B0083
-	for <linux-mm@kvack.org>; Thu, 10 May 2012 03:05:44 -0400 (EDT)
-Message-ID: <4FAB68CF.8000404@kernel.org>
-Date: Thu, 10 May 2012 16:05:51 +0900
+Received: from psmtp.com (na3sys010amx150.postini.com [74.125.245.150])
+	by kanga.kvack.org (Postfix) with SMTP id 8203E6B0044
+	for <linux-mm@kvack.org>; Thu, 10 May 2012 03:27:17 -0400 (EDT)
+Message-ID: <4FAB6DDB.7020504@kernel.org>
+Date: Thu, 10 May 2012 16:27:23 +0900
 From: Minchan Kim <minchan@kernel.org>
 MIME-Version: 1.0
 Subject: Re: [PATCH 2/2 v3] drm/exynos: added userptr feature.
-References: <1335188594-17454-4-git-send-email-inki.dae@samsung.com> <1336544259-17222-1-git-send-email-inki.dae@samsung.com> <1336544259-17222-3-git-send-email-inki.dae@samsung.com> <CAH3drwZBb=XBYpx=Fv=Xv0hajic51V9RwzY_-CpjKDuxgAj9Qg@mail.gmail.com> <001501cd2e4d$c7dbc240$579346c0$%dae@samsung.com> <4FAB4AD8.2010200@kernel.org> <002401cd2e7a$1e8b0ed0$5ba12c70$%dae@samsung.com>
-In-Reply-To: <002401cd2e7a$1e8b0ed0$5ba12c70$%dae@samsung.com>
+References: <1335188594-17454-4-git-send-email-inki.dae@samsung.com> <1336544259-17222-1-git-send-email-inki.dae@samsung.com> <1336544259-17222-3-git-send-email-inki.dae@samsung.com> <CAH3drwZBb=XBYpx=Fv=Xv0hajic51V9RwzY_-CpjKDuxgAj9Qg@mail.gmail.com> <001501cd2e4d$c7dbc240$579346c0$%dae@samsung.com> <4FAB4AD8.2010200@kernel.org> <4FAB65D7.6080003@gmail.com>
+In-Reply-To: <4FAB65D7.6080003@gmail.com>
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Inki Dae <inki.dae@samsung.com>
-Cc: 'Jerome Glisse' <j.glisse@gmail.com>, airlied@linux.ie, dri-devel@lists.freedesktop.org, kyungmin.park@samsung.com, sw0312.kim@samsung.com, linux-mm@kvack.org
+To: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
+Cc: Inki Dae <inki.dae@samsung.com>, 'Jerome Glisse' <j.glisse@gmail.com>, airlied@linux.ie, dri-devel@lists.freedesktop.org, kyungmin.park@samsung.com, sw0312.kim@samsung.com, linux-mm@kvack.org
 
-On 05/10/2012 03:57 PM, Inki Dae wrote:
+On 05/10/2012 03:53 PM, KOSAKI Motohiro wrote:
 
-> 
-> 
->> -----Original Message-----
->> From: Minchan Kim [mailto:minchan@kernel.org]
->> Sent: Thursday, May 10, 2012 1:58 PM
->> To: Inki Dae
->> Cc: 'Jerome Glisse'; airlied@linux.ie; dri-devel@lists.freedesktop.org;
->> kyungmin.park@samsung.com; sw0312.kim@samsung.com; linux-mm@kvack.org
->> Subject: Re: [PATCH 2/2 v3] drm/exynos: added userptr feature.
->>
+> (5/10/12 12:58 AM), Minchan Kim wrote:
 >> On 05/10/2012 10:39 AM, Inki Dae wrote:
 >>
 >>> Hi Jerome,
@@ -40,7 +31,7 @@ On 05/10/2012 03:57 PM, Inki Dae wrote:
 >>>> kyungmin.park@samsung.com; sw0312.kim@samsung.com; linux-mm@kvack.org
 >>>> Subject: Re: [PATCH 2/2 v3] drm/exynos: added userptr feature.
 >>>>
->>>> On Wed, May 9, 2012 at 2:17 AM, Inki Dae <inki.dae@samsung.com> wrote:
+>>>> On Wed, May 9, 2012 at 2:17 AM, Inki Dae<inki.dae@samsung.com>  wrote:
 >>>>> this feature is used to import user space region allocated by malloc()
 >>>> or
 >>>>> mmaped into a gem. and to guarantee the pages to user space not to be
@@ -54,8 +45,8 @@ On 05/10/2012 03:57 PM, Inki Dae wrote:
 >>>> userptr
 >>>>> size to pre-defined.
 >>>>>
->>>>> Signed-off-by: Inki Dae <inki.dae@samsung.com>
->>>>> Signed-off-by: Kyungmin Park <kyungmin.park@samsung.com>
+>>>>> Signed-off-by: Inki Dae<inki.dae@samsung.com>
+>>>>> Signed-off-by: Kyungmin Park<kyungmin.park@samsung.com>
 >>>>
 >>>>
 >>>> Again i would like feedback from mm people (adding cc). I am not sure
@@ -66,13 +57,13 @@ On 05/10/2012 03:57 PM, Inki Dae wrote:
 >>>> userspace can munlock it in your back, maybe VM_RESERVED is better.
 >>>
 >>> I know that with VM_RESERVED flag, also we can avoid the pages from
->> being
->>> swapped out. but these pages should be unlocked anytime we want because
->> we
+>>> being
+>>> swapped out. but these pages should be unlocked anytime we want
+>>> because we
 >>> could allocate all pages on system and lock them, which in turn, it may
 >>> result in significant deterioration of system performance.(maybe other
->>> processes requesting free memory would be blocked) so I used VM_LOCKED
->> flags
+>>> processes requesting free memory would be blocked) so I used
+>>> VM_LOCKED flags
 >>> instead. but I'm not sure this way is best also.
 >>>
 >>>> Anyway even not considering that you don't check at all that process
@@ -90,50 +81,21 @@ On 05/10/2012 03:57 PM, Inki Dae wrote:
 >>>> anonymous memory).
 >>
 >>
->> I don't know history in detail because you didn't have sent full patches
->> to linux-mm and
+>> I don't know history in detail because you didn't have sent full
+>> patches to linux-mm and
 >> I didn't read the below code, either.
 >> Just read your description and reply of Jerome. Apparently, there is
 >> something I missed.
 >>
->> Your goal is to avoid swap out some user pages which is used in kernel at
->> the same time. Right?
+>> Your goal is to avoid swap out some user pages which is used in kernel
+>> at the same time. Right?
 >> Let's use get_user_pages. Is there any issue you can't use it?
->> It increases page count so reclaimer can't swap out page.
->> Isn't it enough?
->> Marking whole VMA into MLCOKED is overkill.
->>
 > 
-> As I mentioned, we are already using get_user_pages. as you said, this
-> function increases page count but just only things to the user address space
-> cpu already accessed. other would be allocated by page fault hander once
-> get_user_pages call. if so... ok, after that refcount(page->_count) of the
+> Maybe because get_user_pages() is fork unsafe? dunno.
 
 
-Not true. Look __get_user_pages.
-It handles case you mentioned by handle_mm_fault.
-Do I miss something?
-
-> pages user already accessed would have 2 and just 1 for other all pages. so
-> we may have to consider only pages never accessed by cpu to be locked to
-> avoid from swapped out.
-> 
-> Thanks,
-> Inki Dae
-> 
->> --
->> Kind regards,
->> Minchan Kim
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Fight unfair telecom internet charges in Canada: sign http://stopthemeter.ca/
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-> 
-
-
+If there is such problem, I think user program should handle it by MADV_DONTFORK 
+and make to allow write by only parent process.
 
 -- 
 Kind regards,
