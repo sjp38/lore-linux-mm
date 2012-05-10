@@ -1,68 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx201.postini.com [74.125.245.201])
-	by kanga.kvack.org (Postfix) with SMTP id 564646B0044
-	for <linux-mm@kvack.org>; Thu, 10 May 2012 12:13:26 -0400 (EDT)
-Received: from ucsinet21.oracle.com (ucsinet21.oracle.com [156.151.31.93])
-	by acsinet15.oracle.com (Sentrion-MTA-4.2.2/Sentrion-MTA-4.2.2) with ESMTP id q4AGDNnS017326
-	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-SHA bits=256 verify=OK)
-	for <linux-mm@kvack.org>; Thu, 10 May 2012 16:13:24 GMT
-Received: from acsmt358.oracle.com (acsmt358.oracle.com [141.146.40.158])
-	by ucsinet21.oracle.com (8.14.4+Sun/8.14.4) with ESMTP id q4AGDMQa010780
-	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-SHA bits=256 verify=NO)
-	for <linux-mm@kvack.org>; Thu, 10 May 2012 16:13:23 GMT
-Received: from abhmt120.oracle.com (abhmt120.oracle.com [141.146.116.72])
-	by acsmt358.oracle.com (8.12.11.20060308/8.12.11) with ESMTP id q4AGDMVH004452
-	for <linux-mm@kvack.org>; Thu, 10 May 2012 11:13:22 -0500
+Received: from psmtp.com (na3sys010amx203.postini.com [74.125.245.203])
+	by kanga.kvack.org (Postfix) with SMTP id 6B33D6B004D
+	for <linux-mm@kvack.org>; Thu, 10 May 2012 12:29:45 -0400 (EDT)
+Received: by yenm7 with SMTP id m7so2421319yen.14
+        for <linux-mm@kvack.org>; Thu, 10 May 2012 09:29:44 -0700 (PDT)
+Message-ID: <4FABECF5.8040602@vflare.org>
+Date: Thu, 10 May 2012 12:29:41 -0400
+From: Nitin Gupta <ngupta@vflare.org>
 MIME-Version: 1.0
-Message-ID: <66ea94b0-2e40-44d1-9621-05f2a8257298@default>
-Date: Thu, 10 May 2012 09:13:03 -0700 (PDT)
-From: Dan Magenheimer <dan.magenheimer@oracle.com>
-Subject: is there a "lru_cache_add_anon_tail"?
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: quoted-printable
+Subject: Re: [PATCH 3/4] zsmalloc use zs_handle instead of void *
+References: <1336027242-372-1-git-send-email-minchan@kernel.org> <1336027242-372-3-git-send-email-minchan@kernel.org> <4FA28907.9020300@vflare.org> <4FA2A2F0.3030509@linux.vnet.ibm.com> <4FA33DF6.8060107@kernel.org> <20120509201918.GA7288@kroah.com> <4FAB21E7.7020703@kernel.org> <20120510140215.GC26152@phenom.dumpdata.com> <4FABD503.4030808@vflare.org> <4FABDA9F.1000105@linux.vnet.ibm.com> <20120510151941.GA18302@kroah.com>
+In-Reply-To: <20120510151941.GA18302@kroah.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
+To: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+Cc: Seth Jennings <sjenning@linux.vnet.ibm.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Minchan Kim <minchan@kernel.org>, Dan Magenheimer <dan.magenheimer@oracle.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-(Still working on allowing zcache to "evict" swap pages...)
+On 5/10/12 11:19 AM, Greg Kroah-Hartman wrote:
+> On Thu, May 10, 2012 at 10:11:27AM -0500, Seth Jennings wrote:
+>> On 05/10/2012 09:47 AM, Nitin Gupta wrote:
+>>
+>>> On 5/10/12 10:02 AM, Konrad Rzeszutek Wilk wrote:
+>>>> struct zs {
+>>>>      void *ptr;
+>>>> };
+>>>>
+>>>> And pass that structure around?
+>>>>
+>>>
+>>> A minor problem is that we store this handle value in a radix tree node.
+>>> If we wrap it as a struct, then we will not be able to store it directly
+>>> in the node -- the node will have to point to a 'struct zs'. This will
+>>> unnecessarily waste sizeof(void *) for every object stored.
+>>
+>>
+>> I don't think so. You can use the fact that for a struct zs var,&var
+>> and&var->ptr are the same.
+>>
+>> For the structure above:
+>>
+>> void * zs_to_void(struct zs *p) { return p->ptr; }
+>> struct zs * void_to_zs(void *p) { return (struct zs *)p; }
+>
+> Do like what the rest of the kernel does and pass around *ptr and use
+> container_of to get 'struct zs'.  Yes, they resolve to the same pointer
+> right now, but you shouldn't "expect" to to be the same.
+>
+>
 
-Apologies if I got head/tail reversed as used by the
-lru queues... the "directional sense" of the queues is
-not obvious so I'll describe using different terminology...
+I think we can just use unsigned long as zs handle type since all we 
+have to do is tell the user that the returned value is not a pointer. 
+This will be less pretty than a typedef but still better than a single 
+entry struct + container_of stuff.
 
-If I have an anon page and I would like to add it to
-the "reclaim soonest" end of the queue instead of the
-"most recently used so don't reclaim it for a long time"
-end of the queue, does an equivalent function similar to
-lru_cache_add_anon(page) exist?
-
-In other words, I want this dirty anon page to be
-swapped out ASAP.
-
-If no such function exists, can anyone more familiar
-with the VM LRU queues suggest the code for
-this function "lru_cache_add_anon_XXX(page)?
-Also what would be the proper text for XXX?
-
-I have some (experimental) code now to use it so
-could iterate/debug with any suggested code.  The
-calling snippet is:
-
-=09__set_page_locked(new_page);
-=09SetPageSwapBacked(new_page);
-=09ret =3D __add_to_swap_cache(new_page, entry);
-=09if (likely(!ret)) {
-=09=09radix_tree_preload_end();
-=09=09lru_cache_add_anon_XXX(new_page)
-=09=09if (frontswap_get_page(new_page) =3D 0)
-=09=09=09SetPageUptodate(new_page);
-=09=09unlock_page(new_page);
-
-This works using a call to the existing lru_cache_add_anon
-but new_page doesn't get swapped out for a long time.
-
-Thanks for any help/suggestions!
-Dan
+Thanks,
+Nitin
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
