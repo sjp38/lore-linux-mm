@@ -1,26 +1,38 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx148.postini.com [74.125.245.148])
-	by kanga.kvack.org (Postfix) with SMTP id C29BE6B00F3
-	for <linux-mm@kvack.org>; Thu, 10 May 2012 11:56:37 -0400 (EDT)
-Date: Thu, 10 May 2012 10:56:35 -0500 (CDT)
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: [PATCH] slub: remove unused argument of init_kmem_cache_node()
-In-Reply-To: <1336665047-22205-1-git-send-email-js1304@gmail.com>
-Message-ID: <alpine.DEB.2.00.1205101055510.18664@router.home>
-References: <1336665047-22205-1-git-send-email-js1304@gmail.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from psmtp.com (na3sys010amx143.postini.com [74.125.245.143])
+	by kanga.kvack.org (Postfix) with SMTP id BB95B6B0044
+	for <linux-mm@kvack.org>; Thu, 10 May 2012 11:57:37 -0400 (EDT)
+Received: by pbbrp2 with SMTP id rp2so2835046pbb.14
+        for <linux-mm@kvack.org>; Thu, 10 May 2012 08:57:36 -0700 (PDT)
+From: Joonsoo Kim <js1304@gmail.com>
+Subject: [PATCH] slub: change cmpxchg_double_slab in get_freelist() to __cmpxchg_double_slab
+Date: Fri, 11 May 2012 00:56:18 +0900
+Message-Id: <1336665378-2967-1-git-send-email-js1304@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <js1304@gmail.com>
-Cc: Pekka Enberg <penberg@kernel.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Pekka Enberg <penberg@kernel.org>
+Cc: Christoph Lameter <cl@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Joonsoo Kim <js1304@gmail.com>
 
-On Fri, 11 May 2012, Joonsoo Kim wrote:
+get_freelist() is only called by __slab_alloc with interrupt disabled,
+so __cmpxchg_double_slab is suitable.
 
-> We don't use the argument since commit 3b89d7d881a1dbb4da158f7eb5d6b3ceefc72810
-> ('slub: move min_partial to struct kmem_cache'), so remove it
+Signed-off-by: Joonsoo Kim <js1304@gmail.com>
 
-Acked-by: Christoph Lameter <cl@linux.com>
+diff --git a/mm/slub.c b/mm/slub.c
+index 323778e..addfb85 100644
+--- a/mm/slub.c
++++ b/mm/slub.c
+@@ -2176,7 +2176,7 @@ static inline void *get_freelist(struct kmem_cache *s, struct page *page)
+ 		new.inuse = page->objects;
+ 		new.frozen = freelist != NULL;
+ 
+-	} while (!cmpxchg_double_slab(s, page,
++	} while (!__cmpxchg_double_slab(s, page,
+ 		freelist, counters,
+ 		NULL, new.counters,
+ 		"get_freelist"));
+-- 
+1.7.9.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
