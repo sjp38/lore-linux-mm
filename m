@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx108.postini.com [74.125.245.108])
-	by kanga.kvack.org (Postfix) with SMTP id 2DF1B6B00F8
-	for <linux-mm@kvack.org>; Thu, 10 May 2012 09:45:30 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx146.postini.com [74.125.245.146])
+	by kanga.kvack.org (Postfix) with SMTP id 16AB36B00FA
+	for <linux-mm@kvack.org>; Thu, 10 May 2012 09:45:35 -0400 (EDT)
 From: Mel Gorman <mgorman@suse.de>
-Subject: [PATCH 12/17] netvm: Propagate page->pfmemalloc from netdev_alloc_page to skb
-Date: Thu, 10 May 2012 14:45:05 +0100
-Message-Id: <1336657510-24378-13-git-send-email-mgorman@suse.de>
+Subject: [PATCH 16/17] mm: Throttle direct reclaimers if PF_MEMALLOC reserves are low and swap is backed by network storage
+Date: Thu, 10 May 2012 14:45:09 +0100
+Message-Id: <1336657510-24378-17-git-send-email-mgorman@suse.de>
 In-Reply-To: <1336657510-24378-1-git-send-email-mgorman@suse.de>
 References: <1336657510-24378-1-git-send-email-mgorman@suse.de>
 Sender: owner-linux-mm@kvack.org
@@ -13,200 +13,243 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Linux-MM <linux-mm@kvack.org>, Linux-Netdev <netdev@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, David Miller <davem@davemloft.net>, Neil Brown <neilb@suse.de>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Mike Christie <michaelc@cs.wisc.edu>, Eric B Munson <emunson@mgebm.net>, Mel Gorman <mgorman@suse.de>
 
-The skb->pfmemalloc flag gets set to true iff during the slab
-allocation of data in __alloc_skb that the the PFMEMALLOC reserves
-were used. If page splitting is used, it is possible that pages will
-be allocated from the PFMEMALLOC reserve without propagating this
-information to the skb. This patch propagates page->pfmemalloc from
-pages allocated for fragments to the skb.
+If swap is backed by network storage such as NBD, there is a risk
+that a large number of reclaimers can hang the system by consuming
+all PF_MEMALLOC reserves. To avoid these hangs, the administrator
+must tune min_free_kbytes in advance which is a bit fragile.
 
-It works by reintroducing and expanding the netdev_alloc_page() API
-to take an skb. If the page was allocated from pfmemalloc reserves,
-it is automatically copied. If the driver allocates the page before
-the skb, it should call propagate_pfmemalloc_skb() after the skb is
-allocated to ensure the flag is copied properly.
-
-Failure to do so is not critical. The resulting driver may perform
-slower if it is used for swap-over-NBD or swap-over-NFS but it should
-not result in failure.
+This patch throttles direct reclaimers if half the PF_MEMALLOC reserves
+are in use. If the system is routinely getting throttled the system
+administrator can increase min_free_kbytes so degradation is smoother
+but the system will keep running.
 
 Signed-off-by: Mel Gorman <mgorman@suse.de>
 ---
- drivers/net/ethernet/chelsio/cxgb4/sge.c          |    2 +-
- drivers/net/ethernet/chelsio/cxgb4vf/sge.c        |    2 +-
- drivers/net/ethernet/intel/igb/igb_main.c         |    2 +-
- drivers/net/ethernet/intel/ixgbe/ixgbe_main.c     |    2 +-
- drivers/net/ethernet/intel/ixgbevf/ixgbevf_main.c |    3 +-
- drivers/net/usb/cdc-phonet.c                      |    2 +-
- drivers/usb/gadget/f_phonet.c                     |    2 +-
- include/linux/skbuff.h                            |   55 +++++++++++++++++++++
- 8 files changed, 63 insertions(+), 7 deletions(-)
+ include/linux/mmzone.h |    1 +
+ mm/page_alloc.c        |    1 +
+ mm/vmscan.c            |  128 +++++++++++++++++++++++++++++++++++++++++++++---
+ 3 files changed, 122 insertions(+), 8 deletions(-)
 
-diff --git a/drivers/net/ethernet/chelsio/cxgb4/sge.c b/drivers/net/ethernet/chelsio/cxgb4/sge.c
-index 2dae795..05f02b3 100644
---- a/drivers/net/ethernet/chelsio/cxgb4/sge.c
-+++ b/drivers/net/ethernet/chelsio/cxgb4/sge.c
-@@ -528,7 +528,7 @@ static unsigned int refill_fl(struct adapter *adap, struct sge_fl *q, int n,
- #endif
- 
- 	while (n--) {
--		pg = alloc_page(gfp);
-+		pg = __netdev_alloc_page(gfp, NULL);
- 		if (unlikely(!pg)) {
- 			q->alloc_failed++;
- 			break;
-diff --git a/drivers/net/ethernet/chelsio/cxgb4vf/sge.c b/drivers/net/ethernet/chelsio/cxgb4vf/sge.c
-index 0bd585b..e8a372e 100644
---- a/drivers/net/ethernet/chelsio/cxgb4vf/sge.c
-+++ b/drivers/net/ethernet/chelsio/cxgb4vf/sge.c
-@@ -653,7 +653,7 @@ static unsigned int refill_fl(struct adapter *adapter, struct sge_fl *fl,
- 
- alloc_small_pages:
- 	while (n--) {
--		page = alloc_page(gfp | __GFP_NOWARN | __GFP_COLD);
-+		page = __netdev_alloc_page(gfp | __GFP_NOWARN, NULL);
- 		if (unlikely(!page)) {
- 			fl->alloc_failed++;
- 			break;
-diff --git a/drivers/net/ethernet/intel/igb/igb_main.c b/drivers/net/ethernet/intel/igb/igb_main.c
-index 5ec3159..9c2d7f6 100644
---- a/drivers/net/ethernet/intel/igb/igb_main.c
-+++ b/drivers/net/ethernet/intel/igb/igb_main.c
-@@ -6229,7 +6229,7 @@ static bool igb_alloc_mapped_page(struct igb_ring *rx_ring,
- 		return true;
- 
- 	if (!page) {
--		page = alloc_page(GFP_ATOMIC | __GFP_COLD);
-+		page = __netdev_alloc_page(GFP_ATOMIC, bi->skb);
- 		bi->page = page;
- 		if (unlikely(!page)) {
- 			rx_ring->rx_stats.alloc_failed++;
-diff --git a/drivers/net/ethernet/intel/ixgbe/ixgbe_main.c b/drivers/net/ethernet/intel/ixgbe/ixgbe_main.c
-index a7f3cd8..a092486 100644
---- a/drivers/net/ethernet/intel/ixgbe/ixgbe_main.c
-+++ b/drivers/net/ethernet/intel/ixgbe/ixgbe_main.c
-@@ -1126,7 +1126,7 @@ static bool ixgbe_alloc_mapped_page(struct ixgbe_ring *rx_ring,
- 
- 	/* alloc new page for storage */
- 	if (likely(!page)) {
--		page = alloc_pages(GFP_ATOMIC | __GFP_COLD,
-+		page = __netdev_alloc_pages(GFP_ATOMIC, bi->skb,
- 				   ixgbe_rx_pg_order(rx_ring));
- 		if (unlikely(!page)) {
- 			rx_ring->rx_stats.alloc_rx_page_failed++;
-diff --git a/drivers/net/ethernet/intel/ixgbevf/ixgbevf_main.c b/drivers/net/ethernet/intel/ixgbevf/ixgbevf_main.c
-index 307611a..4f1c14f 100644
---- a/drivers/net/ethernet/intel/ixgbevf/ixgbevf_main.c
-+++ b/drivers/net/ethernet/intel/ixgbevf/ixgbevf_main.c
-@@ -369,7 +369,7 @@ static void ixgbevf_alloc_rx_buffers(struct ixgbevf_adapter *adapter,
- 		if (!bi->page_dma &&
- 		    (adapter->flags & IXGBE_FLAG_RX_PS_ENABLED)) {
- 			if (!bi->page) {
--				bi->page = alloc_page(GFP_ATOMIC | __GFP_COLD);
-+				bi->page = __netdev_alloc_page(GFP_ATOMIC, NULL);
- 				if (!bi->page) {
- 					adapter->alloc_rx_page_failed++;
- 					goto no_buffers;
-@@ -403,6 +403,7 @@ static void ixgbevf_alloc_rx_buffers(struct ixgbevf_adapter *adapter,
- 			 */
- 			skb_reserve(skb, NET_IP_ALIGN);
- 
-+			propagate_pfmemalloc_skb(bi->page_dma, skb);
- 			bi->skb = skb;
- 		}
- 		if (!bi->dma) {
-diff --git a/drivers/net/usb/cdc-phonet.c b/drivers/net/usb/cdc-phonet.c
-index 3e41b00..5d46473 100644
---- a/drivers/net/usb/cdc-phonet.c
-+++ b/drivers/net/usb/cdc-phonet.c
-@@ -130,7 +130,7 @@ static int rx_submit(struct usbpn_dev *pnd, struct urb *req, gfp_t gfp_flags)
- 	struct page *page;
- 	int err;
- 
--	page = alloc_page(gfp_flags);
-+	page = __netdev_alloc_page(gfp_flags | __GFP_NOMEMALLOC, NULL);
- 	if (!page)
- 		return -ENOMEM;
- 
-diff --git a/drivers/usb/gadget/f_phonet.c b/drivers/usb/gadget/f_phonet.c
-index 965a629..19adb15 100644
---- a/drivers/usb/gadget/f_phonet.c
-+++ b/drivers/usb/gadget/f_phonet.c
-@@ -301,7 +301,7 @@ pn_rx_submit(struct f_phonet *fp, struct usb_request *req, gfp_t gfp_flags)
- 	struct page *page;
- 	int err;
- 
--	page = alloc_page(gfp_flags);
-+	page = __netdev_alloc_page(gfp_flags | __GFP_NOMEMALLOC, NULL);
- 	if (!page)
- 		return -ENOMEM;
- 
-diff --git a/include/linux/skbuff.h b/include/linux/skbuff.h
-index ed7cc48..28c3de7 100644
---- a/include/linux/skbuff.h
-+++ b/include/linux/skbuff.h
-@@ -1747,6 +1747,61 @@ static inline struct sk_buff *netdev_alloc_skb_ip_align(struct net_device *dev,
- 	return __netdev_alloc_skb_ip_align(dev, length, GFP_ATOMIC);
+diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
+index dff7115..e6b733d 100644
+--- a/include/linux/mmzone.h
++++ b/include/linux/mmzone.h
+@@ -663,6 +663,7 @@ typedef struct pglist_data {
+ 					     range, including holes */
+ 	int node_id;
+ 	wait_queue_head_t kswapd_wait;
++	wait_queue_head_t pfmemalloc_wait;
+ 	struct task_struct *kswapd;
+ 	int kswapd_max_order;
+ 	enum zone_type classzone_idx;
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index e225a7c..b9eb64a 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -4326,6 +4326,7 @@ static void __paginginit free_area_init_core(struct pglist_data *pgdat,
+ 	pgdat_resize_init(pgdat);
+ 	pgdat->nr_zones = 0;
+ 	init_waitqueue_head(&pgdat->kswapd_wait);
++	init_waitqueue_head(&pgdat->pfmemalloc_wait);
+ 	pgdat->kswapd_max_order = 0;
+ 	pgdat_page_cgroup_init(pgdat);
+ 	
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index 33dc256..97c766f 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -2431,6 +2431,80 @@ out:
+ 	return 0;
  }
  
++static bool pfmemalloc_watermark_ok(pg_data_t *pgdat)
++{
++	struct zone *zone;
++	unsigned long pfmemalloc_reserve = 0;
++	unsigned long free_pages = 0;
++	int i;
++	bool wmark_ok;
++
++	for (i = 0; i <= ZONE_NORMAL; i++) {
++		zone = &pgdat->node_zones[i];
++		pfmemalloc_reserve += min_wmark_pages(zone);
++		free_pages += zone_page_state(zone, NR_FREE_PAGES);
++	}
++
++	wmark_ok = free_pages > pfmemalloc_reserve / 2;
++
++	/* kswapd must be awake if processes are being throttled */
++	if (!wmark_ok && waitqueue_active(&pgdat->kswapd_wait)) {
++		pgdat->classzone_idx = min(pgdat->classzone_idx,
++						(enum zone_type)ZONE_NORMAL);
++		wake_up_interruptible(&pgdat->kswapd_wait);
++	}
++
++	return wmark_ok;
++}
++
 +/*
-+ *	__netdev_alloc_page - allocate a page for ps-rx on a specific device
-+ *	@gfp_mask: alloc_pages_node mask. Set __GFP_NOMEMALLOC if not for network packet RX
-+ *	@skb: skb to set pfmemalloc on if __GFP_MEMALLOC is used
-+ *	@order: size of the allocation
-+ *
-+ * 	Allocate a new page. dev currently unused.
-+ *
-+ * 	%NULL is returned if there is no free memory.
-+*/
-+static inline struct page *__netdev_alloc_pages(gfp_t gfp_mask,
-+						struct sk_buff *skb,
-+						unsigned int order)
-+{
-+	struct page *page;
-+
-+	gfp_mask |= __GFP_COLD;
-+
-+	if (!(gfp_mask & __GFP_NOMEMALLOC))
-+		gfp_mask |= __GFP_MEMALLOC;
-+
-+	page = alloc_pages_node(NUMA_NO_NODE, gfp_mask, order);
-+	if (skb && page && page->pfmemalloc)
-+		skb->pfmemalloc = true;
-+
-+	return page;
-+}
-+
-+/**
-+ *	__netdev_alloc_page - allocate a page for ps-rx on a specific device
-+ *	@gfp_mask: alloc_pages_node mask. Set __GFP_NOMEMALLOC if not for network packet RX
-+ *	@skb: skb to set pfmemalloc on if __GFP_MEMALLOC is used
-+ *
-+ * 	Allocate a new page. dev currently unused.
-+ *
-+ * 	%NULL is returned if there is no free memory.
++ * Throttle direct reclaimers if backing storage is backed by the network
++ * and the PFMEMALLOC reserve for the preferred node is getting dangerously
++ * depleted. kswapd will continue to make progress and wake the processes
++ * when the low watermark is reached
 + */
-+static inline struct page *__netdev_alloc_page(gfp_t gfp_mask,
-+						struct sk_buff *skb)
++static void throttle_direct_reclaim(gfp_t gfp_mask, struct zonelist *zonelist,
++					nodemask_t *nodemask)
 +{
-+	return __netdev_alloc_pages(gfp_mask, skb, 0);
++	struct zone *zone;
++	int high_zoneidx = gfp_zone(gfp_mask);
++	pg_data_t *pgdat;
++
++	/*
++	 * Kernel threads should not be throttled as they may be indirectly
++	 * responsible for cleaning pages necessary for reclaim to make forward
++	 * progress. kjournald for example may enter direct reclaim while
++	 * committing a transaction where throttling it could forcing other
++	 * processes to block on log_wait_commit().
++	 */
++	if (current->flags & PF_KTHREAD)
++		return;
++
++	/* Check if the pfmemalloc reserves are ok */
++	first_zones_zonelist(zonelist, high_zoneidx, NULL, &zone);
++	pgdat = zone->zone_pgdat;
++	if (pfmemalloc_watermark_ok(pgdat))
++		return;
++
++	/*
++	 * If the caller cannot enter the filesystem, it's possible that it
++	 * is due to the caller holding an FS lock or performing a journal
++	 * transaction in the case of a filesystem like ext[3|4]. In this case,
++	 * it is not safe to block on pfmemalloc_wait as kswapd could be
++	 * blocked waiting on the same lock. Instead, throttle for up to a
++	 * second before continuing.
++	 */
++	if (!(gfp_mask & __GFP_FS)) {
++		wait_event_interruptible_timeout(pgdat->pfmemalloc_wait,
++			pfmemalloc_watermark_ok(pgdat), HZ);
++		return;
++	}
++
++	/* Throttle until kswapd wakes the process */
++	wait_event_killable(zone->zone_pgdat->pfmemalloc_wait,
++		pfmemalloc_watermark_ok(pgdat));
 +}
 +
-+/**
-+ *	propagate_pfmemalloc_skb - Propagate pfmemalloc if skb is allocated after RX page
-+ *	@page: The page that was allocated from netdev_alloc_page
-+ *	@skb: The skb that may need pfmemalloc set
+ unsigned long try_to_free_pages(struct zonelist *zonelist, int order,
+ 				gfp_t gfp_mask, nodemask_t *nodemask)
+ {
+@@ -2449,6 +2523,15 @@ unsigned long try_to_free_pages(struct zonelist *zonelist, int order,
+ 		.gfp_mask = sc.gfp_mask,
+ 	};
+ 
++	throttle_direct_reclaim(gfp_mask, zonelist, nodemask);
++
++	/*
++	 * Do not enter reclaim if fatal signal is pending. 1 is returned so
++	 * that the page allocator does not consider triggering OOM
++	 */
++	if (fatal_signal_pending(current))
++		return 1;
++
+ 	trace_mm_vmscan_direct_reclaim_begin(order,
+ 				sc.may_writepage,
+ 				gfp_mask);
+@@ -2598,8 +2681,13 @@ static bool pgdat_balanced(pg_data_t *pgdat, unsigned long balanced_pages,
+ 	return balanced_pages >= (present_pages >> 2);
+ }
+ 
+-/* is kswapd sleeping prematurely? */
+-static bool sleeping_prematurely(pg_data_t *pgdat, int order, long remaining,
++/*
++ * Prepare kswapd for sleeping. This verifies that there are no processes
++ * waiting in throttle_direct_reclaim() and that watermarks have been met.
++ *
++ * Returns true if kswapd is ready to sleep
 + */
-+static inline void propagate_pfmemalloc_skb(struct page *page,
-+						struct sk_buff *skb)
-+{
-+	if (page && page->pfmemalloc)
-+		skb->pfmemalloc = true;
-+}
++static bool prepare_kswapd_sleep(pg_data_t *pgdat, int order, long remaining,
+ 					int classzone_idx)
+ {
+ 	int i;
+@@ -2608,7 +2696,21 @@ static bool sleeping_prematurely(pg_data_t *pgdat, int order, long remaining,
+ 
+ 	/* If a direct reclaimer woke kswapd within HZ/10, it's premature */
+ 	if (remaining)
+-		return true;
++		return false;
 +
- /**
-  * skb_frag_page - retrieve the page refered to by a paged fragment
-  * @frag: the paged fragment
++	/*
++	 * There is a potential race between when kswapd checks its watermarks
++	 * and a process gets throttled. There is also a potential race if
++	 * processes get throttled, kswapd wakes, a large process exits therby
++	 * balancing the zones that causes kswapd to miss a wakeup. If kswapd
++	 * is going to sleep, no process should be sleeping on pfmemalloc_wait
++	 * so wake them now if necessary. If necessary, processes will wake
++	 * kswapd and get throttled again
++	 */
++	if (waitqueue_active(&pgdat->pfmemalloc_wait)) {
++		wake_up(&pgdat->pfmemalloc_wait);
++		return false;
++	}
+ 
+ 	/* Check the watermark levels */
+ 	for (i = 0; i <= classzone_idx; i++) {
+@@ -2641,9 +2743,9 @@ static bool sleeping_prematurely(pg_data_t *pgdat, int order, long remaining,
+ 	 * must be balanced
+ 	 */
+ 	if (order)
+-		return !pgdat_balanced(pgdat, balanced, classzone_idx);
++		return pgdat_balanced(pgdat, balanced, classzone_idx);
+ 	else
+-		return !all_zones_ok;
++		return all_zones_ok;
+ }
+ 
+ /*
+@@ -2871,6 +2973,16 @@ loop_again:
+ 			}
+ 
+ 		}
++
++		/*
++		 * If the low watermark is met there is no need for processes
++		 * to be throttled on pfmemalloc_wait as they should not be
++		 * able to safely make forward progress. Wake them
++		 */
++		if (waitqueue_active(&pgdat->pfmemalloc_wait) &&
++				pfmemalloc_watermark_ok(pgdat))
++			wake_up(&pgdat->pfmemalloc_wait);
++
+ 		if (all_zones_ok || (order && pgdat_balanced(pgdat, balanced, *classzone_idx)))
+ 			break;		/* kswapd: all done */
+ 		/*
+@@ -2971,7 +3083,7 @@ out:
+ 	}
+ 
+ 	/*
+-	 * Return the order we were reclaiming at so sleeping_prematurely()
++	 * Return the order we were reclaiming at so prepare_kswapd_sleep()
+ 	 * makes a decision on the order we were last reclaiming at. However,
+ 	 * if another caller entered the allocator slow path while kswapd
+ 	 * was awake, order will remain at the higher level
+@@ -2991,7 +3103,7 @@ static void kswapd_try_to_sleep(pg_data_t *pgdat, int order, int classzone_idx)
+ 	prepare_to_wait(&pgdat->kswapd_wait, &wait, TASK_INTERRUPTIBLE);
+ 
+ 	/* Try to sleep for a short interval */
+-	if (!sleeping_prematurely(pgdat, order, remaining, classzone_idx)) {
++	if (prepare_kswapd_sleep(pgdat, order, remaining, classzone_idx)) {
+ 		remaining = schedule_timeout(HZ/10);
+ 		finish_wait(&pgdat->kswapd_wait, &wait);
+ 		prepare_to_wait(&pgdat->kswapd_wait, &wait, TASK_INTERRUPTIBLE);
+@@ -3001,7 +3113,7 @@ static void kswapd_try_to_sleep(pg_data_t *pgdat, int order, int classzone_idx)
+ 	 * After a short sleep, check if it was a premature sleep. If not, then
+ 	 * go fully to sleep until explicitly woken up.
+ 	 */
+-	if (!sleeping_prematurely(pgdat, order, remaining, classzone_idx)) {
++	if (prepare_kswapd_sleep(pgdat, order, remaining, classzone_idx)) {
+ 		trace_mm_vmscan_kswapd_sleep(pgdat->node_id);
+ 
+ 		/*
 -- 
 1.7.9.2
 
