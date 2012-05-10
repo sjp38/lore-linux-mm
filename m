@@ -1,79 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx189.postini.com [74.125.245.189])
-	by kanga.kvack.org (Postfix) with SMTP id 59EB26B0044
-	for <linux-mm@kvack.org>; Thu, 10 May 2012 12:44:23 -0400 (EDT)
-Received: by pbbrp2 with SMTP id rp2so2907231pbb.14
-        for <linux-mm@kvack.org>; Thu, 10 May 2012 09:44:22 -0700 (PDT)
-Date: Thu, 10 May 2012 09:44:18 -0700
-From: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-Subject: Re: [PATCH 3/4] zsmalloc use zs_handle instead of void *
-Message-ID: <20120510164418.GC13964@kroah.com>
-References: <4FA28907.9020300@vflare.org>
- <4FA2A2F0.3030509@linux.vnet.ibm.com>
- <4FA33DF6.8060107@kernel.org>
- <20120509201918.GA7288@kroah.com>
- <4FAB21E7.7020703@kernel.org>
- <20120510140215.GC26152@phenom.dumpdata.com>
- <4FABD503.4030808@vflare.org>
- <4FABDA9F.1000105@linux.vnet.ibm.com>
- <20120510151941.GA18302@kroah.com>
- <4FABECF5.8040602@vflare.org>
+Received: from psmtp.com (na3sys010amx114.postini.com [74.125.245.114])
+	by kanga.kvack.org (Postfix) with SMTP id 50F0C6B0044
+	for <linux-mm@kvack.org>; Thu, 10 May 2012 12:48:47 -0400 (EDT)
+Received: by obbwd18 with SMTP id wd18so2834533obb.14
+        for <linux-mm@kvack.org>; Thu, 10 May 2012 09:48:46 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <4FABECF5.8040602@vflare.org>
+In-Reply-To: <CAMYGaxqxb=XR8R26h4e2URA2hG2M3j9V4u0DLJ9ifmkZKJa+eg@mail.gmail.com>
+References: <1336066477-3964-1-git-send-email-rajman.mekaco@gmail.com>
+	<4FA2C946.60006@redhat.com>
+	<4FA2EA4A.6040703@redhat.com>
+	<CAMYGaxosaVXmpQQqpq+bGV9F7-i8APTpDq=ErWdhw2EHGEzmKg@mail.gmail.com>
+	<CAMYGaxruZbhvtZg76_zo6-BjChObpCAE8-MTA=xbBOavct+XNw@mail.gmail.com>
+	<4FABD6BE.1060401@redhat.com>
+	<CAMYGaxqxb=XR8R26h4e2URA2hG2M3j9V4u0DLJ9ifmkZKJa+eg@mail.gmail.com>
+Date: Thu, 10 May 2012 22:18:46 +0530
+Message-ID: <CAMYGaxrj37Wwan+UKKvvSj6M+G=ksNMscmF40JDMrKZmx5tD2g@mail.gmail.com>
+Subject: Re: [PATCH 1/1] mlock: split the shmlock_user_lock spinlock into per
+ user_struct spinlock
+From: rajman mekaco <rajman.mekaco@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Nitin Gupta <ngupta@vflare.org>
-Cc: Seth Jennings <sjenning@linux.vnet.ibm.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Minchan Kim <minchan@kernel.org>, Dan Magenheimer <dan.magenheimer@oracle.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Rik van Riel <riel@redhat.com>
+Cc: Ingo Molnar <mingo@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Paul Gortmaker <paul.gortmaker@windriver.com>, Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>, Christoph Lameter <cl@gentwo.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Thu, May 10, 2012 at 12:29:41PM -0400, Nitin Gupta wrote:
-> On 5/10/12 11:19 AM, Greg Kroah-Hartman wrote:
-> >On Thu, May 10, 2012 at 10:11:27AM -0500, Seth Jennings wrote:
-> >>On 05/10/2012 09:47 AM, Nitin Gupta wrote:
-> >>
-> >>>On 5/10/12 10:02 AM, Konrad Rzeszutek Wilk wrote:
-> >>>>struct zs {
-> >>>>     void *ptr;
-> >>>>};
-> >>>>
-> >>>>And pass that structure around?
-> >>>>
-> >>>
-> >>>A minor problem is that we store this handle value in a radix tree node.
-> >>>If we wrap it as a struct, then we will not be able to store it directly
-> >>>in the node -- the node will have to point to a 'struct zs'. This will
-> >>>unnecessarily waste sizeof(void *) for every object stored.
-> >>
-> >>
-> >>I don't think so. You can use the fact that for a struct zs var,&var
-> >>and&var->ptr are the same.
-> >>
-> >>For the structure above:
-> >>
-> >>void * zs_to_void(struct zs *p) { return p->ptr; }
-> >>struct zs * void_to_zs(void *p) { return (struct zs *)p; }
-> >
-> >Do like what the rest of the kernel does and pass around *ptr and use
-> >container_of to get 'struct zs'.  Yes, they resolve to the same pointer
-> >right now, but you shouldn't "expect" to to be the same.
-> >
-> >
-> 
-> I think we can just use unsigned long as zs handle type since all we
-> have to do is tell the user that the returned value is not a
-> pointer. This will be less pretty than a typedef but still better
-> than a single entry struct + container_of stuff.
+> If 2 different user-mode processes executing on 2 CPUs under 2 different
+> users want to access the same shared memory through the
 
-But then you are casting the thing all around just as much as you were
-with the void *, right?
+One correction:
+This will happen even for different shared memory as the lock is global.
+This fact just increases the relevance of this patch, dont you think ?
 
-Making this a "real" structure ensures type safety and lets the compiler
-find the problems you accidentally create at times :)
-
-thanks,
-
-greg k-h
+> shmctl(SHM_LOCK) / shmget(SHM_HUGETLB) / usr_shm_lock
+> primitives, they could compete/spin even though their user_structs
+> are different.
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
