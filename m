@@ -1,14 +1,97 @@
-Return-Path: <odellmarcelo@tradal.net>
-Date: Thu, 10 May 2012 09:35:26 +0500
-From: "LON STOKES" <odellmarcelo@tradal.net>
+Return-Path: <owner-linux-mm@kvack.org>
+Received: from psmtp.com (na3sys010amx102.postini.com [74.125.245.102])
+	by kanga.kvack.org (Postfix) with SMTP id 1D7C16B0044
+	for <linux-mm@kvack.org>; Thu, 10 May 2012 00:57:54 -0400 (EDT)
+Message-ID: <4FAB4AD8.2010200@kernel.org>
+Date: Thu, 10 May 2012 13:58:00 +0900
+From: Minchan Kim <minchan@kernel.org>
 MIME-Version: 1.0
-Subject: Add 1-3 Inches Easy...See the best penis enlargement pill. Add 1-3 inches with this miracle pill. v6bdor3f12
-Message-ID: <201205100035.EDE7A7E7BE1E35196AEE1D@a55wj79z5>
-Content-Type: text/plain; charset=UTF-8
+Subject: Re: [PATCH 2/2 v3] drm/exynos: added userptr feature.
+References: <1335188594-17454-4-git-send-email-inki.dae@samsung.com> <1336544259-17222-1-git-send-email-inki.dae@samsung.com> <1336544259-17222-3-git-send-email-inki.dae@samsung.com> <CAH3drwZBb=XBYpx=Fv=Xv0hajic51V9RwzY_-CpjKDuxgAj9Qg@mail.gmail.com> <001501cd2e4d$c7dbc240$579346c0$%dae@samsung.com>
+In-Reply-To: <001501cd2e4d$c7dbc240$579346c0$%dae@samsung.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
-To: owner-linux-mm@kvack.org
+Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
+To: Inki Dae <inki.dae@samsung.com>
+Cc: 'Jerome Glisse' <j.glisse@gmail.com>, airlied@linux.ie, dri-devel@lists.freedesktop.org, kyungmin.park@samsung.com, sw0312.kim@samsung.com, linux-mm@kvack.org
 
-                     
-Add 1-3 Inches Easy...See the best penis enlargement pill. Add 1-3 inches with this miracle pill. Read them & start right now. http://padgin.ru
-                         
+On 05/10/2012 10:39 AM, Inki Dae wrote:
+
+> Hi Jerome,
+> 
+>> -----Original Message-----
+>> From: Jerome Glisse [mailto:j.glisse@gmail.com]
+>> Sent: Wednesday, May 09, 2012 11:46 PM
+>> To: Inki Dae
+>> Cc: airlied@linux.ie; dri-devel@lists.freedesktop.org;
+>> kyungmin.park@samsung.com; sw0312.kim@samsung.com; linux-mm@kvack.org
+>> Subject: Re: [PATCH 2/2 v3] drm/exynos: added userptr feature.
+>>
+>> On Wed, May 9, 2012 at 2:17 AM, Inki Dae <inki.dae@samsung.com> wrote:
+>>> this feature is used to import user space region allocated by malloc()
+>> or
+>>> mmaped into a gem. and to guarantee the pages to user space not to be
+>>> swapped out, the VMAs within the user space would be locked and then
+>> unlocked
+>>> when the pages are released.
+>>>
+>>> but this lock might result in significant degradation of system
+>> performance
+>>> because the pages couldn't be swapped out so we limit user-desired
+>> userptr
+>>> size to pre-defined.
+>>>
+>>> Signed-off-by: Inki Dae <inki.dae@samsung.com>
+>>> Signed-off-by: Kyungmin Park <kyungmin.park@samsung.com>
+>>
+>>
+>> Again i would like feedback from mm people (adding cc). I am not sure
+> 
+> Thank you, I missed adding mm as cc.
+> 
+>> locking the vma is the right anwser as i said in my previous mail,
+>> userspace can munlock it in your back, maybe VM_RESERVED is better.
+> 
+> I know that with VM_RESERVED flag, also we can avoid the pages from being
+> swapped out. but these pages should be unlocked anytime we want because we
+> could allocate all pages on system and lock them, which in turn, it may
+> result in significant deterioration of system performance.(maybe other
+> processes requesting free memory would be blocked) so I used VM_LOCKED flags
+> instead. but I'm not sure this way is best also.
+> 
+>> Anyway even not considering that you don't check at all that process
+>> don't go over the limit of locked page see mm/mlock.c RLIMIT_MEMLOCK
+> 
+> Thank you for your advices.
+> 
+>> for how it's done. Also you mlock complete vma but the userptr you get
+>> might be inside say 16M vma and you only care about 1M of userptr, if
+>> you mark the whole vma as locked than anytime a new page is fault in
+>> the vma else where than in the buffer you are interested then it got
+>> allocated for ever until the gem buffer is destroy, i am not sure of
+>> what happen to the vma on next malloc if it grows or not (i would
+>> think it won't grow at it would have different flags than new
+>> anonymous memory).
+
+
+I don't know history in detail because you didn't have sent full patches to linux-mm and
+I didn't read the below code, either.
+Just read your description and reply of Jerome. Apparently, there is something I missed.
+
+Your goal is to avoid swap out some user pages which is used in kernel at the same time. Right?
+Let's use get_user_pages. Is there any issue you can't use it?
+It increases page count so reclaimer can't swap out page.
+Isn't it enough?
+Marking whole VMA into MLCOKED is overkill.
+
+-- 
+Kind regards,
+Minchan Kim
+
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Fight unfair telecom internet charges in Canada: sign http://stopthemeter.ca/
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
