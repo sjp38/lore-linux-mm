@@ -1,100 +1,100 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx194.postini.com [74.125.245.194])
-	by kanga.kvack.org (Postfix) with SMTP id 653D18D0001
-	for <linux-mm@kvack.org>; Fri, 11 May 2012 13:46:55 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx129.postini.com [74.125.245.129])
+	by kanga.kvack.org (Postfix) with SMTP id D140F8D0001
+	for <linux-mm@kvack.org>; Fri, 11 May 2012 13:47:14 -0400 (EDT)
 From: Glauber Costa <glommer@parallels.com>
-Subject: [PATCH v2 00/29] kmem limitation for memcg
-Date: Fri, 11 May 2012 14:44:02 -0300
-Message-Id: <1336758272-24284-1-git-send-email-glommer@parallels.com>
+Subject: [PATCH v2 03/29] memcg: Always free struct memcg through schedule_work()
+Date: Fri, 11 May 2012 14:44:05 -0300
+Message-Id: <1336758272-24284-4-git-send-email-glommer@parallels.com>
+In-Reply-To: <1336758272-24284-1-git-send-email-glommer@parallels.com>
+References: <1336758272-24284-1-git-send-email-glommer@parallels.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org
-Cc: cgroups@vger.kernel.org, linux-mm@kvack.org, kamezawa.hiroyu@jp.fujitsu.com, Tejun Heo <tj@kernel.org>, Li Zefan <lizefan@huawei.com>, Greg Thelen <gthelen@google.com>, Suleiman Souhlal <suleiman@google.com>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, devel@openvz.org
+Cc: cgroups@vger.kernel.org, linux-mm@kvack.org, kamezawa.hiroyu@jp.fujitsu.com, Tejun Heo <tj@kernel.org>, Li Zefan <lizefan@huawei.com>, Greg Thelen <gthelen@google.com>, Suleiman Souhlal <suleiman@google.com>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, devel@openvz.org, Glauber Costa <glommer@parallels.com>
 
-Hello All,
+Right now we free struct memcg with kfree right after a
+rcu grace period, but defer it if we need to use vfree() to get
+rid of that memory area. We do that by need, because we need vfree
+to be called in a process context.
 
-This is my new take for the memcg kmem accounting.
-At this point, I consider the series pretty mature - although of course,
-bugs are always there...
+This patch unifies this behavior, by ensuring that even kfree will
+happen in a separate thread. The goal is to have a stable place to
+call the upcoming jump label destruction function outside the realm
+of the complicated and quite far-reaching cgroup lock (that can't be
+held when calling neither the cpu_hotplug.lock nor the jump_label_mutex)
 
-As a disclaimer, however, I must say that the slub code is much more stressed
-by me, since I know it better. If you have no more objections to the concepts
-presented, the remaining edges can probably be polished in a rc cycle,
-at the maintainers discretion, of course.
+Signed-off-by: Glauber Costa <glommer@parallels.com>
+CC: Tejun Heo <tj@kernel.org>
+CC: Li Zefan <lizefan@huawei.com>
+CC: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+CC: Johannes Weiner <hannes@cmpxchg.org>
+CC: Michal Hocko <mhocko@suse.cz>
+---
+ mm/memcontrol.c |   24 +++++++++++++-----------
+ 1 files changed, 13 insertions(+), 11 deletions(-)
 
-Otherwise, I'll be happy to address any concerns of yours.
-
-Since last submission:
-
- * memcgs can be properly removed.
- * We are not charging based on current->mm->owner instead of current
- * kmem_large allocations for slub got some fixes, specially for the free case
- * A cache that is registered can be properly removed (common module case)
-   even if it spans memcg children. Slab had some code for that, now it works
-   well with both
- * A new mechanism for skipping allocations is proposed (patch posted
-   separately already). Now instead of having kmalloc_no_account, we mark
-   a region as non-accountable for memcg.
-
-I should point out again that most, if not all, of the code in the caches
-are wrapped in static_key areas, meaning they will be completely patched out
-until the first limit is set.
-
-I also put a lot of effort, as you will all see, in the proper separation
-of the patches, so the review process is made as easy as the complexity of
-the work allows to.
-
-Frederic Weisbecker (1):
-  cgroups: ability to stop res charge propagation on bounded ancestor
-
-Glauber Costa (24):
-  slab: dup name string
-  slub: fix slab_state for slub
-  memcg: Always free struct memcg through schedule_work()
-  slub: always get the cache from its page in kfree
-  slab: rename gfpflags to allocflags
-  slab: use obj_size field of struct kmem_cache when not debugging
-  memcg: change defines to an enum
-  res_counter: don't force return value checking in
-    res_counter_charge_nofail
-  kmem slab accounting basic infrastructure
-  slab/slub: struct memcg_params
-  slub: consider a memcg parameter in kmem_create_cache
-  slab: pass memcg parameter to kmem_cache_create
-  slub: create duplicate cache
-  slab: create duplicate cache
-  memcg: kmem controller charge/uncharge infrastructure
-  skip memcg kmem allocations in specified code regions
-  slub: charge allocation to a memcg
-  slab: per-memcg accounting of slab caches
-  memcg: disable kmem code when not in use.
-  memcg: destroy memcg caches
-  memcg/slub: shrink dead caches
-  slub: create slabinfo file for memcg
-  slub: track all children of a kmem cache
-  Documentation: add documentation for slab tracker for memcg
-
-Suleiman Souhlal (4):
-  memcg: Make it possible to use the stock for more than one page.
-  memcg: Reclaim when more than one page needed.
-  memcg: Track all the memcg children of a kmem_cache.
-  memcg: Per-memcg memory.kmem.slabinfo file.
-
- Documentation/cgroups/memory.txt           |   33 ++
- Documentation/cgroups/resource_counter.txt |   18 +-
- include/linux/memcontrol.h                 |   88 ++++
- include/linux/res_counter.h                |   23 +-
- include/linux/sched.h                      |    1 +
- include/linux/slab.h                       |   29 +
- include/linux/slab_def.h                   |   72 +++-
- include/linux/slub_def.h                   |   51 ++-
- init/Kconfig                               |    2 +-
- kernel/res_counter.c                       |   13 +-
- mm/memcontrol.c                            |  773 ++++++++++++++++++++++++++--
- mm/slab.c                                  |  394 ++++++++++++---
- mm/slub.c                                  |  298 ++++++++++-
- 13 files changed, 1658 insertions(+), 137 deletions(-)
-
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index 932a734..0b4b4c8 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -245,8 +245,8 @@ struct mem_cgroup {
+ 		 */
+ 		struct rcu_head rcu_freeing;
+ 		/*
+-		 * But when using vfree(), that cannot be done at
+-		 * interrupt time, so we must then queue the work.
++		 * We also need some space for a worker in deferred freeing.
++		 * By the time we call it, rcu_freeing is not longer in use.
+ 		 */
+ 		struct work_struct work_freeing;
+ 	};
+@@ -4826,23 +4826,28 @@ out_free:
+ }
+ 
+ /*
+- * Helpers for freeing a vzalloc()ed mem_cgroup by RCU,
++ * Helpers for freeing a kmalloc()ed/vzalloc()ed mem_cgroup by RCU,
+  * but in process context.  The work_freeing structure is overlaid
+  * on the rcu_freeing structure, which itself is overlaid on memsw.
+  */
+-static void vfree_work(struct work_struct *work)
++static void free_work(struct work_struct *work)
+ {
+ 	struct mem_cgroup *memcg;
++	int size = sizeof(struct mem_cgroup);
+ 
+ 	memcg = container_of(work, struct mem_cgroup, work_freeing);
+-	vfree(memcg);
++	if (size < PAGE_SIZE)
++		kfree(memcg);
++	else
++		vfree(memcg);
+ }
+-static void vfree_rcu(struct rcu_head *rcu_head)
++
++static void free_rcu(struct rcu_head *rcu_head)
+ {
+ 	struct mem_cgroup *memcg;
+ 
+ 	memcg = container_of(rcu_head, struct mem_cgroup, rcu_freeing);
+-	INIT_WORK(&memcg->work_freeing, vfree_work);
++	INIT_WORK(&memcg->work_freeing, free_work);
+ 	schedule_work(&memcg->work_freeing);
+ }
+ 
+@@ -4868,10 +4873,7 @@ static void __mem_cgroup_free(struct mem_cgroup *memcg)
+ 		free_mem_cgroup_per_zone_info(memcg, node);
+ 
+ 	free_percpu(memcg->stat);
+-	if (sizeof(struct mem_cgroup) < PAGE_SIZE)
+-		kfree_rcu(memcg, rcu_freeing);
+-	else
+-		call_rcu(&memcg->rcu_freeing, vfree_rcu);
++	call_rcu(&memcg->rcu_freeing, free_rcu);
+ }
+ 
+ static void mem_cgroup_get(struct mem_cgroup *memcg)
 -- 
 1.7.7.6
 
