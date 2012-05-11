@@ -1,55 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx189.postini.com [74.125.245.189])
-	by kanga.kvack.org (Postfix) with SMTP id 4C90C8D0001
-	for <linux-mm@kvack.org>; Fri, 11 May 2012 17:29:34 -0400 (EDT)
-Date: Fri, 11 May 2012 14:29:32 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 00/17] Swap-over-NBD without deadlocking V10
-Message-Id: <20120511142932.af7851bd.akpm@linux-foundation.org>
-In-Reply-To: <20120511.172339.2007927803884694483.davem@davemloft.net>
-References: <1336657510-24378-1-git-send-email-mgorman@suse.de>
-	<20120511.010445.1020972261904383892.davem@davemloft.net>
-	<20120511154540.GV11435@suse.de>
-	<20120511.172339.2007927803884694483.davem@davemloft.net>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx131.postini.com [74.125.245.131])
+	by kanga.kvack.org (Postfix) with SMTP id 991A58D0001
+	for <linux-mm@kvack.org>; Fri, 11 May 2012 17:31:03 -0400 (EDT)
+Received: by pbbrp2 with SMTP id rp2so5267450pbb.14
+        for <linux-mm@kvack.org>; Fri, 11 May 2012 14:31:02 -0700 (PDT)
+Date: Fri, 11 May 2012 14:30:42 -0700 (PDT)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: [Bug 43227] New: BUG: Bad page state in process
+ wcg_gfam_6.11_i
+In-Reply-To: <20120511125921.a888e12c.akpm@linux-foundation.org>
+Message-ID: <alpine.LSU.2.00.1205111419060.1288@eggly.anvils>
+References: <bug-43227-27@https.bugzilla.kernel.org/> <20120511125921.a888e12c.akpm@linux-foundation.org>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Miller <davem@davemloft.net>
-Cc: mgorman@suse.de, linux-mm@kvack.org, netdev@vger.kernel.org, linux-kernel@vger.kernel.org, neilb@suse.de, a.p.zijlstra@chello.nl, michaelc@cs.wisc.edu, emunson@mgebm.net
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, bugzilla-daemon@bugzilla.kernel.org, sliedes@cc.hut.fi
 
-On Fri, 11 May 2012 17:23:39 -0400 (EDT)
-David Miller <davem@davemloft.net> wrote:
-
-> From: Mel Gorman <mgorman@suse.de>
-> Date: Fri, 11 May 2012 16:45:40 +0100
-> 
-> > From my point of view, the ideal would be that all the patches go
-> > through akpm's tree or yours but that probably will cause merge
-> > difficulties.
+On Fri, 11 May 2012, Andrew Morton wrote:
 > > 
-> > Any recommendations?
+> > [67031.755786] BUG: Bad page state in process wcg_gfam_6.11_i  pfn:02519
+> > [67031.755790] page:ffffea0000094640 count:0 mapcount:0 mapping:         
+> > (null) index:0x7f1eb293b
+> > [67031.755792] page flags: 0x4000000000000014(referenced|dirty)
 > 
-> I know there will be networking side conflicts very soon, it's not a
-> matter of 'if' but 'when'.
+> AFAICT we got this warning because the page allocator found a free page
+> with PG_referenced and PG_dirty set.
 > 
-> But the trick is that I bet the 'mm' and 'slab' folks are in a similar
-> situation.
-> 
-> In any event I'm more than happy to take it all in my tree.
+> It would be a heck of a lot more useful if we'd been told about this
+> when the page was freed, not when it was reused!  Can anyone think of a
+> reason why PAGE_FLAGS_CHECK_AT_FREE doesn't include these flags (at
+> least)?
 
-I guess either is OK.  The main thing is to get it all reviewed and
-tested, after all.
+Because those flags may validly be set when a page is freed (I do have an
+old patch to change anon dirty handling to stop that, but it's not really
+needed).  They are then immediately cleared, along with all other page
+flags.  So if page allocation finds any page flags set, it happened while
+the page was supposedly free.
 
-I can take all the patches once it's all lined up and everyone is
-happy.  If the net bits later take significant damage then I can squirt them
-at you once the core MM bits are merged.  That would give you a few
-days to check them over and get them into Linus.  If that's a problem,
-we can hold the net bits over for a cycle.
+The only thought I have on this report: what binutils was used to build
+this kernel?  We had "Bad page" and isolate_lru_pages BUG reports at the
+start of the month, and they were traced to buggy binutils 2.22.52.0.2
 
-That's all assuming that the core MM parts are mergeable without the
-net parts being merged.  I trust that's the case!
+Hugh
+
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
