@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx159.postini.com [74.125.245.159])
-	by kanga.kvack.org (Postfix) with SMTP id F32E38D0020
-	for <linux-mm@kvack.org>; Fri, 11 May 2012 13:50:30 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx172.postini.com [74.125.245.172])
+	by kanga.kvack.org (Postfix) with SMTP id 33BD68D0020
+	for <linux-mm@kvack.org>; Fri, 11 May 2012 13:50:41 -0400 (EDT)
 From: Glauber Costa <glommer@parallels.com>
-Subject: [PATCH v2 20/29] slub: charge allocation to a memcg
-Date: Fri, 11 May 2012 14:44:22 -0300
-Message-Id: <1336758272-24284-21-git-send-email-glommer@parallels.com>
+Subject: [PATCH v2 21/29] slab: per-memcg accounting of slab caches
+Date: Fri, 11 May 2012 14:44:23 -0300
+Message-Id: <1336758272-24284-22-git-send-email-glommer@parallels.com>
 In-Reply-To: <1336758272-24284-1-git-send-email-glommer@parallels.com>
 References: <1336758272-24284-1-git-send-email-glommer@parallels.com>
 Sender: owner-linux-mm@kvack.org
@@ -25,9 +25,8 @@ try to return as soon as we realize we are not a memcg cache.
 The charge/uncharge functions are heavier, but are only called
 for new page allocations.
 
-The kmalloc_no_account variant is patched so the base
-function is used and we don't even try to do cache
-selection.
+Code is heavily inspired by Suleiman's, with adaptations to
+the patchset and minor simplifications by me.
 
 Signed-off-by: Glauber Costa <glommer@parallels.com>
 CC: Christoph Lameter <cl@linux.com>
@@ -37,294 +36,324 @@ CC: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 CC: Johannes Weiner <hannes@cmpxchg.org>
 CC: Suleiman Souhlal <suleiman@google.com>
 ---
- include/linux/slub_def.h |   39 ++++++++++++++--
- mm/slub.c                |  113 +++++++++++++++++++++++++++++++++++++++++-----
- 2 files changed, 135 insertions(+), 17 deletions(-)
+ include/linux/slab_def.h |   62 ++++++++++++++++++++++++++++
+ mm/slab.c                |  102 +++++++++++++++++++++++++++++++++++++++++-----
+ 2 files changed, 154 insertions(+), 10 deletions(-)
 
-diff --git a/include/linux/slub_def.h b/include/linux/slub_def.h
-index 5f5e942..56b6fb4 100644
---- a/include/linux/slub_def.h
-+++ b/include/linux/slub_def.h
-@@ -13,6 +13,8 @@
- #include <linux/kobject.h>
+diff --git a/include/linux/slab_def.h b/include/linux/slab_def.h
+index 06e4a3e..ed8c43c 100644
+--- a/include/linux/slab_def.h
++++ b/include/linux/slab_def.h
+@@ -218,4 +218,66 @@ found:
  
- #include <linux/kmemleak.h>
-+#include <linux/memcontrol.h>
-+#include <linux/mm.h>
+ #endif	/* CONFIG_NUMA */
  
- enum stat_item {
- 	ALLOC_FASTPATH,		/* Allocation from cpu slab */
-@@ -210,27 +212,54 @@ static __always_inline int kmalloc_index(size_t size)
-  * This ought to end up with a global pointer to the right cache
-  * in kmalloc_caches.
-  */
--static __always_inline struct kmem_cache *kmalloc_slab(size_t size)
-+static __always_inline struct kmem_cache *kmalloc_slab(gfp_t flags, size_t size)
- {
-+	struct kmem_cache *s;
- 	int index = kmalloc_index(size);
- 
- 	if (index == 0)
- 		return NULL;
- 
--	return kmalloc_caches[index];
-+	s = kmalloc_caches[index];
++#ifdef CONFIG_CGROUP_MEM_RES_CTLR_KMEM
 +
-+	rcu_read_lock();
-+	s = mem_cgroup_get_kmem_cache(s, flags);
++void kmem_cache_drop_ref(struct kmem_cache *cachep);
++
++static inline void
++kmem_cache_get_ref(struct kmem_cache *cachep)
++{
++	if (cachep->memcg_params.id == -1 &&
++	    unlikely(!atomic_add_unless(&cachep->memcg_params.refcnt, 1, 0)))
++		BUG();
++}
++
++static inline void
++mem_cgroup_put_kmem_cache(struct kmem_cache *cachep)
++{
 +	rcu_read_unlock();
++}
 +
-+	return s;
++static inline void
++mem_cgroup_kmem_cache_prepare_sleep(struct kmem_cache *cachep)
++{
++	/*
++	 * Make sure the cache doesn't get freed while we have interrupts
++	 * enabled.
++	 */
++	kmem_cache_get_ref(cachep);
++}
++
++static inline void
++mem_cgroup_kmem_cache_finish_sleep(struct kmem_cache *cachep)
++{
++	kmem_cache_drop_ref(cachep);
++}
++
++#else /* CONFIG_CGROUP_MEM_RES_CTLR_KMEM */
++
++static inline void
++kmem_cache_get_ref(struct kmem_cache *cachep)
++{
++}
++
++static inline void
++kmem_cache_drop_ref(struct kmem_cache *cachep)
++{
++}
++
++static inline void
++mem_cgroup_put_kmem_cache(struct kmem_cache *cachep)
++{
++}
++
++static inline void
++mem_cgroup_kmem_cache_prepare_sleep(struct kmem_cache *cachep)
++{
++}
++
++static inline void
++mem_cgroup_kmem_cache_finish_sleep(struct kmem_cache *cachep)
++{
++}
++#endif /* CONFIG_CGROUP_MEM_RES_CTLR_KMEM */
++
+ #endif	/* _LINUX_SLAB_DEF_H */
+diff --git a/mm/slab.c b/mm/slab.c
+index 985714a..7022f86 100644
+--- a/mm/slab.c
++++ b/mm/slab.c
+@@ -1821,20 +1821,28 @@ static void *kmem_getpages(struct kmem_cache *cachep, gfp_t flags, int nodeid)
+ 	if (cachep->flags & SLAB_RECLAIM_ACCOUNT)
+ 		flags |= __GFP_RECLAIMABLE;
+ 
++	nr_pages = (1 << cachep->gfporder);
++	if (!mem_cgroup_charge_slab(cachep, flags, nr_pages * PAGE_SIZE))
++		return NULL;
++
+ 	page = alloc_pages_exact_node(nodeid, flags | __GFP_NOTRACK, cachep->gfporder);
+ 	if (!page) {
+ 		if (!(flags & __GFP_NOWARN) && printk_ratelimit())
+ 			slab_out_of_memory(cachep, flags, nodeid);
++
++		mem_cgroup_uncharge_slab(cachep, nr_pages * PAGE_SIZE);
+ 		return NULL;
+ 	}
+ 
+-	nr_pages = (1 << cachep->gfporder);
+ 	if (cachep->flags & SLAB_RECLAIM_ACCOUNT)
+ 		add_zone_page_state(page_zone(page),
+ 			NR_SLAB_RECLAIMABLE, nr_pages);
+ 	else
+ 		add_zone_page_state(page_zone(page),
+ 			NR_SLAB_UNRECLAIMABLE, nr_pages);
++
++	kmem_cache_get_ref(cachep);
++
+ 	for (i = 0; i < nr_pages; i++)
+ 		__SetPageSlab(page + i);
+ 
+@@ -1850,6 +1858,14 @@ static void *kmem_getpages(struct kmem_cache *cachep, gfp_t flags, int nodeid)
+ 	return page_address(page);
  }
  
- void *kmem_cache_alloc(struct kmem_cache *, gfp_t);
- void *__kmalloc(size_t size, gfp_t flags);
++#ifdef CONFIG_CGROUP_MEM_RES_CTLR_KMEM
++void kmem_cache_drop_ref(struct kmem_cache *cachep)
++{
++	if (cachep->memcg_params.id == -1)
++		atomic_dec(&cachep->memcg_params.refcnt);
++}
++#endif /* CONFIG_CGROUP_MEM_RES_CTLR_KMEM */
++
+ /*
+  * Interface to system's page release.
+  */
+@@ -1867,6 +1883,8 @@ static void kmem_freepages(struct kmem_cache *cachep, void *addr)
+ 	else
+ 		sub_zone_page_state(page_zone(page),
+ 				NR_SLAB_UNRECLAIMABLE, nr_freed);
++	mem_cgroup_uncharge_slab(cachep, i * PAGE_SIZE);
++	kmem_cache_drop_ref(cachep);
+ 	while (i--) {
+ 		BUG_ON(!PageSlab(page));
+ 		__ClearPageSlab(page);
+@@ -2854,10 +2872,11 @@ void kmem_cache_destroy(struct kmem_cache *cachep)
  
- static __always_inline void *
--kmalloc_order(size_t size, gfp_t flags, unsigned int order)
-+kmalloc_order_base(size_t size, gfp_t flags, unsigned int order)
+ #ifdef CONFIG_CGROUP_MEM_RES_CTLR_KMEM
+ 	/* Not a memcg cache */
+-	if (cachep->memcg_params.id != -1)
++	if (cachep->memcg_params.id != -1) {
+ 		mem_cgroup_release_cache(cachep);
++		mem_cgroup_flush_cache_create_queue();
++	}
+ #endif
+-
+ 	__kmem_cache_destroy(cachep);
+ 	mutex_unlock(&cache_chain_mutex);
+ 	put_online_cpus();
+@@ -3063,8 +3082,10 @@ static int cache_grow(struct kmem_cache *cachep,
+ 
+ 	offset *= cachep->colour_off;
+ 
+-	if (local_flags & __GFP_WAIT)
++	if (local_flags & __GFP_WAIT) {
+ 		local_irq_enable();
++		mem_cgroup_kmem_cache_prepare_sleep(cachep);
++	}
+ 
+ 	/*
+ 	 * The test for missing atomic flag is performed here, rather than
+@@ -3093,8 +3114,10 @@ static int cache_grow(struct kmem_cache *cachep,
+ 
+ 	cache_init_objs(cachep, slabp);
+ 
+-	if (local_flags & __GFP_WAIT)
++	if (local_flags & __GFP_WAIT) {
+ 		local_irq_disable();
++		mem_cgroup_kmem_cache_finish_sleep(cachep);
++	}
+ 	check_irq_off();
+ 	spin_lock(&l3->list_lock);
+ 
+@@ -3107,8 +3130,10 @@ static int cache_grow(struct kmem_cache *cachep,
+ opps1:
+ 	kmem_freepages(cachep, objp);
+ failed:
+-	if (local_flags & __GFP_WAIT)
++	if (local_flags & __GFP_WAIT) {
+ 		local_irq_disable();
++		mem_cgroup_kmem_cache_finish_sleep(cachep);
++	}
+ 	return 0;
+ }
+ 
+@@ -3869,11 +3894,15 @@ static inline void __cache_free(struct kmem_cache *cachep, void *objp,
+  */
+ void *kmem_cache_alloc(struct kmem_cache *cachep, gfp_t flags)
  {
- 	void *ret = (void *) __get_free_pages(flags | __GFP_COMP, order);
- 	kmemleak_alloc(ret, size, 1, flags);
+-	void *ret = __cache_alloc(cachep, flags, __builtin_return_address(0));
++	void *ret;
++
++	rcu_read_lock();
++	cachep = mem_cgroup_get_kmem_cache(cachep, flags);
++	rcu_read_unlock();
++	ret = __cache_alloc(cachep, flags, __builtin_return_address(0));
+ 
+ 	trace_kmem_cache_alloc(_RET_IP_, ret,
+ 			       obj_size(cachep), cachep->buffer_size, flags);
+-
  	return ret;
  }
- 
-+static __always_inline void *
-+kmalloc_order(size_t size, gfp_t flags, unsigned int order)
-+{
-+	void *ret = NULL;
-+	struct page *page;
-+
-+	ret = kmalloc_order_base(size, flags, order);
-+	if (!ret)
-+		return ret;
-+
-+	page = virt_to_head_page(ret);
-+
-+	if (!mem_cgroup_new_kmem_page(page, flags)) {
-+		put_page(page);
-+		return NULL;
-+	}
-+
-+	return ret;
-+}
-+
- /**
-  * Calling this on allocated memory will check that the memory
-  * is expected to be in use, and print warnings if not.
-@@ -275,7 +304,7 @@ static __always_inline void *kmalloc(size_t size, gfp_t flags)
- 			return kmalloc_large(size, flags);
- 
- 		if (!(flags & SLUB_DMA)) {
--			struct kmem_cache *s = kmalloc_slab(size);
-+			struct kmem_cache *s = kmalloc_slab(flags, size);
- 
- 			if (!s)
- 				return ZERO_SIZE_PTR;
-@@ -308,7 +337,7 @@ static __always_inline void *kmalloc_node(size_t size, gfp_t flags, int node)
+ EXPORT_SYMBOL(kmem_cache_alloc);
+@@ -3884,6 +3913,10 @@ kmem_cache_alloc_trace(size_t size, struct kmem_cache *cachep, gfp_t flags)
  {
- 	if (__builtin_constant_p(size) &&
- 		size <= SLUB_MAX_SIZE && !(flags & SLUB_DMA)) {
--			struct kmem_cache *s = kmalloc_slab(size);
-+			struct kmem_cache *s = kmalloc_slab(flags, size);
+ 	void *ret;
  
- 		if (!s)
- 			return ZERO_SIZE_PTR;
-diff --git a/mm/slub.c b/mm/slub.c
-index 9b21b38..c70db56 100644
---- a/mm/slub.c
-+++ b/mm/slub.c
-@@ -1284,11 +1284,39 @@ static inline struct page *alloc_slab_page(gfp_t flags, int node,
- 		return alloc_pages_exact_node(node, flags, order);
- }
- 
-+static inline unsigned long size_in_bytes(unsigned int order)
-+{
-+	return (1 << order) << PAGE_SHIFT;
-+}
-+
-+#ifdef CONFIG_CGROUP_MEM_RES_CTLR_KMEM
-+static void kmem_cache_inc_ref(struct kmem_cache *s)
-+{
-+	if (s->memcg_params.memcg)
-+		atomic_inc(&s->memcg_params.refcnt);
-+}
-+static void kmem_cache_drop_ref(struct kmem_cache *s)
-+{
-+	if (s->memcg_params.memcg)
-+		atomic_dec(&s->memcg_params.refcnt);
-+}
-+#else
-+static inline void kmem_cache_inc_ref(struct kmem_cache *s)
-+{
-+}
-+static inline void kmem_cache_drop_ref(struct kmem_cache *s)
-+{
-+}
-+#endif
-+
-+
-+
- static struct page *allocate_slab(struct kmem_cache *s, gfp_t flags, int node)
- {
--	struct page *page;
-+	struct page *page = NULL;
- 	struct kmem_cache_order_objects oo = s->oo;
- 	gfp_t alloc_gfp;
-+	unsigned int memcg_allowed = oo_order(oo);
- 
- 	flags &= gfp_allowed_mask;
- 
-@@ -1297,13 +1325,29 @@ static struct page *allocate_slab(struct kmem_cache *s, gfp_t flags, int node)
- 
- 	flags |= s->allocflags;
- 
--	/*
--	 * Let the initial higher-order allocation fail under memory pressure
--	 * so we fall-back to the minimum order allocation.
--	 */
--	alloc_gfp = (flags | __GFP_NOWARN | __GFP_NORETRY) & ~__GFP_NOFAIL;
-+	memcg_allowed = oo_order(oo);
-+	if (!mem_cgroup_charge_slab(s, flags, size_in_bytes(memcg_allowed))) {
-+
-+		memcg_allowed = oo_order(s->min);
-+		if (!mem_cgroup_charge_slab(s, flags,
-+					    size_in_bytes(memcg_allowed))) {
-+			if (flags & __GFP_WAIT)
-+				local_irq_disable();
-+			return NULL;
-+		}
-+	}
-+
-+	if (memcg_allowed == oo_order(oo)) {
-+		/*
-+		 * Let the initial higher-order allocation fail under memory
-+		 * pressure so we fall-back to the minimum order allocation.
-+		 */
-+		alloc_gfp = (flags | __GFP_NOWARN | __GFP_NORETRY) &
-+			     ~__GFP_NOFAIL;
-+
-+		page = alloc_slab_page(alloc_gfp, node, oo);
-+	}
- 
--	page = alloc_slab_page(alloc_gfp, node, oo);
- 	if (unlikely(!page)) {
- 		oo = s->min;
- 		/*
-@@ -1314,13 +1358,25 @@ static struct page *allocate_slab(struct kmem_cache *s, gfp_t flags, int node)
- 
- 		if (page)
- 			stat(s, ORDER_FALLBACK);
-+		/*
-+		 * We reserved more than we used, time to give it back
-+		 */
-+		if (page && memcg_allowed != oo_order(oo)) {
-+			unsigned long delta;
-+			delta = memcg_allowed - oo_order(oo);
-+			mem_cgroup_uncharge_slab(s, size_in_bytes(delta));
-+		}
- 	}
- 
- 	if (flags & __GFP_WAIT)
- 		local_irq_disable();
- 
--	if (!page)
-+	if (!page) {
-+		mem_cgroup_uncharge_slab(s, size_in_bytes(memcg_allowed));
- 		return NULL;
-+	}
-+
-+	kmem_cache_inc_ref(s);
- 
- 	if (kmemcheck_enabled
- 		&& !(s->flags & (SLAB_NOTRACK | DEBUG_DEFAULT_FLAGS))) {
-@@ -1420,6 +1476,9 @@ static void __free_slab(struct kmem_cache *s, struct page *page)
- 	if (current->reclaim_state)
- 		current->reclaim_state->reclaimed_slab += pages;
- 	__free_pages(page, order);
-+
-+	mem_cgroup_uncharge_slab(s, (1 << order) << PAGE_SHIFT);
-+	kmem_cache_drop_ref(s);
- }
- 
- #define need_reserve_slab_rcu						\
-@@ -2301,8 +2360,9 @@ new_slab:
-  *
-  * Otherwise we can simply pick the next object from the lockless free list.
-  */
--static __always_inline void *slab_alloc(struct kmem_cache *s,
--		gfp_t gfpflags, int node, unsigned long addr)
-+static __always_inline void *slab_alloc_base(struct kmem_cache *s,
-+					     gfp_t gfpflags, int node,
-+					     unsigned long addr)
- {
- 	void **object;
- 	struct kmem_cache_cpu *c;
-@@ -2370,6 +2430,24 @@ redo:
- 	return object;
- }
- 
-+static __always_inline void *slab_alloc(struct kmem_cache *s,
-+		gfp_t gfpflags, int node, unsigned long addr)
-+{
-+
-+	if (slab_pre_alloc_hook(s, gfpflags))
-+		return NULL;
-+
-+	if (in_interrupt() || (current == NULL) || (gfpflags & __GFP_NOFAIL))
-+		goto kernel_alloc;
-+
 +	rcu_read_lock();
-+	s = mem_cgroup_get_kmem_cache(s, gfpflags);
++	cachep = mem_cgroup_get_kmem_cache(cachep, flags);
 +	rcu_read_unlock();
 +
-+kernel_alloc:
-+	return slab_alloc_base(s, gfpflags, node, addr);
-+}
-+
- void *kmem_cache_alloc(struct kmem_cache *s, gfp_t gfpflags)
+ 	ret = __cache_alloc(cachep, flags, __builtin_return_address(0));
+ 
+ 	trace_kmalloc(_RET_IP_, ret,
+@@ -3896,13 +3929,17 @@ EXPORT_SYMBOL(kmem_cache_alloc_trace);
+ #ifdef CONFIG_NUMA
+ void *kmem_cache_alloc_node(struct kmem_cache *cachep, gfp_t flags, int nodeid)
  {
- 	void *ret = slab_alloc(s, gfpflags, NUMA_NO_NODE, _RET_IP_);
-@@ -3197,8 +3275,10 @@ void kmem_cache_destroy(struct kmem_cache *s)
- 		list_del(&s->list);
- #ifdef CONFIG_CGROUP_MEM_RES_CTLR_KMEM
- 		/* Not a memcg cache */
--		if (s->memcg_params.id != -1)
-+		if (s->memcg_params.id != -1) {
- 			mem_cgroup_release_cache(s);
-+			mem_cgroup_flush_cache_create_queue();
-+		}
- #endif
- 		up_write(&slub_lock);
- 		if (kmem_cache_close(s)) {
-@@ -3372,10 +3452,18 @@ static void *kmalloc_large_node(size_t size, gfp_t flags, int node)
- 	void *ptr = NULL;
+-	void *ret = __cache_alloc_node(cachep, flags, nodeid,
++	void *ret;
++
++	rcu_read_lock();
++	cachep = mem_cgroup_get_kmem_cache(cachep, flags);
++	rcu_read_unlock();
++	ret  = __cache_alloc_node(cachep, flags, nodeid,
+ 				       __builtin_return_address(0));
  
- 	flags |= __GFP_COMP | __GFP_NOTRACK;
-+
-+
- 	page = alloc_pages_node(node, flags, get_order(size));
--	if (page)
-+	if (!page)
-+		goto out;
-+
-+	if (!mem_cgroup_new_kmem_page(page, flags))
-+		put_page(page);
-+	else
- 		ptr = page_address(page);
- 
-+out:
- 	kmemleak_alloc(ptr, size, 1, flags);
- 	return ptr;
+ 	trace_kmem_cache_alloc_node(_RET_IP_, ret,
+ 				    obj_size(cachep), cachep->buffer_size,
+ 				    flags, nodeid);
+-
+ 	return ret;
  }
-@@ -3477,6 +3565,7 @@ void kfree(const void *x)
- 	if (unlikely(!PageSlab(page))) {
- 		BUG_ON(!PageCompound(page));
- 		kmemleak_free(x);
-+		mem_cgroup_free_kmem_page(page);
- 		put_page(page);
- 		return;
+ EXPORT_SYMBOL(kmem_cache_alloc_node);
+@@ -3915,6 +3952,9 @@ void *kmem_cache_alloc_node_trace(size_t size,
+ {
+ 	void *ret;
+ 
++	rcu_read_lock();
++	cachep = mem_cgroup_get_kmem_cache(cachep, flags);
++	rcu_read_unlock();
+ 	ret = __cache_alloc_node(cachep, flags, nodeid,
+ 				  __builtin_return_address(0));
+ 	trace_kmalloc_node(_RET_IP_, ret,
+@@ -4023,9 +4063,33 @@ void kmem_cache_free(struct kmem_cache *cachep, void *objp)
+ 
+ 	local_irq_save(flags);
+ 	debug_check_no_locks_freed(objp, obj_size(cachep));
++
++#ifdef CONFIG_CGROUP_MEM_RES_CTLR_KMEM
++	{
++		struct kmem_cache *actual_cachep;
++
++		actual_cachep = virt_to_cache(objp);
++		if (actual_cachep != cachep) {
++			VM_BUG_ON(actual_cachep->memcg_params.id != -1);
++			cachep = actual_cachep;
++		}
++		/*
++		 * Grab a reference so that the cache is guaranteed to stay
++		 * around.
++		 * If we are freeing the last object of a dead memcg cache,
++		 * the kmem_cache_drop_ref() at the end of this function
++		 * will end up freeing the cache.
++		 */
++		kmem_cache_get_ref(cachep);
++	}
++#endif
++
+ 	if (!(cachep->flags & SLAB_DEBUG_OBJECTS))
+ 		debug_check_no_obj_freed(objp, obj_size(cachep));
+ 	__cache_free(cachep, objp, __builtin_return_address(0));
++
++	kmem_cache_drop_ref(cachep);
++
+ 	local_irq_restore(flags);
+ 
+ 	trace_kmem_cache_free(_RET_IP_, objp);
+@@ -4053,9 +4117,19 @@ void kfree(const void *objp)
+ 	local_irq_save(flags);
+ 	kfree_debugcheck(objp);
+ 	c = virt_to_cache(objp);
++
++	/*
++	 * Grab a reference so that the cache is guaranteed to stay around.
++	 * If we are freeing the last object of a dead memcg cache, the
++	 * kmem_cache_drop_ref() at the end of this function will end up
++	 * freeing the cache.
++	 */
++	kmem_cache_get_ref(c);
++
+ 	debug_check_no_locks_freed(objp, obj_size(c));
+ 	debug_check_no_obj_freed(objp, obj_size(c));
+ 	__cache_free(c, (void *)objp, __builtin_return_address(0));
++	kmem_cache_drop_ref(c);
+ 	local_irq_restore(flags);
+ }
+ EXPORT_SYMBOL(kfree);
+@@ -4324,6 +4398,13 @@ static void cache_reap(struct work_struct *w)
+ 	list_for_each_entry(searchp, &cache_chain, next) {
+ 		check_irq_on();
+ 
++#ifdef CONFIG_CGROUP_MEM_RES_CTLR_KMEM
++		/* For memcg caches, make sure we only reap the active ones. */
++		if (searchp->memcg_params.id == -1 &&
++		    !atomic_add_unless(&searchp->memcg_params.refcnt, 1, 0))
++			continue;
++#endif
++
+ 		/*
+ 		 * We only take the l3 lock if absolutely necessary and we
+ 		 * have established with reasonable certainty that
+@@ -4356,6 +4437,7 @@ static void cache_reap(struct work_struct *w)
+ 			STATS_ADD_REAPED(searchp, freed);
+ 		}
+ next:
++		kmem_cache_drop_ref(searchp);
+ 		cond_resched();
  	}
+ 	check_irq_on();
 -- 
 1.7.7.6
 
