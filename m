@@ -1,66 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx178.postini.com [74.125.245.178])
-	by kanga.kvack.org (Postfix) with SMTP id AF5658D0020
-	for <linux-mm@kvack.org>; Fri, 11 May 2012 15:12:50 -0400 (EDT)
-Date: Fri, 11 May 2012 15:06:43 -0400
-From: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
-Subject: Re: [PATCH 4/4] zsmalloc: zsmalloc: align cache line size
-Message-ID: <20120511190643.GB3785@phenom.dumpdata.com>
-References: <1336027242-372-4-git-send-email-minchan@kernel.org>
- <4FA28EFD.5070002@vflare.org>
- <4FA33E89.6080206@kernel.org>
- <alpine.LFD.2.02.1205071038090.2851@tux.localdomain>
- <4FA7C2BC.2090400@vflare.org>
- <4FA87837.3050208@kernel.org>
- <731b6638-8c8c-4381-a00f-4ecd5a0e91ae@default>
- <4FA9C127.5020908@kernel.org>
- <d8fb8c73-0fd4-47c6-a9bb-ba3573569d63@default>
- <4FAC5C87.3060504@kernel.org>
+Received: from psmtp.com (na3sys010amx165.postini.com [74.125.245.165])
+	by kanga.kvack.org (Postfix) with SMTP id C42248D0020
+	for <linux-mm@kvack.org>; Fri, 11 May 2012 15:13:09 -0400 (EDT)
+Message-ID: <4FAD6449.2060201@parallels.com>
+Date: Fri, 11 May 2012 16:11:05 -0300
+From: Glauber Costa <glommer@parallels.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <4FAC5C87.3060504@kernel.org>
+Subject: Re: [PATCH v2 04/29] slub: always get the cache from its page in
+ kfree
+References: <1336758272-24284-1-git-send-email-glommer@parallels.com> <1336758272-24284-5-git-send-email-glommer@parallels.com> <alpine.DEB.2.00.1205111251420.31049@router.home> <4FAD531D.6030007@parallels.com> <alpine.DEB.2.00.1205111305570.386@router.home> <4FAD566C.3000804@parallels.com> <alpine.DEB.2.00.1205111316540.386@router.home> <4FAD585A.4070007@parallels.com> <alpine.DEB.2.00.1205111331010.386@router.home> <4FAD5DA2.70803@parallels.com> <alpine.DEB.2.00.1205111354540.386@router.home> <4FAD6169.8090409@parallels.com> <alpine.DEB.2.00.1205111407280.386@router.home>
+In-Reply-To: <alpine.DEB.2.00.1205111407280.386@router.home>
+Content-Type: text/plain; charset="ISO-8859-1"; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Christoph Lameter <cl@linux.com>
+Cc: linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, linux-mm@kvack.org, kamezawa.hiroyu@jp.fujitsu.com, Tejun Heo <tj@kernel.org>, Li Zefan <lizefan@huawei.com>, Greg Thelen <gthelen@google.com>, Suleiman Souhlal <suleiman@google.com>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, devel@openvz.org, Pekka Enberg <penberg@cs.helsinki.fi>
 
-> >> 1. zs_handle zs_malloc(size_t size, gfp_t flags) - share a pool by many subsystem(like kmalloc)
-> >> 2. zs_handle zs_malloc_pool(struct zs_pool *pool, size_t size) - use own pool(like kmem_cache_alloc)
-> >>
-> >> Any thoughts?
-> > 
-> > I don't have any objections to adding this kind of
-> > capability to zsmalloc.  But since we are just speculating
-> > that this capability would be used by some future
-> > kernel subsystem, isn't it normal kernel protocol for
-> > this new capability NOT to be added until that future
-> > kernel subsystem creates a need for it.
-> 
-> 
-> Now zram makes pool per block device and a embedded system may use zram
-> for several block device, ex) swap device, several compressed tmpfs
-> In such case, share pool is better than private pool because embedded system
-> don't mount/umount frequently on such directories since booting.
-> 
-> > 
-> > As I said in reply to the other thread, there is missing
-> > functionality in zsmalloc that is making it difficult for
-> > it to be used by zcache.  It would be good if Seth
-> > and Nitin (and any other kernel developers) would work
-> 
-> 
-> So, if you guys post TODO list, it helps fix the direction.
-> 
-> > on those issues before adding capabilities for non-existent
-> > future users of zsmalloc.
-> 
-> 
-> I think it's not urgent than zs_handle mess.
+On 05/11/2012 04:09 PM, Christoph Lameter wrote:
+> On Fri, 11 May 2012, Glauber Costa wrote:
+>
+>> On 05/11/2012 03:56 PM, Christoph Lameter wrote:
+>>> On Fri, 11 May 2012, Glauber Costa wrote:
+>>>
+>>>> So we don't mix pages from multiple memcgs in the same cache - we believe
+>>>> that
+>>>> would be too confusing.
+>>>
+>>> Well subsystem create caches and other things that are shared between
+>>> multiple processes. How can you track that?
+>>
+>> Each process that belongs to a memcg triggers the creation of a new child kmem
+>> cache.
+>
+> I see that. But there are other subsystems from slab allocators that do
+> the same. There are also objects that may be used by multiple processes.
 
-I am having a hard time parsing that. Are you saying that
-this is not as important as the zs_handle fixup? I think
-that is what you meant, but what to make sure.
+This is also true for normal user pages. And then, we do what memcg 
+does: first one to touch, gets accounted. I don't think deviating from 
+the memcg behavior for user pages makes much sense here.
+
+A cache won't go away while it still have objects, even after the memcg 
+is removed (it is marked as dead)
+
+> F.e what about shm?
+>
+>>>> /proc/slabinfo reflects this information, by listing the memcg-specific
+>>>> slabs.
+>>>
+>>> What about /sys/kernel/slab/*?
+>>
+>>  From the PoV of the global system, what you'll see is something like:
+>> dentry , dentry(2:memcg1), dentry(2:memcg2), etc.
+>
+> Hmmm.. Would be better to have a hierachy there. /proc/slabinfo is more
+> legacy.
+
+I can take a look at that then. Assuming you agree with all the rest, is 
+looking into that a pre-requisite for merging, or is something that can 
+be deferred for a phase2 ? (We still don't do shrinkers, for instance, 
+so this is sure to have a phase2)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
