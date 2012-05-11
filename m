@@ -1,61 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx116.postini.com [74.125.245.116])
-	by kanga.kvack.org (Postfix) with SMTP id 9CE038D0001
-	for <linux-mm@kvack.org>; Fri, 11 May 2012 16:59:47 -0400 (EDT)
-Date: Fri, 11 May 2012 16:59:13 -0400
-From: Dave Jones <davej@redhat.com>
-Subject: Re: [Bug 43227] New: BUG: Bad page state in process wcg_gfam_6.11_i
-Message-ID: <20120511205913.GA15539@redhat.com>
-References: <bug-43227-27@https.bugzilla.kernel.org/>
- <20120511125921.a888e12c.akpm@linux-foundation.org>
- <20120511200213.GB7387@sli.dy.fi>
- <20120511133234.6130b69a.akpm@linux-foundation.org>
+Received: from psmtp.com (na3sys010amx111.postini.com [74.125.245.111])
+	by kanga.kvack.org (Postfix) with SMTP id 054B28D0001
+	for <linux-mm@kvack.org>; Fri, 11 May 2012 17:11:43 -0400 (EDT)
+From: Satoru Moriya <satoru.moriya@hds.com>
+Date: Fri, 11 May 2012 17:11:35 -0400
+Subject: RE: [RFC][PATCH] avoid swapping out with swappiness==0
+Message-ID: <65795E11DBF1E645A09CEC7EAEE94B9C01583B4D7C@USINDEVS02.corp.hds.com>
+References: <65795E11DBF1E645A09CEC7EAEE94B9CB9455FE2@USINDEVS02.corp.hds.com>
+ <20120305215602.GA1693@redhat.com> <4F5798B1.5070005@jp.fujitsu.com>
+ <65795E11DBF1E645A09CEC7EAEE94B9CB951A45F@USINDEVS02.corp.hds.com>
+ <65795E11DBF1E645A09CEC7EAEE94B9C01454D13A6@USINDEVS02.corp.hds.com>
+ <CAHGf_=p9OgVC9J-Nh78CTbuMbc9CVt-+-G+CNbYUsgz70Uc8Qg@mail.gmail.com>
+ <4F7ADE1A.2050004@redhat.com> <4F7C870B.6020807@gmail.com>
+ <65795E11DBF1E645A09CEC7EAEE94B9C014575D8CF@USINDEVS02.corp.hds.com>
+In-Reply-To: <65795E11DBF1E645A09CEC7EAEE94B9C014575D8CF@USINDEVS02.corp.hds.com>
+Content-Language: en-US
+Content-Type: text/plain; charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20120511133234.6130b69a.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Sami Liedes <sami.liedes@iki.fi>, linux-mm@kvack.org, bugzilla-daemon@bugzilla.kernel.org
+To: Satoru Moriya <satoru.moriya@hds.com>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Jerome Marchand <jmarchan@redhat.com>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, "jweiner@redhat.com" <jweiner@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "riel@redhat.com" <riel@redhat.com>, "lwoodman@redhat.com" <lwoodman@redhat.com>, "dle-develop@lists.sourceforge.net" <dle-develop@lists.sourceforge.net>, Seiji Aguchi <seiji.aguchi@hds.com>
 
-On Fri, May 11, 2012 at 01:32:34PM -0700, Andrew Morton wrote:
- > On Fri, 11 May 2012 23:02:13 +0300
- > Sami Liedes <sami.liedes@iki.fi> wrote:
- > 
- > > On Fri, May 11, 2012 at 12:59:21PM -0700, Andrew Morton wrote:
- > > > > [67031.755786] BUG: Bad page state in process wcg_gfam_6.11_i  pfn:02519
- > > > > [67031.755790] page:ffffea0000094640 count:0 mapcount:0 mapping:         
- > > > > (null) index:0x7f1eb293b
- > > > > [67031.755792] page flags: 0x4000000000000014(referenced|dirty)
- > > > 
- > > > AFAICT we got this warning because the page allocator found a free page
- > > > with PG_referenced and PG_dirty set.
- > > > 
- > > > It would be a heck of a lot more useful if we'd been told about this
- > > > when the page was freed, not when it was reused!  Can anyone think of a
- > > > reason why PAGE_FLAGS_CHECK_AT_FREE doesn't include these flags (at
- > > > least)?
- > > 
- > > Would it be useful if I tried to reproduce this with some debugging
- > > options turned on, for example CONFIG_DEBUG_VM?
- > > 
- > 
- > Sure, thanks, that might turn something up. 
- > Documentation/SubmitChecklist recommends 
- > 
- > : 12: Has been tested with CONFIG_PREEMPT, CONFIG_DEBUG_PREEMPT,
- > :     CONFIG_DEBUG_SLAB, CONFIG_DEBUG_PAGEALLOC, CONFIG_DEBUG_MUTEXES,
- > :     CONFIG_DEBUG_SPINLOCK, CONFIG_DEBUG_ATOMIC_SLEEP, CONFIG_PROVE_RCU
- > :     and CONFIG_DEBUG_OBJECTS_RCU_HEAD all simultaneously enabled.
- > 
- > although that list might be a bit out of date; it certainly should
- > include CONFIG_DEBUG_VM!
+On 04/20/2012 08:21 PM, Satoru Moriya wrote:
+> On 04/04/2012 01:38 PM, KOSAKI Motohiro wrote:
+>> (4/3/12 4:25 AM), Jerome Marchand wrote:
+>>> On 04/02/2012 07:10 PM, KOSAKI Motohiro wrote:
+>>>> 2012/3/30 Satoru Moriya<satoru.moriya@hds.com>:
+>>>>> So the kernel reclaims pages like following.
+>>>>>
+>>>>> nr_free + nr_filebacked>=3D watermark_high: reclaim only filebacked p=
+ages
+>>>>> nr_free + nr_filebacked<   watermark_high: reclaim only anonymous pag=
+es
+>>>>
+>>>> How?
+>>>
+>>> get_scan_count() checks that case explicitly:
+>>>
+>>>     if (global_reclaim(sc)) {
+>>>         free  =3D zone_page_state(mz->zone, NR_FREE_PAGES);
+>>>         /* If we have very few page cache pages,
+>>>            force-scan anon pages. */
+>>>         if (unlikely(file + free<=3D high_wmark_pages(mz->zone))) {
+>>>             fraction[0] =3D 1;
+>>>             fraction[1] =3D 0;
+>>>             denominator =3D 1;
+>>>             goto out;
+>>>         }
+>>>     }
+>>
+>> Eek. This is silly. Nowaday many people enabled THP and it increase zone=
+ watermark.
+>> so, high watermask is not good threshold anymore.
+>=20
+> Ah yes, it is not so small now.
+> On 4GB server, without THP min_free_kbytes is 8113 but with THP it is=20
+> 67584.
+>=20
+> How about using low watermark or min watermark?
+> Are they still big?
+>=20
+> ...or should we use other value?=20
 
-FWIW, that Fedora report of this had DEBUG_VM enabled, and it doesn't
-seem that there was any earlier oops/warn judging by the lack of tainting.
+What do you think of the idea above?
 
-	Dave
+By the way, I'd like to discuss this topic in other thread
+because discussion about optimal threshold where the kernel
+changes its reclaim policy does not affect only swappiness=3D=3D0
+case but also all other settings.=20
+
+So, I propose that we start with applying this patch first
+and then discuss/improve the threshold.
+
+The patch may not be perfect but, at least, we can improve
+the kernel behavior in the enough filebacked memory case
+with this patch. I believe it's better than nothing.
+
+Regards,
+Satoru
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
