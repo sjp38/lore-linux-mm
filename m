@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx163.postini.com [74.125.245.163])
-	by kanga.kvack.org (Postfix) with SMTP id 20A118D0010
-	for <linux-mm@kvack.org>; Fri, 11 May 2012 13:48:00 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx207.postini.com [74.125.245.207])
+	by kanga.kvack.org (Postfix) with SMTP id 335918D0010
+	for <linux-mm@kvack.org>; Fri, 11 May 2012 13:48:06 -0400 (EDT)
 From: Glauber Costa <glommer@parallels.com>
-Subject: [PATCH v2 01/29] slab: dup name string
-Date: Fri, 11 May 2012 14:44:03 -0300
-Message-Id: <1336758272-24284-2-git-send-email-glommer@parallels.com>
+Subject: [PATCH v2 02/29] slub: fix slab_state for slub
+Date: Fri, 11 May 2012 14:44:04 -0300
+Message-Id: <1336758272-24284-3-git-send-email-glommer@parallels.com>
 In-Reply-To: <1336758272-24284-1-git-send-email-glommer@parallels.com>
 References: <1336758272-24284-1-git-send-email-glommer@parallels.com>
 Sender: owner-linux-mm@kvack.org
@@ -13,50 +13,32 @@ List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org
 Cc: cgroups@vger.kernel.org, linux-mm@kvack.org, kamezawa.hiroyu@jp.fujitsu.com, Tejun Heo <tj@kernel.org>, Li Zefan <lizefan@huawei.com>, Greg Thelen <gthelen@google.com>, Suleiman Souhlal <suleiman@google.com>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, devel@openvz.org, Glauber Costa <glommer@parallels.com>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@cs.helsinki.fi>
 
-The slub allocator creates a copy of the name string, and
-frees it later. I would like them both to behave the same,
-whether it is the slab starting to create a copy of it itself,
-or the slub ceasing to.
-
-This is because when I create memcg copies of it, I have to
-kmalloc strings for the new names, and having the allocators to
-behave differently here, would make it a lot uglier.
-
-My first submission removed the duplication for the slub. But
-the code started to get a bit complicated when dealing with
-deletion of chained caches. Also, Christoph voiced his opinion
-that patching the slab to keep copies would be better.
-
-So here it is.
+When the slub code wants to know if the sysfs state has already been
+initialized, it tests for slab_state == SYSFS. This is quite fragile,
+since new state can be added in the future (it is, in fact, for
+memcg caches). This patch fixes this behavior so the test matches
+>= SYSFS, as all other state does.
 
 Signed-off-by: Glauber Costa <glommer@parallels.com>
 CC: Christoph Lameter <cl@linux.com>
 CC: Pekka Enberg <penberg@cs.helsinki.fi>
 ---
- mm/slab.c |    3 ++-
- 1 files changed, 2 insertions(+), 1 deletions(-)
+ mm/slub.c |    2 +-
+ 1 files changed, 1 insertions(+), 1 deletions(-)
 
-diff --git a/mm/slab.c b/mm/slab.c
-index e901a36..91b9c13 100644
---- a/mm/slab.c
-+++ b/mm/slab.c
-@@ -2118,6 +2118,7 @@ static void __kmem_cache_destroy(struct kmem_cache *cachep)
- 			kfree(l3);
- 		}
- 	}
-+	kfree(cachep->name);
- 	kmem_cache_free(&cache_cache, cachep);
- }
+diff --git a/mm/slub.c b/mm/slub.c
+index ffe13fd..226e053 100644
+--- a/mm/slub.c
++++ b/mm/slub.c
+@@ -5356,7 +5356,7 @@ static int sysfs_slab_alias(struct kmem_cache *s, const char *name)
+ {
+ 	struct saved_alias *al;
  
-@@ -2526,7 +2527,7 @@ kmem_cache_create (const char *name, size_t size, size_t align,
- 		BUG_ON(ZERO_OR_NULL_PTR(cachep->slabp_cache));
- 	}
- 	cachep->ctor = ctor;
--	cachep->name = name;
-+	cachep->name = kstrdup(name, GFP_KERNEL);
- 
- 	if (setup_cpu_cache(cachep, gfp)) {
- 		__kmem_cache_destroy(cachep);
+-	if (slab_state == SYSFS) {
++	if (slab_state >= SYSFS) {
+ 		/*
+ 		 * If we have a leftover link then remove it.
+ 		 */
 -- 
 1.7.7.6
 
