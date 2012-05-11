@@ -1,95 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx135.postini.com [74.125.245.135])
-	by kanga.kvack.org (Postfix) with SMTP id 20F986B004D
-	for <linux-mm@kvack.org>; Thu, 10 May 2012 22:09:12 -0400 (EDT)
-Received: by lahi5 with SMTP id i5so2335729lah.14
-        for <linux-mm@kvack.org>; Thu, 10 May 2012 19:09:10 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx141.postini.com [74.125.245.141])
+	by kanga.kvack.org (Postfix) with SMTP id CCA816B004D
+	for <linux-mm@kvack.org>; Thu, 10 May 2012 22:19:30 -0400 (EDT)
+Received: by pbbrp2 with SMTP id rp2so3638180pbb.14
+        for <linux-mm@kvack.org>; Thu, 10 May 2012 19:19:30 -0700 (PDT)
+Content-Type: text/plain; charset=utf-8; format=flowed; delsp=yes
+Subject: Re: [PATCH] cma: fix migration mode
+References: <1336664003-5031-1-git-send-email-minchan@kernel.org>
+Date: Thu, 10 May 2012 19:19:19 -0700
 MIME-Version: 1.0
-In-Reply-To: <1334756652-30830-11-git-send-email-m.szyprowski@samsung.com>
-References: <1334756652-30830-1-git-send-email-m.szyprowski@samsung.com> <1334756652-30830-11-git-send-email-m.szyprowski@samsung.com>
-From: Paul Gortmaker <paul.gortmaker@windriver.com>
-Date: Thu, 10 May 2012 22:08:39 -0400
-Message-ID: <CAP=VYLr=NeGvppR4ONpnRh=gjCSPdKxYj1HYh_FvadAeUzcbBQ@mail.gmail.com>
-Subject: Re: [PATCHv9 10/10] ARM: dma-mapping: add support for IOMMU mapper
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Content-Transfer-Encoding: Quoted-Printable
+From: "Michal Nazarewicz" <mina86@mina86.com>
+Message-ID: <op.wd4gqhfm3l0zgt@mpn-glaptop>
+In-Reply-To: <1336664003-5031-1-git-send-email-minchan@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Marek Szyprowski <m.szyprowski@samsung.com>
-Cc: linux-arm-kernel@lists.infradead.org, linaro-mm-sig@lists.linaro.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, iommu@lists.linux-foundation.org, Kyungmin Park <kyungmin.park@samsung.com>, Arnd Bergmann <arnd@arndb.de>, Joerg Roedel <joro@8bytes.org>, Russell King - ARM Linux <linux@arm.linux.org.uk>, Chunsang Jeong <chunsang.jeong@linaro.org>, Krishna Reddy <vdumpa@nvidia.com>, KyongHo Cho <pullip.cho@samsung.com>, Andrzej Pietrasiewicz <andrzej.p@samsung.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Hiroshi Doyu <hdoyu@nvidia.com>, Subash Patel <subashrp@gmail.com>, linux-next@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>, Minchan Kim <minchan@kernel.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Marek Szyprowski <m.szyprowski@samsung.com>
 
-On Wed, Apr 18, 2012 at 9:44 AM, Marek Szyprowski
-<m.szyprowski@samsung.com> wrote:
-> This patch add a complete implementation of DMA-mapping API for
-> devices which have IOMMU support.
-
-Hi Marek,
-
-It looks like this patch breaks no-MMU builds on ARM, at least
-according to git bisect.  Here is a link to a linux-next failure:
-
-http://kisskb.ellerman.id.au/kisskb/buildresult/6291233/
-
-arch/arm/mm/dma-mapping.c:726:42: error: 'pgprot_kernel' undeclared
-(first use in this function)
-make[2]: *** [arch/arm/mm/dma-mapping.o] Error 1
-
-Please have a look, thanks.
-
-Paul.
----
-
-
+On Thu, 10 May 2012 08:33:23 -0700, Minchan Kim <minchan@kernel.org> wro=
+te:
+> __alloc_contig_migrate_range calls migrate_pages with wrong argument
+> for migrate_mode. Fix it.
 >
-> This implementation tries to optimize dma address space usage by remappin=
-g
-> all possible physical memory chunks into a single dma address space chunk=
-.
->
-> DMA address space is managed on top of the bitmap stored in the
-> dma_iommu_mapping structure stored in device->archdata. Platform setup
-> code has to initialize parameters of the dma address space (base address,
-> size, allocation precision order) with arm_iommu_create_mapping()
-> function.
-> To reduce the size of the bitmap, all allocations are aligned to the
-> specified order of base 4 KiB pages.
->
-> dma_alloc_* functions allocate physical memory in chunks, each with
-> alloc_pages() function to avoid failing if the physical memory gets
-> fragmented. In worst case the allocated buffer is composed of 4 KiB page
-> chunks.
->
-> dma_map_sg() function minimizes the total number of dma address space
-> chunks by merging of physical memory chunks into one larger dma address
-> space chunk. If requested chunk (scatter list entry) boundaries
-> match physical page boundaries, most calls to dma_map_sg() requests will
-> result in creating only one chunk in dma address space.
->
-> dma_map_page() simply creates a mapping for the given page(s) in the dma
-> address space.
->
-> All dma functions also perform required cache operation like their
-> counterparts from the arm linear physical memory mapping version.
->
-> This patch contains code and fixes kindly provided by:
-> - Krishna Reddy <vdumpa@nvidia.com>,
-> - Andrzej Pietrasiewicz <andrzej.p@samsung.com>,
-> - Hiroshi DOYU <hdoyu@nvidia.com>
->
-> Signed-off-by: Marek Szyprowski <m.szyprowski@samsung.com>
-> Acked-by: Kyungmin Park <kyungmin.park@samsung.com>
-> Reviewed-by: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
-> Tested-By: Subash Patel <subash.ramaswamy@linaro.org>
+> Cc: Marek Szyprowski <m.szyprowski@samsung.com>
+> Signed-off-by: Minchan Kim <minchan@kernel.org>
+
+Acked-by: Michal Nazarewicz <mina86@mina86.com>
+
 > ---
-> =A0arch/arm/Kconfig =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 | =A0 =A08 +
-> =A0arch/arm/include/asm/device.h =A0 =A0| =A0 =A03 +
-> =A0arch/arm/include/asm/dma-iommu.h | =A0 34 ++
-> =A0arch/arm/mm/dma-mapping.c =A0 =A0 =A0 =A0| =A0727
-> +++++++++++++++++++++++++++++++++++++-
-> =A0arch/arm/mm/vmregion.h =A0 =A0 =A0 =A0 =A0 | =A0 =A02 +-
-> =A05 files changed, 759 insertions(+), 15 deletions(-)
-> =A0create mode 100644 arch/arm/include/asm/dma-iommu.h
+>  mm/page_alloc.c |    2 +-
+>  1 file changed, 1 insertion(+), 1 deletion(-)
 >
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index 4d926f1..9febc62 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -5689,7 +5689,7 @@ static int __alloc_contig_migrate_range(unsigned=
+ long start, unsigned long end)
+> 		ret =3D migrate_pages(&cc.migratepages,
+>  				    __alloc_contig_migrate_alloc,
+> -				    0, false, true);
+> +				    0, false, MIGRATE_SYNC);
+>  	}
+> 	putback_lru_pages(&cc.migratepages);
+
+
+-- =
+
+Best regards,                                         _     _
+.o. | Liege of Serenely Enlightened Majesty of      o' \,=3D./ `o
+..o | Computer Science,  Micha=C5=82 =E2=80=9Cmina86=E2=80=9D Nazarewicz=
+    (o o)
+ooo +----<email/xmpp: mpn@google.com>--------------ooO--(_)--Ooo--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
