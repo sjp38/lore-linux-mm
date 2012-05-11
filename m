@@ -1,49 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx105.postini.com [74.125.245.105])
-	by kanga.kvack.org (Postfix) with SMTP id C1C748D0020
-	for <linux-mm@kvack.org>; Fri, 11 May 2012 14:08:35 -0400 (EDT)
-Message-ID: <4FAD54E1.6040106@parallels.com>
-Date: Fri, 11 May 2012 15:05:21 -0300
+Received: from psmtp.com (na3sys010amx114.postini.com [74.125.245.114])
+	by kanga.kvack.org (Postfix) with SMTP id E98D48D0020
+	for <linux-mm@kvack.org>; Fri, 11 May 2012 14:14:01 -0400 (EDT)
+Message-ID: <4FAD566C.3000804@parallels.com>
+Date: Fri, 11 May 2012 15:11:56 -0300
 From: Glauber Costa <glommer@parallels.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH v2 00/29] kmem limitation for memcg
-References: <1336758272-24284-1-git-send-email-glommer@parallels.com>
-In-Reply-To: <1336758272-24284-1-git-send-email-glommer@parallels.com>
+Subject: Re: [PATCH v2 04/29] slub: always get the cache from its page in
+ kfree
+References: <1336758272-24284-1-git-send-email-glommer@parallels.com> <1336758272-24284-5-git-send-email-glommer@parallels.com> <alpine.DEB.2.00.1205111251420.31049@router.home> <4FAD531D.6030007@parallels.com> <alpine.DEB.2.00.1205111305570.386@router.home>
+In-Reply-To: <alpine.DEB.2.00.1205111305570.386@router.home>
 Content-Type: text/plain; charset="ISO-8859-1"; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: cgroups@vger.kernel.org, linux-mm@kvack.org, kamezawa.hiroyu@jp.fujitsu.com, Tejun Heo <tj@kernel.org>, Li Zefan <lizefan@huawei.com>, Greg Thelen <gthelen@google.com>, Suleiman Souhlal <suleiman@google.com>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, devel@openvz.org
+To: Christoph Lameter <cl@linux.com>
+Cc: linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, linux-mm@kvack.org, kamezawa.hiroyu@jp.fujitsu.com, Tejun Heo <tj@kernel.org>, Li Zefan <lizefan@huawei.com>, Greg Thelen <gthelen@google.com>, Suleiman Souhlal <suleiman@google.com>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, devel@openvz.org, Pekka Enberg <penberg@cs.helsinki.fi>
 
-On 05/11/2012 02:44 PM, Glauber Costa wrote:
-> Hello All,
+On 05/11/2012 03:06 PM, Christoph Lameter wrote:
+> On Fri, 11 May 2012, Glauber Costa wrote:
 >
-> This is my new take for the memcg kmem accounting.
-> At this point, I consider the series pretty mature - although of course,
-> bugs are always there...
+>>> Adding a VM_BUG_ON may be useful to make sure that kmem_cache_free is
+>>> always passed the correct slab cache.
+>>
+>> Well, problem is , it isn't always passed the "correct" slab cache.
+>> At least not after this series, since we'll have child caches associated with
+>> the main cache.
+>>
+>> So we'll pass, for instance, kmem_cache_free(dentry_cache...), but will in
+>> fact free from the memcg copy of the dentry cache.
 >
-> As a disclaimer, however, I must say that the slub code is much more stressed
-> by me, since I know it better. If you have no more objections to the concepts
-> presented, the remaining edges can probably be polished in a rc cycle,
-> at the maintainers discretion, of course.
->
-> Otherwise, I'll be happy to address any concerns of yours.
->
-> Since last submission:
->
->   * memcgs can be properly removed.
->   * We are not charging based on current->mm->owner instead of current
->   * kmem_large allocations for slub got some fixes, specially for the free case
->   * A cache that is registered can be properly removed (common module case)
->     even if it spans memcg children. Slab had some code for that, now it works
->     well with both
->   * A new mechanism for skipping allocations is proposed (patch posted
->     separately already). Now instead of having kmalloc_no_account, we mark
->     a region as non-accountable for memcg.
->
-Forgot to mention the ida-based index allocation, instead of keeping our 
-own bitmap.
+> Urg. But then please only do this for the MEMCG case and add a fat big
+> warning in kmem_cache_free.
+
+I can do that, of course.
+Another option if you don't oppose, is to add another field in the 
+kmem_cache structure (I tried to keep them at a minimum),
+to record the parent cache we got created from.
+
+Then, it gets trivial to do the following:
+
+VM_BUG_ON(page->slab != s && page->slab != s->parent_cache);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
