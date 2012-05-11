@@ -1,85 +1,35 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx111.postini.com [74.125.245.111])
-	by kanga.kvack.org (Postfix) with SMTP id 054B28D0001
-	for <linux-mm@kvack.org>; Fri, 11 May 2012 17:11:43 -0400 (EDT)
-From: Satoru Moriya <satoru.moriya@hds.com>
-Date: Fri, 11 May 2012 17:11:35 -0400
-Subject: RE: [RFC][PATCH] avoid swapping out with swappiness==0
-Message-ID: <65795E11DBF1E645A09CEC7EAEE94B9C01583B4D7C@USINDEVS02.corp.hds.com>
-References: <65795E11DBF1E645A09CEC7EAEE94B9CB9455FE2@USINDEVS02.corp.hds.com>
- <20120305215602.GA1693@redhat.com> <4F5798B1.5070005@jp.fujitsu.com>
- <65795E11DBF1E645A09CEC7EAEE94B9CB951A45F@USINDEVS02.corp.hds.com>
- <65795E11DBF1E645A09CEC7EAEE94B9C01454D13A6@USINDEVS02.corp.hds.com>
- <CAHGf_=p9OgVC9J-Nh78CTbuMbc9CVt-+-G+CNbYUsgz70Uc8Qg@mail.gmail.com>
- <4F7ADE1A.2050004@redhat.com> <4F7C870B.6020807@gmail.com>
- <65795E11DBF1E645A09CEC7EAEE94B9C014575D8CF@USINDEVS02.corp.hds.com>
-In-Reply-To: <65795E11DBF1E645A09CEC7EAEE94B9C014575D8CF@USINDEVS02.corp.hds.com>
-Content-Language: en-US
-Content-Type: text/plain; charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
-MIME-Version: 1.0
+Received: from psmtp.com (na3sys010amx102.postini.com [74.125.245.102])
+	by kanga.kvack.org (Postfix) with SMTP id 3B58A8D0001
+	for <linux-mm@kvack.org>; Fri, 11 May 2012 17:17:57 -0400 (EDT)
+Date: Fri, 11 May 2012 14:17:54 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH v3 1/6] memcg: fix error code in
+ hugetlb_force_memcg_empty()
+Message-Id: <20120511141754.e0719c26.akpm@linux-foundation.org>
+In-Reply-To: <4FACDFAE.5050808@jp.fujitsu.com>
+References: <4FACDED0.3020400@jp.fujitsu.com>
+	<4FACDFAE.5050808@jp.fujitsu.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Satoru Moriya <satoru.moriya@hds.com>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Jerome Marchand <jmarchan@redhat.com>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, "jweiner@redhat.com" <jweiner@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "riel@redhat.com" <riel@redhat.com>, "lwoodman@redhat.com" <lwoodman@redhat.com>, "dle-develop@lists.sourceforge.net" <dle-develop@lists.sourceforge.net>, Seiji Aguchi <seiji.aguchi@hds.com>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "cgroups@vger.kernel.org" <cgroups@vger.kernel.org>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Frederic Weisbecker <fweisbec@gmail.com>, Han Ying <yinghan@google.com>, Glauber Costa <glommer@parallels.com>, Tejun Heo <tj@kernel.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Hiroyuki Kamezawa <kamezawa.hiroyuki@gmail.com>, Linux Kernel <linux-kernel@vger.kernel.org>
 
-On 04/20/2012 08:21 PM, Satoru Moriya wrote:
-> On 04/04/2012 01:38 PM, KOSAKI Motohiro wrote:
->> (4/3/12 4:25 AM), Jerome Marchand wrote:
->>> On 04/02/2012 07:10 PM, KOSAKI Motohiro wrote:
->>>> 2012/3/30 Satoru Moriya<satoru.moriya@hds.com>:
->>>>> So the kernel reclaims pages like following.
->>>>>
->>>>> nr_free + nr_filebacked>=3D watermark_high: reclaim only filebacked p=
-ages
->>>>> nr_free + nr_filebacked<   watermark_high: reclaim only anonymous pag=
-es
->>>>
->>>> How?
->>>
->>> get_scan_count() checks that case explicitly:
->>>
->>>     if (global_reclaim(sc)) {
->>>         free  =3D zone_page_state(mz->zone, NR_FREE_PAGES);
->>>         /* If we have very few page cache pages,
->>>            force-scan anon pages. */
->>>         if (unlikely(file + free<=3D high_wmark_pages(mz->zone))) {
->>>             fraction[0] =3D 1;
->>>             fraction[1] =3D 0;
->>>             denominator =3D 1;
->>>             goto out;
->>>         }
->>>     }
->>
->> Eek. This is silly. Nowaday many people enabled THP and it increase zone=
- watermark.
->> so, high watermask is not good threshold anymore.
->=20
-> Ah yes, it is not so small now.
-> On 4GB server, without THP min_free_kbytes is 8113 but with THP it is=20
-> 67584.
->=20
-> How about using low watermark or min watermark?
-> Are they still big?
->=20
-> ...or should we use other value?=20
+On Fri, 11 May 2012 18:45:18 +0900
+KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
 
-What do you think of the idea above?
+> The conditions are handled as -EBUSY, _now_.
 
-By the way, I'd like to discuss this topic in other thread
-because discussion about optimal threshold where the kernel
-changes its reclaim policy does not affect only swappiness=3D=3D0
-case but also all other settings.=20
+The changelog is poor.  I rewrote it to
 
-So, I propose that we start with applying this patch first
-and then discuss/improve the threshold.
+: hugetlb_force_memcg_empty() incorrectly returns 0 (success) when the
+: cgroup is found to be busy.  Return -EBUSY instead.
 
-The patch may not be perfect but, at least, we can improve
-the kernel behavior in the enough filebacked memory case
-with this patch. I believe it's better than nothing.
-
-Regards,
-Satoru
+But it still doesn't tell us the end-user-visible effects of the bug. 
+It should.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
