@@ -1,61 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx120.postini.com [74.125.245.120])
-	by kanga.kvack.org (Postfix) with SMTP id 9D3178D0001
-	for <linux-mm@kvack.org>; Fri, 11 May 2012 18:57:12 -0400 (EDT)
-Date: Sat, 12 May 2012 01:56:57 +0300
-From: Sami Liedes <sami.liedes@iki.fi>
-Subject: Re: [Bug 43227] New: BUG: Bad page state in process wcg_gfam_6.11_i
-Message-ID: <20120511225657.GE7387@sli.dy.fi>
-References: <bug-43227-27@https.bugzilla.kernel.org/>
- <20120511125921.a888e12c.akpm@linux-foundation.org>
- <alpine.LSU.2.00.1205111419060.1288@eggly.anvils>
+Received: from psmtp.com (na3sys010amx122.postini.com [74.125.245.122])
+	by kanga.kvack.org (Postfix) with SMTP id E81AE8D0002
+	for <linux-mm@kvack.org>; Fri, 11 May 2012 18:59:50 -0400 (EDT)
+Received: by qcsd16 with SMTP id d16so3158007qcs.14
+        for <linux-mm@kvack.org>; Fri, 11 May 2012 15:59:50 -0700 (PDT)
+Message-ID: <4FAD99E1.4090600@gmail.com>
+Date: Fri, 11 May 2012 18:59:45 -0400
+From: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
 MIME-Version: 1.0
-Content-Type: multipart/signed; micalg=pgp-sha512;
-	protocol="application/pgp-signature"; boundary="EgVrEAR5UttbsTXg"
-Content-Disposition: inline
-In-Reply-To: <alpine.LSU.2.00.1205111419060.1288@eggly.anvils>
+Subject: Re: [PATCH 2/2 v3] drm/exynos: added userptr feature.
+References: <1335188594-17454-4-git-send-email-inki.dae@samsung.com> <1336544259-17222-1-git-send-email-inki.dae@samsung.com> <1336544259-17222-3-git-send-email-inki.dae@samsung.com> <CAH3drwZBb=XBYpx=Fv=Xv0hajic51V9RwzY_-CpjKDuxgAj9Qg@mail.gmail.com> <001501cd2e4d$c7dbc240$579346c0$%dae@samsung.com> <4FAB4AD8.2010200@kernel.org> <002401cd2e7a$1e8b0ed0$5ba12c70$%dae@samsung.com> <4FAB68CF.8000404@kernel.org> <CAAQKjZM0a-Lg8KYwWi+LwAXJPFYLKqWaKbuc4iUGVKyoStXu_w@mail.gmail.com> <4FAB782C.306@kernel.org> <003301cd2e89$13f78c00$3be6a400$%dae@samsung.com> <4FAC0091.7070606@gmail.com> <4FAC623E.7090209@kernel.org> <4FAC7EBA.1080708@gmail.com> <CAH3drwb-HKmCbf6RxK5OEyAgukBTDLxt0Rf4ZNsygGuZ5SB=5g@mail.gmail.com> <4FAD829E.2030707@gmail.com> <CAH3drwYu_N5kOM1dSgJw8JNv2ScNkTPLZrRbzozrsF=D2=S=kA@mail.gmail.com>
+In-Reply-To: <CAH3drwYu_N5kOM1dSgJw8JNv2ScNkTPLZrRbzozrsF=D2=S=kA@mail.gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, bugzilla-daemon@bugzilla.kernel.org
+To: Jerome Glisse <j.glisse@gmail.com>
+Cc: KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Minchan Kim <minchan@kernel.org>, Inki Dae <inki.dae@samsung.com>, InKi Dae <daeinki@gmail.com>, airlied@linux.ie, dri-devel@lists.freedesktop.org, kyungmin.park@samsung.com, sw0312.kim@samsung.com, linux-mm@kvack.org
 
+> My point is this ioctl will be restricted to one user (Xserver if i
+> understand) and only this user, there is no fork in it so no need to
+> worry about fork, just setting the vma as locked will be enough.
+>
+> But i don't want people reading this driver suddenly think that what
+> it's doing is ok, it's not, it's hack and can never make to work
+> properly on a general case, that's why it needs a big comment stating,
+> stressing that. I just wanted to make sure Inki and Kyungmin
+> understood that this kind of ioctl should be restricted to carefully
+> selected user and that there is no way to make it general or reliable
+> outside that.
 
---EgVrEAR5UttbsTXg
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+first off, I'm not drm guy and then I don't intend to insist you. but if
+application don't use fork, get_user_pages() has no downside. I guess we
+don't need VM_LOCKED hack.
 
-On Fri, May 11, 2012 at 02:30:42PM -0700, Hugh Dickins wrote:
-> The only thought I have on this report: what binutils was used to build
-> this kernel?  We had "Bad page" and isolate_lru_pages BUG reports at the
-> start of the month, and they were traced to buggy binutils 2.22.52.0.2
-
-Debian unstable's binutils 2.22-6.
-
-	Sami
-
---EgVrEAR5UttbsTXg
-Content-Type: application/pgp-signature; name="signature.asc"
-Content-Description: Digital signature
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1.4.12 (GNU/Linux)
-
-iQIcBAEBCgAGBQJPrZk5AAoJEKLT589SE0a0jF4P/1pAzZ9yWN3J1xRm8mYi2iU1
-FipXjU9mMk4omyVwI/VEuVetco6uELDwja3C/lIcz9OS3AGSSS6QlYU5GHVJstyY
-CVFbQgr5uWegrpdDo6+1eU09CbhVHqGfcLvbMIvCddBFRyfg3w4HnE8ZqX7qJ5bF
-rxuyF92qhawAR/jQ73iXJPhE3Y9WYdA768oY/aHVzUCK7Po3uF5vzYew8n/MXPV9
-WB07OocuI4+RXHfCwO9VBSwS1B01tVL7Iudv9AMfzO9pFglCbt5Ge8zaecaHqHKx
-M55HU1tWUCUEvI2MkzWs5+BHNR64BhXu1sCoZHbGR8aBGTKl7cfENqZBQok82cf7
-o42tgwvawSsX9pfr09Pa4qEvdD7hy+XEx5EZuQBfMMTG30WXBh9HDVUbjvPxyD9B
-r8Fg/HOC1QGlD+zCePK72L6MLp8AdaxZo56/nTKZ/UWrBHIWmv0niulhofKrr3iJ
-AJRVriQwHef2kzdYhCXXcFxPTAEoa3YZqtezkKcyq2+lzTEumBQn//PjtzWT8zTn
-Ckg2At4i20KqSoR5qZg4L2ceVM+BqAAOTGLyAO4+wWsspbTW1SYIwmgaiQZVgK4O
-WB9q1Af9Pa2Pvbk19w7krevCH6x8bVglOou0n3pTGr/V0/GEUAq1s/b97SGeaEKG
-C/4CuTMwCoxGO7bXL6MR
-=1U3B
------END PGP SIGNATURE-----
-
---EgVrEAR5UttbsTXg--
+but again, up to drm folks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
