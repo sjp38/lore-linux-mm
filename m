@@ -1,35 +1,35 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx102.postini.com [74.125.245.102])
-	by kanga.kvack.org (Postfix) with SMTP id 3B58A8D0001
-	for <linux-mm@kvack.org>; Fri, 11 May 2012 17:17:57 -0400 (EDT)
-Date: Fri, 11 May 2012 14:17:54 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH v3 1/6] memcg: fix error code in
- hugetlb_force_memcg_empty()
-Message-Id: <20120511141754.e0719c26.akpm@linux-foundation.org>
-In-Reply-To: <4FACDFAE.5050808@jp.fujitsu.com>
-References: <4FACDED0.3020400@jp.fujitsu.com>
-	<4FACDFAE.5050808@jp.fujitsu.com>
+Received: from psmtp.com (na3sys010amx117.postini.com [74.125.245.117])
+	by kanga.kvack.org (Postfix) with SMTP id F12928D0001
+	for <linux-mm@kvack.org>; Fri, 11 May 2012 17:18:43 -0400 (EDT)
+Date: Fri, 11 May 2012 17:17:38 -0400 (EDT)
+Message-Id: <20120511.171738.549587472496189783.davem@davemloft.net>
+Subject: Re: [PATCH 10/17] netvm: Allow skb allocation to use PFMEMALLOC
+ reserves
+From: David Miller <davem@davemloft.net>
+In-Reply-To: <20120511143218.GS11435@suse.de>
+References: <1336657510-24378-11-git-send-email-mgorman@suse.de>
+	<20120511.005740.210437168371869566.davem@davemloft.net>
+	<20120511143218.GS11435@suse.de>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Content-Type: Text/Plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "cgroups@vger.kernel.org" <cgroups@vger.kernel.org>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Frederic Weisbecker <fweisbec@gmail.com>, Han Ying <yinghan@google.com>, Glauber Costa <glommer@parallels.com>, Tejun Heo <tj@kernel.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Hiroyuki Kamezawa <kamezawa.hiroyuki@gmail.com>, Linux Kernel <linux-kernel@vger.kernel.org>
+To: mgorman@suse.de
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org, netdev@vger.kernel.org, linux-kernel@vger.kernel.org, neilb@suse.de, a.p.zijlstra@chello.nl, michaelc@cs.wisc.edu, emunson@mgebm.net
 
-On Fri, 11 May 2012 18:45:18 +0900
-KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+From: Mel Gorman <mgorman@suse.de>
+Date: Fri, 11 May 2012 15:32:18 +0100
 
-> The conditions are handled as -EBUSY, _now_.
+> On Fri, May 11, 2012 at 12:57:40AM -0400, David Miller wrote:
+>> Please change this to be a static branch.
+> 
+> Will do. I renamed memalloc_socks to sk_memalloc_socks, made it a int as
+> atomics are unnecessary and I check it directly in a branch instead of a
+> static inline. It should be relatively easy for the branch predictor.
 
-The changelog is poor.  I rewrote it to
-
-: hugetlb_force_memcg_empty() incorrectly returns 0 (success) when the
-: cgroup is found to be busy.  Return -EBUSY instead.
-
-But it still doesn't tell us the end-user-visible effects of the bug. 
-It should.
+No branch predictor can beat an unconditional branch :-)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
