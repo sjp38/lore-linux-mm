@@ -1,45 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx139.postini.com [74.125.245.139])
-	by kanga.kvack.org (Postfix) with SMTP id 134698D0001
-	for <linux-mm@kvack.org>; Fri, 11 May 2012 11:07:52 -0400 (EDT)
-Date: Fri, 11 May 2012 16:07:47 +0100
+Received: from psmtp.com (na3sys010amx160.postini.com [74.125.245.160])
+	by kanga.kvack.org (Postfix) with SMTP id 7EB958D0001
+	for <linux-mm@kvack.org>; Fri, 11 May 2012 11:45:46 -0400 (EDT)
+Date: Fri, 11 May 2012 16:45:40 +0100
 From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH 10/17] netvm: Allow skb allocation to use PFMEMALLOC
- reserves
-Message-ID: <20120511150747.GU11435@suse.de>
+Subject: Re: [PATCH 00/17] Swap-over-NBD without deadlocking V10
+Message-ID: <20120511154540.GV11435@suse.de>
 References: <1336657510-24378-1-git-send-email-mgorman@suse.de>
- <1336657510-24378-11-git-send-email-mgorman@suse.de>
- <20120511.005740.210437168371869566.davem@davemloft.net>
- <20120511143218.GS11435@suse.de>
- <1336747350.1017.22.camel@twins>
+ <20120511.010445.1020972261904383892.davem@davemloft.net>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <1336747350.1017.22.camel@twins>
+In-Reply-To: <20120511.010445.1020972261904383892.davem@davemloft.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Cc: David Miller <davem@davemloft.net>, akpm@linux-foundation.org, linux-mm@kvack.org, netdev@vger.kernel.org, linux-kernel@vger.kernel.org, neilb@suse.de, michaelc@cs.wisc.edu, emunson@mgebm.net
+To: David Miller <davem@davemloft.net>
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org, netdev@vger.kernel.org, linux-kernel@vger.kernel.org, neilb@suse.de, a.p.zijlstra@chello.nl, michaelc@cs.wisc.edu, emunson@mgebm.net
 
-On Fri, May 11, 2012 at 04:42:30PM +0200, Peter Zijlstra wrote:
-> On Fri, 2012-05-11 at 15:32 +0100, Mel Gorman wrote:
-> > > > +extern atomic_t memalloc_socks;
-> > > > +static inline int sk_memalloc_socks(void)
-> > > > +{
-> > > > +   return atomic_read(&memalloc_socks);
-> > > > +}
-> > > 
-> > > Please change this to be a static branch.
-> > > 
-> > 
-> > Will do. I renamed memalloc_socks to sk_memalloc_socks, made it a int as
-> > atomics are unnecessary and I check it directly in a branch instead of a
-> > static inline. It should be relatively easy for the branch predictor. 
+On Fri, May 11, 2012 at 01:04:45AM -0400, David Miller wrote:
 > 
-> David means you to use include/linux/jump_label.h.
+> Ok, I'm generally happy with the networking parts.
 > 
 
-Ah, that makes a whole lot more sense. Thanks for the clarification.
+Great!
+
+> If you address my feedback I'll sign off on it.
+> 
+
+I didn't get through all the feedback and respond today but I will
+during next week, get it retested and reposted. Thanks a lot.
+
+> The next question is whose tree this stuff goes through :-)
+
+Yep, that's going to be entertaining.  I had structured this so it could
+go through multiple trees but it's not perfect. If I switch patches 14
+(slab-related) and 15 (network related), then it becomes
+
+Patch 1 gets dropped after the next merge window as it'll be in mainline anyway
+Patch 2-3 goes through Pekka's sl*b tree
+Patch 4-7 goes through akpm
+Patch 8-14 goes through linux-net
+Patch 15-17 goes through akpm
+
+That sort of multiple staging is messy though and correctness would depend
+on what order linux-next pulls trees from. I think I should be able to
+move 15-17 before linux-net which might simplify things a little although
+that would be a bit odd from a bisection perspective.
+
+>From my point of view, the ideal would be that all the patches go through
+akpm's tree or yours but that probably will cause merge difficulties.
+
+Any recommendations?
 
 -- 
 Mel Gorman
