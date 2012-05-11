@@ -1,64 +1,159 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx153.postini.com [74.125.245.153])
-	by kanga.kvack.org (Postfix) with SMTP id D8C428D0001
-	for <linux-mm@kvack.org>; Fri, 11 May 2012 18:14:24 -0400 (EDT)
-Date: Sat, 12 May 2012 01:14:19 +0300
-From: Sami Liedes <sami.liedes@iki.fi>
-Subject: Re: [Bug 43227] New: BUG: Bad page state in process wcg_gfam_6.11_i
-Message-ID: <20120511221419.GC7387@sli.dy.fi>
-References: <bug-43227-27@https.bugzilla.kernel.org/>
- <20120511125921.a888e12c.akpm@linux-foundation.org>
- <20120511200615.GA12268@redhat.com>
- <20120511131003.282e9daa.akpm@linux-foundation.org>
+Received: from psmtp.com (na3sys010amx107.postini.com [74.125.245.107])
+	by kanga.kvack.org (Postfix) with SMTP id BA6198D0001
+	for <linux-mm@kvack.org>; Fri, 11 May 2012 18:22:42 -0400 (EDT)
+Received: by dakp5 with SMTP id p5so5088876dak.14
+        for <linux-mm@kvack.org>; Fri, 11 May 2012 15:22:42 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: multipart/signed; micalg=pgp-sha512;
-	protocol="application/pgp-signature"; boundary="1SQmhf2mF2YjsYvc"
-Content-Disposition: inline
-In-Reply-To: <20120511131003.282e9daa.akpm@linux-foundation.org>
+In-Reply-To: <4FAD829E.2030707@gmail.com>
+References: <1335188594-17454-4-git-send-email-inki.dae@samsung.com>
+	<1336544259-17222-1-git-send-email-inki.dae@samsung.com>
+	<1336544259-17222-3-git-send-email-inki.dae@samsung.com>
+	<CAH3drwZBb=XBYpx=Fv=Xv0hajic51V9RwzY_-CpjKDuxgAj9Qg@mail.gmail.com>
+	<001501cd2e4d$c7dbc240$579346c0$%dae@samsung.com>
+	<4FAB4AD8.2010200@kernel.org>
+	<002401cd2e7a$1e8b0ed0$5ba12c70$%dae@samsung.com>
+	<4FAB68CF.8000404@kernel.org>
+	<CAAQKjZM0a-Lg8KYwWi+LwAXJPFYLKqWaKbuc4iUGVKyoStXu_w@mail.gmail.com>
+	<4FAB782C.306@kernel.org>
+	<003301cd2e89$13f78c00$3be6a400$%dae@samsung.com>
+	<4FAC0091.7070606@gmail.com>
+	<4FAC623E.7090209@kernel.org>
+	<4FAC7EBA.1080708@gmail.com>
+	<CAH3drwb-HKmCbf6RxK5OEyAgukBTDLxt0Rf4ZNsygGuZ5SB=5g@mail.gmail.com>
+	<4FAD829E.2030707@gmail.com>
+Date: Fri, 11 May 2012 18:22:41 -0400
+Message-ID: <CAH3drwYu_N5kOM1dSgJw8JNv2ScNkTPLZrRbzozrsF=D2=S=kA@mail.gmail.com>
+Subject: Re: [PATCH 2/2 v3] drm/exynos: added userptr feature.
+From: Jerome Glisse <j.glisse@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Dave Jones <davej@redhat.com>, linux-mm@kvack.org, bugzilla-daemon@bugzilla.kernel.org
+To: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
+Cc: Minchan Kim <minchan@kernel.org>, Inki Dae <inki.dae@samsung.com>, InKi Dae <daeinki@gmail.com>, airlied@linux.ie, dri-devel@lists.freedesktop.org, kyungmin.park@samsung.com, sw0312.kim@samsung.com, linux-mm@kvack.org
 
+On Fri, May 11, 2012 at 5:20 PM, KOSAKI Motohiro
+<kosaki.motohiro@gmail.com> wrote:
+> (5/10/12 11:01 PM), Jerome Glisse wrote:
+>>
+>> On Thu, May 10, 2012 at 10:51 PM, KOSAKI Motohiro
+>> <kosaki.motohiro@gmail.com> =A0wrote:
+>>>
+>>> (5/10/12 8:50 PM), Minchan Kim wrote:
+>>>>
+>>>>
+>>>> Hi KOSAKI,
+>>>>
+>>>> On 05/11/2012 02:53 AM, KOSAKI Motohiro wrote:
+>>>>
+>>>>>>>> let's assume that one application want to allocate user space memo=
+ry
+>>>>>>>> region using malloc() and then write something on the region. as y=
+ou
+>>>>>>>> may know, user space buffer doen't have real physical pages once
+>>>>>>>> malloc() call so if user tries to access the region then page faul=
+t
+>>>>>>>> handler would be triggered
+>>>>>>>
+>>>>>>>
+>>>>>>>
+>>>>>>>
+>>>>>>> Understood.
+>>>>>>>
+>>>>>>>> and then in turn next process like swap in to fill physical frame
+>>>>>>>> number
+>>>>>>>
+>>>>>>>
+>>>>>>> into entry of the page faulted.
+>>>>>>>
+>>>>>>>
+>>>>>>> Sorry, I can't understand your point due to my poor English.
+>>>>>>> Could you rewrite it easiliy? :)
+>>>>>>>
+>>>>>>
+>>>>>> Simply saying, handle_mm_fault would be called to update pte after
+>>>>>> finding
+>>>>>> vma and checking access right. and as you know, there are many cases
+>>>>>> to
+>>>>>> process page fault such as COW or demand paging.
+>>>>>
+>>>>>
+>>>>>
+>>>>> Hmm. If I understand correctly, you guys misunderstand mlock. it
+>>>>> doesn't
+>>>>> page pinning
+>>>>> nor prevent pfn change. It only guarantee to don't make swap out. e.g=
+.
+>>>>
+>>>>
+>>>>
+>>>>
+>>>> Symantic point of view, you're right but the implementation makes sure
+>>>> page pinning.
+>>>>
+>>>>> memory campaction
+>>>>> feature may automatically change page physical address.
+>>>>
+>>>>
+>>>>
+>>>>
+>>>> I tried it last year but decided drop by realtime issue.
+>>>> https://lkml.org/lkml/2011/8/29/295
+>>>>
+>>>> so I think mlock is a kind of page pinning. If elsewhere I don't
+>>>> realized
+>>>> is doing, that place should be fixed.
+>>>> Or my above patch should go ahead.
+>>>
+>>>
+>>>
+>>> Thanks pointing out. I didn't realized your patch didn't merged. I thin=
+k
+>>> it
+>>> should go ahead. think autonuma case,
+>>> if mlock disable autonuma migration, that's bug. =A0I don't think we ca=
+n
+>>> promise mlock don't change physical page.
+>>> I wonder if any realtime guys page migration is free lunch. they should
+>>> disable both auto migration and compaction.
+>>>
+>>> And, think if application explictly use migrate_pages(2) or admins uses
+>>> cpusets. driver code can't assume such scenario
+>>> doesn't occur, yes?
+>>>
+>>>
+>>
+>> I am ok with patch being merge as is if you add restriction for the
+>> ioctl to be root only and a big comment stating that user ptr thing is
+>> just abusing the kernel API and that it should not be replicated by
+>> other driver except if fully understanding that all hell might break
+>> loose with it.
+>
+>
+> Oh, apology. I didn't intend to assist as is merge. Basically I agree wit=
+h
+> minchan. Is should be replaced get_user_pages(). I only intended to clari=
+fy
+> pros/cons and where is original author's intention. If I understand
+> correctly,
+> MADV_DONT_FORK is best solution for this case.
+>
 
---1SQmhf2mF2YjsYvc
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+My point is this ioctl will be restricted to one user (Xserver if i
+understand) and only this user, there is no fork in it so no need to
+worry about fork, just setting the vma as locked will be enough.
 
-On Fri, May 11, 2012 at 01:10:03PM -0700, Andrew Morton wrote:
-> That narrows it down to a 3.3.2 -> 3.3.4 regression, perhaps.
+But i don't want people reading this driver suddenly think that what
+it's doing is ok, it's not, it's hack and can never make to work
+properly on a general case, that's why it needs a big comment stating,
+stressing that. I just wanted to make sure Inki and Kyungmin
+understood that this kind of ioctl should be restricted to carefully
+selected user and that there is no way to make it general or reliable
+outside that.
 
-I believe 3.3.2 -> 3.3.3 in that case; I also hit this on 3.3.3
-yesterday after downgrading 3.3.5 -> 3.3.3, although in that case I
-got a large number (total of 36) bad page state warnings within a
-single second. I have been using 3.3.2 succesfully for quite a while
-before I first saw this when I upgraded to 3.3.5.
-
-	Sami
-
---1SQmhf2mF2YjsYvc
-Content-Type: application/pgp-signature; name="signature.asc"
-Content-Description: Digital signature
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1.4.12 (GNU/Linux)
-
-iQIcBAEBCgAGBQJPrY87AAoJEKLT589SE0a0YpkP/1F6CfE7P6T0IWB1oaV05U++
-sMIJocoQFifxa8Mw91t9LJ6st8KMEPaPw8ozdTM+goZbvXy0j0NcAVPFcCZWMKoD
-OihSng0+Um9LFEzPTzNtNXgTVQeIpCKkb2EtadA8gX3aqb4+2HmaN6jyGGGhRDxg
-RCQxNA5G2V4aCEhKZxOIE1dfb/2QKf0+VU37EI7hKteO76nmZfO3AwCWGp03YTW4
-H4WdX9cfXeOEHynRiyAbLXmX/6zR3/BRpRAghY7nI2gIRzQvyGevZV3oIxW0gDGb
-toIfV6D9d7a8vnjcbriX0ekL9shS87teZP0/Bl3YM0upCj0vJ5pA/ZfUU7qG1EGX
-sgMFyxdnVl9OA0MaOij2F3xgn7cBrDjfE9OAIyQqcOYyFsRRKs0G0QRAtDA7zR9F
-boN2A6/fxjBZSOJkgruwLkApJ+twWsG1wb7N4knQWNMgjKiHX/xMhyIexrcwB6dJ
-wsQZKDOOAXQFQtW5FyxY+Q49D9/3d5LhCTH7rPa6N2wjxBcjsp2i3yClalW9OBpa
-uRNb85pVxini6kH1W+XshbIR10cIfzIGZ4DlFgE9vptBL5oG3GU1os7ivd3HUOA0
-nAvp6sJgW9baN574aTg1jNcKQygJVxuUknpsmZA8mGSFW4jd7hgMNNA+WZdGEUYv
-WaYZQyUmlQArRTnk4QUz
-=AObR
------END PGP SIGNATURE-----
-
---1SQmhf2mF2YjsYvc--
+Cheers,
+Jerome
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
