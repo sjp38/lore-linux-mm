@@ -1,75 +1,126 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx137.postini.com [74.125.245.137])
-	by kanga.kvack.org (Postfix) with SMTP id 880546B004D
-	for <linux-mm@kvack.org>; Thu, 10 May 2012 22:51:40 -0400 (EDT)
-Received: by qcsd16 with SMTP id d16so2214715qcs.14
-        for <linux-mm@kvack.org>; Thu, 10 May 2012 19:51:39 -0700 (PDT)
-Message-ID: <4FAC7EBA.1080708@gmail.com>
-Date: Thu, 10 May 2012 22:51:38 -0400
-From: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
+Received: from psmtp.com (na3sys010amx138.postini.com [74.125.245.138])
+	by kanga.kvack.org (Postfix) with SMTP id F36146B004D
+	for <linux-mm@kvack.org>; Thu, 10 May 2012 23:01:48 -0400 (EDT)
+Received: by dakp5 with SMTP id p5so3451655dak.14
+        for <linux-mm@kvack.org>; Thu, 10 May 2012 20:01:48 -0700 (PDT)
 MIME-Version: 1.0
+In-Reply-To: <4FAC7EBA.1080708@gmail.com>
+References: <1335188594-17454-4-git-send-email-inki.dae@samsung.com>
+	<1336544259-17222-1-git-send-email-inki.dae@samsung.com>
+	<1336544259-17222-3-git-send-email-inki.dae@samsung.com>
+	<CAH3drwZBb=XBYpx=Fv=Xv0hajic51V9RwzY_-CpjKDuxgAj9Qg@mail.gmail.com>
+	<001501cd2e4d$c7dbc240$579346c0$%dae@samsung.com>
+	<4FAB4AD8.2010200@kernel.org>
+	<002401cd2e7a$1e8b0ed0$5ba12c70$%dae@samsung.com>
+	<4FAB68CF.8000404@kernel.org>
+	<CAAQKjZM0a-Lg8KYwWi+LwAXJPFYLKqWaKbuc4iUGVKyoStXu_w@mail.gmail.com>
+	<4FAB782C.306@kernel.org>
+	<003301cd2e89$13f78c00$3be6a400$%dae@samsung.com>
+	<4FAC0091.7070606@gmail.com>
+	<4FAC623E.7090209@kernel.org>
+	<4FAC7EBA.1080708@gmail.com>
+Date: Thu, 10 May 2012 23:01:48 -0400
+Message-ID: <CAH3drwb-HKmCbf6RxK5OEyAgukBTDLxt0Rf4ZNsygGuZ5SB=5g@mail.gmail.com>
 Subject: Re: [PATCH 2/2 v3] drm/exynos: added userptr feature.
-References: <1335188594-17454-4-git-send-email-inki.dae@samsung.com> <1336544259-17222-1-git-send-email-inki.dae@samsung.com> <1336544259-17222-3-git-send-email-inki.dae@samsung.com> <CAH3drwZBb=XBYpx=Fv=Xv0hajic51V9RwzY_-CpjKDuxgAj9Qg@mail.gmail.com> <001501cd2e4d$c7dbc240$579346c0$%dae@samsung.com> <4FAB4AD8.2010200@kernel.org> <002401cd2e7a$1e8b0ed0$5ba12c70$%dae@samsung.com> <4FAB68CF.8000404@kernel.org> <CAAQKjZM0a-Lg8KYwWi+LwAXJPFYLKqWaKbuc4iUGVKyoStXu_w@mail.gmail.com> <4FAB782C.306@kernel.org> <003301cd2e89$13f78c00$3be6a400$%dae@samsung.com> <4FAC0091.7070606@gmail.com> <4FAC623E.7090209@kernel.org>
-In-Reply-To: <4FAC623E.7090209@kernel.org>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 7bit
+From: Jerome Glisse <j.glisse@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Inki Dae <inki.dae@samsung.com>, 'InKi Dae' <daeinki@gmail.com>, 'Jerome Glisse' <j.glisse@gmail.com>, airlied@linux.ie, dri-devel@lists.freedesktop.org, kyungmin.park@samsung.com, sw0312.kim@samsung.com, linux-mm@kvack.org
+To: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
+Cc: Minchan Kim <minchan@kernel.org>, Inki Dae <inki.dae@samsung.com>, InKi Dae <daeinki@gmail.com>, airlied@linux.ie, dri-devel@lists.freedesktop.org, kyungmin.park@samsung.com, sw0312.kim@samsung.com, linux-mm@kvack.org
 
-(5/10/12 8:50 PM), Minchan Kim wrote:
-> Hi KOSAKI,
->
-> On 05/11/2012 02:53 AM, KOSAKI Motohiro wrote:
->
->>>>> let's assume that one application want to allocate user space memory
->>>>> region using malloc() and then write something on the region. as you
->>>>> may know, user space buffer doen't have real physical pages once
->>>>> malloc() call so if user tries to access the region then page fault
->>>>> handler would be triggered
->>>>
->>>>
->>>> Understood.
->>>>
->>>>> and then in turn next process like swap in to fill physical frame
->>>>> number
->>>> into entry of the page faulted.
->>>>
->>>>
->>>> Sorry, I can't understand your point due to my poor English.
->>>> Could you rewrite it easiliy? :)
->>>>
->>>
->>> Simply saying, handle_mm_fault would be called to update pte after
->>> finding
->>> vma and checking access right. and as you know, there are many cases to
->>> process page fault such as COW or demand paging.
+On Thu, May 10, 2012 at 10:51 PM, KOSAKI Motohiro
+<kosaki.motohiro@gmail.com> wrote:
+> (5/10/12 8:50 PM), Minchan Kim wrote:
 >>
->> Hmm. If I understand correctly, you guys misunderstand mlock. it doesn't
->> page pinning
->> nor prevent pfn change. It only guarantee to don't make swap out. e.g.
+>> Hi KOSAKI,
+>>
+>> On 05/11/2012 02:53 AM, KOSAKI Motohiro wrote:
+>>
+>>>>>> let's assume that one application want to allocate user space memory
+>>>>>> region using malloc() and then write something on the region. as you
+>>>>>> may know, user space buffer doen't have real physical pages once
+>>>>>> malloc() call so if user tries to access the region then page fault
+>>>>>> handler would be triggered
+>>>>>
+>>>>>
+>>>>>
+>>>>> Understood.
+>>>>>
+>>>>>> and then in turn next process like swap in to fill physical frame
+>>>>>> number
+>>>>>
+>>>>> into entry of the page faulted.
+>>>>>
+>>>>>
+>>>>> Sorry, I can't understand your point due to my poor English.
+>>>>> Could you rewrite it easiliy? :)
+>>>>>
+>>>>
+>>>> Simply saying, handle_mm_fault would be called to update pte after
+>>>> finding
+>>>> vma and checking access right. and as you know, there are many cases t=
+o
+>>>> process page fault such as COW or demand paging.
+>>>
+>>>
+>>> Hmm. If I understand correctly, you guys misunderstand mlock. it doesn'=
+t
+>>> page pinning
+>>> nor prevent pfn change. It only guarantee to don't make swap out. e.g.
+>>
+>>
+>>
+>> Symantic point of view, you're right but the implementation makes sure
+>> page pinning.
+>>
+>>> memory campaction
+>>> feature may automatically change page physical address.
+>>
+>>
+>>
+>> I tried it last year but decided drop by realtime issue.
+>> https://lkml.org/lkml/2011/8/29/295
+>>
+>> so I think mlock is a kind of page pinning. If elsewhere I don't realize=
+d
+>> is doing, that place should be fixed.
+>> Or my above patch should go ahead.
 >
 >
-> Symantic point of view, you're right but the implementation makes sure page pinning.
+> Thanks pointing out. I didn't realized your patch didn't merged. I think =
+it
+> should go ahead. think autonuma case,
+> if mlock disable autonuma migration, that's bug. =A0I don't think we can
+> promise mlock don't change physical page.
+> I wonder if any realtime guys page migration is free lunch. they should
+> disable both auto migration and compaction.
 >
->> memory campaction
->> feature may automatically change page physical address.
+> And, think if application explictly use migrate_pages(2) or admins uses
+> cpusets. driver code can't assume such scenario
+> doesn't occur, yes?
 >
 >
-> I tried it last year but decided drop by realtime issue.
-> https://lkml.org/lkml/2011/8/29/295
->
-> so I think mlock is a kind of page pinning. If elsewhere I don't realized is doing, that place should be fixed.
-> Or my above patch should go ahead.
 
-Thanks pointing out. I didn't realized your patch didn't merged. I think it should go ahead. think autonuma case,
-if mlock disable autonuma migration, that's bug.  I don't think we can promise mlock don't change physical page.
-I wonder if any realtime guys page migration is free lunch. they should disable both auto migration and compaction.
+I am ok with patch being merge as is if you add restriction for the
+ioctl to be root only and a big comment stating that user ptr thing is
+just abusing the kernel API and that it should not be replicated by
+other driver except if fully understanding that all hell might break
+loose with it.
 
-And, think if application explictly use migrate_pages(2) or admins uses cpusets. driver code can't assume such scenario
-doesn't occur, yes?
+If you know it's only the ddx that will use it and that their wont be
+fork that better to not worry about but again state it in the comment
+about the ioctl.
 
+I really wish there was some magical VM_DRIVER_MAPPED flags that would
+add the proper restriction to other memory code while keeping fork
+behavior consistant (ie cow). But such things would need massive
+chirurgy of the linux mm code.
+
+Cheers,
+Jerome
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
