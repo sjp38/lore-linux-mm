@@ -1,50 +1,100 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx205.postini.com [74.125.245.205])
-	by kanga.kvack.org (Postfix) with SMTP id 493328D0001
-	for <linux-mm@kvack.org>; Fri, 11 May 2012 10:10:21 -0400 (EDT)
-Received: by pbbrp2 with SMTP id rp2so4625115pbb.14
-        for <linux-mm@kvack.org>; Fri, 11 May 2012 07:10:20 -0700 (PDT)
-Date: Fri, 11 May 2012 07:10:01 -0700 (PDT)
-From: Hugh Dickins <hughd@google.com>
-Subject: Re: [PATCH] mm: raise MemFree by reverting percpu_pagelist_fraction
- to 0
-In-Reply-To: <4FACD00D.4060003@kernel.org>
-Message-ID: <alpine.LSU.2.00.1205110656540.5839@eggly.anvils>
-References: <alpine.LSU.2.00.1205110054520.2801@eggly.anvils> <CA+1xoqcChazS=TRt6-7GjJAzQNFLFXmO623rWwjRkdD5x3k=iw@mail.gmail.com> <4FACD00D.4060003@kernel.org>
+Received: from psmtp.com (na3sys010amx200.postini.com [74.125.245.200])
+	by kanga.kvack.org (Postfix) with SMTP id EED588D0001
+	for <linux-mm@kvack.org>; Fri, 11 May 2012 10:12:38 -0400 (EDT)
+Date: Fri, 11 May 2012 15:12:32 +0100
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [PATCH 08/17] net: Introduce sk_allocation() to allow addition
+ of GFP flags depending on the individual socket
+Message-ID: <20120511141232.GR11435@suse.de>
+References: <1336657510-24378-1-git-send-email-mgorman@suse.de>
+ <1336657510-24378-9-git-send-email-mgorman@suse.de>
+ <20120511.004949.655300373402132371.davem@davemloft.net>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20120511.004949.655300373402132371.davem@davemloft.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Sasha Levin <levinsasha928@gmail.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: David Miller <davem@davemloft.net>
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org, netdev@vger.kernel.org, linux-kernel@vger.kernel.org, neilb@suse.de, a.p.zijlstra@chello.nl, michaelc@cs.wisc.edu, emunson@mgebm.net
 
-On Fri, 11 May 2012, Minchan Kim wrote:
-> On 05/11/2012 05:30 PM, Sasha Levin wrote:
+On Fri, May 11, 2012 at 12:49:49AM -0400, David Miller wrote:
+> From: Mel Gorman <mgorman@suse.de>
+> Date: Thu, 10 May 2012 14:45:01 +0100
 > 
-> >> Commit 93278814d359 "mm: fix division by 0 in percpu_pagelist_fraction()"
-> >> mistakenly initialized percpu_pagelist_fraction to the sysctl's minimum 8,
-> >> which leaves 1/8th of memory on percpu lists (on each cpu??); but most of
-> >> us expect it to be left unset at 0 (and it's not then used as a divisor).
+> > Introduce sk_allocation(), this function allows to inject sock specific
+> > flags to each sock related allocation. It is only used on allocation
+> > paths that may be required for writing pages back to network storage.
 > > 
-> > I'm a bit confused about this, does it mean that once you set
-> > percpu_pagelist_fraction to a value above the minimum, you can no
-> > longer set it back to being 0?
+> > Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
+> > Signed-off-by: Mel Gorman <mgorman@suse.de>
 > 
+> This is still a little bit more than it needs to be.
 > 
-> Unfortunately, Yes. :(
-> It's rather awkward and need fix.
+> You are trying to propagate a single bit from sk->sk_allocation into
+> all of the annotated socket memory allocation sites.
+> 
+> But many of them use sk->sk_allocation already.  In fact all of them
+> that use a variable rather than a constant GFP_* satisfy this
+> invariant.
+> 
+> All of those annotations are therefore spurious, and probably end up
+> generating unnecessary |'s in of that special bit in at least some
+> cases.
+> 
 
-It's inelegant, but does that actually need a fix?  Has anybody asked
-for that option in the six years of percpu_pagelist_fraction?
+Yes, you're completely correct here.
 
-Does setting percpu_pagelist_fraction to some large number perhaps
-approximate to the default behaviour of percpu_pagelist_fraction 0?
+> What you really, therefore, care about are the GFP_FOO cases.  And in
+> fact those are all GFP_ATOMIC.  So make something that says what it
+> is that you want, a GFP_ATOMIC with some socket specified bits |'d
+> in.
+> 
+> Something like this:
+> 
+> static inline gfp_t sk_gfp_atomic(struct sock *sk)
+> {
+> 	return GFP_ATOMIC | (sk->sk_allocation & __GFP_MEMALLOC);
+> }
+> 
 
-I don't care very much either way - just don't want this discussion
-to divert from applying last night's fix to the default behaviour
-that most people expect.
+I went with this.
 
-Hugh
+> You'll also have to make your networking patches conform to the
+> networking subsystem coding style.
+> 
+> For example:
+> 
+> > -	skb = sock_wmalloc(sk, MAX_TCP_HEADER + 15 + s_data_desired, 1, GFP_ATOMIC);
+> > +	skb = sock_wmalloc(sk, MAX_TCP_HEADER + 15 + s_data_desired, 1,
+> > +					sk_allocation(sk, GFP_ATOMIC));
+> 
+> The sk_allocation() argument has to line up with the first column
+> after the openning parenthesis of the function call.  You can't just
+> use all TAB characters.  And this all TABs thing looks extremely ugly
+> to boot.
+> 
+
+I was not aware of the networking subsystem coding style. I'll fix it
+up.
+
+> > -		newnp->pktoptions = skb_clone(treq->pktopts, GFP_ATOMIC);
+> > +		newnp->pktoptions = skb_clone(treq->pktopts,
+> > +						sk_allocation(sk, GFP_ATOMIC));
+> 
+> Same here.
+> 
+> What's really funny to me is that in several cases elsewhere in this
+> pach you get it right.
+
+Whether I got it right or not would be effectively random. I tried
+myself to see what pattern I was using thinking it would be "always"
+tab but nope, no pattern :)
+
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
