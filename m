@@ -1,43 +1,102 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx199.postini.com [74.125.245.199])
-	by kanga.kvack.org (Postfix) with SMTP id 2E0FF8D0001
-	for <linux-mm@kvack.org>; Fri, 11 May 2012 12:54:41 -0400 (EDT)
-Received: by wefh52 with SMTP id h52so806499wef.14
-        for <linux-mm@kvack.org>; Fri, 11 May 2012 09:54:39 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <CA+1xoqc15HY1rECsJ6Aj1WMzwT12z4DByJhFopyBAiKawEFh3Q@mail.gmail.com>
-References: <alpine.LSU.2.00.1205110054520.2801@eggly.anvils>
- <CA+1xoqcChazS=TRt6-7GjJAzQNFLFXmO623rWwjRkdD5x3k=iw@mail.gmail.com>
- <4FACD00D.4060003@kernel.org> <4FACD573.4060103@kernel.org>
- <CA+55aFxsZqU4bXRz61ngnR2ozH=AAhwGHR+PqzdTRfnCxJY0oQ@mail.gmail.com> <CA+1xoqc15HY1rECsJ6Aj1WMzwT12z4DByJhFopyBAiKawEFh3Q@mail.gmail.com>
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Date: Fri, 11 May 2012 09:54:18 -0700
-Message-ID: <CA+55aFztbcB1sULup-rCsWmOaC7RFLvuJ=sqGQz=SAKzys02mw@mail.gmail.com>
-Subject: Re: [PATCH] mm: raise MemFree by reverting percpu_pagelist_fraction
- to 0
-Content-Type: text/plain; charset=ISO-8859-1
+Received: from psmtp.com (na3sys010amx194.postini.com [74.125.245.194])
+	by kanga.kvack.org (Postfix) with SMTP id 653D18D0001
+	for <linux-mm@kvack.org>; Fri, 11 May 2012 13:46:55 -0400 (EDT)
+From: Glauber Costa <glommer@parallels.com>
+Subject: [PATCH v2 00/29] kmem limitation for memcg
+Date: Fri, 11 May 2012 14:44:02 -0300
+Message-Id: <1336758272-24284-1-git-send-email-glommer@parallels.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sasha Levin <levinsasha928@gmail.com>
-Cc: Minchan Kim <minchan@kernel.org>, Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: linux-kernel@vger.kernel.org
+Cc: cgroups@vger.kernel.org, linux-mm@kvack.org, kamezawa.hiroyu@jp.fujitsu.com, Tejun Heo <tj@kernel.org>, Li Zefan <lizefan@huawei.com>, Greg Thelen <gthelen@google.com>, Suleiman Souhlal <suleiman@google.com>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, devel@openvz.org
 
-On Fri, May 11, 2012 at 9:35 AM, Sasha Levin <levinsasha928@gmail.com> wrote:
->
-> Once it's on, we reserve 1/x of the pages for the pagelists. I'm not
-> sure why 8 was selected in the first place, but I guess it made sense
-> that you don't want to reserve 15%+ of your memory for the pagelists.
+Hello All,
 
-Why not just accept any number, but turn small numbers into the minimum?
+This is my new take for the memcg kmem accounting.
+At this point, I consider the series pretty mature - although of course,
+bugs are always there...
 
-And if it's a per-cpu, then the minimum had better depend on number of
-CPU's anyway. 15% of memory on a single-cpu already sounds insanely
-high, but if you have several cpu's, it's going to be just totally
-crazy.
+As a disclaimer, however, I must say that the slub code is much more stressed
+by me, since I know it better. If you have no more objections to the concepts
+presented, the remaining edges can probably be polished in a rc cycle,
+at the maintainers discretion, of course.
 
-So a minimum of 8 already sounds broken. Exposing that minimum in a
-way that makes it impossible to reset it sounds just insane.
+Otherwise, I'll be happy to address any concerns of yours.
 
-                    Linus
+Since last submission:
+
+ * memcgs can be properly removed.
+ * We are not charging based on current->mm->owner instead of current
+ * kmem_large allocations for slub got some fixes, specially for the free case
+ * A cache that is registered can be properly removed (common module case)
+   even if it spans memcg children. Slab had some code for that, now it works
+   well with both
+ * A new mechanism for skipping allocations is proposed (patch posted
+   separately already). Now instead of having kmalloc_no_account, we mark
+   a region as non-accountable for memcg.
+
+I should point out again that most, if not all, of the code in the caches
+are wrapped in static_key areas, meaning they will be completely patched out
+until the first limit is set.
+
+I also put a lot of effort, as you will all see, in the proper separation
+of the patches, so the review process is made as easy as the complexity of
+the work allows to.
+
+Frederic Weisbecker (1):
+  cgroups: ability to stop res charge propagation on bounded ancestor
+
+Glauber Costa (24):
+  slab: dup name string
+  slub: fix slab_state for slub
+  memcg: Always free struct memcg through schedule_work()
+  slub: always get the cache from its page in kfree
+  slab: rename gfpflags to allocflags
+  slab: use obj_size field of struct kmem_cache when not debugging
+  memcg: change defines to an enum
+  res_counter: don't force return value checking in
+    res_counter_charge_nofail
+  kmem slab accounting basic infrastructure
+  slab/slub: struct memcg_params
+  slub: consider a memcg parameter in kmem_create_cache
+  slab: pass memcg parameter to kmem_cache_create
+  slub: create duplicate cache
+  slab: create duplicate cache
+  memcg: kmem controller charge/uncharge infrastructure
+  skip memcg kmem allocations in specified code regions
+  slub: charge allocation to a memcg
+  slab: per-memcg accounting of slab caches
+  memcg: disable kmem code when not in use.
+  memcg: destroy memcg caches
+  memcg/slub: shrink dead caches
+  slub: create slabinfo file for memcg
+  slub: track all children of a kmem cache
+  Documentation: add documentation for slab tracker for memcg
+
+Suleiman Souhlal (4):
+  memcg: Make it possible to use the stock for more than one page.
+  memcg: Reclaim when more than one page needed.
+  memcg: Track all the memcg children of a kmem_cache.
+  memcg: Per-memcg memory.kmem.slabinfo file.
+
+ Documentation/cgroups/memory.txt           |   33 ++
+ Documentation/cgroups/resource_counter.txt |   18 +-
+ include/linux/memcontrol.h                 |   88 ++++
+ include/linux/res_counter.h                |   23 +-
+ include/linux/sched.h                      |    1 +
+ include/linux/slab.h                       |   29 +
+ include/linux/slab_def.h                   |   72 +++-
+ include/linux/slub_def.h                   |   51 ++-
+ init/Kconfig                               |    2 +-
+ kernel/res_counter.c                       |   13 +-
+ mm/memcontrol.c                            |  773 ++++++++++++++++++++++++++--
+ mm/slab.c                                  |  394 ++++++++++++---
+ mm/slub.c                                  |  298 ++++++++++-
+ 13 files changed, 1658 insertions(+), 137 deletions(-)
+
+-- 
+1.7.7.6
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
