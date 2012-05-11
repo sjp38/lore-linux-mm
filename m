@@ -1,128 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx101.postini.com [74.125.245.101])
-	by kanga.kvack.org (Postfix) with SMTP id 35E8A6B004D
-	for <linux-mm@kvack.org>; Fri, 11 May 2012 00:37:13 -0400 (EDT)
-Message-ID: <4FAC9786.9060200@kernel.org>
-Date: Fri, 11 May 2012 13:37:26 +0900
-From: Minchan Kim <minchan@kernel.org>
-MIME-Version: 1.0
-Subject: Allow migration of mlocked page?
-Content-Type: text/plain; charset=ISO-8859-1
+Received: from psmtp.com (na3sys010amx120.postini.com [74.125.245.120])
+	by kanga.kvack.org (Postfix) with SMTP id 5AED56B004D
+	for <linux-mm@kvack.org>; Fri, 11 May 2012 00:40:05 -0400 (EDT)
+Date: Fri, 11 May 2012 00:39:51 -0400 (EDT)
+Message-Id: <20120511.003951.1470088131186301605.davem@davemloft.net>
+Subject: Re: [PATCH 05/17] mm: allow PF_MEMALLOC from softirq context
+From: David Miller <davem@davemloft.net>
+In-Reply-To: <1336657510-24378-6-git-send-email-mgorman@suse.de>
+References: <1336657510-24378-1-git-send-email-mgorman@suse.de>
+	<1336657510-24378-6-git-send-email-mgorman@suse.de>
+Mime-Version: 1.0
+Content-Type: Text/Plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, tglx@linutronix.de, Ingo Molnar <mingo@redhat.com>, Peter Zijlstra <peterz@infradead.org>
-Cc: Theodore Ts'o <tytso@mit.edu>
+To: mgorman@suse.de
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org, netdev@vger.kernel.org, linux-kernel@vger.kernel.org, neilb@suse.de, a.p.zijlstra@chello.nl, michaelc@cs.wisc.edu, emunson@mgebm.net
 
-Let's open new thread.
+From: Mel Gorman <mgorman@suse.de>
+Date: Thu, 10 May 2012 14:44:58 +0100
 
-On 05/11/2012 11:51 AM, KOSAKI Motohiro wrote:
-> (5/10/12 8:50 PM), Minchan Kim wrote:
->> Hi KOSAKI,
->>
->> On 05/11/2012 02:53 AM, KOSAKI Motohiro wrote:
->>
->>>>>> let's assume that one application want to allocate user space memory
->>>>>> region using malloc() and then write something on the region. as you
->>>>>> may know, user space buffer doen't have real physical pages once
->>>>>> malloc() call so if user tries to access the region then page fault
->>>>>> handler would be triggered
->>>>>
->>>>>
->>>>> Understood.
->>>>>
->>>>>> and then in turn next process like swap in to fill physical frame
->>>>>> number
->>>>> into entry of the page faulted.
->>>>>
->>>>>
->>>>> Sorry, I can't understand your point due to my poor English.
->>>>> Could you rewrite it easiliy? :)
->>>>>
->>>>
->>>> Simply saying, handle_mm_fault would be called to update pte after
->>>> finding
->>>> vma and checking access right. and as you know, there are many cases to
->>>> process page fault such as COW or demand paging.
->>>
->>> Hmm. If I understand correctly, you guys misunderstand mlock. it doesn't
->>> page pinning
->>> nor prevent pfn change. It only guarantee to don't make swap out. e.g.
->>
->>
->> Symantic point of view, you're right but the implementation makes sure
->> page pinning.
->>
->>> memory campaction
->>> feature may automatically change page physical address.
->>
->>
->> I tried it last year but decided drop by realtime issue.
->> https://lkml.org/lkml/2011/8/29/295
->>
->> so I think mlock is a kind of page pinning. If elsewhere I don't
->> realized is doing, that place should be fixed.
->> Or my above patch should go ahead.
+> This is needed to allow network softirq packet processing to make
+> use of PF_MEMALLOC.
 > 
-> Thanks pointing out. I didn't realized your patch didn't merged. I think
-> it should go ahead. think autonuma case,
-> if mlock disable autonuma migration, that's bug.  I don't think we can
-
-Bug is rather exaggerated. It's a just more overhead.
-
-> promise mlock don't change physical page.
-> I wonder if any realtime guys page migration is free lunch. they should
-> disable both auto migration and compaction.
-
-I think disable migration is overkill. We can do better than it.
-Quote from discussion last year from me.
-
-"
-We can solve a bit that by another approach if it's really problem
-with RT processes. The another approach is to separate mlocked pages
-with allocation time like below pseudo patch which just show the
-concept)
-
-ex)
-diff --git a/include/linux/highmem.h b/include/linux/highmem.h
-index 3a93f73..8ae2e60 100644
---- a/include/linux/highmem.h
-+++ b/include/linux/highmem.h
-@@ -175,7 +175,8 @@ static inline struct page *
- alloc_zeroed_user_highpage_movable(struct vm_area_struct *vma,
-                                        unsigned long vaddr)
- {
--       return __alloc_zeroed_user_highpage(__GFP_MOVABLE, vma, vaddr);
-+       gfp_t gfp_flag = vma->vm_flags & VM_LCOKED ? 0 : __GFP_MOVABLE;
-+       return __alloc_zeroed_user_highpage(gfp_flag, vma, vaddr);
- }
-
-But it's a solution about newly allocated page on mlocked vma.
-Old pages in the VMA is still a problem.
-We can solve it at mlock system call through migrating the pages to
-UNMOVABLE block.
-"
-It would be a solution to enhance compaction/CMA and we can make that compaction doesn't migrate
-UNMOVABLE_PAGE_GROUP which make full by unevictable pages so mlocked page is still pinning page.
-But get_user_pages in drivers still a problem. Or we can migrate unevictable pages, too so that
-compaction/CMA would be good much but we lost pinning concept(It would break man page of mlocked
-about real-time application stuff). Hmm.
-
+> Currently softirq context cannot use PF_MEMALLOC due to it not being
+> associated with a task, and therefore not having task flags to fiddle
+> with - thus the gfp to alloc flag mapping ignores the task flags when
+> in interrupts (hard or soft) context.
 > 
-> And, think if application explictly use migrate_pages(2) or admins uses
-> cpusets. driver code can't assume such scenario
-> doesn't occur, yes?
+> Allowing softirqs to make use of PF_MEMALLOC therefore requires some
+> trickery.  We basically borrow the task flags from whatever process
+> happens to be preempted by the softirq.
+> 
+> So we modify the gfp to alloc flags mapping to not exclude task flags
+> in softirq context, and modify the softirq code to save, clear and
+> restore the PF_MEMALLOC flag.
+> 
+> The save and clear, ensures the preempted task's PF_MEMALLOC flag
+> doesn't leak into the softirq. The restore ensures a softirq's
+> PF_MEMALLOC flag cannot leak back into the preempted process.
+> 
+> Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
+> Signed-off-by: Mel Gorman <mgorman@suse.de>
 
-Yes. it seems to migrate mlocked page now. Hmm,
-Johannes, Mel.
-Why should we be unfair on only compaction?
+We're now making changes to task->flags from both base and
+softirq context, but with non-atomic operations and no other
+kind of synchronization.
 
-I hope hear opinion from rt guys, too.
-Thanks.
+As far as I can tell, this has to be racy.
 
--- 
-Kind regards,
-Minchan Kim
+If this works via some magic combination of invariants, you
+absolutely have to document this, verbosely.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
