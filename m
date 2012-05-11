@@ -1,27 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx155.postini.com [74.125.245.155])
-	by kanga.kvack.org (Postfix) with SMTP id AF0026B004D
-	for <linux-mm@kvack.org>; Fri, 11 May 2012 01:04:51 -0400 (EDT)
-Date: Fri, 11 May 2012 01:04:45 -0400 (EDT)
-Message-Id: <20120511.010445.1020972261904383892.davem@davemloft.net>
-Subject: Re: [PATCH 00/17] Swap-over-NBD without deadlocking V10
+Received: from psmtp.com (na3sys010amx133.postini.com [74.125.245.133])
+	by kanga.kvack.org (Postfix) with SMTP id 9F5126B004D
+	for <linux-mm@kvack.org>; Fri, 11 May 2012 01:11:45 -0400 (EDT)
+Date: Fri, 11 May 2012 01:10:34 -0400 (EDT)
+Message-Id: <20120511.011034.557833140906762226.davem@davemloft.net>
+Subject: Re: [PATCH 01/12] netvm: Prevent a stream-specific deadlock
 From: David Miller <davem@davemloft.net>
-In-Reply-To: <1336657510-24378-1-git-send-email-mgorman@suse.de>
-References: <1336657510-24378-1-git-send-email-mgorman@suse.de>
+In-Reply-To: <1336658065-24851-2-git-send-email-mgorman@suse.de>
+References: <1336658065-24851-1-git-send-email-mgorman@suse.de>
+	<1336658065-24851-2-git-send-email-mgorman@suse.de>
 Mime-Version: 1.0
 Content-Type: Text/Plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: mgorman@suse.de
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org, netdev@vger.kernel.org, linux-kernel@vger.kernel.org, neilb@suse.de, a.p.zijlstra@chello.nl, michaelc@cs.wisc.edu, emunson@mgebm.net
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org, netdev@vger.kernel.org, linux-nfs@vger.kernel.org, linux-kernel@vger.kernel.org, Trond.Myklebust@netapp.com, neilb@suse.de, hch@infradead.org, a.p.zijlstra@chello.nl, michaelc@cs.wisc.edu, emunson@mgebm.net
 
+From: Mel Gorman <mgorman@suse.de>
+Date: Thu, 10 May 2012 14:54:14 +0100
 
-Ok, I'm generally happy with the networking parts.
+> It could happen that all !SOCK_MEMALLOC sockets have buffered so
+> much data that we're over the global rmem limit. This will prevent
+> SOCK_MEMALLOC buffers from receiving data, which will prevent userspace
+> from running, which is needed to reduce the buffered data.
+> 
+> Fix this by exempting the SOCK_MEMALLOC sockets from the rmem limit.
+> 
+> Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
+> Signed-off-by: Mel Gorman <mgorman@suse.de>
 
-If you address my feedback I'll sign off on it.
+This introduces an invariant which I am not so sure is enforced.
 
-The next question is whose tree this stuff goes through :-)
+With this change it is absolutely required that once a socket
+becomes SOCK_MEMALLOC it must never _ever_ lose that attribute.
+
+Otherwise we can end up liberating global rmem tokens which we never
+actually took.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
