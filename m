@@ -1,14 +1,13 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx116.postini.com [74.125.245.116])
-	by kanga.kvack.org (Postfix) with SMTP id 70D488D0020
-	for <linux-mm@kvack.org>; Fri, 11 May 2012 13:53:36 -0400 (EDT)
-Date: Fri, 11 May 2012 12:53:31 -0500 (CDT)
+Received: from psmtp.com (na3sys010amx206.postini.com [74.125.245.206])
+	by kanga.kvack.org (Postfix) with SMTP id B506B8D0020
+	for <linux-mm@kvack.org>; Fri, 11 May 2012 13:54:07 -0400 (EDT)
+Date: Fri, 11 May 2012 12:54:03 -0500 (CDT)
 From: Christoph Lameter <cl@linux.com>
-Subject: Re: [PATCH v2 04/29] slub: always get the cache from its page in
- kfree
-In-Reply-To: <1336758272-24284-5-git-send-email-glommer@parallels.com>
-Message-ID: <alpine.DEB.2.00.1205111251420.31049@router.home>
-References: <1336758272-24284-1-git-send-email-glommer@parallels.com> <1336758272-24284-5-git-send-email-glommer@parallels.com>
+Subject: Re: [PATCH v2 05/29] slab: rename gfpflags to allocflags
+In-Reply-To: <1336758272-24284-6-git-send-email-glommer@parallels.com>
+Message-ID: <alpine.DEB.2.00.1205111253510.31049@router.home>
+References: <1336758272-24284-1-git-send-email-glommer@parallels.com> <1336758272-24284-6-git-send-email-glommer@parallels.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -18,15 +17,11 @@ Cc: linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, linux-mm@kvack.org, k
 
 On Fri, 11 May 2012, Glauber Costa wrote:
 
-> struct page already have this information. If we start chaining
-> caches, this information will always be more trustworthy than
-> whatever is passed into the function
+> A consistent name with slub saves us an acessor function.
+> In both caches, this field represents the same thing. We would
+> like to use it from the mem_cgroup code.
 
-Other allocators may not have that information and this patch may
-cause bugs to go unnoticed if the caller specifies the wrong slab cache.
-
-Adding a VM_BUG_ON may be useful to make sure that kmem_cache_free is
-always passed the correct slab cache.
+Acked-by: Christoph Lameter <cl@linux.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
