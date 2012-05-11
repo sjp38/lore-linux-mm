@@ -1,89 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx180.postini.com [74.125.245.180])
-	by kanga.kvack.org (Postfix) with SMTP id CE54B6B004D
-	for <linux-mm@kvack.org>; Thu, 10 May 2012 20:34:30 -0400 (EDT)
-Message-ID: <4FAC5EA1.5040201@kernel.org>
-Date: Fri, 11 May 2012 09:34:41 +0900
+Received: from psmtp.com (na3sys010amx189.postini.com [74.125.245.189])
+	by kanga.kvack.org (Postfix) with SMTP id BB61F6B004D
+	for <linux-mm@kvack.org>; Thu, 10 May 2012 20:49:59 -0400 (EDT)
+Message-ID: <4FAC623E.7090209@kernel.org>
+Date: Fri, 11 May 2012 09:50:06 +0900
 From: Minchan Kim <minchan@kernel.org>
 MIME-Version: 1.0
-Subject: Re: is there a "lru_cache_add_anon_tail"?
-References: <66ea94b0-2e40-44d1-9621-05f2a8257298@default>
-In-Reply-To: <66ea94b0-2e40-44d1-9621-05f2a8257298@default>
+Subject: Re: [PATCH 2/2 v3] drm/exynos: added userptr feature.
+References: <1335188594-17454-4-git-send-email-inki.dae@samsung.com> <1336544259-17222-1-git-send-email-inki.dae@samsung.com> <1336544259-17222-3-git-send-email-inki.dae@samsung.com> <CAH3drwZBb=XBYpx=Fv=Xv0hajic51V9RwzY_-CpjKDuxgAj9Qg@mail.gmail.com> <001501cd2e4d$c7dbc240$579346c0$%dae@samsung.com> <4FAB4AD8.2010200@kernel.org> <002401cd2e7a$1e8b0ed0$5ba12c70$%dae@samsung.com> <4FAB68CF.8000404@kernel.org> <CAAQKjZM0a-Lg8KYwWi+LwAXJPFYLKqWaKbuc4iUGVKyoStXu_w@mail.gmail.com> <4FAB782C.306@kernel.org> <003301cd2e89$13f78c00$3be6a400$%dae@samsung.com> <4FAC0091.7070606@gmail.com>
+In-Reply-To: <4FAC0091.7070606@gmail.com>
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Magenheimer <dan.magenheimer@oracle.com>
-Cc: linux-mm@kvack.org
+To: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
+Cc: Inki Dae <inki.dae@samsung.com>, 'InKi Dae' <daeinki@gmail.com>, 'Jerome Glisse' <j.glisse@gmail.com>, airlied@linux.ie, dri-devel@lists.freedesktop.org, kyungmin.park@samsung.com, sw0312.kim@samsung.com, linux-mm@kvack.org
 
-On 05/11/2012 01:13 AM, Dan Magenheimer wrote:
+Hi KOSAKI,
 
-> (Still working on allowing zcache to "evict" swap pages...)
+On 05/11/2012 02:53 AM, KOSAKI Motohiro wrote:
+
+>>>> let's assume that one application want to allocate user space memory
+>>>> region using malloc() and then write something on the region. as you
+>>>> may know, user space buffer doen't have real physical pages once
+>>>> malloc() call so if user tries to access the region then page fault
+>>>> handler would be triggered
+>>>
+>>>
+>>> Understood.
+>>>
+>>>> and then in turn next process like swap in to fill physical frame
+>>>> number
+>>> into entry of the page faulted.
+>>>
+>>>
+>>> Sorry, I can't understand your point due to my poor English.
+>>> Could you rewrite it easiliy? :)
+>>>
+>>
+>> Simply saying, handle_mm_fault would be called to update pte after
+>> finding
+>> vma and checking access right. and as you know, there are many cases to
+>> process page fault such as COW or demand paging.
 > 
-> Apologies if I got head/tail reversed as used by the
-> lru queues... the "directional sense" of the queues is
-> not obvious so I'll describe using different terminology...
-> 
-> If I have an anon page and I would like to add it to
-> the "reclaim soonest" end of the queue instead of the
-> "most recently used so don't reclaim it for a long time"
-> end of the queue, does an equivalent function similar to
-> lru_cache_add_anon(page) exist?
+> Hmm. If I understand correctly, you guys misunderstand mlock. it doesn't
+> page pinning
+> nor prevent pfn change. It only guarantee to don't make swap out. e.g.
 
 
-Nope. 
+Symantic point of view, you're right but the implementation makes sure page pinning.
 
-> 
-> In other words, I want this dirty anon page to be
-> swapped out ASAP.
-
-
-Why do you want to do that at the cost of ignoring of LRU ordering?
-
-> 
-> If no such function exists, can anyone more familiar
-> with the VM LRU queues suggest the code for
-> this function "lru_cache_add_anon_XXX(page)?
-> Also what would be the proper text for XXX?
+> memory campaction
+> feature may automatically change page physical address.
 
 
-tail
+I tried it last year but decided drop by realtime issue.
+https://lkml.org/lkml/2011/8/29/295
 
-> 
-> I have some (experimental) code now to use it so
-> could iterate/debug with any suggested code.  The
-> calling snippet is:
-> 
-> 	__set_page_locked(new_page);
-> 	SetPageSwapBacked(new_page);
-> 	ret = __add_to_swap_cache(new_page, entry);
-> 	if (likely(!ret)) {
-> 		radix_tree_preload_end();
-> 		lru_cache_add_anon_XXX(new_page)
-> 		if (frontswap_get_page(new_page) = 0)
-> 			SetPageUptodate(new_page);
-> 		unlock_page(new_page);
-> 
-> This works using a call to the existing lru_cache_add_anon
-> but new_page doesn't get swapped out for a long time.
-
-
-Yes. it's to add the page to "most recently used so don't reclaim it for a long time" in your terms.
-Adding new lru_cache_add_anon_tail isn't difficult but we need justification why we should do.
+so I think mlock is a kind of page pinning. If elsewhere I don't realized is doing, that place should be fixed.
+Or my above patch should go ahead.
 
 > 
-> Thanks for any help/suggestions!
-> Dan
 > 
-> --
+> -- 
 > To unsubscribe, send a message with 'unsubscribe linux-mm' in
 > the body to majordomo@kvack.org.  For more info on Linux MM,
 > see: http://www.linux-mm.org/ .
-> Fight unfair telecom internet charges in Canada: sign http://stopthemeter.ca/
-> Don't email: <a href=ilto:"dont@kvack.org"> email@kvack.org </a>
+> Fight unfair telecom internet charges in Canada: sign
+> http://stopthemeter.ca/
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 > 
 
-qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq
+
 
 -- 
 Kind regards,
