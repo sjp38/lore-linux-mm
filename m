@@ -1,62 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx124.postini.com [74.125.245.124])
-	by kanga.kvack.org (Postfix) with SMTP id 2F7FC6B004D
-	for <linux-mm@kvack.org>; Fri, 11 May 2012 03:52:59 -0400 (EDT)
-MIME-version: 1.0
-Content-transfer-encoding: 7BIT
-Content-type: text/plain; charset=us-ascii
-Received: from euspt2 ([210.118.77.13]) by mailout3.w1.samsung.com
- (Sun Java(tm) System Messaging Server 6.3-8.04 (built Jul 29 2009; 32bit))
- with ESMTP id <0M3U004SALV22Z20@mailout3.w1.samsung.com> for
- linux-mm@kvack.org; Fri, 11 May 2012 08:52:14 +0100 (BST)
-Received: from linux.samsung.com ([106.116.38.10])
- by spt2.w1.samsung.com (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14
- 2004)) with ESMTPA id <0M3U00AGRLW6KB@spt2.w1.samsung.com> for
- linux-mm@kvack.org; Fri, 11 May 2012 08:52:55 +0100 (BST)
-Date: Fri, 11 May 2012 09:52:53 +0200
-From: Marek Szyprowski <m.szyprowski@samsung.com>
-Subject: RE: [PATCHv9 10/10] ARM: dma-mapping: add support for IOMMU mapper
-In-reply-to: 
- <CAP=VYLr=NeGvppR4ONpnRh=gjCSPdKxYj1HYh_FvadAeUzcbBQ@mail.gmail.com>
-Message-id: <02e301cd2f4b$11e02f90$35a08eb0$%szyprowski@samsung.com>
-Content-language: pl
-References: <1334756652-30830-1-git-send-email-m.szyprowski@samsung.com>
- <1334756652-30830-11-git-send-email-m.szyprowski@samsung.com>
- <CAP=VYLr=NeGvppR4ONpnRh=gjCSPdKxYj1HYh_FvadAeUzcbBQ@mail.gmail.com>
+Received: from psmtp.com (na3sys010amx148.postini.com [74.125.245.148])
+	by kanga.kvack.org (Postfix) with SMTP id 68B1F6B004D
+	for <linux-mm@kvack.org>; Fri, 11 May 2012 04:00:28 -0400 (EDT)
+Received: by pbbrp2 with SMTP id rp2so4057060pbb.14
+        for <linux-mm@kvack.org>; Fri, 11 May 2012 01:00:27 -0700 (PDT)
+Date: Fri, 11 May 2012 01:00:07 -0700 (PDT)
+From: Hugh Dickins <hughd@google.com>
+Subject: [PATCH] mm: raise MemFree by reverting percpu_pagelist_fraction to
+ 0
+Message-ID: <alpine.LSU.2.00.1205110054520.2801@eggly.anvils>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: 'Paul Gortmaker' <paul.gortmaker@windriver.com>
-Cc: linux-arm-kernel@lists.infradead.org, linaro-mm-sig@lists.linaro.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, iommu@lists.linux-foundation.org, 'Kyungmin Park' <kyungmin.park@samsung.com>, 'Arnd Bergmann' <arnd@arndb.de>, 'Joerg Roedel' <joro@8bytes.org>, 'Russell King - ARM Linux' <linux@arm.linux.org.uk>, 'Chunsang Jeong' <chunsang.jeong@linaro.org>, 'Krishna Reddy' <vdumpa@nvidia.com>, 'KyongHo Cho' <pullip.cho@samsung.com>, Andrzej Pietrasiewicz <andrzej.p@samsung.com>, 'Benjamin Herrenschmidt' <benh@kernel.crashing.org>, 'Konrad Rzeszutek Wilk' <konrad.wilk@oracle.com>, 'Hiroshi Doyu' <hdoyu@nvidia.com>, 'Subash Patel' <subashrp@gmail.com>, linux-next@vger.kernel.org
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Sasha Levin <levinsasha928@gmail.com>, Minchan Kim <minchan@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Hello,
+Why is there less MemFree than there used to be?  It perturbed a test,
+so I've just been bisecting linux-next, and now find the offender went
+upstream yesterday.
 
-On Friday, May 11, 2012 4:09 AM Paul Gortmaker wrote:
+Commit 93278814d359 "mm: fix division by 0 in percpu_pagelist_fraction()"
+mistakenly initialized percpu_pagelist_fraction to the sysctl's minimum 8,
+which leaves 1/8th of memory on percpu lists (on each cpu??); but most of
+us expect it to be left unset at 0 (and it's not then used as a divisor).
 
-> On Wed, Apr 18, 2012 at 9:44 AM, Marek Szyprowski
-> <m.szyprowski@samsung.com> wrote:
-> > This patch add a complete implementation of DMA-mapping API for
-> > devices which have IOMMU support.
-> 
-> Hi Marek,
-> 
-> It looks like this patch breaks no-MMU builds on ARM, at least
-> according to git bisect.  Here is a link to a linux-next failure:
-> 
-> http://kisskb.ellerman.id.au/kisskb/buildresult/6291233/
-> 
-> arch/arm/mm/dma-mapping.c:726:42: error: 'pgprot_kernel' undeclared
-> (first use in this function)
-> make[2]: *** [arch/arm/mm/dma-mapping.o] Error 1
-> 
-> Please have a look, thanks.
+MemTotal: 8061476kB  8061476kB  8061476kB  8061476kB  8061476kB  8061476kB
+Repetitive test with percpu_pagelist_fraction 8:
+MemFree:  6948420kB  6237172kB  6949696kB  6840692kB  6949048kB  6862984kB
+Same test with percpu_pagelist_fraction back to 0:
+MemFree:  7945000kB  7944908kB  7948568kB  7949060kB  7948796kB  7948812kB
 
-Thanks for reporting this issue, I will send a fix in a minute.
+Signed-off-by: Hugh Dickins <hughd@google.com>
+---
 
-Best regards
--- 
-Marek Szyprowski
-Samsung Poland R&D Center
+ mm/page_alloc.c |    2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
+--- 3.4-rc6+/mm/page_alloc.c	2012-05-10 22:53:35.362478419 -0700
++++ linux/mm/page_alloc.c	2012-05-11 00:07:31.613657283 -0700
+@@ -105,7 +105,7 @@ unsigned long totalreserve_pages __read_
+  */
+ unsigned long dirty_balance_reserve __read_mostly;
+ 
+-int percpu_pagelist_fraction = 8;
++int percpu_pagelist_fraction;
+ gfp_t gfp_allowed_mask __read_mostly = GFP_BOOT_MASK;
+ 
+ #ifdef CONFIG_PM_SLEEP
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
