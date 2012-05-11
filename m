@@ -1,235 +1,597 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx189.postini.com [74.125.245.189])
-	by kanga.kvack.org (Postfix) with SMTP id 27F828D0020
-	for <linux-mm@kvack.org>; Fri, 11 May 2012 13:50:17 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx191.postini.com [74.125.245.191])
+	by kanga.kvack.org (Postfix) with SMTP id E6E5E8D001E
+	for <linux-mm@kvack.org>; Fri, 11 May 2012 13:50:16 -0400 (EDT)
 From: Glauber Costa <glommer@parallels.com>
-Subject: [PATCH v2 26/29] memcg: Per-memcg memory.kmem.slabinfo file.
-Date: Fri, 11 May 2012 14:44:28 -0300
-Message-Id: <1336758272-24284-27-git-send-email-glommer@parallels.com>
+Subject: [PATCH v2 18/29] memcg: kmem controller charge/uncharge infrastructure
+Date: Fri, 11 May 2012 14:44:20 -0300
+Message-Id: <1336758272-24284-19-git-send-email-glommer@parallels.com>
 In-Reply-To: <1336758272-24284-1-git-send-email-glommer@parallels.com>
 References: <1336758272-24284-1-git-send-email-glommer@parallels.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org
-Cc: cgroups@vger.kernel.org, linux-mm@kvack.org, kamezawa.hiroyu@jp.fujitsu.com, Tejun Heo <tj@kernel.org>, Li Zefan <lizefan@huawei.com>, Greg Thelen <gthelen@google.com>, Suleiman Souhlal <suleiman@google.com>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, devel@openvz.org
+Cc: cgroups@vger.kernel.org, linux-mm@kvack.org, kamezawa.hiroyu@jp.fujitsu.com, Tejun Heo <tj@kernel.org>, Li Zefan <lizefan@huawei.com>, Greg Thelen <gthelen@google.com>, Suleiman Souhlal <suleiman@google.com>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, devel@openvz.org, Glauber Costa <glommer@parallels.com>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@cs.helsinki.fi>
 
-From: Suleiman Souhlal <ssouhlal@FreeBSD.org>
+With all the dependencies already in place, this patch introduces
+the charge/uncharge functions for the slab cache accounting in memcg.
 
-This file shows all the kmem_caches used by a memcg.
+Before we can charge a cache, we need to select the right cache.
+This is done by using the function __mem_cgroup_get_kmem_cache().
 
-Signed-off-by: Suleiman Souhlal <suleiman@google.com>
+If we should use the root kmem cache, this function tries to detect
+that and return as early as possible.
+
+The charge and uncharge functions comes in two flavours:
+ * __mem_cgroup_(un)charge_slab(), that assumes the allocation is
+   a slab page, and
+ * __mem_cgroup_(un)charge_kmem(), that does not. This later exists
+   because the slub allocator draws the larger kmalloc allocations
+   from the page allocator.
+
+In memcontrol.h those functions are wrapped in inline acessors.
+The idea is to later on, patch those with jump labels, so we don't
+incur any overhead when no mem cgroups are being used.
+
+Because the slub allocator tends to inline the allocations whenever
+it can, those functions need to be exported so modules can make use
+of it properly.
+
+I apologize in advance to the reviewers. This patch is quite big, but
+I was not able to split it any further due to all the dependencies
+between the code.
+
+This code is inspired by the code written by Suleiman Souhlal,
+but heavily changed.
+
+Signed-off-by: Glauber Costa <glommer@parallels.com>
+CC: Christoph Lameter <cl@linux.com>
+CC: Pekka Enberg <penberg@cs.helsinki.fi>
+CC: Michal Hocko <mhocko@suse.cz>
+CC: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+CC: Johannes Weiner <hannes@cmpxchg.org>
+CC: Suleiman Souhlal <suleiman@google.com>
 ---
- include/linux/slab.h |    1 +
- mm/memcontrol.c      |   17 ++++++++++
- mm/slab.c            |   87 ++++++++++++++++++++++++++++++++++++-------------
- mm/slub.c            |    5 +++
- 4 files changed, 87 insertions(+), 23 deletions(-)
+ include/linux/memcontrol.h |   67 ++++++++
+ init/Kconfig               |    2 +-
+ mm/memcontrol.c            |  379 +++++++++++++++++++++++++++++++++++++++++++-
+ 3 files changed, 446 insertions(+), 2 deletions(-)
 
-diff --git a/include/linux/slab.h b/include/linux/slab.h
-index 876783b..e250111 100644
---- a/include/linux/slab.h
-+++ b/include/linux/slab.h
-@@ -330,6 +330,7 @@ extern void *__kmalloc_track_caller(size_t, gfp_t, unsigned long);
- #define MAX_KMEM_CACHE_TYPES 400
- extern struct kmem_cache *kmem_cache_dup(struct mem_cgroup *memcg,
- 					 struct kmem_cache *cachep);
-+extern int mem_cgroup_slabinfo(struct mem_cgroup *mem, struct seq_file *m);
+diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
+index f93021a..c555799 100644
+--- a/include/linux/memcontrol.h
++++ b/include/linux/memcontrol.h
+@@ -21,6 +21,7 @@
+ #define _LINUX_MEMCONTROL_H
+ #include <linux/cgroup.h>
+ #include <linux/vm_event_item.h>
++#include <linux/hardirq.h>
+ 
+ struct mem_cgroup;
+ struct page_cgroup;
+@@ -447,6 +448,19 @@ void mem_cgroup_register_cache(struct mem_cgroup *memcg,
+ void mem_cgroup_release_cache(struct kmem_cache *cachep);
+ extern char *mem_cgroup_cache_name(struct mem_cgroup *memcg,
+ 				   struct kmem_cache *cachep);
++
++void mem_cgroup_flush_cache_create_queue(void);
++bool __mem_cgroup_charge_slab(struct kmem_cache *cachep, gfp_t gfp,
++			      size_t size);
++void __mem_cgroup_uncharge_slab(struct kmem_cache *cachep, size_t size);
++
++bool __mem_cgroup_new_kmem_page(struct page *page, gfp_t gfp);
++void __mem_cgroup_free_kmem_page(struct page *page);
++
++struct kmem_cache *
++__mem_cgroup_get_kmem_cache(struct kmem_cache *cachep, gfp_t gfp);
++
++#define mem_cgroup_kmem_on 1
  #else
- #define MAX_KMEM_CACHE_TYPES 0
+ static inline void mem_cgroup_register_cache(struct mem_cgroup *memcg,
+ 					     struct kmem_cache *s)
+@@ -463,6 +477,59 @@ static inline void sock_update_memcg(struct sock *sk)
+ static inline void sock_release_memcg(struct sock *sk)
+ {
+ }
++
++static inline void
++mem_cgroup_flush_cache_create_queue(void)
++{
++}
++
++static inline void mem_cgroup_destroy_cache(struct kmem_cache *cachep)
++{
++}
++
++#define mem_cgroup_kmem_on 0
++#define __mem_cgroup_get_kmem_cache(a, b) a
++#define __mem_cgroup_charge_slab(a, b, c) false
++#define __mem_cgroup_new_kmem_page(a, gfp) false
++#define __mem_cgroup_uncharge_slab(a, b)
++#define __mem_cgroup_free_kmem_page(b)
  #endif /* CONFIG_CGROUP_MEM_RES_CTLR_KMEM */
++static __always_inline struct kmem_cache *
++mem_cgroup_get_kmem_cache(struct kmem_cache *cachep, gfp_t gfp)
++{
++	if (mem_cgroup_kmem_on && current->mm && !in_interrupt())
++		return __mem_cgroup_get_kmem_cache(cachep, gfp);
++	return cachep;
++}
++
++static __always_inline bool
++mem_cgroup_charge_slab(struct kmem_cache *cachep, gfp_t gfp, size_t size)
++{
++	if (mem_cgroup_kmem_on)
++		return __mem_cgroup_charge_slab(cachep, gfp, size);
++	return true;
++}
++
++static __always_inline void
++mem_cgroup_uncharge_slab(struct kmem_cache *cachep, size_t size)
++{
++	if (mem_cgroup_kmem_on)
++		__mem_cgroup_uncharge_slab(cachep, size);
++}
++
++static __always_inline
++bool mem_cgroup_new_kmem_page(struct page *page, gfp_t gfp)
++{
++	if (mem_cgroup_kmem_on && current->mm && !in_interrupt())
++		return __mem_cgroup_new_kmem_page(page, gfp);
++	return true;
++}
++
++static __always_inline
++void mem_cgroup_free_kmem_page(struct page *page)
++{
++	if (mem_cgroup_kmem_on)
++		__mem_cgroup_free_kmem_page(page);
++}
+ #endif /* _LINUX_MEMCONTROL_H */
+ 
+diff --git a/init/Kconfig b/init/Kconfig
+index 72f33fa..071b7e3 100644
+--- a/init/Kconfig
++++ b/init/Kconfig
+@@ -696,7 +696,7 @@ config CGROUP_MEM_RES_CTLR_SWAP_ENABLED
+ 	  then swapaccount=0 does the trick).
+ config CGROUP_MEM_RES_CTLR_KMEM
+ 	bool "Memory Resource Controller Kernel Memory accounting (EXPERIMENTAL)"
+-	depends on CGROUP_MEM_RES_CTLR && EXPERIMENTAL
++	depends on CGROUP_MEM_RES_CTLR && EXPERIMENTAL && !SLOB
+ 	default n
+ 	help
+ 	  The Kernel Memory extension for Memory Resource Controller can limit
 diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 933edf1..6b49b5e 100644
+index a8171cb..5a7416b 100644
 --- a/mm/memcontrol.c
 +++ b/mm/memcontrol.c
-@@ -5223,6 +5223,19 @@ static int mem_control_numa_stat_open(struct inode *unused, struct file *file)
- #endif /* CONFIG_NUMA */
- 
- #ifdef CONFIG_CGROUP_MEM_RES_CTLR_KMEM
-+static int mem_cgroup_slabinfo_show(struct cgroup *cgroup, struct cftype *ctf,
-+				    struct seq_file *m)
-+{
-+	struct mem_cgroup *mem;
+@@ -10,6 +10,10 @@
+  * Copyright (C) 2009 Nokia Corporation
+  * Author: Kirill A. Shutemov
+  *
++ * Kernel Memory Controller
++ * Copyright (C) 2012 Parallels Inc. and Google Inc.
++ * Authors: Glauber Costa and Suleiman Souhlal
++ *
+  * This program is free software; you can redistribute it and/or modify
+  * it under the terms of the GNU General Public License as published by
+  * the Free Software Foundation; either version 2 of the License, or
+@@ -321,6 +325,11 @@ struct mem_cgroup {
+ #ifdef CONFIG_INET
+ 	struct tcp_memcontrol tcp_mem;
+ #endif
 +
-+	mem  = mem_cgroup_from_cont(cgroup);
-+
-+	if (mem == root_mem_cgroup)
-+		mem = NULL;
-+
-+	return mem_cgroup_slabinfo(mem, m);
-+}
-+
- static struct cftype kmem_cgroup_files[] = {
- 	{
- 		.name = "kmem.limit_in_bytes",
-@@ -5247,6 +5260,10 @@ static struct cftype kmem_cgroup_files[] = {
- 		.trigger = mem_cgroup_reset,
- 		.read = mem_cgroup_read,
- 	},
-+	{
-+		.name = "kmem.slabinfo",
-+		.read_seq_string = mem_cgroup_slabinfo_show,
-+	},
- 	{},
++#ifdef CONFIG_CGROUP_MEM_RES_CTLR_KMEM
++	/* Slab accounting */
++	struct kmem_cache *slabs[MAX_KMEM_CACHE_TYPES];
++#endif
  };
  
-diff --git a/mm/slab.c b/mm/slab.c
-index cd4600d..afc26df 100644
---- a/mm/slab.c
-+++ b/mm/slab.c
-@@ -4523,21 +4523,26 @@ static void s_stop(struct seq_file *m, void *p)
- 	mutex_unlock(&cache_chain_mutex);
+ int memcg_css_id(struct mem_cgroup *memcg)
+@@ -414,6 +423,9 @@ static void mem_cgroup_put(struct mem_cgroup *memcg);
+ #include <net/ip.h>
+ 
+ static bool mem_cgroup_is_root(struct mem_cgroup *memcg);
++static int memcg_charge_kmem(struct mem_cgroup *memcg, gfp_t gfp, s64 delta);
++static void memcg_uncharge_kmem(struct mem_cgroup *memcg, s64 delta);
++
+ void sock_update_memcg(struct sock *sk)
+ {
+ 	if (mem_cgroup_sockets_enabled) {
+@@ -484,7 +496,14 @@ char *mem_cgroup_cache_name(struct mem_cgroup *memcg, struct kmem_cache *cachep)
+ 	return name;
  }
  
--static int s_show(struct seq_file *m, void *p)
--{
--	struct kmem_cache *cachep = list_entry(p, struct kmem_cache, next);
--	struct slab *slabp;
-+struct slab_counts {
- 	unsigned long active_objs;
-+	unsigned long active_slabs;
-+	unsigned long num_slabs;
-+	unsigned long free_objects;
-+	unsigned long shared_avail;
- 	unsigned long num_objs;
--	unsigned long active_slabs = 0;
--	unsigned long num_slabs, free_objects = 0, shared_avail = 0;
--	const char *name;
--	char *error = NULL;
--	int node;
++static inline bool mem_cgroup_kmem_enabled(struct mem_cgroup *memcg)
++{
++	return !mem_cgroup_disabled() && memcg &&
++	       !mem_cgroup_is_root(memcg) && memcg->kmem_accounted;
++}
++
+ struct ida cache_types;
++static DEFINE_MUTEX(memcg_cache_mutex);
+ 
+ void mem_cgroup_register_cache(struct mem_cgroup *memcg,
+ 			       struct kmem_cache *cachep)
+@@ -504,6 +523,298 @@ void mem_cgroup_release_cache(struct kmem_cache *cachep)
+ 	if (cachep->memcg_params.id != -1)
+ 		ida_simple_remove(&cache_types, cachep->memcg_params.id);
+ }
++
++
++static struct kmem_cache *memcg_create_kmem_cache(struct mem_cgroup *memcg,
++						  struct kmem_cache *cachep)
++{
++	struct kmem_cache *new_cachep;
++	int idx;
++
++	BUG_ON(!mem_cgroup_kmem_enabled(memcg));
++
++	idx = cachep->memcg_params.id;
++
++	mutex_lock(&memcg_cache_mutex);
++	new_cachep = memcg->slabs[idx];
++	if (new_cachep)
++		goto out;
++
++	new_cachep = kmem_cache_dup(memcg, cachep);
++
++	if (new_cachep == NULL) {
++		new_cachep = cachep;
++		goto out;
++	}
++
++	mem_cgroup_get(memcg);
++	memcg->slabs[idx] = new_cachep;
++	new_cachep->memcg_params.memcg = memcg;
++	atomic_set(&new_cachep->memcg_params.refcnt, 1);
++out:
++	mutex_unlock(&memcg_cache_mutex);
++	return new_cachep;
++}
++
++struct create_work {
++	struct mem_cgroup *memcg;
++	struct kmem_cache *cachep;
++	struct list_head list;
 +};
 +
-+static char *
-+get_slab_counts(struct kmem_cache *cachep, struct slab_counts *c)
++/* Use a single spinlock for destruction and creation, not a frequent op */
++static DEFINE_SPINLOCK(cache_queue_lock);
++static LIST_HEAD(create_queue);
++
++/*
++ * Flush the queue of kmem_caches to create, because we're creating a cgroup.
++ *
++ * We might end up flushing other cgroups' creation requests as well, but
++ * they will just get queued again next time someone tries to make a slab
++ * allocation for them.
++ */
++void mem_cgroup_flush_cache_create_queue(void)
 +{
- 	struct kmem_list3 *l3;
-+	struct slab *slabp;
-+	char *error;
-+	int node;
++	struct create_work *cw, *tmp;
++	unsigned long flags;
 +
-+	error = NULL;
-+	memset(c, 0, sizeof(struct slab_counts));
- 
--	active_objs = 0;
--	num_slabs = 0;
- 	for_each_online_node(node) {
- 		l3 = cachep->nodelists[node];
- 		if (!l3)
-@@ -4549,31 +4554,43 @@ static int s_show(struct seq_file *m, void *p)
- 		list_for_each_entry(slabp, &l3->slabs_full, list) {
- 			if (slabp->inuse != cachep->num && !error)
- 				error = "slabs_full accounting error";
--			active_objs += cachep->num;
--			active_slabs++;
-+			c->active_objs += cachep->num;
-+			c->active_slabs++;
- 		}
- 		list_for_each_entry(slabp, &l3->slabs_partial, list) {
- 			if (slabp->inuse == cachep->num && !error)
- 				error = "slabs_partial inuse accounting error";
- 			if (!slabp->inuse && !error)
- 				error = "slabs_partial/inuse accounting error";
--			active_objs += slabp->inuse;
--			active_slabs++;
-+			c->active_objs += slabp->inuse;
-+			c->active_slabs++;
- 		}
- 		list_for_each_entry(slabp, &l3->slabs_free, list) {
- 			if (slabp->inuse && !error)
- 				error = "slabs_free/inuse accounting error";
--			num_slabs++;
-+			c->num_slabs++;
- 		}
--		free_objects += l3->free_objects;
-+		c->free_objects += l3->free_objects;
- 		if (l3->shared)
--			shared_avail += l3->shared->avail;
-+			c->shared_avail += l3->shared->avail;
- 
- 		spin_unlock_irq(&l3->list_lock);
- 	}
--	num_slabs += active_slabs;
--	num_objs = num_slabs * cachep->num;
--	if (num_objs - active_objs != free_objects && !error)
-+	c->num_slabs += c->active_slabs;
-+	c->num_objs = c->num_slabs * cachep->num;
-+
-+	return error;
++	spin_lock_irqsave(&cache_queue_lock, flags);
++	list_for_each_entry_safe(cw, tmp, &create_queue, list) {
++		list_del(&cw->list);
++		kfree(cw);
++	}
++	spin_unlock_irqrestore(&cache_queue_lock, flags);
 +}
 +
-+static int s_show(struct seq_file *m, void *p)
++static void memcg_create_cache_work_func(struct work_struct *w)
 +{
-+	struct kmem_cache *cachep = list_entry(p, struct kmem_cache, next);
-+	struct slab_counts c;
-+	const char *name;
-+	char *error;
++	struct create_work *cw, *tmp;
++	unsigned long flags;
++	LIST_HEAD(create_unlocked);
 +
-+	error = get_slab_counts(cachep, &c);
-+	if (c.num_objs - c.active_objs != c.free_objects && !error)
- 		error = "free_objects accounting error";
- 
- 	name = cachep->name;
-@@ -4581,12 +4598,12 @@ static int s_show(struct seq_file *m, void *p)
- 		printk(KERN_ERR "slab: cache %s error: %s\n", name, error);
- 
- 	seq_printf(m, "%-17s %6lu %6lu %6u %4u %4d",
--		   name, active_objs, num_objs, cachep->buffer_size,
-+		   name, c.active_objs, c.num_objs, cachep->buffer_size,
- 		   cachep->num, (1 << cachep->gfporder));
- 	seq_printf(m, " : tunables %4u %4u %4u",
- 		   cachep->limit, cachep->batchcount, cachep->shared);
- 	seq_printf(m, " : slabdata %6lu %6lu %6lu",
--		   active_slabs, num_slabs, shared_avail);
-+		   c.active_slabs, c.num_slabs, c.shared_avail);
- #if STATS
- 	{			/* list3 stats */
- 		unsigned long high = cachep->high_mark;
-@@ -4620,6 +4637,30 @@ static int s_show(struct seq_file *m, void *p)
- 	return 0;
- }
- 
-+#ifdef CONFIG_CGROUP_MEM_RES_CTLR_KMEM
-+int mem_cgroup_slabinfo(struct mem_cgroup *memcg, struct seq_file *m)
-+{
-+	struct kmem_cache *cachep;
-+	struct slab_counts c;
++	spin_lock_irqsave(&cache_queue_lock, flags);
++	list_for_each_entry_safe(cw, tmp, &create_queue, list)
++		list_move(&cw->list, &create_unlocked);
++	spin_unlock_irqrestore(&cache_queue_lock, flags);
 +
-+	seq_printf(m, "# name            <active_objs> <num_objs> <objsize>\n");
-+
-+	mutex_lock(&cache_chain_mutex);
-+	list_for_each_entry(cachep, &cache_chain, next) {
-+		if (cachep->memcg_params.memcg != memcg)
-+			continue;
-+
-+		get_slab_counts(cachep, &c);
-+
-+		seq_printf(m, "%-17s %6lu %6lu %6u\n", cachep->name,
-+		   c.active_objs, c.num_objs, cachep->buffer_size);
++	list_for_each_entry_safe(cw, tmp, &create_unlocked, list) {
++		list_del(&cw->list);
++		memcg_create_kmem_cache(cw->memcg, cw->cachep);
++		/* Drop the reference gotten when we enqueued. */
++		css_put(&cw->memcg->css);
++		kfree(cw);
 +	}
-+	mutex_unlock(&cache_chain_mutex);
++}
 +
-+	return 0;
++static DECLARE_WORK(memcg_create_cache_work, memcg_create_cache_work_func);
++
++/*
++ * Enqueue the creation of a per-memcg kmem_cache.
++ * Called with rcu_read_lock.
++ */
++static void memcg_create_cache_enqueue(struct mem_cgroup *memcg,
++				       struct kmem_cache *cachep)
++{
++	struct create_work *cw;
++	unsigned long flags;
++
++	spin_lock_irqsave(&cache_queue_lock, flags);
++	list_for_each_entry(cw, &create_queue, list) {
++		if (cw->memcg == memcg && cw->cachep == cachep) {
++			spin_unlock_irqrestore(&cache_queue_lock, flags);
++			return;
++		}
++	}
++	spin_unlock_irqrestore(&cache_queue_lock, flags);
++
++	/* The corresponding put will be done in the workqueue. */
++	if (!css_tryget(&memcg->css))
++		return;
++
++	cw = kmalloc(sizeof(struct create_work), GFP_NOWAIT);
++	if (cw == NULL) {
++		css_put(&memcg->css);
++		return;
++	}
++
++	cw->memcg = memcg;
++	cw->cachep = cachep;
++	spin_lock_irqsave(&cache_queue_lock, flags);
++	list_add_tail(&cw->list, &create_queue);
++	spin_unlock_irqrestore(&cache_queue_lock, flags);
++
++	schedule_work(&memcg_create_cache_work);
++}
++
++/*
++ * Return the kmem_cache we're supposed to use for a slab allocation.
++ * We try to use the current memcg's version of the cache.
++ *
++ * If the cache does not exist yet, if we are the first user of it,
++ * we either create it immediately, if possible, or create it asynchronously
++ * in a workqueue.
++ * In the latter case, we will let the current allocation go through with
++ * the original cache.
++ *
++ * Can't be called in interrupt context or from kernel threads.
++ * This function needs to be called with rcu_read_lock() held.
++ */
++struct kmem_cache *__mem_cgroup_get_kmem_cache(struct kmem_cache *cachep,
++					     gfp_t gfp)
++{
++	struct mem_cgroup *memcg;
++	int idx;
++	struct task_struct *p;
++
++	gfp |=  cachep->allocflags;
++
++	if (cachep->memcg_params.memcg)
++		return cachep;
++
++	idx = cachep->memcg_params.id;
++	VM_BUG_ON(idx == -1);
++
++	p = rcu_dereference(current->mm->owner);
++	memcg = mem_cgroup_from_task(p);
++
++	if (!mem_cgroup_kmem_enabled(memcg))
++		return cachep;
++
++	if (memcg->slabs[idx] == NULL) {
++		memcg_create_cache_enqueue(memcg, cachep);
++		return cachep;
++	}
++
++	return memcg->slabs[idx];
++}
++EXPORT_SYMBOL(__mem_cgroup_get_kmem_cache);
++
++bool __mem_cgroup_new_kmem_page(struct page *page, gfp_t gfp)
++{
++	struct mem_cgroup *memcg;
++	struct page_cgroup *pc;
++	bool ret = true;
++	size_t size;
++	struct task_struct *p;
++
++	if (!current->mm || in_interrupt())
++		return true;
++
++	rcu_read_lock();
++	p = rcu_dereference(current->mm->owner);
++	memcg = mem_cgroup_from_task(p);
++
++	if (!mem_cgroup_kmem_enabled(memcg))
++		goto out;
++
++	mem_cgroup_get(memcg);
++
++	size = (1 << compound_order(page)) << PAGE_SHIFT;
++
++	ret = memcg_charge_kmem(memcg, gfp, size) == 0;
++	if (!ret) {
++		mem_cgroup_put(memcg);
++		goto out;
++	}
++
++	pc = lookup_page_cgroup(page);
++	lock_page_cgroup(pc);
++	pc->mem_cgroup = memcg;
++	SetPageCgroupUsed(pc);
++	unlock_page_cgroup(pc);
++
++out:
++	rcu_read_unlock();
++	return ret;
++}
++EXPORT_SYMBOL(__mem_cgroup_new_kmem_page);
++
++void __mem_cgroup_free_kmem_page(struct page *page)
++{
++	struct mem_cgroup *memcg;
++	size_t size;
++	struct page_cgroup *pc;
++
++	if (mem_cgroup_disabled())
++		return;
++
++	pc = lookup_page_cgroup(page);
++	lock_page_cgroup(pc);
++	memcg = pc->mem_cgroup;
++	pc->mem_cgroup = NULL;
++	if (!PageCgroupUsed(pc)) {
++		unlock_page_cgroup(pc);
++		return;
++	}
++	ClearPageCgroupUsed(pc);
++	unlock_page_cgroup(pc);
++
++	/*
++	 * The classical disabled check won't work
++	 * for uncharge, since it is possible that the user enabled
++	 * kmem tracking, allocated, and then disabled.
++	 *
++	 * We trust if there is a memcg associated with the page,
++	 * it is a valid allocation
++	 */
++
++	if (!memcg)
++		return;
++
++	WARN_ON(mem_cgroup_is_root(memcg));
++	size = (1 << compound_order(page)) << PAGE_SHIFT;
++	memcg_uncharge_kmem(memcg, size);
++	mem_cgroup_put(memcg);
++}
++EXPORT_SYMBOL(__mem_cgroup_free_kmem_page);
++
++bool __mem_cgroup_charge_slab(struct kmem_cache *cachep, gfp_t gfp, size_t size)
++{
++	struct mem_cgroup *memcg;
++	bool ret = true;
++
++	rcu_read_lock();
++	memcg = cachep->memcg_params.memcg;
++	if (!mem_cgroup_kmem_enabled(memcg))
++		goto out;
++
++	ret = memcg_charge_kmem(memcg, gfp, size) == 0;
++out:
++	rcu_read_unlock();
++	return ret;
++}
++EXPORT_SYMBOL(__mem_cgroup_charge_slab);
++
++void __mem_cgroup_uncharge_slab(struct kmem_cache *cachep, size_t size)
++{
++	struct mem_cgroup *memcg;
++
++	rcu_read_lock();
++	memcg = cachep->memcg_params.memcg;
++	rcu_read_unlock();
++
++	/*
++	 * The classical disabled check won't work
++	 * for uncharge, since it is possible that the user enabled
++	 * kmem tracking, allocated, and then disabled.
++	 *
++	 * We trust if there is a memcg associated with the slab,
++	 * it is a valid allocation
++	 */
++	if (!memcg)
++		return;
++
++	memcg_uncharge_kmem(memcg, size);
++}
++EXPORT_SYMBOL(__mem_cgroup_uncharge_slab);
++
++static void memcg_slab_init(struct mem_cgroup *memcg)
++{
++	int i;
++
++	for (i = 0; i < MAX_KMEM_CACHE_TYPES; i++)
++		memcg->slabs[i] = NULL;
++}
+ #endif /* CONFIG_CGROUP_MEM_RES_CTLR_KMEM */
+ 
+ static void drain_all_stock_async(struct mem_cgroup *memcg);
+@@ -4760,7 +5071,11 @@ static struct cftype kmem_cgroup_files[] = {
+ 
+ static int memcg_init_kmem(struct mem_cgroup *memcg, struct cgroup_subsys *ss)
+ {
+-	return mem_cgroup_sockets_init(memcg, ss);
++	int ret = mem_cgroup_sockets_init(memcg, ss);
++
++	if (!ret)
++		memcg_slab_init(memcg);
++	return ret;
+ };
+ 
+ static void kmem_cgroup_destroy(struct mem_cgroup *memcg)
+@@ -5777,3 +6092,65 @@ static int __init enable_swap_account(char *s)
+ __setup("swapaccount=", enable_swap_account);
+ 
+ #endif
++
++#ifdef CONFIG_CGROUP_MEM_RES_CTLR_KMEM
++int memcg_charge_kmem(struct mem_cgroup *memcg, gfp_t gfp, s64 delta)
++{
++	struct res_counter *fail_res;
++	struct mem_cgroup *_memcg;
++	int may_oom, ret;
++	bool nofail = false;
++
++	may_oom = (gfp & __GFP_WAIT) && (gfp & __GFP_FS) &&
++	    !(gfp & __GFP_NORETRY);
++
++	ret = 0;
++
++	if (!memcg)
++		return ret;
++
++	_memcg = memcg;
++	ret = __mem_cgroup_try_charge(NULL, gfp, delta / PAGE_SIZE,
++	    &_memcg, may_oom);
++
++	if ((ret == -EINTR) || (ret && (gfp & __GFP_NOFAIL)))  {
++		nofail = true;
++		/*
++		 * __mem_cgroup_try_charge() chose to bypass to root due
++		 * to OOM kill or fatal signal.
++		 * Since our only options are to either fail the
++		 * allocation or charge it to this cgroup, force the
++		 * change, going above the limit if needed.
++		 */
++		res_counter_charge_nofail(&memcg->res, delta, &fail_res);
++		if (do_swap_account)
++			res_counter_charge_nofail(&memcg->memsw, delta,
++						  &fail_res);
++	} else if (ret == -ENOMEM)
++		return ret;
++
++	if (nofail)
++		res_counter_charge_nofail(&memcg->kmem, delta, &fail_res);
++	else
++		ret = res_counter_charge(&memcg->kmem, delta, &fail_res);
++
++	if (ret) {
++		res_counter_uncharge(&memcg->res, delta);
++		if (do_swap_account)
++			res_counter_uncharge(&memcg->memsw, delta);
++	}
++
++	return ret;
++}
++
++void memcg_uncharge_kmem(struct mem_cgroup *memcg, s64 delta)
++{
++	if (!memcg)
++		return;
++
++	res_counter_uncharge(&memcg->kmem, delta);
++	res_counter_uncharge(&memcg->res, delta);
++	if (do_swap_account)
++		res_counter_uncharge(&memcg->memsw, delta);
 +}
 +#endif /* CONFIG_CGROUP_MEM_RES_CTLR_KMEM */
-+
- /*
-  * slabinfo_op - iterator that generates /proc/slabinfo
-  *
-diff --git a/mm/slub.c b/mm/slub.c
-index f077b90..0efcd77 100644
---- a/mm/slub.c
-+++ b/mm/slub.c
-@@ -4156,6 +4156,11 @@ struct kmem_cache *kmem_cache_dup(struct mem_cgroup *memcg,
- 	kfree(name);
- 	return new;
- }
-+
-+int mem_cgroup_slabinfo(struct mem_cgroup *memcg, struct seq_file *m)
-+{
-+	return 0;
-+}
- #endif
- 
- #ifdef CONFIG_SMP
 -- 
 1.7.7.6
 
