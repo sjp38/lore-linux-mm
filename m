@@ -1,88 +1,173 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx160.postini.com [74.125.245.160])
-	by kanga.kvack.org (Postfix) with SMTP id 809298D0017
-	for <linux-mm@kvack.org>; Fri, 11 May 2012 13:50:05 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx190.postini.com [74.125.245.190])
+	by kanga.kvack.org (Postfix) with SMTP id 954638D001E
+	for <linux-mm@kvack.org>; Fri, 11 May 2012 13:50:06 -0400 (EDT)
 From: Glauber Costa <glommer@parallels.com>
-Subject: [PATCH v2 17/29] slab: create duplicate cache
-Date: Fri, 11 May 2012 14:44:19 -0300
-Message-Id: <1336758272-24284-18-git-send-email-glommer@parallels.com>
+Subject: [PATCH v2 25/29] memcg: Track all the memcg children of a kmem_cache.
+Date: Fri, 11 May 2012 14:44:27 -0300
+Message-Id: <1336758272-24284-26-git-send-email-glommer@parallels.com>
 In-Reply-To: <1336758272-24284-1-git-send-email-glommer@parallels.com>
 References: <1336758272-24284-1-git-send-email-glommer@parallels.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org
-Cc: cgroups@vger.kernel.org, linux-mm@kvack.org, kamezawa.hiroyu@jp.fujitsu.com, Tejun Heo <tj@kernel.org>, Li Zefan <lizefan@huawei.com>, Greg Thelen <gthelen@google.com>, Suleiman Souhlal <suleiman@google.com>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, devel@openvz.org, Glauber Costa <glommer@parallels.com>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@cs.helsinki.fi>
+Cc: cgroups@vger.kernel.org, linux-mm@kvack.org, kamezawa.hiroyu@jp.fujitsu.com, Tejun Heo <tj@kernel.org>, Li Zefan <lizefan@huawei.com>, Greg Thelen <gthelen@google.com>, Suleiman Souhlal <suleiman@google.com>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, devel@openvz.org
 
-This patch provides kmem_cache_dup(), that duplicates
-a cache for a memcg, preserving its creation properties.
-Object size, alignment and flags are all respected.
-An exception is the SLAB_PANIC flag, since cache creation
-inside a memcg should not be fatal.
+From: Suleiman Souhlal <ssouhlal@FreeBSD.org>
 
-This code is mostly written by Suleiman Souhlal,
-with some adaptations and simplifications by me.
+This enables us to remove all the children of a kmem_cache being
+destroyed, if for example the kernel module it's being used in
+gets unloaded. Otherwise, the children will still point to the
+destroyed parent.
 
-Signed-off-by: Glauber Costa <glommer@parallels.com>
-CC: Christoph Lameter <cl@linux.com>
-CC: Pekka Enberg <penberg@cs.helsinki.fi>
-CC: Michal Hocko <mhocko@suse.cz>
-CC: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-CC: Johannes Weiner <hannes@cmpxchg.org>
-CC: Suleiman Souhlal <suleiman@google.com>
+We also use this to propagate /proc/slabinfo settings to all
+the children of a cache, when, for example, changing its
+batchsize.
+
+Signed-off-by: Suleiman Souhlal <suleiman@google.com>
 ---
- mm/slab.c |   32 ++++++++++++++++++++++++++++++++
- 1 files changed, 32 insertions(+), 0 deletions(-)
+ include/linux/memcontrol.h |    1 +
+ include/linux/slab.h       |    1 +
+ mm/memcontrol.c            |    9 +++++++
+ mm/slab.c                  |   52 ++++++++++++++++++++++++++++++++++++++++---
+ 4 files changed, 59 insertions(+), 4 deletions(-)
 
-diff --git a/mm/slab.c b/mm/slab.c
-index d05a326..985714a 100644
---- a/mm/slab.c
-+++ b/mm/slab.c
-@@ -301,6 +301,8 @@ static void free_block(struct kmem_cache *cachep, void **objpp, int len,
- 			int node);
- static int enable_cpucache(struct kmem_cache *cachep, gfp_t gfp);
- static void cache_reap(struct work_struct *unused);
-+static int do_tune_cpucache(struct kmem_cache *cachep, int limit,
-+			    int batchcount, int shared, gfp_t gfp);
+diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
+index 3e03f26..5a5cd42 100644
+--- a/include/linux/memcontrol.h
++++ b/include/linux/memcontrol.h
+@@ -465,6 +465,7 @@ extern struct static_key mem_cgroup_kmem_enabled_key;
+ #define mem_cgroup_kmem_on static_key_false(&mem_cgroup_kmem_enabled_key)
  
- /*
-  * This function must be completely optimized away if a constant is passed to
-@@ -2598,6 +2600,36 @@ kmem_cache_create(const char *name, size_t size, size_t align,
- EXPORT_SYMBOL(kmem_cache_create);
+ void mem_cgroup_destroy_cache(struct kmem_cache *cachep);
++void mem_cgroup_remove_child_kmem_cache(struct kmem_cache *cachep, int id);
+ #else
+ static inline void mem_cgroup_register_cache(struct mem_cgroup *memcg,
+ 					     struct kmem_cache *s)
+diff --git a/include/linux/slab.h b/include/linux/slab.h
+index d03637e..876783b 100644
+--- a/include/linux/slab.h
++++ b/include/linux/slab.h
+@@ -169,6 +169,7 @@ struct mem_cgroup_cache_params {
  
- #ifdef CONFIG_CGROUP_MEM_RES_CTLR_KMEM
-+struct kmem_cache *kmem_cache_dup(struct mem_cgroup *memcg,
-+				  struct kmem_cache *cachep)
+ #endif
+ 	struct list_head destroyed_list; /* Used when deleting memcg cache */
++	struct list_head sibling_list;
+ };
+ #endif
+ 
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index c3772dc..933edf1 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -548,6 +548,7 @@ void mem_cgroup_register_cache(struct mem_cgroup *memcg,
+ 	else
+ 		INIT_LIST_HEAD(&cachep->memcg_params.destroyed_list);
+ 	cachep->memcg_params.id = id;
++	INIT_LIST_HEAD(&cachep->memcg_params.sibling_list);
+ }
+ 
+ void mem_cgroup_release_cache(struct kmem_cache *cachep)
+@@ -845,6 +846,14 @@ struct kmem_cache *__mem_cgroup_get_kmem_cache(struct kmem_cache *cachep,
+ }
+ EXPORT_SYMBOL(__mem_cgroup_get_kmem_cache);
+ 
++void mem_cgroup_remove_child_kmem_cache(struct kmem_cache *cachep, int id)
 +{
-+	struct kmem_cache *new;
-+	unsigned long flags;
-+	char *name;
-+
-+	name = mem_cgroup_cache_name(memcg, cachep);
-+	if (!name)
-+		return NULL;
-+
-+	flags = cachep->flags & ~(SLAB_PANIC|CFLGS_OFF_SLAB);
-+	mutex_lock(&cache_chain_mutex);
-+	new = __kmem_cache_create(memcg, name, obj_size(cachep),
-+	    cachep->memcg_params.orig_align, flags, cachep->ctor);
-+
-+	if (new == NULL)
-+		goto out;
-+
-+	if ((cachep->limit != new->limit) ||
-+	    (cachep->batchcount != new->batchcount) ||
-+	    (cachep->shared != new->shared))
-+		do_tune_cpucache(new, cachep->limit, cachep->batchcount,
-+		    cachep->shared, GFP_KERNEL);
-+out:
-+	mutex_unlock(&cache_chain_mutex);
-+	kfree(name);
-+	return new;
++	mutex_lock(&memcg_cache_mutex);
++	cachep->memcg_params.memcg->slabs[id] = NULL;
++	mutex_unlock(&memcg_cache_mutex);
++	mem_cgroup_put(cachep->memcg_params.memcg);
 +}
 +
- static int __init memcg_slab_register_all(void)
+ bool __mem_cgroup_new_kmem_page(struct page *page, gfp_t gfp)
  {
- 	struct kmem_cache *cachep;
+ 	struct mem_cgroup *memcg;
+diff --git a/mm/slab.c b/mm/slab.c
+index a6fd82e..cd4600d 100644
+--- a/mm/slab.c
++++ b/mm/slab.c
+@@ -2638,6 +2638,8 @@ struct kmem_cache *kmem_cache_dup(struct mem_cgroup *memcg,
+ 	if (new == NULL)
+ 		goto out;
+ 
++	list_add(&new->memcg_params.sibling_list,
++	    &cachep->memcg_params.sibling_list);
+ 	if ((cachep->limit != new->limit) ||
+ 	    (cachep->batchcount != new->batchcount) ||
+ 	    (cachep->shared != new->shared))
+@@ -2853,6 +2855,29 @@ void kmem_cache_destroy(struct kmem_cache *cachep)
+ {
+ 	BUG_ON(!cachep || in_interrupt());
+ 
++#ifdef CONFIG_CGROUP_MEM_RES_CTLR_KMEM
++	/* Destroy all the children caches if we aren't a memcg cache */
++	if (cachep->memcg_params.id != -1) {
++		struct kmem_cache *c;
++		struct mem_cgroup_cache_params *p, *tmp;
++		int id = cachep->memcg_params.id;
++
++		mutex_lock(&cache_chain_mutex);
++		list_for_each_entry_safe(p, tmp,
++		    &cachep->memcg_params.sibling_list, sibling_list) {
++			c = container_of(p, struct kmem_cache, memcg_params);
++			if (c == cachep)
++				continue;
++			mutex_unlock(&cache_chain_mutex);
++			BUG_ON(c->memcg_params.id != -1);
++			mem_cgroup_remove_child_kmem_cache(c, id);
++			kmem_cache_destroy(c);
++			mutex_lock(&cache_chain_mutex);
++		}
++		mutex_unlock(&cache_chain_mutex);
++	}
++#endif /* CONFIG_CGROUP_MEM_RES_CTLR_KMEM */
++
+ 	/* Find the cache in the chain of caches. */
+ 	get_online_cpus();
+ 	mutex_lock(&cache_chain_mutex);
+@@ -2860,6 +2885,9 @@ void kmem_cache_destroy(struct kmem_cache *cachep)
+ 	 * the chain is never empty, cache_cache is never destroyed
+ 	 */
+ 	list_del(&cachep->next);
++#ifdef CONFIG_CGROUP_MEM_RES_CTLR_KMEM
++	list_del(&cachep->memcg_params.sibling_list);
++#endif
+ 	if (__cache_shrink(cachep)) {
+ 		slab_error(cachep, "Can't free all objects");
+ 		list_add(&cachep->next, &cache_chain);
+@@ -4650,11 +4678,27 @@ static ssize_t slabinfo_write(struct file *file, const char __user *buffer,
+ 			if (limit < 1 || batchcount < 1 ||
+ 					batchcount > limit || shared < 0) {
+ 				res = 0;
+-			} else {
+-				res = do_tune_cpucache(cachep, limit,
+-						       batchcount, shared,
+-						       GFP_KERNEL);
++				break;
+ 			}
++
++			res = do_tune_cpucache(cachep, limit, batchcount,
++			    shared, GFP_KERNEL);
++
++#ifdef CONFIG_CGROUP_MEM_RES_CTLR_KMEM
++			{
++				struct kmem_cache *c;
++				struct mem_cgroup_cache_params *p;
++
++				list_for_each_entry(p,
++				    &cachep->memcg_params.sibling_list,
++				    sibling_list) {
++					c = container_of(p, struct kmem_cache,
++					    memcg_params);
++					do_tune_cpucache(c, limit, batchcount,
++					    shared, GFP_KERNEL);
++				}
++			}
++#endif
+ 			break;
+ 		}
+ 	}
 -- 
 1.7.7.6
 
