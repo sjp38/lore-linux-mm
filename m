@@ -1,84 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx179.postini.com [74.125.245.179])
-	by kanga.kvack.org (Postfix) with SMTP id 4A2746B004D
-	for <linux-mm@kvack.org>; Sat, 12 May 2012 04:34:32 -0400 (EDT)
-Message-ID: <1336811645.8274.496.camel@deadeye>
-Subject: Re: Please include commit 90481622d7 in 3.3-stable
-From: Ben Hutchings <ben@decadent.org.uk>
-Date: Sat, 12 May 2012 09:34:05 +0100
-In-Reply-To: <20120510095837.GB16271@bloggs.ozlabs.ibm.com>
-References: <20120510095837.GB16271@bloggs.ozlabs.ibm.com>
-Content-Type: multipart/signed; micalg="pgp-sha512";
-	protocol="application/pgp-signature"; boundary="=-tjIj8r+udfFg/jnNsWzQ"
-Mime-Version: 1.0
+Received: from psmtp.com (na3sys010amx206.postini.com [74.125.245.206])
+	by kanga.kvack.org (Postfix) with SMTP id 004FF6B0081
+	for <linux-mm@kvack.org>; Sat, 12 May 2012 07:53:14 -0400 (EDT)
+Received: by pbbrp2 with SMTP id rp2so6116916pbb.14
+        for <linux-mm@kvack.org>; Sat, 12 May 2012 04:53:14 -0700 (PDT)
+Date: Sat, 12 May 2012 04:52:51 -0700 (PDT)
+From: Hugh Dickins <hughd@google.com>
+Subject: [PATCH 0/10] shmem/tmpfs: misc and fallocate
+Message-ID: <alpine.LSU.2.00.1205120447380.28861@eggly.anvils>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Paul Mackerras <paulus@samba.org>, Hillf Danton <dhillf@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, David Gibson <david@gibson.dropbear.id.au>
-Cc: stable@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Christoph Hellwig <hch@infradead.org>, Cong Wang <amwang@redhat.com>, Cong Wang <xiyou.wangcong@gmail.com>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
 
+Here's a bunch of shmem/tmpfs updates: mostly completed in January,
+then put aside while I attended to other stuff.  But the more recent
+1/10 has some urgency, so I'm expediting the descriptions, and shipping
+them off to you now for v3.5.
 
---=-tjIj8r+udfFg/jnNsWzQ
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
+They're diffed against 3.4.0-rc5-next-20120504, but
+apply and build and work on most v3.4-rc and v3.4-rc-next.
 
-On Thu, 2012-05-10 at 19:58 +1000, Paul Mackerras wrote:
-> Please include commit 90481622d7 ("hugepages: fix use after free bug
-> in "quota" handling") from Linus' tree in the next 3.3 stable release.
-> It applies without fuzz, though with offsets.
->=20
-> It fixes a use-after-free bug in the huge page code that we are
-> hitting when using KVM on IBM Power machines with large pages backing
-> the guests, though it can in principle be hit in other ways also.
-> Since it's a use-after-free bug, it tends to result in an immediate
-> kernel crash if you have slab debug turned on, or occasional
-> hard-to-debug memory corruption if you don't.
->=20
-> The bug is also present in earlier kernels, and the patch should
-> apply at least to 3.2.  It would be good if it can be applied to
-> earlier kernels also.
+The fallocate ones were prompted by posts from Cong Wang in November:
+I've attributed four of those with Based-on-patch-by, but could not
+put From or Signed-off-by, since the originals were somewhat flawed,
+and I needed to start again and reorder it all.
 
-I tried cherry-picking this on top of 3.2.17, but there was a conflict
-in unmap_ref_private().  It looks like all of these belong in 3.2.y as
-well:
+Whether 10/10 should go any further than exposure in -next
+is in doubt: we shall have to see if it's useful to anyone.
 
-1e16a53 mm/hugetlb.c: fix virtual address handling in hugetlb fault
-0c176d5 mm: hugetlb: fix pgoff computation when unmapping page from vma
-ea5768c mm/hugetlb.c: avoid bogus counter of surplus huge page
-409eb8c mm/hugetlb.c: undo change to page mapcount in fault handler
-cd2934a flush_tlb_range() needs ->page_table_lock when ->mmap_sem is not he=
-ld
+ 1/10 shmem: replace page if mapping excludes its zone
+ 2/10 tmpfs: enable NOSEC optimization
+ 3/10 tmpfs: optimize clearing when writing
+ 4/10 tmpfs: support fallocate FALLOC_FL_PUNCH_HOLE
+ 5/10 mm/fs: route MADV_REMOVE to FALLOC_FL_PUNCH_HOLE
+ 6/10 mm/fs: remove truncate_range
+ 7/10 tmpfs: support fallocate preallocation
+ 8/10 tmpfs: undo fallocation on failure
+ 9/10 tmpfs: quit when fallocate fills memory
+10/10 tmpfs: support SEEK_DATA and SEEK_HOLE
 
-Ben.
+ Documentation/filesystems/Locking |    2 
+ Documentation/filesystems/vfs.txt |   13 
+ drivers/staging/android/ashmem.c  |    8 
+ fs/bad_inode.c                    |    1 
+ include/linux/fs.h                |    1 
+ include/linux/mm.h                |    4 
+ include/linux/swap.h              |    6 
+ mm/madvise.c                      |   15 
+ mm/memcontrol.c                   |   17 
+ mm/shmem.c                        |  513 +++++++++++++++++++++++++---
+ mm/swapfile.c                     |    2 
+ mm/truncate.c                     |   25 -
+ 12 files changed, 500 insertions(+), 107 deletions(-)
 
---=20
-Ben Hutchings
-Experience is directly proportional to the value of equipment destroyed.
-                                                         - Carolyn Scheppne=
-r
-
---=-tjIj8r+udfFg/jnNsWzQ
-Content-Type: application/pgp-signature; name="signature.asc"
-Content-Description: This is a digitally signed message part
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1.4.12 (GNU/Linux)
-
-iQIVAwUAT64gfee/yOyVhhEJAQqf+RAAma8ul7zgC7g7JQOjDSfaNQvwSmeGIxkA
-UTTrRhDEMpxiqEIBdf0eo2fRB8fLYsn/11GN68LqEsXWgOTNqXyqhiHCBjSRTF8b
-KvkF/npc79AtRpXO4fBdDS1iqIXOnT0DWHaKBeiYIckCME+BfNyB1fqWAFXfAlET
-XO9pXI/kuujAOeAFU0Hbcgw+wbowI/Kmu3M2tFheKqFqZ4Hv+VFAj2MvslyveNLV
-Xd5Mc08WZXPtZh8YLKToWwSL/Sm/hcEtpGaXAU/9SwgHF+fmZCtnl/Tew1ic4/LV
-fgSjmDAU5qhj8kTugNPazcBLKMmjP2bVUiA+2v0OyzTJPLYMDcaYyQajN5kGfI85
-oU6a7oRnqdU+tfip7NCkcykgSIhSlMQJenGKs6/Ns1CoEWZQ3ja+MIxTtNI5GgAj
-wBZmwFvFyz71qkxNCVukpr98Wbb3rPeqhFvff+VzpwpbZW3ZtnQMZj6d9wnDjZJI
-VGXiYkN78MycDiSQGkYRrgNaYtHYA6p5Z+0HyEh4jtBzjPASNdmkRb99hZIldgJv
-+4nlYExRdawFnqX2e7SczgErQbya4dUAuRJan81Mmc1INNfQcp1mi2aOqvi5RAjJ
-JtSIXOXjnWihr21VZo+qtADnmPRQZasQeksej7c9PqgrLNS0ancXI3cpgfkLq00j
-YtlyONiCPFU=
-=LG8g
------END PGP SIGNATURE-----
-
---=-tjIj8r+udfFg/jnNsWzQ--
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
