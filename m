@@ -1,153 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx171.postini.com [74.125.245.171])
-	by kanga.kvack.org (Postfix) with SMTP id 740326B004D
-	for <linux-mm@kvack.org>; Sat, 12 May 2012 08:27:47 -0400 (EDT)
-Received: by dakp5 with SMTP id p5so5910187dak.14
-        for <linux-mm@kvack.org>; Sat, 12 May 2012 05:27:46 -0700 (PDT)
-Date: Sat, 12 May 2012 05:27:31 -0700 (PDT)
-From: Hugh Dickins <hughd@google.com>
-Subject: [PATCH 10/10] tmpfs: support SEEK_DATA and SEEK_HOLE
-In-Reply-To: <alpine.LSU.2.00.1205120447380.28861@eggly.anvils>
-Message-ID: <alpine.LSU.2.00.1205120521310.28861@eggly.anvils>
-References: <alpine.LSU.2.00.1205120447380.28861@eggly.anvils>
+Received: from psmtp.com (na3sys010amx161.postini.com [74.125.245.161])
+	by kanga.kvack.org (Postfix) with SMTP id 5C2776B004D
+	for <linux-mm@kvack.org>; Sat, 12 May 2012 18:21:20 -0400 (EDT)
+Message-ID: <4FAEE256.7000403@redhat.com>
+Date: Sat, 12 May 2012 18:21:10 -0400
+From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [RFC][PATCH] avoid swapping out with swappiness==0
+References: <65795E11DBF1E645A09CEC7EAEE94B9CB9455FE2@USINDEVS02.corp.hds.com> <20120305215602.GA1693@redhat.com> <4F5798B1.5070005@jp.fujitsu.com> <65795E11DBF1E645A09CEC7EAEE94B9CB951A45F@USINDEVS02.corp.hds.com> <65795E11DBF1E645A09CEC7EAEE94B9C01454D13A6@USINDEVS02.corp.hds.com> <CAHGf_=p9OgVC9J-Nh78CTbuMbc9CVt-+-G+CNbYUsgz70Uc8Qg@mail.gmail.com> <4F7ADE1A.2050004@redhat.com> <4F7C870B.6020807@gmail.com> <65795E11DBF1E645A09CEC7EAEE94B9C014575D8CF@USINDEVS02.corp.hds.com> <65795E11DBF1E645A09CEC7EAEE94B9C01583B4D7C@USINDEVS02.corp.hds.com>
+In-Reply-To: <65795E11DBF1E645A09CEC7EAEE94B9C01583B4D7C@USINDEVS02.corp.hds.com>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Christoph Hellwig <hch@infradead.org>, Josef Bacik <josef@redhat.com>, Andi Kleen <andi@firstfloor.org>, Andreas Dilger <adilger@dilger.ca>, Dave Chinner <david@fromorbit.com>, Marco Stornelli <marco.stornelli@gmail.com>, Jeff liu <jeff.liu@oracle.com>, Chris Mason <chris.mason@oracle.com>, Sunil Mushran <sunil.mushran@oracle.com>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Satoru Moriya <satoru.moriya@hds.com>
+Cc: KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Jerome Marchand <jmarchan@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, "jweiner@redhat.com" <jweiner@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "lwoodman@redhat.com" <lwoodman@redhat.com>, "dle-develop@lists.sourceforge.net" <dle-develop@lists.sourceforge.net>, Seiji Aguchi <seiji.aguchi@hds.com>
 
-It's quite easy for tmpfs to scan the radix_tree to support llseek's
-new SEEK_DATA and SEEK_HOLE options: so add them while the minutiae
-are still on my mind (in particular, the !PageUptodate-ness of pages
-fallocated but still unwritten).
+On 05/11/2012 05:11 PM, Satoru Moriya wrote:
+> On 04/20/2012 08:21 PM, Satoru Moriya wrote:
+>> Ah yes, it is not so small now.
+>> On 4GB server, without THP min_free_kbytes is 8113 but with THP it is
+>> 67584.
+>>
+>> How about using low watermark or min watermark?
+>> Are they still big?
+>>
+>> ...or should we use other value?
+>
+> What do you think of the idea above?
 
-But I don't know who actually uses SEEK_DATA or SEEK_HOLE, and whether
-it would be of any use to them on tmpfs.  This code adds 92 lines and
-752 bytes on x86_64 - is that bloat or worthwhile?
+I believe that using the high watermark is just fine.
 
-Signed-off-by: Hugh Dickins <hughd@google.com>
----
- mm/shmem.c |   94 ++++++++++++++++++++++++++++++++++++++++++++++++++-
- 1 file changed, 93 insertions(+), 1 deletion(-)
+We want to start swapping, before the page cache is so
+small that we start thrashing from that.
 
---- 3045N.orig/mm/shmem.c	2012-05-05 10:47:02.216063339 -0700
-+++ 3045N/mm/shmem.c	2012-05-05 10:47:09.724063528 -0700
-@@ -439,6 +439,56 @@ void shmem_unlock_mapping(struct address
- }
- 
- /*
-+ * llseek SEEK_DATA or SEEK_HOLE through the radix_tree.
-+ */
-+static pgoff_t shmem_seek_hole_data(struct address_space *mapping,
-+				    pgoff_t index, pgoff_t end, int origin)
-+{
-+	struct page *page;
-+	struct pagevec pvec;
-+	pgoff_t indices[PAGEVEC_SIZE];
-+	bool done = false;
-+	int i;
-+
-+	pagevec_init(&pvec, 0);
-+	pvec.nr = 1;		/* start small: we may be there already */
-+	while (!done) {
-+		pvec.nr = shmem_find_get_pages_and_swap(mapping, index,
-+					pvec.nr, pvec.pages, indices);
-+		if (!pvec.nr) {
-+			if (origin == SEEK_DATA)
-+				index = end;
-+			break;
-+		}
-+		for (i = 0; i < pvec.nr; i++, index++) {
-+			if (index < indices[i]) {
-+				if (origin == SEEK_HOLE) {
-+					done = true;
-+					break;
-+				}
-+				index = indices[i];
-+			}
-+			page = pvec.pages[i];
-+			if (page && !radix_tree_exceptional_entry(page)) {
-+				if (!PageUptodate(page))
-+					page = NULL;
-+			}
-+			if (index >= end ||
-+			    (page && origin == SEEK_DATA) ||
-+			    (!page && origin == SEEK_HOLE)) {
-+				done = true;
-+				break;
-+			}
-+		}
-+		shmem_deswap_pagevec(&pvec);
-+		pagevec_release(&pvec);
-+		pvec.nr = PAGEVEC_SIZE;
-+		cond_resched();
-+	}
-+	return index;
-+}
-+
-+/*
-  * Remove range of pages and swap entries from radix tree, and free them.
-  * If !unfalloc, truncate or punch hole; if unfalloc, undo failed fallocate.
-  */
-@@ -1674,6 +1724,48 @@ static ssize_t shmem_file_splice_read(st
- 	return error;
- }
- 
-+static loff_t shmem_file_llseek(struct file *file, loff_t offset, int origin)
-+{
-+	struct address_space *mapping;
-+	struct inode *inode;
-+	pgoff_t start, end;
-+	loff_t new_offset;
-+
-+	if (origin != SEEK_DATA && origin != SEEK_HOLE)
-+		return generic_file_llseek_size(file, offset, origin,
-+							MAX_LFS_FILESIZE);
-+	mapping = file->f_mapping;
-+	inode = mapping->host;
-+	mutex_lock(&inode->i_mutex);
-+	/* We're holding i_mutex so we can access i_size directly */
-+
-+	if (offset < 0)
-+		offset = -EINVAL;
-+	else if (offset >= inode->i_size)
-+		offset = -ENXIO;
-+	else {
-+		start = offset >> PAGE_CACHE_SHIFT;
-+		end = (inode->i_size + PAGE_CACHE_SIZE - 1) >> PAGE_CACHE_SHIFT;
-+		new_offset = shmem_seek_hole_data(mapping, start, end, origin);
-+		new_offset <<= PAGE_CACHE_SHIFT;
-+		if (new_offset > offset) {
-+			if (new_offset < inode->i_size)
-+				offset = new_offset;
-+			else if (origin == SEEK_DATA)
-+				offset = -ENXIO;
-+			else
-+				offset = inode->i_size;
-+		}
-+	}
-+
-+	if (offset >= 0 && offset != file->f_pos) {
-+		file->f_pos = offset;
-+		file->f_version = 0;
-+	}
-+	mutex_unlock(&inode->i_mutex);
-+	return offset;
-+}
-+
- static long shmem_fallocate(struct file *file, int mode, loff_t offset,
- 							 loff_t len)
- {
-@@ -2667,7 +2759,7 @@ static const struct address_space_operat
- static const struct file_operations shmem_file_operations = {
- 	.mmap		= shmem_mmap,
- #ifdef CONFIG_TMPFS
--	.llseek		= generic_file_llseek,
-+	.llseek		= shmem_file_llseek,
- 	.read		= do_sync_read,
- 	.write		= do_sync_write,
- 	.aio_read	= shmem_file_aio_read,
+> So, I propose that we start with applying this patch first
+> and then discuss/improve the threshold.
+>
+> The patch may not be perfect but, at least, we can improve
+> the kernel behavior in the enough filebacked memory case
+> with this patch. I believe it's better than nothing.
+
+Agreed.
+
+-- 
+All rights reversed
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
