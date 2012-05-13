@@ -1,76 +1,35 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx122.postini.com [74.125.245.122])
-	by kanga.kvack.org (Postfix) with SMTP id A9DC96B004D
-	for <linux-mm@kvack.org>; Sun, 13 May 2012 16:51:34 -0400 (EDT)
-Received: by pbbrp2 with SMTP id rp2so7631387pbb.14
-        for <linux-mm@kvack.org>; Sun, 13 May 2012 13:51:34 -0700 (PDT)
-Date: Sun, 13 May 2012 13:51:18 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx106.postini.com [74.125.245.106])
+	by kanga.kvack.org (Postfix) with SMTP id BEF376B004D
+	for <linux-mm@kvack.org>; Sun, 13 May 2012 17:03:19 -0400 (EDT)
+Received: by dakp5 with SMTP id p5so7400872dak.14
+        for <linux-mm@kvack.org>; Sun, 13 May 2012 14:03:18 -0700 (PDT)
+Date: Sun, 13 May 2012 14:03:03 -0700 (PDT)
 From: Hugh Dickins <hughd@google.com>
-Subject: [PATCH 2/2] xfs: hole-punch retaining cache beyond
-In-Reply-To: <alpine.LSU.2.00.1205131347120.1547@eggly.anvils>
-Message-ID: <alpine.LSU.2.00.1205131350150.1547@eggly.anvils>
-References: <alpine.LSU.2.00.1205131347120.1547@eggly.anvils>
+Subject: Re: [PATCH] mm for fs: add truncate_pagecache_range
+In-Reply-To: <alpine.LSU.2.00.1203231343380.1940@eggly.anvils>
+Message-ID: <alpine.LSU.2.00.1205131354380.1547@eggly.anvils>
+References: <alpine.LSU.2.00.1203231343380.1940@eggly.anvils>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Hellwig <hch@infradead.org>
-Cc: Dave Chinner <david@fromorbit.com>, Ben Myers <bpm@sgi.com>, xfs@oss.sgi.com, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
+To: Joel Becker <jlbec@evilplan.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Christoph Hellwig <hch@infradead.org>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
 
-xfs has a very inefficient hole-punch implementation, invalidating all
-the cache beyond the hole (after flushing dirty back to disk, from which
-all must be read back if wanted again).  So if you punch a hole in a
-file mlock()ed into userspace, pages beyond the hole are inadvertently
-munlock()ed until they are touched again.
+On Fri, 23 Mar 2012, Hugh Dickins wrote:
+> I do have patches for ext4, ocfs2 and xfs to use this, but they're too
+> late now for v3.4.  However, it would be helpful if this function could
+> go ahead into v3.4, so filesystems can convert to it at leisure afterwards.
 
-Is there a strong internal reason why that has to be so on xfs?
-Or is it just a relic from xfs supporting XFS_IOC_UNRESVSP long
-before Linux 2.6.16 provided truncate_inode_pages_range()?
+I just sent out the little ext4 and xfs patches, but decided not
+to bother you with the ocfs2 one.  ocfs2 is already doing it right with
+unmap_mapping_range; and since file.c is using unmap_mapping_range with
+truncate_inode_pages in other places, it seemed wrong to force a different
+convention upon you in this one place (perhaps they can all be converted
+to truncate_pagecache_range, but if it ain't broke...)
 
-If the latter, then this patch mostly fixes it, by passing the proper
-range to xfs_flushinval_pages().  But a little more should be done to
-get it just right: a partial page on either side of the hole is still
-written back to disk, invalidated and munlocked.
-
-Signed-off-by: Hugh Dickins <hughd@google.com>
----
-
- fs/xfs/xfs_vnodeops.c |   14 +++++++++++---
- 1 file changed, 11 insertions(+), 3 deletions(-)
-
---- next-20120511/fs/xfs/xfs_vnodeops.c	2012-05-11 00:22:26.095158149 -0700
-+++ linux/fs/xfs/xfs_vnodeops.c	2012-05-12 18:01:14.988654723 -0700
-@@ -2040,7 +2040,8 @@ xfs_free_file_space(
- 	xfs_fsblock_t		firstfsb;
- 	xfs_bmap_free_t		free_list;
- 	xfs_bmbt_irec_t		imap;
--	xfs_off_t		ioffset;
-+	xfs_off_t		startoffset;
-+	xfs_off_t		endoffset;
- 	xfs_extlen_t		mod=0;
- 	xfs_mount_t		*mp;
- 	int			nimap;
-@@ -2074,11 +2075,18 @@ xfs_free_file_space(
- 		inode_dio_wait(VFS_I(ip));
- 	}
- 
-+	/*
-+	 * Round startoffset down and endoffset up: we write out any dirty
-+	 * blocks in between before truncating, so we can read partial blocks
-+	 * back from disk afterwards (but that may munlock the partial pages).
-+	 */
- 	rounding = max_t(uint, 1 << mp->m_sb.sb_blocklog, PAGE_CACHE_SIZE);
--	ioffset = offset & ~(rounding - 1);
-+	startoffset = round_down(offset, rounding);
-+	endoffset = round_up(offset + len, rounding) - 1;
- 
- 	if (VN_CACHED(VFS_I(ip)) != 0) {
--		error = xfs_flushinval_pages(ip, ioffset, -1, FI_REMAPF_LOCKED);
-+		error = xfs_flushinval_pages(ip, startoffset, endoffset,
-+							FI_REMAPF_LOCKED);
- 		if (error)
- 			goto out_unlock_iolock;
- 	}
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
