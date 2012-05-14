@@ -1,90 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx186.postini.com [74.125.245.186])
-	by kanga.kvack.org (Postfix) with SMTP id D5FC76B004D
-	for <linux-mm@kvack.org>; Mon, 14 May 2012 16:46:03 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx145.postini.com [74.125.245.145])
+	by kanga.kvack.org (Postfix) with SMTP id 3B8AD6B0081
+	for <linux-mm@kvack.org>; Mon, 14 May 2012 16:51:38 -0400 (EDT)
+Date: Mon, 14 May 2012 22:51:34 +0200
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH] mm/buddy: dump PG_compound_lock page flag
+Message-ID: <20120514205134.GD1406@cmpxchg.org>
+References: <1336991213-9149-1-git-send-email-shangw@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Message-ID: <0966a902-a35e-4c06-ab04-7d088bf25696@default>
-Date: Mon, 14 May 2012 13:45:36 -0700 (PDT)
-From: Dan Magenheimer <dan.magenheimer@oracle.com>
-Subject: RE: [PATCH] ramster: switch over to zsmalloc and crypto interface
-References: <1336676781-8571-1-git-send-email-dan.magenheimer@oracle.com>
- <20120514200659.GA15604@kroah.com>
-In-Reply-To: <20120514200659.GA15604@kroah.com>
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1336991213-9149-1-git-send-email-shangw@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Greg KH <gregkh@linuxfoundation.org>
-Cc: devel@driverdev.osuosl.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, ngupta@vflare.org, Konrad Wilk <konrad.wilk@oracle.com>, sjenning@linux.vnet.ibm.com
+To: Gavin Shan <shangw@linux.vnet.ibm.com>
+Cc: linux-mm@kvack.org, akpm@linux-foundation.org
 
-> From: Greg KH [mailto:gregkh@linuxfoundation.org]
-> Subject: Re: [PATCH] ramster: switch over to zsmalloc and crypto interfac=
-e
->=20
-> On Thu, May 10, 2012 at 12:06:21PM -0700, Dan Magenheimer wrote:
-> > RAMster does many zcache-like things.  In order to avoid major
-> > merge conflicts at 3.4, ramster used lzo1x directly for compression
-> > and retained a local copy of xvmalloc, while zcache moved to the
-> > new zsmalloc allocator and the crypto API.
-> >
-> > This patch moves ramster forward to use zsmalloc and crypto.
-> >
-> > Signed-off-by: Dan Magenheimer <dan.magenheimer@oracle.com>
->=20
+On Mon, May 14, 2012 at 06:26:53PM +0800, Gavin Shan wrote:
+> The array pageflag_names[] is doing the conversion from page flag
+> into the corresponding names so that the meaingful string again
+> the corresponding page flag can be printed. The mechniasm is used
+> while dumping the specified page frame. However, the array missed
+> PG_compound_lock. So PG_compound_lock page flag would be printed
+> as ditigal number instead of meaningful string.
+> 
+> The patch fixes that and print "compound_lock" for PG_compound_lock
+> page flag.
+> 
+> Signed-off-by: Gavin Shan <shangw@linux.vnet.ibm.com>
 
-Hi Greg --
+Acked-by: Johannes Weiner <hannes@cmpxchg.org>
 
-> I finally enabled building this one (didn't realize it required ZCACHE
-> to be disabled, I can only build one or the other)
+This on top?
 
-Yes, correct.  This overlap is explained in drivers/staging/ramster/TODO
-(which IIRC you were the one that asked me to create that file).
-In short the TODO says: ramster is a superset of zcache that also
-"remotifies" zcache-compressed pages to another machine, and the overlap
-with zcache will need to be rectified before either is promoted
-from staging.
+---
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: [patch] mm: page_alloc: catch out-of-date list of page flag names
 
-> and I noticed after
-> this patch the following warnings in my build:
->=20
-> drivers/staging/ramster/zcache-main.c:950:13: warning: =E2=80=98zcache_do=
-_remotify_ops=E2=80=99 defined but not used
-> [-Wunused-function]
-> drivers/staging/ramster/zcache-main.c:1039:13: warning: =E2=80=98ramster_=
-remotify_init=E2=80=99 defined but not used
-> [-Wunused-function]
+String tables with names of enum items are always prone to go out of
+sync with the enums themselves.  Ensure during compile time that the
+name table of page flags has the same size as the page flags enum.
 
-These are because CONFIG_FRONTSWAP isn't yet in your tree.  It is
-in linux-next and will hopefully finally be in Linus' tree at
-the next window.  Ramster (and zcache) has low value without
-frontswap, so the correct fix, after frontswap is merged, is
-to remove all the "ifdef CONFIG_FRONTSWAP" and force the
-dependency in Kconfig... but I can't do that until frontswap
-is merged. :-(
+Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+---
+ mm/page_alloc.c |    2 ++
+ 1 file changed, 2 insertions(+)
 
-> drivers/staging/ramster/zcache-main.c: In function =E2=80=98zcache_put=E2=
-=80=99:
-> drivers/staging/ramster/zcache-main.c:1594:4: warning: =E2=80=98page=E2=
-=80=99 may be used uninitialized in this
-> function [-Wuninitialized]
-> drivers/staging/ramster/zcache-main.c:1536:8: note: =E2=80=98page=E2=80=
-=99 was declared here
-
-Hmmm... this looks like an overzealous compiler.  The code
-is correct and was unchanged by this patch.  My compiler
-(gcc 4.4.4) doesn't even report it.  I think I could fix it
-by assigning a superfluous NULL at the declaration and will
-do that if you want but I can't test the fix with my compiler
-since it doesn't report it.
-
-> Care to please fix them up?
-
-It looks like you've taken the patch... if my whining
-above falls on deaf ears and you still want me to "fix"
-one or both, let me know and I will submit a fixup patch.
-(And then... what gcc are you using?)
-
-Dan
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 9325913..65ae58d 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -5986,6 +5986,8 @@ static void dump_page_flags(unsigned long flags)
+ 	unsigned long mask;
+ 	int i;
+ 
++	BUILD_BUG_ON(ARRAY_SIZE(pageflag_names) - 1 != __NR_PAGEFLAGS);
++
+ 	printk(KERN_ALERT "page flags: %#lx(", flags);
+ 
+ 	/* remove zone id */
+-- 
+1.7.10.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
