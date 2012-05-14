@@ -1,42 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx189.postini.com [74.125.245.189])
-	by kanga.kvack.org (Postfix) with SMTP id 75B106B004D
-	for <linux-mm@kvack.org>; Mon, 14 May 2012 16:42:25 -0400 (EDT)
-Date: Mon, 14 May 2012 22:42:19 +0200
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH] mm/slab: remove duplicate check
-Message-ID: <20120514204219.GC1406@cmpxchg.org>
-References: <1336727769-19555-1-git-send-email-shangw@linux.vnet.ibm.com>
+Received: from psmtp.com (na3sys010amx186.postini.com [74.125.245.186])
+	by kanga.kvack.org (Postfix) with SMTP id D5FC76B004D
+	for <linux-mm@kvack.org>; Mon, 14 May 2012 16:46:03 -0400 (EDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1336727769-19555-1-git-send-email-shangw@linux.vnet.ibm.com>
+Message-ID: <0966a902-a35e-4c06-ab04-7d088bf25696@default>
+Date: Mon, 14 May 2012 13:45:36 -0700 (PDT)
+From: Dan Magenheimer <dan.magenheimer@oracle.com>
+Subject: RE: [PATCH] ramster: switch over to zsmalloc and crypto interface
+References: <1336676781-8571-1-git-send-email-dan.magenheimer@oracle.com>
+ <20120514200659.GA15604@kroah.com>
+In-Reply-To: <20120514200659.GA15604@kroah.com>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Gavin Shan <shangw@linux.vnet.ibm.com>
-Cc: linux-mm@kvack.org, akpm@linux-foundation.org
+To: Greg KH <gregkh@linuxfoundation.org>
+Cc: devel@driverdev.osuosl.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, ngupta@vflare.org, Konrad Wilk <konrad.wilk@oracle.com>, sjenning@linux.vnet.ibm.com
 
-On Fri, May 11, 2012 at 05:16:09PM +0800, Gavin Shan wrote:
-> While allocateing pages using buddy allocator, the compound page
-> is probably split up to free pages. Under the circumstance, the
-> compound page should be destroied by function destroy_compound_page().
-> However, there has duplicate check to judge if the page is compound
-> one.
-> 
-> The patch removes the duplicate check since the function compound_order()
-> will returns 0 while the page hasn't PG_head set in function destroy_compound_page().
-> That's to say, the function destroy_compound_page() needn't check
-> PG_head any more through function PageHead().
-> 
-> Signed-off-by: Gavin Shan <shangw@linux.vnet.ibm.com>
+> From: Greg KH [mailto:gregkh@linuxfoundation.org]
+> Subject: Re: [PATCH] ramster: switch over to zsmalloc and crypto interfac=
+e
+>=20
+> On Thu, May 10, 2012 at 12:06:21PM -0700, Dan Magenheimer wrote:
+> > RAMster does many zcache-like things.  In order to avoid major
+> > merge conflicts at 3.4, ramster used lzo1x directly for compression
+> > and retained a local copy of xvmalloc, while zcache moved to the
+> > new zsmalloc allocator and the crypto API.
+> >
+> > This patch moves ramster forward to use zsmalloc and crypto.
+> >
+> > Signed-off-by: Dan Magenheimer <dan.magenheimer@oracle.com>
+>=20
 
-Looks good!
+Hi Greg --
 
-But the slab in the subject suggests it would not affect other parts
-of mm, while it actually affects THP, too.  Should probably be
-removed?
+> I finally enabled building this one (didn't realize it required ZCACHE
+> to be disabled, I can only build one or the other)
 
-Acked-by: Johannes Weiner <hannes@cmpxchg.org>
+Yes, correct.  This overlap is explained in drivers/staging/ramster/TODO
+(which IIRC you were the one that asked me to create that file).
+In short the TODO says: ramster is a superset of zcache that also
+"remotifies" zcache-compressed pages to another machine, and the overlap
+with zcache will need to be rectified before either is promoted
+from staging.
+
+> and I noticed after
+> this patch the following warnings in my build:
+>=20
+> drivers/staging/ramster/zcache-main.c:950:13: warning: =E2=80=98zcache_do=
+_remotify_ops=E2=80=99 defined but not used
+> [-Wunused-function]
+> drivers/staging/ramster/zcache-main.c:1039:13: warning: =E2=80=98ramster_=
+remotify_init=E2=80=99 defined but not used
+> [-Wunused-function]
+
+These are because CONFIG_FRONTSWAP isn't yet in your tree.  It is
+in linux-next and will hopefully finally be in Linus' tree at
+the next window.  Ramster (and zcache) has low value without
+frontswap, so the correct fix, after frontswap is merged, is
+to remove all the "ifdef CONFIG_FRONTSWAP" and force the
+dependency in Kconfig... but I can't do that until frontswap
+is merged. :-(
+
+> drivers/staging/ramster/zcache-main.c: In function =E2=80=98zcache_put=E2=
+=80=99:
+> drivers/staging/ramster/zcache-main.c:1594:4: warning: =E2=80=98page=E2=
+=80=99 may be used uninitialized in this
+> function [-Wuninitialized]
+> drivers/staging/ramster/zcache-main.c:1536:8: note: =E2=80=98page=E2=80=
+=99 was declared here
+
+Hmmm... this looks like an overzealous compiler.  The code
+is correct and was unchanged by this patch.  My compiler
+(gcc 4.4.4) doesn't even report it.  I think I could fix it
+by assigning a superfluous NULL at the declaration and will
+do that if you want but I can't test the fix with my compiler
+since it doesn't report it.
+
+> Care to please fix them up?
+
+It looks like you've taken the patch... if my whining
+above falls on deaf ears and you still want me to "fix"
+one or both, let me know and I will submit a fixup patch.
+(And then... what gcc are you using?)
+
+Dan
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
