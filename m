@@ -1,55 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx104.postini.com [74.125.245.104])
-	by kanga.kvack.org (Postfix) with SMTP id 440C46B004D
-	for <linux-mm@kvack.org>; Sun, 13 May 2012 20:26:34 -0400 (EDT)
-Date: Sun, 13 May 2012 20:25:57 -0400
+Received: from psmtp.com (na3sys010amx185.postini.com [74.125.245.185])
+	by kanga.kvack.org (Postfix) with SMTP id 9368C6B004D
+	for <linux-mm@kvack.org>; Sun, 13 May 2012 20:30:35 -0400 (EDT)
+Date: Sun, 13 May 2012 20:30:06 -0400
 From: Dave Jones <davej@redhat.com>
 Subject: Re: [Bug 43227] New: BUG: Bad page state in process wcg_gfam_6.11_i
-Message-ID: <20120514002557.GA13658@redhat.com>
+Message-ID: <20120514003006.GB13658@redhat.com>
 References: <bug-43227-27@https.bugzilla.kernel.org/>
  <20120511125921.a888e12c.akpm@linux-foundation.org>
- <20120511200213.GB7387@sli.dy.fi>
- <20120511133234.6130b69a.akpm@linux-foundation.org>
- <20120511222341.GD7387@sli.dy.fi>
+ <alpine.LSU.2.00.1205111419060.1288@eggly.anvils>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20120511222341.GD7387@sli.dy.fi>
+In-Reply-To: <alpine.LSU.2.00.1205111419060.1288@eggly.anvils>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sami Liedes <sami.liedes@iki.fi>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, bugzilla-daemon@bugzilla.kernel.org
+To: Hugh Dickins <hughd@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, bugzilla-daemon@bugzilla.kernel.org, sliedes@cc.hut.fi
 
-On Sat, May 12, 2012 at 01:23:41AM +0300, Sami Liedes wrote:
- > On Fri, May 11, 2012 at 01:32:34PM -0700, Andrew Morton wrote:
- > > Sure, thanks, that might turn something up. 
- > > Documentation/SubmitChecklist recommends 
- > > 
- > > : 12: Has been tested with CONFIG_PREEMPT, CONFIG_DEBUG_PREEMPT,
- > > :     CONFIG_DEBUG_SLAB, CONFIG_DEBUG_PAGEALLOC, CONFIG_DEBUG_MUTEXES,
- > > :     CONFIG_DEBUG_SPINLOCK, CONFIG_DEBUG_ATOMIC_SLEEP, CONFIG_PROVE_RCU
- > > :     and CONFIG_DEBUG_OBJECTS_RCU_HEAD all simultaneously enabled.
- > > 
- > > although that list might be a bit out of date; it certainly should
- > > include CONFIG_DEBUG_VM!
- > 
- > I wonder if there's somewhere a recommended list of generally most
- > useful debug options that only have a moderate performance impact? I'd
- > be happy to use a set of useful debug flags that generally impacts
- > performance by, say, <10%, on the computers I use for my everyday work
- > to help catch bugs. But it's sometimes quite hard to assess the impact
- > of different Kernel hacking options from just the description...
+On Fri, May 11, 2012 at 02:30:42PM -0700, Hugh Dickins wrote:
+ 
+ > > when the page was freed, not when it was reused!  Can anyone think of a
+ > > reason why PAGE_FLAGS_CHECK_AT_FREE doesn't include these flags (at
+ > > least)?
+ > Because those flags may validly be set when a page is freed (I do have an
+ > old patch to change anon dirty handling to stop that, but it's not really
+ > needed).
 
-One problem here is that acceptable performance is entirely subjective,
-based on your individual workload.  For example, I nearly always run
-the fedora 'debug' builds, which enable near every debug option, and
-don't find it particularly painful. Other people find those same builds
-completely intolerable. Especially for example users of shiny new desktops
-that rely heavily on the drm. Seems that code is particularly miserable
-to use when spinlock debugging/lockdep are enabled.
+It would be nice to be able to distinguish from things like random memory
+scribbles setting those flags.
 
-A few releases back, something changed which made debug builds even more
-'heavyweight' for some users. Still haven't figured out what that might be.
+ > The only thought I have on this report: what binutils was used to build
+ > this kernel?  We had "Bad page" and isolate_lru_pages BUG reports at the
+ > start of the month, and they were traced to buggy binutils 2.22.52.0.2
+
+The fedora reports we have are from binutils prior to that (2.21.53.0.1 is
+the newest we have in F16 for eg).
 
 	Dave
 
