@@ -1,90 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx167.postini.com [74.125.245.167])
-	by kanga.kvack.org (Postfix) with SMTP id BFEAC6B004D
-	for <linux-mm@kvack.org>; Mon, 14 May 2012 06:02:35 -0400 (EDT)
-Date: Mon, 14 May 2012 11:02:29 +0100
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH 05/17] mm: allow PF_MEMALLOC from softirq context
-Message-ID: <20120514100229.GA29102@suse.de>
-References: <1336657510-24378-1-git-send-email-mgorman@suse.de>
- <1336657510-24378-6-git-send-email-mgorman@suse.de>
- <20120511.003951.1470088131186301605.davem@davemloft.net>
+Received: from psmtp.com (na3sys010amx123.postini.com [74.125.245.123])
+	by kanga.kvack.org (Postfix) with SMTP id 909386B004D
+	for <linux-mm@kvack.org>; Mon, 14 May 2012 06:08:33 -0400 (EDT)
+Received: by lahi5 with SMTP id i5so4998670lah.14
+        for <linux-mm@kvack.org>; Mon, 14 May 2012 03:08:31 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20120511.003951.1470088131186301605.davem@davemloft.net>
+In-Reply-To: <4FB05B8F.8020408@jp.fujitsu.com>
+References: <4FACDED0.3020400@jp.fujitsu.com>
+	<4FACE01A.4040405@jp.fujitsu.com>
+	<20120511141945.c487e94c.akpm@linux-foundation.org>
+	<4FB05B8F.8020408@jp.fujitsu.com>
+Date: Mon, 14 May 2012 12:08:31 +0200
+Message-ID: <CAFTL4hwGEhyxZO0sXx5gVyK_xjhMQEbHojJbHzQmVKafNyVWtw@mail.gmail.com>
+Subject: Re: [PATCH 2/6] add res_counter_uncharge_until()
+From: Frederic Weisbecker <fweisbec@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Miller <davem@davemloft.net>
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org, netdev@vger.kernel.org, linux-kernel@vger.kernel.org, neilb@suse.de, a.p.zijlstra@chello.nl, michaelc@cs.wisc.edu, emunson@mgebm.net
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "cgroups@vger.kernel.org" <cgroups@vger.kernel.org>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Han Ying <yinghan@google.com>, Glauber Costa <glommer@parallels.com>, Tejun Heo <tj@kernel.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Hiroyuki Kamezawa <kamezawa.hiroyuki@gmail.com>, Linux Kernel <linux-kernel@vger.kernel.org>
 
-On Fri, May 11, 2012 at 12:39:51AM -0400, David Miller wrote:
-> From: Mel Gorman <mgorman@suse.de>
-> Date: Thu, 10 May 2012 14:44:58 +0100
-> 
-> > This is needed to allow network softirq packet processing to make
-> > use of PF_MEMALLOC.
-> > 
-> > Currently softirq context cannot use PF_MEMALLOC due to it not being
-> > associated with a task, and therefore not having task flags to fiddle
-> > with - thus the gfp to alloc flag mapping ignores the task flags when
-> > in interrupts (hard or soft) context.
-> > 
-> > Allowing softirqs to make use of PF_MEMALLOC therefore requires some
-> > trickery.  We basically borrow the task flags from whatever process
-> > happens to be preempted by the softirq.
-> > 
-> > So we modify the gfp to alloc flags mapping to not exclude task flags
-> > in softirq context, and modify the softirq code to save, clear and
-> > restore the PF_MEMALLOC flag.
-> > 
-> > The save and clear, ensures the preempted task's PF_MEMALLOC flag
-> > doesn't leak into the softirq. The restore ensures a softirq's
-> > PF_MEMALLOC flag cannot leak back into the preempted process.
-> > 
-> > Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
-> > Signed-off-by: Mel Gorman <mgorman@suse.de>
-> 
-> We're now making changes to task->flags from both base and
-> softirq context, but with non-atomic operations and no other
-> kind of synchronization.
-> 
-> As far as I can tell, this has to be racy.
-> 
+2012/5/14 KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>:
+> (2012/05/12 6:19), Andrew Morton wrote:
+>
+>> On Fri, 11 May 2012 18:47:06 +0900
+>> KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+>>
+>>> From: Frederic Weisbecker <fweisbec@gmail.com>
+>>>
+>>> At killing res_counter which is a child of other counter,
+>>> we need to do
+>>> =A0 =A0 =A0res_counter_uncharge(child, xxx)
+>>> =A0 =A0 =A0res_counter_charge(parent, xxx)
+>>>
+>>> This is not atomic and wasting cpu. This patch adds
+>>> res_counter_uncharge_until(). This function's uncharge propagates
+>>> to ancestors until specified res_counter.
+>>>
+>>> =A0 =A0 =A0res_counter_uncharge_until(child, parent, xxx)
+>>>
+>>> Now, ops is atomic and efficient.
+>>>
+>>> Changelog since v2
+>>> =A0- removed unnecessary lines.
+>>> =A0- Fixed 'From' , this patch comes from his series. Please signed-off=
+-by if good.
+>>>
+>>> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+>>
+>> Frederic's Signed-off-by: is unavaliable?
+>>
+>
+> I didn't add his Signed-off because I modified his orignal patch a little=
+...
+> I dropped res_counter_charge_until() because it's not used in this series=
+,
+> I have no justification for adding it.
+> The idea of res_counter_uncharge_until() is from his patch.
 
-I'm not seeing the race you are thinking of.
+The property of Signed-off-by is that as long as you
+carry/relay/modify a patch, you add your
+own signed-off-by. But you can't remove the signed off by of somebody
+in the chain.
 
-Softirqs can run on multiple CPUs sure but the same task should not be
-	executing the same softirq code. Interrupts are disabled and the
-	executing process cannot sleep in softirq context so the task flags
-	cannot "leak" nor can they be concurrently modified.
+Even if you did a change in the patch, you need to preserve the chain.
 
-Softirqs are not execued from hard interrupt context so there are no
-	races with hardirqs.
-
-If the softirq is deferred to ksoftirq then its flags may be used
-	instead of a normal tasks but as the softirq cannot be preempted,
-	the PF_MEMALLOC flag does not leak to other code by accident.
-
-When __do_softirq() is finished, care is taken to restore the
-	PF_MEMALLOC flag to the value when __do_softirq() started. They
-	should not be accidentally clearing the flag.
-
-I'm not seeing how current->flags can be modified while the softirq handler
-is running in such a way that information is lost or misused. There
-would be a problem if softirqs used GFP_KERNEL because the presense of
-the PF_MEMALLOC flag would prevent the use of direct reclaim but softirqs
-cannot use direct reclaim anyway.
-
-> If this works via some magic combination of invariants, you
-> absolutely have to document this, verbosely.
-
-Did I miss a race you are thinking of or should I just add the above
-explanation to the changelog?
-
--- 
-Mel Gorman
-SUSE Labs
+There may be some special cases with "Original-patch-from:" tags used when
+one heavily inspire from a patch without taking much of its original code.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
