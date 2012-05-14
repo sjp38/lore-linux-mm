@@ -1,39 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx121.postini.com [74.125.245.121])
-	by kanga.kvack.org (Postfix) with SMTP id 81ABE6B0092
-	for <linux-mm@kvack.org>; Mon, 14 May 2012 12:52:23 -0400 (EDT)
-Date: Mon, 14 May 2012 18:52:21 +0200
-From: Sam Ravnborg <sam@ravnborg.org>
-Subject: Re: [Patch 3/4] memblock: limit memory address from memblock
-Message-ID: <20120514165221.GA14426@merkur.ravnborg.org>
-References: <4FACA79C.9070103@cn.fujitsu.com> <4FB0F174.1000400@jp.fujitsu.com> <4FB0F37E.2040805@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <4FB0F37E.2040805@jp.fujitsu.com>
+Received: from psmtp.com (na3sys010amx117.postini.com [74.125.245.117])
+	by kanga.kvack.org (Postfix) with SMTP id 904016B004D
+	for <linux-mm@kvack.org>; Mon, 14 May 2012 14:01:00 -0400 (EDT)
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: [patch 1/6] mm: memcg: remove obsolete statistics array boundary enum item
+Date: Mon, 14 May 2012 20:00:46 +0200
+Message-Id: <1337018451-27359-2-git-send-email-hannes@cmpxchg.org>
+In-Reply-To: <1337018451-27359-1-git-send-email-hannes@cmpxchg.org>
+References: <1337018451-27359-1-git-send-email-hannes@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
-Cc: Lai Jiangshan <laijs@cn.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Michal Hocko <mhocko@suse.cz>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Mon, May 14, 2012 at 08:58:54PM +0900, Yasuaki Ishimatsu wrote:
-> Setting kernelcore_max_pfn means all memory which is bigger than
-> the boot parameter is allocated as ZONE_MOVABLE. So memory which
-> is allocated by memblock also should be limited by the parameter.
->
-> The patch limits memory from memblock.
+MEM_CGROUP_STAT_DATA is a leftover from when item counters were living
+in the same array as ever-increasing event counters.  It's no longer
+needed, use MEM_CGROUP_STAT_NSTATS to iterate over the stat array.
 
-I see no reason why we need two limits for memblock.
-And if we really require two limits then please use a function
-to set it.
-All other setup/etc. towoards memblock is via function,
-and starting to introduce magic variables is confusing.
+Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+---
+ mm/memcontrol.c |    3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)
 
-Also new stuff in memblock shal have a nice comment
-describing the usage. that we in the past has failed to
-do so is no excuse.
-
-	Sam
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index 9520ee9..aef89c1 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -99,7 +99,6 @@ enum mem_cgroup_stat_index {
+ 	MEM_CGROUP_STAT_FILE_MAPPED,  /* # of pages charged as file rss */
+ 	MEM_CGROUP_STAT_MLOCK, /* # of pages charged as mlock()ed */
+ 	MEM_CGROUP_STAT_SWAPOUT, /* # of pages, swapped out */
+-	MEM_CGROUP_STAT_DATA, /* end of data requires synchronization */
+ 	MEM_CGROUP_STAT_NSTATS,
+ };
+ 
+@@ -2158,7 +2157,7 @@ static void mem_cgroup_drain_pcp_counter(struct mem_cgroup *memcg, int cpu)
+ 	int i;
+ 
+ 	spin_lock(&memcg->pcp_counter_lock);
+-	for (i = 0; i < MEM_CGROUP_STAT_DATA; i++) {
++	for (i = 0; i < MEM_CGROUP_STAT_NSTATS; i++) {
+ 		long x = per_cpu(memcg->stat->count[i], cpu);
+ 
+ 		per_cpu(memcg->stat->count[i], cpu) = 0;
+-- 
+1.7.10.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
