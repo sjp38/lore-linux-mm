@@ -1,40 +1,98 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx134.postini.com [74.125.245.134])
-	by kanga.kvack.org (Postfix) with SMTP id D9EDE6B004D
-	for <linux-mm@kvack.org>; Mon, 14 May 2012 18:34:57 -0400 (EDT)
-Received: by wgbdt14 with SMTP id dt14so4609006wgb.26
-        for <linux-mm@kvack.org>; Mon, 14 May 2012 15:34:56 -0700 (PDT)
-Subject: Re: [PATCH v2] mm: Fix slab->page _count corruption.
-From: Eric Dumazet <eric.dumazet@gmail.com>
-In-Reply-To: <1337034597-1826-1-git-send-email-pshelar@nicira.com>
-References: <1337034597-1826-1-git-send-email-pshelar@nicira.com>
-Content-Type: text/plain; charset="UTF-8"
-Date: Tue, 15 May 2012 00:34:52 +0200
-Message-ID: <1337034892.8512.652.camel@edumazet-glaptop>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx104.postini.com [74.125.245.104])
+	by kanga.kvack.org (Postfix) with SMTP id 7508F6B004D
+	for <linux-mm@kvack.org>; Mon, 14 May 2012 18:41:58 -0400 (EDT)
+Received: by pbbrp2 with SMTP id rp2so9647801pbb.14
+        for <linux-mm@kvack.org>; Mon, 14 May 2012 15:41:57 -0700 (PDT)
+Date: Mon, 14 May 2012 15:41:53 -0700
+From: Greg KH <gregkh@linuxfoundation.org>
+Subject: Re: [PATCH] ramster: switch over to zsmalloc and crypto interface
+Message-ID: <20120514224153.GB28559@kroah.com>
+References: <1336676781-8571-1-git-send-email-dan.magenheimer@oracle.com>
+ <20120514200659.GA15604@kroah.com>
+ <0966a902-a35e-4c06-ab04-7d088bf25696@default>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <0966a902-a35e-4c06-ab04-7d088bf25696@default>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pravin B Shelar <pshelar@nicira.com>
-Cc: cl@linux.com, penberg@kernel.org, mpm@selenic.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, jesse@nicira.com, abhide@nicira.com
+To: Dan Magenheimer <dan.magenheimer@oracle.com>
+Cc: devel@driverdev.osuosl.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, ngupta@vflare.org, Konrad Wilk <konrad.wilk@oracle.com>, sjenning@linux.vnet.ibm.com
 
-On Mon, 2012-05-14 at 15:29 -0700, Pravin B Shelar wrote:
-> On arches that do not support this_cpu_cmpxchg_double slab_lock is used
-> to do atomic cmpxchg() on double word which contains page->_count.
-> page count can be changed from get_page() or put_page() without taking
-> slab_lock. That corrupts page counter.
+On Mon, May 14, 2012 at 01:45:36PM -0700, Dan Magenheimer wrote:
+> > From: Greg KH [mailto:gregkh@linuxfoundation.org]
+> > Subject: Re: [PATCH] ramster: switch over to zsmalloc and crypto interface
+> > 
+> > On Thu, May 10, 2012 at 12:06:21PM -0700, Dan Magenheimer wrote:
+> > > RAMster does many zcache-like things.  In order to avoid major
+> > > merge conflicts at 3.4, ramster used lzo1x directly for compression
+> > > and retained a local copy of xvmalloc, while zcache moved to the
+> > > new zsmalloc allocator and the crypto API.
+> > >
+> > > This patch moves ramster forward to use zsmalloc and crypto.
+> > >
+> > > Signed-off-by: Dan Magenheimer <dan.magenheimer@oracle.com>
+> > 
 > 
-> Following patch fixes it by moving page->_count out of cmpxchg_double
-> data. So that slub does no change it while updating slub meta-data in
-> struct page.
+> Hi Greg --
+> 
+> > I finally enabled building this one (didn't realize it required ZCACHE
+> > to be disabled, I can only build one or the other)
+> 
+> Yes, correct.  This overlap is explained in drivers/staging/ramster/TODO
+> (which IIRC you were the one that asked me to create that file).
+> In short the TODO says: ramster is a superset of zcache that also
+> "remotifies" zcache-compressed pages to another machine, and the overlap
+> with zcache will need to be rectified before either is promoted
+> from staging.
+> 
+> > and I noticed after
+> > this patch the following warnings in my build:
+> > 
+> > drivers/staging/ramster/zcache-main.c:950:13: warning: a??zcache_do_remotify_opsa?? defined but not used
+> > [-Wunused-function]
+> > drivers/staging/ramster/zcache-main.c:1039:13: warning: a??ramster_remotify_inita?? defined but not used
+> > [-Wunused-function]
+> 
+> These are because CONFIG_FRONTSWAP isn't yet in your tree.  It is
+> in linux-next and will hopefully finally be in Linus' tree at
+> the next window.  Ramster (and zcache) has low value without
+> frontswap, so the correct fix, after frontswap is merged, is
+> to remove all the "ifdef CONFIG_FRONTSWAP" and force the
+> dependency in Kconfig... but I can't do that until frontswap
+> is merged. :-(
 
-I say again : Page is owned by slub, so get_page() or put_page() is not
-allowed ?
+Ok, no problem then.
 
-How is put_page() going to work with order-1 or order-2 allocations ?
+> > drivers/staging/ramster/zcache-main.c: In function a??zcache_puta??:
+> > drivers/staging/ramster/zcache-main.c:1594:4: warning: a??pagea?? may be used uninitialized in this
+> > function [-Wuninitialized]
+> > drivers/staging/ramster/zcache-main.c:1536:8: note: a??pagea?? was declared here
+> 
+> Hmmm... this looks like an overzealous compiler.  The code
+> is correct and was unchanged by this patch.  My compiler
+> (gcc 4.4.4) doesn't even report it.  I think I could fix it
+> by assigning a superfluous NULL at the declaration and will
+> do that if you want but I can't test the fix with my compiler
+> since it doesn't report it.
+> 
+> > Care to please fix them up?
+> 
+> It looks like you've taken the patch... if my whining
+> above falls on deaf ears and you still want me to "fix"
+> one or both, let me know and I will submit a fixup patch.
+> (And then... what gcc are you using?)
 
-Me very confused by these Nicira patches.
+I'm using gcc 4.6.2 from openSUSE 12.1, if that matters.  No big deal if
+these are compiler warnings you are used to, it's just the first time
+I've built the code in a long time and wanted to ensure that you were
+aware of them.
 
+thanks,
+
+greg k-h
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
