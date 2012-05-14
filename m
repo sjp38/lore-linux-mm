@@ -1,117 +1,104 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx151.postini.com [74.125.245.151])
-	by kanga.kvack.org (Postfix) with SMTP id 63BE06B004D
-	for <linux-mm@kvack.org>; Mon, 14 May 2012 00:24:37 -0400 (EDT)
-Message-ID: <4FB08920.4010001@kernel.org>
-Date: Mon, 14 May 2012 13:25:04 +0900
+Received: from psmtp.com (na3sys010amx161.postini.com [74.125.245.161])
+	by kanga.kvack.org (Postfix) with SMTP id 6481D6B004D
+	for <linux-mm@kvack.org>; Mon, 14 May 2012 00:29:00 -0400 (EDT)
+Message-ID: <4FB08A27.2040503@kernel.org>
+Date: Mon, 14 May 2012 13:29:27 +0900
 From: Minchan Kim <minchan@kernel.org>
 MIME-Version: 1.0
-Subject: Re: Allow migration of mlocked page?
-References: <4FAC9786.9060200@kernel.org> <20120511131404.GQ11435@suse.de>
-In-Reply-To: <20120511131404.GQ11435@suse.de>
-Content-Type: text/plain; charset=ISO-8859-15
+Subject: Re: [PATCH 2/2 v3] drm/exynos: added userptr feature.
+References: <1335188594-17454-4-git-send-email-inki.dae@samsung.com> <1336544259-17222-3-git-send-email-inki.dae@samsung.com> <CAH3drwZBb=XBYpx=Fv=Xv0hajic51V9RwzY_-CpjKDuxgAj9Qg@mail.gmail.com> <001501cd2e4d$c7dbc240$579346c0$%dae@samsung.com> <4FAB4AD8.2010200@kernel.org> <002401cd2e7a$1e8b0ed0$5ba12c70$%dae@samsung.com> <4FAB68CF.8000404@kernel.org> <CAAQKjZM0a-Lg8KYwWi+LwAXJPFYLKqWaKbuc4iUGVKyoStXu_w@mail.gmail.com> <4FAB782C.306@kernel.org> <003301cd2e89$13f78c00$3be6a400$%dae@samsung.com> <4FAC0091.7070606@gmail.com> <4FAC623E.7090209@kernel.org> <4FAC7EBA.1080708@gmail.com> <CAH3drwb-HKmCbf6RxK5OEyAgukBTDLxt0Rf4ZNsygGuZ5SB=5g@mail.gmail.com> <4FAD829E.2030707@gmail.com> <CAH3drwYu_N5kOM1dSgJw8JNv2ScNkTPLZrRbzozrsF=D2=S=kA@mail.gmail.com> <4FAD99E1.4090600@gmail.com> <CAH3drwbTieeeAvdOt1d3drwZJh1+tACk8VkRszsDTryJBojHqg@mail.gmail.com> <CAHGf_=r+neC_e1OkRugqEqOuemqfuALeU=B8C5KSwLhJwdSVjg@mail.gmail.com> <CAAQKjZPvLXYK5e385QE7HzmKqfUJr9G3+0HVvLeiXDG+yLDx+A@mail.gmail.com>
+In-Reply-To: <CAAQKjZPvLXYK5e385QE7HzmKqfUJr9G3+0HVvLeiXDG+yLDx+A@mail.gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, tglx@linutronix.de, Ingo Molnar <mingo@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Theodore Ts'o <tytso@mit.edu>
+To: InKi Dae <daeinki@gmail.com>
+Cc: KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Jerome Glisse <j.glisse@gmail.com>, Inki Dae <inki.dae@samsung.com>, airlied@linux.ie, dri-devel@lists.freedesktop.org, kyungmin.park@samsung.com, sw0312.kim@samsung.com, linux-mm@kvack.org
 
-On 05/11/2012 10:14 PM, Mel Gorman wrote:
+On 05/12/2012 01:48 PM, InKi Dae wrote:
 
-> On Fri, May 11, 2012 at 01:37:26PM +0900, Minchan Kim wrote:
->>> <SNIP>
->>> promise mlock don't change physical page.
->>> I wonder if any realtime guys page migration is free lunch. they should
->>> disable both auto migration and compaction.
->>
->> I think disable migration is overkill. We can do better than it.
-> 
-> The reason why we do not migrate mlock() pages is down to expectations of the
-> application developer.  mlock historically was a real-time extention. For
-> files, there is no guarantee of latency because obviously things like
-> writing to the page can stall in balance_dirty_pages() but for anonymous
-> memory, there is an expectation that access be low or zero latency. This
-> would be particularly true if they used something like MAP_POPULATE.
-> 
->> Quote from discussion last year from me.
->>
->> "
->> We can solve a bit that by another approach if it's really problem
->> with RT processes. The another approach is to separate mlocked pages
->> with allocation time like below pseudo patch which just show the
->> concept)
->>
->> ex)
->> diff --git a/include/linux/highmem.h b/include/linux/highmem.h
->> index 3a93f73..8ae2e60 100644
->> --- a/include/linux/highmem.h
->> +++ b/include/linux/highmem.h
->> @@ -175,7 +175,8 @@ static inline struct page *
->>  alloc_zeroed_user_highpage_movable(struct vm_area_struct *vma,
->>                                         unsigned long vaddr)
->>  {
->> -       return __alloc_zeroed_user_highpage(__GFP_MOVABLE, vma, vaddr);
->> +       gfp_t gfp_flag = vma->vm_flags & VM_LCOKED ? 0 : __GFP_MOVABLE;
->> +       return __alloc_zeroed_user_highpage(gfp_flag, vma, vaddr);
->>  }
->>
->> But it's a solution about newly allocated page on mlocked vma.
->> Old pages in the VMA is still a problem.
-> 
-> Yes.
-> 
->> We can solve it at mlock system call through migrating the pages to
->> UNMOVABLE block.
-
-> 
-
-> Combining the two would be suitable because once mlock returns, any mapped
-> page is locked in place and future allocations will be placed suitable. I'd
-> also be ok allowing file-backed mlocked pages to be migrated on the grounds
-> that no assumptions can be made about access latency anyway.
-> 
->> "
->> It would be a solution to enhance compaction/CMA and we can make that compaction doesn't migrate
->> UNMOVABLE_PAGE_GROUP which make full by unevictable pages so mlocked page is still pinning page.
->> But get_user_pages in drivers still a problem. Or we can migrate unevictable pages, too so that
->> compaction/CMA would be good much but we lost pinning concept(It would break man page of mlocked
->> about real-time application stuff). Hmm.
->>
+> 2012/5/12 KOSAKI Motohiro <kosaki.motohiro@gmail.com>:
+>> On Fri, May 11, 2012 at 7:29 PM, Jerome Glisse <j.glisse@gmail.com> wrote:
+>>> On Fri, May 11, 2012 at 6:59 PM, KOSAKI Motohiro
+>>> <kosaki.motohiro@gmail.com> wrote:
+>>>>> My point is this ioctl will be restricted to one user (Xserver if i
+>>>>> understand) and only this user, there is no fork in it so no need to
+>>>>> worry about fork, just setting the vma as locked will be enough.
+>>>>>
+>>>>> But i don't want people reading this driver suddenly think that what
+>>>>> it's doing is ok, it's not, it's hack and can never make to work
+>>>>> properly on a general case, that's why it needs a big comment stating,
+>>>>> stressing that. I just wanted to make sure Inki and Kyungmin
+>>>>> understood that this kind of ioctl should be restricted to carefully
+>>>>> selected user and that there is no way to make it general or reliable
+>>>>> outside that.
+>>>>
+>>>>
+>>>> first off, I'm not drm guy and then I don't intend to insist you. but if
+>>>> application don't use fork, get_user_pages() has no downside. I guess we
+>>>> don't need VM_LOCKED hack.
+>>>>
+>>>> but again, up to drm folks.
 >>>
->>> And, think if application explictly use migrate_pages(2) or admins uses
->>> cpusets. driver code can't assume such scenario
->>> doesn't occur, yes?
+>>> You need the VM_LOCKED hack to mare sure that the xorg vma still point
+>>> to the same page, afaict with get_user_pages pages can be migrated out
+>>> of the anonymous vma so the vma might point to new page, while old
+>>> page are still in use by the gpu and not recycle until their refcount
+>>> drop to 0.
 >>
->> Yes. it seems to migrate mlocked page now.
->> Hmm,
->> Johannes, Mel.
->> Why should we be unfair on only compaction?
->>
+>> afaik, get_user_pages() prevent page migration. (see
+>> migrate_page_move_mapping). but mlock doesn't.
 > 
-> If CMA decide they want to alter mlocked pages in this way, it's sortof
-> ok. While CMA is being used, there are no expectations on the RT
-> behaviour of the system - stalls are expected. In their use cases, CMA
-> failing is far worse than access latency to an mlocked page being
-> variable while CMA is running.
 > 
-> Compaction on the other hand is during the normal operation of the
-> machine. There are applications that assume that if anonymous memory
-> is mlocked() then access to it is close to zero latency. They are
-> not RT-critical processes (or they would disable THP) but depend on
-> this. Allowing compaction to migrate mlocked() pages will result in bugs
-> being reported by these people.
+> I'd like to make sure some points before preparing next patch to
+> userptr feature.
 > 
-> I've received one bug this year about access latency to mlocked() regions but
-> it turned out to be a file-backed region and related to when the write-fault
-> is incurred. The ultimate fix was in the application but we'll get new bug
-> reports if anonymous mlocked pages do not preserve the current guarantees
-> on access latency.
-> 
+> in case that userptr ioctl can be accessed by user.
+> 1. all the pages from get_user_pages can't be migrated by CMA and also
 
 
-If so, what do you think about migration of mlocked pages by migrate_pages, cpuset_migrate_mm and memcg?
-I think they all is done by under user's control while compaction happens regardless of user.
-So do you think that's why compaction shouldn't migrate mlocked page?
+Yes. I already mentioned it.
+
+> it doesn't need VM_LOCKED or VM_RESERVED flag.
+
+
+Yes, if you just use that flag to prevent migration.
+
+> 
+> 2. if VM_DONTCOPY is set to vma->flags then all the pages to this vma
+> are safe from being COW.
+
+
+Yes.
+
+> 
+> 3. userptr ioctl  has limited size and the limited size can be changed
+> by only root user. this is for preventing from dropping system
+> performance by malicious software.
+
+
+IMHO, looks good to me but need answer from DRM guy on the question.
+
+> 
+> with above actions taken, are there something we didn't care? if so,
+> we will preparing next path for the userptr ioctl to be accessed by
+> only root user. this means that this feature is used by only X Server
+> but isn't used by any users. so we are going to wait something
+> resolved fully. of course, as Jerome said, we wil add big comments
+> describing this feature enough to next patch.
+> 
+> Thanks,
+> Inki Dae
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Fight unfair telecom internet charges in Canada: sign http://stopthemeter.ca/
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> 
+
 
 
 -- 
