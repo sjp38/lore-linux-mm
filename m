@@ -1,77 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx204.postini.com [74.125.245.204])
-	by kanga.kvack.org (Postfix) with SMTP id 1A2206B00E7
-	for <linux-mm@kvack.org>; Mon, 14 May 2012 04:45:14 -0400 (EDT)
-From: Minchan Kim <minchan@kernel.org>
-Subject: [PATCH 3/3] x86: Support local_flush_tlb_kernel_range
-Date: Mon, 14 May 2012 17:45:33 +0900
-Message-Id: <1336985134-31967-3-git-send-email-minchan@kernel.org>
-In-Reply-To: <1336985134-31967-1-git-send-email-minchan@kernel.org>
-References: <1336985134-31967-1-git-send-email-minchan@kernel.org>
+Received: from psmtp.com (na3sys010amx183.postini.com [74.125.245.183])
+	by kanga.kvack.org (Postfix) with SMTP id 89D906B004D
+	for <linux-mm@kvack.org>; Mon, 14 May 2012 04:51:27 -0400 (EDT)
+Received: by pbbrp2 with SMTP id rp2so8382182pbb.14
+        for <linux-mm@kvack.org>; Mon, 14 May 2012 01:51:26 -0700 (PDT)
+Message-ID: <4FB0C789.6010107@gmail.com>
+Date: Mon, 14 May 2012 16:51:21 +0800
+From: Cong Wang <xiyou.wangcong@gmail.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH] mm: raise MemFree by reverting percpu_pagelist_fraction
+ to 0
+References: <alpine.LSU.2.00.1205110054520.2801@eggly.anvils> <CA+1xoqcChazS=TRt6-7GjJAzQNFLFXmO623rWwjRkdD5x3k=iw@mail.gmail.com> <4FACD00D.4060003@kernel.org> <4FACD573.4060103@kernel.org> <CA+55aFxsZqU4bXRz61ngnR2ozH=AAhwGHR+PqzdTRfnCxJY0oQ@mail.gmail.com> <CA+1xoqc15HY1rECsJ6Aj1WMzwT12z4DByJhFopyBAiKawEFh3Q@mail.gmail.com>
+In-Reply-To: <CA+1xoqc15HY1rECsJ6Aj1WMzwT12z4DByJhFopyBAiKawEFh3Q@mail.gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-Cc: Nitin Gupta <ngupta@vflare.org>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Dan Magenheimer <dan.magenheimer@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Minchan Kim <minchan@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, Tejun Heo <tj@kernel.org>, David Howells <dhowells@redhat.com>, x86@kernel.org
+To: Sasha Levin <levinsasha928@gmail.com>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Minchan Kim <minchan@kernel.org>, Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-The zsmalloc [un]maps non-physical contiguos pages to contiguous
-virual address frequently so it needs frequent tlb-flush.
-Now x86 doesn't support common utility function for flushing just
-a few tlb entries so zsmalloc have been used set_pte and __flush_tlb_one
-which are x86 specific functions. It means zsmalloc have a dependency
-with x86.
+On 05/12/2012 12:35 AM, Sasha Levin wrote:
+> On Fri, May 11, 2012 at 6:27 PM, Linus Torvalds
+> <torvalds@linux-foundation.org>  wrote:
+>> On Fri, May 11, 2012 at 2:01 AM, Minchan Kim<minchan@kernel.org>  wrote:
+>>>
+>>> I didn't have a time so made quick patch to show just concept.
+>>> Not tested and Not consider carefully.
+>>> If anyone doesn't oppose, I will send formal patch which will have more beauty code.
+>>
+>> What's so magical about that '8' *anyway*? We do we have that minimum at all?
+>>
+>> At the very least, the 8-vs-0 thing needs to be explained.
+>
+> The '0' acts as an "off" switch.
+>
+> Once it's on, we reserve 1/x of the pages for the pagelists. I'm not
+> sure why 8 was selected in the first place, but I guess it made sense
+> that you don't want to reserve 15%+ of your memory for the pagelists.
 
-This patch adds new function, local_flush_tlb_kernel_range which
-are good candidate for being common utility function because other
-architecture(ex, MIPS, sh, unicore32, arm, score) already have
-supportd it.
-
-Cc: Thomas Gleixner <tglx@linutronix.de>
-Cc: Ingo Molnar <mingo@redhat.com>
-Cc: Tejun Heo <tj@kernel.org>
-Cc: David Howells <dhowells@redhat.com>
-Cc: x86@kernel.org
-Signed-off-by: Minchan Kim <minchan@kernel.org>
----
- arch/x86/include/asm/tlbflush.h  |   12 ++++++++++++
- drivers/staging/zsmalloc/Kconfig |    2 +-
- 2 files changed, 13 insertions(+), 1 deletion(-)
-
-diff --git a/arch/x86/include/asm/tlbflush.h b/arch/x86/include/asm/tlbflush.h
-index 4ece077..6e1253a 100644
---- a/arch/x86/include/asm/tlbflush.h
-+++ b/arch/x86/include/asm/tlbflush.h
-@@ -172,4 +172,16 @@ static inline void flush_tlb_kernel_range(unsigned long start,
- 	flush_tlb_all();
- }
- 
-+static inline void local_flush_tlb_kernel_range(unsigned long start,
-+		unsigned long end)
-+{
-+	if (cpu_has_invlpg) {
-+		while (start < end) {
-+			__flush_tlb_single(start);
-+			start += PAGE_SIZE;
-+		}
-+	} else
-+		local_flush_tlb();
-+}
-+
- #endif /* _ASM_X86_TLBFLUSH_H */
-diff --git a/drivers/staging/zsmalloc/Kconfig b/drivers/staging/zsmalloc/Kconfig
-index def2483..29819b8 100644
---- a/drivers/staging/zsmalloc/Kconfig
-+++ b/drivers/staging/zsmalloc/Kconfig
-@@ -3,7 +3,7 @@ config ZSMALLOC
- 	# arch dependency is because of the use of local_unmap_kernel_range
- 	# in zsmalloc-main.c.
- 	# TODO: implement local_unmap_kernel_range in all architecture.
--	depends on (ARM || MIPS || SUPERH)
-+	depends on (ARM || MIPS || SUPERH || X86)
- 	default n
- 	help
- 	  zsmalloc is a slab-based memory allocator designed to store
--- 
-1.7.9.5
+1/x is not user-friendly, other vm sysctl's use percentage (x%), for 
+example, overcommit_ratio.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
