@@ -1,82 +1,117 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx190.postini.com [74.125.245.190])
-	by kanga.kvack.org (Postfix) with SMTP id 902456B004D
-	for <linux-mm@kvack.org>; Mon, 14 May 2012 00:13:07 -0400 (EDT)
-Message-ID: <4FB0866D.4020203@kernel.org>
-Date: Mon, 14 May 2012 13:13:33 +0900
+Received: from psmtp.com (na3sys010amx151.postini.com [74.125.245.151])
+	by kanga.kvack.org (Postfix) with SMTP id 63BE06B004D
+	for <linux-mm@kvack.org>; Mon, 14 May 2012 00:24:37 -0400 (EDT)
+Message-ID: <4FB08920.4010001@kernel.org>
+Date: Mon, 14 May 2012 13:25:04 +0900
 From: Minchan Kim <minchan@kernel.org>
 MIME-Version: 1.0
 Subject: Re: Allow migration of mlocked page?
-References: <4FAC9786.9060200@kernel.org> <1336728026.1017.7.camel@twins>
-In-Reply-To: <1336728026.1017.7.camel@twins>
-Content-Type: text/plain; charset=ISO-8859-1
+References: <4FAC9786.9060200@kernel.org> <20120511131404.GQ11435@suse.de>
+In-Reply-To: <20120511131404.GQ11435@suse.de>
+Content-Type: text/plain; charset=ISO-8859-15
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, tglx@linutronix.de, Ingo Molnar <mingo@redhat.com>, Theodore Ts'o <tytso@mit.edu>
+To: Mel Gorman <mgorman@suse.de>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, tglx@linutronix.de, Ingo Molnar <mingo@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Theodore Ts'o <tytso@mit.edu>
 
-On 05/11/2012 06:20 PM, Peter Zijlstra wrote:
+On 05/11/2012 10:14 PM, Mel Gorman wrote:
 
-> On Fri, 2012-05-11 at 13:37 +0900, Minchan Kim wrote:
->> I hope hear opinion from rt guys, too.
+> On Fri, May 11, 2012 at 01:37:26PM +0900, Minchan Kim wrote:
+>>> <SNIP>
+>>> promise mlock don't change physical page.
+>>> I wonder if any realtime guys page migration is free lunch. they should
+>>> disable both auto migration and compaction.
+>>
+>> I think disable migration is overkill. We can do better than it.
 > 
-> Its a problem yes, not sure your solution is any good though. As it
-> stands mlock() simply doesn't guarantee no faults, all it does is
-> guarantee no major faults.
-
-
-I can't find such definition from man pages
-"
-       Real-time  processes  that are using mlockall() to prevent delays on page faults should
-       reserve enough locked stack pages before entering the time-critical section, so that no
-       page fault can be caused by function calls
-"
-So I didn't expect it. Is your definition popular available on server RT?
-At least, embedded guys didn't expect it.
-
-
+> The reason why we do not migrate mlock() pages is down to expectations of the
+> application developer.  mlock historically was a real-time extention. For
+> files, there is no guarantee of latency because obviously things like
+> writing to the page can stall in balance_dirty_pages() but for anonymous
+> memory, there is an expectation that access be low or zero latency. This
+> would be particularly true if they used something like MAP_POPULATE.
 > 
-> Are you saying compaction doesn't actually move mlocked pages? I'm
-
-
-Yes.
-
-> somewhat surprised by that, I've always assumed it would.
-
-
-It seems everyone assumed it.
-
+>> Quote from discussion last year from me.
+>>
+>> "
+>> We can solve a bit that by another approach if it's really problem
+>> with RT processes. The another approach is to separate mlocked pages
+>> with allocation time like below pseudo patch which just show the
+>> concept)
+>>
+>> ex)
+>> diff --git a/include/linux/highmem.h b/include/linux/highmem.h
+>> index 3a93f73..8ae2e60 100644
+>> --- a/include/linux/highmem.h
+>> +++ b/include/linux/highmem.h
+>> @@ -175,7 +175,8 @@ static inline struct page *
+>>  alloc_zeroed_user_highpage_movable(struct vm_area_struct *vma,
+>>                                         unsigned long vaddr)
+>>  {
+>> -       return __alloc_zeroed_user_highpage(__GFP_MOVABLE, vma, vaddr);
+>> +       gfp_t gfp_flag = vma->vm_flags & VM_LCOKED ? 0 : __GFP_MOVABLE;
+>> +       return __alloc_zeroed_user_highpage(gfp_flag, vma, vaddr);
+>>  }
+>>
+>> But it's a solution about newly allocated page on mlocked vma.
+>> Old pages in the VMA is still a problem.
 > 
-> Its sad that mlock() doesn't take a flags argument, so I'd rather
-> introduce a new madvise() flag for -rt, something like MADV_UNMOVABLE
-> (or whatever) which will basically copy the pages to an un-movable page
-> block and really pin the things.
-
-
-1) We don't have space of vm_flags in 32bit machine and Konstantin
-   have sorted out but not sure it's merged. Anyway, Okay. It couldn't be a problem.
-
-2) It needs application's fix and as Mel said, we might get new bug reports about latency.
-   Doesn't it break current mlock semantic? - " no page fault can be caused by function calls"
-   Otherwise, we should fix man page like your saying -   "no major page fault can be caused by function calls"
-
- 
-
-> That way mlock() can stay what the spec says it is and guarantee
-> residency.
+> Yes.
+> 
+>> We can solve it at mlock system call through migrating the pages to
+>> UNMOVABLE block.
 
 > 
 
+> Combining the two would be suitable because once mlock returns, any mapped
+> page is locked in place and future allocations will be placed suitable. I'd
+> also be ok allowing file-backed mlocked pages to be migrated on the grounds
+> that no assumptions can be made about access latency anyway.
 > 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Fight unfair telecom internet charges in Canada: sign http://stopthemeter.ca/
-> Don't email: <a href=ilto:"dont@kvack.org"> email@kvack.org </a>
+>> "
+>> It would be a solution to enhance compaction/CMA and we can make that compaction doesn't migrate
+>> UNMOVABLE_PAGE_GROUP which make full by unevictable pages so mlocked page is still pinning page.
+>> But get_user_pages in drivers still a problem. Or we can migrate unevictable pages, too so that
+>> compaction/CMA would be good much but we lost pinning concept(It would break man page of mlocked
+>> about real-time application stuff). Hmm.
+>>
+>>>
+>>> And, think if application explictly use migrate_pages(2) or admins uses
+>>> cpusets. driver code can't assume such scenario
+>>> doesn't occur, yes?
+>>
+>> Yes. it seems to migrate mlocked page now.
+>> Hmm,
+>> Johannes, Mel.
+>> Why should we be unfair on only compaction?
+>>
+> 
+> If CMA decide they want to alter mlocked pages in this way, it's sortof
+> ok. While CMA is being used, there are no expectations on the RT
+> behaviour of the system - stalls are expected. In their use cases, CMA
+> failing is far worse than access latency to an mlocked page being
+> variable while CMA is running.
+> 
+> Compaction on the other hand is during the normal operation of the
+> machine. There are applications that assume that if anonymous memory
+> is mlocked() then access to it is close to zero latency. They are
+> not RT-critical processes (or they would disable THP) but depend on
+> this. Allowing compaction to migrate mlocked() pages will result in bugs
+> being reported by these people.
+> 
+> I've received one bug this year about access latency to mlocked() regions but
+> it turned out to be a file-backed region and related to when the write-fault
+> is incurred. The ultimate fix was in the application but we'll get new bug
+> reports if anonymous mlocked pages do not preserve the current guarantees
+> on access latency.
 > 
 
+
+If so, what do you think about migration of mlocked pages by migrate_pages, cpuset_migrate_mm and memcg?
+I think they all is done by under user's control while compaction happens regardless of user.
+So do you think that's why compaction shouldn't migrate mlocked page?
 
 
 -- 
