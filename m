@@ -1,98 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx104.postini.com [74.125.245.104])
-	by kanga.kvack.org (Postfix) with SMTP id 7508F6B004D
-	for <linux-mm@kvack.org>; Mon, 14 May 2012 18:41:58 -0400 (EDT)
-Received: by pbbrp2 with SMTP id rp2so9647801pbb.14
-        for <linux-mm@kvack.org>; Mon, 14 May 2012 15:41:57 -0700 (PDT)
-Date: Mon, 14 May 2012 15:41:53 -0700
-From: Greg KH <gregkh@linuxfoundation.org>
-Subject: Re: [PATCH] ramster: switch over to zsmalloc and crypto interface
-Message-ID: <20120514224153.GB28559@kroah.com>
-References: <1336676781-8571-1-git-send-email-dan.magenheimer@oracle.com>
- <20120514200659.GA15604@kroah.com>
- <0966a902-a35e-4c06-ab04-7d088bf25696@default>
+Received: from psmtp.com (na3sys010amx175.postini.com [74.125.245.175])
+	by kanga.kvack.org (Postfix) with SMTP id 635AA6B004D
+	for <linux-mm@kvack.org>; Mon, 14 May 2012 18:52:57 -0400 (EDT)
+Received: by ggm4 with SMTP id 4so3633348ggm.14
+        for <linux-mm@kvack.org>; Mon, 14 May 2012 15:52:56 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <0966a902-a35e-4c06-ab04-7d088bf25696@default>
+In-Reply-To: <alpine.DEB.2.00.1205140940550.26304@router.home>
+References: <4FAC9786.9060200@kernel.org> <20120511131404.GQ11435@suse.de>
+ <4FADA007.3020309@gmail.com> <20120514133210.GE29102@suse.de>
+ <1337003515.2443.35.camel@twins> <alpine.DEB.2.00.1205140857380.26304@router.home>
+ <1337004860.2443.47.camel@twins> <alpine.DEB.2.00.1205140940550.26304@router.home>
+From: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
+Date: Mon, 14 May 2012 18:52:36 -0400
+Message-ID: <CAHGf_=q=MsmsXtQfWSoyfCpveRaX9-Ns11t9vXQjjt9WHZK5Og@mail.gmail.com>
+Subject: Re: Allow migration of mlocked page?
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Magenheimer <dan.magenheimer@oracle.com>
-Cc: devel@driverdev.osuosl.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, ngupta@vflare.org, Konrad Wilk <konrad.wilk@oracle.com>, sjenning@linux.vnet.ibm.com
+To: Christoph Lameter <cl@linux.com>
+Cc: Peter Zijlstra <peterz@infradead.org>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, tglx@linutronix.de, Ingo Molnar <mingo@redhat.com>, Theodore Ts'o <tytso@mit.edu>, roland@kernel.org
 
-On Mon, May 14, 2012 at 01:45:36PM -0700, Dan Magenheimer wrote:
-> > From: Greg KH [mailto:gregkh@linuxfoundation.org]
-> > Subject: Re: [PATCH] ramster: switch over to zsmalloc and crypto interface
-> > 
-> > On Thu, May 10, 2012 at 12:06:21PM -0700, Dan Magenheimer wrote:
-> > > RAMster does many zcache-like things.  In order to avoid major
-> > > merge conflicts at 3.4, ramster used lzo1x directly for compression
-> > > and retained a local copy of xvmalloc, while zcache moved to the
-> > > new zsmalloc allocator and the crypto API.
-> > >
-> > > This patch moves ramster forward to use zsmalloc and crypto.
-> > >
-> > > Signed-off-by: Dan Magenheimer <dan.magenheimer@oracle.com>
-> > 
-> 
-> Hi Greg --
-> 
-> > I finally enabled building this one (didn't realize it required ZCACHE
-> > to be disabled, I can only build one or the other)
-> 
-> Yes, correct.  This overlap is explained in drivers/staging/ramster/TODO
-> (which IIRC you were the one that asked me to create that file).
-> In short the TODO says: ramster is a superset of zcache that also
-> "remotifies" zcache-compressed pages to another machine, and the overlap
-> with zcache will need to be rectified before either is promoted
-> from staging.
-> 
-> > and I noticed after
-> > this patch the following warnings in my build:
-> > 
-> > drivers/staging/ramster/zcache-main.c:950:13: warning: a??zcache_do_remotify_opsa?? defined but not used
-> > [-Wunused-function]
-> > drivers/staging/ramster/zcache-main.c:1039:13: warning: a??ramster_remotify_inita?? defined but not used
-> > [-Wunused-function]
-> 
-> These are because CONFIG_FRONTSWAP isn't yet in your tree.  It is
-> in linux-next and will hopefully finally be in Linus' tree at
-> the next window.  Ramster (and zcache) has low value without
-> frontswap, so the correct fix, after frontswap is merged, is
-> to remove all the "ifdef CONFIG_FRONTSWAP" and force the
-> dependency in Kconfig... but I can't do that until frontswap
-> is merged. :-(
+On Mon, May 14, 2012 at 10:43 AM, Christoph Lameter <cl@linux.com> wrote:
+> On Mon, 14 May 2012, Peter Zijlstra wrote:
+>
+>> > A PG_pinned could allow us to make that distinction to avoid overhead in
+>> > the reclaim and page migration logic and also we could add some semantics
+>> > that avoid page faults.
+>>
+>> Either that or a VMA flag, I think both infiniband and whatever new
+>> mlock API we invent will pretty much always be VMA wide. Or does the
+>> infinimuck take random pages out? All I really know about IB is to stay
+>> the #$%! away from it [as Mel recently learned the hard way] :-)
+>
+> Devices (also infiniband) register buffers allocated on the heap and
+> increase the page count of the pages. Its not VMA bound.
+>
+> Creating a VMA flag would force device driver writers to break up VMAs I
+> think.
 
-Ok, no problem then.
-
-> > drivers/staging/ramster/zcache-main.c: In function a??zcache_puta??:
-> > drivers/staging/ramster/zcache-main.c:1594:4: warning: a??pagea?? may be used uninitialized in this
-> > function [-Wuninitialized]
-> > drivers/staging/ramster/zcache-main.c:1536:8: note: a??pagea?? was declared here
-> 
-> Hmmm... this looks like an overzealous compiler.  The code
-> is correct and was unchanged by this patch.  My compiler
-> (gcc 4.4.4) doesn't even report it.  I think I could fix it
-> by assigning a superfluous NULL at the declaration and will
-> do that if you want but I can't test the fix with my compiler
-> since it doesn't report it.
-> 
-> > Care to please fix them up?
-> 
-> It looks like you've taken the patch... if my whining
-> above falls on deaf ears and you still want me to "fix"
-> one or both, let me know and I will submit a fixup patch.
-> (And then... what gcc are you using?)
-
-I'm using gcc 4.6.2 from openSUSE 12.1, if that matters.  No big deal if
-these are compiler warnings you are used to, it's just the first time
-I've built the code in a long time and wanted to ensure that you were
-aware of them.
-
-thanks,
-
-greg k-h
+Why do you dislike vma splitting so much? Infiniband is usually HPC
+(i.e. 64bit arch)
+and number of VMAs are not big matter. Usually IB register buffer is
+not one or two pages. It's usually bigger.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
