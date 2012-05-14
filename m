@@ -1,36 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx163.postini.com [74.125.245.163])
-	by kanga.kvack.org (Postfix) with SMTP id 9B02D6B004D
-	for <linux-mm@kvack.org>; Mon, 14 May 2012 18:16:34 -0400 (EDT)
-From: Harald Glatt <mail@hachre.de>
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: quoted-printable
-Subject: scan_unevictable_pages sysctl/node-interface
-Message-Id: <9EEC7022-38C5-46B8-8825-9FA4E98F6CF6@hachre.de>
-Date: Tue, 15 May 2012 00:16:30 +0200
-Mime-Version: 1.0 (Mac OS X Mail 6.0 \(1457\))
+Received: from psmtp.com (na3sys010amx135.postini.com [74.125.245.135])
+	by kanga.kvack.org (Postfix) with SMTP id D4D866B004D
+	for <linux-mm@kvack.org>; Mon, 14 May 2012 18:30:02 -0400 (EDT)
+Received: by mail-gg0-f178.google.com with SMTP id q6so4554827ggc.37
+        for <linux-mm@kvack.org>; Mon, 14 May 2012 15:30:01 -0700 (PDT)
+From: Pravin B Shelar <pshelar@nicira.com>
+Subject: [PATCH v2] mm: Fix slab->page _count corruption.
+Date: Mon, 14 May 2012 15:29:57 -0700
+Message-Id: <1337034597-1826-1-git-send-email-pshelar@nicira.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
+To: cl@linux.com, penberg@kernel.org, mpm@selenic.com
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, jesse@nicira.com, abhide@nicira.com, Pravin B Shelar <pshelar@nicira.com>
 
-Hey,
+On arches that do not support this_cpu_cmpxchg_double slab_lock is used
+to do atomic cmpxchg() on double word which contains page->_count.
+page count can be changed from get_page() or put_page() without taking
+slab_lock. That corrupts page counter.
 
-I'm reshaping my raid5 to raid6 in linux 3.3.2 with mdadm 3.2.3 atm and =
-I got this messages in dmesg:
+Following patch fixes it by moving page->_count out of cmpxchg_double
+data. So that slub does no change it while updating slub meta-data in
+struct page.
 
-[390496.114687] md: reshape of RAID array md0
-[390496.114692] md: minimum _guaranteed_  speed: 1000 KB/sec/disk.
-[390496.114697] md: using maximum available idle IO bandwidth (but not =
-more than 200000 KB/sec) for reshape.
-[390496.114707] md: using 128k window, over a total of 1465138496k.
-[390751.722771] sysctl: The scan_unevictable_pages sysctl/node-interface =
-has been disabled for lack of a legitimate use case.  If you have one, =
-please send an email to linux-mm@kvack.org.
+Reported-by: Amey Bhide <abhide@nicira.com>
+Signed-off-by: Pravin B Shelar <pshelar@nicira.com>
+---
+ include/linux/mm_types.h |    8 ++++++++
+ 1 file changed, 8 insertions(+)
 
-Maybe its a use case I don't know :) Just thought I'd give you a heads =
-up. So far it seems to continue without a problem though!
-
-Harald=
+diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
+index dad95bd..5f558dc 100644
+--- a/include/linux/mm_types.h
++++ b/include/linux/mm_types.h
+@@ -57,8 +57,16 @@ struct page {
+ 		};
+ 
+ 		union {
++#if defined(CONFIG_HAVE_CMPXCHG_DOUBLE) && \
++    defined(CONFIG_HAVE_ALIGNED_STRUCT_PAGE)
+ 			/* Used for cmpxchg_double in slub */
+ 			unsigned long counters;
++#else
++			/* Keep _count separate from slub cmpxchg_double data,
++			 * As rest of double word is protected by slab_lock
++			 * but _count is not. */
++			unsigned counters;
++#endif
+ 
+ 			struct {
+ 
+-- 
+1.7.10
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
