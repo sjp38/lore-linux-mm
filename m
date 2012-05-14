@@ -1,28 +1,25 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx146.postini.com [74.125.245.146])
-	by kanga.kvack.org (Postfix) with SMTP id 5EAD56B00EB
-	for <linux-mm@kvack.org>; Mon, 14 May 2012 09:45:08 -0400 (EDT)
-Date: Mon, 14 May 2012 08:45:05 -0500 (CDT)
+Received: from psmtp.com (na3sys010amx200.postini.com [74.125.245.200])
+	by kanga.kvack.org (Postfix) with SMTP id 783046B00EC
+	for <linux-mm@kvack.org>; Mon, 14 May 2012 09:45:48 -0400 (EDT)
+Date: Mon, 14 May 2012 08:45:43 -0500 (CDT)
 From: Christoph Lameter <cl@linux.com>
-Subject: Re: Re: [PATCH] slub: missing test for partial pages flush work in
- flush_all
-In-Reply-To: <201205140909294844918@gmail.com>
-Message-ID: <alpine.DEB.2.00.1205140844490.26056@router.home>
-References: <201205111008157652383@gmail.com>, <alpine.DEB.2.00.1205111113460.31049@router.home> <201205140909294844918@gmail.com>
+Subject: Re: Allow migration of mlocked page?
+In-Reply-To: <4FAD9FAF.4050905@gmail.com>
+Message-ID: <alpine.DEB.2.00.1205140845300.26056@router.home>
+References: <4FAC9786.9060200@kernel.org> <1336728026.1017.7.camel@twins> <alpine.DEB.2.00.1205111117380.31049@router.home> <4FAD9FAF.4050905@gmail.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: majianpeng <majianpeng@gmail.com>
-Cc: Gilad Ben-Yossef <gilad@benyossef.com>, linux-mm <linux-mm@kvack.org>, Pekka Enberg <penberg@cs.helsinki.fi>, linux-kernel <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>
+To: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
+Cc: Peter Zijlstra <peterz@infradead.org>, Minchan Kim <minchan@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, tglx@linutronix.de, Ingo Molnar <mingo@redhat.com>, Theodore Ts'o <tytso@mit.edu>
 
-On Mon, 14 May 2012, majianpeng wrote:
+On Fri, 11 May 2012, KOSAKI Motohiro wrote:
 
-> Sorry for late to relay. I rewrited the comment and resend.
-> I have a question to ask:because the patch fixed by others,for example Christoph Lameter, Gilad.
-> Should I add sogine-off by them in the patch?
+> I don't see VmPin counter in my box. Did you introduce this one recently?
 
-I 6hink its fine the way it is.
+Yes I think it was 3.3 or 3.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
