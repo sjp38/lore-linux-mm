@@ -1,49 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx167.postini.com [74.125.245.167])
-	by kanga.kvack.org (Postfix) with SMTP id 2F8F36B0081
-	for <linux-mm@kvack.org>; Mon, 14 May 2012 16:07:05 -0400 (EDT)
-Received: by dakp5 with SMTP id p5so9204459dak.14
-        for <linux-mm@kvack.org>; Mon, 14 May 2012 13:07:04 -0700 (PDT)
-Date: Mon, 14 May 2012 13:06:59 -0700
-From: Greg KH <gregkh@linuxfoundation.org>
-Subject: Re: [PATCH] ramster: switch over to zsmalloc and crypto interface
-Message-ID: <20120514200659.GA15604@kroah.com>
-References: <1336676781-8571-1-git-send-email-dan.magenheimer@oracle.com>
+Received: from psmtp.com (na3sys010amx204.postini.com [74.125.245.204])
+	by kanga.kvack.org (Postfix) with SMTP id D835C6B0081
+	for <linux-mm@kvack.org>; Mon, 14 May 2012 16:09:30 -0400 (EDT)
+Received: by dakp5 with SMTP id p5so9208235dak.14
+        for <linux-mm@kvack.org>; Mon, 14 May 2012 13:09:30 -0700 (PDT)
+Date: Mon, 14 May 2012 13:09:25 -0700
+From: Tejun Heo <tj@kernel.org>
+Subject: Re: [PATCH v3 6/6] remove __must_check for
+ res_counter_charge_nofail()
+Message-ID: <20120514200925.GH2366@google.com>
+References: <4FACDED0.3020400@jp.fujitsu.com>
+ <4FACE184.6020307@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <1336676781-8571-1-git-send-email-dan.magenheimer@oracle.com>
+In-Reply-To: <4FACE184.6020307@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Magenheimer <dan.magenheimer@oracle.com>
-Cc: devel@driverdev.osuosl.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, ngupta@vflare.org, konrad.wilk@oracle.com, sjenning@linux.vnet.ibm.com
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "cgroups@vger.kernel.org" <cgroups@vger.kernel.org>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Frederic Weisbecker <fweisbec@gmail.com>, Han Ying <yinghan@google.com>, Glauber Costa <glommer@parallels.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, Hiroyuki Kamezawa <kamezawa.hiroyuki@gmail.com>, Linux Kernel <linux-kernel@vger.kernel.org>
 
-On Thu, May 10, 2012 at 12:06:21PM -0700, Dan Magenheimer wrote:
-> RAMster does many zcache-like things.  In order to avoid major
-> merge conflicts at 3.4, ramster used lzo1x directly for compression
-> and retained a local copy of xvmalloc, while zcache moved to the
-> new zsmalloc allocator and the crypto API.
+On Fri, May 11, 2012 at 06:53:08PM +0900, KAMEZAWA Hiroyuki wrote:
+> I picked this up from Costa's slub memcg series. For fixing added warning
+> by patch 4.
+> ==
+> From: Glauber Costa <glommer@parallels.com>
+> Subject: [PATCH 6/6] remove __must_check for res_counter_charge_nofail()
 > 
-> This patch moves ramster forward to use zsmalloc and crypto.
+> Since we will succeed with the allocation no matter what, there
+> isn't the need to use __must_check with it. It can very well
+> be optional.
 > 
-> Signed-off-by: Dan Magenheimer <dan.magenheimer@oracle.com>
+> Signed-off-by: Glauber Costa <glommer@parallels.com>
+> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-I finally enabled building this one (didn't realize it required ZCACHE
-to be disabled, I can only build one or the other), and I noticed after
-this patch the following warnings in my build:
+For 3-6,
 
-drivers/staging/ramster/zcache-main.c:950:13: warning: a??zcache_do_remotify_opsa?? defined but not used [-Wunused-function]
-drivers/staging/ramster/zcache-main.c:1039:13: warning: a??ramster_remotify_inita?? defined but not used [-Wunused-function]
-drivers/staging/ramster/zcache-main.c: In function a??zcache_puta??:
-drivers/staging/ramster/zcache-main.c:1594:4: warning: a??pagea?? may be used uninitialized in this function [-Wuninitialized]
-drivers/staging/ramster/zcache-main.c:1536:8: note: a??pagea?? was declared here
+ Reviewed-by: Tejun Heo <tj@kernel.org>
 
-Care to please fix them up?
+Thanks a lot for doing this.  This doesn't solve all the failure paths
+tho.  ie. what about -EINTR failures from lock contention?
+pre_destroy() would probably need delay and retry logic with
+WARN_ON_ONCE() on !-EINTR failures.
 
-thanks,
+Thank you.
 
-greg k-h
+-- 
+tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
