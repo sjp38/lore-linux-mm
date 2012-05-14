@@ -1,29 +1,29 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx103.postini.com [74.125.245.103])
-	by kanga.kvack.org (Postfix) with SMTP id 713116B0083
-	for <linux-mm@kvack.org>; Sun, 13 May 2012 20:58:34 -0400 (EDT)
-Received: from m2.gw.fujitsu.co.jp (unknown [10.0.50.72])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 9159F3EE0AE
-	for <linux-mm@kvack.org>; Mon, 14 May 2012 09:58:32 +0900 (JST)
-Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 7909745DD74
-	for <linux-mm@kvack.org>; Mon, 14 May 2012 09:58:32 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 4F19445DD78
-	for <linux-mm@kvack.org>; Mon, 14 May 2012 09:58:32 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 3FAFB1DB803E
-	for <linux-mm@kvack.org>; Mon, 14 May 2012 09:58:32 +0900 (JST)
-Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.240.81.133])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id E9FE21DB8038
-	for <linux-mm@kvack.org>; Mon, 14 May 2012 09:58:31 +0900 (JST)
-Message-ID: <4FB05834.1020200@jp.fujitsu.com>
-Date: Mon, 14 May 2012 09:56:20 +0900
+Received: from psmtp.com (na3sys010amx110.postini.com [74.125.245.110])
+	by kanga.kvack.org (Postfix) with SMTP id B22456B0083
+	for <linux-mm@kvack.org>; Sun, 13 May 2012 21:01:05 -0400 (EDT)
+Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
+	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id CE1F13EE0C5
+	for <linux-mm@kvack.org>; Mon, 14 May 2012 10:01:03 +0900 (JST)
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id B38D645DEB2
+	for <linux-mm@kvack.org>; Mon, 14 May 2012 10:01:03 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 9CFDE45DEA6
+	for <linux-mm@kvack.org>; Mon, 14 May 2012 10:01:03 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 8F0D51DB803C
+	for <linux-mm@kvack.org>; Mon, 14 May 2012 10:01:03 +0900 (JST)
+Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.240.81.145])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 42FA31DB803B
+	for <linux-mm@kvack.org>; Mon, 14 May 2012 10:01:03 +0900 (JST)
+Message-ID: <4FB058D8.6060707@jp.fujitsu.com>
+Date: Mon, 14 May 2012 09:59:04 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH v5 1/2] Always free struct memcg through schedule_work()
-References: <1336767077-25351-1-git-send-email-glommer@parallels.com> <1336767077-25351-2-git-send-email-glommer@parallels.com>
-In-Reply-To: <1336767077-25351-2-git-send-email-glommer@parallels.com>
+Subject: Re: [PATCH v5 2/2] decrement static keys on real destroy time
+References: <1336767077-25351-1-git-send-email-glommer@parallels.com> <1336767077-25351-3-git-send-email-glommer@parallels.com>
+In-Reply-To: <1336767077-25351-3-git-send-email-glommer@parallels.com>
 Content-Type: text/plain; charset=ISO-2022-JP
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -33,16 +33,37 @@ Cc: cgroups@vger.kernel.org, linux-mm@kvack.org, devel@openvz.org, netdev@vger.k
 
 (2012/05/12 5:11), Glauber Costa wrote:
 
-> Right now we free struct memcg with kfree right after a
-> rcu grace period, but defer it if we need to use vfree() to get
-> rid of that memory area. We do that by need, because we need vfree
-> to be called in a process context.
+> We call the destroy function when a cgroup starts to be removed,
+> such as by a rmdir event.
 > 
-> This patch unifies this behavior, by ensuring that even kfree will
-> happen in a separate thread. The goal is to have a stable place to
-> call the upcoming jump label destruction function outside the realm
-> of the complicated and quite far-reaching cgroup lock (that can't be
-> held when calling neither the cpu_hotplug.lock nor the jump_label_mutex)
+> However, because of our reference counters, some objects are still
+> inflight. Right now, we are decrementing the static_keys at destroy()
+> time, meaning that if we get rid of the last static_key reference,
+> some objects will still have charges, but the code to properly
+> uncharge them won't be run.
+> 
+> This becomes a problem specially if it is ever enabled again, because
+> now new charges will be added to the staled charges making keeping
+> it pretty much impossible.
+> 
+> We just need to be careful with the static branch activation:
+> since there is no particular preferred order of their activation,
+> we need to make sure that we only start using it after all
+> call sites are active. This is achieved by having a per-memcg
+> flag that is only updated after static_key_slow_inc() returns.
+> At this time, we are sure all sites are active.
+> 
+> This is made per-memcg, not global, for a reason:
+> it also has the effect of making socket accounting more
+> consistent. The first memcg to be limited will trigger static_key()
+> activation, therefore, accounting. But all the others will then be
+> accounted no matter what. After this patch, only limited memcgs
+> will have its sockets accounted.
+> 
+> [v2: changed a tcp limited flag for a generic proto limited flag ]
+> [v3: update the current active flag only after the static_key update ]
+> [v4: disarm_static_keys() inside free_work ]
+> [v5: got rid of tcp_limit_mutex, now in the static_key interface ]
 > 
 > Signed-off-by: Glauber Costa <glommer@parallels.com>
 > CC: Tejun Heo <tj@kernel.org>
@@ -52,9 +73,17 @@ Cc: cgroups@vger.kernel.org, linux-mm@kvack.org, devel@openvz.org, netdev@vger.k
 > CC: Michal Hocko <mhocko@suse.cz>
 
 
-I think we'll need to revisit this, again.
-for now,
+Thank you for your patient works.
+
 Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+
+BTW, what is the relationship between 1/2 and 2/2  ?
+
+Thanks,
+-Kame
+
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
