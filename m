@@ -1,14 +1,14 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from psmtp.com (na3sys010amx148.postini.com [74.125.245.148])
-	by kanga.kvack.org (Postfix) with SMTP id 1CE186B004D
-	for <linux-mm@kvack.org>; Sun, 13 May 2012 21:54:51 -0400 (EDT)
-Message-ID: <4FB06604.5060608@kernel.org>
-Date: Mon, 14 May 2012 10:55:16 +0900
+	by kanga.kvack.org (Postfix) with SMTP id AEBC16B004D
+	for <linux-mm@kvack.org>; Sun, 13 May 2012 22:18:32 -0400 (EDT)
+Message-ID: <4FB06B91.1080008@kernel.org>
+Date: Mon, 14 May 2012 11:18:57 +0900
 From: Minchan Kim <minchan@kernel.org>
 MIME-Version: 1.0
-Subject: Re: [PATCH 4/4] zsmalloc: zsmalloc: align cache line size
-References: <1336027242-372-4-git-send-email-minchan@kernel.org> <4FA28EFD.5070002@vflare.org> <4FA33E89.6080206@kernel.org> <alpine.LFD.2.02.1205071038090.2851@tux.localdomain> <4FA7C2BC.2090400@vflare.org> <4FA87837.3050208@kernel.org> <731b6638-8c8c-4381-a00f-4ecd5a0e91ae@default> <4FA9C127.5020908@kernel.org> <d8fb8c73-0fd4-47c6-a9bb-ba3573569d63@default> <4FAC5C87.3060504@kernel.org> <20120511190643.GB3785@phenom.dumpdata.com>
-In-Reply-To: <20120511190643.GB3785@phenom.dumpdata.com>
+Subject: Re: [PATCH 3/4] zsmalloc use zs_handle instead of void *
+References: <4FAB21E7.7020703@kernel.org> <20120510140215.GC26152@phenom.dumpdata.com> <4FABD503.4030808@vflare.org> <4FABDA9F.1000105@linux.vnet.ibm.com> <20120510151941.GA18302@kroah.com> <4FABECF5.8040602@vflare.org> <20120510164418.GC13964@kroah.com> <4FABF9D4.8080303@vflare.org> <20120510173322.GA30481@phenom.dumpdata.com> <4FAC4E3B.3030909@kernel.org> <20120511192831.GC3785@phenom.dumpdata.com>
+In-Reply-To: <20120511192831.GC3785@phenom.dumpdata.com>
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -16,47 +16,149 @@ List-ID: <linux-mm.kvack.org>
 To: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
 Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On 05/12/2012 04:06 AM, Konrad Rzeszutek Wilk wrote:
+On 05/12/2012 04:28 AM, Konrad Rzeszutek Wilk wrote:
 
->>>> 1. zs_handle zs_malloc(size_t size, gfp_t flags) - share a pool by many subsystem(like kmalloc)
->>>> 2. zs_handle zs_malloc_pool(struct zs_pool *pool, size_t size) - use own pool(like kmem_cache_alloc)
->>>>
->>>> Any thoughts?
->>>
->>> I don't have any objections to adding this kind of
->>> capability to zsmalloc.  But since we are just speculating
->>> that this capability would be used by some future
->>> kernel subsystem, isn't it normal kernel protocol for
->>> this new capability NOT to be added until that future
->>> kernel subsystem creates a need for it.
+>> Please look.
 >>
+>> struct zs_handle {
+>> 	void *handle
+>> };
 >>
->> Now zram makes pool per block device and a embedded system may use zram
->> for several block device, ex) swap device, several compressed tmpfs
->> In such case, share pool is better than private pool because embedded system
->> don't mount/umount frequently on such directories since booting.
+>> 1)
 >>
->>>
->>> As I said in reply to the other thread, there is missing
->>> functionality in zsmalloc that is making it difficult for
->>> it to be used by zcache.  It would be good if Seth
->>> and Nitin (and any other kernel developers) would work
->>
->>
->> So, if you guys post TODO list, it helps fix the direction.
->>
->>> on those issues before adding capabilities for non-existent
->>> future users of zsmalloc.
->>
->>
->> I think it's not urgent than zs_handle mess.
+>> static struct zv_hdr *zv_create(..)
+>> {
+>> 	struct zs_handle handle;
+>> 	..
+>> 	handle = zs_malloc(pool, size);
+>> 	..
+>> 	return handle;
 > 
-> I am having a hard time parsing that. Are you saying that
-> this is not as important as the zs_handle fixup? I think
-> that is what you meant, but what to make sure.
+> Compiler will complain that you are returning incorrect type.
 
 
-Yes. I think zs_hande fixup is top priority for me than any other stuff I pointed out.
+My bad. &handle.
+
+> 
+>> }
+>>
+>> handle is on stack so it can't be used by index for slot of radix tree.
+> 
+> The fix is of course to return a pointer (which your function
+> declared), and instead do this:
+> 
+> {
+> 	struct zs_handle *handle;
+> 
+> 	handle = zs_malloc(pool, size);
+
+
+It's not a good idea.
+For it, zs_malloc needs memory space to keep zs_handle internally.
+Why should zsallocator do it? Just for zcache?
+It's not good abstraction.
+
+
+> 	return handle;
+> }
+> 
+>>
+>> 2)
+>>
+>> static struct zv_hdr *zv_create(..)
+>> {
+>> 	struct zs_handle handle;
+>> 	..
+>> 	handle = zs_malloc(pool, size);
+>> 	..
+>> 	return handle.handle;
+>> }
+>>
+>> Okay. Now it works but zcache coupled with zsmalloc tightly.
+>> User of zsmalloc should never know internal of zs_handle.
+> 
+> OK. Then it can just forward declare it:
+> 
+> struct zs_handle;
+> 
+> and zsmalloc will treat it as an opaque pointer.
+> 
+>>
+>> 3)
+>>
+>> - zsmalloc.h
+>> void *zs_handle_to_ptr(struct zs_handle handle)
+>> {
+>> 	return handle.hanle;
+>> }
+>>
+>> static struct zv_hdr *zv_create(..)
+>> {
+>> 	struct zs_handle handle;
+>> 	..
+>> 	handle = zs_malloc(pool, size);
+>> 	..
+>> 	return zs_handle_to_ptr(handle);
+> 
+>> }
+> 
+>>
+>> Why should zsmalloc support such interface?
+> 
+> Why not? It is better than a 'void *' or a typedef.
+> 
+> It is modeled after a pte_t.
+
+
+It's not same with pte_t.
+We normally don't use pte_val to (void*) for unique index of slot.
+The problem is that zcache assume handle of zsmalloc is a sizeof(void*)'s
+unique value but zcache never assume it's a sizeof(void*).
+
+> 
+> 
+>> It's a zcache problem so it's desriable to solve it in zcache internal.
+> 
+> Not really. We shouldn't really pass any 'void *' pointers around.
+> 
+>> And in future, if we can add/remove zs_handle's fields, we can't make
+>> sure such API.
+> 
+> Meaning ... what exactly do you mean? That the size of the structure
+> will change and we won't return the right value? Why not?
+> If you use the 'zs_handle_to_ptr' won't that work? Especially if you
+> add new values to the end of the struct it won't cause issues.
+
+
+I mean we might change zs_handle to following as, in future.
+(It's insane but who know it?)
+
+struct zs_handle {
+	int upper;
+	int middle;
+	int lower;
+};
+
+How could you handle this for zs_handle_to_ptr?
+
+> 
+>>
+>>
+>>>> Its true that making it a real struct would prevent accidental casts
+>>>> to void * but due to the above problem, I think we have to stick
+>>>> with unsigned long.
+> 
+> So the problem you are seeing is that you don't want 'struct zs_handle'
+> be present in the drivers/staging/zsmalloc/zsmalloc.h header file?
+> It looks like the proper place.
+
+
+No. What I want is to remove coupling zsallocator's handle with zram/zcache.
+They shouldn't know internal of handle and assume it's a pointer.
+
+If Nitin confirm zs_handle's format can never change in future, I prefer "unsigned long" Nitin suggested than (void *).
+It can prevent confusion that normal allocator's return value is pointer for address so the problem is easy.
+But I am not sure he can make sure it.
 
 > 
 > --
