@@ -1,73 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx123.postini.com [74.125.245.123])
-	by kanga.kvack.org (Postfix) with SMTP id 909386B004D
-	for <linux-mm@kvack.org>; Mon, 14 May 2012 06:08:33 -0400 (EDT)
-Received: by lahi5 with SMTP id i5so4998670lah.14
-        for <linux-mm@kvack.org>; Mon, 14 May 2012 03:08:31 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <4FB05B8F.8020408@jp.fujitsu.com>
-References: <4FACDED0.3020400@jp.fujitsu.com>
-	<4FACE01A.4040405@jp.fujitsu.com>
-	<20120511141945.c487e94c.akpm@linux-foundation.org>
-	<4FB05B8F.8020408@jp.fujitsu.com>
-Date: Mon, 14 May 2012 12:08:31 +0200
-Message-ID: <CAFTL4hwGEhyxZO0sXx5gVyK_xjhMQEbHojJbHzQmVKafNyVWtw@mail.gmail.com>
-Subject: Re: [PATCH 2/6] add res_counter_uncharge_until()
-From: Frederic Weisbecker <fweisbec@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Received: from psmtp.com (na3sys010amx144.postini.com [74.125.245.144])
+	by kanga.kvack.org (Postfix) with SMTP id 9BDB56B004D
+	for <linux-mm@kvack.org>; Mon, 14 May 2012 06:28:17 -0400 (EDT)
+Received: from /spool/local
+	by e38.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <shangw@linux.vnet.ibm.com>;
+	Mon, 14 May 2012 04:28:16 -0600
+Received: from d03relay01.boulder.ibm.com (d03relay01.boulder.ibm.com [9.17.195.226])
+	by d03dlp01.boulder.ibm.com (Postfix) with ESMTP id E725A1FF001C
+	for <linux-mm@kvack.org>; Mon, 14 May 2012 04:28:10 -0600 (MDT)
+Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
+	by d03relay01.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q4EASCnJ237280
+	for <linux-mm@kvack.org>; Mon, 14 May 2012 04:28:12 -0600
+Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av02.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q4EASB9t023511
+	for <linux-mm@kvack.org>; Mon, 14 May 2012 04:28:12 -0600
+From: Gavin Shan <shangw@linux.vnet.ibm.com>
+Subject: [PATCH] mm/buddy: dump PG_compound_lock page flag
+Date: Mon, 14 May 2012 18:26:53 +0800
+Message-Id: <1336991213-9149-1-git-send-email-shangw@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "cgroups@vger.kernel.org" <cgroups@vger.kernel.org>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Han Ying <yinghan@google.com>, Glauber Costa <glommer@parallels.com>, Tejun Heo <tj@kernel.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Hiroyuki Kamezawa <kamezawa.hiroyuki@gmail.com>, Linux Kernel <linux-kernel@vger.kernel.org>
+To: linux-mm@kvack.org
+Cc: hannes@cmpxchg.org, akpm@linux-foundation.org, Gavin Shan <shangw@linux.vnet.ibm.com>
 
-2012/5/14 KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>:
-> (2012/05/12 6:19), Andrew Morton wrote:
->
->> On Fri, 11 May 2012 18:47:06 +0900
->> KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
->>
->>> From: Frederic Weisbecker <fweisbec@gmail.com>
->>>
->>> At killing res_counter which is a child of other counter,
->>> we need to do
->>> =A0 =A0 =A0res_counter_uncharge(child, xxx)
->>> =A0 =A0 =A0res_counter_charge(parent, xxx)
->>>
->>> This is not atomic and wasting cpu. This patch adds
->>> res_counter_uncharge_until(). This function's uncharge propagates
->>> to ancestors until specified res_counter.
->>>
->>> =A0 =A0 =A0res_counter_uncharge_until(child, parent, xxx)
->>>
->>> Now, ops is atomic and efficient.
->>>
->>> Changelog since v2
->>> =A0- removed unnecessary lines.
->>> =A0- Fixed 'From' , this patch comes from his series. Please signed-off=
--by if good.
->>>
->>> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
->>
->> Frederic's Signed-off-by: is unavaliable?
->>
->
-> I didn't add his Signed-off because I modified his orignal patch a little=
-...
-> I dropped res_counter_charge_until() because it's not used in this series=
-,
-> I have no justification for adding it.
-> The idea of res_counter_uncharge_until() is from his patch.
+The array pageflag_names[] is doing the conversion from page flag
+into the corresponding names so that the meaingful string again
+the corresponding page flag can be printed. The mechniasm is used
+while dumping the specified page frame. However, the array missed
+PG_compound_lock. So PG_compound_lock page flag would be printed
+as ditigal number instead of meaningful string.
 
-The property of Signed-off-by is that as long as you
-carry/relay/modify a patch, you add your
-own signed-off-by. But you can't remove the signed off by of somebody
-in the chain.
+The patch fixes that and print "compound_lock" for PG_compound_lock
+page flag.
 
-Even if you did a change in the patch, you need to preserve the chain.
+Signed-off-by: Gavin Shan <shangw@linux.vnet.ibm.com>
+---
+ mm/page_alloc.c |    3 +++
+ 1 files changed, 3 insertions(+), 0 deletions(-)
 
-There may be some special cases with "Original-patch-from:" tags used when
-one heavily inspire from a patch without taking much of its original code.
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 1277632..d39f253 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -5652,6 +5652,9 @@ static struct trace_print_flags pageflag_names[] = {
+ #ifdef CONFIG_MEMORY_FAILURE
+ 	{1UL << PG_hwpoison,		"hwpoison"	},
+ #endif
++#ifdef CONFIG_TRANSPARENT_HUGEPAGE
++	{1UL << PG_compound_lock,	"compound_lock"	},
++#endif
+ 	{-1UL,				NULL		},
+ };
+ 
+-- 
+1.7.5.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
