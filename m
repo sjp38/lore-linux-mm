@@ -1,56 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx135.postini.com [74.125.245.135])
-	by kanga.kvack.org (Postfix) with SMTP id D4D866B004D
-	for <linux-mm@kvack.org>; Mon, 14 May 2012 18:30:02 -0400 (EDT)
-Received: by mail-gg0-f178.google.com with SMTP id q6so4554827ggc.37
-        for <linux-mm@kvack.org>; Mon, 14 May 2012 15:30:01 -0700 (PDT)
-From: Pravin B Shelar <pshelar@nicira.com>
-Subject: [PATCH v2] mm: Fix slab->page _count corruption.
-Date: Mon, 14 May 2012 15:29:57 -0700
-Message-Id: <1337034597-1826-1-git-send-email-pshelar@nicira.com>
+Received: from psmtp.com (na3sys010amx134.postini.com [74.125.245.134])
+	by kanga.kvack.org (Postfix) with SMTP id D9EDE6B004D
+	for <linux-mm@kvack.org>; Mon, 14 May 2012 18:34:57 -0400 (EDT)
+Received: by wgbdt14 with SMTP id dt14so4609006wgb.26
+        for <linux-mm@kvack.org>; Mon, 14 May 2012 15:34:56 -0700 (PDT)
+Subject: Re: [PATCH v2] mm: Fix slab->page _count corruption.
+From: Eric Dumazet <eric.dumazet@gmail.com>
+In-Reply-To: <1337034597-1826-1-git-send-email-pshelar@nicira.com>
+References: <1337034597-1826-1-git-send-email-pshelar@nicira.com>
+Content-Type: text/plain; charset="UTF-8"
+Date: Tue, 15 May 2012 00:34:52 +0200
+Message-ID: <1337034892.8512.652.camel@edumazet-glaptop>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: cl@linux.com, penberg@kernel.org, mpm@selenic.com
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, jesse@nicira.com, abhide@nicira.com, Pravin B Shelar <pshelar@nicira.com>
+To: Pravin B Shelar <pshelar@nicira.com>
+Cc: cl@linux.com, penberg@kernel.org, mpm@selenic.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, jesse@nicira.com, abhide@nicira.com
 
-On arches that do not support this_cpu_cmpxchg_double slab_lock is used
-to do atomic cmpxchg() on double word which contains page->_count.
-page count can be changed from get_page() or put_page() without taking
-slab_lock. That corrupts page counter.
+On Mon, 2012-05-14 at 15:29 -0700, Pravin B Shelar wrote:
+> On arches that do not support this_cpu_cmpxchg_double slab_lock is used
+> to do atomic cmpxchg() on double word which contains page->_count.
+> page count can be changed from get_page() or put_page() without taking
+> slab_lock. That corrupts page counter.
+> 
+> Following patch fixes it by moving page->_count out of cmpxchg_double
+> data. So that slub does no change it while updating slub meta-data in
+> struct page.
 
-Following patch fixes it by moving page->_count out of cmpxchg_double
-data. So that slub does no change it while updating slub meta-data in
-struct page.
+I say again : Page is owned by slub, so get_page() or put_page() is not
+allowed ?
 
-Reported-by: Amey Bhide <abhide@nicira.com>
-Signed-off-by: Pravin B Shelar <pshelar@nicira.com>
----
- include/linux/mm_types.h |    8 ++++++++
- 1 file changed, 8 insertions(+)
+How is put_page() going to work with order-1 or order-2 allocations ?
 
-diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
-index dad95bd..5f558dc 100644
---- a/include/linux/mm_types.h
-+++ b/include/linux/mm_types.h
-@@ -57,8 +57,16 @@ struct page {
- 		};
- 
- 		union {
-+#if defined(CONFIG_HAVE_CMPXCHG_DOUBLE) && \
-+    defined(CONFIG_HAVE_ALIGNED_STRUCT_PAGE)
- 			/* Used for cmpxchg_double in slub */
- 			unsigned long counters;
-+#else
-+			/* Keep _count separate from slub cmpxchg_double data,
-+			 * As rest of double word is protected by slab_lock
-+			 * but _count is not. */
-+			unsigned counters;
-+#endif
- 
- 			struct {
- 
--- 
-1.7.10
+Me very confused by these Nicira patches.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
