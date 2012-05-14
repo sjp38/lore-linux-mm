@@ -1,66 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx145.postini.com [74.125.245.145])
-	by kanga.kvack.org (Postfix) with SMTP id 3B8AD6B0081
-	for <linux-mm@kvack.org>; Mon, 14 May 2012 16:51:38 -0400 (EDT)
-Date: Mon, 14 May 2012 22:51:34 +0200
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH] mm/buddy: dump PG_compound_lock page flag
-Message-ID: <20120514205134.GD1406@cmpxchg.org>
-References: <1336991213-9149-1-git-send-email-shangw@linux.vnet.ibm.com>
+Received: from psmtp.com (na3sys010amx202.postini.com [74.125.245.202])
+	by kanga.kvack.org (Postfix) with SMTP id E7E0E6B0081
+	for <linux-mm@kvack.org>; Mon, 14 May 2012 17:12:42 -0400 (EDT)
+Date: Mon, 14 May 2012 23:12:26 +0200
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [PATCH 0/2 v2] Flexible proportions for BDIs
+Message-ID: <20120514211226.GS5353@quack.suse.cz>
+References: <1336084760-19534-1-git-send-email-jack@suse.cz>
+ <20120507144344.GA13983@localhost>
+ <20120509113720.GC5092@quack.suse.cz>
+ <20120510073123.GA7523@localhost>
+ <20120511145114.GA18227@localhost>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1336991213-9149-1-git-send-email-shangw@linux.vnet.ibm.com>
+In-Reply-To: <20120511145114.GA18227@localhost>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Gavin Shan <shangw@linux.vnet.ibm.com>
-Cc: linux-mm@kvack.org, akpm@linux-foundation.org
+To: Fengguang Wu <fengguang.wu@intel.com>
+Cc: Jan Kara <jack@suse.cz>, linux-mm@kvack.org, peterz@infradead.org
 
-On Mon, May 14, 2012 at 06:26:53PM +0800, Gavin Shan wrote:
-> The array pageflag_names[] is doing the conversion from page flag
-> into the corresponding names so that the meaingful string again
-> the corresponding page flag can be printed. The mechniasm is used
-> while dumping the specified page frame. However, the array missed
-> PG_compound_lock. So PG_compound_lock page flag would be printed
-> as ditigal number instead of meaningful string.
+On Fri 11-05-12 22:51:14, Wu Fengguang wrote:
+> > > > Look at the gray "bdi setpoint" lines. The
+> > > > VM_COMPLETIONS_PERIOD_LEN=8s kernel is able to achieve roughly the
+> > > > same stable bdi_setpoint as the vanilla kernel, while being able to
+> > > > adapt to the balanced bdi_setpoint much more fast (actually now the
+> > > > bdi_setpoint is immediately close to the balanced value when
+> > > > balance_dirty_pages() starts throttling, while the vanilla kernel
+> > > > takes about 20 seconds for bdi_setpoint to grow up).
+> > >   Which graph is from which kernel? All four graphs have the same name so
+> > > I'm not sure...
+> > 
+> > They are for test cases:
+> > 
+> > 0.5s period
+> >         bay/JBOD-2HDD-thresh=1000M/xfs-1dd-1-3.4.0-rc2-prop+/balance_dirty_pages-pages+.png
+> > 3s period
+> >         bay/JBOD-2HDD-thresh=1000M/xfs-1dd-1-3.4.0-rc2-prop3+/balance_dirty_pages-pages+.png
+> > 8s period
+> >         bay/JBOD-2HDD-thresh=1000M/xfs-1dd-1-3.4.0-rc2-prop8+/balance_dirty_pages-pages+.png
+> > vanilla
+> >         bay/JBOD-2HDD-thresh=1000M/xfs-1dd-1-3.3.0/balance_dirty_pages-pages+.png
+> > 
+> > >   The faster (almost immediate) initial adaptation to bdi's writeout fraction
+> > > is mostly an effect of better normalization with my patches. Although it is
+> > > pleasant, it happens just at the moment when there is a small number of
+> > > periods with non-zero number of events. So more important for practice is
+> > > in my opininion to compare transition of computed fractions when workload
+> > > changes (i.e. we start writing to one bdi while writing to another bdi or
+> > > so).
+> > 
+> > OK. I'll test this scheme and report back.
+> > 
+> >         loop {
+> >                 dd to disk 1 for 30s
+> >                 dd to disk 2 for 30s
+> >         }
 > 
-> The patch fixes that and print "compound_lock" for PG_compound_lock
-> page flag.
+> Here are the new results. For simplicity I run the dd dirtiers
+> continuously, and start another dd reader to knock down the write
+> bandwidth from time to time:
 > 
-> Signed-off-by: Gavin Shan <shangw@linux.vnet.ibm.com>
+>          loop {
+>                  dd from disk 1 for 30s
+>                  dd from disk 2 for 30s
+>          }
+> 
+> The first attached iostat graph shows the resulting read/write
+> bandwidth for one of the two disks.
+> 
+> The followed graphs are for
+>         - 3s period
+>         - 8s period
+>         - vanilla
+> in order. The test case is (xfs-1dd, mem=2GB, 2 disks JBOD).
+  Thanks for the test! So here 3s period adapts to changed throughput
+fairly quickly, similarly as vanilla kernel, 8s period takes a bit more time.
+Random variations in computed proportions for 3s period are about the same
+as for vanilla kernel and in a reasonable range I'd say. For 8s period
+variations are even smaller as expected.
 
-Acked-by: Johannes Weiner <hannes@cmpxchg.org>
+So all in all I'd say 3s period did fine here, although it did not offer
+much benefit over the previous algorithm. 8s period was a bit too slow to
+adapt.
 
-This on top?
-
----
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: [patch] mm: page_alloc: catch out-of-date list of page flag names
-
-String tables with names of enum items are always prone to go out of
-sync with the enums themselves.  Ensure during compile time that the
-name table of page flags has the same size as the page flags enum.
-
-Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
----
- mm/page_alloc.c |    2 ++
- 1 file changed, 2 insertions(+)
-
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 9325913..65ae58d 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -5986,6 +5986,8 @@ static void dump_page_flags(unsigned long flags)
- 	unsigned long mask;
- 	int i;
- 
-+	BUILD_BUG_ON(ARRAY_SIZE(pageflag_names) - 1 != __NR_PAGEFLAGS);
-+
- 	printk(KERN_ALERT "page flags: %#lx(", flags);
- 
- 	/* remove zone id */
+								Honza
 -- 
-1.7.10.1
+Jan Kara <jack@suse.cz>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
