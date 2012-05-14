@@ -1,79 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx137.postini.com [74.125.245.137])
-	by kanga.kvack.org (Postfix) with SMTP id 7AF6C6B0081
-	for <linux-mm@kvack.org>; Mon, 14 May 2012 16:36:25 -0400 (EDT)
-Message-Id: <20120514201609.990631220@linux.com>
-Date: Mon, 14 May 2012 15:15:46 -0500
-From: Christoph Lameter <cl@linux.com>
-Subject: [RFC] SL[AUO]B common code 2/9] [slab]: Use page struct fields instead of casting
-References: <20120514201544.334122849@linux.com>
-Content-Disposition: inline; filename=slab_page_struct_fields
+Received: from psmtp.com (na3sys010amx189.postini.com [74.125.245.189])
+	by kanga.kvack.org (Postfix) with SMTP id 75B106B004D
+	for <linux-mm@kvack.org>; Mon, 14 May 2012 16:42:25 -0400 (EDT)
+Date: Mon, 14 May 2012 22:42:19 +0200
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH] mm/slab: remove duplicate check
+Message-ID: <20120514204219.GC1406@cmpxchg.org>
+References: <1336727769-19555-1-git-send-email-shangw@linux.vnet.ibm.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1336727769-19555-1-git-send-email-shangw@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pekka Enberg <penberg@kernel.org>
-Cc: linux-mm@kvack.org, David Rientjes <rientjes@google.com>, Matt Mackall <mpm@selenic.com>
+To: Gavin Shan <shangw@linux.vnet.ibm.com>
+Cc: linux-mm@kvack.org, akpm@linux-foundation.org
 
-Add fields to the page struct so that it is properly documented that
-slab overlays the lru fields.
+On Fri, May 11, 2012 at 05:16:09PM +0800, Gavin Shan wrote:
+> While allocateing pages using buddy allocator, the compound page
+> is probably split up to free pages. Under the circumstance, the
+> compound page should be destroied by function destroy_compound_page().
+> However, there has duplicate check to judge if the page is compound
+> one.
+> 
+> The patch removes the duplicate check since the function compound_order()
+> will returns 0 while the page hasn't PG_head set in function destroy_compound_page().
+> That's to say, the function destroy_compound_page() needn't check
+> PG_head any more through function PageHead().
+> 
+> Signed-off-by: Gavin Shan <shangw@linux.vnet.ibm.com>
 
-This cleans up some casts in slab.
+Looks good!
 
-Signed-off-by: Christoph Lameter <cl@linux.com>
+But the slab in the subject suggests it would not affect other parts
+of mm, while it actually affects THP, too.  Should probably be
+removed?
 
----
- include/linux/mm_types.h |    4 ++++
- mm/slab.c                |    8 ++++----
- 2 files changed, 8 insertions(+), 4 deletions(-)
-
-Index: linux-2.6/mm/slab.c
-===================================================================
---- linux-2.6.orig/mm/slab.c	2012-04-19 09:05:04.397660703 -0500
-+++ linux-2.6/mm/slab.c	2012-04-19 09:15:23.561647873 -0500
-@@ -496,25 +496,25 @@ static bool slab_max_order_set __initdat
-  */
- static inline void page_set_cache(struct page *page, struct kmem_cache *cache)
- {
--	page->lru.next = (struct list_head *)cache;
-+	page->slab_cache = cache;
- }
- 
- static inline struct kmem_cache *page_get_cache(struct page *page)
- {
- 	page = compound_head(page);
- 	BUG_ON(!PageSlab(page));
--	return (struct kmem_cache *)page->lru.next;
-+	return page->slab_cache;
- }
- 
- static inline void page_set_slab(struct page *page, struct slab *slab)
- {
--	page->lru.prev = (struct list_head *)slab;
-+	page->slab_page = slab;
- }
- 
- static inline struct slab *page_get_slab(struct page *page)
- {
- 	BUG_ON(!PageSlab(page));
--	return (struct slab *)page->lru.prev;
-+	return page->slab_page;
- }
- 
- static inline struct kmem_cache *virt_to_cache(const void *obj)
-Index: linux-2.6/include/linux/mm_types.h
-===================================================================
---- linux-2.6.orig/include/linux/mm_types.h	2012-04-19 09:05:10.221660582 -0500
-+++ linux-2.6/include/linux/mm_types.h	2012-04-19 09:18:10.657644409 -0500
-@@ -107,6 +107,10 @@ struct page {
- 			short int pobjects;
- #endif
- 		};
-+		struct {		/* SLAB */
-+			struct kmem_cache *slab_cache;
-+			struct slab *slab_page;
-+		};
- 	};
- 
- 	/* Remainder is not double word aligned */
+Acked-by: Johannes Weiner <hannes@cmpxchg.org>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
