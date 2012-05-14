@@ -1,76 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx201.postini.com [74.125.245.201])
-	by kanga.kvack.org (Postfix) with SMTP id 794436B0083
-	for <linux-mm@kvack.org>; Mon, 14 May 2012 16:02:48 -0400 (EDT)
-Received: by dakp5 with SMTP id p5so9197494dak.14
-        for <linux-mm@kvack.org>; Mon, 14 May 2012 13:02:47 -0700 (PDT)
-Date: Mon, 14 May 2012 13:02:18 -0700 (PDT)
-From: Hugh Dickins <hughd@google.com>
-Subject: Re: [PATCH 3/3] mm/memcg: apply add/del_page to lruvec
-In-Reply-To: <4FB0E985.9000107@openvz.org>
-Message-ID: <alpine.LSU.2.00.1205141252060.1693@eggly.anvils>
-References: <alpine.LSU.2.00.1205132152530.6148@eggly.anvils> <alpine.LSU.2.00.1205132201210.6148@eggly.anvils> <4FB0E985.9000107@openvz.org>
+Received: from psmtp.com (na3sys010amx167.postini.com [74.125.245.167])
+	by kanga.kvack.org (Postfix) with SMTP id 2F8F36B0081
+	for <linux-mm@kvack.org>; Mon, 14 May 2012 16:07:05 -0400 (EDT)
+Received: by dakp5 with SMTP id p5so9204459dak.14
+        for <linux-mm@kvack.org>; Mon, 14 May 2012 13:07:04 -0700 (PDT)
+Date: Mon, 14 May 2012 13:06:59 -0700
+From: Greg KH <gregkh@linuxfoundation.org>
+Subject: Re: [PATCH] ramster: switch over to zsmalloc and crypto interface
+Message-ID: <20120514200659.GA15604@kroah.com>
+References: <1336676781-8571-1-git-send-email-dan.magenheimer@oracle.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <1336676781-8571-1-git-send-email-dan.magenheimer@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Konstantin Khlebnikov <khlebnikov@openvz.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: Dan Magenheimer <dan.magenheimer@oracle.com>
+Cc: devel@driverdev.osuosl.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, ngupta@vflare.org, konrad.wilk@oracle.com, sjenning@linux.vnet.ibm.com
 
-On Mon, 14 May 2012, Konstantin Khlebnikov wrote:
-> Hugh Dickins wrote:
-> > Take lruvec further: pass it instead of zone to add_page_to_lru_list()
-> > and del_page_from_lru_list(); and pagevec_lru_move_fn() pass lruvec
-> > down to its target functions.
-> > 
-> > This cleanup eliminates a swathe of cruft in memcontrol.c,
-> > including mem_cgroup_lru_add_list(), mem_cgroup_lru_del_list() and
-> > mem_cgroup_lru_move_lists() - which never actually touched the lists.
-> > 
-> > In their place, mem_cgroup_page_lruvec() to decide the lruvec,
-> > previously a side-effect of add, and mem_cgroup_update_lru_size()
-> > to maintain the lru_size stats.
-> > 
-> > Whilst these are simplifications in their own right, the goal is to
-> > bring the evaluation of lruvec next to the spin_locking of the lrus,
-> > in preparation for a future patch.
-> > 
-> > Signed-off-by: Hugh Dickins<hughd@google.com>
-> > ---
-> > The horror, the horror: I have three lines of 81 columns:
-> > I do think they look better this way than split up.
+On Thu, May 10, 2012 at 12:06:21PM -0700, Dan Magenheimer wrote:
+> RAMster does many zcache-like things.  In order to avoid major
+> merge conflicts at 3.4, ramster used lzo1x directly for compression
+> and retained a local copy of xvmalloc, while zcache moved to the
+> new zsmalloc allocator and the crypto API.
 > 
-> This too huge and hard to review. =(
-
-Hah, we have very different preferences: whereas I found your
-split into twelve a hindrance to review rather than a help.
-
-> I have the similar thing splitted into several patches.
-
-I had been hoping to get this stage, where I think we're still in
-agreement (except perhaps on the ordering of function arguments!),
-into 3.5 as a basis for later discussion.
-
-But I won't have time to split it into bite-sized pieces for
-linux-next now before 3.4 goes out, so it sounds like we'll have
-to drop it this time around.  Oh well.
-
-Thanks (you and Kame and Michal) for the very quick review of
-the other, even more trivial, patches.
-
+> This patch moves ramster forward to use zsmalloc and crypto.
 > 
-> Also I want to replace page_cgroup->mem_cgroup pointer with
-> page_cgroup->lruvec
-> and rework "surreptitious switching any uncharged page to root"
-> In my set I have mem_cgroup_page_lruvec() without side-effects and
-> mem_cgroup_page_lruvec_putback() with can switch page's lruvec, but it not
-> always moves pages to root: in
-> putback_inactive_pages()/move_active_pages_to_lru()
-> we have better candidate for lruvec switching.
+> Signed-off-by: Dan Magenheimer <dan.magenheimer@oracle.com>
 
-But those sound like later developments on top of this to me.
+I finally enabled building this one (didn't realize it required ZCACHE
+to be disabled, I can only build one or the other), and I noticed after
+this patch the following warnings in my build:
 
-Hugh
+drivers/staging/ramster/zcache-main.c:950:13: warning: a??zcache_do_remotify_opsa?? defined but not used [-Wunused-function]
+drivers/staging/ramster/zcache-main.c:1039:13: warning: a??ramster_remotify_inita?? defined but not used [-Wunused-function]
+drivers/staging/ramster/zcache-main.c: In function a??zcache_puta??:
+drivers/staging/ramster/zcache-main.c:1594:4: warning: a??pagea?? may be used uninitialized in this function [-Wuninitialized]
+drivers/staging/ramster/zcache-main.c:1536:8: note: a??pagea?? was declared here
+
+Care to please fix them up?
+
+thanks,
+
+greg k-h
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
