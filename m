@@ -1,67 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx166.postini.com [74.125.245.166])
-	by kanga.kvack.org (Postfix) with SMTP id 84B526B0092
-	for <linux-mm@kvack.org>; Mon, 14 May 2012 16:14:43 -0400 (EDT)
-Received: by pbbrp2 with SMTP id rp2so9464250pbb.14
-        for <linux-mm@kvack.org>; Mon, 14 May 2012 13:14:42 -0700 (PDT)
-Date: Mon, 14 May 2012 13:14:38 -0700
-From: Tejun Heo <tj@kernel.org>
-Subject: Re: [PATCH v3 4/6] memcg: move charges to root cgroup if
- use_hierarchy=0.
-Message-ID: <20120514201438.GI2366@google.com>
-References: <4FACDED0.3020400@jp.fujitsu.com>
- <4FACE0A2.30608@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <4FACE0A2.30608@jp.fujitsu.com>
+Received: from psmtp.com (na3sys010amx149.postini.com [74.125.245.149])
+	by kanga.kvack.org (Postfix) with SMTP id CC2966B0092
+	for <linux-mm@kvack.org>; Mon, 14 May 2012 16:16:10 -0400 (EDT)
+Message-Id: <20120514201544.334122849@linux.com>
+Date: Mon, 14 May 2012 15:15:44 -0500
+From: Christoph Lameter <cl@linux.com>
+Subject: [RFC] SL[AUO]B common code 0/9] Sl[auo]b: Common functionality V1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "cgroups@vger.kernel.org" <cgroups@vger.kernel.org>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Frederic Weisbecker <fweisbec@gmail.com>, Han Ying <yinghan@google.com>, Glauber Costa <glommer@parallels.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, Hiroyuki Kamezawa <kamezawa.hiroyuki@gmail.com>, Linux Kernel <linux-kernel@vger.kernel.org>
+To: Pekka Enberg <penberg@kernel.org>
+Cc: linux-mm@kvack.org, David Rientjes <rientjes@google.com>, Matt Mackall <mpm@selenic.com>
 
-On Fri, May 11, 2012 at 06:49:22PM +0900, KAMEZAWA Hiroyuki wrote:
-> @@ -3351,9 +3339,8 @@ int mem_cgroup_move_hugetlb_parent(int idx, struct cgroup *cgroup,
->  	struct page_cgroup *pc;
->  	int csize,  ret = 0;
->  	struct res_counter *fail_res;
-> -	struct cgroup *pcgrp = cgroup->parent;
-> -	struct mem_cgroup *parent = mem_cgroup_from_cont(pcgrp);
->  	struct mem_cgroup *memcg  = mem_cgroup_from_cont(cgroup);
-> +	struct mem_cgroup *parent = parent_mem_cgroup(memcg);
->  	struct res_counter *counter;
->  
->  	if (!get_page_unless_zero(page))
-> @@ -3366,13 +3353,11 @@ int mem_cgroup_move_hugetlb_parent(int idx, struct cgroup *cgroup,
->  
->  	csize = PAGE_SIZE << compound_order(page);
->  	/* If parent->use_hierarchy == 0, we need to charge parent */
-> -	if (!parent->use_hierarchy) {
-> -		ret = res_counter_charge(&parent->hugepage[idx],
-> -					 csize, &fail_res);
-> -		if (ret) {
-> -			ret = -EBUSY;
-> -			goto err_out;
-> -		}
-> +	if (!parent) {
-> +		parent = root_mem_cgroup;
-> +		/* root has no limit */
-> +		res_counter_charge_nofail(&parent->hugepage[idx],
-> +				 csize, &fail_res);
->  	}
->  	counter = &memcg->hugepage[idx];
->  	res_counter_uncharge_until(counter, counter->parent, csize);
+This is a series of patches that extracts common functionality from
+slab allocators into a common code base. The intend is to standardize
+as much as possible of the allocator behavior while keeping the
+distinctive features of each allocator which are mostly due to their
+storage format and serialization approaches.
 
-This function can simply return 0 now, so no point in having int
-return.  Make it return void?
+This patchset makes a beginning by extracting common functionality in
+kmem_cache_create() and kmem_cache_destroy(). However, there are
+numerous other areas where such work could be beneficial:
 
-Also, follow-up patches to cleanup -ENOMEM failure handling in the
-callers would be nice.
+1. Extract the sysfs support from SLUB and make it common. That way
+   all allocators have a common sysfs API and are handleable in the same
+   way regardless of the allocator chose.
 
-Thanks.
+2. Extract the error reporting and checking from SLUB and make
+   it available for all allocators. This means that all allocators
+   will gain the resiliency and error handling capabilties.
 
--- 
-tejun
+3. Extract the memory hotplug and cpu hotplug handling. It seems that
+   SLAB may be more sophisticated here. Having common code here will
+   make it easier to maintain the special code.
+
+4. Extract the aliasing capability of SLUB. This will enable fast
+   slab creation without creating too many additional slab caches.
+   The arrays of caches of varying sizes in numerous subsystems
+   do not cause the creation of numerous slab caches. Storage
+   density is increased and the cache footprint is reduced.
+
+Ultimately it is to be hoped that the special code for each allocator
+shrinks to a mininum. This will also make it easier to make modification
+to allocators.
+
+In the far future one could envision that the current allocators will
+just become storage algorithms that can be chosen based on the need of
+the subsystem. F.e.
+
+Cpu cache dependend performance		= Bonwick allocator (SLAB)
+Minimal cycle count and cache footprint	= SLUB
+Maximum storage density			= SLOB
+
+But that could be controversial and inefficient if indirect calls are needed.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
