@@ -1,145 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx142.postini.com [74.125.245.142])
-	by kanga.kvack.org (Postfix) with SMTP id 29C036B00EB
-	for <linux-mm@kvack.org>; Tue, 15 May 2012 10:46:38 -0400 (EDT)
-Date: Tue, 15 May 2012 16:46:35 +0200
+Received: from psmtp.com (na3sys010amx150.postini.com [74.125.245.150])
+	by kanga.kvack.org (Postfix) with SMTP id 2AFEF6B004D
+	for <linux-mm@kvack.org>; Tue, 15 May 2012 10:58:07 -0400 (EDT)
+Date: Tue, 15 May 2012 16:58:05 +0200
 From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [patch 3/6] mm: memcg: print statistics directly to seq_file
-Message-ID: <20120515144635.GH11346@tiehlicka.suse.cz>
+Subject: Re: [patch 4/6] mm: memcg: keep ratelimit counter separate from
+ event counters
+Message-ID: <20120515145805.GI11346@tiehlicka.suse.cz>
 References: <1337018451-27359-1-git-send-email-hannes@cmpxchg.org>
- <1337018451-27359-4-git-send-email-hannes@cmpxchg.org>
+ <1337018451-27359-5-git-send-email-hannes@cmpxchg.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1337018451-27359-4-git-send-email-hannes@cmpxchg.org>
+In-Reply-To: <1337018451-27359-5-git-send-email-hannes@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Johannes Weiner <hannes@cmpxchg.org>
 Cc: Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Mon 14-05-12 20:00:48, Johannes Weiner wrote:
-> Being able to use seq_printf() allows being smarter about statistics
-> name strings, which are currently listed twice, with the only
-> difference being a "total_" prefix on the hierarchical version.
+On Mon 14-05-12 20:00:49, Johannes Weiner wrote:
+> All events except the ratelimit counter are statistics exported to
+> userspace.  Keep this internal value out of the event count array.
+
+OK, makes sense. I was just thinking that events_internal array (with a
+single MEM_CGROUP_EVENTS_COUNT) would be more consistent. Probably too
+much churn for a single event though.
+
 > 
 > Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
 
-Nice
 Acked-by: Michal Hocko <mhocko@suse.cz>
 
 > ---
->  mm/memcontrol.c |   56 +++++++++++++++++++++++++++----------------------------
->  1 file changed, 28 insertions(+), 28 deletions(-)
+>  mm/memcontrol.c |    6 +++---
+>  1 file changed, 3 insertions(+), 3 deletions(-)
 > 
 > diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index f0d248b..9e8551c 100644
+> index 9e8551c..546e7db 100644
 > --- a/mm/memcontrol.c
 > +++ b/mm/memcontrol.c
-> @@ -4274,24 +4274,21 @@ struct mcs_total_stat {
->  	s64 stat[NR_MCS_STAT];
+> @@ -105,7 +105,6 @@ enum mem_cgroup_stat_index {
+>  enum mem_cgroup_events_index {
+>  	MEM_CGROUP_EVENTS_PGPGIN,	/* # of pages paged in */
+>  	MEM_CGROUP_EVENTS_PGPGOUT,	/* # of pages paged out */
+> -	MEM_CGROUP_EVENTS_COUNT,	/* # of pages paged in/out */
+>  	MEM_CGROUP_EVENTS_PGFAULT,	/* # of page-faults */
+>  	MEM_CGROUP_EVENTS_PGMAJFAULT,	/* # of major page-faults */
+>  	MEM_CGROUP_EVENTS_NSTATS,
+> @@ -129,6 +128,7 @@ enum mem_cgroup_events_target {
+>  struct mem_cgroup_stat_cpu {
+>  	long count[MEM_CGROUP_STAT_NSTATS];
+>  	unsigned long events[MEM_CGROUP_EVENTS_NSTATS];
+> +	unsigned long nr_page_events;
+>  	unsigned long targets[MEM_CGROUP_NTARGETS];
 >  };
 >  
-> -static struct {
-> -	char *local_name;
-> -	char *total_name;
-> -} memcg_stat_strings[NR_MCS_STAT] = {
-> -	{"cache", "total_cache"},
-> -	{"rss", "total_rss"},
-> -	{"mapped_file", "total_mapped_file"},
-> -	{"mlock", "total_mlock"},
-> -	{"pgpgin", "total_pgpgin"},
-> -	{"pgpgout", "total_pgpgout"},
-> -	{"swap", "total_swap"},
-> -	{"pgfault", "total_pgfault"},
-> -	{"pgmajfault", "total_pgmajfault"},
-> -	{"inactive_anon", "total_inactive_anon"},
-> -	{"active_anon", "total_active_anon"},
-> -	{"inactive_file", "total_inactive_file"},
-> -	{"active_file", "total_active_file"},
-> -	{"unevictable", "total_unevictable"}
-> +static const char *memcg_stat_strings[NR_MCS_STAT] = {
-> +	"cache",
-> +	"rss",
-> +	"mapped_file",
-> +	"mlock",
-> +	"pgpgin",
-> +	"pgpgout",
-> +	"swap",
-> +	"pgfault",
-> +	"pgmajfault",
-> +	"inactive_anon",
-> +	"active_anon",
-> +	"inactive_file",
-> +	"active_file",
-> +	"unevictable",
->  };
+> @@ -736,7 +736,7 @@ static void mem_cgroup_charge_statistics(struct mem_cgroup *memcg,
+>  		nr_pages = -nr_pages; /* for event */
+>  	}
 >  
+> -	__this_cpu_add(memcg->stat->events[MEM_CGROUP_EVENTS_COUNT], nr_pages);
+> +	__this_cpu_add(memcg->stat->nr_page_events, nr_pages);
 >  
-> @@ -4392,7 +4389,7 @@ static int mem_control_numa_stat_show(struct cgroup *cont, struct cftype *cft,
->  #endif /* CONFIG_NUMA */
->  
->  static int mem_control_stat_show(struct cgroup *cont, struct cftype *cft,
-> -				 struct cgroup_map_cb *cb)
-> +				 struct seq_file *m)
+>  	preempt_enable();
+>  }
+> @@ -797,7 +797,7 @@ static bool mem_cgroup_event_ratelimit(struct mem_cgroup *memcg,
 >  {
->  	struct mem_cgroup *memcg = mem_cgroup_from_cont(cont);
->  	struct mcs_total_stat mystat;
-> @@ -4405,16 +4402,18 @@ static int mem_control_stat_show(struct cgroup *cont, struct cftype *cft,
->  	for (i = 0; i < NR_MCS_STAT; i++) {
->  		if (i == MCS_SWAP && !do_swap_account)
->  			continue;
-> -		cb->fill(cb, memcg_stat_strings[i].local_name, mystat.stat[i]);
-> +		seq_printf(m, "%s %llu\n", memcg_stat_strings[i],
-> +			   (unsigned long long)mystat.stat[i]);
->  	}
+>  	unsigned long val, next;
 >  
->  	/* Hierarchical information */
->  	{
->  		unsigned long long limit, memsw_limit;
->  		memcg_get_hierarchical_limit(memcg, &limit, &memsw_limit);
-> -		cb->fill(cb, "hierarchical_memory_limit", limit);
-> +		seq_printf(m, "hierarchical_memory_limit %llu\n", limit);
->  		if (do_swap_account)
-> -			cb->fill(cb, "hierarchical_memsw_limit", memsw_limit);
-> +			seq_printf(m, "hierarchical_memsw_limit %llu\n",
-> +				   memsw_limit);
->  	}
->  
->  	memset(&mystat, 0, sizeof(mystat));
-> @@ -4422,7 +4421,8 @@ static int mem_control_stat_show(struct cgroup *cont, struct cftype *cft,
->  	for (i = 0; i < NR_MCS_STAT; i++) {
->  		if (i == MCS_SWAP && !do_swap_account)
->  			continue;
-> -		cb->fill(cb, memcg_stat_strings[i].total_name, mystat.stat[i]);
-> +		seq_printf(m, "total_%s %llu\n", memcg_stat_strings[i],
-> +			   (unsigned long long)mystat.stat[i]);
->  	}
->  
->  #ifdef CONFIG_DEBUG_VM
-> @@ -4443,10 +4443,10 @@ static int mem_control_stat_show(struct cgroup *cont, struct cftype *cft,
->  				recent_scanned[0] += rstat->recent_scanned[0];
->  				recent_scanned[1] += rstat->recent_scanned[1];
->  			}
-> -		cb->fill(cb, "recent_rotated_anon", recent_rotated[0]);
-> -		cb->fill(cb, "recent_rotated_file", recent_rotated[1]);
-> -		cb->fill(cb, "recent_scanned_anon", recent_scanned[0]);
-> -		cb->fill(cb, "recent_scanned_file", recent_scanned[1]);
-> +		seq_printf(m, "recent_rotated_anon %lu\n", recent_rotated[0]);
-> +		seq_printf(m, "recent_rotated_file %lu\n", recent_rotated[1]);
-> +		seq_printf(m, "recent_scanned_anon %lu\n", recent_scanned[0]);
-> +		seq_printf(m, "recent_scanned_file %lu\n", recent_scanned[1]);
->  	}
->  #endif
->  
-> @@ -4880,7 +4880,7 @@ static struct cftype mem_cgroup_files[] = {
->  	},
->  	{
->  		.name = "stat",
-> -		.read_map = mem_control_stat_show,
-> +		.read_seq_string = mem_control_stat_show,
->  	},
->  	{
->  		.name = "force_empty",
+> -	val = __this_cpu_read(memcg->stat->events[MEM_CGROUP_EVENTS_COUNT]);
+> +	val = __this_cpu_read(memcg->stat->nr_page_events);
+>  	next = __this_cpu_read(memcg->stat->targets[target]);
+>  	/* from time_after() in jiffies.h */
+>  	if ((long)next - (long)val < 0) {
 > -- 
 > 1.7.10.1
 > 
