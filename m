@@ -1,149 +1,97 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx172.postini.com [74.125.245.172])
-	by kanga.kvack.org (Postfix) with SMTP id A8F8E6B004D
-	for <linux-mm@kvack.org>; Tue, 15 May 2012 11:04:26 -0400 (EDT)
-Received: by wibhr14 with SMTP id hr14so2568996wib.8
-        for <linux-mm@kvack.org>; Tue, 15 May 2012 08:04:25 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx155.postini.com [74.125.245.155])
+	by kanga.kvack.org (Postfix) with SMTP id 754EC6B00EB
+	for <linux-mm@kvack.org>; Tue, 15 May 2012 11:04:55 -0400 (EDT)
+Date: Tue, 15 May 2012 17:04:52 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [patch 5/6] mm: memcg: group swapped-out statistics counter
+ logically
+Message-ID: <20120515150452.GJ11346@tiehlicka.suse.cz>
+References: <1337018451-27359-1-git-send-email-hannes@cmpxchg.org>
+ <1337018451-27359-6-git-send-email-hannes@cmpxchg.org>
 MIME-Version: 1.0
-Reply-To: konrad@darnok.org
-In-Reply-To: <4FB06B91.1080008@kernel.org>
-References: <4FAB21E7.7020703@kernel.org>
-	<20120510140215.GC26152@phenom.dumpdata.com>
-	<4FABD503.4030808@vflare.org>
-	<4FABDA9F.1000105@linux.vnet.ibm.com>
-	<20120510151941.GA18302@kroah.com>
-	<4FABECF5.8040602@vflare.org>
-	<20120510164418.GC13964@kroah.com>
-	<4FABF9D4.8080303@vflare.org>
-	<20120510173322.GA30481@phenom.dumpdata.com>
-	<4FAC4E3B.3030909@kernel.org>
-	<20120511192831.GC3785@phenom.dumpdata.com>
-	<4FB06B91.1080008@kernel.org>
-Date: Tue, 15 May 2012 11:04:22 -0400
-Message-ID: <CAPbh3ruv9xCV_XpR4ZsZpSGQ8=mibg=a39zvADYETb-tg0kBsA@mail.gmail.com>
-Subject: Re: [PATCH 3/4] zsmalloc use zs_handle instead of void *
-From: Konrad Rzeszutek Wilk <konrad@darnok.org>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1337018451-27359-6-git-send-email-hannes@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
->>
->> The fix is of course to return a pointer (which your function
->> declared), and instead do this:
->>
->> {
->> =A0 =A0 =A0 struct zs_handle *handle;
->>
->> =A0 =A0 =A0 handle =3D zs_malloc(pool, size);
->
->
-> It's not a good idea.
-> For it, zs_malloc needs memory space to keep zs_handle internally.
-> Why should zsallocator do it? Just for zcache?
+On Mon 14-05-12 20:00:50, Johannes Weiner wrote:
+> The counter of currently swapped out pages in a memcg (hierarchy) is
+> sitting amidst ever-increasing event counters.  Move this item to the
+> other counters that reflect current state rather than history.
+> 
+> This technically breaks the kernel ABI, but hopefully nobody relies on
+> the order of items in memory.stat.
 
-How different is from now? The zs_malloc keeps the handle internally
-as well - it just that is is a void * pointer. Internally, the
-ownership and the responsibility to free it lays with zsmalloc.
+We did that already in 456f998e. Nobody complained AFAIR.
+> 
+> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
 
-> It's not good abstraction.
+Acked-by: Michal Hocko <mhocko@suse.cz>
 
-If we want good abstraction, then I don't think 'unsigned long' is
-either? I mean it will do for the conversion from 'void *'. Perhaps I
-am being a bit optimistic here - and I am trying to jam in this
-'struct zs_handle' in all cases but in reality it needs a more
-iterative process. So first do 'void *' -> 'unsigned long', and then
-later on if we can come up with something more nicely that abstracts
-- then use that?
-.. snip ..
->>> Why should zsmalloc support such interface?
->>
->> Why not? It is better than a 'void *' or a typedef.
->>
->> It is modeled after a pte_t.
->
->
-> It's not same with pte_t.
-> We normally don't use pte_val to (void*) for unique index of slot.
+> ---
+>  mm/memcontrol.c |   12 ++++++------
+>  1 file changed, 6 insertions(+), 6 deletions(-)
+> 
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index 546e7db..3ee63f6 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -4257,9 +4257,9 @@ enum {
+>  	MCS_RSS,
+>  	MCS_FILE_MAPPED,
+>  	MCS_MLOCK,
+> +	MCS_SWAP,
+>  	MCS_PGPGIN,
+>  	MCS_PGPGOUT,
+> -	MCS_SWAP,
+>  	MCS_PGFAULT,
+>  	MCS_PGMAJFAULT,
+>  	MCS_INACTIVE_ANON,
+> @@ -4279,9 +4279,9 @@ static const char *memcg_stat_strings[NR_MCS_STAT] = {
+>  	"rss",
+>  	"mapped_file",
+>  	"mlock",
+> +	"swap",
+>  	"pgpgin",
+>  	"pgpgout",
+> -	"swap",
+>  	"pgfault",
+>  	"pgmajfault",
+>  	"inactive_anon",
+> @@ -4306,14 +4306,14 @@ mem_cgroup_get_local_stat(struct mem_cgroup *memcg, struct mcs_total_stat *s)
+>  	s->stat[MCS_FILE_MAPPED] += val * PAGE_SIZE;
+>  	val = mem_cgroup_read_stat(memcg, MEM_CGROUP_STAT_MLOCK);
+>  	s->stat[MCS_MLOCK] += val * PAGE_SIZE;
+> -	val = mem_cgroup_read_events(memcg, MEM_CGROUP_EVENTS_PGPGIN);
+> -	s->stat[MCS_PGPGIN] += val;
+> -	val = mem_cgroup_read_events(memcg, MEM_CGROUP_EVENTS_PGPGOUT);
+> -	s->stat[MCS_PGPGOUT] += val;
+>  	if (do_swap_account) {
+>  		val = mem_cgroup_read_stat(memcg, MEM_CGROUP_STAT_SWAPOUT);
+>  		s->stat[MCS_SWAP] += val * PAGE_SIZE;
+>  	}
+> +	val = mem_cgroup_read_events(memcg, MEM_CGROUP_EVENTS_PGPGIN);
+> +	s->stat[MCS_PGPGIN] += val;
+> +	val = mem_cgroup_read_events(memcg, MEM_CGROUP_EVENTS_PGPGOUT);
+> +	s->stat[MCS_PGPGOUT] += val;
+>  	val = mem_cgroup_read_events(memcg, MEM_CGROUP_EVENTS_PGFAULT);
+>  	s->stat[MCS_PGFAULT] += val;
+>  	val = mem_cgroup_read_events(memcg, MEM_CGROUP_EVENTS_PGMAJFAULT);
+> -- 
+> 1.7.10.1
+> 
 
-Right, but I thought we want to get rid of all of the '(void *)'
-usages and instead
-pass some opaque pointer.
-
-> The problem is that zcache assume handle of zsmalloc is a sizeof(void*)'s
-> unique value but zcache never assume it's a sizeof(void*).
-
-Huh? I am parsing your sentence as: "zcache assumes .. sizeof(void *),
-but zcache never assumes its .. sizeof(void *)"?
-
-Zcache has to assume it is a pointer. And providing a 'struct
-zs_handle *' would fit the bill?
->>
->>
->>> It's a zcache problem so it's desriable to solve it in zcache internal.
->>
->> Not really. We shouldn't really pass any 'void *' pointers around.
->>
->>> And in future, if we can add/remove zs_handle's fields, we can't make
->>> sure such API.
->>
->> Meaning ... what exactly do you mean? That the size of the structure
->> will change and we won't return the right value? Why not?
->> If you use the 'zs_handle_to_ptr' won't that work? Especially if you
->> add new values to the end of the struct it won't cause issues.
->
->
-> I mean we might change zs_handle to following as, in future.
-> (It's insane but who know it?)
-
-OK, so BUILD_BUG(sizeof(struct zs_handle *) !=3D sizeof(void *))
-with a big fat comment saying that one needs to go over the other users
-of zcache/zram/zsmalloc to double check?
-
-But why would it matter? The zs_handle would be returned as a pointer
-- so the size is the same to the caller.
-
->
-> struct zs_handle {
-> =A0 =A0 =A0 =A0int upper;
-> =A0 =A0 =A0 =A0int middle;
-> =A0 =A0 =A0 =A0int lower;
-> };
->
-> How could you handle this for zs_handle_to_ptr?
-
-Gosh, um, I couldn't :-) Well, maybe with something that does
- return "upper | middle | lower", but yeah that is not the goal.
-
-
->>>>> Its true that making it a real struct would prevent accidental casts
->>>>> to void * but due to the above problem, I think we have to stick
->>>>> with unsigned long.
->>
->> So the problem you are seeing is that you don't want 'struct zs_handle'
->> be present in the drivers/staging/zsmalloc/zsmalloc.h header file?
->> It looks like the proper place.
->
->
-> No. What I want is to remove coupling zsallocator's handle with zram/zcac=
-he.
-> They shouldn't know internal of handle and assume it's a pointer.
-
-I concur. And hence I was thinking that the 'struct zs_handle *'
-pointer would work.
-
->
-> If Nitin confirm zs_handle's format can never change in future, I prefer =
-"unsigned long" Nitin suggested than (void *).
-> It can prevent confusion that normal allocator's return value is pointer =
-for address so the problem is easy.
-> But I am not sure he can make sure it.
-
-Well, everything changes over time  so putting a stick in the ground
-and saying 'this must
-be this way' is not really the best way.
+-- 
+Michal Hocko
+SUSE Labs
+SUSE LINUX s.r.o.
+Lihovarska 1060/12
+190 00 Praha 9    
+Czech Republic
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
