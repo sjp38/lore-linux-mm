@@ -1,44 +1,270 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx137.postini.com [74.125.245.137])
-	by kanga.kvack.org (Postfix) with SMTP id 408396B00F0
-	for <linux-mm@kvack.org>; Tue, 15 May 2012 11:18:19 -0400 (EDT)
-Received: by wgbdt14 with SMTP id dt14so5285517wgb.26
-        for <linux-mm@kvack.org>; Tue, 15 May 2012 08:18:17 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx143.postini.com [74.125.245.143])
+	by kanga.kvack.org (Postfix) with SMTP id 909566B004D
+	for <linux-mm@kvack.org>; Tue, 15 May 2012 11:27:08 -0400 (EDT)
+Date: Tue, 15 May 2012 17:27:05 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [patch 6/6] mm: memcg: print statistics from live counters
+Message-ID: <20120515152705.GK11346@tiehlicka.suse.cz>
+References: <1337018451-27359-1-git-send-email-hannes@cmpxchg.org>
+ <1337018451-27359-7-git-send-email-hannes@cmpxchg.org>
 MIME-Version: 1.0
-Reply-To: konrad@darnok.org
-In-Reply-To: <4FB06604.5060608@kernel.org>
-References: <1336027242-372-4-git-send-email-minchan@kernel.org>
-	<4FA28EFD.5070002@vflare.org>
-	<4FA33E89.6080206@kernel.org>
-	<alpine.LFD.2.02.1205071038090.2851@tux.localdomain>
-	<4FA7C2BC.2090400@vflare.org>
-	<4FA87837.3050208@kernel.org>
-	<731b6638-8c8c-4381-a00f-4ecd5a0e91ae@default>
-	<4FA9C127.5020908@kernel.org>
-	<d8fb8c73-0fd4-47c6-a9bb-ba3573569d63@default>
-	<4FAC5C87.3060504@kernel.org>
-	<20120511190643.GB3785@phenom.dumpdata.com>
-	<4FB06604.5060608@kernel.org>
-Date: Tue, 15 May 2012 11:18:17 -0400
-Message-ID: <CAPbh3ruaPQ+6s9t4KULYr2TdTUhUQNfQhFUt=C2jpvAvh+QTsQ@mail.gmail.com>
-Subject: Re: [PATCH 4/4] zsmalloc: zsmalloc: align cache line size
-From: Konrad Rzeszutek Wilk <konrad@darnok.org>
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1337018451-27359-7-git-send-email-hannes@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
->>> I think it's not urgent than zs_handle mess.
->>
->> I am having a hard time parsing that. Are you saying that
->> this is not as important as the zs_handle fixup? I think
->> that is what you meant, but what to make sure.
+On Mon 14-05-12 20:00:51, Johannes Weiner wrote:
+> Directly print statistics and event counters instead of going through
+> an intermediate accumulation stage into a separate array, which used
+> to require defining statistic items in more than one place.
 >
->
-> Yes. I think zs_hande fixup is top priority for me than any other stuff I pointed out.
+> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
 
-What else is should we put on the TODO?
+Acked-by: Michal Hocko <mhocko@suse.cz>
+
+> ---
+>  mm/memcontrol.c |  173 +++++++++++++++++++++----------------------------------
+>  1 file changed, 66 insertions(+), 107 deletions(-)
+
+Nice
+
+> 
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index 3ee63f6..b0d343a 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -102,6 +102,14 @@ enum mem_cgroup_stat_index {
+>  	MEM_CGROUP_STAT_NSTATS,
+>  };
+>  
+> +static const char *mem_cgroup_stat_names[] = {
+> +	"cache",
+> +	"rss",
+> +	"mapped_file",
+> +	"mlock",
+> +	"swap",
+> +};
+> +
+>  enum mem_cgroup_events_index {
+>  	MEM_CGROUP_EVENTS_PGPGIN,	/* # of pages paged in */
+>  	MEM_CGROUP_EVENTS_PGPGOUT,	/* # of pages paged out */
+> @@ -109,6 +117,14 @@ enum mem_cgroup_events_index {
+>  	MEM_CGROUP_EVENTS_PGMAJFAULT,	/* # of major page-faults */
+>  	MEM_CGROUP_EVENTS_NSTATS,
+>  };
+> +
+> +static const char *mem_cgroup_events_names[] = {
+> +	"pgpgin",
+> +	"pgpgout",
+> +	"pgfault",
+> +	"pgmajfault",
+> +};
+> +
+>  /*
+>   * Per memcg event counter is incremented at every pagein/pageout. With THP,
+>   * it will be incremated by the number of pages. This counter is used for
+> @@ -4250,97 +4266,6 @@ static int mem_cgroup_move_charge_write(struct cgroup *cgrp,
+>  }
+>  #endif
+>  
+> -
+> -/* For read statistics */
+> -enum {
+> -	MCS_CACHE,
+> -	MCS_RSS,
+> -	MCS_FILE_MAPPED,
+> -	MCS_MLOCK,
+> -	MCS_SWAP,
+> -	MCS_PGPGIN,
+> -	MCS_PGPGOUT,
+> -	MCS_PGFAULT,
+> -	MCS_PGMAJFAULT,
+> -	MCS_INACTIVE_ANON,
+> -	MCS_ACTIVE_ANON,
+> -	MCS_INACTIVE_FILE,
+> -	MCS_ACTIVE_FILE,
+> -	MCS_UNEVICTABLE,
+> -	NR_MCS_STAT,
+> -};
+> -
+> -struct mcs_total_stat {
+> -	s64 stat[NR_MCS_STAT];
+> -};
+> -
+> -static const char *memcg_stat_strings[NR_MCS_STAT] = {
+> -	"cache",
+> -	"rss",
+> -	"mapped_file",
+> -	"mlock",
+> -	"swap",
+> -	"pgpgin",
+> -	"pgpgout",
+> -	"pgfault",
+> -	"pgmajfault",
+> -	"inactive_anon",
+> -	"active_anon",
+> -	"inactive_file",
+> -	"active_file",
+> -	"unevictable",
+> -};
+> -
+> -
+> -static void
+> -mem_cgroup_get_local_stat(struct mem_cgroup *memcg, struct mcs_total_stat *s)
+> -{
+> -	s64 val;
+> -
+> -	/* per cpu stat */
+> -	val = mem_cgroup_read_stat(memcg, MEM_CGROUP_STAT_CACHE);
+> -	s->stat[MCS_CACHE] += val * PAGE_SIZE;
+> -	val = mem_cgroup_read_stat(memcg, MEM_CGROUP_STAT_RSS);
+> -	s->stat[MCS_RSS] += val * PAGE_SIZE;
+> -	val = mem_cgroup_read_stat(memcg, MEM_CGROUP_STAT_FILE_MAPPED);
+> -	s->stat[MCS_FILE_MAPPED] += val * PAGE_SIZE;
+> -	val = mem_cgroup_read_stat(memcg, MEM_CGROUP_STAT_MLOCK);
+> -	s->stat[MCS_MLOCK] += val * PAGE_SIZE;
+> -	if (do_swap_account) {
+> -		val = mem_cgroup_read_stat(memcg, MEM_CGROUP_STAT_SWAPOUT);
+> -		s->stat[MCS_SWAP] += val * PAGE_SIZE;
+> -	}
+> -	val = mem_cgroup_read_events(memcg, MEM_CGROUP_EVENTS_PGPGIN);
+> -	s->stat[MCS_PGPGIN] += val;
+> -	val = mem_cgroup_read_events(memcg, MEM_CGROUP_EVENTS_PGPGOUT);
+> -	s->stat[MCS_PGPGOUT] += val;
+> -	val = mem_cgroup_read_events(memcg, MEM_CGROUP_EVENTS_PGFAULT);
+> -	s->stat[MCS_PGFAULT] += val;
+> -	val = mem_cgroup_read_events(memcg, MEM_CGROUP_EVENTS_PGMAJFAULT);
+> -	s->stat[MCS_PGMAJFAULT] += val;
+> -
+> -	/* per zone stat */
+> -	val = mem_cgroup_nr_lru_pages(memcg, BIT(LRU_INACTIVE_ANON));
+> -	s->stat[MCS_INACTIVE_ANON] += val * PAGE_SIZE;
+> -	val = mem_cgroup_nr_lru_pages(memcg, BIT(LRU_ACTIVE_ANON));
+> -	s->stat[MCS_ACTIVE_ANON] += val * PAGE_SIZE;
+> -	val = mem_cgroup_nr_lru_pages(memcg, BIT(LRU_INACTIVE_FILE));
+> -	s->stat[MCS_INACTIVE_FILE] += val * PAGE_SIZE;
+> -	val = mem_cgroup_nr_lru_pages(memcg, BIT(LRU_ACTIVE_FILE));
+> -	s->stat[MCS_ACTIVE_FILE] += val * PAGE_SIZE;
+> -	val = mem_cgroup_nr_lru_pages(memcg, BIT(LRU_UNEVICTABLE));
+> -	s->stat[MCS_UNEVICTABLE] += val * PAGE_SIZE;
+> -}
+> -
+> -static void
+> -mem_cgroup_get_total_stat(struct mem_cgroup *memcg, struct mcs_total_stat *s)
+> -{
+> -	struct mem_cgroup *iter;
+> -
+> -	for_each_mem_cgroup_tree(iter, memcg)
+> -		mem_cgroup_get_local_stat(iter, s);
+> -}
+> -
+>  #ifdef CONFIG_NUMA
+>  static int mem_control_numa_stat_show(struct cgroup *cont, struct cftype *cft,
+>  				      struct seq_file *m)
+> @@ -4388,24 +4313,40 @@ static int mem_control_numa_stat_show(struct cgroup *cont, struct cftype *cft,
+>  }
+>  #endif /* CONFIG_NUMA */
+>  
+> +static const char *mem_cgroup_lru_names[] = {
+> +	"inactive_anon",
+> +	"active_anon",
+> +	"inactive_file",
+> +	"active_file",
+> +	"unevictable",
+> +};
+> +static inline void mem_cgroup_lru_names_not_uptodate(void)
+> +{
+> +	BUILD_BUG_ON(ARRAY_SIZE(mem_cgroup_lru_names) != NR_LRU_LISTS);
+> +}
+> +
+>  static int mem_control_stat_show(struct cgroup *cont, struct cftype *cft,
+>  				 struct seq_file *m)
+>  {
+>  	struct mem_cgroup *memcg = mem_cgroup_from_cont(cont);
+> -	struct mcs_total_stat mystat;
+> -	int i;
+> -
+> -	memset(&mystat, 0, sizeof(mystat));
+> -	mem_cgroup_get_local_stat(memcg, &mystat);
+> +	struct mem_cgroup *mi;
+> +	unsigned int i;
+>  
+> -
+> -	for (i = 0; i < NR_MCS_STAT; i++) {
+> -		if (i == MCS_SWAP && !do_swap_account)
+> +	for (i = 0; i < MEM_CGROUP_STAT_NSTATS; i++) {
+> +		if (i == MEM_CGROUP_STAT_SWAPOUT && !do_swap_account)
+>  			continue;
+> -		seq_printf(m, "%s %llu\n", memcg_stat_strings[i],
+> -			   (unsigned long long)mystat.stat[i]);
+> +		seq_printf(m, "%s %ld\n", mem_cgroup_stat_names[i],
+> +			   mem_cgroup_read_stat(memcg, i) * PAGE_SIZE);
+>  	}
+>  
+> +	for (i = 0; i < MEM_CGROUP_EVENTS_NSTATS; i++)
+> +		seq_printf(m, "%s %lu\n", mem_cgroup_events_names[i],
+> +			   mem_cgroup_read_events(memcg, i));
+> +
+> +	for (i = 0; i < NR_LRU_LISTS; i++)
+> +		seq_printf(m, "%s %lu\n", mem_cgroup_lru_names[i],
+> +			   mem_cgroup_nr_lru_pages(memcg, BIT(i)) * PAGE_SIZE);
+> +
+>  	/* Hierarchical information */
+>  	{
+>  		unsigned long long limit, memsw_limit;
+> @@ -4416,13 +4357,31 @@ static int mem_control_stat_show(struct cgroup *cont, struct cftype *cft,
+>  				   memsw_limit);
+>  	}
+>  
+> -	memset(&mystat, 0, sizeof(mystat));
+> -	mem_cgroup_get_total_stat(memcg, &mystat);
+> -	for (i = 0; i < NR_MCS_STAT; i++) {
+> -		if (i == MCS_SWAP && !do_swap_account)
+> +	for (i = 0; i < MEM_CGROUP_STAT_NSTATS; i++) {
+> +		long long val = 0;
+> +
+> +		if (i == MEM_CGROUP_STAT_SWAPOUT && !do_swap_account)
+>  			continue;
+> -		seq_printf(m, "total_%s %llu\n", memcg_stat_strings[i],
+> -			   (unsigned long long)mystat.stat[i]);
+> +		for_each_mem_cgroup_tree(mi, memcg)
+> +			val += mem_cgroup_read_stat(mi, i) * PAGE_SIZE;
+> +		seq_printf(m, "total_%s %lld\n", mem_cgroup_stat_names[i], val);
+> +	}
+> +
+> +	for (i = 0; i < MEM_CGROUP_EVENTS_NSTATS; i++) {
+> +		unsigned long long val = 0;
+> +
+> +		for_each_mem_cgroup_tree(mi, memcg)
+> +			val += mem_cgroup_read_events(mi, i);
+> +		seq_printf(m, "total_%s %llu\n",
+> +			   mem_cgroup_events_names[i], val);
+> +	}
+> +
+> +	for (i = 0; i < NR_LRU_LISTS; i++) {
+> +		unsigned long long val = 0;
+> +
+> +		for_each_mem_cgroup_tree(mi, memcg)
+> +			val += mem_cgroup_nr_lru_pages(mi, BIT(i)) * PAGE_SIZE;
+> +		seq_printf(m, "total_%s %llu\n", mem_cgroup_lru_names[i], val);
+>  	}
+>  
+>  #ifdef CONFIG_DEBUG_VM
+> -- 
+> 1.7.10.1
+> 
+
+-- 
+Michal Hocko
+SUSE Labs
+SUSE LINUX s.r.o.
+Lihovarska 1060/12
+190 00 Praha 9    
+Czech Republic
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
