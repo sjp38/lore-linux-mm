@@ -1,39 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx104.postini.com [74.125.245.104])
-	by kanga.kvack.org (Postfix) with SMTP id F0E8D6B004D
-	for <linux-mm@kvack.org>; Tue, 15 May 2012 05:44:50 -0400 (EDT)
-Received: by dakp5 with SMTP id p5so10397719dak.14
-        for <linux-mm@kvack.org>; Tue, 15 May 2012 02:44:50 -0700 (PDT)
-Message-ID: <4FB22589.9050406@gmail.com>
-Date: Tue, 15 May 2012 17:44:41 +0800
-From: Cong Wang <xiyou.wangcong@gmail.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH 1/10] shmem: replace page if mapping excludes its zone
-References: <alpine.LSU.2.00.1205120447380.28861@eggly.anvils> <alpine.LSU.2.00.1205120453210.28861@eggly.anvils> <4FB0C888.8070805@gmail.com> <alpine.LSU.2.00.1205141219340.1623@eggly.anvils>
-In-Reply-To: <alpine.LSU.2.00.1205141219340.1623@eggly.anvils>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx189.postini.com [74.125.245.189])
+	by kanga.kvack.org (Postfix) with SMTP id B6FE46B004D
+	for <linux-mm@kvack.org>; Tue, 15 May 2012 05:47:28 -0400 (EDT)
+Message-ID: <1337075234.27694.9.camel@twins>
+Subject: Re: [PATCH 01/12] netvm: Prevent a stream-specific deadlock
+From: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Date: Tue, 15 May 2012 11:47:14 +0200
+In-Reply-To: <20120515091402.GG29102@suse.de>
+References: <1336658065-24851-2-git-send-email-mgorman@suse.de>
+	 <20120511.011034.557833140906762226.davem@davemloft.net>
+	 <20120514105604.GB29102@suse.de>
+	 <20120514.162634.1094732813264319951.davem@davemloft.net>
+	 <20120515091402.GG29102@suse.de>
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: quoted-printable
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Christoph Hellwig <hch@infradead.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Alan Cox <alan@lxorguk.ukuu.org.uk>, Stephane Marchesin <marcheu@chromium.org>, Andi Kleen <andi@firstfloor.org>, Dave Airlie <airlied@gmail.com>, Daniel Vetter <ffwll.ch@google.com>, Rob Clark <rob.clark@linaro.org>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Mel Gorman <mgorman@suse.de>
+Cc: David Miller <davem@davemloft.net>, akpm@linux-foundation.org, linux-mm@kvack.org, netdev@vger.kernel.org, linux-nfs@vger.kernel.org, linux-kernel@vger.kernel.org, Trond.Myklebust@netapp.com, neilb@suse.de, hch@infradead.org, michaelc@cs.wisc.edu, emunson@mgebm.net
 
-On 05/15/2012 03:42 AM, Hugh Dickins wrote:
-> I'm not going to rush the incremental patch to fix this: need to think
-> about it quietly first.
->
-> If you're wondering what I'm talking about (sorry, I don't have time
-> to explain more right now), take a look at comment and git history of
-> line 2956 (in 3.4-rc7) of mm/memory.c:
-> 	if (unlikely(!PageSwapCache(page) || page_private(page) != entry.val))
-> I don't suppose anyone ever actually hit the bug in the years before
-> we added that protection, but we still ought to guard against it,
-> there and here in shmem_replace_page().
->
+On Tue, 2012-05-15 at 10:14 +0100, Mel Gorman wrote:
+> @@ -289,6 +289,18 @@ void sk_clear_memalloc(struct sock *sk)
+>         sock_reset_flag(sk, SOCK_MEMALLOC);
+>         sk->sk_allocation &=3D ~__GFP_MEMALLOC;
+>         static_key_slow_dec(&memalloc_socks);
+> +
+> +       /*
+> +        * SOCK_MEMALLOC is allowed to ignore rmem limits to ensure forwa=
+rd
+> +        * progress of swapping. However, if SOCK_MEMALLOC is cleared whi=
+le
+> +        * it has rmem allocations there is a risk that the user of the
+> +        * socket cannot make forward progress due to exceeding the rmem
+> +        * limits. By rights, sk_clear_memalloc() should only be called
+> +        * on sockets being torn down but warn and reset the accounting i=
+f
+> +        * that assumption breaks.
+> +        */
+> +       if (WARN_ON(sk->sk_forward_alloc))
 
-Ok, I have no objections.
+WARN_ON_ONCE() perhaps?
 
-Thanks for your patches anyway!
+> +               sk_mem_reclaim(sk);
+>  }=20
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
