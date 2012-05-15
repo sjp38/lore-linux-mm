@@ -1,59 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx142.postini.com [74.125.245.142])
-	by kanga.kvack.org (Postfix) with SMTP id CF9566B004D
-	for <linux-mm@kvack.org>; Tue, 15 May 2012 14:24:23 -0400 (EDT)
-Message-ID: <4FB29F51.8060605@kernel.dk>
-Date: Tue, 15 May 2012 20:24:17 +0200
-From: Jens Axboe <axboe@kernel.dk>
-MIME-Version: 1.0
-Subject: Re: [PATCH 0/2] swap: improve swap I/O rate
-References: <1336996709-8304-1-git-send-email-ehrhardt@linux.vnet.ibm.com>
-In-Reply-To: <1336996709-8304-1-git-send-email-ehrhardt@linux.vnet.ibm.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx122.postini.com [74.125.245.122])
+	by kanga.kvack.org (Postfix) with SMTP id DE3F66B004D
+	for <linux-mm@kvack.org>; Tue, 15 May 2012 15:03:03 -0400 (EDT)
+Received: by dakp5 with SMTP id p5so11374517dak.14
+        for <linux-mm@kvack.org>; Tue, 15 May 2012 12:03:03 -0700 (PDT)
+From: Joonsoo Kim <js1304@gmail.com>
+Subject: [PATCH] slub: fix a memory leak in get_partial_node()
+Date: Wed, 16 May 2012 04:01:38 +0900
+Message-Id: <1337108498-4104-1-git-send-email-js1304@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: ehrhardt@linux.vnet.ibm.com
-Cc: linux-mm@kvack.org
+To: Pekka Enberg <penberg@kernel.org>
+Cc: Christoph Lameter <cl@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, stable@vger.kernel.org, Joonsoo Kim <js1304@gmail.com>
 
-On 2012-05-14 13:58, ehrhardt@linux.vnet.ibm.com wrote:
-> From: Ehrhardt Christian <ehrhardt@linux.vnet.ibm.com>
-> 
-> From: Christian Ehrhardt <ehrhardt@linux.vnet.ibm.com>
-> 
-> In an memory overcommitment scneario with KVM I ran into a lot of wiats for
-> swap. While checking the I/O done on the swap disks I found almost all I/Os
-> to be done as single page 4k request. Despite the fact that swap in is a
-> batch of 1<<page-cluster pages as swap readahead and swap out is a list of
-> pages written in shrink_page_list.
-> 
-> [1/2 swap in improvment]
-> The read patch shows improvements of up to 50% swap throughput, much happier
-> guest systems and even when running with comparable throughput a lot I/O per
-> seconds saved leaving resources in the SAN for other consumers.
-> 
-> [2/2 documentation]
-> While doing so I also realized that the documentation for
-> proc/sys/vm/page-cluster is no more matching the code
-> 
-> [missing patch #3]
-> I tried to get a similar patch working for swap out in shrink_page_list. And
-> it worked in functional terms, but the additional mergin was negligible.
-> Maybe the cond_resched triggers much mor often than I expected, I'm open for
-> suggestions regarding improving the pagout I/O sizes as well.
-> 
-> Kind regards,
-> Christian Ehrhardt
-> 
-> 
-> Christian Ehrhardt (2):
->   swap: allow swap readahead to be merged
->   documentation: update how page-cluster affects swap I/O
+In the case which is below,
 
-Looks good to me, you can add my acked-by to both of them.
+1. acquire slab for cpu partial list
+2. free object to it by remote cpu
+3. page->freelist = t
 
+then memory leak is occurred.
+
+Change acquire_slab() not to zap freelist when it works for cpu partial list.
+I think it is a sufficient solution for fixing a memory leak.
+
+Below is output of 'slabinfo -r kmalloc-256'
+when './perf stat -r 30 hackbench 50 process 4000 > /dev/null' is done.
+
+***Vanilla***
+Sizes (bytes)     Slabs              Debug                Memory
+------------------------------------------------------------------------
+Object :     256  Total  :     468   Sanity Checks : Off  Total: 3833856
+SlabObj:     256  Full   :     111   Redzoning     : Off  Used : 2004992
+SlabSiz:    8192  Partial:     302   Poisoning     : Off  Loss : 1828864
+Loss   :       0  CpuSlab:      55   Tracking      : Off  Lalig:       0
+Align  :       8  Objects:      32   Tracing       : Off  Lpadd:       0
+
+***Patched***
+Sizes (bytes)     Slabs              Debug                Memory
+------------------------------------------------------------------------
+Object :     256  Total  :     300   Sanity Checks : Off  Total: 2457600
+SlabObj:     256  Full   :     204   Redzoning     : Off  Used : 2348800
+SlabSiz:    8192  Partial:      33   Poisoning     : Off  Loss :  108800
+Loss   :       0  CpuSlab:      63   Tracking      : Off  Lalig:       0
+Align  :       8  Objects:      32   Tracing       : Off  Lpadd:       0
+
+Total and loss number is the impact of this patch.
+
+Signed-off-by: Joonsoo Kim <js1304@gmail.com>
+
+diff --git a/mm/slub.c b/mm/slub.c
+index ffe13fd..a7a766a 100644
+--- a/mm/slub.c
++++ b/mm/slub.c
+@@ -1514,15 +1514,19 @@ static inline void *acquire_slab(struct kmem_cache *s,
+ 		freelist = page->freelist;
+ 		counters = page->counters;
+ 		new.counters = counters;
+-		if (mode)
++		if (mode) {
+ 			new.inuse = page->objects;
++			new.freelist = NULL;
++		} else {
++			new.freelist = freelist;
++		}
+ 
+ 		VM_BUG_ON(new.frozen);
+ 		new.frozen = 1;
+ 
+ 	} while (!__cmpxchg_double_slab(s, page,
+ 			freelist, counters,
+-			NULL, new.counters,
++			new.freelist, new.counters,
+ 			"lock and freeze"));
+ 
+ 	remove_partial(n, page);
+@@ -1564,7 +1568,6 @@ static void *get_partial_node(struct kmem_cache *s,
+ 			object = t;
+ 			available =  page->objects - page->inuse;
+ 		} else {
+-			page->freelist = t;
+ 			available = put_cpu_partial(s, page, 0);
+ 			stat(s, CPU_PARTIAL_NODE);
+ 		}
 -- 
-Jens Axboe
+1.7.9.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
