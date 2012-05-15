@@ -1,31 +1,37 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx121.postini.com [74.125.245.121])
-	by kanga.kvack.org (Postfix) with SMTP id 0B7EA6B0092
-	for <linux-mm@kvack.org>; Tue, 15 May 2012 02:32:21 -0400 (EDT)
-Received: by dakp5 with SMTP id p5so10068370dak.14
-        for <linux-mm@kvack.org>; Mon, 14 May 2012 23:32:21 -0700 (PDT)
-Date: Mon, 14 May 2012 23:32:19 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH] slub: change cmpxchg_double_slab in get_freelist() to
- __cmpxchg_double_slab
-In-Reply-To: <1336665378-2967-1-git-send-email-js1304@gmail.com>
-Message-ID: <alpine.DEB.2.00.1205142332060.19403@chino.kir.corp.google.com>
-References: <1336665378-2967-1-git-send-email-js1304@gmail.com>
+Received: from psmtp.com (na3sys010amx153.postini.com [74.125.245.153])
+	by kanga.kvack.org (Postfix) with SMTP id 8444B6B0081
+	for <linux-mm@kvack.org>; Tue, 15 May 2012 02:57:24 -0400 (EDT)
+Date: Tue, 15 May 2012 02:57:18 -0400
+From: Christoph Hellwig <hch@infradead.org>
+Subject: Re: [PATCH 1/2] xfs: hole-punch use truncate_pagecache_range
+Message-ID: <20120515065718.GA7373@infradead.org>
+References: <alpine.LSU.2.00.1205131347120.1547@eggly.anvils>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.LSU.2.00.1205131347120.1547@eggly.anvils>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <js1304@gmail.com>
-Cc: Pekka Enberg <penberg@kernel.org>, Christoph Lameter <cl@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Hugh Dickins <hughd@google.com>
+Cc: Christoph Hellwig <hch@infradead.org>, Dave Chinner <david@fromorbit.com>, Ben Myers <bpm@sgi.com>, xfs@oss.sgi.com, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
 
-On Fri, 11 May 2012, Joonsoo Kim wrote:
-
-> get_freelist() is only called by __slab_alloc with interrupt disabled,
-> so __cmpxchg_double_slab is suitable.
+On Sun, May 13, 2012 at 01:50:06PM -0700, Hugh Dickins wrote:
+> When truncating a file, we unmap pages from userspace first, as that's
+> usually more efficient than relying, page by page, on the fallback in
+> truncate_inode_page() - particularly if the file is mapped many times.
 > 
-> Signed-off-by: Joonsoo Kim <js1304@gmail.com>
+> Do the same when punching a hole: 3.4 added truncate_pagecache_range()
+> to do the unmap and trunc, so use it in xfs_flushinval_pages(), instead
+> of calling truncate_inode_pages_range() directly.
 
-Acked-by: David Rientjes <rientjes@google.com>
+This change looks fine.
+
+> Should xfs_tosspages() be using it too?  I don't know: left unchanged.
+
+I'll look at it.  I've been planning to simplify and/or kill the
+xfs_fs_subr.c wrappers which tend to confuse the code for a while now,
+and deciding what exactly to do should be a fallout from that.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
