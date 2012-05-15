@@ -1,41 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx130.postini.com [74.125.245.130])
-	by kanga.kvack.org (Postfix) with SMTP id B68226B00EB
-	for <linux-mm@kvack.org>; Tue, 15 May 2012 11:14:50 -0400 (EDT)
-Date: Tue, 15 May 2012 17:14:27 +0200
-From: Jan Kara <jack@suse.cz>
-Subject: Re: [PATCH 0/2 v2] Flexible proportions for BDIs
-Message-ID: <20120515151427.GB26579@quack.suse.cz>
-References: <1336084760-19534-1-git-send-email-jack@suse.cz>
- <20120507144344.GA13983@localhost>
- <20120509113720.GC5092@quack.suse.cz>
- <20120510073123.GA7523@localhost>
- <20120511145114.GA18227@localhost>
- <20120513032952.GA8099@localhost>
- <20120514212803.GT5353@quack.suse.cz>
- <1337080332.27694.39.camel@twins>
+Received: from psmtp.com (na3sys010amx137.postini.com [74.125.245.137])
+	by kanga.kvack.org (Postfix) with SMTP id 408396B00F0
+	for <linux-mm@kvack.org>; Tue, 15 May 2012 11:18:19 -0400 (EDT)
+Received: by wgbdt14 with SMTP id dt14so5285517wgb.26
+        for <linux-mm@kvack.org>; Tue, 15 May 2012 08:18:17 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1337080332.27694.39.camel@twins>
+Reply-To: konrad@darnok.org
+In-Reply-To: <4FB06604.5060608@kernel.org>
+References: <1336027242-372-4-git-send-email-minchan@kernel.org>
+	<4FA28EFD.5070002@vflare.org>
+	<4FA33E89.6080206@kernel.org>
+	<alpine.LFD.2.02.1205071038090.2851@tux.localdomain>
+	<4FA7C2BC.2090400@vflare.org>
+	<4FA87837.3050208@kernel.org>
+	<731b6638-8c8c-4381-a00f-4ecd5a0e91ae@default>
+	<4FA9C127.5020908@kernel.org>
+	<d8fb8c73-0fd4-47c6-a9bb-ba3573569d63@default>
+	<4FAC5C87.3060504@kernel.org>
+	<20120511190643.GB3785@phenom.dumpdata.com>
+	<4FB06604.5060608@kernel.org>
+Date: Tue, 15 May 2012 11:18:17 -0400
+Message-ID: <CAPbh3ruaPQ+6s9t4KULYr2TdTUhUQNfQhFUt=C2jpvAvh+QTsQ@mail.gmail.com>
+Subject: Re: [PATCH 4/4] zsmalloc: zsmalloc: align cache line size
+From: Konrad Rzeszutek Wilk <konrad@darnok.org>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: Jan Kara <jack@suse.cz>, Fengguang Wu <fengguang.wu@intel.com>, linux-mm@kvack.org
+To: Minchan Kim <minchan@kernel.org>
+Cc: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Tue 15-05-12 13:12:12, Peter Zijlstra wrote:
-> On Mon, 2012-05-14 at 23:28 +0200, Jan Kara wrote:
-> > So is anybody against merging this?
-> 
-> I'd like to see the timer disable itself stuff first.. other than that,
-> no.
-  Ah, my fault. I have the code written already but forgot to send it...
-I'll post v3 in a minute.
+>>> I think it's not urgent than zs_handle mess.
+>>
+>> I am having a hard time parsing that. Are you saying that
+>> this is not as important as the zs_handle fixup? I think
+>> that is what you meant, but what to make sure.
+>
+>
+> Yes. I think zs_hande fixup is top priority for me than any other stuff I pointed out.
 
-								Honza
--- 
-Jan Kara <jack@suse.cz>
-SUSE Labs, CR
+What else is should we put on the TODO?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
