@@ -1,31 +1,29 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx160.postini.com [74.125.245.160])
-	by kanga.kvack.org (Postfix) with SMTP id DD9056B004D
-	for <linux-mm@kvack.org>; Tue, 15 May 2012 07:07:39 -0400 (EDT)
-Message-ID: <1337080047.27694.37.camel@twins>
-Subject: Re: Allow migration of mlocked page?
+Received: from psmtp.com (na3sys010amx135.postini.com [74.125.245.135])
+	by kanga.kvack.org (Postfix) with SMTP id 6DBA46B004D
+	for <linux-mm@kvack.org>; Tue, 15 May 2012 07:12:15 -0400 (EDT)
+Message-ID: <1337080332.27694.39.camel@twins>
+Subject: Re: [PATCH 0/2 v2] Flexible proportions for BDIs
 From: Peter Zijlstra <peterz@infradead.org>
-Date: Tue, 15 May 2012 13:07:27 +0200
-In-Reply-To: <4FB1B012.1090506@kernel.org>
-References: <4FAC9786.9060200@kernel.org> <1336728026.1017.7.camel@twins>
-	  <4FB0866D.4020203@kernel.org> <1336978573.2443.13.camel@twins>
-	 <4FB0B61E.6040902@kernel.org>
-	 <alpine.DEB.2.00.1205140847340.26056@router.home>
-	 <4FB1B012.1090506@kernel.org>
+Date: Tue, 15 May 2012 13:12:12 +0200
+In-Reply-To: <20120514212803.GT5353@quack.suse.cz>
+References: <1336084760-19534-1-git-send-email-jack@suse.cz>
+	 <20120507144344.GA13983@localhost> <20120509113720.GC5092@quack.suse.cz>
+	 <20120510073123.GA7523@localhost> <20120511145114.GA18227@localhost>
+	 <20120513032952.GA8099@localhost> <20120514212803.GT5353@quack.suse.cz>
 Content-Type: text/plain; charset="ISO-8859-1"
 Content-Transfer-Encoding: quoted-printable
 Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Christoph Lameter <cl@linux.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, Theodore Ts'o <tytso@mit.edu>, "hugh.dickins@tiscali.co.uk" <hugh.dickins@tiscali.co.uk>
+To: Jan Kara <jack@suse.cz>
+Cc: Fengguang Wu <fengguang.wu@intel.com>, linux-mm@kvack.org
 
-On Tue, 2012-05-15 at 10:23 +0900, Minchan Kim wrote:
-> So many developers have been used it by meaning of "making sure latency".=
- :(
+On Mon, 2012-05-14 at 23:28 +0200, Jan Kara wrote:
+> So is anybody against merging this?
 
-Many developers do many crazy things.. many use sched_yield() for
-instance. Doesn't make it right though.
+I'd like to see the timer disable itself stuff first.. other than that,
+no.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
