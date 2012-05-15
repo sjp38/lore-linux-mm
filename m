@@ -1,57 +1,34 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx186.postini.com [74.125.245.186])
-	by kanga.kvack.org (Postfix) with SMTP id 54DF56B0083
-	for <linux-mm@kvack.org>; Tue, 15 May 2012 09:16:37 -0400 (EDT)
-Date: Tue, 15 May 2012 21:15:33 +0800
-From: Fengguang Wu <fengguang.wu@intel.com>
-Subject: Re: [PATCH 0/2 v2] Flexible proportions for BDIs
-Message-ID: <20120515131533.GA4753@localhost>
-References: <1336084760-19534-1-git-send-email-jack@suse.cz>
- <20120507144344.GA13983@localhost>
- <20120509113720.GC5092@quack.suse.cz>
- <20120510073123.GA7523@localhost>
- <20120511145114.GA18227@localhost>
- <20120513032952.GA8099@localhost>
- <20120514212803.GT5353@quack.suse.cz>
+Received: from psmtp.com (na3sys010amx169.postini.com [74.125.245.169])
+	by kanga.kvack.org (Postfix) with SMTP id EAB696B004D
+	for <linux-mm@kvack.org>; Tue, 15 May 2012 10:04:04 -0400 (EDT)
+Date: Tue, 15 May 2012 09:04:01 -0500 (CDT)
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: [PATCH v2] mm: Fix slab->page _count corruption.
+In-Reply-To: <1337034892.8512.652.camel@edumazet-glaptop>
+Message-ID: <alpine.DEB.2.00.1205150903320.6488@router.home>
+References: <1337034597-1826-1-git-send-email-pshelar@nicira.com> <1337034892.8512.652.camel@edumazet-glaptop>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20120514212803.GT5353@quack.suse.cz>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jan Kara <jack@suse.cz>
-Cc: linux-mm@kvack.org, peterz@infradead.org
+To: Eric Dumazet <eric.dumazet@gmail.com>
+Cc: Pravin B Shelar <pshelar@nicira.com>, penberg@kernel.org, mpm@selenic.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, jesse@nicira.com, abhide@nicira.com
 
-Hi Jan,
+On Tue, 15 May 2012, Eric Dumazet wrote:
 
-> > The observations for this box are
-> > 
-> > - the 3s and 8s periods result in roughly the same adaption speed
-> > 
-> > - the patch makes a really *big* difference in systems with big
-> >   memory:bandwidth ratio. It's sweet! In comparison, the vanilla
-> >   kernel adapts to new write bandwidth so much slower.
->   Yes, in this configuration the benefit of the new algorithm can be clearly
-> seen. Together with the results of previous test I'd say 3s period is the
-> best candidate.
- 
-Agreed. I'm fine with the fixed 3s period. 
+> > Following patch fixes it by moving page->_count out of cmpxchg_double
+> > data. So that slub does no change it while updating slub meta-data in
+> > struct page.
+>
+> I say again : Page is owned by slub, so get_page() or put_page() is not
+> allowed ?
 
->   Just I was thinking whether the period shouldn't be somehow set
-> automatically because I'm not convinced 3s will be right for everybody...
-> Maybe something based on how big fluctuations in completion rate we
-> observe. But it would be tricky given the load itself changes as well. So
-> for now we'll have to live with a hardwired period I guess.
+It is allowed since slab memory can be used for DMA.
 
-Yeah, simple fixed periods should be good enough.
+> How is put_page() going to work with order-1 or order-2 allocations ?
 
->   Thanks for the tests Fengguang! So is anybody against merging this?
-
-No problem for me, when Peter's concern is addressed.
-
-Thanks!
-
-Fengguang
+It is always incrementing the page count of the head page.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
