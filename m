@@ -1,89 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx139.postini.com [74.125.245.139])
-	by kanga.kvack.org (Postfix) with SMTP id 8B4266B004D
-	for <linux-mm@kvack.org>; Tue, 15 May 2012 04:51:17 -0400 (EDT)
-Received: by obbwd18 with SMTP id wd18so13763477obb.14
-        for <linux-mm@kvack.org>; Tue, 15 May 2012 01:51:16 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx193.postini.com [74.125.245.193])
+	by kanga.kvack.org (Postfix) with SMTP id BB24A6B0081
+	for <linux-mm@kvack.org>; Tue, 15 May 2012 04:53:34 -0400 (EDT)
+Received: by lahi5 with SMTP id i5so6326684lah.14
+        for <linux-mm@kvack.org>; Tue, 15 May 2012 01:53:32 -0700 (PDT)
+Message-ID: <4FB21988.40503@openvz.org>
+Date: Tue, 15 May 2012 12:53:28 +0400
+From: Konstantin Khlebnikov <khlebnikov@openvz.org>
 MIME-Version: 1.0
-In-Reply-To: <alpine.LSU.2.00.1205120502370.28861@eggly.anvils>
-References: <alpine.LSU.2.00.1205120447380.28861@eggly.anvils>
-	<alpine.LSU.2.00.1205120502370.28861@eggly.anvils>
-Date: Tue, 15 May 2012 18:51:16 +1000
-Message-ID: <CAPa8GCDk89o5H9mA40fRv_Us35vQXMPYFDT_r=affo90TnGm6g@mail.gmail.com>
-Subject: Re: [PATCH 3/10] tmpfs: optimize clearing when writing
-From: Nick Piggin <npiggin@gmail.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: base64
+Subject: Re: [PATCH 3/3] mm/memcg: apply add/del_page to lruvec
+References: <alpine.LSU.2.00.1205132152530.6148@eggly.anvils> <alpine.LSU.2.00.1205132201210.6148@eggly.anvils> <4FB0E985.9000107@openvz.org> <alpine.LSU.2.00.1205141252060.1693@eggly.anvils>
+In-Reply-To: <alpine.LSU.2.00.1205141252060.1693@eggly.anvils>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Hugh Dickins <hughd@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Christoph Hellwig <hch@infradead.org>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
+Cc: Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 
-T24gMTIgTWF5IDIwMTIgMjI6MDQsIEh1Z2ggRGlja2lucyA8aHVnaGRAZ29vZ2xlLmNvbT4gd3Jv
-dGU6Cj4gTmljayBwcm9wb3NlZCB5ZWFycyBhZ28gdGhhdCB0bXBmcyBzaG91bGQgYXZvaWQgY2xl
-YXJpbmcgaXRzIHBhZ2VzIHdoZXJlCj4gd3JpdGUgd2lsbCBvdmVyd3JpdGUgdGhlbSB3aXRoIG5l
-dyBkYXRhLCBhcyByYW1mcyBoYXMgbG9uZyBkb25lLiDCoEJ1dCBJCj4gbWVzc2VkIGl0IHVwIGFu
-ZCBqdXN0IGdvdCBiYWQgZGF0YS4gwqBUcmllZCBhZ2FpbiByZWNlbnRseSwgaXQgd29ya3MgZmlu
-ZS4KPgo+IEhlcmUncyB0aW1lIG91dHB1dCBmb3Igd3JpdGluZyA0R2lCIDE2IHRpbWVzIG9uIHRo
-aXMgQ29yZSBpNSBsYXB0b3A6Cj4KPiBiZWZvcmU6IHJlYWwgwqAgwqAwbTIxLjE2OXMgdXNlciDC
-oDBtMC4wMjhzIHN5cyDCoCDCoDBtMjEuMDU3cwo+IMKgIMKgIMKgIMKgcmVhbCDCoCDCoDBtMjEu
-MzgycyB1c2VyIMKgMG0wLjAxNnMgc3lzIMKgIMKgMG0yMS4yODlzCj4gwqAgwqAgwqAgwqByZWFs
-IMKgIMKgMG0yMS4zMTFzIHVzZXIgwqAwbTAuMDIwcyBzeXMgwqAgwqAwbTIxLjIxN3MKPgo+IGFm
-dGVyOiDCoHJlYWwgwqAgwqAwbTE4LjI3M3MgdXNlciDCoDBtMC4wMzJzIHN5cyDCoCDCoDBtMTgu
-MTY1cwo+IMKgIMKgIMKgIMKgcmVhbCDCoCDCoDBtMTguMzU0cyB1c2VyIMKgMG0wLjAyMHMgc3lz
-IMKgIMKgMG0xOC4yNjVzCj4gwqAgwqAgwqAgwqByZWFsIMKgIMKgMG0xOC40NDBzIHVzZXIgwqAw
-bTAuMDMycyBzeXMgwqAgwqAwbTE4LjMzN3MKPgo+IHJhbWZzOiDCoHJlYWwgwqAgwqAwbTE2Ljg2
-MHMgdXNlciDCoDBtMC4wMjhzIHN5cyDCoCDCoDBtMTYuNzY1cwo+IMKgIMKgIMKgIMKgcmVhbCDC
-oCDCoDBtMTcuMzgycyB1c2VyIMKgMG0wLjA0MHMgc3lzIMKgIMKgMG0xNy4yNzNzCj4gwqAgwqAg
-wqAgwqByZWFsIMKgIMKgMG0xNy4xMzNzIHVzZXIgwqAwbTAuMDQ0cyBzeXMgwqAgwqAwbTE3LjAy
-MXMKCkNvb2wsIHRoYW5rcyBIdWdoISBWZXJ5IGJpZyBzcGVlZHVwLgoKCj4KPiBZZXMsIEkgaGF2
-ZSBkb25lIHBlcmYgcmVwb3J0cywgYnV0IHRoZXkgbmVlZCBtb3JlIGV4cGxhbmF0aW9uIHRoYW4g
-dGhleQo+IGRlc2VydmU6IGluIHN1bW1hcnksIGNsZWFyX3BhZ2UgdmFuaXNoZXMsIGl0cyBjYWNo
-ZSBsb2FkaW5nIHNoaWZ0cyBpbnRvCj4gY29weV91c2VyX2dlbmVyaWNfdW5yb2xsZWQ7IHNobWVt
-X2dldHBhZ2VfZ2ZwIGdvZXMgZG93biwgYW5kIHN1cnByaXNpbmdseQo+IG1hcmtfcGFnZV9hY2Nl
-c3NlZCBnb2VzIHdheSB1cCAtIEkgdGhpbmsgYmVjYXVzZSB0aGV5IGFyZSByZXNwZWN0aXZlbHkK
-PiB3aGVyZSB0aGUgY2FjaGUgZ2V0cyB0byBiZSByZWxvYWRlZCBhZnRlciBiZWluZyBwdXJnZWQg
-YnkgY2xlYXIgb3IgY29weS4KPgo+IFN1Z2dlc3RlZC1ieTogTmljayBQaWdnaW4gPG5waWdnaW5A
-Z21haWwuY29tPgo+IFNpZ25lZC1vZmYtYnk6IEh1Z2ggRGlja2lucyA8aHVnaGRAZ29vZ2xlLmNv
-bT4KPiAtLS0KPiDCoG1tL3NobWVtLmMgfCDCoCAyMCArKysrKysrKysrKysrKysrKy0tLQo+IMKg
-MSBmaWxlIGNoYW5nZWQsIDE3IGluc2VydGlvbnMoKyksIDMgZGVsZXRpb25zKC0pCj4KPiAtLS0g
-MzA0NU4ub3JpZy9tbS9zaG1lbS5jIMKgIMKgIMKgIDIwMTItMDUtMDUgMTA6NDY6MDUuNzMyMDYy
-MDA2IC0wNzAwCj4gKysrIDMwNDVOL21tL3NobWVtLmMgwqAgwqAyMDEyLTA1LTA1IDEwOjQ2OjEy
-LjMxNjA2MjE3MiAtMDcwMAo+IEBAIC0xMDk1LDkgKzEwOTUsMTQgQEAgcmVwZWF0Ogo+IMKgIMKg
-IMKgIMKgIMKgIMKgIMKgIMKgc2htZW1fcmVjYWxjX2lub2RlKGlub2RlKTsKPiDCoCDCoCDCoCDC
-oCDCoCDCoCDCoCDCoHNwaW5fdW5sb2NrKCZpbmZvLT5sb2NrKTsKPgo+IC0gwqAgwqAgwqAgwqAg
-wqAgwqAgwqAgY2xlYXJfaGlnaHBhZ2UocGFnZSk7Cj4gLSDCoCDCoCDCoCDCoCDCoCDCoCDCoCBm
-bHVzaF9kY2FjaGVfcGFnZShwYWdlKTsKPiAtIMKgIMKgIMKgIMKgIMKgIMKgIMKgIFNldFBhZ2VV
-cHRvZGF0ZShwYWdlKTsKPiArIMKgIMKgIMKgIMKgIMKgIMKgIMKgIC8qCj4gKyDCoCDCoCDCoCDC
-oCDCoCDCoCDCoCDCoCogTGV0IFNHUF9XUklURSBjYWxsZXIgY2xlYXIgZW5kcyBpZiB3cml0ZSBk
-b2VzIG5vdCBmaWxsIHBhZ2UKPiArIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgKi8KPiArIMKgIMKg
-IMKgIMKgIMKgIMKgIMKgIGlmIChzZ3AgIT0gU0dQX1dSSVRFKSB7Cj4gKyDCoCDCoCDCoCDCoCDC
-oCDCoCDCoCDCoCDCoCDCoCDCoCBjbGVhcl9oaWdocGFnZShwYWdlKTsKPiArIMKgIMKgIMKgIMKg
-IMKgIMKgIMKgIMKgIMKgIMKgIMKgIGZsdXNoX2RjYWNoZV9wYWdlKHBhZ2UpOwo+ICsgwqAgwqAg
-wqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgU2V0UGFnZVVwdG9kYXRlKHBhZ2UpOwo+ICsgwqAg
-wqAgwqAgwqAgwqAgwqAgwqAgfQo+IMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgaWYgKHNncCA9PSBT
-R1BfRElSVFkpCj4gwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqBzZXRfcGFnZV9k
-aXJ0eShwYWdlKTsKPiDCoCDCoCDCoCDCoH0KPiBAQCAtMTMwNyw2ICsxMzEyLDE0IEBAIHNobWVt
-X3dyaXRlX2VuZChzdHJ1Y3QgZmlsZSAqZmlsZSwgc3RydWMKPiDCoCDCoCDCoCDCoGlmIChwb3Mg
-KyBjb3BpZWQgPiBpbm9kZS0+aV9zaXplKQo+IMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgaV9zaXpl
-X3dyaXRlKGlub2RlLCBwb3MgKyBjb3BpZWQpOwo+Cj4gKyDCoCDCoCDCoCBpZiAoIVBhZ2VVcHRv
-ZGF0ZShwYWdlKSkgewo+ICsgwqAgwqAgwqAgwqAgwqAgwqAgwqAgaWYgKGNvcGllZCA8IFBBR0Vf
-Q0FDSEVfU0laRSkgewo+ICsgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgdW5zaWdu
-ZWQgZnJvbSA9IHBvcyAmIChQQUdFX0NBQ0hFX1NJWkUgLSAxKTsKPiArIMKgIMKgIMKgIMKgIMKg
-IMKgIMKgIMKgIMKgIMKgIMKgIHplcm9fdXNlcl9zZWdtZW50cyhwYWdlLCAwLCBmcm9tLAo+ICsg
-wqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAg
-ZnJvbSArIGNvcGllZCwgUEFHRV9DQUNIRV9TSVpFKTsKPiArIMKgIMKgIMKgIMKgIMKgIMKgIMKg
-IH0KPiArIMKgIMKgIMKgIMKgIMKgIMKgIMKgIFNldFBhZ2VVcHRvZGF0ZShwYWdlKTsKPiArIMKg
-IMKgIMKgIH0KPiDCoCDCoCDCoCDCoHNldF9wYWdlX2RpcnR5KHBhZ2UpOwo+IMKgIMKgIMKgIMKg
-dW5sb2NrX3BhZ2UocGFnZSk7Cj4gwqAgwqAgwqAgwqBwYWdlX2NhY2hlX3JlbGVhc2UocGFnZSk7
-Cj4gQEAgLTE3NjgsNiArMTc4MSw3IEBAIHN0YXRpYyBpbnQgc2htZW1fc3ltbGluayhzdHJ1Y3Qg
-aW5vZGUgKmQKPiDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoGthZGRyID0ga21hcF9hdG9taWMocGFn
-ZSk7Cj4gwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqBtZW1jcHkoa2FkZHIsIHN5bW5hbWUsIGxlbik7
-Cj4gwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqBrdW5tYXBfYXRvbWljKGthZGRyKTsKPiArIMKgIMKg
-IMKgIMKgIMKgIMKgIMKgIFNldFBhZ2VVcHRvZGF0ZShwYWdlKTsKPiDCoCDCoCDCoCDCoCDCoCDC
-oCDCoCDCoHNldF9wYWdlX2RpcnR5KHBhZ2UpOwo+IMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgdW5s
-b2NrX3BhZ2UocGFnZSk7Cj4gwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqBwYWdlX2NhY2hlX3JlbGVh
-c2UocGFnZSk7Cg==
+Hugh Dickins wrote:
+> On Mon, 14 May 2012, Konstantin Khlebnikov wrote:
+>> Hugh Dickins wrote:
+>>> Take lruvec further: pass it instead of zone to add_page_to_lru_list()
+>>> and del_page_from_lru_list(); and pagevec_lru_move_fn() pass lruvec
+>>> down to its target functions.
+>>>
+>>> This cleanup eliminates a swathe of cruft in memcontrol.c,
+>>> including mem_cgroup_lru_add_list(), mem_cgroup_lru_del_list() and
+>>> mem_cgroup_lru_move_lists() - which never actually touched the lists.
+>>>
+>>> In their place, mem_cgroup_page_lruvec() to decide the lruvec,
+>>> previously a side-effect of add, and mem_cgroup_update_lru_size()
+>>> to maintain the lru_size stats.
+>>>
+>>> Whilst these are simplifications in their own right, the goal is to
+>>> bring the evaluation of lruvec next to the spin_locking of the lrus,
+>>> in preparation for a future patch.
+>>>
+>>> Signed-off-by: Hugh Dickins<hughd@google.com>
+>>> ---
+>>> The horror, the horror: I have three lines of 81 columns:
+>>> I do think they look better this way than split up.
+>>
+>> This too huge and hard to review. =(
+>
+> Hah, we have very different preferences: whereas I found your
+> split into twelve a hindrance to review rather than a help.
+>
+>> I have the similar thing splitted into several patches.
+>
+> I had been hoping to get this stage, where I think we're still in
+> agreement (except perhaps on the ordering of function arguments!),
+> into 3.5 as a basis for later discussion.
+
+Yeah, my version differs mostly in function's names and ordering of arguments.
+I use 'long' for last argument in mem_cgroup_update_lru_size(),
+and call it once in isolate_lru_pages(), rather than for each isolated page.
+You have single mem_cgroup_page_lruvec() variant, and this is biggest difference
+between our versions. So, Ok, nothing important at this stage.
+
+Acked-by: Konstantin Khlebnikov <khlebnikov@openvz.org>
+
+>
+> But I won't have time to split it into bite-sized pieces for
+> linux-next now before 3.4 goes out, so it sounds like we'll have
+> to drop it this time around.  Oh well.
+>
+> Thanks (you and Kame and Michal) for the very quick review of
+> the other, even more trivial, patches.
+>
+>>
+>> Also I want to replace page_cgroup->mem_cgroup pointer with
+>> page_cgroup->lruvec
+>> and rework "surreptitious switching any uncharged page to root"
+>> In my set I have mem_cgroup_page_lruvec() without side-effects and
+>> mem_cgroup_page_lruvec_putback() with can switch page's lruvec, but it not
+>> always moves pages to root: in
+>> putback_inactive_pages()/move_active_pages_to_lru()
+>> we have better candidate for lruvec switching.
+>
+> But those sound like later developments on top of this to me.
+>
+> Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
