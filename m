@@ -1,98 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx192.postini.com [74.125.245.192])
-	by kanga.kvack.org (Postfix) with SMTP id 318E06B004D
-	for <linux-mm@kvack.org>; Tue, 15 May 2012 18:18:40 -0400 (EDT)
-Date: Tue, 15 May 2012 15:18:38 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] mm/buddy: dump PG_compound_lock page flag
-Message-Id: <20120515151838.6e750498.akpm@linux-foundation.org>
-In-Reply-To: <20120514205134.GD1406@cmpxchg.org>
-References: <1336991213-9149-1-git-send-email-shangw@linux.vnet.ibm.com>
-	<20120514205134.GD1406@cmpxchg.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx131.postini.com [74.125.245.131])
+	by kanga.kvack.org (Postfix) with SMTP id CF4DE6B004D
+	for <linux-mm@kvack.org>; Tue, 15 May 2012 18:48:23 -0400 (EDT)
+Date: Wed, 16 May 2012 00:48:05 +0200
+From: Jan Kara <jack@suse.cz>
+Subject: Hole punching and mmap races
+Message-ID: <20120515224805.GA25577@quack.suse.cz>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Gavin Shan <shangw@linux.vnet.ibm.com>, linux-mm@kvack.org
+To: linux-fsdevel@vger.kernel.org
+Cc: xfs@oss.sgi.com, linux-ext4@vger.kernel.org, Hugh Dickins <hughd@google.com>, linux-mm@kvack.org
 
-On Mon, 14 May 2012 22:51:34 +0200
-Johannes Weiner <hannes@cmpxchg.org> wrote:
+  Hello,
 
-> On Mon, May 14, 2012 at 06:26:53PM +0800, Gavin Shan wrote:
-> > The array pageflag_names[] is doing the conversion from page flag
-> > into the corresponding names so that the meaingful string again
-> > the corresponding page flag can be printed. The mechniasm is used
-> > while dumping the specified page frame. However, the array missed
-> > PG_compound_lock. So PG_compound_lock page flag would be printed
-> > as ditigal number instead of meaningful string.
-> > 
-> > The patch fixes that and print "compound_lock" for PG_compound_lock
-> > page flag.
-> > 
-> > Signed-off-by: Gavin Shan <shangw@linux.vnet.ibm.com>
-> 
-> Acked-by: Johannes Weiner <hannes@cmpxchg.org>
-> 
-> This on top?
+  Hugh pointed me to ext4 hole punching code which is clearly missing some
+locking. But looking at the code more deeply I realized I don't see
+anything preventing the following race in XFS or ext4:
 
-Can I play too?
+TASK1				TASK2
+				punch_hole(file, 0, 4096)
+				  filemap_write_and_wait()
+				  truncate_pagecache_range()
+addr = mmap(file);
+addr[0] = 1
+  ^^ writeably fault a page
+				  remove file blocks
 
+						FLUSHER
+						write out file
+						  ^^ interesting things can
+happen because we expect blocks under the first page to be allocated /
+reserved but they are not...
 
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: mm/page_alloc.c: cleanups
+I'm pretty sure ext4 has this problem, I'm not completely sure whether
+XFS has something to protect against such race but I don't see anything.
 
-- make pageflag_names[] const
+It's not easy to protect against these races. For truncate, i_size protects
+us against similar races but for hole punching we don't have any such
+mechanism. One way to avoid the race would be to hold mmap_sem while we are
+invalidating the page cache and punching hole but that sounds a bit ugly.
+Alternatively we could just have some special lock (rwsem?) held during
+page_mkwrite() (for reading) and during whole hole punching (for writing)
+to serialize these two operations.
 
-- remove null termination of pageflag_names[]
+Another alternative, which doesn't really look more appealing, is to go
+page-by-page and always free corresponding blocks under page lock.
 
-Cc: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Gavin Shan <shangw@linux.vnet.ibm.com>
-Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
----
+Any other ideas or thoughts?
 
- mm/page_alloc.c |    7 +++----
- 1 file changed, 3 insertions(+), 4 deletions(-)
-
-diff -puN mm/page_alloc.c~mm-page_allocc-cleanups mm/page_alloc.c
---- a/mm/page_alloc.c~mm-page_allocc-cleanups
-+++ a/mm/page_alloc.c
-@@ -5934,7 +5934,7 @@ bool is_free_buddy_page(struct page *pag
- }
- #endif
- 
--static struct trace_print_flags pageflag_names[] = {
-+static const struct trace_print_flags pageflag_names[] = {
- 	{1UL << PG_locked,		"locked"	},
- 	{1UL << PG_error,		"error"		},
- 	{1UL << PG_referenced,		"referenced"	},
-@@ -5972,7 +5972,6 @@ static struct trace_print_flags pageflag
- #ifdef CONFIG_TRANSPARENT_HUGEPAGE
- 	{1UL << PG_compound_lock,	"compound_lock"	},
- #endif
--	{-1UL,				NULL		},
- };
- 
- static void dump_page_flags(unsigned long flags)
-@@ -5981,14 +5980,14 @@ static void dump_page_flags(unsigned lon
- 	unsigned long mask;
- 	int i;
- 
--	BUILD_BUG_ON(ARRAY_SIZE(pageflag_names) - 1 != __NR_PAGEFLAGS);
-+	BUILD_BUG_ON(ARRAY_SIZE(pageflag_names) != __NR_PAGEFLAGS);
- 
- 	printk(KERN_ALERT "page flags: %#lx(", flags);
- 
- 	/* remove zone id */
- 	flags &= (1UL << NR_PAGEFLAGS) - 1;
- 
--	for (i = 0; pageflag_names[i].name && flags; i++) {
-+	for (i = 0; i < ARRAY_SIZE(pageflag_names) && flags; i++) {
- 
- 		mask = pageflag_names[i].mask;
- 		if ((flags & mask) != mask)
-_
+								Honza
+-- 
+Jan Kara <jack@suse.cz>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
