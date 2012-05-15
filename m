@@ -1,63 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx104.postini.com [74.125.245.104])
-	by kanga.kvack.org (Postfix) with SMTP id 844F06B004D
-	for <linux-mm@kvack.org>; Tue, 15 May 2012 08:34:37 -0400 (EDT)
-Date: Tue, 15 May 2012 14:34:34 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH 3/3] mm/memcg: apply add/del_page to lruvec
-Message-ID: <20120515123434.GB11346@tiehlicka.suse.cz>
-References: <alpine.LSU.2.00.1205132152530.6148@eggly.anvils>
- <alpine.LSU.2.00.1205132201210.6148@eggly.anvils>
- <20120514163916.GD22629@tiehlicka.suse.cz>
+Received: from psmtp.com (na3sys010amx185.postini.com [74.125.245.185])
+	by kanga.kvack.org (Postfix) with SMTP id DD7916B004D
+	for <linux-mm@kvack.org>; Tue, 15 May 2012 09:07:53 -0400 (EDT)
+Date: Tue, 15 May 2012 14:07:48 +0100
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [PATCH 05/17] mm: allow PF_MEMALLOC from softirq context
+Message-ID: <20120515130748.GI29102@suse.de>
+References: <1336657510-24378-1-git-send-email-mgorman@suse.de>
+ <1336657510-24378-6-git-send-email-mgorman@suse.de>
+ <20120511.003951.1470088131186301605.davem@davemloft.net>
+ <20120514100229.GA29102@suse.de>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <20120514163916.GD22629@tiehlicka.suse.cz>
+In-Reply-To: <20120514100229.GA29102@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Konstantin Khlebnikov <khlebnikov@openvz.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: David Miller <davem@davemloft.net>
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org, netdev@vger.kernel.org, linux-kernel@vger.kernel.org, neilb@suse.de, a.p.zijlstra@chello.nl, michaelc@cs.wisc.edu, emunson@mgebm.net
 
-On Mon 14-05-12 18:39:16, Michal Hocko wrote:
-> On Sun 13-05-12 22:02:28, Hugh Dickins wrote:
-> > Take lruvec further: pass it instead of zone to add_page_to_lru_list()
-> > and del_page_from_lru_list(); and pagevec_lru_move_fn() pass lruvec
-> > down to its target functions.
-> > 
-> > This cleanup eliminates a swathe of cruft in memcontrol.c,
-> > including mem_cgroup_lru_add_list(), mem_cgroup_lru_del_list() and
-> > mem_cgroup_lru_move_lists() - which never actually touched the lists.
+On Mon, May 14, 2012 at 11:02:29AM +0100, Mel Gorman wrote:
+> Softirqs can run on multiple CPUs sure but the same task should not be
+> 	executing the same softirq code. Interrupts are disabled and the
+> 	executing process cannot sleep in softirq context so the task flags
+> 	cannot "leak" nor can they be concurrently modified.
 > 
-> Yes add_page_to_lru_list vs. mem_cgroup_lru_add_list and del variant
-> were really confusing.
-> 
-> > In their place, mem_cgroup_page_lruvec() to decide the lruvec,
-> > previously a side-effect of add, and mem_cgroup_update_lru_size()
-> > to maintain the lru_size stats.
-> > 
-> > Whilst these are simplifications in their own right, the goal is to
-> > bring the evaluation of lruvec next to the spin_locking of the lrus,
-> > in preparation for a future patch.
-> > 
-> > Signed-off-by: Hugh Dickins <hughd@google.com>
-> 
-> I like the patch but if Konstantin has a split up version of the same
-> thing I would rather see that version first.
 
-OK, I got confused and thought that Konstantin already posted his
-versions of the same thing and wanted to have a look at it. This doesn't
-seem to be the case and this changes are good enough for 3.5.
+This comment about hardirq is obviously wrong as __do_softirq() enables
+interrupts and can be preempted by a hardirq. I've updated the changelog
+now to include the following;
 
-Acked-by: Michal Hocko <mhocko@suse.cz>
+Softirqs can run on multiple CPUs sure but the same task should not be
+        executing the same softirq code. Neither should the softirq
+        handler be preempted by any other softirq handler so the flags
+        should not leak to an unrelated softirq.
 
-Thanks and sorry for the confusion
+Softirqs re-enable hardware interrupts in __do_softirq() so can be
+        preempted by hardware interrupts so PF_MEMALLOC is inherited
+        by the hard IRQ. However, this is similar to a process in
+        reclaim being preempted by a hardirq. While PF_MEMALLOC is
+        set, gfp_to_alloc_flags() distinguishes between hard and
+        soft irqs and avoids giving a hardirq the ALLOC_NO_WATERMARKS
+        flag.
+
+If the softirq is deferred to ksoftirq then its flags may be used
+        instead of a normal tasks but as the softirq cannot be preempted,
+        the PF_MEMALLOC flag does not leak to other code by accident.
+
 -- 
-Michal Hocko
+Mel Gorman
 SUSE Labs
-SUSE LINUX s.r.o.
-Lihovarska 1060/12
-190 00 Praha 9    
-Czech Republic
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
