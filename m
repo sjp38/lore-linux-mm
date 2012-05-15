@@ -1,46 +1,156 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx163.postini.com [74.125.245.163])
-	by kanga.kvack.org (Postfix) with SMTP id AD4CA6B00EB
-	for <linux-mm@kvack.org>; Tue, 15 May 2012 10:45:26 -0400 (EDT)
-Message-ID: <1337093115.27694.51.camel@twins>
-Subject: Re: Allow migration of mlocked page?
-From: Peter Zijlstra <peterz@infradead.org>
-Date: Tue, 15 May 2012 16:45:15 +0200
-In-Reply-To: <alpine.DEB.2.00.1205150911140.6488@router.home>
-References: <4FAC9786.9060200@kernel.org> <20120511131404.GQ11435@suse.de>
-	 <4FB08920.4010001@kernel.org> <20120514133944.GF29102@suse.de>
-	 <4FB1BC3E.3070107@kernel.org>
-	 <CAHGf_=qW6759UUxPvzoLfTdPCOHAahxN9DsPkkXHgoij9e5urg@mail.gmail.com>
-	 <1337079974.27694.36.camel@twins>
-	 <alpine.DEB.2.00.1205150911140.6488@router.home>
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: quoted-printable
-Mime-Version: 1.0
+Received: from psmtp.com (na3sys010amx142.postini.com [74.125.245.142])
+	by kanga.kvack.org (Postfix) with SMTP id 29C036B00EB
+	for <linux-mm@kvack.org>; Tue, 15 May 2012 10:46:38 -0400 (EDT)
+Date: Tue, 15 May 2012 16:46:35 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [patch 3/6] mm: memcg: print statistics directly to seq_file
+Message-ID: <20120515144635.GH11346@tiehlicka.suse.cz>
+References: <1337018451-27359-1-git-send-email-hannes@cmpxchg.org>
+ <1337018451-27359-4-git-send-email-hannes@cmpxchg.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1337018451-27359-4-git-send-email-hannes@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Minchan Kim <minchan@kernel.org>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, tglx@linutronix.de, Ingo Molnar <mingo@redhat.com>, Theodore Ts'o <tytso@mit.edu>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Tue, 2012-05-15 at 09:12 -0500, Christoph Lameter wrote:
-> On Tue, 15 May 2012, Peter Zijlstra wrote:
->=20
-> > So yes, page migration is a 'serious' problem, but only because the way
-> > its implemented is sub-optimal.
->=20
-> For the low-latency cases: page migration needs to be restricted to cpus
-> that are allowed to run high latency tasks or restricted to a time that n=
-o
-> low-latency responses are needed by the app. This means during setup or
-> special processing times (maybe after some action was completed).
->=20
-> A random compaction run can be very bad for a latency critical section.
+On Mon 14-05-12 20:00:48, Johannes Weiner wrote:
+> Being able to use seq_printf() allows being smarter about statistics
+> name strings, which are currently listed twice, with the only
+> difference being a "total_" prefix on the hierarchical version.
+> 
+> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
 
-Yes however:
+Nice
+Acked-by: Michal Hocko <mhocko@suse.cz>
 
- 1) low latency doesn't make real-time, time bounds do.
- 2) the latency impact of migration can be _MUCH_ improved if someone
-were to care about it.
+> ---
+>  mm/memcontrol.c |   56 +++++++++++++++++++++++++++----------------------------
+>  1 file changed, 28 insertions(+), 28 deletions(-)
+> 
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index f0d248b..9e8551c 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -4274,24 +4274,21 @@ struct mcs_total_stat {
+>  	s64 stat[NR_MCS_STAT];
+>  };
+>  
+> -static struct {
+> -	char *local_name;
+> -	char *total_name;
+> -} memcg_stat_strings[NR_MCS_STAT] = {
+> -	{"cache", "total_cache"},
+> -	{"rss", "total_rss"},
+> -	{"mapped_file", "total_mapped_file"},
+> -	{"mlock", "total_mlock"},
+> -	{"pgpgin", "total_pgpgin"},
+> -	{"pgpgout", "total_pgpgout"},
+> -	{"swap", "total_swap"},
+> -	{"pgfault", "total_pgfault"},
+> -	{"pgmajfault", "total_pgmajfault"},
+> -	{"inactive_anon", "total_inactive_anon"},
+> -	{"active_anon", "total_active_anon"},
+> -	{"inactive_file", "total_inactive_file"},
+> -	{"active_file", "total_active_file"},
+> -	{"unevictable", "total_unevictable"}
+> +static const char *memcg_stat_strings[NR_MCS_STAT] = {
+> +	"cache",
+> +	"rss",
+> +	"mapped_file",
+> +	"mlock",
+> +	"pgpgin",
+> +	"pgpgout",
+> +	"swap",
+> +	"pgfault",
+> +	"pgmajfault",
+> +	"inactive_anon",
+> +	"active_anon",
+> +	"inactive_file",
+> +	"active_file",
+> +	"unevictable",
+>  };
+>  
+>  
+> @@ -4392,7 +4389,7 @@ static int mem_control_numa_stat_show(struct cgroup *cont, struct cftype *cft,
+>  #endif /* CONFIG_NUMA */
+>  
+>  static int mem_control_stat_show(struct cgroup *cont, struct cftype *cft,
+> -				 struct cgroup_map_cb *cb)
+> +				 struct seq_file *m)
+>  {
+>  	struct mem_cgroup *memcg = mem_cgroup_from_cont(cont);
+>  	struct mcs_total_stat mystat;
+> @@ -4405,16 +4402,18 @@ static int mem_control_stat_show(struct cgroup *cont, struct cftype *cft,
+>  	for (i = 0; i < NR_MCS_STAT; i++) {
+>  		if (i == MCS_SWAP && !do_swap_account)
+>  			continue;
+> -		cb->fill(cb, memcg_stat_strings[i].local_name, mystat.stat[i]);
+> +		seq_printf(m, "%s %llu\n", memcg_stat_strings[i],
+> +			   (unsigned long long)mystat.stat[i]);
+>  	}
+>  
+>  	/* Hierarchical information */
+>  	{
+>  		unsigned long long limit, memsw_limit;
+>  		memcg_get_hierarchical_limit(memcg, &limit, &memsw_limit);
+> -		cb->fill(cb, "hierarchical_memory_limit", limit);
+> +		seq_printf(m, "hierarchical_memory_limit %llu\n", limit);
+>  		if (do_swap_account)
+> -			cb->fill(cb, "hierarchical_memsw_limit", memsw_limit);
+> +			seq_printf(m, "hierarchical_memsw_limit %llu\n",
+> +				   memsw_limit);
+>  	}
+>  
+>  	memset(&mystat, 0, sizeof(mystat));
+> @@ -4422,7 +4421,8 @@ static int mem_control_stat_show(struct cgroup *cont, struct cftype *cft,
+>  	for (i = 0; i < NR_MCS_STAT; i++) {
+>  		if (i == MCS_SWAP && !do_swap_account)
+>  			continue;
+> -		cb->fill(cb, memcg_stat_strings[i].total_name, mystat.stat[i]);
+> +		seq_printf(m, "total_%s %llu\n", memcg_stat_strings[i],
+> +			   (unsigned long long)mystat.stat[i]);
+>  	}
+>  
+>  #ifdef CONFIG_DEBUG_VM
+> @@ -4443,10 +4443,10 @@ static int mem_control_stat_show(struct cgroup *cont, struct cftype *cft,
+>  				recent_scanned[0] += rstat->recent_scanned[0];
+>  				recent_scanned[1] += rstat->recent_scanned[1];
+>  			}
+> -		cb->fill(cb, "recent_rotated_anon", recent_rotated[0]);
+> -		cb->fill(cb, "recent_rotated_file", recent_rotated[1]);
+> -		cb->fill(cb, "recent_scanned_anon", recent_scanned[0]);
+> -		cb->fill(cb, "recent_scanned_file", recent_scanned[1]);
+> +		seq_printf(m, "recent_rotated_anon %lu\n", recent_rotated[0]);
+> +		seq_printf(m, "recent_rotated_file %lu\n", recent_rotated[1]);
+> +		seq_printf(m, "recent_scanned_anon %lu\n", recent_scanned[0]);
+> +		seq_printf(m, "recent_scanned_file %lu\n", recent_scanned[1]);
+>  	}
+>  #endif
+>  
+> @@ -4880,7 +4880,7 @@ static struct cftype mem_cgroup_files[] = {
+>  	},
+>  	{
+>  		.name = "stat",
+> -		.read_map = mem_control_stat_show,
+> +		.read_seq_string = mem_control_stat_show,
+>  	},
+>  	{
+>  		.name = "force_empty",
+> -- 
+> 1.7.10.1
+> 
 
+-- 
+Michal Hocko
+SUSE Labs
+SUSE LINUX s.r.o.
+Lihovarska 1060/12
+190 00 Praha 9    
+Czech Republic
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
