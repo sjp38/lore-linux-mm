@@ -1,68 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx136.postini.com [74.125.245.136])
-	by kanga.kvack.org (Postfix) with SMTP id 91ABB6B004D
-	for <linux-mm@kvack.org>; Tue, 15 May 2012 10:14:51 -0400 (EDT)
-Date: Tue, 15 May 2012 16:14:48 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [patch 1/6] mm: memcg: remove obsolete statistics array boundary
- enum item
-Message-ID: <20120515141447.GE11346@tiehlicka.suse.cz>
-References: <1337018451-27359-1-git-send-email-hannes@cmpxchg.org>
- <1337018451-27359-2-git-send-email-hannes@cmpxchg.org>
+Received: from psmtp.com (na3sys010amx140.postini.com [74.125.245.140])
+	by kanga.kvack.org (Postfix) with SMTP id A27AD6B0083
+	for <linux-mm@kvack.org>; Tue, 15 May 2012 10:27:52 -0400 (EDT)
+Date: Tue, 15 May 2012 09:27:47 -0500 (CDT)
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: Allow migration of mlocked page?
+In-Reply-To: <CAG4TOxOdBkdobs95EPvVNKEAk-S8A_Rs_Rdy3Ky+TTtS1sRukg@mail.gmail.com>
+Message-ID: <alpine.DEB.2.00.1205150922050.6488@router.home>
+References: <4FAC9786.9060200@kernel.org> <20120511131404.GQ11435@suse.de> <4FADA007.3020309@gmail.com> <20120514133210.GE29102@suse.de> <1337003515.2443.35.camel@twins> <alpine.DEB.2.00.1205140857380.26304@router.home> <1337004860.2443.47.camel@twins>
+ <CAG4TOxOdBkdobs95EPvVNKEAk-S8A_Rs_Rdy3Ky+TTtS1sRukg@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1337018451-27359-2-git-send-email-hannes@cmpxchg.org>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Roland Dreier <roland@kernel.org>
+Cc: Peter Zijlstra <peterz@infradead.org>, Mel Gorman <mgorman@suse.de>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Minchan Kim <minchan@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, tglx@linutronix.de, Ingo Molnar <mingo@redhat.com>, Theodore Ts'o <tytso@mit.edu>
 
-On Mon 14-05-12 20:00:46, Johannes Weiner wrote:
-> MEM_CGROUP_STAT_DATA is a leftover from when item counters were living
-> in the same array as ever-increasing event counters.  It's no longer
-> needed, use MEM_CGROUP_STAT_NSTATS to iterate over the stat array.
-> 
-> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+On Mon, 14 May 2012, Roland Dreier wrote:
 
-Acked-by: Michal Hocko <mhocko@suse.cz>
+> In any case I don't see any problem with doing vma splitting in
+> drivers/core/infiniband/umem.c if need be.
 
-> ---
->  mm/memcontrol.c |    3 +--
->  1 file changed, 1 insertion(+), 2 deletions(-)
-> 
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index 9520ee9..aef89c1 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -99,7 +99,6 @@ enum mem_cgroup_stat_index {
->  	MEM_CGROUP_STAT_FILE_MAPPED,  /* # of pages charged as file rss */
->  	MEM_CGROUP_STAT_MLOCK, /* # of pages charged as mlock()ed */
->  	MEM_CGROUP_STAT_SWAPOUT, /* # of pages, swapped out */
-> -	MEM_CGROUP_STAT_DATA, /* end of data requires synchronization */
->  	MEM_CGROUP_STAT_NSTATS,
->  };
->  
-> @@ -2158,7 +2157,7 @@ static void mem_cgroup_drain_pcp_counter(struct mem_cgroup *memcg, int cpu)
->  	int i;
->  
->  	spin_lock(&memcg->pcp_counter_lock);
-> -	for (i = 0; i < MEM_CGROUP_STAT_DATA; i++) {
-> +	for (i = 0; i < MEM_CGROUP_STAT_NSTATS; i++) {
->  		long x = per_cpu(memcg->stat->count[i], cpu);
->  
->  		per_cpu(memcg->stat->count[i], cpu) = 0;
-> -- 
-> 1.7.10.1
-> 
+Prohibiting migration is already supported at the VMA level. There is no
+need to add anyting extra.
 
--- 
-Michal Hocko
-SUSE Labs
-SUSE LINUX s.r.o.
-Lihovarska 1060/12
-190 00 Praha 9    
-Czech Republic
+"struct vm_operations_struct" has a field for the "migrate" function.
+If that field is set to "fail_migrate_page" then no migration will ever
+take place on the VMA.
+
+But this feature is not accessible from user space. So far it has
+only been used by special filesystesm.
+
+And disabling migration does not solve the "I want no faults
+whatsovever" requirement that I keep hearing.
+
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
