@@ -1,59 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx195.postini.com [74.125.245.195])
-	by kanga.kvack.org (Postfix) with SMTP id 6766F6B004D
-	for <linux-mm@kvack.org>; Tue, 15 May 2012 07:03:21 -0400 (EDT)
-Date: Tue, 15 May 2012 13:03:02 +0200
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [patch 0/6] mm: memcg: statistics implementation cleanups
-Message-ID: <20120515110302.GH1406@cmpxchg.org>
-References: <1337018451-27359-1-git-send-email-hannes@cmpxchg.org>
- <4FB1A115.2080303@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <4FB1A115.2080303@jp.fujitsu.com>
+Received: from psmtp.com (na3sys010amx193.postini.com [74.125.245.193])
+	by kanga.kvack.org (Postfix) with SMTP id 72D8E6B004D
+	for <linux-mm@kvack.org>; Tue, 15 May 2012 07:06:25 -0400 (EDT)
+Message-ID: <1337079974.27694.36.camel@twins>
+Subject: Re: Allow migration of mlocked page?
+From: Peter Zijlstra <peterz@infradead.org>
+Date: Tue, 15 May 2012 13:06:14 +0200
+In-Reply-To: <CAHGf_=qW6759UUxPvzoLfTdPCOHAahxN9DsPkkXHgoij9e5urg@mail.gmail.com>
+References: <4FAC9786.9060200@kernel.org> <20120511131404.GQ11435@suse.de>
+	 <4FB08920.4010001@kernel.org> <20120514133944.GF29102@suse.de>
+	 <4FB1BC3E.3070107@kernel.org>
+	 <CAHGf_=qW6759UUxPvzoLfTdPCOHAahxN9DsPkkXHgoij9e5urg@mail.gmail.com>
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: quoted-printable
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
+Cc: Minchan Kim <minchan@kernel.org>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, tglx@linutronix.de, Ingo Molnar <mingo@redhat.com>, Theodore Ts'o <tytso@mit.edu>
 
-On Tue, May 15, 2012 at 09:19:33AM +0900, KAMEZAWA Hiroyuki wrote:
-> (2012/05/15 3:00), Johannes Weiner wrote:
-> 
-> > Before piling more things (reclaim stats) on top of the current mess,
-> > I thought it'd be better to clean up a bit.
-> > 
-> > The biggest change is printing statistics directly from live counters,
-> > it has always been annoying to declare a new counter in two separate
-> > enums and corresponding name string arrays.  After this series we are
-> > down to one of each.
-> > 
-> >  mm/memcontrol.c |  223 +++++++++++++++++------------------------------
-> >  1 file changed, 82 insertions(+), 141 deletions(-)
-> 
-> to all 1-6. Thank you.
-> 
-> Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+On Tue, 2012-05-15 at 00:33 -0400, KOSAKI Motohiro wrote:
+> > 3. Thera are several places which already have migrate mlocked pages bu=
+t it's okay because
+> >   it's done under user's control while compaction/khugepagd doesn't.
+>=20
+> I disagree. CPUSETS are used from admins. realtime _application_ is writt=
+en
+> by application developers. ok, they are often overwrapped or the same. bu=
+t it's
+> not exactly true. memory hotplug has similar situation.
 
-Thanks!
+I'm not exactly sure I get what you're saying, but with the current
+scheme of things its impossible to run an RT app properly without the
+administrator knowing wrf he's doing.
 
-> One excuse for my old implementation of mem_cgroup_get_total_stat(),
-> which is fixed in patch 6, is that I thought it's better to touch all counters
-> in a cachineline at once and avoiding long distance for-each loop.
-> 
-> What number of performance difference with some big hierarchy(100+children) tree ?
-> (But I agree your code is cleaner. I'm just curious.)
+So the fact that cpusets are admin only doesn't matter, he'd better know
+about the rt apps and its requirements.
 
-I set up a parental group with hierarchy enabled, then created 512
-children and did a 4-job kernel bench in one of them.  Every 0.1
-seconds, I read the stats of the parent, which requires reading each
-stat/event/lru item from 512 groups before moving to the next one:
+This very much includes crap like THP (which, as stated, is unavailable
+for PREEMPT_RT) since that is under administrator control.
 
-                        512stats-vanilla        512stats-patched
-Walltime (s)            62.61 (  +0.00%)        62.88 (  +0.43%)
-Walltime (stddev)        0.17 (  +0.00%)         0.14 (  -3.17%)
+CMA and other allocation based compaction much less so though.
 
-That should be acceptable, I think.
+> Moreover, Think mix up rt-app and non-rt-migrate_pages-user-app situation=
+. RT
+> app still be faced minor page fault and it's not expected from rt-app
+> developers.=20
+
+It would be if they'd listened to what I've been telling them for ages.
+
+Anyway.. taking faults isn't the problem for RT, taking indeterministic
+time to satisfy them is, and disk IO is completely off the charts
+indeterministic. Minor faults much less so.
+
+There is a very big difference between very fast and real-time, they've
+got very little to do with one another.
+
+That said, the way page migration currently works isn't ideal from a
+determinism pov, the migration PTE can be present for a basically
+indeterminate amount of time.
+
+So yes, page migration is a 'serious' problem, but only because the way
+its implemented is sub-optimal.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
