@@ -1,83 +1,30 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx203.postini.com [74.125.245.203])
-	by kanga.kvack.org (Postfix) with SMTP id 70E096B0081
-	for <linux-mm@kvack.org>; Tue, 15 May 2012 00:58:40 -0400 (EDT)
-Message-ID: <4FB1E2A0.9050900@kernel.org>
-Date: Tue, 15 May 2012 13:59:12 +0900
-From: Minchan Kim <minchan@kernel.org>
+Received: from psmtp.com (na3sys010amx186.postini.com [74.125.245.186])
+	by kanga.kvack.org (Postfix) with SMTP id D95DD6B0081
+	for <linux-mm@kvack.org>; Tue, 15 May 2012 02:26:14 -0400 (EDT)
+Received: by dakp5 with SMTP id p5so10055791dak.14
+        for <linux-mm@kvack.org>; Mon, 14 May 2012 23:26:14 -0700 (PDT)
+Date: Mon, 14 May 2012 23:26:11 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH] slub: remove unused argument of init_kmem_cache_node()
+In-Reply-To: <1336665047-22205-1-git-send-email-js1304@gmail.com>
+Message-ID: <alpine.DEB.2.00.1205142326000.19403@chino.kir.corp.google.com>
+References: <1336665047-22205-1-git-send-email-js1304@gmail.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 0/2] swap: improve swap I/O rate
-References: <1336996709-8304-1-git-send-email-ehrhardt@linux.vnet.ibm.com>
-In-Reply-To: <1336996709-8304-1-git-send-email-ehrhardt@linux.vnet.ibm.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: ehrhardt@linux.vnet.ibm.com
-Cc: linux-mm@kvack.org, axboe@kernel.dk, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>
+To: Joonsoo Kim <js1304@gmail.com>
+Cc: Pekka Enberg <penberg@kernel.org>, Christoph Lameter <cl@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On 05/14/2012 08:58 PM, ehrhardt@linux.vnet.ibm.com wrote:
+On Fri, 11 May 2012, Joonsoo Kim wrote:
 
-> From: Ehrhardt Christian <ehrhardt@linux.vnet.ibm.com>
+> We don't use the argument since commit 3b89d7d881a1dbb4da158f7eb5d6b3ceefc72810
+> ('slub: move min_partial to struct kmem_cache'), so remove it
 > 
-> From: Christian Ehrhardt <ehrhardt@linux.vnet.ibm.com>
-> 
-> In an memory overcommitment scneario with KVM I ran into a lot of wiats for
-> swap. While checking the I/O done on the swap disks I found almost all I/Os
-> to be done as single page 4k request. Despite the fact that swap in is a
-> batch of 1<<page-cluster pages as swap readahead and swap out is a list of
-> pages written in shrink_page_list.
-> 
-> [1/2 swap in improvment]
-> The read patch shows improvements of up to 50% swap throughput, much happier
-> guest systems and even when running with comparable throughput a lot I/O per
-> seconds saved leaving resources in the SAN for other consumers.
-> 
-> [2/2 documentation]
-> While doing so I also realized that the documentation for
-> proc/sys/vm/page-cluster is no more matching the code
-> 
-> [missing patch #3]
-> I tried to get a similar patch working for swap out in shrink_page_list. And
-> it worked in functional terms, but the additional mergin was negligible.
+> Signed-off-by: Joonsoo Kim <js1304@gmail.com>
 
-
-I think we have already done it.
-Look at shrink_mem_cgroup_zone which ends up calling shrink_page_list so we already have applied
-I/O plugging. 
-
-> Maybe the cond_resched triggers much mor often than I expected, I'm open for
-> suggestions regarding improving the pagout I/O sizes as well.
-
-
-We could enhance write out by batch like ext4_bio_write_page.
-
-> 
-> Kind regards,
-> Christian Ehrhardt
-> 
-> 
-> Christian Ehrhardt (2):
->   swap: allow swap readahead to be merged
->   documentation: update how page-cluster affects swap I/O
-> 
->  Documentation/sysctl/vm.txt |   12 ++++++++++--
->  mm/swap_state.c             |    5 +++++
->  2 files changed, 15 insertions(+), 2 deletions(-)
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Fight unfair telecom internet charges in Canada: sign http://stopthemeter.ca/
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-> 
-
-
-
--- 
-Kind regards,
-Minchan Kim
+Acked-by: David Rientjes <rientjes@google.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
