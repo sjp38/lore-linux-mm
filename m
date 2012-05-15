@@ -1,49 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx207.postini.com [74.125.245.207])
-	by kanga.kvack.org (Postfix) with SMTP id 6B71A6B00EC
-	for <linux-mm@kvack.org>; Tue, 15 May 2012 11:12:02 -0400 (EDT)
-Date: Tue, 15 May 2012 10:11:57 -0500 (CDT)
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: Allow migration of mlocked page?
-In-Reply-To: <1337093115.27694.51.camel@twins>
-Message-ID: <alpine.DEB.2.00.1205151008250.8389@router.home>
-References: <4FAC9786.9060200@kernel.org> <20120511131404.GQ11435@suse.de> <4FB08920.4010001@kernel.org> <20120514133944.GF29102@suse.de> <4FB1BC3E.3070107@kernel.org> <CAHGf_=qW6759UUxPvzoLfTdPCOHAahxN9DsPkkXHgoij9e5urg@mail.gmail.com> <1337079974.27694.36.camel@twins>
- <alpine.DEB.2.00.1205150911140.6488@router.home> <1337093115.27694.51.camel@twins>
+Received: from psmtp.com (na3sys010amx118.postini.com [74.125.245.118])
+	by kanga.kvack.org (Postfix) with SMTP id 0D8F66B00EC
+	for <linux-mm@kvack.org>; Tue, 15 May 2012 11:12:23 -0400 (EDT)
+Received: by dakp5 with SMTP id p5so10983316dak.14
+        for <linux-mm@kvack.org>; Tue, 15 May 2012 08:12:23 -0700 (PDT)
+Date: Tue, 15 May 2012 08:12:10 -0700
+From: Tejun Heo <tj@kernel.org>
+Subject: Re: [PATCH v3 1/6] memcg: fix error code in
+ hugetlb_force_memcg_empty()
+Message-ID: <20120515151210.GB6119@google.com>
+References: <4FACDED0.3020400@jp.fujitsu.com>
+ <4FACDFAE.5050808@jp.fujitsu.com>
+ <20120514181556.GE2366@google.com>
+ <20120514183219.GG2366@google.com>
+ <4FB1AD0A.50901@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <4FB1AD0A.50901@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Minchan Kim <minchan@kernel.org>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, tglx@linutronix.de, Ingo Molnar <mingo@redhat.com>, Theodore Ts'o <tytso@mit.edu>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "cgroups@vger.kernel.org" <cgroups@vger.kernel.org>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Frederic Weisbecker <fweisbec@gmail.com>, Han Ying <yinghan@google.com>, Glauber Costa <glommer@parallels.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, Hiroyuki Kamezawa <kamezawa.hiroyuki@gmail.com>, Linux Kernel <linux-kernel@vger.kernel.org>
 
-On Tue, 15 May 2012, Peter Zijlstra wrote:
+On Tue, May 15, 2012 at 10:10:34AM +0900, KAMEZAWA Hiroyuki wrote:
+> (2012/05/15 3:32), Tejun Heo wrote:
+> 
+> > On Mon, May 14, 2012 at 11:15:56AM -0700, Tejun Heo wrote:
+> >> On Fri, May 11, 2012 at 06:45:18PM +0900, KAMEZAWA Hiroyuki wrote:
+> >>> -		if (cgroup_task_count(cgroup) || !list_empty(&cgroup->children))
+> >>> +		if (cgroup_task_count(cgroup)
+> >>> +			|| !list_empty(&cgroup->children)) {
+> >>> +			ret = -EBUSY;
+> >>>  			goto out;
+> >>
+> >> Why break the line?  It doesn't go over 80 col.
+> > 
+> > Ooh, it does.  Sorry, my bad.  But still, isn't it more usual to leave
+> > the operator in the preceding line and align the start of the second
+> > line with the first?  ie.
+> > 
+> > 		if (cgroup_task_count(cgroup) ||
+> > 		    !list_empty(&cgroup->children)) {
+> > 
+> 
+> 
+> How about this ?
+> ==
+> From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> Date: Fri, 27 Apr 2012 13:19:19 +0900
+> Subject: [PATCH] memcg: fix error code in hugetlb_force_memcg_empty()
+> 
+> Changelog:
+>  - clean up.
+> Reviewed-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
+> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-> On Tue, 2012-05-15 at 09:12 -0500, Christoph Lameter wrote:
-> > On Tue, 15 May 2012, Peter Zijlstra wrote:
-> >
-> > > So yes, page migration is a 'serious' problem, but only because the way
-> > > its implemented is sub-optimal.
-> >
-> > For the low-latency cases: page migration needs to be restricted to cpus
-> > that are allowed to run high latency tasks or restricted to a time that no
-> > low-latency responses are needed by the app. This means during setup or
-> > special processing times (maybe after some action was completed).
-> >
-> > A random compaction run can be very bad for a latency critical section.
->
-> Yes however:
->
->  1) low latency doesn't make real-time, time bounds do.
+Heh, it was a nitpick anyway.  Please feel free to add my reviewed-by
+for the whole series.
 
-Indeed. My requirements are low latency not real time deadlines. There is
-some overlap but the basic idea on what to accomplish is different. F.e.
-we cannot tolerate the overhead (and scaling limits) added through
-additional logic coming with a "real time" kernel.
+Thank you!
 
->  2) the latency impact of migration can be _MUCH_ improved if someone
-> were to care about it.
-
-True. I think THP/compaction would benefit most from it.
+-- 
+tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
