@@ -1,89 +1,149 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx150.postini.com [74.125.245.150])
-	by kanga.kvack.org (Postfix) with SMTP id 2AFEF6B004D
-	for <linux-mm@kvack.org>; Tue, 15 May 2012 10:58:07 -0400 (EDT)
-Date: Tue, 15 May 2012 16:58:05 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [patch 4/6] mm: memcg: keep ratelimit counter separate from
- event counters
-Message-ID: <20120515145805.GI11346@tiehlicka.suse.cz>
-References: <1337018451-27359-1-git-send-email-hannes@cmpxchg.org>
- <1337018451-27359-5-git-send-email-hannes@cmpxchg.org>
+Received: from psmtp.com (na3sys010amx172.postini.com [74.125.245.172])
+	by kanga.kvack.org (Postfix) with SMTP id A8F8E6B004D
+	for <linux-mm@kvack.org>; Tue, 15 May 2012 11:04:26 -0400 (EDT)
+Received: by wibhr14 with SMTP id hr14so2568996wib.8
+        for <linux-mm@kvack.org>; Tue, 15 May 2012 08:04:25 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1337018451-27359-5-git-send-email-hannes@cmpxchg.org>
+Reply-To: konrad@darnok.org
+In-Reply-To: <4FB06B91.1080008@kernel.org>
+References: <4FAB21E7.7020703@kernel.org>
+	<20120510140215.GC26152@phenom.dumpdata.com>
+	<4FABD503.4030808@vflare.org>
+	<4FABDA9F.1000105@linux.vnet.ibm.com>
+	<20120510151941.GA18302@kroah.com>
+	<4FABECF5.8040602@vflare.org>
+	<20120510164418.GC13964@kroah.com>
+	<4FABF9D4.8080303@vflare.org>
+	<20120510173322.GA30481@phenom.dumpdata.com>
+	<4FAC4E3B.3030909@kernel.org>
+	<20120511192831.GC3785@phenom.dumpdata.com>
+	<4FB06B91.1080008@kernel.org>
+Date: Tue, 15 May 2012 11:04:22 -0400
+Message-ID: <CAPbh3ruv9xCV_XpR4ZsZpSGQ8=mibg=a39zvADYETb-tg0kBsA@mail.gmail.com>
+Subject: Re: [PATCH 3/4] zsmalloc use zs_handle instead of void *
+From: Konrad Rzeszutek Wilk <konrad@darnok.org>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Minchan Kim <minchan@kernel.org>
+Cc: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Mon 14-05-12 20:00:49, Johannes Weiner wrote:
-> All events except the ratelimit counter are statistics exported to
-> userspace.  Keep this internal value out of the event count array.
+>>
+>> The fix is of course to return a pointer (which your function
+>> declared), and instead do this:
+>>
+>> {
+>> =A0 =A0 =A0 struct zs_handle *handle;
+>>
+>> =A0 =A0 =A0 handle =3D zs_malloc(pool, size);
+>
+>
+> It's not a good idea.
+> For it, zs_malloc needs memory space to keep zs_handle internally.
+> Why should zsallocator do it? Just for zcache?
 
-OK, makes sense. I was just thinking that events_internal array (with a
-single MEM_CGROUP_EVENTS_COUNT) would be more consistent. Probably too
-much churn for a single event though.
+How different is from now? The zs_malloc keeps the handle internally
+as well - it just that is is a void * pointer. Internally, the
+ownership and the responsibility to free it lays with zsmalloc.
 
-> 
-> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+> It's not good abstraction.
 
-Acked-by: Michal Hocko <mhocko@suse.cz>
+If we want good abstraction, then I don't think 'unsigned long' is
+either? I mean it will do for the conversion from 'void *'. Perhaps I
+am being a bit optimistic here - and I am trying to jam in this
+'struct zs_handle' in all cases but in reality it needs a more
+iterative process. So first do 'void *' -> 'unsigned long', and then
+later on if we can come up with something more nicely that abstracts
+- then use that?
+.. snip ..
+>>> Why should zsmalloc support such interface?
+>>
+>> Why not? It is better than a 'void *' or a typedef.
+>>
+>> It is modeled after a pte_t.
+>
+>
+> It's not same with pte_t.
+> We normally don't use pte_val to (void*) for unique index of slot.
 
-> ---
->  mm/memcontrol.c |    6 +++---
->  1 file changed, 3 insertions(+), 3 deletions(-)
-> 
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index 9e8551c..546e7db 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -105,7 +105,6 @@ enum mem_cgroup_stat_index {
->  enum mem_cgroup_events_index {
->  	MEM_CGROUP_EVENTS_PGPGIN,	/* # of pages paged in */
->  	MEM_CGROUP_EVENTS_PGPGOUT,	/* # of pages paged out */
-> -	MEM_CGROUP_EVENTS_COUNT,	/* # of pages paged in/out */
->  	MEM_CGROUP_EVENTS_PGFAULT,	/* # of page-faults */
->  	MEM_CGROUP_EVENTS_PGMAJFAULT,	/* # of major page-faults */
->  	MEM_CGROUP_EVENTS_NSTATS,
-> @@ -129,6 +128,7 @@ enum mem_cgroup_events_target {
->  struct mem_cgroup_stat_cpu {
->  	long count[MEM_CGROUP_STAT_NSTATS];
->  	unsigned long events[MEM_CGROUP_EVENTS_NSTATS];
-> +	unsigned long nr_page_events;
->  	unsigned long targets[MEM_CGROUP_NTARGETS];
->  };
->  
-> @@ -736,7 +736,7 @@ static void mem_cgroup_charge_statistics(struct mem_cgroup *memcg,
->  		nr_pages = -nr_pages; /* for event */
->  	}
->  
-> -	__this_cpu_add(memcg->stat->events[MEM_CGROUP_EVENTS_COUNT], nr_pages);
-> +	__this_cpu_add(memcg->stat->nr_page_events, nr_pages);
->  
->  	preempt_enable();
->  }
-> @@ -797,7 +797,7 @@ static bool mem_cgroup_event_ratelimit(struct mem_cgroup *memcg,
->  {
->  	unsigned long val, next;
->  
-> -	val = __this_cpu_read(memcg->stat->events[MEM_CGROUP_EVENTS_COUNT]);
-> +	val = __this_cpu_read(memcg->stat->nr_page_events);
->  	next = __this_cpu_read(memcg->stat->targets[target]);
->  	/* from time_after() in jiffies.h */
->  	if ((long)next - (long)val < 0) {
-> -- 
-> 1.7.10.1
-> 
+Right, but I thought we want to get rid of all of the '(void *)'
+usages and instead
+pass some opaque pointer.
 
--- 
-Michal Hocko
-SUSE Labs
-SUSE LINUX s.r.o.
-Lihovarska 1060/12
-190 00 Praha 9    
-Czech Republic
+> The problem is that zcache assume handle of zsmalloc is a sizeof(void*)'s
+> unique value but zcache never assume it's a sizeof(void*).
+
+Huh? I am parsing your sentence as: "zcache assumes .. sizeof(void *),
+but zcache never assumes its .. sizeof(void *)"?
+
+Zcache has to assume it is a pointer. And providing a 'struct
+zs_handle *' would fit the bill?
+>>
+>>
+>>> It's a zcache problem so it's desriable to solve it in zcache internal.
+>>
+>> Not really. We shouldn't really pass any 'void *' pointers around.
+>>
+>>> And in future, if we can add/remove zs_handle's fields, we can't make
+>>> sure such API.
+>>
+>> Meaning ... what exactly do you mean? That the size of the structure
+>> will change and we won't return the right value? Why not?
+>> If you use the 'zs_handle_to_ptr' won't that work? Especially if you
+>> add new values to the end of the struct it won't cause issues.
+>
+>
+> I mean we might change zs_handle to following as, in future.
+> (It's insane but who know it?)
+
+OK, so BUILD_BUG(sizeof(struct zs_handle *) !=3D sizeof(void *))
+with a big fat comment saying that one needs to go over the other users
+of zcache/zram/zsmalloc to double check?
+
+But why would it matter? The zs_handle would be returned as a pointer
+- so the size is the same to the caller.
+
+>
+> struct zs_handle {
+> =A0 =A0 =A0 =A0int upper;
+> =A0 =A0 =A0 =A0int middle;
+> =A0 =A0 =A0 =A0int lower;
+> };
+>
+> How could you handle this for zs_handle_to_ptr?
+
+Gosh, um, I couldn't :-) Well, maybe with something that does
+ return "upper | middle | lower", but yeah that is not the goal.
+
+
+>>>>> Its true that making it a real struct would prevent accidental casts
+>>>>> to void * but due to the above problem, I think we have to stick
+>>>>> with unsigned long.
+>>
+>> So the problem you are seeing is that you don't want 'struct zs_handle'
+>> be present in the drivers/staging/zsmalloc/zsmalloc.h header file?
+>> It looks like the proper place.
+>
+>
+> No. What I want is to remove coupling zsallocator's handle with zram/zcac=
+he.
+> They shouldn't know internal of handle and assume it's a pointer.
+
+I concur. And hence I was thinking that the 'struct zs_handle *'
+pointer would work.
+
+>
+> If Nitin confirm zs_handle's format can never change in future, I prefer =
+"unsigned long" Nitin suggested than (void *).
+> It can prevent confusion that normal allocator's return value is pointer =
+for address so the problem is easy.
+> But I am not sure he can make sure it.
+
+Well, everything changes over time  so putting a stick in the ground
+and saying 'this must
+be this way' is not really the best way.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
