@@ -1,45 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx148.postini.com [74.125.245.148])
-	by kanga.kvack.org (Postfix) with SMTP id 9B5EF6B0081
-	for <linux-mm@kvack.org>; Wed, 16 May 2012 14:40:22 -0400 (EDT)
-Received: by mail-vb0-f49.google.com with SMTP id fo1so1515034vbb.22
-        for <linux-mm@kvack.org>; Wed, 16 May 2012 11:40:22 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx116.postini.com [74.125.245.116])
+	by kanga.kvack.org (Postfix) with SMTP id 746B16B0081
+	for <linux-mm@kvack.org>; Wed, 16 May 2012 16:00:46 -0400 (EDT)
+From: Nathan Zimmer <nzimmer@sgi.com>
+Subject: [PATCH] tmpfs not interleaving properly
+Date: Wed, 16 May 2012 20:00:39 +0000
+Message-ID: <74F10842A85F514CA8D8C487E74474BB2C0429@P-EXMB1-DC21.corp.sgi.com>
+Content-Language: en-US
+Content-Type: text/plain; charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-In-Reply-To: <alpine.DEB.2.00.1205141352440.26304@router.home>
-References: <1337020877-20087-1-git-send-email-pshelar@nicira.com>
-	<alpine.DEB.2.00.1205141352440.26304@router.home>
-Date: Wed, 16 May 2012 11:40:21 -0700
-Message-ID: <CALnjE+r2OQ5YmpCjDS09uQ5B2jMEWCF3V7NbZ0Q6jGwVhoZS9Q@mail.gmail.com>
-Subject: Re: [PATCH 1/2] mm: Fix slab->page flags corruption.
-From: Pravin Shelar <pshelar@nicira.com>
-Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: andrea@qumranet.com, aarcange@redhat.com
-Cc: penberg@kernel.org, mpm@selenic.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, jesse@nicira.com, abhide@nicira.com, Christoph Lameter <cl@linux.com>
+To: Hugh Dickins <hughd@google.com>, Nick Piggin <npiggin@gmail.com>, Christoph Lameter <cl@linux.com>, Lee Schermerhorn <lee.schermerhorn@hp.com>
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "stable@vger.kernel.org" <stable@vger.kernel.org>
 
-On Mon, May 14, 2012 at 11:53 AM, Christoph Lameter <cl@linux.com> wrote:
-> On Mon, 14 May 2012, Pravin B Shelar wrote:
->
->> Transparent huge pages can change page->flags (PG_compound_lock)
->> without taking Slab lock. Since THP can not break slab pages we can
->> safely access compound page without taking compound lock.
->>
->> Specificly this patch fixes race between compound_unlock and slab
->> functions which does page-flags update. This can occur when
->> get_page/put_page is called on page from slab object.
->
-> You need to also get this revbiewed by the THP folks like Andrea &
-> friends.
+When tmpfs has the memory policy interleaved it always starts allocating at=
+ each file at node 0.
+When there are many small files the lower nodes fill up disproportionately.
+My proposed solution is to start a file at a randomly chosen node.
 
-Hi Andrea,
+Cc: Christoph Lameter <cl@linux.com>
+Cc: Nick Piggin <npiggin@gmail.com>
+Cc: Hugh Dickins <hughd@google.com>
+Cc: Lee Schermerhorn <lee.schermerhorn@hp.com>
+Cc: stable@vger.kernel.org
+Signed-off-by: Nathan T Zimmer <nzimmer@sgi.com>
 
-Can you comment on this patch.
 
-Thanks.
+diff --git a/include/linux/shmem_fs.h b/include/linux/shmem_fs.h index 79ab=
+255..38eda26 100644
+--- a/include/linux/shmem_fs.h
++++ b/include/linux/shmem_fs.h
+@@ -17,6 +17,7 @@ struct shmem_inode_info {
+ 		char		*symlink;	/* unswappable short symlink */
+ 	};
+ 	struct shared_policy	policy;		/* NUMA memory alloc policy */
++	int			node_offset;	/* bias for interleaved nodes */
+ 	struct list_head	swaplist;	/* chain of maybes on swap */
+ 	struct list_head	xattr_list;	/* list of shmem_xattr */
+ 	struct inode		vfs_inode;
+diff --git a/mm/shmem.c b/mm/shmem.c
+index f99ff3e..58ef512 100644
+--- a/mm/shmem.c
++++ b/mm/shmem.c
+@@ -819,7 +819,7 @@ static struct page *shmem_alloc_page(gfp_t gfp,
+=20
+ 	/* Create a pseudo vma that just contains the policy */
+ 	pvma.vm_start =3D 0;
+-	pvma.vm_pgoff =3D index;
++	pvma.vm_pgoff =3D index + info->node_offset;
+ 	pvma.vm_ops =3D NULL;
+ 	pvma.vm_policy =3D mpol_shared_policy_lookup(&info->policy, index);
+=20
+@@ -1153,6 +1153,7 @@ static struct inode *shmem_get_inode(struct super_blo=
+ck *sb, const struct inode
+ 			inode->i_fop =3D &shmem_file_operations;
+ 			mpol_shared_policy_init(&info->policy,
+ 						 shmem_get_sbmpol(sbinfo));
++			info->node_offset =3D node_random(&node_online_map);
+ 			break;
+ 		case S_IFDIR:
+ 			inc_nlink(inode);
 
->
-> Reviewed-by: Christoph Lameter <cl@linux.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
