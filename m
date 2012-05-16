@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx199.postini.com [74.125.245.199])
-	by kanga.kvack.org (Postfix) with SMTP id 760046B0082
-	for <linux-mm@kvack.org>; Wed, 16 May 2012 17:06:40 -0400 (EDT)
-Date: Wed, 16 May 2012 14:06:37 -0700
+Received: from psmtp.com (na3sys010amx117.postini.com [74.125.245.117])
+	by kanga.kvack.org (Postfix) with SMTP id 44DD36B0092
+	for <linux-mm@kvack.org>; Wed, 16 May 2012 17:13:44 -0400 (EDT)
+Date: Wed, 16 May 2012 14:13:42 -0700
 From: Andrew Morton <akpm@linux-foundation.org>
 Subject: Re: [PATCH v5 2/2] decrement static keys on real destroy time
-Message-Id: <20120516140637.17741df6.akpm@linux-foundation.org>
+Message-Id: <20120516141342.911931e7.akpm@linux-foundation.org>
 In-Reply-To: <1336767077-25351-3-git-send-email-glommer@parallels.com>
 References: <1336767077-25351-1-git-send-email-glommer@parallels.com>
 	<1336767077-25351-3-git-send-email-glommer@parallels.com>
@@ -46,58 +46,16 @@ Glauber Costa <glommer@parallels.com> wrote:
 > activation, therefore, accounting. But all the others will then be
 > accounted no matter what. After this patch, only limited memcgs
 > will have its sockets accounted.
-> 
-> ...
->
-> @@ -107,10 +104,31 @@ static int tcp_update_limit(struct mem_cgroup *memcg, u64 val)
->  		tcp->tcp_prot_mem[i] = min_t(long, val >> PAGE_SHIFT,
->  					     net->ipv4.sysctl_tcp_mem[i]);
->  
-> -	if (val == RESOURCE_MAX && old_lim != RESOURCE_MAX)
-> -		static_key_slow_dec(&memcg_socket_limit_enabled);
-> -	else if (old_lim == RESOURCE_MAX && val != RESOURCE_MAX)
-> -		static_key_slow_inc(&memcg_socket_limit_enabled);
-> +	if (val == RESOURCE_MAX)
-> +		cg_proto->active = false;
-> +	else if (val != RESOURCE_MAX) {
-> +		/*
-> +		 * ->activated needs to be written after the static_key update.
-> +		 *  This is what guarantees that the socket activation function
-> +		 *  is the last one to run. See sock_update_memcg() for details,
-> +		 *  and note that we don't mark any socket as belonging to this
-> +		 *  memcg until that flag is up.
-> +		 *
-> +		 *  We need to do this, because static_keys will span multiple
-> +		 *  sites, but we can't control their order. If we mark a socket
-> +		 *  as accounted, but the accounting functions are not patched in
-> +		 *  yet, we'll lose accounting.
-> +		 *
-> +		 *  We never race with the readers in sock_update_memcg(), because
-> +		 *  when this value change, the code to process it is not patched in
-> +		 *  yet.
-> +		 */
-> +		if (!cg_proto->activated) {
-> +			static_key_slow_inc(&memcg_socket_limit_enabled);
-> +			cg_proto->activated = true;
-> +		}
 
-If two threads run this code concurrently, they can both see
-cg_proto->activated==false and they will both run
-static_key_slow_inc().
+So I'm scratching my head over what the actual bug is, and how
+important it is.  AFAICT it will cause charging stats to exhibit some
+inaccuracy when memcg's are being torn down?
 
-Hopefully there's some locking somewhere which prevents this, but it is
-unobvious.  We should comment this, probably at the cg_proto.activated
-definition site.  Or we should fix the bug ;)
+I don't know how serious this in in the real world and so can't decide
+which kernel version(s) we should fix.
 
-
-> +		cg_proto->active = true;
-> +	}
->  
->  	return 0;
->  }
->
-> ...
->
+When fixing bugs, please always fully describe the bug's end-user
+impact, so that I and others can make these sorts of decisions.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
