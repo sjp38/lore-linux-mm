@@ -1,61 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx117.postini.com [74.125.245.117])
-	by kanga.kvack.org (Postfix) with SMTP id 44DD36B0092
-	for <linux-mm@kvack.org>; Wed, 16 May 2012 17:13:44 -0400 (EDT)
-Date: Wed, 16 May 2012 14:13:42 -0700
+Received: from psmtp.com (na3sys010amx182.postini.com [74.125.245.182])
+	by kanga.kvack.org (Postfix) with SMTP id 9440A6B0082
+	for <linux-mm@kvack.org>; Wed, 16 May 2012 17:53:07 -0400 (EDT)
+Date: Wed, 16 May 2012 14:53:03 -0700
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH v5 2/2] decrement static keys on real destroy time
-Message-Id: <20120516141342.911931e7.akpm@linux-foundation.org>
-In-Reply-To: <1336767077-25351-3-git-send-email-glommer@parallels.com>
-References: <1336767077-25351-1-git-send-email-glommer@parallels.com>
-	<1336767077-25351-3-git-send-email-glommer@parallels.com>
+Subject: Re: [bug] shrink_slab shrinkersize handling
+Message-Id: <20120516145303.8a9cb329.akpm@linux-foundation.org>
+In-Reply-To: <CAD5x=MPcwXyy0eOdqPxc_8K_i3enoU3ZbtwLS71SHR58FCT6rg@mail.gmail.com>
+References: <CAD5x=MPcwXyy0eOdqPxc_8K_i3enoU3ZbtwLS71SHR58FCT6rg@mail.gmail.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Glauber Costa <glommer@parallels.com>
-Cc: cgroups@vger.kernel.org, linux-mm@kvack.org, devel@openvz.org, kamezawa.hiroyu@jp.fujitsu.com, netdev@vger.kernel.org, Tejun Heo <tj@kernel.org>, Li Zefan <lizefan@huawei.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>
+To: solmac john <johnsolmac@gmail.com>
+Cc: Dave Chinner <david@fromorbit.com>, linux-mm <linux-mm@kvack.org>, Russell King - ARM Linux <linux@arm.linux.org.uk>, Kernelnewbies@kernelnewbies.org, linux-kernel@vger.kernel.org, Konstantin Khlebnikov <khlebnikov@openvz.org>
 
-On Fri, 11 May 2012 17:11:17 -0300
-Glauber Costa <glommer@parallels.com> wrote:
+On Wed, 16 May 2012 14:33:18 +0530
+solmac john <johnsolmac@gmail.com> wrote:
 
-> We call the destroy function when a cgroup starts to be removed,
-> such as by a rmdir event.
+> Hi All,
 > 
-> However, because of our reference counters, some objects are still
-> inflight. Right now, we are decrementing the static_keys at destroy()
-> time, meaning that if we get rid of the last static_key reference,
-> some objects will still have charges, but the code to properly
-> uncharge them won't be run.
+> During mm performance testing sometimes I observed below kernel messages
 > 
-> This becomes a problem specially if it is ever enabled again, because
-> now new charges will be added to the staled charges making keeping
-> it pretty much impossible.
+> [   80.776000] shrink_slab: ashmem_shrink+0x0/0x114 negative objects to
+> delete nr=-2133936901
+> [   80.784000] shrink_slab: ashmem_shrink+0x0/0x114 negative objects to
+> delete nr=-2139256767
+> [   80.796000] shrink_slab: ashmem_shrink+0x0/0x114 negative objects to
+> delete nr=-2079333971
+> [   80.804000] shrink_slab: ashmem_shrink+0x0/0x114 negative objects to
+> delete nr=-2096156269
+> [   80.812000] shrink_slab: ashmem_shrink+0x0/0x114 negative objects to
+> delete nr=-20658392
 > 
-> We just need to be careful with the static branch activation:
-> since there is no particular preferred order of their activation,
-> we need to make sure that we only start using it after all
-> call sites are active. This is achieved by having a per-memcg
-> flag that is only updated after static_key_slow_inc() returns.
-> At this time, we are sure all sites are active.
-> 
-> This is made per-memcg, not global, for a reason:
-> it also has the effect of making socket accounting more
-> consistent. The first memcg to be limited will trigger static_key()
-> activation, therefore, accounting. But all the others will then be
-> accounted no matter what. After this patch, only limited memcgs
-> will have its sockets accounted.
+> ...
+>
+> I found one patch  http://lkml.org/lkml/2011/8/22/80    for this fix
+> Please let me know reason why I am getting above error and above is really
+> fix for this problem.  ?
 
-So I'm scratching my head over what the actual bug is, and how
-important it is.  AFAICT it will cause charging stats to exhibit some
-inaccuracy when memcg's are being torn down?
+Yes, that patch should fix it.
 
-I don't know how serious this in in the real world and so can't decide
-which kernel version(s) we should fix.
+Aside: I spent some time trying to work out the reason why local
+variable `max_pass' in shrink_slab() is called `max_pass' and failed.
 
-When fixing bugs, please always fully describe the bug's end-user
-impact, so that I and others can make these sorts of decisions.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
