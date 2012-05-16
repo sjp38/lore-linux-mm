@@ -1,54 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx181.postini.com [74.125.245.181])
-	by kanga.kvack.org (Postfix) with SMTP id 4D04B6B0092
-	for <linux-mm@kvack.org>; Wed, 16 May 2012 02:51:40 -0400 (EDT)
-Date: Wed, 16 May 2012 08:51:32 +0200
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [patch 0/5] refault distance-based file cache sizing
-Message-ID: <20120516065132.GC1769@cmpxchg.org>
-References: <1335861713-4573-1-git-send-email-hannes@cmpxchg.org>
- <4FB33A4E.1010208@gmail.com>
+Received: from psmtp.com (na3sys010amx202.postini.com [74.125.245.202])
+	by kanga.kvack.org (Postfix) with SMTP id 8A9CA6B004D
+	for <linux-mm@kvack.org>; Wed, 16 May 2012 03:05:59 -0400 (EDT)
+Message-ID: <4FB35153.3080309@parallels.com>
+Date: Wed, 16 May 2012 11:03:47 +0400
+From: Glauber Costa <glommer@parallels.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <4FB33A4E.1010208@gmail.com>
+Subject: Re: [PATCH v5 2/2] decrement static keys on real destroy time
+References: <1336767077-25351-1-git-send-email-glommer@parallels.com> <1336767077-25351-3-git-send-email-glommer@parallels.com> <4FB0621C.3010604@huawei.com>
+In-Reply-To: <4FB0621C.3010604@huawei.com>
+Content-Type: text/plain; charset="GB2312"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "nai.xia" <nai.xia@gmail.com>
-Cc: linux-mm@kvack.org, Rik van Riel <riel@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Minchan Kim <minchan.kim@gmail.com>, Hugh Dickins <hughd@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Li Zefan <lizefan@huawei.com>
+Cc: cgroups@vger.kernel.org, linux-mm@kvack.org, devel@openvz.org, kamezawa.hiroyu@jp.fujitsu.com, netdev@vger.kernel.org, Tejun Heo <tj@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>
 
-Hi Nai,
-
-On Wed, May 16, 2012 at 01:25:34PM +0800, nai.xia wrote:
-> Hi Johannes,
+On 05/14/2012 05:38 AM, Li Zefan wrote:
+>> +static void disarm_static_keys(struct mem_cgroup *memcg)
 > 
-> Just out of curiosity(since I didn't study deep into the
-> reclaiming algorithms), I can recall from here that around 2005,
-> there was an(or some?) implementation of the "Clock-pro" algorithm
-> which also have the idea of "reuse distance", but it seems that algo
-> did not work well enough to get merged? Does this patch series finally
-> solve the problem(s) with "Clock-pro" or totally doesn't have to worry
-> about the similar problems?
+>> +{
+>> +#ifdef CONFIG_INET
+>> +	if (memcg->tcp_mem.cg_proto.activated)
+>> +		static_key_slow_dec(&memcg_socket_limit_enabled);
+>> +#endif
+>> +}
+> 
+> 
+> Move this inside the ifdef/endif below ?
+> 
+> Otherwise I think you'll get compile error if !CONFIG_INET...
 
-As far as I understood, clock-pro set out to solve more problems than
-my patch set and it failed to satisfy everybody.
+I don't fully get it.
 
-The main error case was that it could not partially cache data of a
-set that was bigger than memory.  Instead, looping over the file
-repeatedly always has to read every single page because the most
-recent page allocations would push out the pages needed in the nearest
-future.  I never promised to solve this problem in the first place.
-But giving more memory to the big looping load is not useful in our
-current situation, and at least my code protects smaller sets of
-active cache from these loops.  So it's not optimal, but it sucks only
-half as much :)
+We are supposed to provide a version of it for
+CONFIG_CGROUP_MEM_RES_CTLR_KMEM and an empty version for
+!CONFIG_CGROUP_MEM_RES_CTLR_KMEM
 
-There may have been improvements from clock-pro, but it's hard to get
-code merged that does not behave as expected in theory with nobody
-understanding what's going on.
+Inside the first, we take an action for CONFIG_INET, and no action for
+!CONFIG_INET.
 
-My code is fairly simple, works for the tests I've done and the
-behaviour observed so far is understood (at least by me).
+Bear in mind that the slab patches will add another test to that place,
+and that's why I am doing it this way from the beginning.
+
+Well, that said, I not only can be wrong, I very frequently am.
+
+But I just compiled this one with and without CONFIG_INET, and it seems
+to be going alright.
+
+
+>> +
+>>   #ifdef CONFIG_INET
+>>   struct cg_proto *tcp_proto_cgroup(struct mem_cgroup *memcg)
+>>   {
+>> @@ -452,6 +462,11 @@ struct cg_proto *tcp_proto_cgroup(struct mem_cgroup *memcg)
+>>   }
+>>   EXPORT_SYMBOL(tcp_proto_cgroup);
+>>   #endif /* CONFIG_INET */
+>> +#else
+>> +static inline void disarm_static_keys(struct mem_cgroup *memcg)
+>> +{
+>> +}
+>> +
+>>   #endif /* CONFIG_CGROUP_MEM_RES_CTLR_KMEM */
+> 
+> --
+> To unsubscribe from this list: send the line "unsubscribe cgroups" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
