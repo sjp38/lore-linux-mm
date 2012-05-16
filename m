@@ -1,94 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx191.postini.com [74.125.245.191])
-	by kanga.kvack.org (Postfix) with SMTP id E7C946B0081
-	for <linux-mm@kvack.org>; Wed, 16 May 2012 11:14:34 -0400 (EDT)
-Received: by dakp5 with SMTP id p5so1637846dak.14
-        for <linux-mm@kvack.org>; Wed, 16 May 2012 08:14:34 -0700 (PDT)
-From: Joonsoo Kim <js1304@gmail.com>
-Subject: [PATCH RESEND] slub: fix a memory leak in get_partial_node()
-Date: Thu, 17 May 2012 00:13:02 +0900
-Message-Id: <1337181182-23054-1-git-send-email-js1304@gmail.com>
-In-Reply-To: <alpine.LFD.2.02.1205160935340.1763@tux.localdomain>
-References: <alpine.LFD.2.02.1205160935340.1763@tux.localdomain>
+Received: from psmtp.com (na3sys010amx185.postini.com [74.125.245.185])
+	by kanga.kvack.org (Postfix) with SMTP id 658AD6B0081
+	for <linux-mm@kvack.org>; Wed, 16 May 2012 11:17:47 -0400 (EDT)
+Received: by obbwd18 with SMTP id wd18so1651655obb.14
+        for <linux-mm@kvack.org>; Wed, 16 May 2012 08:17:46 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <20120516145032.GA1139@kroah.com>
+References: <1337108498-4104-1-git-send-email-js1304@gmail.com>
+	<alpine.DEB.2.00.1205151527150.11923@router.home>
+	<alpine.LFD.2.02.1205160935340.1763@tux.localdomain>
+	<CAAmzW4PWQiKbs+mdnwG18R=iWHLT=4Bwn8iA110PJaKuvG_AQQ@mail.gmail.com>
+	<20120516145032.GA1139@kroah.com>
+Date: Thu, 17 May 2012 00:17:46 +0900
+Message-ID: <CAAmzW4PA26qX8H1boKaHSh0m0S-aw7CVCTMeeijS-rCQEQzUdQ@mail.gmail.com>
+Subject: Re: [PATCH] slub: fix a memory leak in get_partial_node()
+From: JoonSoo Kim <js1304@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pekka Enberg <penberg@kernel.org>
-Cc: Christoph Lameter <cl@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Joonsoo Kim <js1304@gmail.com>, stable@vger.kernel.org
+To: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+Cc: Pekka Enberg <penberg@kernel.org>, Christoph Lameter <cl@linux.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, stable@vger.kernel.org
 
-In the case which is below,
+2012/5/16 Greg Kroah-Hartman <gregkh@linuxfoundation.org>:
+>> I read stable_kernel_rules.txt, this article tells me I must note
+>> upstream commit ID.
+>> Above patch is not included in upstream currently, so I can't find
+>> upstream commit ID.
+>> Is 'Acked-by from MAINTAINER' sufficient for submitting to stable-kernel=
+?
+>> Is below format right for stable submission format?
+>
+> No.
+>
+> Please read the second item in the list that says: "Procedure for
+> submitting patches to the -stable tree" in the file,
+> Documentation/stable_kernel_rulest.txt. =A0It states:
+>
+> =A0- To have the patch automatically included in the stable tree, add the=
+ tag
+> =A0 =A0 Cc: stable@vger.kernel.org
+> =A0 in the sign-off area. Once the patch is merged it will be applied to
+> =A0 the stable tree without anything else needing to be done by the autho=
+r
+> =A0 or subsystem maintainer.
+>
+> Does that help?
+>
+> thanks,
+>
+> greg k-h
 
-1. acquire slab for cpu partial list
-2. free object to it by remote cpu
-3. page->freelist = t
-
-then memory leak is occurred.
-
-Change acquire_slab() not to zap freelist when it works for cpu partial list.
-I think it is a sufficient solution for fixing a memory leak.
-
-Below is output of 'slabinfo -r kmalloc-256'
-when './perf stat -r 30 hackbench 50 process 4000 > /dev/null' is done.
-
-***Vanilla***
-Sizes (bytes)     Slabs              Debug                Memory
-------------------------------------------------------------------------
-Object :     256  Total  :     468   Sanity Checks : Off  Total: 3833856
-SlabObj:     256  Full   :     111   Redzoning     : Off  Used : 2004992
-SlabSiz:    8192  Partial:     302   Poisoning     : Off  Loss : 1828864
-Loss   :       0  CpuSlab:      55   Tracking      : Off  Lalig:       0
-Align  :       8  Objects:      32   Tracing       : Off  Lpadd:       0
-
-***Patched***
-Sizes (bytes)     Slabs              Debug                Memory
-------------------------------------------------------------------------
-Object :     256  Total  :     300   Sanity Checks : Off  Total: 2457600
-SlabObj:     256  Full   :     204   Redzoning     : Off  Used : 2348800
-SlabSiz:    8192  Partial:      33   Poisoning     : Off  Loss :  108800
-Loss   :       0  CpuSlab:      63   Tracking      : Off  Lalig:       0
-Align  :       8  Objects:      32   Tracing       : Off  Lpadd:       0
-
-Total and loss number is the impact of this patch.
-
-Cc: <stable@vger.kernel.org>
-Acked-by: Christoph Lameter <cl@linux.com>
-Signed-off-by: Joonsoo Kim <js1304@gmail.com>
-
-diff --git a/mm/slub.c b/mm/slub.c
-index ffe13fd..a7a766a 100644
---- a/mm/slub.c
-+++ b/mm/slub.c
-@@ -1514,15 +1514,19 @@ static inline void *acquire_slab(struct kmem_cache *s,
- 		freelist = page->freelist;
- 		counters = page->counters;
- 		new.counters = counters;
--		if (mode)
-+		if (mode) {
- 			new.inuse = page->objects;
-+			new.freelist = NULL;
-+		} else {
-+			new.freelist = freelist;
-+		}
- 
- 		VM_BUG_ON(new.frozen);
- 		new.frozen = 1;
- 
- 	} while (!__cmpxchg_double_slab(s, page,
- 			freelist, counters,
--			NULL, new.counters,
-+			new.freelist, new.counters,
- 			"lock and freeze"));
- 
- 	remove_partial(n, page);
-@@ -1564,7 +1568,6 @@ static void *get_partial_node(struct kmem_cache *s,
- 			object = t;
- 			available =  page->objects - page->inuse;
- 		} else {
--			page->freelist = t;
- 			available = put_cpu_partial(s, page, 0);
- 			stat(s, CPU_PARTIAL_NODE);
- 		}
--- 
-1.7.9.5
+Thanks, very helpful.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
