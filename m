@@ -1,124 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx196.postini.com [74.125.245.196])
-	by kanga.kvack.org (Postfix) with SMTP id E7C9D6B004D
-	for <linux-mm@kvack.org>; Wed, 16 May 2012 01:25:45 -0400 (EDT)
-Received: by pbbrp2 with SMTP id rp2so848941pbb.14
-        for <linux-mm@kvack.org>; Tue, 15 May 2012 22:25:45 -0700 (PDT)
-Message-ID: <4FB33A4E.1010208@gmail.com>
-Date: Wed, 16 May 2012 13:25:34 +0800
-From: "nai.xia" <nai.xia@gmail.com>
+Received: from psmtp.com (na3sys010amx156.postini.com [74.125.245.156])
+	by kanga.kvack.org (Postfix) with SMTP id D6EA06B004D
+	for <linux-mm@kvack.org>; Wed, 16 May 2012 02:05:22 -0400 (EDT)
+Message-ID: <4FB3431C.3050402@parallels.com>
+Date: Wed, 16 May 2012 10:03:08 +0400
+From: Glauber Costa <glommer@parallels.com>
 MIME-Version: 1.0
-Subject: Re: [patch 0/5] refault distance-based file cache sizing
-References: <1335861713-4573-1-git-send-email-hannes@cmpxchg.org>
-In-Reply-To: <1335861713-4573-1-git-send-email-hannes@cmpxchg.org>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Subject: Re: [PATCH v5 2/2] decrement static keys on real destroy time
+References: <1336767077-25351-1-git-send-email-glommer@parallels.com> <1336767077-25351-3-git-send-email-glommer@parallels.com> <4FB058D8.6060707@jp.fujitsu.com>
+In-Reply-To: <4FB058D8.6060707@jp.fujitsu.com>
+Content-Type: text/plain; charset="ISO-2022-JP"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: linux-mm@kvack.org, Rik van Riel <riel@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Minchan Kim <minchan.kim@gmail.com>, Hugh Dickins <hughd@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: cgroups@vger.kernel.org, linux-mm@kvack.org, devel@openvz.org, netdev@vger.kernel.org, Tejun Heo <tj@kernel.org>, Li Zefan <lizefan@huawei.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>
 
-Hi Johannes,
+On 05/14/2012 04:59 AM, KAMEZAWA Hiroyuki wrote:
+> (2012/05/12 5:11), Glauber Costa wrote:
+> 
+>> We call the destroy function when a cgroup starts to be removed,
+>> such as by a rmdir event.
+>>
+>> However, because of our reference counters, some objects are still
+>> inflight. Right now, we are decrementing the static_keys at destroy()
+>> time, meaning that if we get rid of the last static_key reference,
+>> some objects will still have charges, but the code to properly
+>> uncharge them won't be run.
+>>
+>> This becomes a problem specially if it is ever enabled again, because
+>> now new charges will be added to the staled charges making keeping
+>> it pretty much impossible.
+>>
+>> We just need to be careful with the static branch activation:
+>> since there is no particular preferred order of their activation,
+>> we need to make sure that we only start using it after all
+>> call sites are active. This is achieved by having a per-memcg
+>> flag that is only updated after static_key_slow_inc() returns.
+>> At this time, we are sure all sites are active.
+>>
+>> This is made per-memcg, not global, for a reason:
+>> it also has the effect of making socket accounting more
+>> consistent. The first memcg to be limited will trigger static_key()
+>> activation, therefore, accounting. But all the others will then be
+>> accounted no matter what. After this patch, only limited memcgs
+>> will have its sockets accounted.
+>>
+>> [v2: changed a tcp limited flag for a generic proto limited flag ]
+>> [v3: update the current active flag only after the static_key update ]
+>> [v4: disarm_static_keys() inside free_work ]
+>> [v5: got rid of tcp_limit_mutex, now in the static_key interface ]
+>>
+>> Signed-off-by: Glauber Costa<glommer@parallels.com>
+>> CC: Tejun Heo<tj@kernel.org>
+>> CC: Li Zefan<lizefan@huawei.com>
+>> CC: Kamezawa Hiroyuki<kamezawa.hiroyu@jp.fujitsu.com>
+>> CC: Johannes Weiner<hannes@cmpxchg.org>
+>> CC: Michal Hocko<mhocko@suse.cz>
+> 
+> 
+> Thank you for your patient works.
+> 
+> Acked-by: KAMEZAWA Hiroyuki<kamezawa.hiroyu@jp.fujitsu.com>
+> 
+> BTW, what is the relationship between 1/2 and 2/2  ?
 
-Just out of curiosity(since I didn't study deep into the
-reclaiming algorithms), I can recall from here that around 2005,
-there was an(or some?) implementation of the "Clock-pro" algorithm
-which also have the idea of "reuse distance", but it seems that algo
-did not work well enough to get merged? Does this patch series finally
-solve the problem(s) with "Clock-pro" or totally doesn't have to worry
-about the similar problems?
+Can't do jump label patching inside an interrupt handler. They need to
+happen when we free the structure, and I was about to add a worker
+myself when I found out we already have one: just we don't always use it.
 
+Before we merge it, let me just make sure the issue with config Li
+pointed out don't exist. I did test it, but since I've reposted this
+many times with multiple tiny changes - the type that will usually get
+us killed, I'd be more comfortable with an extra round of testing if
+someone spotted a possibility.
 
-Thanks,
-
-Nai
-
-On 2012/05/01 16:41, Johannes Weiner wrote:
-> Hi,
->
-> our file data caching implementation is done by having an inactive
-> list of pages that have yet to prove worth keeping around and an
-> active list of pages that already did.  The question is how to balance
-> those two lists against each other.
->
-> On one hand, the space for inactive pages needs to be big enough so
-> that they have the necessary time in memory to gather the references
-> required for an activation.  On the other hand, we want an active list
-> big enough to hold all data that is frequently used, if possible, to
-> protect it from streams of less frequently used/once used pages.
->
-> Our current balancing ("active can't grow larger than inactive") does
-> not really work too well.  We have people complaining that the working
-> set is not well protected from used-once file cache, and other people
-> complaining that we don't adapt to changes in the workingset and
-> protect stale pages in other cases.
->
-> This series stores file cache eviction information in the vacated page
-> cache radix tree slots and uses it on refault to see if the pages
-> currently on the active list need to have their status challenged.
->
-> A fully activated file set that occupies 85% of memory is successfully
-> detected as stale when another file set of equal size is accessed for
-> a few times (4-5).  The old kernel would never adapt to the second
-> one.  If the new set is bigger than memory, the old set is left
-> untouched, where the old kernel would shrink the old set to half of
-> memory and leave it at that.  Tested on a multi-zone single-node
-> machine.
->
-> More testing is obviously required, but I first wanted some opinions
-> at this point.  Is there fundamental disagreement with the concept?
-> With the implementation?
->
-> Memcg hard limit reclaim is not converted (anymore, ripped it out to
-> focus on the global case first) and it still does the 50/50 balancing
-> between lists, but this will be re-added in the next version.
->
-> Patches are based on 3.3.
->
->   fs/btrfs/compression.c     |   10 +-
->   fs/btrfs/extent_io.c       |    3 +-
->   fs/cachefiles/rdwr.c       |   26 +++--
->   fs/ceph/xattr.c            |    2 +-
->   fs/inode.c                 |    7 +-
->   fs/logfs/readwrite.c       |    9 +-
->   fs/nilfs2/inode.c          |    6 +-
->   fs/ntfs/file.c             |   11 ++-
->   fs/splice.c                |   10 +-
->   include/linux/mm.h         |    8 ++
->   include/linux/mmzone.h     |    7 ++
->   include/linux/pagemap.h    |   54 ++++++++---
->   include/linux/pagevec.h    |    3 +
->   include/linux/radix-tree.h |    4 -
->   include/linux/sched.h      |    1 +
->   include/linux/shmem_fs.h   |    1 +
->   include/linux/swap.h       |    7 ++
->   lib/radix-tree.c           |   75 ---------------
->   mm/Makefile                |    1 +
->   mm/filemap.c               |  222 ++++++++++++++++++++++++++++++++++----------
->   mm/memcontrol.c            |    3 +
->   mm/mincore.c               |   20 +++-
->   mm/page_alloc.c            |    7 ++
->   mm/readahead.c             |   51 +++++++++-
->   mm/shmem.c                 |   89 +++---------------
->   mm/swap.c                  |   23 +++++
->   mm/truncate.c              |   73 +++++++++++---
->   mm/vmscan.c                |   80 +++++++++-------
->   mm/vmstat.c                |    4 +
->   mm/workingset.c            |  174 ++++++++++++++++++++++++++++++++++
->   net/ceph/messenger.c       |    2 +-
->   net/ceph/pagelist.c        |    4 +-
->   net/ceph/pagevec.c         |    2 +-
->   33 files changed, 682 insertions(+), 317 deletions(-)
->
-> Thanks,
-> Johannes
->
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Fight unfair telecom internet charges in Canada: sign http://stopthemeter.ca/
-> Don't email:<a href=mailto:"dont@kvack.org">  email@kvack.org</a>
+Who is merging this fix, btw ?
+I find it to be entirely memcg related, even though it touches a file in
+net (but a file with only memcg code in it)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
