@@ -1,91 +1,124 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx128.postini.com [74.125.245.128])
-	by kanga.kvack.org (Postfix) with SMTP id 515446B004D
-	for <linux-mm@kvack.org>; Tue, 15 May 2012 22:47:35 -0400 (EDT)
-Date: Wed, 16 May 2012 12:14:23 +1000
-From: Dave Chinner <david@fromorbit.com>
-Subject: Re: Hole punching and mmap races
-Message-ID: <20120516021423.GO25351@dastard>
-References: <20120515224805.GA25577@quack.suse.cz>
+Received: from psmtp.com (na3sys010amx196.postini.com [74.125.245.196])
+	by kanga.kvack.org (Postfix) with SMTP id E7C9D6B004D
+	for <linux-mm@kvack.org>; Wed, 16 May 2012 01:25:45 -0400 (EDT)
+Received: by pbbrp2 with SMTP id rp2so848941pbb.14
+        for <linux-mm@kvack.org>; Tue, 15 May 2012 22:25:45 -0700 (PDT)
+Message-ID: <4FB33A4E.1010208@gmail.com>
+Date: Wed, 16 May 2012 13:25:34 +0800
+From: "nai.xia" <nai.xia@gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20120515224805.GA25577@quack.suse.cz>
+Subject: Re: [patch 0/5] refault distance-based file cache sizing
+References: <1335861713-4573-1-git-send-email-hannes@cmpxchg.org>
+In-Reply-To: <1335861713-4573-1-git-send-email-hannes@cmpxchg.org>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jan Kara <jack@suse.cz>
-Cc: linux-fsdevel@vger.kernel.org, xfs@oss.sgi.com, linux-ext4@vger.kernel.org, Hugh Dickins <hughd@google.com>, linux-mm@kvack.org
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: linux-mm@kvack.org, Rik van Riel <riel@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Minchan Kim <minchan.kim@gmail.com>, Hugh Dickins <hughd@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Wed, May 16, 2012 at 12:48:05AM +0200, Jan Kara wrote:
->   Hello,
-> 
->   Hugh pointed me to ext4 hole punching code which is clearly missing some
-> locking. But looking at the code more deeply I realized I don't see
-> anything preventing the following race in XFS or ext4:
-> 
-> TASK1				TASK2
-> 				punch_hole(file, 0, 4096)
-> 				  filemap_write_and_wait()
-> 				  truncate_pagecache_range()
-> addr = mmap(file);
-> addr[0] = 1
->   ^^ writeably fault a page
-> 				  remove file blocks
-> 
-> 						FLUSHER
-> 						write out file
-> 						  ^^ interesting things can
-> happen because we expect blocks under the first page to be allocated /
-> reserved but they are not...
-> 
-> I'm pretty sure ext4 has this problem, I'm not completely sure whether
-> XFS has something to protect against such race but I don't see anything.
+Hi Johannes,
 
-No, it doesn't. It's a known problem due to not being able to take a
-lock in .page_mkwrite() to serialise mmap() IO against truncation or
-other IO such as direct IO. This has been known for, well, long
-before we came up with page_mkwrite(). At the time page_mkwrite()
-was introduced, locking was discusses to solve this problem but was
-considered difficult on the VM side so it was ignored.
+Just out of curiosity(since I didn't study deep into the
+reclaiming algorithms), I can recall from here that around 2005,
+there was an(or some?) implementation of the "Clock-pro" algorithm
+which also have the idea of "reuse distance", but it seems that algo
+did not work well enough to get merged? Does this patch series finally
+solve the problem(s) with "Clock-pro" or totally doesn't have to worry
+about the similar problems?
 
-> It's not easy to protect against these races. For truncate, i_size protects
-> us against similar races but for hole punching we don't have any such
-> mechanism. One way to avoid the race would be to hold mmap_sem while we are
-> invalidating the page cache and punching hole but that sounds a bit ugly.
-> Alternatively we could just have some special lock (rwsem?) held during
-> page_mkwrite() (for reading) and during whole hole punching (for writing)
-> to serialize these two operations.
 
-What really needs to happen is that .page_mkwrite() can be made to
-fail with -EAGAIN and retry the entire page fault from the start an
-arbitrary number of times instead of just once as the current code
-does with VM_FAULT_RETRY. That would allow us to try to take the
-filesystem lock that provides IO exclusion for all other types of IO
-and fail with EAGAIN if we can't get it without blocking. For XFS,
-that is the i_iolock rwsem, for others it is the i_mutex, and some
-other filesystems might take other locks.
+Thanks,
 
-FWIW, I've been running at "use the IO lock in page_mkwrite" patch
-for XFS for several months now, but I haven't posted it because
-without the VM side being able to handle such locking failures
-gracefully there's not much point in making the change. I did this
-patch to reduce the incidence of mmap vs direct IO races that are
-essentially identical in nature to rule them out of the cause of
-stray delalloc blocks in files that fsstress has been producing on
-XFS. FYI, this race condition hasn't been responsible for any of the
-problems I've found recently....
+Nai
 
-> Another alternative, which doesn't really look more appealing, is to go
-> page-by-page and always free corresponding blocks under page lock.
-
-Doesn't work for regions with no pages in memory over them.
-
-Cheers,
-
-Dave.
--- 
-Dave Chinner
-david@fromorbit.com
+On 2012/05/01 16:41, Johannes Weiner wrote:
+> Hi,
+>
+> our file data caching implementation is done by having an inactive
+> list of pages that have yet to prove worth keeping around and an
+> active list of pages that already did.  The question is how to balance
+> those two lists against each other.
+>
+> On one hand, the space for inactive pages needs to be big enough so
+> that they have the necessary time in memory to gather the references
+> required for an activation.  On the other hand, we want an active list
+> big enough to hold all data that is frequently used, if possible, to
+> protect it from streams of less frequently used/once used pages.
+>
+> Our current balancing ("active can't grow larger than inactive") does
+> not really work too well.  We have people complaining that the working
+> set is not well protected from used-once file cache, and other people
+> complaining that we don't adapt to changes in the workingset and
+> protect stale pages in other cases.
+>
+> This series stores file cache eviction information in the vacated page
+> cache radix tree slots and uses it on refault to see if the pages
+> currently on the active list need to have their status challenged.
+>
+> A fully activated file set that occupies 85% of memory is successfully
+> detected as stale when another file set of equal size is accessed for
+> a few times (4-5).  The old kernel would never adapt to the second
+> one.  If the new set is bigger than memory, the old set is left
+> untouched, where the old kernel would shrink the old set to half of
+> memory and leave it at that.  Tested on a multi-zone single-node
+> machine.
+>
+> More testing is obviously required, but I first wanted some opinions
+> at this point.  Is there fundamental disagreement with the concept?
+> With the implementation?
+>
+> Memcg hard limit reclaim is not converted (anymore, ripped it out to
+> focus on the global case first) and it still does the 50/50 balancing
+> between lists, but this will be re-added in the next version.
+>
+> Patches are based on 3.3.
+>
+>   fs/btrfs/compression.c     |   10 +-
+>   fs/btrfs/extent_io.c       |    3 +-
+>   fs/cachefiles/rdwr.c       |   26 +++--
+>   fs/ceph/xattr.c            |    2 +-
+>   fs/inode.c                 |    7 +-
+>   fs/logfs/readwrite.c       |    9 +-
+>   fs/nilfs2/inode.c          |    6 +-
+>   fs/ntfs/file.c             |   11 ++-
+>   fs/splice.c                |   10 +-
+>   include/linux/mm.h         |    8 ++
+>   include/linux/mmzone.h     |    7 ++
+>   include/linux/pagemap.h    |   54 ++++++++---
+>   include/linux/pagevec.h    |    3 +
+>   include/linux/radix-tree.h |    4 -
+>   include/linux/sched.h      |    1 +
+>   include/linux/shmem_fs.h   |    1 +
+>   include/linux/swap.h       |    7 ++
+>   lib/radix-tree.c           |   75 ---------------
+>   mm/Makefile                |    1 +
+>   mm/filemap.c               |  222 ++++++++++++++++++++++++++++++++++----------
+>   mm/memcontrol.c            |    3 +
+>   mm/mincore.c               |   20 +++-
+>   mm/page_alloc.c            |    7 ++
+>   mm/readahead.c             |   51 +++++++++-
+>   mm/shmem.c                 |   89 +++---------------
+>   mm/swap.c                  |   23 +++++
+>   mm/truncate.c              |   73 +++++++++++---
+>   mm/vmscan.c                |   80 +++++++++-------
+>   mm/vmstat.c                |    4 +
+>   mm/workingset.c            |  174 ++++++++++++++++++++++++++++++++++
+>   net/ceph/messenger.c       |    2 +-
+>   net/ceph/pagelist.c        |    4 +-
+>   net/ceph/pagevec.c         |    2 +-
+>   33 files changed, 682 insertions(+), 317 deletions(-)
+>
+> Thanks,
+> Johannes
+>
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Fight unfair telecom internet charges in Canada: sign http://stopthemeter.ca/
+> Don't email:<a href=mailto:"dont@kvack.org">  email@kvack.org</a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
