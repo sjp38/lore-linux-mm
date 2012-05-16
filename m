@@ -1,68 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx160.postini.com [74.125.245.160])
-	by kanga.kvack.org (Postfix) with SMTP id 0FD0F6B00EA
-	for <linux-mm@kvack.org>; Wed, 16 May 2012 07:06:20 -0400 (EDT)
-Received: by wefh52 with SMTP id h52so555993wef.14
-        for <linux-mm@kvack.org>; Wed, 16 May 2012 04:06:18 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx126.postini.com [74.125.245.126])
+	by kanga.kvack.org (Postfix) with SMTP id 764A16B004D
+	for <linux-mm@kvack.org>; Wed, 16 May 2012 08:57:07 -0400 (EDT)
+Received: by pbbrp2 with SMTP id rp2so1559888pbb.14
+        for <linux-mm@kvack.org>; Wed, 16 May 2012 05:57:06 -0700 (PDT)
+Message-ID: <4FB3A416.9010703@gmail.com>
+Date: Wed, 16 May 2012 20:56:54 +0800
+From: "nai.xia" <nai.xia@gmail.com>
 MIME-Version: 1.0
-Reply-To: konrad@darnok.org
-In-Reply-To: <4FB3048C.20008@kernel.org>
-References: <4FAB21E7.7020703@kernel.org>
-	<20120510140215.GC26152@phenom.dumpdata.com>
-	<4FABD503.4030808@vflare.org>
-	<4FABDA9F.1000105@linux.vnet.ibm.com>
-	<20120510151941.GA18302@kroah.com>
-	<4FABECF5.8040602@vflare.org>
-	<20120510164418.GC13964@kroah.com>
-	<4FABF9D4.8080303@vflare.org>
-	<20120510173322.GA30481@phenom.dumpdata.com>
-	<4FAC4E3B.3030909@kernel.org>
-	<20120511192831.GC3785@phenom.dumpdata.com>
-	<4FB06B91.1080008@kernel.org>
-	<CAPbh3ruv9xCV_XpR4ZsZpSGQ8=mibg=a39zvADYETb-tg0kBsA@mail.gmail.com>
-	<4FB3048C.20008@kernel.org>
-Date: Wed, 16 May 2012 07:06:18 -0400
-Message-ID: <CAPbh3ruFRLzGn88G1=BajKS1VAw7hQDPNMH9yUO5JB0UDVF5Mg@mail.gmail.com>
-Subject: Re: [PATCH 3/4] zsmalloc use zs_handle instead of void *
-From: Konrad Rzeszutek Wilk <konrad@darnok.org>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Subject: Re: [patch 0/5] refault distance-based file cache sizing
+References: <1335861713-4573-1-git-send-email-hannes@cmpxchg.org> <4FB33A4E.1010208@gmail.com> <20120516065132.GC1769@cmpxchg.org>
+In-Reply-To: <20120516065132.GC1769@cmpxchg.org>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: linux-mm@kvack.org, Rik van Riel <riel@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Minchan Kim <minchan.kim@gmail.com>, Hugh Dickins <hughd@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
 
->>> It's not good abstraction.
+Hi,
+
+On 2012/05/16 14:51, Johannes Weiner wrote:
+> Hi Nai,
+>
+> On Wed, May 16, 2012 at 01:25:34PM +0800, nai.xia wrote:
+>> Hi Johannes,
 >>
->> If we want good abstraction, then I don't think 'unsigned long' is
->> either? I mean it will do for the conversion from 'void *'. Perhaps I
->> am being a bit optimistic here - and I am trying to jam in this
->> 'struct zs_handle' in all cases but in reality it needs a more
->> iterative process. So first do 'void *' -> 'unsigned long', and then
->> later on if we can come up with something more nicely that abstracts
->> - then use that?
+>> Just out of curiosity(since I didn't study deep into the
+>> reclaiming algorithms), I can recall from here that around 2005,
+>> there was an(or some?) implementation of the "Clock-pro" algorithm
+>> which also have the idea of "reuse distance", but it seems that algo
+>> did not work well enough to get merged? Does this patch series finally
+>> solve the problem(s) with "Clock-pro" or totally doesn't have to worry
+>> about the similar problems?
+>
+> As far as I understood, clock-pro set out to solve more problems than
+> my patch set and it failed to satisfy everybody.
+>
+> The main error case was that it could not partially cache data of a
+> set that was bigger than memory.  Instead, looping over the file
+> repeatedly always has to read every single page because the most
+> recent page allocations would push out the pages needed in the nearest
+> future.  I never promised to solve this problem in the first place.
+> But giving more memory to the big looping load is not useful in our
+> current situation, and at least my code protects smaller sets of
+> active cache from these loops.  So it's not optimal, but it sucks only
+> half as much :)
 
-..snip..
->>> No. What I want is to remove coupling zsallocator's handle with zram/zc=
-ache.
->>> They shouldn't know internal of handle and assume it's a pointer.
->>
->> I concur. And hence I was thinking that the 'struct zs_handle *'
->> pointer would work.
->
->
-> Do you really hate "unsigned long" as handle?
-..snip,,
->> Well, everything changes over time =A0so putting a stick in the ground
->> and saying 'this must
->> be this way' is not really the best way.
->
->
-> Hmm, agree on your above statement but I can't imagine better idea.
->
+Yep, I see ;)
 
-OK. Lets go with unsigned long. I can prep a patch next week when I am
-back from vacation unless somebody beats me to it.
+>
+> There may have been improvements from clock-pro, but it's hard to get
+> code merged that does not behave as expected in theory with nobody
+> understanding what's going on.
+>
+> My code is fairly simple, works for the tests I've done and the
+> behaviour observed so far is understood (at least by me).
+
+OK, I assume that you do aware that the system you constructed with
+this simple and understandable idea looks like a so called "feedback
+system"? Or in other words, I think theoretically the refault-distance
+of a page before and after your algorithm is applied is not the same.
+And this changed refault-distance pattern is then feed as input into
+your algorithm. A feedback system may be hard(and may be simple) to
+analyze but may also work well magically.
+
+Well, again I confess I've not done enough course in this area. Just hope
+that my words can help you think more comprehensively. :)
+
+
+Thanks,
+
+Nai
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
