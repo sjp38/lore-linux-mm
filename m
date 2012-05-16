@@ -1,82 +1,185 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx108.postini.com [74.125.245.108])
-	by kanga.kvack.org (Postfix) with SMTP id 627956B004D
-	for <linux-mm@kvack.org>; Tue, 15 May 2012 20:03:21 -0400 (EDT)
-Received: from m1.gw.fujitsu.co.jp (unknown [10.0.50.71])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 5A4FB3EE0BD
-	for <linux-mm@kvack.org>; Wed, 16 May 2012 09:03:19 +0900 (JST)
-Received: from smail (m1 [127.0.0.1])
-	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 40C0D45DE5B
-	for <linux-mm@kvack.org>; Wed, 16 May 2012 09:03:19 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
-	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 288E945DE5A
-	for <linux-mm@kvack.org>; Wed, 16 May 2012 09:03:19 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 187CA1DB803A
-	for <linux-mm@kvack.org>; Wed, 16 May 2012 09:03:19 +0900 (JST)
-Received: from m1000.s.css.fujitsu.com (m1000.s.css.fujitsu.com [10.240.81.136])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id C510E1DB8045
-	for <linux-mm@kvack.org>; Wed, 16 May 2012 09:03:18 +0900 (JST)
-Message-ID: <4FB2EE59.8070505@jp.fujitsu.com>
-Date: Wed, 16 May 2012 09:01:29 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Received: from psmtp.com (na3sys010amx116.postini.com [74.125.245.116])
+	by kanga.kvack.org (Postfix) with SMTP id C104A6B004D
+	for <linux-mm@kvack.org>; Tue, 15 May 2012 21:35:39 -0400 (EDT)
+Message-ID: <4FB3048C.20008@kernel.org>
+Date: Wed, 16 May 2012 10:36:12 +0900
+From: Minchan Kim <minchan@kernel.org>
 MIME-Version: 1.0
-Subject: Re: [patch 0/6] mm: memcg: statistics implementation cleanups
-References: <1337018451-27359-1-git-send-email-hannes@cmpxchg.org> <4FB1A115.2080303@jp.fujitsu.com> <20120515110302.GH1406@cmpxchg.org>
-In-Reply-To: <20120515110302.GH1406@cmpxchg.org>
+Subject: Re: [PATCH 3/4] zsmalloc use zs_handle instead of void *
+References: <4FAB21E7.7020703@kernel.org> <20120510140215.GC26152@phenom.dumpdata.com> <4FABD503.4030808@vflare.org> <4FABDA9F.1000105@linux.vnet.ibm.com> <20120510151941.GA18302@kroah.com> <4FABECF5.8040602@vflare.org> <20120510164418.GC13964@kroah.com> <4FABF9D4.8080303@vflare.org> <20120510173322.GA30481@phenom.dumpdata.com> <4FAC4E3B.3030909@kernel.org> <20120511192831.GC3785@phenom.dumpdata.com> <4FB06B91.1080008@kernel.org> <CAPbh3ruv9xCV_XpR4ZsZpSGQ8=mibg=a39zvADYETb-tg0kBsA@mail.gmail.com>
+In-Reply-To: <CAPbh3ruv9xCV_XpR4ZsZpSGQ8=mibg=a39zvADYETb-tg0kBsA@mail.gmail.com>
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: konrad@darnok.org
+Cc: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-(2012/05/15 20:03), Johannes Weiner wrote:
+On 05/16/2012 12:04 AM, Konrad Rzeszutek Wilk wrote:
 
-> On Tue, May 15, 2012 at 09:19:33AM +0900, KAMEZAWA Hiroyuki wrote:
->> (2012/05/15 3:00), Johannes Weiner wrote:
->>
->>> Before piling more things (reclaim stats) on top of the current mess,
->>> I thought it'd be better to clean up a bit.
 >>>
->>> The biggest change is printing statistics directly from live counters,
->>> it has always been annoying to declare a new counter in two separate
->>> enums and corresponding name string arrays.  After this series we are
->>> down to one of each.
+>>> The fix is of course to return a pointer (which your function
+>>> declared), and instead do this:
 >>>
->>>  mm/memcontrol.c |  223 +++++++++++++++++------------------------------
->>>  1 file changed, 82 insertions(+), 141 deletions(-)
+>>> {
+>>>       struct zs_handle *handle;
+>>>
+>>>       handle = zs_malloc(pool, size);
 >>
->> to all 1-6. Thank you.
 >>
->> Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+>> It's not a good idea.
+>> For it, zs_malloc needs memory space to keep zs_handle internally.
+>> Why should zsallocator do it? Just for zcache?
 > 
-> Thanks!
+> How different is from now? The zs_malloc keeps the handle internally
+> as well - it just that is is a void * pointer. Internally, the
+> ownership and the responsibility to free it lays with zsmalloc.
+
+
+I don't get it. now zsmalloc doesn't keep the handle internally.
+It just makes handle and return to caller.
+About void* as return value, I think it's not good.
+Return just struct zs_handle(NOT struct zs_handle *) or unsigned long would be good because
+zsmalloc doesn't need keeping the handle internally at the cost of consume
+memory space to store it.
+
+
 > 
->> One excuse for my old implementation of mem_cgroup_get_total_stat(),
->> which is fixed in patch 6, is that I thought it's better to touch all counters
->> in a cachineline at once and avoiding long distance for-each loop.
+>> It's not good abstraction.
+> 
+> If we want good abstraction, then I don't think 'unsigned long' is
+> either? I mean it will do for the conversion from 'void *'. Perhaps I
+> am being a bit optimistic here - and I am trying to jam in this
+> 'struct zs_handle' in all cases but in reality it needs a more
+> iterative process. So first do 'void *' -> 'unsigned long', and then
+> later on if we can come up with something more nicely that abstracts
+> - then use that?
+> .. snip ..
+>>>> Why should zsmalloc support such interface?
+>>>
+>>> Why not? It is better than a 'void *' or a typedef.
+>>>
+>>> It is modeled after a pte_t.
 >>
->> What number of performance difference with some big hierarchy(100+children) tree ?
->> (But I agree your code is cleaner. I'm just curious.)
+>>
+>> It's not same with pte_t.
+>> We normally don't use pte_val to (void*) for unique index of slot.
 > 
-> I set up a parental group with hierarchy enabled, then created 512
-> children and did a 4-job kernel bench in one of them.  Every 0.1
-> seconds, I read the stats of the parent, which requires reading each
-> stat/event/lru item from 512 groups before moving to the next one:
+> Right, but I thought we want to get rid of all of the '(void *)'
+> usages and instead
+> pass some opaque pointer.
+
+
+opaque is good but pointer isn't good as handle, IMHO.
+Value, not pointer would be better.
+zsmalloc's goal is memory space efficiency so let's not consume unnecessary space for keeping
+the handle in zsmalloc's internal
+
 > 
->                         512stats-vanilla        512stats-patched
-> Walltime (s)            62.61 (  +0.00%)        62.88 (  +0.43%)
-> Walltime (stddev)        0.17 (  +0.00%)         0.14 (  -3.17%)
+>> The problem is that zcache assume handle of zsmalloc is a sizeof(void*)'s
+>> unique value but zcache never assume it's a sizeof(void*).
 > 
-> That should be acceptable, I think.
+> Huh? I am parsing your sentence as: "zcache assumes .. sizeof(void *),
+> but zcache never assumes its .. sizeof(void *)"?
+> 
+> Zcache has to assume it is a pointer. And providing a 'struct
+> zs_handle *' would fit the bill?
+
+
+Sorry for typo.
+I mean zcache shouldn't assume handle of zsmalloc is void*.
+And I prefer value rather than pointer. I already mentioned why I like it in above.
+
+>>>
+>>>
+>>>> It's a zcache problem so it's desriable to solve it in zcache internal.
+>>>
+>>> Not really. We shouldn't really pass any 'void *' pointers around.
+>>>
+>>>> And in future, if we can add/remove zs_handle's fields, we can't make
+>>>> sure such API.
+>>>
+>>> Meaning ... what exactly do you mean? That the size of the structure
+>>> will change and we won't return the right value? Why not?
+>>> If you use the 'zs_handle_to_ptr' won't that work? Especially if you
+>>> add new values to the end of the struct it won't cause issues.
+>>
+>>
+>> I mean we might change zs_handle to following as, in future.
+>> (It's insane but who know it?)
+> 
+> OK, so BUILD_BUG(sizeof(struct zs_handle *) != sizeof(void *))
+> with a big fat comment saying that one needs to go over the other users
+> of zcache/zram/zsmalloc to double check?
+
+
+If we will use unsigned long as handle, we don't need so BUILD_BUG_ON.
+
+> 
+> But why would it matter? The zs_handle would be returned as a pointer
+> - so the size is the same to the caller.
+> 
+>>
+>> struct zs_handle {
+>>        int upper;
+>>        int middle;
+>>        int lower;
+>> };
+>>
+>> How could you handle this for zs_handle_to_ptr?
+> 
+> Gosh, um, I couldn't :-) Well, maybe with something that does
+>  return "upper | middle | lower", but yeah that is not the goal.
+> 
+> 
+>>>>>> Its true that making it a real struct would prevent accidental casts
+>>>>>> to void * but due to the above problem, I think we have to stick
+>>>>>> with unsigned long.
+>>>
+>>> So the problem you are seeing is that you don't want 'struct zs_handle'
+>>> be present in the drivers/staging/zsmalloc/zsmalloc.h header file?
+>>> It looks like the proper place.
+>>
+>>
+>> No. What I want is to remove coupling zsallocator's handle with zram/zcache.
+>> They shouldn't know internal of handle and assume it's a pointer.
+> 
+> I concur. And hence I was thinking that the 'struct zs_handle *'
+> pointer would work.
+
+
+Do you really hate "unsigned long" as handle?
+
+> 
+>>
+>> If Nitin confirm zs_handle's format can never change in future, I prefer "unsigned long" Nitin suggested than (void *).
+>> It can prevent confusion that normal allocator's return value is pointer for address so the problem is easy.
+>> But I am not sure he can make sure it.
+> 
+> Well, everything changes over time  so putting a stick in the ground
+> and saying 'this must
+> be this way' is not really the best way.
+
+
+Hmm, agree on your above statement but I can't imagine better idea.
+
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Fight unfair telecom internet charges in Canada: sign http://stopthemeter.ca/
+> Don't email: <a href=ilto:"dont@kvack.org"> email@kvack.org </a>
+> 
 > 
 > 
 
 
-Yes, thank you. 
-Thanks,
--Kame
+
+-- 
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
