@@ -1,73 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx202.postini.com [74.125.245.202])
-	by kanga.kvack.org (Postfix) with SMTP id 8A9CA6B004D
-	for <linux-mm@kvack.org>; Wed, 16 May 2012 03:05:59 -0400 (EDT)
-Message-ID: <4FB35153.3080309@parallels.com>
-Date: Wed, 16 May 2012 11:03:47 +0400
+Received: from psmtp.com (na3sys010amx176.postini.com [74.125.245.176])
+	by kanga.kvack.org (Postfix) with SMTP id 44F266B004D
+	for <linux-mm@kvack.org>; Wed, 16 May 2012 03:06:59 -0400 (EDT)
+Message-ID: <4FB3518B.3090205@parallels.com>
+Date: Wed, 16 May 2012 11:04:43 +0400
 From: Glauber Costa <glommer@parallels.com>
 MIME-Version: 1.0
 Subject: Re: [PATCH v5 2/2] decrement static keys on real destroy time
-References: <1336767077-25351-1-git-send-email-glommer@parallels.com> <1336767077-25351-3-git-send-email-glommer@parallels.com> <4FB0621C.3010604@huawei.com>
-In-Reply-To: <4FB0621C.3010604@huawei.com>
-Content-Type: text/plain; charset="GB2312"
+References: <1336767077-25351-1-git-send-email-glommer@parallels.com> <1336767077-25351-3-git-send-email-glommer@parallels.com> <4FB058D8.6060707@jp.fujitsu.com> <4FB3431C.3050402@parallels.com>
+In-Reply-To: <4FB3431C.3050402@parallels.com>
+Content-Type: text/plain; charset="ISO-2022-JP"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Li Zefan <lizefan@huawei.com>
-Cc: cgroups@vger.kernel.org, linux-mm@kvack.org, devel@openvz.org, kamezawa.hiroyu@jp.fujitsu.com, netdev@vger.kernel.org, Tejun Heo <tj@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: cgroups@vger.kernel.org, linux-mm@kvack.org, devel@openvz.org, netdev@vger.kernel.org, Tejun Heo <tj@kernel.org>, Li Zefan <lizefan@huawei.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>
 
-On 05/14/2012 05:38 AM, Li Zefan wrote:
->> +static void disarm_static_keys(struct mem_cgroup *memcg)
+On 05/16/2012 10:03 AM, Glauber Costa wrote:
+>> BTW, what is the relationship between 1/2 and 2/2  ?
+> Can't do jump label patching inside an interrupt handler. They need to
+> happen when we free the structure, and I was about to add a worker
+> myself when I found out we already have one: just we don't always use it.
 > 
->> +{
->> +#ifdef CONFIG_INET
->> +	if (memcg->tcp_mem.cg_proto.activated)
->> +		static_key_slow_dec(&memcg_socket_limit_enabled);
->> +#endif
->> +}
+> Before we merge it, let me just make sure the issue with config Li
+> pointed out don't exist. I did test it, but since I've reposted this
+> many times with multiple tiny changes - the type that will usually get
+> us killed, I'd be more comfortable with an extra round of testing if
+> someone spotted a possibility.
 > 
+> Who is merging this fix, btw ?
+> I find it to be entirely memcg related, even though it touches a file in
+> net (but a file with only memcg code in it)
 > 
-> Move this inside the ifdef/endif below ?
-> 
-> Otherwise I think you'll get compile error if !CONFIG_INET...
 
-I don't fully get it.
-
-We are supposed to provide a version of it for
-CONFIG_CGROUP_MEM_RES_CTLR_KMEM and an empty version for
-!CONFIG_CGROUP_MEM_RES_CTLR_KMEM
-
-Inside the first, we take an action for CONFIG_INET, and no action for
-!CONFIG_INET.
-
-Bear in mind that the slab patches will add another test to that place,
-and that's why I am doing it this way from the beginning.
-
-Well, that said, I not only can be wrong, I very frequently am.
-
-But I just compiled this one with and without CONFIG_INET, and it seems
-to be going alright.
-
-
->> +
->>   #ifdef CONFIG_INET
->>   struct cg_proto *tcp_proto_cgroup(struct mem_cgroup *memcg)
->>   {
->> @@ -452,6 +462,11 @@ struct cg_proto *tcp_proto_cgroup(struct mem_cgroup *memcg)
->>   }
->>   EXPORT_SYMBOL(tcp_proto_cgroup);
->>   #endif /* CONFIG_INET */
->> +#else
->> +static inline void disarm_static_keys(struct mem_cgroup *memcg)
->> +{
->> +}
->> +
->>   #endif /* CONFIG_CGROUP_MEM_RES_CTLR_KMEM */
-> 
-> --
-> To unsubscribe from this list: send the line "unsubscribe cgroups" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+For the record, I compiled test it many times, and the problem that Li
+wondered about seems not to exist.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
