@@ -1,60 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx131.postini.com [74.125.245.131])
-	by kanga.kvack.org (Postfix) with SMTP id CF4DE6B004D
-	for <linux-mm@kvack.org>; Tue, 15 May 2012 18:48:23 -0400 (EDT)
-Date: Wed, 16 May 2012 00:48:05 +0200
-From: Jan Kara <jack@suse.cz>
-Subject: Hole punching and mmap races
-Message-ID: <20120515224805.GA25577@quack.suse.cz>
+Received: from psmtp.com (na3sys010amx108.postini.com [74.125.245.108])
+	by kanga.kvack.org (Postfix) with SMTP id 627956B004D
+	for <linux-mm@kvack.org>; Tue, 15 May 2012 20:03:21 -0400 (EDT)
+Received: from m1.gw.fujitsu.co.jp (unknown [10.0.50.71])
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 5A4FB3EE0BD
+	for <linux-mm@kvack.org>; Wed, 16 May 2012 09:03:19 +0900 (JST)
+Received: from smail (m1 [127.0.0.1])
+	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 40C0D45DE5B
+	for <linux-mm@kvack.org>; Wed, 16 May 2012 09:03:19 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
+	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 288E945DE5A
+	for <linux-mm@kvack.org>; Wed, 16 May 2012 09:03:19 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 187CA1DB803A
+	for <linux-mm@kvack.org>; Wed, 16 May 2012 09:03:19 +0900 (JST)
+Received: from m1000.s.css.fujitsu.com (m1000.s.css.fujitsu.com [10.240.81.136])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id C510E1DB8045
+	for <linux-mm@kvack.org>; Wed, 16 May 2012 09:03:18 +0900 (JST)
+Message-ID: <4FB2EE59.8070505@jp.fujitsu.com>
+Date: Wed, 16 May 2012 09:01:29 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+Subject: Re: [patch 0/6] mm: memcg: statistics implementation cleanups
+References: <1337018451-27359-1-git-send-email-hannes@cmpxchg.org> <4FB1A115.2080303@jp.fujitsu.com> <20120515110302.GH1406@cmpxchg.org>
+In-Reply-To: <20120515110302.GH1406@cmpxchg.org>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-fsdevel@vger.kernel.org
-Cc: xfs@oss.sgi.com, linux-ext4@vger.kernel.org, Hugh Dickins <hughd@google.com>, linux-mm@kvack.org
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-  Hello,
+(2012/05/15 20:03), Johannes Weiner wrote:
 
-  Hugh pointed me to ext4 hole punching code which is clearly missing some
-locking. But looking at the code more deeply I realized I don't see
-anything preventing the following race in XFS or ext4:
+> On Tue, May 15, 2012 at 09:19:33AM +0900, KAMEZAWA Hiroyuki wrote:
+>> (2012/05/15 3:00), Johannes Weiner wrote:
+>>
+>>> Before piling more things (reclaim stats) on top of the current mess,
+>>> I thought it'd be better to clean up a bit.
+>>>
+>>> The biggest change is printing statistics directly from live counters,
+>>> it has always been annoying to declare a new counter in two separate
+>>> enums and corresponding name string arrays.  After this series we are
+>>> down to one of each.
+>>>
+>>>  mm/memcontrol.c |  223 +++++++++++++++++------------------------------
+>>>  1 file changed, 82 insertions(+), 141 deletions(-)
+>>
+>> to all 1-6. Thank you.
+>>
+>> Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> 
+> Thanks!
+> 
+>> One excuse for my old implementation of mem_cgroup_get_total_stat(),
+>> which is fixed in patch 6, is that I thought it's better to touch all counters
+>> in a cachineline at once and avoiding long distance for-each loop.
+>>
+>> What number of performance difference with some big hierarchy(100+children) tree ?
+>> (But I agree your code is cleaner. I'm just curious.)
+> 
+> I set up a parental group with hierarchy enabled, then created 512
+> children and did a 4-job kernel bench in one of them.  Every 0.1
+> seconds, I read the stats of the parent, which requires reading each
+> stat/event/lru item from 512 groups before moving to the next one:
+> 
+>                         512stats-vanilla        512stats-patched
+> Walltime (s)            62.61 (  +0.00%)        62.88 (  +0.43%)
+> Walltime (stddev)        0.17 (  +0.00%)         0.14 (  -3.17%)
+> 
+> That should be acceptable, I think.
+> 
+> 
 
-TASK1				TASK2
-				punch_hole(file, 0, 4096)
-				  filemap_write_and_wait()
-				  truncate_pagecache_range()
-addr = mmap(file);
-addr[0] = 1
-  ^^ writeably fault a page
-				  remove file blocks
 
-						FLUSHER
-						write out file
-						  ^^ interesting things can
-happen because we expect blocks under the first page to be allocated /
-reserved but they are not...
-
-I'm pretty sure ext4 has this problem, I'm not completely sure whether
-XFS has something to protect against such race but I don't see anything.
-
-It's not easy to protect against these races. For truncate, i_size protects
-us against similar races but for hole punching we don't have any such
-mechanism. One way to avoid the race would be to hold mmap_sem while we are
-invalidating the page cache and punching hole but that sounds a bit ugly.
-Alternatively we could just have some special lock (rwsem?) held during
-page_mkwrite() (for reading) and during whole hole punching (for writing)
-to serialize these two operations.
-
-Another alternative, which doesn't really look more appealing, is to go
-page-by-page and always free corresponding blocks under page lock.
-
-Any other ideas or thoughts?
-
-								Honza
--- 
-Jan Kara <jack@suse.cz>
-SUSE Labs, CR
+Yes, thank you. 
+Thanks,
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
