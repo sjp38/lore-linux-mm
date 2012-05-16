@@ -1,40 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx176.postini.com [74.125.245.176])
-	by kanga.kvack.org (Postfix) with SMTP id 44F266B004D
-	for <linux-mm@kvack.org>; Wed, 16 May 2012 03:06:59 -0400 (EDT)
-Message-ID: <4FB3518B.3090205@parallels.com>
-Date: Wed, 16 May 2012 11:04:43 +0400
+Received: from psmtp.com (na3sys010amx185.postini.com [74.125.245.185])
+	by kanga.kvack.org (Postfix) with SMTP id 0284E6B004D
+	for <linux-mm@kvack.org>; Wed, 16 May 2012 03:33:20 -0400 (EDT)
+Message-ID: <4FB357C9.8080308@parallels.com>
+Date: Wed, 16 May 2012 11:31:21 +0400
 From: Glauber Costa <glommer@parallels.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH v5 2/2] decrement static keys on real destroy time
-References: <1336767077-25351-1-git-send-email-glommer@parallels.com> <1336767077-25351-3-git-send-email-glommer@parallels.com> <4FB058D8.6060707@jp.fujitsu.com> <4FB3431C.3050402@parallels.com>
-In-Reply-To: <4FB3431C.3050402@parallels.com>
-Content-Type: text/plain; charset="ISO-2022-JP"
+Subject: Re: [RFC] SL[AUO]B common code 1/9] [slob] define page struct fields
+ used in mm_types.h
+References: <20120514201544.334122849@linux.com> <20120514201609.418025254@linux.com>
+In-Reply-To: <20120514201609.418025254@linux.com>
+Content-Type: text/plain; charset="ISO-8859-1"; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: cgroups@vger.kernel.org, linux-mm@kvack.org, devel@openvz.org, netdev@vger.kernel.org, Tejun Heo <tj@kernel.org>, Li Zefan <lizefan@huawei.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>
+To: Christoph Lameter <cl@linux.com>
+Cc: Pekka Enberg <penberg@kernel.org>, linux-mm@kvack.org, David Rientjes <rientjes@google.com>, Matt Mackall <mpm@selenic.com>
 
-On 05/16/2012 10:03 AM, Glauber Costa wrote:
->> BTW, what is the relationship between 1/2 and 2/2  ?
-> Can't do jump label patching inside an interrupt handler. They need to
-> happen when we free the structure, and I was about to add a worker
-> myself when I found out we already have one: just we don't always use it.
-> 
-> Before we merge it, let me just make sure the issue with config Li
-> pointed out don't exist. I did test it, but since I've reposted this
-> many times with multiple tiny changes - the type that will usually get
-> us killed, I'd be more comfortable with an extra round of testing if
-> someone spotted a possibility.
-> 
-> Who is merging this fix, btw ?
-> I find it to be entirely memcg related, even though it touches a file in
-> net (but a file with only memcg code in it)
-> 
+On 05/15/2012 12:15 AM, Christoph Lameter wrote:
+> - * We use struct page fields to manage some slob allocation aspects,
+> - * however to avoid the horrible mess in include/linux/mm_types.h, we'll
+> - * just define our own struct page type variant here.
+> - */
+> -struct slob_page {
+> -	union {
+> -		struct {
+> -			unsigned long flags;	/* mandatory */
+> -			atomic_t _count;	/* mandatory */
+> -			slobidx_t units;	/* free units left in page */
+> -			unsigned long pad[2];
+> -			slob_t *free;		/* first free slob_t in page */
+> -			struct list_head list;	/* linked list of free pages */
+> -		};
+> -		struct page page;
+> -	};
+> -};
 
-For the record, I compiled test it many times, and the problem that Li
-wondered about seems not to exist.
+I am generally in favor of this, but since this list inside the 
+structure doesn't seem to have any particular order, I think it should 
+not be called LRU.
+
+It is of course ok to reuse the field, but what about we make it a union 
+between "list" and "lru" ?
+
+It may seem stupid because they all have the same storage size, but the 
+word "lru" does trigger a lot of assumptions on people reading the code.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
