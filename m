@@ -1,52 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx116.postini.com [74.125.245.116])
-	by kanga.kvack.org (Postfix) with SMTP id 12C946B00EA
-	for <linux-mm@kvack.org>; Wed, 16 May 2012 10:33:45 -0400 (EDT)
-Date: Wed, 16 May 2012 09:33:42 -0500 (CDT)
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: [RFC] SL[AUO]B common code 8/9] slabs: list addition move to
- slab_common
-In-Reply-To: <4FB37CC9.3060102@parallels.com>
-Message-ID: <alpine.DEB.2.00.1205160932201.25603@router.home>
-References: <20120514201544.334122849@linux.com> <20120514201613.467708800@linux.com> <4FB37CC9.3060102@parallels.com>
+Received: from psmtp.com (na3sys010amx173.postini.com [74.125.245.173])
+	by kanga.kvack.org (Postfix) with SMTP id D8F096B00EA
+	for <linux-mm@kvack.org>; Wed, 16 May 2012 10:50:38 -0400 (EDT)
+Received: by pbbrp2 with SMTP id rp2so1755432pbb.14
+        for <linux-mm@kvack.org>; Wed, 16 May 2012 07:50:38 -0700 (PDT)
+Date: Wed, 16 May 2012 07:50:32 -0700
+From: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+Subject: Re: [PATCH] slub: fix a memory leak in get_partial_node()
+Message-ID: <20120516145032.GA1139@kroah.com>
+References: <1337108498-4104-1-git-send-email-js1304@gmail.com>
+ <alpine.DEB.2.00.1205151527150.11923@router.home>
+ <alpine.LFD.2.02.1205160935340.1763@tux.localdomain>
+ <CAAmzW4PWQiKbs+mdnwG18R=iWHLT=4Bwn8iA110PJaKuvG_AQQ@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <CAAmzW4PWQiKbs+mdnwG18R=iWHLT=4Bwn8iA110PJaKuvG_AQQ@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Glauber Costa <glommer@parallels.com>
-Cc: Pekka Enberg <penberg@kernel.org>, linux-mm@kvack.org, David Rientjes <rientjes@google.com>, Matt Mackall <mpm@selenic.com>
+To: JoonSoo Kim <js1304@gmail.com>
+Cc: Pekka Enberg <penberg@kernel.org>, Christoph Lameter <cl@linux.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, stable@vger.kernel.org
 
-On Wed, 16 May 2012, Glauber Costa wrote:
-
-> > Index: linux-2.6/mm/slab_common.c
-> > ===================================================================
-> > --- linux-2.6.orig/mm/slab_common.c	2012-05-14 08:39:27.859145830 -0500
-> > +++ linux-2.6/mm/slab_common.c	2012-05-14 08:39:29.827145790 -0500
-> > @@ -98,6 +98,9 @@ struct kmem_cache *kmem_cache_create(con
+On Wed, May 16, 2012 at 10:56:50PM +0900, JoonSoo Kim wrote:
+> 2012/5/16 Pekka Enberg <penberg@kernel.org>:
+> > <On Tue, 15 May 2012, Christoph Lameter wrote:
 > >
-> >   	s = __kmem_cache_create(name, size, align, flags, ctor);
+> >> On Wed, 16 May 2012, Joonsoo Kim wrote:
+> >>
+> >> > In the case which is below,
+> >> >
+> >> > 1. acquire slab for cpu partial list
+> >> > 2. free object to it by remote cpu
+> >> > 3. page->freelist = t
+> >> >
+> >> > then memory leak is occurred.
+> >>
+> >> Hmmm... Ok so we cannot assign page->freelist in get_partial_node() for
+> >> the cpu partial slabs. It must be done in the cmpxchg transition.
+> >>
+> >> Acked-by: Christoph Lameter <cl@linux.com>
 > >
-> > +	if (s&&  s->refcount == 1)
-> > +		list_add(&s->list,&slab_caches);
-> > +
-> >   oops:
->
-> I personally think that the refcount == 1 test is too fragile.
-> It happens to be true, and is likely to be true in the future, but there is no
-> particular reason that is *has* to be true forever.
+> > Joonsoo, can you please fix up the stable submission format, add
+> > Christoph's ACK and resend?
+> >
+> >                        Pekka
+> 
+> Thanks for comment.
+> I'm a kernel newbie,
+> so could you please tell me how to fix up the stable submission format?
+> I'm eager to fix it up, but I don't know how to.
+> 
+> I read stable_kernel_rules.txt, this article tells me I must note
+> upstream commit ID.
+> Above patch is not included in upstream currently, so I can't find
+> upstream commit ID.
+> Is 'Acked-by from MAINTAINER' sufficient for submitting to stable-kernel?
+> Is below format right for stable submission format?
 
-Its not fragile since a refcount will always be one for a slab that was
-just created. There is no possible other reference to it since the
-subsystem using it has never received a pointer to the kmem_cache struct
-yet.
+No.
 
-> Also, the only reasons it exists, seems to be to go around the fact that the
-> slab already adds the kmalloc caches to a list in a slightly different way.
-> And there has to be cleaner ways to achieve that.
+Please read the second item in the list that says: "Procedure for
+submitting patches to the -stable tree" in the file,
+Documentation/stable_kernel_rulest.txt.  It states:
 
-The reason it exists is to distinguish the case of an alias creation from
-a true kmem_cache instatiation. The alias does not need to be added to the
-list of slabs.
+ - To have the patch automatically included in the stable tree, add the tag
+     Cc: stable@vger.kernel.org
+   in the sign-off area. Once the patch is merged it will be applied to
+   the stable tree without anything else needing to be done by the author
+   or subsystem maintainer.
+
+Does that help?
+
+thanks,
+
+greg k-h
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
