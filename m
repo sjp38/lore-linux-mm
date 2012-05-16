@@ -1,41 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx175.postini.com [74.125.245.175])
-	by kanga.kvack.org (Postfix) with SMTP id 1BBCA6B004D
-	for <linux-mm@kvack.org>; Wed, 16 May 2012 04:36:12 -0400 (EDT)
-Message-ID: <4FB36685.4030104@parallels.com>
-Date: Wed, 16 May 2012 12:34:13 +0400
+Received: from psmtp.com (na3sys010amx117.postini.com [74.125.245.117])
+	by kanga.kvack.org (Postfix) with SMTP id 8CC1E6B004D
+	for <linux-mm@kvack.org>; Wed, 16 May 2012 04:39:40 -0400 (EDT)
+Message-ID: <4FB3674C.2030604@parallels.com>
+Date: Wed, 16 May 2012 12:37:32 +0400
 From: Glauber Costa <glommer@parallels.com>
 MIME-Version: 1.0
-Subject: Re: [RFC] SL[AUO]B common code 6/9] slabs: Use a common mutex definition
-References: <20120514201544.334122849@linux.com> <20120514201612.262732939@linux.com>
-In-Reply-To: <20120514201612.262732939@linux.com>
-Content-Type: text/plain; charset="ISO-8859-1"; format=flowed
+Subject: Re: [PATCH v5 2/2] decrement static keys on real destroy time
+References: <1336767077-25351-1-git-send-email-glommer@parallels.com> <1336767077-25351-3-git-send-email-glommer@parallels.com> <4FB058D8.6060707@jp.fujitsu.com> <4FB3431C.3050402@parallels.com> <4FB3518B.3090205@parallels.com> <4FB3652D.2040909@jp.fujitsu.com>
+In-Reply-To: <4FB3652D.2040909@jp.fujitsu.com>
+Content-Type: text/plain; charset="ISO-2022-JP"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: Pekka Enberg <penberg@kernel.org>, linux-mm@kvack.org, David Rientjes <rientjes@google.com>, Matt Mackall <mpm@selenic.com>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: cgroups@vger.kernel.org, linux-mm@kvack.org, devel@openvz.org, netdev@vger.kernel.org, Tejun Heo <tj@kernel.org>, Li Zefan <lizefan@huawei.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, David Miller <davem@davemloft.net>, Andrew Morton <akpm@linux-foundation.org>
 
-On 05/15/2012 12:15 AM, Christoph Lameter wrote:
-> Use the mutex definition from SLAB and make it the common way to take a sleeping lock.
->
-> This has the effect of using a mutex instead of a rw semaphore for SLUB.
+On 05/16/2012 12:28 PM, KAMEZAWA Hiroyuki wrote:
+> (2012/05/16 16:04), Glauber Costa wrote:
+> 
+>> On 05/16/2012 10:03 AM, Glauber Costa wrote:
+>>>> BTW, what is the relationship between 1/2 and 2/2  ?
+>>> Can't do jump label patching inside an interrupt handler. They need to
+>>> happen when we free the structure, and I was about to add a worker
+>>> myself when I found out we already have one: just we don't always use it.
+>>>
+>>> Before we merge it, let me just make sure the issue with config Li
+>>> pointed out don't exist. I did test it, but since I've reposted this
+>>> many times with multiple tiny changes - the type that will usually get
+>>> us killed, I'd be more comfortable with an extra round of testing if
+>>> someone spotted a possibility.
+>>>
+>>> Who is merging this fix, btw ?
+>>> I find it to be entirely memcg related, even though it touches a file in
+>>> net (but a file with only memcg code in it)
+>>>
+>>
+>> For the record, I compiled test it many times, and the problem that Li
+>> wondered about seems not to exist.
+>>
+> 
+> Ah...Hmm.....I guess dependency problem will be found in -mm if any rather than
+> netdev...
+> 
+> David, can this bug-fix patch goes via -mm tree ? Or will you pick up ?
+> 
 
-This is very good, IMHO.
-
-> SLOB gains the use of a mutex for kmem_cache_create serialization.
-> Not needed now but SLOB may acquire some more features later (like slabinfo
-> / sysfs support) through the expansion of the common code that will
-> need this.
-
-Now, won't this hurt performance of the slob allocator, that seems to 
-gain its edge from its simplicity ?
-
-But I'll let whoever cares comment on that. From where I stand:
-
-> Signed-off-by: Christoph Lameter<cl@linux.com>
->
-Reviewed-by: Glauber Costa <glommer@parallels.com>
+Another thing: Patch 2 in this series is of course dependent on patch 1
+- which lives 100 % in memcg core. Without that, lockdep will scream
+while disabling the static key.
 
 
 --
