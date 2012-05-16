@@ -1,68 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx116.postini.com [74.125.245.116])
-	by kanga.kvack.org (Postfix) with SMTP id 746B16B0081
-	for <linux-mm@kvack.org>; Wed, 16 May 2012 16:00:46 -0400 (EDT)
-From: Nathan Zimmer <nzimmer@sgi.com>
-Subject: [PATCH] tmpfs not interleaving properly
-Date: Wed, 16 May 2012 20:00:39 +0000
-Message-ID: <74F10842A85F514CA8D8C487E74474BB2C0429@P-EXMB1-DC21.corp.sgi.com>
-Content-Language: en-US
-Content-Type: text/plain; charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
-MIME-Version: 1.0
+Received: from psmtp.com (na3sys010amx121.postini.com [74.125.245.121])
+	by kanga.kvack.org (Postfix) with SMTP id DD25B6B0082
+	for <linux-mm@kvack.org>; Wed, 16 May 2012 16:57:58 -0400 (EDT)
+Date: Wed, 16 May 2012 13:57:55 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH v5 2/2] decrement static keys on real destroy time
+Message-Id: <20120516135755.cdcdf9ba.akpm@linux-foundation.org>
+In-Reply-To: <4FB35153.3080309@parallels.com>
+References: <1336767077-25351-1-git-send-email-glommer@parallels.com>
+	<1336767077-25351-3-git-send-email-glommer@parallels.com>
+	<4FB0621C.3010604@huawei.com>
+	<4FB35153.3080309@parallels.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>, Nick Piggin <npiggin@gmail.com>, Christoph Lameter <cl@linux.com>, Lee Schermerhorn <lee.schermerhorn@hp.com>
-Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "stable@vger.kernel.org" <stable@vger.kernel.org>
+To: Glauber Costa <glommer@parallels.com>
+Cc: Li Zefan <lizefan@huawei.com>, cgroups@vger.kernel.org, linux-mm@kvack.org, devel@openvz.org, kamezawa.hiroyu@jp.fujitsu.com, netdev@vger.kernel.org, Tejun Heo <tj@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>
 
-When tmpfs has the memory policy interleaved it always starts allocating at=
- each file at node 0.
-When there are many small files the lower nodes fill up disproportionately.
-My proposed solution is to start a file at a randomly chosen node.
+On Wed, 16 May 2012 11:03:47 +0400
+Glauber Costa <glommer@parallels.com> wrote:
 
-Cc: Christoph Lameter <cl@linux.com>
-Cc: Nick Piggin <npiggin@gmail.com>
-Cc: Hugh Dickins <hughd@google.com>
-Cc: Lee Schermerhorn <lee.schermerhorn@hp.com>
-Cc: stable@vger.kernel.org
-Signed-off-by: Nathan T Zimmer <nzimmer@sgi.com>
+> On 05/14/2012 05:38 AM, Li Zefan wrote:
+> >> +static void disarm_static_keys(struct mem_cgroup *memcg)
+> > 
+> >> +{
+> >> +#ifdef CONFIG_INET
+> >> +	if (memcg->tcp_mem.cg_proto.activated)
+> >> +		static_key_slow_dec(&memcg_socket_limit_enabled);
+> >> +#endif
+> >> +}
+> > 
+> > 
+> > Move this inside the ifdef/endif below ?
+> > 
+> > Otherwise I think you'll get compile error if !CONFIG_INET...
+> 
+> I don't fully get it.
+> 
+> We are supposed to provide a version of it for
+> CONFIG_CGROUP_MEM_RES_CTLR_KMEM and an empty version for
+> !CONFIG_CGROUP_MEM_RES_CTLR_KMEM
+> 
+> Inside the first, we take an action for CONFIG_INET, and no action for
+> !CONFIG_INET.
+> 
+> Bear in mind that the slab patches will add another test to that place,
+> and that's why I am doing it this way from the beginning.
+> 
+> Well, that said, I not only can be wrong, I very frequently am.
+> 
+> But I just compiled this one with and without CONFIG_INET, and it seems
+> to be going alright.
+> 
+
+Yes, the ifdeffings in that area are rather nasty.
+
+I wonder if it would be simpler to do away with the ifdef nesting. 
+At the top-level, just do
+
+#if defined(CONFIG_CGROUP_MEM_RES_CTLR_KMEM) && defined(CONFIG_INET)
+static void disarm_static_keys(struct mem_cgroup *memcg)
+{
+	if (memcg->tcp_mem.cg_proto.activated)
+		static_key_slow_dec(&memcg_socket_limit_enabled);
+}
+#else
+static inline void disarm_static_keys(struct mem_cgroup *memcg)
+{
+}
+#endif
 
 
-diff --git a/include/linux/shmem_fs.h b/include/linux/shmem_fs.h index 79ab=
-255..38eda26 100644
---- a/include/linux/shmem_fs.h
-+++ b/include/linux/shmem_fs.h
-@@ -17,6 +17,7 @@ struct shmem_inode_info {
- 		char		*symlink;	/* unswappable short symlink */
- 	};
- 	struct shared_policy	policy;		/* NUMA memory alloc policy */
-+	int			node_offset;	/* bias for interleaved nodes */
- 	struct list_head	swaplist;	/* chain of maybes on swap */
- 	struct list_head	xattr_list;	/* list of shmem_xattr */
- 	struct inode		vfs_inode;
-diff --git a/mm/shmem.c b/mm/shmem.c
-index f99ff3e..58ef512 100644
---- a/mm/shmem.c
-+++ b/mm/shmem.c
-@@ -819,7 +819,7 @@ static struct page *shmem_alloc_page(gfp_t gfp,
-=20
- 	/* Create a pseudo vma that just contains the policy */
- 	pvma.vm_start =3D 0;
--	pvma.vm_pgoff =3D index;
-+	pvma.vm_pgoff =3D index + info->node_offset;
- 	pvma.vm_ops =3D NULL;
- 	pvma.vm_policy =3D mpol_shared_policy_lookup(&info->policy, index);
-=20
-@@ -1153,6 +1153,7 @@ static struct inode *shmem_get_inode(struct super_blo=
-ck *sb, const struct inode
- 			inode->i_fop =3D &shmem_file_operations;
- 			mpol_shared_policy_init(&info->policy,
- 						 shmem_get_sbmpol(sbinfo));
-+			info->node_offset =3D node_random(&node_online_map);
- 			break;
- 		case S_IFDIR:
- 			inc_nlink(inode);
-
+The tcp_proto_cgroup() definition could go inside that ifdef as well.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
