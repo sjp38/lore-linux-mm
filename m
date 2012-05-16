@@ -1,69 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx197.postini.com [74.125.245.197])
-	by kanga.kvack.org (Postfix) with SMTP id DF4726B0092
-	for <linux-mm@kvack.org>; Wed, 16 May 2012 02:14:10 -0400 (EDT)
-Message-ID: <4FB34534.3070306@parallels.com>
-Date: Wed, 16 May 2012 10:12:04 +0400
+Received: from psmtp.com (na3sys010amx148.postini.com [74.125.245.148])
+	by kanga.kvack.org (Postfix) with SMTP id DCC776B00EA
+	for <linux-mm@kvack.org>; Wed, 16 May 2012 02:19:12 -0400 (EDT)
+Message-ID: <4FB34653.7060807@parallels.com>
+Date: Wed, 16 May 2012 10:16:51 +0400
 From: Glauber Costa <glommer@parallels.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH v2 01/29] slab: dup name string
-References: <1336758272-24284-1-git-send-email-glommer@parallels.com> <1336758272-24284-2-git-send-email-glommer@parallels.com> <alpine.DEB.2.00.1205151502000.18595@chino.kir.corp.google.com>
-In-Reply-To: <alpine.DEB.2.00.1205151502000.18595@chino.kir.corp.google.com>
-Content-Type: text/plain; charset="ISO-8859-1"; format=flowed
+Subject: Re: [PATCH v2 11/29] cgroups: ability to stop res charge propagation
+ on bounded ancestor
+References: <1336758272-24284-1-git-send-email-glommer@parallels.com> <1336758272-24284-12-git-send-email-glommer@parallels.com> <4FB1C6A1.1020602@jp.fujitsu.com>
+In-Reply-To: <4FB1C6A1.1020602@jp.fujitsu.com>
+Content-Type: text/plain; charset="ISO-2022-JP"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, linux-mm@kvack.org, kamezawa.hiroyu@jp.fujitsu.com, Tejun Heo <tj@kernel.org>, Li Zefan <lizefan@huawei.com>, Greg Thelen <gthelen@google.com>, Suleiman Souhlal <suleiman@google.com>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, devel@openvz.org, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@cs.helsinki.fi>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, linux-mm@kvack.org, Tejun Heo <tj@kernel.org>, Li Zefan <lizefan@huawei.com>, Greg Thelen <gthelen@google.com>, Suleiman Souhlal <suleiman@google.com>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, devel@openvz.org, Frederic Weisbecker <fweisbec@gmail.com>, Li Zefan <lizf@cn.fujitsu.com>, Aditya Kali <adityakali@google.com>, Oleg Nesterov <oleg@redhat.com>, Kay Sievers <kay.sievers@vrfy.org>, Tim Hockin <thockin@hockin.org>, Tejun Heo <htejun@gmail.com>, Andrew Morton <akpm@linux-foundation.org>
 
-On 05/16/2012 02:04 AM, David Rientjes wrote:
-> On Fri, 11 May 2012, Glauber Costa wrote:
->
->> diff --git a/mm/slab.c b/mm/slab.c
->> index e901a36..91b9c13 100644
->> --- a/mm/slab.c
->> +++ b/mm/slab.c
->> @@ -2118,6 +2118,7 @@ static void __kmem_cache_destroy(struct kmem_cache *cachep)
->>   			kfree(l3);
->>   		}
->>   	}
->> +	kfree(cachep->name);
->>   	kmem_cache_free(&cache_cache, cachep);
->>   }
+On 05/15/2012 06:59 AM, KAMEZAWA Hiroyuki wrote:
+> (2012/05/12 2:44), Glauber Costa wrote:
+> 
+>> From: Frederic Weisbecker<fweisbec@gmail.com>
 >>
->> @@ -2526,7 +2527,7 @@ kmem_cache_create (const char *name, size_t size, size_t align,
->>   		BUG_ON(ZERO_OR_NULL_PTR(cachep->slabp_cache));
->>   	}
->>   	cachep->ctor = ctor;
->> -	cachep->name = name;
->> +	cachep->name = kstrdup(name, GFP_KERNEL);
+>> Moving a task from a cgroup to another may require to substract its
+>> resource charge from the old cgroup and add it to the new one.
 >>
->>   	if (setup_cpu_cache(cachep, gfp)) {
->>   		__kmem_cache_destroy(cachep);
->
-> Couple problems:
->
->   - allocating memory for a string of an unknown, unchecked size, and
->
->   - could potentially return NULL which I suspect will cause problems
->     later.
+>> For this to happen, the uncharge/charge propagation can just stop when we
+>> reach the common ancestor for the two cgroups.  Further the performance
+>> reasons, we also want to avoid to temporarily overload the common
+>> ancestors with a non-accurate resource counter usage if we charge first
+>> the new cgroup and uncharge the old one thereafter.  This is going to be a
+>> requirement for the coming max number of task subsystem.
+>>
+>> To solve this, provide a pair of new API that can charge/uncharge a
+>> resource counter until we reach a given ancestor.
+>>
+>> Signed-off-by: Frederic Weisbecker<fweisbec@gmail.com>
+>> Acked-by: Paul Menage<paul@paulmenage.org>
+>> Acked-by: Glauber Costa<glommer@parallels.com>
+>> Cc: Li Zefan<lizf@cn.fujitsu.com>
+>> Cc: Johannes Weiner<hannes@cmpxchg.org>
+>> Cc: Aditya Kali<adityakali@google.com>
+>> Cc: Oleg Nesterov<oleg@redhat.com>
+>> Cc: Kay Sievers<kay.sievers@vrfy.org>
+>> Cc: Tim Hockin<thockin@hockin.org>
+>> Cc: Tejun Heo<htejun@gmail.com>
+>> Acked-by: Kirill A. Shutemov<kirill@shutemov.name>
+>> Signed-off-by: Andrew Morton<akpm@linux-foundation.org>
+> 
+> 
+> Where is this function called in this series ?
+> 
+> Thanks,
+> -Kame
+> 
+It is not... anymore!
+But I forgot the patch among the "pre-requisite" patches I had.
 
-Well, this is what slub does.
-
-I sent already two patches for it: One removing this from the slub, one 
-adding this to the slab.
-
-Right now I am comfortable with this one, because it makes it slightly 
-easier in the latest patches of my series.
-
-But note the word: slightest.
-
-I am comfortable with any, provided slub and slab start behaving the same.
-
-So whatever you guys decide between yourselves is fine, provided there 
-is a decision.
-
-Thanks for your review, David!
+Thanks, this can be dropped.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
