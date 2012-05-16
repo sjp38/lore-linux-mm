@@ -1,14 +1,14 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx180.postini.com [74.125.245.180])
-	by kanga.kvack.org (Postfix) with SMTP id 247856B0082
-	for <linux-mm@kvack.org>; Wed, 16 May 2012 11:41:53 -0400 (EDT)
-Date: Wed, 16 May 2012 10:41:50 -0500 (CDT)
+Received: from psmtp.com (na3sys010amx137.postini.com [74.125.245.137])
+	by kanga.kvack.org (Postfix) with SMTP id 2B2136B0082
+	for <linux-mm@kvack.org>; Wed, 16 May 2012 11:44:45 -0400 (EDT)
+Date: Wed, 16 May 2012 10:44:42 -0500 (CDT)
 From: Christoph Lameter <cl@linux.com>
-Subject: Re: [RFC] SL[AUO]B common code 3/9] Extract common fields from struct
- kmem_cache
-In-Reply-To: <4FB35E7F.8030303@parallels.com>
-Message-ID: <alpine.DEB.2.00.1205161041100.25603@router.home>
-References: <20120514201544.334122849@linux.com> <20120514201610.559075441@linux.com> <4FB35E7F.8030303@parallels.com>
+Subject: Re: [RFC] SL[AUO]B common code 5/9] slabs: Common definition for
+ boot state of the slab allocators
+In-Reply-To: <4FB36318.30600@parallels.com>
+Message-ID: <alpine.DEB.2.00.1205161044000.25603@router.home>
+References: <20120514201544.334122849@linux.com> <20120514201611.710540961@linux.com> <4FB36318.30600@parallels.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -18,11 +18,23 @@ Cc: Pekka Enberg <penberg@kernel.org>, linux-mm@kvack.org, David Rientjes <rient
 
 On Wed, 16 May 2012, Glauber Costa wrote:
 
-> Who defines struct kmem_cache for the slob now ?
+> > @@ -117,10 +117,6 @@ int kmem_cache_shrink(struct kmem_cache
+> >   void kmem_cache_free(struct kmem_cache *, void *);
+> >   unsigned int kmem_cache_size(struct kmem_cache *);
+> >
+> > -/* Slab internal function */
+> > -struct kmem_cache *__kmem_cache_create(const char *, size_t, size_t,
+> > -			unsigned long,
+> > -			void (*)(void *));
+> >   /*
+> >    * Please use this macro to create slab caches. Simply specify the
+> >    * name of the structure and maybe some flags that are listed above.
+> >
+>
+> Should be in an earlier patch...
 
-The hunk was dropped that added this to include/linux/slob_def.h. Next
-post will include that.
-
+This patch moves the definition to mm/slab.h since it is only used for
+allocators.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
