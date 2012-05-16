@@ -1,57 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx185.postini.com [74.125.245.185])
-	by kanga.kvack.org (Postfix) with SMTP id 658AD6B0081
-	for <linux-mm@kvack.org>; Wed, 16 May 2012 11:17:47 -0400 (EDT)
-Received: by obbwd18 with SMTP id wd18so1651655obb.14
-        for <linux-mm@kvack.org>; Wed, 16 May 2012 08:17:46 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx173.postini.com [74.125.245.173])
+	by kanga.kvack.org (Postfix) with SMTP id EBA026B0081
+	for <linux-mm@kvack.org>; Wed, 16 May 2012 11:38:42 -0400 (EDT)
+Date: Wed, 16 May 2012 10:38:39 -0500 (CDT)
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: [RFC] SL[AUO]B common code 1/9] [slob] define page struct fields
+ used in mm_types.h
+In-Reply-To: <alpine.DEB.2.00.1205160925410.25603@router.home>
+Message-ID: <alpine.DEB.2.00.1205161034400.25603@router.home>
+References: <20120514201544.334122849@linux.com> <20120514201609.418025254@linux.com> <4FB357C9.8080308@parallels.com> <alpine.DEB.2.00.1205160925410.25603@router.home>
 MIME-Version: 1.0
-In-Reply-To: <20120516145032.GA1139@kroah.com>
-References: <1337108498-4104-1-git-send-email-js1304@gmail.com>
-	<alpine.DEB.2.00.1205151527150.11923@router.home>
-	<alpine.LFD.2.02.1205160935340.1763@tux.localdomain>
-	<CAAmzW4PWQiKbs+mdnwG18R=iWHLT=4Bwn8iA110PJaKuvG_AQQ@mail.gmail.com>
-	<20120516145032.GA1139@kroah.com>
-Date: Thu, 17 May 2012 00:17:46 +0900
-Message-ID: <CAAmzW4PA26qX8H1boKaHSh0m0S-aw7CVCTMeeijS-rCQEQzUdQ@mail.gmail.com>
-Subject: Re: [PATCH] slub: fix a memory leak in get_partial_node()
-From: JoonSoo Kim <js1304@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-Cc: Pekka Enberg <penberg@kernel.org>, Christoph Lameter <cl@linux.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, stable@vger.kernel.org
+To: Glauber Costa <glommer@parallels.com>
+Cc: Pekka Enberg <penberg@kernel.org>, linux-mm@kvack.org, David Rientjes <rientjes@google.com>, Matt Mackall <mpm@selenic.com>
 
-2012/5/16 Greg Kroah-Hartman <gregkh@linuxfoundation.org>:
->> I read stable_kernel_rules.txt, this article tells me I must note
->> upstream commit ID.
->> Above patch is not included in upstream currently, so I can't find
->> upstream commit ID.
->> Is 'Acked-by from MAINTAINER' sufficient for submitting to stable-kernel=
-?
->> Is below format right for stable submission format?
->
-> No.
->
-> Please read the second item in the list that says: "Procedure for
-> submitting patches to the -stable tree" in the file,
-> Documentation/stable_kernel_rulest.txt. =A0It states:
->
-> =A0- To have the patch automatically included in the stable tree, add the=
- tag
-> =A0 =A0 Cc: stable@vger.kernel.org
-> =A0 in the sign-off area. Once the patch is merged it will be applied to
-> =A0 the stable tree without anything else needing to be done by the autho=
-r
-> =A0 or subsystem maintainer.
->
-> Does that help?
->
-> thanks,
->
-> greg k-h
+On Wed, 16 May 2012, Christoph Lameter wrote:
 
-Thanks, very helpful.
+> On Wed, 16 May 2012, Glauber Costa wrote:
+>
+> > It is of course ok to reuse the field, but what about we make it a union
+> > between "list" and "lru" ?
+>
+> That is what this patch does. You are commenting on code that was
+> removed.
+
+Argh. No it doesnt..... It will be easy to add though. But then you have
+two list_head definitions in page struct that just differ in name.
+
+Index: linux-2.6/mm/slob.c
+===================================================================
+--- linux-2.6.orig/mm/slob.c	2012-05-16 04:36:42.531867096 -0500
++++ linux-2.6/mm/slob.c	2012-05-16 04:36:13.611867636 -0500
+@@ -142,13 +142,13 @@ static inline int slob_page_free(struct
+
+ static void set_slob_page_free(struct page *sp, struct list_head *list)
+ {
+-	list_add(&sp->lru, list);
++	list_add(&sp->list, list);
+ 	__SetPageSlobFree(sp);
+ }
+
+ static inline void clear_slob_page_free(struct page *sp)
+ {
+-	list_del(&sp->lru);
++	list_del(&sp->list);
+ 	__ClearPageSlobFree(sp);
+ }
+
+@@ -314,7 +314,7 @@ static void *slob_alloc(size_t size, gfp
+
+ 	spin_lock_irqsave(&slob_lock, flags);
+ 	/* Iterate through each partially free page, try to find room */
+-	list_for_each_entry(sp, slob_list, lru) {
++	list_for_each_entry(sp, slob_list, list) {
+ #ifdef CONFIG_NUMA
+ 		/*
+ 		 * If there's a node specification, search for a partial
+@@ -328,7 +328,7 @@ static void *slob_alloc(size_t size, gfp
+ 			continue;
+
+ 		/* Attempt to alloc */
+-		prev = sp->lru.prev;
++		prev = sp->list.prev;
+ 		b = slob_page_alloc(sp, size, align);
+ 		if (!b)
+ 			continue;
+@@ -354,7 +354,7 @@ static void *slob_alloc(size_t size, gfp
+ 		spin_lock_irqsave(&slob_lock, flags);
+ 		sp->units = SLOB_UNITS(PAGE_SIZE);
+ 		sp->freelist = b;
+-		INIT_LIST_HEAD(&sp->lru);
++		INIT_LIST_HEAD(&sp->list);
+ 		set_slob(b, SLOB_UNITS(PAGE_SIZE), b + SLOB_UNITS(PAGE_SIZE));
+ 		set_slob_page_free(sp, slob_list);
+ 		b = slob_page_alloc(sp, size, align);
+Index: linux-2.6/include/linux/mm_types.h
+===================================================================
+--- linux-2.6.orig/include/linux/mm_types.h	2012-05-16 04:36:42.535867105 -0500
++++ linux-2.6/include/linux/mm_types.h	2012-05-16 04:35:37.963868439 -0500
+@@ -97,6 +97,7 @@ struct page {
+ 		struct list_head lru;	/* Pageout list, eg. active_list
+ 					 * protected by zone->lru_lock !
+ 					 */
++		struct list_head list;	/* slobs list of pages */
+ 		struct {		/* slub per cpu partial pages */
+ 			struct page *next;	/* Next partial slab */
+ #ifdef CONFIG_64BIT
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
