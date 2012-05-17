@@ -1,35 +1,38 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx202.postini.com [74.125.245.202])
-	by kanga.kvack.org (Postfix) with SMTP id E71236B0082
-	for <linux-mm@kvack.org>; Thu, 17 May 2012 10:27:23 -0400 (EDT)
-Date: Thu, 17 May 2012 09:27:21 -0500 (CDT)
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: [RFC] SL[AUO]B common code 5/9] slabs: Common definition for
- boot state of the slab allocators
-In-Reply-To: <4FB508EB.4050609@parallels.com>
-Message-ID: <alpine.DEB.2.00.1205170926470.5144@router.home>
-References: <20120514201544.334122849@linux.com> <20120514201611.710540961@linux.com> <4FB36318.30600@parallels.com> <alpine.DEB.2.00.1205160928490.25603@router.home> <4FB4C71C.6040906@parallels.com> <alpine.DEB.2.00.1205170905350.5144@router.home>
- <4FB5065E.8020702@parallels.com> <alpine.DEB.2.00.1205170914340.5144@router.home> <4FB508EB.4050609@parallels.com>
+Received: from psmtp.com (na3sys010amx207.postini.com [74.125.245.207])
+	by kanga.kvack.org (Postfix) with SMTP id 740076B0083
+	for <linux-mm@kvack.org>; Thu, 17 May 2012 10:46:29 -0400 (EDT)
+Received: by dakp5 with SMTP id p5so3739560dak.14
+        for <linux-mm@kvack.org>; Thu, 17 May 2012 07:46:28 -0700 (PDT)
+Date: Thu, 17 May 2012 07:46:22 -0700
+From: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+Subject: Re: [PATCH v2 3/3] x86: Support local_flush_tlb_kernel_range
+Message-ID: <20120517144622.GA27597@kroah.com>
+References: <1337133919-4182-1-git-send-email-minchan@kernel.org>
+ <1337133919-4182-3-git-send-email-minchan@kernel.org>
+ <4FB4B29C.4010908@kernel.org>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <4FB4B29C.4010908@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Glauber Costa <glommer@parallels.com>
-Cc: Pekka Enberg <penberg@kernel.org>, linux-mm@kvack.org, David Rientjes <rientjes@google.com>, Matt Mackall <mpm@selenic.com>
+To: Minchan Kim <minchan@kernel.org>
+Cc: Nitin Gupta <ngupta@vflare.org>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Dan Magenheimer <dan.magenheimer@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, Tejun Heo <tj@kernel.org>, David Howells <dhowells@redhat.com>, x86@kernel.org, a.p.zijlstra@chello.nl, Nick Piggin <npiggin@gmail.com>
 
-On Thu, 17 May 2012, Glauber Costa wrote:
+On Thu, May 17, 2012 at 05:11:08PM +0900, Minchan Kim wrote:
+> Isn't there anyone for taking a time to review this patch? :)
+> 
+> On 05/16/2012 11:05 AM, Minchan Kim wrote:
 
-> > > >  If for whatever reordering people may decide doing another state is
-> > > added, or
-> > > >  this function is called later, that will fail
-> > Then the assumptions that SYSFS is the final state is no longer true and
-> > therefore the code needs to be inspected if this change affects anything.
-> >
-> yes, by humans, that are known to make mistakes. Using >= is a tiny attitude
-> that protects about failures in this realm.
+<snip>
 
-No it risks breakage because the code will run now under a condition when
-the system has not been brought up fully.
+You want review within 24 hours for a staging tree patch for a feature
+that no one uses?
+
+That's very bold of you.  Please be realistic.
+
+greg k-h
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
