@@ -1,42 +1,36 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx116.postini.com [74.125.245.116])
-	by kanga.kvack.org (Postfix) with SMTP id 251F66B00E8
-	for <linux-mm@kvack.org>; Thu, 17 May 2012 17:58:57 -0400 (EDT)
-Received: from /spool/local
-	by e35.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <dave@linux.vnet.ibm.com>;
-	Thu, 17 May 2012 15:58:56 -0600
-Received: from d03relay01.boulder.ibm.com (d03relay01.boulder.ibm.com [9.17.195.226])
-	by d03dlp03.boulder.ibm.com (Postfix) with ESMTP id A263619D804C
-	for <linux-mm@kvack.org>; Thu, 17 May 2012 15:58:40 -0600 (MDT)
-Received: from d03av04.boulder.ibm.com (d03av04.boulder.ibm.com [9.17.195.170])
-	by d03relay01.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q4HLwqgW202032
-	for <linux-mm@kvack.org>; Thu, 17 May 2012 15:58:52 -0600
-Received: from d03av04.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av04.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q4HLwoTw023227
-	for <linux-mm@kvack.org>; Thu, 17 May 2012 15:58:51 -0600
-Message-ID: <4FB57493.3070308@linux.vnet.ibm.com>
-Date: Thu, 17 May 2012 14:58:43 -0700
-From: Dave Hansen <dave@linux.vnet.ibm.com>
-MIME-Version: 1.0
-Subject: Re: Huge pages: Memory leak on mmap failure
-References: <alpine.DEB.2.00.1205171605001.19076@router.home>
-In-Reply-To: <alpine.DEB.2.00.1205171605001.19076@router.home>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx202.postini.com [74.125.245.202])
+	by kanga.kvack.org (Postfix) with SMTP id 3599C6B00EA
+	for <linux-mm@kvack.org>; Thu, 17 May 2012 18:04:37 -0400 (EDT)
+Message-ID: <1337292273.4281.101.camel@twins>
+Subject: Re: [PATCH 2/2] block: Convert BDI proportion calculations to
+ flexible proportions
+From: Peter Zijlstra <peterz@infradead.org>
+Date: Fri, 18 May 2012 00:04:33 +0200
+In-Reply-To: <1337096583-6049-3-git-send-email-jack@suse.cz>
+References: <1337096583-6049-1-git-send-email-jack@suse.cz>
+	 <1337096583-6049-3-git-send-email-jack@suse.cz>
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: quoted-printable
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: Andrea Arcangeli <aarcange@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Hugh Dickins <hughd@google.com>, David Rientjes <rientjes@google.com>, Alexey Dobriyan <adobriyan@gmail.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
+To: Jan Kara <jack@suse.cz>
+Cc: Wu Fengguang <fengguang.wu@intel.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 
-On 05/17/2012 02:07 PM, Christoph Lameter wrote:
-> 
-> On 2.6.32 and 3.4-rc6 mmap failure of a huge page causes a memory
-> leak. The 32 byte kmalloc cache grows by 10 mio entries if running
-> the following code:
+On Tue, 2012-05-15 at 17:43 +0200, Jan Kara wrote:
+> +static struct timer_list writeout_period_timer =3D
+> +               TIMER_DEFERRED_INITIALIZER(writeout_period, 0, 0);=20
 
-Urg.  Looks like the resv_maps, probably.  I'll take a look.
+So the problem with using a deferred timer is that it 'ignores' idle
+time. So if a very busy period is followed by a real quiet period you'd
+expect all the proportions to have aged to 0, but they won't have.
 
+One way to solve that is to track a jiffies count of the last time the
+timer triggered and compute the missed periods from that and extend
+fprop_new_period() to deal with period increments of more than 1.
+
+The other is of course to not use deferred timers.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
