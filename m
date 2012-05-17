@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx155.postini.com [74.125.245.155])
-	by kanga.kvack.org (Postfix) with SMTP id 8FC586B00F6
-	for <linux-mm@kvack.org>; Thu, 17 May 2012 10:50:47 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx130.postini.com [74.125.245.130])
+	by kanga.kvack.org (Postfix) with SMTP id 850DB6B00F5
+	for <linux-mm@kvack.org>; Thu, 17 May 2012 10:50:44 -0400 (EDT)
 From: Mel Gorman <mgorman@suse.de>
-Subject: [PATCH 12/17] netvm: Propagate page->pfmemalloc from skb_alloc_page to skb
-Date: Thu, 17 May 2012 15:50:26 +0100
-Message-Id: <1337266231-8031-13-git-send-email-mgorman@suse.de>
+Subject: [PATCH 09/17] netvm: Allow the use of __GFP_MEMALLOC by specific sockets
+Date: Thu, 17 May 2012 15:50:23 +0100
+Message-Id: <1337266231-8031-10-git-send-email-mgorman@suse.de>
 In-Reply-To: <1337266231-8031-1-git-send-email-mgorman@suse.de>
 References: <1337266231-8031-1-git-send-email-mgorman@suse.de>
 Sender: owner-linux-mm@kvack.org
@@ -13,201 +13,86 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Linux-MM <linux-mm@kvack.org>, Linux-Netdev <netdev@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, David Miller <davem@davemloft.net>, Neil Brown <neilb@suse.de>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Mike Christie <michaelc@cs.wisc.edu>, Eric B Munson <emunson@mgebm.net>, Mel Gorman <mgorman@suse.de>
 
-The skb->pfmemalloc flag gets set to true iff during the slab
-allocation of data in __alloc_skb that the the PFMEMALLOC reserves
-were used. If page splitting is used, it is possible that pages will
-be allocated from the PFMEMALLOC reserve without propagating this
-information to the skb. This patch propagates page->pfmemalloc from
-pages allocated for fragments to the skb.
+Allow specific sockets to be tagged SOCK_MEMALLOC and use
+__GFP_MEMALLOC for their allocations. These sockets will be able to go
+below watermarks and allocate from the emergency reserve. Such sockets
+are to be used to service the VM (iow. to swap over). They must be
+handled kernel side, exposing such a socket to user-space is a bug.
 
-It works by reintroducing and expanding the skb_alloc_page() API
-to take an skb. If the page was allocated from pfmemalloc reserves,
-it is automatically copied. If the driver allocates the page before
-the skb, it should call skb_propagate_pfmemalloc() after the skb is
-allocated to ensure the flag is copied properly.
+There is a risk that the reserves be depleted so for now, the
+administrator is responsible for increasing min_free_kbytes as
+necessary to prevent deadlock for their workloads.
 
-Failure to do so is not critical. The resulting driver may perform
-slower if it is used for swap-over-NBD or swap-over-NFS but it should
-not result in failure.
-
-[davem@davemloft.net: API rename and consistency]
+[a.p.zijlstra@chello.nl: Original patches]
 Signed-off-by: Mel Gorman <mgorman@suse.de>
 ---
- drivers/net/ethernet/chelsio/cxgb4/sge.c          |    2 +-
- drivers/net/ethernet/chelsio/cxgb4vf/sge.c        |    2 +-
- drivers/net/ethernet/intel/igb/igb_main.c         |    2 +-
- drivers/net/ethernet/intel/ixgbe/ixgbe_main.c     |    2 +-
- drivers/net/ethernet/intel/ixgbevf/ixgbevf_main.c |    3 +-
- drivers/net/usb/cdc-phonet.c                      |    2 +-
- drivers/usb/gadget/f_phonet.c                     |    2 +-
- include/linux/skbuff.h                            |   55 +++++++++++++++++++++
- 8 files changed, 63 insertions(+), 7 deletions(-)
+ include/net/sock.h |    5 ++++-
+ net/core/sock.c    |   22 ++++++++++++++++++++++
+ 2 files changed, 26 insertions(+), 1 deletion(-)
 
-diff --git a/drivers/net/ethernet/chelsio/cxgb4/sge.c b/drivers/net/ethernet/chelsio/cxgb4/sge.c
-index 2dae795..c5c342c 100644
---- a/drivers/net/ethernet/chelsio/cxgb4/sge.c
-+++ b/drivers/net/ethernet/chelsio/cxgb4/sge.c
-@@ -528,7 +528,7 @@ static unsigned int refill_fl(struct adapter *adap, struct sge_fl *q, int n,
- #endif
+diff --git a/include/net/sock.h b/include/net/sock.h
+index d0ab047..dba4f64 100644
+--- a/include/net/sock.h
++++ b/include/net/sock.h
+@@ -607,6 +607,7 @@ enum sock_flags {
+ 	SOCK_RCVTSTAMPNS, /* %SO_TIMESTAMPNS setting */
+ 	SOCK_LOCALROUTE, /* route locally only, %SO_DONTROUTE setting */
+ 	SOCK_QUEUE_SHRUNK, /* write queue has been shrunk recently */
++	SOCK_MEMALLOC, /* VM depends on this socket for swapping */
+ 	SOCK_TIMESTAMPING_TX_HARDWARE,  /* %SOF_TIMESTAMPING_TX_HARDWARE */
+ 	SOCK_TIMESTAMPING_TX_SOFTWARE,  /* %SOF_TIMESTAMPING_TX_SOFTWARE */
+ 	SOCK_TIMESTAMPING_RX_HARDWARE,  /* %SOF_TIMESTAMPING_RX_HARDWARE */
+@@ -646,7 +647,7 @@ static inline int sock_flag(struct sock *sk, enum sock_flags flag)
  
- 	while (n--) {
--		pg = alloc_page(gfp);
-+		pg = __skb_alloc_page(gfp, NULL);
- 		if (unlikely(!pg)) {
- 			q->alloc_failed++;
- 			break;
-diff --git a/drivers/net/ethernet/chelsio/cxgb4vf/sge.c b/drivers/net/ethernet/chelsio/cxgb4vf/sge.c
-index 0bd585b..dca0716 100644
---- a/drivers/net/ethernet/chelsio/cxgb4vf/sge.c
-+++ b/drivers/net/ethernet/chelsio/cxgb4vf/sge.c
-@@ -653,7 +653,7 @@ static unsigned int refill_fl(struct adapter *adapter, struct sge_fl *fl,
- 
- alloc_small_pages:
- 	while (n--) {
--		page = alloc_page(gfp | __GFP_NOWARN | __GFP_COLD);
-+		page = __skb_alloc_page(gfp | __GFP_NOWARN, NULL);
- 		if (unlikely(!page)) {
- 			fl->alloc_failed++;
- 			break;
-diff --git a/drivers/net/ethernet/intel/igb/igb_main.c b/drivers/net/ethernet/intel/igb/igb_main.c
-index 8683ca4..eacbb32 100644
---- a/drivers/net/ethernet/intel/igb/igb_main.c
-+++ b/drivers/net/ethernet/intel/igb/igb_main.c
-@@ -6232,7 +6232,7 @@ static bool igb_alloc_mapped_page(struct igb_ring *rx_ring,
- 		return true;
- 
- 	if (!page) {
--		page = alloc_page(GFP_ATOMIC | __GFP_COLD);
-+		page = __skb_alloc_page(GFP_ATOMIC, bi->skb);
- 		bi->page = page;
- 		if (unlikely(!page)) {
- 			rx_ring->rx_stats.alloc_failed++;
-diff --git a/drivers/net/ethernet/intel/ixgbe/ixgbe_main.c b/drivers/net/ethernet/intel/ixgbe/ixgbe_main.c
-index 467948e..cf269aa 100644
---- a/drivers/net/ethernet/intel/ixgbe/ixgbe_main.c
-+++ b/drivers/net/ethernet/intel/ixgbe/ixgbe_main.c
-@@ -1126,7 +1126,7 @@ static bool ixgbe_alloc_mapped_page(struct ixgbe_ring *rx_ring,
- 
- 	/* alloc new page for storage */
- 	if (likely(!page)) {
--		page = alloc_pages(GFP_ATOMIC | __GFP_COLD,
-+		page = __skb_alloc_pages(GFP_ATOMIC, bi->skb,
- 				   ixgbe_rx_pg_order(rx_ring));
- 		if (unlikely(!page)) {
- 			rx_ring->rx_stats.alloc_rx_page_failed++;
-diff --git a/drivers/net/ethernet/intel/ixgbevf/ixgbevf_main.c b/drivers/net/ethernet/intel/ixgbevf/ixgbevf_main.c
-index 307611a..f6234da 100644
---- a/drivers/net/ethernet/intel/ixgbevf/ixgbevf_main.c
-+++ b/drivers/net/ethernet/intel/ixgbevf/ixgbevf_main.c
-@@ -369,7 +369,7 @@ static void ixgbevf_alloc_rx_buffers(struct ixgbevf_adapter *adapter,
- 		if (!bi->page_dma &&
- 		    (adapter->flags & IXGBE_FLAG_RX_PS_ENABLED)) {
- 			if (!bi->page) {
--				bi->page = alloc_page(GFP_ATOMIC | __GFP_COLD);
-+				bi->page = __skb_alloc_page(GFP_ATOMIC, NULL);
- 				if (!bi->page) {
- 					adapter->alloc_rx_page_failed++;
- 					goto no_buffers;
-@@ -403,6 +403,7 @@ static void ixgbevf_alloc_rx_buffers(struct ixgbevf_adapter *adapter,
- 			 */
- 			skb_reserve(skb, NET_IP_ALIGN);
- 
-+			skb_propagate_pfmemalloc(bi->page_dma, skb);
- 			bi->skb = skb;
- 		}
- 		if (!bi->dma) {
-diff --git a/drivers/net/usb/cdc-phonet.c b/drivers/net/usb/cdc-phonet.c
-index 3e41b00..470e35b 100644
---- a/drivers/net/usb/cdc-phonet.c
-+++ b/drivers/net/usb/cdc-phonet.c
-@@ -130,7 +130,7 @@ static int rx_submit(struct usbpn_dev *pnd, struct urb *req, gfp_t gfp_flags)
- 	struct page *page;
- 	int err;
- 
--	page = alloc_page(gfp_flags);
-+	page = __skb_alloc_page(gfp_flags | __GFP_NOMEMALLOC, NULL);
- 	if (!page)
- 		return -ENOMEM;
- 
-diff --git a/drivers/usb/gadget/f_phonet.c b/drivers/usb/gadget/f_phonet.c
-index 965a629..8ee9268 100644
---- a/drivers/usb/gadget/f_phonet.c
-+++ b/drivers/usb/gadget/f_phonet.c
-@@ -301,7 +301,7 @@ pn_rx_submit(struct f_phonet *fp, struct usb_request *req, gfp_t gfp_flags)
- 	struct page *page;
- 	int err;
- 
--	page = alloc_page(gfp_flags);
-+	page = __skb_alloc_page(gfp_flags | __GFP_NOMEMALLOC, NULL);
- 	if (!page)
- 		return -ENOMEM;
- 
-diff --git a/include/linux/skbuff.h b/include/linux/skbuff.h
-index df11a11..9854fbde 100644
---- a/include/linux/skbuff.h
-+++ b/include/linux/skbuff.h
-@@ -1747,6 +1747,61 @@ static inline struct sk_buff *netdev_alloc_skb_ip_align(struct net_device *dev,
- 	return __netdev_alloc_skb_ip_align(dev, length, GFP_ATOMIC);
+ static inline gfp_t sk_gfp_atomic(struct sock *sk, gfp_t gfp_mask)
+ {
+-	return GFP_ATOMIC;
++	return GFP_ATOMIC | (sk->sk_allocation & __GFP_MEMALLOC);
  }
  
-+/*
-+ *	__skb_alloc_page - allocate pages for ps-rx on a skb and preserve pfmemalloc data
-+ *	@gfp_mask: alloc_pages_node mask. Set __GFP_NOMEMALLOC if not for network packet RX
-+ *	@skb: skb to set pfmemalloc on if __GFP_MEMALLOC is used
-+ *	@order: size of the allocation
-+ *
-+ * 	Allocate a new page.
-+ *
-+ * 	%NULL is returned if there is no free memory.
-+*/
-+static inline struct page *__skb_alloc_pages(gfp_t gfp_mask,
-+					      struct sk_buff *skb,
-+					      unsigned int order)
-+{
-+	struct page *page;
-+
-+	gfp_mask |= __GFP_COLD;
-+
-+	if (!(gfp_mask & __GFP_NOMEMALLOC))
-+		gfp_mask |= __GFP_MEMALLOC;
-+
-+	page = alloc_pages_node(NUMA_NO_NODE, gfp_mask, order);
-+	if (skb && page && page->pfmemalloc)
-+		skb->pfmemalloc = true;
-+
-+	return page;
-+}
-+
+ static inline void sk_acceptq_removed(struct sock *sk)
+@@ -787,6 +788,8 @@ extern int sk_stream_wait_memory(struct sock *sk, long *timeo_p);
+ extern void sk_stream_wait_close(struct sock *sk, long timeo_p);
+ extern int sk_stream_error(struct sock *sk, int flags, int err);
+ extern void sk_stream_kill_queues(struct sock *sk);
++extern void sk_set_memalloc(struct sock *sk);
++extern void sk_clear_memalloc(struct sock *sk);
+ 
+ extern int sk_wait_data(struct sock *sk, long *timeo);
+ 
+diff --git a/net/core/sock.c b/net/core/sock.c
+index b2e14c0..b0f0613 100644
+--- a/net/core/sock.c
++++ b/net/core/sock.c
+@@ -266,6 +266,28 @@ __u32 sysctl_rmem_default __read_mostly = SK_RMEM_MAX;
+ int sysctl_optmem_max __read_mostly = sizeof(unsigned long)*(2*UIO_MAXIOV+512);
+ EXPORT_SYMBOL(sysctl_optmem_max);
+ 
 +/**
-+ *	__skb_alloc_page - allocate a page for ps-rx for a given skb and preserve pfmemalloc data
-+ *	@gfp_mask: alloc_pages_node mask. Set __GFP_NOMEMALLOC if not for network packet RX
-+ *	@skb: skb to set pfmemalloc on if __GFP_MEMALLOC is used
++ * sk_set_memalloc - sets %SOCK_MEMALLOC
++ * @sk: socket to set it on
 + *
-+ * 	Allocate a new page.
-+ *
-+ * 	%NULL is returned if there is no free memory.
++ * Set %SOCK_MEMALLOC on a socket for access to emergency reserves.
++ * It's the responsibility of the admin to adjust min_free_kbytes
++ * to meet the requirements
 + */
-+static inline struct page *__skb_alloc_page(gfp_t gfp_mask,
-+					     struct sk_buff *skb)
++void sk_set_memalloc(struct sock *sk)
 +{
-+	return __skb_alloc_pages(gfp_mask, skb, 0);
++	sock_set_flag(sk, SOCK_MEMALLOC);
++	sk->sk_allocation |= __GFP_MEMALLOC;
 +}
++EXPORT_SYMBOL_GPL(sk_set_memalloc);
 +
-+/**
-+ *	skb_propagate_pfmemalloc - Propagate pfmemalloc if skb is allocated after RX page
-+ *	@page: The page that was allocated from skb_alloc_page
-+ *	@skb: The skb that may need pfmemalloc set
-+ */
-+static inline void skb_propagate_pfmemalloc(struct page *page,
-+					     struct sk_buff *skb)
++void sk_clear_memalloc(struct sock *sk)
 +{
-+	if (page && page->pfmemalloc)
-+		skb->pfmemalloc = true;
++	sock_reset_flag(sk, SOCK_MEMALLOC);
++	sk->sk_allocation &= ~__GFP_MEMALLOC;
 +}
++EXPORT_SYMBOL_GPL(sk_clear_memalloc);
 +
- /**
-  * skb_frag_page - retrieve the page refered to by a paged fragment
-  * @frag: the paged fragment
+ #if defined(CONFIG_CGROUPS)
+ #if !defined(CONFIG_NET_CLS_CGROUP)
+ int net_cls_subsys_id = -1;
 -- 
 1.7.9.2
 
