@@ -1,65 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx152.postini.com [74.125.245.152])
-	by kanga.kvack.org (Postfix) with SMTP id F27806B0083
-	for <linux-mm@kvack.org>; Thu, 17 May 2012 05:14:14 -0400 (EDT)
-From: Michal Hocko <mhocko@suse.cz>
-Subject: [PATCH] mm: consider all swapped back pages in used-once logic
-Date: Thu, 17 May 2012 11:13:53 +0200
-Message-Id: <1337246033-13719-1-git-send-email-mhocko@suse.cz>
+Received: from psmtp.com (na3sys010amx159.postini.com [74.125.245.159])
+	by kanga.kvack.org (Postfix) with SMTP id 767C26B0092
+	for <linux-mm@kvack.org>; Thu, 17 May 2012 05:19:52 -0400 (EDT)
+Date: Thu, 17 May 2012 18:19:42 +0900
+From: Paul Mundt <lethal@linux-sh.org>
+Subject: Re: [PATCH v2 1/3] zsmalloc: support zsmalloc to ARM, MIPS, SUPERH
+Message-ID: <20120517091942.GA24355@linux-sh.org>
+References: <1337133919-4182-1-git-send-email-minchan@kernel.org>
+ <20120517083213.GC14027@linux-sh.org>
+ <4FB4BFB0.4010805@kernel.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <4FB4BFB0.4010805@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Minchan Kim <minchan@kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>
+To: Minchan Kim <minchan@kernel.org>
+Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Nitin Gupta <ngupta@vflare.org>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Dan Magenheimer <dan.magenheimer@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Russell King <linux@arm.linux.org.uk>, Ralf Baechle <ralf@linux-mips.org>, Guan Xuetao <gxt@mprc.pku.edu.cn>, Chen Liqin <liqin.chen@sunplusct.com>
 
-[64574746 vmscan: detect mapped file pages used only once] made mapped pages
-have another round in inactive list because they might be just short
-lived and so we could consider them again next time. This heuristic
-helps to reduce pressure on the active list with a streaming IO
-worklods.
-This patch fixes a regression introduced by this commit for heavy shmem
-based workloads because unlike Anon pages, which are excluded from this
-heuristic because they are usually long lived, shmem pages are handled
-as a regular page cache.
-This doesn't work quite well, unfortunately, if the workload is mostly
-backed by shmem (in memory database sitting on 80% of memory) with a
-streaming IO in the background (backup - up to 20% of memory). Anon
-inactive list is full of (dirty) shmem pages when watermarks are
-hit. Shmem pages are kept in the inactive list (they are referenced)
-in the first round and it is hard to reclaim anything else so we reach
-lower scanning priorities very quickly which leads to an excessive swap
-out.
+On Thu, May 17, 2012 at 06:06:56PM +0900, Minchan Kim wrote:
+> On 05/17/2012 05:32 PM, Paul Mundt wrote:
+> > One thing you might consider is providing a stubbed definition that wraps
+> > to flush_tlb_kernel_range() in the !SMP case, as this will extend your
+> > testing coverage for staging considerably.
+> 
+> 
+> AFAIUC, you mean following as,
+> 
+> ifndef CONFIG_SMP
+> void flush_tlb_kernel_range(unsinged long start, unsigned log end)
+> {
+> 	local_flush_tlb_kernel_range(start, end);
+> }
+> #endif
+> 
+Actually I meant the opposite:
 
-Let's fix this by excluding all swap backed pages (they tend to be long
-lived wrt. the regular page cache anyway) from used-once heuristic and
-rather activate them if they are referenced.
+#ifndef CONFIG_SMP
+#define local_flush_tlb_kernel_range flush_tlb_kernel_range
+#endif
 
-CC: Johannes Weiner <hannes@cmpxchg.org>
-CC: Andrew Morton <akpm@linux-foundation.org>
-CC: Mel Gorman <mel@csn.ul.ie>
-CC: Minchan Kim <minchan@kernel.org>
-CC: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-CC: Rik van Riel <riel@redhat.com>
-CC: stable [2.6.34+]
-Signed-off-by: Michal Hocko <mhocko@suse.cz>
----
- mm/vmscan.c |    2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
-
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 33dc256..0932dc2 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -722,7 +722,7 @@ static enum page_references page_check_references(struct page *page,
- 		return PAGEREF_RECLAIM;
- 
- 	if (referenced_ptes) {
--		if (PageAnon(page))
-+		if (PageSwapBacked(page))
- 			return PAGEREF_ACTIVATE;
- 		/*
- 		 * All mapped pages start out with page table
--- 
-1.7.10
+as the UP case is going to be local already. It's a bit hacky, though.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
