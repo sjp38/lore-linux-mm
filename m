@@ -1,9 +1,9 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx188.postini.com [74.125.245.188])
-	by kanga.kvack.org (Postfix) with SMTP id 94CDA6B0044
-	for <linux-mm@kvack.org>; Thu, 17 May 2012 05:06:17 -0400 (EDT)
-Message-ID: <4FB4BFB0.4010805@kernel.org>
-Date: Thu, 17 May 2012 18:06:56 +0900
+Received: from psmtp.com (na3sys010amx158.postini.com [74.125.245.158])
+	by kanga.kvack.org (Postfix) with SMTP id C2E266B0044
+	for <linux-mm@kvack.org>; Thu, 17 May 2012 05:07:31 -0400 (EDT)
+Message-ID: <4FB4BFFD.5030508@kernel.org>
+Date: Thu, 17 May 2012 18:08:13 +0900
 From: Minchan Kim <minchan@kernel.org>
 MIME-Version: 1.0
 Subject: Re: [PATCH v2 1/3] zsmalloc: support zsmalloc to ARM, MIPS, SUPERH
@@ -39,25 +39,7 @@ On 05/17/2012 05:32 PM, Paul Mundt wrote:
 > One thing you might consider is providing a stubbed definition that wraps
 > to flush_tlb_kernel_range() in the !SMP case, as this will extend your
 > testing coverage for staging considerably.
-
-
-AFAIUC, you mean following as,
-
-ifndef CONFIG_SMP
-void flush_tlb_kernel_range(unsinged long start, unsigned log end)
-{
-	local_flush_tlb_kernel_range(start, end);
-}
-#endif
-
-I can do it on some arch which I know a little bit but concern is
-I'm not sure what's effective between all entries flush and 
-each entry flush if range is very big.
-
-It's not a goal of this patch so I would like to pass it to arch maintainers.
-But I absolutely agree on testing coverage on your comment.
 > 
-
 > Once you exclude all of the non-SMP platforms, you're left with the
 > following:
 > 
@@ -73,33 +55,15 @@ But I absolutely agree on testing coverage on your comment.
 > 	- sparc64: __flush_tlb_kernel_range() looks like a local flush.
 > 	- tile: does strange hypervisory things, presumably global.
 > 	- x86: has a local_flush_tlb() that could be wrapped.
-
 > 
-
 > Which doesn't look quite that bad. You could probably get away with a
 > Kconfig option for optimized local TLB flushing or something, since
 > single function Kconfig options seem to be all the rage these days.
 
 
-Actually, I didn't want to implement dumb flush functions on all architecture
-which those functions flush all entries although we need flush a few entries.
-It might zsmalloc unuseful so I expected each maintainers can implement
-it much efficient than stupid me and then, they add their arch in Kconfig. :(
+I missed this sentence.
 
-If this approach is really bad, I need time to implement dumb stub functions
-in all architecture and have to receive all acks from them. Sigh. 
-
-
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Fight unfair telecom internet charges in Canada: sign http://stopthemeter.ca/
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-> 
-
-
+Thanks for very helpful comment, Paul!
 
 -- 
 Kind regards,
