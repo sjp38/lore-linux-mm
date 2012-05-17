@@ -1,49 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx191.postini.com [74.125.245.191])
-	by kanga.kvack.org (Postfix) with SMTP id A5DEA6B0092
-	for <linux-mm@kvack.org>; Thu, 17 May 2012 05:23:25 -0400 (EDT)
-Date: Thu, 17 May 2012 02:24:12 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] mm: consider all swapped back pages in used-once logic
-Message-Id: <20120517022412.9175f604.akpm@linux-foundation.org>
-In-Reply-To: <1337246033-13719-1-git-send-email-mhocko@suse.cz>
-References: <1337246033-13719-1-git-send-email-mhocko@suse.cz>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx139.postini.com [74.125.245.139])
+	by kanga.kvack.org (Postfix) with SMTP id A01946B0092
+	for <linux-mm@kvack.org>; Thu, 17 May 2012 05:25:13 -0400 (EDT)
+Date: Thu, 17 May 2012 02:25:00 -0700
+From: Joel Becker <jlbec@evilplan.org>
+Subject: Re: [PATCH] mm for fs: add truncate_pagecache_range
+Message-ID: <20120517092459.GB6773@dhcp-172-17-9-228.mtv.corp.google.com>
+References: <alpine.LSU.2.00.1203231343380.1940@eggly.anvils>
+ <alpine.LSU.2.00.1205131354380.1547@eggly.anvils>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.LSU.2.00.1205131354380.1547@eggly.anvils>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mel@csn.ul.ie>, Minchan Kim <minchan@kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>
+To: Hugh Dickins <hughd@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Christoph Hellwig <hch@infradead.org>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
 
-On Thu, 17 May 2012 11:13:53 +0200 Michal Hocko <mhocko@suse.cz> wrote:
-
-> [64574746 vmscan: detect mapped file pages used only once] made mapped pages
-> have another round in inactive list because they might be just short
-> lived and so we could consider them again next time. This heuristic
-> helps to reduce pressure on the active list with a streaming IO
-> worklods.
-> This patch fixes a regression introduced by this commit for heavy shmem
-
-A performance regression, specifically.
-
-Are you able to quantify it?
-
-> based workloads because unlike Anon pages, which are excluded from this
-> heuristic because they are usually long lived, shmem pages are handled
-> as a regular page cache.
-> This doesn't work quite well, unfortunately, if the workload is mostly
-> backed by shmem (in memory database sitting on 80% of memory) with a
-> streaming IO in the background (backup - up to 20% of memory). Anon
-> inactive list is full of (dirty) shmem pages when watermarks are
-> hit. Shmem pages are kept in the inactive list (they are referenced)
-> in the first round and it is hard to reclaim anything else so we reach
-> lower scanning priorities very quickly which leads to an excessive swap
-> out.
+On Sun, May 13, 2012 at 02:03:03PM -0700, Hugh Dickins wrote:
+> On Fri, 23 Mar 2012, Hugh Dickins wrote:
+> > I do have patches for ext4, ocfs2 and xfs to use this, but they're too
+> > late now for v3.4.  However, it would be helpful if this function could
+> > go ahead into v3.4, so filesystems can convert to it at leisure afterwards.
 > 
-> Let's fix this by excluding all swap backed pages (they tend to be long
-> lived wrt. the regular page cache anyway) from used-once heuristic and
-> rather activate them if they are referenced.
+> I just sent out the little ext4 and xfs patches, but decided not
+> to bother you with the ocfs2 one.  ocfs2 is already doing it right with
+> unmap_mapping_range; and since file.c is using unmap_mapping_range with
+> truncate_inode_pages in other places, it seemed wrong to force a different
+> convention upon you in this one place (perhaps they can all be converted
+> to truncate_pagecache_range, but if it ain't broke...)
+
+Works for me.  Thanks.
+
+Joel
+
+> 
+> Hugh
+
+-- 
+
+"There are only two ways to live your life. One is as though nothing
+ is a miracle. The other is as though everything is a miracle."
+        - Albert Einstein
+
+			http://www.jlbec.org/
+			jlbec@evilplan.org
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
