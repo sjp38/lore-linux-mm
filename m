@@ -1,59 +1,35 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx135.postini.com [74.125.245.135])
-	by kanga.kvack.org (Postfix) with SMTP id 2B36F6B0081
-	for <linux-mm@kvack.org>; Thu, 17 May 2012 15:54:41 -0400 (EDT)
-Date: Thu, 17 May 2012 21:54:25 +0200
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH] mm: consider all swapped back pages in used-once logic
-Message-ID: <20120517195342.GB1800@cmpxchg.org>
-References: <1337246033-13719-1-git-send-email-mhocko@suse.cz>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1337246033-13719-1-git-send-email-mhocko@suse.cz>
+Received: from psmtp.com (na3sys010amx147.postini.com [74.125.245.147])
+	by kanga.kvack.org (Postfix) with SMTP id 7C6666B0082
+	for <linux-mm@kvack.org>; Thu, 17 May 2012 16:10:53 -0400 (EDT)
+Date: Thu, 17 May 2012 16:10:40 -0400 (EDT)
+Message-Id: <20120517.161040.1412806690395517745.davem@davemloft.net>
+Subject: Re: [PATCH 08/17] net: Introduce sk_gfp_atomic() to allow addition
+ of GFP flags depending on the individual socket
+From: David Miller <davem@davemloft.net>
+In-Reply-To: <1337266231-8031-9-git-send-email-mgorman@suse.de>
+References: <1337266231-8031-1-git-send-email-mgorman@suse.de>
+	<1337266231-8031-9-git-send-email-mgorman@suse.de>
+Mime-Version: 1.0
+Content-Type: Text/Plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Minchan Kim <minchan@kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>
+To: mgorman@suse.de
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org, netdev@vger.kernel.org, linux-kernel@vger.kernel.org, neilb@suse.de, a.p.zijlstra@chello.nl, michaelc@cs.wisc.edu, emunson@mgebm.net
 
-Hi Michal,
+From: Mel Gorman <mgorman@suse.de>
+Date: Thu, 17 May 2012 15:50:22 +0100
 
-On Thu, May 17, 2012 at 11:13:53AM +0200, Michal Hocko wrote:
-> [64574746 vmscan: detect mapped file pages used only once] made mapped pages
-> have another round in inactive list because they might be just short
-> lived and so we could consider them again next time. This heuristic
-> helps to reduce pressure on the active list with a streaming IO
-> worklods.
-> This patch fixes a regression introduced by this commit for heavy shmem
-> based workloads because unlike Anon pages, which are excluded from this
-> heuristic because they are usually long lived, shmem pages are handled
-> as a regular page cache.
-> This doesn't work quite well, unfortunately, if the workload is mostly
-> backed by shmem (in memory database sitting on 80% of memory) with a
-> streaming IO in the background (backup - up to 20% of memory). Anon
-> inactive list is full of (dirty) shmem pages when watermarks are
-> hit. Shmem pages are kept in the inactive list (they are referenced)
-> in the first round and it is hard to reclaim anything else so we reach
-> lower scanning priorities very quickly which leads to an excessive swap
-> out.
+> Introduce sk_gfp_atomic(), this function allows to inject sock specific
+> flags to each sock related allocation. It is only used on allocation
+> paths that may be required for writing pages back to network storage.
 > 
-> Let's fix this by excluding all swap backed pages (they tend to be long
-> lived wrt. the regular page cache anyway) from used-once heuristic and
-> rather activate them if they are referenced.
+> [davem@davemloft.net: Use sk_gfp_atomic only when necessary]
+> Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
+> Signed-off-by: Mel Gorman <mgorman@suse.de>
 
-Yes, the algorithm only makes sense for file cache, which is easy to
-reclaim.  Thanks for the fix!
-
-> CC: Johannes Weiner <hannes@cmpxchg.org>
-> CC: Andrew Morton <akpm@linux-foundation.org>
-> CC: Mel Gorman <mel@csn.ul.ie>
-> CC: Minchan Kim <minchan@kernel.org>
-> CC: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> CC: Rik van Riel <riel@redhat.com>
-> CC: stable [2.6.34+]
-> Signed-off-by: Michal Hocko <mhocko@suse.cz>
-
-Acked-by: Johannes Weiner <hannes@cmpxchg.org>
+Acked-by: David S. Miller <davem@davemloft.net>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
