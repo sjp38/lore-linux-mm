@@ -1,38 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx104.postini.com [74.125.245.104])
-	by kanga.kvack.org (Postfix) with SMTP id 34B7E6B0044
-	for <linux-mm@kvack.org>; Thu, 17 May 2012 06:16:30 -0400 (EDT)
-Message-ID: <4FB4CF7A.9090108@parallels.com>
-Date: Thu, 17 May 2012 14:14:18 +0400
-From: Glauber Costa <glommer@parallels.com>
+Received: from psmtp.com (na3sys010amx121.postini.com [74.125.245.121])
+	by kanga.kvack.org (Postfix) with SMTP id 497256B0044
+	for <linux-mm@kvack.org>; Thu, 17 May 2012 06:20:11 -0400 (EDT)
+Received: from m2.gw.fujitsu.co.jp (unknown [10.0.50.72])
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 6898C3EE0BD
+	for <linux-mm@kvack.org>; Thu, 17 May 2012 19:20:09 +0900 (JST)
+Received: from smail (m2 [127.0.0.1])
+	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 4AA2A45DE5E
+	for <linux-mm@kvack.org>; Thu, 17 May 2012 19:20:09 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
+	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 1EE8645DE52
+	for <linux-mm@kvack.org>; Thu, 17 May 2012 19:20:09 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 0F6A21DB8042
+	for <linux-mm@kvack.org>; Thu, 17 May 2012 19:20:09 +0900 (JST)
+Received: from m1001.s.css.fujitsu.com (m1001.s.css.fujitsu.com [10.240.81.139])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id B54311DB803A
+	for <linux-mm@kvack.org>; Thu, 17 May 2012 19:20:08 +0900 (JST)
+Message-ID: <4FB4D061.10406@jp.fujitsu.com>
+Date: Thu, 17 May 2012 19:18:09 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH v2 02/29] slub: fix slab_state for slub
-References: <1336758272-24284-1-git-send-email-glommer@parallels.com> <1336758272-24284-3-git-send-email-glommer@parallels.com> <alpine.DEB.2.00.1205151453460.18595@chino.kir.corp.google.com>
-In-Reply-To: <alpine.DEB.2.00.1205151453460.18595@chino.kir.corp.google.com>
-Content-Type: text/plain; charset="ISO-8859-1"; format=flowed
+Subject: Re: [PATCH v5 2/2] decrement static keys on real destroy time
+References: <1336767077-25351-1-git-send-email-glommer@parallels.com> <1336767077-25351-3-git-send-email-glommer@parallels.com> <20120516140637.17741df6.akpm@linux-foundation.org> <4FB46B4C.3000307@parallels.com> <20120516223715.5d1b4385.akpm@linux-foundation.org> <4FB4CA4D.50608@parallels.com>
+In-Reply-To: <4FB4CA4D.50608@parallels.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Pekka Enberg <penberg@cs.helsinki.fi>, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, linux-mm@kvack.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Tejun Heo <tj@kernel.org>, Li Zefan <lizefan@huawei.com>, Greg Thelen <gthelen@google.com>, Suleiman Souhlal <suleiman@google.com>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, devel@openvz.org, Christoph Lameter <cl@linux.com>
+To: Glauber Costa <glommer@parallels.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, cgroups@vger.kernel.org, linux-mm@kvack.org, devel@openvz.org, netdev@vger.kernel.org, Tejun Heo <tj@kernel.org>, Li Zefan <lizefan@huawei.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>
 
-On 05/16/2012 01:55 AM, David Rientjes wrote:
-> On Fri, 11 May 2012, Glauber Costa wrote:
->
->> When the slub code wants to know if the sysfs state has already been
->> initialized, it tests for slab_state == SYSFS. This is quite fragile,
->> since new state can be added in the future (it is, in fact, for
->> memcg caches). This patch fixes this behavior so the test matches
->>> = SYSFS, as all other state does.
->>
->> Signed-off-by: Glauber Costa<glommer@parallels.com>
->
-> Acked-by: David Rientjes<rientjes@google.com>
->
-> Can be merged now, there's no dependency on the rest of this patchset.
+(2012/05/17 18:52), Glauber Costa wrote:
 
-So, is anyone taking this? I plan another submission this week, let me 
-know if I should include these two patches or not.
+> On 05/17/2012 09:37 AM, Andrew Morton wrote:
+>>>>  If that happens, locking in static_key_slow_inc will prevent any damage.
+>>>>  My previous version had explicit code to prevent that, but we were
+>>>>  pointed out that this is already part of the static_key expectations, so
+>>>>  that was dropped.
+>> This makes no sense.  If two threads run that code concurrently,
+>> key->enabled gets incremented twice.  Nobody anywhere has a record that
+>> this happened so it cannot be undone.  key->enabled is now in an
+>> unknown state.
+> 
+> Kame, Tejun,
+> 
+> Andrew is right. It seems we will need that mutex after all. Just this 
+> is not a race, and neither something that should belong in the 
+> static_branch interface.
+> 
+
+
+Hmm....how about having
+
+res_counter_xchg_limit(res, &old_limit, new_limit);
+
+if (!cg_proto->updated && old_limit == RESOURCE_MAX)
+	....update labels...
+
+Then, no mutex overhead maybe and activated will be updated only once.
+Ah, but please fix in a way you like. Above is an example.
+
+Thanks,
+-Kame
+(*) I'm sorry I won't be able to read e-mails, tomorrow.
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
