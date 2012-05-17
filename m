@@ -1,14 +1,13 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx158.postini.com [74.125.245.158])
-	by kanga.kvack.org (Postfix) with SMTP id AC8C16B00EB
-	for <linux-mm@kvack.org>; Thu, 17 May 2012 12:07:55 -0400 (EDT)
-Date: Thu, 17 May 2012 11:07:53 -0500 (CDT)
+Received: from psmtp.com (na3sys010amx193.postini.com [74.125.245.193])
+	by kanga.kvack.org (Postfix) with SMTP id 380296B00F3
+	for <linux-mm@kvack.org>; Thu, 17 May 2012 12:08:35 -0400 (EDT)
+Date: Thu, 17 May 2012 11:08:32 -0500 (CDT)
 From: Christoph Lameter <cl@linux.com>
-Subject: Re: [PATCH 3/4] slub: use __SetPageSlab function to set PG_slab
- flag
-In-Reply-To: <1337269668-4619-4-git-send-email-js1304@gmail.com>
-Message-ID: <alpine.DEB.2.00.1205171107360.5144@router.home>
-References: <1337269668-4619-1-git-send-email-js1304@gmail.com> <1337269668-4619-4-git-send-email-js1304@gmail.com>
+Subject: Re: [PATCH 0/4] slub: refactoring some code in slub
+In-Reply-To: <1337269668-4619-1-git-send-email-js1304@gmail.com>
+Message-ID: <alpine.DEB.2.00.1205171108000.5144@router.home>
+References: <1337269668-4619-1-git-send-email-js1304@gmail.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -18,10 +17,10 @@ Cc: Pekka Enberg <penberg@kernel.org>, linux-kernel@vger.kernel.org, linux-mm@kv
 
 On Fri, 18 May 2012, Joonsoo Kim wrote:
 
-> To set page-flag, using SetPageXXXX() and __SetPageXXXX() is more
-> understandable and maintainable. So change it.
+> Two patches were submitted 1 weeks ago, but doesn't receive ack or nack
+> from MAINTAINER for slub. So I re-send these.
 
-Acked-by: Christoph Lameter <cl@linux.com>
+Could you combine the first two patches into one? They do the same thing.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
