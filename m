@@ -1,40 +1,34 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx183.postini.com [74.125.245.183])
-	by kanga.kvack.org (Postfix) with SMTP id 6BA6F6B0044
-	for <linux-mm@kvack.org>; Thu, 17 May 2012 05:43:48 -0400 (EDT)
-Message-ID: <4FB4C7DC.7020309@parallels.com>
-Date: Thu, 17 May 2012 13:41:48 +0400
-From: Glauber Costa <glommer@parallels.com>
+Received: from psmtp.com (na3sys010amx206.postini.com [74.125.245.206])
+	by kanga.kvack.org (Postfix) with SMTP id 9D30B6B0083
+	for <linux-mm@kvack.org>; Thu, 17 May 2012 05:53:14 -0400 (EDT)
+Date: Thu, 17 May 2012 10:51:24 +0100
+From: Russell King <rmk@arm.linux.org.uk>
+Subject: Re: [RFC][PATCH 4/6] arm, mm: Convert arm to generic tlb
+Message-ID: <20120517095124.GN23420@flint.arm.linux.org.uk>
+References: <20110302175928.022902359@chello.nl> <20110302180259.109909335@chello.nl> <20120517030551.GA11623@linux-sh.org> <20120517093022.GA14666@arm.com>
 MIME-Version: 1.0
-Subject: Re: [RFC] SL[AUO]B common code 1/9] [slob] define page struct fields
- used in mm_types.h
-References: <20120514201544.334122849@linux.com> <20120514201609.418025254@linux.com> <4FB357C9.8080308@parallels.com> <alpine.DEB.2.00.1205160925410.25603@router.home> <alpine.DEB.2.00.1205161034400.25603@router.home>
-In-Reply-To: <alpine.DEB.2.00.1205161034400.25603@router.home>
-Content-Type: text/plain; charset="ISO-8859-1"; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20120517093022.GA14666@arm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: Pekka Enberg <penberg@kernel.org>, linux-mm@kvack.org, David Rientjes <rientjes@google.com>, Matt Mackall <mpm@selenic.com>
+To: Catalin Marinas <catalin.marinas@arm.com>
+Cc: Paul Mundt <lethal@linux-sh.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Andrea Arcangeli <aarcange@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, Rik van Riel <riel@redhat.com>, Ingo Molnar <mingo@elte.hu>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, David Miller <davem@davemloft.net>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Mel Gorman <mel@csn.ul.ie>, Nick Piggin <npiggin@kernel.dk>, Chris Metcalf <cmetcalf@tilera.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>
 
-On 05/16/2012 07:38 PM, Christoph Lameter wrote:
-> On Wed, 16 May 2012, Christoph Lameter wrote:
->
->> >  On Wed, 16 May 2012, Glauber Costa wrote:
->> >
->>> >  >  It is of course ok to reuse the field, but what about we make it a union
->>> >  >  between "list" and "lru" ?
->> >
->> >  That is what this patch does. You are commenting on code that was
->> >  removed.
-> Argh. No it doesnt..... It will be easy to add though. But then you have
-> two list_head definitions in page struct that just differ in name.
-As I said previously, it sounds stupid if you look from the typing 
-system point of view.
+On Thu, May 17, 2012 at 10:30:23AM +0100, Catalin Marinas wrote:
+> Another minor thing is that on newer ARM processors (Cortex-A15) we
+> need the TLB shootdown even on UP systems, so tlb_fast_mode should
+> always return 0. Something like below (untested):
 
-But when I read something like: list_add(&sp->lru, list), something very 
-special assumptions about list ordering comes to mind. It's something 
-that should be done for the sake of the readers.
+No Catalin, we need this for virtually all ARMv7 CPUs whether they're UP
+or SMP, not just for A15, because of the speculative prefetch which can
+re-load TLB entries from the page tables at _any_ time.
+
+-- 
+Russell King
+ Linux kernel    2.6 ARM Linux   - http://www.arm.linux.org.uk/
+ maintainer of:
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
