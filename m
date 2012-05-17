@@ -1,195 +1,115 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx154.postini.com [74.125.245.154])
-	by kanga.kvack.org (Postfix) with SMTP id 08C566B0082
-	for <linux-mm@kvack.org>; Wed, 16 May 2012 20:06:57 -0400 (EDT)
-Message-ID: <4FB44147.5070704@kernel.org>
-Date: Thu, 17 May 2012 09:07:35 +0900
-From: Minchan Kim <minchan@kernel.org>
+Received: from psmtp.com (na3sys010amx115.postini.com [74.125.245.115])
+	by kanga.kvack.org (Postfix) with SMTP id 8362B6B0082
+	for <linux-mm@kvack.org>; Wed, 16 May 2012 20:09:11 -0400 (EDT)
+Received: from m2.gw.fujitsu.co.jp (unknown [10.0.50.72])
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 908D73EE0C1
+	for <linux-mm@kvack.org>; Thu, 17 May 2012 09:09:09 +0900 (JST)
+Received: from smail (m2 [127.0.0.1])
+	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 7477045DE5F
+	for <linux-mm@kvack.org>; Thu, 17 May 2012 09:09:09 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
+	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 5116645DE4D
+	for <linux-mm@kvack.org>; Thu, 17 May 2012 09:09:09 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 41A8B1DB802C
+	for <linux-mm@kvack.org>; Thu, 17 May 2012 09:09:09 +0900 (JST)
+Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.240.81.147])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id E0C6C1DB803A
+	for <linux-mm@kvack.org>; Thu, 17 May 2012 09:09:08 +0900 (JST)
+Message-ID: <4FB4412F.3050909@jp.fujitsu.com>
+Date: Thu, 17 May 2012 09:07:11 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH v2 1/3] zsmalloc: support zsmalloc to ARM, MIPS, SUPERH
-References: <1337133919-4182-1-git-send-email-minchan@kernel.org> <1337153329.1751.5.camel@ubuntu.ubuntu-domain>
-In-Reply-To: <1337153329.1751.5.camel@ubuntu.ubuntu-domain>
-Content-Type: text/plain; charset=UTF-8
+Subject: Re: [PATCH v5 2/2] decrement static keys on real destroy time
+References: <1336767077-25351-1-git-send-email-glommer@parallels.com> <1336767077-25351-3-git-send-email-glommer@parallels.com> <20120516141342.911931e7.akpm@linux-foundation.org>
+In-Reply-To: <20120516141342.911931e7.akpm@linux-foundation.org>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Guan Xuetao <gxt@mprc.pku.edu.cn>
-Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Nitin Gupta <ngupta@vflare.org>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Dan Magenheimer <dan.magenheimer@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Russell King <linux@arm.linux.org.uk>, Ralf Baechle <ralf@linux-mips.org>, Paul Mundt <lethal@linux-sh.org>, Chen Liqin <liqin.chen@sunplusct.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Glauber Costa <glommer@parallels.com>, cgroups@vger.kernel.org, linux-mm@kvack.org, devel@openvz.org, netdev@vger.kernel.org, Tejun Heo <tj@kernel.org>, Li Zefan <lizefan@huawei.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>
 
-On 05/16/2012 04:28 PM, Guan Xuetao wrote:
+(2012/05/17 6:13), Andrew Morton wrote:
 
-> On Wed, 2012-05-16 at 11:05 +0900, Minchan Kim wrote:
->> zsmalloc uses set_pte and __flush_tlb_one for performance but
->> many architecture don't support it. so this patch removes
->> set_pte and __flush_tlb_one which are x86 dependency.
->> Instead of it, use local_flush_tlb_kernel_range which are available
->> by more architectures. It would be better than supporting only x86
->> and last patch in series will enable again with supporting
->> local_flush_tlb_kernel_range in x86.
->>
->> About local_flush_tlb_kernel_range,
->> If architecture is very smart, it could flush only tlb entries related to vaddr.
->> If architecture is smart, it could flush only tlb entries related to a CPU.
->> If architecture is _NOT_ smart, it could flush all entries of all CPUs.
->> So, it would be best to support both portability and performance.
->>
->> Cc: Russell King <linux@arm.linux.org.uk>
->> Cc: Ralf Baechle <ralf@linux-mips.org>
->> Cc: Paul Mundt <lethal@linux-sh.org>
->> Cc: Guan Xuetao <gxt@mprc.pku.edu.cn>
->> Cc: Chen Liqin <liqin.chen@sunplusct.com>
->> Signed-off-by: Minchan Kim <minchan@kernel.org>
->> ---
->>
->> Need double check about supporting local_flush_tlb_kernel_range
->> in ARM, MIPS, SUPERH maintainers. And I will Ccing unicore32 and
->> score maintainers because arch directory in those arch have
->> local_flush_tlb_kernel_range, too but I'm very unfamiliar with those
->> architecture so pass it to maintainers.
->> I didn't coded up dumb local_flush_tlb_kernel_range which flush
->> all cpus. I expect someone need ZSMALLOC will implement it easily in future.
->> Seth might support it in PowerPC. :)
->>
->>
->>  drivers/staging/zsmalloc/Kconfig         |    6 ++---
->>  drivers/staging/zsmalloc/zsmalloc-main.c |   36 +++++++++++++++++++++---------
->>  drivers/staging/zsmalloc/zsmalloc_int.h  |    1 -
->>  3 files changed, 29 insertions(+), 14 deletions(-)
->>
->> diff --git a/drivers/staging/zsmalloc/Kconfig b/drivers/staging/zsmalloc/Kconfig
->> index a5ab720..def2483 100644
->> --- a/drivers/staging/zsmalloc/Kconfig
->> +++ b/drivers/staging/zsmalloc/Kconfig
->> @@ -1,9 +1,9 @@
->>  config ZSMALLOC
->>  	tristate "Memory allocator for compressed pages"
->> -	# X86 dependency is because of the use of __flush_tlb_one and set_pte
->> +	# arch dependency is because of the use of local_unmap_kernel_range
->>  	# in zsmalloc-main.c.
->> -	# TODO: convert these to portable functions
->> -	depends on X86
->> +	# TODO: implement local_unmap_kernel_range in all architecture.
->> +	depends on (ARM || MIPS || SUPERH)
-> I suggest removing above line, so if I want to use zsmalloc, I could
-> enable this configuration easily.
-
-
-I don't get it. What do you mean?
-If I remove above line, compile error will happen if arch doesn't support local_unmap_kernel_range.
-
-
+> On Fri, 11 May 2012 17:11:17 -0300
+> Glauber Costa <glommer@parallels.com> wrote:
 > 
->>  	default n
->>  	help
->>  	  zsmalloc is a slab-based memory allocator designed to store
->> diff --git a/drivers/staging/zsmalloc/zsmalloc-main.c b/drivers/staging/zsmalloc/zsmalloc-main.c
->> index 4496737..8a8b08f 100644
->> --- a/drivers/staging/zsmalloc/zsmalloc-main.c
->> +++ b/drivers/staging/zsmalloc/zsmalloc-main.c
->> @@ -442,7 +442,7 @@ static int zs_cpu_notifier(struct notifier_block *nb, unsigned long action,
->>  		area = &per_cpu(zs_map_area, cpu);
->>  		if (area->vm)
->>  			break;
->> -		area->vm = alloc_vm_area(2 * PAGE_SIZE, area->vm_ptes);
->> +		area->vm = alloc_vm_area(2 * PAGE_SIZE, NULL);
->>  		if (!area->vm)
->>  			return notifier_from_errno(-ENOMEM);
->>  		break;
->> @@ -696,13 +696,22 @@ void *zs_map_object(struct zs_pool *pool, void *handle)
->>  	} else {
->>  		/* this object spans two pages */
->>  		struct page *nextp;
->> +		struct page *pages[2];
->> +		struct page **page_array = &pages[0];
->> +		int err;
->>  
->>  		nextp = get_next_page(page);
->>  		BUG_ON(!nextp);
->>  
->> +		page_array[0] = page;
->> +		page_array[1] = nextp;
->>  
->> -		set_pte(area->vm_ptes[0], mk_pte(page, PAGE_KERNEL));
->> -		set_pte(area->vm_ptes[1], mk_pte(nextp, PAGE_KERNEL));
->> +		/*
->> +		 * map_vm_area never fail because we already allocated
->> +		 * pages for page table in alloc_vm_area.
->> +		 */
->> +		err = map_vm_area(area->vm, PAGE_KERNEL, &page_array);
->> +		BUG_ON(err);
-> I think WARN_ON() is better than BUG_ON() here.
-
-
-If we don't do BUG_ON, zsmalloc's user can use dangling pointer so that it can make system very
-unstable, even fatal.
-
+>> We call the destroy function when a cgroup starts to be removed,
+>> such as by a rmdir event.
+>>
+>> However, because of our reference counters, some objects are still
+>> inflight. Right now, we are decrementing the static_keys at destroy()
+>> time, meaning that if we get rid of the last static_key reference,
+>> some objects will still have charges, but the code to properly
+>> uncharge them won't be run.
+>>
+>> This becomes a problem specially if it is ever enabled again, because
+>> now new charges will be added to the staled charges making keeping
+>> it pretty much impossible.
+>>
+>> We just need to be careful with the static branch activation:
+>> since there is no particular preferred order of their activation,
+>> we need to make sure that we only start using it after all
+>> call sites are active. This is achieved by having a per-memcg
+>> flag that is only updated after static_key_slow_inc() returns.
+>> At this time, we are sure all sites are active.
+>>
+>> This is made per-memcg, not global, for a reason:
+>> it also has the effect of making socket accounting more
+>> consistent. The first memcg to be limited will trigger static_key()
+>> activation, therefore, accounting. But all the others will then be
+>> accounted no matter what. After this patch, only limited memcgs
+>> will have its sockets accounted.
 > 
->>  
->>  		/* We pre-allocated VM area so mapping can never fail */
->>  		area->vm_addr = area->vm->addr;
->> @@ -712,6 +721,15 @@ void *zs_map_object(struct zs_pool *pool, void *handle)
->>  }
->>  EXPORT_SYMBOL_GPL(zs_map_object);
->>  
->> +static void local_unmap_kernel_range(unsigned long addr, unsigned long size)
->> +{
->> +	unsigned long end = addr + size;
->> +
->> +	flush_cache_vunmap(addr, end);
->> +	unmap_kernel_range_noflush(addr, size);
->> +	local_flush_tlb_kernel_range(addr, end);
->> +}
->> +
->>  void zs_unmap_object(struct zs_pool *pool, void *handle)
->>  {
->>  	struct page *page;
->> @@ -730,14 +748,12 @@ void zs_unmap_object(struct zs_pool *pool, void *handle)
->>  	off = obj_idx_to_offset(page, obj_idx, class->size);
->>  
->>  	area = &__get_cpu_var(zs_map_area);
->> -	if (off + class->size <= PAGE_SIZE) {
->> +	if (off + class->size <= PAGE_SIZE)
->>  		kunmap_atomic(area->vm_addr);
->> -	} else {
->> -		set_pte(area->vm_ptes[0], __pte(0));
->> -		set_pte(area->vm_ptes[1], __pte(0));
->> -		__flush_tlb_one((unsigned long)area->vm_addr);
->> -		__flush_tlb_one((unsigned long)area->vm_addr + PAGE_SIZE);
->> -	}
->> +	else
->> +		local_unmap_kernel_range((unsigned long)area->vm->addr,
->> +					PAGE_SIZE * 2);
->> +
->>  	put_cpu_var(zs_map_area);
->>  }
->>  EXPORT_SYMBOL_GPL(zs_unmap_object);
->> diff --git a/drivers/staging/zsmalloc/zsmalloc_int.h b/drivers/staging/zsmalloc/zsmalloc_int.h
->> index 6fd32a9..eaec845 100644
->> --- a/drivers/staging/zsmalloc/zsmalloc_int.h
->> +++ b/drivers/staging/zsmalloc/zsmalloc_int.h
->> @@ -111,7 +111,6 @@ static const int fullness_threshold_frac = 4;
->>  
->>  struct mapping_area {
->>  	struct vm_struct *vm;
->> -	pte_t *vm_ptes[2];
->>  	char *vm_addr;
->>  };
->>  
+> So I'm scratching my head over what the actual bug is, and how
+> important it is.  AFAICT it will cause charging stats to exhibit some
+> inaccuracy when memcg's are being torn down?
 > 
+> I don't know how serious this in in the real world and so can't decide
+> which kernel version(s) we should fix.
 > 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Fight unfair telecom internet charges in Canada: sign http://stopthemeter.ca/
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> When fixing bugs, please always fully describe the bug's end-user
+> impact, so that I and others can make these sorts of decisions.
 > 
 
 
+Ah, this was a bug report from me. tcp accounting can be easily broken.
+Costa, could you include this ?
+==
 
--- 
-Kind regards,
-Minchan Kim
+tcp memcontrol uses static_branch to optimize limit=RESOURCE_MAX case.
+If all cgroup's limit=RESOUCE_MAX, resource usage is not accounted.
+But it's buggy now.
+
+For example, do following
+# while sleep 1;do
+   echo 9223372036854775807 > /cgroup/memory/A/memory.kmem.tcp.limit_in_bytes;
+   echo 300M > /cgroup/memory/A/memory.kmem.tcp.limit_in_bytes;
+   done
+and run network application under A. tcp's usage is sometimes accounted
+and sometimes not accounted because of frequent changes of static_branch.
+Then,  you can see broken tcp.usage_in_bytes.
+WARN_ON() is printed because res_counter->usage goes below 0.
+==
+kernel: ------------[ cut here ]----------
+kernel: WARNING: at kernel/res_counter.c:96 res_counter_uncharge_locked+0x37/0x40()
+ <snip>
+kernel: Pid: 17753, comm: bash Tainted: G  W    3.3.0+ #99
+kernel: Call Trace:
+kernel: <IRQ>  [<ffffffff8104cc9f>] warn_slowpath_common+0x7f/0xc0
+kernel: [<ffffffff810d7e88>] ? rb_reserve__next_event+0x68/0x470
+kernel: [<ffffffff8104ccfa>] warn_slowpath_null+0x1a/0x20
+kernel: [<ffffffff810b4e37>] res_counter_uncharge_locked+0x37/0x40
+ ...
+==
+
+
+
+
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
