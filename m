@@ -1,102 +1,129 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx118.postini.com [74.125.245.118])
-	by kanga.kvack.org (Postfix) with SMTP id ACABA6B00EF
-	for <linux-mm@kvack.org>; Thu, 17 May 2012 19:28:49 -0400 (EDT)
-Date: Fri, 18 May 2012 01:28:29 +0200
-From: Jan Kara <jack@suse.cz>
-Subject: Re: Hole punching and mmap races
-Message-ID: <20120517232829.GA31028@quack.suse.cz>
-References: <20120515224805.GA25577@quack.suse.cz>
- <20120516021423.GO25351@dastard>
- <20120516130445.GA27661@quack.suse.cz>
- <20120517074308.GQ25351@dastard>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20120517074308.GQ25351@dastard>
+Received: from psmtp.com (na3sys010amx176.postini.com [74.125.245.176])
+	by kanga.kvack.org (Postfix) with SMTP id B68566B0082
+	for <linux-mm@kvack.org>; Thu, 17 May 2012 19:56:16 -0400 (EDT)
+Date: Thu, 17 May 2012 16:56:14 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH v3] scatterlist: add sg_alloc_table_from_pages function
+Message-Id: <20120517165614.d5e6e4b6.akpm@linux-foundation.org>
+In-Reply-To: <4FA8EC69.8010805@samsung.com>
+References: <4FA8EC69.8010805@samsung.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Chinner <david@fromorbit.com>
-Cc: Jan Kara <jack@suse.cz>, linux-fsdevel@vger.kernel.org, xfs@oss.sgi.com, linux-ext4@vger.kernel.org, Hugh Dickins <hughd@google.com>, linux-mm@kvack.org
+To: Tomasz Stanislawski <t.stanislaws@samsung.com>
+Cc: no To-header on input <""@mail.linuxfoundation.org>, paul.gortmaker@windriver.com, =?UTF-8?Q?'=EB=B0=95=EA=B2=BD=EB=AF=BC'?= <kyungmin.park@samsung.com>, amwang@redhat.com, dri-devel@lists.freedesktop.org, "'???/Mobile S/W Platform Lab.(???)/E3(??)/????'" <inki.dae@samsung.com>, prashanth.g@samsung.com, Marek Szyprowski <m.szyprowski@samsung.com>, "linux-media@vger.kernel.org" <linux-media@vger.kernel.org>, Laurent Pinchart <laurent.pinchart@ideasonboard.com>, Rob Clark <rob@ti.com>, Dave Airlie <airlied@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andy Whitcroft <apw@shadowen.org>, Johannes Weiner <hannes@cmpxchg.org>
 
-On Thu 17-05-12 17:43:08, Dave Chinner wrote:
-> On Wed, May 16, 2012 at 03:04:45PM +0200, Jan Kara wrote:
-> > On Wed 16-05-12 12:14:23, Dave Chinner wrote:
-> > > On Wed, May 16, 2012 at 12:48:05AM +0200, Jan Kara wrote:
-> > > > It's not easy to protect against these races. For truncate, i_size protects
-> > > > us against similar races but for hole punching we don't have any such
-> > > > mechanism. One way to avoid the race would be to hold mmap_sem while we are
-> > > > invalidating the page cache and punching hole but that sounds a bit ugly.
-> > > > Alternatively we could just have some special lock (rwsem?) held during
-> > > > page_mkwrite() (for reading) and during whole hole punching (for writing)
-> > > > to serialize these two operations.
-> > > 
-> > > What really needs to happen is that .page_mkwrite() can be made to
-> > > fail with -EAGAIN and retry the entire page fault from the start an
-> > > arbitrary number of times instead of just once as the current code
-> > > does with VM_FAULT_RETRY. That would allow us to try to take the
-> > > filesystem lock that provides IO exclusion for all other types of IO
-> > > and fail with EAGAIN if we can't get it without blocking. For XFS,
-> > > that is the i_iolock rwsem, for others it is the i_mutex, and some
-> > > other filesystems might take other locks.
-> >   Actually, I've been playing with VM_FAULT_RETRY recently (for freezing
-> > patches) and it's completely unhandled for .page_mkwrite() callbacks.
-> 
-> Yeah, it's a mess.
-> 
-> > Also
-> > only x86 really tries to handle it at all. Other architectures just don't
-> > allow it at all. Also there's a ton of callers of things like
-> > get_user_pages() which would need to handle VM_FAULT_RETRY and for some of
-> > them it would be actually non-trivial.
-> 
-> Seems kind of silly to me to have a generic retry capability in the
-> page fault handler and then not implement it in a useful manner for
-> *anyone*.
-  Yeah. It's only tailored for one specific use in filemap_fault() on
-x86...
- 
-> > But in this particular case, I don't think VM_FAULT_RETRY is strictly
-> > necessary. We can have a lock, which ranks below mmap_sem (and thus
-> > i_mutex / i_iolock) and above i_mmap_mutex (thus page lock), transaction
-> > start, etc. Such lock could be taken in page_mkwrite() before taking page
-> > lock, in truncate() and punch_hold() just after i_mutex, and direct IO
-> > paths could be tweaked to use it as well I think.
-> 
-> Which means we'd be adding another layer of mostly redundant locking
-> just to avoid i_mutex/mmap_sem inversion. But I don't see how it
-> solves the direct IO problem because we still need to grab the
-> mmap_sem inside the IO during get_user_pages_fast() while holding
-> i_mutex/i_iolock....
-  Yeah, direct IO case won't be trivial. We would have to take the lock
-after dio_get_page() and release it before going for next page. While the
-lock was released someone could fault in pages into the area where direct
-IO is happening so we would have to invalidate them while holding the lock
-again. It seems it would work but I agree it's probably too ugly to live
-given how abstract the problem is...
+On Tue, 08 May 2012 11:50:33 +0200
+Tomasz Stanislawski <t.stanislaws@samsung.com> wrote:
 
-> > > FWIW, I've been running at "use the IO lock in page_mkwrite" patch
-> > > for XFS for several months now, but I haven't posted it because
-> > > without the VM side being able to handle such locking failures
-> > > gracefully there's not much point in making the change. I did this
-> > > patch to reduce the incidence of mmap vs direct IO races that are
-> > > essentially identical in nature to rule them out of the cause of
-> > > stray delalloc blocks in files that fsstress has been producing on
-> > > XFS. FYI, this race condition hasn't been responsible for any of the
-> > > problems I've found recently....
-> >   Yeah, I've been trying to hit the race window for a while and I failed as
-> > well...
+> This patch adds a new constructor for an sg table. The table is constructed
+> from an array of struct pages. All contiguous chunks of the pages are merged
+> into a single sg nodes. A user may provide an offset and a size of a buffer if
+> the buffer is not page-aligned.
 > 
-> IIRC, it's a rare case (that I consider insane, BTW):  read from a
-> file with into a buffer that is a mmap()d region of the same file
-> that has not been faulted in yet.....
-  With punch hole, the race is less insane - just punching hole in the area
-which is accessed via mmap could race in a bad way AFAICS.
+> The function is dedicated for DMABUF exporters which often perform conversion
+> from an page array to a scatterlist. Moreover the scatterlist should be
+> squashed in order to save memory and to speed-up the process of DMA mapping
+> using dma_map_sg.
+> 
+> The code is based on the patch 'v4l: vb2-dma-contig: add support for
+> scatterlist in userptr mode' and hints from Laurent Pinchart.
+> 
+> ...
+>
+>  /**
+> + * sg_alloc_table_from_pages - Allocate and initialize an sg table from
+> + *			       an array of pages
+> + * @sgt:	The sg table header to use
+> + * @pages:	Pointer to an array of page pointers
+> + * @n_pages:	Number of pages in the pages array
+> + * @offset:     Offset from start of the first page to the start of a buffer
+> + * @size:       Number of valid bytes in the buffer (after offset)
+> + * @gfp_mask:	GFP allocation mask
+> + *
+> + *  Description:
+> + *    Allocate and initialize an sg table from a list of pages. Continuous
 
-								Honza
--- 
-Jan Kara <jack@suse.cz>
-SUSE Labs, CR
+s/Continuous/Contiguous/
+
+> + *    ranges of the pages are squashed into a single scatterlist node. A user
+> + *    may provide an offset at a start and a size of valid data in a buffer
+> + *    specified by the page array. The returned sg table is released by
+> + *    sg_free_table.
+> + *
+> + * Returns:
+> + *   0 on success, negative error on failure
+> + **/
+
+nit: Use */, not **/ here.
+
+> +int sg_alloc_table_from_pages(struct sg_table *sgt,
+> +	struct page **pages, unsigned int n_pages,
+> +	unsigned long offset, unsigned long size,
+> +	gfp_t gfp_mask)
+
+I guess a 32-bit n_pages is OK.  A 16TB IO seems enough ;)
+
+> +{
+> +	unsigned int chunks;
+> +	unsigned int i;
+
+erk, please choose a different name for this.  When a C programmer sees
+"i", he very much assumes it has type "int".  Making it unsigned causes
+surprise.
+
+And don't rename it to "u"!  Let's give it a nice meaningful name.  pageno?
+
+> +	unsigned int cur_page;
+> +	int ret;
+> +	struct scatterlist *s;
+> +
+> +	/* compute number of contiguous chunks */
+> +	chunks = 1;
+> +	for (i = 1; i < n_pages; ++i)
+> +		if (page_to_pfn(pages[i]) != page_to_pfn(pages[i - 1]) + 1)
+
+This assumes that if two pages have contiguous pfn's then they are
+physically contiguous.  Is that true for all architectures and memory
+models, including sparsemem?  See sparse_encode_mem_map().
+
+> +			++chunks;
+> +
+> +	ret = sg_alloc_table(sgt, chunks, gfp_mask);
+> +	if (unlikely(ret))
+> +		return ret;
+> +
+> +	/* merging chunks and putting them into the scatterlist */
+> +	cur_page = 0;
+> +	for_each_sg(sgt->sgl, s, sgt->orig_nents, i) {
+> +		unsigned long chunk_size;
+> +		unsigned int j;
+
+"j" is an "int", too.
+
+> +
+> +		/* looking for the end of the current chunk */
+
+s/looking/look/
+
+> +		for (j = cur_page + 1; j < n_pages; ++j)
+> +			if (page_to_pfn(pages[j]) !=
+> +			    page_to_pfn(pages[j - 1]) + 1)
+> +				break;
+> +
+> +		chunk_size = ((j - cur_page) << PAGE_SHIFT) - offset;
+> +		sg_set_page(s, pages[cur_page], min(size, chunk_size), offset);
+> +		size -= chunk_size;
+> +		offset = 0;
+> +		cur_page = j;
+> +	}
+> +
+> +	return 0;
+> +}
+> +EXPORT_SYMBOL(sg_alloc_table_from_pages);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
