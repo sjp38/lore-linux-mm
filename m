@@ -1,50 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx141.postini.com [74.125.245.141])
-	by kanga.kvack.org (Postfix) with SMTP id C4EED6B0044
-	for <linux-mm@kvack.org>; Thu, 17 May 2012 05:39:55 -0400 (EDT)
-Date: Thu, 17 May 2012 10:39:21 +0100
-From: Catalin Marinas <catalin.marinas@arm.com>
-Subject: Re: [RFC][PATCH 4/6] arm, mm: Convert arm to generic tlb
-Message-ID: <20120517093921.GB14666@arm.com>
-References: <20110302175928.022902359@chello.nl>
- <20110302180259.109909335@chello.nl>
- <20120517030551.GA11623@linux-sh.org>
- <20120517093022.GA14666@arm.com>
+Received: from psmtp.com (na3sys010amx144.postini.com [74.125.245.144])
+	by kanga.kvack.org (Postfix) with SMTP id 694FC6B0083
+	for <linux-mm@kvack.org>; Thu, 17 May 2012 05:40:37 -0400 (EDT)
+Message-ID: <4FB4C71C.6040906@parallels.com>
+Date: Thu, 17 May 2012 13:38:36 +0400
+From: Glauber Costa <glommer@parallels.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20120517093022.GA14666@arm.com>
+Subject: Re: [RFC] SL[AUO]B common code 5/9] slabs: Common definition for
+ boot state of the slab allocators
+References: <20120514201544.334122849@linux.com> <20120514201611.710540961@linux.com> <4FB36318.30600@parallels.com> <alpine.DEB.2.00.1205160928490.25603@router.home>
+In-Reply-To: <alpine.DEB.2.00.1205160928490.25603@router.home>
+Content-Type: text/plain; charset="ISO-8859-1"; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Paul Mundt <lethal@linux-sh.org>
-Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Andrea Arcangeli <aarcange@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, Rik van Riel <riel@redhat.com>, Ingo Molnar <mingo@elte.hu>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, David Miller <davem@davemloft.net>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Mel Gorman <mel@csn.ul.ie>, Nick Piggin <npiggin@kernel.dk>, Russell King <rmk@arm.linux.org.uk>, Chris Metcalf <cmetcalf@tilera.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>
+To: Christoph Lameter <cl@linux.com>
+Cc: Pekka Enberg <penberg@kernel.org>, linux-mm@kvack.org, David Rientjes <rientjes@google.com>, Matt Mackall <mpm@selenic.com>
 
-On Thu, May 17, 2012 at 10:30:23AM +0100, Catalin Marinas wrote:
-> Another minor thing is that on newer ARM processors (Cortex-A15) we
-> need the TLB shootdown even on UP systems, so tlb_fast_mode should
-> always return 0. Something like below (untested):
-> 
-> 
-> diff --git a/arch/arm/include/asm/tlb.h b/arch/arm/include/asm/tlb.h
-> index 37dbce9..8e79689 100644
-> --- a/arch/arm/include/asm/tlb.h
-> +++ b/arch/arm/include/asm/tlb.h
-> @@ -23,6 +23,10 @@
->  
->  #include <linux/pagemap.h>
->  
-> +#ifdef CONFIG_CPU_32v7
-> +#define tlb_fast_mode	(0)
-> +#endif
-> +
->  #include <asm-generic/tlb.h>
->  
->  #else /* !CONFIG_MMU */
+On 05/16/2012 06:31 PM, Christoph Lameter wrote:
+>> There are a couple of places where that test seems to be okay (I remember 1 in
+>> >  the slub), but at least for the "FULL" test here, we should be testing>=
+>> >  FULL.
+>> >
+>> >  Also, I don't like the name FULL too much, since I do intend to add a new one
+>> >  soon (MEMCG, as you can see in my series)
+> Ok. Why would memcg need an additional state?
 
-This hunk should have been a few lines down for the CONFIG_MMU case.
+Please refer to my patchset for the full story.
+I add state both to the slab and to the slub for that.
 
--- 
-Catalin
+But in summary, it is not unlike the "SYSFS" state: we depend on 
+something else outside of the slab domain to be ready before we can proceed.
+
+Specifically, we need to register each cache with an index. And for 
+that, we use idr/ida. When it is ready, we run code to register indexes 
+for all caches that are already available. After that, we just grab an 
+index right away - much like sysfs state for aliases.
+
+>> >  Since we are using slab-specific states like PARTIAL_L3 here, maybe we can use
+>> >  slub's like SYSFS here with no problem.
+> Sure. I thought there would only be special states before UP.
+>
+>> >  If we stick to>= and<= whenever needed, that should reflect a lot better
+>> >  what the algorithm is really doing
+> How so?
+
+In the sense that we very rarely want to do some action *at a specific 
+moment*. Most of the time we want to separate the world into before and 
+after a state. We test == instead of <= and >=, and it happens to work 
+because of the specific order of things, which are subject to change in 
+a rework or another...
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
