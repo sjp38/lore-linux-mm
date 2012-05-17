@@ -1,14 +1,14 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx172.postini.com [74.125.245.172])
-	by kanga.kvack.org (Postfix) with SMTP id 4A28F6B0083
-	for <linux-mm@kvack.org>; Thu, 17 May 2012 10:09:15 -0400 (EDT)
-Date: Thu, 17 May 2012 09:09:12 -0500 (CDT)
+Received: from psmtp.com (na3sys010amx128.postini.com [74.125.245.128])
+	by kanga.kvack.org (Postfix) with SMTP id 1CA7D6B0092
+	for <linux-mm@kvack.org>; Thu, 17 May 2012 10:09:54 -0400 (EDT)
+Date: Thu, 17 May 2012 09:09:51 -0500 (CDT)
 From: Christoph Lameter <cl@linux.com>
-Subject: Re: [RFC] SL[AUO]B common code 8/9] slabs: list addition move to
- slab_common
-In-Reply-To: <4FB4C755.6030106@parallels.com>
-Message-ID: <alpine.DEB.2.00.1205170909040.5144@router.home>
-References: <20120514201544.334122849@linux.com> <20120514201613.467708800@linux.com> <4FB37CC9.3060102@parallels.com> <alpine.DEB.2.00.1205160932201.25603@router.home> <4FB4C755.6030106@parallels.com>
+Subject: Re: [RFC] SL[AUO]B common code 1/9] [slob] define page struct fields
+ used in mm_types.h
+In-Reply-To: <4FB4C7DC.7020309@parallels.com>
+Message-ID: <alpine.DEB.2.00.1205170909360.5144@router.home>
+References: <20120514201544.334122849@linux.com> <20120514201609.418025254@linux.com> <4FB357C9.8080308@parallels.com> <alpine.DEB.2.00.1205160925410.25603@router.home> <alpine.DEB.2.00.1205161034400.25603@router.home> <4FB4C7DC.7020309@parallels.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -18,19 +18,27 @@ Cc: Pekka Enberg <penberg@kernel.org>, linux-mm@kvack.org, David Rientjes <rient
 
 On Thu, 17 May 2012, Glauber Costa wrote:
 
-> On 05/16/2012 06:33 PM, Christoph Lameter wrote:
-> > > >  Also, the only reasons it exists, seems to be to go around the fact
-> > > that the
-> > > >  slab already adds the kmalloc caches to a list in a slightly different
-> > > way.
-> > > >  And there has to be cleaner ways to achieve that.
-> > The reason it exists is to distinguish the case of an alias creation from
-> > a true kmem_cache instatiation. The alias does not need to be added to the
-> > list of slabs.
+> On 05/16/2012 07:38 PM, Christoph Lameter wrote:
+> > On Wed, 16 May 2012, Christoph Lameter wrote:
 > >
-> Worth a comment, then, maybe ? It tricked me a bit
+> > > >  On Wed, 16 May 2012, Glauber Costa wrote:
+> > > >
+> > > > >  >  It is of course ok to reuse the field, but what about we make it a
+> > > > union
+> > > > >  >  between "list" and "lru" ?
+> > > >
+> > > >  That is what this patch does. You are commenting on code that was
+> > > >  removed.
+> > Argh. No it doesnt..... It will be easy to add though. But then you have
+> > two list_head definitions in page struct that just differ in name.
+> As I said previously, it sounds stupid if you look from the typing system
+> point of view.
+>
+> But when I read something like: list_add(&sp->lru, list), something very
+> special assumptions about list ordering comes to mind. It's something that
+> should be done for the sake of the readers.
 
-Ok.
+Allright will merge the changes that I posted into the patch.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
