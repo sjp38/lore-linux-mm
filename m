@@ -1,72 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx178.postini.com [74.125.245.178])
-	by kanga.kvack.org (Postfix) with SMTP id 5A6936B0082
-	for <linux-mm@kvack.org>; Thu, 17 May 2012 16:23:26 -0400 (EDT)
-Date: Thu, 17 May 2012 13:23:24 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] mm: consider all swapped back pages in used-once logic
-Message-Id: <20120517132324.e9bf9fc8.akpm@linux-foundation.org>
-In-Reply-To: <20120517121049.GA11018@tiehlicka.suse.cz>
-References: <1337246033-13719-1-git-send-email-mhocko@suse.cz>
-	<20120517022412.9175f604.akpm@linux-foundation.org>
-	<20120517121049.GA11018@tiehlicka.suse.cz>
+Received: from psmtp.com (na3sys010amx160.postini.com [74.125.245.160])
+	by kanga.kvack.org (Postfix) with SMTP id 57C7E6B0083
+	for <linux-mm@kvack.org>; Thu, 17 May 2012 16:23:36 -0400 (EDT)
+Message-ID: <1337286204.4281.87.camel@twins>
+Subject: Re: [PATCH] mm: Optimize put_mems_allowed() usage
+From: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Date: Thu, 17 May 2012 22:23:24 +0200
+In-Reply-To: <20120517131610.d1b09fd8.akpm@linux-foundation.org>
+References: <20120307180852.GE17697@suse.de>
+	 <1332759384.16159.92.camel@twins> <20120326155027.GF16573@suse.de>
+	 <1332778852.16159.138.camel@twins> <20120327124734.GH16573@suse.de>
+	 <1332854070.16159.223.camel@twins>
+	 <20120517131610.d1b09fd8.akpm@linux-foundation.org>
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: quoted-printable
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mel@csn.ul.ie>, Minchan Kim <minchan@kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Mel Gorman <mgorman@suse.de>, Miao Xie <miaox@cn.fujitsu.com>, David Rientjes <rientjes@google.com>, Christoph Lameter <cl@linux.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Pekka Enberg <penberg@cs.helsinki.fi>
 
-On Thu, 17 May 2012 14:10:49 +0200
-Michal Hocko <mhocko@suse.cz> wrote:
+On Thu, 2012-05-17 at 13:16 -0700, Andrew Morton wrote:
+> I do think it was a bad idea to remove that comment.  As it stands, the
+> reader will be wondering why we did the read_mems_allowed_begin() at
+> all, and whether failing to check for a change is a bug.
+>=20
+> --- a/mm/slub.c~mm-optimize-put_mems_allowed-usage-fix
+> +++ a/mm/slub.c
+> @@ -1624,8 +1624,16 @@ static struct page *get_any_partial(stru
+>                         if (n && cpuset_zone_allowed_hardwall(zone, flags=
+) &&
+>                                         n->nr_partial > s->min_partial) {
+>                                 object =3D get_partial_node(s, n, c);
+> -                               if (object)
+> +                               if (object) {
+> +                                       /*
+> +                                        * Don't check read_mems_allowed_=
+retry()
+> +                                        * here - if mems_allowed was upd=
+ated in
+> +                                        * parallel, that was a harmless =
+race
+> +                                        * between allocation and the cpu=
+set
+> +                                        * update
+> +                                        */
+>                                         return object;
+> +                               }
+>                         }
+>                 }
+>         } while (read_mems_allowed_retry(cpuset_mems_cookie));=20
 
-> > > This patch fixes a regression introduced by this commit for heavy shmem
-> > 
-> > A performance regression, specifically.
-> > 
-> > Are you able to quantify it?
-> 
-> The customer's workload is shmem backed database (80% of RAM) and
-> they are measuring transactions/s with an IO in the background (20%).
-> Transactions touch more or less random rows in the table.
-> The rate goes down drastically when we start swapping out memory.
-> 
-> Numbers are more descriptive (without the patch is 100%, with 5
-> representative runs)
-> Average rate	315.83%
-> Best rate	131.76%
-> Worst rate	641.25%
-> 
-> Standard deviation (calibrated to average) is ~4% while without the
-> patch we are at 62.82%. 
-> The big variance without the patch is caused by the excessive swapping
-> which doesn't occur with the patch applied.
-> 
-> * Worst run (100%) compared to a random run with the patch
-> pgpgin	pswpin	pswpout	pgmajfault
-> 1.58%	0.00%	0.01%	0.22%
-> 
-> Average size of the LRU lists:
-> nr_inactive_anon nr_active_anon nr_inactive_file nr_active_file
-> 52.91%           7234.72%       249.39%          126.64%
-> 
-> * Best run
-> pgpgin	pswpin	pswpout	pgmajfault
-> 3.37%	0.00%	0.11%	0.39%
-> 
-> nr_inactive_anon nr_active_anon nr_inactive_file nr_active_file
-> 49.85%           3868.74%       175.03%          121.27%
+OK, it seemed weird to have that comment in this one place whilst it is
+the general pattern of this construct.
 
-I turned the above into this soundbite:
+The whole read_mems_allowed_retry() should only ever be attempted in
+case the allocation failed.
 
-: The customer's workload is shmem backed database (80% of RAM) and they are
-: measuring transactions/s with an IO in the background (20%).  Transactions
-: touch more or less random rows in the table.  Total runtime was
-: approximately tripled by commit 64574746 and this patch restores the
-: previous throughput levels.
-
-Was that truthful?
+But sure..
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
