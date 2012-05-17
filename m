@@ -1,36 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx196.postini.com [74.125.245.196])
-	by kanga.kvack.org (Postfix) with SMTP id 712B36B0081
-	for <linux-mm@kvack.org>; Thu, 17 May 2012 13:02:05 -0400 (EDT)
-Date: Thu, 17 May 2012 10:02:53 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH v5 2/2] decrement static keys on real destroy time
-Message-Id: <20120517100253.3b4a1a20.akpm@linux-foundation.org>
-In-Reply-To: <4FB4CA4D.50608@parallels.com>
-References: <1336767077-25351-1-git-send-email-glommer@parallels.com>
-	<1336767077-25351-3-git-send-email-glommer@parallels.com>
-	<20120516140637.17741df6.akpm@linux-foundation.org>
-	<4FB46B4C.3000307@parallels.com>
-	<20120516223715.5d1b4385.akpm@linux-foundation.org>
-	<4FB4CA4D.50608@parallels.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx109.postini.com [74.125.245.109])
+	by kanga.kvack.org (Postfix) with SMTP id 71F3A6B0082
+	for <linux-mm@kvack.org>; Thu, 17 May 2012 13:02:15 -0400 (EDT)
+Date: Thu, 17 May 2012 18:01:34 +0100
+From: Catalin Marinas <catalin.marinas@arm.com>
+Subject: Re: [RFC][PATCH 4/6] arm, mm: Convert arm to generic tlb
+Message-ID: <20120517170134.GC18593@arm.com>
+References: <20110302175928.022902359@chello.nl>
+ <20110302180259.109909335@chello.nl>
+ <20120517030551.GA11623@linux-sh.org>
+ <20120517093022.GA14666@arm.com>
+ <20120517095124.GN23420@flint.arm.linux.org.uk>
+ <1337254086.4281.26.camel@twins>
+ <20120517160012.GB18593@arm.com>
+ <1337271884.4281.46.camel@twins>
+ <1337272396.4281.48.camel@twins>
+ <1337273053.4281.50.camel@twins>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1337273053.4281.50.camel@twins>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Glauber Costa <glommer@parallels.com>
-Cc: cgroups@vger.kernel.org, linux-mm@kvack.org, devel@openvz.org, kamezawa.hiroyu@jp.fujitsu.com, netdev@vger.kernel.org, Tejun Heo <tj@kernel.org>, Li Zefan <lizefan@huawei.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: Russell King <rmk@arm.linux.org.uk>, Paul Mundt <lethal@linux-sh.org>, Andrea Arcangeli <aarcange@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, Rik van Riel <riel@redhat.com>, Ingo Molnar <mingo@elte.hu>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, David Miller <davem@davemloft.net>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Mel Gorman <mel@csn.ul.ie>, Nick Piggin <npiggin@kernel.dk>, Chris Metcalf <cmetcalf@tilera.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>
 
-On Thu, 17 May 2012 13:52:13 +0400 Glauber Costa <glommer@parallels.com> wrote:
+On Thu, May 17, 2012 at 05:44:13PM +0100, Peter Zijlstra wrote:
+> On Thu, 2012-05-17 at 18:33 +0200, Peter Zijlstra wrote:
+> > On Thu, 2012-05-17 at 18:24 +0200, Peter Zijlstra wrote:
+> > > On Thu, 2012-05-17 at 17:00 +0100, Catalin Marinas wrote:
+> > > > BTW, looking at your tlb-unify branch, does tlb_remove_table() call
+> > > > tlb_flush/tlb_flush_mmu before freeing the tables?  I can only see
+> > > > tlb_remove_page() doing this. On ARM, even UP, we need the TLB flushing
+> > > > after clearing the pmd and before freeing the pte page table (and
+> > > > ideally doing it less often than at every pte_free_tlb() call).
+> > > 
+> > > No I don't think it does, so far the only archs using the RCU stuff are
+> > > ppc,sparc and s390 and none of those needed that (Xen might join them
+> > > soon though). But I will have to look and consider this more carefully.
+> > > I 'lost' most of the ppc/sparc/s390 details from memory to say this with
+> > > any certainty.
+> > 
+> > Hmm, no, thinking more that does indeed sounds strange, I'll still have
+> > to consider it more carefully, but I think you might have found a bug
+> > there.
+> 
+> So the RCU code can from ppc in commit
+> 267239116987d64850ad2037d8e0f3071dc3b5ce, which has similar behaviour.
+> Also I suspect the mm_users < 2 test will be incorrect for ARM since
+> even the one user can be concurrent with your speculation engine.
 
-> Andrew is right. It seems we will need that mutex after all. Just this 
-> is not a race, and neither something that should belong in the 
-> static_branch interface.
+That's correct.
 
-Well, a mutex is one way.  Or you could do something like
-
-	if (!test_and_set_bit(CGPROTO_ACTIVATED, &cg_proto->flags))
-		static_key_slow_inc(&memcg_socket_limit_enabled);
+-- 
+Catalin
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
