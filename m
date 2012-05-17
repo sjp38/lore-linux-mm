@@ -1,89 +1,128 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx108.postini.com [74.125.245.108])
-	by kanga.kvack.org (Postfix) with SMTP id C1E5C6B0083
-	for <linux-mm@kvack.org>; Thu, 17 May 2012 14:32:17 -0400 (EDT)
-Date: Thu, 17 May 2012 19:31:39 +0100
-From: Catalin Marinas <catalin.marinas@arm.com>
-Subject: Re: [RFC][PATCH 4/6] arm, mm: Convert arm to generic tlb
-Message-ID: <20120517183139.GA31838@arm.com>
-References: <20110302175928.022902359@chello.nl>
- <20110302180259.109909335@chello.nl>
- <20120517030551.GA11623@linux-sh.org>
- <20120517093022.GA14666@arm.com>
- <20120517095124.GN23420@flint.arm.linux.org.uk>
- <1337254086.4281.26.camel@twins>
- <20120517160012.GB18593@arm.com>
- <20120517172215.GB11487@flint.arm.linux.org.uk>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20120517172215.GB11487@flint.arm.linux.org.uk>
+Received: from psmtp.com (na3sys010amx123.postini.com [74.125.245.123])
+	by kanga.kvack.org (Postfix) with SMTP id 1C0906B0082
+	for <linux-mm@kvack.org>; Thu, 17 May 2012 15:35:33 -0400 (EDT)
+Date: Thu, 17 May 2012 12:35:31 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] mm: read_pmd_atomic: fix 32bit PAE pmd walk vs
+ pmd_populate SMP race condition
+Message-Id: <20120517123531.0c221023.akpm@linux-foundation.org>
+In-Reply-To: <1337264036-28971-1-git-send-email-aarcange@redhat.com>
+References: <1337264036-28971-1-git-send-email-aarcange@redhat.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Russell King <rmk@arm.linux.org.uk>
-Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Paul Mundt <lethal@linux-sh.org>, Andrea Arcangeli <aarcange@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, Rik van Riel <riel@redhat.com>, Ingo Molnar <mingo@elte.hu>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, David Miller <davem@davemloft.net>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Mel Gorman <mel@csn.ul.ie>, Nick Piggin <npiggin@kernel.dk>, Chris Metcalf <cmetcalf@tilera.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: linux-mm@kvack.org, Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>, Larry Woodman <lwoodman@redhat.com>, Petr Matousek <pmatouse@redhat.com>, Ulrich Obergfell <uobergfe@redhat.com>, Rik van Riel <riel@redhat.com>
 
-On Thu, May 17, 2012 at 06:22:15PM +0100, Russell King wrote:
-> On Thu, May 17, 2012 at 05:00:12PM +0100, Catalin Marinas wrote:
-> > On Thu, May 17, 2012 at 12:28:06PM +0100, Peter Zijlstra wrote:
-> > > On Thu, 2012-05-17 at 10:51 +0100, Russell King wrote:
-> > > > On Thu, May 17, 2012 at 10:30:23AM +0100, Catalin Marinas wrote:
-> > > > > Another minor thing is that on newer ARM processors (Cortex-A15) we
-> > > > > need the TLB shootdown even on UP systems, so tlb_fast_mode should
-> > > > > always return 0. Something like below (untested):
-> > > > 
-> > > > No Catalin, we need this for virtually all ARMv7 CPUs whether they're UP
-> > > > or SMP, not just for A15, because of the speculative prefetch which can
-> > > > re-load TLB entries from the page tables at _any_ time.
-> > > 
-> > > Hmm,. so this is mostly because of the confusion/coupling between
-> > > tlb_remove_page() and tlb_remove_table() I guess. Since I don't see the
-> > > freeing of the actual pages being a problem with speculative TLB
-> > > reloads, just the page-tables.
-> > > 
-> > > Should we introduce a tlb_remove_table() regardless of
-> > > HAVE_RCU_TABLE_FREE which always queues the tables regardless of
-> > > tlb_fast_mode()? 
-> > 
-> > BTW, looking at your tlb-unify branch, does tlb_remove_table() call
-> > tlb_flush/tlb_flush_mmu before freeing the tables?  I can only see
-> > tlb_remove_page() doing this. On ARM, even UP, we need the TLB flushing
-> > after clearing the pmd and before freeing the pte page table (and
-> > ideally doing it less often than at every pte_free_tlb() call).
-> 
-> Catalin,
-> 
-> The way TLB shootdown stuff works is that _every_ single bit of memory
-> which gets freed, whether its a page or a page table, gets added to a
-> list of pages to be freed.
-> 
-> So, the sequence is:
-> - remove pte/pmd/pud/pgd pointers
-> - add pages, whether they be pages pointed to by pte entries or page tables
->   to be freed to a list
-> - when list is sufficiently full, invalidate TLBs
-> - free list of pages
-> 
-> That means the pages will not be freed, whether it be a page mapped
-> into userspace or a page table until such time that the TLB has been
-> invalidated.
-> 
-> For page tables, this is done via pXX_free_tlb(), which then calls out
-> to the arch specific __pXX_free_tlb(), which ultimately then hands the
-> page table over to tlb_remove_page() to add to the list of to-be-freed
-> pages.
+On Thu, 17 May 2012 16:13:56 +0200
+Andrea Arcangeli <aarcange@redhat.com> wrote:
 
-I know that already, not sure why you explained it again (but it's good
-for future reference).
+> When holding the mmap_sem for reading, pmd_offset_map_lock should only
+> run on a pmd_t that has been read atomically from the pmdp
+> pointer, otherwise we may read only half of it leading to this crash.
 
-My point was that if we move to HAVE_RCU_FREE_TLB, the other
-architectures doing this are calling tlb_remove_table() instead of
-tlb_remove_page() in __p??_free_tlb(). And tlb_remove_table() does not
-do any TLB maintenance when it can no longer queue pages (batch table
-overflow).
+Do you think this is serious enough to warrant backporting the fix into
+-stable?  The patch is pretty simple..
 
--- 
-Catalin
+>
+> ...
+>
+> --- a/arch/x86/include/asm/pgtable-3level.h
+> +++ b/arch/x86/include/asm/pgtable-3level.h
+> @@ -31,6 +31,56 @@ static inline void native_set_pte(pte_t *ptep, pte_t pte)
+>  	ptep->pte_low = pte.pte_low;
+>  }
+>  
+> +#define  __HAVE_ARCH_READ_PMD_ATOMIC
+
+A couple of nits:
+
+- read_pmd_atomic() should be called pmd_read_atomic() - check out
+  "grep pmd include/asm-generic/pgtable.h".
+
+- A somewhat neat convention we use is to do
+
+	static inline void foo(...)
+	{
+		...
+	}
+	#define foo foo
+
+  so then other code can do
+
+	#ifndef foo
+	...
+	#endif
+
+  This avoids having to create (and remember!) a second identifier.
+
+> +/*
+> + * pte_offset_map_lock on 32bit PAE kernels was reading the pmd_t with
+> + * a "*pmdp" dereference done by gcc.
+
+I spent some time trying to find exactly where pte_offset_map_lock does
+this dereference then gave up, because it shouldn't have been this
+hard!
+
+Can we be specific here, so that others can more easily work out what's
+going on?
+
+> Problem is, in certain places
+> + * where pte_offset_map_lock is called, concurrent page faults are
+> + * allowed, if the mmap_sem is hold for reading. An example is mincore
+> + * vs page faults vs MADV_DONTNEED. On the page fault side
+> + * pmd_populate rightfully does a set_64bit, but if we're reading the
+> + * pmd_t with a "*pmdp" on the mincore side, a SMP race can happen
+> + * because gcc will not read the 64bit of the pmd atomically. To fix
+> + * this all places running pmd_offset_map_lock() while holding the
+> + * mmap_sem in read mode, shall read the pmdp pointer using this
+> + * function to know if the pmd is null nor not, and in turn to know if
+> + * they can run pmd_offset_map_lock or pmd_trans_huge or other pmd
+> + * operations.
+> + *
+> + * Without THP if the mmap_sem is hold for reading, the
+> + * pmd can only transition from null to not null while read_pmd_atomic runs.
+> + * So there's no need of literally reading it atomically.
+> + *
+> + * With THP if the mmap_sem is hold for reading, the pmd can become
+> + * THP or null or point to a pte (and in turn become "stable") at any
+> + * time under read_pmd_atomic, so it's mandatory to read it atomically
+> + * with cmpxchg8b.
+
+This all seems terribly subtle and fragile.
+
+> + */
+> +#ifndef CONFIG_TRANSPARENT_HUGEPAGE
+> +static inline pmd_t read_pmd_atomic(pmd_t *pmdp)
+> +{
+> +	pmdval_t ret;
+> +	u32 *tmp = (u32 *)pmdp;
+> +
+> +	ret = (pmdval_t) (*tmp);
+> +	if (ret) {
+> +		/*
+> +		 * If the low part is null, we must not read the high part
+> +		 * or we can end up with a partial pmd.
+
+This is the core part of the fix, and I don't understand it :( What is
+the significance of the zeroness of the lower half of the pmdval_t? 
+How, exactly, does this prevent races?
+
+At a guess, I'd say that we're making three assumptions here:
+
+a) that gcc will write lower-word-first when doing a 64-bit write
+
+b) that a valid pmdval_t never has all zeroes in the lower 32 bits and
+
+c) that any code which this function is racing against will only
+   ever be writing to a pmdval_t which has the all-zeroes pattern.  ie:
+   that we never can race against code which is modifying an existing
+   pmdval_t.
+
+Can we spell out and justify all the assumptions here?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
