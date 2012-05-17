@@ -1,64 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx189.postini.com [74.125.245.189])
-	by kanga.kvack.org (Postfix) with SMTP id 54AA56B010C
-	for <linux-mm@kvack.org>; Thu, 17 May 2012 10:51:43 -0400 (EDT)
-From: Mel Gorman <mgorman@suse.de>
-Subject: [PATCH 12/12] Avoid dereferencing bd_disk during swap_entry_free for network storage
-Date: Thu, 17 May 2012 15:51:25 +0100
-Message-Id: <1337266285-8102-13-git-send-email-mgorman@suse.de>
-In-Reply-To: <1337266285-8102-1-git-send-email-mgorman@suse.de>
-References: <1337266285-8102-1-git-send-email-mgorman@suse.de>
+Received: from psmtp.com (na3sys010amx139.postini.com [74.125.245.139])
+	by kanga.kvack.org (Postfix) with SMTP id A2C068D0005
+	for <linux-mm@kvack.org>; Thu, 17 May 2012 10:52:00 -0400 (EDT)
+Message-ID: <1337266310.4281.30.camel@twins>
+Subject: Re: [PATCH v2 3/3] x86: Support local_flush_tlb_kernel_range
+From: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Date: Thu, 17 May 2012 16:51:50 +0200
+In-Reply-To: <4FB4B29C.4010908@kernel.org>
+References: <1337133919-4182-1-git-send-email-minchan@kernel.org>
+	 <1337133919-4182-3-git-send-email-minchan@kernel.org>
+	 <4FB4B29C.4010908@kernel.org>
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: quoted-printable
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Linux-MM <linux-mm@kvack.org>, Linux-Netdev <netdev@vger.kernel.org>, Linux-NFS <linux-nfs@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, David Miller <davem@davemloft.net>, Trond Myklebust <Trond.Myklebust@netapp.com>, Neil Brown <neilb@suse.de>, Christoph Hellwig <hch@infradead.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Mike Christie <michaelc@cs.wisc.edu>, Eric B Munson <emunson@mgebm.net>, Mel Gorman <mgorman@suse.de>
+To: Minchan Kim <minchan@kernel.org>
+Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Nitin Gupta <ngupta@vflare.org>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Dan Magenheimer <dan.magenheimer@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, Tejun Heo <tj@kernel.org>, David Howells <dhowells@redhat.com>, x86@kernel.org, Nick Piggin <npiggin@gmail.com>
 
-Commit [b3a27d: swap: Add swap slot free callback to
-block_device_operations] dereferences p->bdev->bd_disk but this is a
-NULL dereference if using swap-over-NFS. This patch checks SWP_BLKDEV
-on the swap_info_struct before dereferencing.
+On Thu, 2012-05-17 at 17:11 +0900, Minchan Kim wrote:
+> > +++ b/arch/x86/include/asm/tlbflush.h
+> > @@ -172,4 +172,16 @@ static inline void flush_tlb_kernel_range(unsigned=
+ long start,
+> >       flush_tlb_all();
+> >  }
+> > =20
+> > +static inline void local_flush_tlb_kernel_range(unsigned long start,
+> > +             unsigned long end)
+> > +{
+> > +     if (cpu_has_invlpg) {
+> > +             while (start < end) {
+> > +                     __flush_tlb_single(start);
+> > +                     start +=3D PAGE_SIZE;
+> > +             }
+> > +     } else
+> > +             local_flush_tlb();
+> > +}
 
-With reference to this callback, Christoph Hellwig stated "Please
-just remove the callback entirely.  It has no user outside the staging
-tree and was added clearly against the rules for that staging tree".
-This would also be my preference but there was not an obvious way of
-keeping zram in staging/ happy.
 
-Signed-off-by: Xiaotian Feng <dfeng@redhat.com>
-Signed-off-by: Mel Gorman <mgorman@suse.de>
----
- mm/swapfile.c |    9 +++++----
- 1 file changed, 5 insertions(+), 4 deletions(-)
+It would be much better if you wait for Alex Shi's patch to mature.
+doing the invlpg thing for ranges is not an unconditional win.
 
-diff --git a/mm/swapfile.c b/mm/swapfile.c
-index 80b3415..d85d842 100644
---- a/mm/swapfile.c
-+++ b/mm/swapfile.c
-@@ -547,7 +547,6 @@ static unsigned char swap_entry_free(struct swap_info_struct *p,
- 
- 	/* free if no reference */
- 	if (!usage) {
--		struct gendisk *disk = p->bdev->bd_disk;
- 		if (offset < p->lowest_bit)
- 			p->lowest_bit = offset;
- 		if (offset > p->highest_bit)
-@@ -557,9 +556,11 @@ static unsigned char swap_entry_free(struct swap_info_struct *p,
- 			swap_list.next = p->type;
- 		nr_swap_pages++;
- 		p->inuse_pages--;
--		if ((p->flags & SWP_BLKDEV) &&
--				disk->fops->swap_slot_free_notify)
--			disk->fops->swap_slot_free_notify(p->bdev, offset);
-+		if (p->flags & SWP_BLKDEV) {
-+			struct gendisk *disk = p->bdev->bd_disk;
-+			if (disk->fops->swap_slot_free_notify)
-+				disk->fops->swap_slot_free_notify(p->bdev, offset);
-+		}
- 	}
- 
- 	return usage;
--- 
-1.7.9.2
+Also, does it even work if the range happens to be backed by huge pages?
+IIRC we try and do the identity map with large pages wherever possible.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
