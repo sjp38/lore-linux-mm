@@ -1,87 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx130.postini.com [74.125.245.130])
-	by kanga.kvack.org (Postfix) with SMTP id 258EB6B0082
-	for <linux-mm@kvack.org>; Thu, 17 May 2012 04:10:26 -0400 (EDT)
-Message-ID: <4FB4B29C.4010908@kernel.org>
-Date: Thu, 17 May 2012 17:11:08 +0900
-From: Minchan Kim <minchan@kernel.org>
+Received: from psmtp.com (na3sys010amx156.postini.com [74.125.245.156])
+	by kanga.kvack.org (Postfix) with SMTP id 802026B0082
+	for <linux-mm@kvack.org>; Thu, 17 May 2012 04:32:58 -0400 (EDT)
+Date: Thu, 17 May 2012 17:32:13 +0900
+From: Paul Mundt <lethal@linux-sh.org>
+Subject: Re: [PATCH v2 1/3] zsmalloc: support zsmalloc to ARM, MIPS, SUPERH
+Message-ID: <20120517083213.GC14027@linux-sh.org>
+References: <1337133919-4182-1-git-send-email-minchan@kernel.org>
 MIME-Version: 1.0
-Subject: Re: [PATCH v2 3/3] x86: Support local_flush_tlb_kernel_range
-References: <1337133919-4182-1-git-send-email-minchan@kernel.org> <1337133919-4182-3-git-send-email-minchan@kernel.org>
-In-Reply-To: <1337133919-4182-3-git-send-email-minchan@kernel.org>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1337133919-4182-1-git-send-email-minchan@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Nitin Gupta <ngupta@vflare.org>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Dan Magenheimer <dan.magenheimer@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, Tejun Heo <tj@kernel.org>, David Howells <dhowells@redhat.com>, x86@kernel.org, a.p.zijlstra@chello.nl, Nick Piggin <npiggin@gmail.com>
+To: Minchan Kim <minchan@kernel.org>
+Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Nitin Gupta <ngupta@vflare.org>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Dan Magenheimer <dan.magenheimer@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Russell King <linux@arm.linux.org.uk>, Ralf Baechle <ralf@linux-mips.org>, Guan Xuetao <gxt@mprc.pku.edu.cn>, Chen Liqin <liqin.chen@sunplusct.com>
 
-Isn't there anyone for taking a time to review this patch? :)
-
-On 05/16/2012 11:05 AM, Minchan Kim wrote:
-
-> The zsmalloc [un]maps non-physical contiguos pages to contiguous
-> virual address frequently so it needs frequent tlb-flush.
-> Now x86 doesn't support common utility function for flushing just
-> a few tlb entries so zsmalloc have been used set_pte and __flush_tlb_one
-> which are x86 specific functions. It means zsmalloc have a dependency
-> with x86.
+On Wed, May 16, 2012 at 11:05:17AM +0900, Minchan Kim wrote:
+> About local_flush_tlb_kernel_range,
+> If architecture is very smart, it could flush only tlb entries related to vaddr.
+> If architecture is smart, it could flush only tlb entries related to a CPU.
+> If architecture is _NOT_ smart, it could flush all entries of all CPUs.
+> So, it would be best to support both portability and performance.
 > 
-> This patch adds new function, local_flush_tlb_kernel_range which
-> are good candidate for being common utility function because other
-> architecture(ex, MIPS, sh, unicore32, arm, score) already have
-> supportd it.
+..
+
+> Need double check about supporting local_flush_tlb_kernel_range
+> in ARM, MIPS, SUPERH maintainers. And I will Ccing unicore32 and
+> score maintainers because arch directory in those arch have
+> local_flush_tlb_kernel_range, too but I'm very unfamiliar with those
+> architecture so pass it to maintainers.
+> I didn't coded up dumb local_flush_tlb_kernel_range which flush
+> all cpus. I expect someone need ZSMALLOC will implement it easily in future.
 > 
-> Cc: Thomas Gleixner <tglx@linutronix.de>
-> Cc: Ingo Molnar <mingo@redhat.com>
-> Cc: Tejun Heo <tj@kernel.org>
-> Cc: David Howells <dhowells@redhat.com>
-> Cc: x86@kernel.org
-> Signed-off-by: Minchan Kim <minchan@kernel.org>
-> ---
->  arch/x86/include/asm/tlbflush.h  |   12 ++++++++++++
->  drivers/staging/zsmalloc/Kconfig |    2 +-
->  2 files changed, 13 insertions(+), 1 deletion(-)
-> 
-> diff --git a/arch/x86/include/asm/tlbflush.h b/arch/x86/include/asm/tlbflush.h
-> index 4ece077..6e1253a 100644
-> --- a/arch/x86/include/asm/tlbflush.h
-> +++ b/arch/x86/include/asm/tlbflush.h
-> @@ -172,4 +172,16 @@ static inline void flush_tlb_kernel_range(unsigned long start,
->  	flush_tlb_all();
->  }
->  
-> +static inline void local_flush_tlb_kernel_range(unsigned long start,
-> +		unsigned long end)
-> +{
-> +	if (cpu_has_invlpg) {
-> +		while (start < end) {
-> +			__flush_tlb_single(start);
-> +			start += PAGE_SIZE;
-> +		}
-> +	} else
-> +		local_flush_tlb();
-> +}
-> +
->  #endif /* _ASM_X86_TLBFLUSH_H */
-> diff --git a/drivers/staging/zsmalloc/Kconfig b/drivers/staging/zsmalloc/Kconfig
-> index def2483..29819b8 100644
-> --- a/drivers/staging/zsmalloc/Kconfig
-> +++ b/drivers/staging/zsmalloc/Kconfig
-> @@ -3,7 +3,7 @@ config ZSMALLOC
->  	# arch dependency is because of the use of local_unmap_kernel_range
->  	# in zsmalloc-main.c.
->  	# TODO: implement local_unmap_kernel_range in all architecture.
-> -	depends on (ARM || MIPS || SUPERH)
-> +	depends on (ARM || MIPS || SUPERH || X86)
->  	default n
->  	help
->  	  zsmalloc is a slab-based memory allocator designed to store
 
+One thing you might consider is providing a stubbed definition that wraps
+to flush_tlb_kernel_range() in the !SMP case, as this will extend your
+testing coverage for staging considerably.
 
+Once you exclude all of the non-SMP platforms, you're left with the
+following:
 
--- 
-Kind regards,
-Minchan Kim
+	- blackfin: doesn't count, no TLB to worry about.
+	- hexagon: seems to imply that the SMP case uses thread-based
+	  CPUs that share an MMU, so no additional cost.
+	- ia64: Does a global flush, which already has a FIXME comment.
+	- m32r, mn10300: local_flush_tlb_all() could be wrapped.
+	- parisc: global flush?
+	- s390: Tests the cpumask to do a local flush, otherwise has a
+	  __tlb_flush_local() that can be wrapped.
+	- sparc32: global flush
+	- sparc64: __flush_tlb_kernel_range() looks like a local flush.
+	- tile: does strange hypervisory things, presumably global.
+	- x86: has a local_flush_tlb() that could be wrapped.
+
+Which doesn't look quite that bad. You could probably get away with a
+Kconfig option for optimized local TLB flushing or something, since
+single function Kconfig options seem to be all the rage these days.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
