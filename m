@@ -1,54 +1,38 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx130.postini.com [74.125.245.130])
-	by kanga.kvack.org (Postfix) with SMTP id 2884D6B0044
-	for <linux-mm@kvack.org>; Thu, 17 May 2012 05:54:22 -0400 (EDT)
-Message-ID: <4FB4CA4D.50608@parallels.com>
-Date: Thu, 17 May 2012 13:52:13 +0400
+Received: from psmtp.com (na3sys010amx104.postini.com [74.125.245.104])
+	by kanga.kvack.org (Postfix) with SMTP id 34B7E6B0044
+	for <linux-mm@kvack.org>; Thu, 17 May 2012 06:16:30 -0400 (EDT)
+Message-ID: <4FB4CF7A.9090108@parallels.com>
+Date: Thu, 17 May 2012 14:14:18 +0400
 From: Glauber Costa <glommer@parallels.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH v5 2/2] decrement static keys on real destroy time
-References: <1336767077-25351-1-git-send-email-glommer@parallels.com> <1336767077-25351-3-git-send-email-glommer@parallels.com> <20120516140637.17741df6.akpm@linux-foundation.org> <4FB46B4C.3000307@parallels.com> <20120516223715.5d1b4385.akpm@linux-foundation.org>
-In-Reply-To: <20120516223715.5d1b4385.akpm@linux-foundation.org>
+Subject: Re: [PATCH v2 02/29] slub: fix slab_state for slub
+References: <1336758272-24284-1-git-send-email-glommer@parallels.com> <1336758272-24284-3-git-send-email-glommer@parallels.com> <alpine.DEB.2.00.1205151453460.18595@chino.kir.corp.google.com>
+In-Reply-To: <alpine.DEB.2.00.1205151453460.18595@chino.kir.corp.google.com>
 Content-Type: text/plain; charset="ISO-8859-1"; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: cgroups@vger.kernel.org, linux-mm@kvack.org, devel@openvz.org, kamezawa.hiroyu@jp.fujitsu.com, netdev@vger.kernel.org, Tejun Heo <tj@kernel.org>, Li Zefan <lizefan@huawei.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>
+To: David Rientjes <rientjes@google.com>
+Cc: Pekka Enberg <penberg@cs.helsinki.fi>, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, linux-mm@kvack.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Tejun Heo <tj@kernel.org>, Li Zefan <lizefan@huawei.com>, Greg Thelen <gthelen@google.com>, Suleiman Souhlal <suleiman@google.com>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, devel@openvz.org, Christoph Lameter <cl@linux.com>
 
-On 05/17/2012 09:37 AM, Andrew Morton wrote:
->> >  If that happens, locking in static_key_slow_inc will prevent any damage.
->> >  My previous version had explicit code to prevent that, but we were
->> >  pointed out that this is already part of the static_key expectations, so
->> >  that was dropped.
-> This makes no sense.  If two threads run that code concurrently,
-> key->enabled gets incremented twice.  Nobody anywhere has a record that
-> this happened so it cannot be undone.  key->enabled is now in an
-> unknown state.
+On 05/16/2012 01:55 AM, David Rientjes wrote:
+> On Fri, 11 May 2012, Glauber Costa wrote:
+>
+>> When the slub code wants to know if the sysfs state has already been
+>> initialized, it tests for slab_state == SYSFS. This is quite fragile,
+>> since new state can be added in the future (it is, in fact, for
+>> memcg caches). This patch fixes this behavior so the test matches
+>>> = SYSFS, as all other state does.
+>>
+>> Signed-off-by: Glauber Costa<glommer@parallels.com>
+>
+> Acked-by: David Rientjes<rientjes@google.com>
+>
+> Can be merged now, there's no dependency on the rest of this patchset.
 
-Kame, Tejun,
-
-Andrew is right. It seems we will need that mutex after all. Just this 
-is not a race, and neither something that should belong in the 
-static_branch interface.
-
-We want to make sure that enabled is not updated before the jump label 
-update, because we need a specific ordering guarantee at the patched 
-sites. And *that*, the interface guarantees, and we were wrong to 
-believe it did not. That is a correction issue for the accounting, and 
-that part is right.
-
-But when we disarm it, we'll need to make sure that happened only once, 
-otherwise we may never unpatch it. That, or we'd need that to be a 
-counter. The jump label interface does not - and should not - keep track 
-of how many updates happened to a key. That's the role of whoever is 
-using it.
-
-If you agree with the above, I'll send this patch again with the correction.
-
-Andrew, thank you very much. Do you spot anything else here?
-
-
+So, is anyone taking this? I plan another submission this week, let me 
+know if I should include these two patches or not.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
