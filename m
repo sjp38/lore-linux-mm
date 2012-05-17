@@ -1,55 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx116.postini.com [74.125.245.116])
-	by kanga.kvack.org (Postfix) with SMTP id EC9046B0082
-	for <linux-mm@kvack.org>; Thu, 17 May 2012 17:07:33 -0400 (EDT)
-Date: Thu, 17 May 2012 16:07:30 -0500 (CDT)
-From: Christoph Lameter <cl@linux.com>
-Subject: Huge pages: Memory leak on mmap failure
-Message-ID: <alpine.DEB.2.00.1205171605001.19076@router.home>
+Received: from psmtp.com (na3sys010amx150.postini.com [74.125.245.150])
+	by kanga.kvack.org (Postfix) with SMTP id 0440B6B0083
+	for <linux-mm@kvack.org>; Thu, 17 May 2012 17:09:01 -0400 (EDT)
+Date: Thu, 17 May 2012 23:08:49 +0200
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [patch 0/5] refault distance-based file cache sizing
+Message-ID: <20120517210849.GE1800@cmpxchg.org>
+References: <1335861713-4573-1-git-send-email-hannes@cmpxchg.org>
+ <4FB33A4E.1010208@gmail.com>
+ <20120516065132.GC1769@cmpxchg.org>
+ <4FB3A416.9010703@gmail.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <4FB3A416.9010703@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: Dave Hansen <dave@linux.vnet.ibm.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Hugh Dickins <hughd@google.com>, David Rientjes <rientjes@google.com>, Alexey Dobriyan <adobriyan@gmail.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
+To: "nai.xia" <nai.xia@gmail.com>
+Cc: linux-mm@kvack.org, Rik van Riel <riel@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Minchan Kim <minchan.kim@gmail.com>, Hugh Dickins <hughd@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
 
+On Wed, May 16, 2012 at 08:56:54PM +0800, nai.xia wrote:
+> On 2012/05/16 14:51, Johannes Weiner wrote:
+> >There may have been improvements from clock-pro, but it's hard to get
+> >code merged that does not behave as expected in theory with nobody
+> >understanding what's going on.
 
-On 2.6.32 and 3.4-rc6 mmap failure of a huge page causes a memory
-leak. The 32 byte kmalloc cache grows by 10 mio entries if running
-the following code:
+Damn, that sounded way harsher and arrogant than I wanted it to sound.
+And it's only based on what I gathered from the discussions on the
+list archives.  Sorry :(
 
---------
-#include <sys/mman.h>
-#include <stdlib.h>
+> OK, I assume that you do aware that the system you constructed with
+> this simple and understandable idea looks like a so called "feedback
+> system"? Or in other words, I think theoretically the refault-distance
+> of a page before and after your algorithm is applied is not the same.
+> And this changed refault-distance pattern is then feed as input into
+> your algorithm. A feedback system may be hard(and may be simple) to
+> analyze but may also work well magically.
 
-#ifndef MAP_HUGETLB
-#define MAP_HUGETLB 0x0040000
-#endif
+I'm with you on that, but I can't see an alternative in this case.  We
+can't predict future page accesses very well, so we have to take
+speculative shots and be considerate about the consequences.
 
-int main() {
-    for (int i=0; i!=10000000; ++i) {
-        void* ptr=mmap(NULL, 2*1024*1024, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS|MAP_HUGETLB, 0, 0);
-        if (ptr!=MAP_FAILED) abort();
-    }
-    return 0;
-}
-
--------
-
-
-g++ -O2 test.cpp && echo good
-good
-
-$ egrep 'SUnreclaim|HugePages_Total' /proc/meminfo
-SUnreclaim:      1900756 kB
-HugePages_Total:       0
-
-$ ./a.out && echo good
-good
-
-$ egrep 'SUnreclaim|HugePages_Total' /proc/meminfo
-SUnreclaim:      2213268 kB
-HugePages_Total:       0
+And BECAUSE we may get it wrong, the algorithm does not rely on the
+decisions it makes to be correct.  For example, it does not activate
+pages based on refault distance, but requires the refaulted page to
+win the race against an actual active page.  Likewise, pages are not
+evicted from the active list directly, instead they get a chance at
+re-activation when challenged.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
