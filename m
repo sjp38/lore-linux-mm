@@ -1,65 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx193.postini.com [74.125.245.193])
-	by kanga.kvack.org (Postfix) with SMTP id 748066B0082
-	for <linux-mm@kvack.org>; Thu, 17 May 2012 04:05:33 -0400 (EDT)
-Message-ID: <4FB4B177.9020804@kernel.org>
-Date: Thu, 17 May 2012 17:06:15 +0900
+Received: from psmtp.com (na3sys010amx130.postini.com [74.125.245.130])
+	by kanga.kvack.org (Postfix) with SMTP id 258EB6B0082
+	for <linux-mm@kvack.org>; Thu, 17 May 2012 04:10:26 -0400 (EDT)
+Message-ID: <4FB4B29C.4010908@kernel.org>
+Date: Thu, 17 May 2012 17:11:08 +0900
 From: Minchan Kim <minchan@kernel.org>
 MIME-Version: 1.0
-Subject: Re: [PATCH v2 2/3] remove dependency with x86
-References: <1337133919-4182-1-git-send-email-minchan@kernel.org> <1337133919-4182-2-git-send-email-minchan@kernel.org> <4FB3DFDB.80605@linux.vnet.ibm.com>
-In-Reply-To: <4FB3DFDB.80605@linux.vnet.ibm.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Subject: Re: [PATCH v2 3/3] x86: Support local_flush_tlb_kernel_range
+References: <1337133919-4182-1-git-send-email-minchan@kernel.org> <1337133919-4182-3-git-send-email-minchan@kernel.org>
+In-Reply-To: <1337133919-4182-3-git-send-email-minchan@kernel.org>
+Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Seth Jennings <sjenning@linux.vnet.ibm.com>
-Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Nitin Gupta <ngupta@vflare.org>, Dan Magenheimer <dan.magenheimer@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Nitin Gupta <ngupta@vflare.org>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Dan Magenheimer <dan.magenheimer@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, Tejun Heo <tj@kernel.org>, David Howells <dhowells@redhat.com>, x86@kernel.org, a.p.zijlstra@chello.nl, Nick Piggin <npiggin@gmail.com>
 
-On 05/17/2012 02:11 AM, Seth Jennings wrote:
+Isn't there anyone for taking a time to review this patch? :)
 
-> On 05/15/2012 09:05 PM, Minchan Kim wrote:
+On 05/16/2012 11:05 AM, Minchan Kim wrote:
+
+> The zsmalloc [un]maps non-physical contiguos pages to contiguous
+> virual address frequently so it needs frequent tlb-flush.
+> Now x86 doesn't support common utility function for flushing just
+> a few tlb entries so zsmalloc have been used set_pte and __flush_tlb_one
+> which are x86 specific functions. It means zsmalloc have a dependency
+> with x86.
 > 
->> Exactly saying, [zram|zcache] should has a dependency with
->> zsmalloc, not x86. So replace x86 dependeny with ZSMALLOC.
->>
->> Reviewed-by: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
->> Signed-off-by: Minchan Kim <minchan@kernel.org>
->> ---
->>  drivers/staging/zcache/Kconfig |    3 +--
->>  drivers/staging/zram/Kconfig   |    3 +--
->>  2 files changed, 2 insertions(+), 4 deletions(-)
->>
->> diff --git a/drivers/staging/zcache/Kconfig b/drivers/staging/zcache/Kconfig
->> index 7048e01..ceb7f28 100644
->> --- a/drivers/staging/zcache/Kconfig
->> +++ b/drivers/staging/zcache/Kconfig
->> @@ -2,8 +2,7 @@ config ZCACHE
->>  	bool "Dynamic compression of swap pages and clean pagecache pages"
->>  	# X86 dependency is because zsmalloc uses non-portable pte/tlb
->>  	# functions
->> -	depends on (CLEANCACHE || FRONTSWAP) && CRYPTO=y && X86
->> -	select ZSMALLOC
->> +	depends on (CLEANCACHE || FRONTSWAP) && CRYPTO=y && ZSMALLOC
+> This patch adds new function, local_flush_tlb_kernel_range which
+> are good candidate for being common utility function because other
+> architecture(ex, MIPS, sh, unicore32, arm, score) already have
+> supportd it.
 > 
+> Cc: Thomas Gleixner <tglx@linutronix.de>
+> Cc: Ingo Molnar <mingo@redhat.com>
+> Cc: Tejun Heo <tj@kernel.org>
+> Cc: David Howells <dhowells@redhat.com>
+> Cc: x86@kernel.org
+> Signed-off-by: Minchan Kim <minchan@kernel.org>
+> ---
+>  arch/x86/include/asm/tlbflush.h  |   12 ++++++++++++
+>  drivers/staging/zsmalloc/Kconfig |    2 +-
+>  2 files changed, 13 insertions(+), 1 deletion(-)
 > 
-> Sorry Minchan, I should have said this the first time around.  I ran
-> into this issue before with CRYTPO vs CRYPTO=y.  ZCACHE is a bool where
-> ZSMALLOC is a tristate.  It is not sufficient for ZSMALLOC to be set; it
-> _must_ be builtin, otherwise you get linker errors.
-
->
-
-> The dependency should be ZSMALLOC=y.
-
-
-Sigh. I should have been more careful.
-Thanks. I will fix it in next spin.
-
-> 
-> Thanks,
-> Seth
-> 
+> diff --git a/arch/x86/include/asm/tlbflush.h b/arch/x86/include/asm/tlbflush.h
+> index 4ece077..6e1253a 100644
+> --- a/arch/x86/include/asm/tlbflush.h
+> +++ b/arch/x86/include/asm/tlbflush.h
+> @@ -172,4 +172,16 @@ static inline void flush_tlb_kernel_range(unsigned long start,
+>  	flush_tlb_all();
+>  }
+>  
+> +static inline void local_flush_tlb_kernel_range(unsigned long start,
+> +		unsigned long end)
+> +{
+> +	if (cpu_has_invlpg) {
+> +		while (start < end) {
+> +			__flush_tlb_single(start);
+> +			start += PAGE_SIZE;
+> +		}
+> +	} else
+> +		local_flush_tlb();
+> +}
+> +
+>  #endif /* _ASM_X86_TLBFLUSH_H */
+> diff --git a/drivers/staging/zsmalloc/Kconfig b/drivers/staging/zsmalloc/Kconfig
+> index def2483..29819b8 100644
+> --- a/drivers/staging/zsmalloc/Kconfig
+> +++ b/drivers/staging/zsmalloc/Kconfig
+> @@ -3,7 +3,7 @@ config ZSMALLOC
+>  	# arch dependency is because of the use of local_unmap_kernel_range
+>  	# in zsmalloc-main.c.
+>  	# TODO: implement local_unmap_kernel_range in all architecture.
+> -	depends on (ARM || MIPS || SUPERH)
+> +	depends on (ARM || MIPS || SUPERH || X86)
+>  	default n
+>  	help
+>  	  zsmalloc is a slab-based memory allocator designed to store
 
 
 
