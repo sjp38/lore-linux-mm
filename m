@@ -1,45 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx183.postini.com [74.125.245.183])
-	by kanga.kvack.org (Postfix) with SMTP id 067FC6B0092
-	for <linux-mm@kvack.org>; Thu, 17 May 2012 17:56:51 -0400 (EDT)
-Message-ID: <1337291805.4281.97.camel@twins>
-Subject: Re: [PATCH 1/2] lib: Proportions with flexible period
-From: Peter Zijlstra <peterz@infradead.org>
-Date: Thu, 17 May 2012 23:56:45 +0200
-In-Reply-To: <1337096583-6049-2-git-send-email-jack@suse.cz>
-References: <1337096583-6049-1-git-send-email-jack@suse.cz>
-	 <1337096583-6049-2-git-send-email-jack@suse.cz>
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: quoted-printable
-Mime-Version: 1.0
+Received: from psmtp.com (na3sys010amx116.postini.com [74.125.245.116])
+	by kanga.kvack.org (Postfix) with SMTP id 251F66B00E8
+	for <linux-mm@kvack.org>; Thu, 17 May 2012 17:58:57 -0400 (EDT)
+Received: from /spool/local
+	by e35.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <dave@linux.vnet.ibm.com>;
+	Thu, 17 May 2012 15:58:56 -0600
+Received: from d03relay01.boulder.ibm.com (d03relay01.boulder.ibm.com [9.17.195.226])
+	by d03dlp03.boulder.ibm.com (Postfix) with ESMTP id A263619D804C
+	for <linux-mm@kvack.org>; Thu, 17 May 2012 15:58:40 -0600 (MDT)
+Received: from d03av04.boulder.ibm.com (d03av04.boulder.ibm.com [9.17.195.170])
+	by d03relay01.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q4HLwqgW202032
+	for <linux-mm@kvack.org>; Thu, 17 May 2012 15:58:52 -0600
+Received: from d03av04.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av04.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q4HLwoTw023227
+	for <linux-mm@kvack.org>; Thu, 17 May 2012 15:58:51 -0600
+Message-ID: <4FB57493.3070308@linux.vnet.ibm.com>
+Date: Thu, 17 May 2012 14:58:43 -0700
+From: Dave Hansen <dave@linux.vnet.ibm.com>
+MIME-Version: 1.0
+Subject: Re: Huge pages: Memory leak on mmap failure
+References: <alpine.DEB.2.00.1205171605001.19076@router.home>
+In-Reply-To: <alpine.DEB.2.00.1205171605001.19076@router.home>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jan Kara <jack@suse.cz>
-Cc: Wu Fengguang <fengguang.wu@intel.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: Christoph Lameter <cl@linux.com>
+Cc: Andrea Arcangeli <aarcange@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Hugh Dickins <hughd@google.com>, David Rientjes <rientjes@google.com>, Alexey Dobriyan <adobriyan@gmail.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
 
-On Tue, 2012-05-15 at 17:43 +0200, Jan Kara wrote:
-> +void fprop_fraction_percpu(struct fprop_global *p,
-> +                          struct fprop_local_percpu *pl,
-> +                          unsigned long *numerator, unsigned long *denom=
-inator)
-> +{
-> +       unsigned int seq;
-> +       s64 den;
-> +
-> +       do {
-> +               seq =3D read_seqcount_begin(&p->sequence);
-> +               fprop_reflect_period_percpu(p, pl);
-> +               *numerator =3D percpu_counter_read_positive(&pl->events);
-> +               den =3D percpu_counter_read(&p->events);
-> +               if (den <=3D 0)
-> +                       den =3D percpu_counter_sum(&p->events);
-> +               *denominator =3D den;
-> +       } while (read_seqcount_retry(&p->sequence, seq));
-> +}=20
+On 05/17/2012 02:07 PM, Christoph Lameter wrote:
+> 
+> On 2.6.32 and 3.4-rc6 mmap failure of a huge page causes a memory
+> leak. The 32 byte kmalloc cache grows by 10 mio entries if running
+> the following code:
 
+Urg.  Looks like the resv_maps, probably.  I'll take a look.
 
-why not use percpu_counter_read_positive(&p->events) and ditch
-percpu_counter_sum()? That sum can be terribly expensive..
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
