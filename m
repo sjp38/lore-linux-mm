@@ -1,300 +1,288 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx108.postini.com [74.125.245.108])
-	by kanga.kvack.org (Postfix) with SMTP id F361A6B0083
-	for <linux-mm@kvack.org>; Fri, 18 May 2012 12:19:29 -0400 (EDT)
-Message-Id: <20120518161927.549888128@linux.com>
-Date: Fri, 18 May 2012 11:19:07 -0500
+Received: from psmtp.com (na3sys010amx101.postini.com [74.125.245.101])
+	by kanga.kvack.org (Postfix) with SMTP id C041D6B00E7
+	for <linux-mm@kvack.org>; Fri, 18 May 2012 12:19:30 -0400 (EDT)
+Message-Id: <20120518161928.691250633@linux.com>
+Date: Fri, 18 May 2012 11:19:09 -0500
 From: Christoph Lameter <cl@linux.com>
-Subject: [RFC] Common code 01/12] [slob] define page struct fields used in mm_types.h
+Subject: [RFC] Common code 03/12] Extract common fields from struct kmem_cache
 References: <20120518161906.207356777@linux.com>
-Content-Disposition: inline; filename=slob_use_page_struct
+Content-Disposition: inline; filename=common_fields
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Pekka Enberg <penberg@kernel.org>
 Cc: linux-mm@kvack.org, David Rientjes <rientjes@google.com>, Matt Mackall <mpm@selenic.com>, Glauber Costa <glommer@parallels.com>, Joonsoo Kim <js1304@gmail.com>, Alex Shi <alex.shi@intel.com>
 
-Define the fields used by slob in mm_types.h and use struct page instead
-of struct slob_page in slob. This cleans up numerous of typecasts in slob.c and
-makes readers aware of slob's use of page struct fields.
+Define "COMMON" to include definitions for fields used in all
+slab allocators. After that it will be possible to share code that
+only operates on those fields of kmem_cache.
 
-[Also cleans up some bitrot in slob.c. The page struct field layout
-in slob.c is an old layout and does not match the one in mm_types.h]
+The patch basically takes the slob definition of kmem cache and
+uses the field namees for the other allocators.
+
+The slob definition of kmem_cache is moved from slob.c to slob_def.h
+so that the location of the kmem_cache definition is the same for
+all allocators.
 
 Signed-off-by: Christoph Lameter <cl@linux.com>
 
 ---
- include/linux/mm_types.h |    6 +-
- mm/slob.c                |   95 ++++++++++++++++++-----------------------------
- 2 files changed, 41 insertions(+), 60 deletions(-)
+ include/linux/slab.h     |   11 +++++++++++
+ include/linux/slab_def.h |    8 ++------
+ include/linux/slob_def.h |    4 ++++
+ include/linux/slub_def.h |   11 ++++-------
+ mm/slab.c                |   30 +++++++++++++++---------------
+ mm/slob.c                |    7 -------
+ 6 files changed, 36 insertions(+), 35 deletions(-)
 
+Index: linux-2.6/include/linux/slab.h
+===================================================================
+--- linux-2.6.orig/include/linux/slab.h	2012-05-15 04:24:47.781672177 -0500
++++ linux-2.6/include/linux/slab.h	2012-05-16 04:40:24.143862602 -0500
+@@ -93,6 +93,17 @@
+ 				(unsigned long)ZERO_SIZE_PTR)
+ 
+ /*
++ * Common fields provided in kmem_cache by all slab allocators
++ */
++#define SLAB_COMMON \
++	unsigned int size, align;					\
++	unsigned long flags;						\
++	const char *name;						\
++	int refcount;							\
++	void (*ctor)(void *);						\
++	struct list_head list;
++
++/*
+  * struct kmem_cache related prototypes
+  */
+ void __init kmem_cache_init(void);
+Index: linux-2.6/include/linux/slab_def.h
+===================================================================
+--- linux-2.6.orig/include/linux/slab_def.h	2012-05-15 04:24:47.757672180 -0500
++++ linux-2.6/include/linux/slab_def.h	2012-05-16 04:40:24.143862602 -0500
+@@ -31,7 +31,6 @@ struct kmem_cache {
+ 	u32 reciprocal_buffer_size;
+ /* 2) touched by every alloc & free from the backend */
+ 
+-	unsigned int flags;		/* constant flags */
+ 	unsigned int num;		/* # of objs per slab */
+ 
+ /* 3) cache_grow/shrink */
+@@ -47,12 +46,9 @@ struct kmem_cache {
+ 	unsigned int slab_size;
+ 	unsigned int dflags;		/* dynamic flags */
+ 
+-	/* constructor func */
+-	void (*ctor)(void *obj);
+-
+ /* 4) cache creation/removal */
+-	const char *name;
+-	struct list_head next;
++
++	SLAB_COMMON
+ 
+ /* 5) statistics */
+ #ifdef CONFIG_DEBUG_SLAB
+Index: linux-2.6/include/linux/slub_def.h
+===================================================================
+--- linux-2.6.orig/include/linux/slub_def.h	2012-05-16 04:32:33.243872269 -0500
++++ linux-2.6/include/linux/slub_def.h	2012-05-16 04:40:24.143862602 -0500
+@@ -80,9 +80,7 @@ struct kmem_cache_order_objects {
+ struct kmem_cache {
+ 	struct kmem_cache_cpu __percpu *cpu_slab;
+ 	/* Used for retriving partial slabs etc */
+-	unsigned long flags;
+ 	unsigned long min_partial;
+-	int size;		/* The size of an object including meta data */
+ 	int objsize;		/* The size of an object without meta data */
+ 	int offset;		/* Free pointer offset. */
+ 	int cpu_partial;	/* Number of per cpu partial objects to keep around */
+@@ -92,13 +90,12 @@ struct kmem_cache {
+ 	struct kmem_cache_order_objects max;
+ 	struct kmem_cache_order_objects min;
+ 	gfp_t allocflags;	/* gfp flags to use on each alloc */
+-	int refcount;		/* Refcount for slab cache destroy */
+-	void (*ctor)(void *);
++
++	SLAB_COMMON
++
+ 	int inuse;		/* Offset to metadata */
+-	int align;		/* Alignment */
+ 	int reserved;		/* Reserved bytes at the end of slabs */
+-	const char *name;	/* Name (only for display!) */
+-	struct list_head list;	/* List of slab caches */
++
+ #ifdef CONFIG_SYSFS
+ 	struct kobject kobj;	/* For sysfs */
+ #endif
 Index: linux-2.6/mm/slob.c
 ===================================================================
---- linux-2.6.orig/mm/slob.c	2012-05-16 04:38:50.139864464 -0500
-+++ linux-2.6/mm/slob.c	2012-05-17 03:28:03.630162187 -0500
-@@ -92,33 +92,12 @@ struct slob_block {
- typedef struct slob_block slob_t;
- 
- /*
-- * We use struct page fields to manage some slob allocation aspects,
-- * however to avoid the horrible mess in include/linux/mm_types.h, we'll
-- * just define our own struct page type variant here.
-- */
--struct slob_page {
--	union {
--		struct {
--			unsigned long flags;	/* mandatory */
--			atomic_t _count;	/* mandatory */
--			slobidx_t units;	/* free units left in page */
--			unsigned long pad[2];
--			slob_t *free;		/* first free slob_t in page */
--			struct list_head list;	/* linked list of free pages */
--		};
--		struct page page;
--	};
--};
--static inline void struct_slob_page_wrong_size(void)
--{ BUILD_BUG_ON(sizeof(struct slob_page) != sizeof(struct page)); }
--
--/*
-  * free_slob_page: call before a slob_page is returned to the page allocator.
-  */
--static inline void free_slob_page(struct slob_page *sp)
-+static inline void free_slob_page(struct page *sp)
- {
--	reset_page_mapcount(&sp->page);
--	sp->page.mapping = NULL;
-+	reset_page_mapcount(sp);
-+	sp->mapping = NULL;
- }
- 
- /*
-@@ -133,44 +112,44 @@ static LIST_HEAD(free_slob_large);
- /*
-  * is_slob_page: True for all slob pages (false for bigblock pages)
-  */
--static inline int is_slob_page(struct slob_page *sp)
-+static inline int is_slob_page(struct page *sp)
- {
--	return PageSlab((struct page *)sp);
-+	return PageSlab(sp);
- }
- 
--static inline void set_slob_page(struct slob_page *sp)
-+static inline void set_slob_page(struct page *sp)
- {
--	__SetPageSlab((struct page *)sp);
-+	__SetPageSlab(sp);
- }
- 
--static inline void clear_slob_page(struct slob_page *sp)
-+static inline void clear_slob_page(struct page *sp)
- {
--	__ClearPageSlab((struct page *)sp);
-+	__ClearPageSlab(sp);
- }
- 
--static inline struct slob_page *slob_page(const void *addr)
-+static inline struct page *slob_page(const void *addr)
- {
--	return (struct slob_page *)virt_to_page(addr);
-+	return virt_to_page(addr);
- }
- 
- /*
-  * slob_page_free: true for pages on free_slob_pages list.
-  */
--static inline int slob_page_free(struct slob_page *sp)
-+static inline int slob_page_free(struct page *sp)
- {
--	return PageSlobFree((struct page *)sp);
-+	return PageSlobFree(sp);
- }
- 
--static void set_slob_page_free(struct slob_page *sp, struct list_head *list)
-+static void set_slob_page_free(struct page *sp, struct list_head *list)
- {
- 	list_add(&sp->list, list);
--	__SetPageSlobFree((struct page *)sp);
-+	__SetPageSlobFree(sp);
- }
- 
--static inline void clear_slob_page_free(struct slob_page *sp)
-+static inline void clear_slob_page_free(struct page *sp)
- {
- 	list_del(&sp->list);
--	__ClearPageSlobFree((struct page *)sp);
-+	__ClearPageSlobFree(sp);
- }
- 
- #define SLOB_UNIT sizeof(slob_t)
-@@ -267,12 +246,12 @@ static void slob_free_pages(void *b, int
- /*
-  * Allocate a slob block within a given slob_page sp.
-  */
--static void *slob_page_alloc(struct slob_page *sp, size_t size, int align)
-+static void *slob_page_alloc(struct page *sp, size_t size, int align)
- {
- 	slob_t *prev, *cur, *aligned = NULL;
- 	int delta = 0, units = SLOB_UNITS(size);
- 
--	for (prev = NULL, cur = sp->free; ; prev = cur, cur = slob_next(cur)) {
-+	for (prev = NULL, cur = sp->freelist; ; prev = cur, cur = slob_next(cur)) {
- 		slobidx_t avail = slob_units(cur);
- 
- 		if (align) {
-@@ -296,12 +275,12 @@ static void *slob_page_alloc(struct slob
- 				if (prev)
- 					set_slob(prev, slob_units(prev), next);
- 				else
--					sp->free = next;
-+					sp->freelist = next;
- 			} else { /* fragment */
- 				if (prev)
- 					set_slob(prev, slob_units(prev), cur + units);
- 				else
--					sp->free = cur + units;
-+					sp->freelist = cur + units;
- 				set_slob(cur + units, avail - units, next);
- 			}
- 
-@@ -320,7 +299,7 @@ static void *slob_page_alloc(struct slob
-  */
- static void *slob_alloc(size_t size, gfp_t gfp, int align, int node)
- {
--	struct slob_page *sp;
-+	struct page *sp;
- 	struct list_head *prev;
- 	struct list_head *slob_list;
- 	slob_t *b = NULL;
-@@ -341,7 +320,7 @@ static void *slob_alloc(size_t size, gfp
- 		 * If there's a node specification, search for a partial
- 		 * page with a matching node id in the freelist.
- 		 */
--		if (node != -1 && page_to_nid(&sp->page) != node)
-+		if (node != -1 && page_to_nid(sp) != node)
- 			continue;
- #endif
- 		/* Enough room on this page? */
-@@ -374,7 +353,7 @@ static void *slob_alloc(size_t size, gfp
- 
- 		spin_lock_irqsave(&slob_lock, flags);
- 		sp->units = SLOB_UNITS(PAGE_SIZE);
--		sp->free = b;
-+		sp->freelist = b;
- 		INIT_LIST_HEAD(&sp->list);
- 		set_slob(b, SLOB_UNITS(PAGE_SIZE), b + SLOB_UNITS(PAGE_SIZE));
- 		set_slob_page_free(sp, slob_list);
-@@ -392,7 +371,7 @@ static void *slob_alloc(size_t size, gfp
-  */
- static void slob_free(void *block, int size)
- {
--	struct slob_page *sp;
-+	struct page *sp;
- 	slob_t *prev, *next, *b = (slob_t *)block;
- 	slobidx_t units;
- 	unsigned long flags;
-@@ -421,7 +400,7 @@ static void slob_free(void *block, int s
- 	if (!slob_page_free(sp)) {
- 		/* This slob page is about to become partially free. Easy! */
- 		sp->units = units;
--		sp->free = b;
-+		sp->freelist = b;
- 		set_slob(b, units,
- 			(void *)((unsigned long)(b +
- 					SLOB_UNITS(PAGE_SIZE)) & PAGE_MASK));
-@@ -441,15 +420,15 @@ static void slob_free(void *block, int s
- 	 */
- 	sp->units += units;
- 
--	if (b < sp->free) {
--		if (b + units == sp->free) {
--			units += slob_units(sp->free);
--			sp->free = slob_next(sp->free);
-+	if (b < (slob_t *)sp->freelist) {
-+		if (b + units == sp->freelist) {
-+			units += slob_units(sp->freelist);
-+			sp->freelist = slob_next(sp->freelist);
- 		}
--		set_slob(b, units, sp->free);
--		sp->free = b;
-+		set_slob(b, units, sp->freelist);
-+		sp->freelist = b;
- 	} else {
--		prev = sp->free;
-+		prev = sp->freelist;
- 		next = slob_next(prev);
- 		while (b > next) {
- 			prev = next;
-@@ -522,7 +501,7 @@ EXPORT_SYMBOL(__kmalloc_node);
- 
- void kfree(const void *block)
- {
--	struct slob_page *sp;
-+	struct page *sp;
- 
- 	trace_kfree(_RET_IP_, block);
- 
-@@ -536,14 +515,14 @@ void kfree(const void *block)
- 		unsigned int *m = (unsigned int *)(block - align);
- 		slob_free(m, *m + align);
- 	} else
--		put_page(&sp->page);
-+		put_page(sp);
- }
- EXPORT_SYMBOL(kfree);
- 
- /* can't use ksize for kmem_cache_alloc memory, only kmalloc */
- size_t ksize(const void *block)
- {
--	struct slob_page *sp;
-+	struct page *sp;
- 
- 	BUG_ON(!block);
- 	if (unlikely(block == ZERO_SIZE_PTR))
-@@ -555,7 +534,7 @@ size_t ksize(const void *block)
- 		unsigned int *m = (unsigned int *)(block - align);
- 		return SLOB_UNITS(*m) * SLOB_UNIT;
- 	} else
--		return sp->page.private;
-+		return sp->private;
+--- linux-2.6.orig/mm/slob.c	2012-05-16 04:39:04.671864156 -0500
++++ linux-2.6/mm/slob.c	2012-05-16 04:40:24.143862602 -0500
+@@ -538,13 +538,6 @@ size_t ksize(const void *block)
  }
  EXPORT_SYMBOL(ksize);
  
-Index: linux-2.6/include/linux/mm_types.h
+-struct kmem_cache {
+-	unsigned int size, align;
+-	unsigned long flags;
+-	const char *name;
+-	void (*ctor)(void *);
+-};
+-
+ struct kmem_cache *kmem_cache_create(const char *name, size_t size,
+ 	size_t align, unsigned long flags, void (*ctor)(void *))
+ {
+Index: linux-2.6/mm/slab.c
 ===================================================================
---- linux-2.6.orig/include/linux/mm_types.h	2012-05-16 04:38:50.131864458 -0500
-+++ linux-2.6/include/linux/mm_types.h	2012-05-17 03:28:03.630162187 -0500
-@@ -52,7 +52,7 @@ struct page {
- 	struct {
- 		union {
- 			pgoff_t index;		/* Our offset within mapping. */
--			void *freelist;		/* slub first free object */
-+			void *freelist;		/* slub/slob first free object */
- 		};
+--- linux-2.6.orig/mm/slab.c	2012-05-16 04:39:08.435864090 -0500
++++ linux-2.6/mm/slab.c	2012-05-16 04:40:24.143862602 -0500
+@@ -1153,7 +1153,7 @@ static int init_cache_nodelists_node(int
+ 	struct kmem_list3 *l3;
+ 	const int memsize = sizeof(struct kmem_list3);
  
- 		union {
-@@ -80,11 +80,12 @@ struct page {
- 					 */
- 					atomic_t _mapcount;
+-	list_for_each_entry(cachep, &cache_chain, next) {
++	list_for_each_entry(cachep, &cache_chain, list) {
+ 		/*
+ 		 * Set up the size64 kmemlist for cpu before we can
+ 		 * begin anything. Make sure some other cpu on this
+@@ -1191,7 +1191,7 @@ static void __cpuinit cpuup_canceled(lon
+ 	int node = cpu_to_mem(cpu);
+ 	const struct cpumask *mask = cpumask_of_node(node);
  
--					struct {
-+					struct { /* SLUB */
- 						unsigned inuse:16;
- 						unsigned objects:15;
- 						unsigned frozen:1;
- 					};
-+					int units;	/* SLOB */
- 				};
- 				atomic_t _count;		/* Usage count, see below. */
- 			};
-@@ -96,6 +97,7 @@ struct page {
- 		struct list_head lru;	/* Pageout list, eg. active_list
- 					 * protected by zone->lru_lock !
- 					 */
-+		struct list_head list;	/* slobs list of pages */
- 		struct {		/* slub per cpu partial pages */
- 			struct page *next;	/* Next partial slab */
- #ifdef CONFIG_64BIT
+-	list_for_each_entry(cachep, &cache_chain, next) {
++	list_for_each_entry(cachep, &cache_chain, list) {
+ 		struct array_cache *nc;
+ 		struct array_cache *shared;
+ 		struct array_cache **alien;
+@@ -1241,7 +1241,7 @@ free_array_cache:
+ 	 * the respective cache's slabs,  now we can go ahead and
+ 	 * shrink each nodelist to its limit.
+ 	 */
+-	list_for_each_entry(cachep, &cache_chain, next) {
++	list_for_each_entry(cachep, &cache_chain, list) {
+ 		l3 = cachep->nodelists[node];
+ 		if (!l3)
+ 			continue;
+@@ -1270,7 +1270,7 @@ static int __cpuinit cpuup_prepare(long
+ 	 * Now we can go ahead with allocating the shared arrays and
+ 	 * array caches
+ 	 */
+-	list_for_each_entry(cachep, &cache_chain, next) {
++	list_for_each_entry(cachep, &cache_chain, list) {
+ 		struct array_cache *nc;
+ 		struct array_cache *shared = NULL;
+ 		struct array_cache **alien = NULL;
+@@ -1402,7 +1402,7 @@ static int __meminit drain_cache_nodelis
+ 	struct kmem_cache *cachep;
+ 	int ret = 0;
+ 
+-	list_for_each_entry(cachep, &cache_chain, next) {
++	list_for_each_entry(cachep, &cache_chain, list) {
+ 		struct kmem_list3 *l3;
+ 
+ 		l3 = cachep->nodelists[node];
+@@ -1545,7 +1545,7 @@ void __init kmem_cache_init(void)
+ 
+ 	/* 1) create the cache_cache */
+ 	INIT_LIST_HEAD(&cache_chain);
+-	list_add(&cache_cache.next, &cache_chain);
++	list_add(&cache_cache.list, &cache_chain);
+ 	cache_cache.colour_off = cache_line_size();
+ 	cache_cache.array[smp_processor_id()] = &initarray_cache.cache;
+ 	cache_cache.nodelists[node] = &initkmem_list3[CACHE_CACHE + node];
+@@ -1690,7 +1690,7 @@ void __init kmem_cache_init_late(void)
+ 
+ 	/* 6) resize the head arrays to their final sizes */
+ 	mutex_lock(&cache_chain_mutex);
+-	list_for_each_entry(cachep, &cache_chain, next)
++	list_for_each_entry(cachep, &cache_chain, list)
+ 		if (enable_cpucache(cachep, GFP_NOWAIT))
+ 			BUG();
+ 	mutex_unlock(&cache_chain_mutex);
+@@ -2300,7 +2300,7 @@ kmem_cache_create (const char *name, siz
+ 		mutex_lock(&cache_chain_mutex);
+ 	}
+ 
+-	list_for_each_entry(pc, &cache_chain, next) {
++	list_for_each_entry(pc, &cache_chain, list) {
+ 		char tmp;
+ 		int res;
+ 
+@@ -2545,7 +2545,7 @@ kmem_cache_create (const char *name, siz
+ 	}
+ 
+ 	/* cache setup completed, link it into the list */
+-	list_add(&cachep->next, &cache_chain);
++	list_add(&cachep->list, &cache_chain);
+ oops:
+ 	if (!cachep && (flags & SLAB_PANIC))
+ 		panic("kmem_cache_create(): failed to create slab `%s'\n",
+@@ -2740,10 +2740,10 @@ void kmem_cache_destroy(struct kmem_cach
+ 	/*
+ 	 * the chain is never empty, cache_cache is never destroyed
+ 	 */
+-	list_del(&cachep->next);
++	list_del(&cachep->list);
+ 	if (__cache_shrink(cachep)) {
+ 		slab_error(cachep, "Can't free all objects");
+-		list_add(&cachep->next, &cache_chain);
++		list_add(&cachep->list, &cache_chain);
+ 		mutex_unlock(&cache_chain_mutex);
+ 		put_online_cpus();
+ 		return;
+@@ -4030,7 +4030,7 @@ static int alloc_kmemlist(struct kmem_ca
+ 	return 0;
+ 
+ fail:
+-	if (!cachep->next.next) {
++	if (!cachep->list.next) {
+ 		/* Cache is not active yet. Roll back what we did */
+ 		node--;
+ 		while (node >= 0) {
+@@ -4215,7 +4215,7 @@ static void cache_reap(struct work_struc
+ 		/* Give up. Setup the next iteration. */
+ 		goto out;
+ 
+-	list_for_each_entry(searchp, &cache_chain, next) {
++	list_for_each_entry(searchp, &cache_chain, list) {
+ 		check_irq_on();
+ 
+ 		/*
+@@ -4308,7 +4308,7 @@ static void s_stop(struct seq_file *m, v
+ 
+ static int s_show(struct seq_file *m, void *p)
+ {
+-	struct kmem_cache *cachep = list_entry(p, struct kmem_cache, next);
++	struct kmem_cache *cachep = list_entry(p, struct kmem_cache, list);
+ 	struct slab *slabp;
+ 	unsigned long active_objs;
+ 	unsigned long num_objs;
+@@ -4456,7 +4456,7 @@ static ssize_t slabinfo_write(struct fil
+ 	/* Find the cache in the chain of caches. */
+ 	mutex_lock(&cache_chain_mutex);
+ 	res = -EINVAL;
+-	list_for_each_entry(cachep, &cache_chain, next) {
++	list_for_each_entry(cachep, &cache_chain, list) {
+ 		if (!strcmp(cachep->name, kbuf)) {
+ 			if (limit < 1 || batchcount < 1 ||
+ 					batchcount > limit || shared < 0) {
+Index: linux-2.6/include/linux/slob_def.h
+===================================================================
+--- linux-2.6.orig/include/linux/slob_def.h	2012-05-16 04:36:53.243866880 -0500
++++ linux-2.6/include/linux/slob_def.h	2012-05-16 04:40:52.439862271 -0500
+@@ -1,6 +1,10 @@
+ #ifndef __LINUX_SLOB_DEF_H
+ #define __LINUX_SLOB_DEF_H
+ 
++struct kmem_cache {
++	SLAB_COMMON
++};
++
+ void *kmem_cache_alloc_node(struct kmem_cache *, gfp_t flags, int node);
+ 
+ static __always_inline void *kmem_cache_alloc(struct kmem_cache *cachep,
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
