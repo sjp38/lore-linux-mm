@@ -1,61 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx132.postini.com [74.125.245.132])
-	by kanga.kvack.org (Postfix) with SMTP id C3F5B6B0082
-	for <linux-mm@kvack.org>; Thu, 17 May 2012 20:39:50 -0400 (EDT)
-Message-ID: <4FB59A82.2050705@kernel.org>
-Date: Fri, 18 May 2012 09:40:34 +0900
-From: Minchan Kim <minchan@kernel.org>
+Received: from psmtp.com (na3sys010amx156.postini.com [74.125.245.156])
+	by kanga.kvack.org (Postfix) with SMTP id C83BD6B00E8
+	for <linux-mm@kvack.org>; Thu, 17 May 2012 20:55:04 -0400 (EDT)
+Received: by ggm4 with SMTP id 4so3521749ggm.14
+        for <linux-mm@kvack.org>; Thu, 17 May 2012 17:55:03 -0700 (PDT)
 MIME-Version: 1.0
-Subject: Re: [PATCH] mm: consider all swapped back pages in used-once logic
-References: <1337246033-13719-1-git-send-email-mhocko@suse.cz>
-In-Reply-To: <1337246033-13719-1-git-send-email-mhocko@suse.cz>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <4FB580A9.6020305@linux.vnet.ibm.com>
+References: <alpine.DEB.2.00.1205171605001.19076@router.home> <4FB580A9.6020305@linux.vnet.ibm.com>
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Date: Thu, 17 May 2012 20:54:42 -0400
+Message-ID: <CAHGf_=r6rBR=R00+ktJO9Ad0fytOgjY3YUcrY+3pfYfM=iwjKQ@mail.gmail.com>
+Subject: Re: Huge pages: Memory leak on mmap failure
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>
+To: Dave Hansen <dave@linux.vnet.ibm.com>
+Cc: Christoph Lameter <cl@linux.com>, Andrea Arcangeli <aarcange@redhat.com>, Hugh Dickins <hughd@google.com>, David Rientjes <rientjes@google.com>, Alexey Dobriyan <adobriyan@gmail.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>
 
-On 05/17/2012 06:13 PM, Michal Hocko wrote:
+On Thu, May 17, 2012 at 6:50 PM, Dave Hansen <dave@linux.vnet.ibm.com> wrot=
+e:
+> On 05/17/2012 02:07 PM, Christoph Lameter wrote:
+>>
+>> On 2.6.32 and 3.4-rc6 mmap failure of a huge page causes a memory
+>> leak. The 32 byte kmalloc cache grows by 10 mio entries if running
+>> the following code:
+>
+> When called for anonymous (non-shared) mappings, hugetlb_reserve_pages()
+> does a resv_map_alloc(). =A0It depends on code in hugetlbfs's
+> vm_ops->close() to release that allocation.
+>
+> However, in the mmap() failure path, we do a plain unmap_region()
+> without the remove_vma() which actually calls vm_ops->close().
+>
+> As the code stands today, I think we can fix this by just making sure we
+> release the resv_map after hugetlb_acct_memory() fails. =A0But, this seem=
+s
+> like a bit of a superficial fix and if we end up with another path or
+> two that can return -ESOMETHING, this might get reintroduced. =A0The
+> assumption that vm_ops->close() will get called on all VMAs passed in to
+> hugetlbfs_file_mmap() seems like something that needs to get corrected.
 
-> [64574746 vmscan: detect mapped file pages used only once] made mapped pages
-> have another round in inactive list because they might be just short
-> lived and so we could consider them again next time. This heuristic
-> helps to reduce pressure on the active list with a streaming IO
-> worklods.
-> This patch fixes a regression introduced by this commit for heavy shmem
-> based workloads because unlike Anon pages, which are excluded from this
-> heuristic because they are usually long lived, shmem pages are handled
-> as a regular page cache.
-> This doesn't work quite well, unfortunately, if the workload is mostly
-> backed by shmem (in memory database sitting on 80% of memory) with a
-> streaming IO in the background (backup - up to 20% of memory). Anon
-> inactive list is full of (dirty) shmem pages when watermarks are
-> hit. Shmem pages are kept in the inactive list (they are referenced)
-> in the first round and it is hard to reclaim anything else so we reach
-> lower scanning priorities very quickly which leads to an excessive swap
-> out.
-> 
-> Let's fix this by excluding all swap backed pages (they tend to be long
-> lived wrt. the regular page cache anyway) from used-once heuristic and
-> rather activate them if they are referenced.
-> 
-> CC: Johannes Weiner <hannes@cmpxchg.org>
-> CC: Andrew Morton <akpm@linux-foundation.org>
-> CC: Mel Gorman <mel@csn.ul.ie>
-> CC: Minchan Kim <minchan@kernel.org>
-> CC: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> CC: Rik van Riel <riel@redhat.com>
-> CC: stable [2.6.34+]
-> Signed-off-by: Michal Hocko <mhocko@suse.cz>
-
-
-Reviewed-by: Minchan Kim <minchan@kernel.org>
-
-Good spot!
--- 
-Kind regards,
-Minchan Kim
+I agree. Now, resv_map_alloc() is called file open path and
+resv_map_free() is called vma close path. It seems asymmetry.
+It would be nice if resv_map_alloc can use vma->open ops.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
