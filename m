@@ -1,163 +1,267 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx202.postini.com [74.125.245.202])
-	by kanga.kvack.org (Postfix) with SMTP id C22258D0004
-	for <linux-mm@kvack.org>; Fri, 18 May 2012 12:19:35 -0400 (EDT)
-Message-Id: <20120518161933.891500516@linux.com>
-Date: Fri, 18 May 2012 11:19:18 -0500
+Received: from psmtp.com (na3sys010amx137.postini.com [74.125.245.137])
+	by kanga.kvack.org (Postfix) with SMTP id 989E66B00EF
+	for <linux-mm@kvack.org>; Fri, 18 May 2012 12:19:34 -0400 (EDT)
+Message-Id: <20120518161932.708441342@linux.com>
+Date: Fri, 18 May 2012 11:19:16 -0500
 From: Christoph Lameter <cl@linux.com>
-Subject: [RFC] Common code 12/12] [slauob]: Get rid of __kmem_cache_destroy
+Subject: [RFC] Common code 10/12] sl[aub]: Use the name "kmem_cache" for the slab cache with the kmem_cache structure.
 References: <20120518161906.207356777@linux.com>
-Content-Disposition: inline; filename=no_slab_specific_kmem_cache_destroy
+Content-Disposition: inline; filename=common_kmem_cache_name
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Pekka Enberg <penberg@kernel.org>
 Cc: linux-mm@kvack.org, David Rientjes <rientjes@google.com>, Matt Mackall <mpm@selenic.com>, Glauber Costa <glommer@parallels.com>, Joonsoo Kim <js1304@gmail.com>, Alex Shi <alex.shi@intel.com>
 
-Actions done there can be done in __kmem_cache_shutdown.
-
-This affects RCU handling somewhat. On rcu free all slab allocators
-do not refer to other management structures than the kmem_cache structure.
-Therefore these other structures can be freed before the rcu deferred
-free to the page allocator occurs.
+Make all allocators use the "kmem_cache" slabname for the "kmem_cache" structure.
 
 Signed-off-by: Christoph Lameter <cl@linux.com>
 
 ---
- mm/slab.c        |   43 +++++++++++++++++++++----------------------
- mm/slab.h        |    1 -
- mm/slab_common.c |    1 -
- mm/slob.c        |    4 ----
- mm/slub.c        |   10 +++++-----
- 5 files changed, 26 insertions(+), 33 deletions(-)
+ mm/slab.c        |   72 ++++++++++++++++++++++++++++---------------------------
+ mm/slab.h        |    6 ++++
+ mm/slab_common.c |    1 
+ mm/slob.c        |    3 ++
+ mm/slub.c        |    2 -
+ 5 files changed, 47 insertions(+), 37 deletions(-)
 
-Index: linux-2.6/mm/slob.c
-===================================================================
---- linux-2.6.orig/mm/slob.c	2012-05-18 03:37:48.184359806 -0500
-+++ linux-2.6/mm/slob.c	2012-05-18 03:39:12.100358071 -0500
-@@ -570,10 +570,6 @@ struct kmem_cache *__kmem_cache_create(c
- 	return c;
- }
- 
--void __kmem_cache_destroy(struct kmem_cache *c)
--{
--}
--
- void *kmem_cache_alloc_node(struct kmem_cache *c, gfp_t flags, int node)
- {
- 	void *b;
-Index: linux-2.6/mm/slub.c
-===================================================================
---- linux-2.6.orig/mm/slub.c	2012-05-18 03:37:48.184359806 -0500
-+++ linux-2.6/mm/slub.c	2012-05-18 03:39:12.104358068 -0500
-@@ -3170,12 +3170,12 @@ static inline int kmem_cache_close(struc
- 
- int __kmem_cache_shutdown(struct kmem_cache *s)
- {
--	return kmem_cache_close(s);
--}
-+	int rc = kmem_cache_close(s);
- 
--void __kmem_cache_destroy(struct kmem_cache *s)
--{
--	sysfs_slab_remove(s);
-+	if (!rc)
-+		sysfs_slab_remove(s);
-+
-+	return rc;
- }
- 
- /********************************************************************
 Index: linux-2.6/mm/slab.c
 ===================================================================
---- linux-2.6.orig/mm/slab.c	2012-05-18 03:37:48.188359801 -0500
-+++ linux-2.6/mm/slab.c	2012-05-18 03:39:12.104358068 -0500
-@@ -2071,26 +2071,6 @@ static void slab_destroy(struct kmem_cac
+--- linux-2.6.orig/mm/slab.c	2012-05-17 09:31:42.845710077 -0500
++++ linux-2.6/mm/slab.c	2012-05-17 09:33:58.689707249 -0500
+@@ -579,9 +579,9 @@ static struct arraycache_init initarray_
+     { {0, BOOT_CPUCACHE_ENTRIES, 1, 0} };
+ 
+ /* internal cache of cache description objs */
+-static struct kmem_list3 *cache_cache_nodelists[MAX_NUMNODES];
+-static struct kmem_cache cache_cache = {
+-	.nodelists = cache_cache_nodelists,
++static struct kmem_list3 *kmem_cache_nodelists[MAX_NUMNODES];
++static struct kmem_cache kmem_cache_boot = {
++	.nodelists = kmem_cache_nodelists,
+ 	.batchcount = 1,
+ 	.limit = BOOT_CPUCACHE_ENTRIES,
+ 	.shared = 1,
+@@ -1467,15 +1467,17 @@ void __init kmem_cache_init(void)
+ 	int order;
+ 	int node;
+ 
++	kmem_cache = &kmem_cache_boot;
++
+ 	if (num_possible_nodes() == 1)
+ 		use_alien_caches = 0;
+ 
+ 	for (i = 0; i < NUM_INIT_LISTS; i++) {
+ 		kmem_list3_init(&initkmem_list3[i]);
+ 		if (i < MAX_NUMNODES)
+-			cache_cache.nodelists[i] = NULL;
++			kmem_cache->nodelists[i] = NULL;
  	}
+-	set_up_list3s(&cache_cache, CACHE_CACHE);
++	set_up_list3s(kmem_cache, CACHE_CACHE);
+ 
+ 	/*
+ 	 * Fragmentation resistance on low memory - only use bigger
+@@ -1487,9 +1489,9 @@ void __init kmem_cache_init(void)
+ 
+ 	/* Bootstrap is tricky, because several objects are allocated
+ 	 * from caches that do not exist yet:
+-	 * 1) initialize the cache_cache cache: it contains the struct
+-	 *    kmem_cache structures of all caches, except cache_cache itself:
+-	 *    cache_cache is statically allocated.
++	 * 1) initialize the kmem_cache cache: it contains the struct
++	 *    kmem_cache structures of all caches, except kmem_cache itself:
++	 *    kmem_cache is statically allocated.
+ 	 *    Initially an __init data area is used for the head array and the
+ 	 *    kmem_list3 structures, it's replaced with a kmalloc allocated
+ 	 *    array at the end of the bootstrap.
+@@ -1498,45 +1500,45 @@ void __init kmem_cache_init(void)
+ 	 *    An __init data area is used for the head array.
+ 	 * 3) Create the remaining kmalloc caches, with minimally sized
+ 	 *    head arrays.
+-	 * 4) Replace the __init data head arrays for cache_cache and the first
++	 * 4) Replace the __init data head arrays for kmem_cache and the first
+ 	 *    kmalloc cache with kmalloc allocated arrays.
+-	 * 5) Replace the __init data for kmem_list3 for cache_cache and
++	 * 5) Replace the __init data for kmem_list3 for kmem_cache and
+ 	 *    the other cache's with kmalloc allocated memory.
+ 	 * 6) Resize the head arrays of the kmalloc caches to their final sizes.
+ 	 */
+ 
+ 	node = numa_mem_id();
+ 
+-	/* 1) create the cache_cache */
++	/* 1) create the kmem_cache */
+ 	INIT_LIST_HEAD(&slab_caches);
+-	list_add(&cache_cache.list, &slab_caches);
+-	cache_cache.colour_off = cache_line_size();
+-	cache_cache.array[smp_processor_id()] = &initarray_cache.cache;
+-	cache_cache.nodelists[node] = &initkmem_list3[CACHE_CACHE + node];
++	list_add(&kmem_cache->list, &slab_caches);
++	kmem_cache->colour_off = cache_line_size();
++	kmem_cache->array[smp_processor_id()] = &initarray_cache.cache;
++	kmem_cache->nodelists[node] = &initkmem_list3[CACHE_CACHE + node];
+ 
+ 	/*
+ 	 * struct kmem_cache size depends on nr_node_ids & nr_cpu_ids
+ 	 */
+-	cache_cache.buffer_size = offsetof(struct kmem_cache, array[nr_cpu_ids]) +
++	kmem_cache->buffer_size = offsetof(struct kmem_cache, array[nr_cpu_ids]) +
+ 				  nr_node_ids * sizeof(struct kmem_list3 *);
+ #if DEBUG
+-	cache_cache.obj_size = cache_cache.buffer_size;
++	kmem_cache->obj_size = kmem_cache->buffer_size;
+ #endif
+-	cache_cache.buffer_size = ALIGN(cache_cache.buffer_size,
++	kmem_cache->buffer_size = ALIGN(kmem_cache->buffer_size,
+ 					cache_line_size());
+-	cache_cache.reciprocal_buffer_size =
+-		reciprocal_value(cache_cache.buffer_size);
++	kmem_cache->reciprocal_buffer_size =
++		reciprocal_value(kmem_cache->buffer_size);
+ 
+ 	for (order = 0; order < MAX_ORDER; order++) {
+-		cache_estimate(order, cache_cache.buffer_size,
+-			cache_line_size(), 0, &left_over, &cache_cache.num);
+-		if (cache_cache.num)
++		cache_estimate(order, kmem_cache->buffer_size,
++			cache_line_size(), 0, &left_over, &kmem_cache->num);
++		if (kmem_cache->num)
+ 			break;
+ 	}
+-	BUG_ON(!cache_cache.num);
+-	cache_cache.gfporder = order;
+-	cache_cache.colour = left_over / cache_cache.colour_off;
+-	cache_cache.slab_size = ALIGN(cache_cache.num * sizeof(kmem_bufctl_t) +
++	BUG_ON(!kmem_cache->num);
++	kmem_cache->gfporder = order;
++	kmem_cache->colour = left_over / kmem_cache->colour_off;
++	kmem_cache->slab_size = ALIGN(kmem_cache->num * sizeof(kmem_bufctl_t) +
+ 				      sizeof(struct slab), cache_line_size());
+ 
+ 	/* 2+3) create the kmalloc caches */
+@@ -1603,15 +1605,15 @@ void __init kmem_cache_init(void)
+ 
+ 		ptr = kmalloc(sizeof(struct arraycache_init), GFP_NOWAIT);
+ 
+-		BUG_ON(cpu_cache_get(&cache_cache) != &initarray_cache.cache);
+-		memcpy(ptr, cpu_cache_get(&cache_cache),
++		BUG_ON(cpu_cache_get(kmem_cache) != &initarray_cache.cache);
++		memcpy(ptr, cpu_cache_get(kmem_cache),
+ 		       sizeof(struct arraycache_init));
+ 		/*
+ 		 * Do not assume that spinlocks can be initialized via memcpy:
+ 		 */
+ 		spin_lock_init(&ptr->lock);
+ 
+-		cache_cache.array[smp_processor_id()] = ptr;
++		kmem_cache->array[smp_processor_id()] = ptr;
+ 
+ 		ptr = kmalloc(sizeof(struct arraycache_init), GFP_NOWAIT);
+ 
+@@ -1632,7 +1634,7 @@ void __init kmem_cache_init(void)
+ 		int nid;
+ 
+ 		for_each_online_node(nid) {
+-			init_list(&cache_cache, &initkmem_list3[CACHE_CACHE + nid], nid);
++			init_list(kmem_cache, &initkmem_list3[CACHE_CACHE + nid], nid);
+ 
+ 			init_list(malloc_sizes[INDEX_AC].cs_cachep,
+ 				  &initkmem_list3[SIZE_AC + nid], nid);
+@@ -2086,7 +2088,7 @@ void __kmem_cache_destroy(struct kmem_ca
+ 			kfree(l3);
+ 		}
+ 	}
+-	kmem_cache_free(&cache_cache, cachep);
++	kmem_cache_free(kmem_cache, cachep);
  }
  
--void __kmem_cache_destroy(struct kmem_cache *cachep)
--{
--	int i;
--	struct kmem_list3 *l3;
--
--	for_each_online_cpu(i)
--	    kfree(cachep->array[i]);
--
--	/* NUMA: free the list3 structures */
--	for_each_online_node(i) {
--		l3 = cachep->nodelists[i];
--		if (l3) {
--			kfree(l3->shared);
--			free_alien_cache(l3->alien);
--			kfree(l3);
--		}
--	}
--}
--
--
- /**
-  * calculate_slab_order - calculate size (page order) of slabs
-  * @cachep: pointer to the cache that is being created
-@@ -2453,7 +2433,7 @@ __kmem_cache_create (const char *name, s
- 	cachep->refcount = 1;
  
- 	if (setup_cpu_cache(cachep, gfp)) {
--		__kmem_cache_destroy(cachep);
-+		__kmem_cache_shutdown(cachep);
+@@ -2336,7 +2338,7 @@ __kmem_cache_create (const char *name, s
+ 		gfp = GFP_NOWAIT;
+ 
+ 	/* Get cache's description obj. */
+-	cachep = kmem_cache_zalloc(&cache_cache, gfp);
++	cachep = kmem_cache_zalloc(kmem_cache, gfp);
+ 	if (!cachep)
+ 		return NULL;
+ 
+@@ -2393,7 +2395,7 @@ __kmem_cache_create (const char *name, s
+ 	if (!cachep->num) {
+ 		printk(KERN_ERR
+ 		       "kmem_cache_create: couldn't create cache %s.\n", name);
+-		kmem_cache_free(&cache_cache, cachep);
++		kmem_cache_free(kmem_cache, cachep);
  		return NULL;
  	}
+ 	slab_size = ALIGN(cachep->num * sizeof(kmem_bufctl_t)
+@@ -3154,7 +3156,7 @@ static void *cache_alloc_debugcheck_afte
  
-@@ -2628,7 +2608,26 @@ EXPORT_SYMBOL(kmem_cache_shrink);
- 
- int __kmem_cache_shutdown(struct kmem_cache *cachep)
+ static bool slab_should_failslab(struct kmem_cache *cachep, gfp_t flags)
  {
--	return __cache_shrink(cachep);
-+	int i;
-+	struct kmem_list3 *l3;
-+	int rc = __cache_shrink(cachep);
-+
-+	if (rc)
-+		return rc;
-+
-+	for_each_online_cpu(i)
-+	    kfree(cachep->array[i]);
-+
-+	/* NUMA: free the list3 structures */
-+	for_each_online_node(i) {
-+		l3 = cachep->nodelists[i];
-+		if (l3) {
-+			kfree(l3->shared);
-+			free_alien_cache(l3->alien);
-+			kfree(l3);
-+		}
-+	}
-+	return 0;
- }
+-	if (cachep == &cache_cache)
++	if (cachep == kmem_cache)
+ 		return false;
  
- /*
+ 	return should_failslab(obj_size(cachep), flags, cachep->flags);
 Index: linux-2.6/mm/slab.h
 ===================================================================
---- linux-2.6.orig/mm/slab.h	2012-05-18 03:36:21.724361601 -0500
-+++ linux-2.6/mm/slab.h	2012-05-18 03:39:12.104358068 -0500
-@@ -37,6 +37,5 @@ struct kmem_cache *__kmem_cache_create (
+--- linux-2.6.orig/mm/slab.h	2012-05-17 09:31:42.865710074 -0500
++++ linux-2.6/mm/slab.h	2012-05-17 09:32:42.765708833 -0500
+@@ -25,8 +25,14 @@ extern enum slab_state slab_state;
+ 
+ /* The slab cache mutex protects the management structures during changes */
+ extern struct mutex slab_mutex;
++
++/* The list of all slab caches on the system */
+ extern struct list_head slab_caches;
+ 
++/* The slab cache that manages slab cache information */
++extern struct kmem_cache *kmem_cache;
++
++/* Functions provided by the slab allocators */
+ struct kmem_cache *__kmem_cache_create (const char *name, size_t size,
  	size_t align, unsigned long flags, void (*ctor)(void *));
  
- int __kmem_cache_shutdown(struct kmem_cache *);
--void __kmem_cache_destroy(struct kmem_cache *);
- 
- #endif
 Index: linux-2.6/mm/slab_common.c
 ===================================================================
---- linux-2.6.orig/mm/slab_common.c	2012-05-18 04:08:38.324321471 -0500
-+++ linux-2.6/mm/slab_common.c	2012-05-18 04:16:04.928312217 -0500
-@@ -128,7 +128,6 @@ void kmem_cache_destroy(struct kmem_cach
- 		if (s->flags & SLAB_DESTROY_BY_RCU)
- 			rcu_barrier();
+--- linux-2.6.orig/mm/slab_common.c	2012-05-17 09:31:42.873710074 -0500
++++ linux-2.6/mm/slab_common.c	2012-05-17 09:33:48.425707474 -0500
+@@ -22,6 +22,7 @@
+ enum slab_state slab_state;
+ LIST_HEAD(slab_caches);
+ DEFINE_MUTEX(slab_mutex);
++struct kmem_cache *kmem_cache;
  
--		__kmem_cache_destroy(s);
- 		kmem_cache_free(kmem_cache, s);
- 	} else {
- 		list_add(&s->list, &slab_caches);
+ /*
+  * kmem_cache_create - Create a cache.
+Index: linux-2.6/mm/slub.c
+===================================================================
+--- linux-2.6.orig/mm/slub.c	2012-05-17 09:31:42.853710075 -0500
++++ linux-2.6/mm/slub.c	2012-05-17 09:33:48.413707474 -0500
+@@ -3186,8 +3186,6 @@ void __kmem_cache_destroy(struct kmem_ca
+ struct kmem_cache *kmalloc_caches[SLUB_PAGE_SHIFT];
+ EXPORT_SYMBOL(kmalloc_caches);
+ 
+-static struct kmem_cache *kmem_cache;
+-
+ #ifdef CONFIG_ZONE_DMA
+ static struct kmem_cache *kmalloc_dma_caches[SLUB_PAGE_SHIFT];
+ #endif
+Index: linux-2.6/mm/slob.c
+===================================================================
+--- linux-2.6.orig/mm/slob.c	2012-05-17 09:31:42.837710074 -0500
++++ linux-2.6/mm/slob.c	2012-05-17 09:33:48.397707473 -0500
+@@ -656,6 +656,9 @@ EXPORT_SYMBOL(kmem_cache_shrink);
+ 
+ void __init kmem_cache_init(void)
+ {
++	kmem_cache = __kmem_cache_create("kmem_cache",
++		sizeof(struct kmem_cache), 0, SLAB_PANIC, NULL);
++	BUG_ON(!kmem_cache);
+ 	slab_state = UP;
+ }
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
