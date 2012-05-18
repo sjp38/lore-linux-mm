@@ -1,57 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx200.postini.com [74.125.245.200])
-	by kanga.kvack.org (Postfix) with SMTP id 5A8096B00E8
-	for <linux-mm@kvack.org>; Fri, 18 May 2012 10:45:17 -0400 (EDT)
-Date: Fri, 18 May 2012 16:45:04 +0200
-From: Jan Kara <jack@suse.cz>
-Subject: Re: [PATCH 1/2] lib: Proportions with flexible period
-Message-ID: <20120518144504.GD6875@quack.suse.cz>
-References: <1337096583-6049-1-git-send-email-jack@suse.cz>
- <1337096583-6049-2-git-send-email-jack@suse.cz>
- <1337337824.573.16.camel@twins>
+Received: from psmtp.com (na3sys010amx109.postini.com [74.125.245.109])
+	by kanga.kvack.org (Postfix) with SMTP id 7243F6B0082
+	for <linux-mm@kvack.org>; Fri, 18 May 2012 11:07:50 -0400 (EDT)
+Message-ID: <4FB665B8.8000300@redhat.com>
+Date: Fri, 18 May 2012 11:07:36 -0400
+From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1337337824.573.16.camel@twins>
+Subject: Re: [patch 0/5] refault distance-based file cache sizing
+References: <1335861713-4573-1-git-send-email-hannes@cmpxchg.org> <4FB33A4E.1010208@gmail.com> <20120516065132.GC1769@cmpxchg.org> <4FB3A416.9010703@gmail.com> <20120517210849.GE1800@cmpxchg.org> <4FB5C5A7.6080000@gmail.com>
+In-Reply-To: <4FB5C5A7.6080000@gmail.com>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: Jan Kara <jack@suse.cz>, Wu Fengguang <fengguang.wu@intel.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: nai.xia@gmail.com
+Cc: Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org, Andrea Arcangeli <aarcange@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Minchan Kim <minchan.kim@gmail.com>, Hugh Dickins <hughd@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Fri 18-05-12 12:43:44, Peter Zijlstra wrote:
-> On Tue, 2012-05-15 at 17:43 +0200, Jan Kara wrote:
-> > +void __fprop_inc_percpu_max(struct fprop_global *p,
-> > +                           struct fprop_local_percpu *pl, int max_frac)
-> > +{
-> > +       if (unlikely(max_frac < 100)) {
-> > +               unsigned long numerator, denominator;
-> > +
-> > +               fprop_fraction_percpu(p, pl, &numerator, &denominator);
-> > +               if (numerator > ((long long)denominator) * max_frac / 100)
-> > +                       return;
-> 
-> Another thing, your fprop_fraction_percpu() can he horribly expensive
-> due to using _sum() (and to a lesser degree the retry), remember that
-> this function is called for _every_ page written out.
-  The retry happens only when new period is declared while
-fprop_fraction_percpu() is running. So that should be rather exceptional.
-Regarding the _sum I agree, luckily that's easy enough to fix.
+On 05/17/2012 11:44 PM, Nai Xia wrote:
 
-> Esp. on the mega fast storage (multi-spindle or SSD) they're pushing cpu
-> limits as it is with iops, we should be very careful not to make it more
-> expensive than absolutely needed.
-  Yup.
+> But I do think that Clock-pro deserves its credit, since after all
+> it's that research work firstly brought the idea of "refault/reuse
+> distance" to the kernel community.
 
-> > +       } else
-> > +               fprop_reflect_period_percpu(p, pl);
-> > +       __percpu_counter_add(&pl->events, 1, PROP_BATCH);
-> > +       percpu_counter_add(&p->events, 1);
-> > +} 
+The ARC people did that, too.
 
-								Honza
+> Further more, it's also good
+> to let the researchers and the community to together have some
+> brain-storm of this problem if it's really hard to deal with in
+> reality.
+
+How much are researchers interested in the real world
+constraints that OS developers have to deal with?
+
+Often scalability is as much of a goal as being good
+at selecting the right page to replace...
+
 -- 
-Jan Kara <jack@suse.cz>
-SUSE Labs, CR
+All rights reversed
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
