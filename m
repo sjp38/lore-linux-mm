@@ -1,61 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx104.postini.com [74.125.245.104])
-	by kanga.kvack.org (Postfix) with SMTP id DF61A6B0082
-	for <linux-mm@kvack.org>; Fri, 18 May 2012 12:19:28 -0400 (EDT)
-Message-Id: <20120518161906.207356777@linux.com>
-Date: Fri, 18 May 2012 11:19:06 -0500
+Received: from psmtp.com (na3sys010amx160.postini.com [74.125.245.160])
+	by kanga.kvack.org (Postfix) with SMTP id 006FC6B0092
+	for <linux-mm@kvack.org>; Fri, 18 May 2012 12:19:29 -0400 (EDT)
+Message-Id: <20120518161928.116651208@linux.com>
+Date: Fri, 18 May 2012 11:19:08 -0500
 From: Christoph Lameter <cl@linux.com>
-Subject: [RFC] Common code 00/12] Sl[auo]b: Common functionality V2
+Subject: [RFC] Common code 02/12] [slab]: Use page struct fields instead of casting
+References: <20120518161906.207356777@linux.com>
+Content-Disposition: inline; filename=slab_page_struct_fields
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Pekka Enberg <penberg@kernel.org>
 Cc: linux-mm@kvack.org, David Rientjes <rientjes@google.com>, Matt Mackall <mpm@selenic.com>, Glauber Costa <glommer@parallels.com>, Joonsoo Kim <js1304@gmail.com>, Alex Shi <alex.shi@intel.com>
 
-V1->V2:
-- Incorporate glommers feedback.
-- Add 2 more patches dealing with common code in kmem_cache_destroy
+Add fields to the page struct so that it is properly documented that
+slab overlays the lru fields.
 
-This is a series of patches that extracts common functionality from
-slab allocators into a common code base. The intend is to standardize
-as much as possible of the allocator behavior while keeping the
-distinctive features of each allocator which are mostly due to their
-storage format and serialization approaches.
+This cleans up some casts in slab.
 
-This patchset makes a beginning by extracting common functionality in
-kmem_cache_create() and kmem_cache_destroy(). However, there are
-numerous other areas where such work could be beneficial:
+Reviewed-by: Glauber Costa <glommer@parallels.com>
+Signed-off-by: Christoph Lameter <cl@linux.com>
 
-1. Extract the sysfs support from SLUB and make it common. That way
-   all allocators have a common sysfs API and are handleable in the same
-   way regardless of the allocator chose.
+---
+ include/linux/mm_types.h |    4 ++++
+ mm/slab.c                |    8 ++++----
+ 2 files changed, 8 insertions(+), 4 deletions(-)
 
-2. Extract the error reporting and checking from SLUB and make
-   it available for all allocators. This means that all allocators
-   will gain the resiliency and error handling capabilties.
-
-3. Extract the memory hotplug and cpu hotplug handling. It seems that
-   SLAB may be more sophisticated here. Having common code here will
-   make it easier to maintain the special code.
-
-4. Extract the aliasing capability of SLUB. This will enable fast
-   slab creation without creating too many additional slab caches.
-   The arrays of caches of varying sizes in numerous subsystems
-   do not cause the creation of numerous slab caches. Storage
-   density is increased and the cache footprint is reduced.
-
-Ultimately it is to be hoped that the special code for each allocator
-shrinks to a mininum. This will also make it easier to make modification
-to allocators.
-
-In the far future one could envision that the current allocators will
-just become storage algorithms that can be chosen based on the need of
-the subsystem. F.e.
-
-Cpu cache dependend performance		= Bonwick allocator (SLAB)
-Minimal cycle count and cache footprint	= SLUB
-Maximum storage density			= K&R allocator (SLOB)
-
-But that could be controversial and inefficient if indirect calls are needed.
+Index: linux-2.6/mm/slab.c
+===================================================================
+--- linux-2.6.orig/mm/slab.c	2012-05-15 09:59:03.385256611 -0500
++++ linux-2.6/mm/slab.c	2012-05-16 04:39:08.435864090 -0500
+@@ -496,25 +496,25 @@ static bool slab_max_order_set __initdat
+  */
+ static inline void page_set_cache(struct page *page, struct kmem_cache *cache)
+ {
+-	page->lru.next = (struct list_head *)cache;
++	page->slab_cache = cache;
+ }
+ 
+ static inline struct kmem_cache *page_get_cache(struct page *page)
+ {
+ 	page = compound_head(page);
+ 	BUG_ON(!PageSlab(page));
+-	return (struct kmem_cache *)page->lru.next;
++	return page->slab_cache;
+ }
+ 
+ static inline void page_set_slab(struct page *page, struct slab *slab)
+ {
+-	page->lru.prev = (struct list_head *)slab;
++	page->slab_page = slab;
+ }
+ 
+ static inline struct slab *page_get_slab(struct page *page)
+ {
+ 	BUG_ON(!PageSlab(page));
+-	return (struct slab *)page->lru.prev;
++	return page->slab_page;
+ }
+ 
+ static inline struct kmem_cache *virt_to_cache(const void *obj)
+Index: linux-2.6/include/linux/mm_types.h
+===================================================================
+--- linux-2.6.orig/include/linux/mm_types.h	2012-05-16 04:39:04.671864156 -0500
++++ linux-2.6/include/linux/mm_types.h	2012-05-16 04:39:08.435864090 -0500
+@@ -108,6 +108,10 @@ struct page {
+ 			short int pobjects;
+ #endif
+ 		};
++		struct {		/* SLAB */
++			struct kmem_cache *slab_cache;
++			struct slab *slab_page;
++		};
+ 	};
+ 
+ 	/* Remainder is not double word aligned */
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
