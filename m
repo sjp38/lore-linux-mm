@@ -1,44 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx186.postini.com [74.125.245.186])
-	by kanga.kvack.org (Postfix) with SMTP id 4086B6B0083
-	for <linux-mm@kvack.org>; Fri, 18 May 2012 05:32:01 -0400 (EDT)
-Received: by lahi5 with SMTP id i5so3220304lah.14
-        for <linux-mm@kvack.org>; Fri, 18 May 2012 02:31:59 -0700 (PDT)
-Date: Fri, 18 May 2012 12:31:49 +0300 (EEST)
-From: Pekka Enberg <penberg@kernel.org>
-Subject: Re: [PATCH 3/4] slub: use __SetPageSlab function to set PG_slab
- flag
-In-Reply-To: <1337269668-4619-4-git-send-email-js1304@gmail.com>
-Message-ID: <alpine.LFD.2.02.1205181231440.3899@tux.localdomain>
-References: <1337269668-4619-1-git-send-email-js1304@gmail.com> <1337269668-4619-4-git-send-email-js1304@gmail.com>
+Received: from psmtp.com (na3sys010amx126.postini.com [74.125.245.126])
+	by kanga.kvack.org (Postfix) with SMTP id 2A7F36B0082
+	for <linux-mm@kvack.org>; Fri, 18 May 2012 06:12:28 -0400 (EDT)
+Date: Fri, 18 May 2012 20:12:10 +1000
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: Hole punching and mmap races
+Message-ID: <20120518101210.GX25351@dastard>
+References: <20120515224805.GA25577@quack.suse.cz>
+ <20120516021423.GO25351@dastard>
+ <20120516130445.GA27661@quack.suse.cz>
+ <20120517074308.GQ25351@dastard>
+ <20120517232829.GA31028@quack.suse.cz>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20120517232829.GA31028@quack.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <js1304@gmail.com>
-Cc: Christoph Lameter <cl@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Jan Kara <jack@suse.cz>
+Cc: linux-fsdevel@vger.kernel.org, xfs@oss.sgi.com, linux-ext4@vger.kernel.org, Hugh Dickins <hughd@google.com>, linux-mm@kvack.org
 
-On Fri, 18 May 2012, Joonsoo Kim wrote:
+On Fri, May 18, 2012 at 01:28:29AM +0200, Jan Kara wrote:
+> On Thu 17-05-12 17:43:08, Dave Chinner wrote:
+> > On Wed, May 16, 2012 at 03:04:45PM +0200, Jan Kara wrote:
+> > > On Wed 16-05-12 12:14:23, Dave Chinner wrote:
+> > IIRC, it's a rare case (that I consider insane, BTW):  read from a
+> > file with into a buffer that is a mmap()d region of the same file
+> > that has not been faulted in yet.....
+>   With punch hole, the race is less insane - just punching hole in the area
+> which is accessed via mmap could race in a bad way AFAICS.
 
-> To set page-flag, using SetPageXXXX() and __SetPageXXXX() is more
-> understandable and maintainable. So change it.
-> 
-> Signed-off-by: Joonsoo Kim <js1304@gmail.com>
-> 
-> diff --git a/mm/slub.c b/mm/slub.c
-> index c38efce..69342fd 100644
-> --- a/mm/slub.c
-> +++ b/mm/slub.c
-> @@ -1369,7 +1369,7 @@ static struct page *new_slab(struct kmem_cache *s, gfp_t flags, int node)
->  
->  	inc_slabs_node(s, page_to_nid(page), page->objects);
->  	page->slab = s;
-> -	page->flags |= 1 << PG_slab;
-> +	__SetPageSlab(page);
->  
->  	start = page_address(page);
+Seems the simple answer to me is to prevent page faults while hole
+punching, then....
 
-Applied
+Cheers,
+
+Dave.
+-- 
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
