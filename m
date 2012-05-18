@@ -1,231 +1,236 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx163.postini.com [74.125.245.163])
-	by kanga.kvack.org (Postfix) with SMTP id E3E3F6B0092
-	for <linux-mm@kvack.org>; Fri, 18 May 2012 12:19:32 -0400 (EDT)
-Message-Id: <20120518161930.978054128@linux.com>
-Date: Fri, 18 May 2012 11:19:13 -0500
+Received: from psmtp.com (na3sys010amx201.postini.com [74.125.245.201])
+	by kanga.kvack.org (Postfix) with SMTP id 012516B00EC
+	for <linux-mm@kvack.org>; Fri, 18 May 2012 12:19:33 -0400 (EDT)
+Message-Id: <20120518161932.147485968@linux.com>
+Date: Fri, 18 May 2012 11:19:15 -0500
 From: Christoph Lameter <cl@linux.com>
-Subject: [RFC] Common code 07/12] slabs: Move kmem_cache_create mutex handling to common code
+Subject: [RFC] Common code 09/12] slabs: Extract a common function for kmem_cache_destroy
 References: <20120518161906.207356777@linux.com>
-Content-Disposition: inline; filename=move_mutex_to_common
+Content-Disposition: inline; filename=kmem_cache_destroy
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Pekka Enberg <penberg@kernel.org>
 Cc: linux-mm@kvack.org, David Rientjes <rientjes@google.com>, Matt Mackall <mpm@selenic.com>, Glauber Costa <glommer@parallels.com>, Joonsoo Kim <js1304@gmail.com>, Alex Shi <alex.shi@intel.com>
 
-Move the mutex handling into the common kmem_cache_create()
-function.
+kmem_cache_destroy does basically the same in all allocators.
 
-Then we can also move more checks out of SLAB's kmem_cache_create()
-into the common code.
+Extract common code which is easy since we already have common mutex handling.
 
-Reviewed-by: Glauber Costa <glommer@parallels.com>
 Signed-off-by: Christoph Lameter <cl@linux.com>
 
----
- mm/slab.c        |   52 +---------------------------------------------------
- mm/slab_common.c |   41 ++++++++++++++++++++++++++++++++++++++++-
- mm/slub.c        |   30 ++++++++++++++----------------
- 3 files changed, 55 insertions(+), 68 deletions(-)
 
-Index: linux-2.6/mm/slab.c
-===================================================================
---- linux-2.6.orig/mm/slab.c	2012-05-14 08:51:51.819130415 -0500
-+++ linux-2.6/mm/slab.c	2012-05-14 08:52:41.707129382 -0500
-@@ -2252,55 +2252,10 @@ __kmem_cache_create (const char *name, s
- 	unsigned long flags, void (*ctor)(void *))
- {
- 	size_t left_over, slab_size, ralign;
--	struct kmem_cache *cachep = NULL, *pc;
-+	struct kmem_cache *cachep = NULL;
- 	gfp_t gfp;
- 
--	/*
--	 * Sanity checks... these are all serious usage bugs.
--	 */
--	if (!name || in_interrupt() || (size < BYTES_PER_WORD) ||
--	    size > KMALLOC_MAX_SIZE) {
--		printk(KERN_ERR "%s: Early error in slab %s\n", __func__,
--				name);
--		BUG();
--	}
--
--	/*
--	 * We use cache_chain_mutex to ensure a consistent view of
--	 * cpu_online_mask as well.  Please see cpuup_callback
--	 */
--	if (slab_is_available()) {
--		get_online_cpus();
--		mutex_lock(&cache_chain_mutex);
--	}
--
--	list_for_each_entry(pc, &cache_chain, list) {
--		char tmp;
--		int res;
--
--		/*
--		 * This happens when the module gets unloaded and doesn't
--		 * destroy its slab cache and no-one else reuses the vmalloc
--		 * area of the module.  Print a warning.
--		 */
--		res = probe_kernel_address(pc->name, tmp);
--		if (res) {
--			printk(KERN_ERR
--			       "SLAB: cache with size %d has lost its name\n",
--			       pc->buffer_size);
--			continue;
--		}
--
--		if (!strcmp(pc->name, name)) {
--			printk(KERN_ERR
--			       "kmem_cache_create: duplicate cache %s\n", name);
--			dump_stack();
--			goto oops;
--		}
--	}
--
- #if DEBUG
--	WARN_ON(strchr(name, ' '));	/* It confuses parsers */
- #if FORCED_DEBUG
- 	/*
- 	 * Enable redzoning and last user accounting, except for caches with
-@@ -2518,11 +2473,6 @@ __kmem_cache_create (const char *name, s
- 
- 	/* cache setup completed, link it into the list */
- 	list_add(&cachep->list, &slab_caches);
--oops:
--	if (slab_is_available()) {
--		mutex_unlock(&slab_mutex);
--		put_online_cpus();
--	}
- 	return cachep;
- }
- 
+---
+ mm/slab.c        |   55 +++----------------------------------------------------
+ mm/slab.h        |    4 +++-
+ mm/slab_common.c |   22 ++++++++++++++++++++++
+ mm/slob.c        |   11 +++++++----
+ mm/slub.c        |   29 ++++++++---------------------
+ 5 files changed, 43 insertions(+), 78 deletions(-)
+
 Index: linux-2.6/mm/slab_common.c
 ===================================================================
---- linux-2.6.orig/mm/slab_common.c	2012-05-14 08:51:51.839130415 -0500
-+++ linux-2.6/mm/slab_common.c	2012-05-14 08:52:11.407130009 -0500
-@@ -11,7 +11,8 @@
- #include <linux/memory.h>
- #include <linux/compiler.h>
- #include <linux/module.h>
--
-+#include <linux/cpu.h>
-+#include <linux/uaccess.h>
- #include <asm/cacheflush.h>
- #include <asm/tlbflush.h>
- #include <asm/page.h>
-@@ -61,8 +62,46 @@ struct kmem_cache *kmem_cache_create(con
- 	}
- #endif
+--- linux-2.6.orig/mm/slab_common.c	2012-05-17 03:31:18.246158143 -0500
++++ linux-2.6/mm/slab_common.c	2012-05-17 05:16:20.726027559 -0500
+@@ -117,6 +117,28 @@ out:
+ }
+ EXPORT_SYMBOL(kmem_cache_create);
  
++void kmem_cache_destroy(struct kmem_cache *s)
++{
 +	get_online_cpus();
 +	mutex_lock(&slab_mutex);
++	list_del(&s->list);
 +
-+#ifdef CONFIG_DEBUG_VM
-+	list_for_each_entry(s, &slab_caches, list) {
-+		char tmp;
-+		int res;
++	if (!__kmem_cache_shutdown(s)) {
++		if (s->flags & SLAB_DESTROY_BY_RCU)
++			rcu_barrier();
 +
-+		/*
-+		 * This happens when the module gets unloaded and doesn't
-+		 * destroy its slab cache and no-one else reuses the vmalloc
-+		 * area of the module.  Print a warning.
-+		 */
-+		res = probe_kernel_address(s->name, tmp);
-+		if (res) {
-+			printk(KERN_ERR
-+			       "Slab cache with size %d has lost its name\n",
-+			       s->size);
-+			continue;
-+		}
-+
-+		if (!strcmp(s->name, name)) {
-+			printk(KERN_ERR "kmem_cache_create(%s): Cache name"
-+				" already exists.\n",
-+				name);
-+			dump_stack();
-+			s = NULL;
-+			goto oops;
-+		}
++		__kmem_cache_destroy(s);
++	} else {
++		list_add(&s->list, &slab_caches);
++		printk(KERN_ERR "kmem_cache_destroy %s: Slab cache still has objects\n",
++			s->name);
++		dump_stack();
 +	}
-+
-+	WARN_ON(strchr(name, ' '));	/* It confuses parsers */
-+#endif
-+
- 	s = __kmem_cache_create(name, size, align, flags, ctor);
- 
-+oops:
 +	mutex_unlock(&slab_mutex);
 +	put_online_cpus();
++}
++EXPORT_SYMBOL(kmem_cache_destroy);
 +
- out:
- 	if (!s && (flags & SLAB_PANIC))
- 		panic("kmem_cache_create: Failed to create slab '%s'\n", name);
-Index: linux-2.6/mm/slub.c
+ int slab_is_available(void)
+ {
+ 	return slab_state >= UP;
+Index: linux-2.6/mm/slab.c
 ===================================================================
---- linux-2.6.orig/mm/slub.c	2012-05-14 08:51:51.827130415 -0500
-+++ linux-2.6/mm/slub.c	2012-05-14 08:52:11.411130009 -0500
-@@ -3912,7 +3912,6 @@ struct kmem_cache *__kmem_cache_create(c
- 	struct kmem_cache *s;
- 	char *n;
- 
--	mutex_lock(&slab_mutex);
- 	s = find_mergeable(size, align, flags, name, ctor);
- 	if (s) {
- 		s->refcount++;
-@@ -3925,37 +3924,36 @@ struct kmem_cache *__kmem_cache_create(c
- 
- 		if (sysfs_slab_alias(s, name)) {
- 			s->refcount--;
--			goto err;
-+			return NULL;
- 		}
--		mutex_unlock(&slab_mutex);
- 		return s;
- 	}
- 
- 	n = kstrdup(name, GFP_KERNEL);
- 	if (!n)
--		goto err;
-+		return NULL;
- 
- 	s = kmalloc(kmem_size, GFP_KERNEL);
- 	if (s) {
- 		if (kmem_cache_open(s, n,
- 				size, align, flags, ctor)) {
-+			int r;
-+
- 			list_add(&s->list, &slab_caches);
- 			mutex_unlock(&slab_mutex);
--			if (sysfs_slab_add(s)) {
--				mutex_lock(&slab_mutex);
--				list_del(&s->list);
--				kfree(n);
--				kfree(s);
--				goto err;
--			}
--			return s;
-+			r = sysfs_slab_add(s);
-+			mutex_lock(&slab_mutex);
-+
-+			if (!r)
-+				return s;
-+
-+			list_del(&s->list);
-+			kmem_cache_close(s);
- 		}
--		kfree(n);
- 		kfree(s);
- 	}
--err:
--	mutex_unlock(&slab_mutex);
--	return s;
-+	kfree(n);
-+	return NULL;
+--- linux-2.6.orig/mm/slab.c	2012-05-17 03:30:39.154158963 -0500
++++ linux-2.6/mm/slab.c	2012-05-17 05:16:20.726027559 -0500
+@@ -804,16 +804,6 @@ static void cache_estimate(unsigned long
+ 	*left_over = slab_size - nr_objs*buffer_size - mgmt_size;
  }
  
- #ifdef CONFIG_SMP
+-#define slab_error(cachep, msg) __slab_error(__func__, cachep, msg)
+-
+-static void __slab_error(const char *function, struct kmem_cache *cachep,
+-			char *msg)
+-{
+-	printk(KERN_ERR "slab error in %s(): cache `%s': %s\n",
+-	       function, cachep->name, msg);
+-	dump_stack();
+-}
+-
+ /*
+  * By default on NUMA we use alien caches to stage the freeing of
+  * objects allocated from other nodes. This causes massive memory
+@@ -2079,7 +2069,7 @@ static void slab_destroy(struct kmem_cac
+ 	}
+ }
+ 
+-static void __kmem_cache_destroy(struct kmem_cache *cachep)
++void __kmem_cache_destroy(struct kmem_cache *cachep)
+ {
+ 	int i;
+ 	struct kmem_list3 *l3;
+@@ -2635,49 +2625,10 @@ int kmem_cache_shrink(struct kmem_cache
+ }
+ EXPORT_SYMBOL(kmem_cache_shrink);
+ 
+-/**
+- * kmem_cache_destroy - delete a cache
+- * @cachep: the cache to destroy
+- *
+- * Remove a &struct kmem_cache object from the slab cache.
+- *
+- * It is expected this function will be called by a module when it is
+- * unloaded.  This will remove the cache completely, and avoid a duplicate
+- * cache being allocated each time a module is loaded and unloaded, if the
+- * module doesn't have persistent in-kernel storage across loads and unloads.
+- *
+- * The cache must be empty before calling this function.
+- *
+- * The caller must guarantee that no one will allocate memory from the cache
+- * during the kmem_cache_destroy().
+- */
+-void kmem_cache_destroy(struct kmem_cache *cachep)
++int __kmem_cache_shutdown(struct kmem_cache *cachep)
+ {
+-	BUG_ON(!cachep || in_interrupt());
+-
+-	/* Find the cache in the chain of caches. */
+-	get_online_cpus();
+-	mutex_lock(&slab_mutex);
+-	/*
+-	 * the chain is never empty, cache_cache is never destroyed
+-	 */
+-	list_del(&cachep->list);
+-	if (__cache_shrink(cachep)) {
+-		slab_error(cachep, "Can't free all objects");
+-		list_add(&cachep->list, &slab_caches);
+-		mutex_unlock(&slab_mutex);
+-		put_online_cpus();
+-		return;
+-	}
+-
+-	if (unlikely(cachep->flags & SLAB_DESTROY_BY_RCU))
+-		rcu_barrier();
+-
+-	__kmem_cache_destroy(cachep);
+-	mutex_unlock(&slab_mutex);
+-	put_online_cpus();
++	return __cache_shrink(cachep);
+ }
+-EXPORT_SYMBOL(kmem_cache_destroy);
+ 
+ /*
+  * Get the memory for a slab management obj.
+Index: linux-2.6/mm/slab.h
+===================================================================
+--- linux-2.6.orig/mm/slab.h	2012-05-17 03:30:15.986159442 -0500
++++ linux-2.6/mm/slab.h	2012-05-17 05:16:20.726027559 -0500
+@@ -30,5 +30,7 @@ extern struct list_head slab_caches;
+ struct kmem_cache *__kmem_cache_create (const char *name, size_t size,
+ 	size_t align, unsigned long flags, void (*ctor)(void *));
+ 
+-#endif
++int __kmem_cache_shutdown(struct kmem_cache *);
++void __kmem_cache_destroy(struct kmem_cache *);
+ 
++#endif
+Index: linux-2.6/mm/slob.c
+===================================================================
+--- linux-2.6.orig/mm/slob.c	2012-05-17 03:30:00.018159771 -0500
++++ linux-2.6/mm/slob.c	2012-05-17 05:16:20.726027559 -0500
+@@ -570,14 +570,11 @@ struct kmem_cache *__kmem_cache_create(c
+ 	return c;
+ }
+ 
+-void kmem_cache_destroy(struct kmem_cache *c)
++void __kmem_cache_destroy(struct kmem_cache *c)
+ {
+ 	kmemleak_free(c);
+-	if (c->flags & SLAB_DESTROY_BY_RCU)
+-		rcu_barrier();
+ 	slob_free(c, sizeof(struct kmem_cache));
+ }
+-EXPORT_SYMBOL(kmem_cache_destroy);
+ 
+ void *kmem_cache_alloc_node(struct kmem_cache *c, gfp_t flags, int node)
+ {
+@@ -645,6 +642,12 @@ unsigned int kmem_cache_size(struct kmem
+ }
+ EXPORT_SYMBOL(kmem_cache_size);
+ 
++int __kmem_cache_shutdown(struct kmem_cache *c)
++{
++	/* No way to check for remaining objects */
++	return 0;
++}
++
+ int kmem_cache_shrink(struct kmem_cache *d)
+ {
+ 	return 0;
+Index: linux-2.6/mm/slub.c
+===================================================================
+--- linux-2.6.orig/mm/slub.c	2012-05-17 03:30:39.154158963 -0500
++++ linux-2.6/mm/slub.c	2012-05-17 05:16:20.726027559 -0500
+@@ -3168,29 +3168,16 @@ static inline int kmem_cache_close(struc
+ 	return 0;
+ }
+ 
+-/*
+- * Close a cache and release the kmem_cache structure
+- * (must be used for caches created using kmem_cache_create)
+- */
+-void kmem_cache_destroy(struct kmem_cache *s)
++int __kmem_cache_shutdown(struct kmem_cache *s)
+ {
+-	mutex_lock(&slab_mutex);
+-	s->refcount--;
+-	if (!s->refcount) {
+-		list_del(&s->list);
+-		mutex_unlock(&slab_mutex);
+-		if (kmem_cache_close(s)) {
+-			printk(KERN_ERR "SLUB %s: %s called for cache that "
+-				"still has objects.\n", s->name, __func__);
+-			dump_stack();
+-		}
+-		if (s->flags & SLAB_DESTROY_BY_RCU)
+-			rcu_barrier();
+-		sysfs_slab_remove(s);
+-	} else
+-		mutex_unlock(&slab_mutex);
++	return kmem_cache_close(s);
++}
++
++void __kmem_cache_destroy(struct kmem_cache *s)
++{
++	kfree(s);
++	sysfs_slab_remove(s);
+ }
+-EXPORT_SYMBOL(kmem_cache_destroy);
+ 
+ /********************************************************************
+  *		Kmalloc subsystem
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
