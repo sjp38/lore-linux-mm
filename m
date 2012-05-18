@@ -1,49 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx156.postini.com [74.125.245.156])
-	by kanga.kvack.org (Postfix) with SMTP id C83BD6B00E8
-	for <linux-mm@kvack.org>; Thu, 17 May 2012 20:55:04 -0400 (EDT)
-Received: by ggm4 with SMTP id 4so3521749ggm.14
-        for <linux-mm@kvack.org>; Thu, 17 May 2012 17:55:03 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx203.postini.com [74.125.245.203])
+	by kanga.kvack.org (Postfix) with SMTP id AD1916B0082
+	for <linux-mm@kvack.org>; Thu, 17 May 2012 21:11:19 -0400 (EDT)
+Date: Thu, 17 May 2012 21:11:17 -0400
+From: Eric B Munson <emunson@mgebm.net>
+Subject: Re: [PATCH 00/17] Swap-over-NBD without deadlocking V11
+Message-ID: <20120518011117.GA5894@mgebm.net>
+References: <1337266231-8031-1-git-send-email-mgorman@suse.de>
 MIME-Version: 1.0
-In-Reply-To: <4FB580A9.6020305@linux.vnet.ibm.com>
-References: <alpine.DEB.2.00.1205171605001.19076@router.home> <4FB580A9.6020305@linux.vnet.ibm.com>
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Date: Thu, 17 May 2012 20:54:42 -0400
-Message-ID: <CAHGf_=r6rBR=R00+ktJO9Ad0fytOgjY3YUcrY+3pfYfM=iwjKQ@mail.gmail.com>
-Subject: Re: Huge pages: Memory leak on mmap failure
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Content-Type: multipart/signed; micalg=pgp-sha1;
+	protocol="application/pgp-signature"; boundary="3V7upXqbjpZ4EhLz"
+Content-Disposition: inline
+In-Reply-To: <1337266231-8031-1-git-send-email-mgorman@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave@linux.vnet.ibm.com>
-Cc: Christoph Lameter <cl@linux.com>, Andrea Arcangeli <aarcange@redhat.com>, Hugh Dickins <hughd@google.com>, David Rientjes <rientjes@google.com>, Alexey Dobriyan <adobriyan@gmail.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>
+To: Mel Gorman <mgorman@suse.de>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, Linux-Netdev <netdev@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, David Miller <davem@davemloft.net>, Neil Brown <neilb@suse.de>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Mike Christie <michaelc@cs.wisc.edu>
 
-On Thu, May 17, 2012 at 6:50 PM, Dave Hansen <dave@linux.vnet.ibm.com> wrot=
-e:
-> On 05/17/2012 02:07 PM, Christoph Lameter wrote:
->>
->> On 2.6.32 and 3.4-rc6 mmap failure of a huge page causes a memory
->> leak. The 32 byte kmalloc cache grows by 10 mio entries if running
->> the following code:
->
-> When called for anonymous (non-shared) mappings, hugetlb_reserve_pages()
-> does a resv_map_alloc(). =A0It depends on code in hugetlbfs's
-> vm_ops->close() to release that allocation.
->
-> However, in the mmap() failure path, we do a plain unmap_region()
-> without the remove_vma() which actually calls vm_ops->close().
->
-> As the code stands today, I think we can fix this by just making sure we
-> release the resv_map after hugetlb_acct_memory() fails. =A0But, this seem=
-s
-> like a bit of a superficial fix and if we end up with another path or
-> two that can return -ESOMETHING, this might get reintroduced. =A0The
-> assumption that vm_ops->close() will get called on all VMAs passed in to
-> hugetlbfs_file_mmap() seems like something that needs to get corrected.
 
-I agree. Now, resv_map_alloc() is called file open path and
-resv_map_free() is called vma close path. It seems asymmetry.
-It would be nice if resv_map_alloc can use vma->open ops.
+--3V7upXqbjpZ4EhLz
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+Content-Transfer-Encoding: quoted-printable
+
+On Thu, 17 May 2012, Mel Gorman wrote:
+
+> Mostly addressing feedback from David Miller.
+>=20
+> Changeloc since V10
+>   o Rebase to 3.4-rc5
+>   o Coding style fixups						      (davem)
+>   o API consistency						      (davem)
+>   o Rename sk_allocation to sk_gfp_atomic and use only when necessary (da=
+vem)
+>   o Use static branches for sk_memalloc_socks			      (davem)
+>   o Use static branch checks in fast paths			      (davem)
+>   o Document concerns about PF_MEMALLOC leaking flags		      (davem)
+>   o Locking fix in slab						      (mel)
+
+<snip>
+
+I am attempting to test these, but when they are applied on top of mainline
+head my laptop hangs about 60-90 seconds after boot.  I am trying mainline
+without these sets now and will post results.
+
+Eric
+
+--3V7upXqbjpZ4EhLz
+Content-Type: application/pgp-signature; name="signature.asc"
+Content-Description: Digital signature
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1.4.11 (GNU/Linux)
+
+iQIcBAEBAgAGBQJPtaG1AAoJEKhG9nGc1bpJ8JYP/2tRKWs9oCsl3RWzGHDrDHlr
+xgyhfmWo66HnIHS4MGikWeHEk23sYzXdkms7wbty2mdO67sJifI4YHqrKObhNc4/
+ud/Idi2VYEEemd6IIEYeB63UmgqEjw8NcTjHTR3av3f7USs5eI8SkKW1kAW5w8Qk
+qv/omY+bISVTDUpG/NNuC8xVxE9JIUQgLYt/6ZzDDqq4gyl+HJ4rjxgeBWbptswL
+6/VihOCKZwDVNlRhTr1PC2fsYEBZvObpCZD39/GQlSqvRRk2kmdQ/jIuZoaFsFBG
+ylDpnl76kil1I4pLSuPGF4SFlQksU2jANXd9GtC2hSn5KXfvkGoBYcVIv7rXBHgH
+ZTnzdnla603MpqWTwR0U8lbQj0KRUjNuOIsD5lN5vL89nJb0Xs1FKXzI2uDwgVhx
+KEB/KtFOrcgUZwd8FayMWSDFMOS8Td0WOqdfJiaWlVFUCgnESfHeYTkFDBqLnJJv
+EatxiRrMwsoq5vUEURpP4/9wjMp/s0SEGa0hgujIfGtvXnEanBH4BE/a5WsPU2Zc
+rMG80KGmGh8UYaGVNidjcF0xK9DHdEet52TQxSMLvlrGHU1U3e5RMudpi0bXGl3J
++gp49EYGdETVUBBZBCFvCWYstOo7FVlEE/xe6ueoEdvJLo4rZzkVUPrnh+VOnyOK
+d2NeRVRU1GXkvImB2Yvm
+=KJjb
+-----END PGP SIGNATURE-----
+
+--3V7upXqbjpZ4EhLz--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
