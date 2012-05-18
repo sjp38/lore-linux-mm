@@ -1,45 +1,39 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx114.postini.com [74.125.245.114])
-	by kanga.kvack.org (Postfix) with SMTP id 4AF746B0082
-	for <linux-mm@kvack.org>; Fri, 18 May 2012 01:03:23 -0400 (EDT)
-Received: by dakp5 with SMTP id p5so4941047dak.14
-        for <linux-mm@kvack.org>; Thu, 17 May 2012 22:03:22 -0700 (PDT)
-Message-ID: <4FB5D80B.8060000@gmail.com>
-Date: Fri, 18 May 2012 13:03:07 +0800
-From: Nai Xia <nai.xia@gmail.com>
-Reply-To: nai.xia@gmail.com
+Received: from psmtp.com (na3sys010amx200.postini.com [74.125.245.200])
+	by kanga.kvack.org (Postfix) with SMTP id 098976B0082
+	for <linux-mm@kvack.org>; Fri, 18 May 2012 02:10:37 -0400 (EDT)
+From: Hiroshi DOYU <hdoyu@nvidia.com>
+Subject: [RFC 0/2] dma-mapping: Introduce new IOVA API with address specified
+Date: Fri, 18 May 2012 09:10:25 +0300
+Message-ID: <1337321427-27748-1-git-send-email-hdoyu@nvidia.com>
 MIME-Version: 1.0
-Subject: Re: [patch 0/5] refault distance-based file cache sizing
-References: <1335861713-4573-1-git-send-email-hannes@cmpxchg.org> <4FB33A4E.1010208@gmail.com> <4FB4F902.1050708@redhat.com>
-In-Reply-To: <4FB4F902.1050708@redhat.com>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rik van Riel <riel@redhat.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org, Andrea Arcangeli <aarcange@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Minchan Kim <minchan.kim@gmail.com>, Hugh Dickins <hughd@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
+To: hdoyu@nvidia.com, m.szyprowski@samsung.com, linaro-mm-sig@lists.linaro.org
+Cc: linux-mm@kvack.org, linux-arm-kernel@lists.infradead.org, iommu@lists.linux-foundation.org, linux-tegra@vger.kernel.org
 
+Hello,
 
+The following patchset is our enhancement for the upstream DMA mapping
+API(v9), where new IOVA API is introduced with the version of IOVA
+address specified. The current upstream DMA mapping API cannot specify
+any specific IOVA address at allocation. We need to specify IOVA
+address. This is necessary because some HWAs requre some specific
+address, for example,  AVP vector and also some data buffer alignement
+can improve better performance from H/W constraints POV.
 
-On 2012a1'05ae??17ae?JPY 21:11, Rik van Riel wrote:
-> On 05/16/2012 01:25 AM, nai.xia wrote:
->> Hi Johannes,
->>
->> Just out of curiosity(since I didn't study deep into the
->> reclaiming algorithms), I can recall from here that around 2005,
->> there was an(or some?) implementation of the "Clock-pro" algorithm
->> which also have the idea of "reuse distance", but it seems that algo
->> did not work well enough to get merged?
->
-> The main issue with clock-pro was scalability.
->
-> Johannes has managed to take the good parts of clock-pro,
-> and add it on top of our split lru VM, which lets us keep
-> the scalability, while still being able to deal with file
-> faults from beyond the inactive list.
->
+Hiroshi DOYU (2):
+  dma-mapping: Export arm_iommu_{alloc,free}_iova() functions
+  dma-mapping: Enable IOVA mapping with specific address
 
-Hmm, I see. Thanks for the reply.
+ arch/arm/include/asm/dma-iommu.h   |   31 ++++++
+ arch/arm/include/asm/dma-mapping.h |    1 +
+ arch/arm/mm/dma-mapping.c          |  181 +++++++++++++++++++++++++++++-------
+ 3 files changed, 180 insertions(+), 33 deletions(-)
+
+-- 
+1.7.5.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
