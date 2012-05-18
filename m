@@ -1,44 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx126.postini.com [74.125.245.126])
-	by kanga.kvack.org (Postfix) with SMTP id 2A7F36B0082
-	for <linux-mm@kvack.org>; Fri, 18 May 2012 06:12:28 -0400 (EDT)
-Date: Fri, 18 May 2012 20:12:10 +1000
-From: Dave Chinner <david@fromorbit.com>
-Subject: Re: Hole punching and mmap races
-Message-ID: <20120518101210.GX25351@dastard>
-References: <20120515224805.GA25577@quack.suse.cz>
- <20120516021423.GO25351@dastard>
- <20120516130445.GA27661@quack.suse.cz>
- <20120517074308.GQ25351@dastard>
- <20120517232829.GA31028@quack.suse.cz>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20120517232829.GA31028@quack.suse.cz>
+Received: from psmtp.com (na3sys010amx123.postini.com [74.125.245.123])
+	by kanga.kvack.org (Postfix) with SMTP id DC2086B0082
+	for <linux-mm@kvack.org>; Fri, 18 May 2012 06:43:49 -0400 (EDT)
+Message-ID: <1337337824.573.16.camel@twins>
+Subject: Re: [PATCH 1/2] lib: Proportions with flexible period
+From: Peter Zijlstra <peterz@infradead.org>
+Date: Fri, 18 May 2012 12:43:44 +0200
+In-Reply-To: <1337096583-6049-2-git-send-email-jack@suse.cz>
+References: <1337096583-6049-1-git-send-email-jack@suse.cz>
+	 <1337096583-6049-2-git-send-email-jack@suse.cz>
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: quoted-printable
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Jan Kara <jack@suse.cz>
-Cc: linux-fsdevel@vger.kernel.org, xfs@oss.sgi.com, linux-ext4@vger.kernel.org, Hugh Dickins <hughd@google.com>, linux-mm@kvack.org
+Cc: Wu Fengguang <fengguang.wu@intel.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 
-On Fri, May 18, 2012 at 01:28:29AM +0200, Jan Kara wrote:
-> On Thu 17-05-12 17:43:08, Dave Chinner wrote:
-> > On Wed, May 16, 2012 at 03:04:45PM +0200, Jan Kara wrote:
-> > > On Wed 16-05-12 12:14:23, Dave Chinner wrote:
-> > IIRC, it's a rare case (that I consider insane, BTW):  read from a
-> > file with into a buffer that is a mmap()d region of the same file
-> > that has not been faulted in yet.....
->   With punch hole, the race is less insane - just punching hole in the area
-> which is accessed via mmap could race in a bad way AFAICS.
+On Tue, 2012-05-15 at 17:43 +0200, Jan Kara wrote:
+> +void __fprop_inc_percpu_max(struct fprop_global *p,
+> +                           struct fprop_local_percpu *pl, int max_frac)
+> +{
+> +       if (unlikely(max_frac < 100)) {
+> +               unsigned long numerator, denominator;
+> +
+> +               fprop_fraction_percpu(p, pl, &numerator, &denominator);
+> +               if (numerator > ((long long)denominator) * max_frac / 100=
+)
+> +                       return;
 
-Seems the simple answer to me is to prevent page faults while hole
-punching, then....
+Another thing, your fprop_fraction_percpu() can he horribly expensive
+due to using _sum() (and to a lesser degree the retry), remember that
+this function is called for _every_ page written out.
 
-Cheers,
+Esp. on the mega fast storage (multi-spindle or SSD) they're pushing cpu
+limits as it is with iops, we should be very careful not to make it more
+expensive than absolutely needed.
 
-Dave.
--- 
-Dave Chinner
-david@fromorbit.com
+> +       } else
+> +               fprop_reflect_period_percpu(p, pl);
+> +       __percpu_counter_add(&pl->events, 1, PROP_BATCH);
+> +       percpu_counter_add(&p->events, 1);
+> +}=20
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
