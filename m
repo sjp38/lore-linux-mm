@@ -1,46 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx129.postini.com [74.125.245.129])
-	by kanga.kvack.org (Postfix) with SMTP id E35A56B0082
-	for <linux-mm@kvack.org>; Fri, 18 May 2012 09:57:42 -0400 (EDT)
-Date: Fri, 18 May 2012 08:57:40 -0500 (CDT)
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: [RFC] SL[AUO]B common code 3/9] Extract common fields from struct
- kmem_cache
-In-Reply-To: <alpine.LFD.2.02.1205181221570.3899@tux.localdomain>
-Message-ID: <alpine.DEB.2.00.1205180855450.21093@router.home>
-References: <20120514201544.334122849@linux.com> <20120514201610.559075441@linux.com> <alpine.LFD.2.02.1205160943180.2249@tux.localdomain> <alpine.DEB.2.00.1205160922520.25512@router.home> <alpine.LFD.2.02.1205181221570.3899@tux.localdomain>
+Received: from psmtp.com (na3sys010amx135.postini.com [74.125.245.135])
+	by kanga.kvack.org (Postfix) with SMTP id AE86B6B0092
+	for <linux-mm@kvack.org>; Fri, 18 May 2012 10:25:00 -0400 (EDT)
+Date: Fri, 18 May 2012 16:24:43 +0200
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [PATCH 2/2] block: Convert BDI proportion calculations to
+ flexible proportions
+Message-ID: <20120518142443.GA6875@quack.suse.cz>
+References: <1337096583-6049-1-git-send-email-jack@suse.cz>
+ <1337096583-6049-3-git-send-email-jack@suse.cz>
+ <1337292273.4281.101.camel@twins>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1337292273.4281.101.camel@twins>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pekka Enberg <penberg@kernel.org>
-Cc: Matt Mackall <mpm@selenic.com>, linux-mm@kvack.org
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: Jan Kara <jack@suse.cz>, Wu Fengguang <fengguang.wu@intel.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 
-On Fri, 18 May 2012, Pekka Enberg wrote:
+On Fri 18-05-12 00:04:33, Peter Zijlstra wrote:
+> On Tue, 2012-05-15 at 17:43 +0200, Jan Kara wrote:
+> > +static struct timer_list writeout_period_timer =
+> > +               TIMER_DEFERRED_INITIALIZER(writeout_period, 0, 0); 
+> 
+> So the problem with using a deferred timer is that it 'ignores' idle
+> time. So if a very busy period is followed by a real quiet period you'd
+> expect all the proportions to have aged to 0, but they won't have.
+  Ah, I see. Thanks for warning me.
 
-> Why not make a "struct kmem_cache_common" structure and use that? You can
-> embed it in "struct kmem_cache" just fine.
+> One way to solve that is to track a jiffies count of the last time the
+> timer triggered and compute the missed periods from that and extend
+> fprop_new_period() to deal with period increments of more than 1.
+  Yeah, that should be easy enough so I'll try it that way since I presume
+it's nicer to power usage to use deferred timers if it's reasonably
+possible.
 
-Tried that but I ended up with having to qualify all common variables.
-
-I.e.
-
-struct kmem_cache {
-	struct kmem_cache_common {
-		int a,b
-	} common
-} kmem_cache;
-
-
-requires
-
-	kmemcache->common.a
-
-instead of
-
-	kmemcache->a
-
-That in turn requires significant changes to all allocators.
+									Honza
+-- 
+Jan Kara <jack@suse.cz>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
