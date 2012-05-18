@@ -1,325 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx105.postini.com [74.125.245.105])
-	by kanga.kvack.org (Postfix) with SMTP id 4C8AC6B0092
-	for <linux-mm@kvack.org>; Fri, 18 May 2012 02:11:09 -0400 (EDT)
-From: Hiroshi DOYU <hdoyu@nvidia.com>
-Subject: [RFC 2/2] dma-mapping: Enable IOVA mapping with specific address
-Date: Fri, 18 May 2012 09:10:27 +0300
-Message-ID: <1337321427-27748-3-git-send-email-hdoyu@nvidia.com>
-In-Reply-To: <1337321427-27748-1-git-send-email-hdoyu@nvidia.com>
-References: <1337321427-27748-1-git-send-email-hdoyu@nvidia.com>
+Received: from psmtp.com (na3sys010amx174.postini.com [74.125.245.174])
+	by kanga.kvack.org (Postfix) with SMTP id F04706B0082
+	for <linux-mm@kvack.org>; Fri, 18 May 2012 02:51:08 -0400 (EDT)
+Date: Fri, 18 May 2012 08:50:51 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH] mm: consider all swapped back pages in used-once logic
+Message-ID: <20120518065051.GA23173@tiehlicka.suse.cz>
+References: <1337246033-13719-1-git-send-email-mhocko@suse.cz>
+ <20120517022412.9175f604.akpm@linux-foundation.org>
+ <20120517121049.GA11018@tiehlicka.suse.cz>
+ <20120517132324.e9bf9fc8.akpm@linux-foundation.org>
 MIME-Version: 1.0
-Content-Type: text/plain
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20120517132324.e9bf9fc8.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: hdoyu@nvidia.com, m.szyprowski@samsung.com, linaro-mm-sig@lists.linaro.org
-Cc: linux-mm@kvack.org, linux-arm-kernel@lists.infradead.org, iommu@lists.linux-foundation.org, linux-tegra@vger.kernel.org, Russell King <linux@arm.linux.org.uk>, Kyungmin Park <kyungmin.park@samsung.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Jon Medhurst <tixy@yxit.co.uk>, Nicolas Pitre <nicolas.pitre@linaro.org>, Arnd Bergmann <arnd@arndb.de>, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mel@csn.ul.ie>, Minchan Kim <minchan@kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>
 
-Enable IOVA (un)mapping at a specific IOVA address, independent of
-allocating/freeing IOVA area, introducing the following
-dma_(un)map_page_*at*() functions:
+On Thu 17-05-12 13:23:24, Andrew Morton wrote:
+> On Thu, 17 May 2012 14:10:49 +0200
+> Michal Hocko <mhocko@suse.cz> wrote:
+> 
+> > > > This patch fixes a regression introduced by this commit for heavy shmem
+> > > 
+> > > A performance regression, specifically.
+> > > 
+> > > Are you able to quantify it?
+> > 
+> > The customer's workload is shmem backed database (80% of RAM) and
+> > they are measuring transactions/s with an IO in the background (20%).
+> > Transactions touch more or less random rows in the table.
+> > The rate goes down drastically when we start swapping out memory.
+> > 
+> > Numbers are more descriptive (without the patch is 100%, with 5
+> > representative runs)
+> > Average rate	315.83%
+> > Best rate	131.76%
+> > Worst rate	641.25%
+> > 
+> > Standard deviation (calibrated to average) is ~4% while without the
+> > patch we are at 62.82%. 
+> > The big variance without the patch is caused by the excessive swapping
+> > which doesn't occur with the patch applied.
+> > 
+> > * Worst run (100%) compared to a random run with the patch
+> > pgpgin	pswpin	pswpout	pgmajfault
+> > 1.58%	0.00%	0.01%	0.22%
+> > 
+> > Average size of the LRU lists:
+> > nr_inactive_anon nr_active_anon nr_inactive_file nr_active_file
+> > 52.91%           7234.72%       249.39%          126.64%
+> > 
+> > * Best run
+> > pgpgin	pswpin	pswpout	pgmajfault
+> > 3.37%	0.00%	0.11%	0.39%
+> > 
+> > nr_inactive_anon nr_active_anon nr_inactive_file nr_active_file
+> > 49.85%           3868.74%       175.03%          121.27%
+> 
+> I turned the above into this soundbite:
+> 
+> : The customer's workload is shmem backed database (80% of RAM) and they are
+> : measuring transactions/s with an IO in the background (20%).  Transactions
+> : touch more or less random rows in the table.  Total runtime was
+> : approximately tripled by commit 64574746 and this patch restores the
+> : previous throughput levels.
+> 
+> Was that truthful?
 
-	dma_map_page_at()
-	dma_unmap_page_at()
+Total runtime was same for all the runs. It is the number of executed
+transactions that was measured. I guess that what you wrote should be
+more or less equivalent but it's is not what I have numbers for.
+How about:
+"
+Total number of transactions went down 3 times (in the worst case)
+because of commit 64574746. This patch restores the previous numbers.
+"
 
-The above create a mapping between pre-allocated iova and a page, and
-remov just a mapping, leaving iova itself allocated. At mapping, it
-also checks if IOVA is already reserved or not.
-
-There are the version with the prefix "arm_iommu_", and they are
-exactly same as the above.
-
-Signed-off-by: Hiroshi DOYU <hdoyu@nvidia.com>
----
- arch/arm/include/asm/dma-iommu.h   |   29 +++++++-
- arch/arm/include/asm/dma-mapping.h |    1 +
- arch/arm/mm/dma-mapping.c          |  158 +++++++++++++++++++++++++++---------
- 3 files changed, 150 insertions(+), 38 deletions(-)
-
-diff --git a/arch/arm/include/asm/dma-iommu.h b/arch/arm/include/asm/dma-iommu.h
-index 2595928..99eba3d 100644
---- a/arch/arm/include/asm/dma-iommu.h
-+++ b/arch/arm/include/asm/dma-iommu.h
-@@ -30,9 +30,36 @@ void arm_iommu_release_mapping(struct dma_iommu_mapping *mapping);
- int arm_iommu_attach_device(struct device *dev,
- 					struct dma_iommu_mapping *mapping);
- 
--dma_addr_t arm_iommu_alloc_iova(struct device *dev, size_t size);
-+dma_addr_t arm_iommu_alloc_iova_at(struct device *dev, dma_addr_t addr,
-+				size_t size);
-+
-+static inline dma_addr_t arm_iommu_alloc_iova(struct device *dev, size_t size)
-+{
-+	return arm_iommu_alloc_iova_at(dev, DMA_ANON_ADDR, size);
-+}
- 
- void arm_iommu_free_iova(struct device *dev, dma_addr_t addr, size_t size);
- 
-+dma_addr_t arm_iommu_map_page_at(struct device *dev, struct page *page,
-+			 dma_addr_t addr, unsigned long offset, size_t size,
-+			 enum dma_data_direction dir, struct dma_attrs *attrs);
-+
-+static inline dma_addr_t dma_map_page_at(struct device *d, struct page *p,
-+					 dma_addr_t a, size_t o, size_t s,
-+					 enum dma_data_direction r)
-+{
-+	return arm_iommu_map_page_at(d, p, a, o, s, r, 0);
-+}
-+
-+void arm_iommu_unmap_page_at(struct device *dev, dma_addr_t handle,
-+			     size_t size, enum dma_data_direction dir,
-+			     struct dma_attrs *attrs);
-+
-+static inline void dma_unmap_page_at(struct device *d, dma_addr_t a, size_t s,
-+				     enum dma_data_direction r)
-+{
-+	return arm_iommu_unmap_page_at(d, a, s, r, 0);
-+}
-+
- #endif /* __KERNEL__ */
- #endif
-diff --git a/arch/arm/include/asm/dma-mapping.h b/arch/arm/include/asm/dma-mapping.h
-index bbef15d..b73eb73 100644
---- a/arch/arm/include/asm/dma-mapping.h
-+++ b/arch/arm/include/asm/dma-mapping.h
-@@ -12,6 +12,7 @@
- #include <asm/memory.h>
- 
- #define DMA_ERROR_CODE	(~0)
-+#define DMA_ANON_ADDR	(~0)
- extern struct dma_map_ops arm_dma_ops;
- 
- static inline struct dma_map_ops *get_dma_ops(struct device *dev)
-diff --git a/arch/arm/mm/dma-mapping.c b/arch/arm/mm/dma-mapping.c
-index bca1715..b98e668 100644
---- a/arch/arm/mm/dma-mapping.c
-+++ b/arch/arm/mm/dma-mapping.c
-@@ -1013,48 +1013,65 @@ fs_initcall(dma_debug_do_init);
- 
- /* IOMMU */
- 
--static inline dma_addr_t __alloc_iova(struct dma_iommu_mapping *mapping,
--				      size_t size)
-+static dma_addr_t __alloc_iova_at(struct dma_iommu_mapping *mapping,
-+				     dma_addr_t iova, size_t size)
- {
- 	unsigned int order = get_order(size);
- 	unsigned int align = 0;
--	unsigned int count, start;
-+	unsigned int count, start, orig = 0;
- 	unsigned long flags;
-+	bool anon = (iova == DMA_ANON_ADDR) ? true : false;
- 
- 	count = ((PAGE_ALIGN(size) >> PAGE_SHIFT) +
- 		 (1 << mapping->order) - 1) >> mapping->order;
- 
--	if (order > mapping->order)
-+	if (anon && (order > mapping->order))
- 		align = (1 << (order - mapping->order)) - 1;
- 
- 	spin_lock_irqsave(&mapping->lock, flags);
--	start = bitmap_find_next_zero_area(mapping->bitmap, mapping->bits, 0,
--					   count, align);
--	if (start > mapping->bits) {
--		spin_unlock_irqrestore(&mapping->lock, flags);
--		return DMA_ERROR_CODE;
--	}
-+	if (!anon)
-+		orig = (iova - mapping->base) >> (mapping->order + PAGE_SHIFT);
-+
-+	start = bitmap_find_next_zero_area(mapping->bitmap, mapping->bits,
-+					   orig, count, align);
-+	if (start > mapping->bits)
-+		goto not_found;
-+
-+	if (!anon && (orig != start))
-+		goto not_found;
- 
- 	bitmap_set(mapping->bitmap, start, count);
- 	spin_unlock_irqrestore(&mapping->lock, flags);
- 
- 	return mapping->base + (start << (mapping->order + PAGE_SHIFT));
-+
-+not_found:
-+	spin_unlock_irqrestore(&mapping->lock, flags);
-+	return DMA_ERROR_CODE;
-+}
-+
-+static inline dma_addr_t __alloc_iova(struct dma_iommu_mapping *mapping,
-+				      size_t size)
-+{
-+	return __alloc_iova_at(mapping, DMA_ANON_ADDR, size);
- }
- 
- /**
-- * arm_iommu_alloc_iova
-+ * arm_iommu_alloc_iova_at
-  * @dev: valid struct device pointer
-+ * @iova: iova address being requested. Set DMA_ANON_ADDR for arbitral
-  * @size: size of buffer to allocate
-  *
-  * Allocate IOVA address range
-  */
--dma_addr_t arm_iommu_alloc_iova(struct device *dev, size_t size)
-+dma_addr_t arm_iommu_alloc_iova_at(struct device *dev, dma_addr_t iova,
-+				size_t size)
- {
- 	struct dma_iommu_mapping *mapping = dev->archdata.mapping;
- 
--	return __alloc_iova(mapping, size);
-+	return __alloc_iova_at(mapping, iova, size);
- }
--EXPORT_SYMBOL_GPL(arm_iommu_alloc_iova);
-+EXPORT_SYMBOL_GPL(arm_iommu_alloc_iova_at);
- 
- static inline void __free_iova(struct dma_iommu_mapping *mapping,
- 			       dma_addr_t addr, size_t size)
-@@ -1507,6 +1524,41 @@ void arm_iommu_sync_sg_for_device(struct device *dev, struct scatterlist *sg,
- 			__dma_page_cpu_to_dev(sg_page(s), s->offset, s->length, dir);
- }
- 
-+static dma_addr_t __arm_iommu_map_page_at(struct device *dev, struct page *page,
-+			  dma_addr_t req, unsigned long offset, size_t size,
-+			  enum dma_data_direction dir, struct dma_attrs *attrs)
-+{
-+	struct dma_iommu_mapping *mapping = dev->archdata.mapping;
-+	dma_addr_t dma_addr;
-+	int ret, len = PAGE_ALIGN(size + offset);
-+
-+	if (!arch_is_coherent())
-+		__dma_page_cpu_to_dev(page, offset, size, dir);
-+
-+	dma_addr = __alloc_iova_at(mapping, req, len);
-+	if (dma_addr == DMA_ERROR_CODE) {
-+		if (req == DMA_ANON_ADDR)
-+			return DMA_ERROR_CODE;
-+		/*
-+		 * Verified that iova(req) is reserved in advance if
-+		 * @req is specified.
-+		 */
-+		dma_addr = req;
-+	}
-+
-+	if (req != DMA_ANON_ADDR)
-+		BUG_ON(dma_addr != req);
-+
-+	ret = iommu_map(mapping->domain, dma_addr, page_to_phys(page), len, 0);
-+	if (ret < 0)
-+		goto fail;
-+
-+	return dma_addr + offset;
-+fail:
-+	if (req == DMA_ANON_ADDR)
-+		__free_iova(mapping, dma_addr, len);
-+	return DMA_ERROR_CODE;
-+}
- 
- /**
-  * arm_iommu_map_page
-@@ -1522,25 +1574,47 @@ static dma_addr_t arm_iommu_map_page(struct device *dev, struct page *page,
- 	     unsigned long offset, size_t size, enum dma_data_direction dir,
- 	     struct dma_attrs *attrs)
- {
--	struct dma_iommu_mapping *mapping = dev->archdata.mapping;
--	dma_addr_t dma_addr;
--	int ret, len = PAGE_ALIGN(size + offset);
-+	return __arm_iommu_map_page_at(dev, page, DMA_ANON_ADDR,
-+				       offset, size, dir, attrs);
-+}
- 
--	if (!arch_is_coherent())
--		__dma_page_cpu_to_dev(page, offset, size, dir);
-+/**
-+ * arm_iommu_map_page_at
-+ * @dev: valid struct device pointer
-+ * @page: page that buffer resides in
-+ * @req: iova address being requested. Set DMA_ANON_ADDR for arbitral
-+ * @offset: offset into page for start of buffer
-+ * @size: size of buffer to map
-+ * @dir: DMA transfer direction
-+ *
-+ * The version with a specified iova address of arm_iommu_map_page().
-+ */
-+dma_addr_t arm_iommu_map_page_at(struct device *dev, struct page *page,
-+		 dma_addr_t req, unsigned long offset, size_t size,
-+		 enum dma_data_direction dir, struct dma_attrs *attrs)
-+{
-+	return __arm_iommu_map_page_at(dev, page, req, offset, size, dir,
-+				       attrs);
-+}
-+EXPORT_SYMBOL_GPL(arm_iommu_map_page_at);
- 
--	dma_addr = __alloc_iova(mapping, len);
--	if (dma_addr == DMA_ERROR_CODE)
--		return dma_addr;
-+static inline int __arm_iommu_unmap_page(struct device *dev, dma_addr_t handle,
-+		size_t size, enum dma_data_direction dir,
-+		struct dma_attrs *attrs)
-+{
-+	dma_addr_t iova = handle & PAGE_MASK;
-+	struct page *page = phys_to_page(iommu_iova_to_phys(mapping->domain, iova));
-+	int offset = handle & ~PAGE_MASK;
-+	int len = PAGE_ALIGN(size + offset);
- 
--	ret = iommu_map(mapping->domain, dma_addr, page_to_phys(page), len, 0);
--	if (ret < 0)
--		goto fail;
-+	if (!iova)
-+		return -EINVAL;
- 
--	return dma_addr + offset;
--fail:
--	__free_iova(mapping, dma_addr, len);
--	return DMA_ERROR_CODE;
-+	if (!arch_is_coherent())
-+		__dma_page_dev_to_cpu(page, offset, size, dir);
-+
-+	iommu_unmap(mapping->domain, iova, len);
-+	return 0;
- }
- 
- /**
-@@ -1558,20 +1632,30 @@ static void arm_iommu_unmap_page(struct device *dev, dma_addr_t handle,
- {
- 	struct dma_iommu_mapping *mapping = dev->archdata.mapping;
- 	dma_addr_t iova = handle & PAGE_MASK;
--	struct page *page = phys_to_page(iommu_iova_to_phys(mapping->domain, iova));
--	int offset = handle & ~PAGE_MASK;
- 	int len = PAGE_ALIGN(size + offset);
- 
--	if (!iova)
-+	if (__arm_iommu_unmap_page(dev, handle, size, dir, attrs))
- 		return;
--
--	if (!arch_is_coherent())
--		__dma_page_dev_to_cpu(page, offset, size, dir);
--
--	iommu_unmap(mapping->domain, iova, len);
- 	__free_iova(mapping, iova, len);
- }
- 
-+/**
-+ * arm_iommu_unmap_page_at
-+ * @dev: valid struct device pointer
-+ * @handle: DMA address of buffer
-+ * @size: size of buffer (same as passed to dma_map_page)
-+ * @dir: DMA transfer direction (same as passed to dma_map_page)
-+ *
-+ * The version without freeing iova of arm_iommu_unmap_page().
-+ */
-+void arm_iommu_unmap_page_at(struct device *dev, dma_addr_t handle,
-+		size_t size, enum dma_data_direction dir,
-+		struct dma_attrs *attrs)
-+{
-+	__arm_iommu_unmap_page(dev, handle, size, dir, attrs);
-+}
-+EXPORT_SYMBOL_GPL(arm_iommu_unmap_page_at);
-+
- static void arm_iommu_sync_single_for_cpu(struct device *dev,
- 		dma_addr_t handle, size_t size, enum dma_data_direction dir)
- {
+Thanks
 -- 
-1.7.5.4
+Michal Hocko
+SUSE Labs
+SUSE LINUX s.r.o.
+Lihovarska 1060/12
+190 00 Praha 9    
+Czech Republic
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
