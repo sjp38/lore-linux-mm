@@ -1,47 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx123.postini.com [74.125.245.123])
-	by kanga.kvack.org (Postfix) with SMTP id DC2086B0082
-	for <linux-mm@kvack.org>; Fri, 18 May 2012 06:43:49 -0400 (EDT)
-Message-ID: <1337337824.573.16.camel@twins>
-Subject: Re: [PATCH 1/2] lib: Proportions with flexible period
-From: Peter Zijlstra <peterz@infradead.org>
-Date: Fri, 18 May 2012 12:43:44 +0200
-In-Reply-To: <1337096583-6049-2-git-send-email-jack@suse.cz>
-References: <1337096583-6049-1-git-send-email-jack@suse.cz>
-	 <1337096583-6049-2-git-send-email-jack@suse.cz>
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: quoted-printable
-Mime-Version: 1.0
+Received: from psmtp.com (na3sys010amx184.postini.com [74.125.245.184])
+	by kanga.kvack.org (Postfix) with SMTP id 9983A6B0082
+	for <linux-mm@kvack.org>; Fri, 18 May 2012 09:02:33 -0400 (EDT)
+Received: by pbbrp2 with SMTP id rp2so5825392pbb.14
+        for <linux-mm@kvack.org>; Fri, 18 May 2012 06:02:32 -0700 (PDT)
+From: Joonsoo Kim <js1304@gmail.com>
+Subject: [PATCH 1,2/4 v4] slub: use __cmpxchg_double_slab() at interrupt disabled place
+Date: Fri, 18 May 2012 22:01:17 +0900
+Message-Id: <1337346077-2754-1-git-send-email-js1304@gmail.com>
+In-Reply-To: <alpine.LFD.2.02.1205181231170.3899@tux.localdomain>
+References: <alpine.LFD.2.02.1205181231170.3899@tux.localdomain>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jan Kara <jack@suse.cz>
-Cc: Wu Fengguang <fengguang.wu@intel.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: Pekka Enberg <penberg@kernel.org>
+Cc: Christoph Lameter <cl@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Joonsoo Kim <js1304@gmail.com>
 
-On Tue, 2012-05-15 at 17:43 +0200, Jan Kara wrote:
-> +void __fprop_inc_percpu_max(struct fprop_global *p,
-> +                           struct fprop_local_percpu *pl, int max_frac)
-> +{
-> +       if (unlikely(max_frac < 100)) {
-> +               unsigned long numerator, denominator;
-> +
-> +               fprop_fraction_percpu(p, pl, &numerator, &denominator);
-> +               if (numerator > ((long long)denominator) * max_frac / 100=
-)
-> +                       return;
+get_freelist(), unfreeze_partials() are only called with interrupt disabled,
+so __cmpxchg_double_slab() is suitable.
 
-Another thing, your fprop_fraction_percpu() can he horribly expensive
-due to using _sum() (and to a lesser degree the retry), remember that
-this function is called for _every_ page written out.
+Acked-by: Christoph Lameter <cl@linux.com>
+Signed-off-by: Joonsoo Kim <js1304@gmail.com>
+---
+According to comment from Pekka, add some comment.
 
-Esp. on the mega fast storage (multi-spindle or SSD) they're pushing cpu
-limits as it is with iops, we should be very careful not to make it more
-expensive than absolutely needed.
-
-> +       } else
-> +               fprop_reflect_period_percpu(p, pl);
-> +       __percpu_counter_add(&pl->events, 1, PROP_BATCH);
-> +       percpu_counter_add(&p->events, 1);
-> +}=20
+diff --git a/mm/slub.c b/mm/slub.c
+index 0c3105c..d7f8291 100644
+--- a/mm/slub.c
++++ b/mm/slub.c
+@@ -1879,7 +1879,11 @@ redo:
+ 	}
+ }
+ 
+-/* Unfreeze all the cpu partial slabs */
++/*
++ * Unfreeze all the cpu partial slabs.
++ *
++ * This function must be called with interrupt disabled.
++ */
+ static void unfreeze_partials(struct kmem_cache *s)
+ {
+ 	struct kmem_cache_node *n = NULL;
+@@ -1935,7 +1939,7 @@ static void unfreeze_partials(struct kmem_cache *s)
+ 				l = m;
+ 			}
+ 
+-		} while (!cmpxchg_double_slab(s, page,
++		} while (!__cmpxchg_double_slab(s, page,
+ 				old.freelist, old.counters,
+ 				new.freelist, new.counters,
+ 				"unfreezing slab"));
+@@ -2163,6 +2167,8 @@ static inline void *new_slab_objects(struct kmem_cache *s, gfp_t flags,
+  * The page is still frozen if the return value is not NULL.
+  *
+  * If this function returns NULL then the page has been unfrozen.
++ *
++ * This function must be called with interrupt disabled.
+  */
+ static inline void *get_freelist(struct kmem_cache *s, struct page *page)
+ {
+@@ -2179,7 +2185,7 @@ static inline void *get_freelist(struct kmem_cache *s, struct page *page)
+ 		new.inuse = page->objects;
+ 		new.frozen = freelist != NULL;
+ 
+-	} while (!cmpxchg_double_slab(s, page,
++	} while (!__cmpxchg_double_slab(s, page,
+ 		freelist, counters,
+ 		NULL, new.counters,
+ 		"get_freelist"));
+-- 
+1.7.9.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
