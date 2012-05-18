@@ -1,33 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx145.postini.com [74.125.245.145])
-	by kanga.kvack.org (Postfix) with SMTP id 9738D6B0082
-	for <linux-mm@kvack.org>; Fri, 18 May 2012 09:11:07 -0400 (EDT)
-Received: by obbwd18 with SMTP id wd18so5962829obb.14
-        for <linux-mm@kvack.org>; Fri, 18 May 2012 06:11:06 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx130.postini.com [74.125.245.130])
+	by kanga.kvack.org (Postfix) with SMTP id 4F61F6B0082
+	for <linux-mm@kvack.org>; Fri, 18 May 2012 09:33:12 -0400 (EDT)
+Date: Fri, 18 May 2012 15:32:50 +0200
+From: Jan Kara <jack@suse.cz>
+Subject: Re: Hole punching and mmap races
+Message-ID: <20120518133250.GC5589@quack.suse.cz>
+References: <20120515224805.GA25577@quack.suse.cz>
+ <20120516021423.GO25351@dastard>
+ <20120516130445.GA27661@quack.suse.cz>
+ <20120517074308.GQ25351@dastard>
+ <20120517232829.GA31028@quack.suse.cz>
+ <20120518101210.GX25351@dastard>
 MIME-Version: 1.0
-In-Reply-To: <alpine.DEB.2.00.1205171329440.12366@router.home>
-References: <1337269668-4619-1-git-send-email-js1304@gmail.com>
-	<1337269668-4619-5-git-send-email-js1304@gmail.com>
-	<alpine.DEB.2.00.1205171329440.12366@router.home>
-Date: Fri, 18 May 2012 22:11:06 +0900
-Message-ID: <CAAmzW4Py8-UQmTcgfXzszco=FqGd-FGPA4qMKAmt70NtFwgpQA@mail.gmail.com>
-Subject: Re: [PATCH 4/4] slub: refactoring unfreeze_partials()
-From: JoonSoo Kim <js1304@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20120518101210.GX25351@dastard>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: Pekka Enberg <penberg@kernel.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Dave Chinner <david@fromorbit.com>
+Cc: Jan Kara <jack@suse.cz>, linux-fsdevel@vger.kernel.org, xfs@oss.sgi.com, linux-ext4@vger.kernel.org, Hugh Dickins <hughd@google.com>, linux-mm@kvack.org
 
-2012/5/18 Christoph Lameter <cl@linux.com>:
-> The reason the current implementation is so complex is to avoid races. The
-> state of the list and the state of the partial pages must be consistent at
-> all times.
-OK. I got it.
+On Fri 18-05-12 20:12:10, Dave Chinner wrote:
+> On Fri, May 18, 2012 at 01:28:29AM +0200, Jan Kara wrote:
+> > On Thu 17-05-12 17:43:08, Dave Chinner wrote:
+> > > On Wed, May 16, 2012 at 03:04:45PM +0200, Jan Kara wrote:
+> > > > On Wed 16-05-12 12:14:23, Dave Chinner wrote:
+> > > IIRC, it's a rare case (that I consider insane, BTW):  read from a
+> > > file with into a buffer that is a mmap()d region of the same file
+> > > that has not been faulted in yet.....
+> >   With punch hole, the race is less insane - just punching hole in the area
+> > which is accessed via mmap could race in a bad way AFAICS.
+> 
+> Seems the simple answer to me is to prevent page faults while hole
+> punching, then....
+  Yes, that's what I was suggesting in the beginning :) And I was asking
+whether people are OK with another lock in the page fault path (in
+particular in ->page_mkwrite) or whether someone has a better idea (e.g.
+taking mmap_sem in the hole punching path seems possible but I'm not sure
+whether that would be considered acceptable abuse).
 
-> Looks good. If I can convince myself that this does not open up any
-> new races then I may ack it.
-Thanks.
+								Honza
+-- 
+Jan Kara <jack@suse.cz>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
