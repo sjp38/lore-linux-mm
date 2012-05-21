@@ -1,42 +1,127 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx111.postini.com [74.125.245.111])
-	by kanga.kvack.org (Postfix) with SMTP id 6BD756B00F6
-	for <linux-mm@kvack.org>; Mon, 21 May 2012 16:35:15 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx197.postini.com [74.125.245.197])
+	by kanga.kvack.org (Postfix) with SMTP id 002D76B00F8
+	for <linux-mm@kvack.org>; Mon, 21 May 2012 16:35:44 -0400 (EDT)
 Received: from /spool/local
-	by e6.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e5.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <dave@linux.vnet.ibm.com>;
-	Mon, 21 May 2012 16:35:11 -0400
-Received: from d01relay01.pok.ibm.com (d01relay01.pok.ibm.com [9.56.227.233])
-	by d01dlp02.pok.ibm.com (Postfix) with ESMTP id 86CEF6E8049
-	for <linux-mm@kvack.org>; Mon, 21 May 2012 16:34:33 -0400 (EDT)
+	Mon, 21 May 2012 16:35:44 -0400
+Received: from d01relay07.pok.ibm.com (d01relay07.pok.ibm.com [9.56.227.147])
+	by d01dlp01.pok.ibm.com (Postfix) with ESMTP id 169D338C805C
+	for <linux-mm@kvack.org>; Mon, 21 May 2012 16:30:26 -0400 (EDT)
 Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
-	by d01relay01.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q4LKYXbb066126
-	for <linux-mm@kvack.org>; Mon, 21 May 2012 16:34:33 -0400
+	by d01relay07.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q4LKUQwp24051940
+	for <linux-mm@kvack.org>; Mon, 21 May 2012 16:30:26 -0400
 Received: from d01av04.pok.ibm.com (loopback [127.0.0.1])
-	by d01av04.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q4LKYXjj015304
-	for <linux-mm@kvack.org>; Mon, 21 May 2012 16:34:33 -0400
-Message-ID: <4FBAA6D7.2000604@linux.vnet.ibm.com>
-Date: Mon, 21 May 2012 13:34:31 -0700
+	by d01av04.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q4LKUOLp025493
+	for <linux-mm@kvack.org>; Mon, 21 May 2012 16:30:24 -0400
+Subject: [RFC][PATCH 1/2] hugetlb: fix resv_map leak in error path
 From: Dave Hansen <dave@linux.vnet.ibm.com>
-MIME-Version: 1.0
-Subject: Re: [RFC][PATCH 1/2] hugetlb: fix resv_map leak in error path
-References: <20120521203022.F7FCE507@kernel>
-In-Reply-To: <20120521203022.F7FCE507@kernel>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Date: Mon, 21 May 2012 13:30:22 -0700
+Message-Id: <20120521203022.F7FCE507@kernel>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave@linux.vnet.ibm.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: linux-kernel@vger.kernel.org
+Cc: linux-mm@kvack.org, Dave Hansen <dave@linux.vnet.ibm.com>
 
-On 05/21/2012 01:30 PM, Dave Hansen wrote:
-> When called for anonymous (non-shared) mappings,
-> hugetlb_reserve_pages() does a resv_map_alloc().  It depends on
-> code in hugetlbfs's vm_ops->close() to release that allocation.
 
-Sorry, this one escaped unintentionally!  This patch itself is good, but
-I didn't mean to send it along with 2/2.  Disregard this 1/2, but please
-take a look at 2/2!
+When called for anonymous (non-shared) mappings,
+hugetlb_reserve_pages() does a resv_map_alloc().  It depends on
+code in hugetlbfs's vm_ops->close() to release that allocation.
+
+However, in the mmap() failure path, we do a plain unmap_region()
+without the remove_vma() which actually calls vm_ops->close().
+
+This is a decent fix.  This leak could get reintroduced if
+new code (say, after hugetlb_reserve_pages() in
+hugetlbfs_file_mmap()) decides to return an error.  But, I think
+it would have to unroll the reservation anyway.
+
+This hasn't been extensively tested.  Pretty much compile and
+boot tested along with Christoph's test case:
+
+	http://marc.info/?l=linux-mm&m=133728900729735
+
+Signed-off-by: Dave Hansen <dave@linux.vnet.ibm.com>
+Acked-by: Mel Gorman <mel@csn.ul.ie>
+ecked-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Reported/tested-by: Christoph Lameter <cl@linux.com>
+
+---
+
+ linux-2.6.git-dave/mm/hugetlb.c |   28 ++++++++++++++++++++++------
+ 1 file changed, 22 insertions(+), 6 deletions(-)
+
+diff -puN mm/hugetlb.c~hugetlb-fix-leak mm/hugetlb.c
+--- linux-2.6.git/mm/hugetlb.c~hugetlb-fix-leak	2012-05-21 13:24:38.369857759 -0700
++++ linux-2.6.git-dave/mm/hugetlb.c	2012-05-21 13:24:38.377857849 -0700
+@@ -2157,6 +2157,15 @@ static void hugetlb_vm_op_open(struct vm
+ 		kref_get(&reservations->refs);
+ }
+ 
++static void resv_map_put(struct vm_area_struct *vma)
++{
++	struct resv_map *reservations = vma_resv_map(vma);
++
++	if (!reservations)
++		return;
++	kref_put(&reservations->refs, resv_map_release);
++}
++
+ static void hugetlb_vm_op_close(struct vm_area_struct *vma)
+ {
+ 	struct hstate *h = hstate_vma(vma);
+@@ -2173,7 +2182,7 @@ static void hugetlb_vm_op_close(struct v
+ 		reserve = (end - start) -
+ 			region_count(&reservations->regions, start, end);
+ 
+-		kref_put(&reservations->refs, resv_map_release);
++		resv_map_put(vma);
+ 
+ 		if (reserve) {
+ 			hugetlb_acct_memory(h, -reserve);
+@@ -2990,12 +2999,16 @@ int hugetlb_reserve_pages(struct inode *
+ 		set_vma_resv_flags(vma, HPAGE_RESV_OWNER);
+ 	}
+ 
+-	if (chg < 0)
+-		return chg;
++	if (chg < 0) {
++		ret = chg;
++		goto out_err;
++	}
+ 
+ 	/* There must be enough pages in the subpool for the mapping */
+-	if (hugepage_subpool_get_pages(spool, chg))
+-		return -ENOSPC;
++	if (hugepage_subpool_get_pages(spool, chg)) {
++		ret = -ENOSPC;
++		goto out_err;
++	}
+ 
+ 	/*
+ 	 * Check enough hugepages are available for the reservation.
+@@ -3004,7 +3017,7 @@ int hugetlb_reserve_pages(struct inode *
+ 	ret = hugetlb_acct_memory(h, chg);
+ 	if (ret < 0) {
+ 		hugepage_subpool_put_pages(spool, chg);
+-		return ret;
++		goto out_err;
+ 	}
+ 
+ 	/*
+@@ -3021,6 +3034,9 @@ int hugetlb_reserve_pages(struct inode *
+ 	if (!vma || vma->vm_flags & VM_MAYSHARE)
+ 		region_add(&inode->i_mapping->private_list, from, to);
+ 	return 0;
++out_err:
++	resv_map_put(vma);
++	return ret;
+ }
+ 
+ void hugetlb_unreserve_pages(struct inode *inode, long offset, long freed)
+diff -puN Documentation/stable_kernel_rules.txt~hugetlb-fix-leak Documentation/stable_kernel_rules.txt
+_
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
