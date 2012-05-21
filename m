@@ -1,47 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx187.postini.com [74.125.245.187])
-	by kanga.kvack.org (Postfix) with SMTP id E93FD6B0044
-	for <linux-mm@kvack.org>; Mon, 21 May 2012 10:28:25 -0400 (EDT)
-Date: Mon, 21 May 2012 15:28:22 +0100
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [RFC][PATCH] hugetlb: fix resv_map leak in error path
-Message-ID: <20120521142822.GF28631@csn.ul.ie>
-References: <20120518184630.FF3307BD@kernel>
+Received: from psmtp.com (na3sys010amx125.postini.com [74.125.245.125])
+	by kanga.kvack.org (Postfix) with SMTP id 026C36B0044
+	for <linux-mm@kvack.org>; Mon, 21 May 2012 11:04:07 -0400 (EDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20120518184630.FF3307BD@kernel>
+Message-ID: <ee168801-3f7e-49ec-9a6e-14b6a4bc6a5f@default>
+Date: Mon, 21 May 2012 08:04:00 -0700 (PDT)
+From: Dan Magenheimer <dan.magenheimer@oracle.com>
+Subject: RE: [PATCH] zsmalloc: use unsigned long instead of void *
+References: <1337567013-4741-1-git-send-email-minchan@kernel.org>
+ <4FBA4EE2.8050308@linux.vnet.ibm.com>
+In-Reply-To: <4FBA4EE2.8050308@linux.vnet.ibm.com>
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave@linux.vnet.ibm.com>
-Cc: cl@linux.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, aarcange@redhat.com, kosaki.motohiro@jp.fujitsu.com, hughd@google.com, rientjes@google.com, adobriyan@gmail.com, akpm@linux-foundation.org
+To: Seth Jennings <sjenning@linux.vnet.ibm.com>, Minchan Kim <minchan@kernel.org>
+Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Konrad Wilk <konrad.wilk@oracle.com>, Nitin Gupta <ngupta@vflare.org>
 
-On Fri, May 18, 2012 at 11:46:30AM -0700, Dave Hansen wrote:
-> 
-> When called for anonymous (non-shared) mappings,
-> hugetlb_reserve_pages() does a resv_map_alloc().  It depends on
-> code in hugetlbfs's vm_ops->close() to release that allocation.
-> 
-> However, in the mmap() failure path, we do a plain unmap_region()
-> without the remove_vma() which actually calls vm_ops->close().
-> 
-> This is a decent fix.  This leak could get reintroduced if
-> new code (say, after hugetlb_reserve_pages() in
-> hugetlbfs_file_mmap()) decides to return an error.  But, I think
-> it would have to unroll the reservation anyway.
-> 
-> This hasn't been extensively tested.  Pretty much compile and
-> boot tested along with Christoph's test case.
-> 
-> Comments?
-> 
-> Signed-off-by: Dave Hansen <dave@linux.vnet.ibm.com>
+> From: Seth Jennings [mailto:sjenning@linux.vnet.ibm.com]
+> Subject: Re: [PATCH] zsmalloc: use unsigned long instead of void *
+>=20
+> On 05/20/2012 09:23 PM, Minchan Kim wrote:
+>=20
+> > We should use unsigned long as handle instead of void * to avoid any
+> > confusion. Without this, users may just treat zs_malloc return value as
+> > a pointer and try to deference it.
+>=20
+> I wouldn't have agreed with you about the need for this change as people
+> should understand a void * to be the address of some data with unknown
+> structure.
+>=20
+> However, I recently discussed with Dan regarding his RAMster project
+> where he assumed that the void * would be an address, and as such,
+> 4-byte aligned.  So he has masked two bits into the two LSBs of the
+> handle for RAMster, which doesn't work with zsmalloc since the handle is
+> not an address.
+>=20
+> So really we do need to convey as explicitly as possible to the user
+> that the handle is an _opaque_ value about which no assumption can be mad=
+e.
 
-Acked-by: Mel Gorman <mel@csn.ul.ie>
-
--- 
-Mel Gorman
-SUSE Labs
+Someone once said: "Opaque is a computer science term and has no
+meaning in system software and computer engineering."  ;-)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
