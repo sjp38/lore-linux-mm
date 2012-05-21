@@ -1,27 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx189.postini.com [74.125.245.189])
-	by kanga.kvack.org (Postfix) with SMTP id 46AA36B0081
-	for <linux-mm@kvack.org>; Mon, 21 May 2012 12:23:08 -0400 (EDT)
-Date: Mon, 21 May 2012 11:23:04 -0500 (CDT)
+Received: from psmtp.com (na3sys010amx116.postini.com [74.125.245.116])
+	by kanga.kvack.org (Postfix) with SMTP id 492236B0044
+	for <linux-mm@kvack.org>; Mon, 21 May 2012 14:13:55 -0400 (EDT)
+Date: Mon, 21 May 2012 13:13:52 -0500 (CDT)
 From: Christoph Lameter <cl@linux.com>
-Subject: Re: [RFC][PATCH] hugetlb: fix resv_map leak in error path
-In-Reply-To: <20120521142822.GF28631@csn.ul.ie>
-Message-ID: <alpine.DEB.2.00.1205211122360.30649@router.home>
-References: <20120518184630.FF3307BD@kernel> <20120521142822.GF28631@csn.ul.ie>
+Subject: Re: [RFC] Common code 09/12] slabs: Extract a common function for
+ kmem_cache_destroy
+In-Reply-To: <4FBA0C2D.3000101@parallels.com>
+Message-ID: <alpine.DEB.2.00.1205211312270.30649@router.home>
+References: <20120518161906.207356777@linux.com> <20120518161932.147485968@linux.com> <4FBA0C2D.3000101@parallels.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: Dave Hansen <dave@linux.vnet.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, aarcange@redhat.com, kosaki.motohiro@jp.fujitsu.com, hughd@google.com, rientjes@google.com, adobriyan@gmail.com, akpm@linux-foundation.org
+To: Glauber Costa <glommer@parallels.com>
+Cc: Pekka Enberg <penberg@kernel.org>, linux-mm@kvack.org, David Rientjes <rientjes@google.com>, Matt Mackall <mpm@selenic.com>, Joonsoo Kim <js1304@gmail.com>, Alex Shi <alex.shi@intel.com>
 
-On Mon, 21 May 2012, Mel Gorman wrote:
+On Mon, 21 May 2012, Glauber Costa wrote:
 
-> > Signed-off-by: Dave Hansen <dave@linux.vnet.ibm.com>
+> Something doesn't smell right here. It seems that we're now closing the caches
+> right away. That wasn't the case before, nor it should be: For aliases, we
+> should only decrease the refcount.
+
+Why not? The only thing that could be left pending are frees to the page
+allocator. We can do those frees with just the kmem_cache structure
+hanging on for awhile.
+
+> So unless I am missing something, it seems to me the correct code would be:
 >
-> Acked-by: Mel Gorman <mel@csn.ul.ie>
+> s->refcount--;
+> if (!s->refcount)
+>     return kmem_cache_close;
+> return 0;
+>
+> And while we're on that, that makes the sequence list_del() -> if it fails ->
+> list_add() in the common kmem_cache_destroy a bit clumsy. Aliases will be
+> re-added to the list quite frequently. Not that it is a big problem, but
+> still...
 
-Reported/tested-by: Christoph Lameter <cl@linux.com>
+True but this is just an intermediate step. Ultimately the series will
+move sysfs processing into slab_common.c and then this is going away.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
