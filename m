@@ -1,60 +1,37 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx118.postini.com [74.125.245.118])
-	by kanga.kvack.org (Postfix) with SMTP id 4C2376B00E9
-	for <linux-mm@kvack.org>; Mon, 21 May 2012 17:10:06 -0400 (EDT)
-Date: Mon, 21 May 2012 17:09:59 -0400
-From: Dave Jones <davej@redhat.com>
+Received: from psmtp.com (na3sys010amx153.postini.com [74.125.245.153])
+	by kanga.kvack.org (Postfix) with SMTP id C95376B00E9
+	for <linux-mm@kvack.org>; Mon, 21 May 2012 17:19:45 -0400 (EDT)
+Date: Mon, 21 May 2012 15:41:30 -0500 (CDT)
+From: Christoph Lameter <cl@linux.com>
 Subject: Re: 3.4-rc7 numa_policy slab poison.
-Message-ID: <20120521210959.GF12123@redhat.com>
-References: <20120517213120.GA12329@redhat.com>
- <20120518185851.GA5728@redhat.com>
- <20120521154709.GA8697@redhat.com>
- <CA+55aFyqMJ1X08kQwJ7snkYo6MxfVKqFJx7LXBkP_ug4LTCZ=Q@mail.gmail.com>
- <20120521200118.GA12123@redhat.com>
- <alpine.DEB.2.00.1205211510480.10940@router.home>
- <20120521202904.GB12123@redhat.com>
- <alpine.DEB.2.00.1205211535050.10940@router.home>
- <20120521203838.GD12123@redhat.com>
- <alpine.DEB.2.00.1205211544340.10940@router.home>
+In-Reply-To: <20120521203014.GC12123@redhat.com>
+Message-ID: <alpine.DEB.2.00.1205211540010.10940@router.home>
+References: <20120517213120.GA12329@redhat.com> <20120518185851.GA5728@redhat.com> <20120521154709.GA8697@redhat.com> <CA+55aFyqMJ1X08kQwJ7snkYo6MxfVKqFJx7LXBkP_ug4LTCZ=Q@mail.gmail.com> <20120521200118.GA12123@redhat.com> <alpine.DEB.2.00.1205211510480.10940@router.home>
+ <20120521203014.GC12123@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.00.1205211544340.10940@router.home>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
+To: Dave Jones <davej@redhat.com>
 Cc: Linus Torvalds <torvalds@linux-foundation.org>, Linux Kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Stephen Wilson <wilsons@start.ca>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>
 
-On Mon, May 21, 2012 at 03:47:16PM -0500, Christoph Lameter wrote:
- > On Mon, 21 May 2012, Dave Jones wrote:
- > 
- > > On Mon, May 21, 2012 at 03:36:39PM -0500, Christoph Lameter wrote:
- > >  > On Mon, 21 May 2012, Dave Jones wrote:
- > >  >
- > >  > > It does create log files in the current dir with the parameters used.
- > >  > > You should be able to grep for the pid that caused the actual oops.
- > >  >
- > >  > Ugghh. It screws up the colors on my screeen. Lightgrey on white. Is there
- > >  > any way to get these horrible escape sequences cleared out? If I use
- > >  > "less" to view the output then there are just the escape sequences
- > >  > visible.
- > >
- > > Define them to nothing in trinity.h
- > 
- > Dependencies are not correctly set. I had to do a "make clean" to get a
- > rebuild done.
- > 
- > Cannot set them to "" since the compiler then fails the compile. Set to "
- > " instead but that looks horrible too.
- > 
- > It still wont trigger with
- > 
- > 	./trinity -c mbind
+On Mon, 21 May 2012, Dave Jones wrote:
 
-ok, added a --nocolors option now. Re-pull.
-I'll look at the dependancy problem next. Thanks for the feedback.
+> On Mon, May 21, 2012 at 03:18:38PM -0500, Christoph Lameter wrote:
+>
+>  > Its always an mput on a freed memory policy. Slub recovery keeps my system
+>  > up at least. I just get the errors dumped to dmesg.
+>  >
+>  > Is there any way to get the trinity tool to stop when the kernel writes
+>  > errors to dmesg? That way I could see the parameters passed to mbind?
+>
+> another way might be to remove the -q argument, and use -p which inserts
+> a pause() after each syscall.
 
-	Dave
+Without -q it does not trigger anymore. Output is slow so I guess there is
+some race condition that does not occur when things occur with less
+frequency.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
