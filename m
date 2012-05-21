@@ -1,38 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx161.postini.com [74.125.245.161])
-	by kanga.kvack.org (Postfix) with SMTP id 5708B6B00FD
-	for <linux-mm@kvack.org>; Mon, 21 May 2012 16:54:45 -0400 (EDT)
-Date: Mon, 21 May 2012 15:54:42 -0500 (CDT)
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: [RFC] Common code 09/12] slabs: Extract a common function for
- kmem_cache_destroy
-In-Reply-To: <4FBAA04D.7010007@parallels.com>
-Message-ID: <alpine.DEB.2.00.1205211554110.10940@router.home>
-References: <20120518161906.207356777@linux.com> <20120518161932.147485968@linux.com> <4FBA0C2D.3000101@parallels.com> <alpine.DEB.2.00.1205211312270.30649@router.home> <4FBA9536.1020502@parallels.com> <alpine.DEB.2.00.1205211430020.10940@router.home>
- <4FBAA04D.7010007@parallels.com>
+Received: from psmtp.com (na3sys010amx118.postini.com [74.125.245.118])
+	by kanga.kvack.org (Postfix) with SMTP id 4C2376B00E9
+	for <linux-mm@kvack.org>; Mon, 21 May 2012 17:10:06 -0400 (EDT)
+Date: Mon, 21 May 2012 17:09:59 -0400
+From: Dave Jones <davej@redhat.com>
+Subject: Re: 3.4-rc7 numa_policy slab poison.
+Message-ID: <20120521210959.GF12123@redhat.com>
+References: <20120517213120.GA12329@redhat.com>
+ <20120518185851.GA5728@redhat.com>
+ <20120521154709.GA8697@redhat.com>
+ <CA+55aFyqMJ1X08kQwJ7snkYo6MxfVKqFJx7LXBkP_ug4LTCZ=Q@mail.gmail.com>
+ <20120521200118.GA12123@redhat.com>
+ <alpine.DEB.2.00.1205211510480.10940@router.home>
+ <20120521202904.GB12123@redhat.com>
+ <alpine.DEB.2.00.1205211535050.10940@router.home>
+ <20120521203838.GD12123@redhat.com>
+ <alpine.DEB.2.00.1205211544340.10940@router.home>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.00.1205211544340.10940@router.home>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Glauber Costa <glommer@parallels.com>
-Cc: Pekka Enberg <penberg@kernel.org>, linux-mm@kvack.org, David Rientjes <rientjes@google.com>, Matt Mackall <mpm@selenic.com>, Joonsoo Kim <js1304@gmail.com>, Alex Shi <alex.shi@intel.com>
+To: Christoph Lameter <cl@linux.com>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Linux Kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Stephen Wilson <wilsons@start.ca>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>
 
-On Tue, 22 May 2012, Glauber Costa wrote:
+On Mon, May 21, 2012 at 03:47:16PM -0500, Christoph Lameter wrote:
+ > On Mon, 21 May 2012, Dave Jones wrote:
+ > 
+ > > On Mon, May 21, 2012 at 03:36:39PM -0500, Christoph Lameter wrote:
+ > >  > On Mon, 21 May 2012, Dave Jones wrote:
+ > >  >
+ > >  > > It does create log files in the current dir with the parameters used.
+ > >  > > You should be able to grep for the pid that caused the actual oops.
+ > >  >
+ > >  > Ugghh. It screws up the colors on my screeen. Lightgrey on white. Is there
+ > >  > any way to get these horrible escape sequences cleared out? If I use
+ > >  > "less" to view the output then there are just the escape sequences
+ > >  > visible.
+ > >
+ > > Define them to nothing in trinity.h
+ > 
+ > Dependencies are not correctly set. I had to do a "make clean" to get a
+ > rebuild done.
+ > 
+ > Cannot set them to "" since the compiler then fails the compile. Set to "
+ > " instead but that looks horrible too.
+ > 
+ > It still wont trigger with
+ > 
+ > 	./trinity -c mbind
 
-> On 05/21/2012 11:31 PM, Christoph Lameter wrote:
-> > > >  But until then, people bisecting into this patch will find a broken
-> > > state,
-> > > >  right?
-> > I thought this was about clumsiness not breakage. What is broken? Aliases
-> > do not affect the call to __kmem_cache_shutdown. Its only called if there
-> > are no aliases anymore.
-> >
-> >
-> Well, that I missed - might be my fault. Can you point me to the exact point
-> where you guarantee aliases are ignored, just so we're in the same page?
+ok, added a --nocolors option now. Re-pull.
+I'll look at the dependancy problem next. Thanks for the feedback.
 
-Look at the refcount checks. Aliases create additional refcounts.
-kmem_cache_shutdown is only called if the refcount reaches zero.
+	Dave
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
