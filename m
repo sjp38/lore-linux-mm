@@ -1,299 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx110.postini.com [74.125.245.110])
-	by kanga.kvack.org (Postfix) with SMTP id 65A0A6B0081
-	for <linux-mm@kvack.org>; Sun, 20 May 2012 22:24:02 -0400 (EDT)
-From: Minchan Kim <minchan@kernel.org>
-Subject: [PATCH] zsmalloc: use unsigned long instead of void *
-Date: Mon, 21 May 2012 11:23:33 +0900
-Message-Id: <1337567013-4741-1-git-send-email-minchan@kernel.org>
+Received: from psmtp.com (na3sys010amx176.postini.com [74.125.245.176])
+	by kanga.kvack.org (Postfix) with SMTP id 4D8436B0081
+	for <linux-mm@kvack.org>; Sun, 20 May 2012 22:44:31 -0400 (EDT)
+Received: by pbbrp2 with SMTP id rp2so9361532pbb.14
+        for <linux-mm@kvack.org>; Sun, 20 May 2012 19:44:30 -0700 (PDT)
+Date: Mon, 21 May 2012 10:51:49 +0800
+From: Zheng Liu <gnehzuil.liu@gmail.com>
+Subject: Re: [PATCH] mm: consider all swapped back pages in used-once logic
+Message-ID: <20120521025149.GA32375@gmail.com>
+References: <1337246033-13719-1-git-send-email-mhocko@suse.cz>
+ <20120517195342.GB1800@cmpxchg.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20120517195342.GB1800@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Minchan Kim <minchan@kernel.org>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Dan Magenheimer <dan.magenheimer@oracle.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Nitin Gupta <ngupta@vflare.org>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Minchan Kim <minchan@kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>
 
-We should use unsigned long as handle instead of void * to avoid any
-confusion. Without this, users may just treat zs_malloc return value as
-a pointer and try to deference it.
+On Thu, May 17, 2012 at 09:54:25PM +0200, Johannes Weiner wrote:
+> On Thu, May 17, 2012 at 11:13:53AM +0200, Michal Hocko wrote:
+> > [64574746 vmscan: detect mapped file pages used only once] made mapped pages
+> > have another round in inactive list because they might be just short
+> > lived and so we could consider them again next time. This heuristic
+> > helps to reduce pressure on the active list with a streaming IO
+> > worklods.
+> > This patch fixes a regression introduced by this commit for heavy shmem
+> > based workloads because unlike Anon pages, which are excluded from this
+> > heuristic because they are usually long lived, shmem pages are handled
+> > as a regular page cache.
+> > This doesn't work quite well, unfortunately, if the workload is mostly
+> > backed by shmem (in memory database sitting on 80% of memory) with a
+> > streaming IO in the background (backup - up to 20% of memory). Anon
+> > inactive list is full of (dirty) shmem pages when watermarks are
+> > hit. Shmem pages are kept in the inactive list (they are referenced)
+> > in the first round and it is hard to reclaim anything else so we reach
+> > lower scanning priorities very quickly which leads to an excessive swap
+> > out.
+> > 
+> > Let's fix this by excluding all swap backed pages (they tend to be long
+> > lived wrt. the regular page cache anyway) from used-once heuristic and
+> > rather activate them if they are referenced.
+> 
+> Yes, the algorithm only makes sense for file cache, which is easy to
+> reclaim.  Thanks for the fix!
 
-This patch passed compile test(zram, zcache and ramster) and zram is
-tested on qemu.
+Hi Johannes,
 
-Cc: Seth Jennings <sjenning@linux.vnet.ibm.com>
-Cc: Dan Magenheimer <dan.magenheimer@oracle.com>
-Cc: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
-Cc: Nitin Gupta <ngupta@vflare.org>
-Signed-off-by: Minchan Kim <minchan@kernel.org>
----
+Out of curiosity, I notice that, in this patch (64574746), the commit log
+said that this patch aims to reduce the impact of pages used only once.
+Could you please tell why you think these pages will flood the active
+list?  How do you find this problem?
 
-Nitin, Konrad and I discussed and concluded that we should use 'unsigned long'
-instead of 'void *'.
-Look at the lengthy thread if you have a question.
-http://marc.info/?l=linux-mm&m=133716653118566&w=4
-Watch out! it has number of noises.
+Actually, we met a huge regression in our product system.  This
+application uses mmap/munmap and read/write simultaneously.  Meanwhile
+it wants to keep mapped file pages in memory as much as possible.  But
+this patch causes that mapped file pages are reclaimed frequently.  So I
+want to know whether or not this patch consider this situation.  Thank
+you.
 
- drivers/staging/zcache/zcache-main.c     |   12 ++++++------
- drivers/staging/zram/zram_drv.c          |   16 ++++++++--------
- drivers/staging/zram/zram_drv.h          |    2 +-
- drivers/staging/zsmalloc/zsmalloc-main.c |   24 ++++++++++++------------
- drivers/staging/zsmalloc/zsmalloc.h      |    8 ++++----
- 5 files changed, 31 insertions(+), 31 deletions(-)
-
-diff --git a/drivers/staging/zcache/zcache-main.c b/drivers/staging/zcache/zcache-main.c
-index 2734dac..4c218a7 100644
---- a/drivers/staging/zcache/zcache-main.c
-+++ b/drivers/staging/zcache/zcache-main.c
-@@ -700,7 +700,7 @@ static struct zv_hdr *zv_create(struct zs_pool *pool, uint32_t pool_id,
- 	struct zv_hdr *zv;
- 	u32 size = clen + sizeof(struct zv_hdr);
- 	int chunks = (size + (CHUNK_SIZE - 1)) >> CHUNK_SHIFT;
--	void *handle = NULL;
-+	unsigned long handle = 0;
- 
- 	BUG_ON(!irqs_disabled());
- 	BUG_ON(chunks >= NCHUNKS);
-@@ -718,10 +718,10 @@ static struct zv_hdr *zv_create(struct zs_pool *pool, uint32_t pool_id,
- 	memcpy((char *)zv + sizeof(struct zv_hdr), cdata, clen);
- 	zs_unmap_object(pool, handle);
- out:
--	return handle;
-+	return (struct zv_hdr *)handle;
- }
- 
--static void zv_free(struct zs_pool *pool, void *handle)
-+static void zv_free(struct zs_pool *pool, unsigned long handle)
- {
- 	unsigned long flags;
- 	struct zv_hdr *zv;
-@@ -743,7 +743,7 @@ static void zv_free(struct zs_pool *pool, void *handle)
- 	local_irq_restore(flags);
- }
- 
--static void zv_decompress(struct page *page, void *handle)
-+static void zv_decompress(struct page *page, unsigned long handle)
- {
- 	unsigned int clen = PAGE_SIZE;
- 	char *to_va;
-@@ -1247,7 +1247,7 @@ static int zcache_pampd_get_data(char *data, size_t *bufsize, bool raw,
- 	int ret = 0;
- 
- 	BUG_ON(is_ephemeral(pool));
--	zv_decompress((struct page *)(data), pampd);
-+	zv_decompress((struct page *)(data), (unsigned long)pampd);
- 	return ret;
- }
- 
-@@ -1282,7 +1282,7 @@ static void zcache_pampd_free(void *pampd, struct tmem_pool *pool,
- 		atomic_dec(&zcache_curr_eph_pampd_count);
- 		BUG_ON(atomic_read(&zcache_curr_eph_pampd_count) < 0);
- 	} else {
--		zv_free(cli->zspool, pampd);
-+		zv_free(cli->zspool, (unsigned long)pampd);
- 		atomic_dec(&zcache_curr_pers_pampd_count);
- 		BUG_ON(atomic_read(&zcache_curr_pers_pampd_count) < 0);
- 	}
-diff --git a/drivers/staging/zram/zram_drv.c b/drivers/staging/zram/zram_drv.c
-index 685d612..abd69d1 100644
---- a/drivers/staging/zram/zram_drv.c
-+++ b/drivers/staging/zram/zram_drv.c
-@@ -135,7 +135,7 @@ static void zram_set_disksize(struct zram *zram, size_t totalram_bytes)
- 
- static void zram_free_page(struct zram *zram, size_t index)
- {
--	void *handle = zram->table[index].handle;
-+	unsigned long handle = zram->table[index].handle;
- 
- 	if (unlikely(!handle)) {
- 		/*
-@@ -150,7 +150,7 @@ static void zram_free_page(struct zram *zram, size_t index)
- 	}
- 
- 	if (unlikely(zram_test_flag(zram, index, ZRAM_UNCOMPRESSED))) {
--		__free_page(handle);
-+		__free_page((struct page *)handle);
- 		zram_clear_flag(zram, index, ZRAM_UNCOMPRESSED);
- 		zram_stat_dec(&zram->stats.pages_expand);
- 		goto out;
-@@ -166,7 +166,7 @@ out:
- 			zram->table[index].size);
- 	zram_stat_dec(&zram->stats.pages_stored);
- 
--	zram->table[index].handle = NULL;
-+	zram->table[index].handle = 0;
- 	zram->table[index].size = 0;
- }
- 
-@@ -189,7 +189,7 @@ static void handle_uncompressed_page(struct zram *zram, struct bio_vec *bvec,
- 	unsigned char *user_mem, *cmem;
- 
- 	user_mem = kmap_atomic(page);
--	cmem = kmap_atomic(zram->table[index].handle);
-+	cmem = kmap_atomic((struct page *)zram->table[index].handle);
- 
- 	memcpy(user_mem + bvec->bv_offset, cmem + offset, bvec->bv_len);
- 	kunmap_atomic(cmem);
-@@ -317,7 +317,7 @@ static int zram_bvec_write(struct zram *zram, struct bio_vec *bvec, u32 index,
- 	int ret;
- 	u32 store_offset;
- 	size_t clen;
--	void *handle;
-+	unsigned long handle;
- 	struct zobj_header *zheader;
- 	struct page *page, *page_store;
- 	unsigned char *user_mem, *cmem, *src, *uncmem = NULL;
-@@ -399,7 +399,7 @@ static int zram_bvec_write(struct zram *zram, struct bio_vec *bvec, u32 index,
- 		store_offset = 0;
- 		zram_set_flag(zram, index, ZRAM_UNCOMPRESSED);
- 		zram_stat_inc(&zram->stats.pages_expand);
--		handle = page_store;
-+		handle = (unsigned long)page_store;
- 		src = kmap_atomic(page);
- 		cmem = kmap_atomic(page_store);
- 		goto memstore;
-@@ -592,12 +592,12 @@ void __zram_reset_device(struct zram *zram)
- 
- 	/* Free all pages that are still in this zram device */
- 	for (index = 0; index < zram->disksize >> PAGE_SHIFT; index++) {
--		void *handle = zram->table[index].handle;
-+		unsigned long handle = zram->table[index].handle;
- 		if (!handle)
- 			continue;
- 
- 		if (unlikely(zram_test_flag(zram, index, ZRAM_UNCOMPRESSED)))
--			__free_page(handle);
-+			__free_page((struct page *)handle);
- 		else
- 			zs_free(zram->mem_pool, handle);
- 	}
-diff --git a/drivers/staging/zram/zram_drv.h b/drivers/staging/zram/zram_drv.h
-index fbe8ac9..7a7e256 100644
---- a/drivers/staging/zram/zram_drv.h
-+++ b/drivers/staging/zram/zram_drv.h
-@@ -81,7 +81,7 @@ enum zram_pageflags {
- 
- /* Allocated for each disk page */
- struct table {
--	void *handle;
-+	unsigned long handle;
- 	u16 size;	/* object size (excluding header) */
- 	u8 count;	/* object ref count (not yet used) */
- 	u8 flags;
-diff --git a/drivers/staging/zsmalloc/zsmalloc-main.c b/drivers/staging/zsmalloc/zsmalloc-main.c
-index 4496737..ae10a1a 100644
---- a/drivers/staging/zsmalloc/zsmalloc-main.c
-+++ b/drivers/staging/zsmalloc/zsmalloc-main.c
-@@ -247,10 +247,10 @@ static void *obj_location_to_handle(struct page *page, unsigned long obj_idx)
- }
- 
- /* Decode <page, obj_idx> pair from the given object handle */
--static void obj_handle_to_location(void *handle, struct page **page,
-+static void obj_handle_to_location(unsigned long handle, struct page **page,
- 				unsigned long *obj_idx)
- {
--	unsigned long hval = (unsigned long)handle;
-+	unsigned long hval = handle;
- 
- 	*page = pfn_to_page(hval >> OBJ_INDEX_BITS);
- 	*obj_idx = hval & OBJ_INDEX_MASK;
-@@ -568,12 +568,12 @@ EXPORT_SYMBOL_GPL(zs_destroy_pool);
-  * @size: size of block to allocate
-  *
-  * On success, handle to the allocated object is returned,
-- * otherwise NULL.
-+ * otherwise 0.
-  * Allocation requests with size > ZS_MAX_ALLOC_SIZE will fail.
-  */
--void *zs_malloc(struct zs_pool *pool, size_t size)
-+unsigned long zs_malloc(struct zs_pool *pool, size_t size)
- {
--	void *obj;
-+	unsigned long obj;
- 	struct link_free *link;
- 	int class_idx;
- 	struct size_class *class;
-@@ -582,7 +582,7 @@ void *zs_malloc(struct zs_pool *pool, size_t size)
- 	unsigned long m_objidx, m_offset;
- 
- 	if (unlikely(!size || size > ZS_MAX_ALLOC_SIZE))
--		return NULL;
-+		return 0;
- 
- 	class_idx = get_size_class_index(size);
- 	class = &pool->size_class[class_idx];
-@@ -595,14 +595,14 @@ void *zs_malloc(struct zs_pool *pool, size_t size)
- 		spin_unlock(&class->lock);
- 		first_page = alloc_zspage(class, pool->flags);
- 		if (unlikely(!first_page))
--			return NULL;
-+			return 0;
- 
- 		set_zspage_mapping(first_page, class->index, ZS_EMPTY);
- 		spin_lock(&class->lock);
- 		class->pages_allocated += class->pages_per_zspage;
- 	}
- 
--	obj = first_page->freelist;
-+	obj = (unsigned long)first_page->freelist;
- 	obj_handle_to_location(obj, &m_page, &m_objidx);
- 	m_offset = obj_idx_to_offset(m_page, m_objidx, class->size);
- 
-@@ -621,7 +621,7 @@ void *zs_malloc(struct zs_pool *pool, size_t size)
- }
- EXPORT_SYMBOL_GPL(zs_malloc);
- 
--void zs_free(struct zs_pool *pool, void *obj)
-+void zs_free(struct zs_pool *pool, unsigned long obj)
- {
- 	struct link_free *link;
- 	struct page *first_page, *f_page;
-@@ -648,7 +648,7 @@ void zs_free(struct zs_pool *pool, void *obj)
- 							+ f_offset);
- 	link->next = first_page->freelist;
- 	kunmap_atomic(link);
--	first_page->freelist = obj;
-+	first_page->freelist = (void *)obj;
- 
- 	first_page->inuse--;
- 	fullness = fix_fullness_group(pool, first_page);
-@@ -672,7 +672,7 @@ EXPORT_SYMBOL_GPL(zs_free);
-  * this function. When done with the object, it must be unmapped using
-  * zs_unmap_object
- */
--void *zs_map_object(struct zs_pool *pool, void *handle)
-+void *zs_map_object(struct zs_pool *pool, unsigned long handle)
- {
- 	struct page *page;
- 	unsigned long obj_idx, off;
-@@ -712,7 +712,7 @@ void *zs_map_object(struct zs_pool *pool, void *handle)
- }
- EXPORT_SYMBOL_GPL(zs_map_object);
- 
--void zs_unmap_object(struct zs_pool *pool, void *handle)
-+void zs_unmap_object(struct zs_pool *pool, unsigned long handle)
- {
- 	struct page *page;
- 	unsigned long obj_idx, off;
-diff --git a/drivers/staging/zsmalloc/zsmalloc.h b/drivers/staging/zsmalloc/zsmalloc.h
-index 949384e..485cbb1 100644
---- a/drivers/staging/zsmalloc/zsmalloc.h
-+++ b/drivers/staging/zsmalloc/zsmalloc.h
-@@ -20,11 +20,11 @@ struct zs_pool;
- struct zs_pool *zs_create_pool(const char *name, gfp_t flags);
- void zs_destroy_pool(struct zs_pool *pool);
- 
--void *zs_malloc(struct zs_pool *pool, size_t size);
--void zs_free(struct zs_pool *pool, void *obj);
-+unsigned long zs_malloc(struct zs_pool *pool, size_t size);
-+void zs_free(struct zs_pool *pool, unsigned long obj);
- 
--void *zs_map_object(struct zs_pool *pool, void *handle);
--void zs_unmap_object(struct zs_pool *pool, void *handle);
-+void *zs_map_object(struct zs_pool *pool, unsigned long handle);
-+void zs_unmap_object(struct zs_pool *pool, unsigned long handle);
- 
- u64 zs_get_total_size_bytes(struct zs_pool *pool);
- 
--- 
-1.7.9.5
+Regards,
+Zheng
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
