@@ -1,47 +1,105 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx125.postini.com [74.125.245.125])
-	by kanga.kvack.org (Postfix) with SMTP id 026C36B0044
-	for <linux-mm@kvack.org>; Mon, 21 May 2012 11:04:07 -0400 (EDT)
-MIME-Version: 1.0
-Message-ID: <ee168801-3f7e-49ec-9a6e-14b6a4bc6a5f@default>
-Date: Mon, 21 May 2012 08:04:00 -0700 (PDT)
-From: Dan Magenheimer <dan.magenheimer@oracle.com>
-Subject: RE: [PATCH] zsmalloc: use unsigned long instead of void *
-References: <1337567013-4741-1-git-send-email-minchan@kernel.org>
- <4FBA4EE2.8050308@linux.vnet.ibm.com>
-In-Reply-To: <4FBA4EE2.8050308@linux.vnet.ibm.com>
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: quoted-printable
+Received: from psmtp.com (na3sys010amx144.postini.com [74.125.245.144])
+	by kanga.kvack.org (Postfix) with SMTP id 5BB8A6B0044
+	for <linux-mm@kvack.org>; Mon, 21 May 2012 11:21:02 -0400 (EDT)
+From: Glauber Costa <glommer@parallels.com>
+Subject: [PATCH] slab+slob: dup name string
+Date: Mon, 21 May 2012 19:18:59 +0400
+Message-Id: <1337613539-29108-1-git-send-email-glommer@parallels.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Seth Jennings <sjenning@linux.vnet.ibm.com>, Minchan Kim <minchan@kernel.org>
-Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Konrad Wilk <konrad.wilk@oracle.com>, Nitin Gupta <ngupta@vflare.org>
+To: linux-kernel@vger.kernel.org
+Cc: cgroups@vger.kernel.org, linux-mm@kvack.org, Glauber Costa <glommer@parallels.com>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@cs.helsinki.fi>, David Rientjes <rientjes@google.com>
 
-> From: Seth Jennings [mailto:sjenning@linux.vnet.ibm.com]
-> Subject: Re: [PATCH] zsmalloc: use unsigned long instead of void *
->=20
-> On 05/20/2012 09:23 PM, Minchan Kim wrote:
->=20
-> > We should use unsigned long as handle instead of void * to avoid any
-> > confusion. Without this, users may just treat zs_malloc return value as
-> > a pointer and try to deference it.
->=20
-> I wouldn't have agreed with you about the need for this change as people
-> should understand a void * to be the address of some data with unknown
-> structure.
->=20
-> However, I recently discussed with Dan regarding his RAMster project
-> where he assumed that the void * would be an address, and as such,
-> 4-byte aligned.  So he has masked two bits into the two LSBs of the
-> handle for RAMster, which doesn't work with zsmalloc since the handle is
-> not an address.
->=20
-> So really we do need to convey as explicitly as possible to the user
-> that the handle is an _opaque_ value about which no assumption can be mad=
-e.
+The slub allocator creates a copy of the name string, and
+frees it later. I would like all caches to behave the same,
+whether it is the slab+slob starting to create a copy of it itself,
+or the slub ceasing to.
 
-Someone once said: "Opaque is a computer science term and has no
-meaning in system software and computer engineering."  ;-)
+This patch creates copies of the name string for slob and slab,
+adopting slub behavior for them all.
+
+For the slab, we can't really do it before the kmalloc caches are
+up. We need to rely that caches created before the state was set to
+EARLY will never be destroyed.
+
+Signed-off-by: Glauber Costa <glommer@parallels.com>
+CC: Christoph Lameter <cl@linux.com>
+CC: Pekka Enberg <penberg@cs.helsinki.fi>
+CC: David Rientjes <rientjes@google.com>
+---
+ mm/slab.c |   10 ++++++++--
+ mm/slob.c |   12 ++++++++++--
+ 2 files changed, 18 insertions(+), 4 deletions(-)
+
+diff --git a/mm/slab.c b/mm/slab.c
+index e901a36..cabd217 100644
+--- a/mm/slab.c
++++ b/mm/slab.c
+@@ -2118,6 +2118,7 @@ static void __kmem_cache_destroy(struct kmem_cache *cachep)
+ 			kfree(l3);
+ 		}
+ 	}
++	kfree(cachep->name);
+ 	kmem_cache_free(&cache_cache, cachep);
+ }
+ 
+@@ -2526,9 +2527,14 @@ kmem_cache_create (const char *name, size_t size, size_t align,
+ 		BUG_ON(ZERO_OR_NULL_PTR(cachep->slabp_cache));
+ 	}
+ 	cachep->ctor = ctor;
+-	cachep->name = name;
+ 
+-	if (setup_cpu_cache(cachep, gfp)) {
++	/* Can't do strdup while kmalloc is not up */
++	if (g_cpucache_up > EARLY)
++		cachep->name = kstrdup(name, GFP_KERNEL);
++	else
++		cachep->name = name;
++
++	if (!cachep->name || setup_cpu_cache(cachep, gfp)) {
+ 		__kmem_cache_destroy(cachep);
+ 		cachep = NULL;
+ 		goto oops;
+diff --git a/mm/slob.c b/mm/slob.c
+index 8105be4..8f10d36 100644
+--- a/mm/slob.c
++++ b/mm/slob.c
+@@ -575,7 +575,12 @@ struct kmem_cache *kmem_cache_create(const char *name, size_t size,
+ 		GFP_KERNEL, ARCH_KMALLOC_MINALIGN, -1);
+ 
+ 	if (c) {
+-		c->name = name;
++		c->name = kstrdup(name, GFP_KERNEL);
++		if (!c->name) {
++			slob_free(c, sizeof(struct kmem_cache));
++			c = NULL;
++			goto out;
++		}
+ 		c->size = size;
+ 		if (flags & SLAB_DESTROY_BY_RCU) {
+ 			/* leave room for rcu footer at the end of object */
+@@ -589,7 +594,9 @@ struct kmem_cache *kmem_cache_create(const char *name, size_t size,
+ 			c->align = ARCH_SLAB_MINALIGN;
+ 		if (c->align < align)
+ 			c->align = align;
+-	} else if (flags & SLAB_PANIC)
++	}
++out:
++	if (!c && (flags & SLAB_PANIC))
+ 		panic("Cannot create slab cache %s\n", name);
+ 
+ 	kmemleak_alloc(c, sizeof(struct kmem_cache), 1, GFP_KERNEL);
+@@ -602,6 +609,7 @@ void kmem_cache_destroy(struct kmem_cache *c)
+ 	kmemleak_free(c);
+ 	if (c->flags & SLAB_DESTROY_BY_RCU)
+ 		rcu_barrier();
++	kfree(c->name);
+ 	slob_free(c, sizeof(struct kmem_cache));
+ }
+ EXPORT_SYMBOL(kmem_cache_destroy);
+-- 
+1.7.7.6
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
