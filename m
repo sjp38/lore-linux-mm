@@ -1,121 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx199.postini.com [74.125.245.199])
-	by kanga.kvack.org (Postfix) with SMTP id E68F76B0081
-	for <linux-mm@kvack.org>; Mon, 21 May 2012 04:52:30 -0400 (EDT)
-Received: by pbbrp2 with SMTP id rp2so9842864pbb.14
-        for <linux-mm@kvack.org>; Mon, 21 May 2012 01:52:30 -0700 (PDT)
-Date: Mon, 21 May 2012 16:59:52 +0800
-From: Zheng Liu <gnehzuil.liu@gmail.com>
-Subject: Re: [PATCH] mm: consider all swapped back pages in used-once logic
-Message-ID: <20120521085951.GA4687@gmail.com>
-References: <1337246033-13719-1-git-send-email-mhocko@suse.cz>
- <20120517195342.GB1800@cmpxchg.org>
- <20120521025149.GA32375@gmail.com>
- <20120521073632.GL1406@cmpxchg.org>
+Received: from psmtp.com (na3sys010amx107.postini.com [74.125.245.107])
+	by kanga.kvack.org (Postfix) with SMTP id 133F56B0081
+	for <linux-mm@kvack.org>; Mon, 21 May 2012 05:07:42 -0400 (EDT)
+Received: from /spool/local
+	by e06smtp16.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <ehrhardt@linux.vnet.ibm.com>;
+	Mon, 21 May 2012 10:07:40 +0100
+Received: from d06av03.portsmouth.uk.ibm.com (d06av03.portsmouth.uk.ibm.com [9.149.37.213])
+	by d06nrmr1407.portsmouth.uk.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q4L97GT41249380
+	for <linux-mm@kvack.org>; Mon, 21 May 2012 10:07:16 +0100
+Received: from d06av03.portsmouth.uk.ibm.com (localhost.localdomain [127.0.0.1])
+	by d06av03.portsmouth.uk.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q4L97F2m022005
+	for <linux-mm@kvack.org>; Mon, 21 May 2012 03:07:15 -0600
+Message-ID: <4FBA05C2.5090306@linux.vnet.ibm.com>
+Date: Mon, 21 May 2012 11:07:14 +0200
+From: Christian Ehrhardt <ehrhardt@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20120521073632.GL1406@cmpxchg.org>
+Subject: Re: [PATCH 1/2] swap: allow swap readahead to be merged
+References: <1337587755-4743-1-git-send-email-ehrhardt@linux.vnet.ibm.com> <1337587755-4743-2-git-send-email-ehrhardt@linux.vnet.ibm.com> <4FBA0203.20509@kernel.org>
+In-Reply-To: <4FBA0203.20509@kernel.org>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Minchan Kim <minchan@kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>
+To: Minchan Kim <minchan@kernel.org>
+Cc: linux-mm@kvack.org, axboe@kernel.dk
 
-On Mon, May 21, 2012 at 09:36:32AM +0200, Johannes Weiner wrote:
-> On Mon, May 21, 2012 at 10:51:49AM +0800, Zheng Liu wrote:
-> > On Thu, May 17, 2012 at 09:54:25PM +0200, Johannes Weiner wrote:
-> > > On Thu, May 17, 2012 at 11:13:53AM +0200, Michal Hocko wrote:
-> > > > [64574746 vmscan: detect mapped file pages used only once] made mapped pages
-> > > > have another round in inactive list because they might be just short
-> > > > lived and so we could consider them again next time. This heuristic
-> > > > helps to reduce pressure on the active list with a streaming IO
-> > > > worklods.
-> > > > This patch fixes a regression introduced by this commit for heavy shmem
-> > > > based workloads because unlike Anon pages, which are excluded from this
-> > > > heuristic because they are usually long lived, shmem pages are handled
-> > > > as a regular page cache.
-> > > > This doesn't work quite well, unfortunately, if the workload is mostly
-> > > > backed by shmem (in memory database sitting on 80% of memory) with a
-> > > > streaming IO in the background (backup - up to 20% of memory). Anon
-> > > > inactive list is full of (dirty) shmem pages when watermarks are
-> > > > hit. Shmem pages are kept in the inactive list (they are referenced)
-> > > > in the first round and it is hard to reclaim anything else so we reach
-> > > > lower scanning priorities very quickly which leads to an excessive swap
-> > > > out.
-> > > > 
-> > > > Let's fix this by excluding all swap backed pages (they tend to be long
-> > > > lived wrt. the regular page cache anyway) from used-once heuristic and
-> > > > rather activate them if they are referenced.
-> > > 
-> > > Yes, the algorithm only makes sense for file cache, which is easy to
-> > > reclaim.  Thanks for the fix!
-> > 
-> > Hi Johannes,
-> > 
-> > Out of curiosity, I notice that, in this patch (64574746), the commit log
-> > said that this patch aims to reduce the impact of pages used only once.
-> > Could you please tell why you think these pages will flood the active
-> > list?  How do you find this problem?
-> 
-> Applications that use mmap for large, linear used-once IO.  Reclaim
-> used to just activate every mapped file page it encountered for the
-> first time (activate referenced ones, but they all start referenced) .
-> This resulted in horrible reclaim latency as most pages in memory
-> where active.
 
-Thanks for your explanation. :-)
 
-> 
-> > Actually, we met a huge regression in our product system.  This
-> > application uses mmap/munmap and read/write simultaneously.  Meanwhile
-> > it wants to keep mapped file pages in memory as much as possible.  But
-> > this patch causes that mapped file pages are reclaimed frequently.  So I
-> > want to know whether or not this patch consider this situation.  Thank
-> > you.
-> 
-> Is it because the read()/write() IO is high throughput and pushes
-> pages through the LRU lists faster than the mmap pages are referenced?
+On 05/21/2012 10:51 AM, Minchan Kim wrote:
+> On 05/21/2012 05:09 PM, ehrhardt@linux.vnet.ibm.com wrote:
+>
+>> From: Christian Ehrhardt<ehrhardt@linux.vnet.ibm.com>
+>>
+[...]
+>>
+>> Signed-off-by: Christian Ehrhardt<ehrhardt@linux.vnet.ibm.com>
+>> Acked-by: Rik van Riel<riel@redhat.com>
+>> Acked-by: Jens Axboe<axboe@kernel.dk>
+>
+>
+> Reviewed-by: Minchan Kim<minchan@kernel.org>
+>
+> Didn't I add my Reviewed-by on your previous version?
+>
 
-Yes, in this application, one query needs to access mapped file page
-twice and file page cache twice.  Namely, one query needs to do 4 disk
-I/Os.  We have used fadvise(2) to reduce file page cache accessing to
-only once.  For mapped file page, in fact them are accessed only once
-because in one query the same data is accessed twice.  Thus, one query
-causes 2 disk I/Os now.  The size of read/write is quite larger than
-mmap/munmap.  So, as you see, if we can keep mmap/munmap file in memory
-as much as possible, we will gain the better performance.
+Sorry I missed it since you provided the good feedback on all three 
+mails. I had your "otherwise looks good to me to mail #2" still in mind 
+and didn't want to be so offensive to convert that to a review or ack 
+statement.
 
-> 
-> Are the mmap pages executable or shared between tasks?  If so, does
-> the kernel you are using include '34dbc67 vmscan: promote shared file
-> mapped pages' and 'c909e99 vmscan: activate executable pages after
-> first usage'?
+-- 
 
-Thanks for your advice.  Our application has only one process.  So I
-think that 34dbc67 is not useful for this application.  We have tried to
-mmap file with PROT_EXEC flag to use this patch (c909e99).  But it seems
-that the result is not good as we expected.
-
-In addition, another factor also has some impacts for this application.
-In inactive_file_is_low_global(), it is different between 2.6.18 and
-upstream kernel.  IMHO, it causes that mapped file pages in active list
-are moved into inactive list frequently.
-
-Currently, we add a parameter in inactive_file_is_low_global() to adjust
-this ratio.  Meanwhile we activate every mapped file pages for the first
-time.  Then the performance gets better, but it still doesn't reach the
-performance of 2.6.18.
-
-> 
-> All of this is very lame.  I see no way to automatically detect when
-> you really want to keep mapped pages over unmapped ones.  And making
-> this assumption hurt some loads, while not making it now hurts others.
-
-Yeah, as you said, this kind of changes always hurts some loads and
-doesn't hurt others. ;-)
-
-Regards,
-Zheng
+GrA 1/4 sse / regards, Christian Ehrhardt
+IBM Linux Technology Center, System z Linux Performance
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
