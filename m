@@ -1,41 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx142.postini.com [74.125.245.142])
-	by kanga.kvack.org (Postfix) with SMTP id C3FD66B0082
-	for <linux-mm@kvack.org>; Mon, 21 May 2012 09:39:38 -0400 (EDT)
-From: Satoru Moriya <satoru.moriya@hds.com>
-Date: Mon, 21 May 2012 09:39:29 -0400
-Subject: RE: [RFC][PATCH] avoid swapping out with swappiness==0
-Message-ID: <65795E11DBF1E645A09CEC7EAEE94B9C015955EED7@USINDEVS02.corp.hds.com>
-References: <65795E11DBF1E645A09CEC7EAEE94B9CB951A45F@USINDEVS02.corp.hds.com>
- <20120424082019.GA18395@alpha.arachsys.com>
- <65795E11DBF1E645A09CEC7EAEE94B9C014649EC4D@USINDEVS02.corp.hds.com>
- <20120426142643.GA18863@alpha.arachsys.com>
- <CAHGf_=pcmFrWjfW3eQi_AiemQEm_e=gBZ24s+Hiythmd=J9EUQ@mail.gmail.com>
- <4FA82C11.2030805@redhat.com> <20120521071226.GJ29495@alpha.arachsys.com>
-In-Reply-To: <20120521071226.GJ29495@alpha.arachsys.com>
-Content-Language: en-US
-Content-Type: text/plain; charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
+Received: from psmtp.com (na3sys010amx150.postini.com [74.125.245.150])
+	by kanga.kvack.org (Postfix) with SMTP id 14E876B0044
+	for <linux-mm@kvack.org>; Mon, 21 May 2012 09:48:45 -0400 (EDT)
+Date: Mon, 21 May 2012 08:48:41 -0500 (CDT)
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: [RFC] Common code 04/12] slabs: Extract common code for
+ kmem_cache_create
+In-Reply-To: <4FBA09C6.9090302@parallels.com>
+Message-ID: <alpine.DEB.2.00.1205210848170.27592@router.home>
+References: <20120518161906.207356777@linux.com> <20120518161929.264565121@linux.com> <4FBA09C6.9090302@parallels.com>
 MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Richard Davies <richard.davies@elastichosts.com>, Rik van Riel <riel@redhat.com>
-Cc: KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Jerome Marchand <jmarchan@redhat.com>, "jweiner@redhat.com" <jweiner@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "lwoodman@redhat.com" <lwoodman@redhat.com>, "dle-develop@lists.sourceforge.net" <dle-develop@lists.sourceforge.net>, Seiji Aguchi <seiji.aguchi@hds.com>, Minchan Kim <minchan.kim@gmail.com>
+To: Glauber Costa <glommer@parallels.com>
+Cc: Pekka Enberg <penberg@kernel.org>, linux-mm@kvack.org, David Rientjes <rientjes@google.com>, Matt Mackall <mpm@selenic.com>, Joonsoo Kim <js1304@gmail.com>, Alex Shi <alex.shi@intel.com>
 
-Hi Richard,
+On Mon, 21 May 2012, Glauber Costa wrote:
 
-On 05/21/2012 03:12 AM, Richard Davies wrote:
-> Now that 3.4 is out with Rik's fixes, I'm keen to start testing with=20
-> and without this extra patch.
->=20
-> Satoru - should I just apply your original patch (most likely), or do=20
-> you need to update for the final released kernel?
+> On 05/18/2012 08:19 PM, Christoph Lameter wrote:
+> > Index: linux-2.6/mm/slab.c
+> > ===================================================================
+> > --- linux-2.6.orig/mm/slab.c	2012-05-11 09:36:35.308445605 -0500
+> > +++ linux-2.6/mm/slab.c	2012-05-11 09:43:33.160436947 -0500
+> > @@ -1585,7 +1585,7 @@ void __init kmem_cache_init(void)
+> >   	 * bug.
+> >   	 */
+> >
+> > -	sizes[INDEX_AC].cs_cachep = kmem_cache_create(names[INDEX_AC].name,
+> > +	sizes[INDEX_AC].cs_cachep = __kmem_cache_create(names[INDEX_AC].name,
+> >   					sizes[INDEX_AC].cs_size,
+> >   					ARCH_KMALLOC_MINALIGN,
+> >   					ARCH_KMALLOC_FLAGS|SLAB_PANIC,
+>
+> So, before your patch, the kmalloc caches were getting all the sanity checking
+> done. No we're skipping them. Any particular reason?
 
-Thank you for testing!
-I believe you can apply the patch without any updates.
+I can visually do the sanity checking since the parameters are all in the
+source. No need to do these checks again at runtime.
 
-Regards,
-Satoru
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
