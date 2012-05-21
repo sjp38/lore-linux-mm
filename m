@@ -1,45 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx116.postini.com [74.125.245.116])
-	by kanga.kvack.org (Postfix) with SMTP id 492236B0044
-	for <linux-mm@kvack.org>; Mon, 21 May 2012 14:13:55 -0400 (EDT)
-Date: Mon, 21 May 2012 13:13:52 -0500 (CDT)
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: [RFC] Common code 09/12] slabs: Extract a common function for
- kmem_cache_destroy
-In-Reply-To: <4FBA0C2D.3000101@parallels.com>
-Message-ID: <alpine.DEB.2.00.1205211312270.30649@router.home>
-References: <20120518161906.207356777@linux.com> <20120518161932.147485968@linux.com> <4FBA0C2D.3000101@parallels.com>
+Received: from psmtp.com (na3sys010amx203.postini.com [74.125.245.203])
+	by kanga.kvack.org (Postfix) with SMTP id 7026E6B0044
+	for <linux-mm@kvack.org>; Mon, 21 May 2012 14:23:56 -0400 (EDT)
+Message-ID: <4FBA8829.3010800@jp.fujitsu.com>
+Date: Mon, 21 May 2012 14:23:37 -0400
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [RFC][PATCH] hugetlb: fix resv_map leak in error path
+References: <20120518184630.FF3307BD@kernel>
+In-Reply-To: <20120518184630.FF3307BD@kernel>
+Content-Type: text/plain; charset=ISO-2022-JP
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Glauber Costa <glommer@parallels.com>
-Cc: Pekka Enberg <penberg@kernel.org>, linux-mm@kvack.org, David Rientjes <rientjes@google.com>, Matt Mackall <mpm@selenic.com>, Joonsoo Kim <js1304@gmail.com>, Alex Shi <alex.shi@intel.com>
+To: dave@linux.vnet.ibm.com
+Cc: cl@linux.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, aarcange@redhat.com, kosaki.motohiro@jp.fujitsu.com, hughd@google.com, rientjes@google.com, adobriyan@gmail.com, akpm@linux-foundation.org, mel@csn.ul.ie
 
-On Mon, 21 May 2012, Glauber Costa wrote:
+On 5/18/2012 2:46 PM, Dave Hansen wrote:
+> When called for anonymous (non-shared) mappings,
+> hugetlb_reserve_pages() does a resv_map_alloc().  It depends on
+> code in hugetlbfs's vm_ops->close() to release that allocation.
+> 
+> However, in the mmap() failure path, we do a plain unmap_region()
+> without the remove_vma() which actually calls vm_ops->close().
+> 
+> This is a decent fix.  This leak could get reintroduced if
+> new code (say, after hugetlb_reserve_pages() in
+> hugetlbfs_file_mmap()) decides to return an error.  But, I think
+> it would have to unroll the reservation anyway.
+> 
+> This hasn't been extensively tested.  Pretty much compile and
+> boot tested along with Christoph's test case.
+> 
+> Comments?
+> 
+> 
+> Signed-off-by: Dave Hansen <dave@linux.vnet.ibm.com>
+> ---
 
-> Something doesn't smell right here. It seems that we're now closing the caches
-> right away. That wasn't the case before, nor it should be: For aliases, we
-> should only decrease the refcount.
+I don't think this is cleaner fix. but I also think we should fix the leak
+asap. so Let's simple fix first.
 
-Why not? The only thing that could be left pending are frees to the page
-allocator. We can do those frees with just the kmem_cache structure
-hanging on for awhile.
-
-> So unless I am missing something, it seems to me the correct code would be:
->
-> s->refcount--;
-> if (!s->refcount)
->     return kmem_cache_close;
-> return 0;
->
-> And while we're on that, that makes the sequence list_del() -> if it fails ->
-> list_add() in the common kmem_cache_destroy a bit clumsy. Aliases will be
-> re-added to the list quite frequently. Not that it is a big problem, but
-> still...
-
-True but this is just an intermediate step. Ultimately the series will
-move sysfs processing into slab_common.c and then this is going away.
+Acked-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
