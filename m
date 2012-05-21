@@ -1,95 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx159.postini.com [74.125.245.159])
-	by kanga.kvack.org (Postfix) with SMTP id 3E3CF6B0081
-	for <linux-mm@kvack.org>; Mon, 21 May 2012 03:51:32 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx189.postini.com [74.125.245.189])
+	by kanga.kvack.org (Postfix) with SMTP id D0D496B0081
+	for <linux-mm@kvack.org>; Mon, 21 May 2012 04:09:28 -0400 (EDT)
 Received: from /spool/local
-	by e06smtp12.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e06smtp16.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <ehrhardt@linux.vnet.ibm.com>;
-	Mon, 21 May 2012 08:51:30 +0100
-Received: from d06av05.portsmouth.uk.ibm.com (d06av05.portsmouth.uk.ibm.com [9.149.37.229])
-	by d06nrmr1806.portsmouth.uk.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q4L7pSxn2150612
-	for <linux-mm@kvack.org>; Mon, 21 May 2012 08:51:28 +0100
-Received: from d06av05.portsmouth.uk.ibm.com (loopback [127.0.0.1])
-	by d06av05.portsmouth.uk.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q4L7pSVA007928
-	for <linux-mm@kvack.org>; Mon, 21 May 2012 01:51:28 -0600
-Message-ID: <4FB9F3FF.7030709@linux.vnet.ibm.com>
-Date: Mon, 21 May 2012 09:51:27 +0200
-From: Christian Ehrhardt <ehrhardt@linux.vnet.ibm.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH 0/2] swap: improve swap I/O rate
-References: <1336996709-8304-1-git-send-email-ehrhardt@linux.vnet.ibm.com> <4FB1E2A0.9050900@kernel.org>
-In-Reply-To: <4FB1E2A0.9050900@kernel.org>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 8bit
+	Mon, 21 May 2012 09:09:27 +0100
+Received: from d06av09.portsmouth.uk.ibm.com (d06av09.portsmouth.uk.ibm.com [9.149.37.250])
+	by d06nrmr1407.portsmouth.uk.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q4L89Kbg1945686
+	for <linux-mm@kvack.org>; Mon, 21 May 2012 09:09:20 +0100
+Received: from d06av09.portsmouth.uk.ibm.com (loopback [127.0.0.1])
+	by d06av09.portsmouth.uk.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q4L89J4K015232
+	for <linux-mm@kvack.org>; Mon, 21 May 2012 02:09:19 -0600
+From: ehrhardt@linux.vnet.ibm.com
+Subject: [PATCH 2/2] documentation: update how page-cluster affects swap I/O
+Date: Mon, 21 May 2012 10:09:15 +0200
+Message-Id: <1337587755-4743-3-git-send-email-ehrhardt@linux.vnet.ibm.com>
+In-Reply-To: <1337587755-4743-1-git-send-email-ehrhardt@linux.vnet.ibm.com>
+References: <1337587755-4743-1-git-send-email-ehrhardt@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: linux-mm@kvack.org, axboe@kernel.dk, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>
+To: linux-mm@kvack.org
+Cc: axboe@kernel.dk, Christian Ehrhardt <ehrhardt@linux.vnet.ibm.com>
 
-[...]
+From: Christian Ehrhardt <ehrhardt@linux.vnet.ibm.com>
 
->> [missing patch #3]
->> I tried to get a similar patch working for swap out in shrink_page_list. And
->> it worked in functional terms, but the additional mergin was negligible.
->
->
-> I think we have already done it.
-> Look at shrink_mem_cgroup_zone which ends up calling shrink_page_list so we already have applied
-> I/O plugging.
->
+Fix of the documentation of /proc/sys/vm/page-cluster to match the behavior of
+the code and add some comments about what the tunable will change in that
+behavior.
 
-I saw that code and it is part of the kernel I used to test my patches.
-But despite that code and my additional experiments of plug/unplug in 
-shrink_page_list the effective I/O size of swap write stays at almost 4k.
+Signed-off-by: Christian Ehrhardt <ehrhardt@linux.vnet.ibm.com>
+Acked-by: Jens Axboe <axboe@kernel.dk>
+---
+ Documentation/sysctl/vm.txt |   12 ++++++++++--
+ 1 files changed, 10 insertions(+), 2 deletions(-)
 
-Thereby so far I can tell you that the plugs in shrink_page_list and 
-shrink_mem_cgroup_zone aren't sufficient - at least for my case.
-You saw the blocktrace summaries in my first mail, an excerpt of a write 
-submission stream looks like that:
-
-  94,4   10      465     0.023520923   116  A   W 28868648 + 8 <- (94,5) 
-28868456
-  94,5   10      466     0.023521173   116  Q   W 28868648 + 8 [kswapd0]
-  94,5   10      467     0.023522048   116  G   W 28868648 + 8 [kswapd0]
-  94,5   10      468     0.023522235   116  P   N [kswapd0]
-  94,5   10      469     0.023759892   116  I   W 28868648 + 8 ( 237844) 
-[kswapd0]
-  94,5   10      470     0.023760079   116  U   N [kswapd0] 1
-  94,5   10      471     0.023760360   116  D   W 28868648 + 8 ( 468) 
-[kswapd0]
-  94,4   10      472     0.023891235   116  A   W 28868656 + 8 <- (94,5) 
-28868464
-  94,5   10      473     0.023891454   116  Q   W 28868656 + 8 [kswapd0]
-  94,5   10      474     0.023892110   116  G   W 28868656 + 8 [kswapd0]
-  94,5   10      475     0.023944610   116  I   W 28868656 + 8 ( 52500) 
-[kswapd0]
-  94,5   10      476     0.023944735   116  U   N [kswapd0] 1
-  94,5   10      477     0.023944892   116  D   W 28868656 + 8 ( 282) 
-[kswapd0]
-  94,5   16       19     0.024023192 16033  C   W 28868648 + 8 ( 262832) [0]
-  94,5   24       37     0.024196752 14526  C   W 28868656 + 8 ( 251860) [0]
-[...]
-
-But we can split this discussion from my other two patches and I would 
-be happy to provide my test environment for further tests if there are 
-new suggestions/patches/...
-
->> Maybe the cond_resched triggers much mor often than I expected, I'm open for
->> suggestions regarding improving the pagout I/O sizes as well.
->
->
-> We could enhance write out by batch like ext4_bio_write_page.
->
-
-Do you mean the changes brought by "bd2d0210 ext4: use bio layer instead 
-of buffer layer in mpage_da_submit_io" ?
-
-
-
+diff --git a/Documentation/sysctl/vm.txt b/Documentation/sysctl/vm.txt
+index 96f0ee8..4d87dc0 100644
+--- a/Documentation/sysctl/vm.txt
++++ b/Documentation/sysctl/vm.txt
+@@ -574,16 +574,24 @@ of physical RAM.  See above.
+ 
+ page-cluster
+ 
+-page-cluster controls the number of pages which are written to swap in
+-a single attempt.  The swap I/O size.
++page-cluster controls the number of pages up to which consecutive pages
++are read in from swap in a single attempt. This is the swap counterpart
++to page cache readahead.
++The mentioned consecutivity is not in terms of virtual/physical addresses,
++but consecutive on swap space - that means they were swapped out together.
+ 
+ It is a logarithmic value - setting it to zero means "1 page", setting
+ it to 1 means "2 pages", setting it to 2 means "4 pages", etc.
++Zero disables swap readahead completely.
+ 
+ The default value is three (eight pages at a time).  There may be some
+ small benefits in tuning this to a different value if your workload is
+ swap-intensive.
+ 
++Lower values mean lower latencies for initial faults, but at the same time
++extra faults and I/O delays for following faults if they would have been part of
++that consecutive pages readahead would have brought in.
++
+ =============================================================
+ 
+ panic_on_oom
 -- 
-
-GrA 1/4 sse / regards, Christian Ehrhardt
-IBM Linux Technology Center, System z Linux Performance
+1.7.0.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
