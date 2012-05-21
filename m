@@ -1,67 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx176.postini.com [74.125.245.176])
-	by kanga.kvack.org (Postfix) with SMTP id 4D8436B0081
-	for <linux-mm@kvack.org>; Sun, 20 May 2012 22:44:31 -0400 (EDT)
-Received: by pbbrp2 with SMTP id rp2so9361532pbb.14
-        for <linux-mm@kvack.org>; Sun, 20 May 2012 19:44:30 -0700 (PDT)
-Date: Mon, 21 May 2012 10:51:49 +0800
-From: Zheng Liu <gnehzuil.liu@gmail.com>
-Subject: Re: [PATCH] mm: consider all swapped back pages in used-once logic
-Message-ID: <20120521025149.GA32375@gmail.com>
-References: <1337246033-13719-1-git-send-email-mhocko@suse.cz>
- <20120517195342.GB1800@cmpxchg.org>
+Received: from psmtp.com (na3sys010amx132.postini.com [74.125.245.132])
+	by kanga.kvack.org (Postfix) with SMTP id 748D06B0081
+	for <linux-mm@kvack.org>; Mon, 21 May 2012 03:12:32 -0400 (EDT)
+Date: Mon, 21 May 2012 08:12:26 +0100
+From: Richard Davies <richard.davies@elastichosts.com>
+Subject: Re: [RFC][PATCH] avoid swapping out with swappiness==0
+Message-ID: <20120521071226.GJ29495@alpha.arachsys.com>
+References: <65795E11DBF1E645A09CEC7EAEE94B9CB951A45F@USINDEVS02.corp.hds.com>
+ <20120424082019.GA18395@alpha.arachsys.com>
+ <65795E11DBF1E645A09CEC7EAEE94B9C014649EC4D@USINDEVS02.corp.hds.com>
+ <20120426142643.GA18863@alpha.arachsys.com>
+ <CAHGf_=pcmFrWjfW3eQi_AiemQEm_e=gBZ24s+Hiythmd=J9EUQ@mail.gmail.com>
+ <4FA82C11.2030805@redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20120517195342.GB1800@cmpxchg.org>
+In-Reply-To: <4FA82C11.2030805@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Minchan Kim <minchan@kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>
+To: Rik van Riel <riel@redhat.com>
+Cc: KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Satoru Moriya <satoru.moriya@hds.com>, Jerome Marchand <jmarchan@redhat.com>, "jweiner@redhat.com" <jweiner@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "lwoodman@redhat.com" <lwoodman@redhat.com>, "shaohua.li@intel.com" <shaohua.li@intel.com>, "dle-develop@lists.sourceforge.net" <dle-develop@lists.sourceforge.net>, Seiji Aguchi <seiji.aguchi@hds.com>, Minchan Kim <minchan.kim@gmail.com>
 
-On Thu, May 17, 2012 at 09:54:25PM +0200, Johannes Weiner wrote:
-> On Thu, May 17, 2012 at 11:13:53AM +0200, Michal Hocko wrote:
-> > [64574746 vmscan: detect mapped file pages used only once] made mapped pages
-> > have another round in inactive list because they might be just short
-> > lived and so we could consider them again next time. This heuristic
-> > helps to reduce pressure on the active list with a streaming IO
-> > worklods.
-> > This patch fixes a regression introduced by this commit for heavy shmem
-> > based workloads because unlike Anon pages, which are excluded from this
-> > heuristic because they are usually long lived, shmem pages are handled
-> > as a regular page cache.
-> > This doesn't work quite well, unfortunately, if the workload is mostly
-> > backed by shmem (in memory database sitting on 80% of memory) with a
-> > streaming IO in the background (backup - up to 20% of memory). Anon
-> > inactive list is full of (dirty) shmem pages when watermarks are
-> > hit. Shmem pages are kept in the inactive list (they are referenced)
-> > in the first round and it is hard to reclaim anything else so we reach
-> > lower scanning priorities very quickly which leads to an excessive swap
-> > out.
-> > 
-> > Let's fix this by excluding all swap backed pages (they tend to be long
-> > lived wrt. the regular page cache anyway) from used-once heuristic and
-> > rather activate them if they are referenced.
-> 
-> Yes, the algorithm only makes sense for file cache, which is easy to
-> reclaim.  Thanks for the fix!
+Hi Satoru,
 
-Hi Johannes,
+Rik van Riel wrote:
+> KOSAKI Motohiro wrote:
+> > Richard Davies wrote:
+> > >Satoru Moriya wrote:
+> > > > > I have run into problems with heavy swapping with swappiness==0 and
+> > > > > was pointed to this thread (
+> > > > > http://marc.info/?l=linux-mm&m=133522782307215 )
+> > > >
+> > > > Did you test this patch with your workload?
+> > >
+> > > I haven't yet tested this patch. It takes a long time since these are
+> > > production machines, and the bug itself takes several weeks of
+> > > production use to really show up.
+> > >
+> > > Rik van Riel has pointed out a lot of VM tweaks that he put into 3.4:
+> > > http://marc.info/?l=linux-mm&m=133536506926326
+> > >
+> > > My intention is to reboot half of our machines into plain 3.4 once it
+> > > is out, and half onto 3.4 + your patch.
+> > >
+> > > Then we can compare behaviour.
+> > >
+> > > Will your patch apply cleanly on 3.4?
+> >
+> > Note. This patch doesn't solve your issue. This patch mean,
+> > when occuring very few swap io, it change to 0. But you said
+> > you are seeing eager swap io. As Dave already pointed out, your
+> > machine have buffer head issue.
+> >
+> > So, this thread is pointless.
+>
+> Running KVM guests directly off block devices results in a lot
+> of buffer cache.
+>
+> I suspect that this patch will in fact fix Richard's issue.
+>
+> The patch is small, fairly simple and looks like it will fix
+> people's problems. It also makes swappiness=0 behave the way
+> most people seem to imagine it would work.
+>
+> If it works for a few people (test results), I believe we
+> might as well merge it.
+>
+> Yes, for cgroups we may need additional logic, but we can
+> sort that out as we go along.
 
-Out of curiosity, I notice that, in this patch (64574746), the commit log
-said that this patch aims to reduce the impact of pages used only once.
-Could you please tell why you think these pages will flood the active
-list?  How do you find this problem?
+Now that 3.4 is out with Rik's fixes, I'm keen to start testing with and
+without this extra patch.
 
-Actually, we met a huge regression in our product system.  This
-application uses mmap/munmap and read/write simultaneously.  Meanwhile
-it wants to keep mapped file pages in memory as much as possible.  But
-this patch causes that mapped file pages are reclaimed frequently.  So I
-want to know whether or not this patch consider this situation.  Thank
-you.
+Satoru - should I just apply your original patch (most likely), or do you
+need to update for the final released kernel?
 
-Regards,
-Zheng
+Thanks,
+
+Richard.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
