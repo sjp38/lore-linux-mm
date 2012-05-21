@@ -1,39 +1,33 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx203.postini.com [74.125.245.203])
-	by kanga.kvack.org (Postfix) with SMTP id 132B96B00E9
-	for <linux-mm@kvack.org>; Mon, 21 May 2012 16:01:27 -0400 (EDT)
-Date: Mon, 21 May 2012 16:01:18 -0400
-From: Dave Jones <davej@redhat.com>
-Subject: Re: 3.4-rc7 numa_policy slab poison.
-Message-ID: <20120521200118.GA12123@redhat.com>
-References: <20120517213120.GA12329@redhat.com>
- <20120518185851.GA5728@redhat.com>
- <20120521154709.GA8697@redhat.com>
- <CA+55aFyqMJ1X08kQwJ7snkYo6MxfVKqFJx7LXBkP_ug4LTCZ=Q@mail.gmail.com>
+Received: from psmtp.com (na3sys010amx158.postini.com [74.125.245.158])
+	by kanga.kvack.org (Postfix) with SMTP id CBC196B00E9
+	for <linux-mm@kvack.org>; Mon, 21 May 2012 16:08:41 -0400 (EDT)
+Message-ID: <4FBAA04D.7010007@parallels.com>
+Date: Tue, 22 May 2012 00:06:37 +0400
+From: Glauber Costa <glommer@parallels.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CA+55aFyqMJ1X08kQwJ7snkYo6MxfVKqFJx7LXBkP_ug4LTCZ=Q@mail.gmail.com>
+Subject: Re: [RFC] Common code 09/12] slabs: Extract a common function for
+ kmem_cache_destroy
+References: <20120518161906.207356777@linux.com> <20120518161932.147485968@linux.com> <4FBA0C2D.3000101@parallels.com> <alpine.DEB.2.00.1205211312270.30649@router.home> <4FBA9536.1020502@parallels.com> <alpine.DEB.2.00.1205211430020.10940@router.home>
+In-Reply-To: <alpine.DEB.2.00.1205211430020.10940@router.home>
+Content-Type: text/plain; charset="ISO-8859-1"; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Linux Kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Stephen Wilson <wilsons@start.ca>, Mel Gorman <mgorman@suse.de>, Christoph Lameter <cl@linux.com>, Andrew Morton <akpm@linux-foundation.org>
+To: Christoph Lameter <cl@linux.com>
+Cc: Pekka Enberg <penberg@kernel.org>, linux-mm@kvack.org, David Rientjes <rientjes@google.com>, Matt Mackall <mpm@selenic.com>, Joonsoo Kim <js1304@gmail.com>, Alex Shi <alex.shi@intel.com>
 
-On Mon, May 21, 2012 at 12:39:19PM -0700, Linus Torvalds wrote:
-
- > But there's not a lot of recent stuff. The thing that jumps out is Mel
- > Gorman's recent commit cc9a6c8776615 ("cpuset: mm: reduce large
- > amounts of memory barrier related damage v3"), which has a whole new
- > loop with that scary mpol_cond_put() usage. And there's we had
- > problems with vma merging..
- > 
- > Dave, how recent is this problem? Have you already tried older kernels?
-
-I tried bisecting, but couldn't find a 'good' kernel.
-I Went back as far as 3.0, before that I kept running into compile failures.
-Newer gcc/binutils really seems to dislike 2.6.x now.
-
-	Dave
+On 05/21/2012 11:31 PM, Christoph Lameter wrote:
+>> >  But until then, people bisecting into this patch will find a broken state,
+>> >  right?
+> I thought this was about clumsiness not breakage. What is broken? Aliases
+> do not affect the call to __kmem_cache_shutdown. Its only called if there
+> are no aliases anymore.
+>
+>
+Well, that I missed - might be my fault. Can you point me to the exact 
+point where you guarantee aliases are ignored, just so we're in the same 
+page?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
