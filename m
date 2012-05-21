@@ -1,81 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx104.postini.com [74.125.245.104])
-	by kanga.kvack.org (Postfix) with SMTP id EAEFF6B0081
-	for <linux-mm@kvack.org>; Mon, 21 May 2012 03:36:56 -0400 (EDT)
-Date: Mon, 21 May 2012 09:36:32 +0200
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH] mm: consider all swapped back pages in used-once logic
-Message-ID: <20120521073632.GL1406@cmpxchg.org>
-References: <1337246033-13719-1-git-send-email-mhocko@suse.cz>
- <20120517195342.GB1800@cmpxchg.org>
- <20120521025149.GA32375@gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20120521025149.GA32375@gmail.com>
+Received: from psmtp.com (na3sys010amx124.postini.com [74.125.245.124])
+	by kanga.kvack.org (Postfix) with SMTP id 308806B0081
+	for <linux-mm@kvack.org>; Mon, 21 May 2012 03:47:20 -0400 (EDT)
+Received: from /spool/local
+	by e06smtp15.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <schwidefsky@de.ibm.com>;
+	Mon, 21 May 2012 08:47:18 +0100
+Received: from d06av07.portsmouth.uk.ibm.com (d06av07.portsmouth.uk.ibm.com [9.149.37.248])
+	by d06nrmr1806.portsmouth.uk.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q4L7lDHc2945050
+	for <linux-mm@kvack.org>; Mon, 21 May 2012 08:47:13 +0100
+Received: from d06av07.portsmouth.uk.ibm.com (d06av07.portsmouth.uk.ibm.com [127.0.0.1])
+	by d06av07.portsmouth.uk.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q4L7dWoV023800
+	for <linux-mm@kvack.org>; Mon, 21 May 2012 03:39:33 -0400
+Date: Mon, 21 May 2012 09:47:09 +0200
+From: Martin Schwidefsky <schwidefsky@de.ibm.com>
+Subject: Re: [RFC][PATCH 4/6] arm, mm: Convert arm to generic tlb
+Message-ID: <20120521094709.6036d868@de.ibm.com>
+In-Reply-To: <1337271884.4281.46.camel@twins>
+References: <20110302175928.022902359@chello.nl>
+	<20110302180259.109909335@chello.nl>
+	<20120517030551.GA11623@linux-sh.org>
+	<20120517093022.GA14666@arm.com>
+	<20120517095124.GN23420@flint.arm.linux.org.uk>
+	<1337254086.4281.26.camel@twins>
+	<20120517160012.GB18593@arm.com>
+	<1337271884.4281.46.camel@twins>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Minchan Kim <minchan@kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>
+To: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Cc: Catalin Marinas <catalin.marinas@arm.com>, Russell King <rmk@arm.linux.org.uk>, Paul Mundt <lethal@linux-sh.org>, Andrea Arcangeli <aarcange@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, Rik van Riel <riel@redhat.com>, Ingo Molnar <mingo@elte.hu>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, David Miller <davem@davemloft.net>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Mel Gorman <mel@csn.ul.ie>, Nick Piggin <npiggin@kernel.dk>, Chris Metcalf <cmetcalf@tilera.com>
 
-On Mon, May 21, 2012 at 10:51:49AM +0800, Zheng Liu wrote:
-> On Thu, May 17, 2012 at 09:54:25PM +0200, Johannes Weiner wrote:
-> > On Thu, May 17, 2012 at 11:13:53AM +0200, Michal Hocko wrote:
-> > > [64574746 vmscan: detect mapped file pages used only once] made mapped pages
-> > > have another round in inactive list because they might be just short
-> > > lived and so we could consider them again next time. This heuristic
-> > > helps to reduce pressure on the active list with a streaming IO
-> > > worklods.
-> > > This patch fixes a regression introduced by this commit for heavy shmem
-> > > based workloads because unlike Anon pages, which are excluded from this
-> > > heuristic because they are usually long lived, shmem pages are handled
-> > > as a regular page cache.
-> > > This doesn't work quite well, unfortunately, if the workload is mostly
-> > > backed by shmem (in memory database sitting on 80% of memory) with a
-> > > streaming IO in the background (backup - up to 20% of memory). Anon
-> > > inactive list is full of (dirty) shmem pages when watermarks are
-> > > hit. Shmem pages are kept in the inactive list (they are referenced)
-> > > in the first round and it is hard to reclaim anything else so we reach
-> > > lower scanning priorities very quickly which leads to an excessive swap
-> > > out.
-> > > 
-> > > Let's fix this by excluding all swap backed pages (they tend to be long
-> > > lived wrt. the regular page cache anyway) from used-once heuristic and
-> > > rather activate them if they are referenced.
-> > 
-> > Yes, the algorithm only makes sense for file cache, which is easy to
-> > reclaim.  Thanks for the fix!
+On Thu, 17 May 2012 18:24:44 +0200
+Peter Zijlstra <a.p.zijlstra@chello.nl> wrote:
+
+> On Thu, 2012-05-17 at 17:00 +0100, Catalin Marinas wrote:
 > 
-> Hi Johannes,
+> > BTW, looking at your tlb-unify branch, does tlb_remove_table() call
+> > tlb_flush/tlb_flush_mmu before freeing the tables?  I can only see
+> > tlb_remove_page() doing this. On ARM, even UP, we need the TLB flushing
+> > after clearing the pmd and before freeing the pte page table (and
+> > ideally doing it less often than at every pte_free_tlb() call).
 > 
-> Out of curiosity, I notice that, in this patch (64574746), the commit log
-> said that this patch aims to reduce the impact of pages used only once.
-> Could you please tell why you think these pages will flood the active
-> list?  How do you find this problem?
+> No I don't think it does, so far the only archs using the RCU stuff are
+> ppc,sparc and s390 and none of those needed that (Xen might join them
+> soon though). But I will have to look and consider this more carefully.
+> I 'lost' most of the ppc/sparc/s390 details from memory to say this with
+> any certainty.
+ 
+s390 needs a TLB flush for the pgd, pud and pmd tables. See git commit
+cd94154cc6a28dd9dc271042c1a59c08d26da886 for the sad details.
 
-Applications that use mmap for large, linear used-once IO.  Reclaim
-used to just activate every mapped file page it encountered for the
-first time (activate referenced ones, but they all start referenced) .
-This resulted in horrible reclaim latency as most pages in memory
-where active.
+-- 
+blue skies,
+   Martin.
 
-> Actually, we met a huge regression in our product system.  This
-> application uses mmap/munmap and read/write simultaneously.  Meanwhile
-> it wants to keep mapped file pages in memory as much as possible.  But
-> this patch causes that mapped file pages are reclaimed frequently.  So I
-> want to know whether or not this patch consider this situation.  Thank
-> you.
-
-Is it because the read()/write() IO is high throughput and pushes
-pages through the LRU lists faster than the mmap pages are referenced?
-
-Are the mmap pages executable or shared between tasks?  If so, does
-the kernel you are using include '34dbc67 vmscan: promote shared file
-mapped pages' and 'c909e99 vmscan: activate executable pages after
-first usage'?
-
-All of this is very lame.  I see no way to automatically detect when
-you really want to keep mapped pages over unmapped ones.  And making
-this assumption hurt some loads, while not making it now hurts others.
+"Reality continues to ruin my life." - Calvin.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
