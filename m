@@ -1,74 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx153.postini.com [74.125.245.153])
-	by kanga.kvack.org (Postfix) with SMTP id DC98D6B0081
-	for <linux-mm@kvack.org>; Mon, 21 May 2012 05:40:49 -0400 (EDT)
-Message-ID: <4FBA0D25.8040203@parallels.com>
-Date: Mon, 21 May 2012 13:38:45 +0400
-From: Glauber Costa <glommer@parallels.com>
+Received: from psmtp.com (na3sys010amx174.postini.com [74.125.245.174])
+	by kanga.kvack.org (Postfix) with SMTP id 93BF66B0081
+	for <linux-mm@kvack.org>; Mon, 21 May 2012 06:28:07 -0400 (EDT)
+Received: from m4.gw.fujitsu.co.jp (unknown [10.0.50.74])
+	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id B52663EE0B6
+	for <linux-mm@kvack.org>; Mon, 21 May 2012 19:28:05 +0900 (JST)
+Received: from smail (m4 [127.0.0.1])
+	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 9DDD845DE59
+	for <linux-mm@kvack.org>; Mon, 21 May 2012 19:28:05 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
+	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 87D9D45DE4D
+	for <linux-mm@kvack.org>; Mon, 21 May 2012 19:28:05 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 7A05CE08001
+	for <linux-mm@kvack.org>; Mon, 21 May 2012 19:28:05 +0900 (JST)
+Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.240.81.147])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 3137C1DB803B
+	for <linux-mm@kvack.org>; Mon, 21 May 2012 19:28:05 +0900 (JST)
+Message-ID: <4FBA1841.40506@jp.fujitsu.com>
+Date: Mon, 21 May 2012 19:26:09 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
-Subject: Re: [RFC] Common code 00/12] Sl[auo]b: Common functionality V2
-References: <20120518161906.207356777@linux.com>
-In-Reply-To: <20120518161906.207356777@linux.com>
-Content-Type: text/plain; charset="ISO-8859-1"; format=flowed
+Subject: Re: [PATCH] memcg,thp: fix res_counter:96 regression
+References: <alpine.LSU.2.00.1205181116160.2082@eggly.anvils>
+In-Reply-To: <alpine.LSU.2.00.1205181116160.2082@eggly.anvils>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: Pekka Enberg <penberg@kernel.org>, linux-mm@kvack.org, David Rientjes <rientjes@google.com>, Matt Mackall <mpm@selenic.com>, Joonsoo Kim <js1304@gmail.com>, Alex Shi <alex.shi@intel.com>
+To: Hugh Dickins <hughd@google.com>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Andrea Arcangeli <aarcange@redhat.com>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On 05/18/2012 08:19 PM, Christoph Lameter wrote:
-> V1->V2:
-> - Incorporate glommers feedback.
-> - Add 2 more patches dealing with common code in kmem_cache_destroy
->
-> This is a series of patches that extracts common functionality from
-> slab allocators into a common code base. The intend is to standardize
-> as much as possible of the allocator behavior while keeping the
-> distinctive features of each allocator which are mostly due to their
-> storage format and serialization approaches.
->
-> This patchset makes a beginning by extracting common functionality in
-> kmem_cache_create() and kmem_cache_destroy(). However, there are
-> numerous other areas where such work could be beneficial:
->
-> 1. Extract the sysfs support from SLUB and make it common. That way
->     all allocators have a common sysfs API and are handleable in the same
->     way regardless of the allocator chose.
->
-> 2. Extract the error reporting and checking from SLUB and make
->     it available for all allocators. This means that all allocators
->     will gain the resiliency and error handling capabilties.
->
-> 3. Extract the memory hotplug and cpu hotplug handling. It seems that
->     SLAB may be more sophisticated here. Having common code here will
->     make it easier to maintain the special code.
->
-> 4. Extract the aliasing capability of SLUB. This will enable fast
->     slab creation without creating too many additional slab caches.
->     The arrays of caches of varying sizes in numerous subsystems
->     do not cause the creation of numerous slab caches. Storage
->     density is increased and the cache footprint is reduced.
->
-> Ultimately it is to be hoped that the special code for each allocator
-> shrinks to a mininum. This will also make it easier to make modification
-> to allocators.
->
-> In the far future one could envision that the current allocators will
-> just become storage algorithms that can be chosen based on the need of
-> the subsystem. F.e.
->
-> Cpu cache dependend performance		= Bonwick allocator (SLAB)
-> Minimal cycle count and cache footprint	= SLUB
-> Maximum storage density			= K&R allocator (SLOB)
->
-> But that could be controversial and inefficient if indirect calls are needed.
+(2012/05/19 3:28), Hugh Dickins wrote:
 
-While we're at it, can one of my patches for consistent name string 
-handling among caches be applied?
+> Occasionally, testing memcg's move_charge_at_immigrate on rc7 shows
+> a flurry of hundreds of warnings at kernel/res_counter.c:96, where
+> res_counter_uncharge_locked() does WARN_ON(counter->usage < val).
+> 
+> The first trace of each flurry implicates __mem_cgroup_cancel_charge()
+> of mc.precharge, and an audit of mc.precharge handling points to
+> mem_cgroup_move_charge_pte_range()'s THP handling in 12724850e806
+> "memcg: avoid THP split in task migration".
+> 
+> Checking !mc.precharge is good everywhere else, when a single page is
+> to be charged; but here the "mc.precharge -= HPAGE_PMD_NR" likely to
+> follow, is liable to result in underflow (a lot can change since the
+> precharge was estimated).
+> 
+> Simply check against HPAGE_PMD_NR: there's probably a better alternative,
+> trying precharge for more, splitting if unsuccessful; but this one-liner
+> is safer for now - no kernel/res_counter.c:96 warnings seen in 26 hours.
+> 
+> Signed-off-by: Hugh Dickins <hughd@google.com>
 
-Once you guys reach a decision about what is the best behavior: 
-strdup'ing it in all caches, or not strduping it for the slub, I can 
-provide an updated patch that also updates the slob accordingly.
+
+Thank you.
+
+Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+
 
 
 --
