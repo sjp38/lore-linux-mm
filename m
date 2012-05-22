@@ -1,36 +1,26 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx169.postini.com [74.125.245.169])
-	by kanga.kvack.org (Postfix) with SMTP id 3F7146B00E7
-	for <linux-mm@kvack.org>; Tue, 22 May 2012 12:22:29 -0400 (EDT)
-Received: by qcsd16 with SMTP id d16so5965135qcs.14
-        for <linux-mm@kvack.org>; Tue, 22 May 2012 09:22:28 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx120.postini.com [74.125.245.120])
+	by kanga.kvack.org (Postfix) with SMTP id 659F36B0083
+	for <linux-mm@kvack.org>; Tue, 22 May 2012 13:16:21 -0400 (EDT)
+Date: Tue, 22 May 2012 12:16:18 -0500 (CDT)
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: [PATCH] slab+slob: dup name string
+In-Reply-To: <4FBBAE95.6080608@parallels.com>
+Message-ID: <alpine.DEB.2.00.1205221216050.17721@router.home>
+References: <1337613539-29108-1-git-send-email-glommer@parallels.com> <alpine.DEB.2.00.1205212018230.13522@chino.kir.corp.google.com> <alpine.DEB.2.00.1205220855470.17600@router.home> <4FBBAE95.6080608@parallels.com>
 MIME-Version: 1.0
-In-Reply-To: <4FBA0A94.8000803@parallels.com>
-References: <20120518161906.207356777@linux.com>
-	<20120518161931.570041085@linux.com>
-	<4FBA0A94.8000803@parallels.com>
-Date: Wed, 23 May 2012 01:22:28 +0900
-Message-ID: <CAAmzW4OmgKhtggK8m=uBuGZ=mXbg0EdP2WyMTU-RqeqhJS-pXw@mail.gmail.com>
-Subject: Re: [RFC] Common code 08/12] slabs: list addition move to slab_common
-From: JoonSoo Kim <js1304@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Glauber Costa <glommer@parallels.com>
-Cc: Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, linux-mm@kvack.org, David Rientjes <rientjes@google.com>, Matt Mackall <mpm@selenic.com>, Alex Shi <alex.shi@intel.com>
+Cc: David Rientjes <rientjes@google.com>, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, linux-mm@kvack.org, Pekka Enberg <penberg@cs.helsinki.fi>
 
-> On 05/18/2012 08:19 PM, Christoph Lameter wrote:
->>
->> Move the code to append the new kmem_cache to the list of slab caches to
->> the kmem_cache_create code in the shared code.
->>
->> This is possible now since the acquisition of the mutex was moved into
->> kmem_cache_create().
->>
->> Signed-off-by: Christoph Lameter<cl@linux.com>
->
-> Reviewed-by: Glauber Costa <glommer@parallels.com>
-Reviewed-by: Joonsoo Kim <js1304@gmail.com>
+On Tue, 22 May 2012, Glauber Costa wrote:
+
+> I think that's precisely David's point: that we might want to destroy them
+> eventually.
+
+Cannot imagine why.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
