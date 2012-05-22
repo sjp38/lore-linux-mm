@@ -1,80 +1,111 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx121.postini.com [74.125.245.121])
-	by kanga.kvack.org (Postfix) with SMTP id 051BA6B0082
-	for <linux-mm@kvack.org>; Tue, 22 May 2012 02:03:27 -0400 (EDT)
-Received: from /spool/local
-	by e2.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <srikar@linux.vnet.ibm.com>;
-	Tue, 22 May 2012 02:03:26 -0400
-Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
-	by d01dlp02.pok.ibm.com (Postfix) with ESMTP id C75156E8057
-	for <linux-mm@kvack.org>; Tue, 22 May 2012 02:03:23 -0400 (EDT)
-Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
-	by d01relay02.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q4M63N2u150820
-	for <linux-mm@kvack.org>; Tue, 22 May 2012 02:03:23 -0400
-Received: from d01av04.pok.ibm.com (loopback [127.0.0.1])
-	by d01av04.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q4M63LFY006348
-	for <linux-mm@kvack.org>; Tue, 22 May 2012 02:03:23 -0400
-Date: Tue, 22 May 2012 11:31:33 +0530
-From: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-Subject: Re: [tip:perf/uprobes] uprobes, mm, x86: Add the ability to
- install and remove uprobes breakpoints
-Message-ID: <20120522060133.GB10829@linux.vnet.ibm.com>
-Reply-To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
+Received: from psmtp.com (na3sys010amx203.postini.com [74.125.245.203])
+	by kanga.kvack.org (Postfix) with SMTP id 71C726B004D
+	for <linux-mm@kvack.org>; Tue, 22 May 2012 02:50:47 -0400 (EDT)
+Date: Tue, 22 May 2012 16:50:35 +1000
+From: Stephen Rothwell <sfr@canb.auug.org.au>
+Subject: Re: [tip:perf/uprobes] uprobes, mm, x86: Add the ability to install
+ and remove uprobes breakpoints
+Message-Id: <20120522165035.b2beb151ac9c4efbaf30a3eb@canb.auug.org.au>
+In-Reply-To: <20120521192700.71bfda5f.akpm@linux-foundation.org>
 References: <20120209092642.GE16600@linux.vnet.ibm.com>
- <tip-2b144498350860b6ee9dc57ff27a93ad488de5dc@git.kernel.org>
- <20120521143701.74ab2d0b.akpm@linux-foundation.org>
- <CA+55aFw5ccuvvtyf6iuuw-Finr79ZkPxgCxL5jNvdnX5oMYkgg@mail.gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-In-Reply-To: <CA+55aFw5ccuvvtyf6iuuw-Finr79ZkPxgCxL5jNvdnX5oMYkgg@mail.gmail.com>
+	<tip-2b144498350860b6ee9dc57ff27a93ad488de5dc@git.kernel.org>
+	<20120521143701.74ab2d0b.akpm@linux-foundation.org>
+	<CA+55aFw5ccuvvtyf6iuuw-Finr79ZkPxgCxL5jNvdnX5oMYkgg@mail.gmail.com>
+	<20120521151323.f23bd5e9.akpm@linux-foundation.org>
+	<20120522111618.ca91892dc6027f9a4251235e@canb.auug.org.au>
+	<20120521192700.71bfda5f.akpm@linux-foundation.org>
+Mime-Version: 1.0
+Content-Type: multipart/signed; protocol="application/pgp-signature";
+ micalg="PGP-SHA256";
+ boundary="Signature=_Tue__22_May_2012_16_50_35_+1000_HDfBWxpbPVyapGir"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, mingo@redhat.com, a.p.zijlstra@chello.nl, peterz@infradead.org, anton@redhat.com, rostedt@goodmis.org, tglx@linutronix.de, oleg@redhat.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, hpa@zytor.com, jkenisto@us.ibm.com, andi@firstfloor.org, hch@infradead.org, ananth@in.ibm.com, vda.linux@googlemail.com, masami.hiramatsu.pt@hitachi.com, acme@infradead.org, sfr@canb.auug.org.au, roland@hack.frob.com, mingo@elte.hu, linux-tip-commits@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, mingo@redhat.com, a.p.zijlstra@chello.nl, peterz@infradead.org, anton@redhat.com, rostedt@goodmis.org, tglx@linutronix.de, oleg@redhat.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, hpa@zytor.com, jkenisto@us.ibm.com, andi@firstfloor.org, hch@infradead.org, ananth@in.ibm.com, vda.linux@googlemail.com, masami.hiramatsu.pt@hitachi.com, acme@infradead.org, srikar@linux.vnet.ibm.com, roland@hack.frob.com, mingo@elte.hu, linux-tip-commits@vger.kernel.org
 
-> 
-> That said, I think that's true of uprobes too. Why the f*ck would
-> uprobes do it's "munmap" operation when we walk the page tables? This
-> function was called by more than just the actual unmapping, it was
-> called by stuff that wants to zap the pages but leave the mapping
-> around.
-> 
+--Signature=_Tue__22_May_2012_16_50_35_+1000_HDfBWxpbPVyapGir
+Content-Type: text/plain; charset=US-ASCII
+Content-Disposition: inline
+Content-Transfer-Encoding: quoted-printable
 
-This was pointed out by Oleg earlier and I had moved the code to
-unlink_file_vma.
+Hi Andrew,
 
-However by the time unlink_file_vma() is called, the pages would
-have been unmapped (in unmap_vmas()) and the task->rss_stat counts
-accounted (in zap_pte_range()).
+On Mon, 21 May 2012 19:27:00 -0700 Andrew Morton <akpm@linux-foundation.org=
+> wrote:
+>
+> On Tue, 22 May 2012 11:16:18 +1000 Stephen Rothwell <sfr@canb.auug.org.au=
+> wrote:
+>=20
+> > I have been meaning to talk to you about basing the majority of your
+> > patch series on Linus' tree.  This would give it mush greater stability
+> > and would make the merge resolution my problem (and Linus', of course).
+>=20
+> Confused.  None of those conflicts have anything to do with the -mm
+> patches: the only trees involved there are mainline and
+> trees-in-next-other-than-mm.
 
-If the exiting process has probepoints, uprobe_munmap() checks if the
-breakpoint instruction was around before decrementing the probe count.
-This check results in a file backed page being re-read by
-uprobe_munmap() and also it cannot find the breakpoint (because we read
-a file backed page).
+Right, its a separate issue.  Though I do end up coping with conflicts in
+the -mm tree as I have to rebase it everyday.
 
-i.e 
+> > There will be bits that may need to be based on other work in linux-nex=
+t,
+> > but I suspect that it is not very much.
+>=20
+> Well, there are a number of reasons why I base off linux-next.  To see
+> whether others have merged patches which I have merged (and, sometimes,
+> missed later fixes to them).  Explicit fixes against -next material.=20
+> To get visibility into upcoming merge problems.  And so that I and
+> others test -next too.
 
-1. The task->rss_stat counts gets incremented again because we have read
-a page.
+I guess I see a separation between what you are working on and what you
+are publishing.  You used to publish a reasonable amount of subseries for
+others and most of this I suspect could just be based on Linus' tree.
+Anyway, not a big problem except when I get days like yesterday (when I
+saw some of the conflicts you are noting).
 
-2. mm->uprobes_state.count which should have decremented, doesnt get
-decremented as uprobe_munmap fails to see the breakpoint.
+> Basing -mm on next is never a problem (for me).  What is a problem is
+> the mess which happens when people merge things into mainline which are
+> (I assume) either slightly different from what they merged in -next or
+> which never were in -next at all.
 
-Hence I had to move back the callback to zap pages so that we do the
-cleanup before the task->rss_stat counts are accounted.
+Indeed.  Some of what you have seen this time is just last minute updates
+of other trees and bug fixes in Linus' tree.  We had about 2000 (net)
+commits added to linux-next in the past week (800+ over the weekend).
+Some of this has now migrated to Linus' tree already.
 
-That said, Oleg has a in-works patch/idea for removing uprobe_munmap and
-mm->uprobes_state.count, which when done, will remove the
-uprobe_munmap hook. https://lkml.org/lkml/2012/4/16/594
+> That's guessing - it's a long time since I sat down and worked out exactly
+> what is causing this.
 
-Please do let me know if you have better ideas to handle this.
+Which is not a trivial problem.  I will run my stats script and see what
+pops out.
 
--- 
-Thanks and Regards
-Srikar
+--=20
+Cheers,
+Stephen Rothwell                    sfr@canb.auug.org.au
+
+--Signature=_Tue__22_May_2012_16_50_35_+1000_HDfBWxpbPVyapGir
+Content-Type: application/pgp-signature
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1.4.12 (GNU/Linux)
+
+iQIcBAEBCAAGBQJPuzc7AAoJEECxmPOUX5FEKVAQAJ4BsKg5cmGDKBgIemqS05g4
+KM/e2VCmn4vG3NmtQXw31IFZv0JmKswSb69QyF1oA6oQKjR/XajyXLJpDWmUNVWr
+4p1bVp87zn5VLU+FEHzklX8qiLvfpttq89W521+sihama08it6azjtK0K2fW7NaV
+LJmMpb4+ry9KVsHk/YsfyKm43oiXYQUdbPQuaJ7WdLmeXMnfRnXObZBihr5hbwSg
+29hpL5pl/GsLKKkNJcG0JFBKaueLMXvxilWJHSTgBrpzyzylDtZAdrwJ6frRHo5j
+H6nWlcJUO0ROhP3v12SwqgbX4wtssOuZ29vSdbsGYlqsY9+LgvMpNZps3BFdl8E9
+SdU8CElqiPAK9DsMOD9VPWN4lYJPdkTLEum33V2MMfzzysX/pGsYRE7xoGU7fVNs
+RHYwCsz1tYTrzbYkYoQGZ4mYBi1DWnoe7tQur+zdPimJbJUMyXvVF0hEvIC1VY3l
+TyDZwRPHQsCM9iY389DYNLhA/k5EtPi7sdm5iqnOzgaZmByfSonsAJMho/fjZRb4
+EETU248lkFWuoPUL2Iz4lIjEEkS2ewZI9WdPOqTyg8b0pnTsKsLPeveQkxovPy7R
+Tlj3oVG3dSOjjUmSx0vIiz4Om+W9j6NJY9OFaEvgu9IPLYMjmOkS/HYr+rzC4iQI
+7YKld7fI5PoVDcFeF6up
+=goTK
+-----END PGP SIGNATURE-----
+
+--Signature=_Tue__22_May_2012_16_50_35_+1000_HDfBWxpbPVyapGir--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
