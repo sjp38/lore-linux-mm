@@ -1,79 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx166.postini.com [74.125.245.166])
-	by kanga.kvack.org (Postfix) with SMTP id BAB326B004D
-	for <linux-mm@kvack.org>; Mon, 21 May 2012 22:25:50 -0400 (EDT)
-Date: Mon, 21 May 2012 19:27:00 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [tip:perf/uprobes] uprobes, mm, x86: Add the ability to install
- and remove uprobes breakpoints
-Message-Id: <20120521192700.71bfda5f.akpm@linux-foundation.org>
-In-Reply-To: <20120522111618.ca91892dc6027f9a4251235e@canb.auug.org.au>
-References: <20120209092642.GE16600@linux.vnet.ibm.com>
-	<tip-2b144498350860b6ee9dc57ff27a93ad488de5dc@git.kernel.org>
-	<20120521143701.74ab2d0b.akpm@linux-foundation.org>
-	<CA+55aFw5ccuvvtyf6iuuw-Finr79ZkPxgCxL5jNvdnX5oMYkgg@mail.gmail.com>
-	<20120521151323.f23bd5e9.akpm@linux-foundation.org>
-	<20120522111618.ca91892dc6027f9a4251235e@canb.auug.org.au>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx189.postini.com [74.125.245.189])
+	by kanga.kvack.org (Postfix) with SMTP id 910F66B004D
+	for <linux-mm@kvack.org>; Mon, 21 May 2012 23:22:28 -0400 (EDT)
+Received: by dakp5 with SMTP id p5so11110090dak.14
+        for <linux-mm@kvack.org>; Mon, 21 May 2012 20:22:27 -0700 (PDT)
+Date: Mon, 21 May 2012 20:22:25 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH] slab+slob: dup name string
+In-Reply-To: <1337613539-29108-1-git-send-email-glommer@parallels.com>
+Message-ID: <alpine.DEB.2.00.1205212018230.13522@chino.kir.corp.google.com>
+References: <1337613539-29108-1-git-send-email-glommer@parallels.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Stephen Rothwell <sfr@canb.auug.org.au>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, mingo@redhat.com, a.p.zijlstra@chello.nl, peterz@infradead.org, anton@redhat.com, rostedt@goodmis.org, tglx@linutronix.de, oleg@redhat.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, hpa@zytor.com, jkenisto@us.ibm.com, andi@firstfloor.org, hch@infradead.org, ananth@in.ibm.com, vda.linux@googlemail.com, masami.hiramatsu.pt@hitachi.com, acme@infradead.org, srikar@linux.vnet.ibm.com, roland@hack.frob.com, mingo@elte.hu, linux-tip-commits@vger.kernel.org
+To: Glauber Costa <glommer@parallels.com>
+Cc: linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, linux-mm@kvack.org, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@cs.helsinki.fi>
 
-On Tue, 22 May 2012 11:16:18 +1000 Stephen Rothwell <sfr@canb.auug.org.au> wrote:
+On Mon, 21 May 2012, Glauber Costa wrote:
 
-> Hi Andrew,
-> 
-> On Mon, 21 May 2012 15:13:23 -0700 Andrew Morton <akpm@linux-foundation.org> wrote:
-> >
-> > On Mon, 21 May 2012 15:00:28 -0700
-> > Linus Torvalds <torvalds@linux-foundation.org> wrote:
-> > 
-> > > On Mon, May 21, 2012 at 2:37 PM, Andrew Morton
-> > > <akpm@linux-foundation.org> wrote:
-> > > >
-> > > > hm, we seem to have conflicting commits between mainline and linux-next.
-> > > > During the merge window. __Again. __Nobody knows why this happens.
-> > > 
-> > > I didn't have my trivial cleanup branches in linux-next, I'm afraid.
-> > 
-> > Well, it's a broader issue than that.  I often see a large number of
-> > rejects when syncing mainline with linux-next during the merge window. 
-> > Right now:
-> 
-> Some of that is because your patch series is based on the end of
-> linux-next and part way through the merge window only some of that has
-> been merged by Linus.  Also some of it gets rebased before Linus is asked
-> to pull (a real pain) - there hasn't been much of that (yet) this merge
-> window (but its early days :-().  Also, sometimes Linus' merge
-> resolutions are different to mine.
-> 
-> I have been meaning to talk to you about basing the majority of your
-> patch series on Linus' tree.  This would give it mush greater stability
-> and would make the merge resolution my problem (and Linus', of course).
+> diff --git a/mm/slab.c b/mm/slab.c
+> index e901a36..cabd217 100644
+> --- a/mm/slab.c
+> +++ b/mm/slab.c
+> @@ -2118,6 +2118,7 @@ static void __kmem_cache_destroy(struct kmem_cache *cachep)
+>  			kfree(l3);
+>  		}
+>  	}
+> +	kfree(cachep->name);
+>  	kmem_cache_free(&cache_cache, cachep);
+>  }
+>  
+> @@ -2526,9 +2527,14 @@ kmem_cache_create (const char *name, size_t size, size_t align,
+>  		BUG_ON(ZERO_OR_NULL_PTR(cachep->slabp_cache));
+>  	}
+>  	cachep->ctor = ctor;
+> -	cachep->name = name;
+>  
+> -	if (setup_cpu_cache(cachep, gfp)) {
+> +	/* Can't do strdup while kmalloc is not up */
+> +	if (g_cpucache_up > EARLY)
+> +		cachep->name = kstrdup(name, GFP_KERNEL);
+> +	else
+> +		cachep->name = name;
+> +
+> +	if (!cachep->name || setup_cpu_cache(cachep, gfp)) {
+>  		__kmem_cache_destroy(cachep);
+>  		cachep = NULL;
+>  		goto oops;
 
-Confused.  None of those conflicts have anything to do with the -mm
-patches: the only trees involved there are mainline and
-trees-in-next-other-than-mm.
-
-> There will be bits that may need to be based on other work in linux-next,
-> but I suspect that it is not very much.
-
-Well, there are a number of reasons why I base off linux-next.  To see
-whether others have merged patches which I have merged (and, sometimes,
-missed later fixes to them).  Explicit fixes against -next material. 
-To get visibility into upcoming merge problems.  And so that I and
-others test -next too.
-
-Basing -mm on next is never a problem (for me).  What is a problem is
-the mess which happens when people merge things into mainline which are
-(I assume) either slightly different from what they merged in -next or
-which never were in -next at all.
-
-That's guessing - it's a long time since I sat down and worked out exactly
-what is causing this.
+This doesn't work if you kmem_cache_destroy() a cache that was created 
+when g_cpucache_cpu <= EARLY, the kfree() will explode.  That never 
+happens for any existing cache created in kmem_cache_init(), but this 
+would introduce the first roadblock in doing so.  So you'll need some 
+magic to determine whether the cache was allocated statically and suppress 
+the kfree() in such a case.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
