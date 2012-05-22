@@ -1,132 +1,158 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx102.postini.com [74.125.245.102])
-	by kanga.kvack.org (Postfix) with SMTP id 5E7326B00E7
-	for <linux-mm@kvack.org>; Tue, 22 May 2012 19:25:20 -0400 (EDT)
-Received: by mail-pb0-f45.google.com with SMTP id ro12so9458441pbb.32
-        for <linux-mm@kvack.org>; Tue, 22 May 2012 16:25:20 -0700 (PDT)
-From: Pravin B Shelar <pshelar@nicira.com>
-Subject: [PATCH v4] mm: Fix slab->page flags corruption.
-Date: Tue, 22 May 2012 16:25:16 -0700
-Message-Id: <1337729116-10151-1-git-send-email-pshelar@nicira.com>
+Received: from psmtp.com (na3sys010amx148.postini.com [74.125.245.148])
+	by kanga.kvack.org (Postfix) with SMTP id 947F96B00E7
+	for <linux-mm@kvack.org>; Tue, 22 May 2012 19:28:37 -0400 (EDT)
+Date: Tue, 22 May 2012 16:28:35 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: 3.4-rc7: BUG: Bad rss-counter state mm:ffff88040b56f800 idx:1
+ val:-59
+Message-Id: <20120522162835.c193c8e0.akpm@linux-foundation.org>
+In-Reply-To: <4FBC1618.5010408@fold.natur.cuni.cz>
+References: <4FBC1618.5010408@fold.natur.cuni.cz>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: aarcange@redhat.com, cl@linux.com, penberg@kernel.org, mpm@selenic.com
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, jesse@nicira.com, abhide@nicira.com, Pravin B Shelar <pshelar@nicira.com>
+To: Martin Mokrejs <mmokrejs@fold.natur.cuni.cz>
+Cc: LKML <linux-kernel@vger.kernel.org>, khlebnikov@openvz.org, markus@trippelsdorf.de, hughd@google.com, kamezawa.hiroyu@jp.fujitsu.com, oleg@redhat.com, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org
 
-v3-v4:
-	- Added comments.
-	- Removed VM_BUG_ON on PageHead from put_page.
-v2-v3:
-	- Check if page is still compound page after inc refcnt.
-v1-v2:
-	- Avoid taking compound lock for slab pages.
+On Wed, 23 May 2012 00:41:28 +0200
+Martin Mokrejs <mmokrejs@fold.natur.cuni.cz> wrote:
 
---8<--------------------------cut here-------------------------->8--
+> Hi Andrew,
+>   while shutting down my laptop (Dell Vostro 3550 with 16GB RAM, core i7) with 3.4-rc7 I got:
+> 
+> May 23 00:07:54 vostro kernel: [352687.968267] BUG: Bad rss-counter state mm:ffff88040b56f800 idx:1 val:-59
+> May 23 00:07:54 vostro kernel: [352687.968312] BUG: Bad rss-counter state mm:ffff88040b56f800 idx:2 val:59
+> May 23 00:07:55 vostro acpid: exiting
+> May 23 00:07:55 vostro syslog-ng[2838]: syslog-ng shutting down; version='3.3.4'
+> 
+>   I found by Google the below thread and thought that maybe it is related?
+> http://comments.gmane.org/gmane.linux.kernel.mm/76459
+>
+> ...
+>
 
-Transparent huge pages can change page->flags (PG_compound_lock)
-without taking Slab lock. Since THP can not break slab pages we can
-safely access compound page without taking compound lock.
 
-Specifically this patch fixes race between compound_unlock and slab
-functions which does page-flags update. This can occur when
-get_page/put_page is called on page from slab object.
+Well hopefully the below will fix this?
 
-Reported-by: Amey Bhide <abhide@nicira.com>
-Signed-off-by: Pravin B Shelar <pshelar@nicira.com>
-Reviewed-by: Christoph Lameter <cl@linux.com>
+I notice that I don't have this tagged for -stable backporting.  That
+seems wrong.  Konstantin, do we know for how long this bug has been in
+there?
+
+
+
+From: Konstantin Khlebnikov <khlebnikov@openvz.org>
+Subject: mm: correctly synchronize rss-counters at exit/exec
+
+mm->rss_stat counters have per-task delta: task->rss_stat.  Before
+changing task->mm pointer the kernel must flush this delta with
+sync_mm_rss().
+
+do_exit() already calls sync_mm_rss() to flush the rss-counters before
+committing the rss statistics into task->signal->maxrss, taskstats, audit
+and other stuff.  Unfortunately the kernel does this before calling
+mm_release(), which can call put_user() for processing
+task->clear_child_tid.  So at this point we can trigger page-faults and
+task->rss_stat becomes non-zero again.  As a result mm->rss_stat becomes
+inconsistent and check_mm() will print something like this:
+
+| BUG: Bad rss-counter state mm:ffff88020813c380 idx:1 val:-1
+| BUG: Bad rss-counter state mm:ffff88020813c380 idx:2 val:1
+
+This patch moves sync_mm_rss() into mm_release(), and moves mm_release()
+out of do_exit() and calls it earlier.  After mm_release() there should be
+no pagefaults.
+
+[akpm@linux-foundation.org: tweak comment]
+Signed-off-by: Konstantin Khlebnikov <khlebnikov@openvz.org>
+Reported-by: Markus Trippelsdorf <markus@trippelsdorf.de>
+Cc: Hugh Dickins <hughd@google.com>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Oleg Nesterov <oleg@redhat.com>
+Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
 ---
- include/linux/mm.h |    2 ++
- mm/swap.c          |   34 +++++++++++++++++++++++++++++++++-
- 2 files changed, 35 insertions(+), 1 deletion(-)
 
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index 8437e93..ddd58ce 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -321,6 +321,7 @@ static inline int is_vmalloc_or_module_addr(const void *x)
- static inline void compound_lock(struct page *page)
- {
- #ifdef CONFIG_TRANSPARENT_HUGEPAGE
-+	VM_BUG_ON(PageSlab(page));
- 	bit_spin_lock(PG_compound_lock, &page->flags);
- #endif
- }
-@@ -328,6 +329,7 @@ static inline void compound_lock(struct page *page)
- static inline void compound_unlock(struct page *page)
- {
- #ifdef CONFIG_TRANSPARENT_HUGEPAGE
-+	VM_BUG_ON(PageSlab(page));
- 	bit_spin_unlock(PG_compound_lock, &page->flags);
- #endif
- }
-diff --git a/mm/swap.c b/mm/swap.c
-index 8ff73d8..93c709b 100644
---- a/mm/swap.c
-+++ b/mm/swap.c
-@@ -82,6 +82,24 @@ static void put_compound_page(struct page *page)
- 		if (likely(page != page_head &&
- 			   get_page_unless_zero(page_head))) {
- 			unsigned long flags;
-+
-+			/* THP can not break up slab pages, avoid taking
-+			 * compound_lock(). Slab prefer non atomic bit ops
-+			 * on page->flags for better performance. In particular
-+			 * slab_unlock() in slub used to be a hot path
-+			 * item. It is still hot on arches that do not support
-+			 * this_cpu_cmpxchg_double. */
-+
-+			if (PageSlab(page_head)) {
-+				if (PageTail(page)) {
-+					if (put_page_testzero(page_head))
-+						VM_BUG_ON(1);
-+
-+					atomic_dec(&page->_mapcount);
-+					goto skip_lock_tail;
-+				} else
-+					goto skip_lock;
-+			}
- 			/*
- 			 * page_head wasn't a dangling pointer but it
- 			 * may not be a head page anymore by the time
-@@ -92,7 +110,7 @@ static void put_compound_page(struct page *page)
- 			if (unlikely(!PageTail(page))) {
- 				/* __split_huge_page_refcount run before us */
- 				compound_unlock_irqrestore(page_head, flags);
--				VM_BUG_ON(PageHead(page_head));
-+			skip_lock:
- 				if (put_page_testzero(page_head))
- 					__put_single_page(page_head);
- 			out_put_single:
-@@ -115,6 +133,8 @@ static void put_compound_page(struct page *page)
- 			VM_BUG_ON(atomic_read(&page_head->_count) <= 0);
- 			VM_BUG_ON(atomic_read(&page->_count) != 0);
- 			compound_unlock_irqrestore(page_head, flags);
-+
-+			skip_lock_tail:
- 			if (put_page_testzero(page_head)) {
- 				if (PageHead(page_head))
- 					__put_compound_page(page_head);
-@@ -162,6 +182,18 @@ bool __get_page_tail(struct page *page)
- 	struct page *page_head = compound_trans_head(page);
+ fs/exec.c     |    1 -
+ kernel/exit.c |   13 ++++++++-----
+ kernel/fork.c |    8 ++++++++
+ 3 files changed, 16 insertions(+), 6 deletions(-)
+
+diff -puN fs/exec.c~mm-correctly-synchronize-rss-counters-at-exit-exec fs/exec.c
+--- a/fs/exec.c~mm-correctly-synchronize-rss-counters-at-exit-exec
++++ a/fs/exec.c
+@@ -823,7 +823,6 @@ static int exec_mmap(struct mm_struct *m
+ 	/* Notify parent that we're no longer interested in the old VM */
+ 	tsk = current;
+ 	old_mm = current->mm;
+-	sync_mm_rss(old_mm);
+ 	mm_release(tsk, old_mm);
  
- 	if (likely(page != page_head && get_page_unless_zero(page_head))) {
+ 	if (old_mm) {
+diff -puN kernel/exit.c~mm-correctly-synchronize-rss-counters-at-exit-exec kernel/exit.c
+--- a/kernel/exit.c~mm-correctly-synchronize-rss-counters-at-exit-exec
++++ a/kernel/exit.c
+@@ -423,6 +423,7 @@ void daemonize(const char *name, ...)
+ 	 * user space pages.  We don't need them, and if we didn't close them
+ 	 * they would be locked into memory.
+ 	 */
++	mm_release(current, current->mm);
+ 	exit_mm(current);
+ 	/*
+ 	 * We don't want to get frozen, in case system-wide hibernation
+@@ -640,7 +641,6 @@ static void exit_mm(struct task_struct *
+ 	struct mm_struct *mm = tsk->mm;
+ 	struct core_state *core_state;
+ 
+-	mm_release(tsk, mm);
+ 	if (!mm)
+ 		return;
+ 	/*
+@@ -959,9 +959,13 @@ void do_exit(long code)
+ 				preempt_count());
+ 
+ 	acct_update_integrals(tsk);
+-	/* sync mm's RSS info before statistics gathering */
+-	if (tsk->mm)
+-		sync_mm_rss(tsk->mm);
 +
-+		/* Ref to put_compound_page() comment. */
-+		if (PageSlab(page_head)) {
-+			if (likely(PageTail(page))) {
-+				__get_page_tail_foll(page, false);
-+				return true;
-+			} else {
-+				put_page(page_head);
-+				return false;
-+			}
-+		}
++	/* Set exit_code before complete_vfork_done() in mm_release() */
++	tsk->exit_code = code;
 +
- 		/*
- 		 * page_head wasn't a dangling pointer but it
- 		 * may not be a head page anymore by the time
--- 
-1.7.10
++	/* Release mm and sync mm's RSS info before statistics gathering */
++	mm_release(tsk, tsk->mm);
++
+ 	group_dead = atomic_dec_and_test(&tsk->signal->live);
+ 	if (group_dead) {
+ 		hrtimer_cancel(&tsk->signal->real_timer);
+@@ -974,7 +978,6 @@ void do_exit(long code)
+ 		tty_audit_exit();
+ 	audit_free(tsk);
+ 
+-	tsk->exit_code = code;
+ 	taskstats_exit(tsk, group_dead);
+ 
+ 	exit_mm(tsk);
+diff -puN kernel/fork.c~mm-correctly-synchronize-rss-counters-at-exit-exec kernel/fork.c
+--- a/kernel/fork.c~mm-correctly-synchronize-rss-counters-at-exit-exec
++++ a/kernel/fork.c
+@@ -809,6 +809,14 @@ void mm_release(struct task_struct *tsk,
+ 		}
+ 		tsk->clear_child_tid = NULL;
+ 	}
++
++	/*
++	 * Final rss-counter synchronization. After this point there must be
++	 * no pagefaults into this mm from the current context.  Otherwise
++	 * mm->rss_stat will be inconsistent.
++	 */
++	if (mm)
++		sync_mm_rss(mm);
+ }
+ 
+ /*
+_
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
