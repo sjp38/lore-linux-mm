@@ -1,169 +1,152 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx181.postini.com [74.125.245.181])
-	by kanga.kvack.org (Postfix) with SMTP id BA6306B00E7
-	for <linux-mm@kvack.org>; Mon, 21 May 2012 18:13:25 -0400 (EDT)
-Date: Mon, 21 May 2012 15:13:23 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [tip:perf/uprobes] uprobes, mm, x86: Add the ability to install
- and remove uprobes breakpoints
-Message-Id: <20120521151323.f23bd5e9.akpm@linux-foundation.org>
-In-Reply-To: <CA+55aFw5ccuvvtyf6iuuw-Finr79ZkPxgCxL5jNvdnX5oMYkgg@mail.gmail.com>
-References: <20120209092642.GE16600@linux.vnet.ibm.com>
-	<tip-2b144498350860b6ee9dc57ff27a93ad488de5dc@git.kernel.org>
-	<20120521143701.74ab2d0b.akpm@linux-foundation.org>
-	<CA+55aFw5ccuvvtyf6iuuw-Finr79ZkPxgCxL5jNvdnX5oMYkgg@mail.gmail.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx149.postini.com [74.125.245.149])
+	by kanga.kvack.org (Postfix) with SMTP id 2ACAC6B004D
+	for <linux-mm@kvack.org>; Mon, 21 May 2012 20:08:33 -0400 (EDT)
+Received: by wibhj6 with SMTP id hj6so2465179wib.8
+        for <linux-mm@kvack.org>; Mon, 21 May 2012 17:08:31 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <alpine.LSU.2.00.1205120505560.28861@eggly.anvils>
+References: <alpine.LSU.2.00.1205120447380.28861@eggly.anvils>
+	<alpine.LSU.2.00.1205120505560.28861@eggly.anvils>
+Date: Mon, 21 May 2012 17:08:29 -0700
+Message-ID: <CANcMJZByO1Ovog_BhrnXzk-1L_Oues4cFLMMib901o_Pa=xy5w@mail.gmail.com>
+Subject: Re: [PATCH 5/10] mm/fs: route MADV_REMOVE to FALLOC_FL_PUNCH_HOLE
+From: john stultz <johnstul@us.ibm.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: mingo@redhat.com, a.p.zijlstra@chello.nl, peterz@infradead.org, anton@redhat.com, rostedt@goodmis.org, tglx@linutronix.de, oleg@redhat.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, hpa@zytor.com, jkenisto@us.ibm.com, andi@firstfloor.org, hch@infradead.org, ananth@in.ibm.com, vda.linux@googlemail.com, masami.hiramatsu.pt@hitachi.com, acme@infradead.org, srikar@linux.vnet.ibm.com, sfr@canb.auug.org.au, roland@hack.frob.com, mingo@elte.hu, linux-tip-commits@vger.kernel.org
+To: Hugh Dickins <hughd@google.com>, =?ISO-8859-1?Q?Arve_Hj=F8nnev=E5g?= <arve@android.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Christoph Hellwig <hch@infradead.org>, Cong Wang <amwang@redhat.com>, Al Viro <viro@zeniv.linux.org.uk>, Colin Cross <ccross@android.com>, John Stulz <john.stulz@linaro.org>, Greg Kroah-Hartman <gregkh@linux-foundation.org>, Theodore Ts'o <tytso@mit.edu>, Andreas Dilger <adilger@dilger.ca>, Mark Fasheh <mfasheh@suse.de>, Joel Becker <jlbec@evilplan.org>, Dave Chinner <david@fromorbit.com>, Ben Myers <bpm@sgi.com>, Michael Kerrisk <mtk.manpages@gmail.com>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Mon, 21 May 2012 15:00:28 -0700
-Linus Torvalds <torvalds@linux-foundation.org> wrote:
+On Sat, May 12, 2012 at 5:13 AM, Hugh Dickins <hughd@google.com> wrote:
+> Now tmpfs supports hole-punching via fallocate(), switch madvise_remove()
+> to use do_fallocate() instead of vmtruncate_range(): which extends
+> madvise(,,MADV_REMOVE) support from tmpfs to ext4, ocfs2 and xfs.
+>
+> There is one more user of vmtruncate_range() in our tree, staging/android=
+'s
+> ashmem_shrink(): convert it to use do_fallocate() too (but if its unpinne=
+d
+> areas are already unmapped - I don't know - then it would do better to us=
+e
+> shmem_truncate_range() directly).
 
-> On Mon, May 21, 2012 at 2:37 PM, Andrew Morton
-> <akpm@linux-foundation.org> wrote:
-> >
-> > hm, we seem to have conflicting commits between mainline and linux-next.
-> > During the merge window. __Again. __Nobody knows why this happens.
-> 
-> I didn't have my trivial cleanup branches in linux-next, I'm afraid.
+I suspect shmem_truncate_range directly would be the right approach,
+but am not totally sure.
+Arve: Any thoughts?
 
-Well, it's a broader issue than that.  I often see a large number of
-rejects when syncing mainline with linux-next during the merge window. 
-Right now:
+Hugh: Do you have a git tree with this set available somewhere?  I was
+working on my own tmpfs support for FALLOC_FL_PUNCH_HOLE, along with
+my volatile range work, so I'd like to rebase on top of your work
+here.
 
-Documentation/nfc/nfc-hci.txt:<<<<<<< HEAD
-Documentation/nfc/nfc-hci.txt:<<<<<<< HEAD
-Documentation/nfc/nfc-hci.txt:<<<<<<< HEAD
-Documentation/nfc/nfc-hci.txt:<<<<<<< HEAD
-Documentation/nfc/nfc-hci.txt:<<<<<<< HEAD
-arch/sparc/Kconfig:<<<<<<< HEAD
-arch/sparc/include/asm/thread_info_32.h:<<<<<<< HEAD
-drivers/net/ethernet/emulex/benet/be.h:<<<<<<< HEAD
-drivers/net/ethernet/emulex/benet/be_cmds.c:<<<<<<< HEAD
-drivers/net/ethernet/emulex/benet/be_main.c:<<<<<<< HEAD
-drivers/net/ethernet/emulex/benet/be_main.c:<<<<<<< HEAD
-drivers/net/virtio_net.c:<<<<<<< HEAD
-drivers/net/wireless/ath/ath6kl/cfg80211.c:<<<<<<< HEAD
-drivers/net/wireless/ath/ath6kl/cfg80211.c:<<<<<<< HEAD
-drivers/net/wireless/ath/ath6kl/cfg80211.c:<<<<<<< HEAD
-drivers/net/wireless/ath/ath6kl/cfg80211.c:<<<<<<< HEAD
-drivers/net/wireless/ath/ath6kl/cfg80211.c:<<<<<<< HEAD
-drivers/net/wireless/ath/ath6kl/cfg80211.c:<<<<<<< HEAD
-drivers/net/wireless/ath/ath6kl/cfg80211.c:<<<<<<< HEAD
-drivers/net/wireless/ath/ath6kl/cfg80211.c:<<<<<<< HEAD
-drivers/net/wireless/ath/ath6kl/cfg80211.c:<<<<<<< HEAD
-drivers/net/wireless/ath/ath6kl/htc_pipe.c:<<<<<<< HEAD
-drivers/net/wireless/ath/ath6kl/htc_pipe.c:<<<<<<< HEAD
-drivers/net/wireless/ath/ath6kl/htc_pipe.c:<<<<<<< HEAD
-drivers/net/wireless/ath/ath6kl/htc_pipe.c:<<<<<<< HEAD
-drivers/net/wireless/ath/ath6kl/usb.c:<<<<<<< HEAD
-drivers/net/wireless/ath/ath6kl/usb.c:<<<<<<< HEAD
-drivers/net/wireless/brcm80211/brcmfmac/bcmsdh.c:<<<<<<< HEAD
-drivers/net/wireless/brcm80211/brcmfmac/bcmsdh.c:<<<<<<< HEAD
-drivers/net/wireless/brcm80211/brcmfmac/bcmsdh.c:<<<<<<< HEAD
-drivers/net/wireless/brcm80211/brcmfmac/sdio_host.h:<<<<<<< HEAD
-drivers/net/wireless/brcm80211/brcmsmac/channel.c:<<<<<<< HEAD
-drivers/net/wireless/iwlwifi/iwl-agn-lib.c:<<<<<<< HEAD
-drivers/net/wireless/iwlwifi/iwl-agn-lib.c:<<<<<<< HEAD
-drivers/net/wireless/iwlwifi/iwl-agn-lib.c:<<<<<<< HEAD
-drivers/net/wireless/iwlwifi/iwl-agn-lib.c:<<<<<<< HEAD
-drivers/net/wireless/iwlwifi/iwl-agn-lib.c:<<<<<<< HEAD
-drivers/net/wireless/iwlwifi/iwl-agn-rxon.c:<<<<<<< HEAD
-drivers/net/wireless/iwlwifi/iwl-agn-tx.c:<<<<<<< HEAD
-drivers/net/wireless/iwlwifi/iwl-commands.h:<<<<<<< HEAD
-drivers/net/wireless/iwlwifi/iwl-commands.h:<<<<<<< HEAD
-drivers/net/wireless/iwlwifi/iwl-mac80211.c:<<<<<<< HEAD
-drivers/net/wireless/iwlwifi/iwl-power.c:<<<<<<< HEAD
-drivers/net/wireless/mwifiex/cfg80211.c:<<<<<<< HEAD
-drivers/net/wireless/mwifiex/cfg80211.c:<<<<<<< HEAD
-drivers/net/wireless/mwifiex/cfg80211.c:<<<<<<< HEAD
-drivers/net/wireless/mwifiex/cfg80211.c:<<<<<<< HEAD
-drivers/net/wireless/mwifiex/cfg80211.c:<<<<<<< HEAD
-drivers/net/wireless/mwifiex/decl.h:<<<<<<< HEAD
-drivers/net/wireless/mwifiex/fw.h:<<<<<<< HEAD
-drivers/net/wireless/mwifiex/fw.h:<<<<<<< HEAD
-drivers/net/wireless/mwifiex/fw.h:<<<<<<< HEAD
-drivers/net/wireless/mwifiex/main.c:<<<<<<< HEAD
-drivers/net/wireless/mwifiex/main.c:<<<<<<< HEAD
-drivers/net/wireless/mwifiex/main.c:<<<<<<< HEAD
-drivers/net/wireless/mwifiex/main.c:<<<<<<< HEAD
-drivers/net/wireless/mwifiex/main.h:<<<<<<< HEAD
-drivers/net/wireless/mwifiex/main.h:<<<<<<< HEAD
-drivers/net/wireless/mwifiex/main.h:<<<<<<< HEAD
-drivers/net/wireless/mwifiex/sta_cmd.c:<<<<<<< HEAD
-drivers/net/wireless/mwifiex/sta_cmdresp.c:<<<<<<< HEAD
-drivers/net/wireless/mwifiex/sta_ioctl.c:<<<<<<< HEAD
-drivers/net/wireless/ti/wl12xx/Kconfig:<<<<<<< HEAD
-drivers/net/wireless/ti/wlcore/Kconfig:<<<<<<< HEAD
-drivers/net/wireless/ti/wlcore/boot.c:<<<<<<< HEAD
-drivers/net/wireless/ti/wlcore/boot.c:<<<<<<< HEAD
-drivers/net/wireless/ti/wlcore/wlcore.h:<<<<<<< HEAD
-drivers/net/wireless/ti/wlcore/wlcore.h:<<<<<<< HEAD
-drivers/nfc/pn533.c:<<<<<<< HEAD
-fs/nfs/nfs4proc.c:<<<<<<< HEAD
-fs/stat.c:<<<<<<< HEAD
-include/linux/filter.h:<<<<<<< HEAD
-include/net/mac80211.h:<<<<<<< HEAD
-include/net/mac80211.h:<<<<<<< HEAD
-include/net/nfc/hci.h:<<<<<<< HEAD
-include/net/nfc/hci.h:<<<<<<< HEAD
-include/net/nfc/nfc.h:<<<<<<< HEAD
-include/net/nfc/nfc.h:<<<<<<< HEAD
-include/net/nfc/shdlc.h:<<<<<<< HEAD
-mm/memory.c:<<<<<<< HEAD
-net/ceph/osdmap.c:<<<<<<< HEAD
-net/mac80211/agg-tx.c:<<<<<<< HEAD
-net/mac80211/agg-tx.c:<<<<<<< HEAD
-net/mac80211/ibss.c:<<<<<<< HEAD
-net/mac80211/iface.c:<<<<<<< HEAD
-net/mac80211/mesh.c:<<<<<<< HEAD
-net/mac80211/mesh_plink.c:<<<<<<< HEAD
-net/mac80211/mesh_plink.c:<<<<<<< HEAD
-net/mac80211/mesh_plink.c:<<<<<<< HEAD
-net/mac80211/mesh_plink.c:<<<<<<< HEAD
-net/nfc/core.c:<<<<<<< HEAD
-net/nfc/core.c:<<<<<<< HEAD
-net/nfc/core.c:<<<<<<< HEAD
-net/nfc/core.c:<<<<<<< HEAD
-net/nfc/core.c:<<<<<<< HEAD
-net/nfc/core.c:<<<<<<< HEAD
-net/nfc/core.c:<<<<<<< HEAD
-net/nfc/core.c:<<<<<<< HEAD
-net/nfc/core.c:<<<<<<< HEAD
-net/nfc/core.c:<<<<<<< HEAD
-net/nfc/core.c:<<<<<<< HEAD
-net/nfc/core.c:<<<<<<< HEAD
-net/nfc/core.c:<<<<<<< HEAD
-net/nfc/core.c:<<<<<<< HEAD
-net/nfc/core.c:<<<<<<< HEAD
-net/nfc/core.c:<<<<<<< HEAD
-net/nfc/core.c:<<<<<<< HEAD
-net/nfc/core.c:<<<<<<< HEAD
-net/nfc/hci/Kconfig:<<<<<<< HEAD
-net/nfc/hci/core.c:<<<<<<< HEAD
-net/nfc/hci/core.c:<<<<<<< HEAD
-net/nfc/hci/core.c:<<<<<<< HEAD
-net/nfc/hci/core.c:<<<<<<< HEAD
-net/nfc/hci/core.c:<<<<<<< HEAD
-net/nfc/hci/core.c:<<<<<<< HEAD
-net/nfc/hci/core.c:<<<<<<< HEAD
-net/nfc/hci/shdlc.c:<<<<<<< HEAD
-net/nfc/hci/shdlc.c:<<<<<<< HEAD
-net/nfc/nci/core.c:<<<<<<< HEAD
+thanks
+-john
 
-and that is typical.  I've never really bothered working out why this
-is happening.
 
-I suspect monkey business is afoot.  People are magically finding new
-patches or new versions of old patches when the merge window opens up.
-
-Also, some dope has just gone and added sys_numa_mbind() and
-sys_numa_tbind() to linux-next, nicely trashing a few things which were
-lined up for 3.5-rc1.
+>
+> Based-on-patch-by: Cong Wang <amwang@redhat.com>
+> Signed-off-by: Hugh Dickins <hughd@google.com>
+> ---
+> =A0drivers/staging/android/ashmem.c | =A0 =A08 +++++---
+> =A0mm/madvise.c =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 | =A0 15 +++++++-=
+-------
+> =A02 files changed, 12 insertions(+), 11 deletions(-)
+>
+> --- 3045N.orig/drivers/staging/android/ashmem.c 2012-05-05 10:42:33.56405=
+6626 -0700
+> +++ 3045N/drivers/staging/android/ashmem.c =A0 =A0 =A02012-05-05 10:46:25=
+.692062478 -0700
+> @@ -19,6 +19,7 @@
+> =A0#include <linux/module.h>
+> =A0#include <linux/file.h>
+> =A0#include <linux/fs.h>
+> +#include <linux/falloc.h>
+> =A0#include <linux/miscdevice.h>
+> =A0#include <linux/security.h>
+> =A0#include <linux/mm.h>
+> @@ -363,11 +364,12 @@ static int ashmem_shrink(struct shrinker
+>
+> =A0 =A0 =A0 =A0mutex_lock(&ashmem_mutex);
+> =A0 =A0 =A0 =A0list_for_each_entry_safe(range, next, &ashmem_lru_list, lr=
+u) {
+> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 struct inode *inode =3D range->asma->file->=
+f_dentry->d_inode;
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0loff_t start =3D range->pgstart * PAGE_SIZ=
+E;
+> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 loff_t end =3D (range->pgend + 1) * PAGE_SI=
+ZE - 1;
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 loff_t end =3D (range->pgend + 1) * PAGE_SI=
+ZE;
+>
+> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 vmtruncate_range(inode, start, end);
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 do_fallocate(range->asma->file,
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 FALLOC_FL_P=
+UNCH_HOLE | FALLOC_FL_KEEP_SIZE,
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 start, end =
+- start);
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0range->purged =3D ASHMEM_WAS_PURGED;
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0lru_del(range);
+>
+> --- 3045N.orig/mm/madvise.c =A0 =A0 2012-05-05 10:42:33.572056784 -0700
+> +++ 3045N/mm/madvise.c =A02012-05-05 10:46:25.692062478 -0700
+> @@ -11,8 +11,10 @@
+> =A0#include <linux/mempolicy.h>
+> =A0#include <linux/page-isolation.h>
+> =A0#include <linux/hugetlb.h>
+> +#include <linux/falloc.h>
+> =A0#include <linux/sched.h>
+> =A0#include <linux/ksm.h>
+> +#include <linux/fs.h>
+>
+> =A0/*
+> =A0* Any behaviour which results in changes to the vma->vm_flags needs to
+> @@ -200,8 +202,7 @@ static long madvise_remove(struct vm_are
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0struct vm_=
+area_struct **prev,
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0unsigned l=
+ong start, unsigned long end)
+> =A0{
+> - =A0 =A0 =A0 struct address_space *mapping;
+> - =A0 =A0 =A0 loff_t offset, endoff;
+> + =A0 =A0 =A0 loff_t offset;
+> =A0 =A0 =A0 =A0int error;
+>
+> =A0 =A0 =A0 =A0*prev =3D NULL; =A0 /* tell sys_madvise we drop mmap_sem *=
+/
+> @@ -217,16 +218,14 @@ static long madvise_remove(struct vm_are
+> =A0 =A0 =A0 =A0if ((vma->vm_flags & (VM_SHARED|VM_WRITE)) !=3D (VM_SHARED=
+|VM_WRITE))
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0return -EACCES;
+>
+> - =A0 =A0 =A0 mapping =3D vma->vm_file->f_mapping;
+> -
+> =A0 =A0 =A0 =A0offset =3D (loff_t)(start - vma->vm_start)
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0+ ((loff_t)vma->vm_pgoff <=
+< PAGE_SHIFT);
+> - =A0 =A0 =A0 endoff =3D (loff_t)(end - vma->vm_start - 1)
+> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 + ((loff_t)vma->vm_pgoff <<=
+ PAGE_SHIFT);
+>
+> - =A0 =A0 =A0 /* vmtruncate_range needs to take i_mutex */
+> + =A0 =A0 =A0 /* filesystem's fallocate may need to take i_mutex */
+> =A0 =A0 =A0 =A0up_read(&current->mm->mmap_sem);
+> - =A0 =A0 =A0 error =3D vmtruncate_range(mapping->host, offset, endoff);
+> + =A0 =A0 =A0 error =3D do_fallocate(vma->vm_file,
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 FALLOC_FL_P=
+UNCH_HOLE | FALLOC_FL_KEEP_SIZE,
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 offset, end=
+ - start);
+> =A0 =A0 =A0 =A0down_read(&current->mm->mmap_sem);
+> =A0 =A0 =A0 =A0return error;
+> =A0}
+> --
+> To unsubscribe from this list: send the line "unsubscribe linux-kernel" i=
+n
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at =A0http://vger.kernel.org/majordomo-info.html
+> Please read the FAQ at =A0http://www.tux.org/lkml/
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
