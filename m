@@ -1,46 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx182.postini.com [74.125.245.182])
-	by kanga.kvack.org (Postfix) with SMTP id 4AF526B0083
-	for <linux-mm@kvack.org>; Tue, 22 May 2012 13:38:58 -0400 (EDT)
-Date: Tue, 22 May 2012 13:38:49 -0400
-From: Dave Jones <davej@redhat.com>
-Subject: Re: 3.4-rc7 numa_policy slab poison.
-Message-ID: <20120522173849.GA13590@redhat.com>
-References: <20120521154709.GA8697@redhat.com>
- <CA+55aFyqMJ1X08kQwJ7snkYo6MxfVKqFJx7LXBkP_ug4LTCZ=Q@mail.gmail.com>
- <20120521200118.GA12123@redhat.com>
- <alpine.DEB.2.00.1205211510480.10940@router.home>
- <20120521202904.GB12123@redhat.com>
- <alpine.DEB.2.00.1205211535050.10940@router.home>
- <20120521203838.GD12123@redhat.com>
- <alpine.DEB.2.00.1205211544340.10940@router.home>
- <20120521210959.GF12123@redhat.com>
- <alpine.DEB.2.00.1205221226330.21828@router.home>
+Received: from psmtp.com (na3sys010amx134.postini.com [74.125.245.134])
+	by kanga.kvack.org (Postfix) with SMTP id 54A006B0083
+	for <linux-mm@kvack.org>; Tue, 22 May 2012 13:42:05 -0400 (EDT)
+Date: Tue, 22 May 2012 12:42:02 -0500 (CDT)
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: [RFC] Common code 01/12] [slob] define page struct fields used
+ in mm_types.h
+In-Reply-To: <CAAmzW4O2zk5K3StnGXcQmvDqfSDQbmezoVLYsH-3s4mE9WaEBA@mail.gmail.com>
+Message-ID: <alpine.DEB.2.00.1205221240530.21828@router.home>
+References: <20120518161906.207356777@linux.com> <20120518161927.549888128@linux.com> <CAAmzW4O2zk5K3StnGXcQmvDqfSDQbmezoVLYsH-3s4mE9WaEBA@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.00.1205221226330.21828@router.home>
+Content-Type: MULTIPART/MIXED; BOUNDARY="-1463811839-1793627563-1337708523=:21828"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Linux Kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Stephen Wilson <wilsons@start.ca>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>
+To: JoonSoo Kim <js1304@gmail.com>
+Cc: Pekka Enberg <penberg@kernel.org>, linux-mm@kvack.org, David Rientjes <rientjes@google.com>, Matt Mackall <mpm@selenic.com>, Glauber Costa <glommer@parallels.com>, Alex Shi <alex.shi@intel.com>
 
-On Tue, May 22, 2012 at 12:27:14PM -0500, Christoph Lameter wrote:
- > On Mon, 21 May 2012, Dave Jones wrote:
- > 
- > > ok, added a --nocolors option now. Re-pull.
- > > I'll look at the dependancy problem next. Thanks for the feedback.
- > 
- > --monochrome you mean?
+  This message is in MIME format.  The first part should be readable text,
+  while the remaining parts are likely unreadable without MIME-aware tools.
 
-yes, sorry. I changed it shortly after sending that email.
-I was having serious conniptions over the use of color/colour.
+---1463811839-1793627563-1337708523=:21828
+Content-Type: TEXT/PLAIN; charset=ISO-8859-1
+Content-Transfer-Encoding: QUOTED-PRINTABLE
 
- > -m works for a part of the output but then the color hits again.
+On Tue, 22 May 2012, JoonSoo Kim wrote:
 
-Fixed. I forgot to change the getopt string
+> 2012/5/19 Christoph Lameter <cl@linux.com>:
+>
+> > -/*
+> > =A0* free_slob_page: call before a slob_page is returned to the page al=
+locator.
+> > =A0*/
+> > -static inline void free_slob_page(struct slob_page *sp)
+> > +static inline void free_slob_page(struct page *sp)
+> > =A0{
+> > - =A0 =A0 =A0 reset_page_mapcount(&sp->page);
+> > - =A0 =A0 =A0 sp->page.mapping =3D NULL;
+> > + =A0 =A0 =A0 reset_page_mapcount(sp);
+> > + =A0 =A0 =A0 sp->mapping =3D NULL;
+> > =A0}
+>
+> Currently, sp->mapping =3D NULL is useless, because Slob doesn't touch
+> this field anymore.
 
-	Dave
+Ok. Adding another patch that does this.
+
+> It is redundant, just using virt_to_page(addr) directly is more preferabl=
+e
+
+Ok adding another patch that avoids the accessors.
+
+> > +static inline void clear_slob_page_free(struct page *sp)
+> > =A0{
+> > =A0 =A0 =A0 =A0list_del(&sp->list);
+> > - =A0 =A0 =A0 __ClearPageSlobFree((struct page *)sp);
+> > + =A0 =A0 =A0 __ClearPageSlobFree(sp);
+> > =A0}
+>
+> I think we shouldn't use __ClearPageSlobFree anymore.
+> Before this patch, list_del affect page->private,
+> so when we manipulate slob list,
+> using PageSlobFree overloaded with PagePrivate is reasonable.
+> But, after this patch is applied, list_del doesn't touch page->private,
+> so manipulate PageSlobFree is not reasonable.
+> We would use another method for checking slob_page_free without
+> PageSlobFree flag.
+
+What method should we be using?
+
+> When we define field in mm_types.h for slauob,
+> sorted order between these is good for readability.
+> For example, in case of lru, list for slob is first,
+> but in case of _mapcount, field for slub is first.
+> Consistent ordering is more preferable I think.
+
+Ok. Reordered for next patchset (probably Friday).
+
+---1463811839-1793627563-1337708523=:21828--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
