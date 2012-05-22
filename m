@@ -1,52 +1,141 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx119.postini.com [74.125.245.119])
-	by kanga.kvack.org (Postfix) with SMTP id C4BA36B0081
-	for <linux-mm@kvack.org>; Tue, 22 May 2012 05:47:14 -0400 (EDT)
-Message-ID: <4FBB6028.3020307@parallels.com>
-Date: Tue, 22 May 2012 13:45:12 +0400
+Received: from psmtp.com (na3sys010amx200.postini.com [74.125.245.200])
+	by kanga.kvack.org (Postfix) with SMTP id 25A906B0081
+	for <linux-mm@kvack.org>; Tue, 22 May 2012 05:53:39 -0400 (EDT)
 From: Glauber Costa <glommer@parallels.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH] slab+slob: dup name string
-References: <1337613539-29108-1-git-send-email-glommer@parallels.com> <alpine.DEB.2.00.1205212018230.13522@chino.kir.corp.google.com>
-In-Reply-To: <alpine.DEB.2.00.1205212018230.13522@chino.kir.corp.google.com>
-Content-Type: text/plain; charset="ISO-8859-1"; format=flowed
-Content-Transfer-Encoding: 7bit
+Subject: [PATCH v2] slab+slob: dup name string
+Date: Tue, 22 May 2012 13:51:38 +0400
+Message-Id: <1337680298-11929-1-git-send-email-glommer@parallels.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, linux-mm@kvack.org, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@cs.helsinki.fi>
+To: linux-kernel@vger.kernel.org
+Cc: cgroups@vger.kernel.org, linux-mm@kvack.org, Glauber Costa <glommer@parallels.com>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@cs.helsinki.fi>, David Rientjes <rientjes@google.com>
 
-On 05/22/2012 07:22 AM, David Rientjes wrote:
->> -	if (setup_cpu_cache(cachep, gfp)) {
->> >  +	/* Can't do strdup while kmalloc is not up */
->> >  +	if (g_cpucache_up>  EARLY)
->> >  +		cachep->name = kstrdup(name, GFP_KERNEL);
->> >  +	else
->> >  +		cachep->name = name;
->> >  +
->> >  +	if (!cachep->name || setup_cpu_cache(cachep, gfp)) {
->> >    		__kmem_cache_destroy(cachep);
->> >    		cachep = NULL;
->> >    		goto oops;
-> This doesn't work if you kmem_cache_destroy() a cache that was created
-> when g_cpucache_cpu<= EARLY, the kfree() will explode.  That never
-> happens for any existing cache created in kmem_cache_init(), but this
-> would introduce the first roadblock in doing so.  So you'll need some
-> magic to determine whether the cache was allocated statically and suppress
-> the kfree() in such a case.
+The slub allocator creates a copy of the name string, and
+frees it later. I would like all caches to behave the same,
+whether it is the slab+slob starting to create a copy of it itself,
+or the slub ceasing to.
 
-David,
+This patch creates copies of the name string for slob and slab,
+adopting slub behavior for them all.
 
-I tried to do something like I was doing for the memcg caches: after 
-creation of the kmalloc + cache_cache, I loop through them and duplicate 
-the name. So instead of conditionally freeing the late caches - that 
-could cause consistency headaches in the future - kfree'ing the name 
-string will just work for all of them. I will send it shortly.
+For the slab, we can't really do it before the kmalloc caches are
+up. So we manually do it before the end of EARLY phase, and conditionally
+do it for the caches created afterwards.
 
-Cristoph, I am dropping your ack since this change is quite significant. 
-If you agree with it, would you ack it again?
+[ v2: Also dup string for early caches, requested by David Rientjes ]
 
-Thanks.
+Signed-off-by: Glauber Costa <glommer@parallels.com>
+CC: Christoph Lameter <cl@linux.com>
+CC: Pekka Enberg <penberg@cs.helsinki.fi>
+CC: David Rientjes <rientjes@google.com>
+---
+ mm/slab.c |   37 +++++++++++++++++++++++++++++++++++--
+ mm/slob.c |   12 ++++++++++--
+ 2 files changed, 45 insertions(+), 4 deletions(-)
+
+diff --git a/mm/slab.c b/mm/slab.c
+index e901a36..fe05f8bf 100644
+--- a/mm/slab.c
++++ b/mm/slab.c
+@@ -1676,6 +1676,33 @@ void __init kmem_cache_init(void)
+ 		}
+ 	}
+ 
++	/*
++	 * create a copy of all the name strings for early caches. This is
++	 * so deleting those caches will work in a consistent way. We don't
++	 * expect allocation failures this early in the process, just make sure
++	 * they didn't happen.
++	 */
++	sizes = malloc_sizes;
++
++	while (sizes->cs_size != ULONG_MAX) {
++		struct kmem_cache *cachep;
++
++		cachep = sizes->cs_cachep;
++		if (cachep) {
++			cachep->name = kstrdup(cachep->name, GFP_NOWAIT);
++			BUG_ON(!cachep->name);
++		}
++
++		cachep = sizes->cs_dmacachep;
++		if (cachep) {
++			cachep->name = kstrdup(cachep->name, GFP_NOWAIT);
++			BUG_ON(!cachep->name);
++		}
++		sizes++;
++	}
++
++	cache_cache.name = kstrdup(cache_cache.name, GFP_NOWAIT);
++	BUG_ON(!cache_cache.name);
+ 	g_cpucache_up = EARLY;
+ }
+ 
+@@ -2118,6 +2145,7 @@ static void __kmem_cache_destroy(struct kmem_cache *cachep)
+ 			kfree(l3);
+ 		}
+ 	}
++	kfree(cachep->name);
+ 	kmem_cache_free(&cache_cache, cachep);
+ }
+ 
+@@ -2526,9 +2554,14 @@ kmem_cache_create (const char *name, size_t size, size_t align,
+ 		BUG_ON(ZERO_OR_NULL_PTR(cachep->slabp_cache));
+ 	}
+ 	cachep->ctor = ctor;
+-	cachep->name = name;
+ 
+-	if (setup_cpu_cache(cachep, gfp)) {
++	/* Can't do strdup while kmalloc is not up */
++	if (slab_is_available())
++		cachep->name = kstrdup(name, GFP_KERNEL);
++	else
++		cachep->name = name;
++
++	if (!cachep->name || setup_cpu_cache(cachep, gfp)) {
+ 		__kmem_cache_destroy(cachep);
+ 		cachep = NULL;
+ 		goto oops;
+diff --git a/mm/slob.c b/mm/slob.c
+index 8105be4..8f10d36 100644
+--- a/mm/slob.c
++++ b/mm/slob.c
+@@ -575,7 +575,12 @@ struct kmem_cache *kmem_cache_create(const char *name, size_t size,
+ 		GFP_KERNEL, ARCH_KMALLOC_MINALIGN, -1);
+ 
+ 	if (c) {
+-		c->name = name;
++		c->name = kstrdup(name, GFP_KERNEL);
++		if (!c->name) {
++			slob_free(c, sizeof(struct kmem_cache));
++			c = NULL;
++			goto out;
++		}
+ 		c->size = size;
+ 		if (flags & SLAB_DESTROY_BY_RCU) {
+ 			/* leave room for rcu footer at the end of object */
+@@ -589,7 +594,9 @@ struct kmem_cache *kmem_cache_create(const char *name, size_t size,
+ 			c->align = ARCH_SLAB_MINALIGN;
+ 		if (c->align < align)
+ 			c->align = align;
+-	} else if (flags & SLAB_PANIC)
++	}
++out:
++	if (!c && (flags & SLAB_PANIC))
+ 		panic("Cannot create slab cache %s\n", name);
+ 
+ 	kmemleak_alloc(c, sizeof(struct kmem_cache), 1, GFP_KERNEL);
+@@ -602,6 +609,7 @@ void kmem_cache_destroy(struct kmem_cache *c)
+ 	kmemleak_free(c);
+ 	if (c->flags & SLAB_DESTROY_BY_RCU)
+ 		rcu_barrier();
++	kfree(c->name);
+ 	slob_free(c, sizeof(struct kmem_cache));
+ }
+ EXPORT_SYMBOL(kmem_cache_destroy);
+-- 
+1.7.7.6
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
