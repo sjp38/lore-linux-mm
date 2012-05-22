@@ -1,69 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx181.postini.com [74.125.245.181])
-	by kanga.kvack.org (Postfix) with SMTP id D38E26B0092
-	for <linux-mm@kvack.org>; Tue, 22 May 2012 13:51:21 -0400 (EDT)
-Date: Tue, 22 May 2012 12:51:18 -0500 (CDT)
+Received: from psmtp.com (na3sys010amx127.postini.com [74.125.245.127])
+	by kanga.kvack.org (Postfix) with SMTP id 14CFF6B0083
+	for <linux-mm@kvack.org>; Tue, 22 May 2012 13:59:36 -0400 (EDT)
+Date: Tue, 22 May 2012 12:59:32 -0500 (CDT)
 From: Christoph Lameter <cl@linux.com>
-Subject: Re: [RFC] Common code 07/12] slabs: Move kmem_cache_create mutex
- handling to common code
-In-Reply-To: <CAAmzW4Nt0S-xmwmHhw0AJEikE91pZpnCS+NQosrxAaUDi59pew@mail.gmail.com>
-Message-ID: <alpine.DEB.2.00.1205221250270.21828@router.home>
-References: <20120518161906.207356777@linux.com> <20120518161930.978054128@linux.com> <CAAmzW4Nt0S-xmwmHhw0AJEikE91pZpnCS+NQosrxAaUDi59pew@mail.gmail.com>
+Subject: Re: 3.4-rc7 numa_policy slab poison.
+In-Reply-To: <20120522173849.GA13590@redhat.com>
+Message-ID: <alpine.DEB.2.00.1205221257520.21828@router.home>
+References: <20120521154709.GA8697@redhat.com> <CA+55aFyqMJ1X08kQwJ7snkYo6MxfVKqFJx7LXBkP_ug4LTCZ=Q@mail.gmail.com> <20120521200118.GA12123@redhat.com> <alpine.DEB.2.00.1205211510480.10940@router.home> <20120521202904.GB12123@redhat.com>
+ <alpine.DEB.2.00.1205211535050.10940@router.home> <20120521203838.GD12123@redhat.com> <alpine.DEB.2.00.1205211544340.10940@router.home> <20120521210959.GF12123@redhat.com> <alpine.DEB.2.00.1205221226330.21828@router.home>
+ <20120522173849.GA13590@redhat.com>
 MIME-Version: 1.0
-Content-Type: MULTIPART/MIXED; BOUNDARY="-1463811839-917050571-1337709080=:21828"
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: JoonSoo Kim <js1304@gmail.com>
-Cc: Pekka Enberg <penberg@kernel.org>, linux-mm@kvack.org, David Rientjes <rientjes@google.com>, Matt Mackall <mpm@selenic.com>, Glauber Costa <glommer@parallels.com>, Alex Shi <alex.shi@intel.com>
+To: Dave Jones <davej@redhat.com>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Linux Kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Stephen Wilson <wilsons@start.ca>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>
 
-  This message is in MIME format.  The first part should be readable text,
-  while the remaining parts are likely unreadable without MIME-aware tools.
+On Tue, 22 May 2012, Dave Jones wrote:
 
----1463811839-917050571-1337709080=:21828
-Content-Type: TEXT/PLAIN; charset=ISO-8859-1
-Content-Transfer-Encoding: QUOTED-PRINTABLE
-
-On Wed, 23 May 2012, JoonSoo Kim wrote:
-
-> 2012/5/19 Christoph Lameter <cl@linux.com>:
-> > Move the mutex handling into the common kmem_cache_create()
-> > function.
-> >
-> > =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0list_add(&s->list, &slab=
-_caches);
-> > =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0mutex_unlock(&slab_mutex=
-);
-> > - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (sysfs_slab_add(s)) {
-> > - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 mutex_loc=
-k(&slab_mutex);
-> > - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 list_del(=
-&s->list);
-> > - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 kfree(n);
-> > - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 kfree(s);
-> > - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 goto err;
-> > - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 }
-> > - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 return s;
-> > + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 r =3D sysfs_slab_add(s);
-> > + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 mutex_lock(&slab_mutex);
-> > +
-> > + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (!r)
-> > + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 return s;
-> > +
-> > + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 list_del(&s->list);
-> > + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 kmem_cache_close(s);
-> > =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0}
-> > - =A0 =A0 =A0 =A0 =A0 =A0 =A0 kfree(n);
-> > =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0kfree(s);
-> > =A0 =A0 =A0 =A0}
+> On Tue, May 22, 2012 at 12:27:14PM -0500, Christoph Lameter wrote:
+>  > On Mon, 21 May 2012, Dave Jones wrote:
+>  >
+>  > > ok, added a --nocolors option now. Re-pull.
+>  > > I'll look at the dependancy problem next. Thanks for the feedback.
+>  >
+>  > --monochrome you mean?
 >
-> Before this patch is applied, can we move calling 'sysfs_slab_add' to
-> common code
-> for removing slab_mutex entirely in kmem_cache_create?
+> yes, sorry. I changed it shortly after sending that email.
+> I was having serious conniptions over the use of color/colour.
+>
+>  > -m works for a part of the output but then the color hits again.
+>
+> Fixed. I forgot to change the getopt string
 
-Hmmm... its difficult to do that before this patch since sysfs_slab_add
-requires dropping the mutex.
+Ok got momochrome output running but it does not trigger when outputting
+to the console.
 
----1463811839-917050571-1337709080=:21828--
+When I switch console output off I get an immediate oops and the system
+hangs (slub resiliency/debug off).
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
