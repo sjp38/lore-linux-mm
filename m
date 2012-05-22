@@ -1,82 +1,123 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx134.postini.com [74.125.245.134])
-	by kanga.kvack.org (Postfix) with SMTP id 54A006B0083
-	for <linux-mm@kvack.org>; Tue, 22 May 2012 13:42:05 -0400 (EDT)
-Date: Tue, 22 May 2012 12:42:02 -0500 (CDT)
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: [RFC] Common code 01/12] [slob] define page struct fields used
- in mm_types.h
-In-Reply-To: <CAAmzW4O2zk5K3StnGXcQmvDqfSDQbmezoVLYsH-3s4mE9WaEBA@mail.gmail.com>
-Message-ID: <alpine.DEB.2.00.1205221240530.21828@router.home>
-References: <20120518161906.207356777@linux.com> <20120518161927.549888128@linux.com> <CAAmzW4O2zk5K3StnGXcQmvDqfSDQbmezoVLYsH-3s4mE9WaEBA@mail.gmail.com>
+Received: from psmtp.com (na3sys010amx108.postini.com [74.125.245.108])
+	by kanga.kvack.org (Postfix) with SMTP id 1B3206B0083
+	for <linux-mm@kvack.org>; Tue, 22 May 2012 13:48:46 -0400 (EDT)
+Date: Tue, 22 May 2012 19:48:42 +0200
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [PATCH v3] mm: Fix slab->page flags corruption.
+Message-ID: <20120522174842.GB4071@redhat.com>
+References: <1337293069-22443-1-git-send-email-pshelar@nicira.com>
 MIME-Version: 1.0
-Content-Type: MULTIPART/MIXED; BOUNDARY="-1463811839-1793627563-1337708523=:21828"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1337293069-22443-1-git-send-email-pshelar@nicira.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: JoonSoo Kim <js1304@gmail.com>
-Cc: Pekka Enberg <penberg@kernel.org>, linux-mm@kvack.org, David Rientjes <rientjes@google.com>, Matt Mackall <mpm@selenic.com>, Glauber Costa <glommer@parallels.com>, Alex Shi <alex.shi@intel.com>
+To: Pravin B Shelar <pshelar@nicira.com>
+Cc: cl@linux.com, penberg@kernel.org, mpm@selenic.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, jesse@nicira.com, abhide@nicira.com
 
-  This message is in MIME format.  The first part should be readable text,
-  while the remaining parts are likely unreadable without MIME-aware tools.
+On Thu, May 17, 2012 at 03:17:49PM -0700, Pravin B Shelar wrote:
+> diff --git a/mm/swap.c b/mm/swap.c
+> index 8ff73d8..44a0f81 100644
+> --- a/mm/swap.c
+> +++ b/mm/swap.c
+> @@ -82,6 +82,19 @@ static void put_compound_page(struct page *page)
+>  		if (likely(page != page_head &&
+>  			   get_page_unless_zero(page_head))) {
+>  			unsigned long flags;
+> +
+> +			if (PageSlab(page_head)) {
+> +				if (PageTail(page)) {
+> +					/* THP can not break up slab pages, avoid
+> +					 * taking compound_lock(). */
+> +					if (put_page_testzero(page_head))
+> +						VM_BUG_ON(1);
+> +
+> +					atomic_dec(&page->_mapcount);
+> +					goto skip_lock_tail;
+> +				} else
+> +					goto skip_lock;
+> +			}
 
----1463811839-1793627563-1337708523=:21828
-Content-Type: TEXT/PLAIN; charset=ISO-8859-1
-Content-Transfer-Encoding: QUOTED-PRINTABLE
+Some commentary on the fact slab prefers not using atomic ops on the
+page->flags could help here.
 
-On Tue, 22 May 2012, JoonSoo Kim wrote:
+>  			/*
+>  			 * page_head wasn't a dangling pointer but it
+>  			 * may not be a head page anymore by the time
+> @@ -93,6 +106,7 @@ static void put_compound_page(struct page *page)
+>  				/* __split_huge_page_refcount run before us */
+>  				compound_unlock_irqrestore(page_head, flags);
+>  				VM_BUG_ON(PageHead(page_head));
 
-> 2012/5/19 Christoph Lameter <cl@linux.com>:
->
-> > -/*
-> > =A0* free_slob_page: call before a slob_page is returned to the page al=
-locator.
-> > =A0*/
-> > -static inline void free_slob_page(struct slob_page *sp)
-> > +static inline void free_slob_page(struct page *sp)
-> > =A0{
-> > - =A0 =A0 =A0 reset_page_mapcount(&sp->page);
-> > - =A0 =A0 =A0 sp->page.mapping =3D NULL;
-> > + =A0 =A0 =A0 reset_page_mapcount(sp);
-> > + =A0 =A0 =A0 sp->mapping =3D NULL;
-> > =A0}
->
-> Currently, sp->mapping =3D NULL is useless, because Slob doesn't touch
-> this field anymore.
+Hmmm hmmm while reviewing this one, I've been thinking maybe the head
+page after the hugepage split, could have been freed and reallocated
+as order 1 or 2, and legitimately become an head page again.
 
-Ok. Adding another patch that does this.
+The whole point of the bug-on is that it cannot be reallocated as a
+THP beause the tail is still there and it's not free yet, but it
+doesn't take into account the head page could be allocated as a
+compound page of a smaller size and maybe the tail is the last subpage
+of the thp.
 
-> It is redundant, just using virt_to_page(addr) directly is more preferabl=
-e
+So there's the risk of a false positive, in an extremely unlikely case
+(the fact slab goes in unmovable pageblocks and thp goes in movable
+further decreases the probability). All production kernels runs with
+VM_BUG_ON disabled so it's a very small concern, but maybe we should
+delete it. It has never triggered, just code reivew. Do you agree?
 
-Ok adding another patch that avoids the accessors.
+> +			skip_lock:
+>  				if (put_page_testzero(page_head))
+>  					__put_single_page(page_head);
+>  			out_put_single:
+> @@ -115,6 +129,8 @@ static void put_compound_page(struct page *page)
+>  			VM_BUG_ON(atomic_read(&page_head->_count) <= 0);
+>  			VM_BUG_ON(atomic_read(&page->_count) != 0);
+>  			compound_unlock_irqrestore(page_head, flags);
+> +
+> +			skip_lock_tail:
+>  			if (put_page_testzero(page_head)) {
+>  				if (PageHead(page_head))
+>  					__put_compound_page(page_head);
+> @@ -162,6 +178,15 @@ bool __get_page_tail(struct page *page)
+>  	struct page *page_head = compound_trans_head(page);
+>  
+>  	if (likely(page != page_head && get_page_unless_zero(page_head))) {
+> +
+> +		if (PageSlab(page_head)) {
+> +			if (likely(PageTail(page))) {
+> +				__get_page_tail_foll(page, false);
+> +				return true;
+> +			} else
+> +				goto out;
+> +		}
+> +
 
-> > +static inline void clear_slob_page_free(struct page *sp)
-> > =A0{
-> > =A0 =A0 =A0 =A0list_del(&sp->list);
-> > - =A0 =A0 =A0 __ClearPageSlobFree((struct page *)sp);
-> > + =A0 =A0 =A0 __ClearPageSlobFree(sp);
-> > =A0}
->
-> I think we shouldn't use __ClearPageSlobFree anymore.
-> Before this patch, list_del affect page->private,
-> so when we manipulate slob list,
-> using PageSlobFree overloaded with PagePrivate is reasonable.
-> But, after this patch is applied, list_del doesn't touch page->private,
-> so manipulate PageSlobFree is not reasonable.
-> We would use another method for checking slob_page_free without
-> PageSlobFree flag.
+A comment here too would be nice.
 
-What method should we be using?
+>  		/*
+>  		 * page_head wasn't a dangling pointer but it
+>  		 * may not be a head page anymore by the time
+> @@ -175,6 +200,8 @@ bool __get_page_tail(struct page *page)
+>  			got = true;
+>  		}
+>  		compound_unlock_irqrestore(page_head, flags);
+> +
+> +		out:
+>  		if (unlikely(!got))
+>  			put_page(page_head);
 
-> When we define field in mm_types.h for slauob,
-> sorted order between these is good for readability.
-> For example, in case of lru, list for slob is first,
-> but in case of _mapcount, field for slub is first.
-> Consistent ordering is more preferable I think.
+out could go in the line below. Assuming we don't want to be cleaner
+and use put_page above instead of goto, that would also drop a branch
+probably (the goto place is such a slow path). I'm fine either ways.
 
-Ok. Reordered for next patchset (probably Friday).
+It's not the cleanest of the patches but it's clearly a performance
+tweak.
 
----1463811839-1793627563-1337708523=:21828--
+Reviewed-by: Andrea Arcangeli <aarcange@redhat.com>
+
+Thanks,
+Andrea
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
