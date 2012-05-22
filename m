@@ -1,38 +1,36 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx187.postini.com [74.125.245.187])
-	by kanga.kvack.org (Postfix) with SMTP id CDC716B0083
-	for <linux-mm@kvack.org>; Tue, 22 May 2012 11:43:17 -0400 (EDT)
-Received: by wibhj6 with SMTP id hj6so3097963wib.8
-        for <linux-mm@kvack.org>; Tue, 22 May 2012 08:43:16 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx135.postini.com [74.125.245.135])
+	by kanga.kvack.org (Postfix) with SMTP id 1F9CB6B0083
+	for <linux-mm@kvack.org>; Tue, 22 May 2012 11:44:56 -0400 (EDT)
+Received: by yenm7 with SMTP id m7so7930393yen.14
+        for <linux-mm@kvack.org>; Tue, 22 May 2012 08:44:55 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <20120522115910.GA3353@suse.de>
-References: <20120517213120.GA12329@redhat.com> <20120518185851.GA5728@redhat.com>
- <20120521154709.GA8697@redhat.com> <CA+55aFyqMJ1X08kQwJ7snkYo6MxfVKqFJx7LXBkP_ug4LTCZ=Q@mail.gmail.com>
- <20120521200118.GA12123@redhat.com> <20120522115910.GA3353@suse.de>
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Date: Tue, 22 May 2012 08:42:55 -0700
-Message-ID: <CA+55aFwdyt310Mcsk==58Qa-sZD05A=M+R06xwOisbg2gex=RA@mail.gmail.com>
-Subject: Re: 3.4-rc7 numa_policy slab poison.
+In-Reply-To: <20120518161930.398418977@linux.com>
+References: <20120518161906.207356777@linux.com>
+	<20120518161930.398418977@linux.com>
+Date: Wed, 23 May 2012 00:44:55 +0900
+Message-ID: <CAAmzW4NUKsij1zkGWJwOX7DmWcfFZuWyMOLHyYp6vsvbmu-g0w@mail.gmail.com>
+Subject: Re: [RFC] Common code 06/12] slabs: Use a common mutex definition
+From: JoonSoo Kim <js1304@gmail.com>
 Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Dave Jones <davej@redhat.com>, Linux Kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Stephen Wilson <wilsons@start.ca>, Christoph Lameter <cl@linux.com>, Andrew Morton <akpm@linux-foundation.org>
+To: Christoph Lameter <cl@linux.com>
+Cc: Pekka Enberg <penberg@kernel.org>, linux-mm@kvack.org, David Rientjes <rientjes@google.com>, Matt Mackall <mpm@selenic.com>, Glauber Costa <glommer@parallels.com>, Alex Shi <alex.shi@intel.com>
 
-On Tue, May 22, 2012 at 4:59 AM, Mel Gorman <mgorman@suse.de> wrote:
+2012/5/19 Christoph Lameter <cl@linux.com>:
+> Use the mutex definition from SLAB and make it the common way to take a sleeping lock.
 >
-> This bug is really old as it triggers as far back as 2.6.32.58. I don't
-> know why yet.
-
-Would somebody humor me, and try it without the MPOL_F_SHARED games?
-The whole reference counting in the presense of setting and clearing
-that bit looks totally crazy. I really cannot see how it could ever
-work.
-
-I realize that it avoids a copy, but I really don't see how the
-refcounting is supposed to work for it..
-
-                       Linus
+> This has the effect of using a mutex instead of a rw semaphore for SLUB.
+>
+> SLOB gains the use of a mutex for kmem_cache_create serialization.
+> Not needed now but SLOB may acquire some more features later (like slabinfo
+> / sysfs support) through the expansion of the common code that will
+> need this.
+>
+> Reviewed-by: Glauber Costa <glommer@parallels.com>
+> Signed-off-by: Christoph Lameter <cl@linux.com>
+Reviewed-by: Joonsoo Kim <js1304@gmail.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
