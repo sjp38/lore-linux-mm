@@ -1,76 +1,132 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx133.postini.com [74.125.245.133])
-	by kanga.kvack.org (Postfix) with SMTP id B6D786B00EB
-	for <linux-mm@kvack.org>; Tue, 22 May 2012 19:11:09 -0400 (EDT)
-Date: Tue, 22 May 2012 16:11:07 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH v6 2/2] decrement static keys on real destroy time
-Message-Id: <20120522161107.4ab99a68.akpm@linux-foundation.org>
-In-Reply-To: <20120522154610.f2f9b78e.akpm@linux-foundation.org>
-References: <1337682339-21282-1-git-send-email-glommer@parallels.com>
-	<1337682339-21282-3-git-send-email-glommer@parallels.com>
-	<20120522154610.f2f9b78e.akpm@linux-foundation.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx102.postini.com [74.125.245.102])
+	by kanga.kvack.org (Postfix) with SMTP id 5E7326B00E7
+	for <linux-mm@kvack.org>; Tue, 22 May 2012 19:25:20 -0400 (EDT)
+Received: by mail-pb0-f45.google.com with SMTP id ro12so9458441pbb.32
+        for <linux-mm@kvack.org>; Tue, 22 May 2012 16:25:20 -0700 (PDT)
+From: Pravin B Shelar <pshelar@nicira.com>
+Subject: [PATCH v4] mm: Fix slab->page flags corruption.
+Date: Tue, 22 May 2012 16:25:16 -0700
+Message-Id: <1337729116-10151-1-git-send-email-pshelar@nicira.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Glauber Costa <glommer@parallels.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, devel@openvz.org, kamezawa.hiroyu@jp.fujitsu.com, netdev@vger.kernel.org, Tejun Heo <tj@kernel.org>, Li Zefan <lizefan@huawei.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, David Miller <davem@davemloft.net>, Joe Perches <joe@perches.com>
+To: aarcange@redhat.com, cl@linux.com, penberg@kernel.org, mpm@selenic.com
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, jesse@nicira.com, abhide@nicira.com, Pravin B Shelar <pshelar@nicira.com>
 
-On Tue, 22 May 2012 15:46:10 -0700
-Andrew Morton <akpm@linux-foundation.org> wrote:
+v3-v4:
+	- Added comments.
+	- Removed VM_BUG_ON on PageHead from put_page.
+v2-v3:
+	- Check if page is still compound page after inc refcnt.
+v1-v2:
+	- Avoid taking compound lock for slab pages.
 
-> > +static inline bool memcg_proto_active(struct cg_proto *cg_proto)
-> > +{
-> > +	return cg_proto->flags & (1 << MEMCG_SOCK_ACTIVE);
-> > +}
-> > +
-> > +static inline bool memcg_proto_activated(struct cg_proto *cg_proto)
-> > +{
-> > +	return cg_proto->flags & (1 << MEMCG_SOCK_ACTIVATED);
-> > +}
-> 
-> Here, we're open-coding kinda-test_bit().  Why do that?  These flags are
-> modified with set_bit() and friends, so we should read them with the
-> matching test_bit()?
-> 
-> Also, these bool-returning functions will return values other than 0
-> and 1.  That probably works OK and I don't know what the C standards
-> and implementations do about this.  But it seems unclean and slightly
-> risky to have a "bool" value of 32!  Converting these functions to use
-> test_bit() fixes this - test_bit() returns only 0 or 1.
-> 
-> test_bit() is slightly more expensive than the above.  If this is
-> considered to be an issue then I guess we could continue to use this
-> approach.  But I do think a code comment is needed, explaining and
-> justifying the unusual decision to bypass the bitops API.  Also these
-> functions should tell the truth and return an "int" type.
+--8<--------------------------cut here-------------------------->8--
 
-Joe corrected (and informed) me:
+Transparent huge pages can change page->flags (PG_compound_lock)
+without taking Slab lock. Since THP can not break slab pages we can
+safely access compound page without taking compound lock.
 
-: 6.3.1.2p1:
-: 
-: "When any scalar value is converted to _Bool, the result is 0
-: if the value compares equal to 0; otherwise, the result is 1."
+Specifically this patch fixes race between compound_unlock and slab
+functions which does page-flags update. This can occur when
+get_page/put_page is called on page from slab object.
 
-So the above functions will be given compiler-generated scalar-to-boolean
-conversion.
+Reported-by: Amey Bhide <abhide@nicira.com>
+Signed-off-by: Pravin B Shelar <pshelar@nicira.com>
+Reviewed-by: Christoph Lameter <cl@linux.com>
+---
+ include/linux/mm.h |    2 ++
+ mm/swap.c          |   34 +++++++++++++++++++++++++++++++++-
+ 2 files changed, 35 insertions(+), 1 deletion(-)
 
-test_bit() already does internal scalar-to-boolean conversion.  The
-compiler doesn't know that, so if we convert the above functions to use
-test_bit(), we'll end up performing scalar-to-boolean-to-boolean
-conversion, which is dumb.
-
-I assume that a way of fixing this is to change test_bit() to return
-bool type.  That's a bit scary.
-
-A less scary way would be to add a new
-
-	bool test_bit_bool(int nr, const unsigned long *addr);
-
-which internally calls test_bit() but somehow avoids the
-compiler-generated conversion of the test_bit() return value into a
-bool.  I haven't actually thought of a way of doing this ;)
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index 8437e93..ddd58ce 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -321,6 +321,7 @@ static inline int is_vmalloc_or_module_addr(const void *x)
+ static inline void compound_lock(struct page *page)
+ {
+ #ifdef CONFIG_TRANSPARENT_HUGEPAGE
++	VM_BUG_ON(PageSlab(page));
+ 	bit_spin_lock(PG_compound_lock, &page->flags);
+ #endif
+ }
+@@ -328,6 +329,7 @@ static inline void compound_lock(struct page *page)
+ static inline void compound_unlock(struct page *page)
+ {
+ #ifdef CONFIG_TRANSPARENT_HUGEPAGE
++	VM_BUG_ON(PageSlab(page));
+ 	bit_spin_unlock(PG_compound_lock, &page->flags);
+ #endif
+ }
+diff --git a/mm/swap.c b/mm/swap.c
+index 8ff73d8..93c709b 100644
+--- a/mm/swap.c
++++ b/mm/swap.c
+@@ -82,6 +82,24 @@ static void put_compound_page(struct page *page)
+ 		if (likely(page != page_head &&
+ 			   get_page_unless_zero(page_head))) {
+ 			unsigned long flags;
++
++			/* THP can not break up slab pages, avoid taking
++			 * compound_lock(). Slab prefer non atomic bit ops
++			 * on page->flags for better performance. In particular
++			 * slab_unlock() in slub used to be a hot path
++			 * item. It is still hot on arches that do not support
++			 * this_cpu_cmpxchg_double. */
++
++			if (PageSlab(page_head)) {
++				if (PageTail(page)) {
++					if (put_page_testzero(page_head))
++						VM_BUG_ON(1);
++
++					atomic_dec(&page->_mapcount);
++					goto skip_lock_tail;
++				} else
++					goto skip_lock;
++			}
+ 			/*
+ 			 * page_head wasn't a dangling pointer but it
+ 			 * may not be a head page anymore by the time
+@@ -92,7 +110,7 @@ static void put_compound_page(struct page *page)
+ 			if (unlikely(!PageTail(page))) {
+ 				/* __split_huge_page_refcount run before us */
+ 				compound_unlock_irqrestore(page_head, flags);
+-				VM_BUG_ON(PageHead(page_head));
++			skip_lock:
+ 				if (put_page_testzero(page_head))
+ 					__put_single_page(page_head);
+ 			out_put_single:
+@@ -115,6 +133,8 @@ static void put_compound_page(struct page *page)
+ 			VM_BUG_ON(atomic_read(&page_head->_count) <= 0);
+ 			VM_BUG_ON(atomic_read(&page->_count) != 0);
+ 			compound_unlock_irqrestore(page_head, flags);
++
++			skip_lock_tail:
+ 			if (put_page_testzero(page_head)) {
+ 				if (PageHead(page_head))
+ 					__put_compound_page(page_head);
+@@ -162,6 +182,18 @@ bool __get_page_tail(struct page *page)
+ 	struct page *page_head = compound_trans_head(page);
+ 
+ 	if (likely(page != page_head && get_page_unless_zero(page_head))) {
++
++		/* Ref to put_compound_page() comment. */
++		if (PageSlab(page_head)) {
++			if (likely(PageTail(page))) {
++				__get_page_tail_foll(page, false);
++				return true;
++			} else {
++				put_page(page_head);
++				return false;
++			}
++		}
++
+ 		/*
+ 		 * page_head wasn't a dangling pointer but it
+ 		 * may not be a head page anymore by the time
+-- 
+1.7.10
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
