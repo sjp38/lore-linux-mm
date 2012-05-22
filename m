@@ -1,139 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx200.postini.com [74.125.245.200])
-	by kanga.kvack.org (Postfix) with SMTP id 25A906B0081
-	for <linux-mm@kvack.org>; Tue, 22 May 2012 05:53:39 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx184.postini.com [74.125.245.184])
+	by kanga.kvack.org (Postfix) with SMTP id 1FCE86B0082
+	for <linux-mm@kvack.org>; Tue, 22 May 2012 06:27:58 -0400 (EDT)
 From: Glauber Costa <glommer@parallels.com>
-Subject: [PATCH v2] slab+slob: dup name string
-Date: Tue, 22 May 2012 13:51:38 +0400
-Message-Id: <1337680298-11929-1-git-send-email-glommer@parallels.com>
+Subject: [PATCH v6 0/2] fix static_key disabling problem in memcg
+Date: Tue, 22 May 2012 14:25:37 +0400
+Message-Id: <1337682339-21282-1-git-send-email-glommer@parallels.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: cgroups@vger.kernel.org, linux-mm@kvack.org, Glauber Costa <glommer@parallels.com>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@cs.helsinki.fi>, David Rientjes <rientjes@google.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, cgroups@vger.kernel.org, devel@openvz.org, kamezawa.hiroyu@jp.fujitsu.com, netdev@vger.kernel.org, Tejun Heo <tj@kernel.org>, Li Zefan <lizefan@huawei.com>
 
-The slub allocator creates a copy of the name string, and
-frees it later. I would like all caches to behave the same,
-whether it is the slab+slob starting to create a copy of it itself,
-or the slub ceasing to.
+Andrew,
 
-This patch creates copies of the name string for slob and slab,
-adopting slub behavior for them all.
+This is a respin of the last fixes I sent for sock memcg problems with
+the static_keys enablement. The first patch is still unchanged, and for
+the second, I am using a flags field as for your suggestion.
+Indeed, I found a flags field to be more elegant, while still
+maintaining a fast path for the readers.
 
-For the slab, we can't really do it before the kmalloc caches are
-up. So we manually do it before the end of EARLY phase, and conditionally
-do it for the caches created afterwards.
+Kame, will you please take a look and see if this would work okay? 
 
-[ v2: Also dup string for early caches, requested by David Rientjes ]
+Tejun, are you happy with the current state of the comments explaining
+the scenario?
 
-Signed-off-by: Glauber Costa <glommer@parallels.com>
-CC: Christoph Lameter <cl@linux.com>
-CC: Pekka Enberg <penberg@cs.helsinki.fi>
-CC: David Rientjes <rientjes@google.com>
----
- mm/slab.c |   37 +++++++++++++++++++++++++++++++++++--
- mm/slob.c |   12 ++++++++++--
- 2 files changed, 45 insertions(+), 4 deletions(-)
+Thank you very much for your time
 
-diff --git a/mm/slab.c b/mm/slab.c
-index e901a36..fe05f8bf 100644
---- a/mm/slab.c
-+++ b/mm/slab.c
-@@ -1676,6 +1676,33 @@ void __init kmem_cache_init(void)
- 		}
- 	}
- 
-+	/*
-+	 * create a copy of all the name strings for early caches. This is
-+	 * so deleting those caches will work in a consistent way. We don't
-+	 * expect allocation failures this early in the process, just make sure
-+	 * they didn't happen.
-+	 */
-+	sizes = malloc_sizes;
-+
-+	while (sizes->cs_size != ULONG_MAX) {
-+		struct kmem_cache *cachep;
-+
-+		cachep = sizes->cs_cachep;
-+		if (cachep) {
-+			cachep->name = kstrdup(cachep->name, GFP_NOWAIT);
-+			BUG_ON(!cachep->name);
-+		}
-+
-+		cachep = sizes->cs_dmacachep;
-+		if (cachep) {
-+			cachep->name = kstrdup(cachep->name, GFP_NOWAIT);
-+			BUG_ON(!cachep->name);
-+		}
-+		sizes++;
-+	}
-+
-+	cache_cache.name = kstrdup(cache_cache.name, GFP_NOWAIT);
-+	BUG_ON(!cache_cache.name);
- 	g_cpucache_up = EARLY;
- }
- 
-@@ -2118,6 +2145,7 @@ static void __kmem_cache_destroy(struct kmem_cache *cachep)
- 			kfree(l3);
- 		}
- 	}
-+	kfree(cachep->name);
- 	kmem_cache_free(&cache_cache, cachep);
- }
- 
-@@ -2526,9 +2554,14 @@ kmem_cache_create (const char *name, size_t size, size_t align,
- 		BUG_ON(ZERO_OR_NULL_PTR(cachep->slabp_cache));
- 	}
- 	cachep->ctor = ctor;
--	cachep->name = name;
- 
--	if (setup_cpu_cache(cachep, gfp)) {
-+	/* Can't do strdup while kmalloc is not up */
-+	if (slab_is_available())
-+		cachep->name = kstrdup(name, GFP_KERNEL);
-+	else
-+		cachep->name = name;
-+
-+	if (!cachep->name || setup_cpu_cache(cachep, gfp)) {
- 		__kmem_cache_destroy(cachep);
- 		cachep = NULL;
- 		goto oops;
-diff --git a/mm/slob.c b/mm/slob.c
-index 8105be4..8f10d36 100644
---- a/mm/slob.c
-+++ b/mm/slob.c
-@@ -575,7 +575,12 @@ struct kmem_cache *kmem_cache_create(const char *name, size_t size,
- 		GFP_KERNEL, ARCH_KMALLOC_MINALIGN, -1);
- 
- 	if (c) {
--		c->name = name;
-+		c->name = kstrdup(name, GFP_KERNEL);
-+		if (!c->name) {
-+			slob_free(c, sizeof(struct kmem_cache));
-+			c = NULL;
-+			goto out;
-+		}
- 		c->size = size;
- 		if (flags & SLAB_DESTROY_BY_RCU) {
- 			/* leave room for rcu footer at the end of object */
-@@ -589,7 +594,9 @@ struct kmem_cache *kmem_cache_create(const char *name, size_t size,
- 			c->align = ARCH_SLAB_MINALIGN;
- 		if (c->align < align)
- 			c->align = align;
--	} else if (flags & SLAB_PANIC)
-+	}
-+out:
-+	if (!c && (flags & SLAB_PANIC))
- 		panic("Cannot create slab cache %s\n", name);
- 
- 	kmemleak_alloc(c, sizeof(struct kmem_cache), 1, GFP_KERNEL);
-@@ -602,6 +609,7 @@ void kmem_cache_destroy(struct kmem_cache *c)
- 	kmemleak_free(c);
- 	if (c->flags & SLAB_DESTROY_BY_RCU)
- 		rcu_barrier();
-+	kfree(c->name);
- 	slob_free(c, sizeof(struct kmem_cache));
- }
- EXPORT_SYMBOL(kmem_cache_destroy);
+Glauber Costa (2):
+  Always free struct memcg through schedule_work()
+  decrement static keys on real destroy time
+
+ include/linux/memcontrol.h |    5 ++++
+ include/net/sock.h         |   11 +++++++++
+ mm/memcontrol.c            |   53 +++++++++++++++++++++++++++++++++----------
+ net/ipv4/tcp_memcontrol.c  |   34 ++++++++++++++++++++++-----
+ 4 files changed, 83 insertions(+), 20 deletions(-)
+
 -- 
 1.7.7.6
 
