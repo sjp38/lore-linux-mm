@@ -1,32 +1,26 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx118.postini.com [74.125.245.118])
-	by kanga.kvack.org (Postfix) with SMTP id 921AE6B0083
-	for <linux-mm@kvack.org>; Tue, 22 May 2012 09:56:50 -0400 (EDT)
-Date: Tue, 22 May 2012 08:56:47 -0500 (CDT)
+Received: from psmtp.com (na3sys010amx152.postini.com [74.125.245.152])
+	by kanga.kvack.org (Postfix) with SMTP id A77836B0083
+	for <linux-mm@kvack.org>; Tue, 22 May 2012 09:58:11 -0400 (EDT)
+Date: Tue, 22 May 2012 08:58:08 -0500 (CDT)
 From: Christoph Lameter <cl@linux.com>
-Subject: Re: [PATCH] slab+slob: dup name string
-In-Reply-To: <alpine.DEB.2.00.1205212018230.13522@chino.kir.corp.google.com>
-Message-ID: <alpine.DEB.2.00.1205220855470.17600@router.home>
-References: <1337613539-29108-1-git-send-email-glommer@parallels.com> <alpine.DEB.2.00.1205212018230.13522@chino.kir.corp.google.com>
+Subject: Re: [PATCH v2] slab+slob: dup name string
+In-Reply-To: <1337680298-11929-1-git-send-email-glommer@parallels.com>
+Message-ID: <alpine.DEB.2.00.1205220857380.17600@router.home>
+References: <1337680298-11929-1-git-send-email-glommer@parallels.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Glauber Costa <glommer@parallels.com>, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, linux-mm@kvack.org, Pekka Enberg <penberg@cs.helsinki.fi>
+To: Glauber Costa <glommer@parallels.com>
+Cc: linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, linux-mm@kvack.org, Pekka Enberg <penberg@cs.helsinki.fi>, David Rientjes <rientjes@google.com>
 
-On Mon, 21 May 2012, David Rientjes wrote:
+On Tue, 22 May 2012, Glauber Costa wrote:
 
-> This doesn't work if you kmem_cache_destroy() a cache that was created
-> when g_cpucache_cpu <= EARLY, the kfree() will explode.  That never
-> happens for any existing cache created in kmem_cache_init(), but this
-> would introduce the first roadblock in doing so.  So you'll need some
-> magic to determine whether the cache was allocated statically and suppress
-> the kfree() in such a case.
+> [ v2: Also dup string for early caches, requested by David Rientjes ]
 
-Nope. Only slab management caches will be created that early. The patch is
-fine as is.
-
+kstrdups that early could cause additional issues. Its better to leave
+things as they were.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
