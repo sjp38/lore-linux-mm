@@ -1,47 +1,37 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx173.postini.com [74.125.245.173])
-	by kanga.kvack.org (Postfix) with SMTP id 3DC5D6B0083
-	for <linux-mm@kvack.org>; Tue, 22 May 2012 11:29:23 -0400 (EDT)
-Message-ID: <4FBBB059.1060903@parallels.com>
-Date: Tue, 22 May 2012 19:27:21 +0400
-From: Glauber Costa <glommer@parallels.com>
+Received: from psmtp.com (na3sys010amx197.postini.com [74.125.245.197])
+	by kanga.kvack.org (Postfix) with SMTP id 947B16B0083
+	for <linux-mm@kvack.org>; Tue, 22 May 2012 11:34:30 -0400 (EDT)
+Received: by qcsd16 with SMTP id d16so5895925qcs.14
+        for <linux-mm@kvack.org>; Tue, 22 May 2012 08:34:29 -0700 (PDT)
 MIME-Version: 1.0
-Subject: Re: [PATCH v2] slab+slob: dup name string
-References: <1337680298-11929-1-git-send-email-glommer@parallels.com> <alpine.DEB.2.00.1205220857380.17600@router.home>
-In-Reply-To: <alpine.DEB.2.00.1205220857380.17600@router.home>
-Content-Type: text/plain; charset="ISO-8859-1"; format=flowed
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <4FBA0A5F.9000508@parallels.com>
+References: <20120518161906.207356777@linux.com>
+	<20120518161929.835778283@linux.com>
+	<4FBA0A5F.9000508@parallels.com>
+Date: Wed, 23 May 2012 00:34:29 +0900
+Message-ID: <CAAmzW4NuisEXnoqyOJLCho0JxF3FK7=ypFoQWRPudZDEJ9S_Yg@mail.gmail.com>
+Subject: Re: [RFC] Common code 05/12] slabs: Common definition for boot state
+ of the slab allocators
+From: JoonSoo Kim <js1304@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, linux-mm@kvack.org, Pekka Enberg <penberg@cs.helsinki.fi>, David Rientjes <rientjes@google.com>
+To: Glauber Costa <glommer@parallels.com>
+Cc: Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, linux-mm@kvack.org, David Rientjes <rientjes@google.com>, Matt Mackall <mpm@selenic.com>, Alex Shi <alex.shi@intel.com>
 
-On 05/22/2012 05:58 PM, Christoph Lameter wrote:
-> On Tue, 22 May 2012, Glauber Costa wrote:
+2012/5/21 Glauber Costa <glommer@parallels.com>:
+> On 05/18/2012 08:19 PM, Christoph Lameter wrote:
+>>
+>> All allocators have some sort of support for the bootstrap status.
+>>
+>> Setup a common definition for the boot states and make all slab
+>> allocators use that definition.
+>>
+>> Signed-off-by: Christoph Lameter<cl@linux.com>
 >
->> [ v2: Also dup string for early caches, requested by David Rientjes ]
->
-> kstrdups that early could cause additional issues. Its better to leave
-> things as they were.
->
-
-For me is really all the same. But note that before those kstrdups, we 
-do a bunch of kmallocs as well already. (ex:
-
-/* 4) Replace the bootstrap head arrays */
-{
-	struct array_cache *ptr;
-
-	ptr = kmalloc(sizeof(struct arraycache_init), GFP_NOWAIT);
-
-Which other point of issues do you see besides the memory allocation 
-done by strdup?
-
-I agree with your comment that we shouldn't worry about those caches, 
-because only init code uses it.
-
-Weather or not David's concern of wanting to delete those caches some 
-day is valid, I'll leave up to you guys to decide
+> Reviewed-by: Glauber Costa <glommer@parallels.com>
+Reviewed-by: Joonsoo Kim <js1304@gmail.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
