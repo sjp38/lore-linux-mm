@@ -1,35 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx117.postini.com [74.125.245.117])
-	by kanga.kvack.org (Postfix) with SMTP id 5CC556B00EB
-	for <linux-mm@kvack.org>; Tue, 22 May 2012 21:47:08 -0400 (EDT)
-Message-ID: <4FBC41A2.1080402@kernel.org>
-Date: Wed, 23 May 2012 10:47:14 +0900
-From: Minchan Kim <minchan@kernel.org>
+Received: from psmtp.com (na3sys010amx165.postini.com [74.125.245.165])
+	by kanga.kvack.org (Postfix) with SMTP id E0CB26B00F0
+	for <linux-mm@kvack.org>; Tue, 22 May 2012 23:55:55 -0400 (EDT)
+Received: by dakp5 with SMTP id p5so13089240dak.14
+        for <linux-mm@kvack.org>; Tue, 22 May 2012 20:55:55 -0700 (PDT)
+Date: Tue, 22 May 2012 20:55:53 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH v2] slab+slob: dup name string
+In-Reply-To: <alpine.DEB.2.00.1205220857380.17600@router.home>
+Message-ID: <alpine.DEB.2.00.1205222048380.28165@chino.kir.corp.google.com>
+References: <1337680298-11929-1-git-send-email-glommer@parallels.com> <alpine.DEB.2.00.1205220857380.17600@router.home>
 MIME-Version: 1.0
-Subject: Re: [PATCH] zsmalloc: use unsigned long instead of void *
-References: <1337567013-4741-1-git-send-email-minchan@kernel.org> <4FBA4EE2.8050308@linux.vnet.ibm.com> <4FBC2916.5000305@kernel.org>
-In-Reply-To: <4FBC2916.5000305@kernel.org>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-Cc: Seth Jennings <sjenning@linux.vnet.ibm.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Dan Magenheimer <dan.magenheimer@oracle.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Nitin Gupta <ngupta@vflare.org>
+To: Christoph Lameter <cl@linux.com>
+Cc: Glauber Costa <glommer@parallels.com>, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, linux-mm@kvack.org, Pekka Enberg <penberg@cs.helsinki.fi>
 
-On 05/23/2012 09:02 AM, Minchan Kim wrote:
+On Tue, 22 May 2012, Christoph Lameter wrote:
 
-> Maybe I will resend next spin based on v3.4 today
-> I hope it doesn't hurt you.
+> > [ v2: Also dup string for early caches, requested by David Rientjes ]
+> 
+> kstrdups that early could cause additional issues. Its better to leave
+> things as they were.
+> 
 
+No, it's not, there's no reason to prevent caches created before 
+g_cpucache_up <= EARLY to be destroyed because it makes a patch easier to 
+implement and then leave that little gotcha as an undocumented treasure 
+for someone to find when they try it later on.
 
-I didn't based v2 patches on v3.4 because mainline tree doesn't have lots of staging patchset.
-So it's not a good idea to apply staging patchset in mainline. I believe linux-next is good candidate
-for it so I sent v2 patches against next-20120522.
+I hate consistency patches like this because it could potentially fail a 
+kmem_cache_create() from a sufficiently long cache name when it wouldn't 
+have before, but I'm not really concerned since kmem_cache_create() will 
+naturally be followed by kmem_cache_alloc() which is more likely to cause 
+the oom anyway.  But it's just another waste of memory for consistency 
+sake.
 
-Thanks.
-
--- 
-Kind regards,
-Minchan Kim
+This is much easier to do, just statically allocate the const char *'s 
+needed for the boot caches and then set their ->name's manually in 
+kmem_cache_init() and then avoid the kfree() in kmem_cache_destroy() if 
+the name is between &boot_cache_name[0] and &boot_cache_name[n].
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
