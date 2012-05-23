@@ -1,60 +1,35 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx111.postini.com [74.125.245.111])
-	by kanga.kvack.org (Postfix) with SMTP id D3C9C6B0083
-	for <linux-mm@kvack.org>; Wed, 23 May 2012 15:17:14 -0400 (EDT)
-Received: from /spool/local
-	by e35.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <sjenning@linux.vnet.ibm.com>;
-	Wed, 23 May 2012 13:17:13 -0600
-Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
-	by d03dlp03.boulder.ibm.com (Postfix) with ESMTP id 3788819D806C
-	for <linux-mm@kvack.org>; Wed, 23 May 2012 13:16:32 -0600 (MDT)
-Received: from d03av05.boulder.ibm.com (d03av05.boulder.ibm.com [9.17.195.85])
-	by d03relay04.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q4NJFstK223614
-	for <linux-mm@kvack.org>; Wed, 23 May 2012 13:16:10 -0600
-Received: from d03av05.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av05.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q4NJFbbW011116
-	for <linux-mm@kvack.org>; Wed, 23 May 2012 13:15:38 -0600
-Message-ID: <4FBD373A.5030109@linux.vnet.ibm.com>
-Date: Wed, 23 May 2012 14:15:06 -0500
-From: Seth Jennings <sjenning@linux.vnet.ibm.com>
+Received: from psmtp.com (na3sys010amx103.postini.com [74.125.245.103])
+	by kanga.kvack.org (Postfix) with SMTP id 302106B0083
+	for <linux-mm@kvack.org>; Wed, 23 May 2012 16:04:09 -0400 (EDT)
+Message-ID: <4FBD4292.9020907@redhat.com>
+Date: Wed, 23 May 2012 16:03:30 -0400
+From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 1/2 v2] zsmalloc: zsmalloc: use unsigned long instead
- of void *
-References: <1337737402-16543-1-git-send-email-minchan@kernel.org>
-In-Reply-To: <1337737402-16543-1-git-send-email-minchan@kernel.org>
-Content-Type: text/plain; charset=ISO-8859-1
+Subject: Re: [PATCH] tmpfs not interleaving properly
+References: <74F10842A85F514CA8D8C487E74474BB2C1597@P-EXMB1-DC21.corp.sgi.com>
+In-Reply-To: <74F10842A85F514CA8D8C487E74474BB2C1597@P-EXMB1-DC21.corp.sgi.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Dan Magenheimer <dan.magenheimer@oracle.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Nitin Gupta <ngupta@vflare.org>
+To: Nathan Zimmer <nzimmer@sgi.com>
+Cc: Hugh Dickins <hughd@google.com>, Nick Piggin <npiggin@gmail.com>, Christoph Lameter <cl@linux.com>, Lee Schermerhorn <lee.schermerhorn@hp.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "stable@vger.kernel.org" <stable@vger.kernel.org>
 
-On 05/22/2012 08:43 PM, Minchan Kim wrote:
+On 05/23/2012 09:28 AM, Nathan Zimmer wrote:
+>
+> When tmpfs has the memory policy interleaved it always starts allocating at each file at node 0.
+> When there are many small files the lower nodes fill up disproportionately.
+> My proposed solution is to start a file at a randomly chosen node.
+>
+> Cc: Christoph Lameter<cl@linux.com>
+> Cc: Nick Piggin<npiggin@gmail.com>
+> Cc: Hugh Dickins<hughd@google.com>
+> Cc: Lee Schermerhorn<lee.schermerhorn@hp.com>
+> Cc: stable@vger.kernel.org
+> Signed-off-by: Nathan T Zimmer<nzimmer@sgi.com>
 
-> We should use unsigned long as handle instead of void * to avoid any
-> confusion. Without this, users may just treat zs_malloc return value as
-> a pointer and try to deference it.
-> 
-> This patch passed compile test(zram, zcache and ramster) and zram is
-> tested on qemu.
-> 
-> changelog
->   * from v1
->  	- change zcache's zv_create return value
->         - baesd on next-20120522
-> 
-> Cc: Seth Jennings <sjenning@linux.vnet.ibm.com>
-> Cc: Dan Magenheimer <dan.magenheimer@oracle.com>
-> Cc: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
-> Cc: Nitin Gupta <ngupta@vflare.org>
-> Signed-off-by: Minchan Kim <minchan@kernel.org>
-
-
-Acked-by: Seth Jennings <sjenning@linux.vnet.ibm.com>
-
-Thanks,
-Seth
+Acked-by: Rik van Riel <riel@redhat.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
