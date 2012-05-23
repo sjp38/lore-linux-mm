@@ -1,47 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx178.postini.com [74.125.245.178])
-	by kanga.kvack.org (Postfix) with SMTP id 4BD936B00E7
-	for <linux-mm@kvack.org>; Wed, 23 May 2012 03:19:47 -0400 (EDT)
-Received: by bkcjm19 with SMTP id jm19so8171596bkc.14
-        for <linux-mm@kvack.org>; Wed, 23 May 2012 00:19:45 -0700 (PDT)
-From: Sasha Levin <levinsasha928@gmail.com>
-Subject: [PATCH] mm: fix NULL ptr deref when walking hugepages
-Date: Wed, 23 May 2012 09:20:43 +0200
-Message-Id: <1337757643-18302-1-git-send-email-levinsasha928@gmail.com>
+Received: from psmtp.com (na3sys010amx153.postini.com [74.125.245.153])
+	by kanga.kvack.org (Postfix) with SMTP id 8DB486B0092
+	for <linux-mm@kvack.org>; Wed, 23 May 2012 03:23:26 -0400 (EDT)
+Received: from euspt2 (mailout2.w1.samsung.com [210.118.77.12])
+ by mailout2.w1.samsung.com
+ (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14 2004))
+ with ESMTP id <0M4G000SPSIQ2S@mailout2.w1.samsung.com> for linux-mm@kvack.org;
+ Wed, 23 May 2012 08:23:14 +0100 (BST)
+Received: from linux.samsung.com ([106.116.38.10])
+ by spt2.w1.samsung.com (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14
+ 2004)) with ESMTPA id <0M4G00DVQSIYYM@spt2.w1.samsung.com> for
+ linux-mm@kvack.org; Wed, 23 May 2012 08:23:22 +0100 (BST)
+Date: Wed, 23 May 2012 09:23:02 +0200
+From: Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>
+Subject: [PATCH] cma: retry on test_pages_isolated() failure
+Message-id: <201205230923.02142.b.zolnierkie@samsung.com>
+MIME-version: 1.0
+Content-type: Text/Plain; charset=us-ascii
+Content-transfer-encoding: 7BIT
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org, n-horiguchi@ah.jp.nec.com
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Sasha Levin <levinsasha928@gmail.com>
+To: linux-mm@kvack.org
+Cc: Michal Nazarewicz <mina86@mina86.com>, Marek Szyprowski <m.szyprowski@samsung.com>, Mel Gorman <mgorman@suse.de>
 
-A missing vlidation of the value returned by find_vma() could cause a NULL ptr
-dereference when walking the pagetable.
+From: Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>
+Subject: [PATCH] cma: retry on test_pages_isolated() failure
 
-This is triggerable from usermode by a simple user by trying to read a
-page info out of /proc/pid/pagemap which doesn't exist.
+Retry (once) migration on test_pages_isolated() failure.
 
-Introduced by commit 025c5b24 ("thp: optimize away unnecessary page table
-locking").
-
-Signed-off-by: Sasha Levin <levinsasha928@gmail.com>
+Cc: Michal Nazarewicz <mina86@mina86.com>
+Cc: Marek Szyprowski <m.szyprowski@samsung.com>
+Cc: Mel Gorman <mgorman@suse.de>
+Signed-off-by: Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>
+Signed-off-by: Kyungmin Park <kyungmin.park@samsung.com>
 ---
- fs/proc/task_mmu.c |    2 +-
- 1 files changed, 1 insertions(+), 1 deletions(-)
+ mm/page_alloc.c |    6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)
 
-diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
-index 3e564f0..885830b 100644
---- a/fs/proc/task_mmu.c
-+++ b/fs/proc/task_mmu.c
-@@ -820,7 +820,7 @@ static int pagemap_pte_range(pmd_t *pmd, unsigned long addr, unsigned long end,
+Index: b/mm/page_alloc.c
+===================================================================
+--- a/mm/page_alloc.c	2012-05-15 12:40:54.199127705 +0200
++++ b/mm/page_alloc.c	2012-05-15 12:41:25.335127686 +0200
+@@ -5796,7 +5796,7 @@
+ {
+ 	struct zone *zone = page_zone(pfn_to_page(start));
+ 	unsigned long outer_start, outer_end;
+-	int ret = 0, order;
++	int ret = 0, order, retry = 0;
  
- 	/* find the first VMA at or above 'addr' */
- 	vma = find_vma(walk->mm, addr);
--	if (pmd_trans_huge_lock(pmd, vma) == 1) {
-+	if (vma && pmd_trans_huge_lock(pmd, vma) == 1) {
- 		for (; addr != end; addr += PAGE_SIZE) {
- 			unsigned long offset;
+ 	/*
+ 	 * What we do here is we mark all pageblocks in range as
+@@ -5826,7 +5826,7 @@
+ 				       pfn_max_align_up(end), migratetype);
+ 	if (ret)
+ 		goto done;
+-
++migrate:
+ 	ret = __alloc_contig_migrate_range(start, end);
+ 	if (ret)
+ 		goto done;
+@@ -5863,6 +5863,8 @@
  
--- 
-1.7.8.6
+ 	/* Make sure the range is really isolated. */
+ 	if (test_pages_isolated(outer_start, end)) {
++		if (retry++ < 1)
++			goto migrate;
+ 		pr_warn("alloc_contig_range test_pages_isolated(%lx, %lx) failed\n",
+ 		       outer_start, end);
+ 		ret = -EBUSY;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
