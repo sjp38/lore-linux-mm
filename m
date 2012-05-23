@@ -1,46 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx197.postini.com [74.125.245.197])
-	by kanga.kvack.org (Postfix) with SMTP id 889296B0083
-	for <linux-mm@kvack.org>; Wed, 23 May 2012 17:46:17 -0400 (EDT)
-Message-ID: <4FBD5A86.70701@redhat.com>
-Date: Wed, 23 May 2012 17:45:42 -0400
-From: Rik van Riel <riel@redhat.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH RESEND] avoid swapping out with swappiness==0
-References: <65795E11DBF1E645A09CEC7EAEE94B9C015A48DF62@USINDEVS02.corp.hds.com>
-In-Reply-To: <65795E11DBF1E645A09CEC7EAEE94B9C015A48DF62@USINDEVS02.corp.hds.com>
-Content-Type: text/plain; charset=UTF-8; format=flowed
+Received: from psmtp.com (na3sys010amx162.postini.com [74.125.245.162])
+	by kanga.kvack.org (Postfix) with SMTP id 02F106B0083
+	for <linux-mm@kvack.org>; Wed, 23 May 2012 18:20:12 -0400 (EDT)
+Date: Wed, 23 May 2012 15:20:11 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] tmpfs not interleaving properly
+Message-Id: <20120523152011.3b581761.akpm@linux-foundation.org>
+In-Reply-To: <74F10842A85F514CA8D8C487E74474BB2C1597@P-EXMB1-DC21.corp.sgi.com>
+References: <74F10842A85F514CA8D8C487E74474BB2C1597@P-EXMB1-DC21.corp.sgi.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Satoru Moriya <satoru.moriya@hds.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "lwoodman@redhat.com" <lwoodman@redhat.com>, "jweiner@redhat.com" <jweiner@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Richard Davies <richard.davies@elastichosts.com>, Seiji Aguchi <seiji.aguchi@hds.com>, "dle-develop@lists.sourceforge.net" <dle-develop@lists.sourceforge.net>, Minchan Kim <minchan@kernel.org>, Jerome Marchand <jmarchan@redhat.com>, Christoph Lameter <cl@linux.com>
+To: Nathan Zimmer <nzimmer@sgi.com>
+Cc: Hugh Dickins <hughd@google.com>, Nick Piggin <npiggin@gmail.com>, Christoph Lameter <cl@linux.com>, Lee Schermerhorn <lee.schermerhorn@hp.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "stable@vger.kernel.org" <stable@vger.kernel.org>
 
-On 05/23/2012 04:41 PM, Satoru Moriya wrote:
+On Wed, 23 May 2012 13:28:21 +0000
+Nathan Zimmer <nzimmer@sgi.com> wrote:
 
-> The patch may not be perfect but, at least, we can improve
-> the kernel behavior in the enough filebacked memory case
-> with this patch. I believe it's better than nothing.
+> 
+> When tmpfs has the memory policy interleaved it always starts allocating at each file at node 0.
+> When there are many small files the lower nodes fill up disproportionately.
+> My proposed solution is to start a file at a randomly chosen node.
+> 
+> ...
+>
+> --- a/include/linux/shmem_fs.h
+> +++ b/include/linux/shmem_fs.h
+> @@ -17,6 +17,7 @@ struct shmem_inode_info {
+>  		char		*symlink;	/* unswappable short symlink */
+>  	};
+>  	struct shared_policy	policy;		/* NUMA memory alloc policy */
+> +	int			node_offset;	/* bias for interleaved nodes */
+>  	struct list_head	swaplist;	/* chain of maybes on swap */
+>  	struct list_head	xattr_list;	/* list of shmem_xattr */
+>  	struct inode		vfs_inode;
+> diff --git a/mm/shmem.c b/mm/shmem.c
+> index f99ff3e..58ef512 100644
+> --- a/mm/shmem.c
+> +++ b/mm/shmem.c
+> @@ -819,7 +819,7 @@ static struct page *shmem_alloc_page(gfp_t gfp,
+>  
+>  	/* Create a pseudo vma that just contains the policy */
+>  	pvma.vm_start = 0;
+> -	pvma.vm_pgoff = index;
+> +	pvma.vm_pgoff = index + info->node_offset;
+>  	pvma.vm_ops = NULL;
+>  	pvma.vm_policy = mpol_shared_policy_lookup(&info->policy, index);
+>  
+> @@ -1153,6 +1153,7 @@ static struct inode *shmem_get_inode(struct super_block *sb, const struct inode
+>  			inode->i_fop = &shmem_file_operations;
+>  			mpol_shared_policy_init(&info->policy,
+>  						 shmem_get_sbmpol(sbinfo));
+> +			info->node_offset = node_random(&node_online_map);
+>  			break;
+>  		case S_IFDIR:
+>  			inc_nlink(inode);
 
-Agreed.
+The patch seems a bit arbitrary and hacky.  It would have helped if you
+had fully described how it works, and why this implementation was
+chosen.
 
-> Do you have any comments about it?
+- Why alter (actually, lie about!) the offset-into-file?  Could we
+  have similarly perturbed the address arg to alloc_page_vma() to do
+  the spreading?
 
-Only one comment, and it's for Andrew :)
+- The patch is dependent upon MPOL_INTERLEAVE being in effect, isn't
+  it?  How do we guarantee that it is in force here?
 
-> Signed-off-by: Satoru Moriya<satoru.moriya@hds.com>
-> Acked-by: Minchan Kim<minchan@kernel.org>
-> Acked-by: Rik van Riel<riel@redhat.com>
+- We look up the policy via mpol_shared_policy_lookup() using the
+  unperturbed index.  Why?  Should we be using index+info->node_offset
+  there?
 
-Andrew, you can turn my Acked-by into a
-
-Reviewed-by: Rik van Riel<riel@redhat.com>
-
-This is functionality that many people seem to want, and
-will not break anything current users typically do.
-
--- 
-All rights reversed
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
