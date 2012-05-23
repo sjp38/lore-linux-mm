@@ -1,132 +1,163 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx126.postini.com [74.125.245.126])
-	by kanga.kvack.org (Postfix) with SMTP id 6AB116B00F6
-	for <linux-mm@kvack.org>; Wed, 23 May 2012 16:35:16 -0400 (EDT)
-Message-Id: <20120523203514.678677683@linux.com>
-Date: Wed, 23 May 2012 15:34:50 -0500
+Received: from psmtp.com (na3sys010amx200.postini.com [74.125.245.200])
+	by kanga.kvack.org (Postfix) with SMTP id 5821A6B0083
+	for <linux-mm@kvack.org>; Wed, 23 May 2012 16:45:16 -0400 (EDT)
+Message-Id: <20120523203515.816134866@linux.com>
+Date: Wed, 23 May 2012 15:34:52 -0500
 From: Christoph Lameter <cl@linux.com>
-Subject: Common 17/22] Do slab aliasing call from common code
+Subject: Common 19/22] Do not pass ctor to __kmem_cache_create()
 References: <20120523203433.340661918@linux.com>
-Content-Disposition: inline; filename=slab_alias_common
+Content-Disposition: inline; filename=no_passing_of_ctor
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Pekka Enberg <penberg@kernel.org>
 Cc: linux-mm@kvack.org, David Rientjes <rientjes@google.com>, Matt Mackall <mpm@selenic.com>, Glauber Costa <glommer@parallels.com>, Joonsoo Kim <js1304@gmail.com>
 
-The slab aliasing logic causes some strange contortions in
-slub. So add a call to deal with aliases to slab_common.c
-but disable it for other slab allocators by providng stubs
-that fail to create aliases.
+Set the ctor field like the name field directly in the kmem_cache
+structure after alloc before calling the allocator specific portion.
 
-Full general support for aliases will require additional
-cleanup passes and more standardization of fields in
-kmem_cache.
+Also extract refcount handling to common code.
 
 Signed-off-by: Christoph Lameter <cl@linux.com>
 
-
 ---
- mm/slab.h        |   10 ++++++++++
- mm/slab_common.c |   16 +++++++---------
- mm/slub.c        |   16 +++++++++++-----
- 3 files changed, 28 insertions(+), 14 deletions(-)
+ mm/slab.h        |    2 +-
+ mm/slab_common.c |    9 +++++----
+ mm/slob.c        |    4 +---
+ mm/slub.c        |   17 +++++++----------
+ 4 files changed, 14 insertions(+), 18 deletions(-)
 
-Index: linux-2.6/mm/slab.h
-===================================================================
---- linux-2.6.orig/mm/slab.h	2012-05-23 06:54:33.934836948 -0500
-+++ linux-2.6/mm/slab.h	2012-05-23 08:00:46.210754648 -0500
-@@ -36,6 +36,16 @@ extern struct kmem_cache *kmem_cache;
- struct kmem_cache *__kmem_cache_create(const char *name, size_t size,
- 	size_t align, unsigned long flags, void (*ctor)(void *));
- 
-+#ifdef CONFIG_SLUB
-+struct kmem_cache *__kmem_cache_alias(const char *name, size_t size,
-+	size_t align, unsigned long flags, void (*ctor)(void *));
-+#else
-+static inline struct kmem_cache *__kmem_cache_alias(const char *name, size_t size,
-+	size_t align, unsigned long flags, void (*ctor)(void *))
-+{ return NULL; }
-+#endif
-+
-+
- int __kmem_cache_shutdown(struct kmem_cache *);
- 
- #endif
 Index: linux-2.6/mm/slab_common.c
 ===================================================================
---- linux-2.6.orig/mm/slab_common.c	2012-05-23 06:54:33.954836948 -0500
-+++ linux-2.6/mm/slab_common.c	2012-05-23 07:59:58.346755634 -0500
-@@ -98,21 +98,19 @@ struct kmem_cache *kmem_cache_create(con
- 	WARN_ON(strchr(name, ' '));	/* It confuses parsers */
- #endif
- 
-+	s = __kmem_cache_alias(name, size, align, flags, ctor);
-+	if (s)
-+		goto oops;
-+
- 	n = kstrdup(name, GFP_KERNEL);
- 	if (!n)
- 		goto oops;
- 
- 	s = __kmem_cache_create(n, size, align, flags, ctor);
- 
--	if (s) {
--		/*
--		 * Check if the slab has actually been created and if it was a
--		 * real instatiation. Aliases do not belong on the list
--		 */
--		if (s->refcount == 1)
--			list_add(&s->list, &slab_caches);
--
--	} else
-+	if (s)
-+		list_add(&s->list, &slab_caches);
-+	else
- 		kfree(n);
- 
- oops:
-Index: linux-2.6/mm/slub.c
-===================================================================
---- linux-2.6.orig/mm/slub.c	2012-05-23 06:54:33.922836951 -0500
-+++ linux-2.6/mm/slub.c	2012-05-23 07:59:58.290755636 -0500
-@@ -3890,11 +3890,10 @@ static struct kmem_cache *find_mergeable
- 	return NULL;
- }
- 
--struct kmem_cache *__kmem_cache_create(const char *name, size_t size,
-+struct kmem_cache *__kmem_cache_alias(const char *name, size_t size,
- 		size_t align, unsigned long flags, void (*ctor)(void *))
- {
- 	struct kmem_cache *s;
--	char *n;
- 
- 	s = find_mergeable(size, align, flags, name, ctor);
- 	if (s) {
-@@ -3908,14 +3907,21 @@ struct kmem_cache *__kmem_cache_create(c
- 
- 		if (sysfs_slab_alias(s, name)) {
- 			s->refcount--;
--			return NULL;
-+			s = NULL;
- 		}
--		return s;
+--- linux-2.6.orig/mm/slab_common.c	2012-05-23 08:54:34.202687757 -0500
++++ linux-2.6/mm/slab_common.c	2012-05-23 08:54:35.234687733 -0500
+@@ -115,12 +115,13 @@ struct kmem_cache *kmem_cache_create(con
  	}
  
-+	return s;
-+}
-+
-+struct kmem_cache *__kmem_cache_create(const char *name, size_t size,
-+		size_t align, unsigned long flags, void (*ctor)(void *))
-+{
-+	struct kmem_cache *s;
-+
- 	s = kmalloc(kmem_size, GFP_KERNEL);
- 	if (s) {
--		if (kmem_cache_open(s, n,
-+		if (kmem_cache_open(s, name,
- 				size, align, flags, ctor)) {
- 			int r;
+ 	s->name = n;
++	s->ctor = ctor;
++	r = __kmem_cache_create(s, size, align, flags);
  
+-	r = __kmem_cache_create(s, size, align, flags, ctor);
+-
+-	if (!r)
++	if (!r) {
++		s->refcount = 1;
+ 		list_add(&s->list, &slab_caches);
+-	else {
++	} else {
+ 		kmem_cache_free(kmem_cache, s);
+ 		kfree(n);
+ 		s = NULL;
+Index: linux-2.6/mm/slab.h
+===================================================================
+--- linux-2.6.orig/mm/slab.h	2012-05-23 08:54:34.202687757 -0500
++++ linux-2.6/mm/slab.h	2012-05-23 08:54:35.234687733 -0500
+@@ -34,7 +34,7 @@ extern struct kmem_cache *kmem_cache;
+ 
+ /* Functions provided by the slab allocators */
+ int __kmem_cache_create(struct kmem_cache *s, size_t size,
+-	size_t align, unsigned long flags, void (*ctor)(void *));
++	size_t align, unsigned long flags);
+ 
+ #ifdef CONFIG_SLUB
+ struct kmem_cache *__kmem_cache_alias(const char *name, size_t size,
+Index: linux-2.6/mm/slob.c
+===================================================================
+--- linux-2.6.orig/mm/slob.c	2012-05-23 08:54:34.210687755 -0500
++++ linux-2.6/mm/slob.c	2012-05-23 08:55:12.074686972 -0500
+@@ -509,7 +509,7 @@ size_t ksize(const void *block)
+ EXPORT_SYMBOL(ksize);
+ 
+ int __kmem_cache_create(struct kmem_cache *c, size_t size,
+-	size_t align, unsigned long flags, void (*ctor)(void *))
++	size_t align, unsigned long flags)
+ {
+ 	c->size = size;
+ 	if (flags & SLAB_DESTROY_BY_RCU) {
+@@ -517,7 +517,6 @@ int __kmem_cache_create(struct kmem_cach
+ 		c->size += sizeof(struct slob_rcu);
+ 	}
+ 	c->flags = flags;
+-	c->ctor = ctor;
+ 	/* ignore alignment unless it's forced */
+ 	c->align = (flags & SLAB_HWCACHE_ALIGN) ? SLOB_ALIGN : 0;
+ 	if (c->align < ARCH_SLAB_MINALIGN)
+@@ -526,7 +525,6 @@ int __kmem_cache_create(struct kmem_cach
+ 		c->align = align;
+ 
+ 	kmemleak_alloc(c, sizeof(struct kmem_cache), 1, GFP_KERNEL);
+-	c->refcount = 1;
+ 	return 0;
+ }
+ 
+Index: linux-2.6/mm/slub.c
+===================================================================
+--- linux-2.6.orig/mm/slub.c	2012-05-23 08:54:34.206687757 -0500
++++ linux-2.6/mm/slub.c	2012-05-23 08:54:35.238687733 -0500
+@@ -3000,13 +3000,11 @@ static int calculate_sizes(struct kmem_c
+ }
+ 
+ static int kmem_cache_open(struct kmem_cache *s, size_t size,
+-		size_t align, unsigned long flags,
+-		void (*ctor)(void *))
++		size_t align, unsigned long flags)
+ {
+-	s->ctor = ctor;
+ 	s->objsize = size;
+ 	s->align = align;
+-	s->flags = kmem_cache_flags(size, flags, s->name, ctor);
++	s->flags = kmem_cache_flags(size, flags, s->name, s->ctor);
+ 	s->reserved = 0;
+ 
+ 	if (need_reserve_slab_rcu && (s->flags & SLAB_DESTROY_BY_RCU))
+@@ -3069,7 +3067,6 @@ static int kmem_cache_open(struct kmem_c
+ 	else
+ 		s->cpu_partial = 30;
+ 
+-	s->refcount = 1;
+ #ifdef CONFIG_NUMA
+ 	s->remote_node_defrag_ratio = 1000;
+ #endif
+@@ -3230,7 +3227,7 @@ static struct kmem_cache *__init create_
+ 	 * This function is called with IRQs disabled during early-boot on
+ 	 * single CPU so there's no need to take slab_mutex here.
+ 	 */
+-	r = kmem_cache_open(s, size, ARCH_KMALLOC_MINALIGN, flags, NULL);
++	r = kmem_cache_open(s, size, ARCH_KMALLOC_MINALIGN, flags);
+ 	if (r)
+ 		panic("Creation of kmalloc slab %s size=%d failed. Code %d\n",
+ 				name, size, r);
+@@ -3684,7 +3681,7 @@ void __init kmem_cache_init(void)
+ 	kmem_cache_node->name = "kmem_cache_node";
+ 
+ 	r = kmem_cache_open(kmem_cache_node, sizeof(struct kmem_cache_node),
+-		0, SLAB_HWCACHE_ALIGN, NULL);
++		0, SLAB_HWCACHE_ALIGN);
+ 	if (r)
+ 		goto panic;
+ 
+@@ -3697,7 +3694,7 @@ void __init kmem_cache_init(void)
+ 	kmem_cache->name = "kmem_cache";
+ 
+ 	r = kmem_cache_open(kmem_cache, kmem_size, 0,
+-			SLAB_HWCACHE_ALIGN, NULL);
++			SLAB_HWCACHE_ALIGN);
+ 	if (r)
+ 		goto panic;
+ 
+@@ -3918,9 +3915,9 @@ struct kmem_cache *__kmem_cache_alias(co
+ }
+ 
+ int __kmem_cache_create(struct kmem_cache *s, size_t size,
+-		size_t align, unsigned long flags, void (*ctor)(void *))
++		size_t align, unsigned long flags)
+ {
+-	int r = kmem_cache_open(s, size, align, flags, ctor);
++	int r = kmem_cache_open(s, size, align, flags);
+ 
+ 	if (r)
+ 		return r;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
