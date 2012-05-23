@@ -1,43 +1,37 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx128.postini.com [74.125.245.128])
-	by kanga.kvack.org (Postfix) with SMTP id 158D76B0083
-	for <linux-mm@kvack.org>; Wed, 23 May 2012 11:42:23 -0400 (EDT)
-Date: Wed, 23 May 2012 10:42:19 -0500 (CDT)
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: [RFC] Common code 09/12] slabs: Extract a common function for
- kmem_cache_destroy
-In-Reply-To: <CAAmzW4Oxwq-Gd7ts3F1funk5-fwVOSHEBz2fh5Rno90E8nnG4Q@mail.gmail.com>
-Message-ID: <alpine.DEB.2.00.1205231042130.30940@router.home>
-References: <20120518161906.207356777@linux.com> <20120518161932.147485968@linux.com> <CAAmzW4Oxwq-Gd7ts3F1funk5-fwVOSHEBz2fh5Rno90E8nnG4Q@mail.gmail.com>
+Received: from psmtp.com (na3sys010amx104.postini.com [74.125.245.104])
+	by kanga.kvack.org (Postfix) with SMTP id B415C6B0092
+	for <linux-mm@kvack.org>; Wed, 23 May 2012 12:17:11 -0400 (EDT)
+Received: by qcsd16 with SMTP id d16so7048115qcs.14
+        for <linux-mm@kvack.org>; Wed, 23 May 2012 09:17:10 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: MULTIPART/MIXED; BOUNDARY="-1463811839-964558924-1337787741=:30940"
+In-Reply-To: <4FBA0C5E.4010102@parallels.com>
+References: <20120518161906.207356777@linux.com>
+	<20120518161932.708441342@linux.com>
+	<4FBA0C5E.4010102@parallels.com>
+Date: Thu, 24 May 2012 01:17:10 +0900
+Message-ID: <CAAmzW4OvB+jG+RcOcV+6Cxoq4pZzRGxU=kCrpkmjEYdFTbqP6Q@mail.gmail.com>
+Subject: Re: [RFC] Common code 10/12] sl[aub]: Use the name "kmem_cache" for
+ the slab cache with the kmem_cache structure.
+From: JoonSoo Kim <js1304@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: JoonSoo Kim <js1304@gmail.com>
-Cc: Pekka Enberg <penberg@kernel.org>, linux-mm@kvack.org, David Rientjes <rientjes@google.com>, Matt Mackall <mpm@selenic.com>, Glauber Costa <glommer@parallels.com>, Alex Shi <alex.shi@intel.com>
+To: Glauber Costa <glommer@parallels.com>
+Cc: Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, linux-mm@kvack.org, David Rientjes <rientjes@google.com>, Matt Mackall <mpm@selenic.com>, Alex Shi <alex.shi@intel.com>
 
-  This message is in MIME format.  The first part should be readable text,
-  while the remaining parts are likely unreadable without MIME-aware tools.
-
----1463811839-964558924-1337787741=:30940
-Content-Type: TEXT/PLAIN; charset=ISO-8859-1
-Content-Transfer-Encoding: QUOTED-PRINTABLE
-
-On Thu, 24 May 2012, JoonSoo Kim wrote:
-
-> > +void __kmem_cache_destroy(struct kmem_cache *s)
-> > +{
-> > + =A0 =A0 =A0 kfree(s);
-> > + =A0 =A0 =A0 sysfs_slab_remove(s);
-> > =A0}
-> > -EXPORT_SYMBOL(kmem_cache_destroy);
+2012/5/21 Glauber Costa <glommer@parallels.com>:
+> On 05/18/2012 08:19 PM, Christoph Lameter wrote:
+>>
+>> Make all allocators use the "kmem_cache" slabname for the "kmem_cache"
+>> structure.
+>>
+>> Signed-off-by: Christoph Lameter<cl@linux.com>
 >
-> sysfs_slab_remove(s) -> kfree(s) is correct order.
-> If not, it will break the system.
-
-Ok. Changed.
-
----1463811839-964558924-1337787741=:30940--
+> This is a good change.
+>
+> Reviewed-by: Glauber Costa <glommer@parallels.com>
+Reviewed-by: Joonsoo Kim <js1304@gmail.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
