@@ -1,86 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx167.postini.com [74.125.245.167])
-	by kanga.kvack.org (Postfix) with SMTP id CAD106B0083
-	for <linux-mm@kvack.org>; Wed, 23 May 2012 13:23:14 -0400 (EDT)
-Date: Wed, 23 May 2012 19:21:46 +0200
-From: Oleg Nesterov <oleg@redhat.com>
-Subject: Re: 3.4-rc7: BUG: Bad rss-counter state mm:ffff88040b56f800 idx:1
-	val:-59
-Message-ID: <20120523172146.GA27598@redhat.com>
-References: <4FBC1618.5010408@fold.natur.cuni.cz> <20120522162835.c193c8e0.akpm@linux-foundation.org> <20120522162946.2afcdb50.akpm@linux-foundation.org>
+Received: from psmtp.com (na3sys010amx111.postini.com [74.125.245.111])
+	by kanga.kvack.org (Postfix) with SMTP id D3C9C6B0083
+	for <linux-mm@kvack.org>; Wed, 23 May 2012 15:17:14 -0400 (EDT)
+Received: from /spool/local
+	by e35.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <sjenning@linux.vnet.ibm.com>;
+	Wed, 23 May 2012 13:17:13 -0600
+Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
+	by d03dlp03.boulder.ibm.com (Postfix) with ESMTP id 3788819D806C
+	for <linux-mm@kvack.org>; Wed, 23 May 2012 13:16:32 -0600 (MDT)
+Received: from d03av05.boulder.ibm.com (d03av05.boulder.ibm.com [9.17.195.85])
+	by d03relay04.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q4NJFstK223614
+	for <linux-mm@kvack.org>; Wed, 23 May 2012 13:16:10 -0600
+Received: from d03av05.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av05.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q4NJFbbW011116
+	for <linux-mm@kvack.org>; Wed, 23 May 2012 13:15:38 -0600
+Message-ID: <4FBD373A.5030109@linux.vnet.ibm.com>
+Date: Wed, 23 May 2012 14:15:06 -0500
+From: Seth Jennings <sjenning@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20120522162946.2afcdb50.akpm@linux-foundation.org>
+Subject: Re: [PATCH 1/2 v2] zsmalloc: zsmalloc: use unsigned long instead
+ of void *
+References: <1337737402-16543-1-git-send-email-minchan@kernel.org>
+In-Reply-To: <1337737402-16543-1-git-send-email-minchan@kernel.org>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Martin Mokrejs <mmokrejs@fold.natur.cuni.cz>, LKML <linux-kernel@vger.kernel.org>, khlebnikov@openvz.org, markus@trippelsdorf.de, hughd@google.com, kamezawa.hiroyu@jp.fujitsu.com, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org
+To: Minchan Kim <minchan@kernel.org>
+Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Dan Magenheimer <dan.magenheimer@oracle.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Nitin Gupta <ngupta@vflare.org>
 
-On 05/22, Andrew Morton wrote:
->
-> Also, I have a note here that Oleg was unhappy with the patch.  Oleg
-> happiness is important.  Has he cheered up yet?
+On 05/22/2012 08:43 PM, Minchan Kim wrote:
 
-Well, yes, I do not really like this patch ;) Because I think there is
-a more simple/straightforward fix, see below. In my opinion it also
-makes the original code simpler.
+> We should use unsigned long as handle instead of void * to avoid any
+> confusion. Without this, users may just treat zs_malloc return value as
+> a pointer and try to deference it.
+> 
+> This patch passed compile test(zram, zcache and ramster) and zram is
+> tested on qemu.
+> 
+> changelog
+>   * from v1
+>  	- change zcache's zv_create return value
+>         - baesd on next-20120522
+> 
+> Cc: Seth Jennings <sjenning@linux.vnet.ibm.com>
+> Cc: Dan Magenheimer <dan.magenheimer@oracle.com>
+> Cc: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
+> Cc: Nitin Gupta <ngupta@vflare.org>
+> Signed-off-by: Minchan Kim <minchan@kernel.org>
 
-But. Obviously this is subjective, I can't prove my patch is "better",
-and I didn't try to test it.
 
-So I won't argue with Konstantin who dislikes my patch, although I
-would like to know the reason.
+Acked-by: Seth Jennings <sjenning@linux.vnet.ibm.com>
 
-Oleg.
-
-
---- a/kernel/tsacct.c
-+++ b/kernel/tsacct.c
-@@ -91,6 +91,7 @@ void xacct_add_tsk(struct taskstats *sta
- 	stats->virtmem = p->acct_vm_mem1 * PAGE_SIZE / MB;
- 	mm = get_task_mm(p);
- 	if (mm) {
-+		sync_mm_rss(mm);
- 		/* adjust to KB unit */
- 		stats->hiwater_rss   = get_mm_hiwater_rss(mm) * PAGE_SIZE / KB;
- 		stats->hiwater_vm    = get_mm_hiwater_vm(mm)  * PAGE_SIZE / KB;
---- a/kernel/exit.c
-+++ b/kernel/exit.c
-@@ -643,6 +643,8 @@ static void exit_mm(struct task_struct *
- 	mm_release(tsk, mm);
- 	if (!mm)
- 		return;
-+
-+	sync_mm_rss(mm);
- 	/*
- 	 * Serialize with any possible pending coredump.
- 	 * We must hold mmap_sem around checking core_state
-@@ -960,9 +962,6 @@ void do_exit(long code)
- 				preempt_count());
- 
- 	acct_update_integrals(tsk);
--	/* sync mm's RSS info before statistics gathering */
--	if (tsk->mm)
--		sync_mm_rss(tsk->mm);
- 	group_dead = atomic_dec_and_test(&tsk->signal->live);
- 	if (group_dead) {
- 		hrtimer_cancel(&tsk->signal->real_timer);
---- a/fs/exec.c
-+++ b/fs/exec.c
-@@ -823,10 +823,10 @@ static int exec_mmap(struct mm_struct *m
- 	/* Notify parent that we're no longer interested in the old VM */
- 	tsk = current;
- 	old_mm = current->mm;
--	sync_mm_rss(old_mm);
- 	mm_release(tsk, old_mm);
- 
- 	if (old_mm) {
-+		sync_mm_rss(old_mm);
- 		/*
- 		 * Make sure that if there is a core dump in progress
- 		 * for the old mm, we get out and die instead of going
-
+Thanks,
+Seth
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
