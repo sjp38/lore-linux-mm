@@ -1,231 +1,632 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx157.postini.com [74.125.245.157])
-	by kanga.kvack.org (Postfix) with SMTP id 9B1BA6B00F3
+Received: from psmtp.com (na3sys010amx177.postini.com [74.125.245.177])
+	by kanga.kvack.org (Postfix) with SMTP id 1B8796B00F2
 	for <linux-mm@kvack.org>; Wed, 23 May 2012 16:35:12 -0400 (EDT)
-Message-Id: <20120523203510.705067228@linux.com>
-Date: Wed, 23 May 2012 15:34:43 -0500
+Message-Id: <20120523203510.126783499@linux.com>
+Date: Wed, 23 May 2012 15:34:42 -0500
 From: Christoph Lameter <cl@linux.com>
-Subject: Common 10/22] Move kmem_cache_create mutex handling to common code
+Subject: Common 09/22] Use a common mutex definition
 References: <20120523203433.340661918@linux.com>
-Content-Disposition: inline; filename=move_mutex_to_common
+Content-Disposition: inline; filename=common_mutex
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Pekka Enberg <penberg@kernel.org>
 Cc: linux-mm@kvack.org, David Rientjes <rientjes@google.com>, Matt Mackall <mpm@selenic.com>, Glauber Costa <glommer@parallels.com>, Joonsoo Kim <js1304@gmail.com>
 
-Move the mutex handling into the common kmem_cache_create()
-function.
+Use the mutex definition from SLAB and make it the common way to take a sleeping lock.
 
-Then we can also move more checks out of SLAB's kmem_cache_create()
-into the common code.
+This has the effect of using a mutex instead of a rw semaphore for SLUB.
+
+SLOB gains the use of a mutex for kmem_cache_create serialization.
+Not needed now but SLOB may acquire some more features later (like slabinfo
+/ sysfs support) through the expansion of the common code that will
+need this.
 
 Reviewed-by: Glauber Costa <glommer@parallels.com>
+Reviewed-by: Joonsoo Kim <js1304@gmail.com>
 Signed-off-by: Christoph Lameter <cl@linux.com>
 
 ---
- mm/slab.c        |   52 +---------------------------------------------------
- mm/slab_common.c |   41 ++++++++++++++++++++++++++++++++++++++++-
- mm/slub.c        |   30 ++++++++++++++----------------
- 3 files changed, 55 insertions(+), 68 deletions(-)
+ mm/slab.c        |  104 +++++++++++++++++++++++++------------------------------
+ mm/slab.h        |    4 ++
+ mm/slab_common.c |    2 +
+ mm/slub.c        |   54 +++++++++++++---------------
+ 4 files changed, 80 insertions(+), 84 deletions(-)
 
 Index: linux-2.6/mm/slab.c
 ===================================================================
---- linux-2.6.orig/mm/slab.c	2012-05-23 04:23:50.943024328 -0500
-+++ linux-2.6/mm/slab.c	2012-05-23 04:23:54.363024253 -0500
-@@ -2233,55 +2233,10 @@ __kmem_cache_create (const char *name, s
- 	unsigned long flags, void (*ctor)(void *))
- {
- 	size_t left_over, slab_size, ralign;
--	struct kmem_cache *cachep = NULL, *pc;
-+	struct kmem_cache *cachep = NULL;
- 	gfp_t gfp;
- 
--	/*
--	 * Sanity checks... these are all serious usage bugs.
--	 */
--	if (!name || in_interrupt() || (size < BYTES_PER_WORD) ||
--	    size > KMALLOC_MAX_SIZE) {
--		printk(KERN_ERR "%s: Early error in slab %s\n", __func__,
--				name);
--		BUG();
--	}
--
--	/*
--	 * We use cache_chain_mutex to ensure a consistent view of
--	 * cpu_online_mask as well.  Please see cpuup_callback
--	 */
--	if (slab_is_available()) {
--		get_online_cpus();
--		mutex_lock(&cache_chain_mutex);
--	}
--
--	list_for_each_entry(pc, &cache_chain, list) {
--		char tmp;
--		int res;
--
--		/*
--		 * This happens when the module gets unloaded and doesn't
--		 * destroy its slab cache and no-one else reuses the vmalloc
--		 * area of the module.  Print a warning.
--		 */
--		res = probe_kernel_address(pc->name, tmp);
--		if (res) {
--			printk(KERN_ERR
--			       "SLAB: cache with size %d has lost its name\n",
--			       pc->buffer_size);
--			continue;
--		}
--
--		if (!strcmp(pc->name, name)) {
--			printk(KERN_ERR
--			       "kmem_cache_create: duplicate cache %s\n", name);
--			dump_stack();
--			goto oops;
--		}
--	}
--
- #if DEBUG
--	WARN_ON(strchr(name, ' '));	/* It confuses parsers */
- #if FORCED_DEBUG
- 	/*
- 	 * Enable redzoning and last user accounting, except for caches with
-@@ -2499,11 +2454,6 @@ __kmem_cache_create (const char *name, s
- 
- 	/* cache setup completed, link it into the list */
- 	list_add(&cachep->list, &slab_caches);
--oops:
--	if (slab_is_available()) {
--		mutex_unlock(&slab_mutex);
--		put_online_cpus();
--	}
- 	return cachep;
+--- linux-2.6.orig/mm/slab.c	2012-05-23 04:23:44.379024464 -0500
++++ linux-2.6/mm/slab.c	2012-05-23 04:23:50.943024328 -0500
+@@ -68,7 +68,7 @@
+  * Further notes from the original documentation:
+  *
+  * 11 April '97.  Started multi-threading - markhe
+- *	The global cache-chain is protected by the mutex 'cache_chain_mutex'.
++ *	The global cache-chain is protected by the mutex 'slab_mutex'.
+  *	The sem is only needed when accessing/extending the cache-chain, which
+  *	can never happen inside an interrupt (kmem_cache_create(),
+  *	kmem_cache_shrink() and kmem_cache_reap()).
+@@ -677,12 +677,6 @@ static void slab_set_debugobj_lock_class
  }
- 
-Index: linux-2.6/mm/slab_common.c
-===================================================================
---- linux-2.6.orig/mm/slab_common.c	2012-05-23 04:23:50.947024328 -0500
-+++ linux-2.6/mm/slab_common.c	2012-05-23 04:23:54.367024253 -0500
-@@ -11,7 +11,8 @@
- #include <linux/memory.h>
- #include <linux/compiler.h>
- #include <linux/module.h>
--
-+#include <linux/cpu.h>
-+#include <linux/uaccess.h>
- #include <asm/cacheflush.h>
- #include <asm/tlbflush.h>
- #include <asm/page.h>
-@@ -61,8 +62,46 @@ struct kmem_cache *kmem_cache_create(con
- 	}
  #endif
  
-+	get_online_cpus();
-+	mutex_lock(&slab_mutex);
-+
-+#ifdef CONFIG_DEBUG_VM
-+	list_for_each_entry(s, &slab_caches, list) {
-+		char tmp;
-+		int res;
-+
-+		/*
-+		 * This happens when the module gets unloaded and doesn't
-+		 * destroy its slab cache and no-one else reuses the vmalloc
-+		 * area of the module.  Print a warning.
-+		 */
-+		res = probe_kernel_address(s->name, tmp);
-+		if (res) {
-+			printk(KERN_ERR
-+			       "Slab cache with size %d has lost its name\n",
-+			       s->size);
-+			continue;
-+		}
-+
-+		if (!strcmp(s->name, name)) {
-+			printk(KERN_ERR "kmem_cache_create(%s): Cache name"
-+				" already exists.\n",
-+				name);
-+			dump_stack();
-+			s = NULL;
-+			goto oops;
-+		}
-+	}
-+
-+	WARN_ON(strchr(name, ' '));	/* It confuses parsers */
-+#endif
-+
- 	s = __kmem_cache_create(name, size, align, flags, ctor);
+-/*
+- * Guard access to the cache-chain.
+- */
+-static DEFINE_MUTEX(cache_chain_mutex);
+-static struct list_head cache_chain;
+-
+ static DEFINE_PER_CPU(struct delayed_work, slab_reap_work);
  
-+oops:
+ static inline struct array_cache *cpu_cache_get(struct kmem_cache *cachep)
+@@ -1106,7 +1100,7 @@ static inline int cache_free_alien(struc
+  * When hotplugging memory or a cpu, existing nodelists are not replaced if
+  * already in use.
+  *
+- * Must hold cache_chain_mutex.
++ * Must hold slab_mutex.
+  */
+ static int init_cache_nodelists_node(int node)
+ {
+@@ -1114,7 +1108,7 @@ static int init_cache_nodelists_node(int
+ 	struct kmem_list3 *l3;
+ 	const int memsize = sizeof(struct kmem_list3);
+ 
+-	list_for_each_entry(cachep, &cache_chain, list) {
++	list_for_each_entry(cachep, &slab_caches, list) {
+ 		/*
+ 		 * Set up the size64 kmemlist for cpu before we can
+ 		 * begin anything. Make sure some other cpu on this
+@@ -1130,7 +1124,7 @@ static int init_cache_nodelists_node(int
+ 
+ 			/*
+ 			 * The l3s don't come and go as CPUs come and
+-			 * go.  cache_chain_mutex is sufficient
++			 * go.  slab_mutex is sufficient
+ 			 * protection here.
+ 			 */
+ 			cachep->nodelists[node] = l3;
+@@ -1152,7 +1146,7 @@ static void __cpuinit cpuup_canceled(lon
+ 	int node = cpu_to_mem(cpu);
+ 	const struct cpumask *mask = cpumask_of_node(node);
+ 
+-	list_for_each_entry(cachep, &cache_chain, list) {
++	list_for_each_entry(cachep, &slab_caches, list) {
+ 		struct array_cache *nc;
+ 		struct array_cache *shared;
+ 		struct array_cache **alien;
+@@ -1202,7 +1196,7 @@ free_array_cache:
+ 	 * the respective cache's slabs,  now we can go ahead and
+ 	 * shrink each nodelist to its limit.
+ 	 */
+-	list_for_each_entry(cachep, &cache_chain, list) {
++	list_for_each_entry(cachep, &slab_caches, list) {
+ 		l3 = cachep->nodelists[node];
+ 		if (!l3)
+ 			continue;
+@@ -1231,7 +1225,7 @@ static int __cpuinit cpuup_prepare(long
+ 	 * Now we can go ahead with allocating the shared arrays and
+ 	 * array caches
+ 	 */
+-	list_for_each_entry(cachep, &cache_chain, list) {
++	list_for_each_entry(cachep, &slab_caches, list) {
+ 		struct array_cache *nc;
+ 		struct array_cache *shared = NULL;
+ 		struct array_cache **alien = NULL;
+@@ -1299,9 +1293,9 @@ static int __cpuinit cpuup_callback(stru
+ 	switch (action) {
+ 	case CPU_UP_PREPARE:
+ 	case CPU_UP_PREPARE_FROZEN:
+-		mutex_lock(&cache_chain_mutex);
++		mutex_lock(&slab_mutex);
+ 		err = cpuup_prepare(cpu);
+-		mutex_unlock(&cache_chain_mutex);
++		mutex_unlock(&slab_mutex);
+ 		break;
+ 	case CPU_ONLINE:
+ 	case CPU_ONLINE_FROZEN:
+@@ -1311,7 +1305,7 @@ static int __cpuinit cpuup_callback(stru
+   	case CPU_DOWN_PREPARE:
+   	case CPU_DOWN_PREPARE_FROZEN:
+ 		/*
+-		 * Shutdown cache reaper. Note that the cache_chain_mutex is
++		 * Shutdown cache reaper. Note that the slab_mutex is
+ 		 * held so that if cache_reap() is invoked it cannot do
+ 		 * anything expensive but will only modify reap_work
+ 		 * and reschedule the timer.
+@@ -1338,9 +1332,9 @@ static int __cpuinit cpuup_callback(stru
+ #endif
+ 	case CPU_UP_CANCELED:
+ 	case CPU_UP_CANCELED_FROZEN:
+-		mutex_lock(&cache_chain_mutex);
++		mutex_lock(&slab_mutex);
+ 		cpuup_canceled(cpu);
+-		mutex_unlock(&cache_chain_mutex);
++		mutex_unlock(&slab_mutex);
+ 		break;
+ 	}
+ 	return notifier_from_errno(err);
+@@ -1356,14 +1350,14 @@ static struct notifier_block __cpuinitda
+  * Returns -EBUSY if all objects cannot be drained so that the node is not
+  * removed.
+  *
+- * Must hold cache_chain_mutex.
++ * Must hold slab_mutex.
+  */
+ static int __meminit drain_cache_nodelists_node(int node)
+ {
+ 	struct kmem_cache *cachep;
+ 	int ret = 0;
+ 
+-	list_for_each_entry(cachep, &cache_chain, list) {
++	list_for_each_entry(cachep, &slab_caches, list) {
+ 		struct kmem_list3 *l3;
+ 
+ 		l3 = cachep->nodelists[node];
+@@ -1394,14 +1388,14 @@ static int __meminit slab_memory_callbac
+ 
+ 	switch (action) {
+ 	case MEM_GOING_ONLINE:
+-		mutex_lock(&cache_chain_mutex);
++		mutex_lock(&slab_mutex);
+ 		ret = init_cache_nodelists_node(nid);
+-		mutex_unlock(&cache_chain_mutex);
++		mutex_unlock(&slab_mutex);
+ 		break;
+ 	case MEM_GOING_OFFLINE:
+-		mutex_lock(&cache_chain_mutex);
++		mutex_lock(&slab_mutex);
+ 		ret = drain_cache_nodelists_node(nid);
+-		mutex_unlock(&cache_chain_mutex);
++		mutex_unlock(&slab_mutex);
+ 		break;
+ 	case MEM_ONLINE:
+ 	case MEM_OFFLINE:
+@@ -1505,8 +1499,8 @@ void __init kmem_cache_init(void)
+ 	node = numa_mem_id();
+ 
+ 	/* 1) create the cache_cache */
+-	INIT_LIST_HEAD(&cache_chain);
+-	list_add(&cache_cache.list, &cache_chain);
++	INIT_LIST_HEAD(&slab_caches);
++	list_add(&cache_cache.list, &slab_caches);
+ 	cache_cache.colour_off = cache_line_size();
+ 	cache_cache.array[smp_processor_id()] = &initarray_cache.cache;
+ 	cache_cache.nodelists[node] = &initkmem_list3[CACHE_CACHE + node];
+@@ -1650,11 +1644,11 @@ void __init kmem_cache_init_late(void)
+ 	init_lock_keys();
+ 
+ 	/* 6) resize the head arrays to their final sizes */
+-	mutex_lock(&cache_chain_mutex);
+-	list_for_each_entry(cachep, &cache_chain, list)
++	mutex_lock(&slab_mutex);
++	list_for_each_entry(cachep, &slab_caches, list)
+ 		if (enable_cpucache(cachep, GFP_NOWAIT))
+ 			BUG();
+-	mutex_unlock(&cache_chain_mutex);
 +	mutex_unlock(&slab_mutex);
-+	put_online_cpus();
-+
+ 
+ 	/* Done! */
+ 	slab_state = FULL;
+@@ -2504,10 +2498,10 @@ __kmem_cache_create (const char *name, s
+ 	}
+ 
+ 	/* cache setup completed, link it into the list */
+-	list_add(&cachep->list, &cache_chain);
++	list_add(&cachep->list, &slab_caches);
+ oops:
+ 	if (slab_is_available()) {
+-		mutex_unlock(&cache_chain_mutex);
++		mutex_unlock(&slab_mutex);
+ 		put_online_cpus();
+ 	}
+ 	return cachep;
+@@ -2626,7 +2620,7 @@ out:
+ 	return nr_freed;
+ }
+ 
+-/* Called with cache_chain_mutex held to protect against cpu hotplug */
++/* Called with slab_mutex held to protect against cpu hotplug */
+ static int __cache_shrink(struct kmem_cache *cachep)
+ {
+ 	int ret = 0, i = 0;
+@@ -2661,9 +2655,9 @@ int kmem_cache_shrink(struct kmem_cache
+ 	BUG_ON(!cachep || in_interrupt());
+ 
+ 	get_online_cpus();
+-	mutex_lock(&cache_chain_mutex);
++	mutex_lock(&slab_mutex);
+ 	ret = __cache_shrink(cachep);
+-	mutex_unlock(&cache_chain_mutex);
++	mutex_unlock(&slab_mutex);
+ 	put_online_cpus();
+ 	return ret;
+ }
+@@ -2691,15 +2685,15 @@ void kmem_cache_destroy(struct kmem_cach
+ 
+ 	/* Find the cache in the chain of caches. */
+ 	get_online_cpus();
+-	mutex_lock(&cache_chain_mutex);
++	mutex_lock(&slab_mutex);
+ 	/*
+ 	 * the chain is never empty, cache_cache is never destroyed
+ 	 */
+ 	list_del(&cachep->list);
+ 	if (__cache_shrink(cachep)) {
+ 		slab_error(cachep, "Can't free all objects");
+-		list_add(&cachep->list, &cache_chain);
+-		mutex_unlock(&cache_chain_mutex);
++		list_add(&cachep->list, &slab_caches);
++		mutex_unlock(&slab_mutex);
+ 		put_online_cpus();
+ 		return;
+ 	}
+@@ -2708,7 +2702,7 @@ void kmem_cache_destroy(struct kmem_cach
+ 		rcu_barrier();
+ 
+ 	__kmem_cache_destroy(cachep);
+-	mutex_unlock(&cache_chain_mutex);
++	mutex_unlock(&slab_mutex);
+ 	put_online_cpus();
+ }
+ EXPORT_SYMBOL(kmem_cache_destroy);
+@@ -4020,7 +4014,7 @@ static void do_ccupdate_local(void *info
+ 	new->new[smp_processor_id()] = old;
+ }
+ 
+-/* Always called with the cache_chain_mutex held */
++/* Always called with the slab_mutex held */
+ static int do_tune_cpucache(struct kmem_cache *cachep, int limit,
+ 				int batchcount, int shared, gfp_t gfp)
+ {
+@@ -4064,7 +4058,7 @@ static int do_tune_cpucache(struct kmem_
+ 	return alloc_kmemlist(cachep, gfp);
+ }
+ 
+-/* Called with cache_chain_mutex held always */
++/* Called with slab_mutex held always */
+ static int enable_cpucache(struct kmem_cache *cachep, gfp_t gfp)
+ {
+ 	int err;
+@@ -4166,11 +4160,11 @@ static void cache_reap(struct work_struc
+ 	int node = numa_mem_id();
+ 	struct delayed_work *work = to_delayed_work(w);
+ 
+-	if (!mutex_trylock(&cache_chain_mutex))
++	if (!mutex_trylock(&slab_mutex))
+ 		/* Give up. Setup the next iteration. */
+ 		goto out;
+ 
+-	list_for_each_entry(searchp, &cache_chain, list) {
++	list_for_each_entry(searchp, &slab_caches, list) {
+ 		check_irq_on();
+ 
+ 		/*
+@@ -4208,7 +4202,7 @@ next:
+ 		cond_resched();
+ 	}
+ 	check_irq_on();
+-	mutex_unlock(&cache_chain_mutex);
++	mutex_unlock(&slab_mutex);
+ 	next_reap_node();
  out:
- 	if (!s && (flags & SLAB_PANIC))
- 		panic("kmem_cache_create: Failed to create slab '%s'\n", name);
+ 	/* Set up the next iteration */
+@@ -4244,21 +4238,21 @@ static void *s_start(struct seq_file *m,
+ {
+ 	loff_t n = *pos;
+ 
+-	mutex_lock(&cache_chain_mutex);
++	mutex_lock(&slab_mutex);
+ 	if (!n)
+ 		print_slabinfo_header(m);
+ 
+-	return seq_list_start(&cache_chain, *pos);
++	return seq_list_start(&slab_caches, *pos);
+ }
+ 
+ static void *s_next(struct seq_file *m, void *p, loff_t *pos)
+ {
+-	return seq_list_next(p, &cache_chain, pos);
++	return seq_list_next(p, &slab_caches, pos);
+ }
+ 
+ static void s_stop(struct seq_file *m, void *p)
+ {
+-	mutex_unlock(&cache_chain_mutex);
++	mutex_unlock(&slab_mutex);
+ }
+ 
+ static int s_show(struct seq_file *m, void *p)
+@@ -4409,9 +4403,9 @@ static ssize_t slabinfo_write(struct fil
+ 		return -EINVAL;
+ 
+ 	/* Find the cache in the chain of caches. */
+-	mutex_lock(&cache_chain_mutex);
++	mutex_lock(&slab_mutex);
+ 	res = -EINVAL;
+-	list_for_each_entry(cachep, &cache_chain, list) {
++	list_for_each_entry(cachep, &slab_caches, list) {
+ 		if (!strcmp(cachep->name, kbuf)) {
+ 			if (limit < 1 || batchcount < 1 ||
+ 					batchcount > limit || shared < 0) {
+@@ -4424,7 +4418,7 @@ static ssize_t slabinfo_write(struct fil
+ 			break;
+ 		}
+ 	}
+-	mutex_unlock(&cache_chain_mutex);
++	mutex_unlock(&slab_mutex);
+ 	if (res >= 0)
+ 		res = count;
+ 	return res;
+@@ -4447,8 +4441,8 @@ static const struct file_operations proc
+ 
+ static void *leaks_start(struct seq_file *m, loff_t *pos)
+ {
+-	mutex_lock(&cache_chain_mutex);
+-	return seq_list_start(&cache_chain, *pos);
++	mutex_lock(&slab_mutex);
++	return seq_list_start(&slab_caches, *pos);
+ }
+ 
+ static inline int add_caller(unsigned long *n, unsigned long v)
+@@ -4547,17 +4541,17 @@ static int leaks_show(struct seq_file *m
+ 	name = cachep->name;
+ 	if (n[0] == n[1]) {
+ 		/* Increase the buffer size */
+-		mutex_unlock(&cache_chain_mutex);
++		mutex_unlock(&slab_mutex);
+ 		m->private = kzalloc(n[0] * 4 * sizeof(unsigned long), GFP_KERNEL);
+ 		if (!m->private) {
+ 			/* Too bad, we are really out */
+ 			m->private = n;
+-			mutex_lock(&cache_chain_mutex);
++			mutex_lock(&slab_mutex);
+ 			return -ENOMEM;
+ 		}
+ 		*(unsigned long *)m->private = n[0] * 2;
+ 		kfree(n);
+-		mutex_lock(&cache_chain_mutex);
++		mutex_lock(&slab_mutex);
+ 		/* Now make sure this entry will be retried */
+ 		m->count = m->size;
+ 		return 0;
+Index: linux-2.6/mm/slab.h
+===================================================================
+--- linux-2.6.orig/mm/slab.h	2012-05-23 04:23:44.379024464 -0500
++++ linux-2.6/mm/slab.h	2012-05-23 04:23:50.947024328 -0500
+@@ -23,6 +23,10 @@ enum slab_state {
+ 
+ extern enum slab_state slab_state;
+ 
++/* The slab cache mutex protects the management structures during changes */
++extern struct mutex slab_mutex;
++extern struct list_head slab_caches;
++
+ struct kmem_cache *__kmem_cache_create(const char *name, size_t size,
+ 	size_t align, unsigned long flags, void (*ctor)(void *));
+ 
 Index: linux-2.6/mm/slub.c
 ===================================================================
---- linux-2.6.orig/mm/slub.c	2012-05-23 04:23:50.947024328 -0500
-+++ linux-2.6/mm/slub.c	2012-05-23 04:23:54.367024253 -0500
-@@ -3912,7 +3912,6 @@ struct kmem_cache *__kmem_cache_create(c
+--- linux-2.6.orig/mm/slub.c	2012-05-23 04:23:44.383024464 -0500
++++ linux-2.6/mm/slub.c	2012-05-23 04:23:50.947024328 -0500
+@@ -36,13 +36,13 @@
+ 
+ /*
+  * Lock order:
+- *   1. slub_lock (Global Semaphore)
++ *   1. slab_mutex (Global Mutex)
+  *   2. node->list_lock
+  *   3. slab_lock(page) (Only on some arches and for debugging)
+  *
+- *   slub_lock
++ *   slab_mutex
+  *
+- *   The role of the slub_lock is to protect the list of all the slabs
++ *   The role of the slab_mutex is to protect the list of all the slabs
+  *   and to synchronize major metadata changes to slab cache structures.
+  *
+  *   The slab_lock is only used for debugging and on arches that do not
+@@ -183,10 +183,6 @@ static int kmem_size = sizeof(struct kme
+ static struct notifier_block slab_notifier;
+ #endif
+ 
+-/* A list of all slab caches on the system */
+-static DECLARE_RWSEM(slub_lock);
+-static LIST_HEAD(slab_caches);
+-
+ /*
+  * Tracking user of a slab.
+  */
+@@ -3178,11 +3174,11 @@ static inline int kmem_cache_close(struc
+  */
+ void kmem_cache_destroy(struct kmem_cache *s)
+ {
+-	down_write(&slub_lock);
++	mutex_lock(&slab_mutex);
+ 	s->refcount--;
+ 	if (!s->refcount) {
+ 		list_del(&s->list);
+-		up_write(&slub_lock);
++		mutex_unlock(&slab_mutex);
+ 		if (kmem_cache_close(s)) {
+ 			printk(KERN_ERR "SLUB %s: %s called for cache that "
+ 				"still has objects.\n", s->name, __func__);
+@@ -3192,7 +3188,7 @@ void kmem_cache_destroy(struct kmem_cach
+ 			rcu_barrier();
+ 		sysfs_slab_remove(s);
+ 	} else
+-		up_write(&slub_lock);
++		mutex_unlock(&slab_mutex);
+ }
+ EXPORT_SYMBOL(kmem_cache_destroy);
+ 
+@@ -3254,7 +3250,7 @@ static struct kmem_cache *__init create_
+ 
+ 	/*
+ 	 * This function is called with IRQs disabled during early-boot on
+-	 * single CPU so there's no need to take slub_lock here.
++	 * single CPU so there's no need to take slab_mutex here.
+ 	 */
+ 	if (!kmem_cache_open(s, name, size, ARCH_KMALLOC_MINALIGN,
+ 								flags, NULL))
+@@ -3539,10 +3535,10 @@ static int slab_mem_going_offline_callba
+ {
+ 	struct kmem_cache *s;
+ 
+-	down_read(&slub_lock);
++	mutex_lock(&slab_mutex);
+ 	list_for_each_entry(s, &slab_caches, list)
+ 		kmem_cache_shrink(s);
+-	up_read(&slub_lock);
++	mutex_unlock(&slab_mutex);
+ 
+ 	return 0;
+ }
+@@ -3563,7 +3559,7 @@ static void slab_mem_offline_callback(vo
+ 	if (offline_node < 0)
+ 		return;
+ 
+-	down_read(&slub_lock);
++	mutex_lock(&slab_mutex);
+ 	list_for_each_entry(s, &slab_caches, list) {
+ 		n = get_node(s, offline_node);
+ 		if (n) {
+@@ -3579,7 +3575,7 @@ static void slab_mem_offline_callback(vo
+ 			kmem_cache_free(kmem_cache_node, n);
+ 		}
+ 	}
+-	up_read(&slub_lock);
++	mutex_unlock(&slab_mutex);
+ }
+ 
+ static int slab_mem_going_online_callback(void *arg)
+@@ -3602,7 +3598,7 @@ static int slab_mem_going_online_callbac
+ 	 * allocate a kmem_cache_node structure in order to bring the node
+ 	 * online.
+ 	 */
+-	down_read(&slub_lock);
++	mutex_lock(&slab_mutex);
+ 	list_for_each_entry(s, &slab_caches, list) {
+ 		/*
+ 		 * XXX: kmem_cache_alloc_node will fallback to other nodes
+@@ -3618,7 +3614,7 @@ static int slab_mem_going_online_callbac
+ 		s->node[nid] = n;
+ 	}
+ out:
+-	up_read(&slub_lock);
++	mutex_unlock(&slab_mutex);
+ 	return ret;
+ }
+ 
+@@ -3916,7 +3912,7 @@ struct kmem_cache *__kmem_cache_create(c
  	struct kmem_cache *s;
  	char *n;
  
--	mutex_lock(&slab_mutex);
+-	down_write(&slub_lock);
++	mutex_lock(&slab_mutex);
  	s = find_mergeable(size, align, flags, name, ctor);
  	if (s) {
  		s->refcount++;
-@@ -3925,37 +3924,36 @@ struct kmem_cache *__kmem_cache_create(c
- 
- 		if (sysfs_slab_alias(s, name)) {
+@@ -3931,7 +3927,7 @@ struct kmem_cache *__kmem_cache_create(c
  			s->refcount--;
--			goto err;
-+			return NULL;
+ 			goto err;
  		}
--		mutex_unlock(&slab_mutex);
+-		up_write(&slub_lock);
++		mutex_unlock(&slab_mutex);
  		return s;
  	}
  
- 	n = kstrdup(name, GFP_KERNEL);
- 	if (!n)
--		goto err;
-+		return NULL;
- 
- 	s = kmalloc(kmem_size, GFP_KERNEL);
- 	if (s) {
+@@ -3944,9 +3940,9 @@ struct kmem_cache *__kmem_cache_create(c
  		if (kmem_cache_open(s, n,
  				size, align, flags, ctor)) {
-+			int r;
-+
  			list_add(&s->list, &slab_caches);
- 			mutex_unlock(&slab_mutex);
--			if (sysfs_slab_add(s)) {
--				mutex_lock(&slab_mutex);
--				list_del(&s->list);
--				kfree(n);
--				kfree(s);
--				goto err;
--			}
--			return s;
-+			r = sysfs_slab_add(s);
-+			mutex_lock(&slab_mutex);
-+
-+			if (!r)
-+				return s;
-+
-+			list_del(&s->list);
-+			kmem_cache_close(s);
- 		}
--		kfree(n);
+-			up_write(&slub_lock);
++			mutex_unlock(&slab_mutex);
+ 			if (sysfs_slab_add(s)) {
+-				down_write(&slub_lock);
++				mutex_lock(&slab_mutex);
+ 				list_del(&s->list);
+ 				kfree(n);
+ 				kfree(s);
+@@ -3958,7 +3954,7 @@ struct kmem_cache *__kmem_cache_create(c
  		kfree(s);
  	}
--err:
--	mutex_unlock(&slab_mutex);
--	return s;
-+	kfree(n);
-+	return NULL;
+ err:
+-	up_write(&slub_lock);
++	mutex_unlock(&slab_mutex);
+ 	return s;
  }
  
- #ifdef CONFIG_SMP
+@@ -3979,13 +3975,13 @@ static int __cpuinit slab_cpuup_callback
+ 	case CPU_UP_CANCELED_FROZEN:
+ 	case CPU_DEAD:
+ 	case CPU_DEAD_FROZEN:
+-		down_read(&slub_lock);
++		mutex_lock(&slab_mutex);
+ 		list_for_each_entry(s, &slab_caches, list) {
+ 			local_irq_save(flags);
+ 			__flush_cpu_slab(s, cpu);
+ 			local_irq_restore(flags);
+ 		}
+-		up_read(&slub_lock);
++		mutex_unlock(&slab_mutex);
+ 		break;
+ 	default:
+ 		break;
+@@ -5360,11 +5356,11 @@ static int __init slab_sysfs_init(void)
+ 	struct kmem_cache *s;
+ 	int err;
+ 
+-	down_write(&slub_lock);
++	mutex_lock(&slab_mutex);
+ 
+ 	slab_kset = kset_create_and_add("slab", &slab_uevent_ops, kernel_kobj);
+ 	if (!slab_kset) {
+-		up_write(&slub_lock);
++		mutex_unlock(&slab_mutex);
+ 		printk(KERN_ERR "Cannot register slab subsystem.\n");
+ 		return -ENOSYS;
+ 	}
+@@ -5389,7 +5385,7 @@ static int __init slab_sysfs_init(void)
+ 		kfree(al);
+ 	}
+ 
+-	up_write(&slub_lock);
++	mutex_unlock(&slab_mutex);
+ 	resiliency_test();
+ 	return 0;
+ }
+@@ -5415,7 +5411,7 @@ static void *s_start(struct seq_file *m,
+ {
+ 	loff_t n = *pos;
+ 
+-	down_read(&slub_lock);
++	mutex_lock(&slab_mutex);
+ 	if (!n)
+ 		print_slabinfo_header(m);
+ 
+@@ -5429,7 +5425,7 @@ static void *s_next(struct seq_file *m,
+ 
+ static void s_stop(struct seq_file *m, void *p)
+ {
+-	up_read(&slub_lock);
++	mutex_unlock(&slab_mutex);
+ }
+ 
+ static int s_show(struct seq_file *m, void *p)
+Index: linux-2.6/mm/slab_common.c
+===================================================================
+--- linux-2.6.orig/mm/slab_common.c	2012-05-23 04:23:44.383024464 -0500
++++ linux-2.6/mm/slab_common.c	2012-05-23 04:23:50.947024328 -0500
+@@ -19,6 +19,8 @@
+ #include "slab.h"
+ 
+ enum slab_state slab_state;
++LIST_HEAD(slab_caches);
++DEFINE_MUTEX(slab_mutex);
+ 
+ /*
+  * kmem_cache_create - Create a cache.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
