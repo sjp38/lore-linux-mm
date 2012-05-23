@@ -1,84 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx124.postini.com [74.125.245.124])
-	by kanga.kvack.org (Postfix) with SMTP id 0234F6B00E8
+Received: from psmtp.com (na3sys010amx145.postini.com [74.125.245.145])
+	by kanga.kvack.org (Postfix) with SMTP id A4C8B6B00E7
 	for <linux-mm@kvack.org>; Wed, 23 May 2012 03:29:49 -0400 (EDT)
-Received: from euspt1 (mailout2.w1.samsung.com [210.118.77.12])
- by mailout2.w1.samsung.com
- (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14 2004))
- with ESMTP id <0M4G000WPSTE2S@mailout2.w1.samsung.com> for linux-mm@kvack.org;
- Wed, 23 May 2012 08:29:38 +0100 (BST)
+MIME-version: 1.0
+Content-transfer-encoding: 7BIT
+Content-type: Text/Plain; charset=us-ascii
+Received: from euspt1 ([210.118.77.14]) by mailout4.w1.samsung.com
+ (Sun Java(tm) System Messaging Server 6.3-8.04 (built Jul 29 2009; 32bit))
+ with ESMTP id <0M4G00DK3SU2Z880@mailout4.w1.samsung.com> for
+ linux-mm@kvack.org; Wed, 23 May 2012 08:30:02 +0100 (BST)
 Received: from linux.samsung.com ([106.116.38.10])
  by spt1.w1.samsung.com (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14
- 2004)) with ESMTPA id <0M4G00KTUSTNMD@spt1.w1.samsung.com> for
- linux-mm@kvack.org; Wed, 23 May 2012 08:29:48 +0100 (BST)
-Date: Wed, 23 May 2012 09:28:39 +0200
+ 2004)) with ESMTPA id <0M4G00IQVSTNCE@spt1.w1.samsung.com> for
+ linux-mm@kvack.org; Wed, 23 May 2012 08:29:47 +0100 (BST)
+Date: Wed, 23 May 2012 09:27:21 +0200
 From: Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>
-Subject: [PATCH 2/2] vmevent: pass right attribute to vmevent_sample_attr()
-Message-id: <201205230928.39861.b.zolnierkie@samsung.com>
-MIME-version: 1.0
-Content-type: Text/Plain; charset=us-ascii
-Content-transfer-encoding: 7BIT
+Subject: [PATCH] vmevent: add arm support
+Message-id: <201205230927.21766.b.zolnierkie@samsung.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Pekka Enberg <penberg@kernel.org>
 Cc: Anton Vorontsov <anton.vorontsov@linaro.org>, linux-mm@kvack.org
 
 From: Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>
-Subject: [PATCH] vmevent: pass right attribute to vmevent_sample_attr()
+Subject: [PATCH] vmevent: add arm support
 
-Pass "config attribute" (&watch->config->attrs[i]) not "sample
-attribute" (&watch->sample_attrs[i]) to vmevent_sample_attr() to
-allow use of the original attribute value in vmevent_attr_sample_fn().
+Tested on ARM EXYNOS4210 (Universal C210 board).
 
 Cc: Anton Vorontsov <anton.vorontsov@linaro.org>
 Signed-off-by: Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>
 Signed-off-by: Kyungmin Park <kyungmin.park@samsung.com>
 ---
-Without this patch vmevent_attr_lowmem_pages() always returns 0.
+ arch/arm/include/asm/unistd.h        |    1 +
+ arch/arm/kernel/calls.S              |    1 +
+ tools/testing/vmevent/vmevent-test.c |    3 +++
+ 3 files changed, 5 insertions(+)
 
- mm/vmevent.c |    8 +++++++-
- 1 file changed, 7 insertions(+), 1 deletion(-)
-
-Index: b/mm/vmevent.c
+Index: b/arch/arm/include/asm/unistd.h
 ===================================================================
---- a/mm/vmevent.c	2012-05-22 17:55:02.000000000 +0200
-+++ b/mm/vmevent.c	2012-05-22 18:10:40.075231798 +0200
-@@ -31,6 +31,7 @@
- 	 */
- 	unsigned long			nr_attrs;
- 	struct vmevent_attr		*sample_attrs;
-+	struct vmevent_attr		*config_attrs[VMEVENT_CONFIG_MAX_ATTRS];
+--- a/arch/arm/include/asm/unistd.h	2012-05-22 15:17:15.590826904 +0200
++++ b/arch/arm/include/asm/unistd.h	2012-05-22 15:17:43.990826872 +0200
+@@ -404,6 +404,7 @@
+ #define __NR_setns			(__NR_SYSCALL_BASE+375)
+ #define __NR_process_vm_readv		(__NR_SYSCALL_BASE+376)
+ #define __NR_process_vm_writev		(__NR_SYSCALL_BASE+377)
++#define __NR_vmevent_fd		(__NR_SYSCALL_BASE+378)
  
- 	/* sampling */
- 	struct timer_list		timer;
-@@ -104,6 +105,7 @@
- 	 */
- 	if (free < val && file < val)
- 		return val;
-+
- 	return 0;
- }
+ /*
+  * The following SWIs are ARM private.
+Index: b/arch/arm/kernel/calls.S
+===================================================================
+--- a/arch/arm/kernel/calls.S	2012-05-22 15:16:31.646826898 +0200
++++ b/arch/arm/kernel/calls.S	2012-05-22 15:17:02.850825441 +0200
+@@ -387,6 +387,7 @@
+ /* 375 */	CALL(sys_setns)
+ 		CALL(sys_process_vm_readv)
+ 		CALL(sys_process_vm_writev)
++		CALL(sys_vmevent_fd)
+ #ifndef syscalls_counted
+ .equ syscalls_padding, ((NR_syscalls + 3) & ~3) - NR_syscalls
+ #define syscalls_counted
+Index: b/tools/testing/vmevent/vmevent-test.c
+===================================================================
+--- a/tools/testing/vmevent/vmevent-test.c	2012-05-22 15:18:46.702826642 +0200
++++ b/tools/testing/vmevent/vmevent-test.c	2012-05-22 15:19:21.302826872 +0200
+@@ -3,6 +3,9 @@
+ #if defined(__x86_64__)
+ #include "../../../arch/x86/include/generated/asm/unistd_64.h"
+ #endif
++#if defined(__arm__)
++#include "../../../arch/arm/include/asm/unistd.h"
++#endif
  
-@@ -210,7 +212,8 @@
- 	for (i = 0; i < watch->nr_attrs; i++) {
- 		struct vmevent_attr *attr = &watch->sample_attrs[i];
- 
--		attr->value = vmevent_sample_attr(watch, attr);
-+		attr->value = vmevent_sample_attr(watch,
-+						  watch->config_attrs[i]);
- 	}
- 
- 	atomic_set(&watch->pending, 1);
-@@ -353,6 +356,9 @@
- 		attrs[nr].type = attr->type;
- 		attrs[nr].value = 0;
- 		attrs[nr].state = 0;
-+
-+		watch->config_attrs[nr] = attr;
-+
- 		nr++;
- 	}
- 
+ #include <stdint.h>
+ #include <stdlib.h>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
