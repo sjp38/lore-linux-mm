@@ -1,78 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx162.postini.com [74.125.245.162])
-	by kanga.kvack.org (Postfix) with SMTP id 02F106B0083
-	for <linux-mm@kvack.org>; Wed, 23 May 2012 18:20:12 -0400 (EDT)
-Date: Wed, 23 May 2012 15:20:11 -0700
+Received: from psmtp.com (na3sys010amx174.postini.com [74.125.245.174])
+	by kanga.kvack.org (Postfix) with SMTP id 984206B0083
+	for <linux-mm@kvack.org>; Wed, 23 May 2012 18:37:20 -0400 (EDT)
+Date: Wed, 23 May 2012 15:37:18 -0700
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] tmpfs not interleaving properly
-Message-Id: <20120523152011.3b581761.akpm@linux-foundation.org>
-In-Reply-To: <74F10842A85F514CA8D8C487E74474BB2C1597@P-EXMB1-DC21.corp.sgi.com>
-References: <74F10842A85F514CA8D8C487E74474BB2C1597@P-EXMB1-DC21.corp.sgi.com>
+Subject: Re: [patch v2] mm, oom: normalize oom scores to oom_score_adj scale
+ only for userspace
+Message-Id: <20120523153718.b70bb762.akpm@linux-foundation.org>
+In-Reply-To: <alpine.DEB.2.00.1205230014450.9290@chino.kir.corp.google.com>
+References: <20120426193551.GA24968@redhat.com>
+	<alpine.DEB.2.00.1204261437470.28376@chino.kir.corp.google.com>
+	<alpine.DEB.2.00.1205031513400.1631@chino.kir.corp.google.com>
+	<20120503222949.GA13762@redhat.com>
+	<alpine.DEB.2.00.1205171432250.6951@chino.kir.corp.google.com>
+	<20120517145022.a99f41e8.akpm@linux-foundation.org>
+	<alpine.DEB.2.00.1205230014450.9290@chino.kir.corp.google.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Nathan Zimmer <nzimmer@sgi.com>
-Cc: Hugh Dickins <hughd@google.com>, Nick Piggin <npiggin@gmail.com>, Christoph Lameter <cl@linux.com>, Lee Schermerhorn <lee.schermerhorn@hp.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "stable@vger.kernel.org" <stable@vger.kernel.org>
+To: David Rientjes <rientjes@google.com>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Dave Jones <davej@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Wed, 23 May 2012 13:28:21 +0000
-Nathan Zimmer <nzimmer@sgi.com> wrote:
+On Wed, 23 May 2012 00:15:03 -0700 (PDT)
+David Rientjes <rientjes@google.com> wrote:
 
+> The oom_score_adj scale ranges from -1000 to 1000 and represents the
+> proportion of memory available to the process at allocation time.  This
+> means an oom_score_adj value of 300, for example, will bias a process as
+> though it was using an extra 30.0% of available memory and a value of
+> -350 will discount 35.0% of available memory from its usage.
 > 
-> When tmpfs has the memory policy interleaved it always starts allocating at each file at node 0.
-> When there are many small files the lower nodes fill up disproportionately.
-> My proposed solution is to start a file at a randomly chosen node.
+> The oom killer badness heuristic also uses this scale to report the oom
+> score for each eligible process in determining the "best" process to
+> kill.  Thus, it can only differentiate each process's memory usage by
+> 0.1% of system RAM.
+> 
+> On large systems, this can end up being a large amount of memory: 256MB
+> on 256GB systems, for example.
+> 
+> This can be fixed by having the badness heuristic to use the actual
+> memory usage in scoring threads and then normalizing it to the
+> oom_score_adj scale for userspace.  This results in better comparison
+> between eligible threads for kill and no change from the userspace
+> perspective.
 > 
 > ...
 >
-> --- a/include/linux/shmem_fs.h
-> +++ b/include/linux/shmem_fs.h
-> @@ -17,6 +17,7 @@ struct shmem_inode_info {
->  		char		*symlink;	/* unswappable short symlink */
->  	};
->  	struct shared_policy	policy;		/* NUMA memory alloc policy */
-> +	int			node_offset;	/* bias for interleaved nodes */
->  	struct list_head	swaplist;	/* chain of maybes on swap */
->  	struct list_head	xattr_list;	/* list of shmem_xattr */
->  	struct inode		vfs_inode;
-> diff --git a/mm/shmem.c b/mm/shmem.c
-> index f99ff3e..58ef512 100644
-> --- a/mm/shmem.c
-> +++ b/mm/shmem.c
-> @@ -819,7 +819,7 @@ static struct page *shmem_alloc_page(gfp_t gfp,
+> @@ -367,12 +354,13 @@ static struct task_struct *select_bad_process(unsigned int *ppoints,
+>  		}
 >  
->  	/* Create a pseudo vma that just contains the policy */
->  	pvma.vm_start = 0;
-> -	pvma.vm_pgoff = index;
-> +	pvma.vm_pgoff = index + info->node_offset;
->  	pvma.vm_ops = NULL;
->  	pvma.vm_policy = mpol_shared_policy_lookup(&info->policy, index);
+>  		points = oom_badness(p, memcg, nodemask, totalpages);
+> -		if (points > *ppoints) {
+> +		if (points > chosen_points) {
+>  			chosen = p;
+> -			*ppoints = points;
+> +			chosen_points = points;
+>  		}
+>  	} while_each_thread(g, p);
 >  
-> @@ -1153,6 +1153,7 @@ static struct inode *shmem_get_inode(struct super_block *sb, const struct inode
->  			inode->i_fop = &shmem_file_operations;
->  			mpol_shared_policy_init(&info->policy,
->  						 shmem_get_sbmpol(sbinfo));
-> +			info->node_offset = node_random(&node_online_map);
->  			break;
->  		case S_IFDIR:
->  			inc_nlink(inode);
+> +	*ppoints = chosen_points * 1000 / totalpages;
+>  	return chosen;
+>  }
+>  
 
-The patch seems a bit arbitrary and hacky.  It would have helped if you
-had fully described how it works, and why this implementation was
-chosen.
+It's still not obvious that we always avoid the divide-by-zero here. 
+If there's some weird way of convincing constrained_alloc() to look at
+an empty nodemask, or a nodemask which covers only empty nodes then
+blam.
 
-- Why alter (actually, lie about!) the offset-into-file?  Could we
-  have similarly perturbed the address arg to alloc_page_vma() to do
-  the spreading?
-
-- The patch is dependent upon MPOL_INTERLEAVE being in effect, isn't
-  it?  How do we guarantee that it is in force here?
-
-- We look up the policy via mpol_shared_policy_lookup() using the
-  unperturbed index.  Why?  Should we be using index+info->node_offset
-  there?
-
+Now, it's probably the case that this is a can't-happen but that
+guarantee would be pretty convoluted and fragile?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
