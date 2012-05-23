@@ -1,57 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx107.postini.com [74.125.245.107])
-	by kanga.kvack.org (Postfix) with SMTP id A1F916B0083
-	for <linux-mm@kvack.org>; Wed, 23 May 2012 16:10:11 -0400 (EDT)
-Received: from /spool/local
-	by e35.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <sjenning@linux.vnet.ibm.com>;
-	Wed, 23 May 2012 14:10:10 -0600
-Received: from d03relay03.boulder.ibm.com (d03relay03.boulder.ibm.com [9.17.195.228])
-	by d03dlp01.boulder.ibm.com (Postfix) with ESMTP id E685CC40002
-	for <linux-mm@kvack.org>; Wed, 23 May 2012 14:09:56 -0600 (MDT)
-Received: from d03av03.boulder.ibm.com (d03av03.boulder.ibm.com [9.17.195.169])
-	by d03relay03.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q4NK9iFm036080
-	for <linux-mm@kvack.org>; Wed, 23 May 2012 14:09:47 -0600
-Received: from d03av03.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av03.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q4NK9hok030490
-	for <linux-mm@kvack.org>; Wed, 23 May 2012 14:09:44 -0600
-Message-ID: <4FBD4402.7060509@linux.vnet.ibm.com>
-Date: Wed, 23 May 2012 15:09:38 -0500
-From: Seth Jennings <sjenning@linux.vnet.ibm.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH 2/2 v2] zram: clean up handle
-References: <1337737402-16543-1-git-send-email-minchan@kernel.org> <1337737402-16543-2-git-send-email-minchan@kernel.org>
-In-Reply-To: <1337737402-16543-2-git-send-email-minchan@kernel.org>
-Content-Type: text/plain; charset=ISO-8859-1
+Received: from psmtp.com (na3sys010amx175.postini.com [74.125.245.175])
+	by kanga.kvack.org (Postfix) with SMTP id 8FAE06B0083
+	for <linux-mm@kvack.org>; Wed, 23 May 2012 16:33:56 -0400 (EDT)
+Date: Wed, 23 May 2012 13:33:54 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH v6 2/2] decrement static keys on real destroy time
+Message-Id: <20120523133354.373f1bb4.akpm@linux-foundation.org>
+In-Reply-To: <4FBCAAF4.4030803@parallels.com>
+References: <1337682339-21282-1-git-send-email-glommer@parallels.com>
+	<1337682339-21282-3-git-send-email-glommer@parallels.com>
+	<20120522154610.f2f9b78e.akpm@linux-foundation.org>
+	<4FBCAAF4.4030803@parallels.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Nitin Gupta <ngupta@vflare.org>
+To: Glauber Costa <glommer@parallels.com>
+Cc: linux-mm@kvack.org, cgroups@vger.kernel.org, devel@openvz.org, kamezawa.hiroyu@jp.fujitsu.com, netdev@vger.kernel.org, Tejun Heo <tj@kernel.org>, Li Zefan <lizefan@huawei.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, David Miller <davem@davemloft.net>
 
-On 05/22/2012 08:43 PM, Minchan Kim wrote:
+On Wed, 23 May 2012 13:16:36 +0400
+Glauber Costa <glommer@parallels.com> wrote:
 
-> zram's handle variable can store handle of zsmalloc in case of
-> compressing efficiently. Otherwise, it stores point of page descriptor.
-> This patch clean up the mess by union struct.
+> On 05/23/2012 02:46 AM, Andrew Morton wrote:
+> > Here, we're open-coding kinda-test_bit().  Why do that?  These flags are
+> > modified with set_bit() and friends, so we should read them with the
+> > matching test_bit()?
 > 
-> changelog
->   * from v1
-> 	- none(new add in v2)
+> My reasoning was to be as cheap as possible, as you noted yourself two
+> paragraphs below.
+
+These aren't on any fast path, are they?
+
+Plus: you failed in that objective!  The C compiler's internal
+scalar->bool conversion makes these functions no more efficient than
+test_bit().
+
+> > So here are suggested changes from*some*  of the above discussion.
+> > Please consider, incorporate, retest and send us a v7?
 > 
-> Cc: Nitin Gupta <ngupta@vflare.org>
-> Cc: Seth Jennings <sjenning@linux.vnet.ibm.com>
-> Signed-off-by: Minchan Kim <minchan@kernel.org>
+> How do you want me to do it? Should I add your patch ontop of mine,
+> and then another one that tweaks whatever else is left, or should I just
+> merge those changes into the patches I have?
 
-
-Not sure if the BUILD_BUG is completely needed since it's pretty well
-assumed that sizeof(unsigned long) == sizeof(void *) but it does provide
-some safety is someone tries to change the type of handle.
-
-Acked-by: <sjenning@linux.vnet.ibm.com>
-
-Thanks,
-Seth
+A brand new patch, I guess.  I can sort out the what-did-he-change view
+at this end.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
