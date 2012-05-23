@@ -1,302 +1,128 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx148.postini.com [74.125.245.148])
-	by kanga.kvack.org (Postfix) with SMTP id 86C206B00E7
-	for <linux-mm@kvack.org>; Wed, 23 May 2012 16:35:07 -0400 (EDT)
-Message-Id: <20120523203505.599591201@linux.com>
-Date: Wed, 23 May 2012 15:34:34 -0500
+Received: from psmtp.com (na3sys010amx145.postini.com [74.125.245.145])
+	by kanga.kvack.org (Postfix) with SMTP id 781C16B00E9
+	for <linux-mm@kvack.org>; Wed, 23 May 2012 16:35:08 -0400 (EDT)
+Message-Id: <20120523203506.744566716@linux.com>
+Date: Wed, 23 May 2012 15:34:36 -0500
 From: Christoph Lameter <cl@linux.com>
-Subject: Common 01/22] [slob] Define page struct fields used in mm_types.h
+Subject: Common 03/22] [slob] Remove various small accessors
 References: <20120523203433.340661918@linux.com>
-Content-Disposition: inline; filename=slob_use_page_struct
+Content-Disposition: inline; filename=slob_inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Pekka Enberg <penberg@kernel.org>
 Cc: linux-mm@kvack.org, David Rientjes <rientjes@google.com>, Matt Mackall <mpm@selenic.com>, Glauber Costa <glommer@parallels.com>, Joonsoo Kim <js1304@gmail.com>
 
-Define the fields used by slob in mm_types.h and use struct page instead
-of struct slob_page in slob. This cleans up numerous of typecasts in slob.c and
-makes readers aware of slob's use of page struct fields.
+Those have become so simple that they are no longer needed.
 
-[Also cleans up some bitrot in slob.c. The page struct field layout
-in slob.c is an old layout and does not match the one in mm_types.h]
-
-Reviewed-by: Glauber Costa <gommer@parallels.com>
-Signed-off-by: Christoph Lameter <cl@linux.com>
+signed-off-by: Christoph Lameter <cl@linux.com>
 
 ---
- include/linux/mm_types.h |    7 ++-
- mm/slob.c                |   95 ++++++++++++++++++-----------------------------
- 2 files changed, 42 insertions(+), 60 deletions(-)
+ mm/slob.c |   49 +++++++++----------------------------------------
+ 1 file changed, 9 insertions(+), 40 deletions(-)
 
 Index: linux-2.6/mm/slob.c
 ===================================================================
---- linux-2.6.orig/mm/slob.c	2012-05-22 06:27:51.343836706 -0500
-+++ linux-2.6/mm/slob.c	2012-05-22 06:32:17.727831192 -0500
-@@ -92,33 +92,12 @@ struct slob_block {
+--- linux-2.6.orig/mm/slob.c	2012-05-22 09:05:55.024463914 -0500
++++ linux-2.6/mm/slob.c	2012-05-22 09:10:01.944458789 -0500
+@@ -92,14 +92,6 @@ struct slob_block {
  typedef struct slob_block slob_t;
  
  /*
-- * We use struct page fields to manage some slob allocation aspects,
-- * however to avoid the horrible mess in include/linux/mm_types.h, we'll
-- * just define our own struct page type variant here.
+- * free_slob_page: call before a slob_page is returned to the page allocator.
 - */
--struct slob_page {
--	union {
--		struct {
--			unsigned long flags;	/* mandatory */
--			atomic_t _count;	/* mandatory */
--			slobidx_t units;	/* free units left in page */
--			unsigned long pad[2];
--			slob_t *free;		/* first free slob_t in page */
--			struct list_head list;	/* linked list of free pages */
--		};
--		struct page page;
--	};
--};
--static inline void struct_slob_page_wrong_size(void)
--{ BUILD_BUG_ON(sizeof(struct slob_page) != sizeof(struct page)); }
+-static inline void free_slob_page(struct page *sp)
+-{
+-	reset_page_mapcount(sp);
+-}
 -
 -/*
-  * free_slob_page: call before a slob_page is returned to the page allocator.
+  * All partially free slob pages go on these lists.
   */
--static inline void free_slob_page(struct slob_page *sp)
-+static inline void free_slob_page(struct page *sp)
- {
--	reset_page_mapcount(&sp->page);
--	sp->page.mapping = NULL;
-+	reset_page_mapcount(sp);
-+	sp->mapping = NULL;
- }
+ #define SLOB_BREAK1 256
+@@ -109,29 +101,6 @@ static LIST_HEAD(free_slob_medium);
+ static LIST_HEAD(free_slob_large);
  
  /*
-@@ -133,44 +112,44 @@ static LIST_HEAD(free_slob_large);
- /*
-  * is_slob_page: True for all slob pages (false for bigblock pages)
-  */
--static inline int is_slob_page(struct slob_page *sp)
-+static inline int is_slob_page(struct page *sp)
- {
--	return PageSlab((struct page *)sp);
-+	return PageSlab(sp);
- }
- 
--static inline void set_slob_page(struct slob_page *sp)
-+static inline void set_slob_page(struct page *sp)
- {
--	__SetPageSlab((struct page *)sp);
-+	__SetPageSlab(sp);
- }
- 
--static inline void clear_slob_page(struct slob_page *sp)
-+static inline void clear_slob_page(struct page *sp)
- {
--	__ClearPageSlab((struct page *)sp);
-+	__ClearPageSlab(sp);
- }
- 
--static inline struct slob_page *slob_page(const void *addr)
-+static inline struct page *slob_page(const void *addr)
- {
--	return (struct slob_page *)virt_to_page(addr);
-+	return virt_to_page(addr);
- }
- 
- /*
+- * is_slob_page: True for all slob pages (false for bigblock pages)
+- */
+-static inline int is_slob_page(struct page *sp)
+-{
+-	return PageSlab(sp);
+-}
+-
+-static inline void set_slob_page(struct page *sp)
+-{
+-	__SetPageSlab(sp);
+-}
+-
+-static inline void clear_slob_page(struct page *sp)
+-{
+-	__ClearPageSlab(sp);
+-}
+-
+-static inline struct page *slob_page(const void *addr)
+-{
+-	return virt_to_page(addr);
+-}
+-
+-/*
   * slob_page_free: true for pages on free_slob_pages list.
   */
--static inline int slob_page_free(struct slob_page *sp)
-+static inline int slob_page_free(struct page *sp)
- {
--	return PageSlobFree((struct page *)sp);
-+	return PageSlobFree(sp);
- }
- 
--static void set_slob_page_free(struct slob_page *sp, struct list_head *list)
-+static void set_slob_page_free(struct page *sp, struct list_head *list)
- {
- 	list_add(&sp->list, list);
--	__SetPageSlobFree((struct page *)sp);
-+	__SetPageSlobFree(sp);
- }
- 
--static inline void clear_slob_page_free(struct slob_page *sp)
-+static inline void clear_slob_page_free(struct page *sp)
- {
- 	list_del(&sp->list);
--	__ClearPageSlobFree((struct page *)sp);
-+	__ClearPageSlobFree(sp);
- }
- 
- #define SLOB_UNIT sizeof(slob_t)
-@@ -267,12 +246,12 @@ static void slob_free_pages(void *b, int
- /*
-  * Allocate a slob block within a given slob_page sp.
-  */
--static void *slob_page_alloc(struct slob_page *sp, size_t size, int align)
-+static void *slob_page_alloc(struct page *sp, size_t size, int align)
- {
- 	slob_t *prev, *cur, *aligned = NULL;
- 	int delta = 0, units = SLOB_UNITS(size);
- 
--	for (prev = NULL, cur = sp->free; ; prev = cur, cur = slob_next(cur)) {
-+	for (prev = NULL, cur = sp->freelist; ; prev = cur, cur = slob_next(cur)) {
- 		slobidx_t avail = slob_units(cur);
- 
- 		if (align) {
-@@ -296,12 +275,12 @@ static void *slob_page_alloc(struct slob
- 				if (prev)
- 					set_slob(prev, slob_units(prev), next);
- 				else
--					sp->free = next;
-+					sp->freelist = next;
- 			} else { /* fragment */
- 				if (prev)
- 					set_slob(prev, slob_units(prev), cur + units);
- 				else
--					sp->free = cur + units;
-+					sp->freelist = cur + units;
- 				set_slob(cur + units, avail - units, next);
- 			}
- 
-@@ -320,7 +299,7 @@ static void *slob_page_alloc(struct slob
-  */
- static void *slob_alloc(size_t size, gfp_t gfp, int align, int node)
- {
--	struct slob_page *sp;
-+	struct page *sp;
- 	struct list_head *prev;
- 	struct list_head *slob_list;
- 	slob_t *b = NULL;
-@@ -341,7 +320,7 @@ static void *slob_alloc(size_t size, gfp
- 		 * If there's a node specification, search for a partial
- 		 * page with a matching node id in the freelist.
- 		 */
--		if (node != -1 && page_to_nid(&sp->page) != node)
-+		if (node != -1 && page_to_nid(sp) != node)
- 			continue;
- #endif
- 		/* Enough room on this page? */
-@@ -374,7 +353,7 @@ static void *slob_alloc(size_t size, gfp
+ static inline int slob_page_free(struct page *sp)
+@@ -347,8 +316,8 @@ static void *slob_alloc(size_t size, gfp
+ 		b = slob_new_pages(gfp & ~__GFP_ZERO, 0, node);
+ 		if (!b)
+ 			return NULL;
+-		sp = slob_page(b);
+-		set_slob_page(sp);
++		sp = virt_to_page(b);
++		__SetPageSlab(sp);
  
  		spin_lock_irqsave(&slob_lock, flags);
  		sp->units = SLOB_UNITS(PAGE_SIZE);
--		sp->free = b;
-+		sp->freelist = b;
- 		INIT_LIST_HEAD(&sp->list);
- 		set_slob(b, SLOB_UNITS(PAGE_SIZE), b + SLOB_UNITS(PAGE_SIZE));
- 		set_slob_page_free(sp, slob_list);
-@@ -392,7 +371,7 @@ static void *slob_alloc(size_t size, gfp
-  */
- static void slob_free(void *block, int size)
- {
--	struct slob_page *sp;
-+	struct page *sp;
- 	slob_t *prev, *next, *b = (slob_t *)block;
- 	slobidx_t units;
- 	unsigned long flags;
-@@ -421,7 +400,7 @@ static void slob_free(void *block, int s
- 	if (!slob_page_free(sp)) {
- 		/* This slob page is about to become partially free. Easy! */
- 		sp->units = units;
--		sp->free = b;
-+		sp->freelist = b;
- 		set_slob(b, units,
- 			(void *)((unsigned long)(b +
- 					SLOB_UNITS(PAGE_SIZE)) & PAGE_MASK));
-@@ -441,15 +420,15 @@ static void slob_free(void *block, int s
- 	 */
- 	sp->units += units;
+@@ -380,7 +349,7 @@ static void slob_free(void *block, int s
+ 		return;
+ 	BUG_ON(!size);
  
--	if (b < sp->free) {
--		if (b + units == sp->free) {
--			units += slob_units(sp->free);
--			sp->free = slob_next(sp->free);
-+	if (b < (slob_t *)sp->freelist) {
-+		if (b + units == sp->freelist) {
-+			units += slob_units(sp->freelist);
-+			sp->freelist = slob_next(sp->freelist);
- 		}
--		set_slob(b, units, sp->free);
--		sp->free = b;
-+		set_slob(b, units, sp->freelist);
-+		sp->freelist = b;
- 	} else {
--		prev = sp->free;
-+		prev = sp->freelist;
- 		next = slob_next(prev);
- 		while (b > next) {
- 			prev = next;
-@@ -522,7 +501,7 @@ EXPORT_SYMBOL(__kmalloc_node);
+-	sp = slob_page(block);
++	sp = virt_to_page(block);
+ 	units = SLOB_UNITS(size);
  
- void kfree(const void *block)
- {
--	struct slob_page *sp;
-+	struct page *sp;
+ 	spin_lock_irqsave(&slob_lock, flags);
+@@ -390,8 +359,8 @@ static void slob_free(void *block, int s
+ 		if (slob_page_free(sp))
+ 			clear_slob_page_free(sp);
+ 		spin_unlock_irqrestore(&slob_lock, flags);
+-		clear_slob_page(sp);
+-		free_slob_page(sp);
++		__ClearPageSlab(sp);
++		reset_page_mapcount(sp);
+ 		slob_free_pages(b, 0);
+ 		return;
+ 	}
+@@ -508,8 +477,8 @@ void kfree(const void *block)
+ 		return;
+ 	kmemleak_free(block);
  
- 	trace_kfree(_RET_IP_, block);
- 
-@@ -536,14 +515,14 @@ void kfree(const void *block)
+-	sp = slob_page(block);
+-	if (is_slob_page(sp)) {
++	sp = virt_to_page(block);
++	if (PageSlab(sp)) {
+ 		int align = max(ARCH_KMALLOC_MINALIGN, ARCH_SLAB_MINALIGN);
  		unsigned int *m = (unsigned int *)(block - align);
  		slob_free(m, *m + align);
- 	} else
--		put_page(&sp->page);
-+		put_page(sp);
- }
- EXPORT_SYMBOL(kfree);
- 
- /* can't use ksize for kmem_cache_alloc memory, only kmalloc */
- size_t ksize(const void *block)
- {
--	struct slob_page *sp;
-+	struct page *sp;
- 
- 	BUG_ON(!block);
+@@ -527,8 +496,8 @@ size_t ksize(const void *block)
  	if (unlikely(block == ZERO_SIZE_PTR))
-@@ -555,7 +534,7 @@ size_t ksize(const void *block)
+ 		return 0;
+ 
+-	sp = slob_page(block);
+-	if (is_slob_page(sp)) {
++	sp = virt_to_page(block);
++	if (PageSlab(sp)) {
+ 		int align = max(ARCH_KMALLOC_MINALIGN, ARCH_SLAB_MINALIGN);
  		unsigned int *m = (unsigned int *)(block - align);
  		return SLOB_UNITS(*m) * SLOB_UNIT;
- 	} else
--		return sp->page.private;
-+		return sp->private;
- }
- EXPORT_SYMBOL(ksize);
- 
-Index: linux-2.6/include/linux/mm_types.h
-===================================================================
---- linux-2.6.orig/include/linux/mm_types.h	2012-05-22 06:27:51.335836712 -0500
-+++ linux-2.6/include/linux/mm_types.h	2012-05-22 06:34:39.255828250 -0500
-@@ -52,7 +52,7 @@ struct page {
- 	struct {
- 		union {
- 			pgoff_t index;		/* Our offset within mapping. */
--			void *freelist;		/* slub first free object */
-+			void *freelist;		/* slub/slob first free object */
- 		};
- 
- 		union {
-@@ -80,11 +80,12 @@ struct page {
- 					 */
- 					atomic_t _mapcount;
- 
--					struct {
-+					struct { /* SLUB */
- 						unsigned inuse:16;
- 						unsigned objects:15;
- 						unsigned frozen:1;
- 					};
-+					int units;	/* SLOB */
- 				};
- 				atomic_t _count;		/* Usage count, see below. */
- 			};
-@@ -106,6 +107,8 @@ struct page {
- 			short int pobjects;
- #endif
- 		};
-+
-+		struct list_head list;	/* slobs list of pages */
- 	};
- 
- 	/* Remainder is not double word aligned */
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
