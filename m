@@ -1,37 +1,33 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx105.postini.com [74.125.245.105])
-	by kanga.kvack.org (Postfix) with SMTP id 96C0C6B00E9
-	for <linux-mm@kvack.org>; Wed, 23 May 2012 11:17:55 -0400 (EDT)
-Message-ID: <4FBCFF28.8080703@parallels.com>
-Date: Wed, 23 May 2012 19:15:52 +0400
-From: Glauber Costa <glommer@parallels.com>
+Received: from psmtp.com (na3sys010amx137.postini.com [74.125.245.137])
+	by kanga.kvack.org (Postfix) with SMTP id 72FF86B0083
+	for <linux-mm@kvack.org>; Wed, 23 May 2012 11:39:12 -0400 (EDT)
+Received: by obbwd18 with SMTP id wd18so16966939obb.14
+        for <linux-mm@kvack.org>; Wed, 23 May 2012 08:39:11 -0700 (PDT)
 MIME-Version: 1.0
-Subject: Re: [PATCH] slab+slob: dup name string
-References: <1337613539-29108-1-git-send-email-glommer@parallels.com> <alpine.DEB.2.00.1205212018230.13522@chino.kir.corp.google.com> <alpine.DEB.2.00.1205220855470.17600@router.home> <4FBBAE95.6080608@parallels.com> <alpine.DEB.2.00.1205221216050.17721@router.home> <alpine.DEB.2.00.1205221529340.18325@chino.kir.corp.google.com> <1337773595.3013.15.camel@dabdike.int.hansenpartnership.com> <4FBCD328.6060406@parallels.com> <1337775878.3013.16.camel@dabdike.int.hansenpartnership.com> <alpine.DEB.2.00.1205230947490.30940@router.home> <4FBCFBE0.2080803@parallels.com> <alpine.DEB.2.00.1205231012330.30940@router.home>
-In-Reply-To: <alpine.DEB.2.00.1205231012330.30940@router.home>
-Content-Type: text/plain; charset="ISO-8859-1"; format=flowed
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <20120518161932.147485968@linux.com>
+References: <20120518161906.207356777@linux.com>
+	<20120518161932.147485968@linux.com>
+Date: Thu, 24 May 2012 00:39:11 +0900
+Message-ID: <CAAmzW4Oxwq-Gd7ts3F1funk5-fwVOSHEBz2fh5Rno90E8nnG4Q@mail.gmail.com>
+Subject: Re: [RFC] Common code 09/12] slabs: Extract a common function for kmem_cache_destroy
+From: JoonSoo Kim <js1304@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Christoph Lameter <cl@linux.com>
-Cc: James Bottomley <James.Bottomley@HansenPartnership.com>, David Rientjes <rientjes@google.com>, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, linux-mm@kvack.org, Pekka Enberg <penberg@cs.helsinki.fi>
+Cc: Pekka Enberg <penberg@kernel.org>, linux-mm@kvack.org, David Rientjes <rientjes@google.com>, Matt Mackall <mpm@selenic.com>, Glauber Costa <glommer@parallels.com>, Alex Shi <alex.shi@intel.com>
 
-On 05/23/2012 07:17 PM, Christoph Lameter wrote:
->> So if I understand it correctly, this is mostly because the name string
->> >  outlives the cache in the slub case, because of merging ?
-> Well this means we really only need the copying in slub which we already
-> have.
->
-> The problem is that you want to make this behavior uniform over all
-> allocators so that you do not have to allocate the string on your own.
->
-> Could you wait (and not rely on copying) until I am through with the
-> extraction project for common code for the allocators? At that point we
-> can resolve this issue consistently for all allocators.
->
+> +void __kmem_cache_destroy(struct kmem_cache *s)
+> +{
+> + =A0 =A0 =A0 kfree(s);
+> + =A0 =A0 =A0 sysfs_slab_remove(s);
+> =A0}
+> -EXPORT_SYMBOL(kmem_cache_destroy);
 
-Yes, I can.
-Let's just defer this for now.
+sysfs_slab_remove(s) -> kfree(s) is correct order.
+If not, it will break the system.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
