@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx162.postini.com [74.125.245.162])
-	by kanga.kvack.org (Postfix) with SMTP id A194A6B0092
+Received: from psmtp.com (na3sys010amx124.postini.com [74.125.245.124])
+	by kanga.kvack.org (Postfix) with SMTP id 0234F6B00E8
 	for <linux-mm@kvack.org>; Wed, 23 May 2012 03:29:49 -0400 (EDT)
-Received: from euspt2 (mailout1.w1.samsung.com [210.118.77.11])
- by mailout1.w1.samsung.com
+Received: from euspt1 (mailout2.w1.samsung.com [210.118.77.12])
+ by mailout2.w1.samsung.com
  (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14 2004))
- with ESMTP id <0M4G00E63SPR8N@mailout1.w1.samsung.com> for linux-mm@kvack.org;
- Wed, 23 May 2012 08:27:27 +0100 (BST)
+ with ESMTP id <0M4G000WPSTE2S@mailout2.w1.samsung.com> for linux-mm@kvack.org;
+ Wed, 23 May 2012 08:29:38 +0100 (BST)
 Received: from linux.samsung.com ([106.116.38.10])
- by spt2.w1.samsung.com (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14
- 2004)) with ESMTPA id <0M4G00FGVSTLCC@spt2.w1.samsung.com> for
- linux-mm@kvack.org; Wed, 23 May 2012 08:29:45 +0100 (BST)
-Date: Wed, 23 May 2012 09:27:58 +0200
+ by spt1.w1.samsung.com (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14
+ 2004)) with ESMTPA id <0M4G00KTUSTNMD@spt1.w1.samsung.com> for
+ linux-mm@kvack.org; Wed, 23 May 2012 08:29:48 +0100 (BST)
+Date: Wed, 23 May 2012 09:28:39 +0200
 From: Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>
-Subject: [PATCH 1/2] vmevent: don't leak unitialized data to userspace
-Message-id: <201205230927.58802.b.zolnierkie@samsung.com>
+Subject: [PATCH 2/2] vmevent: pass right attribute to vmevent_sample_attr()
+Message-id: <201205230928.39861.b.zolnierkie@samsung.com>
 MIME-version: 1.0
 Content-type: Text/Plain; charset=us-ascii
 Content-transfer-encoding: 7BIT
@@ -24,33 +24,61 @@ To: Pekka Enberg <penberg@kernel.org>
 Cc: Anton Vorontsov <anton.vorontsov@linaro.org>, linux-mm@kvack.org
 
 From: Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>
-Subject: [PATCH] vmevent: don't leak unitialized data to userspace
+Subject: [PATCH] vmevent: pass right attribute to vmevent_sample_attr()
 
-Remember to initialize all attrs[nr] fields in vmevent_setup_watch().
+Pass "config attribute" (&watch->config->attrs[i]) not "sample
+attribute" (&watch->sample_attrs[i]) to vmevent_sample_attr() to
+allow use of the original attribute value in vmevent_attr_sample_fn().
 
 Cc: Anton Vorontsov <anton.vorontsov@linaro.org>
 Signed-off-by: Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>
 Signed-off-by: Kyungmin Park <kyungmin.park@samsung.com>
 ---
- mm/vmevent.c |    5 ++++-
- 1 file changed, 4 insertions(+), 1 deletion(-)
+Without this patch vmevent_attr_lowmem_pages() always returns 0.
+
+ mm/vmevent.c |    8 +++++++-
+ 1 file changed, 7 insertions(+), 1 deletion(-)
 
 Index: b/mm/vmevent.c
 ===================================================================
---- a/mm/vmevent.c	2012-05-22 17:51:13.195231958 +0200
-+++ b/mm/vmevent.c	2012-05-22 17:51:40.991231956 +0200
-@@ -350,7 +350,10 @@
+--- a/mm/vmevent.c	2012-05-22 17:55:02.000000000 +0200
++++ b/mm/vmevent.c	2012-05-22 18:10:40.075231798 +0200
+@@ -31,6 +31,7 @@
+ 	 */
+ 	unsigned long			nr_attrs;
+ 	struct vmevent_attr		*sample_attrs;
++	struct vmevent_attr		*config_attrs[VMEVENT_CONFIG_MAX_ATTRS];
  
- 		attrs = new;
+ 	/* sampling */
+ 	struct timer_list		timer;
+@@ -104,6 +105,7 @@
+ 	 */
+ 	if (free < val && file < val)
+ 		return val;
++
+ 	return 0;
+ }
  
--		attrs[nr++].type = attr->type;
-+		attrs[nr].type = attr->type;
-+		attrs[nr].value = 0;
-+		attrs[nr].state = 0;
-+		nr++;
+@@ -210,7 +212,8 @@
+ 	for (i = 0; i < watch->nr_attrs; i++) {
+ 		struct vmevent_attr *attr = &watch->sample_attrs[i];
+ 
+-		attr->value = vmevent_sample_attr(watch, attr);
++		attr->value = vmevent_sample_attr(watch,
++						  watch->config_attrs[i]);
  	}
  
- 	watch->sample_attrs	= attrs;
+ 	atomic_set(&watch->pending, 1);
+@@ -353,6 +356,9 @@
+ 		attrs[nr].type = attr->type;
+ 		attrs[nr].value = 0;
+ 		attrs[nr].state = 0;
++
++		watch->config_attrs[nr] = attr;
++
+ 		nr++;
+ 	}
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
