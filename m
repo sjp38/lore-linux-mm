@@ -1,128 +1,109 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx145.postini.com [74.125.245.145])
-	by kanga.kvack.org (Postfix) with SMTP id 781C16B00E9
-	for <linux-mm@kvack.org>; Wed, 23 May 2012 16:35:08 -0400 (EDT)
-Message-Id: <20120523203506.744566716@linux.com>
-Date: Wed, 23 May 2012 15:34:36 -0500
+Received: from psmtp.com (na3sys010amx184.postini.com [74.125.245.184])
+	by kanga.kvack.org (Postfix) with SMTP id AC0706B00EB
+	for <linux-mm@kvack.org>; Wed, 23 May 2012 16:35:09 -0400 (EDT)
+Message-Id: <20120523203507.875937732@linux.com>
+Date: Wed, 23 May 2012 15:34:38 -0500
 From: Christoph Lameter <cl@linux.com>
-Subject: Common 03/22] [slob] Remove various small accessors
+Subject: Common 05/22] [slab] Remove some accessors
 References: <20120523203433.340661918@linux.com>
-Content-Disposition: inline; filename=slob_inline
+Content-Disposition: inline; filename=slab_remove_accessors
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Pekka Enberg <penberg@kernel.org>
 Cc: linux-mm@kvack.org, David Rientjes <rientjes@google.com>, Matt Mackall <mpm@selenic.com>, Glauber Costa <glommer@parallels.com>, Joonsoo Kim <js1304@gmail.com>
 
-Those have become so simple that they are no longer needed.
+Those are rather trivial now and its better to see inline what is
+really going on.
 
-signed-off-by: Christoph Lameter <cl@linux.com>
+Signed-off-by: Christoph Lameter <cl@linux.com>
 
 ---
- mm/slob.c |   49 +++++++++----------------------------------------
- 1 file changed, 9 insertions(+), 40 deletions(-)
+ mm/slab.c |   35 ++++++++---------------------------
+ 1 file changed, 8 insertions(+), 27 deletions(-)
 
-Index: linux-2.6/mm/slob.c
+Index: linux-2.6/mm/slab.c
 ===================================================================
---- linux-2.6.orig/mm/slob.c	2012-05-22 09:05:55.024463914 -0500
-+++ linux-2.6/mm/slob.c	2012-05-22 09:10:01.944458789 -0500
-@@ -92,14 +92,6 @@ struct slob_block {
- typedef struct slob_block slob_t;
+--- linux-2.6.orig/mm/slab.c	2012-05-22 09:21:28.528444571 -0500
++++ linux-2.6/mm/slab.c	2012-05-22 09:27:35.664436970 -0500
+@@ -489,16 +489,6 @@ EXPORT_SYMBOL(slab_buffer_size);
+ static int slab_max_order = SLAB_MAX_ORDER_LO;
+ static bool slab_max_order_set __initdata;
  
- /*
-- * free_slob_page: call before a slob_page is returned to the page allocator.
-- */
--static inline void free_slob_page(struct page *sp)
--{
--	reset_page_mapcount(sp);
--}
--
 -/*
-  * All partially free slob pages go on these lists.
-  */
- #define SLOB_BREAK1 256
-@@ -109,29 +101,6 @@ static LIST_HEAD(free_slob_medium);
- static LIST_HEAD(free_slob_large);
- 
- /*
-- * is_slob_page: True for all slob pages (false for bigblock pages)
+- * Functions for storing/retrieving the cachep and or slab from the page
+- * allocator.  These are used to find the slab an obj belongs to.  With kfree(),
+- * these are used to find the cache which an obj belongs to.
 - */
--static inline int is_slob_page(struct page *sp)
+-static inline void page_set_cache(struct page *page, struct kmem_cache *cache)
 -{
--	return PageSlab(sp);
+-	page->slab_cache = cache;
 -}
 -
--static inline void set_slob_page(struct page *sp)
--{
--	__SetPageSlab(sp);
--}
--
--static inline void clear_slob_page(struct page *sp)
--{
--	__ClearPageSlab(sp);
--}
--
--static inline struct page *slob_page(const void *addr)
--{
--	return virt_to_page(addr);
--}
--
--/*
-  * slob_page_free: true for pages on free_slob_pages list.
-  */
- static inline int slob_page_free(struct page *sp)
-@@ -347,8 +316,8 @@ static void *slob_alloc(size_t size, gfp
- 		b = slob_new_pages(gfp & ~__GFP_ZERO, 0, node);
- 		if (!b)
- 			return NULL;
--		sp = slob_page(b);
--		set_slob_page(sp);
-+		sp = virt_to_page(b);
-+		__SetPageSlab(sp);
+ static inline struct kmem_cache *page_get_cache(struct page *page)
+ {
+ 	page = compound_head(page);
+@@ -506,27 +496,18 @@ static inline struct kmem_cache *page_ge
+ 	return page->slab_cache;
+ }
  
- 		spin_lock_irqsave(&slob_lock, flags);
- 		sp->units = SLOB_UNITS(PAGE_SIZE);
-@@ -380,7 +349,7 @@ static void slob_free(void *block, int s
- 		return;
- 	BUG_ON(!size);
+-static inline void page_set_slab(struct page *page, struct slab *slab)
+-{
+-	page->slab_page = slab;
+-}
+-
+-static inline struct slab *page_get_slab(struct page *page)
+-{
+-	BUG_ON(!PageSlab(page));
+-	return page->slab_page;
+-}
+-
+ static inline struct kmem_cache *virt_to_cache(const void *obj)
+ {
+ 	struct page *page = virt_to_head_page(obj);
+-	return page_get_cache(page);
++	return page->slab_cache;
+ }
  
--	sp = slob_page(block);
-+	sp = virt_to_page(block);
- 	units = SLOB_UNITS(size);
+ static inline struct slab *virt_to_slab(const void *obj)
+ {
+ 	struct page *page = virt_to_head_page(obj);
+-	return page_get_slab(page);
++
++	VM_BUG_ON(!PageSlab(page));
++	return page->slab_page;
+ }
  
- 	spin_lock_irqsave(&slob_lock, flags);
-@@ -390,8 +359,8 @@ static void slob_free(void *block, int s
- 		if (slob_page_free(sp))
- 			clear_slob_page_free(sp);
- 		spin_unlock_irqrestore(&slob_lock, flags);
--		clear_slob_page(sp);
--		free_slob_page(sp);
-+		__ClearPageSlab(sp);
-+		reset_page_mapcount(sp);
- 		slob_free_pages(b, 0);
- 		return;
+ static inline void *index_to_obj(struct kmem_cache *cache, struct slab *slab,
+@@ -2918,8 +2899,8 @@ static void slab_map_pages(struct kmem_c
+ 		nr_pages <<= cache->gfporder;
+ 
+ 	do {
+-		page_set_cache(page, cache);
+-		page_set_slab(page, slab);
++		page->slab_cache = cache;
++		page->slab_page = slab;
+ 		page++;
+ 	} while (--nr_pages);
+ }
+@@ -3057,7 +3038,7 @@ static void *cache_free_debugcheck(struc
+ 	kfree_debugcheck(objp);
+ 	page = virt_to_head_page(objp);
+ 
+-	slabp = page_get_slab(page);
++	slabp = page->slab_page;
+ 
+ 	if (cachep->flags & SLAB_RED_ZONE) {
+ 		verify_redzone_free(cachep, objp);
+@@ -3261,7 +3242,7 @@ static void *cache_alloc_debugcheck_afte
+ 		struct slab *slabp;
+ 		unsigned objnr;
+ 
+-		slabp = page_get_slab(virt_to_head_page(objp));
++		slabp = virt_to_head_page(objp)->slab_page;
+ 		objnr = (unsigned)(objp - slabp->s_mem) / cachep->buffer_size;
+ 		slab_bufctl(slabp)[objnr] = BUFCTL_ACTIVE;
  	}
-@@ -508,8 +477,8 @@ void kfree(const void *block)
- 		return;
- 	kmemleak_free(block);
- 
--	sp = slob_page(block);
--	if (is_slob_page(sp)) {
-+	sp = virt_to_page(block);
-+	if (PageSlab(sp)) {
- 		int align = max(ARCH_KMALLOC_MINALIGN, ARCH_SLAB_MINALIGN);
- 		unsigned int *m = (unsigned int *)(block - align);
- 		slob_free(m, *m + align);
-@@ -527,8 +496,8 @@ size_t ksize(const void *block)
- 	if (unlikely(block == ZERO_SIZE_PTR))
- 		return 0;
- 
--	sp = slob_page(block);
--	if (is_slob_page(sp)) {
-+	sp = virt_to_page(block);
-+	if (PageSlab(sp)) {
- 		int align = max(ARCH_KMALLOC_MINALIGN, ARCH_SLAB_MINALIGN);
- 		unsigned int *m = (unsigned int *)(block - align);
- 		return SLOB_UNITS(*m) * SLOB_UNIT;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
