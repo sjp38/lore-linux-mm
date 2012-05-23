@@ -1,9 +1,9 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx157.postini.com [74.125.245.157])
-	by kanga.kvack.org (Postfix) with SMTP id 4E7DC6B0083
-	for <linux-mm@kvack.org>; Wed, 23 May 2012 10:53:01 -0400 (EDT)
-Message-ID: <4FBCF951.3040105@parallels.com>
-Date: Wed, 23 May 2012 18:50:57 +0400
+Received: from psmtp.com (na3sys010amx182.postini.com [74.125.245.182])
+	by kanga.kvack.org (Postfix) with SMTP id 531376B0083
+	for <linux-mm@kvack.org>; Wed, 23 May 2012 11:03:56 -0400 (EDT)
+Message-ID: <4FBCFBE0.2080803@parallels.com>
+Date: Wed, 23 May 2012 19:01:52 +0400
 From: Glauber Costa <glommer@parallels.com>
 MIME-Version: 1.0
 Subject: Re: [PATCH] slab+slob: dup name string
@@ -25,15 +25,34 @@ On 05/23/2012 06:48 PM, Christoph Lameter wrote:
 > Well thats they way it was for a long time. There must be some reason that
 > someone started to add this copying business....  Pekka?
 >
-The question is less why we added, but rather why we're keeping.
 
-Of course reasoning about why it was added helps (so let's try to 
-determine that), but so far the only reasonably strong argument in favor 
-of keeping it was robustness.
+ From git:
 
-But given that a lot of systems still uses SLAB, and we have no record 
-of bugs due to dangling name pointers, this might very well be 
-overzealousness on our part.
+commit 84c1cf62465e2fb0a692620dcfeb52323ab03d48
+Author: Pekka Enberg <penberg@kernel.org>
+Date:   Tue Sep 14 23:21:12 2010 +0300
+
+SLUB: Fix merged slab cache names
+
+As explained by Linus "I'm Proud to be an American" Torvalds:
+
+Looking at the merging code, I actually think it's totally
+buggy. If you have something like this:
+
+  - load module A: create slab cache A
+
+  - load module B: create slab cache B that can merge with A
+
+  - unload module A
+
+  - "cat /proc/slabinfo": BOOM. Oops.
+
+exactly because the name is not handled correctly, and you'll have
+module B holding open a slab cache that has a name pointer that points
+to module A that no longer exists.
+
+So if I understand it correctly, this is mostly because the name string 
+outlives the cache in the slub case, because of merging ?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
