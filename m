@@ -1,64 +1,28 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx144.postini.com [74.125.245.144])
-	by kanga.kvack.org (Postfix) with SMTP id 7E8326B0083
-	for <linux-mm@kvack.org>; Wed, 23 May 2012 10:29:01 -0400 (EDT)
-Received: by yhr47 with SMTP id 47so9510626yhr.14
-        for <linux-mm@kvack.org>; Wed, 23 May 2012 07:29:00 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx145.postini.com [74.125.245.145])
+	by kanga.kvack.org (Postfix) with SMTP id 7C12A6B0083
+	for <linux-mm@kvack.org>; Wed, 23 May 2012 10:48:54 -0400 (EDT)
+Date: Wed, 23 May 2012 09:48:51 -0500 (CDT)
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: [PATCH] slab+slob: dup name string
+In-Reply-To: <1337775878.3013.16.camel@dabdike.int.hansenpartnership.com>
+Message-ID: <alpine.DEB.2.00.1205230947490.30940@router.home>
+References: <1337613539-29108-1-git-send-email-glommer@parallels.com> <alpine.DEB.2.00.1205212018230.13522@chino.kir.corp.google.com> <alpine.DEB.2.00.1205220855470.17600@router.home> <4FBBAE95.6080608@parallels.com> <alpine.DEB.2.00.1205221216050.17721@router.home>
+ <alpine.DEB.2.00.1205221529340.18325@chino.kir.corp.google.com> <1337773595.3013.15.camel@dabdike.int.hansenpartnership.com> <4FBCD328.6060406@parallels.com> <1337775878.3013.16.camel@dabdike.int.hansenpartnership.com>
 MIME-Version: 1.0
-In-Reply-To: <alpine.DEB.2.00.1205221240530.21828@router.home>
-References: <20120518161906.207356777@linux.com>
-	<20120518161927.549888128@linux.com>
-	<CAAmzW4O2zk5K3StnGXcQmvDqfSDQbmezoVLYsH-3s4mE9WaEBA@mail.gmail.com>
-	<alpine.DEB.2.00.1205221240530.21828@router.home>
-Date: Wed, 23 May 2012 23:28:58 +0900
-Message-ID: <CAAmzW4MqGKgz7YDcX4S1jQPtdAmHkiAfCNcFKTg35gP=qjqgHQ@mail.gmail.com>
-Subject: Re: [RFC] Common code 01/12] [slob] define page struct fields used in mm_types.h
-From: JoonSoo Kim <js1304@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: Pekka Enberg <penberg@kernel.org>, linux-mm@kvack.org, David Rientjes <rientjes@google.com>, Matt Mackall <mpm@selenic.com>, Glauber Costa <glommer@parallels.com>, Alex Shi <alex.shi@intel.com>
+To: James Bottomley <James.Bottomley@HansenPartnership.com>
+Cc: Glauber Costa <glommer@parallels.com>, David Rientjes <rientjes@google.com>, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, linux-mm@kvack.org, Pekka Enberg <penberg@cs.helsinki.fi>
 
->> > +static inline void clear_slob_page_free(struct page *sp)
->> > =A0{
->> > =A0 =A0 =A0 =A0list_del(&sp->list);
->> > - =A0 =A0 =A0 __ClearPageSlobFree((struct page *)sp);
->> > + =A0 =A0 =A0 __ClearPageSlobFree(sp);
->> > =A0}
->>
->> I think we shouldn't use __ClearPageSlobFree anymore.
->> Before this patch, list_del affect page->private,
->> so when we manipulate slob list,
->> using PageSlobFree overloaded with PagePrivate is reasonable.
->> But, after this patch is applied, list_del doesn't touch page->private,
->> so manipulate PageSlobFree is not reasonable.
->> We would use another method for checking slob_page_free without
->> PageSlobFree flag.
->
-> What method should we be using?
+On Wed, 23 May 2012, James Bottomley wrote:
 
-Actually, I have no good idea.
-How about below implementation?
+> > > So, why not simply patch slab to rely on the string lifetime being the
+> > > cache lifetime (or beyond) and therefore not having it take a copy?
 
-static inline int slob_page_free(struct page *sp)
-{
-        return !list_empty(&sp->list);
-}
-
-static void set_slob_page_free(struct page *sp, struct list_head *list)
-{
-        list_add(&sp->list, list);
-}
-
-static inline void clear_slob_page_free(struct page *sp)
-{
-        list_del_init(&sp->list);
-}
-
-Above functions' name should be changed something like "add_freelist,
-remove_freelist, in_freelist" for readability
+Well thats they way it was for a long time. There must be some reason that
+someone started to add this copying business....  Pekka?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
