@@ -1,167 +1,200 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx104.postini.com [74.125.245.104])
-	by kanga.kvack.org (Postfix) with SMTP id DE8BA6B00F4
-	for <linux-mm@kvack.org>; Wed, 23 May 2012 02:07:54 -0400 (EDT)
-Received: by bkcjm19 with SMTP id jm19so8104127bkc.14
-        for <linux-mm@kvack.org>; Tue, 22 May 2012 23:07:53 -0700 (PDT)
-Message-ID: <4FBC7EAE.4040805@openvz.org>
-Date: Wed, 23 May 2012 10:07:42 +0400
-From: Konstantin Khlebnikov <khlebnikov@openvz.org>
+Received: from psmtp.com (na3sys010amx152.postini.com [74.125.245.152])
+	by kanga.kvack.org (Postfix) with SMTP id 0EA206B0092
+	for <linux-mm@kvack.org>; Wed, 23 May 2012 03:15:07 -0400 (EDT)
+Received: by dakp5 with SMTP id p5so13350632dak.14
+        for <linux-mm@kvack.org>; Wed, 23 May 2012 00:15:06 -0700 (PDT)
+Date: Wed, 23 May 2012 00:15:03 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: [patch v2] mm, oom: normalize oom scores to oom_score_adj scale only
+ for userspace
+In-Reply-To: <20120517145022.a99f41e8.akpm@linux-foundation.org>
+Message-ID: <alpine.DEB.2.00.1205230014450.9290@chino.kir.corp.google.com>
+References: <20120426193551.GA24968@redhat.com> <alpine.DEB.2.00.1204261437470.28376@chino.kir.corp.google.com> <alpine.DEB.2.00.1205031513400.1631@chino.kir.corp.google.com> <20120503222949.GA13762@redhat.com> <alpine.DEB.2.00.1205171432250.6951@chino.kir.corp.google.com>
+ <20120517145022.a99f41e8.akpm@linux-foundation.org>
 MIME-Version: 1.0
-Subject: Re: 3.4-rc7: BUG: Bad rss-counter state mm:ffff88040b56f800 idx:1
- val:-59
-References: <4FBC1618.5010408@fold.natur.cuni.cz> <20120522162835.c193c8e0.akpm@linux-foundation.org>
-In-Reply-To: <20120522162835.c193c8e0.akpm@linux-foundation.org>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Martin Mokrejs <mmokrejs@fold.natur.cuni.cz>, LKML <linux-kernel@vger.kernel.org>, "markus@trippelsdorf.de" <markus@trippelsdorf.de>, "hughd@google.com" <hughd@google.com>, "kamezawa.hiroyu@jp.fujitsu.com" <kamezawa.hiroyu@jp.fujitsu.com>, "oleg@redhat.com" <oleg@redhat.com>, Michal Hocko <mhocko@suse.cz>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Dave Jones <davej@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Andrew Morton wrote:
-> On Wed, 23 May 2012 00:41:28 +0200
-> Martin Mokrejs<mmokrejs@fold.natur.cuni.cz>  wrote:
->
->> Hi Andrew,
->>    while shutting down my laptop (Dell Vostro 3550 with 16GB RAM, core i7) with 3.4-rc7 I got:
->>
->> May 23 00:07:54 vostro kernel: [352687.968267] BUG: Bad rss-counter state mm:ffff88040b56f800 idx:1 val:-59
->> May 23 00:07:54 vostro kernel: [352687.968312] BUG: Bad rss-counter state mm:ffff88040b56f800 idx:2 val:59
->> May 23 00:07:55 vostro acpid: exiting
->> May 23 00:07:55 vostro syslog-ng[2838]: syslog-ng shutting down; version='3.3.4'
->>
->>    I found by Google the below thread and thought that maybe it is related?
->> http://comments.gmane.org/gmane.linux.kernel.mm/76459
->>
->> ...
->>
->
->
-> Well hopefully the below will fix this?
->
-> I notice that I don't have this tagged for -stable backporting.  That
-> seems wrong.  Konstantin, do we know for how long this bug has been in
-> there?
+The oom_score_adj scale ranges from -1000 to 1000 and represents the
+proportion of memory available to the process at allocation time.  This
+means an oom_score_adj value of 300, for example, will bias a process as
+though it was using an extra 30.0% of available memory and a value of
+-350 will discount 35.0% of available memory from its usage.
 
-It there for years, by itself it is mostly harmless.
-This warning was added in c3f0327f8e9d7a503f0d64573c311eddd61f197d
-so only v3.4 has this, I thought this fix will be there before release.
+The oom killer badness heuristic also uses this scale to report the oom
+score for each eligible process in determining the "best" process to
+kill.  Thus, it can only differentiate each process's memory usage by
+0.1% of system RAM.
 
->
->
->
-> From: Konstantin Khlebnikov<khlebnikov@openvz.org>
-> Subject: mm: correctly synchronize rss-counters at exit/exec
->
-> mm->rss_stat counters have per-task delta: task->rss_stat.  Before
-> changing task->mm pointer the kernel must flush this delta with
-> sync_mm_rss().
->
-> do_exit() already calls sync_mm_rss() to flush the rss-counters before
-> committing the rss statistics into task->signal->maxrss, taskstats, audit
-> and other stuff.  Unfortunately the kernel does this before calling
-> mm_release(), which can call put_user() for processing
-> task->clear_child_tid.  So at this point we can trigger page-faults and
-> task->rss_stat becomes non-zero again.  As a result mm->rss_stat becomes
-> inconsistent and check_mm() will print something like this:
->
-> | BUG: Bad rss-counter state mm:ffff88020813c380 idx:1 val:-1
-> | BUG: Bad rss-counter state mm:ffff88020813c380 idx:2 val:1
->
-> This patch moves sync_mm_rss() into mm_release(), and moves mm_release()
-> out of do_exit() and calls it earlier.  After mm_release() there should be
-> no pagefaults.
->
-> [akpm@linux-foundation.org: tweak comment]
-> Signed-off-by: Konstantin Khlebnikov<khlebnikov@openvz.org>
-> Reported-by: Markus Trippelsdorf<markus@trippelsdorf.de>
-> Cc: Hugh Dickins<hughd@google.com>
-> Cc: KAMEZAWA Hiroyuki<kamezawa.hiroyu@jp.fujitsu.com>
-> Cc: Oleg Nesterov<oleg@redhat.com>
-> Signed-off-by: Andrew Morton<akpm@linux-foundation.org>
-> ---
->
->   fs/exec.c     |    1 -
->   kernel/exit.c |   13 ++++++++-----
->   kernel/fork.c |    8 ++++++++
->   3 files changed, 16 insertions(+), 6 deletions(-)
->
-> diff -puN fs/exec.c~mm-correctly-synchronize-rss-counters-at-exit-exec fs/exec.c
-> --- a/fs/exec.c~mm-correctly-synchronize-rss-counters-at-exit-exec
-> +++ a/fs/exec.c
-> @@ -823,7 +823,6 @@ static int exec_mmap(struct mm_struct *m
->   	/* Notify parent that we're no longer interested in the old VM */
->   	tsk = current;
->   	old_mm = current->mm;
-> -	sync_mm_rss(old_mm);
->   	mm_release(tsk, old_mm);
->
->   	if (old_mm) {
-> diff -puN kernel/exit.c~mm-correctly-synchronize-rss-counters-at-exit-exec kernel/exit.c
-> --- a/kernel/exit.c~mm-correctly-synchronize-rss-counters-at-exit-exec
-> +++ a/kernel/exit.c
-> @@ -423,6 +423,7 @@ void daemonize(const char *name, ...)
->   	 * user space pages.  We don't need them, and if we didn't close them
->   	 * they would be locked into memory.
->   	 */
-> +	mm_release(current, current->mm);
->   	exit_mm(current);
->   	/*
->   	 * We don't want to get frozen, in case system-wide hibernation
-> @@ -640,7 +641,6 @@ static void exit_mm(struct task_struct *
->   	struct mm_struct *mm = tsk->mm;
->   	struct core_state *core_state;
->
-> -	mm_release(tsk, mm);
->   	if (!mm)
->   		return;
->   	/*
-> @@ -959,9 +959,13 @@ void do_exit(long code)
->   				preempt_count());
->
->   	acct_update_integrals(tsk);
-> -	/* sync mm's RSS info before statistics gathering */
-> -	if (tsk->mm)
-> -		sync_mm_rss(tsk->mm);
-> +
-> +	/* Set exit_code before complete_vfork_done() in mm_release() */
-> +	tsk->exit_code = code;
-> +
-> +	/* Release mm and sync mm's RSS info before statistics gathering */
-> +	mm_release(tsk, tsk->mm);
-> +
->   	group_dead = atomic_dec_and_test(&tsk->signal->live);
->   	if (group_dead) {
->   		hrtimer_cancel(&tsk->signal->real_timer);
-> @@ -974,7 +978,6 @@ void do_exit(long code)
->   		tty_audit_exit();
->   	audit_free(tsk);
->
-> -	tsk->exit_code = code;
->   	taskstats_exit(tsk, group_dead);
->
->   	exit_mm(tsk);
-> diff -puN kernel/fork.c~mm-correctly-synchronize-rss-counters-at-exit-exec kernel/fork.c
-> --- a/kernel/fork.c~mm-correctly-synchronize-rss-counters-at-exit-exec
-> +++ a/kernel/fork.c
-> @@ -809,6 +809,14 @@ void mm_release(struct task_struct *tsk,
->   		}
->   		tsk->clear_child_tid = NULL;
->   	}
-> +
-> +	/*
-> +	 * Final rss-counter synchronization. After this point there must be
-> +	 * no pagefaults into this mm from the current context.  Otherwise
-> +	 * mm->rss_stat will be inconsistent.
-> +	 */
-> +	if (mm)
-> +		sync_mm_rss(mm);
->   }
->
->   /*
-> _
->
+On large systems, this can end up being a large amount of memory: 256MB
+on 256GB systems, for example.
+
+This can be fixed by having the badness heuristic to use the actual
+memory usage in scoring threads and then normalizing it to the
+oom_score_adj scale for userspace.  This results in better comparison
+between eligible threads for kill and no change from the userspace
+perspective.
+
+Suggested-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Tested-by: Dave Jones <davej@redhat.com>
+Signed-off-by: David Rientjes <rientjes@google.com>
+---
+ fs/proc/base.c      |    5 +++--
+ include/linux/oom.h |    5 +++--
+ mm/oom_kill.c       |   44 ++++++++++++++++----------------------------
+ 3 files changed, 22 insertions(+), 32 deletions(-)
+
+diff --git a/fs/proc/base.c b/fs/proc/base.c
+--- a/fs/proc/base.c
++++ b/fs/proc/base.c
+@@ -410,12 +410,13 @@ static const struct file_operations proc_lstats_operations = {
+ 
+ static int proc_oom_score(struct task_struct *task, char *buffer)
+ {
++	unsigned long totalpages = totalram_pages + total_swap_pages;
+ 	unsigned long points = 0;
+ 
+ 	read_lock(&tasklist_lock);
+ 	if (pid_alive(task))
+-		points = oom_badness(task, NULL, NULL,
+-					totalram_pages + total_swap_pages);
++		points = oom_badness(task, NULL, NULL, totalpages) *
++						1000 / totalpages;
+ 	read_unlock(&tasklist_lock);
+ 	return sprintf(buffer, "%lu\n", points);
+ }
+diff --git a/include/linux/oom.h b/include/linux/oom.h
+--- a/include/linux/oom.h
++++ b/include/linux/oom.h
+@@ -43,8 +43,9 @@ enum oom_constraint {
+ extern void compare_swap_oom_score_adj(int old_val, int new_val);
+ extern int test_set_oom_score_adj(int new_val);
+ 
+-extern unsigned int oom_badness(struct task_struct *p, struct mem_cgroup *memcg,
+-			const nodemask_t *nodemask, unsigned long totalpages);
++extern unsigned long oom_badness(struct task_struct *p,
++		struct mem_cgroup *memcg, const nodemask_t *nodemask,
++		unsigned long totalpages);
+ extern int try_set_zonelist_oom(struct zonelist *zonelist, gfp_t gfp_flags);
+ extern void clear_zonelist_oom(struct zonelist *zonelist, gfp_t gfp_flags);
+ 
+diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+--- a/mm/oom_kill.c
++++ b/mm/oom_kill.c
+@@ -180,10 +180,10 @@ static bool oom_unkillable_task(struct task_struct *p,
+  * predictable as possible.  The goal is to return the highest value for the
+  * task consuming the most memory to avoid subsequent oom failures.
+  */
+-unsigned int oom_badness(struct task_struct *p, struct mem_cgroup *memcg,
+-		      const nodemask_t *nodemask, unsigned long totalpages)
++unsigned long oom_badness(struct task_struct *p, struct mem_cgroup *memcg,
++			  const nodemask_t *nodemask, unsigned long totalpages)
+ {
+-	long points;
++	unsigned long points;
+ 
+ 	if (oom_unkillable_task(p, memcg, nodemask))
+ 		return 0;
+@@ -198,21 +198,11 @@ unsigned int oom_badness(struct task_struct *p, struct mem_cgroup *memcg,
+ 	}
+ 
+ 	/*
+-	 * The memory controller may have a limit of 0 bytes, so avoid a divide
+-	 * by zero, if necessary.
+-	 */
+-	if (!totalpages)
+-		totalpages = 1;
+-
+-	/*
+ 	 * The baseline for the badness score is the proportion of RAM that each
+ 	 * task's rss, pagetable and swap space use.
+ 	 */
+-	points = get_mm_rss(p->mm) + p->mm->nr_ptes;
+-	points += get_mm_counter(p->mm, MM_SWAPENTS);
+-
+-	points *= 1000;
+-	points /= totalpages;
++	points = get_mm_rss(p->mm) + p->mm->nr_ptes +
++		 get_mm_counter(p->mm, MM_SWAPENTS);
+ 	task_unlock(p);
+ 
+ 	/*
+@@ -220,23 +210,20 @@ unsigned int oom_badness(struct task_struct *p, struct mem_cgroup *memcg,
+ 	 * implementation used by LSMs.
+ 	 */
+ 	if (has_capability_noaudit(p, CAP_SYS_ADMIN))
+-		points -= 30;
++		points -= 30 * totalpages / 1000;
+ 
+ 	/*
+ 	 * /proc/pid/oom_score_adj ranges from -1000 to +1000 such that it may
+ 	 * either completely disable oom killing or always prefer a certain
+ 	 * task.
+ 	 */
+-	points += p->signal->oom_score_adj;
++	points += p->signal->oom_score_adj * totalpages / 1000;
+ 
+ 	/*
+-	 * Never return 0 for an eligible task that may be killed since it's
+-	 * possible that no single user task uses more than 0.1% of memory and
+-	 * no single admin tasks uses more than 3.0%.
++	 * Never return 0 for an eligible task regardless of the root bonus and
++	 * oom_score_adj (oom_score_adj can't be OOM_SCORE_ADJ_MIN here).
+ 	 */
+-	if (points <= 0)
+-		return 1;
+-	return (points < 1000) ? points : 1000;
++	return points ? points : 1;
+ }
+ 
+ /*
+@@ -314,7 +301,7 @@ static struct task_struct *select_bad_process(unsigned int *ppoints,
+ {
+ 	struct task_struct *g, *p;
+ 	struct task_struct *chosen = NULL;
+-	*ppoints = 0;
++	unsigned long chosen_points = 0;
+ 
+ 	do_each_thread(g, p) {
+ 		unsigned int points;
+@@ -354,7 +341,7 @@ static struct task_struct *select_bad_process(unsigned int *ppoints,
+ 			 */
+ 			if (p == current) {
+ 				chosen = p;
+-				*ppoints = 1000;
++				chosen_points = ULONG_MAX;
+ 			} else if (!force_kill) {
+ 				/*
+ 				 * If this task is not being ptraced on exit,
+@@ -367,12 +354,13 @@ static struct task_struct *select_bad_process(unsigned int *ppoints,
+ 		}
+ 
+ 		points = oom_badness(p, memcg, nodemask, totalpages);
+-		if (points > *ppoints) {
++		if (points > chosen_points) {
+ 			chosen = p;
+-			*ppoints = points;
++			chosen_points = points;
+ 		}
+ 	} while_each_thread(g, p);
+ 
++	*ppoints = chosen_points * 1000 / totalpages;
+ 	return chosen;
+ }
+ 
+@@ -572,7 +560,7 @@ void mem_cgroup_out_of_memory(struct mem_cgroup *memcg, gfp_t gfp_mask,
+ 	}
+ 
+ 	check_panic_on_oom(CONSTRAINT_MEMCG, gfp_mask, order, NULL);
+-	limit = mem_cgroup_get_limit(memcg) >> PAGE_SHIFT;
++	limit = mem_cgroup_get_limit(memcg) >> PAGE_SHIFT ? : 1;
+ 	read_lock(&tasklist_lock);
+ 	p = select_bad_process(&points, limit, memcg, NULL, false);
+ 	if (p && PTR_ERR(p) != -1UL)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
