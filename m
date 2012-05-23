@@ -1,50 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx175.postini.com [74.125.245.175])
-	by kanga.kvack.org (Postfix) with SMTP id 8FAE06B0083
-	for <linux-mm@kvack.org>; Wed, 23 May 2012 16:33:56 -0400 (EDT)
-Date: Wed, 23 May 2012 13:33:54 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH v6 2/2] decrement static keys on real destroy time
-Message-Id: <20120523133354.373f1bb4.akpm@linux-foundation.org>
-In-Reply-To: <4FBCAAF4.4030803@parallels.com>
-References: <1337682339-21282-1-git-send-email-glommer@parallels.com>
-	<1337682339-21282-3-git-send-email-glommer@parallels.com>
-	<20120522154610.f2f9b78e.akpm@linux-foundation.org>
-	<4FBCAAF4.4030803@parallels.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx200.postini.com [74.125.245.200])
+	by kanga.kvack.org (Postfix) with SMTP id 1D4296B0092
+	for <linux-mm@kvack.org>; Wed, 23 May 2012 16:35:07 -0400 (EDT)
+Message-Id: <20120523203433.340661918@linux.com>
+Date: Wed, 23 May 2012 15:34:33 -0500
+From: Christoph Lameter <cl@linux.com>
+Subject: Common 00/22] Sl[auo]b: Common functionality V3
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Glauber Costa <glommer@parallels.com>
-Cc: linux-mm@kvack.org, cgroups@vger.kernel.org, devel@openvz.org, kamezawa.hiroyu@jp.fujitsu.com, netdev@vger.kernel.org, Tejun Heo <tj@kernel.org>, Li Zefan <lizefan@huawei.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, David Miller <davem@davemloft.net>
+To: Pekka Enberg <penberg@kernel.org>
+Cc: linux-mm@kvack.org, David Rientjes <rientjes@google.com>, Matt Mackall <mpm@selenic.com>, Glauber Costa <glommer@parallels.com>, Joonsoo Kim <js1304@gmail.com>
 
-On Wed, 23 May 2012 13:16:36 +0400
-Glauber Costa <glommer@parallels.com> wrote:
+V2->V3:
+- Incorporate more feedback from Joonsoo Kim and Glauber Costa
+- And a couple more patches to deal with slab duping and move
+  more code to slab_common.c
 
-> On 05/23/2012 02:46 AM, Andrew Morton wrote:
-> > Here, we're open-coding kinda-test_bit().  Why do that?  These flags are
-> > modified with set_bit() and friends, so we should read them with the
-> > matching test_bit()?
-> 
-> My reasoning was to be as cheap as possible, as you noted yourself two
-> paragraphs below.
+V1->V2:
+- Incorporate glommers feedback.
+- Add 2 more patches dealing with common code in kmem_cache_destroy
 
-These aren't on any fast path, are they?
+This is a series of patches that extracts common functionality from
+slab allocators into a common code base. The intend is to standardize
+as much as possible of the allocator behavior while keeping the
+distinctive features of each allocator which are mostly due to their
+storage format and serialization approaches.
 
-Plus: you failed in that objective!  The C compiler's internal
-scalar->bool conversion makes these functions no more efficient than
-test_bit().
+This patchset makes a beginning by extracting common functionality in
+kmem_cache_create() and kmem_cache_destroy(). However, there are
+numerous other areas where such work could be beneficial:
 
-> > So here are suggested changes from*some*  of the above discussion.
-> > Please consider, incorporate, retest and send us a v7?
-> 
-> How do you want me to do it? Should I add your patch ontop of mine,
-> and then another one that tweaks whatever else is left, or should I just
-> merge those changes into the patches I have?
+1. Extract the sysfs support from SLUB and make it common. That way
+   all allocators have a common sysfs API and are handleable in the same
+   way regardless of the allocator chose.
 
-A brand new patch, I guess.  I can sort out the what-did-he-change view
-at this end.
+2. Extract the error reporting and checking from SLUB and make
+   it available for all allocators. This means that all allocators
+   will gain the resiliency and error handling capabilties.
+
+3. Extract the memory hotplug and cpu hotplug handling. It seems that
+   SLAB may be more sophisticated here. Having common code here will
+   make it easier to maintain the special code.
+
+4. Extract the aliasing capability of SLUB. This will enable fast
+   slab creation without creating too many additional slab caches.
+   The arrays of caches of varying sizes in numerous subsystems
+   do not cause the creation of numerous slab caches. Storage
+   density is increased and the cache footprint is reduced.
+
+Ultimately it is to be hoped that the special code for each allocator
+shrinks to a mininum. This will also make it easier to make modification
+to allocators.
+
+In the far future one could envision that the current allocators will
+just become storage algorithms that can be chosen based on the need of
+the subsystem. F.e.
+
+Cpu cache dependend performance		= Bonwick allocator (SLAB)
+Minimal cycle count and cache footprint	= SLUB
+Maximum storage density			= K&R allocator (SLOB)
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
