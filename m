@@ -1,48 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx111.postini.com [74.125.245.111])
-	by kanga.kvack.org (Postfix) with SMTP id 227CB6B0081
-	for <linux-mm@kvack.org>; Wed, 23 May 2012 09:53:32 -0400 (EDT)
-Date: Wed, 23 May 2012 08:53:29 -0500 (CDT)
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: [PATCH v2] slab+slob: dup name string
-In-Reply-To: <alpine.DEB.2.00.1205222048380.28165@chino.kir.corp.google.com>
-Message-ID: <alpine.DEB.2.00.1205230849410.29893@router.home>
-References: <1337680298-11929-1-git-send-email-glommer@parallels.com> <alpine.DEB.2.00.1205220857380.17600@router.home> <alpine.DEB.2.00.1205222048380.28165@chino.kir.corp.google.com>
+Received: from psmtp.com (na3sys010amx144.postini.com [74.125.245.144])
+	by kanga.kvack.org (Postfix) with SMTP id 7E8326B0083
+	for <linux-mm@kvack.org>; Wed, 23 May 2012 10:29:01 -0400 (EDT)
+Received: by yhr47 with SMTP id 47so9510626yhr.14
+        for <linux-mm@kvack.org>; Wed, 23 May 2012 07:29:00 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+In-Reply-To: <alpine.DEB.2.00.1205221240530.21828@router.home>
+References: <20120518161906.207356777@linux.com>
+	<20120518161927.549888128@linux.com>
+	<CAAmzW4O2zk5K3StnGXcQmvDqfSDQbmezoVLYsH-3s4mE9WaEBA@mail.gmail.com>
+	<alpine.DEB.2.00.1205221240530.21828@router.home>
+Date: Wed, 23 May 2012 23:28:58 +0900
+Message-ID: <CAAmzW4MqGKgz7YDcX4S1jQPtdAmHkiAfCNcFKTg35gP=qjqgHQ@mail.gmail.com>
+Subject: Re: [RFC] Common code 01/12] [slob] define page struct fields used in mm_types.h
+From: JoonSoo Kim <js1304@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Glauber Costa <glommer@parallels.com>, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, linux-mm@kvack.org, Pekka Enberg <penberg@cs.helsinki.fi>
+To: Christoph Lameter <cl@linux.com>
+Cc: Pekka Enberg <penberg@kernel.org>, linux-mm@kvack.org, David Rientjes <rientjes@google.com>, Matt Mackall <mpm@selenic.com>, Glauber Costa <glommer@parallels.com>, Alex Shi <alex.shi@intel.com>
 
-On Tue, 22 May 2012, David Rientjes wrote:
-
-> On Tue, 22 May 2012, Christoph Lameter wrote:
+>> > +static inline void clear_slob_page_free(struct page *sp)
+>> > =A0{
+>> > =A0 =A0 =A0 =A0list_del(&sp->list);
+>> > - =A0 =A0 =A0 __ClearPageSlobFree((struct page *)sp);
+>> > + =A0 =A0 =A0 __ClearPageSlobFree(sp);
+>> > =A0}
+>>
+>> I think we shouldn't use __ClearPageSlobFree anymore.
+>> Before this patch, list_del affect page->private,
+>> so when we manipulate slob list,
+>> using PageSlobFree overloaded with PagePrivate is reasonable.
+>> But, after this patch is applied, list_del doesn't touch page->private,
+>> so manipulate PageSlobFree is not reasonable.
+>> We would use another method for checking slob_page_free without
+>> PageSlobFree flag.
 >
-> > > [ v2: Also dup string for early caches, requested by David Rientjes ]
-> >
-> > kstrdups that early could cause additional issues. Its better to leave
-> > things as they were.
-> >
->
-> No, it's not, there's no reason to prevent caches created before
-> g_cpucache_up <= EARLY to be destroyed because it makes a patch easier to
-> implement and then leave that little gotcha as an undocumented treasure
-> for someone to find when they try it later on.
+> What method should we be using?
 
-g_cpucache_up <= EARLY is slab bootstrap code and the system is in a
-pretty fragile state. Plus the the kmalloc logic *depends* on these
-caches being present. Removing those is not a good idea. The other caches
-that are created at that point are needed to create more caches.
+Actually, I have no good idea.
+How about below implementation?
 
-There is no reason to remove these caches.
+static inline int slob_page_free(struct page *sp)
+{
+        return !list_empty(&sp->list);
+}
 
-> This is much easier to do, just statically allocate the const char *'s
-> needed for the boot caches and then set their ->name's manually in
-> kmem_cache_init() and then avoid the kfree() in kmem_cache_destroy() if
-> the name is between &boot_cache_name[0] and &boot_cache_name[n].
+static void set_slob_page_free(struct page *sp, struct list_head *list)
+{
+        list_add(&sp->list, list);
+}
 
-Yeah that is already occurring for some of the boot caches.
+static inline void clear_slob_page_free(struct page *sp)
+{
+        list_del_init(&sp->list);
+}
+
+Above functions' name should be changed something like "add_freelist,
+remove_freelist, in_freelist" for readability
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
