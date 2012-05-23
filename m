@@ -1,263 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx156.postini.com [74.125.245.156])
-	by kanga.kvack.org (Postfix) with SMTP id 438216B00E9
-	for <linux-mm@kvack.org>; Tue, 22 May 2012 20:02:25 -0400 (EDT)
-Message-ID: <4FBC2916.5000305@kernel.org>
-Date: Wed, 23 May 2012 09:02:30 +0900
-From: Minchan Kim <minchan@kernel.org>
-MIME-Version: 1.0
-Subject: Re: [PATCH] zsmalloc: use unsigned long instead of void *
-References: <1337567013-4741-1-git-send-email-minchan@kernel.org> <4FBA4EE2.8050308@linux.vnet.ibm.com>
-In-Reply-To: <4FBA4EE2.8050308@linux.vnet.ibm.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx126.postini.com [74.125.245.126])
+	by kanga.kvack.org (Postfix) with SMTP id 811406B0083
+	for <linux-mm@kvack.org>; Tue, 22 May 2012 20:37:50 -0400 (EDT)
+Date: Wed, 23 May 2012 10:37:35 +1000
+From: Stephen Rothwell <sfr@canb.auug.org.au>
+Subject: Re: [tip:perf/uprobes] uprobes, mm, x86: Add the ability to install
+ and remove uprobes breakpoints
+Message-Id: <20120523103735.6fe9c1c3924a62b1e8d45ff8@canb.auug.org.au>
+In-Reply-To: <20120521151323.f23bd5e9.akpm@linux-foundation.org>
+References: <20120209092642.GE16600@linux.vnet.ibm.com>
+	<tip-2b144498350860b6ee9dc57ff27a93ad488de5dc@git.kernel.org>
+	<20120521143701.74ab2d0b.akpm@linux-foundation.org>
+	<CA+55aFw5ccuvvtyf6iuuw-Finr79ZkPxgCxL5jNvdnX5oMYkgg@mail.gmail.com>
+	<20120521151323.f23bd5e9.akpm@linux-foundation.org>
+Mime-Version: 1.0
+Content-Type: multipart/signed; protocol="application/pgp-signature";
+ micalg="PGP-SHA256";
+ boundary="Signature=_Wed__23_May_2012_10_37_35_+1000_lh_W.DnBH1B2fc8z"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Seth Jennings <sjenning@linux.vnet.ibm.com>
-Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Dan Magenheimer <dan.magenheimer@oracle.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Nitin Gupta <ngupta@vflare.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, mingo@redhat.com, a.p.zijlstra@chello.nl, peterz@infradead.org, anton@redhat.com, rostedt@goodmis.org, tglx@linutronix.de, oleg@redhat.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, hpa@zytor.com, jkenisto@us.ibm.com, andi@firstfloor.org, hch@infradead.org, ananth@in.ibm.com, vda.linux@googlemail.com, masami.hiramatsu.pt@hitachi.com, acme@infradead.org, srikar@linux.vnet.ibm.com, roland@hack.frob.com, mingo@elte.hu, linux-tip-commits@vger.kernel.org
 
-On 05/21/2012 11:19 PM, Seth Jennings wrote:
+--Signature=_Wed__23_May_2012_10_37_35_+1000_lh_W.DnBH1B2fc8z
+Content-Type: text/plain; charset=US-ASCII
+Content-Disposition: inline
+Content-Transfer-Encoding: quoted-printable
 
-> On 05/20/2012 09:23 PM, Minchan Kim wrote:
-> 
->> We should use unsigned long as handle instead of void * to avoid any
->> confusion. Without this, users may just treat zs_malloc return value as
->> a pointer and try to deference it.
-> 
-> 
-> I wouldn't have agreed with you about the need for this change as people
-> should understand a void * to be the address of some data with unknown
-> structure.
-> 
-> However, I recently discussed with Dan regarding his RAMster project
-> where he assumed that the void * would be an address, and as such,
-> 4-byte aligned.  So he has masked two bits into the two LSBs of the
-> handle for RAMster, which doesn't work with zsmalloc since the handle is
-> not an address.
-> 
-> So really we do need to convey as explicitly as possible to the user
-> that the handle is an _opaque_ value about which no assumption can be made.
-> 
-> Also, I wanted to test this but is doesn't apply cleanly on
-> zsmalloc-main.c on v3.4 or what I have as your latest patch series.
-> What is the base for this patch?
+Hi Andrew,
 
+I have been thinking about this some more.
 
-It's based on next-20120518.
-I have always used linux-next tree for staging.
-Greg, What's the convenient tree for you?
+On Mon, 21 May 2012 15:13:23 -0700 Andrew Morton <akpm@linux-foundation.org=
+> wrote:
+>
+> On Mon, 21 May 2012 15:00:28 -0700
+> Linus Torvalds <torvalds@linux-foundation.org> wrote:
+>=20
+> > On Mon, May 21, 2012 at 2:37 PM, Andrew Morton
+> > <akpm@linux-foundation.org> wrote:
+> > >
+> > > hm, we seem to have conflicting commits between mainline and linux-ne=
+xt.
+> > > During the merge window. __Again. __Nobody knows why this happens.
+> >=20
+> > I didn't have my trivial cleanup branches in linux-next, I'm afraid.
+>=20
+> Well, it's a broader issue than that.  I often see a large number of
+> rejects when syncing mainline with linux-next during the merge window.=20
+> Right now:
+>=20
+> Documentation/nfc/nfc-hci.txt:<<<<<<< HEAD
+	.
+	.
+	.
+> net/nfc/hci/shdlc.c:<<<<<<< HEAD
+> net/nfc/nci/core.c:<<<<<<< HEAD
 
-Maybe I will resend next spin based on v3.4 today
-I hope it doesn't hurt you.
+What two SHA1s did you try to merge to get that.  I can get some of it
+but nothing like that.
 
-> 
->>
->> This patch passed compile test(zram, zcache and ramster) and zram is
->> tested on qemu.
->>
->> Cc: Seth Jennings <sjenning@linux.vnet.ibm.com>
->> Cc: Dan Magenheimer <dan.magenheimer@oracle.com>
->> Cc: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
->> Cc: Nitin Gupta <ngupta@vflare.org>
->> Signed-off-by: Minchan Kim <minchan@kernel.org>
->> ---
->>
->> Nitin, Konrad and I discussed and concluded that we should use 'unsigned long'
->> instead of 'void *'.
->> Look at the lengthy thread if you have a question.
->> http://marc.info/?l=linux-mm&m=133716653118566&w=4
->> Watch out! it has number of noises.
->>
->>  drivers/staging/zcache/zcache-main.c     |   12 ++++++------
->>  drivers/staging/zram/zram_drv.c          |   16 ++++++++--------
->>  drivers/staging/zram/zram_drv.h          |    2 +-
->>  drivers/staging/zsmalloc/zsmalloc-main.c |   24 ++++++++++++------------
->>  drivers/staging/zsmalloc/zsmalloc.h      |    8 ++++----
->>  5 files changed, 31 insertions(+), 31 deletions(-)
->>
->> diff --git a/drivers/staging/zcache/zcache-main.c b/drivers/staging/zcache/zcache-main.c
->> index 2734dac..4c218a7 100644
->> --- a/drivers/staging/zcache/zcache-main.c
->> +++ b/drivers/staging/zcache/zcache-main.c
->> @@ -700,7 +700,7 @@ static struct zv_hdr *zv_create(struct zs_pool *pool, uint32_t pool_id,
->>  	struct zv_hdr *zv;
->>  	u32 size = clen + sizeof(struct zv_hdr);
->>  	int chunks = (size + (CHUNK_SIZE - 1)) >> CHUNK_SHIFT;
->> -	void *handle = NULL;
->> +	unsigned long handle = 0;
->>
->>  	BUG_ON(!irqs_disabled());
->>  	BUG_ON(chunks >= NCHUNKS);
->> @@ -718,10 +718,10 @@ static struct zv_hdr *zv_create(struct zs_pool *pool, uint32_t pool_id,
->>  	memcpy((char *)zv + sizeof(struct zv_hdr), cdata, clen);
->>  	zs_unmap_object(pool, handle);
->>  out:
->> -	return handle;
->> +	return (struct zv_hdr *)handle;
-> 
-> 
-> This is kind of weird, and somewhat defeats the point, casting it back
-> to a pointer.  I know you'd have to change it all the way up the stack.
->  Just saying.
+--=20
+Cheers,
+Stephen Rothwell                    sfr@canb.auug.org.au
 
+--Signature=_Wed__23_May_2012_10_37_35_+1000_lh_W.DnBH1B2fc8z
+Content-Type: application/pgp-signature
 
-Okay.
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1.4.12 (GNU/Linux)
 
-> 
->>  }
->>
->> -static void zv_free(struct zs_pool *pool, void *handle)
->> +static void zv_free(struct zs_pool *pool, unsigned long handle)
->>  {
->>  	unsigned long flags;
->>  	struct zv_hdr *zv;
->> @@ -743,7 +743,7 @@ static void zv_free(struct zs_pool *pool, void *handle)
->>  	local_irq_restore(flags);
->>  }
->>
->> -static void zv_decompress(struct page *page, void *handle)
->> +static void zv_decompress(struct page *page, unsigned long handle)
->>  {
->>  	unsigned int clen = PAGE_SIZE;
->>  	char *to_va;
->> @@ -1247,7 +1247,7 @@ static int zcache_pampd_get_data(char *data, size_t *bufsize, bool raw,
->>  	int ret = 0;
->>
->>  	BUG_ON(is_ephemeral(pool));
->> -	zv_decompress((struct page *)(data), pampd);
->> +	zv_decompress((struct page *)(data), (unsigned long)pampd);
->>  	return ret;
->>  }
->>
->> @@ -1282,7 +1282,7 @@ static void zcache_pampd_free(void *pampd, struct tmem_pool *pool,
->>  		atomic_dec(&zcache_curr_eph_pampd_count);
->>  		BUG_ON(atomic_read(&zcache_curr_eph_pampd_count) < 0);
->>  	} else {
->> -		zv_free(cli->zspool, pampd);
->> +		zv_free(cli->zspool, (unsigned long)pampd);
->>  		atomic_dec(&zcache_curr_pers_pampd_count);
->>  		BUG_ON(atomic_read(&zcache_curr_pers_pampd_count) < 0);
->>  	}
->> diff --git a/drivers/staging/zram/zram_drv.c b/drivers/staging/zram/zram_drv.c
->> index 685d612..abd69d1 100644
->> --- a/drivers/staging/zram/zram_drv.c
->> +++ b/drivers/staging/zram/zram_drv.c
->> @@ -135,7 +135,7 @@ static void zram_set_disksize(struct zram *zram, size_t totalram_bytes)
->>
->>  static void zram_free_page(struct zram *zram, size_t index)
->>  {
->> -	void *handle = zram->table[index].handle;
->> +	unsigned long handle = zram->table[index].handle;
-> 
-> 
-> Should we incorporate the union { handle, page } idea we were working on
-> earlier before doing this?  Might cut down on some the casting below.
+iQIcBAEBCAAGBQJPvDFPAAoJEECxmPOUX5FEt5kP/jjvimQqUdiAB6uJMszVjHh+
+2/ky23rcYz0UYnQ1iG7iLfPQj7P1Nl2rfzmMmg3So9Q/527XiiT0wf/12itzNNC5
+KGST4JSW3sgvnFgwj8YORAuucx1LDpUSwhgMPKsoZ5kLGx2RVdPKKlN+vta6t3BG
+doco1NzSJCPUnQnUZM4Stly1/Bw4J+7gpnJnK34eucjLLBH3wQh4KdHGOfKqZgVR
+noOOMT0POngzrV3Q5z9Ty+cLAfciquoL35gdIytEBeehuzMacddawpv/7Zegp+Ta
+oqsemEtV7YRrZHHjuiPXf1cT1QhMXeB4oFlqgckzvrzfYCoxNUc7m6UN0r+p87ep
+gOe1XYQa8cmlFa4rHiw7jIZukn/av1GWDUhyypvt7A0sEAJWN+h7IKn+THbzdw8e
+ZVp4KAquhA56qOqFH2uITKTj2OM+giZGSow7DAWznf0LfkmXJryacbm02UvkV8f2
+jGEhViWRD115kBy2uNnRqwGuFUAllcWlZP7SxX+eRRTbhkghi7VUVy3rEMNMKi7B
+zwh6jUjLq2Bk6MYPARc1rLRzBIeGK8tnELBZtC8Hh0+fGMn/c0NNyVyF46ozmLgZ
+VVOsxSBQ+DFQmzYZtNVSDXGEovkL28tHBnTCxbXexH+6/JKjRYO/K/J26vYSBqlv
+afA3DPD19KjMrRLl1YSw
+=63Wv
+-----END PGP SIGNATURE-----
 
-
-Yes. It should be another patch and I don't care it's applied based on
-this patch or reverse.
-I will try it.
-
-> 
->>
->>  	if (unlikely(!handle)) {
->>  		/*
->> @@ -150,7 +150,7 @@ static void zram_free_page(struct zram *zram, size_t index)
->>  	}
->>
->>  	if (unlikely(zram_test_flag(zram, index, ZRAM_UNCOMPRESSED))) {
->> -		__free_page(handle);
->> +		__free_page((struct page *)handle);
->>  		zram_clear_flag(zram, index, ZRAM_UNCOMPRESSED);
->>  		zram_stat_dec(&zram->stats.pages_expand);
->>  		goto out;
->> @@ -166,7 +166,7 @@ out:
->>  			zram->table[index].size);
->>  	zram_stat_dec(&zram->stats.pages_stored);
->>
->> -	zram->table[index].handle = NULL;
->> +	zram->table[index].handle = 0;
->>  	zram->table[index].size = 0;
->>  }
->>
->> @@ -189,7 +189,7 @@ static void handle_uncompressed_page(struct zram *zram, struct bio_vec *bvec,
->>  	unsigned char *user_mem, *cmem;
->>
->>  	user_mem = kmap_atomic(page);
->> -	cmem = kmap_atomic(zram->table[index].handle);
->> +	cmem = kmap_atomic((struct page *)zram->table[index].handle);
->>
->>  	memcpy(user_mem + bvec->bv_offset, cmem + offset, bvec->bv_len);
->>  	kunmap_atomic(cmem);
->> @@ -317,7 +317,7 @@ static int zram_bvec_write(struct zram *zram, struct bio_vec *bvec, u32 index,
->>  	int ret;
->>  	u32 store_offset;
->>  	size_t clen;
->> -	void *handle;
->> +	unsigned long handle;
->>  	struct zobj_header *zheader;
->>  	struct page *page, *page_store;
->>  	unsigned char *user_mem, *cmem, *src, *uncmem = NULL;
->> @@ -399,7 +399,7 @@ static int zram_bvec_write(struct zram *zram, struct bio_vec *bvec, u32 index,
->>  		store_offset = 0;
->>  		zram_set_flag(zram, index, ZRAM_UNCOMPRESSED);
->>  		zram_stat_inc(&zram->stats.pages_expand);
->> -		handle = page_store;
->> +		handle = (unsigned long)page_store;
->>  		src = kmap_atomic(page);
->>  		cmem = kmap_atomic(page_store);
->>  		goto memstore;
->> @@ -592,12 +592,12 @@ void __zram_reset_device(struct zram *zram)
->>
->>  	/* Free all pages that are still in this zram device */
->>  	for (index = 0; index < zram->disksize >> PAGE_SHIFT; index++) {
->> -		void *handle = zram->table[index].handle;
->> +		unsigned long handle = zram->table[index].handle;
->>  		if (!handle)
->>  			continue;
->>
->>  		if (unlikely(zram_test_flag(zram, index, ZRAM_UNCOMPRESSED)))
->> -			__free_page(handle);
->> +			__free_page((struct page *)handle);
->>  		else
->>  			zs_free(zram->mem_pool, handle);
->>  	}
->> diff --git a/drivers/staging/zram/zram_drv.h b/drivers/staging/zram/zram_drv.h
->> index fbe8ac9..7a7e256 100644
->> --- a/drivers/staging/zram/zram_drv.h
->> +++ b/drivers/staging/zram/zram_drv.h
->> @@ -81,7 +81,7 @@ enum zram_pageflags {
->>
->>  /* Allocated for each disk page */
->>  struct table {
->> -	void *handle;
->> +	unsigned long handle;
-> 
-> 
-> Putting the union here, as mentioned above.
-> 
->>  	u16 size;	/* object size (excluding header) */
->>  	u8 count;	/* object ref count (not yet used) */
->>  	u8 flags;
-> 
-> <snip>
-> 
-> Thanks,
-> Seth
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Fight unfair telecom internet charges in Canada: sign http://stopthemeter.ca/
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-> 
-
-
-
--- 
-Kind regards,
-Minchan Kim
+--Signature=_Wed__23_May_2012_10_37_35_+1000_lh_W.DnBH1B2fc8z--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
