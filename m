@@ -1,73 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx175.postini.com [74.125.245.175])
-	by kanga.kvack.org (Postfix) with SMTP id 964A96B00F2
-	for <linux-mm@kvack.org>; Thu, 24 May 2012 17:52:29 -0400 (EDT)
-Received: by dakp5 with SMTP id p5so429627dak.14
-        for <linux-mm@kvack.org>; Thu, 24 May 2012 14:52:28 -0700 (PDT)
-Date: Thu, 24 May 2012 14:52:26 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH -V6 07/14] memcg: Add HugeTLB extension
-In-Reply-To: <1334573091-18602-8-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
-Message-ID: <alpine.DEB.2.00.1205241436180.24113@chino.kir.corp.google.com>
-References: <1334573091-18602-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com> <1334573091-18602-8-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from psmtp.com (na3sys010amx115.postini.com [74.125.245.115])
+	by kanga.kvack.org (Postfix) with SMTP id 3E7436B00F4
+	for <linux-mm@kvack.org>; Thu, 24 May 2012 18:12:33 -0400 (EDT)
+Date: Thu, 24 May 2012 15:12:31 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: mm: fix faulty initialization in vmalloc_init()
+Message-Id: <20120524151231.e3a18ac5.akpm@linux-foundation.org>
+In-Reply-To: <001c01cd3987$d1a71a50$74f54ef0$%cho@samsung.com>
+References: <001c01cd3987$d1a71a50$74f54ef0$%cho@samsung.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Cc: linux-mm@kvack.org, mgorman@suse.de, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, dhillf@gmail.com, aarcange@redhat.com, mhocko@suse.cz, Andrew Morton <akpm@linux-foundation.org>, hannes@cmpxchg.org, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org
+To: KyongHo <pullip.cho@samsung.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-arm-kernel@lists.infradead.org, linux-samsung-soc@vger.kernel.org
 
-On Mon, 16 Apr 2012, Aneesh Kumar K.V wrote:
+On Thu, 24 May 2012 17:32:56 +0900
+KyongHo <pullip.cho@samsung.com> wrote:
 
-> This patch implements a memcg extension that allows us to control HugeTLB
-> allocations via memory controller. The extension allows to limit the
-> HugeTLB usage per control group and enforces the controller limit during
-> page fault. Since HugeTLB doesn't support page reclaim, enforcing the limit
-> at page fault time implies that, the application will get SIGBUS signal if it
-> tries to access HugeTLB pages beyond its limit. This requires the application
-> to know beforehand how much HugeTLB pages it would require for its use.
-> 
-> The charge/uncharge calls will be added to HugeTLB code in later patch.
-> Support for memcg removal will be added in later patches.
+> vmalloc_init() adds 'vmap_area's for early 'vm_struct's.
+> This patch fixes vmalloc_init() to correctly initialize
+> vmap_area for the given vm_struct.
 > 
 
-Again, I disagree with this approach because it's adding the functionality 
-to memcg when it's unnecessary; it would be a complete legitimate usecase 
-to want to limit the number of globally available hugepages to a set of 
-tasks without incurring the per-page tracking from memcg.
+<daily message>
+Insufficient information.  When fixing a bug please always always
+always describe the user-visible effects of the bug.  Does the kernel
+instantly crash?  Is it a comestic cleanliness thing which has no
+effect?  Something in between?  I have simply no idea, and am dependent
+upon you to tell me.
 
-This can be implemented as a seperate cgroup and as we move to a single 
-hierarchy, you lose no functionality if you mount both cgroups from what 
-is done here.
+> --- a/mm/vmalloc.c
+> +++ b/mm/vmalloc.c
+> @@ -1185,9 +1185,10 @@ void __init vmalloc_init(void)
+>  	/* Import existing vmlist entries. */
+>  	for (tmp = vmlist; tmp; tmp = tmp->next) {
+>  		va = kzalloc(sizeof(struct vmap_area), GFP_NOWAIT);
+> -		va->flags = tmp->flags | VM_VM_AREA;
+> +		va->flags = VM_VM_AREA;
 
-It would be much cleaner in terms of
+This change is a mystery.  Why do we no longer transfer ->flags?
 
- - build: not requiring ifdefs and dependencies on CONFIG_HUGETLB_PAGE, 
-   which is a prerequisite for this functionality and is not for 
-   CONFIG_CGROUP_MEM_RES_CTLR,
+>  		va->va_start = (unsigned long)tmp->addr;
+>  		va->va_end = va->va_start + tmp->size;
+> +		va->vm = tmp;
 
- - code: seperating hugetlb bits out from memcg bits to avoid growing 
-   mm/memcontrol.c beyond its current 5650 lines, and
+OK, I can see how this might be important.  But why did you find it
+necessary?  Why was this change actually needed?
 
- - performance: not incurring any overhead of enabling memcg for per-
-   page tracking that is unnecessary if users only want to limit hugetlb 
-   pages.
-
-Kmem accounting and swap accounting is really a seperate topic and makes 
-sense to be incorporated directly into memcg because their usage is a 
-single number, the same is not true for hugetlb pages where charging one 
-1GB page is not the same as charging 512 2M pages.  And we have no 
-usecases for wanting to track kmem or swap only without user page 
-tracking, what would be the point?
-
-There's a reason we don't enable CONFIG_CGROUP_MEM_RES_CTLR in the 
-defconfig, we don't want the extra 1% metadata overhead of enabling it and 
-the potential performance regression from doing per-page tracking if we 
-only want to limit a global resource (hugetlb pages) to a set of tasks.
-
-So please consider seperating this functionality out into its own cgroup, 
-there's no reason not to do it and it would benefit hugetlb users who 
-don't want to incur the disadvantages of enabling memcg entirely.
+>  		__insert_vmap_area(va);
+>  	}
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
