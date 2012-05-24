@@ -1,39 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx147.postini.com [74.125.245.147])
-	by kanga.kvack.org (Postfix) with SMTP id 499BC6B0083
-	for <linux-mm@kvack.org>; Thu, 24 May 2012 09:37:34 -0400 (EDT)
-Received: by ggm4 with SMTP id 4so10950415ggm.14
-        for <linux-mm@kvack.org>; Thu, 24 May 2012 06:37:33 -0700 (PDT)
-Date: Thu, 24 May 2012 21:38:21 +0800
-From: "majianpeng" <majianpeng@gmail.com>
-Subject: the max size of block device on 32bit os,when using do_generic_file_read() proceed.
-Message-ID: <201205242138175936268@gmail.com>
-Mime-Version: 1.0
-Content-Type: text/plain;
-	charset="us-ascii"
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx196.postini.com [74.125.245.196])
+	by kanga.kvack.org (Postfix) with SMTP id E5EEA6B0092
+	for <linux-mm@kvack.org>; Thu, 24 May 2012 12:59:18 -0400 (EDT)
+From: Jan Kara <jack@suse.cz>
+Subject: [PATCH 0/2 v4] Flexible proportions
+Date: Thu, 24 May 2012 18:59:09 +0200
+Message-Id: <1337878751-22942-1-git-send-email-jack@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm <akpm@linux-foundation.org>, hughd <hughd@google.com>
-Cc: linux-mm <linux-mm@kvack.org>
+To: Wu Fengguang <fengguang.wu@intel.com>
+Cc: Peter Zijlstra <peterz@infradead.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-  Hi all:
-		I readed a raid5,which size 30T.OS is RHEL6 32bit.
-	    I reaed the raid5(as a whole,not parted) and found read address which not i wanted.
-		So I tested the newest kernel code,the problem is still.
-		I review the code, in function do_generic_file_read()
 
-		index = *ppos >> PAGE_CACHE_SHIFT;
-		index is u32.and *ppos is long long.
-		So when *ppos is larger than 0xFFFF FFFF *  PAGE_CACHE_SHIFT(16T Byte),then the index is error.
+  Hello,
 
-		I wonder this .In 32bit os ,block devices size do not large then 16T,in other words, if block devices larger than 16T,must parted.
+  here is the next iteration of my flexible proportions code. I've addressed
+all Peter's comments.
+Changes since v3:
+  * changed fprop_fraction_foo() to avoid using percpu_counter_sum()
+  * changed __fprop_inc_percpu_max() to avoid 64-bit division (now maximum
+    allowed fraction is expressed max_frac/FPROP_FRAC_BASE)
+  * avoid drifting of period timer
+  * handle better cases where period timer fires long after intended time by
+    aging by really passed number of periods
+Changes since v2:
+  * use timer instead of workqueue for triggering period switch
+  * arm timer only if aging didn't zero out all fractions, re-arm timer when
+    new event arrives again
+  * set period length to 3s
 
-																						Thanks all.
- 				
---------------
-majianpeng
-2012-05-24
+  Some introduction for first time readers:
+
+  The idea of this patch set is to provide code for computing event proportions
+where aging period is not dependent on the number of events happening (so
+that aging works well both with fast storage and slow USB sticks in the same
+system).
+
+  The basic idea is that we compute proportions as:
+p_j = (\Sum_{i>=0} x_{i,j}/2^{i+1}) / (\Sum_{i>=0} x_i/2^{i+1})
+
+  Where x_{i,j} is j's number of events in i-th last time period and x_i is
+total number of events in i-th last time period.
+
+  Note that when x_i's are all the same (as is the case with current
+proportion code), this expression simplifies to the expression defining
+current proportions which is:
+p_j =  \Sum_{i>=0} x_{i,j}/2^{i+1} / t
+
+  where t is the lenght of the aging period.
+
+  In fact, if we are in the middle of the period, the proportion computed by
+the current code is:
+p_j = (x_0 + \Sum_{i>=1} x_{i,j}/2^{i+1}) / (t' + t)
+
+  where t' is total number of events in the running period and t is the lenght
+of the aging period. So there is event more similarity.
+
+  Similarly as with current proportion code, it is simple to compute update
+proportion after several periods have elapsed. For each proportion we store
+the numerator of our fraction and the number of period when the proportion
+was last updated. In global proportion structure we compute the denominator
+of the fraction which is the same for all event types. So catch up with missed
+periods boils down to shifting the numerator by the number of missed periods
+and that's it. For more details, please see the code.
+
+  I've also run a few tests (I've created a userspace wrapper to allow me to
+run proportion code in userpace and arbitrarily generate events for it) to
+compare the behavior of old and new code. You can see them at
+http://beta.suse.com/private/jack/flex_proportions/ In all the tests new code
+showed faster convergence to current event proportions (I tried to
+realistically set period_shift for fixed proportions).  Also in the last test
+we see that if period_shift is decreased, then current proportions become more
+sensitive to short term fluctuations in event rate so just decreasing
+period_shift isn't a good solution to slower convergence. If anyone has other
+idea what to try, I can do that - it should be simple enough to implement in
+my testing tool.
+
+								Honza
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
