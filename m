@@ -1,180 +1,35 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx191.postini.com [74.125.245.191])
-	by kanga.kvack.org (Postfix) with SMTP id CE02A6B0083
-	for <linux-mm@kvack.org>; Thu, 24 May 2012 06:36:29 -0400 (EDT)
-Received: by lbjn8 with SMTP id n8so9191165lbj.14
-        for <linux-mm@kvack.org>; Thu, 24 May 2012 03:36:27 -0700 (PDT)
-Message-ID: <4FBE0F23.3080903@openvz.org>
-Date: Thu, 24 May 2012 14:36:19 +0400
-From: Konstantin Khlebnikov <khlebnikov@openvz.org>
+Received: from psmtp.com (na3sys010amx204.postini.com [74.125.245.204])
+	by kanga.kvack.org (Postfix) with SMTP id BB2A96B0083
+	for <linux-mm@kvack.org>; Thu, 24 May 2012 08:08:31 -0400 (EDT)
+Message-ID: <4FBE243F.3080002@parallels.com>
+Date: Thu, 24 May 2012 16:06:23 +0400
+From: Glauber Costa <glommer@parallels.com>
 MIME-Version: 1.0
-Subject: Re: 3.4-rc7: BUG: Bad rss-counter state mm:ffff88040b56f800 idx:1
- val:-59
-References: <4FBC1618.5010408@fold.natur.cuni.cz> <20120522162835.c193c8e0.akpm@linux-foundation.org> <4FBD18A2.9060803@fold.natur.cuni.cz>
-In-Reply-To: <4FBD18A2.9060803@fold.natur.cuni.cz>
-Content-Type: text/plain; charset=UTF-8; format=flowed
+Subject: Re: [PATCH] slab+slob: dup name string
+References: <alpine.DEB.2.00.1205212018230.13522@chino.kir.corp.google.com> <alpine.DEB.2.00.1205220855470.17600@router.home> <4FBBAE95.6080608@parallels.com> <alpine.DEB.2.00.1205221216050.17721@router.home> <alpine.DEB.2.00.1205221529340.18325@chino.kir.corp.google.com> <1337773595.3013.15.camel@dabdike.int.hansenpartnership.com> <4FBCD328.6060406@parallels.com> <1337775878.3013.16.camel@dabdike.int.hansenpartnership.com> <alpine.DEB.2.00.1205230947490.30940@router.home> <4FBCF951.3040105@parallels.com> <20120524001831.GQ25351@dastard>
+In-Reply-To: <20120524001831.GQ25351@dastard>
+Content-Type: text/plain; charset="ISO-8859-1"; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Martin Mokrejs <mmokrejs@fold.natur.cuni.cz>
-Cc: Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, "markus@trippelsdorf.de" <markus@trippelsdorf.de>, "hughd@google.com" <hughd@google.com>, "kamezawa.hiroyu@jp.fujitsu.com" <kamezawa.hiroyu@jp.fujitsu.com>, "oleg@redhat.com" <oleg@redhat.com>, Michal Hocko <mhocko@suse.cz>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Dave Chinner <david@fromorbit.com>
+Cc: Christoph Lameter <cl@linux.com>, James Bottomley <James.Bottomley@HansenPartnership.com>, David Rientjes <rientjes@google.com>, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, linux-mm@kvack.org, Pekka Enberg <penberg@cs.helsinki.fi>
 
-Martin Mokrejs wrote:
-> Hi,
->    I rebooted the laptop twice today after just brief uses and the messages did not
-> appear in the logs.
+On 05/24/2012 04:18 AM, Dave Chinner wrote:
+>> Of course reasoning about why it was added helps (so let's try to
+>> >  determine that), but so far the only reasonably strong argument in
+>> >  favor of keeping it was robustness.
+> I'm pretty sure it was added because there are slab names
+> constructed by snprintf on a stack buffer, so the name doesn't exist
+> beyond the slab initialisation function call...
 >
-> Now I just applied the below patch and during two reboots it did not appear either.
-> Do I have to use the computer for some longer while to reproduce the issue? ;-)
+> Cheers,
+>
+> Dave.
+If that was the reason, we'd be seeing slab failing miserably where slub 
+succeeds, since slab keeps no copy.
 
-Yes, some data must be in swap to reproduce this, so memory pressure required here.
-
->
-> I will stay with the patch applied over 3.4-rc7 and would the BUG: re-appear I will
-> let you know. But I doubt at the moment I could confirm it really helped.
-> Clues how to reproduce? ;)
-> Martin
->
-> Andrew Morton wrote:
->> On Wed, 23 May 2012 00:41:28 +0200
->> Martin Mokrejs<mmokrejs@fold.natur.cuni.cz>  wrote:
->>
->>> Hi Andrew,
->>>    while shutting down my laptop (Dell Vostro 3550 with 16GB RAM, core i7) with 3.4-rc7 I got:
->>>
->>> May 23 00:07:54 vostro kernel: [352687.968267] BUG: Bad rss-counter state mm:ffff88040b56f800 idx:1 val:-59
->>> May 23 00:07:54 vostro kernel: [352687.968312] BUG: Bad rss-counter state mm:ffff88040b56f800 idx:2 val:59
->>> May 23 00:07:55 vostro acpid: exiting
->>> May 23 00:07:55 vostro syslog-ng[2838]: syslog-ng shutting down; version='3.3.4'
->>>
->>>    I found by Google the below thread and thought that maybe it is related?
->>> http://comments.gmane.org/gmane.linux.kernel.mm/76459
->>>
->>> ...
->>>
->>
->>
->> Well hopefully the below will fix this?
->>
->> I notice that I don't have this tagged for -stable backporting.  That
->> seems wrong.  Konstantin, do we know for how long this bug has been in
->> there?
->>
->>
->>
->> From: Konstantin Khlebnikov<khlebnikov@openvz.org>
->> Subject: mm: correctly synchronize rss-counters at exit/exec
->>
->> mm->rss_stat counters have per-task delta: task->rss_stat.  Before
->> changing task->mm pointer the kernel must flush this delta with
->> sync_mm_rss().
->>
->> do_exit() already calls sync_mm_rss() to flush the rss-counters before
->> committing the rss statistics into task->signal->maxrss, taskstats, audit
->> and other stuff.  Unfortunately the kernel does this before calling
->> mm_release(), which can call put_user() for processing
->> task->clear_child_tid.  So at this point we can trigger page-faults and
->> task->rss_stat becomes non-zero again.  As a result mm->rss_stat becomes
->> inconsistent and check_mm() will print something like this:
->>
->> | BUG: Bad rss-counter state mm:ffff88020813c380 idx:1 val:-1
->> | BUG: Bad rss-counter state mm:ffff88020813c380 idx:2 val:1
->>
->> This patch moves sync_mm_rss() into mm_release(), and moves mm_release()
->> out of do_exit() and calls it earlier.  After mm_release() there should be
->> no pagefaults.
->>
->> [akpm@linux-foundation.org: tweak comment]
->> Signed-off-by: Konstantin Khlebnikov<khlebnikov@openvz.org>
->> Reported-by: Markus Trippelsdorf<markus@trippelsdorf.de>
->> Cc: Hugh Dickins<hughd@google.com>
->> Cc: KAMEZAWA Hiroyuki<kamezawa.hiroyu@jp.fujitsu.com>
->> Cc: Oleg Nesterov<oleg@redhat.com>
->> Signed-off-by: Andrew Morton<akpm@linux-foundation.org>
->> ---
->>
->>   fs/exec.c     |    1 -
->>   kernel/exit.c |   13 ++++++++-----
->>   kernel/fork.c |    8 ++++++++
->>   3 files changed, 16 insertions(+), 6 deletions(-)
->>
->> diff -puN fs/exec.c~mm-correctly-synchronize-rss-counters-at-exit-exec fs/exec.c
->> --- a/fs/exec.c~mm-correctly-synchronize-rss-counters-at-exit-exec
->> +++ a/fs/exec.c
->> @@ -823,7 +823,6 @@ static int exec_mmap(struct mm_struct *m
->>   	/* Notify parent that we're no longer interested in the old VM */
->>   	tsk = current;
->>   	old_mm = current->mm;
->> -	sync_mm_rss(old_mm);
->>   	mm_release(tsk, old_mm);
->>
->>   	if (old_mm) {
->> diff -puN kernel/exit.c~mm-correctly-synchronize-rss-counters-at-exit-exec kernel/exit.c
->> --- a/kernel/exit.c~mm-correctly-synchronize-rss-counters-at-exit-exec
->> +++ a/kernel/exit.c
->> @@ -423,6 +423,7 @@ void daemonize(const char *name, ...)
->>   	 * user space pages.  We don't need them, and if we didn't close them
->>   	 * they would be locked into memory.
->>   	 */
->> +	mm_release(current, current->mm);
->>   	exit_mm(current);
->>   	/*
->>   	 * We don't want to get frozen, in case system-wide hibernation
->> @@ -640,7 +641,6 @@ static void exit_mm(struct task_struct *
->>   	struct mm_struct *mm = tsk->mm;
->>   	struct core_state *core_state;
->>
->> -	mm_release(tsk, mm);
->>   	if (!mm)
->>   		return;
->>   	/*
->> @@ -959,9 +959,13 @@ void do_exit(long code)
->>   				preempt_count());
->>
->>   	acct_update_integrals(tsk);
->> -	/* sync mm's RSS info before statistics gathering */
->> -	if (tsk->mm)
->> -		sync_mm_rss(tsk->mm);
->> +
->> +	/* Set exit_code before complete_vfork_done() in mm_release() */
->> +	tsk->exit_code = code;
->> +
->> +	/* Release mm and sync mm's RSS info before statistics gathering */
->> +	mm_release(tsk, tsk->mm);
->> +
->>   	group_dead = atomic_dec_and_test(&tsk->signal->live);
->>   	if (group_dead) {
->>   		hrtimer_cancel(&tsk->signal->real_timer);
->> @@ -974,7 +978,6 @@ void do_exit(long code)
->>   		tty_audit_exit();
->>   	audit_free(tsk);
->>
->> -	tsk->exit_code = code;
->>   	taskstats_exit(tsk, group_dead);
->>
->>   	exit_mm(tsk);
->> diff -puN kernel/fork.c~mm-correctly-synchronize-rss-counters-at-exit-exec kernel/fork.c
->> --- a/kernel/fork.c~mm-correctly-synchronize-rss-counters-at-exit-exec
->> +++ a/kernel/fork.c
->> @@ -809,6 +809,14 @@ void mm_release(struct task_struct *tsk,
->>   		}
->>   		tsk->clear_child_tid = NULL;
->>   	}
->> +
->> +	/*
->> +	 * Final rss-counter synchronization. After this point there must be
->> +	 * no pagefaults into this mm from the current context.  Otherwise
->> +	 * mm->rss_stat will be inconsistent.
->> +	 */
->> +	if (mm)
->> +		sync_mm_rss(mm);
->>   }
->>
->>   /*
->> _
->>
->> .
->>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
