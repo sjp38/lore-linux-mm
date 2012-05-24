@@ -1,34 +1,106 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx204.postini.com [74.125.245.204])
-	by kanga.kvack.org (Postfix) with SMTP id BB2A96B0083
-	for <linux-mm@kvack.org>; Thu, 24 May 2012 08:08:31 -0400 (EDT)
-Message-ID: <4FBE243F.3080002@parallels.com>
-Date: Thu, 24 May 2012 16:06:23 +0400
-From: Glauber Costa <glommer@parallels.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH] slab+slob: dup name string
-References: <alpine.DEB.2.00.1205212018230.13522@chino.kir.corp.google.com> <alpine.DEB.2.00.1205220855470.17600@router.home> <4FBBAE95.6080608@parallels.com> <alpine.DEB.2.00.1205221216050.17721@router.home> <alpine.DEB.2.00.1205221529340.18325@chino.kir.corp.google.com> <1337773595.3013.15.camel@dabdike.int.hansenpartnership.com> <4FBCD328.6060406@parallels.com> <1337775878.3013.16.camel@dabdike.int.hansenpartnership.com> <alpine.DEB.2.00.1205230947490.30940@router.home> <4FBCF951.3040105@parallels.com> <20120524001831.GQ25351@dastard>
-In-Reply-To: <20120524001831.GQ25351@dastard>
-Content-Type: text/plain; charset="ISO-8859-1"; format=flowed
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx165.postini.com [74.125.245.165])
+	by kanga.kvack.org (Postfix) with SMTP id 318036B0083
+	for <linux-mm@kvack.org>; Thu, 24 May 2012 08:26:18 -0400 (EDT)
+MIME-version: 1.0
+Content-transfer-encoding: 7BIT
+Content-type: text/plain; charset=utf-8
+Received: from euspt2 ([210.118.77.14]) by mailout4.w1.samsung.com
+ (Sun Java(tm) System Messaging Server 6.3-8.04 (built Jul 29 2009; 32bit))
+ with ESMTP id <0M4J00FOX186GT50@mailout4.w1.samsung.com> for
+ linux-mm@kvack.org; Thu, 24 May 2012 13:26:30 +0100 (BST)
+Received: from linux.samsung.com ([106.116.38.10])
+ by spt2.w1.samsung.com (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14
+ 2004)) with ESMTPA id <0M4J00EMZ17P4D@spt2.w1.samsung.com> for
+ linux-mm@kvack.org; Thu, 24 May 2012 13:26:14 +0100 (BST)
+Date: Thu, 24 May 2012 14:26:12 +0200
+From: Marek Szyprowski <m.szyprowski@samsung.com>
+Subject: RE: [PATCHv2 3/4] mm: vmalloc: add VM_DMA flag to indicate areas used
+ by dma-mapping framework
+In-reply-to: <4FBB3B41.8010102@kernel.org>
+Message-id: <01e501cd39a8$67f34ea0$37d9ebe0$%szyprowski@samsung.com>
+Content-language: pl
+References: <1337252085-22039-1-git-send-email-m.szyprowski@samsung.com>
+ <1337252085-22039-4-git-send-email-m.szyprowski@samsung.com>
+ <4FBB3B41.8010102@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Chinner <david@fromorbit.com>
-Cc: Christoph Lameter <cl@linux.com>, James Bottomley <James.Bottomley@HansenPartnership.com>, David Rientjes <rientjes@google.com>, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, linux-mm@kvack.org, Pekka Enberg <penberg@cs.helsinki.fi>
+To: 'Minchan Kim' <minchan@kernel.org>
+Cc: linux-arm-kernel@lists.infradead.org, linaro-mm-sig@lists.linaro.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, 'Kyungmin Park' <kyungmin.park@samsung.com>, 'Arnd Bergmann' <arnd@arndb.de>, 'Russell King - ARM Linux' <linux@arm.linux.org.uk>, 'Chunsang Jeong' <chunsang.jeong@linaro.org>, 'Krishna Reddy' <vdumpa@nvidia.com>, 'Konrad Rzeszutek Wilk' <konrad.wilk@oracle.com>, 'Hiroshi Doyu' <hdoyu@nvidia.com>, 'Subash Patel' <subashrp@gmail.com>, 'Nick Piggin' <npiggin@gmail.com>
 
-On 05/24/2012 04:18 AM, Dave Chinner wrote:
->> Of course reasoning about why it was added helps (so let's try to
->> >  determine that), but so far the only reasonably strong argument in
->> >  favor of keeping it was robustness.
-> I'm pretty sure it was added because there are slab names
-> constructed by snprintf on a stack buffer, so the name doesn't exist
-> beyond the slab initialisation function call...
+Hi Minchan,
+
+On Tuesday, May 22, 2012 9:08 AM Minchan Kim wrote:
+
+> On 05/17/2012 07:54 PM, Marek Szyprowski wrote:
+> 
+> > Add new type of vm_area intented to be used for consisten mappings
+> > created by dma-mapping framework.
+> >
+> > Signed-off-by: Marek Szyprowski <m.szyprowski@samsung.com>
+> > Reviewed-by: Kyungmin Park <kyungmin.park@samsung.com>
+> > ---
+> >  include/linux/vmalloc.h |    1 +
+> >  mm/vmalloc.c            |    3 +++
+> >  2 files changed, 4 insertions(+)
+> >
+> > diff --git a/include/linux/vmalloc.h b/include/linux/vmalloc.h
+> > index 6071e91..8a9555a 100644
+> > --- a/include/linux/vmalloc.h
+> > +++ b/include/linux/vmalloc.h
+> > @@ -14,6 +14,7 @@ struct vm_area_struct;		/* vma defining user mapping in
+> mm_types.h */
+> >  #define VM_USERMAP	0x00000008	/* suitable for remap_vmalloc_range */
+> >  #define VM_VPAGES	0x00000010	/* buffer for pages was vmalloc'ed */
+> >  #define VM_UNLIST	0x00000020	/* vm_struct is not listed in vmlist */
+> > +#define VM_DMA		0x00000040	/* used by dma-mapping framework */
+> >  /* bits [20..32] reserved for arch specific ioremap internals */
+> 
+> >
+> 
+> >  /*
+> > diff --git a/mm/vmalloc.c b/mm/vmalloc.c
+> > index 8cb7f22..9c13bab 100644
+> > --- a/mm/vmalloc.c
+> > +++ b/mm/vmalloc.c
+> > @@ -2582,6 +2582,9 @@ static int s_show(struct seq_file *m, void *p)
+> >  	if (v->flags & VM_IOREMAP)
+> >  		seq_printf(m, " ioremap");
+> >
+> > +	if (v->flags & VM_DMA)
+> > +		seq_printf(m, " dma");
+> > +
 >
-> Cheers,
->
-> Dave.
-If that was the reason, we'd be seeing slab failing miserably where slub 
-succeeds, since slab keeps no copy.
+> Hmm, VM_DMA would become generic flag?
+> AFAIU, maybe VM_DMA would be used only on ARM arch.
+
+Right now yes, it will be used only on ARM architecture, but maybe other architecture will
+start using it once it is available.
+
+> Of course, it isn't performance sensitive part but there in no reason to check it, either
+> in other architecture except ARM.
+> 
+> I suggest following as
+> 
+> #ifdef CONFIG_ARM
+> #define VM_DMA	0x00000040
+> #else
+> #define VM_DMA	0x0
+> #end
+> 
+> Maybe it could remove check code at compile time.
+
+I've been told to avoid such #ifdef construction if there is no really good reason for it.
+The only justification was significant impact on the performance, otherwise it would be 
+just a good example of typical over-engineering.
+
+> >  	if (v->flags & VM_ALLOC)
+> >  		seq_printf(m, " vmalloc");
+
+Best regards
+-- 
+Marek Szyprowski
+Samsung Poland R&D Center
 
 
 --
