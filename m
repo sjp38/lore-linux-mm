@@ -1,82 +1,267 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx196.postini.com [74.125.245.196])
-	by kanga.kvack.org (Postfix) with SMTP id E5EEA6B0092
+Received: from psmtp.com (na3sys010amx115.postini.com [74.125.245.115])
+	by kanga.kvack.org (Postfix) with SMTP id E7B5D6B00E7
 	for <linux-mm@kvack.org>; Thu, 24 May 2012 12:59:18 -0400 (EDT)
 From: Jan Kara <jack@suse.cz>
-Subject: [PATCH 0/2 v4] Flexible proportions
-Date: Thu, 24 May 2012 18:59:09 +0200
-Message-Id: <1337878751-22942-1-git-send-email-jack@suse.cz>
+Subject: [PATCH 2/2] block: Convert BDI proportion calculations to flexible proportions
+Date: Thu, 24 May 2012 18:59:11 +0200
+Message-Id: <1337878751-22942-3-git-send-email-jack@suse.cz>
+In-Reply-To: <1337878751-22942-1-git-send-email-jack@suse.cz>
+References: <1337878751-22942-1-git-send-email-jack@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Wu Fengguang <fengguang.wu@intel.com>
-Cc: Peter Zijlstra <peterz@infradead.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+Cc: Peter Zijlstra <peterz@infradead.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Jan Kara <jack@suse.cz>
 
+Convert calculations of proportion of writeback each bdi does to new flexible
+proportion code. That allows us to use aging period of fixed wallclock time
+which gives better proportion estimates given the hugely varying throughput of
+different devices.
 
-  Hello,
+Signed-off-by: Jan Kara <jack@suse.cz>
+---
+ include/linux/backing-dev.h |    4 +-
+ mm/backing-dev.c            |    6 +-
+ mm/page-writeback.c         |  103 ++++++++++++++++++++++++++----------------
+ 3 files changed, 69 insertions(+), 44 deletions(-)
 
-  here is the next iteration of my flexible proportions code. I've addressed
-all Peter's comments.
-Changes since v3:
-  * changed fprop_fraction_foo() to avoid using percpu_counter_sum()
-  * changed __fprop_inc_percpu_max() to avoid 64-bit division (now maximum
-    allowed fraction is expressed max_frac/FPROP_FRAC_BASE)
-  * avoid drifting of period timer
-  * handle better cases where period timer fires long after intended time by
-    aging by really passed number of periods
-Changes since v2:
-  * use timer instead of workqueue for triggering period switch
-  * arm timer only if aging didn't zero out all fractions, re-arm timer when
-    new event arrives again
-  * set period length to 3s
-
-  Some introduction for first time readers:
-
-  The idea of this patch set is to provide code for computing event proportions
-where aging period is not dependent on the number of events happening (so
-that aging works well both with fast storage and slow USB sticks in the same
-system).
-
-  The basic idea is that we compute proportions as:
-p_j = (\Sum_{i>=0} x_{i,j}/2^{i+1}) / (\Sum_{i>=0} x_i/2^{i+1})
-
-  Where x_{i,j} is j's number of events in i-th last time period and x_i is
-total number of events in i-th last time period.
-
-  Note that when x_i's are all the same (as is the case with current
-proportion code), this expression simplifies to the expression defining
-current proportions which is:
-p_j =  \Sum_{i>=0} x_{i,j}/2^{i+1} / t
-
-  where t is the lenght of the aging period.
-
-  In fact, if we are in the middle of the period, the proportion computed by
-the current code is:
-p_j = (x_0 + \Sum_{i>=1} x_{i,j}/2^{i+1}) / (t' + t)
-
-  where t' is total number of events in the running period and t is the lenght
-of the aging period. So there is event more similarity.
-
-  Similarly as with current proportion code, it is simple to compute update
-proportion after several periods have elapsed. For each proportion we store
-the numerator of our fraction and the number of period when the proportion
-was last updated. In global proportion structure we compute the denominator
-of the fraction which is the same for all event types. So catch up with missed
-periods boils down to shifting the numerator by the number of missed periods
-and that's it. For more details, please see the code.
-
-  I've also run a few tests (I've created a userspace wrapper to allow me to
-run proportion code in userpace and arbitrarily generate events for it) to
-compare the behavior of old and new code. You can see them at
-http://beta.suse.com/private/jack/flex_proportions/ In all the tests new code
-showed faster convergence to current event proportions (I tried to
-realistically set period_shift for fixed proportions).  Also in the last test
-we see that if period_shift is decreased, then current proportions become more
-sensitive to short term fluctuations in event rate so just decreasing
-period_shift isn't a good solution to slower convergence. If anyone has other
-idea what to try, I can do that - it should be simple enough to implement in
-my testing tool.
-
-								Honza
+diff --git a/include/linux/backing-dev.h b/include/linux/backing-dev.h
+index b1038bd..489de62 100644
+--- a/include/linux/backing-dev.h
++++ b/include/linux/backing-dev.h
+@@ -10,7 +10,7 @@
+ 
+ #include <linux/percpu_counter.h>
+ #include <linux/log2.h>
+-#include <linux/proportions.h>
++#include <linux/flex_proportions.h>
+ #include <linux/kernel.h>
+ #include <linux/fs.h>
+ #include <linux/sched.h>
+@@ -89,7 +89,7 @@ struct backing_dev_info {
+ 	unsigned long dirty_ratelimit;
+ 	unsigned long balanced_dirty_ratelimit;
+ 
+-	struct prop_local_percpu completions;
++	struct fprop_local_percpu completions;
+ 	int dirty_exceeded;
+ 
+ 	unsigned int min_ratio;
+diff --git a/mm/backing-dev.c b/mm/backing-dev.c
+index dd8e2aa..3387aea 100644
+--- a/mm/backing-dev.c
++++ b/mm/backing-dev.c
+@@ -677,7 +677,7 @@ int bdi_init(struct backing_dev_info *bdi)
+ 
+ 	bdi->min_ratio = 0;
+ 	bdi->max_ratio = 100;
+-	bdi->max_prop_frac = PROP_FRAC_BASE;
++	bdi->max_prop_frac = FPROP_FRAC_BASE;
+ 	spin_lock_init(&bdi->wb_lock);
+ 	INIT_LIST_HEAD(&bdi->bdi_list);
+ 	INIT_LIST_HEAD(&bdi->work_list);
+@@ -700,7 +700,7 @@ int bdi_init(struct backing_dev_info *bdi)
+ 	bdi->write_bandwidth = INIT_BW;
+ 	bdi->avg_write_bandwidth = INIT_BW;
+ 
+-	err = prop_local_init_percpu(&bdi->completions);
++	err = fprop_local_init_percpu(&bdi->completions);
+ 
+ 	if (err) {
+ err:
+@@ -744,7 +744,7 @@ void bdi_destroy(struct backing_dev_info *bdi)
+ 	for (i = 0; i < NR_BDI_STAT_ITEMS; i++)
+ 		percpu_counter_destroy(&bdi->bdi_stat[i]);
+ 
+-	prop_local_destroy_percpu(&bdi->completions);
++	fprop_local_destroy_percpu(&bdi->completions);
+ }
+ EXPORT_SYMBOL(bdi_destroy);
+ 
+diff --git a/mm/page-writeback.c b/mm/page-writeback.c
+index 26adea8..647daa3 100644
+--- a/mm/page-writeback.c
++++ b/mm/page-writeback.c
+@@ -34,6 +34,7 @@
+ #include <linux/syscalls.h>
+ #include <linux/buffer_head.h> /* __set_page_dirty_buffers */
+ #include <linux/pagevec.h>
++#include <linux/timer.h>
+ #include <trace/events/writeback.h>
+ 
+ /*
+@@ -135,7 +136,20 @@ unsigned long global_dirty_limit;
+  * measured in page writeback completions.
+  *
+  */
+-static struct prop_descriptor vm_completions;
++static struct fprop_global writeout_completions;
++
++static void writeout_period(unsigned long t);
++/* Timer for aging of writeout_completions */
++static struct timer_list writeout_period_timer =
++		TIMER_DEFERRED_INITIALIZER(writeout_period, 0, 0);
++static unsigned long writeout_period_time = 0;
++
++/*
++ * Length of period for aging writeout fractions of bdis. This is an
++ * arbitrarily chosen number. The longer the period, the slower fractions will
++ * reflect changes in current writeout rate.
++ */
++#define VM_COMPLETIONS_PERIOD_LEN (3*HZ)
+ 
+ /*
+  * Work out the current dirty-memory clamping and background writeout
+@@ -322,34 +336,6 @@ bool zone_dirty_ok(struct zone *zone)
+ 	       zone_page_state(zone, NR_WRITEBACK) <= limit;
+ }
+ 
+-/*
+- * couple the period to the dirty_ratio:
+- *
+- *   period/2 ~ roundup_pow_of_two(dirty limit)
+- */
+-static int calc_period_shift(void)
+-{
+-	unsigned long dirty_total;
+-
+-	if (vm_dirty_bytes)
+-		dirty_total = vm_dirty_bytes / PAGE_SIZE;
+-	else
+-		dirty_total = (vm_dirty_ratio * global_dirtyable_memory()) /
+-				100;
+-	return 2 + ilog2(dirty_total - 1);
+-}
+-
+-/*
+- * update the period when the dirty threshold changes.
+- */
+-static void update_completion_period(void)
+-{
+-	int shift = calc_period_shift();
+-	prop_change_shift(&vm_completions, shift);
+-
+-	writeback_set_ratelimit();
+-}
+-
+ int dirty_background_ratio_handler(struct ctl_table *table, int write,
+ 		void __user *buffer, size_t *lenp,
+ 		loff_t *ppos)
+@@ -383,7 +369,7 @@ int dirty_ratio_handler(struct ctl_table *table, int write,
+ 
+ 	ret = proc_dointvec_minmax(table, write, buffer, lenp, ppos);
+ 	if (ret == 0 && write && vm_dirty_ratio != old_ratio) {
+-		update_completion_period();
++		writeback_set_ratelimit();
+ 		vm_dirty_bytes = 0;
+ 	}
+ 	return ret;
+@@ -398,12 +384,21 @@ int dirty_bytes_handler(struct ctl_table *table, int write,
+ 
+ 	ret = proc_doulongvec_minmax(table, write, buffer, lenp, ppos);
+ 	if (ret == 0 && write && vm_dirty_bytes != old_bytes) {
+-		update_completion_period();
++		writeback_set_ratelimit();
+ 		vm_dirty_ratio = 0;
+ 	}
+ 	return ret;
+ }
+ 
++static unsigned long wp_next_time(unsigned long cur_time)
++{
++	cur_time += VM_COMPLETIONS_PERIOD_LEN;
++	/* 0 has a special meaning... */
++	if (!cur_time)
++		return 1;
++	return cur_time;
++}
++
+ /*
+  * Increment the BDI's writeout completion count and the global writeout
+  * completion count. Called from test_clear_page_writeback().
+@@ -411,8 +406,19 @@ int dirty_bytes_handler(struct ctl_table *table, int write,
+ static inline void __bdi_writeout_inc(struct backing_dev_info *bdi)
+ {
+ 	__inc_bdi_stat(bdi, BDI_WRITTEN);
+-	__prop_inc_percpu_max(&vm_completions, &bdi->completions,
+-			      bdi->max_prop_frac);
++	__fprop_inc_percpu_max(&writeout_completions, &bdi->completions,
++			       bdi->max_prop_frac);
++	/* First event after period switching was turned off? */
++	if (!unlikely(writeout_period_time)) {
++		/*
++		 * We can race with other __bdi_writeout_inc calls here but
++		 * it does not cause any harm since the resulting time when
++		 * timer will fire and what is in writeout_period_time will be
++		 * roughly the same.
++		 */
++		writeout_period_time = wp_next_time(jiffies);
++		mod_timer(&writeout_period_timer, writeout_period_time);
++	}
+ }
+ 
+ void bdi_writeout_inc(struct backing_dev_info *bdi)
+@@ -431,11 +437,33 @@ EXPORT_SYMBOL_GPL(bdi_writeout_inc);
+ static void bdi_writeout_fraction(struct backing_dev_info *bdi,
+ 		long *numerator, long *denominator)
+ {
+-	prop_fraction_percpu(&vm_completions, &bdi->completions,
++	fprop_fraction_percpu(&writeout_completions, &bdi->completions,
+ 				numerator, denominator);
+ }
+ 
+ /*
++ * On idle system, we can be called long after we scheduled because we use
++ * deferred timers so count with missed periods.
++ */
++static void writeout_period(unsigned long t)
++{
++	int miss_periods = (jiffies - writeout_period_time) /
++						 VM_COMPLETIONS_PERIOD_LEN;
++
++	if (fprop_new_period(&writeout_completions, miss_periods + 1)) {
++		writeout_period_time = wp_next_time(writeout_period_time +
++				miss_periods * VM_COMPLETIONS_PERIOD_LEN);
++		mod_timer(&writeout_period_timer, writeout_period_time);
++	} else {
++		/*
++		 * Aging has zeroed all fractions. Stop wasting CPU on period
++		 * updates.
++		 */
++		writeout_period_time = 0;
++	}
++}
++
++/*
+  * bdi_min_ratio keeps the sum of the minimum dirty shares of all
+  * registered backing devices, which, for obvious reasons, can not
+  * exceed 100%.
+@@ -475,7 +503,7 @@ int bdi_set_max_ratio(struct backing_dev_info *bdi, unsigned max_ratio)
+ 		ret = -EINVAL;
+ 	} else {
+ 		bdi->max_ratio = max_ratio;
+-		bdi->max_prop_frac = (PROP_FRAC_BASE * max_ratio) / 100;
++		bdi->max_prop_frac = (FPROP_FRAC_BASE * max_ratio) / 100;
+ 	}
+ 	spin_unlock_bh(&bdi_lock);
+ 
+@@ -1605,13 +1633,10 @@ static struct notifier_block __cpuinitdata ratelimit_nb = {
+  */
+ void __init page_writeback_init(void)
+ {
+-	int shift;
+-
+ 	writeback_set_ratelimit();
+ 	register_cpu_notifier(&ratelimit_nb);
+ 
+-	shift = calc_period_shift();
+-	prop_descriptor_init(&vm_completions, shift);
++	fprop_global_init(&writeout_completions);
+ }
+ 
+ /**
+-- 
+1.7.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
