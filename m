@@ -1,82 +1,180 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx121.postini.com [74.125.245.121])
-	by kanga.kvack.org (Postfix) with SMTP id 70C2E6B0083
-	for <linux-mm@kvack.org>; Thu, 24 May 2012 05:16:01 -0400 (EDT)
-Message-ID: <4FBDFC43.6040707@redhat.com>
-Date: Thu, 24 May 2012 11:15:47 +0200
-From: Jerome Marchand <jmarchan@redhat.com>
+Received: from psmtp.com (na3sys010amx191.postini.com [74.125.245.191])
+	by kanga.kvack.org (Postfix) with SMTP id CE02A6B0083
+	for <linux-mm@kvack.org>; Thu, 24 May 2012 06:36:29 -0400 (EDT)
+Received: by lbjn8 with SMTP id n8so9191165lbj.14
+        for <linux-mm@kvack.org>; Thu, 24 May 2012 03:36:27 -0700 (PDT)
+Message-ID: <4FBE0F23.3080903@openvz.org>
+Date: Thu, 24 May 2012 14:36:19 +0400
+From: Konstantin Khlebnikov <khlebnikov@openvz.org>
 MIME-Version: 1.0
-Subject: Re: [PATCH RESEND] avoid swapping out with swappiness==0
-References: <65795E11DBF1E645A09CEC7EAEE94B9C015A48DF62@USINDEVS02.corp.hds.com>
-In-Reply-To: <65795E11DBF1E645A09CEC7EAEE94B9C015A48DF62@USINDEVS02.corp.hds.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Subject: Re: 3.4-rc7: BUG: Bad rss-counter state mm:ffff88040b56f800 idx:1
+ val:-59
+References: <4FBC1618.5010408@fold.natur.cuni.cz> <20120522162835.c193c8e0.akpm@linux-foundation.org> <4FBD18A2.9060803@fold.natur.cuni.cz>
+In-Reply-To: <4FBD18A2.9060803@fold.natur.cuni.cz>
+Content-Type: text/plain; charset=UTF-8; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Satoru Moriya <satoru.moriya@hds.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Rik van Riel <riel@redhat.com>, "lwoodman@redhat.com" <lwoodman@redhat.com>, "jweiner@redhat.com" <jweiner@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Richard Davies <richard.davies@elastichosts.com>, Seiji Aguchi <seiji.aguchi@hds.com>, "dle-develop@lists.sourceforge.net" <dle-develop@lists.sourceforge.net>, Minchan Kim <minchan@kernel.org>, Christoph Lameter <cl@linux.com>
+To: Martin Mokrejs <mmokrejs@fold.natur.cuni.cz>
+Cc: Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, "markus@trippelsdorf.de" <markus@trippelsdorf.de>, "hughd@google.com" <hughd@google.com>, "kamezawa.hiroyu@jp.fujitsu.com" <kamezawa.hiroyu@jp.fujitsu.com>, "oleg@redhat.com" <oleg@redhat.com>, Michal Hocko <mhocko@suse.cz>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On 05/23/2012 10:41 PM, Satoru Moriya wrote:
-> Hi Andrew,
-> 
-> This patch has been reviewed for couple of months.
-> 
-> This patch *only* improves the behavior when the kernel has
-> enough filebacked pages. It means that it does not change
-> the behavior when kernel has small number of filebacked pages.
-> 
-> Kosaki-san pointed out that the threshold which we use
-> to decide whether filebacked page is enough or not is not
-> appropriate(*).
-> 
-> (*) http://www.spinics.net/lists/linux-mm/msg32380.html
-> 
-> As I described in (**), I believe that threshold discussion
-> should be done in other thread because it affects not only
-> swappiness=0 case and the kernel behave the same way with
-> or without this patch below the threshold.
-> 
-> (**) http://www.spinics.net/lists/linux-mm/msg34317.html
-> 
-> The patch may not be perfect but, at least, we can improve
-> the kernel behavior in the enough filebacked memory case
-> with this patch. I believe it's better than nothing.
-> 
-> Do you have any comments about it?
-> 
-> NOTE: I updated the patch with Acked-by tags
-> 
-> ---
-> Sometimes we'd like to avoid swapping out anonymous memory
-> in particular, avoid swapping out pages of important process or
-> process groups while there is a reasonable amount of pagecache
-> on RAM so that we can satisfy our customers' requirements.
-> 
-> OTOH, we can control how aggressive the kernel will swap memory pages
-> with /proc/sys/vm/swappiness for global and
-> /sys/fs/cgroup/memory/memory.swappiness for each memcg.
-> 
-> But with current reclaim implementation, the kernel may swap out
-> even if we set swappiness==0 and there is pagecache on RAM.
-> 
-> This patch changes the behavior with swappiness==0. If we set
-> swappiness==0, the kernel does not swap out completely
-> (for global reclaim until the amount of free pages and filebacked
-> pages in a zone has been reduced to something very very small
-> (nr_free + nr_filebacked < high watermark)).
-> 
-> Any comments are welcome.
-> 
-> Regards,
-> Satoru Moriya
-> 
-> Signed-off-by: Satoru Moriya <satoru.moriya@hds.com>
-> Acked-by: Minchan Kim <minchan@kernel.org>
-> Acked-by: Rik van Riel <riel@redhat.com>
-> 
+Martin Mokrejs wrote:
+> Hi,
+>    I rebooted the laptop twice today after just brief uses and the messages did not
+> appear in the logs.
+>
+> Now I just applied the below patch and during two reboots it did not appear either.
+> Do I have to use the computer for some longer while to reproduce the issue? ;-)
 
-Acked-by: Jerome Marchand <jmarchan@redhat.com>
+Yes, some data must be in swap to reproduce this, so memory pressure required here.
 
+>
+> I will stay with the patch applied over 3.4-rc7 and would the BUG: re-appear I will
+> let you know. But I doubt at the moment I could confirm it really helped.
+> Clues how to reproduce? ;)
+> Martin
+>
+> Andrew Morton wrote:
+>> On Wed, 23 May 2012 00:41:28 +0200
+>> Martin Mokrejs<mmokrejs@fold.natur.cuni.cz>  wrote:
+>>
+>>> Hi Andrew,
+>>>    while shutting down my laptop (Dell Vostro 3550 with 16GB RAM, core i7) with 3.4-rc7 I got:
+>>>
+>>> May 23 00:07:54 vostro kernel: [352687.968267] BUG: Bad rss-counter state mm:ffff88040b56f800 idx:1 val:-59
+>>> May 23 00:07:54 vostro kernel: [352687.968312] BUG: Bad rss-counter state mm:ffff88040b56f800 idx:2 val:59
+>>> May 23 00:07:55 vostro acpid: exiting
+>>> May 23 00:07:55 vostro syslog-ng[2838]: syslog-ng shutting down; version='3.3.4'
+>>>
+>>>    I found by Google the below thread and thought that maybe it is related?
+>>> http://comments.gmane.org/gmane.linux.kernel.mm/76459
+>>>
+>>> ...
+>>>
+>>
+>>
+>> Well hopefully the below will fix this?
+>>
+>> I notice that I don't have this tagged for -stable backporting.  That
+>> seems wrong.  Konstantin, do we know for how long this bug has been in
+>> there?
+>>
+>>
+>>
+>> From: Konstantin Khlebnikov<khlebnikov@openvz.org>
+>> Subject: mm: correctly synchronize rss-counters at exit/exec
+>>
+>> mm->rss_stat counters have per-task delta: task->rss_stat.  Before
+>> changing task->mm pointer the kernel must flush this delta with
+>> sync_mm_rss().
+>>
+>> do_exit() already calls sync_mm_rss() to flush the rss-counters before
+>> committing the rss statistics into task->signal->maxrss, taskstats, audit
+>> and other stuff.  Unfortunately the kernel does this before calling
+>> mm_release(), which can call put_user() for processing
+>> task->clear_child_tid.  So at this point we can trigger page-faults and
+>> task->rss_stat becomes non-zero again.  As a result mm->rss_stat becomes
+>> inconsistent and check_mm() will print something like this:
+>>
+>> | BUG: Bad rss-counter state mm:ffff88020813c380 idx:1 val:-1
+>> | BUG: Bad rss-counter state mm:ffff88020813c380 idx:2 val:1
+>>
+>> This patch moves sync_mm_rss() into mm_release(), and moves mm_release()
+>> out of do_exit() and calls it earlier.  After mm_release() there should be
+>> no pagefaults.
+>>
+>> [akpm@linux-foundation.org: tweak comment]
+>> Signed-off-by: Konstantin Khlebnikov<khlebnikov@openvz.org>
+>> Reported-by: Markus Trippelsdorf<markus@trippelsdorf.de>
+>> Cc: Hugh Dickins<hughd@google.com>
+>> Cc: KAMEZAWA Hiroyuki<kamezawa.hiroyu@jp.fujitsu.com>
+>> Cc: Oleg Nesterov<oleg@redhat.com>
+>> Signed-off-by: Andrew Morton<akpm@linux-foundation.org>
+>> ---
+>>
+>>   fs/exec.c     |    1 -
+>>   kernel/exit.c |   13 ++++++++-----
+>>   kernel/fork.c |    8 ++++++++
+>>   3 files changed, 16 insertions(+), 6 deletions(-)
+>>
+>> diff -puN fs/exec.c~mm-correctly-synchronize-rss-counters-at-exit-exec fs/exec.c
+>> --- a/fs/exec.c~mm-correctly-synchronize-rss-counters-at-exit-exec
+>> +++ a/fs/exec.c
+>> @@ -823,7 +823,6 @@ static int exec_mmap(struct mm_struct *m
+>>   	/* Notify parent that we're no longer interested in the old VM */
+>>   	tsk = current;
+>>   	old_mm = current->mm;
+>> -	sync_mm_rss(old_mm);
+>>   	mm_release(tsk, old_mm);
+>>
+>>   	if (old_mm) {
+>> diff -puN kernel/exit.c~mm-correctly-synchronize-rss-counters-at-exit-exec kernel/exit.c
+>> --- a/kernel/exit.c~mm-correctly-synchronize-rss-counters-at-exit-exec
+>> +++ a/kernel/exit.c
+>> @@ -423,6 +423,7 @@ void daemonize(const char *name, ...)
+>>   	 * user space pages.  We don't need them, and if we didn't close them
+>>   	 * they would be locked into memory.
+>>   	 */
+>> +	mm_release(current, current->mm);
+>>   	exit_mm(current);
+>>   	/*
+>>   	 * We don't want to get frozen, in case system-wide hibernation
+>> @@ -640,7 +641,6 @@ static void exit_mm(struct task_struct *
+>>   	struct mm_struct *mm = tsk->mm;
+>>   	struct core_state *core_state;
+>>
+>> -	mm_release(tsk, mm);
+>>   	if (!mm)
+>>   		return;
+>>   	/*
+>> @@ -959,9 +959,13 @@ void do_exit(long code)
+>>   				preempt_count());
+>>
+>>   	acct_update_integrals(tsk);
+>> -	/* sync mm's RSS info before statistics gathering */
+>> -	if (tsk->mm)
+>> -		sync_mm_rss(tsk->mm);
+>> +
+>> +	/* Set exit_code before complete_vfork_done() in mm_release() */
+>> +	tsk->exit_code = code;
+>> +
+>> +	/* Release mm and sync mm's RSS info before statistics gathering */
+>> +	mm_release(tsk, tsk->mm);
+>> +
+>>   	group_dead = atomic_dec_and_test(&tsk->signal->live);
+>>   	if (group_dead) {
+>>   		hrtimer_cancel(&tsk->signal->real_timer);
+>> @@ -974,7 +978,6 @@ void do_exit(long code)
+>>   		tty_audit_exit();
+>>   	audit_free(tsk);
+>>
+>> -	tsk->exit_code = code;
+>>   	taskstats_exit(tsk, group_dead);
+>>
+>>   	exit_mm(tsk);
+>> diff -puN kernel/fork.c~mm-correctly-synchronize-rss-counters-at-exit-exec kernel/fork.c
+>> --- a/kernel/fork.c~mm-correctly-synchronize-rss-counters-at-exit-exec
+>> +++ a/kernel/fork.c
+>> @@ -809,6 +809,14 @@ void mm_release(struct task_struct *tsk,
+>>   		}
+>>   		tsk->clear_child_tid = NULL;
+>>   	}
+>> +
+>> +	/*
+>> +	 * Final rss-counter synchronization. After this point there must be
+>> +	 * no pagefaults into this mm from the current context.  Otherwise
+>> +	 * mm->rss_stat will be inconsistent.
+>> +	 */
+>> +	if (mm)
+>> +		sync_mm_rss(mm);
+>>   }
+>>
+>>   /*
+>> _
+>>
+>> .
+>>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
