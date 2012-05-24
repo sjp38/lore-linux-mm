@@ -1,49 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx200.postini.com [74.125.245.200])
-	by kanga.kvack.org (Postfix) with SMTP id A87616B0083
-	for <linux-mm@kvack.org>; Thu, 24 May 2012 01:15:34 -0400 (EDT)
-Date: Wed, 23 May 2012 22:16:55 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] memcg/hugetlb: Add failcnt support for hugetlb
- extension
-Message-Id: <20120523221655.a067710b.akpm@linux-foundation.org>
-In-Reply-To: <87likiyyxr.fsf@skywalker.in.ibm.com>
-References: <1337686991-26418-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
-	<20120523161750.f0e22c5b.akpm@linux-foundation.org>
-	<87likiyyxr.fsf@skywalker.in.ibm.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx101.postini.com [74.125.245.101])
+	by kanga.kvack.org (Postfix) with SMTP id ABECA6B0083
+	for <linux-mm@kvack.org>; Thu, 24 May 2012 02:02:13 -0400 (EDT)
+Received: by pbbrp2 with SMTP id rp2so15320782pbb.14
+        for <linux-mm@kvack.org>; Wed, 23 May 2012 23:02:12 -0700 (PDT)
+Date: Wed, 23 May 2012 23:02:10 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [patch v2] mm, oom: normalize oom scores to oom_score_adj scale
+ only for userspace
+In-Reply-To: <20120523153718.b70bb762.akpm@linux-foundation.org>
+Message-ID: <alpine.DEB.2.00.1205232259040.15547@chino.kir.corp.google.com>
+References: <20120426193551.GA24968@redhat.com> <alpine.DEB.2.00.1204261437470.28376@chino.kir.corp.google.com> <alpine.DEB.2.00.1205031513400.1631@chino.kir.corp.google.com> <20120503222949.GA13762@redhat.com> <alpine.DEB.2.00.1205171432250.6951@chino.kir.corp.google.com>
+ <20120517145022.a99f41e8.akpm@linux-foundation.org> <alpine.DEB.2.00.1205230014450.9290@chino.kir.corp.google.com> <20120523153718.b70bb762.akpm@linux-foundation.org>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Cc: linux-mm@kvack.org, kamezawa.hiroyu@jp.fujitsu.com, mhocko@suse.cz
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Dave Jones <davej@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Thu, 24 May 2012 10:10:00 +0530 "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com> wrote:
+On Wed, 23 May 2012, Andrew Morton wrote:
 
-> Andrew Morton <akpm@linux-foundation.org> writes:
+> > @@ -367,12 +354,13 @@ static struct task_struct *select_bad_process(unsigned int *ppoints,
+> >  		}
+> >  
+> >  		points = oom_badness(p, memcg, nodemask, totalpages);
+> > -		if (points > *ppoints) {
+> > +		if (points > chosen_points) {
+> >  			chosen = p;
+> > -			*ppoints = points;
+> > +			chosen_points = points;
+> >  		}
+> >  	} while_each_thread(g, p);
+> >  
+> > +	*ppoints = chosen_points * 1000 / totalpages;
+> >  	return chosen;
+> >  }
+> >  
 > 
-> > On Tue, 22 May 2012 17:13:11 +0530
-> > "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com> wrote:
-> >
-> >> Expose the failcnt details to userspace similar to memory and memsw.
-> >
-> > Why?
-> >
+> It's still not obvious that we always avoid the divide-by-zero here. 
+> If there's some weird way of convincing constrained_alloc() to look at
+> an empty nodemask, or a nodemask which covers only empty nodes then
+> blam.
 > 
-> to help us find whether there was an allocation failure due to HugeTLB
-> limit. 
+> Now, it's probably the case that this is a can't-happen but that
+> guarantee would be pretty convoluted and fragile?
+> 
 
-How are we to know that is that useful enough to justify expanding the
-kernel API?
+It can only happen for memcg with a zero limit, something I tried to 
+prevent by not allowing tasks to be attached to the memcgs with such a 
+limit in a different patch but you didn't like that :)
 
-Yes, regular memcg has it, but that isn't a reason.  Do we know that
-people are using that?  That it is useful?
+So I fixed it in this patch with this:
 
-Also, "cnt" is not a word.  It should be "failcount" or, even better,
-"failure_count".  Or, smarter, "failures".  But we screwed that up a
-long time ago and can't fix it.
+@@ -572,7 +560,7 @@ void mem_cgroup_out_of_memory(struct mem_cgroup *memcg, gfp_t gfp_mask,
+ 	}
+ 
+ 	check_panic_on_oom(CONSTRAINT_MEMCG, gfp_mask, order, NULL);
+-	limit = mem_cgroup_get_limit(memcg) >> PAGE_SHIFT;
++	limit = mem_cgroup_get_limit(memcg) >> PAGE_SHIFT ? : 1;
+ 	read_lock(&tasklist_lock);
+ 	p = select_bad_process(&points, limit, memcg, NULL, false);
+ 	if (p && PTR_ERR(p) != -1UL)
 
+Cpusets do not allow threads to be attached without a set of mems or the 
+final mem in a cpuset to be removed while tasks are still attached.  The 
+page allocator certainly wouldn't be calling the oom killer for a set of 
+zones that span no pages.
+
+Any suggestion on where to put the check for !totalpages so it's easier to 
+understand?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
