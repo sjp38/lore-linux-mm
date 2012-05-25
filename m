@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx135.postini.com [74.125.245.135])
-	by kanga.kvack.org (Postfix) with SMTP id 2CCDE6B0102
-	for <linux-mm@kvack.org>; Fri, 25 May 2012 13:03:31 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx179.postini.com [74.125.245.179])
+	by kanga.kvack.org (Postfix) with SMTP id D0309940008
+	for <linux-mm@kvack.org>; Fri, 25 May 2012 13:03:35 -0400 (EDT)
 From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: [PATCH 08/35] autonuma: introduce kthread_bind_node()
-Date: Fri, 25 May 2012 19:02:12 +0200
-Message-Id: <1337965359-29725-9-git-send-email-aarcange@redhat.com>
+Subject: [PATCH 28/35] autonuma: retain page last_nid information in khugepaged
+Date: Fri, 25 May 2012 19:02:32 +0200
+Message-Id: <1337965359-29725-29-git-send-email-aarcange@redhat.com>
 In-Reply-To: <1337965359-29725-1-git-send-email-aarcange@redhat.com>
 References: <1337965359-29725-1-git-send-email-aarcange@redhat.com>
 Sender: owner-linux-mm@kvack.org
@@ -13,63 +13,37 @@ List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 Cc: Hillf Danton <dhillf@gmail.com>, Dan Smith <danms@us.ibm.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>, Paul Turner <pjt@google.com>, Suresh Siddha <suresh.b.siddha@intel.com>, Mike Galbraith <efault@gmx.de>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Bharata B Rao <bharata.rao@gmail.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Srivatsa Vaddagiri <vatsa@linux.vnet.ibm.com>, Christoph Lameter <cl@linux.com>
 
-This function makes it easy to bind the per-node knuma_migrated
-threads to their respective NUMA nodes. Those threads take memory from
-the other nodes (in round robin with a incoming queue for each remote
-node) and they move that memory to their local node.
+When pages are collapsed try to keep the last_nid information from one
+of the original pages.
 
 Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
 ---
- include/linux/kthread.h |    1 +
- kernel/kthread.c        |   23 +++++++++++++++++++++++
- 2 files changed, 24 insertions(+), 0 deletions(-)
+ mm/huge_memory.c |   11 +++++++++++
+ 1 files changed, 11 insertions(+), 0 deletions(-)
 
-diff --git a/include/linux/kthread.h b/include/linux/kthread.h
-index 0714b24..e733f97 100644
---- a/include/linux/kthread.h
-+++ b/include/linux/kthread.h
-@@ -33,6 +33,7 @@ struct task_struct *kthread_create_on_node(int (*threadfn)(void *data),
- })
- 
- void kthread_bind(struct task_struct *k, unsigned int cpu);
-+void kthread_bind_node(struct task_struct *p, int nid);
- int kthread_stop(struct task_struct *k);
- int kthread_should_stop(void);
- bool kthread_freezable_should_stop(bool *was_frozen);
-diff --git a/kernel/kthread.c b/kernel/kthread.c
-index 3d3de63..48b36f9 100644
---- a/kernel/kthread.c
-+++ b/kernel/kthread.c
-@@ -234,6 +234,29 @@ void kthread_bind(struct task_struct *p, unsigned int cpu)
- EXPORT_SYMBOL(kthread_bind);
- 
- /**
-+ * kthread_bind_node - bind a just-created kthread to the CPUs of a node.
-+ * @p: thread created by kthread_create().
-+ * @nid: node (might not be online, must be possible) for @k to run on.
-+ *
-+ * Description: This function is equivalent to set_cpus_allowed(),
-+ * except that @nid doesn't need to be online, and the thread must be
-+ * stopped (i.e., just returned from kthread_create()).
-+ */
-+void kthread_bind_node(struct task_struct *p, int nid)
-+{
-+	/* Must have done schedule() in kthread() before we set_task_cpu */
-+	if (!wait_task_inactive(p, TASK_UNINTERRUPTIBLE)) {
-+		WARN_ON(1);
-+		return;
-+	}
-+
-+	/* It's safe because the task is inactive. */
-+	do_set_cpus_allowed(p, cpumask_of_node(nid));
-+	p->flags |= PF_THREAD_BOUND;
-+}
-+EXPORT_SYMBOL(kthread_bind_node);
-+
-+/**
-  * kthread_stop - stop a thread created by kthread_create().
-  * @k: thread created by kthread_create().
-  *
+diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+index d388517..76bdc48 100644
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -1805,7 +1805,18 @@ static bool __collapse_huge_page_copy(pte_t *pte, struct page *page,
+ 			clear_user_highpage(page, address);
+ 			add_mm_counter(vma->vm_mm, MM_ANONPAGES, 1);
+ 		} else {
++#ifdef CONFIG_AUTONUMA
++			int autonuma_last_nid;
++#endif
+ 			src_page = pte_page(pteval);
++#ifdef CONFIG_AUTONUMA
++			/* pick the last one, better than nothing */
++			autonuma_last_nid =
++				ACCESS_ONCE(src_page->autonuma_last_nid);
++			if (autonuma_last_nid >= 0)
++				ACCESS_ONCE(page->autonuma_last_nid) =
++					autonuma_last_nid;
++#endif
+ 			copy_user_highpage(page, src_page, address, vma);
+ 			VM_BUG_ON(page_mapcount(src_page) != 1);
+ 			VM_BUG_ON(page_count(src_page) != 2);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
