@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx184.postini.com [74.125.245.184])
-	by kanga.kvack.org (Postfix) with SMTP id 36473940019
-	for <linux-mm@kvack.org>; Fri, 25 May 2012 09:08:17 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx140.postini.com [74.125.245.140])
+	by kanga.kvack.org (Postfix) with SMTP id 84953940019
+	for <linux-mm@kvack.org>; Fri, 25 May 2012 09:08:21 -0400 (EDT)
 From: Glauber Costa <glommer@parallels.com>
-Subject: [PATCH v3 19/28] slab: per-memcg accounting of slab caches
-Date: Fri, 25 May 2012 17:03:39 +0400
-Message-Id: <1337951028-3427-20-git-send-email-glommer@parallels.com>
+Subject: [PATCH v3 20/28] memcg: disable kmem code when not in use.
+Date: Fri, 25 May 2012 17:03:40 +0400
+Message-Id: <1337951028-3427-21-git-send-email-glommer@parallels.com>
 In-Reply-To: <1337951028-3427-1-git-send-email-glommer@parallels.com>
 References: <1337951028-3427-1-git-send-email-glommer@parallels.com>
 Sender: owner-linux-mm@kvack.org
@@ -13,341 +13,115 @@ List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org
 Cc: cgroups@vger.kernel.org, linux-mm@kvack.org, kamezawa.hiroyu@jp.fujitsu.com, Tejun Heo <tj@kernel.org>, Li Zefan <lizefan@huawei.com>, Greg Thelen <gthelen@google.com>, Suleiman Souhlal <suleiman@google.com>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, devel@openvz.org, David Rientjes <rientjes@google.com>, Glauber Costa <glommer@parallels.com>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@cs.helsinki.fi>
 
-This patch charges allocation of a slab object to a particular
-memcg.
+We can use jump labels to patch the code in or out
+when not used.
 
-The cache is selected with mem_cgroup_get_kmem_cache(),
-which is the biggest overhead we pay here, because
-it happens at all allocations. However, other than forcing
-a function call, this function is not very expensive, and
-try to return as soon as we realize we are not a memcg cache.
+Because the assignment: memcg->kmem_accounted = true
+is done after the jump labels increment, we guarantee
+that the root memcg will always be selected until
+all call sites are patched (see mem_cgroup_kmem_enabled).
+This guarantees that no mischarges are applied.
 
-The charge/uncharge functions are heavier, but are only called
-for new page allocations.
-
-Code is heavily inspired by Suleiman's, with adaptations to
-the patchset and minor simplifications by me.
+Jump label decrement happens when the last reference
+count from the memcg dies. This will only happen when
+the caches are all dead.
 
 Signed-off-by: Glauber Costa <glommer@parallels.com>
-Signed-off-by: Suleiman Souhlal <suleiman@google.com>
 CC: Christoph Lameter <cl@linux.com>
 CC: Pekka Enberg <penberg@cs.helsinki.fi>
 CC: Michal Hocko <mhocko@suse.cz>
 CC: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 CC: Johannes Weiner <hannes@cmpxchg.org>
+CC: Suleiman Souhlal <suleiman@google.com>
 ---
- include/linux/slab_def.h |   62 +++++++++++++++++++++++++++++
- mm/slab.c                |   98 +++++++++++++++++++++++++++++++++++++++++----
- 2 files changed, 151 insertions(+), 9 deletions(-)
+ include/linux/memcontrol.h |    4 +++-
+ mm/memcontrol.c            |   22 +++++++++++++++++++++-
+ 2 files changed, 24 insertions(+), 2 deletions(-)
 
-diff --git a/include/linux/slab_def.h b/include/linux/slab_def.h
-index 7c0cdd6..ea9054a 100644
---- a/include/linux/slab_def.h
-+++ b/include/linux/slab_def.h
-@@ -225,4 +225,66 @@ found:
+diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
+index fbc5ba1..bad8ebd 100644
+--- a/include/linux/memcontrol.h
++++ b/include/linux/memcontrol.h
+@@ -22,6 +22,7 @@
+ #include <linux/cgroup.h>
+ #include <linux/vm_event_item.h>
+ #include <linux/hardirq.h>
++#include <linux/jump_label.h>
  
- #endif	/* CONFIG_NUMA */
+ struct mem_cgroup;
+ struct page_cgroup;
+@@ -460,7 +461,8 @@ void __mem_cgroup_free_kmem_page(struct page *page);
+ struct kmem_cache *
+ __mem_cgroup_get_kmem_cache(struct kmem_cache *cachep, gfp_t gfp);
  
-+#ifdef CONFIG_CGROUP_MEM_RES_CTLR_KMEM
-+
-+void kmem_cache_drop_ref(struct kmem_cache *cachep);
-+
-+static inline void
-+kmem_cache_get_ref(struct kmem_cache *cachep)
-+{
-+	if (cachep->memcg_params.id == -1 &&
-+	    unlikely(!atomic_add_unless(&cachep->memcg_params.refcnt, 1, 0)))
-+		BUG();
-+}
-+
-+static inline void
-+mem_cgroup_put_kmem_cache(struct kmem_cache *cachep)
-+{
-+	rcu_read_unlock();
-+}
-+
-+static inline void
-+mem_cgroup_kmem_cache_prepare_sleep(struct kmem_cache *cachep)
-+{
-+	/*
-+	 * Make sure the cache doesn't get freed while we have interrupts
-+	 * enabled.
-+	 */
-+	kmem_cache_get_ref(cachep);
-+}
-+
-+static inline void
-+mem_cgroup_kmem_cache_finish_sleep(struct kmem_cache *cachep)
-+{
-+	kmem_cache_drop_ref(cachep);
-+}
-+
-+#else /* CONFIG_CGROUP_MEM_RES_CTLR_KMEM */
-+
-+static inline void
-+kmem_cache_get_ref(struct kmem_cache *cachep)
-+{
-+}
-+
-+static inline void
-+kmem_cache_drop_ref(struct kmem_cache *cachep)
-+{
-+}
-+
-+static inline void
-+mem_cgroup_put_kmem_cache(struct kmem_cache *cachep)
-+{
-+}
-+
-+static inline void
-+mem_cgroup_kmem_cache_prepare_sleep(struct kmem_cache *cachep)
-+{
-+}
-+
-+static inline void
-+mem_cgroup_kmem_cache_finish_sleep(struct kmem_cache *cachep)
-+{
-+}
-+#endif /* CONFIG_CGROUP_MEM_RES_CTLR_KMEM */
-+
- #endif	/* _LINUX_SLAB_DEF_H */
-diff --git a/mm/slab.c b/mm/slab.c
-index e2227de..16ad229 100644
---- a/mm/slab.c
-+++ b/mm/slab.c
-@@ -1845,20 +1845,28 @@ static void *kmem_getpages(struct kmem_cache *cachep, gfp_t flags, int nodeid)
- 	if (cachep->flags & SLAB_RECLAIM_ACCOUNT)
- 		flags |= __GFP_RECLAIMABLE;
+-#define mem_cgroup_kmem_on 1
++extern struct static_key mem_cgroup_kmem_enabled_key;
++#define mem_cgroup_kmem_on static_key_false(&mem_cgroup_kmem_enabled_key)
+ #else
+ static inline void mem_cgroup_register_cache(struct mem_cgroup *memcg,
+ 					     struct kmem_cache *s)
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index f3a3812..f2f1525 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -422,6 +422,10 @@ static void mem_cgroup_put(struct mem_cgroup *memcg);
+ #include <net/sock.h>
+ #include <net/ip.h>
  
-+	nr_pages = (1 << cachep->gfporder);
-+	if (!mem_cgroup_charge_slab(cachep, flags, nr_pages * PAGE_SIZE))
-+		return NULL;
++struct static_key mem_cgroup_kmem_enabled_key;
++/* so modules can inline the checks */
++EXPORT_SYMBOL(mem_cgroup_kmem_enabled_key);
 +
- 	page = alloc_pages_exact_node(nodeid, flags | __GFP_NOTRACK, cachep->gfporder);
- 	if (!page) {
- 		if (!(flags & __GFP_NOWARN) && printk_ratelimit())
- 			slab_out_of_memory(cachep, flags, nodeid);
-+
-+		mem_cgroup_uncharge_slab(cachep, nr_pages * PAGE_SIZE);
- 		return NULL;
+ static bool mem_cgroup_is_root(struct mem_cgroup *memcg);
+ static int memcg_charge_kmem(struct mem_cgroup *memcg, gfp_t gfp, s64 delta);
+ static void memcg_uncharge_kmem(struct mem_cgroup *memcg, s64 delta);
+@@ -468,6 +472,12 @@ void sock_release_memcg(struct sock *sk)
  	}
- 
--	nr_pages = (1 << cachep->gfporder);
- 	if (cachep->flags & SLAB_RECLAIM_ACCOUNT)
- 		add_zone_page_state(page_zone(page),
- 			NR_SLAB_RECLAIMABLE, nr_pages);
- 	else
- 		add_zone_page_state(page_zone(page),
- 			NR_SLAB_UNRECLAIMABLE, nr_pages);
-+
-+	kmem_cache_get_ref(cachep);
-+
- 	for (i = 0; i < nr_pages; i++)
- 		__SetPageSlab(page + i);
- 
-@@ -1874,6 +1882,14 @@ static void *kmem_getpages(struct kmem_cache *cachep, gfp_t flags, int nodeid)
- 	return page_address(page);
  }
  
-+#ifdef CONFIG_CGROUP_MEM_RES_CTLR_KMEM
-+void kmem_cache_drop_ref(struct kmem_cache *cachep)
++static void disarm_static_keys(struct mem_cgroup *memcg)
 +{
-+	if (cachep->memcg_params.id == -1)
-+		atomic_dec(&cachep->memcg_params.refcnt);
++	if (memcg->kmem_accounted)
++		static_key_slow_dec(&mem_cgroup_kmem_enabled_key);
 +}
-+#endif /* CONFIG_CGROUP_MEM_RES_CTLR_KMEM */
 +
- /*
-  * Interface to system's page release.
-  */
-@@ -1891,6 +1907,8 @@ static void kmem_freepages(struct kmem_cache *cachep, void *addr)
- 	else
- 		sub_zone_page_state(page_zone(page),
- 				NR_SLAB_UNRECLAIMABLE, nr_freed);
-+	mem_cgroup_uncharge_slab(cachep, i * PAGE_SIZE);
-+	kmem_cache_drop_ref(cachep);
- 	while (i--) {
- 		BUG_ON(!PageSlab(page));
- 		__ClearPageSlab(page);
-@@ -2855,7 +2873,6 @@ void kmem_cache_destroy(struct kmem_cache *cachep)
- 	if (cachep->memcg_params.id == -1)
- 		kfree(cachep->name);
- #endif
--
- 	__kmem_cache_destroy(cachep);
- 	mutex_unlock(&cache_chain_mutex);
- 	put_online_cpus();
-@@ -3061,8 +3078,10 @@ static int cache_grow(struct kmem_cache *cachep,
- 
- 	offset *= cachep->colour_off;
- 
--	if (local_flags & __GFP_WAIT)
-+	if (local_flags & __GFP_WAIT) {
- 		local_irq_enable();
-+		mem_cgroup_kmem_cache_prepare_sleep(cachep);
-+	}
- 
- 	/*
- 	 * The test for missing atomic flag is performed here, rather than
-@@ -3091,8 +3110,10 @@ static int cache_grow(struct kmem_cache *cachep,
- 
- 	cache_init_objs(cachep, slabp);
- 
--	if (local_flags & __GFP_WAIT)
-+	if (local_flags & __GFP_WAIT) {
- 		local_irq_disable();
-+		mem_cgroup_kmem_cache_finish_sleep(cachep);
-+	}
- 	check_irq_off();
- 	spin_lock(&l3->list_lock);
- 
-@@ -3105,8 +3126,10 @@ static int cache_grow(struct kmem_cache *cachep,
- opps1:
- 	kmem_freepages(cachep, objp);
- failed:
--	if (local_flags & __GFP_WAIT)
-+	if (local_flags & __GFP_WAIT) {
- 		local_irq_disable();
-+		mem_cgroup_kmem_cache_finish_sleep(cachep);
-+	}
- 	return 0;
- }
- 
-@@ -3867,11 +3890,15 @@ static inline void __cache_free(struct kmem_cache *cachep, void *objp,
-  */
- void *kmem_cache_alloc(struct kmem_cache *cachep, gfp_t flags)
+ #ifdef CONFIG_INET
+ struct cg_proto *tcp_proto_cgroup(struct mem_cgroup *memcg)
  {
--	void *ret = __cache_alloc(cachep, flags, __builtin_return_address(0));
-+	void *ret;
-+
-+	rcu_read_lock();
-+	cachep = mem_cgroup_get_kmem_cache(cachep, flags);
-+	rcu_read_unlock();
-+	ret = __cache_alloc(cachep, flags, __builtin_return_address(0));
- 
- 	trace_kmem_cache_alloc(_RET_IP_, ret,
- 			       obj_size(cachep), cachep->buffer_size, flags);
--
- 	return ret;
+@@ -843,6 +853,10 @@ static void memcg_slab_init(struct mem_cgroup *memcg)
+ 	for (i = 0; i < MAX_KMEM_CACHE_TYPES; i++)
+ 		memcg->slabs[i] = NULL;
  }
- EXPORT_SYMBOL(kmem_cache_alloc);
-@@ -3882,6 +3909,10 @@ kmem_cache_alloc_trace(size_t size, struct kmem_cache *cachep, gfp_t flags)
- {
- 	void *ret;
++#else
++static inline void disarm_static_keys(struct mem_cgroup *memcg)
++{
++}
+ #endif /* CONFIG_CGROUP_MEM_RES_CTLR_KMEM */
  
-+	rcu_read_lock();
-+	cachep = mem_cgroup_get_kmem_cache(cachep, flags);
-+	rcu_read_unlock();
-+
- 	ret = __cache_alloc(cachep, flags, __builtin_return_address(0));
- 
- 	trace_kmalloc(_RET_IP_, ret,
-@@ -3894,13 +3925,17 @@ EXPORT_SYMBOL(kmem_cache_alloc_trace);
- #ifdef CONFIG_NUMA
- void *kmem_cache_alloc_node(struct kmem_cache *cachep, gfp_t flags, int nodeid)
- {
--	void *ret = __cache_alloc_node(cachep, flags, nodeid,
-+	void *ret;
-+
-+	rcu_read_lock();
-+	cachep = mem_cgroup_get_kmem_cache(cachep, flags);
-+	rcu_read_unlock();
-+	ret  = __cache_alloc_node(cachep, flags, nodeid,
- 				       __builtin_return_address(0));
- 
- 	trace_kmem_cache_alloc_node(_RET_IP_, ret,
- 				    obj_size(cachep), cachep->buffer_size,
- 				    flags, nodeid);
--
- 	return ret;
- }
- EXPORT_SYMBOL(kmem_cache_alloc_node);
-@@ -3913,6 +3948,9 @@ void *kmem_cache_alloc_node_trace(size_t size,
- {
- 	void *ret;
- 
-+	rcu_read_lock();
-+	cachep = mem_cgroup_get_kmem_cache(cachep, flags);
-+	rcu_read_unlock();
- 	ret = __cache_alloc_node(cachep, flags, nodeid,
- 				  __builtin_return_address(0));
- 	trace_kmalloc_node(_RET_IP_, ret,
-@@ -4021,9 +4059,33 @@ void kmem_cache_free(struct kmem_cache *cachep, void *objp)
- 
- 	local_irq_save(flags);
- 	debug_check_no_locks_freed(objp, obj_size(cachep));
-+
-+#ifdef CONFIG_CGROUP_MEM_RES_CTLR_KMEM
-+	{
-+		struct kmem_cache *actual_cachep;
-+
-+		actual_cachep = virt_to_cache(objp);
-+		if (actual_cachep != cachep) {
-+			VM_BUG_ON(actual_cachep->memcg_params.id != -1);
-+			cachep = actual_cachep;
-+		}
-+		/*
-+		 * Grab a reference so that the cache is guaranteed to stay
-+		 * around.
-+		 * If we are freeing the last object of a dead memcg cache,
-+		 * the kmem_cache_drop_ref() at the end of this function
-+		 * will end up freeing the cache.
-+		 */
-+		kmem_cache_get_ref(cachep);
-+	}
-+#endif
-+
- 	if (!(cachep->flags & SLAB_DEBUG_OBJECTS))
- 		debug_check_no_obj_freed(objp, obj_size(cachep));
- 	__cache_free(cachep, objp, __builtin_return_address(0));
-+
-+	kmem_cache_drop_ref(cachep);
-+
- 	local_irq_restore(flags);
- 
- 	trace_kmem_cache_free(_RET_IP_, objp);
-@@ -4051,9 +4113,19 @@ void kfree(const void *objp)
- 	local_irq_save(flags);
- 	kfree_debugcheck(objp);
- 	c = virt_to_cache(objp);
-+
-+	/*
-+	 * Grab a reference so that the cache is guaranteed to stay around.
-+	 * If we are freeing the last object of a dead memcg cache, the
-+	 * kmem_cache_drop_ref() at the end of this function will end up
-+	 * freeing the cache.
-+	 */
-+	kmem_cache_get_ref(c);
-+
- 	debug_check_no_locks_freed(objp, obj_size(c));
- 	debug_check_no_obj_freed(objp, obj_size(c));
- 	__cache_free(c, (void *)objp, __builtin_return_address(0));
-+	kmem_cache_drop_ref(c);
- 	local_irq_restore(flags);
- }
- EXPORT_SYMBOL(kfree);
-@@ -4322,6 +4394,13 @@ static void cache_reap(struct work_struct *w)
- 	list_for_each_entry(searchp, &cache_chain, next) {
- 		check_irq_on();
- 
-+#ifdef CONFIG_CGROUP_MEM_RES_CTLR_KMEM
-+		/* For memcg caches, make sure we only reap the active ones. */
-+		if (searchp->memcg_params.id == -1 &&
-+		    !atomic_add_unless(&searchp->memcg_params.refcnt, 1, 0))
-+			continue;
-+#endif
-+
- 		/*
- 		 * We only take the l3 lock if absolutely necessary and we
- 		 * have established with reasonable certainty that
-@@ -4354,6 +4433,7 @@ static void cache_reap(struct work_struct *w)
- 			STATS_ADD_REAPED(searchp, freed);
+ static void drain_all_stock_async(struct mem_cgroup *memcg);
+@@ -4362,8 +4376,13 @@ static int mem_cgroup_write(struct cgroup *cont, struct cftype *cft,
+ 			 *
+ 			 * But it is not worth the trouble
+ 			 */
+-			if (!memcg->kmem_accounted && val != RESOURCE_MAX)
++			mutex_lock(&set_limit_mutex);
++			if (!memcg->kmem_accounted && val != RESOURCE_MAX
++			    && !memcg->kmem_accounted) {
++				static_key_slow_inc(&mem_cgroup_kmem_enabled_key);
+ 				memcg->kmem_accounted = true;
++			}
++			mutex_unlock(&set_limit_mutex);
  		}
- next:
-+		kmem_cache_drop_ref(searchp);
- 		cond_resched();
- 	}
- 	check_irq_on();
+ #endif
+ 		else
+@@ -5297,6 +5316,7 @@ static void free_work(struct work_struct *work)
+ 	int size = sizeof(struct mem_cgroup);
+ 
+ 	memcg = container_of(work, struct mem_cgroup, work_freeing);
++	disarm_static_keys(memcg);
+ 	if (size < PAGE_SIZE)
+ 		kfree(memcg);
+ 	else
 -- 
 1.7.7.6
 
