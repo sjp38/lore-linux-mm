@@ -1,37 +1,37 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx140.postini.com [74.125.245.140])
-	by kanga.kvack.org (Postfix) with SMTP id F07ED6B00F7
-	for <linux-mm@kvack.org>; Fri, 25 May 2012 05:11:12 -0400 (EDT)
-Received: by lahi5 with SMTP id i5so709355lah.14
-        for <linux-mm@kvack.org>; Fri, 25 May 2012 02:11:10 -0700 (PDT)
-Date: Fri, 25 May 2012 12:11:07 +0300 (EEST)
-From: Pekka Enberg <penberg@kernel.org>
-Subject: Re: [PATCH 2/2] vmevent: pass right attribute to
- vmevent_sample_attr()
-In-Reply-To: <201205251015.06924.b.zolnierkie@samsung.com>
-Message-ID: <alpine.LFD.2.02.1205251209330.7552@tux.localdomain>
-References: <201205230928.39861.b.zolnierkie@samsung.com> <alpine.LFD.2.02.1205251019091.3897@tux.localdomain> <201205251015.06924.b.zolnierkie@samsung.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from psmtp.com (na3sys010amx203.postini.com [74.125.245.203])
+	by kanga.kvack.org (Postfix) with SMTP id CDD696B00F8
+	for <linux-mm@kvack.org>; Fri, 25 May 2012 05:12:47 -0400 (EDT)
+Received: from canuck.infradead.org ([2001:4978:20e::1])
+	by merlin.infradead.org with esmtps (Exim 4.76 #1 (Red Hat Linux))
+	id 1SXqZi-0005UD-Cv
+	for linux-mm@kvack.org; Fri, 25 May 2012 09:12:46 +0000
+Received: from dhcp-089-099-019-018.chello.nl ([89.99.19.18] helo=dyad.programming.kicks-ass.net)
+	by canuck.infradead.org with esmtpsa (Exim 4.76 #1 (Red Hat Linux))
+	id 1SXqZi-0000MS-2I
+	for linux-mm@kvack.org; Fri, 25 May 2012 09:12:46 +0000
+Subject: Re: [PATCH 0/2 v4] Flexible proportions
+From: Peter Zijlstra <peterz@infradead.org>
+In-Reply-To: <1337878751-22942-1-git-send-email-jack@suse.cz>
+References: <1337878751-22942-1-git-send-email-jack@suse.cz>
+Content-Type: text/plain; charset="UTF-8"
+Date: Fri, 25 May 2012 11:12:42 +0200
+Message-ID: <1337937162.9783.163.camel@laptop>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>
-Cc: Anton Vorontsov <anton.vorontsov@linaro.org>, linux-mm@kvack.org
+To: Jan Kara <jack@suse.cz>
+Cc: Wu Fengguang <fengguang.wu@intel.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-On Fri, 25 May 2012, Bartlomiej Zolnierkiewicz wrote:
-> > Looks good. I'm getting rejects for this. What tree did you use to 
-> > generate the patch?
-> 
-> Ah, sorry for that.  I generated this patch with Anton's "vmevent: Implement
-> special low-memory attribute" patch applied..  Here is a version against
-> vanilla vmevent-core:
+On Thu, 2012-05-24 at 18:59 +0200, Jan Kara wrote:
+>   here is the next iteration of my flexible proportions code. I've addressed
+> all Peter's comments. 
 
-Right. I think Anton is reworking his patch which is why it's not merged 
-to vmevent/core.
+Thanks, all I could come up with is comment placement nits and I'll not
+go there ;-)
 
-I applied your patch, thanks!
-
-			Pekka
+Acked-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
