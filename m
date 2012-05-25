@@ -1,51 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx192.postini.com [74.125.245.192])
-	by kanga.kvack.org (Postfix) with SMTP id 3897A6B00EC
-	for <linux-mm@kvack.org>; Thu, 24 May 2012 20:24:02 -0400 (EDT)
-From: "Olav Haugan" <ohaugan@codeaurora.org>
-References: <001c01cd3987$d1a71a50$74f54ef0$%cho@samsung.com> <20120524151231.e3a18ac5.akpm@linux-foundation.org>
-In-Reply-To: <20120524151231.e3a18ac5.akpm@linux-foundation.org>
-Subject: RE: mm: fix faulty initialization in vmalloc_init()
-Date: Thu, 24 May 2012 17:24:01 -0700
-Message-ID: <002c01cd3a0c$aef39530$0cdabf90$@codeaurora.org>
+Received: from psmtp.com (na3sys010amx117.postini.com [74.125.245.117])
+	by kanga.kvack.org (Postfix) with SMTP id 62DF86B00EA
+	for <linux-mm@kvack.org>; Fri, 25 May 2012 03:17:28 -0400 (EDT)
+Received: by lbjn8 with SMTP id n8so629076lbj.14
+        for <linux-mm@kvack.org>; Fri, 25 May 2012 00:17:26 -0700 (PDT)
+Date: Fri, 25 May 2012 10:17:16 +0300 (EEST)
+From: Pekka Enberg <penberg@kernel.org>
+Subject: Re: [PATCH 1/2] vmevent: don't leak unitialized data to userspace
+In-Reply-To: <201205230927.58802.b.zolnierkie@samsung.com>
+Message-ID: <alpine.LFD.2.02.1205251017090.3897@tux.localdomain>
+References: <201205230927.58802.b.zolnierkie@samsung.com>
 MIME-Version: 1.0
-Content-Type: text/plain;
-	charset="us-ascii"
-Content-Transfer-Encoding: 7bit
-Content-Language: en-us
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: 'Andrew Morton' <akpm@linux-foundation.org>, 'KyongHo' <pullip.cho@samsung.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-arm-kernel@lists.infradead.org, linux-samsung-soc@vger.kernel.org
+To: Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>
+Cc: Anton Vorontsov <anton.vorontsov@linaro.org>, linux-mm@kvack.org
 
-> -----Original Message-----
-> On Thu, 24 May 2012 17:32:56 +0900
-> KyongHo <pullip.cho@samsung.com> wrote:
+On Wed, 23 May 2012, Bartlomiej Zolnierkiewicz wrote:
+> From: Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>
+> Subject: [PATCH] vmevent: don't leak unitialized data to userspace
 > 
-> > --- a/mm/vmalloc.c
-> > +++ b/mm/vmalloc.c
-> > @@ -1185,9 +1185,10 @@ void __init vmalloc_init(void)
-> >  	/* Import existing vmlist entries. */
-> >  	for (tmp = vmlist; tmp; tmp = tmp->next) {
-> >  		va = kzalloc(sizeof(struct vmap_area), GFP_NOWAIT);
- > -		va->flags = tmp->flags | VM_VM_AREA;
-> > +		va->flags = VM_VM_AREA;
+> Remember to initialize all attrs[nr] fields in vmevent_setup_watch().
 > 
-> This change is a mystery.  Why do we no longer transfer ->flags?
+> Cc: Anton Vorontsov <anton.vorontsov@linaro.org>
+> Signed-off-by: Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>
+> Signed-off-by: Kyungmin Park <kyungmin.park@samsung.com>
+> ---
+>  mm/vmevent.c |    5 ++++-
+>  1 file changed, 4 insertions(+), 1 deletion(-)
+> 
+> Index: b/mm/vmevent.c
+> ===================================================================
+> --- a/mm/vmevent.c	2012-05-22 17:51:13.195231958 +0200
+> +++ b/mm/vmevent.c	2012-05-22 17:51:40.991231956 +0200
+> @@ -350,7 +350,10 @@
+>  
+>  		attrs = new;
+>  
+> -		attrs[nr++].type = attr->type;
+> +		attrs[nr].type = attr->type;
+> +		attrs[nr].value = 0;
+> +		attrs[nr].state = 0;
+> +		nr++;
+>  	}
+>  
+>  	watch->sample_attrs	= attrs;
 
-I was actually debugging the same exact issue today. This transfer of flags
-actually causes some of the static mapping virtual addresses to be
-prematurely freed (before the mapping is removed) because VM_LAZY_FREE gets
-"set" if tmp->flags has VM_IOREMAP set. This might cause subsequent
-vmalloc/ioremap calls to fail because it might allocate one of the freed
-virtual address ranges that aren't unmapped. 
-
---
-Olav Haugan
-
-Sent by an employee of the Qualcomm Innovation Center, Inc.
-The Qualcomm Innovation Center, Inc. is a member of the Code Aurora Forum.
-
+Applied, thanks!
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
