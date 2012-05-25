@@ -1,36 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx196.postini.com [74.125.245.196])
-	by kanga.kvack.org (Postfix) with SMTP id A067F940025
-	for <linux-mm@kvack.org>; Fri, 25 May 2012 10:34:48 -0400 (EDT)
-Date: Fri, 25 May 2012 09:34:43 -0500 (CDT)
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: [PATCH v3 00/28] kmem limitation for memcg
-In-Reply-To: <20120525133441.GB30527@tiehlicka.suse.cz>
-Message-ID: <alpine.DEB.2.00.1205250933170.22597@router.home>
-References: <1337951028-3427-1-git-send-email-glommer@parallels.com> <20120525133441.GB30527@tiehlicka.suse.cz>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from psmtp.com (na3sys010amx164.postini.com [74.125.245.164])
+	by kanga.kvack.org (Postfix) with SMTP id 3A2E06B00EF
+	for <linux-mm@kvack.org>; Fri, 25 May 2012 12:12:23 -0400 (EDT)
+Received: by pbbrp2 with SMTP id rp2so2502542pbb.14
+        for <linux-mm@kvack.org>; Fri, 25 May 2012 09:12:22 -0700 (PDT)
+From: Chen Baozi <baozich@gmail.com>
+Subject: [PATCH] memcg: remove the unnecessary MEM_CGROUP_STAT_DATA
+Date: Fri, 25 May 2012 16:11:41 +0800
+Message-Id: <1337933501-3985-1-git-send-email-baozich@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: Glauber Costa <glommer@parallels.com>, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, linux-mm@kvack.org, kamezawa.hiroyu@jp.fujitsu.com, Tejun Heo <tj@kernel.org>, Li Zefan <lizefan@huawei.com>, Greg Thelen <gthelen@google.com>, Suleiman Souhlal <suleiman@google.com>, Johannes Weiner <hannes@cmpxchg.org>, devel@openvz.org, David Rientjes <rientjes@google.com>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Chen Baozi <baozich@gmail.com>
 
-On Fri, 25 May 2012, Michal Hocko wrote:
+Since MEM_CGROUP_ON_MOVE has been removed, it comes to be redudant
+to hold MEM_CGROUP_STAT_DATA to mark the end of data requires
+synchronization.
 
-> On Fri 25-05-12 17:03:20, Glauber Costa wrote:
-> > I believe some of the early patches here are already in some trees around.
-> > I don't know who should pick this, so if everyone agrees with what's in here,
-> > please just ack them and tell me which tree I should aim for (-mm? Hocko's?)
-> > and I'll rebase it.
->
-> memcg-devel tree is only to make development easier. Everything that
-> applies on top of this tree should be applicable to both -mm and
-> linux-next.
-> So the patches should go via traditional Andrew's channel.
+Signed-off-by: Chen Baozi <baozich@gmail.com>
+---
+ mm/memcontrol.c |    3 +--
+ 1 files changed, 1 insertions(+), 2 deletions(-)
 
-It would be best to merge these with my patchset to extract common code
-from the allocators. The modifications of individual slab allocators would
-then be not necessary anymore and it would save us a lot of work.
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index f342778..446ca94 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -88,7 +88,6 @@ enum mem_cgroup_stat_index {
+ 	MEM_CGROUP_STAT_RSS,	   /* # of pages charged as anon rss */
+ 	MEM_CGROUP_STAT_FILE_MAPPED,  /* # of pages charged as file rss */
+ 	MEM_CGROUP_STAT_SWAPOUT, /* # of pages, swapped out */
+-	MEM_CGROUP_STAT_DATA, /* end of data requires synchronization */
+ 	MEM_CGROUP_STAT_NSTATS,
+ };
+ 
+@@ -2139,7 +2138,7 @@ static void mem_cgroup_drain_pcp_counter(struct mem_cgroup *memcg, int cpu)
+ 	int i;
+ 
+ 	spin_lock(&memcg->pcp_counter_lock);
+-	for (i = 0; i < MEM_CGROUP_STAT_DATA; i++) {
++	for (i = 0; i < MEM_CGROUP_STAT_NSTATS; i++) {
+ 		long x = per_cpu(memcg->stat->count[i], cpu);
+ 
+ 		per_cpu(memcg->stat->count[i], cpu) = 0;
+-- 
+1.7.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
