@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx147.postini.com [74.125.245.147])
-	by kanga.kvack.org (Postfix) with SMTP id 5B27E6B0092
+Received: from psmtp.com (na3sys010amx199.postini.com [74.125.245.199])
+	by kanga.kvack.org (Postfix) with SMTP id 9C78F6B00E7
 	for <linux-mm@kvack.org>; Fri, 25 May 2012 13:03:09 -0400 (EDT)
 From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: [PATCH 29/35] autonuma: numa hinting page faults entry points
-Date: Fri, 25 May 2012 19:02:33 +0200
-Message-Id: <1337965359-29725-30-git-send-email-aarcange@redhat.com>
+Subject: [PATCH 22/35] autonuma: sched_set_autonuma_need_balance
+Date: Fri, 25 May 2012 19:02:26 +0200
+Message-Id: <1337965359-29725-23-git-send-email-aarcange@redhat.com>
 In-Reply-To: <1337965359-29725-1-git-send-email-aarcange@redhat.com>
 References: <1337965359-29725-1-git-send-email-aarcange@redhat.com>
 Sender: owner-linux-mm@kvack.org
@@ -13,128 +13,28 @@ List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 Cc: Hillf Danton <dhillf@gmail.com>, Dan Smith <danms@us.ibm.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>, Paul Turner <pjt@google.com>, Suresh Siddha <suresh.b.siddha@intel.com>, Mike Galbraith <efault@gmx.de>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Bharata B Rao <bharata.rao@gmail.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Srivatsa Vaddagiri <vatsa@linux.vnet.ibm.com>, Christoph Lameter <cl@linux.com>
 
-This is where the numa hinting page faults are detected and are passed
-over to the AutoNUMA core logic.
+Invoke autonuma_balance only on the busy CPUs at the same frequency of
+the CFS load balance.
 
 Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
 ---
- include/linux/huge_mm.h |    2 ++
- mm/huge_memory.c        |   17 +++++++++++++++++
- mm/memory.c             |   32 ++++++++++++++++++++++++++++++++
- 3 files changed, 51 insertions(+), 0 deletions(-)
+ kernel/sched/fair.c |    3 +++
+ 1 files changed, 3 insertions(+), 0 deletions(-)
 
-diff --git a/include/linux/huge_mm.h b/include/linux/huge_mm.h
-index c8af7a2..72eac1d 100644
---- a/include/linux/huge_mm.h
-+++ b/include/linux/huge_mm.h
-@@ -11,6 +11,8 @@ extern int copy_huge_pmd(struct mm_struct *dst_mm, struct mm_struct *src_mm,
- extern int do_huge_pmd_wp_page(struct mm_struct *mm, struct vm_area_struct *vma,
- 			       unsigned long address, pmd_t *pmd,
- 			       pmd_t orig_pmd);
-+extern pmd_t __huge_pmd_numa_fixup(struct mm_struct *mm, unsigned long addr,
-+				   pmd_t pmd, pmd_t *pmdp);
- extern pgtable_t get_pmd_huge_pte(struct mm_struct *mm);
- extern struct page *follow_trans_huge_pmd(struct mm_struct *mm,
- 					  unsigned long addr,
-diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index 76bdc48..017c0a3 100644
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -1030,6 +1030,23 @@ out:
- 	return page;
- }
+diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
+index 99d1d33..1357938 100644
+--- a/kernel/sched/fair.c
++++ b/kernel/sched/fair.c
+@@ -4893,6 +4893,9 @@ static void run_rebalance_domains(struct softirq_action *h)
  
-+#ifdef CONFIG_AUTONUMA
-+pmd_t __huge_pmd_numa_fixup(struct mm_struct *mm, unsigned long addr,
-+			    pmd_t pmd, pmd_t *pmdp)
-+{
-+	spin_lock(&mm->page_table_lock);
-+	if (pmd_same(pmd, *pmdp)) {
-+		struct page *page = pmd_page(pmd);
-+		pmd = pmd_mknotnuma(pmd);
-+		set_pmd_at(mm, addr & HPAGE_PMD_MASK, pmdp, pmd);
-+		numa_hinting_fault(page, HPAGE_PMD_NR);
-+		VM_BUG_ON(pmd_numa(pmd));
-+	}
-+	spin_unlock(&mm->page_table_lock);
-+	return pmd;
-+}
-+#endif
-+
- int zap_huge_pmd(struct mmu_gather *tlb, struct vm_area_struct *vma,
- 		 pmd_t *pmd, unsigned long addr)
- {
-diff --git a/mm/memory.c b/mm/memory.c
-index e3aa47c..316ce54 100644
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -57,6 +57,7 @@
- #include <linux/swapops.h>
- #include <linux/elf.h>
- #include <linux/gfp.h>
-+#include <linux/autonuma.h>
+ 	rebalance_domains(this_cpu, idle);
  
- #include <asm/io.h>
- #include <asm/pgalloc.h>
-@@ -3398,6 +3399,32 @@ static int do_nonlinear_fault(struct mm_struct *mm, struct vm_area_struct *vma,
- 	return __do_fault(mm, vma, address, pmd, pgoff, flags, orig_pte);
- }
- 
-+static inline pte_t pte_numa_fixup(struct mm_struct *mm,
-+				   struct vm_area_struct *vma,
-+				   unsigned long addr, pte_t pte, pte_t *ptep)
-+{
-+	if (pte_numa(pte))
-+		pte = __pte_numa_fixup(mm, vma, addr, pte, ptep);
-+	return pte;
-+}
-+
-+static inline void pmd_numa_fixup(struct mm_struct *mm,
-+				  struct vm_area_struct *vma,
-+				  unsigned long addr, pmd_t *pmd)
-+{
-+	if (pmd_numa(*pmd))
-+		__pmd_numa_fixup(mm, vma, addr, pmd);
-+}
-+
-+static inline pmd_t huge_pmd_numa_fixup(struct mm_struct *mm,
-+					unsigned long addr,
-+					pmd_t pmd, pmd_t *pmdp)
-+{
-+	if (pmd_numa(pmd))
-+		pmd = __huge_pmd_numa_fixup(mm, addr, pmd, pmdp);
-+	return pmd;
-+}
-+
- /*
-  * These routines also need to handle stuff like marking pages dirty
-  * and/or accessed for architectures that don't do it in hardware (most
-@@ -3440,6 +3467,7 @@ int handle_pte_fault(struct mm_struct *mm,
- 	spin_lock(ptl);
- 	if (unlikely(!pte_same(*pte, entry)))
- 		goto unlock;
-+	entry = pte_numa_fixup(mm, vma, address, entry, pte);
- 	if (flags & FAULT_FLAG_WRITE) {
- 		if (!pte_write(entry))
- 			return do_wp_page(mm, vma, address,
-@@ -3501,6 +3529,8 @@ int handle_mm_fault(struct mm_struct *mm, struct vm_area_struct *vma,
- 		pmd_t orig_pmd = *pmd;
- 		barrier();
- 		if (pmd_trans_huge(orig_pmd)) {
-+			orig_pmd = huge_pmd_numa_fixup(mm, address,
-+						       orig_pmd, pmd);
- 			if (flags & FAULT_FLAG_WRITE &&
- 			    !pmd_write(orig_pmd) &&
- 			    !pmd_trans_splitting(orig_pmd))
-@@ -3510,6 +3540,8 @@ int handle_mm_fault(struct mm_struct *mm, struct vm_area_struct *vma,
- 		}
- 	}
- 
-+	pmd_numa_fixup(mm, vma, address, pmd);
++	if (!this_rq->idle_balance)
++		sched_set_autonuma_need_balance();
 +
  	/*
- 	 * Use __pte_alloc instead of pte_alloc_map, because we can't
- 	 * run pte_offset_map on the pmd, if an huge pmd could
+ 	 * If this cpu has a pending nohz_balance_kick, then do the
+ 	 * balancing on behalf of the other idle cpus whose ticks are
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
