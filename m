@@ -1,132 +1,102 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx113.postini.com [74.125.245.113])
-	by kanga.kvack.org (Postfix) with SMTP id C388B940001
-	for <linux-mm@kvack.org>; Fri, 25 May 2012 08:39:31 -0400 (EDT)
-Received: by lahi5 with SMTP id i5so884764lah.14
-        for <linux-mm@kvack.org>; Fri, 25 May 2012 05:39:29 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <20120524151231.e3a18ac5.akpm@linux-foundation.org>
-References: <001c01cd3987$d1a71a50$74f54ef0$%cho@samsung.com>
-	<20120524151231.e3a18ac5.akpm@linux-foundation.org>
-Date: Fri, 25 May 2012 21:39:29 +0900
-Message-ID: <CAHQjnOMt112PkHPD1omBZ6ziPXk7E4crt3_Z5JhyxEMhccTsWQ@mail.gmail.com>
-Subject: mm: fix faulty initialization in vmalloc_init()
-From: KyongHo Cho <pullip.cho@samsung.com>
-Content-Type: multipart/alternative; boundary=f46d04016b2dd38f6e04c0dba8ad
+Received: from psmtp.com (na3sys010amx142.postini.com [74.125.245.142])
+	by kanga.kvack.org (Postfix) with SMTP id D1513940008
+	for <linux-mm@kvack.org>; Fri, 25 May 2012 09:06:18 -0400 (EDT)
+From: Glauber Costa <glommer@parallels.com>
+Subject: [PATCH v3 02/28] memcg: Always free struct memcg through schedule_work()
+Date: Fri, 25 May 2012 17:03:22 +0400
+Message-Id: <1337951028-3427-3-git-send-email-glommer@parallels.com>
+In-Reply-To: <1337951028-3427-1-git-send-email-glommer@parallels.com>
+References: <1337951028-3427-1-git-send-email-glommer@parallels.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "linux-samsung-soc@vger.kernel.org" <linux-samsung-soc@vger.kernel.org>
+To: linux-kernel@vger.kernel.org
+Cc: cgroups@vger.kernel.org, linux-mm@kvack.org, kamezawa.hiroyu@jp.fujitsu.com, Tejun Heo <tj@kernel.org>, Li Zefan <lizefan@huawei.com>, Greg Thelen <gthelen@google.com>, Suleiman Souhlal <suleiman@google.com>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, devel@openvz.org, David Rientjes <rientjes@google.com>, Glauber Costa <glommer@parallels.com>
 
---f46d04016b2dd38f6e04c0dba8ad
-Content-Type: text/plain; charset=ISO-8859-1
+Right now we free struct memcg with kfree right after a
+rcu grace period, but defer it if we need to use vfree() to get
+rid of that memory area. We do that by need, because we need vfree
+to be called in a process context.
 
-On Fri, May 25, 2012 at 7:12 AM, Andrew Morton <akpm@linux-foundation.org>
-wrote:
-> On Thu, 24 May 2012 17:32:56 +0900
-> KyongHo <pullip.cho@samsung.com> wrote:
->
->> vmalloc_init() adds 'vmap_area's for early 'vm_struct's.
->> This patch fixes vmalloc_init() to correctly initialize
->> vmap_area for the given vm_struct.
->>
->
-> <daily message>
-> Insufficient information.  When fixing a bug please always always
-> always describe the user-visible effects of the bug.  Does the kernel
-> instantly crash?  Is it a comestic cleanliness thing which has no
-> effect?  Something in between?  I have simply no idea, and am dependent
-> upon you to tell me.
+This patch unifies this behavior, by ensuring that even kfree will
+happen in a separate thread. The goal is to have a stable place to
+call the upcoming jump label destruction function outside the realm
+of the complicated and quite far-reaching cgroup lock (that can't be
+held when calling neither the cpu_hotplug.lock nor the jump_label_mutex)
 
-Sorry for unkind commit message :)
-Why this patch is needed is described by Olav
-in the previous replies.
+Signed-off-by: Glauber Costa <glommer@parallels.com>
+CC: Tejun Heo <tj@kernel.org>
+CC: Li Zefan <lizefan@huawei.com>
+CC: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+CC: Johannes Weiner <hannes@cmpxchg.org>
+CC: Michal Hocko <mhocko@suse.cz>
+---
+ mm/memcontrol.c |   24 +++++++++++++-----------
+ 1 files changed, 13 insertions(+), 11 deletions(-)
 
->
->> --- a/mm/vmalloc.c
->> +++ b/mm/vmalloc.c
->> @@ -1185,9 +1185,10 @@ void __init vmalloc_init(void)
->>       /* Import existing vmlist entries. */
->>       for (tmp = vmlist; tmp; tmp = tmp->next) {
->>               va = kzalloc(sizeof(struct vmap_area), GFP_NOWAIT);
->> -             va->flags = tmp->flags | VM_VM_AREA;
->> +             va->flags = VM_VM_AREA;
->
-> This change is a mystery.  Why do we no longer transfer ->flags?
->
->>               va->va_start = (unsigned long)tmp->addr;
->>               va->va_end = va->va_start + tmp->size;
->> +             va->vm = tmp;
->
-> OK, I can see how this might be important.  But why did you find it
-> necessary?  Why was this change actually needed?
-
-If it is not set, find_vm_area() with the early vm regions will always fail.
-
-If the early vm regions must be neither found by find_vm_area()
-nor removed by remove_vm_area(), va->vm must be NULL.
-
-Please advise me what is right value for va->vm here :)
-
->
->>               __insert_vmap_area(va);
->>       }
->
-> --
-> To unsubscribe from this list: send the line "unsubscribe
-linux-samsung-soc" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
-
---f46d04016b2dd38f6e04c0dba8ad
-Content-Type: text/html; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
-
-On Fri, May 25, 2012 at 7:12 AM, Andrew Morton &lt;<a href=3D"mailto:akpm@l=
-inux-foundation.org">akpm@linux-foundation.org</a>&gt; wrote:<br>&gt; On Th=
-u, 24 May 2012 17:32:56 +0900<br>&gt; KyongHo &lt;<a href=3D"mailto:pullip.=
-cho@samsung.com">pullip.cho@samsung.com</a>&gt; wrote:<br>
-&gt;<br>&gt;&gt; vmalloc_init() adds &#39;vmap_area&#39;s for early &#39;vm=
-_struct&#39;s.<br>&gt;&gt; This patch fixes vmalloc_init() to correctly ini=
-tialize<br>&gt;&gt; vmap_area for the given vm_struct.<br>&gt;&gt;<br>&gt;<=
-br>
-&gt; &lt;daily message&gt;<br>&gt; Insufficient information. =A0When fixing=
- a bug please always always<br>&gt; always describe the user-visible effect=
-s of the bug. =A0Does the kernel<br>&gt; instantly crash? =A0Is it a comest=
-ic cleanliness thing which has no<br>
-&gt; effect? =A0Something in between? =A0I have simply no idea, and am depe=
-ndent<br>&gt; upon you to tell me.<br><br>Sorry for unkind commit message :=
-)<br>Why this patch is needed is described by Olav<br>in the previous repli=
-es. <br>
-<br>&gt;<br>&gt;&gt; --- a/mm/vmalloc.c<br>&gt;&gt; +++ b/mm/vmalloc.c<br>&=
-gt;&gt; @@ -1185,9 +1185,10 @@ void __init vmalloc_init(void)<br>&gt;&gt; =
-=A0 =A0 =A0 /* Import existing vmlist entries. */<br>&gt;&gt; =A0 =A0 =A0 f=
-or (tmp =3D vmlist; tmp; tmp =3D tmp-&gt;next) {<br>
-&gt;&gt; =A0 =A0 =A0 =A0 =A0 =A0 =A0 va =3D kzalloc(sizeof(struct vmap_area=
-), GFP_NOWAIT);<br>&gt;&gt; - =A0 =A0 =A0 =A0 =A0 =A0 va-&gt;flags =3D tmp-=
-&gt;flags | VM_VM_AREA;<br>&gt;&gt; + =A0 =A0 =A0 =A0 =A0 =A0 va-&gt;flags =
-=3D VM_VM_AREA;<br>&gt;<br>&gt; This change is a mystery. =A0Why do we no l=
-onger transfer -&gt;flags?<br>
-&gt;<br>&gt;&gt; =A0 =A0 =A0 =A0 =A0 =A0 =A0 va-&gt;va_start =3D (unsigned =
-long)tmp-&gt;addr;<br>&gt;&gt; =A0 =A0 =A0 =A0 =A0 =A0 =A0 va-&gt;va_end =
-=3D va-&gt;va_start + tmp-&gt;size;<br>&gt;&gt; + =A0 =A0 =A0 =A0 =A0 =A0 v=
-a-&gt;vm =3D tmp;<br>&gt;<br>&gt; OK, I can see how this might be important=
-. =A0But why did you find it<br>
-&gt; necessary? =A0Why was this change actually needed?<br><br>If it is not=
- set, find_vm_area() with the early vm regions will always fail.<br><br>If =
-the early vm regions must be neither found by find_vm_area()<br>nor removed=
- by remove_vm_area(), va-&gt;vm must be NULL.<br>
-<br>Please advise me what is right value for va-&gt;vm here :)<br><br>&gt;<=
-br>&gt;&gt; =A0 =A0 =A0 =A0 =A0 =A0 =A0 __insert_vmap_area(va);<br>&gt;&gt;=
- =A0 =A0 =A0 }<br>&gt;<br>&gt; --<br>&gt; To unsubscribe from this list: se=
-nd the line &quot;unsubscribe linux-samsung-soc&quot; in<br>
-&gt; the body of a message to <a href=3D"mailto:majordomo@vger.kernel.org">=
-majordomo@vger.kernel.org</a><br>&gt; More majordomo info at =A0<a href=3D"=
-http://vger.kernel.org/majordomo-info.html">http://vger.kernel.org/majordom=
-o-info.html</a><br>
-<br>
-
---f46d04016b2dd38f6e04c0dba8ad--
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index 932a734..0b4b4c8 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -245,8 +245,8 @@ struct mem_cgroup {
+ 		 */
+ 		struct rcu_head rcu_freeing;
+ 		/*
+-		 * But when using vfree(), that cannot be done at
+-		 * interrupt time, so we must then queue the work.
++		 * We also need some space for a worker in deferred freeing.
++		 * By the time we call it, rcu_freeing is not longer in use.
+ 		 */
+ 		struct work_struct work_freeing;
+ 	};
+@@ -4826,23 +4826,28 @@ out_free:
+ }
+ 
+ /*
+- * Helpers for freeing a vzalloc()ed mem_cgroup by RCU,
++ * Helpers for freeing a kmalloc()ed/vzalloc()ed mem_cgroup by RCU,
+  * but in process context.  The work_freeing structure is overlaid
+  * on the rcu_freeing structure, which itself is overlaid on memsw.
+  */
+-static void vfree_work(struct work_struct *work)
++static void free_work(struct work_struct *work)
+ {
+ 	struct mem_cgroup *memcg;
++	int size = sizeof(struct mem_cgroup);
+ 
+ 	memcg = container_of(work, struct mem_cgroup, work_freeing);
+-	vfree(memcg);
++	if (size < PAGE_SIZE)
++		kfree(memcg);
++	else
++		vfree(memcg);
+ }
+-static void vfree_rcu(struct rcu_head *rcu_head)
++
++static void free_rcu(struct rcu_head *rcu_head)
+ {
+ 	struct mem_cgroup *memcg;
+ 
+ 	memcg = container_of(rcu_head, struct mem_cgroup, rcu_freeing);
+-	INIT_WORK(&memcg->work_freeing, vfree_work);
++	INIT_WORK(&memcg->work_freeing, free_work);
+ 	schedule_work(&memcg->work_freeing);
+ }
+ 
+@@ -4868,10 +4873,7 @@ static void __mem_cgroup_free(struct mem_cgroup *memcg)
+ 		free_mem_cgroup_per_zone_info(memcg, node);
+ 
+ 	free_percpu(memcg->stat);
+-	if (sizeof(struct mem_cgroup) < PAGE_SIZE)
+-		kfree_rcu(memcg, rcu_freeing);
+-	else
+-		call_rcu(&memcg->rcu_freeing, vfree_rcu);
++	call_rcu(&memcg->rcu_freeing, free_rcu);
+ }
+ 
+ static void mem_cgroup_get(struct mem_cgroup *memcg)
+-- 
+1.7.7.6
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
