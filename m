@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx142.postini.com [74.125.245.142])
-	by kanga.kvack.org (Postfix) with SMTP id A95636B00F7
-	for <linux-mm@kvack.org>; Fri, 25 May 2012 13:03:45 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx155.postini.com [74.125.245.155])
+	by kanga.kvack.org (Postfix) with SMTP id 811D16B0092
+	for <linux-mm@kvack.org>; Fri, 25 May 2012 13:03:56 -0400 (EDT)
 From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: [PATCH 06/35] autonuma: generic pte_numa() and pmd_numa()
-Date: Fri, 25 May 2012 19:02:10 +0200
-Message-Id: <1337965359-29725-7-git-send-email-aarcange@redhat.com>
+Subject: [PATCH 03/35] xen: document Xen is using an unused bit for the pagetables
+Date: Fri, 25 May 2012 19:02:07 +0200
+Message-Id: <1337965359-29725-4-git-send-email-aarcange@redhat.com>
 In-Reply-To: <1337965359-29725-1-git-send-email-aarcange@redhat.com>
 References: <1337965359-29725-1-git-send-email-aarcange@redhat.com>
 Sender: owner-linux-mm@kvack.org
@@ -13,37 +13,51 @@ List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 Cc: Hillf Danton <dhillf@gmail.com>, Dan Smith <danms@us.ibm.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>, Paul Turner <pjt@google.com>, Suresh Siddha <suresh.b.siddha@intel.com>, Mike Galbraith <efault@gmx.de>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Bharata B Rao <bharata.rao@gmail.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Srivatsa Vaddagiri <vatsa@linux.vnet.ibm.com>, Christoph Lameter <cl@linux.com>
 
-Implement generic version of the methods. They're used when
-CONFIG_AUTONUMA=n, and they're a noop.
+Xen has taken over the last reserved bit available for the pagetables
+which is set through ioremap, this documents it and makes the code
+more readable.
 
 Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
 ---
- include/asm-generic/pgtable.h |   12 ++++++++++++
- 1 files changed, 12 insertions(+), 0 deletions(-)
+ arch/x86/include/asm/pgtable_types.h |   11 +++++++++--
+ 1 files changed, 9 insertions(+), 2 deletions(-)
 
-diff --git a/include/asm-generic/pgtable.h b/include/asm-generic/pgtable.h
-index fa596d9..780f707 100644
---- a/include/asm-generic/pgtable.h
-+++ b/include/asm-generic/pgtable.h
-@@ -521,6 +521,18 @@ static inline int pmd_trans_unstable(pmd_t *pmd)
- #endif
- }
+diff --git a/arch/x86/include/asm/pgtable_types.h b/arch/x86/include/asm/pgtable_types.h
+index 013286a..b74cac9 100644
+--- a/arch/x86/include/asm/pgtable_types.h
++++ b/arch/x86/include/asm/pgtable_types.h
+@@ -17,7 +17,7 @@
+ #define _PAGE_BIT_PAT		7	/* on 4KB pages */
+ #define _PAGE_BIT_GLOBAL	8	/* Global TLB entry PPro+ */
+ #define _PAGE_BIT_UNUSED1	9	/* available for programmer */
+-#define _PAGE_BIT_IOMAP		10	/* flag used to indicate IO mapping */
++#define _PAGE_BIT_UNUSED2	10
+ #define _PAGE_BIT_HIDDEN	11	/* hidden by kmemcheck */
+ #define _PAGE_BIT_PAT_LARGE	12	/* On 2MB or 1GB pages */
+ #define _PAGE_BIT_SPECIAL	_PAGE_BIT_UNUSED1
+@@ -41,7 +41,7 @@
+ #define _PAGE_PSE	(_AT(pteval_t, 1) << _PAGE_BIT_PSE)
+ #define _PAGE_GLOBAL	(_AT(pteval_t, 1) << _PAGE_BIT_GLOBAL)
+ #define _PAGE_UNUSED1	(_AT(pteval_t, 1) << _PAGE_BIT_UNUSED1)
+-#define _PAGE_IOMAP	(_AT(pteval_t, 1) << _PAGE_BIT_IOMAP)
++#define _PAGE_UNUSED2	(_AT(pteval_t, 1) << _PAGE_BIT_UNUSED2)
+ #define _PAGE_PAT	(_AT(pteval_t, 1) << _PAGE_BIT_PAT)
+ #define _PAGE_PAT_LARGE (_AT(pteval_t, 1) << _PAGE_BIT_PAT_LARGE)
+ #define _PAGE_SPECIAL	(_AT(pteval_t, 1) << _PAGE_BIT_SPECIAL)
+@@ -49,6 +49,13 @@
+ #define _PAGE_SPLITTING	(_AT(pteval_t, 1) << _PAGE_BIT_SPLITTING)
+ #define __HAVE_ARCH_PTE_SPECIAL
  
-+#ifndef CONFIG_AUTONUMA
-+static inline int pte_numa(pte_t pte)
-+{
-+	return 0;
-+}
++/* flag used to indicate IO mapping */
++#ifdef CONFIG_XEN
++#define _PAGE_IOMAP	(_AT(pteval_t, 1) << _PAGE_BIT_UNUSED2)
++#else
++#define _PAGE_IOMAP	(_AT(pteval_t, 0))
++#endif
 +
-+static inline int pmd_numa(pmd_t pmd)
-+{
-+	return 0;
-+}
-+#endif /* CONFIG_AUTONUMA */
-+
- #endif /* CONFIG_MMU */
- 
- #endif /* !__ASSEMBLY__ */
+ #ifdef CONFIG_KMEMCHECK
+ #define _PAGE_HIDDEN	(_AT(pteval_t, 1) << _PAGE_BIT_HIDDEN)
+ #else
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
