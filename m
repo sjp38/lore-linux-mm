@@ -1,41 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx145.postini.com [74.125.245.145])
-	by kanga.kvack.org (Postfix) with SMTP id EA7F4940001
-	for <linux-mm@kvack.org>; Thu, 24 May 2012 19:20:26 -0400 (EDT)
-Received: by dakp5 with SMTP id p5so542895dak.14
-        for <linux-mm@kvack.org>; Thu, 24 May 2012 16:20:26 -0700 (PDT)
-Date: Thu, 24 May 2012 16:20:23 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH -V6 07/14] memcg: Add HugeTLB extension
-In-Reply-To: <20120524155727.dc6c839e.akpm@linux-foundation.org>
-Message-ID: <alpine.DEB.2.00.1205241615540.9453@chino.kir.corp.google.com>
-References: <1334573091-18602-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com> <1334573091-18602-8-git-send-email-aneesh.kumar@linux.vnet.ibm.com> <alpine.DEB.2.00.1205241436180.24113@chino.kir.corp.google.com>
- <20120524155727.dc6c839e.akpm@linux-foundation.org>
+Received: from psmtp.com (na3sys010amx192.postini.com [74.125.245.192])
+	by kanga.kvack.org (Postfix) with SMTP id 3897A6B00EC
+	for <linux-mm@kvack.org>; Thu, 24 May 2012 20:24:02 -0400 (EDT)
+From: "Olav Haugan" <ohaugan@codeaurora.org>
+References: <001c01cd3987$d1a71a50$74f54ef0$%cho@samsung.com> <20120524151231.e3a18ac5.akpm@linux-foundation.org>
+In-Reply-To: <20120524151231.e3a18ac5.akpm@linux-foundation.org>
+Subject: RE: mm: fix faulty initialization in vmalloc_init()
+Date: Thu, 24 May 2012 17:24:01 -0700
+Message-ID: <002c01cd3a0c$aef39530$0cdabf90$@codeaurora.org>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain;
+	charset="us-ascii"
+Content-Transfer-Encoding: 7bit
+Content-Language: en-us
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, linux-mm@kvack.org, mgorman@suse.de, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, dhillf@gmail.com, aarcange@redhat.com, mhocko@suse.cz, hannes@cmpxchg.org, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org
+To: 'Andrew Morton' <akpm@linux-foundation.org>, 'KyongHo' <pullip.cho@samsung.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-arm-kernel@lists.infradead.org, linux-samsung-soc@vger.kernel.org
 
-On Thu, 24 May 2012, Andrew Morton wrote:
-
-> These arguments look pretty strong to me.  But poorly timed :(
+> -----Original Message-----
+> On Thu, 24 May 2012 17:32:56 +0900
+> KyongHo <pullip.cho@samsung.com> wrote:
 > 
+> > --- a/mm/vmalloc.c
+> > +++ b/mm/vmalloc.c
+> > @@ -1185,9 +1185,10 @@ void __init vmalloc_init(void)
+> >  	/* Import existing vmlist entries. */
+> >  	for (tmp = vmlist; tmp; tmp = tmp->next) {
+> >  		va = kzalloc(sizeof(struct vmap_area), GFP_NOWAIT);
+ > -		va->flags = tmp->flags | VM_VM_AREA;
+> > +		va->flags = VM_VM_AREA;
+> 
+> This change is a mystery.  Why do we no longer transfer ->flags?
 
-What I argued here is nothing new, I said the same thing back on April 27 
-and I was expecting it to be reproposed as a seperate controller.  The 
-counter argument that memcg shouldn't cause a performance degradation 
-doesn't hold water: you can't expect every page to be tracked without 
-incurring some penalty somewhere.  And it certainly causes ~1% of memory 
-to be used up at boot with all the struct page_cgroups.
+I was actually debugging the same exact issue today. This transfer of flags
+actually causes some of the static mapping virtual addresses to be
+prematurely freed (before the mapping is removed) because VM_LAZY_FREE gets
+"set" if tmp->flags has VM_IOREMAP set. This might cause subsequent
+vmalloc/ioremap calls to fail because it might allocate one of the freed
+virtual address ranges that aren't unmapped. 
 
-The counter argument that we'd have to duplicate cgroup setup and 
-initialization code from memcg also is irrelevant: all generic cgroup 
-mounting, creation, and initialization code should be in kernel/cgroup.c.  
-Obviously there will be added code because we're introducing a new cgroup, 
-but that's not a reason to force everybody who wants to control hugetlb 
-pages to be forced to enable memcg.
+--
+Olav Haugan
+
+Sent by an employee of the Qualcomm Innovation Center, Inc.
+The Qualcomm Innovation Center, Inc. is a member of the Code Aurora Forum.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
