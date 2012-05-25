@@ -1,99 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx142.postini.com [74.125.245.142])
-	by kanga.kvack.org (Postfix) with SMTP id 5F34C6B00F6
-	for <linux-mm@kvack.org>; Fri, 25 May 2012 16:46:29 -0400 (EDT)
-Date: Fri, 25 May 2012 15:46:27 -0500
-From: Nathan Zimmer <nzimmer@sgi.com>
-Subject: Re: [PATCH] tmpfs not interleaving properly
-Message-ID: <20120525204626.GA16178@gulag1.americas.sgi.com>
-References: <74F10842A85F514CA8D8C487E74474BB2C1597@P-EXMB1-DC21.corp.sgi.com> <20120523152011.3b581761.akpm@linux-foundation.org>
+Received: from psmtp.com (na3sys010amx166.postini.com [74.125.245.166])
+	by kanga.kvack.org (Postfix) with SMTP id C8A546B00FA
+	for <linux-mm@kvack.org>; Fri, 25 May 2012 16:48:59 -0400 (EDT)
+Date: Fri, 25 May 2012 22:48:16 +0200 (CEST)
+From: Thomas Gleixner <tglx@linutronix.de>
+Subject: Re: [PATCH v1 1/6] timer: make __next_timer_interrupt explicit about
+ no future event
+In-Reply-To: <1336056962-10465-2-git-send-email-gilad@benyossef.com>
+Message-ID: <alpine.LFD.2.02.1205251846520.3231@ionos>
+References: <1336056962-10465-1-git-send-email-gilad@benyossef.com> <1336056962-10465-2-git-send-email-gilad@benyossef.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20120523152011.3b581761.akpm@linux-foundation.org>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Nathan Zimmer <nzimmer@sgi.com>, Hugh Dickins <hughd@google.com>, Nick Piggin <npiggin@gmail.com>, Christoph Lameter <cl@linux.com>, Lee Schermerhorn <lee.schermerhorn@hp.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "stable@vger.kernel.org" <stable@vger.kernel.org>
+To: Gilad Ben-Yossef <gilad@benyossef.com>
+Cc: linux-kernel@vger.kernel.org, Tejun Heo <tj@kernel.org>, John Stultz <johnstul@us.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, Mike Frysinger <vapier@gentoo.org>, David Rientjes <rientjes@google.com>, Hugh Dickins <hughd@google.com>, Minchan Kim <minchan.kim@gmail.com>, Konstantin Khlebnikov <khlebnikov@openvz.org>, Christoph Lameter <cl@linux.com>, Chris Metcalf <cmetcalf@tilera.com>, Hakan Akkan <hakanakkan@gmail.com>, Max Krasnyansky <maxk@qualcomm.com>, Frederic Weisbecker <fweisbec@gmail.com>, linux-mm@kvack.org
 
-On Wed, May 23, 2012 at 03:20:11PM -0700, Andrew Morton wrote:
-> On Wed, 23 May 2012 13:28:21 +0000
-> Nathan Zimmer <nzimmer@sgi.com> wrote:
+On Thu, 3 May 2012, Gilad Ben-Yossef wrote:
+> What is happening is that when __next_timer_interrupt() wishes
+> to return a value that signifies "there is no future timer
+> event", it returns (base->timer_jiffies + NEXT_TIMER_MAX_DELTA).
 > 
-> > 
-> > When tmpfs has the memory policy interleaved it always starts allocating at each file at node 0.
-> > When there are many small files the lower nodes fill up disproportionately.
-> > My proposed solution is to start a file at a randomly chosen node.
-> > 
-> > ...
-> >
-> > --- a/include/linux/shmem_fs.h
-> > +++ b/include/linux/shmem_fs.h
-> > @@ -17,6 +17,7 @@ struct shmem_inode_info {
-> >  		char		*symlink;	/* unswappable short symlink */
-> >  	};
-> >  	struct shared_policy	policy;		/* NUMA memory alloc policy */
-> > +	int			node_offset;	/* bias for interleaved nodes */
-> >  	struct list_head	swaplist;	/* chain of maybes on swap */
-> >  	struct list_head	xattr_list;	/* list of shmem_xattr */
-> >  	struct inode		vfs_inode;
-> > diff --git a/mm/shmem.c b/mm/shmem.c
-> > index f99ff3e..58ef512 100644
-> > --- a/mm/shmem.c
-> > +++ b/mm/shmem.c
-> > @@ -819,7 +819,7 @@ static struct page *shmem_alloc_page(gfp_t gfp,
-> >  
-> >  	/* Create a pseudo vma that just contains the policy */
-> >  	pvma.vm_start = 0;
-> > -	pvma.vm_pgoff = index;
-> > +	pvma.vm_pgoff = index + info->node_offset;
-> >  	pvma.vm_ops = NULL;
-> >  	pvma.vm_policy = mpol_shared_policy_lookup(&info->policy, index);
-> >  
-> > @@ -1153,6 +1153,7 @@ static struct inode *shmem_get_inode(struct super_block *sb, const struct inode
-> >  			inode->i_fop = &shmem_file_operations;
-> >  			mpol_shared_policy_init(&info->policy,
-> >  						 shmem_get_sbmpol(sbinfo));
-> > +			info->node_offset = node_random(&node_online_map);
-> >  			break;
-> >  		case S_IFDIR:
-> >  			inc_nlink(inode);
-> 
-> The patch seems a bit arbitrary and hacky.  It would have helped if you
-> had fully described how it works, and why this implementation was
-> chosen.
-> 
-The patch attempt to spread out the node usage by starting files at nodes other
-then 0.  node_offset is set to a random node when the inode is allocated.  
+> However, the code in tick_nohz_stop_sched_tick(), which called
+> __next_timer_interrupt() via get_next_timer_interrupt(),
+> compares the return value to (last_jiffies + NEXT_TIMER_MAX_DELTA)
+> to see if the timer needs to be re-armed.
 
-> - Why alter (actually, lie about!) the offset-into-file?  Could we
->   have similarly perturbed the address arg to alloc_page_vma() to do
->   the spreading?
-> 
-Using the address arg would be better.  It also makes clear that we should
-still be using the index for looking up the memory policy.
+Yeah, that's nonsense.
+ 
+> I've noticed a similar but slightly different fix to the
+> same problem in the Tilera kernel tree from Chris M. (I've
+> wrote this before seeing that one), so some variation of this
+> fix is in use on real hardware for some time now.
 
-> - The patch is dependent upon MPOL_INTERLEAVE being in effect, isn't
->   it?  How do we guarantee that it is in force here?
-> 
-The node_offset is only used when MPOL_INTERLEAVE is in effect. However
-node_offset is set unconditionally.  It would be quite easy to only generate
-the offset when the policy is set to interleave. 
+Sigh, why can't people post their fixes instead of burying them in
+their private trees?
 
-> - We look up the policy via mpol_shared_policy_lookup() using the
->   unperturbed index.  Why?  Should we be using index+info->node_offset
->   there?
-> 
-This concern should be obviated using the address arg instead of 'altering' the
-vm_pgoff.
+> -static unsigned long __next_timer_interrupt(struct tvec_base *base)
+> +static bool __next_timer_interrupt(struct tvec_base *base,
+> +					unsigned long *next_timer)
 
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Fight unfair telecom internet charges in Canada: sign http://stopthemeter.ca/
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+....
+
+> +out:
+> +	if (found)
+> +		*next_timer = expires;
+> +	return found;
+
+I'd really like to avoid that churn. That function is ugly enough
+already. No need to make it even more so.
+
+> @@ -1317,9 +1322,15 @@ unsigned long get_next_timer_interrupt(unsigned long now)
+>  	if (cpu_is_offline(smp_processor_id()))
+>  		return now + NEXT_TIMER_MAX_DELTA;
+>  	spin_lock(&base->lock);
+> -	if (time_before_eq(base->next_timer, base->timer_jiffies))
+> -		base->next_timer = __next_timer_interrupt(base);
+> -	expires = base->next_timer;
+> +	if (time_before_eq(base->next_timer, base->timer_jiffies)) {
+> +
+> +		if (__next_timer_interrupt(base, &expires))
+> +			base->next_timer = expires;
+> +		else
+> +			expires = now + NEXT_TIMER_MAX_DELTA;
+
+Here you don't update base->next_timer which makes sure, that we run
+through the scan function on every call. Not good.
+
+> +	} else
+> +		expires = base->next_timer;
+> +
+
+If the thing is empty or just contains deferrable timers then we
+really want to avoid running through the whole cascade horror for
+nothing.
+
+Timer add and remove are protected by base->lock. So we simply should
+count the non deferrable enqueued timers and avoid the whole
+__next_timer_interrupt() completely in case there is nothing what
+should wake us up.
+
+I had a deeper look at that and will send out a repair set soon.
+
+Thanks,
+
+	tglx
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
