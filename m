@@ -1,36 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx160.postini.com [74.125.245.160])
-	by kanga.kvack.org (Postfix) with SMTP id D1A41940001
-	for <linux-mm@kvack.org>; Fri, 25 May 2012 05:30:38 -0400 (EDT)
-Date: Fri, 25 May 2012 17:29:36 +0800
-From: Fengguang Wu <fengguang.wu@intel.com>
-Subject: Re: [PATCH 0/2 v4] Flexible proportions
-Message-ID: <20120525092936.GA12729@localhost>
-References: <1337878751-22942-1-git-send-email-jack@suse.cz>
- <1337937162.9783.163.camel@laptop>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1337937162.9783.163.camel@laptop>
+Received: from psmtp.com (na3sys010amx107.postini.com [74.125.245.107])
+	by kanga.kvack.org (Postfix) with SMTP id CB4526B00EF
+	for <linux-mm@kvack.org>; Fri, 25 May 2012 05:34:33 -0400 (EDT)
+From: Glauber Costa <glommer@parallels.com>
+Subject: [PATCH v7 0/2] fixes for sock memcg static branch disablement
+Date: Fri, 25 May 2012 13:32:06 +0400
+Message-Id: <1337938328-11537-1-git-send-email-glommer@parallels.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: Jan Kara <jack@suse.cz>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, cgroups@vger.kernel.org, devel@openvz.org, kamezawa.hiroyu@jp.fujitsu.com, netdev@vger.kernel.org, Tejun Heo <tj@kernel.org>, Li Zefan <lizefan@huawei.com>, David Miller <davem@davemloft.net>
 
-On Fri, May 25, 2012 at 11:12:42AM +0200, Peter Zijlstra wrote:
-> On Thu, 2012-05-24 at 18:59 +0200, Jan Kara wrote:
-> >   here is the next iteration of my flexible proportions code. I've addressed
-> > all Peter's comments. 
-> 
-> Thanks, all I could come up with is comment placement nits and I'll not
-> go there ;-)
-> 
-> Acked-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Hi Andrew,
 
-Thank you both for making it work!  I've applied them to the writeback tree.
+I believe this one addresses all of your previous comments.
 
-Thanks,
-Fengguang
+Besides merging your patch, I tried to improve the comments so they would
+be more informative. 
+
+The first patch, I believe, is already merged at your tree. But I am including
+it here for completeness. I had no changes since last submission, so feel free
+to pick the second - or if there are still missing changes you'd like to see,
+point me to them.
+
+Thanks
+
+Glauber Costa (2):
+  Always free struct memcg through schedule_work()
+  decrement static keys on real destroy time
+
+ include/net/sock.h        |   22 ++++++++++++++++++
+ mm/memcontrol.c           |   55 ++++++++++++++++++++++++++++++++++----------
+ net/ipv4/tcp_memcontrol.c |   34 ++++++++++++++++++++++-----
+ 3 files changed, 91 insertions(+), 20 deletions(-)
+
+-- 
+1.7.7.6
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
