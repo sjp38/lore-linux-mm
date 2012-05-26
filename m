@@ -1,60 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx104.postini.com [74.125.245.104])
-	by kanga.kvack.org (Postfix) with SMTP id B74C16B0092
-	for <linux-mm@kvack.org>; Sat, 26 May 2012 16:43:18 -0400 (EDT)
-Received: by wgbds1 with SMTP id ds1so555745wgb.2
-        for <linux-mm@kvack.org>; Sat, 26 May 2012 13:43:17 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx123.postini.com [74.125.245.123])
+	by kanga.kvack.org (Postfix) with SMTP id D69D26B0083
+	for <linux-mm@kvack.org>; Sat, 26 May 2012 17:24:12 -0400 (EDT)
+Received: by pbbrp2 with SMTP id rp2so3929060pbb.14
+        for <linux-mm@kvack.org>; Sat, 26 May 2012 14:24:12 -0700 (PDT)
+Date: Sat, 26 May 2012 14:23:43 -0700 (PDT)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: the max size of block device on 32bit os,when using
+ do_generic_file_read() proceed.
+In-Reply-To: <201205242138175936268@gmail.com>
+Message-ID: <alpine.LSU.2.00.1205261402170.2582@eggly.anvils>
+References: <201205242138175936268@gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <4FC112AB.1040605@redhat.com>
-References: <1337965359-29725-1-git-send-email-aarcange@redhat.com> <4FC112AB.1040605@redhat.com>
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Date: Sat, 26 May 2012 13:42:56 -0700
-Message-ID: <CA+55aFxpD+LsE+aNvDJtz9sGsGMvdusisgOY3Csbzyx1mEqW-w@mail.gmail.com>
-Subject: Re: [PATCH 00/35] AutoNUMA alpha14
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rik van Riel <riel@redhat.com>
-Cc: Andrea Arcangeli <aarcange@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Hillf Danton <dhillf@gmail.com>, Dan Smith <danms@us.ibm.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>, Paul Turner <pjt@google.com>, Suresh Siddha <suresh.b.siddha@intel.com>, Mike Galbraith <efault@gmx.de>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Bharata B Rao <bharata.rao@gmail.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Johannes Weiner <hannes@cmpxchg.org>, Srivatsa Vaddagiri <vatsa@linux.vnet.ibm.com>, Christoph Lameter <cl@linux.com>
+To: majianpeng <majianpeng@gmail.com>
+Cc: Al Viro <viro@zeniv.linux.org.uk>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
 
-On Sat, May 26, 2012 at 10:28 AM, Rik van Riel <riel@redhat.com> wrote:
->
-> It would be good to get everybody's ideas out there on this
-> topic, because this is the fundamental factor in deciding
-> between Peter's approach to NUMA and Andrea's approach.
->
-> Ingo? Andrew? Linus? Paul?
+On Thu, 24 May 2012, majianpeng wrote:
+>   Hi all:
+> 		I readed a raid5,which size 30T.OS is RHEL6 32bit.
+> 	    I reaed the raid5(as a whole,not parted) and found read address which not i wanted.
+> 		So I tested the newest kernel code,the problem is still.
+> 		I review the code, in function do_generic_file_read()
+> 
+> 		index = *ppos >> PAGE_CACHE_SHIFT;
+> 		index is u32.and *ppos is long long.
+> 		So when *ppos is larger than 0xFFFF FFFF *  PAGE_CACHE_SHIFT(16T Byte),then the index is error.
+> 
+> 		I wonder this .In 32bit os ,block devices size do not large then 16T,in other words, if block devices larger than 16T,must parted.
 
-I'm a *firm* believer that if it cannot be done automatically "well
-enough", the absolute last thing we should ever do is worry about the
-crazy people who think they can tweak it to perfection with complex
-interfaces.
+I am not surprised that the page cache limitation prevents you from
+reading the whole device with a 32-bit kernel.  See MAX_LFS_FILESIZE in
+include/linux/fs.h.  Our answer to that is just to use a 64-bit kernel.
 
-You can't do it, except for trivial loads (often benchmarks), and for
-very specific machines.
+#if BITS_PER_LONG==32
+#define MAX_LFS_FILESIZE (((u64)PAGE_CACHE_SIZE << (BITS_PER_LONG-1))-1) 
+#elif BITS_PER_LONG==64
+#define MAX_LFS_FILESIZE 0x7fffffffffffffffUL
+#endif
 
-So I think very strongly that we should entirely dismiss all the
-people who want to do manual placement and claim that they know what
-their loads do. They're either full of sh*t (most likely), or they
-have a very specific benchmark and platform that they are tuning for
-that is totally irrelevant to everybody else.
+But I am a little surprised that you get as far as 16TiB (with 4k page):
+I would have expected you to be stopped just before 8TiB (although I
+suspect that the limitation to 8TiB rather than 16TiB is unnecessary).
 
-What we *should* try to aim for is a system that doesn't do horribly
-badly right out of the box. IOW, no tuning what-so-ever (at most a
-kind of "yes, I want you to try to do the NUMA thing" flag to just
-enable it at all), and try to not suck.
+And if I understand you correctly, read() or pread() gave you no error
+at those large offsets, but supplied data from the low offset instead?
 
-Seriously. "Try to avoid sucking" is *way* superior to "We can let the
-user tweak things to their hearts content". Because users won't get it
-right.
+That does surprise me - have we missed a check there?
 
-Give the anal people a knob they can tweak, and tell them it does
-something fancy. And never actually wire the damn thing up. They'll be
-really happy with their OCD tweaking, and do lots of nice graphs that
-just show how the error bars are so big that you can find any damn
-pattern you want in random noise.
-
-                 Linus
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
