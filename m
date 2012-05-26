@@ -1,89 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx178.postini.com [74.125.245.178])
-	by kanga.kvack.org (Postfix) with SMTP id 446D96B0081
-	for <linux-mm@kvack.org>; Sat, 26 May 2012 16:27:18 -0400 (EDT)
-Received: by dakp5 with SMTP id p5so3271906dak.14
-        for <linux-mm@kvack.org>; Sat, 26 May 2012 13:27:17 -0700 (PDT)
-Date: Sat, 26 May 2012 13:26:48 -0700 (PDT)
-From: Hugh Dickins <hughd@google.com>
-Subject: Re: mm: kernel BUG at mm/memory.c:1230
-In-Reply-To: <CA+1xoqcbZWLpvHkOsZY7rijsaryFDvh=pqq=QyDDgo_NfPyCpA@mail.gmail.com>
-Message-ID: <alpine.LSU.2.00.1205261317310.2488@eggly.anvils>
-References: <1337884054.3292.22.camel@lappy> <20120524120727.6eab2f97.akpm@linux-foundation.org> <CA+1xoqcbZWLpvHkOsZY7rijsaryFDvh=pqq=QyDDgo_NfPyCpA@mail.gmail.com>
+Received: from psmtp.com (na3sys010amx104.postini.com [74.125.245.104])
+	by kanga.kvack.org (Postfix) with SMTP id B74C16B0092
+	for <linux-mm@kvack.org>; Sat, 26 May 2012 16:43:18 -0400 (EDT)
+Received: by wgbds1 with SMTP id ds1so555745wgb.2
+        for <linux-mm@kvack.org>; Sat, 26 May 2012 13:43:17 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: MULTIPART/MIXED; BOUNDARY="8323584-1719037168-1338064015=:2488"
+In-Reply-To: <4FC112AB.1040605@redhat.com>
+References: <1337965359-29725-1-git-send-email-aarcange@redhat.com> <4FC112AB.1040605@redhat.com>
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Date: Sat, 26 May 2012 13:42:56 -0700
+Message-ID: <CA+55aFxpD+LsE+aNvDJtz9sGsGMvdusisgOY3Csbzyx1mEqW-w@mail.gmail.com>
+Subject: Re: [PATCH 00/35] AutoNUMA alpha14
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sasha Levin <levinsasha928@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, viro <viro@zeniv.linux.org.uk>, oleg@redhat.com, "a.p.zijlstra" <a.p.zijlstra@chello.nl>, mingo <mingo@kernel.org>, Dave Jones <davej@redhat.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrea Arcangeli <aarcange@redhat.com>
+To: Rik van Riel <riel@redhat.com>
+Cc: Andrea Arcangeli <aarcange@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Hillf Danton <dhillf@gmail.com>, Dan Smith <danms@us.ibm.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>, Paul Turner <pjt@google.com>, Suresh Siddha <suresh.b.siddha@intel.com>, Mike Galbraith <efault@gmx.de>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Bharata B Rao <bharata.rao@gmail.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Johannes Weiner <hannes@cmpxchg.org>, Srivatsa Vaddagiri <vatsa@linux.vnet.ibm.com>, Christoph Lameter <cl@linux.com>
 
-  This message is in MIME format.  The first part should be readable text,
-  while the remaining parts are likely unreadable without MIME-aware tools.
+On Sat, May 26, 2012 at 10:28 AM, Rik van Riel <riel@redhat.com> wrote:
+>
+> It would be good to get everybody's ideas out there on this
+> topic, because this is the fundamental factor in deciding
+> between Peter's approach to NUMA and Andrea's approach.
+>
+> Ingo? Andrew? Linus? Paul?
 
---8323584-1719037168-1338064015=:2488
-Content-Type: TEXT/PLAIN; charset=ISO-8859-1
-Content-Transfer-Encoding: QUOTED-PRINTABLE
+I'm a *firm* believer that if it cannot be done automatically "well
+enough", the absolute last thing we should ever do is worry about the
+crazy people who think they can tweak it to perfection with complex
+interfaces.
 
-On Thu, 24 May 2012, Sasha Levin wrote:
-> On Thu, May 24, 2012 at 9:07 PM, Andrew Morton
-> <akpm@linux-foundation.org> wrote:
-> > On Thu, 24 May 2012 20:27:34 +0200
-> > Sasha Levin <levinsasha928@gmail.com> wrote:
-> >
-> >> Hi all,
-> >>
-> >> During fuzzing with trinity inside a KVM tools guest, using latest lin=
-ux-next, I've stumbled on the following:
-> >>
-> >> [ 2043.098949] ------------[ cut here ]------------
-> >> [ 2043.099014] kernel BUG at mm/memory.c:1230!
-> >
-> > That's
-> >
-> > =A0 =A0 =A0 =A0VM_BUG_ON(!rwsem_is_locked(&tlb->mm->mmap_sem));
-> >
-> > in zap_pmd_range()?
->=20
-> Yup.
->=20
-> > The assertion was added in Jan 2011 by 14d1a55cd26f1860 ("thp: add
-> > debug checks for mapcount related invariants"). =A0AFAICT it's just wro=
-ng
-> > on the exit path. =A0Unclear why it's triggering now...
+You can't do it, except for trivial loads (often benchmarks), and for
+very specific machines.
 
-I've been round this loop before with that particular VM_BUG_ON.
+So I think very strongly that we should entirely dismiss all the
+people who want to do manual placement and claim that they know what
+their loads do. They're either full of sh*t (most likely), or they
+have a very specific benchmark and platform that they are tuning for
+that is totally irrelevant to everybody else.
 
-At first I thought like Andrew, that it's glaringly wrong on the exit
-path; but then changed my mind.
+What we *should* try to aim for is a system that doesn't do horribly
+badly right out of the box. IOW, no tuning what-so-ever (at most a
+kind of "yes, I want you to try to do the NUMA thing" flag to just
+enable it at all), and try to not suck.
 
-When munmapping, we certainly can arrive here with an unaligned addr
-and next; but in that case rwsem_is_locked.
+Seriously. "Try to avoid sucking" is *way* superior to "We can let the
+user tweak things to their hearts content". Because users won't get it
+right.
 
-Whereas in exiting, rwsem is not locked, but we're going linearly upwards,
-and whenever we walk into a pmd_trans_huge area, both addr and next should
-be hpage aligned: the vma bounds are unsuited to THP if they're unaligned.
+Give the anal people a knob they can tweak, and tell them it does
+something fancy. And never actually wire the damn thing up. They'll be
+really happy with their OCD tweaking, and do lots of nice graphs that
+just show how the error bars are so big that you can find any damn
+pattern you want in random noise.
 
-Other cases equally should not arise: madvise MADV_DONTNEED should
-have rwsem_is_locked; and truncation or hole-punching shouldn't be
-possible on a pure-anonymous (!vma->vm_ops) area considered for THP.
-
-But I cannot remember what brought me here before: a crash in testing
-on one of my machines, which further investigation root-caused elsewhere?
-or a report from someone else? or noticed when auditing another problem?
-I'm frustrated not to recall.
-
->=20
-> I'm not sure if that's indeed the issue or not, but note that this is
-> the first time I've managed to trigger that with the fuzzer, and it's
-> not that easy to reproduce. Which is a bit odd for code that was there
-> for 4 months...
-
-I'm keeping off the linux-next for the moment; I'll worry about this
-more if it shows up when we try 3.5-rc1.  Your fuzzing tells that my
-logic above is wrong, but maybe it's just a passing defect in next.
-
-Hugh
---8323584-1719037168-1338064015=:2488--
+                 Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
