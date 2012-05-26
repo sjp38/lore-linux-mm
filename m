@@ -1,56 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx123.postini.com [74.125.245.123])
-	by kanga.kvack.org (Postfix) with SMTP id D69D26B0083
-	for <linux-mm@kvack.org>; Sat, 26 May 2012 17:24:12 -0400 (EDT)
-Received: by pbbrp2 with SMTP id rp2so3929060pbb.14
-        for <linux-mm@kvack.org>; Sat, 26 May 2012 14:24:12 -0700 (PDT)
-Date: Sat, 26 May 2012 14:23:43 -0700 (PDT)
-From: Hugh Dickins <hughd@google.com>
-Subject: Re: the max size of block device on 32bit os,when using
- do_generic_file_read() proceed.
-In-Reply-To: <201205242138175936268@gmail.com>
-Message-ID: <alpine.LSU.2.00.1205261402170.2582@eggly.anvils>
-References: <201205242138175936268@gmail.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from psmtp.com (na3sys010amx115.postini.com [74.125.245.115])
+	by kanga.kvack.org (Postfix) with SMTP id 7AB726B00EB
+	for <linux-mm@kvack.org>; Sat, 26 May 2012 17:38:04 -0400 (EDT)
+Message-ID: <1338068260.20487.35.camel@deadeye>
+Subject: Re: Please include commit 90481622d7 in 3.3-stable
+From: Ben Hutchings <ben@decadent.org.uk>
+Date: Sat, 26 May 2012 22:37:40 +0100
+In-Reply-To: <1336811645.8274.496.camel@deadeye>
+References: <20120510095837.GB16271@bloggs.ozlabs.ibm.com>
+	 <1336811645.8274.496.camel@deadeye>
+Content-Type: multipart/signed; micalg="pgp-sha512";
+	protocol="application/pgp-signature"; boundary="=-ooOyusrTxo3clQ67+tbu"
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: majianpeng <majianpeng@gmail.com>
-Cc: Al Viro <viro@zeniv.linux.org.uk>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
+To: Paul Mackerras <paulus@samba.org>
+Cc: Hillf Danton <dhillf@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, David Gibson <david@gibson.dropbear.id.au>, stable@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
 
-On Thu, 24 May 2012, majianpeng wrote:
->   Hi all:
-> 		I readed a raid5,which size 30T.OS is RHEL6 32bit.
-> 	    I reaed the raid5(as a whole,not parted) and found read address which not i wanted.
-> 		So I tested the newest kernel code,the problem is still.
-> 		I review the code, in function do_generic_file_read()
-> 
-> 		index = *ppos >> PAGE_CACHE_SHIFT;
-> 		index is u32.and *ppos is long long.
-> 		So when *ppos is larger than 0xFFFF FFFF *  PAGE_CACHE_SHIFT(16T Byte),then the index is error.
-> 
-> 		I wonder this .In 32bit os ,block devices size do not large then 16T,in other words, if block devices larger than 16T,must parted.
 
-I am not surprised that the page cache limitation prevents you from
-reading the whole device with a 32-bit kernel.  See MAX_LFS_FILESIZE in
-include/linux/fs.h.  Our answer to that is just to use a 64-bit kernel.
+--=-ooOyusrTxo3clQ67+tbu
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
 
-#if BITS_PER_LONG==32
-#define MAX_LFS_FILESIZE (((u64)PAGE_CACHE_SIZE << (BITS_PER_LONG-1))-1) 
-#elif BITS_PER_LONG==64
-#define MAX_LFS_FILESIZE 0x7fffffffffffffffUL
-#endif
+On Sat, 2012-05-12 at 09:34 +0100, Ben Hutchings wrote:
+> On Thu, 2012-05-10 at 19:58 +1000, Paul Mackerras wrote:
+> > Please include commit 90481622d7 ("hugepages: fix use after free bug
+> > in "quota" handling") from Linus' tree in the next 3.3 stable release.
+> > It applies without fuzz, though with offsets.
+> >=20
+> > It fixes a use-after-free bug in the huge page code that we are
+> > hitting when using KVM on IBM Power machines with large pages backing
+> > the guests, though it can in principle be hit in other ways also.
+> > Since it's a use-after-free bug, it tends to result in an immediate
+> > kernel crash if you have slab debug turned on, or occasional
+> > hard-to-debug memory corruption if you don't.
+> >=20
+> > The bug is also present in earlier kernels, and the patch should
+> > apply at least to 3.2.  It would be good if it can be applied to
+> > earlier kernels also.
+>=20
+> I tried cherry-picking this on top of 3.2.17, but there was a conflict
+> in unmap_ref_private().  It looks like all of these belong in 3.2.y as
+> well:
+>=20
+> 1e16a53 mm/hugetlb.c: fix virtual address handling in hugetlb fault
+> 0c176d5 mm: hugetlb: fix pgoff computation when unmapping page from vma
+> ea5768c mm/hugetlb.c: avoid bogus counter of surplus huge page
+> 409eb8c mm/hugetlb.c: undo change to page mapcount in fault handler
+> cd2934a flush_tlb_range() needs ->page_table_lock when ->mmap_sem is not =
+held
 
-But I am a little surprised that you get as far as 16TiB (with 4k page):
-I would have expected you to be stopped just before 8TiB (although I
-suspect that the limitation to 8TiB rather than 16TiB is unnecessary).
+Sorry, I didn't make myself clear.  I'm asking for confirmation: should
+these all be applied to 3.2.y?
 
-And if I understand you correctly, read() or pread() gave you no error
-at those large offsets, but supplied data from the low offset instead?
+Ben.
 
-That does surprise me - have we missed a check there?
+--=20
+Ben Hutchings
+You can't have everything.  Where would you put it?
 
-Hugh
+--=-ooOyusrTxo3clQ67+tbu
+Content-Type: application/pgp-signature; name="signature.asc"
+Content-Description: This is a digitally signed message part
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1.4.12 (GNU/Linux)
+
+iQIVAwUAT8FNJOe/yOyVhhEJAQpOHQ/6AlODr6bV2U8/CrJLT87ow1xcLFi8rMTX
+isKFUCdPIGgw2W8Wej0J9pJL3gowa83EJwNvNdePfguVW2Q6fkeQbchs4/O+eK8K
+dtuu61le65fKjFTktTGghHysKc+VKSTY5cgiuyde54iZvyzXPR4ryzBga7n812WH
+gpRWEQh/mFEYuiQvimel6MfEqsPv6L0pMg2UScYgQuL9nybFSxXC60pAu+yJ2scu
+zV9K1CJ7X2dslZ67KzEa7l6IFtLEBOUbnFKyZMZbCKAI0Bw8GS424sfMBbSVyMzB
+nhvP6Wcz8mvisOHqA+zJthm4O9IzNLzlZKiqB9G85Gyd0tKs/C219+CjImLpcT1a
+jyBr6hQAZ2bJvIZsqMQvwJXJiQk+KbecEhk/Ftbh4bv6UwLSP6KzfLdtN8IDVaXq
+O12A2Z65upSv2JyoHfbhGNHOoyPi5Cp3vyY8s9VqICUaOQCJmjrj35TPWnclvpOu
+oV1GYo+9X1ASiVi4O1eIyD/tAwCOoTf2wMNG3/CxScGMMmxdnipGOVDAJt7xxJTi
+3KLS8eMfsySI34zPmXk/DHZlp3gV5OXDscONsdhPfvEDqUPSIg6nhvdQS+4oOWv9
+jarxDWu9XV2SY3OlNSk3ZHrg82+oKwyKToRS1nUQvEykKyTqW7XG/pkc7ofrn9c2
+vRBUwHJspSI=
+=9jP1
+-----END PGP SIGNATURE-----
+
+--=-ooOyusrTxo3clQ67+tbu--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
