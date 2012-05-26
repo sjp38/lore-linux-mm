@@ -1,87 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from psmtp.com (na3sys010amx115.postini.com [74.125.245.115])
-	by kanga.kvack.org (Postfix) with SMTP id 7AB726B00EB
-	for <linux-mm@kvack.org>; Sat, 26 May 2012 17:38:04 -0400 (EDT)
-Message-ID: <1338068260.20487.35.camel@deadeye>
-Subject: Re: Please include commit 90481622d7 in 3.3-stable
-From: Ben Hutchings <ben@decadent.org.uk>
-Date: Sat, 26 May 2012 22:37:40 +0100
-In-Reply-To: <1336811645.8274.496.camel@deadeye>
-References: <20120510095837.GB16271@bloggs.ozlabs.ibm.com>
-	 <1336811645.8274.496.camel@deadeye>
-Content-Type: multipart/signed; micalg="pgp-sha512";
-	protocol="application/pgp-signature"; boundary="=-ooOyusrTxo3clQ67+tbu"
-Mime-Version: 1.0
+	by kanga.kvack.org (Postfix) with SMTP id 1D7596B0081
+	for <linux-mm@kvack.org>; Sat, 26 May 2012 19:56:29 -0400 (EDT)
+Date: Sun, 27 May 2012 01:54:47 +0200
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: mm: kernel BUG at mm/memory.c:1230
+Message-ID: <20120526235447.GA4016@redhat.com>
+References: <1337884054.3292.22.camel@lappy>
+ <20120524120727.6eab2f97.akpm@linux-foundation.org>
+ <CA+1xoqcbZWLpvHkOsZY7rijsaryFDvh=pqq=QyDDgo_NfPyCpA@mail.gmail.com>
+ <alpine.LSU.2.00.1205261317310.2488@eggly.anvils>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.LSU.2.00.1205261317310.2488@eggly.anvils>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Paul Mackerras <paulus@samba.org>
-Cc: Hillf Danton <dhillf@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, David Gibson <david@gibson.dropbear.id.au>, stable@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
+To: Hugh Dickins <hughd@google.com>
+Cc: Sasha Levin <levinsasha928@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, viro <viro@zeniv.linux.org.uk>, oleg@redhat.com, "a.p.zijlstra" <a.p.zijlstra@chello.nl>, mingo <mingo@kernel.org>, Dave Jones <davej@redhat.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
 
+Hello everyone,
 
---=-ooOyusrTxo3clQ67+tbu
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
+On Sat, May 26, 2012 at 01:26:48PM -0700, Hugh Dickins wrote:
+> I've been round this loop before with that particular VM_BUG_ON.
+> 
+> At first I thought like Andrew, that it's glaringly wrong on the exit
+> path; but then changed my mind.
+> 
+> When munmapping, we certainly can arrive here with an unaligned addr
+> and next; but in that case rwsem_is_locked.
+> 
+> Whereas in exiting, rwsem is not locked, but we're going linearly upwards,
+> and whenever we walk into a pmd_trans_huge area, both addr and next should
+> be hpage aligned: the vma bounds are unsuited to THP if they're unaligned.
+> 
+> Other cases equally should not arise: madvise MADV_DONTNEED should
+> have rwsem_is_locked; and truncation or hole-punching shouldn't be
+> possible on a pure-anonymous (!vma->vm_ops) area considered for THP.
+> 
+> But I cannot remember what brought me here before: a crash in testing
+> on one of my machines, which further investigation root-caused elsewhere?
+> or a report from someone else? or noticed when auditing another problem?
+> I'm frustrated not to recall.
 
-On Sat, 2012-05-12 at 09:34 +0100, Ben Hutchings wrote:
-> On Thu, 2012-05-10 at 19:58 +1000, Paul Mackerras wrote:
-> > Please include commit 90481622d7 ("hugepages: fix use after free bug
-> > in "quota" handling") from Linus' tree in the next 3.3 stable release.
-> > It applies without fuzz, though with offsets.
-> >=20
-> > It fixes a use-after-free bug in the huge page code that we are
-> > hitting when using KVM on IBM Power machines with large pages backing
-> > the guests, though it can in principle be hit in other ways also.
-> > Since it's a use-after-free bug, it tends to result in an immediate
-> > kernel crash if you have slab debug turned on, or occasional
-> > hard-to-debug memory corruption if you don't.
-> >=20
-> > The bug is also present in earlier kernels, and the patch should
-> > apply at least to 3.2.  It would be good if it can be applied to
-> > earlier kernels also.
->=20
-> I tried cherry-picking this on top of 3.2.17, but there was a conflict
-> in unmap_ref_private().  It looks like all of these belong in 3.2.y as
-> well:
->=20
-> 1e16a53 mm/hugetlb.c: fix virtual address handling in hugetlb fault
-> 0c176d5 mm: hugetlb: fix pgoff computation when unmapping page from vma
-> ea5768c mm/hugetlb.c: avoid bogus counter of surplus huge page
-> 409eb8c mm/hugetlb.c: undo change to page mapcount in fault handler
-> cd2934a flush_tlb_range() needs ->page_table_lock when ->mmap_sem is not =
-held
+I agree it's not a false positive.
 
-Sorry, I didn't make myself clear.  I'm asking for confirmation: should
-these all be applied to 3.2.y?
+The reason I introduced that VM_BUG_ON was to verify if any
+vma_adjust_trans_huge() was missing anywhere (so that it doesn't crash
+later in split_huge_page with an obscure mapcount != page_mapcount
+BUG_ON, there it would be much less obvious to see why it crashed than
+here).
 
-Ben.
+We should printk addr, end and the vma->vm_start/vm_end to debug this
+further.
 
---=20
-Ben Hutchings
-You can't have everything.  Where would you put it?
+> > I'm not sure if that's indeed the issue or not, but note that this is
+> > the first time I've managed to trigger that with the fuzzer, and it's
+> > not that easy to reproduce. Which is a bit odd for code that was there
+> > for 4 months...
+> 
+> I'm keeping off the linux-next for the moment; I'll worry about this
+> more if it shows up when we try 3.5-rc1.  Your fuzzing tells that my
+> logic above is wrong, but maybe it's just a passing defect in next.
 
---=-ooOyusrTxo3clQ67+tbu
-Content-Type: application/pgp-signature; name="signature.asc"
-Content-Description: This is a digitally signed message part
+If it's a missing vma_adjust_trans_huge() it shouldn't go unnoticed
+even with DEBUG_VM=n, so I agree that if it only happens on linux-next
+it's worth trying to reproduce it with 3.5-rc/3.4 too just in
+case. It's actually the first time I hear of this bugcheck triggering.
 
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1.4.12 (GNU/Linux)
-
-iQIVAwUAT8FNJOe/yOyVhhEJAQpOHQ/6AlODr6bV2U8/CrJLT87ow1xcLFi8rMTX
-isKFUCdPIGgw2W8Wej0J9pJL3gowa83EJwNvNdePfguVW2Q6fkeQbchs4/O+eK8K
-dtuu61le65fKjFTktTGghHysKc+VKSTY5cgiuyde54iZvyzXPR4ryzBga7n812WH
-gpRWEQh/mFEYuiQvimel6MfEqsPv6L0pMg2UScYgQuL9nybFSxXC60pAu+yJ2scu
-zV9K1CJ7X2dslZ67KzEa7l6IFtLEBOUbnFKyZMZbCKAI0Bw8GS424sfMBbSVyMzB
-nhvP6Wcz8mvisOHqA+zJthm4O9IzNLzlZKiqB9G85Gyd0tKs/C219+CjImLpcT1a
-jyBr6hQAZ2bJvIZsqMQvwJXJiQk+KbecEhk/Ftbh4bv6UwLSP6KzfLdtN8IDVaXq
-O12A2Z65upSv2JyoHfbhGNHOoyPi5Cp3vyY8s9VqICUaOQCJmjrj35TPWnclvpOu
-oV1GYo+9X1ASiVi4O1eIyD/tAwCOoTf2wMNG3/CxScGMMmxdnipGOVDAJt7xxJTi
-3KLS8eMfsySI34zPmXk/DHZlp3gV5OXDscONsdhPfvEDqUPSIg6nhvdQS+4oOWv9
-jarxDWu9XV2SY3OlNSk3ZHrg82+oKwyKToRS1nUQvEykKyTqW7XG/pkc7ofrn9c2
-vRBUwHJspSI=
-=9jP1
------END PGP SIGNATURE-----
-
---=-ooOyusrTxo3clQ67+tbu--
+Thanks!
+Andrea
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
