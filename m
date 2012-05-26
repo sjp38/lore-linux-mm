@@ -1,96 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx186.postini.com [74.125.245.186])
-	by kanga.kvack.org (Postfix) with SMTP id 305FD6B0081
-	for <linux-mm@kvack.org>; Sat, 26 May 2012 04:04:09 -0400 (EDT)
-Received: from /spool/local
-	by e36.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <shangw@linux.vnet.ibm.com>;
-	Sat, 26 May 2012 02:04:07 -0600
-Received: from d03relay01.boulder.ibm.com (d03relay01.boulder.ibm.com [9.17.195.226])
-	by d03dlp03.boulder.ibm.com (Postfix) with ESMTP id DF69519D8048
-	for <linux-mm@kvack.org>; Sat, 26 May 2012 02:03:41 -0600 (MDT)
-Received: from d03av03.boulder.ibm.com (d03av03.boulder.ibm.com [9.17.195.169])
-	by d03relay01.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q4Q83s5e230878
-	for <linux-mm@kvack.org>; Sat, 26 May 2012 02:03:54 -0600
-Received: from d03av03.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av03.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q4Q83smU001587
-	for <linux-mm@kvack.org>; Sat, 26 May 2012 02:03:54 -0600
-From: Gavin Shan <shangw@linux.vnet.ibm.com>
-Subject: [PATCH] mm/numa: Fix kernel crash caused by offline node
-Date: Sat, 26 May 2012 16:03:51 +0800
-Message-Id: <1338019431-13556-1-git-send-email-shangw@linux.vnet.ibm.com>
+Received: from psmtp.com (na3sys010amx107.postini.com [74.125.245.107])
+	by kanga.kvack.org (Postfix) with SMTP id BE08E6B0081
+	for <linux-mm@kvack.org>; Sat, 26 May 2012 11:59:51 -0400 (EDT)
+Date: Sat, 26 May 2012 17:59:12 +0200
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [PATCH 03/35] xen: document Xen is using an unused bit for the
+ pagetables
+Message-ID: <20120526155912.GA4054@redhat.com>
+References: <1337965359-29725-1-git-send-email-aarcange@redhat.com>
+ <1337965359-29725-4-git-send-email-aarcange@redhat.com>
+ <20120525202656.GA23655@phenom.dumpdata.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20120525202656.GA23655@phenom.dumpdata.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: hannes@cmpxchg.org, akpm@linux-foundation.org, Gavin Shan <shangw@linux.vnet.ibm.com>
+To: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Hillf Danton <dhillf@gmail.com>, Dan Smith <danms@us.ibm.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>, Paul Turner <pjt@google.com>, Suresh Siddha <suresh.b.siddha@intel.com>, Mike Galbraith <efault@gmx.de>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Bharata B Rao <bharata.rao@gmail.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Srivatsa Vaddagiri <vatsa@linux.vnet.ibm.com>, Christoph Lameter <cl@linux.com>
 
-I tried to boot the updated kernel (3.4.0+) on IBM power machine.
-Unfortunately, I got kernel crash as follows. Then I traced it
-down until I found sched/core.c::sched_init_numa tried to allocate
-memory from the possible nodes. That doesn't make sense since the
-possible nodes might never come in for ever.
+Hi Konrad,
 
-Linux version 3.4.0+ (shangw@shangw) (gcc version 4.4.5 (crosstool-NG 1.13.0) ) #154 SMP Sat May 26 15:33:20 CST 2012
-:
-Unable to handle kernel paging request for data at address 0x00001388
-Faulting instruction address: 0xc00000000017d44c
-Oops: Kernel access of bad area, sig: 11 [#1]
-SMP NR_CPUS=1024 NUMA PowerNV
-Modules linked in:
-NIP: c00000000017d44c LR: c00000000017d448 CTR: 000000002f805eb0
-REGS: c0000007f22836d0 TRAP: 0300   Not tainted  (3.4.0+)
-MSR: 9000000000009032 <SF,HV,EE,ME,IR,DR,RI>  CR: 28004082  XER: 00000000
-SOFTE: 1
-CFAR: c000000000005100
-DAR: 0000000000001388, DSISR: 40000000
-TASK = c0000007f21c0000[1] 'swapper/0' THREAD: c0000007f2280000 CPU: 0
-GPR00: c00000000017d448 c0000007f2283950 c0000000014fa7a0 0000000000000000
-GPR04: 0000000000000000 0000000000001380 0000000000000000 0000000000000003
-GPR08: 0000000000000010 0000000000000000 000000000001c0bb 0000000000000000
-GPR12: 0000000028004088 c00000000ff20000 0000000000000000 0000000000000000
-GPR16: 0000000000000000 0000000042abf9f0 0000000000001380 0000000000000000
-GPR20: 0000000000d6da70 0000000000000001 c0000007f2283c10 0000000000210d00
-GPR24: 0000000000000001 0000000000000001 0000000000000000 0000000000000000
-GPR28: 0000000000001380 0000000000000000 c0000000014228e8 00000000000012d0
-NIP [c00000000017d44c] .__alloc_pages_nodemask+0xf4/0x88c
-LR [c00000000017d448] .__alloc_pages_nodemask+0xf0/0x88c
-Call Trace:
-[c0000007f2283950] [c00000000017d448] .__alloc_pages_nodemask+0xf0/0x88c (unreliable)
-[c0000007f2283af0] [c0000000001ce9dc] .new_slab+0x15c/0x438
-[c0000007f2283ba0] [c0000000001cf220] .__slab_alloc+0x3a4/0x510
-[c0000007f2283cd0] [c0000000001d0cbc] .kmem_cache_alloc_node_trace+0xbc/0x214
-[c0000007f2283d90] [c000000000bf8c00] .sched_init_smp+0x1a8/0x4d4
-[c0000007f2283ed0] [c000000000be0384] .kernel_init+0x154/0x2f8
-[c0000007f2283f90] [c000000000021478] .kernel_thread+0x54/0x70
-Instruction dump:
-7bfa6fe2 78000fa4 7f5a0378 e93e8000 80090000 7c1ff838 7bff0020 57e806f7
-f90100c8 4182000c 486e6539 60000000 <e81c0008> 3a000000 2fa00000 41de0728
+On Fri, May 25, 2012 at 04:26:56PM -0400, Konrad Rzeszutek Wilk wrote:
+> On Fri, May 25, 2012 at 07:02:07PM +0200, Andrea Arcangeli wrote:
+> > Xen has taken over the last reserved bit available for the pagetables
+> > which is set through ioremap, this documents it and makes the code
+> > more readable.
+> 
+> Andrea, my previous respone had a question about this - was wondering
+> if you had a chance to look at that in your busy schedule and provide
+> some advice on how to remove the _PAGE_IOMAP altogether?
 
-The patch fixes it by allocating memory without node sense. It
-should have some performance impact but I'm not sure how much
-that will be.
-
-Signed-off-by: Gavin Shan <shangw@linux.vnet.ibm.com>
----
- kernel/sched/core.c |    3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
-
-diff --git a/kernel/sched/core.c b/kernel/sched/core.c
-index a5a9d39..62bd092 100644
---- a/kernel/sched/core.c
-+++ b/kernel/sched/core.c
-@@ -6406,7 +6406,8 @@ static void sched_init_numa(void)
- 			return;
- 
- 		for (j = 0; j < nr_node_ids; j++) {
--			struct cpumask *mask = kzalloc_node(cpumask_size(), GFP_KERNEL, j);
-+			struct cpumask *mask = kzalloc(cpumask_size(), GFP_KERNEL);
-+
- 			if (!mask)
- 				return;
- 
--- 
-1.7.9.5
+I read you response but I didn't look into the P2M tree and
+xen_val_pte code yet sorry. Thanks for looking into this, if it's
+possible to remove it without downsides, it would be a nice
+cleanup. It's not urgent though, we're not running out of reserved
+pte bits yet :).
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
