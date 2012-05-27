@@ -1,75 +1,29 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx115.postini.com [74.125.245.115])
-	by kanga.kvack.org (Postfix) with SMTP id 1D7596B0081
-	for <linux-mm@kvack.org>; Sat, 26 May 2012 19:56:29 -0400 (EDT)
-Date: Sun, 27 May 2012 01:54:47 +0200
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: mm: kernel BUG at mm/memory.c:1230
-Message-ID: <20120526235447.GA4016@redhat.com>
-References: <1337884054.3292.22.camel@lappy>
- <20120524120727.6eab2f97.akpm@linux-foundation.org>
- <CA+1xoqcbZWLpvHkOsZY7rijsaryFDvh=pqq=QyDDgo_NfPyCpA@mail.gmail.com>
- <alpine.LSU.2.00.1205261317310.2488@eggly.anvils>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.LSU.2.00.1205261317310.2488@eggly.anvils>
+Received: from psmtp.com (na3sys010amx135.postini.com [74.125.245.135])
+	by kanga.kvack.org (Postfix) with SMTP id E34F66B00E8
+	for <linux-mm@kvack.org>; Sun, 27 May 2012 01:12:55 -0400 (EDT)
+Date: Sun, 27 May 2012 01:10:49 -0400 (EDT)
+Message-Id: <20120527.011049.1301327046347523212.davem@davemloft.net>
+Subject: Re: [PATCH v7 2/2] decrement static keys on real destroy time
+From: David Miller <davem@davemloft.net>
+In-Reply-To: <1337938328-11537-3-git-send-email-glommer@parallels.com>
+References: <1337938328-11537-1-git-send-email-glommer@parallels.com>
+	<1337938328-11537-3-git-send-email-glommer@parallels.com>
+Mime-Version: 1.0
+Content-Type: Text/Plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: Sasha Levin <levinsasha928@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, viro <viro@zeniv.linux.org.uk>, oleg@redhat.com, "a.p.zijlstra" <a.p.zijlstra@chello.nl>, mingo <mingo@kernel.org>, Dave Jones <davej@redhat.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
+To: glommer@parallels.com
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org, cgroups@vger.kernel.org, devel@openvz.org, kamezawa.hiroyu@jp.fujitsu.com, netdev@vger.kernel.org, tj@kernel.org, lizefan@huawei.com, hannes@cmpxchg.org, mhocko@suse.cz
 
-Hello everyone,
+From: Glauber Costa <glommer@parallels.com>
+Date: Fri, 25 May 2012 13:32:08 +0400
 
-On Sat, May 26, 2012 at 01:26:48PM -0700, Hugh Dickins wrote:
-> I've been round this loop before with that particular VM_BUG_ON.
-> 
-> At first I thought like Andrew, that it's glaringly wrong on the exit
-> path; but then changed my mind.
-> 
-> When munmapping, we certainly can arrive here with an unaligned addr
-> and next; but in that case rwsem_is_locked.
-> 
-> Whereas in exiting, rwsem is not locked, but we're going linearly upwards,
-> and whenever we walk into a pmd_trans_huge area, both addr and next should
-> be hpage aligned: the vma bounds are unsuited to THP if they're unaligned.
-> 
-> Other cases equally should not arise: madvise MADV_DONTNEED should
-> have rwsem_is_locked; and truncation or hole-punching shouldn't be
-> possible on a pure-anonymous (!vma->vm_ops) area considered for THP.
-> 
-> But I cannot remember what brought me here before: a crash in testing
-> on one of my machines, which further investigation root-caused elsewhere?
-> or a report from someone else? or noticed when auditing another problem?
-> I'm frustrated not to recall.
+ ...
+> Signed-off-by: Glauber Costa <glommer@parallels.com>
 
-I agree it's not a false positive.
-
-The reason I introduced that VM_BUG_ON was to verify if any
-vma_adjust_trans_huge() was missing anywhere (so that it doesn't crash
-later in split_huge_page with an obscure mapcount != page_mapcount
-BUG_ON, there it would be much less obvious to see why it crashed than
-here).
-
-We should printk addr, end and the vma->vm_start/vm_end to debug this
-further.
-
-> > I'm not sure if that's indeed the issue or not, but note that this is
-> > the first time I've managed to trigger that with the fuzzer, and it's
-> > not that easy to reproduce. Which is a bit odd for code that was there
-> > for 4 months...
-> 
-> I'm keeping off the linux-next for the moment; I'll worry about this
-> more if it shows up when we try 3.5-rc1.  Your fuzzing tells that my
-> logic above is wrong, but maybe it's just a passing defect in next.
-
-If it's a missing vma_adjust_trans_huge() it shouldn't go unnoticed
-even with DEBUG_VM=n, so I agree that if it only happens on linux-next
-it's worth trying to reproduce it with 3.5-rc/3.4 too just in
-case. It's actually the first time I hear of this bugcheck triggering.
-
-Thanks!
-Andrea
+Acked-by: David S. Miller <davem@davemloft.net>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
