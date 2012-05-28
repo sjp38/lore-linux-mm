@@ -1,44 +1,98 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx151.postini.com [74.125.245.151])
-	by kanga.kvack.org (Postfix) with SMTP id 49EC66B0082
-	for <linux-mm@kvack.org>; Sun, 27 May 2012 18:30:01 -0400 (EDT)
-Received: by wefh52 with SMTP id h52so2361372wef.14
-        for <linux-mm@kvack.org>; Sun, 27 May 2012 15:29:59 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <20120524202221.GA19856@phenom.dumpdata.com>
-References: <20120518204211.GA18571@localhost.localdomain> <20120524202221.GA19856@phenom.dumpdata.com>
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Date: Sun, 27 May 2012 15:29:39 -0700
-Message-ID: <CA+55aFzvAMezd=ph6b0iQ=aqsJm1tOdS6HRRQ6rD8mLCJr_MhQ@mail.gmail.com>
-Subject: Re: [GIT] (frontswap.v16-tag)
-Content-Type: text/plain; charset=ISO-8859-1
+Received: from psmtp.com (na3sys010amx206.postini.com [74.125.245.206])
+	by kanga.kvack.org (Postfix) with SMTP id 9AD106B0082
+	for <linux-mm@kvack.org>; Mon, 28 May 2012 02:25:38 -0400 (EDT)
+Received: by pbbrp2 with SMTP id rp2so5262227pbb.14
+        for <linux-mm@kvack.org>; Sun, 27 May 2012 23:25:37 -0700 (PDT)
+Date: Mon, 28 May 2012 14:26:27 +0800
+From: "majianpeng" <majianpeng@gmail.com>
+References: <201205242138175936268@gmail.com>
+Subject: Re: Re: the max size of block device on 32bit os,when usingdo_generic_file_read() proceed.
+Message-ID: <201205281426238284699@gmail.com>
+Mime-Version: 1.0
+Content-Type: text/plain;
+	charset="gb2312"
+Content-Transfer-Encoding: base64
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, chris.mason@oracle.com, matthew@wil.cx, ngupta@vflare.org, hannes@cmpxchg.org, hughd@google.com, sjenning@linux.vnet.ibm.com, JBeulich@novell.com, dan.magenheimer@oracle.com, linux-mm@kvack.org
+To: Hugh Dickins <hughd@google.com>
+Cc: Al Viro <viro@zeniv.linux.org.uk>, Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>
 
-On Thu, May 24, 2012 at 1:22 PM, Konrad Rzeszutek Wilk
-<konrad.wilk@oracle.com> wrote:
->
-> I posted this while I was on vacation and just realized that I hadn't
-> put in the usual "GIT PULL" subject. Sorry about that - so sending
-> this in case this GIT PULL got lost in your 'not-git-pull-ignore-for-two-weeks'
-> folder. Cheers!
-
-So that isn't actually the main reason I hadn't pulled, although being
-emailed a few days before the merge window opened did mean that it was
-fairly low down in my mailbox anyway..
-
-No, the real reason is that for new features like this - features that
-I don't really see myself using personally and that I'm not all that
-personally excited about - I *really* want others to pipe up with
-"yes, we're using this, and yes, we want this to be merged".
-
-It doesn't seem to be huge, which is great, but the deathly silence of
-nobody speaking up and saying "yes please", makes me go "ok, I won't
-pull if nobody speaks up for the feature".
-
-                     Linus
+U29ycnkgZm9yIGxhdGUgdG8gcmVwbHkuSSByZXZpZXdlZCB0aGUgY29kZSBhZ2FpbiBhbmQgZm91
+bmQgc29tZSBwcm9ibGVhbS4NCkkgY3JlYXRlZCBhIHNvZnQtcmFpZCBhbmQgdGhlIHNpemUgd2Fz
+IGxhcmdlciB0aGFuIDE2VC4NClRoZSBvcyBpcyB1YnVudHUgMTIuMDQgMzJiaXQgeDg2Lg0KVGhl
+IHVkZXYgY3JlYXRlIHRoZSBibG9jayBub2RlIGlzIC9kZXYgZGlyKGFzIHRtcGZzKS4NCkFuZCBJ
+IHJlYWRlZCB0aGUgdG1wZnMgY29kZSA6DQppbiBtbS9zaG1lbS5jOnNobWVtX2ZpbGxfc3VwZXIo
+KQ0KPnNiLT5zX21heGJ5dGVzID0gTUFYX0xGU19GSUxFU0laRTsNCkluIG15IGNvbXB1dGVyLCBN
+QVhfTEZTX0ZJTEVTWkUgaXMgZXF1YWwgOFQgLTEuDQpCdXQgdGhlIHJlYWQgY29kZToNCmdlbmVy
+aWNfZmlsZV9haW9fcmVhZC0tPmRvX2dlbmVyaWNfZmlsZV9yZWFkW25vdCB1c2UgZGlyZWN0IGZs
+YWcNCkluIGZ1bmN0aW9uOmRvX2dlbmVyaWNfZmlsZV9yZWFkKCk6DQo+aW5kZXggPSAqcHBvcyA+
+PiBQQUdFX0NBQ0hFX1NISUZUOw0KaW5kZXggaXMgdGhlIHR5cGUgb2YgcGdvZmZfdC4NClNvIGlm
+ICAqcHBvcyBpcyBsYXJnZXIgdGhhbiAxNlQsIHRoZSBpbmRleCBpcyBvdmVyZmxvdy5BcyB5b3Ug
+c2FpZCwgaXQgd2lsbCByZWFkIGxvdyBwb3NpdGlvbiBkYXRhLg0KDQpCdXQgSSB0ZXN0ZWQgdGhl
+IHdyaXRlIG9wZXJhdGlvbjoNCmJsa2Rldl9haW9fd3JpdGUtPl9fZ2VuZXJpY19maWxlX2Fpb193
+cml0ZS4NCkluIGZ1bmN0aW9uOl9fZ2VuZXJpY19maWxlX2Fpb193cml0ZSgpDQpJdCB3aWxsIGNo
+ZWNrIGJ5IGZ1bmN0aW9uOmdlbmVyaWNfd3JpdGVfY2hlY2tzKCkNCkJ1dCBJbiBmdW5jdGlvbg0K
+PmlmIChsaWtlbHkoIWlzYmxrKSkgew0KPgkJaWYgKHVubGlrZWx5KCpwb3MgPj0gaW5vZGUtPmlf
+c2ItPnNfbWF4Ynl0ZXMpKSB7DQo+CQkJaWYgKCpjb3VudCB8fCAqcG9zID4gaW5vZGUtPmlfc2It
+PnNfbWF4Ynl0ZXMpIHsNCj4JCQkJcmV0dXJuIC1FRkJJRzsNCj4JCQl9DQo+CQkJLyogemVyby1s
+ZW5ndGggd3JpdGVzIGF0IC0+c19tYXhieXRlcyBhcmUgT0sgKi8NCj4JCX0NCg0KPgkJaWYgKHVu
+bGlrZWx5KCpwb3MgKyAqY291bnQgPiBpbm9kZS0+aV9zYi0+c19tYXhieXRlcykpDQo+CQkJKmNv
+dW50ID0gaW5vZGUtPmlfc2ItPnNfbWF4Ynl0ZXMgLSAqcG9zOw0KPgl9IGVsc2Ugew0KPiNpZmRl
+ZiBDT05GSUdfQkxPQ0sNCj4JCWxvZmZfdCBpc2l6ZTsNCj4JCWlmIChiZGV2X3JlYWRfb25seShJ
+X0JERVYoaW5vZGUpKSkNCj4JCQlyZXR1cm4gLUVQRVJNOw0KPgkJaXNpemUgPSBpX3NpemVfcmVh
+ZChpbm9kZSk7DQo+CQlpZiAoKnBvcyA+PSBpc2l6ZSkgew0KPgkJCWlmICgqY291bnQgfHwgKnBv
+cyA+IGlzaXplKQ0KPgkJCQlyZXR1cm4gLUVOT1NQQzsNCj4JCX0NCg0KPgkJaWYgKCpwb3MgKyAq
+Y291bnQgPiBpc2l6ZSkNCj4JCQkqY291bnQgPSBpc2l6ZSAtICpwb3M7DQo+I2Vsc2UNCj4JCXJl
+dHVybiAtRVBFUk07DQo+I2VuZGlmDQpBbHRob3VnaCBpdCBjaGVjayAoc19tYXhieXRlcylNQVhf
+TEZTX0ZJTEVTSVpFLkJ1dCBpcyBmaWxlIGlzIGJsb2NrIGRldmljZSxpdCBkaWQgbm90IGNoZWNr
+LGl0IG9ubHkgY2hlY2sgdGhlIHJlYWwgc2l6ZS4NCkJ1dCB0aGVyZSBpcyBhbHNvIGEgYnVnLkJl
+Y2F1c2UgaWYgYmxvY2sgc2l6ZSA+IDE2VCx0aGVyZSB3YXMgbm90IGVycm9yIGFuZCBleGVjZWQg
+Y29udGludWUuDQpXaGVuIGV4ZWMgZ2VuZXJpY19maWxlX2J1ZmZlcmVkX3dyaXRlKClbbm8gb2Ry
+aWVjdCBhY3Rpb25dIC0tLT5nZW5lcmljX3BlcmZvcm1fd3JpdGUtLT53cml0ZV9iZWdpbltibGtk
+ZXZfd3JpdGVfYmVnaW5dDQotLS0+YmxvY2tfd3JpdGVfYmVnaW4NCkluIGZ1bmN0aW9uOmJsb2Nr
+X3dyaXRlX2JlZ2luKCkNCj5wZ29mZl90IGluZGV4ID0gcG9zID4+IFBBR0VfQ0FDSEVfU0hJRlQ7
+DQppbmRleCB3aWxsIG92ZXJmbG93Lg0KDQpJIG9uY2UgdGhvdWdodCB0byBwYXRjaCB0aG9zZSBi
+dWcoSSBtYXkgYmUgd2VsbC1rbm93biAsaGFoYSkuQnV0IEkgY2FuJ3QsYXMgaXMgZ2VuZXJpY193
+cml0ZV9jaGVja3MoKToNCj4vKg0KPgkgKiBBcmUgd2UgYWJvdXQgdG8gZXhjZWVkIHRoZSBmcyBi
+bG9jayBsaW1pdCA/DQo+CSAqDQo+CSAqIElmIHdlIGhhdmUgd3JpdHRlbiBkYXRhIGl0IGJlY29t
+ZXMgYSBzaG9ydCB3cml0ZS4gIElmIHdlIGhhdmUNCj4JICogZXhjZWVkZWQgd2l0aG91dCB3cml0
+aW5nIGRhdGEgd2Ugc2VuZCBhIHNpZ25hbCBhbmQgcmV0dXJuIEVGQklHLg0KPgkgKiBMaW51cyBm
+cmVzdHJpY3QgaWRlYSB3aWxsIGNsZWFuIHRoZXNlIHVwIG5pY2VseS4uDQo+CSAqLw0KPglpZiAo
+bGlrZWx5KCFpc2JsaykpIHsNCmhvdyB0byBkZWFsIHdpdGggYmxvY2s/IEFzIGEgcmVndWxhciBm
+aWxlIG9yIG5vdD8NCgkJCQkJCQ0KDQoNCg0KLS0tLS0tLS0tLS0tLS0tLS0tCQkJCSANCm1hamlh
+bnBlbmcNCjIwMTItMDUtMjgNCg0KLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0t
+LS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLQ0Kt6K8/sjLo7pIdWdoIERpY2tpbnMNCreiy83I1cba
+o7oyMDEyLTA1LTI3IDA1OjI0OjEzDQrK1bz+yMujum1hamlhbnBlbmcNCrOty82jukFsIFZpcm87
+IEFuZHJldyBNb3J0b247IGxpbnV4LW1tOyBsaW51eC1mc2RldmVsDQrW98zio7pSZTogdGhlIG1h
+eCBzaXplIG9mIGJsb2NrIGRldmljZSBvbiAzMmJpdCBvcyx3aGVuIHVzaW5nZG9fZ2VuZXJpY19m
+aWxlX3JlYWQoKSBwcm9jZWVkLg0KDQpPbiBUaHUsIDI0IE1heSAyMDEyLCBtYWppYW5wZW5nIHdy
+b3RlOg0KPiAgIEhpIGFsbDoNCj4gCQlJIHJlYWRlZCBhIHJhaWQ1LHdoaWNoIHNpemUgMzBULk9T
+IGlzIFJIRUw2IDMyYml0Lg0KPiAJICAgIEkgcmVhZWQgdGhlIHJhaWQ1KGFzIGEgd2hvbGUsbm90
+IHBhcnRlZCkgYW5kIGZvdW5kIHJlYWQgYWRkcmVzcyB3aGljaCBub3QgaSB3YW50ZWQuDQo+IAkJ
+U28gSSB0ZXN0ZWQgdGhlIG5ld2VzdCBrZXJuZWwgY29kZSx0aGUgcHJvYmxlbSBpcyBzdGlsbC4N
+Cj4gCQlJIHJldmlldyB0aGUgY29kZSwgaW4gZnVuY3Rpb24gZG9fZ2VuZXJpY19maWxlX3JlYWQo
+KQ0KPiANCj4gCQlpbmRleCA9ICpwcG9zID4+IFBBR0VfQ0FDSEVfU0hJRlQ7DQo+IAkJaW5kZXgg
+aXMgdTMyLmFuZCAqcHBvcyBpcyBsb25nIGxvbmcuDQo+IAkJU28gd2hlbiAqcHBvcyBpcyBsYXJn
+ZXIgdGhhbiAweEZGRkYgRkZGRiAqICBQQUdFX0NBQ0hFX1NISUZUKDE2VCBCeXRlKSx0aGVuIHRo
+ZSBpbmRleCBpcyBlcnJvci4NCj4gDQo+IAkJSSB3b25kZXIgdGhpcyAuSW4gMzJiaXQgb3MgLGJs
+b2NrIGRldmljZXMgc2l6ZSBkbyBub3QgbGFyZ2UgdGhlbiAxNlQsaW4gb3RoZXIgd29yZHMsIGlm
+IGJsb2NrIGRldmljZXMgbGFyZ2VyIHRoYW4gMTZULG11c3QgcGFydGVkLg0KDQpJIGFtIG5vdCBz
+dXJwcmlzZWQgdGhhdCB0aGUgcGFnZSBjYWNoZSBsaW1pdGF0aW9uIHByZXZlbnRzIHlvdSBmcm9t
+DQpyZWFkaW5nIHRoZSB3aG9sZSBkZXZpY2Ugd2l0aCBhIDMyLWJpdCBrZXJuZWwuICBTZWUgTUFY
+X0xGU19GSUxFU0laRSBpbg0KaW5jbHVkZS9saW51eC9mcy5oLiAgT3VyIGFuc3dlciB0byB0aGF0
+IGlzIGp1c3QgdG8gdXNlIGEgNjQtYml0IGtlcm5lbC4NCg0KI2lmIEJJVFNfUEVSX0xPTkc9PTMy
+DQojZGVmaW5lIE1BWF9MRlNfRklMRVNJWkUgKCgodTY0KVBBR0VfQ0FDSEVfU0laRSA8PCAoQklU
+U19QRVJfTE9ORy0xKSktMSkgDQojZWxpZiBCSVRTX1BFUl9MT05HPT02NA0KI2RlZmluZSBNQVhf
+TEZTX0ZJTEVTSVpFIDB4N2ZmZmZmZmZmZmZmZmZmZlVMDQojZW5kaWYNCg0KQnV0IEkgYW0gYSBs
+aXR0bGUgc3VycHJpc2VkIHRoYXQgeW91IGdldCBhcyBmYXIgYXMgMTZUaUIgKHdpdGggNGsgcGFn
+ZSk6DQpJIHdvdWxkIGhhdmUgZXhwZWN0ZWQgeW91IHRvIGJlIHN0b3BwZWQganVzdCBiZWZvcmUg
+OFRpQiAoYWx0aG91Z2ggSQ0Kc3VzcGVjdCB0aGF0IHRoZSBsaW1pdGF0aW9uIHRvIDhUaUIgcmF0
+aGVyIHRoYW4gMTZUaUIgaXMgdW5uZWNlc3NhcnkpLg0KDQpBbmQgaWYgSSB1bmRlcnN0YW5kIHlv
+dSBjb3JyZWN0bHksIHJlYWQoKSBvciBwcmVhZCgpIGdhdmUgeW91IG5vIGVycm9yDQphdCB0aG9z
+ZSBsYXJnZSBvZmZzZXRzLCBidXQgc3VwcGxpZWQgZGF0YSBmcm9tIHRoZSBsb3cgb2Zmc2V0IGlu
+c3RlYWQ/DQoNClRoYXQgZG9lcyBzdXJwcmlzZSBtZSAtIGhhdmUgd2UgbWlzc2VkIGEgY2hlY2sg
+dGhlcmU/DQoNCkh1Z2gNCg==
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
