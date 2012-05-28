@@ -1,98 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx206.postini.com [74.125.245.206])
-	by kanga.kvack.org (Postfix) with SMTP id 9AD106B0082
-	for <linux-mm@kvack.org>; Mon, 28 May 2012 02:25:38 -0400 (EDT)
-Received: by pbbrp2 with SMTP id rp2so5262227pbb.14
-        for <linux-mm@kvack.org>; Sun, 27 May 2012 23:25:37 -0700 (PDT)
-Date: Mon, 28 May 2012 14:26:27 +0800
-From: "majianpeng" <majianpeng@gmail.com>
-References: <201205242138175936268@gmail.com>
-Subject: Re: Re: the max size of block device on 32bit os,when usingdo_generic_file_read() proceed.
-Message-ID: <201205281426238284699@gmail.com>
-Mime-Version: 1.0
-Content-Type: text/plain;
-	charset="gb2312"
-Content-Transfer-Encoding: base64
+Received: from psmtp.com (na3sys010amx137.postini.com [74.125.245.137])
+	by kanga.kvack.org (Postfix) with SMTP id 3371B6B0082
+	for <linux-mm@kvack.org>; Mon, 28 May 2012 04:19:45 -0400 (EDT)
+Received: from euspt1 (mailout4.w1.samsung.com [210.118.77.14])
+ by mailout4.w1.samsung.com
+ (Oracle Communications Messaging Server 7u4-24.01(7.0.4.24.0) 64bit (built Nov
+ 17 2011)) with ESMTP id <0M4Q001E04I1CE40@mailout4.w1.samsung.com> for
+ linux-mm@kvack.org; Mon, 28 May 2012 09:20:25 +0100 (BST)
+Received: from linux.samsung.com ([106.116.38.10])
+ by spt1.w1.samsung.com (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14
+ 2004)) with ESMTPA id <0M4Q0027D4GU8J@spt1.w1.samsung.com> for
+ linux-mm@kvack.org; Mon, 28 May 2012 09:19:43 +0100 (BST)
+Date: Mon, 28 May 2012 10:19:39 +0200
+From: Marek Szyprowski <m.szyprowski@samsung.com>
+Subject: RE: [PATCHv2 3/4] mm: vmalloc: add VM_DMA flag to indicate areas used
+ by dma-mapping framework
+In-reply-to: 
+ <CAHGf_=qmBMFfV=UhXFtepO8styaQonfBA0E0+FO0qSi7RLfJFA@mail.gmail.com>
+Message-id: <001d01cd3caa$a05d0510$e1170f30$%szyprowski@samsung.com>
+MIME-version: 1.0
+Content-type: text/plain; charset=us-ascii
+Content-language: pl
+Content-transfer-encoding: 7BIT
+References: <1337252085-22039-1-git-send-email-m.szyprowski@samsung.com>
+ <1337252085-22039-4-git-send-email-m.szyprowski@samsung.com>
+ <4FBB3B41.8010102@kernel.org>
+ <01e501cd39a8$67f34ea0$37d9ebe0$%szyprowski@samsung.com>
+ <20120524122854.GD11860@linux-sh.org>
+ <CAHGf_=qmBMFfV=UhXFtepO8styaQonfBA0E0+FO0qSi7RLfJFA@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: Al Viro <viro@zeniv.linux.org.uk>, Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>
+To: 'KOSAKI Motohiro' <kosaki.motohiro@gmail.com>, 'Paul Mundt' <lethal@linux-sh.org>
+Cc: 'Minchan Kim' <minchan@kernel.org>, linux-arm-kernel@lists.infradead.org, linaro-mm-sig@lists.linaro.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, 'Kyungmin Park' <kyungmin.park@samsung.com>, 'Arnd Bergmann' <arnd@arndb.de>, 'Russell King - ARM Linux' <linux@arm.linux.org.uk>, 'Chunsang Jeong' <chunsang.jeong@linaro.org>, 'Krishna Reddy' <vdumpa@nvidia.com>, 'Konrad Rzeszutek Wilk' <konrad.wilk@oracle.com>, 'Hiroshi Doyu' <hdoyu@nvidia.com>, 'Subash Patel' <subashrp@gmail.com>, 'Nick Piggin' <npiggin@gmail.com>
 
-U29ycnkgZm9yIGxhdGUgdG8gcmVwbHkuSSByZXZpZXdlZCB0aGUgY29kZSBhZ2FpbiBhbmQgZm91
-bmQgc29tZSBwcm9ibGVhbS4NCkkgY3JlYXRlZCBhIHNvZnQtcmFpZCBhbmQgdGhlIHNpemUgd2Fz
-IGxhcmdlciB0aGFuIDE2VC4NClRoZSBvcyBpcyB1YnVudHUgMTIuMDQgMzJiaXQgeDg2Lg0KVGhl
-IHVkZXYgY3JlYXRlIHRoZSBibG9jayBub2RlIGlzIC9kZXYgZGlyKGFzIHRtcGZzKS4NCkFuZCBJ
-IHJlYWRlZCB0aGUgdG1wZnMgY29kZSA6DQppbiBtbS9zaG1lbS5jOnNobWVtX2ZpbGxfc3VwZXIo
-KQ0KPnNiLT5zX21heGJ5dGVzID0gTUFYX0xGU19GSUxFU0laRTsNCkluIG15IGNvbXB1dGVyLCBN
-QVhfTEZTX0ZJTEVTWkUgaXMgZXF1YWwgOFQgLTEuDQpCdXQgdGhlIHJlYWQgY29kZToNCmdlbmVy
-aWNfZmlsZV9haW9fcmVhZC0tPmRvX2dlbmVyaWNfZmlsZV9yZWFkW25vdCB1c2UgZGlyZWN0IGZs
-YWcNCkluIGZ1bmN0aW9uOmRvX2dlbmVyaWNfZmlsZV9yZWFkKCk6DQo+aW5kZXggPSAqcHBvcyA+
-PiBQQUdFX0NBQ0hFX1NISUZUOw0KaW5kZXggaXMgdGhlIHR5cGUgb2YgcGdvZmZfdC4NClNvIGlm
-ICAqcHBvcyBpcyBsYXJnZXIgdGhhbiAxNlQsIHRoZSBpbmRleCBpcyBvdmVyZmxvdy5BcyB5b3Ug
-c2FpZCwgaXQgd2lsbCByZWFkIGxvdyBwb3NpdGlvbiBkYXRhLg0KDQpCdXQgSSB0ZXN0ZWQgdGhl
-IHdyaXRlIG9wZXJhdGlvbjoNCmJsa2Rldl9haW9fd3JpdGUtPl9fZ2VuZXJpY19maWxlX2Fpb193
-cml0ZS4NCkluIGZ1bmN0aW9uOl9fZ2VuZXJpY19maWxlX2Fpb193cml0ZSgpDQpJdCB3aWxsIGNo
-ZWNrIGJ5IGZ1bmN0aW9uOmdlbmVyaWNfd3JpdGVfY2hlY2tzKCkNCkJ1dCBJbiBmdW5jdGlvbg0K
-PmlmIChsaWtlbHkoIWlzYmxrKSkgew0KPgkJaWYgKHVubGlrZWx5KCpwb3MgPj0gaW5vZGUtPmlf
-c2ItPnNfbWF4Ynl0ZXMpKSB7DQo+CQkJaWYgKCpjb3VudCB8fCAqcG9zID4gaW5vZGUtPmlfc2It
-PnNfbWF4Ynl0ZXMpIHsNCj4JCQkJcmV0dXJuIC1FRkJJRzsNCj4JCQl9DQo+CQkJLyogemVyby1s
-ZW5ndGggd3JpdGVzIGF0IC0+c19tYXhieXRlcyBhcmUgT0sgKi8NCj4JCX0NCg0KPgkJaWYgKHVu
-bGlrZWx5KCpwb3MgKyAqY291bnQgPiBpbm9kZS0+aV9zYi0+c19tYXhieXRlcykpDQo+CQkJKmNv
-dW50ID0gaW5vZGUtPmlfc2ItPnNfbWF4Ynl0ZXMgLSAqcG9zOw0KPgl9IGVsc2Ugew0KPiNpZmRl
-ZiBDT05GSUdfQkxPQ0sNCj4JCWxvZmZfdCBpc2l6ZTsNCj4JCWlmIChiZGV2X3JlYWRfb25seShJ
-X0JERVYoaW5vZGUpKSkNCj4JCQlyZXR1cm4gLUVQRVJNOw0KPgkJaXNpemUgPSBpX3NpemVfcmVh
-ZChpbm9kZSk7DQo+CQlpZiAoKnBvcyA+PSBpc2l6ZSkgew0KPgkJCWlmICgqY291bnQgfHwgKnBv
-cyA+IGlzaXplKQ0KPgkJCQlyZXR1cm4gLUVOT1NQQzsNCj4JCX0NCg0KPgkJaWYgKCpwb3MgKyAq
-Y291bnQgPiBpc2l6ZSkNCj4JCQkqY291bnQgPSBpc2l6ZSAtICpwb3M7DQo+I2Vsc2UNCj4JCXJl
-dHVybiAtRVBFUk07DQo+I2VuZGlmDQpBbHRob3VnaCBpdCBjaGVjayAoc19tYXhieXRlcylNQVhf
-TEZTX0ZJTEVTSVpFLkJ1dCBpcyBmaWxlIGlzIGJsb2NrIGRldmljZSxpdCBkaWQgbm90IGNoZWNr
-LGl0IG9ubHkgY2hlY2sgdGhlIHJlYWwgc2l6ZS4NCkJ1dCB0aGVyZSBpcyBhbHNvIGEgYnVnLkJl
-Y2F1c2UgaWYgYmxvY2sgc2l6ZSA+IDE2VCx0aGVyZSB3YXMgbm90IGVycm9yIGFuZCBleGVjZWQg
-Y29udGludWUuDQpXaGVuIGV4ZWMgZ2VuZXJpY19maWxlX2J1ZmZlcmVkX3dyaXRlKClbbm8gb2Ry
-aWVjdCBhY3Rpb25dIC0tLT5nZW5lcmljX3BlcmZvcm1fd3JpdGUtLT53cml0ZV9iZWdpbltibGtk
-ZXZfd3JpdGVfYmVnaW5dDQotLS0+YmxvY2tfd3JpdGVfYmVnaW4NCkluIGZ1bmN0aW9uOmJsb2Nr
-X3dyaXRlX2JlZ2luKCkNCj5wZ29mZl90IGluZGV4ID0gcG9zID4+IFBBR0VfQ0FDSEVfU0hJRlQ7
-DQppbmRleCB3aWxsIG92ZXJmbG93Lg0KDQpJIG9uY2UgdGhvdWdodCB0byBwYXRjaCB0aG9zZSBi
-dWcoSSBtYXkgYmUgd2VsbC1rbm93biAsaGFoYSkuQnV0IEkgY2FuJ3QsYXMgaXMgZ2VuZXJpY193
-cml0ZV9jaGVja3MoKToNCj4vKg0KPgkgKiBBcmUgd2UgYWJvdXQgdG8gZXhjZWVkIHRoZSBmcyBi
-bG9jayBsaW1pdCA/DQo+CSAqDQo+CSAqIElmIHdlIGhhdmUgd3JpdHRlbiBkYXRhIGl0IGJlY29t
-ZXMgYSBzaG9ydCB3cml0ZS4gIElmIHdlIGhhdmUNCj4JICogZXhjZWVkZWQgd2l0aG91dCB3cml0
-aW5nIGRhdGEgd2Ugc2VuZCBhIHNpZ25hbCBhbmQgcmV0dXJuIEVGQklHLg0KPgkgKiBMaW51cyBm
-cmVzdHJpY3QgaWRlYSB3aWxsIGNsZWFuIHRoZXNlIHVwIG5pY2VseS4uDQo+CSAqLw0KPglpZiAo
-bGlrZWx5KCFpc2JsaykpIHsNCmhvdyB0byBkZWFsIHdpdGggYmxvY2s/IEFzIGEgcmVndWxhciBm
-aWxlIG9yIG5vdD8NCgkJCQkJCQ0KDQoNCg0KLS0tLS0tLS0tLS0tLS0tLS0tCQkJCSANCm1hamlh
-bnBlbmcNCjIwMTItMDUtMjgNCg0KLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0t
-LS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLQ0Kt6K8/sjLo7pIdWdoIERpY2tpbnMNCreiy83I1cba
-o7oyMDEyLTA1LTI3IDA1OjI0OjEzDQrK1bz+yMujum1hamlhbnBlbmcNCrOty82jukFsIFZpcm87
-IEFuZHJldyBNb3J0b247IGxpbnV4LW1tOyBsaW51eC1mc2RldmVsDQrW98zio7pSZTogdGhlIG1h
-eCBzaXplIG9mIGJsb2NrIGRldmljZSBvbiAzMmJpdCBvcyx3aGVuIHVzaW5nZG9fZ2VuZXJpY19m
-aWxlX3JlYWQoKSBwcm9jZWVkLg0KDQpPbiBUaHUsIDI0IE1heSAyMDEyLCBtYWppYW5wZW5nIHdy
-b3RlOg0KPiAgIEhpIGFsbDoNCj4gCQlJIHJlYWRlZCBhIHJhaWQ1LHdoaWNoIHNpemUgMzBULk9T
-IGlzIFJIRUw2IDMyYml0Lg0KPiAJICAgIEkgcmVhZWQgdGhlIHJhaWQ1KGFzIGEgd2hvbGUsbm90
-IHBhcnRlZCkgYW5kIGZvdW5kIHJlYWQgYWRkcmVzcyB3aGljaCBub3QgaSB3YW50ZWQuDQo+IAkJ
-U28gSSB0ZXN0ZWQgdGhlIG5ld2VzdCBrZXJuZWwgY29kZSx0aGUgcHJvYmxlbSBpcyBzdGlsbC4N
-Cj4gCQlJIHJldmlldyB0aGUgY29kZSwgaW4gZnVuY3Rpb24gZG9fZ2VuZXJpY19maWxlX3JlYWQo
-KQ0KPiANCj4gCQlpbmRleCA9ICpwcG9zID4+IFBBR0VfQ0FDSEVfU0hJRlQ7DQo+IAkJaW5kZXgg
-aXMgdTMyLmFuZCAqcHBvcyBpcyBsb25nIGxvbmcuDQo+IAkJU28gd2hlbiAqcHBvcyBpcyBsYXJn
-ZXIgdGhhbiAweEZGRkYgRkZGRiAqICBQQUdFX0NBQ0hFX1NISUZUKDE2VCBCeXRlKSx0aGVuIHRo
-ZSBpbmRleCBpcyBlcnJvci4NCj4gDQo+IAkJSSB3b25kZXIgdGhpcyAuSW4gMzJiaXQgb3MgLGJs
-b2NrIGRldmljZXMgc2l6ZSBkbyBub3QgbGFyZ2UgdGhlbiAxNlQsaW4gb3RoZXIgd29yZHMsIGlm
-IGJsb2NrIGRldmljZXMgbGFyZ2VyIHRoYW4gMTZULG11c3QgcGFydGVkLg0KDQpJIGFtIG5vdCBz
-dXJwcmlzZWQgdGhhdCB0aGUgcGFnZSBjYWNoZSBsaW1pdGF0aW9uIHByZXZlbnRzIHlvdSBmcm9t
-DQpyZWFkaW5nIHRoZSB3aG9sZSBkZXZpY2Ugd2l0aCBhIDMyLWJpdCBrZXJuZWwuICBTZWUgTUFY
-X0xGU19GSUxFU0laRSBpbg0KaW5jbHVkZS9saW51eC9mcy5oLiAgT3VyIGFuc3dlciB0byB0aGF0
-IGlzIGp1c3QgdG8gdXNlIGEgNjQtYml0IGtlcm5lbC4NCg0KI2lmIEJJVFNfUEVSX0xPTkc9PTMy
-DQojZGVmaW5lIE1BWF9MRlNfRklMRVNJWkUgKCgodTY0KVBBR0VfQ0FDSEVfU0laRSA8PCAoQklU
-U19QRVJfTE9ORy0xKSktMSkgDQojZWxpZiBCSVRTX1BFUl9MT05HPT02NA0KI2RlZmluZSBNQVhf
-TEZTX0ZJTEVTSVpFIDB4N2ZmZmZmZmZmZmZmZmZmZlVMDQojZW5kaWYNCg0KQnV0IEkgYW0gYSBs
-aXR0bGUgc3VycHJpc2VkIHRoYXQgeW91IGdldCBhcyBmYXIgYXMgMTZUaUIgKHdpdGggNGsgcGFn
-ZSk6DQpJIHdvdWxkIGhhdmUgZXhwZWN0ZWQgeW91IHRvIGJlIHN0b3BwZWQganVzdCBiZWZvcmUg
-OFRpQiAoYWx0aG91Z2ggSQ0Kc3VzcGVjdCB0aGF0IHRoZSBsaW1pdGF0aW9uIHRvIDhUaUIgcmF0
-aGVyIHRoYW4gMTZUaUIgaXMgdW5uZWNlc3NhcnkpLg0KDQpBbmQgaWYgSSB1bmRlcnN0YW5kIHlv
-dSBjb3JyZWN0bHksIHJlYWQoKSBvciBwcmVhZCgpIGdhdmUgeW91IG5vIGVycm9yDQphdCB0aG9z
-ZSBsYXJnZSBvZmZzZXRzLCBidXQgc3VwcGxpZWQgZGF0YSBmcm9tIHRoZSBsb3cgb2Zmc2V0IGlu
-c3RlYWQ/DQoNClRoYXQgZG9lcyBzdXJwcmlzZSBtZSAtIGhhdmUgd2UgbWlzc2VkIGEgY2hlY2sg
-dGhlcmU/DQoNCkh1Z2gNCg==
+Hello,
+
+On Sunday, May 27, 2012 2:35 PM KOSAKI Motohiro wrote:
+
+> On Thu, May 24, 2012 at 8:28 AM, Paul Mundt <lethal@linux-sh.org> wrote:
+> > On Thu, May 24, 2012 at 02:26:12PM +0200, Marek Szyprowski wrote:
+> >> On Tuesday, May 22, 2012 9:08 AM Minchan Kim wrote:
+> >> > Hmm, VM_DMA would become generic flag?
+> >> > AFAIU, maybe VM_DMA would be used only on ARM arch.
+> >>
+> >> Right now yes, it will be used only on ARM architecture, but maybe other architecture will
+> >> start using it once it is available.
+> >>
+> > There's very little about the code in question that is ARM-specific to
+> > begin with. I plan to adopt similar changes on SH once the work has
+> > settled one way or the other, so we'll probably use the VMA flag there,
+> > too.
+> 
+> I don't think VM_DMA is good idea because x86_64 has two dma zones. x86 unaware
+> patches make no sense.
+
+I see no problems to add VM_DMA64 later if x86_64 starts using vmalloc areas for creating 
+kernel mappings for the dma buffers (I assume that there are 2 dma zones: one 32bit and one
+64bit). Right now x86 and x86_64 don't use vmalloc areas for dma buffers, so I hardly see
+how this patch can be considered as 'x86 unaware'.
+
+Best regards
+-- 
+Marek Szyprowski
+Samsung Poland R&D Center
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
