@@ -1,46 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx196.postini.com [74.125.245.196])
-	by kanga.kvack.org (Postfix) with SMTP id 0E5EF6B0082
-	for <linux-mm@kvack.org>; Mon, 28 May 2012 11:20:43 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx136.postini.com [74.125.245.136])
+	by kanga.kvack.org (Postfix) with SMTP id 62BDA6B0092
+	for <linux-mm@kvack.org>; Mon, 28 May 2012 11:21:24 -0400 (EDT)
 Received: from /spool/local
-	by e28smtp06.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e28smtp05.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
-	Mon, 28 May 2012 20:50:37 +0530
-Received: from d28av01.in.ibm.com (d28av01.in.ibm.com [9.184.220.63])
-	by d28relay05.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q4SFKXqF64946352
-	for <linux-mm@kvack.org>; Mon, 28 May 2012 20:50:34 +0530
-Received: from d28av01.in.ibm.com (loopback [127.0.0.1])
-	by d28av01.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q4SKoBeD010208
-	for <linux-mm@kvack.org>; Tue, 29 May 2012 02:20:11 +0530
+	Mon, 28 May 2012 20:51:21 +0530
+Received: from d28av03.in.ibm.com (d28av03.in.ibm.com [9.184.220.65])
+	by d28relay02.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q4SFLJEN66126020
+	for <linux-mm@kvack.org>; Mon, 28 May 2012 20:51:19 +0530
+Received: from d28av03.in.ibm.com (loopback [127.0.0.1])
+	by d28av03.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q4SKoZDM024242
+	for <linux-mm@kvack.org>; Tue, 29 May 2012 06:50:35 +1000
 From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Subject: [PATCH] mm/hugetlb: Add documentation for hugetlb limit fail count interface
-Date: Mon, 28 May 2012 20:50:24 +0530
-Message-Id: <1338218424-30864-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+Subject: [PATCH] mm/hugetlb: Use hstate_index instead of open coding it
+Date: Mon, 28 May 2012 20:51:13 +0530
+Message-Id: <1338218473-30933-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org, kamezawa.hiroyu@jp.fujitsu.com, mhocko@suse.cz, akpm@linux-foundation.org
+To: linux-mm@kvack.org, kamezawa.hiroyu@jp.fujitsu.com, mhocko@suse.cz, akpm@linux-foundation.org, rientjes@google.com
 Cc: linux-kernel@vger.kernel.org, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
 
 From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
 
-Document memory.hugetlb.<x>.failcnt interface
+Use hstate_index in hugetlb_init
 
 Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
 ---
- Documentation/cgroups/memory.txt |    1 +
- 1 file changed, 1 insertion(+)
+ mm/hugetlb.c |    2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
-diff --git a/Documentation/cgroups/memory.txt b/Documentation/cgroups/memory.txt
-index 730e222a..3a47ec5 100644
---- a/Documentation/cgroups/memory.txt
-+++ b/Documentation/cgroups/memory.txt
-@@ -80,6 +80,7 @@ Brief summary of control files.
-  memory.hugetlb.<hugepagesize>.max_usage_in_bytes # show max "hugepagesize" hugetlb  usage recorded
-  memory.hugetlb.<hugepagesize>.usage_in_bytes     # show current res_counter usage for "hugepagesize" hugetlb
- 						  # see 5.7 for details
-+ memory.hugetlb.<hugepagesize>.failcnt		  # show the number of allocation failure due to HugeTLB limit
- 
- 1. History
+diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+index 4b90dd5..58eead5 100644
+--- a/mm/hugetlb.c
++++ b/mm/hugetlb.c
+@@ -1891,7 +1891,7 @@ static int __init hugetlb_init(void)
+ 		if (!size_to_hstate(default_hstate_size))
+ 			hugetlb_add_hstate(HUGETLB_PAGE_ORDER);
+ 	}
+-	default_hstate_idx = size_to_hstate(default_hstate_size) - hstates;
++	default_hstate_idx = hstate_index(size_to_hstate(default_hstate_size));
+ 	if (default_hstate_max_huge_pages)
+ 		default_hstate.max_huge_pages = default_hstate_max_huge_pages;
  
 -- 
 1.7.10
