@@ -1,181 +1,167 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx186.postini.com [74.125.245.186])
-	by kanga.kvack.org (Postfix) with SMTP id 544866B0092
-	for <linux-mm@kvack.org>; Mon, 28 May 2012 11:39:32 -0400 (EDT)
-From: Michal Hocko <mhocko@suse.cz>
-Subject: [RFC -mm] memcg: prevent from OOM with too many dirty pages
-Date: Mon, 28 May 2012 17:38:55 +0200
-Message-Id: <1338219535-7874-1-git-send-email-mhocko@suse.cz>
+Received: from psmtp.com (na3sys010amx167.postini.com [74.125.245.167])
+	by kanga.kvack.org (Postfix) with SMTP id 759A26B0092
+	for <linux-mm@kvack.org>; Mon, 28 May 2012 11:48:49 -0400 (EDT)
+Received: by bkcjm19 with SMTP id jm19so3375517bkc.14
+        for <linux-mm@kvack.org>; Mon, 28 May 2012 08:48:47 -0700 (PDT)
+Message-ID: <1338220185.4284.19.camel@lappy>
+Subject: Re: [PATCH 2/2] block: Convert BDI proportion calculations to
+ flexible proportions
+From: Sasha Levin <levinsasha928@gmail.com>
+Date: Mon, 28 May 2012 17:49:45 +0200
+In-Reply-To: <1337878751-22942-3-git-send-email-jack@suse.cz>
+References: <1337878751-22942-1-git-send-email-jack@suse.cz>
+	 <1337878751-22942-3-git-send-email-jack@suse.cz>
+Content-Type: text/plain; charset="us-ascii"
+Content-Transfer-Encoding: 7bit
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujtisu.com>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@redhat.com>, Ying Han <yinghan@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Greg Thelen <gthelen@google.com>, Hugh Dickins <hughd@google.com>
+To: Jan Kara <jack@suse.cz>
+Cc: Wu Fengguang <fengguang.wu@intel.com>, Peter Zijlstra <peterz@infradead.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-Current implementation of dirty pages throttling is not memcg aware which makes
-it easy to have LRUs full of dirty pages which might lead to memcg OOM if the
-hard limit is small and so the lists are scanned faster than pages written
-back.
+Hi Jan,
 
-This patch fixes the problem by throttling the allocating process (possibly
-a writer) during the hard limit reclaim by waiting on PageReclaim pages.
-We are waiting only for PageReclaim pages because those are the pages
-that made one full round over LRU and that means that the writeback is much
-slower than scanning.
-The solution is far from being ideal - long term solution is memcg aware
-dirty throttling - but it is meant to be a band aid until we have a real
-fix.
-We are seeing this happening during nightly backups which are placed into
-containers to prevent from eviction of the real working set.
+On Thu, 2012-05-24 at 18:59 +0200, Jan Kara wrote:
+> Convert calculations of proportion of writeback each bdi does to new flexible
+> proportion code. That allows us to use aging period of fixed wallclock time
+> which gives better proportion estimates given the hugely varying throughput of
+> different devices.
+> 
+> Signed-off-by: Jan Kara <jack@suse.cz>
+> ---
 
-The change affects only memcg reclaim and only when we encounter PageReclaim
-pages which is a signal that the reclaim doesn't catch up on with the writers
-so somebody should be throttled. This could be potentially unfair because it
-could be somebody else from the group who gets throttled on behalf of the
-writer but as writers need to allocate as well and they allocate in higher rate
-the probability that only innocent processes would be penalized is not that
-high.
+This patch appears to be causing lockdep warnings over here:
 
-I have tested this change by a simple dd copying /dev/zero to tmpfs or ext3
-running under small memcg (1G copy under 5M, 60M, 300M and 2G containers) and
-dd got killed by OOM killer every time. With the patch I could run the dd with
-the same size under 5M controller without any OOM.
-The issue is more visible with slower devices for output.
-
-* With the patch
-================
-* tmpfs size=2G
----------------
-$ vim cgroup_cache_oom_test.sh
-$ ./cgroup_cache_oom_test.sh 5M
-using Limit 5M for group
-1000+0 records in
-1000+0 records out
-1048576000 bytes (1.0 GB) copied, 30.4049 s, 34.5 MB/s
-$ ./cgroup_cache_oom_test.sh 60M
-using Limit 60M for group
-1000+0 records in
-1000+0 records out
-1048576000 bytes (1.0 GB) copied, 31.4561 s, 33.3 MB/s
-$ ./cgroup_cache_oom_test.sh 300M
-using Limit 300M for group
-1000+0 records in
-1000+0 records out
-1048576000 bytes (1.0 GB) copied, 20.4618 s, 51.2 MB/s
-$ ./cgroup_cache_oom_test.sh 2G
-using Limit 2G for group
-1000+0 records in
-1000+0 records out
-1048576000 bytes (1.0 GB) copied, 1.42172 s, 738 MB/s
-
-* ext3
-------
-$ ./cgroup_cache_oom_test.sh 5M
-using Limit 5M for group
-1000+0 records in
-1000+0 records out
-1048576000 bytes (1.0 GB) copied, 27.9547 s, 37.5 MB/s
-$ ./cgroup_cache_oom_test.sh 60M
-using Limit 60M for group
-1000+0 records in
-1000+0 records out
-1048576000 bytes (1.0 GB) copied, 30.3221 s, 34.6 MB/s
-$ ./cgroup_cache_oom_test.sh 300M
-using Limit 300M for group
-1000+0 records in
-1000+0 records out
-1048576000 bytes (1.0 GB) copied, 24.5764 s, 42.7 MB/s
-$ ./cgroup_cache_oom_test.sh 2G
-using Limit 2G for group
-1000+0 records in
-1000+0 records out
-1048576000 bytes (1.0 GB) copied, 3.35828 s, 312 MB/s
-
-* Without the patch
-===================
-* tmpfs size=2G
----------------
-$ ./cgroup_cache_oom_test.sh 5M
-using Limit 5M for group
-./cgroup_cache_oom_test.sh: line 46:  4668 Killed                  dd if=/dev/zero of=$OUT/zero bs=1M count=$count
-$ ./cgroup_cache_oom_test.sh 60M
-using Limit 60M for group
-1000+0 records in
-1000+0 records out
-1048576000 bytes (1.0 GB) copied, 25.4989 s, 41.1 MB/s
-$ ./cgroup_cache_oom_test.sh 300M
-using Limit 300M for group
-1000+0 records in
-1000+0 records out
-1048576000 bytes (1.0 GB) copied, 24.3928 s, 43.0 MB/s
-$ ./cgroup_cache_oom_test.sh 2G
-using Limit 2G for group
-1000+0 records in
-1000+0 records out
-1048576000 bytes (1.0 GB) copied, 1.49797 s, 700 MB/s
-
-* ext3
-------
-$ ./cgroup_cache_oom_test.sh 5M
-using Limit 5M for group
-./cgroup_cache_oom_test.sh: line 46:  4689 Killed                  dd if=/dev/zero of=$OUT/zero bs=1M count=$count
-$ ./cgroup_cache_oom_test.sh 60M
-using Limit 60M for group
-./cgroup_cache_oom_test.sh: line 46:  4692 Killed                  dd if=/dev/zero of=$OUT/zero bs=1M count=$count
-$ ./cgroup_cache_oom_test.sh 300M
-using Limit 300M for group
-1000+0 records in
-1000+0 records out
-1048576000 bytes (1.0 GB) copied, 20.248 s, 51.8 MB/s
-$ ./cgroup_cache_oom_test.sh 2G
-using Limit 2G for group
-1000+0 records in
-1000+0 records out
-1048576000 bytes (1.0 GB) copied, 2.85201 s, 368 MB/s
-
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujtisu.com>
-Cc: Mel Gorman <mgorman@suse.de>
-Cc: Minchan Kim <minchan@kernel.org>
-Cc: Rik van Riel <riel@redhat.com>
-Cc: Ying Han <yinghan@google.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Greg Thelen <gthelen@google.com>
-Cc: Hugh Dickins <hughd@google.com>
-Signed-off-by: Michal Hocko <mhocko@suse.cz>
----
- mm/vmscan.c |   17 ++++++++++++++---
- 1 file changed, 14 insertions(+), 3 deletions(-)
-
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index c978ce4..7cccd81 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -720,9 +720,20 @@ static unsigned long shrink_page_list(struct list_head *page_list,
- 			(PageSwapCache(page) && (sc->gfp_mask & __GFP_IO));
- 
- 		if (PageWriteback(page)) {
--			nr_writeback++;
--			unlock_page(page);
--			goto keep;
-+			/*
-+			 * memcg doesn't have any dirty pages throttling so we
-+			 * could easily OOM just because too many pages are in
-+			 * writeback from reclaim and there is nothing else to
-+			 * reclaim.
-+			 */
-+			if (PageReclaim(page)
-+					&& may_enter_fs && !global_reclaim(sc))
-+				wait_on_page_writeback(page);
-+			else {
-+				nr_writeback++;
-+				unlock_page(page);
-+				goto keep;
-+			}
- 		}
- 
- 		references = page_check_references(page, sc);
--- 
-1.7.10
+[   20.545016] =================================
+[   20.545016] [ INFO: inconsistent lock state ]
+[   20.545016] 3.4.0-next-20120528-sasha-00008-g11ef39f #307 Tainted: G        W   
+[   20.545016] ---------------------------------
+[   20.545016] inconsistent {IN-HARDIRQ-W} -> {HARDIRQ-ON-W} usage.
+[   20.545016] rcu_torture_rea/2493 [HC0[0]:SC1[1]:HE1:SE0] takes:
+[   20.545016]  (key#3){?.-...}, at: [<ffffffff81993527>] __percpu_counter_sum+0x17/0xc0
+[   20.545016] {IN-HARDIRQ-W} state was registered at:
+[   20.545016]   [<ffffffff8114ffab>] mark_irqflags+0x6b/0x170
+[   20.545016]   [<ffffffff811519bb>] __lock_acquire+0x2bb/0x4c0
+[   20.545016]   [<ffffffff81151d4a>] lock_acquire+0x18a/0x1e0
+[   20.545016]   [<ffffffff8325ac9b>] _raw_spin_lock+0x3b/0x70
+[   20.545016]   [<ffffffff81993620>] __percpu_counter_add+0x50/0xb0
+[   20.545016]   [<ffffffff8195b53a>] __fprop_inc_percpu_max+0x8a/0xa0
+[   20.545016]   [<ffffffff811daf8d>] test_clear_page_writeback+0x12d/0x1c0
+[   20.545016]   [<ffffffff811ccc44>] end_page_writeback+0x24/0x50
+[   20.545016]   [<ffffffff8126ed2a>] end_buffer_async_write+0x26a/0x350
+[   20.545016]   [<ffffffff8126bfdd>] end_bio_bh_io_sync+0x3d/0x50
+[   20.545016]   [<ffffffff81270b59>] bio_endio+0x29/0x30
+[   20.545016]   [<ffffffff819330e9>] req_bio_endio+0xb9/0xd0
+[   20.545016]   [<ffffffff81936318>] blk_update_request+0x1a8/0x3c0
+[   20.545016]   [<ffffffff81936552>] blk_update_bidi_request+0x22/0x90
+[   20.545016]   [<ffffffff8193673c>] __blk_end_bidi_request+0x1c/0x40
+[   20.545016]   [<ffffffff81936788>] __blk_end_request_all+0x28/0x40
+[   20.545016]   [<ffffffff81e04f2e>] blk_done+0x9e/0xf0
+[   20.545016]   [<ffffffff81afb106>] vring_interrupt+0x86/0xa0
+[   20.680186]   [<ffffffff81187c01>] handle_irq_event_percpu+0x151/0x3e0
+[   20.680186]   [<ffffffff81187ed3>] handle_irq_event+0x43/0x70
+[   20.680186]   [<ffffffff8118b5a8>] handle_edge_irq+0xe8/0x120
+[   20.680186]   [<ffffffff81069444>] handle_irq+0x164/0x180
+[   20.680186]   [<ffffffff81068638>] do_IRQ+0x58/0xd0
+[   20.680186]   [<ffffffff8325beef>] ret_from_intr+0x0/0x1a
+[   20.680186]   [<ffffffff81937bed>] blk_queue_bio+0x30d/0x430
+[   20.680186]   [<ffffffff8193423e>] generic_make_request+0xbe/0x120
+[   20.680186]   [<ffffffff81934398>] submit_bio+0xf8/0x120
+[   20.680186]   [<ffffffff8126bf72>] submit_bh+0x122/0x150
+[   20.680186]   [<ffffffff8126ded7>] __block_write_full_page+0x287/0x3b0
+[   20.680186]   [<ffffffff8126f2cc>] block_write_full_page_endio+0xfc/0x120
+[   20.680186]   [<ffffffff8126f300>] block_write_full_page+0x10/0x20
+[   20.680186]   [<ffffffff81273d83>] blkdev_writepage+0x13/0x20
+[   20.680186]   [<ffffffff811d90c5>] __writepage+0x15/0x40
+[   20.680186]   [<ffffffff811db78f>] write_cache_pages+0x49f/0x650
+[   20.680186]   [<ffffffff811db98f>] generic_writepages+0x4f/0x70
+[   20.680186]   [<ffffffff811db9ce>] do_writepages+0x1e/0x50
+[   20.680186]   [<ffffffff811cd219>] __filemap_fdatawrite_range+0x49/0x50
+[   20.680186]   [<ffffffff811cd44a>] filemap_fdatawrite+0x1a/0x20
+[   20.680186]   [<ffffffff811cd475>] filemap_write_and_wait+0x25/0x50
+[   20.680186]   [<ffffffff812740bd>] __sync_blockdev+0x2d/0x40
+[   20.680186]   [<ffffffff812740de>] sync_blockdev+0xe/0x10
+[   20.680186]   [<ffffffff813917d2>] journal_recover+0x182/0x1c0
+[   20.680186]   [<ffffffff81396ae8>] journal_load+0x58/0xa0
+[   20.680186]   [<ffffffff8132b750>] ext3_load_journal+0x200/0x2b0
+[   20.680186]   [<ffffffff8132e2c8>] ext3_fill_super+0xc18/0x10d0
+[   20.680186]   [<ffffffff8123c636>] mount_bdev+0x176/0x210
+[   20.680186]   [<ffffffff81327e00>] ext3_mount+0x10/0x20
+[   20.680186]   [<ffffffff8123bf75>] mount_fs+0x85/0x1a0
+[   20.680186]   [<ffffffff812592a4>] vfs_kern_mount+0x74/0x100
+[   20.680186]   [<ffffffff8125b991>] do_kern_mount+0x51/0x120
+[   20.680186]   [<ffffffff8125bc34>] do_mount+0x1d4/0x240
+[   20.680186]   [<ffffffff8125bd3d>] sys_mount+0x9d/0xe0
+[   20.680186]   [<ffffffff84cb6232>] do_mount_root+0x1e/0x94
+[   20.680186]   [<ffffffff84cb64c2>] mount_block_root+0xe2/0x224
+[   20.680186]   [<ffffffff84cb672f>] mount_root+0x12b/0x136
+[   20.680186]   [<ffffffff84cb689f>] prepare_namespace+0x165/0x19e
+[   20.680186]   [<ffffffff84cb5afb>] kernel_init+0x274/0x28a
+[   20.680186]   [<ffffffff8325dd34>] kernel_thread_helper+0x4/0x10
+[   20.680186] irq event stamp: 1551906
+[   20.680186] hardirqs last  enabled at (1551906): [<ffffffff8325b7db>] _raw_spin_unlock_irq+0x2b/0x80
+[   20.680186] hardirqs last disabled at (1551905): [<ffffffff8325aea4>] _raw_spin_lock_irq+0x34/0xa0
+[   20.680186] softirqs last  enabled at (1551022): [<ffffffff810e316b>] __do_softirq+0x3db/0x460
+[   20.680186] softirqs last disabled at (1551903): [<ffffffff8325de2c>] call_softirq+0x1c/0x30
+[   20.680186] 
+[   20.680186] other info that might help us debug this:
+[   20.680186]  Possible unsafe locking scenario:
+[   20.680186] 
+[   20.680186]        CPU0
+[   20.680186]        ----
+[   20.680186]   lock(key#3);
+[   20.680186]   <Interrupt>
+[   20.680186]     lock(key#3);
+[   20.680186] 
+[   20.680186]  *** DEADLOCK ***
+[   20.680186] 
+[   20.680186] 2 locks held by rcu_torture_rea/2493:
+[   20.680186]  #0:  (rcu_read_lock){.+.+..}, at: [<ffffffff811914f0>] rcu_torture_read_lock+0x0/0x80
+[   20.680186]  #1:  (mm/page-writeback.c:144){+.-...}, at: [<ffffffff810ebf90>] call_timer_fn+0x0/0x260
+[   20.680186] 
+[   20.680186] stack backtrace:
+[   20.680186] Pid: 2493, comm: rcu_torture_rea Tainted: G        W    3.4.0-next-20120528-sasha-00008-g11ef39f #307
+[   20.680186] Call Trace:
+[   20.680186]  <IRQ>  [<ffffffff8114f6b9>] print_usage_bug+0x1a9/0x1d0
+[   20.680186]  [<ffffffff8114eed0>] ? check_usage_forwards+0xf0/0xf0
+[   20.680186]  [<ffffffff8114fb99>] mark_lock_irq+0xc9/0x270
+[   20.680186]  [<ffffffff8114fe5d>] mark_lock+0x11d/0x200
+[   20.680186]  [<ffffffff81150030>] mark_irqflags+0xf0/0x170
+[   20.680186]  [<ffffffff811519bb>] __lock_acquire+0x2bb/0x4c0
+[   20.680186]  [<ffffffff81151d4a>] lock_acquire+0x18a/0x1e0
+[   20.680186]  [<ffffffff81993527>] ? __percpu_counter_sum+0x17/0xc0
+[   20.680186]  [<ffffffff811d9260>] ? laptop_io_completion+0x30/0x30
+[   20.680186]  [<ffffffff8325ac9b>] _raw_spin_lock+0x3b/0x70
+[   20.680186]  [<ffffffff81993527>] ? __percpu_counter_sum+0x17/0xc0
+[   20.680186]  [<ffffffff81993527>] __percpu_counter_sum+0x17/0xc0
+[   20.680186]  [<ffffffff810ebf90>] ? init_timer_deferrable_key+0x20/0x20
+[   20.680186]  [<ffffffff8195b5c2>] fprop_new_period+0x12/0x60
+[   20.680186]  [<ffffffff811d929d>] writeout_period+0x3d/0xa0
+[   20.680186]  [<ffffffff810ec0bf>] call_timer_fn+0x12f/0x260
+[   20.680186]  [<ffffffff810ebf90>] ? init_timer_deferrable_key+0x20/0x20
+[   20.680186]  [<ffffffff8325b7db>] ? _raw_spin_unlock_irq+0x2b/0x80
+[   20.680186]  [<ffffffff811d9260>] ? laptop_io_completion+0x30/0x30
+[   20.680186]  [<ffffffff810ecd6e>] run_timer_softirq+0x29e/0x2f0
+[   20.680186]  [<ffffffff810e2fb1>] __do_softirq+0x221/0x460
+[   20.680186]  [<ffffffff8109a516>] ? kvm_clock_read+0x46/0x80
+[   20.680186]  [<ffffffff8325de2c>] call_softirq+0x1c/0x30
+[   20.680186]  [<ffffffff81069235>] do_softirq+0x75/0x120
+[   20.680186]  [<ffffffff810e1fbb>] irq_exit+0x5b/0xf0
+[   20.680186]  [<ffffffff8108e88a>] smp_apic_timer_interrupt+0x8a/0xa0
+[   20.680186]  [<ffffffff8325d42f>] apic_timer_interrupt+0x6f/0x80
+[   20.680186]  <EOI>  [<ffffffff81151d7e>] ? lock_acquire+0x1be/0x1e0
+[   20.680186]  [<ffffffff811914f0>] ? rcu_torture_reader+0x380/0x380
+[   20.680186]  [<ffffffff81191523>] rcu_torture_read_lock+0x33/0x80
+[   20.680186]  [<ffffffff811914f0>] ? rcu_torture_reader+0x380/0x380
+[   20.680186]  [<ffffffff81191293>] rcu_torture_reader+0x123/0x380
+[   20.680186]  [<ffffffff8118ff50>] ? T.841+0x50/0x50
+[   20.680186]  [<ffffffff81191170>] ? rcu_torture_read_unlock+0x60/0x60
+[   20.680186]  [<ffffffff811071c2>] kthread+0xb2/0xc0
+[   20.680186]  [<ffffffff8325dd34>] kernel_thread_helper+0x4/0x10
+[   20.680186]  [<ffffffff8325bfb4>] ? retint_restore_args+0x13/0x13
+[   20.680186]  [<ffffffff81107110>] ? __init_kthread_worker+0x70/0x70
+[   20.680186]  [<ffffffff8325dd30>] ? gs_change+0x13/0x13
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
