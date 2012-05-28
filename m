@@ -1,86 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx187.postini.com [74.125.245.187])
-	by kanga.kvack.org (Postfix) with SMTP id 3CE996B0082
-	for <linux-mm@kvack.org>; Mon, 28 May 2012 13:22:49 -0400 (EDT)
-Received: by dakp5 with SMTP id p5so5452303dak.14
-        for <linux-mm@kvack.org>; Mon, 28 May 2012 10:22:48 -0700 (PDT)
-Subject: Re: [PATCH] memcg: remove the unnecessary MEM_CGROUP_STAT_DATA
-Mime-Version: 1.0 (Apple Message framework v1084)
+Received: from psmtp.com (na3sys010amx185.postini.com [74.125.245.185])
+	by kanga.kvack.org (Postfix) with SMTP id 2B14C6B005A
+	for <linux-mm@kvack.org>; Mon, 28 May 2012 15:13:30 -0400 (EDT)
+Date: Mon, 28 May 2012 21:13:22 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH] mm/hugetlb: Use compound page head in migrate_huge_page
+Message-ID: <20120528191322.GA10071@tiehlicka.suse.cz>
+References: <1338218490-30978-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-From: Chen Baozi <baozich@gmail.com>
-In-Reply-To: <20120528133918.GA22185@tiehlicka.suse.cz>
-Date: Tue, 29 May 2012 01:22:41 +0800
-Content-Transfer-Encoding: quoted-printable
-Message-Id: <B23B2709-F70C-4B47-80CC-FBC3AA40A907@gmail.com>
-References: <1337933501-3985-1-git-send-email-baozich@gmail.com> <20120528133918.GA22185@tiehlicka.suse.cz>
+Content-Disposition: inline
+In-Reply-To: <1338218490-30978-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Johannes Weiner <hannes@cmpxchg.org>
+To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Cc: linux-mm@kvack.org, kamezawa.hiroyu@jp.fujitsu.com, akpm@linux-foundation.org, rientjes@google.com, linux-kernel@vger.kernel.org
 
+On Mon 28-05-12 20:51:30, Aneesh Kumar K.V wrote:
+> From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+> 
+> The change was introduced by "hugetlb: simplify migrate_huge_page() "
+> 
+> We should use compound page head instead of tail pages in
+> migrate_huge_page().
+> 
+> Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
+> ---
+>  mm/memory-failure.c |    4 ++--
+>  1 file changed, 2 insertions(+), 2 deletions(-)
+> 
+> This is an important bug fix. If we want we can fold it with the not
+> yet merged upstream patch mentioned above in linux-next. The stack
+> trace for the crash is
+> 
+> [   75.337421] BUG: unable to handle kernel NULL pointer dereference at 0000000000000080
+> [   75.338386] IP: [<ffffffff816b3f0f>] __mutex_lock_common+0xa1/0x350
+> [   75.338386] PGD 1d700067 PUD 1d7dd067 PMD 0
+> [   75.338386] Oops: 0002 [#1] SMP
+> [   75.338386] CPU 1
+> [   75.338386] Modules linked in:
+> ...
+> ...
+> 
+> [   75.338386] Call Trace:
+> [   75.338386]  [<ffffffff810ffc04>] ? try_to_unmap_file+0x38/0x51c
+> [   75.338386]  [<ffffffff810ffc04>] ? try_to_unmap_file+0x38/0x51c
+> [   75.338386]  [<ffffffff813b5f8b>] ? vsnprintf+0x83/0x421
+> [   75.338386]  [<ffffffff816b427d>] mutex_lock_nested+0x2a/0x31
+> [   75.338386]  [<ffffffff8110999b>] ? alloc_huge_page_node+0x1d/0x55
+> [   75.338386]  [<ffffffff810ffc04>] try_to_unmap_file+0x38/0x51c
+> [   75.338386]  [<ffffffff8110999b>] ? alloc_huge_page_node+0x1d/0x55
+> [   75.338386]  [<ffffffff810a06b9>] ? arch_local_irq_save+0x9/0xc
+> [   75.338386]  [<ffffffff816b5e3b>] ? _raw_spin_unlock+0x23/0x27
+> [   75.338386]  [<ffffffff81100839>] try_to_unmap+0x25/0x3c
+> [   75.338386]  [<ffffffff810641c2>] ? console_unlock+0x210/0x238
+> [   75.338386]  [<ffffffff811141e3>] migrate_huge_page+0x8d/0x178
 
-On May 28, 2012, at 9:39 PM, Michal Hocko wrote:
+This should be part of the changelog.
 
-> On Fri 25-05-12 16:11:41, Chen Baozi wrote:
->> Since MEM_CGROUP_ON_MOVE has been removed, it comes to be redudant
->> to hold MEM_CGROUP_STAT_DATA to mark the end of data requires
->> synchronization.
->=20
-> A similar patch has been already posted by Johannes 2 weeks ago
-> (http://www.gossamer-threads.com/lists/linux/kernel/1535888) and it
-> should appear in -next soonish.
-Oh, I see, Thanks for informing.
+> 
+> 
+> diff --git a/mm/memory-failure.c b/mm/memory-failure.c
+> index 4a45098..53a1495 100644
+> --- a/mm/memory-failure.c
+> +++ b/mm/memory-failure.c
+> @@ -1428,8 +1428,8 @@ static int soft_offline_huge_page(struct page *page, int flags)
+>  	}
+>  
+>  	/* Keep page count to indicate a given hugepage is isolated. */
+> -	ret = migrate_huge_page(page, new_page, MPOL_MF_MOVE_ALL, 0, true);
+> -	put_page(page);
+> +	ret = migrate_huge_page(hpage, new_page, MPOL_MF_MOVE_ALL, 0, true);
+> +	put_page(hpage);
+>  	if (ret) {
+>  		pr_info("soft offline: %#lx: migration failed %d, type %lx\n",
+>  			pfn, ret, page->flags);
 
-Baozi
+I guess you want hpage->flags here.
 
->=20
->>=20
->> Signed-off-by: Chen Baozi <baozich@gmail.com>
->> ---
->> mm/memcontrol.c |    3 +--
->> 1 files changed, 1 insertions(+), 2 deletions(-)
->>=20
->> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
->> index f342778..446ca94 100644
->> --- a/mm/memcontrol.c
->> +++ b/mm/memcontrol.c
->> @@ -88,7 +88,6 @@ enum mem_cgroup_stat_index {
->> 	MEM_CGROUP_STAT_RSS,	   /* # of pages charged as anon rss */
->> 	MEM_CGROUP_STAT_FILE_MAPPED,  /* # of pages charged as file rss =
-*/
->> 	MEM_CGROUP_STAT_SWAPOUT, /* # of pages, swapped out */
->> -	MEM_CGROUP_STAT_DATA, /* end of data requires synchronization */
->> 	MEM_CGROUP_STAT_NSTATS,
->> };
->>=20
->> @@ -2139,7 +2138,7 @@ static void mem_cgroup_drain_pcp_counter(struct =
-mem_cgroup *memcg, int cpu)
->> 	int i;
->>=20
->> 	spin_lock(&memcg->pcp_counter_lock);
->> -	for (i =3D 0; i < MEM_CGROUP_STAT_DATA; i++) {
->> +	for (i =3D 0; i < MEM_CGROUP_STAT_NSTATS; i++) {
->> 		long x =3D per_cpu(memcg->stat->count[i], cpu);
->>=20
->> 		per_cpu(memcg->stat->count[i], cpu) =3D 0;
->> --=20
->> 1.7.1
->>=20
->> --
->> To unsubscribe, send a message with 'unsubscribe linux-mm' in
->> the body to majordomo@kvack.org.  For more info on Linux MM,
->> see: http://www.linux-mm.org/ .
->> Fight unfair telecom internet charges in Canada: sign =
-http://stopthemeter.ca/
->> Don't email: <a href=3Dmailto:"dont@kvack.org"> email@kvack.org </a>
->=20
-> --=20
-> Michal Hocko
-> SUSE Labs
-> SUSE LINUX s.r.o.
-> Lihovarska 1060/12
-> 190 00 Praha 9   =20
-> Czech Republic
+-- 
+Michal Hocko
+SUSE Labs
+SUSE LINUX s.r.o.
+Lihovarska 1060/12
+190 00 Praha 9    
+Czech Republic
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
