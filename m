@@ -1,74 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx165.postini.com [74.125.245.165])
-	by kanga.kvack.org (Postfix) with SMTP id C23816B0083
-	for <linux-mm@kvack.org>; Mon, 28 May 2012 09:39:22 -0400 (EDT)
-Date: Mon, 28 May 2012 15:39:18 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH] memcg: remove the unnecessary MEM_CGROUP_STAT_DATA
-Message-ID: <20120528133918.GA22185@tiehlicka.suse.cz>
-References: <1337933501-3985-1-git-send-email-baozich@gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1337933501-3985-1-git-send-email-baozich@gmail.com>
+Received: from psmtp.com (na3sys010amx196.postini.com [74.125.245.196])
+	by kanga.kvack.org (Postfix) with SMTP id 0E5EF6B0082
+	for <linux-mm@kvack.org>; Mon, 28 May 2012 11:20:43 -0400 (EDT)
+Received: from /spool/local
+	by e28smtp06.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
+	Mon, 28 May 2012 20:50:37 +0530
+Received: from d28av01.in.ibm.com (d28av01.in.ibm.com [9.184.220.63])
+	by d28relay05.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q4SFKXqF64946352
+	for <linux-mm@kvack.org>; Mon, 28 May 2012 20:50:34 +0530
+Received: from d28av01.in.ibm.com (loopback [127.0.0.1])
+	by d28av01.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q4SKoBeD010208
+	for <linux-mm@kvack.org>; Tue, 29 May 2012 02:20:11 +0530
+From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Subject: [PATCH] mm/hugetlb: Add documentation for hugetlb limit fail count interface
+Date: Mon, 28 May 2012 20:50:24 +0530
+Message-Id: <1338218424-30864-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Chen Baozi <baozich@gmail.com>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Johannes Weiner <hannes@cmpxchg.org>
+To: linux-mm@kvack.org, kamezawa.hiroyu@jp.fujitsu.com, mhocko@suse.cz, akpm@linux-foundation.org
+Cc: linux-kernel@vger.kernel.org, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
 
-On Fri 25-05-12 16:11:41, Chen Baozi wrote:
-> Since MEM_CGROUP_ON_MOVE has been removed, it comes to be redudant
-> to hold MEM_CGROUP_STAT_DATA to mark the end of data requires
-> synchronization.
+From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
 
-A similar patch has been already posted by Johannes 2 weeks ago
-(http://www.gossamer-threads.com/lists/linux/kernel/1535888) and it
-should appear in -next soonish.
+Document memory.hugetlb.<x>.failcnt interface
 
-> 
-> Signed-off-by: Chen Baozi <baozich@gmail.com>
-> ---
->  mm/memcontrol.c |    3 +--
->  1 files changed, 1 insertions(+), 2 deletions(-)
-> 
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index f342778..446ca94 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -88,7 +88,6 @@ enum mem_cgroup_stat_index {
->  	MEM_CGROUP_STAT_RSS,	   /* # of pages charged as anon rss */
->  	MEM_CGROUP_STAT_FILE_MAPPED,  /* # of pages charged as file rss */
->  	MEM_CGROUP_STAT_SWAPOUT, /* # of pages, swapped out */
-> -	MEM_CGROUP_STAT_DATA, /* end of data requires synchronization */
->  	MEM_CGROUP_STAT_NSTATS,
->  };
->  
-> @@ -2139,7 +2138,7 @@ static void mem_cgroup_drain_pcp_counter(struct mem_cgroup *memcg, int cpu)
->  	int i;
->  
->  	spin_lock(&memcg->pcp_counter_lock);
-> -	for (i = 0; i < MEM_CGROUP_STAT_DATA; i++) {
-> +	for (i = 0; i < MEM_CGROUP_STAT_NSTATS; i++) {
->  		long x = per_cpu(memcg->stat->count[i], cpu);
->  
->  		per_cpu(memcg->stat->count[i], cpu) = 0;
-> -- 
-> 1.7.1
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Fight unfair telecom internet charges in Canada: sign http://stopthemeter.ca/
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
+---
+ Documentation/cgroups/memory.txt |    1 +
+ 1 file changed, 1 insertion(+)
 
+diff --git a/Documentation/cgroups/memory.txt b/Documentation/cgroups/memory.txt
+index 730e222a..3a47ec5 100644
+--- a/Documentation/cgroups/memory.txt
++++ b/Documentation/cgroups/memory.txt
+@@ -80,6 +80,7 @@ Brief summary of control files.
+  memory.hugetlb.<hugepagesize>.max_usage_in_bytes # show max "hugepagesize" hugetlb  usage recorded
+  memory.hugetlb.<hugepagesize>.usage_in_bytes     # show current res_counter usage for "hugepagesize" hugetlb
+ 						  # see 5.7 for details
++ memory.hugetlb.<hugepagesize>.failcnt		  # show the number of allocation failure due to HugeTLB limit
+ 
+ 1. History
+ 
 -- 
-Michal Hocko
-SUSE Labs
-SUSE LINUX s.r.o.
-Lihovarska 1060/12
-190 00 Praha 9    
-Czech Republic
+1.7.10
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
