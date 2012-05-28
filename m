@@ -1,81 +1,179 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx133.postini.com [74.125.245.133])
-	by kanga.kvack.org (Postfix) with SMTP id 23BF76B00E7
-	for <linux-mm@kvack.org>; Mon, 28 May 2012 11:21:43 -0400 (EDT)
-Received: from /spool/local
-	by e28smtp04.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
-	Mon, 28 May 2012 20:51:39 +0530
-Received: from d28av05.in.ibm.com (d28av05.in.ibm.com [9.184.220.67])
-	by d28relay04.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q4SFLYWx61669426
-	for <linux-mm@kvack.org>; Mon, 28 May 2012 20:51:35 +0530
-Received: from d28av05.in.ibm.com (loopback [127.0.0.1])
-	by d28av05.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q4SKq59u027223
-	for <linux-mm@kvack.org>; Tue, 29 May 2012 06:52:05 +1000
-From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Subject: [PATCH] mm/hugetlb: Use compound page head in migrate_huge_page
-Date: Mon, 28 May 2012 20:51:30 +0530
-Message-Id: <1338218490-30978-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+Received: from psmtp.com (na3sys010amx186.postini.com [74.125.245.186])
+	by kanga.kvack.org (Postfix) with SMTP id 544866B0092
+	for <linux-mm@kvack.org>; Mon, 28 May 2012 11:39:32 -0400 (EDT)
+From: Michal Hocko <mhocko@suse.cz>
+Subject: [RFC -mm] memcg: prevent from OOM with too many dirty pages
+Date: Mon, 28 May 2012 17:38:55 +0200
+Message-Id: <1338219535-7874-1-git-send-email-mhocko@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org, kamezawa.hiroyu@jp.fujitsu.com, mhocko@suse.cz, akpm@linux-foundation.org, rientjes@google.com
-Cc: linux-kernel@vger.kernel.org, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+To: linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujtisu.com>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@redhat.com>, Ying Han <yinghan@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Greg Thelen <gthelen@google.com>, Hugh Dickins <hughd@google.com>
 
-From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Current implementation of dirty pages throttling is not memcg aware which makes
+it easy to have LRUs full of dirty pages which might lead to memcg OOM if the
+hard limit is small and so the lists are scanned faster than pages written
+back.
 
-The change was introduced by "hugetlb: simplify migrate_huge_page() "
+This patch fixes the problem by throttling the allocating process (possibly
+a writer) during the hard limit reclaim by waiting on PageReclaim pages.
+We are waiting only for PageReclaim pages because those are the pages
+that made one full round over LRU and that means that the writeback is much
+slower than scanning.
+The solution is far from being ideal - long term solution is memcg aware
+dirty throttling - but it is meant to be a band aid until we have a real
+fix.
+We are seeing this happening during nightly backups which are placed into
+containers to prevent from eviction of the real working set.
 
-We should use compound page head instead of tail pages in
-migrate_huge_page().
+The change affects only memcg reclaim and only when we encounter PageReclaim
+pages which is a signal that the reclaim doesn't catch up on with the writers
+so somebody should be throttled. This could be potentially unfair because it
+could be somebody else from the group who gets throttled on behalf of the
+writer but as writers need to allocate as well and they allocate in higher rate
+the probability that only innocent processes would be penalized is not that
+high.
 
-Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
+I have tested this change by a simple dd copying /dev/zero to tmpfs or ext3
+running under small memcg (1G copy under 5M, 60M, 300M and 2G containers) and
+dd got killed by OOM killer every time. With the patch I could run the dd with
+the same size under 5M controller without any OOM.
+The issue is more visible with slower devices for output.
+
+* With the patch
+================
+* tmpfs size=2G
+---------------
+$ vim cgroup_cache_oom_test.sh
+$ ./cgroup_cache_oom_test.sh 5M
+using Limit 5M for group
+1000+0 records in
+1000+0 records out
+1048576000 bytes (1.0 GB) copied, 30.4049 s, 34.5 MB/s
+$ ./cgroup_cache_oom_test.sh 60M
+using Limit 60M for group
+1000+0 records in
+1000+0 records out
+1048576000 bytes (1.0 GB) copied, 31.4561 s, 33.3 MB/s
+$ ./cgroup_cache_oom_test.sh 300M
+using Limit 300M for group
+1000+0 records in
+1000+0 records out
+1048576000 bytes (1.0 GB) copied, 20.4618 s, 51.2 MB/s
+$ ./cgroup_cache_oom_test.sh 2G
+using Limit 2G for group
+1000+0 records in
+1000+0 records out
+1048576000 bytes (1.0 GB) copied, 1.42172 s, 738 MB/s
+
+* ext3
+------
+$ ./cgroup_cache_oom_test.sh 5M
+using Limit 5M for group
+1000+0 records in
+1000+0 records out
+1048576000 bytes (1.0 GB) copied, 27.9547 s, 37.5 MB/s
+$ ./cgroup_cache_oom_test.sh 60M
+using Limit 60M for group
+1000+0 records in
+1000+0 records out
+1048576000 bytes (1.0 GB) copied, 30.3221 s, 34.6 MB/s
+$ ./cgroup_cache_oom_test.sh 300M
+using Limit 300M for group
+1000+0 records in
+1000+0 records out
+1048576000 bytes (1.0 GB) copied, 24.5764 s, 42.7 MB/s
+$ ./cgroup_cache_oom_test.sh 2G
+using Limit 2G for group
+1000+0 records in
+1000+0 records out
+1048576000 bytes (1.0 GB) copied, 3.35828 s, 312 MB/s
+
+* Without the patch
+===================
+* tmpfs size=2G
+---------------
+$ ./cgroup_cache_oom_test.sh 5M
+using Limit 5M for group
+./cgroup_cache_oom_test.sh: line 46:  4668 Killed                  dd if=/dev/zero of=$OUT/zero bs=1M count=$count
+$ ./cgroup_cache_oom_test.sh 60M
+using Limit 60M for group
+1000+0 records in
+1000+0 records out
+1048576000 bytes (1.0 GB) copied, 25.4989 s, 41.1 MB/s
+$ ./cgroup_cache_oom_test.sh 300M
+using Limit 300M for group
+1000+0 records in
+1000+0 records out
+1048576000 bytes (1.0 GB) copied, 24.3928 s, 43.0 MB/s
+$ ./cgroup_cache_oom_test.sh 2G
+using Limit 2G for group
+1000+0 records in
+1000+0 records out
+1048576000 bytes (1.0 GB) copied, 1.49797 s, 700 MB/s
+
+* ext3
+------
+$ ./cgroup_cache_oom_test.sh 5M
+using Limit 5M for group
+./cgroup_cache_oom_test.sh: line 46:  4689 Killed                  dd if=/dev/zero of=$OUT/zero bs=1M count=$count
+$ ./cgroup_cache_oom_test.sh 60M
+using Limit 60M for group
+./cgroup_cache_oom_test.sh: line 46:  4692 Killed                  dd if=/dev/zero of=$OUT/zero bs=1M count=$count
+$ ./cgroup_cache_oom_test.sh 300M
+using Limit 300M for group
+1000+0 records in
+1000+0 records out
+1048576000 bytes (1.0 GB) copied, 20.248 s, 51.8 MB/s
+$ ./cgroup_cache_oom_test.sh 2G
+using Limit 2G for group
+1000+0 records in
+1000+0 records out
+1048576000 bytes (1.0 GB) copied, 2.85201 s, 368 MB/s
+
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujtisu.com>
+Cc: Mel Gorman <mgorman@suse.de>
+Cc: Minchan Kim <minchan@kernel.org>
+Cc: Rik van Riel <riel@redhat.com>
+Cc: Ying Han <yinghan@google.com>
+Cc: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Greg Thelen <gthelen@google.com>
+Cc: Hugh Dickins <hughd@google.com>
+Signed-off-by: Michal Hocko <mhocko@suse.cz>
 ---
- mm/memory-failure.c |    4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ mm/vmscan.c |   17 ++++++++++++++---
+ 1 file changed, 14 insertions(+), 3 deletions(-)
 
-This is an important bug fix. If we want we can fold it with the not
-yet merged upstream patch mentioned above in linux-next. The stack
-trace for the crash is
-
-[   75.337421] BUG: unable to handle kernel NULL pointer dereference at 0000000000000080
-[   75.338386] IP: [<ffffffff816b3f0f>] __mutex_lock_common+0xa1/0x350
-[   75.338386] PGD 1d700067 PUD 1d7dd067 PMD 0
-[   75.338386] Oops: 0002 [#1] SMP
-[   75.338386] CPU 1
-[   75.338386] Modules linked in:
-...
-...
-
-[   75.338386] Call Trace:
-[   75.338386]  [<ffffffff810ffc04>] ? try_to_unmap_file+0x38/0x51c
-[   75.338386]  [<ffffffff810ffc04>] ? try_to_unmap_file+0x38/0x51c
-[   75.338386]  [<ffffffff813b5f8b>] ? vsnprintf+0x83/0x421
-[   75.338386]  [<ffffffff816b427d>] mutex_lock_nested+0x2a/0x31
-[   75.338386]  [<ffffffff8110999b>] ? alloc_huge_page_node+0x1d/0x55
-[   75.338386]  [<ffffffff810ffc04>] try_to_unmap_file+0x38/0x51c
-[   75.338386]  [<ffffffff8110999b>] ? alloc_huge_page_node+0x1d/0x55
-[   75.338386]  [<ffffffff810a06b9>] ? arch_local_irq_save+0x9/0xc
-[   75.338386]  [<ffffffff816b5e3b>] ? _raw_spin_unlock+0x23/0x27
-[   75.338386]  [<ffffffff81100839>] try_to_unmap+0x25/0x3c
-[   75.338386]  [<ffffffff810641c2>] ? console_unlock+0x210/0x238
-[   75.338386]  [<ffffffff811141e3>] migrate_huge_page+0x8d/0x178
-
-
-diff --git a/mm/memory-failure.c b/mm/memory-failure.c
-index 4a45098..53a1495 100644
---- a/mm/memory-failure.c
-+++ b/mm/memory-failure.c
-@@ -1428,8 +1428,8 @@ static int soft_offline_huge_page(struct page *page, int flags)
- 	}
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index c978ce4..7cccd81 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -720,9 +720,20 @@ static unsigned long shrink_page_list(struct list_head *page_list,
+ 			(PageSwapCache(page) && (sc->gfp_mask & __GFP_IO));
  
- 	/* Keep page count to indicate a given hugepage is isolated. */
--	ret = migrate_huge_page(page, new_page, MPOL_MF_MOVE_ALL, 0, true);
--	put_page(page);
-+	ret = migrate_huge_page(hpage, new_page, MPOL_MF_MOVE_ALL, 0, true);
-+	put_page(hpage);
- 	if (ret) {
- 		pr_info("soft offline: %#lx: migration failed %d, type %lx\n",
- 			pfn, ret, page->flags);
+ 		if (PageWriteback(page)) {
+-			nr_writeback++;
+-			unlock_page(page);
+-			goto keep;
++			/*
++			 * memcg doesn't have any dirty pages throttling so we
++			 * could easily OOM just because too many pages are in
++			 * writeback from reclaim and there is nothing else to
++			 * reclaim.
++			 */
++			if (PageReclaim(page)
++					&& may_enter_fs && !global_reclaim(sc))
++				wait_on_page_writeback(page);
++			else {
++				nr_writeback++;
++				unlock_page(page);
++				goto keep;
++			}
+ 		}
+ 
+ 		references = page_check_references(page, sc);
 -- 
 1.7.10
 
