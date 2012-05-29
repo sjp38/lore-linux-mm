@@ -1,103 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx101.postini.com [74.125.245.101])
-	by kanga.kvack.org (Postfix) with SMTP id 256BE6B005D
-	for <linux-mm@kvack.org>; Tue, 29 May 2012 13:34:41 -0400 (EDT)
-Date: Tue, 29 May 2012 19:33:47 +0200
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [PATCH 22/35] autonuma: sched_set_autonuma_need_balance
-Message-ID: <20120529173347.GJ21339@redhat.com>
-References: <1337965359-29725-1-git-send-email-aarcange@redhat.com>
- <1337965359-29725-23-git-send-email-aarcange@redhat.com>
- <1338307942.26856.111.camel@twins>
+Received: from psmtp.com (na3sys010amx144.postini.com [74.125.245.144])
+	by kanga.kvack.org (Postfix) with SMTP id E3D726B005D
+	for <linux-mm@kvack.org>; Tue, 29 May 2012 13:36:08 -0400 (EDT)
+Received: by wefh52 with SMTP id h52so4017583wef.14
+        for <linux-mm@kvack.org>; Tue, 29 May 2012 10:36:07 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1338307942.26856.111.camel@twins>
+In-Reply-To: <20120529155759.GA11326@localhost>
+References: <20120528114124.GA6813@localhost> <CA+55aFxHt8q8+jQDuoaK=hObX+73iSBTa4bBWodCX3s-y4Q1GQ@mail.gmail.com>
+ <20120529155759.GA11326@localhost>
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Date: Tue, 29 May 2012 10:35:46 -0700
+Message-ID: <CA+55aFykFaBhzzEyRYWRS9Qoy_q_R65Cuth7=XvfOZEMqjn6=w@mail.gmail.com>
+Subject: Re: write-behind on streaming writes
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Hillf Danton <dhillf@gmail.com>, Dan Smith <danms@us.ibm.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>, Paul Turner <pjt@google.com>, Suresh Siddha <suresh.b.siddha@intel.com>, Mike Galbraith <efault@gmx.de>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Bharata B Rao <bharata.rao@gmail.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Srivatsa Vaddagiri <vatsa@linux.vnet.ibm.com>, Christoph Lameter <cl@linux.com>
+To: Fengguang Wu <fengguang.wu@intel.com>
+Cc: LKML <linux-kernel@vger.kernel.org>, "Myklebust, Trond" <Trond.Myklebust@netapp.com>, linux-fsdevel@vger.kernel.org, Linux Memory Management List <linux-mm@kvack.org>
 
-On Tue, May 29, 2012 at 06:12:22PM +0200, Peter Zijlstra wrote:
-> On Fri, 2012-05-25 at 19:02 +0200, Andrea Arcangeli wrote:
-> > Invoke autonuma_balance only on the busy CPUs at the same frequency of
-> > the CFS load balance.
-> > 
-> > Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
-> > ---
-> >  kernel/sched/fair.c |    3 +++
-> >  1 files changed, 3 insertions(+), 0 deletions(-)
-> > 
-> > diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
-> > index 99d1d33..1357938 100644
-> > --- a/kernel/sched/fair.c
-> > +++ b/kernel/sched/fair.c
-> > @@ -4893,6 +4893,9 @@ static void run_rebalance_domains(struct softirq_action *h)
-> >  
-> >  	rebalance_domains(this_cpu, idle);
-> >  
-> > +	if (!this_rq->idle_balance)
-> > +		sched_set_autonuma_need_balance();
-> > +
-> 
-> This just isn't enough.. the whole thing needs to move out of
-> schedule(). The only time schedule() should ever look at another cpu is
-> if its idle.
-> 
-> As it stands load-balance actually takes too much time as it is to live
-> in a softirq, -rt gets around that by pushing all softirqs into a thread
-> and I was thinking of doing some of that for mainline too.
+On Tue, May 29, 2012 at 8:57 AM, Fengguang Wu <fengguang.wu@intel.com> wrote:
+>
+> Actually O_SYNC is pretty close to the below code for the purpose of
+> limiting the dirty and writeback pages, except that it's not on by
+> default, hence means nothing for normal users.
 
-No worries, I didn't mean to leave it like this forever. I was
-considering using the stop cpu _nowait variant but I didn't have
-enough time to realize if it would work for my case. I need to rethink
-about that.
+Absolutely not.
 
-I was thinking which thread to use for that or if to use the stop_cpu
-_nowait variant that active balancing is using, but it wasn't so easy
-to change and considering from a practical standpoint it already flies
-I released it. It's already an improvement, the previous approach was
-mostly a debug approach to see if autonuma_balance would flood the
-debug log and not converging.
+O_SYNC syncs the *current* write, syncs your metadata, and just
+generally makes your writer synchronous. It's just a f*cking moronic
+idea. Nobody sane ever uses it, since you are much better off just
+using fsync() if you want that kind of behavior. That's one of those
+"stupid legacy flags" things that have no sane use.
 
-autonuma_balance isn't fundamentally different from load_balance, they
-boot look around at the other runqueues, to see if some task should be
-moved.
+The whole point is that doing that is never the right thing to do. You
+want to sync *past* writes, and you never ever want to wait on them
+unless you just sent more (newer) writes to the disk that you are
+*not* waiting on - so that you always have more IO pending.
 
-If you move the load_balance to a kernel thread, I could move
-autonuma_balance there too.
+O_SYNC is the absolutely anti-thesis of that kind of "multiple levels
+of overlapping IO". Because it requires that the IO is _done_ by the
+time you start more, which is against the whole point.
 
-I just wasn't sure if to invoke a schedule() to actually call
-autonuma_balance() made any sense, so I thought running it from
-softirq too with the noblocking _nowait variant (or keep it in
-schedule to be able to call stop_one_cpu without _nowait) would have
-been more efficient.
+> It seems to me all about optimizing the 1-dd case for desktop users,
+> and the most beautiful thing about per-file write behind is, it keeps
+> both the number of dirty and writeback pages low in the system when
+> there are only one or two sequential dirtier tasks. Which is good for
+> responsiveness.
 
-The moment I gave up on the _nowait variant before releasing is when I
-couldn't understand what is tlb_migrate_finish doing, and why it's not
-present in the _nowait version in fair.c. Can you explain me that?
+Yes, but I don't think it's about a single-dd case - it's about just
+trying to handle one common case (streaming writes) efficiently and
+naturally. Try to get those out of the system so that you can then
+worry about the *other* cases knowing that they don't have that kind
+of big streaming behavior.
 
-Obviously it's only used by ia64 so I could as well ignore that but it
-was still an additional annoyance that made me think I needed a bit
-more of time to think about it.
+For example, right now our main top-level writeback logic is *not*
+about streaming writes (just dirty counts), but then we try to "find"
+the locality by making the lower-level writeback do the whole "write
+back by chunking inodes" without really having any higher-level
+information.
 
-I'm glad you acknowledge load_balance already takes a bulk of the time
-as it needs to find the busiest runqueue checking other CPU runqueues
-too... With autonuma14 there's no measurable difference in hackbench
-with autonuma=y or noautonuma boot parameter anymore, or upstream
-without autonuma applied (not just autonuma=n). So the cost on a
-24-way SMP is 0.
+I just suspect that we'd be better off teaching upper levels about the
+streaming. I know for a fact that if I do it by hand, system
+responsiveness was *much* better, and IO throughput didn't go down at
+all.
 
-Then I tried to measure it also with lockdep and all lock/mutex
-debugging/stats enabled there's a slighty measurable slowdown in
-hackbench that may not be a measurement error, but it's barely
-noticeable and I expect if I remove load_balance from the softirq, the
-gain would be bigger than removing autonuma_balance (it goes from 70
-to 80 sec in avg IIRC, but the error is about 10sec, just the avg
-seems slightly higher). With lockdep and all other debug disabled it
-takes fixed 6sec for all configs and it's definitely not measurable
-(tested both thread and process, not that it makes any difference for
-this).
+> Note that the above user space code won't work well when there are 10+
+> dirtier tasks. It effectively creates 10+ IO submitters on different
+> regions of the disk and thus create lots of seeks.
+
+Not really much more than our current writeback code does. It
+*schedules* data for writing, but doesn't wait for it until much
+later.
+
+You seem to think it was synchronous. It's not. Look at the second
+sync_file_range() thing, and the important part is the "index-1". The
+fact that you confused this with O_SYNC seems to be the same thing.
+This has absolutely *nothing* to do with O_SYNC.
+
+The other important part is that the chunk size is fairly large. We do
+read-ahead in 64k kind of things, to make sense the write-behind
+chunking needs to be in "multiple megabytes".  8MB is probably the
+minimum size it makes sense.
+
+The write-behind would be for things like people writing disk images
+and video files. Not for random IO in smaller chunks.
+
+                       Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
