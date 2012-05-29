@@ -1,56 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx102.postini.com [74.125.245.102])
-	by kanga.kvack.org (Postfix) with SMTP id BCDD86B006C
-	for <linux-mm@kvack.org>; Tue, 29 May 2012 11:07:43 -0400 (EDT)
-Date: Tue, 29 May 2012 10:07:39 -0500 (CDT)
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: [PATCH v3 00/28] kmem limitation for memcg
-In-Reply-To: <4FC3381C.9020608@parallels.com>
-Message-ID: <alpine.DEB.2.00.1205290955270.4666@router.home>
-References: <1337951028-3427-1-git-send-email-glommer@parallels.com> <20120525133441.GB30527@tiehlicka.suse.cz> <alpine.DEB.2.00.1205250933170.22597@router.home> <4FC3381C.9020608@parallels.com>
+Received: from psmtp.com (na3sys010amx126.postini.com [74.125.245.126])
+	by kanga.kvack.org (Postfix) with SMTP id E8FCF6B006C
+	for <linux-mm@kvack.org>; Tue, 29 May 2012 11:14:15 -0400 (EDT)
+Date: Tue, 29 May 2012 11:07:14 -0400
+From: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
+Subject: Re: [PATCHv2 3/4] mm: vmalloc: add VM_DMA flag to indicate areas
+ used by dma-mapping framework
+Message-ID: <20120529150714.GA8293@phenom.dumpdata.com>
+References: <1337252085-22039-1-git-send-email-m.szyprowski@samsung.com>
+ <1337252085-22039-4-git-send-email-m.szyprowski@samsung.com>
+ <4FBB3B41.8010102@kernel.org>
+ <01e501cd39a8$67f34ea0$37d9ebe0$%szyprowski@samsung.com>
+ <20120524122854.GD11860@linux-sh.org>
+ <CAHGf_=qmBMFfV=UhXFtepO8styaQonfBA0E0+FO0qSi7RLfJFA@mail.gmail.com>
+ <001d01cd3caa$a05d0510$e1170f30$%szyprowski@samsung.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <001d01cd3caa$a05d0510$e1170f30$%szyprowski@samsung.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Glauber Costa <glommer@parallels.com>
-Cc: Michal Hocko <mhocko@suse.cz>, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, linux-mm@kvack.org, kamezawa.hiroyu@jp.fujitsu.com, Tejun Heo <tj@kernel.org>, Li Zefan <lizefan@huawei.com>, Greg Thelen <gthelen@google.com>, Suleiman Souhlal <suleiman@google.com>, Johannes Weiner <hannes@cmpxchg.org>, devel@openvz.org, David Rientjes <rientjes@google.com>
+To: Marek Szyprowski <m.szyprowski@samsung.com>
+Cc: 'KOSAKI Motohiro' <kosaki.motohiro@gmail.com>, 'Paul Mundt' <lethal@linux-sh.org>, 'Minchan Kim' <minchan@kernel.org>, linux-arm-kernel@lists.infradead.org, linaro-mm-sig@lists.linaro.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, 'Kyungmin Park' <kyungmin.park@samsung.com>, 'Arnd Bergmann' <arnd@arndb.de>, 'Russell King - ARM Linux' <linux@arm.linux.org.uk>, 'Chunsang Jeong' <chunsang.jeong@linaro.org>, 'Krishna Reddy' <vdumpa@nvidia.com>, 'Hiroshi Doyu' <hdoyu@nvidia.com>, 'Subash Patel' <subashrp@gmail.com>, 'Nick Piggin' <npiggin@gmail.com>
 
-On Mon, 28 May 2012, Glauber Costa wrote:
+On Mon, May 28, 2012 at 10:19:39AM +0200, Marek Szyprowski wrote:
+> Hello,
+> 
+> On Sunday, May 27, 2012 2:35 PM KOSAKI Motohiro wrote:
+> 
+> > On Thu, May 24, 2012 at 8:28 AM, Paul Mundt <lethal@linux-sh.org> wrote:
+> > > On Thu, May 24, 2012 at 02:26:12PM +0200, Marek Szyprowski wrote:
+> > >> On Tuesday, May 22, 2012 9:08 AM Minchan Kim wrote:
+> > >> > Hmm, VM_DMA would become generic flag?
+> > >> > AFAIU, maybe VM_DMA would be used only on ARM arch.
+> > >>
+> > >> Right now yes, it will be used only on ARM architecture, but maybe other architecture will
+> > >> start using it once it is available.
+> > >>
+> > > There's very little about the code in question that is ARM-specific to
+> > > begin with. I plan to adopt similar changes on SH once the work has
+> > > settled one way or the other, so we'll probably use the VMA flag there,
+> > > too.
+> > 
+> > I don't think VM_DMA is good idea because x86_64 has two dma zones. x86 unaware
+> > patches make no sense.
+> 
+> I see no problems to add VM_DMA64 later if x86_64 starts using vmalloc areas for creating 
+> kernel mappings for the dma buffers (I assume that there are 2 dma zones: one 32bit and one
+> 64bit). Right now x86 and x86_64 don't use vmalloc areas for dma buffers, so I hardly see
+> how this patch can be considered as 'x86 unaware'.
 
-> > It would be best to merge these with my patchset to extract common code
-> > from the allocators. The modifications of individual slab allocators would
-> > then be not necessary anymore and it would save us a lot of work.
-> >
-> Some of them would not, some of them would still be. But also please note that
-> the patches here that deal with differences between allocators are usually the
-> low hanging fruits compared to the rest.
->
-> I agree that long term it not only better, but inevitable, if we are going to
-> merge both.
->
-> But right now, I think we should agree with the implementation itself - so if
-> you have any comments on how I am handling these, I'd be happy to hear. Then
-> we can probably set up a tree that does both, or get your patches merged and
-> I'll rebase, etc.
+Well they do - kind off. It is usually done by calling vmalloc_32 and then using
+the DMA API on top of those pages (or sometimes the non-portable virt_to_phys macro).
 
-Just looked over the patchset and its quite intrusive. I have never been
-fond of cgroups (IMHO hardware needs to be partitioned at physical
-boundaries) so I have not too much insight into what is going on in that
-area.
-
-The idea to just duplicate the caches leads to some weird stuff like the
-refcounting and the recovery of the arguments used during slab creation.
-
-I think it may be simplest to only account for the pages used by a slab in
-a memcg. That code could be added to the functions in the slab allocators
-that interface with the page allocators. Those are not that performance
-critical and would do not much harm.
-
-If you need per object accounting then the cleanest solution would be to
-duplicate the per node arrays per memcg (or only the statistics) and have
-the kmem_cache structure only once in memory.
-
-Its best if information is only in one place for design and for performance.
+Introducing this and replacing the vmalloc_32 with this seems like a nice step in making
+those device drivers APIs more portable?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
