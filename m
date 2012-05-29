@@ -1,38 +1,96 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx165.postini.com [74.125.245.165])
-	by kanga.kvack.org (Postfix) with SMTP id D88F86B005A
-	for <linux-mm@kvack.org>; Tue, 29 May 2012 10:23:21 -0400 (EDT)
-Message-ID: <4FC4DBD2.1060807@redhat.com>
-Date: Tue, 29 May 2012 10:23:14 -0400
-From: Rik van Riel <riel@redhat.com>
+Received: from psmtp.com (na3sys010amx193.postini.com [74.125.245.193])
+	by kanga.kvack.org (Postfix) with SMTP id 79C786B005D
+	for <linux-mm@kvack.org>; Tue, 29 May 2012 10:27:57 -0400 (EDT)
+Date: Tue, 29 May 2012 09:27:52 -0500 (CDT)
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: [PATCH v3 12/28] slab: pass memcg parameter to
+ kmem_cache_create
+In-Reply-To: <1337951028-3427-13-git-send-email-glommer@parallels.com>
+Message-ID: <alpine.DEB.2.00.1205290922340.4666@router.home>
+References: <1337951028-3427-1-git-send-email-glommer@parallels.com> <1337951028-3427-13-git-send-email-glommer@parallels.com>
 MIME-Version: 1.0
-Subject: Re: [GIT] (frontswap.v16-tag)
-References: <20120518204211.GA18571@localhost.localdomain> <20120524202221.GA19856@phenom.dumpdata.com> <CA+55aFzvAMezd=ph6b0iQ=aqsJm1tOdS6HRRQ6rD8mLCJr_MhQ@mail.gmail.com>
-In-Reply-To: <CA+55aFzvAMezd=ph6b0iQ=aqsJm1tOdS6HRRQ6rD8mLCJr_MhQ@mail.gmail.com>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Andrew Morton <akpm@linux-foundation.org>, chris.mason@oracle.com, matthew@wil.cx, ngupta@vflare.org, hannes@cmpxchg.org, hughd@google.com, sjenning@linux.vnet.ibm.com, JBeulich@novell.com, dan.magenheimer@oracle.com, linux-mm@kvack.org
+To: Glauber Costa <glommer@parallels.com>
+Cc: linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, linux-mm@kvack.org, kamezawa.hiroyu@jp.fujitsu.com, Tejun Heo <tj@kernel.org>, Li Zefan <lizefan@huawei.com>, Greg Thelen <gthelen@google.com>, Suleiman Souhlal <suleiman@google.com>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, devel@openvz.org, David Rientjes <rientjes@google.com>, Pekka Enberg <penberg@cs.helsinki.fi>
 
-On 05/27/2012 06:29 PM, Linus Torvalds wrote:
+On Fri, 25 May 2012, Glauber Costa wrote:
 
-> No, the real reason is that for new features like this - features that
-> I don't really see myself using personally and that I'm not all that
-> personally excited about - I *really* want others to pipe up with
-> "yes, we're using this, and yes, we want this to be merged".
+> index 06e4a3e..7c0cdd6 100644
+> --- a/include/linux/slab_def.h
+> +++ b/include/linux/slab_def.h
+> @@ -102,6 +102,13 @@ struct kmem_cache {
+>  	 */
+>  };
+>
+> +static inline void store_orig_align(struct kmem_cache *cachep, int orig_align)
+> +{
+> +#ifdef CONFIG_CGROUP_MEM_RES_CTLR_KMEM
+> +	cachep->memcg_params.orig_align = orig_align;
+> +#endif
+> +}
+> +
 
-I do not like some of the implementation details in the code,
-but I have no idea how to do it better.
+Why do you need to store the original alignment? Is the calculated
+alignment not enough?
 
-The functionality, especially zram and frontswap, are very
-desirable and would be good to have.
+> +++ b/mm/slab.c
+> @@ -1729,6 +1729,31 @@ void __init kmem_cache_init_late(void)
+>  	 */
+>  }
+>
+> +static int __init memcg_slab_register_all(void)
+> +{
+> +#ifdef CONFIG_CGROUP_MEM_RES_CTLR_KMEM
+> +	struct kmem_cache *cachep;
+> +	struct cache_sizes *sizes;
+> +
+> +	sizes = malloc_sizes;
+> +
+> +	while (sizes->cs_size != ULONG_MAX) {
+> +		if (sizes->cs_cachep)
+> +			mem_cgroup_register_cache(NULL, sizes->cs_cachep);
+> +		if (sizes->cs_dmacachep)
+> +			mem_cgroup_register_cache(NULL, sizes->cs_dmacachep);
+> +		sizes++;
+> +	}
+> +
+> +	mutex_lock(&cache_chain_mutex);
+> +	list_for_each_entry(cachep, &cache_chain, next)
+> +		mem_cgroup_register_cache(NULL, cachep);
+> +
+> +	mutex_unlock(&cache_chain_mutex);
+> +#endif /* CONFIG_CGROUP_MEM_RES_CTLR_KMEM */
+> +	return 0;
+> +}
 
-Pulling this code seems like the right thing to do.
+Ok this only duplicates the kmalloc arrays. Why not the others?
 
--- 
-All rights reversed
+> @@ -2331,7 +2350,7 @@ kmem_cache_create (const char *name, size_t size, size_t align,
+>  			continue;
+>  		}
+>
+> -		if (!strcmp(pc->name, name)) {
+> +		if (!memcg && !strcmp(pc->name, name)) {
+>  			printk(KERN_ERR
+>  			       "kmem_cache_create: duplicate cache %s\n", name);
+>  			dump_stack();
+
+This implementation means that duplicate cache detection will no longer
+work within a cgroup?
+
+> @@ -2543,7 +2564,12 @@ kmem_cache_create (const char *name, size_t size, size_t align,
+>  	cachep->ctor = ctor;
+>  	cachep->name = name;
+>
+> +	if (g_cpucache_up >= FULL)
+> +		mem_cgroup_register_cache(memcg, cachep);
+
+What happens if a cgroup was active during creation of slab xxy but
+then a process running in a different cgroup uses that slab to allocate
+memory? Is it charged to the first cgroup?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
