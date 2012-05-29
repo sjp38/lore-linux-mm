@@ -1,60 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx126.postini.com [74.125.245.126])
-	by kanga.kvack.org (Postfix) with SMTP id E8FCF6B006C
-	for <linux-mm@kvack.org>; Tue, 29 May 2012 11:14:15 -0400 (EDT)
-Date: Tue, 29 May 2012 11:07:14 -0400
+Received: from psmtp.com (na3sys010amx199.postini.com [74.125.245.199])
+	by kanga.kvack.org (Postfix) with SMTP id 2FA716B006C
+	for <linux-mm@kvack.org>; Tue, 29 May 2012 11:18:08 -0400 (EDT)
+Date: Tue, 29 May 2012 10:10:49 -0400
 From: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
-Subject: Re: [PATCHv2 3/4] mm: vmalloc: add VM_DMA flag to indicate areas
- used by dma-mapping framework
-Message-ID: <20120529150714.GA8293@phenom.dumpdata.com>
-References: <1337252085-22039-1-git-send-email-m.szyprowski@samsung.com>
- <1337252085-22039-4-git-send-email-m.szyprowski@samsung.com>
- <4FBB3B41.8010102@kernel.org>
- <01e501cd39a8$67f34ea0$37d9ebe0$%szyprowski@samsung.com>
- <20120524122854.GD11860@linux-sh.org>
- <CAHGf_=qmBMFfV=UhXFtepO8styaQonfBA0E0+FO0qSi7RLfJFA@mail.gmail.com>
- <001d01cd3caa$a05d0510$e1170f30$%szyprowski@samsung.com>
+Subject: Re: [PATCH 03/35] xen: document Xen is using an unused bit for the
+ pagetables
+Message-ID: <20120529141049.GB3558@phenom.dumpdata.com>
+References: <1337965359-29725-1-git-send-email-aarcange@redhat.com>
+ <1337965359-29725-4-git-send-email-aarcange@redhat.com>
+ <20120525202656.GA23655@phenom.dumpdata.com>
+ <20120526155912.GA4054@redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <001d01cd3caa$a05d0510$e1170f30$%szyprowski@samsung.com>
+In-Reply-To: <20120526155912.GA4054@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Marek Szyprowski <m.szyprowski@samsung.com>
-Cc: 'KOSAKI Motohiro' <kosaki.motohiro@gmail.com>, 'Paul Mundt' <lethal@linux-sh.org>, 'Minchan Kim' <minchan@kernel.org>, linux-arm-kernel@lists.infradead.org, linaro-mm-sig@lists.linaro.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, 'Kyungmin Park' <kyungmin.park@samsung.com>, 'Arnd Bergmann' <arnd@arndb.de>, 'Russell King - ARM Linux' <linux@arm.linux.org.uk>, 'Chunsang Jeong' <chunsang.jeong@linaro.org>, 'Krishna Reddy' <vdumpa@nvidia.com>, 'Hiroshi Doyu' <hdoyu@nvidia.com>, 'Subash Patel' <subashrp@gmail.com>, 'Nick Piggin' <npiggin@gmail.com>
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Hillf Danton <dhillf@gmail.com>, Dan Smith <danms@us.ibm.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>, Paul Turner <pjt@google.com>, Suresh Siddha <suresh.b.siddha@intel.com>, Mike Galbraith <efault@gmx.de>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Bharata B Rao <bharata.rao@gmail.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Srivatsa Vaddagiri <vatsa@linux.vnet.ibm.com>, Christoph Lameter <cl@linux.com>
 
-On Mon, May 28, 2012 at 10:19:39AM +0200, Marek Szyprowski wrote:
-> Hello,
+On Sat, May 26, 2012 at 05:59:12PM +0200, Andrea Arcangeli wrote:
+> Hi Konrad,
 > 
-> On Sunday, May 27, 2012 2:35 PM KOSAKI Motohiro wrote:
-> 
-> > On Thu, May 24, 2012 at 8:28 AM, Paul Mundt <lethal@linux-sh.org> wrote:
-> > > On Thu, May 24, 2012 at 02:26:12PM +0200, Marek Szyprowski wrote:
-> > >> On Tuesday, May 22, 2012 9:08 AM Minchan Kim wrote:
-> > >> > Hmm, VM_DMA would become generic flag?
-> > >> > AFAIU, maybe VM_DMA would be used only on ARM arch.
-> > >>
-> > >> Right now yes, it will be used only on ARM architecture, but maybe other architecture will
-> > >> start using it once it is available.
-> > >>
-> > > There's very little about the code in question that is ARM-specific to
-> > > begin with. I plan to adopt similar changes on SH once the work has
-> > > settled one way or the other, so we'll probably use the VMA flag there,
-> > > too.
+> On Fri, May 25, 2012 at 04:26:56PM -0400, Konrad Rzeszutek Wilk wrote:
+> > On Fri, May 25, 2012 at 07:02:07PM +0200, Andrea Arcangeli wrote:
+> > > Xen has taken over the last reserved bit available for the pagetables
+> > > which is set through ioremap, this documents it and makes the code
+> > > more readable.
 > > 
-> > I don't think VM_DMA is good idea because x86_64 has two dma zones. x86 unaware
-> > patches make no sense.
+> > Andrea, my previous respone had a question about this - was wondering
+> > if you had a chance to look at that in your busy schedule and provide
+> > some advice on how to remove the _PAGE_IOMAP altogether?
 > 
-> I see no problems to add VM_DMA64 later if x86_64 starts using vmalloc areas for creating 
-> kernel mappings for the dma buffers (I assume that there are 2 dma zones: one 32bit and one
-> 64bit). Right now x86 and x86_64 don't use vmalloc areas for dma buffers, so I hardly see
-> how this patch can be considered as 'x86 unaware'.
+> I read you response but I didn't look into the P2M tree and
+> xen_val_pte code yet sorry. Thanks for looking into this, if it's
+> possible to remove it without downsides, it would be a nice
 
-Well they do - kind off. It is usually done by calling vmalloc_32 and then using
-the DMA API on top of those pages (or sometimes the non-portable virt_to_phys macro).
+Yeah, I am not really thrilled about it.
 
-Introducing this and replacing the vmalloc_32 with this seems like a nice step in making
-those device drivers APIs more portable?
+> cleanup. It's not urgent though, we're not running out of reserved
+> pte bits yet :).
+
+Oh, your git comment says "the last reserved bit". Let me
+look through all your patches to see how the AutoNUMA code works -
+I am probably just missing something simple.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
