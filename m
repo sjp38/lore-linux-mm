@@ -1,44 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx158.postini.com [74.125.245.158])
-	by kanga.kvack.org (Postfix) with SMTP id CC3436B005C
-	for <linux-mm@kvack.org>; Tue, 29 May 2012 01:47:03 -0400 (EDT)
-Date: Tue, 29 May 2012 15:46:56 +1000
-From: Paul Mackerras <paulus@samba.org>
-Subject: Re: Please include commit 90481622d7 in 3.3-stable
-Message-ID: <20120529054656.GA17774@drongo>
-References: <20120510095837.GB16271@bloggs.ozlabs.ibm.com>
- <1336811645.8274.496.camel@deadeye>
- <1338068260.20487.35.camel@deadeye>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Received: from psmtp.com (na3sys010amx193.postini.com [74.125.245.193])
+	by kanga.kvack.org (Postfix) with SMTP id F36FA6B005C
+	for <linux-mm@kvack.org>; Tue, 29 May 2012 02:43:29 -0400 (EDT)
+Message-Id: <4FC48C2D02000078000867E0@nat28.tlf.novell.com>
+Date: Tue, 29 May 2012 07:43:25 +0100
+From: "Jan Beulich" <JBeulich@suse.com>
+Subject: Re: [GIT] (frontswap.v16-tag)
+References: <20120518204211.GA18571@localhost.localdomain>
+ <20120524202221.GA19856@phenom.dumpdata.com>
+ <CA+55aFzvAMezd=ph6b0iQ=aqsJm1tOdS6HRRQ6rD8mLCJr_MhQ@mail.gmail.com>
+In-Reply-To: <CA+55aFzvAMezd=ph6b0iQ=aqsJm1tOdS6HRRQ6rD8mLCJr_MhQ@mail.gmail.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: quoted-printable
 Content-Disposition: inline
-In-Reply-To: <1338068260.20487.35.camel@deadeye>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ben Hutchings <ben@decadent.org.uk>
-Cc: Hillf Danton <dhillf@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, David Gibson <david@gibson.dropbear.id.au>, stable@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
+To: Linus Torvalds <torvalds@linux-foundation.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
+Cc: hannes@cmpxchg.org, hughd@google.com, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, sjenning@linux.vnet.ibm.com, chris.mason@oracle.com, dan.magenheimer@oracle.com, Rik van Riel <riel@redhat.com>, ngupta@vflare.org, matthew@wil.cx
 
-On Sat, May 26, 2012 at 10:37:40PM +0100, Ben Hutchings wrote:
-> On Sat, 2012-05-12 at 09:34 +0100, Ben Hutchings wrote:
-> > I tried cherry-picking this on top of 3.2.17, but there was a conflict
-> > in unmap_ref_private().  It looks like all of these belong in 3.2.y as
-> > well:
-> > 
-> > 1e16a53 mm/hugetlb.c: fix virtual address handling in hugetlb fault
-> > 0c176d5 mm: hugetlb: fix pgoff computation when unmapping page from vma
-> > ea5768c mm/hugetlb.c: avoid bogus counter of surplus huge page
-> > 409eb8c mm/hugetlb.c: undo change to page mapcount in fault handler
-> > cd2934a flush_tlb_range() needs ->page_table_lock when ->mmap_sem is not held
-> 
-> Sorry, I didn't make myself clear.  I'm asking for confirmation: should
-> these all be applied to 3.2.y?
+>>> On 28.05.12 at 00:29, Linus Torvalds <torvalds@linux-foundation.org> =
+wrote:
+> No, the real reason is that for new features like this - features that
+> I don't really see myself using personally and that I'm not all that
+> personally excited about - I *really* want others to pipe up with
+> "yes, we're using this, and yes, we want this to be merged".
+>=20
+> It doesn't seem to be huge, which is great, but the deathly silence of
+> nobody speaking up and saying "yes please", makes me go "ok, I won't
+> pull if nobody speaks up for the feature".
 
-I think yes, probably, but I'm not enough of an expert on the
-hugetlbfs code to say for sure.  David Gibson is on leave at the
-moment and so may not be in a position to reply.  Perhaps one of
-hugetlbfs experts on cc could reply?
+Hmm, I had thought that Dan already went through this exercise,
+but in case I'm mis-remembering, I'd just like to make clear that
+for the last couple of years we've been making this (or its
+predecessor versions) available to our SLE and openSUSE users.
+I can't, however, provide numbers of actual employments of it in
+the field (such simply don't exist).
 
-Paul.
+Jan
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
