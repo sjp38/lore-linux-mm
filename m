@@ -1,56 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx161.postini.com [74.125.245.161])
-	by kanga.kvack.org (Postfix) with SMTP id 4052E6B005C
-	for <linux-mm@kvack.org>; Tue, 29 May 2012 12:30:44 -0400 (EDT)
-Message-ID: <1338309029.26856.123.camel@twins>
-Subject: Re: [PATCH 30/35] autonuma: reset autonuma page data when pages are
- freed
-From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Date: Tue, 29 May 2012 18:30:29 +0200
-In-Reply-To: <1337965359-29725-31-git-send-email-aarcange@redhat.com>
-References: <1337965359-29725-1-git-send-email-aarcange@redhat.com>
-	 <1337965359-29725-31-git-send-email-aarcange@redhat.com>
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: quoted-printable
-Mime-Version: 1.0
+Received: from psmtp.com (na3sys010amx157.postini.com [74.125.245.157])
+	by kanga.kvack.org (Postfix) with SMTP id 36C236B005C
+	for <linux-mm@kvack.org>; Tue, 29 May 2012 12:33:22 -0400 (EDT)
+Date: Tue, 29 May 2012 11:33:17 -0500 (CDT)
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: [PATCH v3 12/28] slab: pass memcg parameter to
+ kmem_cache_create
+In-Reply-To: <4FC4F04F.1070401@parallels.com>
+Message-ID: <alpine.DEB.2.00.1205291131590.6723@router.home>
+References: <1337951028-3427-1-git-send-email-glommer@parallels.com> <1337951028-3427-13-git-send-email-glommer@parallels.com> <alpine.DEB.2.00.1205290922340.4666@router.home> <4FC4F04F.1070401@parallels.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Hillf Danton <dhillf@gmail.com>, Dan Smith <danms@us.ibm.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>, Paul Turner <pjt@google.com>, Suresh Siddha <suresh.b.siddha@intel.com>, Mike Galbraith <efault@gmx.de>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Bharata B Rao <bharata.rao@gmail.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Srivatsa Vaddagiri <vatsa@linux.vnet.ibm.com>, Christoph Lameter <cl@linux.com>
+To: Glauber Costa <glommer@parallels.com>
+Cc: linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, linux-mm@kvack.org, kamezawa.hiroyu@jp.fujitsu.com, Tejun Heo <tj@kernel.org>, Li Zefan <lizefan@huawei.com>, Greg Thelen <gthelen@google.com>, Suleiman Souhlal <suleiman@google.com>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, devel@openvz.org, David Rientjes <rientjes@google.com>, Pekka Enberg <penberg@cs.helsinki.fi>
 
-On Fri, 2012-05-25 at 19:02 +0200, Andrea Arcangeli wrote:
-> When pages are freed abort any pending migration. If knuma_migrated
-> arrives first it will notice because get_page_unless_zero would fail.
+On Tue, 29 May 2012, Glauber Costa wrote:
 
-But knuma_migrated can run on a different cpu than this free is
-happening, ACCESS_ONCE() won't cure that.
+> > Ok this only duplicates the kmalloc arrays. Why not the others?
+>
+> It does duplicate the others.
+>
+> First it does a while look on the kmalloc caches, then a list_for_each_entry
+> in the rest. You probably missed it.
 
-What's that ACCESS_ONCE() good for?
+There is no need to separately duplicate the kmalloc_caches. Those are
+included on the cache_chain.
 
-Also, you already have an autonuma_ hook right there, why add more
-#ifdeffery ?
+> > > @@ -2543,7 +2564,12 @@ kmem_cache_create (const char *name, size_t size,
+> > > size_t align,
+> > >   	cachep->ctor = ctor;
+> > >   	cachep->name = name;
+> > >
+> > > +	if (g_cpucache_up>= FULL)
+> > > +		mem_cgroup_register_cache(memcg, cachep);
+> >
+> > What happens if a cgroup was active during creation of slab xxy but
+> > then a process running in a different cgroup uses that slab to allocate
+> > memory? Is it charged to the first cgroup?
+>
+> I don't see this situation ever happening. kmem_cache_create, when called
+> directly, will always create a global cache. It doesn't matter which cgroups
+> are or aren't active at this time or any other. We create copies per-cgroup,
+> but we create it lazily, when someone will touch it.
 
-> Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
-> ---
->  mm/page_alloc.c |    4 ++++
->  1 files changed, 4 insertions(+), 0 deletions(-)
->=20
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index 3d1ee70..1d3163f 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -614,6 +614,10 @@ static inline int free_pages_check(struct page *page=
-)
->  		bad_page(page);
->  		return 1;
->  	}
-> +	autonuma_migrate_page_remove(page);
-> +#ifdef CONFIG_AUTONUMA
-> +	ACCESS_ONCE(page->autonuma_last_nid) =3D -1;
-> +#endif
->  	if (page->flags & PAGE_FLAGS_CHECK_AT_PREP)
->  		page->flags &=3D ~PAGE_FLAGS_CHECK_AT_PREP;
->  	return 0;
+How do you detect that someone is touching it?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
