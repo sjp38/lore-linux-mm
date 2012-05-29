@@ -1,56 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx182.postini.com [74.125.245.182])
-	by kanga.kvack.org (Postfix) with SMTP id AD8876B007B
-	for <linux-mm@kvack.org>; Tue, 29 May 2012 12:15:51 -0400 (EDT)
-Message-ID: <4FC4F5A8.9060506@parallels.com>
-Date: Tue, 29 May 2012 20:13:28 +0400
-From: Glauber Costa <glommer@parallels.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH v3 19/28] slab: per-memcg accounting of slab caches
-References: <1337951028-3427-1-git-send-email-glommer@parallels.com> <1337951028-3427-20-git-send-email-glommer@parallels.com> <alpine.DEB.2.00.1205290951520.4666@router.home> <4FC4F42D.6060601@parallels.com>
-In-Reply-To: <4FC4F42D.6060601@parallels.com>
-Content-Type: text/plain; charset="ISO-8859-1"; format=flowed
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx153.postini.com [74.125.245.153])
+	by kanga.kvack.org (Postfix) with SMTP id 87F696B005C
+	for <linux-mm@kvack.org>; Tue, 29 May 2012 12:28:12 -0400 (EDT)
+Message-ID: <1338308875.26856.121.camel@twins>
+Subject: Re: [PATCH 23/35] autonuma: core
+From: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Date: Tue, 29 May 2012 18:27:55 +0200
+In-Reply-To: <1337965359-29725-24-git-send-email-aarcange@redhat.com>
+References: <1337965359-29725-1-git-send-email-aarcange@redhat.com>
+	 <1337965359-29725-24-git-send-email-aarcange@redhat.com>
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: quoted-printable
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, linux-mm@kvack.org, kamezawa.hiroyu@jp.fujitsu.com, Tejun Heo <tj@kernel.org>, Li Zefan <lizefan@huawei.com>, Greg Thelen <gthelen@google.com>, Suleiman Souhlal <suleiman@google.com>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, devel@openvz.org, David Rientjes <rientjes@google.com>, Pekka Enberg <penberg@cs.helsinki.fi>
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Hillf Danton <dhillf@gmail.com>, Dan Smith <danms@us.ibm.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>, Paul Turner <pjt@google.com>, Suresh Siddha <suresh.b.siddha@intel.com>, Mike Galbraith <efault@gmx.de>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Bharata B Rao <bharata.rao@gmail.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Srivatsa Vaddagiri <vatsa@linux.vnet.ibm.com>, Christoph Lameter <cl@linux.com>
 
-On 05/29/2012 08:07 PM, Glauber Costa wrote:
-> On 05/29/2012 06:52 PM, Christoph Lameter wrote:
->> On Fri, 25 May 2012, Glauber Costa wrote:
->>
->>> > This patch charges allocation of a slab object to a particular
->>> > memcg.
->> Ok so a requirement is to support tracking of individual slab
->> objects to cgroups? That is going to be quite expensive since it will
->> touch the hotpaths.
->>
->
-> No, we track pages. But all the objects in the page belong to the same
-> cgroup.
->
+On Fri, 2012-05-25 at 19:02 +0200, Andrea Arcangeli wrote:
+> This implements knuma_scand, the numa_hinting faults started by
+> knuma_scand, the knuma_migrated that migrates the memory queued by the
+> NUMA hinting faults, the statistics gathering code that is done by
+> knuma_scand for the mm_autonuma and by the numa hinting page faults
+> for the sched_autonuma, and most of the rest of the AutoNUMA core
+> logics like the false sharing detection, sysfs and initialization
+> routines.
+>=20
+> The AutoNUMA algorithm when knuma_scand is not running is a full
+> bypass and it must not alter the runtime of memory management and
+> scheduler.
+>=20
+> The whole AutoNUMA logic is a chain reaction as result of the actions
+> of the knuma_scand. The various parts of the code can be described
+> like different gears (gears as in glxgears).
+>=20
+> knuma_scand is the first gear and it collects the mm_autonuma per-process
+> statistics and at the same time it sets the pte/pmd it scans as
+> pte_numa and pmd_numa.
+>=20
+> The second gear are the numa hinting page faults. These are triggered
+> by the pte_numa/pmd_numa pmd/ptes. They collect the sched_autonuma
+> per-thread statistics. They also implement the memory follow CPU logic
+> where we track if pages are repeatedly accessed by remote nodes. The
+> memory follow CPU logic can decide to migrate pages across different
+> NUMA nodes by queuing the pages for migration in the per-node
+> knuma_migrated queues.
+>=20
+> The third gear is knuma_migrated. There is one knuma_migrated daemon
+> per node. Pages pending for migration are queued in a matrix of
+> lists. Each knuma_migrated (in parallel with each other) goes over
+> those lists and migrates the pages queued for migration in round robin
+> from each incoming node to the node where knuma_migrated is running
+> on.
+>=20
+> The fourth gear is the NUMA scheduler balancing code. That computes
+> the statistical information collected in mm->mm_autonuma and
+> p->sched_autonuma and evaluates the status of all CPUs to decide if
+> tasks should be migrated to CPUs in remote nodes.=20
 
-Also, please note the following:
+IOW:
 
-The code that relays us to the right cache, is wrapped inside a static 
-branch. Whoever is not using more than the root cgroup, will not suffer 
-a single bit.
+"knuma_scand 'unmaps' ptes and collects mm stats, this triggers
+numa_hinting pagefaults, using these we collect per task stats.
 
-If you are, but your process is in the right cgroup, you will 
-unfortunately pay function call penalty(*), but the code will make and 
-effort to detect that as early as possible and resume.
+knuma_migrated migrates pages to their destination node. Something
+queues pages.
+
+The numa scheduling code uses the gathered stats to place tasks."
 
 
-(*) Not even then if you fall in the following categories, that are 
-resolved inline:
+That covers just about all you said, now the interesting bits are still
+missing:
 
-+       if (!current->mm)
-+               return cachep;
-+       if (in_interrupt())
-+               return cachep;
-+       if (gfp & __GFP_NOFAIL)
-+               return cachep;
+ - how do you do false sharing;
+
+ - what stats do you gather, and how are they used at each stage;
+
+ - what's your balance goal, and how is that expressed and=20
+   converged upon.
+
+Also, what I've not seen anywhere are scheduling stats, what if, despite
+you giving a hint a particular process should run on a particular node
+it doesn't and sticks to where its at (granted with strict this can't
+happen -- but it should).
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
