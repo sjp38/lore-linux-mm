@@ -1,50 +1,38 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx155.postini.com [74.125.245.155])
-	by kanga.kvack.org (Postfix) with SMTP id 49E0A6B005D
-	for <linux-mm@kvack.org>; Tue, 29 May 2012 12:53:00 -0400 (EDT)
-Date: Tue, 29 May 2012 11:52:55 -0500 (CDT)
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: [PATCH v3 12/28] slab: pass memcg parameter to
- kmem_cache_create
-In-Reply-To: <4FC4FAF6.8060900@parallels.com>
-Message-ID: <alpine.DEB.2.00.1205291149280.8406@router.home>
-References: <1337951028-3427-1-git-send-email-glommer@parallels.com> <1337951028-3427-13-git-send-email-glommer@parallels.com> <alpine.DEB.2.00.1205290922340.4666@router.home> <4FC4F04F.1070401@parallels.com> <alpine.DEB.2.00.1205291131590.6723@router.home>
- <4FC4FAF6.8060900@parallels.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from psmtp.com (na3sys010amx131.postini.com [74.125.245.131])
+	by kanga.kvack.org (Postfix) with SMTP id E7C596B005D
+	for <linux-mm@kvack.org>; Tue, 29 May 2012 12:57:13 -0400 (EDT)
+Message-ID: <1338310613.26856.139.camel@twins>
+Subject: Re: [PATCH 13/35] autonuma: add page structure fields
+From: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Date: Tue, 29 May 2012 18:56:53 +0200
+In-Reply-To: <4FC4FD51.2080001@redhat.com>
+References: <1337965359-29725-1-git-send-email-aarcange@redhat.com>
+	 <1337965359-29725-14-git-send-email-aarcange@redhat.com>
+	 <1338297385.26856.74.camel@twins> <20120529163849.GF21339@redhat.com>
+	 <4FC4FD51.2080001@redhat.com>
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: quoted-printable
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Glauber Costa <glommer@parallels.com>
-Cc: linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, linux-mm@kvack.org, kamezawa.hiroyu@jp.fujitsu.com, Tejun Heo <tj@kernel.org>, Li Zefan <lizefan@huawei.com>, Greg Thelen <gthelen@google.com>, Suleiman Souhlal <suleiman@google.com>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, devel@openvz.org, David Rientjes <rientjes@google.com>, Pekka Enberg <penberg@cs.helsinki.fi>
+To: Rik van Riel <riel@redhat.com>
+Cc: Andrea Arcangeli <aarcange@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Hillf Danton <dhillf@gmail.com>, Dan Smith <danms@us.ibm.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>, Paul Turner <pjt@google.com>, Suresh Siddha <suresh.b.siddha@intel.com>, Mike Galbraith <efault@gmx.de>, "Paul E.
+ McKenney" <paulmck@linux.vnet.ibm.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Bharata B Rao <bharata.rao@gmail.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Johannes Weiner <hannes@cmpxchg.org>, Srivatsa Vaddagiri <vatsa@linux.vnet.ibm.com>, Christoph Lameter <cl@linux.com>
 
-On Tue, 29 May 2012, Glauber Costa wrote:
+On Tue, 2012-05-29 at 12:46 -0400, Rik van Riel wrote:
+> > I don't think it's too great, memcg uses for half of that and yet
+> > nobody is booting with cgroup_disable=3Dmemory even on not-NUMA servers
+> > with less RAM.
 
-> > How do you detect that someone is touching it?
->
-> kmem_alloc_cache will create mem_cgroup_get_kmem_cache.
-> (protected by static_branches, so won't happen if you don't have at least
-> non-root memcg using it)
->
-> * Then it detects which memcg the calling process belongs to,
-> * if it is the root memcg, go back to the allocation as quickly as we
->   can
-> * otherwise, in the creation process, you will notice that each cache
->   has an index. memcg will store pointers to the copies and find them by
->   the index.
->
-> From this point on, all the code of the caches is reused (except for
-> accounting the page)
+Right, it was such a hit we had to disable that by default on RHEL6.
 
-Well kmem_cache_alloc cache is the performance critical hotpath.
+> Not any more.=20
 
-If you are already there and doing all of that then would it not be better
-to simply count the objects allocated and freed per cgroup? Directly
-increment and decrement counters in a cgroup? You do not really need to
-duplicate the kmem_cache structure and do not need to modify allocators if
-you are willing to take that kind of a performance hit. Put a wrapper
-around kmem_cache_alloc/free and count things.
-
-
+Right, hnaz did great work there, but wasn't there still some few pieces
+of the shadow page frame left? ISTR LSF/MM talk of moving the last few
+bits into the regular page frame, taking the word that became available
+through: fc9bb8c768 ("mm: Rearrange struct page").
 
 
 --
