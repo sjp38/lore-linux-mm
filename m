@@ -1,14 +1,13 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx193.postini.com [74.125.245.193])
-	by kanga.kvack.org (Postfix) with SMTP id 79C786B005D
-	for <linux-mm@kvack.org>; Tue, 29 May 2012 10:27:57 -0400 (EDT)
-Date: Tue, 29 May 2012 09:27:52 -0500 (CDT)
+Received: from psmtp.com (na3sys010amx124.postini.com [74.125.245.124])
+	by kanga.kvack.org (Postfix) with SMTP id 5F58E6B005D
+	for <linux-mm@kvack.org>; Tue, 29 May 2012 10:37:00 -0400 (EDT)
+Date: Tue, 29 May 2012 09:36:55 -0500 (CDT)
 From: Christoph Lameter <cl@linux.com>
-Subject: Re: [PATCH v3 12/28] slab: pass memcg parameter to
- kmem_cache_create
-In-Reply-To: <1337951028-3427-13-git-send-email-glommer@parallels.com>
-Message-ID: <alpine.DEB.2.00.1205290922340.4666@router.home>
-References: <1337951028-3427-1-git-send-email-glommer@parallels.com> <1337951028-3427-13-git-send-email-glommer@parallels.com>
+Subject: Re: [PATCH v3 13/28] slub: create duplicate cache
+In-Reply-To: <1337951028-3427-14-git-send-email-glommer@parallels.com>
+Message-ID: <alpine.DEB.2.00.1205290932530.4666@router.home>
+References: <1337951028-3427-1-git-send-email-glommer@parallels.com> <1337951028-3427-14-git-send-email-glommer@parallels.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -18,79 +17,69 @@ Cc: linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, linux-mm@kvack.org, k
 
 On Fri, 25 May 2012, Glauber Costa wrote:
 
-> index 06e4a3e..7c0cdd6 100644
-> --- a/include/linux/slab_def.h
-> +++ b/include/linux/slab_def.h
-> @@ -102,6 +102,13 @@ struct kmem_cache {
->  	 */
->  };
+> index dacd1fb..4689034 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -467,6 +467,23 @@ struct cg_proto *tcp_proto_cgroup(struct mem_cgroup *memcg)
+>  EXPORT_SYMBOL(tcp_proto_cgroup);
+>  #endif /* CONFIG_INET */
 >
-> +static inline void store_orig_align(struct kmem_cache *cachep, int orig_align)
+> +char *mem_cgroup_cache_name(struct mem_cgroup *memcg, struct kmem_cache *cachep)
 > +{
-> +#ifdef CONFIG_CGROUP_MEM_RES_CTLR_KMEM
-> +	cachep->memcg_params.orig_align = orig_align;
-> +#endif
-> +}
+> +	char *name;
+> +	struct dentry *dentry;
 > +
+> +	rcu_read_lock();
+> +	dentry = rcu_dereference(memcg->css.cgroup->dentry);
+> +	rcu_read_unlock();
+> +
+> +	BUG_ON(dentry == NULL);
+> +
+> +	name = kasprintf(GFP_KERNEL, "%s(%d:%s)",
+> +	    cachep->name, css_id(&memcg->css), dentry->d_name.name);
+> +
+> +	return name;
+> +}
 
-Why do you need to store the original alignment? Is the calculated
-alignment not enough?
+Function allocates a string that is supposed to be disposed of by the
+caller. That needs to be documented and maybe even the name needs to
+reflect that.
 
-> +++ b/mm/slab.c
-> @@ -1729,6 +1729,31 @@ void __init kmem_cache_init_late(void)
->  	 */
+> --- a/mm/slub.c
+> +++ b/mm/slub.c
+> @@ -4002,6 +4002,38 @@ struct kmem_cache *kmem_cache_create(const char *name, size_t size,
 >  }
+>  EXPORT_SYMBOL(kmem_cache_create);
 >
-> +static int __init memcg_slab_register_all(void)
-> +{
 > +#ifdef CONFIG_CGROUP_MEM_RES_CTLR_KMEM
-> +	struct kmem_cache *cachep;
-> +	struct cache_sizes *sizes;
+> +struct kmem_cache *kmem_cache_dup(struct mem_cgroup *memcg,
+> +				  struct kmem_cache *s)
+> +{
+> +	char *name;
+> +	struct kmem_cache *new;
 > +
-> +	sizes = malloc_sizes;
+> +	name = mem_cgroup_cache_name(memcg, s);
+> +	if (!name)
+> +		return NULL;
 > +
-> +	while (sizes->cs_size != ULONG_MAX) {
-> +		if (sizes->cs_cachep)
-> +			mem_cgroup_register_cache(NULL, sizes->cs_cachep);
-> +		if (sizes->cs_dmacachep)
-> +			mem_cgroup_register_cache(NULL, sizes->cs_dmacachep);
-> +		sizes++;
+> +	new = kmem_cache_create_memcg(memcg, name, s->objsize, s->align,
+> +				      (s->allocflags & ~SLAB_PANIC), s->ctor);
+
+Hmmm... A full duplicate of the slab cache? We may have many sparsely
+used portions of the per node and per cpu structure as a result.
+
+> +	 * prevent it from being deleted. If kmem_cache_destroy() is
+> +	 * called for the root cache before we call it for a child cache,
+> +	 * it will be queued for destruction when we finally drop the
+> +	 * reference on the child cache.
+> +	 */
+> +	if (new) {
+> +		down_write(&slub_lock);
+> +		s->refcount++;
+> +		up_write(&slub_lock);
 > +	}
-> +
-> +	mutex_lock(&cache_chain_mutex);
-> +	list_for_each_entry(cachep, &cache_chain, next)
-> +		mem_cgroup_register_cache(NULL, cachep);
-> +
-> +	mutex_unlock(&cache_chain_mutex);
-> +#endif /* CONFIG_CGROUP_MEM_RES_CTLR_KMEM */
-> +	return 0;
-> +}
 
-Ok this only duplicates the kmalloc arrays. Why not the others?
-
-> @@ -2331,7 +2350,7 @@ kmem_cache_create (const char *name, size_t size, size_t align,
->  			continue;
->  		}
->
-> -		if (!strcmp(pc->name, name)) {
-> +		if (!memcg && !strcmp(pc->name, name)) {
->  			printk(KERN_ERR
->  			       "kmem_cache_create: duplicate cache %s\n", name);
->  			dump_stack();
-
-This implementation means that duplicate cache detection will no longer
-work within a cgroup?
-
-> @@ -2543,7 +2564,12 @@ kmem_cache_create (const char *name, size_t size, size_t align,
->  	cachep->ctor = ctor;
->  	cachep->name = name;
->
-> +	if (g_cpucache_up >= FULL)
-> +		mem_cgroup_register_cache(memcg, cachep);
-
-What happens if a cgroup was active during creation of slab xxy but
-then a process running in a different cgroup uses that slab to allocate
-memory? Is it charged to the first cgroup?
+Why do you need to increase the refcount? You made a full copy right?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
