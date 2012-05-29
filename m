@@ -1,46 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx171.postini.com [74.125.245.171])
-	by kanga.kvack.org (Postfix) with SMTP id 16B126B0062
-	for <linux-mm@kvack.org>; Tue, 29 May 2012 12:47:23 -0400 (EDT)
-Message-ID: <4FC4FD51.2080001@redhat.com>
-Date: Tue, 29 May 2012 12:46:09 -0400
-From: Rik van Riel <riel@redhat.com>
+Received: from psmtp.com (na3sys010amx108.postini.com [74.125.245.108])
+	by kanga.kvack.org (Postfix) with SMTP id 021CC6B006C
+	for <linux-mm@kvack.org>; Tue, 29 May 2012 12:49:45 -0400 (EDT)
+Date: Tue, 29 May 2012 11:05:16 -0500 (CDT)
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: [PATCH v3 13/28] slub: create duplicate cache
+In-Reply-To: <4FC4F1A7.2010206@parallels.com>
+Message-ID: <alpine.DEB.2.00.1205291101580.6723@router.home>
+References: <1337951028-3427-1-git-send-email-glommer@parallels.com> <1337951028-3427-14-git-send-email-glommer@parallels.com> <alpine.DEB.2.00.1205290932530.4666@router.home> <4FC4F1A7.2010206@parallels.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 13/35] autonuma: add page structure fields
-References: <1337965359-29725-1-git-send-email-aarcange@redhat.com> <1337965359-29725-14-git-send-email-aarcange@redhat.com> <1338297385.26856.74.camel@twins> <20120529163849.GF21339@redhat.com>
-In-Reply-To: <20120529163849.GF21339@redhat.com>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Hillf Danton <dhillf@gmail.com>, Dan Smith <danms@us.ibm.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>, Paul Turner <pjt@google.com>, Suresh Siddha <suresh.b.siddha@intel.com>, Mike Galbraith <efault@gmx.de>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Bharata B Rao <bharata.rao@gmail.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Johannes Weiner <hannes@cmpxchg.org>, Srivatsa Vaddagiri <vatsa@linux.vnet.ibm.com>, Christoph Lameter <cl@linux.com>
+To: Glauber Costa <glommer@parallels.com>
+Cc: linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, linux-mm@kvack.org, kamezawa.hiroyu@jp.fujitsu.com, Tejun Heo <tj@kernel.org>, Li Zefan <lizefan@huawei.com>, Greg Thelen <gthelen@google.com>, Suleiman Souhlal <suleiman@google.com>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, devel@openvz.org, David Rientjes <rientjes@google.com>, Pekka Enberg <penberg@cs.helsinki.fi>
 
-On 05/29/2012 12:38 PM, Andrea Arcangeli wrote:
-> On Tue, May 29, 2012 at 03:16:25PM +0200, Peter Zijlstra wrote:
->> 24 bytes per page.. or ~0.6% of memory gone. This is far too great a
->> price to pay.
+On Tue, 29 May 2012, Glauber Costa wrote:
+
+> Accounting pages seems just crazy to me. If new allocators come in the future,
+> organizing the pages in a different way, instead of patching it here and
+> there, we need to totally rewrite this.
+
+Quite to the contrary. We could either pass a THIS_IS_A_SLAB page flag to
+the page allocator call or have a special call that does the accounting
+and then calls the page allocator. The code could be completely in
+cgroups. There would be no changes to the allocators aside from setting
+the flag or calling the alternate page allocator functions.
+
+> > Why do you need to increase the refcount? You made a full copy right?
 >
-> I don't think it's too great, memcg uses for half of that and yet
-> nobody is booting with cgroup_disable=memory even on not-NUMA servers
-> with less RAM.
+> Yes, but I don't want this copy to go away while we have other caches around.
 
-Not any more.
+You copied all metadata so what is there that you would still need should
+the other copy go away?
 
-Ever since the memcg naturalization work by Johannes,
-a page is only ever on one LRU list and the memcg
-memory overhead is gone.
+> So, in the memcg internals, I used a different reference counter, to avoid
+> messing with this one. I could use that, and leave the original refcnt alone.
+> Would you prefer this?
 
-> But I'm all for experimenting. It's just not something I had the time
-> to try yet. I will certainly love to see how it performs by reducing
-> the max size of the list. I totally agree it's a good idea to try it
-> out, and I don't exclude it will work fine, but it's not obvious it's
-> worth the memory saving.
+The refcounter is really not the issue.
 
-That's fair enough.
-
--- 
-All rights reversed
+I am a bit worried about the various duplicate features here and there.
+The approach is not tightened down yet.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
