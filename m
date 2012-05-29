@@ -1,32 +1,38 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx105.postini.com [74.125.245.105])
-	by kanga.kvack.org (Postfix) with SMTP id C799F6B0068
-	for <linux-mm@kvack.org>; Tue, 29 May 2012 10:20:20 -0400 (EDT)
-Date: Tue, 29 May 2012 09:20:16 -0500 (CDT)
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: [PATCH v3 05/28] memcg: Reclaim when more than one page
- needed.
-In-Reply-To: <alpine.DEB.2.00.1205290917230.4666@router.home>
-Message-ID: <alpine.DEB.2.00.1205290919130.4666@router.home>
-References: <1337951028-3427-1-git-send-email-glommer@parallels.com> <1337951028-3427-6-git-send-email-glommer@parallels.com> <alpine.DEB.2.00.1205290917230.4666@router.home>
+Received: from psmtp.com (na3sys010amx165.postini.com [74.125.245.165])
+	by kanga.kvack.org (Postfix) with SMTP id D88F86B005A
+	for <linux-mm@kvack.org>; Tue, 29 May 2012 10:23:21 -0400 (EDT)
+Message-ID: <4FC4DBD2.1060807@redhat.com>
+Date: Tue, 29 May 2012 10:23:14 -0400
+From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [GIT] (frontswap.v16-tag)
+References: <20120518204211.GA18571@localhost.localdomain> <20120524202221.GA19856@phenom.dumpdata.com> <CA+55aFzvAMezd=ph6b0iQ=aqsJm1tOdS6HRRQ6rD8mLCJr_MhQ@mail.gmail.com>
+In-Reply-To: <CA+55aFzvAMezd=ph6b0iQ=aqsJm1tOdS6HRRQ6rD8mLCJr_MhQ@mail.gmail.com>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Glauber Costa <glommer@parallels.com>
-Cc: linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, linux-mm@kvack.org, kamezawa.hiroyu@jp.fujitsu.com, Tejun Heo <tj@kernel.org>, Li Zefan <lizefan@huawei.com>, Greg Thelen <gthelen@google.com>, Suleiman Souhlal <suleiman@google.com>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, devel@openvz.org, David Rientjes <rientjes@google.com>
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Andrew Morton <akpm@linux-foundation.org>, chris.mason@oracle.com, matthew@wil.cx, ngupta@vflare.org, hannes@cmpxchg.org, hughd@google.com, sjenning@linux.vnet.ibm.com, JBeulich@novell.com, dan.magenheimer@oracle.com, linux-mm@kvack.org
 
-On Tue, 29 May 2012, Christoph Lameter wrote:
+On 05/27/2012 06:29 PM, Linus Torvalds wrote:
 
-> >  	 * unlikely to succeed so close to the limit, and we fall back
-> >  	 * to regular pages anyway in case of failure.
-> >  	 */
-> > -	if (nr_pages == 1 && ret)
-> > +	if (nr_pages <= (PAGE_SIZE << PAGE_ALLOC_COSTLY_ORDER) && ret) {
+> No, the real reason is that for new features like this - features that
+> I don't really see myself using personally and that I'm not all that
+> personally excited about - I *really* want others to pipe up with
+> "yes, we're using this, and yes, we want this to be merged".
 
-Should this not be
+I do not like some of the implementation details in the code,
+but I have no idea how to do it better.
 
-	 nr_pages <= 1 << PAGE_ALLOC_COSTLY_ORDER
+The functionality, especially zram and frontswap, are very
+desirable and would be good to have.
+
+Pulling this code seems like the right thing to do.
+
+-- 
+All rights reversed
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
