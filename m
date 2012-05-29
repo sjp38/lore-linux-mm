@@ -1,74 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx103.postini.com [74.125.245.103])
-	by kanga.kvack.org (Postfix) with SMTP id 6E95A6B0062
-	for <linux-mm@kvack.org>; Tue, 29 May 2012 16:44:24 -0400 (EDT)
-Message-ID: <4FC534B0.2000505@redhat.com>
-Date: Tue, 29 May 2012 16:42:24 -0400
-From: Rik van Riel <riel@redhat.com>
+Received: from psmtp.com (na3sys010amx115.postini.com [74.125.245.115])
+	by kanga.kvack.org (Postfix) with SMTP id 50B726B005A
+	for <linux-mm@kvack.org>; Tue, 29 May 2012 16:56:54 -0400 (EDT)
+Date: Tue, 29 May 2012 16:49:59 -0400
+From: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
+Subject: Re: [GIT] (frontswap.v16-tag)
+Message-ID: <20120529204959.GA21561@phenom.dumpdata.com>
+References: <20120518204211.GA18571@localhost.localdomain>
+ <20120524202221.GA19856@phenom.dumpdata.com>
+ <CA+55aFzvAMezd=ph6b0iQ=aqsJm1tOdS6HRRQ6rD8mLCJr_MhQ@mail.gmail.com>
+ <20120529140244.GA3558@phenom.dumpdata.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 13/35] autonuma: add page structure fields
-References: <1337965359-29725-1-git-send-email-aarcange@redhat.com> <1337965359-29725-14-git-send-email-aarcange@redhat.com> <1338297385.26856.74.camel@twins> <20120529163849.GF21339@redhat.com> <CA+55aFwmhM2a2HjB_MEjVDDL-AP4j-t202ozmHgT0azSptjnoA@mail.gmail.com>
-In-Reply-To: <CA+55aFwmhM2a2HjB_MEjVDDL-AP4j-t202ozmHgT0azSptjnoA@mail.gmail.com>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20120529140244.GA3558@phenom.dumpdata.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Andrea Arcangeli <aarcange@redhat.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Hillf Danton <dhillf@gmail.com>, Dan Smith <danms@us.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>, Paul Turner <pjt@google.com>, Suresh Siddha <suresh.b.siddha@intel.com>, Mike Galbraith <efault@gmx.de>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Bharata B Rao <bharata.rao@gmail.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Johannes Weiner <hannes@cmpxchg.org>, Srivatsa Vaddagiri <vatsa@linux.vnet.ibm.com>, Christoph Lameter <cl@linux.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, chris.mason@oracle.com, matthew@wil.cx, ngupta@vflare.org, hannes@cmpxchg.org, hughd@google.com, sjenning@linux.vnet.ibm.com, JBeulich@novell.com, dan.magenheimer@oracle.com, linux-mm@kvack.org
 
-On 05/29/2012 01:38 PM, Linus Torvalds wrote:
-> On Tue, May 29, 2012 at 9:38 AM, Andrea Arcangeli<aarcange@redhat.com>  wrote:
->> On Tue, May 29, 2012 at 03:16:25PM +0200, Peter Zijlstra wrote:
->>> 24 bytes per page.. or ~0.6% of memory gone. This is far too great a
->>> price to pay.
->>
->> I don't think it's too great, memcg uses for half of that and yet
->> nobody is booting with cgroup_disable=memory even on not-NUMA servers
->> with less RAM.
->
-> A big fraction of one percent is absolutely unacceptable.
+> Also over the last couple of months I had gotten emails about people
+> using it. Let me see if I can get their consent to either quote their
+> emails or just ask them to reply to this thread.
 
-Andrea, here is a quick back of the envelope idea.
+Asked some of the folks to pipe in, but in the mean-time here are some links.
 
-In every zone, we keep an array of pointers to pages and
-other needed info for knumad.  We do not need as many as
-we have pages in a zone, because we do not want to move
-all that memory across anyway (especially in larger systems).
-Maybe the number of entries can scale up with the square
-root of the zone size?
+>From Oracle: Kurt Hackel says "interest in seeing frontswap merged upstream" because
+it is already used in OracleVM.  https://lkml.org/lkml/2011/10/27/215
+Avi Miller says "we see this as a critical feature."
+https://lkml.org/lkml/2011/10/27/252 (product manager).
 
-struct numa_pq_entry {
-	struct page *page;
-	pg_data_t *destination;
-};
+Some Android ports have picked it up [mainly to use zcache which depends on frontswap]:
+- An LG and HTC kernel ROM has incorporated frontswap.
+  http://androidforums.com/spectrum-all-things-root/522953-rom-5-26-12-broken-out-spectrum-3-0-w-blitzkrieg-kernel.html
+- A GalaxyS-based kernel port has included frontswap.
+  http://hdtechvideo.com/community/index.php?threads/devil2_0-94.245/
+- CyanogenMod just added frontswap.
+  http://www.andro9.in/2012/05/cyanogenmod-9-ics-404-weeklies-for-lg.html
 
-For each zone, we can have a numa queueing struct
+Many people piped up last year at a previous merge proposal.  Here are some
+from LKML postings:
+- Brian King says IBM is actively looking at utilizing frontswap for
+  IBM Power and would welcome its inclusion in mainline.
+  https://lkml.org/lkml/2011/10/27/273
+- Nitin Gupta, author of zram, has stated that zcache is in many ways
+  superior to zram... but this assumes frontswap is merged.
+  https://lkml.org/lkml/2011/10/28/8
+- Ed Tomlinson says "I'd love to see this in the kernel."
+  https://lkml.org/lkml/2011/10/29/53
+- Sasha Levin and "CJ" worked on the KVM PoC and commented that
+  https://lkml.org/lkml/2011/10/28/8
+- Ed Tomlinson says "I'd love to see this in the kernel."
+  https://lkml.org/lkml/2011/10/29/53
+- While Andrea Arcangeli voiced objections last year 
+  https://lkml.org/lkml/2011/10/31/186 he expressed at LSF/MM 2012
+  that many of his issues are now resolved and sufficient progress
+  has been made to merge frontswap (with more work needed in zcache
+  before zcache can be promoted out of staging).
+- James Bottomley requested more benchmarking on zcache and some
+  excellent results were published and presented at LSF/MM 2012.
+  http://lwn.net/Articles/490501/
+- Valdis Kletnieks points out that he needs it in machines that
+  are maxed out on RAM. https://lkml.org/lkml/2011/11/6/157
 
-struct numa_queue {
-	struct numa_pq_entry *current_knumad;
-	struct numa_pq_entry *current_queue;
-	struct numa_pq_entry[];
-};
-
-Pages can get added to the knumad queue by filling
-in a pointer and a destination node, and by setting
-a page flag indicating that this page should be
-moved to another NUMA node.
-
-If something happens to the page that would cancel
-the queuing, we simply clear that page flag.
-
-When knumad gets around to an entry in the array,
-it will check to see if the "should migrate" page
-flag is still set. If it is not, it skips the entry.
-
-The current_knumad and current_queue entries can
-be used to simply keep circular buffer semantics.
-
-Does this look reasonable?
-
--- 
-All rights reversed
+Thanks!
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
