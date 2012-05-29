@@ -1,174 +1,105 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx207.postini.com [74.125.245.207])
-	by kanga.kvack.org (Postfix) with SMTP id 452F36B0068
-	for <linux-mm@kvack.org>; Tue, 29 May 2012 06:22:51 -0400 (EDT)
-Date: Tue, 29 May 2012 18:21:46 +0800
-From: Fengguang Wu <fengguang.wu@intel.com>
-Subject: Re: [RFC -mm] memcg: prevent from OOM with too many dirty pages
-Message-ID: <20120529102146.GA11653@localhost>
-References: <1338219535-7874-1-git-send-email-mhocko@suse.cz>
- <20120529030857.GA7762@localhost>
- <20120529072853.GD1734@cmpxchg.org>
- <20120529084848.GC10469@localhost>
- <20120529093511.GE1734@cmpxchg.org>
+Received: from psmtp.com (na3sys010amx150.postini.com [74.125.245.150])
+	by kanga.kvack.org (Postfix) with SMTP id A00D46B005C
+	for <linux-mm@kvack.org>; Tue, 29 May 2012 07:44:33 -0400 (EDT)
+Date: Tue, 29 May 2012 14:45:54 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [PATCH 23/35] autonuma: core
+Message-ID: <20120529114554.GA7017@shutemov.name>
+References: <1337965359-29725-1-git-send-email-aarcange@redhat.com>
+ <1337965359-29725-24-git-send-email-aarcange@redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20120529093511.GE1734@cmpxchg.org>
+In-Reply-To: <1337965359-29725-24-git-send-email-aarcange@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujtisu.com>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@redhat.com>, Ying Han <yinghan@google.com>, Greg Thelen <gthelen@google.com>, Hugh Dickins <hughd@google.com>
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Hillf Danton <dhillf@gmail.com>, Dan Smith <danms@us.ibm.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>, Paul Turner <pjt@google.com>, Suresh Siddha <suresh.b.siddha@intel.com>, Mike Galbraith <efault@gmx.de>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Bharata B Rao <bharata.rao@gmail.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Srivatsa Vaddagiri <vatsa@linux.vnet.ibm.com>, Christoph Lameter <cl@linux.com>
 
-On Tue, May 29, 2012 at 11:35:11AM +0200, Johannes Weiner wrote:
-> On Tue, May 29, 2012 at 04:48:48PM +0800, Fengguang Wu wrote:
-> > On Tue, May 29, 2012 at 09:28:53AM +0200, Johannes Weiner wrote:
-> > > On Tue, May 29, 2012 at 11:08:57AM +0800, Fengguang Wu wrote:
-> > > > Hi Michal,
-> > > > 
-> > > > On Mon, May 28, 2012 at 05:38:55PM +0200, Michal Hocko wrote:
-> > > > > Current implementation of dirty pages throttling is not memcg aware which makes
-> > > > > it easy to have LRUs full of dirty pages which might lead to memcg OOM if the
-> > > > > hard limit is small and so the lists are scanned faster than pages written
-> > > > > back.
-> > > > > 
-> > > > > This patch fixes the problem by throttling the allocating process (possibly
-> > > > > a writer) during the hard limit reclaim by waiting on PageReclaim pages.
-> > > > > We are waiting only for PageReclaim pages because those are the pages
-> > > > > that made one full round over LRU and that means that the writeback is much
-> > > > > slower than scanning.
-> > > > > The solution is far from being ideal - long term solution is memcg aware
-> > > > > dirty throttling - but it is meant to be a band aid until we have a real
-> > > > > fix.
-> > > > 
-> > > > IMHO it's still an important "band aid" -- perhaps worthwhile for
-> > > > sending to Greg's stable trees. Because it fixes a really important
-> > > > use case: it enables the users to put backups into a small memcg.
-> > > > 
-> > > > The users visible changes are:
-> > > > 
-> > > >         the backup program get OOM killed
-> > > > =>
-> > > >         it runs now, although being a bit slow and bumpy
-> > > 
-> > > The problem is workloads that /don't/ have excessive dirty pages, but
-> > > instantiate clean page cache at a much faster rate than writeback can
-> > > clean the few dirties.  The dirty/writeback pages reach the end of the
-> > > lru several times while there are always easily reclaimable pages
-> > > around.
-> > 
-> > Good point!
-> > 
-> > > This was the rationale for introducing the backoff function that
-> > > considers the dirty page percentage of all pages looked at (bottom of
-> > > shrink_active_list) and removing all other sleeps that didn't look at
-> > > the bigger picture and made problems.  I'd hate for them to come back.
-> > > 
-> > > On the other hand, is there a chance to make this backoff function
-> > > work for memcgs?  Right now it only applies to the global case to not
-> > > mark a whole zone congested because of some dirty pages on a single
-> > > memcg LRU.  But maybe it can work by considering congestion on a
-> > > per-lruvec basis rather than per-zone?
-> > 
-> > Johannes, would you paste the backoff code? Sorry I'm not sure about
-> > the exact logic you are talking.
-> 
-> Sure, it's this guy here:
+On Fri, May 25, 2012 at 07:02:27PM +0200, Andrea Arcangeli wrote:
 
-Yeah I knew this code, but it's in shrink_inactive_list() ;)
+> +static int knumad_do_scan(void)
+> +{
 
->         /*
->          * If reclaim is isolating dirty pages under writeback, it implies
->          * that the long-lived page allocation rate is exceeding the page
->          * laundering rate. Either the global limits are not being effective
->          * at throttling processes due to the page distribution throughout
->          * zones or there is heavy usage of a slow backing device. The
->          * only option is to throttle from reclaim context which is not ideal
->          * as there is no guarantee the dirtying process is throttled in the
->          * same way balance_dirty_pages() manages.
->          *
->          * This scales the number of dirty pages that must be under writeback
->          * before throttling depending on priority. It is a simple backoff
->          * function that has the most effect in the range DEF_PRIORITY to
->          * DEF_PRIORITY-2 which is the priority reclaim is considered to be
->          * in trouble and reclaim is considered to be in trouble.
->          *
->          * DEF_PRIORITY   100% isolated pages must be PageWriteback to throttle
->          * DEF_PRIORITY-1  50% must be PageWriteback
->          * DEF_PRIORITY-2  25% must be PageWriteback, kswapd in trouble
->          * ...
->          * DEF_PRIORITY-6 For SWAP_CLUSTER_MAX isolated pages, throttle if any
->          *                     isolated page is PageWriteback
->          */
->         if (nr_writeback && nr_writeback >= (nr_taken >> (DEF_PRIORITY-priority)))
->                 wait_iff_congested(zone, BLK_RW_ASYNC, HZ/10);
-> 
-> But the problem is the part declaring the zone congested:
-> 
->         /*
->          * Tag a zone as congested if all the dirty pages encountered were
->          * backed by a congested BDI. In this case, reclaimers should just
->          * back off and wait for congestion to clear because further reclaim
->          * will encounter the same problem
->          */
->         if (nr_dirty && nr_dirty == nr_congested && global_reclaim(sc))
->                 zone_set_flag(mz->zone, ZONE_CONGESTED);
-> 
-> Note the global_reclaim().  It would be nice to have these two operate
-> against the lruvec of sc->target_mem_cgroup and mz->zone instead.  The
-> problem is that ZONE_CONGESTED clearing happens in kswapd alone, which
-> is not necessarily involved in a memcg-constrained load, so we need to
-> find clearing sites that work for both global and memcg reclaim.
+...
 
-The problem of the above backoff logic is, both the conditions
+> +	if (knumad_test_exit(mm) || !vma) {
+> +		mm_autonuma = mm->mm_autonuma;
+> +		if (mm_autonuma->mm_node.next != &knumad_scan.mm_head) {
+> +			mm_autonuma = list_entry(mm_autonuma->mm_node.next,
+> +						 struct mm_autonuma, mm_node);
+> +			knumad_scan.mm = mm_autonuma->mm;
+> +			atomic_inc(&knumad_scan.mm->mm_count);
+> +			knumad_scan.address = 0;
+> +			knumad_scan.mm->mm_autonuma->numa_fault_pass++;
+> +		} else
+> +			knumad_scan.mm = NULL;
 
->         if (nr_writeback && nr_writeback >= (nr_taken >> (DEF_PRIORITY-priority)))
+knumad_scan.mm should be nulled only after list_del otherwise you will
+have race with autonuma_exit():
 
-and
+[   22.905208] ------------[ cut here ]------------
+[   23.003620] WARNING: at /home/kas/git/public/linux/lib/list_debug.c:50 __list_del_entry+0x63/0xd0()
+[   23.003621] Hardware name: QSSC-S4R
+[   23.003624] list_del corruption, ffff880771a49300->next is LIST_POISON1 (dead000000100100)
+[   23.003626] Modules linked in: megaraid_sas
+[   23.003629] Pid: 569, comm: udevd Not tainted 3.4.0+ #31
+[   23.003630] Call Trace:
+[   23.003640]  [<ffffffff8105956f>] warn_slowpath_common+0x7f/0xc0
+[   23.003643]  [<ffffffff81059666>] warn_slowpath_fmt+0x46/0x50
+[   23.003645]  [<ffffffff813202e3>] __list_del_entry+0x63/0xd0
+[   23.003648]  [<ffffffff81320361>] list_del+0x11/0x40
+[   23.003654]  [<ffffffff8117b80f>] autonuma_exit+0x5f/0xb0
+[   23.003657]  [<ffffffff810567ab>] mmput+0x7b/0x120
+[   23.003663]  [<ffffffff8105e7d8>] exit_mm+0x108/0x130
+[   23.003674]  [<ffffffff8165da5b>] ? _raw_spin_unlock_irq+0x2b/0x40
+[   23.003677]  [<ffffffff8105e94a>] do_exit+0x14a/0x8d0
+[   23.003682]  [<ffffffff811b71c6>] ? mntput+0x26/0x40
+[   23.003688]  [<ffffffff8119a599>] ? fput+0x1c9/0x270
+[   23.003693]  [<ffffffff81319dd9>] ? lockdep_sys_exit_thunk+0x35/0x67
+[   23.003696]  [<ffffffff8105f41f>] do_group_exit+0x4f/0xc0
+[   23.003698]  [<ffffffff8105f4a7>] sys_exit_group+0x17/0x20
+[   23.003703]  [<ffffffff816663e9>] system_call_fastpath+0x16/0x1b
+[   23.003705] ---[ end trace 8b21c7adb0af191b ]---
 
->         if (nr_dirty && nr_dirty == nr_congested && global_reclaim(sc))
+> +
+> +		if (knumad_test_exit(mm))
+> +			list_del(&mm->mm_autonuma->mm_node);
+> +		else
+> +			mm_numa_fault_flush(mm);
+> +
+> +		mmdrop(mm);
+> +	}
+> +
+> +	return progress;
+> +}
 
-are based on local nr_writeback/nr_dirty values. "local" means inside
-one SWAP_CLUSTER_MAX=32 batch. So if there is a continuous run of 32
-dirty/writeback pages in the LRU, which is a common case even if there
-are less than 20% dirty pages, the above conditions could accidentally
-evaluate to true.
+...
 
-So in long term, we may consider the opposite way: to replace it with
-the (PageReclaim && priority < X) test where the priority test is more
-global wise.
+> +
+> +static int knuma_scand(void *none)
+> +{
 
-For now, "priority" is not very stable. I often observe it being
-knocked down to small values (eg. 5) due to the uneven distribution of
-dirty pages over the LRU. But once we put dirty pages to a standalone
-LRU list, "priority" will no longer come up and down that often, being
-easily affected by the distribution of dirty pages.
+...
 
-> > As for this patch, can it be improved by adding some test like
-> > (priority < DEF_PRIORITY/2)? That should reasonably filter out the
-> > "fast read rotating dirty pages fast" situation and still avoid OOM
-> > for "heavy write inside small memcg".
-> 
-> I think we tried these thresholds for global sync reclaim, too, but
-> couldn't find the right value.  IIRC, we tried to strike a balance
-> between excessive stalls and wasting CPU, but obviously the CPU
-> wasting is not a concern because that is completely uninhibited right
-> now for memcg reclaim.  So it may be an improvement if I didn't miss
-> anything.  Maybe Mel remembers more?
-> 
-> It'd still be preferrable to keep the differences between memcg and
-> global reclaim at a minimum, though, and extend the dirty throttling
-> we already have.
+> +	mm = knumad_scan.mm;
+> +	knumad_scan.mm = NULL;
 
-Yeah we'll be introducing yet another magic value... Here we make
-things simple by limiting the goal to avoid OOM in small memcg and
-ignore other CPU/stall issues. For this target, it seems good to
-choose a very low priority. For example, (priority < 3), which means
-we've scanned 1/(2^2) = 25% dirty/writeback pages, which is slightly
-larger than the 20% global dirty limit.
+The same problem here.
 
-Thanks,
-Fengguang
+> +	if (mm)
+> +		list_del(&mm->mm_autonuma->mm_node);
+> +	mutex_unlock(&knumad_mm_mutex);
+> +
+> +	if (mm)
+> +		mmdrop(mm);
+> +
+> +	return 0;
+> +}
+
+-- 
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
