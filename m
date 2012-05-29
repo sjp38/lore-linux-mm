@@ -1,58 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx175.postini.com [74.125.245.175])
-	by kanga.kvack.org (Postfix) with SMTP id 94BEE6B0072
-	for <linux-mm@kvack.org>; Tue, 29 May 2012 12:12:19 -0400 (EDT)
-Date: Tue, 29 May 2012 18:11:57 +0200
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [PATCH 08/35] autonuma: introduce kthread_bind_node()
-Message-ID: <20120529161157.GE21339@redhat.com>
+Received: from psmtp.com (na3sys010amx147.postini.com [74.125.245.147])
+	by kanga.kvack.org (Postfix) with SMTP id CBF176B0075
+	for <linux-mm@kvack.org>; Tue, 29 May 2012 12:12:43 -0400 (EDT)
+Message-ID: <1338307942.26856.111.camel@twins>
+Subject: Re: [PATCH 22/35] autonuma: sched_set_autonuma_need_balance
+From: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Date: Tue, 29 May 2012 18:12:22 +0200
+In-Reply-To: <1337965359-29725-23-git-send-email-aarcange@redhat.com>
 References: <1337965359-29725-1-git-send-email-aarcange@redhat.com>
- <1337965359-29725-9-git-send-email-aarcange@redhat.com>
- <1338295753.26856.60.camel@twins>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1338295753.26856.60.camel@twins>
+	 <1337965359-29725-23-git-send-email-aarcange@redhat.com>
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: quoted-printable
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <a.p.zijlstra@chello.nl>
+To: Andrea Arcangeli <aarcange@redhat.com>
 Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Hillf Danton <dhillf@gmail.com>, Dan Smith <danms@us.ibm.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>, Paul Turner <pjt@google.com>, Suresh Siddha <suresh.b.siddha@intel.com>, Mike Galbraith <efault@gmx.de>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Bharata B Rao <bharata.rao@gmail.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Srivatsa Vaddagiri <vatsa@linux.vnet.ibm.com>, Christoph Lameter <cl@linux.com>
 
-On Tue, May 29, 2012 at 02:49:13PM +0200, Peter Zijlstra wrote:
-> On Fri, 2012-05-25 at 19:02 +0200, Andrea Arcangeli wrote:
-> >  /**
-> > + * kthread_bind_node - bind a just-created kthread to the CPUs of a node.
-> > + * @p: thread created by kthread_create().
-> > + * @nid: node (might not be online, must be possible) for @k to run on.
-> > + *
-> > + * Description: This function is equivalent to set_cpus_allowed(),
-> > + * except that @nid doesn't need to be online, and the thread must be
-> > + * stopped (i.e., just returned from kthread_create()).
-> > + */
-> > +void kthread_bind_node(struct task_struct *p, int nid)
-> > +{
-> > +       /* Must have done schedule() in kthread() before we set_task_cpu */
-> > +       if (!wait_task_inactive(p, TASK_UNINTERRUPTIBLE)) {
-> > +               WARN_ON(1);
-> > +               return;
-> > +       }
-> > +
-> > +       /* It's safe because the task is inactive. */
-> > +       do_set_cpus_allowed(p, cpumask_of_node(nid));
-> > +       p->flags |= PF_THREAD_BOUND;
-> 
-> No, I've said before, this is wrong. You should only ever use
-> PF_THREAD_BOUND when its strictly per-cpu. Moving the your numa threads
-> to a different node is silly but not fatal in any way.
+On Fri, 2012-05-25 at 19:02 +0200, Andrea Arcangeli wrote:
+> Invoke autonuma_balance only on the busy CPUs at the same frequency of
+> the CFS load balance.
+>=20
+> Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
+> ---
+>  kernel/sched/fair.c |    3 +++
+>  1 files changed, 3 insertions(+), 0 deletions(-)
+>=20
+> diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
+> index 99d1d33..1357938 100644
+> --- a/kernel/sched/fair.c
+> +++ b/kernel/sched/fair.c
+> @@ -4893,6 +4893,9 @@ static void run_rebalance_domains(struct softirq_ac=
+tion *h)
+> =20
+>  	rebalance_domains(this_cpu, idle);
+> =20
+> +	if (!this_rq->idle_balance)
+> +		sched_set_autonuma_need_balance();
+> +
 
-I changed the semantics of that bitflag, now it means: userland isn't
-allowed to shoot itself in the foot and mess with whatever CPU
-bindings the kernel has set for the kernel thread.
+This just isn't enough.. the whole thing needs to move out of
+schedule(). The only time schedule() should ever look at another cpu is
+if its idle.
 
-It'd be a clear regress not to set PF_THREAD_BOUND there. It would be
-even worse to remove the CPU binding to the node: it'd risk to copy
-memory with both src and dst being in remote nodes from the CPU where
-knuma_migrate runs on (there aren't just 2 node systems out there).
+As it stands load-balance actually takes too much time as it is to live
+in a softirq, -rt gets around that by pushing all softirqs into a thread
+and I was thinking of doing some of that for mainline too.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
