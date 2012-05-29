@@ -1,59 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx163.postini.com [74.125.245.163])
-	by kanga.kvack.org (Postfix) with SMTP id E17786B0068
-	for <linux-mm@kvack.org>; Tue, 29 May 2012 10:09:36 -0400 (EDT)
-Date: Tue, 29 May 2012 10:02:44 -0400
-From: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
-Subject: Re: [GIT] (frontswap.v16-tag)
-Message-ID: <20120529140244.GA3558@phenom.dumpdata.com>
-References: <20120518204211.GA18571@localhost.localdomain>
- <20120524202221.GA19856@phenom.dumpdata.com>
- <CA+55aFzvAMezd=ph6b0iQ=aqsJm1tOdS6HRRQ6rD8mLCJr_MhQ@mail.gmail.com>
+Received: from psmtp.com (na3sys010amx178.postini.com [74.125.245.178])
+	by kanga.kvack.org (Postfix) with SMTP id 5B18B6B0068
+	for <linux-mm@kvack.org>; Tue, 29 May 2012 10:19:07 -0400 (EDT)
+Date: Tue, 29 May 2012 09:19:02 -0500 (CDT)
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: [PATCH v3 05/28] memcg: Reclaim when more than one page
+ needed.
+In-Reply-To: <1337951028-3427-6-git-send-email-glommer@parallels.com>
+Message-ID: <alpine.DEB.2.00.1205290917230.4666@router.home>
+References: <1337951028-3427-1-git-send-email-glommer@parallels.com> <1337951028-3427-6-git-send-email-glommer@parallels.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CA+55aFzvAMezd=ph6b0iQ=aqsJm1tOdS6HRRQ6rD8mLCJr_MhQ@mail.gmail.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, chris.mason@oracle.com, matthew@wil.cx, ngupta@vflare.org, hannes@cmpxchg.org, hughd@google.com, sjenning@linux.vnet.ibm.com, JBeulich@novell.com, dan.magenheimer@oracle.com, linux-mm@kvack.org
+To: Glauber Costa <glommer@parallels.com>
+Cc: linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, linux-mm@kvack.org, kamezawa.hiroyu@jp.fujitsu.com, Tejun Heo <tj@kernel.org>, Li Zefan <lizefan@huawei.com>, Greg Thelen <gthelen@google.com>, Suleiman Souhlal <suleiman@google.com>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, devel@openvz.org, David Rientjes <rientjes@google.com>
 
-On Sun, May 27, 2012 at 03:29:39PM -0700, Linus Torvalds wrote:
-> On Thu, May 24, 2012 at 1:22 PM, Konrad Rzeszutek Wilk
-> <konrad.wilk@oracle.com> wrote:
-> >
-> > I posted this while I was on vacation and just realized that I hadn't
-> > put in the usual "GIT PULL" subject. Sorry about that - so sending
-> > this in case this GIT PULL got lost in your 'not-git-pull-ignore-for-two-weeks'
-> > folder. Cheers!
-> 
-> So that isn't actually the main reason I hadn't pulled, although being
-> emailed a few days before the merge window opened did mean that it was
-> fairly low down in my mailbox anyway..
+On Fri, 25 May 2012, Glauber Costa wrote:
 
-Ah, I was thinking that you might have gotten bored during that weekend
-and would pounce on some new code :-) I was probably projecting as I
-was near the vacation and needed my code-fix.
+> From: Suleiman Souhlal <ssouhlal@FreeBSD.org>
+>
+> mem_cgroup_do_charge() was written before slab accounting, and expects
+> three cases: being called for 1 page, being called for a stock of 32 pages,
+> or being called for a hugepage.  If we call for 2 pages (and several slabs
+> used in process creation are such, at least with the debug options I had),
+> it assumed it's being called for stock and just retried without reclaiming.
 
-> 
-> No, the real reason is that for new features like this - features that
-> I don't really see myself using personally and that I'm not all that
-> personally excited about - I *really* want others to pipe up with
-> "yes, we're using this, and yes, we want this to be merged".
-> 
-> It doesn't seem to be huge, which is great, but the deathly silence of
-> nobody speaking up and saying "yes please", makes me go "ok, I won't
-> pull if nobody speaks up for the feature".
+Slab pages are allocated up to order 3 (PAGE_ALLOC_COSTLY_ORDER). That is
+8 pages.
 
-Ooh, Wim Coekaerts just posted over the weekend a blog about his excitement
-about it: https://blogs.oracle.com/wim/entry/from_the_research_department_ramster
+>  	 * unlikely to succeed so close to the limit, and we fall back
+>  	 * to regular pages anyway in case of failure.
+>  	 */
+> -	if (nr_pages == 1 && ret)
+> +	if (nr_pages <= (PAGE_SIZE << PAGE_ALLOC_COSTLY_ORDER) && ret) {
+> +		cond_resched();
+>  		return CHARGE_RETRY;
+> +	}
+>
+>  	/*
+>  	 * At task move, charge accounts can be doubly counted. So, it's
 
-Also over the last couple of months I had gotten emails about people
-using it. Let me see if I can get their consent to either quote their
-emails or just ask them to reply to this thread.
-
-Also both Jan (SuSE) and Seth (IBM) are equally excited about this
-code as it is being used in a distro and in embedded hardware.
+Ok. That looks correct.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
