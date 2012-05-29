@@ -1,93 +1,105 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx150.postini.com [74.125.245.150])
-	by kanga.kvack.org (Postfix) with SMTP id 663EF6B005C
-	for <linux-mm@kvack.org>; Mon, 28 May 2012 23:10:04 -0400 (EDT)
-Date: Tue, 29 May 2012 11:08:57 +0800
-From: Fengguang Wu <fengguang.wu@intel.com>
-Subject: Re: [RFC -mm] memcg: prevent from OOM with too many dirty pages
-Message-ID: <20120529030857.GA7762@localhost>
-References: <1338219535-7874-1-git-send-email-mhocko@suse.cz>
+Received: from psmtp.com (na3sys010amx203.postini.com [74.125.245.203])
+	by kanga.kvack.org (Postfix) with SMTP id 1F6AC6B005C
+	for <linux-mm@kvack.org>; Mon, 28 May 2012 23:18:16 -0400 (EDT)
+Received: from /spool/local
+	by e28smtp07.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
+	Tue, 29 May 2012 08:48:12 +0530
+Received: from d28av02.in.ibm.com (d28av02.in.ibm.com [9.184.220.64])
+	by d28relay05.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q4T3I7Ob9961898
+	for <linux-mm@kvack.org>; Tue, 29 May 2012 08:48:07 +0530
+Received: from d28av02.in.ibm.com (loopback [127.0.0.1])
+	by d28av02.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q4T8mjwc023433
+	for <linux-mm@kvack.org>; Tue, 29 May 2012 18:48:45 +1000
+From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Subject: Re: [PATCH] mm/hugetlb: Use compound page head in migrate_huge_page
+In-Reply-To: <20120528191322.GA10071@tiehlicka.suse.cz>
+References: <1338218490-30978-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com> <20120528191322.GA10071@tiehlicka.suse.cz>User-Agent: Notmuch/0.11.1+346~g13d19c3 (http://notmuchmail.org) Emacs/23.3.1 (x86_64-pc-linux-gnu)
+Date: Tue, 29 May 2012 08:48:00 +0530
+Message-ID: <87obp7u13r.fsf@skywalker.in.ibm.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1338219535-7874-1-git-send-email-mhocko@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Michal Hocko <mhocko@suse.cz>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujtisu.com>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@redhat.com>, Ying Han <yinghan@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Greg Thelen <gthelen@google.com>, Hugh Dickins <hughd@google.com>
+Cc: linux-mm@kvack.org, kamezawa.hiroyu@jp.fujitsu.com, akpm@linux-foundation.org, rientjes@google.com, linux-kernel@vger.kernel.org
 
-Hi Michal,
+Michal Hocko <mhocko@suse.cz> writes:
 
-On Mon, May 28, 2012 at 05:38:55PM +0200, Michal Hocko wrote:
-> Current implementation of dirty pages throttling is not memcg aware which makes
-> it easy to have LRUs full of dirty pages which might lead to memcg OOM if the
-> hard limit is small and so the lists are scanned faster than pages written
-> back.
-> 
-> This patch fixes the problem by throttling the allocating process (possibly
-> a writer) during the hard limit reclaim by waiting on PageReclaim pages.
-> We are waiting only for PageReclaim pages because those are the pages
-> that made one full round over LRU and that means that the writeback is much
-> slower than scanning.
-> The solution is far from being ideal - long term solution is memcg aware
-> dirty throttling - but it is meant to be a band aid until we have a real
-> fix.
+> On Mon 28-05-12 20:51:30, Aneesh Kumar K.V wrote:
+>> From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+>> 
+>> The change was introduced by "hugetlb: simplify migrate_huge_page() "
+>> 
+>> We should use compound page head instead of tail pages in
+>> migrate_huge_page().
+>> 
+>> Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
+>> ---
+>>  mm/memory-failure.c |    4 ++--
+>>  1 file changed, 2 insertions(+), 2 deletions(-)
+>> 
+>> This is an important bug fix. If we want we can fold it with the not
+>> yet merged upstream patch mentioned above in linux-next. The stack
+>> trace for the crash is
+>> 
+>> [   75.337421] BUG: unable to handle kernel NULL pointer dereference at 0000000000000080
+>> [   75.338386] IP: [<ffffffff816b3f0f>] __mutex_lock_common+0xa1/0x350
+>> [   75.338386] PGD 1d700067 PUD 1d7dd067 PMD 0
+>> [   75.338386] Oops: 0002 [#1] SMP
+>> [   75.338386] CPU 1
+>> [   75.338386] Modules linked in:
+>> ...
+>> ...
+>> 
+>> [   75.338386] Call Trace:
+>> [   75.338386]  [<ffffffff810ffc04>] ? try_to_unmap_file+0x38/0x51c
+>> [   75.338386]  [<ffffffff810ffc04>] ? try_to_unmap_file+0x38/0x51c
+>> [   75.338386]  [<ffffffff813b5f8b>] ? vsnprintf+0x83/0x421
+>> [   75.338386]  [<ffffffff816b427d>] mutex_lock_nested+0x2a/0x31
+>> [   75.338386]  [<ffffffff8110999b>] ? alloc_huge_page_node+0x1d/0x55
+>> [   75.338386]  [<ffffffff810ffc04>] try_to_unmap_file+0x38/0x51c
+>> [   75.338386]  [<ffffffff8110999b>] ? alloc_huge_page_node+0x1d/0x55
+>> [   75.338386]  [<ffffffff810a06b9>] ? arch_local_irq_save+0x9/0xc
+>> [   75.338386]  [<ffffffff816b5e3b>] ? _raw_spin_unlock+0x23/0x27
+>> [   75.338386]  [<ffffffff81100839>] try_to_unmap+0x25/0x3c
+>> [   75.338386]  [<ffffffff810641c2>] ? console_unlock+0x210/0x238
+>> [   75.338386]  [<ffffffff811141e3>] migrate_huge_page+0x8d/0x178
+>
+> This should be part of the changelog.
 
-IMHO it's still an important "band aid" -- perhaps worthwhile for
-sending to Greg's stable trees. Because it fixes a really important
-use case: it enables the users to put backups into a small memcg.
-
-The users visible changes are:
-
-        the backup program get OOM killed
-=>
-        it runs now, although being a bit slow and bumpy
+I was expecting the patch to be folded back to the existing patch in
+-mm. That is the reason I added stack trace in the notes section so that
+if we decided to keep it as a separate patch we can pull the stack trace
+and add it to commit message.
 
 
-Talking about the more comprehensive fix, I'm sorry for delaying this
-patch for several months:
+>
+>> 
+>> 
+>> diff --git a/mm/memory-failure.c b/mm/memory-failure.c
+>> index 4a45098..53a1495 100644
+>> --- a/mm/memory-failure.c
+>> +++ b/mm/memory-failure.c
+>> @@ -1428,8 +1428,8 @@ static int soft_offline_huge_page(struct page *page, int flags)
+>>  	}
+>>  
+>>  	/* Keep page count to indicate a given hugepage is isolated. */
+>> -	ret = migrate_huge_page(page, new_page, MPOL_MF_MOVE_ALL, 0, true);
+>> -	put_page(page);
+>> +	ret = migrate_huge_page(hpage, new_page, MPOL_MF_MOVE_ALL, 0, true);
+>> +	put_page(hpage);
+>>  	if (ret) {
+>>  		pr_info("soft offline: %#lx: migration failed %d, type %lx\n",
+>>  			pfn, ret, page->flags);
+>
+> I guess you want hpage->flags here.
 
-        [PATCH 6/9] vmscan: dirty reclaim throttling
-        http://thread.gmane.org/gmane.linux.kernel.mm/74582
+Existing code pass the flag details of the page passed as the
+argument. I didn't want to change that.
 
-Now that Jan's iput() avoidance patchset has just been merged by
-Linus, I'll rebase the patchset on top of his great work.
-
-> diff --git a/mm/vmscan.c b/mm/vmscan.c
-> index c978ce4..7cccd81 100644
-> --- a/mm/vmscan.c
-> +++ b/mm/vmscan.c
-> @@ -720,9 +720,20 @@ static unsigned long shrink_page_list(struct list_head *page_list,
->  			(PageSwapCache(page) && (sc->gfp_mask & __GFP_IO));
->  
->  		if (PageWriteback(page)) {
-> -			nr_writeback++;
-> -			unlock_page(page);
-> -			goto keep;
-> +			/*
-> +			 * memcg doesn't have any dirty pages throttling so we
-> +			 * could easily OOM just because too many pages are in
-> +			 * writeback from reclaim and there is nothing else to
-> +			 * reclaim.
-> +			 */
-> +			if (PageReclaim(page)
-> +					&& may_enter_fs && !global_reclaim(sc))
-> +				wait_on_page_writeback(page);
-> +			else {
-> +				nr_writeback++;
-> +				unlock_page(page);
-> +				goto keep;
-> +			}
->  		}
->  
->  		references = page_check_references(page, sc);
-
-Reviewed-by: Fengguang Wu <fengguang.wu@intel.com>
-
-This is all good for memcg. I'd suggest sending it to 3.5 and 3.4.x as well.
-
-Thanks,
-Fengguang
+-aneesh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
