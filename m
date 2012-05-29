@@ -1,81 +1,137 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx122.postini.com [74.125.245.122])
-	by kanga.kvack.org (Postfix) with SMTP id 514796B005C
-	for <linux-mm@kvack.org>; Tue, 29 May 2012 04:48:55 -0400 (EDT)
-Date: Tue, 29 May 2012 16:48:48 +0800
-From: Fengguang Wu <fengguang.wu@intel.com>
-Subject: Re: [RFC -mm] memcg: prevent from OOM with too many dirty pages
-Message-ID: <20120529084848.GC10469@localhost>
-References: <1338219535-7874-1-git-send-email-mhocko@suse.cz>
- <20120529030857.GA7762@localhost>
- <20120529072853.GD1734@cmpxchg.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20120529072853.GD1734@cmpxchg.org>
+Received: from psmtp.com (na3sys010amx199.postini.com [74.125.245.199])
+	by kanga.kvack.org (Postfix) with SMTP id 8A6496B005C
+	for <linux-mm@kvack.org>; Tue, 29 May 2012 04:55:51 -0400 (EDT)
+Received: by pbbrp2 with SMTP id rp2so7020790pbb.14
+        for <linux-mm@kvack.org>; Tue, 29 May 2012 01:55:50 -0700 (PDT)
+Date: Tue, 29 May 2012 16:56:41 +0800
+From: "majianpeng" <majianpeng@gmail.com>
+Subject: [RFC] block_dev:Fix bug when read/write block-device which is larger than 16TB in 32bit-OS.
+Message-ID: <201205291656322966937@gmail.com>
+Mime-Version: 1.0
+Content-Type: text/plain;
+	charset="us-ascii"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujtisu.com>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@redhat.com>, Ying Han <yinghan@google.com>, Greg Thelen <gthelen@google.com>, Hugh Dickins <hughd@google.com>
+To: Andrew Morton <akpm@linux-foundation.org>, viro <viro@zeniv.linux.org.uk>
+Cc: linux-fsdevel <linux-fsdevel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
 
-On Tue, May 29, 2012 at 09:28:53AM +0200, Johannes Weiner wrote:
-> On Tue, May 29, 2012 at 11:08:57AM +0800, Fengguang Wu wrote:
-> > Hi Michal,
-> > 
-> > On Mon, May 28, 2012 at 05:38:55PM +0200, Michal Hocko wrote:
-> > > Current implementation of dirty pages throttling is not memcg aware which makes
-> > > it easy to have LRUs full of dirty pages which might lead to memcg OOM if the
-> > > hard limit is small and so the lists are scanned faster than pages written
-> > > back.
-> > > 
-> > > This patch fixes the problem by throttling the allocating process (possibly
-> > > a writer) during the hard limit reclaim by waiting on PageReclaim pages.
-> > > We are waiting only for PageReclaim pages because those are the pages
-> > > that made one full round over LRU and that means that the writeback is much
-> > > slower than scanning.
-> > > The solution is far from being ideal - long term solution is memcg aware
-> > > dirty throttling - but it is meant to be a band aid until we have a real
-> > > fix.
-> > 
-> > IMHO it's still an important "band aid" -- perhaps worthwhile for
-> > sending to Greg's stable trees. Because it fixes a really important
-> > use case: it enables the users to put backups into a small memcg.
-> > 
-> > The users visible changes are:
-> > 
-> >         the backup program get OOM killed
-> > =>
-> >         it runs now, although being a bit slow and bumpy
-> 
-> The problem is workloads that /don't/ have excessive dirty pages, but
-> instantiate clean page cache at a much faster rate than writeback can
-> clean the few dirties.  The dirty/writeback pages reach the end of the
-> lru several times while there are always easily reclaimable pages
-> around.
+The size of block-device is larger than 16TB, and the os is 32bit.
+If the offset of read/write is larger then 16TB. The index of address_space will
+overflow and supply data from low offset instead.
 
-Good point!
+when read-operation, in function do_generic_file_read():
+>index = *ppos >> PAGE_CACHE_SHIFT;
+Because the *ppos is larger than 16TB and the index  is the type pgoff_t which 32bit
+in 32bit-OS. So index will overflow.
 
-> This was the rationale for introducing the backoff function that
-> considers the dirty page percentage of all pages looked at (bottom of
-> shrink_active_list) and removing all other sleeps that didn't look at
-> the bigger picture and made problems.  I'd hate for them to come back.
-> 
-> On the other hand, is there a chance to make this backoff function
-> work for memcgs?  Right now it only applies to the global case to not
-> mark a whole zone congested because of some dirty pages on a single
-> memcg LRU.  But maybe it can work by considering congestion on a
-> per-lruvec basis rather than per-zone?
+When write-operation, in function generic_write_checks():
+>if (likely(!isblk)) {
+>		.....
+>	} else {
+>#ifdef CONFIG_BLOCK
+>		loff_t isize;
+>		if (bdev_read_only(I_BDEV(inode)))
+			return -EPERM;
+>		isize = i_size_read(inode);
+>		if (*pos >= isize) {
+>			if (*count || *pos > isize)
+>				return -ENOSPC;
+>		}
+>
+>		if (*pos + *count > isize)
+>			*count = isize - *pos;
+The code only check size.But continue code:
+generic_file_buffered_write-->generic_perform_write-->blkdev_write_begin 
+--->block_write_begin()
+> pgoff_t index = pos >> PAGE_CACHE_SHIFT;
+The index will overflow again.
 
-Johannes, would you paste the backoff code? Sorry I'm not sure about
-the exact logic you are talking. 
+Although filesystem has a attribute s_maxbytes, the block-device was not create so no affect.
 
-As for this patch, can it be improved by adding some test like
-(priority < DEF_PRIORITY/2)? That should reasonably filter out the
-"fast read rotating dirty pages fast" situation and still avoid OOM
-for "heavy write inside small memcg".
 
-Thanks,
-Fengguang
+Signed-off-by: majianpeng <majianpeng@gmail.com>
+---
+ fs/block_dev.c |    4 +++-
+ mm/filemap.c   |   28 ++++++++++++++++++++++++++++
+ 2 files changed, 31 insertions(+), 1 deletion(-)
+
+diff --git a/fs/block_dev.c b/fs/block_dev.c
+index c2bbe1f..1752c0e 100644
+--- a/fs/block_dev.c
++++ b/fs/block_dev.c
+@@ -382,7 +382,9 @@ static loff_t block_llseek(struct file *file, loff_t offset, int origin)
+ 
+ 	mutex_lock(&bd_inode->i_mutex);
+ 	size = i_size_read(bd_inode);
+-
++#if BITS_PER_LONG == 32
++	size = min_t(loff_t, size, (loff_t)0xFFFFFFFF * PAGE_CACHE_SIZE - 1);
++#endif
+ 	retval = -EINVAL;
+ 	switch (origin) {
+ 		case SEEK_END:
+diff --git a/mm/filemap.c b/mm/filemap.c
+index 79c4b2b..34a15bf 100644
+--- a/mm/filemap.c
++++ b/mm/filemap.c
+@@ -1373,6 +1373,25 @@ int generic_segment_checks(const struct iovec *iov,
+ }
+ EXPORT_SYMBOL(generic_segment_checks);
+ 
++static inline
++int generic_read_block_checks(struct file *file, loff_t *pos, size_t *count)
++{
++	struct inode *inode = file->f_mapping->host;
++	loff_t isize = 0;
++#if BITS_PER_LONG == 32 && defined(CONFIG_BLOCK)
++	isize = min_t(loff_t, i_size_read(inode),
++			(loff_t)0xFFFFFFFF * PAGE_CACHE_SIZE - 1);
++	if (*pos >= isize) {
++		if (*count || *pos > isize)
++			return -ENOSPC;
++	}
++
++	if (*pos + *count > isize)
++		*count = isize - *pos;
++#endif
++	return 0;
++}
++
+ /**
+  * generic_file_aio_read - generic filesystem read routine
+  * @iocb:	kernel I/O control block
+@@ -1398,6 +1417,11 @@ generic_file_aio_read(struct kiocb *iocb, const struct iovec *iov,
+ 	if (retval)
+ 		return retval;
+ 
++	if (S_ISBLK(filp->f_mapping->host->i_mode)) {
++		retval = generic_read_block_checks(filp, &pos, &count);
++		if (retval)
++			return retval;
++	}
+ 	/* coalesce the iovecs and go direct-to-BIO for O_DIRECT */
+ 	if (filp->f_flags & O_DIRECT) {
+ 		loff_t size;
+@@ -2214,6 +2238,10 @@ inline int generic_write_checks(struct file *file, loff_t *pos, size_t *count, i
+ 		if (bdev_read_only(I_BDEV(inode)))
+ 			return -EPERM;
+ 		isize = i_size_read(inode);
++#if BITS_PER_LONG == 32
++		isize = min_t(loff_t, isize,
++				(loff_t)0xFFFFFFFF * PAGE_CACHE_SIZE - 1);
++#endif
+ 		if (*pos >= isize) {
+ 			if (*count || *pos > isize)
+ 				return -ENOSPC;
+-- 
+1.7.9.5
+
+ 				
+--------------
+majianpeng
+2012-05-29
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
