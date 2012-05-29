@@ -1,53 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx149.postini.com [74.125.245.149])
-	by kanga.kvack.org (Postfix) with SMTP id 70B356B0069
-	for <linux-mm@kvack.org>; Tue, 29 May 2012 09:51:30 -0400 (EDT)
-Message-ID: <1338299468.26856.80.camel@twins>
-Subject: Re: [PATCH 14/35] autonuma: knuma_migrated per NUMA node queues
-From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Date: Tue, 29 May 2012 15:51:08 +0200
-In-Reply-To: <1337965359-29725-15-git-send-email-aarcange@redhat.com>
-References: <1337965359-29725-1-git-send-email-aarcange@redhat.com>
-	 <1337965359-29725-15-git-send-email-aarcange@redhat.com>
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: quoted-printable
-Mime-Version: 1.0
+Received: from psmtp.com (na3sys010amx157.postini.com [74.125.245.157])
+	by kanga.kvack.org (Postfix) with SMTP id 360176B0068
+	for <linux-mm@kvack.org>; Tue, 29 May 2012 09:54:46 -0400 (EDT)
+Received: from /spool/local
+	by e32.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <sjenning@linux.vnet.ibm.com>;
+	Tue, 29 May 2012 07:54:45 -0600
+Received: from d03relay02.boulder.ibm.com (d03relay02.boulder.ibm.com [9.17.195.227])
+	by d03dlp01.boulder.ibm.com (Postfix) with ESMTP id 7374EC40003
+	for <linux-mm@kvack.org>; Tue, 29 May 2012 07:54:39 -0600 (MDT)
+Received: from d03av04.boulder.ibm.com (d03av04.boulder.ibm.com [9.17.195.170])
+	by d03relay02.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q4TDsfK3038790
+	for <linux-mm@kvack.org>; Tue, 29 May 2012 07:54:41 -0600
+Received: from d03av04.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av04.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q4TDsdPR002980
+	for <linux-mm@kvack.org>; Tue, 29 May 2012 07:54:39 -0600
+Message-ID: <4FC4D51B.1000802@linux.vnet.ibm.com>
+Date: Tue, 29 May 2012 08:54:35 -0500
+From: Seth Jennings <sjenning@linux.vnet.ibm.com>
+MIME-Version: 1.0
+Subject: Re: [GIT] (frontswap.v16-tag)
+References: <20120518204211.GA18571@localhost.localdomain> <20120524202221.GA19856@phenom.dumpdata.com> <CA+55aFzvAMezd=ph6b0iQ=aqsJm1tOdS6HRRQ6rD8mLCJr_MhQ@mail.gmail.com>
+In-Reply-To: <CA+55aFzvAMezd=ph6b0iQ=aqsJm1tOdS6HRRQ6rD8mLCJr_MhQ@mail.gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Hillf Danton <dhillf@gmail.com>, Dan Smith <danms@us.ibm.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>, Paul Turner <pjt@google.com>, Suresh Siddha <suresh.b.siddha@intel.com>, Mike Galbraith <efault@gmx.de>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Bharata B Rao <bharata.rao@gmail.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Srivatsa Vaddagiri <vatsa@linux.vnet.ibm.com>, Christoph Lameter <cl@linux.com>
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, chris.mason@oracle.com, matthew@wil.cx, ngupta@vflare.org, hannes@cmpxchg.org, hughd@google.com, JBeulich@novell.com, dan.magenheimer@oracle.com, linux-mm@kvack.org
 
-On Fri, 2012-05-25 at 19:02 +0200, Andrea Arcangeli wrote:
+Hi Linus,
+
+On 05/27/2012 05:29 PM, Linus Torvalds wrote:
+
+> On Thu, May 24, 2012 at 1:22 PM, Konrad Rzeszutek Wilk
+> <konrad.wilk@oracle.com> wrote:
+>>
+>> I posted this while I was on vacation and just realized that I hadn't
+>> put in the usual "GIT PULL" subject. Sorry about that - so sending
+>> this in case this GIT PULL got lost in your 'not-git-pull-ignore-for-two-weeks'
+>> folder. Cheers!
+> 
+> So that isn't actually the main reason I hadn't pulled, although being
+> emailed a few days before the merge window opened did mean that it was
+> fairly low down in my mailbox anyway..
+> 
+> No, the real reason is that for new features like this - features that
+> I don't really see myself using personally and that I'm not all that
+> personally excited about - I *really* want others to pipe up with
+> "yes, we're using this, and yes, we want this to be merged".
+> 
+> It doesn't seem to be huge, which is great, but the deathly silence of
+> nobody speaking up and saying "yes please", makes me go "ok, I won't
+> pull if nobody speaks up for the feature".
 
 
-> diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-> index 41aa49b..8e578e6 100644
-> --- a/include/linux/mmzone.h
-> +++ b/include/linux/mmzone.h
-> @@ -666,6 +666,12 @@ typedef struct pglist_data {
->  	struct task_struct *kswapd;
->  	int kswapd_max_order;
->  	enum zone_type classzone_idx;
-> +#ifdef CONFIG_AUTONUMA
-> +	spinlock_t autonuma_lock;
-> +	struct list_head autonuma_migrate_head[MAX_NUMNODES];
-> +	unsigned long autonuma_nr_migrate_pages;
-> +	wait_queue_head_t autonuma_knuma_migrated_wait;
-> +#endif
->  } pg_data_t;
-> =20
->  #define node_present_pages(nid)	(NODE_DATA(nid)->node_present_pages)
+We (IBM LTC) are interested in this feature being included.  We are
+using it to enable main memory compression via the zcache driver in the
+staging tree.  A lot of development is happening on the zcache and
+zsmalloc drivers by Nitin, Minchan, and me.  But it is all (mostly) in
+vain unless we can get frontswap.
 
-O(nr_nodes^2) data.. ISTR people rewriting a certain slab allocator to
-get rid of that :-)
+I posted some numbers here...
+https://lkml.org/lkml/2012/3/22/383
 
-Also, don't forget that MAX_NUMNODES is an unconditional 512 on distro
-kernels, even when we only have 2.
+that demonstrate the benefit of zcache (another topic), but all that
+isn't even an option without frontswap.
 
-Now the total wasted space isn't too bad since its only 16 bytes,
-totaling a whole 2M for a 256 node system. But still, something like
-that wants at least a mention somewhere.
+Frontswap is the swap-space complement to Cleancache which has already
+been accepted.
 
+Sorry for my late response, but we would be very interested in seeing
+this feature in mainline.
+
+Thanks,
+Seth Jennings
+IBM Linux Technology Center
+POWER Virtualization
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
