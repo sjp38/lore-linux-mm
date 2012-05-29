@@ -1,13 +1,14 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx124.postini.com [74.125.245.124])
-	by kanga.kvack.org (Postfix) with SMTP id 5F58E6B005D
-	for <linux-mm@kvack.org>; Tue, 29 May 2012 10:37:00 -0400 (EDT)
-Date: Tue, 29 May 2012 09:36:55 -0500 (CDT)
+Received: from psmtp.com (na3sys010amx203.postini.com [74.125.245.203])
+	by kanga.kvack.org (Postfix) with SMTP id 8B9226B005C
+	for <linux-mm@kvack.org>; Tue, 29 May 2012 10:42:08 -0400 (EDT)
+Date: Tue, 29 May 2012 09:42:03 -0500 (CDT)
 From: Christoph Lameter <cl@linux.com>
-Subject: Re: [PATCH v3 13/28] slub: create duplicate cache
-In-Reply-To: <1337951028-3427-14-git-send-email-glommer@parallels.com>
-Message-ID: <alpine.DEB.2.00.1205290932530.4666@router.home>
-References: <1337951028-3427-1-git-send-email-glommer@parallels.com> <1337951028-3427-14-git-send-email-glommer@parallels.com>
+Subject: Re: [PATCH v3 15/28] slub: always get the cache from its page in
+ kfree
+In-Reply-To: <1337951028-3427-16-git-send-email-glommer@parallels.com>
+Message-ID: <alpine.DEB.2.00.1205290939540.4666@router.home>
+References: <1337951028-3427-1-git-send-email-glommer@parallels.com> <1337951028-3427-16-git-send-email-glommer@parallels.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -17,69 +18,31 @@ Cc: linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, linux-mm@kvack.org, k
 
 On Fri, 25 May 2012, Glauber Costa wrote:
 
-> index dacd1fb..4689034 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -467,6 +467,23 @@ struct cg_proto *tcp_proto_cgroup(struct mem_cgroup *memcg)
->  EXPORT_SYMBOL(tcp_proto_cgroup);
->  #endif /* CONFIG_INET */
->
-> +char *mem_cgroup_cache_name(struct mem_cgroup *memcg, struct kmem_cache *cachep)
-> +{
-> +	char *name;
-> +	struct dentry *dentry;
-> +
-> +	rcu_read_lock();
-> +	dentry = rcu_dereference(memcg->css.cgroup->dentry);
-> +	rcu_read_unlock();
-> +
-> +	BUG_ON(dentry == NULL);
-> +
-> +	name = kasprintf(GFP_KERNEL, "%s(%d:%s)",
-> +	    cachep->name, css_id(&memcg->css), dentry->d_name.name);
-> +
-> +	return name;
-> +}
+> struct page already have this information. If we start chaining
+> caches, this information will always be more trustworthy than
+> whatever is passed into the function
 
-Function allocates a string that is supposed to be disposed of by the
-caller. That needs to be documented and maybe even the name needs to
-reflect that.
+Yes but the lookup of the page struct also costs some cycles. SLAB in
+!NUMA mode and SLOB avoid these lookups and can improve their freeing
+speed because of that.
 
+> diff --git a/mm/slub.c b/mm/slub.c
+> index 0eb9e72..640872f 100644
 > --- a/mm/slub.c
 > +++ b/mm/slub.c
-> @@ -4002,6 +4002,38 @@ struct kmem_cache *kmem_cache_create(const char *name, size_t size,
->  }
->  EXPORT_SYMBOL(kmem_cache_create);
+> @@ -2598,10 +2598,14 @@ redo:
+>  void kmem_cache_free(struct kmem_cache *s, void *x)
+>  {
+>  	struct page *page;
+> +	bool slab_match;
 >
-> +#ifdef CONFIG_CGROUP_MEM_RES_CTLR_KMEM
-> +struct kmem_cache *kmem_cache_dup(struct mem_cgroup *memcg,
-> +				  struct kmem_cache *s)
-> +{
-> +	char *name;
-> +	struct kmem_cache *new;
-> +
-> +	name = mem_cgroup_cache_name(memcg, s);
-> +	if (!name)
-> +		return NULL;
-> +
-> +	new = kmem_cache_create_memcg(memcg, name, s->objsize, s->align,
-> +				      (s->allocflags & ~SLAB_PANIC), s->ctor);
+>  	page = virt_to_head_page(x);
+>
+> -	slab_free(s, page, x, _RET_IP_);
+> +	slab_match = (page->slab == s) | slab_is_parent(page->slab, s);
+> +	VM_BUG_ON(!slab_match);
 
-Hmmm... A full duplicate of the slab cache? We may have many sparsely
-used portions of the per node and per cpu structure as a result.
-
-> +	 * prevent it from being deleted. If kmem_cache_destroy() is
-> +	 * called for the root cache before we call it for a child cache,
-> +	 * it will be queued for destruction when we finally drop the
-> +	 * reference on the child cache.
-> +	 */
-> +	if (new) {
-> +		down_write(&slub_lock);
-> +		s->refcount++;
-> +		up_write(&slub_lock);
-> +	}
-
-Why do you need to increase the refcount? You made a full copy right?
+Why add a slab_match bool if you do not really need it?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
