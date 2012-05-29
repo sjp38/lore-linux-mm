@@ -1,43 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx193.postini.com [74.125.245.193])
-	by kanga.kvack.org (Postfix) with SMTP id F36FA6B005C
-	for <linux-mm@kvack.org>; Tue, 29 May 2012 02:43:29 -0400 (EDT)
-Message-Id: <4FC48C2D02000078000867E0@nat28.tlf.novell.com>
-Date: Tue, 29 May 2012 07:43:25 +0100
-From: "Jan Beulich" <JBeulich@suse.com>
-Subject: Re: [GIT] (frontswap.v16-tag)
-References: <20120518204211.GA18571@localhost.localdomain>
- <20120524202221.GA19856@phenom.dumpdata.com>
- <CA+55aFzvAMezd=ph6b0iQ=aqsJm1tOdS6HRRQ6rD8mLCJr_MhQ@mail.gmail.com>
-In-Reply-To: <CA+55aFzvAMezd=ph6b0iQ=aqsJm1tOdS6HRRQ6rD8mLCJr_MhQ@mail.gmail.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: quoted-printable
+Received: from psmtp.com (na3sys010amx205.postini.com [74.125.245.205])
+	by kanga.kvack.org (Postfix) with SMTP id 10F326B0068
+	for <linux-mm@kvack.org>; Tue, 29 May 2012 03:29:14 -0400 (EDT)
+Date: Tue, 29 May 2012 09:28:53 +0200
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [RFC -mm] memcg: prevent from OOM with too many dirty pages
+Message-ID: <20120529072853.GD1734@cmpxchg.org>
+References: <1338219535-7874-1-git-send-email-mhocko@suse.cz>
+ <20120529030857.GA7762@localhost>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
+In-Reply-To: <20120529030857.GA7762@localhost>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
-Cc: hannes@cmpxchg.org, hughd@google.com, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, sjenning@linux.vnet.ibm.com, chris.mason@oracle.com, dan.magenheimer@oracle.com, Rik van Riel <riel@redhat.com>, ngupta@vflare.org, matthew@wil.cx
+To: Fengguang Wu <fengguang.wu@intel.com>
+Cc: Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujtisu.com>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@redhat.com>, Ying Han <yinghan@google.com>, Greg Thelen <gthelen@google.com>, Hugh Dickins <hughd@google.com>
 
->>> On 28.05.12 at 00:29, Linus Torvalds <torvalds@linux-foundation.org> =
-wrote:
-> No, the real reason is that for new features like this - features that
-> I don't really see myself using personally and that I'm not all that
-> personally excited about - I *really* want others to pipe up with
-> "yes, we're using this, and yes, we want this to be merged".
->=20
-> It doesn't seem to be huge, which is great, but the deathly silence of
-> nobody speaking up and saying "yes please", makes me go "ok, I won't
-> pull if nobody speaks up for the feature".
+On Tue, May 29, 2012 at 11:08:57AM +0800, Fengguang Wu wrote:
+> Hi Michal,
+> 
+> On Mon, May 28, 2012 at 05:38:55PM +0200, Michal Hocko wrote:
+> > Current implementation of dirty pages throttling is not memcg aware which makes
+> > it easy to have LRUs full of dirty pages which might lead to memcg OOM if the
+> > hard limit is small and so the lists are scanned faster than pages written
+> > back.
+> > 
+> > This patch fixes the problem by throttling the allocating process (possibly
+> > a writer) during the hard limit reclaim by waiting on PageReclaim pages.
+> > We are waiting only for PageReclaim pages because those are the pages
+> > that made one full round over LRU and that means that the writeback is much
+> > slower than scanning.
+> > The solution is far from being ideal - long term solution is memcg aware
+> > dirty throttling - but it is meant to be a band aid until we have a real
+> > fix.
+> 
+> IMHO it's still an important "band aid" -- perhaps worthwhile for
+> sending to Greg's stable trees. Because it fixes a really important
+> use case: it enables the users to put backups into a small memcg.
+> 
+> The users visible changes are:
+> 
+>         the backup program get OOM killed
+> =>
+>         it runs now, although being a bit slow and bumpy
 
-Hmm, I had thought that Dan already went through this exercise,
-but in case I'm mis-remembering, I'd just like to make clear that
-for the last couple of years we've been making this (or its
-predecessor versions) available to our SLE and openSUSE users.
-I can't, however, provide numbers of actual employments of it in
-the field (such simply don't exist).
+The problem is workloads that /don't/ have excessive dirty pages, but
+instantiate clean page cache at a much faster rate than writeback can
+clean the few dirties.  The dirty/writeback pages reach the end of the
+lru several times while there are always easily reclaimable pages
+around.
 
-Jan
+This was the rationale for introducing the backoff function that
+considers the dirty page percentage of all pages looked at (bottom of
+shrink_active_list) and removing all other sleeps that didn't look at
+the bigger picture and made problems.  I'd hate for them to come back.
+
+On the other hand, is there a chance to make this backoff function
+work for memcgs?  Right now it only applies to the global case to not
+mark a whole zone congested because of some dirty pages on a single
+memcg LRU.  But maybe it can work by considering congestion on a
+per-lruvec basis rather than per-zone?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
