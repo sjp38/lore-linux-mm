@@ -1,61 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx203.postini.com [74.125.245.203])
-	by kanga.kvack.org (Postfix) with SMTP id A1D616B0073
-	for <linux-mm@kvack.org>; Tue, 29 May 2012 12:01:07 -0400 (EDT)
-Date: Tue, 29 May 2012 11:01:03 -0500 (CDT)
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: [PATCH v3 00/28] kmem limitation for memcg
-In-Reply-To: <4FC4EEF6.2050204@parallels.com>
-Message-ID: <alpine.DEB.2.00.1205291056440.6723@router.home>
-References: <1337951028-3427-1-git-send-email-glommer@parallels.com> <20120525133441.GB30527@tiehlicka.suse.cz> <alpine.DEB.2.00.1205250933170.22597@router.home> <4FC3381C.9020608@parallels.com> <alpine.DEB.2.00.1205290955270.4666@router.home>
- <4FC4EEF6.2050204@parallels.com>
+Received: from psmtp.com (na3sys010amx205.postini.com [74.125.245.205])
+	by kanga.kvack.org (Postfix) with SMTP id 29EDA6B0075
+	for <linux-mm@kvack.org>; Tue, 29 May 2012 12:02:05 -0400 (EDT)
+Message-ID: <4FC4F273.6060807@parallels.com>
+Date: Tue, 29 May 2012 19:59:47 +0400
+From: Glauber Costa <glommer@parallels.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [PATCH v3 15/28] slub: always get the cache from its page in
+ kfree
+References: <1337951028-3427-1-git-send-email-glommer@parallels.com> <1337951028-3427-16-git-send-email-glommer@parallels.com> <alpine.DEB.2.00.1205290939540.4666@router.home>
+In-Reply-To: <alpine.DEB.2.00.1205290939540.4666@router.home>
+Content-Type: text/plain; charset="ISO-8859-1"; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Glauber Costa <glommer@parallels.com>
-Cc: Michal Hocko <mhocko@suse.cz>, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, linux-mm@kvack.org, kamezawa.hiroyu@jp.fujitsu.com, Tejun Heo <tj@kernel.org>, Li Zefan <lizefan@huawei.com>, Greg Thelen <gthelen@google.com>, Suleiman Souhlal <suleiman@google.com>, Johannes Weiner <hannes@cmpxchg.org>, devel@openvz.org, David Rientjes <rientjes@google.com>
+To: Christoph Lameter <cl@linux.com>
+Cc: linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, linux-mm@kvack.org, kamezawa.hiroyu@jp.fujitsu.com, Tejun Heo <tj@kernel.org>, Li Zefan <lizefan@huawei.com>, Greg Thelen <gthelen@google.com>, Suleiman Souhlal <suleiman@google.com>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, devel@openvz.org, David Rientjes <rientjes@google.com>, Pekka Enberg <penberg@cs.helsinki.fi>
 
-On Tue, 29 May 2012, Glauber Costa wrote:
-
-> > I think it may be simplest to only account for the pages used by a slab in
-> > a memcg. That code could be added to the functions in the slab allocators
-> > that interface with the page allocators. Those are not that performance
-> > critical and would do not much harm.
+On 05/29/2012 06:42 PM, Christoph Lameter wrote:
+> On Fri, 25 May 2012, Glauber Costa wrote:
 >
-> No, I don't think so. Well, accounting the page is easy, but when we do a new
-> allocation, we need to match a process to its correspondent page. This will
-> likely lead to flushing the internal cpu caches of the slub, for instance,
-> hurting performance. That is because once we allocate a page, all objects on
-> that page need to belong to the same cgroup.
-
-Matching a process to its page is a complex thing even for pages used by
-userspace.
-
-How can you make sure that all objects on a page belong to the same
-cgroup? There are various kernel allocations that have uses far beyond a
-single context. There is already a certain degree of fuzziness there and
-we tolerate that in other contexts as well.
-
-
-> Also, you talk about intrusiveness, accounting pages is a lot more intrusive,
-> since then you need to know a lot about the internal structure of each cache.
-> Having the cache replicated has exactly the effect of isolating it better.
-
-Why would you need to know about the internal structure? Just get the
-current process context and use the cgroup that is readily available there
-to account for the pages.
-
-> > If you need per object accounting then the cleanest solution would be to
-> > duplicate the per node arrays per memcg (or only the statistics) and have
-> > the kmem_cache structure only once in memory.
+>> struct page already have this information. If we start chaining
+>> caches, this information will always be more trustworthy than
+>> whatever is passed into the function
 >
-> No, it's all per-page. Nothing here is per-object, maybe you misunderstood
-> something?
+> Yes but the lookup of the page struct also costs some cycles. SLAB in
+> !NUMA mode and SLOB avoid these lookups and can improve their freeing
+> speed because of that.
 
-There are free/used object counters in each page. You could account for
-objects in the l3 lists or kmem_cache_node strcut and thereby avoid
-having to deal with the individual objects at the per cpu level.
+But for our case, I don't really see a way around. What I can do, is 
+wrap it further, so when we're not using it, code goes exactly the same 
+way as before, instead of always calculating the page. Would it be better?
+
+>> diff --git a/mm/slub.c b/mm/slub.c
+>> index 0eb9e72..640872f 100644
+>> --- a/mm/slub.c
+>> +++ b/mm/slub.c
+>> @@ -2598,10 +2598,14 @@ redo:
+>>   void kmem_cache_free(struct kmem_cache *s, void *x)
+>>   {
+>>   	struct page *page;
+>> +	bool slab_match;
+>>
+>>   	page = virt_to_head_page(x);
+>>
+>> -	slab_free(s, page, x, _RET_IP_);
+>> +	slab_match = (page->slab == s) | slab_is_parent(page->slab, s);
+>> +	VM_BUG_ON(!slab_match);
+>
+> Why add a slab_match bool if you do not really need it?
+
+style. I find aux variables a very human readable way to deal with the 
+80-col limitation.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
