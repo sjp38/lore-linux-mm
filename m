@@ -1,66 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx199.postini.com [74.125.245.199])
-	by kanga.kvack.org (Postfix) with SMTP id 356076B005C
-	for <linux-mm@kvack.org>; Tue, 29 May 2012 11:45:15 -0400 (EDT)
-Date: Tue, 29 May 2012 17:43:09 +0200
-From: Petr Holasek <pholasek@redhat.com>
-Subject: Re: AutoNUMA alpha14
-Message-ID: <20120529154308.GA10790@dhcp-27-244.brq.redhat.com>
-References: <1337965359-29725-1-git-send-email-aarcange@redhat.com>
- <20120529133627.GA7637@shutemov.name>
+Received: from psmtp.com (na3sys010amx204.postini.com [74.125.245.204])
+	by kanga.kvack.org (Postfix) with SMTP id 8BF7E6B0068
+	for <linux-mm@kvack.org>; Tue, 29 May 2012 11:47:21 -0400 (EDT)
+Message-ID: <4FC4EEF6.2050204@parallels.com>
+Date: Tue, 29 May 2012 19:44:54 +0400
+From: Glauber Costa <glommer@parallels.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20120529133627.GA7637@shutemov.name>
+Subject: Re: [PATCH v3 00/28] kmem limitation for memcg
+References: <1337951028-3427-1-git-send-email-glommer@parallels.com> <20120525133441.GB30527@tiehlicka.suse.cz> <alpine.DEB.2.00.1205250933170.22597@router.home> <4FC3381C.9020608@parallels.com> <alpine.DEB.2.00.1205290955270.4666@router.home>
+In-Reply-To: <alpine.DEB.2.00.1205290955270.4666@router.home>
+Content-Type: text/plain; charset="ISO-8859-1"; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: Andrea Arcangeli <aarcange@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Hillf Danton <dhillf@gmail.com>, Dan Smith <danms@us.ibm.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>, Paul Turner <pjt@google.com>, Suresh Siddha <suresh.b.siddha@intel.com>, Mike Galbraith <efault@gmx.de>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Bharata B Rao <bharata.rao@gmail.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Srivatsa Vaddagiri <vatsa@linux.vnet.ibm.com>, Christoph Lameter <cl@linux.com>
+To: Christoph Lameter <cl@linux.com>
+Cc: Michal Hocko <mhocko@suse.cz>, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, linux-mm@kvack.org, kamezawa.hiroyu@jp.fujitsu.com, Tejun Heo <tj@kernel.org>, Li Zefan <lizefan@huawei.com>, Greg Thelen <gthelen@google.com>, Suleiman Souhlal <suleiman@google.com>, Johannes Weiner <hannes@cmpxchg.org>, devel@openvz.org, David Rientjes <rientjes@google.com>
 
-On Tue, 29 May 2012, Kirill A. Shutemov wrote:
+On 05/29/2012 07:07 PM, Christoph Lameter wrote:
+> On Mon, 28 May 2012, Glauber Costa wrote:
+>
+>>> It would be best to merge these with my patchset to extract common code
+>>> from the allocators. The modifications of individual slab allocators would
+>>> then be not necessary anymore and it would save us a lot of work.
+>>>
+>> Some of them would not, some of them would still be. But also please note that
+>> the patches here that deal with differences between allocators are usually the
+>> low hanging fruits compared to the rest.
+>>
+>> I agree that long term it not only better, but inevitable, if we are going to
+>> merge both.
+>>
+>> But right now, I think we should agree with the implementation itself - so if
+>> you have any comments on how I am handling these, I'd be happy to hear. Then
+>> we can probably set up a tree that does both, or get your patches merged and
+>> I'll rebase, etc.
+>
+> Just looked over the patchset and its quite intrusive.
 
-> <4>[  732.253488] Call Trace:
-> <4>[  732.377354]  [<ffffffff8107df90>] ? __init_waitqueue_head+0x60/0x60
-> <4>[  732.501250]  [<ffffffff8107e075>] ? finish_wait+0x45/0x90
-> <4>[  732.623816]  [<ffffffff8117b1e0>] ? __autonuma_migrate_page_remove+0x130/0x130
-> <4>[  732.748194]  [<ffffffff8107d437>] kthread+0xb7/0xc0
-> <4>[  732.872468]  [<ffffffff81668324>] kernel_thread_helper+0x4/0x10
-> <4>[  732.997588]  [<ffffffff8107d380>] ? __init_kthread_worker+0x70/0x70
-> <4>[  733.120411]  [<ffffffff81668320>] ? gs_change+0x13/0x13
-> <4>[  733.240230] Code: 4e 00 48 8b 05 6d 05 b8 00 a8 04 0f 84 b5 f9 ff ff 48 c7 c7 b0 c9 9e 81 31 c0 e8 04 6c 4d 00 e9 a2 f9 ff ff 66 90 e8 8a 87 4d 00 <0f> 0b 48 c7 c7 d0 c9 9e 81 31 c0 e8 e8 6b 4d 00 e9 73 f9 ff ff 
-> <1>[  733.489612] RIP  [<ffffffff8117baf5>] knuma_migrated+0x915/0xa50
-> <4>[  733.614281]  RSP <ffff88026c8b7d40>
-> <4>[  733.736855] ---[ end trace 25052e4d75b2f1f6 ]---
-> 
+Thank you very much, Christoph, appreciate it.
 
-Similar problem with __autonuma_migrate_page_remove here. 
+> I have never been
+> fond of cgroups (IMHO hardware needs to be partitioned at physical
+> boundaries) so I have not too much insight into what is going on in that
+> area.
 
-[ 1945.516632] ------------[ cut here ]------------
-[ 1945.516636] WARNING: at lib/list_debug.c:50 __list_del_entry+0x63/0xd0()
-[ 1945.516642] Hardware name: ProLiant DL585 G5   
-[ 1945.516651] list_del corruption, ffff88017d68b068->next is LIST_POISON1 (dead000000100100)
-[ 1945.516682] Modules linked in: ipt_MASQUERADE nf_conntrack_netbios_ns nf_conntrack_broadcast ip6table_mangle lockd ip6t_REJECT sunrpc nf_conntrack_ipv6 nf_defrag_ipv6 ip6table_filter ip6_tables iptable_nat nf_nat iptable_mangle nf_conntrack_ipv4 nf_defrag_ipv4 xt_conntrack nf_conntrack mperf freq_table kvm_amd kvm pcspkr amd64_edac_mod edac_core serio_raw bnx2 microcode edac_mce_amd shpchp k10temp hpilo ipmi_si ipmi_msghandler hpwdt qla2xxx hpsa ata_generic pata_acpi scsi_transport_fc scsi_tgt cciss pata_amd radeon i2c_algo_bit drm_kms_helper ttm drm i2c_core [last unloaded: scsi_wait_scan]
-[ 1945.516694] Pid: 150, comm: knuma_migrated0 Tainted: G        W    3.4.0aa_alpha+ #3
-[ 1945.516701] Call Trace:
-[ 1945.516710]  [<ffffffff8105788f>] warn_slowpath_common+0x7f/0xc0
-[ 1945.516717]  [<ffffffff81057986>] warn_slowpath_fmt+0x46/0x50
-[ 1945.516726]  [<ffffffff812f9713>] __list_del_entry+0x63/0xd0
-[ 1945.516735]  [<ffffffff812f9791>] list_del+0x11/0x40
-[ 1945.516743]  [<ffffffff81165b98>] __autonuma_migrate_page_remove+0x48/0x80
-[ 1945.516746]  [<ffffffff81165e66>] knuma_migrated+0x296/0x8a0
-[ 1945.516749]  [<ffffffff8107a200>] ? wake_up_bit+0x40/0x40
-[ 1945.516758]  [<ffffffff81165bd0>] ? __autonuma_migrate_page_remove+0x80/0x80
-[ 1945.516766]  [<ffffffff81079cc3>] kthread+0x93/0xa0
-[ 1945.516780]  [<ffffffff81626f24>] kernel_thread_helper+0x4/0x10
-[ 1945.516791]  [<ffffffff81079c30>] ? flush_kthread_worker+0x80/0x80
-[ 1945.516798]  [<ffffffff81626f20>] ? gs_change+0x13/0x13
-[ 1945.516800] ---[ end trace 7cab294af87bd79f ]---
+There is certainly a big market for that, and certainly a big market for 
+what we're doing as well. So there are users interested in Containers 
+technology, and I don't really see it as "partitioning it here" vs 
+"partitioning there". It's just different.
 
-I am getting this warning continually during memory intensive operations,
-e.g. AutoNUMA benchmarks from Andrea.
+Moreover, not everyone doing cgroups are doing containers. Some people 
+are isolating a service, or a paticular job.
 
-thanks,
-Petr H
+I agree it is an intrusive change, but it used to be even more. I did my 
+best to diminish its large spread.
+
+> The idea to just duplicate the caches leads to some weird stuff like the
+> refcounting and the recovery of the arguments used during slab creation.
+
+The refcounting is only needed so we are sure the parent cache won't go 
+away without the child caches going away. I can try to find a better way 
+to do that, specifically.
+
+>
+> I think it may be simplest to only account for the pages used by a slab in
+> a memcg. That code could be added to the functions in the slab allocators
+> that interface with the page allocators. Those are not that performance
+> critical and would do not much harm.
+
+No, I don't think so. Well, accounting the page is easy, but when we do 
+a new allocation, we need to match a process to its correspondent page. 
+This will likely lead to flushing the internal cpu caches of the slub, 
+for instance, hurting performance. That is because once we allocate a 
+page, all objects on that page need to belong to the same cgroup.
+
+Also, you talk about intrusiveness, accounting pages is a lot more 
+intrusive, since then you need to know a lot about the internal 
+structure of each cache. Having the cache replicated has exactly the 
+effect of isolating it better.
+
+I of course agree this is no walk in the park, but accounting something 
+that is internal to the cache, and that each cache will use and organize 
+in its own private way, doesn't make it any better.
+
+> If you need per object accounting then the cleanest solution would be to
+> duplicate the per node arrays per memcg (or only the statistics) and have
+> the kmem_cache structure only once in memory.
+
+No, it's all per-page. Nothing here is per-object, maybe you 
+misunderstood something?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
