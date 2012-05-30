@@ -1,63 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx190.postini.com [74.125.245.190])
-	by kanga.kvack.org (Postfix) with SMTP id A66716B005C
-	for <linux-mm@kvack.org>; Wed, 30 May 2012 17:25:13 -0400 (EDT)
-Received: by pbbrp2 with SMTP id rp2so601897pbb.14
-        for <linux-mm@kvack.org>; Wed, 30 May 2012 14:25:13 -0700 (PDT)
-Message-ID: <4FC69035.3000509@gmail.com>
-Date: Wed, 30 May 2012 17:25:09 -0400
-From: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
+Received: from psmtp.com (na3sys010amx131.postini.com [74.125.245.131])
+	by kanga.kvack.org (Postfix) with SMTP id 113966B005C
+	for <linux-mm@kvack.org>; Wed, 30 May 2012 17:38:28 -0400 (EDT)
+Received: by dakp5 with SMTP id p5so410713dak.14
+        for <linux-mm@kvack.org>; Wed, 30 May 2012 14:38:27 -0700 (PDT)
+Date: Wed, 30 May 2012 14:38:25 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH] meminfo: show /proc/meminfo base on container's memcg
+In-Reply-To: <1338260214-21919-1-git-send-email-gaofeng@cn.fujitsu.com>
+Message-ID: <alpine.DEB.2.00.1205301433490.9716@chino.kir.corp.google.com>
+References: <1338260214-21919-1-git-send-email-gaofeng@cn.fujitsu.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 0/6] mempolicy memory corruption fixlet
-References: <1338368529-21784-1-git-send-email-kosaki.motohiro@gmail.com> <CA+55aFzoVQ29C-AZYx=G62LErK+7HuTCpZhvovoyS0_KTGGZQg@mail.gmail.com> <alpine.DEB.2.00.1205301328550.31768@router.home> <20120530184638.GU27374@one.firstfloor.org> <alpine.DEB.2.00.1205301349230.31768@router.home> <20120530193234.GV27374@one.firstfloor.org> <alpine.DEB.2.00.1205301441350.31768@router.home> <20120530195244.GX27374@one.firstfloor.org> <CAHGf_=rS6cGjcJ7tKH05cMMdJKEO9f60mNBa0VaCkzs=kVjCQQ@mail.gmail.com> <20120530212235.GB20051@decadent.org.uk>
-In-Reply-To: <20120530212235.GB20051@decadent.org.uk>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ben Hutchings <ben@decadent.org.uk>
-Cc: KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Andi Kleen <andi@firstfloor.org>, Christoph Lameter <cl@linux.com>, Linus Torvalds <torvalds@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@google.com>, Dave Jones <davej@redhat.com>, Mel Gorman <mgorman@suse.de>, stable@vger.kernel.org, hughd@google.com, sivanich@sgi.com
+To: Gao feng <gaofeng@cn.fujitsu.com>
+Cc: hannes@cmpxchg.org, kamezawa.hiroyu@jp.fujitsu.com, mhocko@suse.cz, bsingharora@gmail.com, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, linux-mm@kvack.org, containers@lists.linux-foundation.org
 
-(5/30/12 5:22 PM), Ben Hutchings wrote:
-> On Wed, May 30, 2012 at 04:00:55PM -0400, KOSAKI Motohiro wrote:
->> On Wed, May 30, 2012 at 3:52 PM, Andi Kleen<andi@firstfloor.org>  wrote:
->>> On Wed, May 30, 2012 at 02:42:42PM -0500, Christoph Lameter wrote:
->>>> On Wed, 30 May 2012, Andi Kleen wrote:
->>>>
->>>>> On Wed, May 30, 2012 at 01:50:02PM -0500, Christoph Lameter wrote:
->>>>>> On Wed, 30 May 2012, Andi Kleen wrote:
->>>>>>
->>>>>>> I always regretted that cpusets were no done with custom node lists.
->>>>>>> That would have been much cleaner and also likely faster than what we have.
->>>>>>
->>>>>> Could shared memory policies ignore cpuset constraints?
->>>>>
->>>>> Only if noone uses cpusets as a "security" mechanism, just for a "soft policy"
->>>>> Even with soft policy you could well break someone's setup.
->>>>
->>>> Well at least lets exempt shared memory from memory migration and memory
->>>> policy updates. That seems to be causing many of these issues.
->>>
->>> Migration on the page level is needed for the memory error handling.
->>>
->>> Updates: you mean not allowing to set the policy when there are already
->>> multiple mappers? I could see that causing some unexpected behaviour. Presumably
->>> a standard database will only set it at the beginning, but I don't know
->>> if that would work for all users.
->>
->> We don't need to kill migration core. We only need to kill that mbind(2) updates
->> vma->policy of shmem.
-> [...]
->
-> So should I (and Greg) drop 'mm: mempolicy: Let vma_merge and
-> vma_split handle vma->vm_policy linkages' from the pending stable
-> releases?  Or is that OK as an interim fix until these changes go
-> into mainline?
+On Tue, 29 May 2012, Gao feng wrote:
 
-Please drop. It screw up mbind(2).
+> cgroup and namespaces are used for creating containers but some of
+> information is not isolated/virtualized. This patch is for isolating /proc/meminfo
+> information per container, which uses memory cgroup. By this, top,free
+> and other tools under container can work as expected(show container's
+> usage) without changes.
+> 
+> This patch is a trial to show memcg's info in /proc/meminfo if 'current'
+> is under a memcg other than root.
+> 
+> we show /proc/meminfo base on container's memory cgroup.
+> because there are lots of info can't be provide by memcg, and
+> the cmds such as top, free just use some entries of /proc/meminfo,
+> we replace those entries by memory cgroup.
+> 
+> if container has no memcg, we will show host's /proc/meminfo
+> as before.
+> 
+> there is no idea how to deal with Buffers,I just set it zero,
+> It's strange if Buffers bigger than MemTotal.
+> 
+> Signed-off-by: Gao feng <gaofeng@cn.fujitsu.com>
 
+Nack, this type of thing was initially tried with cpusets when a thread 
+was bound to a subset of nodes, i.e. only show the total amount of memory 
+spanned by those nodes.
 
+For your particular interest, this information is already available 
+elsewhere: memory.limit_in_bytes and memory.usage_in_bytes and that should 
+be the interface where this is attained via /proc/cgroups.
 
+Why?  Because the information exported by /proc/meminfo is considered by 
+applications to be static whereas the limit of a memcg may change without 
+any knowledge of the application.  Applications which need to know the 
+amount of memory they are constrained to are assuming that there are no 
+other consumers of memory on the system and thus they should be written to 
+understand memcg limits just like they should understand cpusets (through 
+either /proc/cgroups or /proc/cpuset).
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
