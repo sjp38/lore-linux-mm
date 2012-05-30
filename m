@@ -1,192 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx120.postini.com [74.125.245.120])
-	by kanga.kvack.org (Postfix) with SMTP id CB4C56B0071
-	for <linux-mm@kvack.org>; Wed, 30 May 2012 10:39:51 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx199.postini.com [74.125.245.199])
+	by kanga.kvack.org (Postfix) with SMTP id 9B9956B0074
+	for <linux-mm@kvack.org>; Wed, 30 May 2012 10:39:53 -0400 (EDT)
 Received: from /spool/local
-	by e28smtp07.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e28smtp01.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
-	Wed, 30 May 2012 20:09:48 +0530
+	Wed, 30 May 2012 20:09:51 +0530
 Received: from d28av03.in.ibm.com (d28av03.in.ibm.com [9.184.220.65])
-	by d28relay04.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q4UEdeHC35651808
-	for <linux-mm@kvack.org>; Wed, 30 May 2012 20:09:40 +0530
+	by d28relay01.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q4UEdmAN66060386
+	for <linux-mm@kvack.org>; Wed, 30 May 2012 20:09:49 +0530
 Received: from d28av03.in.ibm.com (loopback [127.0.0.1])
-	by d28av03.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q4UK8tjA026652
-	for <linux-mm@kvack.org>; Thu, 31 May 2012 06:08:56 +1000
+	by d28av03.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q4UK94tT027130
+	for <linux-mm@kvack.org>; Thu, 31 May 2012 06:09:04 +1000
 From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Subject: [PATCH -V7 06/14] hugetlb: simplify migrate_huge_page()
-Date: Wed, 30 May 2012 20:08:51 +0530
-Message-Id: <1338388739-22919-7-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+Subject: [PATCH -V7 09/14] hugetlbfs: Make some static variables global
+Date: Wed, 30 May 2012 20:08:54 +0530
+Message-Id: <1338388739-22919-10-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
 In-Reply-To: <1338388739-22919-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
 References: <1338388739-22919-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org, kamezawa.hiroyu@jp.fujitsu.com, dhillf@gmail.com, rientjes@google.com, mhocko@suse.cz, akpm@linux-foundation.org, hannes@cmpxchg.org
-Cc: linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Andrea Arcangeli <aarcange@redhat.com>
+Cc: linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
 
 From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
 
-Since we migrate only one hugepage don't use linked list for passing the
-page around.  Directly pass page that need to be migrated as argument.
-This also remove the usage page->lru in migrate path.
+We will use them later in hugetlb_cgroup.c
 
 Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Hillf Danton <dhillf@gmail.com>
-Cc: Michal Hocko <mhocko@suse.cz>
-Cc: Andrea Arcangeli <aarcange@redhat.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>
 ---
- include/linux/migrate.h |    4 +--
- mm/memory-failure.c     |   13 ++--------
- mm/migrate.c            |   65 +++++++++++++++--------------------------------
- 3 files changed, 25 insertions(+), 57 deletions(-)
+ include/linux/hugetlb.h |    5 +++++
+ mm/hugetlb.c            |    7 ++-----
+ 2 files changed, 7 insertions(+), 5 deletions(-)
 
-diff --git a/include/linux/migrate.h b/include/linux/migrate.h
-index 855c337..ce7e667 100644
---- a/include/linux/migrate.h
-+++ b/include/linux/migrate.h
-@@ -15,7 +15,7 @@ extern int migrate_page(struct address_space *,
- extern int migrate_pages(struct list_head *l, new_page_t x,
- 			unsigned long private, bool offlining,
- 			enum migrate_mode mode);
--extern int migrate_huge_pages(struct list_head *l, new_page_t x,
-+extern int migrate_huge_page(struct page *, new_page_t x,
- 			unsigned long private, bool offlining,
- 			enum migrate_mode mode);
+diff --git a/include/linux/hugetlb.h b/include/linux/hugetlb.h
+index c4353ea..dcd55c7 100644
+--- a/include/linux/hugetlb.h
++++ b/include/linux/hugetlb.h
+@@ -21,6 +21,11 @@ struct hugepage_subpool {
+ 	long max_hpages, used_hpages;
+ };
  
-@@ -36,7 +36,7 @@ static inline void putback_lru_pages(struct list_head *l) {}
- static inline int migrate_pages(struct list_head *l, new_page_t x,
- 		unsigned long private, bool offlining,
- 		enum migrate_mode mode) { return -ENOSYS; }
--static inline int migrate_huge_pages(struct list_head *l, new_page_t x,
-+static inline int migrate_huge_page(struct page *page, new_page_t x,
- 		unsigned long private, bool offlining,
- 		enum migrate_mode mode) { return -ENOSYS; }
- 
-diff --git a/mm/memory-failure.c b/mm/memory-failure.c
-index ab1e714..53a1495 100644
---- a/mm/memory-failure.c
-+++ b/mm/memory-failure.c
-@@ -1414,7 +1414,6 @@ static int soft_offline_huge_page(struct page *page, int flags)
- 	int ret;
- 	unsigned long pfn = page_to_pfn(page);
- 	struct page *hpage = compound_head(page);
--	LIST_HEAD(pagelist);
- 
- 	ret = get_any_page(page, pfn, flags);
- 	if (ret < 0)
-@@ -1429,19 +1428,11 @@ static int soft_offline_huge_page(struct page *page, int flags)
- 	}
- 
- 	/* Keep page count to indicate a given hugepage is isolated. */
--
--	list_add(&hpage->lru, &pagelist);
--	ret = migrate_huge_pages(&pagelist, new_page, MPOL_MF_MOVE_ALL, 0,
--				true);
-+	ret = migrate_huge_page(hpage, new_page, MPOL_MF_MOVE_ALL, 0, true);
-+	put_page(hpage);
- 	if (ret) {
--		struct page *page1, *page2;
--		list_for_each_entry_safe(page1, page2, &pagelist, lru)
--			put_page(page1);
--
- 		pr_info("soft offline: %#lx: migration failed %d, type %lx\n",
- 			pfn, ret, page->flags);
--		if (ret > 0)
--			ret = -EIO;
- 		return ret;
- 	}
- done:
-diff --git a/mm/migrate.c b/mm/migrate.c
-index ab81d48..927254c 100644
---- a/mm/migrate.c
-+++ b/mm/migrate.c
-@@ -929,15 +929,8 @@ static int unmap_and_move_huge_page(new_page_t get_new_page,
- 	if (anon_vma)
- 		put_anon_vma(anon_vma);
- 	unlock_page(hpage);
--
- out:
--	if (rc != -EAGAIN) {
--		list_del(&hpage->lru);
--		put_page(hpage);
--	}
--
- 	put_page(new_hpage);
--
- 	if (result) {
- 		if (rc)
- 			*result = rc;
-@@ -1013,48 +1006,32 @@ out:
- 	return nr_failed + retry;
- }
- 
--int migrate_huge_pages(struct list_head *from,
--		new_page_t get_new_page, unsigned long private, bool offlining,
--		enum migrate_mode mode)
-+int migrate_huge_page(struct page *hpage, new_page_t get_new_page,
-+		      unsigned long private, bool offlining,
-+		      enum migrate_mode mode)
- {
--	int retry = 1;
--	int nr_failed = 0;
--	int pass = 0;
--	struct page *page;
--	struct page *page2;
--	int rc;
--
--	for (pass = 0; pass < 10 && retry; pass++) {
--		retry = 0;
--
--		list_for_each_entry_safe(page, page2, from, lru) {
-+	int pass, rc;
++extern spinlock_t hugetlb_lock;
++extern int hugetlb_max_hstate;
++#define for_each_hstate(h) \
++	for ((h) = hstates; (h) < &hstates[hugetlb_max_hstate]; (h)++)
 +
-+	for (pass = 0; pass < 10; pass++) {
-+		rc = unmap_and_move_huge_page(get_new_page,
-+					      private, hpage, pass > 2, offlining,
-+					      mode);
-+		switch (rc) {
-+		case -ENOMEM:
-+			goto out;
-+		case -EAGAIN:
-+			/* try again */
- 			cond_resched();
--
--			rc = unmap_and_move_huge_page(get_new_page,
--					private, page, pass > 2, offlining,
--					mode);
--
--			switch(rc) {
--			case -ENOMEM:
--				goto out;
--			case -EAGAIN:
--				retry++;
--				break;
--			case 0:
--				break;
--			default:
--				/* Permanent failure */
--				nr_failed++;
--				break;
--			}
-+			break;
-+		case 0:
-+			goto out;
-+		default:
-+			rc = -EIO;
-+			goto out;
- 		}
- 	}
--	rc = 0;
- out:
--	if (rc)
--		return rc;
--
--	return nr_failed + retry;
-+	return rc;
- }
+ struct hugepage_subpool *hugepage_new_subpool(long nr_blocks);
+ void hugepage_put_subpool(struct hugepage_subpool *spool);
  
- #ifdef CONFIG_NUMA
+diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+index 0f38728..53840dd 100644
+--- a/mm/hugetlb.c
++++ b/mm/hugetlb.c
+@@ -35,7 +35,7 @@ const unsigned long hugetlb_zero = 0, hugetlb_infinity = ~0UL;
+ static gfp_t htlb_alloc_mask = GFP_HIGHUSER;
+ unsigned long hugepages_treat_as_movable;
+ 
+-static int hugetlb_max_hstate;
++int hugetlb_max_hstate;
+ unsigned int default_hstate_idx;
+ struct hstate hstates[HUGE_MAX_HSTATE];
+ 
+@@ -46,13 +46,10 @@ static struct hstate * __initdata parsed_hstate;
+ static unsigned long __initdata default_hstate_max_huge_pages;
+ static unsigned long __initdata default_hstate_size;
+ 
+-#define for_each_hstate(h) \
+-	for ((h) = hstates; (h) < &hstates[hugetlb_max_hstate]; (h)++)
+-
+ /*
+  * Protects updates to hugepage_freelists, nr_huge_pages, and free_huge_pages
+  */
+-static DEFINE_SPINLOCK(hugetlb_lock);
++DEFINE_SPINLOCK(hugetlb_lock);
+ 
+ static inline void unlock_or_release_subpool(struct hugepage_subpool *spool)
+ {
 -- 
 1.7.10
 
