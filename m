@@ -1,51 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx182.postini.com [74.125.245.182])
-	by kanga.kvack.org (Postfix) with SMTP id 8DEF26B005C
-	for <linux-mm@kvack.org>; Wed, 30 May 2012 14:35:54 -0400 (EDT)
-Date: Wed, 30 May 2012 20:34:06 +0200
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [PATCH 04/35] autonuma: define _PAGE_NUMA_PTE and _PAGE_NUMA_PMD
-Message-ID: <20120530183406.GH21339@redhat.com>
-References: <1337965359-29725-1-git-send-email-aarcange@redhat.com>
- <1337965359-29725-5-git-send-email-aarcange@redhat.com>
- <20120530182247.GA28341@localhost.localdomain>
-MIME-Version: 1.0
+Received: from psmtp.com (na3sys010amx195.postini.com [74.125.245.195])
+	by kanga.kvack.org (Postfix) with SMTP id D81F16B005C
+	for <linux-mm@kvack.org>; Wed, 30 May 2012 14:46:40 -0400 (EDT)
+Date: Wed, 30 May 2012 20:46:38 +0200
+From: Andi Kleen <andi@firstfloor.org>
+Subject: Re: [PATCH 0/6] mempolicy memory corruption fixlet
+Message-ID: <20120530184638.GU27374@one.firstfloor.org>
+References: <1338368529-21784-1-git-send-email-kosaki.motohiro@gmail.com> <CA+55aFzoVQ29C-AZYx=G62LErK+7HuTCpZhvovoyS0_KTGGZQg@mail.gmail.com> <alpine.DEB.2.00.1205301328550.31768@router.home>
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20120530182247.GA28341@localhost.localdomain>
+In-Reply-To: <alpine.DEB.2.00.1205301328550.31768@router.home>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Konrad Rzeszutek Wilk <konrad@darnok.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Hillf Danton <dhillf@gmail.com>, Dan Smith <danms@us.ibm.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>, Paul Turner <pjt@google.com>, Suresh Siddha <suresh.b.siddha@intel.com>, Mike Galbraith <efault@gmx.de>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Bharata B Rao <bharata.rao@gmail.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Srivatsa Vaddagiri <vatsa@linux.vnet.ibm.com>, Christoph Lameter <cl@linux.com>
+To: Christoph Lameter <cl@linux.com>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, kosaki.motohiro@gmail.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@google.com>, Dave Jones <davej@redhat.com>, Mel Gorman <mgorman@suse.de>, stable@vger.kernel.org, hughd@google.com, sivanich@sgi.com, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, andi@firstfloor.org
 
-Hi Konrad,
+On Wed, May 30, 2012 at 01:34:21PM -0500, Christoph Lameter wrote:
+> On Wed, 30 May 2012, Linus Torvalds wrote:
+> 
+> > On Wed, May 30, 2012 at 2:02 AM,  <kosaki.motohiro@gmail.com> wrote:
+> > >
+> > > So, I think we should reconsider about shared mempolicy completely.
+> >
+> > Quite frankly, I'd prefer that approach. The code is subtle and
+> > horribly bug-fraught, and I absolutely detest the way it looks too.
+> > Reading your patches was actually somewhat painful.
+> 
+> It is so bad mostly because the integration of shared memory policies with
+> cpusets is not really working. Using either in isolation is ok especially
+> shared mempolicies do not play well with cpusets.
 
-On Wed, May 30, 2012 at 02:22:49PM -0400, Konrad Rzeszutek Wilk wrote:
-> Thank you for loking at this from the xen side. The interesting thing
-> is that I believe the _PAGE_PAT (or _PAGE_PSE) is actually used on
-> Xen on PTEs. It is used to mark the pages WC. <sigh>
+Yes the cpusets did some horrible things.
 
-Oops, I'm using _PAGE_PSE too on the pte, but only when it's unmapped.
+I always regretted that cpusets were no done with custom node lists.
+That would have been much cleaner and also likely faster than what we have.
 
-static inline int pte_numa(pte_t pte)
-{
-	return (pte_flags(pte) &
-		(_PAGE_NUMA_PTE|_PAGE_PRESENT)) == _PAGE_NUMA_PTE;
-}
+> > If we could just remove the support for it entirely, that would be
+> > *much* preferable to continue working with this code.
+> 
+> Well shm support needs memory policies to spread data across nodes etc.
+> AFAICT support was put in due to requirements to support large database
+> vendors (oracle). Andi?
 
-And _PAGE_UNUSED2 (_PAGE_IOMAP) is used for the pmd but _PAGE_IOMAP by
-Xen should only be set on ptes.
+Yes we need shared policy for the big databases.
 
-The only way to use _PAGE_PSE safe on the pte is if the pte is
-non-present, is this what Xen is also doing? (in turn colliding with
-pte_numa)
+Maybe we could stop supporting cpusets with that though. Not sure they
+really use that.
 
-Now if I shrink the size of the page_autonuma to one entry per pmd
-(instead of per pte) I may as well drop pte_numa entirely and only
-leave pmd_numa. At the moment it's possible to switch between the two
-models at runtime with sysctl (if one wants to do a more expensive
-granular tracking). I'm still uncertain on the best way to shrink
-the page_autonuma size we'll see.
+> Its not going to be easy to remove.
+
+Shared policies? I don't think you can remove them.
+cpusets+shared policy? maybe, but still will be hard. 
+
+-Andi
+
+> 
+
+-- 
+ak@linux.intel.com -- Speaking for myself only.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
