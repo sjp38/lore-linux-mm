@@ -1,44 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx202.postini.com [74.125.245.202])
-	by kanga.kvack.org (Postfix) with SMTP id 74AB76B005C
-	for <linux-mm@kvack.org>; Wed, 30 May 2012 09:58:01 -0400 (EDT)
-Message-ID: <4FC626DA.3030408@parallels.com>
-Date: Wed, 30 May 2012 17:55:38 +0400
-From: Glauber Costa <glommer@parallels.com>
+Received: from psmtp.com (na3sys010amx193.postini.com [74.125.245.193])
+	by kanga.kvack.org (Postfix) with SMTP id B8A886B005C
+	for <linux-mm@kvack.org>; Wed, 30 May 2012 10:03:20 -0400 (EDT)
+Date: Wed, 30 May 2012 15:49:53 +0200
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [PATCH 13/35] autonuma: add page structure fields
+Message-ID: <20120530134953.GD21339@redhat.com>
+References: <1337965359-29725-1-git-send-email-aarcange@redhat.com>
+ <1337965359-29725-14-git-send-email-aarcange@redhat.com>
+ <1338297385.26856.74.camel@twins>
+ <4FC4D58A.50800@redhat.com>
+ <1338303251.26856.94.camel@twins>
+ <4FC5D973.3080108@gmail.com>
+ <1338368763.26856.207.camel@twins>
 MIME-Version: 1.0
-Subject: Re: [PATCH v3 16/28] memcg: kmem controller charge/uncharge infrastructure
-References: <1337951028-3427-1-git-send-email-glommer@parallels.com> <1337951028-3427-17-git-send-email-glommer@parallels.com> <20120530130416.GD25094@somewhere.redhat.com> <4FC61B4E.2060206@parallels.com> <20120530133736.GF25094@somewhere.redhat.com> <4FC622B5.9080600@parallels.com> <20120530135319.GG25094@somewhere.redhat.com>
-In-Reply-To: <20120530135319.GG25094@somewhere.redhat.com>
-Content-Type: text/plain; charset="ISO-8859-1"; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1338368763.26856.207.camel@twins>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Frederic Weisbecker <fweisbec@gmail.com>
-Cc: linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, linux-mm@kvack.org, kamezawa.hiroyu@jp.fujitsu.com, Tejun Heo <tj@kernel.org>, Li Zefan <lizefan@huawei.com>, Greg Thelen <gthelen@google.com>, Suleiman Souhlal <suleiman@google.com>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, devel@openvz.org, David Rientjes <rientjes@google.com>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@cs.helsinki.fi>
+To: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Cc: KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Hillf Danton <dhillf@gmail.com>, Dan Smith <danms@us.ibm.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>, Paul Turner <pjt@google.com>, Suresh Siddha <suresh.b.siddha@intel.com>, Mike Galbraith <efault@gmx.de>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Bharata B Rao <bharata.rao@gmail.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Johannes Weiner <hannes@cmpxchg.org>, Srivatsa Vaddagiri <vatsa@linux.vnet.ibm.com>, Christoph Lameter <cl@linux.com>
 
-On 05/30/2012 05:53 PM, Frederic Weisbecker wrote:
-> On Wed, May 30, 2012 at 05:37:57PM +0400, Glauber Costa wrote:
->> On 05/30/2012 05:37 PM, Frederic Weisbecker wrote:
->>> Right. __mem_cgroup_get_kmem_cache() fetches the memcg of the owner
->>> and calls memcg_create_cache_enqueue() which does css_tryget(&memcg->css).
->>> After this tryget I think you're fine. And in-between you're safe against
->>> css_set removal due to rcu_read_lock().
->>>
->>> I'm less clear with __mem_cgroup_new_kmem_page() though...
->>
->> That one does not get memcg->css but it does call mem_cgroup_get(),
->> that does prevent against the memcg structure being freed, which I
->> believe to be good enough.
->
-> What if the owner calls cgroup_exit() between mem_cgroup_from_task()
-> and mem_cgroup_get()? The css_set which contains the memcg gets freed.
-> Also the reference on the memcg doesn't even prevent the css_set to
-> be removed, does it?
-It doesn't, but we don't really care. The css can go away, if the memcg 
-structure stays. The caches will outlive the memcg anyway, since it is 
-possible that you delete it, with some caches still holding objects that
-are not freed (they will be marked as dead).
+On Wed, May 30, 2012 at 11:06:03AM +0200, Peter Zijlstra wrote:
+> The trouble with making this per pmd is that you then get the false
+> sharing per pmd, so if there's shared data on the 2m page you'll not
+> know where to put it.
 
+The numa hinting page fault is already scanning the pmd only, and it's
+working fine. So reducing the page_autonuma to one per pmd would not
+reduce the granularity of the information with the default settings
+everyone has been using so far, but then it would prevent this runtime
+tweak to work:
+
+echo 0 >/sys/kernel/mm/autonuma/knuma_scand/pmd
+
+I'm thinking about it but probably reducing the page_autonuma to one
+per pmd is going to be the simplest solution considering by default we
+only track the pmd anyway.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
