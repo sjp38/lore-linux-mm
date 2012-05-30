@@ -1,42 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx155.postini.com [74.125.245.155])
-	by kanga.kvack.org (Postfix) with SMTP id 05ED96B005D
-	for <linux-mm@kvack.org>; Wed, 30 May 2012 15:49:00 -0400 (EDT)
-Date: Wed, 30 May 2012 21:48:59 +0200
+Received: from psmtp.com (na3sys010amx144.postini.com [74.125.245.144])
+	by kanga.kvack.org (Postfix) with SMTP id C8E036B005D
+	for <linux-mm@kvack.org>; Wed, 30 May 2012 15:52:46 -0400 (EDT)
+Date: Wed, 30 May 2012 21:52:44 +0200
 From: Andi Kleen <andi@firstfloor.org>
-Subject: Re: [PATCH 2/6] mempolicy: Kill all mempolicy sharing
-Message-ID: <20120530194858.GW27374@one.firstfloor.org>
-References: <1338368529-21784-1-git-send-email-kosaki.motohiro@gmail.com> <1338368529-21784-3-git-send-email-kosaki.motohiro@gmail.com> <alpine.DEB.2.00.1205301439410.31768@router.home>
+Subject: Re: [PATCH 0/6] mempolicy memory corruption fixlet
+Message-ID: <20120530195244.GX27374@one.firstfloor.org>
+References: <1338368529-21784-1-git-send-email-kosaki.motohiro@gmail.com> <CA+55aFzoVQ29C-AZYx=G62LErK+7HuTCpZhvovoyS0_KTGGZQg@mail.gmail.com> <alpine.DEB.2.00.1205301328550.31768@router.home> <20120530184638.GU27374@one.firstfloor.org> <alpine.DEB.2.00.1205301349230.31768@router.home> <20120530193234.GV27374@one.firstfloor.org> <alpine.DEB.2.00.1205301441350.31768@router.home>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.00.1205301439410.31768@router.home>
+In-Reply-To: <alpine.DEB.2.00.1205301441350.31768@router.home>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Christoph Lameter <cl@linux.com>
-Cc: kosaki.motohiro@gmail.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@google.com>, Dave Jones <davej@redhat.com>, Mel Gorman <mgorman@suse.de>, Linus Torvalds <torvalds@linux-foundation.org>, stable@vger.kernel.org, hughd@google.com, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, andi@firstfloor.org
+Cc: Andi Kleen <andi@firstfloor.org>, Linus Torvalds <torvalds@linux-foundation.org>, kosaki.motohiro@gmail.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@google.com>, Dave Jones <davej@redhat.com>, Mel Gorman <mgorman@suse.de>, stable@vger.kernel.org, hughd@google.com, sivanich@sgi.com, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 
-On Wed, May 30, 2012 at 02:41:22PM -0500, Christoph Lameter wrote:
-> On Wed, 30 May 2012, kosaki.motohiro@gmail.com wrote:
+On Wed, May 30, 2012 at 02:42:42PM -0500, Christoph Lameter wrote:
+> On Wed, 30 May 2012, Andi Kleen wrote:
 > 
-> > refcount will be decreased even though was not increased whenever alloc_page_vma()
-> > is called. As you know, mere mbind(MPOL_MF_MOVE) calls alloc_page_vma().
+> > On Wed, May 30, 2012 at 01:50:02PM -0500, Christoph Lameter wrote:
+> > > On Wed, 30 May 2012, Andi Kleen wrote:
+> > >
+> > > > I always regretted that cpusets were no done with custom node lists.
+> > > > That would have been much cleaner and also likely faster than what we have.
+> > >
+> > > Could shared memory policies ignore cpuset constraints?
+> >
+> > Only if noone uses cpusets as a "security" mechanism, just for a "soft policy"
+> > Even with soft policy you could well break someone's setup.
 > 
-> Most of these issues are about memory migration and shared memory. If we
-> exempt shared memory from memory migration (after all that shared memory
-> has its own distinct memory policies already!) then a lot of these issues
-> wont arise.
+> Well at least lets exempt shared memory from memory migration and memory
+> policy updates. That seems to be causing many of these issues.
 
-Soft memory offlining needs migration. It's fairly important that this
-works: on the database systems most memory is in shared memory and they
-have a lot of memory, so predictive failure analysis and soft offlining
-helps a lot.
+Migration on the page level is needed for the memory error handling.
 
-Classic migration is probably not too important here, but they pretty
-much rely on the same low level mechanism.
+Updates: you mean not allowing to set the policy when there are already
+multiple mappers? I could see that causing some unexpected behaviour. Presumably
+a standard database will only set it at the beginning, but I don't know
+if that would work for all users.
 
 -Andi
-
 -- 
 ak@linux.intel.com -- Speaking for myself only.
 
