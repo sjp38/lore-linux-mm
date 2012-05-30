@@ -1,57 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx188.postini.com [74.125.245.188])
-	by kanga.kvack.org (Postfix) with SMTP id DFF406B0071
-	for <linux-mm@kvack.org>; Wed, 30 May 2012 11:29:35 -0400 (EDT)
-Date: Wed, 30 May 2012 10:29:32 -0500 (CDT)
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: Common 06/22] Extract common fields from struct kmem_cache
-In-Reply-To: <CAOJsxLGHZjucZUi=K3V6QDgP-UqA2GQY=z7D8poKMTO-JETZ2g@mail.gmail.com>
-Message-ID: <alpine.DEB.2.00.1205301028330.28968@router.home>
-References: <20120523203433.340661918@linux.com> <20120523203508.434967564@linux.com> <CAOJsxLGHZjucZUi=K3V6QDgP-UqA2GQY=z7D8poKMTO-JETZ2g@mail.gmail.com>
+Received: from psmtp.com (na3sys010amx132.postini.com [74.125.245.132])
+	by kanga.kvack.org (Postfix) with SMTP id 7EFD76B0071
+	for <linux-mm@kvack.org>; Wed, 30 May 2012 11:30:42 -0400 (EDT)
+Received: by bkcjm19 with SMTP id jm19so6099791bkc.14
+        for <linux-mm@kvack.org>; Wed, 30 May 2012 08:30:40 -0700 (PDT)
+Date: Wed, 30 May 2012 17:30:34 +0200
+From: Ingo Molnar <mingo@kernel.org>
+Subject: Re: [PATCH 00/35] AutoNUMA alpha14
+Message-ID: <20120530153034.GB4341@gmail.com>
+References: <1337965359-29725-1-git-send-email-aarcange@redhat.com>
+ <4FC112AB.1040605@redhat.com>
+ <CA+55aFxpD+LsE+aNvDJtz9sGsGMvdusisgOY3Csbzyx1mEqW-w@mail.gmail.com>
+ <1338389200.26856.273.camel@twins>
 MIME-Version: 1.0
-Content-Type: MULTIPART/MIXED; BOUNDARY="-1463811839-774467634-1338391774=:28968"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1338389200.26856.273.camel@twins>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pekka Enberg <penberg@kernel.org>
-Cc: linux-mm@kvack.org, David Rientjes <rientjes@google.com>, Matt Mackall <mpm@selenic.com>, Glauber Costa <glommer@parallels.com>, Joonsoo Kim <js1304@gmail.com>
+To: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Hillf Danton <dhillf@gmail.com>, Dan Smith <danms@us.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>, Paul Turner <pjt@google.com>, Suresh Siddha <suresh.b.siddha@intel.com>, Mike Galbraith <efault@gmx.de>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Bharata B Rao <bharata.rao@gmail.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Johannes Weiner <hannes@cmpxchg.org>, Srivatsa Vaddagiri <vatsa@linux.vnet.ibm.com>, Christoph Lameter <cl@linux.com>
 
-  This message is in MIME format.  The first part should be readable text,
-  while the remaining parts are likely unreadable without MIME-aware tools.
 
----1463811839-774467634-1338391774=:28968
-Content-Type: TEXT/PLAIN; charset=ISO-8859-1
-Content-Transfer-Encoding: QUOTED-PRINTABLE
+* Peter Zijlstra <a.p.zijlstra@chello.nl> wrote:
 
-On Wed, 30 May 2012, Pekka Enberg wrote:
+> So the thing is, my homenode-per-process approach should work 
+> for everything except the case where a single process 
+> out-strips a single node in either cpu utilization or memory 
+> consumption.
+> 
+> Now I claim such processes are rare since nodes are big, 
+> typically 6-8 cores. Writing anything that can sustain 
+> parallel execution larger than that is very specialist (and 
+> typically already employs strong data separation).
+> 
+> Yes there are such things out there, some use JVMs some are 
+> virtual machines some regular applications, but by and large 
+> processes are small compared to nodes.
+> 
+> So my approach is focus on the normal case, and provide 2 
+> system calls to replace sched_setaffinity() and mbind() for 
+> the people who use those.
 
-> > =A0/*
-> > + * Common fields provided in kmem_cache by all slab allocators
-> > + */
-> > +#define SLAB_COMMON \
-> > + =A0 =A0 =A0 unsigned int size, align; =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0=
- =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 \
-> > + =A0 =A0 =A0 unsigned long flags; =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =
-=A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0\
-> > + =A0 =A0 =A0 const char *name; =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0=
- =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 \
-> > + =A0 =A0 =A0 int refcount; =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0=
- =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 \
-> > + =A0 =A0 =A0 void (*ctor)(void *); =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0=
- =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 \
-> > + =A0 =A0 =A0 struct list_head list;
-> > +
->
-> I don't like this at all - it obscures the actual "kmem_cache"
-> structures. If we can't come up with a reasonable solution that makes
-> this a proper struct that's embedded in allocator-specific
-> "kmem_cache" structures, it's best that we rename the fields but keep
-> them inlined and drop this macro..
+We could certainly strike those from the first version, if Linus 
+agrees with the general approach.
 
-Actually that is a good idea. We can keep a fake struct in comments around
-in slab.h to document what all slab allocators have to support and then at
-some point we may be able to integrate the struct.
+This gives us degrees freedom as it's an obvious on/off kernel 
+feature which we fix or remove if it does not work.
 
----1463811839-774467634-1338391774=:28968--
+I'd even venture that it should be on by default, it's an 
+obvious placement strategy for everything sane that does not try 
+to nest some other execution environment within Linux (i.e. 
+specialist runtimes).
+
+Thanks,
+
+	Ingo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
