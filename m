@@ -1,136 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx177.postini.com [74.125.245.177])
-	by kanga.kvack.org (Postfix) with SMTP id C3E496B005C
-	for <linux-mm@kvack.org>; Wed, 30 May 2012 10:20:32 -0400 (EDT)
-Message-ID: <4FC62CAD.4080307@fold.natur.cuni.cz>
-Date: Wed, 30 May 2012 16:20:29 +0200
-From: Martin Mokrejs <mmokrejs@fold.natur.cuni.cz>
-MIME-Version: 1.0
-Subject: Re: 3.4-rc7: BUG: Bad rss-counter state mm:ffff88040b56f800 idx:1
- val:-59
-References: <4FBC1618.5010408@fold.natur.cuni.cz> <20120522162835.c193c8e0.akpm@linux-foundation.org> <20120522162946.2afcdb50.akpm@linux-foundation.org> <20120523172146.GA27598@redhat.com> <4FC52F17.20709@openvz.org> <20120529132658.14ab9ba3.akpm@linux-foundation.org> <4FC546B1.8050508@fold.natur.cuni.cz> <4FC606E7.4090701@openvz.org> <4FC60BBC.203@fold.natur.cuni.cz> <4FC61107.8050002@openvz.org> <4FC6188A.2030003@openvz.org>
-In-Reply-To: <4FC6188A.2030003@openvz.org>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx207.postini.com [74.125.245.207])
+	by kanga.kvack.org (Postfix) with SMTP id 598166B005C
+	for <linux-mm@kvack.org>; Wed, 30 May 2012 10:39:28 -0400 (EDT)
+Received: from /spool/local
+	by e28smtp08.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
+	Wed, 30 May 2012 20:09:24 +0530
+Received: from d28av03.in.ibm.com (d28av03.in.ibm.com [9.184.220.65])
+	by d28relay02.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q4UEdMmN59965574
+	for <linux-mm@kvack.org>; Wed, 30 May 2012 20:09:23 +0530
+Received: from d28av03.in.ibm.com (loopback [127.0.0.1])
+	by d28av03.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q4UK8bSm025324
+	for <linux-mm@kvack.org>; Thu, 31 May 2012 06:08:38 +1000
+From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Subject: [PATCH -V7 00/14] hugetlb: Add HugeTLB controller to control HugeTLB allocation
+Date: Wed, 30 May 2012 20:08:45 +0530
+Message-Id: <1338388739-22919-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Konstantin Khlebnikov <khlebnikov@openvz.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Oleg Nesterov <oleg@redhat.com>, LKML <linux-kernel@vger.kernel.org>, "markus@trippelsdorf.de" <markus@trippelsdorf.de>, "hughd@google.com" <hughd@google.com>, "kamezawa.hiroyu@jp.fujitsu.com" <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: linux-mm@kvack.org, kamezawa.hiroyu@jp.fujitsu.com, dhillf@gmail.com, rientjes@google.com, mhocko@suse.cz, akpm@linux-foundation.org, hannes@cmpxchg.org
+Cc: linux-kernel@vger.kernel.org, cgroups@vger.kernel.org
 
+Hi,
 
+This patchset implements a cgroup resource controller for HugeTLB
+pages. The controller allows to limit the HugeTLB usage per control
+group and enforces the controller limit during page fault. Since
+HugeTLB doesn't support page reclaim, enforcing the limit at page
+fault time implies that, the application will get SIGBUS signal if
+it tries to access HugeTLB pages beyond its limit. This requires
+the application to know beforehand how much HugeTLB pages it would
+require for its use.
 
-Konstantin Khlebnikov wrote:
-> Konstantin Khlebnikov wrote:
->> Martin Mokrejs wrote:
->>>
->>>
->>> Konstantin Khlebnikov wrote:
->>>> Martin Mokrejs wrote:
->>>>> Andrew Morton wrote:
->>>>>> On Wed, 30 May 2012 00:18:31 +0400
->>>>>> Konstantin Khlebnikov<khlebnikov@openvz.org>    wrote:
->>>>>>
->>>>>>> Oleg Nesterov wrote:
->>>>>>>> On 05/22, Andrew Morton wrote:
->>>>>>>>>
->>>>>>>>> Also, I have a note here that Oleg was unhappy with the patch.  Oleg
->>>>>>>>> happiness is important.  Has he cheered up yet?
->>>>>>>>
->>>>>>>> Well, yes, I do not really like this patch ;) Because I think there is
->>>>>>>> a more simple/straightforward fix, see below. In my opinion it also
->>>>>>>> makes the original code simpler.
->>>>>>>>
->>>>>>>> But. Obviously this is subjective, I can't prove my patch is "better",
->>>>>>>> and I didn't try to test it.
->>>>>>>>
->>>>>>>> So I won't argue with Konstantin who dislikes my patch, although I
->>>>>>>> would like to know the reason.
->>>>>>>
->>>>>>> I don't remember why I dislike your patch.
->>>>>>> For now I can only say ACK )
->>>>>>
->>>>>> We'll need a changelogged signed-off patch, please Oleg.  And some evidence
->>>>>> that it was tested would be nice ;)
->>>>>
->>>>> I will reboot in few hours, finally after few days ... I am running this first
->>>>> patch. I will try to test the second/alternative patch more quickly. Sorry for
->>>>> the delay.
->>>>>
->>>>
->>>> easiest way trigger this bug:
->>>>
->>>> #define _GNU_SOURCE
->>>> #include<unistd.h>
->>>> #include<sched.h>
->>>> #include<sys/syscall.h>
->>>> #include<sys/mman.h>
->>>>
->>>> static inline int sys_clone(unsigned long flags, void *stack, int *ptid, int *ctid)
->>>> {
->>>>       return syscall(SYS_clone, flags, stack, ptid, ctid);
->>>> }
->>>>
->>>> int main(int argc, char **argv)
->>>> {
->>>>       void *page;
->>>>
->>>>       page = mmap(NULL, 4096, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0);
->>>>       sys_clone(CLONE_VFORK | CLONE_VM | CLONE_CHILD_CLEARTID, NULL, NULL, page);
->>>> }
->>>>
->>>
->>> I am getting segfaults with this.
->>>
->>> (gdb) where
->>> #0  0x0000000000000000 in ?? ()
->>> #1  0x00007f430f70a7e0 in __elf_set___libc_subfreeres_element_free_mem__ () from /lib64/libc.so.6
->>> #2  0x00007f430f70a7e8 in __elf_set___libc_atexit_element__IO_cleanup__ () from /lib64/libc.so.6
->>> #3  0x0000000000000001 in ?? ()
->>> #4  0x0000000000000000 in ?? ()
->>> (gdb)
->>>
->>> What number should I give it as an argument? ;-)
->>
->> there is no arguments.
->>
->> yeah it corrupts stack. I'm too lazy to write it properly =)
->> but on non-patched kernel it also triggers this bug:
->> [206732.025131] BUG: Bad rss-counter state mm:ffff88000d8a6c80 idx:1 val:-1
->>
->> -- 
->> To unsubscribe, send a message with 'unsubscribe linux-mm' in
->> the body to majordomo@kvack.org.  For more info on Linux MM,
->> see: http://www.linux-mm.org/ .
->> Fight unfair telecom internet charges in Canada: sign http://stopthemeter.ca/
->> Don't email:<a href=mailto:"dont@kvack.org">  email@kvack.org</a>
-> 
-> this version works without segfaults =)
-> 
-> #define _GNU_SOURCE
-> #include <stdlib.h>
-> #include <sched.h>
-> #include <sys/mman.h>
-> 
-> int child(void *arg)
-> {
->     return 0;
-> }
-> 
-> char stack[4096];
-> 
-> int main(int argc, char **argv)
-> {
->     void *page;
-> 
->     page = mmap(NULL, 4096, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0);
->     clone(child, stack + sizeof(stack), CLONE_VFORK | CLONE_VM | CLONE_CHILD_CLEARTID, NULL, NULL, NULL, page);
->     return 0;
-> }
-> 
+The goal is to control how many HugeTLB pages a group of task can
+allocate. It can be looked at as an extension of the existing quota
+interface which limits the number of HugeTLB pages per hugetlbfs
+superblock. HPC job scheduler requires jobs to specify their resource
+requirements in the job file. Once their requirements can be met,
+job schedulers like (SLURM) will schedule the job. We need to make sure
+that the jobs won't consume more resources than requested. If they do
+we should either error out or kill the application.
 
-Thanks, this app does not crash anymore. Re-confirming that both patches fix the issue on my system.
+Patches are on top of 731a7378b81c2f5fa88ca1ae20b83d548d5613dc
 
-Martin
+Changes from V6:
+ * Implement the controller as a seperate HugeTLB cgroup.
+ * Folded fixup patches in -mm to the original patches
+
+Changes from V5:
+ * Address review feedback.
+
+Changes from V4:
+ * Add support for charge/uncharge during page migration
+ * Drop the usage of page->lru in unmap_hugepage_range.
+
+Changes from v3:
+ * Address review feedback.
+ * Fix a bug in cgroup removal related parent charging with use_hierarchy set
+
+Changes from V2:
+* Changed the implementation to limit the HugeTLB usage during page
+  fault time. This simplifies the extension and keep it closer to
+  memcg design. This also allows to support cgroup removal with less
+  complexity. Only caveat is the application should ensure its HugeTLB
+  usage doesn't cross the cgroup limit.
+
+Changes from V1:
+* Changed the implementation as a memcg extension. We still use
+  the same logic to track the cgroup and range.
+
+Changes from RFC post:
+* Added support for HugeTLB cgroup hierarchy
+* Added support for task migration
+* Added documentation patch
+* Other bug fixes
+
+-aneesh
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
