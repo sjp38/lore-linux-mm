@@ -1,57 +1,26 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx167.postini.com [74.125.245.167])
-	by kanga.kvack.org (Postfix) with SMTP id 1DDFD6B005C
-	for <linux-mm@kvack.org>; Wed, 30 May 2012 15:20:14 -0400 (EDT)
-Received: by mail-pz0-f50.google.com with SMTP id h15so213502dan.23
-        for <linux-mm@kvack.org>; Wed, 30 May 2012 12:20:13 -0700 (PDT)
-From: Pravin B Shelar <pshelar@nicira.com>
-Subject: [Resend PATCH v2] mm: Fix slab->page _count corruption.
-Date: Wed, 30 May 2012 12:20:10 -0700
-Message-Id: <1338405610-1788-1-git-send-email-pshelar@nicira.com>
+Received: from psmtp.com (na3sys010amx116.postini.com [74.125.245.116])
+	by kanga.kvack.org (Postfix) with SMTP id A013E6B005C
+	for <linux-mm@kvack.org>; Wed, 30 May 2012 15:27:35 -0400 (EDT)
+Date: Wed, 30 May 2012 14:27:30 -0500 (CDT)
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: [PATCH 6/6] MAINTAINERS: Added MEMPOLICY entry
+In-Reply-To: <1338368529-21784-7-git-send-email-kosaki.motohiro@gmail.com>
+Message-ID: <alpine.DEB.2.00.1205301425510.31768@router.home>
+References: <1338368529-21784-1-git-send-email-kosaki.motohiro@gmail.com> <1338368529-21784-7-git-send-email-kosaki.motohiro@gmail.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org, cl@linux.com, penberg@kernel.org, aarcange@redhat.com
-Cc: linux-mm@kvack.org, abhide@nicira.com, Pravin B Shelar <pshelar@nicira.com>
+To: kosaki.motohiro@gmail.com
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@google.com>, Dave Jones <davej@redhat.com>, Mel Gorman <mgorman@suse.de>, Linus Torvalds <torvalds@linux-foundation.org>, stable@vger.kernel.org, hughd@google.com, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, andi@firstfloor.org
 
-On arches that do not support this_cpu_cmpxchg_double slab_lock is used
-to do atomic cmpxchg() on double word which contains page->_count.
-page count can be changed from get_page() or put_page() without taking
-slab_lock. That corrupts page counter.
+Glad that someone is willing to take this on. Shared memory policies are
+an ugly thing.
 
-Following patch fixes it by moving page->_count out of cmpxchg_double
-data. So that slub does no change it while updating slub meta-data in
-struct page.
+Adding Andi. He needs to be cced on future postings of this patchset.
 
-Reported-by: Amey Bhide <abhide@nicira.com>
-Signed-off-by: Pravin B Shelar <pshelar@nicira.com>
 Acked-by: Christoph Lameter <cl@linux.com>
----
- include/linux/mm_types.h |    8 ++++++++
- 1 file changed, 8 insertions(+)
-
-diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
-index 18b48c4..e54a6b0 100644
---- a/include/linux/mm_types.h
-+++ b/include/linux/mm_types.h
-@@ -57,8 +57,16 @@ struct page {
- 		};
- 
- 		union {
-+#if defined(CONFIG_HAVE_CMPXCHG_DOUBLE) && \
-+    defined(CONFIG_HAVE_ALIGNED_STRUCT_PAGE)
- 			/* Used for cmpxchg_double in slub */
- 			unsigned long counters;
-+#else
-+			/* Keep _count separate from slub cmpxchg_double data,
-+			 * As rest of double word is protected by slab_lock
-+			 * but _count is not. */
-+			unsigned counters;
-+#endif
- 
- 			struct {
- 
--- 
-1.7.10
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
