@@ -1,183 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx121.postini.com [74.125.245.121])
-	by kanga.kvack.org (Postfix) with SMTP id CDFC06B005C
-	for <linux-mm@kvack.org>; Wed, 30 May 2012 04:25:17 -0400 (EDT)
-Message-ID: <4FC5D96B.8040708@fold.natur.cuni.cz>
-Date: Wed, 30 May 2012 10:25:15 +0200
-From: Martin Mokrejs <mmokrejs@fold.natur.cuni.cz>
+Received: from psmtp.com (na3sys010amx163.postini.com [74.125.245.163])
+	by kanga.kvack.org (Postfix) with SMTP id 3A8B56B005D
+	for <linux-mm@kvack.org>; Wed, 30 May 2012 04:25:28 -0400 (EDT)
+Received: by qcsd16 with SMTP id d16so3229635qcs.14
+        for <linux-mm@kvack.org>; Wed, 30 May 2012 01:25:27 -0700 (PDT)
+Message-ID: <4FC5D973.3080108@gmail.com>
+Date: Wed, 30 May 2012 04:25:23 -0400
+From: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
 MIME-Version: 1.0
-Subject: Re: 3.4-rc7: BUG: Bad rss-counter state mm:ffff88040b56f800 idx:1
- val:-59
-References: <4FBC1618.5010408@fold.natur.cuni.cz> <20120522162835.c193c8e0.akpm@linux-foundation.org> <4FBC7EAE.4040805@openvz.org>
-In-Reply-To: <4FBC7EAE.4040805@openvz.org>
-Content-Type: text/plain; charset=UTF-8
+Subject: Re: [PATCH 13/35] autonuma: add page structure fields
+References: <1337965359-29725-1-git-send-email-aarcange@redhat.com>   <1337965359-29725-14-git-send-email-aarcange@redhat.com>  <1338297385.26856.74.camel@twins> <4FC4D58A.50800@redhat.com> <1338303251.26856.94.camel@twins>
+In-Reply-To: <1338303251.26856.94.camel@twins>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Konstantin Khlebnikov <khlebnikov@openvz.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, "markus@trippelsdorf.de" <markus@trippelsdorf.de>, "hughd@google.com" <hughd@google.com>, "kamezawa.hiroyu@jp.fujitsu.com" <kamezawa.hiroyu@jp.fujitsu.com>, "oleg@redhat.com" <oleg@redhat.com>, Michal Hocko <mhocko@suse.cz>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Cc: Rik van Riel <riel@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Hillf Danton <dhillf@gmail.com>, Dan Smith <danms@us.ibm.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>, Paul Turner <pjt@google.com>, Suresh Siddha <suresh.b.siddha@intel.com>, Mike Galbraith <efault@gmx.de>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Bharata B Rao <bharata.rao@gmail.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Johannes Weiner <hannes@cmpxchg.org>, Srivatsa Vaddagiri <vatsa@linux.vnet.ibm.com>, Christoph Lameter <cl@linux.com>, kosaki.motohiro@gmail.com
 
-
-
-Konstantin Khlebnikov wrote:
-> Andrew Morton wrote:
->> On Wed, 23 May 2012 00:41:28 +0200
->> Martin Mokrejs<mmokrejs@fold.natur.cuni.cz>  wrote:
+(5/29/12 10:54 AM), Peter Zijlstra wrote:
+> On Tue, 2012-05-29 at 09:56 -0400, Rik van Riel wrote:
+>> On 05/29/2012 09:16 AM, Peter Zijlstra wrote:
+>>> On Fri, 2012-05-25 at 19:02 +0200, Andrea Arcangeli wrote:
 >>
->>> Hi Andrew,
->>>    while shutting down my laptop (Dell Vostro 3550 with 16GB RAM, core i7) with 3.4-rc7 I got:
+>>> 24 bytes per page.. or ~0.6% of memory gone. This is far too great a
+>>> price to pay.
 >>>
->>> May 23 00:07:54 vostro kernel: [352687.968267] BUG: Bad rss-counter state mm:ffff88040b56f800 idx:1 val:-59
->>> May 23 00:07:54 vostro kernel: [352687.968312] BUG: Bad rss-counter state mm:ffff88040b56f800 idx:2 val:59
->>> May 23 00:07:55 vostro acpid: exiting
->>> May 23 00:07:55 vostro syslog-ng[2838]: syslog-ng shutting down; version='3.3.4'
->>>
->>>    I found by Google the below thread and thought that maybe it is related?
->>> http://comments.gmane.org/gmane.linux.kernel.mm/76459
->>>
->>> ...
->>>
+>>> At LSF/MM Rik already suggested you limit the number of pages that can
+>>> be migrated concurrently and use this to move the extra list_head out of
+>>> struct page and into a smaller amount of extra structures, reducing the
+>>> total overhead.
 >>
->>
->> Well hopefully the below will fix this?
->>
->> I notice that I don't have this tagged for -stable backporting.  That
->> seems wrong.  Konstantin, do we know for how long this bug has been in
->> there?
-> 
-> It there for years, by itself it is mostly harmless.
-> This warning was added in c3f0327f8e9d7a503f0d64573c311eddd61f197d
-> so only v3.4 has this, I thought this fix will be there before release.
-> 
->>
->>
->>
->> From: Konstantin Khlebnikov<khlebnikov@openvz.org>
->> Subject: mm: correctly synchronize rss-counters at exit/exec
->>
->> mm->rss_stat counters have per-task delta: task->rss_stat.  Before
->> changing task->mm pointer the kernel must flush this delta with
->> sync_mm_rss().
->>
->> do_exit() already calls sync_mm_rss() to flush the rss-counters before
->> committing the rss statistics into task->signal->maxrss, taskstats, audit
->> and other stuff.  Unfortunately the kernel does this before calling
->> mm_release(), which can call put_user() for processing
->> task->clear_child_tid.  So at this point we can trigger page-faults and
->> task->rss_stat becomes non-zero again.  As a result mm->rss_stat becomes
->> inconsistent and check_mm() will print something like this:
->>
->> | BUG: Bad rss-counter state mm:ffff88020813c380 idx:1 val:-1
->> | BUG: Bad rss-counter state mm:ffff88020813c380 idx:2 val:1
->>
->> This patch moves sync_mm_rss() into mm_release(), and moves mm_release()
->> out of do_exit() and calls it earlier.  After mm_release() there should be
->> no pagefaults.
->>
->> [akpm@linux-foundation.org: tweak comment]
->> Signed-off-by: Konstantin Khlebnikov<khlebnikov@openvz.org>
->> Reported-by: Markus Trippelsdorf<markus@trippelsdorf.de>
->> Cc: Hugh Dickins<hughd@google.com>
->> Cc: KAMEZAWA Hiroyuki<kamezawa.hiroyu@jp.fujitsu.com>
->> Cc: Oleg Nesterov<oleg@redhat.com>
->> Signed-off-by: Andrew Morton<akpm@linux-foundation.org>
->> ---
->>
->>   fs/exec.c     |    1 -
->>   kernel/exit.c |   13 ++++++++-----
->>   kernel/fork.c |    8 ++++++++
->>   3 files changed, 16 insertions(+), 6 deletions(-)
->>
->> diff -puN fs/exec.c~mm-correctly-synchronize-rss-counters-at-exit-exec fs/exec.c
->> --- a/fs/exec.c~mm-correctly-synchronize-rss-counters-at-exit-exec
->> +++ a/fs/exec.c
->> @@ -823,7 +823,6 @@ static int exec_mmap(struct mm_struct *m
->>       /* Notify parent that we're no longer interested in the old VM */
->>       tsk = current;
->>       old_mm = current->mm;
->> -    sync_mm_rss(old_mm);
->>       mm_release(tsk, old_mm);
->>
->>       if (old_mm) {
->> diff -puN kernel/exit.c~mm-correctly-synchronize-rss-counters-at-exit-exec kernel/exit.c
->> --- a/kernel/exit.c~mm-correctly-synchronize-rss-counters-at-exit-exec
->> +++ a/kernel/exit.c
->> @@ -423,6 +423,7 @@ void daemonize(const char *name, ...)
->>        * user space pages.  We don't need them, and if we didn't close them
->>        * they would be locked into memory.
->>        */
->> +    mm_release(current, current->mm);
->>       exit_mm(current);
->>       /*
->>        * We don't want to get frozen, in case system-wide hibernation
->> @@ -640,7 +641,6 @@ static void exit_mm(struct task_struct *
->>       struct mm_struct *mm = tsk->mm;
->>       struct core_state *core_state;
->>
->> -    mm_release(tsk, mm);
->>       if (!mm)
->>           return;
->>       /*
->> @@ -959,9 +959,13 @@ void do_exit(long code)
->>                   preempt_count());
->>
->>       acct_update_integrals(tsk);
->> -    /* sync mm's RSS info before statistics gathering */
->> -    if (tsk->mm)
->> -        sync_mm_rss(tsk->mm);
->> +
->> +    /* Set exit_code before complete_vfork_done() in mm_release() */
->> +    tsk->exit_code = code;
->> +
->> +    /* Release mm and sync mm's RSS info before statistics gathering */
->> +    mm_release(tsk, tsk->mm);
->> +
->>       group_dead = atomic_dec_and_test(&tsk->signal->live);
->>       if (group_dead) {
->>           hrtimer_cancel(&tsk->signal->real_timer);
->> @@ -974,7 +978,6 @@ void do_exit(long code)
->>           tty_audit_exit();
->>       audit_free(tsk);
->>
->> -    tsk->exit_code = code;
->>       taskstats_exit(tsk, group_dead);
->>
->>       exit_mm(tsk);
->> diff -puN kernel/fork.c~mm-correctly-synchronize-rss-counters-at-exit-exec kernel/fork.c
->> --- a/kernel/fork.c~mm-correctly-synchronize-rss-counters-at-exit-exec
->> +++ a/kernel/fork.c
->> @@ -809,6 +809,14 @@ void mm_release(struct task_struct *tsk,
->>           }
->>           tsk->clear_child_tid = NULL;
->>       }
->> +
->> +    /*
->> +     * Final rss-counter synchronization. After this point there must be
->> +     * no pagefaults into this mm from the current context.  Otherwise
->> +     * mm->rss_stat will be inconsistent.
->> +     */
->> +    if (mm)
->> +        sync_mm_rss(mm);
->>   }
->>
->>   /*
->> _
->>
+>> For THP, we should be able to track this NUMA info on a
+>> 2MB page granularity.
+>
+> Yeah, but that's another x86-only feature, _IF_ we're going to do this
+> it must be done for all archs that have CONFIG_NUMA, thus we're stuck
+> with 4k (or other base page size).
 
-I made my system to allocate some 3 millions of blocks in swap according to vmstat(1)
-and rebooted.  It took about 6 minutes to the system to kill 7 gimp images 2.2GB
-(16000x8000px, at 1200dpi each and a python session having some huge lists in memory.
-I have 16GB of RAM. There were no errors/warnings or Oopses logged in /var/log/messages
-so I conclude this patch from Konstantin Khlebnikov works for me on 3.4-rc7.
+Even if THP=n, we don't need 4k granularity. All modern malloc implementation have
+per-thread heap (e.g. glibc call it as arena) and it is usually 1-8MB size. So, if
+it is larger than 2MB, we can always use per-pmd tracking. iow, memory consumption
+reduce to 1/512.
 
-May 30 09:57:57 vostro syslog-ng[2534]: syslog-ng shutting down; version='3.3.4'
-May 30 10:06:31 vostro syslog-ng[2519]: syslog-ng starting up; version='3.3.4'
+My suggestion is, track per-pmd (i.e. 2M size) granularity and fix glibc too (current
+glibc malloc has dynamically arena size adjusting feature and then it often become
+less than 2M).
 
-Tested-by: Martin Mokrejs <mmokrejs@fold.natur.cuni.cz>
-
---
-
-Will try the other patch from Oleg Nesterov now.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
