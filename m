@@ -1,55 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx106.postini.com [74.125.245.106])
-	by kanga.kvack.org (Postfix) with SMTP id A8C856B005C
-	for <linux-mm@kvack.org>; Wed, 30 May 2012 12:19:22 -0400 (EDT)
-Message-ID: <4FC647FB.90202@parallels.com>
-Date: Wed, 30 May 2012 20:16:59 +0400
-From: Glauber Costa <glommer@parallels.com>
+Received: from psmtp.com (na3sys010amx117.postini.com [74.125.245.117])
+	by kanga.kvack.org (Postfix) with SMTP id 09C7D6B005D
+	for <linux-mm@kvack.org>; Wed, 30 May 2012 12:33:22 -0400 (EDT)
+Date: Wed, 30 May 2012 12:33:17 -0400
+From: Dave Jones <davej@redhat.com>
+Subject: WARNING: at mm/page-writeback.c:1990
+ __set_page_dirty_nobuffers+0x13a/0x170()
+Message-ID: <20120530163317.GA13189@redhat.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH v3 16/28] memcg: kmem controller charge/uncharge infrastructure
-References: <1337951028-3427-1-git-send-email-glommer@parallels.com> <1337951028-3427-17-git-send-email-glommer@parallels.com> <20120530130416.GD25094@somewhere.redhat.com> <4FC61B4E.2060206@parallels.com> <20120530133736.GF25094@somewhere.redhat.com> <4FC622B5.9080600@parallels.com> <20120530135319.GG25094@somewhere.redhat.com> <4FC626DA.3030408@parallels.com> <20120530153256.GA27008@somewhere.redhat.com>
-In-Reply-To: <20120530153256.GA27008@somewhere.redhat.com>
-Content-Type: text/plain; charset="ISO-8859-1"; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Frederic Weisbecker <fweisbec@gmail.com>
-Cc: linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, linux-mm@kvack.org, kamezawa.hiroyu@jp.fujitsu.com, Tejun Heo <tj@kernel.org>, Li Zefan <lizefan@huawei.com>, Greg Thelen <gthelen@google.com>, Suleiman Souhlal <suleiman@google.com>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, devel@openvz.org, David Rientjes <rientjes@google.com>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@cs.helsinki.fi>
+To: Linux Kernel <linux-kernel@vger.kernel.org>
+Cc: linux-mm@kvack.org
 
-On 05/30/2012 07:33 PM, Frederic Weisbecker wrote:
-> On Wed, May 30, 2012 at 05:55:38PM +0400, Glauber Costa wrote:
->> On 05/30/2012 05:53 PM, Frederic Weisbecker wrote:
->>> On Wed, May 30, 2012 at 05:37:57PM +0400, Glauber Costa wrote:
->>>> On 05/30/2012 05:37 PM, Frederic Weisbecker wrote:
->>>>> Right. __mem_cgroup_get_kmem_cache() fetches the memcg of the owner
->>>>> and calls memcg_create_cache_enqueue() which does css_tryget(&memcg->css).
->>>>> After this tryget I think you're fine. And in-between you're safe against
->>>>> css_set removal due to rcu_read_lock().
->>>>>
->>>>> I'm less clear with __mem_cgroup_new_kmem_page() though...
->>>>
->>>> That one does not get memcg->css but it does call mem_cgroup_get(),
->>>> that does prevent against the memcg structure being freed, which I
->>>> believe to be good enough.
->>>
->>> What if the owner calls cgroup_exit() between mem_cgroup_from_task()
->>> and mem_cgroup_get()? The css_set which contains the memcg gets freed.
->>> Also the reference on the memcg doesn't even prevent the css_set to
->>> be removed, does it?
->> It doesn't, but we don't really care. The css can go away, if the
->> memcg structure stays.
->
-> Ah right, the memcg itself is only freed at destroy time.
->
->> The caches will outlive the memcg anyway,
->> since it is possible that you delete it, with some caches still
->> holding objects that
->> are not freed (they will be marked as dead).
->
-> I guess I need to look at how the destroy path is handled in your patchset
-> then. Or how you ensure that __mem_cgroup_new_kmem_page() can't race against
-> destroy.
-Appreciate that, thanks.
+Just saw this on Linus tree as of 731a7378b81c2f5fa88ca1ae20b83d548d5613dc
+
+
+------------[ cut here ]------------
+WARNING: at mm/page-writeback.c:1990 __set_page_dirty_nobuffers+0x13a/0x170()
+Hardware name:         
+Modules linked in: ebtable_nat ebtables ipt_MASQUERADE iptable_nat nf_nat nf_conntrack_ipv4 nf_defrag_ipv4 xt_CHECKSUM iptable_mangle bridge stp llc ip6t_REJECT nf_conntrack_ipv6 nf_defrag_ipv6 xt_state nf_conntrack ip6table_filter ip6_tables snd_emu10k1 snd_util_mem snd_ac97_codec ac97_bus snd_hwdep snd_rawmidi snd_seq_device snd_pcm microcode snd_page_alloc pcspkr snd_timer snd lpc_ich i2c_i801 mfd_core e1000e soundcore vhost_net tun macvtap macvlan kvm_intel nfsd kvm nfs_acl auth_rpcgss lockd sunrpc btrfs libcrc32c zlib_deflate firewire_ohci firewire_core sata_sil crc_itu_t floppy radeon i2c_algo_bit drm_kms_helper ttm drm i2c_core [last unloaded: scsi_wait_scan]
+Pid: 35, comm: khugepaged Not tainted 3.4.0+ #75
+Call Trace:
+ [<ffffffff8104897f>] warn_slowpath_common+0x7f/0xc0
+ [<ffffffff810489da>] warn_slowpath_null+0x1a/0x20
+ [<ffffffff81146bda>] __set_page_dirty_nobuffers+0x13a/0x170
+ [<ffffffff81193322>] migrate_page_copy+0x1e2/0x260
+ [<ffffffff811933fb>] migrate_page+0x5b/0x70
+ [<ffffffff811934b5>] move_to_new_page+0xa5/0x260
+ [<ffffffff81193ca8>] migrate_pages+0x4c8/0x540
+ [<ffffffff811610d0>] ? suitable_migration_target.isra.15+0x1d0/0x1d0
+ [<ffffffff81162056>] compact_zone+0x216/0x480
+ [<ffffffff81321ad8>] ? debug_check_no_obj_freed+0x88/0x210
+ [<ffffffff8116259d>] compact_zone_order+0x8d/0xd0
+ [<ffffffff811626a9>] try_to_compact_pages+0xc9/0x140
+ [<ffffffff81649f4e>] __alloc_pages_direct_compact+0xaa/0x1d0
+ [<ffffffff8114562b>] __alloc_pages_nodemask+0x60b/0xab0
+ [<ffffffff81321bbc>] ? debug_check_no_obj_freed+0x16c/0x210
+ [<ffffffff81185236>] alloc_pages_vma+0xb6/0x190
+ [<ffffffff81195d8d>] khugepaged+0x95d/0x1570
+ [<ffffffff81073350>] ? wake_up_bit+0x40/0x40
+ [<ffffffff81195430>] ? collect_mm_slot+0xa0/0xa0
+ [<ffffffff81072c37>] kthread+0xb7/0xc0
+ [<ffffffff8165dc14>] kernel_thread_helper+0x4/0x10
+ [<ffffffff8165511d>] ? retint_restore_args+0xe/0xe
+ [<ffffffff81072b80>] ? flush_kthread_worker+0x190/0x190
+ [<ffffffff8165dc10>] ? gs_change+0xb/0xb
+---[ end trace 4324bd0bca27f6f0 ]---
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
