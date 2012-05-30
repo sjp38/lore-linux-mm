@@ -1,71 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx137.postini.com [74.125.245.137])
-	by kanga.kvack.org (Postfix) with SMTP id C34136B005D
-	for <linux-mm@kvack.org>; Tue, 29 May 2012 20:15:42 -0400 (EDT)
-Date: Wed, 30 May 2012 02:14:38 +0200
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [PATCH 14/35] autonuma: knuma_migrated per NUMA node queues
-Message-ID: <20120530001438.GX21339@redhat.com>
-References: <1337965359-29725-1-git-send-email-aarcange@redhat.com>
- <1337965359-29725-15-git-send-email-aarcange@redhat.com>
- <1338299468.26856.80.camel@twins>
+Received: from psmtp.com (na3sys010amx106.postini.com [74.125.245.106])
+	by kanga.kvack.org (Postfix) with SMTP id 0E7B36B005C
+	for <linux-mm@kvack.org>; Tue, 29 May 2012 21:30:08 -0400 (EDT)
+Received: by dakp5 with SMTP id p5so7704018dak.14
+        for <linux-mm@kvack.org>; Tue, 29 May 2012 18:30:08 -0700 (PDT)
+Date: Wed, 30 May 2012 10:29:55 +0900
+From: Tejun Heo <tj@kernel.org>
+Subject: Re: [PATCH v3 13/28] slub: create duplicate cache
+Message-ID: <20120530012955.GA4854@google.com>
+References: <alpine.DEB.2.00.1205291101580.6723@router.home>
+ <4FC501E9.60607@parallels.com>
+ <alpine.DEB.2.00.1205291222360.8495@router.home>
+ <4FC506E6.8030108@parallels.com>
+ <alpine.DEB.2.00.1205291424130.8495@router.home>
+ <4FC52612.5060006@parallels.com>
+ <alpine.DEB.2.00.1205291454030.2504@router.home>
+ <4FC52CC6.7020109@parallels.com>
+ <alpine.DEB.2.00.1205291514090.2504@router.home>
+ <4FC530C0.30509@parallels.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1338299468.26856.80.camel@twins>
+In-Reply-To: <4FC530C0.30509@parallels.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Hillf Danton <dhillf@gmail.com>, Dan Smith <danms@us.ibm.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>, Paul Turner <pjt@google.com>, Suresh Siddha <suresh.b.siddha@intel.com>, Mike Galbraith <efault@gmx.de>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Bharata B Rao <bharata.rao@gmail.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Srivatsa Vaddagiri <vatsa@linux.vnet.ibm.com>, Christoph Lameter <cl@linux.com>
+To: Glauber Costa <glommer@parallels.com>
+Cc: Christoph Lameter <cl@linux.com>, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, linux-mm@kvack.org, kamezawa.hiroyu@jp.fujitsu.com, Li Zefan <lizefan@huawei.com>, Greg Thelen <gthelen@google.com>, Suleiman Souhlal <suleiman@google.com>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, devel@openvz.org, David Rientjes <rientjes@google.com>, Pekka Enberg <penberg@cs.helsinki.fi>
 
-Hi,
+Hello, Christoph, Glauber.
 
-On Tue, May 29, 2012 at 03:51:08PM +0200, Peter Zijlstra wrote:
-> On Fri, 2012-05-25 at 19:02 +0200, Andrea Arcangeli wrote:
+On Wed, May 30, 2012 at 12:25:36AM +0400, Glauber Costa wrote:
+> >We have never worked container like logic like that in the kernel due to
+> >the complicated logic you would have to put in. The requirement that all
+> >objects in a page come from the same container is not necessary. If you
+> >drop this notion then things become very easy and the patches will become
+> >simple.
 > 
-> 
-> > diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-> > index 41aa49b..8e578e6 100644
-> > --- a/include/linux/mmzone.h
-> > +++ b/include/linux/mmzone.h
-> > @@ -666,6 +666,12 @@ typedef struct pglist_data {
-> >  	struct task_struct *kswapd;
-> >  	int kswapd_max_order;
-> >  	enum zone_type classzone_idx;
-> > +#ifdef CONFIG_AUTONUMA
-> > +	spinlock_t autonuma_lock;
-> > +	struct list_head autonuma_migrate_head[MAX_NUMNODES];
-> > +	unsigned long autonuma_nr_migrate_pages;
-> > +	wait_queue_head_t autonuma_knuma_migrated_wait;
-> > +#endif
-> >  } pg_data_t;
-> >  
-> >  #define node_present_pages(nid)	(NODE_DATA(nid)->node_present_pages)
-> 
-> O(nr_nodes^2) data.. ISTR people rewriting a certain slab allocator to
-> get rid of that :-)
-> 
-> Also, don't forget that MAX_NUMNODES is an unconditional 512 on distro
-> kernels, even when we only have 2.
-> 
-> Now the total wasted space isn't too bad since its only 16 bytes,
-> totaling a whole 2M for a 256 node system. But still, something like
-> that wants at least a mention somewhere.
+> I promise to look at that in more detail and get back to it. In the
+> meantime, I think it would be enlightening to hear from other
+> parties as well, specially the ones also directly interested in
+> using the technology.
 
-I fully agree, I prefer to fix it and I was fully aware about
-this. It's not a big deal so it got low priority to be fixed, but I
-intended to optimize this.
+I don't think I'm too interested in using the technology ;) and
+haven't read the code (just glanced through the descriptions and
+discussions), but, in general, I think the approach of duplicating
+memory allocator per-memcg is a sane approach.  It isn't the most
+efficient one with the possibility of wasting considerable amount of
+caching area per memcg but it is something which can mostly stay out
+of the way if done right and that's how I want cgroup implementations
+to be.
 
-As long as num_possible_nodes() is initialized before the pgdat is
-allocated it shouldn't be difficult to optimize this moving struct
-list_head autonuma_migrate_head[0] at the end of the structure.
+The two goals for cgroup controllers that I think are important are
+proper (no, not crazy perfect but good enough) isolation and an
+implementation which doesn't impact !cg path in an intrusive manner -
+if someone who doesn't care about cgroup but knows and wants to work
+on the subsystem should be able to mostly ignore cgroup support.  If
+that means overhead for cgroup users, so be it.
 
-mm_autonuma and sched_autonuma initially also had MAX_NUMNODES arrays
-in them, then I converted to dynamic allocations to be optimal. We
-same needs to happen here. 
+Without looking at the actual code, my rainbow-farting unicorn here
+would be having a common slXb interface layer which handles
+interfacing with memory allocator users and cgroup and let slXb
+implement the same backend interface which doesn't care / know about
+cgroup at all (other than using the correct allocation context, that
+is).  Glauber, would something like that be possible?
 
-Thanks,
-Andrea
+Thanks.
+
+-- 
+tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
