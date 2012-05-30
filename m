@@ -1,13 +1,13 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx189.postini.com [74.125.245.189])
-	by kanga.kvack.org (Postfix) with SMTP id 80E1C6B006C
-	for <linux-mm@kvack.org>; Wed, 30 May 2012 05:03:14 -0400 (EDT)
-Received: by mail-vb0-f41.google.com with SMTP id ey12so4077167vbb.14
-        for <linux-mm@kvack.org>; Wed, 30 May 2012 02:03:14 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx138.postini.com [74.125.245.138])
+	by kanga.kvack.org (Postfix) with SMTP id B06EB6B006C
+	for <linux-mm@kvack.org>; Wed, 30 May 2012 05:03:19 -0400 (EDT)
+Received: by vcbfl10 with SMTP id fl10so3498791vcb.14
+        for <linux-mm@kvack.org>; Wed, 30 May 2012 02:03:18 -0700 (PDT)
 From: kosaki.motohiro@gmail.com
-Subject: [PATCH 3/6] mempolicy: fix a race in shared_policy_replace()
-Date: Wed, 30 May 2012 05:02:06 -0400
-Message-Id: <1338368529-21784-4-git-send-email-kosaki.motohiro@gmail.com>
+Subject: [PATCH 4/6] mempolicy: fix refcount leak in mpol_set_shared_policy()
+Date: Wed, 30 May 2012 05:02:07 -0400
+Message-Id: <1338368529-21784-5-git-send-email-kosaki.motohiro@gmail.com>
 In-Reply-To: <1338368529-21784-1-git-send-email-kosaki.motohiro@gmail.com>
 References: <1338368529-21784-1-git-send-email-kosaki.motohiro@gmail.com>
 Sender: owner-linux-mm@kvack.org
@@ -17,15 +17,12 @@ Cc: linux-mm@kvack.org, Andrew Morton <akpm@google.com>, Dave Jones <davej@redha
 
 From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 
-shared_policy_replace() uses sp_alloc() wrongly. 1) sp_node can't be dereferenced when
-not holding sp->lock and 2) another thread can modify sp_node between spin_unlock for
-restarting and next spin_lock, we shouldn't believe n->end and n->policy were not
-modified.
+When shared_policy_replace() failure, new->policy is not freed correctly.
+The real problem is, shared mempolicy codes directly call kmem_cache_free()
+in multiple place. It can be easily mistake.
 
-This patch fixes them.
-
-Note: The bug was introduced pre-git age (IOW, before 2.6.12-rc2). I believe nobody
-uses this feature in production systems.
+This patch creates proper wrapper function and uses it. The bug was introduced
+pre-git age (IOW, before 2.6.12-rc2).
 
 Cc: Dave Jones <davej@redhat.com>,
 Cc: Mel Gorman <mgorman@suse.de>
@@ -35,106 +32,53 @@ Cc: Andrew Morton <akpm@linux-foundation.org>
 Cc: <stable@vger.kernel.org>
 Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 ---
- mm/mempolicy.c |   55 ++++++++++++++++++++++++++++++++++++++-----------------
- 1 files changed, 38 insertions(+), 17 deletions(-)
+ mm/mempolicy.c |   15 +++++++++------
+ 1 files changed, 9 insertions(+), 6 deletions(-)
 
 diff --git a/mm/mempolicy.c b/mm/mempolicy.c
-index 9505cb9..d97d2db 100644
+index d97d2db..7fb7d51 100644
 --- a/mm/mempolicy.c
 +++ b/mm/mempolicy.c
-@@ -2158,6 +2158,14 @@ static void sp_delete(struct shared_policy *sp, struct sp_node *n)
- 	kmem_cache_free(sn_cache, n);
+@@ -2150,12 +2150,17 @@ mpol_shared_policy_lookup(struct shared_policy *sp, unsigned long idx)
+ 	return pol;
  }
  
-+static void sp_node_init(struct sp_node *node, unsigned long start,
-+			 unsigned long end, struct mempolicy *pol)
++static void sp_free(struct sp_node *n)
 +{
-+	node->start = start;
-+	node->end = end;
-+	node->policy = pol;
++	mpol_put(n->policy);
++	kmem_cache_free(sn_cache, n);
 +}
 +
- static struct sp_node *sp_alloc(unsigned long start, unsigned long end,
- 				struct mempolicy *pol)
+ static void sp_delete(struct shared_policy *sp, struct sp_node *n)
  {
-@@ -2174,10 +2182,7 @@ static struct sp_node *sp_alloc(unsigned long start, unsigned long end,
- 		return NULL;
+ 	pr_debug("deleting %lx-l%lx\n", n->start, n->end);
+ 	rb_erase(&n->nd, &sp->root);
+-	mpol_put(n->policy);
+-	kmem_cache_free(sn_cache, n);
++	sp_free(n);
+ }
+ 
+ static void sp_node_init(struct sp_node *node, unsigned long start,
+@@ -2320,7 +2325,7 @@ int mpol_set_shared_policy(struct shared_policy *info,
  	}
- 	newpol->flags |= MPOL_F_SHARED;
--
--	n->start = start;
--	n->end = end;
--	n->policy = newpol;
-+	sp_node_init(n, start, end, newpol);
- 
- 	return n;
- }
-@@ -2186,7 +2191,9 @@ static struct sp_node *sp_alloc(unsigned long start, unsigned long end,
- static int shared_policy_replace(struct shared_policy *sp, unsigned long start,
- 				 unsigned long end, struct sp_node *new)
- {
-+	int err;
- 	struct sp_node *n, *new2 = NULL;
-+	struct mempolicy *new2_pol = NULL;
- 
- restart:
- 	spin_lock(&sp->lock);
-@@ -2202,16 +2209,16 @@ restart:
- 		} else {
- 			/* Old policy spanning whole new range. */
- 			if (n->end > end) {
--				if (!new2) {
--					spin_unlock(&sp->lock);
--					new2 = sp_alloc(end, n->end, n->policy);
--					if (!new2)
--						return -ENOMEM;
--					goto restart;
--				}
--				n->end = start;
-+				if (!new2)
-+					goto alloc_new2;
-+
-+				*new2_pol = *n->policy;
-+				atomic_set(&new2_pol->refcnt, 1);
-+				sp_node_init(new2, n->end, end, new2_pol);
- 				sp_insert(sp, new2);
-+				n->end = start;
- 				new2 = NULL;
-+				new2_pol = NULL;
- 				break;
- 			} else
- 				n->end = start;
-@@ -2223,11 +2230,25 @@ restart:
- 	if (new)
- 		sp_insert(sp, new);
- 	spin_unlock(&sp->lock);
--	if (new2) {
--		mpol_put(new2->policy);
--		kmem_cache_free(sn_cache, new2);
--	}
--	return 0;
-+	err = 0;
-+
-+ err_out:
-+	if (new2_pol)
-+		mpol_put(new2_pol);
-+        if (new2)
-+                kmem_cache_free(sn_cache, new2);
-+	return err;
-+
-+ alloc_new2:
-+	spin_unlock(&sp->lock);
-+	err = -ENOMEM;
-+	new2 = kmem_cache_alloc(sn_cache, GFP_KERNEL);
-+	if (!new2)
-+		goto err_out;
-+	new2_pol = kmem_cache_alloc(policy_cache, GFP_KERNEL);
-+	if (!new2_pol)
-+		goto err_out;
-+	goto restart;
+ 	err = shared_policy_replace(info, vma->vm_pgoff, vma->vm_pgoff+sz, new);
+ 	if (err && new)
+-		kmem_cache_free(sn_cache, new);
++		sp_free(new);
+ 	return err;
  }
  
- /**
+@@ -2337,9 +2342,7 @@ void mpol_free_shared_policy(struct shared_policy *p)
+ 	while (next) {
+ 		n = rb_entry(next, struct sp_node, nd);
+ 		next = rb_next(&n->nd);
+-		rb_erase(&n->nd, &p->root);
+-		mpol_put(n->policy);
+-		kmem_cache_free(sn_cache, n);
++		sp_delete(p, n);
+ 	}
+ 	spin_unlock(&p->lock);
+ }
 -- 
 1.7.1
 
