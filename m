@@ -1,45 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx161.postini.com [74.125.245.161])
-	by kanga.kvack.org (Postfix) with SMTP id 0B0EA6B0062
-	for <linux-mm@kvack.org>; Thu, 31 May 2012 02:50:01 -0400 (EDT)
-Received: by qabg27 with SMTP id g27so2848107qab.14
-        for <linux-mm@kvack.org>; Wed, 30 May 2012 23:50:01 -0700 (PDT)
-Message-ID: <4FC71496.8050707@gmail.com>
-Date: Thu, 31 May 2012 02:49:58 -0400
-From: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
+Received: from psmtp.com (na3sys010amx126.postini.com [74.125.245.126])
+	by kanga.kvack.org (Postfix) with SMTP id 695836B0069
+	for <linux-mm@kvack.org>; Thu, 31 May 2012 02:50:21 -0400 (EDT)
+Received: by dakp5 with SMTP id p5so1043206dak.14
+        for <linux-mm@kvack.org>; Wed, 30 May 2012 23:50:20 -0700 (PDT)
+Date: Wed, 30 May 2012 23:50:18 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH -V7 02/14] hugetlbfs: don't use ERR_PTR with VM_FAULT*
+ values
+In-Reply-To: <20120531054533.GE24855@skywalker.linux.vnet.ibm.com>
+Message-ID: <alpine.DEB.2.00.1205302331380.25774@chino.kir.corp.google.com>
+References: <1338388739-22919-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com> <1338388739-22919-3-git-send-email-aneesh.kumar@linux.vnet.ibm.com> <alpine.DEB.2.00.1205301801060.25774@chino.kir.corp.google.com>
+ <20120531054533.GE24855@skywalker.linux.vnet.ibm.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 1/6] Revert "mm: mempolicy: Let vma_merge and vma_split
- handle vma->vm_policy linkages"
-References: <1338368529-21784-1-git-send-email-kosaki.motohiro@gmail.com> <1338368529-21784-2-git-send-email-kosaki.motohiro@gmail.com> <alpine.DEB.2.00.1205301414020.31768@router.home>
-In-Reply-To: <alpine.DEB.2.00.1205301414020.31768@router.home>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: KOSAKI Motohiro <kosaki.motohiro@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@google.com>, Dave Jones <davej@redhat.com>, Mel Gorman <mgorman@suse.de>, Linus Torvalds <torvalds@linux-foundation.org>, stable@vger.kernel.org, hughd@google.com, Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Cc: linux-mm@kvack.org, kamezawa.hiroyu@jp.fujitsu.com, dhillf@gmail.com, mhocko@suse.cz, akpm@linux-foundation.org, hannes@cmpxchg.org, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, Andrea Arcangeli <aarcange@redhat.com>
 
-(5/30/12 3:17 PM), Christoph Lameter wrote:
-> On Wed, 30 May 2012, kosaki.motohiro@gmail.com wrote:
->
->> From: KOSAKI Motohiro<kosaki.motohiro@gmail.com>
->>
->> commit 05f144a0d5 removed vma->vm_policy updates code and it is a purpose of
->> mbind_range(). Now, mbind_range() is virtually no-op. no-op function don't
->> makes any bugs, I agree. but maybe it is not right fix.
->
-> I dont really understand the changelog. But to restore the policy_vma() is
-> the right thing to do since there are potential multiple use cases where
-> we want to apply a policy to a vma.
->
-> Proposed new changelog:
->
-> Commit 05f144a0d5 folded policy_vma() into mbind_range(). There are
-> other use cases of policy_vma(*) though and so revert a piece of
-> that commit in order to have a policy_vma() function again.
+On Thu, 31 May 2012, Aneesh Kumar K.V wrote:
 
-sorry, I overlooked this. Commit 05f144a0d5 don't work neither regular vma
-nor shmem vma. thus I can't take this proposal. sorry.
+> > Yeah, but is there a reason for using VM_FAULT_HWPOISON_LARGE_MASK since 
+> > that's the only VM_FAULT_* value that is greater than MAX_ERRNO?  The rest 
+> > of your patch set doesn't require this, so I think this change should just 
+> > be dropped.  (And PTR_ERR() still returns long, this wasn't fixed from my 
+> > original review.)
+> > 
+> 
+> The changes was done as per Andrew's request so that we don't have such hidden
+> dependencies on the values of VM_FAULT_*. Yes it can be a seperate patch from
+> the patchset. I have changed int to long as per your review.
+> 
+
+I think it confuscates the code, can't we just add something like 
+BUILD_BUG_ON() to ensure that PTR_ERR() never uses values that are outside 
+the bounds of MAX_ERRNO so we'll catch these at compile time if 
+mm/hugetlb.c or anything else is ever extended to use such values?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
