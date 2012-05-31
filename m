@@ -1,49 +1,107 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx140.postini.com [74.125.245.140])
-	by kanga.kvack.org (Postfix) with SMTP id 1EBAF6B005C
-	for <linux-mm@kvack.org>; Thu, 31 May 2012 17:23:12 -0400 (EDT)
-Received: by pbbrp2 with SMTP id rp2so2507218pbb.14
-        for <linux-mm@kvack.org>; Thu, 31 May 2012 14:23:11 -0700 (PDT)
-Date: Thu, 31 May 2012 14:23:09 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: Common 04/22] [slab] Use page struct fields instead of casting
-In-Reply-To: <20120523203507.324764286@linux.com>
-Message-ID: <alpine.DEB.2.00.1205311422440.2764@chino.kir.corp.google.com>
-References: <20120523203433.340661918@linux.com> <20120523203507.324764286@linux.com>
+Received: from psmtp.com (na3sys010amx146.postini.com [74.125.245.146])
+	by kanga.kvack.org (Postfix) with SMTP id 9E29D6B005C
+	for <linux-mm@kvack.org>; Thu, 31 May 2012 18:11:51 -0400 (EDT)
+Date: Fri, 1 Jun 2012 00:11:46 +0200
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [PATCH 2/2] block: Convert BDI proportion calculations to
+ flexible proportions
+Message-ID: <20120531221146.GA19050@quack.suse.cz>
+References: <1337878751-22942-1-git-send-email-jack@suse.cz>
+ <1337878751-22942-3-git-send-email-jack@suse.cz>
+ <1338220185.4284.19.camel@lappy>
+ <20120529123408.GA23991@quack.suse.cz>
+ <1338295111.26856.57.camel@twins>
+ <20120529125452.GB23991@quack.suse.cz>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: multipart/mixed; boundary="zhXaljGHf11kAtnf"
+Content-Disposition: inline
+In-Reply-To: <20120529125452.GB23991@quack.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: Pekka Enberg <penberg@kernel.org>, linux-mm@kvack.org, Matt Mackall <mpm@selenic.com>, Glauber Costa <glommer@parallels.com>, Joonsoo Kim <js1304@gmail.com>
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: Jan Kara <jack@suse.cz>, Sasha Levin <levinsasha928@gmail.com>, Wu Fengguang <fengguang.wu@intel.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-On Wed, 23 May 2012, Christoph Lameter wrote:
 
-> Add fields to the page struct so that it is properly documented that
-> slab overlays the lru fields.
-> 
-> This cleans up some casts in slab.
-> 
+--zhXaljGHf11kAtnf
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 
-Sounds good, but...
+On Tue 29-05-12 14:54:52, Jan Kara wrote:
+> On Tue 29-05-12 14:38:31, Peter Zijlstra wrote:
+> > On Tue, 2012-05-29 at 14:34 +0200, Jan Kara wrote:
+> > 
+> > > The only safe solution seems to be to create a variant of percpu counters
+> > > that can be used from an interrupt. Or do you have other idea Peter?
+> > 
+> > > > [   20.680186]  [<ffffffff8325ac9b>] _raw_spin_lock+0x3b/0x70
+> > > > [   20.680186]  [<ffffffff81993527>] ? __percpu_counter_sum+0x17/0xc0
+> > > > [   20.680186]  [<ffffffff81993527>] __percpu_counter_sum+0x17/0xc0
+> > > > [   20.680186]  [<ffffffff810ebf90>] ? init_timer_deferrable_key+0x20/0x20
+> > > > [   20.680186]  [<ffffffff8195b5c2>] fprop_new_period+0x12/0x60
+> > > > [   20.680186]  [<ffffffff811d929d>] writeout_period+0x3d/0xa0
+> > > > [   20.680186]  [<ffffffff810ec0bf>] call_timer_fn+0x12f/0x260
+> > > > [   20.680186]  [<ffffffff810ebf90>] ? init_timer_deferrable_key+0x20/0x20
+> > 
+> > Yeah, just make sure IRQs are disabled around doing that ;-)
+>   Evil ;) But we'd need to have IRQs disabled also in each
+> fprop_fraction_percpu() call, and generally, if we want things clean, we'd
+> need to disable them in all entry points to proportion code (or at least
+> around all percpu calls)...
+  OK, after some thought I was wrong and fixing fprop_new_period() is
+enough. Attached patch should fix the warning (and possible deadlock).
+Fengguang should I resend you fixed patch implementing flexible proportions
+or do you prefer incremental patch against your tree?
 
-> Index: linux-2.6/include/linux/mm_types.h
-> ===================================================================
-> --- linux-2.6.orig/include/linux/mm_types.h	2012-05-22 09:05:49.716464025 -0500
-> +++ linux-2.6/include/linux/mm_types.h	2012-05-22 09:21:28.532444572 -0500
-> @@ -90,6 +90,10 @@ struct page {
->  				atomic_t _count;		/* Usage count, see below. */
->  			};
->  		};
-> +		struct {		/* SLAB */
-> +			struct kmem_cache *slab_cache;
-> +			struct slab *slab_page;
-> +		};
->  	};
->  
->  	/* Third double word block */
+								Honza
+-- 
+Jan Kara <jack@suse.cz>
+SUSE Labs, CR
 
-The lru fields are in the third double word block.
+--zhXaljGHf11kAtnf
+Content-Type: text/x-patch; charset=us-ascii
+Content-Disposition: attachment; filename="flex-proportion-irq-save.diff"
+
+From: Jan Kara <jack@suse.cz>
+Subject: lib: Fix possible deadlock in flexible proportion code
+
+When percpu counter function in fprop_new_period() is interrupted by an
+interrupt while holding counter lock, it can cause deadlock when the
+interrupt wants to take the lock as well. Fix the problem by disabling
+interrupts when calling percpu counter functions.
+
+Signed-off-by: Jan Kara <jack@suse.cz>
+
+diff --git a/lib/flex_proportions.c b/lib/flex_proportions.c
+index 530dbc2..fbf6b11 100644
+--- a/lib/flex_proportions.c
++++ b/lib/flex_proportions.c
+@@ -62,8 +62,12 @@ void fprop_global_destroy(struct fprop_global *p)
+  */
+ bool fprop_new_period(struct fprop_global *p, int periods)
+ {
+-	u64 events = percpu_counter_sum(&p->events);
++	u64 events;
++	unsigned long flags;
+ 
++	local_irq_save(flags);
++	events = percpu_counter_sum(&p->events);
++	local_irq_restore(flags);
+ 	/*
+ 	 * Don't do anything if there are no events.
+ 	 */
+@@ -73,7 +77,9 @@ bool fprop_new_period(struct fprop_global *p, int periods)
+ 	if (periods < 64)
+ 		events -= events >> periods;
+ 	/* Use addition to avoid losing events happening between sum and set */
++	local_irq_save(flags);
+ 	percpu_counter_add(&p->events, -events);
++	local_irq_restore(flags);
+ 	p->period += periods;
+ 	write_seqcount_end(&p->sequence);
+ 
+
+--zhXaljGHf11kAtnf--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
