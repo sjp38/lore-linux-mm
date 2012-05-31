@@ -1,54 +1,39 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx157.postini.com [74.125.245.157])
-	by kanga.kvack.org (Postfix) with SMTP id A8C1B6B005C
-	for <linux-mm@kvack.org>; Thu, 31 May 2012 02:28:25 -0400 (EDT)
-Message-ID: <1338445696.19369.27.camel@cr0>
-Subject: Re: [RFC Patch] fs: implement per-file drop caches
-From: Cong Wang <amwang@redhat.com>
-Date: Thu, 31 May 2012 14:28:16 +0800
-In-Reply-To: <20422.14538.833061.105058@quad.stoffel.home>
-References: <1338385120-14519-1-git-send-email-amwang@redhat.com>
-	 <20422.14538.833061.105058@quad.stoffel.home>
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: 7bit
-Mime-Version: 1.0
+Received: from psmtp.com (na3sys010amx199.postini.com [74.125.245.199])
+	by kanga.kvack.org (Postfix) with SMTP id A274C6B005D
+	for <linux-mm@kvack.org>; Thu, 31 May 2012 02:28:56 -0400 (EDT)
+Received: by pbbrp2 with SMTP id rp2so1223043pbb.14
+        for <linux-mm@kvack.org>; Wed, 30 May 2012 23:28:56 -0700 (PDT)
+Date: Wed, 30 May 2012 23:28:54 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH] meminfo: show /proc/meminfo base on container's memcg
+In-Reply-To: <4FC70E5E.1010003@gmail.com>
+Message-ID: <alpine.DEB.2.00.1205302325500.25774@chino.kir.corp.google.com>
+References: <1338260214-21919-1-git-send-email-gaofeng@cn.fujitsu.com> <alpine.DEB.2.00.1205301433490.9716@chino.kir.corp.google.com> <4FC6B68C.2070703@jp.fujitsu.com> <CAHGf_=pFbsy4FO_UNu6O1-KyTd6O=pkmR8=3EGuZB5Reu3Vb9w@mail.gmail.com> <4FC6BC3E.5010807@jp.fujitsu.com>
+ <alpine.DEB.2.00.1205301737530.25774@chino.kir.corp.google.com> <4FC6C111.2060108@jp.fujitsu.com> <alpine.DEB.2.00.1205301831270.25774@chino.kir.corp.google.com> <4FC6D881.4090706@jp.fujitsu.com> <alpine.DEB.2.00.1205302156090.25774@chino.kir.corp.google.com>
+ <4FC70355.70805@jp.fujitsu.com> <alpine.DEB.2.00.1205302314190.25774@chino.kir.corp.google.com> <4FC70E5E.1010003@gmail.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: John Stoffel <john@stoffel.org>
-Cc: linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Cong Wang <xiyou.wangcong@gmail.com>, Alexander Viro <viro@zeniv.linux.org.uk>, Matthew Wilcox <matthew@wil.cx>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Keiichi Kii <k-keiichi@bx.jp.nec.com>
+To: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
+Cc: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Gao feng <gaofeng@cn.fujitsu.com>, hannes@cmpxchg.org, mhocko@suse.cz, bsingharora@gmail.com, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, linux-mm@kvack.org, containers@lists.linux-foundation.org
 
-On Wed, 2012-05-30 at 11:12 -0400, John Stoffel wrote:
-> Cong> This is a draft patch of implementing per-file drop caches.
-> 
-> Interesting.  So can I do this from outside a process?  I'm a
-> SysAdmin, so my POV is from noticing, finding and fixing performance
-> problems when the system is under pressure.  
+On Thu, 31 May 2012, KOSAKI Motohiro wrote:
 
-Yes, sure, we need to write a utility (or patch an existing one) to do
-this for you admins.
-
+> > An application should always know the cgroup that its attached to and be
+> > able to read its state using the command that I gave earlier.
 > 
-> Cong> It introduces a new fcntl command  F_DROP_CACHES to drop
-> Cong> file caches of a specific file. The reason is that currently
-> Cong> we only have a system-wide drop caches interface, it could
-> Cong> cause system-wide performance down if we drop all page caches
-> Cong> when we actually want to drop the caches of some huge file.
-> 
-> How can I tell how much cache is used by a file?  And what is the
-> performance impact of this when run on a busy system?  And what does
-> this patch buy us since I figure the VM should already be dropping
-> caches once the system comes under mem pressure...
+> No. you don't need why userland folks want namespaces. Even though you don't
+> need namespaces. It doesn't good reason to refuse another use case.
 > 
 
-AFAIK, we don't export such information to user-space, we only have
-system-wide statistics.
-
-Keiichi (in Cc) once wrote a patch to implement page cache tracepoint:
-http://marc.info/?l=linux-mm&m=131102496904326&w=3
-
-but the patches are still not in upstream.
-
-Thanks!
+This is tangent to the discussion, we need to revisit why an application 
+other than a daemon managing a set of memcgs would ever need to know the 
+information in /proc/meminfo.  No use-case was ever presented in the 
+changelog and its not clear how this is at all relevant.  So before 
+changing the kernel, please describe how this actually matters in a real-
+world scenario.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
