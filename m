@@ -1,99 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx103.postini.com [74.125.245.103])
-	by kanga.kvack.org (Postfix) with SMTP id D8D386B005C
-	for <linux-mm@kvack.org>; Thu, 31 May 2012 07:59:26 -0400 (EDT)
-Received: by bkcjm19 with SMTP id jm19so1014275bkc.14
-        for <linux-mm@kvack.org>; Thu, 31 May 2012 04:59:25 -0700 (PDT)
-Date: Thu, 31 May 2012 14:58:45 +0300
-From: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
-Subject: Re: kmemleak: Kernel memory leak detector disabled
-Message-ID: <20120531115845.GC3676@swordfish.minsk.epam.com>
-References: <20120531115537.GA3676@swordfish.minsk.epam.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20120531115537.GA3676@swordfish.minsk.epam.com>
+Received: from psmtp.com (na3sys010amx158.postini.com [74.125.245.158])
+	by kanga.kvack.org (Postfix) with SMTP id D85766B005C
+	for <linux-mm@kvack.org>; Thu, 31 May 2012 08:11:35 -0400 (EDT)
+Message-ID: <1338466281.19369.44.camel@cr0>
+Subject: Re: [RFC Patch] fs: implement per-file drop caches
+From: Cong Wang <amwang@redhat.com>
+Date: Thu, 31 May 2012 20:11:21 +0800
+In-Reply-To: <4FC70FFE.50809@gmail.com>
+References: <1338385120-14519-1-git-send-email-amwang@redhat.com>
+	  <4FC6393B.7090105@draigBrady.com> <1338445233.19369.21.camel@cr0>
+	 <4FC70FFE.50809@gmail.com>
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: 8bit
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Catalin Marinas <catalin.marinas@arm.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
+Cc: =?ISO-8859-1?Q?P=E1draig?= Brady <P@draigBrady.com>, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Cong Wang <xiyou.wangcong@gmail.com>, Alexander Viro <viro@zeniv.linux.org.uk>, Matthew Wilcox <matthew@wil.cx>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
 
-On (05/31/12 14:55), Sergey Senozhatsky wrote:
->
+On Thu, 2012-05-31 at 02:30 -0400, KOSAKI Motohiro wrote:
+> (5/31/12 2:20 AM), Cong Wang wrote:
+> > On Wed, 2012-05-30 at 16:14 +0100, PA!draig Brady wrote:
+> >> On 05/30/2012 02:38 PM, Cong Wang wrote:
+> >>> This is a draft patch of implementing per-file drop caches.
+> >>>
+> >>> It introduces a new fcntl command  F_DROP_CACHES to drop
+> >>> file caches of a specific file. The reason is that currently
+> >>> we only have a system-wide drop caches interface, it could
+> >>> cause system-wide performance down if we drop all page caches
+> >>> when we actually want to drop the caches of some huge file.
+> >>
+> >> This is useful functionality.
+> >> Though isn't it already provided with POSIX_FADV_DONTNEED?
+> >
+> > Thanks for teaching this!
+> >
+> > However, from the source code of madvise_dontneed() it looks like it is
+> > using a totally different way to drop page caches, that is to invalidate
+> > the page mapping, and trigger a re-mapping of the file pages after a
+> > page fault. So, yeah, this could probably drop the page caches too (I am
+> > not so sure, haven't checked the code in details), but with my patch, it
+> > flushes the page caches directly, what's more, it can also prune
+> > dcache/icache of the file.
+> 
+> madvise should work. I don't think we need duplicate interface. Moreomover
+> madvise(2) is cleaner than fcntl(2).
+> 
 
-Oops... Sorry, forgot to specify message subject:
-        'kmemleak: Kernel memory leak detector disabled'
+I think madvise(DONTNEED) attacks the problem in a different approach,
+it munmaps the file mapping and by the way drops the page caches, my
+approach is to drop the page caches directly similar to what sysctl
+drop_caches.
 
- 
-> Hello,
-> 
-> I'm seeing pretty often (may be 10-15 times during last 2 months) kmemleak failed
-> allocation:
-> 
-> 	[ 8213.936237] kmemleak: Kernel memory leak detector disabled
-> 	[ 8214.660454] kmemleak: Automatic memory scanning thread ended
-> 
-> 
-> I've a patch that gives a bit more info on last kmemleak step (for example):
-> 
-> [ 8213.935927] kmemleak: Cannot allocate a kmemleak_object structure
-> [ 8213.935950] kmemleak: size: 192, mask: 70144
-> [ 8213.935955] Pid: 444, comm: kswapd0 Not tainted 3.5.0-rc0-dbg-10118-gaf992ce-dirty #1152
-> [ 8213.935957] Call Trace:
-> [ 8213.935986]  [<ffffffff8111ec4c>] create_object+0x7d/0x305
-> [ 8213.936009]  [<ffffffff810dc89e>] ? mempool_alloc_slab+0x15/0x17
-> [ 8213.936014]  [<ffffffff810dc89e>] ? mempool_alloc_slab+0x15/0x17
-> [ 8213.936020]  [<ffffffff8149a2e3>] kmemleak_alloc+0x26/0x43
-> [ 8213.936041]  [<ffffffff81114d54>] kmem_cache_alloc+0xd7/0x1e6
-> [ 8213.936046]  [<ffffffff810dc89e>] mempool_alloc_slab+0x15/0x17
-> [ 8213.936050]  [<ffffffff810dcb28>] mempool_alloc+0x81/0x146
-> [ 8213.936074]  [<ffffffff81284052>] ? do_raw_spin_lock+0x69/0xe9
-> [ 8213.936079]  [<ffffffff81150829>] bio_alloc_bioset+0x33/0xc4
-> [ 8213.936085]  [<ffffffff8110a0f9>] ? get_swap_bio+0x79/0x79
-> [ 8213.936089]  [<ffffffff811508cf>] bio_alloc+0x15/0x24
-> [ 8213.936109]  [<ffffffff8110a09f>] get_swap_bio+0x1f/0x79
-> [ 8213.936114]  [<ffffffff8110a20b>] swap_writepage+0x3d/0x9f
-> [ 8213.936120]  [<ffffffff810e8cde>] pageout.isra.48+0x127/0x2f9
-> [ 8213.936141]  [<ffffffff810ea570>] shrink_inactive_list+0x4eb/0x94f
-> [ 8213.936146]  [<ffffffff810ead10>] shrink_lruvec+0x33c/0x46f
-> [ 8213.936151]  [<ffffffff810ebb94>] kswapd+0x680/0xa58
-> [ 8213.936172]  [<ffffffff810eb514>] ? try_to_free_pages+0x27f/0x27f
-> [ 8213.936178]  [<ffffffff81053da5>] kthread+0x8b/0x93
-> [ 8213.936184]  [<ffffffff814be134>] kernel_thread_helper+0x4/0x10
-> [ 8213.936207]  [<ffffffff814b59f0>] ? retint_restore_args+0x13/0x13
-> [ 8213.936211]  [<ffffffff81053d1a>] ? __init_kthread_worker+0x5a/0x5a
-> [ 8213.936215]  [<ffffffff814be130>] ? gs_change+0x13/0x13
-> 
-> The question is - could it be of any use to printk stack trace with function parameters
-> (size, flag) for failed allocation?
-> 
-> If so, I'll prepare a proper patch.
-> 
-> 
-> 
-> Signed-off-by: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
-> 
-> ---
-> 
->  mm/kmemleak.c |    4 +++-
->  1 file changed, 3 insertions(+), 1 deletion(-)
-> 
-> diff --git a/mm/kmemleak.c b/mm/kmemleak.c
-> index 45eb621..60c49a5 100644
-> --- a/mm/kmemleak.c
-> +++ b/mm/kmemleak.c
-> @@ -521,8 +521,10 @@ static struct kmemleak_object *create_object(unsigned long ptr, size_t size,
->  
->  	object = kmem_cache_alloc(object_cache, gfp_kmemleak_mask(gfp));
->  	if (!object) {
-> +		write_lock_irqsave(&kmemleak_lock, flags);
->  		pr_warning("Cannot allocate a kmemleak_object structure\n");
-> -		kmemleak_disable();
-> +		kmemleak_stop("size: %zu, mask: %u\n", size, gfp_kmemleak_mask(gfp));
-> +		write_unlock_irqrestore(&kmemleak_lock, flags);
->  		return NULL;
->  	}
->  
+What about private file mapping? Could madvise(DONTNEED) drop the page
+caches too even when the other process is doing the same private file
+mapping? At least my patch could do this.
+
+I am not sure if fcntl() is a good interface either, this is why the
+patch is marked as RFC. :-D
+
+Thanks!
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
