@@ -1,108 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx106.postini.com [74.125.245.106])
-	by kanga.kvack.org (Postfix) with SMTP id 1FFE36B004D
-	for <linux-mm@kvack.org>; Thu, 31 May 2012 23:10:18 -0400 (EDT)
-Date: Fri, 1 Jun 2012 11:10:15 +0800
-From: Fengguang Wu <fengguang.wu@intel.com>
-Subject: Re: [PATCH 2/2] block: Convert BDI proportion calculations to
- flexible proportions
-Message-ID: <20120601031015.GB7896@localhost>
-References: <1337878751-22942-1-git-send-email-jack@suse.cz>
- <1337878751-22942-3-git-send-email-jack@suse.cz>
- <1338220185.4284.19.camel@lappy>
- <20120529123408.GA23991@quack.suse.cz>
- <1338295111.26856.57.camel@twins>
- <20120529125452.GB23991@quack.suse.cz>
- <20120531221146.GA19050@quack.suse.cz>
- <1338503165.28384.134.camel@twins>
- <20120531224206.GC19050@quack.suse.cz>
+Received: from psmtp.com (na3sys010amx192.postini.com [74.125.245.192])
+	by kanga.kvack.org (Postfix) with SMTP id 998496B005A
+	for <linux-mm@kvack.org>; Thu, 31 May 2012 23:14:40 -0400 (EDT)
+Received: by dakp5 with SMTP id p5so2706039dak.14
+        for <linux-mm@kvack.org>; Thu, 31 May 2012 20:14:40 -0700 (PDT)
+Date: Fri, 1 Jun 2012 03:14:33 +0800
+From: Chen Baozi <baozich@gmail.com>
+Subject: Re: [PATCH 3/3] mm/memcg: apply add/del_page to lruvec
+Message-ID: <20120531191433.GA14675@centos-guest>
+References: <alpine.LSU.2.00.1205132152530.6148@eggly.anvils>
+ <alpine.LSU.2.00.1205132201210.6148@eggly.anvils>
+ <20120530221707.GA25095@centos-guest>
+ <alpine.LSU.2.00.1205311544400.4561@eggly.anvils>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=gb2312
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20120531224206.GC19050@quack.suse.cz>
+In-Reply-To: <alpine.LSU.2.00.1205311544400.4561@eggly.anvils>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jan Kara <jack@suse.cz>
-Cc: Peter Zijlstra <peterz@infradead.org>, Sasha Levin <levinsasha928@gmail.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+To: Hugh Dickins <hughd@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Konstantin Khlebnikov <khlebnikov@openvz.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Fri, Jun 01, 2012 at 12:42:06AM +0200, Jan Kara wrote:
-> On Fri 01-06-12 00:26:05, Peter Zijlstra wrote:
-> > On Fri, 2012-06-01 at 00:11 +0200, Jan Kara wrote:
-> > >  bool fprop_new_period(struct fprop_global *p, int periods)
-> > >  {
-> > > -       u64 events = percpu_counter_sum(&p->events);
-> > > +       u64 events;
-> > > +       unsigned long flags;
-> > >  
-> > > +       local_irq_save(flags);
-> > > +       events = percpu_counter_sum(&p->events);
-> > > +       local_irq_restore(flags);
-> > >         /*
-> > >          * Don't do anything if there are no events.
-> > >          */
-> > > @@ -73,7 +77,9 @@ bool fprop_new_period(struct fprop_global *p, int periods)
-> > >         if (periods < 64)
-> > >                 events -= events >> periods;
-> > >         /* Use addition to avoid losing events happening between sum and set */
-> > > +       local_irq_save(flags);
-> > >         percpu_counter_add(&p->events, -events);
-> > > +       local_irq_restore(flags);
-> > >         p->period += periods;
-> > >         write_seqcount_end(&p->sequence); 
-> > 
-> > Uhm, why bother enabling it in between? Just wrap the whole function in
-> > a single IRQ disable.
->   I wanted to have interrupts disabled for as short as possible but if you
-> think it doesn't matter, I'll take your advice. The result is attached.
-
-Thank you! I applied this incremental fix next to the commit
-"lib: Proportions with flexible period".
-
-Thanks,
-Fengguang
-
-> From: Jan Kara <jack@suse.cz>
-> Subject: lib: Fix possible deadlock in flexible proportion code
+On Thu, May 31, 2012 at 03:58:59PM -0700, Hugh Dickins wrote:
+> On Thu, 31 May 2012, baozich wrote:
+> > > 
+> > > In their place, mem_cgroup_page_lruvec() to decide the lruvec,
+> > > previously a side-effect of add, and mem_cgroup_update_lru_size()
+> > > to maintain the lru_size stats.
+> > I have a stupid question. I'm not sure whether there is reduplication
+> > to put both "page" and "zone" parameter in mem_cgroup_page_lruvec(),
+> > for I noticed that the "struct zone *zone" parameter are usually from 
+> > page_zone(page) in most cases. I think that the semantics of this function
+> > is to grab the lruvec the page belongs to. So will it be ok if we pass
+> > only "page" as the parameter, which I think would be cleaner? Please
+> > fix me if I missed something.
 > 
-> When percpu counter function in fprop_new_period() is interrupted by an
-> interrupt while holding counter lock, it can cause deadlock when the
-> interrupt wants to take the lock as well. Fix the problem by disabling
-> interrupts when calling percpu counter functions.
+> I share your dislike for passing down an "unnecessary" argument,
+> but I do think it's justified here.
 > 
-> Signed-off-by: Jan Kara <jack@suse.cz>
+> If the zone pointer were available simply by page->zone, then yes,
+> I'd agree with you that it's probably silly to pass zone separately.
 > 
-> diff -u b/lib/flex_proportions.c b/lib/flex_proportions.c
-> --- b/lib/flex_proportions.c
-> +++ b/lib/flex_proportions.c
-> @@ -62,13 +62,18 @@
->   */
->  bool fprop_new_period(struct fprop_global *p, int periods)
->  {
-> -	u64 events = percpu_counter_sum(&p->events);
-> +	u64 events;
-> +	unsigned long flags;
->  
-> +	local_irq_save(flags);
-> +	events = percpu_counter_sum(&p->events);
->  	/*
->  	 * Don't do anything if there are no events.
->  	 */
-> -	if (events <= 1)
-> +	if (events <= 1) {
-> +		local_irq_restore(flags);
->  		return false;
-> +	}
->  	write_seqcount_begin(&p->sequence);
->  	if (periods < 64)
->  		events -= events >> periods;
-> @@ -76,6 +81,7 @@
->  	percpu_counter_add(&p->events, -events);
->  	p->period += periods;
->  	write_seqcount_end(&p->sequence);
-> +	local_irq_restore(flags);
->  
->  	return true;
->  }
+> But page_zone(page) is never as trivial as that, and on some memory
+> layouts it can be a lookup that you'd really prefer to avoid repeating.
+> 
+> In every(?) case where we're using mem_cgroup_page_lruvec(), the zone
+> is already known: it's just been used for spin_lock_irq(&zone->lru_lock).
+> 
+> And when CONFIG_CGROUP_MEM_RES_CTLR is not set, the inline function
+> mem_cgroup_page_lruvec() uses only zone, not page at all: I wouldn't
+> want to be slowing down that case with another page_zone(page) lookup.
+> 
+> Also it's somewhat academic (though not for v3.5), in that this function
+> goes away in the patches I build upon it; and I expect it also to go away
+> in the patches Konstantin would build upon it - mem_cgroup_page_lruvec()
+> is a staging point, before we combine memcg/zone lookup with the locking.
+> 
+> Hugh
+I see. Thanks for the detailed explaination.
+
+Baozi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
