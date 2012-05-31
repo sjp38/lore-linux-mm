@@ -1,15 +1,15 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx107.postini.com [74.125.245.107])
-	by kanga.kvack.org (Postfix) with SMTP id 3658A6B005C
-	for <linux-mm@kvack.org>; Thu, 31 May 2012 17:19:29 -0400 (EDT)
-Received: by pbbrp2 with SMTP id rp2so2502264pbb.14
-        for <linux-mm@kvack.org>; Thu, 31 May 2012 14:19:28 -0700 (PDT)
-Date: Thu, 31 May 2012 14:19:26 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx140.postini.com [74.125.245.140])
+	by kanga.kvack.org (Postfix) with SMTP id 1EBAF6B005C
+	for <linux-mm@kvack.org>; Thu, 31 May 2012 17:23:12 -0400 (EDT)
+Received: by pbbrp2 with SMTP id rp2so2507218pbb.14
+        for <linux-mm@kvack.org>; Thu, 31 May 2012 14:23:11 -0700 (PDT)
+Date: Thu, 31 May 2012 14:23:09 -0700 (PDT)
 From: David Rientjes <rientjes@google.com>
-Subject: Re: Common 03/22] [slob] Remove various small accessors
-In-Reply-To: <20120523203506.744566716@linux.com>
-Message-ID: <alpine.DEB.2.00.1205311419170.2764@chino.kir.corp.google.com>
-References: <20120523203433.340661918@linux.com> <20120523203506.744566716@linux.com>
+Subject: Re: Common 04/22] [slab] Use page struct fields instead of casting
+In-Reply-To: <20120523203507.324764286@linux.com>
+Message-ID: <alpine.DEB.2.00.1205311422440.2764@chino.kir.corp.google.com>
+References: <20120523203433.340661918@linux.com> <20120523203507.324764286@linux.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -19,11 +19,31 @@ Cc: Pekka Enberg <penberg@kernel.org>, linux-mm@kvack.org, Matt Mackall <mpm@sel
 
 On Wed, 23 May 2012, Christoph Lameter wrote:
 
-> Those have become so simple that they are no longer needed.
+> Add fields to the page struct so that it is properly documented that
+> slab overlays the lru fields.
 > 
-> signed-off-by: Christoph Lameter <cl@linux.com>
+> This cleans up some casts in slab.
+> 
 
-Acked-by: David Rientjes <rientjes@google.com>
+Sounds good, but...
+
+> Index: linux-2.6/include/linux/mm_types.h
+> ===================================================================
+> --- linux-2.6.orig/include/linux/mm_types.h	2012-05-22 09:05:49.716464025 -0500
+> +++ linux-2.6/include/linux/mm_types.h	2012-05-22 09:21:28.532444572 -0500
+> @@ -90,6 +90,10 @@ struct page {
+>  				atomic_t _count;		/* Usage count, see below. */
+>  			};
+>  		};
+> +		struct {		/* SLAB */
+> +			struct kmem_cache *slab_cache;
+> +			struct slab *slab_page;
+> +		};
+>  	};
+>  
+>  	/* Third double word block */
+
+The lru fields are in the third double word block.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
