@@ -1,51 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx179.postini.com [74.125.245.179])
-	by kanga.kvack.org (Postfix) with SMTP id 9C0166B005C
-	for <linux-mm@kvack.org>; Thu, 31 May 2012 05:44:05 -0400 (EDT)
-Date: Thu, 31 May 2012 11:43:56 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH -V7 10/14] hugetlbfs: Add new HugeTLB cgroup
-Message-ID: <20120531094355.GB12809@tiehlicka.suse.cz>
-References: <1338388739-22919-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
- <1338388739-22919-11-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
- <20120531011953.GE401@localhost.localdomain>
- <20120531054316.GD24855@skywalker.linux.vnet.ibm.com>
+Received: from psmtp.com (na3sys010amx175.postini.com [74.125.245.175])
+	by kanga.kvack.org (Postfix) with SMTP id 6C7726B005C
+	for <linux-mm@kvack.org>; Thu, 31 May 2012 07:04:29 -0400 (EDT)
+From: Bhushan Bharat-R65777 <R65777@freescale.com>
+Subject: memblock_end_of_DRAM()  return end address + 1
+Date: Thu, 31 May 2012 11:03:35 +0000
+Message-ID: <6A3DF150A5B70D4F9B66A25E3F7C888D03D5AAE2@039-SN2MPN1-022.039d.mgd.msft.net>
+Content-Language: en-US
+Content-Type: text/plain; charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20120531054316.GD24855@skywalker.linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Cc: Konrad Rzeszutek Wilk <konrad@darnok.org>, linux-mm@kvack.org, kamezawa.hiroyu@jp.fujitsu.com, dhillf@gmail.com, rientjes@google.com, akpm@linux-foundation.org, hannes@cmpxchg.org, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org
+To: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+Cc: "agraf@suse.de" <agraf@suse.de>
 
-On Thu 31-05-12 11:13:16, Aneesh Kumar K.V wrote:
-> On Wed, May 30, 2012 at 09:19:54PM -0400, Konrad Rzeszutek Wilk wrote:
-[...]
-> > > +static struct cgroup_subsys_state *hugetlb_cgroup_create(struct cgroup *cgroup)
-> > > +{
-> > > +	int idx;
-> > > +	struct cgroup *parent_cgroup;
-> > > +	struct hugetlb_cgroup *h_cgroup, *parent_h_cgroup;
-> > > +
-> > > +	h_cgroup = kzalloc(sizeof(*h_cgroup), GFP_KERNEL);
-> > > +	if (!h_cgroup)
-> > > +		return ERR_PTR(-ENOMEM);
-> > > +
-> > 
-> > No need to check cgroup for NULL?
-> 
-> Other cgroups (memcg) doesn't do that. Can we really get NULL cgroup tere ?
+Hi All,
 
-No we cannot. See cfa449461e67b60df986170eecb089831fa9e49a
+memblock_end_of_DRAM() defined in mm/memblock.c returns base_address + size=
+;
+So this is not returning the end_of_DRAM, it is basically returning the end=
+_of_DRAM + 1. The name looks to suggest that this returns end address on DR=
+AM.
 
--- 
-Michal Hocko
-SUSE Labs
-SUSE LINUX s.r.o.
-Lihovarska 1060/12
-190 00 Praha 9    
-Czech Republic
+IIUC, it looks like that some code assumes this returns the end address whi=
+le some assumes this returns end address + 1.
+
+Example:
+1. arch/powerpc/platforms/85xx/mpc85xx_ds.c
+
+
+<cut>
+
+#ifdef CONFIG_SWIOTLB
+        if (memblock_end_of_DRAM() > max) {
+                ppc_swiotlb_enable =3D 1;
+                set_pci_dma_ops(&swiotlb_dma_ops);
+                ppc_md.pci_dma_dev_setup =3D pci_dma_dev_setup_swiotlb;
+        }
+#endif
+
+<cut>
+<cut>
+
+
+Where  max =3D 0xffffffff; So we assumes that memblock_end_of_DRAM() actual=
+ly returns end address.
+
+------
+2.
+
+In arch/powerpc/kernel/dma.c
+
+
+static int dma_direct_dma_supported(struct device *dev, u64 mask)
+{
+#ifdef CONFIG_PPC64
+        /* Could be improved so platforms can set the limit in case
+         * they have limited DMA windows
+         */
+        return mask >=3D get_dma_offset(dev) + (memblock_end_of_DRAM() - 1)=
+;
+
+
+<cut>
+
+It looks to that here we assume base + addr + 1;
+
+-----------
+
+
+Thanks
+-Bharat
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
