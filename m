@@ -1,41 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx129.postini.com [74.125.245.129])
-	by kanga.kvack.org (Postfix) with SMTP id EC4B96B0062
-	for <linux-mm@kvack.org>; Thu, 31 May 2012 03:50:46 -0400 (EDT)
-Received: by yenm7 with SMTP id m7so715594yen.14
-        for <linux-mm@kvack.org>; Thu, 31 May 2012 00:50:46 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <CAHGf_=rT+X9PpJhfr=1GdRQ-5GALUHbt3txJCMDnus_C7Pkcug@mail.gmail.com>
-References: <1336431315-29736-1-git-send-email-andi@firstfloor.org>
-	<1338429749-5780-1-git-send-email-tdmackey@twitter.com>
-	<20120531042249.GG9850@tassilo.jf.intel.com>
-	<CAHGf_=rT+X9PpJhfr=1GdRQ-5GALUHbt3txJCMDnus_C7Pkcug@mail.gmail.com>
-Date: Thu, 31 May 2012 10:50:45 +0300
-Message-ID: <CAOJsxLFmoh6OCtJmFdKdYLGF5j4GD_N8oxR=A6NF_DHVSCBAUg@mail.gmail.com>
-Subject: Re: [PATCH v4] slab/mempolicy: always use local policy from interrupt context
+Received: from psmtp.com (na3sys010amx103.postini.com [74.125.245.103])
+	by kanga.kvack.org (Postfix) with SMTP id D0BB46B0062
+	for <linux-mm@kvack.org>; Thu, 31 May 2012 03:52:35 -0400 (EDT)
+Received: by lbjn8 with SMTP id n8so826678lbj.14
+        for <linux-mm@kvack.org>; Thu, 31 May 2012 00:52:33 -0700 (PDT)
+Date: Thu, 31 May 2012 10:52:30 +0300 (EEST)
 From: Pekka Enberg <penberg@kernel.org>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Subject: Re: Common 06/22] Extract common fields from struct kmem_cache
+In-Reply-To: <alpine.DEB.2.00.1205301028330.28968@router.home>
+Message-ID: <alpine.LFD.2.02.1205311052090.3944@tux.localdomain>
+References: <20120523203433.340661918@linux.com> <20120523203508.434967564@linux.com> <CAOJsxLGHZjucZUi=K3V6QDgP-UqA2GQY=z7D8poKMTO-JETZ2g@mail.gmail.com> <alpine.DEB.2.00.1205301028330.28968@router.home>
+MIME-Version: 1.0
+Content-Type: MULTIPART/MIXED; BOUNDARY="8323328-510044906-1338450751=:3944"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
-Cc: Andi Kleen <ak@linux.intel.com>, David Mackey <tdmackey@twitter.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, cl@linux.com, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>
+To: Christoph Lameter <cl@linux.com>
+Cc: linux-mm@kvack.org, David Rientjes <rientjes@google.com>, Matt Mackall <mpm@selenic.com>, Glauber Costa <glommer@parallels.com>, Joonsoo Kim <js1304@gmail.com>
 
-On Thu, May 31, 2012 at 12:22 AM, Andi Kleen <ak@linux.intel.com> wrote:
->>> [tdmackey@twitter.com: Rework patch logic and avoid dereference of curr=
-ent
->>> task if in interrupt context.]
->>
->> avoiding this reference doesn't make sense, it's totally valid.
->> This is based on a older version. I sent the fixed one some time ago.
+  This message is in MIME format.  The first part should be readable text,
+  while the remaining parts are likely unreadable without MIME-aware tools.
 
-On Thu, May 31, 2012 at 7:59 AM, KOSAKI Motohiro
-<kosaki.motohiro@gmail.com> wrote:
-> Where? I think David's version is most cleaner one.
->
-> =A0Acked-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+--8323328-510044906-1338450751=:3944
+Content-Type: TEXT/PLAIN; charset=ISO-8859-1
+Content-Transfer-Encoding: 8BIT
 
-Monsieur Lameter, Monsieur Rientjes, ACK/NAK?
+On Wed, 30 May 2012, Christoph Lameter wrote:
+
+> On Wed, 30 May 2012, Pekka Enberg wrote:
+> 
+> > >  /*
+> > > + * Common fields provided in kmem_cache by all slab allocators
+> > > + */
+> > > +#define SLAB_COMMON \
+> > > +       unsigned int size, align;                                       \
+> > > +       unsigned long flags;                                            \
+> > > +       const char *name;                                               \
+> > > +       int refcount;                                                   \
+> > > +       void (*ctor)(void *);                                           \
+> > > +       struct list_head list;
+> > > +
+> >
+> > I don't like this at all - it obscures the actual "kmem_cache"
+> > structures. If we can't come up with a reasonable solution that makes
+> > this a proper struct that's embedded in allocator-specific
+> > "kmem_cache" structures, it's best that we rename the fields but keep
+> > them inlined and drop this macro..
+> 
+> Actually that is a good idea. We can keep a fake struct in comments around
+> in slab.h to document what all slab allocators have to support and then at
+> some point we may be able to integrate the struct.
+
+Works for me.
+
+			Pekka
+--8323328-510044906-1338450751=:3944--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
