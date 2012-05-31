@@ -1,16 +1,16 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx171.postini.com [74.125.245.171])
-	by kanga.kvack.org (Postfix) with SMTP id 107FE6B005C
-	for <linux-mm@kvack.org>; Wed, 30 May 2012 21:03:02 -0400 (EDT)
-Received: by dakp5 with SMTP id p5so647880dak.14
-        for <linux-mm@kvack.org>; Wed, 30 May 2012 18:03:01 -0700 (PDT)
-Date: Wed, 30 May 2012 18:02:59 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx155.postini.com [74.125.245.155])
+	by kanga.kvack.org (Postfix) with SMTP id AF9646B005C
+	for <linux-mm@kvack.org>; Wed, 30 May 2012 21:05:49 -0400 (EDT)
+Received: by dakp5 with SMTP id p5so650874dak.14
+        for <linux-mm@kvack.org>; Wed, 30 May 2012 18:05:48 -0700 (PDT)
+Date: Wed, 30 May 2012 18:05:46 -0700 (PDT)
 From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH -V7 02/14] hugetlbfs: don't use ERR_PTR with VM_FAULT*
- values
-In-Reply-To: <1338388739-22919-3-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
-Message-ID: <alpine.DEB.2.00.1205301801060.25774@chino.kir.corp.google.com>
-References: <1338388739-22919-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com> <1338388739-22919-3-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+Subject: Re: [PATCH -V7 03/14] hugetlbfs: add an inline helper for finding
+ hstate index
+In-Reply-To: <1338388739-22919-4-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+Message-ID: <alpine.DEB.2.00.1205301805360.25774@chino.kir.corp.google.com>
+References: <1338388739-22919-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com> <1338388739-22919-4-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -22,16 +22,16 @@ On Wed, 30 May 2012, Aneesh Kumar K.V wrote:
 
 > From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
 > 
-> The current use of VM_FAULT_* codes with ERR_PTR requires us to ensure
-> VM_FAULT_* values will not exceed MAX_ERRNO value.  Decouple the
-> VM_FAULT_* values from MAX_ERRNO.
+> Add an inline helper and use it in the code.
 > 
+> Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
+> Acked-by: Michal Hocko <mhocko@suse.cz>
+> Reviewed-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> Cc: Hillf Danton <dhillf@gmail.com>
+> Cc: Andrea Arcangeli <aarcange@redhat.com>
+> Cc: Johannes Weiner <hannes@cmpxchg.org>
 
-Yeah, but is there a reason for using VM_FAULT_HWPOISON_LARGE_MASK since 
-that's the only VM_FAULT_* value that is greater than MAX_ERRNO?  The rest 
-of your patch set doesn't require this, so I think this change should just 
-be dropped.  (And PTR_ERR() still returns long, this wasn't fixed from my 
-original review.)
+Acked-by: David Rientjes <rientjes@google.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
