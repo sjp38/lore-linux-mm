@@ -1,278 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx122.postini.com [74.125.245.122])
-	by kanga.kvack.org (Postfix) with SMTP id F0CB86B005C
-	for <linux-mm@kvack.org>; Thu, 31 May 2012 01:36:09 -0400 (EDT)
-Received: from /spool/local
-	by e23smtp02.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
-	Thu, 31 May 2012 05:16:55 +1000
-Received: from d23av04.au.ibm.com (d23av04.au.ibm.com [9.190.235.139])
-	by d23relay04.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q4V5Se7S35979308
-	for <linux-mm@kvack.org>; Thu, 31 May 2012 15:28:40 +1000
-Received: from d23av04.au.ibm.com (loopback [127.0.0.1])
-	by d23av04.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q4V5ZgQd007600
-	for <linux-mm@kvack.org>; Thu, 31 May 2012 15:35:43 +1000
-Date: Thu, 31 May 2012 11:05:30 +0530
-From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Subject: Re: [PATCH -V7 04/14] hugetlb: use mmu_gather instead of a temporary
- linked list for accumulating pages
-Message-ID: <20120531053530.GB24855@skywalker.linux.vnet.ibm.com>
-References: <1338388739-22919-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
- <1338388739-22919-5-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
- <alpine.DEB.2.00.1205301844010.25774@chino.kir.corp.google.com>
+Received: from psmtp.com (na3sys010amx108.postini.com [74.125.245.108])
+	by kanga.kvack.org (Postfix) with SMTP id 9933C6B005C
+	for <linux-mm@kvack.org>; Thu, 31 May 2012 01:38:36 -0400 (EDT)
+Received: from m1.gw.fujitsu.co.jp (unknown [10.0.50.71])
+	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 999A33EE0B5
+	for <linux-mm@kvack.org>; Thu, 31 May 2012 14:38:34 +0900 (JST)
+Received: from smail (m1 [127.0.0.1])
+	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 83B9945DE59
+	for <linux-mm@kvack.org>; Thu, 31 May 2012 14:38:34 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
+	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 6310645DE54
+	for <linux-mm@kvack.org>; Thu, 31 May 2012 14:38:34 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 564801DB804F
+	for <linux-mm@kvack.org>; Thu, 31 May 2012 14:38:34 +0900 (JST)
+Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.240.81.133])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 103681DB804B
+	for <linux-mm@kvack.org>; Thu, 31 May 2012 14:38:34 +0900 (JST)
+Message-ID: <4FC70355.70805@jp.fujitsu.com>
+Date: Thu, 31 May 2012 14:36:21 +0900
+From: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.00.1205301844010.25774@chino.kir.corp.google.com>
+Subject: Re: [PATCH] meminfo: show /proc/meminfo base on container's memcg
+References: <1338260214-21919-1-git-send-email-gaofeng@cn.fujitsu.com> <alpine.DEB.2.00.1205301433490.9716@chino.kir.corp.google.com> <4FC6B68C.2070703@jp.fujitsu.com> <CAHGf_=pFbsy4FO_UNu6O1-KyTd6O=pkmR8=3EGuZB5Reu3Vb9w@mail.gmail.com> <4FC6BC3E.5010807@jp.fujitsu.com> <alpine.DEB.2.00.1205301737530.25774@chino.kir.corp.google.com> <4FC6C111.2060108@jp.fujitsu.com> <alpine.DEB.2.00.1205301831270.25774@chino.kir.corp.google.com> <4FC6D881.4090706@jp.fujitsu.com> <alpine.DEB.2.00.1205302156090.25774@chino.kir.corp.google.com>
+In-Reply-To: <alpine.DEB.2.00.1205302156090.25774@chino.kir.corp.google.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: David Rientjes <rientjes@google.com>
-Cc: linux-mm@kvack.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, dhillf@gmail.com, mhocko@suse.cz, Andrew Morton <akpm@linux-foundation.org>, hannes@cmpxchg.org, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, Andrea Arcangeli <aarcange@redhat.com>
+Cc: KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Gao feng <gaofeng@cn.fujitsu.com>, hannes@cmpxchg.org, mhocko@suse.cz, bsingharora@gmail.com, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, linux-mm@kvack.org, containers@lists.linux-foundation.org
 
-On Wed, May 30, 2012 at 06:56:36PM -0700, David Rientjes wrote:
-> On Wed, 30 May 2012, Aneesh Kumar K.V wrote:
-> 
-> > diff --git a/fs/hugetlbfs/inode.c b/fs/hugetlbfs/inode.c
-> > index cc9281b..ff233e4 100644
-> > --- a/fs/hugetlbfs/inode.c
-> > +++ b/fs/hugetlbfs/inode.c
-> > @@ -416,8 +416,8 @@ hugetlb_vmtruncate_list(struct prio_tree_root *root, pgoff_t pgoff)
-> >  		else
-> >  			v_offset = 0;
-> >  
-> > -		__unmap_hugepage_range(vma,
-> > -				vma->vm_start + v_offset, vma->vm_end, NULL);
-> > +		unmap_hugepage_range(vma, vma->vm_start + v_offset,
-> > +				     vma->vm_end, NULL);
-> >  	}
-> >  }
-> >  
-> > diff --git a/include/linux/hugetlb.h b/include/linux/hugetlb.h
-> > index 217f528..c21e136 100644
-> > --- a/include/linux/hugetlb.h
-> > +++ b/include/linux/hugetlb.h
-> > @@ -7,6 +7,7 @@
-> >  
-> >  struct ctl_table;
-> >  struct user_struct;
-> > +struct mmu_gather;
-> >  
-> >  #ifdef CONFIG_HUGETLB_PAGE
-> >  
-> > @@ -40,9 +41,10 @@ int follow_hugetlb_page(struct mm_struct *, struct vm_area_struct *,
-> >  			struct page **, struct vm_area_struct **,
-> >  			unsigned long *, int *, int, unsigned int flags);
-> >  void unmap_hugepage_range(struct vm_area_struct *,
-> > -			unsigned long, unsigned long, struct page *);
-> > -void __unmap_hugepage_range(struct vm_area_struct *,
-> > -			unsigned long, unsigned long, struct page *);
-> > +			  unsigned long, unsigned long, struct page *);
-> > +void __unmap_hugepage_range(struct mmu_gather *tlb, struct vm_area_struct *vms,
-> 
-> s/vms/vma/
+(2012/05/31 14:02), David Rientjes wrote:
+> On Thu, 31 May 2012, Kamezawa Hiroyuki wrote:
+>
+>>> It's not just a memcg issue, it would also be a cpusets issue.
+>>
+>> I think you can add cpuset.meminfo.
+>>
+>
+> It's simple to find the same information by reading the per-node meminfo
+> files in sysfs for each of the allowed cpuset mems.  This is why this
+> approach has been nacked in the past, specifically by Paul Jackson when he
+> implemented cpusets.
+>
 
-done
+I don't think there was a discussion of LXC in that era.
 
-> 
-> > +				unsigned long start, unsigned long end,
-> > +				struct page *ref_page);
-> >  int hugetlb_prefault(struct address_space *, struct vm_area_struct *);
-> >  void hugetlb_report_meminfo(struct seq_file *);
-> >  int hugetlb_report_node_meminfo(int, char *);
-> > @@ -98,7 +100,6 @@ static inline unsigned long hugetlb_total_pages(void)
-> >  #define follow_huge_addr(mm, addr, write)	ERR_PTR(-EINVAL)
-> >  #define copy_hugetlb_page_range(src, dst, vma)	({ BUG(); 0; })
-> >  #define hugetlb_prefault(mapping, vma)		({ BUG(); 0; })
-> > -#define unmap_hugepage_range(vma, start, end, page)	BUG()
-> >  static inline void hugetlb_report_meminfo(struct seq_file *m)
-> >  {
-> >  }
-> 
-> Why?
+> The bottomline is that /proc/meminfo is one of many global resource state
+> interfaces and doesn't imply that every thread has access to the full
+> resources.  It never has.  It's very simple for another thread to consume
+> a large amount of memory as soon as your read() of /proc/meminfo completes
+> and then that information is completely bogus.
 
-unmap_hugepage_range is now not used outside CONFIG_HUGETLB_PAGE
+Why you need to discuss this here ? We know all information are snapshot.
 
-> 
-> > @@ -112,13 +113,24 @@ static inline void hugetlb_report_meminfo(struct seq_file *m)
-> >  #define hugetlb_free_pgd_range(tlb, addr, end, floor, ceiling) ({BUG(); 0; })
-> >  #define hugetlb_fault(mm, vma, addr, flags)	({ BUG(); 0; })
-> >  #define huge_pte_offset(mm, address)	0
-> > -#define dequeue_hwpoisoned_huge_page(page)	0
-> > +static inline int dequeue_hwpoisoned_huge_page(struct page *page)
-> > +{
-> > +	return 0;
-> > +}
-> > +
-> 
-> Unrelated from this patchset.
+> We also don't want to
+> virtualize every single global resource state interface, it would be never
+> ending.
+>
+Just doing one by one. It will end.
 
-It throws a warning. Yes it can be a seperate patch. But was not sure whether to
-move that one line patch outside
+> Applications that administer memory cgroups or cpusets can get this
+> information very easily, each application within those memory cgroups or
+> cpusets does not need it and should not rely on it: it provides no
+> guarantee about future usage nor notifies the application when the amount
+> of free memory changes.
 
-> 
-> >  static inline void copy_huge_page(struct page *dst, struct page *src)
-> >  {
-> >  }
-> >  
-> >  #define hugetlb_change_protection(vma, address, end, newprot)
-> >  
-> > +static inline void __unmap_hugepage_range(struct mmu_gather *tlb,
-> > +			struct vm_area_struct *vma, unsigned long start,
-> > +			unsigned long end, struct page *ref_page)
-> > +{
-> > +	BUG();
-> > +}
-> > +
-> 
-> I think this should be done under the unmap_hugepage_range() definition 
-> you removed (and change it to be a static inline function as well).
+If so, the admin should have know-how to get the information from the inside
+of the container. If container is well-isolated, he'll need some
+trick to get its own cgroup information from the inside of containers.
 
-Below is what unmap_hugepage_range is after all the change. And it doesn't get
-used if CONFIG_HUGETLB_PAGE is not used. But we use __unmap_hugepage_range from
-common code.If we get called with hugetlb not enabled, then that implies a BUG()
+Hmm....maybe need to mount cgroup in the container (again) and get an access to cgroup
+hierarchy and find the cgroup it belongs to......if it's allowed. I don't want to allow
+it and disable it with capability or some other check. Another idea is to exchange
+information by some network connection with daemon in root cgroup, like qemu-ga.
+And free, top, ....misc applications should support it. It doesn't seem easy.
 
-void unmap_hugepage_range(struct vm_area_struct *vma, unsigned long start,
-			  unsigned long end, struct page *ref_page)
-{
-	struct mm_struct *mm;
-	struct mmu_gather tlb;
+It may be better to think of supporting yet another FUSE procfs, which will work
+with libvirt in userland if having it in the kernel is complicated.
 
-	mm = vma->vm_mm;
-
-	tlb_gather_mmu(&tlb, mm, 0);
-	__unmap_hugepage_range(&tlb, vma, start, end, ref_page);
-	tlb_finish_mmu(&tlb, start, end);
-}
-
-
-
-> 
-> >  #endif /* !CONFIG_HUGETLB_PAGE */
-> >  
-> >  #define HUGETLB_ANON_FILE "anon_hugepage"
-> > diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-> > index 9b97a5c..704a269 100644
-> > --- a/mm/hugetlb.c
-> > +++ b/mm/hugetlb.c
-> > @@ -24,8 +24,9 @@
-> >  
-> >  #include <asm/page.h>
-> >  #include <asm/pgtable.h>
-> > -#include <linux/io.h>
-> > +#include <asm/tlb.h>
-> >  
-> > +#include <linux/io.h>
-> >  #include <linux/hugetlb.h>
-> >  #include <linux/node.h>
-> >  #include "internal.h"
-> > @@ -2310,30 +2311,26 @@ static int is_hugetlb_entry_hwpoisoned(pte_t pte)
-> >  		return 0;
-> >  }
-> >  
-> > -void __unmap_hugepage_range(struct vm_area_struct *vma, unsigned long start,
-> > -			    unsigned long end, struct page *ref_page)
-> > +void __unmap_hugepage_range(struct mmu_gather *tlb, struct vm_area_struct *vma,
-> > +			    unsigned long start, unsigned long end,
-> > +			    struct page *ref_page)
-> >  {
-> > +	int force_flush = 0;
-> 
-> Can this be bool?
-> 
-> >  	struct mm_struct *mm = vma->vm_mm;
-> >  	unsigned long address;
-> >  	pte_t *ptep;
-> >  	pte_t pte;
-> >  	struct page *page;
-> > -	struct page *tmp;
-> >  	struct hstate *h = hstate_vma(vma);
-> >  	unsigned long sz = huge_page_size(h);
-> >  
-> > -	/*
-> > -	 * A page gathering list, protected by per file i_mmap_mutex. The
-> > -	 * lock is used to avoid list corruption from multiple unmapping
-> > -	 * of the same page since we are using page->lru.
-> > -	 */
-> > -	LIST_HEAD(page_list);
-> > -
-> >  	WARN_ON(!is_vm_hugetlb_page(vma));
-> >  	BUG_ON(start & ~huge_page_mask(h));
-> >  	BUG_ON(end & ~huge_page_mask(h));
-> >  
-> > +	tlb_start_vma(tlb, vma);
-> >  	mmu_notifier_invalidate_range_start(mm, start, end);
-> > +again:
-> >  	spin_lock(&mm->page_table_lock);
-> >  	for (address = start; address < end; address += sz) {
-> >  		ptep = huge_pte_offset(mm, address);
-> > @@ -2372,30 +2369,45 @@ void __unmap_hugepage_range(struct vm_area_struct *vma, unsigned long start,
-> >  		}
-> >  
-> >  		pte = huge_ptep_get_and_clear(mm, address, ptep);
-> > +		tlb_remove_tlb_entry(tlb, ptep, address);
-> >  		if (pte_dirty(pte))
-> >  			set_page_dirty(page);
-> > -		list_add(&page->lru, &page_list);
-> >  
-> > +		page_remove_rmap(page);
-> > +		force_flush = !__tlb_remove_page(tlb, page);
-> > +		if (force_flush)
-> > +			break;
-> >  		/* Bail out after unmapping reference page if supplied */
-> >  		if (ref_page)
-> >  			break;
-> >  	}
-> > -	flush_tlb_range(vma, start, end);
-> >  	spin_unlock(&mm->page_table_lock);
-> > -	mmu_notifier_invalidate_range_end(mm, start, end);
-> > -	list_for_each_entry_safe(page, tmp, &page_list, lru) {
-> > -		page_remove_rmap(page);
-> > -		list_del(&page->lru);
-> > -		put_page(page);
-> > +	/*
-> > +	 * mmu_gather ran out of room to batch pages, we break out of
-> > +	 * the PTE lock to avoid doing the potential expensive TLB invalidate
-> > +	 * and page-free while holding it.
-> > +	 */
-> > +	if (force_flush) {
-> > +		force_flush = 0;
-> > +		tlb_flush_mmu(tlb);
-> > +		if (address < end && !ref_page)
-> > +			goto again;
-> 
-> Shouldn't be copying "start" at the beginning of this function and then 
-> updating that copy now and use it as the loop initialization?
-> 
-
-I didn't want to make larger changes here. My goal was to switch to mmu_gather APIs
-without changing other loop logic.
-
-> >  	}
-> > +	mmu_notifier_invalidate_range_end(mm, start, end);
-> > +	tlb_end_vma(tlb, vma);
-> >  }
-> >  
-> >  void unmap_hugepage_range(struct vm_area_struct *vma, unsigned long start,
-> >  			  unsigned long end, struct page *ref_page)
-> >  {
-> > -	mutex_lock(&vma->vm_file->f_mapping->i_mmap_mutex);
-> > -	__unmap_hugepage_range(vma, start, end, ref_page);
-> > -	mutex_unlock(&vma->vm_file->f_mapping->i_mmap_mutex);
-> > +	struct mm_struct *mm;
-> > +	struct mmu_gather tlb;
-> > +
-> > +	mm = vma->vm_mm;
-> > +
-> > +	tlb_gather_mmu(&tlb, mm, 0);
-> > +	__unmap_hugepage_range(&tlb, vma, start, end, ref_page);
-> > +	tlb_finish_mmu(&tlb, start, end);
-> >  }
-> >  
-> >  /*
-> 
-
-
--aneesh
+Thanks,
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
