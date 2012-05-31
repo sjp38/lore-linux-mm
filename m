@@ -1,60 +1,33 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx153.postini.com [74.125.245.153])
-	by kanga.kvack.org (Postfix) with SMTP id A21546B005C
-	for <linux-mm@kvack.org>; Wed, 30 May 2012 22:35:51 -0400 (EDT)
-Received: from m2.gw.fujitsu.co.jp (unknown [10.0.50.72])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id E95613EE0AE
-	for <linux-mm@kvack.org>; Thu, 31 May 2012 11:35:49 +0900 (JST)
-Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id CBCB945DE55
-	for <linux-mm@kvack.org>; Thu, 31 May 2012 11:35:46 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id B48DE45DD78
-	for <linux-mm@kvack.org>; Thu, 31 May 2012 11:35:46 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id A76811DB803C
-	for <linux-mm@kvack.org>; Thu, 31 May 2012 11:35:46 +0900 (JST)
-Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.240.81.133])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 5FCB11DB803E
-	for <linux-mm@kvack.org>; Thu, 31 May 2012 11:35:46 +0900 (JST)
-Message-ID: <4FC6D881.4090706@jp.fujitsu.com>
-Date: Thu, 31 May 2012 11:33:37 +0900
-From: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Received: from psmtp.com (na3sys010amx160.postini.com [74.125.245.160])
+	by kanga.kvack.org (Postfix) with SMTP id 986BB6B006C
+	for <linux-mm@kvack.org>; Thu, 31 May 2012 00:22:50 -0400 (EDT)
+Date: Wed, 30 May 2012 21:22:49 -0700
+From: Andi Kleen <ak@linux.intel.com>
+Subject: Re: [PATCH v4] slab/mempolicy: always use local policy from
+ interrupt context
+Message-ID: <20120531042249.GG9850@tassilo.jf.intel.com>
+References: <1336431315-29736-1-git-send-email-andi@firstfloor.org>
+ <1338429749-5780-1-git-send-email-tdmackey@twitter.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH] meminfo: show /proc/meminfo base on container's memcg
-References: <1338260214-21919-1-git-send-email-gaofeng@cn.fujitsu.com> <alpine.DEB.2.00.1205301433490.9716@chino.kir.corp.google.com> <4FC6B68C.2070703@jp.fujitsu.com> <CAHGf_=pFbsy4FO_UNu6O1-KyTd6O=pkmR8=3EGuZB5Reu3Vb9w@mail.gmail.com> <4FC6BC3E.5010807@jp.fujitsu.com> <alpine.DEB.2.00.1205301737530.25774@chino.kir.corp.google.com> <4FC6C111.2060108@jp.fujitsu.com> <alpine.DEB.2.00.1205301831270.25774@chino.kir.corp.google.com>
-In-Reply-To: <alpine.DEB.2.00.1205301831270.25774@chino.kir.corp.google.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1338429749-5780-1-git-send-email-tdmackey@twitter.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Gao feng <gaofeng@cn.fujitsu.com>, hannes@cmpxchg.org, mhocko@suse.cz, bsingharora@gmail.com, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, linux-mm@kvack.org, containers@lists.linux-foundation.org
+To: David Mackey <tdmackey@twitter.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, penberg@kernel.org, cl@linux.com
 
-(2012/05/31 10:31), David Rientjes wrote:
-> On Thu, 31 May 2012, Kamezawa Hiroyuki wrote:
->
->>>> My test with sysfs node's meminfo seems to work...
->>>>
->>>> [root@rx100-1 qqm]# mount --bind /sys/devices/system/node/node0/meminfo
->>>> /proc/meminfo
->>>> [root@rx100-1 qqm]# cat /proc/meminfo
->>>>
->>>> Node 0 MemTotal:        8379636 kB
->>>
->>> This doesn't seem like a good idea unless the application supports the
->>> "Node 0" prefix in /proc/meminfo.
->>>
->> Of course, /cgroup/memory/..../memory.meminfo , a new file, will use the same
->> format of /proc/meminfo. Above is just an example of bind-mount.
->>
->
-> It's not just a memcg issue, it would also be a cpusets issue.
+> [tdmackey@twitter.com: Rework patch logic and avoid dereference of current 
+> task if in interrupt context.]
 
-I think you can add cpuset.meminfo.
+avoiding this reference doesn't make sense, it's totally valid.
+This is based on a older version. I sent the fixed one some time ago.
 
-Thanks,
--Kame
+-Andi
+
+-- 
+ak@linux.intel.com -- Speaking for myself only
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
