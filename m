@@ -1,16 +1,15 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx105.postini.com [74.125.245.105])
-	by kanga.kvack.org (Postfix) with SMTP id 0173D6B005C
-	for <linux-mm@kvack.org>; Thu, 31 May 2012 17:15:43 -0400 (EDT)
-Received: by dakp5 with SMTP id p5so2295039dak.14
-        for <linux-mm@kvack.org>; Thu, 31 May 2012 14:15:43 -0700 (PDT)
-Date: Thu, 31 May 2012 14:15:41 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx107.postini.com [74.125.245.107])
+	by kanga.kvack.org (Postfix) with SMTP id 3658A6B005C
+	for <linux-mm@kvack.org>; Thu, 31 May 2012 17:19:29 -0400 (EDT)
+Received: by pbbrp2 with SMTP id rp2so2502264pbb.14
+        for <linux-mm@kvack.org>; Thu, 31 May 2012 14:19:28 -0700 (PDT)
+Date: Thu, 31 May 2012 14:19:26 -0700 (PDT)
 From: David Rientjes <rientjes@google.com>
-Subject: Re: Common 02/22] [slob] No need to zero mapping since it is no
- longer in use
-In-Reply-To: <20120523203506.170219003@linux.com>
-Message-ID: <alpine.DEB.2.00.1205311415300.2764@chino.kir.corp.google.com>
-References: <20120523203433.340661918@linux.com> <20120523203506.170219003@linux.com>
+Subject: Re: Common 03/22] [slob] Remove various small accessors
+In-Reply-To: <20120523203506.744566716@linux.com>
+Message-ID: <alpine.DEB.2.00.1205311419170.2764@chino.kir.corp.google.com>
+References: <20120523203433.340661918@linux.com> <20120523203506.744566716@linux.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -20,7 +19,9 @@ Cc: Pekka Enberg <penberg@kernel.org>, linux-mm@kvack.org, Matt Mackall <mpm@sel
 
 On Wed, 23 May 2012, Christoph Lameter wrote:
 
-> Signed-off-by: Christoph Lameter <cl@linux.com>
+> Those have become so simple that they are no longer needed.
+> 
+> signed-off-by: Christoph Lameter <cl@linux.com>
 
 Acked-by: David Rientjes <rientjes@google.com>
 
