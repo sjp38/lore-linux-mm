@@ -1,78 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx175.postini.com [74.125.245.175])
-	by kanga.kvack.org (Postfix) with SMTP id 6C7726B005C
-	for <linux-mm@kvack.org>; Thu, 31 May 2012 07:04:29 -0400 (EDT)
-From: Bhushan Bharat-R65777 <R65777@freescale.com>
-Subject: memblock_end_of_DRAM()  return end address + 1
-Date: Thu, 31 May 2012 11:03:35 +0000
-Message-ID: <6A3DF150A5B70D4F9B66A25E3F7C888D03D5AAE2@039-SN2MPN1-022.039d.mgd.msft.net>
-Content-Language: en-US
-Content-Type: text/plain; charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
+Received: from psmtp.com (na3sys010amx186.postini.com [74.125.245.186])
+	by kanga.kvack.org (Postfix) with SMTP id E63D76B005C
+	for <linux-mm@kvack.org>; Thu, 31 May 2012 07:56:19 -0400 (EDT)
+Received: by wefh52 with SMTP id h52so757608wef.14
+        for <linux-mm@kvack.org>; Thu, 31 May 2012 04:56:18 -0700 (PDT)
+Date: Thu, 31 May 2012 14:55:38 +0300
+From: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+Subject: kmemleak:
+Message-ID: <20120531115537.GA3676@swordfish.minsk.epam.com>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
-Cc: "agraf@suse.de" <agraf@suse.de>
+To: Catalin Marinas <catalin.marinas@arm.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 
-Hi All,
+Hello,
 
-memblock_end_of_DRAM() defined in mm/memblock.c returns base_address + size=
-;
-So this is not returning the end_of_DRAM, it is basically returning the end=
-_of_DRAM + 1. The name looks to suggest that this returns end address on DR=
-AM.
+I'm seeing pretty often (may be 10-15 times during last 2 months) kmemleak failed
+allocation:
 
-IIUC, it looks like that some code assumes this returns the end address whi=
-le some assumes this returns end address + 1.
-
-Example:
-1. arch/powerpc/platforms/85xx/mpc85xx_ds.c
+	[ 8213.936237] kmemleak: Kernel memory leak detector disabled
+	[ 8214.660454] kmemleak: Automatic memory scanning thread ended
 
 
-<cut>
+I've a patch that gives a bit more info on last kmemleak step (for example):
 
-#ifdef CONFIG_SWIOTLB
-        if (memblock_end_of_DRAM() > max) {
-                ppc_swiotlb_enable =3D 1;
-                set_pci_dma_ops(&swiotlb_dma_ops);
-                ppc_md.pci_dma_dev_setup =3D pci_dma_dev_setup_swiotlb;
-        }
-#endif
+[ 8213.935927] kmemleak: Cannot allocate a kmemleak_object structure
+[ 8213.935950] kmemleak: size: 192, mask: 70144
+[ 8213.935955] Pid: 444, comm: kswapd0 Not tainted 3.5.0-rc0-dbg-10118-gaf992ce-dirty #1152
+[ 8213.935957] Call Trace:
+[ 8213.935986]  [<ffffffff8111ec4c>] create_object+0x7d/0x305
+[ 8213.936009]  [<ffffffff810dc89e>] ? mempool_alloc_slab+0x15/0x17
+[ 8213.936014]  [<ffffffff810dc89e>] ? mempool_alloc_slab+0x15/0x17
+[ 8213.936020]  [<ffffffff8149a2e3>] kmemleak_alloc+0x26/0x43
+[ 8213.936041]  [<ffffffff81114d54>] kmem_cache_alloc+0xd7/0x1e6
+[ 8213.936046]  [<ffffffff810dc89e>] mempool_alloc_slab+0x15/0x17
+[ 8213.936050]  [<ffffffff810dcb28>] mempool_alloc+0x81/0x146
+[ 8213.936074]  [<ffffffff81284052>] ? do_raw_spin_lock+0x69/0xe9
+[ 8213.936079]  [<ffffffff81150829>] bio_alloc_bioset+0x33/0xc4
+[ 8213.936085]  [<ffffffff8110a0f9>] ? get_swap_bio+0x79/0x79
+[ 8213.936089]  [<ffffffff811508cf>] bio_alloc+0x15/0x24
+[ 8213.936109]  [<ffffffff8110a09f>] get_swap_bio+0x1f/0x79
+[ 8213.936114]  [<ffffffff8110a20b>] swap_writepage+0x3d/0x9f
+[ 8213.936120]  [<ffffffff810e8cde>] pageout.isra.48+0x127/0x2f9
+[ 8213.936141]  [<ffffffff810ea570>] shrink_inactive_list+0x4eb/0x94f
+[ 8213.936146]  [<ffffffff810ead10>] shrink_lruvec+0x33c/0x46f
+[ 8213.936151]  [<ffffffff810ebb94>] kswapd+0x680/0xa58
+[ 8213.936172]  [<ffffffff810eb514>] ? try_to_free_pages+0x27f/0x27f
+[ 8213.936178]  [<ffffffff81053da5>] kthread+0x8b/0x93
+[ 8213.936184]  [<ffffffff814be134>] kernel_thread_helper+0x4/0x10
+[ 8213.936207]  [<ffffffff814b59f0>] ? retint_restore_args+0x13/0x13
+[ 8213.936211]  [<ffffffff81053d1a>] ? __init_kthread_worker+0x5a/0x5a
+[ 8213.936215]  [<ffffffff814be130>] ? gs_change+0x13/0x13
 
-<cut>
-<cut>
+The question is - could it be of any use to printk stack trace with function parameters
+(size, flag) for failed allocation?
 
-
-Where  max =3D 0xffffffff; So we assumes that memblock_end_of_DRAM() actual=
-ly returns end address.
-
-------
-2.
-
-In arch/powerpc/kernel/dma.c
-
-
-static int dma_direct_dma_supported(struct device *dev, u64 mask)
-{
-#ifdef CONFIG_PPC64
-        /* Could be improved so platforms can set the limit in case
-         * they have limited DMA windows
-         */
-        return mask >=3D get_dma_offset(dev) + (memblock_end_of_DRAM() - 1)=
-;
-
-
-<cut>
-
-It looks to that here we assume base + addr + 1;
-
------------
+If so, I'll prepare a proper patch.
 
 
-Thanks
--Bharat
 
+Signed-off-by: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+
+---
+
+ mm/kmemleak.c |    4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/mm/kmemleak.c b/mm/kmemleak.c
+index 45eb621..60c49a5 100644
+--- a/mm/kmemleak.c
++++ b/mm/kmemleak.c
+@@ -521,8 +521,10 @@ static struct kmemleak_object *create_object(unsigned long ptr, size_t size,
+ 
+ 	object = kmem_cache_alloc(object_cache, gfp_kmemleak_mask(gfp));
+ 	if (!object) {
++		write_lock_irqsave(&kmemleak_lock, flags);
+ 		pr_warning("Cannot allocate a kmemleak_object structure\n");
+-		kmemleak_disable();
++		kmemleak_stop("size: %zu, mask: %u\n", size, gfp_kmemleak_mask(gfp));
++		write_unlock_irqrestore(&kmemleak_lock, flags);
+ 		return NULL;
+ 	}
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
