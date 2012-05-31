@@ -1,279 +1,228 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx158.postini.com [74.125.245.158])
-	by kanga.kvack.org (Postfix) with SMTP id 379F66B005C
-	for <linux-mm@kvack.org>; Wed, 30 May 2012 21:32:32 -0400 (EDT)
-Received: by qcsd16 with SMTP id d16so311940qcs.14
-        for <linux-mm@kvack.org>; Wed, 30 May 2012 18:32:31 -0700 (PDT)
-Date: Wed, 30 May 2012 21:32:25 -0400
-From: Konrad Rzeszutek Wilk <konrad@darnok.org>
-Subject: Re: [PATCH -V7 11/14] hugetlbfs: add hugetlb cgroup control files
-Message-ID: <20120531013225.GF401@localhost.localdomain>
-References: <1338388739-22919-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
- <1338388739-22919-12-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+Received: from psmtp.com (na3sys010amx118.postini.com [74.125.245.118])
+	by kanga.kvack.org (Postfix) with SMTP id ED2296B005C
+	for <linux-mm@kvack.org>; Wed, 30 May 2012 21:56:38 -0400 (EDT)
+Received: by dakp5 with SMTP id p5so704761dak.14
+        for <linux-mm@kvack.org>; Wed, 30 May 2012 18:56:38 -0700 (PDT)
+Date: Wed, 30 May 2012 18:56:36 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH -V7 04/14] hugetlb: use mmu_gather instead of a temporary
+ linked list for accumulating pages
+In-Reply-To: <1338388739-22919-5-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+Message-ID: <alpine.DEB.2.00.1205301844010.25774@chino.kir.corp.google.com>
+References: <1338388739-22919-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com> <1338388739-22919-5-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1338388739-22919-12-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Cc: linux-mm@kvack.org, kamezawa.hiroyu@jp.fujitsu.com, dhillf@gmail.com, rientjes@google.com, mhocko@suse.cz, akpm@linux-foundation.org, hannes@cmpxchg.org, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org
+Cc: linux-mm@kvack.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, dhillf@gmail.com, mhocko@suse.cz, Andrew Morton <akpm@linux-foundation.org>, hannes@cmpxchg.org, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, Andrea Arcangeli <aarcange@redhat.com>
 
-On Wed, May 30, 2012 at 08:08:56PM +0530, Aneesh Kumar K.V wrote:
-> From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-> 
-> Add the control files for hugetlb controller
-> 
-> Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
-> ---
->  include/linux/hugetlb.h        |    5 ++
->  include/linux/hugetlb_cgroup.h |    6 ++
->  mm/hugetlb.c                   |    2 +
->  mm/hugetlb_cgroup.c            |  130 ++++++++++++++++++++++++++++++++++++++++
->  4 files changed, 143 insertions(+)
-> 
+On Wed, 30 May 2012, Aneesh Kumar K.V wrote:
+
+> diff --git a/fs/hugetlbfs/inode.c b/fs/hugetlbfs/inode.c
+> index cc9281b..ff233e4 100644
+> --- a/fs/hugetlbfs/inode.c
+> +++ b/fs/hugetlbfs/inode.c
+> @@ -416,8 +416,8 @@ hugetlb_vmtruncate_list(struct prio_tree_root *root, pgoff_t pgoff)
+>  		else
+>  			v_offset = 0;
+>  
+> -		__unmap_hugepage_range(vma,
+> -				vma->vm_start + v_offset, vma->vm_end, NULL);
+> +		unmap_hugepage_range(vma, vma->vm_start + v_offset,
+> +				     vma->vm_end, NULL);
+>  	}
+>  }
+>  
 > diff --git a/include/linux/hugetlb.h b/include/linux/hugetlb.h
-> index dcd55c7..92f75a5 100644
+> index 217f528..c21e136 100644
 > --- a/include/linux/hugetlb.h
 > +++ b/include/linux/hugetlb.h
-> @@ -4,6 +4,7 @@
->  #include <linux/mm_types.h>
->  #include <linux/fs.h>
->  #include <linux/hugetlb_inline.h>
-> +#include <linux/cgroup.h>
+> @@ -7,6 +7,7 @@
 >  
 >  struct ctl_table;
 >  struct user_struct;
-> @@ -221,6 +222,10 @@ struct hstate {
->  	unsigned int nr_huge_pages_node[MAX_NUMNODES];
->  	unsigned int free_huge_pages_node[MAX_NUMNODES];
->  	unsigned int surplus_huge_pages_node[MAX_NUMNODES];
-> +#ifdef CONFIG_CGROUP_HUGETLB_RES_CTLR
-> +	/* cgroup control files */
-> +	struct cftype cgroup_files[5];
-
-Why five? Should there be a #define for this magic value?
-
-> +#endif
->  	char name[HSTATE_NAME_LEN];
->  };
+> +struct mmu_gather;
 >  
-> diff --git a/include/linux/hugetlb_cgroup.h b/include/linux/hugetlb_cgroup.h
-> index 5794be4..fbf8c5f 100644
-> --- a/include/linux/hugetlb_cgroup.h
-> +++ b/include/linux/hugetlb_cgroup.h
-> @@ -42,6 +42,7 @@ extern void hugetlb_cgroup_uncharge_page(int idx, unsigned long nr_pages,
->  					 struct page *page);
->  extern void hugetlb_cgroup_uncharge_cgroup(int idx, unsigned long nr_pages,
->  					   struct hugetlb_cgroup *h_cg);
-> +extern int hugetlb_cgroup_file_init(int idx) __init;
->  #else
->  static inline bool hugetlb_cgroup_disabled(void)
+>  #ifdef CONFIG_HUGETLB_PAGE
+>  
+> @@ -40,9 +41,10 @@ int follow_hugetlb_page(struct mm_struct *, struct vm_area_struct *,
+>  			struct page **, struct vm_area_struct **,
+>  			unsigned long *, int *, int, unsigned int flags);
+>  void unmap_hugepage_range(struct vm_area_struct *,
+> -			unsigned long, unsigned long, struct page *);
+> -void __unmap_hugepage_range(struct vm_area_struct *,
+> -			unsigned long, unsigned long, struct page *);
+> +			  unsigned long, unsigned long, struct page *);
+> +void __unmap_hugepage_range(struct mmu_gather *tlb, struct vm_area_struct *vms,
+
+s/vms/vma/
+
+> +				unsigned long start, unsigned long end,
+> +				struct page *ref_page);
+>  int hugetlb_prefault(struct address_space *, struct vm_area_struct *);
+>  void hugetlb_report_meminfo(struct seq_file *);
+>  int hugetlb_report_node_meminfo(int, char *);
+> @@ -98,7 +100,6 @@ static inline unsigned long hugetlb_total_pages(void)
+>  #define follow_huge_addr(mm, addr, write)	ERR_PTR(-EINVAL)
+>  #define copy_hugetlb_page_range(src, dst, vma)	({ BUG(); 0; })
+>  #define hugetlb_prefault(mapping, vma)		({ BUG(); 0; })
+> -#define unmap_hugepage_range(vma, start, end, page)	BUG()
+>  static inline void hugetlb_report_meminfo(struct seq_file *m)
 >  {
-> @@ -75,5 +76,10 @@ hugetlb_cgroup_uncharge_cgroup(int idx, unsigned long nr_pages,
->  {
->  	return;
 >  }
-> +
-> +static inline int __init hugetlb_cgroup_file_init(int idx)
+
+Why?
+
+> @@ -112,13 +113,24 @@ static inline void hugetlb_report_meminfo(struct seq_file *m)
+>  #define hugetlb_free_pgd_range(tlb, addr, end, floor, ceiling) ({BUG(); 0; })
+>  #define hugetlb_fault(mm, vma, addr, flags)	({ BUG(); 0; })
+>  #define huge_pte_offset(mm, address)	0
+> -#define dequeue_hwpoisoned_huge_page(page)	0
+> +static inline int dequeue_hwpoisoned_huge_page(struct page *page)
 > +{
 > +	return 0;
 > +}
->  #endif  /* CONFIG_MEM_RES_CTLR_HUGETLB */
->  #endif
+> +
+
+Unrelated from this patchset.
+
+>  static inline void copy_huge_page(struct page *dst, struct page *src)
+>  {
+>  }
+>  
+>  #define hugetlb_change_protection(vma, address, end, newprot)
+>  
+> +static inline void __unmap_hugepage_range(struct mmu_gather *tlb,
+> +			struct vm_area_struct *vma, unsigned long start,
+> +			unsigned long end, struct page *ref_page)
+> +{
+> +	BUG();
+> +}
+> +
+
+I think this should be done under the unmap_hugepage_range() definition 
+you removed (and change it to be a static inline function as well).
+
+>  #endif /* !CONFIG_HUGETLB_PAGE */
+>  
+>  #define HUGETLB_ANON_FILE "anon_hugepage"
 > diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-> index 53840dd..6330de2 100644
+> index 9b97a5c..704a269 100644
 > --- a/mm/hugetlb.c
 > +++ b/mm/hugetlb.c
-> @@ -29,6 +29,7 @@
->  #include <linux/io.h>
+> @@ -24,8 +24,9 @@
+>  
+>  #include <asm/page.h>
+>  #include <asm/pgtable.h>
+> -#include <linux/io.h>
+> +#include <asm/tlb.h>
+>  
+> +#include <linux/io.h>
 >  #include <linux/hugetlb.h>
 >  #include <linux/node.h>
-> +#include <linux/hugetlb_cgroup.h>
 >  #include "internal.h"
->  
->  const unsigned long hugetlb_zero = 0, hugetlb_infinity = ~0UL;
-> @@ -1912,6 +1913,7 @@ void __init hugetlb_add_hstate(unsigned order)
->  	h->next_nid_to_free = first_node(node_states[N_HIGH_MEMORY]);
->  	snprintf(h->name, HSTATE_NAME_LEN, "hugepages-%lukB",
->  					huge_page_size(h)/1024);
-> +	hugetlb_cgroup_file_init(hugetlb_max_hstate - 1);
->  
->  	parsed_hstate = h;
->  }
-> diff --git a/mm/hugetlb_cgroup.c b/mm/hugetlb_cgroup.c
-> index 3a288f7..49a3f20 100644
-> --- a/mm/hugetlb_cgroup.c
-> +++ b/mm/hugetlb_cgroup.c
-> @@ -19,6 +19,11 @@
->  #include <linux/page_cgroup.h>
->  #include <linux/hugetlb_cgroup.h>
->  
-> +/* lifted from mem control */
-
-Might also include the comment from said file explaining the
-purpose of these #define.
-
-> +#define MEMFILE_PRIVATE(x, val)	(((x) << 16) | (val))
-> +#define MEMFILE_IDX(val)	(((val) >> 16) & 0xffff)
-> +#define MEMFILE_ATTR(val)	((val) & 0xffff)
-> +
->  struct cgroup_subsys hugetlb_subsys __read_mostly;
->  struct hugetlb_cgroup *root_h_cgroup __read_mostly;
->  
-> @@ -271,6 +276,131 @@ void hugetlb_cgroup_uncharge_cgroup(int idx, unsigned long nr_pages,
->  	return;
+> @@ -2310,30 +2311,26 @@ static int is_hugetlb_entry_hwpoisoned(pte_t pte)
+>  		return 0;
 >  }
 >  
-> +static ssize_t hugetlb_cgroup_read(struct cgroup *cgroup, struct cftype *cft,
-> +				   struct file *file, char __user *buf,
-> +				   size_t nbytes, loff_t *ppos)
-> +{
-> +	u64 val;
-> +	char str[64];
+> -void __unmap_hugepage_range(struct vm_area_struct *vma, unsigned long start,
+> -			    unsigned long end, struct page *ref_page)
+> +void __unmap_hugepage_range(struct mmu_gather *tlb, struct vm_area_struct *vma,
+> +			    unsigned long start, unsigned long end,
+> +			    struct page *ref_page)
+>  {
+> +	int force_flush = 0;
 
-I would think there would be a define for this somewhere?
+Can this be bool?
 
-> +	int idx, name, len;
-> +	struct hugetlb_cgroup *h_cg = hugetlb_cgroup_from_cgroup(cgroup);
-> +
-> +	idx = MEMFILE_IDX(cft->private);
-> +	name = MEMFILE_ATTR(cft->private);
-> +
-> +	val = res_counter_read_u64(&h_cg->hugepage[idx], name);
-> +	len = scnprintf(str, sizeof(str), "%llu\n", (unsigned long long)val);
-> +	return simple_read_from_buffer(buf, nbytes, ppos, str, len);
-> +}
-> +
-> +static int hugetlb_cgroup_write(struct cgroup *cgroup, struct cftype *cft,
-> +				const char *buffer)
-> +{
-> +	int idx, name, ret;
-> +	unsigned long long val;
-> +	struct hugetlb_cgroup *h_cg = hugetlb_cgroup_from_cgroup(cgroup);
-> +
-> +	idx = MEMFILE_IDX(cft->private);
-> +	name = MEMFILE_ATTR(cft->private);
-> +
-> +	switch (name) {
-> +	case RES_LIMIT:
-> +		if (hugetlb_cgroup_is_root(h_cg)) {
-> +			/* Can't set limit on root */
-> +			ret = -EINVAL;
+>  	struct mm_struct *mm = vma->vm_mm;
+>  	unsigned long address;
+>  	pte_t *ptep;
+>  	pte_t pte;
+>  	struct page *page;
+> -	struct page *tmp;
+>  	struct hstate *h = hstate_vma(vma);
+>  	unsigned long sz = huge_page_size(h);
+>  
+> -	/*
+> -	 * A page gathering list, protected by per file i_mmap_mutex. The
+> -	 * lock is used to avoid list corruption from multiple unmapping
+> -	 * of the same page since we are using page->lru.
+> -	 */
+> -	LIST_HEAD(page_list);
+> -
+>  	WARN_ON(!is_vm_hugetlb_page(vma));
+>  	BUG_ON(start & ~huge_page_mask(h));
+>  	BUG_ON(end & ~huge_page_mask(h));
+>  
+> +	tlb_start_vma(tlb, vma);
+>  	mmu_notifier_invalidate_range_start(mm, start, end);
+> +again:
+>  	spin_lock(&mm->page_table_lock);
+>  	for (address = start; address < end; address += sz) {
+>  		ptep = huge_pte_offset(mm, address);
+> @@ -2372,30 +2369,45 @@ void __unmap_hugepage_range(struct vm_area_struct *vma, unsigned long start,
+>  		}
+>  
+>  		pte = huge_ptep_get_and_clear(mm, address, ptep);
+> +		tlb_remove_tlb_entry(tlb, ptep, address);
+>  		if (pte_dirty(pte))
+>  			set_page_dirty(page);
+> -		list_add(&page->lru, &page_list);
+>  
+> +		page_remove_rmap(page);
+> +		force_flush = !__tlb_remove_page(tlb, page);
+> +		if (force_flush)
 > +			break;
-> +		}
-> +		/* This function does all necessary parse...reuse it */
-> +		ret = res_counter_memparse_write_strategy(buffer, &val);
-> +		if (ret)
-> +			break;
-> +		ret = res_counter_set_limit(&h_cg->hugepage[idx], val);
-> +		break;
-> +	default:
-> +		ret = -EINVAL;
-> +		break;
-> +	}
-> +	return ret;
-> +}
-> +
-> +static int hugetlb_cgroup_reset(struct cgroup *cgroup, unsigned int event)
-> +{
-> +	int idx, name, ret = 0;
-> +	struct hugetlb_cgroup *h_cg = hugetlb_cgroup_from_cgroup(cgroup);
-> +
-> +	idx = MEMFILE_IDX(event);
-> +	name = MEMFILE_ATTR(event);
-> +
-> +	switch (name) {
-> +	case RES_MAX_USAGE:
-> +		res_counter_reset_max(&h_cg->hugepage[idx]);
-> +		break;
-> +	case RES_FAILCNT:
-> +		res_counter_reset_failcnt(&h_cg->hugepage[idx]);
-> +		break;
-> +	default:
-> +		ret = -EINVAL;
-> +		break;
-> +	}
-> +	return ret;
-> +}
-> +
-> +static char *mem_fmt(char *buf, int size, unsigned long hsize)
-> +{
-> +	if (hsize >= (1UL << 30))
-> +		snprintf(buf, size, "%luGB", hsize >> 30);
-> +	else if (hsize >= (1UL << 20))
-> +		snprintf(buf, size, "%luMB", hsize >> 20);
-> +	else
-> +		snprintf(buf, size, "%luKB", hsize >> 10);
-> +	return buf;
-> +}
-> +
-> +int __init hugetlb_cgroup_file_init(int idx)
-> +{
-> +	char buf[32];
+>  		/* Bail out after unmapping reference page if supplied */
+>  		if (ref_page)
+>  			break;
+>  	}
+> -	flush_tlb_range(vma, start, end);
+>  	spin_unlock(&mm->page_table_lock);
+> -	mmu_notifier_invalidate_range_end(mm, start, end);
+> -	list_for_each_entry_safe(page, tmp, &page_list, lru) {
+> -		page_remove_rmap(page);
+> -		list_del(&page->lru);
+> -		put_page(page);
+> +	/*
+> +	 * mmu_gather ran out of room to batch pages, we break out of
+> +	 * the PTE lock to avoid doing the potential expensive TLB invalidate
+> +	 * and page-free while holding it.
+> +	 */
+> +	if (force_flush) {
+> +		force_flush = 0;
+> +		tlb_flush_mmu(tlb);
+> +		if (address < end && !ref_page)
+> +			goto again;
 
-#define pls.
+Shouldn't be copying "start" at the beginning of this function and then 
+updating that copy now and use it as the loop initialization?
 
-> +	struct cftype *cft;
-> +	struct hstate *h = &hstates[idx];
+>  	}
+> +	mmu_notifier_invalidate_range_end(mm, start, end);
+> +	tlb_end_vma(tlb, vma);
+>  }
+>  
+>  void unmap_hugepage_range(struct vm_area_struct *vma, unsigned long start,
+>  			  unsigned long end, struct page *ref_page)
+>  {
+> -	mutex_lock(&vma->vm_file->f_mapping->i_mmap_mutex);
+> -	__unmap_hugepage_range(vma, start, end, ref_page);
+> -	mutex_unlock(&vma->vm_file->f_mapping->i_mmap_mutex);
+> +	struct mm_struct *mm;
+> +	struct mmu_gather tlb;
 > +
-> +	/* format the size */
-> +	mem_fmt(buf, 32, huge_page_size(h));
+> +	mm = vma->vm_mm;
 > +
-> +	/* Add the limit file */
-> +	cft = &h->cgroup_files[0];
-> +	snprintf(cft->name, MAX_CFTYPE_NAME, "%s.limit_in_bytes", buf);
-> +	cft->private = MEMFILE_PRIVATE(idx, RES_LIMIT);
-> +	cft->read = hugetlb_cgroup_read;
-> +	cft->write_string = hugetlb_cgroup_write;
-> +
-> +	/* Add the usage file */
-> +	cft = &h->cgroup_files[1];
-> +	snprintf(cft->name, MAX_CFTYPE_NAME, "%s.usage_in_bytes", buf);
-> +	cft->private = MEMFILE_PRIVATE(idx, RES_USAGE);
-> +	cft->read = hugetlb_cgroup_read;
-> +
-> +	/* Add the MAX usage file */
-> +	cft = &h->cgroup_files[2];
-> +	snprintf(cft->name, MAX_CFTYPE_NAME, "%s.max_usage_in_bytes", buf);
-> +	cft->private = MEMFILE_PRIVATE(idx, RES_MAX_USAGE);
-> +	cft->trigger = hugetlb_cgroup_reset;
-> +	cft->read = hugetlb_cgroup_read;
-> +
-> +	/* Add the failcntfile */
-> +	cft = &h->cgroup_files[3];
-> +	snprintf(cft->name, MAX_CFTYPE_NAME, "%s.failcnt", buf);
-> +	cft->private  = MEMFILE_PRIVATE(idx, RES_FAILCNT);
-> +	cft->trigger  = hugetlb_cgroup_reset;
-> +	cft->read = hugetlb_cgroup_read;
-> +
-> +	/* NULL terminate the last cft */
-> +	cft = &h->cgroup_files[4];
-> +	memset(cft, 0, sizeof(*cft));
-> +
-> +	WARN_ON(cgroup_add_cftypes(&hugetlb_subsys, h->cgroup_files));
-> +
-
-Wouldn't doing:
-	return cgroup_add_cftypes(&hugetlb_subsys, h->cgroup_files);
-
-be more appropiate?
-> +	return 0;
-> +}
-> +
->  struct cgroup_subsys hugetlb_subsys = {
->  	.name = "hugetlb",
->  	.create     = hugetlb_cgroup_create,
-> -- 
-> 1.7.10
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Fight unfair telecom internet charges in Canada: sign http://stopthemeter.ca/
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-> 
+> +	tlb_gather_mmu(&tlb, mm, 0);
+> +	__unmap_hugepage_range(&tlb, vma, start, end, ref_page);
+> +	tlb_finish_mmu(&tlb, start, end);
+>  }
+>  
+>  /*
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
