@@ -1,56 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx195.postini.com [74.125.245.195])
-	by kanga.kvack.org (Postfix) with SMTP id D659B6B005C
-	for <linux-mm@kvack.org>; Thu, 31 May 2012 03:23:05 -0400 (EDT)
-Received: by qafl39 with SMTP id l39so641722qaf.9
-        for <linux-mm@kvack.org>; Thu, 31 May 2012 00:23:05 -0700 (PDT)
-Message-ID: <4FC71C54.3060909@gmail.com>
-Date: Thu, 31 May 2012 03:23:00 -0400
-From: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
-MIME-Version: 1.0
+Received: from psmtp.com (na3sys010amx163.postini.com [74.125.245.163])
+	by kanga.kvack.org (Postfix) with SMTP id 967786B005C
+	for <linux-mm@kvack.org>; Thu, 31 May 2012 03:35:52 -0400 (EDT)
+Received: by pbbrp2 with SMTP id rp2so1305820pbb.14
+        for <linux-mm@kvack.org>; Thu, 31 May 2012 00:35:51 -0700 (PDT)
+Date: Thu, 31 May 2012 00:35:49 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
 Subject: Re: [PATCH] meminfo: show /proc/meminfo base on container's memcg
-References: <1338260214-21919-1-git-send-email-gaofeng@cn.fujitsu.com> <alpine.DEB.2.00.1205301433490.9716@chino.kir.corp.google.com> <4FC6B68C.2070703@jp.fujitsu.com> <CAHGf_=pFbsy4FO_UNu6O1-KyTd6O=pkmR8=3EGuZB5Reu3Vb9w@mail.gmail.com> <4FC6BC3E.5010807@jp.fujitsu.com> <alpine.DEB.2.00.1205301737530.25774@chino.kir.corp.google.com> <4FC6C111.2060108@jp.fujitsu.com> <alpine.DEB.2.00.1205301831270.25774@chino.kir.corp.google.com> <4FC6D881.4090706@jp.fujitsu.com> <alpine.DEB.2.00.1205302156090.25774@chino.kir.corp.google.com> <4FC70355.70805@jp.fujitsu.com> <alpine.DEB.2.00.1205302314190.25774@chino.kir.corp.google.com> <4FC70E5E.1010003@gmail.com> <alpine.DEB.2.00.1205302325500.25774@chino.kir.corp.google.com> <4FC711A5.4090003@gmail.com> <4FC718BA.8060608@jp.fujitsu.com>
-In-Reply-To: <4FC718BA.8060608@jp.fujitsu.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <CAHGf_=qVDVT6VW2j9gE3bQKwizW24iivrDryiCKoxVu4m_fWKw@mail.gmail.com>
+Message-ID: <alpine.DEB.2.00.1205310028420.8864@chino.kir.corp.google.com>
+References: <1338260214-21919-1-git-send-email-gaofeng@cn.fujitsu.com> <alpine.DEB.2.00.1205301433490.9716@chino.kir.corp.google.com> <4FC6B68C.2070703@jp.fujitsu.com> <CAHGf_=pFbsy4FO_UNu6O1-KyTd6O=pkmR8=3EGuZB5Reu3Vb9w@mail.gmail.com> <4FC6BC3E.5010807@jp.fujitsu.com>
+ <alpine.DEB.2.00.1205301737530.25774@chino.kir.corp.google.com> <4FC6C111.2060108@jp.fujitsu.com> <alpine.DEB.2.00.1205301831270.25774@chino.kir.corp.google.com> <4FC6D881.4090706@jp.fujitsu.com> <alpine.DEB.2.00.1205302156090.25774@chino.kir.corp.google.com>
+ <4FC70355.70805@jp.fujitsu.com> <alpine.DEB.2.00.1205302314190.25774@chino.kir.corp.google.com> <4FC70E5E.1010003@gmail.com> <alpine.DEB.2.00.1205302325500.25774@chino.kir.corp.google.com> <4FC711A5.4090003@gmail.com> <alpine.DEB.2.00.1205302351510.25774@chino.kir.corp.google.com>
+ <CAHGf_=qVDVT6VW2j9gE3bQKwizW24iivrDryiCKoxVu4m_fWKw@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: KOSAKI Motohiro <kosaki.motohiro@gmail.com>, David Rientjes <rientjes@google.com>, Gao feng <gaofeng@cn.fujitsu.com>, hannes@cmpxchg.org, mhocko@suse.cz, bsingharora@gmail.com, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, linux-mm@kvack.org, containers@lists.linux-foundation.org
+To: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
+Cc: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Gao feng <gaofeng@cn.fujitsu.com>, hannes@cmpxchg.org, mhocko@suse.cz, bsingharora@gmail.com, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, linux-mm@kvack.org, containers@lists.linux-foundation.org
 
-(5/31/12 3:07 AM), Kamezawa Hiroyuki wrote:
-> (2012/05/31 15:37), KOSAKI Motohiro wrote:
->> (5/31/12 2:28 AM), David Rientjes wrote:
->>> On Thu, 31 May 2012, KOSAKI Motohiro wrote:
->>>
->>>>> An application should always know the cgroup that its attached to and be
->>>>> able to read its state using the command that I gave earlier.
->>>>
->>>> No. you don't need why userland folks want namespaces. Even though you don't
->>>> need namespaces. It doesn't good reason to refuse another use case.
->>>>
->>>
->>> This is tangent to the discussion, we need to revisit why an application
->>> other than a daemon managing a set of memcgs would ever need to know the
->>> information in /proc/meminfo. No use-case was ever presented in the
->>> changelog and its not clear how this is at all relevant. So before
->>> changing the kernel, please describe how this actually matters in a real-
->>> world scenario.
->>
->> Huh? Don't you know a meanings of a namespace ISOLATION? isolation mean,
->> isolated container shouldn't be able to access global information. If you
->> want to lean container/namespace concept, tasting openvz or solaris container
->> is a good start.
->>
->> But anyway, I dislike current implementaion. So, I NAK this patch too.
->
-> Could you give us advice for improving this ? What idea do you have ?
+On Thu, 31 May 2012, KOSAKI Motohiro wrote:
 
-?
-I'm ok your idea. I only NAKed current Gao's patch.
+> > As I said, LXC and namespace isolation is a tangent to the discussion of
+> > faking the /proc/meminfo for the memcg context of a thread.
+> 
+> Because of, /proc/meminfo affect a lot of libraries behavior. So, it's not only
+> application issue. If you can't rewrite _all_ of userland assets, fake meminfo
+> can't be escaped. Again see alternative container implementation.
+> 
 
+It's a tangent because it isn't a complete psuedo /proc/meminfo for all 
+threads attached to a memcg regardless of any namespace isolation; the LXC 
+solution has existed for a couple of years by its procfs patchset that 
+overlaps procfs with fuse and can suppress or modify any output in the 
+context of a memory controller using things like 
+memory.{limit,usage}_in_bytes.  I'm sure all other fields could be 
+modified if outputted in some structured way via memcg; it looks like 
+memory.stat would need to be extended to provide that.  If that's mounted 
+prior to executing the application, then your isolation is achieved and 
+all libraries should see the new output that you've defined in LXC.
 
-
+However, this seems like a seperate topic than the patch at hand which 
+does this directly to /proc/meminfo based on a thread's memcg context, 
+that's the part that I'm nacking.  I'd recommend to Gao to expose this 
+information via memory.stat and then use fuse and the procfs lxc support 
+as your way of contextualizing the resources.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
