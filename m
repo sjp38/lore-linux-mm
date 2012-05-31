@@ -1,46 +1,132 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx111.postini.com [74.125.245.111])
-	by kanga.kvack.org (Postfix) with SMTP id A16386B0062
-	for <linux-mm@kvack.org>; Thu, 31 May 2012 02:37:28 -0400 (EDT)
-Received: by qafl39 with SMTP id l39so623100qaf.9
-        for <linux-mm@kvack.org>; Wed, 30 May 2012 23:37:27 -0700 (PDT)
-Message-ID: <4FC711A5.4090003@gmail.com>
-Date: Thu, 31 May 2012 02:37:25 -0400
-From: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH] meminfo: show /proc/meminfo base on container's memcg
-References: <1338260214-21919-1-git-send-email-gaofeng@cn.fujitsu.com> <alpine.DEB.2.00.1205301433490.9716@chino.kir.corp.google.com> <4FC6B68C.2070703@jp.fujitsu.com> <CAHGf_=pFbsy4FO_UNu6O1-KyTd6O=pkmR8=3EGuZB5Reu3Vb9w@mail.gmail.com> <4FC6BC3E.5010807@jp.fujitsu.com> <alpine.DEB.2.00.1205301737530.25774@chino.kir.corp.google.com> <4FC6C111.2060108@jp.fujitsu.com> <alpine.DEB.2.00.1205301831270.25774@chino.kir.corp.google.com> <4FC6D881.4090706@jp.fujitsu.com> <alpine.DEB.2.00.1205302156090.25774@chino.kir.corp.google.com> <4FC70355.70805@jp.fujitsu.com> <alpine.DEB.2.00.1205302314190.25774@chino.kir.corp.google.com> <4FC70E5E.1010003@gmail.com> <alpine.DEB.2.00.1205302325500.25774@chino.kir.corp.google.com>
-In-Reply-To: <alpine.DEB.2.00.1205302325500.25774@chino.kir.corp.google.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx149.postini.com [74.125.245.149])
+	by kanga.kvack.org (Postfix) with SMTP id EA8846B0062
+	for <linux-mm@kvack.org>; Thu, 31 May 2012 02:40:19 -0400 (EDT)
+Received: by dakp5 with SMTP id p5so1030826dak.14
+        for <linux-mm@kvack.org>; Wed, 30 May 2012 23:40:19 -0700 (PDT)
+From: Huang Shijie <shijie8@gmail.com>
+Subject: [PATCH] mm: account the total_vm in the vm_stat_account()
+Date: Thu, 31 May 2012 14:44:15 -0400
+Message-Id: <1338489855-3119-1-git-send-email-shijie8@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Gao feng <gaofeng@cn.fujitsu.com>, hannes@cmpxchg.org, mhocko@suse.cz, bsingharora@gmail.com, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, linux-mm@kvack.org, containers@lists.linux-foundation.org
+To: akpm@linux-foundation.org
+Cc: linux-mm@kvack.org, Huang Shijie <shijie8@gmail.com>
 
-(5/31/12 2:28 AM), David Rientjes wrote:
-> On Thu, 31 May 2012, KOSAKI Motohiro wrote:
->
->>> An application should always know the cgroup that its attached to and be
->>> able to read its state using the command that I gave earlier.
->>
->> No. you don't need why userland folks want namespaces. Even though you don't
->> need namespaces. It doesn't good reason to refuse another use case.
->>
->
-> This is tangent to the discussion, we need to revisit why an application
-> other than a daemon managing a set of memcgs would ever need to know the
-> information in /proc/meminfo.  No use-case was ever presented in the
-> changelog and its not clear how this is at all relevant.  So before
-> changing the kernel, please describe how this actually matters in a real-
-> world scenario.
+The vm_stat_account() accounts the shared_vm, stack_vm and
+reserved_vm now. But we can also account the total_vm in
+the vm_stat_account() which makes the code tidy.
 
-Huh? Don't you know a meanings of a namespace ISOLATION? isolation mean,
-isolated container shouldn't be able to access global information. If you
-want to lean container/namespace concept, tasting openvz or solaris container
-is a good start.
+Even for mprotect_fixup(), we can get the right result in the end.
 
-But anyway, I dislike current implementaion. So, I NAK this patch too.
+Signed-off-by: Huang Shijie <shijie8@gmail.com>
+---
+ arch/ia64/kernel/perfmon.c |    1 -
+ include/linux/mm.h         |    1 +
+ kernel/fork.c              |    4 +---
+ mm/mmap.c                  |    5 ++---
+ mm/mremap.c                |    2 --
+ 5 files changed, 4 insertions(+), 9 deletions(-)
+
+diff --git a/arch/ia64/kernel/perfmon.c b/arch/ia64/kernel/perfmon.c
+index f00ba02..926028b 100644
+--- a/arch/ia64/kernel/perfmon.c
++++ b/arch/ia64/kernel/perfmon.c
+@@ -2359,7 +2359,6 @@ pfm_smpl_buffer_alloc(struct task_struct *task, struct file *filp, pfm_context_t
+ 	 */
+ 	insert_vm_struct(mm, vma);
+ 
+-	mm->total_vm  += size >> PAGE_SHIFT;
+ 	vm_stat_account(vma->vm_mm, vma->vm_flags, vma->vm_file,
+ 							vma_pages(vma));
+ 	up_write(&task->mm->mmap_sem);
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index 8437e93..5332c75 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -1555,6 +1555,7 @@ void vm_stat_account(struct mm_struct *, unsigned long, struct file *, long);
+ static inline void vm_stat_account(struct mm_struct *mm,
+ 			unsigned long flags, struct file *file, long pages)
+ {
++	mm->total_vm += pages;
+ }
+ #endif /* CONFIG_PROC_FS */
+ 
+diff --git a/kernel/fork.c b/kernel/fork.c
+index 3decf6d..537b3a2 100644
+--- a/kernel/fork.c
++++ b/kernel/fork.c
+@@ -377,10 +377,8 @@ static int dup_mmap(struct mm_struct *mm, struct mm_struct *oldmm)
+ 		struct file *file;
+ 
+ 		if (mpnt->vm_flags & VM_DONTCOPY) {
+-			long pages = vma_pages(mpnt);
+-			mm->total_vm -= pages;
+ 			vm_stat_account(mm, mpnt->vm_flags, mpnt->vm_file,
+-								-pages);
++							-vma_pages(mpnt));
+ 			continue;
+ 		}
+ 		charge = 0;
+diff --git a/mm/mmap.c b/mm/mmap.c
+index ca5ee7b..41aa294 100644
+--- a/mm/mmap.c
++++ b/mm/mmap.c
+@@ -943,6 +943,8 @@ void vm_stat_account(struct mm_struct *mm, unsigned long flags,
+ 	const unsigned long stack_flags
+ 		= VM_STACK_FLAGS & (VM_GROWSUP|VM_GROWSDOWN);
+ 
++	mm->total_vm += pages;
++
+ 	if (file) {
+ 		mm->shared_vm += pages;
+ 		if ((flags & (VM_EXEC|VM_WRITE)) == VM_EXEC)
+@@ -1382,7 +1384,6 @@ munmap_back:
+ out:
+ 	perf_event_mmap(vma);
+ 
+-	mm->total_vm += len >> PAGE_SHIFT;
+ 	vm_stat_account(mm, vm_flags, file, len >> PAGE_SHIFT);
+ 	if (vm_flags & VM_LOCKED) {
+ 		if (!mlock_vma_pages_range(vma, addr, addr + len))
+@@ -1740,7 +1741,6 @@ static int acct_stack_growth(struct vm_area_struct *vma, unsigned long size, uns
+ 		return -ENOMEM;
+ 
+ 	/* Ok, everything looks good - let it rip */
+-	mm->total_vm += grow;
+ 	if (vma->vm_flags & VM_LOCKED)
+ 		mm->locked_vm += grow;
+ 	vm_stat_account(mm, vma->vm_flags, vma->vm_file, grow);
+@@ -1922,7 +1922,6 @@ static void remove_vma_list(struct mm_struct *mm, struct vm_area_struct *vma)
+ 
+ 		if (vma->vm_flags & VM_ACCOUNT)
+ 			nr_accounted += nrpages;
+-		mm->total_vm -= nrpages;
+ 		vm_stat_account(mm, vma->vm_flags, vma->vm_file, -nrpages);
+ 		vma = remove_vma(vma);
+ 	} while (vma);
+diff --git a/mm/mremap.c b/mm/mremap.c
+index db8d983..7bfb289 100644
+--- a/mm/mremap.c
++++ b/mm/mremap.c
+@@ -260,7 +260,6 @@ static unsigned long move_vma(struct vm_area_struct *vma,
+ 	 * If this were a serious issue, we'd add a flag to do_munmap().
+ 	 */
+ 	hiwater_vm = mm->hiwater_vm;
+-	mm->total_vm += new_len >> PAGE_SHIFT;
+ 	vm_stat_account(mm, vma->vm_flags, vma->vm_file, new_len>>PAGE_SHIFT);
+ 
+ 	if (do_munmap(mm, old_addr, old_len) < 0) {
+@@ -499,7 +498,6 @@ unsigned long do_mremap(unsigned long addr,
+ 				goto out;
+ 			}
+ 
+-			mm->total_vm += pages;
+ 			vm_stat_account(mm, vma->vm_flags, vma->vm_file, pages);
+ 			if (vma->vm_flags & VM_LOCKED) {
+ 				mm->locked_vm += pages;
+-- 
+1.7.4.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
