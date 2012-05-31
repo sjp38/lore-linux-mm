@@ -1,43 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx187.postini.com [74.125.245.187])
-	by kanga.kvack.org (Postfix) with SMTP id D955C6B005C
-	for <linux-mm@kvack.org>; Wed, 30 May 2012 20:44:45 -0400 (EDT)
-Received: by dakp5 with SMTP id p5so628962dak.14
-        for <linux-mm@kvack.org>; Wed, 30 May 2012 17:44:45 -0700 (PDT)
-Date: Wed, 30 May 2012 17:44:43 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH] meminfo: show /proc/meminfo base on container's memcg
-In-Reply-To: <4FC6BC3E.5010807@jp.fujitsu.com>
-Message-ID: <alpine.DEB.2.00.1205301737530.25774@chino.kir.corp.google.com>
-References: <1338260214-21919-1-git-send-email-gaofeng@cn.fujitsu.com> <alpine.DEB.2.00.1205301433490.9716@chino.kir.corp.google.com> <4FC6B68C.2070703@jp.fujitsu.com> <CAHGf_=pFbsy4FO_UNu6O1-KyTd6O=pkmR8=3EGuZB5Reu3Vb9w@mail.gmail.com>
- <4FC6BC3E.5010807@jp.fujitsu.com>
+Received: from psmtp.com (na3sys010amx110.postini.com [74.125.245.110])
+	by kanga.kvack.org (Postfix) with SMTP id 46EE66B005C
+	for <linux-mm@kvack.org>; Wed, 30 May 2012 20:46:49 -0400 (EDT)
+Received: by qafl39 with SMTP id l39so493472qaf.9
+        for <linux-mm@kvack.org>; Wed, 30 May 2012 17:46:48 -0700 (PDT)
+Date: Wed, 30 May 2012 20:46:44 -0400
+From: Konrad Rzeszutek Wilk <konrad@darnok.org>
+Subject: Re: [PATCH 2/2 v2] zram: clean up handle
+Message-ID: <20120531004643.GB401@localhost.localdomain>
+References: <1337737402-16543-1-git-send-email-minchan@kernel.org>
+ <1337737402-16543-2-git-send-email-minchan@kernel.org>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1337737402-16543-2-git-send-email-minchan@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Gao feng <gaofeng@cn.fujitsu.com>, hannes@cmpxchg.org, mhocko@suse.cz, bsingharora@gmail.com, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, linux-mm@kvack.org, containers@lists.linux-foundation.org
+To: Minchan Kim <minchan@kernel.org>
+Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Nitin Gupta <ngupta@vflare.org>, Seth Jennings <sjenning@linux.vnet.ibm.com>
 
-On Thu, 31 May 2012, Kamezawa Hiroyuki wrote:
-
-> My test with sysfs node's meminfo seems to work...
+On Wed, May 23, 2012 at 10:43:22AM +0900, Minchan Kim wrote:
+> zram's handle variable can store handle of zsmalloc in case of
+> compressing efficiently. Otherwise, it stores point of page descriptor.
+> This patch clean up the mess by union struct.
 > 
-> [root@rx100-1 qqm]# mount --bind /sys/devices/system/node/node0/meminfo
-> /proc/meminfo
-> [root@rx100-1 qqm]# cat /proc/meminfo
+> changelog
+>   * from v1
+> 	- none(new add in v2)
 > 
-> Node 0 MemTotal:        8379636 kB
+> Cc: Nitin Gupta <ngupta@vflare.org>
+> Cc: Seth Jennings <sjenning@linux.vnet.ibm.com>
 
-This doesn't seem like a good idea unless the application supports the 
-"Node 0" prefix in /proc/meminfo.
+Acked-by: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
 
-If any application really cares about the amount of memory available to 
-it, it should be taught to be memcg aware.  Then do something like
-
-cat $(grep memory /proc/mounts | cut -d " " -f 2)/$(grep memory /proc/self/cgroup | cut -d : -f 3)/memory.limit_in_bytes
-
-but since that value can change all the time then it doesn't seem helpful 
-unless we have a userspace notifier.
+Thanks for doing this!
+> Signed-off-by: Minchan Kim <minchan@kernel.org>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
