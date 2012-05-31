@@ -1,42 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx126.postini.com [74.125.245.126])
-	by kanga.kvack.org (Postfix) with SMTP id 695836B0069
-	for <linux-mm@kvack.org>; Thu, 31 May 2012 02:50:21 -0400 (EDT)
-Received: by dakp5 with SMTP id p5so1043206dak.14
-        for <linux-mm@kvack.org>; Wed, 30 May 2012 23:50:20 -0700 (PDT)
-Date: Wed, 30 May 2012 23:50:18 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx154.postini.com [74.125.245.154])
+	by kanga.kvack.org (Postfix) with SMTP id 070D26B005C
+	for <linux-mm@kvack.org>; Thu, 31 May 2012 02:56:15 -0400 (EDT)
+Received: by pbbrp2 with SMTP id rp2so1256060pbb.14
+        for <linux-mm@kvack.org>; Wed, 30 May 2012 23:56:15 -0700 (PDT)
+Date: Wed, 30 May 2012 23:56:13 -0700 (PDT)
 From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH -V7 02/14] hugetlbfs: don't use ERR_PTR with VM_FAULT*
- values
-In-Reply-To: <20120531054533.GE24855@skywalker.linux.vnet.ibm.com>
-Message-ID: <alpine.DEB.2.00.1205302331380.25774@chino.kir.corp.google.com>
-References: <1338388739-22919-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com> <1338388739-22919-3-git-send-email-aneesh.kumar@linux.vnet.ibm.com> <alpine.DEB.2.00.1205301801060.25774@chino.kir.corp.google.com>
- <20120531054533.GE24855@skywalker.linux.vnet.ibm.com>
+Subject: Re: [PATCH] meminfo: show /proc/meminfo base on container's memcg
+In-Reply-To: <4FC711A5.4090003@gmail.com>
+Message-ID: <alpine.DEB.2.00.1205302351510.25774@chino.kir.corp.google.com>
+References: <1338260214-21919-1-git-send-email-gaofeng@cn.fujitsu.com> <alpine.DEB.2.00.1205301433490.9716@chino.kir.corp.google.com> <4FC6B68C.2070703@jp.fujitsu.com> <CAHGf_=pFbsy4FO_UNu6O1-KyTd6O=pkmR8=3EGuZB5Reu3Vb9w@mail.gmail.com> <4FC6BC3E.5010807@jp.fujitsu.com>
+ <alpine.DEB.2.00.1205301737530.25774@chino.kir.corp.google.com> <4FC6C111.2060108@jp.fujitsu.com> <alpine.DEB.2.00.1205301831270.25774@chino.kir.corp.google.com> <4FC6D881.4090706@jp.fujitsu.com> <alpine.DEB.2.00.1205302156090.25774@chino.kir.corp.google.com>
+ <4FC70355.70805@jp.fujitsu.com> <alpine.DEB.2.00.1205302314190.25774@chino.kir.corp.google.com> <4FC70E5E.1010003@gmail.com> <alpine.DEB.2.00.1205302325500.25774@chino.kir.corp.google.com> <4FC711A5.4090003@gmail.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Cc: linux-mm@kvack.org, kamezawa.hiroyu@jp.fujitsu.com, dhillf@gmail.com, mhocko@suse.cz, akpm@linux-foundation.org, hannes@cmpxchg.org, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, Andrea Arcangeli <aarcange@redhat.com>
+To: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
+Cc: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Gao feng <gaofeng@cn.fujitsu.com>, hannes@cmpxchg.org, mhocko@suse.cz, bsingharora@gmail.com, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, linux-mm@kvack.org, containers@lists.linux-foundation.org
 
-On Thu, 31 May 2012, Aneesh Kumar K.V wrote:
+On Thu, 31 May 2012, KOSAKI Motohiro wrote:
 
-> > Yeah, but is there a reason for using VM_FAULT_HWPOISON_LARGE_MASK since 
-> > that's the only VM_FAULT_* value that is greater than MAX_ERRNO?  The rest 
-> > of your patch set doesn't require this, so I think this change should just 
-> > be dropped.  (And PTR_ERR() still returns long, this wasn't fixed from my 
-> > original review.)
-> > 
+> > This is tangent to the discussion, we need to revisit why an application
+> > other than a daemon managing a set of memcgs would ever need to know the
+> > information in /proc/meminfo.  No use-case was ever presented in the
+> > changelog and its not clear how this is at all relevant.  So before
+> > changing the kernel, please describe how this actually matters in a real-
+> > world scenario.
 > 
-> The changes was done as per Andrew's request so that we don't have such hidden
-> dependencies on the values of VM_FAULT_*. Yes it can be a seperate patch from
-> the patchset. I have changed int to long as per your review.
+> Huh? Don't you know a meanings of a namespace ISOLATION? isolation mean,
+> isolated container shouldn't be able to access global information. If you
+> want to lean container/namespace concept, tasting openvz or solaris container
+> is a good start.
 > 
 
-I think it confuscates the code, can't we just add something like 
-BUILD_BUG_ON() to ensure that PTR_ERR() never uses values that are outside 
-the bounds of MAX_ERRNO so we'll catch these at compile time if 
-mm/hugetlb.c or anything else is ever extended to use such values?
+As I said, LXC and namespace isolation is a tangent to the discussion of 
+faking the /proc/meminfo for the memcg context of a thread.
+
+> But anyway, I dislike current implementaion. So, I NAK this patch too.
+> 
+
+I'm glad you reached that conclusion, but I think you did so for a much 
+different (although unspecified) reason.
+
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
