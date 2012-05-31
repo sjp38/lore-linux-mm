@@ -1,59 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx103.postini.com [74.125.245.103])
-	by kanga.kvack.org (Postfix) with SMTP id D0BB46B0062
-	for <linux-mm@kvack.org>; Thu, 31 May 2012 03:52:35 -0400 (EDT)
-Received: by lbjn8 with SMTP id n8so826678lbj.14
-        for <linux-mm@kvack.org>; Thu, 31 May 2012 00:52:33 -0700 (PDT)
-Date: Thu, 31 May 2012 10:52:30 +0300 (EEST)
-From: Pekka Enberg <penberg@kernel.org>
-Subject: Re: Common 06/22] Extract common fields from struct kmem_cache
-In-Reply-To: <alpine.DEB.2.00.1205301028330.28968@router.home>
-Message-ID: <alpine.LFD.2.02.1205311052090.3944@tux.localdomain>
-References: <20120523203433.340661918@linux.com> <20120523203508.434967564@linux.com> <CAOJsxLGHZjucZUi=K3V6QDgP-UqA2GQY=z7D8poKMTO-JETZ2g@mail.gmail.com> <alpine.DEB.2.00.1205301028330.28968@router.home>
+Received: from psmtp.com (na3sys010amx162.postini.com [74.125.245.162])
+	by kanga.kvack.org (Postfix) with SMTP id E7F536B0062
+	for <linux-mm@kvack.org>; Thu, 31 May 2012 03:57:51 -0400 (EDT)
+Date: Thu, 31 May 2012 09:57:18 +0200
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH] meminfo: show /proc/meminfo base on container's memcg
+Message-ID: <20120531075718.GB1371@cmpxchg.org>
+References: <alpine.DEB.2.00.1205302156090.25774@chino.kir.corp.google.com>
+ <4FC70355.70805@jp.fujitsu.com>
+ <alpine.DEB.2.00.1205302314190.25774@chino.kir.corp.google.com>
+ <4FC70E5E.1010003@gmail.com>
+ <alpine.DEB.2.00.1205302325500.25774@chino.kir.corp.google.com>
+ <4FC711A5.4090003@gmail.com>
+ <alpine.DEB.2.00.1205302351510.25774@chino.kir.corp.google.com>
+ <CAHGf_=qVDVT6VW2j9gE3bQKwizW24iivrDryiCKoxVu4m_fWKw@mail.gmail.com>
+ <alpine.DEB.2.00.1205310028420.8864@chino.kir.corp.google.com>
+ <4FC720EE.3010307@gmail.com>
 MIME-Version: 1.0
-Content-Type: MULTIPART/MIXED; BOUNDARY="8323328-510044906-1338450751=:3944"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <4FC720EE.3010307@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: linux-mm@kvack.org, David Rientjes <rientjes@google.com>, Matt Mackall <mpm@selenic.com>, Glauber Costa <glommer@parallels.com>, Joonsoo Kim <js1304@gmail.com>
+To: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
+Cc: David Rientjes <rientjes@google.com>, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Gao feng <gaofeng@cn.fujitsu.com>, mhocko@suse.cz, bsingharora@gmail.com, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, linux-mm@kvack.org, containers@lists.linux-foundation.org
 
-  This message is in MIME format.  The first part should be readable text,
-  while the remaining parts are likely unreadable without MIME-aware tools.
-
---8323328-510044906-1338450751=:3944
-Content-Type: TEXT/PLAIN; charset=ISO-8859-1
-Content-Transfer-Encoding: 8BIT
-
-On Wed, 30 May 2012, Christoph Lameter wrote:
-
-> On Wed, 30 May 2012, Pekka Enberg wrote:
-> 
-> > >  /*
-> > > + * Common fields provided in kmem_cache by all slab allocators
-> > > + */
-> > > +#define SLAB_COMMON \
-> > > +       unsigned int size, align;                                       \
-> > > +       unsigned long flags;                                            \
-> > > +       const char *name;                                               \
-> > > +       int refcount;                                                   \
-> > > +       void (*ctor)(void *);                                           \
-> > > +       struct list_head list;
-> > > +
+On Thu, May 31, 2012 at 03:42:38AM -0400, KOSAKI Motohiro wrote:
+> (5/31/12 3:35 AM), David Rientjes wrote:
+> >On Thu, 31 May 2012, KOSAKI Motohiro wrote:
 > >
-> > I don't like this at all - it obscures the actual "kmem_cache"
-> > structures. If we can't come up with a reasonable solution that makes
-> > this a proper struct that's embedded in allocator-specific
-> > "kmem_cache" structures, it's best that we rename the fields but keep
-> > them inlined and drop this macro..
+> >>>As I said, LXC and namespace isolation is a tangent to the discussion of
+> >>>faking the /proc/meminfo for the memcg context of a thread.
+> >>
+> >>Because of, /proc/meminfo affect a lot of libraries behavior. So, it's not only
+> >>application issue. If you can't rewrite _all_ of userland assets, fake meminfo
+> >>can't be escaped. Again see alternative container implementation.
+> >>
+> >
+> >It's a tangent because it isn't a complete psuedo /proc/meminfo for all
+> >threads attached to a memcg regardless of any namespace isolation; the LXC
+> >solution has existed for a couple of years by its procfs patchset that
+> >overlaps procfs with fuse and can suppress or modify any output in the
+> >context of a memory controller using things like
+> >memory.{limit,usage}_in_bytes.  I'm sure all other fields could be
+> >modified if outputted in some structured way via memcg; it looks like
+> >memory.stat would need to be extended to provide that.  If that's mounted
+> >prior to executing the application, then your isolation is achieved and
+> >all libraries should see the new output that you've defined in LXC.
+> >
+> >However, this seems like a seperate topic than the patch at hand which
+> >does this directly to /proc/meminfo based on a thread's memcg context,
+> >that's the part that I'm nacking.
 > 
-> Actually that is a good idea. We can keep a fake struct in comments around
-> in slab.h to document what all slab allocators have to support and then at
-> some point we may be able to integrate the struct.
+> Then, I NAKed current patch too. Yeah, current one is ugly. It assume _all_
+> user need namespace isolation and it clearly is not.
 
-Works for me.
-
-			Pekka
---8323328-510044906-1338450751=:3944--
+Actually, it only chooses the memcg version for tasks that are not in
+the init pid namespace.  Tying this to the pid namespace is a bit
+ugly, but would probably end up doing the right thing most of the
+time.  A separate namespace would be better.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
