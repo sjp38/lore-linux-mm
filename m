@@ -1,60 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx104.postini.com [74.125.245.104])
-	by kanga.kvack.org (Postfix) with SMTP id A39896B005C
-	for <linux-mm@kvack.org>; Fri,  1 Jun 2012 05:12:43 -0400 (EDT)
-Received: by ggm4 with SMTP id 4so2018737ggm.14
-        for <linux-mm@kvack.org>; Fri, 01 Jun 2012 02:12:42 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <alpine.LSU.2.00.1206010204150.8697@eggly.anvils>
-References: <20120530163317.GA13189@redhat.com> <20120531005739.GA4532@redhat.com>
- <20120601023107.GA19445@redhat.com> <alpine.LSU.2.00.1206010030050.8462@eggly.anvils>
- <4FC88299.1040707@gmail.com> <alpine.LSU.2.00.1206010204150.8697@eggly.anvils>
-From: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
-Date: Fri, 1 Jun 2012 05:12:19 -0400
-Message-ID: <CAHGf_=q-VBqtABfC7cYPFY6AtQjjwHAM+0BD-DQ2G1sYoTPKGA@mail.gmail.com>
-Subject: Re: WARNING: at mm/page-writeback.c:1990 __set_page_dirty_nobuffers+0x13a/0x170()
-Content-Type: text/plain; charset=ISO-8859-1
+Received: from psmtp.com (na3sys010amx196.postini.com [74.125.245.196])
+	by kanga.kvack.org (Postfix) with SMTP id 549B86B004D
+	for <linux-mm@kvack.org>; Fri,  1 Jun 2012 06:14:08 -0400 (EDT)
+Message-ID: <1338545638.28384.137.camel@twins>
+Subject: Re: [PATCH 2/2] block: Convert BDI proportion calculations to
+ flexible proportions
+From: Peter Zijlstra <peterz@infradead.org>
+Date: Fri, 01 Jun 2012 12:13:58 +0200
+In-Reply-To: <20120531224206.GC19050@quack.suse.cz>
+References: <1337878751-22942-1-git-send-email-jack@suse.cz>
+	 <1337878751-22942-3-git-send-email-jack@suse.cz>
+	 <1338220185.4284.19.camel@lappy> <20120529123408.GA23991@quack.suse.cz>
+	 <1338295111.26856.57.camel@twins> <20120529125452.GB23991@quack.suse.cz>
+	 <20120531221146.GA19050@quack.suse.cz> <1338503165.28384.134.camel@twins>
+	 <20120531224206.GC19050@quack.suse.cz>
+Content-Type: text/plain; charset="ISO-8859-1"
 Content-Transfer-Encoding: quoted-printable
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: Dave Jones <davej@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Cong Wang <amwang@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Jan Kara <jack@suse.cz>
+Cc: Sasha Levin <levinsasha928@gmail.com>, Wu Fengguang <fengguang.wu@intel.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-On Fri, Jun 1, 2012 at 5:08 AM, Hugh Dickins <hughd@google.com> wrote:
-> On Fri, 1 Jun 2012, KOSAKI Motohiro wrote:
->> > =A0 =A0 mlock_migrate_page(newpage, page);
->> > --- 3.4.0+/mm/page-writeback.c =A0 =A0 =A02012-05-29 08:09:58.30480678=
-2 -0700
->> > +++ linux/mm/page-writeback.c =A0 =A0 =A0 2012-06-01 00:23:43.98411697=
-3 -0700
->> > @@ -1987,7 +1987,10 @@ int __set_page_dirty_nobuffers(struct pa
->> > =A0 =A0 =A0 =A0 =A0 =A0 mapping2 =3D page_mapping(page);
->> > =A0 =A0 =A0 =A0 =A0 =A0 if (mapping2) { /* Race with truncate? */
->> > =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 BUG_ON(mapping2 !=3D mapping);
->> > - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 WARN_ON_ONCE(!PagePrivate(page)&=
-&
->> > !PageUptodate(page));
->> > + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (WARN_ON(!PagePrivate(page)&&
->> > !PageUptodate(page)))
->> > + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 print_symbol(KER=
-N_WARNING
->> > + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 "mapping=
-->a_ops->writepage: %s\n",
->> > + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 (unsigne=
-d
->> > long)mapping->a_ops->writepage);
->>
->> type mismatch?
->
-> I don't think so: I just copied from print_bad_pte().
-> Probably you're reading "printk" where it's "print_symbol"?
+On Fri, 2012-06-01 at 00:42 +0200, Jan Kara wrote:
+> On Fri 01-06-12 00:26:05, Peter Zijlstra wrote:
+> > On Fri, 2012-06-01 at 00:11 +0200, Jan Kara wrote:
+> > >  bool fprop_new_period(struct fprop_global *p, int periods)
+> > >  {
+> > > -       u64 events =3D percpu_counter_sum(&p->events);
+> > > +       u64 events;
+> > > +       unsigned long flags;
+> > > =20
+> > > +       local_irq_save(flags);
+> > > +       events =3D percpu_counter_sum(&p->events);
+> > > +       local_irq_restore(flags);
+> > >         /*
+> > >          * Don't do anything if there are no events.
+> > >          */
+> > > @@ -73,7 +77,9 @@ bool fprop_new_period(struct fprop_global *p, int p=
+eriods)
+> > >         if (periods < 64)
+> > >                 events -=3D events >> periods;
+> > >         /* Use addition to avoid losing events happening between sum =
+and set */
+> > > +       local_irq_save(flags);
+> > >         percpu_counter_add(&p->events, -events);
+> > > +       local_irq_restore(flags);
+> > >         p->period +=3D periods;
+> > >         write_seqcount_end(&p->sequence);=20
+> >=20
+> > Uhm, why bother enabling it in between? Just wrap the whole function in
+> > a single IRQ disable.
+>   I wanted to have interrupts disabled for as short as possible but if yo=
+u
+> think it doesn't matter, I'll take your advice. The result is attached.
 
-Oops, yes, sorry for noise.
+Thing is, disabling interrupts is quite expensive and the extra few
+instructions covered isn't much.
 
-
->> I guess you want %pf or %pF.
->
-> I expect there is new-fangled %pMagic that can do it too, yes.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
