@@ -1,50 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx131.postini.com [74.125.245.131])
-	by kanga.kvack.org (Postfix) with SMTP id B62A66B004D
-	for <linux-mm@kvack.org>; Fri,  1 Jun 2012 09:43:30 -0400 (EDT)
-Date: Fri, 1 Jun 2012 09:43:23 -0400
-From: Dave Jones <davej@redhat.com>
-Subject: Re: WARNING: at mm/page-writeback.c:1990
- __set_page_dirty_nobuffers+0x13a/0x170()
-Message-ID: <20120601134323.GA5214@redhat.com>
-References: <20120530163317.GA13189@redhat.com>
- <20120531005739.GA4532@redhat.com>
- <20120601023107.GA19445@redhat.com>
- <CA+55aFyNSUbTfY4YdH4OcrrRnwkw-sHy3aT18ynf-YXRXSJQ8Q@mail.gmail.com>
+Received: from psmtp.com (na3sys010amx153.postini.com [74.125.245.153])
+	by kanga.kvack.org (Postfix) with SMTP id 1304B6B004D
+	for <linux-mm@kvack.org>; Fri,  1 Jun 2012 09:51:26 -0400 (EDT)
+Date: Fri, 1 Jun 2012 08:51:21 -0500 (CDT)
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: [PATCH 0/6] mempolicy memory corruption fixlet
+In-Reply-To: <alpine.DEB.2.02.1205311744280.17976@asgard.lang.hm>
+Message-ID: <alpine.DEB.2.00.1206010850430.6302@router.home>
+References: <1338368529-21784-1-git-send-email-kosaki.motohiro@gmail.com> <CA+55aFzoVQ29C-AZYx=G62LErK+7HuTCpZhvovoyS0_KTGGZQg@mail.gmail.com> <alpine.DEB.2.00.1205301328550.31768@router.home> <20120530184638.GU27374@one.firstfloor.org>
+ <alpine.DEB.2.00.1205301349230.31768@router.home> <20120530193234.GV27374@one.firstfloor.org> <alpine.DEB.2.00.1205301441350.31768@router.home> <CAHGf_=ooVunBpSdBRCnO1uOoswqxcSy7Xf8xVcgEUGA2fXdcTA@mail.gmail.com> <20120530201042.GY27374@one.firstfloor.org>
+ <CAHGf_=r_ZMKNx+VriO6822otF=U_huj7uxoc5GM-2DEVryKxNQ@mail.gmail.com> <alpine.DEB.2.02.1205311744280.17976@asgard.lang.hm>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CA+55aFyNSUbTfY4YdH4OcrrRnwkw-sHy3aT18ynf-YXRXSJQ8Q@mail.gmail.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Linux Kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Cong Wang <amwang@redhat.com>
+To: david@lang.hm
+Cc: KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Andi Kleen <andi@firstfloor.org>, Linus Torvalds <torvalds@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@google.com>, Dave Jones <davej@redhat.com>, Mel Gorman <mgorman@suse.de>, stable@vger.kernel.org, hughd@google.com, sivanich@sgi.com
 
-On Thu, May 31, 2012 at 07:43:25PM -0700, Linus Torvalds wrote:
- > On Thu, May 31, 2012 at 7:31 PM, Dave Jones <davej@redhat.com> wrote:
- > >
- > > So I bisected it anyway, and it led to ...
- > 
- > Ok, that doesn't sound entirely unlikely, but considering that you're
- > nervous about the bisection, please just try to revert it and see if
- > that fixes your testcase.
- > 
- > You'll obviously need to revert the commit that removes
- > vmtruncate_range() too, since reverting 3f31d07571ee will re-introduce
- > the use of it (it's the next one:
- > 17cf28afea2a1112f240a3a2da8af883be024811), but it looks like those two
- > commits revert cleanly and the end result seems to compile ok.
+On Thu, 31 May 2012, david@lang.hm wrote:
 
-crap, so much for that theory.  I ran latest with those two reverted
-overnight, and woke up to a dead box.  Over serial console, I see
-a bunch of those same compaction oopses (Via sys_mmap_pgoff),
-and then kernel BUG at include/linux/mm.h:448! was the last thing
-it said before it choked.
+> On Wed, 30 May 2012, KOSAKI Motohiro wrote:
+>
+> > On Wed, May 30, 2012 at 4:10 PM, Andi Kleen <andi@firstfloor.org> wrote:
+> > > > Yes, that's right direction, I think. Currently, shmem_set_policy()
+> > > > can't handle
+> > > > nonlinear mapping.
+> > >
+> > > I've been mulling for some time to just remove non linear mappings.
+> > > AFAIK they were only useful on 32bit and are obsolete and could be
+> > > emulated with VMAs instead.
+> >
+> > I agree. It is only userful on 32bit and current enterprise users don't use
+> > 32bit anymore. So, I don't think emulated by vmas cause user visible issue.
+>
+> I wish this was true, there are a lot of systems out there still running 32
+> bit linux, even on 64 bit capible hardware. This is especially true in
+> enterprises where they have either homegrown or proprietary software that
+> isn't 64 bit clean.
 
-I'll redo the bisect. It's possible that one of the 'good' paths just
-didn't run for long enough.
-
-	Dave
+32 bit binaries (and entire distros) run fine under 64 bit kernels.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
