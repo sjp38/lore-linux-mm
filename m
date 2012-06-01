@@ -1,71 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx199.postini.com [74.125.245.199])
-	by kanga.kvack.org (Postfix) with SMTP id 09D776B005D
-	for <linux-mm@kvack.org>; Fri,  1 Jun 2012 08:26:36 -0400 (EDT)
-Received: by mail-pb0-f41.google.com with SMTP id rp2so3681761pbb.14
-        for <linux-mm@kvack.org>; Fri, 01 Jun 2012 05:26:36 -0700 (PDT)
-From: Anton Vorontsov <anton.vorontsov@linaro.org>
-Subject: [PATCH 5/5] vmevent: Rename one-shot mode to edge trigger mode
-Date: Fri,  1 Jun 2012 05:24:06 -0700
-Message-Id: <1338553446-22292-5-git-send-email-anton.vorontsov@linaro.org>
-In-Reply-To: <20120601122118.GA6128@lizard>
-References: <20120601122118.GA6128@lizard>
+Received: from psmtp.com (na3sys010amx123.postini.com [74.125.245.123])
+	by kanga.kvack.org (Postfix) with SMTP id 4B13B6B004D
+	for <linux-mm@kvack.org>; Fri,  1 Jun 2012 08:29:10 -0400 (EDT)
+Received: by dakp5 with SMTP id p5so3486088dak.14
+        for <linux-mm@kvack.org>; Fri, 01 Jun 2012 05:29:09 -0700 (PDT)
+Date: Fri, 1 Jun 2012 21:28:52 +0900 (KST)
+From: Joonsoo Kim <js1304@gmail.com>
+Subject: Re: [PATCH 4/4] slub: refactoring unfreeze_partials()
+In-Reply-To: <alpine.DEB.2.00.1205171329440.12366@router.home>
+Message-ID: <alpine.DEB.2.02.1206012125520.3153@js1304-desktop>
+References: <1337269668-4619-1-git-send-email-js1304@gmail.com> <1337269668-4619-5-git-send-email-js1304@gmail.com> <alpine.DEB.2.00.1205171329440.12366@router.home>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII; format=flowed
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pekka Enberg <penberg@kernel.org>
-Cc: Leonid Moiseichuk <leonid.moiseichuk@nokia.com>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Minchan Kim <minchan@kernel.org>, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, John Stultz <john.stultz@linaro.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linaro-kernel@lists.linaro.org, patches@linaro.org, kernel-team@android.com
+To: Christoph Lameter <cl@linux.com>
+Cc: Pekka Enberg <penberg@kernel.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-VMEVENT_ATTR_STATE_ONE_SHOT is misleading name. That is effect as
-edge trigger shot, not only once.
 
-Suggested-by: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
-Suggested-by: Pekka Enberg <penberg@kernel.org>
-Signed-off-by: Anton Vorontsov <anton.vorontsov@linaro.org>
----
- include/linux/vmevent.h |    4 ++--
- mm/vmevent.c            |    4 ++--
- 2 files changed, 4 insertions(+), 4 deletions(-)
 
-diff --git a/include/linux/vmevent.h b/include/linux/vmevent.h
-index b8ec0ac..b1c4016 100644
---- a/include/linux/vmevent.h
-+++ b/include/linux/vmevent.h
-@@ -31,9 +31,9 @@ enum {
- 	 */
- 	VMEVENT_ATTR_STATE_VALUE_EQ	= (1UL << 2),
- 	/*
--	 * One-shot mode.
-+	 * Edge trigger mode.
- 	 */
--	VMEVENT_ATTR_STATE_ONE_SHOT	= (1UL << 3),
-+	VMEVENT_ATTR_STATE_EDGE_TRIGGER	= (1UL << 3),
- 
- 	__VMEVENT_ATTR_STATE_INTERNAL	= (1UL << 30) |
- 					  (1UL << 31),
-diff --git a/mm/vmevent.c b/mm/vmevent.c
-index e64a92d..46c1d18 100644
---- a/mm/vmevent.c
-+++ b/mm/vmevent.c
-@@ -104,7 +104,7 @@ static bool vmevent_match(struct vmevent_watch *watch)
- 			continue;
- 
- 		if (attr_lt || attr_gt || attr_eq) {
--			bool one_shot = state & VMEVENT_ATTR_STATE_ONE_SHOT;
-+			bool edge = state & VMEVENT_ATTR_STATE_EDGE_TRIGGER;
- 			u32 was_lt_mask = VMEVENT_ATTR_STATE_VALUE_WAS_LT;
- 			u32 was_gt_mask = VMEVENT_ATTR_STATE_VALUE_WAS_GT;
- 			u64 value = vmevent_sample_attr(watch, attr);
-@@ -117,7 +117,7 @@ static bool vmevent_match(struct vmevent_watch *watch)
- 			bool ret = false;
- 
- 			if (((attr_lt && lt) || (attr_gt && gt) ||
--					(attr_eq && eq)) && !one_shot)
-+					(attr_eq && eq)) && !edge)
- 				return true;
- 
- 			if (attr_eq && eq && was_eq) {
--- 
-1.7.9.2
+On Thu, 17 May 2012, Christoph Lameter wrote:
+
+> On Fri, 18 May 2012, Joonsoo Kim wrote:
+>
+>> I think that these are disadvantages of current implementation,
+>> so I do refactoring unfreeze_partials().
+>
+> The reason the current implementation is so complex is to avoid races. The
+> state of the list and the state of the partial pages must be consistent at
+> all times.
+>
+>> Minimizing code in do {} while loop introduce a reduced fail rate
+>> of cmpxchg_double_slab. Below is output of 'slabinfo -r kmalloc-256'
+>> when './perf stat -r 33 hackbench 50 process 4000 > /dev/null' is done.
+>
+> Looks good. If I can convince myself that this does not open up any
+> new races then I may ack it.
+
+This is a reminder mail.
+Would u give me some comments for this please?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
