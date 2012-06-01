@@ -1,36 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx201.postini.com [74.125.245.201])
-	by kanga.kvack.org (Postfix) with SMTP id E3C8E6B005A
-	for <linux-mm@kvack.org>; Fri,  1 Jun 2012 10:15:04 -0400 (EDT)
-Date: Fri, 1 Jun 2012 10:14:59 -0400
-From: Dave Jones <davej@redhat.com>
-Subject: Re: WARNING: at mm/page-writeback.c:1990
- __set_page_dirty_nobuffers+0x13a/0x170()
-Message-ID: <20120601141459.GC1732@redhat.com>
-References: <20120530163317.GA13189@redhat.com>
- <20120531005739.GA4532@redhat.com>
- <20120601023107.GA19445@redhat.com>
- <alpine.LSU.2.00.1206010030050.8462@eggly.anvils>
+Received: from psmtp.com (na3sys010amx188.postini.com [74.125.245.188])
+	by kanga.kvack.org (Postfix) with SMTP id DA92E6B005A
+	for <linux-mm@kvack.org>; Fri,  1 Jun 2012 10:24:39 -0400 (EDT)
+Date: Fri, 1 Jun 2012 09:24:37 -0500
+From: Nathan Zimmer <nzimmer@sgi.com>
+Subject: Re: [PATCH v2] tmpfs not interleaving properly
+Message-ID: <20120601142437.GA13739@gulag1.americas.sgi.com>
+References: <20120531143916.GA16162@gulag1.americas.sgi.com> <4FC7CFEB.5040009@gmail.com> <20120531132515.6af60152.akpm@linux-foundation.org> <4FC7D629.3090801@gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <alpine.LSU.2.00.1206010030050.8462@eggly.anvils>
+In-Reply-To: <4FC7D629.3090801@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Cong Wang <amwang@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Nathan Zimmer <nzimmer@sgi.com>, hughd@google.com, npiggin@gmail.com, cl@linux.com, lee.schermerhorn@hp.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, stable@vger.kernel.org, riel@redhat.com
 
-On Fri, Jun 01, 2012 at 01:44:44AM -0700, Hugh Dickins wrote:
- > So I'm wondering if your trinity fuzzer happens to succeed a lot more
- > often on madvise MADV_REMOVEs than fallocate FALLOC_FL_PUNCH_HOLEs, and
- > the bug you converged on is not in tmpfs, but in ext4 (or xfs? or ocfs2?),
- > which began to support MADV_REMOVE with that commit.
+On Thu, May 31, 2012 at 04:35:53PM -0400, KOSAKI Motohiro wrote:
+> (5/31/12 4:25 PM), Andrew Morton wrote:
+>> On Thu, 31 May 2012 16:09:15 -0400
+>> KOSAKI Motohiro<kosaki.motohiro@gmail.com>  wrote:
+>>
+>>>> --- a/mm/shmem.c
+>>>> +++ b/mm/shmem.c
+>>>> @@ -929,7 +929,7 @@ static struct page *shmem_alloc_page(gfp_t gfp,
+>>>>    	/*
+>>>>    	 * alloc_page_vma() will drop the shared policy reference
+>>>>    	 */
+>>>> -	return alloc_page_vma(gfp,&pvma, 0);
+>>>> +	return alloc_page_vma(gfp,&pvma, info->node_offset<<   PAGE_SHIFT );
+>>>
+>>> 3rd argument of alloc_page_vma() is an address. This is type error.
+>>
+>> Well, it's an unsigned long...
+>>
+>> But yes, it is conceptually wrong and *looks* weird.  I think we can
+>> address that by overcoming our peculair aversion to documenting our
+>> code, sigh.  This?
+>
+> Sorry, no.
+>
+> addr agrument of alloc_pages_vma() have two meanings.
+>
+> 1) interleave node seed
+> 2) look-up key of shmem policy
+>
+> I think this patch break (2). shmem_get_policy(pol, addr) assume caller honor to
+> pass correct address.
 
-One more thing: I happened to see this during a kernel build last night
-on another machine too, so it's not just fuzzing fallout. I'm surprised more
-people aren't seeing it.
-
-	Dave
+But the pseudo vma we generated in shmem_alloc_page the vm_ops are set to NULL.
+So get_vma_policy will return the policy provided by the pseudo vma and not reach
+the shmem_get_policy.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
