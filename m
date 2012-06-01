@@ -1,17 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx123.postini.com [74.125.245.123])
-	by kanga.kvack.org (Postfix) with SMTP id 975796B005A
-	for <linux-mm@kvack.org>; Fri,  1 Jun 2012 09:30:36 -0400 (EDT)
-Received: by obbwd18 with SMTP id wd18so3714951obb.14
-        for <linux-mm@kvack.org>; Fri, 01 Jun 2012 06:30:35 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx185.postini.com [74.125.245.185])
+	by kanga.kvack.org (Postfix) with SMTP id 9BD1C6B005C
+	for <linux-mm@kvack.org>; Fri,  1 Jun 2012 09:30:47 -0400 (EDT)
+Received: by yhr47 with SMTP id 47so2116937yhr.14
+        for <linux-mm@kvack.org>; Fri, 01 Jun 2012 06:30:46 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <alpine.DEB.2.00.1205311414090.2764@chino.kir.corp.google.com>
+In-Reply-To: <alpine.DEB.2.00.1205311415300.2764@chino.kir.corp.google.com>
 References: <20120523203433.340661918@linux.com>
-	<20120523203505.599591201@linux.com>
-	<alpine.DEB.2.00.1205311414090.2764@chino.kir.corp.google.com>
-Date: Fri, 1 Jun 2012 22:30:35 +0900
-Message-ID: <CAAmzW4MVADTVtTyj-wq2YU30pJm1Kf4odOHFnb4chaz1UZ9wsQ@mail.gmail.com>
-Subject: Re: Common 01/22] [slob] Define page struct fields used in mm_types.h
+	<20120523203506.170219003@linux.com>
+	<alpine.DEB.2.00.1205311415300.2764@chino.kir.corp.google.com>
+Date: Fri, 1 Jun 2012 22:30:46 +0900
+Message-ID: <CAAmzW4MG5b5Ka_sQgkD9Fw8Kahz6Z7rJTsBpfUcbo-CnyY0qgQ@mail.gmail.com>
+Subject: Re: Common 02/22] [slob] No need to zero mapping since it is no
+ longer in use
 From: JoonSoo Kim <js1304@gmail.com>
 Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
@@ -22,14 +23,6 @@ Cc: Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, linux-m
 2012/6/1 David Rientjes <rientjes@google.com>:
 > On Wed, 23 May 2012, Christoph Lameter wrote:
 >
->> Define the fields used by slob in mm_types.h and use struct page instead
->> of struct slob_page in slob. This cleans up numerous of typecasts in slob.c and
->> makes readers aware of slob's use of page struct fields.
->>
->> [Also cleans up some bitrot in slob.c. The page struct field layout
->> in slob.c is an old layout and does not match the one in mm_types.h]
->>
->> Reviewed-by: Glauber Costa <gommer@parallels.com>
 >> Signed-off-by: Christoph Lameter <cl@linux.com>
 >
 > Acked-by: David Rientjes <rientjes@google.com>
