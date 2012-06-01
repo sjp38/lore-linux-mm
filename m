@@ -1,62 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx196.postini.com [74.125.245.196])
-	by kanga.kvack.org (Postfix) with SMTP id 549B86B004D
-	for <linux-mm@kvack.org>; Fri,  1 Jun 2012 06:14:08 -0400 (EDT)
-Message-ID: <1338545638.28384.137.camel@twins>
-Subject: Re: [PATCH 2/2] block: Convert BDI proportion calculations to
- flexible proportions
-From: Peter Zijlstra <peterz@infradead.org>
-Date: Fri, 01 Jun 2012 12:13:58 +0200
-In-Reply-To: <20120531224206.GC19050@quack.suse.cz>
-References: <1337878751-22942-1-git-send-email-jack@suse.cz>
-	 <1337878751-22942-3-git-send-email-jack@suse.cz>
-	 <1338220185.4284.19.camel@lappy> <20120529123408.GA23991@quack.suse.cz>
-	 <1338295111.26856.57.camel@twins> <20120529125452.GB23991@quack.suse.cz>
-	 <20120531221146.GA19050@quack.suse.cz> <1338503165.28384.134.camel@twins>
-	 <20120531224206.GC19050@quack.suse.cz>
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: quoted-printable
-Mime-Version: 1.0
+Received: from psmtp.com (na3sys010amx202.postini.com [74.125.245.202])
+	by kanga.kvack.org (Postfix) with SMTP id B5C326B005C
+	for <linux-mm@kvack.org>; Fri,  1 Jun 2012 06:41:09 -0400 (EDT)
+Received: from m4.gw.fujitsu.co.jp (unknown [10.0.50.74])
+	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id CC7153EE0BC
+	for <linux-mm@kvack.org>; Fri,  1 Jun 2012 19:41:07 +0900 (JST)
+Received: from smail (m4 [127.0.0.1])
+	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id AF93845DE56
+	for <linux-mm@kvack.org>; Fri,  1 Jun 2012 19:41:07 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
+	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 37B3345DE4E
+	for <linux-mm@kvack.org>; Fri,  1 Jun 2012 19:41:07 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 28E7F1DB8046
+	for <linux-mm@kvack.org>; Fri,  1 Jun 2012 19:41:07 +0900 (JST)
+Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.240.81.147])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id CEEA91DB8042
+	for <linux-mm@kvack.org>; Fri,  1 Jun 2012 19:41:06 +0900 (JST)
+Message-ID: <4FC89BC4.9030604@jp.fujitsu.com>
+Date: Fri, 01 Jun 2012 19:39:00 +0900
+From: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+MIME-Version: 1.0
+Subject: [PATCH] rename MEM_CGROUP_STAT_SWAPOUT as MEM_CGROUP_STAT_NR_SWAP
+Content-Type: text/plain; charset=ISO-2022-JP
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jan Kara <jack@suse.cz>
-Cc: Sasha Levin <levinsasha928@gmail.com>, Wu Fengguang <fengguang.wu@intel.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+To: linux-mm@kvack.org
+Cc: cgroups@vger.kernel.org, mhocko@suse.cz, hannes@cmpxchg.org, akpm@linux-foundation.org
 
-On Fri, 2012-06-01 at 00:42 +0200, Jan Kara wrote:
-> On Fri 01-06-12 00:26:05, Peter Zijlstra wrote:
-> > On Fri, 2012-06-01 at 00:11 +0200, Jan Kara wrote:
-> > >  bool fprop_new_period(struct fprop_global *p, int periods)
-> > >  {
-> > > -       u64 events =3D percpu_counter_sum(&p->events);
-> > > +       u64 events;
-> > > +       unsigned long flags;
-> > > =20
-> > > +       local_irq_save(flags);
-> > > +       events =3D percpu_counter_sum(&p->events);
-> > > +       local_irq_restore(flags);
-> > >         /*
-> > >          * Don't do anything if there are no events.
-> > >          */
-> > > @@ -73,7 +77,9 @@ bool fprop_new_period(struct fprop_global *p, int p=
-eriods)
-> > >         if (periods < 64)
-> > >                 events -=3D events >> periods;
-> > >         /* Use addition to avoid losing events happening between sum =
-and set */
-> > > +       local_irq_save(flags);
-> > >         percpu_counter_add(&p->events, -events);
-> > > +       local_irq_restore(flags);
-> > >         p->period +=3D periods;
-> > >         write_seqcount_end(&p->sequence);=20
-> >=20
-> > Uhm, why bother enabling it in between? Just wrap the whole function in
-> > a single IRQ disable.
->   I wanted to have interrupts disabled for as short as possible but if yo=
-u
-> think it doesn't matter, I'll take your advice. The result is attached.
+MEM_CGROUP_STAT_SWAPOUT represents the usage of swap rather than
+the number of swap-out events. Rename it to be MEM_CGROUP_STAT_NR_SWAP.
 
-Thing is, disabling interrupts is quite expensive and the extra few
-instructions covered isn't much.
+Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+---
+ mm/memcontrol.c |   10 +++++-----
+ 1 files changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index 0121ef3..76bc54c 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -97,7 +97,7 @@ enum mem_cgroup_stat_index {
+ 	MEM_CGROUP_STAT_CACHE, 	   /* # of pages charged as cache */
+ 	MEM_CGROUP_STAT_RSS,	   /* # of pages charged as anon rss */
+ 	MEM_CGROUP_STAT_FILE_MAPPED,  /* # of pages charged as file rss */
+-	MEM_CGROUP_STAT_SWAPOUT, /* # of pages, swapped out */
++	MEM_CGROUP_STAT_NR_SWAP, /* # of pages, swapped out */
+ 	MEM_CGROUP_STAT_NSTATS,
+ };
+ 
+@@ -722,7 +722,7 @@ static void mem_cgroup_swap_statistics(struct mem_cgroup *memcg,
+ 					 bool charge)
+ {
+ 	int val = (charge) ? 1 : -1;
+-	this_cpu_add(memcg->stat->count[MEM_CGROUP_STAT_SWAPOUT], val);
++	this_cpu_add(memcg->stat->count[MEM_CGROUP_STAT_NR_SWAP], val);
+ }
+ 
+ static unsigned long mem_cgroup_read_events(struct mem_cgroup *memcg,
+@@ -4042,7 +4042,7 @@ static inline u64 mem_cgroup_usage(struct mem_cgroup *memcg, bool swap)
+ 	val += mem_cgroup_recursive_stat(memcg, MEM_CGROUP_STAT_RSS);
+ 
+ 	if (swap)
+-		val += mem_cgroup_recursive_stat(memcg, MEM_CGROUP_STAT_SWAPOUT);
++		val += mem_cgroup_recursive_stat(memcg, MEM_CGROUP_STAT_NR_SWAP);
+ 
+ 	return val << PAGE_SHIFT;
+ }
+@@ -4303,7 +4303,7 @@ static int mem_control_stat_show(struct cgroup *cont, struct cftype *cft,
+ 	unsigned int i;
+ 
+ 	for (i = 0; i < MEM_CGROUP_STAT_NSTATS; i++) {
+-		if (i == MEM_CGROUP_STAT_SWAPOUT && !do_swap_account)
++		if (i == MEM_CGROUP_STAT_NR_SWAP && !do_swap_account)
+ 			continue;
+ 		seq_printf(m, "%s %ld\n", mem_cgroup_stat_names[i],
+ 			   mem_cgroup_read_stat(memcg, i) * PAGE_SIZE);
+@@ -4330,7 +4330,7 @@ static int mem_control_stat_show(struct cgroup *cont, struct cftype *cft,
+ 	for (i = 0; i < MEM_CGROUP_STAT_NSTATS; i++) {
+ 		long long val = 0;
+ 
+-		if (i == MEM_CGROUP_STAT_SWAPOUT && !do_swap_account)
++		if (i == MEM_CGROUP_STAT_NR_SWAP && !do_swap_account)
+ 			continue;
+ 		for_each_mem_cgroup_tree(mi, memcg)
+ 			val += mem_cgroup_read_stat(mi, i) * PAGE_SIZE;
+-- 
+1.7.4.1
 
 
 --
