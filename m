@@ -1,104 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx159.postini.com [74.125.245.159])
-	by kanga.kvack.org (Postfix) with SMTP id 9B4156B006E
-	for <linux-mm@kvack.org>; Fri,  1 Jun 2012 12:55:51 -0400 (EDT)
-Received: from euspt1 (mailout4.w1.samsung.com [210.118.77.14])
- by mailout4.w1.samsung.com
- (Oracle Communications Messaging Server 7u4-24.01(7.0.4.24.0) 64bit (built Nov
- 17 2011)) with ESMTP id <0M4Y00IDG726Y6B0@mailout4.w1.samsung.com> for
- linux-mm@kvack.org; Fri, 01 Jun 2012 17:56:30 +0100 (BST)
-Received: from linux.samsung.com ([106.116.38.10])
- by spt1.w1.samsung.com (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14
- 2004)) with ESMTPA id <0M4Y0007Q71070@spt1.w1.samsung.com> for
- linux-mm@kvack.org; Fri, 01 Jun 2012 17:55:48 +0100 (BST)
-Date: Fri, 01 Jun 2012 18:54:31 +0200
-From: Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>
-Subject: [PATCH 2/3] proc: add /proc/kpagetype interface
-Message-id: <201206011854.31625.b.zolnierkie@samsung.com>
-MIME-version: 1.0
-Content-type: Text/Plain; charset=us-ascii
-Content-transfer-encoding: 7BIT
+Received: from psmtp.com (na3sys010amx122.postini.com [74.125.245.122])
+	by kanga.kvack.org (Postfix) with SMTP id 307356B005D
+	for <linux-mm@kvack.org>; Fri,  1 Jun 2012 13:22:19 -0400 (EDT)
+Received: by qcsd16 with SMTP id d16so1603304qcs.14
+        for <linux-mm@kvack.org>; Fri, 01 Jun 2012 10:22:18 -0700 (PDT)
+Message-ID: <4FC8FA47.70001@gmail.com>
+Date: Fri, 01 Jun 2012 13:22:15 -0400
+From: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH v2] tmpfs not interleaving properly
+References: <20120531143916.GA16162@gulag1.americas.sgi.com> <4FC7CFEB.5040009@gmail.com> <20120531132515.6af60152.akpm@linux-foundation.org> <4FC7D629.3090801@gmail.com> <20120601142437.GA13739@gulag1.americas.sgi.com>
+In-Reply-To: <20120601142437.GA13739@gulag1.americas.sgi.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: Kyungmin Park <kyungmin.park@samsung.com>, Matt Mackall <mpm@selenic.com>
+To: Nathan Zimmer <nzimmer@sgi.com>
+Cc: KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, hughd@google.com, npiggin@gmail.com, cl@linux.com, lee.schermerhorn@hp.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, stable@vger.kernel.org, riel@redhat.com
 
-From: Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>
-Subject: [PATCH] proc: add /proc/kpagetype interface
+(6/1/12 10:24 AM), Nathan Zimmer wrote:
+> On Thu, May 31, 2012 at 04:35:53PM -0400, KOSAKI Motohiro wrote:
+>> (5/31/12 4:25 PM), Andrew Morton wrote:
+>>> On Thu, 31 May 2012 16:09:15 -0400
+>>> KOSAKI Motohiro<kosaki.motohiro@gmail.com>   wrote:
+>>>
+>>>>> --- a/mm/shmem.c
+>>>>> +++ b/mm/shmem.c
+>>>>> @@ -929,7 +929,7 @@ static struct page *shmem_alloc_page(gfp_t gfp,
+>>>>>     	/*
+>>>>>     	 * alloc_page_vma() will drop the shared policy reference
+>>>>>     	 */
+>>>>> -	return alloc_page_vma(gfp,&pvma, 0);
+>>>>> +	return alloc_page_vma(gfp,&pvma, info->node_offset<<    PAGE_SHIFT );
+>>>>
+>>>> 3rd argument of alloc_page_vma() is an address. This is type error.
+>>>
+>>> Well, it's an unsigned long...
+>>>
+>>> But yes, it is conceptually wrong and *looks* weird.  I think we can
+>>> address that by overcoming our peculair aversion to documenting our
+>>> code, sigh.  This?
+>>
+>> Sorry, no.
+>>
+>> addr agrument of alloc_pages_vma() have two meanings.
+>>
+>> 1) interleave node seed
+>> 2) look-up key of shmem policy
+>>
+>> I think this patch break (2). shmem_get_policy(pol, addr) assume caller honor to
+>> pass correct address.
+>
+> But the pseudo vma we generated in shmem_alloc_page the vm_ops are set to NULL.
+> So get_vma_policy will return the policy provided by the pseudo vma and not reach
+> the shmem_get_policy.
 
-This makes page pageblock type information available to the user-space.
+yes, and it is bug source. we may need to change soon. I guess the right way is
+to make vm_ops->interleave and interleave_nid uses it if povided.
 
-Cc: Matt Mackall <mpm@selenic.com>
-Signed-off-by: Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>
-Signed-off-by: Kyungmin Park <kyungmin.park@samsung.com>
----
- fs/proc/page.c |   48 ++++++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 48 insertions(+)
+btw, I don't think node_random() is good idea. it is random(pid + jiffies + cycle).
+current->cpuset_mem_spread_rotor is per-thread value. but you now need per-inode
+interleave offset. maybe, just inode addition is enough. Why do you need randomness?
 
-Index: b/fs/proc/page.c
-===================================================================
---- a/fs/proc/page.c	2012-05-31 16:30:49.215109568 +0200
-+++ b/fs/proc/page.c	2012-05-31 16:30:50.559109495 +0200
-@@ -254,11 +254,59 @@ static const struct file_operations proc
- 	.read = kpageorder_read,
- };
- 
-+static ssize_t kpagetype_read(struct file *file, char __user *buf,
-+			     size_t count, loff_t *ppos)
-+{
-+	u64 __user *out = (u64 __user *)buf;
-+	struct page *ppage;
-+	unsigned long src = *ppos;
-+	unsigned long pfn;
-+	ssize_t ret = 0;
-+	u64 ptype;
-+
-+	pfn = src / KPMSIZE;
-+	count = min_t(unsigned long, count,
-+		      ((ARCH_PFN_OFFSET + max_pfn) * KPMSIZE) - src);
-+	if (src & KPMMASK || count & KPMMASK)
-+		return -EINVAL;
-+
-+	while (count > 0) {
-+		if (pfn_valid(pfn))
-+			ppage = pfn_to_page(pfn);
-+		else
-+			ppage = NULL;
-+		if (!ppage)
-+			ptype = 0;
-+		else
-+			ptype = get_pageblock_migratetype(ppage);
-+
-+		if (put_user(ptype, out)) {
-+			ret = -EFAULT;
-+			break;
-+		}
-+
-+		pfn++;
-+		out++;
-+		count -= KPMSIZE;
-+	}
-+
-+	*ppos += (char __user *)out - buf;
-+	if (!ret)
-+		ret = (char __user *)out - buf;
-+	return ret;
-+}
-+
-+static const struct file_operations proc_kpagetype_operations = {
-+	.llseek = mem_lseek,
-+	.read = kpagetype_read,
-+};
-+
- static int __init proc_page_init(void)
- {
- 	proc_create("kpagecount", S_IRUSR, NULL, &proc_kpagecount_operations);
- 	proc_create("kpageflags", S_IRUSR, NULL, &proc_kpageflags_operations);
- 	proc_create("kpageorder", S_IRUSR, NULL, &proc_kpageorder_operations);
-+	proc_create("kpagetype", S_IRUSR, NULL, &proc_kpagetype_operations);
- 	return 0;
- }
- module_init(proc_page_init);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
