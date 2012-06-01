@@ -1,74 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx106.postini.com [74.125.245.106])
-	by kanga.kvack.org (Postfix) with SMTP id C60A96B004D
-	for <linux-mm@kvack.org>; Fri,  1 Jun 2012 14:05:47 -0400 (EDT)
-Date: Fri, 1 Jun 2012 13:16:06 -0400
-From: Dave Jones <davej@redhat.com>
-Subject: Re: WARNING: at mm/page-writeback.c:1990
- __set_page_dirty_nobuffers+0x13a/0x170()
-Message-ID: <20120601171606.GA3794@redhat.com>
-References: <20120530163317.GA13189@redhat.com>
- <20120531005739.GA4532@redhat.com>
- <20120601023107.GA19445@redhat.com>
- <alpine.LSU.2.00.1206010030050.8462@eggly.anvils>
- <20120601161205.GA1918@redhat.com>
+Received: from psmtp.com (na3sys010amx194.postini.com [74.125.245.194])
+	by kanga.kvack.org (Postfix) with SMTP id 998236B004D
+	for <linux-mm@kvack.org>; Fri,  1 Jun 2012 15:31:45 -0400 (EDT)
+Date: Fri, 1 Jun 2012 12:31:33 -0700 (PDT)
+From: david@lang.hm
+Subject: Re: [PATCH 0/6] mempolicy memory corruption fixlet
+In-Reply-To: <alpine.DEB.2.00.1206010850430.6302@router.home>
+Message-ID: <alpine.DEB.2.02.1206011230170.17976@asgard.lang.hm>
+References: <1338368529-21784-1-git-send-email-kosaki.motohiro@gmail.com> <CA+55aFzoVQ29C-AZYx=G62LErK+7HuTCpZhvovoyS0_KTGGZQg@mail.gmail.com> <alpine.DEB.2.00.1205301328550.31768@router.home> <20120530184638.GU27374@one.firstfloor.org>
+ <alpine.DEB.2.00.1205301349230.31768@router.home> <20120530193234.GV27374@one.firstfloor.org> <alpine.DEB.2.00.1205301441350.31768@router.home> <CAHGf_=ooVunBpSdBRCnO1uOoswqxcSy7Xf8xVcgEUGA2fXdcTA@mail.gmail.com> <20120530201042.GY27374@one.firstfloor.org>
+ <CAHGf_=r_ZMKNx+VriO6822otF=U_huj7uxoc5GM-2DEVryKxNQ@mail.gmail.com> <alpine.DEB.2.02.1205311744280.17976@asgard.lang.hm> <alpine.DEB.2.00.1206010850430.6302@router.home>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20120601161205.GA1918@redhat.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII; format=flowed
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Cong Wang <amwang@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Christoph Lameter <cl@linux.com>
+Cc: KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Andi Kleen <andi@firstfloor.org>, Linus Torvalds <torvalds@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@google.com>, Dave Jones <davej@redhat.com>, Mel Gorman <mgorman@suse.de>, stable@vger.kernel.org, hughd@google.com, sivanich@sgi.com
 
-On Fri, Jun 01, 2012 at 12:12:05PM -0400, Dave Jones wrote:
+On Fri, 1 Jun 2012, Christoph Lameter wrote:
 
- 
- > So with this applied, I don't seem to be able to trigger it. It's been running two hours
- > so far. I'll leave it running, but right now I don't know what to make of this.
+> Subject: Re: [PATCH 0/6] mempolicy memory corruption fixlet
+> 
+> On Thu, 31 May 2012, david@lang.hm wrote:
+>
+>> On Wed, 30 May 2012, KOSAKI Motohiro wrote:
+>>
+>>> On Wed, May 30, 2012 at 4:10 PM, Andi Kleen <andi@firstfloor.org> wrote:
+>>>>> Yes, that's right direction, I think. Currently, shmem_set_policy()
+>>>>> can't handle
+>>>>> nonlinear mapping.
+>>>>
+>>>> I've been mulling for some time to just remove non linear mappings.
+>>>> AFAIK they were only useful on 32bit and are obsolete and could be
+>>>> emulated with VMAs instead.
+>>>
+>>> I agree. It is only userful on 32bit and current enterprise users don't use
+>>> 32bit anymore. So, I don't think emulated by vmas cause user visible issue.
+>>
+>> I wish this was true, there are a lot of systems out there still running 32
+>> bit linux, even on 64 bit capible hardware. This is especially true in
+>> enterprises where they have either homegrown or proprietary software that
+>> isn't 64 bit clean.
+>
+> 32 bit binaries (and entire distros) run fine under 64 bit kernels.
 
-I can trigger the list corruption still, but not the WARN.
+unfortunantly, not quite 100% of the time. It's very good, but the 
+automount bug a month or so ago is an example of how you can run into rare 
+problems. Many "enterprise" systems are not willing to risk it.
 
-	Dave
-
-[  551.980716] ------------[ cut here ]------------
-[  551.981646] WARNING: at lib/list_debug.c:59 __list_del_entry+0xa1/0xd0()
-[  551.983461] list_del corruption. prev->next should be ffffea0004b305a0, but was ffffea0004f117e0
-[  551.984406] Modules linked in: tun fuse nfnetlink binfmt_misc ipt_ULOG sctp libcrc32c caif_socket caif phonet bluetooth rfkill can llc2 pppoe pppox ppp_generic slhc irda crc_ccitt rds af_key decnet rose x25 atm netrom appletalk ipx p8023 psnap p8022 llc ax25 ip6t_REJECT nf_conntrack_ipv6 nf_defrag_ipv6 xt_state nf_conntrack ip6table_filter ip6_tables kvm_intel kvm crc32c_intel ghash_clmulni_intel microcode usb_debug serio_raw pcspkr i2c_i801 e1000e nfsd nfs_acl auth_rpcgss lockd sunrpc i915 video i2c_algo_bit drm_kms_helper drm i2c_core [last unloaded: scsi_wait_scan]
-[  551.988121] Pid: 21459, comm: trinity-child2 Not tainted 3.4.0+ #49
-[  551.989063] Call Trace:
-[  551.990012]  [<ffffffff8104912f>] warn_slowpath_common+0x7f/0xc0
-[  551.990956]  [<ffffffff81049226>] warn_slowpath_fmt+0x46/0x50
-[  551.991902]  [<ffffffff81329171>] __list_del_entry+0xa1/0xd0
-[  551.992849]  [<ffffffff81145ad9>] move_freepages_block+0x159/0x190
-[  551.993800]  [<ffffffff81165be3>] suitable_migration_target.isra.15+0x1b3/0x1d0
-[  551.994761]  [<ffffffff81165e2e>] compaction_alloc+0x22e/0x2f0
-[  551.995731]  [<ffffffff81198547>] migrate_pages+0xc7/0x540
-[  551.996684]  [<ffffffff81165c00>] ? suitable_migration_target.isra.15+0x1d0/0x1d0
-[  551.997638]  [<ffffffff81166b86>] compact_zone+0x216/0x480
-[  551.998593]  [<ffffffff810b15f8>] ? trace_hardirqs_off_caller+0x28/0xc0
-[  551.999558]  [<ffffffff811670cd>] compact_zone_order+0x8d/0xd0
-[  552.000525]  [<ffffffff81149735>] ? get_page_from_freelist+0x565/0x970
-[  552.001502]  [<ffffffff811671d9>] try_to_compact_pages+0xc9/0x140
-[  552.002548]  [<ffffffff8163f491>] __alloc_pages_direct_compact+0xaa/0x1d0
-[  552.003592]  [<ffffffff8114a14b>] __alloc_pages_nodemask+0x60b/0xab0
-[  552.004650]  [<ffffffff810b15f8>] ? trace_hardirqs_off_caller+0x28/0xc0
-[  552.005708]  [<ffffffff810b4f00>] ? __lock_acquire+0x2d0/0x1aa0
-[  552.007332]  [<ffffffff81189ec6>] alloc_pages_vma+0xb6/0x190
-[  552.008953]  [<ffffffff8119cfb3>] do_huge_pmd_anonymous_page+0x133/0x310
-[  552.010584]  [<ffffffff8116c2e2>] handle_mm_fault+0x242/0x2e0
-[  552.012233]  [<ffffffff8116c592>] __get_user_pages+0x142/0x560
-[  552.013891]  [<ffffffff81171c58>] ? mmap_region+0x3f8/0x630
-[  552.015753]  [<ffffffff8116ca62>] get_user_pages+0x52/0x60
-[  552.017348]  [<ffffffff8116d952>] make_pages_present+0x92/0xc0
-[  552.018936]  [<ffffffff81171c06>] mmap_region+0x3a6/0x630
-[  552.021074]  [<ffffffff81050e2c>] ? do_setitimer+0x1cc/0x310
-[  552.022367]  [<ffffffff811721ed>] do_mmap_pgoff+0x35d/0x3b0
-[  552.023406]  [<ffffffff811722a6>] ? sys_mmap_pgoff+0x66/0x240
-[  552.024429]  [<ffffffff811722c4>] sys_mmap_pgoff+0x84/0x240
-[  552.025445]  [<ffffffff81322cbe>] ? trace_hardirqs_on_thunk+0x3a/0x3f
-[  552.026466]  [<ffffffff81006ca2>] sys_mmap+0x22/0x30
-[  552.027486]  [<ffffffff81651c92>] system_call_fastpath+0x16/0x1b
-[  552.028521] ---[ end trace c092df1e14d11d14 ]---
+David Lang
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
