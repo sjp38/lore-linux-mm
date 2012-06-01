@@ -1,60 +1,36 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx191.postini.com [74.125.245.191])
-	by kanga.kvack.org (Postfix) with SMTP id 75D3A6B004D
-	for <linux-mm@kvack.org>; Fri,  1 Jun 2012 12:16:43 -0400 (EDT)
-Date: Fri, 1 Jun 2012 18:16:40 +0200
-From: Markus Trippelsdorf <markus@trippelsdorf.de>
-Subject: Re: WARNING: at mm/page-writeback.c:1990
- __set_page_dirty_nobuffers+0x13a/0x170()
-Message-ID: <20120601161640.GA329@x4>
-References: <20120530163317.GA13189@redhat.com>
- <20120531005739.GA4532@redhat.com>
- <20120601023107.GA19445@redhat.com>
- <alpine.LSU.2.00.1206010030050.8462@eggly.anvils>
+Received: from psmtp.com (na3sys010amx150.postini.com [74.125.245.150])
+	by kanga.kvack.org (Postfix) with SMTP id 34D7C6B004D
+	for <linux-mm@kvack.org>; Fri,  1 Jun 2012 12:29:18 -0400 (EDT)
+Received: by wgbdt14 with SMTP id dt14so1891191wgb.26
+        for <linux-mm@kvack.org>; Fri, 01 Jun 2012 09:29:16 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.LSU.2.00.1206010030050.8462@eggly.anvils>
+In-Reply-To: <20120601161640.GA329@x4>
+References: <20120530163317.GA13189@redhat.com> <20120531005739.GA4532@redhat.com>
+ <20120601023107.GA19445@redhat.com> <alpine.LSU.2.00.1206010030050.8462@eggly.anvils>
+ <20120601161640.GA329@x4>
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Date: Fri, 1 Jun 2012 09:28:56 -0700
+Message-ID: <CA+55aFyrX30_=V=fiOAt8rXOuj=YdbgrzehknSz9-6qNGKFp-Q@mail.gmail.com>
+Subject: Re: WARNING: at mm/page-writeback.c:1990 __set_page_dirty_nobuffers+0x13a/0x170()
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: Dave Jones <davej@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Cong Wang <amwang@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Markus Trippelsdorf <markus@trippelsdorf.de>
+Cc: Hugh Dickins <hughd@google.com>, Dave Jones <davej@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Cong Wang <amwang@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On 2012.06.01 at 01:44 -0700, Hugh Dickins wrote:
-> On Thu, 31 May 2012, Dave Jones wrote:
-> > On Wed, May 30, 2012 at 08:57:40PM -0400, Dave Jones wrote:
-> >  > On Wed, May 30, 2012 at 12:33:17PM -0400, Dave Jones wrote:
-> >  >  > Just saw this on Linus tree as of 731a7378b81c2f5fa88ca1ae20b83d548d5613dc
-> >  >  > 
-> >  >  > WARNING: at mm/page-writeback.c:1990 __set_page_dirty_nobuffers+0x13a/0x170()
+On Fri, Jun 1, 2012 at 9:16 AM, Markus Trippelsdorf
+<markus@trippelsdorf.de> wrote:
+>
+> I've also hit this warning today:
 
-I've also hit this warning today:
+Can you try the patch by Hugh Dickins earlier in this thread?
 
-------------[ cut here ]------------
-WARNING: at mm/page-writeback.c:1990 __set_page_dirty_nobuffers+0xea/0x120()
-Hardware name: System Product Name
-Pid: 4385, comm: firefox Not tainted 3.4.0-09547-gfb21aff-dirty #46
-Call Trace:
- [<ffffffff8105c6c0>] ? warn_slowpath_common+0x60/0xa0
- [<ffffffff810ba44a>] ? __set_page_dirty_nobuffers+0xea/0x120
- [<ffffffff810e4db0>] ? migrate_page_copy+0x150/0x160
- [<ffffffff810e4e2d>] ? migrate_page+0x4d/0x80
- [<ffffffff810e4edd>] ? move_to_new_page+0x7d/0x220
- [<ffffffff810c9e40>] ? suitable_migration_target.isra.12+0x1a0/0x1a0
- [<ffffffff810e55a8>] ? migrate_pages+0x3c8/0x460
- [<ffffffff810caa44>] ? compact_zone+0x1c4/0x2c0
- [<ffffffff810cad42>] ? compact_zone_order+0x82/0xc0
- [<ffffffff810cae4a>] ? try_to_compact_pages+0xca/0x140
- [<ffffffff81551f11>] ? __alloc_pages_direct_compact+0xa7/0x18f
- [<ffffffff810b8a30>] ? __alloc_pages_nodemask+0x3b0/0x7a0
- [<ffffffff810e884d>] ? do_huge_pmd_anonymous_page+0x10d/0x2a0
- [<ffffffff8105301b>] ? do_page_fault+0xfb/0x400
- [<ffffffff810d46bd>] ? mmap_region+0x1dd/0x540
- [<ffffffff81559f2f>] ? page_fault+0x1f/0x30
----[ end trace 7d7c821044142576 ]---
+Dave is reporting tentative success with it, even though I don't think
+we really understand this thing fully yet. Getting way more testing
+would still be good, though.
 
--- 
-Markus
+                  Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
