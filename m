@@ -1,16 +1,16 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from psmtp.com (na3sys010amx182.postini.com [74.125.245.182])
-	by kanga.kvack.org (Postfix) with SMTP id 400D06B009A
-	for <linux-mm@kvack.org>; Fri,  1 Jun 2012 16:31:07 -0400 (EDT)
-Received: by dakp5 with SMTP id p5so4183622dak.14
-        for <linux-mm@kvack.org>; Fri, 01 Jun 2012 13:31:07 -0700 (PDT)
-Message-ID: <4FC92685.9070604@gmail.com>
-Date: Fri, 01 Jun 2012 16:31:01 -0400
+	by kanga.kvack.org (Postfix) with SMTP id 115086B009B
+	for <linux-mm@kvack.org>; Fri,  1 Jun 2012 16:31:28 -0400 (EDT)
+Received: by mail-pz0-f41.google.com with SMTP id p5so4183622dak.14
+        for <linux-mm@kvack.org>; Fri, 01 Jun 2012 13:31:27 -0700 (PDT)
+Message-ID: <4FC9269B.1070709@gmail.com>
+Date: Fri, 01 Jun 2012 16:31:23 -0400
 From: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 1/3] proc: add /proc/kpageorder interface
-References: <201206011854.25795.b.zolnierkie@samsung.com>
-In-Reply-To: <201206011854.25795.b.zolnierkie@samsung.com>
+Subject: Re: [PATCH 2/3] proc: add /proc/kpagetype interface
+References: <201206011854.31625.b.zolnierkie@samsung.com>
+In-Reply-To: <201206011854.31625.b.zolnierkie@samsung.com>
 Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -20,11 +20,12 @@ Cc: linux-mm@kvack.org, Kyungmin Park <kyungmin.park@samsung.com>, Matt Mackall 
 
 (6/1/12 12:54 PM), Bartlomiej Zolnierkiewicz wrote:
 > From: Bartlomiej Zolnierkiewicz<b.zolnierkie@samsung.com>
-> Subject: [PATCH] proc: add /proc/kpageorder interface
+> Subject: [PATCH] proc: add /proc/kpagetype interface
 >
-> This makes page order information available to the user-space.
+> This makes page pageblock type information available to the user-space.
 
-No usecase new feature always should be NAKed.
+ditto.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
