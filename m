@@ -1,52 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx122.postini.com [74.125.245.122])
-	by kanga.kvack.org (Postfix) with SMTP id CF7026B004D
-	for <linux-mm@kvack.org>; Fri,  1 Jun 2012 10:00:57 -0400 (EDT)
-Date: Fri, 1 Jun 2012 09:00:54 -0500 (CDT)
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: Common 04/22] [slab] Use page struct fields instead of casting
-In-Reply-To: <alpine.DEB.2.00.1205311422440.2764@chino.kir.corp.google.com>
-Message-ID: <alpine.DEB.2.00.1206010856310.6302@router.home>
-References: <20120523203433.340661918@linux.com> <20120523203507.324764286@linux.com> <alpine.DEB.2.00.1205311422440.2764@chino.kir.corp.google.com>
+Received: from psmtp.com (na3sys010amx118.postini.com [74.125.245.118])
+	by kanga.kvack.org (Postfix) with SMTP id ADB436B005A
+	for <linux-mm@kvack.org>; Fri,  1 Jun 2012 10:09:48 -0400 (EDT)
+Date: Fri, 1 Jun 2012 10:09:43 -0400
+From: Dave Jones <davej@redhat.com>
+Subject: Re: WARNING: at mm/page-writeback.c:1990
+ __set_page_dirty_nobuffers+0x13a/0x170()
+Message-ID: <20120601140943.GB1732@redhat.com>
+References: <20120530163317.GA13189@redhat.com>
+ <20120531005739.GA4532@redhat.com>
+ <20120601023107.GA19445@redhat.com>
+ <alpine.LSU.2.00.1206010030050.8462@eggly.anvils>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.LSU.2.00.1206010030050.8462@eggly.anvils>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Pekka Enberg <penberg@kernel.org>, linux-mm@kvack.org, Matt Mackall <mpm@selenic.com>, Glauber Costa <glommer@parallels.com>, Joonsoo Kim <js1304@gmail.com>
+To: Hugh Dickins <hughd@google.com>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Cong Wang <amwang@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Thu, 31 May 2012, David Rientjes wrote:
+On Fri, Jun 01, 2012 at 01:44:44AM -0700, Hugh Dickins wrote:
 
-> On Wed, 23 May 2012, Christoph Lameter wrote:
->
-> > Add fields to the page struct so that it is properly documented that
-> > slab overlays the lru fields.
-> >
-> > This cleans up some casts in slab.
-> >
->
-> Sounds good, but...
->
-> > Index: linux-2.6/include/linux/mm_types.h
-> > ===================================================================
-> > --- linux-2.6.orig/include/linux/mm_types.h	2012-05-22 09:05:49.716464025 -0500
-> > +++ linux-2.6/include/linux/mm_types.h	2012-05-22 09:21:28.532444572 -0500
-> > @@ -90,6 +90,10 @@ struct page {
-> >  				atomic_t _count;		/* Usage count, see below. */
-> >  			};
-> >  		};
-> > +		struct {		/* SLAB */
-> > +			struct kmem_cache *slab_cache;
-> > +			struct slab *slab_page;
-> > +		};
-> >  	};
-> >
-> >  	/* Third double word block */
->
-> The lru fields are in the third double word block.
+ > > 3f31d07571eeea18a7d34db9af21d2285b807a17 is the first bad commit
+ > > commit 3f31d07571eeea18a7d34db9af21d2285b807a17
+ > > Author: Hugh Dickins <hughd@google.com>
+ > > Date:   Tue May 29 15:06:40 2012 -0700
+ > > 
+ > >     mm/fs: route MADV_REMOVE to FALLOC_FL_PUNCH_HOLE
+ > >     
+ > >     Now tmpfs supports hole-punching via fallocate(), switch madvise_remove()
+ > >     to use do_fallocate() instead of vmtruncate_range(): which extends
+ > >     madvise(,,MADV_REMOVE) support from tmpfs to ext4, ocfs2 and xfs.
+ > > 
+ > > Hugh ?
+ > 
+ > Ow, you've caught me.
 
-Right. This slipped somehow into an earlier double word block. Next
-patchset fixes that.
+As I said in another mail, it looks like the bisect was wrong somewhere,
+as with this backed out I still see problems.
+ 
+ > One half of the patch at the bottom should fix that: I'm not sure that
+ > it's the fix we actually want (a mapping_cap_account_dirty test might
+ > be more appropriate, but it's easier just to test a page flag here);
+ > but it should be good to shed more light on the problem.
+
+I'll give the patch a try anyway, as builds are quick on that box.
+
+ > So I'm wondering if your trinity fuzzer happens to succeed a lot more
+ > often on madvise MADV_REMOVEs than fallocate FALLOC_FL_PUNCH_HOLEs, and
+ > the bug you converged on is not in tmpfs, but in ext4 (or xfs? or ocfs2?),
+ > which began to support MADV_REMOVE with that commit.
+
+ext4 is a possibility.
+ 
+ > So the second half of the patch should show which filesystem's page is
+ > involved when you hit the WARN_ON - unless the first half of the patch
+ > turns out to stop the warnings completely, in which case I need to think
+ > harder about what was going on in tmpfs, and whether it matters.
+ > 
+ > Or another possibility is that the bad commit doesn't actually touch mm
+ > at all: you were doing a bisection just on mm/ changes, weren't you?
+
+oh, good point. It hadn't occured to me that this could be fs related.
+The mm-heavy stack-trace may have misled me.
+
+ > > Sometimes during the bisect these errors happened
+ > > in pairs, sometimes only together.
+ > 
+ > Sometimes in pairs, sometimes together?  I don't understand.
+
+beware late-night emails. I meant sometimes I saw both the list-debug's and the WARN,
+but other times I saw only one or the other.
+
+ > Please give this patch a try (preferably on current git), and let us know.
+ 
+Will do.
+
+	Dave
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
