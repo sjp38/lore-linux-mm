@@ -1,109 +1,202 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx106.postini.com [74.125.245.106])
-	by kanga.kvack.org (Postfix) with SMTP id 385916B006C
-	for <linux-mm@kvack.org>; Fri,  1 Jun 2012 15:53:04 -0400 (EDT)
-Message-Id: <20120601195302.428834288@linux.com>
-Date: Fri, 01 Jun 2012 14:52:50 -0500
+Received: from psmtp.com (na3sys010amx113.postini.com [74.125.245.113])
+	by kanga.kvack.org (Postfix) with SMTP id 7D5E46B0069
+	for <linux-mm@kvack.org>; Fri,  1 Jun 2012 15:53:05 -0400 (EDT)
+Message-Id: <20120601195303.550968150@linux.com>
+Date: Fri, 01 Jun 2012 14:52:52 -0500
 From: Christoph Lameter <cl@linux.com>
-Subject: Common [05/20] [slab] Remove some accessors
+Subject: Common [07/20] [slab] Get rid of obj_size macro
 References: <20120601195245.084749371@linux.com>
-Content-Disposition: inline; filename=slab_remove_accessors
+Content-Disposition: inline; filename=get_rid_of_obj_size
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Pekka Enberg <penberg@kernel.org>
 Cc: linux-mm@kvack.org, David Rientjes <rientjes@google.com>, Matt Mackall <mpm@selenic.com>, Glauber Costa <glommer@parallels.com>, Joonsoo Kim <js1304@gmail.com>
 
-Those are rather trivial now and its better to see inline what is
-really going on.
+The size of the slab object is frequently needed. Since we now
+have a size field directly in the kmem_cache structure there is no
+need anymore of the obj_size macro/function.
 
 Signed-off-by: Christoph Lameter <cl@linux.com>
 
 ---
- mm/slab.c |   35 ++++++++---------------------------
- 1 file changed, 8 insertions(+), 27 deletions(-)
+ mm/slab.c |   47 +++++++++++++++++++++--------------------------
+ 1 file changed, 21 insertions(+), 26 deletions(-)
 
 Index: linux-2.6/mm/slab.c
 ===================================================================
---- linux-2.6.orig/mm/slab.c	2012-05-22 09:21:28.528444571 -0500
-+++ linux-2.6/mm/slab.c	2012-05-22 09:27:35.664436970 -0500
-@@ -489,16 +489,6 @@ EXPORT_SYMBOL(slab_buffer_size);
- static int slab_max_order = SLAB_MAX_ORDER_LO;
- static bool slab_max_order_set __initdata;
+--- linux-2.6.orig/mm/slab.c	2012-06-01 07:33:29.606676062 -0500
++++ linux-2.6/mm/slab.c	2012-06-01 07:42:48.146664594 -0500
+@@ -433,11 +433,6 @@ static int obj_offset(struct kmem_cache
+ 	return cachep->obj_offset;
+ }
  
--/*
-- * Functions for storing/retrieving the cachep and or slab from the page
-- * allocator.  These are used to find the slab an obj belongs to.  With kfree(),
-- * these are used to find the cache which an obj belongs to.
-- */
--static inline void page_set_cache(struct page *page, struct kmem_cache *cache)
+-static int obj_size(struct kmem_cache *cachep)
 -{
--	page->slab_cache = cache;
+-	return cachep->object_size;
 -}
 -
- static inline struct kmem_cache *page_get_cache(struct page *page)
+ static unsigned long long *dbg_redzone1(struct kmem_cache *cachep, void *objp)
  {
- 	page = compound_head(page);
-@@ -506,27 +496,18 @@ static inline struct kmem_cache *page_ge
- 	return page->slab_cache;
- }
+ 	BUG_ON(!(cachep->flags & SLAB_RED_ZONE));
+@@ -465,7 +460,6 @@ static void **dbg_userword(struct kmem_c
+ #else
  
--static inline void page_set_slab(struct page *page, struct slab *slab)
--{
--	page->slab_page = slab;
--}
--
--static inline struct slab *page_get_slab(struct page *page)
--{
--	BUG_ON(!PageSlab(page));
--	return page->slab_page;
--}
--
- static inline struct kmem_cache *virt_to_cache(const void *obj)
+ #define obj_offset(x)			0
+-#define obj_size(cachep)		(cachep->size)
+ #define dbg_redzone1(cachep, objp)	({BUG(); (unsigned long long *)NULL;})
+ #define dbg_redzone2(cachep, objp)	({BUG(); (unsigned long long *)NULL;})
+ #define dbg_userword(cachep, objp)	({BUG(); (void **)NULL;})
+@@ -1853,7 +1847,7 @@ static void kmem_rcu_free(struct rcu_hea
+ static void store_stackinfo(struct kmem_cache *cachep, unsigned long *addr,
+ 			    unsigned long caller)
  {
- 	struct page *page = virt_to_head_page(obj);
--	return page_get_cache(page);
-+	return page->slab_cache;
- }
+-	int size = obj_size(cachep);
++	int size = cachep->object_size;
  
- static inline struct slab *virt_to_slab(const void *obj)
+ 	addr = (unsigned long *)&((char *)addr)[obj_offset(cachep)];
+ 
+@@ -1885,7 +1879,7 @@ static void store_stackinfo(struct kmem_
+ 
+ static void poison_obj(struct kmem_cache *cachep, void *addr, unsigned char val)
  {
- 	struct page *page = virt_to_head_page(obj);
--	return page_get_slab(page);
-+
-+	VM_BUG_ON(!PageSlab(page));
-+	return page->slab_page;
- }
+-	int size = obj_size(cachep);
++	int size = cachep->object_size;
+ 	addr = &((char *)addr)[obj_offset(cachep)];
  
- static inline void *index_to_obj(struct kmem_cache *cache, struct slab *slab,
-@@ -2918,8 +2899,8 @@ static void slab_map_pages(struct kmem_c
- 		nr_pages <<= cache->gfporder;
- 
- 	do {
--		page_set_cache(page, cache);
--		page_set_slab(page, slab);
-+		page->slab_cache = cache;
-+		page->slab_page = slab;
- 		page++;
- 	} while (--nr_pages);
- }
-@@ -3057,7 +3038,7 @@ static void *cache_free_debugcheck(struc
- 	kfree_debugcheck(objp);
- 	page = virt_to_head_page(objp);
- 
--	slabp = page_get_slab(page);
-+	slabp = page->slab_page;
- 
- 	if (cachep->flags & SLAB_RED_ZONE) {
- 		verify_redzone_free(cachep, objp);
-@@ -3261,7 +3242,7 @@ static void *cache_alloc_debugcheck_afte
- 		struct slab *slabp;
- 		unsigned objnr;
- 
--		slabp = page_get_slab(virt_to_head_page(objp));
-+		slabp = virt_to_head_page(objp)->slab_page;
- 		objnr = (unsigned)(objp - slabp->s_mem) / cachep->buffer_size;
- 		slab_bufctl(slabp)[objnr] = BUFCTL_ACTIVE;
+ 	memset(addr, val, size);
+@@ -1945,7 +1939,7 @@ static void print_objinfo(struct kmem_ca
+ 		printk("\n");
  	}
+ 	realobj = (char *)objp + obj_offset(cachep);
+-	size = obj_size(cachep);
++	size = cachep->object_size;
+ 	for (i = 0; i < size && lines; i += 16, lines--) {
+ 		int limit;
+ 		limit = 16;
+@@ -1962,7 +1956,7 @@ static void check_poison_obj(struct kmem
+ 	int lines = 0;
+ 
+ 	realobj = (char *)objp + obj_offset(cachep);
+-	size = obj_size(cachep);
++	size = cachep->object_size;
+ 
+ 	for (i = 0; i < size; i++) {
+ 		char exp = POISON_FREE;
+@@ -3265,7 +3259,7 @@ static bool slab_should_failslab(struct
+ 	if (cachep == &cache_cache)
+ 		return false;
+ 
+-	return should_failslab(obj_size(cachep), flags, cachep->flags);
++	return should_failslab(cachep->object_size, flags, cachep->flags);
+ }
+ 
+ static inline void *____cache_alloc(struct kmem_cache *cachep, gfp_t flags)
+@@ -3525,14 +3519,14 @@ __cache_alloc_node(struct kmem_cache *ca
+   out:
+ 	local_irq_restore(save_flags);
+ 	ptr = cache_alloc_debugcheck_after(cachep, flags, ptr, caller);
+-	kmemleak_alloc_recursive(ptr, obj_size(cachep), 1, cachep->flags,
++	kmemleak_alloc_recursive(ptr, cachep->object_size, 1, cachep->flags,
+ 				 flags);
+ 
+ 	if (likely(ptr))
+-		kmemcheck_slab_alloc(cachep, flags, ptr, obj_size(cachep));
++		kmemcheck_slab_alloc(cachep, flags, ptr, cachep->object_size);
+ 
+ 	if (unlikely((flags & __GFP_ZERO) && ptr))
+-		memset(ptr, 0, obj_size(cachep));
++		memset(ptr, 0, cachep->object_size);
+ 
+ 	return ptr;
+ }
+@@ -3587,15 +3581,15 @@ __cache_alloc(struct kmem_cache *cachep,
+ 	objp = __do_cache_alloc(cachep, flags);
+ 	local_irq_restore(save_flags);
+ 	objp = cache_alloc_debugcheck_after(cachep, flags, objp, caller);
+-	kmemleak_alloc_recursive(objp, obj_size(cachep), 1, cachep->flags,
++	kmemleak_alloc_recursive(objp, cachep->object_size, 1, cachep->flags,
+ 				 flags);
+ 	prefetchw(objp);
+ 
+ 	if (likely(objp))
+-		kmemcheck_slab_alloc(cachep, flags, objp, obj_size(cachep));
++		kmemcheck_slab_alloc(cachep, flags, objp, cachep->object_size);
+ 
+ 	if (unlikely((flags & __GFP_ZERO) && objp))
+-		memset(objp, 0, obj_size(cachep));
++		memset(objp, 0, cachep->object_size);
+ 
+ 	return objp;
+ }
+@@ -3711,7 +3705,7 @@ static inline void __cache_free(struct k
+ 	kmemleak_free_recursive(objp, cachep->flags);
+ 	objp = cache_free_debugcheck(cachep, objp, caller);
+ 
+-	kmemcheck_slab_free(cachep, objp, obj_size(cachep));
++	kmemcheck_slab_free(cachep, objp, cachep->object_size);
+ 
+ 	/*
+ 	 * Skip calling cache_free_alien() when the platform is not numa.
+@@ -3746,7 +3740,7 @@ void *kmem_cache_alloc(struct kmem_cache
+ 	void *ret = __cache_alloc(cachep, flags, __builtin_return_address(0));
+ 
+ 	trace_kmem_cache_alloc(_RET_IP_, ret,
+-			       obj_size(cachep), cachep->size, flags);
++			       cachep->object_size, cachep->size, flags);
+ 
+ 	return ret;
+ }
+@@ -3774,7 +3768,7 @@ void *kmem_cache_alloc_node(struct kmem_
+ 				       __builtin_return_address(0));
+ 
+ 	trace_kmem_cache_alloc_node(_RET_IP_, ret,
+-				    obj_size(cachep), cachep->size,
++				    cachep->object_size, cachep->size,
+ 				    flags, nodeid);
+ 
+ 	return ret;
+@@ -3896,9 +3890,9 @@ void kmem_cache_free(struct kmem_cache *
+ 	unsigned long flags;
+ 
+ 	local_irq_save(flags);
+-	debug_check_no_locks_freed(objp, obj_size(cachep));
++	debug_check_no_locks_freed(objp, cachep->size);
+ 	if (!(cachep->flags & SLAB_DEBUG_OBJECTS))
+-		debug_check_no_obj_freed(objp, obj_size(cachep));
++		debug_check_no_obj_freed(objp, cachep->object_size);
+ 	__cache_free(cachep, objp, __builtin_return_address(0));
+ 	local_irq_restore(flags);
+ 
+@@ -3927,8 +3921,9 @@ void kfree(const void *objp)
+ 	local_irq_save(flags);
+ 	kfree_debugcheck(objp);
+ 	c = virt_to_cache(objp);
+-	debug_check_no_locks_freed(objp, obj_size(c));
+-	debug_check_no_obj_freed(objp, obj_size(c));
++	debug_check_no_locks_freed(objp, c->object_size);
++
++	debug_check_no_obj_freed(objp, c->object_size);
+ 	__cache_free(c, (void *)objp, __builtin_return_address(0));
+ 	local_irq_restore(flags);
+ }
+@@ -3936,7 +3931,7 @@ EXPORT_SYMBOL(kfree);
+ 
+ unsigned int kmem_cache_size(struct kmem_cache *cachep)
+ {
+-	return obj_size(cachep);
++	return cachep->object_size;
+ }
+ EXPORT_SYMBOL(kmem_cache_size);
+ 
+@@ -4657,6 +4652,6 @@ size_t ksize(const void *objp)
+ 	if (unlikely(objp == ZERO_SIZE_PTR))
+ 		return 0;
+ 
+-	return obj_size(virt_to_cache(objp));
++	return virt_to_cache(objp)->object_size;
+ }
+ EXPORT_SYMBOL(ksize);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
