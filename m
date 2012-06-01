@@ -1,37 +1,108 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx134.postini.com [74.125.245.134])
-	by kanga.kvack.org (Postfix) with SMTP id E0D156B004D
-	for <linux-mm@kvack.org>; Thu, 31 May 2012 22:43:47 -0400 (EDT)
-Received: by wefh52 with SMTP id h52so1399293wef.14
-        for <linux-mm@kvack.org>; Thu, 31 May 2012 19:43:46 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx106.postini.com [74.125.245.106])
+	by kanga.kvack.org (Postfix) with SMTP id 1FFE36B004D
+	for <linux-mm@kvack.org>; Thu, 31 May 2012 23:10:18 -0400 (EDT)
+Date: Fri, 1 Jun 2012 11:10:15 +0800
+From: Fengguang Wu <fengguang.wu@intel.com>
+Subject: Re: [PATCH 2/2] block: Convert BDI proportion calculations to
+ flexible proportions
+Message-ID: <20120601031015.GB7896@localhost>
+References: <1337878751-22942-1-git-send-email-jack@suse.cz>
+ <1337878751-22942-3-git-send-email-jack@suse.cz>
+ <1338220185.4284.19.camel@lappy>
+ <20120529123408.GA23991@quack.suse.cz>
+ <1338295111.26856.57.camel@twins>
+ <20120529125452.GB23991@quack.suse.cz>
+ <20120531221146.GA19050@quack.suse.cz>
+ <1338503165.28384.134.camel@twins>
+ <20120531224206.GC19050@quack.suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <20120601023107.GA19445@redhat.com>
-References: <20120530163317.GA13189@redhat.com> <20120531005739.GA4532@redhat.com>
- <20120601023107.GA19445@redhat.com>
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Date: Thu, 31 May 2012 19:43:25 -0700
-Message-ID: <CA+55aFyNSUbTfY4YdH4OcrrRnwkw-sHy3aT18ynf-YXRXSJQ8Q@mail.gmail.com>
-Subject: Re: WARNING: at mm/page-writeback.c:1990 __set_page_dirty_nobuffers+0x13a/0x170()
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: text/plain; charset=gb2312
+Content-Disposition: inline
+In-Reply-To: <20120531224206.GC19050@quack.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Jones <davej@redhat.com>, Linux Kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Cong Wang <amwang@redhat.com>
+To: Jan Kara <jack@suse.cz>
+Cc: Peter Zijlstra <peterz@infradead.org>, Sasha Levin <levinsasha928@gmail.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-On Thu, May 31, 2012 at 7:31 PM, Dave Jones <davej@redhat.com> wrote:
->
-> So I bisected it anyway, and it led to ...
+On Fri, Jun 01, 2012 at 12:42:06AM +0200, Jan Kara wrote:
+> On Fri 01-06-12 00:26:05, Peter Zijlstra wrote:
+> > On Fri, 2012-06-01 at 00:11 +0200, Jan Kara wrote:
+> > >  bool fprop_new_period(struct fprop_global *p, int periods)
+> > >  {
+> > > -       u64 events = percpu_counter_sum(&p->events);
+> > > +       u64 events;
+> > > +       unsigned long flags;
+> > >  
+> > > +       local_irq_save(flags);
+> > > +       events = percpu_counter_sum(&p->events);
+> > > +       local_irq_restore(flags);
+> > >         /*
+> > >          * Don't do anything if there are no events.
+> > >          */
+> > > @@ -73,7 +77,9 @@ bool fprop_new_period(struct fprop_global *p, int periods)
+> > >         if (periods < 64)
+> > >                 events -= events >> periods;
+> > >         /* Use addition to avoid losing events happening between sum and set */
+> > > +       local_irq_save(flags);
+> > >         percpu_counter_add(&p->events, -events);
+> > > +       local_irq_restore(flags);
+> > >         p->period += periods;
+> > >         write_seqcount_end(&p->sequence); 
+> > 
+> > Uhm, why bother enabling it in between? Just wrap the whole function in
+> > a single IRQ disable.
+>   I wanted to have interrupts disabled for as short as possible but if you
+> think it doesn't matter, I'll take your advice. The result is attached.
 
-Ok, that doesn't sound entirely unlikely, but considering that you're
-nervous about the bisection, please just try to revert it and see if
-that fixes your testcase.
+Thank you! I applied this incremental fix next to the commit
+"lib: Proportions with flexible period".
 
-You'll obviously need to revert the commit that removes
-vmtruncate_range() too, since reverting 3f31d07571ee will re-introduce
-the use of it (it's the next one:
-17cf28afea2a1112f240a3a2da8af883be024811), but it looks like those two
-commits revert cleanly and the end result seems to compile ok.
+Thanks,
+Fengguang
 
-               Linus
+> From: Jan Kara <jack@suse.cz>
+> Subject: lib: Fix possible deadlock in flexible proportion code
+> 
+> When percpu counter function in fprop_new_period() is interrupted by an
+> interrupt while holding counter lock, it can cause deadlock when the
+> interrupt wants to take the lock as well. Fix the problem by disabling
+> interrupts when calling percpu counter functions.
+> 
+> Signed-off-by: Jan Kara <jack@suse.cz>
+> 
+> diff -u b/lib/flex_proportions.c b/lib/flex_proportions.c
+> --- b/lib/flex_proportions.c
+> +++ b/lib/flex_proportions.c
+> @@ -62,13 +62,18 @@
+>   */
+>  bool fprop_new_period(struct fprop_global *p, int periods)
+>  {
+> -	u64 events = percpu_counter_sum(&p->events);
+> +	u64 events;
+> +	unsigned long flags;
+>  
+> +	local_irq_save(flags);
+> +	events = percpu_counter_sum(&p->events);
+>  	/*
+>  	 * Don't do anything if there are no events.
+>  	 */
+> -	if (events <= 1)
+> +	if (events <= 1) {
+> +		local_irq_restore(flags);
+>  		return false;
+> +	}
+>  	write_seqcount_begin(&p->sequence);
+>  	if (periods < 64)
+>  		events -= events >> periods;
+> @@ -76,6 +81,7 @@
+>  	percpu_counter_add(&p->events, -events);
+>  	p->period += periods;
+>  	write_seqcount_end(&p->sequence);
+> +	local_irq_restore(flags);
+>  
+>  	return true;
+>  }
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
