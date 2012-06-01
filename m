@@ -1,44 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx153.postini.com [74.125.245.153])
-	by kanga.kvack.org (Postfix) with SMTP id 1304B6B004D
-	for <linux-mm@kvack.org>; Fri,  1 Jun 2012 09:51:26 -0400 (EDT)
-Date: Fri, 1 Jun 2012 08:51:21 -0500 (CDT)
+Received: from psmtp.com (na3sys010amx122.postini.com [74.125.245.122])
+	by kanga.kvack.org (Postfix) with SMTP id CF7026B004D
+	for <linux-mm@kvack.org>; Fri,  1 Jun 2012 10:00:57 -0400 (EDT)
+Date: Fri, 1 Jun 2012 09:00:54 -0500 (CDT)
 From: Christoph Lameter <cl@linux.com>
-Subject: Re: [PATCH 0/6] mempolicy memory corruption fixlet
-In-Reply-To: <alpine.DEB.2.02.1205311744280.17976@asgard.lang.hm>
-Message-ID: <alpine.DEB.2.00.1206010850430.6302@router.home>
-References: <1338368529-21784-1-git-send-email-kosaki.motohiro@gmail.com> <CA+55aFzoVQ29C-AZYx=G62LErK+7HuTCpZhvovoyS0_KTGGZQg@mail.gmail.com> <alpine.DEB.2.00.1205301328550.31768@router.home> <20120530184638.GU27374@one.firstfloor.org>
- <alpine.DEB.2.00.1205301349230.31768@router.home> <20120530193234.GV27374@one.firstfloor.org> <alpine.DEB.2.00.1205301441350.31768@router.home> <CAHGf_=ooVunBpSdBRCnO1uOoswqxcSy7Xf8xVcgEUGA2fXdcTA@mail.gmail.com> <20120530201042.GY27374@one.firstfloor.org>
- <CAHGf_=r_ZMKNx+VriO6822otF=U_huj7uxoc5GM-2DEVryKxNQ@mail.gmail.com> <alpine.DEB.2.02.1205311744280.17976@asgard.lang.hm>
+Subject: Re: Common 04/22] [slab] Use page struct fields instead of casting
+In-Reply-To: <alpine.DEB.2.00.1205311422440.2764@chino.kir.corp.google.com>
+Message-ID: <alpine.DEB.2.00.1206010856310.6302@router.home>
+References: <20120523203433.340661918@linux.com> <20120523203507.324764286@linux.com> <alpine.DEB.2.00.1205311422440.2764@chino.kir.corp.google.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: david@lang.hm
-Cc: KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Andi Kleen <andi@firstfloor.org>, Linus Torvalds <torvalds@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@google.com>, Dave Jones <davej@redhat.com>, Mel Gorman <mgorman@suse.de>, stable@vger.kernel.org, hughd@google.com, sivanich@sgi.com
+To: David Rientjes <rientjes@google.com>
+Cc: Pekka Enberg <penberg@kernel.org>, linux-mm@kvack.org, Matt Mackall <mpm@selenic.com>, Glauber Costa <glommer@parallels.com>, Joonsoo Kim <js1304@gmail.com>
 
-On Thu, 31 May 2012, david@lang.hm wrote:
+On Thu, 31 May 2012, David Rientjes wrote:
 
-> On Wed, 30 May 2012, KOSAKI Motohiro wrote:
+> On Wed, 23 May 2012, Christoph Lameter wrote:
 >
-> > On Wed, May 30, 2012 at 4:10 PM, Andi Kleen <andi@firstfloor.org> wrote:
-> > > > Yes, that's right direction, I think. Currently, shmem_set_policy()
-> > > > can't handle
-> > > > nonlinear mapping.
-> > >
-> > > I've been mulling for some time to just remove non linear mappings.
-> > > AFAIK they were only useful on 32bit and are obsolete and could be
-> > > emulated with VMAs instead.
+> > Add fields to the page struct so that it is properly documented that
+> > slab overlays the lru fields.
 > >
-> > I agree. It is only userful on 32bit and current enterprise users don't use
-> > 32bit anymore. So, I don't think emulated by vmas cause user visible issue.
+> > This cleans up some casts in slab.
+> >
 >
-> I wish this was true, there are a lot of systems out there still running 32
-> bit linux, even on 64 bit capible hardware. This is especially true in
-> enterprises where they have either homegrown or proprietary software that
-> isn't 64 bit clean.
+> Sounds good, but...
+>
+> > Index: linux-2.6/include/linux/mm_types.h
+> > ===================================================================
+> > --- linux-2.6.orig/include/linux/mm_types.h	2012-05-22 09:05:49.716464025 -0500
+> > +++ linux-2.6/include/linux/mm_types.h	2012-05-22 09:21:28.532444572 -0500
+> > @@ -90,6 +90,10 @@ struct page {
+> >  				atomic_t _count;		/* Usage count, see below. */
+> >  			};
+> >  		};
+> > +		struct {		/* SLAB */
+> > +			struct kmem_cache *slab_cache;
+> > +			struct slab *slab_page;
+> > +		};
+> >  	};
+> >
+> >  	/* Third double word block */
+>
+> The lru fields are in the third double word block.
 
-32 bit binaries (and entire distros) run fine under 64 bit kernels.
+Right. This slipped somehow into an earlier double word block. Next
+patchset fixes that.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
