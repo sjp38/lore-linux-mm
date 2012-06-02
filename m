@@ -1,53 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx152.postini.com [74.125.245.152])
-	by kanga.kvack.org (Postfix) with SMTP id DB44F6B004D
-	for <linux-mm@kvack.org>; Sat,  2 Jun 2012 00:59:17 -0400 (EDT)
-Received: by wefh52 with SMTP id h52so2365370wef.14
-        for <linux-mm@kvack.org>; Fri, 01 Jun 2012 21:59:16 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <alpine.LSU.2.00.1206012108430.11308@eggly.anvils>
-References: <20120530163317.GA13189@redhat.com> <20120531005739.GA4532@redhat.com>
- <20120601023107.GA19445@redhat.com> <alpine.LSU.2.00.1206010030050.8462@eggly.anvils>
- <20120601161205.GA1918@redhat.com> <20120601171606.GA3794@redhat.com>
- <alpine.LSU.2.00.1206011511560.12839@eggly.anvils> <CA+55aFy2-X92EqpiuyvkBp_2-UaYDUpaC2c3XT3gXMN1O+T7sw@mail.gmail.com>
+Received: from psmtp.com (na3sys010amx177.postini.com [74.125.245.177])
+	by kanga.kvack.org (Postfix) with SMTP id 1EED46B004D
+	for <linux-mm@kvack.org>; Sat,  2 Jun 2012 03:17:34 -0400 (EDT)
+Date: Sat, 2 Jun 2012 09:17:30 +0200
+From: Markus Trippelsdorf <markus@trippelsdorf.de>
+Subject: Re: WARNING: at mm/page-writeback.c:1990
+ __set_page_dirty_nobuffers+0x13a/0x170()
+Message-ID: <20120602071730.GB329@x4>
+References: <20120530163317.GA13189@redhat.com>
+ <20120531005739.GA4532@redhat.com>
+ <20120601023107.GA19445@redhat.com>
+ <alpine.LSU.2.00.1206010030050.8462@eggly.anvils>
+ <20120601161205.GA1918@redhat.com>
+ <20120601171606.GA3794@redhat.com>
+ <alpine.LSU.2.00.1206011511560.12839@eggly.anvils>
+ <CA+55aFy2-X92EqpiuyvkBp_2-UaYDUpaC2c3XT3gXMN1O+T7sw@mail.gmail.com>
  <alpine.LSU.2.00.1206012108430.11308@eggly.anvils>
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Date: Fri, 1 Jun 2012 21:58:50 -0700
-Message-ID: <CA+55aFytGfGm2mmF-9BwjqiDCtNpz40AkQrmGOqduss2YAiEvQ@mail.gmail.com>
-Subject: Re: WARNING: at mm/page-writeback.c:1990 __set_page_dirty_nobuffers+0x13a/0x170()
-Content-Type: text/plain; charset=ISO-8859-1
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.LSU.2.00.1206012108430.11308@eggly.anvils>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Hugh Dickins <hughd@google.com>
-Cc: Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, Kyungmin Park <kyungmin.park@samsung.com>, Marek Szyprowski <m.szyprowski@samsung.com>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@redhat.com>, Dave Jones <davej@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Cong Wang <amwang@redhat.com>, Markus Trippelsdorf <markus@trippelsdorf.de>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, Kyungmin Park <kyungmin.park@samsung.com>, Marek Szyprowski <m.szyprowski@samsung.com>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@redhat.com>, Dave Jones <davej@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Cong Wang <amwang@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Fri, Jun 1, 2012 at 9:40 PM, Hugh Dickins <hughd@google.com> wrote:
->
-> Move the lock after the loop, I think you meant.
+On 2012.06.01 at 21:40 -0700, Hugh Dickins wrote:
+> 
+> I'm guessing that the few people who see the warning are those running
+> new systemd distros, and that systemd is indeed now making use of the
+> fallocate support we added into tmpfs for it.)
 
-Well, I wasn't sure if anything inside the loop might need it. I don't
-*think* so, but at the same time, what protects "page_order(page)"
-(or, indeed PageBuddy()) from being stable while that loop content
-uses them?
+At least in my case it's nothing that horrible. I'm just setting
+browser.cache.disk.parent_directory to /dev/shm in Firefox. And Firefox
+does indeed use fallocate on its "disk cache" items.
 
-I don't understand that code at all. It does that crazy iteration over
-page, and changes "page" in random ways, and then finishes up with a
-totally new "page" value that is some random thing that is *after* the
-end_page thing. WHAT?
-
-The code makes no sense. It tests all those pages within the
-page-block, but then after it has done all those tests, it does the
-final
-
-  set_pageblock_migratetype(..)
-  move_freepages_block(..)
-
-using a page that is *beyond* the pageblock (and with the whole
-page_order() thing, who knows just how far beyond it?)
-
-It looks entirely too much like random-monkey code to me.
-
-            Linus
+-- 
+Markus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
