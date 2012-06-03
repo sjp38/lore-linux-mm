@@ -1,66 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx161.postini.com [74.125.245.161])
-	by kanga.kvack.org (Postfix) with SMTP id EDE486B005C
-	for <linux-mm@kvack.org>; Sun,  3 Jun 2012 18:18:04 -0400 (EDT)
-Received: by pbbrp2 with SMTP id rp2so6654209pbb.14
-        for <linux-mm@kvack.org>; Sun, 03 Jun 2012 15:18:04 -0700 (PDT)
-Date: Sun, 3 Jun 2012 15:17:36 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx123.postini.com [74.125.245.123])
+	by kanga.kvack.org (Postfix) with SMTP id ACA8F6B005C
+	for <linux-mm@kvack.org>; Sun,  3 Jun 2012 18:30:14 -0400 (EDT)
+Received: by pbbrp2 with SMTP id rp2so6662068pbb.14
+        for <linux-mm@kvack.org>; Sun, 03 Jun 2012 15:30:14 -0700 (PDT)
+Date: Sun, 3 Jun 2012 15:29:46 -0700 (PDT)
 From: Hugh Dickins <hughd@google.com>
 Subject: Re: WARNING: at mm/page-writeback.c:1990
  __set_page_dirty_nobuffers+0x13a/0x170()
-In-Reply-To: <20120603205332.GA5412@redhat.com>
-Message-ID: <alpine.LSU.2.00.1206031459450.15427@eggly.anvils>
+In-Reply-To: <CA+55aFzjuPTBNGkMohmy+AzvvB9S_aEUOpG2nD-WjS9YGdQV0w@mail.gmail.com>
+Message-ID: <alpine.LSU.2.00.1206031521020.15445@eggly.anvils>
 References: <20120601023107.GA19445@redhat.com> <alpine.LSU.2.00.1206010030050.8462@eggly.anvils> <20120601161205.GA1918@redhat.com> <20120601171606.GA3794@redhat.com> <alpine.LSU.2.00.1206011511560.12839@eggly.anvils> <CA+55aFy2-X92EqpiuyvkBp_2-UaYDUpaC2c3XT3gXMN1O+T7sw@mail.gmail.com>
  <alpine.LSU.2.00.1206012108430.11308@eggly.anvils> <20120603181548.GA306@redhat.com> <CA+55aFwZ5PsBLqM7K8vDQdbS3sf+vi3yeoWx6XKV=nF8k2r7DQ@mail.gmail.com> <20120603183139.GA1061@redhat.com> <20120603205332.GA5412@redhat.com>
+ <CA+55aFzjuPTBNGkMohmy+AzvvB9S_aEUOpG2nD-WjS9YGdQV0w@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Jones <davej@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, Kyungmin Park <kyungmin.park@samsung.com>, Marek Szyprowski <m.szyprowski@samsung.com>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Cong Wang <amwang@redhat.com>, Markus Trippelsdorf <markus@trippelsdorf.de>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Dave Jones <davej@redhat.com>, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, Kyungmin Park <kyungmin.park@samsung.com>, Marek Szyprowski <m.szyprowski@samsung.com>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Cong Wang <amwang@redhat.com>, Markus Trippelsdorf <markus@trippelsdorf.de>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Sun, 3 Jun 2012, Dave Jones wrote:
-> On Sun, Jun 03, 2012 at 02:31:39PM -0400, Dave Jones wrote:
->  > On Sun, Jun 03, 2012 at 11:23:29AM -0700, Linus Torvalds wrote:
->  >  > On Sun, Jun 3, 2012 at 11:15 AM, Dave Jones <davej@redhat.com> wrote:
->  >  > >
->  >  > > Things aren't happy with that patch at all.
->  >  > 
->  >  > Yeah, at this point I think we need to just revert the compaction changes.
->  >  > 
->  >  > Guys, what's the minimal set of commits to revert? That clearly buggy
->  >  > "rescue_unmovable_pageblock()" function was introduced by commit
->  >  > 5ceb9ce6fe94, but is that actually involved with the particular bug?
->  >  > That commit seems to revert cleanly still, but is that sufficient or
->  >  > does it even matter?
->  > 
->  > I'l rerun the test with that (and Hugh's last patch) backed out, and see
->  > if that makes any difference.
+On Sun, 3 Jun 2012, Linus Torvalds wrote:
+> On Sun, Jun 3, 2012 at 1:53 PM, Dave Jones <davej@redhat.com> wrote:
+> >
+> > running just over two hours with that commit reverted with no obvious ill effects so far.
 > 
-> running just over two hours with that commit reverted with no obvious ill effects so far.
+> And how quickly have you usually seen the problems? Would you have
+> considered two ours "good" in your bisection thing?
+> 
+> Also, just to check: Hugh sent out a patch called "mm: fix warning in
+> __set_page_dirty_nobuffers". Is that applied in your tree too, or did
+> the __set_page_dirty_nobuffers() warning go away with just the revert?
 
-Yes, and I ran happily with precisely that commit reverted on Friday -
-though I've never got the list corruption that you saw with it in.  
+That patch is good for fixing the __set_page_dirty_nobuffers() warning,
+but it has no relevance to the list corruption Dave was also reporting,
+nor vice versa.  The common factor there is just Dave.
 
-The locking bug certainly comes in with that commit, it's an isolated
-commit that reverts cleanly, and I think you got the list corruption
-rather sooner than two hours before (9min, 30min, 41min from the traces
-you sent).
+And no disaster that the warning fix missed -rc1: it's only a WARN_ON_ONCE,
+and nothing was wrong beyond the warning itself, just noise.
 
-Maybe we should let you run a little longer, or wait for others to comment.
-
-But another strike against that commit: I tried fixing it up to use
-start_page instead of page at the end, with the worrying but safer
-locking I suggested at first, with a count of how many times it went
-there, and how many times it succeeded.
-
-While I ran my usual swapping test (perhaps that's a very unfair test
-to run on this, I've no idea) for seven hours, it went there 25406
-times (once per second, it appears) and it succeeded... 0 times.
-
-Let's hope it failed quickly each time, I wasn't capturing that.
+It's true that Dave's original bisection raised the doubt whether
+that warning is coming from somewhere else too; but best guess at this
+point is that something got mixed up, and we should only worry about
+that if we see the warning again once the known fix is in.
 
 Hugh
+
+> 
+> I'm just trying to figure out exactly what you are testing. When you
+> said "test with that (and Hugh's last patch) backed out", the "and
+> Hugh's last patch" part was a bit ambiguous. Do you mean the trial
+> patch in this thread (backed out) or do you mean "*with* Hugh's patch
+> for the __set_page_dirty_nobuffers() warning".
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
