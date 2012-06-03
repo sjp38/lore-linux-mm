@@ -1,38 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx154.postini.com [74.125.245.154])
-	by kanga.kvack.org (Postfix) with SMTP id DFD1A6B004D
-	for <linux-mm@kvack.org>; Sun,  3 Jun 2012 14:23:51 -0400 (EDT)
-Received: by wibhj6 with SMTP id hj6so1817770wib.8
-        for <linux-mm@kvack.org>; Sun, 03 Jun 2012 11:23:50 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx145.postini.com [74.125.245.145])
+	by kanga.kvack.org (Postfix) with SMTP id 31D976B004D
+	for <linux-mm@kvack.org>; Sun,  3 Jun 2012 14:27:04 -0400 (EDT)
+Received: by lbjn8 with SMTP id n8so3567909lbj.14
+        for <linux-mm@kvack.org>; Sun, 03 Jun 2012 11:27:02 -0700 (PDT)
+Date: Sun, 3 Jun 2012 21:26:50 +0300 (EEST)
+From: Pekka Enberg <penberg@kernel.org>
+Subject: Re: [PATCH 0/5] Some vmevent fixes...
+In-Reply-To: <20120601122118.GA6128@lizard>
+Message-ID: <alpine.LFD.2.02.1206032125320.1943@tux.localdomain>
+References: <20120504073810.GA25175@lizard> <CAOJsxLH_7mMMe+2DvUxBW1i5nbUfkbfRE3iEhLQV9F_MM7=eiw@mail.gmail.com> <CAHGf_=qcGfuG1g15SdE0SDxiuhCyVN025pQB+sQNuNba4Q4jcA@mail.gmail.com> <20120507121527.GA19526@lizard> <4FA82056.2070706@gmail.com>
+ <CAOJsxLHQcDZSHJZg+zbptqmT9YY0VTkPd+gG_zgMzs+HaV_cyA@mail.gmail.com> <CAHGf_=q1nbu=3cnfJ4qXwmngMPB-539kg-DFN2FJGig8+dRaNw@mail.gmail.com> <CAOJsxLFAavdDbiLnYRwe+QiuEHSD62+Sz6LJTk+c3J9gnLVQ_w@mail.gmail.com> <CAHGf_=pSLfAue6AR5gi5RQ7xvgTxpZckA=Ja1fO1AkoO1o_DeA@mail.gmail.com>
+ <CAOJsxLG1+zhOKgi2Rg1eSoXSCU8QGvHVED_EefOOLP-6JbMDkg@mail.gmail.com> <20120601122118.GA6128@lizard>
 MIME-Version: 1.0
-In-Reply-To: <20120603181548.GA306@redhat.com>
-References: <20120530163317.GA13189@redhat.com> <20120531005739.GA4532@redhat.com>
- <20120601023107.GA19445@redhat.com> <alpine.LSU.2.00.1206010030050.8462@eggly.anvils>
- <20120601161205.GA1918@redhat.com> <20120601171606.GA3794@redhat.com>
- <alpine.LSU.2.00.1206011511560.12839@eggly.anvils> <CA+55aFy2-X92EqpiuyvkBp_2-UaYDUpaC2c3XT3gXMN1O+T7sw@mail.gmail.com>
- <alpine.LSU.2.00.1206012108430.11308@eggly.anvils> <20120603181548.GA306@redhat.com>
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Date: Sun, 3 Jun 2012 11:23:29 -0700
-Message-ID: <CA+55aFwZ5PsBLqM7K8vDQdbS3sf+vi3yeoWx6XKV=nF8k2r7DQ@mail.gmail.com>
-Subject: Re: WARNING: at mm/page-writeback.c:1990 __set_page_dirty_nobuffers+0x13a/0x170()
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: MULTIPART/MIXED; BOUNDARY="8323328-1426780772-1338748020=:1943"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Jones <davej@redhat.com>, Hugh Dickins <hughd@google.com>, Linus Torvalds <torvalds@linux-foundation.org>, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, Kyungmin Park <kyungmin.park@samsung.com>, Marek Szyprowski <m.szyprowski@samsung.com>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Cong Wang <amwang@redhat.com>, Markus Trippelsdorf <markus@trippelsdorf.de>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Anton Vorontsov <cbouatmailru@gmail.com>
+Cc: KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Minchan Kim <minchan@kernel.org>, Leonid Moiseichuk <leonid.moiseichuk@nokia.com>, John Stultz <john.stultz@linaro.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linaro-kernel@lists.linaro.org, patches@linaro.org, kernel-team@android.com
 
-On Sun, Jun 3, 2012 at 11:15 AM, Dave Jones <davej@redhat.com> wrote:
->
-> Things aren't happy with that patch at all.
+  This message is in MIME format.  The first part should be readable text,
+  while the remaining parts are likely unreadable without MIME-aware tools.
 
-Yeah, at this point I think we need to just revert the compaction changes.
+--8323328-1426780772-1338748020=:1943
+Content-Type: TEXT/PLAIN; charset=utf-8
+Content-Transfer-Encoding: 8BIT
 
-Guys, what's the minimal set of commits to revert? That clearly buggy
-"rescue_unmovable_pageblock()" function was introduced by commit
-5ceb9ce6fe94, but is that actually involved with the particular bug?
-That commit seems to revert cleanly still, but is that sufficient or
-does it even matter?
+On Fri, 1 Jun 2012, Anton Vorontsov wrote:
+> > That's pretty awful. Anton, Leonid, comments?
+> [...]
+> > > 5) __VMEVENT_ATTR_STATE_VALUE_WAS_LT should be removed from userland
+> > > exporting files.
+> > > A When exporing kenrel internal, always silly gus used them and made unhappy.
+> > 
+> > Agreed. Anton, care to cook up a patch to do that?
+> 
+> KOSAKI-San, Pekka,
+> 
+> Much thanks for your reviews!
+> 
+> These three issues should be fixed by the following patches. One mm/
+> change is needed outside of vmevent...
+> 
+> And I'm looking into other issues you pointed out...
 
-                  Linus
+I applied patches 2, 4, and 5. The vmstat patch need ACKs from VM folks 
+to enter the tree.
+
+			Pekka
+--8323328-1426780772-1338748020=:1943--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
