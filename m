@@ -1,85 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx205.postini.com [74.125.245.205])
-	by kanga.kvack.org (Postfix) with SMTP id 5E5FA6B005D
-	for <linux-mm@kvack.org>; Mon,  4 Jun 2012 16:22:27 -0400 (EDT)
-Received: by qabg27 with SMTP id g27so1989695qab.14
-        for <linux-mm@kvack.org>; Mon, 04 Jun 2012 13:22:26 -0700 (PDT)
-Message-ID: <4FCD18FD.5030307@gmail.com>
-Date: Mon, 04 Jun 2012 16:22:21 -0400
-From: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
+Received: from psmtp.com (na3sys010amx114.postini.com [74.125.245.114])
+	by kanga.kvack.org (Postfix) with SMTP id E2E676B005D
+	for <linux-mm@kvack.org>; Mon,  4 Jun 2012 18:41:30 -0400 (EDT)
+Received: by dakp5 with SMTP id p5so8235739dak.14
+        for <linux-mm@kvack.org>; Mon, 04 Jun 2012 15:41:30 -0700 (PDT)
+Date: Mon, 4 Jun 2012 15:39:51 -0700
+From: Anton Vorontsov <cbouatmailru@gmail.com>
+Subject: Re: [PATCH 0/5] Some vmevent fixes...
+Message-ID: <20120604223951.GA20591@lizard>
+References: <CAOJsxLHQcDZSHJZg+zbptqmT9YY0VTkPd+gG_zgMzs+HaV_cyA@mail.gmail.com>
+ <CAHGf_=q1nbu=3cnfJ4qXwmngMPB-539kg-DFN2FJGig8+dRaNw@mail.gmail.com>
+ <CAOJsxLFAavdDbiLnYRwe+QiuEHSD62+Sz6LJTk+c3J9gnLVQ_w@mail.gmail.com>
+ <CAHGf_=pSLfAue6AR5gi5RQ7xvgTxpZckA=Ja1fO1AkoO1o_DeA@mail.gmail.com>
+ <CAOJsxLG1+zhOKgi2Rg1eSoXSCU8QGvHVED_EefOOLP-6JbMDkg@mail.gmail.com>
+ <20120601122118.GA6128@lizard>
+ <alpine.LFD.2.02.1206032125320.1943@tux.localdomain>
+ <4FCC7592.9030403@kernel.org>
+ <20120604113811.GA4291@lizard>
+ <4FCD14F1.1030105@gmail.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH v9] mm: compaction: handle incorrect MIGRATE_UNMOVABLE
- type pageblocks
-References: <201206041543.56917.b.zolnierkie@samsung.com>
-In-Reply-To: <201206041543.56917.b.zolnierkie@samsung.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+In-Reply-To: <4FCD14F1.1030105@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Minchan Kim <minchan@kernel.org>, Hugh Dickins <hughd@google.com>, Linus Torvalds <torvalds@linux-foundation.org>, Kyungmin Park <kyungmin.park@samsung.com>, Marek Szyprowski <m.szyprowski@samsung.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Dave Jones <davej@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Cong Wang <amwang@redhat.com>, Markus Trippelsdorf <markus@trippelsdorf.de>, kosaki.motohiro@gmail.com
+To: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
+Cc: Minchan Kim <minchan@kernel.org>, Pekka Enberg <penberg@kernel.org>, Leonid Moiseichuk <leonid.moiseichuk@nokia.com>, John Stultz <john.stultz@linaro.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linaro-kernel@lists.linaro.org, patches@linaro.org, kernel-team@android.com
 
-> +/*
-> + * Returns true if MIGRATE_UNMOVABLE pageblock can be successfully
-> + * converted to MIGRATE_MOVABLE type, false otherwise.
-> + */
-> +static bool can_rescue_unmovable_pageblock(struct page *page, bool locked)
-> +{
-> +	unsigned long pfn, start_pfn, end_pfn;
-> +	struct page *start_page, *end_page, *cursor_page;
-> +
-> +	pfn = page_to_pfn(page);
-> +	start_pfn = pfn&  ~(pageblock_nr_pages - 1);
-> +	end_pfn = start_pfn + pageblock_nr_pages - 1;
-> +
-> +	start_page = pfn_to_page(start_pfn);
-> +	end_page = pfn_to_page(end_pfn);
-> +
-> +	for (cursor_page = start_page, pfn = start_pfn; cursor_page<= end_page;
-> +		pfn++, cursor_page++) {
-> +		struct zone *zone = page_zone(start_page);
-> +		unsigned long flags;
-> +
-> +		if (!pfn_valid_within(pfn))
-> +			continue;
-> +
-> +		/* Do not deal with pageblocks that overlap zones */
-> +		if (page_zone(cursor_page) != zone)
-> +			return false;
-> +
-> +		if (!locked)
-> +			spin_lock_irqsave(&zone->lock, flags);
-> +
-> +		if (PageBuddy(cursor_page)) {
-> +			int order = page_order(cursor_page);
->
-> -/* Returns true if the page is within a block suitable for migration to */
-> -static bool suitable_migration_target(struct page *page)
-> +			pfn += (1<<  order) - 1;
-> +			cursor_page += (1<<  order) - 1;
-> +
-> +			if (!locked)
-> +				spin_unlock_irqrestore(&zone->lock, flags);
-> +			continue;
-> +		} else if (page_count(cursor_page) == 0 ||
-> +			   PageLRU(cursor_page)) {
-> +			if (!locked)
-> +				spin_unlock_irqrestore(&zone->lock, flags);
-> +			continue;
-> +		}
-> +
-> +		if (!locked)
-> +			spin_unlock_irqrestore(&zone->lock, flags);
-> +
-> +		return false;
-> +	}
-> +
-> +	return true;
-> +}
+On Mon, Jun 04, 2012 at 04:05:05PM -0400, KOSAKI Motohiro wrote:
+[...]
+> >Yes, nobody throws Android lowmemory killer away. And recently I fixed
+> >a bunch of issues in its tasks traversing and killing code. Now it's
+> >just time to "fix" statistics gathering and interpretation issues,
+> >and I see vmevent as a good way to do just that, and then we
+> >can either turn Android lowmemory killer driver to use the vmevent
+> >in-kernel API (so it will become just a "glue" between notifications
+> >and killing functions), or use userland daemon.
+> 
+> Huh? No? android lowmem killer is a "killer". it doesn't make any notification,
+> it only kill memory hogging process. I don't think we can merge them.
 
-Minchan, are you interest this patch? If yes, can you please rewrite it? This one are
-not fixed our pointed issue and can_rescue_unmovable_pageblock() still has plenty bugs.
-We can't ack it.
+KOSAKI, you don't read what I write. I didn't ever say that low memory
+killer makes any notifications, that's not what I was saying. I said
+that once we'll have a good "low memory" notification mechanism (e.g.
+vmevent), Android low memory killer would just use this mechanism. Be
+it userland notifications or in-kernel, doesn't matter much.
+
+-- 
+Anton Vorontsov
+Email: cbouatmailru@gmail.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
