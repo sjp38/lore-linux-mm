@@ -1,45 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx187.postini.com [74.125.245.187])
-	by kanga.kvack.org (Postfix) with SMTP id 26A7F6B005C
-	for <linux-mm@kvack.org>; Sun,  3 Jun 2012 19:13:35 -0400 (EDT)
-Received: by wefh52 with SMTP id h52so3347022wef.14
-        for <linux-mm@kvack.org>; Sun, 03 Jun 2012 16:13:33 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx183.postini.com [74.125.245.183])
+	by kanga.kvack.org (Postfix) with SMTP id B405E6B005C
+	for <linux-mm@kvack.org>; Sun,  3 Jun 2012 20:26:05 -0400 (EDT)
+Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id D206C3EE0BC
+	for <linux-mm@kvack.org>; Mon,  4 Jun 2012 09:26:03 +0900 (JST)
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id B7C1F45DEB4
+	for <linux-mm@kvack.org>; Mon,  4 Jun 2012 09:26:03 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 9DF3E45DE7E
+	for <linux-mm@kvack.org>; Mon,  4 Jun 2012 09:26:03 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 8ACEE1DB803E
+	for <linux-mm@kvack.org>; Mon,  4 Jun 2012 09:26:03 +0900 (JST)
+Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.240.81.147])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 419D71DB8042
+	for <linux-mm@kvack.org>; Mon,  4 Jun 2012 09:26:03 +0900 (JST)
+Message-ID: <4FCC0020.5080801@jp.fujitsu.com>
+Date: Mon, 04 Jun 2012 09:24:00 +0900
+From: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
-In-Reply-To: <alpine.LSU.2.00.1206031459450.15427@eggly.anvils>
-References: <20120601023107.GA19445@redhat.com> <alpine.LSU.2.00.1206010030050.8462@eggly.anvils>
- <20120601161205.GA1918@redhat.com> <20120601171606.GA3794@redhat.com>
- <alpine.LSU.2.00.1206011511560.12839@eggly.anvils> <CA+55aFy2-X92EqpiuyvkBp_2-UaYDUpaC2c3XT3gXMN1O+T7sw@mail.gmail.com>
- <alpine.LSU.2.00.1206012108430.11308@eggly.anvils> <20120603181548.GA306@redhat.com>
- <CA+55aFwZ5PsBLqM7K8vDQdbS3sf+vi3yeoWx6XKV=nF8k2r7DQ@mail.gmail.com>
- <20120603183139.GA1061@redhat.com> <20120603205332.GA5412@redhat.com> <alpine.LSU.2.00.1206031459450.15427@eggly.anvils>
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Date: Sun, 3 Jun 2012 16:13:13 -0700
-Message-ID: <CA+55aFz--XDSOConDoM2SO0Jpd78Dg4GsGP+Z0F+__JWz+6JoQ@mail.gmail.com>
-Subject: Re: WARNING: at mm/page-writeback.c:1990 __set_page_dirty_nobuffers+0x13a/0x170()
-Content-Type: text/plain; charset=ISO-8859-1
+Subject: Re: [PATCH] rename MEM_CGROUP_STAT_SWAPOUT as MEM_CGROUP_STAT_NR_SWAP
+References: <4FC89BC4.9030604@jp.fujitsu.com> <20120601165320.GA1761@cmpxchg.org> <alpine.LSU.2.00.1206011047430.9814@eggly.anvils>
+In-Reply-To: <alpine.LSU.2.00.1206011047430.9814@eggly.anvils>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Hugh Dickins <hughd@google.com>
-Cc: Dave Jones <davej@redhat.com>, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, Kyungmin Park <kyungmin.park@samsung.com>, Marek Szyprowski <m.szyprowski@samsung.com>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Cong Wang <amwang@redhat.com>, Markus Trippelsdorf <markus@trippelsdorf.de>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org, cgroups@vger.kernel.org, mhocko@suse.cz, akpm@linux-foundation.org
 
-On Sun, Jun 3, 2012 at 3:17 PM, Hugh Dickins <hughd@google.com> wrote:
+(2012/06/02 2:54), Hugh Dickins wrote:
+> On Fri, 1 Jun 2012, Johannes Weiner wrote:
+>> On Fri, Jun 01, 2012 at 07:39:00PM +0900, Kamezawa Hiroyuki wrote:
+>>> MEM_CGROUP_STAT_SWAPOUT represents the usage of swap rather than
+>>> the number of swap-out events. Rename it to be MEM_CGROUP_STAT_NR_SWAP.
+>>>
+>>> Signed-off-by: KAMEZAWA Hiroyuki<kamezawa.hiroyu@jp.fujitsu.com>
+>>
+>> Wouldn't MEM_CGROUP_STAT_SWAP be better?  It's equally descriptive but
+>> matches the string.  And we also don't have NR_ for cache, rss, mapped
+>> file etc.
 >
-> But another strike against that commit: I tried fixing it up to use
-> start_page instead of page at the end, with the worrying but safer
-> locking I suggested at first, with a count of how many times it went
-> there, and how many times it succeeded.
+> That's just what I thought too.
+>
+> You can attach Acked-by: Hugh Dickins<hughd@google.com>
+> to MEM_CGROUP_STAT_SWAP and MEM_CGROUP_CHARGE_TYPE_ANON.
+>
+> Oh, and to a patch deleting MEM_CGROUP_CHARGE_TYPE_FORCE!
+>
+Sure, I'll prepare v2.
 
-You can't use start_page anyway, it might not be a valid page. There's
-a reson it does that "pfn_valid_within()", methinks.
+Thanks,
+-Kame
 
-Anyway, my current plan is to apply your "mm: fix warning in
-__set_page_dirty_nobuffers" patch - even if it's just a harmless
-WARN_ON_ONCE(), and revert 5ceb9ce6fe94. Sounds like Dave hit normally
-hit his problem much before two hours, and it must be even longer now.
-
-Ack on that plan?
-
-        Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
