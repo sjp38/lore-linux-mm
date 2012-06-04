@@ -1,54 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx114.postini.com [74.125.245.114])
-	by kanga.kvack.org (Postfix) with SMTP id E2E676B005D
-	for <linux-mm@kvack.org>; Mon,  4 Jun 2012 18:41:30 -0400 (EDT)
-Received: by dakp5 with SMTP id p5so8235739dak.14
-        for <linux-mm@kvack.org>; Mon, 04 Jun 2012 15:41:30 -0700 (PDT)
-Date: Mon, 4 Jun 2012 15:39:51 -0700
-From: Anton Vorontsov <cbouatmailru@gmail.com>
-Subject: Re: [PATCH 0/5] Some vmevent fixes...
-Message-ID: <20120604223951.GA20591@lizard>
-References: <CAOJsxLHQcDZSHJZg+zbptqmT9YY0VTkPd+gG_zgMzs+HaV_cyA@mail.gmail.com>
- <CAHGf_=q1nbu=3cnfJ4qXwmngMPB-539kg-DFN2FJGig8+dRaNw@mail.gmail.com>
- <CAOJsxLFAavdDbiLnYRwe+QiuEHSD62+Sz6LJTk+c3J9gnLVQ_w@mail.gmail.com>
- <CAHGf_=pSLfAue6AR5gi5RQ7xvgTxpZckA=Ja1fO1AkoO1o_DeA@mail.gmail.com>
- <CAOJsxLG1+zhOKgi2Rg1eSoXSCU8QGvHVED_EefOOLP-6JbMDkg@mail.gmail.com>
- <20120601122118.GA6128@lizard>
- <alpine.LFD.2.02.1206032125320.1943@tux.localdomain>
- <4FCC7592.9030403@kernel.org>
- <20120604113811.GA4291@lizard>
- <4FCD14F1.1030105@gmail.com>
+Received: from psmtp.com (na3sys010amx131.postini.com [74.125.245.131])
+	by kanga.kvack.org (Postfix) with SMTP id CBE566B0062
+	for <linux-mm@kvack.org>; Mon,  4 Jun 2012 19:30:59 -0400 (EDT)
+Received: by pbbrp2 with SMTP id rp2so8487915pbb.14
+        for <linux-mm@kvack.org>; Mon, 04 Jun 2012 16:30:59 -0700 (PDT)
+Date: Mon, 4 Jun 2012 16:30:57 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: oomkillers gone wild.
+In-Reply-To: <20120604152710.GA1710@redhat.com>
+Message-ID: <alpine.DEB.2.00.1206041629500.7769@chino.kir.corp.google.com>
+References: <20120604152710.GA1710@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-In-Reply-To: <4FCD14F1.1030105@gmail.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
-Cc: Minchan Kim <minchan@kernel.org>, Pekka Enberg <penberg@kernel.org>, Leonid Moiseichuk <leonid.moiseichuk@nokia.com>, John Stultz <john.stultz@linaro.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linaro-kernel@lists.linaro.org, patches@linaro.org, kernel-team@android.com
+To: Dave Jones <davej@redhat.com>, Linux Kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 
-On Mon, Jun 04, 2012 at 04:05:05PM -0400, KOSAKI Motohiro wrote:
-[...]
-> >Yes, nobody throws Android lowmemory killer away. And recently I fixed
-> >a bunch of issues in its tasks traversing and killing code. Now it's
-> >just time to "fix" statistics gathering and interpretation issues,
-> >and I see vmevent as a good way to do just that, and then we
-> >can either turn Android lowmemory killer driver to use the vmevent
-> >in-kernel API (so it will become just a "glue" between notifications
-> >and killing functions), or use userland daemon.
+On Mon, 4 Jun 2012, Dave Jones wrote:
+
+> we picked this..
 > 
-> Huh? No? android lowmem killer is a "killer". it doesn't make any notification,
-> it only kill memory hogging process. I don't think we can merge them.
+> [21623.066911] [  588]     0   588    22206        1   2       0             0 dhclient
+> 
+> over say..
+> 
+> [21623.116597] [ 7092]  1000  7092  1051124    31660   3       0             0 trinity-child3
+> 
+> What went wrong here ?
+> 
+> And why does that score look so.. weird.
+> 
 
-KOSAKI, you don't read what I write. I didn't ever say that low memory
-killer makes any notifications, that's not what I was saying. I said
-that once we'll have a good "low memory" notification mechanism (e.g.
-vmevent), Android low memory killer would just use this mechanism. Be
-it userland notifications or in-kernel, doesn't matter much.
-
--- 
-Anton Vorontsov
-Email: cbouatmailru@gmail.com
+It sounds like it's because pid 588 has uid=0 and the adjustment for root 
+processes is causing an overflow.  I assume this fixes it?
+---
+diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+--- a/mm/oom_kill.c
++++ b/mm/oom_kill.c
+@@ -183,7 +183,7 @@ static bool oom_unkillable_task(struct task_struct *p,
+ unsigned long oom_badness(struct task_struct *p, struct mem_cgroup *memcg,
+ 			  const nodemask_t *nodemask, unsigned long totalpages)
+ {
+-	unsigned long points;
++	long points;
+ 
+ 	if (oom_unkillable_task(p, memcg, nodemask))
+ 		return 0;
+@@ -223,7 +223,7 @@ unsigned long oom_badness(struct task_struct *p, struct mem_cgroup *memcg,
+ 	 * Never return 0 for an eligible task regardless of the root bonus and
+ 	 * oom_score_adj (oom_score_adj can't be OOM_SCORE_ADJ_MIN here).
+ 	 */
+-	return points ? points : 1;
++	return points > 0 ? points : 1;
+ }
+ 
+ /*
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
