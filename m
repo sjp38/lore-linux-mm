@@ -1,112 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx131.postini.com [74.125.245.131])
-	by kanga.kvack.org (Postfix) with SMTP id 954C66B005C
-	for <linux-mm@kvack.org>; Mon,  4 Jun 2012 07:39:50 -0400 (EDT)
-Received: by pbbrp2 with SMTP id rp2so7524637pbb.14
-        for <linux-mm@kvack.org>; Mon, 04 Jun 2012 04:39:49 -0700 (PDT)
-Date: Mon, 4 Jun 2012 04:38:12 -0700
-From: Anton Vorontsov <cbouatmailru@gmail.com>
-Subject: Re: [PATCH 0/5] Some vmevent fixes...
-Message-ID: <20120604113811.GA4291@lizard>
-References: <20120507121527.GA19526@lizard>
- <4FA82056.2070706@gmail.com>
- <CAOJsxLHQcDZSHJZg+zbptqmT9YY0VTkPd+gG_zgMzs+HaV_cyA@mail.gmail.com>
- <CAHGf_=q1nbu=3cnfJ4qXwmngMPB-539kg-DFN2FJGig8+dRaNw@mail.gmail.com>
- <CAOJsxLFAavdDbiLnYRwe+QiuEHSD62+Sz6LJTk+c3J9gnLVQ_w@mail.gmail.com>
- <CAHGf_=pSLfAue6AR5gi5RQ7xvgTxpZckA=Ja1fO1AkoO1o_DeA@mail.gmail.com>
- <CAOJsxLG1+zhOKgi2Rg1eSoXSCU8QGvHVED_EefOOLP-6JbMDkg@mail.gmail.com>
- <20120601122118.GA6128@lizard>
- <alpine.LFD.2.02.1206032125320.1943@tux.localdomain>
- <4FCC7592.9030403@kernel.org>
+Received: from psmtp.com (na3sys010amx176.postini.com [74.125.245.176])
+	by kanga.kvack.org (Postfix) with SMTP id 3634A6B005C
+	for <linux-mm@kvack.org>; Mon,  4 Jun 2012 07:46:07 -0400 (EDT)
+Date: Mon, 4 Jun 2012 19:46:03 +0800
+From: Fengguang Wu <fengguang.wu@intel.com>
+Subject: kvm segfaults and bad page state in 3.4.0
+Message-ID: <20120604114603.GA6988@localhost>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <4FCC7592.9030403@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Pekka Enberg <penberg@kernel.org>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Leonid Moiseichuk <leonid.moiseichuk@nokia.com>, John Stultz <john.stultz@linaro.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linaro-kernel@lists.linaro.org, patches@linaro.org, kernel-team@android.com
+To: "kvm@vger.kernel.org" <kvm@vger.kernel.org>
+Cc: Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Mon, Jun 04, 2012 at 05:45:06PM +0900, Minchan Kim wrote:
-[...]
-> AFAIK, low memory notifier is started for replacing android lowmemory killer.
-> At the same time, other folks want use it generally.
-> As I look through android low memory killer, it's not too bad except some point.
-> 
-> 1. It should not depend on shrink_slab. If we need, we can add some hook in vmscan.c directly instead of shrink_slab.
-> 2. We can use out_of_memory instead of custom victim selection/killing function. If we need,
->    we can change out_of_memory interface little bit for passing needed information to select victim.
-> 3. calculation for available pages
-> 
-> 1) and 2) would make android low memory killer very general and 3) can meet each folk's requirement, I believe.
-> 
-> Anton, I expect you already investigated android low memory killer so maybe you know pros and cons of each solution.
-> Could you convince us "why we need vmevent" and "why can't android LMK do it?"
+Hi,
 
-Note that 1) and 2) are not problems per se, it's just implementation
-details, easy stuff. Vmevent is basically an ABI/API, and I didn't
-hear anybody who would object to vmevent ABI idea itself. More than
-this, nobody stop us from implementing in-kernel vmevent API, and
-make Android Lowmemory killer use it, if we want to.
+I'm running lots of kvm instances for doing kernel boot tests.
+Unfortunately the test system itself is not stable enough, I got scary
+errors in both kvm and the host kernel. Like this. 
 
-The real problem is not with vmevent. Today there are two real problems:
+[294025.795382] kvm used greatest stack depth: 2896 bytes left
+[310388.622083] kvm[1864]: segfault at c ip 00007f498e9f6a81 sp 00007f4994b9fca0 error 4 in kvm[7f498e960000+33b000]
+[310692.050589] kvm[4332]: segfault at 10 ip 00007fca662620b9 sp 00007fca70472af0 error 6 in kvm[7fca661cc000+33b000]
+[312608.950120] kvm[18931]: segfault at 8 ip 00007f95962a10a5 sp 00007f959d777170 error 4 in kvm[7f959620b000+33b000]
+[312622.941640] kvm[19123]: segfault at 10 ip 00007f406f5580b9 sp 00007f4077d8b350 error 6 in kvm[7f406f4c2000+33b000]
+[313917.860951] kvm[28789]: segfault at c ip 00007f718f4dfa81 sp 00007f7198459520 error 4 in kvm[7f718f449000+33b000]
+[313919.177192] kvm used greatest stack depth: 2864 bytes left
+[314061.390945] kvm used greatest stack depth: 2208 bytes left
+[327479.676068] BUG: Bad page state in process kvm  pfn:59ac9
+[327479.676455] page:ffffea000166b240 count:0 mapcount:0 mapping:          (null) index:0x7fd346bc6
+[327479.677083] page flags: 0x100000000000014(referenced|dirty)
+[327479.677575] Modules linked in:
+[327479.677897] Pid: 11423, comm: kvm Not tainted 3.4.0 #131
+[327479.678272] Call Trace:
+[327479.678538]  [<ffffffff81107343>] bad_page+0xe6/0xfb
+[327479.678897]  [<ffffffff811079c6>] get_page_from_freelist+0x534/0x6f6
+[327479.679314]  [<ffffffff81107d92>] __alloc_pages_nodemask+0x20a/0x75e
+[327479.679729]  [<ffffffff8108e121>] ? finish_task_switch+0x4c/0xf6
+[327479.680136]  [<ffffffff81143477>] ? lookup_page_cgroup_used+0xe/0x24
+[327479.680548]  [<ffffffff811079b5>] ? get_page_from_freelist+0x523/0x6f6
+[327479.680970]  [<ffffffff811367c8>] alloc_pages_current+0xd2/0xf3
+[327479.681369]  [<ffffffff811012e4>] __page_cache_alloc+0xa1/0xae
+[327479.681761]  [<ffffffff8110b144>] __do_page_cache_readahead+0x107/0x20b
+[327479.682188]  [<ffffffff8110b0cc>] ? __do_page_cache_readahead+0x8f/0x20b
+[327479.682615]  [<ffffffff811293b0>] ? anon_vma_prepare+0xb4/0x137
+[327479.683010]  [<ffffffff8110b521>] ra_submit+0x21/0x25
+[327479.683375]  [<ffffffff81102f7a>] filemap_fault+0x18a/0x383
+[327479.683757]  [<ffffffff8111d6b3>] __do_fault+0xc8/0x451
+[327479.684128]  [<ffffffff81120103>] handle_pte_fault+0x2de/0x844
+[327479.684522]  [<ffffffff8114446e>] ? mem_cgroup_count_vm_event+0x1a/0x96
+[327479.684944]  [<ffffffff811218ac>] handle_mm_fault+0x1a6/0x1bb
+[327479.685339]  [<ffffffff819b8c12>] do_page_fault+0x405/0x42a
+[327479.685722]  [<ffffffff8112619e>] ? do_mmap_pgoff+0x299/0x2f3
+[327479.686115]  [<ffffffff813fe03d>] ? trace_hardirqs_off_thunk+0x3a/0x3c
+[327479.686534]  [<ffffffff819b5b45>] page_fault+0x25/0x30
+[327479.686898] Disabling lock debugging due to kernel taint
 
-a) Gathering proper statistics from the kernel. Both cgroups and vmstat
-   have issues. Android lowmemory killer has the same problems w/ the
-   statistics as vmevent, it uses vmstat, so by no means Android
-   low memory killer is better or easier in this regard.
-   (And cgroups has issues w/ slab accounting, plus some folks don't
-   want memcg at all, since it has runtime and memory-wise costs.)
+The same host kernel, in another test box:
 
-b) Interpreting this statistics. We can't provide one, universal
-   "low memory" definition that would work for everybody.
-   (Btw, your "levels" based low memory grading actually sounds
-   the same as mine RECLAIMABLE_CACHE_PAGES and
-   RECLAIMABLE_CACHE_PAGES_NOIO idea, i.e.
-   http://lkml.indiana.edu/hypermail/linux/kernel/1205.0/02751.html
-   so personally I like the idea of level-based approach, based
-   on available memory *cost*.)
+[770644.256817] kvm_get_msr_common: 2123 callbacks suppressed
+[770644.257475] kvm: 31889: cpu0 unhandled rdmsr: 0x2
+[770644.258103] kvm: 31889: cpu0 unhandled rdmsr: 0x3
+[770644.258707] kvm: 31889: cpu0 unhandled rdmsr: 0x4
+[770644.259322] kvm: 31889: cpu0 unhandled rdmsr: 0x5
+[770644.259914] kvm: 31889: cpu0 unhandled rdmsr: 0x6
+[770644.260499] kvm: 31889: cpu0 unhandled rdmsr: 0x7
+[770644.261108] kvm: 31889: cpu0 unhandled rdmsr: 0x8
+[770644.261700] kvm: 31889: cpu0 unhandled rdmsr: 0x9
+[770644.262302] kvm: 31889: cpu0 unhandled rdmsr: 0xa
+[770644.262883] kvm: 31889: cpu0 unhandled rdmsr: 0xb
+[909290.636655] kvm[31619]: segfault at 40 ip 00007fcb3d8c4254 sp 00007fcb41bcaec0 error 4 in kvm[7fcb3d82e000+33b000]
 
-So, you see, all these issues are valid for vmevent, cgroups and
-android low memory killer.
-
-> KOSAKI, AFAIRC, you are a person who hates android low memory killer.
-> Why do you hate it? If it solve problems I mentioned, do you have a concern, still?
-> If so, please, list up.
-> 
-> Android low memory killer is proved solution for a long time, at least embedded area(So many android phone already have used it) so I think improving it makes sense to me rather than inventing new wheel.
-
-Yes, nobody throws Android lowmemory killer away. And recently I fixed
-a bunch of issues in its tasks traversing and killing code. Now it's
-just time to "fix" statistics gathering and interpretation issues,
-and I see vmevent as a good way to do just that, and then we
-can either turn Android lowmemory killer driver to use the vmevent
-in-kernel API (so it will become just a "glue" between notifications
-and killing functions), or use userland daemon.
-
-Note that memcg has notifications as well, so it's another proof that
-there is a demand for this stuff outside of embedded world, and going
-with ad-hoc, custom "low memory killer" is simple and tempting approach,
-but it doesn't solve any real problems.
-
-> Frankly speaking, I don't know vmevent's other use cases except low memory notification 
-
-I won't speak for realistic use-cases, but that is what comes to
-mind:
-
-- DB can grow its caches/in-memory indexes infinitely, and start dropping
-  them on demand (based on internal LRU list, for example). No more
-  guessed/static configuration for DB daemons?
-- Assuming VPS hosting w/ dynamic resources management, notifications
-  would be useful to readjust resources?
-- On desktops, apps can drop their caches on demand if they want to
-  and can avoid swap activity?
+Please drop me hints if I can help debugging it (a week later, after
+returning from LinuxCon Japan), thank you.
 
 Thanks,
-
--- 
-Anton Vorontsov
-Email: cbouatmailru@gmail.com
+Fengguang
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
