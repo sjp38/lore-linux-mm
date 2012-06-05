@@ -1,41 +1,34 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx147.postini.com [74.125.245.147])
-	by kanga.kvack.org (Postfix) with SMTP id 4AF256B0062
-	for <linux-mm@kvack.org>; Tue,  5 Jun 2012 06:41:56 -0400 (EDT)
-Message-ID: <4FCDE270.1020906@cesarb.net>
-Date: Tue, 05 Jun 2012 07:41:52 -0300
-From: Cesar Eduardo Barros <cesarb@cesarb.net>
+Received: from psmtp.com (na3sys010amx117.postini.com [74.125.245.117])
+	by kanga.kvack.org (Postfix) with SMTP id 2A6C86B0062
+	for <linux-mm@kvack.org>; Tue,  5 Jun 2012 10:37:02 -0400 (EDT)
+Date: Tue, 5 Jun 2012 09:36:57 -0500 (CDT)
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: [PATCH 3/5] vmevent: Refresh vmstats before sampling
+In-Reply-To: <1338553446-22292-3-git-send-email-anton.vorontsov@linaro.org>
+Message-ID: <alpine.DEB.2.00.1206050934330.26918@router.home>
+References: <20120601122118.GA6128@lizard> <1338553446-22292-3-git-send-email-anton.vorontsov@linaro.org>
 MIME-Version: 1.0
-Subject: frontswap: is frontswap_init called from swapoff safe?
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Dan Magenheimer <dan.magenheimer@oracle.com>, linux-mm@kvack.org
+To: Anton Vorontsov <anton.vorontsov@linaro.org>
+Cc: Pekka Enberg <penberg@kernel.org>, Leonid Moiseichuk <leonid.moiseichuk@nokia.com>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Minchan Kim <minchan@kernel.org>, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, John Stultz <john.stultz@linaro.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linaro-kernel@lists.linaro.org, patches@linaro.org, kernel-team@android.com
 
-I was looking at the swapfile.c parts of the recently-merged frontswap, 
-and noticed that frontswap_init can be called from swapoff when 
-try_to_unuse fails.
+On Fri, 1 Jun 2012, Anton Vorontsov wrote:
 
-This looks odd to me. Whether it is safe or not depends on what 
-frontswap_ops.init does, but the comment for __frontswap_init ("Called 
-when a swap device is swapon'd") and the function name itself seem to 
-imply it should be called only for swapon, not when relinking the 
-swap_info after a failed swapoff.
+> On SMP, kernel updates vmstats only once per second, which makes vmevent
+> unusable. Let's fix it by updating vmstats before sampling.
 
-In particular, if frontswap_ops.init assumes the swap map is empty, it 
-would break, since as far as I know when try_to_unuse fails there are 
-still pages in the swap.
+Well this may increase your accuracy but there is no guarantee that an
+update to vm counters will not happen immediately after you have refreshed
+the counters for one processor or the other.
 
-(By the way, the comment above enable_swap_info at sys_swapoff needs to 
-be updated to also explain why reading p->frontswap_map outside the lock 
-is safe at that point, like it does for p->prio and p->swap_map.)
+Also please consider the impact that a IPI broadcast will have on latency
+of other processors and to the function that is currently executing.
 
--- 
-Cesar Eduardo Barros
-cesarb@cesarb.net
-cesar.barros@gmail.com
+We just went through a round of getting rid of IPI broadcast because they
+create OS noise on processors.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
