@@ -1,32 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx106.postini.com [74.125.245.106])
-	by kanga.kvack.org (Postfix) with SMTP id 15F7C6B0069
-	for <linux-mm@kvack.org>; Tue,  5 Jun 2012 11:06:06 -0400 (EDT)
-Date: Tue, 5 Jun 2012 09:40:28 -0500 (CDT)
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: [PATCH 3/3] vmevent: Implement special low-memory attribute
-In-Reply-To: <CAHGf_=pSLfAue6AR5gi5RQ7xvgTxpZckA=Ja1fO1AkoO1o_DeA@mail.gmail.com>
-Message-ID: <alpine.DEB.2.00.1206050939140.26918@router.home>
-References: <20120501132409.GA22894@lizard> <20120501132620.GC24226@lizard> <4FA35A85.4070804@kernel.org> <20120504073810.GA25175@lizard> <CAOJsxLH_7mMMe+2DvUxBW1i5nbUfkbfRE3iEhLQV9F_MM7=eiw@mail.gmail.com> <CAHGf_=qcGfuG1g15SdE0SDxiuhCyVN025pQB+sQNuNba4Q4jcA@mail.gmail.com>
- <20120507121527.GA19526@lizard> <4FA82056.2070706@gmail.com> <CAOJsxLHQcDZSHJZg+zbptqmT9YY0VTkPd+gG_zgMzs+HaV_cyA@mail.gmail.com> <CAHGf_=q1nbu=3cnfJ4qXwmngMPB-539kg-DFN2FJGig8+dRaNw@mail.gmail.com> <CAOJsxLFAavdDbiLnYRwe+QiuEHSD62+Sz6LJTk+c3J9gnLVQ_w@mail.gmail.com>
- <CAHGf_=pSLfAue6AR5gi5RQ7xvgTxpZckA=Ja1fO1AkoO1o_DeA@mail.gmail.com>
+Received: from psmtp.com (na3sys010amx137.postini.com [74.125.245.137])
+	by kanga.kvack.org (Postfix) with SMTP id B08496B0062
+	for <linux-mm@kvack.org>; Tue,  5 Jun 2012 13:15:30 -0400 (EDT)
+Date: Tue, 5 Jun 2012 19:13:54 +0200
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [PATCH 04/35] autonuma: define _PAGE_NUMA_PTE and _PAGE_NUMA_PMD
+Message-ID: <20120605171354.GJ21339@redhat.com>
+References: <1337965359-29725-1-git-send-email-aarcange@redhat.com>
+ <1337965359-29725-5-git-send-email-aarcange@redhat.com>
+ <20120530182247.GA28341@localhost.localdomain>
+ <20120530183406.GH21339@redhat.com>
+ <20120530200150.GA30148@localhost.localdomain>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20120530200150.GA30148@localhost.localdomain>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
-Cc: Pekka Enberg <penberg@kernel.org>, Anton Vorontsov <anton.vorontsov@linaro.org>, Minchan Kim <minchan@kernel.org>, Leonid Moiseichuk <leonid.moiseichuk@nokia.com>, John Stultz <john.stultz@linaro.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linaro-kernel@lists.linaro.org, patches@linaro.org, kernel-team@android.com
+To: Konrad Rzeszutek Wilk <konrad@darnok.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Hillf Danton <dhillf@gmail.com>, Dan Smith <danms@us.ibm.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>, Paul Turner <pjt@google.com>, Suresh Siddha <suresh.b.siddha@intel.com>, Mike Galbraith <efault@gmx.de>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Bharata B Rao <bharata.rao@gmail.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Srivatsa Vaddagiri <vatsa@linux.vnet.ibm.com>, Christoph Lameter <cl@linux.com>
 
-On Tue, 8 May 2012, KOSAKI Motohiro wrote:
+On Wed, May 30, 2012 at 04:01:51PM -0400, Konrad Rzeszutek Wilk wrote:
+> The only time the _PAGE_PSE (_PAGE_PAT) is set is when
+> _PAGE_PCD | _PAGE_PWT are set. It is this ugly transformation
+> of doing:
+> 
+>  if (pat_enabled && _PAGE_PWT | _PAGE_PCD)
+> 	pte = ~(_PAGE_PWT | _PAGE_PCD) | _PAGE_PAT;
+> 
+> and then writting the pte with the 7th bit set instead of the
+> 2nd and 3rd to mark it as WC. There is a corresponding reverse too
+> (to read the pte - so the pte_val calls) - so if _PAGE_PAT is
+> detected it will remove the _PAGE_PAT and return the PTE as
+> if it had _PAGE_PWT | _PAGE_PCD.
+> 
+> So that little bit of code will need some tweaking - as it does
+> that even if _PAGE_PRESENT is not set. Meaning it would
+> transform your _PAGE_PAT to _PAGE_PWT | _PAGE_PCD. Gah!
 
-> 4) Currently, vmstat have per-cpu batch and vmstat updating makes 3
-> second delay at maximum.
+It looks like this is disabled in current upstream?
+8eaffa67b43e99ae581622c5133e20b0f48bcef1
 
-Nope. The delay is one second only and it is limited to a certain amount
-per cpu. There is a bound on the inaccuracy of the counter. If you want to
-have them more accurate then the right approach is to limit the
-threshhold. The more accurate the higher the impact of cache line
-bouncing.
+> OK. I can whip up a patch to deal with the 'Gah!' case easily if needed.
+
+That would help! But again it looks disabled in Xen?
+
+About linux host (no xen) when I decided to use PSE I checked this part:
+
+	/* Set PWT to Write-Combining. All other bits stay the same */
+	/*
+	 * PTE encoding used in Linux:
+	 *      PAT
+	 *      |PCD
+	 *      ||PWT
+	 *      |||
+	 *      000 WB		_PAGE_CACHE_WB
+	 *      001 WC		_PAGE_CACHE_WC
+	 *      010 UC-		_PAGE_CACHE_UC_MINUS
+	 *      011 UC		_PAGE_CACHE_UC
+	 * PAT bit unused
+	 */
+
+I need to go read the specs pdf and audit the code against the specs
+to be sure but if my interpretation correct, PAT is never set on linux
+host (novirt) the way the relevant msr are programmed.
+
+If I couldn't use the PSE (/PAT) it'd screw with 32bit because I need
+to poke a bit between _PAGE_BIT_DIRTY and _PAGE_BIT_GLOBAL to avoid
+losing space on the swap entry, and there's just one bit in that range
+(PSE).
+
+_PAGE_UNUSED1 (besides it's used by Xen) wouldn't work unless I change
+the swp entry format for 32bit x86 reducing the max amount of swap
+(conditional to CONFIG_AUTONUMA so it wouldn't be the end of the
+world, plus the amount of swap on 32bit NUMA may not be so important)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
