@@ -1,124 +1,127 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx127.postini.com [74.125.245.127])
-	by kanga.kvack.org (Postfix) with SMTP id E0BCE6B0062
-	for <linux-mm@kvack.org>; Mon,  4 Jun 2012 22:53:52 -0400 (EDT)
-Received: from /spool/local
-	by e28smtp07.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
-	Tue, 5 Jun 2012 08:23:49 +0530
-Received: from d28av01.in.ibm.com (d28av01.in.ibm.com [9.184.220.63])
-	by d28relay05.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q552raFS2752950
-	for <linux-mm@kvack.org>; Tue, 5 Jun 2012 08:23:36 +0530
-Received: from d28av01.in.ibm.com (loopback [127.0.0.1])
-	by d28av01.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q558NBcm024283
-	for <linux-mm@kvack.org>; Tue, 5 Jun 2012 13:53:13 +0530
-From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Subject: Re: [PATCH -V7 07/14] mm/page_cgroup: Make page_cgroup point to the cgroup rather than the mem_cgroup
-In-Reply-To: <4FCD648E.90709@jp.fujitsu.com>
-References: <1338388739-22919-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com> <1338388739-22919-8-git-send-email-aneesh.kumar@linux.vnet.ibm.com> <4FCD648E.90709@jp.fujitsu.com>User-Agent: Notmuch/0.11.1+346~g13d19c3 (http://notmuchmail.org) Emacs/23.3.1 (x86_64-pc-linux-gnu)
-Date: Tue, 05 Jun 2012 08:23:28 +0530
-Message-ID: <87ehpu8o5z.fsf@skywalker.in.ibm.com>
+Received: from psmtp.com (na3sys010amx122.postini.com [74.125.245.122])
+	by kanga.kvack.org (Postfix) with SMTP id 9AEA26B0062
+	for <linux-mm@kvack.org>; Mon,  4 Jun 2012 23:25:42 -0400 (EDT)
 MIME-Version: 1.0
+Message-ID: <030ff158-3b2b-47a6-98d7-5010f7a9ce6b@default>
+Date: Mon, 4 Jun 2012 20:25:22 -0700 (PDT)
+From: Dan Magenheimer <dan.magenheimer@oracle.com>
+Subject: zsmalloc concerns
 Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: linux-mm@kvack.org, dhillf@gmail.com, rientjes@google.com, mhocko@suse.cz, akpm@linux-foundation.org, hannes@cmpxchg.org, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org
+To: Minchan Kim <minchan@kernel.org>
+Cc: Seth Jennings <sjenning@linux.vnet.ibm.com>, linux-mm@kvack.org, Nitin Gupta <ngupta@vflare.org>, Konrad Wilk <konrad.wilk@oracle.com>
 
-Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> writes:
+Hi Minchan (and all) --
 
-> (2012/05/30 23:38), Aneesh Kumar K.V wrote:
->> From: "Aneesh Kumar K.V"<aneesh.kumar@linux.vnet.ibm.com>
->> 
->> We will use it later to make page_cgroup track the hugetlb cgroup information.
->> 
->> Signed-off-by: Aneesh Kumar K.V<aneesh.kumar@linux.vnet.ibm.com>
->> ---
->>   include/linux/mmzone.h      |    2 +-
->>   include/linux/page_cgroup.h |    8 ++++----
->>   init/Kconfig                |    4 ++++
->>   mm/Makefile                 |    3 ++-
->>   mm/memcontrol.c             |   42 +++++++++++++++++++++++++-----------------
->>   5 files changed, 36 insertions(+), 23 deletions(-)
->> 
->> diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
->> index 2427706..2483cc5 100644
->> --- a/include/linux/mmzone.h
->> +++ b/include/linux/mmzone.h
->> @@ -1052,7 +1052,7 @@ struct mem_section {
->> 
->>   	/* See declaration of similar field in struct zone */
->>   	unsigned long *pageblock_flags;
->> -#ifdef CONFIG_CGROUP_MEM_RES_CTLR
->> +#ifdef CONFIG_PAGE_CGROUP
->>   	/*
->>   	 * If !SPARSEMEM, pgdat doesn't have page_cgroup pointer. We use
->>   	 * section. (see memcontrol.h/page_cgroup.h about this.)
->> diff --git a/include/linux/page_cgroup.h b/include/linux/page_cgroup.h
->> index a88cdba..7bbfe37 100644
->> --- a/include/linux/page_cgroup.h
->> +++ b/include/linux/page_cgroup.h
->> @@ -12,7 +12,7 @@ enum {
->>   #ifndef __GENERATING_BOUNDS_H
->>   #include<generated/bounds.h>
->> 
->> -#ifdef CONFIG_CGROUP_MEM_RES_CTLR
->> +#ifdef CONFIG_PAGE_CGROUP
->>   #include<linux/bit_spinlock.h>
->> 
->>   /*
->> @@ -24,7 +24,7 @@ enum {
->>    */
->>   struct page_cgroup {
->>   	unsigned long flags;
->> -	struct mem_cgroup *mem_cgroup;
->> +	struct cgroup *cgroup;
->>   };
->> 
->
-> This patch seems very bad.
+I promised you that after the window closed, I would
+write up my concerns about zsmalloc. My preference would
+be to use zsmalloc, but there are definitely tradeoffs
+and my objective is to make zcache and RAMster ready
+for enterprise customers so I would use a different
+or captive allocator if these zsmalloc issues can't
+be overcome.
 
-I had to change that to 
+Thanks,
+Dan
 
-struct page_cgroup {
-	unsigned long flags;
-	struct cgroup_subsys_state *css;
-};
+=3D=3D=3D
 
-to get memcg to work. We end up changing css.cgroup on cgroupfs mount/umount.
+Zsmalloc is designed to maximize density of items that vary in
+size between 0<size<PAGE_SIZE, but especially when the mean
+item size significantly exceeds PAGE_SIZE/2.  It is primarily
+useful when there are a large quantity of such items to be
+stored with little or no space wasted; if the quantity
+is small and/or some wasted space is acceptable, existing
+kernel allocators (e.g. slab) may be sufficient.  In the
+case of zcache (and zram and ramster), where a large fraction
+of RAM is used to store zpages (lzo1x-compressed pages),
+zsmalloc seems to be a good match.  It is unclear whether
+zsmalloc will ever have another user -- unless that user is
+also storing large quantities of compressed pages.
 
->
->   - What is the performance impact to memcg ? Doesn't this add extra overheads 
->     to memcg lookup ?
+Zcache is currently one primary user of zsmalloc, however
+zcache only uses zsmalloc for anonymous/swap ("frontswap")
+pages, not for file ("cleancache") pages.  For file pages,
+zcache uses the captive "zbud" allocator; this is because
+zcache requires a shrinker for cleancache pages, by which
+entire pageframes can be easily reclaimed.  Zsmalloc doesn't
+currently have shrinker capability and, because its
+storage patterns in and across physical pageframes are
+quite complex (to maximize density), an intelligent reclaim
+implementation may be difficult to design race-free.  And
+implementing reclaim opaquely (i.e. while maintaining a clean
+layering) may be impossible.
 
-Considering that we are stashing cgroup_subsys_state, it should be a
-simple addition. I haven't measured the exact numbers. Do you have any
-suggestion on the tests I can run ?
+A good analogy might be linked-lists.  Zsmalloc is like
+a singly-linked list (space-efficient but not as flexible)
+and zbud is like a doubly-linked list (not as space-efficient
+but more flexible).  One has to choose the best data
+structure according to the functionality required.
 
->   - Hugetlb reuquires much more smaller number of tracking information rather
->     than memcg requires. I guess you can record the information into page->private
->     if you want.
+Some believe that the next step in zcache evolution will
+require shrinking of both frontswap and cleancache pages.
+Andrea has also stated that he thinks frontswap shrinking
+will be a must for any future KVM-tmem implementation.
+But preliminary investigations indicate that pageframe reclaim
+of frontswap pages may be even more difficult with zsmalloc.
+Until this issue is resolved (either by an adequately working
+implementation of reclaim with zsmalloc or via demonstration
+that zcache reclaim is unnecessary), the future use of zsmalloc
+by zcache is cloudy.
 
-So If we end up tracking page cgroup in struct page all these extra over
-head will go away. And in most case we would have both memcg and hugetlb
-enabled by default.
+I'm currently rewriting zbud as a foundation to investigate
+some reclaim policy ideas that I think will be useful both for
+KVM and for making zcache "enterprise ready."  When that is
+done, we will see if zsmalloc can achieve the same flexibility.
 
->   - This may prevent us from the work 'reducing size of page_cgroup'
->
+A few related comments about these allocators and their users:
 
-by reducing you mean moving struct page_cgroup info to struct page
-itself ? If so this should not have any impact right ? Most of the
-requirement of hugetlb should be similar to memcg. 
+Zsmalloc relies on some clever underlying virtual-to-physical
+mapping manipulations to ensure that its users can store and
+retrieve items.  These manipulations are necessary on HIGHMEM
+processors, but the cost is unclear on non-HIGHMEM processors.
+(Manipulating TLB entries is not inexpensive.)  For zcache, the
+overhead may be irrelevant as long as it is a small fraction
+of the cost of compression/decompression, but it is worth
+measuring (worst case) to verify.
 
-> So, strong Nack to this. I guess you can use page->private or some entries in
-> struct page, you have many pages per accounting units. Please make an effort
-> to avoid using page_cgroup.
->
+Zbud can implement efficient reclaim because no more than two
+items ever reside in the same pageframe and items never
+cross a pageframe boundary.  While zbud storage is certainly
+less dense than zsmalloc, the density is probably sufficient
+if the size of items is bell-curve distributed with a mean
+size of PAGE_SIZE/2 (or slightly less).  This is true for
+many workloads, but datasets where the vast majority of items
+exceed PAGE_SIZE/2 render zbud useless.  Note, however, that
+zcache (due to its foundation on transcendent memory) currently
+implements an admission policy that rejects pages when extreme
+datasets are encountered.  In other words, zbud would handle
+these workloads simply by rejecting the pages, resulting
+in performance no worse (approximately) than if zcache were
+not present.
 
-HugeTLB already use page->private of compound page head to track subpool
-pointer. So we won't be able to use page->private.
+RAMster maintains data structures to both point to zpages
+that are local and remote.  Remote pages are identified
+by a handle-like bit sequence while local pages are identified
+by a true pointer.  (Note that ramster currently will not
+run on a HIGHMEM machine.)  RAMster currently differentiates
+between the two via a hack: examining the LSB.  If the
+LSB is set, it is a handle referring to a remote page.
+This works with xvmalloc and zbud but not with zsmalloc's
+opaque handle.  A simple solution would require zsmalloc
+to reserve the LSB of the opaque handle as must-be-zero.
 
--aneesh
+Zram is actually a good match for current zsmalloc because
+its storage grows to a pre-set RAM maximum size and cannot
+shrink again.  Reclaim is not possible without a massive
+redesign (and that redesign is essentially zcache).  But as
+a result of its grow-but-never-shrink design, zram may have
+some significant performance implications on most workloads
+and system configurations.  It remains to be seen if its
+niche usage will warrant promotion from the staging tree.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
