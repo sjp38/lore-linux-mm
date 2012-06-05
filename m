@@ -1,56 +1,96 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx147.postini.com [74.125.245.147])
-	by kanga.kvack.org (Postfix) with SMTP id E1A486B006C
-	for <linux-mm@kvack.org>; Tue,  5 Jun 2012 15:17:17 -0400 (EDT)
-Date: Tue, 5 Jun 2012 12:17:11 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 0/6] mempolicy memory corruption fixlet
-Message-Id: <20120605121711.bb392118.akpm@linux-foundation.org>
-In-Reply-To: <CA+55aFx6s34ss=5tjD4DT7X0WKRZfEsdk1ZiE-fkL3qao27z-A@mail.gmail.com>
-References: <1338368529-21784-1-git-send-email-kosaki.motohiro@gmail.com>
-	<CA+55aFzoVQ29C-AZYx=G62LErK+7HuTCpZhvovoyS0_KTGGZQg@mail.gmail.com>
-	<alpine.DEB.2.00.1205301328550.31768@router.home>
-	<20120530184638.GU27374@one.firstfloor.org>
-	<alpine.DEB.2.00.1205301349230.31768@router.home>
-	<20120530193234.GV27374@one.firstfloor.org>
-	<alpine.DEB.2.00.1205301441350.31768@router.home>
-	<CAHGf_=ooVunBpSdBRCnO1uOoswqxcSy7Xf8xVcgEUGA2fXdcTA@mail.gmail.com>
-	<20120530201042.GY27374@one.firstfloor.org>
-	<CAHGf_=r_ZMKNx+VriO6822otF=U_huj7uxoc5GM-2DEVryKxNQ@mail.gmail.com>
-	<alpine.DEB.2.02.1205311744280.17976@asgard.lang.hm>
-	<alpine.DEB.2.00.1206010850430.6302@router.home>
-	<alpine.DEB.2.02.1206011230170.17976@asgard.lang.hm>
-	<CAHGf_=qDy79cvHX3ym7RvkX7q9+2TDKhgtBHVj6+XHORczj94A@mail.gmail.com>
-	<CA+55aFx6s34ss=5tjD4DT7X0WKRZfEsdk1ZiE-fkL3qao27z-A@mail.gmail.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx136.postini.com [74.125.245.136])
+	by kanga.kvack.org (Postfix) with SMTP id 975326B0062
+	for <linux-mm@kvack.org>; Tue,  5 Jun 2012 16:10:51 -0400 (EDT)
+Date: Tue, 5 Jun 2012 16:10:46 -0400
+From: Vivek Goyal <vgoyal@redhat.com>
+Subject: Re: write-behind on streaming writes
+Message-ID: <20120605201045.GE28556@redhat.com>
+References: <20120528114124.GA6813@localhost>
+ <CA+55aFxHt8q8+jQDuoaK=hObX+73iSBTa4bBWodCX3s-y4Q1GQ@mail.gmail.com>
+ <20120529155759.GA11326@localhost>
+ <CA+55aFykFaBhzzEyRYWRS9Qoy_q_R65Cuth7=XvfOZEMqjn6=w@mail.gmail.com>
+ <20120530032129.GA7479@localhost>
+ <20120605172302.GB28556@redhat.com>
+ <20120605174157.GC28556@redhat.com>
+ <20120605184853.GD28556@redhat.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20120605184853.GD28556@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: KOSAKI Motohiro <kosaki.motohiro@gmail.com>, david@lang.hm, Christoph Lameter <cl@linux.com>, Andi Kleen <andi@firstfloor.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@google.com>, Dave Jones <davej@redhat.com>, Mel Gorman <mgorman@suse.de>, stable@vger.kernel.org, hughd@google.com, sivanich@sgi.com
+To: Fengguang Wu <fengguang.wu@intel.com>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, "Myklebust, Trond" <Trond.Myklebust@netapp.com>, linux-fsdevel@vger.kernel.org, Linux Memory Management List <linux-mm@kvack.org>, Jens Axboe <axboe@kernel.dk>
 
-On Tue, 5 Jun 2012 12:02:25 -0700
-Linus Torvalds <torvalds@linux-foundation.org> wrote:
+On Tue, Jun 05, 2012 at 02:48:53PM -0400, Vivek Goyal wrote:
 
-> I'm coming back to this email thread, because I didn't apply the
-> series due to all the ongoing discussion and hoping that somebody
-> would put changelog fixes and ack notices etc together.
-> 
-> I'd also really like to know that the people who saw the problem that
-> caused the current single patch (that this series reverts) would test
-> the whole series. Maybe that happened and I didn't notice it in the
-> threads, but I don't think so.
-> 
-> In fact, right now I'm assuming that the series will eventually come
-> to me through Andrew. Andrew, correct?
-> 
+[..]
+> So sync_file_range() test keeps less in flight requests on on average
+> hence better latencies. It might not produce throughput drop on SATA
+> disks but might have some effect on storage array luns. Will give it
+> a try.
 
-yup.
+Well, I ran dd and syn_file_range test on a storage array Lun. Wrote a
+file of size 4G on ext4. Got about 300MB/s write speed. In fact when I
+measured time using "time", sync_file_range test finished little faster.
 
-I expect there will be a v2 series (at least).  It's unclear what
-we'll be doing with [2/6]: whether the patch will be reworked, or
-whether Andi misunderstood its effects?
+Then I started looking at blktrace output. sync_file_range() test
+initially (for about 8 seconds), drives shallow queue depth (about 16),
+but after 8 seconds somehow flusher gets involved and starts submitting
+lots of requests and we start driving much higher queue depth (upto more than
+100). Not sure why flusher should get involved. Is everything working as
+expected. I thought that as we wait for last 8MB IO to finish before we
+start new one, we should have at max 16MB of IO in flight. Fengguang?
+
+Anyway, so this test of speed comparision is invalid as flusher gets
+involved after some time and we start driving higher in flight requests.
+I guess I should hard code the maximum number of requests in flight
+to see the effect of request queue depth on throughput.
+
+I am also attaching the sync_file_range() test linus mentioned. Did I 
+write it right.
+
+Thanks
+Vivek
+
+#include <unistd.h>
+#include <stdlib.h>
+#include <stdio.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <time.h>
+#include <fcntl.h>
+#include <string.h>
+
+
+#define BUFSIZE (8*1024*1024)
+char buf [BUFSIZE];
+
+int main()
+{
+	int fd, index = 0;
+
+	fd = open("sync-file-range-tester.tst-file", O_WRONLY|O_CREAT);
+	if (fd < 0) {
+		perror("open");
+		exit(1);
+	}
+
+	memset(buf, 'a', BUFSIZE);
+
+	while (1) {
+                if (write(fd, buf, BUFSIZE) != BUFSIZE)
+                        break;
+                sync_file_range(fd, index*BUFSIZE, BUFSIZE, SYNC_FILE_RANGE_WRITE);
+                if (index) {
+                        sync_file_range(fd, (index-1)*BUFSIZE, BUFSIZE, SYNC_FILE_RANGE_WAIT_BEFORE|SYNC_FILE_RANGE_WRITE|SYNC_FILE_RANGE_WAIT_AFTER);
+		}
+		index++;
+		if (index >=512)
+			break;
+	}
+}
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
