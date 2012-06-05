@@ -1,9 +1,9 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx178.postini.com [74.125.245.178])
-	by kanga.kvack.org (Postfix) with SMTP id 0A2E56B0072
-	for <linux-mm@kvack.org>; Tue,  5 Jun 2012 03:47:19 -0400 (EDT)
-Received: by ggm4 with SMTP id 4so4849514ggm.14
-        for <linux-mm@kvack.org>; Tue, 05 Jun 2012 00:47:18 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx203.postini.com [74.125.245.203])
+	by kanga.kvack.org (Postfix) with SMTP id 3FBF46B0072
+	for <linux-mm@kvack.org>; Tue,  5 Jun 2012 03:52:07 -0400 (EDT)
+Received: by ggm4 with SMTP id 4so4852662ggm.14
+        for <linux-mm@kvack.org>; Tue, 05 Jun 2012 00:52:06 -0700 (PDT)
 MIME-Version: 1.0
 In-Reply-To: <4FCD14F1.1030105@gmail.com>
 References: <20120507121527.GA19526@lizard>
@@ -18,11 +18,12 @@ References: <20120507121527.GA19526@lizard>
 	<4FCC7592.9030403@kernel.org>
 	<20120604113811.GA4291@lizard>
 	<4FCD14F1.1030105@gmail.com>
-Date: Tue, 5 Jun 2012 10:47:18 +0300
-Message-ID: <CAOJsxLHR4wSgT2hNfOB=X6ud0rXgYg+h7PTHzAZYCUdLs6Ktug@mail.gmail.com>
+Date: Tue, 5 Jun 2012 10:52:06 +0300
+Message-ID: <CAOJsxLGbX33TfGvMEzV4By=n8JojHcXV32FRueb3kmti38jBPQ@mail.gmail.com>
 Subject: Re: [PATCH 0/5] Some vmevent fixes...
 From: Pekka Enberg <penberg@kernel.org>
 Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
@@ -30,20 +31,16 @@ Cc: Anton Vorontsov <cbouatmailru@gmail.com>, Minchan Kim <minchan@kernel.org>, 
 
 On Mon, Jun 4, 2012 at 11:05 PM, KOSAKI Motohiro
 <kosaki.motohiro@gmail.com> wrote:
->> Note that 1) and 2) are not problems per se, it's just implementation
->> details, easy stuff. Vmevent is basically an ABI/API, and I didn't
->> hear anybody who would object to vmevent ABI idea itself. More than
->> this, nobody stop us from implementing in-kernel vmevent API, and
->> make Android Lowmemory killer use it, if we want to.
+>> - On desktops, apps can drop their caches on demand if they want to
+>> =A0 and can avoid swap activity?
 >
-> I never agree "it's mere ABI" discussion. Until the implementation is ugly,
-> I never agree the ABI even if syscall interface is very clean.
+> In this case, fallocate(VOLATILE) is work more better.
 
-I don't know what discussion you are talking about.
+For some cases, yes, but probably not for all.
 
-I also don't agree that something should be merged just because the
-ABI is clean. The implementation must also make sense. I don't see how
-we disagree here at all.
+For example, if userspace doesn't know about "about to swap real soon"
+condition, it can continue to grow its caches making
+fallocate(VOLATILE) pretty much useless.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
