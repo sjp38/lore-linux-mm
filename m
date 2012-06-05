@@ -1,205 +1,115 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx160.postini.com [74.125.245.160])
-	by kanga.kvack.org (Postfix) with SMTP id B53A06B006C
-	for <linux-mm@kvack.org>; Tue,  5 Jun 2012 10:40:21 -0400 (EDT)
-Received: by dakp5 with SMTP id p5so9412688dak.14
-        for <linux-mm@kvack.org>; Tue, 05 Jun 2012 07:40:21 -0700 (PDT)
-Message-ID: <4FCE1A51.3040407@gmail.com>
-Date: Tue, 05 Jun 2012 10:40:17 -0400
-From: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
+Received: from psmtp.com (na3sys010amx183.postini.com [74.125.245.183])
+	by kanga.kvack.org (Postfix) with SMTP id 120AA6B0070
+	for <linux-mm@kvack.org>; Tue,  5 Jun 2012 10:52:07 -0400 (EDT)
+Date: Tue, 5 Jun 2012 16:51:23 +0200
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [PATCH 13/35] autonuma: add page structure fields
+Message-ID: <20120605145123.GG21339@redhat.com>
+References: <1337965359-29725-1-git-send-email-aarcange@redhat.com>
+ <1337965359-29725-14-git-send-email-aarcange@redhat.com>
+ <1338297385.26856.74.camel@twins>
+ <4FC4D58A.50800@redhat.com>
+ <1338303251.26856.94.camel@twins>
+ <4FC5D973.3080108@gmail.com>
+ <1338368763.26856.207.camel@twins>
+ <20120530134953.GD21339@redhat.com>
+ <1338488339.28384.106.camel@twins>
 MIME-Version: 1.0
-Subject: Re: [PATCH v9] mm: compaction: handle incorrect MIGRATE_UNMOVABLE
- type pageblocks
-References: <201206041543.56917.b.zolnierkie@samsung.com> <4FCD18FD.5030307@gmail.com> <4FCD6806.7070609@kernel.org> <4FCD713D.3020100@kernel.org> <4FCD8C99.3010401@gmail.com> <4FCDA1B4.9050301@kernel.org>
-In-Reply-To: <4FCDA1B4.9050301@kernel.org>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1338488339.28384.106.camel@twins>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>, Linus Torvalds <torvalds@linux-foundation.org>, Kyungmin Park <kyungmin.park@samsung.com>, Marek Szyprowski <m.szyprowski@samsung.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Dave Jones <davej@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Cong Wang <amwang@redhat.com>, Markus Trippelsdorf <markus@trippelsdorf.de>
+To: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Cc: KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Hillf Danton <dhillf@gmail.com>, Dan Smith <danms@us.ibm.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>, Paul Turner <pjt@google.com>, Suresh Siddha <suresh.b.siddha@intel.com>, Mike Galbraith <efault@gmx.de>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Bharata B Rao <bharata.rao@gmail.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Johannes Weiner <hannes@cmpxchg.org>, Srivatsa Vaddagiri <vatsa@linux.vnet.ibm.com>, Christoph Lameter <cl@linux.com>
 
-(6/5/12 2:05 AM), Minchan Kim wrote:
-> On 06/05/2012 01:35 PM, KOSAKI Motohiro wrote:
->
->>>>> Minchan, are you interest this patch? If yes, can you please rewrite
->>>>> it?
->>>>
->>>> Can do it but I want to give credit to Bartlomiej.
->>>> Bartlomiej, if you like my patch, could you resend it as formal patch
->>>> after you do broad testing?
->>>>
->>>> Frankly speaking, I don't want to merge it without any data which
->>>> prove it's really good for real practice.
->>>>
->>>> When the patch firstly was submitted, it wasn't complicated so I was
->>>> okay at that time but it has been complicated
->>>> than my expectation. So if Andrew might pass the decision to me, I'm
->>>> totally NACK if author doesn't provide
->>>> any real data or VOC of some client.
->>
->> I agree. And you don't need to bother this patch if you are not interest
->> this one. I'm sorry.
->
->
-> Never mind.
->
->> Let's throw it away until the author send us data.
->>
->
-> I guess it's hard to make such workload to prove it's useful normally.
-> But we can't make sure there isn't such workload in the world.
-> So I hope listen VOC. At least, Mel might require it.
->
-> If anyone doesn't support it, I hope let's add some vmstat like stuff for proving
-> this patch's effect. If we can't see the benefit through vmstat, we can deprecate
-> it later.
+Hi,
 
-Eek, bug we can not deprecate the vmstat. I hope to make good decision _before_
-inclusion. ;-)
+On Thu, May 31, 2012 at 08:18:59PM +0200, Peter Zijlstra wrote:
+> On Wed, 2012-05-30 at 15:49 +0200, Andrea Arcangeli wrote:
+> > 
+> > I'm thinking about it but probably reducing the page_autonuma to one
+> > per pmd is going to be the simplest solution considering by default we
+> > only track the pmd anyway. 
+> 
+> Do also consider that some archs have larger base page size. So their
+> effective PMD size is increased as well.
 
+With a larger PAGE_SIZE like 64k I doubt this would be a concern, it's
+just 4k is too small.
 
->>> +static bool can_rescue_unmovable_pageblock(struct page *page, bool
->>> need_lrulock)
->>> +{
->>> +    struct zone *zone;
->>> +    unsigned long pfn, start_pfn, end_pfn;
->>> +    struct page *start_page, *end_page, *cursor_page;
->>> +    bool lru_locked = false;
->>> +
->>> +    zone = page_zone(page);
->>> +    pfn = page_to_pfn(page);
->>> +    start_pfn = pfn&  ~(pageblock_nr_pages - 1);
->>> +    end_pfn = start_pfn + pageblock_nr_pages - 1;
->>> +
->>> +    start_page = pfn_to_page(start_pfn);
->>> +    end_page = pfn_to_page(end_pfn);
->>> +
->>> +    for (cursor_page = start_page, pfn = start_pfn; cursor_page<=
->>> end_page;
->>> +        pfn++, cursor_page++) {
->>>
->>> -/* Returns true if the page is within a block suitable for migration
->>> to */
->>> -static bool suitable_migration_target(struct page *page)
->>> +        if (!pfn_valid_within(pfn))
->>> +            continue;
->>> +
->>> +        /* Do not deal with pageblocks that overlap zones */
->>> +        if (page_zone(cursor_page) != zone)
->>> +            goto out;
->>> +
->>> +        if (PageBuddy(cursor_page)) {
->>> +            unsigned long order = page_order(cursor_page);
->>> +
->>> +            pfn += (1<<  order) - 1;
->>> +            cursor_page += (1<<  order) - 1;
->>> +            continue;
->>> +        } else if (page_count(cursor_page) == 0) {
->>> +            continue;
->>
->> Can we assume freed tail page always have page_count()==0? if yes, why
->> do we
->> need dangerous PageBuddy(cursor_page) check? ok, but this may be harmless.
->
-> page_count check is for pcp pages.
+Now I did a number of cleanups and already added a number of comments,
+I'll write proper badly needed docs on the autonuma_balance() function
+ASAP, but at least a number of cleanups are already committed in the
+autonuma branch of my git tree.
 
-Right. but my point was, I doubt we can do buddy walk w/o zone->lock.
+>From my side, the thing that annoys me the most at the moment is the
+page_autonuma size.
 
+So I gave more thought about the idea outlined above but well I gave
+up in less than a minute of thinking what I could run into doing
+that. The fact we do pmd tracking in knuma_scand by default (possible
+to disable with sysfs) is irrelevant. Unless I'm only going to track
+THP pages, 1 page_autonuma per pmd won't work, when the pmd_numa fault
+triggers it's all nonlinear on whatever scattered 4k page is pointed
+by the pte, not shared pagecache especially.
 
-> Am I missing your point?
->
->
->> But if no, this code is seriously dangerous. think following scenario,
->>
->> 1) cursor page points free page
->>
->>      +----------------+------------------+
->>      | free (order-1) |  used (order-1)  |
->>      +----------------+------------------+
->>      |
->>     cursor
->>
->> 2) moved cursor
->>
->>      +----------------+------------------+
->>      | free (order-1) |  used (order-1)  |
->>      +----------------+------------------+
->>                       |
->>                       cursor
->>
->> 3) neighbor block was freed
->>
->>
->>      +----------------+------------------+
->>      | free (order-2)                    |
->>      +----------------+------------------+
->>                       |
->>                       cursor
->>
->> now, cursor points to middle of free block.
->
->> Anyway, I recommend to avoid dangerous no zone->lock game and change
->> can_rescue_unmovable_pageblock() is only called w/ zone->lock. I have
->
->
->
-> I can't understand your point.
-> If the page is middle of free block, what's the problem in can_rescue_unmovable_pageblock
-> at first trial of can_rescue_xxx?
+I kept thinking more on it, I should have now figured how to reduce
+the page_autonuma to 12 bytes per 4k page on both 32bit and 64bit
+without losing information (no code written yet but this one should
+work). I just couldn't shrink it below 12 bytes without going into
+ridiculous high and worthless complexities.
 
-I'm not sure. but other all pfn scanning code carefully avoid to touch a middle of free pages
-block. (also they take zone->lock anytime)
+After this change AutoNUMA will bail out if any of the two below
+conditions is true:
 
+1) MAX_NUMNODES >= 65536
+2) any NUMA node pgdat.node_spanned_pages >= 16TB/PAGE_SIZE
 
-> I think we can stabilize it in second trial of can_rescue_unmovable_pageblock with zone->lock.
->
->> no seen any worth to include this high complex for mere minor optimization.
->
->>
->
->>
->>> +        } else if (PageLRU(cursor_page)) {
->>> +            if (!need_lrulock)
->>> +                continue;
->>> +            else if (lru_locked)
->>> +                continue;
->>> +            else {
->>> +                spin_lock(&zone->lru_lock);
->>
->> Hmm...
->> I don't like to take lru_lock. 1) Until now, we carefully avoid to take
->> both zone->lock and zone->lru_lock. they are both performance critical
->> lock. And I think pageblock migratetype don't need strictly correct. It
->> is only optimization of anti fragmentation. Why do we need take it?
->
-> movable_block has unmovable page can make regression of anti-fragmentation.
-> So I did it. I agree it's a sort of optimization.
-> If others don't want it at the cost of regression anti-fragmentation, we can remove the lock.
+That means AutoNUMA will disengage itself automatically on boot on x86
+NUMA systems with more than 1152921504606846976 of ram, that's 60bit
+of physical address space and no x86 CPU even gets that far in terms
+of physical address space.
 
-ok.
+Other archs requiring more memory than that, will hopefully have a
+PAGE_SIZE > 4KB (in turn doubling up the per-node limit of ram at
+every doubling of the PAGE_SIZE without having to increase the size of
+the page_autonuma even on 64bit from 12bytes).
 
+A packed 12 bytes per page should be all I need (maybe some arch with
+alignment troubles may prefer to make it a 16 bytes, but on x86 packed
+should work). So on x86 that's 0.29% of RAM used for autonuma and only
+spent when booting on NUMA hardware (and trivial to get rid of by
+passing "noatuonuma" on the command line).
 
->
->>
->>
->>> +                lru_locked = true;
->>> +                if (PageLRU(page))
->>> +                    continue;
->>> +            }
->>> +        }
->>> +
->>> +        goto out;
->>> +    }
->>> +
->>
->> Why don't we need to release lru_lock when returning true.
->
->
-> Because my brain has gone. :(
+If I leave the anti false sharing last_nid information in the page
+structure plus a pointer to a dynamic structure, that would be still
+about 12 bytes. So I rather spend those 12 bytes to avoid having to
+point to a dynamic object which in fact would waste even more memory
+in addition to the 12 bytes of pointer+last_nid.
 
-Never mind.
+The details of the solution:
 
+struct page_autonuma {
+    short autonuma_last_nid;
+    short autonuma_migrate_nid;
+    unsigned int pfn_offset_next;
+    unsigned int pfn_offset_prev;
+} __attribute__((packed));
+
+page_autonuma can only point to a page that belongs to the same node
+(page_autonuma is queued into the
+NODE_DATA(autonuma_migrate_nid)->autonuma_migrate_head[src_nid]) where
+src_nid is the source node that page_autonuma belongs to, so all pages
+in the autonuma_migrate_head[src_nid] lru must come from the same
+src_nid. So the next page_autonuma in the list will be
+lookup_page_autonuma(pfn_to_page(NODE_DATA(src_nid)->node_start_pfn +
+page_autonuma->pfn_offset_next)) etc..
+
+Of course all list_add/del must be hardcoded specially for this, but
+it's not a conceptually difficult solution, just we can't use list.h
+and stright pointers anymore and some conversion must happen.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
