@@ -1,103 +1,112 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx169.postini.com [74.125.245.169])
-	by kanga.kvack.org (Postfix) with SMTP id 4B0A66B0062
-	for <linux-mm@kvack.org>; Tue,  5 Jun 2012 19:15:32 -0400 (EDT)
-Date: Wed, 6 Jun 2012 01:15:30 +0200
-From: Jan Kara <jack@suse.cz>
-Subject: Re: Hole punching and mmap races
-Message-ID: <20120605231530.GB4402@quack.suse.cz>
-References: <20120515224805.GA25577@quack.suse.cz>
- <20120516021423.GO25351@dastard>
- <20120516130445.GA27661@quack.suse.cz>
- <20120517074308.GQ25351@dastard>
- <20120517232829.GA31028@quack.suse.cz>
- <20120518101210.GX25351@dastard>
- <20120518133250.GC5589@quack.suse.cz>
- <20120519014024.GZ25351@dastard>
- <20120524123538.GA5632@quack.suse.cz>
- <20120605055150.GF4347@dastard>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20120605055150.GF4347@dastard>
+Received: from psmtp.com (na3sys010amx131.postini.com [74.125.245.131])
+	by kanga.kvack.org (Postfix) with SMTP id EC5446B0062
+	for <linux-mm@kvack.org>; Tue,  5 Jun 2012 19:44:43 -0400 (EDT)
+Date: Tue, 5 Jun 2012 16:44:42 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH 1/2] swap: allow swap readahead to be merged
+Message-Id: <20120605164442.c7d12faa.akpm@linux-foundation.org>
+In-Reply-To: <1338798803-5009-2-git-send-email-ehrhardt@linux.vnet.ibm.com>
+References: <1338798803-5009-1-git-send-email-ehrhardt@linux.vnet.ibm.com>
+	<1338798803-5009-2-git-send-email-ehrhardt@linux.vnet.ibm.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Chinner <david@fromorbit.com>
-Cc: Jan Kara <jack@suse.cz>, linux-fsdevel@vger.kernel.org, xfs@oss.sgi.com, linux-ext4@vger.kernel.org, Hugh Dickins <hughd@google.com>, linux-mm@kvack.org
+To: ehrhardt@linux.vnet.ibm.com
+Cc: linux-mm@kvack.org, axboe@kernel.dk, hughd@google.com, minchan@kernel.org
 
-On Tue 05-06-12 15:51:50, Dave Chinner wrote:
-> On Thu, May 24, 2012 at 02:35:38PM +0200, Jan Kara wrote:
-> > > To me the issue at hand is that we have no method of serialising
-> > > multi-page operations on the mapping tree between the filesystem and
-> > > the VM, and that seems to be the fundamental problem we face in this
-> > > whole area of mmap/buffered/direct IO/truncate/holepunch coherency.
-> > > Hence it might be better to try to work out how to fix this entire
-> > > class of problems rather than just adding a complex kuldge that just
-> > > papers over the current "hot" symptom....
-> >   Yes, looking at the above table, the amount of different synchronization
-> > mechanisms is really striking. So probably we should look at some
-> > possibility of unifying at least some cases.
-> 
-> It seems to me that we need some thing in between the fine grained
-> page lock and the entire-file IO exclusion lock. We need to maintain
-> fine grained locking for mmap scalability, but we also need to be
-> able to atomically lock ranges of pages.
-  Yes, we also need to keep things fine grained to keep scalability of
-direct IO and buffered reads...
+On Mon,  4 Jun 2012 10:33:22 +0200
+ehrhardt@linux.vnet.ibm.com wrote:
 
-> I guess if we were to nest a fine grained multi-state lock
-> inside both the IO exclusion lock and the mmap_sem, we might be able
-> to kill all problems in one go.
+> From: Christian Ehrhardt <ehrhardt@linux.vnet.ibm.com>
 > 
-> Exclusive access on a range needs to be granted to:
-> 
-> 	- direct IO
-> 	- truncate
-> 	- hole punch
-> 
-> so they can be serialised against mmap based page faults, writeback
-> and concurrent buffered IO. Serialisation against themselves is an
-> IO/fs exclusion problem.
-> 
-> Shared access for traversal or modification needs to be granted to:
-> 
-> 	- buffered IO
-> 	- mmap page faults
-> 	- writeback
-> 
-> Each of these cases can rely on the existing page locks or IO
-> exclusion locks to provide safety for concurrent access to the same
-> ranges. This means that once we have access granted to a range we
-> can check truncate races once and ignore the problem until we drop
-> the access.  And the case of taking a page fault within a buffered
-> IO won't deadlock because both take a shared lock....
-  You cannot just use a lock (not even a shared one) both above and under
-mmap_sem. That is deadlockable in presence of other requests for exclusive
-locking... Luckily, with buffered writes the situation isn't that bad. You
-need mmap_sem only before each page is processed (in
-iov_iter_fault_in_readable()). Later on in the loop we use
-iov_iter_copy_from_user_atomic() which doesn't need mmap_sem. So we can
-just get our shared lock after iov_iter_fault_in_readable() (or simply
-leave it for ->write_begin() if we want to give control over the locking to
-filesystems).
- 
-> We'd need some kind of efficient shared/exclusive range lock for
-> this sort of exclusion, and it's entirely possible that it would
-> have too much overhead to be acceptible in the page fault path. It's
-> the best I can think of right now.....
->
-> As it is, a range lock of this kind would be very handy for other
-> things, too (like the IO exclusion locks so we can do concurrent
-> buffered writes in XFS ;).
-  Yes, that's what I thought as well. In particular it should be pretty
-efficient in locking a single page range because that's going to be
-majority of calls. I'll try to write something and see how fast it can
-be...
+> Swap readahead works fine, but the I/O to disk is almost always done in page
+> size requests, despite the fact that readahead submits 1<<page-cluster pages
+> at a time.
+> On older kernels the old per device plugging behavior might have captured
+> this and merged the requests, but currently all comes down to much more I/Os
+> than required.
 
-								Honza
--- 
-Jan Kara <jack@suse.cz>
-SUSE Labs, CR
+Yes, long ago we (ie: I) decided that swap I/O isn't sufficiently
+common to bother doing any fancy high-level aggregation: just toss it
+at the queue and use the general BIO merging.
+
+> On a single device this might not be an issue, but as soon as a server runs
+> on shared san resources savin I/Os not only improves swapin throughput but
+> also provides a lower resource utilization.
+> 
+> With a load running KVM in a lot of memory overcommitment (the hot memory
+> is 1.5 times the host memory) swapping throughput improves significantly
+> and the lead feels more responsive as well as achieves more throughput.
+> 
+> In a test setup with 16 swap disks running blocktrace on one of those disks
+> shows the improved merging:
+> Prior:
+> Reads Queued:     560,888,    2,243MiB  Writes Queued:     226,242,  904,968KiB
+> Read Dispatches:  544,701,    2,243MiB  Write Dispatches:  159,318,  904,968KiB
+> Reads Requeued:         0               Writes Requeued:         0
+> Reads Completed:  544,716,    2,243MiB  Writes Completed:  159,321,  904,980KiB
+> Read Merges:       16,187,   64,748KiB  Write Merges:       61,744,  246,976KiB
+> IO unplugs:       149,614               Timer unplugs:       2,940
+> 
+> With the patch:
+> Reads Queued:     734,315,    2,937MiB  Writes Queued:     300,188,    1,200MiB
+> Read Dispatches:  214,972,    2,937MiB  Write Dispatches:  215,176,    1,200MiB
+> Reads Requeued:         0               Writes Requeued:         0
+> Reads Completed:  214,971,    2,937MiB  Writes Completed:  215,177,    1,200MiB
+> Read Merges:      519,343,    2,077MiB  Write Merges:       73,325,  293,300KiB
+> IO unplugs:       337,130               Timer unplugs:      11,184
+
+This is rather hard to understand.  How much faster did it get?
+
+> --- a/mm/swap_state.c
+> +++ b/mm/swap_state.c
+> @@ -14,6 +14,7 @@
+>  #include <linux/init.h>
+>  #include <linux/pagemap.h>
+>  #include <linux/backing-dev.h>
+> +#include <linux/blkdev.h>
+>  #include <linux/pagevec.h>
+>  #include <linux/migrate.h>
+>  #include <linux/page_cgroup.h>
+> @@ -376,6 +377,7 @@ struct page *swapin_readahead(swp_entry_t entry, gfp_t gfp_mask,
+>  	unsigned long offset = swp_offset(entry);
+>  	unsigned long start_offset, end_offset;
+>  	unsigned long mask = (1UL << page_cluster) - 1;
+> +	struct blk_plug plug;
+>  
+>  	/* Read a page_cluster sized and aligned cluster around offset. */
+>  	start_offset = offset & ~mask;
+> @@ -383,6 +385,7 @@ struct page *swapin_readahead(swp_entry_t entry, gfp_t gfp_mask,
+>  	if (!start_offset)	/* First page is swap header. */
+>  		start_offset++;
+>  
+> +	blk_start_plug(&plug);
+>  	for (offset = start_offset; offset <= end_offset ; offset++) {
+>  		/* Ok, do the async read-ahead now */
+>  		page = read_swap_cache_async(swp_entry(swp_type(entry), offset),
+> @@ -391,6 +394,8 @@ struct page *swapin_readahead(swp_entry_t entry, gfp_t gfp_mask,
+>  			continue;
+>  		page_cache_release(page);
+>  	}
+> +	blk_finish_plug(&plug);
+> +
+>  	lru_add_drain();	/* Push any new pages onto the LRU now */
+>  	return read_swap_cache_async(entry, gfp_mask, vma, addr);
+
+AFACIT this affects tmpfs as well, and it would be
+interesting/useful/diligent to check for performance improvements or
+regressions in that area.
+
+And the patch doesn't help swapoff, in try_to_unuse().  Or any other
+callers of swap_readpage(), if they exist.
+
+The switch to explicit plugging might have caused swap regressions in
+other areas so perhaps a more extensive patch is needed.  But
+swapin_readahead() covers most cases and a more extensive patch will
+work OK with this one, so I guess we run witht he simple patch for now.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
