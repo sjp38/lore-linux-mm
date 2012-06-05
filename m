@@ -1,559 +1,143 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx134.postini.com [74.125.245.134])
-	by kanga.kvack.org (Postfix) with SMTP id B8AF36B0062
-	for <linux-mm@kvack.org>; Tue,  5 Jun 2012 00:35:43 -0400 (EDT)
-Received: by qcsd16 with SMTP id d16so3242007qcs.14
-        for <linux-mm@kvack.org>; Mon, 04 Jun 2012 21:35:42 -0700 (PDT)
-Message-ID: <4FCD8C99.3010401@gmail.com>
-Date: Tue, 05 Jun 2012 00:35:37 -0400
-From: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
+Received: from psmtp.com (na3sys010amx133.postini.com [74.125.245.133])
+	by kanga.kvack.org (Postfix) with SMTP id AE0B46B0062
+	for <linux-mm@kvack.org>; Tue,  5 Jun 2012 01:51:55 -0400 (EDT)
+Date: Tue, 5 Jun 2012 15:51:50 +1000
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: Hole punching and mmap races
+Message-ID: <20120605055150.GF4347@dastard>
+References: <20120515224805.GA25577@quack.suse.cz>
+ <20120516021423.GO25351@dastard>
+ <20120516130445.GA27661@quack.suse.cz>
+ <20120517074308.GQ25351@dastard>
+ <20120517232829.GA31028@quack.suse.cz>
+ <20120518101210.GX25351@dastard>
+ <20120518133250.GC5589@quack.suse.cz>
+ <20120519014024.GZ25351@dastard>
+ <20120524123538.GA5632@quack.suse.cz>
 MIME-Version: 1.0
-Subject: Re: [PATCH v9] mm: compaction: handle incorrect MIGRATE_UNMOVABLE
- type pageblocks
-References: <201206041543.56917.b.zolnierkie@samsung.com> <4FCD18FD.5030307@gmail.com> <4FCD6806.7070609@kernel.org> <4FCD713D.3020100@kernel.org>
-In-Reply-To: <4FCD713D.3020100@kernel.org>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20120524123538.GA5632@quack.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>, Linus Torvalds <torvalds@linux-foundation.org>, Kyungmin Park <kyungmin.park@samsung.com>, Marek Szyprowski <m.szyprowski@samsung.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Dave Jones <davej@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Cong Wang <amwang@redhat.com>, Markus Trippelsdorf <markus@trippelsdorf.de>
+To: Jan Kara <jack@suse.cz>
+Cc: linux-fsdevel@vger.kernel.org, xfs@oss.sgi.com, linux-ext4@vger.kernel.org, Hugh Dickins <hughd@google.com>, linux-mm@kvack.org
 
->>> Minchan, are you interest this patch? If yes, can you please rewrite it?
->>
->> Can do it but I want to give credit to Bartlomiej.
->> Bartlomiej, if you like my patch, could you resend it as formal patch after you do broad testing?
->>
->> Frankly speaking, I don't want to merge it without any data which prove it's really good for real practice.
->>
->> When the patch firstly was submitted, it wasn't complicated so I was okay at that time but it has been complicated
->> than my expectation. So if Andrew might pass the decision to me, I'm totally NACK if author doesn't provide
->> any real data or VOC of some client.
+On Thu, May 24, 2012 at 02:35:38PM +0200, Jan Kara wrote:
+> On Sat 19-05-12 11:40:24, Dave Chinner wrote:
+> > So let's step back a moment and have a look at how we've got here.
+> > The problem is that we've optimised ourselves into a corner with the
+> > way we handle page cache truncation - we don't need mmap
+> > serialisation because of the combination of i_size and page locks
+> > mean we can detect truncated pages safely at page fault time. With
+> > hole punching, we don't have that i_size safety blanket, and so we
+> > need some other serialisation mechanism to safely detect whether a
+> > page is valid or not at any given point in time.
+> > 
+> > Because it needs to serialise against IO operations, we need a
+> > sleeping lock of some kind, and it can't be the existing IO lock.
+> > And now we are looking at needing a new lock for hole punching, I'm
+> > really wondering if the i_size/page lock truncation optimisation
+> > should even continue to exist. i.e. replace it with a single
+> > mechanism that works for both hole punching, truncation and other
+> > functions that require exclusive access or exclusion against
+> > modifications to the mapping tree.
+> > 
+> > But this is only one of the problems in this area.The way I see it
+> > is that we have many kludges in the area of page invalidation w.r.t.
+> > different types of IO, the page cache and mmap, especially when we
+> > take into account direct IO. What we are seeing here is we need
+> > some level of _mapping tree exclusion_ between:
+> > 
+> > 	1. mmap vs hole punch (broken)
+> > 	2. mmap vs truncate (i_size/page lock)
+> > 	3. mmap vs direct IO (non-existent)
+> > 	4. mmap vs buffered IO (page lock)
+> > 	5. writeback vs truncate (i_size/page lock)
+> > 	6. writeback vs hole punch (page lock, possibly broken)
+> > 	7. direct IO vs buffered IO (racy - flush cache before/after DIO)
+>   Yes, this is a nice summary of the most interesting cases. For completeness,
+> here are the remaining cases:
+>   8. mmap vs writeback (page lock)
+>   9. writeback vs direct IO (as direct IO vs buffered IO)
+>  10. writeback vs buffered IO (page lock)
+>  11. direct IO vs truncate (dio_wait)
+>  12. direct IO vs hole punch (dio_wait)
+>  13. buffered IO vs truncate (i_mutex for writes, i_size/page lock for reads)
+>  14. buffered IO vs hole punch (fs dependent, broken for ext4)
+>  15. truncate vs hole punch (fs dependent)
+>  16. mmap vs mmap (page lock)
+>  17. writeback vs writeback (page lock)
+>  18. direct IO vs direct IO (i_mutex or fs dependent)
+>  19. buffered IO vs buffered IO (i_mutex for writes, page lock for reads)
+>  20. truncate vs truncate (i_mutex)
+>  21. punch hole vs punch hole (fs dependent)
 
-I agree. And you don't need to bother this patch if you are not interest this one. I'm sorry.
-Let's throw it away until the author send us data.
+A lot of them are the IO exclusion side of the problem - I
+ignored them just to make my discussion short and
+to the point. So thanks for documenting them for everyone. :)
 
+....
 
->> 1) Any comment?
->>
->> Anyway, I fixed some bugs and clean up something I found during review.
->>
->> Minor thing.
->> 1. change smt_result naming - I never like such long non-consistent naming. How about this?
->> 2. fix can_rescue_unmovable_pageblock
->>     2.1 pfn valid check for page_zone
->>
->> Major thing.
->>
->>     2.2 add lru_lock for stablizing PageLRU
->>         If we don't hold lru_lock, there is possibility that unmovable(non-LRU) page can put in movable pageblock.
->>         It can make compaction/CMA's regression. But there is a concern about deadlock between lru_lock and lock.
->>         As I look the code, I can't find allocation trial with holding lru_lock so it might be safe(but not sure,
->>         I didn't test it. It need more careful review/testing) but it makes new locking dependency(not sure, too.
->>         We already made such rule but I didn't know that until now ;-) ) Why I thought so is we can allocate
->>         GFP_ATOMIC with holding lru_lock, logically which might be crazy idea.
->>
->>     2.3 remove zone->lock in first phase.
->>         We do rescue unmovable pageblock by 2-phase. In first-phase, we just peek pages so we don't need locking.
->>         If we see non-stablizing value, it would be caught by 2-phase with needed lock or
->>         can_rescue_unmovable_pageblock can return out of loop by stale page_order(cursor_page).
->>         It couldn't make unmovable pageblock to movable but we can do it next time, again.
->>         It's not critical.
->>
->> 2) Any comment?
->>
->> Now I can't inline the code so sorry but attach patch.
->> It's not a formal patch/never tested.
->>
->
->
-> Attached patch has a BUG in can_rescue_unmovable_pageblock.
-> Resend. I hope it is fixed.
->
->
->
->
->
-> diff --git a/include/linux/compaction.h b/include/linux/compaction.h
-> index 51a90b7..e988037 100644
-> --- a/include/linux/compaction.h
-> +++ b/include/linux/compaction.h
-> @@ -1,6 +1,8 @@
->  #ifndef _LINUX_COMPACTION_H
->  #define _LINUX_COMPACTION_H
->
-> +#include <linux/node.h>
-> +
->  /* Return values for compact_zone() and try_to_compact_pages() */
->  /* compaction didn't start as it was not possible or direct reclaim was more suitable */
->  #define COMPACT_SKIPPED		0
-> @@ -11,6 +13,23 @@
->  /* The full zone was compacted */
->  #define COMPACT_COMPLETE	3
->
-> +/*
-> + * compaction supports three modes
-> + *
-> + * COMPACT_ASYNC_MOVABLE uses asynchronous migration and only scans
-> + *    MIGRATE_MOVABLE pageblocks as migration sources and targets.
-> + * COMPACT_ASYNC_UNMOVABLE uses asynchronous migration and only scans
-> + *    MIGRATE_MOVABLE pageblocks as migration sources.
-> + *    MIGRATE_UNMOVABLE pageblocks are scanned as potential migration
-> + *    targets and convers them to MIGRATE_MOVABLE if possible
-> + * COMPACT_SYNC uses synchronous migration and scans all pageblocks
-> + */
-> +enum compact_mode {
-> +	COMPACT_ASYNC_MOVABLE,
-> +	COMPACT_ASYNC_UNMOVABLE,
-> +	COMPACT_SYNC,
-> +};
-> +
->  #ifdef CONFIG_COMPACTION
->  extern int sysctl_compact_memory;
->  extern int sysctl_compaction_handler(struct ctl_table *table, int write,
-> diff --git a/mm/compaction.c b/mm/compaction.c
-> index 7ea259d..dd02f25 100644
-> --- a/mm/compaction.c
-> +++ b/mm/compaction.c
-> @@ -236,7 +236,7 @@ isolate_migratepages_range(struct zone *zone, struct compact_control *cc,
->  	 */
->  	while (unlikely(too_many_isolated(zone))) {
->  		/* async migration should just abort */
-> -		if (!cc->sync)
-> +		if (cc->mode != COMPACT_SYNC)
->  			return 0;
->
->  		congestion_wait(BLK_RW_ASYNC, HZ/10);
-> @@ -304,7 +304,8 @@ isolate_migratepages_range(struct zone *zone, struct compact_control *cc,
->  		 * satisfies the allocation
->  		 */
->  		pageblock_nr = low_pfn >> pageblock_order;
-> -		if (!cc->sync && last_pageblock_nr != pageblock_nr &&
-> +		if (cc->mode != COMPACT_SYNC &&
-> +		    last_pageblock_nr != pageblock_nr &&
->  		    !migrate_async_suitable(get_pageblock_migratetype(page))) {
->  			low_pfn += pageblock_nr_pages;
->  			low_pfn = ALIGN(low_pfn, pageblock_nr_pages) - 1;
-> @@ -325,7 +326,7 @@ isolate_migratepages_range(struct zone *zone, struct compact_control *cc,
->  			continue;
->  		}
->
-> -		if (!cc->sync)
-> +		if (cc->mode != COMPACT_SYNC)
->  			mode |= ISOLATE_ASYNC_MIGRATE;
->
->  		lruvec = mem_cgroup_page_lruvec(page, zone);
-> @@ -360,27 +361,121 @@ isolate_migratepages_range(struct zone *zone, struct compact_control *cc,
->
->  #endif /* CONFIG_COMPACTION || CONFIG_CMA */
->  #ifdef CONFIG_COMPACTION
-> +/*
-> + * Returns true if MIGRATE_UNMOVABLE pageblock can be successfully
-> + * converted to MIGRATE_MOVABLE type, false otherwise.
-> + */
-> +static bool can_rescue_unmovable_pageblock(struct page *page, bool need_lrulock)
-> +{
-> +	struct zone *zone;
-> +	unsigned long pfn, start_pfn, end_pfn;
-> +	struct page *start_page, *end_page, *cursor_page;
-> +	bool lru_locked = false;
-> +
-> +	zone = page_zone(page);
-> +	pfn = page_to_pfn(page);
-> +	start_pfn = pfn & ~(pageblock_nr_pages - 1);
-> +	end_pfn = start_pfn + pageblock_nr_pages - 1;
-> +
-> +	start_page = pfn_to_page(start_pfn);
-> +	end_page = pfn_to_page(end_pfn);
-> +
-> +	for (cursor_page = start_page, pfn = start_pfn; cursor_page <= end_page;
-> +		pfn++, cursor_page++) {
->
-> -/* Returns true if the page is within a block suitable for migration to */
-> -static bool suitable_migration_target(struct page *page)
-> +		if (!pfn_valid_within(pfn))
-> +			continue;
-> +
-> +		/* Do not deal with pageblocks that overlap zones */
-> +		if (page_zone(cursor_page) != zone)
-> +			goto out;
-> +
-> +		if (PageBuddy(cursor_page)) {
-> +			unsigned long order = page_order(cursor_page);
-> +
-> +			pfn += (1 << order) - 1;
-> +			cursor_page += (1 << order) - 1;
-> +			continue;
-> +		} else if (page_count(cursor_page) == 0) {
-> +			continue;
+> > To me the issue at hand is that we have no method of serialising
+> > multi-page operations on the mapping tree between the filesystem and
+> > the VM, and that seems to be the fundamental problem we face in this
+> > whole area of mmap/buffered/direct IO/truncate/holepunch coherency.
+> > Hence it might be better to try to work out how to fix this entire
+> > class of problems rather than just adding a complex kuldge that just
+> > papers over the current "hot" symptom....
+>   Yes, looking at the above table, the amount of different synchronization
+> mechanisms is really striking. So probably we should look at some
+> possibility of unifying at least some cases.
 
-Can we assume freed tail page always have page_count()==0? if yes, why do we
-need dangerous PageBuddy(cursor_page) check? ok, but this may be harmless.
+It seems to me that we need some thing in between the fine grained
+page lock and the entire-file IO exclusion lock. We need to maintain
+fine grained locking for mmap scalability, but we also need to be
+able to atomically lock ranges of pages.
 
-But if no, this code is seriously dangerous. think following scenario,
+I guess if we were to nest a fine grained multi-state lock
+inside both the IO exclusion lock and the mmap_sem, we might be able
+to kill all problems in one go.
 
-1) cursor page points free page
+Exclusive access on a range needs to be granted to:
 
-     +----------------+------------------+
-     | free (order-1) |  used (order-1)  |
-     +----------------+------------------+
-     |
-    cursor
+	- direct IO
+	- truncate
+	- hole punch
 
-2) moved cursor
+so they can be serialised against mmap based page faults, writeback
+and concurrent buffered IO. Serialisation against themselves is an
+IO/fs exclusion problem.
 
-     +----------------+------------------+
-     | free (order-1) |  used (order-1)  |
-     +----------------+------------------+
-                      |
-                      cursor
+Shared access for traversal or modification needs to be granted to:
 
-3) neighbor block was freed
+	- buffered IO
+	- mmap page faults
+	- writeback
 
+Each of these cases can rely on the existing page locks or IO
+exclusion locks to provide safety for concurrent access to the same
+ranges. This means that once we have access granted to a range we
+can check truncate races once and ignore the problem until we drop
+the access.  And the case of taking a page fault within a buffered
+IO won't deadlock because both take a shared lock....
 
-     +----------------+------------------+
-     | free (order-2)                    |
-     +----------------+------------------+
-                      |
-                      cursor
+We'd need some kind of efficient shared/exclusive range lock for
+this sort of exclusion, and it's entirely possible that it would
+have too much overhead to be acceptible in the page fault path. It's
+the best I can think of right now.....
 
-now, cursor points to middle of free block.
+As it is, a range lock of this kind would be very handy for other
+things, too (like the IO exclusion locks so we can do concurrent
+buffered writes in XFS ;).
 
+Cheers,
 
-Anyway, I recommend to avoid dangerous no zone->lock game and change
-can_rescue_unmovable_pageblock() is only called w/ zone->lock. I have
-no seen any worth to include this high complex for mere minor optimization.
-
-
-> +		} else if (PageLRU(cursor_page)) {
-> +			if (!need_lrulock)
-> +				continue;
-> +			else if (lru_locked)
-> +				continue;
-> +			else {
-> +				spin_lock(&zone->lru_lock);
-
-Hmm...
-I don't like to take lru_lock. 1) Until now, we carefully avoid to take
-both zone->lock and zone->lru_lock. they are both performance critical
-lock. And I think pageblock migratetype don't need strictly correct. It
-is only optimization of anti fragmentation. Why do we need take it?
-
-
-
-> +				lru_locked = true;
-> +				if (PageLRU(page))
-> +					continue;
-> +			}
-> +		}
-> +
-> +		goto out;
-> +	}
-> +
-
-Why don't we need to release lru_lock when returning true.
-
-
-> +	return true;
-> +out:
-> +	if (lru_locked)
-> +		spin_unlock(&zone->lru_lock);
-> +
-> +	return false;
-> +}
-> +
-> +static void rescue_unmovable_pageblock(struct page *page)
-> +{
-> +	set_pageblock_migratetype(page, MIGRATE_MOVABLE);
-> +	move_freepages_block(page_zone(page), page, MIGRATE_MOVABLE);
-> +}
-> +
-> +/*
-> + * MIGRATE_TARGET : good for migration target
-> + * RESCUE_UNMOVABLE_TARTET : good only if we can rescue the unmovable pageblock.
-> + * UNMOVABLE_TARGET : can't migrate because it's a page in unmovable pageblock.
-> + * SKIP_TARGET : can't migrate another reasons.
-> + */
-> +enum smt_result {
-> +	MIGRATE_TARGET,
-> +	RESCUE_UNMOVABLE_TARGET,
-> +	UNMOVABLE_TARGET,
-> +	SKIP_TARGET,
-> +};
-> +
-> +/*
-> + * Returns MIGRATE_TARGET if the page is within a block
-> + * suitable for migration to, UNMOVABLE_TARGET if the page
-> + * is within a MIGRATE_UNMOVABLE block, SKIP_TARGET otherwise.
-> + */
-> +static enum smt_result suitable_migration_target(struct page *page,
-> +			      struct compact_control *cc, bool need_lrulock)
->  {
->
->  	int migratetype = get_pageblock_migratetype(page);
->
->  	/* Don't interfere with memory hot-remove or the min_free_kbytes blocks */
->  	if (migratetype == MIGRATE_ISOLATE || migratetype == MIGRATE_RESERVE)
-> -		return false;
-> +		return SKIP_TARGET;
->
->  	/* If the page is a large free page, then allow migration */
->  	if (PageBuddy(page) && page_order(page) >= pageblock_order)
-> -		return true;
-> +		return MIGRATE_TARGET;
->
->  	/* If the block is MIGRATE_MOVABLE or MIGRATE_CMA, allow migration */
-> -	if (migrate_async_suitable(migratetype))
-> -		return true;
-> +	if (cc->mode != COMPACT_ASYNC_UNMOVABLE &&
-> +	    migrate_async_suitable(migratetype))
-> +		return MIGRATE_TARGET;
-> +
-> +	if (cc->mode == COMPACT_ASYNC_MOVABLE &&
-> +	    migratetype == MIGRATE_UNMOVABLE)
-> +		return UNMOVABLE_TARGET;
-> +
-> +	if (cc->mode != COMPACT_ASYNC_MOVABLE &&
-> +	    migratetype == MIGRATE_UNMOVABLE &&
-> +	    can_rescue_unmovable_pageblock(page, need_lrulock))
-> +		return RESCUE_UNMOVABLE_TARGET;
->
->  	/* Otherwise skip the block */
-> -	return false;
-> +	return SKIP_TARGET;
->  }
->
->  /*
-> @@ -414,6 +509,13 @@ static void isolate_freepages(struct zone *zone,
->  	zone_end_pfn = zone->zone_start_pfn + zone->spanned_pages;
->
->  	/*
-> +	 * isolate_freepages() may be called more than once during
-> +	 * compact_zone_order() run and we want only the most recent
-> +	 * count.
-> +	 */
-> +	cc->nr_unmovable_pageblock = 0;
-> +
-> +	/*
->  	 * Isolate free pages until enough are available to migrate the
->  	 * pages on cc->migratepages. We stop searching if the migrate
->  	 * and free page scanners meet or enough free pages are isolated.
-> @@ -421,6 +523,7 @@ static void isolate_freepages(struct zone *zone,
->  	for (; pfn > low_pfn && cc->nr_migratepages > nr_freepages;
->  					pfn -= pageblock_nr_pages) {
->  		unsigned long isolated;
-> +		enum smt_result ret;
->
->  		if (!pfn_valid(pfn))
->  			continue;
-> @@ -437,9 +540,12 @@ static void isolate_freepages(struct zone *zone,
->  			continue;
->
->  		/* Check the block is suitable for migration */
-> -		if (!suitable_migration_target(page))
-> +		ret = suitable_migration_target(page, cc, false);
-> +		if (ret != MIGRATE_TARGET && ret != RESCUE_UNMOVABLE_TARGET) {
-> +			if (ret == UNMOVABLE_TARGET)
-> +				cc->nr_unmovable_pageblock++;
->  			continue;
-> -
-> +		}
->  		/*
->  		 * Found a block suitable for isolating free pages from. Now
->  		 * we disabled interrupts, double check things are ok and
-> @@ -448,12 +554,16 @@ static void isolate_freepages(struct zone *zone,
->  		 */
->  		isolated = 0;
->  		spin_lock_irqsave(&zone->lock, flags);
-> -		if (suitable_migration_target(page)) {
-> +		ret = suitable_migration_target(page, cc, true);
-> +		if (ret == MIGRATE_TARGET || ret == RESCUE_UNMOVABLE_TARGET) {
-> +			if (ret == RESCUE_UNMOVABLE_TARGET)
-> +				rescue_unmovable_pageblock(page);
->  			end_pfn = min(pfn + pageblock_nr_pages, zone_end_pfn);
->  			isolated = isolate_freepages_block(pfn, end_pfn,
->  							   freelist, false);
->  			nr_freepages += isolated;
-> -		}
-> +		} else if (ret == UNMOVABLE_TARGET)
-> +			cc->nr_unmovable_pageblock++;
->  		spin_unlock_irqrestore(&zone->lock, flags);
->
->  		/*
-> @@ -685,8 +795,9 @@ static int compact_zone(struct zone *zone, struct compact_control *cc)
->
->  		nr_migrate = cc->nr_migratepages;
->  		err = migrate_pages(&cc->migratepages, compaction_alloc,
-> -				(unsigned long)cc, false,
-> -				cc->sync ? MIGRATE_SYNC_LIGHT : MIGRATE_ASYNC);
-> +			(unsigned long)&cc->freepages, false,
-> +			(cc->mode == COMPACT_SYNC) ? MIGRATE_SYNC_LIGHT
-> +						      : MIGRATE_ASYNC);
->  		update_nr_listpages(cc);
->  		nr_remaining = cc->nr_migratepages;
->
-> @@ -715,7 +826,8 @@ out:
->
->  static unsigned long compact_zone_order(struct zone *zone,
->  				 int order, gfp_t gfp_mask,
-> -				 bool sync)
-> +				 enum compact_mode mode,
-> +				 unsigned long *nr_pageblocks_skipped)
->  {
->  	struct compact_control cc = {
->  		.nr_freepages = 0,
-> @@ -723,12 +835,17 @@ static unsigned long compact_zone_order(struct zone *zone,
->  		.order = order,
->  		.migratetype = allocflags_to_migratetype(gfp_mask),
->  		.zone = zone,
-> -		.sync = sync,
-> +		.mode = mode,
->  	};
-> +	unsigned long rc;
-> +
->  	INIT_LIST_HEAD(&cc.freepages);
->  	INIT_LIST_HEAD(&cc.migratepages);
->
-> -	return compact_zone(zone, &cc);
-> +	rc = compact_zone(zone, &cc);
-> +	*nr_pageblocks_skipped = cc.nr_unmovable_pageblock;
-> +
-> +	return rc;
->  }
->
->  int sysctl_extfrag_threshold = 500;
-> @@ -753,6 +870,8 @@ unsigned long try_to_compact_pages(struct zonelist *zonelist,
->  	struct zoneref *z;
->  	struct zone *zone;
->  	int rc = COMPACT_SKIPPED;
-> +	unsigned long nr_pageblocks_skipped;
-> +	enum compact_mode mode;
->
->  	/*
->  	 * Check whether it is worth even starting compaction. The order check is
-> @@ -769,12 +888,22 @@ unsigned long try_to_compact_pages(struct zonelist *zonelist,
->  								nodemask) {
->  		int status;
->
-> -		status = compact_zone_order(zone, order, gfp_mask, sync);
-> +		mode = sync ? COMPACT_SYNC : COMPACT_ASYNC_MOVABLE;
-> +retry:
-> +		status = compact_zone_order(zone, order, gfp_mask, mode,
-> +						&nr_pageblocks_skipped);
->  		rc = max(status, rc);
->
->  		/* If a normal allocation would succeed, stop compacting */
->  		if (zone_watermark_ok(zone, order, low_wmark_pages(zone), 0, 0))
->  			break;
-> +
-> +		if (rc == COMPACT_COMPLETE && mode == COMPACT_ASYNC_MOVABLE) {
-> +			if (nr_pageblocks_skipped) {
-> +				mode = COMPACT_ASYNC_UNMOVABLE;
-> +				goto retry;
-> +			}
-> +		}
->  	}
->
->  	return rc;
-> @@ -808,7 +937,7 @@ static int __compact_pgdat(pg_data_t *pgdat, struct compact_control *cc)
->  			if (ok && cc->order > zone->compact_order_failed)
->  				zone->compact_order_failed = cc->order + 1;
->  			/* Currently async compaction is never deferred. */
-> -			else if (!ok && cc->sync)
-> +			else if (!ok && cc->mode == COMPACT_SYNC)
->  				defer_compaction(zone, cc->order);
->  		}
->
-> @@ -823,7 +952,7 @@ int compact_pgdat(pg_data_t *pgdat, int order)
->  {
->  	struct compact_control cc = {
->  		.order = order,
-> -		.sync = false,
-> +		.mode = COMPACT_ASYNC_MOVABLE,
->  	};
->
->  	return __compact_pgdat(pgdat, &cc);
-> @@ -833,7 +962,7 @@ static int compact_node(int nid)
->  {
->  	struct compact_control cc = {
->  		.order = -1,
-> -		.sync = true,
-> +		.mode = COMPACT_SYNC,
->  	};
->
->  	return __compact_pgdat(NODE_DATA(nid), &cc);
-> diff --git a/mm/internal.h b/mm/internal.h
-> index 2ba87fb..061fde7 100644
-> --- a/mm/internal.h
-> +++ b/mm/internal.h
-> @@ -94,6 +94,9 @@ extern void putback_lru_page(struct page *page);
->  /*
->   * in mm/page_alloc.c
->   */
-> +extern void set_pageblock_migratetype(struct page *page, int migratetype);
-> +extern int move_freepages_block(struct zone *zone, struct page *page,
-> +				int migratetype);
->  extern void __free_pages_bootmem(struct page *page, unsigned int order);
->  extern void prep_compound_page(struct page *page, unsigned long order);
->  #ifdef CONFIG_MEMORY_FAILURE
-> @@ -101,6 +104,7 @@ extern bool is_free_buddy_page(struct page *page);
->  #endif
->
->  #if defined CONFIG_COMPACTION || defined CONFIG_CMA
-> +#include <linux/compaction.h>
->
->  /*
->   * in mm/compaction.c
-> @@ -119,11 +123,14 @@ struct compact_control {
->  	unsigned long nr_migratepages;	/* Number of pages to migrate */
->  	unsigned long free_pfn;		/* isolate_freepages search base */
->  	unsigned long migrate_pfn;	/* isolate_migratepages search base */
-> -	bool sync;			/* Synchronous migration */
-> +	enum compact_mode mode;		/* Compaction mode */
->
->  	int order;			/* order a direct compactor needs */
->  	int migratetype;		/* MOVABLE, RECLAIMABLE etc */
->  	struct zone *zone;
-> +
-> +	/* Number of UNMOVABLE destination pageblocks skipped during scan */
-> +	unsigned long nr_unmovable_pageblock;
->  };
->
->  unsigned long
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index 476ae3e..d40e4c7 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -219,7 +219,7 @@ EXPORT_SYMBOL(nr_online_nodes);
->
->  int page_group_by_mobility_disabled __read_mostly;
->
-> -static void set_pageblock_migratetype(struct page *page, int migratetype)
-> +void set_pageblock_migratetype(struct page *page, int migratetype)
->  {
->
->  	if (unlikely(page_group_by_mobility_disabled))
-> @@ -954,8 +954,8 @@ static int move_freepages(struct zone *zone,
->  	return pages_moved;
->  }
->
-> -static int move_freepages_block(struct zone *zone, struct page *page,
-> -				int migratetype)
-> +int move_freepages_block(struct zone *zone, struct page *page,
-> +			 int migratetype)
->  {
->  	unsigned long start_pfn, end_pfn;
->  	struct page *start_page, *end_page;
-> @@ -5651,7 +5651,7 @@ static int __alloc_contig_migrate_range(unsigned long start, unsigned long end)
->  		.nr_migratepages = 0,
->  		.order = -1,
->  		.zone = page_zone(pfn_to_page(start)),
-> -		.sync = true,
-> +		.mode = COMPACT_SYNC,
->  	};
->  	INIT_LIST_HEAD(&cc.migratepages);
->
-
+Dave.
+-- 
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
