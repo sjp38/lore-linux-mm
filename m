@@ -1,143 +1,149 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx142.postini.com [74.125.245.142])
-	by kanga.kvack.org (Postfix) with SMTP id A89046B0062
-	for <linux-mm@kvack.org>; Mon,  4 Jun 2012 21:59:16 -0400 (EDT)
-Message-ID: <4FCD6806.7070609@kernel.org>
-Date: Tue, 05 Jun 2012 10:59:34 +0900
+Received: from psmtp.com (na3sys010amx129.postini.com [74.125.245.129])
+	by kanga.kvack.org (Postfix) with SMTP id BE9D56B0062
+	for <linux-mm@kvack.org>; Mon,  4 Jun 2012 22:38:36 -0400 (EDT)
+Message-ID: <4FCD713D.3020100@kernel.org>
+Date: Tue, 05 Jun 2012 11:38:53 +0900
 From: Minchan Kim <minchan@kernel.org>
 MIME-Version: 1.0
 Subject: Re: [PATCH v9] mm: compaction: handle incorrect MIGRATE_UNMOVABLE
  type pageblocks
-References: <201206041543.56917.b.zolnierkie@samsung.com> <4FCD18FD.5030307@gmail.com>
-In-Reply-To: <4FCD18FD.5030307@gmail.com>
+References: <201206041543.56917.b.zolnierkie@samsung.com> <4FCD18FD.5030307@gmail.com> <4FCD6806.7070609@kernel.org>
+In-Reply-To: <4FCD6806.7070609@kernel.org>
 Content-Type: multipart/mixed;
- boundary="------------050405060206040803080608"
+ boundary="------------010704080805010100080709"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
-Cc: Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>, Linus Torvalds <torvalds@linux-foundation.org>, Kyungmin Park <kyungmin.park@samsung.com>, Marek Szyprowski <m.szyprowski@samsung.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Dave Jones <davej@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Cong Wang <amwang@redhat.com>, Markus Trippelsdorf <markus@trippelsdorf.de>
+Cc: KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>, Linus Torvalds <torvalds@linux-foundation.org>, Kyungmin Park <kyungmin.park@samsung.com>, Marek Szyprowski <m.szyprowski@samsung.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Dave Jones <davej@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Cong Wang <amwang@redhat.com>, Markus Trippelsdorf <markus@trippelsdorf.de>
 
 This is a multi-part message in MIME format.
---------------050405060206040803080608
+--------------010704080805010100080709
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 
-On 06/05/2012 05:22 AM, KOSAKI Motohiro wrote:
+On 06/05/2012 10:59 AM, Minchan Kim wrote:
 
->> +/*
->> + * Returns true if MIGRATE_UNMOVABLE pageblock can be successfully
->> + * converted to MIGRATE_MOVABLE type, false otherwise.
->> + */
->> +static bool can_rescue_unmovable_pageblock(struct page *page, bool
->> locked)
->> +{
->> +    unsigned long pfn, start_pfn, end_pfn;
->> +    struct page *start_page, *end_page, *cursor_page;
->> +
->> +    pfn = page_to_pfn(page);
->> +    start_pfn = pfn&  ~(pageblock_nr_pages - 1);
->> +    end_pfn = start_pfn + pageblock_nr_pages - 1;
->> +
->> +    start_page = pfn_to_page(start_pfn);
->> +    end_page = pfn_to_page(end_pfn);
->> +
->> +    for (cursor_page = start_page, pfn = start_pfn; cursor_page<=
->> end_page;
->> +        pfn++, cursor_page++) {
->> +        struct zone *zone = page_zone(start_page);
->> +        unsigned long flags;
->> +
->> +        if (!pfn_valid_within(pfn))
->> +            continue;
->> +
->> +        /* Do not deal with pageblocks that overlap zones */
->> +        if (page_zone(cursor_page) != zone)
->> +            return false;
->> +
->> +        if (!locked)
->> +            spin_lock_irqsave(&zone->lock, flags);
->> +
->> +        if (PageBuddy(cursor_page)) {
->> +            int order = page_order(cursor_page);
+> On 06/05/2012 05:22 AM, KOSAKI Motohiro wrote:
+> 
+>>> +/*
+>>> + * Returns true if MIGRATE_UNMOVABLE pageblock can be successfully
+>>> + * converted to MIGRATE_MOVABLE type, false otherwise.
+>>> + */
+>>> +static bool can_rescue_unmovable_pageblock(struct page *page, bool
+>>> locked)
+>>> +{
+>>> +    unsigned long pfn, start_pfn, end_pfn;
+>>> +    struct page *start_page, *end_page, *cursor_page;
+>>> +
+>>> +    pfn = page_to_pfn(page);
+>>> +    start_pfn = pfn&  ~(pageblock_nr_pages - 1);
+>>> +    end_pfn = start_pfn + pageblock_nr_pages - 1;
+>>> +
+>>> +    start_page = pfn_to_page(start_pfn);
+>>> +    end_page = pfn_to_page(end_pfn);
+>>> +
+>>> +    for (cursor_page = start_page, pfn = start_pfn; cursor_page<=
+>>> end_page;
+>>> +        pfn++, cursor_page++) {
+>>> +        struct zone *zone = page_zone(start_page);
+>>> +        unsigned long flags;
+>>> +
+>>> +        if (!pfn_valid_within(pfn))
+>>> +            continue;
+>>> +
+>>> +        /* Do not deal with pageblocks that overlap zones */
+>>> +        if (page_zone(cursor_page) != zone)
+>>> +            return false;
+>>> +
+>>> +        if (!locked)
+>>> +            spin_lock_irqsave(&zone->lock, flags);
+>>> +
+>>> +        if (PageBuddy(cursor_page)) {
+>>> +            int order = page_order(cursor_page);
+>>>
+>>> -/* Returns true if the page is within a block suitable for migration
+>>> to */
+>>> -static bool suitable_migration_target(struct page *page)
+>>> +            pfn += (1<<  order) - 1;
+>>> +            cursor_page += (1<<  order) - 1;
+>>> +
+>>> +            if (!locked)
+>>> +                spin_unlock_irqrestore(&zone->lock, flags);
+>>> +            continue;
+>>> +        } else if (page_count(cursor_page) == 0 ||
+>>> +               PageLRU(cursor_page)) {
+>>> +            if (!locked)
+>>> +                spin_unlock_irqrestore(&zone->lock, flags);
+>>> +            continue;
+>>> +        }
+>>> +
+>>> +        if (!locked)
+>>> +            spin_unlock_irqrestore(&zone->lock, flags);
+>>> +
+>>> +        return false;
+>>> +    }
+>>> +
+>>> +    return true;
+>>> +}
 >>
->> -/* Returns true if the page is within a block suitable for migration
->> to */
->> -static bool suitable_migration_target(struct page *page)
->> +            pfn += (1<<  order) - 1;
->> +            cursor_page += (1<<  order) - 1;
->> +
->> +            if (!locked)
->> +                spin_unlock_irqrestore(&zone->lock, flags);
->> +            continue;
->> +        } else if (page_count(cursor_page) == 0 ||
->> +               PageLRU(cursor_page)) {
->> +            if (!locked)
->> +                spin_unlock_irqrestore(&zone->lock, flags);
->> +            continue;
->> +        }
->> +
->> +        if (!locked)
->> +            spin_unlock_irqrestore(&zone->lock, flags);
->> +
->> +        return false;
->> +    }
->> +
->> +    return true;
->> +}
+>> Minchan, are you interest this patch? If yes, can you please rewrite it?
 > 
-> Minchan, are you interest this patch? If yes, can you please rewrite it?
-
-
-Can do it but I want to give credit to Bartlomiej.
-Bartlomiej, if you like my patch, could you resend it as formal patch after you do broad testing?
-
-
-> This one are
-> not fixed our pointed issue and can_rescue_unmovable_pageblock() still
-> has plenty bugs.
-> We can't ack it.
 > 
-> -- 
+> Can do it but I want to give credit to Bartlomiej.
+> Bartlomiej, if you like my patch, could you resend it as formal patch after you do broad testing?
+> 
+> 
+>> This one are
+>> not fixed our pointed issue and can_rescue_unmovable_pageblock() still
+>> has plenty bugs.
+>> We can't ack it.
+>>
+>> -- 
+> 
+> 
+> Frankly speaking, I don't want to merge it without any data which prove it's really good for real practice.
+> 
+> When the patch firstly was submitted, it wasn't complicated so I was okay at that time but it has been complicated
+> than my expectation. So if Andrew might pass the decision to me, I'm totally NACK if author doesn't provide
+> any real data or VOC of some client.
+> 
+> 1) Any comment?
+> 
+> Anyway, I fixed some bugs and clean up something I found during review.
+> 
+> Minor thing.
+> 1. change smt_result naming - I never like such long non-consistent naming. How about this?
+> 2. fix can_rescue_unmovable_pageblock 
+>    2.1 pfn valid check for page_zone
+> 
+> Major thing.
+> 
+>    2.2 add lru_lock for stablizing PageLRU
+>        If we don't hold lru_lock, there is possibility that unmovable(non-LRU) page can put in movable pageblock.
+>        It can make compaction/CMA's regression. But there is a concern about deadlock between lru_lock and lock.
+>        As I look the code, I can't find allocation trial with holding lru_lock so it might be safe(but not sure,
+>        I didn't test it. It need more careful review/testing) but it makes new locking dependency(not sure, too.
+>        We already made such rule but I didn't know that until now ;-) ) Why I thought so is we can allocate
+>        GFP_ATOMIC with holding lru_lock, logically which might be crazy idea.
+> 
+>    2.3 remove zone->lock in first phase.
+>        We do rescue unmovable pageblock by 2-phase. In first-phase, we just peek pages so we don't need locking.
+>        If we see non-stablizing value, it would be caught by 2-phase with needed lock or 
+>        can_rescue_unmovable_pageblock can return out of loop by stale page_order(cursor_page).
+>        It couldn't make unmovable pageblock to movable but we can do it next time, again.
+>        It's not critical.
+> 
+> 2) Any comment?
+> 
+> Now I can't inline the code so sorry but attach patch.
+> It's not a formal patch/never tested.
+> 
 
 
-Frankly speaking, I don't want to merge it without any data which prove it's really good for real practice.
+Attached patch has a BUG in can_rescue_unmovable_pageblock.
+Resend. I hope it is fixed.
 
-When the patch firstly was submitted, it wasn't complicated so I was okay at that time but it has been complicated
-than my expectation. So if Andrew might pass the decision to me, I'm totally NACK if author doesn't provide
-any real data or VOC of some client.
-
-1) Any comment?
-
-Anyway, I fixed some bugs and clean up something I found during review.
-
-Minor thing.
-1. change smt_result naming - I never like such long non-consistent naming. How about this?
-2. fix can_rescue_unmovable_pageblock 
-   2.1 pfn valid check for page_zone
-
-Major thing.
-
-   2.2 add lru_lock for stablizing PageLRU
-       If we don't hold lru_lock, there is possibility that unmovable(non-LRU) page can put in movable pageblock.
-       It can make compaction/CMA's regression. But there is a concern about deadlock between lru_lock and lock.
-       As I look the code, I can't find allocation trial with holding lru_lock so it might be safe(but not sure,
-       I didn't test it. It need more careful review/testing) but it makes new locking dependency(not sure, too.
-       We already made such rule but I didn't know that until now ;-) ) Why I thought so is we can allocate
-       GFP_ATOMIC with holding lru_lock, logically which might be crazy idea.
-
-   2.3 remove zone->lock in first phase.
-       We do rescue unmovable pageblock by 2-phase. In first-phase, we just peek pages so we don't need locking.
-       If we see non-stablizing value, it would be caught by 2-phase with needed lock or 
-       can_rescue_unmovable_pageblock can return out of loop by stale page_order(cursor_page).
-       It couldn't make unmovable pageblock to movable but we can do it next time, again.
-       It's not critical.
-
-2) Any comment?
-
-Now I can't inline the code so sorry but attach patch.
-It's not a formal patch/never tested.
-
-
+ 
 
 
 
@@ -145,7 +151,7 @@ It's not a formal patch/never tested.
 Kind regards,
 Minchan Kim
 
---------------050405060206040803080608
+--------------010704080805010100080709
 Content-Type: text/x-patch;
  name="1.patch"
 Content-Transfer-Encoding: 7bit
@@ -190,7 +196,7 @@ index 51a90b7..e988037 100644
  extern int sysctl_compact_memory;
  extern int sysctl_compaction_handler(struct ctl_table *table, int write,
 diff --git a/mm/compaction.c b/mm/compaction.c
-index 7ea259d..5c96391 100644
+index 7ea259d..dd02f25 100644
 --- a/mm/compaction.c
 +++ b/mm/compaction.c
 @@ -236,7 +236,7 @@ isolate_migratepages_range(struct zone *zone, struct compact_control *cc,
@@ -221,7 +227,7 @@ index 7ea259d..5c96391 100644
  			mode |= ISOLATE_ASYNC_MIGRATE;
  
  		lruvec = mem_cgroup_page_lruvec(page, zone);
-@@ -360,27 +361,117 @@ isolate_migratepages_range(struct zone *zone, struct compact_control *cc,
+@@ -360,27 +361,121 @@ isolate_migratepages_range(struct zone *zone, struct compact_control *cc,
  
  #endif /* CONFIG_COMPACTION || CONFIG_CMA */
  #ifdef CONFIG_COMPACTION
@@ -246,7 +252,9 @@ index 7ea259d..5c96391 100644
 +
 +	for (cursor_page = start_page, pfn = start_pfn; cursor_page <= end_page;
 +		pfn++, cursor_page++) {
-+
+ 
+-/* Returns true if the page is within a block suitable for migration to */
+-static bool suitable_migration_target(struct page *page)
 +		if (!pfn_valid_within(pfn))
 +			continue;
 +
@@ -263,10 +271,14 @@ index 7ea259d..5c96391 100644
 +		} else if (page_count(cursor_page) == 0) {
 +			continue;
 +		} else if (PageLRU(cursor_page)) {
-+			if (!lru_locked && need_lrulock) {
++			if (!need_lrulock)
++				continue;
++			else if (lru_locked)
++				continue;
++			else {
 +				spin_lock(&zone->lru_lock);
 +				lru_locked = true;
-+				if (PageLRU(cursor_page))
++				if (PageLRU(page))
 +					continue;
 +			}
 +		}
@@ -281,9 +293,7 @@ index 7ea259d..5c96391 100644
 +
 +	return false;
 +}
- 
--/* Returns true if the page is within a block suitable for migration to */
--static bool suitable_migration_target(struct page *page)
++
 +static void rescue_unmovable_pageblock(struct page *page)
 +{
 +	set_pageblock_migratetype(page, MIGRATE_MOVABLE);
@@ -346,7 +356,7 @@ index 7ea259d..5c96391 100644
  }
  
  /*
-@@ -414,6 +505,13 @@ static void isolate_freepages(struct zone *zone,
+@@ -414,6 +509,13 @@ static void isolate_freepages(struct zone *zone,
  	zone_end_pfn = zone->zone_start_pfn + zone->spanned_pages;
  
  	/*
@@ -360,7 +370,7 @@ index 7ea259d..5c96391 100644
  	 * Isolate free pages until enough are available to migrate the
  	 * pages on cc->migratepages. We stop searching if the migrate
  	 * and free page scanners meet or enough free pages are isolated.
-@@ -421,6 +519,7 @@ static void isolate_freepages(struct zone *zone,
+@@ -421,6 +523,7 @@ static void isolate_freepages(struct zone *zone,
  	for (; pfn > low_pfn && cc->nr_migratepages > nr_freepages;
  					pfn -= pageblock_nr_pages) {
  		unsigned long isolated;
@@ -368,7 +378,7 @@ index 7ea259d..5c96391 100644
  
  		if (!pfn_valid(pfn))
  			continue;
-@@ -437,9 +536,12 @@ static void isolate_freepages(struct zone *zone,
+@@ -437,9 +540,12 @@ static void isolate_freepages(struct zone *zone,
  			continue;
  
  		/* Check the block is suitable for migration */
@@ -383,7 +393,7 @@ index 7ea259d..5c96391 100644
  		/*
  		 * Found a block suitable for isolating free pages from. Now
  		 * we disabled interrupts, double check things are ok and
-@@ -448,12 +550,16 @@ static void isolate_freepages(struct zone *zone,
+@@ -448,12 +554,16 @@ static void isolate_freepages(struct zone *zone,
  		 */
  		isolated = 0;
  		spin_lock_irqsave(&zone->lock, flags);
@@ -402,7 +412,7 @@ index 7ea259d..5c96391 100644
  		spin_unlock_irqrestore(&zone->lock, flags);
  
  		/*
-@@ -685,8 +791,9 @@ static int compact_zone(struct zone *zone, struct compact_control *cc)
+@@ -685,8 +795,9 @@ static int compact_zone(struct zone *zone, struct compact_control *cc)
  
  		nr_migrate = cc->nr_migratepages;
  		err = migrate_pages(&cc->migratepages, compaction_alloc,
@@ -414,7 +424,7 @@ index 7ea259d..5c96391 100644
  		update_nr_listpages(cc);
  		nr_remaining = cc->nr_migratepages;
  
-@@ -715,7 +822,8 @@ out:
+@@ -715,7 +826,8 @@ out:
  
  static unsigned long compact_zone_order(struct zone *zone,
  				 int order, gfp_t gfp_mask,
@@ -424,7 +434,7 @@ index 7ea259d..5c96391 100644
  {
  	struct compact_control cc = {
  		.nr_freepages = 0,
-@@ -723,12 +831,17 @@ static unsigned long compact_zone_order(struct zone *zone,
+@@ -723,12 +835,17 @@ static unsigned long compact_zone_order(struct zone *zone,
  		.order = order,
  		.migratetype = allocflags_to_migratetype(gfp_mask),
  		.zone = zone,
@@ -444,7 +454,7 @@ index 7ea259d..5c96391 100644
  }
  
  int sysctl_extfrag_threshold = 500;
-@@ -753,6 +866,8 @@ unsigned long try_to_compact_pages(struct zonelist *zonelist,
+@@ -753,6 +870,8 @@ unsigned long try_to_compact_pages(struct zonelist *zonelist,
  	struct zoneref *z;
  	struct zone *zone;
  	int rc = COMPACT_SKIPPED;
@@ -453,7 +463,7 @@ index 7ea259d..5c96391 100644
  
  	/*
  	 * Check whether it is worth even starting compaction. The order check is
-@@ -769,12 +884,22 @@ unsigned long try_to_compact_pages(struct zonelist *zonelist,
+@@ -769,12 +888,22 @@ unsigned long try_to_compact_pages(struct zonelist *zonelist,
  								nodemask) {
  		int status;
  
@@ -477,7 +487,7 @@ index 7ea259d..5c96391 100644
  	}
  
  	return rc;
-@@ -808,7 +933,7 @@ static int __compact_pgdat(pg_data_t *pgdat, struct compact_control *cc)
+@@ -808,7 +937,7 @@ static int __compact_pgdat(pg_data_t *pgdat, struct compact_control *cc)
  			if (ok && cc->order > zone->compact_order_failed)
  				zone->compact_order_failed = cc->order + 1;
  			/* Currently async compaction is never deferred. */
@@ -486,7 +496,7 @@ index 7ea259d..5c96391 100644
  				defer_compaction(zone, cc->order);
  		}
  
-@@ -823,7 +948,7 @@ int compact_pgdat(pg_data_t *pgdat, int order)
+@@ -823,7 +952,7 @@ int compact_pgdat(pg_data_t *pgdat, int order)
  {
  	struct compact_control cc = {
  		.order = order,
@@ -495,7 +505,7 @@ index 7ea259d..5c96391 100644
  	};
  
  	return __compact_pgdat(pgdat, &cc);
-@@ -833,7 +958,7 @@ static int compact_node(int nid)
+@@ -833,7 +962,7 @@ static int compact_node(int nid)
  {
  	struct compact_control cc = {
  		.order = -1,
@@ -576,7 +586,7 @@ index 476ae3e..d40e4c7 100644
  	INIT_LIST_HEAD(&cc.migratepages);
  
 
---------------050405060206040803080608--
+--------------010704080805010100080709--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
