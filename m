@@ -1,157 +1,132 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx105.postini.com [74.125.245.105])
-	by kanga.kvack.org (Postfix) with SMTP id 5C8878D0001
-	for <linux-mm@kvack.org>; Wed,  6 Jun 2012 13:34:56 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx191.postini.com [74.125.245.191])
+	by kanga.kvack.org (Postfix) with SMTP id 270F16B00A8
+	for <linux-mm@kvack.org>; Wed,  6 Jun 2012 14:05:28 -0400 (EDT)
+Date: Wed, 6 Jun 2012 13:04:28 -0400
+From: Vivek Goyal <vgoyal@redhat.com>
+Subject: Re: write-behind on streaming writes
+Message-ID: <20120606170428.GB8133@redhat.com>
+References: <CA+55aFykFaBhzzEyRYWRS9Qoy_q_R65Cuth7=XvfOZEMqjn6=w@mail.gmail.com>
+ <20120530032129.GA7479@localhost>
+ <20120605172302.GB28556@redhat.com>
+ <20120605174157.GC28556@redhat.com>
+ <20120605184853.GD28556@redhat.com>
+ <20120605201045.GE28556@redhat.com>
+ <20120606025729.GA1197@redhat.com>
+ <CA+55aFyxucvhYhbk0yyNa1WSeYXgHHAyWRHPNWDwODQhyAWGww@mail.gmail.com>
+ <20120606121408.GB4934@redhat.com>
+ <20120606140058.GA8098@localhost>
 MIME-Version: 1.0
-Message-ID: <0e40bc09-4e05-426e-8379-bb4eb5b36fab@default>
-Date: Wed, 6 Jun 2012 10:34:40 -0700 (PDT)
-From: Dan Magenheimer <dan.magenheimer@oracle.com>
-Subject: RE: zsmalloc concerns
-References: <030ff158-3b2b-47a6-98d7-5010f7a9ce6b@default>
- <4FCDA87B.7020209@kernel.org>
-In-Reply-To: <4FCDA87B.7020209@kernel.org>
 Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: quoted-printable
+Content-Disposition: inline
+In-Reply-To: <20120606140058.GA8098@localhost>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Seth Jennings <sjenning@linux.vnet.ibm.com>, linux-mm@kvack.org, Nitin Gupta <ngupta@vflare.org>, Konrad Wilk <konrad.wilk@oracle.com>
+To: Fengguang Wu <fengguang.wu@intel.com>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, "Myklebust, Trond" <Trond.Myklebust@netapp.com>, linux-fsdevel@vger.kernel.org, Linux Memory Management List <linux-mm@kvack.org>, Jens Axboe <axboe@kernel.dk>
 
-> From: Minchan Kim [mailto:minchan@kernel.org]
+On Wed, Jun 06, 2012 at 10:00:58PM +0800, Fengguang Wu wrote:
+> On Wed, Jun 06, 2012 at 08:14:08AM -0400, Vivek Goyal wrote:
+> > On Tue, Jun 05, 2012 at 08:14:08PM -0700, Linus Torvalds wrote:
+> > > On Tue, Jun 5, 2012 at 7:57 PM, Vivek Goyal <vgoyal@redhat.com> wrote:
+> > > >
+> > > > I had expected a bigger difference as sync_file_range() is just driving
+> > > > max queue depth of 32 (total 16MB IO in flight), while flushers are
+> > > > driving queue depths up to 140 or so. So in this paritcular test, driving
+> > > > much deeper queue depths is not really helping much. (I have seen higher
+> > > > throughputs with higher queue depths in the past. Now sure why don't we
+> > > > see it here).
+> > > 
+> > > How did interactivity feel?
+> > > 
+> > > Because quite frankly, if the throughput difference is 12.5 vs 12
+> > > seconds, I suspect the interactivity thing is what dominates.
+> > > 
+> > > And from my memory of the interactivity different was absolutely
+> > > *huge*. Even back when I used rotational media, I basically couldn't
+> > > even notice the background write with the sync_file_range() approach.
+> > > While the regular writeback without the writebehind had absolutely
+> > > *huge* pauses if you used something like firefox that uses fsync()
+> > > etc. And starting new applications that weren't cached was noticeably
+> > > worse too - and then with sync_file_range it wasn't even all that
+> > > noticeable.
+> > > 
+> > > NOTE! For the real "firefox + fsync" test, I suspect you'd need to do
+> > > the writeback on the same filesystem (and obviously disk) as your home
+> > > directory is. If the big write is to another filesystem and another
+> > > disk, I think you won't see the same issues.
+> > 
+> > Ok, I did following test on my single SATA disk and my root filesystem
+> > is on this disk.
+> > 
+> > I dropped caches and launched firefox and monitored the time it takes
+> > for firefox to start. (cache cold).
+> > 
+> > And my results are reverse of what you have been seeing. With
+> > sync_file_range() running, firefox takes roughly 30 seconds to start and
+> > with flusher in operation, it takes roughly 20 seconds to start. (I have
+> > approximated the average of 3 runs for simplicity).
+> > 
+> > I think it is happening because sync_file_range() will send all
+> > the writes as SYNC and it will compete with firefox IO. On the other
+> > hand, flusher's IO will show up as ASYNC and CFQ  will be penalize it
+> > heavily and firefox's IO will be prioritized. And this effect should
+> > just get worse as more processes do sync_file_range().
+> > 
+> > So write-behind should provide better interactivity if writes submitted
+> > are ASYNC and not SYNC.
+> 
+> Hi Vivek, thanks for testing all of these out! The result is
+> definitely interesting and a surprise: we overlooked the SYNC nature
+> of sync_file_range().
+> 
+> I'd suggest to use these calls to achieve the write-and-drop-behind
+> behavior, *with* WB_SYNC_NONE:
+> 
+>         posix_fadvise(fd, offset, len, POSIX_FADV_DONTNEED);
+>         sync_file_range(fd, offset, len, SYNC_FILE_RANGE_WAIT_AFTER);
+> 
+> The caveat is, the below bdi_write_congested() will never evaluate to
+> true since we are only filling the request queue with 8MB data.
+> 
+> SYSCALL_DEFINE(fadvise64_64):
+> 
+>         case POSIX_FADV_DONTNEED:
+>                 if (!bdi_write_congested(mapping->backing_dev_info))
+>                         __filemap_fdatawrite_range(mapping, offset, endbyte,
+>                                                    WB_SYNC_NONE);
 
-Hi Minchan --
+Hi Fengguang,
 
-Reordering the reply a bit...
+Instead of above, I modified sync_file_range() to call __filemap_fdatawrite_range(WB_SYNC_NONE) and I do see now ASYNC writes showing up at elevator.
 
-> > On 06/05/2012 12:25 PM, Dan Magenheimer wrote:
-> > Zsmalloc relies on some clever underlying virtual-to-physical
-> > mapping manipulations to ensure that its users can store and
-> > retrieve items.  These manipulations are necessary on HIGHMEM
->=20
-> HIGHMEM processors?
-> I think we need it if the system doesn't support HIGHMEM.
-> Maybe I am missing your point.
+With 4 processes doing sync_file_range() now, firefox start time test
+clocks around 18-19 seconds which is better than 30-35 seconds of 4
+processes doing buffered writes. And system looks pretty good from
+interactivity point of view.
 
-I didn't say it very clearly.  What I meant is that, on
-processors that require HIGHMEM, it is always necessary
-to do a kmap/kunmap around accessing the contents of a
-pageframe referred to by a struct page.  On machines
-with no HIGHMEM, the kernel is completely mapped so
-kmap/kunmap to kernel space are very simple and fast.
+Thanks
+Vivek
 
-However, whenever a compressed item crosses a page
-boundary in zsmalloc, zsmalloc creates a special "pair"
-mapping of the two pages, and kmap/kunmaps the pair for
-every access.  This is why special TLB tricks must
-be used by zsmalloc.  I think this can be expensive
-so I consider this a disadvantage of zsmalloc, even
-though it is very clever and very useful for storing
-a large number of items with size larger than PAGE_SIZE/2.
+Following is the patch I applied to test.
 
-> What's the requirement for shrinking zsmalloc?
-> For example,
->=20
-> int shrink_zsmalloc_memory(int nr_pages)
-> {
-> =09zsmalloc_evict_pages(nr_pages);
-> }
->=20
-> Could you tell us your detailed requirement?
-> Let's see it's possible or not at current zsmalloc.
+---
+ fs/sync.c |    2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
-The objective of the shrinker is to reclaim full
-pageframes.  Due to the way zsmalloc works, when
-it stores N items in M pages, worst case it
-may take N-M zsmalloc "item evictions" before even
-a single pageframe is reclaimed.
-
-Next, remember that there may be several "pointers"
-(stored as zsmalloc object handles) referencing that page
-and there may also be a pointer to an item which
-overlaps from an adjacent page.
-In zcache, the pointers are stored in the tmem metadata.
-This metadata must be purged from tmem before the
-pageframe can be reclaimed.  And this must be done
-carefully, maybe atomically, because there are various
-locks that must be held and released in the correct
-order to avoid races and deadlock.  (Holding one
-big lock disallowing tmem from operating during reclaim
-is an ugly alternative.)
-
-Next, ideally you'd like to be able to reclaim pageframes
-in roughly LRU order.  What does LRU mean when many
-items stored in the pageframe (and possibly adjacent
-pageframes) are added/deleted completely independently?
-
-Last, when that metadata is purged from tmem, for ephemeral
-pages the actual stored data can be discarded.  BUT when
-the pages are persistent, the data cannot be discarded.
-I have preliminary code that decompresses and pushes this
-data back into the swapcache.  This too must be atomic.
-
-> > RAMster maintains data structures to both point to zpages
-> > that are local and remote.  Remote pages are identified
-> > by a handle-like bit sequence while local pages are identified
-> > by a true pointer.  (Note that ramster currently will not
-> > run on a HIGHMEM machine.)  RAMster currently differentiates
-> > between the two via a hack: examining the LSB.  If the
-> > LSB is set, it is a handle referring to a remote page.
-> > This works with xvmalloc and zbud but not with zsmalloc's
-> > opaque handle.  A simple solution would require zsmalloc
-> > to reserve the LSB of the opaque handle as must-be-zero.
->=20
-> As you know, it's not difficult but break opaque handle's concept.
-> I want to avoid that and let you put some identifier into somewhere in zc=
-ache.
-
-That would be OK with me if it can be done without a large
-increase in memory use.  We have so far avoided adding
-additional data to each tmem "pampd".  Adding another
-unsigned long worth of data is possible but would require
-some bug internal API changes.
-
-There are many data structures in the kernel that take
-advantage of unused low bits in a pointer, like what
-ramster is doing.
-
-And the opaqueness of the handle could still be preserved
-if there are one or more reserved bits and one adds functions
-to zsmalloc_set_reserved_bits(&handle) and
-zsmalloc_read_reserved_bits(handle).
-
-But this is a nit until we are sure that zsmalloc will meet
-the reclaim requirements.
-
-> At least, many embedded device have used zram since compcache was introdu=
-ced.
-> But not sure, zcache can replace it.
-> If zcache can replace it, you will be right.
->=20
-> Comparing zcache and zram implementation, it's one of my TODO list.
-> So I am happy to see them.
-> But I can't do it shorty due to other urgent works.
-
-Zcache has differences, the largest being that zcache currently
-works only when the system has a configured swap block device.
-Current zcache has issues too, but (as Andrea has observed)
-they can be reduced by allowing zcache to be backed, when
-necessary, by the swapdisk when memory pressure is high.
-
-> In summary, I WANT TO KNOW your detailed requirement for shrinking zsmall=
-oc.
-
-My core requirement is that an implementation exists that can
-handle pageframe reclaim efficiently and race-free.  AND for
-persistent pages, ensure it is possible to return the data
-to the swapcache when the containing pageframe is reclaimed.
-
-I am not saying that zsmalloc *cannot* meet this requirement.
-I just think it is already very difficult with a simple
-non-opaque allocator such as zbud.  That's why I am trying
-to get it all working with zbud first.
-
-Hope that helps!
-Dan
+Index: linux-2.6/fs/sync.c
+===================================================================
+--- linux-2.6.orig/fs/sync.c	2012-06-06 00:12:33.000000000 -0400
++++ linux-2.6/fs/sync.c	2012-06-06 23:11:17.050691776 -0400
+@@ -342,7 +342,7 @@ SYSCALL_DEFINE(sync_file_range)(int fd, 
+ 	}
+ 
+ 	if (flags & SYNC_FILE_RANGE_WRITE) {
+-		ret = filemap_fdatawrite_range(mapping, offset, endbyte);
++		ret = __filemap_fdatawrite_range(mapping, offset, endbyte, WB_SYNC_NONE);
+ 		if (ret < 0)
+ 			goto out_put;
+ 	}
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
