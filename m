@@ -1,54 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx139.postini.com [74.125.245.139])
-	by kanga.kvack.org (Postfix) with SMTP id D04966B00AF
-	for <linux-mm@kvack.org>; Wed,  6 Jun 2012 14:23:44 -0400 (EDT)
-Received: by yenl11 with SMTP id l11so746315yen.2
-        for <linux-mm@kvack.org>; Wed, 06 Jun 2012 11:23:44 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx130.postini.com [74.125.245.130])
+	by kanga.kvack.org (Postfix) with SMTP id A933A6B00B0
+	for <linux-mm@kvack.org>; Wed,  6 Jun 2012 14:23:52 -0400 (EDT)
+Received: by yhpp61 with SMTP id p61so878660yhp.2
+        for <linux-mm@kvack.org>; Wed, 06 Jun 2012 11:23:51 -0700 (PDT)
 From: Ying Han <yinghan@google.com>
-Subject: [PATCH 2/5] mm: memcg set soft_limit_in_bytes to 0 by default
-Date: Wed,  6 Jun 2012 11:23:43 -0700
-Message-Id: <1339007023-10467-1-git-send-email-yinghan@google.com>
+Subject: [PATCH 3/5] mm: memcg detect no memcgs above softlimit under zone reclaim.
+Date: Wed,  6 Jun 2012 11:23:51 -0700
+Message-Id: <1339007031-10527-1-git-send-email-yinghan@google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Hillf Danton <dhillf@gmail.com>, Hugh Dickins <hughd@google.com>, Greg Thelen <gthelen@google.com>, Dan Magenheimer <dan.magenheimer@oracle.com>, Andrew Morton <akpm@linux-foundation.org>
 Cc: linux-mm@kvack.org
 
-This idea is based on discussion with Michal and Johannes from LSF.
+In memcg kernel, cgroup under its softlimit is not targeted under global
+reclaim. It could be possible that all memcgs are under their softlimit for
+a particular zone. If that is the case, the current implementation will
+burn extra cpu cycles without making forward progress.
 
-1. If soft_limit are all set to MAX, it wastes first three priority iterations
-without scanning anything.
-
-2. By default every memcg is eligible for softlimit reclaim, and we can also
-set the value to MAX for special memcg which is immune to soft limit reclaim.
-
-There is a behavior change after this patch: (N == DEF_PRIORITY - 2)
-
-        A: usage > softlimit        B: usage <= softlimit        U: softlimit unset
-old:    reclaim at each priority    reclaim when priority < N    reclaim when priority < N
-new:    reclaim at each priority    reclaim when priority < N    reclaim at each priority
-
-Note: I can leave the counter->soft_limit uninitialized, at least all the
-caller of res_counter_init() have the memcg as pre-zeroed structure. However, I
-might be better not rely on that.
+The idea is from LSF discussion where we detect it after the first round of
+scanning and restart the reclaim by not looking at softlimit at all. This
+allows us to make forward progress on shrink_zone().
 
 Signed-off-by: Ying Han <yinghan@google.com>
 ---
- kernel/res_counter.c |    2 +-
- 1 files changed, 1 insertions(+), 1 deletions(-)
+ mm/vmscan.c |   18 ++++++++++++++++--
+ 1 files changed, 16 insertions(+), 2 deletions(-)
 
-diff --git a/kernel/res_counter.c b/kernel/res_counter.c
-index d508363..231c7ef 100644
---- a/kernel/res_counter.c
-+++ b/kernel/res_counter.c
-@@ -18,7 +18,7 @@ void res_counter_init(struct res_counter *counter, struct res_counter *parent)
- {
- 	spin_lock_init(&counter->lock);
- 	counter->limit = RESOURCE_MAX;
--	counter->soft_limit = RESOURCE_MAX;
-+	counter->soft_limit = 0;
- 	counter->parent = parent;
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index 0560783..5d036f5 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -2142,6 +2142,10 @@ static void shrink_zone(int priority, struct zone *zone,
+ 		.priority = priority,
+ 	};
+ 	struct mem_cgroup *memcg;
++	bool over_softlimit, ignore_softlimit = false;
++
++restart:
++	over_softlimit = false;
+ 
+ 	memcg = mem_cgroup_iter(root, NULL, &reclaim);
+ 	do {
+@@ -2163,9 +2167,14 @@ static void shrink_zone(int priority, struct zone *zone,
+ 		 * we have to reclaim under softlimit instead of burning more
+ 		 * cpu cycles.
+ 		 */
+-		if (!global_reclaim(sc) || priority < DEF_PRIORITY - 2 ||
+-				should_reclaim_mem_cgroup(memcg))
++		if (ignore_softlimit || !global_reclaim(sc) ||
++				priority < DEF_PRIORITY - 2 ||
++				should_reclaim_mem_cgroup(memcg)) {
+ 			shrink_mem_cgroup_zone(priority, &mz, sc);
++
++			over_softlimit = true;
++		}
++
+ 		/*
+ 		 * Limit reclaim has historically picked one memcg and
+ 		 * scanned it with decreasing priority levels until
+@@ -2182,6 +2191,11 @@ static void shrink_zone(int priority, struct zone *zone,
+ 		}
+ 		memcg = mem_cgroup_iter(root, memcg, &reclaim);
+ 	} while (memcg);
++
++	if (!over_softlimit) {
++		ignore_softlimit = true;
++		goto restart;
++	}
  }
  
+ /* Returns true if compaction should go ahead for a high-order request */
 -- 
 1.7.7.3
 
