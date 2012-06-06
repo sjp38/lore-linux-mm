@@ -1,32 +1,26 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx142.postini.com [74.125.245.142])
-	by kanga.kvack.org (Postfix) with SMTP id 896D66B0062
-	for <linux-mm@kvack.org>; Wed,  6 Jun 2012 03:18:35 -0400 (EDT)
-Date: Wed, 6 Jun 2012 09:18:09 +0200
+Received: from psmtp.com (na3sys010amx141.postini.com [74.125.245.141])
+	by kanga.kvack.org (Postfix) with SMTP id CC5956B006C
+	for <linux-mm@kvack.org>; Wed,  6 Jun 2012 03:20:01 -0400 (EDT)
+Date: Wed, 6 Jun 2012 09:19:47 +0200
 From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH 1/3] rename MEM_CGROUP_STAT_SWAPOUT as
- MEM_CGROUP_STAT_SWAP
-Message-ID: <20120606071809.GD1761@cmpxchg.org>
+Subject: Re: [PATCH 3/3] remove MEM_CGROUP_CHARGE_TYPE_FORCE
+Message-ID: <20120606071947.GE1761@cmpxchg.org>
 References: <4FCD609E.8070704@jp.fujitsu.com>
- <4FCD61CA.6010209@jp.fujitsu.com>
+ <4FCD6264.7090905@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <4FCD61CA.6010209@jp.fujitsu.com>
+In-Reply-To: <4FCD6264.7090905@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 Cc: linux-mm@kvack.org, cgroups@vger.kernel.org, Michal Hocko <mhocko@suse.cz>, Hugh Dickins <hughd@google.com>, akpm@linux-foundation.org
 
-On Tue, Jun 05, 2012 at 10:32:58AM +0900, Kamezawa Hiroyuki wrote:
+On Tue, Jun 05, 2012 at 10:35:32AM +0900, Kamezawa Hiroyuki wrote:
 > 
-> MEM_CGROUP_STAT_SWAPOUT represents the usage of swap rather than
-> the number of swap-out events. Rename it to be MEM_CGROUP_STAT_SWAP.
+> There are no users since commit b24028572fb69 "memcg: remove PCG_CACHE"
 > 
-> Changelog:
->  - use MEM_CGROUP_STAT_SWAP instead of MEM_CGROUP_STAT_NR_SWAP.
-> 
-> Acked-by: Michal Hocko <mhocko@suse.cz>
 > Acked-by: Hugh Dickins <hughd@google.com>
 > Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
