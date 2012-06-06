@@ -1,131 +1,114 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx145.postini.com [74.125.245.145])
-	by kanga.kvack.org (Postfix) with SMTP id C27FC8D0001
-	for <linux-mm@kvack.org>; Wed,  6 Jun 2012 09:19:06 -0400 (EDT)
-Received: from epcpsbgm2.samsung.com (mailout2.samsung.com [203.254.224.25])
- by mailout2.samsung.com
- (Oracle Communications Messaging Server 7u4-24.01(7.0.4.24.0) 64bit (built Nov
- 17 2011)) with ESMTP id <0M5700MGC6B6B8M0@mailout2.samsung.com> for
- linux-mm@kvack.org; Wed, 06 Jun 2012 22:19:05 +0900 (KST)
-Received: from mcdsrvbld02.digital.local ([106.116.37.23])
- by mmp1.samsung.com (Oracle Communications Messaging Server 7u4-24.01
- (7.0.4.24.0) 64bit (built Nov 17 2011))
- with ESMTPA id <0M5700H2L6B4YS50@mmp1.samsung.com> for linux-mm@kvack.org;
- Wed, 06 Jun 2012 22:19:04 +0900 (KST)
-From: Marek Szyprowski <m.szyprowski@samsung.com>
-Subject: [PATCH 2/2] ARM: dma-mapping: add support for DMA_ATTR_SKIP_CPU_SYNC
- attribute
-Date: Wed, 06 Jun 2012 15:17:37 +0200
-Message-id: <1338988657-20770-3-git-send-email-m.szyprowski@samsung.com>
-In-reply-to: <1338988657-20770-1-git-send-email-m.szyprowski@samsung.com>
-References: <1338988657-20770-1-git-send-email-m.szyprowski@samsung.com>
+Received: from psmtp.com (na3sys010amx102.postini.com [74.125.245.102])
+	by kanga.kvack.org (Postfix) with SMTP id 40ECA8D0001
+	for <linux-mm@kvack.org>; Wed,  6 Jun 2012 09:36:23 -0400 (EDT)
+Date: Wed, 6 Jun 2012 23:36:16 +1000
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: Hole punching and mmap races
+Message-ID: <20120606133616.GL22848@dastard>
+References: <20120517074308.GQ25351@dastard>
+ <20120517232829.GA31028@quack.suse.cz>
+ <20120518101210.GX25351@dastard>
+ <20120518133250.GC5589@quack.suse.cz>
+ <20120519014024.GZ25351@dastard>
+ <20120524123538.GA5632@quack.suse.cz>
+ <20120605055150.GF4347@dastard>
+ <20120605231530.GB4402@quack.suse.cz>
+ <20120606000636.GG22848@dastard>
+ <20120606095827.GA6304@quack.suse.cz>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20120606095827.GA6304@quack.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-arm-kernel@lists.infradead.org, linaro-mm-sig@lists.linaro.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-kernel@vger.kernel.org
-Cc: Marek Szyprowski <m.szyprowski@samsung.com>, Kyungmin Park <kyungmin.park@samsung.com>, Arnd Bergmann <arnd@arndb.de>, Russell King - ARM Linux <linux@arm.linux.org.uk>, Chunsang Jeong <chunsang.jeong@linaro.org>, Krishna Reddy <vdumpa@nvidia.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Hiroshi Doyu <hdoyu@nvidia.com>, Subash Patel <subash.ramaswamy@linaro.org>, Sumit Semwal <sumit.semwal@linaro.org>, Abhinav Kochhar <abhinav.k@samsung.com>, Tomasz Stanislawski <t.stanislaws@samsung.com>
+To: Jan Kara <jack@suse.cz>
+Cc: linux-fsdevel@vger.kernel.org, xfs@oss.sgi.com, linux-ext4@vger.kernel.org, Hugh Dickins <hughd@google.com>, linux-mm@kvack.org
 
-This patch adds support for DMA_ATTR_SKIP_CPU_SYNC attribute for
-dma_(un)map_(single,page,sg) functions family. It lets dma mapping clients
-to create a mapping for the buffer for the given device without performing
-a CPU cache synchronization. CPU cache synchronization can be skipped for
-the buffers which it is known that they are already in 'device' domain (CPU
-caches have been already synchronized or there are only coherent mappings
-for the buffer). For advanced users only, please use it with care.
+On Wed, Jun 06, 2012 at 11:58:27AM +0200, Jan Kara wrote:
+> On Wed 06-06-12 10:06:36, Dave Chinner wrote:
+> > On Wed, Jun 06, 2012 at 01:15:30AM +0200, Jan Kara wrote:
+> > > On Tue 05-06-12 15:51:50, Dave Chinner wrote:
+> > > > On Thu, May 24, 2012 at 02:35:38PM +0200, Jan Kara wrote:
+> > > > > > To me the issue at hand is that we have no method of serialising
+> > > > > > multi-page operations on the mapping tree between the filesystem and
+> > > > > > the VM, and that seems to be the fundamental problem we face in this
+> > > > > > whole area of mmap/buffered/direct IO/truncate/holepunch coherency.
+> > > > > > Hence it might be better to try to work out how to fix this entire
+> > > > > > class of problems rather than just adding a complex kuldge that just
+> > > > > > papers over the current "hot" symptom....
+> > > > >   Yes, looking at the above table, the amount of different synchronization
+> > > > > mechanisms is really striking. So probably we should look at some
+> > > > > possibility of unifying at least some cases.
+> > > > 
+> > > > It seems to me that we need some thing in between the fine grained
+> > > > page lock and the entire-file IO exclusion lock. We need to maintain
+> > > > fine grained locking for mmap scalability, but we also need to be
+> > > > able to atomically lock ranges of pages.
+> > >   Yes, we also need to keep things fine grained to keep scalability of
+> > > direct IO and buffered reads...
+> > > 
+> > > > I guess if we were to nest a fine grained multi-state lock
+> > > > inside both the IO exclusion lock and the mmap_sem, we might be able
+> > > > to kill all problems in one go.
+> > > > 
+> > > > Exclusive access on a range needs to be granted to:
+> > > > 
+> > > > 	- direct IO
+> > > > 	- truncate
+> > > > 	- hole punch
+> > > > 
+> > > > so they can be serialised against mmap based page faults, writeback
+> > > > and concurrent buffered IO. Serialisation against themselves is an
+> > > > IO/fs exclusion problem.
+> > > > 
+> > > > Shared access for traversal or modification needs to be granted to:
+> > > > 
+> > > > 	- buffered IO
+> > > > 	- mmap page faults
+> > > > 	- writeback
+> > > > 
+> > > > Each of these cases can rely on the existing page locks or IO
+> > > > exclusion locks to provide safety for concurrent access to the same
+> > > > ranges. This means that once we have access granted to a range we
+> > > > can check truncate races once and ignore the problem until we drop
+> > > > the access.  And the case of taking a page fault within a buffered
+> > > > IO won't deadlock because both take a shared lock....
+> > >   You cannot just use a lock (not even a shared one) both above and under
+> > > mmap_sem. That is deadlockable in presence of other requests for exclusive
+> > > locking...
+> > 
+> > Well, that's assuming that exclusive lock requests form a barrier to
+> > new shared requests. Remember that I'm talking about a range lock
+> > here, which we can make up whatever semantics we'd need, including
+> > having "shared lock if already locked shared" nested locking
+> > semantics which avoids this page-fault-in-buffered-IO-copy-in/out
+> > problem....
+>   That's true. But if you have semantics like this, constant writing to
+> or reading from a file could starve e.g. truncate. So I'd prefer not to
+> open this can of worms and keep semantics of rw semaphores if possible.
 
-Signed-off-by: Marek Szyprowski <m.szyprowski@samsung.com>
----
- arch/arm/mm/dma-mapping.c |   20 +++++++++++---------
- 1 files changed, 11 insertions(+), 9 deletions(-)
+Except truncate uses the i_mutex/i_iolock for exclusion, so it would
+never get held off any more than it already does by buffered IO in
+this case. i.e. the mapping tree range lock is inside the locks used
+for truncate serialisation, so we don't have a situation where other
+operations woul dbe held off by such an IO pattern...
 
-diff --git a/arch/arm/mm/dma-mapping.c b/arch/arm/mm/dma-mapping.c
-index b140440..62a0023 100644
---- a/arch/arm/mm/dma-mapping.c
-+++ b/arch/arm/mm/dma-mapping.c
-@@ -68,7 +68,7 @@ static dma_addr_t arm_dma_map_page(struct device *dev, struct page *page,
- 	     unsigned long offset, size_t size, enum dma_data_direction dir,
- 	     struct dma_attrs *attrs)
- {
--	if (!arch_is_coherent())
-+	if (!arch_is_coherent() && !dma_get_attr(DMA_ATTR_SKIP_CPU_SYNC, attrs))
- 		__dma_page_cpu_to_dev(page, offset, size, dir);
- 	return pfn_to_dma(dev, page_to_pfn(page)) + offset;
- }
-@@ -91,7 +91,7 @@ static void arm_dma_unmap_page(struct device *dev, dma_addr_t handle,
- 		size_t size, enum dma_data_direction dir,
- 		struct dma_attrs *attrs)
- {
--	if (!arch_is_coherent())
-+	if (!arch_is_coherent() && !dma_get_attr(DMA_ATTR_SKIP_CPU_SYNC, attrs))
- 		__dma_page_dev_to_cpu(pfn_to_page(dma_to_pfn(dev, handle)),
- 				      handle & ~PAGE_MASK, size, dir);
- }
-@@ -1077,7 +1077,7 @@ static int arm_iommu_get_sgtable(struct device *dev, struct sg_table *sgt,
-  */
- static int __map_sg_chunk(struct device *dev, struct scatterlist *sg,
- 			  size_t size, dma_addr_t *handle,
--			  enum dma_data_direction dir)
-+			  enum dma_data_direction dir, struct dma_attrs *attrs)
- {
- 	struct dma_iommu_mapping *mapping = dev->archdata.mapping;
- 	dma_addr_t iova, iova_base;
-@@ -1096,7 +1096,8 @@ static int __map_sg_chunk(struct device *dev, struct scatterlist *sg,
- 		phys_addr_t phys = page_to_phys(sg_page(s));
- 		unsigned int len = PAGE_ALIGN(s->offset + s->length);
- 
--		if (!arch_is_coherent())
-+		if (!arch_is_coherent() &&
-+		    !dma_get_attr(DMA_ATTR_SKIP_CPU_SYNC, attrs))
- 			__dma_page_cpu_to_dev(sg_page(s), s->offset, s->length, dir);
- 
- 		ret = iommu_map(mapping->domain, iova, phys, len, 0);
-@@ -1143,7 +1144,7 @@ int arm_iommu_map_sg(struct device *dev, struct scatterlist *sg, int nents,
- 
- 		if (s->offset || (size & ~PAGE_MASK) || size + s->length > max) {
- 			if (__map_sg_chunk(dev, start, size, &dma->dma_address,
--			    dir) < 0)
-+			    dir, attrs) < 0)
- 				goto bad_mapping;
- 
- 			dma->dma_address += offset;
-@@ -1156,7 +1157,7 @@ int arm_iommu_map_sg(struct device *dev, struct scatterlist *sg, int nents,
- 		}
- 		size += s->length;
- 	}
--	if (__map_sg_chunk(dev, start, size, &dma->dma_address, dir) < 0)
-+	if (__map_sg_chunk(dev, start, size, &dma->dma_address, dir, attrs) < 0)
- 		goto bad_mapping;
- 
- 	dma->dma_address += offset;
-@@ -1190,7 +1191,8 @@ void arm_iommu_unmap_sg(struct device *dev, struct scatterlist *sg, int nents,
- 		if (sg_dma_len(s))
- 			__iommu_remove_mapping(dev, sg_dma_address(s),
- 					       sg_dma_len(s));
--		if (!arch_is_coherent())
-+		if (!arch_is_coherent() &&
-+		    !dma_get_attr(DMA_ATTR_SKIP_CPU_SYNC, attrs))
- 			__dma_page_dev_to_cpu(sg_page(s), s->offset,
- 					      s->length, dir);
- 	}
-@@ -1252,7 +1254,7 @@ static dma_addr_t arm_iommu_map_page(struct device *dev, struct page *page,
- 	dma_addr_t dma_addr;
- 	int ret, len = PAGE_ALIGN(size + offset);
- 
--	if (!arch_is_coherent())
-+	if (!arch_is_coherent() && !dma_get_attr(DMA_ATTR_SKIP_CPU_SYNC, attrs))
- 		__dma_page_cpu_to_dev(page, offset, size, dir);
- 
- 	dma_addr = __alloc_iova(mapping, len);
-@@ -1291,7 +1293,7 @@ static void arm_iommu_unmap_page(struct device *dev, dma_addr_t handle,
- 	if (!iova)
- 		return;
- 
--	if (!arch_is_coherent())
-+	if (!arch_is_coherent() && !dma_get_attr(DMA_ATTR_SKIP_CPU_SYNC, attrs))
- 		__dma_page_dev_to_cpu(page, offset, size, dir);
- 
- 	iommu_unmap(mapping->domain, iova, len);
+> Furthermore, with direct IO you have to set in stone the ordering of
+> mmap_sem and range lock anyway because there we need an exclusive lock.
+
+Yes, mmap basically requires exclusive mmap_sem->shared range lock ordering. For
+direct IO, we only need the mmap_sem for the get_user_pages() call
+IIRC, so that requires exclusive range lock-> shared mmap_sem
+ordering. Unless we can lift the range lock in the mmap path outside
+the mmap_sem, we're still in the same boat....
+
+Cheers,
+
+Dave.
 -- 
-1.7.1.569.g6f426
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
