@@ -1,64 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx204.postini.com [74.125.245.204])
-	by kanga.kvack.org (Postfix) with SMTP id EF6AB6B0062
-	for <linux-mm@kvack.org>; Tue,  5 Jun 2012 20:46:22 -0400 (EDT)
-From: Bhushan Bharat-R65777 <R65777@freescale.com>
-Subject: RE: [PATCH] powerpc: Fix assmption of end_of_DRAM() returns end
- address
-Date: Wed, 6 Jun 2012 00:46:17 +0000
-Message-ID: <6A3DF150A5B70D4F9B66A25E3F7C888D03D68F08@039-SN2MPN1-022.039d.mgd.msft.net>
-References: <1338904504-2750-1-git-send-email-bharat.bhushan@freescale.com>
-	<1338934659.7150.113.camel@pasglop>
- <20120605.152058.828742127223799137.davem@davemloft.net>
-In-Reply-To: <20120605.152058.828742127223799137.davem@davemloft.net>
-Content-Language: en-US
-Content-Type: text/plain; charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
+Received: from psmtp.com (na3sys010amx193.postini.com [74.125.245.193])
+	by kanga.kvack.org (Postfix) with SMTP id 3C9906B0062
+	for <linux-mm@kvack.org>; Tue,  5 Jun 2012 22:57:36 -0400 (EDT)
+Date: Tue, 5 Jun 2012 22:57:30 -0400
+From: Vivek Goyal <vgoyal@redhat.com>
+Subject: Re: write-behind on streaming writes
+Message-ID: <20120606025729.GA1197@redhat.com>
+References: <20120528114124.GA6813@localhost>
+ <CA+55aFxHt8q8+jQDuoaK=hObX+73iSBTa4bBWodCX3s-y4Q1GQ@mail.gmail.com>
+ <20120529155759.GA11326@localhost>
+ <CA+55aFykFaBhzzEyRYWRS9Qoy_q_R65Cuth7=XvfOZEMqjn6=w@mail.gmail.com>
+ <20120530032129.GA7479@localhost>
+ <20120605172302.GB28556@redhat.com>
+ <20120605174157.GC28556@redhat.com>
+ <20120605184853.GD28556@redhat.com>
+ <20120605201045.GE28556@redhat.com>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20120605201045.GE28556@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Miller <davem@davemloft.net>, "benh@kernel.crashing.org" <benh@kernel.crashing.org>, Andrea Arcangeli <aarcange@redhat.com>
-Cc: "linuxppc-dev@lists.ozlabs.org" <linuxppc-dev@lists.ozlabs.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "galak@kernel.crashing.org" <galak@kernel.crashing.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Fengguang Wu <fengguang.wu@intel.com>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, "Myklebust, Trond" <Trond.Myklebust@netapp.com>, linux-fsdevel@vger.kernel.org, Linux Memory Management List <linux-mm@kvack.org>, Jens Axboe <axboe@kernel.dk>
 
+On Tue, Jun 05, 2012 at 04:10:45PM -0400, Vivek Goyal wrote:
+> On Tue, Jun 05, 2012 at 02:48:53PM -0400, Vivek Goyal wrote:
+> 
+> [..]
+> > So sync_file_range() test keeps less in flight requests on on average
+> > hence better latencies. It might not produce throughput drop on SATA
+> > disks but might have some effect on storage array luns. Will give it
+> > a try.
+> 
+> Well, I ran dd and syn_file_range test on a storage array Lun. Wrote a
+> file of size 4G on ext4. Got about 300MB/s write speed. In fact when I
+> measured time using "time", sync_file_range test finished little faster.
+> 
+> Then I started looking at blktrace output. sync_file_range() test
+> initially (for about 8 seconds), drives shallow queue depth (about 16),
+> but after 8 seconds somehow flusher gets involved and starts submitting
+> lots of requests and we start driving much higher queue depth (upto more than
+> 100). Not sure why flusher should get involved. Is everything working as
+> expected. I thought that as we wait for last 8MB IO to finish before we
+> start new one, we should have at max 16MB of IO in flight. Fengguang?
 
+Ok, found it. I am using "int index" which in turn caused signed integer
+extension of (i*BUFSIZE). Once "i" crosses 255, integer overflow happens
+and 64bit offset is sign extended and offsets are screwed. So after 2G
+file size, sync_file_range() effectively stops working leaving dirty
+pages which are cleaned up by flusher. So that explains why flusher
+was kicking during my tests. Change "int" to "unsigned int" and problem
+if fixed.
 
-> -----Original Message-----
-> From: David Miller [mailto:davem@davemloft.net]
-> Sent: Wednesday, June 06, 2012 3:51 AM
-> To: benh@kernel.crashing.org
-> Cc: Bhushan Bharat-R65777; linuxppc-dev@lists.ozlabs.org; linux-
-> kernel@vger.kernel.org; galak@kernel.crashing.org; Bhushan Bharat-R65777
-> Subject: Re: [PATCH] powerpc: Fix assmption of end_of_DRAM() returns end =
-address
->=20
-> From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-> Date: Wed, 06 Jun 2012 08:17:39 +1000
->=20
-> > On Tue, 2012-06-05 at 19:25 +0530, Bharat Bhushan wrote:
-> >> memblock_end_of_DRAM() returns end_address + 1, not end address.
-> >> While some code assumes that it returns end address.
-> >
-> > Shouldn't we instead fix it the other way around ? IE, make
-> > memblock_end_of_DRAM() does what the name implies, which is to return
-> > the last byte of DRAM, and fix the -other- callers not to make bad
-> > assumptions ?
->=20
-> That was my impression too when I saw this patch.
+Now I ran sync_file_range() test and another program which writes 4GB file
+and does a fdatasync() at the end and compared total execution time. First
+one takes around 12.5 seconds while later one takes around 12.00 seconds.
+So sync_file_range() is just little slower on this SAN lun.
 
-Initially I also intended to do so. I initiated a email on linux-mm@  subje=
-ct "memblock_end_of_DRAM()  return end address + 1" and the only response I=
- received from Andrea was:
-
-"
-It's normal that "end" means "first byte offset out of the range". End =3D =
-not ok.
-end =3D start+size.
-This is true for vm_end too. So it's better to keep it that way.
-My suggestion is to just fix point 1 below and audit the rest :)
-"
+I had expected a bigger difference as sync_file_range() is just driving
+max queue depth of 32 (total 16MB IO in flight), while flushers are
+driving queue depths up to 140 or so. So in this paritcular test, driving
+much deeper queue depths is not really helping much. (I have seen higher
+throughputs with higher queue depths in the past. Now sure why don't we
+see it here).
 
 Thanks
--Bharat
+Vivek
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
