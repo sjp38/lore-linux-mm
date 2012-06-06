@@ -1,56 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx138.postini.com [74.125.245.138])
-	by kanga.kvack.org (Postfix) with SMTP id 5CAEB6B0088
-	for <linux-mm@kvack.org>; Wed,  6 Jun 2012 12:03:10 -0400 (EDT)
-Date: Wed, 06 Jun 2012 09:03:08 -0700 (PDT)
-Message-Id: <20120606.090308.608629832776499558.davem@davemloft.net>
-Subject: Re: [PATCH] powerpc: Fix assmption of end_of_DRAM() returns end
- address
-From: David Miller <davem@davemloft.net>
-In-Reply-To: <1338960617.7150.163.camel@pasglop>
-References: <20120605.152058.828742127223799137.davem@davemloft.net>
-	<6A3DF150A5B70D4F9B66A25E3F7C888D03D68F08@039-SN2MPN1-022.039d.mgd.msft.net>
-	<1338960617.7150.163.camel@pasglop>
-Mime-Version: 1.0
-Content-Type: Text/Plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx183.postini.com [74.125.245.183])
+	by kanga.kvack.org (Postfix) with SMTP id 040576B009E
+	for <linux-mm@kvack.org>; Wed,  6 Jun 2012 12:15:49 -0400 (EDT)
+Date: Wed, 6 Jun 2012 12:15:44 -0400
+From: Vivek Goyal <vgoyal@redhat.com>
+Subject: Re: write-behind on streaming writes
+Message-ID: <20120606161544.GA8133@redhat.com>
+References: <20120529155759.GA11326@localhost>
+ <CA+55aFykFaBhzzEyRYWRS9Qoy_q_R65Cuth7=XvfOZEMqjn6=w@mail.gmail.com>
+ <20120530032129.GA7479@localhost>
+ <20120605172302.GB28556@redhat.com>
+ <20120605174157.GC28556@redhat.com>
+ <20120605184853.GD28556@redhat.com>
+ <20120605201045.GE28556@redhat.com>
+ <20120606025729.GA1197@redhat.com>
+ <CA+55aFyxucvhYhbk0yyNa1WSeYXgHHAyWRHPNWDwODQhyAWGww@mail.gmail.com>
+ <20120606121408.GB4934@redhat.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20120606121408.GB4934@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: benh@kernel.crashing.org
-Cc: R65777@freescale.com, aarcange@redhat.com, linuxppc-dev@lists.ozlabs.org, linux-kernel@vger.kernel.org, galak@kernel.crashing.org, linux-mm@kvack.org
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Fengguang Wu <fengguang.wu@intel.com>, LKML <linux-kernel@vger.kernel.org>, "Myklebust, Trond" <Trond.Myklebust@netapp.com>, linux-fsdevel@vger.kernel.org, Linux Memory Management List <linux-mm@kvack.org>, Jens Axboe <axboe@kernel.dk>
 
-From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-Date: Wed, 06 Jun 2012 15:30:17 +1000
+On Wed, Jun 06, 2012 at 08:14:08AM -0400, Vivek Goyal wrote:
 
-> On Wed, 2012-06-06 at 00:46 +0000, Bhushan Bharat-R65777 wrote:
-> 
->> > >> memblock_end_of_DRAM() returns end_address + 1, not end address.
->> > >> While some code assumes that it returns end address.
->> > >
->> > > Shouldn't we instead fix it the other way around ? IE, make
->> > > memblock_end_of_DRAM() does what the name implies, which is to
->> return
->> > > the last byte of DRAM, and fix the -other- callers not to make bad
->> > > assumptions ?
->> > 
->> > That was my impression too when I saw this patch.
->> 
->> Initially I also intended to do so. I initiated a email on linux-mm@
->> subject "memblock_end_of_DRAM()  return end address + 1" and the only
->> response I received from Andrea was:
->> 
->> "
->> It's normal that "end" means "first byte offset out of the range". End
->> = not ok.
->> end = start+size.
->> This is true for vm_end too. So it's better to keep it that way.
->> My suggestion is to just fix point 1 below and audit the rest :)
->> "
-> 
-> Oh well, I don't care enough to fight this battle in my current state so
-> unless Dave has more stamina than I have today, I'm ok with the patch.
+[..]
+> I think it is happening because sync_file_range() will send all
+> the writes as SYNC and it will compete with firefox IO. On the other
+> hand, flusher's IO will show up as ASYNC and CFQ  will be penalize it
+> heavily and firefox's IO will be prioritized. And this effect should
+> just get worse as more processes do sync_file_range().
 
-I'm definitely without the samina to fight something like this right now :)
+Ok, this time I tried the same test again but with 4 processes doing
+writes in parallel on 4 different files.
+
+And with sync_file_range() things turned ugly. Interactivity was very poor. 
+
+firefox launch test took around 1m:45s with sync_file range() while it
+took only about 35seconds with regular flusher threads.
+
+So sending writeback IO synchronously wreaks havoc.
+
+Thanks
+Vivek
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
