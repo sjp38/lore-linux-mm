@@ -1,124 +1,186 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx119.postini.com [74.125.245.119])
-	by kanga.kvack.org (Postfix) with SMTP id E52996B0062
-	for <linux-mm@kvack.org>; Tue,  5 Jun 2012 20:06:41 -0400 (EDT)
-Date: Wed, 6 Jun 2012 10:06:36 +1000
-From: Dave Chinner <david@fromorbit.com>
-Subject: Re: Hole punching and mmap races
-Message-ID: <20120606000636.GG22848@dastard>
-References: <20120516021423.GO25351@dastard>
- <20120516130445.GA27661@quack.suse.cz>
- <20120517074308.GQ25351@dastard>
- <20120517232829.GA31028@quack.suse.cz>
- <20120518101210.GX25351@dastard>
- <20120518133250.GC5589@quack.suse.cz>
- <20120519014024.GZ25351@dastard>
- <20120524123538.GA5632@quack.suse.cz>
- <20120605055150.GF4347@dastard>
- <20120605231530.GB4402@quack.suse.cz>
+Received: from psmtp.com (na3sys010amx186.postini.com [74.125.245.186])
+	by kanga.kvack.org (Postfix) with SMTP id 848D26B0062
+	for <linux-mm@kvack.org>; Tue,  5 Jun 2012 20:28:34 -0400 (EDT)
+Received: by pbbrp2 with SMTP id rp2so10353444pbb.14
+        for <linux-mm@kvack.org>; Tue, 05 Jun 2012 17:28:33 -0700 (PDT)
+Message-ID: <4FCEA429.3020905@vflare.org>
+Date: Tue, 05 Jun 2012 17:28:25 -0700
+From: Nitin Gupta <ngupta@vflare.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20120605231530.GB4402@quack.suse.cz>
+Subject: Re: zsmalloc concerns
+References: <030ff158-3b2b-47a6-98d7-5010f7a9ce6b@default>
+In-Reply-To: <030ff158-3b2b-47a6-98d7-5010f7a9ce6b@default>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jan Kara <jack@suse.cz>
-Cc: linux-fsdevel@vger.kernel.org, xfs@oss.sgi.com, linux-ext4@vger.kernel.org, Hugh Dickins <hughd@google.com>, linux-mm@kvack.org
+To: Dan Magenheimer <dan.magenheimer@oracle.com>
+Cc: Minchan Kim <minchan@kernel.org>, Seth Jennings <sjenning@linux.vnet.ibm.com>, linux-mm@kvack.org, Konrad Wilk <konrad.wilk@oracle.com>
 
-On Wed, Jun 06, 2012 at 01:15:30AM +0200, Jan Kara wrote:
-> On Tue 05-06-12 15:51:50, Dave Chinner wrote:
-> > On Thu, May 24, 2012 at 02:35:38PM +0200, Jan Kara wrote:
-> > > > To me the issue at hand is that we have no method of serialising
-> > > > multi-page operations on the mapping tree between the filesystem and
-> > > > the VM, and that seems to be the fundamental problem we face in this
-> > > > whole area of mmap/buffered/direct IO/truncate/holepunch coherency.
-> > > > Hence it might be better to try to work out how to fix this entire
-> > > > class of problems rather than just adding a complex kuldge that just
-> > > > papers over the current "hot" symptom....
-> > >   Yes, looking at the above table, the amount of different synchronization
-> > > mechanisms is really striking. So probably we should look at some
-> > > possibility of unifying at least some cases.
-> > 
-> > It seems to me that we need some thing in between the fine grained
-> > page lock and the entire-file IO exclusion lock. We need to maintain
-> > fine grained locking for mmap scalability, but we also need to be
-> > able to atomically lock ranges of pages.
->   Yes, we also need to keep things fine grained to keep scalability of
-> direct IO and buffered reads...
+On 06/04/2012 08:25 PM, Dan Magenheimer wrote:
+
+> Hi Minchan (and all) --
 > 
-> > I guess if we were to nest a fine grained multi-state lock
-> > inside both the IO exclusion lock and the mmap_sem, we might be able
-> > to kill all problems in one go.
-> > 
-> > Exclusive access on a range needs to be granted to:
-> > 
-> > 	- direct IO
-> > 	- truncate
-> > 	- hole punch
-> > 
-> > so they can be serialised against mmap based page faults, writeback
-> > and concurrent buffered IO. Serialisation against themselves is an
-> > IO/fs exclusion problem.
-> > 
-> > Shared access for traversal or modification needs to be granted to:
-> > 
-> > 	- buffered IO
-> > 	- mmap page faults
-> > 	- writeback
-> > 
-> > Each of these cases can rely on the existing page locks or IO
-> > exclusion locks to provide safety for concurrent access to the same
-> > ranges. This means that once we have access granted to a range we
-> > can check truncate races once and ignore the problem until we drop
-> > the access.  And the case of taking a page fault within a buffered
-> > IO won't deadlock because both take a shared lock....
->   You cannot just use a lock (not even a shared one) both above and under
-> mmap_sem. That is deadlockable in presence of other requests for exclusive
-> locking...
+> I promised you that after the window closed, I would
+> write up my concerns about zsmalloc. My preference would
+> be to use zsmalloc, but there are definitely tradeoffs
+> and my objective is to make zcache and RAMster ready
+> for enterprise customers so I would use a different
+> or captive allocator if these zsmalloc issues can't
+> be overcome.
+> 
+> Thanks,
+> Dan
+> 
+> ===
+> 
+> Zsmalloc is designed to maximize density of items that vary in
+> size between 0<size<PAGE_SIZE, but especially when the mean
+> item size significantly exceeds PAGE_SIZE/2.  It is primarily
+> useful when there are a large quantity of such items to be
+> stored with little or no space wasted; if the quantity
+> is small and/or some wasted space is acceptable, existing
+> kernel allocators (e.g. slab) may be sufficient.  In the
+> case of zcache (and zram and ramster), where a large fraction
+> of RAM is used to store zpages (lzo1x-compressed pages),
+> zsmalloc seems to be a good match.  It is unclear whether
+> zsmalloc will ever have another user -- unless that user is
+> also storing large quantities of compressed pages.
+> 
 
-Well, that's assuming that exclusive lock requests form a barrier to
-new shared requests. Remember that I'm talking about a range lock
-here, which we can make up whatever semantics we'd need, including
-having "shared lock if already locked shared" nested locking
-semantics which avoids this page-fault-in-buffered-IO-copy-in/out
-problem....
 
-It also allows writeback to work the same way it does write now when
-we take a page fult on a page that is under writeback
+True. zsmalloc use case is very specific: efficiently storing object of
+size up to PAGE_SIZE. I never expect it to find any more users.
 
-> Luckily, with buffered writes the situation isn't that bad. You
-> need mmap_sem only before each page is processed (in
-> iov_iter_fault_in_readable()). Later on in the loop we use
-> iov_iter_copy_from_user_atomic() which doesn't need mmap_sem. So we can
-> just get our shared lock after iov_iter_fault_in_readable() (or simply
-> leave it for ->write_begin() if we want to give control over the locking to
-> filesystems).
+> Zcache is currently one primary user of zsmalloc, however
+> zcache only uses zsmalloc for anonymous/swap ("frontswap")
+> pages, not for file ("cleancache") pages.  For file pages,
+> zcache uses the captive "zbud" allocator; this is because
+> zcache requires a shrinker for cleancache pages, by which
+> entire pageframes can be easily reclaimed.  Zsmalloc doesn't
+> currently have shrinker capability and, because its
+> storage patterns in and across physical pageframes are
+> quite complex (to maximize density), an intelligent reclaim
+> implementation may be difficult to design race-free.  And
+> implementing reclaim opaquely (i.e. while maintaining a clean
+> layering) may be impossible.
+> 
 
-That would probably work as well, but it much more likely that
-people would get it wrong as opposed to special casing the nested
-lock semantic in the page fault code...
 
-> > We'd need some kind of efficient shared/exclusive range lock for
-> > this sort of exclusion, and it's entirely possible that it would
-> > have too much overhead to be acceptible in the page fault path. It's
-> > the best I can think of right now.....
-> >
-> > As it is, a range lock of this kind would be very handy for other
-> > things, too (like the IO exclusion locks so we can do concurrent
-> > buffered writes in XFS ;).
->   Yes, that's what I thought as well. In particular it should be pretty
-> efficient in locking a single page range because that's going to be
-> majority of calls. I'll try to write something and see how fast it can
-> be...
+I'm now trying to start working of compaction but yes it seems to be
+really complicated.
 
-Cool. :)
+> A good analogy might be linked-lists.  Zsmalloc is like
+> a singly-linked list (space-efficient but not as flexible)
+> and zbud is like a doubly-linked list (not as space-efficient
+> but more flexible).  One has to choose the best data
+> structure according to the functionality required.
+> 
+> Some believe that the next step in zcache evolution will
+> require shrinking of both frontswap and cleancache pages.
+> Andrea has also stated that he thinks frontswap shrinking
+> will be a must for any future KVM-tmem implementation.
+> But preliminary investigations indicate that pageframe reclaim
+> of frontswap pages may be even more difficult with zsmalloc.
+> Until this issue is resolved (either by an adequately working
+> implementation of reclaim with zsmalloc or via demonstration
+> that zcache reclaim is unnecessary), the future use of zsmalloc
+> by zcache is cloudy.
+> 
+> I'm currently rewriting zbud as a foundation to investigate
+> some reclaim policy ideas that I think will be useful both for
+> KVM and for making zcache "enterprise ready."  When that is
+> done, we will see if zsmalloc can achieve the same flexibility.
+> 
+> A few related comments about these allocators and their users:
+> 
+> Zsmalloc relies on some clever underlying virtual-to-physical
+> mapping manipulations to ensure that its users can store and
+> retrieve items.  These manipulations are necessary on HIGHMEM
+> processors, but the cost is unclear on non-HIGHMEM processors.
+> (Manipulating TLB entries is not inexpensive.)  For zcache, the
+> overhead may be irrelevant as long as it is a small fraction
+> of the cost of compression/decompression, but it is worth
+> measuring (worst case) to verify.
+> 
 
-Cheers,
 
-Dave.
--- 
-Dave Chinner
-david@fromorbit.com
+All those virtual-to-physical mapping business needs to be done even if
+we ignore HIGHMEM and consider pure 64-bit systems where entire memory
+is direct mapped. All these compression schemes come into picture under
+low memory conditions when the chances of allocating higher order pages
+is close to nil. So, to be able to take physically discontiguous pages
+and treat them as a single higher order page, we need some
+mapping/unmapping tricks which zsmalloc does.
+
+> Zbud can implement efficient reclaim because no more than two
+> items ever reside in the same pageframe and items never
+> cross a pageframe boundary.  While zbud storage is certainly
+> less dense than zsmalloc, the density is probably sufficient
+> if the size of items is bell-curve distributed with a mean
+> size of PAGE_SIZE/2 (or slightly less).  This is true for
+> many workloads, but datasets where the vast majority of items
+> exceed PAGE_SIZE/2 render zbud useless.  Note, however, that
+> zcache (due to its foundation on transcendent memory) currently
+> implements an admission policy that rejects pages when extreme
+> datasets are encountered.  In other words, zbud would handle
+> these workloads simply by rejecting the pages, resulting
+> in performance no worse (approximately) than if zcache were
+> not present.
+
+
+We really need to have memory dump of various VM images running
+different workloads to determine if compressed size distribution indeed
+centres around PAGE_SIZE/2. Some of this data was collected some time back:
+
+http://code.google.com/p/compcache/wiki/CompressedLengthDistribution
+(histograms would have been more useful)
+
+at least this sample data does not clearly suggest that this assumptions
+regarding the size distribution usually holds.
+
+> 
+> RAMster maintains data structures to both point to zpages
+> that are local and remote.  Remote pages are identified
+> by a handle-like bit sequence while local pages are identified
+> by a true pointer.  (Note that ramster currently will not
+> run on a HIGHMEM machine.)  RAMster currently differentiates
+> between the two via a hack: examining the LSB.  If the
+> LSB is set, it is a handle referring to a remote page.
+> This works with xvmalloc and zbud but not with zsmalloc's
+> opaque handle.  A simple solution would require zsmalloc
+> to reserve the LSB of the opaque handle as must-be-zero.
+> 
+
+
+I think it should be possible to spare LSB in zsmalloc handle.
+
+> Zram is actually a good match for current zsmalloc because
+> its storage grows to a pre-set RAM maximum size and cannot
+> shrink again.  Reclaim is not possible without a massive
+> redesign (and that redesign is essentially zcache).  But as
+> a result of its grow-but-never-shrink design, zram may have
+> some significant performance implications on most workloads
+> and system configurations.  It remains to be seen if its
+> niche usage will warrant promotion from the staging tree.
+
+
+zram can shrink back:
+ - When used as swap device, it receives a "swap notify" callback
+whenever a swap slot (page) is freed. See: swap_entry_free() -->
+disk->fops->swap_slot_notify_free()
+ - When used as a generic disk, say, hosting ext4 filesystem, it can
+receive "discard" callbacks from filesystem which have discard support
+(a mount option in case of ext4).
+
+
+Overall, I do agree with your concern that it seems difficult to
+implement runtime compaction for zsmalloc and I also think that it might
+be worth investing more in simpler zbud till we have it working.
+
+Thanks,
+Nitin
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
