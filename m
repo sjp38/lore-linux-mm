@@ -1,84 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx150.postini.com [74.125.245.150])
-	by kanga.kvack.org (Postfix) with SMTP id 205F46B0080
-	for <linux-mm@kvack.org>; Wed,  6 Jun 2012 04:15:24 -0400 (EDT)
-From: Lai Jiangshan <laijs@cn.fujitsu.com>
-Subject: [PATCH 6/7] highmem: remove ->virtual from struct page_address_map
-Date: Wed, 6 Jun 2012 16:15:00 +0800
-Message-Id: <1338970501-5098-6-git-send-email-laijs@cn.fujitsu.com>
-In-Reply-To: <1338970501-5098-1-git-send-email-laijs@cn.fujitsu.com>
-References: <1338970501-5098-1-git-send-email-laijs@cn.fujitsu.com>
+Received: from psmtp.com (na3sys010amx161.postini.com [74.125.245.161])
+	by kanga.kvack.org (Postfix) with SMTP id 7E3B86B0087
+	for <linux-mm@kvack.org>; Wed,  6 Jun 2012 04:27:04 -0400 (EDT)
+Received: from epcpsbgm2.samsung.com (mailout3.samsung.com [203.254.224.33])
+ by mailout3.samsung.com
+ (Oracle Communications Messaging Server 7u4-24.01(7.0.4.24.0) 64bit (built Nov
+ 17 2011)) with ESMTP id <0M5600AUTSETIK30@mailout3.samsung.com> for
+ linux-mm@kvack.org; Wed, 06 Jun 2012 17:27:02 +0900 (KST)
+Received: from bzolnier-desktop.localnet ([106.116.48.38])
+ by mmp2.samsung.com (Oracle Communications Messaging Server 7u4-24.01
+ (7.0.4.24.0) 64bit (built Nov 17 2011))
+ with ESMTPA id <0M56002SXST17D30@mmp2.samsung.com> for linux-mm@kvack.org;
+ Wed, 06 Jun 2012 17:27:02 +0900 (KST)
+From: Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>
+Subject: Re: [PATCH 1/3] proc: add /proc/kpageorder interface
+Date: Wed, 06 Jun 2012 10:23:13 +0200
+References: <201206011854.25795.b.zolnierkie@samsung.com>
+ <201206041023.22937.b.zolnierkie@samsung.com> <4FCD0D0D.9050003@gmail.com>
+In-reply-to: <4FCD0D0D.9050003@gmail.com>
+MIME-version: 1.0
+Message-id: <201206061023.13237.b.zolnierkie@samsung.com>
+Content-type: Text/Plain; charset=iso-8859-1
+Content-transfer-encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-Cc: Ingo Molnar <mingo@elte.hu>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Tejun Heo <tj@kernel.org>, Al Viro <viro@zeniv.linux.org.uk>, "H. Peter Anvin" <hpa@linux.intel.com>, Ian Campbell <ian.campbell@citrix.com>, Paul Gortmaker <paul.gortmaker@windriver.com>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Lai Jiangshan <laijs@cn.fujitsu.com>
+To: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
+Cc: linux-mm@kvack.org, Kyungmin Park <kyungmin.park@samsung.com>, Matt Mackall <mpm@selenic.com>
 
-The virtual address is (void *)PKMAP_ADDR(kmap_index),
+On Monday 04 June 2012 21:31:25 KOSAKI Motohiro wrote:
+> (6/4/12 4:23 AM), Bartlomiej Zolnierkiewicz wrote:
+> > On Friday 01 June 2012 22:31:01 KOSAKI Motohiro wrote:
+> >> (6/1/12 12:54 PM), Bartlomiej Zolnierkiewicz wrote:
+> >>> From: Bartlomiej Zolnierkiewicz<b.zolnierkie@samsung.com>
+> >>> Subject: [PATCH] proc: add /proc/kpageorder interface
+> >>>
+> >>> This makes page order information available to the user-space.
+> >>
+> >> No usecase new feature always should be NAKed.
+> >
+> > It is used to get page orders for Buddy pages and help to monitor
+> > free/used pages.  Sample usage will be posted for inclusion to
+> > Pagemap Demo tools (http://selenic.com/repo/pagemap/).
+> >
+> > The similar situation is with /proc/kpagetype..
+> 
+> NAK then.
+> 
+> First, your explanation didn't describe any usecase. "There is a similar feature"
+> is NOT a usecase.
+> 
+> Second, /proc/kpagetype is one of mistaken feature. It was not designed deeply.
+> We have no reason to follow the mistake.
 
-But struct page_address_map is always allocated with the same index
-(in page_address_maps) as kmap index.
+Well, my usecase for /proc/kpagetype is to monitor/debug pageblock changes
+(i.e. to verify CMA and compaction operations).  It is not perfect since
+interface gives us only a snapshot of pageblocks state at some random time.
+However it is a straightforward method and requires only minimal changes
+to the existing code.
 
-So the virtual address is (void *)PKMAP_ADDR(pam - page_address_maps) here,
-the ->virtual is not needed.
+Maybe there is a better way to do this which would give a more accurate
+data and capture every state change (maybe a one involving tracing?) but
+I don't know about it.  Do you know such better way to do it?
 
-Signed-off-by: Lai Jiangshan <laijs@cn.fujitsu.com>
----
- mm/highmem.c |   17 ++++++-----------
- 1 files changed, 6 insertions(+), 11 deletions(-)
+> Third, pagemap demo doesn't describe YOUR feature's usefull at all.
 
-diff --git a/mm/highmem.c b/mm/highmem.c
-index bd2b9d3..6f028cb 100644
---- a/mm/highmem.c
-+++ b/mm/highmem.c
-@@ -309,7 +309,6 @@ EXPORT_SYMBOL(kunmap_high);
-  */
- struct page_address_map {
- 	struct page *page;
--	void *virtual;
- 	struct list_head list;
- };
- 
-@@ -339,6 +338,7 @@ void *page_address(const struct page *page)
- 	unsigned long flags;
- 	void *ret;
- 	struct page_address_slot *pas;
-+	struct page_address_map *pam;
- 
- 	if (!PageHighMem(page))
- 		return lowmem_page_address(page);
-@@ -346,18 +346,14 @@ void *page_address(const struct page *page)
- 	pas = page_slot(page);
- 	ret = NULL;
- 	spin_lock_irqsave(&pas->lock, flags);
--	if (!list_empty(&pas->lh)) {
--		struct page_address_map *pam;
--
--		list_for_each_entry(pam, &pas->lh, list) {
--			if (pam->page == page) {
--				ret = pam->virtual;
--				goto done;
--			}
-+	list_for_each_entry(pam, &pas->lh, list) {
-+		if (pam->page == page) {
-+			ret = (void *)PKMAP_ADDR(pam - page_address_maps);
-+			break;
- 		}
- 	}
--done:
- 	spin_unlock_irqrestore(&pas->lock, flags);
-+
- 	return ret;
- }
- 
-@@ -370,7 +366,6 @@ static void set_high_page_map(struct page *page, unsigned int nr)
- 	struct page_address_map *pam = &page_address_maps[nr];
- 
- 	pam->page = page;
--	pam->virtual = (void *)PKMAP_ADDR(nr);
- 
- 	spin_lock_irqsave(&pas->lock, flags);
- 	list_add_tail(&pam->list, &pas->lh);
--- 
-1.7.7
+pagemap demo doesn't include my patches for /proc/kpage[order,type] yet
+so it is not surprising at all (it doesn't even work with current kernels
+without my other patches).. ;)
+
+> Fourth, pagemap demo is NOT useful at all. It's just toy. Practically, kpagetype
+> is only used from pagetype tool.
+
+I don't quite follow it, what pagetype tool are you referring to (kpagetype
+is a new interface)?
+
+Best regards,
+--
+Bartlomiej Zolnierkiewicz
+Samsung Poland R&D Center
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
