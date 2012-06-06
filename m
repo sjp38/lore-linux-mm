@@ -1,114 +1,95 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx102.postini.com [74.125.245.102])
-	by kanga.kvack.org (Postfix) with SMTP id 40ECA8D0001
-	for <linux-mm@kvack.org>; Wed,  6 Jun 2012 09:36:23 -0400 (EDT)
-Date: Wed, 6 Jun 2012 23:36:16 +1000
-From: Dave Chinner <david@fromorbit.com>
-Subject: Re: Hole punching and mmap races
-Message-ID: <20120606133616.GL22848@dastard>
-References: <20120517074308.GQ25351@dastard>
- <20120517232829.GA31028@quack.suse.cz>
- <20120518101210.GX25351@dastard>
- <20120518133250.GC5589@quack.suse.cz>
- <20120519014024.GZ25351@dastard>
- <20120524123538.GA5632@quack.suse.cz>
- <20120605055150.GF4347@dastard>
- <20120605231530.GB4402@quack.suse.cz>
- <20120606000636.GG22848@dastard>
- <20120606095827.GA6304@quack.suse.cz>
+Received: from psmtp.com (na3sys010amx199.postini.com [74.125.245.199])
+	by kanga.kvack.org (Postfix) with SMTP id 5E5546B00B3
+	for <linux-mm@kvack.org>; Wed,  6 Jun 2012 09:45:50 -0400 (EDT)
+Received: by pbbrp2 with SMTP id rp2so11420917pbb.14
+        for <linux-mm@kvack.org>; Wed, 06 Jun 2012 06:45:49 -0700 (PDT)
+Message-ID: <4FCF5F04.7030207@gmail.com>
+Date: Wed, 06 Jun 2012 19:15:40 +0530
+From: Subash Patel <subashrp@gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20120606095827.GA6304@quack.suse.cz>
+Subject: Re: [PATCH/RFC 0/2] ARM: DMA-mapping: new extensions for buffer sharing
+ (part 2)
+References: <1338988657-20770-1-git-send-email-m.szyprowski@samsung.com>
+In-Reply-To: <1338988657-20770-1-git-send-email-m.szyprowski@samsung.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jan Kara <jack@suse.cz>
-Cc: linux-fsdevel@vger.kernel.org, xfs@oss.sgi.com, linux-ext4@vger.kernel.org, Hugh Dickins <hughd@google.com>, linux-mm@kvack.org
+To: Marek Szyprowski <m.szyprowski@samsung.com>
+Cc: linux-arm-kernel@lists.infradead.org, linaro-mm-sig@lists.linaro.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-kernel@vger.kernel.org, Kyungmin Park <kyungmin.park@samsung.com>, Arnd Bergmann <arnd@arndb.de>, Russell King - ARM Linux <linux@arm.linux.org.uk>, Chunsang Jeong <chunsang.jeong@linaro.org>, Krishna Reddy <vdumpa@nvidia.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Hiroshi Doyu <hdoyu@nvidia.com>, Subash Patel <subash.ramaswamy@linaro.org>, Sumit Semwal <sumit.semwal@linaro.org>, Abhinav Kochhar <abhinav.k@samsung.com>, Tomasz Stanislawski <t.stanislaws@samsung.com>
 
-On Wed, Jun 06, 2012 at 11:58:27AM +0200, Jan Kara wrote:
-> On Wed 06-06-12 10:06:36, Dave Chinner wrote:
-> > On Wed, Jun 06, 2012 at 01:15:30AM +0200, Jan Kara wrote:
-> > > On Tue 05-06-12 15:51:50, Dave Chinner wrote:
-> > > > On Thu, May 24, 2012 at 02:35:38PM +0200, Jan Kara wrote:
-> > > > > > To me the issue at hand is that we have no method of serialising
-> > > > > > multi-page operations on the mapping tree between the filesystem and
-> > > > > > the VM, and that seems to be the fundamental problem we face in this
-> > > > > > whole area of mmap/buffered/direct IO/truncate/holepunch coherency.
-> > > > > > Hence it might be better to try to work out how to fix this entire
-> > > > > > class of problems rather than just adding a complex kuldge that just
-> > > > > > papers over the current "hot" symptom....
-> > > > >   Yes, looking at the above table, the amount of different synchronization
-> > > > > mechanisms is really striking. So probably we should look at some
-> > > > > possibility of unifying at least some cases.
-> > > > 
-> > > > It seems to me that we need some thing in between the fine grained
-> > > > page lock and the entire-file IO exclusion lock. We need to maintain
-> > > > fine grained locking for mmap scalability, but we also need to be
-> > > > able to atomically lock ranges of pages.
-> > >   Yes, we also need to keep things fine grained to keep scalability of
-> > > direct IO and buffered reads...
-> > > 
-> > > > I guess if we were to nest a fine grained multi-state lock
-> > > > inside both the IO exclusion lock and the mmap_sem, we might be able
-> > > > to kill all problems in one go.
-> > > > 
-> > > > Exclusive access on a range needs to be granted to:
-> > > > 
-> > > > 	- direct IO
-> > > > 	- truncate
-> > > > 	- hole punch
-> > > > 
-> > > > so they can be serialised against mmap based page faults, writeback
-> > > > and concurrent buffered IO. Serialisation against themselves is an
-> > > > IO/fs exclusion problem.
-> > > > 
-> > > > Shared access for traversal or modification needs to be granted to:
-> > > > 
-> > > > 	- buffered IO
-> > > > 	- mmap page faults
-> > > > 	- writeback
-> > > > 
-> > > > Each of these cases can rely on the existing page locks or IO
-> > > > exclusion locks to provide safety for concurrent access to the same
-> > > > ranges. This means that once we have access granted to a range we
-> > > > can check truncate races once and ignore the problem until we drop
-> > > > the access.  And the case of taking a page fault within a buffered
-> > > > IO won't deadlock because both take a shared lock....
-> > >   You cannot just use a lock (not even a shared one) both above and under
-> > > mmap_sem. That is deadlockable in presence of other requests for exclusive
-> > > locking...
-> > 
-> > Well, that's assuming that exclusive lock requests form a barrier to
-> > new shared requests. Remember that I'm talking about a range lock
-> > here, which we can make up whatever semantics we'd need, including
-> > having "shared lock if already locked shared" nested locking
-> > semantics which avoids this page-fault-in-buffered-IO-copy-in/out
-> > problem....
->   That's true. But if you have semantics like this, constant writing to
-> or reading from a file could starve e.g. truncate. So I'd prefer not to
-> open this can of worms and keep semantics of rw semaphores if possible.
+Hello Marek,
 
-Except truncate uses the i_mutex/i_iolock for exclusion, so it would
-never get held off any more than it already does by buffered IO in
-this case. i.e. the mapping tree range lock is inside the locks used
-for truncate serialisation, so we don't have a situation where other
-operations woul dbe held off by such an IO pattern...
+Thanks for the patch. We had found below two challenges when using UMM 
+related to the cache invalidate/flush after/before performing the DMA 
+operations:
 
-> Furthermore, with direct IO you have to set in stone the ordering of
-> mmap_sem and range lock anyway because there we need an exclusive lock.
+a) when using HIGH_MEM pages, the page-table walk consumed lot of time 
+to get the KVA of each page. Moreover the overhead was from the spinlock 
+we acquire/release for each of the page.
 
-Yes, mmap basically requires exclusive mmap_sem->shared range lock ordering. For
-direct IO, we only need the mmap_sem for the get_user_pages() call
-IIRC, so that requires exclusive range lock-> shared mmap_sem
-ordering. Unless we can lift the range lock in the mmap path outside
-the mmap_sem, we're still in the same boat....
+b) One of my colleague tried to map/unmap the buffers only once instead 
+of every time(which results in this problem) and we didn't find 
+significant performance improvement. The reason is (as per my knowledge) 
+when we give address range to cache controller to invalidate/flush out, 
+the hardware operation is too fast(if there were any cache lines 
+associated with the pages at all) to add any overhead to the CPU operation.
 
-Cheers,
+But this patch makes logical flow for dma-mapping one step closer :) I 
+will adopt it as part of pulling all your new patches, and will keep you 
+updated of any new findings.
 
-Dave.
--- 
-Dave Chinner
-david@fromorbit.com
+Regards,
+Subash
+
+On 06/06/2012 06:47 PM, Marek Szyprowski wrote:
+> Hello,
+>
+> This is a continuation of the dma-mapping extensions posted in the
+> following thread:
+> http://thread.gmane.org/gmane.linux.kernel.mm/78644
+>
+> We noticed that some advanced buffer sharing use cases usually require
+> creating a dma mapping for the same memory buffer for more than one
+> device. Usually also such buffer is never touched with CPU, so the data
+> are processed by the devices.
+>
+>  From the DMA-mapping perspective this requires to call one of the
+> dma_map_{page,single,sg} function for the given memory buffer a few
+> times, for each of the devices. Each dma_map_* call performs CPU cache
+> synchronization, what might be a time consuming operation, especially
+> when the buffers are large. We would like to avoid any useless and time
+> consuming operations, so that was the main reason for introducing
+> another attribute for DMA-mapping subsystem: DMA_ATTR_SKIP_CPU_SYNC,
+> which lets dma-mapping core to skip CPU cache synchronization in certain
+> cases.
+>
+> The proposed patches have been generated on top of the ARM DMA-mapping
+> redesign patch series on Linux v3.4-rc7. They are also available on the
+> following GIT branch:
+>
+> git://git.linaro.org/people/mszyprowski/linux-dma-mapping.git 3.4-rc7-arm-dma-v10-ext
+>
+> with all require patches on top of vanilla v3.4-rc7 kernel. I will
+> resend them rebased onto v3.5-rc1 soon.
+>
+> Best regards
+> Marek Szyprowski
+> Samsung Poland R&D Center
+>
+>
+> Patch summary:
+>
+> Marek Szyprowski (2):
+>    common: DMA-mapping: add DMA_ATTR_SKIP_CPU_SYNC attribute
+>    ARM: dma-mapping: add support for DMA_ATTR_SKIP_CPU_SYNC attribute
+>
+>   Documentation/DMA-attributes.txt |   24 ++++++++++++++++++++++++
+>   arch/arm/mm/dma-mapping.c        |   20 +++++++++++---------
+>   include/linux/dma-attrs.h        |    1 +
+>   3 files changed, 36 insertions(+), 9 deletions(-)
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
