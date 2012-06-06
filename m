@@ -1,76 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx130.postini.com [74.125.245.130])
-	by kanga.kvack.org (Postfix) with SMTP id A933A6B00B0
-	for <linux-mm@kvack.org>; Wed,  6 Jun 2012 14:23:52 -0400 (EDT)
-Received: by yhpp61 with SMTP id p61so878660yhp.2
-        for <linux-mm@kvack.org>; Wed, 06 Jun 2012 11:23:51 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx167.postini.com [74.125.245.167])
+	by kanga.kvack.org (Postfix) with SMTP id CC40A6B00B4
+	for <linux-mm@kvack.org>; Wed,  6 Jun 2012 14:24:07 -0400 (EDT)
+Received: by vbbfd1 with SMTP id fd1so737422vbb.2
+        for <linux-mm@kvack.org>; Wed, 06 Jun 2012 11:24:06 -0700 (PDT)
 From: Ying Han <yinghan@google.com>
-Subject: [PATCH 3/5] mm: memcg detect no memcgs above softlimit under zone reclaim.
-Date: Wed,  6 Jun 2012 11:23:51 -0700
-Message-Id: <1339007031-10527-1-git-send-email-yinghan@google.com>
+Subject: [PATCH 4/5] mm: memcg revert upstream all_unreclaimable() use zone->all_unreclaimable as a name
+Date: Wed,  6 Jun 2012 11:24:05 -0700
+Message-Id: <1339007045-10616-1-git-send-email-yinghan@google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Hillf Danton <dhillf@gmail.com>, Hugh Dickins <hughd@google.com>, Greg Thelen <gthelen@google.com>, Dan Magenheimer <dan.magenheimer@oracle.com>, Andrew Morton <akpm@linux-foundation.org>
 Cc: linux-mm@kvack.org
 
-In memcg kernel, cgroup under its softlimit is not targeted under global
-reclaim. It could be possible that all memcgs are under their softlimit for
-a particular zone. If that is the case, the current implementation will
-burn extra cpu cycles without making forward progress.
+The upstream change reverts the other change as listed below:
 
-The idea is from LSF discussion where we detect it after the first round of
-scanning and restart the reclaim by not looking at softlimit at all. This
-allows us to make forward progress on shrink_zone().
+commit d1908362ae0b97374eb8328fbb471576332f9fb1
+Author: Minchan Kim <minchan.kim@gmail.com>
+Date:   Wed Sep 22 13:05:01 2010 -0700
+
+    vmscan: check all_unreclaimable in direct reclaim path
+
+The zone->all_unreclaimable flag is set by kswapd by checking zone->pages_scanned in
+zone_reclaimable(). It is possible to have zone->all_unreclaimable == false while
+the zone is actually unreclaimable, and it will cause machine to stuck.
+
+1. while kswapd in reclaim priority loop, someone frees a page on the zone. It
+will end up resetting the pages_scanned.
+
+2. kswapd is frozen for whatever reason. This happens in hibernation where we are
+not interested in google.
+
+Especially we need to keep Minchan's patch after the softlimit reclaim support.
+On a system which over-commit the softlimit, it is easily to make the system hang
+w/o it.
 
 Signed-off-by: Ying Han <yinghan@google.com>
 ---
- mm/vmscan.c |   18 ++++++++++++++++--
- 1 files changed, 16 insertions(+), 2 deletions(-)
+ mm/vmscan.c |    9 ++++++---
+ 1 files changed, 6 insertions(+), 3 deletions(-)
 
 diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 0560783..5d036f5 100644
+index 5d036f5..65febc1 100644
 --- a/mm/vmscan.c
 +++ b/mm/vmscan.c
-@@ -2142,6 +2142,10 @@ static void shrink_zone(int priority, struct zone *zone,
- 		.priority = priority,
- 	};
- 	struct mem_cgroup *memcg;
-+	bool over_softlimit, ignore_softlimit = false;
-+
-+restart:
-+	over_softlimit = false;
+@@ -2318,6 +2318,7 @@ static bool all_unreclaimable(struct zonelist *zonelist,
+ {
+ 	struct zoneref *z;
+ 	struct zone *zone;
++	bool all_unreclaimable = true;
  
- 	memcg = mem_cgroup_iter(root, NULL, &reclaim);
- 	do {
-@@ -2163,9 +2167,14 @@ static void shrink_zone(int priority, struct zone *zone,
- 		 * we have to reclaim under softlimit instead of burning more
- 		 * cpu cycles.
- 		 */
--		if (!global_reclaim(sc) || priority < DEF_PRIORITY - 2 ||
--				should_reclaim_mem_cgroup(memcg))
-+		if (ignore_softlimit || !global_reclaim(sc) ||
-+				priority < DEF_PRIORITY - 2 ||
-+				should_reclaim_mem_cgroup(memcg)) {
- 			shrink_mem_cgroup_zone(priority, &mz, sc);
-+
-+			over_softlimit = true;
+ 	for_each_zone_zonelist_nodemask(zone, z, zonelist,
+ 			gfp_zone(sc->gfp_mask), sc->nodemask) {
+@@ -2325,11 +2326,13 @@ static bool all_unreclaimable(struct zonelist *zonelist,
+ 			continue;
+ 		if (!cpuset_zone_allowed_hardwall(zone, GFP_KERNEL))
+ 			continue;
+-		if (!zone->all_unreclaimable)
+-			return false;
++		if (zone_reclaimable(zone)) {
++			all_unreclaimable = false;
++			break;
 +		}
-+
- 		/*
- 		 * Limit reclaim has historically picked one memcg and
- 		 * scanned it with decreasing priority levels until
-@@ -2182,6 +2191,11 @@ static void shrink_zone(int priority, struct zone *zone,
- 		}
- 		memcg = mem_cgroup_iter(root, memcg, &reclaim);
- 	} while (memcg);
-+
-+	if (!over_softlimit) {
-+		ignore_softlimit = true;
-+		goto restart;
-+	}
+ 	}
+ 
+-	return true;
++	return all_unreclaimable;
  }
  
- /* Returns true if compaction should go ahead for a high-order request */
+ /*
 -- 
 1.7.7.3
 
