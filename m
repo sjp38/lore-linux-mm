@@ -1,97 +1,146 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx151.postini.com [74.125.245.151])
-	by kanga.kvack.org (Postfix) with SMTP id 5DC4E8D0001
-	for <linux-mm@kvack.org>; Wed,  6 Jun 2012 08:14:37 -0400 (EDT)
-Received: from eusync2.samsung.com (mailout3.w1.samsung.com [210.118.77.13])
- by mailout3.w1.samsung.com
+Received: from psmtp.com (na3sys010amx148.postini.com [74.125.245.148])
+	by kanga.kvack.org (Postfix) with SMTP id 2A61F6B00A1
+	for <linux-mm@kvack.org>; Wed,  6 Jun 2012 08:56:30 -0400 (EDT)
+Received: from epcpsbgm2.samsung.com (mailout3.samsung.com [203.254.224.33])
+ by mailout3.samsung.com
  (Oracle Communications Messaging Server 7u4-24.01(7.0.4.24.0) 64bit (built Nov
- 17 2011)) with ESMTP id <0M57008F93DCSI90@mailout3.w1.samsung.com> for
- linux-mm@kvack.org; Wed, 06 Jun 2012 13:15:12 +0100 (BST)
-Received: from [106.116.48.223] by eusync2.samsung.com
- (Oracle Communications Messaging Server 7u4-23.01(7.0.4.23.0) 64bit (built Aug
- 10 2011)) with ESMTPA id <0M5700BNZ3C9AA70@eusync2.samsung.com> for
- linux-mm@kvack.org; Wed, 06 Jun 2012 13:14:34 +0100 (BST)
-Message-id: <4FCF49A7.8040203@samsung.com>
-Date: Wed, 06 Jun 2012 14:14:31 +0200
-From: Tomasz Stanislawski <t.stanislaws@samsung.com>
+ 17 2011)) with ESMTP id <0M57008NB5A42JF0@mailout3.samsung.com> for
+ linux-mm@kvack.org; Wed, 06 Jun 2012 21:56:28 +0900 (KST)
+Received: from bzolnier-desktop.localnet ([106.116.48.38])
+ by mmp2.samsung.com (Oracle Communications Messaging Server 7u4-24.01
+ (7.0.4.24.0) 64bit (built Nov 17 2011))
+ with ESMTPA id <0M5700BKE5A28S60@mmp2.samsung.com> for linux-mm@kvack.org;
+ Wed, 06 Jun 2012 21:56:28 +0900 (KST)
+From: Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>
+Subject: Re: [PATCH v9] mm: compaction: handle incorrect MIGRATE_UNMOVABLE type
+ pageblocks
+Date: Wed, 06 Jun 2012 14:55:28 +0200
+References: <201206041543.56917.b.zolnierkie@samsung.com>
+ <op.wfdt8dh53l0zgt@mpn-glaptop>
+In-reply-to: <op.wfdt8dh53l0zgt@mpn-glaptop>
 MIME-version: 1.0
-Subject: Re: [PATCH v3] scatterlist: add sg_alloc_table_from_pages function
-References: <4FA8EC69.8010805@samsung.com>
- <20120517165614.d5e6e4b6.akpm@linux-foundation.org>
- <4FBA4ACE.4080602@samsung.com>
- <20120522131059.415a881c.akpm@linux-foundation.org>
-In-reply-to: <20120522131059.415a881c.akpm@linux-foundation.org>
-Content-type: text/plain; charset=UTF-8
+Message-id: <201206061455.28980.b.zolnierkie@samsung.com>
+Content-type: Text/Plain; charset=us-ascii
 Content-transfer-encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: paul.gortmaker@windriver.com, =?UTF-8?B?J+uwleqyveuvvCc=?= <kyungmin.park@samsung.com>, amwang@redhat.com, dri-devel@lists.freedesktop.org, "'???/Mobile S/W Platform Lab.(???)/E3(??)/????'" <inki.dae@samsung.com>, prashanth.g@samsung.com, Marek Szyprowski <m.szyprowski@samsung.com>, "linux-media@vger.kernel.org" <linux-media@vger.kernel.org>, Laurent Pinchart <laurent.pinchart@ideasonboard.com>, Rob Clark <rob@ti.com>, Dave Airlie <airlied@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andy Whitcroft <apw@shadowen.org>, Johannes Weiner <hannes@cmpxchg.org>
+To: Michal Nazarewicz <mina86@mina86.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Minchan Kim <minchan@kernel.org>, Hugh Dickins <hughd@google.com>, Linus Torvalds <torvalds@linux-foundation.org>, Kyungmin Park <kyungmin.park@samsung.com>, Marek Szyprowski <m.szyprowski@samsung.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Dave Jones <davej@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Cong Wang <amwang@redhat.com>, Markus Trippelsdorf <markus@trippelsdorf.de>
 
-On 05/22/2012 10:10 PM, Andrew Morton wrote:
-> On Mon, 21 May 2012 16:01:50 +0200
-> Tomasz Stanislawski <t.stanislaws@samsung.com> wrote:
+On Monday 04 June 2012 16:22:51 Michal Nazarewicz wrote:
+> On Mon, 04 Jun 2012 15:43:56 +0200, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com> wrote:
+> > +/*
+> > + * Returns true if MIGRATE_UNMOVABLE pageblock can be successfully
+> > + * converted to MIGRATE_MOVABLE type, false otherwise.
+> > + */
+> > +static bool can_rescue_unmovable_pageblock(struct page *page, bool locked)
+> > +{
+> > +	unsigned long pfn, start_pfn, end_pfn;
+> > +	struct page *start_page, *end_page, *cursor_page;
+> > +
+> > +	pfn = page_to_pfn(page);
+> > +	start_pfn = pfn & ~(pageblock_nr_pages - 1);
+> > +	end_pfn = start_pfn + pageblock_nr_pages - 1;
+> > +
+> > +	start_page = pfn_to_page(start_pfn);
+> > +	end_page = pfn_to_page(end_pfn);
+> > +
+> > +	for (cursor_page = start_page, pfn = start_pfn; cursor_page <= end_page;
+> > +		pfn++, cursor_page++) {
+> > +		struct zone *zone = page_zone(start_page);
+> > +		unsigned long flags;
+> > +
+> > +		if (!pfn_valid_within(pfn))
+> > +			continue;
+> > +
+> > +		/* Do not deal with pageblocks that overlap zones */
+> > +		if (page_zone(cursor_page) != zone)
+> > +			return false;
+> > +
+> > +		if (!locked)
+> > +			spin_lock_irqsave(&zone->lock, flags);
+> > +
+> > +		if (PageBuddy(cursor_page)) {
+> > +			int order = page_order(cursor_page);
+> >-/* Returns true if the page is within a block suitable for migration to */
+> > -static bool suitable_migration_target(struct page *page)
+> > +			pfn += (1 << order) - 1;
+> > +			cursor_page += (1 << order) - 1;
+> > +
+> > +			if (!locked)
+> > +				spin_unlock_irqrestore(&zone->lock, flags);
+> > +			continue;
+> > +		} else if (page_count(cursor_page) == 0 ||
+> > +			   PageLRU(cursor_page)) {
+> > +			if (!locked)
+> > +				spin_unlock_irqrestore(&zone->lock, flags);
+> > +			continue;
+> > +		}
+> > +
+> > +		if (!locked)
+> > +			spin_unlock_irqrestore(&zone->lock, flags);
 > 
->>>> +int sg_alloc_table_from_pages(struct sg_table *sgt,
->>>> +	struct page **pages, unsigned int n_pages,
->>>> +	unsigned long offset, unsigned long size,
->>>> +	gfp_t gfp_mask)
->>>
->>> I guess a 32-bit n_pages is OK.  A 16TB IO seems enough ;)
->>>
->>
->> Do you think that 'unsigned long' for offset is too big?
->>
->> Ad n_pages. Assuming that Moore's law holds it will take
->> circa 25 years before the limit of 16 TB is reached :) for
->> high-end scatterlist operations.
->> Or I can change the type of n_pages to 'unsigned long' now at
->> no cost :).
+> spin_unlock in three spaces is ugly.  How about adding a flag that holds the
+> result of the function which you use as for loop condition and you set it to
+> false inside an additional else clause?  Eg.:
 > 
-> By then it will be Someone Else's Problem ;)
-> 
+> 	bool result = true;
+> 	for (...; result && cursor_page <= end_page; ...) {
+> 		...
+> 		if (!pfn_valid_within(pfn)) continue;
+> 		if (page_zone(cursor_page) != zone) return false;
+> 		if (!locked) spin_lock_irqsave(...);
+> 		
+> 		if (PageBuddy(...)) {
+> 			...
+> 		} else if (page_count(cursor_page) == 0 ||
+> 			   PageLRU(cursor_page)) {
+> 			...
+> 		} else {
+> 			result = false;
+> 		}
+> 		if (!locked) spin_unlock_irqsave(...);
+> 	}
+> 	return result;
 
-Ok. So let's keep to 'unsigned int n_pages'.
+Thanks, I'll use the hint (if still applicable) in the next patch version.
 
->>>> +{
->>>> +	unsigned int chunks;
->>>> +	unsigned int i;
->>>
->>> erk, please choose a different name for this.  When a C programmer sees
->>> "i", he very much assumes it has type "int".  Making it unsigned causes
->>> surprise.
->>>
->>> And don't rename it to "u"!  Let's give it a nice meaningful name.  pageno?
->>>
->>
->> The problem is that 'i' is  a natural name for a loop counter.
+> > +		return false;
+> > +	}
+> > +
+> > +	return true;
+> > +}
 > 
-> It's also the natural name for an integer.  If a C programmer sees "i",
-> he thinks "int".  It's a Fortran thing ;)
-> 
->> AFAIK, in the kernel code developers try to avoid Hungarian notation.
->> A name of a variable should reflect its purpose, not its type.
->> I can change the name of 'i' to 'pageno' and 'j' to 'pageno2' (?)
->> but I think it will make the code less reliable.
-> 
-> Well, one could do something radical such as using "p".
-> 
-> 
+> How do you make sure that a page is not allocated while this runs?  Or you just
+> don't care?  Not that even with zone lock, page may be allocated from pcp list
+> on (another) CPU.
 
-I can not change the type to 'int' due to 'signed vs unsigned' comparisons
-in the loop condition.
-What do you think about changing the names 'i' -> 'p' and 'j' -> 'q'?
+Ok, I see the issue (i.e. pcp page can be returned by rmqueue_bulk() in
+buffered_rmqueue() and its page count will be increased in prep_new_page()
+a bit later with zone lock dropped so while we may not see the page as
+"bad" one in can_rescue_unmovable_pageblock() it may end up as unmovable
+one in a pageblock that was just changed to MIGRATE_MOVABLE type).
 
-Regards,
-Tomasz Stanislawski
+It is basically similar problem to page allocation vs alloc_contig_range()
+races present in CMA [*] so we may deal with it in a similar manner as
+CMA: isolate pageblock so no new allocations will be allowed from it,
+check if we can do pageblock transition to MIGRATE_MOVABLE type and do
+it if so, drain pcp lists, check if the transition was successful and
+if there are some pages that slipped through just revert the operation..
 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Fight unfair telecom internet charges in Canada: sign http://stopthemeter.ca/
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-> 
+However I worry that this still won't cover all races as we can have
+some page in "transient state" (no longer on pcp list but not yet used,
+simply still being processed by buffered_rmqueue() while we count it
+as "good" one in the pageblock transition verification code)?
+
+[*] BTW please see http://marc.info/?l=linux-mm&m=133775797022645&w=2
+for CMA related fixes
+
+Best regards,
+--
+Bartlomiej Zolnierkiewicz
+Samsung Poland R&D Center
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
