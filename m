@@ -1,76 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx122.postini.com [74.125.245.122])
-	by kanga.kvack.org (Postfix) with SMTP id E32098D0001
-	for <linux-mm@kvack.org>; Wed,  6 Jun 2012 15:03:00 -0400 (EDT)
-Date: Wed, 6 Jun 2012 12:53:40 -0400
-From: Dave Jones <davej@redhat.com>
-Subject: kernel BUG at mm/memory.c:1228!
-Message-ID: <20120606165330.GA27744@redhat.com>
+Received: from psmtp.com (na3sys010amx203.postini.com [74.125.245.203])
+	by kanga.kvack.org (Postfix) with SMTP id 5A6B38D0001
+	for <linux-mm@kvack.org>; Wed,  6 Jun 2012 15:11:02 -0400 (EDT)
+Received: by dakp5 with SMTP id p5so11663413dak.14
+        for <linux-mm@kvack.org>; Wed, 06 Jun 2012 12:11:01 -0700 (PDT)
+Message-ID: <4FCFAB3D.6080000@gmail.com>
+Date: Wed, 06 Jun 2012 15:10:53 -0400
+From: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+Subject: Re: [PATCH 0/6] mempolicy memory corruption fixlet
+References: <1338368529-21784-1-git-send-email-kosaki.motohiro@gmail.com> <CA+55aFzoVQ29C-AZYx=G62LErK+7HuTCpZhvovoyS0_KTGGZQg@mail.gmail.com> <alpine.DEB.2.00.1205301328550.31768@router.home> <20120530184638.GU27374@one.firstfloor.org> <alpine.DEB.2.00.1205301349230.31768@router.home> <20120530193234.GV27374@one.firstfloor.org> <alpine.DEB.2.00.1205301441350.31768@router.home> <CAHGf_=ooVunBpSdBRCnO1uOoswqxcSy7Xf8xVcgEUGA2fXdcTA@mail.gmail.com> <20120530201042.GY27374@one.firstfloor.org> <CAHGf_=r_ZMKNx+VriO6822otF=U_huj7uxoc5GM-2DEVryKxNQ@mail.gmail.com> <alpine.DEB.2.02.1205311744280.17976@asgard.lang.hm> <alpine.DEB.2.00.1206010850430.6302@router.home> <alpine.DEB.2.02.1206011230170.17976@asgard.lang.hm> <CAHGf_=qDy79cvHX3ym7RvkX7q9+2TDKhgtBHVj6+XHORczj94A@mail.gmail.com> <CA+55aFx6s34ss=5tjD4DT7X0WKRZfEsdk1ZiE-fkL3qao27z-A@mail.gmail.com> <20120605121711.bb392118.akpm@linux-foundation.org>
+In-Reply-To: <20120605121711.bb392118.akpm@linux-foundation.org>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linux Kernel <linux-kernel@vger.kernel.org>
-Cc: linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, david@lang.hm, Christoph Lameter <cl@linux.com>, Andi Kleen <andi@firstfloor.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@google.com>, Dave Jones <davej@redhat.com>, Mel Gorman <mgorman@suse.de>, stable@vger.kernel.org, hughd@google.com, sivanich@sgi.com
 
-I hit this in overnight testing..
+(6/5/12 3:17 PM), Andrew Morton wrote:
+> On Tue, 5 Jun 2012 12:02:25 -0700
+> Linus Torvalds<torvalds@linux-foundation.org>  wrote:
+>
+>> I'm coming back to this email thread, because I didn't apply the
+>> series due to all the ongoing discussion and hoping that somebody
+>> would put changelog fixes and ack notices etc together.
+>>
+>> I'd also really like to know that the people who saw the problem that
+>> caused the current single patch (that this series reverts) would test
+>> the whole series. Maybe that happened and I didn't notice it in the
+>> threads, but I don't think so.
 
-------------[ cut here ]------------
-kernel BUG at mm/memory.c:1228!
-invalid opcode: 0000 [#1] PREEMPT SMP 
-CPU 0 
-Modules linked in: ipt_ULOG tun fuse dccp_ipv6 dccp_ipv4 dccp nfnetlink binfmt_misc sctp libcrc32c caif_socket caif phonet bluetooth rfkill can llc2 pppoe pppox ppp_generic slhc irda crc_ccitt rds af_key decnet rose x25 atm netrom appletalk ipx p8023 psnap p8022 llc ax25 ip6t_REJECT nf_conntrack_ipv6 nf_defrag_ipv6 xt_state nf_conntrack ip6table_filter ip6_tables kvm_intel kvm crc32c_intel ghash_clmulni_intel serio_raw microcode usb_debug pcspkr i2c_i801 e1000e nfsd nfs_acl auth_rpcgss lockd sunrpc i915 video i2c_algo_bit drm_kms_helper drm i2c_core [last unloaded: scsi_wait_scan]
-
-Pid: 30885, comm: trinity-child0 Not tainted 3.5.0-rc1+ #61
-RIP: 0010:[<ffffffff8116a4f2>]  [<ffffffff8116a4f2>] unmap_single_vma+0x6f2/0x750
-RSP: 0000:ffff880119c4dab8  EFLAGS: 00010246
-RAX: ffff880116976300 RBX: 0000000100001000 RCX: ffff880000000000
-RDX: ffff880117c59000 RSI: 0000000100000fff RDI: ffff880119c4dbe0
-RBP: ffff880119c4db78 R08: 0000000000000000 R09: 0000000000000000
-R10: 0000000000000001 R11: 0000000000000000 R12: ffffffffffffffff
-R13: 0000000100000000 R14: 0000000100000000 R15: ffff880119c4dbe0
-FS:  00007fd1f2624740(0000) GS:ffff880147c00000(0000) knlGS:0000000000000000
-CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
-CR2: 000000000256f000 CR3: 0000000116e19000 CR4: 00000000001407f0
-DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
-DR3: 0000000000000000 DR6: 00000000ffff0ff0 DR7: 0000000000000400
-Process trinity-child0 (pid: 30885, threadinfo ffff880119c4c000, task ffff880117dc0000)
-Stack:
- 0000000019c4dad8 0000000000000070 0000000100000fff 0000000100000fff
- 0000000100001000 ffff880116e19000 0000000100000fff ffff88013f500020
- 0000000100001000 ffff880116976300 ffff880116976360 000000013d559160
-Call Trace:
- [<ffffffff8116ad22>] unmap_vmas+0x52/0xa0
- [<ffffffff81172934>] exit_mmap+0xb4/0x150
- [<ffffffff81046033>] mmput+0x83/0xf0
- [<ffffffff8104f2b8>] exit_mm+0x108/0x130
- [<ffffffff8164dd2b>] ? _raw_spin_unlock_irq+0x3b/0x60
- [<ffffffff8104f444>] do_exit+0x164/0xb90
- [<ffffffff81062781>] ? get_signal_to_deliver+0x291/0x930
- [<ffffffff810b1e7e>] ? put_lock_stats.isra.23+0xe/0x40
- [<ffffffff8164dd20>] ? _raw_spin_unlock_irq+0x30/0x60
- [<ffffffff810501bc>] do_group_exit+0x4c/0xc0
- [<ffffffff810627be>] get_signal_to_deliver+0x2ce/0x930
- [<ffffffff8100225f>] do_signal+0x3f/0x610
- [<ffffffff81630000>] ? ich6_lpc_generic_decode+0x12/0x73
- [<ffffffff8163fb4b>] ? is_prefetch.isra.13+0xd8/0x1fd
- [<ffffffff8164e443>] ? error_sti+0x5/0x6
- [<ffffffff8164e08e>] ? retint_signal+0x11/0x83
- [<ffffffff810028d8>] do_notify_resume+0x88/0xc0
- [<ffffffff8164e0c3>] retint_signal+0x46/0x83
-Code: 40 49 89 04 24 e9 a4 fd ff ff 0f 1f 80 00 00 00 00 48 8b 55 98 48 8b 7d a0 4c 89 e9 4c 89 f6 e8 15 dd ff ff e9 a9 fd ff ff 0f 0b <0f> 0b 48 8b 7d a0 31 d2 31 f6 e8 1f 97 ec ff e9 74 f9 ff ff 48 
-RIP  [<ffffffff8116a4f2>] unmap_single_vma+0x6f2/0x750
- RSP <ffff880119c4dab8>
----[ end trace 9e2b5f3bc9692250 ]---
+I'm not surprised this. If many people are interesting to review this area,
+mempolicy wouldn't have break so a lot.
 
 
-That's this in zap_pmd_range
+>> In fact, right now I'm assuming that the series will eventually come
+>> to me through Andrew. Andrew, correct?
+>
+> yup.
+>
+> I expect there will be a v2 series (at least).  It's unclear what
+> we'll be doing with [2/6]: whether the patch will be reworked, or
+> whether Andi misunderstood its effects?
+
+Maybe because Andi didn't join bug fix works in this area for several years?
 
 
-1227                         if (next - addr != HPAGE_PMD_SIZE) {
-1228                                 VM_BUG_ON(!rwsem_is_locked(&tlb->mm->mmap_sem));
-1229                                 split_huge_page_pmd(vma->vm_mm, pmd);
+Currently, mbind(2) is completely broken. A primary role of mbind(2) is to
+update memory policy of some vmas and Mel's fix remvoed it. Then, mbind is
+almostly no-op. it's a regression.
+
+I'm not clear which point you seems unclear. So, let's repeat a description of
+[2/6].
+
+There are two problem now, alloc_pages_vma() has strong and wrong assumption.
+vma->policy never have MPOL_F_SHARED and shared_policy->policy must have it.
+And, cpusets rebinding ignore mpol->refcnt and updates it forcibly.
+
+The final point is to implement cow. But for it, we need rewrite mpol->rebind
+family completely. It doesn't fit for 3.5 timeframe.
+
+
+The downside of patch [2/6] is very small. because,
+
+A memplicy is only shared three cases, 1) mbind() updates multiple
+vmas 2) mbind() updates shmem vma 3) A shared policy splits into two regions
+by a part region update.
+
+All of them are rare. Because nobody hit kernel panic until now. Then I don't
+think my patch increase memory footprint.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
