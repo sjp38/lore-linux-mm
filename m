@@ -1,81 +1,97 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx169.postini.com [74.125.245.169])
-	by kanga.kvack.org (Postfix) with SMTP id 789928D0001
-	for <linux-mm@kvack.org>; Wed,  6 Jun 2012 08:14:14 -0400 (EDT)
-Date: Wed, 6 Jun 2012 08:14:08 -0400
-From: Vivek Goyal <vgoyal@redhat.com>
-Subject: Re: write-behind on streaming writes
-Message-ID: <20120606121408.GB4934@redhat.com>
-References: <CA+55aFxHt8q8+jQDuoaK=hObX+73iSBTa4bBWodCX3s-y4Q1GQ@mail.gmail.com>
- <20120529155759.GA11326@localhost>
- <CA+55aFykFaBhzzEyRYWRS9Qoy_q_R65Cuth7=XvfOZEMqjn6=w@mail.gmail.com>
- <20120530032129.GA7479@localhost>
- <20120605172302.GB28556@redhat.com>
- <20120605174157.GC28556@redhat.com>
- <20120605184853.GD28556@redhat.com>
- <20120605201045.GE28556@redhat.com>
- <20120606025729.GA1197@redhat.com>
- <CA+55aFyxucvhYhbk0yyNa1WSeYXgHHAyWRHPNWDwODQhyAWGww@mail.gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CA+55aFyxucvhYhbk0yyNa1WSeYXgHHAyWRHPNWDwODQhyAWGww@mail.gmail.com>
+Received: from psmtp.com (na3sys010amx151.postini.com [74.125.245.151])
+	by kanga.kvack.org (Postfix) with SMTP id 5DC4E8D0001
+	for <linux-mm@kvack.org>; Wed,  6 Jun 2012 08:14:37 -0400 (EDT)
+Received: from eusync2.samsung.com (mailout3.w1.samsung.com [210.118.77.13])
+ by mailout3.w1.samsung.com
+ (Oracle Communications Messaging Server 7u4-24.01(7.0.4.24.0) 64bit (built Nov
+ 17 2011)) with ESMTP id <0M57008F93DCSI90@mailout3.w1.samsung.com> for
+ linux-mm@kvack.org; Wed, 06 Jun 2012 13:15:12 +0100 (BST)
+Received: from [106.116.48.223] by eusync2.samsung.com
+ (Oracle Communications Messaging Server 7u4-23.01(7.0.4.23.0) 64bit (built Aug
+ 10 2011)) with ESMTPA id <0M5700BNZ3C9AA70@eusync2.samsung.com> for
+ linux-mm@kvack.org; Wed, 06 Jun 2012 13:14:34 +0100 (BST)
+Message-id: <4FCF49A7.8040203@samsung.com>
+Date: Wed, 06 Jun 2012 14:14:31 +0200
+From: Tomasz Stanislawski <t.stanislaws@samsung.com>
+MIME-version: 1.0
+Subject: Re: [PATCH v3] scatterlist: add sg_alloc_table_from_pages function
+References: <4FA8EC69.8010805@samsung.com>
+ <20120517165614.d5e6e4b6.akpm@linux-foundation.org>
+ <4FBA4ACE.4080602@samsung.com>
+ <20120522131059.415a881c.akpm@linux-foundation.org>
+In-reply-to: <20120522131059.415a881c.akpm@linux-foundation.org>
+Content-type: text/plain; charset=UTF-8
+Content-transfer-encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Fengguang Wu <fengguang.wu@intel.com>, LKML <linux-kernel@vger.kernel.org>, "Myklebust, Trond" <Trond.Myklebust@netapp.com>, linux-fsdevel@vger.kernel.org, Linux Memory Management List <linux-mm@kvack.org>, Jens Axboe <axboe@kernel.dk>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: paul.gortmaker@windriver.com, =?UTF-8?B?J+uwleqyveuvvCc=?= <kyungmin.park@samsung.com>, amwang@redhat.com, dri-devel@lists.freedesktop.org, "'???/Mobile S/W Platform Lab.(???)/E3(??)/????'" <inki.dae@samsung.com>, prashanth.g@samsung.com, Marek Szyprowski <m.szyprowski@samsung.com>, "linux-media@vger.kernel.org" <linux-media@vger.kernel.org>, Laurent Pinchart <laurent.pinchart@ideasonboard.com>, Rob Clark <rob@ti.com>, Dave Airlie <airlied@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andy Whitcroft <apw@shadowen.org>, Johannes Weiner <hannes@cmpxchg.org>
 
-On Tue, Jun 05, 2012 at 08:14:08PM -0700, Linus Torvalds wrote:
-> On Tue, Jun 5, 2012 at 7:57 PM, Vivek Goyal <vgoyal@redhat.com> wrote:
-> >
-> > I had expected a bigger difference as sync_file_range() is just driving
-> > max queue depth of 32 (total 16MB IO in flight), while flushers are
-> > driving queue depths up to 140 or so. So in this paritcular test, driving
-> > much deeper queue depths is not really helping much. (I have seen higher
-> > throughputs with higher queue depths in the past. Now sure why don't we
-> > see it here).
+On 05/22/2012 10:10 PM, Andrew Morton wrote:
+> On Mon, 21 May 2012 16:01:50 +0200
+> Tomasz Stanislawski <t.stanislaws@samsung.com> wrote:
 > 
-> How did interactivity feel?
+>>>> +int sg_alloc_table_from_pages(struct sg_table *sgt,
+>>>> +	struct page **pages, unsigned int n_pages,
+>>>> +	unsigned long offset, unsigned long size,
+>>>> +	gfp_t gfp_mask)
+>>>
+>>> I guess a 32-bit n_pages is OK.  A 16TB IO seems enough ;)
+>>>
+>>
+>> Do you think that 'unsigned long' for offset is too big?
+>>
+>> Ad n_pages. Assuming that Moore's law holds it will take
+>> circa 25 years before the limit of 16 TB is reached :) for
+>> high-end scatterlist operations.
+>> Or I can change the type of n_pages to 'unsigned long' now at
+>> no cost :).
 > 
-> Because quite frankly, if the throughput difference is 12.5 vs 12
-> seconds, I suspect the interactivity thing is what dominates.
+> By then it will be Someone Else's Problem ;)
 > 
-> And from my memory of the interactivity different was absolutely
-> *huge*. Even back when I used rotational media, I basically couldn't
-> even notice the background write with the sync_file_range() approach.
-> While the regular writeback without the writebehind had absolutely
-> *huge* pauses if you used something like firefox that uses fsync()
-> etc. And starting new applications that weren't cached was noticeably
-> worse too - and then with sync_file_range it wasn't even all that
-> noticeable.
+
+Ok. So let's keep to 'unsigned int n_pages'.
+
+>>>> +{
+>>>> +	unsigned int chunks;
+>>>> +	unsigned int i;
+>>>
+>>> erk, please choose a different name for this.  When a C programmer sees
+>>> "i", he very much assumes it has type "int".  Making it unsigned causes
+>>> surprise.
+>>>
+>>> And don't rename it to "u"!  Let's give it a nice meaningful name.  pageno?
+>>>
+>>
+>> The problem is that 'i' is  a natural name for a loop counter.
 > 
-> NOTE! For the real "firefox + fsync" test, I suspect you'd need to do
-> the writeback on the same filesystem (and obviously disk) as your home
-> directory is. If the big write is to another filesystem and another
-> disk, I think you won't see the same issues.
+> It's also the natural name for an integer.  If a C programmer sees "i",
+> he thinks "int".  It's a Fortran thing ;)
+> 
+>> AFAIK, in the kernel code developers try to avoid Hungarian notation.
+>> A name of a variable should reflect its purpose, not its type.
+>> I can change the name of 'i' to 'pageno' and 'j' to 'pageno2' (?)
+>> but I think it will make the code less reliable.
+> 
+> Well, one could do something radical such as using "p".
+> 
+> 
 
-Ok, I did following test on my single SATA disk and my root filesystem
-is on this disk.
+I can not change the type to 'int' due to 'signed vs unsigned' comparisons
+in the loop condition.
+What do you think about changing the names 'i' -> 'p' and 'j' -> 'q'?
 
-I dropped caches and launched firefox and monitored the time it takes
-for firefox to start. (cache cold).
+Regards,
+Tomasz Stanislawski
 
-And my results are reverse of what you have been seeing. With
-sync_file_range() running, firefox takes roughly 30 seconds to start and
-with flusher in operation, it takes roughly 20 seconds to start. (I have
-approximated the average of 3 runs for simplicity).
-
-I think it is happening because sync_file_range() will send all
-the writes as SYNC and it will compete with firefox IO. On the other
-hand, flusher's IO will show up as ASYNC and CFQ  will be penalize it
-heavily and firefox's IO will be prioritized. And this effect should
-just get worse as more processes do sync_file_range().
-
-So write-behind should provide better interactivity if writes submitted
-are ASYNC and not SYNC.
-
-Thanks
-Vivek
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Fight unfair telecom internet charges in Canada: sign http://stopthemeter.ca/
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
