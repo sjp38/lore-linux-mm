@@ -1,80 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx121.postini.com [74.125.245.121])
-	by kanga.kvack.org (Postfix) with SMTP id C2A4F6B00AD
-	for <linux-mm@kvack.org>; Wed,  6 Jun 2012 07:39:39 -0400 (EDT)
-Received: by dakp5 with SMTP id p5so11038954dak.14
-        for <linux-mm@kvack.org>; Wed, 06 Jun 2012 04:39:39 -0700 (PDT)
-From: Robin Dong <hao.bigrat@gmail.com>
-Subject: [PATCH] mm: fix ununiform page status when writing new file with small buffer
-Date: Wed,  6 Jun 2012 19:39:30 +0800
-Message-Id: <1338982770-2856-1-git-send-email-hao.bigrat@gmail.com>
+Received: from psmtp.com (na3sys010amx169.postini.com [74.125.245.169])
+	by kanga.kvack.org (Postfix) with SMTP id 789928D0001
+	for <linux-mm@kvack.org>; Wed,  6 Jun 2012 08:14:14 -0400 (EDT)
+Date: Wed, 6 Jun 2012 08:14:08 -0400
+From: Vivek Goyal <vgoyal@redhat.com>
+Subject: Re: write-behind on streaming writes
+Message-ID: <20120606121408.GB4934@redhat.com>
+References: <CA+55aFxHt8q8+jQDuoaK=hObX+73iSBTa4bBWodCX3s-y4Q1GQ@mail.gmail.com>
+ <20120529155759.GA11326@localhost>
+ <CA+55aFykFaBhzzEyRYWRS9Qoy_q_R65Cuth7=XvfOZEMqjn6=w@mail.gmail.com>
+ <20120530032129.GA7479@localhost>
+ <20120605172302.GB28556@redhat.com>
+ <20120605174157.GC28556@redhat.com>
+ <20120605184853.GD28556@redhat.com>
+ <20120605201045.GE28556@redhat.com>
+ <20120606025729.GA1197@redhat.com>
+ <CA+55aFyxucvhYhbk0yyNa1WSeYXgHHAyWRHPNWDwODQhyAWGww@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CA+55aFyxucvhYhbk0yyNa1WSeYXgHHAyWRHPNWDwODQhyAWGww@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: Robin Dong <sanbai@taobao.com>
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Fengguang Wu <fengguang.wu@intel.com>, LKML <linux-kernel@vger.kernel.org>, "Myklebust, Trond" <Trond.Myklebust@netapp.com>, linux-fsdevel@vger.kernel.org, Linux Memory Management List <linux-mm@kvack.org>, Jens Axboe <axboe@kernel.dk>
 
-From: Robin Dong <sanbai@taobao.com>
+On Tue, Jun 05, 2012 at 08:14:08PM -0700, Linus Torvalds wrote:
+> On Tue, Jun 5, 2012 at 7:57 PM, Vivek Goyal <vgoyal@redhat.com> wrote:
+> >
+> > I had expected a bigger difference as sync_file_range() is just driving
+> > max queue depth of 32 (total 16MB IO in flight), while flushers are
+> > driving queue depths up to 140 or so. So in this paritcular test, driving
+> > much deeper queue depths is not really helping much. (I have seen higher
+> > throughputs with higher queue depths in the past. Now sure why don't we
+> > see it here).
+> 
+> How did interactivity feel?
+> 
+> Because quite frankly, if the throughput difference is 12.5 vs 12
+> seconds, I suspect the interactivity thing is what dominates.
+> 
+> And from my memory of the interactivity different was absolutely
+> *huge*. Even back when I used rotational media, I basically couldn't
+> even notice the background write with the sync_file_range() approach.
+> While the regular writeback without the writebehind had absolutely
+> *huge* pauses if you used something like firefox that uses fsync()
+> etc. And starting new applications that weren't cached was noticeably
+> worse too - and then with sync_file_range it wasn't even all that
+> noticeable.
+> 
+> NOTE! For the real "firefox + fsync" test, I suspect you'd need to do
+> the writeback on the same filesystem (and obviously disk) as your home
+> directory is. If the big write is to another filesystem and another
+> disk, I think you won't see the same issues.
 
-When writing a new file with 2048 bytes buffer, such as write(fd, buffer, 2048), it will
-call generic_perform_write() twice for every page:
+Ok, I did following test on my single SATA disk and my root filesystem
+is on this disk.
 
-	write_begin
-	mark_page_accessed(page) 
-	write_end
+I dropped caches and launched firefox and monitored the time it takes
+for firefox to start. (cache cold).
 
-	write_begin
-	mark_page_accessed(page) 
-	write_end
+And my results are reverse of what you have been seeing. With
+sync_file_range() running, firefox takes roughly 30 seconds to start and
+with flusher in operation, it takes roughly 20 seconds to start. (I have
+approximated the average of 3 runs for simplicity).
 
-The page 1~13th will be added to lru_add_pvecs in write_begin() and will *NOT* be added to
-active_list even they have be accessed twice because they are not PageLRU(page).
-But when page 14th comes, all pages will be moved from lru_add_pvecs to active_list
-(by __lru_cache_add() ) in first write_begin(), now page 14th *is* PageLRU(page) and after
-second write_end() it will be in active_list.
+I think it is happening because sync_file_range() will send all
+the writes as SYNC and it will compete with firefox IO. On the other
+hand, flusher's IO will show up as ASYNC and CFQ  will be penalize it
+heavily and firefox's IO will be prioritized. And this effect should
+just get worse as more processes do sync_file_range().
 
-In Hadoop environment, we do comes to this situation: after writing a file, we find
-out that only 14th, 28th, 42th... page are in active_list and others in inactive_list. Now
-kswaped works, shrinks the inactive_list, the file only have 14th, 28th...pages in memory,
-the readahead request size will be broken to only 52k (13*4k), system's performance falls
-dramatically.
+So write-behind should provide better interactivity if writes submitted
+are ASYNC and not SYNC.
 
-This problem can also replay by below steps (the machine has 8G memory):
-
-	1. dd if=/dev/zero of=/test/file.out bs=1024 count=1048576
-	2. cat another 7.5G file to /dev/null
-	3. vmtouch -m 1G -v /test/file.out, it will show:
-
-	/test/file.out
-	[oooooooooooooooooooOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO] 187847/262144
-
-	the 'o' means same pages are in memory but same are not.
-
-
-The solution for this problem is simple: the 14th page should be added to lru_add_pvecs
-before mark_page_accessed() just as other pages.
-
-Signed-off-by: Robin Dong <sanbai@taobao.com>
----
- mm/swap.c |    3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
-
-diff --git a/mm/swap.c b/mm/swap.c
-index 4e7e2ec..0874d44 100644
---- a/mm/swap.c
-+++ b/mm/swap.c
-@@ -399,8 +399,9 @@ void __lru_cache_add(struct page *page, enum lru_list lru)
- 	struct pagevec *pvec = &get_cpu_var(lru_add_pvecs)[lru];
- 
- 	page_cache_get(page);
--	if (!pagevec_add(pvec, page))
-+	if (!pagevec_space(pvec))
- 		__pagevec_lru_add(pvec, lru);
-+	pagevec_add(pvec, page);
- 	put_cpu_var(lru_add_pvecs);
- }
- EXPORT_SYMBOL(__lru_cache_add);
--- 
-1.7.9.5
+Thanks
+Vivek
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
