@@ -1,90 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx118.postini.com [74.125.245.118])
-	by kanga.kvack.org (Postfix) with SMTP id 12A906B006E
-	for <linux-mm@kvack.org>; Thu,  7 Jun 2012 16:47:57 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx144.postini.com [74.125.245.144])
+	by kanga.kvack.org (Postfix) with SMTP id B9EF16B006E
+	for <linux-mm@kvack.org>; Thu,  7 Jun 2012 16:57:11 -0400 (EDT)
 MIME-Version: 1.0
-Message-ID: <dfc7087d-6826-4429-8063-d47d05cd2d26@default>
-Date: Thu, 7 Jun 2012 13:47:40 -0700 (PDT)
+Message-ID: <08d98de0-2f1b-4461-8197-9700bc3e0c65@default>
+Date: Thu, 7 Jun 2012 13:56:57 -0700 (PDT)
 From: Dan Magenheimer <dan.magenheimer@oracle.com>
-Subject: RE: [PATCH 2/2] zram: clean up handle
-References: <1338881031-19662-1-git-send-email-minchan@kernel.org>
- <1338881031-19662-2-git-send-email-minchan@kernel.org>
- <4FCEE4E0.6030707@vflare.org> <4FD015FE.7070906@kernel.org>
-In-Reply-To: <4FD015FE.7070906@kernel.org>
+Subject: RE: [PATCH 06/11] mm: frontswap: make all branches of if statement in
+ put page consistent
+References: <1338980115-2394-1-git-send-email-levinsasha928@gmail.com>
+ <1338980115-2394-6-git-send-email-levinsasha928@gmail.com>
+ <20120607183022.GA9472@phenom.dumpdata.com>
+In-Reply-To: <20120607183022.GA9472@phenom.dumpdata.com>
 Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>, Nitin Gupta <ngupta@vflare.org>
-Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Konrad Wilk <konrad.wilk@oracle.com>, Seth Jennings <sjenning@linux.vnet.ibm.com>
+To: Konrad Wilk <konrad.wilk@oracle.com>, Sasha Levin <levinsasha928@gmail.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-> From: Minchan Kim [mailto:minchan@kernel.org]
-> Subject: Re: [PATCH 2/2] zram: clean up handle
+> From: Konrad Rzeszutek Wilk
+> Subject: Re: [PATCH 06/11] mm: frontswap: make all branches of if stateme=
+nt in put page consistent
 >=20
-> On 06/06/2012 02:04 PM, Nitin Gupta wrote:
->=20
-> > On 06/05/2012 12:23 AM, Minchan Kim wrote:
+> On Wed, Jun 06, 2012 at 12:55:10PM +0200, Sasha Levin wrote:
+> > Currently it has a complex structure where different things are compare=
+d
+> > at each branch. Simplify that and make both branches look similar.
 > >
-> >> zram's handle variable can store handle of zsmalloc in case of
-> >> compressing efficiently. Otherwise, it stores point of page descriptor=
-.
-> >> This patch clean up the mess by union struct.
-> >>
-> >> changelog
-> >>   * from v1
-> >> =09- none(new add in v2)
-> >>
-> >> Cc: Nitin Gupta <ngupta@vflare.org>
-> >> Acked-by: Seth Jennings <sjenning@linux.vnet.ibm.com>
-> >> Acked-by: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
-> >> Signed-off-by: Minchan Kim <minchan@kernel.org>
-> >> ---
-> >>  drivers/staging/zram/zram_drv.c |   77 ++++++++++++++++++++----------=
----------
-> >>  drivers/staging/zram/zram_drv.h |    5 ++-
-> >>  2 files changed, 44 insertions(+), 38 deletions(-)
+> > Signed-off-by: Sasha Levin <levinsasha928@gmail.com>
+> > ---
+> >  mm/frontswap.c |   10 +++++-----
+> >  1 files changed, 5 insertions(+), 5 deletions(-)
 > >
-> > I think page vs handle distinction was added since xvmalloc could not
-> > handle full page allocation. Now that zsmalloc allows full page
+> > diff --git a/mm/frontswap.c b/mm/frontswap.c
+> > index 618ef91..f2f4685 100644
+> > --- a/mm/frontswap.c
+> > +++ b/mm/frontswap.c
+> > @@ -119,16 +119,16 @@ int __frontswap_put_page(struct page *page)
+> >  =09=09frontswap_succ_puts++;
+> >  =09=09if (!dup)
+> >  =09=09=09atomic_inc(&sis->frontswap_pages);
+> > -=09} else if (dup) {
+> > +=09} else {
+> >  =09=09/*
+> >  =09=09  failed dup always results in automatic invalidate of
+> >  =09=09  the (older) page from frontswap
+> >  =09=09 */
+> > -=09=09frontswap_clear(sis, offset);
+> > -=09=09atomic_dec(&sis->frontswap_pages);
+> > -=09=09frontswap_failed_puts++;
 >=20
-> I see. I didn't know that because I'm blind on xvmalloc.
->=20
-> > allocation, we can just use it for both cases. This would also allow
-> > removing the ZRAM_UNCOMPRESSED flag. The only downside will be slightly
-> > slower code path for full page allocation but this event is anyways
-> > supposed to be rare, so should be fine.
->=20
-> Fair enough.
-> It can remove many code of zram.
-> Okay. Will look into that.
+> Hmm, you must be using an older branch b/c the frontswap_failed_puts++
+> doesn't exist anymore. Could you rebase on top of linus/master please.
 
-Nitin, can zsmalloc allow full page allocation by assigning
-an actual physical pageframe (which is what zram does now)?
-Or will it allocate PAGE_SIZE bytes which zsmalloc will allocate
-crossing a page boundary which, presumably, will have much worse
-impact on page allocator availability when these pages are
-"reclaimed" via your swap notify callback.
+Reminds me... at some point I removed the ability to observe
+and set frontswap_curr_pages from userland, which is very useful
+in testing and could be useful for future userland sysadmin tools.
+IIRC, when transitioning from sysfs to debugfs (akpm's feedback),
+I couldn't figure out how to make it writeable from debugfs, so
+just dropped it and never added it back.
 
-Though this may be rare across all workloads, it may turn out
-to be very common for certain workloads (e.g. if the workload
-has many dirty anonymous pages that are already compressed
-by userland).
+Writing the value is like a partial (or full) swapoff of the
+pages stored via frontswap into zcache/ramster/tmem.  So kinda
+similar to drop_caches?
 
-It may not be worth cleaning up the code if it causes
-performance issues with this case.
-
-And anyway can zsmalloc handle and identify to the caller pages
-that are both compressed and "native" (uncompressed)?  It
-certainly has to handle both if you remove ZRAM_UNCOMPRESSED
-as compressing some pages actually results in more than
-PAGE_SIZE bytes.  So you need to record somewhere that
-this "compressed page" is special and that must somehow
-be communicated to the caller of your "get" routine.
-
-(Just trying to save Minchan from removing all that code but
-then needing to add it back again.)
-
-Dan
+I'd sure welcome a patch to add that back in!
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
