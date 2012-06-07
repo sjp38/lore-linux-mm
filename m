@@ -1,133 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx118.postini.com [74.125.245.118])
-	by kanga.kvack.org (Postfix) with SMTP id CDFD76B0070
-	for <linux-mm@kvack.org>; Thu,  7 Jun 2012 09:53:10 -0400 (EDT)
-Received: by lahi5 with SMTP id i5so614669lah.14
-        for <linux-mm@kvack.org>; Thu, 07 Jun 2012 06:53:08 -0700 (PDT)
-Message-ID: <4FD0B240.2040101@openvz.org>
-Date: Thu, 07 Jun 2012 17:53:04 +0400
-From: Konstantin Khlebnikov <khlebnikov@openvz.org>
+Received: from psmtp.com (na3sys010amx120.postini.com [74.125.245.120])
+	by kanga.kvack.org (Postfix) with SMTP id 121506B006C
+	for <linux-mm@kvack.org>; Thu,  7 Jun 2012 10:00:54 -0400 (EDT)
+Received: by ghrr18 with SMTP id r18so554678ghr.14
+        for <linux-mm@kvack.org>; Thu, 07 Jun 2012 07:00:53 -0700 (PDT)
+Date: Thu, 7 Jun 2012 16:00:45 +0200
+From: Frederic Weisbecker <fweisbec@gmail.com>
+Subject: Re: [PATCH v3 00/28] kmem limitation for memcg
+Message-ID: <20120607140037.GG19842@somewhere.redhat.com>
+References: <1337951028-3427-1-git-send-email-glommer@parallels.com>
+ <20120607102604.GE19842@somewhere.redhat.com>
+ <4FD08813.9070307@parallels.com>
 MIME-Version: 1.0
-Subject: Re: 3.4-rc7: BUG: Bad rss-counter state mm:ffff88040b56f800 idx:1
- val:-59
-References: <4FBC1618.5010408@fold.natur.cuni.cz> <20120522162835.c193c8e0.akpm@linux-foundation.org> <20120522162946.2afcdb50.akpm@linux-foundation.org> <20120523172146.GA27598@redhat.com> <4FC52F17.20709@openvz.org> <20120530171158.GA8614@redhat.com> <4FD05F75.1050108@openvz.org> <20120607131848.GA19076@redhat.com>
-In-Reply-To: <20120607131848.GA19076@redhat.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <4FD08813.9070307@parallels.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Oleg Nesterov <oleg@redhat.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Martin Mokrejs <mmokrejs@fold.natur.cuni.cz>, LKML <linux-kernel@vger.kernel.org>, "markus@trippelsdorf.de" <markus@trippelsdorf.de>, "hughd@google.com" <hughd@google.com>, "kamezawa.hiroyu@jp.fujitsu.com" <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Glauber Costa <glommer@parallels.com>
+Cc: linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, linux-mm@kvack.org, kamezawa.hiroyu@jp.fujitsu.com, Tejun Heo <tj@kernel.org>, Li Zefan <lizefan@huawei.com>, Greg Thelen <gthelen@google.com>, Suleiman Souhlal <suleiman@google.com>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, devel@openvz.org, David Rientjes <rientjes@google.com>
 
-Oleg Nesterov wrote:
-> On 06/07, Konstantin Khlebnikov wrote:
->>
->> Oleg Nesterov wrote:
->>>
->>> I'll write the changelog and send the patch tomorrow.
->>
->> Ding! Week is over, or I missed something? )
->
-> Pong ;)
->
-> I have sent the patch on May 31, see
-> http://marc.info/?l=linux-kernel&m=133848759505805
-> Also attached below, just in case.
->
-> Initiallly I sent 2 patches, see
-> http://marc.info/?l=linux-kernel&m=133848784705941
-> but 2/2 (your patch) was already merged.
+On Thu, Jun 07, 2012 at 02:53:07PM +0400, Glauber Costa wrote:
+> On 06/07/2012 02:26 PM, Frederic Weisbecker wrote:
+> >On Fri, May 25, 2012 at 05:03:20PM +0400, Glauber Costa wrote:
+> >>Hello All,
+> >>
+> >>This is my new take for the memcg kmem accounting. This should merge
+> >>all of the previous comments from you, plus fix a bunch of bugs.
+> >>
+> >>At this point, I consider the series pretty mature. Since last submission
+> >>2 weeks ago, I focused on broadening the testing coverage. Some bugs were
+> >>fixed, but that of course doesn't mean no bugs exist.
+> >>
+> >>I believe some of the early patches here are already in some trees around.
+> >>I don't know who should pick this, so if everyone agrees with what's in here,
+> >>please just ack them and tell me which tree I should aim for (-mm? Hocko's?)
+> >>and I'll rebase it.
+> >>
+> >>I should point out again that most, if not all, of the code in the caches
+> >>are wrapped in static_key areas, meaning they will be completely patched out
+> >>until the first limit is set. Enabling and disabling of static_keys incorporate
+> >>the last fixes for sock memcg, and should be pretty robust.
+> >>
+> >>I also put a lot of effort, as you will all see, in the proper separation
+> >>of the patches, so the review process is made as easy as the complexity of
+> >>the work allows to.
+> >
+> >So I believe that if I want to implement a per kernel stack accounting/limitation,
+> >I need to work on top of your patchset.
+> >
+> >What do you think about having some sub kmem accounting based on the caches?
+> >For example there could be a specific accounting per kmem cache.
+> >
+> >Like if we use a specific kmem cache to allocate the kernel stack
+> >(as is done by some archs but I can generalize that for those who want
+> >kernel stack accounting), allocations are accounted globally in the memcg as
+> >done in your patchset but also on a seperate counter only for this kmem cache
+> >on the memcg, resulting in a kmem.stack.usage somewhere.
+> >
+> >The concept of per kmem cache accounting can be expanded more for any
+> >kind of finegrained kmem accounting.
+> >
+> >Thoughts?
+> 
+> I believe a general separation is too much, and will lead to knob
+> explosion. So I don't think it is a good idea.
 
-Hmm, ok. Thanks.
+Right. This could be an option in kmem_cache_create() or something.
 
-I think rss-fix must be in stable-3.4.x -- that "BUG..." message can disturb users.
-Plus via this bug any application can decrease rss down to zero =)
+> 
+> Now, for the stack itself, it can be justified. The question that
+> remains to be answered is:
+> 
+> Why do you need to set the stack value separately? Isn't accounting
+> the stack value, and limiting against the global kmem limit enough?
 
->
-> -------------------------------------------------------------------------------
-> [PATCH] correctly synchronize rss-counters at exit/exec
->
-> A simplified version of Konstantin Khlebnikov's patch.
->
-> do_exit() and exec_mmap() call sync_mm_rss() before mm_release()
-> does put_user(clear_child_tid) which can update task->rss_stat
-> and thus make mm->rss_stat inconsistent. This triggers the "BUG:"
-> printk in check_mm().
->
-> - Move the final sync_mm_rss() from do_exit() to exit_mm(), and
->    change exec_mmap() to call sync_mm_rss() after mm_release() to
->    make check_mm() happy.
->
->    Perhaps we should simply move it into mm_release() and call it
->    unconditionally to catch the "task->rss_stat != 0&&  !task->mm"
->    bugs.
->
-> - Since taskstats_exit() is called before exit_mm(), add another
->    sync_mm_rss() into xacct_add_tsk() who actually uses rss_stat.
->
->    Probably we should also shift acct_update_integrals().
->
-> Reported-by: Markus Trippelsdorf<markus@trippelsdorf.de>
-> Tested-by: Martin Mokrejs<mmokrejs@fold.natur.cuni.cz>
-> Signed-off-by: Oleg Nesterov<oleg@redhat.com>
-> Acked-by: Konstantin Khlebnikov<khlebnikov@openvz.org>
-> ---
->   fs/exec.c       |    2 +-
->   kernel/exit.c   |    5 ++---
->   kernel/tsacct.c |    1 +
->   3 files changed, 4 insertions(+), 4 deletions(-)
->
-> diff --git a/fs/exec.c b/fs/exec.c
-> index 52c9e2f..e49e3c2 100644
-> --- a/fs/exec.c
-> +++ b/fs/exec.c
-> @@ -823,10 +823,10 @@ static int exec_mmap(struct mm_struct *mm)
->   	/* Notify parent that we're no longer interested in the old VM */
->   	tsk = current;
->   	old_mm = current->mm;
-> -	sync_mm_rss(old_mm);
->   	mm_release(tsk, old_mm);
->
->   	if (old_mm) {
-> +		sync_mm_rss(old_mm);
->   		/*
->   		 * Make sure that if there is a core dump in progress
->   		 * for the old mm, we get out and die instead of going
-> diff --git a/kernel/exit.c b/kernel/exit.c
-> index ab972a7..b3a84b5 100644
-> --- a/kernel/exit.c
-> +++ b/kernel/exit.c
-> @@ -655,6 +655,8 @@ static void exit_mm(struct task_struct * tsk)
->   	mm_release(tsk, mm);
->   	if (!mm)
->   		return;
-> +
-> +	sync_mm_rss(mm);
->   	/*
->   	 * Serialize with any possible pending coredump.
->   	 * We must hold mmap_sem around checking core_state
-> @@ -965,9 +967,6 @@ void do_exit(long code)
->   				preempt_count());
->
->   	acct_update_integrals(tsk);
-> -	/* sync mm's RSS info before statistics gathering */
-> -	if (tsk->mm)
-> -		sync_mm_rss(tsk->mm);
->   	group_dead = atomic_dec_and_test(&tsk->signal->live);
->   	if (group_dead) {
->   		hrtimer_cancel(&tsk->signal->real_timer);
-> diff --git a/kernel/tsacct.c b/kernel/tsacct.c
-> index 23b4d78..a64ee90 100644
-> --- a/kernel/tsacct.c
-> +++ b/kernel/tsacct.c
-> @@ -91,6 +91,7 @@ void xacct_add_tsk(struct taskstats *stats, struct task_struct *p)
->   	stats->virtmem = p->acct_vm_mem1 * PAGE_SIZE / MB;
->   	mm = get_task_mm(p);
->   	if (mm) {
-> +		sync_mm_rss(mm);
->   		/* adjust to KB unit */
->   		stats->hiwater_rss   = get_mm_hiwater_rss(mm) * PAGE_SIZE / KB;
->   		stats->hiwater_vm    = get_mm_hiwater_vm(mm)  * PAGE_SIZE / KB;
+Well, I may want to let my container have a full access to some kmem
+resources (net, file, etc...) but defend against fork bombs or NR_PROC
+rlimit exhaustion of other containers.
+
+So I need to be able to set my limit precisely on kstack.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
