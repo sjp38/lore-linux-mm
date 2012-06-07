@@ -1,68 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx172.postini.com [74.125.245.172])
-	by kanga.kvack.org (Postfix) with SMTP id 738866B0070
-	for <linux-mm@kvack.org>; Thu,  7 Jun 2012 15:06:19 -0400 (EDT)
-Date: Thu, 7 Jun 2012 15:06:13 -0400
-From: Vivek Goyal <vgoyal@redhat.com>
-Subject: Re: write-behind on streaming writes
-Message-ID: <20120607190613.GC18538@redhat.com>
-References: <20120605172302.GB28556@redhat.com>
- <20120605174157.GC28556@redhat.com>
- <20120605184853.GD28556@redhat.com>
- <20120605201045.GE28556@redhat.com>
- <20120606025729.GA1197@redhat.com>
- <CA+55aFyxucvhYhbk0yyNa1WSeYXgHHAyWRHPNWDwODQhyAWGww@mail.gmail.com>
- <20120606121408.GB4934@redhat.com>
- <20120606140058.GA8098@localhost>
- <20120606170428.GB8133@redhat.com>
- <20120607094504.GB25074@quack.suse.cz>
+Received: from psmtp.com (na3sys010amx118.postini.com [74.125.245.118])
+	by kanga.kvack.org (Postfix) with SMTP id 12A906B006E
+	for <linux-mm@kvack.org>; Thu,  7 Jun 2012 16:47:57 -0400 (EDT)
 MIME-Version: 1.0
+Message-ID: <dfc7087d-6826-4429-8063-d47d05cd2d26@default>
+Date: Thu, 7 Jun 2012 13:47:40 -0700 (PDT)
+From: Dan Magenheimer <dan.magenheimer@oracle.com>
+Subject: RE: [PATCH 2/2] zram: clean up handle
+References: <1338881031-19662-1-git-send-email-minchan@kernel.org>
+ <1338881031-19662-2-git-send-email-minchan@kernel.org>
+ <4FCEE4E0.6030707@vflare.org> <4FD015FE.7070906@kernel.org>
+In-Reply-To: <4FD015FE.7070906@kernel.org>
 Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20120607094504.GB25074@quack.suse.cz>
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jan Kara <jack@suse.cz>
-Cc: Fengguang Wu <fengguang.wu@intel.com>, Linus Torvalds <torvalds@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, "Myklebust, Trond" <Trond.Myklebust@netapp.com>, linux-fsdevel@vger.kernel.org, Linux Memory Management List <linux-mm@kvack.org>, Jens Axboe <axboe@kernel.dk>
+To: Minchan Kim <minchan@kernel.org>, Nitin Gupta <ngupta@vflare.org>
+Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Konrad Wilk <konrad.wilk@oracle.com>, Seth Jennings <sjenning@linux.vnet.ibm.com>
 
-On Thu, Jun 07, 2012 at 11:45:04AM +0200, Jan Kara wrote:
-[..]
-> > Instead of above, I modified sync_file_range() to call
-> > __filemap_fdatawrite_range(WB_SYNC_NONE) and I do see now ASYNC writes
-> > showing up at elevator.
-> > 
-> > With 4 processes doing sync_file_range() now, firefox start time test
-> > clocks around 18-19 seconds which is better than 30-35 seconds of 4
-> > processes doing buffered writes. And system looks pretty good from
-> > interactivity point of view.
->   So do you have any idea why is that? Do we drive shallower queues? Also
-> how does speed of the writers compare to the speed with normal buffered
-> writes + fsync (you'd need fsync for sync_file_range writers as well to
-> make comparison fair)?
+> From: Minchan Kim [mailto:minchan@kernel.org]
+> Subject: Re: [PATCH 2/2] zram: clean up handle
+>=20
+> On 06/06/2012 02:04 PM, Nitin Gupta wrote:
+>=20
+> > On 06/05/2012 12:23 AM, Minchan Kim wrote:
+> >
+> >> zram's handle variable can store handle of zsmalloc in case of
+> >> compressing efficiently. Otherwise, it stores point of page descriptor=
+.
+> >> This patch clean up the mess by union struct.
+> >>
+> >> changelog
+> >>   * from v1
+> >> =09- none(new add in v2)
+> >>
+> >> Cc: Nitin Gupta <ngupta@vflare.org>
+> >> Acked-by: Seth Jennings <sjenning@linux.vnet.ibm.com>
+> >> Acked-by: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
+> >> Signed-off-by: Minchan Kim <minchan@kernel.org>
+> >> ---
+> >>  drivers/staging/zram/zram_drv.c |   77 ++++++++++++++++++++----------=
+---------
+> >>  drivers/staging/zram/zram_drv.h |    5 ++-
+> >>  2 files changed, 44 insertions(+), 38 deletions(-)
+> >
+> > I think page vs handle distinction was added since xvmalloc could not
+> > handle full page allocation. Now that zsmalloc allows full page
+>=20
+> I see. I didn't know that because I'm blind on xvmalloc.
+>=20
+> > allocation, we can just use it for both cases. This would also allow
+> > removing the ZRAM_UNCOMPRESSED flag. The only downside will be slightly
+> > slower code path for full page allocation but this event is anyways
+> > supposed to be rare, so should be fine.
+>=20
+> Fair enough.
+> It can remove many code of zram.
+> Okay. Will look into that.
 
-Ok, I did more tests and few odd things I noticed.
+Nitin, can zsmalloc allow full page allocation by assigning
+an actual physical pageframe (which is what zram does now)?
+Or will it allocate PAGE_SIZE bytes which zsmalloc will allocate
+crossing a page boundary which, presumably, will have much worse
+impact on page allocator availability when these pages are
+"reclaimed" via your swap notify callback.
 
-- Results are varying a lot. Sometimes with write+flush workload also firefox
-  launched fast. So now it is hard to conclude things.
+Though this may be rare across all workloads, it may turn out
+to be very common for certain workloads (e.g. if the workload
+has many dirty anonymous pages that are already compressed
+by userland).
 
-- For some reason I had nr_requests as 16K on my root drive. I have no
-  idea who is setting it. Once I set it to 128, then firefox with
-  write+flush workload performs much better and launch time are similar
-  to sync_file_range.
+It may not be worth cleaning up the code if it causes
+performance issues with this case.
 
-- I tried to open new windows in firefox and browse web, load new
-  websites. I would say sync_file_range() feels little better but
-  I don't have any logical explanation and can't conclude anything yet
-  by looking at traces. I am continuing to stare though.
+And anyway can zsmalloc handle and identify to the caller pages
+that are both compressed and "native" (uncompressed)?  It
+certainly has to handle both if you remove ZRAM_UNCOMPRESSED
+as compressing some pages actually results in more than
+PAGE_SIZE bytes.  So you need to record somewhere that
+this "compressed page" is special and that must somehow
+be communicated to the caller of your "get" routine.
 
-So in summary, at this point of time I really can't conclude that
-using sync_file_range() with ASYNC request is providing better latencies
-in my setup.
+(Just trying to save Minchan from removing all that code but
+then needing to add it back again.)
 
-I will keept at it though and if I notice something new, will write back.
-
-Thanks
-Vivek
+Dan
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
