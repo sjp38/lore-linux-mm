@@ -1,71 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx144.postini.com [74.125.245.144])
-	by kanga.kvack.org (Postfix) with SMTP id B9EF16B006E
-	for <linux-mm@kvack.org>; Thu,  7 Jun 2012 16:57:11 -0400 (EDT)
-MIME-Version: 1.0
-Message-ID: <08d98de0-2f1b-4461-8197-9700bc3e0c65@default>
-Date: Thu, 7 Jun 2012 13:56:57 -0700 (PDT)
-From: Dan Magenheimer <dan.magenheimer@oracle.com>
-Subject: RE: [PATCH 06/11] mm: frontswap: make all branches of if statement in
- put page consistent
-References: <1338980115-2394-1-git-send-email-levinsasha928@gmail.com>
- <1338980115-2394-6-git-send-email-levinsasha928@gmail.com>
- <20120607183022.GA9472@phenom.dumpdata.com>
-In-Reply-To: <20120607183022.GA9472@phenom.dumpdata.com>
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: quoted-printable
+Received: from psmtp.com (na3sys010amx102.postini.com [74.125.245.102])
+	by kanga.kvack.org (Postfix) with SMTP id 888DB6B006E
+	for <linux-mm@kvack.org>; Thu,  7 Jun 2012 17:00:45 -0400 (EDT)
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [ 08/82] mm: pmd_read_atomic: fix 32bit PAE pmd walk vs pmd_populate SMP race condition
+Date: Thu,  7 Jun 2012 23:00:32 +0200
+Message-Id: <1339102833-12358-1-git-send-email-aarcange@redhat.com>
+In-Reply-To: <20120607190414.GF21339@redhat.com>
+References: <20120607190414.GF21339@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Konrad Wilk <konrad.wilk@oracle.com>, Sasha Levin <levinsasha928@gmail.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Greg KH <gregkh@linuxfoundation.org>
+Cc: 676360@bugs.debian.org, xen-devel@lists.xensource.com, Jonathan Nieder <jrnieder@gmail.com>, linux-kernel@vger.kernel.org, "linux-mm@kvack.org Konrad Rzeszutek Wilk" <konrad.wilk@oracle.com>, stable@vger.kernel.org, alan@lxorguk.ukuu.org.uk, Ulrich Obergfell <uobergfe@redhat.com>, Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>, Larry Woodman <lwoodman@redhat.com>, Petr Matousek <pmatouse@redhat.com>, Rik van Riel <riel@redhat.com>, Jan Beulich <jbeulich@suse.com>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>
 
-> From: Konrad Rzeszutek Wilk
-> Subject: Re: [PATCH 06/11] mm: frontswap: make all branches of if stateme=
-nt in put page consistent
->=20
-> On Wed, Jun 06, 2012 at 12:55:10PM +0200, Sasha Levin wrote:
-> > Currently it has a complex structure where different things are compare=
-d
-> > at each branch. Simplify that and make both branches look similar.
-> >
-> > Signed-off-by: Sasha Levin <levinsasha928@gmail.com>
-> > ---
-> >  mm/frontswap.c |   10 +++++-----
-> >  1 files changed, 5 insertions(+), 5 deletions(-)
-> >
-> > diff --git a/mm/frontswap.c b/mm/frontswap.c
-> > index 618ef91..f2f4685 100644
-> > --- a/mm/frontswap.c
-> > +++ b/mm/frontswap.c
-> > @@ -119,16 +119,16 @@ int __frontswap_put_page(struct page *page)
-> >  =09=09frontswap_succ_puts++;
-> >  =09=09if (!dup)
-> >  =09=09=09atomic_inc(&sis->frontswap_pages);
-> > -=09} else if (dup) {
-> > +=09} else {
-> >  =09=09/*
-> >  =09=09  failed dup always results in automatic invalidate of
-> >  =09=09  the (older) page from frontswap
-> >  =09=09 */
-> > -=09=09frontswap_clear(sis, offset);
-> > -=09=09atomic_dec(&sis->frontswap_pages);
-> > -=09=09frontswap_failed_puts++;
->=20
-> Hmm, you must be using an older branch b/c the frontswap_failed_puts++
-> doesn't exist anymore. Could you rebase on top of linus/master please.
+Hi,
 
-Reminds me... at some point I removed the ability to observe
-and set frontswap_curr_pages from userland, which is very useful
-in testing and could be useful for future userland sysadmin tools.
-IIRC, when transitioning from sysfs to debugfs (akpm's feedback),
-I couldn't figure out how to make it writeable from debugfs, so
-just dropped it and never added it back.
+this should avoid the cmpxchg8b (to make Xen happy) but without
+reintroducing the race condition. It's actually going to be faster
+too, but it's conceptually more complicated as the pmd high/low may be
+inconsistent at times, but at those times we're going to declare the
+pmd unstable and ignore it anyway so it's ok.
 
-Writing the value is like a partial (or full) swapoff of the
-pages stored via frontswap into zcache/ramster/tmem.  So kinda
-similar to drop_caches?
+NOTE: in theory I could also drop the high part when THP=y thanks to
+the barrier() in the caller (and the barrier is needed for the generic
+version anyway):
 
-I'd sure welcome a patch to add that back in!
+static inline pmd_t pmd_read_atomic(pmd_t *pmdp)
+{
+	pmdval_t ret;
+	u32 *tmp = (u32 *)pmdp;
+
+	ret = (pmdval_t) (*tmp);
++#ifndef CONFIG_TRANSPARENT_HUGEPAGE
+	if (ret) {
+		/*
+		 * If the low part is null, we must not read the high part
+		 * or we can end up with a partial pmd.
+		 */
+		smp_rmb();
+		ret |= ((pmdval_t)*(tmp + 1)) << 32;
+	}
++#endif
+
+	return (pmd_t) { ret };
+}
+
+But it's not worth the extra complexity. It looks cleaner if we deal
+with "good" pmds if they're later found pointing to a pte (even if we
+discard them and force pte_offset to re-read the *pmd).
+
+Andrea Arcangeli (1):
+  thp: avoid atomic64_read in pmd_read_atomic for 32bit PAE
+
+ arch/x86/include/asm/pgtable-3level.h |   30 +++++++++++++++++-------------
+ include/asm-generic/pgtable.h         |   10 ++++++++++
+ 2 files changed, 27 insertions(+), 13 deletions(-)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
