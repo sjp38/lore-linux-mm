@@ -1,107 +1,215 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx182.postini.com [74.125.245.182])
-	by kanga.kvack.org (Postfix) with SMTP id 4D7456B0073
-	for <linux-mm@kvack.org>; Fri,  8 Jun 2012 05:47:09 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx130.postini.com [74.125.245.130])
+	by kanga.kvack.org (Postfix) with SMTP id AF8DD6B0072
+	for <linux-mm@kvack.org>; Fri,  8 Jun 2012 05:47:10 -0400 (EDT)
 From: Glauber Costa <glommer@parallels.com>
-Subject: [PATCH 3/4] don't do __ClearPageSlab before freeing slab page.
-Date: Fri,  8 Jun 2012 13:43:20 +0400
-Message-Id: <1339148601-20096-4-git-send-email-glommer@parallels.com>
+Subject: [PATCH 4/4] mm: Allocate kernel pages to the right memcg
+Date: Fri,  8 Jun 2012 13:43:21 +0400
+Message-Id: <1339148601-20096-5-git-send-email-glommer@parallels.com>
 In-Reply-To: <1339148601-20096-1-git-send-email-glommer@parallels.com>
 References: <1339148601-20096-1-git-send-email-glommer@parallels.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: cgroups@vger.kernel.org
-Cc: linux-mm@kvack.org, Tejun Heo <tj@kernel.org>, Frederic Weisbecker <fweisbeck@gmail.com>, devel@openvz.org, kamezawa.hiroyu@jp.fujitsu.com, Glauber Costa <glommer@parallels.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Suleiman Souhlal <suleiman@google.com>
+Cc: linux-mm@kvack.org, Tejun Heo <tj@kernel.org>, Frederic Weisbecker <fweisbeck@gmail.com>, devel@openvz.org, kamezawa.hiroyu@jp.fujitsu.com, Glauber Costa <glommer@parallels.com>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Suleiman Souhlal <suleiman@google.com>
 
-This will give the oportunity to the page allocator to
-determine that a given page was previously a slab page, and
-take action accordingly.
+This patch builds on the suggestion previously given by Cristoph, with one
+major difference: it still keeps the cache dispatcher and the cache duplicates.
+But its internals are completely different.
 
-If memcg kmem is present, this means that that page needs to
-be unaccounted. The page allocator will now have the responsibility
-to clear that bit upon free_pages().
+I no longer mess with the cache cores when pages are allocated. (except for
+destruction, that happens a bit later, but that's quite simple). All of that
+is done by the page allocator, by recognizing the __GFP_SLABMEMCG flag.
 
-It is not uncommon to have the page allocator to check page flags.
-Mlock flag, for instance, is checked pervasively all over the place.
-So I hope this is okay for the slab as well.
+The catch here is that 99% of the time, the task doing the dispatch will be
+the same allocating the page. It doesn't hold only when tasks are moving around.
+But that's an acceptable price to pay, at least for me. Moving around won't break,
+it will at the most put us on a state where a cache has a page that is acconted
+to a different cgroup. Or, if that cgroups is destroyed, not accounted to anyone.
+If that ever hurts anyone, this is solvable by a reaper, or by a full cache scan
+when the task moves.
 
 Signed-off-by: Glauber Costa <glommer@parallels.com>
+CC: Christoph Lameter <cl@linux.com>
 CC: Pekka Enberg <penberg@cs.helsinki.fi>
 CC: Michal Hocko <mhocko@suse.cz>
 CC: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 CC: Johannes Weiner <hannes@cmpxchg.org>
 CC: Suleiman Souhlal <suleiman@google.com>
 ---
- mm/page_alloc.c |    5 ++++-
- mm/slab.c       |    5 -----
- mm/slob.c       |    1 -
- mm/slub.c       |    1 -
- 4 files changed, 4 insertions(+), 8 deletions(-)
+ include/linux/page-flags.h |    2 +-
+ include/linux/slub_def.h   |   15 ++++++++++-----
+ mm/memcontrol.c            |    2 ++
+ mm/page_alloc.c            |   13 ++++++++++++-
+ mm/slab.c                  |    4 ++++
+ mm/slub.c                  |    1 +
+ 6 files changed, 30 insertions(+), 7 deletions(-)
 
+diff --git a/include/linux/page-flags.h b/include/linux/page-flags.h
+index c88d2a9..9b065d7 100644
+--- a/include/linux/page-flags.h
++++ b/include/linux/page-flags.h
+@@ -201,7 +201,7 @@ PAGEFLAG(Dirty, dirty) TESTSCFLAG(Dirty, dirty) __CLEARPAGEFLAG(Dirty, dirty)
+ PAGEFLAG(LRU, lru) __CLEARPAGEFLAG(LRU, lru)
+ PAGEFLAG(Active, active) __CLEARPAGEFLAG(Active, active)
+ 	TESTCLEARFLAG(Active, active)
+-__PAGEFLAG(Slab, slab)
++__PAGEFLAG(Slab, slab) __TESTCLEARFLAG(Slab, slab)
+ PAGEFLAG(Checked, checked)		/* Used by some filesystems */
+ PAGEFLAG(Pinned, pinned) TESTSCFLAG(Pinned, pinned)	/* Xen */
+ PAGEFLAG(SavePinned, savepinned);			/* Xen */
+diff --git a/include/linux/slub_def.h b/include/linux/slub_def.h
+index 7637f3b..32aa7a5 100644
+--- a/include/linux/slub_def.h
++++ b/include/linux/slub_def.h
+@@ -13,6 +13,8 @@
+ #include <linux/kobject.h>
+ 
+ #include <linux/kmemleak.h>
++#include <linux/memcontrol.h>
++#include <linux/mm.h>
+ 
+ enum stat_item {
+ 	ALLOC_FASTPATH,		/* Allocation from cpu slab */
+@@ -209,14 +211,14 @@ static __always_inline int kmalloc_index(size_t size)
+  * This ought to end up with a global pointer to the right cache
+  * in kmalloc_caches.
+  */
+-static __always_inline struct kmem_cache *kmalloc_slab(size_t size)
++static __always_inline struct kmem_cache *kmalloc_slab(gfp_t flags, size_t size)
+ {
+ 	int index = kmalloc_index(size);
+ 
+ 	if (index == 0)
+ 		return NULL;
+ 
+-	return kmalloc_caches[index];
++	return mem_cgroup_get_kmem_cache(kmalloc_caches[index], flags);
+ }
+ 
+ void *kmem_cache_alloc(struct kmem_cache *, gfp_t);
+@@ -225,7 +227,10 @@ void *__kmalloc(size_t size, gfp_t flags);
+ static __always_inline void *
+ kmalloc_order(size_t size, gfp_t flags, unsigned int order)
+ {
+-	void *ret = (void *) __get_free_pages(flags | __GFP_COMP, order);
++	void *ret;
++
++	flags |= (__GFP_COMP | __GFP_SLABMEMCG);
++	ret = (void *) __get_free_pages(flags, order);
+ 	kmemleak_alloc(ret, size, 1, flags);
+ 	return ret;
+ }
+@@ -274,7 +279,7 @@ static __always_inline void *kmalloc(size_t size, gfp_t flags)
+ 			return kmalloc_large(size, flags);
+ 
+ 		if (!(flags & SLUB_DMA)) {
+-			struct kmem_cache *s = kmalloc_slab(size);
++			struct kmem_cache *s = kmalloc_slab(flags, size);
+ 
+ 			if (!s)
+ 				return ZERO_SIZE_PTR;
+@@ -307,7 +312,7 @@ static __always_inline void *kmalloc_node(size_t size, gfp_t flags, int node)
+ {
+ 	if (__builtin_constant_p(size) &&
+ 		size <= SLUB_MAX_SIZE && !(flags & SLUB_DMA)) {
+-			struct kmem_cache *s = kmalloc_slab(size);
++			struct kmem_cache *s = kmalloc_slab(flags, size);
+ 
+ 		if (!s)
+ 			return ZERO_SIZE_PTR;
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index 45f7ece..9358140 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -510,6 +510,8 @@ static struct kmem_cache *kmem_cache_dup(struct mem_cgroup *memcg,
+ 	flags = s->flags & ~(SLAB_PANIC|SLAB_OFF_SLAB);
+ 	new = kmem_cache_create_memcg(memcg, name, s->object_size, s->align,
+ 				      flags, s->ctor, s);
++	if (new)
++		new->allocflags |= __GFP_SLABMEMCG;
+ 
+ 	kfree(name);
+ 	return new;
 diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 918330f..a884a9c 100644
+index a884a9c..b4322b7 100644
 --- a/mm/page_alloc.c
 +++ b/mm/page_alloc.c
-@@ -697,8 +697,10 @@ static bool free_pages_prepare(struct page *page, unsigned int order)
+@@ -2425,6 +2425,7 @@ __alloc_pages_nodemask(gfp_t gfp_mask, unsigned int order,
+ 	struct page *page = NULL;
+ 	int migratetype = allocflags_to_migratetype(gfp_mask);
+ 	unsigned int cpuset_mems_cookie;
++	void *handle = NULL;
  
- 	if (PageAnon(page))
- 		page->mapping = NULL;
--	for (i = 0; i < (1 << order); i++)
-+	for (i = 0; i < (1 << order); i++) {
-+		__ClearPageSlab(page + i);
- 		bad += free_pages_check(page + i);
-+	}
- 	if (bad)
- 		return false;
+ 	gfp_mask &= gfp_allowed_mask;
  
-@@ -2505,6 +2507,7 @@ EXPORT_SYMBOL(get_zeroed_page);
+@@ -2436,6 +2437,13 @@ __alloc_pages_nodemask(gfp_t gfp_mask, unsigned int order,
+ 		return NULL;
+ 
+ 	/*
++	 * Will only have any effect when __GFP_SLABMEMCG is set.
++	 * This is verified in the (always inline) callee
++	 */
++	if (!mem_cgroup_new_kmem_page(gfp_mask, &handle, order))
++		return NULL;
++
++	/*
+ 	 * Check the zones suitable for the gfp_mask contain at least one
+ 	 * valid zone. It's possible to have an empty zonelist as a result
+ 	 * of GFP_THISNODE and a memoryless node
+@@ -2474,6 +2482,8 @@ out:
+ 	if (unlikely(!put_mems_allowed(cpuset_mems_cookie) && !page))
+ 		goto retry_cpuset;
+ 
++	mem_cgroup_commit_kmem_page(page, handle, order);
++
+ 	return page;
+ }
+ EXPORT_SYMBOL(__alloc_pages_nodemask);
+@@ -2507,7 +2517,8 @@ EXPORT_SYMBOL(get_zeroed_page);
  void __free_pages(struct page *page, unsigned int order)
  {
  	if (put_page_testzero(page)) {
-+		__ClearPageSlab(page);
+-		__ClearPageSlab(page);
++		if (__TestClearPageSlab(page))
++			mem_cgroup_free_kmem_page(page, order);
  		if (order == 0)
  			free_hot_cold_page(page, 0);
  		else
 diff --git a/mm/slab.c b/mm/slab.c
-index d7dfd26..66ef370 100644
+index 66ef370..1b19b34 100644
 --- a/mm/slab.c
 +++ b/mm/slab.c
-@@ -1794,11 +1794,6 @@ static void kmem_freepages(struct kmem_cache *cachep, void *addr)
- 	else
- 		sub_zone_page_state(page_zone(page),
- 				NR_SLAB_UNRECLAIMABLE, nr_freed);
--	while (i--) {
--		BUG_ON(!PageSlab(page));
--		__ClearPageSlab(page);
--		page++;
--	}
- 	if (current->reclaim_state)
- 		current->reclaim_state->reclaimed_slab += nr_freed;
- 	free_pages((unsigned long)addr, cachep->gfporder);
-diff --git a/mm/slob.c b/mm/slob.c
-index 61b1845..b03d65e 100644
---- a/mm/slob.c
-+++ b/mm/slob.c
-@@ -360,7 +360,6 @@ static void slob_free(void *block, int size)
- 		if (slob_page_free(sp))
- 			clear_slob_page_free(sp);
- 		spin_unlock_irqrestore(&slob_lock, flags);
--		__ClearPageSlab(sp);
- 		reset_page_mapcount(sp);
- 		slob_free_pages(b, 0);
- 		return;
+@@ -3306,6 +3306,8 @@ __cache_alloc_node(struct kmem_cache *cachep, gfp_t flags, int nodeid,
+ 	if (slab_should_failslab(cachep, flags))
+ 		return NULL;
+ 
++	cachep = mem_cgroup_get_kmem_cache(cachep, flags);
++
+ 	cache_alloc_debugcheck_before(cachep, flags);
+ 	local_irq_save(save_flags);
+ 
+@@ -3391,6 +3393,8 @@ __cache_alloc(struct kmem_cache *cachep, gfp_t flags, void *caller)
+ 	if (slab_should_failslab(cachep, flags))
+ 		return NULL;
+ 
++	cachep = mem_cgroup_get_kmem_cache(cachep, flags);
++
+ 	cache_alloc_debugcheck_before(cachep, flags);
+ 	local_irq_save(save_flags);
+ 	objp = __do_cache_alloc(cachep, flags);
 diff --git a/mm/slub.c b/mm/slub.c
-index ed01be5..a0eeb4a 100644
+index a0eeb4a..6994718 100644
 --- a/mm/slub.c
 +++ b/mm/slub.c
-@@ -1399,7 +1399,6 @@ static void __free_slab(struct kmem_cache *s, struct page *page)
- 		NR_SLAB_RECLAIMABLE : NR_SLAB_UNRECLAIMABLE,
- 		-pages);
+@@ -2304,6 +2304,7 @@ static __always_inline void *slab_alloc(struct kmem_cache *s,
+ 	if (slab_pre_alloc_hook(s, gfpflags))
+ 		return NULL;
  
--	__ClearPageSlab(page);
- 	reset_page_mapcount(page);
- 	if (current->reclaim_state)
- 		current->reclaim_state->reclaimed_slab += pages;
++	s = mem_cgroup_get_kmem_cache(s, gfpflags);
+ redo:
+ 
+ 	/*
 -- 
 1.7.10.2
 
