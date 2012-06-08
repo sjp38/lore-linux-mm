@@ -1,62 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx172.postini.com [74.125.245.172])
-	by kanga.kvack.org (Postfix) with SMTP id 4CF296B0071
-	for <linux-mm@kvack.org>; Fri,  8 Jun 2012 04:08:46 -0400 (EDT)
-Received: by dakp5 with SMTP id p5so2493171dak.14
-        for <linux-mm@kvack.org>; Fri, 08 Jun 2012 01:08:45 -0700 (PDT)
-Date: Fri, 8 Jun 2012 01:07:05 -0700
-From: Anton Vorontsov <anton.vorontsov@linaro.org>
-Subject: Re: [PATCH 2/5] vmevent: Convert from deferred timer to deferred work
-Message-ID: <20120608080704.GB6362@lizard>
+Received: from psmtp.com (na3sys010amx102.postini.com [74.125.245.102])
+	by kanga.kvack.org (Postfix) with SMTP id 7A98A6B0071
+	for <linux-mm@kvack.org>; Fri,  8 Jun 2012 04:16:17 -0400 (EDT)
+From: <leonid.moiseichuk@nokia.com>
+Subject: RE: [PATCH 2/5] vmevent: Convert from deferred timer to deferred
+ work
+Date: Fri, 8 Jun 2012 08:16:04 +0000
+Message-ID: <84FF21A720B0874AA94B46D76DB98269045F7A24@008-AM1MPN1-004.mgdnok.nokia.com>
 References: <20120601122118.GA6128@lizard>
  <1338553446-22292-2-git-send-email-anton.vorontsov@linaro.org>
- <4FD170AA.10705@gmail.com>
- <20120608065828.GA1515@lizard>
- <CAOJsxLEOsTC9mLo12dEpeatkgKq0xHjZXhGcO7Z99JHs3-D=9w@mail.gmail.com>
+ <4FD170AA.10705@gmail.com> <20120608065828.GA1515@lizard>
+ <84FF21A720B0874AA94B46D76DB98269045F7890@008-AM1MPN1-004.mgdnok.nokia.com>
+ <20120608075844.GA6362@lizard>
+In-Reply-To: <20120608075844.GA6362@lizard>
+Content-Language: en-US
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: base64
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-In-Reply-To: <CAOJsxLEOsTC9mLo12dEpeatkgKq0xHjZXhGcO7Z99JHs3-D=9w@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pekka Enberg <penberg@kernel.org>
-Cc: KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Leonid Moiseichuk <leonid.moiseichuk@nokia.com>, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, John Stultz <john.stultz@linaro.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linaro-kernel@lists.linaro.org, patches@linaro.org, kernel-team@android.com
+To: anton.vorontsov@linaro.org
+Cc: kosaki.motohiro@gmail.com, penberg@kernel.org, b.zolnierkie@samsung.com, john.stultz@linaro.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linaro-kernel@lists.linaro.org, patches@linaro.org, kernel-team@android.com
 
-On Fri, Jun 08, 2012 at 10:03:24AM +0300, Pekka Enberg wrote:
-> On Fri, Jun 8, 2012 at 9:58 AM, Anton Vorontsov
-> <anton.vorontsov@linaro.org> wrote:
-> > If you're saying that we should set up a timer in the userland and
-> > constantly read /proc/vmstat, then we will cause CPU wake up
-> > every 100ms, which is not acceptable. Well, we can try to introduce
-> > deferrable timers for the userspace. But then it would still add
-> > a lot more overhead for our task, as this solution adds other two
-> > context switches to read and parse /proc/vmstat. I guess this is
-> > not a show-stopper though, so we can discuss this.
-> >
-> > Leonid, Pekka, what do you think about the idea?
-> 
-> That's exactly the kind of half-assed ABI that lead to people
-> inventing out-of-tree lowmem notifiers in the first place.
-
-:-)
-
-Well, at least powersaving-wise, the solution w/ userland deferred
-timers would be much better then just looping over /proc/vmstat each
-100ms, and it is comparable to vmevent. Not pretty, but still would
-work.
-
-> I'd be more interested to know what people think of Minchan's that
-> gets rid of vmstat sampling.
-
-I answered to Minchan's post. The thing is that Minchan's idea
-is not a substitution for vmevent. To me it seems like a shrinker w/
-some pre-filter.
-
-Thanks,
-
--- 
-Anton Vorontsov
-Email: cbouatmailru@gmail.com
+PiAtLS0tLU9yaWdpbmFsIE1lc3NhZ2UtLS0tLQ0KPiBGcm9tOiBleHQgQW50b24gVm9yb250c292
+IFttYWlsdG86YW50b24udm9yb250c292QGxpbmFyby5vcmddDQo+IFNlbnQ6IDA4IEp1bmUsIDIw
+MTIgMTA6NTkNCi4uLiANCj4gYSkgVHdvIG1vcmUgY29udGV4dCBzd3RpY2hlczsNCj4gYikgU2Vy
+aWFsaXphdGlvbi9kZXNlcmlhbGl6YXRpb24gb2YgL3Byb2Mvdm1zdGF0Lg0KPiANCj4gPiBJdCBh
+bHNvIHdpbGwgY2F1c2UgcGFnZSB0cmFzaGluZyBiZWNhdXNlIHVzZXItc3BhY2UgY29kZSBjb3Vs
+ZCBiZSBwdXNoZWQNCj4gb3V0IGZyb20gY2FjaGUgaWYgVk0gZGVjaWRlLg0KPiANCj4gVGhpcyBj
+YW4gc29sdmVkIGJ5IG1vdmluZyBhICJ3YXRjaGVyIiB0byBhIHNlcGFyYXRlIChkYWVtb24pIHBy
+b2Nlc3MsIGFuZA0KPiBtbG9ja2luZyBpdC4gV2UgZG8gdGhpcyBpbiB1bG1rZC4NCg0KUmlnaHQu
+IEl0IGJ1dCBpdCBoYXMgZHJhd2JhY2tzIGFzIHdlbGwgZS5nLiBlbnN1cmUgdGhhdCBkYWVtb24g
+c2NoZWR1bGVkIHByb3Blcmx5IGFuZCBwcm9wYWdhdGUgcmVhY3Rpb24gZGVjaXNpb24gb3V0c2lk
+ZSB1bG1rZC4NCkFsc28gSSB1bmRlcnN0YW5kIHlvdXIgc3RhdGVtZW50IGFib3V0ICJ3YXRjaGVy
+IiBhcyBwcm9iYWJseSB5b3UgdXNlIG9uZSB0aW1lciBmb3IgZGFlbW9uLiANCkJ0dywgaW4gbXkg
+dmFyaWFudCAobWVtbm90aWZ5LmMpIEkgdXNlZCBvbmx5IG9uZSB0aW1lciwgaXQgaXMgZW5vdWdo
+Lg0K
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
