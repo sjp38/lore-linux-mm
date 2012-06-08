@@ -1,42 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from psmtp.com (na3sys010amx170.postini.com [74.125.245.170])
-	by kanga.kvack.org (Postfix) with SMTP id 197866B006E
-	for <linux-mm@kvack.org>; Fri,  8 Jun 2012 13:25:00 -0400 (EDT)
-Received: by dakp5 with SMTP id p5so3276710dak.14
-        for <linux-mm@kvack.org>; Fri, 08 Jun 2012 10:24:59 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with SMTP id 7074B6B0070
+	for <linux-mm@kvack.org>; Fri,  8 Jun 2012 13:25:02 -0400 (EDT)
+Received: by mail-pz0-f41.google.com with SMTP id p5so3276710dak.14
+        for <linux-mm@kvack.org>; Fri, 08 Jun 2012 10:25:01 -0700 (PDT)
 From: Joonsoo Kim <js1304@gmail.com>
-Subject: [PATCH 1/4] slub: change declare of get_slab() to inline at all times
-Date: Sat,  9 Jun 2012 02:23:14 +0900
-Message-Id: <1339176197-13270-1-git-send-email-js1304@gmail.com>
-In-Reply-To: <yes>
+Subject: [PATCH 2/4] slub: use __cmpxchg_double_slab() at interrupt disabled place
+Date: Sat,  9 Jun 2012 02:23:15 +0900
+Message-Id: <1339176197-13270-2-git-send-email-js1304@gmail.com>
+In-Reply-To: <1339176197-13270-1-git-send-email-js1304@gmail.com>
 References: <yes>
+ <1339176197-13270-1-git-send-email-js1304@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Pekka Enberg <penberg@kernel.org>
 Cc: Christoph Lameter <cl@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Joonsoo Kim <js1304@gmail.com>
 
-__kmalloc and it's variants are invoked much frequently
-and these are performance critical functions,
-so their callee functions are declared '__always_inline'
-But, currently, get_slab() isn't declared '__always_inline'.
-In result, __kmalloc and it's variants call get_slab() on x86.
-It is not desirable result, so change it to inline at all times.
+get_freelist(), unfreeze_partials() are only called with interrupt disabled,
+so __cmpxchg_double_slab() is suitable.
 
+Acked-by: Christoph Lameter <cl@linux.com>
 Signed-off-by: Joonsoo Kim <js1304@gmail.com>
 
 diff --git a/mm/slub.c b/mm/slub.c
-index 71de9b5..30ceb6d 100644
+index 30ceb6d..686ed90 100644
 --- a/mm/slub.c
 +++ b/mm/slub.c
-@@ -3320,7 +3320,7 @@ static inline int size_index_elem(size_t bytes)
- 	return (bytes - 1) / 8;
+@@ -1879,7 +1879,11 @@ redo:
+ 	}
  }
  
--static struct kmem_cache *get_slab(size_t size, gfp_t flags)
-+static __always_inline struct kmem_cache *get_slab(size_t size, gfp_t flags)
+-/* Unfreeze all the cpu partial slabs */
++/*
++ * Unfreeze all the cpu partial slabs.
++ *
++ * This function must be called with interrupt disabled.
++ */
+ static void unfreeze_partials(struct kmem_cache *s)
  {
- 	int index;
+ 	struct kmem_cache_node *n = NULL;
+@@ -1935,7 +1939,7 @@ static void unfreeze_partials(struct kmem_cache *s)
+ 				l = m;
+ 			}
  
+-		} while (!cmpxchg_double_slab(s, page,
++		} while (!__cmpxchg_double_slab(s, page,
+ 				old.freelist, old.counters,
+ 				new.freelist, new.counters,
+ 				"unfreezing slab"));
+@@ -2163,6 +2167,8 @@ static inline void *new_slab_objects(struct kmem_cache *s, gfp_t flags,
+  * The page is still frozen if the return value is not NULL.
+  *
+  * If this function returns NULL then the page has been unfrozen.
++ *
++ * This function must be called with interrupt disabled.
+  */
+ static inline void *get_freelist(struct kmem_cache *s, struct page *page)
+ {
+@@ -2179,7 +2185,7 @@ static inline void *get_freelist(struct kmem_cache *s, struct page *page)
+ 		new.inuse = page->objects;
+ 		new.frozen = freelist != NULL;
+ 
+-	} while (!cmpxchg_double_slab(s, page,
++	} while (!__cmpxchg_double_slab(s, page,
+ 		freelist, counters,
+ 		NULL, new.counters,
+ 		"get_freelist"));
 -- 
 1.7.9.5
 
