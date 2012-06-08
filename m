@@ -1,54 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx139.postini.com [74.125.245.139])
-	by kanga.kvack.org (Postfix) with SMTP id 8A6306B0070
-	for <linux-mm@kvack.org>; Fri,  8 Jun 2012 10:51:50 -0400 (EDT)
-Date: Fri, 8 Jun 2012 16:51:47 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: memcg cgroup controller & sbrk interaction
-Message-ID: <20120608145147.GA15332@tiehlicka.suse.cz>
-References: <1339118347.78794.YahooMailNeo@web112018.mail.gq1.yahoo.com>
+Received: from psmtp.com (na3sys010amx117.postini.com [74.125.245.117])
+	by kanga.kvack.org (Postfix) with SMTP id 4B1166B006E
+	for <linux-mm@kvack.org>; Fri,  8 Jun 2012 13:03:42 -0400 (EDT)
+Date: Fri, 8 Jun 2012 19:01:52 +0200
+From: Oleg Nesterov <oleg@redhat.com>
+Subject: Re: [patch 12/12] mm: correctly synchronize rss-counters at
+	exit/exec
+Message-ID: <20120608170152.GA30975@redhat.com>
+References: <20120607212114.E4F5AA02F8@akpm.mtv.corp.google.com> <CA+55aFxOWR_h1vqRLAd_h5_woXjFBLyBHP--P8F7WsYrciXdmA@mail.gmail.com> <CA+55aFyQUBXhjVLJH6Fhz9xnpfXZ=9Mej5ujt6ss7VUqT1g9Jg@mail.gmail.com> <alpine.LSU.2.00.1206071759050.1291@eggly.anvils> <4FD1D1F7.2090503@openvz.org> <20120608122459.GB23147@redhat.com> <4FD1FE20.40600@openvz.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <1339118347.78794.YahooMailNeo@web112018.mail.gq1.yahoo.com>
+In-Reply-To: <4FD1FE20.40600@openvz.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ron Chen <ron_chen_123@yahoo.com>
-Cc: Linux Mailing List <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, cgroups mailinglist <cgroups@vger.kernel.org>
+To: Konstantin Khlebnikov <khlebnikov@openvz.org>
+Cc: Hugh Dickins <hughd@google.com>, Linus Torvalds <torvalds@linux-foundation.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, "kamezawa.hiroyu@jp.fujitsu.com" <kamezawa.hiroyu@jp.fujitsu.com>, "markus@trippelsdorf.de" <markus@trippelsdorf.de>, "stable@vger.kernel.org" <stable@vger.kernel.org>
 
-On Thu 07-06-12 18:19:07, Ron Chen wrote:
-[...]
-> However, not only us, but others have found that the memcg controller
-> does not cause sbrk(2) or mmap(2) to return error when the cgroup is
-> under high memory pressure.
+On 06/08, Konstantin Khlebnikov wrote:
+>
+> Oleg Nesterov wrote:
+>> On 06/08, Konstantin Khlebnikov wrote:
+>>>
+>>> As result you can see "BUG: Bad rss-counter state mm:ffff88040783a680 idx:1 val:-1" in dmesg
+>>>
+>>> There left only one problem: nobody calls sync_mm_rss() after put_user() in mm_release().
+>>
+>> Both callers call sync_mm_rss() to make check_mm() happy. But please
+>> see the changelog, I think we should move it into mm_release(). See
+>> the patch below (on top of v2 I sent). I need to recheck.
+>
+> Patch below broken: it removes one hunk from kernel/exit.c twice.
+> And it does not add anything into mm_release().
 
-Yes, because memory controller tracks the allocated memory (with page
-granularity) rather than address space. So the memory is accounted when
-it is faulted in.
+Yes, sorry. But I guess you understand the intent, mm_release() should
+simply do sync_mm_rss() after put_user(clear_child_tid) unconditionally.
 
-> Further, when the amount of free memory is really low, the Linux
-> Kernel OOM killer picks something and kills it.
+If task->mm == NULL but task->rss_stat, then there is something wrong
+and probably OOPS makes sense.
 
-Yes, this is the result of the design when the memory is tracked during
-page faults.
-
-> http://www.spinics.net/lists/cgroups/msg02622.html
-> 
-> 
-> We also would like to see if it is technically possible for the
-> Virtual Memory Manager to interact with the memory controller
-> properly and give us the semantics of setrlimit(2).
-
-What prevents you from using setrlimit from inside the group?
-
--- 
-Michal Hocko
-SUSE Labs
-SUSE LINUX s.r.o.
-Lihovarska 1060/12
-190 00 Praha 9    
-Czech Republic
+Oleg.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
