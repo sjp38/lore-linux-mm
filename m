@@ -1,13 +1,13 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx111.postini.com [74.125.245.111])
-	by kanga.kvack.org (Postfix) with SMTP id CDB4F6B007B
-	for <linux-mm@kvack.org>; Fri,  8 Jun 2012 15:14:54 -0400 (EDT)
-Received: by mail-yw0-f41.google.com with SMTP id 47so2065223yhr.14
-        for <linux-mm@kvack.org>; Fri, 08 Jun 2012 12:14:54 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx122.postini.com [74.125.245.122])
+	by kanga.kvack.org (Postfix) with SMTP id 0FB9F6B007D
+	for <linux-mm@kvack.org>; Fri,  8 Jun 2012 15:14:58 -0400 (EDT)
+Received: by mail-ob0-f169.google.com with SMTP id wd18so3738633obb.14
+        for <linux-mm@kvack.org>; Fri, 08 Jun 2012 12:14:57 -0700 (PDT)
 From: Sasha Levin <levinsasha928@gmail.com>
-Subject: [PATCH v2 06/10] mm: frontswap: make all branches of if statement in put page consistent
-Date: Fri,  8 Jun 2012 21:15:15 +0200
-Message-Id: <1339182919-11432-7-git-send-email-levinsasha928@gmail.com>
+Subject: [PATCH v2 07/10] mm: frontswap: remove unnecessary check during initialization
+Date: Fri,  8 Jun 2012 21:15:16 +0200
+Message-Id: <1339182919-11432-8-git-send-email-levinsasha928@gmail.com>
 In-Reply-To: <1339182919-11432-1-git-send-email-levinsasha928@gmail.com>
 References: <1339182919-11432-1-git-send-email-levinsasha928@gmail.com>
 Sender: owner-linux-mm@kvack.org
@@ -15,40 +15,31 @@ List-ID: <linux-mm.kvack.org>
 To: dan.magenheimer@oracle.com, konrad.wilk@oracle.com
 Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Sasha Levin <levinsasha928@gmail.com>
 
-Currently it has a complex structure where different things are compared
-at each branch. Simplify that and make both branches look similar.
+The check whether frontswap is enabled or not is done in the API functions in
+the frontswap header, before they are passed to the internal
+double-underscored frontswap functions.
+
+Remove the check from __frontswap_init for consistency.
 
 Signed-off-by: Sasha Levin <levinsasha928@gmail.com>
 ---
- mm/frontswap.c |   10 +++++-----
- 1 files changed, 5 insertions(+), 5 deletions(-)
+ mm/frontswap.c |    3 +--
+ 1 files changed, 1 insertions(+), 2 deletions(-)
 
 diff --git a/mm/frontswap.c b/mm/frontswap.c
-index 1f1af0e..ee1763d 100644
+index ee1763d..0319fc5 100644
 --- a/mm/frontswap.c
 +++ b/mm/frontswap.c
-@@ -140,16 +140,16 @@ int __frontswap_store(struct page *page)
- 		inc_frontswap_succ_stores();
- 		if (!dup)
- 			atomic_inc(&sis->frontswap_pages);
--	} else if (dup) {
-+	} else {
- 		/*
- 		  failed dup always results in automatic invalidate of
- 		  the (older) page from frontswap
- 		 */
--		frontswap_clear(sis, offset);
--		atomic_dec(&sis->frontswap_pages);
--		inc_frontswap_failed_stores();
--	} else
- 		inc_frontswap_failed_stores();
-+		if (dup) {
-+			frontswap_clear(sis, offset);
-+			atomic_dec(&sis->frontswap_pages);
-+		}
- 	}
- 	if (frontswap_writethrough_enabled)
- 		/* report failure so swap also writes to swap device */
+@@ -110,8 +110,7 @@ void __frontswap_init(unsigned type)
+ 	BUG_ON(sis == NULL);
+ 	if (sis->frontswap_map == NULL)
+ 		return;
+-	if (frontswap_enabled)
+-		frontswap_ops.init(type);
++	frontswap_ops.init(type);
+ }
+ EXPORT_SYMBOL(__frontswap_init);
+ 
 -- 
 1.7.8.6
 
