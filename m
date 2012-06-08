@@ -1,60 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx156.postini.com [74.125.245.156])
-	by kanga.kvack.org (Postfix) with SMTP id 42DDD6B0062
-	for <linux-mm@kvack.org>; Fri,  8 Jun 2012 16:37:21 -0400 (EDT)
-Date: Fri, 8 Jun 2012 22:37:15 +0200 (CEST)
-From: Thomas Gleixner <tglx@linutronix.de>
+Received: from psmtp.com (na3sys010amx175.postini.com [74.125.245.175])
+	by kanga.kvack.org (Postfix) with SMTP id B34F16B0062
+	for <linux-mm@kvack.org>; Fri,  8 Jun 2012 17:03:35 -0400 (EDT)
+Date: Fri, 8 Jun 2012 17:03:30 -0400
+From: Dave Jones <davej@redhat.com>
 Subject: Re: oomkillers gone wild.
-In-Reply-To: <alpine.DEB.2.00.1206081256330.19054@chino.kir.corp.google.com>
-Message-ID: <alpine.LFD.2.02.1206082232570.3086@ionos>
-References: <20120604152710.GA1710@redhat.com> <alpine.DEB.2.00.1206041629500.7769@chino.kir.corp.google.com> <20120605174454.GA23867@redhat.com> <20120605185239.GA28172@redhat.com> <alpine.DEB.2.00.1206081256330.19054@chino.kir.corp.google.com>
+Message-ID: <20120608210330.GA21010@redhat.com>
+References: <20120604152710.GA1710@redhat.com>
+ <alpine.DEB.2.00.1206041629500.7769@chino.kir.corp.google.com>
+ <20120605174454.GA23867@redhat.com>
+ <alpine.DEB.2.00.1206081313000.19054@chino.kir.corp.google.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.00.1206081313000.19054@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: David Rientjes <rientjes@google.com>
-Cc: Dave Jones <davej@redhat.com>, Linux Kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+Cc: Linux Kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 
-On Fri, 8 Jun 2012, David Rientjes wrote:
-> On Tue, 5 Jun 2012, Dave Jones wrote:
-> 
-> >   OBJS ACTIVE  USE OBJ SIZE  SLABS OBJ/SLAB CACHE SIZE NAME 
-> > 142524 142420  99%    9.67K  47510	  3   1520320K task_struct
-> > 142560 142417  99%    1.75K   7920	 18    253440K signal_cache
-> > 142428 142302  99%    1.19K   5478	 26    175296K task_xstate
-> > 306064 289292  94%    0.36K   6956	 44    111296K debug_objects_cache
-> > 143488 143306  99%    0.50K   4484	 32     71744K cred_jar
-> > 142560 142421  99%    0.50K   4455       32     71280K task_delay_info
-> > 150753 145021  96%    0.45K   4308	 35     68928K kmalloc-128
-> > 
-> > Why so many task_structs ? There's only 128 processes running, and most of them
-> > are kernel threads.
-> > 
-> 
-> Do you have CONFIG_OPROFILE enabled?
-> 
-> > /sys/kernel/slab/task_struct/alloc_calls shows..
-> > 
-> >  142421 copy_process.part.21+0xbb/0x1790 age=8/19929576/48173720 pid=0-16867 cpus=0-7
-> > 
-> > I get the impression that the oom-killer hasn't cleaned up properly after killing some of
-> > those forked processes.
-> > 
-> > any thoughts ?
-> > 
-> 
-> If we're leaking task_struct's, meaning that put_task_struct() isn't 
-> actually freeing them when the refcount goes to 0, then it's certainly not 
-> because of the oom killer which only sends a SIGKILL to the selected 
-> process.
+On Fri, Jun 08, 2012 at 01:15:50PM -0700, David Rientjes wrote:
+ > On Tue, 5 Jun 2012, Dave Jones wrote:
+ > 
+ > > Still doesn't seem right..
+ > > 
+ > > eg..
+ > > 
+ > > [42309.542776] [ pid ]   uid  tgid total_vm      rss cpu oom_adj oom_score_adj name
+ > > ..
+ > > [42309.553933] [  500]    81   500     5435        1   4     -13          -900 dbus-daemon
+ > > ..
+ > > [42309.597531] [ 9054]  1000  9054   528677    14540   3       0             0 trinity-child3
+ > > ..
+ > > 
+ > > [42309.643057] Out of memory: Kill process 500 (dbus-daemon) score 511952 or sacrifice child
+ > > [42309.643620] Killed process 500 (dbus-daemon) total-vm:21740kB, anon-rss:0kB, file-rss:4kB
+ > > 
+ > > and a slew of similar 'wrong process' death spiral kills follows..
+ > > 
+ > 
+ > On a system not under oom conditions, i.e. before you start trinity, can 
+ > you send the output of
+ > 
+ > 	cat /proc/$(pidof dbus-daemon)/oom_score{_adj,}
+ > 	grep RSS /proc/$(pidof dbus-daemon)/status
 
-I rather suspect, that this is a asymetry between get_ and
-put_task_struct and refcount just doesn't go to zero.
+# cat /proc/$(pidof dbus-daemon)/oom_score{_adj,}
+-900
+7441500919753
+# grep RSS /proc/$(pidof dbus-daemon)/status
+VmRSS:	    1660 kB
 
-Thanks,
 
-	tglx
 
+	Dave
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
