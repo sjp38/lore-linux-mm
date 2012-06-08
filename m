@@ -1,48 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx113.postini.com [74.125.245.113])
-	by kanga.kvack.org (Postfix) with SMTP id B05F76B0062
-	for <linux-mm@kvack.org>; Fri,  8 Jun 2012 18:36:53 -0400 (EDT)
-Received: by obbwd18 with SMTP id wd18so4009849obb.14
-        for <linux-mm@kvack.org>; Fri, 08 Jun 2012 15:36:52 -0700 (PDT)
-Message-ID: <1339195083.11360.1.camel@lappy>
-Subject: Re: [PATCH v2 00/10] minor frontswap cleanups and tracing support
-From: Sasha Levin <levinsasha928@gmail.com>
-Date: Sat, 09 Jun 2012 00:38:03 +0200
-In-Reply-To: <20120608220422.GA15294@localhost.localdomain>
-References: <1339182919-11432-1-git-send-email-levinsasha928@gmail.com>
-	 <20120608220422.GA15294@localhost.localdomain>
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx116.postini.com [74.125.245.116])
+	by kanga.kvack.org (Postfix) with SMTP id EE0686B0062
+	for <linux-mm@kvack.org>; Fri,  8 Jun 2012 19:06:13 -0400 (EDT)
+Date: Fri, 8 Jun 2012 16:06:12 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH -V6 07/14] memcg: Add HugeTLB extension
+Message-Id: <20120608160612.dea6d1ce.akpm@linux-foundation.org>
+In-Reply-To: <87lik920h8.fsf@skywalker.in.ibm.com>
+References: <1334573091-18602-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+	<1334573091-18602-8-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+	<alpine.DEB.2.00.1205241436180.24113@chino.kir.corp.google.com>
+	<20120527202848.GC7631@skywalker.linux.vnet.ibm.com>
+	<87lik920h8.fsf@skywalker.in.ibm.com>
 Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Konrad Rzeszutek Wilk <konrad@darnok.org>
-Cc: dan.magenheimer@oracle.com, konrad.wilk@oracle.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Cc: David Rientjes <rientjes@google.com>, linux-mm@kvack.org, mgorman@suse.de, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, dhillf@gmail.com, aarcange@redhat.com, mhocko@suse.cz, hannes@cmpxchg.org, linux-kernel@vger.kernel.org, cgroups@vger.kernel.orgMichal Hocko <mhocko@suse.cz>, Ying Han <yinghan@google.com>
 
-On Fri, 2012-06-08 at 18:04 -0400, Konrad Rzeszutek Wilk wrote:
-> On Fri, Jun 08, 2012 at 09:15:09PM +0200, Sasha Levin wrote:
-> > Most of these patches are minor cleanups to the mm/frontswap.c code, the big
-> > chunk of new code can be attributed to the new tracing support.
-> > 
-> > 
-> > Changes in v2:
-> >  - Rebase to current version
-> >  - Address Konrad's comments
+On Wed, 30 May 2012 20:13:31 +0530
+"Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com> wrote:
+
+> >> 
+> >>  - code: seperating hugetlb bits out from memcg bits to avoid growing 
+> >>    mm/memcontrol.c beyond its current 5650 lines, and
+> >> 
+> >
+> > I can definitely look at spliting mm/memcontrol.c 
+> >
+> >
+> >>  - performance: not incurring any overhead of enabling memcg for per-
+> >>    page tracking that is unnecessary if users only want to limit hugetlb 
+> >>    pages.
+> >> 
 > 
-> There was one comment that I am not sure if it was emailed and that
-> was about adding the "lockdep_assert_held(&swap_lock);".
+> Since Andrew didn't sent the patchset to Linus because of this
+> discussion, I looked at reworking the patchset as a seperate
+> controller. The patchset I sent here
 > 
-> You added that in two patches, while the git commit only talks about
-> "move that code" . Please remove it out of the "move the code" patches
-> and add it as a seperate git commit with an explanation of why it
-> is added.
+> http://thread.gmane.org/gmane.linux.kernel.mm/79230
+> 
+> have seen minimal testing. I also folded the fixup patches
+> Andrew had in -mm to original patchset.
+> 
+> Let me know if the changes looks good.
 
-argh, I forgot to comment on that as well. Sorry.
+This is starting to be a problem.  I'm still sitting on the old version
+of this patchset and it will start to get in the way of other work.
 
-> Otherwise (well, the compile issue that was spotted) the patches
-> look great. Could you repost them with those two fixes please?
+We now have this new version of the patchset which implements a
+separate controller but it is unclear to me which way we want to go.
 
-Will do.
+Can the memcg developers please drop everything else and make a
+decision here?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
