@@ -1,41 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx102.postini.com [74.125.245.102])
-	by kanga.kvack.org (Postfix) with SMTP id 7A98A6B0071
-	for <linux-mm@kvack.org>; Fri,  8 Jun 2012 04:16:17 -0400 (EDT)
-From: <leonid.moiseichuk@nokia.com>
-Subject: RE: [PATCH 2/5] vmevent: Convert from deferred timer to deferred
- work
-Date: Fri, 8 Jun 2012 08:16:04 +0000
-Message-ID: <84FF21A720B0874AA94B46D76DB98269045F7A24@008-AM1MPN1-004.mgdnok.nokia.com>
-References: <20120601122118.GA6128@lizard>
- <1338553446-22292-2-git-send-email-anton.vorontsov@linaro.org>
- <4FD170AA.10705@gmail.com> <20120608065828.GA1515@lizard>
- <84FF21A720B0874AA94B46D76DB98269045F7890@008-AM1MPN1-004.mgdnok.nokia.com>
- <20120608075844.GA6362@lizard>
-In-Reply-To: <20120608075844.GA6362@lizard>
-Content-Language: en-US
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: base64
+Received: from psmtp.com (na3sys010amx166.postini.com [74.125.245.166])
+	by kanga.kvack.org (Postfix) with SMTP id E1F826B006E
+	for <linux-mm@kvack.org>; Fri,  8 Jun 2012 04:40:37 -0400 (EDT)
+Received: by eaan1 with SMTP id n1so1210682eaa.14
+        for <linux-mm@kvack.org>; Fri, 08 Jun 2012 01:40:36 -0700 (PDT)
+Date: Fri, 8 Jun 2012 10:40:33 +0200
+From: Simon Baatz <gmbnomis@gmail.com>
+Subject: Re: [PATCH] shmem: replace_page must flush_dcache and others
+Message-ID: <20120608084033.GA21818@schnuecks.de>
+References: <alpine.LSU.2.00.1205311524160.4512@eggly.anvils>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.LSU.2.00.1205311524160.4512@eggly.anvils>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: anton.vorontsov@linaro.org
-Cc: kosaki.motohiro@gmail.com, penberg@kernel.org, b.zolnierkie@samsung.com, john.stultz@linaro.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linaro-kernel@lists.linaro.org, patches@linaro.org, kernel-team@android.com
+To: Hugh Dickins <hughd@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Christoph Hellwig <hch@infradead.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Alan Cox <alan@lxorguk.ukuu.org.uk>, Stephane Marchesin <marcheu@chromium.org>, Andi Kleen <andi@firstfloor.org>, Dave Airlie <airlied@gmail.com>, Daniel Vetter <daniel@ffwll.ch>, Rob Clark <rob.clark@linaro.org>, Cong Wang <xiyou.wangcong@gmail.com>, linux-mm@kvack.org, linux-fsdevel@kernel.org, linux-kernel@vger.kernel.org
 
-PiAtLS0tLU9yaWdpbmFsIE1lc3NhZ2UtLS0tLQ0KPiBGcm9tOiBleHQgQW50b24gVm9yb250c292
-IFttYWlsdG86YW50b24udm9yb250c292QGxpbmFyby5vcmddDQo+IFNlbnQ6IDA4IEp1bmUsIDIw
-MTIgMTA6NTkNCi4uLiANCj4gYSkgVHdvIG1vcmUgY29udGV4dCBzd3RpY2hlczsNCj4gYikgU2Vy
-aWFsaXphdGlvbi9kZXNlcmlhbGl6YXRpb24gb2YgL3Byb2Mvdm1zdGF0Lg0KPiANCj4gPiBJdCBh
-bHNvIHdpbGwgY2F1c2UgcGFnZSB0cmFzaGluZyBiZWNhdXNlIHVzZXItc3BhY2UgY29kZSBjb3Vs
-ZCBiZSBwdXNoZWQNCj4gb3V0IGZyb20gY2FjaGUgaWYgVk0gZGVjaWRlLg0KPiANCj4gVGhpcyBj
-YW4gc29sdmVkIGJ5IG1vdmluZyBhICJ3YXRjaGVyIiB0byBhIHNlcGFyYXRlIChkYWVtb24pIHBy
-b2Nlc3MsIGFuZA0KPiBtbG9ja2luZyBpdC4gV2UgZG8gdGhpcyBpbiB1bG1rZC4NCg0KUmlnaHQu
-IEl0IGJ1dCBpdCBoYXMgZHJhd2JhY2tzIGFzIHdlbGwgZS5nLiBlbnN1cmUgdGhhdCBkYWVtb24g
-c2NoZWR1bGVkIHByb3Blcmx5IGFuZCBwcm9wYWdhdGUgcmVhY3Rpb24gZGVjaXNpb24gb3V0c2lk
-ZSB1bG1rZC4NCkFsc28gSSB1bmRlcnN0YW5kIHlvdXIgc3RhdGVtZW50IGFib3V0ICJ3YXRjaGVy
-IiBhcyBwcm9iYWJseSB5b3UgdXNlIG9uZSB0aW1lciBmb3IgZGFlbW9uLiANCkJ0dywgaW4gbXkg
-dmFyaWFudCAobWVtbm90aWZ5LmMpIEkgdXNlZCBvbmx5IG9uZSB0aW1lciwgaXQgaXMgZW5vdWdo
-Lg0K
+Hi Hugh,
+
+On Thu, May 31, 2012 at 03:31:27PM -0700, Hugh Dickins wrote:
+> * shmem_replace_page must flush_dcache_page after copy_highpage [akpm]
+
+>  
+> -	*pagep = newpage;
+>  	page_cache_get(newpage);
+>  	copy_highpage(newpage, oldpage);
+> +	flush_dcache_page(newpage);
+>  
+
+Couldn't we use the lighter flush_kernel_dcache_page() here (like in
+fs/exec.c copy_strings())?  If I got this correctly, the page is
+copied via the kernel mapping and thus, only the kernel mapping needs
+to be flushed.
+
+- Simon
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
