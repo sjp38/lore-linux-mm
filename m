@@ -1,62 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx173.postini.com [74.125.245.173])
-	by kanga.kvack.org (Postfix) with SMTP id B6BF26B006E
-	for <linux-mm@kvack.org>; Fri,  8 Jun 2012 03:13:14 -0400 (EDT)
-Received: by dakp5 with SMTP id p5so2414050dak.14
-        for <linux-mm@kvack.org>; Fri, 08 Jun 2012 00:13:14 -0700 (PDT)
-Message-ID: <4FD1A5FE.7020305@vflare.org>
-Date: Fri, 08 Jun 2012 00:13:02 -0700
-From: Nitin Gupta <ngupta@vflare.org>
+Received: from psmtp.com (na3sys010amx122.postini.com [74.125.245.122])
+	by kanga.kvack.org (Postfix) with SMTP id 10A986B006E
+	for <linux-mm@kvack.org>; Fri,  8 Jun 2012 03:19:11 -0400 (EDT)
+From: <leonid.moiseichuk@nokia.com>
+Subject: RE: [PATCH 2/5] vmevent: Convert from deferred timer to deferred
+ work
+Date: Fri, 8 Jun 2012 07:18:57 +0000
+Message-ID: <84FF21A720B0874AA94B46D76DB98269045F78E1@008-AM1MPN1-004.mgdnok.nokia.com>
+References: <20120601122118.GA6128@lizard>
+ <1338553446-22292-2-git-send-email-anton.vorontsov@linaro.org>
+ <4FD170AA.10705@gmail.com> <20120608065828.GA1515@lizard>
+ <84FF21A720B0874AA94B46D76DB98269045F7890@008-AM1MPN1-004.mgdnok.nokia.com>
+ <CAHGf_=rHGotkPYJt65wv+ZDNeO2x+3c5sA8oJmGJX8ehsMHqoA@mail.gmail.com>
+In-Reply-To: <CAHGf_=rHGotkPYJt65wv+ZDNeO2x+3c5sA8oJmGJX8ehsMHqoA@mail.gmail.com>
+Content-Language: en-US
+Content-Type: text/plain; charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-Subject: Re: [PATCH v3] zsmalloc: zsmalloc: use unsigned long instead of void
- *
-References: <1339137567-29656-1-git-send-email-minchan@kernel.org>
-In-Reply-To: <1339137567-29656-1-git-send-email-minchan@kernel.org>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Dan Magenheimer <dan.magenheimer@oracle.com>
+To: kosaki.motohiro@gmail.com
+Cc: anton.vorontsov@linaro.org, penberg@kernel.org, b.zolnierkie@samsung.com, john.stultz@linaro.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linaro-kernel@lists.linaro.org, patches@linaro.org, kernel-team@android.com
 
-On 06/07/2012 11:39 PM, Minchan Kim wrote:
+> -----Original Message-----
+> From: ext KOSAKI Motohiro [mailto:kosaki.motohiro@gmail.com]
+> Sent: 08 June, 2012 10:11
+..
+> No. I don't suggest to wake up every 100ms. I suggest to integrate existi=
+ng
+> subsystems. If you need any enhancement, just do it.
+That will be non-trivial to hook all vmstat updates . Simple to use deferre=
+d timer.
 
-> We should use unsigned long as handle instead of void * to avoid any
-> confusion. Without this, users may just treat zs_malloc return value as
-> a pointer and try to deference it.
-> 
-> This patch passed compile test(zram, zcache and ramster) and zram is
-> tested on qemu.
-> 
-> changelog
->   * from v2
-> 	- remove hval pointed out by Nitin
-> 	- based on next-20120607
->   * from v1
-> 	- change zcache's zv_create return value
-> 	- baesd on next-20120604
-> 
-> Cc: Nitin Gupta <ngupta@vflare.org>
-> Cc: Dan Magenheimer <dan.magenheimer@oracle.com>
-> Acked-by: Seth Jennings <sjenning@linux.vnet.ibm.com>
-> Acked-by: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
-> Signed-off-by: Minchan Kim <minchan@kernel.org>
-> ---
->  drivers/staging/zcache/zcache-main.c     |   12 ++++++------
->  drivers/staging/zram/zram_drv.c          |   16 ++++++++--------
->  drivers/staging/zram/zram_drv.h          |    2 +-
->  drivers/staging/zsmalloc/zsmalloc-main.c |   28 +++++++++++++---------------
->  drivers/staging/zsmalloc/zsmalloc.h      |    8 ++++----
->  5 files changed, 32 insertions(+), 34 deletions(-)
-> 
+> > It also will cause page trashing because user-space code could be pushe=
+d
+> out from cache if VM decide.
+>=20
+> This is completely unrelated issue. Even if notification code is not swap=
+ped,
+> userland notify handling code still may be swapped. So, if you must avoid
+> swap, you must use mlock.
 
-
-Thanks for all these fixes and cleanups.
-
-Acked-by: Nitin Gupta <ngupta@vflare.org>
-
-Thanks,
-Nitin
+If you wakeup only by signal when memory situation changed you can be not m=
+locked.
+Mlocking uses memory very inefficient way and usually cannot be applied for=
+ apps which wants to be notified due to resources restrictions.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
