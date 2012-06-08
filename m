@@ -1,63 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx182.postini.com [74.125.245.182])
-	by kanga.kvack.org (Postfix) with SMTP id 1A96F6B006E
-	for <linux-mm@kvack.org>; Fri,  8 Jun 2012 07:16:03 -0400 (EDT)
-Received: by dakp5 with SMTP id p5so2767115dak.14
-        for <linux-mm@kvack.org>; Fri, 08 Jun 2012 04:16:02 -0700 (PDT)
-Date: Fri, 8 Jun 2012 04:14:21 -0700
+Received: from psmtp.com (na3sys010amx206.postini.com [74.125.245.206])
+	by kanga.kvack.org (Postfix) with SMTP id 9392E6B006C
+	for <linux-mm@kvack.org>; Fri,  8 Jun 2012 08:15:20 -0400 (EDT)
+Received: by dakp5 with SMTP id p5so2847034dak.14
+        for <linux-mm@kvack.org>; Fri, 08 Jun 2012 05:15:19 -0700 (PDT)
+Date: Fri, 8 Jun 2012 05:13:34 -0700
 From: Anton Vorontsov <anton.vorontsov@linaro.org>
-Subject: Re: [PATCH 0/5] Some vmevent fixes...
-Message-ID: <20120608111421.GA18696@lizard>
-References: <4FCD14F1.1030105@gmail.com>
- <CAOJsxLHR4wSgT2hNfOB=X6ud0rXgYg+h7PTHzAZYCUdLs6Ktug@mail.gmail.com>
- <20120605083921.GA21745@lizard>
- <4FD014D7.6000605@kernel.org>
- <20120608074906.GA27095@lizard>
- <4FD1BB29.1050805@kernel.org>
- <CAOJsxLHPvg=bsv+GakFGHyJwH0BoGA=fmzy5bwqWKNGryYTDtg@mail.gmail.com>
- <84FF21A720B0874AA94B46D76DB98269045F7B42@008-AM1MPN1-004.mgdnok.nokia.com>
- <20120608094507.GA11963@lizard>
- <20120608104204.GA2185@barrios>
+Subject: Re: [PATCH 2/5] vmevent: Convert from deferred timer to deferred work
+Message-ID: <20120608121334.GA20772@lizard>
+References: <1338553446-22292-2-git-send-email-anton.vorontsov@linaro.org>
+ <4FD170AA.10705@gmail.com>
+ <20120608065828.GA1515@lizard>
+ <84FF21A720B0874AA94B46D76DB98269045F7890@008-AM1MPN1-004.mgdnok.nokia.com>
+ <20120608075844.GA6362@lizard>
+ <84FF21A720B0874AA94B46D76DB98269045F7A24@008-AM1MPN1-004.mgdnok.nokia.com>
+ <20120608084105.GA9883@lizard>
+ <84FF21A720B0874AA94B46D76DB98269045F7B01@008-AM1MPN1-004.mgdnok.nokia.com>
+ <20120608103501.GA15827@lizard>
+ <84FF21A720B0874AA94B46D76DB98269045F7C35@008-AM1MPN1-004.mgdnok.nokia.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=utf-8
 Content-Disposition: inline
-In-Reply-To: <20120608104204.GA2185@barrios>
+In-Reply-To: <84FF21A720B0874AA94B46D76DB98269045F7C35@008-AM1MPN1-004.mgdnok.nokia.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: leonid.moiseichuk@nokia.com, penberg@kernel.org, kosaki.motohiro@gmail.com, john.stultz@linaro.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linaro-kernel@lists.linaro.org, patches@linaro.org, kernel-team@android.com
+To: leonid.moiseichuk@nokia.com
+Cc: kosaki.motohiro@gmail.com, penberg@kernel.org, b.zolnierkie@samsung.com, john.stultz@linaro.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linaro-kernel@lists.linaro.org, patches@linaro.org, kernel-team@android.com
 
-On Fri, Jun 08, 2012 at 07:42:04PM +0900, Minchan Kim wrote:
-[...]
-> I can't understand. Why can't the approach catch the situation?
-> Let's think about it.
+On Fri, Jun 08, 2012 at 11:03:29AM +0000, leonid.moiseichuk@nokia.com wrote:
+> > -----Original Message-----
+> > From: ext Anton Vorontsov [mailto:cbouatmailru@gmail.com]
+> > Sent: 08 June, 2012 13:35
+> ...
+> > > Context switches, parsing, activity in userspace even memory situation is
+> > not changed.
+> > 
+> > Sure, there is some additional overhead. I'm just saying that it is not drastic. It
+> > would be like 100 sprintfs + 100 sscanfs + 2 context switches? Well, it is
+> > unfortunate... but come on, today's phones are running X11 and Java. :-)
 > 
-> There is 40M in CleanCache LRU which has easy-reclaimable pages and
-> there is 10M free pages and 5M high watermark in system.
+> Vmstat generation is not so trivial. Meminfo has even higher overhead. I just checked generation time using idling device and open/read test:
+> - vmstat min 30, avg 94 max 2746 uSeconds
+> - meminfo min 30, average 65 max 15961 uSeconds
 > 
-> Your application start to consume free pages very slowly.
-> So when your application consumed 5M, VM start to reclaim. So far, it's okay
-> because we have 40M easy-reclaimable pages. And low memory notifier can start
-> to notify so your dameon can do some action to get free pages.
+> In comparison /proc/version for the same conditions: min 30, average 41, max 1505 uSeconds
 
-Maybe I'm missing how would you use the shrinker. But the last time
-I tried on my (swap-less, FWIW) qemu test setup, I was not receiving
-any notifications from the shrinker until the system was almost
-(but not exactly) out of memory.
+Hm. I would expect that avg value for meminfo will be much worse
+than vmstat (meminfo grabs some locks).
 
-My test app was allocating all memory MB by MB, filling the memory
-with zeroes. So, what I was observing is that shrinker callback was
-called just a few MB before OOM, not every 'X' consumed MBs.
+OK, if we consider 100ms interval, then this would be like 0.1%
+overhead? Not great, but still better than memcg:
 
-> I think it's not so late.
+http://lkml.org/lkml/2011/12/21/487 
+
+:-)
+
+Personally? I'm all for saving these 0.1% tho, I'm all for vmevent.
+But, for example, it's still broken for SMP as it is costly to
+update vm_stat. And I see no way to fix this.
+
+So, I guess the right approach would be to find ways to not depend on
+frequent vm_stat updates (and thus reads).
+
+userland deferred timers (and infrequent reads from vmstat) +
+"userland vm pressure notifications" looks promising for the userland
+solution.
+
+For in-kernel solution it is all the same, a deferred timer that
+reads vm_stat occasionally (no pressure case) + in-kernel shrinker
+notifications for fast reaction under pressure.
+
+> > > In kernel space you can use sliding timer (increasing interval) + shinker.
+> > 
+> > Well, w/ Minchan's idea, we can get shrinker notifications into the userland,
+> > so the sliding timer thing would be still possible.
 > 
-> sidenote:
-> It seems I live in the complete opposite place because
-> you guys always start discussion when I am about going out of office.
-> Please understand my late response.
-> Maybe I will come back after weekend. :)
+> Only as a post-schrinker actions. In case of memory stressing or
+> close-to-stressing conditions shrinkers called very often, I saw up to
+> 50 times per second.
 
-Well, it's 4AM here. :-) Have a great weekend!
+Well, yes. But in userland you would just poll/select on the shrinker
+notification fd, you won't get more than you can (or want to) process.
 
 -- 
 Anton Vorontsov
