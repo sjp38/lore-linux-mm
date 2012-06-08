@@ -1,45 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx117.postini.com [74.125.245.117])
-	by kanga.kvack.org (Postfix) with SMTP id 4B1166B006E
-	for <linux-mm@kvack.org>; Fri,  8 Jun 2012 13:03:42 -0400 (EDT)
-Date: Fri, 8 Jun 2012 19:01:52 +0200
-From: Oleg Nesterov <oleg@redhat.com>
-Subject: Re: [patch 12/12] mm: correctly synchronize rss-counters at
-	exit/exec
-Message-ID: <20120608170152.GA30975@redhat.com>
-References: <20120607212114.E4F5AA02F8@akpm.mtv.corp.google.com> <CA+55aFxOWR_h1vqRLAd_h5_woXjFBLyBHP--P8F7WsYrciXdmA@mail.gmail.com> <CA+55aFyQUBXhjVLJH6Fhz9xnpfXZ=9Mej5ujt6ss7VUqT1g9Jg@mail.gmail.com> <alpine.LSU.2.00.1206071759050.1291@eggly.anvils> <4FD1D1F7.2090503@openvz.org> <20120608122459.GB23147@redhat.com> <4FD1FE20.40600@openvz.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <4FD1FE20.40600@openvz.org>
+Received: from psmtp.com (na3sys010amx170.postini.com [74.125.245.170])
+	by kanga.kvack.org (Postfix) with SMTP id 197866B006E
+	for <linux-mm@kvack.org>; Fri,  8 Jun 2012 13:25:00 -0400 (EDT)
+Received: by dakp5 with SMTP id p5so3276710dak.14
+        for <linux-mm@kvack.org>; Fri, 08 Jun 2012 10:24:59 -0700 (PDT)
+From: Joonsoo Kim <js1304@gmail.com>
+Subject: [PATCH 1/4] slub: change declare of get_slab() to inline at all times
+Date: Sat,  9 Jun 2012 02:23:14 +0900
+Message-Id: <1339176197-13270-1-git-send-email-js1304@gmail.com>
+In-Reply-To: <yes>
+References: <yes>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Konstantin Khlebnikov <khlebnikov@openvz.org>
-Cc: Hugh Dickins <hughd@google.com>, Linus Torvalds <torvalds@linux-foundation.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, "kamezawa.hiroyu@jp.fujitsu.com" <kamezawa.hiroyu@jp.fujitsu.com>, "markus@trippelsdorf.de" <markus@trippelsdorf.de>, "stable@vger.kernel.org" <stable@vger.kernel.org>
+To: Pekka Enberg <penberg@kernel.org>
+Cc: Christoph Lameter <cl@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Joonsoo Kim <js1304@gmail.com>
 
-On 06/08, Konstantin Khlebnikov wrote:
->
-> Oleg Nesterov wrote:
->> On 06/08, Konstantin Khlebnikov wrote:
->>>
->>> As result you can see "BUG: Bad rss-counter state mm:ffff88040783a680 idx:1 val:-1" in dmesg
->>>
->>> There left only one problem: nobody calls sync_mm_rss() after put_user() in mm_release().
->>
->> Both callers call sync_mm_rss() to make check_mm() happy. But please
->> see the changelog, I think we should move it into mm_release(). See
->> the patch below (on top of v2 I sent). I need to recheck.
->
-> Patch below broken: it removes one hunk from kernel/exit.c twice.
-> And it does not add anything into mm_release().
+__kmalloc and it's variants are invoked much frequently
+and these are performance critical functions,
+so their callee functions are declared '__always_inline'
+But, currently, get_slab() isn't declared '__always_inline'.
+In result, __kmalloc and it's variants call get_slab() on x86.
+It is not desirable result, so change it to inline at all times.
 
-Yes, sorry. But I guess you understand the intent, mm_release() should
-simply do sync_mm_rss() after put_user(clear_child_tid) unconditionally.
+Signed-off-by: Joonsoo Kim <js1304@gmail.com>
 
-If task->mm == NULL but task->rss_stat, then there is something wrong
-and probably OOPS makes sense.
-
-Oleg.
+diff --git a/mm/slub.c b/mm/slub.c
+index 71de9b5..30ceb6d 100644
+--- a/mm/slub.c
++++ b/mm/slub.c
+@@ -3320,7 +3320,7 @@ static inline int size_index_elem(size_t bytes)
+ 	return (bytes - 1) / 8;
+ }
+ 
+-static struct kmem_cache *get_slab(size_t size, gfp_t flags)
++static __always_inline struct kmem_cache *get_slab(size_t size, gfp_t flags)
+ {
+ 	int index;
+ 
+-- 
+1.7.9.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
