@@ -1,49 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx203.postini.com [74.125.245.203])
-	by kanga.kvack.org (Postfix) with SMTP id 8A12D6B006C
-	for <linux-mm@kvack.org>; Fri,  8 Jun 2012 08:25:21 -0400 (EDT)
-From: <leonid.moiseichuk@nokia.com>
-Subject: RE: [PATCH 2/5] vmevent: Convert from deferred timer to deferred
- work
-Date: Fri, 8 Jun 2012 12:25:11 +0000
-Message-ID: <84FF21A720B0874AA94B46D76DB98269045F7D2B@008-AM1MPN1-004.mgdnok.nokia.com>
-References: <1338553446-22292-2-git-send-email-anton.vorontsov@linaro.org>
- <4FD170AA.10705@gmail.com> <20120608065828.GA1515@lizard>
- <84FF21A720B0874AA94B46D76DB98269045F7890@008-AM1MPN1-004.mgdnok.nokia.com>
- <20120608075844.GA6362@lizard>
- <84FF21A720B0874AA94B46D76DB98269045F7A24@008-AM1MPN1-004.mgdnok.nokia.com>
- <20120608084105.GA9883@lizard>
- <84FF21A720B0874AA94B46D76DB98269045F7B01@008-AM1MPN1-004.mgdnok.nokia.com>
- <20120608103501.GA15827@lizard>
- <84FF21A720B0874AA94B46D76DB98269045F7C35@008-AM1MPN1-004.mgdnok.nokia.com>
- <20120608121334.GA20772@lizard>
-In-Reply-To: <20120608121334.GA20772@lizard>
-Content-Language: en-US
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: base64
+Received: from psmtp.com (na3sys010amx201.postini.com [74.125.245.201])
+	by kanga.kvack.org (Postfix) with SMTP id 1C2AB6B006C
+	for <linux-mm@kvack.org>; Fri,  8 Jun 2012 08:26:46 -0400 (EDT)
+Date: Fri, 8 Jun 2012 14:24:59 +0200
+From: Oleg Nesterov <oleg@redhat.com>
+Subject: Re: [patch 12/12] mm: correctly synchronize rss-counters at
+	exit/exec
+Message-ID: <20120608122459.GB23147@redhat.com>
+References: <20120607212114.E4F5AA02F8@akpm.mtv.corp.google.com> <CA+55aFxOWR_h1vqRLAd_h5_woXjFBLyBHP--P8F7WsYrciXdmA@mail.gmail.com> <CA+55aFyQUBXhjVLJH6Fhz9xnpfXZ=9Mej5ujt6ss7VUqT1g9Jg@mail.gmail.com> <alpine.LSU.2.00.1206071759050.1291@eggly.anvils> <4FD1D1F7.2090503@openvz.org>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <4FD1D1F7.2090503@openvz.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: anton.vorontsov@linaro.org
-Cc: kosaki.motohiro@gmail.com, penberg@kernel.org, b.zolnierkie@samsung.com, john.stultz@linaro.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linaro-kernel@lists.linaro.org, patches@linaro.org, kernel-team@android.com
+To: Konstantin Khlebnikov <khlebnikov@openvz.org>
+Cc: Hugh Dickins <hughd@google.com>, Linus Torvalds <torvalds@linux-foundation.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, "kamezawa.hiroyu@jp.fujitsu.com" <kamezawa.hiroyu@jp.fujitsu.com>, "markus@trippelsdorf.de" <markus@trippelsdorf.de>, "stable@vger.kernel.org" <stable@vger.kernel.org>
 
-PiAtLS0tLU9yaWdpbmFsIE1lc3NhZ2UtLS0tLQ0KPiBGcm9tOiBleHQgQW50b24gVm9yb250c292
-IFttYWlsdG86YW50b24udm9yb250c292QGxpbmFyby5vcmddDQo+IFNlbnQ6IDA4IEp1bmUsIDIw
-MTIgMTU6MTQNCj4gVG86IE1vaXNlaWNodWsgTGVvbmlkIChOb2tpYS1NUC9Fc3BvbykNCi4uLg0K
-PiBIbS4gSSB3b3VsZCBleHBlY3QgdGhhdCBhdmcgdmFsdWUgZm9yIG1lbWluZm8gd2lsbCBiZSBt
-dWNoIHdvcnNlIHRoYW4NCj4gdm1zdGF0IChtZW1pbmZvIGdyYWJzIHNvbWUgbG9ja3MpLg0KPiAN
-Cj4gT0ssIGlmIHdlIGNvbnNpZGVyIDEwMG1zIGludGVydmFsLCB0aGVuIHRoaXMgd291bGQgYmUg
-bGlrZSAwLjElIG92ZXJoZWFkPw0KPiBOb3QgZ3JlYXQsIGJ1dCBzdGlsbCBiZXR0ZXIgdGhhbiBt
-ZW1jZzoNCj4gDQo+IGh0dHA6Ly9sa21sLm9yZy9sa21sLzIwMTEvMTIvMjEvNDg3DQoNClRoYXQg
-aXMgZGlmZmljdWx0IHRvIHdpbiBvdmVyIG1lbWNnIDopDQpCdXQgaW4gY29tcGFyaXNvbiB0byBv
-bmUgc3lzY2FsbCBsaWtlIHJlYWQoKSBmb3Igc21hbGwgc3RydWN0dXJlIGZvciBwYXJ0aWN1bGFy
-IGRldmljZSB0aGUgZ2VuZXJhdGlvbiBvZiBtZW1pbmZvIGlzIGFib3V0IDEwMDB4IHRpbWVzIG1v
-cmUgZXhwZW5zaXZlLg0KDQo+IFNvLCBJIGd1ZXNzIHRoZSByaWdodCBhcHByb2FjaCB3b3VsZCBi
-ZSB0byBmaW5kIHdheXMgdG8gbm90IGRlcGVuZCBvbg0KPiBmcmVxdWVudCB2bV9zdGF0IHVwZGF0
-ZXMgKGFuZCB0aHVzIHJlYWRzKS4NCg0KQWdyZWUuDQoNCj4gdXNlcmxhbmQgZGVmZXJyZWQgdGlt
-ZXJzIChhbmQgaW5mcmVxdWVudCByZWFkcyBmcm9tIHZtc3RhdCkgKyAidXNlcmxhbmQgdm0NCj4g
-cHJlc3N1cmUgbm90aWZpY2F0aW9ucyIgbG9va3MgcHJvbWlzaW5nIGZvciB0aGUgdXNlcmxhbmQg
-c29sdXRpb24uDQo=
+On 06/08, Konstantin Khlebnikov wrote:
+>
+> As result you can see "BUG: Bad rss-counter state mm:ffff88040783a680 idx:1 val:-1" in dmesg
+>
+> There left only one problem: nobody calls sync_mm_rss() after put_user() in mm_release().
+
+Both callers call sync_mm_rss() to make check_mm() happy. But please
+see the changelog, I think we should move it into mm_release(). See
+the patch below (on top of v2 I sent). I need to recheck.
+
+As for xacct_add_tsk(), yes it can "miss" that put_user(). But this
+is what we have now, I think we do not care.
+
+Oleg.
+
+--- x/fs/exec.c
++++ x/fs/exec.c
+@@ -822,7 +822,6 @@ static int exec_mmap(struct mm_struct *m
+ 	mm_release(tsk, old_mm);
+ 
+ 	if (old_mm) {
+-		sync_mm_rss(old_mm);
+ 		/*
+ 		 * Make sure that if there is a core dump in progress
+ 		 * for the old mm, we get out and die instead of going
+--- x/kernel/exit.c
++++ x/kernel/exit.c
+@@ -656,7 +656,6 @@ static void exit_mm(struct task_struct *
+ 	if (!mm)
+ 		return;
+ 
+-	sync_mm_rss(mm);
+ 	/*
+ 	 * Serialize with any possible pending coredump.
+ 	 * We must hold mmap_sem around checking core_state
+--- x/kernel/taskstats.c
++++ x/kernel/taskstats.c
+@@ -630,8 +630,7 @@ void taskstats_exit(struct task_struct *
+ 	if (!stats)
+ 		goto err;
+ 
+-	if (tsk->mm)
+-		sync_mm_rss(tsk->mm);
++	sync_mm_rss(tsk->mm);
+ 	fill_stats(tsk, stats);
+ 
+ 	/*
+--- x/kernel/exit.c
++++ x/kernel/exit.c
+@@ -656,7 +656,6 @@ static void exit_mm(struct task_struct *
+ 	if (!mm)
+ 		return;
+ 
+-	sync_mm_rss(mm);
+ 	/*
+ 	 * Serialize with any possible pending coredump.
+ 	 * We must hold mmap_sem around checking core_state
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
