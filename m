@@ -1,79 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx135.postini.com [74.125.245.135])
-	by kanga.kvack.org (Postfix) with SMTP id 524276B006E
-	for <linux-mm@kvack.org>; Thu,  7 Jun 2012 22:32:24 -0400 (EDT)
-Received: by qcsd16 with SMTP id d16so801511qcs.14
-        for <linux-mm@kvack.org>; Thu, 07 Jun 2012 19:32:23 -0700 (PDT)
-Message-ID: <4FD16436.1010502@gmail.com>
-Date: Thu, 07 Jun 2012 22:32:22 -0400
+Received: from psmtp.com (na3sys010amx165.postini.com [74.125.245.165])
+	by kanga.kvack.org (Postfix) with SMTP id 3BBBF6B006E
+	for <linux-mm@kvack.org>; Thu,  7 Jun 2012 23:10:29 -0400 (EDT)
+Received: by qafl39 with SMTP id l39so651078qaf.9
+        for <linux-mm@kvack.org>; Thu, 07 Jun 2012 20:10:28 -0700 (PDT)
+Message-ID: <4FD16D21.9000106@gmail.com>
+Date: Thu, 07 Jun 2012 23:10:25 -0400
 From: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 1/3] proc: add /proc/kpageorder interface
-References: <201206011854.25795.b.zolnierkie@samsung.com> <201206041023.22937.b.zolnierkie@samsung.com> <4FCD0D0D.9050003@gmail.com> <201206061023.13237.b.zolnierkie@samsung.com>
-In-Reply-To: <201206061023.13237.b.zolnierkie@samsung.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Subject: Re: [PATCH] mm: fix ununiform page status when writing new file with
+ small buffer
+References: <1338982770-2856-1-git-send-email-hao.bigrat@gmail.com>
+In-Reply-To: <1338982770-2856-1-git-send-email-hao.bigrat@gmail.com>
+Content-Type: text/plain; charset=ISO-2022-JP
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>
-Cc: KOSAKI Motohiro <kosaki.motohiro@gmail.com>, linux-mm@kvack.org, Kyungmin Park <kyungmin.park@samsung.com>, Matt Mackall <mpm@selenic.com>
+To: Robin Dong <hao.bigrat@gmail.com>
+Cc: linux-mm@kvack.org, Robin Dong <sanbai@taobao.com>, kosaki.motohiro@gmail.com
 
-(6/6/12 4:23 AM), Bartlomiej Zolnierkiewicz wrote:
-> On Monday 04 June 2012 21:31:25 KOSAKI Motohiro wrote:
->> (6/4/12 4:23 AM), Bartlomiej Zolnierkiewicz wrote:
->>> On Friday 01 June 2012 22:31:01 KOSAKI Motohiro wrote:
->>>> (6/1/12 12:54 PM), Bartlomiej Zolnierkiewicz wrote:
->>>>> From: Bartlomiej Zolnierkiewicz<b.zolnierkie@samsung.com>
->>>>> Subject: [PATCH] proc: add /proc/kpageorder interface
->>>>>
->>>>> This makes page order information available to the user-space.
->>>>
->>>> No usecase new feature always should be NAKed.
->>>
->>> It is used to get page orders for Buddy pages and help to monitor
->>> free/used pages.  Sample usage will be posted for inclusion to
->>> Pagemap Demo tools (http://selenic.com/repo/pagemap/).
->>>
->>> The similar situation is with /proc/kpagetype..
->>
->> NAK then.
->>
->> First, your explanation didn't describe any usecase. "There is a similar feature"
->> is NOT a usecase.
->>
->> Second, /proc/kpagetype is one of mistaken feature. It was not designed deeply.
->> We have no reason to follow the mistake.
->
-> Well, my usecase for /proc/kpagetype is to monitor/debug pageblock changes
-> (i.e. to verify CMA and compaction operations).  It is not perfect since
-> interface gives us only a snapshot of pageblocks state at some random time.
-> However it is a straightforward method and requires only minimal changes
-> to the existing code.
->
-> Maybe there is a better way to do this which would give a more accurate
-> data and capture every state change (maybe a one involving tracing?) but
-> I don't know about it.  Do you know such better way to do it?
+(6/6/12 7:39 AM), Robin Dong wrote:
+> From: Robin Dong<sanbai@taobao.com>
+> 
+> When writing a new file with 2048 bytes buffer, such as write(fd, buffer, 2048), it will
+> call generic_perform_write() twice for every page:
+> 
+> 	write_begin
+> 	mark_page_accessed(page)
+> 	write_end
+> 
+> 	write_begin
+> 	mark_page_accessed(page)
+> 	write_end
+> 
+> The page 1~13th will be added to lru_add_pvecs in write_begin() and will *NOT* be added to
+> active_list even they have be accessed twice because they are not PageLRU(page).
+> But when page 14th comes, all pages will be moved from lru_add_pvecs to active_list
+> (by __lru_cache_add() ) in first write_begin(), now page 14th *is* PageLRU(page) and after
+> second write_end() it will be in active_list.
+> 
+> In Hadoop environment, we do comes to this situation: after writing a file, we find
+> out that only 14th, 28th, 42th... page are in active_list and others in inactive_list. Now
+> kswaped works, shrinks the inactive_list, the file only have 14th, 28th...pages in memory,
+> the readahead request size will be broken to only 52k (13*4k), system's performance falls
+> dramatically.
+> 
+> This problem can also replay by below steps (the machine has 8G memory):
+> 
+> 	1. dd if=/dev/zero of=/test/file.out bs=1024 count=1048576
+> 	2. cat another 7.5G file to /dev/null
+> 	3. vmtouch -m 1G -v /test/file.out, it will show:
+> 
+> 	/test/file.out
+> 	[oooooooooooooooooooOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO] 187847/262144
+> 
+> 	the 'o' means same pages are in memory but same are not.
+> 
+> 
+> The solution for this problem is simple: the 14th page should be added to lru_add_pvecs
+> before mark_page_accessed() just as other pages.
+> 
+> Signed-off-by: Robin Dong<sanbai@taobao.com>
+> ---
+>   mm/swap.c |    3 ++-
+>   1 file changed, 2 insertions(+), 1 deletion(-)
+> 
+> diff --git a/mm/swap.c b/mm/swap.c
+> index 4e7e2ec..0874d44 100644
+> --- a/mm/swap.c
+> +++ b/mm/swap.c
+> @@ -399,8 +399,9 @@ void __lru_cache_add(struct page *page, enum lru_list lru)
+>   	struct pagevec *pvec =&get_cpu_var(lru_add_pvecs)[lru];
+> 
+>   	page_cache_get(page);
+> -	if (!pagevec_add(pvec, page))
+> +	if (!pagevec_space(pvec))
+>   		__pagevec_lru_add(pvec, lru);
+> +	pagevec_add(pvec, page);
+>   	put_cpu_var(lru_add_pvecs);
+>   }
+>   EXPORT_SYMBOL(__lru_cache_add);
 
-To export bare data structure and to export statistics are completely different.
-When you need statistics, you should implement to mere stat. Data structure exporting
-have significant two dawonsides. 1) they are often bring us security issue and 2)
-they easily become a source of kernel enhancement blocker. because we can't break ABIs
-forever.
+Please remove pagevec completely instead of insane hacking.
 
-
->> Third, pagemap demo doesn't describe YOUR feature's usefull at all.
->
-> pagemap demo doesn't include my patches for /proc/kpage[order,type] yet
-> so it is not surprising at all (it doesn't even work with current kernels
-> without my other patches).. ;)
->
->> Fourth, pagemap demo is NOT useful at all. It's just toy. Practically, kpagetype
->> is only used from pagetype tool.
->
-> I don't quite follow it, what pagetype tool are you referring to (kpagetype
-> is a new interface)?
-
-pagetype show a _stastics_. then nobody uses pfn internal structure.
 
 
 
