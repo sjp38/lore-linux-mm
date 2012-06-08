@@ -1,13 +1,13 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx170.postini.com [74.125.245.170])
-	by kanga.kvack.org (Postfix) with SMTP id 0B55A6B0071
-	for <linux-mm@kvack.org>; Fri,  8 Jun 2012 13:25:04 -0400 (EDT)
-Received: by mail-pz0-f41.google.com with SMTP id p5so3276710dak.14
-        for <linux-mm@kvack.org>; Fri, 08 Jun 2012 10:25:04 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx207.postini.com [74.125.245.207])
+	by kanga.kvack.org (Postfix) with SMTP id EF3766B0072
+	for <linux-mm@kvack.org>; Fri,  8 Jun 2012 13:25:07 -0400 (EDT)
+Received: by pbbrp2 with SMTP id rp2so3466014pbb.14
+        for <linux-mm@kvack.org>; Fri, 08 Jun 2012 10:25:07 -0700 (PDT)
 From: Joonsoo Kim <js1304@gmail.com>
-Subject: [PATCH 3/4] slub: refactoring unfreeze_partials()
-Date: Sat,  9 Jun 2012 02:23:16 +0900
-Message-Id: <1339176197-13270-3-git-send-email-js1304@gmail.com>
+Subject: [PATCH 4/4] slub: deactivate freelist of kmem_cache_cpu all at once in deactivate_slab()
+Date: Sat,  9 Jun 2012 02:23:17 +0900
+Message-Id: <1339176197-13270-4-git-send-email-js1304@gmail.com>
 In-Reply-To: <1339176197-13270-1-git-send-email-js1304@gmail.com>
 References: <yes>
  <1339176197-13270-1-git-send-email-js1304@gmail.com>
@@ -16,157 +16,202 @@ List-ID: <linux-mm.kvack.org>
 To: Pekka Enberg <penberg@kernel.org>
 Cc: Christoph Lameter <cl@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Joonsoo Kim <js1304@gmail.com>
 
-Current implementation of unfreeze_partials() is so complicated,
-but benefit from it is insignificant. In addition many code in
-do {} while loop have a bad influence to a fail rate of cmpxchg_double_slab.
-Under current implementation which test status of cpu partial slab
-and acquire list_lock in do {} while loop,
-we don't need to acquire a list_lock and gain a little benefit
-when front of the cpu partial slab is to be discarded, but this is a rare case.
-In case that add_partial is performed and cmpxchg_double_slab is failed,
-remove_partial should be called case by case.
+Current implementation of deactivate_slab() which deactivate
+freelist of kmem_cache_cpu one by one is inefficient.
+This patch changes it to deactivate freelist all at once.
+But, there is no overall performance benefit,
+because deactivate_slab() is invoked infrequently.
 
-I think that these are disadvantages of current implementation,
-so I do refactoring unfreeze_partials().
-
-Minimizing code in do {} while loop introduce a reduced fail rate
-of cmpxchg_double_slab. Below is output of 'slabinfo -r kmalloc-256'
-when './perf stat -r 33 hackbench 50 process 4000 > /dev/null' is done.
-
-** before **
-Cmpxchg_double Looping
-------------------------
-Locked Cmpxchg Double redos   182685
-Unlocked Cmpxchg Double redos 0
-
-** after **
-Cmpxchg_double Looping
-------------------------
-Locked Cmpxchg Double redos   177995
-Unlocked Cmpxchg Double redos 1
-
-We can see cmpxchg_double_slab fail rate is improved slightly.
-
-Bolow is output of './perf stat -r 30 hackbench 50 process 4000 > /dev/null'.
-
-** before **
- Performance counter stats for './hackbench 50 process 4000' (30 runs):
-
-     108517.190463 task-clock                #    7.926 CPUs utilized            ( +-  0.24% )
-         2,919,550 context-switches          #    0.027 M/sec                    ( +-  3.07% )
-           100,774 CPU-migrations            #    0.929 K/sec                    ( +-  4.72% )
-           124,201 page-faults               #    0.001 M/sec                    ( +-  0.15% )
-   401,500,234,387 cycles                    #    3.700 GHz                      ( +-  0.24% )
-   <not supported> stalled-cycles-frontend
-   <not supported> stalled-cycles-backend
-   250,576,913,354 instructions              #    0.62  insns per cycle          ( +-  0.13% )
-    45,934,956,860 branches                  #  423.297 M/sec                    ( +-  0.14% )
-       188,219,787 branch-misses             #    0.41% of all branches          ( +-  0.56% )
-
-      13.691837307 seconds time elapsed                                          ( +-  0.24% )
-
-** after **
- Performance counter stats for './hackbench 50 process 4000' (30 runs):
-
-     107784.479767 task-clock                #    7.928 CPUs utilized            ( +-  0.22% )
-         2,834,781 context-switches          #    0.026 M/sec                    ( +-  2.33% )
-            93,083 CPU-migrations            #    0.864 K/sec                    ( +-  3.45% )
-           123,967 page-faults               #    0.001 M/sec                    ( +-  0.15% )
-   398,781,421,836 cycles                    #    3.700 GHz                      ( +-  0.22% )
-   <not supported> stalled-cycles-frontend
-   <not supported> stalled-cycles-backend
-   250,189,160,419 instructions              #    0.63  insns per cycle          ( +-  0.09% )
-    45,855,370,128 branches                  #  425.436 M/sec                    ( +-  0.10% )
-       169,881,248 branch-misses             #    0.37% of all branches          ( +-  0.43% )
-
-      13.596272341 seconds time elapsed                                          ( +-  0.22% )
-
-No regression is found, but rather we can see slightly better result.
-
-Acked-by: Christoph Lameter <cl@linux.com>
 Signed-off-by: Joonsoo Kim <js1304@gmail.com>
 
 diff --git a/mm/slub.c b/mm/slub.c
-index 686ed90..b5f2108 100644
+index b5f2108..7bcb434 100644
 --- a/mm/slub.c
 +++ b/mm/slub.c
-@@ -1886,18 +1886,24 @@ redo:
+@@ -1733,16 +1733,14 @@ void init_kmem_cache_cpus(struct kmem_cache *s)
   */
- static void unfreeze_partials(struct kmem_cache *s)
+ static void deactivate_slab(struct kmem_cache *s, struct kmem_cache_cpu *c)
  {
--	struct kmem_cache_node *n = NULL;
-+	struct kmem_cache_node *n = NULL, *n2 = NULL;
- 	struct kmem_cache_cpu *c = this_cpu_ptr(s->cpu_slab);
- 	struct page *page, *discard_page = NULL;
+-	enum slab_modes { M_NONE, M_PARTIAL, M_FULL, M_FREE };
+ 	struct page *page = c->page;
+ 	struct kmem_cache_node *n = get_node(s, page_to_nid(page));
+-	int lock = 0;
+-	enum slab_modes l = M_NONE, m = M_NONE;
+-	void *freelist;
+-	void *nextfree;
+-	int tail = DEACTIVATE_TO_HEAD;
++	void *freelist, *lastfree = NULL;
++	unsigned int nr_free = 0;
+ 	struct page new;
+-	struct page old;
++	void *prior;
++	unsigned long counters;
++	int lock = 0, tail = DEACTIVATE_TO_HEAD;
  
- 	while ((page = c->partial)) {
--		enum slab_modes { M_PARTIAL, M_FREE };
--		enum slab_modes l, m;
- 		struct page new;
- 		struct page old;
- 
- 		c->partial = page->next;
--		l = M_FREE;
-+
-+		n2 = get_node(s, page_to_nid(page));
-+		if (n != n2) {
-+			if (n)
-+				spin_unlock(&n->list_lock);
-+
-+			n = n2;
-+			spin_lock(&n->list_lock);
-+		}
- 
- 		do {
- 
-@@ -1910,43 +1916,17 @@ static void unfreeze_partials(struct kmem_cache *s)
- 
- 			new.frozen = 0;
- 
--			if (!new.inuse && (!n || n->nr_partial > s->min_partial))
--				m = M_FREE;
--			else {
--				struct kmem_cache_node *n2 = get_node(s,
--							page_to_nid(page));
+ 	if (page->freelist) {
+ 		stat(s, DEACTIVATE_REMOTE_FREES);
+@@ -1752,127 +1750,54 @@ static void deactivate_slab(struct kmem_cache *s, struct kmem_cache_cpu *c)
+ 	c->tid = next_tid(c->tid);
+ 	c->page = NULL;
+ 	freelist = c->freelist;
+-	c->freelist = NULL;
 -
--				m = M_PARTIAL;
--				if (n != n2) {
--					if (n)
--						spin_unlock(&n->list_lock);
+-	/*
+-	 * Stage one: Free all available per cpu objects back
+-	 * to the page freelist while it is still frozen. Leave the
+-	 * last one.
+-	 *
+-	 * There is no need to take the list->lock because the page
+-	 * is still frozen.
+-	 */
+-	while (freelist && (nextfree = get_freepointer(s, freelist))) {
+-		void *prior;
+-		unsigned long counters;
 -
--					n = n2;
--					spin_lock(&n->list_lock);
--				}
--			}
+-		do {
+-			prior = page->freelist;
+-			counters = page->counters;
+-			set_freepointer(s, freelist, prior);
+-			new.counters = counters;
+-			new.inuse--;
+-			VM_BUG_ON(!new.frozen);
 -
--			if (l != m) {
--				if (l == M_PARTIAL) {
--					remove_partial(n, page);
--					stat(s, FREE_REMOVE_PARTIAL);
--				} else {
--					add_partial(n, page,
--						DEACTIVATE_TO_TAIL);
--					stat(s, FREE_ADD_PARTIAL);
--				}
+-		} while (!__cmpxchg_double_slab(s, page,
+-			prior, counters,
+-			freelist, new.counters,
+-			"drain percpu freelist"));
 -
--				l = m;
--			}
--
- 		} while (!__cmpxchg_double_slab(s, page,
- 				old.freelist, old.counters,
- 				new.freelist, new.counters,
- 				"unfreezing slab"));
- 
--		if (m == M_FREE) {
-+		if (unlikely(!new.inuse && n->nr_partial > s->min_partial)) {
- 			page->next = discard_page;
- 			discard_page = page;
-+		} else {
-+			add_partial(n, page, DEACTIVATE_TO_TAIL);
-+			stat(s, FREE_ADD_PARTIAL);
- 		}
+-		freelist = nextfree;
++	while (freelist) {
++		lastfree = freelist;
++		freelist = get_freepointer(s, freelist);
++		nr_free++;
  	}
  
+-	/*
+-	 * Stage two: Ensure that the page is unfrozen while the
+-	 * list presence reflects the actual number of objects
+-	 * during unfreeze.
+-	 *
+-	 * We setup the list membership and then perform a cmpxchg
+-	 * with the count. If there is a mismatch then the page
+-	 * is not unfrozen but the page is on the wrong list.
+-	 *
+-	 * Then we restart the process which may have to remove
+-	 * the page from the list that we just put it on again
+-	 * because the number of objects in the slab may have
+-	 * changed.
+-	 */
+-redo:
++	freelist = c->freelist;
++	c->freelist = NULL;
+ 
+-	old.freelist = page->freelist;
+-	old.counters = page->counters;
+-	VM_BUG_ON(!old.frozen);
++	do {
++		if (lock) {
++			lock = 0;
++			spin_unlock(&n->list_lock);
++		}
+ 
+-	/* Determine target state of the slab */
+-	new.counters = old.counters;
+-	if (freelist) {
+-		new.inuse--;
+-		set_freepointer(s, freelist, old.freelist);
+-		new.freelist = freelist;
+-	} else
+-		new.freelist = old.freelist;
++		prior = page->freelist;
++		counters = page->counters;
+ 
+-	new.frozen = 0;
++		if (lastfree)
++			set_freepointer(s, lastfree, prior);
++		else
++			freelist = prior;
+ 
+-	if (!new.inuse && n->nr_partial > s->min_partial)
+-		m = M_FREE;
+-	else if (new.freelist) {
+-		m = M_PARTIAL;
+-		if (!lock) {
+-			lock = 1;
+-			/*
+-			 * Taking the spinlock removes the possiblity
+-			 * that acquire_slab() will see a slab page that
+-			 * is frozen
+-			 */
+-			spin_lock(&n->list_lock);
+-		}
+-	} else {
+-		m = M_FULL;
+-		if (kmem_cache_debug(s) && !lock) {
++		new.counters = counters;
++		VM_BUG_ON(!new.frozen);
++		new.inuse -= nr_free;
++		new.frozen = 0;
++
++		if (new.inuse || n->nr_partial <= s->min_partial) {
+ 			lock = 1;
+-			/*
+-			 * This also ensures that the scanning of full
+-			 * slabs from diagnostic functions will not see
+-			 * any frozen slabs.
+-			 */
+ 			spin_lock(&n->list_lock);
+ 		}
+-	}
+-
+-	if (l != m) {
+-
+-		if (l == M_PARTIAL)
+-
+-			remove_partial(n, page);
+-
+-		else if (l == M_FULL)
+-
+-			remove_full(s, page);
+-
+-		if (m == M_PARTIAL) {
+ 
++	} while (!__cmpxchg_double_slab(s, page,
++				prior, counters,
++				freelist, new.counters,
++				"drain percpu freelist"));
++	if (lock) {
++		if (kmem_cache_debug(s) && !freelist) {
++			add_full(s, n, page);
++			stat(s, DEACTIVATE_FULL);
++		} else {
+ 			add_partial(n, page, tail);
+ 			stat(s, tail);
+-
+-		} else if (m == M_FULL) {
+-
+-			stat(s, DEACTIVATE_FULL);
+-			add_full(s, n, page);
+-
+ 		}
+-	}
+-
+-	l = m;
+-	if (!__cmpxchg_double_slab(s, page,
+-				old.freelist, old.counters,
+-				new.freelist, new.counters,
+-				"unfreezing slab"))
+-		goto redo;
+-
+-	if (lock)
+ 		spin_unlock(&n->list_lock);
+-
+-	if (m == M_FREE) {
++	} else {
++		VM_BUG_ON(new.inuse);
+ 		stat(s, DEACTIVATE_EMPTY);
+ 		discard_slab(s, page);
+ 		stat(s, FREE_SLAB);
 -- 
 1.7.9.5
 
