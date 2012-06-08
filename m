@@ -1,57 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx162.postini.com [74.125.245.162])
-	by kanga.kvack.org (Postfix) with SMTP id E013F6B006E
-	for <linux-mm@kvack.org>; Thu,  7 Jun 2012 21:18:50 -0400 (EDT)
-Received: by bkcjm19 with SMTP id jm19so1664901bkc.14
-        for <linux-mm@kvack.org>; Thu, 07 Jun 2012 18:18:49 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx200.postini.com [74.125.245.200])
+	by kanga.kvack.org (Postfix) with SMTP id 4B80B6B006E
+	for <linux-mm@kvack.org>; Thu,  7 Jun 2012 21:20:19 -0400 (EDT)
+Received: by bkcjm19 with SMTP id jm19so1666113bkc.14
+        for <linux-mm@kvack.org>; Thu, 07 Jun 2012 18:20:17 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <20120608010520.GA25317@x4>
+In-Reply-To: <alpine.LSU.2.00.1206071759050.1291@eggly.anvils>
 References: <20120607212114.E4F5AA02F8@akpm.mtv.corp.google.com>
  <CA+55aFxOWR_h1vqRLAd_h5_woXjFBLyBHP--P8F7WsYrciXdmA@mail.gmail.com>
- <CA+55aFyQUBXhjVLJH6Fhz9xnpfXZ=9Mej5ujt6ss7VUqT1g9Jg@mail.gmail.com> <20120608010520.GA25317@x4>
+ <CA+55aFyQUBXhjVLJH6Fhz9xnpfXZ=9Mej5ujt6ss7VUqT1g9Jg@mail.gmail.com> <alpine.LSU.2.00.1206071759050.1291@eggly.anvils>
 From: Linus Torvalds <torvalds@linux-foundation.org>
-Date: Thu, 7 Jun 2012 18:18:28 -0700
-Message-ID: <CA+55aFwuA3ex+XXW+TzOee8ax0g1NK9Mm5F3nYtY1m6YtvUFhQ@mail.gmail.com>
+Date: Thu, 7 Jun 2012 18:19:57 -0700
+Message-ID: <CA+55aFw7y5FBJm6pxiHHsoiPaVQG3A+4u6J9=4DGd8kVPjmzGQ@mail.gmail.com>
 Subject: Re: [patch 12/12] mm: correctly synchronize rss-counters at exit/exec
 Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Markus Trippelsdorf <markus@trippelsdorf.de>
-Cc: akpm@linux-foundation.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, khlebnikov@openvz.org, hughd@google.com, kamezawa.hiroyu@jp.fujitsu.com, oleg@redhat.com, stable@vger.kernel.org
+To: Hugh Dickins <hughd@google.com>
+Cc: akpm@linux-foundation.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, khlebnikov@openvz.org, kamezawa.hiroyu@jp.fujitsu.com, markus@trippelsdorf.de, oleg@redhat.com, stable@vger.kernel.org
 
-On Thu, Jun 7, 2012 at 6:05 PM, Markus Trippelsdorf
-<markus@trippelsdorf.de> wrote:
->
-> You've somehow merged the wrong patch.
-> The correct version can be found here:
-> http://marc.info/?l=linux-kernel&m=133848759505805
+No, this is apparently that same "almost there" patch from Oleg. I
+guarantee that it's wrong.
 
-It looks like Andrew sent me a bad version.
+                Linus
 
-However, that patch you point at isn't good *either*.
+---
 
-It does totally insane things in xacct_add_tsk(). You can't call
-"sync_mm_rss(mm)" on somebody elses mm, yet that is exactly what it
-does (and you can't pass in another thread pointer either, since the
-whole point of the per-thread counters is that they don't have locking
-and aren't atomic, so you can't read them from any other context than
-"current").
+[ This part, to be exact: ]
 
-The thing is, the *only* point where it makes sense to sync the rss
-pointers is when you detach the mm from the current thread. And
-possibly at "fork()" time, *before* you duplicate the "struct
-task_struct" and pollute the new one with stale rss counter values
-from the old one.
-
-So doing sync_mm_rss() in xacct_add_tsk() is crazy. Doing it
-*anywhere* where mm is not clearly "current->mm" is wrong. If there is
-a "get_task_mm()" or similar nearby, it's wrong, it's crap, and it
-shouldn't be done.
-
-Oleg, please rescue me? Your patch looks much closer to sane, but it's
-not quite there..
-
-          Linus
+On Thu, Jun 7, 2012 at 6:16 PM, Hugh Dickins <hughd@google.com> wrote:
+> --- a/kernel/tsacct.c
+> +++ b/kernel/tsacct.c
+> @@ -91,6 +91,7 @@ void xacct_add_tsk(struct taskstats *stats, struct task=
+_struct *p)
+> =A0 =A0 =A0 =A0stats->virtmem =3D p->acct_vm_mem1 * PAGE_SIZE / MB;
+> =A0 =A0 =A0 =A0mm =3D get_task_mm(p);
+> =A0 =A0 =A0 =A0if (mm) {
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 sync_mm_rss(mm);
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0/* adjust to KB unit */
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0stats->hiwater_rss =A0 =3D get_mm_hiwater_=
+rss(mm) * PAGE_SIZE / KB;
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0stats->hiwater_vm =A0 =A0=3D get_mm_hiwate=
+r_vm(mm) =A0* PAGE_SIZE / KB;
+> --
+> 1.5.5.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
