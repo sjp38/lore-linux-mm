@@ -1,65 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx106.postini.com [74.125.245.106])
-	by kanga.kvack.org (Postfix) with SMTP id 5E1616B006E
-	for <linux-mm@kvack.org>; Fri,  8 Jun 2012 16:03:22 -0400 (EDT)
-Date: Fri, 8 Jun 2012 16:03:17 -0400
-From: Dave Jones <davej@redhat.com>
-Subject: Re: oomkillers gone wild.
-Message-ID: <20120608200317.GA18693@redhat.com>
-References: <20120604152710.GA1710@redhat.com>
- <alpine.DEB.2.00.1206041629500.7769@chino.kir.corp.google.com>
- <20120605174454.GA23867@redhat.com>
- <20120605185239.GA28172@redhat.com>
- <alpine.DEB.2.00.1206081256330.19054@chino.kir.corp.google.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.00.1206081256330.19054@chino.kir.corp.google.com>
+Received: from psmtp.com (na3sys010amx121.postini.com [74.125.245.121])
+	by kanga.kvack.org (Postfix) with SMTP id 5CA2B6B006E
+	for <linux-mm@kvack.org>; Fri,  8 Jun 2012 16:10:47 -0400 (EDT)
+Date: Fri, 8 Jun 2012 13:10:45 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [Resend PATCH v2] mm: Fix slab->page _count corruption.
+Message-Id: <20120608131045.90708bda.akpm@linux-foundation.org>
+In-Reply-To: <1338405610-1788-1-git-send-email-pshelar@nicira.com>
+References: <1338405610-1788-1-git-send-email-pshelar@nicira.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Linux Kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: Pravin B Shelar <pshelar@nicira.com>
+Cc: cl@linux.com, penberg@kernel.org, aarcange@redhat.com, linux-mm@kvack.org, abhide@nicira.com
 
-On Fri, Jun 08, 2012 at 12:57:36PM -0700, David Rientjes wrote:
- > On Tue, 5 Jun 2012, Dave Jones wrote:
- > 
- > >   OBJS ACTIVE  USE OBJ SIZE  SLABS OBJ/SLAB CACHE SIZE NAME 
- > > 142524 142420  99%    9.67K  47510	  3   1520320K task_struct
- > > 142560 142417  99%    1.75K   7920	 18    253440K signal_cache
- > > 142428 142302  99%    1.19K   5478	 26    175296K task_xstate
- > > 306064 289292  94%    0.36K   6956	 44    111296K debug_objects_cache
- > > 143488 143306  99%    0.50K   4484	 32     71744K cred_jar
- > > 142560 142421  99%    0.50K   4455       32     71280K task_delay_info
- > > 150753 145021  96%    0.45K   4308	 35     68928K kmalloc-128
- > > 
- > > Why so many task_structs ? There's only 128 processes running, and most of them
- > > are kernel threads.
- > > 
- > 
- > Do you have CONFIG_OPROFILE enabled?
+On Wed, 30 May 2012 12:20:10 -0700
+Pravin B Shelar <pshelar@nicira.com> wrote:
 
-it's modular (though I should just turn it off, I never use it these days), but not loaded.
+> On arches that do not support this_cpu_cmpxchg_double slab_lock is used
+> to do atomic cmpxchg() on double word which contains page->_count.
+> page count can be changed from get_page() or put_page() without taking
+> slab_lock. That corrupts page counter.
+> 
+> Following patch fixes it by moving page->_count out of cmpxchg_double
+> data. So that slub does no change it while updating slub meta-data in
+> struct page.
+> 
+> Reported-by: Amey Bhide <abhide@nicira.com>
+> Signed-off-by: Pravin B Shelar <pshelar@nicira.com>
+> Acked-by: Christoph Lameter <cl@linux.com>
+> ---
+>  include/linux/mm_types.h |    8 ++++++++
+>  1 file changed, 8 insertions(+)
+> 
+> diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
+> index 18b48c4..e54a6b0 100644
+> --- a/include/linux/mm_types.h
+> +++ b/include/linux/mm_types.h
+> @@ -57,8 +57,16 @@ struct page {
+>  		};
+>  
+>  		union {
+> +#if defined(CONFIG_HAVE_CMPXCHG_DOUBLE) && \
+> +    defined(CONFIG_HAVE_ALIGNED_STRUCT_PAGE)
+>  			/* Used for cmpxchg_double in slub */
+>  			unsigned long counters;
+> +#else
+> +			/* Keep _count separate from slub cmpxchg_double data,
+> +			 * As rest of double word is protected by slab_lock
+> +			 * but _count is not. */
+> +			unsigned counters;
+> +#endif
+>  
+>  			struct {
 
- > > /sys/kernel/slab/task_struct/alloc_calls shows..
- > > 
- > >  142421 copy_process.part.21+0xbb/0x1790 age=8/19929576/48173720 pid=0-16867 cpus=0-7
- > > 
- > > I get the impression that the oom-killer hasn't cleaned up properly after killing some of
- > > those forked processes.
- > > 
- > > any thoughts ?
- > > 
- > 
- > If we're leaking task_struct's, meaning that put_task_struct() isn't 
- > actually freeing them when the refcount goes to 0, then it's certainly not 
- > because of the oom killer which only sends a SIGKILL to the selected 
- > process.
- > 
- > Have you tried kmemleak?
+OK.  I assume this bug has been there for quite some time.
 
-I'll give that a shot on Monday. thanks,
+How serious is it?  Have people been reporting it in real workloads? 
+How to trigger it?  IOW, does this need -stable backporting?
 
-	Dave
+Also, someone forgot to document these:
+
+				struct {
+					unsigned inuse:16;
+					unsigned objects:15;
+					unsigned frozen:1;
+				};
+pls fix.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
