@@ -1,40 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx139.postini.com [74.125.245.139])
-	by kanga.kvack.org (Postfix) with SMTP id EAFFF6B005A
-	for <linux-mm@kvack.org>; Fri,  8 Jun 2012 16:15:52 -0400 (EDT)
-Date: Fri, 8 Jun 2012 15:15:50 -0500 (CDT)
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: [Resend PATCH v2] mm: Fix slab->page _count corruption.
-In-Reply-To: <20120608131045.90708bda.akpm@linux-foundation.org>
-Message-ID: <alpine.DEB.2.00.1206081514130.4213@router.home>
-References: <1338405610-1788-1-git-send-email-pshelar@nicira.com> <20120608131045.90708bda.akpm@linux-foundation.org>
+Received: from psmtp.com (na3sys010amx147.postini.com [74.125.245.147])
+	by kanga.kvack.org (Postfix) with SMTP id B02776B0062
+	for <linux-mm@kvack.org>; Fri,  8 Jun 2012 16:15:53 -0400 (EDT)
+Received: by pbbrp2 with SMTP id rp2so3661160pbb.14
+        for <linux-mm@kvack.org>; Fri, 08 Jun 2012 13:15:53 -0700 (PDT)
+Date: Fri, 8 Jun 2012 13:15:50 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: oomkillers gone wild.
+In-Reply-To: <20120605174454.GA23867@redhat.com>
+Message-ID: <alpine.DEB.2.00.1206081313000.19054@chino.kir.corp.google.com>
+References: <20120604152710.GA1710@redhat.com> <alpine.DEB.2.00.1206041629500.7769@chino.kir.corp.google.com> <20120605174454.GA23867@redhat.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Pravin B Shelar <pshelar@nicira.com>, penberg@kernel.org, aarcange@redhat.com, linux-mm@kvack.org, abhide@nicira.com
+To: Dave Jones <davej@redhat.com>, Linux Kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 
-On Fri, 8 Jun 2012, Andrew Morton wrote:
+On Tue, 5 Jun 2012, Dave Jones wrote:
 
-> OK.  I assume this bug has been there for quite some time.
+> Still doesn't seem right..
+> 
+> eg..
+> 
+> [42309.542776] [ pid ]   uid  tgid total_vm      rss cpu oom_adj oom_score_adj name
+> ..
+> [42309.553933] [  500]    81   500     5435        1   4     -13          -900 dbus-daemon
+> ..
+> [42309.597531] [ 9054]  1000  9054   528677    14540   3       0             0 trinity-child3
+> ..
+> 
+> [42309.643057] Out of memory: Kill process 500 (dbus-daemon) score 511952 or sacrifice child
+> [42309.643620] Killed process 500 (dbus-daemon) total-vm:21740kB, anon-rss:0kB, file-rss:4kB
+> 
+> and a slew of similar 'wrong process' death spiral kills follows..
+> 
 
-Well the huge pages refcount tricks caused the issue.
+On a system not under oom conditions, i.e. before you start trinity, can 
+you send the output of
 
-> How serious is it?  Have people been reporting it in real workloads?
-> How to trigger it?  IOW, does this need -stable backporting?
-
-Possibly.
-
-> Also, someone forgot to document these:
->
-> 				struct {
-> 					unsigned inuse:16;
-> 					unsigned objects:15;
-> 					unsigned frozen:1;
-> 				};
-
-So far I thouight that the field names are pretty clear on their own.
+	cat /proc/$(pidof dbus-daemon)/oom_score{_adj,}
+	grep RSS /proc/$(pidof dbus-daemon)/status
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
