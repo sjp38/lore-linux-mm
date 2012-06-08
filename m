@@ -1,41 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx160.postini.com [74.125.245.160])
-	by kanga.kvack.org (Postfix) with SMTP id 310B56B006E
-	for <linux-mm@kvack.org>; Thu,  7 Jun 2012 21:26:07 -0400 (EDT)
-Received: by bkcjm19 with SMTP id jm19so1671203bkc.14
-        for <linux-mm@kvack.org>; Thu, 07 Jun 2012 18:26:05 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <20120608011215.GB7191@redhat.com>
-References: <20120608002451.GA821@redhat.com> <CA+55aFzivM8Z1Bjk3Qo2vtnQhCQ7fQ4rf_a+EXY7noXQcxL_CA@mail.gmail.com>
- <20120608010008.GA7191@redhat.com> <CA+55aFxwVWiVwxj39DoJmMTknh7JKvCxzxyu-cMQZwd53jOmgQ@mail.gmail.com>
- <20120608011215.GB7191@redhat.com>
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Date: Thu, 7 Jun 2012 18:25:45 -0700
-Message-ID: <CA+55aFyxN8vQo7UXwJ0V1jZyE137aX2ZwtXVvGhNFTz4NjxvDg@mail.gmail.com>
+Received: from psmtp.com (na3sys010amx114.postini.com [74.125.245.114])
+	by kanga.kvack.org (Postfix) with SMTP id 527346B006E
+	for <linux-mm@kvack.org>; Thu,  7 Jun 2012 21:39:41 -0400 (EDT)
+Date: Fri, 8 Jun 2012 11:39:30 +1000
+From: Stephen Rothwell <sfr@canb.auug.org.au>
 Subject: Re: a whole bunch of crashes since todays -mm merge.
-Content-Type: text/plain; charset=ISO-8859-1
+Message-Id: <20120608113930.cfce1835c119b15c16eabf7c@canb.auug.org.au>
+In-Reply-To: <20120607180515.4afffc89.akpm@linux-foundation.org>
+References: <20120608002451.GA821@redhat.com>
+	<CA+55aFzivM8Z1Bjk3Qo2vtnQhCQ7fQ4rf_a+EXY7noXQcxL_CA@mail.gmail.com>
+	<20120607180515.4afffc89.akpm@linux-foundation.org>
+Mime-Version: 1.0
+Content-Type: multipart/signed; protocol="application/pgp-signature";
+ micalg="PGP-SHA256";
+ boundary="Signature=_Fri__8_Jun_2012_11_39_30_+1000_ooMGAY4SR7RaiGJh"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Jones <davej@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Linux Kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Dave Jones <davej@redhat.com>, Linux Kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Konstantin Khlebnikov <khlebnikov@openvz.org>, Oleg Nesterov <oleg@redhat.com>
 
-On Thu, Jun 7, 2012 at 6:12 PM, Dave Jones <davej@redhat.com> wrote:
+--Signature=_Fri__8_Jun_2012_11_39_30_+1000_ooMGAY4SR7RaiGJh
+Content-Type: text/plain; charset=US-ASCII
+Content-Disposition: inline
+Content-Transfer-Encoding: quoted-printable
+
+Hi all,
+
+On Thu, 7 Jun 2012 18:05:15 -0700 Andrew Morton <akpm@linux-foundation.org>=
+ wrote:
 >
-> I don't think so ? I have CONFIG_SPLIT_PTLOCK_CPUS=999999,
-> so it looks like that never gets defined unless I'm missing something obvious.
+> It appears this is due to me fat-fingering conflict resolution last
+> week.  That hunk is supposed to be in mm_release(), not mmput().   =20
+>=20
+> It's probably best to throw the patch away for now - we'll try again.
 
-Yeah, I think you're right. And in that case I don't think the
-sync_mm_rss() patch should matter. Although it does move mm_release()
-around, which makes me nervous - that could cause independent issues.
-I never got that far in analyzing the patch, because I got hung up on
-the obvious problems and decided to revert it as obviously broken and
-untested.
+I have reverted that commit from linux-next and will remove it from the cop=
+y of the akpm tree that I have.
 
-Btw, I really wish we didn't do that complicated USE_SPLIT_PTLOCKS ->
-SPLIT_RSS_COUNTING stuff hidden in the header files. I suspect we
-should do it in the mm/Kconfig file instead, and make them normal
-config options. I think that makes it easier to grep for.
+--=20
+Cheers,
+Stephen Rothwell                    sfr@canb.auug.org.au
 
-              Linus
+--Signature=_Fri__8_Jun_2012_11_39_30_+1000_ooMGAY4SR7RaiGJh
+Content-Type: application/pgp-signature
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1.4.12 (GNU/Linux)
+
+iQIcBAEBCAAGBQJP0VfSAAoJEECxmPOUX5FE41YP/36GD09NRx99I75Vnm2BZ6K8
+UWwQjdhJ1ETCLASU6RKTOoMO3Cc1xk85ww8/IJpySSDRN7GDIZLf2eIkG75QbyyV
+UvEWZzHSRB11aKbJXjMEVJmN/hQb1euORX9tO2EUnoLYZTtKpK5JI/rdkiK2ZEt2
+UxeXyHxSOsGJTiWQ28eF3ilNG2zmZ43Tyj2CWWWJuM9tL8uGufKMqfePKKqB332s
+6hy2pFpijK+qgeBuJgy35ruK2MYr2bLyGJwc8nMevqxh+I9xd20yOLUTocC6FMOU
+Kztnu/CulDp/zF2Qs/gcTQ7XEuIDrKsN4YHwdOWKF/P6u7jN/1PiArsDCZDR+h2F
+lAzUWOH06yg+ZXc/fu/8NdA0Tmm6BH4PU1wIc3TZ3VtY18RbmXK3dmHz+5qSnSUi
+OgXEHOTi3ydFclTotHiB6BZWsfqRUK+uR1crkqfHl4emBpq98wF1jyYXswmhdXAi
+J5FEGnQV37zBmo8ps4in9YSeNoX7+2DGxG6hRAyHE6Z+GRdKXPoWk81KuEH8wouq
+vYI71p294rR8EY4bzRo9sLAl5yB0ekc/Ca+NBWHA2LN7dVhzoshT37CzYj3oKsbI
+U+P+EncxQLcfFFRvuBzp11A8n+kVySoqP8VM33wx2F469QVfcMHLOoewv9sEXMgc
+Yvxtv/ALUytvQ9dbqg5G
+=zd95
+-----END PGP SIGNATURE-----
+
+--Signature=_Fri__8_Jun_2012_11_39_30_+1000_ooMGAY4SR7RaiGJh--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
