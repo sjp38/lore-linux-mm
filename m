@@ -1,72 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx140.postini.com [74.125.245.140])
-	by kanga.kvack.org (Postfix) with SMTP id 397F76B006E
-	for <linux-mm@kvack.org>; Fri,  8 Jun 2012 05:46:49 -0400 (EDT)
-Received: by dakp5 with SMTP id p5so2630483dak.14
-        for <linux-mm@kvack.org>; Fri, 08 Jun 2012 02:46:48 -0700 (PDT)
-Date: Fri, 8 Jun 2012 02:45:07 -0700
-From: Anton Vorontsov <anton.vorontsov@linaro.org>
-Subject: Re: [PATCH 0/5] Some vmevent fixes...
-Message-ID: <20120608094507.GA11963@lizard>
-References: <4FCC7592.9030403@kernel.org>
- <20120604113811.GA4291@lizard>
- <4FCD14F1.1030105@gmail.com>
- <CAOJsxLHR4wSgT2hNfOB=X6ud0rXgYg+h7PTHzAZYCUdLs6Ktug@mail.gmail.com>
- <20120605083921.GA21745@lizard>
- <4FD014D7.6000605@kernel.org>
- <20120608074906.GA27095@lizard>
- <4FD1BB29.1050805@kernel.org>
- <CAOJsxLHPvg=bsv+GakFGHyJwH0BoGA=fmzy5bwqWKNGryYTDtg@mail.gmail.com>
- <84FF21A720B0874AA94B46D76DB98269045F7B42@008-AM1MPN1-004.mgdnok.nokia.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-In-Reply-To: <84FF21A720B0874AA94B46D76DB98269045F7B42@008-AM1MPN1-004.mgdnok.nokia.com>
+Received: from psmtp.com (na3sys010amx168.postini.com [74.125.245.168])
+	by kanga.kvack.org (Postfix) with SMTP id DC4D46B0070
+	for <linux-mm@kvack.org>; Fri,  8 Jun 2012 05:47:04 -0400 (EDT)
+From: Glauber Costa <glommer@parallels.com>
+Subject: [PATCH 2/4] Add a __GFP_SLABMEMCG flag
+Date: Fri,  8 Jun 2012 13:43:19 +0400
+Message-Id: <1339148601-20096-3-git-send-email-glommer@parallels.com>
+In-Reply-To: <1339148601-20096-1-git-send-email-glommer@parallels.com>
+References: <1339148601-20096-1-git-send-email-glommer@parallels.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: leonid.moiseichuk@nokia.com
-Cc: penberg@kernel.org, minchan@kernel.org, kosaki.motohiro@gmail.com, john.stultz@linaro.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linaro-kernel@lists.linaro.org, patches@linaro.org, kernel-team@android.com
+To: cgroups@vger.kernel.org
+Cc: linux-mm@kvack.org, Tejun Heo <tj@kernel.org>, Frederic Weisbecker <fweisbeck@gmail.com>, devel@openvz.org, kamezawa.hiroyu@jp.fujitsu.com, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Suleiman Souhlal <suleiman@google.com>
 
-On Fri, Jun 08, 2012 at 09:12:36AM +0000, leonid.moiseichuk@nokia.com wrote:
-[...]
-> > Exactly. I don't know why people think pushing vmevents to userspace is
-> > going to fix any of the hard problems.
-> > 
-> > Anton, Lenoid, do you see any fundamental issues from userspace point of
-> > view with going forward what Minchan is proposing?
-> 
-> That good proposal but I have to underline that userspace could be interested not only in memory consumption stressed cases (pressure, vm watermarks ON etc.) 
-> but quite relaxed as well e.g. 60% durty pages are consumed - let's do not restart some daemons. In very stressed conditions user-space might be already dead.
+This flag is used to indicate to the callees that this allocation will be
+serviced to the kernel. It is not supposed to be passed by the callers
+of kmem_cache_alloc, but rather by the cache core itself.
 
-Indeed. Minchan's proposal is good to get notified that VM is under
-stress.
+CC: Christoph Lameter <cl@linux.com>
+CC: Pekka Enberg <penberg@cs.helsinki.fi>
+CC: Michal Hocko <mhocko@suse.cz>
+CC: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+CC: Johannes Weiner <hannes@cmpxchg.org>
+CC: Suleiman Souhlal <suleiman@google.com>
+---
+ include/linux/gfp.h |    4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)
 
-But suppose some app allocates memory slowly (i.e. I scroll a large
-page on my phone, and the page is rendered piece by piece). So, in
-the end we're slowly but surely allocate a lot of memory. In that
-case Minchan's method won't notice that it's actually time to close
-some apps.
-
-Then suppose someone calls me, the "phone" application is now
-starting, but since we're out of 'easy to reclaim' pages, it takes
-forever for the app to load, VM is now under huge stress, and surely
-we're *now* getting notified, but alas, it is too late. Call missed.
-
-
-So, it's like measuring distance, velocity and acceleration. In
-Android case, among other things, we're interested in distance too!
-I.e. "how much exactly 'easy to reclaim' pages left", not only
-"how fast we're getting out of 'easy to reclaim' pages".
-
-> Another interesting question which combination of VM page types could be recognized as interesting for tracking as Minchan correctly stated it depends from area.
-> For me seems weights most likely will be -1, 0 or +1 to calculate resulting values and thesholds e.g. Active = {+1 * Active_Anon; +1 * Active_File}
-> It will extend flexibility a lot.
-
-Exposing VM details to the userland? No good. :-)
-
+diff --git a/include/linux/gfp.h b/include/linux/gfp.h
+index 581e74b..05cfbc2 100644
+--- a/include/linux/gfp.h
++++ b/include/linux/gfp.h
+@@ -37,6 +37,7 @@ struct vm_area_struct;
+ #define ___GFP_NO_KSWAPD	0x400000u
+ #define ___GFP_OTHER_NODE	0x800000u
+ #define ___GFP_WRITE		0x1000000u
++#define ___GFP_SLABMEMCG	0x2000000u
+ 
+ /*
+  * GFP bitmasks..
+@@ -87,6 +88,7 @@ struct vm_area_struct;
+ #define __GFP_NO_KSWAPD	((__force gfp_t)___GFP_NO_KSWAPD)
+ #define __GFP_OTHER_NODE ((__force gfp_t)___GFP_OTHER_NODE) /* On behalf of other node */
+ #define __GFP_WRITE	((__force gfp_t)___GFP_WRITE)	/* Allocator intends to dirty page */
++#define __GFP_SLABMEMCG	((__force gfp_t)___GFP_SLABMEMCG)/* Allocation comes from a memcg slab */
+ 
+ /*
+  * This may seem redundant, but it's a way of annotating false positives vs.
+@@ -94,7 +96,7 @@ struct vm_area_struct;
+  */
+ #define __GFP_NOTRACK_FALSE_POSITIVE (__GFP_NOTRACK)
+ 
+-#define __GFP_BITS_SHIFT 25	/* Room for N __GFP_FOO bits */
++#define __GFP_BITS_SHIFT 26	/* Room for N __GFP_FOO bits */
+ #define __GFP_BITS_MASK ((__force gfp_t)((1 << __GFP_BITS_SHIFT) - 1))
+ 
+ /* This equals 0, but use constants in case they ever change */
 -- 
-Anton Vorontsov
-Email: cbouatmailru@gmail.com
+1.7.10.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
