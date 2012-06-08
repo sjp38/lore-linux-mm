@@ -1,51 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx145.postini.com [74.125.245.145])
-	by kanga.kvack.org (Postfix) with SMTP id EE3376B0062
-	for <linux-mm@kvack.org>; Fri,  8 Jun 2012 16:36:36 -0400 (EDT)
-Received: by yhr47 with SMTP id 47so2132938yhr.14
-        for <linux-mm@kvack.org>; Fri, 08 Jun 2012 13:36:36 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx156.postini.com [74.125.245.156])
+	by kanga.kvack.org (Postfix) with SMTP id 42DDD6B0062
+	for <linux-mm@kvack.org>; Fri,  8 Jun 2012 16:37:21 -0400 (EDT)
+Date: Fri, 8 Jun 2012 22:37:15 +0200 (CEST)
+From: Thomas Gleixner <tglx@linutronix.de>
+Subject: Re: oomkillers gone wild.
+In-Reply-To: <alpine.DEB.2.00.1206081256330.19054@chino.kir.corp.google.com>
+Message-ID: <alpine.LFD.2.02.1206082232570.3086@ionos>
+References: <20120604152710.GA1710@redhat.com> <alpine.DEB.2.00.1206041629500.7769@chino.kir.corp.google.com> <20120605174454.GA23867@redhat.com> <20120605185239.GA28172@redhat.com> <alpine.DEB.2.00.1206081256330.19054@chino.kir.corp.google.com>
 MIME-Version: 1.0
-In-Reply-To: <CAOJsxLG2H_G3CrmqNSxEnYRB+mACRyeG4dOQZ6wasXV1V0vGYg@mail.gmail.com>
-References: <1339182919-11432-1-git-send-email-levinsasha928@gmail.com>
- <1339182919-11432-3-git-send-email-levinsasha928@gmail.com> <CAOJsxLG2H_G3CrmqNSxEnYRB+mACRyeG4dOQZ6wasXV1V0vGYg@mail.gmail.com>
-From: Sasha Levin <levinsasha928@gmail.com>
-Date: Fri, 8 Jun 2012 22:36:14 +0200
-Message-ID: <CA+1xoqdUpcXdPHaFgjJOdLC2rm=WoVktuNkV_82QR4QaPg=CnA@mail.gmail.com>
-Subject: Re: [PATCH v2 02/10] mm: frontswap: trivial coding convention issues
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pekka Enberg <penberg@kernel.org>
-Cc: dan.magenheimer@oracle.com, konrad.wilk@oracle.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: David Rientjes <rientjes@google.com>
+Cc: Dave Jones <davej@redhat.com>, Linux Kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 
-On Fri, Jun 8, 2012 at 10:16 PM, Pekka Enberg <penberg@kernel.org> wrote:
-> On Fri, Jun 8, 2012 at 10:15 PM, Sasha Levin <levinsasha928@gmail.com> wr=
-ote:
->> Signed-off-by: Sasha Levin <levinsasha928@gmail.com>
->> ---
->> =A0mm/frontswap.c | =A0 =A05 +++--
->> =A01 files changed, 3 insertions(+), 2 deletions(-)
->>
->> diff --git a/mm/frontswap.c b/mm/frontswap.c
->> index 557e8af4..b619d29 100644
->> --- a/mm/frontswap.c
->> +++ b/mm/frontswap.c
->> @@ -150,6 +150,7 @@ int __frontswap_store(struct page *page)
->> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0inc_frontswap_failed_stores();
->> =A0 =A0 =A0 =A0} else
->> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0inc_frontswap_failed_stores();
->> + =A0 =A0 =A0 }
->
-> This looks wrong. Did you compile it?
+On Fri, 8 Jun 2012, David Rientjes wrote:
+> On Tue, 5 Jun 2012, Dave Jones wrote:
+> 
+> >   OBJS ACTIVE  USE OBJ SIZE  SLABS OBJ/SLAB CACHE SIZE NAME 
+> > 142524 142420  99%    9.67K  47510	  3   1520320K task_struct
+> > 142560 142417  99%    1.75K   7920	 18    253440K signal_cache
+> > 142428 142302  99%    1.19K   5478	 26    175296K task_xstate
+> > 306064 289292  94%    0.36K   6956	 44    111296K debug_objects_cache
+> > 143488 143306  99%    0.50K   4484	 32     71744K cred_jar
+> > 142560 142421  99%    0.50K   4455       32     71280K task_delay_info
+> > 150753 145021  96%    0.45K   4308	 35     68928K kmalloc-128
+> > 
+> > Why so many task_structs ? There's only 128 processes running, and most of them
+> > are kernel threads.
+> > 
+> 
+> Do you have CONFIG_OPROFILE enabled?
+> 
+> > /sys/kernel/slab/task_struct/alloc_calls shows..
+> > 
+> >  142421 copy_process.part.21+0xbb/0x1790 age=8/19929576/48173720 pid=0-16867 cpus=0-7
+> > 
+> > I get the impression that the oom-killer hasn't cleaned up properly after killing some of
+> > those forked processes.
+> > 
+> > any thoughts ?
+> > 
+> 
+> If we're leaking task_struct's, meaning that put_task_struct() isn't 
+> actually freeing them when the refcount goes to 0, then it's certainly not 
+> because of the oom killer which only sends a SIGKILL to the selected 
+> process.
 
-gah... yes, I've had an error in the merge resolution, but since that
-code is completely changed in next couple of patches I didn't notice
-it when building the final version. I really should build after each
-merge failure...
+I rather suspect, that this is a asymetry between get_ and
+put_task_struct and refcount just doesn't go to zero.
 
-Konrad, would it be ok if I send just a new version of this patch (if
-everything else is fine)?
+Thanks,
+
+	tglx
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
