@@ -1,44 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx154.postini.com [74.125.245.154])
-	by kanga.kvack.org (Postfix) with SMTP id 1F3C26B006E
-	for <linux-mm@kvack.org>; Fri,  8 Jun 2012 02:59:15 -0400 (EDT)
-Received: by yenm7 with SMTP id m7so1362748yen.14
-        for <linux-mm@kvack.org>; Thu, 07 Jun 2012 23:59:14 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx188.postini.com [74.125.245.188])
+	by kanga.kvack.org (Postfix) with SMTP id 1FC0D6B006E
+	for <linux-mm@kvack.org>; Fri,  8 Jun 2012 03:00:10 -0400 (EDT)
+Received: by dakp5 with SMTP id p5so2392665dak.14
+        for <linux-mm@kvack.org>; Fri, 08 Jun 2012 00:00:09 -0700 (PDT)
+Date: Thu, 7 Jun 2012 23:58:28 -0700
+From: Anton Vorontsov <anton.vorontsov@linaro.org>
+Subject: Re: [PATCH 2/5] vmevent: Convert from deferred timer to deferred work
+Message-ID: <20120608065828.GA1515@lizard>
+References: <20120601122118.GA6128@lizard>
+ <1338553446-22292-2-git-send-email-anton.vorontsov@linaro.org>
+ <4FD170AA.10705@gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <4FD1A26B.7010601@gmail.com>
-References: <20120507121527.GA19526@lizard>
-	<4FA82056.2070706@gmail.com>
-	<CAOJsxLHQcDZSHJZg+zbptqmT9YY0VTkPd+gG_zgMzs+HaV_cyA@mail.gmail.com>
-	<CAHGf_=q1nbu=3cnfJ4qXwmngMPB-539kg-DFN2FJGig8+dRaNw@mail.gmail.com>
-	<CAOJsxLFAavdDbiLnYRwe+QiuEHSD62+Sz6LJTk+c3J9gnLVQ_w@mail.gmail.com>
-	<CAHGf_=pSLfAue6AR5gi5RQ7xvgTxpZckA=Ja1fO1AkoO1o_DeA@mail.gmail.com>
-	<CAOJsxLG1+zhOKgi2Rg1eSoXSCU8QGvHVED_EefOOLP-6JbMDkg@mail.gmail.com>
-	<20120601122118.GA6128@lizard>
-	<alpine.LFD.2.02.1206032125320.1943@tux.localdomain>
-	<4FCC7592.9030403@kernel.org>
-	<20120604113811.GA4291@lizard>
-	<4FCD14F1.1030105@gmail.com>
-	<CAOJsxLGbX33TfGvMEzV4By=n8JojHcXV32FRueb3kmti38jBPQ@mail.gmail.com>
-	<4FD177BD.1070004@gmail.com>
-	<CAOJsxLGHDF_QnRSA_CckdTDGxNkOFvRNZoFoW0iGDjGvTCK=2A@mail.gmail.com>
-	<4FD1A26B.7010601@gmail.com>
-Date: Fri, 8 Jun 2012 09:59:13 +0300
-Message-ID: <CAOJsxLEEssrFBC46ayh9Qx1Qm69iXBAKjNDj+S+AWCOzWP4Csg@mail.gmail.com>
-Subject: Re: [PATCH 0/5] Some vmevent fixes...
-From: Pekka Enberg <penberg@kernel.org>
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+In-Reply-To: <4FD170AA.10705@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
-Cc: Anton Vorontsov <cbouatmailru@gmail.com>, Minchan Kim <minchan@kernel.org>, Leonid Moiseichuk <leonid.moiseichuk@nokia.com>, John Stultz <john.stultz@linaro.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linaro-kernel@lists.linaro.org, patches@linaro.org, kernel-team@android.com
+To: KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Leonid Moiseichuk <leonid.moiseichuk@nokia.com>, Pekka Enberg <penberg@kernel.org>
+Cc: Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, John Stultz <john.stultz@linaro.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linaro-kernel@lists.linaro.org, patches@linaro.org, kernel-team@android.com
 
-On Fri, Jun 8, 2012 at 9:57 AM, KOSAKI Motohiro
-<kosaki.motohiro@gmail.com> wrote:
-> Guys, current vmevent _is_ a polling interface. It only is wrapped kernel
-> timer.
+On Thu, Jun 07, 2012 at 11:25:30PM -0400, KOSAKI Motohiro wrote:
+[...]
+> As I already told you, vmevent shouldn't deal a timer at all. It is
+> NOT familiar to embedded world. Because of, time subsystem is one of
+> most complex one on linux. Our 'time' is not simple concept. time.h
+> says we have 5 possibilities user want, at least.
+> 
+> include/linux/time.h
+> ------------------------------------------
+> #define CLOCK_REALTIME			0
+> #define CLOCK_MONOTONIC			1
+> #define CLOCK_MONOTONIC_RAW		4
+> #define CLOCK_REALTIME_COARSE		5
+> #define CLOCK_MONOTONIC_COARSE		6
+> 
+> And, some people want to change timer slack for optimize power 
+> consumption.
+> 
+> So, Don't reinventing the wheel. Just use posix tiemr apis.
 
-Current implementation is like that but we don't intend to keep it
-that way. That's why having a separate ABI is so important.
+I'm puzzled, why you mention posix timers in the context of the
+in-kernel user? And none of the posix timers are deferrable.
+
+The whole point of vmevent is to be lightweight and save power.
+Vmevent is doing all the work in the kernel, and it uses
+deferrable timers/workqueues to save power, and it is a proper
+in-kernel API to do so.
+
+If you're saying that we should set up a timer in the userland and
+constantly read /proc/vmstat, then we will cause CPU wake up
+every 100ms, which is not acceptable. Well, we can try to introduce
+deferrable timers for the userspace. But then it would still add
+a lot more overhead for our task, as this solution adds other two
+context switches to read and parse /proc/vmstat. I guess this is
+not a show-stopper though, so we can discuss this.
+
+Leonid, Pekka, what do you think about the idea?
+
+Thanks,
+
+-- 
+Anton Vorontsov
+Email: cbouatmailru@gmail.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
