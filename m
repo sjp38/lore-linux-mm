@@ -1,14 +1,14 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx203.postini.com [74.125.245.203])
-	by kanga.kvack.org (Postfix) with SMTP id 4F1756B006E
-	for <linux-mm@kvack.org>; Fri,  8 Jun 2012 15:02:14 -0400 (EDT)
-Date: Fri, 8 Jun 2012 14:02:11 -0500 (CDT)
+Received: from psmtp.com (na3sys010amx157.postini.com [74.125.245.157])
+	by kanga.kvack.org (Postfix) with SMTP id 127806B0071
+	for <linux-mm@kvack.org>; Fri,  8 Jun 2012 15:04:52 -0400 (EDT)
+Date: Fri, 8 Jun 2012 14:04:49 -0500 (CDT)
 From: Christoph Lameter <cl@linux.com>
-Subject: Re: [PATCH 1/4] slub: change declare of get_slab() to inline at all
- times
-In-Reply-To: <1339176197-13270-1-git-send-email-js1304@gmail.com>
-Message-ID: <alpine.DEB.2.00.1206081401090.28466@router.home>
-References: <yes> <1339176197-13270-1-git-send-email-js1304@gmail.com>
+Subject: Re: [PATCH 4/4] slub: deactivate freelist of kmem_cache_cpu all at
+ once in deactivate_slab()
+In-Reply-To: <1339176197-13270-4-git-send-email-js1304@gmail.com>
+Message-ID: <alpine.DEB.2.00.1206081403380.28466@router.home>
+References: <yes> <1339176197-13270-1-git-send-email-js1304@gmail.com> <1339176197-13270-4-git-send-email-js1304@gmail.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -18,12 +18,14 @@ Cc: Pekka Enberg <penberg@kernel.org>, linux-kernel@vger.kernel.org, linux-mm@kv
 
 On Sat, 9 Jun 2012, Joonsoo Kim wrote:
 
-> -static struct kmem_cache *get_slab(size_t size, gfp_t flags)
-> +static __always_inline struct kmem_cache *get_slab(size_t size, gfp_t flags)
+> Current implementation of deactivate_slab() which deactivate
+> freelist of kmem_cache_cpu one by one is inefficient.
+> This patch changes it to deactivate freelist all at once.
+> But, there is no overall performance benefit,
+> because deactivate_slab() is invoked infrequently.
 
-I thought that the compiler felt totally free to inline static functions
-at will? This may be a matter of compiler optimization settings. I can
-understand the use of always_inline in a header file but why in a .c file?
+Hmm, deactivate freelist can race with slab_free. Need to look at this in
+detail.
 
 
 --
