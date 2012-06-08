@@ -1,60 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx116.postini.com [74.125.245.116])
-	by kanga.kvack.org (Postfix) with SMTP id EE0686B0062
-	for <linux-mm@kvack.org>; Fri,  8 Jun 2012 19:06:13 -0400 (EDT)
-Date: Fri, 8 Jun 2012 16:06:12 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH -V6 07/14] memcg: Add HugeTLB extension
-Message-Id: <20120608160612.dea6d1ce.akpm@linux-foundation.org>
-In-Reply-To: <87lik920h8.fsf@skywalker.in.ibm.com>
-References: <1334573091-18602-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
-	<1334573091-18602-8-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
-	<alpine.DEB.2.00.1205241436180.24113@chino.kir.corp.google.com>
-	<20120527202848.GC7631@skywalker.linux.vnet.ibm.com>
-	<87lik920h8.fsf@skywalker.in.ibm.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx124.postini.com [74.125.245.124])
+	by kanga.kvack.org (Postfix) with SMTP id 53D1E6B006C
+	for <linux-mm@kvack.org>; Fri,  8 Jun 2012 19:06:21 -0400 (EDT)
+Date: Sat, 9 Jun 2012 09:06:16 +1000
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: Hole punching and mmap races
+Message-ID: <20120608230616.GA25389@dastard>
+References: <20120519014024.GZ25351@dastard>
+ <20120524123538.GA5632@quack.suse.cz>
+ <20120605055150.GF4347@dastard>
+ <20120605231530.GB4402@quack.suse.cz>
+ <20120606000636.GG22848@dastard>
+ <20120606095827.GA6304@quack.suse.cz>
+ <20120606133616.GL22848@dastard>
+ <20120607215835.GB393@quack.suse.cz>
+ <20120608005700.GW4347@dastard>
+ <20120608213629.GA1365@quack.suse.cz>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20120608213629.GA1365@quack.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Cc: David Rientjes <rientjes@google.com>, linux-mm@kvack.org, mgorman@suse.de, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, dhillf@gmail.com, aarcange@redhat.com, mhocko@suse.cz, hannes@cmpxchg.org, linux-kernel@vger.kernel.org, cgroups@vger.kernel.orgMichal Hocko <mhocko@suse.cz>, Ying Han <yinghan@google.com>
+To: Jan Kara <jack@suse.cz>
+Cc: linux-fsdevel@vger.kernel.org, xfs@oss.sgi.com, linux-ext4@vger.kernel.org, Hugh Dickins <hughd@google.com>, linux-mm@kvack.org
 
-On Wed, 30 May 2012 20:13:31 +0530
-"Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com> wrote:
-
-> >> 
-> >>  - code: seperating hugetlb bits out from memcg bits to avoid growing 
-> >>    mm/memcontrol.c beyond its current 5650 lines, and
-> >> 
-> >
-> > I can definitely look at spliting mm/memcontrol.c 
-> >
-> >
-> >>  - performance: not incurring any overhead of enabling memcg for per-
-> >>    page tracking that is unnecessary if users only want to limit hugetlb 
-> >>    pages.
-> >> 
+On Fri, Jun 08, 2012 at 11:36:29PM +0200, Jan Kara wrote:
+> On Fri 08-06-12 10:57:00, Dave Chinner wrote:
+> > On Thu, Jun 07, 2012 at 11:58:35PM +0200, Jan Kara wrote:
+> > > On Wed 06-06-12 23:36:16, Dave Chinner wrote:
+> > > Also we could implement the common case of locking a range
+> > > containing single page by just taking page lock so we save modification of
+> > > interval tree in the common case and generally make the tree smaller (of
+> > > course, at the cost of somewhat slowing down cases where we want to lock
+> > > larger ranges).
+> > 
+> > That seems like premature optimistion to me, and all the cases I
+> > think we need to care about are locking large ranges of the tree.
+> > Let's measure what the overhead of tracking everything in a single
+> > tree is first so we can then see what needs optimising...
+>   Umm, I agree that initially we probably want just to have the mapping
+> range lock ability, stick it somewhere to IO path and make things work.
+> Then we can look into making it faster / merging with page lock.
 > 
-> Since Andrew didn't sent the patchset to Linus because of this
-> discussion, I looked at reworking the patchset as a seperate
-> controller. The patchset I sent here
-> 
-> http://thread.gmane.org/gmane.linux.kernel.mm/79230
-> 
-> have seen minimal testing. I also folded the fixup patches
-> Andrew had in -mm to original patchset.
-> 
-> Let me know if the changes looks good.
+> However I disagree we care most about locking large ranges. For all
+> buffered IO and all page faults we need to lock a range containing just a
+> single page. We cannot lock more due to locking constraints with mmap_sem.
 
-This is starting to be a problem.  I'm still sitting on the old version
-of this patchset and it will start to get in the way of other work.
+Not sure I understand what that constraint is - I hav ebeen thinking
+that the buffered IO range lok would be across the entire IO, not
+individual pages.
 
-We now have this new version of the patchset which implements a
-separate controller but it is unclear to me which way we want to go.
+As it is, if we want to do multipage writes (and we do), we have to
+be able to lock a range of the mapping in the buffered IO path at a
+time...
 
-Can the memcg developers please drop everything else and make a
-decision here?
+> So the places that will lock larger ranges are: direct IO, truncate, punch
+> hole. Writeback actually doesn't seem to need any additional protection at
+> least as I've sketched out things so far.
+
+AFAICT, writeback needs protection against punching holes, just like
+mmap does, because they use the same "avoid truncated pages"
+mechanism.
+
+> So single-page ranges matter at least as much as longer ranges. That's why
+> I came up with that page lock optimisation and merging...
+
+I agree they are common, but lets measure the overhead first before
+trying to optimise/special case certain behaviours....
+
+Cheers,
+
+Dave.
+-- 
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
