@@ -1,68 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx176.postini.com [74.125.245.176])
-	by kanga.kvack.org (Postfix) with SMTP id E7A136B006E
-	for <linux-mm@kvack.org>; Fri,  8 Jun 2012 05:45:56 -0400 (EDT)
-From: Glauber Costa <glommer@parallels.com>
-Subject: [PATCH 0/4] kmem memcg proposed core changes
-Date: Fri,  8 Jun 2012 13:43:17 +0400
-Message-Id: <1339148601-20096-1-git-send-email-glommer@parallels.com>
+Received: from psmtp.com (na3sys010amx140.postini.com [74.125.245.140])
+	by kanga.kvack.org (Postfix) with SMTP id 397F76B006E
+	for <linux-mm@kvack.org>; Fri,  8 Jun 2012 05:46:49 -0400 (EDT)
+Received: by dakp5 with SMTP id p5so2630483dak.14
+        for <linux-mm@kvack.org>; Fri, 08 Jun 2012 02:46:48 -0700 (PDT)
+Date: Fri, 8 Jun 2012 02:45:07 -0700
+From: Anton Vorontsov <anton.vorontsov@linaro.org>
+Subject: Re: [PATCH 0/5] Some vmevent fixes...
+Message-ID: <20120608094507.GA11963@lizard>
+References: <4FCC7592.9030403@kernel.org>
+ <20120604113811.GA4291@lizard>
+ <4FCD14F1.1030105@gmail.com>
+ <CAOJsxLHR4wSgT2hNfOB=X6ud0rXgYg+h7PTHzAZYCUdLs6Ktug@mail.gmail.com>
+ <20120605083921.GA21745@lizard>
+ <4FD014D7.6000605@kernel.org>
+ <20120608074906.GA27095@lizard>
+ <4FD1BB29.1050805@kernel.org>
+ <CAOJsxLHPvg=bsv+GakFGHyJwH0BoGA=fmzy5bwqWKNGryYTDtg@mail.gmail.com>
+ <84FF21A720B0874AA94B46D76DB98269045F7B42@008-AM1MPN1-004.mgdnok.nokia.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+In-Reply-To: <84FF21A720B0874AA94B46D76DB98269045F7B42@008-AM1MPN1-004.mgdnok.nokia.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: cgroups@vger.kernel.org
-Cc: linux-mm@kvack.org, Tejun Heo <tj@kernel.org>, Frederic Weisbecker <fweisbeck@gmail.com>, devel@openvz.org, kamezawa.hiroyu@jp.fujitsu.com
+To: leonid.moiseichuk@nokia.com
+Cc: penberg@kernel.org, minchan@kernel.org, kosaki.motohiro@gmail.com, john.stultz@linaro.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linaro-kernel@lists.linaro.org, patches@linaro.org, kernel-team@android.com
 
-Hello all,
+On Fri, Jun 08, 2012 at 09:12:36AM +0000, leonid.moiseichuk@nokia.com wrote:
+[...]
+> > Exactly. I don't know why people think pushing vmevents to userspace is
+> > going to fix any of the hard problems.
+> > 
+> > Anton, Lenoid, do you see any fundamental issues from userspace point of
+> > view with going forward what Minchan is proposing?
+> 
+> That good proposal but I have to underline that userspace could be interested not only in memory consumption stressed cases (pressure, vm watermarks ON etc.) 
+> but quite relaxed as well e.g. 60% durty pages are consumed - let's do not restart some daemons. In very stressed conditions user-space might be already dead.
 
-So after thinking a lot about the last round of kmem memcg patches, this
-is what I managed to come up with. I am not sending the whole series for two
-reasons:
+Indeed. Minchan's proposal is good to get notified that VM is under
+stress.
 
-1) It still have a nasty destruction bug, and a slab heisenbug (slub seems to be
-   working as flawlessly as before), and I'd like to gather your comments early
-   on this approach
+But suppose some app allocates memory slowly (i.e. I scroll a large
+page on my phone, and the page is rendered piece by piece). So, in
+the end we're slowly but surely allocate a lot of memory. In that
+case Minchan's method won't notice that it's actually time to close
+some apps.
 
-2) The rest of the series doesn't change *that* much. Most patches are to some
-   extent touched, but it's mainly to adapt to those four, which I consider to
-   the the core changes between last series. So you can focus on these, and not
-   be distracted by the surrounding churn.
+Then suppose someone calls me, the "phone" application is now
+starting, but since we're out of 'easy to reclaim' pages, it takes
+forever for the app to load, VM is now under huge stress, and surely
+we're *now* getting notified, but alas, it is too late. Call missed.
 
-The main difference here is that as suggested by Cristoph, I am hooking at the
-page allocator. It is, indeed looser than before. But I still keep objects from
-the same cgroup in the same page most of the time. I guarantee that by using the
-same dispatch mechanism as before to select a particular per-memcg cache, but I
-now assume the process doing the dispatch will be the same doing the page
-allocation.
 
-The only situation this does not hold true, is when a task moves cgroup
-*between those two events*. So first of all, this is fixable. One can have a
-reaper, a check while moving, a match check after the page is allocated. But
-also, this is the kind of loose accounting I don't care too much about, since
-this is expected to be a rare event, one I particularly don't care about, and
-more importantly, it won't break anything.
+So, it's like measuring distance, velocity and acceleration. In
+Android case, among other things, we're interested in distance too!
+I.e. "how much exactly 'easy to reclaim' pages left", not only
+"how fast we're getting out of 'easy to reclaim' pages".
 
-Let me know what you people think of this approach. In terms of meddling with
-the internals of the caches, it is way less invasive than before.
+> Another interesting question which combination of VM page types could be recognized as interesting for tracking as Minchan correctly stated it depends from area.
+> For me seems weights most likely will be -1, 0 or +1 to calculate resulting values and thesholds e.g. Active = {+1 * Active_Anon; +1 * Active_File}
+> It will extend flexibility a lot.
 
-Glauber Costa (4):
-  memcg: kmem controller dispatch infrastructure
-  Add a __GFP_SLABMEMCG flag
-  don't do __ClearPageSlab before freeing slab page.
-  mm: Allocate kernel pages to the right memcg
-
- include/linux/gfp.h        |    4 +-
- include/linux/memcontrol.h |   72 +++++++++
- include/linux/page-flags.h |    2 +-
- include/linux/slub_def.h   |   15 +-
- init/Kconfig               |    2 +-
- mm/memcontrol.c            |  358 +++++++++++++++++++++++++++++++++++++++++++-
- mm/page_alloc.c            |   16 +-
- mm/slab.c                  |    9 +-
- mm/slob.c                  |    1 -
- mm/slub.c                  |    2 +-
- 10 files changed, 464 insertions(+), 17 deletions(-)
+Exposing VM details to the userland? No good. :-)
 
 -- 
-1.7.10.2
+Anton Vorontsov
+Email: cbouatmailru@gmail.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
