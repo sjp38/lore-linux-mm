@@ -1,85 +1,30 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx114.postini.com [74.125.245.114])
-	by kanga.kvack.org (Postfix) with SMTP id C8B816B0070
-	for <linux-mm@kvack.org>; Fri,  8 Jun 2012 13:50:09 -0400 (EDT)
-Received: by dakp5 with SMTP id p5so3306925dak.14
-        for <linux-mm@kvack.org>; Fri, 08 Jun 2012 10:50:09 -0700 (PDT)
-From: Nitin Gupta <ngupta@vflare.org>
-Subject: [PATCH] zsmalloc documentation
-Date: Sun,  3 Jun 2012 13:20:05 -0700
-Message-Id: <1338754805-1733-1-git-send-email-ngupta@vflare.org>
+Received: from psmtp.com (na3sys010amx203.postini.com [74.125.245.203])
+	by kanga.kvack.org (Postfix) with SMTP id 4F1756B006E
+	for <linux-mm@kvack.org>; Fri,  8 Jun 2012 15:02:14 -0400 (EDT)
+Date: Fri, 8 Jun 2012 14:02:11 -0500 (CDT)
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: [PATCH 1/4] slub: change declare of get_slab() to inline at all
+ times
+In-Reply-To: <1339176197-13270-1-git-send-email-js1304@gmail.com>
+Message-ID: <alpine.DEB.2.00.1206081401090.28466@router.home>
+References: <yes> <1339176197-13270-1-git-send-email-js1304@gmail.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Greg KH <greg@kroah.com>
-Cc: Dan Magenheimer <dan.magenheimer@oracle.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Minchan Kim <minchan.kim@gmail.com>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>
+To: Joonsoo Kim <js1304@gmail.com>
+Cc: Pekka Enberg <penberg@kernel.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-Signed-off-by: Nitin Gupta <ngupta@vflare.org>
----
- drivers/staging/zsmalloc/zsmalloc-main.c |   49 ++++++++++++++++++++++++++++++
- 1 file changed, 49 insertions(+)
+On Sat, 9 Jun 2012, Joonsoo Kim wrote:
 
-diff --git a/drivers/staging/zsmalloc/zsmalloc-main.c b/drivers/staging/zsmalloc/zsmalloc-main.c
-index 4496737..f80f2fd 100644
---- a/drivers/staging/zsmalloc/zsmalloc-main.c
-+++ b/drivers/staging/zsmalloc/zsmalloc-main.c
-@@ -10,6 +10,55 @@
-  * Released under the terms of GNU General Public License Version 2.0
-  */
- 
-+
-+/*
-+ * This allocator is designed for use with zcache and zram. Thus, the
-+ * allocator is supposed to work well under low memory conditions. In
-+ * particular, it never attempts higher order page allocation which is
-+ * very likely to fail under memory pressure. On the other hand, if we
-+ * just use single (0-order) pages, it would suffer from very high
-+ * fragmentation -- any object of size PAGE_SIZE/2 or larger would occupy
-+ * an entire page. This was one of the major issues with its predecessor
-+ * (xvmalloc).
-+ *
-+ * To overcome these issues, zsmalloc allocates a bunch of 0-order pages
-+ * and links them together using various 'struct page' fields. These linked
-+ * pages act as a single higher-order page i.e. an object can span 0-order
-+ * page boundaries. The code refers to these linked pages as a single entity
-+ * called zspage.
-+ *
-+ * Following is how we use various fields and flags of underlying
-+ * struct page(s) to form a zspage.
-+ *
-+ * Usage of struct page fields:
-+ *	page->first_page: points to the first component (0-order) page
-+ *	[first] page->private (union with page->first_page): refers to the
-+ *		component page after the first page
-+ *
-+ *	[first] page->freelist: points to the first free object in zspage.
-+ *		Free objects are linked together using in-place
-+ *		metadata.
-+ *	page->index (union with page->freelist): offset of the first object
-+ *		starting in this page. For the first page, this is
-+ *		always 0, so we use this field (aka freelist) to point
-+ *		to the first free object in zspage.
-+ *
-+ *	[first] page->objects: maximum number of objects we can store in this
-+ *		zspage (class->zspage_order * PAGE_SIZE / class->size)
-+ *
-+ *	page->lru: links together all component pages (except the first page)
-+ *		of a zspage
-+ *	[first] page->lru: links together first pages of various zspages.
-+ *		Basically forming list of zspages in a fullness group.
-+ *
-+ *	[first] page->mapping: class index and fullness group of the zspage
-+ *
-+ * Usage of struct page flags:
-+ *	PG_private: identifies the first component page
-+ *	PG_private2: identifies the last component page
-+ *
-+ */
-+
- #ifdef CONFIG_ZSMALLOC_DEBUG
- #define DEBUG
- #endif
--- 
-1.7.10.2
+> -static struct kmem_cache *get_slab(size_t size, gfp_t flags)
+> +static __always_inline struct kmem_cache *get_slab(size_t size, gfp_t flags)
+
+I thought that the compiler felt totally free to inline static functions
+at will? This may be a matter of compiler optimization settings. I can
+understand the use of always_inline in a header file but why in a .c file?
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
