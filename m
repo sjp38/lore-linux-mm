@@ -1,89 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx162.postini.com [74.125.245.162])
-	by kanga.kvack.org (Postfix) with SMTP id 31F516B0082
-	for <linux-mm@kvack.org>; Sat,  9 Jun 2012 05:00:56 -0400 (EDT)
-Received: from /spool/local
-	by e28smtp09.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
-	Sat, 9 Jun 2012 14:30:53 +0530
-Received: from d28av03.in.ibm.com (d28av03.in.ibm.com [9.184.220.65])
-	by d28relay05.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q5990nrW7471378
-	for <linux-mm@kvack.org>; Sat, 9 Jun 2012 14:30:49 +0530
-Received: from d28av03.in.ibm.com (loopback [127.0.0.1])
-	by d28av03.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q59EU58Z031484
-	for <linux-mm@kvack.org>; Sun, 10 Jun 2012 00:30:05 +1000
-From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Subject: [PATCH -V8 16/16] hugetlb/cgroup: add HugeTLB controller documentation
-Date: Sat,  9 Jun 2012 14:30:01 +0530
-Message-Id: <1339232401-14392-17-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
-In-Reply-To: <1339232401-14392-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+Received: from psmtp.com (na3sys010amx186.postini.com [74.125.245.186])
+	by kanga.kvack.org (Postfix) with SMTP id 9F5B36B0095
+	for <linux-mm@kvack.org>; Sat,  9 Jun 2012 05:23:10 -0400 (EDT)
+Date: Sat, 9 Jun 2012 11:23:01 +0200
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH -V8 14/16] hugetlb/cgroup: add charge/uncharge calls for
+ HugeTLB alloc/free
+Message-ID: <20120609092301.GF1761@cmpxchg.org>
 References: <1339232401-14392-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+ <1339232401-14392-15-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1339232401-14392-15-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org, kamezawa.hiroyu@jp.fujitsu.com, dhillf@gmail.com, rientjes@google.com, mhocko@suse.cz, akpm@linux-foundation.org, hannes@cmpxchg.org
-Cc: linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Cc: linux-mm@kvack.org, kamezawa.hiroyu@jp.fujitsu.com, dhillf@gmail.com, rientjes@google.com, mhocko@suse.cz, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org
 
-From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+On Sat, Jun 09, 2012 at 02:29:59PM +0530, Aneesh Kumar K.V wrote:
+> From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+> 
+> This adds necessary charge/uncharge calls in the HugeTLB code.  We do
+> hugetlb cgroup charge in page alloc and uncharge in compound page destructor.
+> 
+> Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
+> ---
+>  mm/hugetlb.c        |   16 +++++++++++++++-
+>  mm/hugetlb_cgroup.c |    7 +------
+>  2 files changed, 16 insertions(+), 7 deletions(-)
+> 
+> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+> index bf79131..4ca92a9 100644
+> --- a/mm/hugetlb.c
+> +++ b/mm/hugetlb.c
+> @@ -628,6 +628,8 @@ static void free_huge_page(struct page *page)
+>  	BUG_ON(page_mapcount(page));
+>  
+>  	spin_lock(&hugetlb_lock);
+> +	hugetlb_cgroup_uncharge_page(hstate_index(h),
+> +				     pages_per_huge_page(h), page);
 
-Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
----
- Documentation/cgroups/hugetlb.txt |   45 +++++++++++++++++++++++++++++++++++++
- 1 file changed, 45 insertions(+)
- create mode 100644 Documentation/cgroups/hugetlb.txt
+hugetlb_cgroup_uncharge_page() takes the hugetlb_lock, no?
 
-diff --git a/Documentation/cgroups/hugetlb.txt b/Documentation/cgroups/hugetlb.txt
-new file mode 100644
-index 0000000..a9faaca
---- /dev/null
-+++ b/Documentation/cgroups/hugetlb.txt
-@@ -0,0 +1,45 @@
-+HugeTLB Controller
-+-------------------
-+
-+The HugeTLB controller allows to limit the HugeTLB usage per control group and
-+enforces the controller limit during page fault. Since HugeTLB doesn't
-+support page reclaim, enforcing the limit at page fault time implies that,
-+the application will get SIGBUS signal if it tries to access HugeTLB pages
-+beyond its limit. This requires the application to know beforehand how much
-+HugeTLB pages it would require for its use.
-+
-+HugeTLB controller can be created by first mounting the cgroup filesystem.
-+
-+# mount -t cgroup -o hugetlb none /sys/fs/cgroup
-+
-+With the above step, the initial or the parent HugeTLB group becomes
-+visible at /sys/fs/cgroup. At bootup, this group includes all the tasks in
-+the system. /sys/fs/cgroup/tasks lists the tasks in this cgroup.
-+
-+New groups can be created under the parent group /sys/fs/cgroup.
-+
-+# cd /sys/fs/cgroup
-+# mkdir g1
-+# echo $$ > g1/tasks
-+
-+The above steps create a new group g1 and move the current shell
-+process (bash) into it.
-+
-+Brief summary of control files
-+
-+ hugetlb.<hugepagesize>.limit_in_bytes     # set/show limit of "hugepagesize" hugetlb usage
-+ hugetlb.<hugepagesize>.max_usage_in_bytes # show max "hugepagesize" hugetlb  usage recorded
-+ hugetlb.<hugepagesize>.usage_in_bytes     # show current res_counter usage for "hugepagesize" hugetlb
-+ hugetlb.<hugepagesize>.failcnt		   # show the number of allocation failure due to HugeTLB limit
-+
-+For a system supporting two hugepage size (16M and 16G) the control
-+files include:
-+
-+hugetlb.16GB.limit_in_bytes
-+hugetlb.16GB.max_usage_in_bytes
-+hugetlb.16GB.usage_in_bytes
-+hugetlb.16GB.failcnt
-+hugetlb.16MB.limit_in_bytes
-+hugetlb.16MB.max_usage_in_bytes
-+hugetlb.16MB.usage_in_bytes
-+hugetlb.16MB.failcnt
--- 
-1.7.10
+It's quite hard to review code that is split up like this.  Please
+always keep the introduction of new functions in the same patch that
+adds the callsite(s).
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
