@@ -1,60 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx171.postini.com [74.125.245.171])
-	by kanga.kvack.org (Postfix) with SMTP id 0251C6B0062
-	for <linux-mm@kvack.org>; Sat,  9 Jun 2012 07:54:18 -0400 (EDT)
-Date: Sat, 9 Jun 2012 19:54:13 +0800
-From: Fengguang Wu <fengguang.wu@intel.com>
-Subject: Re: [PATCH] mm/page-writeback.c: fix comments error in
- page-writeback.c
-Message-ID: <20120609115413.GA15811@localhost>
-References: <1339242333-3080-1-git-send-email-liwp.linux@gmail.com>
+Received: from psmtp.com (na3sys010amx119.postini.com [74.125.245.119])
+	by kanga.kvack.org (Postfix) with SMTP id 497BA6B0062
+	for <linux-mm@kvack.org>; Sat,  9 Jun 2012 09:03:26 -0400 (EDT)
+Received: from /spool/local
+	by e23smtp04.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
+	Sat, 9 Jun 2012 12:42:51 +1000
+Received: from d23av01.au.ibm.com (d23av01.au.ibm.com [9.190.234.96])
+	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q59D3FLb60751892
+	for <linux-mm@kvack.org>; Sat, 9 Jun 2012 23:03:16 +1000
+Received: from d23av01.au.ibm.com (loopback [127.0.0.1])
+	by d23av01.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q59D3EsV000801
+	for <linux-mm@kvack.org>; Sat, 9 Jun 2012 23:03:14 +1000
+From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Subject: Re: [PATCH -V8 05/16] hugetlb: avoid taking i_mmap_mutex in unmap_single_vma() for hugetlb
+In-Reply-To: <20120609094444.GG1761@cmpxchg.org>
+References: <1339232401-14392-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com> <1339232401-14392-6-git-send-email-aneesh.kumar@linux.vnet.ibm.com> <20120609094444.GG1761@cmpxchg.org>User-Agent: Notmuch/0.11.1+346~g13d19c3 (http://notmuchmail.org) Emacs/23.3.1 (x86_64-pc-linux-gnu)
+Date: Sat, 09 Jun 2012 18:33:05 +0530
+Message-ID: <87sje4ljsm.fsf@skywalker.in.ibm.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1339242333-3080-1-git-send-email-liwp.linux@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wanpeng Li <liwp.linux@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Gavin Shan <shangw@linux.vnet.ibm.com>, Wanpeng Li <liwp@linux.vnet.ibm.com>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: linux-mm@kvack.org, kamezawa.hiroyu@jp.fujitsu.com, dhillf@gmail.com, rientjes@google.com, mhocko@suse.cz, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org
 
-On Sat, Jun 09, 2012 at 07:45:33PM +0800, Wanpeng Li wrote:
-> From: Wanpeng Li <liwp@linux.vnet.ibm.com>
-> 
-> Signed-off-by: Wanpeng Li <liwp@linux.vnet.ibm.com>
-> ---
->  mm/page-writeback.c |    4 ++--
->  1 file changed, 2 insertions(+), 2 deletions(-)
-> 
-> diff --git a/mm/page-writeback.c b/mm/page-writeback.c
-> index 93d8d2f..c833bf0 100644
-> --- a/mm/page-writeback.c
-> +++ b/mm/page-writeback.c
-> @@ -930,7 +930,7 @@ static void bdi_update_dirty_ratelimit(struct backing_dev_info *bdi,
->  	 */
->  
->  	/*
-> -	 * dirty_ratelimit will follow balanced_dirty_ratelimit iff
-> +	 * dirty_ratelimit will follow balanced_dirty_ratelimit if
+Johannes Weiner <hannes@cmpxchg.org> writes:
 
-That 'iff' means 'if and only if'.
+> On Sat, Jun 09, 2012 at 02:29:50PM +0530, Aneesh Kumar K.V wrote:
+>> From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+>> 
+>> i_mmap_mutex lock was added in unmap_single_vma by 502717f4e ("hugetlb:
+>> fix linked list corruption in unmap_hugepage_range()") but we don't use
+>> page->lru in unmap_hugepage_range any more.  Also the lock was taken
+>> higher up in the stack in some code path.  That would result in deadlock.
+>> 
+>> unmap_mapping_range (i_mmap_mutex)
+>>  -> unmap_mapping_range_tree
+>>     -> unmap_mapping_range_vma
+>>        -> zap_page_range_single
+>>          -> unmap_single_vma
+>> 	      -> unmap_hugepage_range (i_mmap_mutex)
+>> 
+>> For shared pagetable support for huge pages, since pagetable pages are ref
+>> counted we don't need any lock during huge_pmd_unshare.  We do take
+>> i_mmap_mutex in huge_pmd_share while walking the vma_prio_tree in mapping.
+>> (39dde65c9940c97f ("shared page table for hugetlb page")).
+>> 
+>> Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
+>
+> This patch (together with the previous one) seems like a bugfix that's
+> not really related to the hugetlb controller, unless I miss something.
+>
+> Could you please submit the fix separately?
 
->  	 * task_ratelimit is on the same side of dirty_ratelimit, too.
->  	 * For example, when
->  	 * - dirty_ratelimit > balanced_dirty_ratelimit
-> @@ -941,7 +941,7 @@ static void bdi_update_dirty_ratelimit(struct backing_dev_info *bdi,
->  	 * feel and care are stable dirty rate and small position error.
->  	 *
->  	 * |task_ratelimit - dirty_ratelimit| is used to limit the step size
-> -	 * and filter out the sigular points of balanced_dirty_ratelimit. Which
-> +	 * and filter out the singular points of balanced_dirty_ratelimit. Which
->  	 * keeps jumping around randomly and can even leap far away at times
->  	 * due to the small 200ms estimation period of dirty_rate (we want to
->  	 * keep that period small to reduce time lags).
+Patches upto 6 can really got in a separate series. I was not sure
+whether I should split them. I will post that as a separate series now
 
-I'll fold the above chunk into the previous patch.
+>
+> Maybe also fold the two patches into one and make it a single bugfix
+> change that gets rid of the lock by switching away from page->lru.
 
-Thanks,
-Fengguang
+I wanted to make sure the patch that drop i_mmap_mutex is a separate one
+so that we understand and document the locking details separately
+
+-aneesh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
