@@ -1,82 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx159.postini.com [74.125.245.159])
-	by kanga.kvack.org (Postfix) with SMTP id 9969F6B005A
-	for <linux-mm@kvack.org>; Sat,  9 Jun 2012 10:52:57 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx185.postini.com [74.125.245.185])
+	by kanga.kvack.org (Postfix) with SMTP id 17E7F6B005A
+	for <linux-mm@kvack.org>; Sat,  9 Jun 2012 11:12:22 -0400 (EDT)
 Received: from /spool/local
-	by e34.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e7.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <shangw@linux.vnet.ibm.com>;
-	Sat, 9 Jun 2012 08:52:55 -0600
-Received: from d03relay05.boulder.ibm.com (d03relay05.boulder.ibm.com [9.17.195.107])
-	by d03dlp02.boulder.ibm.com (Postfix) with ESMTP id 58C2F3E40048
-	for <linux-mm@kvack.org>; Sat,  9 Jun 2012 14:52:06 +0000 (WET)
-Received: from d03av04.boulder.ibm.com (d03av04.boulder.ibm.com [9.17.195.170])
-	by d03relay05.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q59Eq6TZ230332
-	for <linux-mm@kvack.org>; Sat, 9 Jun 2012 08:52:06 -0600
-Received: from d03av04.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av04.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q59Eq5XZ003576
-	for <linux-mm@kvack.org>; Sat, 9 Jun 2012 08:52:05 -0600
+	Sat, 9 Jun 2012 11:12:20 -0400
+Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
+	by d01dlp02.pok.ibm.com (Postfix) with ESMTP id AC49C6E8049
+	for <linux-mm@kvack.org>; Sat,  9 Jun 2012 11:11:37 -0400 (EDT)
+Received: from d01av01.pok.ibm.com (d01av01.pok.ibm.com [9.56.224.215])
+	by d01relay02.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q59FBbfU085980
+	for <linux-mm@kvack.org>; Sat, 9 Jun 2012 11:11:37 -0400
+Received: from d01av01.pok.ibm.com (loopback [127.0.0.1])
+	by d01av01.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q59KgT7X012697
+	for <linux-mm@kvack.org>; Sat, 9 Jun 2012 16:42:29 -0400
 From: Gavin Shan <shangw@linux.vnet.ibm.com>
-Subject: [PATCH] mm/buddy: cleanup on should_fail_alloc_page
-Date: Sat,  9 Jun 2012 23:51:56 +0900
-Message-Id: <1339253516-8760-1-git-send-email-shangw@linux.vnet.ibm.com>
+Subject: [PATCH] mm/buddy: fix default NUMA nodes
+Date: Sun, 10 Jun 2012 00:11:27 +0900
+Message-Id: <1339254687-13447-1-git-send-email-shangw@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
 Cc: hannes@cmpxchg.org, akpm@linux-foundation.org, Gavin Shan <shangw@linux.vnet.ibm.com>
 
-In the core function __alloc_pages_nodemask() of buddy allocator, it's
-possible for the memory allocation to fail. That's probablly caused
-by error injection with expection. In that case, it depends on the
-check of error injection covered by function should_fail(). Currently,
-function should_fail() has "bool" for its return value, so it's reasonable
-to change the return value of function should_fail_alloc_page() into
-"bool" as well.
+In the core function __alloc_pages_nodemask() of buddy allocator,
+the NUMA nodes would be allowed nodes of current process or online
+high memory nodes if the nodemask passed into the function is NULL.
+However, the current implementation of function __alloc_pages_nodemask()
+might retrieve the preferred zones from the allowed nodes of current
+process or online high memory nodes, but never use that in the case.
 
-The patch does cleanup on function should_fail_alloc_page() to "bool".
+The patch fixes that. When the nodemask passed into __alloc_pages_nodemask()
+is NULL. We will always use the nodemask from the allowed one of
+current process or online high memory nodes.
 
 Signed-off-by: Gavin Shan <shangw@linux.vnet.ibm.com>
 ---
- mm/page_alloc.c |   14 +++++++-------
- 1 file changed, 7 insertions(+), 7 deletions(-)
+ mm/page_alloc.c |   12 ++++++------
+ 1 file changed, 6 insertions(+), 6 deletions(-)
 
 diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 4403009..7892f84 100644
+index 7892f84..dda83c5 100644
 --- a/mm/page_alloc.c
 +++ b/mm/page_alloc.c
-@@ -1529,16 +1529,16 @@ static int __init setup_fail_page_alloc(char *str)
- }
- __setup("fail_page_alloc=", setup_fail_page_alloc);
- 
--static int should_fail_alloc_page(gfp_t gfp_mask, unsigned int order)
-+static bool should_fail_alloc_page(gfp_t gfp_mask, unsigned int order)
+@@ -2474,6 +2474,7 @@ struct page *
+ __alloc_pages_nodemask(gfp_t gfp_mask, unsigned int order,
+ 			struct zonelist *zonelist, nodemask_t *nodemask)
  {
- 	if (order < fail_page_alloc.min_order)
--		return 0;
-+		return false;
- 	if (gfp_mask & __GFP_NOFAIL)
--		return 0;
-+		return false;
- 	if (fail_page_alloc.ignore_gfp_highmem && (gfp_mask & __GFP_HIGHMEM))
--		return 0;
-+		return false;
- 	if (fail_page_alloc.ignore_gfp_wait && (gfp_mask & __GFP_WAIT))
--		return 0;
-+		return false;
++	nodemask_t *preferred_nodemask = nodemask ? : &cpuset_current_mems_allowed;
+ 	enum zone_type high_zoneidx = gfp_zone(gfp_mask);
+ 	struct zone *preferred_zone;
+ 	struct page *page = NULL;
+@@ -2501,19 +2502,18 @@ retry_cpuset:
+ 	cpuset_mems_cookie = get_mems_allowed();
  
- 	return should_fail(&fail_page_alloc.attr, 1 << order);
- }
-@@ -1578,9 +1578,9 @@ late_initcall(fail_page_alloc_debugfs);
+ 	/* The preferred zone is used for statistics later */
+-	first_zones_zonelist(zonelist, high_zoneidx,
+-				nodemask ? : &cpuset_current_mems_allowed,
++	first_zones_zonelist(zonelist, high_zoneidx, preferred_nodemask,
+ 				&preferred_zone);
+ 	if (!preferred_zone)
+ 		goto out;
  
- #else /* CONFIG_FAIL_PAGE_ALLOC */
+ 	/* First allocation attempt */
+-	page = get_page_from_freelist(gfp_mask|__GFP_HARDWALL, nodemask, order,
+-			zonelist, high_zoneidx, ALLOC_WMARK_LOW|ALLOC_CPUSET,
++	page = get_page_from_freelist(gfp_mask|__GFP_HARDWALL, preferred_nodemask,
++			order, zonelist, high_zoneidx, ALLOC_WMARK_LOW|ALLOC_CPUSET,
+ 			preferred_zone, migratetype);
+ 	if (unlikely(!page))
+-		page = __alloc_pages_slowpath(gfp_mask, order,
+-				zonelist, high_zoneidx, nodemask,
++		page = __alloc_pages_slowpath(gfp_mask, order, zonelist,
++				high_zoneidx, preferred_nodemask,
+ 				preferred_zone, migratetype);
  
--static inline int should_fail_alloc_page(gfp_t gfp_mask, unsigned int order)
-+static inline bool should_fail_alloc_page(gfp_t gfp_mask, unsigned int order)
- {
--	return 0;
-+	return false;
- }
- 
- #endif /* CONFIG_FAIL_PAGE_ALLOC */
+ 	trace_mm_page_alloc(page, order, gfp_mask, migratetype);
 -- 
 1.7.9.5
 
