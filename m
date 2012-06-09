@@ -1,21 +1,21 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx103.postini.com [74.125.245.103])
-	by kanga.kvack.org (Postfix) with SMTP id AAB416B0071
-	for <linux-mm@kvack.org>; Sat,  9 Jun 2012 05:00:33 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx171.postini.com [74.125.245.171])
+	by kanga.kvack.org (Postfix) with SMTP id 227DA6B0072
+	for <linux-mm@kvack.org>; Sat,  9 Jun 2012 05:00:37 -0400 (EDT)
 Received: from /spool/local
-	by e28smtp01.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e28smtp05.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
-	Sat, 9 Jun 2012 14:30:31 +0530
+	Sat, 9 Jun 2012 14:30:34 +0530
 Received: from d28av03.in.ibm.com (d28av03.in.ibm.com [9.184.220.65])
-	by d28relay03.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q5990SE7655618
-	for <linux-mm@kvack.org>; Sat, 9 Jun 2012 14:30:28 +0530
+	by d28relay04.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q5990UrO2556364
+	for <linux-mm@kvack.org>; Sat, 9 Jun 2012 14:30:30 +0530
 Received: from d28av03.in.ibm.com (loopback [127.0.0.1])
-	by d28av03.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q59ETh7n029876
-	for <linux-mm@kvack.org>; Sun, 10 Jun 2012 00:29:44 +1000
+	by d28av03.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q59ETktQ029970
+	for <linux-mm@kvack.org>; Sun, 10 Jun 2012 00:29:46 +1000
 From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Subject: [PATCH -V8 07/16] hugetlb: add a list for tracking in-use HugeTLB pages
-Date: Sat,  9 Jun 2012 14:29:52 +0530
-Message-Id: <1339232401-14392-8-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+Subject: [PATCH -V8 08/16] hugetlb: Make some static variables global
+Date: Sat,  9 Jun 2012 14:29:53 +0530
+Message-Id: <1339232401-14392-9-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
 In-Reply-To: <1339232401-14392-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
 References: <1339232401-14392-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
@@ -25,105 +25,58 @@ Cc: linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, "Aneesh Kumar K.V" <a
 
 From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
 
-hugepage_activelist will be used to track currently used HugeTLB pages.
-We need to find the in-use HugeTLB pages to support HugeTLB cgroup removal.
-On cgroup removal we update the page's HugeTLB cgroup to point to parent
-cgroup.
+We will use them later in hugetlb_cgroup.c
 
-Reviewed-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
 ---
- include/linux/hugetlb.h |    1 +
- mm/hugetlb.c            |   12 +++++++-----
- 2 files changed, 8 insertions(+), 5 deletions(-)
+ include/linux/hugetlb.h |    5 +++++
+ mm/hugetlb.c            |    7 ++-----
+ 2 files changed, 7 insertions(+), 5 deletions(-)
 
 diff --git a/include/linux/hugetlb.h b/include/linux/hugetlb.h
-index 0f23c18..ed550d8 100644
+index ed550d8..4aca057 100644
 --- a/include/linux/hugetlb.h
 +++ b/include/linux/hugetlb.h
-@@ -211,6 +211,7 @@ struct hstate {
- 	unsigned long resv_huge_pages;
- 	unsigned long surplus_huge_pages;
- 	unsigned long nr_overcommit_huge_pages;
-+	struct list_head hugepage_activelist;
- 	struct list_head hugepage_freelists[MAX_NUMNODES];
- 	unsigned int nr_huge_pages_node[MAX_NUMNODES];
- 	unsigned int free_huge_pages_node[MAX_NUMNODES];
+@@ -21,6 +21,11 @@ struct hugepage_subpool {
+ 	long max_hpages, used_hpages;
+ };
+ 
++extern spinlock_t hugetlb_lock;
++extern int hugetlb_max_hstate;
++#define for_each_hstate(h) \
++	for ((h) = hstates; (h) < &hstates[hugetlb_max_hstate]; (h)++)
++
+ struct hugepage_subpool *hugepage_new_subpool(long nr_blocks);
+ void hugepage_put_subpool(struct hugepage_subpool *spool);
+ 
 diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-index e54b695..b5b6e15 100644
+index b5b6e15..e899a2d 100644
 --- a/mm/hugetlb.c
 +++ b/mm/hugetlb.c
-@@ -510,7 +510,7 @@ void copy_huge_page(struct page *dst, struct page *src)
- static void enqueue_huge_page(struct hstate *h, struct page *page)
+@@ -35,7 +35,7 @@ const unsigned long hugetlb_zero = 0, hugetlb_infinity = ~0UL;
+ static gfp_t htlb_alloc_mask = GFP_HIGHUSER;
+ unsigned long hugepages_treat_as_movable;
+ 
+-static int hugetlb_max_hstate;
++int hugetlb_max_hstate;
+ unsigned int default_hstate_idx;
+ struct hstate hstates[HUGE_MAX_HSTATE];
+ 
+@@ -46,13 +46,10 @@ static struct hstate * __initdata parsed_hstate;
+ static unsigned long __initdata default_hstate_max_huge_pages;
+ static unsigned long __initdata default_hstate_size;
+ 
+-#define for_each_hstate(h) \
+-	for ((h) = hstates; (h) < &hstates[hugetlb_max_hstate]; (h)++)
+-
+ /*
+  * Protects updates to hugepage_freelists, nr_huge_pages, and free_huge_pages
+  */
+-static DEFINE_SPINLOCK(hugetlb_lock);
++DEFINE_SPINLOCK(hugetlb_lock);
+ 
+ static inline void unlock_or_release_subpool(struct hugepage_subpool *spool)
  {
- 	int nid = page_to_nid(page);
--	list_add(&page->lru, &h->hugepage_freelists[nid]);
-+	list_move(&page->lru, &h->hugepage_freelists[nid]);
- 	h->free_huge_pages++;
- 	h->free_huge_pages_node[nid]++;
- }
-@@ -522,7 +522,7 @@ static struct page *dequeue_huge_page_node(struct hstate *h, int nid)
- 	if (list_empty(&h->hugepage_freelists[nid]))
- 		return NULL;
- 	page = list_entry(h->hugepage_freelists[nid].next, struct page, lru);
--	list_del(&page->lru);
-+	list_move(&page->lru, &h->hugepage_activelist);
- 	set_page_refcounted(page);
- 	h->free_huge_pages--;
- 	h->free_huge_pages_node[nid]--;
-@@ -626,10 +626,11 @@ static void free_huge_page(struct page *page)
- 	page->mapping = NULL;
- 	BUG_ON(page_count(page));
- 	BUG_ON(page_mapcount(page));
--	INIT_LIST_HEAD(&page->lru);
- 
- 	spin_lock(&hugetlb_lock);
- 	if (h->surplus_huge_pages_node[nid] && huge_page_order(h) < MAX_ORDER) {
-+		/* remove the page from active list */
-+		list_del(&page->lru);
- 		update_and_free_page(h, page);
- 		h->surplus_huge_pages--;
- 		h->surplus_huge_pages_node[nid]--;
-@@ -642,6 +643,7 @@ static void free_huge_page(struct page *page)
- 
- static void prep_new_huge_page(struct hstate *h, struct page *page, int nid)
- {
-+	INIT_LIST_HEAD(&page->lru);
- 	set_compound_page_dtor(page, free_huge_page);
- 	spin_lock(&hugetlb_lock);
- 	h->nr_huge_pages++;
-@@ -890,6 +892,7 @@ static struct page *alloc_buddy_huge_page(struct hstate *h, int nid)
- 
- 	spin_lock(&hugetlb_lock);
- 	if (page) {
-+		INIT_LIST_HEAD(&page->lru);
- 		r_nid = page_to_nid(page);
- 		set_compound_page_dtor(page, free_huge_page);
- 		/*
-@@ -994,7 +997,6 @@ retry:
- 	list_for_each_entry_safe(page, tmp, &surplus_list, lru) {
- 		if ((--needed) < 0)
- 			break;
--		list_del(&page->lru);
- 		/*
- 		 * This page is now managed by the hugetlb allocator and has
- 		 * no users -- drop the buddy allocator's reference.
-@@ -1009,7 +1011,6 @@ free:
- 	/* Free unnecessary surplus pages to the buddy allocator */
- 	if (!list_empty(&surplus_list)) {
- 		list_for_each_entry_safe(page, tmp, &surplus_list, lru) {
--			list_del(&page->lru);
- 			put_page(page);
- 		}
- 	}
-@@ -1909,6 +1910,7 @@ void __init hugetlb_add_hstate(unsigned order)
- 	h->free_huge_pages = 0;
- 	for (i = 0; i < MAX_NUMNODES; ++i)
- 		INIT_LIST_HEAD(&h->hugepage_freelists[i]);
-+	INIT_LIST_HEAD(&h->hugepage_activelist);
- 	h->next_nid_to_alloc = first_node(node_states[N_HIGH_MEMORY]);
- 	h->next_nid_to_free = first_node(node_states[N_HIGH_MEMORY]);
- 	snprintf(h->name, HSTATE_NAME_LEN, "hugepages-%lukB",
 -- 
 1.7.10
 
