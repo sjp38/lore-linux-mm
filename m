@@ -1,70 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx162.postini.com [74.125.245.162])
-	by kanga.kvack.org (Postfix) with SMTP id 165AC6B005A
-	for <linux-mm@kvack.org>; Sat,  9 Jun 2012 10:49:26 -0400 (EDT)
-Date: Sat, 9 Jun 2012 16:49:18 +0200
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH -V8 05/16] hugetlb: avoid taking i_mmap_mutex in
- unmap_single_vma() for hugetlb
-Message-ID: <20120609144918.GI1761@cmpxchg.org>
-References: <1339232401-14392-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
- <1339232401-14392-6-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
- <20120609094444.GG1761@cmpxchg.org>
- <87sje4ljsm.fsf@skywalker.in.ibm.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <87sje4ljsm.fsf@skywalker.in.ibm.com>
+Received: from psmtp.com (na3sys010amx159.postini.com [74.125.245.159])
+	by kanga.kvack.org (Postfix) with SMTP id 9969F6B005A
+	for <linux-mm@kvack.org>; Sat,  9 Jun 2012 10:52:57 -0400 (EDT)
+Received: from /spool/local
+	by e34.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <shangw@linux.vnet.ibm.com>;
+	Sat, 9 Jun 2012 08:52:55 -0600
+Received: from d03relay05.boulder.ibm.com (d03relay05.boulder.ibm.com [9.17.195.107])
+	by d03dlp02.boulder.ibm.com (Postfix) with ESMTP id 58C2F3E40048
+	for <linux-mm@kvack.org>; Sat,  9 Jun 2012 14:52:06 +0000 (WET)
+Received: from d03av04.boulder.ibm.com (d03av04.boulder.ibm.com [9.17.195.170])
+	by d03relay05.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q59Eq6TZ230332
+	for <linux-mm@kvack.org>; Sat, 9 Jun 2012 08:52:06 -0600
+Received: from d03av04.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av04.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q59Eq5XZ003576
+	for <linux-mm@kvack.org>; Sat, 9 Jun 2012 08:52:05 -0600
+From: Gavin Shan <shangw@linux.vnet.ibm.com>
+Subject: [PATCH] mm/buddy: cleanup on should_fail_alloc_page
+Date: Sat,  9 Jun 2012 23:51:56 +0900
+Message-Id: <1339253516-8760-1-git-send-email-shangw@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Cc: linux-mm@kvack.org, kamezawa.hiroyu@jp.fujitsu.com, dhillf@gmail.com, rientjes@google.com, mhocko@suse.cz, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org
+To: linux-mm@kvack.org
+Cc: hannes@cmpxchg.org, akpm@linux-foundation.org, Gavin Shan <shangw@linux.vnet.ibm.com>
 
-On Sat, Jun 09, 2012 at 06:33:05PM +0530, Aneesh Kumar K.V wrote:
-> Johannes Weiner <hannes@cmpxchg.org> writes:
-> 
-> > On Sat, Jun 09, 2012 at 02:29:50PM +0530, Aneesh Kumar K.V wrote:
-> >> From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-> >> 
-> >> i_mmap_mutex lock was added in unmap_single_vma by 502717f4e ("hugetlb:
-> >> fix linked list corruption in unmap_hugepage_range()") but we don't use
-> >> page->lru in unmap_hugepage_range any more.  Also the lock was taken
-> >> higher up in the stack in some code path.  That would result in deadlock.
-> >> 
-> >> unmap_mapping_range (i_mmap_mutex)
-> >>  -> unmap_mapping_range_tree
-> >>     -> unmap_mapping_range_vma
-> >>        -> zap_page_range_single
-> >>          -> unmap_single_vma
-> >> 	      -> unmap_hugepage_range (i_mmap_mutex)
-> >> 
-> >> For shared pagetable support for huge pages, since pagetable pages are ref
-> >> counted we don't need any lock during huge_pmd_unshare.  We do take
-> >> i_mmap_mutex in huge_pmd_share while walking the vma_prio_tree in mapping.
-> >> (39dde65c9940c97f ("shared page table for hugetlb page")).
-> >> 
-> >> Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
-> >
-> > This patch (together with the previous one) seems like a bugfix that's
-> > not really related to the hugetlb controller, unless I miss something.
-> >
-> > Could you please submit the fix separately?
-> 
-> Patches upto 6 can really got in a separate series. I was not sure
-> whether I should split them. I will post that as a separate series now
+In the core function __alloc_pages_nodemask() of buddy allocator, it's
+possible for the memory allocation to fail. That's probablly caused
+by error injection with expection. In that case, it depends on the
+check of error injection covered by function should_fail(). Currently,
+function should_fail() has "bool" for its return value, so it's reasonable
+to change the return value of function should_fail_alloc_page() into
+"bool" as well.
 
-Ok, thanks, that will make it easier to upstream the controller.
+The patch does cleanup on function should_fail_alloc_page() to "bool".
 
-> > Maybe also fold the two patches into one and make it a single bugfix
-> > change that gets rid of the lock by switching away from page->lru.
-> 
-> I wanted to make sure the patch that drop i_mmap_mutex is a separate one
-> so that we understand and document the locking details separately
+Signed-off-by: Gavin Shan <shangw@linux.vnet.ibm.com>
+---
+ mm/page_alloc.c |   14 +++++++-------
+ 1 file changed, 7 insertions(+), 7 deletions(-)
 
-Nothing prevents you from writing a proper changelog :-) But changing
-from page->lru to an on-stack array does not have any merit by itself,
-so it just seems like a needless dependency between two patches that
-fix one problem (pita for backports into stable/distro kernels).
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 4403009..7892f84 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -1529,16 +1529,16 @@ static int __init setup_fail_page_alloc(char *str)
+ }
+ __setup("fail_page_alloc=", setup_fail_page_alloc);
+ 
+-static int should_fail_alloc_page(gfp_t gfp_mask, unsigned int order)
++static bool should_fail_alloc_page(gfp_t gfp_mask, unsigned int order)
+ {
+ 	if (order < fail_page_alloc.min_order)
+-		return 0;
++		return false;
+ 	if (gfp_mask & __GFP_NOFAIL)
+-		return 0;
++		return false;
+ 	if (fail_page_alloc.ignore_gfp_highmem && (gfp_mask & __GFP_HIGHMEM))
+-		return 0;
++		return false;
+ 	if (fail_page_alloc.ignore_gfp_wait && (gfp_mask & __GFP_WAIT))
+-		return 0;
++		return false;
+ 
+ 	return should_fail(&fail_page_alloc.attr, 1 << order);
+ }
+@@ -1578,9 +1578,9 @@ late_initcall(fail_page_alloc_debugfs);
+ 
+ #else /* CONFIG_FAIL_PAGE_ALLOC */
+ 
+-static inline int should_fail_alloc_page(gfp_t gfp_mask, unsigned int order)
++static inline bool should_fail_alloc_page(gfp_t gfp_mask, unsigned int order)
+ {
+-	return 0;
++	return false;
+ }
+ 
+ #endif /* CONFIG_FAIL_PAGE_ALLOC */
+-- 
+1.7.9.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
