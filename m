@@ -1,56 +1,134 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx105.postini.com [74.125.245.105])
-	by kanga.kvack.org (Postfix) with SMTP id 2A42D6B006C
-	for <linux-mm@kvack.org>; Sat,  9 Jun 2012 04:26:43 -0400 (EDT)
-Message-ID: <4FD30823.8070808@parallels.com>
-Date: Sat, 9 Jun 2012 12:24:03 +0400
-From: Glauber Costa <glommer@parallels.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH 2/4] Add a __GFP_SLABMEMCG flag
-References: <1339148601-20096-1-git-send-email-glommer@parallels.com>  <1339148601-20096-3-git-send-email-glommer@parallels.com>  <alpine.DEB.2.00.1206081430380.4213@router.home> <1339203416.6893.10.camel@dabdike.int.hansenpartnership.com>
-In-Reply-To: <1339203416.6893.10.camel@dabdike.int.hansenpartnership.com>
-Content-Type: text/plain; charset="UTF-8"; format=flowed
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx158.postini.com [74.125.245.158])
+	by kanga.kvack.org (Postfix) with SMTP id DE05F6B0062
+	for <linux-mm@kvack.org>; Sat,  9 Jun 2012 05:00:24 -0400 (EDT)
+Received: from /spool/local
+	by e28smtp06.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
+	Sat, 9 Jun 2012 14:30:21 +0530
+Received: from d28av03.in.ibm.com (d28av03.in.ibm.com [9.184.220.65])
+	by d28relay01.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q5990I7Y11403602
+	for <linux-mm@kvack.org>; Sat, 9 Jun 2012 14:30:19 +0530
+Received: from d28av03.in.ibm.com (loopback [127.0.0.1])
+	by d28av03.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q59ETYCK029396
+	for <linux-mm@kvack.org>; Sun, 10 Jun 2012 00:29:35 +1000
+From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Subject: [PATCH -V8 03/16] hugetlb: add an inline helper for finding hstate index
+Date: Sat,  9 Jun 2012 14:29:48 +0530
+Message-Id: <1339232401-14392-4-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+In-Reply-To: <1339232401-14392-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+References: <1339232401-14392-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: James Bottomley <James.Bottomley@HansenPartnership.com>
-Cc: Christoph Lameter <cl@linux.com>, cgroups@vger.kernel.org, linux-mm@kvack.org, Tejun Heo <tj@kernel.org>, Frederic Weisbecker <fweisbeck@gmail.com>, devel@openvz.org, kamezawa.hiroyu@jp.fujitsu.com, Pekka Enberg <penberg@cs.helsinki.fi>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Suleiman Souhlal <suleiman@google.com>
+To: linux-mm@kvack.org, kamezawa.hiroyu@jp.fujitsu.com, dhillf@gmail.com, rientjes@google.com, mhocko@suse.cz, akpm@linux-foundation.org, hannes@cmpxchg.org
+Cc: linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
 
-On 06/09/2012 04:56 AM, James Bottomley wrote:
-> On Fri, 2012-06-08 at 14:31 -0500, Christoph Lameter wrote:
->> On Fri, 8 Jun 2012, Glauber Costa wrote:
->>
->>>    */
->>>   #define __GFP_NOTRACK_FALSE_POSITIVE (__GFP_NOTRACK)
->>>
->>> -#define __GFP_BITS_SHIFT 25	/* Room for N __GFP_FOO bits */
->>> +#define __GFP_BITS_SHIFT 26	/* Room for N __GFP_FOO bits */
->>>   #define __GFP_BITS_MASK ((__force gfp_t)((1<<  __GFP_BITS_SHIFT) - 1))
->>
->> Please make this conditional on CONFIG_MEMCG or so. The bit can be useful
->> in particular on 32 bit architectures.
->
-> I really don't think that's at all a good idea.  It's asking for trouble
-> when we don't spot we have a flag overlap.  It also means that we're
-> trusting the reuser to know that their use case can never clash with
-> CONFIG_MEMGC and I can't think of any configuration where this is
-> possible currently.
->
-> I think making the flag define of __GFP_SLABMEMCG conditional might be a
-> reasonable idea so we get a compile failure if anyone tries to use it
-> when !CONFIG_MEMCG.
->
+From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
 
-Which is also difficult since that's not code that we can BUG or WARN, 
-but just a number people or and and into their own flags. And it is too 
-fragile to rely on any given sequence we put here (like -1UL, etc) to 
-provide predictable enough results to tell someone he is doing it wrong.
+Add an inline helper and use it in the code.
 
-A much better approach if we want to protect against that, is to add 
-code in the page or slab allocator (or both) to ignore and WARN upon 
-seeing this flag when !memcg.
+Acked-by: David Rientjes <rientjes@google.com>
+Acked-by: Michal Hocko <mhocko@suse.cz>
+Reviewed-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
+---
+ include/linux/hugetlb.h |    6 ++++++
+ mm/hugetlb.c            |   20 +++++++++++---------
+ 2 files changed, 17 insertions(+), 9 deletions(-)
 
-I'd leave the flag itself alone.
+diff --git a/include/linux/hugetlb.h b/include/linux/hugetlb.h
+index d5d6bbe..217f528 100644
+--- a/include/linux/hugetlb.h
++++ b/include/linux/hugetlb.h
+@@ -302,6 +302,11 @@ static inline unsigned hstate_index_to_shift(unsigned index)
+ 	return hstates[index].order + PAGE_SHIFT;
+ }
+ 
++static inline int hstate_index(struct hstate *h)
++{
++	return h - hstates;
++}
++
+ #else
+ struct hstate {};
+ #define alloc_huge_page_node(h, nid) NULL
+@@ -320,6 +325,7 @@ static inline unsigned int pages_per_huge_page(struct hstate *h)
+ 	return 1;
+ }
+ #define hstate_index_to_shift(index) 0
++#define hstate_index(h) 0
+ #endif
+ 
+ #endif /* _LINUX_HUGETLB_H */
+diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+index 34a7e23..b1e0ed1 100644
+--- a/mm/hugetlb.c
++++ b/mm/hugetlb.c
+@@ -1646,7 +1646,7 @@ static int hugetlb_sysfs_add_hstate(struct hstate *h, struct kobject *parent,
+ 				    struct attribute_group *hstate_attr_group)
+ {
+ 	int retval;
+-	int hi = h - hstates;
++	int hi = hstate_index(h);
+ 
+ 	hstate_kobjs[hi] = kobject_create_and_add(h->name, parent);
+ 	if (!hstate_kobjs[hi])
+@@ -1741,11 +1741,13 @@ void hugetlb_unregister_node(struct node *node)
+ 	if (!nhs->hugepages_kobj)
+ 		return;		/* no hstate attributes */
+ 
+-	for_each_hstate(h)
+-		if (nhs->hstate_kobjs[h - hstates]) {
+-			kobject_put(nhs->hstate_kobjs[h - hstates]);
+-			nhs->hstate_kobjs[h - hstates] = NULL;
++	for_each_hstate(h) {
++		int idx = hstate_index(h);
++		if (nhs->hstate_kobjs[idx]) {
++			kobject_put(nhs->hstate_kobjs[idx]);
++			nhs->hstate_kobjs[idx] = NULL;
+ 		}
++	}
+ 
+ 	kobject_put(nhs->hugepages_kobj);
+ 	nhs->hugepages_kobj = NULL;
+@@ -1848,7 +1850,7 @@ static void __exit hugetlb_exit(void)
+ 	hugetlb_unregister_all_nodes();
+ 
+ 	for_each_hstate(h) {
+-		kobject_put(hstate_kobjs[h - hstates]);
++		kobject_put(hstate_kobjs[hstate_index(h)]);
+ 	}
+ 
+ 	kobject_put(hugepages_kobj);
+@@ -1869,7 +1871,7 @@ static int __init hugetlb_init(void)
+ 		if (!size_to_hstate(default_hstate_size))
+ 			hugetlb_add_hstate(HUGETLB_PAGE_ORDER);
+ 	}
+-	default_hstate_idx = size_to_hstate(default_hstate_size) - hstates;
++	default_hstate_idx = hstate_index(size_to_hstate(default_hstate_size));
+ 	if (default_hstate_max_huge_pages)
+ 		default_hstate.max_huge_pages = default_hstate_max_huge_pages;
+ 
+@@ -2687,7 +2689,7 @@ retry:
+ 		 */
+ 		if (unlikely(PageHWPoison(page))) {
+ 			ret = VM_FAULT_HWPOISON |
+-			      VM_FAULT_SET_HINDEX(h - hstates);
++				VM_FAULT_SET_HINDEX(hstate_index(h));
+ 			goto backout_unlocked;
+ 		}
+ 	}
+@@ -2760,7 +2762,7 @@ int hugetlb_fault(struct mm_struct *mm, struct vm_area_struct *vma,
+ 			return 0;
+ 		} else if (unlikely(is_hugetlb_entry_hwpoisoned(entry)))
+ 			return VM_FAULT_HWPOISON_LARGE |
+-			       VM_FAULT_SET_HINDEX(h - hstates);
++				VM_FAULT_SET_HINDEX(hstate_index(h));
+ 	}
+ 
+ 	ptep = huge_pte_alloc(mm, address, huge_page_size(h));
+-- 
+1.7.10
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
