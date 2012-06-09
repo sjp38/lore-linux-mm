@@ -1,48 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx162.postini.com [74.125.245.162])
-	by kanga.kvack.org (Postfix) with SMTP id A18F76B0062
-	for <linux-mm@kvack.org>; Fri,  8 Jun 2012 20:57:00 -0400 (EDT)
-Message-ID: <1339203416.6893.10.camel@dabdike.int.hansenpartnership.com>
-Subject: Re: [PATCH 2/4] Add a __GFP_SLABMEMCG flag
-From: James Bottomley <James.Bottomley@HansenPartnership.com>
-Date: Sat, 09 Jun 2012 09:56:56 +0900
-In-Reply-To: <alpine.DEB.2.00.1206081430380.4213@router.home>
-References: <1339148601-20096-1-git-send-email-glommer@parallels.com>
-	 <1339148601-20096-3-git-send-email-glommer@parallels.com>
-	 <alpine.DEB.2.00.1206081430380.4213@router.home>
-Content-Type: text/plain; charset="UTF-8"
+Received: from psmtp.com (na3sys010amx142.postini.com [74.125.245.142])
+	by kanga.kvack.org (Postfix) with SMTP id 4881D6B0062
+	for <linux-mm@kvack.org>; Fri,  8 Jun 2012 21:41:11 -0400 (EDT)
+Message-ID: <4FD2A9AB.9060701@xenotime.net>
+Date: Fri, 08 Jun 2012 18:40:59 -0700
+From: Randy Dunlap <rdunlap@xenotime.net>
+MIME-Version: 1.0
+Subject: [PATCH] mm/memory.c: fix kernel-doc warnings
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
-Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: Glauber Costa <glommer@parallels.com>, cgroups@vger.kernel.org, linux-mm@kvack.org, Tejun Heo <tj@kernel.org>, Frederic Weisbecker <fweisbeck@gmail.com>, devel@openvz.org, kamezawa.hiroyu@jp.fujitsu.com, Pekka Enberg <penberg@cs.helsinki.fi>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Suleiman Souhlal <suleiman@google.com>
+To: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
 
-On Fri, 2012-06-08 at 14:31 -0500, Christoph Lameter wrote:
-> On Fri, 8 Jun 2012, Glauber Costa wrote:
-> 
-> >   */
-> >  #define __GFP_NOTRACK_FALSE_POSITIVE (__GFP_NOTRACK)
-> >
-> > -#define __GFP_BITS_SHIFT 25	/* Room for N __GFP_FOO bits */
-> > +#define __GFP_BITS_SHIFT 26	/* Room for N __GFP_FOO bits */
-> >  #define __GFP_BITS_MASK ((__force gfp_t)((1 << __GFP_BITS_SHIFT) - 1))
-> 
-> Please make this conditional on CONFIG_MEMCG or so. The bit can be useful
-> in particular on 32 bit architectures.
+From: Randy Dunlap <rdunlap@xenotime.net>
 
-I really don't think that's at all a good idea.  It's asking for trouble
-when we don't spot we have a flag overlap.  It also means that we're
-trusting the reuser to know that their use case can never clash with
-CONFIG_MEMGC and I can't think of any configuration where this is
-possible currently.
+Fix kernel-doc warnings in mm/memory.c:
 
-I think making the flag define of __GFP_SLABMEMCG conditional might be a
-reasonable idea so we get a compile failure if anyone tries to use it
-when !CONFIG_MEMCG.
+Warning(mm/memory.c:1377): No description found for parameter 'start'
+Warning(mm/memory.c:1377): Excess function parameter 'address' description in 'zap_page_range'
 
-James
+Signed-off-by: Randy Dunlap <rdunlap@xenotime.net>
+---
+ mm/memory.c |    2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
+--- lnx-35-rc1.orig/mm/memory.c
++++ lnx-35-rc1/mm/memory.c
+@@ -1366,7 +1366,7 @@ void unmap_vmas(struct mmu_gather *tlb,
+ /**
+  * zap_page_range - remove user pages in a given range
+  * @vma: vm_area_struct holding the applicable pages
+- * @address: starting address of pages to zap
++ * @start: starting address of pages to zap
+  * @size: number of bytes to zap
+  * @details: details of nonlinear truncation or shared cache invalidation
+  *
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
