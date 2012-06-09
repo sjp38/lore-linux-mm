@@ -1,102 +1,128 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx125.postini.com [74.125.245.125])
-	by kanga.kvack.org (Postfix) with SMTP id 477BE6B006C
-	for <linux-mm@kvack.org>; Sat,  9 Jun 2012 07:10:19 -0400 (EDT)
-Received: by qafl39 with SMTP id l39so1507789qaf.9
-        for <linux-mm@kvack.org>; Sat, 09 Jun 2012 04:10:18 -0700 (PDT)
-Date: Sat, 9 Jun 2012 07:10:11 -0400
+Received: from psmtp.com (na3sys010amx138.postini.com [74.125.245.138])
+	by kanga.kvack.org (Postfix) with SMTP id 2B6236B0062
+	for <linux-mm@kvack.org>; Sat,  9 Jun 2012 07:14:16 -0400 (EDT)
+Received: by qcsd16 with SMTP id d16so1591331qcs.14
+        for <linux-mm@kvack.org>; Sat, 09 Jun 2012 04:14:15 -0700 (PDT)
+Date: Sat, 9 Jun 2012 07:14:11 -0400
 From: Konrad Rzeszutek Wilk <konrad@darnok.org>
-Subject: Re: [PATCH -V8 02/16] hugetlb: don't use ERR_PTR with VM_FAULT*
- values
-Message-ID: <20120609111010.GA16034@localhost.localdomain>
+Subject: Re: [PATCH -V8 10/16] hugetlb/cgroup: Add the cgroup pointer to page
+ lru
+Message-ID: <20120609111411.GB16034@localhost.localdomain>
 References: <1339232401-14392-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
- <1339232401-14392-3-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+ <1339232401-14392-11-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1339232401-14392-3-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+In-Reply-To: <1339232401-14392-11-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
 Cc: linux-mm@kvack.org, kamezawa.hiroyu@jp.fujitsu.com, dhillf@gmail.com, rientjes@google.com, mhocko@suse.cz, akpm@linux-foundation.org, hannes@cmpxchg.org, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org
 
-On Sat, Jun 09, 2012 at 02:29:47PM +0530, Aneesh Kumar K.V wrote:
+On Sat, Jun 09, 2012 at 02:29:55PM +0530, Aneesh Kumar K.V wrote:
 > From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
 > 
-> The current use of VM_FAULT_* codes with ERR_PTR requires us to ensure
-> VM_FAULT_* values will not exceed MAX_ERRNO value. Decouple the
-> VM_FAULT_* values from MAX_ERRNO.
+> Add the hugetlb cgroup pointer to 3rd page lru.next. This limit
+> the usage to hugetlb cgroup to only hugepages with 3 or more
+> normal pages. I guess that is an acceptable limitation.
 
-I see you using the -ENOMEM|-ENOSPC, but I don't see any reference in the
-code to MAX_ERRNO? Can you provide a comment explaining in a tad little
-bit about the interaction of MAX_ERRNO and VM_FAULT?
+Can you explain in a bit more detail the reasoning behind this
+please? Either in the code in the hugetlb_cgroup_from_page
+or in the git commit (or better - in both).
 
 > 
-> Reviewed-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 > Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
 > ---
->  mm/hugetlb.c |   18 +++++++++++++-----
->  1 file changed, 13 insertions(+), 5 deletions(-)
+>  include/linux/hugetlb_cgroup.h |   31 +++++++++++++++++++++++++++++++
+>  mm/hugetlb.c                   |    4 ++++
+>  2 files changed, 35 insertions(+)
 > 
+> diff --git a/include/linux/hugetlb_cgroup.h b/include/linux/hugetlb_cgroup.h
+> index 5794be4..ceff1d5 100644
+> --- a/include/linux/hugetlb_cgroup.h
+> +++ b/include/linux/hugetlb_cgroup.h
+> @@ -26,6 +26,26 @@ struct hugetlb_cgroup {
+>  };
+>  
+>  #ifdef CONFIG_CGROUP_HUGETLB_RES_CTLR
+> +static inline struct hugetlb_cgroup *hugetlb_cgroup_from_page(struct page *page)
+> +{
+> +	if (!PageHuge(page))
+> +		return NULL;
+> +	if (compound_order(page) < 3)
+> +		return NULL;
+> +	return (struct hugetlb_cgroup *)page[2].lru.next;
+> +}
+> +
+> +static inline
+> +int set_hugetlb_cgroup(struct page *page, struct hugetlb_cgroup *h_cg)
+> +{
+> +	if (!PageHuge(page))
+> +		return -1;
+> +	if (compound_order(page) < 3)
+> +		return -1;
+> +	page[2].lru.next = (void *)h_cg;
+> +	return 0;
+> +}
+> +
+>  static inline bool hugetlb_cgroup_disabled(void)
+>  {
+>  	if (hugetlb_subsys.disabled)
+> @@ -43,6 +63,17 @@ extern void hugetlb_cgroup_uncharge_page(int idx, unsigned long nr_pages,
+>  extern void hugetlb_cgroup_uncharge_cgroup(int idx, unsigned long nr_pages,
+>  					   struct hugetlb_cgroup *h_cg);
+>  #else
+> +static inline struct hugetlb_cgroup *hugetlb_cgroup_from_page(struct page *page)
+> +{
+> +	return NULL;
+> +}
+> +
+> +static inline
+> +int set_hugetlb_cgroup(struct page *page, struct hugetlb_cgroup *h_cg)
+> +{
+> +	return 0;
+> +}
+> +
+>  static inline bool hugetlb_cgroup_disabled(void)
+>  {
+>  	return true;
 > diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-> index c868309..34a7e23 100644
+> index e899a2d..1ca2d8f 100644
 > --- a/mm/hugetlb.c
 > +++ b/mm/hugetlb.c
-> @@ -1123,10 +1123,10 @@ static struct page *alloc_huge_page(struct vm_area_struct *vma,
->  	 */
->  	chg = vma_needs_reservation(h, vma, addr);
->  	if (chg < 0)
-> -		return ERR_PTR(-VM_FAULT_OOM);
-> +		return ERR_PTR(-ENOMEM);
->  	if (chg)
->  		if (hugepage_subpool_get_pages(spool, chg))
-> -			return ERR_PTR(-VM_FAULT_SIGBUS);
-> +			return ERR_PTR(-ENOSPC);
+> @@ -28,6 +28,7 @@
 >  
+>  #include <linux/io.h>
+>  #include <linux/hugetlb.h>
+> +#include <linux/hugetlb_cgroup.h>
+>  #include <linux/node.h>
+>  #include "internal.h"
+>  
+> @@ -591,6 +592,7 @@ static void update_and_free_page(struct hstate *h, struct page *page)
+>  				1 << PG_active | 1 << PG_reserved |
+>  				1 << PG_private | 1 << PG_writeback);
+>  	}
+> +	BUG_ON(hugetlb_cgroup_from_page(page));
+>  	set_compound_page_dtor(page, NULL);
+>  	set_page_refcounted(page);
+>  	arch_release_hugepage(page);
+> @@ -643,6 +645,7 @@ static void prep_new_huge_page(struct hstate *h, struct page *page, int nid)
+>  	INIT_LIST_HEAD(&page->lru);
+>  	set_compound_page_dtor(page, free_huge_page);
 >  	spin_lock(&hugetlb_lock);
->  	page = dequeue_huge_page_vma(h, vma, addr, avoid_reserve);
-> @@ -1136,7 +1136,7 @@ static struct page *alloc_huge_page(struct vm_area_struct *vma,
->  		page = alloc_buddy_huge_page(h, NUMA_NO_NODE);
->  		if (!page) {
->  			hugepage_subpool_put_pages(spool, chg);
-> -			return ERR_PTR(-VM_FAULT_SIGBUS);
-> +			return ERR_PTR(-ENOSPC);
->  		}
->  	}
->  
-> @@ -2496,6 +2496,7 @@ retry_avoidcopy:
->  	new_page = alloc_huge_page(vma, address, outside_reserve);
->  
->  	if (IS_ERR(new_page)) {
-> +		long err = PTR_ERR(new_page);
->  		page_cache_release(old_page);
->  
+> +	set_hugetlb_cgroup(page, NULL);
+>  	h->nr_huge_pages++;
+>  	h->nr_huge_pages_node[nid]++;
+>  	spin_unlock(&hugetlb_lock);
+> @@ -892,6 +895,7 @@ static struct page *alloc_buddy_huge_page(struct hstate *h, int nid)
+>  		INIT_LIST_HEAD(&page->lru);
+>  		r_nid = page_to_nid(page);
+>  		set_compound_page_dtor(page, free_huge_page);
+> +		set_hugetlb_cgroup(page, NULL);
 >  		/*
-> @@ -2524,7 +2525,10 @@ retry_avoidcopy:
->  
->  		/* Caller expects lock to be held */
->  		spin_lock(&mm->page_table_lock);
-> -		return -PTR_ERR(new_page);
-> +		if (err == -ENOMEM)
-> +			return VM_FAULT_OOM;
-> +		else
-> +			return VM_FAULT_SIGBUS;
->  	}
->  
->  	/*
-> @@ -2642,7 +2646,11 @@ retry:
->  			goto out;
->  		page = alloc_huge_page(vma, address, 0);
->  		if (IS_ERR(page)) {
-> -			ret = -PTR_ERR(page);
-> +			ret = PTR_ERR(page);
-> +			if (ret == -ENOMEM)
-> +				ret = VM_FAULT_OOM;
-> +			else
-> +				ret = VM_FAULT_SIGBUS;
->  			goto out;
->  		}
->  		clear_huge_page(page, address, pages_per_huge_page(h));
+>  		 * We incremented the global counters already
+>  		 */
 > -- 
 > 1.7.10
 > 
