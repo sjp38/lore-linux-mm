@@ -1,84 +1,96 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx185.postini.com [74.125.245.185])
-	by kanga.kvack.org (Postfix) with SMTP id 17E7F6B005A
-	for <linux-mm@kvack.org>; Sat,  9 Jun 2012 11:12:22 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx187.postini.com [74.125.245.187])
+	by kanga.kvack.org (Postfix) with SMTP id ECF9C6B0062
+	for <linux-mm@kvack.org>; Sat,  9 Jun 2012 11:55:48 -0400 (EDT)
 Received: from /spool/local
-	by e7.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <shangw@linux.vnet.ibm.com>;
-	Sat, 9 Jun 2012 11:12:20 -0400
-Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
-	by d01dlp02.pok.ibm.com (Postfix) with ESMTP id AC49C6E8049
-	for <linux-mm@kvack.org>; Sat,  9 Jun 2012 11:11:37 -0400 (EDT)
-Received: from d01av01.pok.ibm.com (d01av01.pok.ibm.com [9.56.224.215])
-	by d01relay02.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q59FBbfU085980
-	for <linux-mm@kvack.org>; Sat, 9 Jun 2012 11:11:37 -0400
-Received: from d01av01.pok.ibm.com (loopback [127.0.0.1])
-	by d01av01.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q59KgT7X012697
-	for <linux-mm@kvack.org>; Sat, 9 Jun 2012 16:42:29 -0400
-From: Gavin Shan <shangw@linux.vnet.ibm.com>
-Subject: [PATCH] mm/buddy: fix default NUMA nodes
-Date: Sun, 10 Jun 2012 00:11:27 +0900
-Message-Id: <1339254687-13447-1-git-send-email-shangw@linux.vnet.ibm.com>
+	by e28smtp04.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
+	Sat, 9 Jun 2012 21:25:45 +0530
+Received: from d28av03.in.ibm.com (d28av03.in.ibm.com [9.184.220.65])
+	by d28relay03.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q59FtgB511141564
+	for <linux-mm@kvack.org>; Sat, 9 Jun 2012 21:25:43 +0530
+Received: from d28av03.in.ibm.com (loopback [127.0.0.1])
+	by d28av03.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q59LOw6Q029756
+	for <linux-mm@kvack.org>; Sun, 10 Jun 2012 07:24:58 +1000
+From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Subject: Re: [PATCH -V8 14/16] hugetlb/cgroup: add charge/uncharge calls for HugeTLB alloc/free
+In-Reply-To: <20120609143054.GH1761@cmpxchg.org>
+References: <1339232401-14392-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com> <1339232401-14392-15-git-send-email-aneesh.kumar@linux.vnet.ibm.com> <20120609092301.GF1761@cmpxchg.org> <87pq98ljil.fsf@skywalker.in.ibm.com> <20120609143054.GH1761@cmpxchg.org>User-Agent: Notmuch/0.11.1+346~g13d19c3 (http://notmuchmail.org) Emacs/23.3.1 (x86_64-pc-linux-gnu)
+Date: Sat, 09 Jun 2012 21:25:37 +0530
+Message-ID: <87wr3gfpja.fsf@skywalker.in.ibm.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: hannes@cmpxchg.org, akpm@linux-foundation.org, Gavin Shan <shangw@linux.vnet.ibm.com>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: linux-mm@kvack.org, kamezawa.hiroyu@jp.fujitsu.com, dhillf@gmail.com, rientjes@google.com, mhocko@suse.cz, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org
 
-In the core function __alloc_pages_nodemask() of buddy allocator,
-the NUMA nodes would be allowed nodes of current process or online
-high memory nodes if the nodemask passed into the function is NULL.
-However, the current implementation of function __alloc_pages_nodemask()
-might retrieve the preferred zones from the allowed nodes of current
-process or online high memory nodes, but never use that in the case.
+Johannes Weiner <hannes@cmpxchg.org> writes:
 
-The patch fixes that. When the nodemask passed into __alloc_pages_nodemask()
-is NULL. We will always use the nodemask from the allowed one of
-current process or online high memory nodes.
+> On Sat, Jun 09, 2012 at 06:39:06PM +0530, Aneesh Kumar K.V wrote:
+>> Johannes Weiner <hannes@cmpxchg.org> writes:
+>> 
+>> > On Sat, Jun 09, 2012 at 02:29:59PM +0530, Aneesh Kumar K.V wrote:
+>> >> From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+>> >> 
+>> >> This adds necessary charge/uncharge calls in the HugeTLB code.  We do
+>> >> hugetlb cgroup charge in page alloc and uncharge in compound page destructor.
+>> >> 
+>> >> Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
+>> >> ---
+>> >>  mm/hugetlb.c        |   16 +++++++++++++++-
+>> >>  mm/hugetlb_cgroup.c |    7 +------
+>> >>  2 files changed, 16 insertions(+), 7 deletions(-)
+>> >> 
+>> >> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+>> >> index bf79131..4ca92a9 100644
+>> >> --- a/mm/hugetlb.c
+>> >> +++ b/mm/hugetlb.c
+>> >> @@ -628,6 +628,8 @@ static void free_huge_page(struct page *page)
+>> >>  	BUG_ON(page_mapcount(page));
+>> >>  
+>> >>  	spin_lock(&hugetlb_lock);
+>> >> +	hugetlb_cgroup_uncharge_page(hstate_index(h),
+>> >> +				     pages_per_huge_page(h), page);
+>> >
+>> > hugetlb_cgroup_uncharge_page() takes the hugetlb_lock, no?
+>> 
+>> Yes, But this patch also modifies it to not take the lock, because we
+>> hold spin_lock just below in the call site. I didn't want to drop the
+>> lock and take it again.
+>
+> Sorry, I missed that.
+>
+>> > It's quite hard to review code that is split up like this.  Please
+>> > always keep the introduction of new functions in the same patch that
+>> > adds the callsite(s).
+>> 
+>> One of the reason I split the charge/uncharge routines and the callers
+>> in separate patches is to make it easier for review. Irrespective of
+>> the call site charge/uncharge routines should be correct with respect
+>> to locking and other details. What I did in this patch is a small
+>> optimization of avoiding dropping and taking the lock again. May be the
+>> right approach would have been to name it __hugetlb_cgroup_uncharge_page
+>> and make sure the hugetlb_cgroup_uncharge_page still takes spin_lock.
+>> But then we don't have any callers for that.
+>
+> I think this makes it needlessly complicated and there is no correct
+> or incorrect locking in (initially) dead code :-)
+>
+> The callsites are just a few lines.  It's harder to review if you
+> introduce an API and then change it again mid-patchset.
+>
 
-Signed-off-by: Gavin Shan <shangw@linux.vnet.ibm.com>
----
- mm/page_alloc.c |   12 ++++++------
- 1 file changed, 6 insertions(+), 6 deletions(-)
+I will fold the patches.
 
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 7892f84..dda83c5 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -2474,6 +2474,7 @@ struct page *
- __alloc_pages_nodemask(gfp_t gfp_mask, unsigned int order,
- 			struct zonelist *zonelist, nodemask_t *nodemask)
- {
-+	nodemask_t *preferred_nodemask = nodemask ? : &cpuset_current_mems_allowed;
- 	enum zone_type high_zoneidx = gfp_zone(gfp_mask);
- 	struct zone *preferred_zone;
- 	struct page *page = NULL;
-@@ -2501,19 +2502,18 @@ retry_cpuset:
- 	cpuset_mems_cookie = get_mems_allowed();
- 
- 	/* The preferred zone is used for statistics later */
--	first_zones_zonelist(zonelist, high_zoneidx,
--				nodemask ? : &cpuset_current_mems_allowed,
-+	first_zones_zonelist(zonelist, high_zoneidx, preferred_nodemask,
- 				&preferred_zone);
- 	if (!preferred_zone)
- 		goto out;
- 
- 	/* First allocation attempt */
--	page = get_page_from_freelist(gfp_mask|__GFP_HARDWALL, nodemask, order,
--			zonelist, high_zoneidx, ALLOC_WMARK_LOW|ALLOC_CPUSET,
-+	page = get_page_from_freelist(gfp_mask|__GFP_HARDWALL, preferred_nodemask,
-+			order, zonelist, high_zoneidx, ALLOC_WMARK_LOW|ALLOC_CPUSET,
- 			preferred_zone, migratetype);
- 	if (unlikely(!page))
--		page = __alloc_pages_slowpath(gfp_mask, order,
--				zonelist, high_zoneidx, nodemask,
-+		page = __alloc_pages_slowpath(gfp_mask, order, zonelist,
-+				high_zoneidx, preferred_nodemask,
- 				preferred_zone, migratetype);
- 
- 	trace_mm_page_alloc(page, order, gfp_mask, migratetype);
--- 
-1.7.9.5
+> If there are no callers for a function that grabs the lock itself,
+> don't add it.  Just add a note to the kerneldoc that explains the
+> requirement or put VM_BUG_ON(!spin_is_locked(&hugetlb_lock)); in
+> there or so.
+
+That is excellent. I will add kerneldoc and VM_BUG_ON. 
+
+-aneesh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
