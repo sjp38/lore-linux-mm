@@ -1,125 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx177.postini.com [74.125.245.177])
-	by kanga.kvack.org (Postfix) with SMTP id 540D86B0073
-	for <linux-mm@kvack.org>; Sat,  9 Jun 2012 05:40:32 -0400 (EDT)
-Received: by lbjn8 with SMTP id n8so2511401lbj.14
-        for <linux-mm@kvack.org>; Sat, 09 Jun 2012 02:40:30 -0700 (PDT)
-From: David Mackey <tdmackey@twitter.com>
-Subject: [PATCH v5] slab/mempolicy: always use local policy from interrupt context
-Date: Sat,  9 Jun 2012 02:40:03 -0700
-Message-Id: <1339234803-21106-1-git-send-email-tdmackey@twitter.com>
-In-Reply-To: <1338438844-5022-1-git-send-email-andi@firstfloor.org>
-References: <1338438844-5022-1-git-send-email-andi@firstfloor.org>
+Received: from psmtp.com (na3sys010amx167.postini.com [74.125.245.167])
+	by kanga.kvack.org (Postfix) with SMTP id 94F0F6B0073
+	for <linux-mm@kvack.org>; Sat,  9 Jun 2012 05:43:39 -0400 (EDT)
+Received: by lahi5 with SMTP id i5so2385821lah.14
+        for <linux-mm@kvack.org>; Sat, 09 Jun 2012 02:43:37 -0700 (PDT)
+Subject: [PATCH] mm: correctly synchronize rss-counters at exit/exec
+From: Konstantin Khlebnikov <khlebnikov@openvz.org>
+Date: Sat, 09 Jun 2012 13:43:32 +0400
+Message-ID: <20120609094332.5636.91441.stgit@zurg>
+In-Reply-To: <20120608170152.GA30975@redhat.com>
+References: <20120608170152.GA30975@redhat.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
-Cc: rientjes@google.com, Andi Kleen <ak@linux.intel.com>, penberg@kernel.org, cl@linux.com, David Mackey <tdmackey@twitter.com>
+Cc: Hugh Dickins <hughd@google.com>, Oleg Nesterov <oleg@redhat.com>, stable@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, kamezawa.hiroyu@jp.fujitsu.com, akpm@linux-foundation.org, Linus Torvalds <torvalds@linux-foundation.org>, Markus Trippelsdorf <markus@trippelsdorf.de>
 
-From: Andi Kleen <ak@linux.intel.com>
+do_exit() and exec_mmap() call sync_mm_rss() before mm_release()
+does put_user(clear_child_tid) which can update task->rss_stat
+and thus make mm->rss_stat inconsistent. This triggers the "BUG:"
+printk in check_mm().
 
-From: Andi Kleen <ak@linux.intel.com>
+Let's fix this bug in the safest way, and optimize/cleanup this later.
 
-slab_node() could access current->mempolicy from interrupt context.
-However there's a race condition during exit where the mempolicy
-is first freed and then the pointer zeroed.
-
-Using this from interrupts seems bogus anyways. The interrupt
-will interrupt a random process and therefore get a random
-mempolicy. Many times, this will be idle's, which noone can change.
-
-Just disable this here and always use local for slab
-from interrupts. I also cleaned up the callers of slab_node a bit
-which always passed the same argument.
-
-I believe the original mempolicy code did that in fact,
-so it's likely a regression.
-
-v2: send version with correct logic
-v3: simplify. fix typo.
-Reported-by: Arun Sharma <asharma@fb.com>
-Cc: penberg@kernel.org
-Cc: cl@linux.com
-Signed-off-by: Andi Kleen <ak@linux.intel.com>
-[tdmackey@twitter.com: Rework control flow based on feedback from
-cl@linux.com, fix logic, and cleanup current task_struct reference]
-Signed-off-by: David Mackey <tdmackey@twitter.com>
+Reported-by: Markus Trippelsdorf <markus@trippelsdorf.de>
+Cc: Oleg Nesterov <oleg@redhat.com>
+Signed-off-by: Konstantin Khlebnikov <khlebnikov@openvz.org>
 ---
- include/linux/mempolicy.h |    2 +-
- mm/mempolicy.c            |    8 +++++++-
- mm/slab.c                 |    4 ++--
- mm/slub.c                 |    2 +-
- 4 files changed, 11 insertions(+), 5 deletions(-)
+ fs/exec.c     |    2 +-
+ kernel/exit.c |    1 +
+ 2 files changed, 2 insertions(+), 1 deletion(-)
 
-diff --git a/include/linux/mempolicy.h b/include/linux/mempolicy.h
-index 4aa4273..95b738c 100644
---- a/include/linux/mempolicy.h
-+++ b/include/linux/mempolicy.h
-@@ -215,7 +215,7 @@ extern struct zonelist *huge_zonelist(struct vm_area_struct *vma,
- extern bool init_nodemask_of_mempolicy(nodemask_t *mask);
- extern bool mempolicy_nodemask_intersects(struct task_struct *tsk,
- 				const nodemask_t *mask);
--extern unsigned slab_node(struct mempolicy *policy);
-+extern unsigned slab_node(void);
+diff --git a/fs/exec.c b/fs/exec.c
+index a79786a..da27b91 100644
+--- a/fs/exec.c
++++ b/fs/exec.c
+@@ -819,10 +819,10 @@ static int exec_mmap(struct mm_struct *mm)
+ 	/* Notify parent that we're no longer interested in the old VM */
+ 	tsk = current;
+ 	old_mm = current->mm;
+-	sync_mm_rss(old_mm);
+ 	mm_release(tsk, old_mm);
  
- extern enum zone_type policy_zone;
- 
-diff --git a/mm/mempolicy.c b/mm/mempolicy.c
-index f15c1b2..cb0b230 100644
---- a/mm/mempolicy.c
-+++ b/mm/mempolicy.c
-@@ -1602,8 +1602,14 @@ static unsigned interleave_nodes(struct mempolicy *policy)
-  * task can change it's policy.  The system default policy requires no
-  * such protection.
-  */
--unsigned slab_node(struct mempolicy *policy)
-+unsigned slab_node(void)
- {
-+	struct mempolicy *policy;
-+
-+	if (in_interrupt())
-+		return numa_node_id();
-+
-+	policy = current->mempolicy;
- 	if (!policy || policy->flags & MPOL_F_LOCAL)
- 		return numa_node_id();
- 
-diff --git a/mm/slab.c b/mm/slab.c
-index e901a36..af3b405 100644
---- a/mm/slab.c
-+++ b/mm/slab.c
-@@ -3336,7 +3336,7 @@ static void *alternate_node_alloc(struct kmem_cache *cachep, gfp_t flags)
- 	if (cpuset_do_slab_mem_spread() && (cachep->flags & SLAB_MEM_SPREAD))
- 		nid_alloc = cpuset_slab_spread_node();
- 	else if (current->mempolicy)
--		nid_alloc = slab_node(current->mempolicy);
-+		nid_alloc = slab_node();
- 	if (nid_alloc != nid_here)
- 		return ____cache_alloc_node(cachep, flags, nid_alloc);
- 	return NULL;
-@@ -3368,7 +3368,7 @@ static void *fallback_alloc(struct kmem_cache *cache, gfp_t flags)
- 
- retry_cpuset:
- 	cpuset_mems_cookie = get_mems_allowed();
--	zonelist = node_zonelist(slab_node(current->mempolicy), flags);
-+	zonelist = node_zonelist(slab_node(), flags);
- 
- retry:
+ 	if (old_mm) {
++		sync_mm_rss(old_mm);
+ 		/*
+ 		 * Make sure that if there is a core dump in progress
+ 		 * for the old mm, we get out and die instead of going
+diff --git a/kernel/exit.c b/kernel/exit.c
+index 34867cc..c0277d3 100644
+--- a/kernel/exit.c
++++ b/kernel/exit.c
+@@ -643,6 +643,7 @@ static void exit_mm(struct task_struct * tsk)
+ 	mm_release(tsk, mm);
+ 	if (!mm)
+ 		return;
++	sync_mm_rss(mm);
  	/*
-diff --git a/mm/slub.c b/mm/slub.c
-index 8c691fa..0d9241a 100644
---- a/mm/slub.c
-+++ b/mm/slub.c
-@@ -1617,7 +1617,7 @@ static void *get_any_partial(struct kmem_cache *s, gfp_t flags,
- 
- 	do {
- 		cpuset_mems_cookie = get_mems_allowed();
--		zonelist = node_zonelist(slab_node(current->mempolicy), flags);
-+		zonelist = node_zonelist(slab_node(), flags);
- 		for_each_zone_zonelist(zone, z, zonelist, high_zoneidx) {
- 			struct kmem_cache_node *n;
- 
--- 
-1.7.4.1
+ 	 * Serialize with any possible pending coredump.
+ 	 * We must hold mmap_sem around checking core_state
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
