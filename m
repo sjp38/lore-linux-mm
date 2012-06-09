@@ -1,23 +1,23 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx119.postini.com [74.125.245.119])
-	by kanga.kvack.org (Postfix) with SMTP id 497BA6B0062
-	for <linux-mm@kvack.org>; Sat,  9 Jun 2012 09:03:26 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx167.postini.com [74.125.245.167])
+	by kanga.kvack.org (Postfix) with SMTP id 5DC0E6B0062
+	for <linux-mm@kvack.org>; Sat,  9 Jun 2012 09:09:36 -0400 (EDT)
 Received: from /spool/local
-	by e23smtp04.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e23smtp08.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
-	Sat, 9 Jun 2012 12:42:51 +1000
-Received: from d23av01.au.ibm.com (d23av01.au.ibm.com [9.190.234.96])
-	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q59D3FLb60751892
-	for <linux-mm@kvack.org>; Sat, 9 Jun 2012 23:03:16 +1000
-Received: from d23av01.au.ibm.com (loopback [127.0.0.1])
-	by d23av01.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q59D3EsV000801
-	for <linux-mm@kvack.org>; Sat, 9 Jun 2012 23:03:14 +1000
+	Sat, 9 Jun 2012 13:06:29 +1000
+Received: from d23av04.au.ibm.com (d23av04.au.ibm.com [9.190.235.139])
+	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q59D9UDK52232194
+	for <linux-mm@kvack.org>; Sat, 9 Jun 2012 23:09:30 +1000
+Received: from d23av04.au.ibm.com (loopback [127.0.0.1])
+	by d23av04.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q59D9Tik024235
+	for <linux-mm@kvack.org>; Sat, 9 Jun 2012 23:09:30 +1000
 From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Subject: Re: [PATCH -V8 05/16] hugetlb: avoid taking i_mmap_mutex in unmap_single_vma() for hugetlb
-In-Reply-To: <20120609094444.GG1761@cmpxchg.org>
-References: <1339232401-14392-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com> <1339232401-14392-6-git-send-email-aneesh.kumar@linux.vnet.ibm.com> <20120609094444.GG1761@cmpxchg.org>User-Agent: Notmuch/0.11.1+346~g13d19c3 (http://notmuchmail.org) Emacs/23.3.1 (x86_64-pc-linux-gnu)
-Date: Sat, 09 Jun 2012 18:33:05 +0530
-Message-ID: <87sje4ljsm.fsf@skywalker.in.ibm.com>
+Subject: Re: [PATCH -V8 14/16] hugetlb/cgroup: add charge/uncharge calls for HugeTLB alloc/free
+In-Reply-To: <20120609092301.GF1761@cmpxchg.org>
+References: <1339232401-14392-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com> <1339232401-14392-15-git-send-email-aneesh.kumar@linux.vnet.ibm.com> <20120609092301.GF1761@cmpxchg.org>User-Agent: Notmuch/0.11.1+346~g13d19c3 (http://notmuchmail.org) Emacs/23.3.1 (x86_64-pc-linux-gnu)
+Date: Sat, 09 Jun 2012 18:39:06 +0530
+Message-ID: <87pq98ljil.fsf@skywalker.in.ibm.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
@@ -27,44 +27,52 @@ Cc: linux-mm@kvack.org, kamezawa.hiroyu@jp.fujitsu.com, dhillf@gmail.com, rientj
 
 Johannes Weiner <hannes@cmpxchg.org> writes:
 
-> On Sat, Jun 09, 2012 at 02:29:50PM +0530, Aneesh Kumar K.V wrote:
+> On Sat, Jun 09, 2012 at 02:29:59PM +0530, Aneesh Kumar K.V wrote:
 >> From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
 >> 
->> i_mmap_mutex lock was added in unmap_single_vma by 502717f4e ("hugetlb:
->> fix linked list corruption in unmap_hugepage_range()") but we don't use
->> page->lru in unmap_hugepage_range any more.  Also the lock was taken
->> higher up in the stack in some code path.  That would result in deadlock.
->> 
->> unmap_mapping_range (i_mmap_mutex)
->>  -> unmap_mapping_range_tree
->>     -> unmap_mapping_range_vma
->>        -> zap_page_range_single
->>          -> unmap_single_vma
->> 	      -> unmap_hugepage_range (i_mmap_mutex)
->> 
->> For shared pagetable support for huge pages, since pagetable pages are ref
->> counted we don't need any lock during huge_pmd_unshare.  We do take
->> i_mmap_mutex in huge_pmd_share while walking the vma_prio_tree in mapping.
->> (39dde65c9940c97f ("shared page table for hugetlb page")).
+>> This adds necessary charge/uncharge calls in the HugeTLB code.  We do
+>> hugetlb cgroup charge in page alloc and uncharge in compound page destructor.
 >> 
 >> Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
+>> ---
+>>  mm/hugetlb.c        |   16 +++++++++++++++-
+>>  mm/hugetlb_cgroup.c |    7 +------
+>>  2 files changed, 16 insertions(+), 7 deletions(-)
+>> 
+>> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+>> index bf79131..4ca92a9 100644
+>> --- a/mm/hugetlb.c
+>> +++ b/mm/hugetlb.c
+>> @@ -628,6 +628,8 @@ static void free_huge_page(struct page *page)
+>>  	BUG_ON(page_mapcount(page));
+>>  
+>>  	spin_lock(&hugetlb_lock);
+>> +	hugetlb_cgroup_uncharge_page(hstate_index(h),
+>> +				     pages_per_huge_page(h), page);
 >
-> This patch (together with the previous one) seems like a bugfix that's
-> not really related to the hugetlb controller, unless I miss something.
->
-> Could you please submit the fix separately?
+> hugetlb_cgroup_uncharge_page() takes the hugetlb_lock, no?
 
-Patches upto 6 can really got in a separate series. I was not sure
-whether I should split them. I will post that as a separate series now
+Yes, But this patch also modifies it to not take the lock, because we
+hold spin_lock just below in the call site. I didn't want to drop the
+lock and take it again.
 
 >
-> Maybe also fold the two patches into one and make it a single bugfix
-> change that gets rid of the lock by switching away from page->lru.
+> It's quite hard to review code that is split up like this.  Please
+> always keep the introduction of new functions in the same patch that
+> adds the callsite(s).
 
-I wanted to make sure the patch that drop i_mmap_mutex is a separate one
-so that we understand and document the locking details separately
+One of the reason I split the charge/uncharge routines and the callers
+in separate patches is to make it easier for review. Irrespective of
+the call site charge/uncharge routines should be correct with respect
+to locking and other details. What I did in this patch is a small
+optimization of avoiding dropping and taking the lock again. May be the
+right approach would have been to name it __hugetlb_cgroup_uncharge_page
+and make sure the hugetlb_cgroup_uncharge_page still takes spin_lock.
+But then we don't have any callers for that.
 
 -aneesh
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
