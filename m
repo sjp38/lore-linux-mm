@@ -1,65 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx102.postini.com [74.125.245.102])
-	by kanga.kvack.org (Postfix) with SMTP id C20E66B006C
-	for <linux-mm@kvack.org>; Sun, 10 Jun 2012 16:11:03 -0400 (EDT)
-Date: Sun, 10 Jun 2012 16:10:56 -0400
-From: Dave Jones <davej@redhat.com>
-Subject: Re: oomkillers gone wild.
-Message-ID: <20120610201055.GA27662@redhat.com>
-References: <20120604152710.GA1710@redhat.com>
- <alpine.DEB.2.00.1206041629500.7769@chino.kir.corp.google.com>
- <20120605174454.GA23867@redhat.com>
- <alpine.DEB.2.00.1206081313000.19054@chino.kir.corp.google.com>
- <20120608210330.GA21010@redhat.com>
- <alpine.DEB.2.00.1206091920140.7832@chino.kir.corp.google.com>
- <4FD412CB.9060809@gmail.com>
+Received: from psmtp.com (na3sys010amx179.postini.com [74.125.245.179])
+	by kanga.kvack.org (Postfix) with SMTP id DABAB6B006C
+	for <linux-mm@kvack.org>; Sun, 10 Jun 2012 16:50:09 -0400 (EDT)
+Received: by dakp5 with SMTP id p5so5547123dak.14
+        for <linux-mm@kvack.org>; Sun, 10 Jun 2012 13:50:09 -0700 (PDT)
+Date: Sun, 10 Jun 2012 13:50:07 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH] mm/buddy: cleanup on should_fail_alloc_page
+In-Reply-To: <1339253516-8760-1-git-send-email-shangw@linux.vnet.ibm.com>
+Message-ID: <alpine.DEB.2.00.1206101349160.25986@chino.kir.corp.google.com>
+References: <1339253516-8760-1-git-send-email-shangw@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <4FD412CB.9060809@gmail.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
-Cc: David Rientjes <rientjes@google.com>, Linux Kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: Gavin Shan <shangw@linux.vnet.ibm.com>
+Cc: linux-mm@kvack.org, hannes@cmpxchg.org, akpm@linux-foundation.org
 
-On Sat, Jun 09, 2012 at 11:21:47PM -0400, KOSAKI Motohiro wrote:
- > (6/9/12 10:21 PM), David Rientjes wrote:
- > > On Fri, 8 Jun 2012, Dave Jones wrote:
- > >
- > >>   >  On a system not under oom conditions, i.e. before you start trinity, can
- > >>   >  you send the output of
- > >>   >
- > >>   >  	cat /proc/$(pidof dbus-daemon)/oom_score{_adj,}
- > >>   >  	grep RSS /proc/$(pidof dbus-daemon)/status
- > >>
- > >> # cat /proc/$(pidof dbus-daemon)/oom_score{_adj,}
- > >> -900
- > >> 7441500919753
- > >> # grep RSS /proc/$(pidof dbus-daemon)/status
- > >> VmRSS:	    1660 kB
- > >
- > > I'm suspecting you don't have my patch that changes the type of the
- > > automatic variable in oom_badness() to signed.  Could you retry this with
- > > that patch or pull 3.5-rc2 which already includes it?
+On Sat, 9 Jun 2012, Gavin Shan wrote:
 
-that was with the unsigned long -> long patch.
+> In the core function __alloc_pages_nodemask() of buddy allocator, it's
+> possible for the memory allocation to fail. That's probablly caused
+> by error injection with expection. In that case, it depends on the
+> check of error injection covered by function should_fail(). Currently,
+> function should_fail() has "bool" for its return value, so it's reasonable
+> to change the return value of function should_fail_alloc_page() into
+> "bool" as well.
+> 
 
- > Yes. Dave (Jones), As far as parsed your log, you are using x86_64, right?
+I think we can remove the first three sentences of this.
 
-yes.
+> The patch does cleanup on function should_fail_alloc_page() to "bool".
+> 
+> Signed-off-by: Gavin Shan <shangw@linux.vnet.ibm.com>
 
- > As far as my testing, current linus tree works fine at least normal case.
- > please respin.
-
-To double check, here it is in rc2 (which has that patch)..
-
-$ uname -r
-3.5.0-rc2+
-$ cat /proc/$(pidof dbus-daemon)/oom_score{_adj,}
--900
-7441500919753
-$ grep RSS /proc/$(pidof dbus-daemon)/status
-VmRSS:	    1604 kB
+Acked-by: David Rientjes <rientjes@google.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
