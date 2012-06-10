@@ -1,47 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx165.postini.com [74.125.245.165])
-	by kanga.kvack.org (Postfix) with SMTP id 171636B005C
-	for <linux-mm@kvack.org>; Sun, 10 Jun 2012 06:27:28 -0400 (EDT)
-Received: by obbwd18 with SMTP id wd18so6680299obb.14
-        for <linux-mm@kvack.org>; Sun, 10 Jun 2012 03:27:27 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <alpine.DEB.2.00.1206081403380.28466@router.home>
-References: <1339176197-13270-1-git-send-email-js1304@gmail.com>
-	<1339176197-13270-4-git-send-email-js1304@gmail.com>
-	<alpine.DEB.2.00.1206081403380.28466@router.home>
-Date: Sun, 10 Jun 2012 19:27:27 +0900
-Message-ID: <CAAmzW4OuyCJVEHd823LvN3+uz=MN-4HGYyw8pbSUvhBN79wSjQ@mail.gmail.com>
-Subject: Re: [PATCH 4/4] slub: deactivate freelist of kmem_cache_cpu all at
- once in deactivate_slab()
-From: JoonSoo Kim <js1304@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Received: from psmtp.com (na3sys010amx118.postini.com [74.125.245.118])
+	by kanga.kvack.org (Postfix) with SMTP id 1E9FD6B005C
+	for <linux-mm@kvack.org>; Sun, 10 Jun 2012 06:50:02 -0400 (EDT)
+Received: by bkcjm19 with SMTP id jm19so3841564bkc.14
+        for <linux-mm@kvack.org>; Sun, 10 Jun 2012 03:50:00 -0700 (PDT)
+From: Sasha Levin <levinsasha928@gmail.com>
+Subject: [PATCH v3 00/10] minor frontswap cleanups and tracing support
+Date: Sun, 10 Jun 2012 12:50:58 +0200
+Message-Id: <1339325468-30614-1-git-send-email-levinsasha928@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: Pekka Enberg <penberg@kernel.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: dan.magenheimer@oracle.com, konrad.wilk@oracle.com
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Sasha Levin <levinsasha928@gmail.com>
 
-2012/6/9 Christoph Lameter <cl@linux.com>:
-> On Sat, 9 Jun 2012, Joonsoo Kim wrote:
->
->> Current implementation of deactivate_slab() which deactivate
->> freelist of kmem_cache_cpu one by one is inefficient.
->> This patch changes it to deactivate freelist all at once.
->> But, there is no overall performance benefit,
->> because deactivate_slab() is invoked infrequently.
->
-> Hmm, deactivate freelist can race with slab_free. Need to look at this in
-> detail.
+Most of these patches are minor cleanups to the mm/frontswap.c code, the big
+chunk of new code can be attributed to the new tracing support.
 
-Implemented logic is nearly same as previous one.
-I just merge first step of previous deactivate_slab() with second one.
-In case of failure of cmpxchg_double_slab(), reloading page->freelist,
-page->counters and recomputing inuse
-ensure that race with slab_free() cannot be possible.
-In case that we need a lock, try to get a lock before invoking
-cmpxchg_double_slab(),
-so race with slab_free cannot be occured too.
+Changes in v3:
+ - Fix merge error
+ - Commenct about new spinlock assertions
 
-Above is my humble opinion, please give me some comments.
+Changes in v2:
+ - Rebase to current version
+ - Address Konrad's comments
+
+Sasha Levin (10):
+  mm: frontswap: remove casting from function calls through ops
+    structure
+  mm: frontswap: trivial coding convention issues
+  mm: frontswap: split out __frontswap_curr_pages
+  mm: frontswap: split out __frontswap_unuse_pages
+  mm: frontswap: split frontswap_shrink further to simplify locking
+  mm: frontswap: make all branches of if statement in put page
+    consistent
+  mm: frontswap: remove unnecessary check during initialization
+  mm: frontswap: add tracing support
+  mm: frontswap: split out function to clear a page out
+  mm: frontswap: remove unneeded headers
+
+ include/trace/events/frontswap.h |  167 ++++++++++++++++++++++++++++++++++++++
+ mm/frontswap.c                   |  162 +++++++++++++++++++++++-------------
+ 2 files changed, 270 insertions(+), 59 deletions(-)
+ create mode 100644 include/trace/events/frontswap.h
+
+-- 
+1.7.8.6
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
