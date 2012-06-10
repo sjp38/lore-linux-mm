@@ -1,47 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx140.postini.com [74.125.245.140])
-	by kanga.kvack.org (Postfix) with SMTP id 8F3E96B0070
-	for <linux-mm@kvack.org>; Sun, 10 Jun 2012 14:55:16 -0400 (EDT)
-Received: by pbbrp2 with SMTP id rp2so5657888pbb.14
-        for <linux-mm@kvack.org>; Sun, 10 Jun 2012 11:55:15 -0700 (PDT)
-Date: Sun, 10 Jun 2012 11:54:47 -0700 (PDT)
-From: Hugh Dickins <hughd@google.com>
-Subject: [PATCH] memcg: fix use_hierarchy css_is_ancestor oops regression
-Message-ID: <alpine.LSU.2.00.1206101150230.4239@eggly.anvils>
+Received: from psmtp.com (na3sys010amx102.postini.com [74.125.245.102])
+	by kanga.kvack.org (Postfix) with SMTP id C20E66B006C
+	for <linux-mm@kvack.org>; Sun, 10 Jun 2012 16:11:03 -0400 (EDT)
+Date: Sun, 10 Jun 2012 16:10:56 -0400
+From: Dave Jones <davej@redhat.com>
+Subject: Re: oomkillers gone wild.
+Message-ID: <20120610201055.GA27662@redhat.com>
+References: <20120604152710.GA1710@redhat.com>
+ <alpine.DEB.2.00.1206041629500.7769@chino.kir.corp.google.com>
+ <20120605174454.GA23867@redhat.com>
+ <alpine.DEB.2.00.1206081313000.19054@chino.kir.corp.google.com>
+ <20120608210330.GA21010@redhat.com>
+ <alpine.DEB.2.00.1206091920140.7832@chino.kir.corp.google.com>
+ <4FD412CB.9060809@gmail.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <4FD412CB.9060809@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Konstantin Khlebnikov <khlebnikov@openvz.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
+Cc: David Rientjes <rientjes@google.com>, Linux Kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 
-If use_hierarchy is set, reclaim testing soon oopses in css_is_ancestor()
-called from __mem_cgroup_same_or_subtree() called from page_referenced():
-when processes are exiting, it's easy for mm_match_cgroup() to pass along
-a NULL memcg coming from a NULL mm->owner.
+On Sat, Jun 09, 2012 at 11:21:47PM -0400, KOSAKI Motohiro wrote:
+ > (6/9/12 10:21 PM), David Rientjes wrote:
+ > > On Fri, 8 Jun 2012, Dave Jones wrote:
+ > >
+ > >>   >  On a system not under oom conditions, i.e. before you start trinity, can
+ > >>   >  you send the output of
+ > >>   >
+ > >>   >  	cat /proc/$(pidof dbus-daemon)/oom_score{_adj,}
+ > >>   >  	grep RSS /proc/$(pidof dbus-daemon)/status
+ > >>
+ > >> # cat /proc/$(pidof dbus-daemon)/oom_score{_adj,}
+ > >> -900
+ > >> 7441500919753
+ > >> # grep RSS /proc/$(pidof dbus-daemon)/status
+ > >> VmRSS:	    1660 kB
+ > >
+ > > I'm suspecting you don't have my patch that changes the type of the
+ > > automatic variable in oom_badness() to signed.  Could you retry this with
+ > > that patch or pull 3.5-rc2 which already includes it?
 
-Check for that in __mem_cgroup_same_or_subtree().  Return true or false?
-False because we cannot know if it was in the hierarchy, but also false
-because it's better not to count a reference from an exiting process.
+that was with the unsigned long -> long patch.
 
-Signed-off-by: Hugh Dickins <hughd@google.com>
----
-This a 3.5-rc issue: not needed for stable.
+ > Yes. Dave (Jones), As far as parsed your log, you are using x86_64, right?
 
- mm/memcontrol.c |    2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+yes.
 
---- 3.5-rc2/mm/memcontrol.c	2012-05-30 08:17:19.400008280 -0700
-+++ linux/mm/memcontrol.c	2012-06-10 08:39:39.618182396 -0700
-@@ -1148,7 +1148,7 @@ bool __mem_cgroup_same_or_subtree(const
- {
- 	if (root_memcg == memcg)
- 		return true;
--	if (!root_memcg->use_hierarchy)
-+	if (!root_memcg->use_hierarchy || !memcg)
- 		return false;
- 	return css_is_ancestor(&memcg->css, &root_memcg->css);
- }
+ > As far as my testing, current linus tree works fine at least normal case.
+ > please respin.
+
+To double check, here it is in rc2 (which has that patch)..
+
+$ uname -r
+3.5.0-rc2+
+$ cat /proc/$(pidof dbus-daemon)/oom_score{_adj,}
+-900
+7441500919753
+$ grep RSS /proc/$(pidof dbus-daemon)/status
+VmRSS:	    1604 kB
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
