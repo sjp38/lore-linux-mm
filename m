@@ -1,55 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx103.postini.com [74.125.245.103])
-	by kanga.kvack.org (Postfix) with SMTP id C47BB6B005C
-	for <linux-mm@kvack.org>; Sun, 10 Jun 2012 03:48:00 -0400 (EDT)
-Date: Sun, 10 Jun 2012 15:47:52 +0800
-From: Fengguang Wu <fengguang.wu@intel.com>
-Subject: Re: [PATCH] page-writeback.c: fix update bandwidth time judgment
- error
-Message-ID: <20120610074752.GA11506@localhost>
-References: <1339302005-366-1-git-send-email-liwp.linux@gmail.com>
- <20120610043641.GA10355@localhost>
- <20120610045300.GA29336@kernel>
- <20120610072414.GA11283@localhost>
- <20120610074115.GA2400@kernel>
+Received: from psmtp.com (na3sys010amx165.postini.com [74.125.245.165])
+	by kanga.kvack.org (Postfix) with SMTP id 171636B005C
+	for <linux-mm@kvack.org>; Sun, 10 Jun 2012 06:27:28 -0400 (EDT)
+Received: by obbwd18 with SMTP id wd18so6680299obb.14
+        for <linux-mm@kvack.org>; Sun, 10 Jun 2012 03:27:27 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20120610074115.GA2400@kernel>
+In-Reply-To: <alpine.DEB.2.00.1206081403380.28466@router.home>
+References: <1339176197-13270-1-git-send-email-js1304@gmail.com>
+	<1339176197-13270-4-git-send-email-js1304@gmail.com>
+	<alpine.DEB.2.00.1206081403380.28466@router.home>
+Date: Sun, 10 Jun 2012 19:27:27 +0900
+Message-ID: <CAAmzW4OuyCJVEHd823LvN3+uz=MN-4HGYyw8pbSUvhBN79wSjQ@mail.gmail.com>
+Subject: Re: [PATCH 4/4] slub: deactivate freelist of kmem_cache_cpu all at
+ once in deactivate_slab()
+From: JoonSoo Kim <js1304@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wanpeng Li <liwp.linux@gmail.com>
-Cc: LKML <linux-kernel@vger.kernel.org>, Jan Kara <jack@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Johannes Weiner <jweiner@redhat.com>, linux-mm@kvack.org, Gavin Shan <shangw@linux.vnet.ibm.com>, Wanpeng Li <liwp@linux.vnet.ibm.com>
+To: Christoph Lameter <cl@linux.com>
+Cc: Pekka Enberg <penberg@kernel.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-> static void global_update_bandwidth(unsigned long thresh,
-> 				    unsigned long dirty,
-> 					unsigned long now)
-> {
-> 	static DEFINE_SPINLOCK(dirty_lock);
->     static unsigned long update_time;
-> 
->     /*
-> 	 * check locklessly first to optimize away locking for the most time
->      */
-> 	if (time_before(now, update_time + BANDWIDTH_INTERVAL))
-> 		return;
->     
-> 	spin_lock(&dirty_lock);
->     if (time_after_eq(now, update_time + BANDWIDTH_INTERVAL)) {
-> 		update_dirty_limit(thresh, dirty);
-> 		update_time = now;
-> 	}
-> 	spin_unlock(&dirty_lock);
-> }
-> 
-> So time_after_eq in global_update_bandwidth function should also change
-> to time_after, or just ignore this disunion?
+2012/6/9 Christoph Lameter <cl@linux.com>:
+> On Sat, 9 Jun 2012, Joonsoo Kim wrote:
+>
+>> Current implementation of deactivate_slab() which deactivate
+>> freelist of kmem_cache_cpu one by one is inefficient.
+>> This patch changes it to deactivate freelist all at once.
+>> But, there is no overall performance benefit,
+>> because deactivate_slab() is invoked infrequently.
+>
+> Hmm, deactivate freelist can race with slab_free. Need to look at this in
+> detail.
 
-Let's just ignore them. You are very careful and I like it.
-Please move on and keep up the good work!
+Implemented logic is nearly same as previous one.
+I just merge first step of previous deactivate_slab() with second one.
+In case of failure of cmpxchg_double_slab(), reloading page->freelist,
+page->counters and recomputing inuse
+ensure that race with slab_free() cannot be possible.
+In case that we need a lock, try to get a lock before invoking
+cmpxchg_double_slab(),
+so race with slab_free cannot be occured too.
 
-Thanks,
-Fengguang
+Above is my humble opinion, please give me some comments.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
