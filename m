@@ -1,48 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx118.postini.com [74.125.245.118])
-	by kanga.kvack.org (Postfix) with SMTP id 1E9FD6B005C
-	for <linux-mm@kvack.org>; Sun, 10 Jun 2012 06:50:02 -0400 (EDT)
-Received: by bkcjm19 with SMTP id jm19so3841564bkc.14
-        for <linux-mm@kvack.org>; Sun, 10 Jun 2012 03:50:00 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx141.postini.com [74.125.245.141])
+	by kanga.kvack.org (Postfix) with SMTP id 031456B0062
+	for <linux-mm@kvack.org>; Sun, 10 Jun 2012 06:50:03 -0400 (EDT)
+Received: by bkcjm19 with SMTP id jm19so3841575bkc.14
+        for <linux-mm@kvack.org>; Sun, 10 Jun 2012 03:50:02 -0700 (PDT)
 From: Sasha Levin <levinsasha928@gmail.com>
-Subject: [PATCH v3 00/10] minor frontswap cleanups and tracing support
-Date: Sun, 10 Jun 2012 12:50:58 +0200
-Message-Id: <1339325468-30614-1-git-send-email-levinsasha928@gmail.com>
+Subject: [PATCH v3 01/10] mm: frontswap: remove casting from function calls through ops structure
+Date: Sun, 10 Jun 2012 12:50:59 +0200
+Message-Id: <1339325468-30614-2-git-send-email-levinsasha928@gmail.com>
+In-Reply-To: <1339325468-30614-1-git-send-email-levinsasha928@gmail.com>
+References: <1339325468-30614-1-git-send-email-levinsasha928@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: dan.magenheimer@oracle.com, konrad.wilk@oracle.com
 Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Sasha Levin <levinsasha928@gmail.com>
 
-Most of these patches are minor cleanups to the mm/frontswap.c code, the big
-chunk of new code can be attributed to the new tracing support.
+Removes unneeded casts.
 
-Changes in v3:
- - Fix merge error
- - Commenct about new spinlock assertions
+Signed-off-by: Sasha Levin <levinsasha928@gmail.com>
+---
+ mm/frontswap.c |   10 +++++-----
+ 1 files changed, 5 insertions(+), 5 deletions(-)
 
-Changes in v2:
- - Rebase to current version
- - Address Konrad's comments
-
-Sasha Levin (10):
-  mm: frontswap: remove casting from function calls through ops
-    structure
-  mm: frontswap: trivial coding convention issues
-  mm: frontswap: split out __frontswap_curr_pages
-  mm: frontswap: split out __frontswap_unuse_pages
-  mm: frontswap: split frontswap_shrink further to simplify locking
-  mm: frontswap: make all branches of if statement in put page
-    consistent
-  mm: frontswap: remove unnecessary check during initialization
-  mm: frontswap: add tracing support
-  mm: frontswap: split out function to clear a page out
-  mm: frontswap: remove unneeded headers
-
- include/trace/events/frontswap.h |  167 ++++++++++++++++++++++++++++++++++++++
- mm/frontswap.c                   |  162 +++++++++++++++++++++++-------------
- 2 files changed, 270 insertions(+), 59 deletions(-)
- create mode 100644 include/trace/events/frontswap.h
-
+diff --git a/mm/frontswap.c b/mm/frontswap.c
+index e250255..557e8af4 100644
+--- a/mm/frontswap.c
++++ b/mm/frontswap.c
+@@ -111,7 +111,7 @@ void __frontswap_init(unsigned type)
+ 	if (sis->frontswap_map == NULL)
+ 		return;
+ 	if (frontswap_enabled)
+-		(*frontswap_ops.init)(type);
++		frontswap_ops.init(type);
+ }
+ EXPORT_SYMBOL(__frontswap_init);
+ 
+@@ -134,7 +134,7 @@ int __frontswap_store(struct page *page)
+ 	BUG_ON(sis == NULL);
+ 	if (frontswap_test(sis, offset))
+ 		dup = 1;
+-	ret = (*frontswap_ops.store)(type, offset, page);
++	ret = frontswap_ops.store(type, offset, page);
+ 	if (ret == 0) {
+ 		frontswap_set(sis, offset);
+ 		inc_frontswap_succ_stores();
+@@ -173,7 +173,7 @@ int __frontswap_load(struct page *page)
+ 	BUG_ON(!PageLocked(page));
+ 	BUG_ON(sis == NULL);
+ 	if (frontswap_test(sis, offset))
+-		ret = (*frontswap_ops.load)(type, offset, page);
++		ret = frontswap_ops.load(type, offset, page);
+ 	if (ret == 0)
+ 		inc_frontswap_loads();
+ 	return ret;
+@@ -190,7 +190,7 @@ void __frontswap_invalidate_page(unsigned type, pgoff_t offset)
+ 
+ 	BUG_ON(sis == NULL);
+ 	if (frontswap_test(sis, offset)) {
+-		(*frontswap_ops.invalidate_page)(type, offset);
++		frontswap_ops.invalidate_page(type, offset);
+ 		atomic_dec(&sis->frontswap_pages);
+ 		frontswap_clear(sis, offset);
+ 		inc_frontswap_invalidates();
+@@ -209,7 +209,7 @@ void __frontswap_invalidate_area(unsigned type)
+ 	BUG_ON(sis == NULL);
+ 	if (sis->frontswap_map == NULL)
+ 		return;
+-	(*frontswap_ops.invalidate_area)(type);
++	frontswap_ops.invalidate_area(type);
+ 	atomic_set(&sis->frontswap_pages, 0);
+ 	memset(sis->frontswap_map, 0, sis->max / sizeof(long));
+ }
 -- 
 1.7.8.6
 
