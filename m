@@ -1,45 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx120.postini.com [74.125.245.120])
-	by kanga.kvack.org (Postfix) with SMTP id 4BAE86B005C
-	for <linux-mm@kvack.org>; Sat,  9 Jun 2012 23:21:50 -0400 (EDT)
-Received: by qafl39 with SMTP id l39so1791015qaf.9
-        for <linux-mm@kvack.org>; Sat, 09 Jun 2012 20:21:49 -0700 (PDT)
-Message-ID: <4FD412CB.9060809@gmail.com>
-Date: Sat, 09 Jun 2012 23:21:47 -0400
-From: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
-MIME-Version: 1.0
-Subject: Re: oomkillers gone wild.
-References: <20120604152710.GA1710@redhat.com> <alpine.DEB.2.00.1206041629500.7769@chino.kir.corp.google.com> <20120605174454.GA23867@redhat.com> <alpine.DEB.2.00.1206081313000.19054@chino.kir.corp.google.com> <20120608210330.GA21010@redhat.com> <alpine.DEB.2.00.1206091920140.7832@chino.kir.corp.google.com>
-In-Reply-To: <alpine.DEB.2.00.1206091920140.7832@chino.kir.corp.google.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx109.postini.com [74.125.245.109])
+	by kanga.kvack.org (Postfix) with SMTP id F13E06B005C
+	for <linux-mm@kvack.org>; Sun, 10 Jun 2012 00:20:54 -0400 (EDT)
+Received: by dakp5 with SMTP id p5so4884340dak.14
+        for <linux-mm@kvack.org>; Sat, 09 Jun 2012 21:20:54 -0700 (PDT)
+From: Wanpeng Li <liwp.linux@gmail.com>
+Subject: [PATCH] page-writeback.c: fix update bandwidth time judgment error
+Date: Sun, 10 Jun 2012 12:20:05 +0800
+Message-Id: <1339302005-366-1-git-send-email-liwp.linux@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Dave Jones <davej@redhat.com>, Linux Kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, kosaki.motohiro@gmail.com
+To: Fengguang Wu <fengguang.wu@intel.com>
+Cc: LKML <linux-kernel@vger.kernel.org>, Jan Kara <jack@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Johannes Weiner <jweiner@redhat.com>, linux-mm@kvack.org, Gavin Shan <shangw@linux.vnet.ibm.com>, Wanpeng Li <liwp.linux@gmail.com>, Wanpeng Li <liwp@linux.vnet.ibm.com>
 
-(6/9/12 10:21 PM), David Rientjes wrote:
-> On Fri, 8 Jun 2012, Dave Jones wrote:
->
->>   >  On a system not under oom conditions, i.e. before you start trinity, can
->>   >  you send the output of
->>   >
->>   >  	cat /proc/$(pidof dbus-daemon)/oom_score{_adj,}
->>   >  	grep RSS /proc/$(pidof dbus-daemon)/status
->>
->> # cat /proc/$(pidof dbus-daemon)/oom_score{_adj,}
->> -900
->> 7441500919753
->> # grep RSS /proc/$(pidof dbus-daemon)/status
->> VmRSS:	    1660 kB
->
-> I'm suspecting you don't have my patch that changes the type of the
-> automatic variable in oom_badness() to signed.  Could you retry this with
-> that patch or pull 3.5-rc2 which already includes it?
+From: Wanpneg Li <liwp@linux.vnet.ibm.com>
 
-Yes. Dave (Jones), As far as parsed your log, you are using x86_64, right?
-As far as my testing, current linus tree works fine at least normal case.
-please respin.
+Since bdi_update_bandwidth function  should estimate write bandwidth at 200ms intervals,
+so the time is bdi->bw_time_stamp + BANDWIDTH_INTERVAL == jiffies, but
+if use time_is_after_eq_jiffies intervals will be bdi->bw_time_stamp +
+BANDWIDTH_INTERVAL + 1.
+
+Signed-off-by: Wanpeng Li <liwp@linux.vnet.ibm.com>
+---
+ mm/page-writeback.c |    2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/mm/page-writeback.c b/mm/page-writeback.c
+index c833bf0..099e225 100644
+--- a/mm/page-writeback.c
++++ b/mm/page-writeback.c
+@@ -1032,7 +1032,7 @@ static void bdi_update_bandwidth(struct backing_dev_info *bdi,
+ 				 unsigned long bdi_dirty,
+ 				 unsigned long start_time)
+ {
+-	if (time_is_after_eq_jiffies(bdi->bw_time_stamp + BANDWIDTH_INTERVAL))
++	if (time_is_after_jiffies(bdi->bw_time_stamp + BANDWIDTH_INTERVAL))
+ 		return;
+ 	spin_lock(&bdi->wb.list_lock);
+ 	__bdi_update_bandwidth(bdi, thresh, bg_thresh, dirty,
+-- 
+1.7.9.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
