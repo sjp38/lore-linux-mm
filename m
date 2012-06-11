@@ -1,40 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx114.postini.com [74.125.245.114])
-	by kanga.kvack.org (Postfix) with SMTP id 4E7A16B013F
-	for <linux-mm@kvack.org>; Mon, 11 Jun 2012 10:41:38 -0400 (EDT)
-Date: Mon, 11 Jun 2012 16:41:32 +0200
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [PATCH] mm: do not use page_count without a page pin
-Message-ID: <20120611144132.GT3094@redhat.com>
-References: <1339373872-31969-1-git-send-email-minchan@kernel.org>
- <4FD59C31.6000606@jp.fujitsu.com>
- <20120611074440.GI3094@redhat.com>
- <20120611133043.GA2340@barrios>
+Received: from psmtp.com (na3sys010amx202.postini.com [74.125.245.202])
+	by kanga.kvack.org (Postfix) with SMTP id BA1386B0141
+	for <linux-mm@kvack.org>; Mon, 11 Jun 2012 10:43:41 -0400 (EDT)
+Date: Mon, 11 Jun 2012 09:43:38 -0500 (CDT)
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: [PATCH 1/6] Revert "mm: mempolicy: Let vma_merge and vma_split
+ handle vma->vm_policy linkages"
+In-Reply-To: <1339406250-10169-2-git-send-email-kosaki.motohiro@gmail.com>
+Message-ID: <alpine.DEB.2.00.1206110935070.31180@router.home>
+References: <1339406250-10169-1-git-send-email-kosaki.motohiro@gmail.com> <1339406250-10169-2-git-send-email-kosaki.motohiro@gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20120611133043.GA2340@barrios>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>
+To: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@google.com>, Dave Jones <davej@redhat.com>, Mel Gorman <mgorman@suse.de>, stable@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 
-Hi Minchan,
+On Mon, 11 Jun 2012, kosaki.motohiro@gmail.com wrote:
 
-On Mon, Jun 11, 2012 at 10:30:43PM +0900, Minchan Kim wrote:
-> AFAIUC, you mean we have to increase reference count of head page?
-> If so, it's not in __count_immobile_pages because it is already race-likely function
-> so it shouldn't be critical although race happens.
+> From: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
+>
+> commit 05f144a0d5 "mm: mempolicy: Let vma_merge and vma_split handle
+> vma->vm_policy linkages" removed a vma->vm_policy updates. But it is
+> a primary purpose of mbind_range(). Now, mbind(2) is no-op in several
+> case unintentionally. It is not ideal fix. This patch reverts it.
 
-I meant, shouldn't we take into account the full size? If it's in the
-lru the whole thing can be moved away.
+Rewritten changelog:
 
-  if (!PageLRU(page)) {
-     nr_pages = hpage_nr_pages(page);
-     barrier();
-     found += nr_pages;
-     iter += nr_pages-1;
-  }
+commit 05f144a0d5 "mm: mempolicy: Let vma_merge and vma_split handle
+vma->vm_policy linkages" removed policy_vma() but the function is
+needed in this patchset.
+
+
+(It is not clear to me what the last sentences mean. AFAICT the code for
+policy_vma() still exists in another function prior to this patch)
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
