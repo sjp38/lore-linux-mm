@@ -1,114 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx136.postini.com [74.125.245.136])
-	by kanga.kvack.org (Postfix) with SMTP id 7DA3E6B0143
-	for <linux-mm@kvack.org>; Mon, 11 Jun 2012 10:55:23 -0400 (EDT)
-Received: from epcpsbgm1.samsung.com (mailout3.samsung.com [203.254.224.33])
- by mailout3.samsung.com
- (Oracle Communications Messaging Server 7u4-24.01(7.0.4.24.0) 64bit (built Nov
- 17 2011)) with ESMTP id <0M5G008VMK49CP70@mailout3.samsung.com> for
- linux-mm@kvack.org; Mon, 11 Jun 2012 23:55:21 +0900 (KST)
-Received: from bzolnier-desktop.localnet ([106.116.48.38])
- by mmp1.samsung.com (Oracle Communications Messaging Server 7u4-24.01
- (7.0.4.24.0) 64bit (built Nov 17 2011))
- with ESMTPA id <0M5G009XMK47ZIB0@mmp1.samsung.com> for linux-mm@kvack.org;
- Mon, 11 Jun 2012 23:55:21 +0900 (KST)
-From: Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>
-Subject: Re: [PATCH v10] mm: compaction: handle incorrect MIGRATE_UNMOVABLE
- type pageblocks
-Date: Mon, 11 Jun 2012 16:54:48 +0200
-References: <201206081046.32382.b.zolnierkie@samsung.com>
- <201206111243.14379.b.zolnierkie@samsung.com> <20120611133916.GB2340@barrios>
-In-reply-to: <20120611133916.GB2340@barrios>
-MIME-version: 1.0
-Message-id: <201206111654.48701.b.zolnierkie@samsung.com>
-Content-type: Text/Plain; charset=us-ascii
-Content-transfer-encoding: 7bit
+Received: from psmtp.com (na3sys010amx195.postini.com [74.125.245.195])
+	by kanga.kvack.org (Postfix) with SMTP id 246186B0144
+	for <linux-mm@kvack.org>; Mon, 11 Jun 2012 10:58:49 -0400 (EDT)
+Received: by dakp5 with SMTP id p5so6791569dak.14
+        for <linux-mm@kvack.org>; Mon, 11 Jun 2012 07:58:48 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <alpine.DEB.2.00.1206110937430.31180@router.home>
+References: <1339422650-9798-1-git-send-email-kosaki.motohiro@gmail.com>
+ <alpine.DEB.2.00.1206110856180.31180@router.home> <4FD60127.1000805@jp.fujitsu.com>
+ <alpine.DEB.2.00.1206110937430.31180@router.home>
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Date: Mon, 11 Jun 2012 10:58:27 -0400
+Message-ID: <CAHGf_=rdcoC8wWzcAfDpqekFnmBSCtyEp2nFXV+DFBzgpHEF1A@mail.gmail.com>
+Subject: Re: [PATCH] mm: fix protection column misplacing in /proc/zoneinfo
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Dave Jones <davej@redhat.com>, Cong Wang <amwang@redhat.com>, Markus Trippelsdorf <markus@trippelsdorf.de>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Marek Szyprowski <m.szyprowski@samsung.com>, Kyungmin Park <kyungmin.park@samsung.com>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>
+To: Christoph Lameter <cl@linux.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Monday 11 June 2012 15:39:16 Minchan Kim wrote:
-> On Mon, Jun 11, 2012 at 12:43:14PM +0200, Bartlomiej Zolnierkiewicz wrote:
-> > On Monday 11 June 2012 03:26:49 Minchan Kim wrote:
-> > > Hi Bartlomiej,
-> > > 
-> > > On 06/08/2012 05:46 PM, Bartlomiej Zolnierkiewicz wrote:
-> > > 
-> > > > 
-> > > > Hi,
-> > > > 
-> > > > This version is much simpler as it just uses __count_immobile_pages()
-> > > > instead of using its own open coded version and it integrates changes
-> > > 
-> > > 
-> > > That's a good idea. I don't have noticed that function is there.
-> > > When I look at the function, it has a problem, too.
-> > > Please, look at this.
-> > > 
-> > > https://lkml.org/lkml/2012/6/10/180
-> > > 
-> > > If reviewer is okay that patch, I would like to resend your patch based on that. 
-> > 
-> > Ok, I would later merge all changes into v11 and rebase on top of your patch.
-> > 
-> > > > from Minchan Kim (without page_count change as it doesn't seem correct
-> > > 
-> > > 
-> > > Why do you think so?
-> > > If it isn't correct, how can you prevent racing with THP page freeing?
-> > 
-> > After seeing the explanation for the previous fix it is all clear now.
-> > 
-> > > > and __count_immobile_pages() does the check in the standard way; if it
-> > > > still is a problem I think that removing 1st phase check altogether
-> > > > would be better instead of adding more locking complexity).
-> > > > 
-> > > > The patch also adds compact_rescued_unmovable_blocks vmevent to vmstats
-> > > > to make it possible to easily check if the code is working in practice.
-> > > 
-> > > 
-> > > I think that part should be another patch.
-> > > 
-> > > 1. Adding new vmstat would be arguable so it might interrupt this patch merging.
-> > 
-> > Why would it be arguable?  It seems non-intrusive and obvious to me.
-> 
-> Once you add new vmstat, someone can make another dependent code in userspace.
-> It means your new vmstat would become a new ABI so we should be careful.
+On Mon, Jun 11, 2012 at 10:40 AM, Christoph Lameter <cl@linux.com> wrote:
+> On Mon, 11 Jun 2012, KOSAKI Motohiro wrote:
+>
+>> On 6/11/2012 10:02 AM, Christoph Lameter wrote:
+>> > On Mon, 11 Jun 2012, kosaki.motohiro@gmail.com wrote:
+>> >
+>> >> From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+>> >>
+>> >> commit 2244b95a7b (zoned vm counters: basic ZVC (zoned vm counter)
+>> >> implementation) broke protection column. It is a part of "pages"
+>> >> attribute. but not it is showed after vmstats column.
+>> >>
+>> >> This patch restores the right position.
+>> >
+>> > Well this reorders the output. vmstats are also counts of pages. I am not
+>> > sure what the difference is.
+>>
+>> No. In this case, "pages" mean zone attribute. In the other hand, vmevent
+>> is a statistics.
+>
+> The vmevent countes are something different from the zone counters. Event
+> counters are indeed statistics only but the numbers here were intended
+> to be are actual counts of pages. Well some of them like the numa_XXX are
+> stats you are right. Those could be moved off the ZVCs and become event
+> counters.
+>
+>> > You are not worried about breaking something that may scan the zoneinfo
+>> > output with this change? Its been this way for 6 years and its likely that
+>> > tools expect the current layout.
+>>
+>> I don't worry about this. Because of, /proc/zoneinfo is cray machine unfrinedly
+>> format and afaik no application uses it.
+>
+> Cray? What does that have to do with it.
 
-I know about it but I doubt that it will be ever used by the user-space
-for other purpose than showing kernel statistics (even that is unlikely).
+sorry. s/cray/crazy/
 
-> > 
-> > > 2. New vmstat adding is just for this patch is effective or not in real practice
-> > >    so if we prove it in future, let's revert the vmstat. Separating it would make it
-> > >    easily.
-> > 
-> > I would like to add this vmstat permanently, not only for the testing period..
-> 
-> "I would like to add this vmstat permanently" isn't logical at all.
-> You should mention why we need such vmstat and how administrator can parse it/
-> handle it if he needs.
 
-I quickly went through vmstat history and I see rationales like this:
-"Optional patch, but useful for development and understanding the system."
-for adding new vmstat counters.  The new counter falls into this category.
-
-compact_rescued_unmovable_blocks shows the number of MIGRATE_UNMOVABLE
-pageblocks converted back to MIGRATE_MOVABLE type by the memory compaction
-code.  Non-zero values indicate that large kernel-originated allocations
-of MIGRATE_UNMOVABLE type happen in the system and need special handling 
-from the memory compaction code.
-
-> If we have Documentation/vmstat.txt, you should have written it down. Sigh.
-
-But we don't have vmstat.txt even though we have a lot of vmstat counters. :(
-
-Best regards,
---
-Bartlomiej Zolnierkiewicz
-Samsung Poland R&D Center
+>
+>> btw, I believe we should aim /sys/devices/system/node/<node-num>/zones new directory
+>> and export zone infos as machine readable format.
+>
+> Yes that would be a good thing.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
