@@ -1,35 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx204.postini.com [74.125.245.204])
-	by kanga.kvack.org (Postfix) with SMTP id C07E56B0071
-	for <linux-mm@kvack.org>; Sun, 10 Jun 2012 22:25:25 -0400 (EDT)
-Message-ID: <4FD55712.8000302@kernel.org>
-Date: Mon, 11 Jun 2012 11:25:22 +0900
-From: Minchan Kim <minchan@kernel.org>
+Received: from psmtp.com (na3sys010amx170.postini.com [74.125.245.170])
+	by kanga.kvack.org (Postfix) with SMTP id DF5C16B0075
+	for <linux-mm@kvack.org>; Sun, 10 Jun 2012 22:27:51 -0400 (EDT)
+Message-ID: <4FD55734.60104@intel.com>
+Date: Mon, 11 Jun 2012 10:25:56 +0800
+From: Alex Shi <alex.shi@intel.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH v2] zsmalloc documentation
-References: <1339288874-2743-1-git-send-email-ngupta@vflare.org>
-In-Reply-To: <1339288874-2743-1-git-send-email-ngupta@vflare.org>
-Content-Type: text/plain; charset=UTF-8
+Subject: Re: [RFC] Common code 00/12] Sl[auo]b: Common functionality V2
+References: <20120518161906.207356777@linux.com>
+In-Reply-To: <20120518161906.207356777@linux.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Nitin Gupta <ngupta@vflare.org>
-Cc: Greg KH <greg@kroah.com>, Dan Magenheimer <dan.magenheimer@oracle.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Minchan Kim <minchan.kim@gmail.com>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>
+To: Christoph Lameter <cl@linux.com>
+Cc: Pekka Enberg <penberg@kernel.org>, linux-mm@kvack.org, David Rientjes <rientjes@google.com>, Matt Mackall <mpm@selenic.com>, Glauber Costa <glommer@parallels.com>, Joonsoo Kim <js1304@gmail.com>
 
-On 06/10/2012 09:41 AM, Nitin Gupta wrote:
+On 05/19/2012 12:19 AM, Christoph Lameter wrote:
 
-> Documentation of various struct page fields
-> used by zsmalloc.
-> 
-> Signed-off-by: Nitin Gupta <ngupta@vflare.org>
-> 
+> V1->V2:
+> - Incorporate glommers feedback.
+> - Add 2 more patches dealing with common code in kmem_cache_destroy
 
 
-Reviewed-by: Minchan Kim <minchan@kernel.org>
+I tested the patchset on 3.4 kernel with hackbench process/thread:
+$hackbench 100 process/thread 2000
 
--- 
-Kind regards,
-Minchan Kim
+on Romely EP machine. 32 LCPUs, with 64GB memory
+hackbench process	slub	0%
+hackbench thread	slub	0%
+hackbench process	slab	-6.0%
+hackbench thread	slab	-0.5%
+
+on NHM EP machine, 16 cpus, with 12GB memory
+hackbench process	slub	-1.0%
+hackbench thread	slub	-1.5%
+hackbench process	slab	+1.0%
+hackbench thread	slab	+1.0%
+hackbench process	slob	0%
+hackbench thread	slob	0%
+
+on 4 sockets Quad-core Xeon, 16 cpus, with 16 GB memory
+hackbench process	slub	0%
+hackbench thread	slub	0%
+hackbench process	slab	-0.5%
+hackbench thread	slab	-0.5%
+hackbench process	slob	0%
+hackbench thread	slob	0%
+
+
+On netperf loopback, 2048 threads testing. In general, compare tcp/udp
+results, no clear performance change on above three machines.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
