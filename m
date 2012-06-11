@@ -1,51 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx155.postini.com [74.125.245.155])
-	by kanga.kvack.org (Postfix) with SMTP id 125D66B00BA
-	for <linux-mm@kvack.org>; Mon, 11 Jun 2012 02:16:10 -0400 (EDT)
-Message-ID: <4FD58D28.2030808@kernel.org>
-Date: Mon, 11 Jun 2012 15:16:08 +0900
-From: Minchan Kim <minchan@kernel.org>
+Received: from psmtp.com (na3sys010amx168.postini.com [74.125.245.168])
+	by kanga.kvack.org (Postfix) with SMTP id E7A936B00C0
+	for <linux-mm@kvack.org>; Mon, 11 Jun 2012 03:08:14 -0400 (EDT)
+Received: from m1.gw.fujitsu.co.jp (unknown [10.0.50.71])
+	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 1126D3EE0B6
+	for <linux-mm@kvack.org>; Mon, 11 Jun 2012 16:08:13 +0900 (JST)
+Received: from smail (m1 [127.0.0.1])
+	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id E8AC845DE5A
+	for <linux-mm@kvack.org>; Mon, 11 Jun 2012 16:08:12 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
+	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id CCBA445DE56
+	for <linux-mm@kvack.org>; Mon, 11 Jun 2012 16:08:12 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id B99151DB8051
+	for <linux-mm@kvack.org>; Mon, 11 Jun 2012 16:08:12 +0900 (JST)
+Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.240.81.134])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 7447F1DB8042
+	for <linux-mm@kvack.org>; Mon, 11 Jun 2012 16:08:12 +0900 (JST)
+Message-ID: <4FD598C2.8020709@jp.fujitsu.com>
+Date: Mon, 11 Jun 2012 16:05:38 +0900
+From: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH v3 09/10] mm: frontswap: split out function to clear a
- page out
-References: <1339325468-30614-1-git-send-email-levinsasha928@gmail.com> <1339325468-30614-10-git-send-email-levinsasha928@gmail.com>
-In-Reply-To: <1339325468-30614-10-git-send-email-levinsasha928@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+Subject: Re: [PATCH] memcg: fix use_hierarchy css_is_ancestor oops regression
+References: <alpine.LSU.2.00.1206101150230.4239@eggly.anvils>
+In-Reply-To: <alpine.LSU.2.00.1206101150230.4239@eggly.anvils>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sasha Levin <levinsasha928@gmail.com>
-Cc: dan.magenheimer@oracle.com, konrad.wilk@oracle.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Hugh Dickins <hughd@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Konstantin Khlebnikov <khlebnikov@openvz.org>, Michal Hocko <mhocko@suse.cz>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On 06/10/2012 07:51 PM, Sasha Levin wrote:
+(2012/06/11 3:54), Hugh Dickins wrote:
+> If use_hierarchy is set, reclaim testing soon oopses in css_is_ancestor()
+> called from __mem_cgroup_same_or_subtree() called from page_referenced():
+> when processes are exiting, it's easy for mm_match_cgroup() to pass along
+> a NULL memcg coming from a NULL mm->owner.
+>
+> Check for that in __mem_cgroup_same_or_subtree().  Return true or false?
+> False because we cannot know if it was in the hierarchy, but also false
+> because it's better not to count a reference from an exiting process.
+>
+> Signed-off-by: Hugh Dickins<hughd@google.com>
 
-> Signed-off-by: Sasha Levin <levinsasha928@gmail.com>
-> ---
->  mm/frontswap.c |   15 +++++++++------
->  1 files changed, 9 insertions(+), 6 deletions(-)
-> 
-> diff --git a/mm/frontswap.c b/mm/frontswap.c
-> index 7da55a3..c056f6e 100644
-> --- a/mm/frontswap.c
-> +++ b/mm/frontswap.c
-> @@ -120,6 +120,12 @@ void __frontswap_init(unsigned type)
->  }
->  EXPORT_SYMBOL(__frontswap_init);
->  
-> +static inline void __frontswap_clear(struct swap_info_struct *sis, pgoff_t offset)
-> +{
-> +	frontswap_clear(sis, offset);
-> +	atomic_dec(&sis->frontswap_pages);
-> +}
-
-
-Nipick:
-Strange, Normally, NOT underscore function calls underscore function.
-But this is opposite. :(
-
--- 
-Kind regards,
-Minchan Kim
+Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
