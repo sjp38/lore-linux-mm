@@ -1,59 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx204.postini.com [74.125.245.204])
-	by kanga.kvack.org (Postfix) with SMTP id 3077B6B0062
-	for <linux-mm@kvack.org>; Mon, 11 Jun 2012 18:49:34 -0400 (EDT)
-Message-ID: <4FD675FE.1060202@kernel.org>
-Date: Tue, 12 Jun 2012 07:49:34 +0900
+Received: from psmtp.com (na3sys010amx108.postini.com [74.125.245.108])
+	by kanga.kvack.org (Postfix) with SMTP id 4F22C6B0062
+	for <linux-mm@kvack.org>; Mon, 11 Jun 2012 19:23:43 -0400 (EDT)
+Message-ID: <4FD67E00.4040700@kernel.org>
+Date: Tue, 12 Jun 2012 08:23:44 +0900
 From: Minchan Kim <minchan@kernel.org>
 MIME-Version: 1.0
-Subject: Re: [PATCH] mm: do not use page_count without a page pin
-References: <1339373872-31969-1-git-send-email-minchan@kernel.org> <4FD59C31.6000606@jp.fujitsu.com> <20120611074440.GI3094@redhat.com> <20120611133043.GA2340@barrios> <20120611144132.GT3094@redhat.com>
-In-Reply-To: <20120611144132.GT3094@redhat.com>
+Subject: Re: [PATCH] mm: clean up __count_immobile_pages
+References: <1339380442-1137-1-git-send-email-minchan@kernel.org> <20120611144011.60fd76c8.akpm@linux-foundation.org>
+In-Reply-To: <20120611144011.60fd76c8.akpm@linux-foundation.org>
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-On 06/11/2012 11:41 PM, Andrea Arcangeli wrote:
+On 06/12/2012 06:40 AM, Andrew Morton wrote:
 
-> Hi Minchan,
+> On Mon, 11 Jun 2012 11:07:22 +0900
+> Minchan Kim <minchan@kernel.org> wrote:
 > 
-> On Mon, Jun 11, 2012 at 10:30:43PM +0900, Minchan Kim wrote:
->> AFAIUC, you mean we have to increase reference count of head page?
->> If so, it's not in __count_immobile_pages because it is already race-likely function
->> so it shouldn't be critical although race happens.
+>> __count_immobile_pages naming is rather awkward.
+>> This patch clean up the function and add comment.
 > 
-> I meant, shouldn't we take into account the full size? If it's in the
-> lru the whole thing can be moved away.
+> This conflicts with
+> mm-compaction-handle-incorrect-migrate_unmovable-type-pageblocks.patch
+> and its fixes.
+
+
+I wanted to revert [1] and friends and merge again based on [2] and this patch.
+Because [1] has still bug I explained in [2]. If it is merged without [2], it simply can
+spread bug from one place(memory hotplug) to two place(memory hotplug and compaction).
+
+We discussed real effectiveness of [1] because the patch is rather complicated than
+expectation. I don't want to add unnecessary maintain cost if it doesn't have proved benefit.
+
+KOSAKI and me : doesn't want to merge without proving (https://lkml.org/lkml/2012/6/5/3)
+Mel: Pass the decision to CMA guys (https://lkml.org/lkml/2012/6/11/242)
+Rik: want to test it based on THP alloc ratio (https://lkml.org/lkml/2012/6/11/293)
+
+I guess anyone has no sure for needing it, at least.
+
+Even, [1] added new vmstat "compact_rescued_unmovable_blocks". 
+Why I firstly suggest is just for the proving the effectiveness easily and wanted to
+revert the vmstat later before merging mainline if we prove it.
+(But it seems that KOSAKI doesn't like it - https://lkml.org/lkml/2012/6/5/282)
+But now Bartlomiej want to maintain it permanently in vmstat.
+IMHO, it's not a good idea.
+Anyway, adding new vmstat part should be careful and get a agreement from mm guys.
+
+[1] mm-compaction-handle-incorrect-migrate_unmovable-type-pageblocks.patch
+[2] [PATCH] mm: do not use page_count without a page pin
+
 > 
->   if (!PageLRU(page)) {
->      nr_pages = hpage_nr_pages(page);
->      barrier();
+>> + * This function can race in PageLRU and MIGRATE_MOVABLE can have unmovable
+>> + * pages so that it might be not exact.
+> 
+> I don't understand this.  Functions race against other functions, not
+> against a page flag.  Can we have another attempt at this description
 
 
-Could you explain why we need barrier?
+You're right. I meant page flags.
 
->      found += nr_pages;
->      iter += nr_pages-1;
->   }
+> please?
+
+
+Before that, I would like to clear out how you handle this patch dependencies.
+What should I do? 
+Any tree and any patchset based on for the work?
+
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 > 
 
 
-Thanks for the explain.
 
-For the normal pages, the logic accounts it as "non-movable pages" so for the consistency,
-it seems you're right. But let's think about a bit.
-
-If THP page isn't LRU and it's still PageTransHuge, I think it's rather rare and
-although it happens, it means migration/reclaimer is about to split or isolate/putback
-so it ends up making THP page movable pages.
-
-IMHO, it would be better to account it by movable pages.
-What do you think about it?
-
-Thanks.
 -- 
 Kind regards,
 Minchan Kim
