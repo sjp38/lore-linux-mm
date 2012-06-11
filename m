@@ -1,93 +1,154 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx203.postini.com [74.125.245.203])
-	by kanga.kvack.org (Postfix) with SMTP id AF2ED6B00C9
-	for <linux-mm@kvack.org>; Mon, 11 Jun 2012 03:44:45 -0400 (EDT)
-Date: Mon, 11 Jun 2012 09:44:40 +0200
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [PATCH] mm: do not use page_count without a page pin
-Message-ID: <20120611074440.GI3094@redhat.com>
-References: <1339373872-31969-1-git-send-email-minchan@kernel.org>
- <4FD59C31.6000606@jp.fujitsu.com>
+Received: from psmtp.com (na3sys010amx137.postini.com [74.125.245.137])
+	by kanga.kvack.org (Postfix) with SMTP id 4BF326B00CC
+	for <linux-mm@kvack.org>; Mon, 11 Jun 2012 04:16:57 -0400 (EDT)
+Date: Mon, 11 Jun 2012 10:16:53 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH -V8 10/16] hugetlb/cgroup: Add the cgroup pointer to page
+ lru
+Message-ID: <20120611081653.GB12402@tiehlicka.suse.cz>
+References: <1339232401-14392-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+ <1339232401-14392-11-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <4FD59C31.6000606@jp.fujitsu.com>
+In-Reply-To: <1339232401-14392-11-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Minchan Kim <minchan@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>
+To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Cc: linux-mm@kvack.org, kamezawa.hiroyu@jp.fujitsu.com, dhillf@gmail.com, rientjes@google.com, akpm@linux-foundation.org, hannes@cmpxchg.org, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org
 
-Hi,
+On Sat 09-06-12 14:29:55, Aneesh Kumar K.V wrote:
+> From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+> 
+> Add the hugetlb cgroup pointer to 3rd page lru.next.
 
-On Mon, Jun 11, 2012 at 04:20:17PM +0900, Kamezawa Hiroyuki wrote:
-> (2012/06/11 9:17), Minchan Kim wrote:
-> > d179e84ba fixed the problem[1] in vmscan.c but same problem is here.
-> > Let's fix it.
-> > 
-> > [1] http://comments.gmane.org/gmane.linux.kernel.mm/65844
-> > 
-> > I copy and paste d179e84ba's contents for description.
-> > 
-> > "It is unsafe to run page_count during the physical pfn scan because
-> > compound_head could trip on a dangling pointer when reading
-> > page->first_page if the compound page is being freed by another CPU."
-> > 
-> > Cc: Andrea Arcangeli<aarcange@redhat.com>
-> > Cc: Mel Gorman<mgorman@suse.de>
-> > Cc: Michal Hocko<mhocko@suse.cz>
-> > Cc: KAMEZAWA Hiroyuki<kamezawa.hiroyu@jp.fujitsu.com>
-> > Signed-off-by: Minchan Kim<minchan@kernel.org>
-> > ---
-> >   mm/page_alloc.c |    6 +++++-
-> >   1 file changed, 5 insertions(+), 1 deletion(-)
-> > 
-> > diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> > index 266f267..019c4fe 100644
-> > --- a/mm/page_alloc.c
-> > +++ b/mm/page_alloc.c
-> > @@ -5496,7 +5496,11 @@ __count_immobile_pages(struct zone *zone, struct page *page, int count)
-> >   			continue;
-> > 
-> >   		page = pfn_to_page(check);
-> > -		if (!page_count(page)) {
-> > +		/*
-> > +		 * We can't use page_count withou pin a page
-> > +		 * because another CPU can free compound page.
-> > +		 */
-> > +		if (!atomic_read(&page->_count)) {
-> >   			if (PageBuddy(page))
-> >   				iter += (1<<  page_order(page)) - 1;
-> >   			continue;
-> Nice Catch.
+Interesting and I really like the idea much more than tracking by
+page_cgroup.
 
-Agreed!
+> This limit the usage to hugetlb cgroup to only hugepages with 3 or
+> more normal pages. I guess that is an acceptable limitation.
 
-> Other than the comment fix already pointed out..
-> Hmm...BTW, it seems this __count_xxx doesn't have any code for THP/Hugepage..
-> so, we need more fixes for better code, I think.
-> Hmm, Don't we need !PageTail() check and 'skip thp' code ?
+Agreed.
 
-So the page->_count for tail pages is guaranteed zero at all times
-(tail page refcounting is done on _mapcount).
+> Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
 
-We could add a comment that "this check already skips compound tails
-of THP because their page->_count is zero at all times".
+Other than some nits I like this.
+Thanks!
 
-Instead of a comment we could consider defining an inline function
-with a special name that does atomic_read(&page->_count) and use it
-when we intend to the regular or compound head count and return 0 on
-tails. It would make it easier to identify these places later if we
-ever want to change the refcounting mechanism, but it may be overkill,
-it's up to you.
+> ---
+>  include/linux/hugetlb_cgroup.h |   31 +++++++++++++++++++++++++++++++
+>  mm/hugetlb.c                   |    4 ++++
+>  2 files changed, 35 insertions(+)
+> 
+> diff --git a/include/linux/hugetlb_cgroup.h b/include/linux/hugetlb_cgroup.h
+> index 5794be4..ceff1d5 100644
+> --- a/include/linux/hugetlb_cgroup.h
+> +++ b/include/linux/hugetlb_cgroup.h
+> @@ -26,6 +26,26 @@ struct hugetlb_cgroup {
+>  };
+>  
+>  #ifdef CONFIG_CGROUP_HUGETLB_RES_CTLR
+> +static inline struct hugetlb_cgroup *hugetlb_cgroup_from_page(struct page *page)
+> +{
+> +	if (!PageHuge(page))
+> +		return NULL;
+> +	if (compound_order(page) < 3)
 
-Tail pages also can't be PageLRU.
+Why 3? I think you wanted 2 here, right?
 
-The code after the patch should already skip thp tails fine (it won't
-skip heads but I believe that's intentional, but one problem that
-remains is that the heads should increase found by more than 1...).
+> +		return NULL;
+> +	return (struct hugetlb_cgroup *)page[2].lru.next;
+> +}
+> +
+> +static inline
+> +int set_hugetlb_cgroup(struct page *page, struct hugetlb_cgroup *h_cg)
+> +{
+> +	if (!PageHuge(page))
+> +		return -1;
+> +	if (compound_order(page) < 3)
 
-Thanks,
-Andrea
+Here as well.
+
+> +		return -1;
+> +	page[2].lru.next = (void *)h_cg;
+> +	return 0;
+> +}
+> +
+>  static inline bool hugetlb_cgroup_disabled(void)
+>  {
+>  	if (hugetlb_subsys.disabled)
+> @@ -43,6 +63,17 @@ extern void hugetlb_cgroup_uncharge_page(int idx, unsigned long nr_pages,
+>  extern void hugetlb_cgroup_uncharge_cgroup(int idx, unsigned long nr_pages,
+>  					   struct hugetlb_cgroup *h_cg);
+>  #else
+> +static inline struct hugetlb_cgroup *hugetlb_cgroup_from_page(struct page *page)
+> +{
+> +	return NULL;
+> +}
+> +
+> +static inline
+> +int set_hugetlb_cgroup(struct page *page, struct hugetlb_cgroup *h_cg)
+> +{
+> +	return 0;
+> +}
+> +
+>  static inline bool hugetlb_cgroup_disabled(void)
+>  {
+>  	return true;
+> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+> index e899a2d..1ca2d8f 100644
+> --- a/mm/hugetlb.c
+> +++ b/mm/hugetlb.c
+> @@ -28,6 +28,7 @@
+>  
+>  #include <linux/io.h>
+>  #include <linux/hugetlb.h>
+> +#include <linux/hugetlb_cgroup.h>
+>  #include <linux/node.h>
+>  #include "internal.h"
+>  
+> @@ -591,6 +592,7 @@ static void update_and_free_page(struct hstate *h, struct page *page)
+>  				1 << PG_active | 1 << PG_reserved |
+>  				1 << PG_private | 1 << PG_writeback);
+>  	}
+> +	BUG_ON(hugetlb_cgroup_from_page(page));
+
+What about VM_BUG_ON?
+
+>  	set_compound_page_dtor(page, NULL);
+>  	set_page_refcounted(page);
+>  	arch_release_hugepage(page);
+> @@ -643,6 +645,7 @@ static void prep_new_huge_page(struct hstate *h, struct page *page, int nid)
+>  	INIT_LIST_HEAD(&page->lru);
+>  	set_compound_page_dtor(page, free_huge_page);
+>  	spin_lock(&hugetlb_lock);
+> +	set_hugetlb_cgroup(page, NULL);
+
+Why inside the spin lock?
+
+>  	h->nr_huge_pages++;
+>  	h->nr_huge_pages_node[nid]++;
+>  	spin_unlock(&hugetlb_lock);
+> @@ -892,6 +895,7 @@ static struct page *alloc_buddy_huge_page(struct hstate *h, int nid)
+>  		INIT_LIST_HEAD(&page->lru);
+>  		r_nid = page_to_nid(page);
+>  		set_compound_page_dtor(page, free_huge_page);
+> +		set_hugetlb_cgroup(page, NULL);
+>  		/*
+>  		 * We incremented the global counters already
+>  		 */
+> -- 
+> 1.7.10
+> 
+
+-- 
+Michal Hocko
+SUSE Labs
+SUSE LINUX s.r.o.
+Lihovarska 1060/12
+190 00 Praha 9    
+Czech Republic
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
