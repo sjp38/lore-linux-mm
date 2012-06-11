@@ -1,133 +1,179 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx169.postini.com [74.125.245.169])
-	by kanga.kvack.org (Postfix) with SMTP id 6953E6B00F7
-	for <linux-mm@kvack.org>; Mon, 11 Jun 2012 05:24:27 -0400 (EDT)
-Date: Mon, 11 Jun 2012 11:24:24 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH -V8 15/16] hugetlb/cgroup: migrate hugetlb cgroup info
- from oldpage to new page during migration
-Message-ID: <20120611092424.GJ12402@tiehlicka.suse.cz>
-References: <1339232401-14392-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
- <1339232401-14392-16-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+Received: from psmtp.com (na3sys010amx145.postini.com [74.125.245.145])
+	by kanga.kvack.org (Postfix) with SMTP id D2CC96B00F9
+	for <linux-mm@kvack.org>; Mon, 11 Jun 2012 05:28:52 -0400 (EDT)
+Received: from /spool/local
+	by e28smtp01.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
+	Mon, 11 Jun 2012 14:58:49 +0530
+Received: from d28av04.in.ibm.com (d28av04.in.ibm.com [9.184.220.66])
+	by d28relay03.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q5B9SlMB9765186
+	for <linux-mm@kvack.org>; Mon, 11 Jun 2012 14:58:47 +0530
+Received: from d28av04.in.ibm.com (loopback [127.0.0.1])
+	by d28av04.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q5BEwYUs008660
+	for <linux-mm@kvack.org>; Tue, 12 Jun 2012 00:58:35 +1000
+From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Subject: Re: [PATCH -V8 11/16] hugetlb/cgroup: Add charge/uncharge routines for hugetlb cgroup
+In-Reply-To: <20120611083810.GC12402@tiehlicka.suse.cz>
+References: <1339232401-14392-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com> <1339232401-14392-12-git-send-email-aneesh.kumar@linux.vnet.ibm.com> <20120611083810.GC12402@tiehlicka.suse.cz>
+Date: Mon, 11 Jun 2012 14:58:45 +0530
+Message-ID: <87liju5h9u.fsf@skywalker.in.ibm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1339232401-14392-16-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+To: Michal Hocko <mhocko@suse.cz>
 Cc: linux-mm@kvack.org, kamezawa.hiroyu@jp.fujitsu.com, dhillf@gmail.com, rientjes@google.com, akpm@linux-foundation.org, hannes@cmpxchg.org, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org
 
-On Sat 09-06-12 14:30:00, Aneesh Kumar K.V wrote:
-> From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-> 
-> With HugeTLB pages, hugetlb cgroup is uncharged in compound page
-> destructor.  Since we are holding a hugepage reference,
+Michal Hocko <mhocko@suse.cz> writes:
 
-Who is holding that reference? I do not see anybody calling get_page in
-this patch...
+> On Sat 09-06-12 14:29:56, Aneesh Kumar K.V wrote:
+>> From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+>> 
+>> This patchset add the charge and uncharge routines for hugetlb cgroup.
+>> This will be used in later patches when we allocate/free HugeTLB
+>> pages.
+>
+> Please describe the locking rules.
 
-> we can be sure that old page won't get uncharged till the last
-> put_page().
-> 
-> Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
-> ---
->  include/linux/hugetlb_cgroup.h |    8 ++++++++
->  mm/hugetlb_cgroup.c            |   21 +++++++++++++++++++++
->  mm/migrate.c                   |    5 +++++
->  3 files changed, 34 insertions(+)
-> 
-> diff --git a/include/linux/hugetlb_cgroup.h b/include/linux/hugetlb_cgroup.h
-> index ba4836f..b64d067 100644
-> --- a/include/linux/hugetlb_cgroup.h
-> +++ b/include/linux/hugetlb_cgroup.h
-> @@ -63,6 +63,8 @@ extern void hugetlb_cgroup_uncharge_page(int idx, unsigned long nr_pages,
->  extern void hugetlb_cgroup_uncharge_cgroup(int idx, unsigned long nr_pages,
->  					   struct hugetlb_cgroup *h_cg);
->  extern int hugetlb_cgroup_file_init(int idx) __init;
-> +extern void hugetlb_cgroup_migrate(struct page *oldhpage,
-> +				   struct page *newhpage);
->  #else
->  static inline struct hugetlb_cgroup *hugetlb_cgroup_from_page(struct page *page)
->  {
-> @@ -112,5 +114,11 @@ static inline int __init hugetlb_cgroup_file_init(int idx)
->  {
->  	return 0;
->  }
-> +
-> +static inline void hugetlb_cgroup_migrate(struct page *oldhpage,
-> +					  struct page *newhpage)
-> +{
-> +	return;
-> +}
->  #endif  /* CONFIG_MEM_RES_CTLR_HUGETLB */
->  #endif
-> diff --git a/mm/hugetlb_cgroup.c b/mm/hugetlb_cgroup.c
-> index c2b7b8e..2d384fe 100644
-> --- a/mm/hugetlb_cgroup.c
-> +++ b/mm/hugetlb_cgroup.c
-> @@ -394,6 +394,27 @@ int __init hugetlb_cgroup_file_init(int idx)
->  	return 0;
->  }
->  
-> +void hugetlb_cgroup_migrate(struct page *oldhpage, struct page *newhpage)
-> +{
-> +	struct hugetlb_cgroup *h_cg;
-> +
-> +	VM_BUG_ON(!PageHuge(oldhpage));
-> +
-> +	if (hugetlb_cgroup_disabled())
-> +		return;
-> +
-> +	spin_lock(&hugetlb_lock);
-> +	h_cg = hugetlb_cgroup_from_page(oldhpage);
-> +	set_hugetlb_cgroup(oldhpage, NULL);
-> +	cgroup_exclude_rmdir(&h_cg->css);
-> +
-> +	/* move the h_cg details to new cgroup */
-> +	set_hugetlb_cgroup(newhpage, h_cg);
-> +	spin_unlock(&hugetlb_lock);
-> +	cgroup_release_and_wakeup_rmdir(&h_cg->css);
-> +	return;
-> +}
-> +
->  struct cgroup_subsys hugetlb_subsys = {
->  	.name = "hugetlb",
->  	.create     = hugetlb_cgroup_create,
-> diff --git a/mm/migrate.c b/mm/migrate.c
-> index fdce3a2..6c37c51 100644
-> --- a/mm/migrate.c
-> +++ b/mm/migrate.c
-> @@ -33,6 +33,7 @@
->  #include <linux/memcontrol.h>
->  #include <linux/syscalls.h>
->  #include <linux/hugetlb.h>
-> +#include <linux/hugetlb_cgroup.h>
->  #include <linux/gfp.h>
->  
->  #include <asm/tlbflush.h>
-> @@ -931,6 +932,10 @@ static int unmap_and_move_huge_page(new_page_t get_new_page,
->  
->  	if (anon_vma)
->  		put_anon_vma(anon_vma);
-> +
-> +	if (!rc)
-> +		hugetlb_cgroup_migrate(hpage, new_hpage);
-> +
->  	unlock_page(hpage);
->  out:
->  	put_page(new_hpage);
-> -- 
-> 1.7.10
-> 
+All the update happen within hugetlb_lock.
 
--- 
-Michal Hocko
-SUSE Labs
-SUSE LINUX s.r.o.
-Lihovarska 1060/12
-190 00 Praha 9    
-Czech Republic
+>
+>> Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
+>> ---
+>>  mm/hugetlb_cgroup.c |   87 +++++++++++++++++++++++++++++++++++++++++++++++++++
+>>  1 file changed, 87 insertions(+)
+>> 
+>> diff --git a/mm/hugetlb_cgroup.c b/mm/hugetlb_cgroup.c
+>> index 20a32c5..48efd5a 100644
+>> --- a/mm/hugetlb_cgroup.c
+>> +++ b/mm/hugetlb_cgroup.c
+>> @@ -105,6 +105,93 @@ static int hugetlb_cgroup_pre_destroy(struct cgroup *cgroup)
+>>  	   return -EBUSY;
+>>  }
+>>  
+>> +int hugetlb_cgroup_charge_page(int idx, unsigned long nr_pages,
+>> +			       struct hugetlb_cgroup **ptr)
+>
+> Missing doc.
+>
+>> +{
+>> +	int ret = 0;
+>> +	struct res_counter *fail_res;
+>> +	struct hugetlb_cgroup *h_cg = NULL;
+>> +	unsigned long csize = nr_pages * PAGE_SIZE;
+>> +
+>> +	if (hugetlb_cgroup_disabled())
+>> +		goto done;
+>> +	/*
+>> +	 * We don't charge any cgroup if the compound page have less
+>> +	 * than 3 pages.
+>> +	 */
+>> +	if (hstates[idx].order < 2)
+>> +		goto done;
+>
+> huge_page_order here? Not that important because we are using order in
+> the code directly at many places but easier for grep and maybe worth a
+> separate clean up patch.
+>
+
+Fixed.
+
+>> +again:
+>> +	rcu_read_lock();
+>> +	h_cg = hugetlb_cgroup_from_task(current);
+>> +	if (!h_cg)
+>> +		h_cg = root_h_cgroup;
+>> +
+>> +	if (!css_tryget(&h_cg->css)) {
+>> +		rcu_read_unlock();
+>> +		goto again;
+>> +	}
+>> +	rcu_read_unlock();
+>> +
+>> +	ret = res_counter_charge(&h_cg->hugepage[idx], csize, &fail_res);
+>> +	css_put(&h_cg->css);
+>> +done:
+>> +	*ptr = h_cg;
+>> +	return ret;
+>> +}
+>> +
+>> +void hugetlb_cgroup_commit_charge(int idx, unsigned long nr_pages,
+>> +				  struct hugetlb_cgroup *h_cg,
+>> +				  struct page *page)
+>> +{
+>> +	if (hugetlb_cgroup_disabled() || !h_cg)
+>> +		return;
+>> +
+>> +	spin_lock(&hugetlb_lock);
+>> +	if (hugetlb_cgroup_from_page(page)) {
+>
+> How can this happen? Is it possible that two CPUs are trying to charge
+> one page?
+
+That is why I added that. I looked at the alloc_huge_page, and I
+don't see we would end with same page from different CPUs but then
+we have similar checks in memcg, where we drop the charge if we find
+the page cgroup already used.
+
+>
+>> +		hugetlb_cgroup_uncharge_cgroup(idx, nr_pages, h_cg);
+>> +		goto done;
+>> +	}
+>> +	set_hugetlb_cgroup(page, h_cg);
+>> +done:
+>> +	spin_unlock(&hugetlb_lock);
+>> +	return;
+>> +}
+>> +
+>> +void hugetlb_cgroup_uncharge_page(int idx, unsigned long nr_pages,
+>> +				  struct page *page)
+>> +{
+>> +	struct hugetlb_cgroup *h_cg;
+>> +	unsigned long csize = nr_pages * PAGE_SIZE;
+>> +
+>> +	if (hugetlb_cgroup_disabled())
+>> +		return;
+>> +
+>> +	spin_lock(&hugetlb_lock);
+>> +	h_cg = hugetlb_cgroup_from_page(page);
+>> +	if (unlikely(!h_cg)) {
+>> +		spin_unlock(&hugetlb_lock);
+>> +		return;
+>> +	}
+>> +	set_hugetlb_cgroup(page, NULL);
+>> +	spin_unlock(&hugetlb_lock);
+>> +
+>> +	res_counter_uncharge(&h_cg->hugepage[idx], csize);
+>> +	return;
+>> +}
+>> +
+>> +void hugetlb_cgroup_uncharge_cgroup(int idx, unsigned long nr_pages,
+>> +				    struct hugetlb_cgroup *h_cg)
+>> +{
+>
+> Really worth a separate function to do the same tests again?
+> Will have a look at the follow up patches. It would be much easier if
+> the functions were used in the same patch...
+
+v9 actually folded this to the patch that actually use these function. 
+
+>
+>> +	unsigned long csize = nr_pages * PAGE_SIZE;
+>> +
+>> +	if (hugetlb_cgroup_disabled() || !h_cg)
+>> +		return;
+>> +
+>> +	res_counter_uncharge(&h_cg->hugepage[idx], csize);
+>> +	return;
+>> +}
+>> +
+>>  struct cgroup_subsys hugetlb_subsys = {
+>>  	.name = "hugetlb",
+>>  	.create     = hugetlb_cgroup_create,
+>> -- 
+
+-aneesh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
