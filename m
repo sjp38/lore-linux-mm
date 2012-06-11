@@ -1,74 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx181.postini.com [74.125.245.181])
-	by kanga.kvack.org (Postfix) with SMTP id 07DA36B0149
-	for <linux-mm@kvack.org>; Mon, 11 Jun 2012 11:02:20 -0400 (EDT)
-Date: Mon, 11 Jun 2012 10:02:17 -0500 (CDT)
+Received: from psmtp.com (na3sys010amx109.postini.com [74.125.245.109])
+	by kanga.kvack.org (Postfix) with SMTP id 0F7016B014A
+	for <linux-mm@kvack.org>; Mon, 11 Jun 2012 11:05:01 -0400 (EDT)
+Date: Mon, 11 Jun 2012 10:04:58 -0500 (CDT)
 From: Christoph Lameter <cl@linux.com>
-Subject: Re: [PATCH 2/6] mempolicy: remove all mempolicy sharing
-In-Reply-To: <1339406250-10169-3-git-send-email-kosaki.motohiro@gmail.com>
-Message-ID: <alpine.DEB.2.00.1206110944120.31180@router.home>
-References: <1339406250-10169-1-git-send-email-kosaki.motohiro@gmail.com> <1339406250-10169-3-git-send-email-kosaki.motohiro@gmail.com>
+Subject: Re: [PATCH 1/4] slub: change declare of get_slab() to inline at all
+ times
+In-Reply-To: <CAAmzW4Nt2ev-M_Mw=xTaJEsRgKxrPNnz=rXrJenNA-6bEvZKtQ@mail.gmail.com>
+Message-ID: <alpine.DEB.2.00.1206111004190.31180@router.home>
+References: <1339176197-13270-1-git-send-email-js1304@gmail.com> <alpine.DEB.2.00.1206081401090.28466@router.home> <CAAmzW4Nt2ev-M_Mw=xTaJEsRgKxrPNnz=rXrJenNA-6bEvZKtQ@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: kosaki.motohiro@gmail.com
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@google.com>, Dave Jones <davej@redhat.com>, Mel Gorman <mgorman@suse.de>, stable@vger.kernel.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>
+To: JoonSoo Kim <js1304@gmail.com>
+Cc: Pekka Enberg <penberg@kernel.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-Some more attempts to cleanup changelogs:
+On Sun, 10 Jun 2012, JoonSoo Kim wrote:
 
-> The problem was created by a reference count imbalance. Example, In following case,
-> mbind(addr, len) try to replace mempolicies of vma1 and vma2 and then they will
-> be share the same mempolicy, and the new mempolicy has MPOL_F_SHARED flag.
-
-The bug that we saw <where ? details?> was created by a refcount
-imbalance. If mbind() replaces the memory policies of vma1 and vma and
-they share the same shared mempolicy (MPOL_F_SHARED set) then an imbalance
-may occur.
-
->   +-------------------+-------------------+
->   |     vma1          |     vma2(shmem)   |
->   +-------------------+-------------------+
->   |                                       |
->  addr                                 addr+len
+> 2012/6/9 Christoph Lameter <cl@linux.com>:
+> > On Sat, 9 Jun 2012, Joonsoo Kim wrote:
+> >
+> >> -static struct kmem_cache *get_slab(size_t size, gfp_t flags)
+> >> +static __always_inline struct kmem_cache *get_slab(size_t size, gfp_t flags)
+> >
+> > I thought that the compiler felt totally free to inline static functions
+> > at will? This may be a matter of compiler optimization settings. I can
+> > understand the use of always_inline in a header file but why in a .c file?
 >
-> Look at alloc_pages_vma(), it uses get_vma_policy() and mpol_cond_put() pair
-> for maintaining mempolicy refcount. The current rule is, get_vma_policy() does
-> NOT increase a refcount if the policy is not attached shmem vma and mpol_cond_put()
-> DOES decrease a refcount if mpol has MPOL_F_SHARED.
+> Yes, but the compiler with -O2 doesn't inline get_slab() which
+> declared just 'static'.
+> I think that inlining get_slab() have a performance benefit, so add
+> '__always_inline' to declare of get_slab().
+> Other functions like slab_alloc, slab_free also use 'always_inline' in
+> .c file (slub.c)
 
-alloc_pages_vma() uses the two function get_vma_policy() and
-mpol_cond_put() to maintain the refcount on the memory policies. However,
-the current rule is that get_vma_policy() does *not* increase the refcount
-if the policy is not attached to a shm vma. mpol_cond_put *does* decrease
-the refcount if the memory policy has MPOL_F_SHARED set.
+Yea I thought about removing those since I would think that the compiler
+should be doing the right thing.
 
-> In above case, vma1 is not shmem vma and vma->policy has MPOL_F_SHARED! then,
-> get_vma_policy() doesn't increase a refcount and mpol_cond_put() decrease a
-> refcount whenever alloc_page_vma() is called.
->
-> The bug was introduced by commit 52cd3b0740 (mempolicy: rework mempolicy Reference
-> Counting) at 4 years ago.
->
-> More unfortunately mempolicy has one another serious broken. Currently,
-> mempolicy rebind logic (it is called from cpuset rebinding) ignore a refcount
-> of mempolicy and override it forcibly. Thus, any mempolicy sharing may
-> cause mempolicy corruption. The bug was introduced by commit 68860ec10b
-> (cpusets: automatic numa mempolicy rebinding) at 7 years ago.
-
-Memory policies have another issue. Currently the mempolicy rebind logic
-used for cpuset rebinding ignores the refcount of memory policies.
-Therefore, any memory policy sharing can cause refcount mismatches. The
-bug was ...
-
-> To disable policy sharing solves user visible breakage and this patch does it.
-> Maybe, we need to rewrite MPOL_F_SHARED and mempolicy rebinding code and aim
-> to proper cow logic eventually, but I think this is good first step.
-
-Disabling policy sharing solves the breakage and that is how this patch
-fixes the issue for now. Rewriting the shared policy handling with proper
-COW logic support will be necessary to cleanly address the
-problem and allow proper sharing of memory policies.
+Does gcc inline with higher optimization settings?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
