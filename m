@@ -1,42 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx117.postini.com [74.125.245.117])
-	by kanga.kvack.org (Postfix) with SMTP id A9EEB6B0129
-	for <linux-mm@kvack.org>; Mon, 11 Jun 2012 09:44:36 -0400 (EDT)
-Received: by dakp5 with SMTP id p5so6680381dak.14
-        for <linux-mm@kvack.org>; Mon, 11 Jun 2012 06:44:36 -0700 (PDT)
-Date: Mon, 11 Jun 2012 22:44:09 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH] mm: clean up __count_immobile_pages
-Message-ID: <20120611134409.GA2707@barrios>
-References: <1339380442-1137-1-git-send-email-minchan@kernel.org>
- <4FD59952.7020602@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <4FD59952.7020602@jp.fujitsu.com>
+Received: from psmtp.com (na3sys010amx155.postini.com [74.125.245.155])
+	by kanga.kvack.org (Postfix) with SMTP id 8116D6B012B
+	for <linux-mm@kvack.org>; Mon, 11 Jun 2012 09:50:59 -0400 (EDT)
+Received: by yhr47 with SMTP id 47so3286660yhr.14
+        for <linux-mm@kvack.org>; Mon, 11 Jun 2012 06:50:58 -0700 (PDT)
+From: kosaki.motohiro@gmail.com
+Subject: [PATCH] mm: fix protection column misplacing in /proc/zoneinfo
+Date: Mon, 11 Jun 2012 09:50:50 -0400
+Message-Id: <1339422650-9798-1-git-send-email-kosaki.motohiro@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Minchan Kim <minchan@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>
+To: linux-kernel@vger.kernel.org
+Cc: linux-mm@kvack.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Christoph Lameter <cl@linux.com>
 
-On Mon, Jun 11, 2012 at 04:08:02PM +0900, Kamezawa Hiroyuki wrote:
-> (2012/06/11 11:07), Minchan Kim wrote:
-> >__count_immobile_pages naming is rather awkward.
-> >This patch clean up the function and add comment.
-> >
-> >Cc: Mel Gorman<mgorman@suse.de>
-> >Cc: Michal Hocko<mhocko@suse.cz>
-> >Cc: KAMEZAWA Hiroyuki<kamezawa.hiroyu@jp.fujitsu.com>
-> >Signed-off-by: Minchan Kim<minchan@kernel.org>
-> 
-> exchange true<->false caused by renaming ?
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 
-Exactly.
+commit 2244b95a7b (zoned vm counters: basic ZVC (zoned vm counter)
+implementation) broke protection column. It is a part of "pages"
+attribute. but not it is showed after vmstats column.
 
-> 
-> Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+This patch restores the right position.
 
-Thanks, Kame.
+<before>
+  pages free     3965
+        min      32
+        low      40
+        high     48
+        scanned  0
+        spanned  4080
+        present  3909
+    (snip)
+    numa_local   1
+    numa_other   0
+    nr_anon_transparent_hugepages 0
+        protection: (0, 3512, 7867, 7867)
+
+<after>
+  pages free     3965
+        min      32
+        low      40
+        high     48
+        scanned  0
+        spanned  4080
+        present  3909
+        protection: (0, 3504, 7851, 7851)
+    nr_free_pages 3965
+    nr_inactive_anon 0
+
+Cc: Christoph Lameter <cl@linux.com>
+Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+---
+ mm/vmstat.c |   15 +++++++--------
+ 1 files changed, 7 insertions(+), 8 deletions(-)
+
+diff --git a/mm/vmstat.c b/mm/vmstat.c
+index 1bbbbd9..9f5f2a9 100644
+--- a/mm/vmstat.c
++++ b/mm/vmstat.c
+@@ -987,19 +987,18 @@ static void zoneinfo_show_print(struct seq_file *m, pg_data_t *pgdat,
+ 		   zone->pages_scanned,
+ 		   zone->spanned_pages,
+ 		   zone->present_pages);
+-
+-	for (i = 0; i < NR_VM_ZONE_STAT_ITEMS; i++)
+-		seq_printf(m, "\n    %-12s %lu", vmstat_text[i],
+-				zone_page_state(zone, i));
+-
+ 	seq_printf(m,
+ 		   "\n        protection: (%lu",
+ 		   zone->lowmem_reserve[0]);
+ 	for (i = 1; i < ARRAY_SIZE(zone->lowmem_reserve); i++)
+ 		seq_printf(m, ", %lu", zone->lowmem_reserve[i]);
+-	seq_printf(m,
+-		   ")"
+-		   "\n  pagesets");
++	seq_printf(m, ")");
++
++	for (i = 0; i < NR_VM_ZONE_STAT_ITEMS; i++)
++		seq_printf(m, "\n    %-12s %lu", vmstat_text[i],
++				zone_page_state(zone, i));
++
++	seq_printf(m, "\n  pagesets");
+ 	for_each_online_cpu(i) {
+ 		struct per_cpu_pageset *pageset;
+ 
+-- 
+1.7.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
