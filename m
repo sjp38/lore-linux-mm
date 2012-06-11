@@ -1,60 +1,135 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx153.postini.com [74.125.245.153])
-	by kanga.kvack.org (Postfix) with SMTP id 7ACD96B0062
-	for <linux-mm@kvack.org>; Mon, 11 Jun 2012 19:34:18 -0400 (EDT)
-Received: by yhr47 with SMTP id 47so3905625yhr.14
-        for <linux-mm@kvack.org>; Mon, 11 Jun 2012 16:34:17 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx173.postini.com [74.125.245.173])
+	by kanga.kvack.org (Postfix) with SMTP id 3060B6B0062
+	for <linux-mm@kvack.org>; Mon, 11 Jun 2012 19:38:00 -0400 (EDT)
+Message-ID: <4FD68153.9070603@kernel.org>
+Date: Tue, 12 Jun 2012 08:37:55 +0900
+From: Minchan Kim <minchan@kernel.org>
 MIME-Version: 1.0
-In-Reply-To: <1335214564-17619-1-git-send-email-yinghan@google.com>
-References: <1335214564-17619-1-git-send-email-yinghan@google.com>
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Date: Mon, 11 Jun 2012 19:33:57 -0400
-Message-ID: <CAHGf_=qn_f5Vm4S=X99siuQzAJcHe8vSLJzU48GXTZXLZgGuWQ@mail.gmail.com>
-Subject: Re: [RFC PATCH] do_try_to_free_pages() might enter infinite loop
+Subject: Re: [PATCH v10] mm: compaction: handle incorrect MIGRATE_UNMOVABLE
+ type pageblocks
+References: <201206081046.32382.b.zolnierkie@samsung.com> <201206111243.14379.b.zolnierkie@samsung.com> <20120611133916.GB2340@barrios> <201206111654.48701.b.zolnierkie@samsung.com>
+In-Reply-To: <201206111654.48701.b.zolnierkie@samsung.com>
 Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ying Han <yinghan@google.com>
-Cc: Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mel@csn.ul.ie>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, Hugh Dickins <hughd@google.com>, Nick Piggin <npiggin@suse.de>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
+To: Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Dave Jones <davej@redhat.com>, Cong Wang <amwang@redhat.com>, Markus Trippelsdorf <markus@trippelsdorf.de>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Marek Szyprowski <m.szyprowski@samsung.com>, Kyungmin Park <kyungmin.park@samsung.com>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>
 
-On Mon, Apr 23, 2012 at 4:56 PM, Ying Han <yinghan@google.com> wrote:
-> This is not a patch targeted to be merged at all, but trying to understan=
-d
-> a logic in global direct reclaim.
->
-> There is a logic in global direct reclaim where reclaim fails on priority=
- 0
-> and zone->all_unreclaimable is not set, it will cause the direct to start=
- over
-> from DEF_PRIORITY. In some extreme cases, we've seen the system hang whic=
-h is
-> very likely caused by direct reclaim enters infinite loop.
->
-> There have been serious patches trying to fix similar issue and the lates=
-t
-> patch has good summary of all the efforts:
->
-> commit 929bea7c714220fc76ce3f75bef9056477c28e74
-> Author: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-> Date: =A0 Thu Apr 14 15:22:12 2011 -0700
->
-> =A0 =A0vmscan: all_unreclaimable() use zone->all_unreclaimable as a name
->
-> Kosaki explained the problem triggered by async zone->all_unreclaimable a=
-nd
-> zone->pages_scanned where the later one was being checked by direct recla=
-im.
-> However, after the patch, the problem remains where the setting of
-> zone->all_unreclaimable is asynchronous with zone is actually reclaimable=
- or not.
->
-> The zone->all_unreclaimable flag is set by kswapd by checking zone->pages=
-_scanned in
-> zone_reclaimable(). Is that possible to have zone->all_unreclaimable =3D=
-=3D false while
-> the zone is actually unreclaimable?
+On 06/11/2012 11:54 PM, Bartlomiej Zolnierkiewicz wrote:
 
-I'm backed very old threads. :-(
-I could reproduce this issue by using memory hotplug. Can anyone
-review following patch?
+> On Monday 11 June 2012 15:39:16 Minchan Kim wrote:
+>> On Mon, Jun 11, 2012 at 12:43:14PM +0200, Bartlomiej Zolnierkiewicz wrote:
+>>> On Monday 11 June 2012 03:26:49 Minchan Kim wrote:
+>>>> Hi Bartlomiej,
+>>>>
+>>>> On 06/08/2012 05:46 PM, Bartlomiej Zolnierkiewicz wrote:
+>>>>
+>>>>>
+>>>>> Hi,
+>>>>>
+>>>>> This version is much simpler as it just uses __count_immobile_pages()
+>>>>> instead of using its own open coded version and it integrates changes
+>>>>
+>>>>
+>>>> That's a good idea. I don't have noticed that function is there.
+>>>> When I look at the function, it has a problem, too.
+>>>> Please, look at this.
+>>>>
+>>>> https://lkml.org/lkml/2012/6/10/180
+>>>>
+>>>> If reviewer is okay that patch, I would like to resend your patch based on that. 
+>>>
+>>> Ok, I would later merge all changes into v11 and rebase on top of your patch.
+>>>
+>>>>> from Minchan Kim (without page_count change as it doesn't seem correct
+>>>>
+>>>>
+>>>> Why do you think so?
+>>>> If it isn't correct, how can you prevent racing with THP page freeing?
+>>>
+>>> After seeing the explanation for the previous fix it is all clear now.
+>>>
+>>>>> and __count_immobile_pages() does the check in the standard way; if it
+>>>>> still is a problem I think that removing 1st phase check altogether
+>>>>> would be better instead of adding more locking complexity).
+>>>>>
+>>>>> The patch also adds compact_rescued_unmovable_blocks vmevent to vmstats
+>>>>> to make it possible to easily check if the code is working in practice.
+>>>>
+>>>>
+>>>> I think that part should be another patch.
+>>>>
+>>>> 1. Adding new vmstat would be arguable so it might interrupt this patch merging.
+>>>
+>>> Why would it be arguable?  It seems non-intrusive and obvious to me.
+>>
+>> Once you add new vmstat, someone can make another dependent code in userspace.
+>> It means your new vmstat would become a new ABI so we should be careful.
+> 
+> I know about it but I doubt that it will be ever used by the user-space
+> for other purpose than showing kernel statistics (even that is unlikely).
+> 
+>>>
+>>>> 2. New vmstat adding is just for this patch is effective or not in real practice
+>>>>    so if we prove it in future, let's revert the vmstat. Separating it would make it
+>>>>    easily.
+>>>
+>>> I would like to add this vmstat permanently, not only for the testing period..
+>>
+>> "I would like to add this vmstat permanently" isn't logical at all.
+>> You should mention why we need such vmstat and how administrator can parse it/
+>> handle it if he needs.
+> 
+> I quickly went through vmstat history and I see rationales like this:
+> "Optional patch, but useful for development and understanding the system."
+> for adding new vmstat counters.  The new counter falls into this category.
+> 
+
+
+I can't agree your word "useful for development"
+If we did it long time ago, I think it's wrong decision and never done again.
+
+> compact_rescued_unmovable_blocks shows the number of MIGRATE_UNMOVABLE
+> pageblocks converted back to MIGRATE_MOVABLE type by the memory compaction
+> code.  Non-zero values indicate that large kernel-originated allocations
+> of MIGRATE_UNMOVABLE type happen in the system and need special handling 
+> from the memory compaction code.
+
+
+So what can admin do it after he looked at?
+Why should he know about "some unmovable block rescued"?
+
+Thing admin want is allocation ratio or compaction ratio, NOT how many rescued.
+If the patch is useful, THP alloc/compaction success ratio could be improved.
+I think it's enough if you try to want to maintain it permanently.
+
+> 
+>> If we have Documentation/vmstat.txt, you should have written it down. Sigh.
+> 
+> But we don't have vmstat.txt even though we have a lot of vmstat counters. :(
+> 
+> Best regards,
+> --
+> Bartlomiej Zolnierkiewicz
+> Samsung Poland R&D Center
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> 
+
+
+
+-- 
+Kind regards,
+Minchan Kim
+
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
