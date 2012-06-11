@@ -1,13 +1,13 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx124.postini.com [74.125.245.124])
-	by kanga.kvack.org (Postfix) with SMTP id B03656B006C
-	for <linux-mm@kvack.org>; Sun, 10 Jun 2012 20:29:24 -0400 (EDT)
-Received: by dakp5 with SMTP id p5so5688384dak.14
-        for <linux-mm@kvack.org>; Sun, 10 Jun 2012 17:29:24 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx101.postini.com [74.125.245.101])
+	by kanga.kvack.org (Postfix) with SMTP id 6A6726B0071
+	for <linux-mm@kvack.org>; Sun, 10 Jun 2012 20:31:26 -0400 (EDT)
+Received: by dakp5 with SMTP id p5so5689918dak.14
+        for <linux-mm@kvack.org>; Sun, 10 Jun 2012 17:31:25 -0700 (PDT)
 From: Wanpeng Li <liwp.linux@gmail.com>
 Subject: [PATCH v5] remove no longer use of pdflush interface
-Date: Mon, 11 Jun 2012 08:29:03 +0800
-Message-Id: <1339374543-2681-1-git-send-email-liwp.linux@gmail.com>
+Date: Mon, 11 Jun 2012 08:31:10 +0800
+Message-Id: <1339374670-2821-1-git-send-email-liwp.linux@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
@@ -18,7 +18,7 @@ From: Wanpeng Li <liwp@linux.vnet.ibm.com>
 Since per-BDI flusher introduced to linux 2.6, pdflush mechanism is not
 used any more, but the old interface of pdflush exported through /proc/sys/vm/
 is still existing and obviously useless. In order for back-compatibility,
-printk warning information and return 0 to notify the users that the
+printk warning information and return 2 to notify the users that the
 interface is removed.
 
 Signed-off-by: Wanpeng Li <liwp@linux.vnet.ibm.com>
@@ -224,7 +224,7 @@ index dd8e2aa..e9caa10 100644
 +
 +	*lenp = 2;
 +	*ppos += *lenp;
-+	return 0;
++	return 2;
 +}
 -- 
 1.7.9.5
