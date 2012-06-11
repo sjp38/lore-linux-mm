@@ -1,120 +1,115 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx142.postini.com [74.125.245.142])
-	by kanga.kvack.org (Postfix) with SMTP id F15E76B0121
-	for <linux-mm@kvack.org>; Mon, 11 Jun 2012 09:30:52 -0400 (EDT)
-Received: by dakp5 with SMTP id p5so6659566dak.14
-        for <linux-mm@kvack.org>; Mon, 11 Jun 2012 06:30:52 -0700 (PDT)
-Date: Mon, 11 Jun 2012 22:30:43 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH] mm: do not use page_count without a page pin
-Message-ID: <20120611133043.GA2340@barrios>
-References: <1339373872-31969-1-git-send-email-minchan@kernel.org>
- <4FD59C31.6000606@jp.fujitsu.com>
- <20120611074440.GI3094@redhat.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20120611074440.GI3094@redhat.com>
+Received: from psmtp.com (na3sys010amx189.postini.com [74.125.245.189])
+	by kanga.kvack.org (Postfix) with SMTP id 0708E6B0123
+	for <linux-mm@kvack.org>; Mon, 11 Jun 2012 09:33:29 -0400 (EDT)
+Message-ID: <1339421596.4942.10.camel@deadeye.wl.decadent.org.uk>
+Subject: Re: [PATCH 5/6] mempolicy: fix a memory corruption by refcount
+ imbalance in alloc_pages_vma()
+From: Ben Hutchings <ben@decadent.org.uk>
+Date: Mon, 11 Jun 2012 14:33:16 +0100
+In-Reply-To: <1339406250-10169-6-git-send-email-kosaki.motohiro@gmail.com>
+References: <1339406250-10169-1-git-send-email-kosaki.motohiro@gmail.com>
+	 <1339406250-10169-6-git-send-email-kosaki.motohiro@gmail.com>
+Content-Type: multipart/signed; micalg="pgp-sha512";
+	protocol="application/pgp-signature"; boundary="=-OODp9vDT+Ck6zlt1wzhi"
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Minchan Kim <minchan@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>
+To: kosaki.motohiro@gmail.com
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@google.com>, Dave Jones <davej@redhat.com>, Mel Gorman <mgorman@suse.de>, Christoph Lameter <cl@linux.com>, stable@vger.kernel.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Miao Xie <miaox@cn.fujitsu.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>
 
-Hi Andrea,
 
-On Mon, Jun 11, 2012 at 09:44:40AM +0200, Andrea Arcangeli wrote:
-> Hi,
-> 
-> On Mon, Jun 11, 2012 at 04:20:17PM +0900, Kamezawa Hiroyuki wrote:
-> > (2012/06/11 9:17), Minchan Kim wrote:
-> > > d179e84ba fixed the problem[1] in vmscan.c but same problem is here.
-> > > Let's fix it.
-> > > 
-> > > [1] http://comments.gmane.org/gmane.linux.kernel.mm/65844
-> > > 
-> > > I copy and paste d179e84ba's contents for description.
-> > > 
-> > > "It is unsafe to run page_count during the physical pfn scan because
-> > > compound_head could trip on a dangling pointer when reading
-> > > page->first_page if the compound page is being freed by another CPU."
-> > > 
-> > > Cc: Andrea Arcangeli<aarcange@redhat.com>
-> > > Cc: Mel Gorman<mgorman@suse.de>
-> > > Cc: Michal Hocko<mhocko@suse.cz>
-> > > Cc: KAMEZAWA Hiroyuki<kamezawa.hiroyu@jp.fujitsu.com>
-> > > Signed-off-by: Minchan Kim<minchan@kernel.org>
-> > > ---
-> > >   mm/page_alloc.c |    6 +++++-
-> > >   1 file changed, 5 insertions(+), 1 deletion(-)
-> > > 
-> > > diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> > > index 266f267..019c4fe 100644
-> > > --- a/mm/page_alloc.c
-> > > +++ b/mm/page_alloc.c
-> > > @@ -5496,7 +5496,11 @@ __count_immobile_pages(struct zone *zone, struct page *page, int count)
-> > >   			continue;
-> > > 
-> > >   		page = pfn_to_page(check);
-> > > -		if (!page_count(page)) {
-> > > +		/*
-> > > +		 * We can't use page_count withou pin a page
-> > > +		 * because another CPU can free compound page.
-> > > +		 */
-> > > +		if (!atomic_read(&page->_count)) {
-> > >   			if (PageBuddy(page))
-> > >   				iter += (1<<  page_order(page)) - 1;
-> > >   			continue;
-> > Nice Catch.
-> 
-> Agreed!
-> 
-> > Other than the comment fix already pointed out..
-> > Hmm...BTW, it seems this __count_xxx doesn't have any code for THP/Hugepage..
-> > so, we need more fixes for better code, I think.
-> > Hmm, Don't we need !PageTail() check and 'skip thp' code ?
-> 
-> So the page->_count for tail pages is guaranteed zero at all times
-> (tail page refcounting is done on _mapcount).
+--=-OODp9vDT+Ck6zlt1wzhi
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
 
-Sure.
+On Mon, 2012-06-11 at 05:17 -0400, kosaki.motohiro@gmail.com wrote:
+> From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+>=20
+> commit cc9a6c8776 (cpuset: mm: reduce large amounts of memory barrier rel=
+ated
+> damage v3) introduced a memory corruption.
+>=20
+> shmem_alloc_page() passes pseudo vma and it has one significant unique
+> combination, vma->vm_ops=3DNULL and (vma->policy->flags & MPOL_F_SHARED).
+>=20
+> Now, get_vma_policy() does NOT increase a policy ref when vma->vm_ops=3DN=
+ULL
+> and mpol_cond_put() DOES decrease a policy ref when a policy has MPOL_F_S=
+HARED.
+> Therefore, when alloc_pages_vma() goes 'goto retry_cpuset' path, a policy
+> refcount will be decreased too much and therefore it will make a memory c=
+orruption.
+[...]
+> --- a/mm/mempolicy.c
+> +++ b/mm/mempolicy.c
+> @@ -1544,18 +1544,29 @@ struct mempolicy *get_vma_policy(struct task_stru=
+ct *task,
+>  		struct vm_area_struct *vma, unsigned long addr)
+>  {
+>  	struct mempolicy *pol =3D task->mempolicy;
+> +	int got_ref;
 
-> 
-> We could add a comment that "this check already skips compound tails
-> of THP because their page->_count is zero at all times".
+=3D 0
 
-No problem.
+And this should really be a bool.
 
-> 
-> Instead of a comment we could consider defining an inline function
-> with a special name that does atomic_read(&page->_count) and use it
-> when we intend to the regular or compound head count and return 0 on
-> tails. It would make it easier to identify these places later if we
-> ever want to change the refcounting mechanism, but it may be overkill,
-> it's up to you.
+>  	if (vma) {
+>  		if (vma->vm_ops && vma->vm_ops->get_policy) {
+>  			struct mempolicy *vpol =3D vma->vm_ops->get_policy(vma,
+>  									addr);
+> -			if (vpol)
+> +			if (vpol) {
+>  				pol =3D vpol;
+> +				got_ref =3D 1;
+> +			}
+>  		} else if (vma->vm_policy)
+>  			pol =3D vma->vm_policy;
+>  	}
+>  	if (!pol)
+>  		pol =3D &default_policy;
+> +
+> +	/*
+> +	 * shmem_alloc_page() passes MPOL_F_SHARED policy with vma->vm_ops=3DNU=
+LL.
+> +	 * Thus, we need to take additional ref for avoiding refcount imbalance=
+.
+> +	 */
+> +	if (!got_ref && mpol_needs_cond_ref(pol))
+> +		mpol_get(pol);
+> +
+>  	return pol;
+>  }
+> =20
+[...]
 
-That's a good idea but it's not proper time because I don't have much time
-for it and other patch[1] is pended by this.
+--=20
+Ben Hutchings
+Computers are not intelligent.	They only think they are.
 
-I hope it could be another nice clean up patch later. :)
+--=-OODp9vDT+Ck6zlt1wzhi
+Content-Type: application/pgp-signature; name="signature.asc"
+Content-Description: This is a digitally signed message part
 
-[1] https://lkml.org/lkml/2012/6/11/169
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1.4.12 (GNU/Linux)
 
-> 
-> Tail pages also can't be PageLRU.
-> 
-> The code after the patch should already skip thp tails fine (it won't
-> skip heads but I believe that's intentional, but one problem that
-> remains is that the heads should increase found by more than 1...).
+iQIVAwUAT9XznOe/yOyVhhEJAQol/A//SF8qBKptkmR0O84ZNb9/Lp5tD94c2u4o
+pcpOXG4oBlHXmKF+C00A3GwSvCIw5tRVGO5E2lbAisxF2J1sZwyqoJ9+6Jy8XwWa
+rP3EijMfwisjzpRVSNCXgDmkwhisrk1g+hOeUeLgsYGUW+I3p3QEUnJrdydEkF1s
+Fg4t9QGWh5kOyPk7Zhqhx70TD+xr/yu1iTmKohNbPcHZfsZgCyGKhy6LKD6aXGGP
+IJL86r/Ux7bJ8TDQuDW0OMwyoDrvsnYuG7WK/bl8VE6WOUJN6tLri6NkO9hnCjR+
+nP8rXizkMLUrLgcEtKH9P2eFjIPZX8qthbtxooCWSXfheLoJleo9gk2mRAU9ca7g
+Jk68GfKsfMWjd3XfwyesY2miHCpcyDQd7ClpXuMD4nQL+NciwiSfk/xIqbinmsSl
+rbdzAEP7W5rUwelyHwB2kSxTcy0MNAQRSqS/X7C7CK/ADR1Cl5CA8p9+2BSJHwOS
+6bwFy7g1n5gRBd7GFkPO2bMW8B4GFign1RvxnsR3JfYIJJVYxde7ieajjQ8WiXs4
+uzAgwgXcD1ne7i8CHRhcQLlfFFEQNitbPgZ5hPf37PUfJh2ZPTSzTdvdC2seXaxp
+ZbrNw34JnMWobwJV9XxD6Lcc127fqQzIctEuEcny/xloOim8qjDodDqxz3VgCkt+
+Pcy5hx3ia78=
+=DPVT
+-----END PGP SIGNATURE-----
 
-I can't fail to parse your last sentense.
-Could you elaborate it more?
-
-AFAIUC, you mean we have to increase reference count of head page?
-If so, it's not in __count_immobile_pages because it is already race-likely function
-so it shouldn't be critical although race happens.
-
-If I miss something, please let me know it.
-
+--=-OODp9vDT+Ck6zlt1wzhi--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
