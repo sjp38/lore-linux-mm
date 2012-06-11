@@ -1,53 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx136.postini.com [74.125.245.136])
-	by kanga.kvack.org (Postfix) with SMTP id 5649D6B011B
-	for <linux-mm@kvack.org>; Mon, 11 Jun 2012 09:06:18 -0400 (EDT)
-Date: Mon, 11 Jun 2012 14:06:12 +0100
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH v9] mm: compaction: handle incorrect MIGRATE_UNMOVABLE
- type pageblocks
-Message-ID: <20120611130612.GA3030@suse.de>
-References: <201206041543.56917.b.zolnierkie@samsung.com>
- <4FCD18FD.5030307@gmail.com>
- <4FCD6806.7070609@kernel.org>
- <4FCD713D.3020100@kernel.org>
- <4FCD8C99.3010401@gmail.com>
- <4FCDA1B4.9050301@kernel.org>
+Received: from psmtp.com (na3sys010amx123.postini.com [74.125.245.123])
+	by kanga.kvack.org (Postfix) with SMTP id A54846B0103
+	for <linux-mm@kvack.org>; Mon, 11 Jun 2012 09:14:14 -0400 (EDT)
+Date: Mon, 11 Jun 2012 15:14:11 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH -V8 12/16] hugetlb/cgroup: Add support for cgroup removal
+Message-ID: <20120611131411.GN12402@tiehlicka.suse.cz>
+References: <1339232401-14392-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+ <1339232401-14392-13-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+ <20120611085258.GD12402@tiehlicka.suse.cz>
+ <87fwa25gqj.fsf@skywalker.in.ibm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <4FCDA1B4.9050301@kernel.org>
+In-Reply-To: <87fwa25gqj.fsf@skywalker.in.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>, Linus Torvalds <torvalds@linux-foundation.org>, Kyungmin Park <kyungmin.park@samsung.com>, Marek Szyprowski <m.szyprowski@samsung.com>, Rik van Riel <riel@redhat.com>, Dave Jones <davej@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Cong Wang <amwang@redhat.com>, Markus Trippelsdorf <markus@trippelsdorf.de>
+To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Cc: linux-mm@kvack.org, kamezawa.hiroyu@jp.fujitsu.com, dhillf@gmail.com, rientjes@google.com, akpm@linux-foundation.org, hannes@cmpxchg.org, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org
 
-On Tue, Jun 05, 2012 at 03:05:40PM +0900, Minchan Kim wrote:
-> > Let's throw it away until the author send us data.
-> > 
+On Mon 11-06-12 15:10:20, Aneesh Kumar K.V wrote:
+> Michal Hocko <mhocko@suse.cz> writes:
+[...]
+> >> +static int hugetlb_cgroup_move_parent(int idx, struct cgroup *cgroup,
+> >> +				      struct page *page)
+> >
+> > deserves a comment about the locking (needs to be called with
+> > hugetlb_lock).
 > 
-> I guess it's hard to make such workload to prove it's useful normally.
-> But we can't make sure there isn't such workload in the world.
-> So I hope listen VOC. At least, Mel might require it.
+> will do
 > 
+> >
+> >> +{
+> >> +	int csize;
+> >> +	struct res_counter *counter;
+> >> +	struct res_counter *fail_res;
+> >> +	struct hugetlb_cgroup *page_hcg;
+> >> +	struct hugetlb_cgroup *h_cg   = hugetlb_cgroup_from_cgroup(cgroup);
+> >> +	struct hugetlb_cgroup *parent = parent_hugetlb_cgroup(cgroup);
+> >> +
+> >> +	if (!get_page_unless_zero(page))
+> >> +		goto out;
+> >> +
+> >> +	page_hcg = hugetlb_cgroup_from_page(page);
+> >> +	/*
+> >> +	 * We can have pages in active list without any cgroup
+> >> +	 * ie, hugepage with less than 3 pages. We can safely
+> >> +	 * ignore those pages.
+> >> +	 */
+> >> +	if (!page_hcg || page_hcg != h_cg)
+> >> +		goto err_out;
+> >
+> > How can we have page_hcg != NULL && page_hcg != h_cg?
+> 
+> pages belonging to other cgroup ?
 
-I'm playing a lot of catch-up at the moment after being out for a few days
-so sorry for my silence on this and other threads.
-
-My initial support for this patch was based on an artifical load but one I
-felt was plausible to trigger if CMA was being used. In a normal workload
-I thought it might be possible to hit if a large process exited freeing
-a lot of pagetable pages from MIGRATE_UNMOVABLE blocks at the same time
-but that is a little unlikely and a test case would also look very artifical.
-
-Hence, I believe that if you require a real workload to demonstrate the
-benefit of the patch that it will be very difficult to find. The primary
-decision is if CMA needs this or not. I was under the impression that it
-was a help for CMA allocation success rates but I may be mistaken.
-
+OK, I've forgot that you are iterating over all active huge pages in
+hugetlb_cgroup_pre_destroy. What prevents you from doing the filtering
+in the caller? 
+I am also wondering why you need to play with the page reference
+counting here. You are under hugetlb_lock so the page cannot disappear
+in the meantime or am I missing something?
 -- 
-Mel Gorman
+Michal Hocko
 SUSE Labs
+SUSE LINUX s.r.o.
+Lihovarska 1060/12
+190 00 Praha 9    
+Czech Republic
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
