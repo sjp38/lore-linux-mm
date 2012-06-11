@@ -1,72 +1,30 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx116.postini.com [74.125.245.116])
-	by kanga.kvack.org (Postfix) with SMTP id 49EEA6B0098
-	for <linux-mm@kvack.org>; Mon, 11 Jun 2012 00:50:27 -0400 (EDT)
-Message-ID: <4FD5790F.1050501@kernel.org>
-Date: Mon, 11 Jun 2012 13:50:23 +0900
+Received: from psmtp.com (na3sys010amx203.postini.com [74.125.245.203])
+	by kanga.kvack.org (Postfix) with SMTP id 6EFFD6B009B
+	for <linux-mm@kvack.org>; Mon, 11 Jun 2012 01:21:01 -0400 (EDT)
+Message-ID: <4FD5803A.3000201@kernel.org>
+Date: Mon, 11 Jun 2012 14:20:58 +0900
 From: Minchan Kim <minchan@kernel.org>
 MIME-Version: 1.0
-Subject: Re: [PATCH 0/5] Some vmevent fixes...
-References: <4FCD14F1.1030105@gmail.com> <CAOJsxLHR4wSgT2hNfOB=X6ud0rXgYg+h7PTHzAZYCUdLs6Ktug@mail.gmail.com> <20120605083921.GA21745@lizard> <4FD014D7.6000605@kernel.org> <20120608074906.GA27095@lizard> <4FD1BB29.1050805@kernel.org> <CAOJsxLHPvg=bsv+GakFGHyJwH0BoGA=fmzy5bwqWKNGryYTDtg@mail.gmail.com> <84FF21A720B0874AA94B46D76DB98269045F7B42@008-AM1MPN1-004.mgdnok.nokia.com> <20120608094507.GA11963@lizard> <20120608104204.GA2185@barrios> <20120608111421.GA18696@lizard>
-In-Reply-To: <20120608111421.GA18696@lizard>
+Subject: Re: [PATCH v3 01/10] mm: frontswap: remove casting from function
+ calls through ops structure
+References: <1339325468-30614-1-git-send-email-levinsasha928@gmail.com> <1339325468-30614-2-git-send-email-levinsasha928@gmail.com>
+In-Reply-To: <1339325468-30614-2-git-send-email-levinsasha928@gmail.com>
 Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Anton Vorontsov <anton.vorontsov@linaro.org>
-Cc: leonid.moiseichuk@nokia.com, penberg@kernel.org, kosaki.motohiro@gmail.com, john.stultz@linaro.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linaro-kernel@lists.linaro.org, patches@linaro.org, kernel-team@android.com
+To: Sasha Levin <levinsasha928@gmail.com>
+Cc: dan.magenheimer@oracle.com, konrad.wilk@oracle.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On 06/08/2012 08:14 PM, Anton Vorontsov wrote:
+On 06/10/2012 07:50 PM, Sasha Levin wrote:
 
-> On Fri, Jun 08, 2012 at 07:42:04PM +0900, Minchan Kim wrote:
-> [...]
->> I can't understand. Why can't the approach catch the situation?
->> Let's think about it.
->>
->> There is 40M in CleanCache LRU which has easy-reclaimable pages and
->> there is 10M free pages and 5M high watermark in system.
->>
->> Your application start to consume free pages very slowly.
->> So when your application consumed 5M, VM start to reclaim. So far, it's okay
->> because we have 40M easy-reclaimable pages. And low memory notifier can start
->> to notify so your dameon can do some action to get free pages.
+> Removes unneeded casts.
 > 
-> Maybe I'm missing how would you use the shrinker. But the last time
-> I tried on my (swap-less, FWIW) qemu test setup, I was not receiving
-> any notifications from the shrinker until the system was almost
-> (but not exactly) out of memory.
-> 
-> My test app was allocating all memory MB by MB, filling the memory
-> with zeroes. So, what I was observing is that shrinker callback was
-> called just a few MB before OOM, not every 'X' consumed MBs.
+> Signed-off-by: Sasha Levin <levinsasha928@gmail.com>
 
+Reviewed-by: Minchan Kim <minchan@kernel.org>
 
-Yes. page reclaimer doesn't make sure calling shrinker per MB.
-So if you want to be notified per your threshold, shrinker isn't good.
-
-I didn't say I will use shrinker.
-I want to add hooks directly in vmscan.c's normal reclaim path, not shrinker.
-
-Still, I want to implement it by level triggering like I mentioned.
-I will show you my concept if anybody doesn't interrupt me within a few weeks. :)
-
-Thanks.
-
-> 
->> I think it's not so late.
->>
->> sidenote:
->> It seems I live in the complete opposite place because
->> you guys always start discussion when I am about going out of office.
->> Please understand my late response.
->> Maybe I will come back after weekend. :)
-> 
-> Well, it's 4AM here. :-) Have a great weekend!
-> 
-
-
-You win! :)
- 
 -- 
 Kind regards,
 Minchan Kim
