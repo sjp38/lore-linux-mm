@@ -1,48 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx163.postini.com [74.125.245.163])
-	by kanga.kvack.org (Postfix) with SMTP id 05A306B00EF
-	for <linux-mm@kvack.org>; Mon, 11 Jun 2012 05:18:40 -0400 (EDT)
-Received: by mail-gh0-f169.google.com with SMTP id r18so3001442ghr.14
-        for <linux-mm@kvack.org>; Mon, 11 Jun 2012 02:18:40 -0700 (PDT)
-From: kosaki.motohiro@gmail.com
-Subject: [PATCH 6/6] MAINTAINERS: Added MEMPOLICY entry
-Date: Mon, 11 Jun 2012 05:17:30 -0400
-Message-Id: <1339406250-10169-7-git-send-email-kosaki.motohiro@gmail.com>
-In-Reply-To: <1339406250-10169-1-git-send-email-kosaki.motohiro@gmail.com>
-References: <1339406250-10169-1-git-send-email-kosaki.motohiro@gmail.com>
+Received: from psmtp.com (na3sys010amx133.postini.com [74.125.245.133])
+	by kanga.kvack.org (Postfix) with SMTP id B975F6B00F2
+	for <linux-mm@kvack.org>; Mon, 11 Jun 2012 05:19:02 -0400 (EDT)
+Date: Mon, 11 Jun 2012 11:19:00 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH -V8 14/16] hugetlb/cgroup: add charge/uncharge calls for
+ HugeTLB alloc/free
+Message-ID: <20120611091900.GH12402@tiehlicka.suse.cz>
+References: <1339232401-14392-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+ <1339232401-14392-15-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+ <20120609092301.GF1761@cmpxchg.org>
+ <87pq98ljil.fsf@skywalker.in.ibm.com>
+ <20120609143054.GH1761@cmpxchg.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20120609143054.GH1761@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@google.com>, Dave Jones <davej@redhat.com>, Mel Gorman <mgorman@suse.de>, Christoph Lameter <cl@linux.com>, stable@vger.kernel.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, linux-mm@kvack.org, kamezawa.hiroyu@jp.fujitsu.com, dhillf@gmail.com, rientjes@google.com, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org
 
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+On Sat 09-06-12 16:30:54, Johannes Weiner wrote:
+> On Sat, Jun 09, 2012 at 06:39:06PM +0530, Aneesh Kumar K.V wrote:
+> > Johannes Weiner <hannes@cmpxchg.org> writes:
+> > 
+> > > On Sat, Jun 09, 2012 at 02:29:59PM +0530, Aneesh Kumar K.V wrote:
+> > >> From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+> > >> 
+> > >> This adds necessary charge/uncharge calls in the HugeTLB code.  We do
+> > >> hugetlb cgroup charge in page alloc and uncharge in compound page destructor.
+> > >> 
+> > >> Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
+> > >> ---
+> > >>  mm/hugetlb.c        |   16 +++++++++++++++-
+> > >>  mm/hugetlb_cgroup.c |    7 +------
+> > >>  2 files changed, 16 insertions(+), 7 deletions(-)
+> > >> 
+> > >> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+> > >> index bf79131..4ca92a9 100644
+> > >> --- a/mm/hugetlb.c
+> > >> +++ b/mm/hugetlb.c
+> > >> @@ -628,6 +628,8 @@ static void free_huge_page(struct page *page)
+> > >>  	BUG_ON(page_mapcount(page));
+> > >>  
+> > >>  	spin_lock(&hugetlb_lock);
+> > >> +	hugetlb_cgroup_uncharge_page(hstate_index(h),
+> > >> +				     pages_per_huge_page(h), page);
+> > >
+> > > hugetlb_cgroup_uncharge_page() takes the hugetlb_lock, no?
+> > 
+> > Yes, But this patch also modifies it to not take the lock, because we
+> > hold spin_lock just below in the call site. I didn't want to drop the
+> > lock and take it again.
+> 
+> Sorry, I missed that.
+> 
+> > > It's quite hard to review code that is split up like this.  Please
+> > > always keep the introduction of new functions in the same patch that
+> > > adds the callsite(s).
+> > 
+> > One of the reason I split the charge/uncharge routines and the callers
+> > in separate patches is to make it easier for review. Irrespective of
+> > the call site charge/uncharge routines should be correct with respect
+> > to locking and other details. What I did in this patch is a small
+> > optimization of avoiding dropping and taking the lock again. May be the
+> > right approach would have been to name it __hugetlb_cgroup_uncharge_page
+> > and make sure the hugetlb_cgroup_uncharge_page still takes spin_lock.
+> > But then we don't have any callers for that.
+> 
+> I think this makes it needlessly complicated and there is no correct
+> or incorrect locking in (initially) dead code :-)
+> 
+> The callsites are just a few lines.  It's harder to review if you
+> introduce an API and then change it again mid-patchset.
 
-Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Acked-by: Christoph Lameter <cl@linux.com>
----
- MAINTAINERS |    7 +++++++
- 1 files changed, 7 insertions(+), 0 deletions(-)
+Fully agreed.
 
-diff --git a/MAINTAINERS b/MAINTAINERS
-index a246490..6f4a8e2 100644
---- a/MAINTAINERS
-+++ b/MAINTAINERS
-@@ -4467,6 +4467,13 @@ F:	drivers/mtd/
- F:	include/linux/mtd/
- F:	include/mtd/
- 
-+MEMPOLICY
-+M:	KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-+L:	linux-mm@kvack.org
-+S:	Maintained
-+F:	include/linux/mempolicy.h
-+F:	mm/mempolicy.c
-+
- MICROBLAZE ARCHITECTURE
- M:	Michal Simek <monstr@monstr.eu>
- L:	microblaze-uclinux@itee.uq.edu.au (moderated for non-subscribers)
 -- 
-1.7.1
+Michal Hocko
+SUSE Labs
+SUSE LINUX s.r.o.
+Lihovarska 1060/12
+190 00 Praha 9    
+Czech Republic
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
