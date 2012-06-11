@@ -1,66 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx201.postini.com [74.125.245.201])
-	by kanga.kvack.org (Postfix) with SMTP id 353E56B00C5
-	for <linux-mm@kvack.org>; Mon, 11 Jun 2012 03:29:31 -0400 (EDT)
-Received: by lahi5 with SMTP id i5so3300658lah.14
-        for <linux-mm@kvack.org>; Mon, 11 Jun 2012 00:29:29 -0700 (PDT)
-Message-ID: <4FD59E55.3030703@openvz.org>
-Date: Mon, 11 Jun 2012 11:29:25 +0400
-From: Konstantin Khlebnikov <khlebnikov@openvz.org>
-MIME-Version: 1.0
+Received: from psmtp.com (na3sys010amx138.postini.com [74.125.245.138])
+	by kanga.kvack.org (Postfix) with SMTP id EFB406B00C7
+	for <linux-mm@kvack.org>; Mon, 11 Jun 2012 03:34:50 -0400 (EDT)
+Date: Mon, 11 Jun 2012 09:34:47 +0200
+From: Michal Hocko <mhocko@suse.cz>
 Subject: Re: [PATCH] memcg: fix use_hierarchy css_is_ancestor oops regression
-References: <alpine.LSU.2.00.1206101150230.4239@eggly.anvils> <20120610221516.GJ1761@cmpxchg.org>
-In-Reply-To: <20120610221516.GJ1761@cmpxchg.org>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Message-ID: <20120611073447.GA12402@tiehlicka.suse.cz>
+References: <alpine.LSU.2.00.1206101150230.4239@eggly.anvils>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.LSU.2.00.1206101150230.4239@eggly.anvils>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Hugh Dickins <hughd@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Konstantin Khlebnikov <khlebnikov@openvz.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-Johannes Weiner wrote:
-> On Sun, Jun 10, 2012 at 11:54:47AM -0700, Hugh Dickins wrote:
->> If use_hierarchy is set, reclaim testing soon oopses in css_is_ancestor()
->> called from __mem_cgroup_same_or_subtree() called from page_referenced():
->> when processes are exiting, it's easy for mm_match_cgroup() to pass along
->> a NULL memcg coming from a NULL mm->owner.
->>
->> Check for that in __mem_cgroup_same_or_subtree().  Return true or false?
->> False because we cannot know if it was in the hierarchy, but also false
->> because it's better not to count a reference from an exiting process.
->>
->> Signed-off-by: Hugh Dickins<hughd@google.com>
->
-> Looks like an older version of the patch that introduced it slipped
-> into the tree, Konstantin noted this problem during review.  The final
-> version did
->
-> 	match = memcg&&  __mem_cgroup_same_or_subtree(root, memcg);
->
-> in the caller because of it.
->
-> Do you think it would be cleaner this way, since this is also the
-> place where that memcg is looked up, and so the "can return NULL"
-> handling after mem_cgroup_from_task() would be in the same place?
+On Sun 10-06-12 11:54:47, Hugh Dickins wrote:
+> If use_hierarchy is set, reclaim testing soon oopses in css_is_ancestor()
+> called from __mem_cgroup_same_or_subtree() called from page_referenced():
+> when processes are exiting, it's easy for mm_match_cgroup() to pass along
+> a NULL memcg coming from a NULL mm->owner.
+> 
+> Check for that in __mem_cgroup_same_or_subtree().  Return true or false?
+> False because we cannot know if it was in the hierarchy, but also false
+> because it's better not to count a reference from an exiting process.
+> 
+> Signed-off-by: Hugh Dickins <hughd@google.com>
 
-I agree, it cleaner, but nevertheless:
+Acked-by: Michal Hocko <mhocko@suse.cz>
 
-Acked-by: Konstantin Khlebnikov <khlebnikov@openvz.org>
+Thanks
 
-Thanks, Hugh!
+> ---
+> This a 3.5-rc issue: not needed for stable.
+> 
+>  mm/memcontrol.c |    2 +-
+>  1 file changed, 1 insertion(+), 1 deletion(-)
+> 
+> --- 3.5-rc2/mm/memcontrol.c	2012-05-30 08:17:19.400008280 -0700
+> +++ linux/mm/memcontrol.c	2012-06-10 08:39:39.618182396 -0700
+> @@ -1148,7 +1148,7 @@ bool __mem_cgroup_same_or_subtree(const
+>  {
+>  	if (root_memcg == memcg)
+>  		return true;
+> -	if (!root_memcg->use_hierarchy)
+> +	if (!root_memcg->use_hierarchy || !memcg)
+>  		return false;
+>  	return css_is_ancestor(&memcg->css, &root_memcg->css);
+>  }
 
->
-> But either way,
->
-> Acked-by: Johannes Weiner<hannes@cmpxchg.org>
->
-> Thanks, Hugh!
->
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email:<a href=mailto:"dont@kvack.org">  email@kvack.org</a>
+-- 
+Michal Hocko
+SUSE Labs
+SUSE LINUX s.r.o.
+Lihovarska 1060/12
+190 00 Praha 9    
+Czech Republic
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
