@@ -1,91 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx150.postini.com [74.125.245.150])
-	by kanga.kvack.org (Postfix) with SMTP id AD4286B0083
-	for <linux-mm@kvack.org>; Sun, 10 Jun 2012 23:31:25 -0400 (EDT)
-Received: by pbbrp2 with SMTP id rp2so6036415pbb.14
-        for <linux-mm@kvack.org>; Sun, 10 Jun 2012 20:31:25 -0700 (PDT)
-From: Robin Dong <hao.bigrat@gmail.com>
-Subject: [PATCH v2] mm: fix ununiform page status when writing new file with small buffer
-Date: Mon, 11 Jun 2012 11:31:15 +0800
-Message-Id: <1339385475-19717-1-git-send-email-hao.bigrat@gmail.com>
+Received: from psmtp.com (na3sys010amx155.postini.com [74.125.245.155])
+	by kanga.kvack.org (Postfix) with SMTP id B19A86B0087
+	for <linux-mm@kvack.org>; Sun, 10 Jun 2012 23:41:04 -0400 (EDT)
+Received: from /spool/local
+	by e33.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <shangw@linux.vnet.ibm.com>;
+	Sun, 10 Jun 2012 21:41:03 -0600
+Received: from d01relay01.pok.ibm.com (d01relay01.pok.ibm.com [9.56.227.233])
+	by d01dlp03.pok.ibm.com (Postfix) with ESMTP id 8F57CC90050
+	for <linux-mm@kvack.org>; Sun, 10 Jun 2012 23:40:59 -0400 (EDT)
+Received: from d01av03.pok.ibm.com (d01av03.pok.ibm.com [9.56.224.217])
+	by d01relay01.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q5B3f0VC128730
+	for <linux-mm@kvack.org>; Sun, 10 Jun 2012 23:41:00 -0400
+Received: from d01av03.pok.ibm.com (loopback [127.0.0.1])
+	by d01av03.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q5B3ex0F014306
+	for <linux-mm@kvack.org>; Mon, 11 Jun 2012 00:41:00 -0300
+Date: Mon, 11 Jun 2012 12:40:56 +0900
+From: Gavin Shan <shangw@linux.vnet.ibm.com>
+Subject: Re: [PATCH] mm/buddy: cleanup on should_fail_alloc_page
+Message-ID: <20120611034056.GA27200@shangw>
+Reply-To: Gavin Shan <shangw@linux.vnet.ibm.com>
+References: <1339253516-8760-1-git-send-email-shangw@linux.vnet.ibm.com>
+ <alpine.DEB.2.00.1206101349160.25986@chino.kir.corp.google.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.00.1206101349160.25986@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: Robin Dong <sanbai@taobao.com>
+To: David Rientjes <rientjes@google.com>
+Cc: Gavin Shan <shangw@linux.vnet.ibm.com>, linux-mm@kvack.org, hannes@cmpxchg.org, akpm@linux-foundation.org
 
-From: Robin Dong <sanbai@taobao.com>
+>> In the core function __alloc_pages_nodemask() of buddy allocator, it's
+>> possible for the memory allocation to fail. That's probablly caused
+>> by error injection with expection. In that case, it depends on the
+>> check of error injection covered by function should_fail(). Currently,
+>> function should_fail() has "bool" for its return value, so it's reasonable
+>> to change the return value of function should_fail_alloc_page() into
+>> "bool" as well.
+>> 
+>
+>I think we can remove the first three sentences of this.
+>
+>> The patch does cleanup on function should_fail_alloc_page() to "bool".
+>> 
+>> Signed-off-by: Gavin Shan <shangw@linux.vnet.ibm.com>
+>
+>Acked-by: David Rientjes <rientjes@google.com>
+>
 
-When writing a new file with 2048 bytes buffer, such as write(fd, buffer, 2048), it will
-call generic_perform_write() twice for every page:
+Thanks, David. I'll adjust the changelog and send next version
+as soon as possible :-)
 
-	write_begin
-	mark_page_accessed(page) 
-	write_end
-
-	write_begin
-	mark_page_accessed(page) 
-	write_end
-
-The page 1~13th will be added to lru-pvecs in write_begin() and will *NOT* be added to
-active_list even they have be accessed twice because they are not PageLRU(page).
-But when page 14th comes, all pages in lru-pvecs will be moved to inactive_list
-(by __lru_cache_add() ) in first write_begin(), now page 14th *is* PageLRU(page).
-And after second write_end() only page 14th  will be in active_list.
-
-In Hadoop environment, we do comes to this situation: after writing a file, we find
-out that only 14th, 28th, 42th... page are in active_list and others in inactive_list. Now
-kswapd works, shrinks the inactive_list, the file only have 14th, 28th...pages in memory,
-the readahead request size will be broken to only 52k (13*4k), system's performance falls
-dramatically.
-
-This problem can also replay by below steps (the machine has 8G memory):
-
-	1. dd if=/dev/zero of=/test/file.out bs=1024 count=1048576
-	2. cat another 7.5G file to /dev/null
-	3. vmtouch -m 1G -v /test/file.out, it will show:
-
-	/test/file.out
-	[oooooooooooooooooooOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO] 187847/262144
-
-	the 'o' means same pages are in memory but same are not.
-
-
-The solution for this problem is simple: the 14th page should be added to lru_add_pvecs
-before mark_page_accessed() just as other pages.
-
-Signed-off-by: Robin Dong <sanbai@taobao.com>
-Reviewed-by: Minchan Kim <minchan@kernel.org>
----
- mm/swap.c |    8 +++++++-
- 1 file changed, 7 insertions(+), 1 deletion(-)
-
-diff --git a/mm/swap.c b/mm/swap.c
-index 4e7e2ec..08e83ad 100644
---- a/mm/swap.c
-+++ b/mm/swap.c
-@@ -394,13 +394,19 @@ void mark_page_accessed(struct page *page)
- }
- EXPORT_SYMBOL(mark_page_accessed);
- 
-+/*
-+ * Check pagevec space before adding new page into as
-+ * it will prevent ununiform page status in
-+ * mark_page_accessed() after __lru_cache_add()
-+ */
- void __lru_cache_add(struct page *page, enum lru_list lru)
- {
- 	struct pagevec *pvec = &get_cpu_var(lru_add_pvecs)[lru];
- 
- 	page_cache_get(page);
--	if (!pagevec_add(pvec, page))
-+	if (!pagevec_space(pvec))
- 		__pagevec_lru_add(pvec, lru);
-+	pagevec_add(pvec, page);
- 	put_cpu_var(lru_add_pvecs);
- }
- EXPORT_SYMBOL(__lru_cache_add);
--- 
-1.7.9.5
+Thanks,
+Gavin
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
