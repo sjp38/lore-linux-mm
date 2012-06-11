@@ -1,63 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx131.postini.com [74.125.245.131])
-	by kanga.kvack.org (Postfix) with SMTP id 56B3C6B00DC
-	for <linux-mm@kvack.org>; Mon, 11 Jun 2012 05:10:24 -0400 (EDT)
-Date: Mon, 11 Jun 2012 11:10:21 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH -V8 11/16] hugetlb/cgroup: Add charge/uncharge routines
- for hugetlb cgroup
-Message-ID: <20120611091021.GF12402@tiehlicka.suse.cz>
-References: <1339232401-14392-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
- <1339232401-14392-12-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
- <20120611083810.GC12402@tiehlicka.suse.cz>
+Received: from psmtp.com (na3sys010amx198.postini.com [74.125.245.198])
+	by kanga.kvack.org (Postfix) with SMTP id 4474B6B00DE
+	for <linux-mm@kvack.org>; Mon, 11 Jun 2012 05:11:53 -0400 (EDT)
+Received: by pbbrp2 with SMTP id rp2so6466452pbb.14
+        for <linux-mm@kvack.org>; Mon, 11 Jun 2012 02:11:52 -0700 (PDT)
+Date: Mon, 11 Jun 2012 02:11:50 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: [patch 3.5-rc2] mm, oom: fix and cleanup oom score calculations
+In-Reply-To: <20120611004602.GA29713@redhat.com>
+Message-ID: <alpine.DEB.2.00.1206110209080.6843@chino.kir.corp.google.com>
+References: <20120604152710.GA1710@redhat.com> <alpine.DEB.2.00.1206041629500.7769@chino.kir.corp.google.com> <20120605174454.GA23867@redhat.com> <alpine.DEB.2.00.1206081313000.19054@chino.kir.corp.google.com> <20120608210330.GA21010@redhat.com>
+ <alpine.DEB.2.00.1206091920140.7832@chino.kir.corp.google.com> <4FD412CB.9060809@gmail.com> <20120610201055.GA27662@redhat.com> <alpine.DEB.2.00.1206101652180.18114@chino.kir.corp.google.com> <20120611004602.GA29713@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20120611083810.GC12402@tiehlicka.suse.cz>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Cc: linux-mm@kvack.org, kamezawa.hiroyu@jp.fujitsu.com, dhillf@gmail.com, rientjes@google.com, akpm@linux-foundation.org, hannes@cmpxchg.org, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Dave Jones <davej@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Mon 11-06-12 10:38:10, Michal Hocko wrote:
-> On Sat 09-06-12 14:29:56, Aneesh Kumar K.V wrote:
-> > From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-> > 
-> > This patchset add the charge and uncharge routines for hugetlb cgroup.
-> > This will be used in later patches when we allocate/free HugeTLB
-> > pages.
-> 
-> Please describe the locking rules.
-> 
-> > Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
-> > ---
-> >  mm/hugetlb_cgroup.c |   87 +++++++++++++++++++++++++++++++++++++++++++++++++++
-> >  1 file changed, 87 insertions(+)
-> > 
-> > diff --git a/mm/hugetlb_cgroup.c b/mm/hugetlb_cgroup.c
-> > index 20a32c5..48efd5a 100644
-> > --- a/mm/hugetlb_cgroup.c
-> > +++ b/mm/hugetlb_cgroup.c
-> > @@ -105,6 +105,93 @@ static int hugetlb_cgroup_pre_destroy(struct cgroup *cgroup)
-> >  	   return -EBUSY;
-> >  }
-> >  
-> > +int hugetlb_cgroup_charge_page(int idx, unsigned long nr_pages,
-> > +			       struct hugetlb_cgroup **ptr)
-> 
-> Missing doc.
+The divide in p->signal->oom_score_adj * totalpages / 1000 within 
+oom_badness() was causing an overflow of the signed long data type.
 
-And now that I am looking at the patch which uses this function then I
-realized that the name shouldn't mention page as we do not use any as an
-argument. It is more in lines with hugetlb_cgroup_charge_cgroup
+This adds both the root bias and p->signal->oom_score_adj before doing the 
+normalization which fixes the issue and also cleans up the calculation.
 
--- 
-Michal Hocko
-SUSE Labs
-SUSE LINUX s.r.o.
-Lihovarska 1060/12
-190 00 Praha 9    
-Czech Republic
+Tested-by: Dave Jones <davej@redhat.com>
+Signed-off-by: David Rientjes <rientjes@google.com>
+---
+ mm/oom_kill.c |   15 +++++++--------
+ 1 file changed, 7 insertions(+), 8 deletions(-)
+
+diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+--- a/mm/oom_kill.c
++++ b/mm/oom_kill.c
+@@ -184,6 +184,7 @@ unsigned long oom_badness(struct task_struct *p, struct mem_cgroup *memcg,
+ 			  const nodemask_t *nodemask, unsigned long totalpages)
+ {
+ 	long points;
++	long adj;
+ 
+ 	if (oom_unkillable_task(p, memcg, nodemask))
+ 		return 0;
+@@ -192,7 +193,8 @@ unsigned long oom_badness(struct task_struct *p, struct mem_cgroup *memcg,
+ 	if (!p)
+ 		return 0;
+ 
+-	if (p->signal->oom_score_adj == OOM_SCORE_ADJ_MIN) {
++	adj = p->signal->oom_score_adj;
++	if (adj == OOM_SCORE_ADJ_MIN) {
+ 		task_unlock(p);
+ 		return 0;
+ 	}
+@@ -210,14 +212,11 @@ unsigned long oom_badness(struct task_struct *p, struct mem_cgroup *memcg,
+ 	 * implementation used by LSMs.
+ 	 */
+ 	if (has_capability_noaudit(p, CAP_SYS_ADMIN))
+-		points -= 30 * totalpages / 1000;
++		adj -= 30;
+ 
+-	/*
+-	 * /proc/pid/oom_score_adj ranges from -1000 to +1000 such that it may
+-	 * either completely disable oom killing or always prefer a certain
+-	 * task.
+-	 */
+-	points += p->signal->oom_score_adj * totalpages / 1000;
++	/* Normalize to oom_score_adj units */
++	adj *= totalpages / 1000;
++	points += adj;
+ 
+ 	/*
+ 	 * Never return 0 for an eligible task regardless of the root bonus and
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
