@@ -1,48 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx173.postini.com [74.125.245.173])
-	by kanga.kvack.org (Postfix) with SMTP id 3BBAC6B0136
-	for <linux-mm@kvack.org>; Mon, 11 Jun 2012 10:31:56 -0400 (EDT)
-Message-ID: <4FD60127.1000805@jp.fujitsu.com>
-Date: Mon, 11 Jun 2012 10:31:03 -0400
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH] mm: fix protection column misplacing in /proc/zoneinfo
-References: <1339422650-9798-1-git-send-email-kosaki.motohiro@gmail.com> <alpine.DEB.2.00.1206110856180.31180@router.home>
-In-Reply-To: <alpine.DEB.2.00.1206110856180.31180@router.home>
-Content-Type: text/plain; charset=ISO-8859-1
+Received: from psmtp.com (na3sys010amx145.postini.com [74.125.245.145])
+	by kanga.kvack.org (Postfix) with SMTP id 0358F6B0138
+	for <linux-mm@kvack.org>; Mon, 11 Jun 2012 10:37:34 -0400 (EDT)
+Received: by obbwd18 with SMTP id wd18so9046362obb.14
+        for <linux-mm@kvack.org>; Mon, 11 Jun 2012 07:37:33 -0700 (PDT)
+Message-ID: <1339425523.4999.56.camel@lappy>
+Subject: Re: [PATCH v3 04/10] mm: frontswap: split out
+ __frontswap_unuse_pages
+From: Sasha Levin <levinsasha928@gmail.com>
+Date: Mon, 11 Jun 2012 16:38:43 +0200
+In-Reply-To: <CAPbh3ruqk+dU4C8b=mSko+2EjumrswgkO6CUp73=8thvLNAA8A@mail.gmail.com>
+References: <1339325468-30614-1-git-send-email-levinsasha928@gmail.com>
+	 <1339325468-30614-5-git-send-email-levinsasha928@gmail.com>
+	 <4FD5856C.5060708@kernel.org> <1339410650.4999.38.camel@lappy>
+	 <e82083d1-af9f-4766-992c-926413f02423@default>
+	 <CAPbh3ruqk+dU4C8b=mSko+2EjumrswgkO6CUp73=8thvLNAA8A@mail.gmail.com>
+Content-Type: text/plain; charset="UTF-8"
 Content-Transfer-Encoding: 7bit
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: cl@linux.com
-Cc: kosaki.motohiro@gmail.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, kosaki.motohiro@jp.fujitsu.com
+To: konrad@darnok.org
+Cc: Dan Magenheimer <dan.magenheimer@oracle.com>, Minchan Kim <minchan@kernel.org>, Konrad Wilk <konrad.wilk@oracle.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On 6/11/2012 10:02 AM, Christoph Lameter wrote:
-> On Mon, 11 Jun 2012, kosaki.motohiro@gmail.com wrote:
+On Mon, 2012-06-11 at 10:31 -0400, Konrad Rzeszutek Wilk wrote:
+> > I'm not sure of the correct kernel style but I like the fact
+> > that assert_spin_locked both documents the lock requirement and tests
+> > it at runtime.
 > 
->> From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
->>
->> commit 2244b95a7b (zoned vm counters: basic ZVC (zoned vm counter)
->> implementation) broke protection column. It is a part of "pages"
->> attribute. but not it is showed after vmstats column.
->>
->> This patch restores the right position.
+> The kernel style is to do "
+> 3) Separate your changes.
 > 
-> Well this reorders the output. vmstats are also counts of pages. I am not
-> sure what the difference is.
+> Separate _logical changes_ into a single patch file.
+> "
+> 
+> So it is fine, but it should be in its own patch. 
 
-No. In this case, "pages" mean zone attribute. In the other hand, vmevent
-is a statistics.
-
-
-> You are not worried about breaking something that may scan the zoneinfo
-> output with this change? Its been this way for 6 years and its likely that
-> tools expect the current layout.
-
-I don't worry about this. Because of, /proc/zoneinfo is cray machine unfrinedly
-format and afaik no application uses it.
-
-btw, I believe we should aim /sys/devices/system/node/<node-num>/zones new directory
-and export zone infos as machine readable format.
+It is one logical change: I've moved a block of code that has to be
+locked in the swap mutex into it's own function, adding the spinlock
+assertion isn't new code, nor it relates to any new code. It's there to
+assert that what happened before still happens now.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
