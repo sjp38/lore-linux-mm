@@ -1,67 +1,29 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx195.postini.com [74.125.245.195])
-	by kanga.kvack.org (Postfix) with SMTP id 246186B0144
-	for <linux-mm@kvack.org>; Mon, 11 Jun 2012 10:58:49 -0400 (EDT)
-Received: by dakp5 with SMTP id p5so6791569dak.14
-        for <linux-mm@kvack.org>; Mon, 11 Jun 2012 07:58:48 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx184.postini.com [74.125.245.184])
+	by kanga.kvack.org (Postfix) with SMTP id 1F36E6B0146
+	for <linux-mm@kvack.org>; Mon, 11 Jun 2012 11:01:19 -0400 (EDT)
+Date: Mon, 11 Jun 2012 10:01:15 -0500 (CDT)
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: [PATCH 0/6][resend] mempolicy memory corruption fixlet
+In-Reply-To: <1339406250-10169-1-git-send-email-kosaki.motohiro@gmail.com>
+Message-ID: <alpine.DEB.2.00.1206110934200.31180@router.home>
+References: <1339406250-10169-1-git-send-email-kosaki.motohiro@gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <alpine.DEB.2.00.1206110937430.31180@router.home>
-References: <1339422650-9798-1-git-send-email-kosaki.motohiro@gmail.com>
- <alpine.DEB.2.00.1206110856180.31180@router.home> <4FD60127.1000805@jp.fujitsu.com>
- <alpine.DEB.2.00.1206110937430.31180@router.home>
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Date: Mon, 11 Jun 2012 10:58:27 -0400
-Message-ID: <CAHGf_=rdcoC8wWzcAfDpqekFnmBSCtyEp2nFXV+DFBzgpHEF1A@mail.gmail.com>
-Subject: Re: [PATCH] mm: fix protection column misplacing in /proc/zoneinfo
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: kosaki.motohiro@gmail.com
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@google.com>, Dave Jones <davej@redhat.com>, Mel Gorman <mgorman@suse.de>, stable@vger.kernel.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 
-On Mon, Jun 11, 2012 at 10:40 AM, Christoph Lameter <cl@linux.com> wrote:
-> On Mon, 11 Jun 2012, KOSAKI Motohiro wrote:
->
->> On 6/11/2012 10:02 AM, Christoph Lameter wrote:
->> > On Mon, 11 Jun 2012, kosaki.motohiro@gmail.com wrote:
->> >
->> >> From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
->> >>
->> >> commit 2244b95a7b (zoned vm counters: basic ZVC (zoned vm counter)
->> >> implementation) broke protection column. It is a part of "pages"
->> >> attribute. but not it is showed after vmstats column.
->> >>
->> >> This patch restores the right position.
->> >
->> > Well this reorders the output. vmstats are also counts of pages. I am not
->> > sure what the difference is.
->>
->> No. In this case, "pages" mean zone attribute. In the other hand, vmevent
->> is a statistics.
->
-> The vmevent countes are something different from the zone counters. Event
-> counters are indeed statistics only but the numbers here were intended
-> to be are actual counts of pages. Well some of them like the numa_XXX are
-> stats you are right. Those could be moved off the ZVCs and become event
-> counters.
->
->> > You are not worried about breaking something that may scan the zoneinfo
->> > output with this change? Its been this way for 6 years and its likely that
->> > tools expect the current layout.
->>
->> I don't worry about this. Because of, /proc/zoneinfo is cray machine unfrinedly
->> format and afaik no application uses it.
->
-> Cray? What does that have to do with it.
+On Mon, 11 Jun 2012, kosaki.motohiro@gmail.com wrote:
 
-sorry. s/cray/crazy/
+> changes from v1: fix some typo of changelogs.
 
+I still have a hard time with the changelogs. Will try to give you
+hopefulyl better ones.
 
->
->> btw, I believe we should aim /sys/devices/system/node/<node-num>/zones new directory
->> and export zone infos as machine readable format.
->
-> Yes that would be a good thing.
+Again you need to CC Andi Kleen on this. He wrote most of the shared
+mempolicy code (long time ago) and then Lee started tinkering with it.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
