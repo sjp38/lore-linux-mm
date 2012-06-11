@@ -1,147 +1,118 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx117.postini.com [74.125.245.117])
-	by kanga.kvack.org (Postfix) with SMTP id 85C5F6B00D1
-	for <linux-mm@kvack.org>; Mon, 11 Jun 2012 04:43:55 -0400 (EDT)
-Received: from m1.gw.fujitsu.co.jp (unknown [10.0.50.71])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id C48103EE0C1
-	for <linux-mm@kvack.org>; Mon, 11 Jun 2012 17:43:53 +0900 (JST)
-Received: from smail (m1 [127.0.0.1])
-	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id A4D6B45DE5B
-	for <linux-mm@kvack.org>; Mon, 11 Jun 2012 17:43:53 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
-	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 80B8145DE59
-	for <linux-mm@kvack.org>; Mon, 11 Jun 2012 17:43:53 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 693141DB8054
-	for <linux-mm@kvack.org>; Mon, 11 Jun 2012 17:43:53 +0900 (JST)
-Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.240.81.146])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 0E88C1DB804B
-	for <linux-mm@kvack.org>; Mon, 11 Jun 2012 17:43:53 +0900 (JST)
-Message-ID: <4FD5AF42.3080509@jp.fujitsu.com>
-Date: Mon, 11 Jun 2012 17:41:38 +0900
+Received: from psmtp.com (na3sys010amx142.postini.com [74.125.245.142])
+	by kanga.kvack.org (Postfix) with SMTP id 337356B00D3
+	for <linux-mm@kvack.org>; Mon, 11 Jun 2012 04:51:00 -0400 (EDT)
+Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 77EC93EE0C0
+	for <linux-mm@kvack.org>; Mon, 11 Jun 2012 17:50:58 +0900 (JST)
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 5CFCE45DEB6
+	for <linux-mm@kvack.org>; Mon, 11 Jun 2012 17:50:58 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 2360145DEB3
+	for <linux-mm@kvack.org>; Mon, 11 Jun 2012 17:50:58 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 12A951DB8041
+	for <linux-mm@kvack.org>; Mon, 11 Jun 2012 17:50:58 +0900 (JST)
+Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.240.81.134])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id A46F21DB8045
+	for <linux-mm@kvack.org>; Mon, 11 Jun 2012 17:50:57 +0900 (JST)
+Message-ID: <4FD5B0F0.8080606@jp.fujitsu.com>
+Date: Mon, 11 Jun 2012 17:48:48 +0900
 From: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH -V8 10/16] hugetlb/cgroup: Add the cgroup pointer to page
- lru
-References: <1339232401-14392-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com> <1339232401-14392-11-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
-In-Reply-To: <1339232401-14392-11-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
-Content-Type: text/plain; charset=ISO-2022-JP
+Subject: Re: [PATCH] mm: do not use page_count without a page pin
+References: <1339373872-31969-1-git-send-email-minchan@kernel.org> <4FD59C31.6000606@jp.fujitsu.com> <20120611074440.GI3094@redhat.com>
+In-Reply-To: <20120611074440.GI3094@redhat.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Cc: linux-mm@kvack.org, dhillf@gmail.com, rientjes@google.com, mhocko@suse.cz, akpm@linux-foundation.org, hannes@cmpxchg.org, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: Minchan Kim <minchan@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>
 
-(2012/06/09 17:59), Aneesh Kumar K.V wrote:
-> From: "Aneesh Kumar K.V"<aneesh.kumar@linux.vnet.ibm.com>
-> 
-> Add the hugetlb cgroup pointer to 3rd page lru.next. This limit
-> the usage to hugetlb cgroup to only hugepages with 3 or more
-> normal pages. I guess that is an acceptable limitation.
-> 
-> Signed-off-by: Aneesh Kumar K.V<aneesh.kumar@linux.vnet.ibm.com>
+(2012/06/11 16:44), Andrea Arcangeli wrote:
+> Hi,
+>
+> On Mon, Jun 11, 2012 at 04:20:17PM +0900, Kamezawa Hiroyuki wrote:
+>> (2012/06/11 9:17), Minchan Kim wrote:
+>>> d179e84ba fixed the problem[1] in vmscan.c but same problem is here.
+>>> Let's fix it.
+>>>
+>>> [1] http://comments.gmane.org/gmane.linux.kernel.mm/65844
+>>>
+>>> I copy and paste d179e84ba's contents for description.
+>>>
+>>> "It is unsafe to run page_count during the physical pfn scan because
+>>> compound_head could trip on a dangling pointer when reading
+>>> page->first_page if the compound page is being freed by another CPU."
+>>>
+>>> Cc: Andrea Arcangeli<aarcange@redhat.com>
+>>> Cc: Mel Gorman<mgorman@suse.de>
+>>> Cc: Michal Hocko<mhocko@suse.cz>
+>>> Cc: KAMEZAWA Hiroyuki<kamezawa.hiroyu@jp.fujitsu.com>
+>>> Signed-off-by: Minchan Kim<minchan@kernel.org>
+>>> ---
+>>>    mm/page_alloc.c |    6 +++++-
+>>>    1 file changed, 5 insertions(+), 1 deletion(-)
+>>>
+>>> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+>>> index 266f267..019c4fe 100644
+>>> --- a/mm/page_alloc.c
+>>> +++ b/mm/page_alloc.c
+>>> @@ -5496,7 +5496,11 @@ __count_immobile_pages(struct zone *zone, struct page *page, int count)
+>>>    			continue;
+>>>
+>>>    		page = pfn_to_page(check);
+>>> -		if (!page_count(page)) {
+>>> +		/*
+>>> +		 * We can't use page_count withou pin a page
+>>> +		 * because another CPU can free compound page.
+>>> +		 */
+>>> +		if (!atomic_read(&page->_count)) {
+>>>    			if (PageBuddy(page))
+>>>    				iter += (1<<   page_order(page)) - 1;
+>>>    			continue;
+>> Nice Catch.
+>
+> Agreed!
+>
+>> Other than the comment fix already pointed out..
+>> Hmm...BTW, it seems this __count_xxx doesn't have any code for THP/Hugepage..
+>> so, we need more fixes for better code, I think.
+>> Hmm, Don't we need !PageTail() check and 'skip thp' code ?
+>
+> So the page->_count for tail pages is guaranteed zero at all times
+> (tail page refcounting is done on _mapcount).
+>
+> We could add a comment that "this check already skips compound tails
+> of THP because their page->_count is zero at all times".
+>
 
+Thank you for clarification.
 
-This approach seems much better than using page_cgroup.
-
-
-
-> ---
->   include/linux/hugetlb_cgroup.h |   31 +++++++++++++++++++++++++++++++
->   mm/hugetlb.c                   |    4 ++++
->   2 files changed, 35 insertions(+)
-> 
-> diff --git a/include/linux/hugetlb_cgroup.h b/include/linux/hugetlb_cgroup.h
-> index 5794be4..ceff1d5 100644
-> --- a/include/linux/hugetlb_cgroup.h
-> +++ b/include/linux/hugetlb_cgroup.h
-> @@ -26,6 +26,26 @@ struct hugetlb_cgroup {
->   };
-> 
->   #ifdef CONFIG_CGROUP_HUGETLB_RES_CTLR
-> +static inline struct hugetlb_cgroup *hugetlb_cgroup_from_page(struct page *page)
-> +{
-> +	if (!PageHuge(page))
-> +		return NULL;
-> +	if (compound_order(page)<  3)
-> +		return NULL;
-> +	return (struct hugetlb_cgroup *)page[2].lru.next;
-> +}
-
-As pointed out by Michal, you can have 4pages with order=2.
+I'll look into this later. Fortunately, our team has memory-hotplug
+team again for our next server and should revisit this :)
+I'll give an input to them.
 
 Thanks,
 -Kame
 
-> +
-> +static inline
-> +int set_hugetlb_cgroup(struct page *page, struct hugetlb_cgroup *h_cg)
-> +{
-> +	if (!PageHuge(page))
-> +		return -1;
-> +	if (compound_order(page)<  3)
-> +		return -1;
-> +	page[2].lru.next = (void *)h_cg;
-> +	return 0;
-> +}
-> +
->   static inline bool hugetlb_cgroup_disabled(void)
->   {
->   	if (hugetlb_subsys.disabled)
-> @@ -43,6 +63,17 @@ extern void hugetlb_cgroup_uncharge_page(int idx, unsigned long nr_pages,
->   extern void hugetlb_cgroup_uncharge_cgroup(int idx, unsigned long nr_pages,
->   					   struct hugetlb_cgroup *h_cg);
->   #else
-> +static inline struct hugetlb_cgroup *hugetlb_cgroup_from_page(struct page *page)
-> +{
-> +	return NULL;
-> +}
-> +
-> +static inline
-> +int set_hugetlb_cgroup(struct page *page, struct hugetlb_cgroup *h_cg)
-> +{
-> +	return 0;
-> +}
-> +
->   static inline bool hugetlb_cgroup_disabled(void)
->   {
->   	return true;
-> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-> index e899a2d..1ca2d8f 100644
-> --- a/mm/hugetlb.c
-> +++ b/mm/hugetlb.c
-> @@ -28,6 +28,7 @@
-> 
->   #include<linux/io.h>
->   #include<linux/hugetlb.h>
-> +#include<linux/hugetlb_cgroup.h>
->   #include<linux/node.h>
->   #include "internal.h"
-> 
-> @@ -591,6 +592,7 @@ static void update_and_free_page(struct hstate *h, struct page *page)
->   				1<<  PG_active | 1<<  PG_reserved |
->   				1<<  PG_private | 1<<  PG_writeback);
->   	}
-> +	BUG_ON(hugetlb_cgroup_from_page(page));
->   	set_compound_page_dtor(page, NULL);
->   	set_page_refcounted(page);
->   	arch_release_hugepage(page);
-> @@ -643,6 +645,7 @@ static void prep_new_huge_page(struct hstate *h, struct page *page, int nid)
->   	INIT_LIST_HEAD(&page->lru);
->   	set_compound_page_dtor(page, free_huge_page);
->   	spin_lock(&hugetlb_lock);
-> +	set_hugetlb_cgroup(page, NULL);
->   	h->nr_huge_pages++;
->   	h->nr_huge_pages_node[nid]++;
->   	spin_unlock(&hugetlb_lock);
-> @@ -892,6 +895,7 @@ static struct page *alloc_buddy_huge_page(struct hstate *h, int nid)
->   		INIT_LIST_HEAD(&page->lru);
->   		r_nid = page_to_nid(page);
->   		set_compound_page_dtor(page, free_huge_page);
-> +		set_hugetlb_cgroup(page, NULL);
->   		/*
->   		 * We incremented the global counters already
->   		 */
+> Instead of a comment we could consider defining an inline function
+> with a special name that does atomic_read(&page->_count) and use it
+> when we intend to the regular or compound head count and return 0 on
+> tails. It would make it easier to identify these places later if we
+> ever want to change the refcounting mechanism, but it may be overkill,
+> it's up to you.
+>
+> Tail pages also can't be PageLRU.
+>
+> The code after the patch should already skip thp tails fine (it won't
+> skip heads but I believe that's intentional, but one problem that
+> remains is that the heads should increase found by more than 1...).
+>
+> Thanks,
+> Andrea
 
 
 --
