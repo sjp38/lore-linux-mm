@@ -1,91 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx108.postini.com [74.125.245.108])
-	by kanga.kvack.org (Postfix) with SMTP id 4F22C6B0062
-	for <linux-mm@kvack.org>; Mon, 11 Jun 2012 19:23:43 -0400 (EDT)
-Message-ID: <4FD67E00.4040700@kernel.org>
-Date: Tue, 12 Jun 2012 08:23:44 +0900
-From: Minchan Kim <minchan@kernel.org>
+Received: from psmtp.com (na3sys010amx153.postini.com [74.125.245.153])
+	by kanga.kvack.org (Postfix) with SMTP id 7ACD96B0062
+	for <linux-mm@kvack.org>; Mon, 11 Jun 2012 19:34:18 -0400 (EDT)
+Received: by yhr47 with SMTP id 47so3905625yhr.14
+        for <linux-mm@kvack.org>; Mon, 11 Jun 2012 16:34:17 -0700 (PDT)
 MIME-Version: 1.0
-Subject: Re: [PATCH] mm: clean up __count_immobile_pages
-References: <1339380442-1137-1-git-send-email-minchan@kernel.org> <20120611144011.60fd76c8.akpm@linux-foundation.org>
-In-Reply-To: <20120611144011.60fd76c8.akpm@linux-foundation.org>
+In-Reply-To: <1335214564-17619-1-git-send-email-yinghan@google.com>
+References: <1335214564-17619-1-git-send-email-yinghan@google.com>
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Date: Mon, 11 Jun 2012 19:33:57 -0400
+Message-ID: <CAHGf_=qn_f5Vm4S=X99siuQzAJcHe8vSLJzU48GXTZXLZgGuWQ@mail.gmail.com>
+Subject: Re: [RFC PATCH] do_try_to_free_pages() might enter infinite loop
 Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: Ying Han <yinghan@google.com>
+Cc: Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mel@csn.ul.ie>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, Hugh Dickins <hughd@google.com>, Nick Piggin <npiggin@suse.de>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
 
-On 06/12/2012 06:40 AM, Andrew Morton wrote:
+On Mon, Apr 23, 2012 at 4:56 PM, Ying Han <yinghan@google.com> wrote:
+> This is not a patch targeted to be merged at all, but trying to understan=
+d
+> a logic in global direct reclaim.
+>
+> There is a logic in global direct reclaim where reclaim fails on priority=
+ 0
+> and zone->all_unreclaimable is not set, it will cause the direct to start=
+ over
+> from DEF_PRIORITY. In some extreme cases, we've seen the system hang whic=
+h is
+> very likely caused by direct reclaim enters infinite loop.
+>
+> There have been serious patches trying to fix similar issue and the lates=
+t
+> patch has good summary of all the efforts:
+>
+> commit 929bea7c714220fc76ce3f75bef9056477c28e74
+> Author: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+> Date: =A0 Thu Apr 14 15:22:12 2011 -0700
+>
+> =A0 =A0vmscan: all_unreclaimable() use zone->all_unreclaimable as a name
+>
+> Kosaki explained the problem triggered by async zone->all_unreclaimable a=
+nd
+> zone->pages_scanned where the later one was being checked by direct recla=
+im.
+> However, after the patch, the problem remains where the setting of
+> zone->all_unreclaimable is asynchronous with zone is actually reclaimable=
+ or not.
+>
+> The zone->all_unreclaimable flag is set by kswapd by checking zone->pages=
+_scanned in
+> zone_reclaimable(). Is that possible to have zone->all_unreclaimable =3D=
+=3D false while
+> the zone is actually unreclaimable?
 
-> On Mon, 11 Jun 2012 11:07:22 +0900
-> Minchan Kim <minchan@kernel.org> wrote:
-> 
->> __count_immobile_pages naming is rather awkward.
->> This patch clean up the function and add comment.
-> 
-> This conflicts with
-> mm-compaction-handle-incorrect-migrate_unmovable-type-pageblocks.patch
-> and its fixes.
-
-
-I wanted to revert [1] and friends and merge again based on [2] and this patch.
-Because [1] has still bug I explained in [2]. If it is merged without [2], it simply can
-spread bug from one place(memory hotplug) to two place(memory hotplug and compaction).
-
-We discussed real effectiveness of [1] because the patch is rather complicated than
-expectation. I don't want to add unnecessary maintain cost if it doesn't have proved benefit.
-
-KOSAKI and me : doesn't want to merge without proving (https://lkml.org/lkml/2012/6/5/3)
-Mel: Pass the decision to CMA guys (https://lkml.org/lkml/2012/6/11/242)
-Rik: want to test it based on THP alloc ratio (https://lkml.org/lkml/2012/6/11/293)
-
-I guess anyone has no sure for needing it, at least.
-
-Even, [1] added new vmstat "compact_rescued_unmovable_blocks". 
-Why I firstly suggest is just for the proving the effectiveness easily and wanted to
-revert the vmstat later before merging mainline if we prove it.
-(But it seems that KOSAKI doesn't like it - https://lkml.org/lkml/2012/6/5/282)
-But now Bartlomiej want to maintain it permanently in vmstat.
-IMHO, it's not a good idea.
-Anyway, adding new vmstat part should be careful and get a agreement from mm guys.
-
-[1] mm-compaction-handle-incorrect-migrate_unmovable-type-pageblocks.patch
-[2] [PATCH] mm: do not use page_count without a page pin
-
-> 
->> + * This function can race in PageLRU and MIGRATE_MOVABLE can have unmovable
->> + * pages so that it might be not exact.
-> 
-> I don't understand this.  Functions race against other functions, not
-> against a page flag.  Can we have another attempt at this description
-
-
-You're right. I meant page flags.
-
-> please?
-
-
-Before that, I would like to clear out how you handle this patch dependencies.
-What should I do? 
-Any tree and any patchset based on for the work?
-
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-> 
-
-
-
--- 
-Kind regards,
-Minchan Kim
-
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+I'm backed very old threads. :-(
+I could reproduce this issue by using memory hotplug. Can anyone
+review following patch?
