@@ -1,74 +1,97 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx107.postini.com [74.125.245.107])
-	by kanga.kvack.org (Postfix) with SMTP id 7F4156B0132
-	for <linux-mm@kvack.org>; Mon, 11 Jun 2012 10:28:15 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx101.postini.com [74.125.245.101])
+	by kanga.kvack.org (Postfix) with SMTP id 6DC2B6B0134
+	for <linux-mm@kvack.org>; Mon, 11 Jun 2012 10:31:30 -0400 (EDT)
+Received: by wibhn14 with SMTP id hn14so3521833wib.2
+        for <linux-mm@kvack.org>; Mon, 11 Jun 2012 07:31:28 -0700 (PDT)
 MIME-Version: 1.0
-Message-ID: <e82083d1-af9f-4766-992c-926413f02423@default>
-Date: Mon, 11 Jun 2012 07:27:56 -0700 (PDT)
-From: Dan Magenheimer <dan.magenheimer@oracle.com>
-Subject: RE: [PATCH v3 04/10] mm: frontswap: split out __frontswap_unuse_pages
+Reply-To: konrad@darnok.org
+In-Reply-To: <e82083d1-af9f-4766-992c-926413f02423@default>
 References: <1339325468-30614-1-git-send-email-levinsasha928@gmail.com>
- <1339325468-30614-5-git-send-email-levinsasha928@gmail.com>
- <4FD5856C.5060708@kernel.org> <1339410650.4999.38.camel@lappy>
-In-Reply-To: <1339410650.4999.38.camel@lappy>
-Content-Type: text/plain; charset=utf-8
+	<1339325468-30614-5-git-send-email-levinsasha928@gmail.com>
+	<4FD5856C.5060708@kernel.org>
+	<1339410650.4999.38.camel@lappy>
+	<e82083d1-af9f-4766-992c-926413f02423@default>
+Date: Mon, 11 Jun 2012 10:31:28 -0400
+Message-ID: <CAPbh3ruqk+dU4C8b=mSko+2EjumrswgkO6CUp73=8thvLNAA8A@mail.gmail.com>
+Subject: Re: [PATCH v3 04/10] mm: frontswap: split out __frontswap_unuse_pages
+From: Konrad Rzeszutek Wilk <konrad@darnok.org>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sasha Levin <levinsasha928@gmail.com>, Minchan Kim <minchan@kernel.org>
-Cc: Konrad Wilk <konrad.wilk@oracle.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Dan Magenheimer <dan.magenheimer@oracle.com>
+Cc: Sasha Levin <levinsasha928@gmail.com>, Minchan Kim <minchan@kernel.org>, Konrad Wilk <konrad.wilk@oracle.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-> From: Sasha Levin [mailto:levinsasha928@gmail.com]
-> Subject: Re: [PATCH v3 04/10] mm: frontswap: split out __frontswap_unuse_=
-pages
->=20
-> > > +=09assert_spin_locked(&swap_lock);
-> >
-> > Normally, we should use this assertion when we can't find swap_lock is =
-hold or not easily
-> > by complicated call depth or unexpected use-case like general function.
-> > But I expect this function's caller is very limited, not complicated.
-> > Just comment write down isn't enough?
->=20
-> Is there a reason not to do it though? Debugging a case where this
-> function is called without a swaplock and causes corruption won't be
-> easy.
+On Mon, Jun 11, 2012 at 10:27 AM, Dan Magenheimer
+<dan.magenheimer@oracle.com> wrote:
+>> From: Sasha Levin [mailto:levinsasha928@gmail.com]
+>> Subject: Re: [PATCH v3 04/10] mm: frontswap: split out __frontswap_unuse=
+_pages
+>>
+>> > > + assert_spin_locked(&swap_lock);
+>> >
+>> > Normally, we should use this assertion when we can't find swap_lock is=
+ hold or not easily
+>> > by complicated call depth or unexpected use-case like general function=
+.
+>> > But I expect this function's caller is very limited, not complicated.
+>> > Just comment write down isn't enough?
+>>
+>> Is there a reason not to do it though? Debugging a case where this
+>> function is called without a swaplock and causes corruption won't be
+>> easy.
+>
+> I'm not sure of the correct kernel style but I like the fact
+> that assert_spin_locked both documents the lock requirement and tests
+> it at runtime.
 
-I'm not sure of the correct kernel style but I like the fact
-that assert_spin_locked both documents the lock requirement and tests
-it at runtime.
+The kernel style is to do "
+3) Separate your changes.
 
-I don't know the correct kernel syntax but is it possible
-to make this code be functional when the kernel "debug"
-option is on, but a no-op when "debug" is disabled?
-IMHO, that would be the ideal solution.
-=20
-> > > +=09for (type =3D swap_list.head; type >=3D 0; type =3D si->next) {
-> > > +=09=09si =3D swap_info[type];
-> > > +=09=09si_frontswap_pages =3D atomic_read(&si->frontswap_pages);
-> > > +=09=09if (total_pages_to_unuse < si_frontswap_pages) {
-> > > +=09=09=09pages =3D pages_to_unuse =3D total_pages_to_unuse;
-> > > +=09=09} else {
-> > > +=09=09=09pages =3D si_frontswap_pages;
-> > > +=09=09=09pages_to_unuse =3D 0; /* unuse all */
-> > > +=09=09}
-> > > +=09=09/* ensure there is enough RAM to fetch pages from frontswap */
-> > > +=09=09if (security_vm_enough_memory_mm(current->mm, pages)) {
-> > > +=09=09=09ret =3D -ENOMEM;
-> >
-> >
-> > Nipick:
-> > I am not sure detailed error returning would be good.
-> > Caller doesn't matter it now but it can consider it in future.
-> > Hmm,
->=20
-> Is there a reason to avoid returning a meaningful error when it's pretty
-> easy?
+Separate _logical changes_ into a single patch file.
+"
 
-I'm certainly not an expert on kernel style (as this whole series
-of patches demonstrates :-) but I think setting a meaningful
-error code is useful documentation and plans for future users
-that might use the error code.
+So it is fine, but it should be in its own patch.
+>
+> I don't know the correct kernel syntax but is it possible
+> to make this code be functional when the kernel "debug"
+> option is on, but a no-op when "debug" is disabled?
+> IMHO, that would be the ideal solution.
+>
+>> > > + for (type =3D swap_list.head; type >=3D 0; type =3D si->next) {
+>> > > + =A0 =A0 =A0 =A0 si =3D swap_info[type];
+>> > > + =A0 =A0 =A0 =A0 si_frontswap_pages =3D atomic_read(&si->frontswap_=
+pages);
+>> > > + =A0 =A0 =A0 =A0 if (total_pages_to_unuse < si_frontswap_pages) {
+>> > > + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 pages =3D pages_to_unuse =3D total=
+_pages_to_unuse;
+>> > > + =A0 =A0 =A0 =A0 } else {
+>> > > + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 pages =3D si_frontswap_pages;
+>> > > + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 pages_to_unuse =3D 0; /* unuse all=
+ */
+>> > > + =A0 =A0 =A0 =A0 }
+>> > > + =A0 =A0 =A0 =A0 /* ensure there is enough RAM to fetch pages from =
+frontswap */
+>> > > + =A0 =A0 =A0 =A0 if (security_vm_enough_memory_mm(current->mm, page=
+s)) {
+>> > > + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 ret =3D -ENOMEM;
+>> >
+>> >
+>> > Nipick:
+>> > I am not sure detailed error returning would be good.
+>> > Caller doesn't matter it now but it can consider it in future.
+>> > Hmm,
+>>
+>> Is there a reason to avoid returning a meaningful error when it's pretty
+>> easy?
+>
+> I'm certainly not an expert on kernel style (as this whole series
+> of patches demonstrates :-) but I think setting a meaningful
+> error code is useful documentation and plans for future users
+> that might use the error code.
+
+Aye.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
