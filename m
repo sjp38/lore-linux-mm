@@ -1,95 +1,177 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx178.postini.com [74.125.245.178])
-	by kanga.kvack.org (Postfix) with SMTP id 4DDE36B006C
-	for <linux-mm@kvack.org>; Mon, 11 Jun 2012 22:29:41 -0400 (EDT)
-Received: by pbbrp2 with SMTP id rp2so132461pbb.14
-        for <linux-mm@kvack.org>; Mon, 11 Jun 2012 19:29:40 -0700 (PDT)
-From: Robin Dong <hao.bigrat@gmail.com>
-Subject: [PATCH v3] mm: fix wrong order of operations in __lru_cache_add()
-Date: Tue, 12 Jun 2012 10:29:31 +0800
-Message-Id: <1339468171-9880-1-git-send-email-hao.bigrat@gmail.com>
+Received: from psmtp.com (na3sys010amx145.postini.com [74.125.245.145])
+	by kanga.kvack.org (Postfix) with SMTP id 5940B6B005C
+	for <linux-mm@kvack.org>; Tue, 12 Jun 2012 03:16:51 -0400 (EDT)
+Message-ID: <4FD6ECE2.6070901@kernel.org>
+Date: Tue, 12 Jun 2012 16:16:50 +0900
+From: Minchan Kim <minchan@kernel.org>
+MIME-Version: 1.0
+Subject: Re: [PATCH 3/3] [RFC] tmpfs: Add FALLOC_FL_MARK_VOLATILE/UNMARK_VOLATILE
+ handlers
+References: <1338575387-26972-1-git-send-email-john.stultz@linaro.org> <1338575387-26972-4-git-send-email-john.stultz@linaro.org> <4FC9235F.5000402@gmail.com>	<4FC92E30.4000906@linaro.org> <4FC9360B.4020401@gmail.com>	<4FC937AD.8040201@linaro.org> <4FC9438B.1000403@gmail.com>	<4FC94F61.20305@linaro.org> <4FCFB4F6.6070308@gmail.com>	<4FCFEE36.3010902@linaro.org> <CAO6Zf6D++8hOz19BmUwQ8iwbQknQRNsF4npP4r-830j04vbj=g@mail.gmail.com> <4FD13C30.2030401@linux.vnet.ibm.com> <4FD16B6E.8000307@linaro.org> <4FD1848B.7040102@gmail.com> <4FD2C6C5.1070900@linaro.org>
+In-Reply-To: <4FD2C6C5.1070900@linaro.org>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: Robin Dong <sanbai@taobao.com>
+To: John Stultz <john.stultz@linaro.org>
+Cc: KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Dmitry Adamushko <dmitry.adamushko@gmail.com>, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Android Kernel Team <kernel-team@android.com>, Robert Love <rlove@google.com>, Mel Gorman <mel@csn.ul.ie>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, Dave Chinner <david@fromorbit.com>, Neil Brown <neilb@suse.de>, Andrea Righi <andrea@betterlinux.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Taras Glek <tgek@mozilla.com>, Mike Hommey <mh@glandium.org>, Jan Kara <jack@suse.cz>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-From: Robin Dong <sanbai@taobao.com>
+Please, Cced linux-mm.
 
-When writing a new file with 2048 bytes buffer, such as write(fd, buffer, 2048), it will
-call generic_perform_write() twice for every page:
+On 06/09/2012 12:45 PM, John Stultz wrote:
 
-	write_begin
-	mark_page_accessed(page) 
-	write_end
+> On 06/07/2012 09:50 PM, KOSAKI Motohiro wrote:
+>> (6/7/12 11:03 PM), John Stultz wrote:
+>>
+>>> So I'm falling back to using a shrinker for now, but I think Dmitry's
+>>> point is an interesting one, and am interested in finding a better
+>>> place to trigger purging volatile ranges from the mm code. If anyone
+>>> has any
+>>> suggestions, let me know, otherwise I'll go back to trying to better
+>>> grok the mm code.
+>>
+>> I hate vm feature to abuse shrink_slab(). because of, it was not
+>> designed generic callback.
+>> it was designed for shrinking filesystem metadata. Therefore, vm
+>> keeping a balance between
+>> page scanning and slab scanning. then, a lot of shrink_slab misuse may
+>> lead to break balancing
+>> logic. i.e. drop icache/dcache too many and makes perfomance impact.
+>>
+>> As far as a code impact is small, I'm prefer to connect w/ vm reclaim
+>> code directly.
+> 
+> I can see your concern about mis-using the shrinker code. Also your
+> other email's point about the problem of having LRU range purging
+> behavior on a NUMA system makes some sense too.  Unfortunately I'm not
+> yet familiar enough with the reclaim core to sort out how to best track
+> and connect the volatile range purging in the vm's reclaim core yet.
+> 
+> So for now, I've moved the code back to using the shrinker (along with
+> fixing a few bugs along the way).
+> Thus, currently we manage the ranges as so:
+>     [per fs volatile range lru head] -> [volatile range] -> [volatile
+> range] -> [volatile range]
+> With the per-fs shrinker zaping the volatile ranges from the lru.
+> 
+> I *think* ideally, the pages in a volatile range should be similar to
+> non-dirty file-backed pages.  There is a cost to restore them, but
+> freeing them is very cheap.  The trick is that volatile ranges
+> introduces a new relationship between pages. Since the neighboring
+> virtual pages in a volatile range are in effect tied together, purging
+> one effectively ruins the value of keeping the others, regardless of
+> which zone they are physically.
+> 
+> So maybe the right appraoch give up the per-fs volatile range lru, and
+> try a varient of what DaveC and DaveH have suggested: Letting the page
+> based lru reclamation handle the selection on a physical page basis, but
+> then zapping the entirety of the neighboring range if any one page is
+> reclaimed.  In order to try to preserve the range based LRU behavior,
+> activate all the pages in the range together when the range is marked
 
-	write_begin
-	mark_page_accessed(page) 
-	write_end
 
-The page 1~13th will be added to lru-pvecs in write_begin() and will *NOT* be added to
-active_list even they have be accessed twice because they are not PageLRU(page).
-But when page 14th comes, all pages in lru-pvecs will be moved to inactive_list
-(by __lru_cache_add() ) in first write_begin(), now page 14th *is* PageLRU(page).
-And after second write_end() only page 14th  will be in active_list.
+You mean deactivation for fast reclaiming, not activation when memory pressure happen?
 
-In Hadoop environment, we do comes to this situation: after writing a file, we find
-out that only 14th, 28th, 42th... page are in active_list and others in inactive_list. Now
-kswapd works, shrinks the inactive_list, the file only have 14th, 28th...pages in memory,
-the readahead request size will be broken to only 52k (13*4k), system's performance falls
-dramatically.
-
-This problem can also replay by below steps (the machine has 8G memory):
-
-	1. dd if=/dev/zero of=/test/file.out bs=1024 count=1048576
-	2. cat another 7.5G file to /dev/null
-	3. vmtouch -m 1G -v /test/file.out, it will show:
-
-	/test/file.out
-	[oooooooooooooooooooOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO] 187847/262144
-
-	the 'o' means same pages are in memory but same are not.
+> volatile.  Since we assume ranges are un-touched when volatile, that
+> should preserve LRU purging behavior on single node systems and on
+> multi-node systems it will approximate fairly closely.
+> 
+> My main concern with this approach is marking and unmarking volatile
+> ranges needs to be fast, so I'm worried about the additional overhead of
+> activating each of the containing pages on mark_volatile.
 
 
-The solution for this problem is simple: the 14th page should be added to lru_add_pvecs
-before mark_page_accessed() just as other pages.
+Yes. it could be a problem if range is very large and populated already.
+Why can't we make new hooks?
 
-Signed-off-by: Robin Dong <sanbai@taobao.com>
-Reviewed-by: Minchan Kim <minchan@kernel.org>
-Reviewed-by: Johannes Weiner <hannes@cmpxchg.org>
----
- mm/swap.c |   11 ++++++++++-
- 1 file changed, 10 insertions(+), 1 deletion(-)
+Just concept for showing my intention..
 
-diff --git a/mm/swap.c b/mm/swap.c
-index 4e7e2ec..bf03903 100644
---- a/mm/swap.c
-+++ b/mm/swap.c
-@@ -394,13 +394,22 @@ void mark_page_accessed(struct page *page)
- }
- EXPORT_SYMBOL(mark_page_accessed);
- 
-+/*
-+ * Order of operations is important: flush the pagevec when it's already
-+ * full, not when adding the last page, to make sure that last page is
-+ * not added to the LRU directly when passed to this function. Because
-+ * mark_page_accessed() (called after this when writing) only activates
-+ * pages that are on the LRU, linear writes in subpage chunks would see
-+ * every PAGEVEC_SIZE page activated, which is unexpected.
-+ */
- void __lru_cache_add(struct page *page, enum lru_list lru)
++int shrink_volatile_pages(struct zone *zone)
++{
++       int ret = 0;
++       if (zone_page_state(zone, NR_ZONE_VOLATILE))
++               ret = shmem_purge_one_volatile_range();
++       return ret;
++}
++
+ static void shrink_zone(struct zone *zone, struct scan_control *sc)
  {
- 	struct pagevec *pvec = &get_cpu_var(lru_add_pvecs)[lru];
- 
- 	page_cache_get(page);
--	if (!pagevec_add(pvec, page))
-+	if (!pagevec_space(pvec))
- 		__pagevec_lru_add(pvec, lru);
-+	pagevec_add(pvec, page);
- 	put_cpu_var(lru_add_pvecs);
- }
- EXPORT_SYMBOL(__lru_cache_add);
+        struct mem_cgroup *root = sc->target_mem_cgroup;
+@@ -1827,6 +1835,18 @@ static void shrink_zone(struct zone *zone, struct scan_control *sc)
+                .priority = sc->priority,
+        };
+        struct mem_cgroup *memcg;
++       int ret;
++
++       /*
++        * Before we dive into trouble maker, let's look at easy-
++        * reclaimable pages and avoid costly-reclaim if possible.
++        */
++       do {
++               ret = shrink_volatile_pages();
++               if (ret)
++                       zone_watermark_ok(zone, sc->order, xxx);
++                               return;
++       } while(ret)
+
+Off-topic:
+
+I want to drive low memory notification level-triggering instead of raw vmstat trigger.
+(It's rather long thread https://lkml.org/lkml/2012/5/1/97)
+
+level 1: out-of-easy reclaimable pages (NR_VOLATILE + NR_UNMAPPED_CLEAN_PAGE)
+level 2 (more sever VM pressure than level 1): level2 + reclaimable dirty pages
+
+When it is out of easy-reclaimable pages, it might be good indication for
+low memory notification.
+
+
+> 
+> The other question I have with this approach is if we're on a system
+> that doesn't have swap, it *seems* (not totally sure I understand it
+> yet) the tmpfs file pages will be skipped over when we call
+> shrink_lruvec.  So it seems we may need to add a new lru_list enum and
+> nr[] entry (maybe LRU_VOLATILE?).   So then it may be that when we mark
+> a range as volatile, instead of just activating it, we move it to the
+> volatile lru, and then when we shrink from that list, we call back to
+> the filesystem to trigger the entire range purging.
+
+
+Adding new LRU idea might make very slow fallocate(VOLATILE) so I hope we can avoid that if possible.
+
+Off-topic: 
+But I'm not sure because I might try to make new easy-reclaimable LRU list for low memory notification.
+That LRU list would contain non-mapped clean cache page and volatile pages if I decide adding it.
+Both pages has a common characteristic that recreating page is less costly.
+It's true for eMMC/SSD like device, at least.
+
+> 
+> Does that sound reasonable?  Any other suggested approaches?  I'll think
+> some more about it this weekend and try to get a patch scratched out
+> early next week.
+> 
+> thanks
+> -john
+> 
+> 
+> 
+> 
+> 
+> 
+> 
+> 
+> 
+> 
+> 
+> 
+> 
+
+
+
 -- 
-1.7.9.5
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
