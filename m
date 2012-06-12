@@ -1,39 +1,37 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx120.postini.com [74.125.245.120])
-	by kanga.kvack.org (Postfix) with SMTP id 1EEE46B005C
-	for <linux-mm@kvack.org>; Tue, 12 Jun 2012 12:03:28 -0400 (EDT)
-Received: by yhr47 with SMTP id 47so4613682yhr.14
-        for <linux-mm@kvack.org>; Tue, 12 Jun 2012 09:03:27 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx154.postini.com [74.125.245.154])
+	by kanga.kvack.org (Postfix) with SMTP id 69FC76B005C
+	for <linux-mm@kvack.org>; Tue, 12 Jun 2012 12:31:54 -0400 (EDT)
+Received: by ggm4 with SMTP id 4so4636254ggm.14
+        for <linux-mm@kvack.org>; Tue, 12 Jun 2012 09:31:53 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <4FD6ECE2.6070901@kernel.org>
-References: <1338575387-26972-1-git-send-email-john.stultz@linaro.org>
- <1338575387-26972-4-git-send-email-john.stultz@linaro.org>
- <4FC9235F.5000402@gmail.com> <4FC92E30.4000906@linaro.org>
- <4FC9360B.4020401@gmail.com> <4FC937AD.8040201@linaro.org>
- <4FC9438B.1000403@gmail.com> <4FC94F61.20305@linaro.org> <4FCFB4F6.6070308@gmail.com>
- <4FCFEE36.3010902@linaro.org> <CAO6Zf6D++8hOz19BmUwQ8iwbQknQRNsF4npP4r-830j04vbj=g@mail.gmail.com>
- <4FD13C30.2030401@linux.vnet.ibm.com> <4FD16B6E.8000307@linaro.org>
- <4FD1848B.7040102@gmail.com> <4FD2C6C5.1070900@linaro.org> <4FD6ECE2.6070901@kernel.org>
+In-Reply-To: <20120612142012.GB20467@suse.de>
+References: <1339406250-10169-1-git-send-email-kosaki.motohiro@gmail.com>
+ <1339406250-10169-6-git-send-email-kosaki.motohiro@gmail.com> <20120612142012.GB20467@suse.de>
 From: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
-Date: Tue, 12 Jun 2012 12:03:04 -0400
-Message-ID: <CAHGf_=oTC6LGd-5=aGYM4rj+3AAVPr9Zk8cT_FXguVhSVgKWnQ@mail.gmail.com>
-Subject: Re: [PATCH 3/3] [RFC] tmpfs: Add FALLOC_FL_MARK_VOLATILE/UNMARK_VOLATILE
- handlers
+Date: Tue, 12 Jun 2012 12:31:29 -0400
+Message-ID: <CAHGf_=omc4g_JHu+mr-HKmoH=juhcXKgPGOKamAOrJCWkbdEMQ@mail.gmail.com>
+Subject: Re: [PATCH 5/6] mempolicy: fix a memory corruption by refcount
+ imbalance in alloc_pages_vma()
 Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: John Stultz <john.stultz@linaro.org>, Dave Hansen <dave@linux.vnet.ibm.com>, Dmitry Adamushko <dmitry.adamushko@gmail.com>, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Android Kernel Team <kernel-team@android.com>, Robert Love <rlove@google.com>, Mel Gorman <mel@csn.ul.ie>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, Dave Chinner <david@fromorbit.com>, Neil Brown <neilb@suse.de>, Andrea Righi <andrea@betterlinux.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Taras Glek <tgek@mozilla.com>, Mike Hommey <mh@glandium.org>, Jan Kara <jack@suse.cz>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Mel Gorman <mgorman@suse.de>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@google.com>, Dave Jones <davej@redhat.com>, Christoph Lameter <cl@linux.com>, stable@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Miao Xie <miaox@cn.fujitsu.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>
 
-> Off-topic:
-> But I'm not sure because I might try to make new easy-reclaimable LRU list for low memory notification.
-> That LRU list would contain non-mapped clean cache page and volatile pages if I decide adding it.
-> Both pages has a common characteristic that recreating page is less costly.
-> It's true for eMMC/SSD like device, at least.
+> Why does dequeue_huge_page_vma() not need to be changed as well? It's
+> currently using mpol_cond_put() but if there is a goto retry_cpuset then
+> will it have not take an additional reference count and leak?
 
-+1.
+dequeue_huge_page_vma() also uses get_vma_policy() and mpol_cond_put()
+pair. thus we don't need special concern.
 
-I like L2 inactive list.
+
+> Would it be more straight forward to put the mpol_cond_put() and __mpol_put()
+> calls after the "goto retry_cpuset" checks instead?
+
+I hope to keep symmetric. Sane design prevent a lot of unintentional breakage.
+Frankly says, now all caller assume the symmetric. It's natural.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
