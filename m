@@ -1,113 +1,99 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx117.postini.com [74.125.245.117])
-	by kanga.kvack.org (Postfix) with SMTP id 87F2B6B0069
-	for <linux-mm@kvack.org>; Tue, 12 Jun 2012 04:53:58 -0400 (EDT)
-Received: from m1.gw.fujitsu.co.jp (unknown [10.0.50.71])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 16E593EE0B6
-	for <linux-mm@kvack.org>; Tue, 12 Jun 2012 17:53:57 +0900 (JST)
-Received: from smail (m1 [127.0.0.1])
-	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id F1A2F45DE5B
-	for <linux-mm@kvack.org>; Tue, 12 Jun 2012 17:53:56 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
-	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id CE0DE45DE58
-	for <linux-mm@kvack.org>; Tue, 12 Jun 2012 17:53:56 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id C01D51DB8053
-	for <linux-mm@kvack.org>; Tue, 12 Jun 2012 17:53:56 +0900 (JST)
-Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.240.81.146])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 6FF4F1DB8048
-	for <linux-mm@kvack.org>; Tue, 12 Jun 2012 17:53:56 +0900 (JST)
-Message-ID: <4FD70329.4080009@jp.fujitsu.com>
-Date: Tue, 12 Jun 2012 17:51:53 +0900
-From: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Received: from psmtp.com (na3sys010amx202.postini.com [74.125.245.202])
+	by kanga.kvack.org (Postfix) with SMTP id 976BF6B004D
+	for <linux-mm@kvack.org>; Tue, 12 Jun 2012 04:56:45 -0400 (EDT)
+Date: Tue, 12 Jun 2012 10:56:39 +0200
+From: Jan Kara <jack@suse.cz>
+Subject: Re: Hole punching and mmap races
+Message-ID: <20120612085639.GA6021@quack.suse.cz>
+References: <20120524123538.GA5632@quack.suse.cz>
+ <20120605055150.GF4347@dastard>
+ <20120605231530.GB4402@quack.suse.cz>
+ <20120606000636.GG22848@dastard>
+ <20120606095827.GA6304@quack.suse.cz>
+ <20120606133616.GL22848@dastard>
+ <20120607215835.GB393@quack.suse.cz>
+ <20120608005700.GW4347@dastard>
+ <20120608213629.GA1365@quack.suse.cz>
+ <20120608230616.GA25389@dastard>
 MIME-Version: 1.0
-Subject: Re: [PATCH -V8 15/16] hugetlb/cgroup: migrate hugetlb cgroup info
- from oldpage to new page during migration
-References: <1339232401-14392-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com> <1339232401-14392-16-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
-In-Reply-To: <1339232401-14392-16-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
-Content-Type: text/plain; charset=ISO-2022-JP
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20120608230616.GA25389@dastard>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Cc: linux-mm@kvack.org, dhillf@gmail.com, rientjes@google.com, mhocko@suse.cz, akpm@linux-foundation.org, hannes@cmpxchg.org, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org
+To: Dave Chinner <david@fromorbit.com>
+Cc: Jan Kara <jack@suse.cz>, linux-fsdevel@vger.kernel.org, xfs@oss.sgi.com, linux-ext4@vger.kernel.org, Hugh Dickins <hughd@google.com>, linux-mm@kvack.org
 
-(2012/06/09 18:00), Aneesh Kumar K.V wrote:
-> From: "Aneesh Kumar K.V"<aneesh.kumar@linux.vnet.ibm.com>
+On Sat 09-06-12 09:06:16, Dave Chinner wrote:
+> On Fri, Jun 08, 2012 at 11:36:29PM +0200, Jan Kara wrote:
+> > On Fri 08-06-12 10:57:00, Dave Chinner wrote:
+> > > On Thu, Jun 07, 2012 at 11:58:35PM +0200, Jan Kara wrote:
+> > > > On Wed 06-06-12 23:36:16, Dave Chinner wrote:
+> > > > Also we could implement the common case of locking a range
+> > > > containing single page by just taking page lock so we save modification of
+> > > > interval tree in the common case and generally make the tree smaller (of
+> > > > course, at the cost of somewhat slowing down cases where we want to lock
+> > > > larger ranges).
+> > > 
+> > > That seems like premature optimistion to me, and all the cases I
+> > > think we need to care about are locking large ranges of the tree.
+> > > Let's measure what the overhead of tracking everything in a single
+> > > tree is first so we can then see what needs optimising...
+> >   Umm, I agree that initially we probably want just to have the mapping
+> > range lock ability, stick it somewhere to IO path and make things work.
+> > Then we can look into making it faster / merging with page lock.
+> > 
+> > However I disagree we care most about locking large ranges. For all
+> > buffered IO and all page faults we need to lock a range containing just a
+> > single page. We cannot lock more due to locking constraints with mmap_sem.
 > 
-> With HugeTLB pages, hugetlb cgroup is uncharged in compound page destructor.  Since
-> we are holding a hugepage reference, we can be sure that old page won't
-> get uncharged till the last put_page().
+> Not sure I understand what that constraint is - I hav ebeen thinking
+> that the buffered IO range lok would be across the entire IO, not
+> individual pages.
 > 
-> Signed-off-by: Aneesh Kumar K.V<aneesh.kumar@linux.vnet.ibm.com>
+> As it is, if we want to do multipage writes (and we do), we have to
+> be able to lock a range of the mapping in the buffered IO path at a
+> time...
+  The problem is that buffered IO path does (e.g. in
+generic_perform_write()):
+  iov_iter_fault_in_readable() - that faults in one page worth of buffers,
+    takes mmap_sem
+  ->write_begin()
+  copy data - iov_iter_copy_from_user_atomic()
+  ->write_end()
 
-one comment.
+  So we take mmap_sem before writing every page. We could fault in more,
+but that increases risk of iov_iter_copy_from_user_atomic() failing because
+the page got reclaimed before we got to it. So the amount we fault in would
+have to adapt to current memory pressure. That's certainly possible but not
+related to the problem we are trying to solve now so I'd prefer to handle
+it separately.
 
-> ---
->   include/linux/hugetlb_cgroup.h |    8 ++++++++
->   mm/hugetlb_cgroup.c            |   21 +++++++++++++++++++++
->   mm/migrate.c                   |    5 +++++
->   3 files changed, 34 insertions(+)
+> > So the places that will lock larger ranges are: direct IO, truncate, punch
+> > hole. Writeback actually doesn't seem to need any additional protection at
+> > least as I've sketched out things so far.
 > 
-> diff --git a/include/linux/hugetlb_cgroup.h b/include/linux/hugetlb_cgroup.h
-> index ba4836f..b64d067 100644
-> --- a/include/linux/hugetlb_cgroup.h
-> +++ b/include/linux/hugetlb_cgroup.h
-> @@ -63,6 +63,8 @@ extern void hugetlb_cgroup_uncharge_page(int idx, unsigned long nr_pages,
->   extern void hugetlb_cgroup_uncharge_cgroup(int idx, unsigned long nr_pages,
->   					   struct hugetlb_cgroup *h_cg);
->   extern int hugetlb_cgroup_file_init(int idx) __init;
-> +extern void hugetlb_cgroup_migrate(struct page *oldhpage,
-> +				   struct page *newhpage);
->   #else
->   static inline struct hugetlb_cgroup *hugetlb_cgroup_from_page(struct page *page)
->   {
-> @@ -112,5 +114,11 @@ static inline int __init hugetlb_cgroup_file_init(int idx)
->   {
->   	return 0;
->   }
-> +
-> +static inline void hugetlb_cgroup_migrate(struct page *oldhpage,
-> +					  struct page *newhpage)
-> +{
-> +	return;
-> +}
->   #endif  /* CONFIG_MEM_RES_CTLR_HUGETLB */
->   #endif
-> diff --git a/mm/hugetlb_cgroup.c b/mm/hugetlb_cgroup.c
-> index c2b7b8e..2d384fe 100644
-> --- a/mm/hugetlb_cgroup.c
-> +++ b/mm/hugetlb_cgroup.c
-> @@ -394,6 +394,27 @@ int __init hugetlb_cgroup_file_init(int idx)
->   	return 0;
->   }
-> 
-> +void hugetlb_cgroup_migrate(struct page *oldhpage, struct page *newhpage)
-> +{
-> +	struct hugetlb_cgroup *h_cg;
-> +
-> +	VM_BUG_ON(!PageHuge(oldhpage));
-> +
-> +	if (hugetlb_cgroup_disabled())
-> +		return;
-> +
-> +	spin_lock(&hugetlb_lock);
-> +	h_cg = hugetlb_cgroup_from_page(oldhpage);
-> +	set_hugetlb_cgroup(oldhpage, NULL);
-> +	cgroup_exclude_rmdir(&h_cg->css);
-> +
-> +	/* move the h_cg details to new cgroup */
-> +	set_hugetlb_cgroup(newhpage, h_cg);
-> +	spin_unlock(&hugetlb_lock);
-> +	cgroup_release_and_wakeup_rmdir(&h_cg->css);
-> +	return;
+> AFAICT, writeback needs protection against punching holes, just like
+> mmap does, because they use the same "avoid truncated pages"
+> mechanism.
+  If punching hole does:
+lock_mapping_range()
+evict all pages in a range
+punch blocks
+unlock_mapping_range()
 
+  Then we shouldn't race against writeback because there are no pages in
+the mapping range we punch and they cannot be created there because we
+hold the lock. I agree this might be unnecessary optimization, but the nice
+result is that we can clean dirty pages regardless of what others do with
+the mapping. So in case there would be problems with taking mapping lock from
+writeback, we could avoid that.
 
-Why do you need  cgroup_exclude/release rmdir here ? you holds hugetlb_lock()
-and charges will not be empty, here.
-
-Thanks,
--Kame
+								Honza
+-- 
+Jan Kara <jack@suse.cz>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
