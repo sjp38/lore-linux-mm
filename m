@@ -1,71 +1,39 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx180.postini.com [74.125.245.180])
-	by kanga.kvack.org (Postfix) with SMTP id C5D276B0069
-	for <linux-mm@kvack.org>; Tue, 12 Jun 2012 10:36:32 -0400 (EDT)
-Message-ID: <1339511787.3050.5.camel@dabdike.int.hansenpartnership.com>
-Subject: Re: [PATCH 2/4] Add a __GFP_SLABMEMCG flag
-From: James Bottomley <James.Bottomley@HansenPartnership.com>
-Date: Tue, 12 Jun 2012 15:36:27 +0100
-In-Reply-To: <alpine.DEB.2.00.1206110905220.31180@router.home>
-References: <1339148601-20096-1-git-send-email-glommer@parallels.com>
-	 <1339148601-20096-3-git-send-email-glommer@parallels.com>
-	 <alpine.DEB.2.00.1206081430380.4213@router.home>
-	 <1339203416.6893.10.camel@dabdike.int.hansenpartnership.com>
-	 <alpine.DEB.2.00.1206110905220.31180@router.home>
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: 7bit
-Mime-Version: 1.0
+Received: from psmtp.com (na3sys010amx120.postini.com [74.125.245.120])
+	by kanga.kvack.org (Postfix) with SMTP id 1EEE46B005C
+	for <linux-mm@kvack.org>; Tue, 12 Jun 2012 12:03:28 -0400 (EDT)
+Received: by yhr47 with SMTP id 47so4613682yhr.14
+        for <linux-mm@kvack.org>; Tue, 12 Jun 2012 09:03:27 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <4FD6ECE2.6070901@kernel.org>
+References: <1338575387-26972-1-git-send-email-john.stultz@linaro.org>
+ <1338575387-26972-4-git-send-email-john.stultz@linaro.org>
+ <4FC9235F.5000402@gmail.com> <4FC92E30.4000906@linaro.org>
+ <4FC9360B.4020401@gmail.com> <4FC937AD.8040201@linaro.org>
+ <4FC9438B.1000403@gmail.com> <4FC94F61.20305@linaro.org> <4FCFB4F6.6070308@gmail.com>
+ <4FCFEE36.3010902@linaro.org> <CAO6Zf6D++8hOz19BmUwQ8iwbQknQRNsF4npP4r-830j04vbj=g@mail.gmail.com>
+ <4FD13C30.2030401@linux.vnet.ibm.com> <4FD16B6E.8000307@linaro.org>
+ <4FD1848B.7040102@gmail.com> <4FD2C6C5.1070900@linaro.org> <4FD6ECE2.6070901@kernel.org>
+From: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
+Date: Tue, 12 Jun 2012 12:03:04 -0400
+Message-ID: <CAHGf_=oTC6LGd-5=aGYM4rj+3AAVPr9Zk8cT_FXguVhSVgKWnQ@mail.gmail.com>
+Subject: Re: [PATCH 3/3] [RFC] tmpfs: Add FALLOC_FL_MARK_VOLATILE/UNMARK_VOLATILE
+ handlers
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: Glauber Costa <glommer@parallels.com>, cgroups@vger.kernel.org, linux-mm@kvack.org, Tejun Heo <tj@kernel.org>, Frederic Weisbecker <fweisbeck@gmail.com>, devel@openvz.org, kamezawa.hiroyu@jp.fujitsu.com, Pekka Enberg <penberg@cs.helsinki.fi>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Suleiman Souhlal <suleiman@google.com>
+To: Minchan Kim <minchan@kernel.org>
+Cc: John Stultz <john.stultz@linaro.org>, Dave Hansen <dave@linux.vnet.ibm.com>, Dmitry Adamushko <dmitry.adamushko@gmail.com>, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Android Kernel Team <kernel-team@android.com>, Robert Love <rlove@google.com>, Mel Gorman <mel@csn.ul.ie>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, Dave Chinner <david@fromorbit.com>, Neil Brown <neilb@suse.de>, Andrea Righi <andrea@betterlinux.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Taras Glek <tgek@mozilla.com>, Mike Hommey <mh@glandium.org>, Jan Kara <jack@suse.cz>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On Mon, 2012-06-11 at 09:24 -0500, Christoph Lameter wrote:
-> On Sat, 9 Jun 2012, James Bottomley wrote:
-> 
-> > On Fri, 2012-06-08 at 14:31 -0500, Christoph Lameter wrote:
-> > > On Fri, 8 Jun 2012, Glauber Costa wrote:
-> > >
-> > > >   */
-> > > >  #define __GFP_NOTRACK_FALSE_POSITIVE (__GFP_NOTRACK)
-> > > >
-> > > > -#define __GFP_BITS_SHIFT 25	/* Room for N __GFP_FOO bits */
-> > > > +#define __GFP_BITS_SHIFT 26	/* Room for N __GFP_FOO bits */
-> > > >  #define __GFP_BITS_MASK ((__force gfp_t)((1 << __GFP_BITS_SHIFT) - 1))
-> > >
-> > > Please make this conditional on CONFIG_MEMCG or so. The bit can be useful
-> > > in particular on 32 bit architectures.
-> >
-> > I really don't think that's at all a good idea.  It's asking for trouble
-> > when we don't spot we have a flag overlap.  It also means that we're
-> > trusting the reuser to know that their use case can never clash with
-> > CONFIG_MEMGC and I can't think of any configuration where this is
-> > possible currently.
-> 
-> Flag overlap can be avoided using the same method as we have done with the
-> page flags (which uses an enum).  There are other uses of N bits after
-> GFP_BITS_SHIFT. On first look this looks like its 4 right now so we cannot
-> go above 28 on 32 bit platforms. It would also be useful to have that
-> limit in there somehow so that someone modifying the GFP_BITS sees the
-> danger.
+> Off-topic:
+> But I'm not sure because I might try to make new easy-reclaimable LRU list for low memory notification.
+> That LRU list would contain non-mapped clean cache page and volatile pages if I decide adding it.
+> Both pages has a common characteristic that recreating page is less costly.
+> It's true for eMMC/SSD like device, at least.
 
-But if there's no possible configuration that can use a flag and depends
-on !CONFIG_MEMGC then why bother?  The main problem is that unless you
-get two configurations which exactly cancel each other and require a GFP
-flag, you end up eventually with unbuildable configurations that need
->32 flags.
++1.
 
-> > I think making the flag define of __GFP_SLABMEMCG conditional might be a
-> > reasonable idea so we get a compile failure if anyone tries to use it
-> > when !CONFIG_MEMCG.
-> 
-> Ok that is another reason to do so.
-
-A reason to make it conditional, not a reason to go to the trouble of
-making the flags reusable.
-
-James
-
+I like L2 inactive list.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
