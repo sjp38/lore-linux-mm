@@ -1,21 +1,22 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx190.postini.com [74.125.245.190])
-	by kanga.kvack.org (Postfix) with SMTP id 24F106B0072
-	for <linux-mm@kvack.org>; Wed, 13 Jun 2012 07:02:20 -0400 (EDT)
-Received: from epcpsbgm1.samsung.com (mailout4.samsung.com [203.254.224.34])
- by mailout4.samsung.com
+Received: from psmtp.com (na3sys010amx125.postini.com [74.125.245.125])
+	by kanga.kvack.org (Postfix) with SMTP id 939296B0075
+	for <linux-mm@kvack.org>; Wed, 13 Jun 2012 07:02:25 -0400 (EDT)
+Received: from epcpsbgm1.samsung.com (mailout2.samsung.com [203.254.224.25])
+ by mailout2.samsung.com
  (Oracle Communications Messaging Server 7u4-24.01(7.0.4.24.0) 64bit (built Nov
- 17 2011)) with ESMTP id <0M5J0008AYNOQ111@mailout4.samsung.com> for
- linux-mm@kvack.org; Wed, 13 Jun 2012 20:02:18 +0900 (KST)
+ 17 2011)) with ESMTP id <0M5J0067UYNZQY70@mailout2.samsung.com> for
+ linux-mm@kvack.org; Wed, 13 Jun 2012 20:02:24 +0900 (KST)
 Received: from mcdsrvbld02.digital.local ([106.116.37.23])
  by mmp2.samsung.com (Oracle Communications Messaging Server 7u4-24.01
  (7.0.4.24.0) 64bit (built Nov 17 2011))
  with ESMTPA id <0M5J00EDHYN9NO40@mmp2.samsung.com> for linux-mm@kvack.org;
- Wed, 13 Jun 2012 20:02:18 +0900 (KST)
+ Wed, 13 Jun 2012 20:02:23 +0900 (KST)
 From: Marek Szyprowski <m.szyprowski@samsung.com>
-Subject: [PATCHv3 1/3] mm: vmalloc: use const void * for caller argument
-Date: Wed, 13 Jun 2012 13:01:44 +0200
-Message-id: <1339585306-7147-2-git-send-email-m.szyprowski@samsung.com>
+Subject: [PATCHv3 2/3] mm: vmalloc: add VM_DMA flag to indicate areas used by
+ dma-mapping framework
+Date: Wed, 13 Jun 2012 13:01:45 +0200
+Message-id: <1339585306-7147-3-git-send-email-m.szyprowski@samsung.com>
 In-reply-to: <1339585306-7147-1-git-send-email-m.szyprowski@samsung.com>
 References: <1339585306-7147-1-git-send-email-m.szyprowski@samsung.com>
 Sender: owner-linux-mm@kvack.org
@@ -23,134 +24,42 @@ List-ID: <linux-mm.kvack.org>
 To: linux-arm-kernel@lists.infradead.org, linaro-mm-sig@lists.linaro.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 Cc: Marek Szyprowski <m.szyprowski@samsung.com>, Kyungmin Park <kyungmin.park@samsung.com>, Arnd Bergmann <arnd@arndb.de>, Russell King - ARM Linux <linux@arm.linux.org.uk>, Chunsang Jeong <chunsang.jeong@linaro.org>, Krishna Reddy <vdumpa@nvidia.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Hiroshi Doyu <hdoyu@nvidia.com>, Subash Patel <subashrp@gmail.com>, Minchan Kim <minchan@kernel.org>
 
-'const void *' is a safer type for caller function type. This patch
-updates all references to caller function type.
+Add new type of vm_area intented to be used for mappings created by
+dma-mapping framework.
 
 Signed-off-by: Marek Szyprowski <m.szyprowski@samsung.com>
 Reviewed-by: Kyungmin Park <kyungmin.park@samsung.com>
-Reviewed-by: Minchan Kim <minchan@kernel.org>
 ---
- include/linux/vmalloc.h |    8 ++++----
- mm/vmalloc.c            |   18 +++++++++---------
- 2 files changed, 13 insertions(+), 13 deletions(-)
+ include/linux/vmalloc.h |    1 +
+ mm/vmalloc.c            |    3 +++
+ 2 files changed, 4 insertions(+), 0 deletions(-)
 
 diff --git a/include/linux/vmalloc.h b/include/linux/vmalloc.h
-index dcdfc2b..2e28f4d 100644
+index 2e28f4d..e725b7b 100644
 --- a/include/linux/vmalloc.h
 +++ b/include/linux/vmalloc.h
-@@ -32,7 +32,7 @@ struct vm_struct {
- 	struct page		**pages;
- 	unsigned int		nr_pages;
- 	phys_addr_t		phys_addr;
--	void			*caller;
-+	const void		*caller;
- };
+@@ -14,6 +14,7 @@ struct vm_area_struct;		/* vma defining user mapping in mm_types.h */
+ #define VM_USERMAP	0x00000008	/* suitable for remap_vmalloc_range */
+ #define VM_VPAGES	0x00000010	/* buffer for pages was vmalloc'ed */
+ #define VM_UNLIST	0x00000020	/* vm_struct is not listed in vmlist */
++#define VM_DMA		0x00000040	/* used by dma-mapping framework */
+ /* bits [20..32] reserved for arch specific ioremap internals */
  
  /*
-@@ -62,7 +62,7 @@ extern void *vmalloc_32_user(unsigned long size);
- extern void *__vmalloc(unsigned long size, gfp_t gfp_mask, pgprot_t prot);
- extern void *__vmalloc_node_range(unsigned long size, unsigned long align,
- 			unsigned long start, unsigned long end, gfp_t gfp_mask,
--			pgprot_t prot, int node, void *caller);
-+			pgprot_t prot, int node, const void *caller);
- extern void vfree(const void *addr);
- 
- extern void *vmap(struct page **pages, unsigned int count,
-@@ -85,13 +85,13 @@ static inline size_t get_vm_area_size(const struct vm_struct *area)
- 
- extern struct vm_struct *get_vm_area(unsigned long size, unsigned long flags);
- extern struct vm_struct *get_vm_area_caller(unsigned long size,
--					unsigned long flags, void *caller);
-+					unsigned long flags, const void *caller);
- extern struct vm_struct *__get_vm_area(unsigned long size, unsigned long flags,
- 					unsigned long start, unsigned long end);
- extern struct vm_struct *__get_vm_area_caller(unsigned long size,
- 					unsigned long flags,
- 					unsigned long start, unsigned long end,
--					void *caller);
-+					const void *caller);
- extern struct vm_struct *remove_vm_area(const void *addr);
- 
- extern int map_vm_area(struct vm_struct *area, pgprot_t prot,
 diff --git a/mm/vmalloc.c b/mm/vmalloc.c
-index 2aad499..11308f0 100644
+index 11308f0..e04d59b 100644
 --- a/mm/vmalloc.c
 +++ b/mm/vmalloc.c
-@@ -1280,7 +1280,7 @@ DEFINE_RWLOCK(vmlist_lock);
- struct vm_struct *vmlist;
+@@ -2575,6 +2575,9 @@ static int s_show(struct seq_file *m, void *p)
+ 	if (v->flags & VM_IOREMAP)
+ 		seq_printf(m, " ioremap");
  
- static void setup_vmalloc_vm(struct vm_struct *vm, struct vmap_area *va,
--			      unsigned long flags, void *caller)
-+			      unsigned long flags, const void *caller)
- {
- 	vm->flags = flags;
- 	vm->addr = (void *)va->va_start;
-@@ -1306,7 +1306,7 @@ static void insert_vmalloc_vmlist(struct vm_struct *vm)
- }
++	if (v->flags & VM_DMA)
++		seq_printf(m, " dma");
++
+ 	if (v->flags & VM_ALLOC)
+ 		seq_printf(m, " vmalloc");
  
- static void insert_vmalloc_vm(struct vm_struct *vm, struct vmap_area *va,
--			      unsigned long flags, void *caller)
-+			      unsigned long flags, const void *caller)
- {
- 	setup_vmalloc_vm(vm, va, flags, caller);
- 	insert_vmalloc_vmlist(vm);
-@@ -1314,7 +1314,7 @@ static void insert_vmalloc_vm(struct vm_struct *vm, struct vmap_area *va,
- 
- static struct vm_struct *__get_vm_area_node(unsigned long size,
- 		unsigned long align, unsigned long flags, unsigned long start,
--		unsigned long end, int node, gfp_t gfp_mask, void *caller)
-+		unsigned long end, int node, gfp_t gfp_mask, const void *caller)
- {
- 	struct vmap_area *va;
- 	struct vm_struct *area;
-@@ -1375,7 +1375,7 @@ EXPORT_SYMBOL_GPL(__get_vm_area);
- 
- struct vm_struct *__get_vm_area_caller(unsigned long size, unsigned long flags,
- 				       unsigned long start, unsigned long end,
--				       void *caller)
-+				       const void *caller)
- {
- 	return __get_vm_area_node(size, 1, flags, start, end, -1, GFP_KERNEL,
- 				  caller);
-@@ -1397,7 +1397,7 @@ struct vm_struct *get_vm_area(unsigned long size, unsigned long flags)
- }
- 
- struct vm_struct *get_vm_area_caller(unsigned long size, unsigned long flags,
--				void *caller)
-+				const void *caller)
- {
- 	return __get_vm_area_node(size, 1, flags, VMALLOC_START, VMALLOC_END,
- 						-1, GFP_KERNEL, caller);
-@@ -1568,9 +1568,9 @@ EXPORT_SYMBOL(vmap);
- 
- static void *__vmalloc_node(unsigned long size, unsigned long align,
- 			    gfp_t gfp_mask, pgprot_t prot,
--			    int node, void *caller);
-+			    int node, const void *caller);
- static void *__vmalloc_area_node(struct vm_struct *area, gfp_t gfp_mask,
--				 pgprot_t prot, int node, void *caller)
-+				 pgprot_t prot, int node, const void *caller)
- {
- 	const int order = 0;
- 	struct page **pages;
-@@ -1643,7 +1643,7 @@ fail:
-  */
- void *__vmalloc_node_range(unsigned long size, unsigned long align,
- 			unsigned long start, unsigned long end, gfp_t gfp_mask,
--			pgprot_t prot, int node, void *caller)
-+			pgprot_t prot, int node, const void *caller)
- {
- 	struct vm_struct *area;
- 	void *addr;
-@@ -1699,7 +1699,7 @@ fail:
-  */
- static void *__vmalloc_node(unsigned long size, unsigned long align,
- 			    gfp_t gfp_mask, pgprot_t prot,
--			    int node, void *caller)
-+			    int node, const void *caller)
- {
- 	return __vmalloc_node_range(size, align, VMALLOC_START, VMALLOC_END,
- 				gfp_mask, prot, node, caller);
 -- 
 1.7.1.569.g6f426
 
