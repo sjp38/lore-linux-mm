@@ -1,82 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx139.postini.com [74.125.245.139])
-	by kanga.kvack.org (Postfix) with SMTP id 970F66B0070
-	for <linux-mm@kvack.org>; Wed, 13 Jun 2012 11:03:41 -0400 (EDT)
-Date: Wed, 13 Jun 2012 17:03:38 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH -V9 04/15] hugetlb: use mmu_gather instead of a temporary
- linked list for accumulating pages
-Message-ID: <20120613150338.GB14777@tiehlicka.suse.cz>
-References: <1339583254-895-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
- <1339583254-895-5-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
- <20120613145923.GA14777@tiehlicka.suse.cz>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20120613145923.GA14777@tiehlicka.suse.cz>
+Received: from psmtp.com (na3sys010amx187.postini.com [74.125.245.187])
+	by kanga.kvack.org (Postfix) with SMTP id A76B26B0070
+	for <linux-mm@kvack.org>; Wed, 13 Jun 2012 11:25:16 -0400 (EDT)
+Message-Id: <20120613152451.465596612@linux.com>
+Date: Wed, 13 Jun 2012 10:24:51 -0500
+From: Christoph Lameter <cl@linux.com>
+Subject: Common [00/20] Sl[auo]b: Common code rework V5 (for merge)
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Cc: linux-mm@kvack.org, kamezawa.hiroyu@jp.fujitsu.com, dhillf@gmail.com, rientjes@google.com, akpm@linux-foundation.org, hannes@cmpxchg.org, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org
+To: Pekka Enberg <penberg@kernel.org>
+Cc: linux-mm@kvack.org, David Rientjes <rientjes@google.com>, Matt Mackall <mpm@selenic.com>, Glauber Costa <glommer@parallels.com>, Joonsoo Kim <js1304@gmail.com>
 
-On Wed 13-06-12 16:59:23, Michal Hocko wrote:
-> On Wed 13-06-12 15:57:23, Aneesh Kumar K.V wrote:
-> > From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-> > 
-> > Use a mmu_gather instead of a temporary linked list for accumulating
-> > pages when we unmap a hugepage range
-> 
-> Sorry for coming up with the comment that late but you owe us an
-> explanation _why_ you are doing this.
-> 
-> I assume that this fixes a real problem when we take i_mmap_mutex
-> already up in 
-> unmap_mapping_range
->   mutex_lock(&mapping->i_mmap_mutex);
->   unmap_mapping_range_tree | unmap_mapping_range_list 
->     unmap_mapping_range_vma
->       zap_page_range_single
->         unmap_single_vma
-> 	  unmap_hugepage_range
-> 	    mutex_lock(&vma->vm_file->f_mapping->i_mmap_mutex);
-> 
-> And that this should have been marked for stable as well (I haven't
-> checked when this has been introduced).
-> 
-> But then I do not see how this help when you still do this:
-> [...]
-> > diff --git a/mm/memory.c b/mm/memory.c
-> > index 1b7dc66..545e18a 100644
-> > --- a/mm/memory.c
-> > +++ b/mm/memory.c
-> > @@ -1326,8 +1326,11 @@ static void unmap_single_vma(struct mmu_gather *tlb,
-> >  			 * Since no pte has actually been setup, it is
-> >  			 * safe to do nothing in this case.
-> >  			 */
-> > -			if (vma->vm_file)
-> > -				unmap_hugepage_range(vma, start, end, NULL);
-> > +			if (vma->vm_file) {
-> > +				mutex_lock(&vma->vm_file->f_mapping->i_mmap_mutex);
-> > +				__unmap_hugepage_range(tlb, vma, start, end, NULL);
-> > +				mutex_unlock(&vma->vm_file->f_mapping->i_mmap_mutex);
-> > +			}
-> >  		} else
-> >  			unmap_page_range(tlb, vma, start, end, details);
-> >  	}
+V4->V5
+- Rediff against current upstream + Pekka's cleanup branch.
 
-Ahhh, you are removing the lock in the next patch. Really confusing and
-not nice for the stable backport.
-Could you merge those two patches and add Cc: stable? 
-Then you can add my
-Reviewed-by: Michal Hocko <mhocko@suse.cz>
+V3->V4:
+- Do not use the COMMON macro anymore.
+- Fixup various issues
+- No general sysfs support yet due to lockdep issues with
+  keys in kmalloc'ed memory.
 
--- 
-Michal Hocko
-SUSE Labs
-SUSE LINUX s.r.o.
-Lihovarska 1060/12
-190 00 Praha 9    
-Czech Republic
+V2->V3:
+- Incorporate more feedback from Joonsoo Kim and Glauber Costa
+- And a couple more patches to deal with slab duping and move
+  more code to slab_common.c
+
+V1->V2:
+- Incorporate glommers feedback.
+- Add 2 more patches dealing with common code in kmem_cache_destroy
+
+This is a series of patches that extracts common functionality from
+slab allocators into a common code base. The intend is to standardize
+as much as possible of the allocator behavior while keeping the
+distinctive features of each allocator which are mostly due to their
+storage format and serialization approaches.
+
+This patchset makes a beginning by extracting common functionality in
+kmem_cache_create() and kmem_cache_destroy(). However, there are
+numerous other areas where such work could be beneficial:
+
+1. Extract the sysfs support from SLUB and make it common. That way
+   all allocators have a common sysfs API and are handleable in the same
+   way regardless of the allocator chose.
+
+2. Extract the error reporting and checking from SLUB and make
+   it available for all allocators. This means that all allocators
+   will gain the resiliency and error handling capabilties.
+
+3. Extract the memory hotplug and cpu hotplug handling. It seems that
+   SLAB may be more sophisticated here. Having common code here will
+   make it easier to maintain the special code.
+
+4. Extract the aliasing capability of SLUB. This will enable fast
+   slab creation without creating too many additional slab caches.
+   The arrays of caches of varying sizes in numerous subsystems
+   do not cause the creation of numerous slab caches. Storage
+   density is increased and the cache footprint is reduced.
+
+Ultimately it is to be hoped that the special code for each allocator
+shrinks to a mininum. This will also make it easier to make modification
+to allocators.
+
+In the far future one could envision that the current allocators will
+just become storage algorithms that can be chosen based on the need of
+the subsystem. F.e.
+
+Cpu cache dependend performance		= Bonwick allocator (SLAB)
+Minimal cycle count and cache footprint	= SLUB
+Maximum storage density			= K&R allocator (SLOB)
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
