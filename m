@@ -1,30 +1,30 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx136.postini.com [74.125.245.136])
-	by kanga.kvack.org (Postfix) with SMTP id 643AC6B0081
-	for <linux-mm@kvack.org>; Wed, 13 Jun 2012 07:04:38 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx139.postini.com [74.125.245.139])
+	by kanga.kvack.org (Postfix) with SMTP id 00BE76B0083
+	for <linux-mm@kvack.org>; Wed, 13 Jun 2012 07:17:23 -0400 (EDT)
 Received: from m4.gw.fujitsu.co.jp (unknown [10.0.50.74])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 7B2F13EE0C3
-	for <linux-mm@kvack.org>; Wed, 13 Jun 2012 20:04:36 +0900 (JST)
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 983DF3EE0BD
+	for <linux-mm@kvack.org>; Wed, 13 Jun 2012 20:17:22 +0900 (JST)
 Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 6177045DE51
-	for <linux-mm@kvack.org>; Wed, 13 Jun 2012 20:04:36 +0900 (JST)
+	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 81EC745DE4D
+	for <linux-mm@kvack.org>; Wed, 13 Jun 2012 20:17:22 +0900 (JST)
 Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 2AC2345DE4E
-	for <linux-mm@kvack.org>; Wed, 13 Jun 2012 20:04:36 +0900 (JST)
+	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 65E5945DE53
+	for <linux-mm@kvack.org>; Wed, 13 Jun 2012 20:17:22 +0900 (JST)
 Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 0FE691DB803B
-	for <linux-mm@kvack.org>; Wed, 13 Jun 2012 20:04:36 +0900 (JST)
-Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.240.81.146])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id BB1A81DB802F
-	for <linux-mm@kvack.org>; Wed, 13 Jun 2012 20:04:35 +0900 (JST)
-Message-ID: <4FD87332.8030805@jp.fujitsu.com>
-Date: Wed, 13 Jun 2012 20:02:10 +0900
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 566FE1DB802F
+	for <linux-mm@kvack.org>; Wed, 13 Jun 2012 20:17:22 +0900 (JST)
+Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.240.81.134])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id A8B8E1DB803B
+	for <linux-mm@kvack.org>; Wed, 13 Jun 2012 20:17:21 +0900 (JST)
+Message-ID: <4FD87646.8020206@jp.fujitsu.com>
+Date: Wed, 13 Jun 2012 20:15:18 +0900
 From: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH -V8 11/16] hugetlb/cgroup: Add charge/uncharge routines
- for hugetlb cgroup
-References: <1339232401-14392-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com> <1339232401-14392-12-git-send-email-aneesh.kumar@linux.vnet.ibm.com> <4FD6F8F9.2040901@jp.fujitsu.com> <87ipewold0.fsf@skywalker.in.ibm.com>
-In-Reply-To: <87ipewold0.fsf@skywalker.in.ibm.com>
+Subject: Re: [PATCH -V8 15/16] hugetlb/cgroup: migrate hugetlb cgroup info
+ from oldpage to new page during migration
+References: <1339232401-14392-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com> <1339232401-14392-16-git-send-email-aneesh.kumar@linux.vnet.ibm.com> <4FD70329.4080009@jp.fujitsu.com> <87aa08okvz.fsf@skywalker.in.ibm.com>
+In-Reply-To: <87aa08okvz.fsf@skywalker.in.ibm.com>
 Content-Type: text/plain; charset=ISO-2022-JP
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -32,123 +32,117 @@ List-ID: <linux-mm.kvack.org>
 To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
 Cc: linux-mm@kvack.org, dhillf@gmail.com, rientjes@google.com, mhocko@suse.cz, akpm@linux-foundation.org, hannes@cmpxchg.org, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org
 
-(2012/06/12 19:50), Aneesh Kumar K.V wrote:
+(2012/06/12 20:00), Aneesh Kumar K.V wrote:
 > Kamezawa Hiroyuki<kamezawa.hiroyu@jp.fujitsu.com>  writes:
 > 
->> (2012/06/09 17:59), Aneesh Kumar K.V wrote:
+>> (2012/06/09 18:00), Aneesh Kumar K.V wrote:
 >>> From: "Aneesh Kumar K.V"<aneesh.kumar@linux.vnet.ibm.com>
 >>>
->>> This patchset add the charge and uncharge routines for hugetlb cgroup.
->>> This will be used in later patches when we allocate/free HugeTLB
->>> pages.
+>>> With HugeTLB pages, hugetlb cgroup is uncharged in compound page destructor.  Since
+>>> we are holding a hugepage reference, we can be sure that old page won't
+>>> get uncharged till the last put_page().
 >>>
 >>> Signed-off-by: Aneesh Kumar K.V<aneesh.kumar@linux.vnet.ibm.com>
 >>
->>
->> I'm sorry if following has been already pointed out.
+>> one comment.
 >>
 >>> ---
->>>    mm/hugetlb_cgroup.c |   87 +++++++++++++++++++++++++++++++++++++++++++++++++++
->>>    1 file changed, 87 insertions(+)
+>>>    include/linux/hugetlb_cgroup.h |    8 ++++++++
+>>>    mm/hugetlb_cgroup.c            |   21 +++++++++++++++++++++
+>>>    mm/migrate.c                   |    5 +++++
+>>>    3 files changed, 34 insertions(+)
 >>>
+>>> diff --git a/include/linux/hugetlb_cgroup.h b/include/linux/hugetlb_cgroup.h
+>>> index ba4836f..b64d067 100644
+>>> --- a/include/linux/hugetlb_cgroup.h
+>>> +++ b/include/linux/hugetlb_cgroup.h
+>>> @@ -63,6 +63,8 @@ extern void hugetlb_cgroup_uncharge_page(int idx, unsigned long nr_pages,
+>>>    extern void hugetlb_cgroup_uncharge_cgroup(int idx, unsigned long nr_pages,
+>>>    					   struct hugetlb_cgroup *h_cg);
+>>>    extern int hugetlb_cgroup_file_init(int idx) __init;
+>>> +extern void hugetlb_cgroup_migrate(struct page *oldhpage,
+>>> +				   struct page *newhpage);
+>>>    #else
+>>>    static inline struct hugetlb_cgroup *hugetlb_cgroup_from_page(struct page *page)
+>>>    {
+>>> @@ -112,5 +114,11 @@ static inline int __init hugetlb_cgroup_file_init(int idx)
+>>>    {
+>>>    	return 0;
+>>>    }
+>>> +
+>>> +static inline void hugetlb_cgroup_migrate(struct page *oldhpage,
+>>> +					  struct page *newhpage)
+>>> +{
+>>> +	return;
+>>> +}
+>>>    #endif  /* CONFIG_MEM_RES_CTLR_HUGETLB */
+>>>    #endif
 >>> diff --git a/mm/hugetlb_cgroup.c b/mm/hugetlb_cgroup.c
->>> index 20a32c5..48efd5a 100644
+>>> index c2b7b8e..2d384fe 100644
 >>> --- a/mm/hugetlb_cgroup.c
 >>> +++ b/mm/hugetlb_cgroup.c
->>> @@ -105,6 +105,93 @@ static int hugetlb_cgroup_pre_destroy(struct cgroup *cgroup)
->>>    	   return -EBUSY;
+>>> @@ -394,6 +394,27 @@ int __init hugetlb_cgroup_file_init(int idx)
+>>>    	return 0;
 >>>    }
 >>>
->>> +int hugetlb_cgroup_charge_page(int idx, unsigned long nr_pages,
->>> +			       struct hugetlb_cgroup **ptr)
+>>> +void hugetlb_cgroup_migrate(struct page *oldhpage, struct page *newhpage)
 >>> +{
->>> +	int ret = 0;
->>> +	struct res_counter *fail_res;
->>> +	struct hugetlb_cgroup *h_cg = NULL;
->>> +	unsigned long csize = nr_pages * PAGE_SIZE;
+>>> +	struct hugetlb_cgroup *h_cg;
+>>> +
+>>> +	VM_BUG_ON(!PageHuge(oldhpage));
 >>> +
 >>> +	if (hugetlb_cgroup_disabled())
->>> +		goto done;
->>> +	/*
->>> +	 * We don't charge any cgroup if the compound page have less
->>> +	 * than 3 pages.
->>> +	 */
->>> +	if (hstates[idx].order<   2)
->>> +		goto done;
->>> +again:
->>> +	rcu_read_lock();
->>> +	h_cg = hugetlb_cgroup_from_task(current);
->>> +	if (!h_cg)
->>> +		h_cg = root_h_cgroup;
+>>> +		return;
 >>> +
->>> +	if (!css_tryget(&h_cg->css)) {
->>> +		rcu_read_unlock();
->>> +		goto again;
->>> +	}
->>> +	rcu_read_unlock();
+>>> +	spin_lock(&hugetlb_lock);
+>>> +	h_cg = hugetlb_cgroup_from_page(oldhpage);
+>>> +	set_hugetlb_cgroup(oldhpage, NULL);
+>>> +	cgroup_exclude_rmdir(&h_cg->css);
 >>> +
->>> +	ret = res_counter_charge(&h_cg->hugepage[idx], csize,&fail_res);
->>> +	css_put(&h_cg->css);
->>> +done:
->>> +	*ptr = h_cg;
->>> +	return ret;
->>> +}
->>> +
+>>> +	/* move the h_cg details to new cgroup */
+>>> +	set_hugetlb_cgroup(newhpage, h_cg);
+>>> +	spin_unlock(&hugetlb_lock);
+>>> +	cgroup_release_and_wakeup_rmdir(&h_cg->css);
+>>> +	return;
 >>
->> Memory cgroup uses very complicated 'charge' routine for handling pageout...
->> which gets sleep.
 >>
->> For hugetlbfs, it has not sleep routine, you can do charge in simple way.
->> I guess...get/put here is overkill.
->>
->> For example, h_cg cannot be freed while it has tasks. So, if 'current' is
->> belongs to the cgroup, it cannot be disappear. Then, you don't need get/put,
->> additional atomic ops for holding cgroup.
->>
->> 	rcu_read_lock();
->> 	h_cg = hugetlb_cgroup_from_task(current);
->> 	ret = res_counter_charge(&h_cg->hugetpage[idx], csize,&fail_res);
->> 	rcu_read_unlock();
->>
->> 	return ret;
+>> Why do you need  cgroup_exclude/release rmdir here ? you holds hugetlb_lock()
+>> and charges will not be empty, here.
 >>
 > 
-> What if the task got moved ot of the cgroup and cgroup got deleted by an
-> rmdir ?
+>   But even without empty charge, we can still remove the cgroup right ?
+>   ie if we don't have any task but some charge in the cgroup because of
+>   shared mmap in hugetlbfs.
 > 
 
-I think 
- - yes, the task, 'current', can be moved off from the cgroup.
- - rcu_read_lock() prevents ->destroy() cgroup.
+IIUC, cgroup_exclude_rmdir() is for putting rmdir() task under sleep state
+and avoiding busy retries. Here, current thread is invoking rmdir() against
+the cgroup.....
 
-Then, the concern is that the cgroup may have resource usage even after
-->pre_destroy() is called. We don't have any serialization between
-charging <-> task_move <-> rmdir().
+from kernel/cgroup.c
 
-How about taking
-	write_lock(&mm->mmap_sem)
-	write_unlock(&mm->mmap_sem)
+	set RMDIR bit.
+	mutex_unlock(&cgroup_mutex);
 
-at moving task (->attach()) ? This will serialize task-move and charging
-without any realistic performance impact. If tasks cannot move, rmdir
-never happens.
+	call  ->pre_destroy()  
 
-Maybe you can do this later as an optimization. So, please take this as
-an suggestion.
+	mutex_lock(&cgroup_mutex);
+	
+	if cgroup has some refcnt, sleep and wait for
+	an event some thread calls cgroup_release_and_wakeup_rmdir().
+
+
+So, the waiter should call ->pre_destroy() and get succeeded.
+wating for a wakeup-event of cgroup_release_and_wakeup_rmdir() by some
+other thread holding refcnt on the cgroup.
+
+In memcg case, kswapd or some may hold reference count of memcg and wake
+up event in (2) will be issued.
+
+In this hugetlb case, it doesn't seem to happen.
 
 Thanks,
 -Kame
-
-
-
-
-
-
-
-
-
-
-
 
 
 
