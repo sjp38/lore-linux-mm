@@ -1,135 +1,120 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx206.postini.com [74.125.245.206])
-	by kanga.kvack.org (Postfix) with SMTP id 618516B004D
-	for <linux-mm@kvack.org>; Wed, 13 Jun 2012 07:34:42 -0400 (EDT)
-Received: from /spool/local
-	by e28smtp08.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
-	Wed, 13 Jun 2012 17:04:38 +0530
-Received: from d28av04.in.ibm.com (d28av04.in.ibm.com [9.184.220.66])
-	by d28relay02.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q5DBYawr10813888
-	for <linux-mm@kvack.org>; Wed, 13 Jun 2012 17:04:36 +0530
-Received: from d28av04.in.ibm.com (loopback [127.0.0.1])
-	by d28av04.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q5DH4MRp013303
-	for <linux-mm@kvack.org>; Thu, 14 Jun 2012 03:04:23 +1000
-From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Subject: [PATCH -V9 [updated] 10/15] hugetlb/cgroup: Add the cgroup pointer to page lru
-Date: Wed, 13 Jun 2012 17:04:30 +0530
-Message-Id: <1339587270-5831-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
-In-Reply-To: <1339583254-895-11-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
-References: <1339583254-895-11-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+Received: from psmtp.com (na3sys010amx197.postini.com [74.125.245.197])
+	by kanga.kvack.org (Postfix) with SMTP id EF21B6B0071
+	for <linux-mm@kvack.org>; Wed, 13 Jun 2012 07:50:48 -0400 (EDT)
+Received: from epcpsbgm2.samsung.com (mailout4.samsung.com [203.254.224.34])
+ by mailout4.samsung.com
+ (Oracle Communications Messaging Server 7u4-24.01(7.0.4.24.0) 64bit (built Nov
+ 17 2011)) with ESMTP id <0M5K00EYJ0WM5100@mailout4.samsung.com> for
+ linux-mm@kvack.org; Wed, 13 Jun 2012 20:50:47 +0900 (KST)
+Received: from mcdsrvbld02.digital.local ([106.116.37.23])
+ by mmp1.samsung.com (Oracle Communications Messaging Server 7u4-24.01
+ (7.0.4.24.0) 64bit (built Nov 17 2011))
+ with ESMTPA id <0M5K00JMG0WB4X70@mmp1.samsung.com> for linux-mm@kvack.org;
+ Wed, 13 Jun 2012 20:50:46 +0900 (KST)
+From: Marek Szyprowski <m.szyprowski@samsung.com>
+Subject: [PATCHv2 0/6] ARM: DMA-mapping: new extensions for buffer sharing
+Date: Wed, 13 Jun 2012 13:50:12 +0200
+Message-id: <1339588218-24398-1-git-send-email-m.szyprowski@samsung.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org, kamezawa.hiroyu@jp.fujitsu.com, dhillf@gmail.com, rientjes@google.com, mhocko@suse.cz, akpm@linux-foundation.org, hannes@cmpxchg.org
-Cc: linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+To: linux-arm-kernel@lists.infradead.org, linaro-mm-sig@lists.linaro.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-kernel@vger.kernel.org
+Cc: Marek Szyprowski <m.szyprowski@samsung.com>, Kyungmin Park <kyungmin.park@samsung.com>, Arnd Bergmann <arnd@arndb.de>, Russell King - ARM Linux <linux@arm.linux.org.uk>, Chunsang Jeong <chunsang.jeong@linaro.org>, Krishna Reddy <vdumpa@nvidia.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Hiroshi Doyu <hdoyu@nvidia.com>, Subash Patel <subash.ramaswamy@linaro.org>, Sumit Semwal <sumit.semwal@linaro.org>, Abhinav Kochhar <abhinav.k@samsung.com>, Tomasz Stanislawski <t.stanislaws@samsung.com>
 
-From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Hello,
 
-Add the hugetlb cgroup pointer to 3rd page lru.next. This limit
-the usage to hugetlb cgroup to only hugepages with 3 or more
-normal pages. I guess that is an acceptable limitation.
+This is an updated version of the patch series introducing a new
+features to DMA mapping subsystem to let drivers share the allocated
+buffers (preferably using recently introduced dma_buf framework) easy
+and efficient.
 
-Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
----
- include/linux/hugetlb_cgroup.h |   37 +++++++++++++++++++++++++++++++++++++
- mm/hugetlb.c                   |    4 ++++
- 2 files changed, 41 insertions(+)
+The first extension is DMA_ATTR_NO_KERNEL_MAPPING attribute. It is
+intended for use with dma_{alloc, mmap, free}_attrs functions. It can be
+used to notify dma-mapping core that the driver will not use kernel
+mapping for the allocated buffer at all, so the core can skip creating
+it. This saves precious kernel virtual address space. Such buffer can be
+accessed from userspace, after calling dma_mmap_attrs() for it (a
+typical use case for multimedia buffers). The value returned by
+dma_alloc_attrs() with this attribute should be considered as a DMA
+cookie, which needs to be passed to dma_mmap_attrs() and
+dma_free_attrs() funtions.
 
-diff --git a/include/linux/hugetlb_cgroup.h b/include/linux/hugetlb_cgroup.h
-index e9944b4..2e4cb6b 100644
---- a/include/linux/hugetlb_cgroup.h
-+++ b/include/linux/hugetlb_cgroup.h
-@@ -18,8 +18,34 @@
- #include <linux/res_counter.h>
- 
- struct hugetlb_cgroup;
-+/*
-+ * Minimum page order trackable by hugetlb cgroup.
-+ * At least 3 pages are necessary for all the tracking information.
-+ */
-+#define HUGETLB_CGROUP_MIN_ORDER	2
- 
- #ifdef CONFIG_CGROUP_HUGETLB_RES_CTLR
-+
-+static inline struct hugetlb_cgroup *hugetlb_cgroup_from_page(struct page *page)
-+{
-+	VM_BUG_ON(!PageHuge(page));
-+
-+	if (compound_order(page) < HUGETLB_CGROUP_MIN_ORDER)
-+		return NULL;
-+	return (struct hugetlb_cgroup *)page[2].lru.next;
-+}
-+
-+static inline
-+int set_hugetlb_cgroup(struct page *page, struct hugetlb_cgroup *h_cg)
-+{
-+	VM_BUG_ON(!PageHuge(page));
-+
-+	if (compound_order(page) < HUGETLB_CGROUP_MIN_ORDER)
-+		return -1;
-+	page[2].lru.next = (void *)h_cg;
-+	return 0;
-+}
-+
- static inline bool hugetlb_cgroup_disabled(void)
- {
- 	if (hugetlb_subsys.disabled)
-@@ -28,6 +54,17 @@ static inline bool hugetlb_cgroup_disabled(void)
- }
- 
- #else
-+static inline struct hugetlb_cgroup *hugetlb_cgroup_from_page(struct page *page)
-+{
-+	return NULL;
-+}
-+
-+static inline
-+int set_hugetlb_cgroup(struct page *page, struct hugetlb_cgroup *h_cg)
-+{
-+	return 0;
-+}
-+
- static inline bool hugetlb_cgroup_disabled(void)
- {
- 	return true;
-diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-index e899a2d..6a449c5 100644
---- a/mm/hugetlb.c
-+++ b/mm/hugetlb.c
-@@ -28,6 +28,7 @@
- 
- #include <linux/io.h>
- #include <linux/hugetlb.h>
-+#include <linux/hugetlb_cgroup.h>
- #include <linux/node.h>
- #include "internal.h"
- 
-@@ -591,6 +592,7 @@ static void update_and_free_page(struct hstate *h, struct page *page)
- 				1 << PG_active | 1 << PG_reserved |
- 				1 << PG_private | 1 << PG_writeback);
- 	}
-+	VM_BUG_ON(hugetlb_cgroup_from_page(page));
- 	set_compound_page_dtor(page, NULL);
- 	set_page_refcounted(page);
- 	arch_release_hugepage(page);
-@@ -643,6 +645,7 @@ static void prep_new_huge_page(struct hstate *h, struct page *page, int nid)
- 	INIT_LIST_HEAD(&page->lru);
- 	set_compound_page_dtor(page, free_huge_page);
- 	spin_lock(&hugetlb_lock);
-+	set_hugetlb_cgroup(page, NULL);
- 	h->nr_huge_pages++;
- 	h->nr_huge_pages_node[nid]++;
- 	spin_unlock(&hugetlb_lock);
-@@ -892,6 +895,7 @@ static struct page *alloc_buddy_huge_page(struct hstate *h, int nid)
- 		INIT_LIST_HEAD(&page->lru);
- 		r_nid = page_to_nid(page);
- 		set_compound_page_dtor(page, free_huge_page);
-+		set_hugetlb_cgroup(page, NULL);
- 		/*
- 		 * We incremented the global counters already
- 		 */
+The second extension is required to let drivers to share the buffers
+allocated by DMA-mapping subsystem. Right now the driver gets a dma
+address of the allocated buffer and the kernel virtual mapping for it.
+If it wants to share it with other device (= map into its dma address
+space) it usually hacks around kernel virtual addresses to get pointers
+to pages or assumes that both devices share the DMA address space. Both
+solutions are just hacks for the special cases, which should be avoided
+in the final version of buffer sharing. To solve this issue in a generic
+way, a new call to DMA mapping has been introduced - dma_get_sgtable().
+It allocates a scatter-list which describes the allocated buffer and
+lets the driver(s) to use it with other device(s) by calling
+dma_map_sg() on it.
+
+The third extension solves the performance issues which we observed with
+some advanced buffer sharing use cases, which require creating a dma
+mapping for the same memory buffer for more than one device. From the
+DMA-mapping perspective this requires to call one of the
+dma_map_{page,single,sg} function for the given memory buffer a few
+times, for each of the devices. Each dma_map_* call performs CPU cache
+synchronization, what might be a time consuming operation, especially
+when the buffers are large. We would like to avoid any useless and time
+consuming operations, so that was the main reason for introducing
+another attribute for DMA-mapping subsystem: DMA_ATTR_SKIP_CPU_SYNC,
+which lets dma-mapping core to skip CPU cache synchronization in certain
+cases.
+
+The proposed patches have been rebased on the latest Linux kernel
+v3.5-rc2 with 'ARM: replace custom consistent dma region with vmalloc'
+patches applied (for more information, please refer to the 
+http://www.spinics.net/lists/arm-kernel/msg179202.html thread).
+
+The patches together with all dependences are also available on the
+following GIT branch:
+
+git://git.linaro.org/people/mszyprowski/linux-dma-mapping.git 3.5-rc2-dma-ext-v2
+
+Best regards
+Marek Szyprowski
+Samsung Poland R&D Center
+
+Changelog:
+
+v2:
+- rebased onto v3.5-rc2 and adapted for CMA and dma-mapping changes
+- renamed dma_get_sgtable() to dma_get_sgtable_attrs() to match the convention
+  of the other dma-mapping calls with attributes
+- added generic fallback function for dma_get_sgtable() for architectures with
+  simple dma-mapping implementations
+
+v1: http://thread.gmane.org/gmane.linux.kernel.mm/78644
+    http://thread.gmane.org/gmane.linux.kernel.cross-arch/14435 (part 2)
+- initial version
+
+Patch summary:
+
+Marek Szyprowski (6):
+  common: DMA-mapping: add DMA_ATTR_NO_KERNEL_MAPPING attribute
+  ARM: dma-mapping: add support for DMA_ATTR_NO_KERNEL_MAPPING
+    attribute
+  common: dma-mapping: introduce dma_get_sgtable() function
+  ARM: dma-mapping: add support for dma_get_sgtable()
+  common: DMA-mapping: add DMA_ATTR_SKIP_CPU_SYNC attribute
+  ARM: dma-mapping: add support for DMA_ATTR_SKIP_CPU_SYNC attribute
+
+ Documentation/DMA-attributes.txt         |   42 ++++++++++++++++++
+ arch/arm/common/dmabounce.c              |    1 +
+ arch/arm/include/asm/dma-mapping.h       |    3 +
+ arch/arm/mm/dma-mapping.c                |   69 ++++++++++++++++++++++++------
+ drivers/base/dma-mapping.c               |   18 ++++++++
+ include/asm-generic/dma-mapping-common.h |   18 ++++++++
+ include/linux/dma-attrs.h                |    2 +
+ include/linux/dma-mapping.h              |    3 +
+ 8 files changed, 142 insertions(+), 14 deletions(-)
+
 -- 
-1.7.10
+1.7.1.569.g6f426
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
