@@ -1,21 +1,21 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx164.postini.com [74.125.245.164])
-	by kanga.kvack.org (Postfix) with SMTP id 306C76B0074
+Received: from psmtp.com (na3sys010amx135.postini.com [74.125.245.135])
+	by kanga.kvack.org (Postfix) with SMTP id D92826B0075
 	for <linux-mm@kvack.org>; Wed, 13 Jun 2012 06:28:24 -0400 (EDT)
 Received: from /spool/local
-	by e28smtp04.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e28smtp05.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
-	Wed, 13 Jun 2012 15:58:17 +0530
+	Wed, 13 Jun 2012 15:58:22 +0530
 Received: from d28av01.in.ibm.com (d28av01.in.ibm.com [9.184.220.63])
-	by d28relay02.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q5DASD7U46268460
-	for <linux-mm@kvack.org>; Wed, 13 Jun 2012 15:58:13 +0530
+	by d28relay05.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q5DASJ2o29491416
+	for <linux-mm@kvack.org>; Wed, 13 Jun 2012 15:58:20 +0530
 Received: from d28av01.in.ibm.com (loopback [127.0.0.1])
-	by d28av01.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q5DFvh0E001124
-	for <linux-mm@kvack.org>; Wed, 13 Jun 2012 21:27:46 +0530
+	by d28av01.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q5DFvqpq001774
+	for <linux-mm@kvack.org>; Wed, 13 Jun 2012 21:27:53 +0530
 From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Subject: [PATCH -V9 12/15] hugetlb/cgroup: Add support for cgroup removal
-Date: Wed, 13 Jun 2012 15:57:31 +0530
-Message-Id: <1339583254-895-13-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+Subject: [PATCH -V9 10/15] hugetlb/cgroup: Add the cgroup pointer to page lru
+Date: Wed, 13 Jun 2012 15:57:29 +0530
+Message-Id: <1339583254-895-11-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
 In-Reply-To: <1339583254-895-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
 References: <1339583254-895-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
@@ -25,97 +25,107 @@ Cc: linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, "Aneesh Kumar K.V" <a
 
 From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
 
-This patch add support for cgroup removal. If we don't have parent
-cgroup, the charges are moved to root cgroup.
+Add the hugetlb cgroup pointer to 3rd page lru.next. This limit
+the usage to hugetlb cgroup to only hugepages with 3 or more
+normal pages. I guess that is an acceptable limitation.
 
 Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
 ---
- mm/hugetlb_cgroup.c |   70 +++++++++++++++++++++++++++++++++++++++++++++++++--
- 1 file changed, 68 insertions(+), 2 deletions(-)
+ include/linux/hugetlb_cgroup.h |   37 +++++++++++++++++++++++++++++++++++++
+ mm/hugetlb.c                   |    4 ++++
+ 2 files changed, 41 insertions(+)
 
-diff --git a/mm/hugetlb_cgroup.c b/mm/hugetlb_cgroup.c
-index 0f2f6ac..a3a68a4 100644
---- a/mm/hugetlb_cgroup.c
-+++ b/mm/hugetlb_cgroup.c
-@@ -107,10 +107,76 @@ static void hugetlb_cgroup_destroy(struct cgroup *cgroup)
- 	kfree(h_cgroup);
- }
+diff --git a/include/linux/hugetlb_cgroup.h b/include/linux/hugetlb_cgroup.h
+index e9944b4..be1a9f8 100644
+--- a/include/linux/hugetlb_cgroup.h
++++ b/include/linux/hugetlb_cgroup.h
+@@ -20,6 +20,32 @@
+ struct hugetlb_cgroup;
  
-+
+ #ifdef CONFIG_CGROUP_HUGETLB_RES_CTLR
 +/*
-+ * Should be called with hugetlb_lock held.
-+ * Since we are holding hugetlb_lock, pages cannot get moved from
-+ * active list or uncharged from the cgroup, So no need to get
-+ * page reference and test for page active here. This function
-+ * cannot fail.
++ * Minimum page order trackable by hugetlb cgroup.
++ * At least 3 pages are necessary for all the tracking information.
 + */
-+static void hugetlb_cgroup_move_parent(int idx, struct cgroup *cgroup,
-+				       struct page *page)
++#define HUGETLB_CGROUP_MIN_ORDER	2
++
++static inline struct hugetlb_cgroup *hugetlb_cgroup_from_page(struct page *page)
 +{
-+	int csize;
-+	struct res_counter *counter;
-+	struct res_counter *fail_res;
-+	struct hugetlb_cgroup *page_hcg;
-+	struct hugetlb_cgroup *h_cg   = hugetlb_cgroup_from_cgroup(cgroup);
-+	struct hugetlb_cgroup *parent = parent_hugetlb_cgroup(cgroup);
++	VM_BUG_ON(!PageHuge(page));
 +
-+	page_hcg = hugetlb_cgroup_from_page(page);
-+	/*
-+	 * We can have pages in active list without any cgroup
-+	 * ie, hugepage with less than 3 pages. We can safely
-+	 * ignore those pages.
-+	 */
-+	if (!page_hcg || page_hcg != h_cg)
-+		goto out;
-+
-+	csize = PAGE_SIZE << compound_order(page);
-+	if (!parent) {
-+		parent = root_h_cgroup;
-+		/* root has no limit */
-+		res_counter_charge_nofail(&parent->hugepage[idx],
-+					  csize, &fail_res);
-+	}
-+	counter = &h_cg->hugepage[idx];
-+	res_counter_uncharge_until(counter, counter->parent, csize);
-+
-+	set_hugetlb_cgroup(page, parent);
-+out:
-+	return;
++	if (compound_order(page) < HUGETLB_CGROUP_MIN_ORDER)
++		return NULL;
++	return (struct hugetlb_cgroup *)page[2].lru.next;
 +}
 +
-+/*
-+ * Force the hugetlb cgroup to empty the hugetlb resources by moving them to
-+ * the parent cgroup.
-+ */
- static int hugetlb_cgroup_pre_destroy(struct cgroup *cgroup)
++static inline
++int set_hugetlb_cgroup(struct page *page, struct hugetlb_cgroup *h_cg)
++{
++	VM_BUG_ON(!PageHuge(page));
++
++	if (compound_order(page) < HUGETLB_CGROUP_MIN_ORDER)
++		return -1;
++	page[2].lru.next = (void *)h_cg;
++	return 0;
++}
++
+ static inline bool hugetlb_cgroup_disabled(void)
  {
--	/* We will add the cgroup removal support in later patches */
--	   return -EBUSY;
-+	struct hstate *h;
-+	struct page *page;
-+	int ret = 0, idx = 0;
-+
-+	do {
-+		if (cgroup_task_count(cgroup) ||
-+		    !list_empty(&cgroup->children)) {
-+			ret = -EBUSY;
-+			goto out;
-+		}
-+		for_each_hstate(h) {
-+			spin_lock(&hugetlb_lock);
-+			list_for_each_entry(page, &h->hugepage_activelist, lru)
-+				hugetlb_cgroup_move_parent(idx, cgroup, page);
-+
-+			spin_unlock(&hugetlb_lock);
-+			idx++;
-+		}
-+		cond_resched();
-+	} while (hugetlb_cgroup_have_usage(cgroup));
-+out:
-+	return ret;
+ 	if (hugetlb_subsys.disabled)
+@@ -28,6 +54,17 @@ static inline bool hugetlb_cgroup_disabled(void)
  }
  
- int hugetlb_cgroup_charge_cgroup(int idx, unsigned long nr_pages,
+ #else
++static inline struct hugetlb_cgroup *hugetlb_cgroup_from_page(struct page *page)
++{
++	return NULL;
++}
++
++static inline
++int set_hugetlb_cgroup(struct page *page, struct hugetlb_cgroup *h_cg)
++{
++	return 0;
++}
++
+ static inline bool hugetlb_cgroup_disabled(void)
+ {
+ 	return true;
+diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+index e899a2d..6a449c5 100644
+--- a/mm/hugetlb.c
++++ b/mm/hugetlb.c
+@@ -28,6 +28,7 @@
+ 
+ #include <linux/io.h>
+ #include <linux/hugetlb.h>
++#include <linux/hugetlb_cgroup.h>
+ #include <linux/node.h>
+ #include "internal.h"
+ 
+@@ -591,6 +592,7 @@ static void update_and_free_page(struct hstate *h, struct page *page)
+ 				1 << PG_active | 1 << PG_reserved |
+ 				1 << PG_private | 1 << PG_writeback);
+ 	}
++	VM_BUG_ON(hugetlb_cgroup_from_page(page));
+ 	set_compound_page_dtor(page, NULL);
+ 	set_page_refcounted(page);
+ 	arch_release_hugepage(page);
+@@ -643,6 +645,7 @@ static void prep_new_huge_page(struct hstate *h, struct page *page, int nid)
+ 	INIT_LIST_HEAD(&page->lru);
+ 	set_compound_page_dtor(page, free_huge_page);
+ 	spin_lock(&hugetlb_lock);
++	set_hugetlb_cgroup(page, NULL);
+ 	h->nr_huge_pages++;
+ 	h->nr_huge_pages_node[nid]++;
+ 	spin_unlock(&hugetlb_lock);
+@@ -892,6 +895,7 @@ static struct page *alloc_buddy_huge_page(struct hstate *h, int nid)
+ 		INIT_LIST_HEAD(&page->lru);
+ 		r_nid = page_to_nid(page);
+ 		set_compound_page_dtor(page, free_huge_page);
++		set_hugetlb_cgroup(page, NULL);
+ 		/*
+ 		 * We incremented the global counters already
+ 		 */
 -- 
 1.7.10
 
