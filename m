@@ -1,236 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx129.postini.com [74.125.245.129])
-	by kanga.kvack.org (Postfix) with SMTP id 7EFC76B006C
-	for <linux-mm@kvack.org>; Wed, 13 Jun 2012 12:05:55 -0400 (EDT)
-Message-Id: <20120613152522.145867977@linux.com>
-Date: Wed, 13 Jun 2012 10:25:04 -0500
-From: Christoph Lameter <cl@linux.com>
-Subject: Common [13/20] Extract a common function for kmem_cache_destroy
-References: <20120613152451.465596612@linux.com>
-Content-Disposition: inline; filename=kmem_cache_destroy
+Received: from psmtp.com (na3sys010amx201.postini.com [74.125.245.201])
+	by kanga.kvack.org (Postfix) with SMTP id 8BEA46B004D
+	for <linux-mm@kvack.org>; Wed, 13 Jun 2012 12:37:17 -0400 (EDT)
+Received: from /spool/local
+	by e28smtp02.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
+	Wed, 13 Jun 2012 22:07:14 +0530
+Received: from d28av02.in.ibm.com (d28av02.in.ibm.com [9.184.220.64])
+	by d28relay02.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q5DGbA8o8978918
+	for <linux-mm@kvack.org>; Wed, 13 Jun 2012 22:07:11 +0530
+Received: from d28av02.in.ibm.com (loopback [127.0.0.1])
+	by d28av02.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q5DM7mqn008656
+	for <linux-mm@kvack.org>; Thu, 14 Jun 2012 08:07:48 +1000
+From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Subject: Re: [PATCH -V9 04/15] hugetlb: use mmu_gather instead of a temporary linked list for accumulating pages
+In-Reply-To: <20120613145923.GA14777@tiehlicka.suse.cz>
+References: <1339583254-895-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com> <1339583254-895-5-git-send-email-aneesh.kumar@linux.vnet.ibm.com> <20120613145923.GA14777@tiehlicka.suse.cz>
+Date: Wed, 13 Jun 2012 22:07:06 +0530
+Message-ID: <871uljnp71.fsf@skywalker.in.ibm.com>
+MIME-Version: 1.0
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pekka Enberg <penberg@kernel.org>
-Cc: linux-mm@kvack.org, David Rientjes <rientjes@google.com>, Matt Mackall <mpm@selenic.com>, Glauber Costa <glommer@parallels.com>, Joonsoo Kim <js1304@gmail.com>
+To: Michal Hocko <mhocko@suse.cz>
+Cc: linux-mm@kvack.org, kamezawa.hiroyu@jp.fujitsu.com, dhillf@gmail.com, rientjes@google.com, akpm@linux-foundation.org, hannes@cmpxchg.org, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org
 
-kmem_cache_destroy does basically the same in all allocators.
+Michal Hocko <mhocko@suse.cz> writes:
 
-Extract common code which is easy since we already have common mutex handling.
+> On Wed 13-06-12 15:57:23, Aneesh Kumar K.V wrote:
+>> From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+>> 
+>> Use a mmu_gather instead of a temporary linked list for accumulating
+>> pages when we unmap a hugepage range
+>
+> Sorry for coming up with the comment that late but you owe us an
+> explanation _why_ you are doing this.
+>
+> I assume that this fixes a real problem when we take i_mmap_mutex
+> already up in 
+> unmap_mapping_range
+>   mutex_lock(&mapping->i_mmap_mutex);
+>   unmap_mapping_range_tree | unmap_mapping_range_list 
+>     unmap_mapping_range_vma
+>       zap_page_range_single
+>         unmap_single_vma
+> 	  unmap_hugepage_range
+> 	    mutex_lock(&vma->vm_file->f_mapping->i_mmap_mutex);
+>
+> And that this should have been marked for stable as well (I haven't
+> checked when this has been introduced).
 
-Signed-off-by: Christoph Lameter <cl@linux.com>
+Switch to mmu_gather is to get rid of the use of page->lru so that i can use it for
+active list.
 
 
----
- mm/slab.c        |   55 +++----------------------------------------------------
- mm/slab.h        |    4 +++-
- mm/slab_common.c |   22 ++++++++++++++++++++++
- mm/slob.c        |   11 +++++++----
- mm/slub.c        |   29 ++++++++---------------------
- 5 files changed, 43 insertions(+), 78 deletions(-)
-
-Index: linux-2.6/mm/slab_common.c
-===================================================================
---- linux-2.6.orig/mm/slab_common.c	2012-06-13 03:44:40.805477456 -0500
-+++ linux-2.6/mm/slab_common.c	2012-06-13 03:45:27.797476482 -0500
-@@ -117,6 +117,28 @@ out:
- }
- EXPORT_SYMBOL(kmem_cache_create);
- 
-+void kmem_cache_destroy(struct kmem_cache *s)
-+{
-+	get_online_cpus();
-+	mutex_lock(&slab_mutex);
-+	list_del(&s->list);
-+
-+	if (!__kmem_cache_shutdown(s)) {
-+		if (s->flags & SLAB_DESTROY_BY_RCU)
-+			rcu_barrier();
-+
-+		__kmem_cache_destroy(s);
-+	} else {
-+		list_add(&s->list, &slab_caches);
-+		printk(KERN_ERR "kmem_cache_destroy %s: Slab cache still has objects\n",
-+			s->name);
-+		dump_stack();
-+	}
-+	mutex_unlock(&slab_mutex);
-+	put_online_cpus();
-+}
-+EXPORT_SYMBOL(kmem_cache_destroy);
-+
- int slab_is_available(void)
- {
- 	return slab_state >= UP;
-Index: linux-2.6/mm/slab.c
-===================================================================
---- linux-2.6.orig/mm/slab.c	2012-06-13 03:44:40.805477456 -0500
-+++ linux-2.6/mm/slab.c	2012-06-13 03:45:27.749476483 -0500
-@@ -779,16 +779,6 @@ static void cache_estimate(unsigned long
- 	*left_over = slab_size - nr_objs*buffer_size - mgmt_size;
- }
- 
--#define slab_error(cachep, msg) __slab_error(__func__, cachep, msg)
--
--static void __slab_error(const char *function, struct kmem_cache *cachep,
--			char *msg)
--{
--	printk(KERN_ERR "slab error in %s(): cache `%s': %s\n",
--	       function, cachep->name, msg);
--	dump_stack();
--}
--
- /*
-  * By default on NUMA we use alien caches to stage the freeing of
-  * objects allocated from other nodes. This causes massive memory
-@@ -2052,7 +2042,7 @@ static void slab_destroy(struct kmem_cac
- 	}
- }
- 
--static void __kmem_cache_destroy(struct kmem_cache *cachep)
-+void __kmem_cache_destroy(struct kmem_cache *cachep)
- {
- 	int i;
- 	struct kmem_list3 *l3;
-@@ -2609,49 +2599,10 @@ int kmem_cache_shrink(struct kmem_cache
- }
- EXPORT_SYMBOL(kmem_cache_shrink);
- 
--/**
-- * kmem_cache_destroy - delete a cache
-- * @cachep: the cache to destroy
-- *
-- * Remove a &struct kmem_cache object from the slab cache.
-- *
-- * It is expected this function will be called by a module when it is
-- * unloaded.  This will remove the cache completely, and avoid a duplicate
-- * cache being allocated each time a module is loaded and unloaded, if the
-- * module doesn't have persistent in-kernel storage across loads and unloads.
-- *
-- * The cache must be empty before calling this function.
-- *
-- * The caller must guarantee that no one will allocate memory from the cache
-- * during the kmem_cache_destroy().
-- */
--void kmem_cache_destroy(struct kmem_cache *cachep)
-+int __kmem_cache_shutdown(struct kmem_cache *cachep)
- {
--	BUG_ON(!cachep || in_interrupt());
--
--	/* Find the cache in the chain of caches. */
--	get_online_cpus();
--	mutex_lock(&slab_mutex);
--	/*
--	 * the chain is never empty, cache_cache is never destroyed
--	 */
--	list_del(&cachep->list);
--	if (__cache_shrink(cachep)) {
--		slab_error(cachep, "Can't free all objects");
--		list_add(&cachep->list, &slab_caches);
--		mutex_unlock(&slab_mutex);
--		put_online_cpus();
--		return;
--	}
--
--	if (unlikely(cachep->flags & SLAB_DESTROY_BY_RCU))
--		rcu_barrier();
--
--	__kmem_cache_destroy(cachep);
--	mutex_unlock(&slab_mutex);
--	put_online_cpus();
-+	return __cache_shrink(cachep);
- }
--EXPORT_SYMBOL(kmem_cache_destroy);
- 
- /*
-  * Get the memory for a slab management obj.
-Index: linux-2.6/mm/slab.h
-===================================================================
---- linux-2.6.orig/mm/slab.h	2012-06-13 03:44:40.737477457 -0500
-+++ linux-2.6/mm/slab.h	2012-06-13 03:45:27.781476483 -0500
-@@ -30,5 +30,7 @@ extern struct list_head slab_caches;
- struct kmem_cache *__kmem_cache_create(const char *name, size_t size,
- 	size_t align, unsigned long flags, void (*ctor)(void *));
- 
--#endif
-+int __kmem_cache_shutdown(struct kmem_cache *);
-+void __kmem_cache_destroy(struct kmem_cache *);
- 
-+#endif
-Index: linux-2.6/mm/slob.c
-===================================================================
---- linux-2.6.orig/mm/slob.c	2012-06-13 03:44:40.701477458 -0500
-+++ linux-2.6/mm/slob.c	2012-06-13 03:45:27.729476484 -0500
-@@ -538,14 +538,11 @@ struct kmem_cache *__kmem_cache_create(c
- 	return c;
- }
- 
--void kmem_cache_destroy(struct kmem_cache *c)
-+void __kmem_cache_destroy(struct kmem_cache *c)
- {
- 	kmemleak_free(c);
--	if (c->flags & SLAB_DESTROY_BY_RCU)
--		rcu_barrier();
- 	slob_free(c, sizeof(struct kmem_cache));
- }
--EXPORT_SYMBOL(kmem_cache_destroy);
- 
- void *kmem_cache_alloc_node(struct kmem_cache *c, gfp_t flags, int node)
- {
-@@ -613,6 +610,12 @@ unsigned int kmem_cache_size(struct kmem
- }
- EXPORT_SYMBOL(kmem_cache_size);
- 
-+int __kmem_cache_shutdown(struct kmem_cache *c)
-+{
-+	/* No way to check for remaining objects */
-+	return 0;
-+}
-+
- int kmem_cache_shrink(struct kmem_cache *d)
- {
- 	return 0;
-Index: linux-2.6/mm/slub.c
-===================================================================
---- linux-2.6.orig/mm/slub.c	2012-06-13 03:44:40.809477456 -0500
-+++ linux-2.6/mm/slub.c	2012-06-13 03:45:27.765476483 -0500
-@@ -3181,29 +3181,16 @@ static inline int kmem_cache_close(struc
- 	return 0;
- }
- 
--/*
-- * Close a cache and release the kmem_cache structure
-- * (must be used for caches created using kmem_cache_create)
-- */
--void kmem_cache_destroy(struct kmem_cache *s)
-+int __kmem_cache_shutdown(struct kmem_cache *s)
- {
--	mutex_lock(&slab_mutex);
--	s->refcount--;
--	if (!s->refcount) {
--		list_del(&s->list);
--		mutex_unlock(&slab_mutex);
--		if (kmem_cache_close(s)) {
--			printk(KERN_ERR "SLUB %s: %s called for cache that "
--				"still has objects.\n", s->name, __func__);
--			dump_stack();
--		}
--		if (s->flags & SLAB_DESTROY_BY_RCU)
--			rcu_barrier();
--		sysfs_slab_remove(s);
--	} else
--		mutex_unlock(&slab_mutex);
-+	return kmem_cache_close(s);
-+}
-+
-+void __kmem_cache_destroy(struct kmem_cache *s)
-+{
-+	sysfs_slab_remove(s);
-+	kfree(s);
- }
--EXPORT_SYMBOL(kmem_cache_destroy);
- 
- /********************************************************************
-  *		Kmalloc subsystem
+-aneesh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
