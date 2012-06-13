@@ -1,92 +1,121 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx192.postini.com [74.125.245.192])
-	by kanga.kvack.org (Postfix) with SMTP id 5DDFA6B004D
-	for <linux-mm@kvack.org>; Wed, 13 Jun 2012 12:43:10 -0400 (EDT)
-Received: from /spool/local
-	by e28smtp08.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
-	Wed, 13 Jun 2012 22:13:06 +0530
-Received: from d28av04.in.ibm.com (d28av04.in.ibm.com [9.184.220.66])
-	by d28relay02.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q5DGh4PL11665900
-	for <linux-mm@kvack.org>; Wed, 13 Jun 2012 22:13:04 +0530
-Received: from d28av04.in.ibm.com (loopback [127.0.0.1])
-	by d28av04.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q5DMCo0K002196
-	for <linux-mm@kvack.org>; Thu, 14 Jun 2012 08:12:51 +1000
-From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Subject: Re: [PATCH -V9 04/15] hugetlb: use mmu_gather instead of a temporary linked list for accumulating pages
-In-Reply-To: <20120613150338.GB14777@tiehlicka.suse.cz>
-References: <1339583254-895-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com> <1339583254-895-5-git-send-email-aneesh.kumar@linux.vnet.ibm.com> <20120613145923.GA14777@tiehlicka.suse.cz> <20120613150338.GB14777@tiehlicka.suse.cz>
-Date: Wed, 13 Jun 2012 22:13:00 +0530
-Message-ID: <87y5nrmacr.fsf@skywalker.in.ibm.com>
+Received: from psmtp.com (na3sys010amx196.postini.com [74.125.245.196])
+	by kanga.kvack.org (Postfix) with SMTP id BAE5B6B005D
+	for <linux-mm@kvack.org>; Wed, 13 Jun 2012 14:44:20 -0400 (EDT)
+Received: by wibhr14 with SMTP id hr14so810521wib.8
+        for <linux-mm@kvack.org>; Wed, 13 Jun 2012 11:44:19 -0700 (PDT)
+Date: Wed, 13 Jun 2012 20:45:49 +0200
+From: Daniel Vetter <daniel@ffwll.ch>
+Subject: Re: [Linaro-mm-sig] [PATCHv2 5/6] common: DMA-mapping: add
+ DMA_ATTR_SKIP_CPU_SYNC attribute
+Message-ID: <20120613184549.GL4829@phenom.ffwll.local>
+References: <1339588218-24398-1-git-send-email-m.szyprowski@samsung.com>
+ <1339588218-24398-6-git-send-email-m.szyprowski@samsung.com>
 MIME-Version: 1.0
-Content-Type: text/plain
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1339588218-24398-6-git-send-email-m.szyprowski@samsung.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: linux-mm@kvack.org, kamezawa.hiroyu@jp.fujitsu.com, dhillf@gmail.com, rientjes@google.com, akpm@linux-foundation.org, hannes@cmpxchg.org, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org
+To: Marek Szyprowski <m.szyprowski@samsung.com>
+Cc: linux-arm-kernel@lists.infradead.org, linaro-mm-sig@lists.linaro.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-kernel@vger.kernel.org, Abhinav Kochhar <abhinav.k@samsung.com>, Russell King - ARM Linux <linux@arm.linux.org.uk>, Arnd Bergmann <arnd@arndb.de>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Kyungmin Park <kyungmin.park@samsung.com>, Subash Patel <subash.ramaswamy@linaro.org>
 
-Michal Hocko <mhocko@suse.cz> writes:
+On Wed, Jun 13, 2012 at 01:50:17PM +0200, Marek Szyprowski wrote:
+> This patch adds DMA_ATTR_SKIP_CPU_SYNC attribute to the DMA-mapping
+> subsystem.
+> 
+> By default dma_map_{single,page,sg} functions family transfer a given
+> buffer from CPU domain to device domain. Some advanced use cases might
+> require sharing a buffer between more than one device. This requires
+> having a mapping created separately for each device and is usually
+> performed by calling dma_map_{single,page,sg} function more than once
+> for the given buffer with device pointer to each device taking part in
+> the buffer sharing. The first call transfers a buffer from 'CPU' domain
+> to 'device' domain, what synchronizes CPU caches for the given region
+> (usually it means that the cache has been flushed or invalidated
+> depending on the dma direction). However, next calls to
+> dma_map_{single,page,sg}() for other devices will perform exactly the
+> same sychronization operation on the CPU cache. CPU cache sychronization
+> might be a time consuming operation, especially if the buffers are
+> large, so it is highly recommended to avoid it if possible.
+> DMA_ATTR_SKIP_CPU_SYNC allows platform code to skip synchronization of
+> the CPU cache for the given buffer assuming that it has been already
+> transferred to 'device' domain. This attribute can be also used for
+> dma_unmap_{single,page,sg} functions family to force buffer to stay in
+> device domain after releasing a mapping for it. Use this attribute with
+> care!
+> 
+> Signed-off-by: Marek Szyprowski <m.szyprowski@samsung.com>
+> Reviewed-by: Kyungmin Park <kyungmin.park@samsung.com>
 
-> On Wed 13-06-12 16:59:23, Michal Hocko wrote:
->> On Wed 13-06-12 15:57:23, Aneesh Kumar K.V wrote:
->> > From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
->> > 
->> > Use a mmu_gather instead of a temporary linked list for accumulating
->> > pages when we unmap a hugepage range
->> 
->> Sorry for coming up with the comment that late but you owe us an
->> explanation _why_ you are doing this.
->> 
->> I assume that this fixes a real problem when we take i_mmap_mutex
->> already up in 
->> unmap_mapping_range
->>   mutex_lock(&mapping->i_mmap_mutex);
->>   unmap_mapping_range_tree | unmap_mapping_range_list 
->>     unmap_mapping_range_vma
->>       zap_page_range_single
->>         unmap_single_vma
->> 	  unmap_hugepage_range
->> 	    mutex_lock(&vma->vm_file->f_mapping->i_mmap_mutex);
->> 
->> And that this should have been marked for stable as well (I haven't
->> checked when this has been introduced).
->> 
->> But then I do not see how this help when you still do this:
->> [...]
->> > diff --git a/mm/memory.c b/mm/memory.c
->> > index 1b7dc66..545e18a 100644
->> > --- a/mm/memory.c
->> > +++ b/mm/memory.c
->> > @@ -1326,8 +1326,11 @@ static void unmap_single_vma(struct mmu_gather *tlb,
->> >  			 * Since no pte has actually been setup, it is
->> >  			 * safe to do nothing in this case.
->> >  			 */
->> > -			if (vma->vm_file)
->> > -				unmap_hugepage_range(vma, start, end, NULL);
->> > +			if (vma->vm_file) {
->> > +				mutex_lock(&vma->vm_file->f_mapping->i_mmap_mutex);
->> > +				__unmap_hugepage_range(tlb, vma, start, end, NULL);
->> > +				mutex_unlock(&vma->vm_file->f_mapping->i_mmap_mutex);
->> > +			}
->> >  		} else
->> >  			unmap_page_range(tlb, vma, start, end, details);
->> >  	}
->
-> Ahhh, you are removing the lock in the next patch. Really confusing and
-> not nice for the stable backport.
-> Could you merge those two patches and add Cc: stable? 
-> Then you can add my
-> Reviewed-by: Michal Hocko <mhocko@suse.cz>
->
+Curious question: What's the use-case for this? Is this just to
+work-around the fact that dma-buf atm doesn't support streaming dma so
+that we could optimize this all (and keep around the mappings)? Or is
+there a different use-case that I don't see?
+-Daniel
 
-In the last review cycle I was asked to see if we can get a lockdep
-report for the above and what I found was we don't really cause the
-above deadlock with the current codebase because for hugetlb we don't
-directly call unmap_mapping_range. But still it is good to remove the
-i_mmap_mutex, because we don't need that protection now. I didn't
-mark it for stable because of the above reason.
+> ---
+>  Documentation/DMA-attributes.txt |   24 ++++++++++++++++++++++++
+>  include/linux/dma-attrs.h        |    1 +
+>  2 files changed, 25 insertions(+), 0 deletions(-)
+> 
+> diff --git a/Documentation/DMA-attributes.txt b/Documentation/DMA-attributes.txt
+> index 725580d..f503090 100644
+> --- a/Documentation/DMA-attributes.txt
+> +++ b/Documentation/DMA-attributes.txt
+> @@ -67,3 +67,27 @@ set on each call.
+>  Since it is optional for platforms to implement
+>  DMA_ATTR_NO_KERNEL_MAPPING, those that do not will simply ignore the
+>  attribute and exhibit default behavior.
+> +
+> +DMA_ATTR_SKIP_CPU_SYNC
+> +----------------------
+> +
+> +By default dma_map_{single,page,sg} functions family transfer a given
+> +buffer from CPU domain to device domain. Some advanced use cases might
+> +require sharing a buffer between more than one device. This requires
+> +having a mapping created separately for each device and is usually
+> +performed by calling dma_map_{single,page,sg} function more than once
+> +for the given buffer with device pointer to each device taking part in
+> +the buffer sharing. The first call transfers a buffer from 'CPU' domain
+> +to 'device' domain, what synchronizes CPU caches for the given region
+> +(usually it means that the cache has been flushed or invalidated
+> +depending on the dma direction). However, next calls to
+> +dma_map_{single,page,sg}() for other devices will perform exactly the
+> +same sychronization operation on the CPU cache. CPU cache sychronization
+> +might be a time consuming operation, especially if the buffers are
+> +large, so it is highly recommended to avoid it if possible.
+> +DMA_ATTR_SKIP_CPU_SYNC allows platform code to skip synchronization of
+> +the CPU cache for the given buffer assuming that it has been already
+> +transferred to 'device' domain. This attribute can be also used for
+> +dma_unmap_{single,page,sg} functions family to force buffer to stay in
+> +device domain after releasing a mapping for it. Use this attribute with
+> +care!
+> diff --git a/include/linux/dma-attrs.h b/include/linux/dma-attrs.h
+> index a37c10c..f83f793 100644
+> --- a/include/linux/dma-attrs.h
+> +++ b/include/linux/dma-attrs.h
+> @@ -16,6 +16,7 @@ enum dma_attr {
+>  	DMA_ATTR_WRITE_COMBINE,
+>  	DMA_ATTR_NON_CONSISTENT,
+>  	DMA_ATTR_NO_KERNEL_MAPPING,
+> +	DMA_ATTR_SKIP_CPU_SYNC,
+>  	DMA_ATTR_MAX,
+>  };
+>  
+> -- 
+> 1.7.1.569.g6f426
+> 
+> 
+> _______________________________________________
+> Linaro-mm-sig mailing list
+> Linaro-mm-sig@lists.linaro.org
+> http://lists.linaro.org/mailman/listinfo/linaro-mm-sig
 
--aneesh
+-- 
+Daniel Vetter
+Mail: daniel@ffwll.ch
+Mobile: +41 (0)79 365 57 48
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
