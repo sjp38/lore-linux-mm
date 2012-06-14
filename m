@@ -1,105 +1,198 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx150.postini.com [74.125.245.150])
-	by kanga.kvack.org (Postfix) with SMTP id 717D56B005C
-	for <linux-mm@kvack.org>; Thu, 14 Jun 2012 03:28:08 -0400 (EDT)
-Date: Thu, 14 Jun 2012 09:27:55 +0200
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [RFC -mm] memcg: prevent from OOM with too many dirty pages
-Message-ID: <20120614072755.GK1761@cmpxchg.org>
-References: <1338219535-7874-1-git-send-email-mhocko@suse.cz>
- <20120529030857.GA7762@localhost>
- <20120529072853.GD1734@cmpxchg.org>
- <20120529084848.GC10469@localhost>
- <20120529093511.GE1734@cmpxchg.org>
- <20120529135101.GD15293@tiehlicka.suse.cz>
- <20120531090957.GA12809@tiehlicka.suse.cz>
- <20120601083730.GA25986@tiehlicka.suse.cz>
- <20120607144556.GC543@tiehlicka.suse.cz>
+Received: from psmtp.com (na3sys010amx172.postini.com [74.125.245.172])
+	by kanga.kvack.org (Postfix) with SMTP id 601F06B0062
+	for <linux-mm@kvack.org>; Thu, 14 Jun 2012 03:28:34 -0400 (EDT)
+Date: Thu, 14 Jun 2012 09:28:31 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH -V9 06/15] hugetlb: simplify migrate_huge_page()
+Message-ID: <20120614072831.GD27397@tiehlicka.suse.cz>
+References: <1339583254-895-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+ <1339583254-895-7-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20120607144556.GC543@tiehlicka.suse.cz>
+In-Reply-To: <1339583254-895-7-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: Fengguang Wu <fengguang.wu@intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujtisu.com>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@redhat.com>, Ying Han <yinghan@google.com>, Greg Thelen <gthelen@google.com>, Hugh Dickins <hughd@google.com>
+To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Cc: linux-mm@kvack.org, kamezawa.hiroyu@jp.fujitsu.com, dhillf@gmail.com, rientjes@google.com, akpm@linux-foundation.org, hannes@cmpxchg.org, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org
 
-On Thu, Jun 07, 2012 at 04:45:56PM +0200, Michal Hocko wrote:
-> On Fri 01-06-12 10:37:30, Michal Hocko wrote:
-> [...]
-> > More detailed statistics (max/min - the worst/best performance).
-> > 	comparison (cong is 100%)	comparison (page reclaim 100%)			
-> > 	max	min	median		max	min	median
-> > * ext3
-> > ** Write
-> > 5M	171.20%	95.33%	98.70%		216.96%	101.99%	103.61%
-> > 60M	97.56%	98.80%	104.51%		110.09%	100.11%	116.59%
-> > 300M	99.76%	99.49%	99.35%		99.47%	99.89%	99.57%
-> > 2G	99.52%	99.53%	99.52%		100.09%	99.07%	100.02%
-> > 
-> > ** Read					
-> > 5M	35.37%	38.70%	39.09%		83.55%	89.85%	86.54%
-> > 60M	89.70%	102.90%	102.00%		97.71%	101.91%	102.06%
-> > 300M	92.38%	99.33%	99.14%		80.65%	98.39%	91.23%
-> > 2G	90.07%	99.92%	100.38%		99.85%	100.75%	99.94%
-> > 
-> > * Tmpfs					
-> > ** write
-> > 5M	121.85%	99.69%	131.57%		219.22%	99.85%	135.30%
-> > 60M	140.82%	99.70%	139.57%		98.14%	54.51%	73.65%
-> > 300M	97.99%	99.54%	99.60%		99.29%	99.57%	99.32%
-> > 2G	99.37%	99.62%	99.64%		98.72%	99.92%	99.18%
-> > 
-> > ** read				
-> > 5M	85.44%	92.96%	88.92%		129.13%	101.54%	97.87%
-> > 60M	64.41%	94.35%	88.10%		97.41%	95.75%	96.31%
-> > 300M	116.89%	106.52%	120.84%		132.17%	104.39%	130.63%
-> > 2G	86.27%	99.96%	87.47%		60.69%	99.44%	98.49%
+On Wed 13-06-12 15:57:25, Aneesh Kumar K.V wrote:
+> From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
 > 
-> I have played with the patch below but it didn't show too much
-> difference in the end or we end up doing even worse. 
+> Since we migrate only one hugepage, don't use linked list for passing the
+> page around.  Directly pass the page that need to be migrated as argument.
+> This also remove the usage page->lru in migrate path.
 > 
-> Here is the no_patch/patched comparison:
-> 
-> 	comparison (page reclaim is 100%)
-> * ext3  avg	max	min	median
-> ** Write
-> 5M    	81.49%	77.53%	101.91%	76.60%
-> 60M   	98.60%	95.58%	101.40%	99.62%
-> 300M  	101.68%	102.05%	101.19%	101.73%
-> 2G    	102.20%	102.25%	102.12%	102.22%
-> 				
-> ** Read  				
-> 5M    	103.94%	105.14%	103.95%	103.32%
-> 60M   	105.26%	107.91%	103.15%	104.95%
-> 300M  	104.83%	107.86%	101.65%	104.88%
-> 2G    	102.67%	101.26%	102.83%	103.35%
-> 
-> * Tmpfs
-> ** Write
-> 5M    	107.68%	119.66%	105.26%	102.78%
-> 60M   	122.16%	138.51%	103.62%	121.09%
-> 300M  	101.03%	100.67%	101.11%	101.17%
-> 2G    	101.82%	101.66%	101.87%	101.87%
-> 				
-> ** Read			
-> 5M    	102.47%	124.02%	98.05%	92.57%
-> 60M   	103.62%	121.03%	96.97%	96.52%
-> 300M  	98.90%	118.92%	102.64%	86.19%
-> 2G    	83.50%	76.34%	97.36%	81.92%
-> 
-> I am not sure it really makes sense to play with the priority here. All
-> the values we would end up with would be just wild guesses or mostly
-> artificial workloads. So I think it makes some to go with the original
-> version of the PageReclaim patch without any further fiddling with the
-> priority.
-> 
-> Is this sufficient to go with the patch or do people still have concerns
-> which would block the patch from merging?
+> Reviewed-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
 
-No, let's go for it.  It's a net improvement as it stands.
+Yes nice.
+Reviewed-by: Michal Hocko <mhocko@suse.cz>
 
-Acked-by: Johannes Weiner <hannes@cmpxchg.org>
+> ---
+>  include/linux/migrate.h |    4 +--
+>  mm/memory-failure.c     |   13 ++--------
+>  mm/migrate.c            |   65 +++++++++++++++--------------------------------
+>  3 files changed, 25 insertions(+), 57 deletions(-)
+> 
+> diff --git a/include/linux/migrate.h b/include/linux/migrate.h
+> index 855c337..ce7e667 100644
+> --- a/include/linux/migrate.h
+> +++ b/include/linux/migrate.h
+> @@ -15,7 +15,7 @@ extern int migrate_page(struct address_space *,
+>  extern int migrate_pages(struct list_head *l, new_page_t x,
+>  			unsigned long private, bool offlining,
+>  			enum migrate_mode mode);
+> -extern int migrate_huge_pages(struct list_head *l, new_page_t x,
+> +extern int migrate_huge_page(struct page *, new_page_t x,
+>  			unsigned long private, bool offlining,
+>  			enum migrate_mode mode);
+>  
+> @@ -36,7 +36,7 @@ static inline void putback_lru_pages(struct list_head *l) {}
+>  static inline int migrate_pages(struct list_head *l, new_page_t x,
+>  		unsigned long private, bool offlining,
+>  		enum migrate_mode mode) { return -ENOSYS; }
+> -static inline int migrate_huge_pages(struct list_head *l, new_page_t x,
+> +static inline int migrate_huge_page(struct page *page, new_page_t x,
+>  		unsigned long private, bool offlining,
+>  		enum migrate_mode mode) { return -ENOSYS; }
+>  
+> diff --git a/mm/memory-failure.c b/mm/memory-failure.c
+> index ab1e714..53a1495 100644
+> --- a/mm/memory-failure.c
+> +++ b/mm/memory-failure.c
+> @@ -1414,7 +1414,6 @@ static int soft_offline_huge_page(struct page *page, int flags)
+>  	int ret;
+>  	unsigned long pfn = page_to_pfn(page);
+>  	struct page *hpage = compound_head(page);
+> -	LIST_HEAD(pagelist);
+>  
+>  	ret = get_any_page(page, pfn, flags);
+>  	if (ret < 0)
+> @@ -1429,19 +1428,11 @@ static int soft_offline_huge_page(struct page *page, int flags)
+>  	}
+>  
+>  	/* Keep page count to indicate a given hugepage is isolated. */
+> -
+> -	list_add(&hpage->lru, &pagelist);
+> -	ret = migrate_huge_pages(&pagelist, new_page, MPOL_MF_MOVE_ALL, 0,
+> -				true);
+> +	ret = migrate_huge_page(hpage, new_page, MPOL_MF_MOVE_ALL, 0, true);
+> +	put_page(hpage);
+>  	if (ret) {
+> -		struct page *page1, *page2;
+> -		list_for_each_entry_safe(page1, page2, &pagelist, lru)
+> -			put_page(page1);
+> -
+>  		pr_info("soft offline: %#lx: migration failed %d, type %lx\n",
+>  			pfn, ret, page->flags);
+> -		if (ret > 0)
+> -			ret = -EIO;
+>  		return ret;
+>  	}
+>  done:
+> diff --git a/mm/migrate.c b/mm/migrate.c
+> index be26d5c..fdce3a2 100644
+> --- a/mm/migrate.c
+> +++ b/mm/migrate.c
+> @@ -932,15 +932,8 @@ static int unmap_and_move_huge_page(new_page_t get_new_page,
+>  	if (anon_vma)
+>  		put_anon_vma(anon_vma);
+>  	unlock_page(hpage);
+> -
+>  out:
+> -	if (rc != -EAGAIN) {
+> -		list_del(&hpage->lru);
+> -		put_page(hpage);
+> -	}
+> -
+>  	put_page(new_hpage);
+> -
+>  	if (result) {
+>  		if (rc)
+>  			*result = rc;
+> @@ -1016,48 +1009,32 @@ out:
+>  	return nr_failed + retry;
+>  }
+>  
+> -int migrate_huge_pages(struct list_head *from,
+> -		new_page_t get_new_page, unsigned long private, bool offlining,
+> -		enum migrate_mode mode)
+> +int migrate_huge_page(struct page *hpage, new_page_t get_new_page,
+> +		      unsigned long private, bool offlining,
+> +		      enum migrate_mode mode)
+>  {
+> -	int retry = 1;
+> -	int nr_failed = 0;
+> -	int pass = 0;
+> -	struct page *page;
+> -	struct page *page2;
+> -	int rc;
+> -
+> -	for (pass = 0; pass < 10 && retry; pass++) {
+> -		retry = 0;
+> -
+> -		list_for_each_entry_safe(page, page2, from, lru) {
+> +	int pass, rc;
+> +
+> +	for (pass = 0; pass < 10; pass++) {
+> +		rc = unmap_and_move_huge_page(get_new_page,
+> +					      private, hpage, pass > 2, offlining,
+> +					      mode);
+> +		switch (rc) {
+> +		case -ENOMEM:
+> +			goto out;
+> +		case -EAGAIN:
+> +			/* try again */
+>  			cond_resched();
+> -
+> -			rc = unmap_and_move_huge_page(get_new_page,
+> -					private, page, pass > 2, offlining,
+> -					mode);
+> -
+> -			switch(rc) {
+> -			case -ENOMEM:
+> -				goto out;
+> -			case -EAGAIN:
+> -				retry++;
+> -				break;
+> -			case 0:
+> -				break;
+> -			default:
+> -				/* Permanent failure */
+> -				nr_failed++;
+> -				break;
+> -			}
+> +			break;
+> +		case 0:
+> +			goto out;
+> +		default:
+> +			rc = -EIO;
+> +			goto out;
+>  		}
+>  	}
+> -	rc = 0;
+>  out:
+> -	if (rc)
+> -		return rc;
+> -
+> -	return nr_failed + retry;
+> +	return rc;
+>  }
+>  
+>  #ifdef CONFIG_NUMA
+> -- 
+> 1.7.10
+> 
+
+-- 
+Michal Hocko
+SUSE Labs
+SUSE LINUX s.r.o.
+Lihovarska 1060/12
+190 00 Praha 9    
+Czech Republic
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
