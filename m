@@ -1,50 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx194.postini.com [74.125.245.194])
-	by kanga.kvack.org (Postfix) with SMTP id 056426B0071
-	for <linux-mm@kvack.org>; Thu, 14 Jun 2012 10:13:00 -0400 (EDT)
-Date: Thu, 14 Jun 2012 16:12:57 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH] hugeltb: Mark hugelb_max_hstate __read_mostly
-Message-ID: <20120614141257.GQ27397@tiehlicka.suse.cz>
-References: <1339682178-29059-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+Received: from psmtp.com (na3sys010amx164.postini.com [74.125.245.164])
+	by kanga.kvack.org (Postfix) with SMTP id 96E456B005C
+	for <linux-mm@kvack.org>; Thu, 14 Jun 2012 10:17:17 -0400 (EDT)
+Received: from /spool/local
+	by e5.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <sjenning@linux.vnet.ibm.com>;
+	Thu, 14 Jun 2012 10:17:16 -0400
+Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
+	by d01dlp02.pok.ibm.com (Postfix) with ESMTP id 8721D6E806F
+	for <linux-mm@kvack.org>; Thu, 14 Jun 2012 10:14:24 -0400 (EDT)
+Received: from d03av01.boulder.ibm.com (d03av01.boulder.ibm.com [9.17.195.167])
+	by d01relay04.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q5EEENIJ200954
+	for <linux-mm@kvack.org>; Thu, 14 Jun 2012 10:14:23 -0400
+Received: from d03av01.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av01.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q5EEDtu3008115
+	for <linux-mm@kvack.org>; Thu, 14 Jun 2012 08:13:56 -0600
+Message-ID: <4FD9F19E.4000209@linux.vnet.ibm.com>
+Date: Thu, 14 Jun 2012 09:13:50 -0500
+From: Seth Jennings <sjenning@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1339682178-29059-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+Subject: Re: [PATCH] staging: zsmalloc: fix uninit'ed variable warning
+References: <1339621422-8449-1-git-send-email-sjenning@linux.vnet.ibm.com> <4FD93FE8.1030102@kernel.org>
+In-Reply-To: <4FD93FE8.1030102@kernel.org>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Cc: linux-mm@kvack.org, kamezawa.hiroyu@jp.fujitsu.com, akpm@linux-foundation.org
+To: Minchan Kim <minchan@kernel.org>
+Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Nitin Gupta <ngupta@vflare.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, devel@driverdev.osuosl.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On Thu 14-06-12 19:26:18, Aneesh Kumar K.V wrote:
-> From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-> 
-> Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
-> ---
->  include/linux/hugetlb.h |    2 +-
->  mm/hugetlb.c            |    2 +-
->  2 files changed, 2 insertions(+), 2 deletions(-)
-> 
-> diff --git a/include/linux/hugetlb.h b/include/linux/hugetlb.h
-> index 9650bb1..0f0877e 100644
-> --- a/include/linux/hugetlb.h
-> +++ b/include/linux/hugetlb.h
-> @@ -23,7 +23,7 @@ struct hugepage_subpool {
->  };
->  
->  extern spinlock_t hugetlb_lock;
-> -extern int hugetlb_max_hstate;
-> +extern int hugetlb_max_hstate __read_mostly;
+On 06/13/2012 08:35 PM, Minchan Kim wrote:
 
-It should be used only for definition
+> Nice catch!
 
--- 
-Michal Hocko
-SUSE Labs
-SUSE LINUX s.r.o.
-Lihovarska 1060/12
-190 00 Praha 9    
-Czech Republic
+
+by Andrew!
+
+> Nitpick:
+> I can't see the warning.
+> My gcc version is gcc (Ubuntu/Linaro 4.6.3-1ubuntu5) 4.6.3.
+
+
+I couldn't either but Andrew could and he verified the fix.
+
+Not sure what gcc version he is running.
+
+> Please, Cced linux-mm, too.
+> Some guys in mm might have a interest in zsmalloc. :)
+
+
+Meant to include linux-mm :-/  I'll be sure to include
+them in future zsmalloc patches.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
