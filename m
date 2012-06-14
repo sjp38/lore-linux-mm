@@ -1,80 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx120.postini.com [74.125.245.120])
-	by kanga.kvack.org (Postfix) with SMTP id B2A936B0070
-	for <linux-mm@kvack.org>; Thu, 14 Jun 2012 10:28:53 -0400 (EDT)
-Message-ID: <4FD9F4EB.7080108@redhat.com>
-Date: Thu, 14 Jun 2012 10:27:55 -0400
-From: Rik van Riel <riel@redhat.com>
-MIME-Version: 1.0
+Received: from psmtp.com (na3sys010amx130.postini.com [74.125.245.130])
+	by kanga.kvack.org (Postfix) with SMTP id 50CCF6B0069
+	for <linux-mm@kvack.org>; Thu, 14 Jun 2012 10:32:16 -0400 (EDT)
+Date: Thu, 14 Jun 2012 15:31:49 +0100
+From: Ralf Baechle <ralf@linux-mips.org>
 Subject: Re: bugs in page colouring code
-References: <20120613152936.363396d5@cuia.bos.redhat.com> <20120614132053.GD28714@n2100.arm.linux.org.uk>
-In-Reply-To: <20120614132053.GD28714@n2100.arm.linux.org.uk>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Message-ID: <20120614143149.GE12068@linux-mips.org>
+References: <20120613152936.363396d5@cuia.bos.redhat.com>
+ <20120614103627.GA25940@aftab.osrc.amd.com>
+ <4FD9DFCE.1070609@redhat.com>
+ <20120614132007.GC25940@aftab.osrc.amd.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20120614132007.GC25940@aftab.osrc.amd.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Russell King - ARM Linux <linux@arm.linux.org.uk>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, sjhill@mips.com, ralf@linux-mips.org, Borislav Petkov <borislav.petkov@amd.com>, "H. Peter Anvin" <hpa@linux.intel.com>, Rob Herring <rob.herring@calxeda.com>, Nicolas Pitre <nico@linaro.org>
+To: Borislav Petkov <bp@amd64.org>
+Cc: Rik van Riel <riel@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, sjhill@mips.com, "H. Peter Anvin" <hpa@linux.intel.com>, Rob Herring <rob.herring@calxeda.com>, Russell King <rmk+kernel@arm.linux.org.uk>, Nicolas Pitre <nico@linaro.org>
 
-On 06/14/2012 09:20 AM, Russell King - ARM Linux wrote:
-> On Wed, Jun 13, 2012 at 03:29:36PM -0400, Rik van Riel wrote:
->> COLOUR_ALIGN_DOWN can use the pgoff % shm_align_mask either positively
->>     or negatively, depending on the address initially found by
->>     get_unmapped_area
->>
->> static inline unsigned long COLOUR_ALIGN_DOWN(unsigned long addr,
->>                                                unsigned long pgoff)
->> {
->>          unsigned long base = addr&  ~shm_align_mask;
->>          unsigned long off = (pgoff<<  PAGE_SHIFT)&  shm_align_mask;
->>
->>          if (base + off<= addr)
->>                  return base + off;
->>
->>          return base - off;
->> }
->
-> Yes, that is bollocks code, introduced by this commit:
->
-> commit 7dbaa466780a754154531b44c2086f6618cee3a8
-> Author: Rob Herring<rob.herring@calxeda.com>
-> Date:   Tue Nov 22 04:01:07 2011 +0100
+On Thu, Jun 14, 2012 at 03:20:07PM +0200, Borislav Petkov wrote:
 
-It's not just ARM that has this bug. It appears to
-be cut'n'pasted from other architectures (MIPS? SPARC?).
+> > However, I expect that on x86 many applications expect
+> > MAP_FIXED to just work, and enforcing that would be
+> > more trouble than it's worth.
+> 
+> Right, but if MAP_FIXED mappings succeed, then all processes sharing
+> that mapping will have it at the same virtual address, correct? And
+> if so, then we don't have the aliasing issue either so MAP_FIXED is a
+> don't-care from that perspective.
 
->> The fix would be to return an address that is a whole shm_align_mask
->> lower: (((base - shm_align_mask)&  ~shm_align_mask) + off
->
-> Yes, agreed.
+Once upon a time every real program carried its own malloc around.  I'm
+sure many of these malloc implementations rely on MAP_FIXED.
 
-I will make sure the arch-independent colouring
-code does that.
+These days the big user of MAP_FIXED is glibc's dynamic loader.  It
+doesn't use MAP_FIXED for the first segment, only for all subsequent
+segments and the addresses are chosen such this will succeed.  ld(1)
+has the necessary knowledge about alignment.
 
-> This brings up the question: should a MAP_PRIVATE mapping see updates
-> to the backing file made via a shared mapping and/or writing the file
-> directly?  After all, a r/w MAP_PRIVATE mapping which has been CoW'd
-> won't see the updates.
->
-> So I'd argue that a file mapped MAP_SHARED must be mapped according to
-> the colour rules, but a MAP_PRIVATE is free not to be so.
+Problem: If you raise the alignment for mappings you want to make damn
+sure that any non-broken executable ever created uses sufficient alignment
+or bad things may happen.
 
-OK, fair enough.
+MIPS used to use a very large alignment in ld linker scripts allowing
+for up to 1MB page size.  Then somebody clueless who shall smoulder in
+hell reduced it to a very small value, something like 4k or 16k.  When
+we went for bigger page size (MIPS allows 64K page size) all binaries
+created with the broken linker had to be rebuilt.
 
->> Secondly, MAP_FIXED never checks for page colouring alignment.
->> I assume the cache aliasing on AMD Bulldozer is merely a performance
->> issue, and we can simply ignore page colouring for MAP_FIXED?
->> That will be easy to get right in an architecture-independent
->> implementation.
->
-> There's a whole bunch of issues with MAP_FIXED, specifically address
-> space overflow has been discussed previously, and resulted in this patch:
->
-> [PATCH 0/6] get rid of extra check for TASK_SIZE in get_unmapped_area
+So you probably want to do a little dumpster diving in very old binutils
+before doing anything that raises alignment of file mappings.
 
-Turns out, get_unmapped_area_prot (the function
-that calls arch_get_unmapped_area) checks for
-these overflows, so we should be fine.
+> > >Linus said that without this we are probably breaking old userspace
+> > >which can't stomach ASLR so we had to respect such userspace which
+> > >clears that flag.
+> > 
+> > I wonder if that is true, since those userspace programs
+> > probably run fine on ARM, MIPS and other architectures...
+> 
+> Well, I'm too young to know that :) Reportedly, those were some obscure
+> old binaries and we added the PF_RANDOMIZE check out of caution, so as
+> to not break them, if at all.
+
+See above - ld linker scripts are a big part of why things are working :)
+I'm however not aware of any breakage caused by PF_RANDOMIZE.
+
+  Ralf
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
