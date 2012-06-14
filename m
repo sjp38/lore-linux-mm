@@ -1,30 +1,29 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx135.postini.com [74.125.245.135])
-	by kanga.kvack.org (Postfix) with SMTP id E65C46B005C
-	for <linux-mm@kvack.org>; Thu, 14 Jun 2012 00:09:19 -0400 (EDT)
-Received: from m1.gw.fujitsu.co.jp (unknown [10.0.50.71])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 7EA3E3EE0BC
-	for <linux-mm@kvack.org>; Thu, 14 Jun 2012 13:09:18 +0900 (JST)
-Received: from smail (m1 [127.0.0.1])
-	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 5FC3245DE5B
-	for <linux-mm@kvack.org>; Thu, 14 Jun 2012 13:09:18 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
-	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 4423D45DE54
-	for <linux-mm@kvack.org>; Thu, 14 Jun 2012 13:09:18 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 351BAE08003
-	for <linux-mm@kvack.org>; Thu, 14 Jun 2012 13:09:18 +0900 (JST)
-Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.240.81.133])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id E08251DB803C
-	for <linux-mm@kvack.org>; Thu, 14 Jun 2012 13:09:17 +0900 (JST)
-Message-ID: <4FD96370.2020708@jp.fujitsu.com>
-Date: Thu, 14 Jun 2012 13:07:12 +0900
+Received: from psmtp.com (na3sys010amx178.postini.com [74.125.245.178])
+	by kanga.kvack.org (Postfix) with SMTP id 92A266B005C
+	for <linux-mm@kvack.org>; Thu, 14 Jun 2012 00:11:11 -0400 (EDT)
+Received: from m2.gw.fujitsu.co.jp (unknown [10.0.50.72])
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 341443EE0BD
+	for <linux-mm@kvack.org>; Thu, 14 Jun 2012 13:11:10 +0900 (JST)
+Received: from smail (m2 [127.0.0.1])
+	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 11C6245DE52
+	for <linux-mm@kvack.org>; Thu, 14 Jun 2012 13:11:10 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
+	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id EDA3645DE4E
+	for <linux-mm@kvack.org>; Thu, 14 Jun 2012 13:11:09 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id DBDA01DB8038
+	for <linux-mm@kvack.org>; Thu, 14 Jun 2012 13:11:09 +0900 (JST)
+Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.240.81.147])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 959A01DB803F
+	for <linux-mm@kvack.org>; Thu, 14 Jun 2012 13:11:09 +0900 (JST)
+Message-ID: <4FD963E1.6080506@jp.fujitsu.com>
+Date: Thu, 14 Jun 2012 13:09:05 +0900
 From: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH -V9 11/15] hugetlb/cgroup: Add charge/uncharge routines
- for hugetlb cgroup
-References: <1339583254-895-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com> <1339583254-895-12-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
-In-Reply-To: <1339583254-895-12-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+Subject: Re: [PATCH -V9 12/15] hugetlb/cgroup: Add support for cgroup removal
+References: <1339583254-895-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com> <1339583254-895-13-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+In-Reply-To: <1339583254-895-13-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
 Content-Type: text/plain; charset=ISO-2022-JP
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -35,9 +34,8 @@ Cc: linux-mm@kvack.org, dhillf@gmail.com, rientjes@google.com, mhocko@suse.cz, a
 (2012/06/13 19:27), Aneesh Kumar K.V wrote:
 > From: "Aneesh Kumar K.V"<aneesh.kumar@linux.vnet.ibm.com>
 > 
-> This patchset add the charge and uncharge routines for hugetlb cgroup.
-> We do cgroup charging in page alloc and uncharge in compound page
-> destructor. Assigning page's hugetlb cgroup is protected by hugetlb_lock.
+> This patch add support for cgroup removal. If we don't have parent
+> cgroup, the charges are moved to root cgroup.
 > 
 > Signed-off-by: Aneesh Kumar K.V<aneesh.kumar@linux.vnet.ibm.com>
 
