@@ -1,33 +1,31 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx155.postini.com [74.125.245.155])
-	by kanga.kvack.org (Postfix) with SMTP id DFF976B005C
-	for <linux-mm@kvack.org>; Thu, 14 Jun 2012 03:07:09 -0400 (EDT)
-Message-ID: <4FD98D9F.9050602@kernel.org>
-Date: Thu, 14 Jun 2012 16:07:11 +0900
+Received: from psmtp.com (na3sys010amx187.postini.com [74.125.245.187])
+	by kanga.kvack.org (Postfix) with SMTP id 943926B0062
+	for <linux-mm@kvack.org>; Thu, 14 Jun 2012 03:10:47 -0400 (EDT)
+Message-ID: <4FD98E78.1060405@kernel.org>
+Date: Thu, 14 Jun 2012 16:10:48 +0900
 From: Minchan Kim <minchan@kernel.org>
 MIME-Version: 1.0
-Subject: Re: [PATCH] mm/compaction: cleanup on compaction_deferred
-References: <1339636753-12519-1-git-send-email-shangw@linux.vnet.ibm.com>
-In-Reply-To: <1339636753-12519-1-git-send-email-shangw@linux.vnet.ibm.com>
+Subject: Re: [PATCH] mm/buddy: make skip_free_areas_node static
+References: <1339656837-28941-1-git-send-email-shangw@linux.vnet.ibm.com>
+In-Reply-To: <1339656837-28941-1-git-send-email-shangw@linux.vnet.ibm.com>
 Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Gavin Shan <shangw@linux.vnet.ibm.com>
-Cc: linux-mm@kvack.org, rientjes@google.com, hannes@cmpxchg.org, akpm@linux-foundation.org, Mel Gorman <mgorman@suse.de>
+Cc: linux-mm@kvack.org, rientjes@google.com, hannes@cmpxchg.org, akpm@linux-foundation.org
 
-On 06/14/2012 10:19 AM, Gavin Shan wrote:
+On 06/14/2012 03:53 PM, Gavin Shan wrote:
 
-> When CONFIG_COMPACTION is enabled, compaction_deferred() tries
-> to recalculate the deferred limit again, which isn't necessary.
+> Currently, function skip_free_areas_node() seems to be used only
+> by page allocator, so make it into static one.
 > 
-> When CONFIG_COMPACTION is disabled, compaction_deferred() should
-> return "true" or "false" since it has "bool" for its return value.
-> 
-> Signed-off-by: Gavin Shan <shangw@linux.vnet.ibm.com>
 
 
-Acked-by: Minchan Kim <minchan@kernel.org>
+barrios@bbox:~/linux-next$ grep -nRH 'skip_free_areas_node' arch/ia64/
+arch/ia64/mm/discontig.c:633:		if (skip_free_areas_node(filter, nid))
+arch/ia64/mm/contig.c:56:		if (skip_free_areas_node(filter, nid))
 
 -- 
 Kind regards,
