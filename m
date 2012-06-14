@@ -1,55 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx195.postini.com [74.125.245.195])
-	by kanga.kvack.org (Postfix) with SMTP id 306A26B005C
-	for <linux-mm@kvack.org>; Wed, 13 Jun 2012 23:53:45 -0400 (EDT)
-Received: by pbbrp2 with SMTP id rp2so3842319pbb.14
-        for <linux-mm@kvack.org>; Wed, 13 Jun 2012 20:53:44 -0700 (PDT)
-Date: Wed, 13 Jun 2012 20:53:42 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH] mm: add gfp_mask parameter to vm_map_ram()
-In-Reply-To: <20120614033429.GD7339@dastard>
-Message-ID: <alpine.DEB.2.00.1206132049540.6126@chino.kir.corp.google.com>
-References: <20120612012134.GA7706@localhost> <20120613123932.GA1445@localhost> <20120614012026.GL3019@devil.redhat.com> <20120614014902.GB7289@localhost> <4FD94779.3030108@kernel.org> <20120614033429.GD7339@dastard>
+Received: from psmtp.com (na3sys010amx134.postini.com [74.125.245.134])
+	by kanga.kvack.org (Postfix) with SMTP id C1E2A6B005C
+	for <linux-mm@kvack.org>; Thu, 14 Jun 2012 00:04:55 -0400 (EDT)
+Received: from m4.gw.fujitsu.co.jp (unknown [10.0.50.74])
+	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 19E863EE0BD
+	for <linux-mm@kvack.org>; Thu, 14 Jun 2012 13:04:54 +0900 (JST)
+Received: from smail (m4 [127.0.0.1])
+	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id EB9B045DE55
+	for <linux-mm@kvack.org>; Thu, 14 Jun 2012 13:04:50 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
+	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 88F1345DE51
+	for <linux-mm@kvack.org>; Thu, 14 Jun 2012 13:04:50 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 7A6A5E18006
+	for <linux-mm@kvack.org>; Thu, 14 Jun 2012 13:04:50 +0900 (JST)
+Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.240.81.133])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 132E21DB8040
+	for <linux-mm@kvack.org>; Thu, 14 Jun 2012 13:04:50 +0900 (JST)
+Message-ID: <4FD9624D.3020600@jp.fujitsu.com>
+Date: Thu, 14 Jun 2012 13:02:21 +0900
+From: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [PATCH] memory hotplug: fix invalid memory access caused by stale
+ kswapd pointer
+References: <1339645491-5656-1-git-send-email-jiang.liu@huawei.com>
+In-Reply-To: <1339645491-5656-1-git-send-email-jiang.liu@huawei.com>
+Content-Type: text/plain; charset=ISO-2022-JP
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Chinner <david@fromorbit.com>
-Cc: Minchan Kim <minchan@kernel.org>, Fengguang Wu <fengguang.wu@intel.com>, Dave Chinner <dchinner@redhat.com>, Christoph Hellwig <hch@infradead.org>, linux-fsdevel@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, xfs@oss.sgi.com
+To: Jiang Liu <jiang.liu@huawei.com>
+Cc: Mel Gorman <mgorman@suse.de>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Minchan Kim <minchan@kernel.org>, Hugh Dickins <hughd@google.com>, Keping Chen <chenkeping@huawei.com>, Tony Luck <tony.luck@intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Xishi Qiu <qiuxishi@huawei.com>, Jiang Liu <liuj97@gmail.com>, Yasuaki ISIMATU <isimatu.yasuaki@jp.fujitsu.com>
 
-On Thu, 14 Jun 2012, Dave Chinner wrote:
-
-> Oh, please. I have been hearing this for years, and are we any
-> closer to it? No, we are further away from ever being able to
-> acheive this than ever. Face it, filesystems require memory
-> allocation to write dirty data to disk, and the amount is almost
-> impossible to define. Hence mempools can't be used because we can't
-> give any guarantees of forward progress. And for vmalloc?
+(2012/06/14 12:44), Jiang Liu wrote:
+> Function kswapd_stop() will be called to destroy the kswapd work thread
+> when all memory of a NUMA node has been offlined. But kswapd_stop() only
+> terminates the work thread without resetting NODE_DATA(nid)->kswapd to NULL.
+> The stale pointer will prevent kswapd_run() from creating a new work thread
+> when adding memory to the memory-less NUMA node again. Eventually the stale
+> pointer may cause invalid memory access.
 > 
-> Filesystems widely use vmalloc/vm_map_ram because kmalloc fails on
-> large contiguous allocations. This renders kmalloc unfit for
-> purpose, so we have to fall back to single page allocation and
-> vm_map_ram or vmalloc so that the filesystem can function properly.
-> And to avoid deadlocks, all memory allocation must be able to
-> specify GFP_NOFS to prevent the MM subsystem from recursing into the
-> filesystem. Therefore, vmalloc needs to support GFP_NOFS.
-> 
-> I don't care how you make it happen, just fix it. Trying to place
-> the blame on the filesystem folk for using vmalloc in GFP_NOFS
-> contexts is a total and utter cop-out, because mm folk of all people
-> should know that non-zero order kmalloc is not a reliable
-> alternative....
+> Signed-off-by: Xishi Qiu<qiuxishi@huawei.com>
+> Signed-off-by: Jiang Liu<liuj97@gmail.com>
 > 
 
-I'd actually like to see a demonstrated problem (i.e. not theoretical) 
-where vmalloc() stalls indefinitely because its passed GFP_NOFS.  I've 
-never seen one reported.
+Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-This is because the per-arch pte allocators have hardwired GFP_KERNEL 
-flags, but then again they also have __GFP_REPEAT which would cause them 
-to loop infinitely in the page allocator if a page was not reclaimed, 
-which has little success without __GFP_FS.  But nobody has ever reported a 
-livelock that was triaged back to passing !__GFP_FS to vmalloc().
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
