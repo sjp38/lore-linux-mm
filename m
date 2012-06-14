@@ -1,61 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx104.postini.com [74.125.245.104])
-	by kanga.kvack.org (Postfix) with SMTP id B26B76B005C
-	for <linux-mm@kvack.org>; Thu, 14 Jun 2012 06:04:56 -0400 (EDT)
-Date: Thu, 14 Jun 2012 12:04:54 +0200
+Received: from psmtp.com (na3sys010amx196.postini.com [74.125.245.196])
+	by kanga.kvack.org (Postfix) with SMTP id 4ACB46B005C
+	for <linux-mm@kvack.org>; Thu, 14 Jun 2012 06:07:57 -0400 (EDT)
+Date: Thu, 14 Jun 2012 12:07:55 +0200
 From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH -V9 14/15] hugetlb/cgroup: migrate hugetlb cgroup info
- from oldpage to new page during migration
-Message-ID: <20120614100454.GL27397@tiehlicka.suse.cz>
+Subject: Re: [PATCH -V9 15/15] hugetlb/cgroup: add HugeTLB controller
+ documentation
+Message-ID: <20120614100755.GM27397@tiehlicka.suse.cz>
 References: <1339583254-895-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
- <1339583254-895-15-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+ <1339583254-895-16-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1339583254-895-15-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+In-Reply-To: <1339583254-895-16-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
 Cc: linux-mm@kvack.org, kamezawa.hiroyu@jp.fujitsu.com, dhillf@gmail.com, rientjes@google.com, akpm@linux-foundation.org, hannes@cmpxchg.org, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org
 
-On Wed 13-06-12 15:57:33, Aneesh Kumar K.V wrote:
+On Wed 13-06-12 15:57:34, Aneesh Kumar K.V wrote:
 > From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
 > 
-> With HugeTLB pages, hugetlb cgroup is uncharged in compound page destructor.  Since
-> we are holding a hugepage reference, we can be sure that old page won't
-> get uncharged till the last put_page().
-> 
+> Reviewed-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 > Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
 
 Reviewed-by: Michal Hocko <mhocko@suse.cz>
 
-One question below
+Minor nid below
+> ---
+>  Documentation/cgroups/hugetlb.txt |   45 +++++++++++++++++++++++++++++++++++++
+>  1 file changed, 45 insertions(+)
+>  create mode 100644 Documentation/cgroups/hugetlb.txt
+> 
+> diff --git a/Documentation/cgroups/hugetlb.txt b/Documentation/cgroups/hugetlb.txt
+> new file mode 100644
+> index 0000000..a9faaca
+> --- /dev/null
+> +++ b/Documentation/cgroups/hugetlb.txt
 [...]
-> +void hugetlb_cgroup_migrate(struct page *oldhpage, struct page *newhpage)
-> +{
-> +	struct hugetlb_cgroup *h_cg;
+> +With the above step, the initial or the parent HugeTLB group becomes
+> +visible at /sys/fs/cgroup. At bootup, this group includes all the tasks in
+> +the system. /sys/fs/cgroup/tasks lists the tasks in this cgroup.
 > +
-> +	if (hugetlb_cgroup_disabled())
-> +		return;
+> +New groups can be created under the parent group /sys/fs/cgroup.
 > +
-> +	VM_BUG_ON(!PageHuge(oldhpage));
-> +	spin_lock(&hugetlb_lock);
-> +	h_cg = hugetlb_cgroup_from_page(oldhpage);
-> +	set_hugetlb_cgroup(oldhpage, NULL);
-> +	cgroup_exclude_rmdir(&h_cg->css);
+> +# cd /sys/fs/cgroup
+> +# mkdir g1
+> +# echo $$ > g1/tasks
 > +
-> +	/* move the h_cg details to new cgroup */
-> +	set_hugetlb_cgroup(newhpage, h_cg);
-> +	spin_unlock(&hugetlb_lock);
-> +	cgroup_release_and_wakeup_rmdir(&h_cg->css);
-> +	return;
-> +}
-> +
+> +The above steps create a new group g1 and move the current shell
+> +process (bash) into it.
 
-The changelog says that the old page won't get uncharged - which means
-that the the cgroup cannot go away (even if we raced with the move
-parent, hugetlb_lock makes sure we either see old or new cgroup) so why
-do we need to play with css ref. counting?
+This is probably not needed as it is already described in the generic
+cgroups description
+
+> +
+> +Brief summary of control files
+> +
+> + hugetlb.<hugepagesize>.limit_in_bytes     # set/show limit of "hugepagesize" hugetlb usage
+> + hugetlb.<hugepagesize>.max_usage_in_bytes # show max "hugepagesize" hugetlb  usage recorded
+> + hugetlb.<hugepagesize>.usage_in_bytes     # show current res_counter usage for "hugepagesize" hugetlb
+> + hugetlb.<hugepagesize>.failcnt		   # show the number of allocation failure due to HugeTLB limit
+> +
+> +For a system supporting two hugepage size (16M and 16G) the control
+> +files include:
+> +
+> +hugetlb.16GB.limit_in_bytes
+> +hugetlb.16GB.max_usage_in_bytes
+> +hugetlb.16GB.usage_in_bytes
+> +hugetlb.16GB.failcnt
+> +hugetlb.16MB.limit_in_bytes
+> +hugetlb.16MB.max_usage_in_bytes
+> +hugetlb.16MB.usage_in_bytes
+> +hugetlb.16MB.failcnt
+> -- 
+> 1.7.10
+> 
+
 -- 
 Michal Hocko
 SUSE Labs
