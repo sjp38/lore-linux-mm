@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx126.postini.com [74.125.245.126])
-	by kanga.kvack.org (Postfix) with SMTP id D47816B0062
-	for <linux-mm@kvack.org>; Thu, 14 Jun 2012 08:21:08 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx103.postini.com [74.125.245.103])
+	by kanga.kvack.org (Postfix) with SMTP id 171026B0069
+	for <linux-mm@kvack.org>; Thu, 14 Jun 2012 08:21:14 -0400 (EDT)
 From: Glauber Costa <glommer@parallels.com>
-Subject: [PATCH 3/4] slab: move FULL state transition to an initcall
-Date: Thu, 14 Jun 2012 16:17:23 +0400
-Message-Id: <1339676244-27967-4-git-send-email-glommer@parallels.com>
+Subject: [PATCH 4/4] make CFLGS_OFF_SLAB visible for all slabs
+Date: Thu, 14 Jun 2012 16:17:24 +0400
+Message-Id: <1339676244-27967-5-git-send-email-glommer@parallels.com>
 In-Reply-To: <1339676244-27967-1-git-send-email-glommer@parallels.com>
 References: <1339676244-27967-1-git-send-email-glommer@parallels.com>
 Sender: owner-linux-mm@kvack.org
@@ -13,66 +13,103 @@ List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
 Cc: Pekka Enberg <penberg@kernel.org>, Cristoph Lameter <cl@linux.com>, David Rientjes <rientjes@google.com>, cgroups@vger.kernel.org, devel@openvz.org, Glauber Costa <glommer@parallels.com>, Pekka Enberg <penberg@cs.helsinki.fi>
 
-During kmem_cache_init_late(), we transition to the LATE state,
-and after some more work, to the FULL state, its last state
+Since we're now moving towards a unified slab allocator interface,
+make CFLGS_OFF_SLAB visible to all allocators, even though SLAB keeps
+being its only users. Also, make the name consistent with the other
+flags, that start with SLAB_xx.
 
-This is quite different from slub, that will only transition to
-its last state (previously SYSFS), in a (late)initcall, after a lot
-more of the kernel is ready.
-
-This means that in slab, we have no way to taking actions dependent
-on the initialization of other pieces of the kernel that are supposed
-to start way after kmem_init_late(), such as cgroups initialization.
-
-To achieve more consistency in this behavior, that patch only
-transitions to the UP state in kmem_init_late. In my analysis,
-setup_cpu_cache() should be happy to test for >= UP, instead of
-== FULL. It also has passed some tests I've made.
-
-We then only mark FULL state after the reap timers are in place,
-meaning that no further setup is expected.
+This will allow us to mask out this flag from common code, which will
+of course have no effect in allocators not using it. It will also
+avoid other allocators using this bit in the future by mistake.
 
 Signed-off-by: Glauber Costa <glommer@parallels.com>
-Acked-by: Christoph Lameter <cl@linux.com>
+CC: Christoph Lameter <cl@linux.com>
 CC: Pekka Enberg <penberg@cs.helsinki.fi>
 CC: David Rientjes <rientjes@google.com>
 ---
- mm/slab.c |    8 ++++----
- 1 file changed, 4 insertions(+), 4 deletions(-)
+ include/linux/slab.h |    2 ++
+ mm/slab.c            |   17 ++++++++---------
+ 2 files changed, 10 insertions(+), 9 deletions(-)
 
+diff --git a/include/linux/slab.h b/include/linux/slab.h
+index 3c2181a..62deb32 100644
+--- a/include/linux/slab.h
++++ b/include/linux/slab.h
+@@ -79,6 +79,8 @@
+ /* The following flags affect the page allocator grouping pages by mobility */
+ #define SLAB_RECLAIM_ACCOUNT	0x00020000UL		/* Objects are reclaimable */
+ #define SLAB_TEMPORARY		SLAB_RECLAIM_ACCOUNT	/* Objects are short-lived */
++
++#define SLAB_OFF_SLAB		0x80000000UL
+ /*
+  * ZERO_SIZE_PTR will be returned for zero sized kmalloc requests.
+  *
 diff --git a/mm/slab.c b/mm/slab.c
-index e174e50..2d5fe28 100644
+index 2d5fe28..c0cf297 100644
 --- a/mm/slab.c
 +++ b/mm/slab.c
-@@ -1643,9 +1643,6 @@ void __init kmem_cache_init_late(void)
- 			BUG();
- 	mutex_unlock(&slab_mutex);
+@@ -358,8 +358,7 @@ static void kmem_list3_init(struct kmem_list3 *parent)
+ 	MAKE_LIST((cachep), (&(ptr)->slabs_free), slabs_free, nodeid);	\
+ 	} while (0)
  
--	/* Done! */
--	slab_state = FULL;
--
- 	/*
- 	 * Register a cpu startup notifier callback that initializes
- 	 * cpu_cache_get for all new cpus
-@@ -1675,6 +1672,9 @@ int __init __kmem_cache_initcall(void)
+-#define CFLGS_OFF_SLAB		(0x80000000UL)
+-#define	OFF_SLAB(x)	((x)->flags & CFLGS_OFF_SLAB)
++#define	OFF_SLAB(x)	((x)->flags & SLAB_OFF_SLAB)
+ 
+ #define BATCHREFILL_LIMIT	16
+ /*
+@@ -744,7 +743,7 @@ static void cache_estimate(unsigned long gfporder, size_t buffer_size,
+ 	 * the slabs are all pages aligned, the objects will be at the
+ 	 * correct alignment when allocated.
  	 */
- 	for_each_online_cpu(cpu)
- 		start_cpu_timer(cpu);
-+
-+	/* Done! */
-+	slab_state = FULL;
- 	return 0;
- }
+-	if (flags & CFLGS_OFF_SLAB) {
++	if (flags & SLAB_OFF_SLAB) {
+ 		mgmt_size = 0;
+ 		nr_objs = slab_size / buffer_size;
  
-@@ -2120,7 +2120,7 @@ static size_t calculate_slab_order(struct kmem_cache *cachep,
+@@ -2076,7 +2075,7 @@ static size_t calculate_slab_order(struct kmem_cache *cachep,
+ 		if (!num)
+ 			continue;
  
- static int __init_refok setup_cpu_cache(struct kmem_cache *cachep, gfp_t gfp)
- {
--	if (slab_state == FULL)
-+	if (slab_state >= UP)
- 		return enable_cpucache(cachep, gfp);
+-		if (flags & CFLGS_OFF_SLAB) {
++		if (flags & SLAB_OFF_SLAB) {
+ 			/*
+ 			 * Max number of objs-per-slab for caches which
+ 			 * use off-slab slabs. Needed to avoid a possible
+@@ -2294,7 +2293,7 @@ int __kmem_cache_create(struct kmem_cache *cachep)
+ 		 * Size is large, assume best to place the slab management obj
+ 		 * off-slab (should allow better packing of objs).
+ 		 */
+-		flags |= CFLGS_OFF_SLAB;
++		flags |= SLAB_OFF_SLAB;
  
- 	if (slab_state == DOWN) {
+ 	size = ALIGN(size, align);
+ 
+@@ -2310,12 +2309,12 @@ int __kmem_cache_create(struct kmem_cache *cachep)
+ 	 * If the slab has been placed off-slab, and we have enough space then
+ 	 * move it on-slab. This is at the expense of any extra colouring.
+ 	 */
+-	if (flags & CFLGS_OFF_SLAB && left_over >= slab_size) {
+-		flags &= ~CFLGS_OFF_SLAB;
++	if (flags & SLAB_OFF_SLAB && left_over >= slab_size) {
++		flags &= ~SLAB_OFF_SLAB;
+ 		left_over -= slab_size;
+ 	}
+ 
+-	if (flags & CFLGS_OFF_SLAB) {
++	if (flags & SLAB_OFF_SLAB) {
+ 		/* really off slab. No need for manual alignment */
+ 		slab_size =
+ 		    cachep->num * sizeof(kmem_bufctl_t) + sizeof(struct slab);
+@@ -2343,7 +2342,7 @@ int __kmem_cache_create(struct kmem_cache *cachep)
+ 	cachep->size = size;
+ 	cachep->reciprocal_buffer_size = reciprocal_value(size);
+ 
+-	if (flags & CFLGS_OFF_SLAB) {
++	if (flags & SLAB_OFF_SLAB) {
+ 		cachep->slabp_cache = kmem_find_general_cachep(slab_size, 0u);
+ 		/*
+ 		 * This is a possibility for one of the malloc_sizes caches.
 -- 
 1.7.10.2
 
