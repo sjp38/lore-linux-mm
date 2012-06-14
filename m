@@ -1,97 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx200.postini.com [74.125.245.200])
-	by kanga.kvack.org (Postfix) with SMTP id 7548F6B006C
-	for <linux-mm@kvack.org>; Thu, 14 Jun 2012 12:05:11 -0400 (EDT)
-Received: from epcpsbgm2.samsung.com (mailout3.samsung.com [203.254.224.33])
- by mailout3.samsung.com
- (Oracle Communications Messaging Server 7u4-24.01(7.0.4.24.0) 64bit (built Nov
- 17 2011)) with ESMTP id <0M5M009BK7CIB760@mailout3.samsung.com> for
- linux-mm@kvack.org; Fri, 15 Jun 2012 01:05:07 +0900 (KST)
-Received: from bzolnier-desktop.localnet ([106.116.48.38])
- by mmp1.samsung.com (Oracle Communications Messaging Server 7u4-24.01
- (7.0.4.24.0) 64bit (built Nov 17 2011))
- with ESMTPA id <0M5M002ZB7CFS450@mmp1.samsung.com> for linux-mm@kvack.org;
- Fri, 15 Jun 2012 01:05:07 +0900 (KST)
-From: Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>
-Subject: [PATCH 2/2] mm: compaction: add /proc/vmstat entry for rescued
- MIGRATE_UNMOVABLE pageblocks
-Date: Thu, 14 Jun 2012 18:02:49 +0200
-MIME-version: 1.0
-Content-type: Text/Plain; charset=us-ascii
-Content-transfer-encoding: 7bit
-Message-id: <201206141802.50075.b.zolnierkie@samsung.com>
+Received: from psmtp.com (na3sys010amx198.postini.com [74.125.245.198])
+	by kanga.kvack.org (Postfix) with SMTP id E78566B0069
+	for <linux-mm@kvack.org>; Thu, 14 Jun 2012 12:11:09 -0400 (EDT)
+Received: by yhr47 with SMTP id 47so2068018yhr.14
+        for <linux-mm@kvack.org>; Thu, 14 Jun 2012 09:11:09 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <20120614145716.GA2097@barrios>
+References: <1339661592-3915-1-git-send-email-kosaki.motohiro@gmail.com> <20120614145716.GA2097@barrios>
+From: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
+Date: Thu, 14 Jun 2012 12:10:47 -0400
+Message-ID: <CAHGf_=qcA5OfuNgk0BiwyshcLftNWoPfOO_VW9H6xQTX2tAbuA@mail.gmail.com>
+Subject: Re: [resend][PATCH] mm, vmscan: fix do_try_to_free_pages() livelock
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Cc: Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Dave Jones <davej@redhat.com>, Cong Wang <amwang@redhat.com>, Markus Trippelsdorf <markus@trippelsdorf.de>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@redhat.com>, Marek Szyprowski <m.szyprowski@samsung.com>, Kyungmin Park <kyungmin.park@samsung.com>
+To: Minchan Kim <minchan@kernel.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org, Nick Piggin <npiggin@gmail.com>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mel@csn.ul.ie>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>
 
-From: Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>
-Subject: [PATCH] mm: compaction: add /proc/vmstat entry for rescued MIGRATE_UNMOVABLE pageblocks
+On Thu, Jun 14, 2012 at 10:57 AM, Minchan Kim <minchan@kernel.org> wrote:
+> Hi KOSAKI,
+>
+> Sorry for late response.
+> Let me ask a question about description.
+>
+> On Thu, Jun 14, 2012 at 04:13:12AM -0400, kosaki.motohiro@gmail.com wrote=
+:
+>> From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+>>
+>> Currently, do_try_to_free_pages() can enter livelock. Because of,
+>> now vmscan has two conflicted policies.
+>>
+>> 1) kswapd sleep when it couldn't reclaim any page when reaching
+>> =A0 =A0priority 0. This is because to avoid kswapd() infinite
+>> =A0 =A0loop. That said, kswapd assume direct reclaim makes enough
+>> =A0 =A0free pages to use either regular page reclaim or oom-killer.
+>> =A0 =A0This logic makes kswapd -> direct-reclaim dependency.
+>> 2) direct reclaim continue to reclaim without oom-killer until
+>> =A0 =A0kswapd turn on zone->all_unreclaimble. This is because
+>> =A0 =A0to avoid too early oom-kill.
+>> =A0 =A0This logic makes direct-reclaim -> kswapd dependency.
+>>
+>> In worst case, direct-reclaim may continue to page reclaim forever
+>> when kswapd sleeps forever.
+>
+> I have tried imagined scenario you mentioned above with code level but
+> unfortunately I got failed.
+> If kswapd can't meet high watermark on order-0, it doesn't sleep if I don=
+'t miss something.
 
-compact_rescued_unmovable_blocks shows the number of MIGRATE_UNMOVABLE
-pageblocks converted back to MIGRATE_MOVABLE type by the memory compaction
-code.  Non-zero values indicate that large kernel-originated allocations
-of MIGRATE_UNMOVABLE type happen in the system and need special handling 
-from the memory compaction code.
+pgdat_balanced() doesn't recognized zone. Therefore kswapd may sleep
+if node has multiple zones. Hm ok, I realized my descriptions was
+slightly misleading. priority 0 is not needed. bakance_pddat() calls
+pgdat_balanced()
+every priority. Most easy case is, movable zone has a lot of free pages and
+normal zone has no reclaimable page.
 
-This new vmstat entry is optional but useful for development and understanding
-the system.
+btw, current pgdat_balanced() logic seems not correct. kswapd should
+sleep only if every zones have much free pages than high water mark
+_and_ 25% of present pages in node are free.
 
-Cc: Hugh Dickins <hughd@google.com>
-Cc: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
-Cc: Dave Jones <davej@redhat.com>
-Cc: Cong Wang <amwang@redhat.com>
-Cc: Markus Trippelsdorf <markus@trippelsdorf.de>
-Cc: Mel Gorman <mgorman@suse.de>
-Cc: Minchan Kim <minchan@kernel.org>
-Cc: Rik van Riel <riel@redhat.com>
-Cc: Marek Szyprowski <m.szyprowski@samsung.com>
-Signed-off-by: Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>
-Signed-off-by: Kyungmin Park <kyungmin.park@samsung.com>
----
 
- include/linux/vm_event_item.h |    1 +
- mm/compaction.c               |    2 ++
- mm/vmstat.c                   |    1 +
- 3 files changed, 4 insertions(+)
 
-Index: b/include/linux/vm_event_item.h
-===================================================================
---- a/include/linux/vm_event_item.h	2012-06-14 11:28:48.812775316 +0200
-+++ b/include/linux/vm_event_item.h	2012-06-14 11:31:17.132775300 +0200
-@@ -39,6 +39,7 @@ enum vm_event_item { PGPGIN, PGPGOUT, PS
- #ifdef CONFIG_COMPACTION
- 		COMPACTBLOCKS, COMPACTPAGES, COMPACTPAGEFAILED,
- 		COMPACTSTALL, COMPACTFAIL, COMPACTSUCCESS,
-+		COMPACT_RESCUED_UNMOVABLE_BLOCKS,
- #endif
- #ifdef CONFIG_HUGETLB_PAGE
- 		HTLB_BUDDY_PGALLOC, HTLB_BUDDY_PGALLOC_FAIL,
-Index: b/mm/compaction.c
-===================================================================
---- a/mm/compaction.c	2012-06-14 11:31:24.800775299 +0200
-+++ b/mm/compaction.c	2012-06-14 11:31:31.612775298 +0200
-@@ -387,6 +387,8 @@ static void rescue_unmovable_pageblock(s
- {
- 	set_pageblock_migratetype(page, MIGRATE_MOVABLE);
- 	move_freepages_block(page_zone(page), page, MIGRATE_MOVABLE);
-+
-+	count_vm_event(COMPACT_RESCUED_UNMOVABLE_BLOCKS);
- }
- 
- /*
-Index: b/mm/vmstat.c
-===================================================================
---- a/mm/vmstat.c	2012-06-14 11:28:48.824775319 +0200
-+++ b/mm/vmstat.c	2012-06-14 11:31:17.132775300 +0200
-@@ -767,6 +767,7 @@ const char * const vmstat_text[] = {
- 	"compact_stall",
- 	"compact_fail",
- 	"compact_success",
-+	"compact_rescued_unmovable_blocks",
- #endif
- 
- #ifdef CONFIG_HUGETLB_PAGE
+> So if kswapd sleeps, it means we already have enough order-0 free pages.
+> Hmm, could you describe scenario you found in detail with code level?
+>
+> Anyway, as I look at your patch, I can't find any problem.
+> I just want to understand scenario you mentioned completely in my head.
+> Maybe It can help making description clear.
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
