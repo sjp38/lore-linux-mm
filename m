@@ -1,46 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx154.postini.com [74.125.245.154])
-	by kanga.kvack.org (Postfix) with SMTP id 4C9DB6B005C
-	for <linux-mm@kvack.org>; Thu, 14 Jun 2012 05:49:34 -0400 (EDT)
-Received: by obbta14 with SMTP id ta14so1981016obb.14
-        for <linux-mm@kvack.org>; Thu, 14 Jun 2012 02:49:33 -0700 (PDT)
-Message-ID: <1339667440.3321.7.camel@lappy>
-Subject: Re: Early boot panic on machine with lots of memory
-From: Sasha Levin <levinsasha928@gmail.com>
-Date: Thu, 14 Jun 2012 11:50:40 +0200
-In-Reply-To: <20120614032005.GC3766@dhcp-172-17-108-109.mtv.corp.google.com>
-References: <1339623535.3321.4.camel@lappy>
-	 <20120614032005.GC3766@dhcp-172-17-108-109.mtv.corp.google.com>
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: 7bit
-Mime-Version: 1.0
+Received: from psmtp.com (na3sys010amx104.postini.com [74.125.245.104])
+	by kanga.kvack.org (Postfix) with SMTP id B26B76B005C
+	for <linux-mm@kvack.org>; Thu, 14 Jun 2012 06:04:56 -0400 (EDT)
+Date: Thu, 14 Jun 2012 12:04:54 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH -V9 14/15] hugetlb/cgroup: migrate hugetlb cgroup info
+ from oldpage to new page during migration
+Message-ID: <20120614100454.GL27397@tiehlicka.suse.cz>
+References: <1339583254-895-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+ <1339583254-895-15-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1339583254-895-15-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, David Miller <davem@davemloft.net>, hpa@linux.intel.com, linux-mm <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Cc: linux-mm@kvack.org, kamezawa.hiroyu@jp.fujitsu.com, dhillf@gmail.com, rientjes@google.com, akpm@linux-foundation.org, hannes@cmpxchg.org, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org
 
-On Thu, 2012-06-14 at 12:20 +0900, Tejun Heo wrote:
-> On Wed, Jun 13, 2012 at 11:38:55PM +0200, Sasha Levin wrote:
-> > Hi all,
-> > 
-> > I'm seeing the following when booting a KVM guest with 65gb of RAM, on latest linux-next.
-> > 
-> > Note that it happens with numa=off.
-> > 
-> > [    0.000000] BUG: unable to handle kernel paging request at ffff88102febd948
-> > [    0.000000] IP: [<ffffffff836a6f37>] __next_free_mem_range+0x9b/0x155
+On Wed 13-06-12 15:57:33, Aneesh Kumar K.V wrote:
+> From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
 > 
-> Can you map it back to the source line please?
+> With HugeTLB pages, hugetlb cgroup is uncharged in compound page destructor.  Since
+> we are holding a hugepage reference, we can be sure that old page won't
+> get uncharged till the last put_page().
+> 
+> Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
 
-mm/memblock.c:583
+Reviewed-by: Michal Hocko <mhocko@suse.cz>
 
-                        phys_addr_t r_start = ri ? r[-1].base + r[-1].size : 0;
-  97:   85 d2                   test   %edx,%edx
-  99:   74 08                   je     a3 <__next_free_mem_range+0xa3>
-  9b:   49 8b 48 f0             mov    -0x10(%r8),%rcx
-  9f:   49 03 48 e8             add    -0x18(%r8),%rcx
+One question below
+[...]
+> +void hugetlb_cgroup_migrate(struct page *oldhpage, struct page *newhpage)
+> +{
+> +	struct hugetlb_cgroup *h_cg;
+> +
+> +	if (hugetlb_cgroup_disabled())
+> +		return;
+> +
+> +	VM_BUG_ON(!PageHuge(oldhpage));
+> +	spin_lock(&hugetlb_lock);
+> +	h_cg = hugetlb_cgroup_from_page(oldhpage);
+> +	set_hugetlb_cgroup(oldhpage, NULL);
+> +	cgroup_exclude_rmdir(&h_cg->css);
+> +
+> +	/* move the h_cg details to new cgroup */
+> +	set_hugetlb_cgroup(newhpage, h_cg);
+> +	spin_unlock(&hugetlb_lock);
+> +	cgroup_release_and_wakeup_rmdir(&h_cg->css);
+> +	return;
+> +}
+> +
 
-It's the deref on 9b (r8=ffff88102febd958).
+The changelog says that the old page won't get uncharged - which means
+that the the cgroup cannot go away (even if we raced with the move
+parent, hugetlb_lock makes sure we either see old or new cgroup) so why
+do we need to play with css ref. counting?
+-- 
+Michal Hocko
+SUSE Labs
+SUSE LINUX s.r.o.
+Lihovarska 1060/12
+190 00 Praha 9    
+Czech Republic
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
