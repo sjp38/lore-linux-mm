@@ -1,52 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx169.postini.com [74.125.245.169])
-	by kanga.kvack.org (Postfix) with SMTP id 8CC0A6B005C
-	for <linux-mm@kvack.org>; Wed, 13 Jun 2012 22:21:45 -0400 (EDT)
-Received: by obbta14 with SMTP id ta14so1322829obb.14
-        for <linux-mm@kvack.org>; Wed, 13 Jun 2012 19:21:44 -0700 (PDT)
-Date: Thu, 14 Jun 2012 11:21:32 +0900
-From: Tejun Heo <tj@kernel.org>
-Subject: Re: [PATCH] mm: add gfp_mask parameter to vm_map_ram()
-Message-ID: <20120614022132.GA3766@dhcp-172-17-108-109.mtv.corp.google.com>
-References: <20120612012134.GA7706@localhost>
- <20120613123932.GA1445@localhost>
- <20120614012026.GL3019@devil.redhat.com>
- <20120614014902.GB7289@localhost>
- <4FD94779.3030108@kernel.org>
+Received: from psmtp.com (na3sys010amx195.postini.com [74.125.245.195])
+	by kanga.kvack.org (Postfix) with SMTP id 7B6856B005C
+	for <linux-mm@kvack.org>; Wed, 13 Jun 2012 22:22:35 -0400 (EDT)
+Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
+	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 8D75B3EE0BC
+	for <linux-mm@kvack.org>; Thu, 14 Jun 2012 11:22:33 +0900 (JST)
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 7126B45DEAD
+	for <linux-mm@kvack.org>; Thu, 14 Jun 2012 11:22:33 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 5975545DEA6
+	for <linux-mm@kvack.org>; Thu, 14 Jun 2012 11:22:33 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 496121DB8038
+	for <linux-mm@kvack.org>; Thu, 14 Jun 2012 11:22:33 +0900 (JST)
+Received: from m1000.s.css.fujitsu.com (m1000.s.css.fujitsu.com [10.240.81.136])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id F078B1DB8044
+	for <linux-mm@kvack.org>; Thu, 14 Jun 2012 11:22:32 +0900 (JST)
+Message-ID: <4FD94A6E.3050906@jp.fujitsu.com>
+Date: Thu, 14 Jun 2012 11:20:30 +0900
+From: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <4FD94779.3030108@kernel.org>
+Subject: Re: [PATCH v2 1/2][BUGFIX] mm: do not use page_count without a page
+ pin
+References: <1339636334-9238-1-git-send-email-minchan@kernel.org>
+In-Reply-To: <1339636334-9238-1-git-send-email-minchan@kernel.org>
+Content-Type: text/plain; charset=ISO-2022-JP
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Minchan Kim <minchan@kernel.org>
-Cc: Fengguang Wu <fengguang.wu@intel.com>, Dave Chinner <dchinner@redhat.com>, Christoph Hellwig <hch@infradead.org>, linux-fsdevel@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>, xfs@oss.sgi.com
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrea Arcangeli <aarcange@redhat.com>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>, Wanpeng Li <liwp.linux@gmail.com>
 
-Hello, guys.
-
-On Thu, Jun 14, 2012 at 11:07:53AM +0900, Minchan Kim wrote:
-> It shouldn't work because vmap_page_range still can allocate
-> GFP_KERNEL by pud_alloc in vmap_pud_range.  For it, I tried [1] but
-> other mm guys want to add WARNING [2] so let's avoiding gfp context
-> passing.
+(2012/06/14 10:12), Minchan Kim wrote:
+> d179e84ba fixed the problem[1] in vmscan.c but same problem is here.
+> Let's fix it.
 > 
-> [1] https://lkml.org/lkml/2012/4/23/77
-> [2] https://lkml.org/lkml/2012/5/2/340
+> [1] http://comments.gmane.org/gmane.linux.kernel.mm/65844
+> 
+> I copy and paste d179e84ba's contents for description.
+> 
+> "It is unsafe to run page_count during the physical pfn scan because
+> compound_head could trip on a dangling pointer when reading
+> page->first_page if the compound page is being freed by another CPU."
+> 
+> * changelog from v1
+>    - Add comment about skip tail page of THP - Andrea
+>    - fix typo - Wanpeng Li
+>    - based on next-20120613
+> 
+> Cc: Andrea Arcangeli<aarcange@redhat.com>
+> Cc: Mel Gorman<mgorman@suse.de>
+> Cc: Michal Hocko<mhocko@suse.cz>
+> Cc: KAMEZAWA Hiroyuki<kamezawa.hiroyu@jp.fujitsu.com>
+> Cc: Wanpeng Li<liwp.linux@gmail.com>
+> Signed-off-by: Minchan Kim<minchan@kernel.org>
 
-Yeah, vmalloc area doesn't support !GFP_KERNEL allocations and as
-Minchan said, changing this would require updating page table
-allocation functions on all archs.  This is the same reason why percpu
-allocator doesn't support !GFP_KERNEL allocations which in turn made
-blk-throttle implement its own private percpu pool.
-
-If xfs can't live without GFP_NOFS vmalloc allocations, either it has
-to implement its own pool or maybe it's time to implement !GFP_KERNEL
-allocs for vmalloc area.  I don't know.
-
-Thanks.
-
--- 
-tejun
+Reviewed-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
