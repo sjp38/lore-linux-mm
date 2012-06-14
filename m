@@ -1,122 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx105.postini.com [74.125.245.105])
-	by kanga.kvack.org (Postfix) with SMTP id 3CEA16B005C
-	for <linux-mm@kvack.org>; Thu, 14 Jun 2012 02:27:45 -0400 (EDT)
-Message-ID: <4FD9839B.2080307@huawei.com>
-Date: Thu, 14 Jun 2012 14:24:27 +0800
-From: Jiang Liu <jiang.liu@huawei.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH] memory hotplug: fix invalid memory access caused by stale
- kswapd pointer
-References: <1339645491-5656-1-git-send-email-jiang.liu@huawei.com> <4FD97718.6060008@kernel.org>
-In-Reply-To: <4FD97718.6060008@kernel.org>
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx136.postini.com [74.125.245.136])
+	by kanga.kvack.org (Postfix) with SMTP id 59CF26B005C
+	for <linux-mm@kvack.org>; Thu, 14 Jun 2012 02:54:04 -0400 (EDT)
+Received: from /spool/local
+	by e38.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <shangw@linux.vnet.ibm.com>;
+	Thu, 14 Jun 2012 00:54:03 -0600
+Received: from d03relay01.boulder.ibm.com (d03relay01.boulder.ibm.com [9.17.195.226])
+	by d03dlp01.boulder.ibm.com (Postfix) with ESMTP id 4D2AC1FF001D
+	for <linux-mm@kvack.org>; Thu, 14 Jun 2012 06:54:00 +0000 (WET)
+Received: from d03av03.boulder.ibm.com (d03av03.boulder.ibm.com [9.17.195.169])
+	by d03relay01.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q5E6s0BX195436
+	for <linux-mm@kvack.org>; Thu, 14 Jun 2012 00:54:00 -0600
+Received: from d03av03.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av03.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q5E6rxmp019792
+	for <linux-mm@kvack.org>; Thu, 14 Jun 2012 00:54:00 -0600
+From: Gavin Shan <shangw@linux.vnet.ibm.com>
+Subject: [PATCH] mm/buddy: make skip_free_areas_node static
+Date: Thu, 14 Jun 2012 14:53:56 +0800
+Message-Id: <1339656837-28941-1-git-send-email-shangw@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Mel Gorman <mgorman@suse.de>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Keping Chen <chenkeping@huawei.com>, Tony Luck <tony.luck@intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Xishi Qiu <qiuxishi@huawei.com>, Jiang Liu <liuj97@gmail.com>
+To: linux-mm@kvack.org
+Cc: rientjes@google.com, hannes@cmpxchg.org, akpm@linux-foundation.org, Gavin Shan <shangw@linux.vnet.ibm.com>
 
-Hi Minchan,
-	Thanks for comments and will send out a separate patch for
-readability soon based on your version.
-	Thanks!
-        Gerry
+Currently, function skip_free_areas_node() seems to be used only
+by page allocator, so make it into static one.
 
-On 2012-6-14 13:31, Minchan Kim wrote:
-> Hi,
-> 
-> On 06/14/2012 12:44 PM, Jiang Liu wrote:
-> 
->> Function kswapd_stop() will be called to destroy the kswapd work thread
->> when all memory of a NUMA node has been offlined. But kswapd_stop() only
->> terminates the work thread without resetting NODE_DATA(nid)->kswapd to NULL.
->> The stale pointer will prevent kswapd_run() from creating a new work thread
->> when adding memory to the memory-less NUMA node again. Eventually the stale
->> pointer may cause invalid memory access.
->>
->> Signed-off-by: Xishi Qiu <qiuxishi@huawei.com>
->> Signed-off-by: Jiang Liu <liuj97@gmail.com>
-> 
-> 
-> Reviewed-by: Minchan Kim <minchan@kernel.org>
-> 
-> Nitpick:
-> 
-> I saw kswapd_run and doubt why following line is there.
-> 
-> 	if (pgdat->kswapd)
-> 		return 0;
-> 
-> As looking thorough hotplug, I realized one can hotplug pages which are within different zones but same node.
-> Because kswapd live in per-node, that code is for checking kswapd already run. Right?
-Yes, I think so. We could also add new memory pages to existing zones too.
+Signed-off-by: Gavin Shan <shangw@linux.vnet.ibm.com>
+---
+ include/linux/mm.h |    1 -
+ mm/page_alloc.c    |    2 +-
+ 2 files changed, 1 insertion(+), 2 deletions(-)
 
-> 
-> IMHO, better readable code is following as
-> 
-> diff --git a/include/linux/swap.h b/include/linux/swap.h
-> index b967eda..9425c0e 100644
-> --- a/include/linux/swap.h
-> +++ b/include/linux/swap.h
-> @@ -299,6 +299,7 @@ static inline void scan_unevictable_unregister_node(struct node *node)
->  }
->  #endif
->  
-> +extern bool is_kswapd_running(int nid);
->  extern int kswapd_run(int nid);
->  extern void kswapd_stop(int nid);
->  #ifdef CONFIG_CGROUP_MEM_RES_CTLR
-> diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-> index 0d7e3ec..60f9155 100644
-> --- a/mm/memory_hotplug.c
-> +++ b/mm/memory_hotplug.c
-> @@ -522,7 +522,8 @@ int __ref online_pages(unsigned long pfn, unsigned long nr_pages)
->         init_per_zone_wmark_min();
->  
->         if (onlined_pages) {
-> -               kswapd_run(zone_to_nid(zone));
-> +               if (!is_kswapd_running(zone_to_nid(zone))
-> +                       kswapd_run(zone_to_nid(zone));
->                 node_set_state(zone_to_nid(zone), N_HIGH_MEMORY);
->         }
->  
-> diff --git a/mm/vmscan.c b/mm/vmscan.c
-> index eeb3bc9..f331904 100644
-> --- a/mm/vmscan.c
-> +++ b/mm/vmscan.c
-> @@ -2932,6 +2932,14 @@ static int __devinit cpu_callback(struct notifier_block *nfb,
->         return NOTIFY_OK;
->  }
->  
-> +bool is_kswapd_running(int nid)
-> +{
-> +       pg_data_t *pgdat = NODE_DATA(nid);
-> +       if (pgdat->kswapd)
-> +               return true;
-> +       return false;
-> +}
-> +
->  /*
->   * This kswapd start function will be called by init and node-hot-add.
->   * On node-hot-add, kswapd will moved to proper cpus if cpus are hot-added.
-> @@ -2941,9 +2949,6 @@ int kswapd_run(int nid)
->         pg_data_t *pgdat = NODE_DATA(nid);
->         int ret = 0;
->  
-> -       if (pgdat->kswapd)
-> -               return 0;
-> -
->         pgdat->kswapd = kthread_run(kswapd, pgdat, "kswapd%d", nid);
->         if (IS_ERR(pgdat->kswapd)) {
->                 /* failure at boot is fatal */
-> 
-> Anyway, it's a preference and trivial but I hope you fix that, too if you don't mind
-> Of course, my nitpick shouldn't prevent merging your good fix.
-> If you mind it, I don't care of it. :)
-> 
-> Thanks.
-
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index b36d08c..f660ed7 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -871,7 +871,6 @@ extern void pagefault_out_of_memory(void);
+ #define SHOW_MEM_FILTER_NODES	(0x0001u)	/* filter disallowed nodes */
+ 
+ extern void show_free_areas(unsigned int flags);
+-extern bool skip_free_areas_node(unsigned int flags, int nid);
+ 
+ int shmem_zero_setup(struct vm_area_struct *);
+ 
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 7892f84..3d8d9e7 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -2738,7 +2738,7 @@ void si_meminfo_node(struct sysinfo *val, int nid)
+  * Determine whether the node should be displayed or not, depending on whether
+  * SHOW_MEM_FILTER_NODES was passed to show_free_areas().
+  */
+-bool skip_free_areas_node(unsigned int flags, int nid)
++static bool skip_free_areas_node(unsigned int flags, int nid)
+ {
+ 	bool ret = false;
+ 	unsigned int cpuset_mems_cookie;
+-- 
+1.7.9.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
