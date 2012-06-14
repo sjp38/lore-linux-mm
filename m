@@ -1,44 +1,39 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx149.postini.com [74.125.245.149])
-	by kanga.kvack.org (Postfix) with SMTP id 39F9F6B005C
-	for <linux-mm@kvack.org>; Wed, 13 Jun 2012 23:13:40 -0400 (EDT)
-Received: from m2.gw.fujitsu.co.jp (unknown [10.0.50.72])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id C3C193EE0B5
-	for <linux-mm@kvack.org>; Thu, 14 Jun 2012 12:13:38 +0900 (JST)
-Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id A93F645DE4E
-	for <linux-mm@kvack.org>; Thu, 14 Jun 2012 12:13:38 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 92D1145DD74
-	for <linux-mm@kvack.org>; Thu, 14 Jun 2012 12:13:38 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 871B51DB803C
-	for <linux-mm@kvack.org>; Thu, 14 Jun 2012 12:13:38 +0900 (JST)
-Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.240.81.133])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 42DA21DB802C
-	for <linux-mm@kvack.org>; Thu, 14 Jun 2012 12:13:38 +0900 (JST)
-Message-ID: <4FD95665.5050300@jp.fujitsu.com>
-Date: Thu, 14 Jun 2012 12:11:33 +0900
-From: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Received: from psmtp.com (na3sys010amx178.postini.com [74.125.245.178])
+	by kanga.kvack.org (Postfix) with SMTP id 5E1AE6B005C
+	for <linux-mm@kvack.org>; Wed, 13 Jun 2012 23:20:16 -0400 (EDT)
+Received: by dakp5 with SMTP id p5so2277512dak.14
+        for <linux-mm@kvack.org>; Wed, 13 Jun 2012 20:20:15 -0700 (PDT)
+Date: Thu, 14 Jun 2012 12:20:05 +0900
+From: Tejun Heo <tj@kernel.org>
+Subject: Re: Early boot panic on machine with lots of memory
+Message-ID: <20120614032005.GC3766@dhcp-172-17-108-109.mtv.corp.google.com>
+References: <1339623535.3321.4.camel@lappy>
 MIME-Version: 1.0
-Subject: Re: [PATCH -V9 08/15] hugetlb: Make some static variables global
-References: <1339583254-895-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com> <1339583254-895-9-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
-In-Reply-To: <1339583254-895-9-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
-Content-Type: text/plain; charset=ISO-2022-JP
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1339623535.3321.4.camel@lappy>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Cc: linux-mm@kvack.org, dhillf@gmail.com, rientjes@google.com, mhocko@suse.cz, akpm@linux-foundation.org, hannes@cmpxchg.org, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org
+To: Sasha Levin <levinsasha928@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, David Miller <davem@davemloft.net>, hpa@linux.intel.com, linux-mm <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 
-(2012/06/13 19:27), Aneesh Kumar K.V wrote:
-> From: "Aneesh Kumar K.V"<aneesh.kumar@linux.vnet.ibm.com>
+On Wed, Jun 13, 2012 at 11:38:55PM +0200, Sasha Levin wrote:
+> Hi all,
 > 
-> We will use them later in hugetlb_cgroup.c
+> I'm seeing the following when booting a KVM guest with 65gb of RAM, on latest linux-next.
 > 
-> Signed-off-by: Aneesh Kumar K.V<aneesh.kumar@linux.vnet.ibm.com>
+> Note that it happens with numa=off.
+> 
+> [    0.000000] BUG: unable to handle kernel paging request at ffff88102febd948
+> [    0.000000] IP: [<ffffffff836a6f37>] __next_free_mem_range+0x9b/0x155
 
-Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Can you map it back to the source line please?
+
+Thanks.
+
+-- 
+tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
