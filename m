@@ -1,51 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx134.postini.com [74.125.245.134])
-	by kanga.kvack.org (Postfix) with SMTP id C1E2A6B005C
-	for <linux-mm@kvack.org>; Thu, 14 Jun 2012 00:04:55 -0400 (EDT)
-Received: from m4.gw.fujitsu.co.jp (unknown [10.0.50.74])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 19E863EE0BD
-	for <linux-mm@kvack.org>; Thu, 14 Jun 2012 13:04:54 +0900 (JST)
-Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id EB9B045DE55
-	for <linux-mm@kvack.org>; Thu, 14 Jun 2012 13:04:50 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 88F1345DE51
-	for <linux-mm@kvack.org>; Thu, 14 Jun 2012 13:04:50 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 7A6A5E18006
-	for <linux-mm@kvack.org>; Thu, 14 Jun 2012 13:04:50 +0900 (JST)
-Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.240.81.133])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 132E21DB8040
-	for <linux-mm@kvack.org>; Thu, 14 Jun 2012 13:04:50 +0900 (JST)
-Message-ID: <4FD9624D.3020600@jp.fujitsu.com>
-Date: Thu, 14 Jun 2012 13:02:21 +0900
+Received: from psmtp.com (na3sys010amx148.postini.com [74.125.245.148])
+	by kanga.kvack.org (Postfix) with SMTP id 6388F6B005C
+	for <linux-mm@kvack.org>; Thu, 14 Jun 2012 00:07:04 -0400 (EDT)
+Received: from m1.gw.fujitsu.co.jp (unknown [10.0.50.71])
+	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id EE2843EE0B5
+	for <linux-mm@kvack.org>; Thu, 14 Jun 2012 13:07:02 +0900 (JST)
+Received: from smail (m1 [127.0.0.1])
+	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id D365945DE59
+	for <linux-mm@kvack.org>; Thu, 14 Jun 2012 13:07:02 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
+	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id BAC5345DE56
+	for <linux-mm@kvack.org>; Thu, 14 Jun 2012 13:07:02 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id AA4261DB804F
+	for <linux-mm@kvack.org>; Thu, 14 Jun 2012 13:07:02 +0900 (JST)
+Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.240.81.134])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 63EEE1DB803C
+	for <linux-mm@kvack.org>; Thu, 14 Jun 2012 13:07:02 +0900 (JST)
+Message-ID: <4FD962D4.1020908@jp.fujitsu.com>
+Date: Thu, 14 Jun 2012 13:04:36 +0900
 From: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH] memory hotplug: fix invalid memory access caused by stale
- kswapd pointer
-References: <1339645491-5656-1-git-send-email-jiang.liu@huawei.com>
-In-Reply-To: <1339645491-5656-1-git-send-email-jiang.liu@huawei.com>
+Subject: Re: [PATCH -V9 [updated] 10/15] hugetlb/cgroup: Add the cgroup pointer
+ to page lru
+References: <1339583254-895-11-git-send-email-aneesh.kumar@linux.vnet.ibm.com> <1339587270-5831-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+In-Reply-To: <1339587270-5831-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
 Content-Type: text/plain; charset=ISO-2022-JP
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jiang Liu <jiang.liu@huawei.com>
-Cc: Mel Gorman <mgorman@suse.de>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Minchan Kim <minchan@kernel.org>, Hugh Dickins <hughd@google.com>, Keping Chen <chenkeping@huawei.com>, Tony Luck <tony.luck@intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Xishi Qiu <qiuxishi@huawei.com>, Jiang Liu <liuj97@gmail.com>, Yasuaki ISIMATU <isimatu.yasuaki@jp.fujitsu.com>
+To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Cc: linux-mm@kvack.org, dhillf@gmail.com, rientjes@google.com, mhocko@suse.cz, akpm@linux-foundation.org, hannes@cmpxchg.org, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org
 
-(2012/06/14 12:44), Jiang Liu wrote:
-> Function kswapd_stop() will be called to destroy the kswapd work thread
-> when all memory of a NUMA node has been offlined. But kswapd_stop() only
-> terminates the work thread without resetting NODE_DATA(nid)->kswapd to NULL.
-> The stale pointer will prevent kswapd_run() from creating a new work thread
-> when adding memory to the memory-less NUMA node again. Eventually the stale
-> pointer may cause invalid memory access.
+(2012/06/13 20:34), Aneesh Kumar K.V wrote:
+> From: "Aneesh Kumar K.V"<aneesh.kumar@linux.vnet.ibm.com>
 > 
-> Signed-off-by: Xishi Qiu<qiuxishi@huawei.com>
-> Signed-off-by: Jiang Liu<liuj97@gmail.com>
+> Add the hugetlb cgroup pointer to 3rd page lru.next. This limit
+> the usage to hugetlb cgroup to only hugepages with 3 or more
+> normal pages. I guess that is an acceptable limitation.
 > 
+> Signed-off-by: Aneesh Kumar K.V<aneesh.kumar@linux.vnet.ibm.com>
 
 Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
