@@ -1,50 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx168.postini.com [74.125.245.168])
-	by kanga.kvack.org (Postfix) with SMTP id 456896B005C
-	for <linux-mm@kvack.org>; Thu, 14 Jun 2012 16:43:33 -0400 (EDT)
-Date: Thu, 14 Jun 2012 15:43:30 -0500 (CDT)
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: [PATCH] hugeltb: Mark hugelb_max_hstate __read_mostly
-In-Reply-To: <20120614141257.GQ27397@tiehlicka.suse.cz>
-Message-ID: <alpine.DEB.2.00.1206141538060.12773@router.home>
-References: <1339682178-29059-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com> <20120614141257.GQ27397@tiehlicka.suse.cz>
+Received: from psmtp.com (na3sys010amx193.postini.com [74.125.245.193])
+	by kanga.kvack.org (Postfix) with SMTP id 1CE736B0069
+	for <linux-mm@kvack.org>; Thu, 14 Jun 2012 16:56:10 -0400 (EDT)
+Received: by dakp5 with SMTP id p5so3750758dak.14
+        for <linux-mm@kvack.org>; Thu, 14 Jun 2012 13:56:09 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+In-Reply-To: <1339667440.3321.7.camel@lappy>
+References: <1339623535.3321.4.camel@lappy>
+	<20120614032005.GC3766@dhcp-172-17-108-109.mtv.corp.google.com>
+	<1339667440.3321.7.camel@lappy>
+Date: Thu, 14 Jun 2012 13:56:09 -0700
+Message-ID: <CAE9FiQVJ-q3gQxfBqfRnG+RvEh2bZ2-Ki=CRUATmCKjJp8MNuw@mail.gmail.com>
+Subject: Re: Early boot panic on machine with lots of memory
+From: Yinghai Lu <yinghai@kernel.org>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, linux-mm@kvack.org, kamezawa.hiroyu@jp.fujitsu.com, akpm@linux-foundation.org
+To: Sasha Levin <levinsasha928@gmail.com>
+Cc: Tejun Heo <tj@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, David Miller <davem@davemloft.net>, hpa@linux.intel.com, linux-mm <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 
-On Thu, 14 Jun 2012, Michal Hocko wrote:
-
-> On Thu 14-06-12 19:26:18, Aneesh Kumar K.V wrote:
-> > From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-> >
-> > Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
-> > ---
-> >  include/linux/hugetlb.h |    2 +-
-> >  mm/hugetlb.c            |    2 +-
-> >  2 files changed, 2 insertions(+), 2 deletions(-)
-> >
-> > diff --git a/include/linux/hugetlb.h b/include/linux/hugetlb.h
-> > index 9650bb1..0f0877e 100644
-> > --- a/include/linux/hugetlb.h
-> > +++ b/include/linux/hugetlb.h
-> > @@ -23,7 +23,7 @@ struct hugepage_subpool {
-> >  };
-> >
-> >  extern spinlock_t hugetlb_lock;
-> > -extern int hugetlb_max_hstate;
-> > +extern int hugetlb_max_hstate __read_mostly;
+On Thu, Jun 14, 2012 at 2:50 AM, Sasha Levin <levinsasha928@gmail.com> wrot=
+e:
+> On Thu, 2012-06-14 at 12:20 +0900, Tejun Heo wrote:
+>> On Wed, Jun 13, 2012 at 11:38:55PM +0200, Sasha Levin wrote:
+>> > Hi all,
+>> >
+>> > I'm seeing the following when booting a KVM guest with 65gb of RAM, on=
+ latest linux-next.
+>> >
+>> > Note that it happens with numa=3Doff.
+>> >
+>> > [ =A0 =A00.000000] BUG: unable to handle kernel paging request at ffff=
+88102febd948
+>> > [ =A0 =A00.000000] IP: [<ffffffff836a6f37>] __next_free_mem_range+0x9b=
+/0x155
+>>
+>> Can you map it back to the source line please?
 >
-> It should be used only for definition
+> mm/memblock.c:583
+>
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0phys_addr_t r_start =3D ri=
+ ? r[-1].base + r[-1].size : 0;
+> =A097: =A0 85 d2 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 test =A0 %edx,%edx
+> =A099: =A0 74 08 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 je =A0 =A0 a3 <__nex=
+t_free_mem_range+0xa3>
+> =A09b: =A0 49 8b 48 f0 =A0 =A0 =A0 =A0 =A0 =A0 mov =A0 =A0-0x10(%r8),%rcx
+> =A09f: =A0 49 03 48 e8 =A0 =A0 =A0 =A0 =A0 =A0 add =A0 =A0-0x18(%r8),%rcx
+>
+> It's the deref on 9b (r8=3Dffff88102febd958).
 
-And a rationale needs to be given. Since this patch had no effect, I would
-think that the patch is just the expression of the belief of the patcher
-that something would improve performancewise.
+that reserved.region is allocated by memblock.
 
-But there seems to no need for this patch otherwise someone would have
-verified that the patch has the intended beneficial effect on performance.
+can you boot with "memblock=3Ddebug debug ignore_loglevel" and post
+whole boot log?
+
+Thanks
+
+Yinghai
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
