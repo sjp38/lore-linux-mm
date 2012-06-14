@@ -1,151 +1,129 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx160.postini.com [74.125.245.160])
-	by kanga.kvack.org (Postfix) with SMTP id 7FF1A6B005C
-	for <linux-mm@kvack.org>; Thu, 14 Jun 2012 09:19:25 -0400 (EDT)
-Received: from epcpsbgm1.samsung.com (mailout3.samsung.com [203.254.224.33])
- by mailout3.samsung.com
- (Oracle Communications Messaging Server 7u4-24.01(7.0.4.24.0) 64bit (built Nov
- 17 2011)) with ESMTP id <0M5L0099DZNZB830@mailout3.samsung.com> for
- linux-mm@kvack.org; Thu, 14 Jun 2012 22:19:23 +0900 (KST)
-Received: from AMDC159 ([106.116.37.153])
- by mmp2.samsung.com (Oracle Communications Messaging Server 7u4-24.01
- (7.0.4.24.0) 64bit (built Nov 17 2011))
- with ESMTPA id <0M5L00GVIZO2PT20@mmp2.samsung.com> for linux-mm@kvack.org;
- Thu, 14 Jun 2012 22:19:23 +0900 (KST)
-From: Marek Szyprowski <m.szyprowski@samsung.com>
-References: <201205230922.00530.b.zolnierkie@samsung.com>
-In-reply-to: <201205230922.00530.b.zolnierkie@samsung.com>
-Subject: RE: [PATCH] cma: cached pageblock type fixup
-Date: Thu, 14 Jun 2012 15:19:13 +0200
-Message-id: <001d01cd4a30$4d2505d0$e76f1170$%szyprowski@samsung.com>
-MIME-version: 1.0
-Content-type: text/plain; charset=US-ASCII
-Content-transfer-encoding: 7bit
-Content-language: pl
+Received: from psmtp.com (na3sys010amx132.postini.com [74.125.245.132])
+	by kanga.kvack.org (Postfix) with SMTP id 2A1D66B0062
+	for <linux-mm@kvack.org>; Thu, 14 Jun 2012 09:19:48 -0400 (EDT)
+Date: Thu, 14 Jun 2012 15:20:07 +0200
+From: Borislav Petkov <bp@amd64.org>
+Subject: Re: bugs in page colouring code
+Message-ID: <20120614132007.GC25940@aftab.osrc.amd.com>
+References: <20120613152936.363396d5@cuia.bos.redhat.com>
+ <20120614103627.GA25940@aftab.osrc.amd.com>
+ <4FD9DFCE.1070609@redhat.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <4FD9DFCE.1070609@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, linux-mm@kvack.org
-Cc: 'Michal Nazarewicz' <mina86@mina86.com>, 'Mel Gorman' <mgorman@suse.de>
+To: Rik van Riel <riel@redhat.com>
+Cc: Borislav Petkov <bp@amd64.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, sjhill@mips.com, ralf@linux-mips.org, "H. Peter Anvin" <hpa@linux.intel.com>, Rob Herring <rob.herring@calxeda.com>, Russell King <rmk+kernel@arm.linux.org.uk>, Nicolas Pitre <nico@linaro.org>
 
-Hello,
+On Thu, Jun 14, 2012 at 08:57:50AM -0400, Rik van Riel wrote:
+> On 06/14/2012 06:36 AM, Borislav Petkov wrote:
+> >On Wed, Jun 13, 2012 at 03:29:36PM -0400, Rik van Riel wrote:
+> 
+> >>For one, there are separate kernel boot arguments to control whether
+> >>32 and 64 bit processes need to have their addresses aligned for
+> >>page colouring.
+> >>
+> >>Do we really need that?
+> >
+> >Yes.
+> 
+> What do we need it for?
+> 
+> I can see wanting a big knob to disable page colouring
+> globally for both 32 and 64 bit processes, but why do
+> we need to control it separately?
 
-On Wednesday, May 23, 2012 9:22 AM Bartlomiej Zolnierkiewicz wrote:
+Right, so for 32-bit we have 8 bits for ASLR and with our workaround, if
+enabled on 32-bit, the randomness goes down to 5 bits. Thus, we wanted
+to have it flexible and so the user can choose between randomization and
+performance, depending on what he cares about.
 
-> CMA pages added to per-cpu pages lists in free_hot_cold_page()
-> have private field set to MIGRATE_CMA pageblock type .  If this
-> happes just before start_isolate_page_range() in alloc_contig_range()
-> changes pageblock type of the page to MIGRATE_ISOLATE it may result
-> in the cached pageblock type being stale in free_pcppages_bulk()
-> (which may be triggered by drain_all_pages() in alloc_contig_range()),
-> page being added to MIGRATE_CMA free list instead of MIGRATE_ISOLATE
-> one in __free_one_page() and (if the page is reused just before
-> test_pages_isolated() check) causing alloc_contig_range() failure.
-> 
-> Fix such situation by checking whether pageblock type of the page
-> changed to MIGRATE_ISOLATE for MIGRATE_CMA type pages in
-> free_pcppages_bulk() and if so fixup the pageblock type to
-> MIGRATE_ISOLATE (so the page will be added to MIGRATE_ISOLATE free
-> list in __free_one_page() and won't be used).
-> 
-> Similar situation can happen if rmqueue_bulk() sets cached pageblock
-> of the page to MIGRATE_CMA and start_isolate_page_range() is called
-> before buffered_rmqueue() completes (so the page may used by
-> get_page_from_freelist() and cause test_pages_isolated() check
-> failure in alloc_contig_range()).  Fix it in buffered_rmqueue() by
-> changing the pageblock type of the affected page if needed, freeing
-> page back to buddy allocator and retrying the allocation.
-> 
-> Please note that even with this patch applied some page allocation
-> vs alloc_contig_range() races are still possible and may result in
-> rare test_pages_isolated() failures.
-> 
-> Cc: Michal Nazarewicz <mina86@mina86.com>
-> Cc: Marek Szyprowski <m.szyprowski@samsung.com>
-> Cc: Mel Gorman <mgorman@suse.de>
-> Signed-off-by: Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>
-> Signed-off-by: Kyungmin Park <kyungmin.park@samsung.com>
+> I am not too keen on x86 keeping a slightly changed private copy of
+> arch_align_addr :)
 
-Mel, do you have any suggestions or comments how can we deal with this 
-issue?
+x86 is special, you know that, right? :-)
 
-> ---
->  mm/page_alloc.c |   38 ++++++++++++++++++++++++++++++++++++--
->  1 file changed, 36 insertions(+), 2 deletions(-)
+> >Mind you, this is only enabled on AMD F15h - all other x86 simply can't
+> >tweak it without code change.
+> >
+> >>Would it be a problem if I discarded that code, in order to get to one
+> >>common cache colouring implementation?
+> >
+> >Sorry, but, we'd like to keep it in.
 > 
-> Index: b/mm/page_alloc.c
-> ===================================================================
-> --- a/mm/page_alloc.c	2012-05-14 16:19:10.052973990 +0200
-> +++ b/mm/page_alloc.c	2012-05-15 12:40:54.199127705 +0200
-> @@ -664,12 +664,24 @@
->  			batch_free = to_free;
-> 
->  		do {
-> +			int mt;
-> +
->  			page = list_entry(list->prev, struct page, lru);
->  			/* must delete as __free_one_page list manipulates */
->  			list_del(&page->lru);
-> +
-> +			mt = page_private(page);
-> +			/*
-> +			 * cached MIGRATE_CMA pageblock type may have changed
-> +			 * during isolation
-> +			 */
-> +			if (is_migrate_cma(mt) &&
-> +			    get_pageblock_migratetype(page) == MIGRATE_ISOLATE)
-> +				mt = MIGRATE_ISOLATE;
-> +
->  			/* MIGRATE_MOVABLE list may include MIGRATE_RESERVEs */
-> -			__free_one_page(page, zone, 0, page_private(page));
-> -			trace_mm_page_pcpu_drain(page, 0, page_private(page));
-> +			__free_one_page(page, zone, 0, mt);
-> +			trace_mm_page_pcpu_drain(page, 0, mt);
->  		} while (--to_free && --batch_free && !list_empty(list));
->  	}
->  	__mod_zone_page_state(zone, NR_FREE_PAGES, count);
-> @@ -1440,6 +1452,7 @@
->  	if (likely(order == 0)) {
->  		struct per_cpu_pages *pcp;
->  		struct list_head *list;
-> +		int mt;
-> 
->  		local_irq_save(flags);
->  		pcp = &this_cpu_ptr(zone->pageset)->pcp;
-> @@ -1459,6 +1472,27 @@
-> 
->  		list_del(&page->lru);
->  		pcp->count--;
-> +
-> +		spin_lock(&zone->lock);
-> +		mt = page_private(page);
-> +		/*
-> +		 * cached MIGRATE_CMA pageblock type may have changed
-> +		 * during isolation
-> +		 */
-> +		if ((is_migrate_cma(mt) &&
-> +		     get_pageblock_migratetype(page) == MIGRATE_ISOLATE) ||
-> +		    mt == MIGRATE_ISOLATE) {
-> +			mt = MIGRATE_ISOLATE;
-> +
-> +			zone->all_unreclaimable = 0;
-> +			zone->pages_scanned = 0;
-> +
-> +			__free_one_page(page, zone, 0, mt);
-> +			__mod_zone_page_state(zone, NR_FREE_PAGES, 1);
-> +			spin_unlock(&zone->lock);
-> +			goto again;
-> +		} else
-> +			spin_unlock(&zone->lock);
->  	} else {
->  		if (unlikely(gfp_flags & __GFP_NOFAIL)) {
->  			/*
+> What is it used for?
 
-Best regards
+>From <Documentation/kernel-parameters.txt>:
+
+	align_va_addr=	[X86-64]
+			Align virtual addresses by clearing slice [14:12] when
+			allocating a VMA at process creation time. This option
+			gives you up to 3% performance improvement on AMD F15h
+			machines (where it is enabled by default) for a
+			CPU-intensive style benchmark, and it can vary highly in
+			a microbenchmark depending on workload and compiler.
+
+			32: only for 32-bit processes
+			64: only for 64-bit processes
+			on: enable for both 32- and 64-bit processes
+			off: disable for both 32- and 64-bit processes
+
+> >>Secondly, MAP_FIXED never checks for page colouring alignment. I
+> >>assume the cache aliasing on AMD Bulldozer is merely a performance
+> >>issue, and we can simply ignore page colouring for MAP_FIXED?
+> >
+> >Right, AFAICR, MAP_FIXED is not generally used for shared libs (correct
+> >me if I'm wrong here, my memory is very fuzzy about it) and since we see
+> >the perf issue with shared libs, this was fine.
+> 
+> Try stracing /bin/mount one of these days. A whole bunch
+> of libraries are mapped with MAP_FIXED :)
+> 
+> However, I expect that on x86 many applications expect
+> MAP_FIXED to just work, and enforcing that would be
+> more trouble than it's worth.
+
+Right, but if MAP_FIXED mappings succeed, then all processes sharing
+that mapping will have it at the same virtual address, correct? And
+if so, then we don't have the aliasing issue either so MAP_FIXED is a
+don't-care from that perspective.
+
+> >>That will be easy to get right in an architecture-independent
+> >>implementation.
+> >>
+> >>
+> >>A third issue is this:
+> >>
+> >>         if (!(current->flags&  PF_RANDOMIZE))
+> >>                 return addr;
+> >>
+> >>Do we really want to skip page colouring merely because the
+> >>application does not have PF_RANDOMIZE set?  What is this
+> >>conditional supposed to do?
+> >
+> >Linus said that without this we are probably breaking old userspace
+> >which can't stomach ASLR so we had to respect such userspace which
+> >clears that flag.
+> 
+> I wonder if that is true, since those userspace programs
+> probably run fine on ARM, MIPS and other architectures...
+
+Well, I'm too young to know that :) Reportedly, those were some obscure
+old binaries and we added the PF_RANDOMIZE check out of caution, so as
+to not break them, if at all.
+
 -- 
-Marek Szyprowski
-Samsung Poland R&D Center
+Regards/Gruss,
+Boris.
 
-
+Advanced Micro Devices GmbH
+Einsteinring 24, 85609 Dornach
+GM: Alberto Bozzo
+Reg: Dornach, Landkreis Muenchen
+HRB Nr. 43632 WEEE Registernr: 129 19551
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
