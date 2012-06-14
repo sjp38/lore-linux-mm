@@ -1,54 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx197.postini.com [74.125.245.197])
-	by kanga.kvack.org (Postfix) with SMTP id 03F3B6B0070
-	for <linux-mm@kvack.org>; Thu, 14 Jun 2012 10:12:18 -0400 (EDT)
-Date: Thu, 14 Jun 2012 09:12:16 -0500 (CDT)
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: Common [14/20] Always use the name "kmem_cache" for the slab
- cache with the kmem_cache structure.
-In-Reply-To: <4FD99DE4.1080107@parallels.com>
-Message-ID: <alpine.DEB.2.00.1206140908510.32075@router.home>
-References: <20120613152451.465596612@linux.com> <20120613152522.780459464@linux.com> <4FD99DE4.1080107@parallels.com>
+Received: from psmtp.com (na3sys010amx194.postini.com [74.125.245.194])
+	by kanga.kvack.org (Postfix) with SMTP id 056426B0071
+	for <linux-mm@kvack.org>; Thu, 14 Jun 2012 10:13:00 -0400 (EDT)
+Date: Thu, 14 Jun 2012 16:12:57 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH] hugeltb: Mark hugelb_max_hstate __read_mostly
+Message-ID: <20120614141257.GQ27397@tiehlicka.suse.cz>
+References: <1339682178-29059-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1339682178-29059-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Glauber Costa <glommer@parallels.com>
-Cc: Pekka Enberg <penberg@kernel.org>, linux-mm@kvack.org, David Rientjes <rientjes@google.com>, Matt Mackall <mpm@selenic.com>, Joonsoo Kim <js1304@gmail.com>
+To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Cc: linux-mm@kvack.org, kamezawa.hiroyu@jp.fujitsu.com, akpm@linux-foundation.org
 
-On Thu, 14 Jun 2012, Glauber Costa wrote:
+On Thu 14-06-12 19:26:18, Aneesh Kumar K.V wrote:
+> From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+> 
+> Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
+> ---
+>  include/linux/hugetlb.h |    2 +-
+>  mm/hugetlb.c            |    2 +-
+>  2 files changed, 2 insertions(+), 2 deletions(-)
+> 
+> diff --git a/include/linux/hugetlb.h b/include/linux/hugetlb.h
+> index 9650bb1..0f0877e 100644
+> --- a/include/linux/hugetlb.h
+> +++ b/include/linux/hugetlb.h
+> @@ -23,7 +23,7 @@ struct hugepage_subpool {
+>  };
+>  
+>  extern spinlock_t hugetlb_lock;
+> -extern int hugetlb_max_hstate;
+> +extern int hugetlb_max_hstate __read_mostly;
 
-> On 06/13/2012 07:25 PM, Christoph Lameter wrote:
-> > -	cache_cache.object_size = cache_cache.size;
-> > -	cache_cache.size = ALIGN(cache_cache.size,
-> > +	kmem_cache->size = kmem_cache->size;
->
-> You actually mean kmem_cache->object_size = kmem_cache->size.
-> Besides size = size making no sense, This had the effect for me to have
-> allocations that were supposed to be zeroed not being so particularly in the
-> edges of the objects.
+It should be used only for definition
 
-Correct.
-
-Subject: [slab] Provide correct reference to object size
-
-Signed-off-by: Christoph Lameter <cl@linux.com>
-
-Index: linux-2.6/mm/slab.c
-===================================================================
---- linux-2.6.orig/mm/slab.c	2012-06-14 03:10:09.002709496 -0500
-+++ linux-2.6/mm/slab.c	2012-06-14 03:10:02.478709623 -0500
-@@ -1496,8 +1496,8 @@ void __init kmem_cache_init(void)
- 	 */
- 	kmem_cache->size = offsetof(struct kmem_cache, array[nr_cpu_ids]) +
- 				  nr_node_ids * sizeof(struct kmem_list3 *);
--	kmem_cache->size = kmem_cache->size;
--	kmem_cache->size = ALIGN(kmem_cache->size,
-+	kmem_cache->object_size = kmem_cache->size;
-+	kmem_cache->size = ALIGN(kmem_cache->object_size,
- 					cache_line_size());
- 	kmem_cache->reciprocal_buffer_size =
- 		reciprocal_value(kmem_cache->size);
+-- 
+Michal Hocko
+SUSE Labs
+SUSE LINUX s.r.o.
+Lihovarska 1060/12
+190 00 Praha 9    
+Czech Republic
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
