@@ -1,79 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx173.postini.com [74.125.245.173])
-	by kanga.kvack.org (Postfix) with SMTP id C8D466B0069
-	for <linux-mm@kvack.org>; Thu, 14 Jun 2012 04:54:00 -0400 (EDT)
-From: Jiang Liu <jiang.liu@huawei.com>
-Subject: [PATCH] trivial, memory hotplug: add kswapd_is_running() for better readability
-Date: Thu, 14 Jun 2012 16:49:36 +0800
-Message-ID: <1339663776-196-1-git-send-email-jiang.liu@huawei.com>
-In-Reply-To: <4FD97718.6060008@kernel.org>
-References: <4FD97718.6060008@kernel.org>
+Received: from psmtp.com (na3sys010amx148.postini.com [74.125.245.148])
+	by kanga.kvack.org (Postfix) with SMTP id A54646B006C
+	for <linux-mm@kvack.org>; Thu, 14 Jun 2012 04:54:37 -0400 (EDT)
+Received: from m1.gw.fujitsu.co.jp (unknown [10.0.50.71])
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id AB1053EE0BC
+	for <linux-mm@kvack.org>; Thu, 14 Jun 2012 17:54:35 +0900 (JST)
+Received: from smail (m1 [127.0.0.1])
+	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 8F24745DE55
+	for <linux-mm@kvack.org>; Thu, 14 Jun 2012 17:54:35 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
+	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 7765645DE58
+	for <linux-mm@kvack.org>; Thu, 14 Jun 2012 17:54:35 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 679E91DB803C
+	for <linux-mm@kvack.org>; Thu, 14 Jun 2012 17:54:35 +0900 (JST)
+Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.240.81.147])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 1CE5B1DB8043
+	for <linux-mm@kvack.org>; Thu, 14 Jun 2012 17:54:35 +0900 (JST)
+Message-ID: <4FD9A625.1050300@jp.fujitsu.com>
+Date: Thu, 14 Jun 2012 17:51:49 +0900
+From: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain
+Subject: Re: [resend][PATCH] mm, vmscan: fix do_try_to_free_pages() livelock
+References: <1339661592-3915-1-git-send-email-kosaki.motohiro@gmail.com>
+In-Reply-To: <1339661592-3915-1-git-send-email-kosaki.motohiro@gmail.com>
+Content-Type: text/plain; charset=ISO-2022-JP
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Jiang Liu <jiang.liu@huawei.com>, Keping Chen <chenkeping@huawei.com>, Mel Gorman <mgorman@suse.de>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Tony Luck <tony.luck@intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Jiang Liu <liuj97@gmail.com>
+To: kosaki.motohiro@gmail.com
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Nick Piggin <npiggin@gmail.com>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mel@csn.ul.ie>, Minchan Kim <minchan.kim@gmail.com>
 
-Add kswapd_is_running() to check whether the kswapd worker thread is already
-running before calling kswapd_run() when onlining memory pages.
+(2012/06/14 17:13), kosaki.motohiro@gmail.com wrote:
+> From: KOSAKI Motohiro<kosaki.motohiro@jp.fujitsu.com>
+> 
+> Currently, do_try_to_free_pages() can enter livelock. Because of,
+> now vmscan has two conflicted policies.
+> 
+> 1) kswapd sleep when it couldn't reclaim any page when reaching
+>     priority 0. This is because to avoid kswapd() infinite
+>     loop. That said, kswapd assume direct reclaim makes enough
+>     free pages to use either regular page reclaim or oom-killer.
+>     This logic makes kswapd ->  direct-reclaim dependency.
+> 2) direct reclaim continue to reclaim without oom-killer until
+>     kswapd turn on zone->all_unreclaimble. This is because
+>     to avoid too early oom-kill.
+>     This logic makes direct-reclaim ->  kswapd dependency.
+> 
+> In worst case, direct-reclaim may continue to page reclaim forever
+> when kswapd sleeps forever.
+> 
+> We can't turn on zone->all_unreclaimable from direct reclaim path
+> because direct reclaim path don't take any lock and this way is racy.
+> 
+> Thus this patch removes zone->all_unreclaimable field completely and
+> recalculates zone reclaimable state every time.
+> 
+> Note: we can't take the idea that direct-reclaim see zone->pages_scanned
+> directly and kswapd continue to use zone->all_unreclaimable. Because, it
+> is racy. commit 929bea7c71 (vmscan: all_unreclaimable() use
+> zone->all_unreclaimable as a name) describes the detail.
+> 
+> Reported-by: Aaditya Kumar<aaditya.kumar.30@gmail.com>
+> Reported-by: Ying Han<yinghan@google.com>
+> Cc: Nick Piggin<npiggin@gmail.com>
+> Acked-by: Rik van Riel<riel@redhat.com>
+> Cc: Michal Hocko<mhocko@suse.cz>
+> Cc: Johannes Weiner<hannes@cmpxchg.org>
+> Cc: Mel Gorman<mel@csn.ul.ie>
+> Cc: KAMEZAWA Hiroyuki<kamezawa.hiroyu@jp.fujitsu.com>
+> Cc: Minchan Kim<minchan.kim@gmail.com>
+> Signed-off-by: KOSAKI Motohiro<kosaki.motohiro@jp.fujitsu.com>
 
-It's based on a draft version from Minchan Kim <minchan@kernel.org>.
-
-Signed-off-by: Jiang Liu <liuj97@gmail.com>
----
- include/linux/swap.h |    5 +++++
- mm/memory_hotplug.c  |    3 ++-
- mm/vmscan.c          |    3 +--
- 3 files changed, 8 insertions(+), 3 deletions(-)
-
-diff --git a/include/linux/swap.h b/include/linux/swap.h
-index c84ec68..36249d5 100644
---- a/include/linux/swap.h
-+++ b/include/linux/swap.h
-@@ -301,6 +301,11 @@ static inline void scan_unevictable_unregister_node(struct node *node)
- 
- extern int kswapd_run(int nid);
- extern void kswapd_stop(int nid);
-+static inline bool kswapd_is_running(int nid)
-+{
-+	return !!(NODE_DATA(nid)->kswapd);
-+}
-+
- #ifdef CONFIG_CGROUP_MEM_RES_CTLR
- extern int mem_cgroup_swappiness(struct mem_cgroup *mem);
- #else
-diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-index 0d7e3ec..88e479d 100644
---- a/mm/memory_hotplug.c
-+++ b/mm/memory_hotplug.c
-@@ -522,7 +522,8 @@ int __ref online_pages(unsigned long pfn, unsigned long nr_pages)
- 	init_per_zone_wmark_min();
- 
- 	if (onlined_pages) {
--		kswapd_run(zone_to_nid(zone));
-+		if (!kswapd_is_running(zone_to_nid(zone)))
-+			kswapd_run(zone_to_nid(zone));
- 		node_set_state(zone_to_nid(zone), N_HIGH_MEMORY);
- 	}
- 
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 7585101..3dafdbe 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -2941,8 +2941,7 @@ int kswapd_run(int nid)
- 	pg_data_t *pgdat = NODE_DATA(nid);
- 	int ret = 0;
- 
--	if (pgdat->kswapd)
--		return 0;
-+	BUG_ON(pgdat->kswapd);
- 
- 	pgdat->kswapd = kthread_run(kswapd, pgdat, "kswapd%d", nid);
- 	if (IS_ERR(pgdat->kswapd)) {
--- 
-1.7.1
-
+I like this.
+Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
