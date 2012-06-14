@@ -1,33 +1,26 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx181.postini.com [74.125.245.181])
-	by kanga.kvack.org (Postfix) with SMTP id 0738E6B005C
-	for <linux-mm@kvack.org>; Thu, 14 Jun 2012 13:52:45 -0400 (EDT)
-Message-ID: <4FDA24BA.7070306@redhat.com>
-Date: Thu, 14 Jun 2012 13:51:54 -0400
-From: Rik van Riel <riel@redhat.com>
+Received: from psmtp.com (na3sys010amx156.postini.com [74.125.245.156])
+	by kanga.kvack.org (Postfix) with SMTP id A8DC56B0062
+	for <linux-mm@kvack.org>; Thu, 14 Jun 2012 14:14:56 -0400 (EDT)
+Date: Thu, 14 Jun 2012 13:14:53 -0500 (CDT)
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: Common [19/20] Allocate kmem_cache structure in slab_common.c
+In-Reply-To: <4FD9BE30.4000005@parallels.com>
+Message-ID: <alpine.DEB.2.00.1206141312520.12773@router.home>
+References: <20120613152451.465596612@linux.com> <20120613152525.596813300@linux.com> <CAOJsxLE-7XCzbAi-M=sBkPymAj25yNGvAs6ea-ZyaEbDJo3+cA@mail.gmail.com> <4FD9BE30.4000005@parallels.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH] mm: fix page reclaim comment error
-References: <1339677662-25942-1-git-send-email-liwp.linux@gmail.com>
-In-Reply-To: <1339677662-25942-1-git-send-email-liwp.linux@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; CHARSET=US-ASCII; FORMAT=flowed
+Content-ID: <alpine.DEB.2.00.1206141312522.12773@router.home>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wanpeng Li <liwp.linux@gmail.com>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, linux-kernel@vger.kernel.org, trivial@kernel.org, Gavin Shan <shangw@linux.vnet.ibm.com>
+To: Pekka Enberg <penberg@kernel.org>
+Cc: Glauber Costa <glommer@parallels.com>, linux-mm@kvack.org, David Rientjes <rientjes@google.com>, Matt Mackall <mpm@selenic.com>, Joonsoo Kim <js1304@gmail.com>
 
-On 06/14/2012 08:41 AM, Wanpeng Li wrote:
-> From: Wanpeng Li<liwp@linux.vnet.ibm.com>
->
-> Since there are five lists in LRU cache, the array nr in get_scan_count
-> should be:
->
-> nr[0] = anon inactive pages to scan; nr[1] = anon active pages to scan
-> nr[2] = file inactive pages to scan; nr[3] = file active pages to scan
->
-> Signed-off-by: Wanpeng Li<liwp.linux@gmail.com>
+Merge what you are comfortable with and I will have a look at the rest.
+Just the initial cleanups for the allocators maybe?
 
-Reviewed-by: Rik van Riel <riel@redhat.com>
+I applied glommers' fix but my machine also will not boot with the whole
+set.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
