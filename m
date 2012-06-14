@@ -1,85 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx138.postini.com [74.125.245.138])
-	by kanga.kvack.org (Postfix) with SMTP id 3E1D56B0070
-	for <linux-mm@kvack.org>; Thu, 14 Jun 2012 10:23:26 -0400 (EDT)
-Message-ID: <4FD9F347.2020409@parallels.com>
-Date: Thu, 14 Jun 2012 18:20:55 +0400
-From: Glauber Costa <glommer@parallels.com>
+Received: from psmtp.com (na3sys010amx120.postini.com [74.125.245.120])
+	by kanga.kvack.org (Postfix) with SMTP id B2A936B0070
+	for <linux-mm@kvack.org>; Thu, 14 Jun 2012 10:28:53 -0400 (EDT)
+Message-ID: <4FD9F4EB.7080108@redhat.com>
+Date: Thu, 14 Jun 2012 10:27:55 -0400
+From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Subject: Re: Common [08/20] Extract common code for kmem_cache_create()
-References: <20120613152451.465596612@linux.com> <20120613152519.255119144@linux.com> <4FD99D9B.6060000@parallels.com> <alpine.DEB.2.00.1206140912250.32075@router.home>
-In-Reply-To: <alpine.DEB.2.00.1206140912250.32075@router.home>
-Content-Type: text/plain; charset="ISO-8859-1"; format=flowed
+Subject: Re: bugs in page colouring code
+References: <20120613152936.363396d5@cuia.bos.redhat.com> <20120614132053.GD28714@n2100.arm.linux.org.uk>
+In-Reply-To: <20120614132053.GD28714@n2100.arm.linux.org.uk>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: Pekka Enberg <penberg@kernel.org>, linux-mm@kvack.org, David Rientjes <rientjes@google.com>, Matt Mackall <mpm@selenic.com>, Joonsoo Kim <js1304@gmail.com>
+To: Russell King - ARM Linux <linux@arm.linux.org.uk>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, sjhill@mips.com, ralf@linux-mips.org, Borislav Petkov <borislav.petkov@amd.com>, "H. Peter Anvin" <hpa@linux.intel.com>, Rob Herring <rob.herring@calxeda.com>, Nicolas Pitre <nico@linaro.org>
 
-On 06/14/2012 06:18 PM, Christoph Lameter wrote:
-> On Thu, 14 Jun 2012, Glauber Costa wrote:
->
->> On 06/13/2012 07:24 PM, Christoph Lameter wrote:
->>> +struct kmem_cache *kmem_cache_create(const char *name, size_t size, size_t
->>> align,
->>> +		unsigned long flags, void (*ctor)(void *))
->>> +{
->>> +	struct kmem_cache *s = NULL;
->>> +
->>> +#ifdef CONFIG_DEBUG_VM
->>> +	if (!name || in_interrupt() || size<   sizeof(void *) ||
->>> +		size>   KMALLOC_MAX_SIZE) {
->>> +		printk(KERN_ERR "kmem_cache_create(%s) integrity check"
->>> +			" failed\n", name);
->>> +		goto out;
->>> +	}
->>> +#endif
+On 06/14/2012 09:20 AM, Russell King - ARM Linux wrote:
+> On Wed, Jun 13, 2012 at 03:29:36PM -0400, Rik van Riel wrote:
+>> COLOUR_ALIGN_DOWN can use the pgoff % shm_align_mask either positively
+>>     or negatively, depending on the address initially found by
+>>     get_unmapped_area
 >>
->> Not really a BUG, but label out is not used if !CONFIG_DEBUG_VM. Suggest
->> testing for the slab panic flag here, and panicing if we need to.
+>> static inline unsigned long COLOUR_ALIGN_DOWN(unsigned long addr,
+>>                                                unsigned long pgoff)
+>> {
+>>          unsigned long base = addr&  ~shm_align_mask;
+>>          unsigned long off = (pgoff<<  PAGE_SHIFT)&  shm_align_mask;
+>>
+>>          if (base + off<= addr)
+>>                  return base + off;
+>>
+>>          return base - off;
+>> }
 >
-> Hmmm.. That is quite sensitive. A change here will cause later patches in
-> the series to have issues. Maybe its best to put an #ifdef around the
-> label until a later patch that makes use of out: from code that is not
-> #ifdefed.
+> Yes, that is bollocks code, introduced by this commit:
 >
->
-> Subject: Add #ifdef to avoid warning about unused label
->
-> out: is only used if CONFIG_DEBUG_VM is enabled.
->
-> Signed-off-by: Christoph Lameter<cl@linux.com>
->
-> Index: linux-2.6/mm/slab_common.c
-> ===================================================================
-> --- linux-2.6.orig/mm/slab_common.c	2012-06-14 03:16:06.778702087 -0500
-> +++ linux-2.6/mm/slab_common.c	2012-06-14 03:16:01.054702201 -0500
-> @@ -57,7 +57,9 @@ struct kmem_cache *kmem_cache_create(con
->
->   	s = __kmem_cache_create(name, size, align, flags, ctor);
->
-> +#ifdef CONFIG_DEBUG_VM
->   out:
-> +#endif
->   	if (!s&&  (flags&  SLAB_PANIC))
->   		panic("kmem_cache_create: Failed to create slab '%s'\n", name);
->
+> commit 7dbaa466780a754154531b44c2086f6618cee3a8
+> Author: Rob Herring<rob.herring@calxeda.com>
+> Date:   Tue Nov 22 04:01:07 2011 +0100
 
-That's how my code reads:
+It's not just ARM that has this bug. It appears to
+be cut'n'pasted from other architectures (MIPS? SPARC?).
 
-#ifdef CONFIG_DEBUG_VM
-if (!name || in_interrupt() || size < sizeof(void *) ||
-     size    KMALLOC_MAX_SIZE) {
+>> The fix would be to return an address that is a whole shm_align_mask
+>> lower: (((base - shm_align_mask)&  ~shm_align_mask) + off
+>
+> Yes, agreed.
 
-     if ((flags & SLAB_PANIC))
-         panic("kmem_cache_create(%s) integrity check failed\n", name);
-     printk(KERN_ERR "kmem_cache_create(%s) integrity check failed\n",
-            name);
-     return NULL;
-}
-#endif
+I will make sure the arch-independent colouring
+code does that.
 
-How can it put any patch later than this in trouble ?
+> This brings up the question: should a MAP_PRIVATE mapping see updates
+> to the backing file made via a shared mapping and/or writing the file
+> directly?  After all, a r/w MAP_PRIVATE mapping which has been CoW'd
+> won't see the updates.
+>
+> So I'd argue that a file mapped MAP_SHARED must be mapped according to
+> the colour rules, but a MAP_PRIVATE is free not to be so.
+
+OK, fair enough.
+
+>> Secondly, MAP_FIXED never checks for page colouring alignment.
+>> I assume the cache aliasing on AMD Bulldozer is merely a performance
+>> issue, and we can simply ignore page colouring for MAP_FIXED?
+>> That will be easy to get right in an architecture-independent
+>> implementation.
+>
+> There's a whole bunch of issues with MAP_FIXED, specifically address
+> space overflow has been discussed previously, and resulted in this patch:
+>
+> [PATCH 0/6] get rid of extra check for TASK_SIZE in get_unmapped_area
+
+Turns out, get_unmapped_area_prot (the function
+that calls arch_get_unmapped_area) checks for
+these overflows, so we should be fine.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
