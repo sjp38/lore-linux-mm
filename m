@@ -1,17 +1,19 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx172.postini.com [74.125.245.172])
-	by kanga.kvack.org (Postfix) with SMTP id A71106B005C
-	for <linux-mm@kvack.org>; Thu, 14 Jun 2012 08:37:16 -0400 (EDT)
-Received: by pbbrp2 with SMTP id rp2so4600395pbb.14
-        for <linux-mm@kvack.org>; Thu, 14 Jun 2012 05:37:15 -0700 (PDT)
-From: Wanpeng Li <liwp.linux@gmail.com>
-Subject: [PATCH] mm: fix page relaim comment error
-Date: Thu, 14 Jun 2012 20:36:48 +0800
-Message-Id: <1339677408-25253-1-git-send-email-liwp.linux@gmail.com>
+Received: from psmtp.com (na3sys010amx132.postini.com [74.125.245.132])
+	by kanga.kvack.org (Postfix) with SMTP id BA6B36B0062
+	for <linux-mm@kvack.org>; Thu, 14 Jun 2012 08:39:45 -0400 (EDT)
+Received: by dakp5 with SMTP id p5so3075461dak.14
+        for <linux-mm@kvack.org>; Thu, 14 Jun 2012 05:39:45 -0700 (PDT)
+From: =?UTF-8?B?G1tB?= <liwp.linux@gmail.com>
+Subject: [PATCH] mm: fix page reclaim comment error
+Date: Thu, 14 Jun 2012 20:38:59 +0800
+Message-Id: <4fd9db8d.c4e2440a.6bf6.4a46@mx.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
 Cc: Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, linux-kernel@vger.kernel.org, trivial@kernel.org, Gavin Shan <shangw@linux.vnet.ibm.com>, Wanpeng Li <liwp.linux@gmail.com>
+
+From: Wanpeng Li <liwp.linux@gmail.com>
 
 From: Wanpeng Li <liwp@linux.vnet.ibm.com>
 
