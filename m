@@ -1,53 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx156.postini.com [74.125.245.156])
-	by kanga.kvack.org (Postfix) with SMTP id 68DEB6B005C
-	for <linux-mm@kvack.org>; Wed, 13 Jun 2012 22:39:36 -0400 (EDT)
-Message-ID: <4FD94EE8.9030300@kernel.org>
-Date: Thu, 14 Jun 2012 11:39:36 +0900
-From: Minchan Kim <minchan@kernel.org>
+Received: from psmtp.com (na3sys010amx128.postini.com [74.125.245.128])
+	by kanga.kvack.org (Postfix) with SMTP id 66A2B6B005C
+	for <linux-mm@kvack.org>; Wed, 13 Jun 2012 23:11:40 -0400 (EDT)
+Received: from m2.gw.fujitsu.co.jp (unknown [10.0.50.72])
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 700533EE0C8
+	for <linux-mm@kvack.org>; Thu, 14 Jun 2012 12:11:38 +0900 (JST)
+Received: from smail (m2 [127.0.0.1])
+	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 50A4145DD74
+	for <linux-mm@kvack.org>; Thu, 14 Jun 2012 12:11:38 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
+	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 1F2F245DE4D
+	for <linux-mm@kvack.org>; Thu, 14 Jun 2012 12:11:38 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 0BF871DB802C
+	for <linux-mm@kvack.org>; Thu, 14 Jun 2012 12:11:38 +0900 (JST)
+Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.240.81.134])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id B79C21DB803F
+	for <linux-mm@kvack.org>; Thu, 14 Jun 2012 12:11:37 +0900 (JST)
+Message-ID: <4FD955E8.5050100@jp.fujitsu.com>
+Date: Thu, 14 Jun 2012 12:09:28 +0900
+From: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH] mm: add gfp_mask parameter to vm_map_ram()
-References: <20120612012134.GA7706@localhost> <20120613123932.GA1445@localhost> <20120614012026.GL3019@devil.redhat.com> <20120614014902.GB7289@localhost> <4FD94779.3030108@kernel.org> <20120614022132.GA3766@dhcp-172-17-108-109.mtv.corp.google.com>
-In-Reply-To: <20120614022132.GA3766@dhcp-172-17-108-109.mtv.corp.google.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Subject: Re: [PATCH -V9 05/15] hugetlb: avoid taking i_mmap_mutex in unmap_single_vma()
+ for hugetlb
+References: <1339583254-895-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com> <1339583254-895-6-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+In-Reply-To: <1339583254-895-6-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+Content-Type: text/plain; charset=ISO-2022-JP
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>
-Cc: Fengguang Wu <fengguang.wu@intel.com>, Dave Chinner <dchinner@redhat.com>, Christoph Hellwig <hch@infradead.org>, linux-fsdevel@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>, xfs@oss.sgi.com
+To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Cc: linux-mm@kvack.org, dhillf@gmail.com, rientjes@google.com, mhocko@suse.cz, akpm@linux-foundation.org, hannes@cmpxchg.org, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org
 
-On 06/14/2012 11:21 AM, Tejun Heo wrote:
-
-> Hello, guys.
+(2012/06/13 19:27), Aneesh Kumar K.V wrote:
+> From: "Aneesh Kumar K.V"<aneesh.kumar@linux.vnet.ibm.com>
 > 
-> On Thu, Jun 14, 2012 at 11:07:53AM +0900, Minchan Kim wrote:
->> It shouldn't work because vmap_page_range still can allocate
->> GFP_KERNEL by pud_alloc in vmap_pud_range.  For it, I tried [1] but
->> other mm guys want to add WARNING [2] so let's avoiding gfp context
->> passing.
->>
->> [1] https://lkml.org/lkml/2012/4/23/77
->> [2] https://lkml.org/lkml/2012/5/2/340
+> i_mmap_mutex lock was added in unmap_single_vma by 502717f4e ("hugetlb:
+> fix linked list corruption in unmap_hugepage_range()") but we don't use
+> page->lru in unmap_hugepage_range any more.  Also the lock was taken
+> higher up in the stack in some code path.  That would result in deadlock.
 > 
-> Yeah, vmalloc area doesn't support !GFP_KERNEL allocations and as
-> Minchan said, changing this would require updating page table
-> allocation functions on all archs.  This is the same reason why percpu
-> allocator doesn't support !GFP_KERNEL allocations which in turn made
-> blk-throttle implement its own private percpu pool.
+> unmap_mapping_range (i_mmap_mutex)
+>   ->  unmap_mapping_range_tree
+>      ->  unmap_mapping_range_vma
+>         ->  zap_page_range_single
+>           ->  unmap_single_vma
+> 	      ->  unmap_hugepage_range (i_mmap_mutex)
 > 
-> If xfs can't live without GFP_NOFS vmalloc allocations, either it has
-> to implement its own pool or maybe it's time to implement !GFP_KERNEL
-> allocs for vmalloc area.  I don't know.
+> For shared pagetable support for huge pages, since pagetable pages are ref
+> counted we don't need any lock during huge_pmd_unshare.  We do take
+> i_mmap_mutex in huge_pmd_share while walking the vma_prio_tree in mapping.
+> (39dde65c9940c97f ("shared page table for hugetlb page")).
+> 
+> Signed-off-by: Aneesh Kumar K.V<aneesh.kumar@linux.vnet.ibm.com>
+Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujtisu.com>
 
-
-There is another example in ARM. 
-http://www.spinics.net/lists/arm-kernel/msg179202.html
-They try to make pool for atomic vmalloc support. :(
-Only GFP_KERNEL support vmalloc spreads out many pools in system, Sigh. 
-
--- 
-Kind regards,
-Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
