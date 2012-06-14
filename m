@@ -1,38 +1,28 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx140.postini.com [74.125.245.140])
-	by kanga.kvack.org (Postfix) with SMTP id 810C06B0072
-	for <linux-mm@kvack.org>; Thu, 14 Jun 2012 12:21:26 -0400 (EDT)
-Received: by dakp5 with SMTP id p5so3398934dak.14
-        for <linux-mm@kvack.org>; Thu, 14 Jun 2012 09:21:25 -0700 (PDT)
-Message-ID: <4FDA0F82.2030708@gmail.com>
-Date: Thu, 14 Jun 2012 12:21:22 -0400
-From: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
+Received: from psmtp.com (na3sys010amx130.postini.com [74.125.245.130])
+	by kanga.kvack.org (Postfix) with SMTP id A18C46B005C
+	for <linux-mm@kvack.org>; Thu, 14 Jun 2012 13:29:05 -0400 (EDT)
+Date: Thu, 14 Jun 2012 12:29:02 -0500 (CDT)
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: [PATCH 4/4] make CFLGS_OFF_SLAB visible for all slabs
+In-Reply-To: <4FDA0ADB.2010508@parallels.com>
+Message-ID: <alpine.DEB.2.00.1206141228230.12773@router.home>
+References: <1339676244-27967-1-git-send-email-glommer@parallels.com> <1339676244-27967-5-git-send-email-glommer@parallels.com> <alpine.DEB.2.00.1206141019010.32075@router.home> <4FDA0ADB.2010508@parallels.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 2/2] mm: compaction: add /proc/vmstat entry for rescued
- MIGRATE_UNMOVABLE pageblocks
-References: <201206141802.50075.b.zolnierkie@samsung.com>
-In-Reply-To: <201206141802.50075.b.zolnierkie@samsung.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Dave Jones <davej@redhat.com>, Cong Wang <amwang@redhat.com>, Markus Trippelsdorf <markus@trippelsdorf.de>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@redhat.com>, Marek Szyprowski <m.szyprowski@samsung.com>, Kyungmin Park <kyungmin.park@samsung.com>
+To: Glauber Costa <glommer@parallels.com>
+Cc: linux-mm@kvack.org, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, cgroups@vger.kernel.org, devel@openvz.org, Pekka Enberg <penberg@cs.helsinki.fi>
 
-(6/14/12 12:02 PM), Bartlomiej Zolnierkiewicz wrote:
-> From: Bartlomiej Zolnierkiewicz<b.zolnierkie@samsung.com>
-> Subject: [PATCH] mm: compaction: add /proc/vmstat entry for rescued MIGRATE_UNMOVABLE pageblocks
->
-> compact_rescued_unmovable_blocks shows the number of MIGRATE_UNMOVABLE
-> pageblocks converted back to MIGRATE_MOVABLE type by the memory compaction
-> code.  Non-zero values indicate that large kernel-originated allocations
-> of MIGRATE_UNMOVABLE type happen in the system and need special handling
-> from the memory compaction code.
->
-> This new vmstat entry is optional but useful for development and understanding
-> the system.
+On Thu, 14 Jun 2012, Glauber Costa wrote:
 
-This description don't describe why admin need this stat and how to use it.
+> I want to mask that out in kmem-specific slab creation. Since I am copying the
+> original flags, and that flag is embedded in the slab saved flags, it will be
+> carried to the new slab if I don't mask it out.
+
+I thought you intercepted slab creation? You can copy the flags at that
+point.
 
 
 --
