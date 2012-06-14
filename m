@@ -1,156 +1,97 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx139.postini.com [74.125.245.139])
-	by kanga.kvack.org (Postfix) with SMTP id 2467B6B005C
-	for <linux-mm@kvack.org>; Wed, 13 Jun 2012 23:34:36 -0400 (EDT)
-Date: Thu, 14 Jun 2012 13:34:29 +1000
-From: Dave Chinner <david@fromorbit.com>
-Subject: Re: [PATCH] mm: add gfp_mask parameter to vm_map_ram()
-Message-ID: <20120614033429.GD7339@dastard>
-References: <20120612012134.GA7706@localhost>
- <20120613123932.GA1445@localhost>
- <20120614012026.GL3019@devil.redhat.com>
- <20120614014902.GB7289@localhost>
- <4FD94779.3030108@kernel.org>
+Received: from psmtp.com (na3sys010amx187.postini.com [74.125.245.187])
+	by kanga.kvack.org (Postfix) with SMTP id 3EF1E6B005C
+	for <linux-mm@kvack.org>; Wed, 13 Jun 2012 23:49:00 -0400 (EDT)
+From: Jiang Liu <jiang.liu@huawei.com>
+Subject: [PATCH] memory hotplug: fix invalid memory access caused by stale kswapd pointer
+Date: Thu, 14 Jun 2012 11:44:51 +0800
+Message-ID: <1339645491-5656-1-git-send-email-jiang.liu@huawei.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <4FD94779.3030108@kernel.org>
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Fengguang Wu <fengguang.wu@intel.com>, Dave Chinner <dchinner@redhat.com>, Christoph Hellwig <hch@infradead.org>, linux-fsdevel@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, xfs@oss.sgi.com
+To: Mel Gorman <mgorman@suse.de>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Minchan Kim <minchan@kernel.org>, Hugh Dickins <hughd@google.com>
+Cc: Jiang Liu <jiang.liu@huawei.com>, Keping Chen <chenkeping@huawei.com>, Tony Luck <tony.luck@intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Xishi Qiu <qiuxishi@huawei.com>, Jiang Liu <liuj97@gmail.com>
 
-On Thu, Jun 14, 2012 at 11:07:53AM +0900, Minchan Kim wrote:
-> Hi Fengguang,
-> 
-> On 06/14/2012 10:49 AM, Fengguang Wu wrote:
-> 
-> > On Thu, Jun 14, 2012 at 11:20:26AM +1000, Dave Chinner wrote:
-> >> On Wed, Jun 13, 2012 at 08:39:32PM +0800, Fengguang Wu wrote:
-> >>> Hi Christoph, Dave,
-> >>>
-> >>> I got this lockdep warning on XFS when running the xfs tests:
+Function kswapd_stop() will be called to destroy the kswapd work thread
+when all memory of a NUMA node has been offlined. But kswapd_stop() only
+terminates the work thread without resetting NODE_DATA(nid)->kswapd to NULL.
+The stale pointer will prevent kswapd_run() from creating a new work thread
+when adding memory to the memory-less NUMA node again. Eventually the stale
+pointer may cause invalid memory access.
 
-[rant warning]
+Signed-off-by: Xishi Qiu <qiuxishi@huawei.com>
+Signed-off-by: Jiang Liu <liuj97@gmail.com>
 
-> >> Bug in vm_map_ram - it does an unconditional GFP_KERNEL allocation
-> >> here, and we are in a GFP_NOFS context. We can't pass a gfp_mask to
-> >> vm_map_ram(), so until vm_map_ram() grows that we can't fix it...
-> > 
-> > This trivial patch should fix it.
-.....
-> 
-> It shouldn't work because vmap_page_range still can allocate GFP_KERNEL by pud_alloc in vmap_pud_range.
-> For it, I tried [1] but other mm guys want to add WARNING [2] so let's avoiding gfp context passing.
+---
 
-Oh, wonderful, you're pulling the "it's not a MM issue, don't use
-vmalloc" card.
+An example stack dump as below. It's reproduced with 2.6.32, but latest
+kernel has the same issue.
 
-> [1] https://lkml.org/lkml/2012/4/23/77
+BUG: unable to handle kernel NULL pointer dereference at (null)
+IP: [<ffffffff81051a94>] exit_creds+0x12/0x78
+PGD 0
+Oops: 0000 [#1] SMP
+last sysfs file: /sys/devices/system/memory/memory391/state
+CPU 11
+Modules linked in: cpufreq_conservative cpufreq_userspace cpufreq_powersave acpi_cpufreq microcode fuse loop dm_mod tpm_tis rtc_cmos i2c_i801 rtc_core tpm serio_raw pcspkr sg tpm_bios igb i2c_core iTCO_wdt rtc_lib mptctl iTCO_vendor_support button dca bnx2 usbhid hid uhci_hcd ehci_hcd usbcore sd_mod crc_t10dif edd ext3 mbcache jbd fan ide_pci_generic ide_core ata_generic ata_piix libata thermal processor thermal_sys hwmon mptsas mptscsih mptbase scsi_transport_sas scsi_mod
+Pid: 7949, comm: sh Not tainted 2.6.32.12-qiuxishi-5-default #92 Tecal RH2285
+RIP: 0010:[<ffffffff81051a94>]  [<ffffffff81051a94>] exit_creds+0x12/0x78
+RSP: 0018:ffff8806044f1d78  EFLAGS: 00010202
+RAX: 0000000000000000 RBX: ffff880604f22140 RCX: 0000000000019502
+RDX: 0000000000000000 RSI: 0000000000000202 RDI: 0000000000000000
+RBP: ffff880604f22150 R08: 0000000000000000 R09: ffffffff81a4dc10
+R10: 00000000000032a0 R11: ffff880006202500 R12: 0000000000000000
+R13: 0000000000c40000 R14: 0000000000008000 R15: 0000000000000001
+FS:  00007fbc03d066f0(0000) GS:ffff8800282e0000(0000) knlGS:0000000000000000
+CS:  0010 DS: 0000 ES: 0000 CR0: 000000008005003b
+CR2: 0000000000000000 CR3: 000000060f029000 CR4: 00000000000006e0
+DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
+DR3: 0000000000000000 DR6: 00000000ffff0ff0 DR7: 0000000000000400
+Process sh (pid: 7949, threadinfo ffff8806044f0000, task ffff880603d7c600)
+Stack:
+ ffff880604f22140 ffffffff8103aac5 ffff880604f22140 ffffffff8104d21e
+<0> ffff880006202500 0000000000008000 0000000000c38000 ffffffff810bd5b1
+<0> 0000000000000000 ffff880603d7c600 00000000ffffdd29 0000000000000003
+Call Trace:
+ [<ffffffff8103aac5>] __put_task_struct+0x5d/0x97
+ [<ffffffff8104d21e>] kthread_stop+0x50/0x58
+ [<ffffffff810bd5b1>] offline_pages+0x324/0x3da
+ [<ffffffff8121111f>] memory_block_change_state+0x179/0x1db
+ [<ffffffff8121121f>] store_mem_state+0x9e/0xbb
+ [<ffffffff8111a1f1>] sysfs_write_file+0xd0/0x107
+ [<ffffffff810c7fe0>] vfs_write+0xad/0x169
+ [<ffffffff810c8158>] sys_write+0x45/0x6e
+ [<ffffffff8100296b>] system_call_fastpath+0x16/0x1b
+ [<00007fbc0344df60>] 0x7fbc0344df60
+Code: ff 4d 00 0f 94 c0 84 c0 74 08 48 89 ef e8 1f fd ff ff 5b 5d 31 c0 41 5c c3 53 48 8b 87 20 06 00 00 48 89 fb 48 8b bf 18 06 00 00 <8b> 00 48 c7 83 18 06 00 00 00 00 00 00 f0 ff 0f 0f 94 c0 84 c0
+RIP  [<ffffffff81051a94>] exit_creds+0x12/0x78
+ RSP <ffff8806044f1d78>
+CR2: 0000000000000000
+---[ end trace 75959287252338a5 ]---
+---
+ mm/vmscan.c |    4 +++-
+ 1 files changed, 3 insertions(+), 1 deletions(-)
 
-https://lkml.org/lkml/2012/4/24/29
-
-"vmalloc was never supposed to use gfp flags for allocation
-"context" restriction. I.e., it was always supposed to have
-blocking, fs, and io capable allocation context."
-
-vmalloc always was a badly neglected, ugly step-sister of kmalloc
-that was kept in the basement and only brought out when the tax
-collector called.  But that inner ugliness doesn't change the fact
-that beatiful things have been built around it. XFS has used
-vm_map_ram() and it's predecessor since it was first ported to linux
-some 13 or 14 years ago, so the above claim is way out of date. i.e.
-vmalloc has been used in GFP_NOFS context since before that flag
-even existed....
-
-http://lkml.org/lkml/2012/4/24/67
-
-"I would say add a bit of warnings and documentation, and see what
-can be done about callers."
-
-Wonderful. Well, there's about 2 years of work queued up for me
-before I even get to the do the open heart surgery that would allow
-XFS to handle memory allocation failures at this level without
-causing the filesystem to shut down.
-
-Andrew Morton's response:
-
-https://lkml.org/lkml/2012/4/24/413
-
-"There are gruesome problems in block/blk-throttle.c (thread
-"mempool, percpu, blkcg: fix percpu stat allocation and remove
-stats_lock").  It wants to do an alloc_percpu()->vmalloc() from the
-IO submission path, under GFP_NOIO.
-
-Changing vmalloc() to take a gfp_t does make lots of sense, although
-I worry a bit about making vmalloc() easier to use!"
-
-OK, so according to Andrew there is no technical reason why it can't
-be done, it's just handwaving about "vmalloc is bad"....
-
-
-> [2] https://lkml.org/lkml/2012/5/2/340
-
-https://lkml.org/lkml/2012/5/2/452
-
-"> Where are these offending callsites?
-
-dm:
-...
-ubi:
-....
-ext4:
-....
-ntfs:
-....
-ubifs:
-....
-mm:
-....
-ceph:
-...."
-
-So, we've got a bunch of filesystems that require vmalloc under
-GFP_NOFS conditions. Perhaps there's a reason for needing to be able
-to do this in filesystem code? Like, perhaps, avoiding memory
-reclaim deadlocks?
-
-https://lkml.org/lkml/2012/5/3/27
-
-"Note that in writeback paths, a "good citizen" filesystem should
-not require any allocations, or at least it should be able to
-tolerate allocation failures.  So fixing that would be a good idea
-anyway."
-
-Oh, please. I have been hearing this for years, and are we any
-closer to it? No, we are further away from ever being able to
-acheive this than ever. Face it, filesystems require memory
-allocation to write dirty data to disk, and the amount is almost
-impossible to define. Hence mempools can't be used because we can't
-give any guarantees of forward progress. And for vmalloc?
-
-Filesystems widely use vmalloc/vm_map_ram because kmalloc fails on
-large contiguous allocations. This renders kmalloc unfit for
-purpose, so we have to fall back to single page allocation and
-vm_map_ram or vmalloc so that the filesystem can function properly.
-And to avoid deadlocks, all memory allocation must be able to
-specify GFP_NOFS to prevent the MM subsystem from recursing into the
-filesystem. Therefore, vmalloc needs to support GFP_NOFS.
-
-I don't care how you make it happen, just fix it. Trying to place
-the blame on the filesystem folk for using vmalloc in GFP_NOFS
-contexts is a total and utter cop-out, because mm folk of all people
-should know that non-zero order kmalloc is not a reliable
-alternative....
-
-[end rant]
-
-Cheers,
-
-Dave.
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index eeb3bc9..7585101 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -2961,8 +2961,10 @@ void kswapd_stop(int nid)
+ {
+ 	struct task_struct *kswapd = NODE_DATA(nid)->kswapd;
+ 
+-	if (kswapd)
++	if (kswapd) {
+ 		kthread_stop(kswapd);
++		NODE_DATA(nid)->kswapd = NULL;
++	}
+ }
+ 
+ static int __init kswapd_init(void)
 -- 
-Dave Chinner
-david@fromorbit.com
+1.7.1
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
