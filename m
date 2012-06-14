@@ -1,47 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx107.postini.com [74.125.245.107])
-	by kanga.kvack.org (Postfix) with SMTP id 4CF986B005C
-	for <linux-mm@kvack.org>; Thu, 14 Jun 2012 09:44:17 -0400 (EDT)
-Received: by vbkv13 with SMTP id v13so1502701vbk.14
-        for <linux-mm@kvack.org>; Thu, 14 Jun 2012 06:44:16 -0700 (PDT)
-Message-ID: <4FD9EAAC.1060100@gmail.com>
-Date: Thu, 14 Jun 2012 09:44:12 -0400
-From: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH] mm: complement page reclaim comment
-References: <1339680158-26657-1-git-send-email-liwp.linux@gmail.com>
-In-Reply-To: <1339680158-26657-1-git-send-email-liwp.linux@gmail.com>
-Content-Type: text/plain; charset=ISO-2022-JP
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx110.postini.com [74.125.245.110])
+	by kanga.kvack.org (Postfix) with SMTP id 64DEA6B0069
+	for <linux-mm@kvack.org>; Thu, 14 Jun 2012 09:56:38 -0400 (EDT)
+Received: from /spool/local
+	by e23smtp09.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
+	Thu, 14 Jun 2012 14:43:58 +1000
+Received: from d23av01.au.ibm.com (d23av01.au.ibm.com [9.190.234.96])
+	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q5EDuRKr4194608
+	for <linux-mm@kvack.org>; Thu, 14 Jun 2012 23:56:27 +1000
+Received: from d23av01.au.ibm.com (loopback [127.0.0.1])
+	by d23av01.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q5EDuQIM031035
+	for <linux-mm@kvack.org>; Thu, 14 Jun 2012 23:56:26 +1000
+From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Subject: [PATCH] hugeltb: Mark hugelb_max_hstate __read_mostly
+Date: Thu, 14 Jun 2012 19:26:18 +0530
+Message-Id: <1339682178-29059-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wanpeng Li <liwp.linux@gmail.com>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, Hugh Dickins <hughd@google.com>, linux-kernel@vger.kernel.org, trivial@kernel.org, Gavin Shan <shangw@linux.vnet.ibm.com>, kosaki.motohiro@gmail.com
+To: linux-mm@kvack.org, kamezawa.hiroyu@jp.fujitsu.com, mhocko@suse.cz, akpm@linux-foundation.org
+Cc: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
 
-(6/14/12 9:22 AM), Wanpeng Li wrote:
-> From: Wanpeng Li<liwp@linux.vnet.ibm.com>
-> 
-> Signed-off-by: Wanpeng Li<liwp.linux@gmail.com>
-> ---
->   mm/vmscan.c |    1 +
->   1 file changed, 1 insertion(+)
-> 
-> diff --git a/mm/vmscan.c b/mm/vmscan.c
-> index ed823df..603c96f 100644
-> --- a/mm/vmscan.c
-> +++ b/mm/vmscan.c
-> @@ -3203,6 +3203,7 @@ int zone_reclaim(struct zone *zone, gfp_t gfp_mask, unsigned int order)
->    * Reasons page might not be evictable:
->    * (1) page's mapping marked unevictable
->    * (2) page is part of an mlocked VMA
-> + * (3) page mapped into SHM_LOCK'd shared memory regions
+From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
 
-This is one of "marked unevictable".
+Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
+---
+ include/linux/hugetlb.h |    2 +-
+ mm/hugetlb.c            |    2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)
 
-
->    *
->    */
->   int page_evictable(struct page *page, struct vm_area_struct *vma)
+diff --git a/include/linux/hugetlb.h b/include/linux/hugetlb.h
+index 9650bb1..0f0877e 100644
+--- a/include/linux/hugetlb.h
++++ b/include/linux/hugetlb.h
+@@ -23,7 +23,7 @@ struct hugepage_subpool {
+ };
+ 
+ extern spinlock_t hugetlb_lock;
+-extern int hugetlb_max_hstate;
++extern int hugetlb_max_hstate __read_mostly;
+ #define for_each_hstate(h) \
+ 	for ((h) = hstates; (h) < &hstates[hugetlb_max_hstate]; (h)++)
+ 
+diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+index a5a30bf..c57740b 100644
+--- a/mm/hugetlb.c
++++ b/mm/hugetlb.c
+@@ -37,7 +37,7 @@ const unsigned long hugetlb_zero = 0, hugetlb_infinity = ~0UL;
+ static gfp_t htlb_alloc_mask = GFP_HIGHUSER;
+ unsigned long hugepages_treat_as_movable;
+ 
+-int hugetlb_max_hstate;
++int hugetlb_max_hstate __read_mostly;
+ unsigned int default_hstate_idx;
+ struct hstate hstates[HUGE_MAX_HSTATE];
+ 
+-- 
+1.7.10
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
