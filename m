@@ -1,32 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx142.postini.com [74.125.245.142])
-	by kanga.kvack.org (Postfix) with SMTP id 535C76B005C
-	for <linux-mm@kvack.org>; Thu, 14 Jun 2012 08:00:03 -0400 (EDT)
-Received: by ghrr18 with SMTP id r18so1590119ghr.14
-        for <linux-mm@kvack.org>; Thu, 14 Jun 2012 05:00:02 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <1339663776-196-1-git-send-email-jiang.liu@huawei.com>
-References: <4FD97718.6060008@kernel.org> <1339663776-196-1-git-send-email-jiang.liu@huawei.com>
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Date: Thu, 14 Jun 2012 07:59:42 -0400
-Message-ID: <CAHGf_=p0E9_iXuDS_RNCGp2KPiU+=BO5AB6ZxqnSE57mNiyQGw@mail.gmail.com>
-Subject: Re: [PATCH] trivial, memory hotplug: add kswapd_is_running() for
- better readability
-Content-Type: text/plain; charset=ISO-8859-1
+Received: from psmtp.com (na3sys010amx187.postini.com [74.125.245.187])
+	by kanga.kvack.org (Postfix) with SMTP id 2A1FF6B005C
+	for <linux-mm@kvack.org>; Thu, 14 Jun 2012 08:19:58 -0400 (EDT)
+From: Glauber Costa <glommer@parallels.com>
+Subject: [PATCH 0/4] Proposed slab patches as basis for memcg
+Date: Thu, 14 Jun 2012 16:17:20 +0400
+Message-Id: <1339676244-27967-1-git-send-email-glommer@parallels.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jiang Liu <jiang.liu@huawei.com>
-Cc: Minchan Kim <minchan@kernel.org>, Keping Chen <chenkeping@huawei.com>, Mel Gorman <mgorman@suse.de>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Tony Luck <tony.luck@intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Jiang Liu <liuj97@gmail.com>
+To: linux-mm@kvack.org
+Cc: Pekka Enberg <penberg@kernel.org>, Cristoph Lameter <cl@linux.com>, David Rientjes <rientjes@google.com>, cgroups@vger.kernel.org, devel@openvz.org
 
-On Thu, Jun 14, 2012 at 4:49 AM, Jiang Liu <jiang.liu@huawei.com> wrote:
-> Add kswapd_is_running() to check whether the kswapd worker thread is already
-> running before calling kswapd_run() when onlining memory pages.
->
-> It's based on a draft version from Minchan Kim <minchan@kernel.org>.
->
-> Signed-off-by: Jiang Liu <liuj97@gmail.com>
+Hi,
 
-Acked-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+These four patches are sat in my tree for kmem memcg work.
+All of them are preparation patches that touch the allocators
+to make them more consistent, allowing me to later use them
+from common code.
+
+In this current form, they are supposed to be applied after
+Cristoph's series. They are not, however, dependent on it.
+
+Glauber Costa (4):
+  slab: rename gfpflags to allocflags
+  provide a common place for initcall processing in kmem_cache
+  slab: move FULL state transition to an initcall
+  make CFLGS_OFF_SLAB visible for all slabs
+
+ include/linux/slab.h     |    2 ++
+ include/linux/slab_def.h |    2 +-
+ mm/slab.c                |   40 +++++++++++++++++++---------------------
+ mm/slab.h                |    1 +
+ mm/slab_common.c         |    5 +++++
+ mm/slob.c                |    5 +++++
+ mm/slub.c                |    4 +---
+ 7 files changed, 34 insertions(+), 25 deletions(-)
+
+-- 
+1.7.10.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
