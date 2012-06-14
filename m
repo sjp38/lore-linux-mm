@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx136.postini.com [74.125.245.136])
-	by kanga.kvack.org (Postfix) with SMTP id 1B7236B005C
-	for <linux-mm@kvack.org>; Thu, 14 Jun 2012 08:21:03 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx126.postini.com [74.125.245.126])
+	by kanga.kvack.org (Postfix) with SMTP id D47816B0062
+	for <linux-mm@kvack.org>; Thu, 14 Jun 2012 08:21:08 -0400 (EDT)
 From: Glauber Costa <glommer@parallels.com>
-Subject: [PATCH 1/4] slab: rename gfpflags to allocflags
-Date: Thu, 14 Jun 2012 16:17:21 +0400
-Message-Id: <1339676244-27967-2-git-send-email-glommer@parallels.com>
+Subject: [PATCH 3/4] slab: move FULL state transition to an initcall
+Date: Thu, 14 Jun 2012 16:17:23 +0400
+Message-Id: <1339676244-27967-4-git-send-email-glommer@parallels.com>
 In-Reply-To: <1339676244-27967-1-git-send-email-glommer@parallels.com>
 References: <1339676244-27967-1-git-send-email-glommer@parallels.com>
 Sender: owner-linux-mm@kvack.org
@@ -13,68 +13,66 @@ List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
 Cc: Pekka Enberg <penberg@kernel.org>, Cristoph Lameter <cl@linux.com>, David Rientjes <rientjes@google.com>, cgroups@vger.kernel.org, devel@openvz.org, Glauber Costa <glommer@parallels.com>, Pekka Enberg <penberg@cs.helsinki.fi>
 
-A consistent name with slub saves us an acessor function.
-In both caches, this field represents the same thing. We would
-like to use it from the mem_cgroup code.
+During kmem_cache_init_late(), we transition to the LATE state,
+and after some more work, to the FULL state, its last state
+
+This is quite different from slub, that will only transition to
+its last state (previously SYSFS), in a (late)initcall, after a lot
+more of the kernel is ready.
+
+This means that in slab, we have no way to taking actions dependent
+on the initialization of other pieces of the kernel that are supposed
+to start way after kmem_init_late(), such as cgroups initialization.
+
+To achieve more consistency in this behavior, that patch only
+transitions to the UP state in kmem_init_late. In my analysis,
+setup_cpu_cache() should be happy to test for >= UP, instead of
+== FULL. It also has passed some tests I've made.
+
+We then only mark FULL state after the reap timers are in place,
+meaning that no further setup is expected.
 
 Signed-off-by: Glauber Costa <glommer@parallels.com>
 Acked-by: Christoph Lameter <cl@linux.com>
 CC: Pekka Enberg <penberg@cs.helsinki.fi>
+CC: David Rientjes <rientjes@google.com>
 ---
- include/linux/slab_def.h |    2 +-
- mm/slab.c                |   10 +++++-----
- 2 files changed, 6 insertions(+), 6 deletions(-)
+ mm/slab.c |    8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)
 
-diff --git a/include/linux/slab_def.h b/include/linux/slab_def.h
-index 1d93f27..0c634fa 100644
---- a/include/linux/slab_def.h
-+++ b/include/linux/slab_def.h
-@@ -39,7 +39,7 @@ struct kmem_cache {
- 	unsigned int gfporder;
- 
- 	/* force GFP flags, e.g. GFP_DMA */
--	gfp_t gfpflags;
-+	gfp_t allocflags;
- 
- 	size_t colour;			/* cache colouring range */
- 	unsigned int colour_off;	/* colour offset */
 diff --git a/mm/slab.c b/mm/slab.c
-index 2476ad4..020605f 100644
+index e174e50..2d5fe28 100644
 --- a/mm/slab.c
 +++ b/mm/slab.c
-@@ -1746,7 +1746,7 @@ static void *kmem_getpages(struct kmem_cache *cachep, gfp_t flags, int nodeid)
- 	flags |= __GFP_COMP;
- #endif
+@@ -1643,9 +1643,6 @@ void __init kmem_cache_init_late(void)
+ 			BUG();
+ 	mutex_unlock(&slab_mutex);
  
--	flags |= cachep->gfpflags;
-+	flags |= cachep->allocflags;
- 	if (cachep->flags & SLAB_RECLAIM_ACCOUNT)
- 		flags |= __GFP_RECLAIMABLE;
- 
-@@ -2338,9 +2338,9 @@ int __kmem_cache_create(struct kmem_cache *cachep)
- 	cachep->colour = left_over / cachep->colour_off;
- 	cachep->slab_size = slab_size;
- 	cachep->flags = flags;
--	cachep->gfpflags = 0;
-+	cachep->allocflags = 0;
- 	if (CONFIG_ZONE_DMA_FLAG && (flags & SLAB_CACHE_DMA))
--		cachep->gfpflags |= GFP_DMA;
-+		cachep->allocflags |= GFP_DMA;
- 	cachep->size = size;
- 	cachep->reciprocal_buffer_size = reciprocal_value(size);
- 
-@@ -2653,9 +2653,9 @@ static void kmem_flagcheck(struct kmem_cache *cachep, gfp_t flags)
- {
- 	if (CONFIG_ZONE_DMA_FLAG) {
- 		if (flags & GFP_DMA)
--			BUG_ON(!(cachep->gfpflags & GFP_DMA));
-+			BUG_ON(!(cachep->allocflags & GFP_DMA));
- 		else
--			BUG_ON(cachep->gfpflags & GFP_DMA);
-+			BUG_ON(cachep->allocflags & GFP_DMA);
- 	}
+-	/* Done! */
+-	slab_state = FULL;
+-
+ 	/*
+ 	 * Register a cpu startup notifier callback that initializes
+ 	 * cpu_cache_get for all new cpus
+@@ -1675,6 +1672,9 @@ int __init __kmem_cache_initcall(void)
+ 	 */
+ 	for_each_online_cpu(cpu)
+ 		start_cpu_timer(cpu);
++
++	/* Done! */
++	slab_state = FULL;
+ 	return 0;
  }
  
+@@ -2120,7 +2120,7 @@ static size_t calculate_slab_order(struct kmem_cache *cachep,
+ 
+ static int __init_refok setup_cpu_cache(struct kmem_cache *cachep, gfp_t gfp)
+ {
+-	if (slab_state == FULL)
++	if (slab_state >= UP)
+ 		return enable_cpucache(cachep, gfp);
+ 
+ 	if (slab_state == DOWN) {
 -- 
 1.7.10.2
 
