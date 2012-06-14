@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx119.postini.com [74.125.245.119])
-	by kanga.kvack.org (Postfix) with SMTP id 5F8FC6B0062
+Received: from psmtp.com (na3sys010amx136.postini.com [74.125.245.136])
+	by kanga.kvack.org (Postfix) with SMTP id 1B7236B005C
 	for <linux-mm@kvack.org>; Thu, 14 Jun 2012 08:21:03 -0400 (EDT)
 From: Glauber Costa <glommer@parallels.com>
-Subject: [PATCH 2/4] provide a common place for initcall processing in kmem_cache
-Date: Thu, 14 Jun 2012 16:17:22 +0400
-Message-Id: <1339676244-27967-3-git-send-email-glommer@parallels.com>
+Subject: [PATCH 1/4] slab: rename gfpflags to allocflags
+Date: Thu, 14 Jun 2012 16:17:21 +0400
+Message-Id: <1339676244-27967-2-git-send-email-glommer@parallels.com>
 In-Reply-To: <1339676244-27967-1-git-send-email-glommer@parallels.com>
 References: <1339676244-27967-1-git-send-email-glommer@parallels.com>
 Sender: owner-linux-mm@kvack.org
@@ -13,115 +13,68 @@ List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
 Cc: Pekka Enberg <penberg@kernel.org>, Cristoph Lameter <cl@linux.com>, David Rientjes <rientjes@google.com>, cgroups@vger.kernel.org, devel@openvz.org, Glauber Costa <glommer@parallels.com>, Pekka Enberg <penberg@cs.helsinki.fi>
 
-Both SLAB and SLUB depend on some initialization to happen when the
-system is already booted, with all subsystems working. This is done
-by issuing an initcall that does the final initialization.
-
-This patch moves that to slab_common.c, while creating an empty
-placeholder for the SLOB.
+A consistent name with slub saves us an acessor function.
+In both caches, this field represents the same thing. We would
+like to use it from the mem_cgroup code.
 
 Signed-off-by: Glauber Costa <glommer@parallels.com>
-CC: Christoph Lameter <cl@linux.com>
+Acked-by: Christoph Lameter <cl@linux.com>
 CC: Pekka Enberg <penberg@cs.helsinki.fi>
-CC: David Rientjes <rientjes@google.com>
 ---
- mm/slab.c        |    5 ++---
- mm/slab.h        |    1 +
- mm/slab_common.c |    5 +++++
- mm/slob.c        |    5 +++++
- mm/slub.c        |    4 +---
- 5 files changed, 14 insertions(+), 6 deletions(-)
+ include/linux/slab_def.h |    2 +-
+ mm/slab.c                |   10 +++++-----
+ 2 files changed, 6 insertions(+), 6 deletions(-)
 
+diff --git a/include/linux/slab_def.h b/include/linux/slab_def.h
+index 1d93f27..0c634fa 100644
+--- a/include/linux/slab_def.h
++++ b/include/linux/slab_def.h
+@@ -39,7 +39,7 @@ struct kmem_cache {
+ 	unsigned int gfporder;
+ 
+ 	/* force GFP flags, e.g. GFP_DMA */
+-	gfp_t gfpflags;
++	gfp_t allocflags;
+ 
+ 	size_t colour;			/* cache colouring range */
+ 	unsigned int colour_off;	/* colour offset */
 diff --git a/mm/slab.c b/mm/slab.c
-index 020605f..e174e50 100644
+index 2476ad4..020605f 100644
 --- a/mm/slab.c
 +++ b/mm/slab.c
-@@ -853,7 +853,7 @@ static void __cpuinit start_cpu_timer(int cpu)
- 	struct delayed_work *reap_work = &per_cpu(slab_reap_work, cpu);
+@@ -1746,7 +1746,7 @@ static void *kmem_getpages(struct kmem_cache *cachep, gfp_t flags, int nodeid)
+ 	flags |= __GFP_COMP;
+ #endif
  
- 	/*
--	 * When this gets called from do_initcalls via cpucache_init(),
-+	 * When this gets called from do_initcalls via __kmem_cache_initcall(),
- 	 * init_workqueues() has already run, so keventd will be setup
- 	 * at that time.
- 	 */
-@@ -1666,7 +1666,7 @@ void __init kmem_cache_init_late(void)
- 	 */
- }
+-	flags |= cachep->gfpflags;
++	flags |= cachep->allocflags;
+ 	if (cachep->flags & SLAB_RECLAIM_ACCOUNT)
+ 		flags |= __GFP_RECLAIMABLE;
  
--static int __init cpucache_init(void)
-+int __init __kmem_cache_initcall(void)
+@@ -2338,9 +2338,9 @@ int __kmem_cache_create(struct kmem_cache *cachep)
+ 	cachep->colour = left_over / cachep->colour_off;
+ 	cachep->slab_size = slab_size;
+ 	cachep->flags = flags;
+-	cachep->gfpflags = 0;
++	cachep->allocflags = 0;
+ 	if (CONFIG_ZONE_DMA_FLAG && (flags & SLAB_CACHE_DMA))
+-		cachep->gfpflags |= GFP_DMA;
++		cachep->allocflags |= GFP_DMA;
+ 	cachep->size = size;
+ 	cachep->reciprocal_buffer_size = reciprocal_value(size);
+ 
+@@ -2653,9 +2653,9 @@ static void kmem_flagcheck(struct kmem_cache *cachep, gfp_t flags)
  {
- 	int cpu;
- 
-@@ -1677,7 +1677,6 @@ static int __init cpucache_init(void)
- 		start_cpu_timer(cpu);
- 	return 0;
- }
--__initcall(cpucache_init);
- 
- static noinline void
- slab_out_of_memory(struct kmem_cache *cachep, gfp_t gfpflags, int nodeid)
-diff --git a/mm/slab.h b/mm/slab.h
-index b44a8cc..19e17c7 100644
---- a/mm/slab.h
-+++ b/mm/slab.h
-@@ -37,6 +37,7 @@ unsigned long calculate_alignment(unsigned long flags,
- 
- /* Functions provided by the slab allocators */
- int __kmem_cache_create(struct kmem_cache *s);
-+int __kmem_cache_initcall(void);
- 
- #ifdef CONFIG_SLUB
- struct kmem_cache *__kmem_cache_alias(const char *name, size_t size,
-diff --git a/mm/slab_common.c b/mm/slab_common.c
-index b5def07..15db694ac 100644
---- a/mm/slab_common.c
-+++ b/mm/slab_common.c
-@@ -203,3 +203,8 @@ int slab_is_available(void)
- 	return slab_state >= UP;
+ 	if (CONFIG_ZONE_DMA_FLAG) {
+ 		if (flags & GFP_DMA)
+-			BUG_ON(!(cachep->gfpflags & GFP_DMA));
++			BUG_ON(!(cachep->allocflags & GFP_DMA));
+ 		else
+-			BUG_ON(cachep->gfpflags & GFP_DMA);
++			BUG_ON(cachep->allocflags & GFP_DMA);
+ 	}
  }
  
-+static int __init kmem_cache_initcall(void)
-+{
-+	return __kmem_cache_initcall();
-+}
-+__initcall(kmem_cache_initcall);
-diff --git a/mm/slob.c b/mm/slob.c
-index 507589d..61b1845 100644
---- a/mm/slob.c
-+++ b/mm/slob.c
-@@ -610,3 +610,8 @@ void __init kmem_cache_init(void)
- void __init kmem_cache_init_late(void)
- {
- }
-+
-+int __init kmem_cache_initcall(void)
-+{
-+	return 0;
-+}
-diff --git a/mm/slub.c b/mm/slub.c
-index 7fc3499..d9d4d5a 100644
---- a/mm/slub.c
-+++ b/mm/slub.c
-@@ -5309,7 +5309,7 @@ static int sysfs_slab_alias(struct kmem_cache *s, const char *name)
- 	return 0;
- }
- 
--static int __init slab_sysfs_init(void)
-+int __init __kmem_cache_initcall(void)
- {
- 	struct kmem_cache *s;
- 	int err;
-@@ -5347,8 +5347,6 @@ static int __init slab_sysfs_init(void)
- 	resiliency_test();
- 	return 0;
- }
--
--__initcall(slab_sysfs_init);
- #endif /* CONFIG_SYSFS */
- 
- /*
 -- 
 1.7.10.2
 
