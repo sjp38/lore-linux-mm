@@ -1,29 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx130.postini.com [74.125.245.130])
-	by kanga.kvack.org (Postfix) with SMTP id A18C46B005C
-	for <linux-mm@kvack.org>; Thu, 14 Jun 2012 13:29:05 -0400 (EDT)
-Date: Thu, 14 Jun 2012 12:29:02 -0500 (CDT)
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: [PATCH 4/4] make CFLGS_OFF_SLAB visible for all slabs
-In-Reply-To: <4FDA0ADB.2010508@parallels.com>
-Message-ID: <alpine.DEB.2.00.1206141228230.12773@router.home>
-References: <1339676244-27967-1-git-send-email-glommer@parallels.com> <1339676244-27967-5-git-send-email-glommer@parallels.com> <alpine.DEB.2.00.1206141019010.32075@router.home> <4FDA0ADB.2010508@parallels.com>
+Received: from psmtp.com (na3sys010amx139.postini.com [74.125.245.139])
+	by kanga.kvack.org (Postfix) with SMTP id 0B2CD6B0062
+	for <linux-mm@kvack.org>; Thu, 14 Jun 2012 13:47:55 -0400 (EDT)
+Message-ID: <4FDA237B.8020703@redhat.com>
+Date: Thu, 14 Jun 2012 13:46:35 -0400
+From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [PATCH] mm: clear pages_scanned only if draining a pcp adds pages
+ to the buddy allocator again
+References: <1339690570-7471-1-git-send-email-kosaki.motohiro@gmail.com>
+In-Reply-To: <1339690570-7471-1-git-send-email-kosaki.motohiro@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Glauber Costa <glommer@parallels.com>
-Cc: linux-mm@kvack.org, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, cgroups@vger.kernel.org, devel@openvz.org, Pekka Enberg <penberg@cs.helsinki.fi>
+To: kosaki.motohiro@gmail.com
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, David Rientjes <rientjes@google.com>, Mel Gorman <mel@csn.ul.ie>, Johannes Weiner <hannes@cmpxchg.org>, Minchan Kim <minchan.kim@gmail.com>, Wu Fengguang <fengguang.wu@intel.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-On Thu, 14 Jun 2012, Glauber Costa wrote:
+On 06/14/2012 12:16 PM, kosaki.motohiro@gmail.com wrote:
+> From: KOSAKI Motohiro<kosaki.motohiro@jp.fujitsu.com>
+>
+> commit 2ff754fa8f (mm: clear pages_scanned only if draining a pcp adds pages
+> to the buddy allocator again) fixed one free_pcppages_bulk() misuse. But two
+> another miuse still exist.
+>
+> This patch fixes it.
+>
+> Cc: David Rientjes<rientjes@google.com>
+> Cc: Mel Gorman<mel@csn.ul.ie>
+> Cc: Johannes Weiner<hannes@cmpxchg.org>
+> Cc: Minchan Kim<minchan.kim@gmail.com>
+> Cc: Wu Fengguang<fengguang.wu@intel.com>
+> Cc: KAMEZAWA Hiroyuki<kamezawa.hiroyu@jp.fujitsu.com>
+> Cc: Rik van Riel<riel@redhat.com>
+> Cc: Andrew Morton<akpm@linux-foundation.org>
+> Signed-off-by: KOSAKI Motohiro<kosaki.motohiro@jp.fujitsu.com>
 
-> I want to mask that out in kmem-specific slab creation. Since I am copying the
-> original flags, and that flag is embedded in the slab saved flags, it will be
-> carried to the new slab if I don't mask it out.
-
-I thought you intercepted slab creation? You can copy the flags at that
-point.
-
+Acked-by: Rik van Riel <riel@redhat.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
