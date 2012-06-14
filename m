@@ -1,79 +1,105 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx180.postini.com [74.125.245.180])
-	by kanga.kvack.org (Postfix) with SMTP id 949C96B005C
-	for <linux-mm@kvack.org>; Thu, 14 Jun 2012 03:20:55 -0400 (EDT)
-Date: Thu, 14 Jun 2012 09:20:53 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH -V9 05/15] hugetlb: avoid taking i_mmap_mutex in
- unmap_single_vma() for hugetlb
-Message-ID: <20120614072053.GC27397@tiehlicka.suse.cz>
-References: <1339583254-895-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
- <1339583254-895-6-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+Received: from psmtp.com (na3sys010amx150.postini.com [74.125.245.150])
+	by kanga.kvack.org (Postfix) with SMTP id 717D56B005C
+	for <linux-mm@kvack.org>; Thu, 14 Jun 2012 03:28:08 -0400 (EDT)
+Date: Thu, 14 Jun 2012 09:27:55 +0200
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [RFC -mm] memcg: prevent from OOM with too many dirty pages
+Message-ID: <20120614072755.GK1761@cmpxchg.org>
+References: <1338219535-7874-1-git-send-email-mhocko@suse.cz>
+ <20120529030857.GA7762@localhost>
+ <20120529072853.GD1734@cmpxchg.org>
+ <20120529084848.GC10469@localhost>
+ <20120529093511.GE1734@cmpxchg.org>
+ <20120529135101.GD15293@tiehlicka.suse.cz>
+ <20120531090957.GA12809@tiehlicka.suse.cz>
+ <20120601083730.GA25986@tiehlicka.suse.cz>
+ <20120607144556.GC543@tiehlicka.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1339583254-895-6-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+In-Reply-To: <20120607144556.GC543@tiehlicka.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Cc: linux-mm@kvack.org, kamezawa.hiroyu@jp.fujitsu.com, dhillf@gmail.com, rientjes@google.com, akpm@linux-foundation.org, hannes@cmpxchg.org, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org
+To: Michal Hocko <mhocko@suse.cz>
+Cc: Fengguang Wu <fengguang.wu@intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujtisu.com>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@redhat.com>, Ying Han <yinghan@google.com>, Greg Thelen <gthelen@google.com>, Hugh Dickins <hughd@google.com>
 
-On Wed 13-06-12 15:57:24, Aneesh Kumar K.V wrote:
-> From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+On Thu, Jun 07, 2012 at 04:45:56PM +0200, Michal Hocko wrote:
+> On Fri 01-06-12 10:37:30, Michal Hocko wrote:
+> [...]
+> > More detailed statistics (max/min - the worst/best performance).
+> > 	comparison (cong is 100%)	comparison (page reclaim 100%)			
+> > 	max	min	median		max	min	median
+> > * ext3
+> > ** Write
+> > 5M	171.20%	95.33%	98.70%		216.96%	101.99%	103.61%
+> > 60M	97.56%	98.80%	104.51%		110.09%	100.11%	116.59%
+> > 300M	99.76%	99.49%	99.35%		99.47%	99.89%	99.57%
+> > 2G	99.52%	99.53%	99.52%		100.09%	99.07%	100.02%
+> > 
+> > ** Read					
+> > 5M	35.37%	38.70%	39.09%		83.55%	89.85%	86.54%
+> > 60M	89.70%	102.90%	102.00%		97.71%	101.91%	102.06%
+> > 300M	92.38%	99.33%	99.14%		80.65%	98.39%	91.23%
+> > 2G	90.07%	99.92%	100.38%		99.85%	100.75%	99.94%
+> > 
+> > * Tmpfs					
+> > ** write
+> > 5M	121.85%	99.69%	131.57%		219.22%	99.85%	135.30%
+> > 60M	140.82%	99.70%	139.57%		98.14%	54.51%	73.65%
+> > 300M	97.99%	99.54%	99.60%		99.29%	99.57%	99.32%
+> > 2G	99.37%	99.62%	99.64%		98.72%	99.92%	99.18%
+> > 
+> > ** read				
+> > 5M	85.44%	92.96%	88.92%		129.13%	101.54%	97.87%
+> > 60M	64.41%	94.35%	88.10%		97.41%	95.75%	96.31%
+> > 300M	116.89%	106.52%	120.84%		132.17%	104.39%	130.63%
+> > 2G	86.27%	99.96%	87.47%		60.69%	99.44%	98.49%
 > 
-> i_mmap_mutex lock was added in unmap_single_vma by 502717f4e ("hugetlb:
-> fix linked list corruption in unmap_hugepage_range()") but we don't use
-> page->lru in unmap_hugepage_range any more.  Also the lock was taken
-> higher up in the stack in some code path.  That would result in deadlock.
+> I have played with the patch below but it didn't show too much
+> difference in the end or we end up doing even worse. 
+> 
+> Here is the no_patch/patched comparison:
+> 
+> 	comparison (page reclaim is 100%)
+> * ext3  avg	max	min	median
+> ** Write
+> 5M    	81.49%	77.53%	101.91%	76.60%
+> 60M   	98.60%	95.58%	101.40%	99.62%
+> 300M  	101.68%	102.05%	101.19%	101.73%
+> 2G    	102.20%	102.25%	102.12%	102.22%
+> 				
+> ** Read  				
+> 5M    	103.94%	105.14%	103.95%	103.32%
+> 60M   	105.26%	107.91%	103.15%	104.95%
+> 300M  	104.83%	107.86%	101.65%	104.88%
+> 2G    	102.67%	101.26%	102.83%	103.35%
+> 
+> * Tmpfs
+> ** Write
+> 5M    	107.68%	119.66%	105.26%	102.78%
+> 60M   	122.16%	138.51%	103.62%	121.09%
+> 300M  	101.03%	100.67%	101.11%	101.17%
+> 2G    	101.82%	101.66%	101.87%	101.87%
+> 				
+> ** Read			
+> 5M    	102.47%	124.02%	98.05%	92.57%
+> 60M   	103.62%	121.03%	96.97%	96.52%
+> 300M  	98.90%	118.92%	102.64%	86.19%
+> 2G    	83.50%	76.34%	97.36%	81.92%
+> 
+> I am not sure it really makes sense to play with the priority here. All
+> the values we would end up with would be just wild guesses or mostly
+> artificial workloads. So I think it makes some to go with the original
+> version of the PageReclaim patch without any further fiddling with the
+> priority.
+> 
+> Is this sufficient to go with the patch or do people still have concerns
+> which would block the patch from merging?
 
-This sounds like the deadlock is real but in the other email you wrote
-that the deadlock cannot happen so it would be good to mention it here.
- 
-> unmap_mapping_range (i_mmap_mutex)
->  -> unmap_mapping_range_tree
->     -> unmap_mapping_range_vma
->        -> zap_page_range_single
->          -> unmap_single_vma
-> 	      -> unmap_hugepage_range (i_mmap_mutex)
-> 
-> For shared pagetable support for huge pages, since pagetable pages are ref
-> counted we don't need any lock during huge_pmd_unshare.  We do take
-> i_mmap_mutex in huge_pmd_share while walking the vma_prio_tree in mapping.
-> (39dde65c9940c97f ("shared page table for hugetlb page")).
-> 
-> Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
-> ---
->  mm/memory.c |    5 +----
->  1 file changed, 1 insertion(+), 4 deletions(-)
-> 
-> diff --git a/mm/memory.c b/mm/memory.c
-> index 545e18a..f6bc04f 100644
-> --- a/mm/memory.c
-> +++ b/mm/memory.c
-> @@ -1326,11 +1326,8 @@ static void unmap_single_vma(struct mmu_gather *tlb,
->  			 * Since no pte has actually been setup, it is
->  			 * safe to do nothing in this case.
->  			 */
-> -			if (vma->vm_file) {
-> -				mutex_lock(&vma->vm_file->f_mapping->i_mmap_mutex);
-> +			if (vma->vm_file)
->  				__unmap_hugepage_range(tlb, vma, start, end, NULL);
-> -				mutex_unlock(&vma->vm_file->f_mapping->i_mmap_mutex);
-> -			}
->  		} else
->  			unmap_page_range(tlb, vma, start, end, details);
->  	}
-> -- 
-> 1.7.10
-> 
+No, let's go for it.  It's a net improvement as it stands.
 
--- 
-Michal Hocko
-SUSE Labs
-SUSE LINUX s.r.o.
-Lihovarska 1060/12
-190 00 Praha 9    
-Czech Republic
+Acked-by: Johannes Weiner <hannes@cmpxchg.org>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
