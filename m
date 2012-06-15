@@ -1,89 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx174.postini.com [74.125.245.174])
-	by kanga.kvack.org (Postfix) with SMTP id B076E6B0068
-	for <linux-mm@kvack.org>; Fri, 15 Jun 2012 16:36:34 -0400 (EDT)
-Received: by dakp5 with SMTP id p5so5514463dak.14
-        for <linux-mm@kvack.org>; Fri, 15 Jun 2012 13:36:33 -0700 (PDT)
-From: kosaki.motohiro@gmail.com
-Subject: [PATCH] mm, fadvise: don't return -EINVAL when filesystem has no optimization way
-Date: Fri, 15 Jun 2012 16:36:15 -0400
-Message-Id: <1339792575-17637-1-git-send-email-kosaki.motohiro@gmail.com>
+Received: from psmtp.com (na3sys010amx124.postini.com [74.125.245.124])
+	by kanga.kvack.org (Postfix) with SMTP id A6E516B006C
+	for <linux-mm@kvack.org>; Fri, 15 Jun 2012 17:09:44 -0400 (EDT)
+From: Greg Pearson <greg.pearson@hp.com>
+Subject: [PATCH] mm/memblock: fix overlapping allocation when doubling reserved array
+Date: Fri, 15 Jun 2012 15:09:27 -0600
+Message-Id: <1339794567-17784-1-git-send-email-greg.pearson@hp.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: linux-mm@kvack.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, Hillf Danton <dhillf@gmail.com>, Eric Wong <normalperson@yhbt.net>
+To: tj@kernel.org, hpa@linux.intel.com, akpm@linux-foundation.org, shangw@linux.vnet.ibm.com, mingo@elte.hu
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, greg.pearson@hp.com
 
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+The __alloc_memory_core_early() routine will ask memblock for a range
+of memory then try to reserve it. If the reserved region array lacks
+space for the new range, memblock_double_array() is called to allocate
+more space for the array. If memblock is used to allocate memory for
+the new array it can end up using a range that overlaps with the range
+originally allocated in __alloc_memory_core_early(), leading to possible
+data corruption.
 
-Eric Wong reported his test suite was fail when /tmp is tmpfs.
+With this patch memblock_double_array() now calls memblock_find_in_range()
+with a narrowed candidate range so any memory allocated will not overlap
+with the original range that was being reserved. The range is narrowed by
+passing in the starting address of the previously allocated range as the
+end of the candidate range. Since memblock_find_in_range_node() looks for
+a free range by walking the free memory list in reverse order (highest
+memory address to lowest address) this change should not unnecessarily
+exclude chunks of memory that could otherwise be used to satisfy the
+request.
 
-https://lkml.org/lkml/2012/2/24/479
-
-Current,input check of POSIX_FADV_WILLNEED has two problems.
-
-1) require a_ops->readpage.
-   But in fact, force_page_cache_readahead() only require
-   a target filesystem has either ->readpage or ->readpages.
-2) return -EINVAL when filesystem don't have ->readpage.
-   But, posix says, it should be retrieved a hint. Thus fadvise()
-   should return 0 if filesystem has no optimization way.
-   Especially, userland application don't know a filesystem type
-   of TMPDIR directory as Eric pointed out. Then, userland can't
-   avoid this error. We shouldn't encourage to ignore syscall
-   return value.
-
-Thus, this patch change a return value to 0 when filesytem don't
-support readahead.
-
-Cc: linux-mm@kvack.org
-Cc: Hugh Dickins <hughd@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Hillf Danton <dhillf@gmail.com>
-Signed-off-by: Eric Wong <normalperson@yhbt.net>
-Tested-by: Eric Wong <normalperson@yhbt.net>
-Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Signed-off-by: Greg Pearson <greg.pearson@hp.com>
 ---
- mm/fadvise.c |   18 +++++++-----------
- 1 files changed, 7 insertions(+), 11 deletions(-)
+ mm/memblock.c |   11 +++++++----
+ 1 files changed, 7 insertions(+), 4 deletions(-)
 
-diff --git a/mm/fadvise.c b/mm/fadvise.c
-index 469491e..33e6baf 100644
---- a/mm/fadvise.c
-+++ b/mm/fadvise.c
-@@ -93,11 +93,6 @@ SYSCALL_DEFINE(fadvise64_64)(int fd, loff_t offset, loff_t len, int advice)
- 		spin_unlock(&file->f_lock);
- 		break;
- 	case POSIX_FADV_WILLNEED:
--		if (!mapping->a_ops->readpage) {
--			ret = -EINVAL;
--			break;
--		}
--
- 		/* First and last PARTIAL page! */
- 		start_index = offset >> PAGE_CACHE_SHIFT;
- 		end_index = endbyte >> PAGE_CACHE_SHIFT;
-@@ -106,12 +101,13 @@ SYSCALL_DEFINE(fadvise64_64)(int fd, loff_t offset, loff_t len, int advice)
- 		nrpages = end_index - start_index + 1;
- 		if (!nrpages)
- 			nrpages = ~0UL;
--		
--		ret = force_page_cache_readahead(mapping, file,
--				start_index,
--				nrpages);
--		if (ret > 0)
--			ret = 0;
-+
-+		/*
-+		 * Ignore return value because fadvise() shall return 
-+		 * success even if filesystem can't retrieve a hint,
-+		 */		
-+		force_page_cache_readahead(mapping, file, start_index,
-+					   nrpages);
- 		break;
- 	case POSIX_FADV_NOREUSE:
- 		break;
+diff --git a/mm/memblock.c b/mm/memblock.c
+index 952123e..599519c 100644
+--- a/mm/memblock.c
++++ b/mm/memblock.c
+@@ -184,7 +184,8 @@ static void __init_memblock memblock_remove_region(struct memblock_type *type, u
+ 	}
+ }
+ 
+-static int __init_memblock memblock_double_array(struct memblock_type *type)
++static int __init_memblock memblock_double_array(struct memblock_type *type,
++						phys_addr_t skip_base)
+ {
+ 	struct memblock_region *new_array, *old_array;
+ 	phys_addr_t old_size, new_size, addr;
+@@ -222,7 +223,8 @@ static int __init_memblock memblock_double_array(struct memblock_type *type)
+ 		new_array = kmalloc(new_size, GFP_KERNEL);
+ 		addr = new_array ? __pa(new_array) : 0;
+ 	} else {
+-		addr = memblock_find_in_range(0, MEMBLOCK_ALLOC_ACCESSIBLE, new_size, sizeof(phys_addr_t));
++		addr = memblock_find_in_range(0, skip_base,
++				new_size, sizeof(phys_addr_t));
+ 		new_array = addr ? __va(addr) : 0;
+ 	}
+ 	if (!addr) {
+@@ -399,7 +401,8 @@ repeat:
+ 	 */
+ 	if (!insert) {
+ 		while (type->cnt + nr_new > type->max)
+-			if (memblock_double_array(type) < 0)
++			/* Avoid possible overlap if range is being reserved */
++			if (memblock_double_array(type, base) < 0)
+ 				return -ENOMEM;
+ 		insert = true;
+ 		goto repeat;
+@@ -450,7 +453,7 @@ static int __init_memblock memblock_isolate_range(struct memblock_type *type,
+ 
+ 	/* we'll create at most two more regions */
+ 	while (type->cnt + 2 > type->max)
+-		if (memblock_double_array(type) < 0)
++		if (memblock_double_array(type, MEMBLOCK_ALLOC_ACCESSIBLE) < 0)
+ 			return -ENOMEM;
+ 
+ 	for (i = 0; i < type->cnt; i++) {
 -- 
-1.7.1
+1.7.5.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
