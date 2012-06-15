@@ -1,110 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx101.postini.com [74.125.245.101])
-	by kanga.kvack.org (Postfix) with SMTP id 072856B0070
-	for <linux-mm@kvack.org>; Fri, 15 Jun 2012 08:35:54 -0400 (EDT)
-Date: Fri, 15 Jun 2012 14:35:52 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH -V2 2/2] hugetlb/cgroup: Assign the page hugetlb cgroup
- when we move the page to active list.
-Message-ID: <20120615123543.GB8100@tiehlicka.suse.cz>
-References: <1339756263-20378-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
- <1339756263-20378-2-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1339756263-20378-2-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+Received: from psmtp.com (na3sys010amx171.postini.com [74.125.245.171])
+	by kanga.kvack.org (Postfix) with SMTP id 5B5896B0072
+	for <linux-mm@kvack.org>; Fri, 15 Jun 2012 08:41:33 -0400 (EDT)
+Received: from /spool/local
+	by e28smtp04.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
+	Fri, 15 Jun 2012 18:11:29 +0530
+Received: from d28av01.in.ibm.com (d28av01.in.ibm.com [9.184.220.63])
+	by d28relay03.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q5FCfRsv54526166
+	for <linux-mm@kvack.org>; Fri, 15 Jun 2012 18:11:28 +0530
+Received: from d28av01.in.ibm.com (loopback [127.0.0.1])
+	by d28av01.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q5FIB1lh024898
+	for <linux-mm@kvack.org>; Fri, 15 Jun 2012 23:41:02 +0530
+From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Subject: [PATCH -V3 4/4] hugetlb/cgroup: Remove exclude and wakeup rmdir calls from migrate
+Date: Fri, 15 Jun 2012 18:11:22 +0530
+Message-Id: <1339764082-1611-5-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+In-Reply-To: <1339764082-1611-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+References: <1339764082-1611-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Cc: linux-mm@kvack.org, kamezawa.hiroyu@jp.fujitsu.com, akpm@linux-foundation.org
+To: linux-mm@kvack.org, kamezawa.hiroyu@jp.fujitsu.com, dhillf@gmail.com, rientjes@google.com, mhocko@suse.cz, akpm@linux-foundation.org, hannes@cmpxchg.org
+Cc: linux-kernel@vger.kernel.org, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
 
-On Fri 15-06-12 16:01:03, Aneesh Kumar K.V wrote:
-> From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-> 
-> page's hugetlb cgroup assign and moving to active list should happen with
-> hugetlb_lock held. Otherwise when we remove the hugetlb cgroup we would
-> iterate the active list and will find page with NULL hugetlb cgroup values.
-> 
-> Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
+From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
 
-Reviewed-by: Michal Hocko <mhocko@suse.cz>
+We already hold the hugetlb_lock. That should prevent a parallel
+cgroup rmdir from touching page's hugetlb cgroup. So remove
+the exclude and wakeup calls.
 
-> ---
->  mm/hugetlb.c        |   14 +++++++++-----
->  mm/hugetlb_cgroup.c |    3 +--
->  2 files changed, 10 insertions(+), 7 deletions(-)
-> 
-> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-> index ec7b86e..10160cb 100644
-> --- a/mm/hugetlb.c
-> +++ b/mm/hugetlb.c
-> @@ -1150,9 +1150,13 @@ static struct page *alloc_huge_page(struct vm_area_struct *vma,
->  	}
->  	spin_lock(&hugetlb_lock);
->  	page = dequeue_huge_page_vma(h, vma, addr, avoid_reserve);
-> -	spin_unlock(&hugetlb_lock);
-> -
-> -	if (!page) {
-> +	if (page) {
-> +		/* update page cgroup details */
-> +		hugetlb_cgroup_commit_charge(idx, pages_per_huge_page(h),
-> +					     h_cg, page);
-> +		spin_unlock(&hugetlb_lock);
-> +	} else {
-> +		spin_unlock(&hugetlb_lock);
->  		page = alloc_buddy_huge_page(h, NUMA_NO_NODE);
->  		if (!page) {
->  			hugetlb_cgroup_uncharge_cgroup(idx,
-> @@ -1163,14 +1167,14 @@ static struct page *alloc_huge_page(struct vm_area_struct *vma,
->  		}
->  		spin_lock(&hugetlb_lock);
->  		list_move(&page->lru, &h->hugepage_activelist);
-> +		hugetlb_cgroup_commit_charge(idx, pages_per_huge_page(h),
-> +					     h_cg, page);
->  		spin_unlock(&hugetlb_lock);
->  	}
->  
->  	set_page_private(page, (unsigned long)spool);
->  
->  	vma_commit_reservation(h, vma, addr);
-> -	/* update page cgroup details */
-> -	hugetlb_cgroup_commit_charge(idx, pages_per_huge_page(h), h_cg, page);
->  	return page;
->  }
->  
-> diff --git a/mm/hugetlb_cgroup.c b/mm/hugetlb_cgroup.c
-> index 8e7ca0a..d4f3f7b 100644
-> --- a/mm/hugetlb_cgroup.c
-> +++ b/mm/hugetlb_cgroup.c
-> @@ -218,6 +218,7 @@ done:
->  	return ret;
->  }
->  
-> +/* Should be called with hugetlb_lock held */
->  void hugetlb_cgroup_commit_charge(int idx, unsigned long nr_pages,
->  				  struct hugetlb_cgroup *h_cg,
->  				  struct page *page)
-> @@ -225,9 +226,7 @@ void hugetlb_cgroup_commit_charge(int idx, unsigned long nr_pages,
->  	if (hugetlb_cgroup_disabled() || !h_cg)
->  		return;
->  
-> -	spin_lock(&hugetlb_lock);
->  	set_hugetlb_cgroup(page, h_cg);
-> -	spin_unlock(&hugetlb_lock);
->  	return;
->  }
->  
-> -- 
-> 1.7.10
-> 
+Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
+---
+ mm/hugetlb_cgroup.c |    6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)
 
+diff --git a/mm/hugetlb_cgroup.c b/mm/hugetlb_cgroup.c
+index 55e109a..a7a0a79 100644
+--- a/mm/hugetlb_cgroup.c
++++ b/mm/hugetlb_cgroup.c
+@@ -387,6 +387,10 @@ int __init hugetlb_cgroup_file_init(int idx)
+ 	return 0;
+ }
+ 
++/*
++ * hugetlb_lock will make sure a parallel cgroup rmdir won't happen
++ * when we migrate hugepages
++ */
+ void hugetlb_cgroup_migrate(struct page *oldhpage, struct page *newhpage)
+ {
+ 	struct hugetlb_cgroup *h_cg;
+@@ -399,13 +403,11 @@ void hugetlb_cgroup_migrate(struct page *oldhpage, struct page *newhpage)
+ 	spin_lock(&hugetlb_lock);
+ 	h_cg = hugetlb_cgroup_from_page(oldhpage);
+ 	set_hugetlb_cgroup(oldhpage, NULL);
+-	cgroup_exclude_rmdir(&h_cg->css);
+ 
+ 	/* move the h_cg details to new cgroup */
+ 	set_hugetlb_cgroup(newhpage, h_cg);
+ 	list_move(&newhpage->lru, &h->hugepage_activelist);
+ 	spin_unlock(&hugetlb_lock);
+-	cgroup_release_and_wakeup_rmdir(&h_cg->css);
+ 	return;
+ }
+ 
 -- 
-Michal Hocko
-SUSE Labs
-SUSE LINUX s.r.o.
-Lihovarska 1060/12
-190 00 Praha 9    
-Czech Republic
+1.7.10
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
