@@ -1,90 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx113.postini.com [74.125.245.113])
-	by kanga.kvack.org (Postfix) with SMTP id C354B6B0072
-	for <linux-mm@kvack.org>; Fri, 15 Jun 2012 18:05:13 -0400 (EDT)
-Received: by pbbrp2 with SMTP id rp2so7128735pbb.14
-        for <linux-mm@kvack.org>; Fri, 15 Jun 2012 15:05:13 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx149.postini.com [74.125.245.149])
+	by kanga.kvack.org (Postfix) with SMTP id 4C8556B0074
+	for <linux-mm@kvack.org>; Fri, 15 Jun 2012 18:31:55 -0400 (EDT)
+Received: by lahi5 with SMTP id i5so3102378lah.14
+        for <linux-mm@kvack.org>; Fri, 15 Jun 2012 15:31:53 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <1339794567-17784-1-git-send-email-greg.pearson@hp.com>
-References: <1339794567-17784-1-git-send-email-greg.pearson@hp.com>
-Date: Fri, 15 Jun 2012 15:05:12 -0700
-Message-ID: <CAE9FiQWh9bjBQZEbEp=Wti=qNJVR2G-CuEa8bC3TtfN5hSWKxg@mail.gmail.com>
-Subject: Re: [PATCH] mm/memblock: fix overlapping allocation when doubling
- reserved array
-From: Yinghai Lu <yinghai@kernel.org>
-Content-Type: text/plain; charset=ISO-8859-1
+In-Reply-To: <alpine.DEB.2.00.1206110220290.6843@chino.kir.corp.google.com>
+References: <1334573091-18602-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+ <1334573091-18602-8-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+ <alpine.DEB.2.00.1205241436180.24113@chino.kir.corp.google.com>
+ <20120527202848.GC7631@skywalker.linux.vnet.ibm.com> <87lik920h8.fsf@skywalker.in.ibm.com>
+ <20120608160612.dea6d1ce.akpm@linux-foundation.org> <4FD56C19.4060307@jp.fujitsu.com>
+ <alpine.DEB.2.00.1206110220290.6843@chino.kir.corp.google.com>
+From: Aditya Kali <adityakali@google.com>
+Date: Fri, 15 Jun 2012 15:31:32 -0700
+Message-ID: <CAGr1F2EzDc3Ypv6twFE8Ua-JZUEkEVQJOPKwLt0O56c2-PycvA@mail.gmail.com>
+Subject: Re: [PATCH -V6 07/14] memcg: Add HugeTLB extension
+Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Greg Pearson <greg.pearson@hp.com>
-Cc: tj@kernel.org, hpa@linux.intel.com, akpm@linux-foundation.org, shangw@linux.vnet.ibm.com, mingo@elte.hu, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: David Rientjes <rientjes@google.com>
+Cc: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, linux-mm@kvack.org, mgorman@suse.de, dhillf@gmail.com, aarcange@redhat.com, mhocko@suse.cz, hannes@cmpxchg.org, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, Ying Han <yinghan@google.com>
 
-On Fri, Jun 15, 2012 at 2:09 PM, Greg Pearson <greg.pearson@hp.com> wrote:
-> The __alloc_memory_core_early() routine will ask memblock for a range
-> of memory then try to reserve it. If the reserved region array lacks
-> space for the new range, memblock_double_array() is called to allocate
-> more space for the array. If memblock is used to allocate memory for
-> the new array it can end up using a range that overlaps with the range
-> originally allocated in __alloc_memory_core_early(), leading to possible
-> data corruption.
+On Mon, Jun 11, 2012 at 2:23 AM, David Rientjes <rientjes@google.com> wrote=
+:
+> On Mon, 11 Jun 2012, Kamezawa Hiroyuki wrote:
 >
-> With this patch memblock_double_array() now calls memblock_find_in_range(=
-)
-> with a narrowed candidate range so any memory allocated will not overlap
-> with the original range that was being reserved. The range is narrowed by
-> passing in the starting address of the previously allocated range as the
-> end of the candidate range. Since memblock_find_in_range_node() looks for
-> a free range by walking the free memory list in reverse order (highest
-> memory address to lowest address) this change should not unnecessarily
-> exclude chunks of memory that could otherwise be used to satisfy the
-> request.
-
-old early_res version have exclude_start/exclude_end.
-
+>> Now, I think...
+>>
+>> =C2=A0 1. I need to agree that overhead is _not_ negligible.
+>>
+>> =C2=A0 2. THP should be the way rather than hugetlb for my main target p=
+latform.
+>> =C2=A0 =C2=A0 =C2=A0(shmem/tmpfs should support THP. we need study.)
+>> =C2=A0 =C2=A0 =C2=A0user-experience should be fixed by THP+tmpfs+memcg.
+>>
+>> =C2=A0 3. It seems Aneesh decided to have independent hugetlb cgroup.
+>>
+>> So, now, I admit to have independent hugetlb cgroup.
+>> Other opinions ?
+>>
 >
-> Signed-off-by: Greg Pearson <greg.pearson@hp.com>
-> ---
-> =A0mm/memblock.c | =A0 11 +++++++----
-> =A01 files changed, 7 insertions(+), 4 deletions(-)
+> I suggested the seperate controller in the review of the patchset so I
+> obviously agree with your conclusion. =C2=A0I don't think we should accou=
+nt for
+> hugetlb pages in memory.usage_in_bytes and enforce memory.limit_in_bytes
+> since 512 4K pages is not the same as 1 2M page which may be a sacred
+> resource if fragmentation is high.
 >
-> diff --git a/mm/memblock.c b/mm/memblock.c
-> index 952123e..599519c 100644
-> --- a/mm/memblock.c
-> +++ b/mm/memblock.c
-> @@ -184,7 +184,8 @@ static void __init_memblock memblock_remove_region(st=
-ruct memblock_type *type, u
-> =A0 =A0 =A0 =A0}
-> =A0}
+Based on the usecase at Google, I see a definite value in including
+hugepage usage in memory.usage_in_bytes as well and having a single
+limit for memory usage for the job. Our jobs wants to specify only one
+(total) memory limit (including slab usage, and other kernel memory
+usage, hugepages, etc.).
+
+The hugepage/smallpage requirements of the job vary during its
+lifetime. Having two different limits means less flexibility for jobs
+as they now have to specify their limit as (max_hugepage,
+max_smallpage) instead of max(hugepage + smallpage). Two limits
+complicates the API for the users and requires them to over-specify
+the resources.
+
+> Many thanks to Aneesh for continuing to update the patchset and working
+> toward a resolution on this, I love the direction its taking.
 >
-> -static int __init_memblock memblock_double_array(struct memblock_type *t=
-ype)
-> +static int __init_memblock memblock_double_array(struct memblock_type *t=
-ype,
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0=
- =A0 =A0 =A0 =A0 =A0 phys_addr_t skip_base)
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org. =C2=A0For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=3Dmailto:"dont@kvack.org"> email@kvack.org </a>
 
-could pass phys_addr_t exclude_base, phys_addr_t execlude_end
-
-> =A0{
-> =A0 =A0 =A0 =A0struct memblock_region *new_array, *old_array;
-> =A0 =A0 =A0 =A0phys_addr_t old_size, new_size, addr;
-> @@ -222,7 +223,8 @@ static int __init_memblock memblock_double_array(stru=
-ct memblock_type *type)
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0new_array =3D kmalloc(new_size, GFP_KERNEL=
-);
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0addr =3D new_array ? __pa(new_array) : 0;
-> =A0 =A0 =A0 =A0} else {
-> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 addr =3D memblock_find_in_range(0, MEMBLOCK=
-_ALLOC_ACCESSIBLE, new_size, sizeof(phys_addr_t));
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 addr =3D memblock_find_in_range(0, skip_bas=
-e,
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 new_size, s=
-izeof(phys_addr_t));
-
-could try to search [exclude_end, MEMBLOCK_ALLOC_ACCESSIBLE) at first.
-then try [0, execlude_start).
-
-Yinghai
+Thanks,
+--=20
+Aditya
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
