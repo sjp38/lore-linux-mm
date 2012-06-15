@@ -1,86 +1,98 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx155.postini.com [74.125.245.155])
-	by kanga.kvack.org (Postfix) with SMTP id 9A7976B005C
-	for <linux-mm@kvack.org>; Fri, 15 Jun 2012 08:23:47 -0400 (EDT)
-Date: Fri, 15 Jun 2012 14:23:44 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH -V2 1/2] hugetlb: Move all the in use pages to active list
-Message-ID: <20120615122121.GA8100@tiehlicka.suse.cz>
-References: <1339756263-20378-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+Received: from psmtp.com (na3sys010amx121.postini.com [74.125.245.121])
+	by kanga.kvack.org (Postfix) with SMTP id 6E6C86B0069
+	for <linux-mm@kvack.org>; Fri, 15 Jun 2012 08:31:51 -0400 (EDT)
+Received: by vcbfl10 with SMTP id fl10so2221822vcb.14
+        for <linux-mm@kvack.org>; Fri, 15 Jun 2012 05:31:50 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1339756263-20378-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+In-Reply-To: <4FDAE3CC.60801@kernel.org>
+References: <1339661592-3915-1-git-send-email-kosaki.motohiro@gmail.com>
+	<20120614145716.GA2097@barrios>
+	<CAHGf_=qcA5OfuNgk0BiwyshcLftNWoPfOO_VW9H6xQTX2tAbuA@mail.gmail.com>
+	<4FDAE3CC.60801@kernel.org>
+Date: Fri, 15 Jun 2012 20:31:50 +0800
+Message-ID: <CAJd=RBBSa2TuRDVGrY9JT9m3K68N1LWiZKyo3Y1mdQRo5TxBLQ@mail.gmail.com>
+Subject: Re: [resend][PATCH] mm, vmscan: fix do_try_to_free_pages() livelock
+From: Hillf Danton <dhillf@gmail.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Cc: linux-mm@kvack.org, kamezawa.hiroyu@jp.fujitsu.com, akpm@linux-foundation.org
+To: Minchan Kim <minchan@kernel.org>
+Cc: KOSAKI Motohiro <kosaki.motohiro@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org, Nick Piggin <npiggin@gmail.com>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mel@csn.ul.ie>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-On Fri 15-06-12 16:01:02, Aneesh Kumar K.V wrote:
-> From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-> 
-> When we fail to allocate pages from the reserve pool, hugetlb
-> do try to allocate huge pages using alloc_buddy_huge_page.
-> Add these to the active list. We also need to add the huge
-> page we allocate when we soft offline the oldpage to active
-> list.
+Hi Minchan and KOSAKI
 
-Yes, I have totally missed this.
+On Fri, Jun 15, 2012 at 3:27 PM, Minchan Kim <minchan@kernel.org> wrote:
+> On 06/15/2012 01:10 AM, KOSAKI Motohiro wrote:
+>
+>> On Thu, Jun 14, 2012 at 10:57 AM, Minchan Kim <minchan@kernel.org> wrote=
+:
+>>> Hi KOSAKI,
+>>>
+>>> Sorry for late response.
+>>> Let me ask a question about description.
+>>>
+>>> On Thu, Jun 14, 2012 at 04:13:12AM -0400, kosaki.motohiro@gmail.com wro=
+te:
+>>>> From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+>>>>
+>>>> Currently, do_try_to_free_pages() can enter livelock. Because of,
+>>>> now vmscan has two conflicted policies.
+>>>>
+>>>> 1) kswapd sleep when it couldn't reclaim any page when reaching
+>>>> =C2=A0 =C2=A0priority 0. This is because to avoid kswapd() infinite
+>>>> =C2=A0 =C2=A0loop. That said, kswapd assume direct reclaim makes enoug=
+h
+>>>> =C2=A0 =C2=A0free pages to use either regular page reclaim or oom-kill=
+er.
+>>>> =C2=A0 =C2=A0This logic makes kswapd -> direct-reclaim dependency.
+>>>> 2) direct reclaim continue to reclaim without oom-killer until
+>>>> =C2=A0 =C2=A0kswapd turn on zone->all_unreclaimble. This is because
+>>>> =C2=A0 =C2=A0to avoid too early oom-kill.
+>>>> =C2=A0 =C2=A0This logic makes direct-reclaim -> kswapd dependency.
+>>>>
+>>>> In worst case, direct-reclaim may continue to page reclaim forever
+>>>> when kswapd sleeps forever.
+>>>
+>>> I have tried imagined scenario you mentioned above with code level but
+>>> unfortunately I got failed.
+>>> If kswapd can't meet high watermark on order-0, it doesn't sleep if I d=
+on't miss something.
+>>
+>> pgdat_balanced() doesn't recognized zone. Therefore kswapd may sleep
+>> if node has multiple zones. Hm ok, I realized my descriptions was
+>> slightly misleading. priority 0 is not needed. bakance_pddat() calls
+>> pgdat_balanced()
+>> every priority. Most easy case is, movable zone has a lot of free pages =
+and
+>> normal zone has no reclaimable page.
+>>
+>> btw, current pgdat_balanced() logic seems not correct. kswapd should
+>> sleep only if every zones have much free pages than high water mark
+>> _and_ 25% of present pages in node are free.
+>>
+>
+>
+> Sorry. I can't understand your point.
+> Current kswapd doesn't sleep if relevant zones don't have free pages abov=
+e high watermark.
+> It seems I am missing your point.
+> Please anybody correct me.
+>
 
-> Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
+Who left comment on unreclaimable there, and why?
+		/*
+		 * balance_pgdat() skips over all_unreclaimable after
+		 * DEF_PRIORITY. Effectively, it considers them balanced so
+		 * they must be considered balanced here as well if kswapd
+		 * is to sleep
+		 */
 
-Reviewed-by: Michal Hocko <mhocko@suse.cz>
+BTW, are you still using prefetch_prev_lru_page?
 
-> ---
->  mm/hugetlb.c |   11 ++++++++++-
->  1 file changed, 10 insertions(+), 1 deletion(-)
-> 
-> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-> index c57740b..ec7b86e 100644
-> --- a/mm/hugetlb.c
-> +++ b/mm/hugetlb.c
-> @@ -928,8 +928,14 @@ struct page *alloc_huge_page_node(struct hstate *h, int nid)
->  	page = dequeue_huge_page_node(h, nid);
->  	spin_unlock(&hugetlb_lock);
->  
-> -	if (!page)
-> +	if (!page) {
->  		page = alloc_buddy_huge_page(h, nid);
-> +		if (page) {
-> +			spin_lock(&hugetlb_lock);
-> +			list_move(&page->lru, &h->hugepage_activelist);
-> +			spin_unlock(&hugetlb_lock);
-> +		}
-> +	}
->  
->  	return page;
->  }
-> @@ -1155,6 +1161,9 @@ static struct page *alloc_huge_page(struct vm_area_struct *vma,
->  			hugepage_subpool_put_pages(spool, chg);
->  			return ERR_PTR(-ENOSPC);
->  		}
-> +		spin_lock(&hugetlb_lock);
-> +		list_move(&page->lru, &h->hugepage_activelist);
-> +		spin_unlock(&hugetlb_lock);
->  	}
->  
->  	set_page_private(page, (unsigned long)spool);
-> -- 
-> 1.7.10
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-
--- 
-Michal Hocko
-SUSE Labs
-SUSE LINUX s.r.o.
-Lihovarska 1060/12
-190 00 Praha 9    
-Czech Republic
+Good Weekend
+Hillf
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
