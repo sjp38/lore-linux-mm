@@ -1,171 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx170.postini.com [74.125.245.170])
-	by kanga.kvack.org (Postfix) with SMTP id 2260C6B0062
-	for <linux-mm@kvack.org>; Fri, 15 Jun 2012 08:02:03 -0400 (EDT)
-Received: by dakp5 with SMTP id p5so4836336dak.14
-        for <linux-mm@kvack.org>; Fri, 15 Jun 2012 05:02:02 -0700 (PDT)
-From: Sha Zhengju <handai.szj@gmail.com>
-Subject: [PATCH 2/2] memcg: add per cgroup dirty pages accounting
-Date: Fri, 15 Jun 2012 20:01:57 +0800
-Message-Id: <1339761717-29070-1-git-send-email-handai.szj@taobao.com>
-In-Reply-To: <1339761611-29033-1-git-send-email-handai.szj@taobao.com>
-References: <1339761611-29033-1-git-send-email-handai.szj@taobao.com>
+Received: from psmtp.com (na3sys010amx155.postini.com [74.125.245.155])
+	by kanga.kvack.org (Postfix) with SMTP id 9A7976B005C
+	for <linux-mm@kvack.org>; Fri, 15 Jun 2012 08:23:47 -0400 (EDT)
+Date: Fri, 15 Jun 2012 14:23:44 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH -V2 1/2] hugetlb: Move all the in use pages to active list
+Message-ID: <20120615122121.GA8100@tiehlicka.suse.cz>
+References: <1339756263-20378-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1339756263-20378-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org, cgroups@vger.kernel.org
-Cc: kamezawa.hiroyu@jp.fujitsu.com, gthelen@google.com, yinghan@google.com, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, Sha Zhengju <handai.szj@taobao.com>
+To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Cc: linux-mm@kvack.org, kamezawa.hiroyu@jp.fujitsu.com, akpm@linux-foundation.org
 
-This patch adds memcg routines to count dirty pages. I notice that
-the list has talked about per-cgroup dirty page limiting
-(http://lwn.net/Articles/455341/) before, but it did not get merged.
-I've no idea how is this going now, but maybe we can add per cgroup
-dirty pages accounting first. This allows the memory controller to
-maintain an accurate view of the amount of its memory that is dirty
-and can provide some infomation while group's direct reclaim is working.
+On Fri 15-06-12 16:01:02, Aneesh Kumar K.V wrote:
+> From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+> 
+> When we fail to allocate pages from the reserve pool, hugetlb
+> do try to allocate huge pages using alloc_buddy_huge_page.
+> Add these to the active list. We also need to add the huge
+> page we allocate when we soft offline the oldpage to active
+> list.
 
-After commit 89c06bd5 (memcg: use new logic for page stat accounting),
-we do not need per page_cgroup flag anymore and can directly use
-struct page flag.
+Yes, I have totally missed this.
 
+> Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
 
-Signed-off-by: Sha Zhengju <handai.szj@taobao.com>
----
- include/linux/memcontrol.h |    1 +
- mm/filemap.c               |    1 +
- mm/memcontrol.c            |   32 +++++++++++++++++++++++++-------
- mm/page-writeback.c        |    2 ++
- mm/truncate.c              |    1 +
- 5 files changed, 30 insertions(+), 7 deletions(-)
+Reviewed-by: Michal Hocko <mhocko@suse.cz>
 
-diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
-index a337c2e..8154ade 100644
---- a/include/linux/memcontrol.h
-+++ b/include/linux/memcontrol.h
-@@ -39,6 +39,7 @@ enum mem_cgroup_stat_index {
- 	MEM_CGROUP_STAT_FILE_MAPPED,  /* # of pages charged as file rss */
- 	MEM_CGROUP_STAT_SWAPOUT, /* # of pages, swapped out */
- 	MEM_CGROUP_STAT_DATA, /* end of data requires synchronization */
-+	MEM_CGROUP_STAT_FILE_DIRTY,  /* # of dirty pages in page cache */
- 	MEM_CGROUP_STAT_NSTATS,
- };
- 
-diff --git a/mm/filemap.c b/mm/filemap.c
-index 79c4b2b..5b5c121 100644
---- a/mm/filemap.c
-+++ b/mm/filemap.c
-@@ -141,6 +141,7 @@ void __delete_from_page_cache(struct page *page)
- 	 * having removed the page entirely.
- 	 */
- 	if (PageDirty(page) && mapping_cap_account_dirty(mapping)) {
-+		mem_cgroup_dec_page_stat(page, MEM_CGROUP_STAT_FILE_DIRTY);
- 		dec_zone_page_state(page, NR_FILE_DIRTY);
- 		dec_bdi_stat(mapping->backing_dev_info, BDI_RECLAIMABLE);
- 	}
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 9102b8c..d200ad1 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -2548,6 +2548,18 @@ void mem_cgroup_split_huge_fixup(struct page *head)
- }
- #endif /* CONFIG_TRANSPARENT_HUGEPAGE */
- 
-+static inline
-+void mem_cgroup_move_account_page_stat(struct mem_cgroup *from,
-+					struct mem_cgroup *to,
-+					enum mem_cgroup_stat_index idx)
-+{
-+	/* Update stat data for mem_cgroup */
-+	preempt_disable();
-+	__this_cpu_dec(from->stat->count[idx]);
-+	__this_cpu_inc(to->stat->count[idx]);
-+	preempt_enable();
-+}
-+
- /**
-  * mem_cgroup_move_account - move account of the page
-  * @page: the page
-@@ -2597,13 +2609,14 @@ static int mem_cgroup_move_account(struct page *page,
- 
- 	move_lock_mem_cgroup(from, &flags);
- 
--	if (!anon && page_mapped(page)) {
--		/* Update mapped_file data for mem_cgroup */
--		preempt_disable();
--		__this_cpu_dec(from->stat->count[MEM_CGROUP_STAT_FILE_MAPPED]);
--		__this_cpu_inc(to->stat->count[MEM_CGROUP_STAT_FILE_MAPPED]);
--		preempt_enable();
--	}
-+	if (!anon && page_mapped(page))
-+		mem_cgroup_move_account_page_stat(from, to,
-+					MEM_CGROUP_STAT_FILE_MAPPED);
-+
-+	if (PageDirty(page))
-+		mem_cgroup_move_account_page_stat(from, to,
-+					MEM_CGROUP_STAT_FILE_DIRTY);
-+
- 	mem_cgroup_charge_statistics(from, anon, -nr_pages);
- 	if (uncharge)
- 		/* This is not "cancel", but cancel_charge does all we need. */
-@@ -4023,6 +4036,7 @@ enum {
- 	MCS_SWAP,
- 	MCS_PGFAULT,
- 	MCS_PGMAJFAULT,
-+	MCS_FILE_DIRTY,
- 	MCS_INACTIVE_ANON,
- 	MCS_ACTIVE_ANON,
- 	MCS_INACTIVE_FILE,
-@@ -4047,6 +4061,7 @@ struct {
- 	{"swap", "total_swap"},
- 	{"pgfault", "total_pgfault"},
- 	{"pgmajfault", "total_pgmajfault"},
-+	{"dirty", "total_dirty"},
- 	{"inactive_anon", "total_inactive_anon"},
- 	{"active_anon", "total_active_anon"},
- 	{"inactive_file", "total_inactive_file"},
-@@ -4080,6 +4095,9 @@ mem_cgroup_get_local_stat(struct mem_cgroup *memcg, struct mcs_total_stat *s)
- 	val = mem_cgroup_read_events(memcg, MEM_CGROUP_EVENTS_PGMAJFAULT);
- 	s->stat[MCS_PGMAJFAULT] += val;
- 
-+	val = mem_cgroup_read_stat(memcg, MEM_CGROUP_STAT_FILE_DIRTY);
-+	s->stat[MCS_FILE_DIRTY] += val * PAGE_SIZE;
-+
- 	/* per zone stat */
- 	val = mem_cgroup_nr_lru_pages(memcg, BIT(LRU_INACTIVE_ANON));
- 	s->stat[MCS_INACTIVE_ANON] += val * PAGE_SIZE;
-diff --git a/mm/page-writeback.c b/mm/page-writeback.c
-index 26adea8..b17c692 100644
---- a/mm/page-writeback.c
-+++ b/mm/page-writeback.c
-@@ -1936,6 +1936,7 @@ int __set_page_dirty_no_writeback(struct page *page)
- void account_page_dirtied(struct page *page, struct address_space *mapping)
- {
- 	if (mapping_cap_account_dirty(mapping)) {
-+		mem_cgroup_inc_page_stat(page, MEM_CGROUP_STAT_FILE_DIRTY);
- 		__inc_zone_page_state(page, NR_FILE_DIRTY);
- 		__inc_zone_page_state(page, NR_DIRTIED);
- 		__inc_bdi_stat(mapping->backing_dev_info, BDI_RECLAIMABLE);
-@@ -2155,6 +2156,7 @@ int clear_page_dirty_for_io(struct page *page)
- 		 * for more comments.
- 		 */
- 		if (TestClearPageDirty(page)) {
-+			mem_cgroup_dec_page_stat(page, MEM_CGROUP_STAT_FILE_DIRTY);
- 			dec_zone_page_state(page, NR_FILE_DIRTY);
- 			dec_bdi_stat(mapping->backing_dev_info,
- 					BDI_RECLAIMABLE);
-diff --git a/mm/truncate.c b/mm/truncate.c
-index 61a183b..fe8363e 100644
---- a/mm/truncate.c
-+++ b/mm/truncate.c
-@@ -76,6 +76,7 @@ void cancel_dirty_page(struct page *page, unsigned int account_size)
- 	if (TestClearPageDirty(page)) {
- 		struct address_space *mapping = page->mapping;
- 		if (mapping && mapping_cap_account_dirty(mapping)) {
-+			mem_cgroup_dec_page_stat(page, MEM_CGROUP_STAT_FILE_DIRTY);
- 			dec_zone_page_state(page, NR_FILE_DIRTY);
- 			dec_bdi_stat(mapping->backing_dev_info,
- 					BDI_RECLAIMABLE);
+> ---
+>  mm/hugetlb.c |   11 ++++++++++-
+>  1 file changed, 10 insertions(+), 1 deletion(-)
+> 
+> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+> index c57740b..ec7b86e 100644
+> --- a/mm/hugetlb.c
+> +++ b/mm/hugetlb.c
+> @@ -928,8 +928,14 @@ struct page *alloc_huge_page_node(struct hstate *h, int nid)
+>  	page = dequeue_huge_page_node(h, nid);
+>  	spin_unlock(&hugetlb_lock);
+>  
+> -	if (!page)
+> +	if (!page) {
+>  		page = alloc_buddy_huge_page(h, nid);
+> +		if (page) {
+> +			spin_lock(&hugetlb_lock);
+> +			list_move(&page->lru, &h->hugepage_activelist);
+> +			spin_unlock(&hugetlb_lock);
+> +		}
+> +	}
+>  
+>  	return page;
+>  }
+> @@ -1155,6 +1161,9 @@ static struct page *alloc_huge_page(struct vm_area_struct *vma,
+>  			hugepage_subpool_put_pages(spool, chg);
+>  			return ERR_PTR(-ENOSPC);
+>  		}
+> +		spin_lock(&hugetlb_lock);
+> +		list_move(&page->lru, &h->hugepage_activelist);
+> +		spin_unlock(&hugetlb_lock);
+>  	}
+>  
+>  	set_page_private(page, (unsigned long)spool);
+> -- 
+> 1.7.10
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+
 -- 
-1.7.1
+Michal Hocko
+SUSE Labs
+SUSE LINUX s.r.o.
+Lihovarska 1060/12
+190 00 Praha 9    
+Czech Republic
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
