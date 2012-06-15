@@ -1,13 +1,13 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx137.postini.com [74.125.245.137])
-	by kanga.kvack.org (Postfix) with SMTP id 6AE766B009B
-	for <linux-mm@kvack.org>; Fri, 15 Jun 2012 09:21:16 -0400 (EDT)
-Received: by pbbrp2 with SMTP id rp2so6481353pbb.14
-        for <linux-mm@kvack.org>; Fri, 15 Jun 2012 06:21:15 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx198.postini.com [74.125.245.198])
+	by kanga.kvack.org (Postfix) with SMTP id 2AC8F6B009D
+	for <linux-mm@kvack.org>; Fri, 15 Jun 2012 09:21:57 -0400 (EDT)
+Received: by pbbrp2 with SMTP id rp2so6482305pbb.14
+        for <linux-mm@kvack.org>; Fri, 15 Jun 2012 06:21:56 -0700 (PDT)
 From: Wanpeng Li <liwp.linux@gmail.com>
-Subject: [PATCH 7/7] mm/memory.c : cleanup the coding style issue
-Date: Fri, 15 Jun 2012 21:20:47 +0800
-Message-Id: <1339766449-7835-1-git-send-email-liwp.linux@gmail.com>
+Subject: [PATCH 0/7][TRIVIAL][resend] trivial patches
+Date: Fri, 15 Jun 2012 21:21:39 +0800
+Message-Id: <1339766499-7891-1-git-send-email-liwp.linux@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: trivial@kernel.org
@@ -15,28 +15,36 @@ Cc: Benjamin Herrenschmidt <benh@kernel.crashing.org>, Thomas Gleixner <tglx@lin
 
 From: Wanpeng Li <liwp@linux.vnet.ibm.com>
 
+Since these patches has already send more than one week and 
+doesn't get any response, I collect them and send out a patch set.
+
+Wanpeng Li (7)
+
+powerpc: cleanup some kernel doc warning 
+x86/kernel: cleanup some kernel doc warning  
+drivers/pci: cleanup some kernel doc warning
+mm: cleanup on the comments of zone_reclaim_stat
+mm: cleanup some kernel doc warning
+mm: cleanup page relaim comment error
+mm/memory.c: cleanup coding style issue
+
 Signed-off-by: Wanpeng Li <liwp.linux@gmail.com>
-
----
- mm/memory.c |    3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
-
-diff --git a/mm/memory.c b/mm/memory.c
-index 1b7dc66..195d6e1 100644
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -2447,7 +2447,8 @@ static inline int pte_unmap_same(struct mm_struct *mm, pmd_t *pmd,
- 	return same;
- }
- 
--static inline void cow_user_page(struct page *dst, struct page *src, unsigned long va, struct vm_area_struct *vma)
-+static inline void cow_user_page(struct page *dst, struct page *src,
-+		unsigned long va, struct vm_area_struct *vma)
- {
- 	/*
- 	 * If the source page was a PFN mapping, we don't have
--- 
-1.7.9.5
+--
+ arch/powerpc/kernel/pci_of_scan.c |    1 -
+ arch/powerpc/kernel/vio.c         |    6 +++---
+ arch/x86/kernel/kgdb.c            |    8 ++++----
+ arch/x86/kernel/uprobes.c         |    2 +-
+ drivers/pci/setup-bus.c           |    2 +-
+ include/linux/mmzone.h            |    2 +-
+ mm/memblock.c                     |   12 ++++++------
+ mm/memcontrol.c                   |    4 ++--
+ mm/memory.c                       |    3 ++-
+ mm/oom_kill.c                     |    2 +-
+ mm/page_cgroup.c                  |    4 ++--
+ mm/pagewalk.c                     |    1 -
+ mm/percpu-vm.c                    |    1 -
+ mm/vmscan.c                       |    3 ++-
+ 14 files changed, 25 insertions(+), 26 deletions(-)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
