@@ -1,59 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx207.postini.com [74.125.245.207])
-	by kanga.kvack.org (Postfix) with SMTP id 13AF26B0068
-	for <linux-mm@kvack.org>; Fri, 15 Jun 2012 11:02:27 -0400 (EDT)
-Date: Fri, 15 Jun 2012 16:58:09 +0200
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH 6/7][TRIVIAL][resend] mm: cleanup page reclaim comment
- error
-Message-ID: <20120615145809.GA27816@cmpxchg.org>
-References: <1339766387-7740-1-git-send-email-liwp.linux@gmail.com>
+Received: from psmtp.com (na3sys010amx202.postini.com [74.125.245.202])
+	by kanga.kvack.org (Postfix) with SMTP id 733666B0068
+	for <linux-mm@kvack.org>; Fri, 15 Jun 2012 11:14:19 -0400 (EDT)
+Received: from /spool/local
+	by e9.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <sjenning@linux.vnet.ibm.com>;
+	Fri, 15 Jun 2012 11:14:17 -0400
+Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
+	by d01dlp01.pok.ibm.com (Postfix) with ESMTP id 2B69538C806E
+	for <linux-mm@kvack.org>; Fri, 15 Jun 2012 11:13:21 -0400 (EDT)
+Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
+	by d01relay04.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q5FFDJ8o188308
+	for <linux-mm@kvack.org>; Fri, 15 Jun 2012 11:13:20 -0400
+Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av02.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q5FFDIHo018787
+	for <linux-mm@kvack.org>; Fri, 15 Jun 2012 09:13:19 -0600
+Message-ID: <4FDB5107.3000308@linux.vnet.ibm.com>
+Date: Fri, 15 Jun 2012 10:13:11 -0500
+From: Seth Jennings <sjenning@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1339766387-7740-1-git-send-email-liwp.linux@gmail.com>
+Subject: Re: [PATCH v2 3/3] x86: Support local_flush_tlb_kernel_range
+References: <1337133919-4182-1-git-send-email-minchan@kernel.org> <1337133919-4182-3-git-send-email-minchan@kernel.org> <4FB4B29C.4010908@kernel.org> <1337266310.4281.30.camel@twins>
+In-Reply-To: <1337266310.4281.30.camel@twins>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wanpeng Li <liwp.linux@gmail.com>
-Cc: trivial@kernel.org, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, x86@kernel.org, Bjorn Helgaas <bhelgaas@google.com>, Michal Hocko <mhocko@suse.cz>, Balbir Singh <bsingharora@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Tejun Heo <tj@kernel.org>, Li Zefan <lizefan@huawei.com>, Christoph Lameter <cl@linux-foundation.org>, Paul Gortmaker <paul.gortmaker@windriver.com>, Jesse Barnes <jbarnes@virtuousgeek.org>, Milton Miller <miltonm@bga.com>, Nishanth Aravamudan <nacc@us.ibm.com>, Stephen Rothwell <sfr@canb.auug.org.au>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Jason Wessel <jason.wessel@windriver.com>, Jan Kiszka <jan.kiszka@siemens.com>, David Howells <dhowells@redhat.com>, Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Minchan Kim <minchan@kernel.org>, Gavin Shan <shangw@linux.vnet.ibm.com>, Al Viro <viro@zeniv.linux.org.uk>, Andrea Arcangeli <aarcange@redhat.com>, David Rientjes <rientjes@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Larry Woodman <lwoodman@redhat.com>, Hugh Dickins <hughd@google.com>, linuxppc-dev@lists.ozlabs.org, linux-kernel@vger.kernel.org, linux-pci@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org
+To: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Cc: Minchan Kim <minchan@kernel.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Nitin Gupta <ngupta@vflare.org>, Dan Magenheimer <dan.magenheimer@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, Tejun Heo <tj@kernel.org>, David Howells <dhowells@redhat.com>, x86@kernel.org, Nick Piggin <npiggin@gmail.com>
 
-On Fri, Jun 15, 2012 at 09:19:45PM +0800, Wanpeng Li wrote:
-> From: Wanpeng Li <liwp@linux.vnet.ibm.com>
-> 
-> Since there are five lists in LRU cache, the array nr in get_scan_count
-> should be:
-> 
-> nr[0] = anon inactive pages to scan; nr[1] = anon active pages to scan
-> nr[2] = file inactive pages to scan; nr[3] = file active pages to scan
-> 
-> Signed-off-by: Wanpeng Li <liwp.linux@gmail.com>
-> Acked-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-> Acked-by: Minchan Kim <minchan@kernel.org>
-> Reviewed-by: Rik van Riel <riel@redhat.com>
-> 
-> ---
->  mm/vmscan.c |    3 ++-
->  1 file changed, 2 insertions(+), 1 deletion(-)
-> 
-> diff --git a/mm/vmscan.c b/mm/vmscan.c
-> index eeb3bc9..ed823df 100644
-> --- a/mm/vmscan.c
-> +++ b/mm/vmscan.c
-> @@ -1567,7 +1567,8 @@ static int vmscan_swappiness(struct scan_control *sc)
->   * by looking at the fraction of the pages scanned we did rotate back
->   * onto the active list instead of evict.
->   *
-> - * nr[0] = anon pages to scan; nr[1] = file pages to scan
-> + * nr[0] = anon inactive pages to scan; nr[1] = anon active pages to scan
-> + * nr[2] = file inactive pages to scan; nr[3] = file active pages to scan
->   */
+On 05/17/2012 09:51 AM, Peter Zijlstra wrote:
 
-Does including this in the comment have any merit in the first place?
-We never access nr[0] or nr[1] etc. anywhere with magic numbers.  It's
-a local function with one callsite, the passed array is declared and
-accessed exclusively by what is defined in enum lru_list, where is the
-point in repeating the enum items?.  I'd rather the next change to
-this comment would be its removal.
+> On Thu, 2012-05-17 at 17:11 +0900, Minchan Kim wrote:
+>>> +++ b/arch/x86/include/asm/tlbflush.h
+>>> @@ -172,4 +172,16 @@ static inline void flush_tlb_kernel_range(unsigned long start,
+>>>       flush_tlb_all();
+>>>  }
+>>>  
+>>> +static inline void local_flush_tlb_kernel_range(unsigned long start,
+>>> +             unsigned long end)
+>>> +{
+>>> +     if (cpu_has_invlpg) {
+>>> +             while (start < end) {
+>>> +                     __flush_tlb_single(start);
+>>> +                     start += PAGE_SIZE;
+>>> +             }
+>>> +     } else
+>>> +             local_flush_tlb();
+>>> +}
+> 
+> 
+> It would be much better if you wait for Alex Shi's patch to mature.
+> doing the invlpg thing for ranges is not an unconditional win.
+
+
+>From what I can tell Alex's patches have stalled.  The last post was v6
+on 5/17 and there wasn't a single reply to them afaict.
+
+According to Alex's investigation of this "tipping point", it seems that
+a good generic value is 8.  In other words, on most x86 hardware, it is
+cheaper to flush up to 8 tlb entries one by one rather than doing a
+complete flush.
+
+So we can do something like:
+
+     if (cpu_has_invlpg && (end - start)/PAGE_SIZE <= 8) {
+             while (start < end) {
+
+Would this be acceptable?
+
+Thanks,
+Seth
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
