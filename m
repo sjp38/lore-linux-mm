@@ -1,13 +1,13 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx114.postini.com [74.125.245.114])
-	by kanga.kvack.org (Postfix) with SMTP id A2DAD6B008C
-	for <linux-mm@kvack.org>; Fri, 15 Jun 2012 09:16:24 -0400 (EDT)
-Received: by pbbrp2 with SMTP id rp2so6474455pbb.14
-        for <linux-mm@kvack.org>; Fri, 15 Jun 2012 06:16:24 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx117.postini.com [74.125.245.117])
+	by kanga.kvack.org (Postfix) with SMTP id 29AB36B0093
+	for <linux-mm@kvack.org>; Fri, 15 Jun 2012 09:18:03 -0400 (EDT)
+Received: by pbbrp2 with SMTP id rp2so6476845pbb.14
+        for <linux-mm@kvack.org>; Fri, 15 Jun 2012 06:18:02 -0700 (PDT)
 From: Wanpeng Li <liwp.linux@gmail.com>
-Subject: [PATCH 3/7][TRIVIAL][resend] drivers/pci: cleanup kernel-doc warning
-Date: Fri, 15 Jun 2012 21:15:49 +0800
-Message-Id: <1339766154-7470-1-git-send-email-liwp.linux@gmail.com>
+Subject: [PATCH 4/7][TRIVIAL][resend] mm: cleanup on the comments of zone_reclaim_stat
+Date: Fri, 15 Jun 2012 21:17:16 +0800
+Message-Id: <1339766240-7622-1-git-send-email-liwp.linux@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: trivial@kernel.org
@@ -15,27 +15,26 @@ Cc: Benjamin Herrenschmidt <benh@kernel.crashing.org>, Thomas Gleixner <tglx@lin
 
 From: Wanpeng Li <liwp@linux.vnet.ibm.com>
 
-Warning(drivers/pci/setup-bus.c:277): No description found for parameter 'fail_head'
-Warning(drivers/pci/setup-bus.c:277): Excess function parameter 'failed_list' description in 'assign_requested_resources_sorted'
-
 Signed-off-by: Wanpeng Li <liwp.linux@gmail.com>
+Acked-by: Minchan Kim <minchan@kernel.org>
+
 ---
- drivers/pci/setup-bus.c |    2 +-
+ include/linux/mmzone.h |    2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
 
-diff --git a/drivers/pci/setup-bus.c b/drivers/pci/setup-bus.c
-index 8fa2d4b..9165d25 100644
---- a/drivers/pci/setup-bus.c
-+++ b/drivers/pci/setup-bus.c
-@@ -265,7 +265,7 @@ out:
-  * assign_requested_resources_sorted() - satisfy resource requests
-  *
-  * @head : head of the list tracking requests for resources
-- * @failed_list : head of the list tracking requests that could
-+ * @fail_head : head of the list tracking requests that could
-  *		not be allocated
-  *
-  * Satisfy resource requests of each element in the list. Add
+diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
+index 2427706..d6a5f83 100644
+--- a/include/linux/mmzone.h
++++ b/include/linux/mmzone.h
+@@ -188,7 +188,7 @@ static inline int is_unevictable_lru(enum lru_list lru)
+ struct zone_reclaim_stat {
+ 	/*
+ 	 * The pageout code in vmscan.c keeps track of how many of the
+-	 * mem/swap backed and file backed pages are refeferenced.
++	 * mem/swap backed and file backed pages are referenced.
+ 	 * The higher the rotated/scanned ratio, the more valuable
+ 	 * that cache is.
+ 	 *
 -- 
 1.7.9.5
 
