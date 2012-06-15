@@ -1,70 +1,110 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx184.postini.com [74.125.245.184])
-	by kanga.kvack.org (Postfix) with SMTP id C5D7E6B005C
-	for <linux-mm@kvack.org>; Fri, 15 Jun 2012 03:27:02 -0400 (EDT)
-Message-ID: <4FDAE3CC.60801@kernel.org>
-Date: Fri, 15 Jun 2012 16:27:08 +0900
+Received: from psmtp.com (na3sys010amx138.postini.com [74.125.245.138])
+	by kanga.kvack.org (Postfix) with SMTP id 225AC6B005C
+	for <linux-mm@kvack.org>; Fri, 15 Jun 2012 03:32:43 -0400 (EDT)
+Message-ID: <4FDAE521.7020104@kernel.org>
+Date: Fri, 15 Jun 2012 16:32:49 +0900
 From: Minchan Kim <minchan@kernel.org>
 MIME-Version: 1.0
-Subject: Re: [resend][PATCH] mm, vmscan: fix do_try_to_free_pages() livelock
-References: <1339661592-3915-1-git-send-email-kosaki.motohiro@gmail.com> <20120614145716.GA2097@barrios> <CAHGf_=qcA5OfuNgk0BiwyshcLftNWoPfOO_VW9H6xQTX2tAbuA@mail.gmail.com>
-In-Reply-To: <CAHGf_=qcA5OfuNgk0BiwyshcLftNWoPfOO_VW9H6xQTX2tAbuA@mail.gmail.com>
+Subject: Re: [PATCH v11 1/2] mm: compaction: handle incorrect MIGRATE_UNMOVABLE
+ type pageblocks
+References: <201206141800.31038.b.zolnierkie@samsung.com>
+In-Reply-To: <201206141800.31038.b.zolnierkie@samsung.com>
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org, Nick Piggin <npiggin@gmail.com>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mel@csn.ul.ie>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>
+To: Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Dave Jones <davej@redhat.com>, Cong Wang <amwang@redhat.com>, Markus Trippelsdorf <markus@trippelsdorf.de>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Marek Szyprowski <m.szyprowski@samsung.com>, Kyungmin Park <kyungmin.park@samsung.com>
 
-On 06/15/2012 01:10 AM, KOSAKI Motohiro wrote:
+On 06/15/2012 01:00 AM, Bartlomiej Zolnierkiewicz wrote:
 
-> On Thu, Jun 14, 2012 at 10:57 AM, Minchan Kim <minchan@kernel.org> wrote:
->> Hi KOSAKI,
->>
->> Sorry for late response.
->> Let me ask a question about description.
->>
->> On Thu, Jun 14, 2012 at 04:13:12AM -0400, kosaki.motohiro@gmail.com wrote:
->>> From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
->>>
->>> Currently, do_try_to_free_pages() can enter livelock. Because of,
->>> now vmscan has two conflicted policies.
->>>
->>> 1) kswapd sleep when it couldn't reclaim any page when reaching
->>>    priority 0. This is because to avoid kswapd() infinite
->>>    loop. That said, kswapd assume direct reclaim makes enough
->>>    free pages to use either regular page reclaim or oom-killer.
->>>    This logic makes kswapd -> direct-reclaim dependency.
->>> 2) direct reclaim continue to reclaim without oom-killer until
->>>    kswapd turn on zone->all_unreclaimble. This is because
->>>    to avoid too early oom-kill.
->>>    This logic makes direct-reclaim -> kswapd dependency.
->>>
->>> In worst case, direct-reclaim may continue to page reclaim forever
->>> when kswapd sleeps forever.
->>
->> I have tried imagined scenario you mentioned above with code level but
->> unfortunately I got failed.
->> If kswapd can't meet high watermark on order-0, it doesn't sleep if I don't miss something.
 > 
-> pgdat_balanced() doesn't recognized zone. Therefore kswapd may sleep
-> if node has multiple zones. Hm ok, I realized my descriptions was
-> slightly misleading. priority 0 is not needed. bakance_pddat() calls
-> pgdat_balanced()
-> every priority. Most easy case is, movable zone has a lot of free pages and
-> normal zone has no reclaimable page.
+> Hi,
 > 
-> btw, current pgdat_balanced() logic seems not correct. kswapd should
-> sleep only if every zones have much free pages than high water mark
-> _and_ 25% of present pages in node are free.
+> Most important changes from v10:
 > 
+> * port patch over
+>   https://lkml.org/lkml/2012/6/13/568
+>   https://lkml.org/lkml/2012/6/13/570
+>   patches from Minchan Kim
+> 
+> * split new /proc/vmstat entry addition to separate patch (#2/2)
+> 
+> Best regards,
+> --
+> Bartlomiej Zolnierkiewicz
+> Samsung Poland R&D Center
+> 
+> 
+> From: Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>
+> Subject: [PATCH v11] mm: compaction: handle incorrect MIGRATE_UNMOVABLE type pageblocks
+> 
+> When MIGRATE_UNMOVABLE pages are freed from MIGRATE_UNMOVABLE
+> type pageblock (and some MIGRATE_MOVABLE pages are left in it)
+> waiting until an allocation takes ownership of the block may
+> take too long.  The type of the pageblock remains unchanged
+> so the pageblock cannot be used as a migration target during
+> compaction.
+> 
+> Fix it by:
+> 
+> * Adding enum compact_mode (COMPACT_ASYNC_[MOVABLE,UNMOVABLE],
+>   and COMPACT_SYNC) and then converting sync field in struct
+>   compact_control to use it.
+> 
+> * Adding nr_pageblocks_skipped field to struct compact_control
+>   and tracking how many destination pageblocks were of
+>   MIGRATE_UNMOVABLE type.  If COMPACT_ASYNC_MOVABLE mode compaction
+>   ran fully in try_to_compact_pages() (COMPACT_COMPLETE) it implies
+>   that there is not a suitable page for allocation.  In this case
+>   then check how if there were enough MIGRATE_UNMOVABLE pageblocks
+>   to try a second pass in COMPACT_ASYNC_UNMOVABLE mode.
+> 
+> * Scanning the MIGRATE_UNMOVABLE pageblocks (during COMPACT_SYNC
+>   and COMPACT_ASYNC_UNMOVABLE compaction modes) and building
+>   a count based on finding PageBuddy pages, page_count(page) == 0
+>   or PageLRU pages.  If all pages within the MIGRATE_UNMOVABLE
+>   pageblock are in one of those three sets change the whole
+>   pageblock type to MIGRATE_MOVABLE.
+> 
+> My particular test case (on a ARM EXYNOS4 device with 512 MiB,
+> which means 131072 standard 4KiB pages in 'Normal' zone) is to:
+> - allocate 95000 pages for kernel's usage
+> - free every second page (47500 pages) of memory just allocated
+> - allocate and use 60000 pages from user space
+> - free remaining 60000 pages of kernel memory
+> (now we have fragmented memory occupied mostly by user space pages)
+> - try to allocate 100 order-9 (2048 KiB) pages for kernel's usage
+> 
+> The results:
+> - with compaction disabled I get 10 successful allocations
+> - with compaction enabled - 11 successful allocations
+> - with this patch I'm able to get 25 successful allocations
+> 
+> NOTE: If we can make kswapd aware of order-0 request during
+> compaction, we can enhance kswapd with changing mode to
+> COMPACT_ASYNC_FULL (COMPACT_ASYNC_MOVABLE + COMPACT_ASYNC_UNMOVABLE).
+> Please see the following thread:
+> 
+> 	http://marc.info/?l=linux-mm&m=133552069417068&w=2
+> 
+> [minchan@kernel.org: minor cleanups]
+> Cc: Hugh Dickins <hughd@google.com>
+> Cc: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
+> Cc: Dave Jones <davej@redhat.com>
+> Cc: Cong Wang <amwang@redhat.com>
+> Cc: Markus Trippelsdorf <markus@trippelsdorf.de>
+> Cc: Mel Gorman <mgorman@suse.de>
+> Cc: Minchan Kim <minchan@kernel.org>
+> Cc: Rik van Riel <riel@redhat.com>
+> Cc: Marek Szyprowski <m.szyprowski@samsung.com>
+> Signed-off-by: Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>
+> Signed-off-by: Kyungmin Park <kyungmin.park@samsung.com>
 
+Reviewed-by: Minchan Kim <minchan@kernel.org>
 
-Sorry. I can't understand your point.
-Current kswapd doesn't sleep if relevant zones don't have free pages above high watermark.
-It seems I am missing your point.
-Please anybody correct me.
-
+Thanks, Bartlomiej!
 -- 
 Kind regards,
 Minchan Kim
