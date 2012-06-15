@@ -1,73 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx138.postini.com [74.125.245.138])
-	by kanga.kvack.org (Postfix) with SMTP id 4C5946B0068
-	for <linux-mm@kvack.org>; Fri, 15 Jun 2012 11:55:01 -0400 (EDT)
-Date: Fri, 15 Jun 2012 17:54:32 +0200
-From: Sebastian Andrzej Siewior <sebastian@breakpoint.cc>
-Subject: [PATCH 02.5] mm: sl[au]b: first remove PFMEMALLOC flag then SLAB flag
-Message-ID: <20120615155432.GA5498@breakpoint.cc>
-References: <1337266231-8031-1-git-send-email-mgorman@suse.de>
- <1337266231-8031-3-git-send-email-mgorman@suse.de>
+Received: from psmtp.com (na3sys010amx150.postini.com [74.125.245.150])
+	by kanga.kvack.org (Postfix) with SMTP id 736906B0068
+	for <linux-mm@kvack.org>; Fri, 15 Jun 2012 12:20:05 -0400 (EDT)
+Date: Fri, 15 Jun 2012 18:19:53 +0200
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH] mm: clear pages_scanned only if draining a pcp adds
+ pages to the buddy allocator again
+Message-ID: <20120615161953.GB27816@cmpxchg.org>
+References: <1339690570-7471-1-git-send-email-kosaki.motohiro@gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1337266231-8031-3-git-send-email-mgorman@suse.de>
+In-Reply-To: <1339690570-7471-1-git-send-email-kosaki.motohiro@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, Linux-Netdev <netdev@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, David Miller <davem@davemloft.net>, Neil Brown <neilb@suse.de>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Mike Christie <michaelc@cs.wisc.edu>, Eric B Munson <emunson@mgebm.net>
+To: kosaki.motohiro@gmail.com
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, David Rientjes <rientjes@google.com>, Mel Gorman <mel@csn.ul.ie>, Minchan Kim <minchan.kim@gmail.com>, Wu Fengguang <fengguang.wu@intel.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>
 
-From: Sebastian Andrzej Siewior <bigeasy@linutronix.de>
+On Thu, Jun 14, 2012 at 12:16:10PM -0400, kosaki.motohiro@gmail.com wrote:
+> From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+> 
+> commit 2ff754fa8f (mm: clear pages_scanned only if draining a pcp adds pages
+> to the buddy allocator again) fixed one free_pcppages_bulk() misuse. But two
+> another miuse still exist.
+> 
+> This patch fixes it.
+> 
+> Cc: David Rientjes <rientjes@google.com>
+> Cc: Mel Gorman <mel@csn.ul.ie>
+> Cc: Johannes Weiner <hannes@cmpxchg.org>
+> Cc: Minchan Kim <minchan.kim@gmail.com>
+> Cc: Wu Fengguang <fengguang.wu@intel.com>
+> Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> Cc: Rik van Riel <riel@redhat.com>
+> Cc: Andrew Morton <akpm@linux-foundation.org>
+> Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 
-If we first remove the SLAB flag followed by the PFMEMALLOC flag then the
-removal of the latter will trigger the VM_BUG_ON() as it can be seen in
-| kernel BUG at include/linux/page-flags.h:474!
-| invalid opcode: 0000 [#1] PREEMPT SMP
-| Call Trace:
-|  [<c10e2d77>] slab_destroy+0x27/0x70
-|  [<c10e3285>] drain_freelist+0x55/0x90
-|  [<c10e344e>] __cache_shrink+0x6e/0x90
-|  [<c14e3211>] ? acpi_sleep_init+0xcf/0xcf
-|  [<c10e349d>] kmem_cache_shrink+0x2d/0x40
-
-because the SLAB flag is gone. This patch simply changes the order.
-
-Signed-off-by: Sebastian Andrzej Siewior <bigeasy@linutronix.de>
----
- mm/slab.c |    2 +-
- mm/slub.c |    2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
-
-diff --git a/mm/slab.c b/mm/slab.c
-index 00c601b..b1a39f7 100644
---- a/mm/slab.c
-+++ b/mm/slab.c
-@@ -2007,8 +2007,8 @@ static void kmem_freepages(struct kmem_cache *cachep, void *addr)
- 				NR_SLAB_UNRECLAIMABLE, nr_freed);
- 	while (i--) {
- 		BUG_ON(!PageSlab(page));
--		__ClearPageSlab(page);
- 		__ClearPageSlabPfmemalloc(page);
-+		__ClearPageSlab(page);
- 		page++;
- 	}
- 	if (current->reclaim_state)
-diff --git a/mm/slub.c b/mm/slub.c
-index f8cbec4..d753146 100644
---- a/mm/slub.c
-+++ b/mm/slub.c
-@@ -1417,8 +1417,8 @@ static void __free_slab(struct kmem_cache *s, struct page *page)
- 		NR_SLAB_RECLAIMABLE : NR_SLAB_UNRECLAIMABLE,
- 		-pages);
- 
--	__ClearPageSlab(page);
- 	__ClearPageSlabPfmemalloc(page);
-+	__ClearPageSlab(page);
- 	reset_page_mapcount(page);
- 	if (current->reclaim_state)
- 		current->reclaim_state->reclaimed_slab += pages;
--- 
-1.7.10
+Acked-by: Johannes Weiner <hannes@cmpxchg.org>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
