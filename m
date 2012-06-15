@@ -1,46 +1,39 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from psmtp.com (na3sys010amx184.postini.com [74.125.245.184])
-	by kanga.kvack.org (Postfix) with SMTP id C1CC96B005C
-	for <linux-mm@kvack.org>; Thu, 14 Jun 2012 21:25:40 -0400 (EDT)
-Received: by dakp5 with SMTP id p5so4028406dak.14
-        for <linux-mm@kvack.org>; Thu, 14 Jun 2012 18:25:40 -0700 (PDT)
-From: Wanpeng Li <liwp.linux@gmail.com>
-Subject: [PATCH] mm/vmscan: cleanup on the comments of do_try_to_free_pages
-Date: Fri, 15 Jun 2012 09:25:24 +0800
-Message-Id: <1339723524-6332-1-git-send-email-liwp.linux@gmail.com>
+	by kanga.kvack.org (Postfix) with SMTP id 7E2F46B005C
+	for <linux-mm@kvack.org>; Thu, 14 Jun 2012 22:21:34 -0400 (EDT)
+Received: by dakp5 with SMTP id p5so4087305dak.14
+        for <linux-mm@kvack.org>; Thu, 14 Jun 2012 19:21:33 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <1339721952.3321.14.camel@lappy>
+References: <1339623535.3321.4.camel@lappy>
+	<20120614032005.GC3766@dhcp-172-17-108-109.mtv.corp.google.com>
+	<1339667440.3321.7.camel@lappy>
+	<CAE9FiQVJ-q3gQxfBqfRnG+RvEh2bZ2-Ki=CRUATmCKjJp8MNuw@mail.gmail.com>
+	<1339709672.3321.11.camel@lappy>
+	<CAE9FiQVXxnjccSErjrZ9B-APGf5ZpKNovJwr5vNBMr1G2f8Y4Q@mail.gmail.com>
+	<1339721952.3321.14.camel@lappy>
+Date: Thu, 14 Jun 2012 19:21:33 -0700
+Message-ID: <CAE9FiQWP0vWQCUV3MjEhpCEwUHRG38VQwEeVEN_mKtDZYo8eOw@mail.gmail.com>
+Subject: Re: Early boot panic on machine with lots of memory
+From: Yinghai Lu <yinghai@kernel.org>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, Hugh Dickins <hughd@google.com>, linux-kernel@vger.kernel.org, trivial@kernel.org, Gavin Shan <shangw@linux.vnet.ibm.com>, Wanpeng Li <liwp.linux@gmail.com>
+To: Sasha Levin <levinsasha928@gmail.com>
+Cc: Tejun Heo <tj@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, David Miller <davem@davemloft.net>, hpa@linux.intel.com, linux-mm <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, kvm <kvm@vger.kernel.org>, avi@redhat.com, Marcelo Tosatti <mtosatti@redhat.com>
 
-From: Wanpeng Li <liwp@linux.vnet.ibm.com>
+On Thu, Jun 14, 2012 at 5:59 PM, Sasha Levin <levinsasha928@gmail.com> wrote:
+> On Thu, 2012-06-14 at 16:57 -0700, Yinghai Lu wrote:
+>> can you please boot with "memtest" to see if there is any memory problem?
+>
+> The host got a memtest treatment, nothing found.
 
-Since lumpy reclaim algorithm is removed by Mel Gorman, cleanup the
-footprint of lumpy reclaim.
+can you try to boot guest with memtest?
 
-Signed-off-by: Wanpeng Li <liwp.linux@gmail.com>
----
- mm/vmscan.c |    5 +++--
- 1 file changed, 3 insertions(+), 2 deletions(-)
+Thanks
 
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 603c96f..2fc16cf 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -2065,8 +2065,9 @@ static unsigned long do_try_to_free_pages(struct zonelist *zonelist,
- 		 * Try to write back as many pages as we just scanned.  This
- 		 * tends to cause slow streaming writers to write data to the
- 		 * disk smoothly, at the dirtying rate, which is nice.   But
--		 * that's undesirable in laptop mode, where we *want* lumpy
--		 * writeout.  So in laptop mode, write out the whole world.
-+		 * that's undesirable in laptop mode, where as much I/O as
-+		 * possible should be trigged if the disk needs to be spun up.
-+		 * So in laptop mode, write out the whole world.
- 		 */
- 		writeback_threshold = sc->nr_to_reclaim + sc->nr_to_reclaim / 2;
- 		if (total_scanned > writeback_threshold) {
--- 
-1.7.9.5
+Yinghai
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
