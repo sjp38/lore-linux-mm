@@ -1,52 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx191.postini.com [74.125.245.191])
-	by kanga.kvack.org (Postfix) with SMTP id 3F49C6B0078
-	for <linux-mm@kvack.org>; Fri, 15 Jun 2012 18:39:14 -0400 (EDT)
-Received: by pbbrp2 with SMTP id rp2so7158160pbb.14
-        for <linux-mm@kvack.org>; Fri, 15 Jun 2012 15:39:13 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx139.postini.com [74.125.245.139])
+	by kanga.kvack.org (Postfix) with SMTP id EFAA76B006E
+	for <linux-mm@kvack.org>; Fri, 15 Jun 2012 19:22:01 -0400 (EDT)
+Received: by pbbrp2 with SMTP id rp2so7192530pbb.14
+        for <linux-mm@kvack.org>; Fri, 15 Jun 2012 16:22:01 -0700 (PDT)
+Date: Sat, 16 Jun 2012 08:21:51 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [PATCH] mm: clear pages_scanned only if draining a pcp adds
+ pages to the buddy allocator again
+Message-ID: <20120615232151.GA2749@barrios>
+References: <1339690570-7471-1-git-send-email-kosaki.motohiro@gmail.com>
+ <4FDAE1F0.4030708@kernel.org>
+ <4FDB5A42.9020707@gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <1339794567-17784-1-git-send-email-greg.pearson@hp.com>
-References: <1339794567-17784-1-git-send-email-greg.pearson@hp.com>
-Date: Fri, 15 Jun 2012 15:39:13 -0700
-Message-ID: <CAE9FiQWGSDw7R2gbVYKfL6wmRVivaKhSALqXof1TsjgMNNf1hQ@mail.gmail.com>
-Subject: Re: [PATCH] mm/memblock: fix overlapping allocation when doubling
- reserved array
-From: Yinghai Lu <yinghai@kernel.org>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <4FDB5A42.9020707@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Greg Pearson <greg.pearson@hp.com>
-Cc: tj@kernel.org, hpa@linux.intel.com, akpm@linux-foundation.org, shangw@linux.vnet.ibm.com, mingo@elte.hu, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
+Cc: Minchan Kim <minchan@kernel.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, David Rientjes <rientjes@google.com>, Mel Gorman <mel@csn.ul.ie>, Johannes Weiner <hannes@cmpxchg.org>, Minchan Kim <minchan.kim@gmail.com>, Wu Fengguang <fengguang.wu@intel.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>
 
-On Fri, Jun 15, 2012 at 2:09 PM, Greg Pearson <greg.pearson@hp.com> wrote:
-> The __alloc_memory_core_early() routine will ask memblock for a range
-> of memory then try to reserve it. If the reserved region array lacks
-> space for the new range, memblock_double_array() is called to allocate
-> more space for the array. If memblock is used to allocate memory for
-> the new array it can end up using a range that overlaps with the range
-> originally allocated in __alloc_memory_core_early(), leading to possible
-> data corruption.
->
-> @@ -399,7 +401,8 @@ repeat:
-> =A0 =A0 =A0 =A0 */
-> =A0 =A0 =A0 =A0if (!insert) {
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0while (type->cnt + nr_new > type->max)
-> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (memblock_double_array(t=
-ype) < 0)
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 /* Avoid possible overlap i=
-f range is being reserved */
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (memblock_double_array(t=
-ype, base) < 0)
+On Fri, Jun 15, 2012 at 11:52:34AM -0400, KOSAKI Motohiro wrote:
+> (6/15/12 3:19 AM), Minchan Kim wrote:
+> >On 06/15/2012 01:16 AM, kosaki.motohiro@gmail.com wrote:
+> >
+> >>From: KOSAKI Motohiro<kosaki.motohiro@jp.fujitsu.com>
+> >>
+> >>commit 2ff754fa8f (mm: clear pages_scanned only if draining a pcp adds pages
+> >>to the buddy allocator again) fixed one free_pcppages_bulk() misuse. But two
+> >>another miuse still exist.
+> >>
+> >>This patch fixes it.
+> >>
+> >>Cc: David Rientjes<rientjes@google.com>
+> >>Cc: Mel Gorman<mel@csn.ul.ie>
+> >>Cc: Johannes Weiner<hannes@cmpxchg.org>
+> >>Cc: Minchan Kim<minchan.kim@gmail.com>
+> >>Cc: Wu Fengguang<fengguang.wu@intel.com>
+> >>Cc: KAMEZAWA Hiroyuki<kamezawa.hiroyu@jp.fujitsu.com>
+> >>Cc: Rik van Riel<riel@redhat.com>
+> >>Cc: Andrew Morton<akpm@linux-foundation.org>
+> >>Signed-off-by: KOSAKI Motohiro<kosaki.motohiro@jp.fujitsu.com>
+> >
+> >Reviewed-by: Minchan Kim<minchan@kernel.org>
+> >
+> >Just nitpick.
+> >Personally, I want to fix it follwing as
+> >It's more simple and reduce vulnerable error in future.
+> >
+> >If you mind, go ahead with your version. I am not against with it, either.
+> 
+> I don't like your version because free_pcppages_bulk() can be called from
+> free_pages() hotpath. then, i wouldn't like to put a branch if we can avoid it.
 
-should use obase here.
+Fair enough.
 
-Yinghai
-
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0return -EN=
-OMEM;
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0insert =3D true;
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0goto repeat;
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
