@@ -1,13 +1,13 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx114.postini.com [74.125.245.114])
-	by kanga.kvack.org (Postfix) with SMTP id 580336B0099
-	for <linux-mm@kvack.org>; Fri, 15 Jun 2012 09:20:18 -0400 (EDT)
-Received: by dakp5 with SMTP id p5so4954312dak.14
-        for <linux-mm@kvack.org>; Fri, 15 Jun 2012 06:20:17 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx137.postini.com [74.125.245.137])
+	by kanga.kvack.org (Postfix) with SMTP id 6AE766B009B
+	for <linux-mm@kvack.org>; Fri, 15 Jun 2012 09:21:16 -0400 (EDT)
+Received: by pbbrp2 with SMTP id rp2so6481353pbb.14
+        for <linux-mm@kvack.org>; Fri, 15 Jun 2012 06:21:15 -0700 (PDT)
 From: Wanpeng Li <liwp.linux@gmail.com>
-Subject: [PATCH 6/7][TRIVIAL][resend] mm: cleanup page reclaim comment error
-Date: Fri, 15 Jun 2012 21:19:45 +0800
-Message-Id: <1339766387-7740-1-git-send-email-liwp.linux@gmail.com>
+Subject: [PATCH 7/7] mm/memory.c : cleanup the coding style issue
+Date: Fri, 15 Jun 2012 21:20:47 +0800
+Message-Id: <1339766449-7835-1-git-send-email-liwp.linux@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: trivial@kernel.org
@@ -15,35 +15,26 @@ Cc: Benjamin Herrenschmidt <benh@kernel.crashing.org>, Thomas Gleixner <tglx@lin
 
 From: Wanpeng Li <liwp@linux.vnet.ibm.com>
 
-Since there are five lists in LRU cache, the array nr in get_scan_count
-should be:
-
-nr[0] = anon inactive pages to scan; nr[1] = anon active pages to scan
-nr[2] = file inactive pages to scan; nr[3] = file active pages to scan
-
 Signed-off-by: Wanpeng Li <liwp.linux@gmail.com>
-Acked-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Acked-by: Minchan Kim <minchan@kernel.org>
-Reviewed-by: Rik van Riel <riel@redhat.com>
 
 ---
- mm/vmscan.c |    3 ++-
+ mm/memory.c |    3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
 
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index eeb3bc9..ed823df 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -1567,7 +1567,8 @@ static int vmscan_swappiness(struct scan_control *sc)
-  * by looking at the fraction of the pages scanned we did rotate back
-  * onto the active list instead of evict.
-  *
-- * nr[0] = anon pages to scan; nr[1] = file pages to scan
-+ * nr[0] = anon inactive pages to scan; nr[1] = anon active pages to scan
-+ * nr[2] = file inactive pages to scan; nr[3] = file active pages to scan
-  */
- static void get_scan_count(struct lruvec *lruvec, struct scan_control *sc,
- 			   unsigned long *nr)
+diff --git a/mm/memory.c b/mm/memory.c
+index 1b7dc66..195d6e1 100644
+--- a/mm/memory.c
++++ b/mm/memory.c
+@@ -2447,7 +2447,8 @@ static inline int pte_unmap_same(struct mm_struct *mm, pmd_t *pmd,
+ 	return same;
+ }
+ 
+-static inline void cow_user_page(struct page *dst, struct page *src, unsigned long va, struct vm_area_struct *vma)
++static inline void cow_user_page(struct page *dst, struct page *src,
++		unsigned long va, struct vm_area_struct *vma)
+ {
+ 	/*
+ 	 * If the source page was a PFN mapping, we don't have
 -- 
 1.7.9.5
 
