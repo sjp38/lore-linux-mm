@@ -1,32 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx148.postini.com [74.125.245.148])
-	by kanga.kvack.org (Postfix) with SMTP id 03B0D6B004D
-	for <linux-mm@kvack.org>; Fri, 15 Jun 2012 10:50:02 -0400 (EDT)
-Date: Fri, 15 Jun 2012 09:50:00 -0500 (CDT)
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: [PATCH] hugeltb: Mark hugelb_max_hstate __read_mostly
-In-Reply-To: <20120615143342.GE8100@tiehlicka.suse.cz>
-Message-ID: <alpine.DEB.2.00.1206150948120.20541@router.home>
-References: <1339682178-29059-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com> <20120614141257.GQ27397@tiehlicka.suse.cz> <alpine.DEB.2.00.1206141538060.12773@router.home> <87sjdxm7jd.fsf@skywalker.in.ibm.com> <alpine.DEB.2.00.1206150857150.19708@router.home>
- <20120615143342.GE8100@tiehlicka.suse.cz>
+Received: from psmtp.com (na3sys010amx207.postini.com [74.125.245.207])
+	by kanga.kvack.org (Postfix) with SMTP id 13AF26B0068
+	for <linux-mm@kvack.org>; Fri, 15 Jun 2012 11:02:27 -0400 (EDT)
+Date: Fri, 15 Jun 2012 16:58:09 +0200
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH 6/7][TRIVIAL][resend] mm: cleanup page reclaim comment
+ error
+Message-ID: <20120615145809.GA27816@cmpxchg.org>
+References: <1339766387-7740-1-git-send-email-liwp.linux@gmail.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1339766387-7740-1-git-send-email-liwp.linux@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, linux-mm@kvack.org, kamezawa.hiroyu@jp.fujitsu.com, akpm@linux-foundation.org
+To: Wanpeng Li <liwp.linux@gmail.com>
+Cc: trivial@kernel.org, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, x86@kernel.org, Bjorn Helgaas <bhelgaas@google.com>, Michal Hocko <mhocko@suse.cz>, Balbir Singh <bsingharora@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Tejun Heo <tj@kernel.org>, Li Zefan <lizefan@huawei.com>, Christoph Lameter <cl@linux-foundation.org>, Paul Gortmaker <paul.gortmaker@windriver.com>, Jesse Barnes <jbarnes@virtuousgeek.org>, Milton Miller <miltonm@bga.com>, Nishanth Aravamudan <nacc@us.ibm.com>, Stephen Rothwell <sfr@canb.auug.org.au>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Jason Wessel <jason.wessel@windriver.com>, Jan Kiszka <jan.kiszka@siemens.com>, David Howells <dhowells@redhat.com>, Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Minchan Kim <minchan@kernel.org>, Gavin Shan <shangw@linux.vnet.ibm.com>, Al Viro <viro@zeniv.linux.org.uk>, Andrea Arcangeli <aarcange@redhat.com>, David Rientjes <rientjes@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Larry Woodman <lwoodman@redhat.com>, Hugh Dickins <hughd@google.com>, linuxppc-dev@lists.ozlabs.org, linux-kernel@vger.kernel.org, linux-pci@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org
 
-On Fri, 15 Jun 2012, Michal Hocko wrote:
+On Fri, Jun 15, 2012 at 09:19:45PM +0800, Wanpeng Li wrote:
+> From: Wanpeng Li <liwp@linux.vnet.ibm.com>
+> 
+> Since there are five lists in LRU cache, the array nr in get_scan_count
+> should be:
+> 
+> nr[0] = anon inactive pages to scan; nr[1] = anon active pages to scan
+> nr[2] = file inactive pages to scan; nr[3] = file active pages to scan
+> 
+> Signed-off-by: Wanpeng Li <liwp.linux@gmail.com>
+> Acked-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+> Acked-by: Minchan Kim <minchan@kernel.org>
+> Reviewed-by: Rik van Riel <riel@redhat.com>
+> 
+> ---
+>  mm/vmscan.c |    3 ++-
+>  1 file changed, 2 insertions(+), 1 deletion(-)
+> 
+> diff --git a/mm/vmscan.c b/mm/vmscan.c
+> index eeb3bc9..ed823df 100644
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -1567,7 +1567,8 @@ static int vmscan_swappiness(struct scan_control *sc)
+>   * by looking at the fraction of the pages scanned we did rotate back
+>   * onto the active list instead of evict.
+>   *
+> - * nr[0] = anon pages to scan; nr[1] = file pages to scan
+> + * nr[0] = anon inactive pages to scan; nr[1] = anon active pages to scan
+> + * nr[2] = file inactive pages to scan; nr[3] = file active pages to scan
+>   */
 
-> > Thats all? There is no performance gain from this change?
->
-> Is that required in order to put data in the read mostly section?
-
-I thought so. The read_mostly section is specially designed for data that
-causes excessive cacheline bounces and has to be grouped with rarely
-accessed other data. That was at least the intend when we created it.
-
-
+Does including this in the comment have any merit in the first place?
+We never access nr[0] or nr[1] etc. anywhere with magic numbers.  It's
+a local function with one callsite, the passed array is declared and
+accessed exclusively by what is defined in enum lru_list, where is the
+point in repeating the enum items?.  I'd rather the next change to
+this comment would be its removal.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
