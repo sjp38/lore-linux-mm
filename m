@@ -1,50 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx183.postini.com [74.125.245.183])
-	by kanga.kvack.org (Postfix) with SMTP id 55C2D6B005C
-	for <linux-mm@kvack.org>; Thu, 14 Jun 2012 22:50:40 -0400 (EDT)
-Date: Fri, 15 Jun 2012 10:50:32 +0800
-From: Fengguang Wu <fengguang.wu@intel.com>
-Subject: Re: [PATCH] mm/vmscan: cleanup on the comments of
- do_try_to_free_pages
-Message-ID: <20120615025032.GA8250@localhost>
-References: <1339723524-6332-1-git-send-email-liwp.linux@gmail.com>
+Received: from psmtp.com (na3sys010amx198.postini.com [74.125.245.198])
+	by kanga.kvack.org (Postfix) with SMTP id 743116B005C
+	for <linux-mm@kvack.org>; Fri, 15 Jun 2012 02:08:46 -0400 (EDT)
+Received: from /spool/local
+	by e23smtp05.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
+	Fri, 15 Jun 2012 06:02:53 +1000
+Received: from d23av01.au.ibm.com (d23av01.au.ibm.com [9.190.234.96])
+	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q5F68Pkp64815302
+	for <linux-mm@kvack.org>; Fri, 15 Jun 2012 16:08:25 +1000
+Received: from d23av01.au.ibm.com (loopback [127.0.0.1])
+	by d23av01.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q5F68P2V002298
+	for <linux-mm@kvack.org>; Fri, 15 Jun 2012 16:08:25 +1000
+From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Subject: Re: [PATCH] hugeltb: Mark hugelb_max_hstate __read_mostly
+In-Reply-To: <alpine.DEB.2.00.1206141538060.12773@router.home>
+References: <1339682178-29059-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com> <20120614141257.GQ27397@tiehlicka.suse.cz> <alpine.DEB.2.00.1206141538060.12773@router.home>
+Date: Fri, 15 Jun 2012 11:38:22 +0530
+Message-ID: <87sjdxm7jd.fsf@skywalker.in.ibm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1339723524-6332-1-git-send-email-liwp.linux@gmail.com>
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wanpeng Li <liwp.linux@gmail.com>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, Hugh Dickins <hughd@google.com>, linux-kernel@vger.kernel.org, trivial@kernel.org, Gavin Shan <shangw@linux.vnet.ibm.com>
+To: Christoph Lameter <cl@linux.com>, Michal Hocko <mhocko@suse.cz>
+Cc: linux-mm@kvack.org, kamezawa.hiroyu@jp.fujitsu.com, akpm@linux-foundation.org
 
-On Fri, Jun 15, 2012 at 09:25:24AM +0800, Wanpeng Li wrote:
-> From: Wanpeng Li <liwp@linux.vnet.ibm.com>
-> 
-> Since lumpy reclaim algorithm is removed by Mel Gorman, cleanup the
-> footprint of lumpy reclaim.
+Christoph Lameter <cl@linux.com> writes:
 
-I think the "lumpy writeout" here does not mean "lumpy reclaim" :-)
+> On Thu, 14 Jun 2012, Michal Hocko wrote:
+>
+>> On Thu 14-06-12 19:26:18, Aneesh Kumar K.V wrote:
+>> > From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+>> >
+>> > Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
+>> > ---
+>> >  include/linux/hugetlb.h |    2 +-
+>> >  mm/hugetlb.c            |    2 +-
+>> >  2 files changed, 2 insertions(+), 2 deletions(-)
+>> >
+>> > diff --git a/include/linux/hugetlb.h b/include/linux/hugetlb.h
+>> > index 9650bb1..0f0877e 100644
+>> > --- a/include/linux/hugetlb.h
+>> > +++ b/include/linux/hugetlb.h
+>> > @@ -23,7 +23,7 @@ struct hugepage_subpool {
+>> >  };
+>> >
+>> >  extern spinlock_t hugetlb_lock;
+>> > -extern int hugetlb_max_hstate;
+>> > +extern int hugetlb_max_hstate __read_mostly;
+>>
+>> It should be used only for definition
+>
+> And a rationale needs to be given. Since this patch had no effect, I would
+> think that the patch is just the expression of the belief of the patcher
+> that something would improve performancewise.
+>
+> But there seems to no need for this patch otherwise someone would have
+> verified that the patch has the intended beneficial effect on performance.
+>
 
-> @@ -2065,8 +2065,9 @@ static unsigned long do_try_to_free_pages(struct zonelist *zonelist,
->  		 * Try to write back as many pages as we just scanned.  This
->  		 * tends to cause slow streaming writers to write data to the
->  		 * disk smoothly, at the dirtying rate, which is nice.   But
-> -		 * that's undesirable in laptop mode, where we *want* lumpy
-> -		 * writeout.  So in laptop mode, write out the whole world.
-> +		 * that's undesirable in laptop mode, where as much I/O as
-> +		 * possible should be trigged if the disk needs to be spun up.
-> +		 * So in laptop mode, write out the whole world.
->  		 */
->  		writeback_threshold = sc->nr_to_reclaim + sc->nr_to_reclaim / 2;
->  		if (total_scanned > writeback_threshold) {
-> -- 
-> 1.7.9.5
-> 
-> --
-> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
-> Please read the FAQ at  http://www.tux.org/lkml/
+The variable is never modified after boot.
+
+-aneesh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
