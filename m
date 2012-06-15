@@ -1,12 +1,23 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx152.postini.com [74.125.245.152])
-	by kanga.kvack.org (Postfix) with SMTP id C5BA46B006C
-	for <linux-mm@kvack.org>; Fri, 15 Jun 2012 12:46:08 -0400 (EDT)
-Received: by pbbrp2 with SMTP id rp2so6767048pbb.14
-        for <linux-mm@kvack.org>; Fri, 15 Jun 2012 09:46:08 -0700 (PDT)
-Message-ID: <4FDB66B7.2010803@vflare.org>
-Date: Fri, 15 Jun 2012 09:45:43 -0700
-From: Nitin Gupta <ngupta@vflare.org>
+Received: from psmtp.com (na3sys010amx144.postini.com [74.125.245.144])
+	by kanga.kvack.org (Postfix) with SMTP id E4AE46B006C
+	for <linux-mm@kvack.org>; Fri, 15 Jun 2012 12:50:36 -0400 (EDT)
+Received: from /spool/local
+	by e8.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <sjenning@linux.vnet.ibm.com>;
+	Fri, 15 Jun 2012 12:50:34 -0400
+Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
+	by d01dlp01.pok.ibm.com (Postfix) with ESMTP id 3850838C805C
+	for <linux-mm@kvack.org>; Fri, 15 Jun 2012 12:49:38 -0400 (EDT)
+Received: from d03av05.boulder.ibm.com (d03av05.boulder.ibm.com [9.17.195.85])
+	by d01relay04.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q5FGnaJn187048
+	for <linux-mm@kvack.org>; Fri, 15 Jun 2012 12:49:37 -0400
+Received: from d03av05.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av05.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q5FGnYpp032326
+	for <linux-mm@kvack.org>; Fri, 15 Jun 2012 10:49:35 -0600
+Message-ID: <4FDB674C.9070304@linux.vnet.ibm.com>
+Date: Fri, 15 Jun 2012 11:48:12 -0500
+From: Seth Jennings <sjenning@linux.vnet.ibm.com>
 MIME-Version: 1.0
 Subject: Re: [PATCH v2 3/3] x86: Support local_flush_tlb_kernel_range
 References: <1337133919-4182-1-git-send-email-minchan@kernel.org> <1337133919-4182-3-git-send-email-minchan@kernel.org> <4FB4B29C.4010908@kernel.org> <1337266310.4281.30.camel@twins> <4FDB5107.3000308@linux.vnet.ibm.com> <7e925563-082b-468f-a7d8-829e819eeac0@default>
@@ -16,9 +27,10 @@ Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Dan Magenheimer <dan.magenheimer@oracle.com>
-Cc: Seth Jennings <sjenning@linux.vnet.ibm.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Minchan Kim <minchan@kernel.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, Tejun Heo <tj@kernel.org>, David Howells <dhowells@redhat.com>, x86@kernel.org, Nick Piggin <npiggin@gmail.com>, Konrad Rzeszutek Wilk <konrad@darnok.org>
+Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Minchan Kim <minchan@kernel.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Nitin Gupta <ngupta@vflare.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, Tejun Heo <tj@kernel.org>, David Howells <dhowells@redhat.com>, x86@kernel.org, Nick Piggin <npiggin@gmail.com>, Konrad Rzeszutek Wilk <konrad@darnok.org>
 
-On 06/15/2012 09:35 AM, Dan Magenheimer wrote:
+On 06/15/2012 11:35 AM, Dan Magenheimer wrote:
+
 >> From: Seth Jennings [mailto:sjenning@linux.vnet.ibm.com]
 >> Sent: Friday, June 15, 2012 9:13 AM
 >> To: Peter Zijlstra
@@ -70,28 +82,17 @@ On 06/15/2012 09:35 AM, Dan Magenheimer wrote:
 > After more work digging around zsmalloc and zbud, I really think
 > this TLB flushing, as well as the "page pair mapping" code can be
 > completely eliminated IFF zsmalloc is limited to items PAGE_SIZE or
-> less.  Since this is already true of zram (and in-tree zcache), and
-> zsmalloc currently has no other users, I think you should seriously
-> consider limiting zsmalloc in that way, or possibly splitting out
-> one version of zsmalloc which handles items PAGE_SIZE or less,
-> and a second version that can handle larger items but has (AFAIK)
-> no users.
-> 
-> If you consider it an option to have (a version of) zsmalloc
-> limited to items PAGE_SIZE or less, let me know and we can
-> get into the details.
-> 
+> less.
 
 
-zsmalloc is already limited to objects of size PAGE_SIZE or less. This
-two-page splitting is for efficiently storing objects in range
-(PAGE_SIZE/2, PAGE_SIZE) which is very common in both zram and zcache.
+To add to what Nitin just sent, without the page mapping, zsmalloc and
+the late xvmalloc have the same issue.  Say you have a whole class of
+objects that are 3/4 of a page.  Without the mapping, you can't cross
+non-contiguous page boundaries and you'll have 25% fragmentation in the
+memory pool.  This is the whole point of zsmalloc.
 
-SLUB achieves this efficiency by allocating higher order pages but that
-is not an option for zsmalloc.
-
-Thanks,
-Nitin
+--
+Seth
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
