@@ -1,13 +1,13 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx142.postini.com [74.125.245.142])
-	by kanga.kvack.org (Postfix) with SMTP id 806BF6B0096
-	for <linux-mm@kvack.org>; Fri, 15 Jun 2012 09:19:22 -0400 (EDT)
-Received: by dakp5 with SMTP id p5so4952855dak.14
-        for <linux-mm@kvack.org>; Fri, 15 Jun 2012 06:19:21 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx114.postini.com [74.125.245.114])
+	by kanga.kvack.org (Postfix) with SMTP id 580336B0099
+	for <linux-mm@kvack.org>; Fri, 15 Jun 2012 09:20:18 -0400 (EDT)
+Received: by dakp5 with SMTP id p5so4954312dak.14
+        for <linux-mm@kvack.org>; Fri, 15 Jun 2012 06:20:17 -0700 (PDT)
 From: Wanpeng Li <liwp.linux@gmail.com>
-Subject: [PATCH 5/7][TRIVIAL][resend] mm: cleanup kernel-doc warnings
-Date: Fri, 15 Jun 2012 21:18:45 +0800
-Message-Id: <1339766328-7683-1-git-send-email-liwp.linux@gmail.com>
+Subject: [PATCH 6/7][TRIVIAL][resend] mm: cleanup page reclaim comment error
+Date: Fri, 15 Jun 2012 21:19:45 +0800
+Message-Id: <1339766387-7740-1-git-send-email-liwp.linux@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: trivial@kernel.org
@@ -15,133 +15,35 @@ Cc: Benjamin Herrenschmidt <benh@kernel.crashing.org>, Thomas Gleixner <tglx@lin
 
 From: Wanpeng Li <liwp@linux.vnet.ibm.com>
 
-fix kernel-doc warnings just like this one:
+Since there are five lists in LRU cache, the array nr in get_scan_count
+should be:
 
-Warning(../mm/page_cgroup.c:432): No description found for parameter 'id'
-Warning(../mm/page_cgroup.c:432): Excess function parameter 'mem' description in 'swap_cgroup_record'
+nr[0] = anon inactive pages to scan; nr[1] = anon active pages to scan
+nr[2] = file inactive pages to scan; nr[3] = file active pages to scan
 
 Signed-off-by: Wanpeng Li <liwp.linux@gmail.com>
+Acked-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Acked-by: Minchan Kim <minchan@kernel.org>
+Reviewed-by: Rik van Riel <riel@redhat.com>
 
 ---
- mm/memblock.c    |   12 ++++++------
- mm/memcontrol.c  |    4 ++--
- mm/oom_kill.c    |    2 +-
- mm/page_cgroup.c |    4 ++--
- mm/pagewalk.c    |    1 -
- mm/percpu-vm.c   |    1 -
- 6 files changed, 11 insertions(+), 13 deletions(-)
+ mm/vmscan.c |    3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
 
-diff --git a/mm/memblock.c b/mm/memblock.c
-index 952123e..b84f258 100644
---- a/mm/memblock.c
-+++ b/mm/memblock.c
-@@ -540,9 +540,9 @@ int __init_memblock memblock_reserve(phys_addr_t base, phys_addr_t size)
-  * __next_free_mem_range - next function for for_each_free_mem_range()
-  * @idx: pointer to u64 loop variable
-  * @nid: nid: node selector, %MAX_NUMNODES for all nodes
-- * @p_start: ptr to phys_addr_t for start address of the range, can be %NULL
-- * @p_end: ptr to phys_addr_t for end address of the range, can be %NULL
-- * @p_nid: ptr to int for nid of the range, can be %NULL
-+ * @out_start: ptr to phys_addr_t for start address of the range, can be %NULL
-+ * @out_end: ptr to phys_addr_t for end address of the range, can be %NULL
-+ * @out_nid: ptr to int for nid of the range, can be %NULL
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index eeb3bc9..ed823df 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -1567,7 +1567,8 @@ static int vmscan_swappiness(struct scan_control *sc)
+  * by looking at the fraction of the pages scanned we did rotate back
+  * onto the active list instead of evict.
   *
-  * Find the first free area from *@idx which matches @nid, fill the out
-  * parameters, and update *@idx for the next iteration.  The lower 32bit of
-@@ -616,9 +616,9 @@ void __init_memblock __next_free_mem_range(u64 *idx, int nid,
-  * __next_free_mem_range_rev - next function for for_each_free_mem_range_reverse()
-  * @idx: pointer to u64 loop variable
-  * @nid: nid: node selector, %MAX_NUMNODES for all nodes
-- * @p_start: ptr to phys_addr_t for start address of the range, can be %NULL
-- * @p_end: ptr to phys_addr_t for end address of the range, can be %NULL
-- * @p_nid: ptr to int for nid of the range, can be %NULL
-+ * @out_start: ptr to phys_addr_t for start address of the range, can be %NULL
-+ * @out_end: ptr to phys_addr_t for end address of the range, can be %NULL
-+ * @out_nid: ptr to int for nid of the range, can be %NULL
-  *
-  * Reverse of __next_free_mem_range().
+- * nr[0] = anon pages to scan; nr[1] = file pages to scan
++ * nr[0] = anon inactive pages to scan; nr[1] = anon active pages to scan
++ * nr[2] = file inactive pages to scan; nr[3] = file active pages to scan
   */
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index ac35bcc..a9c3d01 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -1234,7 +1234,7 @@ int mem_cgroup_inactive_file_is_low(struct lruvec *lruvec)
- 
- /**
-  * mem_cgroup_margin - calculate chargeable space of a memory cgroup
-- * @mem: the memory cgroup
-+ * @memcg: the memory cgroup
-  *
-  * Returns the maximum amount of memory @mem can be charged with, in
-  * pages.
-@@ -1508,7 +1508,7 @@ static unsigned long mem_cgroup_reclaim(struct mem_cgroup *memcg,
- 
- /**
-  * test_mem_cgroup_node_reclaimable
-- * @mem: the target memcg
-+ * @memcg: the target memcg
-  * @nid: the node ID to be checked.
-  * @noswap : specify true here if the user wants flle only information.
-  *
-diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-index 416637f..c1956f1 100644
---- a/mm/oom_kill.c
-+++ b/mm/oom_kill.c
-@@ -366,7 +366,7 @@ static struct task_struct *select_bad_process(unsigned int *ppoints,
- 
- /**
-  * dump_tasks - dump current memory state of all system tasks
-- * @mem: current's memory controller, if constrained
-+ * @memcg: current's memory controller, if constrained
-  * @nodemask: nodemask passed to page allocator for mempolicy ooms
-  *
-  * Dumps the current memory state of all eligible tasks.  Tasks not in the same
-diff --git a/mm/page_cgroup.c b/mm/page_cgroup.c
-index 1ccbd71..eb750f8 100644
---- a/mm/page_cgroup.c
-+++ b/mm/page_cgroup.c
-@@ -392,7 +392,7 @@ static struct swap_cgroup *lookup_swap_cgroup(swp_entry_t ent,
- 
- /**
-  * swap_cgroup_cmpxchg - cmpxchg mem_cgroup's id for this swp_entry.
-- * @end: swap entry to be cmpxchged
-+ * @ent: swap entry to be cmpxchged
-  * @old: old id
-  * @new: new id
-  *
-@@ -422,7 +422,7 @@ unsigned short swap_cgroup_cmpxchg(swp_entry_t ent,
- /**
-  * swap_cgroup_record - record mem_cgroup for this swp_entry.
-  * @ent: swap entry to be recorded into
-- * @mem: mem_cgroup to be recorded
-+ * @id: mem_cgroup to be recorded
-  *
-  * Returns old value at success, 0 at failure.
-  * (Of course, old value can be 0.)
-diff --git a/mm/pagewalk.c b/mm/pagewalk.c
-index aa9701e..6c118d0 100644
---- a/mm/pagewalk.c
-+++ b/mm/pagewalk.c
-@@ -162,7 +162,6 @@ static int walk_hugetlb_range(struct vm_area_struct *vma,
- 
- /**
-  * walk_page_range - walk a memory map's page tables with a callback
-- * @mm: memory map to walk
-  * @addr: starting address
-  * @end: ending address
-  * @walk: set of callbacks to invoke for each level of the tree
-diff --git a/mm/percpu-vm.c b/mm/percpu-vm.c
-index 405d331..3707c71 100644
---- a/mm/percpu-vm.c
-+++ b/mm/percpu-vm.c
-@@ -360,7 +360,6 @@ err_free:
-  * @chunk: chunk to depopulate
-  * @off: offset to the area to depopulate
-  * @size: size of the area to depopulate in bytes
-- * @flush: whether to flush cache and tlb or not
-  *
-  * For each cpu, depopulate and unmap pages [@page_start,@page_end)
-  * from @chunk.  If @flush is true, vcache is flushed before unmapping
+ static void get_scan_count(struct lruvec *lruvec, struct scan_control *sc,
+ 			   unsigned long *nr)
 -- 
 1.7.9.5
 
