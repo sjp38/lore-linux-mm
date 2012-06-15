@@ -1,76 +1,111 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx202.postini.com [74.125.245.202])
-	by kanga.kvack.org (Postfix) with SMTP id 733666B0068
-	for <linux-mm@kvack.org>; Fri, 15 Jun 2012 11:14:19 -0400 (EDT)
-Received: from /spool/local
-	by e9.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <sjenning@linux.vnet.ibm.com>;
-	Fri, 15 Jun 2012 11:14:17 -0400
-Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
-	by d01dlp01.pok.ibm.com (Postfix) with ESMTP id 2B69538C806E
-	for <linux-mm@kvack.org>; Fri, 15 Jun 2012 11:13:21 -0400 (EDT)
-Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
-	by d01relay04.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q5FFDJ8o188308
-	for <linux-mm@kvack.org>; Fri, 15 Jun 2012 11:13:20 -0400
-Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av02.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q5FFDIHo018787
-	for <linux-mm@kvack.org>; Fri, 15 Jun 2012 09:13:19 -0600
-Message-ID: <4FDB5107.3000308@linux.vnet.ibm.com>
-Date: Fri, 15 Jun 2012 10:13:11 -0500
-From: Seth Jennings <sjenning@linux.vnet.ibm.com>
+Received: from psmtp.com (na3sys010amx159.postini.com [74.125.245.159])
+	by kanga.kvack.org (Postfix) with SMTP id 559AE6B006C
+	for <linux-mm@kvack.org>; Fri, 15 Jun 2012 11:18:20 -0400 (EDT)
+Received: by eekd41 with SMTP id d41so168142eek.2
+        for <linux-mm@kvack.org>; Fri, 15 Jun 2012 08:18:18 -0700 (PDT)
+From: Greg Thelen <gthelen@google.com>
+Subject: Re: [PATCH 1/2] memcg: remove MEMCG_NR_FILE_MAPPED
+References: <1339761611-29033-1-git-send-email-handai.szj@taobao.com>
+Date: Fri, 15 Jun 2012 08:18:17 -0700
+Message-ID: <xr937gv8vc1y.fsf@gthelen.mtv.corp.google.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH v2 3/3] x86: Support local_flush_tlb_kernel_range
-References: <1337133919-4182-1-git-send-email-minchan@kernel.org> <1337133919-4182-3-git-send-email-minchan@kernel.org> <4FB4B29C.4010908@kernel.org> <1337266310.4281.30.camel@twins>
-In-Reply-To: <1337266310.4281.30.camel@twins>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Cc: Minchan Kim <minchan@kernel.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Nitin Gupta <ngupta@vflare.org>, Dan Magenheimer <dan.magenheimer@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, Tejun Heo <tj@kernel.org>, David Howells <dhowells@redhat.com>, x86@kernel.org, Nick Piggin <npiggin@gmail.com>
+To: Sha Zhengju <handai.szj@gmail.com>
+Cc: linux-mm@kvack.org, cgroups@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, yinghan@google.com, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, Sha Zhengju <handai.szj@taobao.com>
 
-On 05/17/2012 09:51 AM, Peter Zijlstra wrote:
+On Fri, Jun 15 2012, Sha Zhengju wrote:
 
-> On Thu, 2012-05-17 at 17:11 +0900, Minchan Kim wrote:
->>> +++ b/arch/x86/include/asm/tlbflush.h
->>> @@ -172,4 +172,16 @@ static inline void flush_tlb_kernel_range(unsigned long start,
->>>       flush_tlb_all();
->>>  }
->>>  
->>> +static inline void local_flush_tlb_kernel_range(unsigned long start,
->>> +             unsigned long end)
->>> +{
->>> +     if (cpu_has_invlpg) {
->>> +             while (start < end) {
->>> +                     __flush_tlb_single(start);
->>> +                     start += PAGE_SIZE;
->>> +             }
->>> +     } else
->>> +             local_flush_tlb();
->>> +}
-> 
-> 
-> It would be much better if you wait for Alex Shi's patch to mature.
-> doing the invlpg thing for ranges is not an unconditional win.
+> While doing memcg page stat accounting, there's no need to use MEMCG_NR_FILE_MAPPED
+> as an intermediate, we can use MEM_CGROUP_STAT_FILE_MAPPED directly.
+>
+> Signed-off-by: Sha Zhengju <handai.szj@taobao.com>
+> ---
+>  include/linux/memcontrol.h |   22 ++++++++++++++++------
+>  mm/memcontrol.c            |   25 +------------------------
+>  mm/rmap.c                  |    4 ++--
+>  3 files changed, 19 insertions(+), 32 deletions(-)
 
+I assume this patch is relative to v3.4.
 
->From what I can tell Alex's patches have stalled.  The last post was v6
-on 5/17 and there wasn't a single reply to them afaict.
+> diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
+> index f94efd2..a337c2e 100644
+> --- a/include/linux/memcontrol.h
+> +++ b/include/linux/memcontrol.h
+> @@ -27,9 +27,19 @@ struct page_cgroup;
+>  struct page;
+>  struct mm_struct;
+>  
+> -/* Stats that can be updated by kernel. */
+> -enum mem_cgroup_page_stat_item {
+> -	MEMCG_NR_FILE_MAPPED, /* # of pages charged as file rss */
+> +/*
+> + * Statistics for memory cgroup.
+> + */
+> +enum mem_cgroup_stat_index {
+> +	/*
+> +	 * For MEM_CONTAINER_TYPE_ALL, usage = pagecache + rss.
+> +	 */
+> +	MEM_CGROUP_STAT_CACHE, 	   /* # of pages charged as cache */
+> +	MEM_CGROUP_STAT_RSS,	   /* # of pages charged as anon rss */
+> +	MEM_CGROUP_STAT_FILE_MAPPED,  /* # of pages charged as file rss */
+> +	MEM_CGROUP_STAT_SWAPOUT, /* # of pages, swapped out */
+> +	MEM_CGROUP_STAT_DATA, /* end of data requires synchronization */
+> +	MEM_CGROUP_STAT_NSTATS,
+>  };
 
-According to Alex's investigation of this "tipping point", it seems that
-a good generic value is 8.  In other words, on most x86 hardware, it is
-cheaper to flush up to 8 tlb entries one by one rather than doing a
-complete flush.
+This has unfortunate side effect of letting code outside of memcontrol.c
+manipulate memcg internally managed statistics
+(e.g. MEM_CGROUP_STAT_CACHE) with mem_cgroup_{dec,inc}_page_stat.  I
+think that your change is fine.  The complexity and presumed performance
+overhead of the extra layer of indirection was not worth it.
 
-So we can do something like:
+>  struct mem_cgroup_reclaim_cookie {
+> @@ -170,17 +180,17 @@ static inline void mem_cgroup_end_update_page_stat(struct page *page,
+>  }
+>  
+>  void mem_cgroup_update_page_stat(struct page *page,
+> -				 enum mem_cgroup_page_stat_item idx,
+> +				 enum mem_cgroup_stat_index idx,
+>  				 int val);
+>  
+>  static inline void mem_cgroup_inc_page_stat(struct page *page,
+> -					    enum mem_cgroup_page_stat_item idx)
+> +					    enum mem_cgroup_stat_index idx)
+>  {
+>  	mem_cgroup_update_page_stat(page, idx, 1);
+>  }
+>  
+>  static inline void mem_cgroup_dec_page_stat(struct page *page,
+> -					    enum mem_cgroup_page_stat_item idx)
+> +					    enum mem_cgroup_stat_index idx)
+>  {
+>  	mem_cgroup_update_page_stat(page, idx, -1);
+>  }
 
-     if (cpu_has_invlpg && (end - start)/PAGE_SIZE <= 8) {
-             while (start < end) {
+You missed two more uses of enum mem_cgroup_page_stat_item in
+memcontrol.h.
 
-Would this be acceptable?
-
-Thanks,
-Seth
+diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
+index a337c2e..08475b9 100644
+--- a/include/linux/memcontrol.h
++++ b/include/linux/memcontrol.h
+@@ -390,12 +390,12 @@ static inline void mem_cgroup_end_update_page_stat(struct page *page,
+ }
+ 
+ static inline void mem_cgroup_inc_page_stat(struct page *page,
+-					    enum mem_cgroup_page_stat_item idx)
++					    enum mem_cgroup_stat_index idx)
+ {
+ }
+ 
+ static inline void mem_cgroup_dec_page_stat(struct page *page,
+-					    enum mem_cgroup_page_stat_item idx)
++					    enum mem_cgroup_stat_index idx)
+ {
+ }
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
