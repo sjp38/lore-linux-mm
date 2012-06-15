@@ -1,80 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx151.postini.com [74.125.245.151])
-	by kanga.kvack.org (Postfix) with SMTP id 7F8C66B004D
-	for <linux-mm@kvack.org>; Fri, 15 Jun 2012 06:06:22 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx178.postini.com [74.125.245.178])
+	by kanga.kvack.org (Postfix) with SMTP id 6787E6B0069
+	for <linux-mm@kvack.org>; Fri, 15 Jun 2012 06:08:37 -0400 (EDT)
 Received: from /spool/local
-	by e23smtp03.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e28smtp05.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
-	Fri, 15 Jun 2012 09:55:36 +1000
-Received: from d23av04.au.ibm.com (d23av04.au.ibm.com [9.190.235.139])
-	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q5FA6Etk46792906
-	for <linux-mm@kvack.org>; Fri, 15 Jun 2012 20:06:14 +1000
-Received: from d23av04.au.ibm.com (loopback [127.0.0.1])
-	by d23av04.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q5FA6DAZ029513
-	for <linux-mm@kvack.org>; Fri, 15 Jun 2012 20:06:13 +1000
+	Fri, 15 Jun 2012 15:38:33 +0530
+Received: from d28av02.in.ibm.com (d28av02.in.ibm.com [9.184.220.64])
+	by d28relay01.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q5FA8VHM9830868
+	for <linux-mm@kvack.org>; Fri, 15 Jun 2012 15:38:31 +0530
+Received: from d28av02.in.ibm.com (loopback [127.0.0.1])
+	by d28av02.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q5FFd92V021069
+	for <linux-mm@kvack.org>; Sat, 16 Jun 2012 01:39:09 +1000
 From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Subject: Re: [PATCH -V9 11/15] hugetlb/cgroup: Add charge/uncharge routines for hugetlb cgroup
-In-Reply-To: <20120614092539.GI27397@tiehlicka.suse.cz>
-References: <1339583254-895-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com> <1339583254-895-12-git-send-email-aneesh.kumar@linux.vnet.ibm.com> <20120614092539.GI27397@tiehlicka.suse.cz>
-Date: Fri, 15 Jun 2012 15:36:10 +0530
-Message-ID: <87k3z8nb3h.fsf@skywalker.in.ibm.com>
-MIME-Version: 1.0
-Content-Type: text/plain
+Subject: [PATCH 2/2] hugetlb/cgroup: Assign the page hugetlb cgroup when we move the page to active list.
+Date: Fri, 15 Jun 2012 15:38:22 +0530
+Message-Id: <1339754902-17779-2-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+In-Reply-To: <1339754902-17779-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+References: <87k3z8nb3h.fsf@skywalker.in.ibm.com>
+ <1339754902-17779-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: linux-mm@kvack.org, kamezawa.hiroyu@jp.fujitsu.com, dhillf@gmail.com, rientjes@google.com, akpm@linux-foundation.org, hannes@cmpxchg.org, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org
+To: linux-mm@kvack.org, kamezawa.hiroyu@jp.fujitsu.com, mhocko@suse.cz, akpm@linux-foundation.org
+Cc: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
 
-Michal Hocko <mhocko@suse.cz> writes:
+From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
 
-> On Wed 13-06-12 15:57:30, Aneesh Kumar K.V wrote:
->> From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
->> 
->> This patchset add the charge and uncharge routines for hugetlb cgroup.
->> We do cgroup charging in page alloc and uncharge in compound page
->> destructor. Assigning page's hugetlb cgroup is protected by hugetlb_lock.
->> 
->> Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
->
-> Reviewed-by: Michal Hocko <mhocko@suse.cz>
->
-> One minor comment
-> [...]
->> +void hugetlb_cgroup_commit_charge(int idx, unsigned long nr_pages,
->> +				  struct hugetlb_cgroup *h_cg,
->> +				  struct page *page)
->> +{
->> +	if (hugetlb_cgroup_disabled() || !h_cg)
->> +		return;
->> +
->> +	spin_lock(&hugetlb_lock);
->> +	set_hugetlb_cgroup(page, h_cg);
->> +	spin_unlock(&hugetlb_lock);
->> +	return;
->> +}
->
-> I guess we can remove the lock here because nobody can see the page yet,
-> right?
->
+page's hugetlb cgroup assign and moving to active list should happen with
+hugetlb_lock held. Otherwise when we remove the hugetlb cgroup we would
+iterate the active list and will find page with NULL hugetlb cgroup values.
 
-We need that to make sure when we remove cgroup we find correct page
-hugetlb cgroup values. But i guess we have a bug here. How about the
-below ?
-
-NOTE: We also need another patch to update active list during soft
-offline. I will send that in reply.
-
-commit e4c3fd3cc0f0faa30ea283cb48ba478a5c0d3e74
-Author: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
-Date:   Fri Jun 15 14:42:27 2012 +0530
-
-    hugetlb/cgroup: Assign the page hugetlb cgroup when we move the page to active list.
-    
-    page's hugetlb cgroup assign and moving to active list should happen with
-    hugetlb_lock held. Otherwise when we remove the hugetlb cgroup we would
-    iterate the active list and will find page with NULL hugetlb cgroup values.
-    
-    Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
+Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
+---
+ mm/hugetlb.c        |   12 +++++++-----
+ mm/hugetlb_cgroup.c |    3 +--
+ 2 files changed, 8 insertions(+), 7 deletions(-)
 
 diff --git a/mm/hugetlb.c b/mm/hugetlb.c
 index ee4da3b..b90dfb4 100644
@@ -134,6 +94,8 @@ index 8e7ca0a..d4f3f7b 100644
  	return;
  }
  
+-- 
+1.7.10
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
