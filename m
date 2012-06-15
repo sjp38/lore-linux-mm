@@ -1,39 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx184.postini.com [74.125.245.184])
-	by kanga.kvack.org (Postfix) with SMTP id 7E2F46B005C
-	for <linux-mm@kvack.org>; Thu, 14 Jun 2012 22:21:34 -0400 (EDT)
-Received: by dakp5 with SMTP id p5so4087305dak.14
-        for <linux-mm@kvack.org>; Thu, 14 Jun 2012 19:21:33 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx183.postini.com [74.125.245.183])
+	by kanga.kvack.org (Postfix) with SMTP id 55C2D6B005C
+	for <linux-mm@kvack.org>; Thu, 14 Jun 2012 22:50:40 -0400 (EDT)
+Date: Fri, 15 Jun 2012 10:50:32 +0800
+From: Fengguang Wu <fengguang.wu@intel.com>
+Subject: Re: [PATCH] mm/vmscan: cleanup on the comments of
+ do_try_to_free_pages
+Message-ID: <20120615025032.GA8250@localhost>
+References: <1339723524-6332-1-git-send-email-liwp.linux@gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <1339721952.3321.14.camel@lappy>
-References: <1339623535.3321.4.camel@lappy>
-	<20120614032005.GC3766@dhcp-172-17-108-109.mtv.corp.google.com>
-	<1339667440.3321.7.camel@lappy>
-	<CAE9FiQVJ-q3gQxfBqfRnG+RvEh2bZ2-Ki=CRUATmCKjJp8MNuw@mail.gmail.com>
-	<1339709672.3321.11.camel@lappy>
-	<CAE9FiQVXxnjccSErjrZ9B-APGf5ZpKNovJwr5vNBMr1G2f8Y4Q@mail.gmail.com>
-	<1339721952.3321.14.camel@lappy>
-Date: Thu, 14 Jun 2012 19:21:33 -0700
-Message-ID: <CAE9FiQWP0vWQCUV3MjEhpCEwUHRG38VQwEeVEN_mKtDZYo8eOw@mail.gmail.com>
-Subject: Re: Early boot panic on machine with lots of memory
-From: Yinghai Lu <yinghai@kernel.org>
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1339723524-6332-1-git-send-email-liwp.linux@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sasha Levin <levinsasha928@gmail.com>
-Cc: Tejun Heo <tj@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, David Miller <davem@davemloft.net>, hpa@linux.intel.com, linux-mm <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, kvm <kvm@vger.kernel.org>, avi@redhat.com, Marcelo Tosatti <mtosatti@redhat.com>
+To: Wanpeng Li <liwp.linux@gmail.com>
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, Hugh Dickins <hughd@google.com>, linux-kernel@vger.kernel.org, trivial@kernel.org, Gavin Shan <shangw@linux.vnet.ibm.com>
 
-On Thu, Jun 14, 2012 at 5:59 PM, Sasha Levin <levinsasha928@gmail.com> wrote:
-> On Thu, 2012-06-14 at 16:57 -0700, Yinghai Lu wrote:
->> can you please boot with "memtest" to see if there is any memory problem?
->
-> The host got a memtest treatment, nothing found.
+On Fri, Jun 15, 2012 at 09:25:24AM +0800, Wanpeng Li wrote:
+> From: Wanpeng Li <liwp@linux.vnet.ibm.com>
+> 
+> Since lumpy reclaim algorithm is removed by Mel Gorman, cleanup the
+> footprint of lumpy reclaim.
 
-can you try to boot guest with memtest?
+I think the "lumpy writeout" here does not mean "lumpy reclaim" :-)
 
-Thanks
-
-Yinghai
+> @@ -2065,8 +2065,9 @@ static unsigned long do_try_to_free_pages(struct zonelist *zonelist,
+>  		 * Try to write back as many pages as we just scanned.  This
+>  		 * tends to cause slow streaming writers to write data to the
+>  		 * disk smoothly, at the dirtying rate, which is nice.   But
+> -		 * that's undesirable in laptop mode, where we *want* lumpy
+> -		 * writeout.  So in laptop mode, write out the whole world.
+> +		 * that's undesirable in laptop mode, where as much I/O as
+> +		 * possible should be trigged if the disk needs to be spun up.
+> +		 * So in laptop mode, write out the whole world.
+>  		 */
+>  		writeback_threshold = sc->nr_to_reclaim + sc->nr_to_reclaim / 2;
+>  		if (total_scanned > writeback_threshold) {
+> -- 
+> 1.7.9.5
+> 
+> --
+> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+> Please read the FAQ at  http://www.tux.org/lkml/
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
