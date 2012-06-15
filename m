@@ -1,29 +1,39 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx161.postini.com [74.125.245.161])
-	by kanga.kvack.org (Postfix) with SMTP id 3D02D6B009E
-	for <linux-mm@kvack.org>; Fri, 15 Jun 2012 10:21:14 -0400 (EDT)
-Date: Fri, 15 Jun 2012 08:57:59 -0500 (CDT)
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: [PATCH] hugeltb: Mark hugelb_max_hstate __read_mostly
-In-Reply-To: <87sjdxm7jd.fsf@skywalker.in.ibm.com>
-Message-ID: <alpine.DEB.2.00.1206150857150.19708@router.home>
-References: <1339682178-29059-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com> <20120614141257.GQ27397@tiehlicka.suse.cz> <alpine.DEB.2.00.1206141538060.12773@router.home> <87sjdxm7jd.fsf@skywalker.in.ibm.com>
+Received: from psmtp.com (na3sys010amx148.postini.com [74.125.245.148])
+	by kanga.kvack.org (Postfix) with SMTP id 9BD4D6B005C
+	for <linux-mm@kvack.org>; Fri, 15 Jun 2012 10:28:29 -0400 (EDT)
+Date: Fri, 15 Jun 2012 15:28:20 +0100
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [PATCH] memory hotplug: fix invalid memory access caused by
+ stale kswapd pointer
+Message-ID: <20120615142820.GC20467@suse.de>
+References: <1339645491-5656-1-git-send-email-jiang.liu@huawei.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <1339645491-5656-1-git-send-email-jiang.liu@huawei.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Cc: Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, kamezawa.hiroyu@jp.fujitsu.com, akpm@linux-foundation.org
+To: Jiang Liu <jiang.liu@huawei.com>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Minchan Kim <minchan@kernel.org>, Hugh Dickins <hughd@google.com>, Keping Chen <chenkeping@huawei.com>, Tony Luck <tony.luck@intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Xishi Qiu <qiuxishi@huawei.com>, Jiang Liu <liuj97@gmail.com>
 
-On Fri, 15 Jun 2012, Aneesh Kumar K.V wrote:
+On Thu, Jun 14, 2012 at 11:44:51AM +0800, Jiang Liu wrote:
+> Function kswapd_stop() will be called to destroy the kswapd work thread
+> when all memory of a NUMA node has been offlined. But kswapd_stop() only
+> terminates the work thread without resetting NODE_DATA(nid)->kswapd to NULL.
+> The stale pointer will prevent kswapd_run() from creating a new work thread
+> when adding memory to the memory-less NUMA node again. Eventually the stale
+> pointer may cause invalid memory access.
+> 
+> Signed-off-by: Xishi Qiu <qiuxishi@huawei.com>
+> Signed-off-by: Jiang Liu <liuj97@gmail.com>
+> 
 
-> > But there seems to no need for this patch otherwise someone would have
-> > verified that the patch has the intended beneficial effect on performance.
-> >
->
-> The variable is never modified after boot.
+Acked-by: Mel Gorman <mgorman@suse.de>
 
-Thats all? There is no performance gain from this change?
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
