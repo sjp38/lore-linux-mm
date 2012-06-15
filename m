@@ -1,30 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx204.postini.com [74.125.245.204])
-	by kanga.kvack.org (Postfix) with SMTP id 299986B005C
-	for <linux-mm@kvack.org>; Fri, 15 Jun 2012 05:20:26 -0400 (EDT)
-Received: by qadb33 with SMTP id b33so258313qad.9
-        for <linux-mm@kvack.org>; Fri, 15 Jun 2012 02:20:25 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx192.postini.com [74.125.245.192])
+	by kanga.kvack.org (Postfix) with SMTP id 18F086B004D
+	for <linux-mm@kvack.org>; Fri, 15 Jun 2012 05:25:00 -0400 (EDT)
+Date: Fri, 15 Jun 2012 10:24:51 +0100
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: [PATCH] mm: clear pages_scanned only if draining a pcp adds
+ pages to the buddy allocator again
+Message-ID: <20120615092451.GA20303@csn.ul.ie>
+References: <1339690570-7471-1-git-send-email-kosaki.motohiro@gmail.com>
 MIME-Version: 1.0
-Date: Fri, 15 Jun 2012 05:20:25 -0400
-Message-ID: <CAN23Ke5F8mv946e6aQdGwOoeU5rpLnSvk6qW7D5mm=3hY4wTRA@mail.gmail.com>
-Subject: test
-From: FuXin Li <li.fuxin0915@gmail.com>
-Content-Type: multipart/alternative; boundary=00248c7117958b29d404c27f5356
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <1339690570-7471-1-git-send-email-kosaki.motohiro@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jiri Kosina <trivial@kernel.org>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, linux-kernel@vger.kernel.org, Gavin Shan <shangw@linux.vnet.ibm.com>
+To: kosaki.motohiro@gmail.com
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, David Rientjes <rientjes@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Minchan Kim <minchan.kim@gmail.com>, Wu Fengguang <fengguang.wu@intel.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>
 
---00248c7117958b29d404c27f5356
-Content-Type: text/plain; charset=ISO-8859-1
+On Thu, Jun 14, 2012 at 12:16:10PM -0400, kosaki.motohiro@gmail.com wrote:
+> From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+> 
+> commit 2ff754fa8f (mm: clear pages_scanned only if draining a pcp adds pages
+> to the buddy allocator again) fixed one free_pcppages_bulk() misuse. But two
+> another miuse still exist.
+> 
+> This patch fixes it.
+> 
+> Cc: David Rientjes <rientjes@google.com>
+> Cc: Mel Gorman <mel@csn.ul.ie>
+> Cc: Johannes Weiner <hannes@cmpxchg.org>
+> Cc: Minchan Kim <minchan.kim@gmail.com>
+> Cc: Wu Fengguang <fengguang.wu@intel.com>
+> Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> Cc: Rik van Riel <riel@redhat.com>
+> Cc: Andrew Morton <akpm@linux-foundation.org>
+> Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 
+Acked-by: Mel Gorman <mel@csn.ul.ie>
 
-
---00248c7117958b29d404c27f5356
-Content-Type: text/html; charset=ISO-8859-1
-
-<br>
-
---00248c7117958b29d404c27f5356--
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
