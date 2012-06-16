@@ -1,92 +1,106 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx194.postini.com [74.125.245.194])
-	by kanga.kvack.org (Postfix) with SMTP id 801E56B006E
-	for <linux-mm@kvack.org>; Fri, 15 Jun 2012 20:28:25 -0400 (EDT)
-From: Greg Pearson <greg.pearson@hp.com>
-Subject: [PATCH v2] mm/memblock: fix overlapping allocation when doubling reserved array
-Date: Fri, 15 Jun 2012 18:28:16 -0600
-Message-Id: <1339806496-17435-1-git-send-email-greg.pearson@hp.com>
+Received: from psmtp.com (na3sys010amx176.postini.com [74.125.245.176])
+	by kanga.kvack.org (Postfix) with SMTP id 108CD6B0072
+	for <linux-mm@kvack.org>; Fri, 15 Jun 2012 20:56:19 -0400 (EDT)
+Received: by obbta14 with SMTP id ta14so5253221obb.14
+        for <linux-mm@kvack.org>; Fri, 15 Jun 2012 17:56:18 -0700 (PDT)
+Date: Fri, 15 Jun 2012 17:55:50 -0700 (PDT)
+From: Hugh Dickins <hughd@google.com>
+Subject: [PATCH] swap: fix shmem swapping when more than 8 areas
+Message-ID: <alpine.LSU.2.00.1206151752420.8741@eggly.anvils>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: tj@kernel.org, hpa@linux.intel.com, akpm@linux-foundation.org, shangw@linux.vnet.ibm.com, mingo@elte.hu
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, greg.pearson@hp.com
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Minchan Kim <minchan@kernel.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-The __alloc_memory_core_early() routine will ask memblock for a range
-of memory then try to reserve it. If the reserved region array lacks
-space for the new range, memblock_double_array() is called to allocate
-more space for the array. If memblock is used to allocate memory for
-the new array it can end up using a range that overlaps with the range
-originally allocated in __alloc_memory_core_early(), leading to possible
-data corruption.
+Minchan Kim reports that when a system has many swap areas, and tmpfs
+swaps out to the ninth or more, shmem_getpage_gfp()'s attempts to read
+back the page cannot locate it, and the read fails with -ENOMEM.
 
-With this patch memblock_double_array() now calls memblock_find_in_range()
-with a narrowed candidate range so any memory allocated will not overlap
-with the original range that was being reserved. The range is narrowed by
-passing in both the starting and ending address of the previously allocated
-range. Then the range above the ending address is searched and if a candidate
-is not found, the range below the starting address is searched.
+Whoops.  Yes, I blindly followed read_swap_header()'s pte_to_swp_entry(
+swp_entry_to_pte()) technique for determining maximum usable swap offset,
+without stopping to realize that that actually depends upon the pte swap
+encoding shifting swap offset to the higher bits and truncating it there.
+Whereas our radix_tree swap encoding leaves offset in the lower bits:
+it's swap "type" (that is, index of swap area) that was truncated.
 
-Changes from v1: (based on comments from Yinghai Lu)
-- use obase instead of base in memblock_add_region() for exclude start address
-- pass in both the starting and ending address of the exclude range to
-  memblock_double_array()
-- have memblock_double_array() search above the exclude ending address
-  and below the exclude starting address for a free range
+Fix it by reducing the SWP_TYPE_SHIFT() in swapops.h, and removing the
+broken radix_to_swp_entry(swp_to_radix_entry()) from read_swap_header().
 
-Signed-off-by: Greg Pearson <greg.pearson@hp.com>
+This does not reduce the usable size of a swap area any further, it leaves
+it as claimed when making the original commit: no change from 3.0 on x86_64,
+nor on i386 without PAE; but 3.0's 512GB is reduced to 128GB per swapfile
+on i386 with PAE.  It's not a change I would have risked five years ago,
+but with x86_64 supported for ten years, I believe it's appropriate now.
+
+Hmm, and what if some architecture implements its swap pte with offset
+encoded below type?  That would equally break the maximum usable swap
+offset check.  Happily, they all follow the same tradition of encoding
+offset above type, but I'll prepare a check on that for next.
+
+Reported-and-Reviewed-and-Tested-by: Minchan Kim <minchan@kernel.org>
+Signed-off-by: Hugh Dickins <hughd@google.com>
+Cc: stable@vger.kernel.org [3.1, 3.2, 3.3, 3.4]
 ---
- mm/memblock.c |   15 +++++++++++----
- 1 files changed, 11 insertions(+), 4 deletions(-)
 
-diff --git a/mm/memblock.c b/mm/memblock.c
-index 952123e..fee3ad9 100644
---- a/mm/memblock.c
-+++ b/mm/memblock.c
-@@ -184,7 +184,8 @@ static void __init_memblock memblock_remove_region(struct memblock_type *type, u
- 	}
- }
+ include/linux/swapops.h |    8 +++++---
+ mm/swapfile.c           |   12 ++++--------
+ 2 files changed, 9 insertions(+), 11 deletions(-)
+
+--- 3.5-rc2/include/linux/swapops.h	2012-05-20 15:29:13.000000000 -0700
++++ linux/include/linux/swapops.h	2012-06-13 12:01:35.390711624 -0700
+@@ -9,13 +9,15 @@
+  * get good packing density in that tree, so the index should be dense in
+  * the low-order bits.
+  *
+- * We arrange the `type' and `offset' fields so that `type' is at the five
++ * We arrange the `type' and `offset' fields so that `type' is at the seven
+  * high-order bits of the swp_entry_t and `offset' is right-aligned in the
+- * remaining bits.
++ * remaining bits.  Although `type' itself needs only five bits, we allow for
++ * shmem/tmpfs to shift it all up a further two bits: see swp_to_radix_entry().
+  *
+  * swp_entry_t's are *never* stored anywhere in their arch-dependent format.
+  */
+-#define SWP_TYPE_SHIFT(e)	(sizeof(e.val) * 8 - MAX_SWAPFILES_SHIFT)
++#define SWP_TYPE_SHIFT(e)	((sizeof(e.val) * 8) - \
++			(MAX_SWAPFILES_SHIFT + RADIX_TREE_EXCEPTIONAL_SHIFT))
+ #define SWP_OFFSET_MASK(e)	((1UL << SWP_TYPE_SHIFT(e)) - 1)
  
--static int __init_memblock memblock_double_array(struct memblock_type *type)
-+static int __init_memblock memblock_double_array(struct memblock_type *type,
-+			phys_addr_t exclude_start, phys_addr_t exclude_end)
- {
- 	struct memblock_region *new_array, *old_array;
- 	phys_addr_t old_size, new_size, addr;
-@@ -222,7 +223,12 @@ static int __init_memblock memblock_double_array(struct memblock_type *type)
- 		new_array = kmalloc(new_size, GFP_KERNEL);
- 		addr = new_array ? __pa(new_array) : 0;
- 	} else {
--		addr = memblock_find_in_range(0, MEMBLOCK_ALLOC_ACCESSIBLE, new_size, sizeof(phys_addr_t));
-+		addr = memblock_find_in_range(exclude_end,
-+			MEMBLOCK_ALLOC_ACCESSIBLE,
-+			new_size, sizeof(phys_addr_t));
-+		if (!addr)
-+			addr = memblock_find_in_range(0, exclude_start,
-+				new_size, sizeof(phys_addr_t));
- 		new_array = addr ? __va(addr) : 0;
- 	}
- 	if (!addr) {
-@@ -399,7 +405,8 @@ repeat:
+ /*
+--- 3.5-rc2/mm/swapfile.c	2012-06-08 18:48:40.744605221 -0700
++++ linux/mm/swapfile.c	2012-06-13 12:13:56.214729684 -0700
+@@ -1916,24 +1916,20 @@ static unsigned long read_swap_header(st
+ 
+ 	/*
+ 	 * Find out how many pages are allowed for a single swap
+-	 * device. There are three limiting factors: 1) the number
++	 * device. There are two limiting factors: 1) the number
+ 	 * of bits for the swap offset in the swp_entry_t type, and
+ 	 * 2) the number of bits in the swap pte as defined by the
+-	 * the different architectures, and 3) the number of free bits
+-	 * in an exceptional radix_tree entry. In order to find the
++	 * different architectures. In order to find the
+ 	 * largest possible bit mask, a swap entry with swap type 0
+ 	 * and swap offset ~0UL is created, encoded to a swap pte,
+ 	 * decoded to a swp_entry_t again, and finally the swap
+ 	 * offset is extracted. This will mask all the bits from
+ 	 * the initial ~0UL mask that can't be encoded in either
+ 	 * the swp_entry_t or the architecture definition of a
+-	 * swap pte.  Then the same is done for a radix_tree entry.
++	 * swap pte.
  	 */
- 	if (!insert) {
- 		while (type->cnt + nr_new > type->max)
--			if (memblock_double_array(type) < 0)
-+			/* Avoid possible overlap if range is being reserved */
-+			if (memblock_double_array(type, obase, obase+size) < 0)
- 				return -ENOMEM;
- 		insert = true;
- 		goto repeat;
-@@ -450,7 +457,7 @@ static int __init_memblock memblock_isolate_range(struct memblock_type *type,
- 
- 	/* we'll create at most two more regions */
- 	while (type->cnt + 2 > type->max)
--		if (memblock_double_array(type) < 0)
-+		if (memblock_double_array(type, 0, MEMBLOCK_ALLOC_ACCESSIBLE) < 0)
- 			return -ENOMEM;
- 
- 	for (i = 0; i < type->cnt; i++) {
--- 
-1.7.5.4
+ 	maxpages = swp_offset(pte_to_swp_entry(
+-			swp_entry_to_pte(swp_entry(0, ~0UL))));
+-	maxpages = swp_offset(radix_to_swp_entry(
+-			swp_to_radix_entry(swp_entry(0, maxpages)))) + 1;
+-
++			swp_entry_to_pte(swp_entry(0, ~0UL)))) + 1;
+ 	if (maxpages > swap_header->info.last_page) {
+ 		maxpages = swap_header->info.last_page + 1;
+ 		/* p->max is an unsigned int: don't overflow it */
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
