@@ -1,13 +1,13 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx168.postini.com [74.125.245.168])
-	by kanga.kvack.org (Postfix) with SMTP id 09CD76B0068
-	for <linux-mm@kvack.org>; Sat, 16 Jun 2012 05:01:13 -0400 (EDT)
-Received: by lbjn8 with SMTP id n8so4325119lbj.14
-        for <linux-mm@kvack.org>; Sat, 16 Jun 2012 02:01:11 -0700 (PDT)
-Date: Sat, 16 Jun 2012 13:01:08 +0400
+Received: from psmtp.com (na3sys010amx175.postini.com [74.125.245.175])
+	by kanga.kvack.org (Postfix) with SMTP id 8E7316B0068
+	for <linux-mm@kvack.org>; Sat, 16 Jun 2012 05:06:52 -0400 (EDT)
+Received: by lahi5 with SMTP id i5so3320029lah.14
+        for <linux-mm@kvack.org>; Sat, 16 Jun 2012 02:06:50 -0700 (PDT)
+Date: Sat, 16 Jun 2012 13:06:46 +0400
 From: Cyrill Gorcunov <gorcunov@openvz.org>
 Subject: Re: [PATCH 3.5] c/r: prctl: less paranoid prctl_set_mm_exe_file()
-Message-ID: <20120616090108.GC32029@moon>
+Message-ID: <20120616090646.GD32029@moon>
 References: <20120616085104.14682.16723.stgit@zurg>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
@@ -30,8 +30,15 @@ On Sat, Jun 16, 2012 at 12:51:04PM +0400, Konstantin Khlebnikov wrote:
 > 
 > Signed-off-by: Konstantin Khlebnikov <khlebnikov@openvz.org>
 > Reported-by: Cyrill Gorcunov <gorcunov@openvz.org>
+> Cc: Oleg Nesterov <oleg@redhat.com>
+> Cc: Matt Helsley <matthltc@us.ibm.com>
+> Cc: Kees Cook <keescook@chromium.org>
+> Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+> Cc: Tejun Heo <tj@kernel.org>
+> Cc: Pavel Emelyanov <xemul@parallels.com>
+> ---
 
-Thanks, Konstantin, letme test it out...
+Ack! Thanks again, Konstantin!
 
 	Cyrill
 
