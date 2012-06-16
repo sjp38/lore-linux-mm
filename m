@@ -1,47 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx158.postini.com [74.125.245.158])
-	by kanga.kvack.org (Postfix) with SMTP id 42F886B0068
-	for <linux-mm@kvack.org>; Sat, 16 Jun 2012 16:26:55 -0400 (EDT)
-Received: by dakp5 with SMTP id p5so6620619dak.14
-        for <linux-mm@kvack.org>; Sat, 16 Jun 2012 13:26:54 -0700 (PDT)
-Date: Sat, 16 Jun 2012 13:26:51 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH -V6 07/14] memcg: Add HugeTLB extension
-In-Reply-To: <CAGr1F2EzDc3Ypv6twFE8Ua-JZUEkEVQJOPKwLt0O56c2-PycvA@mail.gmail.com>
-Message-ID: <alpine.DEB.2.00.1206161322310.8407@chino.kir.corp.google.com>
-References: <1334573091-18602-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com> <1334573091-18602-8-git-send-email-aneesh.kumar@linux.vnet.ibm.com> <alpine.DEB.2.00.1205241436180.24113@chino.kir.corp.google.com> <20120527202848.GC7631@skywalker.linux.vnet.ibm.com>
- <87lik920h8.fsf@skywalker.in.ibm.com> <20120608160612.dea6d1ce.akpm@linux-foundation.org> <4FD56C19.4060307@jp.fujitsu.com> <alpine.DEB.2.00.1206110220290.6843@chino.kir.corp.google.com> <CAGr1F2EzDc3Ypv6twFE8Ua-JZUEkEVQJOPKwLt0O56c2-PycvA@mail.gmail.com>
+Received: from psmtp.com (na3sys010amx111.postini.com [74.125.245.111])
+	by kanga.kvack.org (Postfix) with SMTP id E6B116B0068
+	for <linux-mm@kvack.org>; Sat, 16 Jun 2012 16:49:24 -0400 (EDT)
+Message-ID: <201206162049.q5GKnN74019488@farm-0002.internal.tilera.com>
+From: Chris Metcalf <cmetcalf@tilera.com>
+Date: Sat, 16 Jun 2012 16:41:05 -0400
+Subject: [PATCH 3/3] bounce: allow use of bounce pool via config option
+In-Reply-To: <201206162048.q5GKm1rt019464@farm-0002.internal.tilera.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Aditya Kali <adityakali@google.com>
-Cc: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, linux-mm@kvack.org, mgorman@suse.de, dhillf@gmail.com, aarcange@redhat.com, mhocko@suse.cz, hannes@cmpxchg.org, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, Ying Han <yinghan@google.com>
+To: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-usb@vger.kernel.org
 
-On Fri, 15 Jun 2012, Aditya Kali wrote:
+The tilegx USB OHCI support needs the bounce pool since we're not
+using the IOMMU to handle 32-bit addresses.
 
-> Based on the usecase at Google, I see a definite value in including
-> hugepage usage in memory.usage_in_bytes as well and having a single
-> limit for memory usage for the job. Our jobs wants to specify only one
-> (total) memory limit (including slab usage, and other kernel memory
-> usage, hugepages, etc.).
-> 
-> The hugepage/smallpage requirements of the job vary during its
-> lifetime. Having two different limits means less flexibility for jobs
-> as they now have to specify their limit as (max_hugepage,
-> max_smallpage) instead of max(hugepage + smallpage). Two limits
-> complicates the API for the users and requires them to over-specify
-> the resources.
-> 
+Signed-off-by: Chris Metcalf <cmetcalf@tilera.com>
+---
+ arch/tile/Kconfig |    6 ++++++
+ mm/bounce.c       |    8 +++++---
+ 2 files changed, 11 insertions(+), 3 deletions(-)
 
-If a large number of hugepages, for example, are allocated on the command 
-line because there's a lower success rate of dynamic allocation due to 
-fragmentation, with your suggestion it would no longer allow the admin to 
-restrict the use of those hugepages to only a particular set of tasks.  
-Consider especially 1GB hugepagez on x86, your suggestion would treat a 
-single 1GB hugepage which cannot be freed after boot exactly the same as 
-using 1GB of memory which is obviously not the desired behavior of any 
-hugetlb controller.
+diff --git a/arch/tile/Kconfig b/arch/tile/Kconfig
+index cf4bb69e..932e443 100644
+--- a/arch/tile/Kconfig
++++ b/arch/tile/Kconfig
+@@ -406,6 +406,12 @@ config TILE_USB
+ 	  Provides USB host adapter support for the built-in EHCI and OHCI
+ 	  interfaces on TILE-Gx chips.
+ 
++# USB OHCI needs the bounce pool since tilegx will often have more
++# than 4GB of memory, but we don't currently use the IOTLB to present
++# a 32-bit address to OHCI.  So we need to use a bounce pool instead.
++config NEED_BOUNCE_POOL
++	def_bool USB_OHCI_HCD
++
+ config HOTPLUG
+ 	bool "Support for hot-pluggable devices"
+ 	---help---
+diff --git a/mm/bounce.c b/mm/bounce.c
+index d1be02c..0420867 100644
+--- a/mm/bounce.c
++++ b/mm/bounce.c
+@@ -24,23 +24,25 @@
+ 
+ static mempool_t *page_pool, *isa_page_pool;
+ 
+-#ifdef CONFIG_HIGHMEM
++#if defined(CONFIG_HIGHMEM) || defined(CONFIG_NEED_BOUNCE_POOL)
+ static __init int init_emergency_pool(void)
+ {
+-#ifndef CONFIG_MEMORY_HOTPLUG
++#if defined(CONFIG_HIGHMEM) && !defined(CONFIG_MEMORY_HOTPLUG)
+ 	if (max_pfn <= max_low_pfn)
+ 		return 0;
+ #endif
+ 
+ 	page_pool = mempool_create_page_pool(POOL_SIZE, 0);
+ 	BUG_ON(!page_pool);
+-	printk("highmem bounce pool size: %d pages\n", POOL_SIZE);
++	printk("bounce pool size: %d pages\n", POOL_SIZE);
+ 
+ 	return 0;
+ }
+ 
+ __initcall(init_emergency_pool);
++#endif
+ 
++#ifdef CONFIG_HIGHMEM
+ /*
+  * highmem version, map in to vec
+  */
+-- 
+1.7.10.3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
