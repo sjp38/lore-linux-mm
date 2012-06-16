@@ -1,51 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx106.postini.com [74.125.245.106])
-	by kanga.kvack.org (Postfix) with SMTP id 224216B006E
-	for <linux-mm@kvack.org>; Fri, 15 Jun 2012 19:28:15 -0400 (EDT)
-Received: from /spool/local
-	by e36.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <sjenning@linux.vnet.ibm.com>;
-	Fri, 15 Jun 2012 17:28:14 -0600
-Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
-	by d03dlp03.boulder.ibm.com (Postfix) with ESMTP id 3124019D804A
-	for <linux-mm@kvack.org>; Fri, 15 Jun 2012 23:27:19 +0000 (WET)
-Received: from d03av03.boulder.ibm.com (d03av03.boulder.ibm.com [9.17.195.169])
-	by d03relay04.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q5FNQnhI183966
-	for <linux-mm@kvack.org>; Fri, 15 Jun 2012 17:27:05 -0600
-Received: from d03av03.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av03.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q5FNQXoM014698
-	for <linux-mm@kvack.org>; Fri, 15 Jun 2012 17:26:34 -0600
-Message-ID: <4FDBC4A7.8050507@linux.vnet.ibm.com>
-Date: Fri, 15 Jun 2012 18:26:31 -0500
-From: Seth Jennings <sjenning@linux.vnet.ibm.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH v2 3/3] x86: Support local_flush_tlb_kernel_range
-References: <1337133919-4182-1-git-send-email-minchan@kernel.org> <1337133919-4182-3-git-send-email-minchan@kernel.org> <4FB4B29C.4010908@kernel.org> <1337266310.4281.30.camel@twins> <4FDB5107.3000308@linux.vnet.ibm.com> <7e925563-082b-468f-a7d8-829e819eeac0@default> <4FDB66B7.2010803@vflare.org> <10ea9d19-bd24-400c-8131-49f0b4e9e5ae@default> <4FDB8808.9010508@linux.vnet.ibm.com> <9c6c8ae0-0212-402d-a906-0d0c61e5e058@default> <4FDB92CF.1070603@vflare.org> <4ffbc3e8-900b-4669-b6ab-e8c066f28c63@default> <4FDBA7CC.6060407@vflare.org>
-In-Reply-To: <4FDBA7CC.6060407@vflare.org>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx194.postini.com [74.125.245.194])
+	by kanga.kvack.org (Postfix) with SMTP id 801E56B006E
+	for <linux-mm@kvack.org>; Fri, 15 Jun 2012 20:28:25 -0400 (EDT)
+From: Greg Pearson <greg.pearson@hp.com>
+Subject: [PATCH v2] mm/memblock: fix overlapping allocation when doubling reserved array
+Date: Fri, 15 Jun 2012 18:28:16 -0600
+Message-Id: <1339806496-17435-1-git-send-email-greg.pearson@hp.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Magenheimer <dan.magenheimer@oracle.com>
-Cc: Nitin Gupta <ngupta@vflare.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Minchan Kim <minchan@kernel.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, Tejun Heo <tj@kernel.org>, David Howells <dhowells@redhat.com>, x86@kernel.org, Nick Piggin <npiggin@gmail.com>, Konrad Rzeszutek Wilk <konrad@darnok.org>
+To: tj@kernel.org, hpa@linux.intel.com, akpm@linux-foundation.org, shangw@linux.vnet.ibm.com, mingo@elte.hu
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, greg.pearson@hp.com
 
-On 06/15/2012 04:23 PM, Nitin Gupta wrote:
+The __alloc_memory_core_early() routine will ask memblock for a range
+of memory then try to reserve it. If the reserved region array lacks
+space for the new range, memblock_double_array() is called to allocate
+more space for the array. If memblock is used to allocate memory for
+the new array it can end up using a range that overlaps with the range
+originally allocated in __alloc_memory_core_early(), leading to possible
+data corruption.
 
-> On 06/15/2012 01:13 PM, Dan Magenheimer wrote:
+With this patch memblock_double_array() now calls memblock_find_in_range()
+with a narrowed candidate range so any memory allocated will not overlap
+with the original range that was being reserved. The range is narrowed by
+passing in both the starting and ending address of the previously allocated
+range. Then the range above the ending address is searched and if a candidate
+is not found, the range below the starting address is searched.
 
->>
+Changes from v1: (based on comments from Yinghai Lu)
+- use obase instead of base in memblock_add_region() for exclude start address
+- pass in both the starting and ending address of the exclude range to
+  memblock_double_array()
+- have memblock_double_array() search above the exclude ending address
+  and below the exclude starting address for a free range
 
->> OK, it's your code and I'm just making a suggestion. I will shut up now ;-)
->>
-> 
-> I'm always glad to hear your opinions and was just trying to discuss the
-> points you raised. I apologize if I sounded rude.
+Signed-off-by: Greg Pearson <greg.pearson@hp.com>
+---
+ mm/memblock.c |   15 +++++++++++----
+ 1 files changed, 11 insertions(+), 4 deletions(-)
 
-Same here. It's always good to go back and rethink your assumptions.
-Thanks Dan!
-
-Thanks,
-Seth
+diff --git a/mm/memblock.c b/mm/memblock.c
+index 952123e..fee3ad9 100644
+--- a/mm/memblock.c
++++ b/mm/memblock.c
+@@ -184,7 +184,8 @@ static void __init_memblock memblock_remove_region(struct memblock_type *type, u
+ 	}
+ }
+ 
+-static int __init_memblock memblock_double_array(struct memblock_type *type)
++static int __init_memblock memblock_double_array(struct memblock_type *type,
++			phys_addr_t exclude_start, phys_addr_t exclude_end)
+ {
+ 	struct memblock_region *new_array, *old_array;
+ 	phys_addr_t old_size, new_size, addr;
+@@ -222,7 +223,12 @@ static int __init_memblock memblock_double_array(struct memblock_type *type)
+ 		new_array = kmalloc(new_size, GFP_KERNEL);
+ 		addr = new_array ? __pa(new_array) : 0;
+ 	} else {
+-		addr = memblock_find_in_range(0, MEMBLOCK_ALLOC_ACCESSIBLE, new_size, sizeof(phys_addr_t));
++		addr = memblock_find_in_range(exclude_end,
++			MEMBLOCK_ALLOC_ACCESSIBLE,
++			new_size, sizeof(phys_addr_t));
++		if (!addr)
++			addr = memblock_find_in_range(0, exclude_start,
++				new_size, sizeof(phys_addr_t));
+ 		new_array = addr ? __va(addr) : 0;
+ 	}
+ 	if (!addr) {
+@@ -399,7 +405,8 @@ repeat:
+ 	 */
+ 	if (!insert) {
+ 		while (type->cnt + nr_new > type->max)
+-			if (memblock_double_array(type) < 0)
++			/* Avoid possible overlap if range is being reserved */
++			if (memblock_double_array(type, obase, obase+size) < 0)
+ 				return -ENOMEM;
+ 		insert = true;
+ 		goto repeat;
+@@ -450,7 +457,7 @@ static int __init_memblock memblock_isolate_range(struct memblock_type *type,
+ 
+ 	/* we'll create at most two more regions */
+ 	while (type->cnt + 2 > type->max)
+-		if (memblock_double_array(type) < 0)
++		if (memblock_double_array(type, 0, MEMBLOCK_ALLOC_ACCESSIBLE) < 0)
+ 			return -ENOMEM;
+ 
+ 	for (i = 0; i < type->cnt; i++) {
+-- 
+1.7.5.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
