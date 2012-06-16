@@ -1,139 +1,127 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx157.postini.com [74.125.245.157])
-	by kanga.kvack.org (Postfix) with SMTP id 3FCEC6B0068
-	for <linux-mm@kvack.org>; Fri, 15 Jun 2012 23:06:32 -0400 (EDT)
-Received: by dakp5 with SMTP id p5so5825042dak.14
-        for <linux-mm@kvack.org>; Fri, 15 Jun 2012 20:06:31 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx127.postini.com [74.125.245.127])
+	by kanga.kvack.org (Postfix) with SMTP id 82A526B006C
+	for <linux-mm@kvack.org>; Sat, 16 Jun 2012 00:56:47 -0400 (EDT)
+Received: by pbbrp2 with SMTP id rp2so7433463pbb.14
+        for <linux-mm@kvack.org>; Fri, 15 Jun 2012 21:56:46 -0700 (PDT)
+Date: Sat, 16 Jun 2012 12:56:37 +0800
+From: Wanpeng Li <liwp.linux@gmail.com>
+Subject: Re: [PATCH] swap: fix shmem swapping when more than 8 areas
+Message-ID: <20120616045637.GA2331@kernel>
+Reply-To: Wanpeng Li <liwp.linux@gmail.com>
+References: <alpine.LSU.2.00.1206151752420.8741@eggly.anvils>
 MIME-Version: 1.0
-In-Reply-To: <1339806496-17435-1-git-send-email-greg.pearson@hp.com>
-References: <1339806496-17435-1-git-send-email-greg.pearson@hp.com>
-Date: Fri, 15 Jun 2012 20:06:31 -0700
-Message-ID: <CAE9FiQUn0cO6XfZpb+QCG3L7fW7Z3eO0w2x9kJH9N05sUM=-vQ@mail.gmail.com>
-Subject: Re: [PATCH v2] mm/memblock: fix overlapping allocation when doubling
- reserved array
-From: Yinghai Lu <yinghai@kernel.org>
-Content-Type: multipart/mixed; boundary=047d7b2ee03f3a2ebc04c28e3856
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.LSU.2.00.1206151752420.8741@eggly.anvils>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Greg Pearson <greg.pearson@hp.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>
-Cc: tj@kernel.org, hpa@linux.intel.com, akpm@linux-foundation.org, shangw@linux.vnet.ibm.com, mingo@elte.hu, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Hugh Dickins <hughd@google.com>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Minchan Kim <minchan@kernel.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Wanpeng Li <liwp.linux@gmail.com>
 
---047d7b2ee03f3a2ebc04c28e3856
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
-
-On Fri, Jun 15, 2012 at 5:28 PM, Greg Pearson <greg.pearson@hp.com> wrote:
-> The __alloc_memory_core_early() routine will ask memblock for a range
-> of memory then try to reserve it. If the reserved region array lacks
-> space for the new range, memblock_double_array() is called to allocate
-> more space for the array. If memblock is used to allocate memory for
-> the new array it can end up using a range that overlaps with the range
-> originally allocated in __alloc_memory_core_early(), leading to possible
-> data corruption.
+On Fri, Jun 15, 2012 at 05:55:50PM -0700, Hugh Dickins wrote:
+>Minchan Kim reports that when a system has many swap areas, and tmpfs
+>swaps out to the ninth or more, shmem_getpage_gfp()'s attempts to read
+>back the page cannot locate it, and the read fails with -ENOMEM.
 >
-> With this patch memblock_double_array() now calls memblock_find_in_range(=
-)
-> with a narrowed candidate range so any memory allocated will not overlap
-> with the original range that was being reserved. The range is narrowed by
-> passing in both the starting and ending address of the previously allocat=
-ed
-> range. Then the range above the ending address is searched and if a candi=
-date
-> is not found, the range below the starting address is searched.
+>Whoops.  Yes, I blindly followed read_swap_header()'s pte_to_swp_entry(
+>swp_entry_to_pte()) technique for determining maximum usable swap offset,
+>without stopping to realize that that actually depends upon the pte swap
+>encoding shifting swap offset to the higher bits and truncating it there.
+>Whereas our radix_tree swap encoding leaves offset in the lower bits:
+>it's swap "type" (that is, index of swap area) that was truncated.
 >
-> Changes from v1: (based on comments from Yinghai Lu)
-> - use obase instead of base in memblock_add_region() for exclude start ad=
-dress
-> - pass in both the starting and ending address of the exclude range to
-> =A0memblock_double_array()
-> - have memblock_double_array() search above the exclude ending address
-> =A0and below the exclude starting address for a free range
+>Fix it by reducing the SWP_TYPE_SHIFT() in swapops.h, and removing the
+>broken radix_to_swp_entry(swp_to_radix_entry()) from read_swap_header().
 >
-> Signed-off-by: Greg Pearson <greg.pearson@hp.com>
+>This does not reduce the usable size of a swap area any further, it leaves
+>it as claimed when making the original commit: no change from 3.0 on x86_64,
+>nor on i386 without PAE; but 3.0's 512GB is reduced to 128GB per swapfile
+>on i386 with PAE.  It's not a change I would have risked five years ago,
+>but with x86_64 supported for ten years, I believe it's appropriate now.
+>
+>Hmm, and what if some architecture implements its swap pte with offset
+>encoded below type?  That would equally break the maximum usable swap
+>offset check.  Happily, they all follow the same tradition of encoding
+>offset above type, but I'll prepare a check on that for next.
+>
+>Reported-and-Reviewed-and-Tested-by: Minchan Kim <minchan@kernel.org>
+>Signed-off-by: Hugh Dickins <hughd@google.com>
+>Cc: stable@vger.kernel.org [3.1, 3.2, 3.3, 3.4]
+>---
+>
+> include/linux/swapops.h |    8 +++++---
+> mm/swapfile.c           |   12 ++++--------
+> 2 files changed, 9 insertions(+), 11 deletions(-)
+>
+>--- 3.5-rc2/include/linux/swapops.h	2012-05-20 15:29:13.000000000 -0700
+>+++ linux/include/linux/swapops.h	2012-06-13 12:01:35.390711624 -0700
+>@@ -9,13 +9,15 @@
+>  * get good packing density in that tree, so the index should be dense in
+>  * the low-order bits.
+>  *
+>- * We arrange the `type' and `offset' fields so that `type' is at the five
+>+ * We arrange the `type' and `offset' fields so that `type' is at the seven
+>  * high-order bits of the swp_entry_t and `offset' is right-aligned in the
+>- * remaining bits.
+>+ * remaining bits.  Although `type' itself needs only five bits, we allow for
+>+ * shmem/tmpfs to shift it all up a further two bits: see swp_to_radix_entry().
+>  *
+>  * swp_entry_t's are *never* stored anywhere in their arch-dependent format.
+>  */
+>-#define SWP_TYPE_SHIFT(e)	(sizeof(e.val) * 8 - MAX_SWAPFILES_SHIFT)
+>+#define SWP_TYPE_SHIFT(e)	((sizeof(e.val) * 8) - \
+>+			(MAX_SWAPFILES_SHIFT + RADIX_TREE_EXCEPTIONAL_SHIFT))
 
-found more problem, please check -v3
+Hi Hugh,
 
-also add cc to Ben.
+Since SHIFT == MAX_SWAPFILES_SHIFT + RADIX_TREE_EXCEPTIONAL_SHIFT == 7
+and the low two bits used for radix_tree, the available swappages number 
+based of 32bit architectures reduce to 2^(32-7-2) = 32GB?
 
-Thanks
+Regards,
+Wanpeng Li
 
-Yinghai
-
---047d7b2ee03f3a2ebc04c28e3856
-Content-Type: application/octet-stream;
-	name="memblock_double_array_fix.patch"
-Content-Disposition: attachment; filename="memblock_double_array_fix.patch"
-Content-Transfer-Encoding: base64
-X-Attachment-Id: f_h3i3t02n0
-
-RnJvbToJR3JlZyBQZWFyc29uIDxncmVnLnBlYXJzb25AaHAuY29tPgpTdWJqZWN0OiBbUEFUQ0hd
-IG1lbWJsb2NrOiBmaXggb3ZlcmxhcHBpbmcgYWxsb2NhdGlvbiB3aGVuIGRvdWJsaW5nIHJlc2Vy
-dmVkIGFycmF5CgpUaGUgX19hbGxvY19tZW1vcnlfY29yZV9lYXJseSgpIHJvdXRpbmUgd2lsbCBh
-c2sgbWVtYmxvY2sgZm9yIGEgcmFuZ2UKb2YgbWVtb3J5IHRoZW4gdHJ5IHRvIHJlc2VydmUgaXQu
-IElmIHRoZSByZXNlcnZlZCByZWdpb24gYXJyYXkgbGFja3MKc3BhY2UgZm9yIHRoZSBuZXcgcmFu
-Z2UsIG1lbWJsb2NrX2RvdWJsZV9hcnJheSgpIGlzIGNhbGxlZCB0byBhbGxvY2F0ZQptb3JlIHNw
-YWNlIGZvciB0aGUgYXJyYXkuIElmIG1lbWJsb2NrIGlzIHVzZWQgdG8gYWxsb2NhdGUgbWVtb3J5
-IGZvcgp0aGUgbmV3IGFycmF5IGl0IGNhbiBlbmQgdXAgdXNpbmcgYSByYW5nZSB0aGF0IG92ZXJs
-YXBzIHdpdGggdGhlIHJhbmdlCm9yaWdpbmFsbHkgYWxsb2NhdGVkIGluIF9fYWxsb2NfbWVtb3J5
-X2NvcmVfZWFybHkoKSwgbGVhZGluZyB0byBwb3NzaWJsZQpkYXRhIGNvcnJ1cHRpb24uCgpXaXRo
-IHRoaXMgcGF0Y2ggbWVtYmxvY2tfZG91YmxlX2FycmF5KCkgbm93IGNhbGxzIG1lbWJsb2NrX2Zp
-bmRfaW5fcmFuZ2UoKQp3aXRoIGEgbmFycm93ZWQgY2FuZGlkYXRlIHJhbmdlIHNvIGFueSBtZW1v
-cnkgYWxsb2NhdGVkIHdpbGwgbm90IG92ZXJsYXAKd2l0aCB0aGUgb3JpZ2luYWwgcmFuZ2UgdGhh
-dCB3YXMgYmVpbmcgcmVzZXJ2ZWQuIFRoZSByYW5nZSBpcyBuYXJyb3dlZCBieQpwYXNzaW5nIGlu
-IHRoZSBzdGFydGluZyBhZGRyZXNzIG9mIHRoZSBwcmV2aW91c2x5IGFsbG9jYXRlZCByYW5nZSBh
-cyB0aGUKZW5kIG9mIHRoZSBjYW5kaWRhdGUgcmFuZ2UuIFNpbmNlIG1lbWJsb2NrX2ZpbmRfaW5f
-cmFuZ2Vfbm9kZSgpIGxvb2tzIGZvcgphIGZyZWUgcmFuZ2UgYnkgd2Fsa2luZyB0aGUgZnJlZSBt
-ZW1vcnkgbGlzdCBpbiByZXZlcnNlIG9yZGVyIChoaWdoZXN0Cm1lbW9yeSBhZGRyZXNzIHRvIGxv
-d2VzdCBhZGRyZXNzKSB0aGlzIGNoYW5nZSBzaG91bGQgbm90IHVubmVjZXNzYXJpbHkKZXhjbHVk
-ZSBjaHVua3Mgb2YgbWVtb3J5IHRoYXQgY291bGQgb3RoZXJ3aXNlIGJlIHVzZWQgdG8gc2F0aXNm
-eSB0aGUKcmVxdWVzdC4KCi12MzogYS4gbmVlZCB0byB1c2Ugb2Jhc2UgaW5zdGVhZCBmb3IgZXhj
-bHVkZV9zdGFydCwgYmVjYXVzZSBiYXNlIGlzIGNoYW5nZWQuCiAgICAgYi4gY2hhbmdlIHRvIHBh
-c3MgZXhjbHVkZV9zdGFydC9zaXplLgogICAgIGMuIHNlYXJjaGluZyB3aWxsIGJlIHRyeSBoaWdo
-IHRoZW4gbG93LgogICAgIGQuCWNvdWxkIG1ha2Ugc3VyZSB0aGUgcmFuZ2UgaXMgYWNjZXNzaWJs
-ZSwgc28gbmVlZCB0byBjaGVjayB3aXRoIGN1cnJlbnRfbGltaXQKICAgICBlLiBvbmx5IG5lZWQg
-dG8gZXhjbHVkZSB3aGVuIGRvdWJsZSByZXNlcnZlZC5yZWdpb25zLgogICAgIGYuIGZvciBsZXNz
-IGNvbmZ1c2luZywgZXZlbiBtZW1ibG9ja19pc29sYXRlX3JhbmdlIHBhc3MgZXhjbHVkZSBzdGFy
-dC9zaXplIHRvby4KICAgICBnLiByZW1vdmUgbm90IG5lZWRlZCBjb21tZW50IGJldHdlZW4gd2hp
-bGUgYW5kIG9uZSBsaW5lIGxvb3AgYm9keS4KClNpZ25lZC1vZmYtYnk6IEdyZWcgUGVhcnNvbiA8
-Z3JlZy5wZWFyc29uQGhwLmNvbT4KQ2M6IFRlanVuIEhlbyA8dGpAa2VybmVsLm9yZz4KQ2M6IEJl
-bmphbWluIEhlcnJlbnNjaG1pZHQgPGJlbmhAa2VybmVsLmNyYXNoaW5nLm9yZz4KQ2M6IEFuZHJl
-dyBNb3J0b24gPGFrcG1AbGludXgtZm91bmRhdGlvbi5vcmc+ClNpZ25lZC1vZmYtYnk6IFlpbmdo
-YWkgTHUgPHlpbmdoYWlAa2VybmVsLm9yZz4KCi0tLQogbW0vbWVtYmxvY2suYyB8ICAgMjEgKysr
-KysrKysrKysrKysrKystLS0tCiAxIGZpbGUgY2hhbmdlZCwgMTcgaW5zZXJ0aW9ucygrKSwgNCBk
-ZWxldGlvbnMoLSkKCkluZGV4OiBsaW51eC0yLjYvbW0vbWVtYmxvY2suYwo9PT09PT09PT09PT09
-PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09Ci0t
-LSBsaW51eC0yLjYub3JpZy9tbS9tZW1ibG9jay5jCisrKyBsaW51eC0yLjYvbW0vbWVtYmxvY2su
-YwpAQCAtMTg0LDcgKzE4NCw5IEBAIHN0YXRpYyB2b2lkIF9faW5pdF9tZW1ibG9jayBtZW1ibG9j
-a19yZW0KIAl9CiB9CiAKLXN0YXRpYyBpbnQgX19pbml0X21lbWJsb2NrIG1lbWJsb2NrX2RvdWJs
-ZV9hcnJheShzdHJ1Y3QgbWVtYmxvY2tfdHlwZSAqdHlwZSkKK3N0YXRpYyBpbnQgX19pbml0X21l
-bWJsb2NrIG1lbWJsb2NrX2RvdWJsZV9hcnJheShzdHJ1Y3QgbWVtYmxvY2tfdHlwZSAqdHlwZSwK
-KwkJCQkJCSBwaHlzX2FkZHJfdCBleGNsdWRlX3N0YXJ0LAorCQkJCQkJIHBoeXNfYWRkcl90IGV4
-Y2x1ZGVfc2l6ZSkKIHsKIAlzdHJ1Y3QgbWVtYmxvY2tfcmVnaW9uICpuZXdfYXJyYXksICpvbGRf
-YXJyYXk7CiAJcGh5c19hZGRyX3Qgb2xkX3NpemUsIG5ld19zaXplLCBhZGRyOwpAQCAtMjIyLDcg
-KzIyNCwxOCBAQCBzdGF0aWMgaW50IF9faW5pdF9tZW1ibG9jayBtZW1ibG9ja19kb3ViCiAJCW5l
-d19hcnJheSA9IGttYWxsb2MobmV3X3NpemUsIEdGUF9LRVJORUwpOwogCQlhZGRyID0gbmV3X2Fy
-cmF5ID8gX19wYShuZXdfYXJyYXkpIDogMDsKIAl9IGVsc2UgewotCQlhZGRyID0gbWVtYmxvY2tf
-ZmluZF9pbl9yYW5nZSgwLCBNRU1CTE9DS19BTExPQ19BQ0NFU1NJQkxFLCBuZXdfc2l6ZSwgc2l6
-ZW9mKHBoeXNfYWRkcl90KSk7CisJCS8qIG9ubHkgZXhjbHVkZSByYW5nZSB3aGVuIHRyeWluZyB0
-byBkb3VibGUgcmVzZXJ2ZWQucmVnaW9ucyAqLworCQlpZiAodHlwZSAhPSAmbWVtYmxvY2sucmVz
-ZXJ2ZWQpCisJCQlleGNsdWRlX3N0YXJ0ID0gZXhjbHVkZV9zaXplID0gMDsKKworCQlhZGRyID0g
-bWVtYmxvY2tfZmluZF9pbl9yYW5nZShleGNsdWRlX3N0YXJ0ICsgZXhjbHVkZV9zaXplLAorCQkJ
-CQkJbWVtYmxvY2suY3VycmVudF9saW1pdCwKKwkJCQkJCW5ld19zaXplLCBzaXplb2YocGh5c19h
-ZGRyX3QpKTsKKwkJaWYgKCFhZGRyICYmIGV4Y2x1ZGVfc2l6ZSkKKwkJCWFkZHIgPSBtZW1ibG9j
-a19maW5kX2luX3JhbmdlKDAsCisJCQkJICAgIG1pbihleGNsdWRlX3N0YXJ0LCBtZW1ibG9jay5j
-dXJyZW50X2xpbWl0KSwKKwkJCQkgICAgbmV3X3NpemUsIHNpemVvZihwaHlzX2FkZHJfdCkpOwor
-CiAJCW5ld19hcnJheSA9IGFkZHIgPyBfX3ZhKGFkZHIpIDogMDsKIAl9CiAJaWYgKCFhZGRyKSB7
-CkBAIC0zOTksNyArNDEyLDcgQEAgcmVwZWF0OgogCSAqLwogCWlmICghaW5zZXJ0KSB7CiAJCXdo
-aWxlICh0eXBlLT5jbnQgKyBucl9uZXcgPiB0eXBlLT5tYXgpCi0JCQlpZiAobWVtYmxvY2tfZG91
-YmxlX2FycmF5KHR5cGUpIDwgMCkKKwkJCWlmIChtZW1ibG9ja19kb3VibGVfYXJyYXkodHlwZSwg
-b2Jhc2UsIHNpemUpIDwgMCkKIAkJCQlyZXR1cm4gLUVOT01FTTsKIAkJaW5zZXJ0ID0gdHJ1ZTsK
-IAkJZ290byByZXBlYXQ7CkBAIC00NTAsNyArNDYzLDcgQEAgc3RhdGljIGludCBfX2luaXRfbWVt
-YmxvY2sgbWVtYmxvY2tfaXNvbAogCiAJLyogd2UnbGwgY3JlYXRlIGF0IG1vc3QgdHdvIG1vcmUg
-cmVnaW9ucyAqLwogCXdoaWxlICh0eXBlLT5jbnQgKyAyID4gdHlwZS0+bWF4KQotCQlpZiAobWVt
-YmxvY2tfZG91YmxlX2FycmF5KHR5cGUpIDwgMCkKKwkJaWYgKG1lbWJsb2NrX2RvdWJsZV9hcnJh
-eSh0eXBlLCBiYXNlLCBzaXplKSA8IDApCiAJCQlyZXR1cm4gLUVOT01FTTsKIAogCWZvciAoaSA9
-IDA7IGkgPCB0eXBlLT5jbnQ7IGkrKykgewo=
---047d7b2ee03f3a2ebc04c28e3856--
+> #define SWP_OFFSET_MASK(e)	((1UL << SWP_TYPE_SHIFT(e)) - 1)
+> 
+> /*
+>--- 3.5-rc2/mm/swapfile.c	2012-06-08 18:48:40.744605221 -0700
+>+++ linux/mm/swapfile.c	2012-06-13 12:13:56.214729684 -0700
+>@@ -1916,24 +1916,20 @@ static unsigned long read_swap_header(st
+> 
+> 	/*
+> 	 * Find out how many pages are allowed for a single swap
+>-	 * device. There are three limiting factors: 1) the number
+>+	 * device. There are two limiting factors: 1) the number
+> 	 * of bits for the swap offset in the swp_entry_t type, and
+> 	 * 2) the number of bits in the swap pte as defined by the
+>-	 * the different architectures, and 3) the number of free bits
+>-	 * in an exceptional radix_tree entry. In order to find the
+>+	 * different architectures. In order to find the
+> 	 * largest possible bit mask, a swap entry with swap type 0
+> 	 * and swap offset ~0UL is created, encoded to a swap pte,
+> 	 * decoded to a swp_entry_t again, and finally the swap
+> 	 * offset is extracted. This will mask all the bits from
+> 	 * the initial ~0UL mask that can't be encoded in either
+> 	 * the swp_entry_t or the architecture definition of a
+>-	 * swap pte.  Then the same is done for a radix_tree entry.
+>+	 * swap pte.
+> 	 */
+> 	maxpages = swp_offset(pte_to_swp_entry(
+>-			swp_entry_to_pte(swp_entry(0, ~0UL))));
+>-	maxpages = swp_offset(radix_to_swp_entry(
+>-			swp_to_radix_entry(swp_entry(0, maxpages)))) + 1;
+>-
+>+			swp_entry_to_pte(swp_entry(0, ~0UL)))) + 1;
+> 	if (maxpages > swap_header->info.last_page) {
+> 		maxpages = swap_header->info.last_page + 1;
+> 		/* p->max is an unsigned int: don't overflow it */
+>
+>--
+>To unsubscribe, send a message with 'unsubscribe linux-mm' in
+>the body to majordomo@kvack.org.  For more info on Linux MM,
+>see: http://www.linux-mm.org/ .
+>Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
