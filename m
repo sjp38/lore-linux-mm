@@ -1,59 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx117.postini.com [74.125.245.117])
-	by kanga.kvack.org (Postfix) with SMTP id 3F8A86B0068
-	for <linux-mm@kvack.org>; Sat, 16 Jun 2012 06:05:56 -0400 (EDT)
-Received: by dakp5 with SMTP id p5so6156575dak.14
-        for <linux-mm@kvack.org>; Sat, 16 Jun 2012 03:05:55 -0700 (PDT)
-Date: Sat, 16 Jun 2012 03:05:26 -0700 (PDT)
-From: Hugh Dickins <hughd@google.com>
-Subject: Re: [PATCH] swap: fix shmem swapping when more than 8 areas
-In-Reply-To: <CAM_iQpXPH2SgjKbj1g5azcddusBmQ0CDvDz_RJe2r2HSTo51yA@mail.gmail.com>
-Message-ID: <alpine.LSU.2.00.1206160241480.13075@eggly.anvils>
-References: <alpine.LSU.2.00.1206151752420.8741@eggly.anvils> <20120616045637.GA2331@kernel> <CAM_iQpXPH2SgjKbj1g5azcddusBmQ0CDvDz_RJe2r2HSTo51yA@mail.gmail.com>
+Received: from psmtp.com (na3sys010amx198.postini.com [74.125.245.198])
+	by kanga.kvack.org (Postfix) with SMTP id 7B1236B0068
+	for <linux-mm@kvack.org>; Sat, 16 Jun 2012 11:38:35 -0400 (EDT)
+Received: by lbjn8 with SMTP id n8so4463275lbj.14
+        for <linux-mm@kvack.org>; Sat, 16 Jun 2012 08:38:33 -0700 (PDT)
+Message-ID: <4FDCA875.6040905@openvz.org>
+Date: Sat, 16 Jun 2012 19:38:29 +0400
+From: Konstantin Khlebnikov <khlebnikov@openvz.org>
 MIME-Version: 1.0
-Content-Type: MULTIPART/MIXED; BOUNDARY="8323584-2136590732-1339841134=:13075"
+Subject: Re: [PATCH 3.5] c/r: prctl: less paranoid prctl_set_mm_exe_file()
+References: <20120616085104.14682.16723.stgit@zurg> <20120616090646.GD32029@moon> <20120616091712.GA2021@moon> <4FDC54FF.3020305@openvz.org> <20120616094714.GF32029@moon>
+In-Reply-To: <20120616094714.GF32029@moon>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Cong Wang <xiyou.wangcong@gmail.com>
-Cc: Wanpeng Li <liwp.linux@gmail.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Minchan Kim <minchan@kernel.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Cyrill Gorcunov <gorcunov@openvz.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Kees Cook <keescook@chromium.org>, Pavel Emelianov <xemul@parallels.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Oleg Nesterov <oleg@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Matt Helsley <matthltc@us.ibm.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Tejun Heo <tj@kernel.org>
 
-  This message is in MIME format.  The first part should be readable text,
-  while the remaining parts are likely unreadable without MIME-aware tools.
+Cyrill Gorcunov wrote:
+> On Sat, Jun 16, 2012 at 01:42:23PM +0400, Konstantin Khlebnikov wrote:
+>>> Side note: there is a little nit with this patch actually,
+>>> because while when we do c/r we do "right things" and unmap
+>>> all vm-executable mappings before we set up new exe_file. But
+>>> we can't guarantee that some brave soul would not setup
+>>> new exe-file just for it's own, then what we migh have
+>>>
+>>>   - mm::exe_file set up and points to some file, moreover num_exe_file_vmas might be>   1
+>>>   - application calls for prctl_set_mm_exe_file
+>>>   - set_mm_exe_file(mm, exe_file) called, and it drops num_exe_file_vmas to 0
+>>>   - finally application might call for removed_exe_file_vma
+>>>
+>>> void removed_exe_file_vma(struct mm_struct *mm)
+>>> {
+>>> 	mm->num_exe_file_vmas--;
+>>> 	if ((mm->num_exe_file_vmas == 0)&&   mm->exe_file) {
+>>> 		fput(mm->exe_file);
+>>> 		mm->exe_file = NULL;
+>>> 	}
+>>>
+>>> }
+>>>
+>>> and it does _not_ test for num_exe_file_vmas being 0 before doing decrement,
+>>> thus we get inconsistency in counter.
+>>
+>> No, removed_exe_file_vma() is called only for vma with VM_EXECUTABLE flag,
+>> there no way to get such vma other than sys_execve().
+>> And this brave soul cannot call prctl_set_mm_exe_file() successfully,
+>> just because for vma with VM_EXECUTABLE flag vma->vm_file == mm->exe_file.
+>>
+>> Anyway, I plan to get rid of mm->num_exe_file_vmas and VM_EXECUTABLE.
+>
+> Yeah, you've changed !path_equal to path_equal. And yes, getting rid of
+> num_exe_file_vmas is good idea. Btw, Konstantin, why do we need to
+> call for path_equal? Maybe we can simply test for mm->exe_file == NULL,
+> and refuse to change anything if it's not nil value? This will simplify
+> the code.
 
---8323584-2136590732-1339841134=:13075
-Content-Type: TEXT/PLAIN; charset=UTF-8
-Content-Transfer-Encoding: QUOTED-PRINTABLE
+After removing VM_EXECUTABLE and mm->num_exe_file_vmas mm->exe_file
+will never becomes NULL automatically. Patch for this not commited yet,
+but I hope it will be in 3.6.
 
-On Sat, 16 Jun 2012, Cong Wang wrote:
-> On Sat, Jun 16, 2012 at 12:56 PM, Wanpeng Li <liwp.linux@gmail.com> wrote=
-:
-> >>-#define SWP_TYPE_SHIFT(e) =C2=A0 =C2=A0 (sizeof(e.val) * 8 - MAX_SWAPF=
-ILES_SHIFT)
-> >>+#define SWP_TYPE_SHIFT(e) =C2=A0 =C2=A0 ((sizeof(e.val) * 8) - \
-> >>+ =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0=
- =C2=A0(MAX_SWAPFILES_SHIFT + RADIX_TREE_EXCEPTIONAL_SHIFT))
-> > Since SHIFT =3D=3D MAX_SWAPFILES_SHIFT + RADIX_TREE_EXCEPTIONAL_SHIFT =
-=3D=3D 7
-> > and the low two bits used for radix_tree, the available swappages numbe=
-r
-> > based of 32bit architectures reduce to 2^(32-7-2) =3D 32GB?
->=20
-> The lower two bits are in the 7 bits you calculated,
-> so it is 2^(32-7), not 2^(32-7-2)
-
-Correct.
-
-And that is not the limiting condition on available swap pages on 32-bit
-without PAE, which is limited more by the pte<->swp conversion: a swap
-entry must be distinguished from a present pte, from a PROT_NONE page,
-and from a pte_file() entry - see arch/x86/include/asm/pgtable-2level.h
-for how i386 in particular arranges that.
-
-Nor is it the limiting condition on 64-bit, where include/linux/swap.h's
-use of __u32 and unsigned int for counting swap pages is more limiting.
-
-Hugh
---8323584-2136590732-1339841134=:13075--
+>
+> 	Cyrill
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
