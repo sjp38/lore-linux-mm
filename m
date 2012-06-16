@@ -1,74 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx196.postini.com [74.125.245.196])
-	by kanga.kvack.org (Postfix) with SMTP id A40EF6B0068
-	for <linux-mm@kvack.org>; Sat, 16 Jun 2012 13:48:09 -0400 (EDT)
-Received: by lahi5 with SMTP id i5so3501650lah.14
-        for <linux-mm@kvack.org>; Sat, 16 Jun 2012 10:48:07 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx158.postini.com [74.125.245.158])
+	by kanga.kvack.org (Postfix) with SMTP id 42F886B0068
+	for <linux-mm@kvack.org>; Sat, 16 Jun 2012 16:26:55 -0400 (EDT)
+Received: by dakp5 with SMTP id p5so6620619dak.14
+        for <linux-mm@kvack.org>; Sat, 16 Jun 2012 13:26:54 -0700 (PDT)
+Date: Sat, 16 Jun 2012 13:26:51 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH -V6 07/14] memcg: Add HugeTLB extension
+In-Reply-To: <CAGr1F2EzDc3Ypv6twFE8Ua-JZUEkEVQJOPKwLt0O56c2-PycvA@mail.gmail.com>
+Message-ID: <alpine.DEB.2.00.1206161322310.8407@chino.kir.corp.google.com>
+References: <1334573091-18602-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com> <1334573091-18602-8-git-send-email-aneesh.kumar@linux.vnet.ibm.com> <alpine.DEB.2.00.1205241436180.24113@chino.kir.corp.google.com> <20120527202848.GC7631@skywalker.linux.vnet.ibm.com>
+ <87lik920h8.fsf@skywalker.in.ibm.com> <20120608160612.dea6d1ce.akpm@linux-foundation.org> <4FD56C19.4060307@jp.fujitsu.com> <alpine.DEB.2.00.1206110220290.6843@chino.kir.corp.google.com> <CAGr1F2EzDc3Ypv6twFE8Ua-JZUEkEVQJOPKwLt0O56c2-PycvA@mail.gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <4FDAE3CC.60801@kernel.org>
-References: <1339661592-3915-1-git-send-email-kosaki.motohiro@gmail.com>
-	<20120614145716.GA2097@barrios>
-	<CAHGf_=qcA5OfuNgk0BiwyshcLftNWoPfOO_VW9H6xQTX2tAbuA@mail.gmail.com>
-	<4FDAE3CC.60801@kernel.org>
-Date: Sat, 16 Jun 2012 23:18:07 +0530
-Message-ID: <CAEtiSavv8nRAFk6VZEgeCMYicjBPy4244+2KQhng5Pq9bxcX5A@mail.gmail.com>
-Subject: Re: [resend][PATCH] mm, vmscan: fix do_try_to_free_pages() livelock
-From: Aaditya Kumar <aaditya.kumar.30@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: KOSAKI Motohiro <kosaki.motohiro@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org, Nick Piggin <npiggin@gmail.com>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mel@csn.ul.ie>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>, frank.rowand@am.sony.com, tim.bird@am.sony.com, takuzo.ohara@ap.sony.com, kan.iibuchi@jp.sony.com
+To: Aditya Kali <adityakali@google.com>
+Cc: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, linux-mm@kvack.org, mgorman@suse.de, dhillf@gmail.com, aarcange@redhat.com, mhocko@suse.cz, hannes@cmpxchg.org, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, Ying Han <yinghan@google.com>
 
-On Fri, Jun 15, 2012 at 12:57 PM, Minchan Kim <minchan@kernel.org> wrote:
+On Fri, 15 Jun 2012, Aditya Kali wrote:
 
->>
->> pgdat_balanced() doesn't recognized zone. Therefore kswapd may sleep
->> if node has multiple zones. Hm ok, I realized my descriptions was
->> slightly misleading. priority 0 is not needed. bakance_pddat() calls
->> pgdat_balanced()
->> every priority. Most easy case is, movable zone has a lot of free pages and
->> normal zone has no reclaimable page.
->>
->> btw, current pgdat_balanced() logic seems not correct. kswapd should
->> sleep only if every zones have much free pages than high water mark
->> _and_ 25% of present pages in node are free.
->>
->
->
-> Sorry. I can't understand your point.
-> Current kswapd doesn't sleep if relevant zones don't have free pages above high watermark.
-> It seems I am missing your point.
-> Please anybody correct me.
+> Based on the usecase at Google, I see a definite value in including
+> hugepage usage in memory.usage_in_bytes as well and having a single
+> limit for memory usage for the job. Our jobs wants to specify only one
+> (total) memory limit (including slab usage, and other kernel memory
+> usage, hugepages, etc.).
+> 
+> The hugepage/smallpage requirements of the job vary during its
+> lifetime. Having two different limits means less flexibility for jobs
+> as they now have to specify their limit as (max_hugepage,
+> max_smallpage) instead of max(hugepage + smallpage). Two limits
+> complicates the API for the users and requires them to over-specify
+> the resources.
+> 
 
-Since currently direct reclaim is given up based on
-zone->all_unreclaimable flag,
-so for e.g in one of the scenarios:
-
-Lets say system has one node with two zones (NORMAL and MOVABLE) and we
-hot-remove the all the pages of the MOVABLE zone.
-
-While migrating pages during memory hot-unplugging, the allocation function
-(for new page to which the page in MOVABLE zone would be moved)  can end up
-looping in direct reclaim path for ever.
-
-This is so because when most of the pages in the MOVABLE zone have
-been migrated,
-the zone now contains lots of free memory (basically above low watermark)
-BUT all are in MIGRATE_ISOLATE list of the buddy list.
-
-So kswapd() would not balance this zone as free pages are above low watermark
-(but all are in isolate list). So zone->all_unreclaimable flag would
-never be set for this zone
-and allocation function would end up looping forever. (assuming the
-zone NORMAL is
-left with no reclaimable memory)
-
-
-Regards,
-Aaditya Kumar
-Sony India Software Centre,
-Bangalore.
+If a large number of hugepages, for example, are allocated on the command 
+line because there's a lower success rate of dynamic allocation due to 
+fragmentation, with your suggestion it would no longer allow the admin to 
+restrict the use of those hugepages to only a particular set of tasks.  
+Consider especially 1GB hugepagez on x86, your suggestion would treat a 
+single 1GB hugepage which cannot be freed after boot exactly the same as 
+using 1GB of memory which is obviously not the desired behavior of any 
+hugetlb controller.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
