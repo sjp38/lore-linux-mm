@@ -1,79 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx111.postini.com [74.125.245.111])
-	by kanga.kvack.org (Postfix) with SMTP id E6B116B0068
-	for <linux-mm@kvack.org>; Sat, 16 Jun 2012 16:49:24 -0400 (EDT)
-Message-ID: <201206162049.q5GKnN74019488@farm-0002.internal.tilera.com>
-From: Chris Metcalf <cmetcalf@tilera.com>
-Date: Sat, 16 Jun 2012 16:41:05 -0400
-Subject: [PATCH 3/3] bounce: allow use of bounce pool via config option
-In-Reply-To: <201206162048.q5GKm1rt019464@farm-0002.internal.tilera.com>
+Received: from psmtp.com (na3sys010amx138.postini.com [74.125.245.138])
+	by kanga.kvack.org (Postfix) with SMTP id 0CC856B0068
+	for <linux-mm@kvack.org>; Sat, 16 Jun 2012 21:11:40 -0400 (EDT)
+Received: by dakp5 with SMTP id p5so6788247dak.14
+        for <linux-mm@kvack.org>; Sat, 16 Jun 2012 18:11:39 -0700 (PDT)
+Date: Sat, 16 Jun 2012 18:11:36 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH v5] slab/mempolicy: always use local policy from interrupt
+ context
+In-Reply-To: <alpine.DEB.2.00.1206091917580.7832@chino.kir.corp.google.com>
+Message-ID: <alpine.DEB.2.00.1206161811020.797@chino.kir.corp.google.com>
+References: <1338438844-5022-1-git-send-email-andi@firstfloor.org> <1339234803-21106-1-git-send-email-tdmackey@twitter.com> <alpine.DEB.2.00.1206091917580.7832@chino.kir.corp.google.com>
 MIME-Version: 1.0
-Content-Type: text/plain
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-usb@vger.kernel.org
+To: David Mackey <tdmackey@twitter.com>, Andrew Morton <akpm@linux-foundation.org>, penberg@kernel.org
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andi Kleen <ak@linux.intel.com>, cl@linux.com
 
-The tilegx USB OHCI support needs the bounce pool since we're not
-using the IOMMU to handle 32-bit addresses.
+On Sat, 9 Jun 2012, David Rientjes wrote:
 
-Signed-off-by: Chris Metcalf <cmetcalf@tilera.com>
----
- arch/tile/Kconfig |    6 ++++++
- mm/bounce.c       |    8 +++++---
- 2 files changed, 11 insertions(+), 3 deletions(-)
+> On Sat, 9 Jun 2012, David Mackey wrote:
+> 
+> > diff --git a/mm/mempolicy.c b/mm/mempolicy.c
+> > index f15c1b2..cb0b230 100644
+> > --- a/mm/mempolicy.c
+> > +++ b/mm/mempolicy.c
+> > @@ -1602,8 +1602,14 @@ static unsigned interleave_nodes(struct mempolicy *policy)
+> >   * task can change it's policy.  The system default policy requires no
+> >   * such protection.
+> >   */
+> > -unsigned slab_node(struct mempolicy *policy)
+> > +unsigned slab_node(void)
+> >  {
+> > +	struct mempolicy *policy;
+> > +
+> > +	if (in_interrupt())
+> > +		return numa_node_id();
+> > +
+> > +	policy = current->mempolicy;
+> >  	if (!policy || policy->flags & MPOL_F_LOCAL)
+> >  		return numa_node_id();
+> >  
+> 
+> Should probably be numa_mem_id() in both these cases for 
+> CONFIG_HAVE_MEMORYLESS_NODES, but it won't cause a problem in this form 
+> either.
+> 
+> Acked-by: David Rientjes <rientjes@google.com>
+> 
 
-diff --git a/arch/tile/Kconfig b/arch/tile/Kconfig
-index cf4bb69e..932e443 100644
---- a/arch/tile/Kconfig
-+++ b/arch/tile/Kconfig
-@@ -406,6 +406,12 @@ config TILE_USB
- 	  Provides USB host adapter support for the built-in EHCI and OHCI
- 	  interfaces on TILE-Gx chips.
- 
-+# USB OHCI needs the bounce pool since tilegx will often have more
-+# than 4GB of memory, but we don't currently use the IOTLB to present
-+# a 32-bit address to OHCI.  So we need to use a bounce pool instead.
-+config NEED_BOUNCE_POOL
-+	def_bool USB_OHCI_HCD
-+
- config HOTPLUG
- 	bool "Support for hot-pluggable devices"
- 	---help---
-diff --git a/mm/bounce.c b/mm/bounce.c
-index d1be02c..0420867 100644
---- a/mm/bounce.c
-+++ b/mm/bounce.c
-@@ -24,23 +24,25 @@
- 
- static mempool_t *page_pool, *isa_page_pool;
- 
--#ifdef CONFIG_HIGHMEM
-+#if defined(CONFIG_HIGHMEM) || defined(CONFIG_NEED_BOUNCE_POOL)
- static __init int init_emergency_pool(void)
- {
--#ifndef CONFIG_MEMORY_HOTPLUG
-+#if defined(CONFIG_HIGHMEM) && !defined(CONFIG_MEMORY_HOTPLUG)
- 	if (max_pfn <= max_low_pfn)
- 		return 0;
- #endif
- 
- 	page_pool = mempool_create_page_pool(POOL_SIZE, 0);
- 	BUG_ON(!page_pool);
--	printk("highmem bounce pool size: %d pages\n", POOL_SIZE);
-+	printk("bounce pool size: %d pages\n", POOL_SIZE);
- 
- 	return 0;
- }
- 
- __initcall(init_emergency_pool);
-+#endif
- 
-+#ifdef CONFIG_HIGHMEM
- /*
-  * highmem version, map in to vec
-  */
--- 
-1.7.10.3
+Still missing from linux-next, who's going to pick this up?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
