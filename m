@@ -1,36 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx121.postini.com [74.125.245.121])
-	by kanga.kvack.org (Postfix) with SMTP id 3C50E6B0062
-	for <linux-mm@kvack.org>; Sun, 17 Jun 2012 21:16:46 -0400 (EDT)
-Message-ID: <1339982188.28108.3.camel@concordia>
-Subject: Re: [PATCH 0/7][TRIVIAL][resend] trivial patches
-From: Michael Ellerman <michael@ellerman.id.au>
-Date: Mon, 18 Jun 2012 11:16:28 +1000
-In-Reply-To: <1339766499-7891-1-git-send-email-liwp.linux@gmail.com>
-References: <1339766499-7891-1-git-send-email-liwp.linux@gmail.com>
-Content-Type: text/plain; charset="UTF-8"
+Received: from psmtp.com (na3sys010amx157.postini.com [74.125.245.157])
+	by kanga.kvack.org (Postfix) with SMTP id 9E20B6B0062
+	for <linux-mm@kvack.org>; Sun, 17 Jun 2012 22:45:43 -0400 (EDT)
+Received: from m4.gw.fujitsu.co.jp (unknown [10.0.50.74])
+	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id B962B3EE0C5
+	for <linux-mm@kvack.org>; Mon, 18 Jun 2012 11:45:41 +0900 (JST)
+Received: from smail (m4 [127.0.0.1])
+	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 9DDB145DE53
+	for <linux-mm@kvack.org>; Mon, 18 Jun 2012 11:45:41 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
+	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 856E045DE4F
+	for <linux-mm@kvack.org>; Mon, 18 Jun 2012 11:45:41 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 73EA7E18005
+	for <linux-mm@kvack.org>; Mon, 18 Jun 2012 11:45:41 +0900 (JST)
+Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.240.81.133])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 23A24E18001
+	for <linux-mm@kvack.org>; Mon, 18 Jun 2012 11:45:41 +0900 (JST)
+Message-ID: <4FDE95CA.80809@jp.fujitsu.com>
+Date: Mon, 18 Jun 2012 11:43:22 +0900
+From: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH 2/5] mm: memcg set soft_limit_in_bytes to 0 by default
+References: <1339007023-10467-1-git-send-email-yinghan@google.com>
+In-Reply-To: <1339007023-10467-1-git-send-email-yinghan@google.com>
+Content-Type: text/plain; charset=ISO-2022-JP
 Content-Transfer-Encoding: 7bit
-Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wanpeng Li <liwp.linux@gmail.com>
-Cc: trivial@kernel.org, Christoph Lameter <cl@linux-foundation.org>, Srikar Dronamraju <srikar@linux.vnet.ibm.com>, linux-pci@vger.kernel.org, Jesse Barnes <jbarnes@virtuousgeek.org>, David Howells <dhowells@redhat.com>, Paul Gortmaker <paul.gortmaker@windriver.com>, "H. Peter Anvin" <hpa@zytor.com>, Larry Woodman <lwoodman@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, Stephen Rothwell <sfr@canb.auug.org.au>, Gavin Shan <shangw@linux.vnet.ibm.com>, x86@kernel.org, Hugh Dickins <hughd@google.com>, Ingo Molnar <mingo@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Jan Kiszka <jan.kiszka@siemens.com>, Nishanth Aravamudan <nacc@us.ibm.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Mel Gorman <mel@csn.ul.ie>, Jason Wessel <jason.wessel@windriver.com>, Al Viro <viro@zeniv.linux.org.uk>, Bjorn Helgaas <bhelgaas@google.com>, cgroups@vger.kernel.org, Thomas Gleixner <tglx@linutronix.de>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Milton Miller <miltonm@bga.com>, Minchan Kim <minchan@kernel.org>, Li Zefan <lizefan@huawei.com>, Johannes Weiner <hannes@cmpxchg.org>, Tejun Heo <tj@kernel.org>, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, linuxppc-dev@lists.ozlabs.org
+To: Ying Han <yinghan@google.com>
+Cc: Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, Hillf Danton <dhillf@gmail.com>, Hugh Dickins <hughd@google.com>, Greg Thelen <gthelen@google.com>, Dan Magenheimer <dan.magenheimer@oracle.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
 
-On Fri, 2012-06-15 at 21:21 +0800, Wanpeng Li wrote:
-> From: Wanpeng Li <liwp@linux.vnet.ibm.com>
+(2012/06/07 3:23), Ying Han wrote:
+> This idea is based on discussion with Michal and Johannes from LSF.
 > 
-> Since these patches has already send more than one week and 
-> doesn't get any response, I collect them and send out a patch set.
+> 1. If soft_limit are all set to MAX, it wastes first three priority iterations
+> without scanning anything.
+> 
+> 2. By default every memcg is eligible for softlimit reclaim, and we can also
+> set the value to MAX for special memcg which is immune to soft limit reclaim.
+> 
+> There is a behavior change after this patch: (N == DEF_PRIORITY - 2)
+> 
+>          A: usage>  softlimit        B: usage<= softlimit        U: softlimit unset
+> old:    reclaim at each priority    reclaim when priority<  N    reclaim when priority<  N
+> new:    reclaim at each priority    reclaim when priority<  N    reclaim at each priority
+> 
+> Note: I can leave the counter->soft_limit uninitialized, at least all the
+> caller of res_counter_init() have the memcg as pre-zeroed structure. However, I
+> might be better not rely on that.
+> 
+> Signed-off-by: Ying Han<yinghan@google.com>
 
-These patches are all trivial cleanups, so I would not expect to get any
-response. Just look to see if they appear in the -next branches of the
-various maintainers before the next merge window, ie. in the next few
-weeks.
-
-If they haven't been picked up before the next merge window, then you
-should resend them.
-
-cheers
+Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
