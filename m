@@ -1,9 +1,9 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx106.postini.com [74.125.245.106])
-	by kanga.kvack.org (Postfix) with SMTP id 57F246B0062
-	for <linux-mm@kvack.org>; Mon, 18 Jun 2012 15:01:08 -0400 (EDT)
-Message-ID: <4FDF7AC4.9020008@redhat.com>
-Date: Mon, 18 Jun 2012 15:00:20 -0400
+Received: from psmtp.com (na3sys010amx175.postini.com [74.125.245.175])
+	by kanga.kvack.org (Postfix) with SMTP id 346826B0062
+	for <linux-mm@kvack.org>; Mon, 18 Jun 2012 15:03:13 -0400 (EDT)
+Message-ID: <4FDF7B5E.301@redhat.com>
+Date: Mon, 18 Jun 2012 15:02:54 -0400
 From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
 Subject: Re: [PATCH -mm 3/6] Fix the x86-64 page colouring code to take pgoff
@@ -29,13 +29,9 @@ On 06/18/2012 02:16 PM, Borislav Petkov wrote:
 > 1/6 doesn't apply ontop of current mainline and by "current" I mean
 > v3.5-rc3-57-g39a50b42f702.
 
-I git pulled on Friday, then used guilt to apply and rediff
-all the patches. I pull from here:
-
-git://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux-2.6
-
-I see no g39a50b... commit after pulling that tree here.
-Do you have any local changes by chance?
+After pulling in the latest patches, including that
+39a50b... commit, all patches still apply here when
+I type guilt push -a.
 
 -- 
 All rights reversed
