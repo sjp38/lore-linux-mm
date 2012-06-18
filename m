@@ -1,85 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx162.postini.com [74.125.245.162])
-	by kanga.kvack.org (Postfix) with SMTP id 86F266B0062
-	for <linux-mm@kvack.org>; Mon, 18 Jun 2012 04:25:18 -0400 (EDT)
-Received: by qcsd16 with SMTP id d16so3428543qcs.14
-        for <linux-mm@kvack.org>; Mon, 18 Jun 2012 01:25:17 -0700 (PDT)
-Message-ID: <4FDEE5EB.8040702@gmail.com>
-Date: Mon, 18 Jun 2012 04:25:15 -0400
-From: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
+Received: from psmtp.com (na3sys010amx135.postini.com [74.125.245.135])
+	by kanga.kvack.org (Postfix) with SMTP id DE1BA6B0062
+	for <linux-mm@kvack.org>; Mon, 18 Jun 2012 04:58:27 -0400 (EDT)
+Received: by lahi5 with SMTP id i5so4309459lah.14
+        for <linux-mm@kvack.org>; Mon, 18 Jun 2012 01:58:25 -0700 (PDT)
+Date: Mon, 18 Jun 2012 12:58:22 +0400
+From: Cyrill Gorcunov <gorcunov@openvz.org>
+Subject: Re: [PATCH 3.5] c/r: prctl: less paranoid prctl_set_mm_exe_file()
+Message-ID: <20120618085822.GA8304@moon>
+References: <20120616085104.14682.16723.stgit@zurg>
+ <20120616090646.GD32029@moon>
+ <20120616091712.GA2021@moon>
+ <4FDC54FF.3020305@openvz.org>
+ <20120616094714.GF32029@moon>
+ <4FDCA875.6040905@openvz.org>
+ <20120616154424.GG32029@moon>
 MIME-Version: 1.0
-Subject: Re: [PATCH] trivial, memory hotplug: add kswapd_is_running() for
- better readability
-References: <4FD97718.6060008@kernel.org> <1339663776-196-1-git-send-email-jiang.liu@huawei.com> <alpine.DEB.2.00.1206161913370.797@chino.kir.corp.google.com> <4FDE8081.1070500@kernel.org>
-In-Reply-To: <4FDE8081.1070500@kernel.org>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20120616154424.GG32029@moon>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, kosaki.motohiro@gmail.com
+To: Konstantin Khlebnikov <khlebnikov@openvz.org>, Andrew Morton <akpm@linux-foundation.org>
+Cc: Kees Cook <keescook@chromium.org>, Pavel Emelianov <xemul@parallels.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Oleg Nesterov <oleg@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Matt Helsley <matthltc@us.ibm.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Tejun Heo <tj@kernel.org>
 
-(6/17/12 9:12 PM), Minchan Kim wrote:
-> On 06/17/2012 11:19 AM, David Rientjes wrote:
->
->> On Thu, 14 Jun 2012, Jiang Liu wrote:
->>
->>> diff --git a/include/linux/swap.h b/include/linux/swap.h
->>> index c84ec68..36249d5 100644
->>> --- a/include/linux/swap.h
->>> +++ b/include/linux/swap.h
->>> @@ -301,6 +301,11 @@ static inline void scan_unevictable_unregister_node(struct node *node)
->>>
->>>   extern int kswapd_run(int nid);
->>>   extern void kswapd_stop(int nid);
->>> +static inline bool kswapd_is_running(int nid)
->>> +{
->>> +	return !!(NODE_DATA(nid)->kswapd);
->>> +}
->>> +
->>>   #ifdef CONFIG_CGROUP_MEM_RES_CTLR
->>>   extern int mem_cgroup_swappiness(struct mem_cgroup *mem);
->>>   #else
->>> diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
->>> index 0d7e3ec..88e479d 100644
->>> --- a/mm/memory_hotplug.c
->>> +++ b/mm/memory_hotplug.c
->>> @@ -522,7 +522,8 @@ int __ref online_pages(unsigned long pfn, unsigned long nr_pages)
->>>   	init_per_zone_wmark_min();
->>>
->>>   	if (onlined_pages) {
->>> -		kswapd_run(zone_to_nid(zone));
->>> +		if (!kswapd_is_running(zone_to_nid(zone)))
->>> +			kswapd_run(zone_to_nid(zone));
->>>   		node_set_state(zone_to_nid(zone), N_HIGH_MEMORY);
->>>   	}
->>>
->>> diff --git a/mm/vmscan.c b/mm/vmscan.c
->>> index 7585101..3dafdbe 100644
->>> --- a/mm/vmscan.c
->>> +++ b/mm/vmscan.c
->>> @@ -2941,8 +2941,7 @@ int kswapd_run(int nid)
->>>   	pg_data_t *pgdat = NODE_DATA(nid);
->>>   	int ret = 0;
->>>
->>> -	if (pgdat->kswapd)
->>> -		return 0;
->>> +	BUG_ON(pgdat->kswapd);
->>>
->>>   	pgdat->kswapd = kthread_run(kswapd, pgdat, "kswapd%d", nid);
->>>   	if (IS_ERR(pgdat->kswapd)) {
->>
->> This isn't better, there's no functional change and you've just added a
->> second conditional for no reason and an unnecessary kswapd_is_running()
->> function.
->
-> Tend to agree.
-> Now that I think about it, it's enough to add comment.
+On Sat, Jun 16, 2012 at 07:44:24PM +0400, Cyrill Gorcunov wrote:
+> On Sat, Jun 16, 2012 at 07:38:29PM +0400, Konstantin Khlebnikov wrote:
+> > >Yeah, you've changed !path_equal to path_equal. And yes, getting rid of
+> > >num_exe_file_vmas is good idea. Btw, Konstantin, why do we need to
+> > >call for path_equal? Maybe we can simply test for mm->exe_file == NULL,
+> > >and refuse to change anything if it's not nil value? This will simplify
+> > >the code.
+> > 
+> > After removing VM_EXECUTABLE and mm->num_exe_file_vmas mm->exe_file
+> > will never becomes NULL automatically. Patch for this not commited yet,
+> > but I hope it will be in 3.6.
+> 
+> OK, lets stick with current patch then.
 
-Ok, I'd like to handle this issue because now I have some mem-hotplug related tirivial
-fixes. So, to add one more patch is not big bother to me.
+To clarify
 
+Tested-by: Cyrill Gorcunov <gorcunov@openvz.org>
 
+Andrew, could you please pick up this bugfix. It's critical for us.
+
+P.S. Together with patch https://lkml.org/lkml/2012/6/15/220 it'll be
+last changes to prctl in a sake of c/r I think. Would be cool to have
+both bugfixes in 3.5.
+
+	Cyrill
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
