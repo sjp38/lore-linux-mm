@@ -1,80 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx135.postini.com [74.125.245.135])
-	by kanga.kvack.org (Postfix) with SMTP id E3F756B0062
-	for <linux-mm@kvack.org>; Mon, 18 Jun 2012 12:47:32 -0400 (EDT)
-Received: by qafk22 with SMTP id k22so149734qaf.2
-        for <linux-mm@kvack.org>; Mon, 18 Jun 2012 09:47:31 -0700 (PDT)
-From: Ying Han <yinghan@google.com>
-Subject: [PATCH V5 3/5] mm: memcg detect no memcgs above softlimit under zone reclaim
-Date: Mon, 18 Jun 2012 09:47:29 -0700
-Message-Id: <1340038051-29502-3-git-send-email-yinghan@google.com>
-In-Reply-To: <1340038051-29502-1-git-send-email-yinghan@google.com>
-References: <1340038051-29502-1-git-send-email-yinghan@google.com>
+Received: from psmtp.com (na3sys010amx148.postini.com [74.125.245.148])
+	by kanga.kvack.org (Postfix) with SMTP id 38A046B0062
+	for <linux-mm@kvack.org>; Mon, 18 Jun 2012 14:17:06 -0400 (EDT)
+Date: Mon, 18 Jun 2012 20:16:59 +0200
+From: Borislav Petkov <bp@alien8.de>
+Subject: Re: [PATCH -mm 3/6] Fix the x86-64 page colouring code to take pgoff
+ into account and use that code as the basis for a generic page colouring
+ code.
+Message-ID: <20120618181658.GA7190@x1.osrc.amd.com>
+References: <1340029878-7966-1-git-send-email-riel@redhat.com>
+ <1340029878-7966-4-git-send-email-riel@redhat.com>
+ <m2k3z48twb.fsf@firstfloor.org>
+ <4FDF5B3C.1000007@redhat.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+In-Reply-To: <4FDF5B3C.1000007@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mel@csn.ul.ie>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Hillf Danton <dhillf@gmail.com>, Hugh Dickins <hughd@google.com>, Dan Magenheimer <dan.magenheimer@oracle.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org
+To: Rik van Riel <riel@redhat.com>
+Cc: Andi Kleen <andi@firstfloor.org>, linux-mm@kvack.org, akpm@linux-foundation.org, aarcange@redhat.com, peterz@infradead.org, minchan@gmail.com, kosaki.motohiro@gmail.com, hnaz@cmpxchg.org, mel@csn.ul.ie, linux-kernel@vger.kernel.org, Rik van Riel <riel@surriel.com>
 
-In memcg kernel, cgroup under its softlimit is not targeted under global
-reclaim. It could be possible that all memcgs are under their softlimit for
-a particular zone. If that is the case, the current implementation will
-burn extra cpu cycles without making forward progress.
+On Mon, Jun 18, 2012 at 12:45:48PM -0400, Rik van Riel wrote:
+> >What tree is that against? I cannot find x86 page colouring code in next
+> >or mainline.
+> 
+> This is against mainline.
 
-The idea is from LSF discussion where we detect it after the first round of
-scanning and restart the reclaim by not looking at softlimit at all. This
-allows us to make forward progress on shrink_zone().
+Which mainline do you mean exactly?
 
-Signed-off-by: Ying Han <yinghan@google.com>
----
- mm/vmscan.c |   17 +++++++++++++++--
- 1 files changed, 15 insertions(+), 2 deletions(-)
+1/6 doesn't apply ontop of current mainline and by "current" I mean
+v3.5-rc3-57-g39a50b42f702.
 
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 8c367e1..51f8cc9 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -1827,6 +1827,10 @@ static void shrink_zone(struct zone *zone, struct scan_control *sc)
- 		.priority = sc->priority,
- 	};
- 	struct mem_cgroup *memcg;
-+	bool over_softlimit, ignore_softlimit = false;
-+
-+restart:
-+	over_softlimit = false;
- 
- 	memcg = mem_cgroup_iter(root, NULL, &reclaim);
- 	do {
-@@ -1845,10 +1849,14 @@ static void shrink_zone(struct zone *zone, struct scan_control *sc)
- 		 * we have to reclaim under softlimit instead of burning more
- 		 * cpu cycles.
- 		 */
--		if (!global_reclaim(sc) || sc->priority < DEF_PRIORITY - 2 ||
--				should_reclaim_mem_cgroup(memcg))
-+		if (ignore_softlimit || !global_reclaim(sc) ||
-+				sc->priority < DEF_PRIORITY - 2 ||
-+				should_reclaim_mem_cgroup(memcg)) {
- 			shrink_lruvec(lruvec, sc);
- 
-+			over_softlimit = true;
-+		}
-+
- 		/*
- 		 * Limit reclaim has historically picked one memcg and
- 		 * scanned it with decreasing priority levels until
-@@ -1865,6 +1873,11 @@ static void shrink_zone(struct zone *zone, struct scan_control *sc)
- 		}
- 		memcg = mem_cgroup_iter(root, memcg, &reclaim);
- 	} while (memcg);
-+
-+	if (!over_softlimit) {
-+		ignore_softlimit = true;
-+		goto restart;
-+	}
- }
- 
- /* Returns true if compaction should go ahead for a high-order request */
 -- 
-1.7.7.3
+Regards/Gruss,
+Boris.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
