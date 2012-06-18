@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx143.postini.com [74.125.245.143])
-	by kanga.kvack.org (Postfix) with SMTP id A6B4B6B0080
-	for <linux-mm@kvack.org>; Mon, 18 Jun 2012 06:32:55 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx201.postini.com [74.125.245.201])
+	by kanga.kvack.org (Postfix) with SMTP id B55466B0080
+	for <linux-mm@kvack.org>; Mon, 18 Jun 2012 06:32:58 -0400 (EDT)
 From: Glauber Costa <glommer@parallels.com>
-Subject: [PATCH v4 16/25] don't do __ClearPageSlab before freeing slab page.
-Date: Mon, 18 Jun 2012 14:28:09 +0400
-Message-Id: <1340015298-14133-17-git-send-email-glommer@parallels.com>
+Subject: [PATCH v4 17/25] skip memcg kmem allocations in specified code regions
+Date: Mon, 18 Jun 2012 14:28:10 +0400
+Message-Id: <1340015298-14133-18-git-send-email-glommer@parallels.com>
 In-Reply-To: <1340015298-14133-1-git-send-email-glommer@parallels.com>
 References: <1340015298-14133-1-git-send-email-glommer@parallels.com>
 Sender: owner-linux-mm@kvack.org
@@ -13,95 +13,105 @@ List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
 Cc: Pekka Enberg <penberg@kernel.org>, Cristoph Lameter <cl@linux.com>, David Rientjes <rientjes@google.com>, cgroups@vger.kernel.org, devel@openvz.org, kamezawa.hiroyu@jp.fujitsu.com, linux-kernel@vger.kernel.org, Frederic Weisbecker <fweisbec@gmail.com>, Suleiman Souhlal <suleiman@google.com>, Glauber Costa <glommer@parallels.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>
 
-This will give the oportunity to the page allocator to
-determine that a given page was previously a slab page, and
-take action accordingly.
+This patch creates a mechanism that skip memcg allocations during
+certain pieces of our core code. It basically works in the same way
+as preempt_disable()/preempt_enable(): By marking a region under
+which all allocations will be accounted to the root memcg.
 
-If memcg kmem is present, this means that that page needs to
-be unaccounted. The page allocator will now have the responsibility
-to clear that bit upon free_pages().
-
-It is not uncommon to have the page allocator to check page flags.
-Mlock flag, for instance, is checked pervasively all over the place.
-So I hope this is okay for the slab as well.
+We need this to prevent races in early cache creation, when we
+allocate data using caches that are not necessarily created already.
 
 Signed-off-by: Glauber Costa <glommer@parallels.com>
+CC: Christoph Lameter <cl@linux.com>
 CC: Pekka Enberg <penberg@cs.helsinki.fi>
 CC: Michal Hocko <mhocko@suse.cz>
 CC: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 CC: Johannes Weiner <hannes@cmpxchg.org>
 CC: Suleiman Souhlal <suleiman@google.com>
 ---
- mm/page_alloc.c |    5 ++++-
- mm/slab.c       |    5 -----
- mm/slob.c       |    1 -
- mm/slub.c       |    1 -
- 4 files changed, 4 insertions(+), 8 deletions(-)
+ include/linux/sched.h |    1 +
+ mm/memcontrol.c       |   26 ++++++++++++++++++++++++++
+ 2 files changed, 27 insertions(+)
 
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 918330f..a884a9c 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -697,8 +697,10 @@ static bool free_pages_prepare(struct page *page, unsigned int order)
+diff --git a/include/linux/sched.h b/include/linux/sched.h
+index 81a173c..0761dda 100644
+--- a/include/linux/sched.h
++++ b/include/linux/sched.h
+@@ -1613,6 +1613,7 @@ struct task_struct {
+ 		unsigned long nr_pages;	/* uncharged usage */
+ 		unsigned long memsw_nr_pages; /* uncharged mem+swap usage */
+ 	} memcg_batch;
++	unsigned int memcg_kmem_skip_account;
+ #endif
+ #ifdef CONFIG_HAVE_HW_BREAKPOINT
+ 	atomic_t ptrace_bp_refcnt;
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index 324e550..233d3bc 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -479,6 +479,22 @@ struct cg_proto *tcp_proto_cgroup(struct mem_cgroup *memcg)
+ EXPORT_SYMBOL(tcp_proto_cgroup);
+ #endif /* CONFIG_INET */
  
- 	if (PageAnon(page))
- 		page->mapping = NULL;
--	for (i = 0; i < (1 << order); i++)
-+	for (i = 0; i < (1 << order); i++) {
-+		__ClearPageSlab(page + i);
- 		bad += free_pages_check(page + i);
-+	}
- 	if (bad)
- 		return false;
- 
-@@ -2505,6 +2507,7 @@ EXPORT_SYMBOL(get_zeroed_page);
- void __free_pages(struct page *page, unsigned int order)
++static void memcg_stop_kmem_account(void)
++{
++	if (!current->mm)
++		return;
++
++	current->memcg_kmem_skip_account++;
++}
++
++static void memcg_resume_kmem_account(void)
++{
++	if (!current->mm)
++		return;
++
++	current->memcg_kmem_skip_account--;
++}
++
+ static char *mem_cgroup_cache_name(struct mem_cgroup *memcg, struct kmem_cache *cachep)
  {
- 	if (put_page_testzero(page)) {
-+		__ClearPageSlab(page);
- 		if (order == 0)
- 			free_hot_cold_page(page, 0);
- 		else
-diff --git a/mm/slab.c b/mm/slab.c
-index c548666..e537406 100644
---- a/mm/slab.c
-+++ b/mm/slab.c
-@@ -1795,11 +1795,6 @@ static void kmem_freepages(struct kmem_cache *cachep, void *addr)
- 	else
- 		sub_zone_page_state(page_zone(page),
- 				NR_SLAB_UNRECLAIMABLE, nr_freed);
--	while (i--) {
--		BUG_ON(!PageSlab(page));
--		__ClearPageSlab(page);
--		page++;
--	}
- 	if (current->reclaim_state)
- 		current->reclaim_state->reclaimed_slab += nr_freed;
- 	free_pages((unsigned long)addr, cachep->gfporder);
-diff --git a/mm/slob.c b/mm/slob.c
-index 61b1845..b03d65e 100644
---- a/mm/slob.c
-+++ b/mm/slob.c
-@@ -360,7 +360,6 @@ static void slob_free(void *block, int size)
- 		if (slob_page_free(sp))
- 			clear_slob_page_free(sp);
- 		spin_unlock_irqrestore(&slob_lock, flags);
--		__ClearPageSlab(sp);
- 		reset_page_mapcount(sp);
- 		slob_free_pages(b, 0);
- 		return;
-diff --git a/mm/slub.c b/mm/slub.c
-index e685cfa..69c5677 100644
---- a/mm/slub.c
-+++ b/mm/slub.c
-@@ -1399,7 +1399,6 @@ static void __free_slab(struct kmem_cache *s, struct page *page)
- 		NR_SLAB_RECLAIMABLE : NR_SLAB_UNRECLAIMABLE,
- 		-pages);
+ 	char *name;
+@@ -555,7 +571,9 @@ static struct kmem_cache *memcg_create_kmem_cache(struct mem_cgroup *memcg,
+ 	if (new_cachep)
+ 		goto out;
  
--	__ClearPageSlab(page);
- 	reset_page_mapcount(page);
- 	if (current->reclaim_state)
- 		current->reclaim_state->reclaimed_slab += pages;
++	memcg_stop_kmem_account();
+ 	new_cachep = kmem_cache_dup(memcg, cachep);
++	memcg_resume_kmem_account();
+ 
+ 	if (new_cachep == NULL) {
+ 		new_cachep = cachep;
+@@ -646,7 +664,9 @@ static void memcg_create_cache_enqueue(struct mem_cgroup *memcg,
+ 	if (!css_tryget(&memcg->css))
+ 		return;
+ 
++	memcg_stop_kmem_account();
+ 	cw = kmalloc(sizeof(struct create_work), GFP_NOWAIT);
++	memcg_resume_kmem_account();
+ 	if (cw == NULL) {
+ 		css_put(&memcg->css);
+ 		return;
+@@ -681,6 +701,9 @@ struct kmem_cache *__mem_cgroup_get_kmem_cache(struct kmem_cache *cachep,
+ 	int idx;
+ 	struct task_struct *p;
+ 
++	if (!current->mm || current->memcg_kmem_skip_account)
++		return cachep;
++
+ 	if (cachep->memcg_params.memcg)
+ 		return cachep;
+ 
+@@ -713,6 +736,9 @@ bool __mem_cgroup_new_kmem_page(gfp_t gfp, void *_handle, int order)
+ 	struct task_struct *p;
+ 
+ 	handle = NULL;
++	if (current->memcg_kmem_skip_account)
++		return true;
++
+ 	rcu_read_lock();
+ 	p = rcu_dereference(current->mm->owner);
+ 	memcg = mem_cgroup_from_task(p);
 -- 
 1.7.10.2
 
