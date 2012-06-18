@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx155.postini.com [74.125.245.155])
-	by kanga.kvack.org (Postfix) with SMTP id 229B46B007B
-	for <linux-mm@kvack.org>; Mon, 18 Jun 2012 06:32:51 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx143.postini.com [74.125.245.143])
+	by kanga.kvack.org (Postfix) with SMTP id A6B4B6B0080
+	for <linux-mm@kvack.org>; Mon, 18 Jun 2012 06:32:55 -0400 (EDT)
 From: Glauber Costa <glommer@parallels.com>
-Subject: [PATCH v4 15/25] allow enable_cpu_cache to use preset values for its tunables
-Date: Mon, 18 Jun 2012 14:28:08 +0400
-Message-Id: <1340015298-14133-16-git-send-email-glommer@parallels.com>
+Subject: [PATCH v4 16/25] don't do __ClearPageSlab before freeing slab page.
+Date: Mon, 18 Jun 2012 14:28:09 +0400
+Message-Id: <1340015298-14133-17-git-send-email-glommer@parallels.com>
 In-Reply-To: <1340015298-14133-1-git-send-email-glommer@parallels.com>
 References: <1340015298-14133-1-git-send-email-glommer@parallels.com>
 Sender: owner-linux-mm@kvack.org
@@ -13,138 +13,95 @@ List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
 Cc: Pekka Enberg <penberg@kernel.org>, Cristoph Lameter <cl@linux.com>, David Rientjes <rientjes@google.com>, cgroups@vger.kernel.org, devel@openvz.org, kamezawa.hiroyu@jp.fujitsu.com, linux-kernel@vger.kernel.org, Frederic Weisbecker <fweisbec@gmail.com>, Suleiman Souhlal <suleiman@google.com>, Glauber Costa <glommer@parallels.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>
 
-SLAB allows us to tune a particular cache behavior with tunables.
-When creating a new memcg cache copy, we'd like to preserve any tunables
-the parent cache already had.
+This will give the oportunity to the page allocator to
+determine that a given page was previously a slab page, and
+take action accordingly.
 
-This could be done by an explicit call to do_tune_cpucache() after the
-cache is created. But this is not very convenient now that the caches are
-created from common code, since this function is SLAB-specific.
+If memcg kmem is present, this means that that page needs to
+be unaccounted. The page allocator will now have the responsibility
+to clear that bit upon free_pages().
 
-Another method of doing that is taking advantage of the fact that
-do_tune_cpucache() is always called from enable_cpucache(), which is
-called at cache initialization. We can just preset the values, and
-then things work as expected.
+It is not uncommon to have the page allocator to check page flags.
+Mlock flag, for instance, is checked pervasively all over the place.
+So I hope this is okay for the slab as well.
 
 Signed-off-by: Glauber Costa <glommer@parallels.com>
-CC: Christoph Lameter <cl@linux.com>
 CC: Pekka Enberg <penberg@cs.helsinki.fi>
 CC: Michal Hocko <mhocko@suse.cz>
 CC: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 CC: Johannes Weiner <hannes@cmpxchg.org>
 CC: Suleiman Souhlal <suleiman@google.com>
 ---
- include/linux/slab.h |    3 ++-
- mm/memcontrol.c      |    2 +-
- mm/slab.c            |   19 ++++++++++++++++---
- mm/slab_common.c     |    7 ++++---
- 4 files changed, 23 insertions(+), 8 deletions(-)
+ mm/page_alloc.c |    5 ++++-
+ mm/slab.c       |    5 -----
+ mm/slob.c       |    1 -
+ mm/slub.c       |    1 -
+ 4 files changed, 4 insertions(+), 8 deletions(-)
 
-diff --git a/include/linux/slab.h b/include/linux/slab.h
-index d347616..d2d2fad 100644
---- a/include/linux/slab.h
-+++ b/include/linux/slab.h
-@@ -128,7 +128,7 @@ struct kmem_cache *kmem_cache_create(const char *, size_t, size_t,
- 			void (*)(void *));
- struct kmem_cache *
- kmem_cache_create_memcg(struct mem_cgroup *, const char *, size_t, size_t,
--			unsigned long, void (*)(void *));
-+			unsigned long, void (*)(void *), struct kmem_cache *);
- void kmem_cache_destroy(struct kmem_cache *);
- int kmem_cache_shrink(struct kmem_cache *);
- void kmem_cache_free(struct kmem_cache *, void *);
-@@ -184,6 +184,7 @@ unsigned int kmem_cache_size(struct kmem_cache *);
- #ifdef CONFIG_CGROUP_MEM_RES_CTLR_KMEM
- struct mem_cgroup_cache_params {
- 	struct mem_cgroup *memcg;
-+	struct kmem_cache *parent;
- 	int id;
- 	atomic_t refcnt;
- };
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index beead5e..324e550 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -507,7 +507,7 @@ static struct kmem_cache *kmem_cache_dup(struct mem_cgroup *memcg,
- 		return NULL;
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 918330f..a884a9c 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -697,8 +697,10 @@ static bool free_pages_prepare(struct page *page, unsigned int order)
  
- 	new = kmem_cache_create_memcg(memcg, name, s->object_size, s->align,
--				      (s->flags & ~SLAB_PANIC), s->ctor);
-+				      (s->flags & ~SLAB_PANIC), s->ctor, s);
+ 	if (PageAnon(page))
+ 		page->mapping = NULL;
+-	for (i = 0; i < (1 << order); i++)
++	for (i = 0; i < (1 << order); i++) {
++		__ClearPageSlab(page + i);
+ 		bad += free_pages_check(page + i);
++	}
+ 	if (bad)
+ 		return false;
  
- 	kfree(name);
- 	return new;
+@@ -2505,6 +2507,7 @@ EXPORT_SYMBOL(get_zeroed_page);
+ void __free_pages(struct page *page, unsigned int order)
+ {
+ 	if (put_page_testzero(page)) {
++		__ClearPageSlab(page);
+ 		if (order == 0)
+ 			free_hot_cold_page(page, 0);
+ 		else
 diff --git a/mm/slab.c b/mm/slab.c
-index 3783a6a..c548666 100644
+index c548666..e537406 100644
 --- a/mm/slab.c
 +++ b/mm/slab.c
-@@ -3918,8 +3918,19 @@ static int do_tune_cpucache(struct kmem_cache *cachep, int limit,
- static int enable_cpucache(struct kmem_cache *cachep, gfp_t gfp)
- {
- 	int err;
--	int limit, shared;
--
-+	int limit = 0;
-+	int shared = 0;
-+	int batchcount = 0;
-+
-+#ifdef CONFIG_CGROUP_MEM_RES_CTLR_KMEM
-+        if (cachep->memcg_params.parent) {
-+                limit = cachep->memcg_params.parent->limit;
-+                shared = cachep->memcg_params.parent->shared;
-+                batchcount = cachep->memcg_params.parent->batchcount;
-+        }
-+#endif
-+	if (limit && shared && batchcount)
-+		goto skip_setup;
- 	/*
- 	 * The head array serves three purposes:
- 	 * - create a LIFO ordering, i.e. return objects that are cache-warm
-@@ -3961,7 +3972,9 @@ static int enable_cpucache(struct kmem_cache *cachep, gfp_t gfp)
- 	if (limit > 32)
- 		limit = 32;
- #endif
--	err = do_tune_cpucache(cachep, limit, (limit + 1) / 2, shared, gfp);
-+	batchcount = (limit + 1) / 2;
-+skip_setup:
-+	err = do_tune_cpucache(cachep, limit, batchcount, shared, gfp);
- 	if (err)
- 		printk(KERN_ERR "enable_cpucache failed for %s, error %d.\n",
- 		       cachep->name, -err);
-diff --git a/mm/slab_common.c b/mm/slab_common.c
-index 42f226d..619d365 100644
---- a/mm/slab_common.c
-+++ b/mm/slab_common.c
-@@ -80,7 +80,8 @@ unsigned long calculate_alignment(unsigned long flags,
+@@ -1795,11 +1795,6 @@ static void kmem_freepages(struct kmem_cache *cachep, void *addr)
+ 	else
+ 		sub_zone_page_state(page_zone(page),
+ 				NR_SLAB_UNRECLAIMABLE, nr_freed);
+-	while (i--) {
+-		BUG_ON(!PageSlab(page));
+-		__ClearPageSlab(page);
+-		page++;
+-	}
+ 	if (current->reclaim_state)
+ 		current->reclaim_state->reclaimed_slab += nr_freed;
+ 	free_pages((unsigned long)addr, cachep->gfporder);
+diff --git a/mm/slob.c b/mm/slob.c
+index 61b1845..b03d65e 100644
+--- a/mm/slob.c
++++ b/mm/slob.c
+@@ -360,7 +360,6 @@ static void slob_free(void *block, int size)
+ 		if (slob_page_free(sp))
+ 			clear_slob_page_free(sp);
+ 		spin_unlock_irqrestore(&slob_lock, flags);
+-		__ClearPageSlab(sp);
+ 		reset_page_mapcount(sp);
+ 		slob_free_pages(b, 0);
+ 		return;
+diff --git a/mm/slub.c b/mm/slub.c
+index e685cfa..69c5677 100644
+--- a/mm/slub.c
++++ b/mm/slub.c
+@@ -1399,7 +1399,6 @@ static void __free_slab(struct kmem_cache *s, struct page *page)
+ 		NR_SLAB_RECLAIMABLE : NR_SLAB_UNRECLAIMABLE,
+ 		-pages);
  
- struct kmem_cache *
- kmem_cache_create_memcg(struct mem_cgroup *memcg, const char *name, size_t size,
--			size_t align, unsigned long flags, void (*ctor)(void *))
-+			size_t align, unsigned long flags, void (*ctor)(void *),
-+			struct kmem_cache *parent_cache)
- {
- 	struct kmem_cache *s = NULL;
- 	char *n;
-@@ -153,9 +154,9 @@ kmem_cache_create_memcg(struct mem_cgroup *memcg, const char *name, size_t size,
- 	s->ctor = ctor;
- 	s->flags = flags;
- 	s->align = calculate_alignment(flags, align, size);
--
- #ifdef CONFIG_CGROUP_MEM_RES_CTLR_KMEM
- 	s->memcg_params.memcg = memcg;
-+	s->memcg_params.parent = parent_cache;
- #endif
- 
- 	r = __kmem_cache_create(s);
-@@ -185,7 +186,7 @@ oops:
- struct kmem_cache *kmem_cache_create(const char *name, size_t size, size_t align,
- 		unsigned long flags, void (*ctor)(void *))
- {
--	return kmem_cache_create_memcg(NULL, name, size, align, flags, ctor);
-+	return kmem_cache_create_memcg(NULL, name, size, align, flags, ctor, NULL);
- }
- EXPORT_SYMBOL(kmem_cache_create);
- 
+-	__ClearPageSlab(page);
+ 	reset_page_mapcount(page);
+ 	if (current->reclaim_state)
+ 		current->reclaim_state->reclaimed_slab += pages;
 -- 
 1.7.10.2
 
