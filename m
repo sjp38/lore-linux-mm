@@ -1,57 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx143.postini.com [74.125.245.143])
-	by kanga.kvack.org (Postfix) with SMTP id E877D6B0062
-	for <linux-mm@kvack.org>; Mon, 18 Jun 2012 03:51:04 -0400 (EDT)
-Date: Mon, 18 Jun 2012 10:50:59 +0300
-From: Hiroshi Doyu <hdoyu@nvidia.com>
-Subject: Re: [PATCH/RFC 0/2] ARM: DMA-mapping: new extensions for buffer
- sharing (part 2)
-Message-ID: <20120618105059.12c709d68240ad18c5f8c7a5@nvidia.com>
-In-Reply-To: <1338988657-20770-1-git-send-email-m.szyprowski@samsung.com>
-References: <1338988657-20770-1-git-send-email-m.szyprowski@samsung.com>
+Received: from psmtp.com (na3sys010amx131.postini.com [74.125.245.131])
+	by kanga.kvack.org (Postfix) with SMTP id 9D0EC6B0062
+	for <linux-mm@kvack.org>; Mon, 18 Jun 2012 04:20:57 -0400 (EDT)
+Received: by qaea16 with SMTP id a16so1524472qae.3
+        for <linux-mm@kvack.org>; Mon, 18 Jun 2012 01:20:56 -0700 (PDT)
+Message-ID: <4FDEE4E6.6030205@gmail.com>
+Date: Mon, 18 Jun 2012 04:20:54 -0400
+From: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
+Subject: Re: [PATCH v5] slab/mempolicy: always use local policy from interrupt
+ context
+References: <1338438844-5022-1-git-send-email-andi@firstfloor.org> <1339234803-21106-1-git-send-email-tdmackey@twitter.com>
+In-Reply-To: <1339234803-21106-1-git-send-email-tdmackey@twitter.com>
+Content-Type: text/plain; charset=ISO-2022-JP
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Marek Szyprowski <m.szyprowski@samsung.com>
-Cc: "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "linaro-mm-sig@lists.linaro.org" <linaro-mm-sig@lists.linaro.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Kyungmin Park <kyungmin.park@samsung.com>, Arnd Bergmann <arnd@arndb.de>, Russell King -
- ARM Linux <linux@arm.linux.org.uk>, Chunsang Jeong <chunsang.jeong@linaro.org>, Krishna Reddy <vdumpa@nvidia.com>, Benjamin
- Herrenschmidt <benh@kernel.crashing.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Subash Patel <subash.ramaswamy@linaro.org>, Sumit
- Semwal <sumit.semwal@linaro.org>, Abhinav Kochhar <abhinav.k@samsung.com>, Tomasz Stanislawski <t.stanislaws@samsung.com>
+To: David Mackey <tdmackey@twitter.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, rientjes@google.com, Andi Kleen <ak@linux.intel.com>, penberg@kernel.org, cl@linux.com, kosaki.motohiro@gmail.com
 
-Hi Marek,
-
-On Wed, 6 Jun 2012 15:17:35 +0200
-Marek Szyprowski <m.szyprowski@samsung.com> wrote:
-
-> Hello,
+(6/9/12 5:40 AM), David Mackey wrote:
+> From: Andi Kleen<ak@linux.intel.com>
 > 
-> This is a continuation of the dma-mapping extensions posted in the
-> following thread:
-> http://thread.gmane.org/gmane.linux.kernel.mm/78644
+> From: Andi Kleen<ak@linux.intel.com>
 > 
-> We noticed that some advanced buffer sharing use cases usually require
-> creating a dma mapping for the same memory buffer for more than one
-> device. Usually also such buffer is never touched with CPU, so the data
-> are processed by the devices.
+> slab_node() could access current->mempolicy from interrupt context.
+> However there's a race condition during exit where the mempolicy
+> is first freed and then the pointer zeroed.
 > 
-> From the DMA-mapping perspective this requires to call one of the
-> dma_map_{page,single,sg} function for the given memory buffer a few
-> times, for each of the devices. Each dma_map_* call performs CPU cache
-> synchronization, what might be a time consuming operation, especially
-> when the buffers are large. We would like to avoid any useless and time
-> consuming operations, so that was the main reason for introducing
-> another attribute for DMA-mapping subsystem: DMA_ATTR_SKIP_CPU_SYNC,
-> which lets dma-mapping core to skip CPU cache synchronization in certain
-> cases.
+> Using this from interrupts seems bogus anyways. The interrupt
+> will interrupt a random process and therefore get a random
+> mempolicy. Many times, this will be idle's, which noone can change.
+> 
+> Just disable this here and always use local for slab
+> from interrupts. I also cleaned up the callers of slab_node a bit
+> which always passed the same argument.
+> 
+> I believe the original mempolicy code did that in fact,
+> so it's likely a regression.
+> 
+> v2: send version with correct logic
+> v3: simplify. fix typo.
+> Reported-by: Arun Sharma<asharma@fb.com>
+> Cc: penberg@kernel.org
+> Cc: cl@linux.com
+> Signed-off-by: Andi Kleen<ak@linux.intel.com>
+> [tdmackey@twitter.com: Rework control flow based on feedback from
+> cl@linux.com, fix logic, and cleanup current task_struct reference]
+> Signed-off-by: David Mackey<tdmackey@twitter.com>
 
-I had implemented the similer patch(*1) to optimize/skip the cache
-maintanace, but we did this with "dir", not with "attr", making use of
-the existing DMA_NONE to skip cache operations. I'm just interested in
-why you choose attr for this purpose. Could you enlight me why attr is
-used here?
+Acked-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 
-Any way, this feature is necessary for us. Thank you for posting them.
 
-*1: FYI:
+
+
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
