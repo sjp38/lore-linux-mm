@@ -1,52 +1,133 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx183.postini.com [74.125.245.183])
-	by kanga.kvack.org (Postfix) with SMTP id 938186B0062
-	for <linux-mm@kvack.org>; Mon, 18 Jun 2012 15:36:05 -0400 (EDT)
-Received: by pbbrp2 with SMTP id rp2so10669422pbb.14
-        for <linux-mm@kvack.org>; Mon, 18 Jun 2012 12:36:04 -0700 (PDT)
-Date: Mon, 18 Jun 2012 12:36:00 -0700
-From: Tejun Heo <tj@kernel.org>
-Subject: Re: [PATCH v3] mm/memblock: fix overlapping allocation when
- doubling reserved array
-Message-ID: <20120618193600.GA30670@google.com>
-References: <1340044127-13864-1-git-send-email-greg.pearson@hp.com>
+Received: from psmtp.com (na3sys010amx107.postini.com [74.125.245.107])
+	by kanga.kvack.org (Postfix) with SMTP id 2F4E06B0062
+	for <linux-mm@kvack.org>; Mon, 18 Jun 2012 16:37:24 -0400 (EDT)
+Date: Mon, 18 Jun 2012 22:37:20 +0200
+From: Borislav Petkov <bp@alien8.de>
+Subject: Re: [PATCH -mm 3/6] Fix the x86-64 page colouring code to take pgoff
+ into account and use that code as the basis for a generic page colouring
+ code.
+Message-ID: <20120618203720.GA4148@liondog.tnic>
+References: <1340029878-7966-1-git-send-email-riel@redhat.com>
+ <1340029878-7966-4-git-send-email-riel@redhat.com>
+ <m2k3z48twb.fsf@firstfloor.org>
+ <4FDF5B3C.1000007@redhat.com>
+ <20120618181658.GA7190@x1.osrc.amd.com>
+ <4FDF7B5E.301@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=utf-8
 Content-Disposition: inline
-In-Reply-To: <1340044127-13864-1-git-send-email-greg.pearson@hp.com>
+In-Reply-To: <4FDF7B5E.301@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Greg Pearson <greg.pearson@hp.com>
-Cc: hpa@linux.intel.com, akpm@linux-foundation.org, shangw@linux.vnet.ibm.com, mingo@elte.hu, yinghai@kernel.org, benh@kernel.crashing.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Rik van Riel <riel@redhat.com>
+Cc: Andi Kleen <andi@firstfloor.org>, linux-mm@kvack.org, akpm@linux-foundation.org, aarcange@redhat.com, peterz@infradead.org, minchan@gmail.com, kosaki.motohiro@gmail.com, hnaz@cmpxchg.org, mel@csn.ul.ie, linux-kernel@vger.kernel.org, Rik van Riel <riel@surriel.com>
 
-Hello, Greg.
+On Mon, Jun 18, 2012 at 03:02:54PM -0400, Rik van Riel wrote:
+> On 06/18/2012 02:16 PM, Borislav Petkov wrote:
+> >On Mon, Jun 18, 2012 at 12:45:48PM -0400, Rik van Riel wrote:
+> >>>What tree is that against? I cannot find x86 page colouring code in next
+> >>>or mainline.
+> >>
+> >>This is against mainline.
+> >
+> >Which mainline do you mean exactly?
+> >
+> >1/6 doesn't apply ontop of current mainline and by "current" I mean
+> >v3.5-rc3-57-g39a50b42f702.
+> 
+> After pulling in the latest patches, including that
+> 39a50b... commit, all patches still apply here when
+> I type guilt push -a.
 
-Tricky one.  Nice catch.
+That's strange.
 
-> diff --git a/mm/memblock.c b/mm/memblock.c
-> index 952123e..3a61e74 100644
-> --- a/mm/memblock.c
-> +++ b/mm/memblock.c
-> @@ -184,7 +184,9 @@ static void __init_memblock memblock_remove_region(struct memblock_type *type, u
->  	}
->  }
->  
-> -static int __init_memblock memblock_double_array(struct memblock_type *type)
-> +static int __init_memblock memblock_double_array(struct memblock_type *type,
-> +						phys_addr_t exclude_start,
-> +						phys_addr_t exclude_size)
+I'm also pulling from
 
-I find @exclude_start and size a bit misleading mostly because
-memblock_double_array() would then proceed to ignore the specified
-area.  Wouldn't it be better to use names which signify that they're
-the reason why the array is being doubled instead?  e.g. sth like
-@new_area_start, @new_area_size.  Can you please also add /** function
-comment explaning the subtlety?
+git://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux-2.6
+
+Btw, if I had local changes, the top commit id would've changed, right?
+So I wouldn't have had 39a50b anymore.
+
+Just in case, I tried applying 1/6 on another repository and it still
+doesn't apply:
+
+$ patch -p1 --dry-run -i /tmp/riel.01
+patching file include/linux/mm_types.h
+Hunk #1 succeeded at 300 (offset -7 lines).
+patching file mm/mmap.c
+Hunk #2 succeeded at 206 with fuzz 1 (offset -45 lines).
+Hunk #3 FAILED at 398.
+Hunk #4 FAILED at 461.
+Hunk #5 succeeded at 603 (offset -57 lines).
+Hunk #6 succeeded at 1404 (offset -66 lines).
+Hunk #7 succeeded at 1441 (offset -66 lines).
+Hunk #8 succeeded at 1528 (offset -66 lines).
+Hunk #9 succeeded at 1570 (offset -66 lines).
+Hunk #10 FAILED at 1908.
+Hunk #11 FAILED at 2093.
+4 out of 11 hunks FAILED -- saving rejects to file mm/mmap.c.rej
+
+riel.01 is the mail saved from mutt so it should be fine.
+
+Now let's look at the first failing hunk:
+
+Mainline has:
+
+void validate_mm(struct mm_struct *mm)
+{
+	int bug = 0;
+	int i = 0;
+	struct vm_area_struct *tmp = mm->mmap;
+	while (tmp) {
+		tmp = tmp->vm_next;
+		i++;
+	}
+	if (i != mm->map_count)
+		printk("map_count %d vm_next %d\n", mm->map_count, i), bug = 1;
+	i = browse_rb(&mm->mm_rb);
+	if (i != mm->map_count)
+		printk("map_count %d rb %d\n", mm->map_count, i), bug = 1;
+	BUG_ON(bug);
+}
+
+--
+and your patch has some new ifs in it:
+
+@@ -386,12 +398,16 @@ void validate_mm(struct mm_struct *mm)
+ 	int bug = 0;
+ 	int i = 0;
+ 	struct vm_area_struct *tmp = mm->mmap;
++	unsigned long highest_address = 0;
+ 	while (tmp) {
+ 		if (tmp->free_gap != max_free_space(&tmp->vm_rb))
+ 			printk("free space %lx, correct %lx\n", tmp->free_gap, max_free_space(&tmp->vm_rb)), bug = 1;
+
+			^^^^^^^^^^^^^^
+
+I think this if-statement is the problem. It is not present in mainline
+but this patch doesn't add it so some patch earlier than that adds it
+which is probably in your queue?
+
++		highest_address = tmp->vm_end;
+ 		tmp = tmp->vm_next;
+ 		i++;
+ 	}
++	if (highest_address != mm->highest_vma)
++		printk("mm->highest_vma %lx, found %lx\n", mm->highest_vma, highest_address), bug = 1;
+
+ 	if (i != mm->map_count)
+ 		printk("map_count %d vm_next %d\n", mm->map_count, i), bug = 1;
+ 	i = browse_rb(&mm->mm_rb);
+--
+
+I haven't looked at the other failing hunks...
 
 Thanks.
 
 -- 
-tejun
+Regards/Gruss,
+    Boris.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
