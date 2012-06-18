@@ -1,75 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx149.postini.com [74.125.245.149])
-	by kanga.kvack.org (Postfix) with SMTP id 1E2A06B0062
-	for <linux-mm@kvack.org>; Mon, 18 Jun 2012 09:31:52 -0400 (EDT)
-Date: Mon, 18 Jun 2012 15:31:50 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH 2/2] memcg: clean up force_empty_list() return value check
-Message-ID: <20120618133149.GC2313@tiehlicka.suse.cz>
-References: <4FDF17A3.9060202@jp.fujitsu.com>
- <4FDF1830.1000504@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <4FDF1830.1000504@jp.fujitsu.com>
+Received: from psmtp.com (na3sys010amx150.postini.com [74.125.245.150])
+	by kanga.kvack.org (Postfix) with SMTP id E1FBD6B0062
+	for <linux-mm@kvack.org>; Mon, 18 Jun 2012 10:32:05 -0400 (EDT)
+From: Rik van Riel <riel@redhat.com>
+Subject: [PATCH -mm 0/6] mm: scalable and unified arch_get_unmapped_area
+Date: Mon, 18 Jun 2012 10:31:12 -0400
+Message-Id: <1340029878-7966-1-git-send-email-riel@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, cgroups@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>
+To: linux-mm@kvack.org
+Cc: akpm@linux-foundation.org, aarcange@redhat.com, peterz@infradead.org, minchan@gmail.com, kosaki.motohiro@gmail.com, andi@firstfloor.org, hnaz@cmpxchg.org, mel@csn.ul.ie, linux-kernel@vger.kernel.org
 
-On Mon 18-06-12 20:59:44, KAMEZAWA Hiroyuki wrote:
-> 
-> By commit "memcg: move charges to root cgroup if use_hierarchy=0"
-> mem_cgroup_move_parent() only returns -EBUSY, -EINVAL.
-> So, we can remove -ENOMEM and -EINTR checks.
-> 
-> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+A long time ago, we decided to limit the number of VMAs per
+process to 64k. As it turns out, there actually are programs
+using tens of thousands of VMAs.
 
-Acked-by: Michal Hocko <mhocko@suse.cz>
+The linear search in arch_get_unmapped_area and
+arch_get_unmapped_area_topdown can be a real issue for
+those programs. 
 
-> ---
->  mm/memcontrol.c |    5 -----
->  1 files changed, 0 insertions(+), 5 deletions(-)
-> 
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index cf8a0f6..726b7c6 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -3847,8 +3847,6 @@ static int mem_cgroup_force_empty_list(struct mem_cgroup *memcg,
->  		pc = lookup_page_cgroup(page);
->  
->  		ret = mem_cgroup_move_parent(page, pc, memcg, GFP_KERNEL);
-> -		if (ret == -ENOMEM || ret == -EINTR)
-> -			break;
->  
->  		if (ret == -EBUSY || ret == -EINVAL) {
->  			/* found lock contention or "pc" is obsolete. */
-> @@ -3910,9 +3908,6 @@ move_account:
->  		}
->  		mem_cgroup_end_move(memcg);
->  		memcg_oom_recover(memcg);
-> -		/* it seems parent cgroup doesn't have enough mem */
-> -		if (ret == -ENOMEM)
-> -			goto try_to_free;
->  		cond_resched();
->  	/* "ret" should also be checked to ensure all lists are empty. */
->  	} while (res_counter_read_u64(&memcg->res, RES_USAGE) > 0 || ret);
-> -- 
-> 1.7.4.1
-> 
-> 
-> --
-> To unsubscribe from this list: send the line "unsubscribe cgroups" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+This patch series aims to fix the scalability issue by
+tracking the size of each free hole in the VMA rbtree,
+propagating the free hole info up the tree. 
 
--- 
-Michal Hocko
-SUSE Labs
-SUSE LINUX s.r.o.
-Lihovarska 1060/12
-190 00 Praha 9    
-Czech Republic
+Another major goal is to put the bulk of the necessary
+arch_get_unmapped_area(_topdown) functionality into one
+set of functions, so we can eliminate the custom large
+functions per architecture, sticking to a few much smaller
+architecture specific functions instead.
+
+In this version I have only gotten rid of the x86, ARM
+and MIPS arch-specific code, and am already showing a
+fairly promising diffstat:
+
+ arch/arm/include/asm/pgtable.h    |    6 
+ arch/arm/mm/init.c                |    3 
+ arch/arm/mm/mmap.c                |  217 ------------------
+ arch/mips/include/asm/page.h      |    2 
+ arch/mips/include/asm/pgtable.h   |    7 
+ arch/mips/mm/mmap.c               |  177 --------------
+ arch/x86/include/asm/elf.h        |    3 
+ arch/x86/include/asm/pgtable_64.h |    4 
+ arch/x86/kernel/sys_x86_64.c      |  200 ++--------------
+ arch/x86/vdso/vma.c               |    2 
+ include/linux/mm_types.h          |    8 
+ include/linux/sched.h             |   13 +
+ mm/internal.h                     |    5 
+ mm/mmap.c                         |  455 ++++++++++++++++++++++++++++++--------
+ 14 files changed, 420 insertions(+), 682 deletions(-)
+
+TODO:
+- eliminate arch-specific functions for more architectures
+- integrate hugetlbfs alignment (with Andi Kleen's patch?)
+
+Performance
+
+Testing performance with a benchmark that allocates tens
+of thousands of VMAs, unmaps them and mmaps them some more
+in a loop, shows promising results.
+
+Vanilla 3.4 kernel:
+$ ./agua_frag_test_64
+..........
+
+Min Time (ms): 6
+Avg. Time (ms): 294.0000
+Max Time (ms): 609
+Std Dev (ms): 113.1664
+Standard deviation exceeds 10
+
+With patches:
+$ ./agua_frag_test_64
+..........
+
+Min Time (ms): 14
+Avg. Time (ms): 38.0000
+Max Time (ms): 60
+Std Dev (ms): 3.9312
+All checks pass
+
+The total run time of the test goes down by about a
+factor 4.  More importantly, the worst case performance
+of the loop (which is what really hurt some applications)
+has gone down by about a factor 10.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
