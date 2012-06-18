@@ -1,52 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx155.postini.com [74.125.245.155])
-	by kanga.kvack.org (Postfix) with SMTP id B43EB6B0062
-	for <linux-mm@kvack.org>; Mon, 18 Jun 2012 18:03:56 -0400 (EDT)
-Message-ID: <4FDFA59D.5020200@redhat.com>
-Date: Mon, 18 Jun 2012 18:03:09 -0400
+Received: from psmtp.com (na3sys010amx177.postini.com [74.125.245.177])
+	by kanga.kvack.org (Postfix) with SMTP id 3C9726B0062
+	for <linux-mm@kvack.org>; Mon, 18 Jun 2012 18:05:42 -0400 (EDT)
 From: Rik van Riel <riel@redhat.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH -mm 3/6] Fix the x86-64 page colouring code to take pgoff
- into account and use that code as the basis for a generic page colouring
- code.
-References: <1340029878-7966-1-git-send-email-riel@redhat.com> <1340029878-7966-4-git-send-email-riel@redhat.com> <m2k3z48twb.fsf@firstfloor.org> <4FDF5B3C.1000007@redhat.com> <20120618181658.GA7190@x1.osrc.amd.com> <4FDF7B5E.301@redhat.com> <20120618203720.GA4148@liondog.tnic>
-In-Reply-To: <20120618203720.GA4148@liondog.tnic>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Subject: [PATCH -mm 0/7] mm: scalable and unified arch_get_unmapped_area
+Date: Mon, 18 Jun 2012 18:05:19 -0400
+Message-Id: <1340057126-31143-1-git-send-email-riel@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Borislav Petkov <bp@alien8.de>, Andi Kleen <andi@firstfloor.org>, linux-mm@kvack.org, akpm@linux-foundation.org, aarcange@redhat.com, peterz@infradead.org, minchan@gmail.com, kosaki.motohiro@gmail.com, hnaz@cmpxchg.org, mel@csn.ul.ie, linux-kernel@vger.kernel.org, Rik van Riel <riel@surriel.com>
+To: linux-mm@kvack.org
+Cc: akpm@linux-foundation.org, aarcange@redhat.com, peterz@infradead.org, minchan@gmail.com, kosaki.motohiro@gmail.com, andi@firstfloor.org, hannes@cmpxchg.org, mel@csn.ul.ie, linux-kernel@vger.kernel.org
 
-On 06/18/2012 04:37 PM, Borislav Petkov wrote:
+[actually include all 7 patches]
 
-> and your patch has some new ifs in it:
->
-> @@ -386,12 +398,16 @@ void validate_mm(struct mm_struct *mm)
->   	int bug = 0;
->   	int i = 0;
->   	struct vm_area_struct *tmp = mm->mmap;
-> +	unsigned long highest_address = 0;
->   	while (tmp) {
->   		if (tmp->free_gap != max_free_space(&tmp->vm_rb))
->   			printk("free space %lx, correct %lx\n", tmp->free_gap, max_free_space(&tmp->vm_rb)), bug = 1;
->
-> 			^^^^^^^^^^^^^^
->
-> I think this if-statement is the problem. It is not present in mainline
-> but this patch doesn't add it so some patch earlier than that adds it
-> which is probably in your queue?
+A long time ago, we decided to limit the number of VMAs per
+process to 64k. As it turns out, there actually are programs
+using tens of thousands of VMAs.
 
-Argh! I see the problem now.
+The linear search in arch_get_unmapped_area and
+arch_get_unmapped_area_topdown can be a real issue for
+those programs. 
 
-guilt-patchbomb sent everything from my second patch onwards,
-not my first patch :(
+This patch series aims to fix the scalability issue by
+tracking the size of each free hole in the VMA rbtree,
+propagating the free hole info up the tree. 
 
-Let me resend the series properly, I have 7 patches not 6.
+Another major goal is to put the bulk of the necessary
+arch_get_unmapped_area(_topdown) functionality into one
+set of functions, so we can eliminate the custom large
+functions per architecture, sticking to a few much smaller
+architecture specific functions instead.
 
-I am having a bad email day...
+In this version I have only gotten rid of the x86, ARM
+and MIPS arch-specific code, and am already showing a
+fairly promising diffstat:
 
--- 
-All rights reversed
+ arch/arm/include/asm/pgtable.h    |    6 
+ arch/arm/mm/init.c                |    3 
+ arch/arm/mm/mmap.c                |  217 ------------------
+ arch/mips/include/asm/page.h      |    2 
+ arch/mips/include/asm/pgtable.h   |    7 
+ arch/mips/mm/mmap.c               |  177 --------------
+ arch/x86/include/asm/elf.h        |    3 
+ arch/x86/include/asm/pgtable_64.h |    4 
+ arch/x86/kernel/sys_x86_64.c      |  200 ++--------------
+ arch/x86/vdso/vma.c               |    2 
+ include/linux/mm_types.h          |    8 
+ include/linux/sched.h             |   13 +
+ mm/internal.h                     |    5 
+ mm/mmap.c                         |  455 ++++++++++++++++++++++++++++++--------
+ 14 files changed, 420 insertions(+), 682 deletions(-)
+
+TODO:
+- eliminate arch-specific functions for more architectures
+- integrate hugetlbfs alignment (with Andi Kleen's patch?)
+
+Performance
+
+Testing performance with a benchmark that allocates tens
+of thousands of VMAs, unmaps them and mmaps them some more
+in a loop, shows promising results.
+
+Vanilla 3.4 kernel:
+$ ./agua_frag_test_64
+..........
+
+Min Time (ms): 6
+Avg. Time (ms): 294.0000
+Max Time (ms): 609
+Std Dev (ms): 113.1664
+Standard deviation exceeds 10
+
+With patches:
+$ ./agua_frag_test_64
+..........
+
+Min Time (ms): 14
+Avg. Time (ms): 38.0000
+Max Time (ms): 60
+Std Dev (ms): 3.9312
+All checks pass
+
+The total run time of the test goes down by about a
+factor 4.  More importantly, the worst case performance
+of the loop (which is what really hurt some applications)
+has gone down by about a factor 10.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
