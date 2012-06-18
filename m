@@ -1,27 +1,29 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx132.postini.com [74.125.245.132])
-	by kanga.kvack.org (Postfix) with SMTP id DE6296B0071
-	for <linux-mm@kvack.org>; Mon, 18 Jun 2012 07:59:37 -0400 (EDT)
-Received: from m2.gw.fujitsu.co.jp (unknown [10.0.50.72])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id CBB4F3EE0BD
-	for <linux-mm@kvack.org>; Mon, 18 Jun 2012 20:59:35 +0900 (JST)
-Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id B261645DE50
-	for <linux-mm@kvack.org>; Mon, 18 Jun 2012 20:59:35 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 978B545DD78
-	for <linux-mm@kvack.org>; Mon, 18 Jun 2012 20:59:35 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 88ED41DB8038
-	for <linux-mm@kvack.org>; Mon, 18 Jun 2012 20:59:35 +0900 (JST)
+Received: from psmtp.com (na3sys010amx203.postini.com [74.125.245.203])
+	by kanga.kvack.org (Postfix) with SMTP id 7CA8B6B0071
+	for <linux-mm@kvack.org>; Mon, 18 Jun 2012 08:01:52 -0400 (EDT)
+Received: from m4.gw.fujitsu.co.jp (unknown [10.0.50.74])
+	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 9793D3EE0BD
+	for <linux-mm@kvack.org>; Mon, 18 Jun 2012 21:01:50 +0900 (JST)
+Received: from smail (m4 [127.0.0.1])
+	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 7625B45DE56
+	for <linux-mm@kvack.org>; Mon, 18 Jun 2012 21:01:50 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
+	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 5CCDE45DE55
+	for <linux-mm@kvack.org>; Mon, 18 Jun 2012 21:01:50 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 4BDB91DB803B
+	for <linux-mm@kvack.org>; Mon, 18 Jun 2012 21:01:50 +0900 (JST)
 Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.240.81.134])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 431451DB802C
-	for <linux-mm@kvack.org>; Mon, 18 Jun 2012 20:59:35 +0900 (JST)
-Message-ID: <4FDF17A3.9060202@jp.fujitsu.com>
-Date: Mon, 18 Jun 2012 20:57:23 +0900
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id F0CF0E18002
+	for <linux-mm@kvack.org>; Mon, 18 Jun 2012 21:01:49 +0900 (JST)
+Message-ID: <4FDF1830.1000504@jp.fujitsu.com>
+Date: Mon, 18 Jun 2012 20:59:44 +0900
 From: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
-Subject: [PATCH 1/2] memcg: remove -EINTR at rmdir()
+Subject: [PATCH 2/2] memcg: clean up force_empty_list() return value check
+References: <4FDF17A3.9060202@jp.fujitsu.com>
+In-Reply-To: <4FDF17A3.9060202@jp.fujitsu.com>
 Content-Type: text/plain; charset=ISO-2022-JP
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -29,38 +31,39 @@ List-ID: <linux-mm.kvack.org>
 To: linux-mm <linux-mm@kvack.org>
 Cc: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, cgroups@vger.kernel.org, Michal Hocko <mhocko@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>
 
-2 follow-up patches for "memcg: move charges to root cgroup if use_hierarchy=0",
-developped/tested onto memcg-devel tree. Maybe no HUNK with -next and -mm....
--Kame
-==
-memcg: remove -EINTR at rmdir()
 
-By commit "memcg: move charges to root cgroup if use_hierarchy=0",
-no memory reclaiming will occur at removing memory cgroup.
-
-So, we don't need to take care of user interrupt by signal. This
-patch removes it.
-(*) If -EINTR is returned here, cgroup will show WARNING.
+By commit "memcg: move charges to root cgroup if use_hierarchy=0"
+mem_cgroup_move_parent() only returns -EBUSY, -EINVAL.
+So, we can remove -ENOMEM and -EINTR checks.
 
 Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 ---
- mm/memcontrol.c |    3 ---
- 1 files changed, 0 insertions(+), 3 deletions(-)
+ mm/memcontrol.c |    5 -----
+ 1 files changed, 0 insertions(+), 5 deletions(-)
 
 diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 0623300..cf8a0f6 100644
+index cf8a0f6..726b7c6 100644
 --- a/mm/memcontrol.c
 +++ b/mm/memcontrol.c
-@@ -3890,9 +3890,6 @@ move_account:
- 		ret = -EBUSY;
- 		if (cgroup_task_count(cgrp) || !list_empty(&cgrp->children))
- 			goto out;
--		ret = -EINTR;
--		if (signal_pending(current))
--			goto out;
- 		/* This is for making all *used* pages to be on LRU. */
- 		lru_add_drain_all();
- 		drain_all_stock_sync(memcg);
+@@ -3847,8 +3847,6 @@ static int mem_cgroup_force_empty_list(struct mem_cgroup *memcg,
+ 		pc = lookup_page_cgroup(page);
+ 
+ 		ret = mem_cgroup_move_parent(page, pc, memcg, GFP_KERNEL);
+-		if (ret == -ENOMEM || ret == -EINTR)
+-			break;
+ 
+ 		if (ret == -EBUSY || ret == -EINVAL) {
+ 			/* found lock contention or "pc" is obsolete. */
+@@ -3910,9 +3908,6 @@ move_account:
+ 		}
+ 		mem_cgroup_end_move(memcg);
+ 		memcg_oom_recover(memcg);
+-		/* it seems parent cgroup doesn't have enough mem */
+-		if (ret == -ENOMEM)
+-			goto try_to_free;
+ 		cond_resched();
+ 	/* "ret" should also be checked to ensure all lists are empty. */
+ 	} while (res_counter_read_u64(&memcg->res, RES_USAGE) > 0 || ret);
 -- 
 1.7.4.1
 
