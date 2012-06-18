@@ -1,55 +1,104 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx127.postini.com [74.125.245.127])
-	by kanga.kvack.org (Postfix) with SMTP id A00DB6B006E
-	for <linux-mm@kvack.org>; Mon, 18 Jun 2012 18:06:00 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx124.postini.com [74.125.245.124])
+	by kanga.kvack.org (Postfix) with SMTP id 3A9006B006E
+	for <linux-mm@kvack.org>; Mon, 18 Jun 2012 18:06:02 -0400 (EDT)
 From: Rik van Riel <riel@redhat.com>
-Subject: [PATCH -mm 5/7] mm: remove x86 arch_get_unmapped_area(_topdown)
-Date: Mon, 18 Jun 2012 18:05:24 -0400
-Message-Id: <1340057126-31143-6-git-send-email-riel@redhat.com>
+Subject: [PATCH -mm 7/7] remove ARM arch_get_unmapped_area functions
+Date: Mon, 18 Jun 2012 18:05:26 -0400
+Message-Id: <1340057126-31143-8-git-send-email-riel@redhat.com>
 In-Reply-To: <1340057126-31143-1-git-send-email-riel@redhat.com>
 References: <1340057126-31143-1-git-send-email-riel@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
-Cc: akpm@linux-foundation.org, aarcange@redhat.com, peterz@infradead.org, minchan@gmail.com, kosaki.motohiro@gmail.com, andi@firstfloor.org, hannes@cmpxchg.org, mel@csn.ul.ie, linux-kernel@vger.kernel.org, Rik van Riel <riel@surriel.com>, Rik van Riel <riel@redhat.com>
+Cc: akpm@linux-foundation.org, aarcange@redhat.com, peterz@infradead.org, minchan@gmail.com, kosaki.motohiro@gmail.com, andi@firstfloor.org, hannes@cmpxchg.org, mel@csn.ul.ie, linux-kernel@vger.kernel.org, Rik van Riel <riel@surriel.com>, Russell King <linux@arm.linux.org.uk>, Rik van Riel <riel@redhat.com>
 
 From: Rik van Riel <riel@surriel.com>
 
-The generic arch_get_unmapped_area(_topdown) should now be able
-to do everything x86 needs.  Remove the x86 specific functions.
+Remove the ARM special variants of arch_get_unmapped_area since the
+generic functions should now be able to handle everything.
 
-TODO: make the hugetlbfs arch_get_unmapped_area call the generic
-code with proper alignment info.
+Untested because I have no ARM hardware.
 
-Cc: Andi Kleen <andi@firstfloor.org>
+Cc: Russell King <linux@arm.linux.org.uk>
 Signed-off-by: Rik van Riel <riel@redhat.com>
 ---
- arch/x86/include/asm/pgtable_64.h |    2 -
- arch/x86/kernel/sys_x86_64.c      |  162 -------------------------------------
- 2 files changed, 0 insertions(+), 164 deletions(-)
+ arch/arm/include/asm/pgtable.h |    6 -
+ arch/arm/mm/init.c             |    3 +
+ arch/arm/mm/mmap.c             |  217 +---------------------------------------
+ 3 files changed, 4 insertions(+), 222 deletions(-)
 
-diff --git a/arch/x86/include/asm/pgtable_64.h b/arch/x86/include/asm/pgtable_64.h
-index 8408ccd..0ff6500 100644
---- a/arch/x86/include/asm/pgtable_64.h
-+++ b/arch/x86/include/asm/pgtable_64.h
-@@ -167,8 +167,6 @@ static inline int pgd_large(pgd_t pgd) { return 0; }
- extern int kern_addr_valid(unsigned long addr);
- extern void cleanup_highmap(void);
+diff --git a/arch/arm/include/asm/pgtable.h b/arch/arm/include/asm/pgtable.h
+index f66626d..6754183 100644
+--- a/arch/arm/include/asm/pgtable.h
++++ b/arch/arm/include/asm/pgtable.h
+@@ -296,12 +296,6 @@ static inline pte_t pte_modify(pte_t pte, pgprot_t newprot)
+ #include <asm-generic/pgtable.h>
  
+ /*
+- * We provide our own arch_get_unmapped_area to cope with VIPT caches.
+- */
 -#define HAVE_ARCH_UNMAPPED_AREA
 -#define HAVE_ARCH_UNMAPPED_AREA_TOPDOWN
- #define HAVE_ARCH_GET_ADDRESS_RANGE
- #define HAVE_ARCH_ALIGN_ADDR
- 
-diff --git a/arch/x86/kernel/sys_x86_64.c b/arch/x86/kernel/sys_x86_64.c
-index ac0afb8..0243c58 100644
---- a/arch/x86/kernel/sys_x86_64.c
-+++ b/arch/x86/kernel/sys_x86_64.c
-@@ -131,165 +131,3 @@ void arch_get_address_range(unsigned long flags, unsigned long *begin,
- 		*end = current->mm->mmap_base;
- 	}
- }
 -
+-/*
+  * remap a physical page `pfn' of size `size' with page protection `prot'
+  * into virtual address `from'
+  */
+diff --git a/arch/arm/mm/init.c b/arch/arm/mm/init.c
+index f54d592..534dd96 100644
+--- a/arch/arm/mm/init.c
++++ b/arch/arm/mm/init.c
+@@ -600,6 +600,9 @@ void __init mem_init(void)
+ 	extern u32 itcm_end;
+ #endif
+ 
++	/* Tell the page colouring code what we need. */
++	shm_align_mask = SHMLBA - 1;
++
+ 	max_mapnr   = pfn_to_page(max_pfn + PHYS_PFN_OFFSET) - mem_map;
+ 
+ 	/* this will put all unused low memory onto the freelists */
+diff --git a/arch/arm/mm/mmap.c b/arch/arm/mm/mmap.c
+index ce8cb19..2b1f881 100644
+--- a/arch/arm/mm/mmap.c
++++ b/arch/arm/mm/mmap.c
+@@ -11,21 +11,7 @@
+ #include <linux/random.h>
+ #include <asm/cachetype.h>
+ 
+-static inline unsigned long COLOUR_ALIGN_DOWN(unsigned long addr,
+-					      unsigned long pgoff)
+-{
+-	unsigned long base = addr & ~(SHMLBA-1);
+-	unsigned long off = (pgoff << PAGE_SHIFT) & (SHMLBA-1);
+-
+-	if (base + off <= addr)
+-		return base + off;
+-
+-	return base - off;
+-}
+-
+-#define COLOUR_ALIGN(addr,pgoff)		\
+-	((((addr)+SHMLBA-1)&~(SHMLBA-1)) +	\
+-	 (((pgoff)<<PAGE_SHIFT) & (SHMLBA-1)))
++unsigned long shm_align_mask = SHMLBA - 1;
+ 
+ /* gap between mmap and stack */
+ #define MIN_GAP (128*1024*1024UL)
+@@ -54,207 +40,6 @@ static unsigned long mmap_base(unsigned long rnd)
+ 	return PAGE_ALIGN(TASK_SIZE - gap - rnd);
+ }
+ 
+-/*
+- * We need to ensure that shared mappings are correctly aligned to
+- * avoid aliasing issues with VIPT caches.  We need to ensure that
+- * a specific page of an object is always mapped at a multiple of
+- * SHMLBA bytes.
+- *
+- * We unconditionally provide this function for all cases, however
+- * in the VIVT case, we optimise out the alignment rules.
+- */
 -unsigned long
 -arch_get_unmapped_area(struct file *filp, unsigned long addr,
 -		unsigned long len, unsigned long pgoff, unsigned long flags)
@@ -57,46 +106,62 @@ index ac0afb8..0243c58 100644
 -	struct mm_struct *mm = current->mm;
 -	struct vm_area_struct *vma;
 -	unsigned long start_addr;
--	unsigned long begin, end;
+-	int do_align = 0;
+-	int aliasing = cache_is_vipt_aliasing();
 -
--	if (flags & MAP_FIXED)
+-	/*
+-	 * We only need to do colour alignment if either the I or D
+-	 * caches alias.
+-	 */
+-	if (aliasing)
+-		do_align = filp || (flags & MAP_SHARED);
+-
+-	/*
+-	 * We enforce the MAP_FIXED case.
+-	 */
+-	if (flags & MAP_FIXED) {
+-		if (aliasing && flags & MAP_SHARED &&
+-		    (addr - (pgoff << PAGE_SHIFT)) & (SHMLBA - 1))
+-			return -EINVAL;
 -		return addr;
+-	}
 -
--	arch_get_address_range(flags, &begin, &end, ALLOC_UP);
--
--	if (len > end)
+-	if (len > TASK_SIZE)
 -		return -ENOMEM;
 -
 -	if (addr) {
--		addr = PAGE_ALIGN(addr);
+-		if (do_align)
+-			addr = COLOUR_ALIGN(addr, pgoff);
+-		else
+-			addr = PAGE_ALIGN(addr);
+-
 -		vma = find_vma(mm, addr);
--		if (end - len >= addr &&
+-		if (TASK_SIZE - len >= addr &&
 -		    (!vma || addr + len <= vma->vm_start))
 -			return addr;
 -	}
--	if (((flags & MAP_32BIT) || test_thread_flag(TIF_ADDR32))
--	    && len <= mm->cached_hole_size) {
--		mm->cached_hole_size = 0;
--		mm->free_area_cache = begin;
+-	if (len > mm->cached_hole_size) {
+-	        start_addr = addr = mm->free_area_cache;
+-	} else {
+-	        start_addr = addr = mm->mmap_base;
+-	        mm->cached_hole_size = 0;
 -	}
--	addr = mm->free_area_cache;
--	if (addr < begin)
--		addr = begin;
--	start_addr = addr;
 -
 -full_search:
--
--	addr = arch_align_addr(addr, filp, pgoff, flags, ALLOC_UP);
+-	if (do_align)
+-		addr = COLOUR_ALIGN(addr, pgoff);
+-	else
+-		addr = PAGE_ALIGN(addr);
 -
 -	for (vma = find_vma(mm, addr); ; vma = vma->vm_next) {
 -		/* At this point:  (!vma || addr < vma->vm_end). */
--		if (end - len < addr) {
+-		if (TASK_SIZE - len < addr) {
 -			/*
 -			 * Start a new search - just in case we missed
 -			 * some holes.
 -			 */
--			if (start_addr != begin) {
--				start_addr = addr = begin;
+-			if (start_addr != TASK_UNMAPPED_BASE) {
+-				start_addr = addr = TASK_UNMAPPED_BASE;
 -				mm->cached_hole_size = 0;
 -				goto full_search;
 -			}
@@ -110,37 +175,48 @@ index ac0afb8..0243c58 100644
 -			return addr;
 -		}
 -		if (addr + mm->cached_hole_size < vma->vm_start)
--			mm->cached_hole_size = vma->vm_start - addr;
--
+-		        mm->cached_hole_size = vma->vm_start - addr;
 -		addr = vma->vm_end;
--		addr = arch_align_addr(addr, filp, pgoff, flags, ALLOC_UP);
+-		if (do_align)
+-			addr = COLOUR_ALIGN(addr, pgoff);
 -	}
 -}
 -
--
 -unsigned long
 -arch_get_unmapped_area_topdown(struct file *filp, const unsigned long addr0,
--			  const unsigned long len, const unsigned long pgoff,
--			  const unsigned long flags)
+-			const unsigned long len, const unsigned long pgoff,
+-			const unsigned long flags)
 -{
 -	struct vm_area_struct *vma;
 -	struct mm_struct *mm = current->mm;
--	unsigned long addr = addr0, start_addr;
+-	unsigned long addr = addr0;
+-	int do_align = 0;
+-	int aliasing = cache_is_vipt_aliasing();
+-
+-	/*
+-	 * We only need to do colour alignment if either the I or D
+-	 * caches alias.
+-	 */
+-	if (aliasing)
+-		do_align = filp || (flags & MAP_SHARED);
 -
 -	/* requested length too big for entire address space */
 -	if (len > TASK_SIZE)
 -		return -ENOMEM;
 -
--	if (flags & MAP_FIXED)
+-	if (flags & MAP_FIXED) {
+-		if (aliasing && flags & MAP_SHARED &&
+-		    (addr - (pgoff << PAGE_SHIFT)) & (SHMLBA - 1))
+-			return -EINVAL;
 -		return addr;
--
--	/* for MAP_32BIT mappings we force the legact mmap base */
--	if (!test_thread_flag(TIF_ADDR32) && (flags & MAP_32BIT))
--		goto bottomup;
+-	}
 -
 -	/* requesting a specific address */
 -	if (addr) {
--		addr = PAGE_ALIGN(addr);
+-		if (do_align)
+-			addr = COLOUR_ALIGN(addr, pgoff);
+-		else
+-			addr = PAGE_ALIGN(addr);
 -		vma = find_vma(mm, addr);
 -		if (TASK_SIZE - len >= addr &&
 -				(!vma || addr + len <= vma->vm_start))
@@ -153,17 +229,29 @@ index ac0afb8..0243c58 100644
 -		mm->free_area_cache = mm->mmap_base;
 -	}
 -
--try_again:
 -	/* either no address requested or can't fit in requested address hole */
--	start_addr = addr = mm->free_area_cache;
+-	addr = mm->free_area_cache;
+-	if (do_align) {
+-		unsigned long base = COLOUR_ALIGN_DOWN(addr - len, pgoff);
+-		addr = base + len;
+-	}
 -
--	if (addr < len)
--		goto fail;
+-	/* make sure it can fit in the remaining address space */
+-	if (addr > len) {
+-		vma = find_vma(mm, addr-len);
+-		if (!vma || addr <= vma->vm_start)
+-			/* remember the address as a hint for next time */
+-			return (mm->free_area_cache = addr-len);
+-	}
 -
--	addr -= len;
+-	if (mm->mmap_base < len)
+-		goto bottomup;
+-
+-	addr = mm->mmap_base - len;
+-	if (do_align)
+-		addr = COLOUR_ALIGN_DOWN(addr, pgoff);
+-
 -	do {
--		addr = arch_align_addr(addr, filp, pgoff, flags, ALLOC_DOWN);
--
 -		/*
 -		 * Lookup failure means no vma is above this address,
 -		 * else if new region fits below vma->vm_start,
@@ -172,26 +260,17 @@ index ac0afb8..0243c58 100644
 -		vma = find_vma(mm, addr);
 -		if (!vma || addr+len <= vma->vm_start)
 -			/* remember the address as a hint for next time */
--			return mm->free_area_cache = addr;
+-			return (mm->free_area_cache = addr);
 -
 -		/* remember the largest hole we saw so far */
 -		if (addr + mm->cached_hole_size < vma->vm_start)
 -			mm->cached_hole_size = vma->vm_start - addr;
 -
 -		/* try just below the current vma->vm_start */
--		addr = vma->vm_start-len;
+-		addr = vma->vm_start - len;
+-		if (do_align)
+-			addr = COLOUR_ALIGN_DOWN(addr, pgoff);
 -	} while (len < vma->vm_start);
--
--fail:
--	/*
--	 * if hint left us with no space for the requested
--	 * mapping then try again:
--	 */
--	if (start_addr != mm->mmap_base) {
--		mm->free_area_cache = mm->mmap_base;
--		mm->cached_hole_size = 0;
--		goto try_again;
--	}
 -
 -bottomup:
 -	/*
@@ -211,6 +290,10 @@ index ac0afb8..0243c58 100644
 -
 -	return addr;
 -}
+-
+ void arch_pick_mmap_layout(struct mm_struct *mm)
+ {
+ 	unsigned long random_factor = 0UL;
 -- 
 1.7.7.6
 
