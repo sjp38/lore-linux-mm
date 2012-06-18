@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx181.postini.com [74.125.245.181])
-	by kanga.kvack.org (Postfix) with SMTP id 246B16B009C
-	for <linux-mm@kvack.org>; Mon, 18 Jun 2012 06:33:21 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx130.postini.com [74.125.245.130])
+	by kanga.kvack.org (Postfix) with SMTP id E4A616B009F
+	for <linux-mm@kvack.org>; Mon, 18 Jun 2012 06:33:23 -0400 (EDT)
 From: Glauber Costa <glommer@parallels.com>
-Subject: [PATCH v4 23/25] memcg: propagate kmem limiting information to children
-Date: Mon, 18 Jun 2012 14:28:16 +0400
-Message-Id: <1340015298-14133-24-git-send-email-glommer@parallels.com>
+Subject: [PATCH v4 24/25] memcg/slub: shrink dead caches
+Date: Mon, 18 Jun 2012 14:28:17 +0400
+Message-Id: <1340015298-14133-25-git-send-email-glommer@parallels.com>
 In-Reply-To: <1340015298-14133-1-git-send-email-glommer@parallels.com>
 References: <1340015298-14133-1-git-send-email-glommer@parallels.com>
 Sender: owner-linux-mm@kvack.org
@@ -13,29 +13,22 @@ List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
 Cc: Pekka Enberg <penberg@kernel.org>, Cristoph Lameter <cl@linux.com>, David Rientjes <rientjes@google.com>, cgroups@vger.kernel.org, devel@openvz.org, kamezawa.hiroyu@jp.fujitsu.com, linux-kernel@vger.kernel.org, Frederic Weisbecker <fweisbec@gmail.com>, Suleiman Souhlal <suleiman@google.com>, Glauber Costa <glommer@parallels.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>
 
-The current memcg slab cache management fails to present satisfatory hierarchical
-behavior in the following scenario:
+In the slub allocator, when the last object of a page goes away, we
+don't necessarily free it - there is not necessarily a test for empty
+page in any slab_free path.
 
--> /cgroups/memory/A/B/C
+This means that when we destroy a memcg cache that happened to be empty,
+those caches may take a lot of time to go away: removing the memcg
+reference won't destroy them - because there are pending references,
+and the empty pages will stay there, until a shrinker is called upon
+for any reason.
 
-* kmem limit set at A
-* A and B empty taskwise
-* bash in C does find /
+This patch marks all memcg caches as dead. kmem_cache_shrink is called
+for the ones who are not yet dead - this will force internal cache
+reorganization, and then all references to empty pages will be removed.
 
-Because kmem_accounted is a boolean that was not set for C, no accounting
-would be done. This is, however, not what we expect.
-
-The basic idea, is that when a cgroup is limited, we walk the tree
-upwards (something Kame and I already thought about doing for other purposes),
-and make sure that we store the information about the parent being limited in
-kmem_accounted (that is turned into a bitmap: two booleans would not be space
-efficient). The code for that is taken from sched/core.c. My reasons for not
-putting it into a common place is to dodge the type issues that would arise
-from a common implementation between memcg and the scheduler - but I think
-that it should ultimately happen, so if you want me to do it now, let me
-know.
-
-We do the reverse operation when a formerly limited cgroup becomes unlimited.
+An unlikely branch is used to make sure this case does not affect
+performance in the usual slab_free path.
 
 Signed-off-by: Glauber Costa <glommer@parallels.com>
 CC: Christoph Lameter <cl@linux.com>
@@ -45,233 +38,161 @@ CC: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 CC: Johannes Weiner <hannes@cmpxchg.org>
 CC: Suleiman Souhlal <suleiman@google.com>
 ---
- mm/memcontrol.c |  147 +++++++++++++++++++++++++++++++++++++++++++++++++------
- 1 file changed, 131 insertions(+), 16 deletions(-)
+ include/linux/slab.h     |    3 +++
+ include/linux/slub_def.h |    8 ++++++++
+ mm/memcontrol.c          |   44 +++++++++++++++++++++++++++++++++++++++++++-
+ mm/slub.c                |    1 +
+ 4 files changed, 55 insertions(+), 1 deletion(-)
 
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index e32b53e..972e83f 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -259,6 +259,9 @@ struct mem_cgroup {
- 	 * the counter to account for kernel memory usage.
- 	 */
- 	struct res_counter kmem;
-+
-+	struct list_head children;
-+	struct list_head siblings;
- 	/*
- 	 * Per cgroup active and inactive list, similar to the
- 	 * per zone LRU lists.
-@@ -274,7 +277,11 @@ struct mem_cgroup {
- 	 * Should the accounting and control be hierarchical, per subtree?
- 	 */
- 	bool use_hierarchy;
--	bool kmem_accounted;
-+	/*
-+	 * bit0: accounted by this cgroup
-+	 * bit1: accounted by a parent.
-+	 */
-+	volatile unsigned long kmem_accounted;
- 
- 	bool		oom_lock;
- 	atomic_t	under_oom;
-@@ -332,6 +339,9 @@ struct mem_cgroup {
+diff --git a/include/linux/slab.h b/include/linux/slab.h
+index 155d19f..7e13055 100644
+--- a/include/linux/slab.h
++++ b/include/linux/slab.h
+@@ -182,6 +182,8 @@ unsigned int kmem_cache_size(struct kmem_cache *);
  #endif
+ 
+ #ifdef CONFIG_CGROUP_MEM_RES_CTLR_KMEM
++#include <linux/workqueue.h>
++
+ struct mem_cgroup_cache_params {
+ 	struct mem_cgroup *memcg;
+ 	struct kmem_cache *parent;
+@@ -190,6 +192,7 @@ struct mem_cgroup_cache_params {
+ 	atomic_t nr_pages;
+ 	struct list_head destroyed_list; /* Used when deleting memcg cache */
+ 	struct list_head sibling_list;
++	struct work_struct cache_shrinker;
+ };
+ #endif
+ 
+diff --git a/include/linux/slub_def.h b/include/linux/slub_def.h
+index 7183596..871f82b 100644
+--- a/include/linux/slub_def.h
++++ b/include/linux/slub_def.h
+@@ -116,6 +116,14 @@ struct kmem_cache {
+ 	struct kmem_cache_node *node[MAX_NUMNODES];
  };
  
-+#define KMEM_ACCOUNTED_THIS	0
-+#define KMEM_ACCOUNTED_PARENT	1
-+
- int memcg_css_id(struct mem_cgroup *memcg)
- {
- 	return css_id(&memcg->css);
-@@ -474,7 +484,7 @@ void sock_release_memcg(struct sock *sk)
- 
- static void disarm_static_keys(struct mem_cgroup *memcg)
- {
--	if (memcg->kmem_accounted)
-+	if (test_bit(KMEM_ACCOUNTED_THIS, &memcg->kmem_accounted))
- 		static_key_slow_dec(&mem_cgroup_kmem_enabled_key);
- 	/*
- 	 * This check can't live in kmem destruction function,
-@@ -4418,6 +4428,110 @@ static ssize_t mem_cgroup_read(struct cgroup *cont, struct cftype *cft,
- 	len = scnprintf(str, sizeof(str), "%llu\n", (unsigned long long)val);
- 	return simple_read_from_buffer(buf, nbytes, ppos, str, len);
- }
-+
++static inline void kmem_cache_verify_dead(struct kmem_cache *cachep)
++{
 +#ifdef CONFIG_CGROUP_MEM_RES_CTLR_KMEM
-+typedef int (*memcg_visitor)(struct mem_cgroup*, void *);
-+
-+/*
-+ * This is mostly "inspired" by the code in sched/core.c. I decided to copy it,
-+ * instead of factoring it, because of all the typing issues we'd run into.
-+ * In particular, grabbing the parent is very different for memcg, because we
-+ * may or may not have hierarchy, while cpu cgroups always do. That would lead
-+ * to either indirect calls - this is not a fast path for us, but can be for
-+ * the scheduler - or a big and ugly macro.
-+ *
-+ * If we ever get rid of hierarchy, we could iterate over struct cgroup, and
-+ * then it would cease to be a problem.
-+ */
-+int walk_tree_from(struct mem_cgroup *from,
-+		   memcg_visitor down, memcg_visitor up, void *data)
-+{
-+	struct mem_cgroup *parent, *child;
-+	int ret;
-+
-+
-+	parent = from;
-+down:
-+	ret = (*down)(parent, data);
-+	if (ret)
-+		goto out;
-+
-+	list_for_each_entry_rcu(child, &parent->children, siblings) {
-+		parent = child;
-+		goto down;
-+
-+up:
-+		continue;
-+	}
-+	ret = (*up)(parent, data);
-+	if (ret || parent == from)
-+		goto out;
-+
-+	child = parent;
-+	parent = parent_mem_cgroup(parent);
-+	if (parent)
-+		goto up;
-+out:
-+	return ret;
-+}
-+
-+static int memcg_nop(struct mem_cgroup *memcg, void *data)
-+{
-+	return 0;
-+}
-+
-+static int memcg_parent_account(struct mem_cgroup *memcg, void *data)
-+{
-+	if (memcg == data)
-+		return 0;
-+
-+	set_bit(KMEM_ACCOUNTED_PARENT, &memcg->kmem_accounted);
-+	return 0;
-+}
-+
-+static int memcg_parent_no_account(struct mem_cgroup *memcg, void *data)
-+{
-+	if (memcg == data)
-+		return 0;
-+
-+	clear_bit(KMEM_ACCOUNTED_PARENT, &memcg->kmem_accounted);
-+	/*
-+	 * Stop propagation if we are accounted: our children should
-+	 * be parent-accounted
-+	 */
-+	return test_bit(KMEM_ACCOUNTED_THIS, &memcg->kmem_accounted);
-+}
-+
-+static void mem_cgroup_update_kmem_limit(struct mem_cgroup *memcg, u64 val)
-+{
-+	mutex_lock(&set_limit_mutex);
-+	if (!test_and_set_bit(KMEM_ACCOUNTED_THIS, &memcg->kmem_accounted) &&
-+		val != RESOURCE_MAX) {
-+
-+		/*
-+		 * Once enabled, can't be disabled. We could in theory
-+		 * disable it if we haven't yet created any caches, or
-+		 * if we can shrink them all to death.
-+		 *
-+		 * But it is not worth the trouble
-+		 */
-+		static_key_slow_inc(&mem_cgroup_kmem_enabled_key);
-+
-+		rcu_read_lock();
-+		walk_tree_from(memcg, memcg_parent_account, memcg_nop, memcg);
-+		rcu_read_unlock();
-+	} else if (test_and_clear_bit(KMEM_ACCOUNTED_THIS, &memcg->kmem_accounted)
-+		&& val == RESOURCE_MAX) {
-+
-+		rcu_read_lock();
-+		walk_tree_from(memcg, memcg_parent_no_account,
-+			       memcg_nop, memcg);
-+		rcu_read_unlock();
-+	}
-+
-+	mutex_unlock(&set_limit_mutex);
-+}
++	if (unlikely(cachep->memcg_params.dead))
++		schedule_work(&cachep->memcg_params.cache_shrinker);
 +#endif
++}
++
  /*
-  * The user of this function is...
-  * RES_LIMIT.
-@@ -4455,20 +4569,8 @@ static int mem_cgroup_write(struct cgroup *cont, struct cftype *cft,
- 			ret = res_counter_set_limit(&memcg->kmem, val);
- 			if (ret)
- 				break;
--			/*
--			 * Once enabled, can't be disabled. We could in theory
--			 * disable it if we haven't yet created any caches, or
--			 * if we can shrink them all to death.
--			 *
--			 * But it is not worth the trouble
--			 */
--			mutex_lock(&set_limit_mutex);
--			if (!memcg->kmem_accounted && val != RESOURCE_MAX
--			    && !memcg->kmem_accounted) {
--				static_key_slow_inc(&mem_cgroup_kmem_enabled_key);
--				memcg->kmem_accounted = true;
--			}
--			mutex_unlock(&set_limit_mutex);
-+			mem_cgroup_update_kmem_limit(memcg, val);
-+			break;
- 		}
- #endif
- 		else
-@@ -5527,6 +5629,8 @@ err_cleanup:
+  * Kmalloc subsystem.
+  */
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index 972e83f..c368480 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -531,7 +531,7 @@ static char *mem_cgroup_cache_name(struct mem_cgroup *memcg, struct kmem_cache *
+ 
+ 	BUG_ON(dentry == NULL);
+ 
+-	name = kasprintf(GFP_KERNEL, "%s(%d:%s)",
++	name = kasprintf(GFP_KERNEL, "%s(%d:%s)dead",
+ 	    cachep->name, css_id(&memcg->css), dentry->d_name.name);
+ 
+ 	return name;
+@@ -592,11 +592,24 @@ void mem_cgroup_release_cache(struct kmem_cache *cachep)
  
  }
  
-+static DEFINE_MUTEX(memcg_list_mutex);
++static void cache_shrinker_work_func(struct work_struct *work)
++{
++	struct mem_cgroup_cache_params *params;
++	struct kmem_cache *cachep;
 +
- static struct cgroup_subsys_state * __ref
- mem_cgroup_create(struct cgroup *cont)
++	params = container_of(work, struct mem_cgroup_cache_params,
++			      cache_shrinker);
++	cachep = container_of(params, struct kmem_cache, memcg_params);
++
++	kmem_cache_shrink(cachep);
++}
++
+ static struct kmem_cache *memcg_create_kmem_cache(struct mem_cgroup *memcg,
+ 						  struct kmem_cache *cachep)
  {
-@@ -5542,6 +5646,7 @@ mem_cgroup_create(struct cgroup *cont)
- 		if (alloc_mem_cgroup_per_zone_info(memcg, node))
- 			goto free_out;
+ 	struct kmem_cache *new_cachep;
+ 	int idx;
++	char *name;
  
-+	INIT_LIST_HEAD(&memcg->children);
- 	/* root ? */
- 	if (cont->parent == NULL) {
- 		int cpu;
-@@ -5580,6 +5685,10 @@ mem_cgroup_create(struct cgroup *cont)
- 		 * mem_cgroup(see mem_cgroup_put).
- 		 */
- 		mem_cgroup_get(parent);
+ 	BUG_ON(!mem_cgroup_kmem_enabled(memcg));
+ 
+@@ -616,10 +629,21 @@ static struct kmem_cache *memcg_create_kmem_cache(struct mem_cgroup *memcg,
+ 		goto out;
+ 	}
+ 
++	/*
++	 * Because the cache is expected to duplicate the string,
++	 * we must make sure it has opportunity to copy its full
++	 * name. Only now we can remove the dead part from it
++	 */
++	name = (char *)new_cachep->name;
++	if (name)
++		name[strlen(name) - 4] = '\0';
 +
-+		mutex_lock(&memcg_list_mutex);
-+		list_add_rcu(&memcg->siblings, &parent->children);
-+		mutex_unlock(&memcg_list_mutex);
- 	} else {
- 		res_counter_init(&memcg->res, NULL);
- 		res_counter_init(&memcg->memsw, NULL);
-@@ -5622,9 +5731,15 @@ static int mem_cgroup_pre_destroy(struct cgroup *cont)
- static void mem_cgroup_destroy(struct cgroup *cont)
- {
- 	struct mem_cgroup *memcg = mem_cgroup_from_cont(cont);
-+	struct mem_cgroup *parent = parent_mem_cgroup(memcg);
- 
- 	kmem_cgroup_destroy(memcg);
- 
-+	mutex_lock(&memcg_list_mutex);
-+	if (parent)
-+		list_del_rcu(&memcg->siblings);
-+	mutex_unlock(&memcg_list_mutex);
+ 	mem_cgroup_get(memcg);
+ 	memcg->slabs[idx] = new_cachep;
+ 	new_cachep->memcg_params.memcg = memcg;
+ 	atomic_set(&new_cachep->memcg_params.nr_pages , 0);
++	INIT_WORK(&new_cachep->memcg_params.cache_shrinker,
++		  cache_shrinker_work_func);
+ out:
+ 	mutex_unlock(&memcg_cache_mutex);
+ 	return new_cachep;
+@@ -642,6 +666,21 @@ static void kmem_cache_destroy_work_func(struct work_struct *w)
+ 	struct mem_cgroup_cache_params *p, *tmp;
+ 	unsigned long flags;
+ 	LIST_HEAD(del_unlocked);
++	LIST_HEAD(shrinkers);
 +
- 	mem_cgroup_put(memcg);
++	spin_lock_irqsave(&cache_queue_lock, flags);
++	list_for_each_entry_safe(p, tmp, &destroyed_caches, destroyed_list) {
++		cachep = container_of(p, struct kmem_cache, memcg_params);
++		if (atomic_read(&cachep->memcg_params.nr_pages) != 0)
++			list_move(&cachep->memcg_params.destroyed_list, &shrinkers);
++	}
++	spin_unlock_irqrestore(&cache_queue_lock, flags);
++
++	list_for_each_entry_safe(p, tmp, &shrinkers, destroyed_list) {
++		cachep = container_of(p, struct kmem_cache, memcg_params);
++		list_del(&cachep->memcg_params.destroyed_list);
++		kmem_cache_shrink(cachep);
++	}
+ 
+ 	spin_lock_irqsave(&cache_queue_lock, flags);
+ 	list_for_each_entry_safe(p, tmp, &destroyed_caches, destroyed_list) {
+@@ -719,11 +758,14 @@ static void mem_cgroup_destroy_all_caches(struct mem_cgroup *memcg)
+ 
+ 	spin_lock_irqsave(&cache_queue_lock, flags);
+ 	for (i = 0; i < MAX_KMEM_CACHE_TYPES; i++) {
++		char *name;
+ 		cachep = memcg->slabs[i];
+ 		if (!cachep)
+ 			continue;
+ 
+ 		cachep->memcg_params.dead = true;
++		name = (char *)cachep->name;
++		name[strlen(name)] = 'd';
+ 		__mem_cgroup_destroy_cache(cachep);
+ 	}
+ 	spin_unlock_irqrestore(&cache_queue_lock, flags);
+diff --git a/mm/slub.c b/mm/slub.c
+index d5b91f4..37ac548 100644
+--- a/mm/slub.c
++++ b/mm/slub.c
+@@ -2593,6 +2593,7 @@ redo:
+ 	} else
+ 		__slab_free(s, page, x, addr);
+ 
++	kmem_cache_verify_dead(s);
  }
  
+ void kmem_cache_free(struct kmem_cache *s, void *x)
 -- 
 1.7.10.2
 
