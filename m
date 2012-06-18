@@ -1,74 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx141.postini.com [74.125.245.141])
-	by kanga.kvack.org (Postfix) with SMTP id 6A8366B004D
-	for <linux-mm@kvack.org>; Mon, 18 Jun 2012 08:46:17 -0400 (EDT)
-Message-ID: <4FDF227B.3080601@parallels.com>
-Date: Mon, 18 Jun 2012 16:43:39 +0400
-From: Glauber Costa <glommer@parallels.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH v4 23/25] memcg: propagate kmem limiting information to
- children
-References: <1340015298-14133-1-git-send-email-glommer@parallels.com> <1340015298-14133-24-git-send-email-glommer@parallels.com> <4FDF20ED.4090401@jp.fujitsu.com>
-In-Reply-To: <4FDF20ED.4090401@jp.fujitsu.com>
-Content-Type: text/plain; charset="ISO-2022-JP"
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx143.postini.com [74.125.245.143])
+	by kanga.kvack.org (Postfix) with SMTP id ACCF96B004D
+	for <linux-mm@kvack.org>; Mon, 18 Jun 2012 09:10:43 -0400 (EDT)
+Received: by dakp5 with SMTP id p5so8617706dak.14
+        for <linux-mm@kvack.org>; Mon, 18 Jun 2012 06:10:42 -0700 (PDT)
+From: Wanpeng Li <liwp.linux@gmail.com>
+Subject: [PATCH] mm/memcg: add unlikely to mercg->move_charge_at_immigrate
+Date: Mon, 18 Jun 2012 21:10:21 +0800
+Message-Id: <1340025022-7272-1-git-send-email-liwp.linux@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: linux-mm@kvack.org, Pekka Enberg <penberg@kernel.org>, Cristoph Lameter <cl@linux.com>, David Rientjes <rientjes@google.com>, cgroups@vger.kernel.org, devel@openvz.org, linux-kernel@vger.kernel.org, Frederic Weisbecker <fweisbec@gmail.com>, Suleiman Souhlal <suleiman@google.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>
+To: Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Balbir Singh <bsingharora@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Gavin Shan <shangw@linux.vnet.ibm.com>, Wanpeng Li <liwp.linux@gmail.com>
 
-On 06/18/2012 04:37 PM, Kamezawa Hiroyuki wrote:
-> (2012/06/18 19:28), Glauber Costa wrote:
->> The current memcg slab cache management fails to present satisfatory hierarchical
->> behavior in the following scenario:
->>
->> ->  /cgroups/memory/A/B/C
->>
->> * kmem limit set at A
->> * A and B empty taskwise
->> * bash in C does find /
->>
->> Because kmem_accounted is a boolean that was not set for C, no accounting
->> would be done. This is, however, not what we expect.
->>
-> 
-> Hmm....do we need this new routines even while we have mem_cgroup_iter() ?
-> 
-> Doesn't this work ?
-> 
-> 	struct mem_cgroup {
-> 		.....
-> 		bool kmem_accounted_this;
-> 		atomic_t kmem_accounted;
-> 		....
-> 	}
-> 
-> at set limit
-> 
-> 	....set_limit(memcg) {
-> 
-> 		if (newly accounted) {
-> 			mem_cgroup_iter() {
-> 				atomic_inc(&iter->kmem_accounted)
-> 			}
-> 		} else {
-> 			mem_cgroup_iter() {
-> 				atomic_dec(&iter->kmem_accounted);
-> 			}
-> 	}
-> 
-> 
-> hm ? Then, you can see kmem is accounted or not by atomic_read(&memcg->kmem_accounted);
-> 
+From: Wanpeng Li <liwp@linux.vnet.ibm.com>
 
-Accounted by itself / parent is still useful, and I see no reason to use
-an atomic + bool if we can use a pair of bits.
+move_charge_at_immigrate feature is disabled by default. Charges
+are moved only when you move mm->owner and it also add additional
+overhead.
 
-As for the routine, I guess mem_cgroup_iter will work... It does a lot
-more than I need, but for the sake of using what's already in there, I
-can switch to it with no problems.
+Signed-off-by: Wanpeng Li <liwp.linux@gmail.com>
+---
+ mm/memcontrol.c |    2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
-
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index a9c3d01..795a00f 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -5316,7 +5316,7 @@ static int mem_cgroup_can_attach(struct cgroup *cgroup,
+ 	int ret = 0;
+ 	struct mem_cgroup *memcg = mem_cgroup_from_cont(cgroup);
+ 
+-	if (memcg->move_charge_at_immigrate) {
++	if (unlikely(memcg->move_charge_at_immigrate)) {
+ 		struct mm_struct *mm;
+ 		struct mem_cgroup *from = mem_cgroup_from_task(p);
+ 
+-- 
+1.7.9.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
