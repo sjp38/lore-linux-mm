@@ -1,67 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx106.postini.com [74.125.245.106])
-	by kanga.kvack.org (Postfix) with SMTP id 36CB16B0071
-	for <linux-mm@kvack.org>; Mon, 18 Jun 2012 08:17:08 -0400 (EDT)
-Message-ID: <4FDF1BAB.9050205@parallels.com>
-Date: Mon, 18 Jun 2012 16:14:35 +0400
-From: Glauber Costa <glommer@parallels.com>
+Received: from psmtp.com (na3sys010amx178.postini.com [74.125.245.178])
+	by kanga.kvack.org (Postfix) with SMTP id 5C7346B0071
+	for <linux-mm@kvack.org>; Mon, 18 Jun 2012 08:22:05 -0400 (EDT)
+Received: from m1.gw.fujitsu.co.jp (unknown [10.0.50.71])
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id E7FE03EE0BD
+	for <linux-mm@kvack.org>; Mon, 18 Jun 2012 21:22:03 +0900 (JST)
+Received: from smail (m1 [127.0.0.1])
+	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id C92DC45DE5B
+	for <linux-mm@kvack.org>; Mon, 18 Jun 2012 21:22:03 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
+	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 9C04745DE58
+	for <linux-mm@kvack.org>; Mon, 18 Jun 2012 21:22:03 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 8C04C1DB8058
+	for <linux-mm@kvack.org>; Mon, 18 Jun 2012 21:22:03 +0900 (JST)
+Received: from m1001.s.css.fujitsu.com (m1001.s.css.fujitsu.com [10.240.81.139])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 3CF421DB8055
+	for <linux-mm@kvack.org>; Mon, 18 Jun 2012 21:22:03 +0900 (JST)
+Message-ID: <4FDF1CE5.90803@jp.fujitsu.com>
+Date: Mon, 18 Jun 2012 21:19:49 +0900
+From: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH v4 00/25] kmem limitation for memcg
-References: <1340015298-14133-1-git-send-email-glommer@parallels.com> <4FDF1ABE.7070200@jp.fujitsu.com>
-In-Reply-To: <4FDF1ABE.7070200@jp.fujitsu.com>
-Content-Type: text/plain; charset="ISO-2022-JP"
+Subject: Re: [PATCH v4 17/25] skip memcg kmem allocations in specified code
+ regions
+References: <1340015298-14133-1-git-send-email-glommer@parallels.com> <1340015298-14133-18-git-send-email-glommer@parallels.com>
+In-Reply-To: <1340015298-14133-18-git-send-email-glommer@parallels.com>
+Content-Type: text/plain; charset=ISO-2022-JP
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: linux-mm@kvack.org, Pekka Enberg <penberg@kernel.org>, Cristoph Lameter <cl@linux.com>, David Rientjes <rientjes@google.com>, cgroups@vger.kernel.org, devel@openvz.org, linux-kernel@vger.kernel.org, Frederic Weisbecker <fweisbec@gmail.com>, Suleiman Souhlal <suleiman@google.com>
+To: Glauber Costa <glommer@parallels.com>
+Cc: linux-mm@kvack.org, Pekka Enberg <penberg@kernel.org>, Cristoph Lameter <cl@linux.com>, David Rientjes <rientjes@google.com>, cgroups@vger.kernel.org, devel@openvz.org, linux-kernel@vger.kernel.org, Frederic Weisbecker <fweisbec@gmail.com>, Suleiman Souhlal <suleiman@google.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>
 
-On 06/18/2012 04:10 PM, Kamezawa Hiroyuki wrote:
-> (2012/06/18 19:27), Glauber Costa wrote:
->> Hello All,
->>
->> This is my new take for the memcg kmem accounting. This should merge
->> all of the previous comments from you guys, specially concerning the big churn
->> inside the allocators themselves.
->>
->> My focus in this new round was to keep the changes in the cache internals to
->> a minimum. To do that, I relied upon two main pillars:
->>
->>    * Cristoph's unification series, that allowed me to put must of the changes
->>      in a common file. Even then, the changes are not too many, since the overal
->>      level of invasiveness was decreased.
->>    * Accounting is done directly from the page allocator. This means some pages
->>      can fail to be accounted, but that can only happen when the task calling
->>      kmem_cache_alloc or kmalloc is not the same task allocating a new page.
->>      This never happens in steady state operation if the tasks are kept in the
->>      same memcg. Naturally, if the page ends up being accounted to a memcg that
->>      is not limited (such as root memcg), that particular page will simply not
->>      be accounted.
->>
->> The dispatcher code stays (mem_cgroup_get_kmem_cache), being the mechanism who
->> guarantees that, during steady state operation, all objects allocated in a page
->> will belong to the same memcg. I consider this a good compromise point between
->> strict and loose accounting here.
->>
+(2012/06/18 19:28), Glauber Costa wrote:
+> This patch creates a mechanism that skip memcg allocations during
+> certain pieces of our core code. It basically works in the same way
+> as preempt_disable()/preempt_enable(): By marking a region under
+> which all allocations will be accounted to the root memcg.
 > 
-> 2 questions.
+> We need this to prevent races in early cache creation, when we
+> allocate data using caches that are not necessarily created already.
 > 
->    - Do you have performance numbers ?
+> Signed-off-by: Glauber Costa<glommer@parallels.com>
+> CC: Christoph Lameter<cl@linux.com>
+> CC: Pekka Enberg<penberg@cs.helsinki.fi>
+> CC: Michal Hocko<mhocko@suse.cz>
+> CC: Kamezawa Hiroyuki<kamezawa.hiroyu@jp.fujitsu.com>
+> CC: Johannes Weiner<hannes@cmpxchg.org>
+> CC: Suleiman Souhlal<suleiman@google.com>
 
-Not extensive. I've run some microbenchmarks trying to determine the
-effect of my code on kmem_cache_alloc, and found it to be in the order
-of 2 to 3 %. I would expect that to vanish in a workload benchmark.
+I'm ok with this approach.
 
-> 
->    - Do you think user-memory memcg should be switched to page-allocator level accounting ?
->      (it will require some study for modifying current bached-freeing and per-cpu-stock
->       logics...)
+Reviewed-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-I don't see a reason for that. My main goal by doing that was to reduce
-the churn in the cache internal structures, but specially because there
-is at least two of them, obeying a stable interface. The way I
-understand it, memcg for user pages is already pretty well integrated to
-the page allocator, so the benefit of it is questionable.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
