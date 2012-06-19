@@ -1,161 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx207.postini.com [74.125.245.207])
-	by kanga.kvack.org (Postfix) with SMTP id BD4896B006C
-	for <linux-mm@kvack.org>; Tue, 19 Jun 2012 12:50:12 -0400 (EDT)
-Received: from /spool/local
-	by e4.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <sjenning@linux.vnet.ibm.com>;
-	Tue, 19 Jun 2012 12:50:09 -0400
-Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
-	by d01dlp01.pok.ibm.com (Postfix) with ESMTP id 397B038C806F
-	for <linux-mm@kvack.org>; Tue, 19 Jun 2012 12:49:26 -0400 (EDT)
-Received: from d03av05.boulder.ibm.com (d03av05.boulder.ibm.com [9.17.195.85])
-	by d01relay04.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q5JGnO8G162606
-	for <linux-mm@kvack.org>; Tue, 19 Jun 2012 12:49:24 -0400
-Received: from d03av05.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av05.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q5JGnI9R026167
-	for <linux-mm@kvack.org>; Tue, 19 Jun 2012 10:49:18 -0600
-Message-ID: <4FE0AD89.6000001@linux.vnet.ibm.com>
-Date: Tue, 19 Jun 2012 11:49:13 -0500
-From: Seth Jennings <sjenning@linux.vnet.ibm.com>
+Received: from psmtp.com (na3sys010amx178.postini.com [74.125.245.178])
+	by kanga.kvack.org (Postfix) with SMTP id F1DCB6B006C
+	for <linux-mm@kvack.org>; Tue, 19 Jun 2012 13:32:17 -0400 (EDT)
+Message-ID: <4FE0B79E.1060601@jp.fujitsu.com>
+Date: Tue, 19 Jun 2012 13:32:14 -0400
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 10/10] cleanup the code between tmem_obj_init and tmem_obj_find
-References: <4FE0392E.3090300@linux.vnet.ibm.com> <4FE03A55.7070503@linux.vnet.ibm.com>
-In-Reply-To: <4FE03A55.7070503@linux.vnet.ibm.com>
-Content-Type: text/plain; charset=UTF-8
+Subject: Re: [patch v2] mm, oom: do not schedule if current has been killed
+References: <alpine.DEB.2.00.1206181807060.13281@chino.kir.corp.google.com> <4FDFDCA7.8060607@jp.fujitsu.com> <alpine.DEB.2.00.1206181918390.13293@chino.kir.corp.google.com> <alpine.DEB.2.00.1206181930550.13293@chino.kir.corp.google.com> <CAHGf_=pq_UJfr22kYC=vCyEDRKx75zt5eZ27+VcqFZFqc-KHTw@mail.gmail.com> <alpine.DEB.2.00.1206182321160.27620@chino.kir.corp.google.com>
+In-Reply-To: <alpine.DEB.2.00.1206182321160.27620@chino.kir.corp.google.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Xiao Guangrong <xiaoguangrong@linux.vnet.ibm.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Dan Magenheimer <dan.magenheimer@oracle.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: rientjes@google.com
+Cc: kosaki.motohiro@jp.fujitsu.com, kamezawa.hiroyu@jp.fujitsu.com, akpm@linux-foundation.org, oleg@redhat.com, linux-mm@kvack.org
 
-This patch causes a crash, details below.
-
-On 06/19/2012 03:37 AM, Xiao Guangrong wrote:
-
-> tmem_obj_find and insertion tmem-obj have the some logic, we can integrate
-> the code
+On 6/19/2012 2:26 AM, David Rientjes wrote:
+> On Tue, 19 Jun 2012, KOSAKI Motohiro wrote:
 > 
-> Signed-off-by: Xiao Guangrong <xiaoguangrong@linux.vnet.ibm.com>
-> ---
->  drivers/staging/zcache/tmem.c |   58 +++++++++++++++++++++-------------------
->  1 files changed, 30 insertions(+), 28 deletions(-)
+>>> diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+>>> --- a/mm/oom_kill.c
+>>> +++ b/mm/oom_kill.c
+>>> @@ -746,10 +746,11 @@ out:
+>>>        read_unlock(&tasklist_lock);
+>>>
+>>>        /*
+>>> -        * Give "p" a good chance of killing itself before we
+>>> +        * Give "p" a good chance of exiting before we
+>>>         * retry to allocate memory unless "p" is current
+>>>         */
+>>> -       if (killed && !test_thread_flag(TIF_MEMDIE))
+>>> +       if (killed && !fatal_signal_pending(current) &&
+>>> +                     !(current->flags & PF_EXITING))
+>>>                schedule_timeout_uninterruptible(1);
+>>>  }
+>>
+>> Why don't check gfp_flags? I think the rule is,
+>>
+>> 1) a thread of newly marked as TIF_MEMDIE
+>>     -> now it has a capability to access reseve memory. let's immediately retry.
+>> 2) allocation for GFP_HIGHUSER_MOVABLE
+>>     -> we can fail to allocate it safely. let's immediately fail.
+>>         (I suspect we need to change page allocator too)
+>> 3) GFP_KERNEL and PF_EXITING
+>>     -> don't retry immediately. It shall fail again. let's wait until
+>> killed process
+>>         is exited.
+>>
 > 
-> diff --git a/drivers/staging/zcache/tmem.c b/drivers/staging/zcache/tmem.c
-> index 1ca66ea..cdf2d3c 100644
-> --- a/drivers/staging/zcache/tmem.c
-> +++ b/drivers/staging/zcache/tmem.c
-> @@ -72,33 +72,48 @@ void tmem_register_pamops(struct tmem_pamops *m)
->   * the hashbucket lock must be held.
->   */
-> 
-> -/* searches for object==oid in pool, returns locked object if found */
-> -static struct tmem_obj *tmem_obj_find(struct tmem_hashbucket *hb,
-> -					struct tmem_oid *oidp)
-> +static struct tmem_obj
-> +*__tmem_obj_find(struct tmem_hashbucket*hb, struct tmem_oid *oidp,
-> +		 struct rb_node *parent, struct rb_node **link)
->  {
-> -	struct rb_node *rbnode;
-> +	struct rb_node **rbnode;
->  	struct tmem_obj *obj;
-> 
-> -	rbnode = hb->obj_rb_root.rb_node;
-> -	while (rbnode) {
-> -		BUG_ON(RB_EMPTY_NODE(rbnode));
-> -		obj = rb_entry(rbnode, struct tmem_obj, rb_tree_node);
-> +	rbnode = &hb->obj_rb_root.rb_node;
-> +	while (*rbnode) {
-> +		BUG_ON(RB_EMPTY_NODE(*rbnode));
-> +		obj = rb_entry(*rbnode, struct tmem_obj,
-> +			       rb_tree_node);
->  		switch (tmem_oid_compare(oidp, &obj->oid)) {
->  		case 0: /* equal */
->  			goto out;
->  		case -1:
-> -			rbnode = rbnode->rb_left;
-> +			rbnode = &(*rbnode)->rb_left;
->  			break;
->  		case 1:
-> -			rbnode = rbnode->rb_right;
-> +			rbnode = &(*rbnode)->rb_right;
->  			break;
->  		}
->  	}
-> +
-> +	if (parent)
-> +		parent = &obj->rb_tree_node;
-> +	if (link)
-> +		link = rbnode;
-> +
->  	obj = NULL;
->  out:
->  	return obj;
->  }
-> 
-> +
-> +/* searches for object==oid in pool, returns locked object if found */
-> +static struct tmem_obj *tmem_obj_find(struct tmem_hashbucket *hb,
-> +					struct tmem_oid *oidp)
-> +{
-> +	return __tmem_obj_find(hb, oidp, NULL, NULL);
-> +}
-> +
->  static void tmem_pampd_destroy_all_in_obj(struct tmem_obj *);
-> 
->  /* free an object that has no more pampds in it */
-> @@ -131,8 +146,7 @@ static void tmem_obj_init(struct tmem_obj *obj, struct tmem_hashbucket *hb,
->  					struct tmem_oid *oidp)
->  {
->  	struct rb_root *root = &hb->obj_rb_root;
-> -	struct rb_node **new = &(root->rb_node), *parent = NULL;
-> -	struct tmem_obj *this;
-> +	struct rb_node **new = NULL, *parent = NULL;
-> 
->  	BUG_ON(pool == NULL);
->  	atomic_inc(&pool->obj_count);
-> @@ -144,22 +158,10 @@ static void tmem_obj_init(struct tmem_obj *obj, struct tmem_hashbucket *hb,
->  	obj->pampd_count = 0;
->  	(*tmem_pamops.new_obj)(obj);
->  	SET_SENTINEL(obj, OBJ);
-> -	while (*new) {
-> -		BUG_ON(RB_EMPTY_NODE(*new));
-> -		this = rb_entry(*new, struct tmem_obj, rb_tree_node);
-> -		parent = *new;
-> -		switch (tmem_oid_compare(oidp, &this->oid)) {
-> -		case 0:
-> -			BUG(); /* already present; should never happen! */
-> -			break;
-> -		case -1:
-> -			new = &(*new)->rb_left;
-> -			break;
-> -		case 1:
-> -			new = &(*new)->rb_right;
-> -			break;
-> -		}
-> -	}
-> +
-> +	if (__tmem_obj_find(hb, oidp, parent, new))
-> +		BUG();
-> +
->  	rb_link_node(&obj->rb_tree_node, parent, new);
+> The killed process may exit but it does not guarantee that its memory will 
+> be freed if it's shared with current.  This is the case that the patch is 
+> addressing, where right now we unnecessarily schedule if current has been 
+> killed or is already along the exit path.  We want to retry as soon as 
+> possible so that either the allocation now succeeds or we can recall the 
+> oom killer as soon as possible and get TIF_MEMDIE set because we have a 
+> fatal signal so current may exit in a timely way as well.  The point is 
+> that if current has either a SIGKILL or is already exiting as it returns 
+> from the oom killer, it does no good to continue to stall and prevent that 
+> memory freeing.
+
+You missed live lock risk. immediate retry makes immediate fail if no one
+freed any memory. Even if the task call out_of_memory() again, select_bad_process()
+may return -1 and don't makes any forward progress.
 
 
-Getting a NULL deref crash here because new is NULL
-
-[   56.422031] BUG: unable to handle kernel NULL pointer dereference at           (null)
-[   56.423008] IP: [<ffffffff812b8ba4>] tmem_put+0x3a4/0x3d0
-
-static inline void rb_link_node(struct rb_node * node, struct rb_node * parent,
-				struct rb_node ** rb_link)
-{
-...
-	*rb_link = node;
-ffffffff812b8ba4:	48 89 38             	mov    %rdi,(%rax) <--- here
-ffffffff812b8ba7:	e8 00 00 00 00       	callq  ffffffff812b8bac <tmem_put+0x3ac>
-
---
-Seth
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
