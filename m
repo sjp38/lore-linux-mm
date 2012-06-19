@@ -1,83 +1,124 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx186.postini.com [74.125.245.186])
-	by kanga.kvack.org (Postfix) with SMTP id F34BF6B0083
-	for <linux-mm@kvack.org>; Tue, 19 Jun 2012 17:39:54 -0400 (EDT)
-Received: by ghrr18 with SMTP id r18so6399029ghr.14
-        for <linux-mm@kvack.org>; Tue, 19 Jun 2012 14:39:54 -0700 (PDT)
-Message-ID: <4FE0F1A9.7050607@gmail.com>
-Date: Tue, 19 Jun 2012 17:39:53 -0400
-From: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
-MIME-Version: 1.0
-Subject: Re: [patch v3] mm, oom: do not schedule if current has been killed
-References: <alpine.DEB.2.00.1206181807060.13281@chino.kir.corp.google.com> <4FDFDCA7.8060607@jp.fujitsu.com> <alpine.DEB.2.00.1206181918390.13293@chino.kir.corp.google.com> <alpine.DEB.2.00.1206181930550.13293@chino.kir.corp.google.com> <20120619135551.GA24542@redhat.com> <alpine.DEB.2.00.1206191323470.17985@chino.kir.corp.google.com> <alpine.DEB.2.00.1206191358030.21795@chino.kir.corp.google.com>
-In-Reply-To: <alpine.DEB.2.00.1206191358030.21795@chino.kir.corp.google.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Received: from psmtp.com (na3sys010amx130.postini.com [74.125.245.130])
+	by kanga.kvack.org (Postfix) with SMTP id D42376B0075
+	for <linux-mm@kvack.org>; Tue, 19 Jun 2012 18:00:15 -0400 (EDT)
+Date: Tue, 19 Jun 2012 15:00:14 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH -mm] memcg: prevent from OOM with too many dirty pages
+Message-Id: <20120619150014.1ebc108c.akpm@linux-foundation.org>
+In-Reply-To: <1340117404-30348-1-git-send-email-mhocko@suse.cz>
+References: <1340117404-30348-1-git-send-email-mhocko@suse.cz>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Oleg Nesterov <oleg@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org, kosaki.motohiro@gmail.com
+To: Michal Hocko <mhocko@suse.cz>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujtisu.com>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@redhat.com>, Ying Han <yinghan@google.com>, Greg Thelen <gthelen@google.com>, Hugh Dickins <hughd@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Fengguang Wu <fengguang.wu@intel.com>
 
-(6/19/12 4:58 PM), David Rientjes wrote:
-> The oom killer currently schedules away from current in an
-> uninterruptible sleep if it does not have access to memory reserves.
-> It's possible that current was killed because it shares memory with the
-> oom killed thread or because it was killed by the user in the interim,
-> however.
-> 
-> This patch only schedules away from current if it does not have a pending
-> kill, i.e. if it does not share memory with the oom killed thread.  It's
-> possible that it will immediately retry its memory allocation and fail,
-> but it will immediately be given access to memory reserves if it calls
-> the oom killer again.
-> 
-> This prevents the delay of memory freeing when threads that share memory
-> with the oom killed thread get unnecessarily scheduled.
-> 
-> Signed-off-by: David Rientjes <rientjes@google.com>
-> ---
->  mm/oom_kill.c |   11 +++++------
->  1 file changed, 5 insertions(+), 6 deletions(-)
-> 
-> diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-> --- a/mm/oom_kill.c
-> +++ b/mm/oom_kill.c
-> @@ -746,11 +746,11 @@ out:
->  	read_unlock(&tasklist_lock);
+On Tue, 19 Jun 2012 16:50:04 +0200
+Michal Hocko <mhocko@suse.cz> wrote:
+
+> Current implementation of dirty pages throttling is not memcg aware which makes
+> it easy to have LRUs full of dirty pages which might lead to memcg OOM if the
+> hard limit is small and so the lists are scanned faster than pages written
+> back.
+
+This is a bit hard to parse.  I changed it to
+
+: The current implementation of dirty pages throttling is not memcg aware
+: which makes it easy to have memcg LRUs full of dirty pages.  Without
+: throttling, these LRUs can be scanned faster than the rate of writeback,
+: leading to memcg OOM conditions when the hard limit is small.
+
+does that still say what you meant to say?
+
+> The solution is far from being ideal - long term solution is memcg aware
+> dirty throttling - but it is meant to be a band aid until we have a real
+> fix.
+
+Fair enough I guess.  The fix is small and simple and if it makes the
+kernel better, why not?
+
+Would like to see a few more acks though.  Why hasn't everyone been
+hitting this?
+
+> We are seeing this happening during nightly backups which are placed into
+> containers to prevent from eviction of the real working set.
+
+Well that's a trick which we want to work well.  It's a killer
+featurelet for people who wonder what all this memcg crap is for ;)
+
+> The change affects only memcg reclaim and only when we encounter PageReclaim
+> pages which is a signal that the reclaim doesn't catch up on with the writers
+> so somebody should be throttled. This could be potentially unfair because it
+> could be somebody else from the group who gets throttled on behalf of the
+> writer but as writers need to allocate as well and they allocate in higher rate
+> the probability that only innocent processes would be penalized is not that
+> high.
+
+OK.
+
+> ...
+>
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -720,9 +720,20 @@ static unsigned long shrink_page_list(struct list_head *page_list,
+>  			(PageSwapCache(page) && (sc->gfp_mask & __GFP_IO));
 >  
->  	/*
-> -	 * Give "p" a good chance of killing itself before we
-> -	 * retry to allocate memory unless "p" is current
-> +	 * Give the killed threads a good chance of exiting before trying to
-> +	 * allocate memory again.
->  	 */
-> -	if (killed && !test_thread_flag(TIF_MEMDIE))
-> -		schedule_timeout_uninterruptible(1);
-> +	if (killed)
-> +		schedule_timeout_killable(1);
->  }
+>  		if (PageWriteback(page)) {
+> -			nr_writeback++;
+> -			unlock_page(page);
+> -			goto keep;
+> +			/*
+> +			 * memcg doesn't have any dirty pages throttling so we
+> +			 * could easily OOM just because too many pages are in
+> +			 * writeback from reclaim and there is nothing else to
+> +			 * reclaim.
+> +			 */
+> +			if (PageReclaim(page)
+> +					&& may_enter_fs && !global_reclaim(sc))
+> +				wait_on_page_writeback(page);
+> +			else {
+> +				nr_writeback++;
+> +				unlock_page(page);
+> +				goto keep;
+> +			}
 
-This is not match I expected. but I have no seen a big problem.
+A couple of things here.
 
-Acked-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+With my gcc and CONFIG_CGROUP_MEM_RES_CTLR=n (for gawd's sake can we
+please rename this to CONFIG_MEMCG?), this:
+
+--- a/mm/vmscan.c~memcg-prevent-from-oom-with-too-many-dirty-pages-fix
++++ a/mm/vmscan.c
+@@ -726,8 +726,8 @@ static unsigned long shrink_page_list(st
+ 			 * writeback from reclaim and there is nothing else to
+ 			 * reclaim.
+ 			 */
+-			if (PageReclaim(page)
+-					&& may_enter_fs && !global_reclaim(sc))
++			if (!global_reclaim(sc) && PageReclaim(page) &&
++					may_enter_fs)
+ 				wait_on_page_writeback(page);
+ 			else {
+ 				nr_writeback++;
 
 
->  
->  /*
-> @@ -765,6 +765,5 @@ void pagefault_out_of_memory(void)
->  		out_of_memory(NULL, 0, 0, NULL, false);
->  		clear_system_oom();
->  	}
-> -	if (!test_thread_flag(TIF_MEMDIE))
-> -		schedule_timeout_uninterruptible(1);
-> +	schedule_timeout_killable(1);
->  }
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+reduces vmscan.o's .text by 48 bytes(!).  Because the compiler can
+avoid generating any code for PageReclaim() and perhaps the
+may_enter_fs test.  Because global_reclaim() evaluates to constant
+true.  Do you think that's an improvement?
+
+Also, why do we test may_enter_fs here?  I should have been able to
+work out your reasoning from either code comments or changelogging but
+I cannot (bad).  I don't *think* there's a deadlock issue here?  If the
+page is now under writeback, that writeback *will* complete?
+
+Finally, I wonder if there should be some timeout of that wait.  I
+don't know why, but I wouldn't be surprised if we hit some glitch which
+causes us to add one!
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
