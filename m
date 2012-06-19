@@ -1,135 +1,95 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx177.postini.com [74.125.245.177])
-	by kanga.kvack.org (Postfix) with SMTP id E7DB76B0074
-	for <linux-mm@kvack.org>; Tue, 19 Jun 2012 04:37:19 -0400 (EDT)
-Received: from /spool/local
-	by e28smtp07.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <xiaoguangrong@linux.vnet.ibm.com>;
-	Tue, 19 Jun 2012 14:07:17 +0530
-Received: from d28av04.in.ibm.com (d28av04.in.ibm.com [9.184.220.66])
-	by d28relay03.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q5J8bEkC2752980
-	for <linux-mm@kvack.org>; Tue, 19 Jun 2012 14:07:14 +0530
-Received: from d28av04.in.ibm.com (loopback [127.0.0.1])
-	by d28av04.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q5JE71qt022919
-	for <linux-mm@kvack.org>; Wed, 20 Jun 2012 00:07:01 +1000
-Message-ID: <4FE03A37.4040805@linux.vnet.ibm.com>
-Date: Tue, 19 Jun 2012 16:37:11 +0800
-From: Xiao Guangrong <xiaoguangrong@linux.vnet.ibm.com>
+Received: from psmtp.com (na3sys010amx202.postini.com [74.125.245.202])
+	by kanga.kvack.org (Postfix) with SMTP id 78CEA6B0072
+	for <linux-mm@kvack.org>; Tue, 19 Jun 2012 04:37:46 -0400 (EDT)
+Message-ID: <4FE039B9.3080809@parallels.com>
+Date: Tue, 19 Jun 2012 12:35:05 +0400
+From: Glauber Costa <glommer@parallels.com>
 MIME-Version: 1.0
-Subject: [PATCH 09/10] zcache: introduce get_zcache_client
-References: <4FE0392E.3090300@linux.vnet.ibm.com>
-In-Reply-To: <4FE0392E.3090300@linux.vnet.ibm.com>
-Content-Type: text/plain; charset=UTF-8
+Subject: Re: [PATCH v4 23/25] memcg: propagate kmem limiting information to
+ children
+References: <1340015298-14133-1-git-send-email-glommer@parallels.com> <1340015298-14133-24-git-send-email-glommer@parallels.com> <4FDF20ED.4090401@jp.fujitsu.com> <4FDF227B.3080601@parallels.com> <4FDFC4D4.1030303@jp.fujitsu.com>
+In-Reply-To: <4FDFC4D4.1030303@jp.fujitsu.com>
+Content-Type: text/plain; charset="ISO-2022-JP"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Xiao Guangrong <xiaoguangrong@linux.vnet.ibm.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Dan Magenheimer <dan.magenheimer@oracle.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: linux-mm@kvack.org, Pekka Enberg <penberg@kernel.org>, Cristoph Lameter <cl@linux.com>, David Rientjes <rientjes@google.com>, cgroups@vger.kernel.org, devel@openvz.org, linux-kernel@vger.kernel.org, Frederic Weisbecker <fweisbec@gmail.com>, Suleiman Souhlal <suleiman@google.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>
 
-Introduce get_zcache_client to remove the common code
+On 06/19/2012 04:16 AM, Kamezawa Hiroyuki wrote:
+> (2012/06/18 21:43), Glauber Costa wrote:
+>> On 06/18/2012 04:37 PM, Kamezawa Hiroyuki wrote:
+>>> (2012/06/18 19:28), Glauber Costa wrote:
+>>>> The current memcg slab cache management fails to present satisfatory hierarchical
+>>>> behavior in the following scenario:
+>>>>
+>>>> ->   /cgroups/memory/A/B/C
+>>>>
+>>>> * kmem limit set at A
+>>>> * A and B empty taskwise
+>>>> * bash in C does find /
+>>>>
+>>>> Because kmem_accounted is a boolean that was not set for C, no accounting
+>>>> would be done. This is, however, not what we expect.
+>>>>
+>>>
+>>> Hmm....do we need this new routines even while we have mem_cgroup_iter() ?
+>>>
+>>> Doesn't this work ?
+>>>
+>>> 	struct mem_cgroup {
+>>> 		.....
+>>> 		bool kmem_accounted_this;
+>>> 		atomic_t kmem_accounted;
+>>> 		....
+>>> 	}
+>>>
+>>> at set limit
+>>>
+>>> 	....set_limit(memcg) {
+>>>
+>>> 		if (newly accounted) {
+>>> 			mem_cgroup_iter() {
+>>> 				atomic_inc(&iter->kmem_accounted)
+>>> 			}
+>>> 		} else {
+>>> 			mem_cgroup_iter() {
+>>> 				atomic_dec(&iter->kmem_accounted);
+>>> 			}
+>>> 	}
+>>>
+>>>
+>>> hm ? Then, you can see kmem is accounted or not by atomic_read(&memcg->kmem_accounted);
+>>>
+>>
+>> Accounted by itself / parent is still useful, and I see no reason to use
+>> an atomic + bool if we can use a pair of bits.
+>>
+>> As for the routine, I guess mem_cgroup_iter will work... It does a lot
+>> more than I need, but for the sake of using what's already in there, I
+>> can switch to it with no problems.
+>>
+> 
+> Hmm. please start from reusing existing routines.
+> If it's not enough, some enhancement for generic cgroup  will be welcomed
+> rather than completely new one only for memcg.
+> 
 
-Signed-off-by: Xiao Guangrong <xiaoguangrong@linux.vnet.ibm.com>
----
- drivers/staging/zcache/zcache-main.c |   46 +++++++++++++++++-----------------
- 1 files changed, 23 insertions(+), 23 deletions(-)
+And now that I am trying to adapt the code to the new function, I
+remember clearly why I done this way. Sorry for my failed memory.
 
-diff --git a/drivers/staging/zcache/zcache-main.c b/drivers/staging/zcache/zcache-main.c
-index 2ee55c4..542f181 100644
---- a/drivers/staging/zcache/zcache-main.c
-+++ b/drivers/staging/zcache/zcache-main.c
-@@ -70,6 +70,17 @@ static inline uint16_t get_client_id_from_client(struct zcache_client *cli)
- 	return cli - &zcache_clients[0];
- }
+That has to do with the order of the walk. I need to enforce hierarchy,
+which means whenever a cgroup has !use_hierarchy, I need to cut out that
+branch, but continue scanning the tree for other branches.
 
-+static struct zcache_client *get_zcache_client(uint16_t cli_id)
-+{
-+	if (cli_id == LOCAL_CLIENT)
-+		return &zcache_host;
-+
-+	if ((unsigned int)cli_id < MAX_CLIENTS)
-+		return &zcache_clients[cli_id];
-+
-+	return NULL;
-+}
-+
- static inline bool is_local_client(struct zcache_client *cli)
- {
- 	return cli == &zcache_host;
-@@ -929,15 +940,9 @@ static struct tmem_pool *zcache_get_pool_by_id(uint16_t cli_id, uint16_t poolid)
- 	struct tmem_pool *pool = NULL;
- 	struct zcache_client *cli = NULL;
+That is a lot easier to do with depth-search tree walks like the one
+proposed in this patch. for_each_mem_cgroup() seems to walk the tree in
+css-creation order. Which means we need to keep track of parents that
+has hierarchy disabled at all times ( can be many ), and always test for
+ancestorship - which is expensive, but I don't particularly care.
 
--	if (cli_id == LOCAL_CLIENT)
--		cli = &zcache_host;
--	else {
--		if (cli_id >= MAX_CLIENTS)
--			goto out;
--		cli = &zcache_clients[cli_id];
--		if (cli == NULL)
--			goto out;
--	}
-+	cli = get_zcache_client(cli_id);
-+	if (!cli)
-+		goto out;
-
- 	atomic_inc(&cli->refcount);
- 	if (poolid < MAX_POOLS_PER_CLIENT) {
-@@ -962,13 +967,11 @@ static void zcache_put_pool(struct tmem_pool *pool)
-
- int zcache_new_client(uint16_t cli_id)
- {
--	struct zcache_client *cli = NULL;
-+	struct zcache_client *cli;
- 	int ret = -1;
-
--	if (cli_id == LOCAL_CLIENT)
--		cli = &zcache_host;
--	else if ((unsigned int)cli_id < MAX_CLIENTS)
--		cli = &zcache_clients[cli_id];
-+	cli = get_zcache_client(cli_id);
-+
- 	if (cli == NULL)
- 		goto out;
- 	if (cli->allocated)
-@@ -1644,17 +1647,16 @@ static int zcache_flush_object(int cli_id, int pool_id,
- static int zcache_destroy_pool(int cli_id, int pool_id)
- {
- 	struct tmem_pool *pool = NULL;
--	struct zcache_client *cli = NULL;
-+	struct zcache_client *cli;
- 	int ret = -1;
-
- 	if (pool_id < 0)
- 		goto out;
--	if (cli_id == LOCAL_CLIENT)
--		cli = &zcache_host;
--	else if ((unsigned int)cli_id < MAX_CLIENTS)
--		cli = &zcache_clients[cli_id];
-+
-+	cli = get_zcache_client(cli_id);
- 	if (cli == NULL)
- 		goto out;
-+
- 	atomic_inc(&cli->refcount);
- 	pool = cli->tmem_pools[pool_id];
- 	if (pool == NULL)
-@@ -1680,12 +1682,10 @@ static int zcache_new_pool(uint16_t cli_id, uint32_t flags)
- 	struct tmem_pool *pool;
- 	struct zcache_client *cli = NULL;
-
--	if (cli_id == LOCAL_CLIENT)
--		cli = &zcache_host;
--	else if ((unsigned int)cli_id < MAX_CLIENTS)
--		cli = &zcache_clients[cli_id];
-+	cli = get_zcache_client(cli_id);
- 	if (cli == NULL)
- 		goto out;
-+
- 	atomic_inc(&cli->refcount);
- 	pool = kmalloc(sizeof(struct tmem_pool), GFP_ATOMIC);
- 	if (pool == NULL) {
--- 
-1.7.7.6
+But I'll give another shot with this one.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
