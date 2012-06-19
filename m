@@ -1,66 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx104.postini.com [74.125.245.104])
-	by kanga.kvack.org (Postfix) with SMTP id D6BC26B0062
-	for <linux-mm@kvack.org>; Mon, 18 Jun 2012 20:11:57 -0400 (EDT)
-Received: from m2.gw.fujitsu.co.jp (unknown [10.0.50.72])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id DD63B3EE0BB
-	for <linux-mm@kvack.org>; Tue, 19 Jun 2012 09:11:55 +0900 (JST)
-Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id C63F845DE55
-	for <linux-mm@kvack.org>; Tue, 19 Jun 2012 09:11:55 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id B083145DD74
-	for <linux-mm@kvack.org>; Tue, 19 Jun 2012 09:11:55 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id A238B1DB803A
-	for <linux-mm@kvack.org>; Tue, 19 Jun 2012 09:11:55 +0900 (JST)
+Received: from psmtp.com (na3sys010amx154.postini.com [74.125.245.154])
+	by kanga.kvack.org (Postfix) with SMTP id A59F16B0062
+	for <linux-mm@kvack.org>; Mon, 18 Jun 2012 20:13:45 -0400 (EDT)
+Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
+	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 294123EE0B5
+	for <linux-mm@kvack.org>; Tue, 19 Jun 2012 09:13:44 +0900 (JST)
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 0454945DEBE
+	for <linux-mm@kvack.org>; Tue, 19 Jun 2012 09:13:44 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id E28BA45DEB8
+	for <linux-mm@kvack.org>; Tue, 19 Jun 2012 09:13:43 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id D57221DB803C
+	for <linux-mm@kvack.org>; Tue, 19 Jun 2012 09:13:43 +0900 (JST)
 Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.240.81.134])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 5DE6C1DB8038
-	for <linux-mm@kvack.org>; Tue, 19 Jun 2012 09:11:55 +0900 (JST)
-Message-ID: <4FDFC34B.3010003@jp.fujitsu.com>
-Date: Tue, 19 Jun 2012 09:09:47 +0900
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 8872D1DB8040
+	for <linux-mm@kvack.org>; Tue, 19 Jun 2012 09:13:43 +0900 (JST)
+Message-ID: <4FDFC3A8.7010301@jp.fujitsu.com>
+Date: Tue, 19 Jun 2012 09:11:20 +0900
 From: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 1/2] memcg: remove -EINTR at rmdir()
-References: <4FDF17A3.9060202@jp.fujitsu.com> <20120618133012.GB2313@tiehlicka.suse.cz>
-In-Reply-To: <20120618133012.GB2313@tiehlicka.suse.cz>
+Subject: Re: [PATCH v4 05/25] memcg: Always free struct memcg through schedule_work()
+References: <1340015298-14133-1-git-send-email-glommer@parallels.com> <1340015298-14133-6-git-send-email-glommer@parallels.com> <4FDF1A0D.6080204@jp.fujitsu.com> <4FDF1AAE.4080209@parallels.com>
+In-Reply-To: <4FDF1AAE.4080209@parallels.com>
 Content-Type: text/plain; charset=ISO-2022-JP
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, cgroups@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>
+To: Glauber Costa <glommer@parallels.com>
+Cc: linux-mm@kvack.org, Pekka Enberg <penberg@kernel.org>, Cristoph Lameter <cl@linux.com>, David Rientjes <rientjes@google.com>, cgroups@vger.kernel.org, devel@openvz.org, linux-kernel@vger.kernel.org, Frederic Weisbecker <fweisbec@gmail.com>, Suleiman Souhlal <suleiman@google.com>, Tejun Heo <tj@kernel.org>, Li Zefan <lizefan@huawei.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>
 
-(2012/06/18 22:30), Michal Hocko wrote:
-> On Mon 18-06-12 20:57:23, KAMEZAWA Hiroyuki wrote:
->> 2 follow-up patches for "memcg: move charges to root cgroup if use_hierarchy=0",
->> developped/tested onto memcg-devel tree. Maybe no HUNK with -next and -mm....
->> -Kame
->> ==
->> memcg: remove -EINTR at rmdir()
+(2012/06/18 21:10), Glauber Costa wrote:
+> On 06/18/2012 04:07 PM, Kamezawa Hiroyuki wrote:
+>> (2012/06/18 19:27), Glauber Costa wrote:
+>>> Right now we free struct memcg with kfree right after a
+>>> rcu grace period, but defer it if we need to use vfree() to get
+>>> rid of that memory area. We do that by need, because we need vfree
+>>> to be called in a process context.
+>>>
+>>> This patch unifies this behavior, by ensuring that even kfree will
+>>> happen in a separate thread. The goal is to have a stable place to
+>>> call the upcoming jump label destruction function outside the realm
+>>> of the complicated and quite far-reaching cgroup lock (that can't be
+>>> held when calling neither the cpu_hotplug.lock nor the jump_label_mutex)
+>>>
+>>> Signed-off-by: Glauber Costa<glommer@parallels.com>
+>>> CC: Tejun Heo<tj@kernel.org>
+>>> CC: Li Zefan<lizefan@huawei.com>
+>>> CC: Kamezawa Hiroyuki<kamezawa.hiroyu@jp.fujitsu.com>
+>>> CC: Johannes Weiner<hannes@cmpxchg.org>
+>>> CC: Michal Hocko<mhocko@suse.cz>
 >>
->> By commit "memcg: move charges to root cgroup if use_hierarchy=0",
->> no memory reclaiming will occur at removing memory cgroup.
+>> How about cut out this patch and merge first as simple cleanu up and
+>> to reduce patch stack on your side ?
+>>
+>> Acked-by: KAMEZAWA Hiroyuki<kamezawa.hiroyu@jp.fujitsu.com>
 > 
-> OK, so the there are only 2 reasons why move_parent could fail in this
-> path. 1) it races with somebody else who is uncharging or moving the
-> charge and 2) THP split.
-> 1) works for us and 2) doens't seem to be serious enough to expect that
-> it would stall rmdir on the group for unbound amount of time so the
-> change is safe (can we make this into the changelog please?).
+> I believe this is already in the -mm tree (from the sock memcg fixes)
+> 
+> But actually, my main trouble with this series here, is that I am basing
+> it on Pekka's tree, while some of the fixes are in -mm already.
+> If I'd base it on -mm I would lose some of the stuff as well.
+> 
+> Maybe Pekka can merge the current -mm with his tree?
+> 
+> So far I am happy with getting comments from people about the code, so I
+> did not get overly concerned about that.
 > 
 
-Yes. But the failure of move_parent() (-EBUSY) will be retried.
-
-Remaining problems are
- - attaching task while pre_destroy() is called.
- - creating child cgroup while pre_destroy() is called.
-
-I think I need to make a patch for cgroup layer as I previously posted.
-I'd like to try again.
-
-Thanks,
+Sure. thank you.
 -Kame
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
