@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx203.postini.com [74.125.245.203])
-	by kanga.kvack.org (Postfix) with SMTP id C027A6B0074
-	for <linux-mm@kvack.org>; Tue, 19 Jun 2012 17:23:09 -0400 (EDT)
-Received: by faas14 with SMTP id s14so387473faa.2
-        for <linux-mm@kvack.org>; Tue, 19 Jun 2012 14:23:07 -0700 (PDT)
-Subject: mmotm 2012-06-19-14-21 uploaded
+Received: from psmtp.com (na3sys010amx157.postini.com [74.125.245.157])
+	by kanga.kvack.org (Postfix) with SMTP id B73E56B0078
+	for <linux-mm@kvack.org>; Tue, 19 Jun 2012 17:25:23 -0400 (EDT)
+Received: by qcha6 with SMTP id a6so594656qch.2
+        for <linux-mm@kvack.org>; Tue, 19 Jun 2012 14:25:22 -0700 (PDT)
+Subject: mmotm 2012-06-19-14-24 uploaded
 From: akpm@linux-foundation.org
-Date: Tue, 19 Jun 2012 14:23:06 -0700
-Message-Id: <20120619212306.AE607A01BD@akpm.mtv.corp.google.com>
+Date: Tue, 19 Jun 2012 14:25:21 -0700
+Message-Id: <20120619212521.D53D6A01BD@akpm.mtv.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: mm-commits@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-next@vger.kernel.org
 
-The mm-of-the-moment snapshot 2012-06-19-14-21 has been uploaded to
+The mm-of-the-moment snapshot 2012-06-19-14-24 has been uploaded to
 
    http://www.ozlabs.org/~akpm/mmotm/
 
