@@ -1,90 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx170.postini.com [74.125.245.170])
-	by kanga.kvack.org (Postfix) with SMTP id 3072D6B0062
-	for <linux-mm@kvack.org>; Tue, 19 Jun 2012 02:04:08 -0400 (EDT)
-Received: by ggm4 with SMTP id 4so5434362ggm.14
-        for <linux-mm@kvack.org>; Mon, 18 Jun 2012 23:04:07 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx168.postini.com [74.125.245.168])
+	by kanga.kvack.org (Postfix) with SMTP id 5A7806B0062
+	for <linux-mm@kvack.org>; Tue, 19 Jun 2012 02:09:53 -0400 (EDT)
+Received: from /spool/local
+	by e9.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <shangw@linux.vnet.ibm.com>;
+	Tue, 19 Jun 2012 02:09:51 -0400
+Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
+	by d01dlp02.pok.ibm.com (Postfix) with ESMTP id 4499C6E804A
+	for <linux-mm@kvack.org>; Tue, 19 Jun 2012 02:09:49 -0400 (EDT)
+Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
+	by d01relay02.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q5J69ma8152932
+	for <linux-mm@kvack.org>; Tue, 19 Jun 2012 02:09:48 -0400
+Received: from d01av04.pok.ibm.com (loopback [127.0.0.1])
+	by d01av04.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q5J69mZG018880
+	for <linux-mm@kvack.org>; Tue, 19 Jun 2012 02:09:48 -0400
+Date: Tue, 19 Jun 2012 14:09:45 +0800
+From: Gavin Shan <shangw@linux.vnet.ibm.com>
+Subject: Re: Early boot panic on machine with lots of memory
+Message-ID: <20120619060945.GA8724@shangw>
+Reply-To: Gavin Shan <shangw@linux.vnet.ibm.com>
+References: <1339623535.3321.4.camel@lappy>
+ <20120614032005.GC3766@dhcp-172-17-108-109.mtv.corp.google.com>
+ <1339667440.3321.7.camel@lappy>
+ <20120618223203.GE32733@google.com>
+ <1340059850.3416.3.camel@lappy>
+ <20120619041154.GA28651@shangw>
+ <CAE9FiQVitg0ODjph96LnPD6pnWSSN8QkFngEwbUX9-nT-sdy+g@mail.gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <alpine.DEB.2.00.1206181930550.13293@chino.kir.corp.google.com>
-References: <alpine.DEB.2.00.1206181807060.13281@chino.kir.corp.google.com>
- <4FDFDCA7.8060607@jp.fujitsu.com> <alpine.DEB.2.00.1206181918390.13293@chino.kir.corp.google.com>
- <alpine.DEB.2.00.1206181930550.13293@chino.kir.corp.google.com>
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Date: Tue, 19 Jun 2012 02:03:44 -0400
-Message-ID: <CAHGf_=pq_UJfr22kYC=vCyEDRKx75zt5eZ27+VcqFZFqc-KHTw@mail.gmail.com>
-Subject: Re: [patch v2] mm, oom: do not schedule if current has been killed
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <CAE9FiQVitg0ODjph96LnPD6pnWSSN8QkFngEwbUX9-nT-sdy+g@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Oleg Nesterov <oleg@redhat.com>, linux-mm@kvack.org
+To: Yinghai Lu <yinghai@kernel.org>
+Cc: Gavin Shan <shangw@linux.vnet.ibm.com>, Sasha Levin <levinsasha928@gmail.com>, Tejun Heo <tj@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, David Miller <davem@davemloft.net>, hpa@linux.intel.com, linux-mm <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 
-On Mon, Jun 18, 2012 at 10:31 PM, David Rientjes <rientjes@google.com> wrot=
-e:
-> The oom killer currently schedules away from current in an
-> uninterruptible sleep if it does not have access to memory reserves.
-> It's possible that current was killed because it shares memory with the
-> oom killed thread or because it was killed by the user in the interim,
-> however.
+>> :
+>> [    0.000000]    memblock_free: [0x0000102febc080-0x0000102febf080] memblock_free_reserved_regions+0x37/0x39
+>>
+>> Here, [0x0000102febc080-0x0000102febf080] was released to available memory block
+>> by function free_low_memory_core_early(). I'm not sure the release memblock might
+>> be taken by bootmem, but I think it's worthy to have a try of removing following
+>> 2 lines: memblock_free_reserved_regions() and memblock_reserve_reserved_regions()
 >
-> This patch only schedules away from current if it does not have a pending
-> kill, i.e. if it does not share memory with the oom killed thread, or is
-> already exiting. =A0It's possible that it will immediately retry its memo=
-ry
-> allocation and fail, but it will immediately be given access to memory
-> reserves if it calls the oom killer again.
+>if it was taken, should have print out about that.
 >
-> This prevents the delay of memory freeing when threads that share memory
-> with the oom killed thread get unnecessarily scheduled.
->
-> Signed-off-by: David Rientjes <rientjes@google.com>
-> ---
-> =A0mm/oom_kill.c | =A0 =A07 ++++---
-> =A01 file changed, 4 insertions(+), 3 deletions(-)
->
-> diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-> --- a/mm/oom_kill.c
-> +++ b/mm/oom_kill.c
-> @@ -746,10 +746,11 @@ out:
-> =A0 =A0 =A0 =A0read_unlock(&tasklist_lock);
->
-> =A0 =A0 =A0 =A0/*
-> - =A0 =A0 =A0 =A0* Give "p" a good chance of killing itself before we
-> + =A0 =A0 =A0 =A0* Give "p" a good chance of exiting before we
-> =A0 =A0 =A0 =A0 * retry to allocate memory unless "p" is current
-> =A0 =A0 =A0 =A0 */
-> - =A0 =A0 =A0 if (killed && !test_thread_flag(TIF_MEMDIE))
-> + =A0 =A0 =A0 if (killed && !fatal_signal_pending(current) &&
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 !(current->flags & PF_EXITING))
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0schedule_timeout_uninterruptible(1);
-> =A0}
 
-Why don't check gfp_flags? I think the rule is,
+Yinghai, it's possible the memory block returned to bootmem and get used/corrupted
+by other CPU cores?
 
-1) a thread of newly marked as TIF_MEMDIE
-    -> now it has a capability to access reseve memory. let's immediately r=
-etry.
-2) allocation for GFP_HIGHUSER_MOVABLE
-    -> we can fail to allocate it safely. let's immediately fail.
-        (I suspect we need to change page allocator too)
-3) GFP_KERNEL and PF_EXITING
-    -> don't retry immediately. It shall fail again. let's wait until
-killed process
-        is exited.
-
-
-
-> @@ -765,6 +766,6 @@ void pagefault_out_of_memory(void)
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0out_of_memory(NULL, 0, 0, NULL, false);
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0clear_system_oom();
-> =A0 =A0 =A0 =A0}
-> - =A0 =A0 =A0 if (!test_thread_flag(TIF_MEMDIE))
-> + =A0 =A0 =A0 if (!fatal_signal_pending(current) && !(current->flags & PF=
-_EXITING))
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0schedule_timeout_uninterruptible(1);
-
-This makes sense to me.
+Thanks,
+Gavin
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
