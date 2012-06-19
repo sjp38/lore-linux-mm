@@ -1,84 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx105.postini.com [74.125.245.105])
-	by kanga.kvack.org (Postfix) with SMTP id 715E56B0069
-	for <linux-mm@kvack.org>; Tue, 19 Jun 2012 19:20:52 -0400 (EDT)
-Date: Tue, 19 Jun 2012 16:20:50 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH -mm 0/7] mm: scalable and unified arch_get_unmapped_area
-Message-Id: <20120619162050.aee32649.akpm@linux-foundation.org>
-In-Reply-To: <1340057126-31143-1-git-send-email-riel@redhat.com>
-References: <1340057126-31143-1-git-send-email-riel@redhat.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx115.postini.com [74.125.245.115])
+	by kanga.kvack.org (Postfix) with SMTP id 77E926B0069
+	for <linux-mm@kvack.org>; Tue, 19 Jun 2012 19:21:04 -0400 (EDT)
+Date: Tue, 19 Jun 2012 18:21:02 -0500
+From: Nathan Zimmer <nzimmer@sgi.com>
+Subject: Re: [PATCH v2] tmpfs not interleaving properly
+Message-ID: <20120619232102.GA5698@gulag1.americas.sgi.com>
+References: <20120531143916.GA16162@gulag1.americas.sgi.com> <4FC7CFEB.5040009@gmail.com> <20120531132515.6af60152.akpm@linux-foundation.org> <4FC7D629.3090801@gmail.com> <20120601142437.GA13739@gulag1.americas.sgi.com> <4FC8FA47.70001@gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <4FC8FA47.70001@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rik van Riel <riel@redhat.com>
-Cc: linux-mm@kvack.org, aarcange@redhat.com, peterz@infradead.org, minchan@gmail.com, kosaki.motohiro@gmail.com, andi@firstfloor.org, hannes@cmpxchg.org, mel@csn.ul.ie, linux-kernel@vger.kernel.org
+To: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
+Cc: Nathan Zimmer <nzimmer@sgi.com>, Andrew Morton <akpm@linux-foundation.org>, hughd@google.com, npiggin@gmail.com, cl@linux.com, lee.schermerhorn@hp.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, stable@vger.kernel.org, riel@redhat.com
 
-On Mon, 18 Jun 2012 18:05:19 -0400
-Rik van Riel <riel@redhat.com> wrote:
+On Fri, Jun 01, 2012 at 01:22:15PM -0400, KOSAKI Motohiro wrote:
+> (6/1/12 10:24 AM), Nathan Zimmer wrote:
+>> On Thu, May 31, 2012 at 04:35:53PM -0400, KOSAKI Motohiro wrote:
+>>> (5/31/12 4:25 PM), Andrew Morton wrote:
+>>>> On Thu, 31 May 2012 16:09:15 -0400
+>>>> KOSAKI Motohiro<kosaki.motohiro@gmail.com>   wrote:
+>>>>
+>>>>>> --- a/mm/shmem.c
+>>>>>> +++ b/mm/shmem.c
+>>>>>> @@ -929,7 +929,7 @@ static struct page *shmem_alloc_page(gfp_t gfp,
+>>>>>>     	/*
+>>>>>>     	 * alloc_page_vma() will drop the shared policy reference
+>>>>>>     	 */
+>>>>>> -	return alloc_page_vma(gfp,&pvma, 0);
+>>>>>> +	return alloc_page_vma(gfp,&pvma, info->node_offset<<    PAGE_SHIFT );
+>>>>>
+>>>>> 3rd argument of alloc_page_vma() is an address. This is type error.
+>>>>
+>>>> Well, it's an unsigned long...
+>>>>
+>>>> But yes, it is conceptually wrong and *looks* weird.  I think we can
+>>>> address that by overcoming our peculair aversion to documenting our
+>>>> code, sigh.  This?
+>>>
+>>> Sorry, no.
+>>>
+>>> addr agrument of alloc_pages_vma() have two meanings.
+>>>
+>>> 1) interleave node seed
+>>> 2) look-up key of shmem policy
+>>>
+>>> I think this patch break (2). shmem_get_policy(pol, addr) assume caller honor to
+>>> pass correct address.
+>>
+>> But the pseudo vma we generated in shmem_alloc_page the vm_ops are set to NULL.
+>> So get_vma_policy will return the policy provided by the pseudo vma and not reach
+>> the shmem_get_policy.
+>
+> yes, and it is bug source. we may need to change soon. I guess the right way is
+> to make vm_ops->interleave and interleave_nid uses it if povided.
+>
 
-> [actually include all 7 patches]
-> 
-> A long time ago, we decided to limit the number of VMAs per
-> process to 64k. As it turns out, there actually are programs
-> using tens of thousands of VMAs.
-> 
-> The linear search in arch_get_unmapped_area and
-> arch_get_unmapped_area_topdown can be a real issue for
-> those programs. 
-> 
-> This patch series aims to fix the scalability issue by
-> tracking the size of each free hole in the VMA rbtree,
-> propagating the free hole info up the tree. 
-> 
-> Another major goal is to put the bulk of the necessary
-> arch_get_unmapped_area(_topdown) functionality into one
-> set of functions, so we can eliminate the custom large
-> functions per architecture, sticking to a few much smaller
-> architecture specific functions instead.
-> 
-> In this version I have only gotten rid of the x86, ARM
-> and MIPS arch-specific code, and am already showing a
-> fairly promising diffstat:
+If we provide vm_ops then won't shmem_get_policy get called?
+That would be an issue since shmem_get_policy assumes vm_file is non NULL.
 
-Looking nice!
+> btw, I don't think node_random() is good idea. it is random(pid + jiffies + cycle).
+> current->cpuset_mem_spread_rotor is per-thread value. but you now need per-inode
+> interleave offset. maybe, just inode addition is enough. Why do you need randomness?
+>
 
-> Testing performance with a benchmark that allocates tens
-> of thousands of VMAs, unmaps them and mmaps them some more
-> in a loop, shows promising results.
-> 
-> Vanilla 3.4 kernel:
-> $ ./agua_frag_test_64
-> ..........
-> 
-> Min Time (ms): 6
-> Avg. Time (ms): 294.0000
-> Max Time (ms): 609
-> Std Dev (ms): 113.1664
-> Standard deviation exceeds 10
-> 
-> With patches:
-> $ ./agua_frag_test_64
-> ..........
-> 
-> Min Time (ms): 14
-> Avg. Time (ms): 38.0000
-> Max Time (ms): 60
-> Std Dev (ms): 3.9312
-> All checks pass
-> 
-> The total run time of the test goes down by about a
-> factor 4.  More importantly, the worst case performance
-> of the loop (which is what really hurt some applications)
-> has gone down by about a factor 10.
+I don't really need the randomness, the rotor should be good enough.
+The correct way to get that is cpuset_mem_spread_node(), yes?
 
-OK, so you improved the bad case.  But what was the impact on the
-current good case?  kernel compile, shell scripts, some app which
-creates 20 vmas then sits in a loop doing munmap(mmap(...))?  Try to
-think of workloads whcih might take damage, and quantify that?
-
+Also apologies for such a delay in my response.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
