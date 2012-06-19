@@ -1,47 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx139.postini.com [74.125.245.139])
-	by kanga.kvack.org (Postfix) with SMTP id AD5456B0062
-	for <linux-mm@kvack.org>; Tue, 19 Jun 2012 18:21:48 -0400 (EDT)
-Date: Tue, 19 Jun 2012 15:21:47 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
+Received: from psmtp.com (na3sys010amx167.postini.com [74.125.245.167])
+	by kanga.kvack.org (Postfix) with SMTP id 3CB0B6B0062
+	for <linux-mm@kvack.org>; Tue, 19 Jun 2012 18:37:36 -0400 (EDT)
+From: "Pearson, Greg" <greg.pearson@hp.com>
 Subject: Re: [PATCH v4] mm/memblock: fix overlapping allocation when
  doubling reserved array
-Message-Id: <20120619152147.9f377a64.akpm@linux-foundation.org>
-In-Reply-To: <4FE0F675.3050201@hp.com>
+Date: Tue, 19 Jun 2012 22:35:08 +0000
+Message-ID: <4FE0FE9B.8020401@hp.com>
 References: <1340063278-31601-1-git-send-email-greg.pearson@hp.com>
-	<20120619213315.GL32733@google.com>
-	<4FE0F675.3050201@hp.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+ <20120619151435.10c16aed.akpm@linux-foundation.org>
+In-Reply-To: <20120619151435.10c16aed.akpm@linux-foundation.org>
+Content-Language: en-US
+Content-Type: text/plain; charset="iso-8859-1"
+Content-ID: <3177E2BB60E9DF4792AAA88EEC01117A@Compaq.com>
+Content-Transfer-Encoding: quoted-printable
+MIME-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Pearson, Greg" <greg.pearson@hp.com>
-Cc: Tejun Heo <tj@kernel.org>, "hpa@linux.intel.com" <hpa@linux.intel.com>, "shangw@linux.vnet.ibm.com" <shangw@linux.vnet.ibm.com>, "mingo@elte.hu" <mingo@elte.hu>, "yinghai@kernel.org" <yinghai@kernel.org>, "benh@kernel.crashing.org" <benh@kernel.crashing.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: "tj@kernel.org" <tj@kernel.org>, "hpa@linux.intel.com" <hpa@linux.intel.com>, "shangw@linux.vnet.ibm.com" <shangw@linux.vnet.ibm.com>, "mingo@elte.hu" <mingo@elte.hu>, "yinghai@kernel.org" <yinghai@kernel.org>, "benh@kernel.crashing.org" <benh@kernel.crashing.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 
-On Tue, 19 Jun 2012 22:00:22 +0000
-"Pearson, Greg" <greg.pearson@hp.com> wrote:
+On 06/19/2012 04:14 PM, Andrew Morton wrote:
+> On Mon, 18 Jun 2012 17:47:58 -0600
+> Greg Pearson <greg.pearson@hp.com> wrote:
+>
+>> The __alloc_memory_core_early() routine will ask memblock for a range
+>> of memory then try to reserve it. If the reserved region array lacks
+>> space for the new range, memblock_double_array() is called to allocate
+>> more space for the array. If memblock is used to allocate memory for
+>> the new array it can end up using a range that overlaps with the range
+>> originally allocated in __alloc_memory_core_early(), leading to possible
+>> data corruption.
+> OK, but we have no information about whether it *does* lead to data
+> corruption.  Are there workloads which trigger this?  End users who are
+> experiencing problems?
+>
+> See, I (and others) need to work out whether this patch should be
+> included in 3.5 or even earlier kernels.  To do that we often need the
+> developer to tell us what the impact of the bug is upon users.  Please
+> always include this info when fixing bugs.
 
-> I wasn't quite sure what to do about that at first either, I read 
-> "Documentation/SubmittingPatches" and it says:
-> 
-> "The Signed-off-by: tag indicates that the signer was involved in the
-> development of the patch, or that he/she was in the patch's delivery path."
-> 
-> Since Yinghai contributed some code that is in the current version of 
-> the patch I thought the "Signed-off-by" tag would be ok, but if 
-> something else is more appropriate I have no problem re-cutting the 
-> patch to make the chain of custody more clear.
+Andrew,
 
-Yup, we shouldn't expect people to be able to magically infer
-fine-grained details such as this from hints embedded in the signoff
-trail.  Fortunately we can write stuff in English ;)
+I'm currently working on a prototype system that exhibits the data=20
+corruption problem when doubling the reserved array while booting the=20
+system. This system will be a released product in the future. I'll=20
+remember to include this information in the patch next time.
 
-I added
+Thanks
 
-: This patch contains contributions from Yinghai Lu.
-
-to the changelog.  Simple, huh? :)
+--
+Greg=
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
