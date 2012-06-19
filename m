@@ -1,124 +1,104 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx130.postini.com [74.125.245.130])
-	by kanga.kvack.org (Postfix) with SMTP id D42376B0075
-	for <linux-mm@kvack.org>; Tue, 19 Jun 2012 18:00:15 -0400 (EDT)
-Date: Tue, 19 Jun 2012 15:00:14 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH -mm] memcg: prevent from OOM with too many dirty pages
-Message-Id: <20120619150014.1ebc108c.akpm@linux-foundation.org>
-In-Reply-To: <1340117404-30348-1-git-send-email-mhocko@suse.cz>
-References: <1340117404-30348-1-git-send-email-mhocko@suse.cz>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx144.postini.com [74.125.245.144])
+	by kanga.kvack.org (Postfix) with SMTP id DA9956B006E
+	for <linux-mm@kvack.org>; Tue, 19 Jun 2012 18:02:28 -0400 (EDT)
+From: "Pearson, Greg" <greg.pearson@hp.com>
+Subject: Re: [PATCH v4] mm/memblock: fix overlapping allocation when
+ doubling reserved array
+Date: Tue, 19 Jun 2012 22:00:22 +0000
+Message-ID: <4FE0F675.3050201@hp.com>
+References: <1340063278-31601-1-git-send-email-greg.pearson@hp.com>
+ <20120619213315.GL32733@google.com>
+In-Reply-To: <20120619213315.GL32733@google.com>
+Content-Language: en-US
+Content-Type: text/plain; charset="iso-8859-1"
+Content-ID: <8613882F5EF552468CE6D260E66434F3@Compaq.com>
+Content-Transfer-Encoding: quoted-printable
+MIME-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujtisu.com>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@redhat.com>, Ying Han <yinghan@google.com>, Greg Thelen <gthelen@google.com>, Hugh Dickins <hughd@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Fengguang Wu <fengguang.wu@intel.com>
+To: Tejun Heo <tj@kernel.org>
+Cc: "hpa@linux.intel.com" <hpa@linux.intel.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "shangw@linux.vnet.ibm.com" <shangw@linux.vnet.ibm.com>, "mingo@elte.hu" <mingo@elte.hu>, "yinghai@kernel.org" <yinghai@kernel.org>, "benh@kernel.crashing.org" <benh@kernel.crashing.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 
-On Tue, 19 Jun 2012 16:50:04 +0200
-Michal Hocko <mhocko@suse.cz> wrote:
-
-> Current implementation of dirty pages throttling is not memcg aware which makes
-> it easy to have LRUs full of dirty pages which might lead to memcg OOM if the
-> hard limit is small and so the lists are scanned faster than pages written
-> back.
-
-This is a bit hard to parse.  I changed it to
-
-: The current implementation of dirty pages throttling is not memcg aware
-: which makes it easy to have memcg LRUs full of dirty pages.  Without
-: throttling, these LRUs can be scanned faster than the rate of writeback,
-: leading to memcg OOM conditions when the hard limit is small.
-
-does that still say what you meant to say?
-
-> The solution is far from being ideal - long term solution is memcg aware
-> dirty throttling - but it is meant to be a band aid until we have a real
-> fix.
-
-Fair enough I guess.  The fix is small and simple and if it makes the
-kernel better, why not?
-
-Would like to see a few more acks though.  Why hasn't everyone been
-hitting this?
-
-> We are seeing this happening during nightly backups which are placed into
-> containers to prevent from eviction of the real working set.
-
-Well that's a trick which we want to work well.  It's a killer
-featurelet for people who wonder what all this memcg crap is for ;)
-
-> The change affects only memcg reclaim and only when we encounter PageReclaim
-> pages which is a signal that the reclaim doesn't catch up on with the writers
-> so somebody should be throttled. This could be potentially unfair because it
-> could be somebody else from the group who gets throttled on behalf of the
-> writer but as writers need to allocate as well and they allocate in higher rate
-> the probability that only innocent processes would be penalized is not that
-> high.
-
-OK.
-
-> ...
+On 06/19/2012 03:33 PM, Tejun Heo wrote:
+> On Mon, Jun 18, 2012 at 05:47:58PM -0600, Greg Pearson wrote:
+>> The __alloc_memory_core_early() routine will ask memblock for a range
+>> of memory then try to reserve it. If the reserved region array lacks
+>> space for the new range, memblock_double_array() is called to allocate
+>> more space for the array. If memblock is used to allocate memory for
+>> the new array it can end up using a range that overlaps with the range
+>> originally allocated in __alloc_memory_core_early(), leading to possible
+>> data corruption.
+>>
+>> With this patch memblock_double_array() now calls memblock_find_in_range=
+()
+>> with a narrowed candidate range (in cases where the reserved.regions arr=
+ay
+>> is being doubled) so any memory allocated will not overlap with the orig=
+inal
+>> range that was being reserved. The range is narrowed by passing in the
+>> starting address and size of the previously allocated range. Then the
+>> range above the ending address is searched and if a candidate is not
+>> found, the range below the starting address is searched.
+>>
+>> Changes from v1 to v2 (based on comments from Yinghai Lu):
+>> - use obase instead of base in memblock_add_region() for excluding start=
+ address
+>> - pass in both the starting and ending address of the exclude range to
+>>    memblock_double_array()
+>> - have memblock_double_array() search above the exclude ending address
+>>    and below the exclude starting address for a free range
+>>
+>> Changes from v2 to v3 (based on comments from Yinghai Lu):
+>> - pass in exclude_start and exclude_size to memblock_double_array()
+>> - only exclude a range if doubling the reserved.regions array
+>> - make sure narrowed range passed to memblock_find_in_range() is accessi=
+ble
+>> - to make the code less confusing, change memblock_isolate_range() to
+>>    pass in exclude_start and exclude_size
+>> - remove unneeded comment in memblock_add_region() between while and
+>>    one line loop body
+>>
+>> Changes from v3 to v4 (based on comments from Tejun Heo):
+>> - change parameter names passed to memblock_double_array() so they
+>>    are not misleading and better signify the reason why the array is
+>>    being doubled
+>> - add function comment block to memblock_double_arry() to ensure
+>>    the details of the possible overlap are explained
+>>
+>> Signed-off-by: Greg Pearson <greg.pearson@hp.com>
+>> Cc: Tejun Heo <tj@kernel.org>
+>> Cc: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+>> Cc: Andrew Morton <akpm@linux-foundation.org>
+>> Signed-off-by: Yinghai Lu <yinghai@kernel.org>
+> Acked-by: Tejun Heo <tj@kernel.org>
 >
-> --- a/mm/vmscan.c
-> +++ b/mm/vmscan.c
-> @@ -720,9 +720,20 @@ static unsigned long shrink_page_list(struct list_head *page_list,
->  			(PageSwapCache(page) && (sc->gfp_mask & __GFP_IO));
->  
->  		if (PageWriteback(page)) {
-> -			nr_writeback++;
-> -			unlock_page(page);
-> -			goto keep;
-> +			/*
-> +			 * memcg doesn't have any dirty pages throttling so we
-> +			 * could easily OOM just because too many pages are in
-> +			 * writeback from reclaim and there is nothing else to
-> +			 * reclaim.
-> +			 */
-> +			if (PageReclaim(page)
-> +					&& may_enter_fs && !global_reclaim(sc))
-> +				wait_on_page_writeback(page);
-> +			else {
-> +				nr_writeback++;
-> +				unlock_page(page);
-> +				goto keep;
-> +			}
+> The SOB tag from Yinghai is a bit weird tho.  SOB indicates the chain
+> of custody for the patch, so the above SOBs indicate that the patch is
+> originally from Greg and then routed (rolled into series or branch) by
+> Yinghai which isn't the case here.  I suppose it's either Reviewed-by:
+> or Acked-by:?
+>
+> Thanks.
+>
 
-A couple of things here.
+Tejun,
 
-With my gcc and CONFIG_CGROUP_MEM_RES_CTLR=n (for gawd's sake can we
-please rename this to CONFIG_MEMCG?), this:
+I wasn't quite sure what to do about that at first either, I read=20
+"Documentation/SubmittingPatches" and it says:
 
---- a/mm/vmscan.c~memcg-prevent-from-oom-with-too-many-dirty-pages-fix
-+++ a/mm/vmscan.c
-@@ -726,8 +726,8 @@ static unsigned long shrink_page_list(st
- 			 * writeback from reclaim and there is nothing else to
- 			 * reclaim.
- 			 */
--			if (PageReclaim(page)
--					&& may_enter_fs && !global_reclaim(sc))
-+			if (!global_reclaim(sc) && PageReclaim(page) &&
-+					may_enter_fs)
- 				wait_on_page_writeback(page);
- 			else {
- 				nr_writeback++;
+"The Signed-off-by: tag indicates that the signer was involved in the
+development of the patch, or that he/she was in the patch's delivery path."
 
+Since Yinghai contributed some code that is in the current version of=20
+the patch I thought the "Signed-off-by" tag would be ok, but if=20
+something else is more appropriate I have no problem re-cutting the=20
+patch to make the chain of custody more clear.
 
-reduces vmscan.o's .text by 48 bytes(!).  Because the compiler can
-avoid generating any code for PageReclaim() and perhaps the
-may_enter_fs test.  Because global_reclaim() evaluates to constant
-true.  Do you think that's an improvement?
+Thanks
 
-Also, why do we test may_enter_fs here?  I should have been able to
-work out your reasoning from either code comments or changelogging but
-I cannot (bad).  I don't *think* there's a deadlock issue here?  If the
-page is now under writeback, that writeback *will* complete?
-
-Finally, I wonder if there should be some timeout of that wait.  I
-don't know why, but I wouldn't be surprised if we hit some glitch which
-causes us to add one!
-
+--
+Greg
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
