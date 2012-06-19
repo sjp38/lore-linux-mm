@@ -1,98 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx185.postini.com [74.125.245.185])
-	by kanga.kvack.org (Postfix) with SMTP id 555F86B0062
-	for <linux-mm@kvack.org>; Mon, 18 Jun 2012 20:18:31 -0400 (EDT)
-Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id E67A43EE0C7
-	for <linux-mm@kvack.org>; Tue, 19 Jun 2012 09:18:29 +0900 (JST)
-Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id CC78445DEB4
-	for <linux-mm@kvack.org>; Tue, 19 Jun 2012 09:18:29 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id B272D45DEA6
-	for <linux-mm@kvack.org>; Tue, 19 Jun 2012 09:18:29 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 677C61DB8041
-	for <linux-mm@kvack.org>; Tue, 19 Jun 2012 09:18:29 +0900 (JST)
-Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.240.81.133])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 1F7D61DB803F
-	for <linux-mm@kvack.org>; Tue, 19 Jun 2012 09:18:29 +0900 (JST)
-Message-ID: <4FDFC4D4.1030303@jp.fujitsu.com>
-Date: Tue, 19 Jun 2012 09:16:20 +0900
-From: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Received: from psmtp.com (na3sys010amx157.postini.com [74.125.245.157])
+	by kanga.kvack.org (Postfix) with SMTP id 6E9CF6B0062
+	for <linux-mm@kvack.org>; Mon, 18 Jun 2012 21:08:06 -0400 (EDT)
+Received: by pbbrp2 with SMTP id rp2so11026392pbb.14
+        for <linux-mm@kvack.org>; Mon, 18 Jun 2012 18:08:05 -0700 (PDT)
+Date: Mon, 18 Jun 2012 18:08:03 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: [patch] mm, oom: do not schedule if current has been killed
+Message-ID: <alpine.DEB.2.00.1206181807060.13281@chino.kir.corp.google.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH v4 23/25] memcg: propagate kmem limiting information to
- children
-References: <1340015298-14133-1-git-send-email-glommer@parallels.com> <1340015298-14133-24-git-send-email-glommer@parallels.com> <4FDF20ED.4090401@jp.fujitsu.com> <4FDF227B.3080601@parallels.com>
-In-Reply-To: <4FDF227B.3080601@parallels.com>
-Content-Type: text/plain; charset=ISO-2022-JP
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Glauber Costa <glommer@parallels.com>
-Cc: linux-mm@kvack.org, Pekka Enberg <penberg@kernel.org>, Cristoph Lameter <cl@linux.com>, David Rientjes <rientjes@google.com>, cgroups@vger.kernel.org, devel@openvz.org, linux-kernel@vger.kernel.org, Frederic Weisbecker <fweisbec@gmail.com>, Suleiman Souhlal <suleiman@google.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Oleg Nesterov <oleg@redhat.com>, linux-mm@kvack.org
 
-(2012/06/18 21:43), Glauber Costa wrote:
-> On 06/18/2012 04:37 PM, Kamezawa Hiroyuki wrote:
->> (2012/06/18 19:28), Glauber Costa wrote:
->>> The current memcg slab cache management fails to present satisfatory hierarchical
->>> behavior in the following scenario:
->>>
->>> ->   /cgroups/memory/A/B/C
->>>
->>> * kmem limit set at A
->>> * A and B empty taskwise
->>> * bash in C does find /
->>>
->>> Because kmem_accounted is a boolean that was not set for C, no accounting
->>> would be done. This is, however, not what we expect.
->>>
->>
->> Hmm....do we need this new routines even while we have mem_cgroup_iter() ?
->>
->> Doesn't this work ?
->>
->> 	struct mem_cgroup {
->> 		.....
->> 		bool kmem_accounted_this;
->> 		atomic_t kmem_accounted;
->> 		....
->> 	}
->>
->> at set limit
->>
->> 	....set_limit(memcg) {
->>
->> 		if (newly accounted) {
->> 			mem_cgroup_iter() {
->> 				atomic_inc(&iter->kmem_accounted)
->> 			}
->> 		} else {
->> 			mem_cgroup_iter() {
->> 				atomic_dec(&iter->kmem_accounted);
->> 			}
->> 	}
->>
->>
->> hm ? Then, you can see kmem is accounted or not by atomic_read(&memcg->kmem_accounted);
->>
-> 
-> Accounted by itself / parent is still useful, and I see no reason to use
-> an atomic + bool if we can use a pair of bits.
-> 
-> As for the routine, I guess mem_cgroup_iter will work... It does a lot
-> more than I need, but for the sake of using what's already in there, I
-> can switch to it with no problems.
-> 
+The oom killer currently schedules away from current in an
+uninterruptible sleep if it does not have access to memory reserves.
+It's possible that current was killed because it shares memory with the
+oom killed thread or because it was killed by the user in the interim,
+however.
 
-Hmm. please start from reusing existing routines.
-If it's not enough, some enhancement for generic cgroup  will be welcomed
-rather than completely new one only for memcg.
+This patch only schedules away from current if it does not have a pending
+kill, i.e. if it does not share memory with the oom killed thread.  It's
+possible that it will immediately retry its memory allocation and fail,
+but it will immediately be given access to memory reserves if it calls
+the oom killer again.
 
-Thanks,
--Kame
+This prevents the delay of memory freeing when threads that share memory
+with the oom killed thread get unnecessarily scheduled.
 
+Signed-off-by: David Rientjes <rientjes@google.com>
+---
+ mm/oom_kill.c |    4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
 
+diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+--- a/mm/oom_kill.c
++++ b/mm/oom_kill.c
+@@ -749,7 +749,7 @@ out:
+ 	 * Give "p" a good chance of killing itself before we
+ 	 * retry to allocate memory unless "p" is current
+ 	 */
+-	if (killed && !test_thread_flag(TIF_MEMDIE))
++	if (killed && !fatal_signal_pending(current))
+ 		schedule_timeout_uninterruptible(1);
+ }
+ 
+@@ -765,6 +765,6 @@ void pagefault_out_of_memory(void)
+ 		out_of_memory(NULL, 0, 0, NULL, false);
+ 		clear_system_oom();
+ 	}
+-	if (!test_thread_flag(TIF_MEMDIE))
++	if (!fatal_signal_pending(current))
+ 		schedule_timeout_uninterruptible(1);
+ }
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
