@@ -1,73 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx178.postini.com [74.125.245.178])
-	by kanga.kvack.org (Postfix) with SMTP id F1DCB6B006C
-	for <linux-mm@kvack.org>; Tue, 19 Jun 2012 13:32:17 -0400 (EDT)
-Message-ID: <4FE0B79E.1060601@jp.fujitsu.com>
-Date: Tue, 19 Jun 2012 13:32:14 -0400
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Received: from psmtp.com (na3sys010amx157.postini.com [74.125.245.157])
+	by kanga.kvack.org (Postfix) with SMTP id 2BFE36B0068
+	for <linux-mm@kvack.org>; Tue, 19 Jun 2012 14:07:27 -0400 (EDT)
+Date: Tue, 19 Jun 2012 20:06:46 +0200
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [PATCH 13/35] autonuma: add page structure fields
+Message-ID: <20120619180646.GN4633@redhat.com>
+References: <1337965359-29725-1-git-send-email-aarcange@redhat.com>
+ <1337965359-29725-14-git-send-email-aarcange@redhat.com>
+ <1338297385.26856.74.camel@twins>
+ <4FC4D58A.50800@redhat.com>
+ <1338303251.26856.94.camel@twins>
+ <4FC5D973.3080108@gmail.com>
+ <1338368763.26856.207.camel@twins>
+ <20120530134953.GD21339@redhat.com>
+ <1338488339.28384.106.camel@twins>
+ <20120605145123.GG21339@redhat.com>
 MIME-Version: 1.0
-Subject: Re: [patch v2] mm, oom: do not schedule if current has been killed
-References: <alpine.DEB.2.00.1206181807060.13281@chino.kir.corp.google.com> <4FDFDCA7.8060607@jp.fujitsu.com> <alpine.DEB.2.00.1206181918390.13293@chino.kir.corp.google.com> <alpine.DEB.2.00.1206181930550.13293@chino.kir.corp.google.com> <CAHGf_=pq_UJfr22kYC=vCyEDRKx75zt5eZ27+VcqFZFqc-KHTw@mail.gmail.com> <alpine.DEB.2.00.1206182321160.27620@chino.kir.corp.google.com>
-In-Reply-To: <alpine.DEB.2.00.1206182321160.27620@chino.kir.corp.google.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20120605145123.GG21339@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: rientjes@google.com
-Cc: kosaki.motohiro@jp.fujitsu.com, kamezawa.hiroyu@jp.fujitsu.com, akpm@linux-foundation.org, oleg@redhat.com, linux-mm@kvack.org
+To: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Cc: KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Hillf Danton <dhillf@gmail.com>, Dan Smith <danms@us.ibm.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>, Paul Turner <pjt@google.com>, Suresh Siddha <suresh.b.siddha@intel.com>, Mike Galbraith <efault@gmx.de>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Bharata B Rao <bharata.rao@gmail.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Johannes Weiner <hannes@cmpxchg.org>, Srivatsa Vaddagiri <vatsa@linux.vnet.ibm.com>, Christoph Lameter <cl@linux.com>
 
-On 6/19/2012 2:26 AM, David Rientjes wrote:
-> On Tue, 19 Jun 2012, KOSAKI Motohiro wrote:
+Hi everyone,
+
+On Tue, Jun 05, 2012 at 04:51:23PM +0200, Andrea Arcangeli wrote:
+> The details of the solution:
 > 
->>> diff --git a/mm/oom_kill.c b/mm/oom_kill.c
->>> --- a/mm/oom_kill.c
->>> +++ b/mm/oom_kill.c
->>> @@ -746,10 +746,11 @@ out:
->>>        read_unlock(&tasklist_lock);
->>>
->>>        /*
->>> -        * Give "p" a good chance of killing itself before we
->>> +        * Give "p" a good chance of exiting before we
->>>         * retry to allocate memory unless "p" is current
->>>         */
->>> -       if (killed && !test_thread_flag(TIF_MEMDIE))
->>> +       if (killed && !fatal_signal_pending(current) &&
->>> +                     !(current->flags & PF_EXITING))
->>>                schedule_timeout_uninterruptible(1);
->>>  }
->>
->> Why don't check gfp_flags? I think the rule is,
->>
->> 1) a thread of newly marked as TIF_MEMDIE
->>     -> now it has a capability to access reseve memory. let's immediately retry.
->> 2) allocation for GFP_HIGHUSER_MOVABLE
->>     -> we can fail to allocate it safely. let's immediately fail.
->>         (I suspect we need to change page allocator too)
->> 3) GFP_KERNEL and PF_EXITING
->>     -> don't retry immediately. It shall fail again. let's wait until
->> killed process
->>         is exited.
->>
+> struct page_autonuma {
+>     short autonuma_last_nid;
+>     short autonuma_migrate_nid;
+>     unsigned int pfn_offset_next;
+>     unsigned int pfn_offset_prev;
+> } __attribute__((packed));
 > 
-> The killed process may exit but it does not guarantee that its memory will 
-> be freed if it's shared with current.  This is the case that the patch is 
-> addressing, where right now we unnecessarily schedule if current has been 
-> killed or is already along the exit path.  We want to retry as soon as 
-> possible so that either the allocation now succeeds or we can recall the 
-> oom killer as soon as possible and get TIF_MEMDIE set because we have a 
-> fatal signal so current may exit in a timely way as well.  The point is 
-> that if current has either a SIGKILL or is already exiting as it returns 
-> from the oom killer, it does no good to continue to stall and prevent that 
-> memory freeing.
+> page_autonuma can only point to a page that belongs to the same node
+> (page_autonuma is queued into the
+> NODE_DATA(autonuma_migrate_nid)->autonuma_migrate_head[src_nid]) where
+> src_nid is the source node that page_autonuma belongs to, so all pages
+> in the autonuma_migrate_head[src_nid] lru must come from the same
+> src_nid. So the next page_autonuma in the list will be
+> lookup_page_autonuma(pfn_to_page(NODE_DATA(src_nid)->node_start_pfn +
+> page_autonuma->pfn_offset_next)) etc..
+> 
+> Of course all list_add/del must be hardcoded specially for this, but
+> it's not a conceptually difficult solution, just we can't use list.h
+> and stright pointers anymore and some conversion must happen.
 
-You missed live lock risk. immediate retry makes immediate fail if no one
-freed any memory. Even if the task call out_of_memory() again, select_bad_process()
-may return -1 and don't makes any forward progress.
+So here the above idea implemented and working fine (it seems...?!? it
+has been running only for half an hour but all benchmark regression
+tests passed with the same score as before and I verified memory goes
+in all directions during the bench, so there's good chance it's ok).
 
+It actually works even if a node has more than 16TB but in that case
+it will WARN_ONCE on the first page that is migrated at an offset
+above 16TB from the start of the node, and then it will continue
+simply skipping migrating those pages with a too large offset.
 
+Next part coming is the docs of autonuma_balance() at the top of
+kernel/sched/numa.c and cleanup the autonuma_balance callout location
+(if I can figure how to do an active balance on the running task from
+softirq). The location at the moment is there just to be invoked after
+load_balance runs so it shouldn't make a runtime difference after I
+clean it up (hackbench already runs identical to upstream) but
+certainly it'll be nice to microoptimize away a call and a branch from
+the schedule() fast path.
 
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+After that I'll write Documentation/vm/AutoNUMA.txt and I'll finish
+the THP native migration (the last one assuming nobody does it before
+I get there, if somebody wants to do it sooner, we figured the locking
+details with Johannes during the MM summit but it's some work to
+implement it).
+
+===
