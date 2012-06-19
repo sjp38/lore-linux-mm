@@ -1,75 +1,112 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx115.postini.com [74.125.245.115])
-	by kanga.kvack.org (Postfix) with SMTP id 77E926B0069
-	for <linux-mm@kvack.org>; Tue, 19 Jun 2012 19:21:04 -0400 (EDT)
-Date: Tue, 19 Jun 2012 18:21:02 -0500
-From: Nathan Zimmer <nzimmer@sgi.com>
-Subject: Re: [PATCH v2] tmpfs not interleaving properly
-Message-ID: <20120619232102.GA5698@gulag1.americas.sgi.com>
-References: <20120531143916.GA16162@gulag1.americas.sgi.com> <4FC7CFEB.5040009@gmail.com> <20120531132515.6af60152.akpm@linux-foundation.org> <4FC7D629.3090801@gmail.com> <20120601142437.GA13739@gulag1.americas.sgi.com> <4FC8FA47.70001@gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <4FC8FA47.70001@gmail.com>
+Received: from psmtp.com (na3sys010amx193.postini.com [74.125.245.193])
+	by kanga.kvack.org (Postfix) with SMTP id 129506B005D
+	for <linux-mm@kvack.org>; Tue, 19 Jun 2012 19:25:49 -0400 (EDT)
+Date: Tue, 19 Jun 2012 16:25:47 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH -mm 1/7] mm: track free size between VMAs in VMA rbtree
+Message-Id: <20120619162547.d35e759e.akpm@linux-foundation.org>
+In-Reply-To: <1340057126-31143-2-git-send-email-riel@redhat.com>
+References: <1340057126-31143-1-git-send-email-riel@redhat.com>
+	<1340057126-31143-2-git-send-email-riel@redhat.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
-Cc: Nathan Zimmer <nzimmer@sgi.com>, Andrew Morton <akpm@linux-foundation.org>, hughd@google.com, npiggin@gmail.com, cl@linux.com, lee.schermerhorn@hp.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, stable@vger.kernel.org, riel@redhat.com
+To: Rik van Riel <riel@redhat.com>
+Cc: linux-mm@kvack.org, aarcange@redhat.com, peterz@infradead.org, minchan@gmail.com, kosaki.motohiro@gmail.com, andi@firstfloor.org, hannes@cmpxchg.org, mel@csn.ul.ie, linux-kernel@vger.kernel.org, Rik van Riel <riel@surriel.com>
 
-On Fri, Jun 01, 2012 at 01:22:15PM -0400, KOSAKI Motohiro wrote:
-> (6/1/12 10:24 AM), Nathan Zimmer wrote:
->> On Thu, May 31, 2012 at 04:35:53PM -0400, KOSAKI Motohiro wrote:
->>> (5/31/12 4:25 PM), Andrew Morton wrote:
->>>> On Thu, 31 May 2012 16:09:15 -0400
->>>> KOSAKI Motohiro<kosaki.motohiro@gmail.com>   wrote:
->>>>
->>>>>> --- a/mm/shmem.c
->>>>>> +++ b/mm/shmem.c
->>>>>> @@ -929,7 +929,7 @@ static struct page *shmem_alloc_page(gfp_t gfp,
->>>>>>     	/*
->>>>>>     	 * alloc_page_vma() will drop the shared policy reference
->>>>>>     	 */
->>>>>> -	return alloc_page_vma(gfp,&pvma, 0);
->>>>>> +	return alloc_page_vma(gfp,&pvma, info->node_offset<<    PAGE_SHIFT );
->>>>>
->>>>> 3rd argument of alloc_page_vma() is an address. This is type error.
->>>>
->>>> Well, it's an unsigned long...
->>>>
->>>> But yes, it is conceptually wrong and *looks* weird.  I think we can
->>>> address that by overcoming our peculair aversion to documenting our
->>>> code, sigh.  This?
->>>
->>> Sorry, no.
->>>
->>> addr agrument of alloc_pages_vma() have two meanings.
->>>
->>> 1) interleave node seed
->>> 2) look-up key of shmem policy
->>>
->>> I think this patch break (2). shmem_get_policy(pol, addr) assume caller honor to
->>> pass correct address.
->>
->> But the pseudo vma we generated in shmem_alloc_page the vm_ops are set to NULL.
->> So get_vma_policy will return the policy provided by the pseudo vma and not reach
->> the shmem_get_policy.
+On Mon, 18 Jun 2012 18:05:20 -0400
+Rik van Riel <riel@redhat.com> wrote:
+
+> From: Rik van Riel <riel@surriel.com>
+> 
+> Track the size of free areas between VMAs in the VMA rbtree.
+> 
+> This will allow get_unmapped_area_* to find a free area of the
+> right size in O(log(N)) time, instead of potentially having to
+> do a linear walk across all the VMAs.
+> 
+> ...
 >
-> yes, and it is bug source. we may need to change soon. I guess the right way is
-> to make vm_ops->interleave and interleave_nid uses it if povided.
->
+> --- a/include/linux/mm_types.h
+> +++ b/include/linux/mm_types.h
+> @@ -213,6 +213,13 @@ struct vm_area_struct {
+>  	struct rb_node vm_rb;
+>  
+>  	/*
+> +	 * Largest free memory gap "behind" this VMA (in the direction mmap
+> +	 * grows from), or of VMAs down the rb tree below us. This helps
+> +	 * get_unmapped_area find a free area of the right size.
+> +	 */
+> +	unsigned long free_gap;
 
-If we provide vm_ops then won't shmem_get_policy get called?
-That would be an issue since shmem_get_policy assumes vm_file is non NULL.
+Please mention the units?  Seems to be "bytes", not "pages".
 
-> btw, I don't think node_random() is good idea. it is random(pid + jiffies + cycle).
-> current->cpuset_mem_spread_rotor is per-thread value. but you now need per-inode
-> interleave offset. maybe, just inode addition is enough. Why do you need randomness?
->
+> --- a/mm/mmap.c
+> +++ b/mm/mmap.c
+> @@ -205,6 +205,51 @@ static void __remove_shared_vm_struct(struct vm_area_struct *vma,
+>  	flush_dcache_mmap_unlock(mapping);
+>  }
+>  
+> +static unsigned long max_free_space(struct rb_node *node)
+> +{
+> +	struct vm_area_struct *vma, *prev, *left = NULL, *right = NULL;
+> +	unsigned long largest = 0;
+> +
+> +	if (node->rb_left)
+> +		left = rb_to_vma(node->rb_left);
+> +	if (node->rb_right)
+> +		right = rb_to_vma(node->rb_right);
+> +
+> +	/*
+> +	 * Calculate the free gap size between us and the
+> +	 * VMA to our left.
+> +	 */
 
-I don't really need the randomness, the rotor should be good enough.
-The correct way to get that is cpuset_mem_spread_node(), yes?
+Comment will fit in a single line.
 
-Also apologies for such a delay in my response.
+> +	vma = rb_to_vma(node);
+> +	prev = vma->vm_prev;
+> +
+> +	if (prev)
+> +		largest = vma->vm_start - prev->vm_end;
+> +	else
+> +		largest = vma->vm_start;
+> +
+> +	/* We propagate the largest of our own, or our children's free gaps. */
+> +	if (left)
+> +		largest = max(largest, left->free_gap);
+> +	if (right)
+> +		largest = max(largest, right->free_gap);
+> +
+> +	return largest;
+> +}
+
+This would be easier to review if it had a nice comment explaining its
+role ;)
+
+> +static void vma_rb_augment_cb(struct rb_node *node, void *__unused)
+> +{
+> +	struct vm_area_struct *vma;
+> +
+> +	vma = rb_to_vma(node);
+> +
+> +	vma->free_gap = max_free_space(node);
+> +}
+
+Save some trees!
+
+	struct vm_area_struct *vma = rb_to_vma(node);
+	vma->free_gap = max_free_space(node);
+
+or even
+
+	rb_to_vma(node)->free_gap = max_free_space(node);
+
+
+Major stuff, huh?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
