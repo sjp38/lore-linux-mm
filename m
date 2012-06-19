@@ -1,102 +1,207 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx195.postini.com [74.125.245.195])
-	by kanga.kvack.org (Postfix) with SMTP id 873A46B0062
-	for <linux-mm@kvack.org>; Tue, 19 Jun 2012 09:05:23 -0400 (EDT)
-Received: from epcpsbgm1.samsung.com (mailout2.samsung.com [203.254.224.25])
- by mailout2.samsung.com
- (Oracle Communications Messaging Server 7u4-24.01(7.0.4.24.0) 64bit (built Nov
- 17 2011)) with ESMTP id <0M5V0023E8CM70G0@mailout2.samsung.com> for
- linux-mm@kvack.org; Tue, 19 Jun 2012 22:05:21 +0900 (KST)
-Received: from bzolnier-desktop.localnet ([106.116.48.38])
- by mmp1.samsung.com (Oracle Communications Messaging Server 7u4-24.01
- (7.0.4.24.0) 64bit (built Nov 17 2011))
- with ESMTPA id <0M5V005J28CVLTB0@mmp1.samsung.com> for linux-mm@kvack.org;
- Tue, 19 Jun 2012 22:05:21 +0900 (KST)
-From: Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>
-Subject: Re: [PATCH] cma: cached pageblock type fixup
-Date: Tue, 19 Jun 2012 15:04:59 +0200
-References: <201205230922.00530.b.zolnierkie@samsung.com>
- <201206191328.50781.b.zolnierkie@samsung.com> <20120619120044.GA8810@suse.de>
-In-reply-to: <20120619120044.GA8810@suse.de>
-MIME-version: 1.0
-Message-id: <201206191504.59994.b.zolnierkie@samsung.com>
-Content-type: Text/Plain; charset=us-ascii
-Content-transfer-encoding: 7bit
+Received: from psmtp.com (na3sys010amx144.postini.com [74.125.245.144])
+	by kanga.kvack.org (Postfix) with SMTP id CC8196B0062
+	for <linux-mm@kvack.org>; Tue, 19 Jun 2012 09:18:02 -0400 (EDT)
+Received: by lbjn8 with SMTP id n8so7441956lbj.14
+        for <linux-mm@kvack.org>; Tue, 19 Jun 2012 06:18:00 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <4FDE79CF.4050702@kernel.org>
+References: <1339661592-3915-1-git-send-email-kosaki.motohiro@gmail.com>
+	<20120614145716.GA2097@barrios>
+	<CAHGf_=qcA5OfuNgk0BiwyshcLftNWoPfOO_VW9H6xQTX2tAbuA@mail.gmail.com>
+	<4FDAE3CC.60801@kernel.org>
+	<CAEtiSavv8nRAFk6VZEgeCMYicjBPy4244+2KQhng5Pq9bxcX5A@mail.gmail.com>
+	<4FDE79CF.4050702@kernel.org>
+Date: Tue, 19 Jun 2012 18:48:00 +0530
+Message-ID: <CAEtiSav8uLfWq0Ee4Nub-5QqyB7MhtfpWGKPdMYSRJd=iz+5gg@mail.gmail.com>
+Subject: Re: [resend][PATCH] mm, vmscan: fix do_try_to_free_pages() livelock
+From: Aaditya Kumar <aaditya.kumar.30@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: linux-mm@kvack.org, Michal Nazarewicz <mina86@mina86.com>, Marek Szyprowski <m.szyprowski@samsung.com>
+To: Minchan Kim <minchan@kernel.org>
+Cc: KOSAKI Motohiro <kosaki.motohiro@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org, Nick Piggin <npiggin@gmail.com>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mel@csn.ul.ie>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>, frank.rowand@am.sony.com, tim.bird@am.sony.com, takuzo.ohara@ap.sony.com, kan.iibuchi@jp.sony.com
 
-On Tuesday 19 June 2012 14:00:45 Mel Gorman wrote:
-> On Tue, Jun 19, 2012 at 01:28:50PM +0200, Bartlomiej Zolnierkiewicz wrote:
-> > On Tuesday 19 June 2012 11:00:15 Mel Gorman wrote:
-> > > On Wed, May 23, 2012 at 09:22:00AM +0200, Bartlomiej Zolnierkiewicz wrote:
-> > > > From: Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>
-> > > > Subject: [PATCH] cma: cached pageblock type fixup
-> > > > 
-> > > > CMA pages added to per-cpu pages lists in free_hot_cold_page()
-> > > > have private field set to MIGRATE_CMA pageblock type .  If this
-> > > > happes just before start_isolate_page_range() in alloc_contig_range()
-> > > > changes pageblock type of the page to MIGRATE_ISOLATE it may result
-> > > > in the cached pageblock type being stale in free_pcppages_bulk()
-> > > > (which may be triggered by drain_all_pages() in alloc_contig_range()),
-> > > 
-> > > So what?
-> > 
-> > "page being added to MIGRATE_CMA free list instead of MIGRATE_ISOLATE
-> > one in __free_one_page() and (if the page is reused just before
-> > test_pages_isolated() check) causing alloc_contig_range() failure."
-> > 
-> 
-> And.... so what?
-> 
-> If it's on the wrong free list then it can still be isolated from that
-> list if it has not been allocated. If it has been allocated then it must
-> be a MIGRATE_CMA-compatible allocation so the page can be migrated and
-> the operation retried.
-> 
-> > > The pages get freed to the MIGRATE_CMA region. At worst they will be
-> > > used for an allocation request that is compatible with being migrated by
-> > > CMA. This will delay the allocation time of alloc_contig_range() but is
-> > > hardly critical.
-> > 
-> > There is no waiting on MIGRATE_CMA pages in alloc_contig_range() to
-> > become free again.  If the conversion to MIGRATE_ISOLATE fails then
-> > the whole alloc_contig_range() allocation fails on test_pages_isolated()
-> > check.
-> > 
-> 
-> Then retry the operation if alloc_contig_range() finds it raced.
+On Mon, Jun 18, 2012 at 6:13 AM, Minchan Kim <minchan@kernel.org> wrote:
+> On 06/17/2012 02:48 AM, Aaditya Kumar wrote:
+>
+>> On Fri, Jun 15, 2012 at 12:57 PM, Minchan Kim <minchan@kernel.org> wrote=
+:
+>>
+>>>>
+>>>> pgdat_balanced() doesn't recognized zone. Therefore kswapd may sleep
+>>>> if node has multiple zones. Hm ok, I realized my descriptions was
+>>>> slightly misleading. priority 0 is not needed. bakance_pddat() calls
+>>>> pgdat_balanced()
+>>>> every priority. Most easy case is, movable zone has a lot of free page=
+s and
+>>>> normal zone has no reclaimable page.
+>>>>
+>>>> btw, current pgdat_balanced() logic seems not correct. kswapd should
+>>>> sleep only if every zones have much free pages than high water mark
+>>>> _and_ 25% of present pages in node are free.
+>>>>
+>>>
+>>>
+>>> Sorry. I can't understand your point.
+>>> Current kswapd doesn't sleep if relevant zones don't have free pages ab=
+ove high watermark.
+>>> It seems I am missing your point.
+>>> Please anybody correct me.
+>>
+>> Since currently direct reclaim is given up based on
+>> zone->all_unreclaimable flag,
+>> so for e.g in one of the scenarios:
+>>
+>> Lets say system has one node with two zones (NORMAL and MOVABLE) and we
+>> hot-remove the all the pages of the MOVABLE zone.
+>>
+>> While migrating pages during memory hot-unplugging, the allocation funct=
+ion
+>> (for new page to which the page in MOVABLE zone would be moved) =A0can e=
+nd up
+>> looping in direct reclaim path for ever.
+>>
+>> This is so because when most of the pages in the MOVABLE zone have
+>> been migrated,
+>> the zone now contains lots of free memory (basically above low watermark=
+)
+>> BUT all are in MIGRATE_ISOLATE list of the buddy list.
+>>
+>> So kswapd() would not balance this zone as free pages are above low wate=
+rmark
+>> (but all are in isolate list). So zone->all_unreclaimable flag would
+>> never be set for this zone
+>> and allocation function would end up looping forever. (assuming the
+>> zone NORMAL is
+>> left with no reclaimable memory)
+>>
+>
+>
+> Thanks a lot, Aaditya! Scenario you mentioned makes perfect.
+> But I don't see it's a problem of kswapd.
 
-Right, my other patch is trying to go in this direction:
-http://marc.info/?l=linux-mm&m=133775796822644&w=2
+Hi Kim,
 
-> > > Your fix on the other hand adds another call to get_pageblock_type() to
-> > > free_pcppages_bulk which is expensive. The change made to
-> > > buffered_rmqueue() is horrific. It takes the per-cpu page allocation
-> > > path and adds a spin lock to it which completely defeats the purpose of
-> > > having the per-cpu allocation avoid taking locks. This will have a very
-> > > heavy impact on performance, particularly on parallel workloads.
-> > > 
-> > > As the impact of the race should be marginal and the cost of the fix is
-> > > so unbelivably high I'm nacking this patch. If this race is a problem then
-> > > it should be handled in alloc_contig_range() not in the allocator fast paths.
-> > 
-> > Do you have any idea how this race can be handled in alloc_contig_range()?
-> > 
-> 
-> If the page is on the wrong free list, just isolate it or move it to the
-> MIGRATE_ISOLATE free list at that point. If it has been allocated then
-> migrate it and move the resulting free page to the MIGRATE_ISOLATE list.
+Yes I agree it is not a problem of kswapd.
 
-Thanks, this makes sense but still leaves us with some page allocation vs
-alloc_contig_range() races (i.e. pages "in-flight" state being added/removed
-to/from pcp lists so not being on the freelists and not being allocated).
+> a5d76b54 made new migration type 'MIGRATE_ISOLATE' which is very irony ty=
+pe because there are many free pages in free list
+> but we can't allocate it. :(
+> It doesn't reflect right NR_FREE_PAGES while many places in the kernel us=
+e NR_FREE_PAGES to trigger some operation.
+> Kswapd is just one of them confused.
+> As right fix of this problem, we should fix hot plug code, IMHO which can=
+ fix CMA, too.
+>
+> This patch could make inconsistency between NR_FREE_PAGES and SumOf[free_=
+area[order].nr_free]
 
-Best regards,
---
-Bartlomiej Zolnierkiewicz
-Samsung Poland R&D Center
+
+I assume that by the inconsistency you mention above, you mean
+temporary inconsistency.
+
+Sorry, but IMHO as for memory hot plug the main issue with this patch
+is that the inconsistency you mentioned above would NOT be a temporary
+inconsistency.
+
+Every time say 'x' number of page frames are off lined, they will
+introduce a difference of 'x' pages between
+NR_FREE_PAGES and SumOf[free_area[order].nr_free].
+(So for e.g. if we do a frequent offline/online it will make
+NR_FREE_PAGES  negative)
+
+This is so because, unset_migratetype_isolate() is called from
+offlining  code (to set the migrate type of off lined pages again back
+to MIGRATE_MOVABLE)
+after the pages have been off lined and removed from the buddy list.
+Since the pages for which unset_migratetype_isolate() is called are
+not buddy pages so move_freepages_block() does not move any page, and
+thus introducing a permanent inconsistency.
+
+> and it could make __zone_watermark_ok confuse so we might need to fix mov=
+e_freepages_block itself to reflect
+> free_area[order].nr_free exactly.
+>
+> Any thought?
+
+As for fixing move_freepages_block(), At least for memory hot plug,
+the pages stay in MIGRATE_ISOLATE list only for duration
+offline_pages() function,
+I mean only temporarily. Since fixing move_freepages_block() for will
+introduce some overhead, So I am not very sure whether that overhead
+is justified
+for a temporary condition. What do you think?
+
+
+> Side Note: I still need KOSAKI's patch with fixed description regardless =
+of this problem because set zone->all_unreclaimable of only kswapd is very =
+fragile.
+>
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index 4403009..19de56c 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -5593,8 +5593,10 @@ int set_migratetype_isolate(struct page *page)
+>
+> =A0out:
+> =A0 =A0 =A0 =A0if (!ret) {
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 int pages_moved;
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0set_pageblock_migratetype(page, MIGRATE_IS=
+OLATE);
+> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 move_freepages_block(zone, page, MIGRATE_IS=
+OLATE);
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 pages_moved =3D move_freepages_block(zone, =
+page, MIGRATE_ISOLATE);
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 __mod_zone_page_state(zone, NR_FREE_PAGES, =
+-pages_moved);
+> =A0 =A0 =A0 =A0}
+>
+> =A0 =A0 =A0 =A0spin_unlock_irqrestore(&zone->lock, flags);
+> @@ -5607,12 +5609,14 @@ void unset_migratetype_isolate(struct page *page,=
+ unsigned migratetype)
+> =A0{
+> =A0 =A0 =A0 =A0struct zone *zone;
+> =A0 =A0 =A0 =A0unsigned long flags;
+> + =A0 =A0 =A0 int pages_moved;
+> =A0 =A0 =A0 =A0zone =3D page_zone(page);
+> =A0 =A0 =A0 =A0spin_lock_irqsave(&zone->lock, flags);
+> =A0 =A0 =A0 =A0if (get_pageblock_migratetype(page) !=3D MIGRATE_ISOLATE)
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0goto out;
+> =A0 =A0 =A0 =A0set_pageblock_migratetype(page, migratetype);
+> - =A0 =A0 =A0 move_freepages_block(zone, page, migratetype);
+> + =A0 =A0 =A0 pages_moved =3D move_freepages_block(zone, page, migratetyp=
+e);
+> + =A0 =A0 =A0 __mod_zone_page_state(zone, NR_FREE_PAGES, pages_moved);
+> =A0out:
+> =A0 =A0 =A0 =A0spin_unlock_irqrestore(&zone->lock, flags);
+> =A0}
+>
+>
+>>
+>> Regards,
+>> Aaditya Kumar
+>> Sony India Software Centre,
+>> Bangalore.
+>>
+>> --
+>> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+>> the body to majordomo@kvack.org. =A0For more info on Linux MM,
+>> see: http://www.linux-mm.org/ .
+>> Don't email: <a href=3Dmailto:"dont@kvack.org"> email@kvack.org </a>
+>>
+>
+>
+>
+> --
+> Kind regards,
+> Minchan Kim
+
+Regards,
+Aaditya Kumar
+Sony India Software Centre,
+Bangalore.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
