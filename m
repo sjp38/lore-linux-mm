@@ -1,123 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx126.postini.com [74.125.245.126])
-	by kanga.kvack.org (Postfix) with SMTP id 66FF86B0062
-	for <linux-mm@kvack.org>; Tue, 19 Jun 2012 07:29:26 -0400 (EDT)
-Date: Tue, 19 Jun 2012 13:29:01 +0200
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH V5 1/5] mm: memcg softlimit reclaim rework
-Message-ID: <20120619112901.GC27816@cmpxchg.org>
-References: <1340038051-29502-1-git-send-email-yinghan@google.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1340038051-29502-1-git-send-email-yinghan@google.com>
+Received: from psmtp.com (na3sys010amx132.postini.com [74.125.245.132])
+	by kanga.kvack.org (Postfix) with SMTP id 131756B0068
+	for <linux-mm@kvack.org>; Tue, 19 Jun 2012 07:29:33 -0400 (EDT)
+Received: from epcpsbgm2.samsung.com (mailout1.samsung.com [203.254.224.24])
+ by mailout1.samsung.com
+ (Oracle Communications Messaging Server 7u4-24.01(7.0.4.24.0) 64bit (built Nov
+ 17 2011)) with ESMTP id <0M5V0090P3X47T90@mailout1.samsung.com> for
+ linux-mm@kvack.org; Tue, 19 Jun 2012 20:29:31 +0900 (KST)
+Received: from bzolnier-desktop.localnet ([106.116.48.38])
+ by mmp1.samsung.com (Oracle Communications Messaging Server 7u4-24.01
+ (7.0.4.24.0) 64bit (built Nov 17 2011))
+ with ESMTPA id <0M5V0039A3X6CZ20@mmp1.samsung.com> for linux-mm@kvack.org;
+ Tue, 19 Jun 2012 20:29:31 +0900 (KST)
+From: Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>
+Subject: Re: [PATCH] cma: cached pageblock type fixup
+Date: Tue, 19 Jun 2012 13:28:50 +0200
+References: <201205230922.00530.b.zolnierkie@samsung.com>
+ <20120619090015.GE20467@suse.de>
+In-reply-to: <20120619090015.GE20467@suse.de>
+MIME-version: 1.0
+Content-type: Text/Plain; charset=us-ascii
+Content-transfer-encoding: 7bit
+Message-id: <201206191328.50781.b.zolnierkie@samsung.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ying Han <yinghan@google.com>
-Cc: Michal Hocko <mhocko@suse.cz>, Mel Gorman <mel@csn.ul.ie>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Hillf Danton <dhillf@gmail.com>, Hugh Dickins <hughd@google.com>, Dan Magenheimer <dan.magenheimer@oracle.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
+To: Mel Gorman <mgorman@suse.de>
+Cc: linux-mm@kvack.org, Michal Nazarewicz <mina86@mina86.com>, Marek Szyprowski <m.szyprowski@samsung.com>
 
-On Mon, Jun 18, 2012 at 09:47:27AM -0700, Ying Han wrote:
-> This patch reverts all the existing softlimit reclaim implementations and
-> instead integrates the softlimit reclaim into existing global reclaim logic.
+On Tuesday 19 June 2012 11:00:15 Mel Gorman wrote:
+> On Wed, May 23, 2012 at 09:22:00AM +0200, Bartlomiej Zolnierkiewicz wrote:
+> > From: Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>
+> > Subject: [PATCH] cma: cached pageblock type fixup
+> > 
+> > CMA pages added to per-cpu pages lists in free_hot_cold_page()
+> > have private field set to MIGRATE_CMA pageblock type .  If this
+> > happes just before start_isolate_page_range() in alloc_contig_range()
+> > changes pageblock type of the page to MIGRATE_ISOLATE it may result
+> > in the cached pageblock type being stale in free_pcppages_bulk()
+> > (which may be triggered by drain_all_pages() in alloc_contig_range()),
 > 
-> The new softlimit reclaim includes the following changes:
+> So what?
+
+"page being added to MIGRATE_CMA free list instead of MIGRATE_ISOLATE
+one in __free_one_page() and (if the page is reused just before
+test_pages_isolated() check) causing alloc_contig_range() failure."
+
+> The pages get freed to the MIGRATE_CMA region. At worst they will be
+> used for an allocation request that is compatible with being migrated by
+> CMA. This will delay the allocation time of alloc_contig_range() but is
+> hardly critical.
+
+There is no waiting on MIGRATE_CMA pages in alloc_contig_range() to
+become free again.  If the conversion to MIGRATE_ISOLATE fails then
+the whole alloc_contig_range() allocation fails on test_pages_isolated()
+check.
+
+> Your fix on the other hand adds another call to get_pageblock_type() to
+> free_pcppages_bulk which is expensive. The change made to
+> buffered_rmqueue() is horrific. It takes the per-cpu page allocation
+> path and adds a spin lock to it which completely defeats the purpose of
+> having the per-cpu allocation avoid taking locks. This will have a very
+> heavy impact on performance, particularly on parallel workloads.
 > 
-> 1. add function should_reclaim_mem_cgroup()
-> 
-> Add the filter function should_reclaim_mem_cgroup() under the common function
-> shrink_zone(). The later one is being called both from per-memcg reclaim as
-> well as global reclaim.
-> 
-> Today the softlimit takes effect only under global memory pressure. The memcgs
-> get free run above their softlimit until there is a global memory contention.
-> This patch doesn't change the semantics.
+> As the impact of the race should be marginal and the cost of the fix is
+> so unbelivably high I'm nacking this patch. If this race is a problem then
+> it should be handled in alloc_contig_range() not in the allocator fast paths.
 
-But it's quite a performance regression.  Maybe it would be better
-after all to combine this change with 'make 0 the default'?
+Do you have any idea how this race can be handled in alloc_contig_range()?
 
-Yes, I was the one asking for the changes to be separated, if
-possible, but I didn't mean regressing in between.  No forward
-dependencies in patch series, please.
-
-> Under the global reclaim, we try to skip reclaiming from a memcg under its
-> softlimit. To prevent reclaim from trying too hard on hitting memcgs
-> (above softlimit) w/ only hard-to-reclaim pages, the reclaim priority is used
-> to skip the softlimit check. This is a trade-off of system performance and
-> resource isolation.
-> 
-> 2. "hierarchical" softlimit reclaim
->
-> This is consistant to how softlimit was previously implemented, where the
-> pressure is put for the whole hiearchy as long as the "root" of the hierarchy
-> over its softlimit.
-> 
-> This part is not in my previous posts, and is quite different from my
-> understanding of softlimit reclaim. After quite a lot of discussions with
-> Johannes and Michal, i decided to go with it for now. And this is designed
-> to work with both trusted setups and untrusted setups.
-
-This may be really confusing to someone uninvolved reading the
-changelog as it doesn't have anything to do with what the patch
-actually does.
-
-It may be better to include past discussion outcomes in the
-introductary email of a series.
-
-> @@ -870,8 +672,6 @@ static void memcg_check_events(struct mem_cgroup *memcg, struct page *page)
->  		preempt_enable();
->  
->  		mem_cgroup_threshold(memcg);
-> -		if (unlikely(do_softlimit))
-> -			mem_cgroup_update_tree(memcg, page);
->  #if MAX_NUMNODES > 1
->  		if (unlikely(do_numainfo))
->  			atomic_inc(&memcg->numainfo_events);
-> @@ -922,6 +722,31 @@ struct mem_cgroup *try_get_mem_cgroup_from_mm(struct mm_struct *mm)
->  	return memcg;
->  }
->  
-> +bool should_reclaim_mem_cgroup(struct mem_cgroup *memcg)
-
-I'm not too fond of the magical name.  The API provides an information
-about soft limits, the decision should rest with vmscan.c.
-
-mem_cgroup_over_soft_limit() e.g.?
-
-> +{
-> +	if (mem_cgroup_disabled())
-> +		return true;
-> +
-> +	/*
-> +	 * We treat the root cgroup special here to always reclaim pages.
-> +	 * Now root cgroup has its own lru, and the only chance to reclaim
-> +	 * pages from it is through global reclaim. note, root cgroup does
-> +	 * not trigger targeted reclaim.
-> +	 */
-> +	if (mem_cgroup_is_root(memcg))
-> +		return true;
-
-With the soft limit at 0, the comment is no longer accurate because
-this check turns into a simple optimization.  We could check the
-res_counter soft limit, which would always result in the root group
-being above the limit, but we take the short cut.
-
-> +	for (; memcg; memcg = parent_mem_cgroup(memcg)) {
-> +		/* This is global reclaim, stop at root cgroup */
-> +		if (mem_cgroup_is_root(memcg))
-> +			break;
-
-I don't see why you add this check and the comment does not help.
-
-> +		if (res_counter_soft_limit_excess(&memcg->res))
-> +			return true;
-> +	}
-> +
-> +	return false;
-> +}
-> +
->  /**
->   * mem_cgroup_iter - iterate over memory cgroup hierarchy
->   * @root: hierarchy root
+Best regards,
+--
+Bartlomiej Zolnierkiewicz
+Samsung Poland R&D Center
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
