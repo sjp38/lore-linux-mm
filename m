@@ -1,46 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx160.postini.com [74.125.245.160])
-	by kanga.kvack.org (Postfix) with SMTP id AA4E36B0068
-	for <linux-mm@kvack.org>; Tue, 19 Jun 2012 12:26:53 -0400 (EDT)
-Date: Tue, 19 Jun 2012 17:26:43 +0100
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH] cma: cached pageblock type fixup
-Message-ID: <20120619162643.GC8810@suse.de>
-References: <201205230922.00530.b.zolnierkie@samsung.com>
- <201206191328.50781.b.zolnierkie@samsung.com>
- <20120619120044.GA8810@suse.de>
- <201206191504.59994.b.zolnierkie@samsung.com>
+Received: from psmtp.com (na3sys010amx201.postini.com [74.125.245.201])
+	by kanga.kvack.org (Postfix) with SMTP id A46A76B006C
+	for <linux-mm@kvack.org>; Tue, 19 Jun 2012 12:37:39 -0400 (EDT)
+Received: from /spool/local
+	by e4.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <sjenning@linux.vnet.ibm.com>;
+	Tue, 19 Jun 2012 12:37:35 -0400
+Received: from d01relay03.pok.ibm.com (d01relay03.pok.ibm.com [9.56.227.235])
+	by d01dlp02.pok.ibm.com (Postfix) with ESMTP id 707C56E8053
+	for <linux-mm@kvack.org>; Tue, 19 Jun 2012 12:35:21 -0400 (EDT)
+Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
+	by d01relay03.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q5JGZKgh186526
+	for <linux-mm@kvack.org>; Tue, 19 Jun 2012 12:35:20 -0400
+Received: from d01av04.pok.ibm.com (loopback [127.0.0.1])
+	by d01av04.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q5JGZH7E023330
+	for <linux-mm@kvack.org>; Tue, 19 Jun 2012 12:35:17 -0400
+Message-ID: <4FE0AA3A.8030805@linux.vnet.ibm.com>
+Date: Tue, 19 Jun 2012 11:35:06 -0500
+From: Seth Jennings <sjenning@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <201206191504.59994.b.zolnierkie@samsung.com>
+Subject: Re: [PATCH 05/10] zcache: mark zbud_init/zcache_comp_init as __init
+References: <4FE0392E.3090300@linux.vnet.ibm.com> <4FE039BE.6010406@linux.vnet.ibm.com>
+In-Reply-To: <4FE039BE.6010406@linux.vnet.ibm.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>
-Cc: linux-mm@kvack.org, Michal Nazarewicz <mina86@mina86.com>, Marek Szyprowski <m.szyprowski@samsung.com>
+To: Xiao Guangrong <xiaoguangrong@linux.vnet.ibm.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Dan Magenheimer <dan.magenheimer@oracle.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 
-On Tue, Jun 19, 2012 at 03:04:59PM +0200, Bartlomiej Zolnierkiewicz wrote:
-> > If the page is on the wrong free list, just isolate it or move it to the
-> > MIGRATE_ISOLATE free list at that point. If it has been allocated then
-> > migrate it and move the resulting free page to the MIGRATE_ISOLATE list.
+On 06/19/2012 03:35 AM, Xiao Guangrong wrote:
+
+> These functions are called only when system is initializing, so mark __init
+> for them to free memory
 > 
-> Thanks, this makes sense but still leaves us with some page allocation vs
-> alloc_contig_range() races (i.e. pages "in-flight" state being added/removed
-> to/from pcp lists so not being on the freelists and not being allocated).
-> 
+> Signed-off-by: Xiao Guangrong <xiaoguangrong@linux.vnet.ibm.com>
 
-The races should not be forever or open-ended. Once the pageblock is
-marked ISOLATE it should only take one pass to either move it from
-MIGRATE_CMA to MIGRATE_ISOLATE free lists or to migrate the page and
-free it to the MIGRATE_ISOLATE.
 
-I would be very surprised if this cannot be properly handled in
-alloc_contig_range() in a manner that does not wreck the page allocator
-fast paths.
+For patches 05-09:
 
--- 
-Mel Gorman
-SUSE Labs
+Acked-by: Seth Jennings <sjenning@linux.vnet.ibm.com>
+
+--
+Seth
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
