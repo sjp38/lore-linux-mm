@@ -1,45 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx173.postini.com [74.125.245.173])
-	by kanga.kvack.org (Postfix) with SMTP id 511756B0069
-	for <linux-mm@kvack.org>; Wed, 20 Jun 2012 10:21:32 -0400 (EDT)
-Date: Wed, 20 Jun 2012 15:21:27 +0100
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH 01/12] netvm: Prevent a stream-specific deadlock
-Message-ID: <20120620142127.GK4011@suse.de>
-References: <1340185081-22525-1-git-send-email-mgorman@suse.de>
- <1340185081-22525-2-git-send-email-mgorman@suse.de>
+Received: from psmtp.com (na3sys010amx169.postini.com [74.125.245.169])
+	by kanga.kvack.org (Postfix) with SMTP id 2AB5F6B0062
+	for <linux-mm@kvack.org>; Wed, 20 Jun 2012 10:29:01 -0400 (EDT)
+Received: from /spool/local
+	by e39.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <sjenning@linux.vnet.ibm.com>;
+	Wed, 20 Jun 2012 08:28:59 -0600
+Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
+	by d01dlp03.pok.ibm.com (Postfix) with ESMTP id 4D75EC90093
+	for <linux-mm@kvack.org>; Wed, 20 Jun 2012 10:20:37 -0400 (EDT)
+Received: from d01av03.pok.ibm.com (d01av03.pok.ibm.com [9.56.224.217])
+	by d01relay02.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q5KEKaUA145050
+	for <linux-mm@kvack.org>; Wed, 20 Jun 2012 10:20:36 -0400
+Received: from d01av03.pok.ibm.com (loopback [127.0.0.1])
+	by d01av03.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q5KEKWAd017938
+	for <linux-mm@kvack.org>; Wed, 20 Jun 2012 11:20:32 -0300
+Message-ID: <4FE1DC24.6020508@linux.vnet.ibm.com>
+Date: Wed, 20 Jun 2012 09:20:20 -0500
+From: Seth Jennings <sjenning@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <1340185081-22525-2-git-send-email-mgorman@suse.de>
+Subject: Re: help converting zcache from sysfs to debugfs?
+References: <6b8ff49a-a5aa-4b9b-9425-c9bc7df35a34@default>
+In-Reply-To: <6b8ff49a-a5aa-4b9b-9425-c9bc7df35a34@default>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Linux-MM <linux-mm@kvack.org>, Linux-Netdev <netdev@vger.kernel.org>, Linux-NFS <linux-nfs@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, David Miller <davem@davemloft.net>, Trond Myklebust <Trond.Myklebust@netapp.com>, Neil Brown <neilb@suse.de>, Christoph Hellwig <hch@infradead.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Mike Christie <michaelc@cs.wisc.edu>, Eric B Munson <emunson@mgebm.net>
+To: Dan Magenheimer <dan.magenheimer@oracle.com>
+Cc: linux-mm@kvack.org, Nitin Gupta <ngupta@vflare.org>, Konrad Wilk <konrad.wilk@oracle.com>, Sasha Levin <levinsasha928@gmail.com>
 
-On Wed, Jun 20, 2012 at 10:37:50AM +0100, Mel Gorman wrote:
-> It could happen that all !SOCK_MEMALLOC sockets have buffered so
-> much data that we're over the global rmem limit. This will prevent
-> SOCK_MEMALLOC buffers from receiving data, which will prevent userspace
-> from running, which is needed to reduce the buffered data.
+On 06/19/2012 07:29 PM, Dan Magenheimer wrote:
+
+> Zcache (in staging) has a large number of read-only counters that
+> are primarily of interest to developers.  These counters are currently
+> visible from sysfs.  However sysfs is not really appropriate and
+> zcache will need to switch to debugfs before it can be promoted
+> out of staging.
 > 
-> Fix this by exempting the SOCK_MEMALLOC sockets from the rmem limit.
-> Once this change it applied, it is important that sockets that set
-> SOCK_MEMALLOC do not clear the flag until the socket is being torn down.
-> If this happens, a warning is generated and the tokens reclaimed to
-> avoid accounting errors until the bug is fixed.
-> 
-> [davem@davemloft.net: Warning about clearing SOCK_MEMALLOC]
-> Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
-> Signed-off-by: Mel Gorman <mgorman@suse.de>
-> Acked-by: David S. Miller <davem@davemloft.net>
+> For some of the counters, it is critical that they remain accurate so
+> an atomic_t must be used.  But AFAICT there is no way for debugfs
+> to work with atomic_t.
 
-This patch introduced a new warning that I had previously missed. I'll
-fix it up when rebasing this series on top of linux-next.
 
--- 
-Mel Gorman
-SUSE Labs
+Yes, there doesn't seem to be an existing interface.
+
+You could add support for it to fs/debugfs/file.c.  It doesn't look too
+complicated.
+
+--
+Seth
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
