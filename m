@@ -1,120 +1,131 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx164.postini.com [74.125.245.164])
-	by kanga.kvack.org (Postfix) with SMTP id 564C96B0062
-	for <linux-mm@kvack.org>; Wed, 20 Jun 2012 04:53:31 -0400 (EDT)
-Date: Wed, 20 Jun 2012 10:53:01 +0200
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH V5 1/5] mm: memcg softlimit reclaim rework
-Message-ID: <20120620085301.GF27816@cmpxchg.org>
-References: <1340038051-29502-1-git-send-email-yinghan@google.com>
- <20120619112901.GC27816@cmpxchg.org>
- <CALWz4iyC2di8ueaHnCE-ENv5td4buK9DOWF5rLfN0bhR68bSAw@mail.gmail.com>
+Received: from psmtp.com (na3sys010amx206.postini.com [74.125.245.206])
+	by kanga.kvack.org (Postfix) with SMTP id C17576B0062
+	for <linux-mm@kvack.org>; Wed, 20 Jun 2012 05:02:27 -0400 (EDT)
+Message-ID: <4FE19102.6030704@parallels.com>
+Date: Wed, 20 Jun 2012 12:59:46 +0400
+From: Glauber Costa <glommer@parallels.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <CALWz4iyC2di8ueaHnCE-ENv5td4buK9DOWF5rLfN0bhR68bSAw@mail.gmail.com>
+Subject: Re: [PATCH v4 23/25] memcg: propagate kmem limiting information to
+ children
+References: <1340015298-14133-1-git-send-email-glommer@parallels.com> <1340015298-14133-24-git-send-email-glommer@parallels.com> <4FDF20ED.4090401@jp.fujitsu.com> <4FDF227B.3080601@parallels.com> <4FDFC4D4.1030303@jp.fujitsu.com> <4FE039B9.3080809@parallels.com> <4FE03E4B.5020809@parallels.com>
+In-Reply-To: <4FE03E4B.5020809@parallels.com>
+Content-Type: multipart/mixed;
+	boundary="------------070307050206010405020807"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ying Han <yinghan@google.com>
-Cc: Michal Hocko <mhocko@suse.cz>, Mel Gorman <mel@csn.ul.ie>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Hillf Danton <dhillf@gmail.com>, Hugh Dickins <hughd@google.com>, Dan Magenheimer <dan.magenheimer@oracle.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
+To: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: linux-mm@kvack.org, Pekka Enberg <penberg@kernel.org>, Cristoph Lameter <cl@linux.com>, David Rientjes <rientjes@google.com>, cgroups@vger.kernel.org, devel@openvz.org, linux-kernel@vger.kernel.org, Frederic Weisbecker <fweisbec@gmail.com>, Suleiman Souhlal <suleiman@google.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>
 
-On Tue, Jun 19, 2012 at 08:45:03PM -0700, Ying Han wrote:
-> On Tue, Jun 19, 2012 at 4:29 AM, Johannes Weiner <hannes@cmpxchg.org> wrote:
-> > On Mon, Jun 18, 2012 at 09:47:27AM -0700, Ying Han wrote:
-> >> +{
-> >> +     if (mem_cgroup_disabled())
-> >> +             return true;
-> >> +
-> >> +     /*
-> >> +      * We treat the root cgroup special here to always reclaim pages.
-> >> +      * Now root cgroup has its own lru, and the only chance to reclaim
-> >> +      * pages from it is through global reclaim. note, root cgroup does
-> >> +      * not trigger targeted reclaim.
-> >> +      */
-> >> +     if (mem_cgroup_is_root(memcg))
-> >> +             return true;
-> >
-> > With the soft limit at 0, the comment is no longer accurate because
-> > this check turns into a simple optimization.  We could check the
-> > res_counter soft limit, which would always result in the root group
-> > being above the limit, but we take the short cut.
+--------------070307050206010405020807
+Content-Type: text/plain; charset="ISO-2022-JP"
+Content-Transfer-Encoding: 7bit
+
+On 06/19/2012 12:54 PM, Glauber Costa wrote:
+> On 06/19/2012 12:35 PM, Glauber Costa wrote:
+>> On 06/19/2012 04:16 AM, Kamezawa Hiroyuki wrote:
+>>> (2012/06/18 21:43), Glauber Costa wrote:
+>>>> On 06/18/2012 04:37 PM, Kamezawa Hiroyuki wrote:
+>>>>> (2012/06/18 19:28), Glauber Costa wrote:
+>>>>>> The current memcg slab cache management fails to present satisfatory hierarchical
+>>>>>> behavior in the following scenario:
+>>>>>>
+>>>>>> ->   /cgroups/memory/A/B/C
+>>>>>>
+>>>>>> * kmem limit set at A
+>>>>>> * A and B empty taskwise
+>>>>>> * bash in C does find /
+>>>>>>
+>>>>>> Because kmem_accounted is a boolean that was not set for C, no accounting
+>>>>>> would be done. This is, however, not what we expect.
+>>>>>>
+>>>>>
+>>>>> Hmm....do we need this new routines even while we have mem_cgroup_iter() ?
+>>>>>
+>>>>> Doesn't this work ?
+>>>>>
+>>>>> 	struct mem_cgroup {
+>>>>> 		.....
+>>>>> 		bool kmem_accounted_this;
+>>>>> 		atomic_t kmem_accounted;
+>>>>> 		....
+>>>>> 	}
+>>>>>
+>>>>> at set limit
+>>>>>
+>>>>> 	....set_limit(memcg) {
+>>>>>
+>>>>> 		if (newly accounted) {
+>>>>> 			mem_cgroup_iter() {
+>>>>> 				atomic_inc(&iter->kmem_accounted)
+>>>>> 			}
+>>>>> 		} else {
+>>>>> 			mem_cgroup_iter() {
+>>>>> 				atomic_dec(&iter->kmem_accounted);
+>>>>> 			}
+>>>>> 	}
+>>>>>
+>>>>>
+>>>>> hm ? Then, you can see kmem is accounted or not by atomic_read(&memcg->kmem_accounted);
+>>>>>
+>>>>
+>>>> Accounted by itself / parent is still useful, and I see no reason to use
+>>>> an atomic + bool if we can use a pair of bits.
+>>>>
+>>>> As for the routine, I guess mem_cgroup_iter will work... It does a lot
+>>>> more than I need, but for the sake of using what's already in there, I
+>>>> can switch to it with no problems.
+>>>>
+>>>
+>>> Hmm. please start from reusing existing routines.
+>>> If it's not enough, some enhancement for generic cgroup  will be welcomed
+>>> rather than completely new one only for memcg.
+>>>
+>>
+>> And now that I am trying to adapt the code to the new function, I
+>> remember clearly why I done this way. Sorry for my failed memory.
+>>
+>> That has to do with the order of the walk. I need to enforce hierarchy,
+>> which means whenever a cgroup has !use_hierarchy, I need to cut out that
+>> branch, but continue scanning the tree for other branches.
+>>
+>> That is a lot easier to do with depth-search tree walks like the one
+>> proposed in this patch. for_each_mem_cgroup() seems to walk the tree in
+>> css-creation order. Which means we need to keep track of parents that
+>> has hierarchy disabled at all times ( can be many ), and always test for
+>> ancestorship - which is expensive, but I don't particularly care.
+>>
+>> But I'll give another shot with this one.
+>>
 > 
-> For root group, my intention here is always reclaim pages from it
-> regardless of the softlimit setting. And the reason is exactly the one
-> in the comment. If the softlimit is set to 0 as default, I agree this
-> is then a short cut.
+> Humm, silly me. I was believing the hierarchical settings to be more
+> flexible than they really are.
 > 
-> Anything you suggest that I need to change here?
-
-Well, not in this patch as it stands.  But once you squash the '0 per
-default', it may be good to note that this is a shortcut.
-
-> >> +     for (; memcg; memcg = parent_mem_cgroup(memcg)) {
-> >> +             /* This is global reclaim, stop at root cgroup */
-> >> +             if (mem_cgroup_is_root(memcg))
-> >> +                     break;
-> >
-> > I don't see why you add this check and the comment does not help.
+> I thought that it could be possible for a children of a parent with
+> use_hierarchy = 1 to have use_hierarchy = 0.
 > 
-> The root cgroup would have softlimit set to 0 ( in most of the cases
-> ), and not skipping root will make everyone reclaimable here.
+> It seems not to be the case. This makes my life a lot easier.
+> 
 
-Only if root_mem_cgroup->use_hierarchy is set.  At the same time, we
-usually behave as if this was the case, in accounting and reclaim.
+How about the following patch?
 
-Right now we allow setting the soft limit in root_mem_cgroup but it
-does not make any sense.  After your patch, even less so, because of
-these shortcut checks that now actually change semantics.  Could we
-make this more consistent to users and forbid setting as soft limit in
-root_mem_cgroup?  Patch below.
+It is still expensive in the clear_bit case, because I can't just walk
+the whole tree flipping the bit down: I need to stop whenever I see a
+branch whose root is itself accounted - and the ordering of iter forces
+me to always check the tree up (So we got O(n*h) h being height instead
+of O(n)).
 
-The reason this behaves differently from hard limits is because the
-soft limits now have double meaning; they are upper limit and minimum
-guarantee at the same time.  The unchangeable defaults in the root
-cgroup should be "no guarantee" and "unlimited soft limit" at the same
-time, but that is obviously not possible if these are opposing range
-ends of the same knob.  So we pick no guarantees, always up for
-reclaim when looking top down but also behave as if the soft limit was
-unlimited in the root cgroup when looking bottom up.
+for flipping the bit up, it is easy enough.
 
-This is what the second check does.  But I think it needs a clearer
-comment.
 
----
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: mm: memcg: forbid setting soft limit on root cgroup
 
-Setting a soft limit in the root cgroup does not make sense, as soft
-limits are enforced hierarchically and the root cgroup is the
-hierarchical parent of every other cgroup.  It would not provide the
-discrimination between groups that soft limits are usually used for.
+--------------070307050206010405020807
+Content-Type: text/x-patch;
+	name="0001-memcg-propagate-kmem-limiting-information-to-childre.patch"
+Content-Transfer-Encoding: 7bit
+Content-Disposition: attachment;
+	filename*0="0001-memcg-propagate-kmem-limiting-information-to-childre.pa";
+	filename*1="tch"
 
-With the current implementation of soft limits, it would only make
-global reclaim more aggressive compared to target reclaim, but we
-absolutely don't want anyone to rely on this behaviour.
 
-Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
----
-
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index ac35bcc..21c45a0 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -3905,6 +3967,10 @@ static int mem_cgroup_write(struct cgroup *cont, struct cftype *cft,
- 			ret = mem_cgroup_resize_memsw_limit(memcg, val);
- 		break;
- 	case RES_SOFT_LIMIT:
-+		if (mem_cgroup_is_root(memcg)) { /* Can't set limit on root */
-+			ret = -EINVAL;
-+			break;
-+		}
- 		ret = res_counter_memparse_write_strategy(buffer, &val);
- 		if (ret)
- 			break;
-
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+--------------070307050206010405020807--
