@@ -1,15 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx186.postini.com [74.125.245.186])
-	by kanga.kvack.org (Postfix) with SMTP id C36BA6B006E
-	for <linux-mm@kvack.org>; Wed, 20 Jun 2012 05:36:23 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx179.postini.com [74.125.245.179])
+	by kanga.kvack.org (Postfix) with SMTP id A21FB6B009E
+	for <linux-mm@kvack.org>; Wed, 20 Jun 2012 05:38:04 -0400 (EDT)
 From: Mel Gorman <mgorman@suse.de>
 Subject: [PATCH 00/12] Swap-over-NFS without deadlocking V6
-Date: Wed, 20 Jun 2012 10:36:05 +0100
-Message-Id: <1340184977-22356-1-git-send-email-mgorman@suse.de>
+Date: Wed, 20 Jun 2012 10:37:49 +0100
+Message-Id: <1340185081-22525-1-git-send-email-mgorman@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Linux-MM <linux-mm@kvack.org>, Linux-Netdev <netdev@vger.kernel.org>, Linux-NFS <linux-nfs@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, David Miller <davem@davemloft.net>, Trond Myklebust <Trond.Myklebust@netapp.com>, Neil Brown <neilb@suse.de>, Christoph Hellwig <hch@infradead.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Mike Christie <michaelc@cs.wisc.edu>, Eric B Munson <emunson@mgebm.net>, Mel Gorman <mgorman@suse.de>
+
+Sorry for the partial resend, fat-fingered the first effort.
 
 Changelog since V5
   o Rebase to v3.5-rc3
@@ -109,18 +111,22 @@ roughly twice as long to complete than if the swap device was backed by NBD.
  include/linux/pagemap.h           |    5 ++
  include/linux/sunrpc/xprt.h       |    3 +
  include/linux/swap.h              |    8 ++
+ include/net/sock.h                |    7 +-
  mm/highmem.c                      |   12 +++
  mm/memory.c                       |   52 +++++++++++++
  mm/page_io.c                      |  145 +++++++++++++++++++++++++++++++++++++
  mm/swap_state.c                   |    2 +-
  mm/swapfile.c                     |  141 ++++++++++++++----------------------
- net/core/sock.c                   |    1 +
+ net/caif/caif_socket.c            |    2 +-
+ net/core/sock.c                   |   14 +++-
+ net/ipv4/tcp_input.c              |   12 +--
+ net/sctp/ulpevent.c               |    2 +-
  net/sunrpc/Kconfig                |    5 ++
  net/sunrpc/clnt.c                 |    2 +
  net/sunrpc/sched.c                |    7 +-
  net/sunrpc/xprtsock.c             |   53 ++++++++++++++
  security/selinux/avc.c            |    2 +-
- 29 files changed, 573 insertions(+), 170 deletions(-)
+ 33 files changed, 597 insertions(+), 182 deletions(-)
 
 -- 
 1.7.9.2
