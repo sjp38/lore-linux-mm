@@ -1,71 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx191.postini.com [74.125.245.191])
-	by kanga.kvack.org (Postfix) with SMTP id EDE9A6B008A
-	for <linux-mm@kvack.org>; Wed, 20 Jun 2012 07:44:32 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx179.postini.com [74.125.245.179])
+	by kanga.kvack.org (Postfix) with SMTP id 6AACC6B0092
+	for <linux-mm@kvack.org>; Wed, 20 Jun 2012 07:44:55 -0400 (EDT)
+Date: Wed, 20 Jun 2012 12:44:50 +0100
 From: Mel Gorman <mgorman@suse.de>
-Subject: [PATCH 15/17] nbd: Set SOCK_MEMALLOC for access to PFMEMALLOC reserves
-Date: Wed, 20 Jun 2012 12:44:10 +0100
-Message-Id: <1340192652-31658-16-git-send-email-mgorman@suse.de>
-In-Reply-To: <1340192652-31658-1-git-send-email-mgorman@suse.de>
-References: <1340192652-31658-1-git-send-email-mgorman@suse.de>
+Subject: Re: [PATCH 01/17] mm: sl[au]b: Add knowledge of PFMEMALLOC reserve
+ pages
+Message-ID: <20120620114450.GF4011@suse.de>
+References: <1340184920-22288-1-git-send-email-mgorman@suse.de>
+ <1340184920-22288-2-git-send-email-mgorman@suse.de>
+ <20120620110512.GA4208@breakpoint.cc>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20120620110512.GA4208@breakpoint.cc>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Linux-MM <linux-mm@kvack.org>, Linux-Netdev <netdev@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, David Miller <davem@davemloft.net>, Neil Brown <neilb@suse.de>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Mike Christie <michaelc@cs.wisc.edu>, Eric B Munson <emunson@mgebm.net>, Sebastian Andrzej Siewior <sebastian@breakpoint.cc>, Mel Gorman <mgorman@suse.de>
+To: Sebastian Andrzej Siewior <sebastian@breakpoint.cc>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, Linux-Netdev <netdev@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, David Miller <davem@davemloft.net>, Neil Brown <neilb@suse.de>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Mike Christie <michaelc@cs.wisc.edu>, Eric B Munson <emunson@mgebm.net>
 
-Set SOCK_MEMALLOC on the NBD socket to allow access to PFMEMALLOC
-reserves so pages backed by NBD, particularly if swap related, can
-be cleaned to prevent the machine being deadlocked. It is still
-possible that the PFMEMALLOC reserves get depleted resulting in
-deadlock but this can be resolved by the administrator by increasing
-min_free_kbytes.
+On Wed, Jun 20, 2012 at 01:05:13PM +0200, Sebastian Andrzej Siewior wrote:
+> On Wed, Jun 20, 2012 at 10:35:04AM +0100, Mel Gorman wrote:
+> > [a.p.zijlstra@chello.nl: Original implementation]
+> > Signed-off-by: Mel Gorman <mgorman@suse.de>
+> > ---
+> > diff --git a/mm/slab.c b/mm/slab.c
+> > index e901a36..b190cac 100644
+> > --- a/mm/slab.c
+> > +++ b/mm/slab.c
+> > @@ -1851,6 +1984,7 @@ static void kmem_freepages(struct kmem_cache *cachep, void *addr)
+> >  	while (i--) {
+> >  		BUG_ON(!PageSlab(page));
+> >  		__ClearPageSlab(page);
+> > +		__ClearPageSlabPfmemalloc(page);
+> >  		page++;
+> >  	}
+> >  	if (current->reclaim_state)
+> > @@ -3120,16 +3254,19 @@ bad:
+> > diff --git a/mm/slub.c b/mm/slub.c
+> > index 8c691fa..43738c9 100644
+> > --- a/mm/slub.c
+> > +++ b/mm/slub.c
+> > @@ -1414,6 +1418,7 @@ static void __free_slab(struct kmem_cache *s, struct page *page)
+> >  		-pages);
+> >  
+> >  	__ClearPageSlab(page);
+> > +	__ClearPageSlabPfmemalloc(page);
+> >  	reset_page_mapcount(page);
+> >  	if (current->reclaim_state)
+> >  		current->reclaim_state->reclaimed_slab += pages;
+> 
+> So you mention a change here in v11's changelog but I don't see it.
+> 
 
-Signed-off-by: Mel Gorman <mgorman@suse.de>
----
- drivers/block/nbd.c |    6 +++++-
- 1 file changed, 5 insertions(+), 1 deletion(-)
+Because I'm an idiot and send out the wrong branch and then was rude
+enough to not include you on the CC. I have resent the series, correctly
+this time I hope. Sorry about that.
 
-diff --git a/drivers/block/nbd.c b/drivers/block/nbd.c
-index 061427a75d..76bc96f 100644
---- a/drivers/block/nbd.c
-+++ b/drivers/block/nbd.c
-@@ -154,6 +154,7 @@ static int sock_xmit(struct nbd_device *nbd, int send, void *buf, int size,
- 	struct msghdr msg;
- 	struct kvec iov;
- 	sigset_t blocked, oldset;
-+	unsigned long pflags = current->flags;
- 
- 	if (unlikely(!sock)) {
- 		dev_err(disk_to_dev(nbd->disk),
-@@ -167,8 +168,9 @@ static int sock_xmit(struct nbd_device *nbd, int send, void *buf, int size,
- 	siginitsetinv(&blocked, sigmask(SIGKILL));
- 	sigprocmask(SIG_SETMASK, &blocked, &oldset);
- 
-+	current->flags |= PF_MEMALLOC;
- 	do {
--		sock->sk->sk_allocation = GFP_NOIO;
-+		sock->sk->sk_allocation = GFP_NOIO | __GFP_MEMALLOC;
- 		iov.iov_base = buf;
- 		iov.iov_len = size;
- 		msg.msg_name = NULL;
-@@ -214,6 +216,7 @@ static int sock_xmit(struct nbd_device *nbd, int send, void *buf, int size,
- 	} while (size > 0);
- 
- 	sigprocmask(SIG_SETMASK, &oldset, NULL);
-+	tsk_restore_flags(current, pflags, PF_MEMALLOC);
- 
- 	return result;
- }
-@@ -405,6 +408,7 @@ static int nbd_do_it(struct nbd_device *nbd)
- 
- 	BUG_ON(nbd->magic != NBD_MAGIC);
- 
-+	sk_set_memalloc(nbd->sock->sk);
- 	nbd->pid = task_pid_nr(current);
- 	ret = device_create_file(disk_to_dev(nbd->disk), &pid_attr);
- 	if (ret) {
 -- 
-1.7.9.2
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
