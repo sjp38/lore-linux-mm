@@ -1,76 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx122.postini.com [74.125.245.122])
-	by kanga.kvack.org (Postfix) with SMTP id 614CC6B0062
-	for <linux-mm@kvack.org>; Wed, 20 Jun 2012 00:02:25 -0400 (EDT)
-Received: by qcsd16 with SMTP id d16so4977673qcs.14
-        for <linux-mm@kvack.org>; Tue, 19 Jun 2012 21:02:24 -0700 (PDT)
-Message-ID: <4FE14B4D.2000205@gmail.com>
-Date: Wed, 20 Jun 2012 00:02:21 -0400
-From: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
+Received: from psmtp.com (na3sys010amx125.postini.com [74.125.245.125])
+	by kanga.kvack.org (Postfix) with SMTP id B72CD6B0062
+	for <linux-mm@kvack.org>; Wed, 20 Jun 2012 01:01:46 -0400 (EDT)
+Received: by ghrr18 with SMTP id r18so6652150ghr.14
+        for <linux-mm@kvack.org>; Tue, 19 Jun 2012 22:01:45 -0700 (PDT)
 MIME-Version: 1.0
-Subject: Re: [PATCH v2] tmpfs not interleaving properly
-References: <20120531143916.GA16162@gulag1.americas.sgi.com> <4FC7CFEB.5040009@gmail.com> <20120531132515.6af60152.akpm@linux-foundation.org> <4FC7D629.3090801@gmail.com> <20120601142437.GA13739@gulag1.americas.sgi.com> <4FC8FA47.70001@gmail.com> <20120619232102.GA5698@gulag1.americas.sgi.com>
-In-Reply-To: <20120619232102.GA5698@gulag1.americas.sgi.com>
+In-Reply-To: <1339792575-17637-1-git-send-email-kosaki.motohiro@gmail.com>
+References: <1339792575-17637-1-git-send-email-kosaki.motohiro@gmail.com>
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Date: Wed, 20 Jun 2012 01:01:25 -0400
+Message-ID: <CAHGf_=qmCdfv0jxOqdrHduTgnjPxgBT7oTdhkywSCCRAKu3A-A@mail.gmail.com>
+Subject: Re: [PATCH] mm, fadvise: don't return -EINVAL when filesystem has no
+ optimization way
 Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Nathan Zimmer <nzimmer@sgi.com>
-Cc: KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, hughd@google.com, npiggin@gmail.com, cl@linux.com, lee.schermerhorn@hp.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, stable@vger.kernel.org, riel@redhat.com
+To: linux-kernel@vger.kernel.org
+Cc: linux-mm@kvack.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, Hillf Danton <dhillf@gmail.com>, Eric Wong <normalperson@yhbt.net>
 
-(6/19/12 7:21 PM), Nathan Zimmer wrote:
-> On Fri, Jun 01, 2012 at 01:22:15PM -0400, KOSAKI Motohiro wrote:
->> (6/1/12 10:24 AM), Nathan Zimmer wrote:
->>> On Thu, May 31, 2012 at 04:35:53PM -0400, KOSAKI Motohiro wrote:
->>>> (5/31/12 4:25 PM), Andrew Morton wrote:
->>>>> On Thu, 31 May 2012 16:09:15 -0400
->>>>> KOSAKI Motohiro<kosaki.motohiro@gmail.com>   wrote:
->>>>>
->>>>>>> --- a/mm/shmem.c
->>>>>>> +++ b/mm/shmem.c
->>>>>>> @@ -929,7 +929,7 @@ static struct page *shmem_alloc_page(gfp_t gfp,
->>>>>>>     	/*
->>>>>>>     	 * alloc_page_vma() will drop the shared policy reference
->>>>>>>     	 */
->>>>>>> -	return alloc_page_vma(gfp,&pvma, 0);
->>>>>>> +	return alloc_page_vma(gfp,&pvma, info->node_offset<<    PAGE_SHIFT );
->>>>>>
->>>>>> 3rd argument of alloc_page_vma() is an address. This is type error.
->>>>>
->>>>> Well, it's an unsigned long...
->>>>>
->>>>> But yes, it is conceptually wrong and *looks* weird.  I think we can
->>>>> address that by overcoming our peculair aversion to documenting our
->>>>> code, sigh.  This?
->>>>
->>>> Sorry, no.
->>>>
->>>> addr agrument of alloc_pages_vma() have two meanings.
->>>>
->>>> 1) interleave node seed
->>>> 2) look-up key of shmem policy
->>>>
->>>> I think this patch break (2). shmem_get_policy(pol, addr) assume caller honor to
->>>> pass correct address.
->>>
->>> But the pseudo vma we generated in shmem_alloc_page the vm_ops are set to NULL.
->>> So get_vma_policy will return the policy provided by the pseudo vma and not reach
->>> the shmem_get_policy.
->>
->> yes, and it is bug source. we may need to change soon. I guess the right way is
->> to make vm_ops->interleave and interleave_nid uses it if povided.
-> 
-> If we provide vm_ops then won't shmem_get_policy get called?
-> That would be an issue since shmem_get_policy assumes vm_file is non NULL.
+On Fri, Jun 15, 2012 at 4:36 PM,  <kosaki.motohiro@gmail.com> wrote:
+> From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 >
->> btw, I don't think node_random() is good idea. it is random(pid + jiffies + cycle).
->> current->cpuset_mem_spread_rotor is per-thread value. but you now need per-inode
->> interleave offset. maybe, just inode addition is enough. Why do you need randomness?
-> 
-> I don't really need the randomness, the rotor should be good enough.
-> The correct way to get that is cpuset_mem_spread_node(), yes?
+> Eric Wong reported his test suite was fail when /tmp is tmpfs.
+>
+> https://lkml.org/lkml/2012/2/24/479
+>
+> Current,input check of POSIX_FADV_WILLNEED has two problems.
+>
+> 1) require a_ops->readpage.
+> =A0 But in fact, force_page_cache_readahead() only require
+> =A0 a target filesystem has either ->readpage or ->readpages.
+> 2) return -EINVAL when filesystem don't have ->readpage.
+> =A0 But, posix says, it should be retrieved a hint. Thus fadvise()
+> =A0 should return 0 if filesystem has no optimization way.
+> =A0 Especially, userland application don't know a filesystem type
+> =A0 of TMPDIR directory as Eric pointed out. Then, userland can't
+> =A0 avoid this error. We shouldn't encourage to ignore syscall
+> =A0 return value.
+>
+> Thus, this patch change a return value to 0 when filesytem don't
+> support readahead.
+>
+> Cc: linux-mm@kvack.org
+> Cc: Hugh Dickins <hughd@google.com>
+> Cc: Andrew Morton <akpm@linux-foundation.org>
+> Cc: Hillf Danton <dhillf@gmail.com>
+> Signed-off-by: Eric Wong <normalperson@yhbt.net>
+> Tested-by: Eric Wong <normalperson@yhbt.net>
+> Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+> ---
 
-I think that's good idea too.
+no objection?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
