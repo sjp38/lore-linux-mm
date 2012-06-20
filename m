@@ -1,109 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx183.postini.com [74.125.245.183])
-	by kanga.kvack.org (Postfix) with SMTP id E69666B005A
-	for <linux-mm@kvack.org>; Wed, 20 Jun 2012 17:03:19 -0400 (EDT)
-From: Glauber Costa <glommer@parallels.com>
-Subject: [PATCH 4/4] don't do __ClearPageSlab before freeing slab page.
-Date: Thu, 21 Jun 2012 00:59:19 +0400
-Message-Id: <1340225959-1966-5-git-send-email-glommer@parallels.com>
-In-Reply-To: <1340225959-1966-1-git-send-email-glommer@parallels.com>
-References: <1340225959-1966-1-git-send-email-glommer@parallels.com>
+Received: from psmtp.com (na3sys010amx180.postini.com [74.125.245.180])
+	by kanga.kvack.org (Postfix) with SMTP id 5397A6B005C
+	for <linux-mm@kvack.org>; Wed, 20 Jun 2012 17:07:25 -0400 (EDT)
+Date: Wed, 20 Jun 2012 14:07:23 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [Resend with ACK][PATCH] memory hotplug: fix invalid memory
+ access caused by stale kswapd pointer
+Message-Id: <20120620140723.5c2214de.akpm@linux-foundation.org>
+In-Reply-To: <1340184113-5028-1-git-send-email-jiang.liu@huawei.com>
+References: <1340184113-5028-1-git-send-email-jiang.liu@huawei.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pekka Enberg <penberg@kernel.org>
-Cc: linux-mm@kvack.org, Cristoph Lameter <cl@linux.com>, David Rientjes <rientjes@google.com>, Glauber Costa <glommer@parallels.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Michal Hocko <mhocko@suse.cz>, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, Suleiman Souhlal <suleiman@google.com>
+To: Jiang Liu <jiang.liu@huawei.com>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Minchan Kim <minchan@kernel.org>, Xishi Qiu <qiuxishi@huawei.com>, Keping Chen <chenkeping@huawei.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-This will give the oportunity to the page allocator to
-determine that a given page was previously a slab page, and
-take action accordingly.
+On Wed, 20 Jun 2012 17:21:53 +0800
+Jiang Liu <jiang.liu@huawei.com> wrote:
 
-If memcg kmem is present, this means that that page needs to
-be unaccounted. The page allocator will now have the responsibility
-to clear that bit upon free_pages().
+> Function kswapd_stop() will be called to destroy the kswapd work thread
+> when all memory of a NUMA node has been offlined. But kswapd_stop() only
+> terminates the work thread without resetting NODE_DATA(nid)->kswapd to NULL.
+> The stale pointer will prevent kswapd_run() from creating a new work thread
+> when adding memory to the memory-less NUMA node again. Eventually the stale
+> pointer may cause invalid memory access.
 
-It is not uncommon to have the page allocator to check page flags.
-Mlock flag, for instance, is checked pervasively all over the place.
-So I hope this is okay for the slab as well.
+whoops.
 
-Signed-off-by: Glauber Costa <glommer@parallels.com>
-CC: Pekka Enberg <penberg@cs.helsinki.fi>
-CC: Michal Hocko <mhocko@suse.cz>
-CC: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-CC: Johannes Weiner <hannes@cmpxchg.org>
-CC: Suleiman Souhlal <suleiman@google.com>
----
- mm/page_alloc.c |    5 ++++-
- mm/slab.c       |    5 -----
- mm/slob.c       |    1 -
- mm/slub.c       |    1 -
- 4 files changed, 4 insertions(+), 8 deletions(-)
+>
+> ...
+>
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -2961,8 +2961,10 @@ void kswapd_stop(int nid)
+>  {
+>  	struct task_struct *kswapd = NODE_DATA(nid)->kswapd;
+>  
+> -	if (kswapd)
+> +	if (kswapd) {
+>  		kthread_stop(kswapd);
+> +		NODE_DATA(nid)->kswapd = NULL;
+> +	}
+>  }
+>  
+>  static int __init kswapd_init(void)
 
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 6092f33..fdec73e 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -698,8 +698,10 @@ static bool free_pages_prepare(struct page *page, unsigned int order)
+OK.
+
+This function is full of races (ones which we'll never hit ;)) unless
+the caller provides locking.  It appears that lock_memory_hotplug() is
+the locking, so I propose this addition:
+
+--- a/mm/vmscan.c~memory-hotplug-fix-invalid-memory-access-caused-by-stale-kswapd-pointer-fix
++++ a/mm/vmscan.c
+@@ -2955,7 +2955,8 @@ int kswapd_run(int nid)
+ }
  
- 	if (PageAnon(page))
- 		page->mapping = NULL;
--	for (i = 0; i < (1 << order); i++)
-+	for (i = 0; i < (1 << order); i++) {
-+		__ClearPageSlab(page + i);
- 		bad += free_pages_check(page + i);
-+	}
- 	if (bad)
- 		return false;
- 
-@@ -2561,6 +2563,7 @@ EXPORT_SYMBOL(get_zeroed_page);
- void __free_pages(struct page *page, unsigned int order)
+ /*
+- * Called by memory hotplug when all memory in a node is offlined.
++ * Called by memory hotplug when all memory in a node is offlined.  Caller must
++ * hold lock_memory_hotplug().
+  */
+ void kswapd_stop(int nid)
  {
- 	if (put_page_testzero(page)) {
-+		__ClearPageSlab(page);
- 		if (order == 0)
- 			free_hot_cold_page(page, 0);
- 		else
-diff --git a/mm/slab.c b/mm/slab.c
-index cb6da05..3e578fc 100644
---- a/mm/slab.c
-+++ b/mm/slab.c
-@@ -1821,11 +1821,6 @@ static void kmem_freepages(struct kmem_cache *cachep, void *addr)
- 	else
- 		sub_zone_page_state(page_zone(page),
- 				NR_SLAB_UNRECLAIMABLE, nr_freed);
--	while (i--) {
--		BUG_ON(!PageSlab(page));
--		__ClearPageSlab(page);
--		page++;
--	}
- 	if (current->reclaim_state)
- 		current->reclaim_state->reclaimed_slab += nr_freed;
- 	free_pages((unsigned long)addr, cachep->gfporder);
-diff --git a/mm/slob.c b/mm/slob.c
-index 95d1c7d..48b9a79 100644
---- a/mm/slob.c
-+++ b/mm/slob.c
-@@ -359,7 +359,6 @@ static void slob_free(void *block, int size)
- 		if (slob_page_free(sp))
- 			clear_slob_page_free(sp);
- 		spin_unlock_irqrestore(&slob_lock, flags);
--		__ClearPageSlab(sp);
- 		reset_page_mapcount(sp);
- 		slob_free_pages(b, 0);
- 		return;
-diff --git a/mm/slub.c b/mm/slub.c
-index f96d8bc..b0ac04a 100644
---- a/mm/slub.c
-+++ b/mm/slub.c
-@@ -1413,7 +1413,6 @@ static void __free_slab(struct kmem_cache *s, struct page *page)
- 		NR_SLAB_RECLAIMABLE : NR_SLAB_UNRECLAIMABLE,
- 		-pages);
- 
--	__ClearPageSlab(page);
- 	reset_page_mapcount(page);
- 	if (current->reclaim_state)
- 		current->reclaim_state->reclaimed_slab += pages;
--- 
-1.7.10.2
+--- a/include/linux/mmzone.h~memory-hotplug-fix-invalid-memory-access-caused-by-stale-kswapd-pointer-fix
++++ a/include/linux/mmzone.h
+@@ -693,7 +693,7 @@ typedef struct pglist_data {
+ 					     range, including holes */
+ 	int node_id;
+ 	wait_queue_head_t kswapd_wait;
+-	struct task_struct *kswapd;
++	struct task_struct *kswapd;	/* Protected by lock_memory_hotplug() */
+ 	int kswapd_max_order;
+ 	enum zone_type classzone_idx;
+ } pg_data_t;
+_
+
+
+Also, I think kswapd_lock() and perhaps pglist_data.kswapd itself could
+be placed under CONFIG_MEMORY_HOTPLUG to save a bit of space.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
