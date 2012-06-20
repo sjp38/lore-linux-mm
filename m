@@ -1,54 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx139.postini.com [74.125.245.139])
-	by kanga.kvack.org (Postfix) with SMTP id E48F16B0070
-	for <linux-mm@kvack.org>; Wed, 20 Jun 2012 11:25:17 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx152.postini.com [74.125.245.152])
+	by kanga.kvack.org (Postfix) with SMTP id 7F06F6B0070
+	for <linux-mm@kvack.org>; Wed, 20 Jun 2012 11:31:00 -0400 (EDT)
 MIME-Version: 1.0
-Message-ID: <71fe129f-25c2-471b-b3f1-42706ba31048@default>
-Date: Wed, 20 Jun 2012 08:24:04 -0700 (PDT)
+Message-ID: <83884ff2-1a06-4d9c-a7eb-c53ab0cbb6b1@default>
+Date: Wed, 20 Jun 2012 08:30:35 -0700 (PDT)
 From: Dan Magenheimer <dan.magenheimer@oracle.com>
 Subject: RE: help converting zcache from sysfs to debugfs?
 References: <6b8ff49a-a5aa-4b9b-9425-c9bc7df35a34@default>
- <CAPbh3rtA3AcR3TU2-dGpgLOR-TfkXcGAmZJASDwAdsEi_GfK-w@mail.gmail.com>
-In-Reply-To: <CAPbh3rtA3AcR3TU2-dGpgLOR-TfkXcGAmZJASDwAdsEi_GfK-w@mail.gmail.com>
+ <4FE1DFDC.1010105@linux.vnet.ibm.com>
+In-Reply-To: <4FE1DFDC.1010105@linux.vnet.ibm.com>
 Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: konrad@darnok.org
-Cc: Nitin Gupta <ngupta@vflare.org>, linux-mm@kvack.org, Seth Jennings <sjenning@linux.vnet.ibm.com>, Sasha Levin <levinsasha928@gmail.com>, Konrad Wilk <konrad.wilk@oracle.com>
+To: Seth Jennings <sjenning@linux.vnet.ibm.com>
+Cc: linux-mm@kvack.org, Nitin Gupta <ngupta@vflare.org>, Konrad Wilk <konrad.wilk@oracle.com>, Sasha Levin <levinsasha928@gmail.com>
 
-> From: Konrad Rzeszutek Wilk [mailto:konrad@darnok.org]
+> From: Seth Jennings [mailto:sjenning@linux.vnet.ibm.com]
 > Subject: Re: help converting zcache from sysfs to debugfs?
 >=20
-> On Jun 19, 2012 8:30 PM, "Dan Magenheimer" <dan.magenheimer@oracle.com> w=
-rote:
-> >
-> > Zcache (in staging) has a large number of read-only counters that
-> > are primarily of interest to developers.  These counters are currently
-> > visible from sysfs.  However sysfs is not really appropriate and
-> > zcache will need to switch to debugfs before it can be promoted
-> > out of staging.
-> >
-> > For some of the counters, it is critical that they remain accurate so
-> > an atomic_t must be used.  But AFAICT there is no way for debugfs
-> > to work with atomic_t.
->=20
-> Which ones must be atomic? Do they really need to be atomic if they are f=
-or diagnostics/developers?
->  :
-> A dozen that _MUST_ be atomic?
+> Something like this (untested):
 
-Hi Konrad --
+Nice!  I also need a set for atomic_long_t.
 
-On second look, there are only eight.  They are unsigned, go
-up and down, and the code needs to know if/when they are zero
-(or BUG if they go below zero).  When viewed by a developer
-(or very savvy administrator), they can be viewed directly or
-feed into analysis tools that would likely get very confused
-by "huge" ("negative unsigned") values.  Recently, Seth changed
-one zcache counter from unsigned to atomic_t for this reason.
+But forgive me if I nearly have a heart attack as I
+contemplate another chicken-and-egg scenario trying
+to get debugfs-support-for-atomics upstream before
+zcache code that depends on it.
 
-Thanks,
+Maybe I'm a leetle bit over-sensitized to dependencies...
+or maybe not enough ;-)
+
+Anyway, I will probably use the ugly code and add a
+comment that says the code can be made cleaner when
+debugfs supports atomics.
+
+Thanks!
 Dan
 
 --
