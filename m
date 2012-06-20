@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx118.postini.com [74.125.245.118])
-	by kanga.kvack.org (Postfix) with SMTP id 608C36B0071
-	for <linux-mm@kvack.org>; Wed, 20 Jun 2012 05:35:35 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx160.postini.com [74.125.245.160])
+	by kanga.kvack.org (Postfix) with SMTP id 65C786B0073
+	for <linux-mm@kvack.org>; Wed, 20 Jun 2012 05:35:36 -0400 (EDT)
 From: Mel Gorman <mgorman@suse.de>
-Subject: [PATCH 11/17] netvm: Propagate page->pfmemalloc from skb_alloc_page to skb
-Date: Wed, 20 Jun 2012 10:35:14 +0100
-Message-Id: <1340184920-22288-12-git-send-email-mgorman@suse.de>
+Subject: [PATCH 12/17] netvm: Set PF_MEMALLOC as appropriate during SKB processing
+Date: Wed, 20 Jun 2012 10:35:15 +0100
+Message-Id: <1340184920-22288-13-git-send-email-mgorman@suse.de>
 In-Reply-To: <1340184920-22288-1-git-send-email-mgorman@suse.de>
 References: <1340184920-22288-1-git-send-email-mgorman@suse.de>
 Sender: owner-linux-mm@kvack.org
@@ -13,202 +13,202 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Linux-MM <linux-mm@kvack.org>, Linux-Netdev <netdev@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, David Miller <davem@davemloft.net>, Neil Brown <neilb@suse.de>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Mike Christie <michaelc@cs.wisc.edu>, Eric B Munson <emunson@mgebm.net>, Mel Gorman <mgorman@suse.de>
 
-The skb->pfmemalloc flag gets set to true iff during the slab
-allocation of data in __alloc_skb that the the PFMEMALLOC reserves
-were used. If page splitting is used, it is possible that pages will
-be allocated from the PFMEMALLOC reserve without propagating this
-information to the skb. This patch propagates page->pfmemalloc from
-pages allocated for fragments to the skb.
+In order to make sure pfmemalloc packets receive all memory
+needed to proceed, ensure processing of pfmemalloc SKBs happens
+under PF_MEMALLOC. This is limited to a subset of protocols that
+are expected to be used for writing to swap. Taps are not allowed to
+use PF_MEMALLOC as these are expected to communicate with userspace
+processes which could be paged out.
 
-It works by reintroducing and expanding the skb_alloc_page() API
-to take an skb. If the page was allocated from pfmemalloc reserves,
-it is automatically copied. If the driver allocates the page before
-the skb, it should call skb_propagate_pfmemalloc() after the skb is
-allocated to ensure the flag is copied properly.
-
-Failure to do so is not critical. The resulting driver may perform
-slower if it is used for swap-over-NBD or swap-over-NFS but it should
-not result in failure.
-
-[davem@davemloft.net: API rename and consistency]
+[a.p.zijlstra@chello.nl: Ideas taken from various patches]
+[jslaby@suse.cz: Lock imbalance fix]
 Signed-off-by: Mel Gorman <mgorman@suse.de>
 Acked-by: David S. Miller <davem@davemloft.net>
 ---
- drivers/net/ethernet/chelsio/cxgb4/sge.c          |    2 +-
- drivers/net/ethernet/chelsio/cxgb4vf/sge.c        |    2 +-
- drivers/net/ethernet/intel/igb/igb_main.c         |    2 +-
- drivers/net/ethernet/intel/ixgbe/ixgbe_main.c     |    2 +-
- drivers/net/ethernet/intel/ixgbevf/ixgbevf_main.c |    3 +-
- drivers/net/usb/cdc-phonet.c                      |    2 +-
- drivers/usb/gadget/f_phonet.c                     |    2 +-
- include/linux/skbuff.h                            |   55 +++++++++++++++++++++
- 8 files changed, 63 insertions(+), 7 deletions(-)
+ include/net/sock.h |    5 +++++
+ net/core/dev.c     |   53 ++++++++++++++++++++++++++++++++++++++++++++++------
+ net/core/sock.c    |   16 ++++++++++++++++
+ 3 files changed, 68 insertions(+), 6 deletions(-)
 
-diff --git a/drivers/net/ethernet/chelsio/cxgb4/sge.c b/drivers/net/ethernet/chelsio/cxgb4/sge.c
-index e111d97..496df78 100644
---- a/drivers/net/ethernet/chelsio/cxgb4/sge.c
-+++ b/drivers/net/ethernet/chelsio/cxgb4/sge.c
-@@ -528,7 +528,7 @@ static unsigned int refill_fl(struct adapter *adap, struct sge_fl *q, int n,
- #endif
- 
- 	while (n--) {
--		pg = alloc_page(gfp);
-+		pg = __skb_alloc_page(gfp, NULL);
- 		if (unlikely(!pg)) {
- 			q->alloc_failed++;
- 			break;
-diff --git a/drivers/net/ethernet/chelsio/cxgb4vf/sge.c b/drivers/net/ethernet/chelsio/cxgb4vf/sge.c
-index 0bd585b..dca0716 100644
---- a/drivers/net/ethernet/chelsio/cxgb4vf/sge.c
-+++ b/drivers/net/ethernet/chelsio/cxgb4vf/sge.c
-@@ -653,7 +653,7 @@ static unsigned int refill_fl(struct adapter *adapter, struct sge_fl *fl,
- 
- alloc_small_pages:
- 	while (n--) {
--		page = alloc_page(gfp | __GFP_NOWARN | __GFP_COLD);
-+		page = __skb_alloc_page(gfp | __GFP_NOWARN, NULL);
- 		if (unlikely(!page)) {
- 			fl->alloc_failed++;
- 			break;
-diff --git a/drivers/net/ethernet/intel/igb/igb_main.c b/drivers/net/ethernet/intel/igb/igb_main.c
-index dd3bfe8..603a702 100644
---- a/drivers/net/ethernet/intel/igb/igb_main.c
-+++ b/drivers/net/ethernet/intel/igb/igb_main.c
-@@ -6142,7 +6142,7 @@ static bool igb_alloc_mapped_page(struct igb_ring *rx_ring,
- 		return true;
- 
- 	if (!page) {
--		page = alloc_page(GFP_ATOMIC | __GFP_COLD);
-+		page = __skb_alloc_page(GFP_ATOMIC, bi->skb);
- 		bi->page = page;
- 		if (unlikely(!page)) {
- 			rx_ring->rx_stats.alloc_failed++;
-diff --git a/drivers/net/ethernet/intel/ixgbe/ixgbe_main.c b/drivers/net/ethernet/intel/ixgbe/ixgbe_main.c
-index bf20457..20ecf58 100644
---- a/drivers/net/ethernet/intel/ixgbe/ixgbe_main.c
-+++ b/drivers/net/ethernet/intel/ixgbe/ixgbe_main.c
-@@ -1148,7 +1148,7 @@ static bool ixgbe_alloc_mapped_page(struct ixgbe_ring *rx_ring,
- 
- 	/* alloc new page for storage */
- 	if (likely(!page)) {
--		page = alloc_pages(GFP_ATOMIC | __GFP_COLD,
-+		page = __skb_alloc_pages(GFP_ATOMIC, bi->skb,
- 				   ixgbe_rx_pg_order(rx_ring));
- 		if (unlikely(!page)) {
- 			rx_ring->rx_stats.alloc_rx_page_failed++;
-diff --git a/drivers/net/ethernet/intel/ixgbevf/ixgbevf_main.c b/drivers/net/ethernet/intel/ixgbevf/ixgbevf_main.c
-index f69ec42..cd65fd8 100644
---- a/drivers/net/ethernet/intel/ixgbevf/ixgbevf_main.c
-+++ b/drivers/net/ethernet/intel/ixgbevf/ixgbevf_main.c
-@@ -369,7 +369,7 @@ static void ixgbevf_alloc_rx_buffers(struct ixgbevf_adapter *adapter,
- 		if (!bi->page_dma &&
- 		    (adapter->flags & IXGBE_FLAG_RX_PS_ENABLED)) {
- 			if (!bi->page) {
--				bi->page = alloc_page(GFP_ATOMIC | __GFP_COLD);
-+				bi->page = __skb_alloc_page(GFP_ATOMIC, NULL);
- 				if (!bi->page) {
- 					adapter->alloc_rx_page_failed++;
- 					goto no_buffers;
-@@ -403,6 +403,7 @@ static void ixgbevf_alloc_rx_buffers(struct ixgbevf_adapter *adapter,
- 			 */
- 			skb_reserve(skb, NET_IP_ALIGN);
- 
-+			skb_propagate_pfmemalloc(bi->page_dma, skb);
- 			bi->skb = skb;
- 		}
- 		if (!bi->dma) {
-diff --git a/drivers/net/usb/cdc-phonet.c b/drivers/net/usb/cdc-phonet.c
-index d848d4d..85e8bc5 100644
---- a/drivers/net/usb/cdc-phonet.c
-+++ b/drivers/net/usb/cdc-phonet.c
-@@ -130,7 +130,7 @@ static int rx_submit(struct usbpn_dev *pnd, struct urb *req, gfp_t gfp_flags)
- 	struct page *page;
- 	int err;
- 
--	page = alloc_page(gfp_flags);
-+	page = __skb_alloc_page(gfp_flags | __GFP_NOMEMALLOC, NULL);
- 	if (!page)
- 		return -ENOMEM;
- 
-diff --git a/drivers/usb/gadget/f_phonet.c b/drivers/usb/gadget/f_phonet.c
-index 965a629..8ee9268 100644
---- a/drivers/usb/gadget/f_phonet.c
-+++ b/drivers/usb/gadget/f_phonet.c
-@@ -301,7 +301,7 @@ pn_rx_submit(struct f_phonet *fp, struct usb_request *req, gfp_t gfp_flags)
- 	struct page *page;
- 	int err;
- 
--	page = alloc_page(gfp_flags);
-+	page = __skb_alloc_page(gfp_flags | __GFP_NOMEMALLOC, NULL);
- 	if (!page)
- 		return -ENOMEM;
- 
-diff --git a/include/linux/skbuff.h b/include/linux/skbuff.h
-index c421ee0..3ae2f60 100644
---- a/include/linux/skbuff.h
-+++ b/include/linux/skbuff.h
-@@ -1761,6 +1761,61 @@ static inline struct sk_buff *netdev_alloc_skb_ip_align(struct net_device *dev,
- 	return __netdev_alloc_skb_ip_align(dev, length, GFP_ATOMIC);
+diff --git a/include/net/sock.h b/include/net/sock.h
+index e3fe462..772577f 100644
+--- a/include/net/sock.h
++++ b/include/net/sock.h
+@@ -743,8 +743,13 @@ static inline __must_check int sk_add_backlog(struct sock *sk, struct sk_buff *s
+ 	return 0;
  }
  
++extern int __sk_backlog_rcv(struct sock *sk, struct sk_buff *skb);
++
+ static inline int sk_backlog_rcv(struct sock *sk, struct sk_buff *skb)
+ {
++	if (sk_memalloc_socks() && skb_pfmemalloc(skb))
++		return __sk_backlog_rcv(sk, skb);
++
+ 	return sk->sk_backlog_rcv(sk, skb);
+ }
+ 
+diff --git a/net/core/dev.c b/net/core/dev.c
+index cd09819..16f2f58 100644
+--- a/net/core/dev.c
++++ b/net/core/dev.c
+@@ -3140,6 +3140,23 @@ void netdev_rx_handler_unregister(struct net_device *dev)
+ }
+ EXPORT_SYMBOL_GPL(netdev_rx_handler_unregister);
+ 
 +/*
-+ *	__skb_alloc_page - allocate pages for ps-rx on a skb and preserve pfmemalloc data
-+ *	@gfp_mask: alloc_pages_node mask. Set __GFP_NOMEMALLOC if not for network packet RX
-+ *	@skb: skb to set pfmemalloc on if __GFP_MEMALLOC is used
-+ *	@order: size of the allocation
-+ *
-+ * 	Allocate a new page.
-+ *
-+ * 	%NULL is returned if there is no free memory.
-+*/
-+static inline struct page *__skb_alloc_pages(gfp_t gfp_mask,
-+					      struct sk_buff *skb,
-+					      unsigned int order)
-+{
-+	struct page *page;
-+
-+	gfp_mask |= __GFP_COLD;
-+
-+	if (!(gfp_mask & __GFP_NOMEMALLOC))
-+		gfp_mask |= __GFP_MEMALLOC;
-+
-+	page = alloc_pages_node(NUMA_NO_NODE, gfp_mask, order);
-+	if (skb && page && page->pfmemalloc)
-+		skb->pfmemalloc = true;
-+
-+	return page;
-+}
-+
-+/**
-+ *	__skb_alloc_page - allocate a page for ps-rx for a given skb and preserve pfmemalloc data
-+ *	@gfp_mask: alloc_pages_node mask. Set __GFP_NOMEMALLOC if not for network packet RX
-+ *	@skb: skb to set pfmemalloc on if __GFP_MEMALLOC is used
-+ *
-+ * 	Allocate a new page.
-+ *
-+ * 	%NULL is returned if there is no free memory.
++ * Limit the use of PFMEMALLOC reserves to those protocols that implement
++ * the special handling of PFMEMALLOC skbs.
 + */
-+static inline struct page *__skb_alloc_page(gfp_t gfp_mask,
-+					     struct sk_buff *skb)
++static bool skb_pfmemalloc_protocol(struct sk_buff *skb)
 +{
-+	return __skb_alloc_pages(gfp_mask, skb, 0);
++	switch (skb->protocol) {
++	case __constant_htons(ETH_P_ARP):
++	case __constant_htons(ETH_P_IP):
++	case __constant_htons(ETH_P_IPV6):
++	case __constant_htons(ETH_P_8021Q):
++		return true;
++	default:
++		return false;
++	}
 +}
 +
-+/**
-+ *	skb_propagate_pfmemalloc - Propagate pfmemalloc if skb is allocated after RX page
-+ *	@page: The page that was allocated from skb_alloc_page
-+ *	@skb: The skb that may need pfmemalloc set
-+ */
-+static inline void skb_propagate_pfmemalloc(struct page *page,
-+					     struct sk_buff *skb)
-+{
-+	if (page && page->pfmemalloc)
-+		skb->pfmemalloc = true;
-+}
+ static int __netif_receive_skb(struct sk_buff *skb)
+ {
+ 	struct packet_type *ptype, *pt_prev;
+@@ -3149,14 +3166,27 @@ static int __netif_receive_skb(struct sk_buff *skb)
+ 	bool deliver_exact = false;
+ 	int ret = NET_RX_DROP;
+ 	__be16 type;
++	unsigned long pflags = current->flags;
+ 
+ 	net_timestamp_check(!netdev_tstamp_prequeue, skb);
+ 
+ 	trace_netif_receive_skb(skb);
+ 
++	/*
++	 * PFMEMALLOC skbs are special, they should
++	 * - be delivered to SOCK_MEMALLOC sockets only
++	 * - stay away from userspace
++	 * - have bounded memory usage
++	 *
++	 * Use PF_MEMALLOC as this saves us from propagating the allocation
++	 * context down to all allocation sites.
++	 */
++	if (sk_memalloc_socks() && skb_pfmemalloc(skb))
++		current->flags |= PF_MEMALLOC;
 +
- /**
-  * skb_frag_page - retrieve the page refered to by a paged fragment
-  * @frag: the paged fragment
+ 	/* if we've gotten here through NAPI, check netpoll */
+ 	if (netpoll_receive_skb(skb))
+-		return NET_RX_DROP;
++		goto out;
+ 
+ 	if (!skb->skb_iif)
+ 		skb->skb_iif = skb->dev->ifindex;
+@@ -3177,7 +3207,7 @@ another_round:
+ 	if (skb->protocol == cpu_to_be16(ETH_P_8021Q)) {
+ 		skb = vlan_untag(skb);
+ 		if (unlikely(!skb))
+-			goto out;
++			goto unlock;
+ 	}
+ 
+ #ifdef CONFIG_NET_CLS_ACT
+@@ -3187,6 +3217,9 @@ another_round:
+ 	}
+ #endif
+ 
++	if (sk_memalloc_socks() && skb_pfmemalloc(skb))
++		goto skip_taps;
++
+ 	list_for_each_entry_rcu(ptype, &ptype_all, list) {
+ 		if (!ptype->dev || ptype->dev == skb->dev) {
+ 			if (pt_prev)
+@@ -3195,13 +3228,18 @@ another_round:
+ 		}
+ 	}
+ 
++skip_taps:
+ #ifdef CONFIG_NET_CLS_ACT
+ 	skb = handle_ing(skb, &pt_prev, &ret, orig_dev);
+ 	if (!skb)
+-		goto out;
++		goto unlock;
+ ncls:
+ #endif
+ 
++	if (sk_memalloc_socks() && skb_pfmemalloc(skb)
++				&& !skb_pfmemalloc_protocol(skb))
++		goto drop;
++
+ 	rx_handler = rcu_dereference(skb->dev->rx_handler);
+ 	if (vlan_tx_tag_present(skb)) {
+ 		if (pt_prev) {
+@@ -3211,7 +3249,7 @@ ncls:
+ 		if (vlan_do_receive(&skb, !rx_handler))
+ 			goto another_round;
+ 		else if (unlikely(!skb))
+-			goto out;
++			goto unlock;
+ 	}
+ 
+ 	if (rx_handler) {
+@@ -3221,7 +3259,7 @@ ncls:
+ 		}
+ 		switch (rx_handler(&skb)) {
+ 		case RX_HANDLER_CONSUMED:
+-			goto out;
++			goto unlock;
+ 		case RX_HANDLER_ANOTHER:
+ 			goto another_round;
+ 		case RX_HANDLER_EXACT:
+@@ -3251,6 +3289,7 @@ ncls:
+ 	if (pt_prev) {
+ 		ret = pt_prev->func(skb, skb->dev, pt_prev, orig_dev);
+ 	} else {
++drop:
+ 		atomic_long_inc(&skb->dev->rx_dropped);
+ 		kfree_skb(skb);
+ 		/* Jamal, now you will not able to escape explaining
+@@ -3259,8 +3298,10 @@ ncls:
+ 		ret = NET_RX_DROP;
+ 	}
+ 
+-out:
++unlock:
+ 	rcu_read_unlock();
++out:
++	tsk_restore_flags(current, pflags, PF_MEMALLOC);
+ 	return ret;
+ }
+ 
+diff --git a/net/core/sock.c b/net/core/sock.c
+index 439804a..4388a8a 100644
+--- a/net/core/sock.c
++++ b/net/core/sock.c
+@@ -297,6 +297,22 @@ void sk_clear_memalloc(struct sock *sk)
+ }
+ EXPORT_SYMBOL_GPL(sk_clear_memalloc);
+ 
++int __sk_backlog_rcv(struct sock *sk, struct sk_buff *skb)
++{
++	int ret;
++	unsigned long pflags = current->flags;
++
++	/* these should have been dropped before queueing */
++	BUG_ON(!sock_flag(sk, SOCK_MEMALLOC));
++
++	current->flags |= PF_MEMALLOC;
++	ret = sk->sk_backlog_rcv(sk, skb);
++	tsk_restore_flags(current, pflags, PF_MEMALLOC);
++
++	return ret;
++}
++EXPORT_SYMBOL(__sk_backlog_rcv);
++
+ #if defined(CONFIG_CGROUPS)
+ #if !defined(CONFIG_NET_CLS_CGROUP)
+ int net_cls_subsys_id = -1;
 -- 
 1.7.9.2
 
