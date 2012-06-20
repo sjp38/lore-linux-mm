@@ -1,43 +1,31 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx152.postini.com [74.125.245.152])
-	by kanga.kvack.org (Postfix) with SMTP id 7F06F6B0070
-	for <linux-mm@kvack.org>; Wed, 20 Jun 2012 11:31:00 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx188.postini.com [74.125.245.188])
+	by kanga.kvack.org (Postfix) with SMTP id 34B606B0070
+	for <linux-mm@kvack.org>; Wed, 20 Jun 2012 11:34:52 -0400 (EDT)
+Message-ID: <4FE1ED55.5070708@redhat.com>
+Date: Wed, 20 Jun 2012 11:33:41 -0400
+From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Message-ID: <83884ff2-1a06-4d9c-a7eb-c53ab0cbb6b1@default>
-Date: Wed, 20 Jun 2012 08:30:35 -0700 (PDT)
-From: Dan Magenheimer <dan.magenheimer@oracle.com>
-Subject: RE: help converting zcache from sysfs to debugfs?
-References: <6b8ff49a-a5aa-4b9b-9425-c9bc7df35a34@default>
- <4FE1DFDC.1010105@linux.vnet.ibm.com>
-In-Reply-To: <4FE1DFDC.1010105@linux.vnet.ibm.com>
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: quoted-printable
+Subject: Re: [PATCH 02/12] selinux: tag avc cache alloc as non-critical
+References: <1340185081-22525-1-git-send-email-mgorman@suse.de> <1340185081-22525-3-git-send-email-mgorman@suse.de>
+In-Reply-To: <1340185081-22525-3-git-send-email-mgorman@suse.de>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Seth Jennings <sjenning@linux.vnet.ibm.com>
-Cc: linux-mm@kvack.org, Nitin Gupta <ngupta@vflare.org>, Konrad Wilk <konrad.wilk@oracle.com>, Sasha Levin <levinsasha928@gmail.com>
+To: Mel Gorman <mgorman@suse.de>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, Linux-Netdev <netdev@vger.kernel.org>, Linux-NFS <linux-nfs@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, David Miller <davem@davemloft.net>, Trond Myklebust <Trond.Myklebust@netapp.com>, Neil Brown <neilb@suse.de>, Christoph Hellwig <hch@infradead.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Mike Christie <michaelc@cs.wisc.edu>, Eric B Munson <emunson@mgebm.net>
 
-> From: Seth Jennings [mailto:sjenning@linux.vnet.ibm.com]
-> Subject: Re: help converting zcache from sysfs to debugfs?
->=20
-> Something like this (untested):
+On 06/20/2012 05:37 AM, Mel Gorman wrote:
+> Failing to allocate a cache entry will only harm performance not
+> correctness.  Do not consume valuable reserve pages for something
+> like that.
+>
+> Signed-off-by: Peter Zijlstra<a.p.zijlstra@chello.nl>
+> Signed-off-by: Mel Gorman<mgorman@suse.de>
+> Acked-by: Eric Paris<eparis@redhat.com>
 
-Nice!  I also need a set for atomic_long_t.
-
-But forgive me if I nearly have a heart attack as I
-contemplate another chicken-and-egg scenario trying
-to get debugfs-support-for-atomics upstream before
-zcache code that depends on it.
-
-Maybe I'm a leetle bit over-sensitized to dependencies...
-or maybe not enough ;-)
-
-Anyway, I will probably use the ugly code and add a
-comment that says the code can be made cleaner when
-debugfs supports atomics.
-
-Thanks!
-Dan
+Acked-by: Rik van Riel<riel@redhat.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
