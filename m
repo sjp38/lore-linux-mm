@@ -1,85 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx193.postini.com [74.125.245.193])
-	by kanga.kvack.org (Postfix) with SMTP id 60B066B006C
-	for <linux-mm@kvack.org>; Wed, 20 Jun 2012 02:37:30 -0400 (EDT)
-Message-ID: <4FE16FB5.1000601@cn.fujitsu.com>
-Date: Wed, 20 Jun 2012 14:37:41 +0800
-From: Wanlong Gao <gaowanlong@cn.fujitsu.com>
-Reply-To: gaowanlong@cn.fujitsu.com
+Received: from psmtp.com (na3sys010amx141.postini.com [74.125.245.141])
+	by kanga.kvack.org (Postfix) with SMTP id 08BEA6B0062
+	for <linux-mm@kvack.org>; Wed, 20 Jun 2012 03:02:30 -0400 (EDT)
+Received: by ggm4 with SMTP id 4so6759381ggm.14
+        for <linux-mm@kvack.org>; Wed, 20 Jun 2012 00:02:29 -0700 (PDT)
 MIME-Version: 1.0
-Subject: Re: [PATCH] mm, fadvise: don't return -EINVAL when filesystem has
- no optimization way
-References: <1339792575-17637-1-git-send-email-kosaki.motohiro@gmail.com> <4FE16E50.9030304@cn.fujitsu.com> <4FE16ED3.2090403@gmail.com>
-In-Reply-To: <4FE16ED3.2090403@gmail.com>
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <4FDEE4E6.6030205@gmail.com>
+References: <1338438844-5022-1-git-send-email-andi@firstfloor.org>
+	<1339234803-21106-1-git-send-email-tdmackey@twitter.com>
+	<4FDEE4E6.6030205@gmail.com>
+Date: Wed, 20 Jun 2012 10:02:29 +0300
+Message-ID: <CAOJsxLGcndOEEDzeKJaEiLrwV779R+hv2dPvqBrxbr0FzczpUg@mail.gmail.com>
+Subject: Re: [PATCH v5] slab/mempolicy: always use local policy from interrupt context
+From: Pekka Enberg <penberg@kernel.org>
 Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, Hillf Danton <dhillf@gmail.com>, Eric Wong <normalperson@yhbt.net>
+Cc: David Mackey <tdmackey@twitter.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, rientjes@google.com, Andi Kleen <ak@linux.intel.com>, cl@linux.com
 
-On 06/20/2012 02:33 PM, KOSAKI Motohiro wrote:
-> (6/20/12 2:31 AM), Wanlong Gao wrote:
->> On 06/16/2012 04:36 AM, kosaki.motohiro@gmail.com wrote:
->>> From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
->>>
->>> Eric Wong reported his test suite was fail when /tmp is tmpfs.
->>>
->>> https://lkml.org/lkml/2012/2/24/479
->>>
->>> Current,input check of POSIX_FADV_WILLNEED has two problems.
->>>
->>> 1) require a_ops->readpage.
->>>    But in fact, force_page_cache_readahead() only require
->>>    a target filesystem has either ->readpage or ->readpages.
->>> 2) return -EINVAL when filesystem don't have ->readpage.
->>>    But, posix says, it should be retrieved a hint. Thus fadvise()
->>>    should return 0 if filesystem has no optimization way.
->>>    Especially, userland application don't know a filesystem type
->>>    of TMPDIR directory as Eric pointed out. Then, userland can't
->>>    avoid this error. We shouldn't encourage to ignore syscall
->>>    return value.
->>>
->>> Thus, this patch change a return value to 0 when filesytem don't
->>> support readahead.
->>>
->>> Cc: linux-mm@kvack.org
->>> Cc: Hugh Dickins <hughd@google.com>
->>> Cc: Andrew Morton <akpm@linux-foundation.org>
->>> Cc: Hillf Danton <dhillf@gmail.com>
->>> Signed-off-by: Eric Wong <normalperson@yhbt.net>
->>> Tested-by: Eric Wong <normalperson@yhbt.net>
->>> Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
->>> ---
->>>  mm/fadvise.c |   18 +++++++-----------
->>>  1 files changed, 7 insertions(+), 11 deletions(-)
->>>
->>> diff --git a/mm/fadvise.c b/mm/fadvise.c
->>> index 469491e..33e6baf 100644
->>> --- a/mm/fadvise.c
->>> +++ b/mm/fadvise.c
->>> @@ -93,11 +93,6 @@ SYSCALL_DEFINE(fadvise64_64)(int fd, loff_t offset, loff_t len, int advice)
->>>  		spin_unlock(&file->f_lock);
->>>  		break;
->>>  	case POSIX_FADV_WILLNEED:
->>> -		if (!mapping->a_ops->readpage) {
->>> -			ret = -EINVAL;
->>> -			break;
->>> -		}
+On Mon, Jun 18, 2012 at 11:20 AM, KOSAKI Motohiro
+<kosaki.motohiro@gmail.com> wrote:
+> (6/9/12 5:40 AM), David Mackey wrote:
+>> From: Andi Kleen<ak@linux.intel.com>
 >>
->> Why not check both readpage and readpages, if they are not here,
->> just beak and no following force_page_cache_readahead ?
-> 
-> They are checked in force_page_cache_readahead.
+>> From: Andi Kleen<ak@linux.intel.com>
+>>
+>> slab_node() could access current->mempolicy from interrupt context.
+>> However there's a race condition during exit where the mempolicy
+>> is first freed and then the pointer zeroed.
+>>
+>> Using this from interrupts seems bogus anyways. The interrupt
+>> will interrupt a random process and therefore get a random
+>> mempolicy. Many times, this will be idle's, which noone can change.
+>>
+>> Just disable this here and always use local for slab
+>> from interrupts. I also cleaned up the callers of slab_node a bit
+>> which always passed the same argument.
+>>
+>> I believe the original mempolicy code did that in fact,
+>> so it's likely a regression.
+>>
+>> v2: send version with correct logic
+>> v3: simplify. fix typo.
+>> Reported-by: Arun Sharma<asharma@fb.com>
+>> Cc: penberg@kernel.org
+>> Cc: cl@linux.com
+>> Signed-off-by: Andi Kleen<ak@linux.intel.com>
+>> [tdmackey@twitter.com: Rework control flow based on feedback from
+>> cl@linux.com, fix logic, and cleanup current task_struct reference]
+>> Signed-off-by: David Mackey<tdmackey@twitter.com>
+>
+> Acked-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 
-I see, thank you.
-
-Reviewed-by: Wanlong Gao <gaowanlong@cn.fujitsu.com>
-
-
-> 
-> 
-
+Applied, thanks!
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
