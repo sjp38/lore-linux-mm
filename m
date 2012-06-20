@@ -1,86 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx156.postini.com [74.125.245.156])
-	by kanga.kvack.org (Postfix) with SMTP id D67B26B004D
-	for <linux-mm@kvack.org>; Wed, 20 Jun 2012 12:23:33 -0400 (EDT)
-Received: by bkcjm19 with SMTP id jm19so8291882bkc.14
-        for <linux-mm@kvack.org>; Wed, 20 Jun 2012 09:23:32 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx133.postini.com [74.125.245.133])
+	by kanga.kvack.org (Postfix) with SMTP id 7ACD66B005A
+	for <linux-mm@kvack.org>; Wed, 20 Jun 2012 13:04:00 -0400 (EDT)
+Date: Wed, 20 Jun 2012 12:56:10 -0400
+From: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
+Subject: Re: help converting zcache from sysfs to debugfs?
+Message-ID: <20120620165610.GA2991@phenom.dumpdata.com>
+References: <6b8ff49a-a5aa-4b9b-9425-c9bc7df35a34@default>
+ <4FE1DFDC.1010105@linux.vnet.ibm.com>
+ <83884ff2-1a06-4d9c-a7eb-c53ab0cbb6b1@default>
 MIME-Version: 1.0
-Date: Wed, 20 Jun 2012 21:53:31 +0530
-Message-ID: <CAEtiSau6dRYVOSD4-QUWkYZ8p7z1ATLHZY9v871VS=o0LduU_Q@mail.gmail.com>
-Subject: [PATCH] mm: offlining memory may block forever
-From: Aaditya Kumar <aaditya.kumar.30@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <83884ff2-1a06-4d9c-a7eb-c53ab0cbb6b1@default>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, stable@kernel.org, kosaki.motohiro@jp.fujitsu.com, gregkh@linuxfoundation.org, Mel Gorman <mel@csn.ul.ie>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Minchan Kim <minchan@kernel.org>, Michal Hocko <mhocko@suse.cz>, tim.bird@am.sony.com, frank.rowand@am.sony.com, takuzo.ohara@ap.sony.com, kan.iibuchi@jp.sony.com, aaditya.kumar@ap.sony.com
+To: Dan Magenheimer <dan.magenheimer@oracle.com>
+Cc: Seth Jennings <sjenning@linux.vnet.ibm.com>, linux-mm@kvack.org, Nitin Gupta <ngupta@vflare.org>, Sasha Levin <levinsasha928@gmail.com>
 
-Offlining memory may block forever, waiting for kswapd() to wake up because
-kswapd() does not check the event kthread->should_stop before sleeping.
+On Wed, Jun 20, 2012 at 08:30:35AM -0700, Dan Magenheimer wrote:
+> > From: Seth Jennings [mailto:sjenning@linux.vnet.ibm.com]
+> > Subject: Re: help converting zcache from sysfs to debugfs?
+> > 
+> > Something like this (untested):
+> 
+> Nice!  I also need a set for atomic_long_t.
+> 
+> But forgive me if I nearly have a heart attack as I
+> contemplate another chicken-and-egg scenario trying
+> to get debugfs-support-for-atomics upstream before
+> zcache code that depends on it.
+> 
+> Maybe I'm a leetle bit over-sensitized to dependencies...
+> or maybe not enough ;-)
 
-The proper pattern, from Documentation/memory-barriers.txt, is:
-   ---  waker  ---
-   event_indicated = 1;
-   wake_up_process(event_daemon);
-
-   ---  sleeper  ---
-   for (;;) {
-      set_current_state(TASK_UNINTERRUPTIBLE);
-      if (event_indicated)
-         break;
-      schedule();
-   }
-
-   set_current_state() may be wrapped by:
-      prepare_to_wait();
-
-In the kswapd() case, event_indicated is kthread->should_stop.
----  offlining memory (waker)  ---
-   kswapd_stop()
-      kthread_stop()
-         kthread->should_stop = 1
-         wake_up_process()
-         wait_for_completion()
-
-
----  kswapd_try_to_sleep (sleeper)  ---
-   kswapd_try_to_sleep()
-      prepare_to_wait()
-           .
-           .
-      schedule()
-           .
-           .
-      finish_wait()
-
-   The schedule() needs to be protected by a test of kthread->should_stop,
-   which is wrapped by kthread_should_stop().
-
-Reproducer:
-   Do heavy file I/O in background.
-   Do a memory offline/online in a tight loop
-
-
-Signed-off-by: Aaditya Kumar <aaditya.kumar@ap.sony.com>
-
----
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index eeb3bc9..b60691e 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -2688,7 +2688,10 @@ static void kswapd_try_to_sleep(pg_data_t
-*pgdat, int order, int classzone_idx)
- 		 * them before going back to sleep.
- 		 */
- 		set_pgdat_percpu_threshold(pgdat, calculate_normal_threshold);
--		schedule();
-+
-+		if (!kthread_should_stop())
-+			schedule();
-+
- 		set_pgdat_percpu_threshold(pgdat, calculate_pressure_threshold);
- 	} else {
- 		if (remaining)
+I wouldn't that much. Especially as Greg KH is the maintainer
+of debugfs.
+> 
+> Anyway, I will probably use the ugly code and add a
+> comment that says the code can be made cleaner when
+> debugfs supports atomics.
+> 
+> Thanks!
+> Dan
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
