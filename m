@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx198.postini.com [74.125.245.198])
-	by kanga.kvack.org (Postfix) with SMTP id 5C9A16B0071
-	for <linux-mm@kvack.org>; Wed, 20 Jun 2012 07:44:26 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx207.postini.com [74.125.245.207])
+	by kanga.kvack.org (Postfix) with SMTP id 47A0C6B0082
+	for <linux-mm@kvack.org>; Wed, 20 Jun 2012 07:44:25 -0400 (EDT)
 From: Mel Gorman <mgorman@suse.de>
-Subject: [PATCH 09/17] netvm: Allow the use of __GFP_MEMALLOC by specific sockets
-Date: Wed, 20 Jun 2012 12:44:04 +0100
-Message-Id: <1340192652-31658-10-git-send-email-mgorman@suse.de>
+Subject: [PATCH 08/17] net: Do not coalesce skbs belonging to PFMEMALLOC sockets
+Date: Wed, 20 Jun 2012 12:44:03 +0100
+Message-Id: <1340192652-31658-9-git-send-email-mgorman@suse.de>
 In-Reply-To: <1340192652-31658-1-git-send-email-mgorman@suse.de>
 References: <1340192652-31658-1-git-send-email-mgorman@suse.de>
 Sender: owner-linux-mm@kvack.org
@@ -13,87 +13,102 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Linux-MM <linux-mm@kvack.org>, Linux-Netdev <netdev@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, David Miller <davem@davemloft.net>, Neil Brown <neilb@suse.de>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Mike Christie <michaelc@cs.wisc.edu>, Eric B Munson <emunson@mgebm.net>, Sebastian Andrzej Siewior <sebastian@breakpoint.cc>, Mel Gorman <mgorman@suse.de>
 
-Allow specific sockets to be tagged SOCK_MEMALLOC and use
-__GFP_MEMALLOC for their allocations. These sockets will be able to go
-below watermarks and allocate from the emergency reserve. Such sockets
-are to be used to service the VM (iow. to swap over). They must be
-handled kernel side, exposing such a socket to user-space is a bug.
+Commit [bad43ca8: net: introduce skb_try_coalesce()] introduced an
+optimisation to coalesce skbs to reduce memory usage and cache line
+misses. In the case where the socket is used for swapping this can result
+in a warning like the following.
 
-There is a risk that the reserves be depleted so for now, the
-administrator is responsible for increasing min_free_kbytes as
-necessary to prevent deadlock for their workloads.
+[  110.476565] nbd0: page allocation failure: order:0, mode:0x20
+[  110.476568] Pid: 2714, comm: nbd0 Not tainted 3.5.0-rc2-swapnbd-v12r2-slab #3
+[  110.476569] Call Trace:
+[  110.476573]  [<ffffffff811042d3>] warn_alloc_failed+0xf3/0x160
+[  110.476578]  [<ffffffff81107c92>] __alloc_pages_nodemask+0x6e2/0x930
+[  110.476582]  [<ffffffff81107c92>] ?  __alloc_pages_nodemask+0x6e2/0x930
+[  110.476588]  [<ffffffff81149f09>] kmem_getpages+0x59/0x1a0
+[  110.476593]  [<ffffffff8114ae5b>] fallback_alloc+0x17b/0x260
+[  110.476597]  [<ffffffff8114ac26>] ____cache_alloc_node+0x96/0x150
+[  110.476602]  [<ffffffff8114a458>] kmem_cache_alloc_node+0x78/0x1b0
+[  110.476607]  [<ffffffff8136c127>] __alloc_skb+0x57/0x1e0
+[  110.476612]  [<ffffffff813b9f81>] sk_stream_alloc_skb+0x41/0x120
+[  110.476617]  [<ffffffff813c8c72>] tcp_fragment+0x62/0x370
+[  110.476622]  [<ffffffff813c8fb9>] tso_fragment+0x39/0x180
+[  110.476628]  [<ffffffff813ca2a9>] tcp_write_xmit+0x1a9/0x3f0
+[  110.476634]  [<ffffffff813ca556>] __tcp_push_pending_frames+0x26/0xd0
+[  110.476639]  [<ffffffff813c61f5>] tcp_rcv_established+0x385/0x760
+[  110.476644]  [<ffffffff813ce671>] tcp_v4_do_rcv+0x111/0x1f0
+[  110.476648]  [<ffffffff81367259>] release_sock+0x99/0x140
+[  110.476652]  [<ffffffff813ba82b> tcp_sendmsg+0x7cb/0xe80
+[  110.476657]  [<ffffffff813df9b4>] inet_sendmsg+0x64/0xb0
+[  110.476661]  [<ffffffff811f0a00>] ? security_socket_sendmsg+0x10/0x20
+[  110.476666]  [<ffffffff81361dd8>] sock_sendmsg+0xf8/0x130
+[  110.476672]  [<ffffffff8124ba4c>] ? cpumask_next_and+0x3c/0x50
+[  110.476677]  [<ffffffff8107b053>] ? update_sd_lb_stats+0x123/0x620
+[  110.476683]  [<ffffffff8105164f>] ? recalc_sigpending+0x1f/0x70
+[  110.476688]  [<ffffffff81051e17>] ? __set_task_blocked+0x37/0x80
+[  110.476693]  [<ffffffff81361e51>] kernel_sendmsg+0x41/0x60
+[  110.476698]  [<ffffffffa048d417>] sock_xmit+0xb7/0x300 [nbd]
+[  110.476703]  [<ffffffff8107bad7>] ? load_balance+0xd7/0x490
+[  110.476710]  [<ffffffffa048d7ac>] nbd_send_req+0x14c/0x270 [nbd]
+[  110.476716]  [<ffffffffa048e21e>] nbd_handle_req+0x9e/0x180 [nbd]
+[  110.476721]  [<ffffffffa048e4f2>] nbd_thread+0xb2/0x150 [nbd]
+[  110.476725]  [<ffffffff81062580>] ? wake_up_bit+0x40/0x40
+[  110.476730]  [<ffffffffa048e440>] ? do_nbd_request+0x140/0x140 [nbd]
+[  110.476733]  [<ffffffff81061d7e>] kthread+0x9e/0xb0
+[  110.476739]  [<ffffffff81439d64>] kernel_thread_helper+0x4/0x10
+[  110.476743]  [<ffffffff81061ce0>] ? flush_kthread_worker+0xc0/0xc0
+[  110.476748]  [<ffffffff81439d60>] ? gs_change+0x13/0x13
 
-[a.p.zijlstra@chello.nl: Original patches]
+There were two ways this could be addressed. The first would be to
+teach __tcp_push_pending_frames() to use __GFP_MEMALLOC if the socket
+has SOCK_MEMALLOC set. This potentially defers the time of allocation
+to a point where we are applying greater pressure on PFMEMALLOC reserves
+which is undesirable.  The second approach is to disable skb coalescing
+for SOCK_MEMALLOC sockets and process them immediately. This patch takes
+the second approach.
+
 Signed-off-by: Mel Gorman <mgorman@suse.de>
-Acked-by: David S. Miller <davem@davemloft.net>
 ---
- include/net/sock.h |    5 ++++-
- net/core/sock.c    |   22 ++++++++++++++++++++++
- 2 files changed, 26 insertions(+), 1 deletion(-)
+ net/core/skbuff.c    |    7 +++++++
+ net/ipv4/tcp_input.c |    8 ++++++++
+ 2 files changed, 15 insertions(+)
 
-diff --git a/include/net/sock.h b/include/net/sock.h
-index 5b47673..9f38b7d 100644
---- a/include/net/sock.h
-+++ b/include/net/sock.h
-@@ -619,6 +619,7 @@ enum sock_flags {
- 	SOCK_RCVTSTAMPNS, /* %SO_TIMESTAMPNS setting */
- 	SOCK_LOCALROUTE, /* route locally only, %SO_DONTROUTE setting */
- 	SOCK_QUEUE_SHRUNK, /* write queue has been shrunk recently */
-+	SOCK_MEMALLOC, /* VM depends on this socket for swapping */
- 	SOCK_TIMESTAMPING_TX_HARDWARE,  /* %SOF_TIMESTAMPING_TX_HARDWARE */
- 	SOCK_TIMESTAMPING_TX_SOFTWARE,  /* %SOF_TIMESTAMPING_TX_SOFTWARE */
- 	SOCK_TIMESTAMPING_RX_HARDWARE,  /* %SOF_TIMESTAMPING_RX_HARDWARE */
-@@ -658,7 +659,7 @@ static inline bool sock_flag(const struct sock *sk, enum sock_flags flag)
+diff --git a/net/core/skbuff.c b/net/core/skbuff.c
+index d78671e..1d6ecc8 100644
+--- a/net/core/skbuff.c
++++ b/net/core/skbuff.c
+@@ -3370,6 +3370,13 @@ bool skb_try_coalesce(struct sk_buff *to, struct sk_buff *from,
  
- static inline gfp_t sk_gfp_atomic(struct sock *sk, gfp_t gfp_mask)
- {
--	return GFP_ATOMIC;
-+	return GFP_ATOMIC | (sk->sk_allocation & __GFP_MEMALLOC);
- }
+ 	*fragstolen = false;
  
- static inline void sk_acceptq_removed(struct sock *sk)
-@@ -801,6 +802,8 @@ extern int sk_stream_wait_memory(struct sock *sk, long *timeo_p);
- extern void sk_stream_wait_close(struct sock *sk, long timeo_p);
- extern int sk_stream_error(struct sock *sk, int flags, int err);
- extern void sk_stream_kill_queues(struct sock *sk);
-+extern void sk_set_memalloc(struct sock *sk);
-+extern void sk_clear_memalloc(struct sock *sk);
- 
- extern int sk_wait_data(struct sock *sk, long *timeo);
- 
-diff --git a/net/core/sock.c b/net/core/sock.c
-index 9e5b71f..d45d6fd 100644
---- a/net/core/sock.c
-+++ b/net/core/sock.c
-@@ -271,6 +271,28 @@ __u32 sysctl_rmem_default __read_mostly = SK_RMEM_MAX;
- int sysctl_optmem_max __read_mostly = sizeof(unsigned long)*(2*UIO_MAXIOV+512);
- EXPORT_SYMBOL(sysctl_optmem_max);
- 
-+/**
-+ * sk_set_memalloc - sets %SOCK_MEMALLOC
-+ * @sk: socket to set it on
-+ *
-+ * Set %SOCK_MEMALLOC on a socket for access to emergency reserves.
-+ * It's the responsibility of the admin to adjust min_free_kbytes
-+ * to meet the requirements
-+ */
-+void sk_set_memalloc(struct sock *sk)
-+{
-+	sock_set_flag(sk, SOCK_MEMALLOC);
-+	sk->sk_allocation |= __GFP_MEMALLOC;
-+}
-+EXPORT_SYMBOL_GPL(sk_set_memalloc);
++	/*
++	 * Avoid coalescing of SOCK_MEMALLOC socks are we do not want to defer
++	 * RX/TX to a time when pfmemallo reserves are under greater pressure
++	 */
++	if (sk_memalloc_socks() && sock_flag(to->sk, SOCK_MEMALLOC))
++		return false;
 +
-+void sk_clear_memalloc(struct sock *sk)
-+{
-+	sock_reset_flag(sk, SOCK_MEMALLOC);
-+	sk->sk_allocation &= ~__GFP_MEMALLOC;
-+}
-+EXPORT_SYMBOL_GPL(sk_clear_memalloc);
+ 	if (skb_cloned(to))
+ 		return false;
+ 
+diff --git a/net/ipv4/tcp_input.c b/net/ipv4/tcp_input.c
+index b224eb8..448f130 100644
+--- a/net/ipv4/tcp_input.c
++++ b/net/ipv4/tcp_input.c
+@@ -4553,6 +4553,14 @@ static bool tcp_try_coalesce(struct sock *sk,
+ 
+ 	*fragstolen = false;
+ 
++	/*
++	 * Do not attempt merging if the socket is used by the VM for swapping.
++	 * Attempts to defer can result in allocation failures during RX when
++	 * an attempt is made to push pending frames
++	 */
++	if (sk_memalloc_socks() && sock_flag(sk, SOCK_MEMALLOC))
++		return false;
 +
- #if defined(CONFIG_CGROUPS)
- #if !defined(CONFIG_NET_CLS_CGROUP)
- int net_cls_subsys_id = -1;
+ 	if (tcp_hdr(from)->fin)
+ 		return false;
+ 
 -- 
 1.7.9.2
 
