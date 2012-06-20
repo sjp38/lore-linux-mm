@@ -1,98 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx141.postini.com [74.125.245.141])
-	by kanga.kvack.org (Postfix) with SMTP id 269ED6B005A
-	for <linux-mm@kvack.org>; Wed, 20 Jun 2012 16:59:46 -0400 (EDT)
-Message-Id: <b867e87f5f90e6683a8d7d958d7b96f236bb46fd.1340224753.git.tony.luck@intel.com>
-In-Reply-To: <CA+8MBbJVFdz0g9dqz+3YbsGypKw4-tLb2XgoFq=_qOoq_Yq=Tw@mail.gmail.com>
-From: "Luck, Tony" <tony.luck@intel.com>
-Date: Wed, 20 Jun 2012 12:12:18 -0700
-Subject: [PATCH] sched: Fix build problems when CONFIG_NUMA=y and CONFIG_SMP=n
+Received: from psmtp.com (na3sys010amx199.postini.com [74.125.245.199])
+	by kanga.kvack.org (Postfix) with SMTP id 411696B005A
+	for <linux-mm@kvack.org>; Wed, 20 Jun 2012 17:01:57 -0400 (EDT)
+From: Glauber Costa <glommer@parallels.com>
+Subject: [PATCH 0/4] cache-specific changes for memcg (preparation)
+Date: Thu, 21 Jun 2012 00:59:15 +0400
+Message-Id: <1340225959-1966-1-git-send-email-glommer@parallels.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>, Paul Turner <pjt@google.com>, Suresh Siddha <suresh.b.siddha@intel.com>, Mike Galbraith <efault@gmx.de>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Dan Smith <danms@us.ibm.com>, Bharata B Rao <bharata.rao@gmail.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Andrea Arcangeli <aarcange@redhat.com>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Pekka Enberg <penberg@kernel.org>
+Cc: linux-mm@kvack.org, Cristoph Lameter <cl@linux.com>, David Rientjes <rientjes@google.com>
 
-It is possible to have a single cpu system with both local
-and remote memory.
+Pekka,
 
-Signed-off-by: Tony Luck <tony.luck@intel.com>
----
+Please consider merging the following patches.
+Patches 1-3 are around for a while, specially 1 and 3.
 
-Broken in linux-next for the past couple of days. Perhaps
-we need some more stubs though - sched_fork() seems to need
-#ifdef CONFIG_SMP around every other line ... not pretty.
+Patch #4 is a bit newer, and got less reviews (reviews appreciated),
+but I am using it myself without further problems.
 
-Another approach would be to outlaw such strange configurations
-and make sure that CONFIG_SMP is set whenever CONFIG_NUMA is set.
-We had such a discussion a long time ago, and at that time
-decided to keep supporting it. But with multi-core cpus now
-the norm - perhaps it is time to change our minds.
+Feel free to pick all of them, or part of them, the way you prefer.
 
- kernel/sched/core.c  |  2 ++
- kernel/sched/numa.c  | 16 ++++++++++++++++
- kernel/sched/sched.h |  2 +-
- 3 files changed, 19 insertions(+), 1 deletion(-)
+Glauber Costa (4):
+  slab: rename gfpflags to allocflags
+  Wipe out CFLGS_OFF_SLAB from flags during initial slab creation
+  slab: move FULL state transition to an initcall
+  don't do __ClearPageSlab before freeing slab page.
 
-diff --git a/kernel/sched/core.c b/kernel/sched/core.c
-index 46460ac..f261599 100644
---- a/kernel/sched/core.c
-+++ b/kernel/sched/core.c
-@@ -1799,7 +1799,9 @@ void sched_fork(struct task_struct *p)
- #endif
- 	put_cpu();
- 
-+#ifdef CONFIG_SMP
- 	select_task_node(p, p->mm, SD_BALANCE_FORK);
-+#endif
- }
- 
- /*
-diff --git a/kernel/sched/numa.c b/kernel/sched/numa.c
-index 002f71c..4ff3b7c 100644
---- a/kernel/sched/numa.c
-+++ b/kernel/sched/numa.c
-@@ -18,6 +18,21 @@
- #include "sched.h"
- 
- 
-+#ifndef CONFIG_SMP
-+void mm_init_numa(struct mm_struct *mm)
-+{
-+}
-+void exit_numa(struct mm_struct *mm)
-+{
-+}
-+void account_numa_dequeue(struct task_struct *p)
-+{
-+}
-+__init void init_sched_numa(void)
-+{
-+}
-+#else
-+
- static const int numa_balance_interval = 2 * HZ; /* 2 seconds */
- 
- struct numa_ops {
-@@ -853,3 +868,4 @@ static __init int numa_init(void)
- 	return 0;
- }
- early_initcall(numa_init);
-+#endif
-diff --git a/kernel/sched/sched.h b/kernel/sched/sched.h
-index 4134d37..9bf5ba8 100644
---- a/kernel/sched/sched.h
-+++ b/kernel/sched/sched.h
-@@ -473,7 +473,7 @@ struct rq {
- 
- static inline struct list_head *offnode_tasks(struct rq *rq)
- {
--#ifdef CONFIG_NUMA
-+#if defined(CONFIG_NUMA) && defined(CONFIG_SMP)
- 	return &rq->offnode_tasks;
- #else
- 	return NULL;
+ include/linux/slab_def.h |    2 +-
+ mm/page_alloc.c          |    5 ++++-
+ mm/slab.c                |   29 +++++++++++++++--------------
+ mm/slob.c                |    1 -
+ mm/slub.c                |    1 -
+ 5 files changed, 20 insertions(+), 18 deletions(-)
+
 -- 
-1.7.10.2.552.gaa3bb87
+1.7.10.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
