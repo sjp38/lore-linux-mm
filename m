@@ -1,148 +1,102 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx150.postini.com [74.125.245.150])
-	by kanga.kvack.org (Postfix) with SMTP id 4D28B6B006C
-	for <linux-mm@kvack.org>; Wed, 20 Jun 2012 02:18:42 -0400 (EDT)
-Message-ID: <4FE16B48.4030704@kernel.org>
-Date: Wed, 20 Jun 2012 15:18:48 +0900
-From: Minchan Kim <minchan@kernel.org>
+Received: from psmtp.com (na3sys010amx177.postini.com [74.125.245.177])
+	by kanga.kvack.org (Postfix) with SMTP id BBC0C6B006C
+	for <linux-mm@kvack.org>; Wed, 20 Jun 2012 02:31:33 -0400 (EDT)
+Message-ID: <4FE16E50.9030304@cn.fujitsu.com>
+Date: Wed, 20 Jun 2012 14:31:44 +0800
+From: Wanlong Gao <gaowanlong@cn.fujitsu.com>
+Reply-To: gaowanlong@cn.fujitsu.com
 MIME-Version: 1.0
-Subject: Re: [resend][PATCH] mm, vmscan: fix do_try_to_free_pages() livelock
-References: <1339661592-3915-1-git-send-email-kosaki.motohiro@gmail.com> <20120614145716.GA2097@barrios> <CAHGf_=qcA5OfuNgk0BiwyshcLftNWoPfOO_VW9H6xQTX2tAbuA@mail.gmail.com> <4FDAE3CC.60801@kernel.org> <CAEtiSavv8nRAFk6VZEgeCMYicjBPy4244+2KQhng5Pq9bxcX5A@mail.gmail.com> <4FDE79CF.4050702@kernel.org> <4FE0FA7B.7020407@gmail.com>
-In-Reply-To: <4FE0FA7B.7020407@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Subject: Re: [PATCH] mm, fadvise: don't return -EINVAL when filesystem has
+ no optimization way
+References: <1339792575-17637-1-git-send-email-kosaki.motohiro@gmail.com>
+In-Reply-To: <1339792575-17637-1-git-send-email-kosaki.motohiro@gmail.com>
 Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
-Cc: Aaditya Kumar <aaditya.kumar.30@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org, Nick Piggin <npiggin@gmail.com>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mel@csn.ul.ie>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>, frank.rowand@am.sony.com, tim.bird@am.sony.com, takuzo.ohara@ap.sony.com, kan.iibuchi@jp.sony.com
+To: kosaki.motohiro@gmail.com
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, Hillf Danton <dhillf@gmail.com>, Eric Wong <normalperson@yhbt.net>
 
-On 06/20/2012 07:17 AM, KOSAKI Motohiro wrote:
-
-> (6/17/12 8:43 PM), Minchan Kim wrote:
->> On 06/17/2012 02:48 AM, Aaditya Kumar wrote:
->>
->>> On Fri, Jun 15, 2012 at 12:57 PM, Minchan Kim <minchan@kernel.org> wrote:
->>>
->>>>>
->>>>> pgdat_balanced() doesn't recognized zone. Therefore kswapd may sleep
->>>>> if node has multiple zones. Hm ok, I realized my descriptions was
->>>>> slightly misleading. priority 0 is not needed. bakance_pddat() calls
->>>>> pgdat_balanced()
->>>>> every priority. Most easy case is, movable zone has a lot of free pages and
->>>>> normal zone has no reclaimable page.
->>>>>
->>>>> btw, current pgdat_balanced() logic seems not correct. kswapd should
->>>>> sleep only if every zones have much free pages than high water mark
->>>>> _and_ 25% of present pages in node are free.
->>>>>
->>>>
->>>>
->>>> Sorry. I can't understand your point.
->>>> Current kswapd doesn't sleep if relevant zones don't have free pages above high watermark.
->>>> It seems I am missing your point.
->>>> Please anybody correct me.
->>>
->>> Since currently direct reclaim is given up based on
->>> zone->all_unreclaimable flag,
->>> so for e.g in one of the scenarios:
->>>
->>> Lets say system has one node with two zones (NORMAL and MOVABLE) and we
->>> hot-remove the all the pages of the MOVABLE zone.
->>>
->>> While migrating pages during memory hot-unplugging, the allocation function
->>> (for new page to which the page in MOVABLE zone would be moved)  can end up
->>> looping in direct reclaim path for ever.
->>>
->>> This is so because when most of the pages in the MOVABLE zone have
->>> been migrated,
->>> the zone now contains lots of free memory (basically above low watermark)
->>> BUT all are in MIGRATE_ISOLATE list of the buddy list.
->>>
->>> So kswapd() would not balance this zone as free pages are above low watermark
->>> (but all are in isolate list). So zone->all_unreclaimable flag would
->>> never be set for this zone
->>> and allocation function would end up looping forever. (assuming the
->>> zone NORMAL is
->>> left with no reclaimable memory)
->>>
->>
->>
->> Thanks a lot, Aaditya! Scenario you mentioned makes perfect.
->> But I don't see it's a problem of kswapd.
->>
->> a5d76b54 made new migration type 'MIGRATE_ISOLATE' which is very irony type because there are many free pages in free list
->> but we can't allocate it. :(
->> It doesn't reflect right NR_FREE_PAGES while many places in the kernel use NR_FREE_PAGES to trigger some operation.
->> Kswapd is just one of them confused.
->> As right fix of this problem, we should fix hot plug code, IMHO which can fix CMA, too. 
->>
->> This patch could make inconsistency between NR_FREE_PAGES and SumOf[free_area[order].nr_free]
->> and it could make __zone_watermark_ok confuse so we might need to fix move_freepages_block itself to reflect
->> free_area[order].nr_free exactly. 
->>
->> Any thought?
->>
->> Side Note: I still need KOSAKI's patch with fixed description regardless of this problem because set zone->all_unreclaimable of only kswapd is very fragile.
->>
->> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
->> index 4403009..19de56c 100644
->> --- a/mm/page_alloc.c
->> +++ b/mm/page_alloc.c
->> @@ -5593,8 +5593,10 @@ int set_migratetype_isolate(struct page *page)
->>  
->>  out:
->>         if (!ret) {
->> +               int pages_moved;
->>                 set_pageblock_migratetype(page, MIGRATE_ISOLATE);
->> -               move_freepages_block(zone, page, MIGRATE_ISOLATE);
->> +               pages_moved = move_freepages_block(zone, page, MIGRATE_ISOLATE);
->> +               __mod_zone_page_state(zone, NR_FREE_PAGES, -pages_moved);
->>         }   
->>  
->>         spin_unlock_irqrestore(&zone->lock, flags);
->> @@ -5607,12 +5609,14 @@ void unset_migratetype_isolate(struct page *page, unsigned migratetype)
->>  {
->>         struct zone *zone;
->>         unsigned long flags;
->> +       int pages_moved;
->>         zone = page_zone(page);
->>         spin_lock_irqsave(&zone->lock, flags);
->>         if (get_pageblock_migratetype(page) != MIGRATE_ISOLATE)
->>                 goto out;
->>         set_pageblock_migratetype(page, migratetype);
->> -       move_freepages_block(zone, page, migratetype);
->> +       pages_moved = move_freepages_block(zone, page, migratetype);
->> +       __mod_zone_page_state(zone, NR_FREE_PAGES, pages_moved);
->>  out:
->>         spin_unlock_irqrestore(&zone->lock, flags);
->>  }
+On 06/16/2012 04:36 AM, kosaki.motohiro@gmail.com wrote:
+> From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 > 
-> Unfortunately, this doesn't work. there are two reasons. 1) when memory hotplug occue, we have
-> two scenarios. a) free page -> page block change into isolate b) page block change into isolate
-> -> free page. The above patch only care scenario (a). Thus it lead to confusing NR_FREE_PAGES value.
-> _if_ we put a new branch free page hotpath, we can solve scenario (b). but I don't like it. because of,
-> zero hotpath overhead is one of memory hotplug design principle. 2) event if we can solve above issue,
+> Eric Wong reported his test suite was fail when /tmp is tmpfs.
+> 
+> https://lkml.org/lkml/2012/2/24/479
+> 
+> Current,input check of POSIX_FADV_WILLNEED has two problems.
+> 
+> 1) require a_ops->readpage.
+>    But in fact, force_page_cache_readahead() only require
+>    a target filesystem has either ->readpage or ->readpages.
+> 2) return -EINVAL when filesystem don't have ->readpage.
+>    But, posix says, it should be retrieved a hint. Thus fadvise()
+>    should return 0 if filesystem has no optimization way.
+>    Especially, userland application don't know a filesystem type
+>    of TMPDIR directory as Eric pointed out. Then, userland can't
+>    avoid this error. We shouldn't encourage to ignore syscall
+>    return value.
+> 
+> Thus, this patch change a return value to 0 when filesytem don't
+> support readahead.
+> 
+> Cc: linux-mm@kvack.org
+> Cc: Hugh Dickins <hughd@google.com>
+> Cc: Andrew Morton <akpm@linux-foundation.org>
+> Cc: Hillf Danton <dhillf@gmail.com>
+> Signed-off-by: Eric Wong <normalperson@yhbt.net>
+> Tested-by: Eric Wong <normalperson@yhbt.net>
+> Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+> ---
+>  mm/fadvise.c |   18 +++++++-----------
+>  1 files changed, 7 insertions(+), 11 deletions(-)
+> 
+> diff --git a/mm/fadvise.c b/mm/fadvise.c
+> index 469491e..33e6baf 100644
+> --- a/mm/fadvise.c
+> +++ b/mm/fadvise.c
+> @@ -93,11 +93,6 @@ SYSCALL_DEFINE(fadvise64_64)(int fd, loff_t offset, loff_t len, int advice)
+>  		spin_unlock(&file->f_lock);
+>  		break;
+>  	case POSIX_FADV_WILLNEED:
+> -		if (!mapping->a_ops->readpage) {
+> -			ret = -EINVAL;
+> -			break;
+> -		}
 
+Why not check both readpage and readpages, if they are not here,
+just beak and no following force_page_cache_readahead ?
 
-Yeb. Aaditya already pointed out.
-And I just sent other patch.
-Let's talk about this problem on another thread because it's not a direct/background reclaim problem.
-http://lkml.org/lkml/2012/6/20/30
+Thanks,
+Wanlong Gao
 
+> -
+>  		/* First and last PARTIAL page! */
+>  		start_index = offset >> PAGE_CACHE_SHIFT;
+>  		end_index = endbyte >> PAGE_CACHE_SHIFT;
+> @@ -106,12 +101,13 @@ SYSCALL_DEFINE(fadvise64_64)(int fd, loff_t offset, loff_t len, int advice)
+>  		nrpages = end_index - start_index + 1;
+>  		if (!nrpages)
+>  			nrpages = ~0UL;
+> -		
+> -		ret = force_page_cache_readahead(mapping, file,
+> -				start_index,
+> -				nrpages);
+> -		if (ret > 0)
+> -			ret = 0;
+> +
+> +		/*
+> +		 * Ignore return value because fadvise() shall return 
+> +		 * success even if filesystem can't retrieve a hint,
+> +		 */		
+> +		force_page_cache_readahead(mapping, file, start_index,
+> +					   nrpages);
+>  		break;
+>  	case POSIX_FADV_NOREUSE:
+>  		break;
+> 
 
-> all_unreclaimable logic still broken. because of, __alloc_pages_slowpath() wake up kswapd only once and
-> don't wake up when "goto rebalance" path. But, wake_all_kswapd() is racy and no guarantee to wake up
-> kswapd. It mean direct reclaim should work fine w/o background reclaim.
-
-
-We can fix it easily in direct reclaim path but I think your approach still make sense
-because current scheme of zone_unreclaimable setting is very fragile on livelock.
-So if you send your patch again with rewritten description, I have no objection.
-
-Thanks.
--- 
-Kind regards,
-Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
