@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx194.postini.com [74.125.245.194])
-	by kanga.kvack.org (Postfix) with SMTP id 72D8D6B0088
-	for <linux-mm@kvack.org>; Wed, 20 Jun 2012 05:35:39 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx171.postini.com [74.125.245.171])
+	by kanga.kvack.org (Postfix) with SMTP id 7221F6B0083
+	for <linux-mm@kvack.org>; Wed, 20 Jun 2012 05:35:41 -0400 (EDT)
 From: Mel Gorman <mgorman@suse.de>
-Subject: [PATCH 15/17] mm: Throttle direct reclaimers if PF_MEMALLOC reserves are low and swap is backed by network storage
-Date: Wed, 20 Jun 2012 10:35:18 +0100
-Message-Id: <1340184920-22288-16-git-send-email-mgorman@suse.de>
+Subject: [PATCH 17/17] netvm: Prevent a stream-specific deadlock
+Date: Wed, 20 Jun 2012 10:35:20 +0100
+Message-Id: <1340184920-22288-18-git-send-email-mgorman@suse.de>
 In-Reply-To: <1340184920-22288-1-git-send-email-mgorman@suse.de>
 References: <1340184920-22288-1-git-send-email-mgorman@suse.de>
 Sender: owner-linux-mm@kvack.org
@@ -13,243 +13,154 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Linux-MM <linux-mm@kvack.org>, Linux-Netdev <netdev@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, David Miller <davem@davemloft.net>, Neil Brown <neilb@suse.de>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Mike Christie <michaelc@cs.wisc.edu>, Eric B Munson <emunson@mgebm.net>, Mel Gorman <mgorman@suse.de>
 
-If swap is backed by network storage such as NBD, there is a risk
-that a large number of reclaimers can hang the system by consuming
-all PF_MEMALLOC reserves. To avoid these hangs, the administrator
-must tune min_free_kbytes in advance which is a bit fragile.
+It could happen that all !SOCK_MEMALLOC sockets have buffered so
+much data that we're over the global rmem limit. This will prevent
+SOCK_MEMALLOC buffers from receiving data, which will prevent userspace
+from running, which is needed to reduce the buffered data.
 
-This patch throttles direct reclaimers if half the PF_MEMALLOC reserves
-are in use. If the system is routinely getting throttled the system
-administrator can increase min_free_kbytes so degradation is smoother
-but the system will keep running.
+Fix this by exempting the SOCK_MEMALLOC sockets from the rmem limit.
+Once this change it applied, it is important that sockets that set
+SOCK_MEMALLOC do not clear the flag until the socket is being torn down.
+If this happens, a warning is generated and the tokens reclaimed to
+avoid accounting errors until the bug is fixed.
 
+[davem@davemloft.net: Warning about clearing SOCK_MEMALLOC]
+Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
 Signed-off-by: Mel Gorman <mgorman@suse.de>
+Acked-by: David S. Miller <davem@davemloft.net>
 ---
- include/linux/mmzone.h |    1 +
- mm/page_alloc.c        |    1 +
- mm/vmscan.c            |  128 +++++++++++++++++++++++++++++++++++++++++++++---
- 3 files changed, 122 insertions(+), 8 deletions(-)
+ include/net/sock.h     |    7 ++++---
+ net/caif/caif_socket.c |    2 +-
+ net/core/sock.c        |   14 +++++++++++++-
+ net/ipv4/tcp_input.c   |   12 ++++++------
+ net/sctp/ulpevent.c    |    2 +-
+ 5 files changed, 25 insertions(+), 12 deletions(-)
 
-diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-index 2427706..b97c3d3 100644
---- a/include/linux/mmzone.h
-+++ b/include/linux/mmzone.h
-@@ -694,6 +694,7 @@ typedef struct pglist_data {
- 					     range, including holes */
- 	int node_id;
- 	wait_queue_head_t kswapd_wait;
-+	wait_queue_head_t pfmemalloc_wait;
- 	struct task_struct *kswapd;
- 	int kswapd_max_order;
- 	enum zone_type classzone_idx;
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 6c48965..95da786 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -4379,6 +4379,7 @@ static void __paginginit free_area_init_core(struct pglist_data *pgdat,
- 	pgdat_resize_init(pgdat);
- 	pgdat->nr_zones = 0;
- 	init_waitqueue_head(&pgdat->kswapd_wait);
-+	init_waitqueue_head(&pgdat->pfmemalloc_wait);
- 	pgdat->kswapd_max_order = 0;
- 	pgdat_page_cgroup_init(pgdat);
- 
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index eeb3bc9..bf8625c 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -2111,6 +2111,80 @@ out:
- 	return 0;
+diff --git a/include/net/sock.h b/include/net/sock.h
+index 772577f..9ab9934 100644
+--- a/include/net/sock.h
++++ b/include/net/sock.h
+@@ -1315,12 +1315,13 @@ static inline bool sk_wmem_schedule(struct sock *sk, int size)
+ 		__sk_mem_schedule(sk, size, SK_MEM_SEND);
  }
  
-+static bool pfmemalloc_watermark_ok(pg_data_t *pgdat)
-+{
-+	struct zone *zone;
-+	unsigned long pfmemalloc_reserve = 0;
-+	unsigned long free_pages = 0;
-+	int i;
-+	bool wmark_ok;
-+
-+	for (i = 0; i <= ZONE_NORMAL; i++) {
-+		zone = &pgdat->node_zones[i];
-+		pfmemalloc_reserve += min_wmark_pages(zone);
-+		free_pages += zone_page_state(zone, NR_FREE_PAGES);
-+	}
-+
-+	wmark_ok = free_pages > pfmemalloc_reserve / 2;
-+
-+	/* kswapd must be awake if processes are being throttled */
-+	if (!wmark_ok && waitqueue_active(&pgdat->kswapd_wait)) {
-+		pgdat->classzone_idx = min(pgdat->classzone_idx,
-+						(enum zone_type)ZONE_NORMAL);
-+		wake_up_interruptible(&pgdat->kswapd_wait);
-+	}
-+
-+	return wmark_ok;
-+}
-+
-+/*
-+ * Throttle direct reclaimers if backing storage is backed by the network
-+ * and the PFMEMALLOC reserve for the preferred node is getting dangerously
-+ * depleted. kswapd will continue to make progress and wake the processes
-+ * when the low watermark is reached
-+ */
-+static void throttle_direct_reclaim(gfp_t gfp_mask, struct zonelist *zonelist,
-+					nodemask_t *nodemask)
-+{
-+	struct zone *zone;
-+	int high_zoneidx = gfp_zone(gfp_mask);
-+	pg_data_t *pgdat;
-+
-+	/*
-+	 * Kernel threads should not be throttled as they may be indirectly
-+	 * responsible for cleaning pages necessary for reclaim to make forward
-+	 * progress. kjournald for example may enter direct reclaim while
-+	 * committing a transaction where throttling it could forcing other
-+	 * processes to block on log_wait_commit().
-+	 */
-+	if (current->flags & PF_KTHREAD)
-+		return;
-+
-+	/* Check if the pfmemalloc reserves are ok */
-+	first_zones_zonelist(zonelist, high_zoneidx, NULL, &zone);
-+	pgdat = zone->zone_pgdat;
-+	if (pfmemalloc_watermark_ok(pgdat))
-+		return;
-+
-+	/*
-+	 * If the caller cannot enter the filesystem, it's possible that it
-+	 * is due to the caller holding an FS lock or performing a journal
-+	 * transaction in the case of a filesystem like ext[3|4]. In this case,
-+	 * it is not safe to block on pfmemalloc_wait as kswapd could be
-+	 * blocked waiting on the same lock. Instead, throttle for up to a
-+	 * second before continuing.
-+	 */
-+	if (!(gfp_mask & __GFP_FS)) {
-+		wait_event_interruptible_timeout(pgdat->pfmemalloc_wait,
-+			pfmemalloc_watermark_ok(pgdat), HZ);
-+		return;
-+	}
-+
-+	/* Throttle until kswapd wakes the process */
-+	wait_event_killable(zone->zone_pgdat->pfmemalloc_wait,
-+		pfmemalloc_watermark_ok(pgdat));
-+}
-+
- unsigned long try_to_free_pages(struct zonelist *zonelist, int order,
- 				gfp_t gfp_mask, nodemask_t *nodemask)
+-static inline bool sk_rmem_schedule(struct sock *sk, int size)
++static inline bool sk_rmem_schedule(struct sock *sk, struct sk_buff *skb)
  {
-@@ -2130,6 +2204,15 @@ unsigned long try_to_free_pages(struct zonelist *zonelist, int order,
- 		.gfp_mask = sc.gfp_mask,
- 	};
- 
-+	throttle_direct_reclaim(gfp_mask, zonelist, nodemask);
-+
-+	/*
-+	 * Do not enter reclaim if fatal signal is pending. 1 is returned so
-+	 * that the page allocator does not consider triggering OOM
-+	 */
-+	if (fatal_signal_pending(current))
-+		return 1;
-+
- 	trace_mm_vmscan_direct_reclaim_begin(order,
- 				sc.may_writepage,
- 				gfp_mask);
-@@ -2274,8 +2357,13 @@ static bool pgdat_balanced(pg_data_t *pgdat, unsigned long balanced_pages,
- 	return balanced_pages >= (present_pages >> 2);
+ 	if (!sk_has_account(sk))
+ 		return true;
+-	return size <= sk->sk_forward_alloc ||
+-		__sk_mem_schedule(sk, size, SK_MEM_RECV);
++	return skb->truesize <= sk->sk_forward_alloc ||
++		__sk_mem_schedule(sk, skb->truesize, SK_MEM_RECV) ||
++		skb_pfmemalloc(skb);
  }
  
--/* is kswapd sleeping prematurely? */
--static bool sleeping_prematurely(pg_data_t *pgdat, int order, long remaining,
-+/*
-+ * Prepare kswapd for sleeping. This verifies that there are no processes
-+ * waiting in throttle_direct_reclaim() and that watermarks have been met.
-+ *
-+ * Returns true if kswapd is ready to sleep
-+ */
-+static bool prepare_kswapd_sleep(pg_data_t *pgdat, int order, long remaining,
- 					int classzone_idx)
+ static inline void sk_mem_reclaim(struct sock *sk)
+diff --git a/net/caif/caif_socket.c b/net/caif/caif_socket.c
+index fb89443..5855b3a 100644
+--- a/net/caif/caif_socket.c
++++ b/net/caif/caif_socket.c
+@@ -141,7 +141,7 @@ static int caif_queue_rcv_skb(struct sock *sk, struct sk_buff *skb)
+ 	err = sk_filter(sk, skb);
+ 	if (err)
+ 		return err;
+-	if (!sk_rmem_schedule(sk, skb->truesize) && rx_flow_is_on(cf_sk)) {
++	if (!sk_rmem_schedule(sk, skb) && rx_flow_is_on(cf_sk)) {
+ 		set_rx_flow_off(cf_sk);
+ 		net_dbg_ratelimited("sending flow OFF due to rmem_schedule\n");
+ 		caif_flow_ctrl(sk, CAIF_MODEMCMD_FLOW_OFF_REQ);
+diff --git a/net/core/sock.c b/net/core/sock.c
+index 4388a8a..b51a49a 100644
+--- a/net/core/sock.c
++++ b/net/core/sock.c
+@@ -294,6 +294,18 @@ void sk_clear_memalloc(struct sock *sk)
+ 	sock_reset_flag(sk, SOCK_MEMALLOC);
+ 	sk->sk_allocation &= ~__GFP_MEMALLOC;
+ 	static_key_slow_dec(&memalloc_socks);
++
++	/*
++	 * SOCK_MEMALLOC is allowed to ignore rmem limits to ensure forward
++	 * progress of swapping. However, if SOCK_MEMALLOC is cleared while
++	 * it has rmem allocations there is a risk that the user of the
++	 * socket cannot make forward progress due to exceeding the rmem
++	 * limits. By rights, sk_clear_memalloc() should only be called
++	 * on sockets being torn down but warn and reset the accounting if
++	 * that assumption breaks.
++	 */
++	if (WARN_ON(sk->sk_forward_alloc))
++		sk_mem_reclaim(sk);
+ }
+ EXPORT_SYMBOL_GPL(sk_clear_memalloc);
+ 
+@@ -395,7 +407,7 @@ int sock_queue_rcv_skb(struct sock *sk, struct sk_buff *skb)
+ 	if (err)
+ 		return err;
+ 
+-	if (!sk_rmem_schedule(sk, skb->truesize)) {
++	if (!sk_rmem_schedule(sk, skb)) {
+ 		atomic_inc(&sk->sk_drops);
+ 		return -ENOBUFS;
+ 	}
+diff --git a/net/ipv4/tcp_input.c b/net/ipv4/tcp_input.c
+index b224eb8..c121d6a 100644
+--- a/net/ipv4/tcp_input.c
++++ b/net/ipv4/tcp_input.c
+@@ -4512,19 +4512,19 @@ static void tcp_ofo_queue(struct sock *sk)
+ static bool tcp_prune_ofo_queue(struct sock *sk);
+ static int tcp_prune_queue(struct sock *sk);
+ 
+-static int tcp_try_rmem_schedule(struct sock *sk, unsigned int size)
++static int tcp_try_rmem_schedule(struct sock *sk, struct sk_buff *skb)
  {
- 	int i;
-@@ -2284,7 +2372,21 @@ static bool sleeping_prematurely(pg_data_t *pgdat, int order, long remaining,
+ 	if (atomic_read(&sk->sk_rmem_alloc) > sk->sk_rcvbuf ||
+-	    !sk_rmem_schedule(sk, size)) {
++	    !sk_rmem_schedule(sk, skb)) {
  
- 	/* If a direct reclaimer woke kswapd within HZ/10, it's premature */
- 	if (remaining)
--		return true;
-+		return false;
-+
-+	/*
-+	 * There is a potential race between when kswapd checks its watermarks
-+	 * and a process gets throttled. There is also a potential race if
-+	 * processes get throttled, kswapd wakes, a large process exits therby
-+	 * balancing the zones that causes kswapd to miss a wakeup. If kswapd
-+	 * is going to sleep, no process should be sleeping on pfmemalloc_wait
-+	 * so wake them now if necessary. If necessary, processes will wake
-+	 * kswapd and get throttled again
-+	 */
-+	if (waitqueue_active(&pgdat->pfmemalloc_wait)) {
-+		wake_up(&pgdat->pfmemalloc_wait);
-+		return false;
-+	}
+ 		if (tcp_prune_queue(sk) < 0)
+ 			return -1;
  
- 	/* Check the watermark levels */
- 	for (i = 0; i <= classzone_idx; i++) {
-@@ -2317,9 +2419,9 @@ static bool sleeping_prematurely(pg_data_t *pgdat, int order, long remaining,
- 	 * must be balanced
- 	 */
- 	if (order)
--		return !pgdat_balanced(pgdat, balanced, classzone_idx);
-+		return pgdat_balanced(pgdat, balanced, classzone_idx);
- 	else
--		return !all_zones_ok;
-+		return all_zones_ok;
- }
+-		if (!sk_rmem_schedule(sk, size)) {
++		if (!sk_rmem_schedule(sk, skb)) {
+ 			if (!tcp_prune_ofo_queue(sk))
+ 				return -1;
  
- /*
-@@ -2545,6 +2647,16 @@ loop_again:
- 			}
- 
+-			if (!sk_rmem_schedule(sk, size))
++			if (!sk_rmem_schedule(sk, skb))
+ 				return -1;
  		}
-+
-+		/*
-+		 * If the low watermark is met there is no need for processes
-+		 * to be throttled on pfmemalloc_wait as they should not be
-+		 * able to safely make forward progress. Wake them
-+		 */
-+		if (waitqueue_active(&pgdat->pfmemalloc_wait) &&
-+				pfmemalloc_watermark_ok(pgdat))
-+			wake_up(&pgdat->pfmemalloc_wait);
-+
- 		if (all_zones_ok || (order && pgdat_balanced(pgdat, balanced, *classzone_idx)))
- 			break;		/* kswapd: all done */
- 		/*
-@@ -2646,7 +2758,7 @@ out:
+ 	}
+@@ -4579,7 +4579,7 @@ static void tcp_data_queue_ofo(struct sock *sk, struct sk_buff *skb)
+ 
+ 	TCP_ECN_check_ce(tp, skb);
+ 
+-	if (tcp_try_rmem_schedule(sk, skb->truesize)) {
++	if (tcp_try_rmem_schedule(sk, skb)) {
+ 		/* TODO: should increment a counter */
+ 		__kfree_skb(skb);
+ 		return;
+@@ -4791,7 +4791,7 @@ static void tcp_data_queue(struct sock *sk, struct sk_buff *skb)
+ 		if (eaten <= 0) {
+ queue_and_out:
+ 			if (eaten < 0 &&
+-			    tcp_try_rmem_schedule(sk, skb->truesize))
++			    tcp_try_rmem_schedule(sk, skb))
+ 				goto drop;
+ 
+ 			eaten = tcp_queue_rcv(sk, skb, 0, &fragstolen);
+diff --git a/net/sctp/ulpevent.c b/net/sctp/ulpevent.c
+index 8a84017..6c6ed2d 100644
+--- a/net/sctp/ulpevent.c
++++ b/net/sctp/ulpevent.c
+@@ -702,7 +702,7 @@ struct sctp_ulpevent *sctp_ulpevent_make_rcvmsg(struct sctp_association *asoc,
+ 	if (rx_count >= asoc->base.sk->sk_rcvbuf) {
+ 
+ 		if ((asoc->base.sk->sk_userlocks & SOCK_RCVBUF_LOCK) ||
+-		    (!sk_rmem_schedule(asoc->base.sk, chunk->skb->truesize)))
++		    (!sk_rmem_schedule(asoc->base.sk, chunk->skb)))
+ 			goto fail;
  	}
  
- 	/*
--	 * Return the order we were reclaiming at so sleeping_prematurely()
-+	 * Return the order we were reclaiming at so prepare_kswapd_sleep()
- 	 * makes a decision on the order we were last reclaiming at. However,
- 	 * if another caller entered the allocator slow path while kswapd
- 	 * was awake, order will remain at the higher level
-@@ -2666,7 +2778,7 @@ static void kswapd_try_to_sleep(pg_data_t *pgdat, int order, int classzone_idx)
- 	prepare_to_wait(&pgdat->kswapd_wait, &wait, TASK_INTERRUPTIBLE);
- 
- 	/* Try to sleep for a short interval */
--	if (!sleeping_prematurely(pgdat, order, remaining, classzone_idx)) {
-+	if (prepare_kswapd_sleep(pgdat, order, remaining, classzone_idx)) {
- 		remaining = schedule_timeout(HZ/10);
- 		finish_wait(&pgdat->kswapd_wait, &wait);
- 		prepare_to_wait(&pgdat->kswapd_wait, &wait, TASK_INTERRUPTIBLE);
-@@ -2676,7 +2788,7 @@ static void kswapd_try_to_sleep(pg_data_t *pgdat, int order, int classzone_idx)
- 	 * After a short sleep, check if it was a premature sleep. If not, then
- 	 * go fully to sleep until explicitly woken up.
- 	 */
--	if (!sleeping_prematurely(pgdat, order, remaining, classzone_idx)) {
-+	if (prepare_kswapd_sleep(pgdat, order, remaining, classzone_idx)) {
- 		trace_mm_vmscan_kswapd_sleep(pgdat->node_id);
- 
- 		/*
 -- 
 1.7.9.2
 
