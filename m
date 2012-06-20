@@ -1,59 +1,34 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx141.postini.com [74.125.245.141])
-	by kanga.kvack.org (Postfix) with SMTP id 08BEA6B0062
-	for <linux-mm@kvack.org>; Wed, 20 Jun 2012 03:02:30 -0400 (EDT)
-Received: by ggm4 with SMTP id 4so6759381ggm.14
-        for <linux-mm@kvack.org>; Wed, 20 Jun 2012 00:02:29 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx128.postini.com [74.125.245.128])
+	by kanga.kvack.org (Postfix) with SMTP id 018A66B0062
+	for <linux-mm@kvack.org>; Wed, 20 Jun 2012 03:08:00 -0400 (EDT)
+Received: by ggm4 with SMTP id 4so6762882ggm.14
+        for <linux-mm@kvack.org>; Wed, 20 Jun 2012 00:07:59 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <4FDEE4E6.6030205@gmail.com>
-References: <1338438844-5022-1-git-send-email-andi@firstfloor.org>
-	<1339234803-21106-1-git-send-email-tdmackey@twitter.com>
-	<4FDEE4E6.6030205@gmail.com>
-Date: Wed, 20 Jun 2012 10:02:29 +0300
-Message-ID: <CAOJsxLGcndOEEDzeKJaEiLrwV779R+hv2dPvqBrxbr0FzczpUg@mail.gmail.com>
-Subject: Re: [PATCH v5] slab/mempolicy: always use local policy from interrupt context
+In-Reply-To: <alpine.DEB.2.00.1206141312520.12773@router.home>
+References: <20120613152451.465596612@linux.com>
+	<20120613152525.596813300@linux.com>
+	<CAOJsxLE-7XCzbAi-M=sBkPymAj25yNGvAs6ea-ZyaEbDJo3+cA@mail.gmail.com>
+	<4FD9BE30.4000005@parallels.com>
+	<alpine.DEB.2.00.1206141312520.12773@router.home>
+Date: Wed, 20 Jun 2012 10:07:59 +0300
+Message-ID: <CAOJsxLF2Ku8FJ7Rs5D6-ZT_52aYsTn-eUZw_yaqetwJDQp9vBA@mail.gmail.com>
+Subject: Re: Common [19/20] Allocate kmem_cache structure in slab_common.c
 From: Pekka Enberg <penberg@kernel.org>
 Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
-Cc: David Mackey <tdmackey@twitter.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, rientjes@google.com, Andi Kleen <ak@linux.intel.com>, cl@linux.com
+To: Christoph Lameter <cl@linux.com>
+Cc: Glauber Costa <glommer@parallels.com>, linux-mm@kvack.org, David Rientjes <rientjes@google.com>, Matt Mackall <mpm@selenic.com>, Joonsoo Kim <js1304@gmail.com>
 
-On Mon, Jun 18, 2012 at 11:20 AM, KOSAKI Motohiro
-<kosaki.motohiro@gmail.com> wrote:
-> (6/9/12 5:40 AM), David Mackey wrote:
->> From: Andi Kleen<ak@linux.intel.com>
->>
->> From: Andi Kleen<ak@linux.intel.com>
->>
->> slab_node() could access current->mempolicy from interrupt context.
->> However there's a race condition during exit where the mempolicy
->> is first freed and then the pointer zeroed.
->>
->> Using this from interrupts seems bogus anyways. The interrupt
->> will interrupt a random process and therefore get a random
->> mempolicy. Many times, this will be idle's, which noone can change.
->>
->> Just disable this here and always use local for slab
->> from interrupts. I also cleaned up the callers of slab_node a bit
->> which always passed the same argument.
->>
->> I believe the original mempolicy code did that in fact,
->> so it's likely a regression.
->>
->> v2: send version with correct logic
->> v3: simplify. fix typo.
->> Reported-by: Arun Sharma<asharma@fb.com>
->> Cc: penberg@kernel.org
->> Cc: cl@linux.com
->> Signed-off-by: Andi Kleen<ak@linux.intel.com>
->> [tdmackey@twitter.com: Rework control flow based on feedback from
->> cl@linux.com, fix logic, and cleanup current task_struct reference]
->> Signed-off-by: David Mackey<tdmackey@twitter.com>
->
-> Acked-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+On Thu, Jun 14, 2012 at 9:14 PM, Christoph Lameter <cl@linux.com> wrote:
+> Merge what you are comfortable with and I will have a look at the rest.
+> Just the initial cleanups for the allocators maybe?
 
-Applied, thanks!
+I merged patches up to "slab: Get rid of obj_size macro". If Glauber
+already fixed any of the remaining patches, please just resend them.
+
+                        Pekka
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
