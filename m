@@ -1,137 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx107.postini.com [74.125.245.107])
-	by kanga.kvack.org (Postfix) with SMTP id 3DF316B0062
-	for <linux-mm@kvack.org>; Wed, 20 Jun 2012 10:59:20 -0400 (EDT)
-Received: by eaan1 with SMTP id n1so3135139eaa.14
-        for <linux-mm@kvack.org>; Wed, 20 Jun 2012 07:59:18 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <20120620085301.GF27816@cmpxchg.org>
-References: <1340038051-29502-1-git-send-email-yinghan@google.com>
-	<20120619112901.GC27816@cmpxchg.org>
-	<CALWz4iyC2di8ueaHnCE-ENv5td4buK9DOWF5rLfN0bhR68bSAw@mail.gmail.com>
-	<20120620085301.GF27816@cmpxchg.org>
-Date: Wed, 20 Jun 2012 07:59:17 -0700
-Message-ID: <CALWz4iw3k2vSnBfyUejeOxKoeXS5U-RSyRbKhaH-gC_dm_WY2w@mail.gmail.com>
-Subject: Re: [PATCH V5 1/5] mm: memcg softlimit reclaim rework
-From: Ying Han <yinghan@google.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Received: from psmtp.com (na3sys010amx118.postini.com [74.125.245.118])
+	by kanga.kvack.org (Postfix) with SMTP id 0C1F26B0062
+	for <linux-mm@kvack.org>; Wed, 20 Jun 2012 11:21:58 -0400 (EDT)
+From: "Pearson, Greg" <greg.pearson@hp.com>
+Subject: Re: [PATCH v4] mm/memblock: fix overlapping allocation when
+ doubling reserved array
+Date: Wed, 20 Jun 2012 15:21:24 +0000
+Message-ID: <4FE1EA73.2030300@hp.com>
+References: <1340063278-31601-1-git-send-email-greg.pearson@hp.com>
+ <20120619151435.10c16aed.akpm@linux-foundation.org>
+ <4FE0FE9B.8020401@hp.com> <20120619160001.0c58c7be.akpm@linux-foundation.org>
+In-Reply-To: <20120619160001.0c58c7be.akpm@linux-foundation.org>
+Content-Language: en-US
+Content-Type: text/plain; charset="iso-8859-1"
+Content-ID: <A20F1A488621CC4496B846142F9F47A0@Compaq.com>
 Content-Transfer-Encoding: quoted-printable
+MIME-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Michal Hocko <mhocko@suse.cz>, Mel Gorman <mel@csn.ul.ie>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Hillf Danton <dhillf@gmail.com>, Hugh Dickins <hughd@google.com>, Dan Magenheimer <dan.magenheimer@oracle.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: "tj@kernel.org" <tj@kernel.org>, "hpa@linux.intel.com" <hpa@linux.intel.com>, "shangw@linux.vnet.ibm.com" <shangw@linux.vnet.ibm.com>, "mingo@elte.hu" <mingo@elte.hu>, "yinghai@kernel.org" <yinghai@kernel.org>, "benh@kernel.crashing.org" <benh@kernel.crashing.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 
-On Wed, Jun 20, 2012 at 1:53 AM, Johannes Weiner <hannes@cmpxchg.org> wrote=
-:
-> On Tue, Jun 19, 2012 at 08:45:03PM -0700, Ying Han wrote:
->> On Tue, Jun 19, 2012 at 4:29 AM, Johannes Weiner <hannes@cmpxchg.org> wr=
-ote:
->> > On Mon, Jun 18, 2012 at 09:47:27AM -0700, Ying Han wrote:
->> >> +{
->> >> + =A0 =A0 if (mem_cgroup_disabled())
->> >> + =A0 =A0 =A0 =A0 =A0 =A0 return true;
->> >> +
->> >> + =A0 =A0 /*
->> >> + =A0 =A0 =A0* We treat the root cgroup special here to always reclai=
-m pages.
->> >> + =A0 =A0 =A0* Now root cgroup has its own lru, and the only chance t=
-o reclaim
->> >> + =A0 =A0 =A0* pages from it is through global reclaim. note, root cg=
-roup does
->> >> + =A0 =A0 =A0* not trigger targeted reclaim.
->> >> + =A0 =A0 =A0*/
->> >> + =A0 =A0 if (mem_cgroup_is_root(memcg))
->> >> + =A0 =A0 =A0 =A0 =A0 =A0 return true;
->> >
->> > With the soft limit at 0, the comment is no longer accurate because
->> > this check turns into a simple optimization. =A0We could check the
->> > res_counter soft limit, which would always result in the root group
->> > being above the limit, but we take the short cut.
+On 06/19/2012 05:00 PM, Andrew Morton wrote:
+> On Tue, 19 Jun 2012 22:35:08 +0000
+> "Pearson, Greg" <greg.pearson@hp.com> wrote:
+>
+>> On 06/19/2012 04:14 PM, Andrew Morton wrote:
+>>> On Mon, 18 Jun 2012 17:47:58 -0600
+>>> Greg Pearson <greg.pearson@hp.com> wrote:
+>>>
+>>>> The __alloc_memory_core_early() routine will ask memblock for a range
+>>>> of memory then try to reserve it. If the reserved region array lacks
+>>>> space for the new range, memblock_double_array() is called to allocate
+>>>> more space for the array. If memblock is used to allocate memory for
+>>>> the new array it can end up using a range that overlaps with the range
+>>>> originally allocated in __alloc_memory_core_early(), leading to possib=
+le
+>>>> data corruption.
+>>> OK, but we have no information about whether it *does* lead to data
+>>> corruption.  Are there workloads which trigger this?  End users who are
+>>> experiencing problems?
+>>>
+>>> See, I (and others) need to work out whether this patch should be
+>>> included in 3.5 or even earlier kernels.  To do that we often need the
+>>> developer to tell us what the impact of the bug is upon users.  Please
+>>> always include this info when fixing bugs.
+>> Andrew,
 >>
->> For root group, my intention here is always reclaim pages from it
->> regardless of the softlimit setting. And the reason is exactly the one
->> in the comment. If the softlimit is set to 0 as default, I agree this
->> is then a short cut.
->>
->> Anything you suggest that I need to change here?
+>> I'm currently working on a prototype system that exhibits the data
+>> corruption problem when doubling the reserved array while booting the
+>> system. This system will be a released product in the future.
+> OK.  I guess we can slip this fix into 3.5.  Do you think it should be
+> backported?  I guess "yes", as you will probably want to run 3.4 or
+> earlier kernels on that machine.
 >
-> Well, not in this patch as it stands. =A0But once you squash the '0 per
-> default', it may be good to note that this is a shortcut.
+Having the fix in 3.4 would be good for us, as we do plan to test on the=20
+latest stable kernel.
 
-Will include some notes next time.
+If there is anything I can do to help with that please let me know.
 
->
->> >> + =A0 =A0 for (; memcg; memcg =3D parent_mem_cgroup(memcg)) {
->> >> + =A0 =A0 =A0 =A0 =A0 =A0 /* This is global reclaim, stop at root cgr=
-oup */
->> >> + =A0 =A0 =A0 =A0 =A0 =A0 if (mem_cgroup_is_root(memcg))
->> >> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 break;
->> >
->> > I don't see why you add this check and the comment does not help.
->>
->> The root cgroup would have softlimit set to 0 ( in most of the cases
->> ), and not skipping root will make everyone reclaimable here.
->
-> Only if root_mem_cgroup->use_hierarchy is set. =A0At the same time, we
-> usually behave as if this was the case, in accounting and reclaim.
->
-> Right now we allow setting the soft limit in root_mem_cgroup but it
-> does not make any sense. =A0After your patch, even less so, because of
-> these shortcut checks that now actually change semantics. =A0Could we
-> make this more consistent to users and forbid setting as soft limit in
-> root_mem_cgroup? =A0Patch below.
->
-> The reason this behaves differently from hard limits is because the
-> soft limits now have double meaning; they are upper limit and minimum
-> guarantee at the same time. =A0The unchangeable defaults in the root
-> cgroup should be "no guarantee" and "unlimited soft limit" at the same
-> time, but that is obviously not possible if these are opposing range
-> ends of the same knob. =A0So we pick no guarantees, always up for
-> reclaim when looking top down but also behave as if the soft limit was
-> unlimited in the root cgroup when looking bottom up.
->
-> This is what the second check does. =A0But I think it needs a clearer
-> comment.
->
-> ---
-> From: Johannes Weiner <hannes@cmpxchg.org>
-> Subject: mm: memcg: forbid setting soft limit on root cgroup
->
-> Setting a soft limit in the root cgroup does not make sense, as soft
-> limits are enforced hierarchically and the root cgroup is the
-> hierarchical parent of every other cgroup. =A0It would not provide the
-> discrimination between groups that soft limits are usually used for.
->
-> With the current implementation of soft limits, it would only make
-> global reclaim more aggressive compared to target reclaim, but we
-> absolutely don't want anyone to rely on this behaviour.
->
-> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
-> ---
->
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index ac35bcc..21c45a0 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -3905,6 +3967,10 @@ static int mem_cgroup_write(struct cgroup *cont, s=
-truct cftype *cft,
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0ret =3D mem_cgroup_resize_=
-memsw_limit(memcg, val);
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0break;
-> =A0 =A0 =A0 =A0case RES_SOFT_LIMIT:
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (mem_cgroup_is_root(memcg)) { /* Can't s=
-et limit on root */
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 ret =3D -EINVAL;
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 break;
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 }
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0ret =3D res_counter_memparse_write_strateg=
-y(buffer, &val);
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0if (ret)
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0break;
+Thanks
 
-Thanks, the patch makes sense to me and I will include in the next post.
-
---Ying
+--
+Greg=
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
