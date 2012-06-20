@@ -1,109 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx118.postini.com [74.125.245.118])
-	by kanga.kvack.org (Postfix) with SMTP id C0B1D6B006C
-	for <linux-mm@kvack.org>; Wed, 20 Jun 2012 09:28:06 -0400 (EDT)
-Date: Wed, 20 Jun 2012 15:28:04 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH v4 06/25] memcg: Make it possible to use the stock for
- more than one page.
-Message-ID: <20120620132804.GF5541@tiehlicka.suse.cz>
-References: <1340015298-14133-1-git-send-email-glommer@parallels.com>
- <1340015298-14133-7-git-send-email-glommer@parallels.com>
+Received: from psmtp.com (na3sys010amx106.postini.com [74.125.245.106])
+	by kanga.kvack.org (Postfix) with SMTP id 6222D6B006C
+	for <linux-mm@kvack.org>; Wed, 20 Jun 2012 09:37:02 -0400 (EDT)
+Date: Wed, 20 Jun 2012 14:36:56 +0100
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [PATCH 08/17] net: Do not coalesce skbs belonging to PFMEMALLOC
+ sockets
+Message-ID: <20120620133656.GH4011@suse.de>
+References: <1340192652-31658-1-git-send-email-mgorman@suse.de>
+ <1340192652-31658-9-git-send-email-mgorman@suse.de>
+ <1340193892.4604.865.camel@edumazet-glaptop>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <1340015298-14133-7-git-send-email-glommer@parallels.com>
+In-Reply-To: <1340193892.4604.865.camel@edumazet-glaptop>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Glauber Costa <glommer@parallels.com>
-Cc: linux-mm@kvack.org, Pekka Enberg <penberg@kernel.org>, Cristoph Lameter <cl@linux.com>, David Rientjes <rientjes@google.com>, cgroups@vger.kernel.org, devel@openvz.org, kamezawa.hiroyu@jp.fujitsu.com, linux-kernel@vger.kernel.org, Frederic Weisbecker <fweisbec@gmail.com>, Suleiman Souhlal <suleiman@google.com>
+To: Eric Dumazet <eric.dumazet@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, Linux-Netdev <netdev@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, David Miller <davem@davemloft.net>, Neil Brown <neilb@suse.de>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Mike Christie <michaelc@cs.wisc.edu>, Eric B Munson <emunson@mgebm.net>, Sebastian Andrzej Siewior <sebastian@breakpoint.cc>
 
-On Mon 18-06-12 14:27:59, Glauber Costa wrote:
-> From: Suleiman Souhlal <ssouhlal@FreeBSD.org>
+On Wed, Jun 20, 2012 at 02:04:52PM +0200, Eric Dumazet wrote:
+> On Wed, 2012-06-20 at 12:44 +0100, Mel Gorman wrote:
+> > Commit [bad43ca8: net: introduce skb_try_coalesce()] introduced an
+> > optimisation to coalesce skbs to reduce memory usage and cache line
+> > misses. In the case where the socket is used for swapping this can result
+> > in a warning like the following.
+> > 
+> > [  110.476565] nbd0: page allocation failure: order:0, mode:0x20
+> > [  110.476568] Pid: 2714, comm: nbd0 Not tainted 3.5.0-rc2-swapnbd-v12r2-slab #3
+> > [  110.476569] Call Trace:
+> > [  110.476573]  [<ffffffff811042d3>] warn_alloc_failed+0xf3/0x160
+> > [  110.476578]  [<ffffffff81107c92>] __alloc_pages_nodemask+0x6e2/0x930
+> >
+> > <SNIP
+> >  
 > 
-> Signed-off-by: Suleiman Souhlal <suleiman@google.com>
-> Signed-off-by: Glauber Costa <glommer@parallels.com>
-> Acked-by: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-
-I am not sure the patch is good to merge on its own without the rest.
-One comment bellow.
-
-> ---
->  mm/memcontrol.c |   18 +++++++++---------
->  1 file changed, 9 insertions(+), 9 deletions(-)
 > 
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index ce15be4..00b9f1e 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -1998,19 +1998,19 @@ static DEFINE_PER_CPU(struct memcg_stock_pcp, memcg_stock);
->  static DEFINE_MUTEX(percpu_charge_mutex);
->  
->  /*
-> - * Try to consume stocked charge on this cpu. If success, one page is consumed
-> - * from local stock and true is returned. If the stock is 0 or charges from a
-> - * cgroup which is not current target, returns false. This stock will be
-> - * refilled.
-> + * Try to consume stocked charge on this cpu. If success, nr_pages pages are
-> + * consumed from local stock and true is returned. If the stock is 0 or
-> + * charges from a cgroup which is not current target, returns false.
-> + * This stock will be refilled.
->   */
-> -static bool consume_stock(struct mem_cgroup *memcg)
-> +static bool consume_stock(struct mem_cgroup *memcg, int nr_pages)
->  {
->  	struct memcg_stock_pcp *stock;
->  	bool ret = true;
-
-I guess you want:
-	if (nr_pages > CHARGE_BATCH)
-		return false;
-
-because you don't want to try to use stock for THP pages.
-
->  
->  	stock = &get_cpu_var(memcg_stock);
-> -	if (memcg == stock->cached && stock->nr_pages)
-> -		stock->nr_pages--;
-> +	if (memcg == stock->cached && stock->nr_pages >= nr_pages)
-> +		stock->nr_pages -= nr_pages;
->  	else /* need to call res_counter_charge */
->  		ret = false;
->  	put_cpu_var(memcg_stock);
-> @@ -2309,7 +2309,7 @@ again:
->  		VM_BUG_ON(css_is_removed(&memcg->css));
->  		if (mem_cgroup_is_root(memcg))
->  			goto done;
-> -		if (nr_pages == 1 && consume_stock(memcg))
-> +		if (consume_stock(memcg, nr_pages))
->  			goto done;
->  		css_get(&memcg->css);
->  	} else {
-> @@ -2334,7 +2334,7 @@ again:
->  			rcu_read_unlock();
->  			goto done;
->  		}
-> -		if (nr_pages == 1 && consume_stock(memcg)) {
-> +		if (consume_stock(memcg, nr_pages)) {
->  			/*
->  			 * It seems dagerous to access memcg without css_get().
->  			 * But considering how consume_stok works, it's not
-> -- 
-> 1.7.10.2
+> This makes absolutely no sense to me.
 > 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> This patch changes input path, while your stack trace is about output
+> path and a packet being fragmented.
+> 
+
+The intention was to avoid any coalescing in the input path due to avoid
+packets that "were held back due to TCP_CORK or attempt at coalescing
+tiny packet". I recognise that it is clumsy and will take the approach
+instead of having __tcp_push_pending_frames() use sk_gfp_atomic() in the
+output path.
+
+Thanks.
 
 -- 
-Michal Hocko
+Mel Gorman
 SUSE Labs
-SUSE LINUX s.r.o.
-Lihovarska 1060/12
-190 00 Praha 9    
-Czech Republic
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
