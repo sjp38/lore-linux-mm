@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx191.postini.com [74.125.245.191])
-	by kanga.kvack.org (Postfix) with SMTP id 481056B0072
-	for <linux-mm@kvack.org>; Wed, 20 Jun 2012 05:35:31 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx161.postini.com [74.125.245.161])
+	by kanga.kvack.org (Postfix) with SMTP id 48B796B0070
+	for <linux-mm@kvack.org>; Wed, 20 Jun 2012 05:35:32 -0400 (EDT)
 From: Mel Gorman <mgorman@suse.de>
-Subject: [PATCH 07/17] net: Introduce sk_gfp_atomic() to allow addition of GFP flags depending on the individual socket
-Date: Wed, 20 Jun 2012 10:35:10 +0100
-Message-Id: <1340184920-22288-8-git-send-email-mgorman@suse.de>
+Subject: [PATCH 08/17] netvm: Allow the use of __GFP_MEMALLOC by specific sockets
+Date: Wed, 20 Jun 2012 10:35:11 +0100
+Message-Id: <1340184920-22288-9-git-send-email-mgorman@suse.de>
 In-Reply-To: <1340184920-22288-1-git-send-email-mgorman@suse.de>
 References: <1340184920-22288-1-git-send-email-mgorman@suse.de>
 Sender: owner-linux-mm@kvack.org
@@ -13,110 +13,87 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Linux-MM <linux-mm@kvack.org>, Linux-Netdev <netdev@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, David Miller <davem@davemloft.net>, Neil Brown <neilb@suse.de>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Mike Christie <michaelc@cs.wisc.edu>, Eric B Munson <emunson@mgebm.net>, Mel Gorman <mgorman@suse.de>
 
-Introduce sk_gfp_atomic(), this function allows to inject sock specific
-flags to each sock related allocation. It is only used on allocation
-paths that may be required for writing pages back to network storage.
+Allow specific sockets to be tagged SOCK_MEMALLOC and use
+__GFP_MEMALLOC for their allocations. These sockets will be able to go
+below watermarks and allocate from the emergency reserve. Such sockets
+are to be used to service the VM (iow. to swap over). They must be
+handled kernel side, exposing such a socket to user-space is a bug.
 
-[davem@davemloft.net: Use sk_gfp_atomic only when necessary]
-Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
+There is a risk that the reserves be depleted so for now, the
+administrator is responsible for increasing min_free_kbytes as
+necessary to prevent deadlock for their workloads.
+
+[a.p.zijlstra@chello.nl: Original patches]
 Signed-off-by: Mel Gorman <mgorman@suse.de>
 Acked-by: David S. Miller <davem@davemloft.net>
 ---
- include/net/sock.h    |    5 +++++
- net/ipv4/tcp_output.c |    9 +++++----
- net/ipv6/tcp_ipv6.c   |    8 +++++---
- 3 files changed, 15 insertions(+), 7 deletions(-)
+ include/net/sock.h |    5 ++++-
+ net/core/sock.c    |   22 ++++++++++++++++++++++
+ 2 files changed, 26 insertions(+), 1 deletion(-)
 
 diff --git a/include/net/sock.h b/include/net/sock.h
-index 4a45216..5b47673 100644
+index 5b47673..9f38b7d 100644
 --- a/include/net/sock.h
 +++ b/include/net/sock.h
-@@ -656,6 +656,11 @@ static inline bool sock_flag(const struct sock *sk, enum sock_flags flag)
- 	return test_bit(flag, &sk->sk_flags);
- }
+@@ -619,6 +619,7 @@ enum sock_flags {
+ 	SOCK_RCVTSTAMPNS, /* %SO_TIMESTAMPNS setting */
+ 	SOCK_LOCALROUTE, /* route locally only, %SO_DONTROUTE setting */
+ 	SOCK_QUEUE_SHRUNK, /* write queue has been shrunk recently */
++	SOCK_MEMALLOC, /* VM depends on this socket for swapping */
+ 	SOCK_TIMESTAMPING_TX_HARDWARE,  /* %SOF_TIMESTAMPING_TX_HARDWARE */
+ 	SOCK_TIMESTAMPING_TX_SOFTWARE,  /* %SOF_TIMESTAMPING_TX_SOFTWARE */
+ 	SOCK_TIMESTAMPING_RX_HARDWARE,  /* %SOF_TIMESTAMPING_RX_HARDWARE */
+@@ -658,7 +659,7 @@ static inline bool sock_flag(const struct sock *sk, enum sock_flags flag)
  
-+static inline gfp_t sk_gfp_atomic(struct sock *sk, gfp_t gfp_mask)
-+{
-+	return GFP_ATOMIC;
-+}
-+
- static inline void sk_acceptq_removed(struct sock *sk)
+ static inline gfp_t sk_gfp_atomic(struct sock *sk, gfp_t gfp_mask)
  {
- 	sk->sk_ack_backlog--;
-diff --git a/net/ipv4/tcp_output.c b/net/ipv4/tcp_output.c
-index 803cbfe..440b47e 100644
---- a/net/ipv4/tcp_output.c
-+++ b/net/ipv4/tcp_output.c
-@@ -2461,7 +2461,8 @@ struct sk_buff *tcp_make_synack(struct sock *sk, struct dst_entry *dst,
- 
- 	if (cvp != NULL && cvp->s_data_constant && cvp->s_data_desired)
- 		s_data_desired = cvp->s_data_desired;
--	skb = sock_wmalloc(sk, MAX_TCP_HEADER + 15 + s_data_desired, 1, GFP_ATOMIC);
-+	skb = sock_wmalloc(sk, MAX_TCP_HEADER + 15 + s_data_desired, 1,
-+			   sk_gfp_atomic(sk, GFP_ATOMIC));
- 	if (skb == NULL)
- 		return NULL;
- 
-@@ -2759,7 +2760,7 @@ void tcp_send_ack(struct sock *sk)
- 	 * tcp_transmit_skb() will set the ownership to this
- 	 * sock.
- 	 */
--	buff = alloc_skb(MAX_TCP_HEADER, GFP_ATOMIC);
-+	buff = alloc_skb(MAX_TCP_HEADER, sk_gfp_atomic(sk, GFP_ATOMIC));
- 	if (buff == NULL) {
- 		inet_csk_schedule_ack(sk);
- 		inet_csk(sk)->icsk_ack.ato = TCP_ATO_MIN;
-@@ -2774,7 +2775,7 @@ void tcp_send_ack(struct sock *sk)
- 
- 	/* Send it off, this clears delayed acks for us. */
- 	TCP_SKB_CB(buff)->when = tcp_time_stamp;
--	tcp_transmit_skb(sk, buff, 0, GFP_ATOMIC);
-+	tcp_transmit_skb(sk, buff, 0, sk_gfp_atomic(sk, GFP_ATOMIC));
+-	return GFP_ATOMIC;
++	return GFP_ATOMIC | (sk->sk_allocation & __GFP_MEMALLOC);
  }
  
- /* This routine sends a packet with an out of date sequence
-@@ -2794,7 +2795,7 @@ static int tcp_xmit_probe_skb(struct sock *sk, int urgent)
- 	struct sk_buff *skb;
+ static inline void sk_acceptq_removed(struct sock *sk)
+@@ -801,6 +802,8 @@ extern int sk_stream_wait_memory(struct sock *sk, long *timeo_p);
+ extern void sk_stream_wait_close(struct sock *sk, long timeo_p);
+ extern int sk_stream_error(struct sock *sk, int flags, int err);
+ extern void sk_stream_kill_queues(struct sock *sk);
++extern void sk_set_memalloc(struct sock *sk);
++extern void sk_clear_memalloc(struct sock *sk);
  
- 	/* We don't queue it, tcp_transmit_skb() sets ownership. */
--	skb = alloc_skb(MAX_TCP_HEADER, GFP_ATOMIC);
-+	skb = alloc_skb(MAX_TCP_HEADER, sk_gfp_atomic(sk, GFP_ATOMIC));
- 	if (skb == NULL)
- 		return -1;
+ extern int sk_wait_data(struct sock *sk, long *timeo);
  
-diff --git a/net/ipv6/tcp_ipv6.c b/net/ipv6/tcp_ipv6.c
-index 3a9aec2..7d7b5e1 100644
---- a/net/ipv6/tcp_ipv6.c
-+++ b/net/ipv6/tcp_ipv6.c
-@@ -1353,7 +1353,8 @@ static struct sock * tcp_v6_syn_recv_sock(struct sock *sk, struct sk_buff *skb,
- 	/* Clone pktoptions received with SYN */
- 	newnp->pktoptions = NULL;
- 	if (treq->pktopts != NULL) {
--		newnp->pktoptions = skb_clone(treq->pktopts, GFP_ATOMIC);
-+		newnp->pktoptions = skb_clone(treq->pktopts,
-+					      sk_gfp_atomic(sk, GFP_ATOMIC));
- 		consume_skb(treq->pktopts);
- 		treq->pktopts = NULL;
- 		if (newnp->pktoptions)
-@@ -1406,7 +1407,8 @@ static struct sock * tcp_v6_syn_recv_sock(struct sock *sk, struct sk_buff *skb,
- 		 * across. Shucks.
- 		 */
- 		tcp_md5_do_add(newsk, (union tcp_md5_addr *)&newnp->daddr,
--			       AF_INET6, key->key, key->keylen, GFP_ATOMIC);
-+			       AF_INET6, key->key, key->keylen,
-+			       sk_gfp_atomic(sk, GFP_ATOMIC));
- 	}
- #endif
+diff --git a/net/core/sock.c b/net/core/sock.c
+index 9e5b71f..d45d6fd 100644
+--- a/net/core/sock.c
++++ b/net/core/sock.c
+@@ -271,6 +271,28 @@ __u32 sysctl_rmem_default __read_mostly = SK_RMEM_MAX;
+ int sysctl_optmem_max __read_mostly = sizeof(unsigned long)*(2*UIO_MAXIOV+512);
+ EXPORT_SYMBOL(sysctl_optmem_max);
  
-@@ -1501,7 +1503,7 @@ static int tcp_v6_do_rcv(struct sock *sk, struct sk_buff *skb)
- 					       --ANK (980728)
- 	 */
- 	if (np->rxopt.all)
--		opt_skb = skb_clone(skb, GFP_ATOMIC);
-+		opt_skb = skb_clone(skb, sk_gfp_atomic(sk, GFP_ATOMIC));
- 
- 	if (sk->sk_state == TCP_ESTABLISHED) { /* Fast path */
- 		sock_rps_save_rxhash(sk, skb);
++/**
++ * sk_set_memalloc - sets %SOCK_MEMALLOC
++ * @sk: socket to set it on
++ *
++ * Set %SOCK_MEMALLOC on a socket for access to emergency reserves.
++ * It's the responsibility of the admin to adjust min_free_kbytes
++ * to meet the requirements
++ */
++void sk_set_memalloc(struct sock *sk)
++{
++	sock_set_flag(sk, SOCK_MEMALLOC);
++	sk->sk_allocation |= __GFP_MEMALLOC;
++}
++EXPORT_SYMBOL_GPL(sk_set_memalloc);
++
++void sk_clear_memalloc(struct sock *sk)
++{
++	sock_reset_flag(sk, SOCK_MEMALLOC);
++	sk->sk_allocation &= ~__GFP_MEMALLOC;
++}
++EXPORT_SYMBOL_GPL(sk_clear_memalloc);
++
+ #if defined(CONFIG_CGROUPS)
+ #if !defined(CONFIG_NET_CLS_CGROUP)
+ int net_cls_subsys_id = -1;
 -- 
 1.7.9.2
 
