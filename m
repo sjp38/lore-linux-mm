@@ -1,52 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx153.postini.com [74.125.245.153])
-	by kanga.kvack.org (Postfix) with SMTP id BDB546B0087
-	for <linux-mm@kvack.org>; Thu, 21 Jun 2012 04:01:23 -0400 (EDT)
-Received: by pbbrp2 with SMTP id rp2so2259707pbb.14
-        for <linux-mm@kvack.org>; Thu, 21 Jun 2012 01:01:22 -0700 (PDT)
-Date: Thu, 21 Jun 2012 01:01:20 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx134.postini.com [74.125.245.134])
+	by kanga.kvack.org (Postfix) with SMTP id 0D2896B0089
+	for <linux-mm@kvack.org>; Thu, 21 Jun 2012 04:04:58 -0400 (EDT)
+Received: by dakp5 with SMTP id p5so654307dak.14
+        for <linux-mm@kvack.org>; Thu, 21 Jun 2012 01:04:58 -0700 (PDT)
+Date: Thu, 21 Jun 2012 01:04:55 -0700 (PDT)
 From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH 3/4] slab: move FULL state transition to an initcall
-In-Reply-To: <1340225959-1966-4-git-send-email-glommer@parallels.com>
-Message-ID: <alpine.DEB.2.00.1206210100260.31077@chino.kir.corp.google.com>
-References: <1340225959-1966-1-git-send-email-glommer@parallels.com> <1340225959-1966-4-git-send-email-glommer@parallels.com>
+Subject: Re: [PATCH 4/4] don't do __ClearPageSlab before freeing slab page.
+In-Reply-To: <1340225959-1966-5-git-send-email-glommer@parallels.com>
+Message-ID: <alpine.DEB.2.00.1206210103350.31077@chino.kir.corp.google.com>
+References: <1340225959-1966-1-git-send-email-glommer@parallels.com> <1340225959-1966-5-git-send-email-glommer@parallels.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Glauber Costa <glommer@parallels.com>
-Cc: Pekka Enberg <penberg@kernel.org>, linux-mm@kvack.org, Cristoph Lameter <cl@linux.com>, Pekka Enberg <penberg@cs.helsinki.fi>
+Cc: Pekka Enberg <penberg@kernel.org>, linux-mm@kvack.org, Cristoph Lameter <cl@linux.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Michal Hocko <mhocko@suse.cz>, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, Suleiman Souhlal <suleiman@google.com>
 
 On Thu, 21 Jun 2012, Glauber Costa wrote:
 
-> During kmem_cache_init_late(), we transition to the LATE state,
-> and after some more work, to the FULL state, its last state
-> 
-> This is quite different from slub, that will only transition to
-> its last state (previously SYSFS), in a (late)initcall, after a lot
-> more of the kernel is ready.
-> 
-> This means that in slab, we have no way to taking actions dependent
-> on the initialization of other pieces of the kernel that are supposed
-> to start way after kmem_init_late(), such as cgroups initialization.
-> 
-> To achieve more consistency in this behavior, that patch only
-> transitions to the UP state in kmem_init_late. In my analysis,
-> setup_cpu_cache() should be happy to test for >= UP, instead of
-> == FULL. It also has passed some tests I've made.
-> 
-> We then only mark FULL state after the reap timers are in place,
-> meaning that no further setup is expected.
-> 
-> Signed-off-by: Glauber Costa <glommer@parallels.com>
-> Acked-by: Christoph Lameter <cl@linux.com>
-> CC: Pekka Enberg <penberg@cs.helsinki.fi>
-> CC: David Rientjes <rientjes@google.com>
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index 6092f33..fdec73e 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -698,8 +698,10 @@ static bool free_pages_prepare(struct page *page, unsigned int order)
+>  
+>  	if (PageAnon(page))
+>  		page->mapping = NULL;
+> -	for (i = 0; i < (1 << order); i++)
+> +	for (i = 0; i < (1 << order); i++) {
+> +		__ClearPageSlab(page + i);
+>  		bad += free_pages_check(page + i);
+> +	}
+>  	if (bad)
+>  		return false;
+>  
+> @@ -2561,6 +2563,7 @@ EXPORT_SYMBOL(get_zeroed_page);
+>  void __free_pages(struct page *page, unsigned int order)
+>  {
+>  	if (put_page_testzero(page)) {
+> +		__ClearPageSlab(page);
+>  		if (order == 0)
+>  			free_hot_cold_page(page, 0);
+>  		else
 
-Acked-by: David Rientjes <rientjes@google.com>
+These are called from a number of different places that has nothing to do 
+with slab so it's certainly out of place here.  Is there really no 
+alternative way of doing this?
 
- [ Might want to fix your address book in your email client because 
-   Christoph's name is misspelled in the cc list. ]
+> diff --git a/mm/slab.c b/mm/slab.c
+> index cb6da05..3e578fc 100644
+> --- a/mm/slab.c
+> +++ b/mm/slab.c
+> @@ -1821,11 +1821,6 @@ static void kmem_freepages(struct kmem_cache *cachep, void *addr)
+>  	else
+>  		sub_zone_page_state(page_zone(page),
+>  				NR_SLAB_UNRECLAIMABLE, nr_freed);
+> -	while (i--) {
+> -		BUG_ON(!PageSlab(page));
+> -		__ClearPageSlab(page);
+> -		page++;
+> -	}
+>  	if (current->reclaim_state)
+>  		current->reclaim_state->reclaimed_slab += nr_freed;
+>  	free_pages((unsigned long)addr, cachep->gfporder);
+
+And we lose this validation in slab.
+
+I'm hoping there's an alternative.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
