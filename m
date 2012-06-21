@@ -1,24 +1,24 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx131.postini.com [74.125.245.131])
-	by kanga.kvack.org (Postfix) with SMTP id A4BA66B004D
-	for <linux-mm@kvack.org>; Wed, 20 Jun 2012 19:58:14 -0400 (EDT)
-Message-ID: <4FE26398.2020708@kernel.org>
-Date: Thu, 21 Jun 2012 08:58:16 +0900
+Received: from psmtp.com (na3sys010amx114.postini.com [74.125.245.114])
+	by kanga.kvack.org (Postfix) with SMTP id BBB796B004D
+	for <linux-mm@kvack.org>; Wed, 20 Jun 2012 20:01:44 -0400 (EDT)
+Message-ID: <4FE26470.90401@kernel.org>
+Date: Thu, 21 Jun 2012 09:01:52 +0900
 From: Minchan Kim <minchan@kernel.org>
 MIME-Version: 1.0
 Subject: Re: Accounting problem of MIGRATE_ISOLATED freed page
-References: <4FE169B1.7020600@kernel.org> <4FE16E80.9000306@gmail.com> <4FE18187.3050103@kernel.org> <CAJd=RBC2PdP0ggZ=RvXwXbToFmzRdpxYKWvkX_8qr7-Zw+DB1Q@mail.gmail.com>
-In-Reply-To: <CAJd=RBC2PdP0ggZ=RvXwXbToFmzRdpxYKWvkX_8qr7-Zw+DB1Q@mail.gmail.com>
-Content-Type: text/plain; charset=UTF-8
+References: <4FE169B1.7020600@kernel.org> <4FE16E80.9000306@gmail.com> <4FE18187.3050103@kernel.org> <4FE23069.5030702@gmail.com>
+In-Reply-To: <4FE23069.5030702@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hillf Danton <dhillf@gmail.com>
-Cc: KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Aaditya Kumar <aaditya.kumar.30@gmail.com>, Mel Gorman <mel@csn.ul.ie>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
+Cc: Aaditya Kumar <aaditya.kumar.30@gmail.com>, Mel Gorman <mel@csn.ul.ie>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On 06/20/2012 09:44 PM, Hillf Danton wrote:
+On 06/21/2012 05:19 AM, KOSAKI Motohiro wrote:
 
-> On Wed, Jun 20, 2012 at 3:53 PM, Minchan Kim <minchan@kernel.org> wrote:
+> (6/20/12 3:53 AM), Minchan Kim wrote:
 >> On 06/20/2012 03:32 PM, KOSAKI Motohiro wrote:
 >>
 >>> (6/20/12 2:12 AM), Minchan Kim wrote:
@@ -149,49 +149,13 @@ On 06/20/2012 09:44 PM, Hillf Danton wrote:
 >>> Can't we change zone_water_mark_ok_safe() instead of page allocator? memory hotplug is really rare event.
 >>
 >>
->> +1
+>> +1 
 >>
 >> Firstly, I want to make zone_page_state(z, NR_FREE_PAGES) itself more accurately because it is used by
 >> several places. As I looked over places, I can't find critical places except kswapd forever sleep case.
->> So it's a nice idea!
+>> So it's a nice idea! 
 >>
 >> In that case, we need zone->lock whenever zone_watermark_ok_safe is called.
->>
-> Ifdefinery could be utilized for builds with CMA disabled, first.
-
-
-Yeb.
-if system doesn't use CMA and MEMORY_HOTPLUG, we can avoid it.
-I can do it in formal patch later.
-
-#if defined CONFIG_CMA || CONFIG_MEMORY_HOTPLUG
-
-Still, my concern is that I'm not sure this approach is good or not.
-As I mentioned, MIGRATE_ISOLATE is very irony type because it's a type which represent NOT allocatable
-but they are in _free_ list, even they increase NR_FREE_PAGES and nr_free of free_area.
-So, if someone in future uses it, we have to add new CONFIG like this.
-
-#if defined CONFIG_CMA || CONFIG_MEMORY_HOTPLUG || CONFIG_XXX
-
-If another someone try it, 
-
-#if defined CONFIG_CMA || CONFIG_MEMORY_HOTPLUG || CONFIG_XXX || CONFIG_YYY
-
-I know we can guess that user of MIGRATE_ISOLATE will be small. But who can make sure it?
-Important thing is we provide such interface and any user who want it can use it anytime.
-
-If users of NR_FREE_PAGES and nr_free are increased, they will get confused more than now. Sigh.
-IMHO, right approach is that we shouldn't account it at free page at the beginning
-although it adds a new condition check in higher order free page path.
-Look at my attached patch in previous mail.
-
-Of course, we can redesign isolated page machinery of hotplug but I have no idea.
-Because we can isolate pages which are already in freelist to another list instead of free_area.
-But the problem is we can't isolate pages which are going to free later, ie returned to buddy allocator
-after we mark pageblock to MIGRATE_ISOLATE. For it, we should touch page free patch which is hot path, too.
-
-
-> 
 >> Most of cases, it's unnecessary and it might hurt alloc/free performance when memory pressure is high.
 >> But if memory pressure is high, it may be already meaningless alloc/free performance.
 >> So it does make sense, IMHO.
@@ -204,22 +168,22 @@ after we mark pageblock to MIGRATE_ISOLATE. For it, we should touch page free pa
 >> --- a/mm/page_alloc.c
 >> +++ b/mm/page_alloc.c
 >> @@ -1748,16 +1748,38 @@ bool zone_watermark_ok(struct zone *z, int order, unsigned long mark,
->>                                        zone_page_state(z, NR_FREE_PAGES));
+>>                                         zone_page_state(z, NR_FREE_PAGES));
 >>  }
->>
+>>  
 >> -bool zone_watermark_ok_safe(struct zone *z, int order, unsigned long mark,
 >> +bool zone_watermark_ok_safe(struct zone *z, int alloc_order, unsigned long mark,
->>                      int classzone_idx, int alloc_flags)
+>>                       int classzone_idx, int alloc_flags)
 >>  {
 >> +       struct free_area *area;
 >> +       struct list_head *curr;
 >> +       int order;
 >> +       unsigned long flags;
->>        long free_pages = zone_page_state(z, NR_FREE_PAGES);
->>
->>        if (z->percpu_drift_mark && free_pages < z->percpu_drift_mark)
->>                free_pages = zone_page_state_snapshot(z, NR_FREE_PAGES);
->>
+>>         long free_pages = zone_page_state(z, NR_FREE_PAGES);
+>>  
+>>         if (z->percpu_drift_mark && free_pages < z->percpu_drift_mark)
+>>                 free_pages = zone_page_state_snapshot(z, NR_FREE_PAGES);
+>>  
 >> -       return __zone_watermark_ok(z, order, mark, classzone_idx, alloc_flags,
 >> -                                                               free_pages);
 >> +       /*
@@ -243,30 +207,15 @@ after we mark pageblock to MIGRATE_ISOLATE. For it, we should touch page free pa
 >> +       return __zone_watermark_ok(z, alloc_order, mark,
 >> +                               classzone_idx, alloc_flags, free_pages);
 >>  }
->>
-> Then isolated pages could be scanned in another direction?
 > 
-> 	spin_lock_irqsave(&z->lock, flags);
-> 	for (order = MAX_ORDER - 1; order >= 0; order--) {
-> 		struct free_area *area = &z->free_area[order];
-> 		long count = 0;
-> 		struct list_head *curr;
-> 
-> 		list_for_each(curr, &area->free_list[MIGRATE_ISOLATE])
-> 			count++;
-> 
-> 		free_pages -= (count << order);
-> 		if (free_pages < 0) {
-> 			free_pages = 0;
-> 			break;
-> 		}
-> 	}
-> 	spin_unlock_irqrestore(&z->lock, flags);
+> number of isolate page block is almost always 0. then if we have such counter,
+> we almost always can avoid zone->lock. Just idea.
 
-I'm not sure how it helps reducing loop enumeration but it's no problem.
-Anyway, before sending formal patch, I want to discuss above my concern.
 
-Thanks, Hillf.
+Yeb. I thought about it but unfortunately we can't have a counter for MIGRATE_ISOLATE.
+Because we have to tweak in page free path for pages which are going to free later after we
+mark pageblock type to MIGRATE_ISOLATE.
+
 
 -- 
 Kind regards,
