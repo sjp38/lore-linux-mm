@@ -1,530 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx202.postini.com [74.125.245.202])
-	by kanga.kvack.org (Postfix) with SMTP id EA2396B00DB
-	for <linux-mm@kvack.org>; Thu, 21 Jun 2012 12:16:55 -0400 (EDT)
-Date: Thu, 21 Jun 2012 17:16:51 +0100
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH -mm 2/7] mm: get unmapped area from VMA tree
-Message-ID: <20120621161651.GD3953@csn.ul.ie>
-References: <1340057126-31143-1-git-send-email-riel@redhat.com>
- <1340057126-31143-3-git-send-email-riel@redhat.com>
+Received: from psmtp.com (na3sys010amx176.postini.com [74.125.245.176])
+	by kanga.kvack.org (Postfix) with SMTP id 76A3B6B00DD
+	for <linux-mm@kvack.org>; Thu, 21 Jun 2012 12:30:49 -0400 (EDT)
+Date: Thu, 21 Jun 2012 18:30:29 +0200
+From: Sebastian Andrzej Siewior <sebastian@breakpoint.cc>
+Subject: Re: [PATCH 10/17] netvm: Allow skb allocation to use PFMEMALLOC
+ reserves
+Message-ID: <20120621163029.GB6045@breakpoint.cc>
+References: <1340192652-31658-1-git-send-email-mgorman@suse.de>
+ <1340192652-31658-11-git-send-email-mgorman@suse.de>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1340057126-31143-3-git-send-email-riel@redhat.com>
+In-Reply-To: <1340192652-31658-11-git-send-email-mgorman@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rik van Riel <riel@redhat.com>
-Cc: linux-mm@kvack.org, akpm@linux-foundation.org, aarcange@redhat.com, peterz@infradead.org, minchan@gmail.com, kosaki.motohiro@gmail.com, andi@firstfloor.org, hannes@cmpxchg.org, linux-kernel@vger.kernel.org, Rik van Riel <riel@surriel.com>
+To: Mel Gorman <mgorman@suse.de>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, Linux-Netdev <netdev@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, David Miller <davem@davemloft.net>, Neil Brown <neilb@suse.de>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Mike Christie <michaelc@cs.wisc.edu>, Eric B Munson <emunson@mgebm.net>
 
-On Mon, Jun 18, 2012 at 06:05:21PM -0400, Rik van Riel wrote:
-> From: Rik van Riel <riel@surriel.com>
-> 
-> Change the generic implementations of arch_get_unmapped_area(_topdown)
-> to use the free space info in the VMA rbtree. This makes it possible
-> to find free address space in O(log(N)) complexity.
-> 
-> For bottom-up allocations, we pick the lowest hole that is large
-> enough for our allocation. For topdown allocations, we pick the
-> highest hole of sufficient size.
-> 
-> For topdown allocations, we need to keep track of the highest
-> mapped VMA address, because it might be below mm->mmap_base,
-> and we only keep track of free space to the left of each VMA
-> in the VMA tree.  It is tempting to try and keep track of
-> the free space to the right of each VMA when running in
-> topdown mode, but that gets us into trouble when running on
-> x86, where a process can switch direction in the middle of
-> execve.
-> 
-> We have to leave the mm->free_area_cache and mm->largest_hole_size
-> in place for now, because the architecture specific versions still
-> use those.
-> 
-
-Stick them under a config ARCH_USES_GENERIC_GET_UNMAPPED?
-
-Worth mentioning in the changelog that the reduced search time means that
-we no longer need free_area_cache and instead do a search from the root
-RB node every time.
-
-> Signed-off-by: Rik van Riel <riel@redhat.com>
-> ---
->  include/linux/mm_types.h |    1 +
->  mm/mmap.c                |  270 +++++++++++++++++++++++++++++++---------------
->  2 files changed, 184 insertions(+), 87 deletions(-)
-> 
-> diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
-> index bf56d66..8ccb4e1 100644
-> --- a/include/linux/mm_types.h
-> +++ b/include/linux/mm_types.h
-> @@ -307,6 +307,7 @@ struct mm_struct {
->  	unsigned long task_size;		/* size of task vm space */
->  	unsigned long cached_hole_size; 	/* if non-zero, the largest hole below free_area_cache */
->  	unsigned long free_area_cache;		/* first hole of size cached_hole_size or larger */
-> +	unsigned long highest_vma;		/* highest vma end address */
-
-With a name like highest_vma I would expect it to be a struct
-vm_area_struct. Name it highest_mapped_addr or something.
-
->  	pgd_t * pgd;
->  	atomic_t mm_users;			/* How many users with user space? */
->  	atomic_t mm_count;			/* How many references to "struct mm_struct" (users count as 1) */
-> diff --git a/mm/mmap.c b/mm/mmap.c
-> index 1963ef9..40c848e 100644
-> --- a/mm/mmap.c
-> +++ b/mm/mmap.c
-> @@ -4,6 +4,7 @@
->   * Written by obz.
->   *
->   * Address space accounting code	<alan@lxorguk.ukuu.org.uk>
-> + * Rbtree get_unmapped_area Copyright (C) 2012  Rik van Riel
+> diff --git a/net/core/skbuff.c b/net/core/skbuff.c
+> index 1d6ecc8..9a58dcc 100644
+> --- a/net/core/skbuff.c
+> +++ b/net/core/skbuff.c
+> @@ -167,14 +206,19 @@ static void skb_under_panic(struct sk_buff *skb, int sz, void *here)
+>   *	%GFP_ATOMIC.
 >   */
->  
->  #include <linux/slab.h>
-> @@ -250,6 +251,17 @@ static void adjust_free_gap(struct vm_area_struct *vma)
->  	rb_augment_erase_end(&vma->vm_rb, vma_rb_augment_cb, NULL);
->  }
->  
-> +static unsigned long node_free_hole(struct rb_node *node)
-> +{
-> +	struct vm_area_struct *vma;
-> +
-> +	if (!node)
-> +		return 0;
-> +
-> +	vma = container_of(node, struct vm_area_struct, vm_rb);
-
-What's wrong with using rb_to_vma?
-
-return node ? rb_to_vma(node)->free_gap : 0;
-
-> +	return vma->free_gap;
-> +}
-
-function calls it free_hole but vma calls it free_gap. Pick one or
-replace the function with an inlined one-liner.
-
-> +
->  /*
->   * Unlink a file-based vm structure from its prio_tree, to hide
->   * vma from rmap and vmtruncate before freeing its page tables.
-> @@ -386,12 +398,16 @@ void validate_mm(struct mm_struct *mm)
->  	int bug = 0;
->  	int i = 0;
->  	struct vm_area_struct *tmp = mm->mmap;
-> +	unsigned long highest_address = 0;
->  	while (tmp) {
->  		if (tmp->free_gap != max_free_space(&tmp->vm_rb))
->  			printk("free space %lx, correct %lx\n", tmp->free_gap, max_free_space(&tmp->vm_rb)), bug = 1;
-> +		highest_address = tmp->vm_end;
->  		tmp = tmp->vm_next;
->  		i++;
->  	}
-> +	if (highest_address != mm->highest_vma)
-> +		printk("mm->highest_vma %lx, found %lx\n", mm->highest_vma, highest_address), bug = 1;
->  	if (i != mm->map_count)
->  		printk("map_count %d vm_next %d\n", mm->map_count, i), bug = 1;
->  	i = browse_rb(&mm->mm_rb);
-> @@ -449,6 +465,9 @@ void __vma_link_rb(struct mm_struct *mm, struct vm_area_struct *vma,
->  	/* Propagate the new free gap between next and us up the tree. */
->  	if (vma->vm_next)
->  		adjust_free_gap(vma->vm_next);
-> +	else
-> +		/* This is the VMA with the highest address. */
-> +		mm->highest_vma = vma->vm_end;
->  }
->  
->  static void __vma_link_file(struct vm_area_struct *vma)
-> @@ -648,6 +667,8 @@ again:			remove_next = 1 + (end > next->vm_end);
->  	vma->vm_start = start;
->  	vma->vm_end = end;
->  	vma->vm_pgoff = pgoff;
-> +	if (!next)
-> +		mm->highest_vma = end;
->  	if (adjust_next) {
->  		next->vm_start += adjust_next << PAGE_SHIFT;
->  		next->vm_pgoff += adjust_next;
-> @@ -1456,13 +1477,29 @@ unacct_error:
->   * This function "knows" that -ENOMEM has the bits set.
->   */
->  #ifndef HAVE_ARCH_UNMAPPED_AREA
-> +struct rb_node *continue_next_right(struct rb_node *node)
-> +{
-
-I get the very strong impression that you were translating a lot of notes
-and diagrams into code because you appear to be immune to commenting :)
-
-This is not returning the next right node because to me that means you
-are walking down the tree. Here you are walking "up" the tree finding a
-node to the right
-
-/*
- * find_next_right_uncle - Find the an "uncle" node to the "right"
- *
- * An "uncle" node is a sibling node of your parent and this function
- * returns an uncle to the right. Given the following basic tree, the
- * node U is an uncle of node C. P is C's parent and G is C's grandparent
- *
- * 
- *                G
- *               / \
- *              P   U
- *               \
- *                C
- * This is necessary when searching
- * for a larger gap in the address space.
- */
-
-MUWUHAhaha, watch as I destroy your attempts to reduce line count in
-your diffstat.
-
-> +	struct rb_node *prev;
-> +
-> +	while ((prev = node) && (node = rb_parent(node))) {
-> +		if (prev == node->rb_right)
-> +			continue;
-> +
-> +		if (node->rb_right)
-> +			return node->rb_right;
-> +	}
-> +
-> +	return NULL;
-> +}
-> +
->  unsigned long
->  arch_get_unmapped_area(struct file *filp, unsigned long addr,
->  		unsigned long len, unsigned long pgoff, unsigned long flags)
+>  struct sk_buff *__alloc_skb(unsigned int size, gfp_t gfp_mask,
+> -			    int fclone, int node)
+> +			    int flags, int node)
 >  {
->  	struct mm_struct *mm = current->mm;
-> -	struct vm_area_struct *vma;
-> -	unsigned long start_addr;
-> +	struct vm_area_struct *vma = NULL;
-> +	struct rb_node *rb_node;
-> +	unsigned long lower_limit = TASK_UNMAPPED_BASE;
+>  	struct kmem_cache *cache;
+>  	struct skb_shared_info *shinfo;
+>  	struct sk_buff *skb;
+>  	u8 *data;
+> +	bool pfmemalloc;
 >  
->  	if (len > TASK_SIZE)
->  		return -ENOMEM;
-> @@ -1477,40 +1514,76 @@ arch_get_unmapped_area(struct file *filp, unsigned long addr,
->  		    (!vma || addr + len <= vma->vm_start))
->  			return addr;
->  	}
-> -	if (len > mm->cached_hole_size) {
-> -	        start_addr = addr = mm->free_area_cache;
-> -	} else {
-> -	        start_addr = addr = TASK_UNMAPPED_BASE;
-> -	        mm->cached_hole_size = 0;
-> -	}
+> -	cache = fclone ? skbuff_fclone_cache : skbuff_head_cache;
+> +	cache = (flags & SKB_ALLOC_FCLONE)
+> +		? skbuff_fclone_cache : skbuff_head_cache;
+> +
+> +	if (sk_memalloc_socks() && (flags & SKB_ALLOC_RX))
+> +		gfp_mask |= __GFP_MEMALLOC;
 >  
-> -full_search:
-> -	for (vma = find_vma(mm, addr); ; vma = vma->vm_next) {
-> -		/* At this point:  (!vma || addr < vma->vm_end). */
-> -		if (TASK_SIZE - len < addr) {
-> -			/*
-> -			 * Start a new search - just in case we missed
-> -			 * some holes.
-> -			 */
-> -			if (start_addr != TASK_UNMAPPED_BASE) {
-> -				addr = TASK_UNMAPPED_BASE;
-> -			        start_addr = addr;
-> -				mm->cached_hole_size = 0;
-> -				goto full_search;
-> +	/* Find the left-most free area of sufficient size. */
-> +	for (addr = 0, rb_node = mm->mm_rb.rb_node; rb_node; ) {
+>  	/* Get the HEAD */
+>  	skb = kmem_cache_alloc_node(cache, gfp_mask & ~__GFP_DMA, node);
 
-This is where we always search from the root RB node. I tried to think
-of a good reason to keep the cached information and did not find a
-compelling one.
+This is mostly used by nic to refil their RX skb pool. You add the
+__GFP_MEMALLOC to the allocation to rise the change of a successfull refill
+for the swap case.
+A few drivers use build_skb() to create the skb. __netdev_alloc_skb()
+shouldn't be affected since the allocation happens with GFP_ATOMIC. Looking at
+TG3 it uses build_skb() and get_pages() / kmalloc(). Shouldn't this be some
+considered?
 
-> +		unsigned long vma_start;
-> +		int found_here = 0;
-> +
-
-bool.
-
-> +		vma = rb_to_vma(rb_node);
-> +
-> +		if (vma->vm_start > len) {
-> +			if (!vma->vm_prev) {
-> +				/* This is the left-most VMA. */
-> +				if (vma->vm_start - len >= lower_limit) {
-> +					addr = lower_limit;
-> +					goto found_addr;
-> +				}
-> +			} else {
-> +				/* Is this hole large enough? Remember it. */
-> +				vma_start = max(vma->vm_prev->vm_end, lower_limit);
-> +				if (vma->vm_start - len >= vma_start) {
-> +					addr = vma_start;
-> +					found_here = 1;
-> +				}
->  			}
-> -			return -ENOMEM;
->  		}
-> -		if (!vma || addr + len <= vma->vm_start) {
-> -			/*
-> -			 * Remember the place where we stopped the search:
-> -			 */
-> -			mm->free_area_cache = addr + len;
-> -			return addr;
-> +
-> +		/* Go left if it looks promising. */
-> +		if (node_free_hole(rb_node->rb_left) >= len &&
-> +					vma->vm_start - len >= lower_limit) {
-> +			rb_node = rb_node->rb_left;
-> +			continue;
->  		}
-> -		if (addr + mm->cached_hole_size < vma->vm_start)
-> -		        mm->cached_hole_size = vma->vm_start - addr;
-> -		addr = vma->vm_end;
-> +
-> +		if (!found_here && node_free_hole(rb_node->rb_right) >= len) {
-> +			/* Last known hole is to the right of this subtree. */
-> +			rb_node = rb_node->rb_right;
-> +			continue;
-> +		} else if (!addr) {
-> +			rb_node = continue_next_right(rb_node);
-> +			continue;
-> +		}
-> +
-> +		/* This is the left-most hole. */
-> +		goto found_addr;
->  	}
-> +
-> +	/*
-> +	 * There is not enough space to the left of any VMA.
-> +	 * Check the far right-hand side of the VMA tree.
-> +	 */
-> +	rb_node = mm->mm_rb.rb_node;
-> +	while (rb_node->rb_right)
-> +		rb_node = rb_node->rb_right;
-> +	vma = rb_to_vma(rb_node);
-> +	addr = vma->vm_end;
-> +
-> +	/*
-> +	 * The right-most VMA ends below the lower limit. Can only happen
-> +	 * if a binary personality loads the stack below the executable.
-> +	 */
-> +	if (addr < lower_limit)
-> +		addr = lower_limit;
-> +
-> + found_addr:
-> +	if (TASK_SIZE - len < addr)
-> +		return -ENOMEM;
-> +
-> +	/* This "free area" was not really free. Tree corrupted? */
-> +	VM_BUG_ON(find_vma_intersection(mm, addr, addr+len));
-> +
-> +	return addr;
-
-Ok, I didn't find any flaws and it should work. I don't think it is
-necessarily O(log(n)) complexity because we walk up the tree a bit but
-that is not worth sweating over. O(log(n))ish is good enough.
-
-In terms of packing I think you should be ok. You find a small gap that
-can be found relatively quickly that is one the left side of the address
-space. This is not necessarily the smallest possible gap nor the leftmost
-but as the tree rebalances I think it will work out. At least, I
-coudln't think of an adverse workload that would result in a badly
-externally framented address space on 32-bit.
-
->  }
->  #endif	
->  
-> @@ -1528,14 +1601,31 @@ void arch_unmap_area(struct mm_struct *mm, unsigned long addr)
->   * stack's low limit (the base):
->   */
->  #ifndef HAVE_ARCH_UNMAPPED_AREA_TOPDOWN
-> +struct rb_node *continue_next_left(struct rb_node *node)
-> +{
-
-find_next_left_uncle and point to the other comment.
-
-> +	struct rb_node *prev;
-> +
-> +	while ((prev = node) && (node = rb_parent(node))) {
-> +		if (prev == node->rb_left)
-> +			continue;
-> +
-> +		if (node->rb_left)
-> +			return node->rb_left;
-> +	}
-> +
-> +	return NULL;
-> +}
-> +
->  unsigned long
->  arch_get_unmapped_area_topdown(struct file *filp, const unsigned long addr0,
->  			  const unsigned long len, const unsigned long pgoff,
->  			  const unsigned long flags)
->  {
-> -	struct vm_area_struct *vma;
-> +	struct vm_area_struct *vma = NULL;
->  	struct mm_struct *mm = current->mm;
-> -	unsigned long addr = addr0, start_addr;
-> +	unsigned long addr = addr0;
-> +	struct rb_node *rb_node = NULL;
-> +	unsigned long upper_limit = mm->mmap_base;
->  
->  	/* requested length too big for entire address space */
->  	if (len > TASK_SIZE)
-> @@ -1553,68 +1643,65 @@ arch_get_unmapped_area_topdown(struct file *filp, const unsigned long addr0,
->  			return addr;
->  	}
->  
-> -	/* check if free_area_cache is useful for us */
-> -	if (len <= mm->cached_hole_size) {
-> - 	        mm->cached_hole_size = 0;
-> - 		mm->free_area_cache = mm->mmap_base;
-> - 	}
-> +	/* requested length too big; prevent integer underflow below */
-> +	if (len > upper_limit)
-> +		return -ENOMEM;
->  
-> -try_again:
-> -	/* either no address requested or can't fit in requested address hole */
-> -	start_addr = addr = mm->free_area_cache;
-> +	/*
-> +	 * Does the highest VMA end far enough below the upper limit
-> +	 * of our search space?
-> +	 */
-> +	if (upper_limit - len > mm->highest_vma) {
-> +		addr = upper_limit - len;
-> +		goto found_addr;
-> +	}
->  
-> -	if (addr < len)
-> -		goto fail;
-> +	/* Find the right-most free area of sufficient size. */
-> +	for (addr = 0, rb_node = mm->mm_rb.rb_node; rb_node; ) {
-> +		unsigned long vma_start;
-> +		int found_here = 0;
->  
-> -	addr -= len;
-> -	do {
-> -		/*
-> -		 * Lookup failure means no vma is above this address,
-> -		 * else if new region fits below vma->vm_start,
-> -		 * return with success:
-> -		 */
-> -		vma = find_vma(mm, addr);
-> -		if (!vma || addr+len <= vma->vm_start)
-> -			/* remember the address as a hint for next time */
-> -			return (mm->free_area_cache = addr);
-> +		vma = container_of(rb_node, struct vm_area_struct, vm_rb);
->  
-
-rb_to_vma
-
-> - 		/* remember the largest hole we saw so far */
-> - 		if (addr + mm->cached_hole_size < vma->vm_start)
-> - 		        mm->cached_hole_size = vma->vm_start - addr;
-> +		/* Is this hole large enough? Remember it. */
-> +		vma_start = min(vma->vm_start, upper_limit);
-> +		if (vma_start > len) {
-> +			if (!vma->vm_prev ||
-> +			    (vma_start - len >= vma->vm_prev->vm_end)) {
-> +				addr = vma_start - len;
-> +				found_here = 1;
-> +			}
-> +		}
->  
-> -		/* try just below the current vma->vm_start */
-> -		addr = vma->vm_start-len;
-> -	} while (len < vma->vm_start);
-> +		/* Go right if it looks promising. */
-> +		if (node_free_hole(rb_node->rb_right) >= len) {
-> +			if (upper_limit - len > vma->vm_end) {
-> +				rb_node = rb_node->rb_right;
-> +				continue;
-> +			}
-> +		}
->  
-> -fail:
-> -	/*
-> -	 * if hint left us with no space for the requested
-> -	 * mapping then try again:
-> -	 *
-> -	 * Note: this is different with the case of bottomup
-> -	 * which does the fully line-search, but we use find_vma
-> -	 * here that causes some holes skipped.
-> -	 */
-> -	if (start_addr != mm->mmap_base) {
-> -		mm->free_area_cache = mm->mmap_base;
-> -		mm->cached_hole_size = 0;
-> -		goto try_again;
-> +		if (!found_here && node_free_hole(rb_node->rb_left) >= len) {
-> +			/* Last known hole is to the right of this subtree. */
-> +			rb_node = rb_node->rb_left;
-> +			continue;
-> +		} else if (!addr) {
-> +			rb_node = continue_next_left(rb_node);
-> +			continue;
-> +		}
-> +
-> +		/* This is the right-most hole. */
-> +		goto found_addr;
->  	}
->  
-> -	/*
-> -	 * A failed mmap() very likely causes application failure,
-> -	 * so fall back to the bottom-up function here. This scenario
-> -	 * can happen with large stack limits and large mmap()
-> -	 * allocations.
-> -	 */
-> -	mm->cached_hole_size = ~0UL;
-> -  	mm->free_area_cache = TASK_UNMAPPED_BASE;
-> -	addr = arch_get_unmapped_area(filp, addr0, len, pgoff, flags);
-> -	/*
-> -	 * Restore the topdown base:
-> -	 */
-> -	mm->free_area_cache = mm->mmap_base;
-> -	mm->cached_hole_size = ~0UL;
-> +	return -ENOMEM;
-> +
-> + found_addr:
-> +	if (TASK_SIZE - len < addr)
-> +		return -ENOMEM;
-> +
-> +	/* This "free area" was not really free. Tree corrupted? */
-> +	VM_BUG_ON(find_vma_intersection(mm, addr, addr+len));
->  
-
-I didn't read this quite as carefully but could find nothing obviously
-wrong.
-
->  	return addr;
->  }
-> @@ -1828,6 +1915,8 @@ int expand_upwards(struct vm_area_struct *vma, unsigned long address)
->  				vma->vm_end = address;
->  				if (vma->vm_next)
->  					adjust_free_gap(vma->vm_next);
-> +				if (!vma->vm_next)
-> +					vma->vm_mm->highest_vma = vma->vm_end;
->  				perf_event_mmap(vma);
->  			}
->  		}
-> @@ -2013,6 +2102,13 @@ detach_vmas_to_be_unmapped(struct mm_struct *mm, struct vm_area_struct *vma,
->  	*insertion_point = vma;
->  	if (vma)
->  		vma->vm_prev = prev;
-> +	else {
-> +		/* We just unmapped the highest VMA. */
-> +		if (prev)
-> +			mm->highest_vma = prev->vm_end;
-> +		else
-> +			mm->highest_vma = 0;
-> +	}
->  	if (vma)
->  		rb_augment_erase_end(&vma->vm_rb, vma_rb_augment_cb, NULL);
->  	tail_vma->vm_next = NULL;
-> -- 
-> 1.7.7.6
-> 
-
--- 
-Mel Gorman
-SUSE Labs
+Sebastian
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
