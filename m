@@ -1,59 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx189.postini.com [74.125.245.189])
-	by kanga.kvack.org (Postfix) with SMTP id 9FB316B00F7
-	for <linux-mm@kvack.org>; Thu, 21 Jun 2012 16:19:40 -0400 (EDT)
-Received: by pbbrp2 with SMTP id rp2so3306446pbb.14
-        for <linux-mm@kvack.org>; Thu, 21 Jun 2012 13:19:40 -0700 (PDT)
-Date: Thu, 21 Jun 2012 13:19:35 -0700
+Received: from psmtp.com (na3sys010amx123.postini.com [74.125.245.123])
+	by kanga.kvack.org (Postfix) with SMTP id 553036B00FA
+	for <linux-mm@kvack.org>; Thu, 21 Jun 2012 16:20:48 -0400 (EDT)
+Received: by dakp5 with SMTP id p5so1703034dak.14
+        for <linux-mm@kvack.org>; Thu, 21 Jun 2012 13:20:47 -0700 (PDT)
+Date: Thu, 21 Jun 2012 13:20:43 -0700
 From: Tejun Heo <tj@kernel.org>
-Subject: Re: Early boot panic on machine with lots of memory
-Message-ID: <20120621201935.GC4642@google.com>
-References: <1339623535.3321.4.camel@lappy>
- <20120614032005.GC3766@dhcp-172-17-108-109.mtv.corp.google.com>
- <1339667440.3321.7.camel@lappy>
- <20120618223203.GE32733@google.com>
- <1340059850.3416.3.camel@lappy>
- <20120619041154.GA28651@shangw>
- <20120619212059.GJ32733@google.com>
+Subject: Re: [PATCH v3][0/6] memcg: prevent -ENOMEM in pre_destroy()
+Message-ID: <20120621202043.GD4642@google.com>
+References: <4FACDED0.3020400@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20120619212059.GJ32733@google.com>
+In-Reply-To: <4FACDED0.3020400@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Gavin Shan <shangw@linux.vnet.ibm.com>
-Cc: Sasha Levin <levinsasha928@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, David Miller <davem@davemloft.net>, hpa@linux.intel.com, linux-mm <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "cgroups@vger.kernel.org" <cgroups@vger.kernel.org>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Frederic Weisbecker <fweisbec@gmail.com>, Han Ying <yinghan@google.com>, Glauber Costa <glommer@parallels.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, Hiroyuki Kamezawa <kamezawa.hiroyuki@gmail.com>, Linux Kernel <linux-kernel@vger.kernel.org>
 
-Hello,
+On Fri, May 11, 2012 at 06:41:36PM +0900, KAMEZAWA Hiroyuki wrote:
+> Hi, here is v3 based on memcg-devel tree.
+> git://github.com/mstsxfx/memcg-devel.git
+> 
+> This patch series is for avoiding -ENOMEM at calling pre_destroy() 
+> which is called at rmdir(). After this patch, charges will be moved
+> to root (if use_hierarchy==0) or parent (if use_hierarchy==1), and
+> we'll not see -ENOMEM in rmdir() of cgroup.
+> 
+> v2 included some other patches than ones for handling -ENOMEM problem,
+> but I divided it. I'd like to post others in different series, later.
+> No logical changes in general, maybe v3 is cleaner than v2.
+> 
+> 0001 ....fix error code in memcg-hugetlb
+> 0002 ....add res_counter_uncharge_until
+> 0003 ....use res_counter_uncharge_until in memcg
+> 0004 ....move charges to root is use_hierarchy==0
+> 0005 ....cleanup for mem_cgroup_move_account()
+> 0006 ....remove warning of res_counter_uncharge_nofail (from Costa's slub accounting series).
 
-Sasha, can you please apply the following patch and verify that the
-issue is gone?
+KAME, how is this progressing?  Is it stuck on anything?
 
-Thanks.
+Thank you very much.
 
-diff --git a/mm/nobootmem.c b/mm/nobootmem.c
-index d23415c..4aa5e5d 100644
---- a/mm/nobootmem.c
-+++ b/mm/nobootmem.c
-@@ -111,9 +111,6 @@ unsigned long __init free_low_memory_core_early(int nodeid)
- 	phys_addr_t start, end;
- 	u64 i;
- 
--	/* free reserved array temporarily so that it's treated as free area */
--	memblock_free_reserved_regions();
--
- 	for_each_free_mem_range(i, MAX_NUMNODES, &start, &end, NULL) {
- 		unsigned long start_pfn = PFN_UP(start);
- 		unsigned long end_pfn = min_t(unsigned long,
-@@ -124,8 +121,6 @@ unsigned long __init free_low_memory_core_early(int nodeid)
- 		}
- 	}
- 
--	/* put region array back? */
--	memblock_reserve_reserved_regions();
- 	return count;
- }
- 
+-- 
+tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
