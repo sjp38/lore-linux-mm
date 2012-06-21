@@ -1,89 +1,134 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx162.postini.com [74.125.245.162])
-	by kanga.kvack.org (Postfix) with SMTP id 222BA6B00FD
-	for <linux-mm@kvack.org>; Thu, 21 Jun 2012 16:27:35 -0400 (EDT)
-Message-ID: <4FE3830E.7050402@parallels.com>
-Date: Fri, 22 Jun 2012 00:24:46 +0400
-From: Glauber Costa <glommer@parallels.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH 4/4] don't do __ClearPageSlab before freeing slab page.
-References: <1340225959-1966-1-git-send-email-glommer@parallels.com> <1340225959-1966-5-git-send-email-glommer@parallels.com> <alpine.DEB.2.00.1206210103350.31077@chino.kir.corp.google.com> <4FE2D7B2.8060204@parallels.com> <4FE2FFDA.6000009@jp.fujitsu.com>
-In-Reply-To: <4FE2FFDA.6000009@jp.fujitsu.com>
-Content-Type: text/plain; charset="ISO-8859-1"; format=flowed
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx156.postini.com [74.125.245.156])
+	by kanga.kvack.org (Postfix) with SMTP id A47476B00FF
+	for <linux-mm@kvack.org>; Thu, 21 Jun 2012 17:06:31 -0400 (EDT)
+Message-ID: <1340312765.18025.40.camel@twins>
+Subject: Re: [PATCH -mm 2/7] mm: get unmapped area from VMA tree
+From: Peter Zijlstra <peterz@infradead.org>
+Date: Thu, 21 Jun 2012 23:06:05 +0200
+In-Reply-To: <1340057126-31143-3-git-send-email-riel@redhat.com>
+References: <1340057126-31143-1-git-send-email-riel@redhat.com>
+	 <1340057126-31143-3-git-send-email-riel@redhat.com>
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: quoted-printable
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: David Rientjes <rientjes@google.com>, Pekka Enberg <penberg@kernel.org>, linux-mm@kvack.org, Cristoph Lameter <cl@linux.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Suleiman Souhlal <suleiman@google.com>
+To: Rik van Riel <riel@redhat.com>
+Cc: linux-mm@kvack.org, akpm@linux-foundation.org, aarcange@redhat.com, minchan@gmail.com, kosaki.motohiro@gmail.com, andi@firstfloor.org, hannes@cmpxchg.org, mel@csn.ul.ie, linux-kernel@vger.kernel.org, Rik van Riel <riel@surriel.com>
 
-On 06/21/2012 03:04 PM, Kamezawa Hiroyuki wrote:
-> (2012/06/21 17:13), Glauber Costa wrote:
->> On 06/21/2012 12:04 PM, David Rientjes wrote:
->>> On Thu, 21 Jun 2012, Glauber Costa wrote:
->>>
->>>> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
->>>> index 6092f33..fdec73e 100644
->>>> --- a/mm/page_alloc.c
->>>> +++ b/mm/page_alloc.c
->>>> @@ -698,8 +698,10 @@ static bool free_pages_prepare(struct page
->>>> *page, unsigned int order)
->>>>
->>>> if (PageAnon(page))
->>>> page->mapping = NULL;
->>>> - for (i = 0; i < (1 << order); i++)
->>>> + for (i = 0; i < (1 << order); i++) {
->>>> + __ClearPageSlab(page + i);
->>>> bad += free_pages_check(page + i);
->>>> + }
->>>> if (bad)
->>>> return false;
->>>>
->>>> @@ -2561,6 +2563,7 @@ EXPORT_SYMBOL(get_zeroed_page);
->>>> void __free_pages(struct page *page, unsigned int order)
->>>> {
->>>> if (put_page_testzero(page)) {
->>>> + __ClearPageSlab(page);
->>>> if (order == 0)
->>>> free_hot_cold_page(page, 0);
->>>> else
->>>
->>> These are called from a number of different places that has nothing
->>> to do
->>> with slab so it's certainly out of place here. Is there really no
->>> alternative way of doing this?
->>
->> Well, if the requirement is that we must handle this from the page
->> allocator, how else should I know if I must call the corresponding
->> free functions ?
->>
->> Also note that other bits are tested inside the page allocator as
->> well, such as MLock.
->>
->> I saw no other way, but if you have suggestions, I'd be open to try
->> them, of course.
->>
->
-> I'm sorry I don't understand the logic enough well.
->
-> Why check in __free_pages() is better than check in callers of
-> slab.c/slub.c ?
->
-> Thanks,
-> -Kame
->
+On Mon, 2012-06-18 at 18:05 -0400, Rik van Riel wrote:
+> +       /* Find the left-most free area of sufficient size. */
 
-How would the slab people feel, specially Christoph, about a simple 
-change in the caches, replacing free_pages and alloc_pages by common 
-functions that calls the memcg correspondents when needed ?
 
-It could even be done in a header file, and the change in the slab goes 
-only as far as changing names in the call sites. (And maybe 
-standardizing, because we have a mixture of free_pages and __free_pages 
-around)
+Just because there's nothing better than writing it yourself.. I tried
+writing something that does the above. The below is the result, it
+doesn't use your uncle functions and is clearly limited to two
+traversals and thus trivially still O(log n). [ although I think with a
+bit of effort you can prove the same for your version ].
 
-This would possibly render the __GFP_SLABMEMC not needed, since we'd 
-have stable call sites for memcg to derive its context from.
+---
 
+static inline struct vm_area_struct *vma_of(struct rb_node *node)
+{
+        return container_of(node, struct vm_area_struct, vm_rb);
+}
+
+static inline unsigned long max_gap_of(struct rb_node *node)
+{
+        return vma_of(node)->free_gap;
+}
+
+static unsigned long gap_of(struct rb_node *node)
+{
+        struct vm_area_struct *vma =3D vma_of(node);
+
+        if (!vma->vm_prev)
+                return vma->vm_start;
+
+        return vma->vm_start - vma->vm_prev->vm_end;
+}
+
+static bool node_better(struct rb_node *node, struct rb_node *best)
+{
+        if (!best)
+                return true;
+
+        return vma_of(node)->vm_start < vma_of(best)->vm_start;
+}
+
+unsigned long find_leftmost_gap(struct mm_struct *mm, unsigned long len)
+{
+        struct rb_node *node =3D mm->mm_rb.rb_node, *best =3D NULL, *tree =
+=3D NULL;
+
+        /*
+         * Do a search for TASK_UNMAPPED_BASE + len, all nodes right of thi=
+s
+         * boundary should be considered. Path nodes are immediate candidat=
+es,
+         * their right sub-tree is stored for later consideration in case
+         * the immediate path doesn't yield a suitable node.
+         */
+        while (node) {
+                if (vma_of(node)->vm_start - len >=3D TASK_UNMAPPED_BASE) {
+                        /*
+                         * If our node has a big enough hole, track it.
+                         */
+                        if (gap_of(node) > len && node_better(node, best))
+                                best =3D node;
+
+                        /*
+                         * In case we flunk out on the path nodes, keep tra=
+ck=20
+                         * of the right sub-trees which have big enough hol=
+es.
+                         */
+                        if (node->rb_right && max_gap_of(node-rb_right) >=
+=3D len &&
+                            node_better(node->rb_right, tree))
+                                tree =3D node->rb_right;
+
+                        node =3D node->rb_left;
+                        continue;
+                }
+                node =3D node->rb_right;
+        }
+
+        if (best)
+                return vma_of(best)->vm_start - len;
+
+        /*
+         * Our stored subtree must be entirely right of TASK_UNMAPPED_BASE =
++ len
+         * so do a simple search for leftmost hole of appropriate size.
+         */
+        while (tree) {
+                if (gap_of(tree) >=3D len && node_better(tree, best))
+                        best =3D tree;
+
+                if (tree->rb_left && max_gap_of(tree->rb_left) >=3D len) {
+                        tree =3D tree->rb_left;
+                        continue;
+                }
+
+                tree =3D tree->rb_right;
+        }
+
+        if (best)
+                return vma_of(best)->vm_start - len;
+
+        /*
+         * Ok, so no path node, nor right sub-tree had a properly sized hol=
+e
+         * we could use, use the rightmost address in the tree.
+         */
+        node =3D mm->mm_rb.rb_node;
+        while (node && node->rb_right)
+                node =3D node->rb_right;
+
+        return max(vma_of(node)->vm_end, TASK_UNMAPPED_BASE);
+}
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
