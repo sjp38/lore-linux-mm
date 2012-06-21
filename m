@@ -1,41 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx108.postini.com [74.125.245.108])
-	by kanga.kvack.org (Postfix) with SMTP id 3964C6B0125
-	for <linux-mm@kvack.org>; Thu, 21 Jun 2012 19:35:00 -0400 (EDT)
-Date: Thu, 21 Jun 2012 16:34:58 -0700
+Received: from psmtp.com (na3sys010amx198.postini.com [74.125.245.198])
+	by kanga.kvack.org (Postfix) with SMTP id 4AABA6B0127
+	for <linux-mm@kvack.org>; Thu, 21 Jun 2012 19:46:09 -0400 (EDT)
+Date: Thu, 21 Jun 2012 16:46:06 -0700
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: mmotm 2012-06-21-16-20 uploaded
-Message-Id: <20120621163458.89459d7a.akpm@linux-foundation.org>
-In-Reply-To: <20120621232149.F0286A026A@akpm.mtv.corp.google.com>
-References: <20120621232149.F0286A026A@akpm.mtv.corp.google.com>
+Subject: Re: [patch 3.5-rc3] mm, mempolicy: fix mbind() to do synchronous
+ migration
+Message-Id: <20120621164606.4ae1a71d.akpm@linux-foundation.org>
+In-Reply-To: <alpine.DEB.2.00.1206201758500.3068@chino.kir.corp.google.com>
+References: <alpine.DEB.2.00.1206201758500.3068@chino.kir.corp.google.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-next@vger.kernel.org
+To: David Rientjes <rientjes@google.com>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Peter Zijlstra <a.p.zijlstra@chello.nl>, Ingo Molnar <mingo@elte.hu>
 
-On Thu, 21 Jun 2012 16:21:49 -0700
-akpm@linux-foundation.org wrote:
+On Wed, 20 Jun 2012 18:00:12 -0700 (PDT)
+David Rientjes <rientjes@google.com> wrote:
 
-> The mm-of-the-moment snapshot 2012-06-21-16-20 has been uploaded to
+> If the range passed to mbind() is not allocated on nodes set in the
+> nodemask, it migrates the pages to respect the constraint.
 > 
->    http://www.ozlabs.org/~akpm/mmotm/
+> The final formal of migrate_pages() is a mode of type enum migrate_mode,
+> not a boolean.  do_mbind() is currently passing "true" which is the
+> equivalent of MIGRATE_SYNC_LIGHT.  This should instead be MIGRATE_SYNC
+> for synchronous page migration.
+> 
+> Signed-off-by: David Rientjes <rientjes@google.com>
+> ---
+>  mm/mempolicy.c |    2 +-
+>  1 file changed, 1 insertion(+), 1 deletion(-)
+> 
+> diff --git a/mm/mempolicy.c b/mm/mempolicy.c
+> --- a/mm/mempolicy.c
+> +++ b/mm/mempolicy.c
+> @@ -1177,7 +1177,7 @@ static long do_mbind(unsigned long start, unsigned long len,
+>  		if (!list_empty(&pagelist)) {
+>  			nr_failed = migrate_pages(&pagelist, new_vma_page,
+>  						(unsigned long)vma,
+> -						false, true);
+> +						false, MIGRATE_SYNC);
+>  			if (nr_failed)
+>  				putback_lru_pages(&pagelist);
+>  		}
 
-Exciting updates to http://www.ozlabs.org/~akpm/mmotm/mmotm-readme.txt:
+I can't really do anything with this patch - it's a bug added by
+Peter's "mm/mpol: Simplify do_mbind()" and added to linux-next via one
+of Ingo's trees.
 
-: The directory http://www.ozlabs.org/~akpm/mmots/ (mm-of-the-second)
-: contains daily snapshots of the -mm tree.  It is updated more frequently
-: than mmotm, and is untested.
+And I can't cleanly take the patch over as it's all bound up with the
+other changes for sched/numa balancing.
 
-It takes me 1.5 hours to 1.5 days to do a -mm release, depending on how
-many screwups people have been merging and sending.  This makes the
-releases less frequent than I'd like.
-
-So I will do daily dumps of the -mm patches into
-http://www.ozlabs.org/~akpm/mmots/.  They are the same as the mmotm
-patches (use the same script), except they will be unannounced and
-untested.
+Is that patchset actually going anywhere in the short term in its
+present form?  If not, methinks it would be better to pull it out of
+-next for now.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
