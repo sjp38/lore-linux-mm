@@ -1,236 +1,289 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx151.postini.com [74.125.245.151])
-	by kanga.kvack.org (Postfix) with SMTP id E8FF36B0111
-	for <linux-mm@kvack.org>; Thu, 21 Jun 2012 17:57:59 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx122.postini.com [74.125.245.122])
+	by kanga.kvack.org (Postfix) with SMTP id A277D6B0115
+	for <linux-mm@kvack.org>; Thu, 21 Jun 2012 17:57:58 -0400 (EDT)
 From: Rik van Riel <riel@surriel.com>
-Subject: [PATCH -mm v2 11/11] mm: remove SH arch_get_unmapped_area functions
-Date: Thu, 21 Jun 2012 17:57:15 -0400
-Message-Id: <1340315835-28571-12-git-send-email-riel@surriel.com>
+Subject: [PATCH -mm v2 05/11] mm: get unmapped area from VMA tree
+Date: Thu, 21 Jun 2012 17:57:09 -0400
+Message-Id: <1340315835-28571-6-git-send-email-riel@surriel.com>
 In-Reply-To: <1340315835-28571-1-git-send-email-riel@surriel.com>
 References: <1340315835-28571-1-git-send-email-riel@surriel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
-Cc: akpm@linux-foundation.org, aarcange@redhat.com, peterz@infradead.org, minchan@gmail.com, kosaki.motohiro@gmail.com, andi@firstfloor.org, hannes@cmpxchg.org, mel@csn.ul.ie, linux-kernel@vger.kernel.org, Rik van Riel <riel@surriel.com>, Rik van Riel <riel@redhat.com>, Paul Mundt <lethal@linux-sh.org>, Magnus Damm <magnus.damm@gmail.com>, linux-sh@vger.kernel.org
+Cc: akpm@linux-foundation.org, aarcange@redhat.com, peterz@infradead.org, minchan@gmail.com, kosaki.motohiro@gmail.com, andi@firstfloor.org, hannes@cmpxchg.org, mel@csn.ul.ie, linux-kernel@vger.kernel.org, Rik van Riel <riel@surriel.com>, Rik van Riel <riel@redhat.com>
 
-Remove the SH special variants of arch_get_unmapped_area since
-the generic functions should now be able to handle everything.
+Change the generic implementations of arch_get_unmapped_area(_topdown)
+to use the free space info in the VMA rbtree. This makes it possible
+to find free address space in O(log(N)) complexity.
 
-Paul, does anything in NOMMU SH need shm_align_mask?
+For bottom-up allocations, we pick the lowest hole that is large
+enough for our allocation. For topdown allocations, we pick the
+highest hole of sufficient size.
 
-Untested because I have no SH hardware.
+For topdown allocations, we need to keep track of the highest
+mapped VMA address, because it might be below mm->mmap_base,
+and we only keep track of free space to the left of each VMA
+in the VMA tree.  It is tempting to try and keep track of
+the free space to the right of each VMA when running in
+topdown mode, but that gets us into trouble when running on
+x86, where a process can switch direction in the middle of
+execve.
+
+We have to leave the mm->free_area_cache and mm->largest_hole_size
+in place for now, because the architecture specific versions still
+use those.  Once all the architectures have been converted over to
+the new code, we can remove these variables from mm_struct.
 
 Signed-off-by: Rik van Riel <riel@redhat.com>
-Cc: Paul Mundt <lethal@linux-sh.org>
-Cc: Magnus Damm <magnus.damm@gmail.com>
-Cc: linux-sh@vger.kernel.org
 ---
- arch/sh/include/asm/pgtable.h |    4 -
- arch/sh/mm/mmap.c             |  219 +----------------------------------------
- 2 files changed, 2 insertions(+), 221 deletions(-)
+ include/linux/mm_types.h |    1 +
+ mm/mmap.c                |  241 +++++++++++++++++++++++++++++-----------------
+ 2 files changed, 155 insertions(+), 87 deletions(-)
 
-diff --git a/arch/sh/include/asm/pgtable.h b/arch/sh/include/asm/pgtable.h
-index 9210e93..03f5312 100644
---- a/arch/sh/include/asm/pgtable.h
-+++ b/arch/sh/include/asm/pgtable.h
-@@ -155,10 +155,6 @@ extern void paging_init(void);
- extern void page_table_range_init(unsigned long start, unsigned long end,
- 				  pgd_t *pgd);
+diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
+index 23bd1e2..6102c27 100644
+--- a/include/linux/mm_types.h
++++ b/include/linux/mm_types.h
+@@ -312,6 +312,7 @@ struct mm_struct {
+ 	unsigned long task_size;		/* size of task vm space */
+ 	unsigned long cached_hole_size; 	/* if non-zero, the largest hole below free_area_cache */
+ 	unsigned long free_area_cache;		/* first hole of size cached_hole_size or larger */
++	unsigned long highest_vm_end;		/* highest vma end address */
+ 	pgd_t * pgd;
+ 	atomic_t mm_users;			/* How many users with user space? */
+ 	atomic_t mm_count;			/* How many references to "struct mm_struct" (users count as 1) */
+diff --git a/mm/mmap.c b/mm/mmap.c
+index 95f66c5..e501b4f 100644
+--- a/mm/mmap.c
++++ b/mm/mmap.c
+@@ -4,6 +4,7 @@
+  * Written by obz.
+  *
+  * Address space accounting code	<alan@lxorguk.ukuu.org.uk>
++ * Rbtree get_unmapped_area Copyright (C) 2012  Rik van Riel
+  */
  
--/* arch/sh/mm/mmap.c */
--#define HAVE_ARCH_UNMAPPED_AREA
--#define HAVE_ARCH_UNMAPPED_AREA_TOPDOWN
--
- #define __HAVE_ARCH_PTE_SPECIAL
+ #include <linux/slab.h>
+@@ -259,6 +260,17 @@ static void adjust_free_gap(struct vm_area_struct *vma)
+ 	rb_augment_erase_end(&vma->vm_rb, vma_rb_augment_cb, NULL);
+ }
  
- #include <asm-generic/pgtable.h>
-diff --git a/arch/sh/mm/mmap.c b/arch/sh/mm/mmap.c
-index afeb710..12f5edd 100644
---- a/arch/sh/mm/mmap.c
-+++ b/arch/sh/mm/mmap.c
-@@ -14,225 +14,10 @@
- #include <asm/page.h>
- #include <asm/processor.h>
++static unsigned long node_free_gap(struct rb_node *node)
++{
++	struct vm_area_struct *vma;
++
++	if (!node)
++		return 0;
++
++	vma = rb_to_vma(node);
++	return vma->free_gap;
++}
++
+ /*
+  * Unlink a file-based vm structure from its prio_tree, to hide
+  * vma from rmap and vmtruncate before freeing its page tables.
+@@ -395,12 +407,16 @@ void validate_mm(struct mm_struct *mm)
+ 	int bug = 0;
+ 	int i = 0;
+ 	struct vm_area_struct *tmp = mm->mmap;
++	unsigned long highest_address = 0;
+ 	while (tmp) {
+ 		if (tmp->free_gap != largest_free_gap(&tmp->vm_rb))
+ 			printk("free space %lx, correct %lx\n", tmp->free_gap, largest_free_gap(&tmp->vm_rb)), bug = 1;
++		highest_address = tmp->vm_end;
+ 		tmp = tmp->vm_next;
+ 		i++;
+ 	}
++	if (highest_address != mm->highest_vm_end)
++		printk("mm->highest_vm_end %lx, found %lx\n", mm->highest_vm_end, highest_address), bug = 1;
+ 	if (i != mm->map_count)
+ 		printk("map_count %d vm_next %d\n", mm->map_count, i), bug = 1;
+ 	i = browse_rb(&mm->mm_rb);
+@@ -458,6 +474,9 @@ void __vma_link_rb(struct mm_struct *mm, struct vm_area_struct *vma,
+ 	/* Propagate the new free gap between next and us up the tree. */
+ 	if (vma->vm_next)
+ 		adjust_free_gap(vma->vm_next);
++	else
++		/* This is the VMA with the highest address. */
++		mm->highest_vm_end = vma->vm_end;
+ }
  
-+#ifndef CONFIG_MMU
- unsigned long shm_align_mask = PAGE_SIZE - 1;	/* Sane caches */
- EXPORT_SYMBOL(shm_align_mask);
--
--#ifdef CONFIG_MMU
--/*
-- * To avoid cache aliases, we map the shared page with same color.
-- */
--static inline unsigned long COLOUR_ALIGN(unsigned long addr,
--					 unsigned long pgoff)
--{
--	unsigned long base = (addr + shm_align_mask) & ~shm_align_mask;
--	unsigned long off = (pgoff << PAGE_SHIFT) & shm_align_mask;
--
--	return base + off;
--}
--
--static inline unsigned long COLOUR_ALIGN_DOWN(unsigned long addr,
--					      unsigned long pgoff)
--{
--	unsigned long base = addr & ~shm_align_mask;
--	unsigned long off = (pgoff << PAGE_SHIFT) & shm_align_mask;
--
--	if (base + off <= addr)
--		return base + off;
--
--	return base - off;
--}
--
--unsigned long arch_get_unmapped_area(struct file *filp, unsigned long addr,
--	unsigned long len, unsigned long pgoff, unsigned long flags)
--{
--	struct mm_struct *mm = current->mm;
+ static void __vma_link_file(struct vm_area_struct *vma)
+@@ -661,6 +680,8 @@ again:			remove_next = 1 + (end > next->vm_end);
+ 		end_changed = true;
+ 	}
+ 	vma->vm_pgoff = pgoff;
++	if (!next)
++		mm->highest_vm_end = end;
+ 	if (adjust_next) {
+ 		next->vm_start += adjust_next << PAGE_SHIFT;
+ 		next->vm_pgoff += adjust_next;
+@@ -1478,8 +1499,9 @@ arch_get_unmapped_area(struct file *filp, unsigned long addr,
+ 		unsigned long len, unsigned long pgoff, unsigned long flags)
+ {
+ 	struct mm_struct *mm = current->mm;
 -	struct vm_area_struct *vma;
 -	unsigned long start_addr;
--	int do_colour_align;
--
--	if (flags & MAP_FIXED) {
--		/* We do not accept a shared mapping if it would violate
--		 * cache aliasing constraints.
--		 */
--		if ((flags & MAP_SHARED) &&
--		    ((addr - (pgoff << PAGE_SHIFT)) & shm_align_mask))
--			return -EINVAL;
--		return addr;
--	}
--
--	if (unlikely(len > TASK_SIZE))
--		return -ENOMEM;
--
--	do_colour_align = 0;
--	if (filp || (flags & MAP_SHARED))
--		do_colour_align = 1;
--
--	if (addr) {
--		if (do_colour_align)
--			addr = COLOUR_ALIGN(addr, pgoff);
--		else
--			addr = PAGE_ALIGN(addr);
--
--		vma = find_vma(mm, addr);
--		if (TASK_SIZE - len >= addr &&
--		    (!vma || addr + len <= vma->vm_start))
--			return addr;
--	}
--
++	struct vm_area_struct *vma = NULL;
++	struct rb_node *rb_node;
++	unsigned long lower_limit = TASK_UNMAPPED_BASE;
+ 
+ 	if (len > TASK_SIZE)
+ 		return -ENOMEM;
+@@ -1494,40 +1516,76 @@ arch_get_unmapped_area(struct file *filp, unsigned long addr,
+ 		    (!vma || addr + len <= vma->vm_start))
+ 			return addr;
+ 	}
 -	if (len > mm->cached_hole_size) {
--		start_addr = addr = mm->free_area_cache;
+-	        start_addr = addr = mm->free_area_cache;
 -	} else {
+-	        start_addr = addr = TASK_UNMAPPED_BASE;
 -	        mm->cached_hole_size = 0;
--		start_addr = addr = TASK_UNMAPPED_BASE;
 -	}
--
+ 
 -full_search:
--	if (do_colour_align)
--		addr = COLOUR_ALIGN(addr, pgoff);
--	else
--		addr = PAGE_ALIGN(mm->free_area_cache);
--
 -	for (vma = find_vma(mm, addr); ; vma = vma->vm_next) {
 -		/* At this point:  (!vma || addr < vma->vm_end). */
--		if (unlikely(TASK_SIZE - len < addr)) {
+-		if (TASK_SIZE - len < addr) {
 -			/*
 -			 * Start a new search - just in case we missed
 -			 * some holes.
 -			 */
 -			if (start_addr != TASK_UNMAPPED_BASE) {
--				start_addr = addr = TASK_UNMAPPED_BASE;
+-				addr = TASK_UNMAPPED_BASE;
+-			        start_addr = addr;
 -				mm->cached_hole_size = 0;
 -				goto full_search;
--			}
++	/* Find the left-most free area of sufficient size. */
++	for (addr = 0, rb_node = mm->mm_rb.rb_node; rb_node; ) {
++		unsigned long vma_start;
++		bool found_here = false;
++
++		vma = rb_to_vma(rb_node);
++
++		if (vma->vm_start > len) {
++			if (!vma->vm_prev) {
++				/* This is the left-most VMA. */
++				if (vma->vm_start - len >= lower_limit) {
++					addr = lower_limit;
++					goto found_addr;
++				}
++			} else {
++				/* Is this gap large enough? Remember it. */
++				vma_start = max(vma->vm_prev->vm_end, lower_limit);
++				if (vma->vm_start - len >= vma_start) {
++					addr = vma_start;
++					found_here = true;
++				}
++			}
++
++			/* Go left if it looks promising. */
++			if (node_free_gap(rb_node->rb_left) >= len &&
++					vma->vm_start - len >= lower_limit) {
++				rb_node = rb_node->rb_left;
++				continue;
+ 			}
 -			return -ENOMEM;
--		}
--		if (likely(!vma || addr + len <= vma->vm_start)) {
+ 		}
+-		if (!vma || addr + len <= vma->vm_start) {
 -			/*
 -			 * Remember the place where we stopped the search:
 -			 */
 -			mm->free_area_cache = addr + len;
 -			return addr;
--		}
++
++		if (!found_here && node_free_gap(rb_node->rb_right) >= len) {
++			/* Last known gap is to the right of this subtree. */
++			rb_node = rb_node->rb_right;
++			continue;
++		} else if (!addr) {
++			rb_node = rb_find_next_uncle(rb_node);
++			continue;
+ 		}
 -		if (addr + mm->cached_hole_size < vma->vm_start)
 -		        mm->cached_hole_size = vma->vm_start - addr;
--
 -		addr = vma->vm_end;
--		if (do_colour_align)
--			addr = COLOUR_ALIGN(addr, pgoff);
--	}
--}
--
--unsigned long
--arch_get_unmapped_area_topdown(struct file *filp, const unsigned long addr0,
--			  const unsigned long len, const unsigned long pgoff,
--			  const unsigned long flags)
--{
++
++		/* This is the left-most gap. */
++		goto found_addr;
+ 	}
++
++	/*
++	 * There is not enough space to the left of any VMA.
++	 * Check the far right-hand side of the VMA tree.
++	 */
++	rb_node = mm->mm_rb.rb_node;
++	while (rb_node->rb_right)
++		rb_node = rb_node->rb_right;
++	vma = rb_to_vma(rb_node);
++	addr = vma->vm_end;
++
++	/*
++	 * The right-most VMA ends below the lower limit. Can only happen
++	 * if a binary personality loads the stack below the executable.
++	 */
++	if (addr < lower_limit)
++		addr = lower_limit;
++
++ found_addr:
++	if (TASK_SIZE - len < addr)
++		return -ENOMEM;
++
++	/* This "free area" was not really free. Tree corrupted? */
++	VM_BUG_ON(find_vma_intersection(mm, addr, addr+len));
++
++	return addr;
+ }
+ #endif	
+ 
+@@ -1550,9 +1608,11 @@ arch_get_unmapped_area_topdown(struct file *filp, const unsigned long addr0,
+ 			  const unsigned long len, const unsigned long pgoff,
+ 			  const unsigned long flags)
+ {
 -	struct vm_area_struct *vma;
--	struct mm_struct *mm = current->mm;
--	unsigned long addr = addr0;
--	int do_colour_align;
--
--	if (flags & MAP_FIXED) {
--		/* We do not accept a shared mapping if it would violate
--		 * cache aliasing constraints.
--		 */
--		if ((flags & MAP_SHARED) &&
--		    ((addr - (pgoff << PAGE_SHIFT)) & shm_align_mask))
--			return -EINVAL;
--		return addr;
--	}
--
--	if (unlikely(len > TASK_SIZE))
--		return -ENOMEM;
--
--	do_colour_align = 0;
--	if (filp || (flags & MAP_SHARED))
--		do_colour_align = 1;
--
--	/* requesting a specific address */
--	if (addr) {
--		if (do_colour_align)
--			addr = COLOUR_ALIGN(addr, pgoff);
--		else
--			addr = PAGE_ALIGN(addr);
--
--		vma = find_vma(mm, addr);
--		if (TASK_SIZE - len >= addr &&
--		    (!vma || addr + len <= vma->vm_start))
--			return addr;
--	}
--
++	struct vm_area_struct *vma = NULL;
+ 	struct mm_struct *mm = current->mm;
+-	unsigned long addr = addr0, start_addr;
++	unsigned long addr = addr0;
++	struct rb_node *rb_node = NULL;
++	unsigned long upper_limit = mm->mmap_base;
+ 
+ 	/* requested length too big for entire address space */
+ 	if (len > TASK_SIZE)
+@@ -1570,68 +1630,65 @@ arch_get_unmapped_area_topdown(struct file *filp, const unsigned long addr0,
+ 			return addr;
+ 	}
+ 
 -	/* check if free_area_cache is useful for us */
 -	if (len <= mm->cached_hole_size) {
--	        mm->cached_hole_size = 0;
--		mm->free_area_cache = mm->mmap_base;
--	}
--
+- 	        mm->cached_hole_size = 0;
+- 		mm->free_area_cache = mm->mmap_base;
+- 	}
++	/* requested length too big; prevent integer underflow below */
++	if (len > upper_limit)
++		return -ENOMEM;
+ 
+-try_again:
 -	/* either no address requested or can't fit in requested address hole */
--	addr = mm->free_area_cache;
--	if (do_colour_align) {
--		unsigned long base = COLOUR_ALIGN_DOWN(addr-len, pgoff);
--
--		addr = base + len;
--	}
--
--	/* make sure it can fit in the remaining address space */
--	if (likely(addr > len)) {
--		vma = find_vma(mm, addr-len);
--		if (!vma || addr <= vma->vm_start) {
--			/* remember the address as a hint for next time */
--			return (mm->free_area_cache = addr-len);
--		}
--	}
--
--	if (unlikely(mm->mmap_base < len))
--		goto bottomup;
--
--	addr = mm->mmap_base-len;
--	if (do_colour_align)
--		addr = COLOUR_ALIGN_DOWN(addr, pgoff);
--
+-	start_addr = addr = mm->free_area_cache;
++	/*
++	 * Does the highest VMA end far enough below the upper limit
++	 * of our search space?
++	 */
++	if (upper_limit - len > mm->highest_vm_end) {
++		addr = upper_limit - len;
++		goto found_addr;
++	}
+ 
+-	if (addr < len)
+-		goto fail;
++	/* Find the right-most free area of sufficient size. */
++	for (addr = 0, rb_node = mm->mm_rb.rb_node; rb_node; ) {
++		unsigned long vma_start;
++		bool found_here = false;
+ 
+-	addr -= len;
 -	do {
 -		/*
 -		 * Lookup failure means no vma is above this address,
@@ -238,22 +291,61 @@ index afeb710..12f5edd 100644
 -		 * return with success:
 -		 */
 -		vma = find_vma(mm, addr);
--		if (likely(!vma || addr+len <= vma->vm_start)) {
+-		if (!vma || addr+len <= vma->vm_start)
 -			/* remember the address as a hint for next time */
 -			return (mm->free_area_cache = addr);
--		}
--
--		/* remember the largest hole we saw so far */
--		if (addr + mm->cached_hole_size < vma->vm_start)
--		        mm->cached_hole_size = vma->vm_start - addr;
--
++		vma = rb_to_vma(rb_node);
++
++		/* Is this gap large enough? Remember it. */
++		vma_start = min(vma->vm_start, upper_limit);
++		if (vma_start > len) {
++			if (!vma->vm_prev ||
++			    (vma_start - len >= vma->vm_prev->vm_end)) {
++				addr = vma_start - len;
++				found_here = true;
++			}
++		}
+ 
+- 		/* remember the largest hole we saw so far */
+- 		if (addr + mm->cached_hole_size < vma->vm_start)
+- 		        mm->cached_hole_size = vma->vm_start - addr;
++		/* Go right if it looks promising. */
++		if (node_free_gap(rb_node->rb_right) >= len) {
++			if (upper_limit - len > vma->vm_end) {
++				rb_node = rb_node->rb_right;
++				continue;
++			}
++		}
+ 
 -		/* try just below the current vma->vm_start */
 -		addr = vma->vm_start-len;
--		if (do_colour_align)
--			addr = COLOUR_ALIGN_DOWN(addr, pgoff);
--	} while (likely(len < vma->vm_start));
--
--bottomup:
+-	} while (len < vma->vm_start);
++		if (!found_here && node_free_gap(rb_node->rb_left) >= len) {
++			/* Last known gap is to the right of this subtree. */
++			rb_node = rb_node->rb_left;
++			continue;
++		} else if (!addr) {
++			rb_node = rb_find_prev_uncle(rb_node);
++			continue;
++		}
+ 
+-fail:
+-	/*
+-	 * if hint left us with no space for the requested
+-	 * mapping then try again:
+-	 *
+-	 * Note: this is different with the case of bottomup
+-	 * which does the fully line-search, but we use find_vma
+-	 * here that causes some holes skipped.
+-	 */
+-	if (start_addr != mm->mmap_base) {
+-		mm->free_area_cache = mm->mmap_base;
+-		mm->cached_hole_size = 0;
+-		goto try_again;
++		/* This is the right-most gap. */
++		goto found_addr;
+ 	}
+ 
 -	/*
 -	 * A failed mmap() very likely causes application failure,
 -	 * so fall back to the bottom-up function here. This scenario
@@ -261,21 +353,48 @@ index afeb710..12f5edd 100644
 -	 * allocations.
 -	 */
 -	mm->cached_hole_size = ~0UL;
--	mm->free_area_cache = TASK_UNMAPPED_BASE;
+-  	mm->free_area_cache = TASK_UNMAPPED_BASE;
 -	addr = arch_get_unmapped_area(filp, addr0, len, pgoff, flags);
 -	/*
 -	 * Restore the topdown base:
 -	 */
 -	mm->free_area_cache = mm->mmap_base;
 -	mm->cached_hole_size = ~0UL;
--
--	return addr;
--}
--#endif /* CONFIG_MMU */
-+#endif
++	return -ENOMEM;
++
++ found_addr:
++	if (TASK_SIZE - len < addr)
++		return -ENOMEM;
++
++	/* This "free area" was not really free. Tree corrupted? */
++	VM_BUG_ON(find_vma_intersection(mm, addr, addr+len));
  
- /*
-  * You really shouldn't be using read() or write() on /dev/mem.  This
+ 	return addr;
+ }
+@@ -1845,6 +1902,9 @@ int expand_upwards(struct vm_area_struct *vma, unsigned long address)
+ 				vma->vm_end = address;
+ 				if (vma->vm_next)
+ 					adjust_free_gap(vma->vm_next);
++				else
++					vma->vm_mm->highest_vm_end =
++								vma->vm_end;
+ 				perf_event_mmap(vma);
+ 			}
+ 		}
+@@ -2028,6 +2088,13 @@ detach_vmas_to_be_unmapped(struct mm_struct *mm, struct vm_area_struct *vma,
+ 	*insertion_point = vma;
+ 	if (vma)
+ 		vma->vm_prev = prev;
++	else {
++		/* We just unmapped the highest VMA. */
++		if (prev)
++			mm->highest_vm_end = prev->vm_end;
++		else
++			mm->highest_vm_end = 0;
++	}
+ 	if (vma)
+ 		rb_augment_erase_end(&vma->vm_rb, vma_rb_augment_cb, NULL);
+ 	tail_vma->vm_next = NULL;
 -- 
 1.7.7.6
 
