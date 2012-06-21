@@ -1,45 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx126.postini.com [74.125.245.126])
-	by kanga.kvack.org (Postfix) with SMTP id 0797C6B00E1
-	for <linux-mm@kvack.org>; Thu, 21 Jun 2012 12:43:47 -0400 (EDT)
-Date: Thu, 21 Jun 2012 18:43:29 +0200
-From: Sebastian Andrzej Siewior <sebastian@breakpoint.cc>
-Subject: Re: [PATCH 10/17] netvm: Allow skb allocation to use PFMEMALLOC
- reserves
-Message-ID: <20120621164329.GA6195@breakpoint.cc>
-References: <1340192652-31658-1-git-send-email-mgorman@suse.de>
- <1340192652-31658-11-git-send-email-mgorman@suse.de>
- <20120621163029.GB6045@breakpoint.cc>
- <1340296719.4604.5984.camel@edumazet-glaptop>
+Received: from psmtp.com (na3sys010amx153.postini.com [74.125.245.153])
+	by kanga.kvack.org (Postfix) with SMTP id 544DA6B00E3
+	for <linux-mm@kvack.org>; Thu, 21 Jun 2012 13:23:00 -0400 (EDT)
+Received: by yhjj52 with SMTP id j52so937407yhj.8
+        for <linux-mm@kvack.org>; Thu, 21 Jun 2012 10:22:59 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1340296719.4604.5984.camel@edumazet-glaptop>
+In-Reply-To: <4FE2FCFB.4040808@jp.fujitsu.com>
+References: <4FE169B1.7020600@kernel.org> <4FE16E80.9000306@gmail.com>
+ <4FE18187.3050103@kernel.org> <4FE23069.5030702@gmail.com>
+ <4FE26470.90401@kernel.org> <CAHGf_=pjoiHQ9vxXXe-GtbkYRzhxdDhu3pf6pwDsCe5pBQE8Nw@mail.gmail.com>
+ <4FE27F15.8050102@kernel.org> <CAHGf_=pDw4axwG2tQ+B5hPks-sz2S5+G1Kk-=HSDmo=DSXOkEw@mail.gmail.com>
+ <4FE2A937.6040701@kernel.org> <4FE2FCFB.4040808@jp.fujitsu.com>
+From: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
+Date: Thu, 21 Jun 2012 13:22:37 -0400
+Message-ID: <CAHGf_=rZm8JhyQg_Fuovw3STR=bZBUpUvAXH2yYtNn0phjOU5g@mail.gmail.com>
+Subject: Re: Accounting problem of MIGRATE_ISOLATED freed page
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Eric Dumazet <eric.dumazet@gmail.com>
-Cc: Sebastian Andrzej Siewior <sebastian@breakpoint.cc>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, Linux-Netdev <netdev@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, David Miller <davem@davemloft.net>, Neil Brown <neilb@suse.de>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Mike Christie <michaelc@cs.wisc.edu>, Eric B Munson <emunson@mgebm.net>
+To: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Minchan Kim <minchan@kernel.org>, Aaditya Kumar <aaditya.kumar.30@gmail.com>, Mel Gorman <mel@csn.ul.ie>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-> > This is mostly used by nic to refil their RX skb pool. You add the
-> > __GFP_MEMALLOC to the allocation to rise the change of a successfull refill
-> > for the swap case.
-> > A few drivers use build_skb() to create the skb. __netdev_alloc_skb()
-> > shouldn't be affected since the allocation happens with GFP_ATOMIC. Looking at
-> > TG3 it uses build_skb() and get_pages() / kmalloc(). Shouldn't this be some
-> > considered?
-> 
-> Please look at net-next, this was changed recently.
-> 
-> In fact most RX allocations are done using netdev_alloc_frag(), because
-> its called from __netdev_alloc_skb()
+>
+> Hm. I'm sorry if I couldn't chase the disucussion...Can I make summary ?
+>
+> As you shown, it seems to be not difficult to counting free pages under
+> MIGRATE_ISOLATE.
+> And we can know the zone contains MIGRATE_ISOLATE area or not by simple
+> check.
+> for example.
+> =3D=3D
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0set_pageblock_migratetype(page, MIGRATE_IS=
+OLATE);
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0move_freepages_block(zone, page, MIGRATE_I=
+SOLATE);
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0zone->nr_isolated_areas++;
+> =3D
+>
+> Then, the solution will be adding a function like following
+> =3D
+> u64 zone_nr_free_pages(struct zone *zone) {
+> =A0 =A0 =A0 =A0unsigned long free_pages;
+>
+> =A0 =A0 =A0 =A0free_pages =3D zone_page_state(NR_FREE_PAGES);
+> =A0 =A0 =A0 =A0if (unlikely(z->nr_isolated_areas)) {
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0isolated =3D count_migrate_isolated_pages(=
+zone);
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0free_pages -=3D isolated;
+> =A0 =A0 =A0 =A0}
+> =A0 =A0 =A0 =A0return free_pages;
+> }
+> =3D
+>
+> Right ?
 
-Argh, this is what I meant more or less. I got the flag magic wrong so I assumed
-that this is only called without GFP_ATOMIC but it is not. Thanks for the
-hint.
+This represent my intention exactly. :)
 
-> So tg3 is not anymore the exception, but the norm.
+> and... zone->all_unreclaimable is a different problem ?
 
-Sebastian
+Yes, all_unreclaimable derived livelock don't depend on memory hotplug.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
