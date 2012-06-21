@@ -1,86 +1,173 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx176.postini.com [74.125.245.176])
-	by kanga.kvack.org (Postfix) with SMTP id DDCE96B00D4
-	for <linux-mm@kvack.org>; Thu, 21 Jun 2012 10:58:11 -0400 (EDT)
-Date: Thu, 21 Jun 2012 16:55:52 +0200
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: AutoNUMA15
-Message-ID: <20120621145552.GG4954@redhat.com>
-References: <1337965359-29725-1-git-send-email-aarcange@redhat.com>
- <20120529133627.GA7637@shutemov.name>
- <20120529154308.GA10790@dhcp-27-244.brq.redhat.com>
- <20120531180834.GP21339@redhat.com>
- <CAGjg+kHNe4RkhHKt5JYKDnE2oqs0ZBNUkL_XYOwfDK1S5cxjvw@mail.gmail.com>
+Received: from psmtp.com (na3sys010amx188.postini.com [74.125.245.188])
+	by kanga.kvack.org (Postfix) with SMTP id A4C246B00D7
+	for <linux-mm@kvack.org>; Thu, 21 Jun 2012 12:02:40 -0400 (EDT)
+Received: by wgbdq12 with SMTP id dq12so57030wgb.2
+        for <linux-mm@kvack.org>; Thu, 21 Jun 2012 09:02:38 -0700 (PDT)
+From: Greg Thelen <gthelen@google.com>
+Subject: Re: [PATCH 2/2] memcg: add per cgroup dirty pages accounting
+References: <1339761611-29033-1-git-send-email-handai.szj@taobao.com>
+	<1339761717-29070-1-git-send-email-handai.szj@taobao.com>
+	<xr93k3z8twtg.fsf@gthelen.mtv.corp.google.com>
+	<4FDC28F0.8050805@jp.fujitsu.com>
+	<CAFj3OHXuX7tpDe4famK3fFMZBcj2w-9mDs9mD9P_-SwaRKx8tg@mail.gmail.com>
+	<4FE2D2F4.2020202@jp.fujitsu.com>
+Date: Thu, 21 Jun 2012 09:02:37 -0700
+In-Reply-To: <4FE2D2F4.2020202@jp.fujitsu.com> (Kamezawa Hiroyuki's message of
+	"Thu, 21 Jun 2012 16:53:24 +0900")
+Message-ID: <xr938vfgmz4y.fsf@gthelen.mtv.corp.google.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CAGjg+kHNe4RkhHKt5JYKDnE2oqs0ZBNUkL_XYOwfDK1S5cxjvw@mail.gmail.com>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Alex Shi <lkml.alex@gmail.com>
-Cc: Petr Holasek <pholasek@redhat.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Hillf Danton <dhillf@gmail.com>, Dan Smith <danms@us.ibm.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>, Paul Turner <pjt@google.com>, Suresh Siddha <suresh.b.siddha@intel.com>, Mike Galbraith <efault@gmx.de>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Bharata B Rao <bharata.rao@gmail.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Srivatsa Vaddagiri <vatsa@linux.vnet.ibm.com>, Christoph Lameter <cl@linux.com>, Alex Shi <alex.shi@intel.com>, "Chen, Tim C" <tim.c.chen@intel.com>
+To: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Sha Zhengju <handai.szj@gmail.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, yinghan@google.com, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, mhocko@suse.cz, Sha Zhengju <handai.szj@taobao.com>
 
-On Thu, Jun 21, 2012 at 03:29:52PM +0800, Alex Shi wrote:
-> > I released an AutoNUMA15 branch that includes all pending fixes:
-> >
-> > git clone --reference linux -b autonuma15 git://git.kernel.org/pub/scm/linux/kernel/git/andrea/aa.git
-> >
-> 
-> I did a quick testing on our
-> specjbb2005/oltp/hackbench/tbench/netperf-loop/fio/ffsb on NHM EP/EX,
-> Core2 EP, Romely EP machine, In generally no clear performance change
-> found. Is this results expected for this patch set?
+On Thu, Jun 21 2012, Kamezawa Hiroyuki wrote:
 
-hackbench and network benchs won't get benefit (the former
-overschedule like crazy so there's no way any autonuma balancing can
-have effect with such an overscheduling and zillion of threads, the
-latter is I/O dominated usually taking so little RAM it doesn't
-matter, the memory accesses on the kernel side and DMA issue should
-dominate it in CPU utilization). Similar issue for filesystem
-benchmarks like fio.
+> (2012/06/19 23:31), Sha Zhengju wrote:
+>> On Sat, Jun 16, 2012 at 2:34 PM, Kamezawa Hiroyuki
+>> <kamezawa.hiroyu@jp.fujitsu.com>  wrote:
+>>> (2012/06/16 0:32), Greg Thelen wrote:
+>>>>
+>>>> On Fri, Jun 15 2012, Sha Zhengju wrote:
+>>>>
+>>>>> This patch adds memcg routines to count dirty pages. I notice that
+>>>>> the list has talked about per-cgroup dirty page limiting
+>>>>> (http://lwn.net/Articles/455341/) before, but it did not get merged.
+>>>>
+>>>>
+>>>> Good timing, I was just about to make another effort to get some of
+>>>> these patches upstream.  Like you, I was going to start with some basic
+>>>> counters.
+>>>>
+>>>> Your approach is similar to what I have in mind.  While it is good to
+>>>> use the existing PageDirty flag, rather than introducing a new
+>>>> page_cgroup flag, there are locking complications (see below) to handle
+>>>> races between moving pages between memcg and the pages being {un}marked
+>>>> dirty.
+>>>>
+>>>>> I've no idea how is this going now, but maybe we can add per cgroup
+>>>>> dirty pages accounting first. This allows the memory controller to
+>>>>> maintain an accurate view of the amount of its memory that is dirty
+>>>>> and can provide some infomation while group's direct reclaim is worki=
+ng.
+>>>>>
+>>>>> After commit 89c06bd5 (memcg: use new logic for page stat accounting),
+>>>>> we do not need per page_cgroup flag anymore and can directly use
+>>>>> struct page flag.
+>>>>>
+>>>>>
+>>>>> Signed-off-by: Sha Zhengju<handai.szj@taobao.com>
+>>>>> ---
+>>>>>   include/linux/memcontrol.h |    1 +
+>>>>>   mm/filemap.c               |    1 +
+>>>>>   mm/memcontrol.c            |   32 +++++++++++++++++++++++++-------
+>>>>>   mm/page-writeback.c        |    2 ++
+>>>>>   mm/truncate.c              |    1 +
+>>>>>   5 files changed, 30 insertions(+), 7 deletions(-)
+>>>>>
+>>>>> diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
+>>>>> index a337c2e..8154ade 100644
+>>>>> --- a/include/linux/memcontrol.h
+>>>>> +++ b/include/linux/memcontrol.h
+>>>>> @@ -39,6 +39,7 @@ enum mem_cgroup_stat_index {
+>>>>>         MEM_CGROUP_STAT_FILE_MAPPED,  /* # of pages charged as file r=
+ss */
+>>>>>         MEM_CGROUP_STAT_SWAPOUT, /* # of pages, swapped out */
+>>>>>         MEM_CGROUP_STAT_DATA, /* end of data requires synchronization=
+ */
+>>>>> +       MEM_CGROUP_STAT_FILE_DIRTY,  /* # of dirty pages in page cach=
+e */
+>>>>>         MEM_CGROUP_STAT_NSTATS,
+>>>>>   };
+>>>>>
+>>>>> diff --git a/mm/filemap.c b/mm/filemap.c
+>>>>> index 79c4b2b..5b5c121 100644
+>>>>> --- a/mm/filemap.c
+>>>>> +++ b/mm/filemap.c
+>>>>> @@ -141,6 +141,7 @@ void __delete_from_page_cache(struct page *page)
+>>>>>          * having removed the page entirely.
+>>>>>          */
+>>>>>         if (PageDirty(page)&&    mapping_cap_account_dirty(mapping)) {
+>>>>> +               mem_cgroup_dec_page_stat(page,
+>>>>> MEM_CGROUP_STAT_FILE_DIRTY);
+>>>>
+>>>>
+>>>> You need to use mem_cgroup_{begin,end}_update_page_stat around critical
+>>>> sections that:
+>>>> 1) check PageDirty
+>>>> 2) update MEM_CGROUP_STAT_FILE_DIRTY counter
+>>>>
+>>>> This protects against the page from being moved between memcg while
+>>>> accounting.  Same comment applies to all of your new calls to
+>>>> mem_cgroup_{dec,inc}_page_stat.  For usage pattern, see
+>>>> page_add_file_rmap.
+>>>>
+>>>
+>>> If you feel some difficulty with mem_cgroup_{begin,end}_update_page_sta=
+t(),
+>>> please let me know...I hope they should work enough....
+>>>
+>>
+>> Hi, Kame
+>>
+>> While digging into the bigger lock of mem_cgroup_{begin,end}_update_page=
+_stat(),
+>> I find the reality is more complex than I thought. Simply stated,
+>> modifying page info
+>> and update page stat may be wide apart and in different level (eg.
+>> mm&fs), so if we
+>> use the big lock it may lead to scalability and maintainability issues.
+>>
+>> For example:
+>>       mem_cgroup_begin_update_page_stat()
+>>       modify page information                 =3D>  TestSetPageDirty in=
+=E3=80=80ceph_set_page_dirty() (fs/ceph/addr.c)
+>>       XXXXXX                                  =3D>  other fs operations
+>>       mem_cgroup_update_page_stat()   =3D>  account_page_dirtied() in=E3=
+=80=80mm/page-writeback.c
+>>       mem_cgroup_end_update_page_stat().
+>>
+>> We can choose to get lock in higher level meaning vfs set_page_dirty()
+>> but this may span
+>> too much and can also have some missing cases.
+>> What's your opinion of this problem?
+>>
+>
+> yes, that's sad....If set_page_dirty() is always called under lock_page()=
+, the
+> story will be easier (we'll take lock_page() in move side.)
+> but the comment on set_page_dirty() says it's not true.....Now, I haven't=
+ found a magical
+> way for avoiding the race.
+> (*) If holding lock_page() in move_account() can be a generic solution, i=
+t will be good.
+>     A proposal from me is a small-start. You can start from adding hooks =
+to a
+> generic
+> functions as set_page_dirty() and __set_page_dirty_nobuffers(), clear_pag=
+e_dirty_for_io().
+>
+> And see what happens. I guess we can add WARN_ONCE() against callers of u=
+pdate_page_stat()
+> who don't take mem_cgroup_begin/end_update_page_stat()
+> (by some new check, for example, checking !rcu_read_lock_held() in update=
+_stat())
+>
+> I think we can make TODO list and catch up remaining things one by one.
+>
+> Thanks,
+> -Kame
 
-On all _system_ time dominated kernel benchmarks it is expected not to
-measure a performance optimization and if you don't measure a
-regression it's more than enough.
-
-The only benchmarks that gets benefit are userland where the user/nice
-time in top dominates. AutoNUMA cannot optimize or move kernel memory
-around, it only optimizes userland computations.
-
-So you should run HPC jobs. The only strange thing here is that
-specjbb2005 gets a measurable significant boost with AutoNUMA so if
-you didn't even get a boost with that you may want to verify:
-
-cat /sys/kernel/mm/autonuma/enabled == 1
-
-Also verify:
-
-CONFIG_AUTONUMA_DEFAULT_ENABLED=y
-
-If that's 1 well maybe the memory interconnect is so fast that there's
-no benefit?
-
-My numa01/02 benchmarks measures the best worst case of the hardware
-(not software), with -DINVERSE_BIND -DHARD_BIND parameters, you can
-consider running that to verify.
-
-Probably there should be a little boot time kernel benchmark to
-measure the inverse bind vs hard bind performance across the first two
-nodes, if the difference is nil AutoNUMA should disengage and not even
-allocate the page_autonuma (now only 12 bytes per page but anyway).
-
-If you can retest with autonuma17 it would help too as there was some
-performance issue fixed and it'd stress the new autonuma migration lru
-code:
-
-git clone --reference linux -b autonuma17 git://git.kernel.org/pub/scm/linux/kernel/git/andrea/aa.git autonuma17
-
-And the very latest is always at the autonuma branch:
-
-git clone --reference linux -b autonuma git://git.kernel.org/pub/scm/linux/kernel/git/andrea/aa.git autonuma
-
-Thanks,
-Andrea
+This might be a crazy idea.  Synchronization of PageDirty with the
+page->memcg->nr_dirty counter is a challenge because page->memcg can be
+reassigned due to inter-memcg page moving.  Could we avoid moving dirty
+pages between memcg?  Specifically, could we make them clean before
+moving.  This problem feels similar to page migration.  This would slow
+down inter-memcg page movement, because it would require writeback.  But
+I'm suspect that this is an infrequent operation.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
