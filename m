@@ -1,134 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx156.postini.com [74.125.245.156])
-	by kanga.kvack.org (Postfix) with SMTP id A47476B00FF
-	for <linux-mm@kvack.org>; Thu, 21 Jun 2012 17:06:31 -0400 (EDT)
-Message-ID: <1340312765.18025.40.camel@twins>
-Subject: Re: [PATCH -mm 2/7] mm: get unmapped area from VMA tree
-From: Peter Zijlstra <peterz@infradead.org>
-Date: Thu, 21 Jun 2012 23:06:05 +0200
-In-Reply-To: <1340057126-31143-3-git-send-email-riel@redhat.com>
-References: <1340057126-31143-1-git-send-email-riel@redhat.com>
-	 <1340057126-31143-3-git-send-email-riel@redhat.com>
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: quoted-printable
-Mime-Version: 1.0
+Received: from psmtp.com (na3sys010amx207.postini.com [74.125.245.207])
+	by kanga.kvack.org (Postfix) with SMTP id 12E986B0101
+	for <linux-mm@kvack.org>; Thu, 21 Jun 2012 17:14:58 -0400 (EDT)
+Date: Thu, 21 Jun 2012 23:14:52 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH v4 06/25] memcg: Make it possible to use the stock for
+ more than one page.
+Message-ID: <20120621211452.GB31759@tiehlicka.suse.cz>
+References: <1340015298-14133-1-git-send-email-glommer@parallels.com>
+ <1340015298-14133-7-git-send-email-glommer@parallels.com>
+ <20120620132804.GF5541@tiehlicka.suse.cz>
+ <4FE2264F.4070805@parallels.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <4FE2264F.4070805@parallels.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rik van Riel <riel@redhat.com>
-Cc: linux-mm@kvack.org, akpm@linux-foundation.org, aarcange@redhat.com, minchan@gmail.com, kosaki.motohiro@gmail.com, andi@firstfloor.org, hannes@cmpxchg.org, mel@csn.ul.ie, linux-kernel@vger.kernel.org, Rik van Riel <riel@surriel.com>
+To: Glauber Costa <glommer@parallels.com>
+Cc: linux-mm@kvack.org, Pekka Enberg <penberg@kernel.org>, Cristoph Lameter <cl@linux.com>, David Rientjes <rientjes@google.com>, cgroups@vger.kernel.org, devel@openvz.org, kamezawa.hiroyu@jp.fujitsu.com, linux-kernel@vger.kernel.org, Frederic Weisbecker <fweisbec@gmail.com>, Suleiman Souhlal <suleiman@google.com>
 
-On Mon, 2012-06-18 at 18:05 -0400, Rik van Riel wrote:
-> +       /* Find the left-most free area of sufficient size. */
+On Wed 20-06-12 23:36:47, Glauber Costa wrote:
+> On 06/20/2012 05:28 PM, Michal Hocko wrote:
+> >On Mon 18-06-12 14:27:59, Glauber Costa wrote:
+> >>From: Suleiman Souhlal <ssouhlal@FreeBSD.org>
+> >>
+> >>Signed-off-by: Suleiman Souhlal <suleiman@google.com>
+> >>Signed-off-by: Glauber Costa <glommer@parallels.com>
+> >>Acked-by: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> >
+> >I am not sure the patch is good to merge on its own without the rest.
+> >One comment bellow.
+> >
+> >>---
+> >>  mm/memcontrol.c |   18 +++++++++---------
+> >>  1 file changed, 9 insertions(+), 9 deletions(-)
+> >>
+> >>diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> >>index ce15be4..00b9f1e 100644
+> >>--- a/mm/memcontrol.c
+> >>+++ b/mm/memcontrol.c
+> >>@@ -1998,19 +1998,19 @@ static DEFINE_PER_CPU(struct memcg_stock_pcp, memcg_stock);
+> >>  static DEFINE_MUTEX(percpu_charge_mutex);
+> >>
+> >>  /*
+> >>- * Try to consume stocked charge on this cpu. If success, one page is consumed
+> >>- * from local stock and true is returned. If the stock is 0 or charges from a
+> >>- * cgroup which is not current target, returns false. This stock will be
+> >>- * refilled.
+> >>+ * Try to consume stocked charge on this cpu. If success, nr_pages pages are
+> >>+ * consumed from local stock and true is returned. If the stock is 0 or
+> >>+ * charges from a cgroup which is not current target, returns false.
+> >>+ * This stock will be refilled.
+> >>   */
+> >>-static bool consume_stock(struct mem_cgroup *memcg)
+> >>+static bool consume_stock(struct mem_cgroup *memcg, int nr_pages)
+> >>  {
+> >>  	struct memcg_stock_pcp *stock;
+> >>  	bool ret = true;
+> >
+> >I guess you want:
+> >	if (nr_pages > CHARGE_BATCH)
+> >		return false;
+> >
+> >because you don't want to try to use stock for THP pages.
+> 
+> 
+> The code reads:
+> 
+> +       if (memcg == stock->cached && stock->nr_pages >= nr_pages)
+> +               stock->nr_pages -= nr_pages;
+> 
+> Isn't stock->nr_pages always <= CHARGE_BATCH by definition?
 
+Yes it is, but why to disable preemption if we know this has no chance
+to succeed at all?
 
-Just because there's nothing better than writing it yourself.. I tried
-writing something that does the above. The below is the result, it
-doesn't use your uncle functions and is clearly limited to two
-traversals and thus trivially still O(log n). [ although I think with a
-bit of effort you can prove the same for your version ].
-
----
-
-static inline struct vm_area_struct *vma_of(struct rb_node *node)
-{
-        return container_of(node, struct vm_area_struct, vm_rb);
-}
-
-static inline unsigned long max_gap_of(struct rb_node *node)
-{
-        return vma_of(node)->free_gap;
-}
-
-static unsigned long gap_of(struct rb_node *node)
-{
-        struct vm_area_struct *vma =3D vma_of(node);
-
-        if (!vma->vm_prev)
-                return vma->vm_start;
-
-        return vma->vm_start - vma->vm_prev->vm_end;
-}
-
-static bool node_better(struct rb_node *node, struct rb_node *best)
-{
-        if (!best)
-                return true;
-
-        return vma_of(node)->vm_start < vma_of(best)->vm_start;
-}
-
-unsigned long find_leftmost_gap(struct mm_struct *mm, unsigned long len)
-{
-        struct rb_node *node =3D mm->mm_rb.rb_node, *best =3D NULL, *tree =
-=3D NULL;
-
-        /*
-         * Do a search for TASK_UNMAPPED_BASE + len, all nodes right of thi=
-s
-         * boundary should be considered. Path nodes are immediate candidat=
-es,
-         * their right sub-tree is stored for later consideration in case
-         * the immediate path doesn't yield a suitable node.
-         */
-        while (node) {
-                if (vma_of(node)->vm_start - len >=3D TASK_UNMAPPED_BASE) {
-                        /*
-                         * If our node has a big enough hole, track it.
-                         */
-                        if (gap_of(node) > len && node_better(node, best))
-                                best =3D node;
-
-                        /*
-                         * In case we flunk out on the path nodes, keep tra=
-ck=20
-                         * of the right sub-trees which have big enough hol=
-es.
-                         */
-                        if (node->rb_right && max_gap_of(node-rb_right) >=
-=3D len &&
-                            node_better(node->rb_right, tree))
-                                tree =3D node->rb_right;
-
-                        node =3D node->rb_left;
-                        continue;
-                }
-                node =3D node->rb_right;
-        }
-
-        if (best)
-                return vma_of(best)->vm_start - len;
-
-        /*
-         * Our stored subtree must be entirely right of TASK_UNMAPPED_BASE =
-+ len
-         * so do a simple search for leftmost hole of appropriate size.
-         */
-        while (tree) {
-                if (gap_of(tree) >=3D len && node_better(tree, best))
-                        best =3D tree;
-
-                if (tree->rb_left && max_gap_of(tree->rb_left) >=3D len) {
-                        tree =3D tree->rb_left;
-                        continue;
-                }
-
-                tree =3D tree->rb_right;
-        }
-
-        if (best)
-                return vma_of(best)->vm_start - len;
-
-        /*
-         * Ok, so no path node, nor right sub-tree had a properly sized hol=
-e
-         * we could use, use the rightmost address in the tree.
-         */
-        node =3D mm->mm_rb.rb_node;
-        while (node && node->rb_right)
-                node =3D node->rb_right;
-
-        return max(vma_of(node)->vm_end, TASK_UNMAPPED_BASE);
-}
+-- 
+Michal Hocko
+SUSE Labs
+SUSE LINUX s.r.o.
+Lihovarska 1060/12
+190 00 Praha 9    
+Czech Republic
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
